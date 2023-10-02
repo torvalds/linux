@@ -830,7 +830,7 @@ err:
 	return rc;
 }
 
-static int __exit dryice_rtc_remove(struct platform_device *pdev)
+static void __exit dryice_rtc_remove(struct platform_device *pdev)
 {
 	struct imxdi_dev *imxdi = platform_get_drvdata(pdev);
 
@@ -840,8 +840,6 @@ static int __exit dryice_rtc_remove(struct platform_device *pdev)
 	writel(0, imxdi->ioaddr + DIER);
 
 	clk_disable_unprepare(imxdi->clk);
-
-	return 0;
 }
 
 static const struct of_device_id dryice_dt_ids[] = {
@@ -862,7 +860,7 @@ static struct platform_driver dryice_rtc_driver __refdata = {
 		   .name = "imxdi_rtc",
 		   .of_match_table = dryice_dt_ids,
 		   },
-	.remove = __exit_p(dryice_rtc_remove),
+	.remove_new = __exit_p(dryice_rtc_remove),
 };
 
 module_platform_driver_probe(dryice_rtc_driver, dryice_rtc_probe);
