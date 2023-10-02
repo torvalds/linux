@@ -1471,6 +1471,9 @@ static __always_inline long __get_user_pages_locked(struct mm_struct *mm,
 	long ret, pages_done;
 	bool must_unlock = false;
 
+	if (!nr_pages)
+		return 0;
+
 	/*
 	 * The internal caller expects GUP to manage the lock internally and the
 	 * lock must be released when this returns.
@@ -1595,6 +1598,14 @@ retry:
 		mmap_read_unlock(mm);
 		*locked = 0;
 	}
+
+	/*
+	 * Failing to pin anything implies something has gone wrong (except when
+	 * FOLL_NOWAIT is specified).
+	 */
+	if (WARN_ON_ONCE(pages_done == 0 && !(flags & FOLL_NOWAIT)))
+		return -EFAULT;
+
 	return pages_done;
 }
 
