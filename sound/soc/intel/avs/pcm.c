@@ -603,7 +603,6 @@ static int avs_dai_fe_prepare(struct snd_pcm_substream *substream, struct snd_so
 	struct avs_dma_data *data;
 	struct avs_dev *adev = to_avs_dev(dai->dev);
 	struct hdac_ext_stream *host_stream;
-	struct hdac_bus *bus;
 	unsigned int format_val;
 	int ret;
 
@@ -613,7 +612,6 @@ static int avs_dai_fe_prepare(struct snd_pcm_substream *substream, struct snd_so
 	if (hdac_stream(host_stream)->prepared)
 		return 0;
 
-	bus = hdac_stream(host_stream)->bus;
 	snd_hdac_stream_reset(hdac_stream(host_stream));
 
 	format_val = snd_hdac_calc_stream_format(runtime->rate, runtime->channels, runtime->format,
