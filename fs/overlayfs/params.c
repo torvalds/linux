@@ -752,12 +752,12 @@ void ovl_free_fs(struct ovl_fs *ofs)
 	if (ofs->upperdir_locked)
 		ovl_inuse_unlock(ovl_upper_mnt(ofs)->mnt_root);
 
-	/* Hack!  Reuse ofs->layers as a vfsmount array before freeing it */
-	mounts = (struct vfsmount **) ofs->layers;
+	/* Reuse ofs->config.lowerdirs as a vfsmount array before freeing it */
+	mounts = (struct vfsmount **) ofs->config.lowerdirs;
 	for (i = 0; i < ofs->numlayer; i++) {
 		iput(ofs->layers[i].trap);
+		kfree(ofs->config.lowerdirs[i]);
 		mounts[i] = ofs->layers[i].mnt;
-		kfree(ofs->layers[i].name);
 	}
 	kern_unmount_array(mounts, ofs->numlayer);
 	kfree(ofs->layers);
@@ -765,6 +765,7 @@ void ovl_free_fs(struct ovl_fs *ofs)
 		free_anon_bdev(ofs->fs[i].pseudo_dev);
 	kfree(ofs->fs);
 
+	kfree(ofs->config.lowerdirs);
 	kfree(ofs->config.upperdir);
 	kfree(ofs->config.workdir);
 	if (ofs->creator_cred)
@@ -949,16 +950,16 @@ int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	struct super_block *sb = dentry->d_sb;
 	struct ovl_fs *ofs = OVL_FS(sb);
 	size_t nr, nr_merged_lower = ofs->numlayer - ofs->numdatalayer;
-	const struct ovl_layer *data_layers = &ofs->layers[nr_merged_lower];
+	char **lowerdatadirs = &ofs->config.lowerdirs[nr_merged_lower];
 
-	/* ofs->layers[0] is the upper layer */
-	seq_printf(m, ",lowerdir=%s", ofs->layers[1].name);
+	/* lowerdirs[] starts from offset 1 */
+	seq_printf(m, ",lowerdir=%s", ofs->config.lowerdirs[1]);
 	/* dump regular lower layers */
 	for (nr = 2; nr < nr_merged_lower; nr++)
-		seq_printf(m, ":%s", ofs->layers[nr].name);
+		seq_printf(m, ":%s", ofs->config.lowerdirs[nr]);
 	/* dump data lower layers */
 	for (nr = 0; nr < ofs->numdatalayer; nr++)
-		seq_printf(m, "::%s", data_layers[nr].name);
+		seq_printf(m, "::%s", lowerdatadirs[nr]);
 	if (ofs->config.upperdir) {
 		seq_show_option(m, "upperdir", ofs->config.upperdir);
 		seq_show_option(m, "workdir", ofs->config.workdir);
