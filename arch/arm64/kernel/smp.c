@@ -1061,7 +1061,7 @@ void arch_send_wakeup_ipi(unsigned int cpu)
 	 * We use a scheduler IPI to wake the CPU as this avoids the need for a
 	 * dedicated IPI and we can safely handle spurious scheduler IPIs.
 	 */
-	arch_smp_send_reschedule(cpu);
+	smp_send_reschedule(cpu);
 }
 #endif
 
