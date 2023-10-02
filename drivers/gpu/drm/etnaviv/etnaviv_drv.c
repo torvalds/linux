@@ -655,11 +655,43 @@ static struct platform_driver etnaviv_platform_driver = {
 	},
 };
 
+static int etnaviv_create_platform_device(const char *name,
+					  struct platform_device **ppdev)
+{
+	struct platform_device *pdev;
+	int ret;
+
+	pdev = platform_device_alloc(name, PLATFORM_DEVID_NONE);
+	if (!pdev)
+		return -ENOMEM;
+
+	ret = platform_device_add(pdev);
+	if (ret) {
+		platform_device_put(pdev);
+		return ret;
+	}
+
+	*ppdev = pdev;
+
+	return 0;
+}
+
+static void etnaviv_destroy_platform_device(struct platform_device **ppdev)
+{
+	struct platform_device *pdev = *ppdev;
+
+	if (!pdev)
+		return;
+
+	platform_device_unregister(pdev);
+
+	*ppdev = NULL;
+}
+
 static struct platform_device *etnaviv_drm;
 
 static int __init etnaviv_init(void)
 {
-	struct platform_device *pdev;
 	int ret;
 	struct device_node *np;
 
@@ -680,23 +712,12 @@ static int __init etnaviv_init(void)
 	for_each_compatible_node(np, NULL, "vivante,gc") {
 		if (!of_device_is_available(np))
 			continue;
-
-		pdev = platform_device_alloc("etnaviv", PLATFORM_DEVID_NONE);
-		if (!pdev) {
-			ret = -ENOMEM;
-			of_node_put(np);
-			goto unregister_platform_driver;
-		}
-
-		ret = platform_device_add(pdev);
-		if (ret) {
-			platform_device_put(pdev);
-			of_node_put(np);
-			goto unregister_platform_driver;
-		}
-
-		etnaviv_drm = pdev;
 		of_node_put(np);
+
+		ret = etnaviv_create_platform_device("etnaviv", &etnaviv_drm);
+		if (ret)
+			goto unregister_platform_driver;
+
 		break;
 	}
 
@@ -712,7 +733,7 @@ module_init(etnaviv_init);
 
 static void __exit etnaviv_exit(void)
 {
-	platform_device_unregister(etnaviv_drm);
+	etnaviv_destroy_platform_device(&etnaviv_drm);
 	platform_driver_unregister(&etnaviv_platform_driver);
 	platform_driver_unregister(&etnaviv_gpu_driver);
 }
