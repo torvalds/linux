@@ -1580,7 +1580,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 
 	/* Parse match */
 	memset(&match, 0, sizeof(match));
-	rc = efx_tc_flower_parse_match(efx, fr, &match, NULL);
+	rc = efx_tc_flower_parse_match(efx, fr, &match, extack);
 	if (rc)
 		return rc;
 	/* The rule as given to us doesn't specify a source netdevice.
@@ -1629,6 +1629,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 	if (match.mask.ct_state_est && !match.value.ct_state_est) {
 		if (match.value.tcp_syn_fin_rst) {
 			/* Can't offload this combination */
+			NL_SET_ERR_MSG_MOD(extack, "TCP flags and -est conflict for offload");
 			rc = -EOPNOTSUPP;
 			goto release;
 		}
@@ -1655,7 +1656,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 		goto release;
 	}
 
-	rc = efx_mae_match_check_caps(efx, &match.mask, NULL);
+	rc = efx_mae_match_check_caps(efx, &match.mask, extack);
 	if (rc)
 		goto release;
 
@@ -1743,6 +1744,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 					goto release;
 				}
 				if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_COUNT)) {
+					NL_SET_ERR_MSG_MOD(extack, "Count action violates action order (can't happen)");
 					rc = -EOPNOTSUPP;
 					goto release;
 				}
