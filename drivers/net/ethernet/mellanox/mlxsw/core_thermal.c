@@ -31,6 +31,7 @@
 /* External cooling devices, allowed for binding to mlxsw thermal zones. */
 static char * const mlxsw_thermal_external_allowed_cdev[] = {
 	"mlxreg_fan",
+	"emc2305",
 };
 
 struct mlxsw_cooling_states {
