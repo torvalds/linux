@@ -284,9 +284,6 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 	if (!priv->up)
 		return;
 
-	if (pra->rate_adaptive_disabled)
-		return;
-
 	if (priv->rtllib->mode != WIRELESS_MODE_N_24G)
 		return;
 

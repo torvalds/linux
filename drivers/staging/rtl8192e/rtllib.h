@@ -1146,7 +1146,6 @@ struct sw_cam_table {
 
 #define   TOTAL_CAM_ENTRY				32
 struct rate_adaptive {
-	u8				rate_adaptive_disabled;
 	u8				ratr_state;
 	u16				reserve;
 
