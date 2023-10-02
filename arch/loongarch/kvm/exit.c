@@ -214,3 +214,110 @@ int kvm_emu_idle(struct kvm_vcpu *vcpu)
 
 	return EMULATE_DONE;
 }
+
+static int kvm_trap_handle_gspr(struct kvm_vcpu *vcpu)
+{
+	int rd, rj;
+	unsigned int index;
+	unsigned long curr_pc;
+	larch_inst inst;
+	enum emulation_result er = EMULATE_DONE;
+	struct kvm_run *run = vcpu->run;
+
+	/* Fetch the instruction */
+	inst.word = vcpu->arch.badi;
+	curr_pc = vcpu->arch.pc;
+	update_pc(&vcpu->arch);
+
+	trace_kvm_exit_gspr(vcpu, inst.word);
+	er = EMULATE_FAIL;
+	switch (((inst.word >> 24) & 0xff)) {
+	case 0x0: /* CPUCFG GSPR */
+		if (inst.reg2_format.opcode == 0x1B) {
+			rd = inst.reg2_format.rd;
+			rj = inst.reg2_format.rj;
+			++vcpu->stat.cpucfg_exits;
+			index = vcpu->arch.gprs[rj];
+			er = EMULATE_DONE;
+			/*
+			 * By LoongArch Reference Manual 2.2.10.5
+			 * return value is 0 for undefined cpucfg index
+			 */
+			if (index < KVM_MAX_CPUCFG_REGS)
+				vcpu->arch.gprs[rd] = vcpu->arch.cpucfg[index];
+			else
+				vcpu->arch.gprs[rd] = 0;
+		}
+		break;
+	case 0x4: /* CSR{RD,WR,XCHG} GSPR */
+		er = kvm_handle_csr(vcpu, inst);
+		break;
+	case 0x6: /* Cache, Idle and IOCSR GSPR */
+		switch (((inst.word >> 22) & 0x3ff)) {
+		case 0x18: /* Cache GSPR */
+			er = EMULATE_DONE;
+			trace_kvm_exit_cache(vcpu, KVM_TRACE_EXIT_CACHE);
+			break;
+		case 0x19: /* Idle/IOCSR GSPR */
+			switch (((inst.word >> 15) & 0x1ffff)) {
+			case 0xc90: /* IOCSR GSPR */
+				er = kvm_emu_iocsr(inst, run, vcpu);
+				break;
+			case 0xc91: /* Idle GSPR */
+				er = kvm_emu_idle(vcpu);
+				break;
+			default:
+				er = EMULATE_FAIL;
+				break;
+			}
+			break;
+		default:
+			er = EMULATE_FAIL;
+			break;
+		}
+		break;
+	default:
+		er = EMULATE_FAIL;
+		break;
+	}
+
+	/* Rollback PC only if emulation was unsuccessful */
+	if (er == EMULATE_FAIL) {
+		kvm_err("[%#lx]%s: unsupported gspr instruction 0x%08x\n",
+			curr_pc, __func__, inst.word);
+
+		kvm_arch_vcpu_dump_regs(vcpu);
+		vcpu->arch.pc = curr_pc;
+	}
+
+	return er;
+}
+
+/*
+ * Trigger GSPR:
+ * 1) Execute CPUCFG instruction;
+ * 2) Execute CACOP/IDLE instructions;
+ * 3) Access to unimplemented CSRs/IOCSRs.
+ */
+static int kvm_handle_gspr(struct kvm_vcpu *vcpu)
+{
+	int ret = RESUME_GUEST;
+	enum emulation_result er = EMULATE_DONE;
+
+	er = kvm_trap_handle_gspr(vcpu);
+
+	if (er == EMULATE_DONE) {
+		ret = RESUME_GUEST;
+	} else if (er == EMULATE_DO_MMIO) {
+		vcpu->run->exit_reason = KVM_EXIT_MMIO;
+		ret = RESUME_HOST;
+	} else if (er == EMULATE_DO_IOCSR) {
+		vcpu->run->exit_reason = KVM_EXIT_LOONGARCH_IOCSR;
+		ret = RESUME_HOST;
+	} else {
+		kvm_queue_exception(vcpu, EXCCODE_INE, 0);
+		ret = RESUME_GUEST;
+	}
+
+	return ret;
+}
