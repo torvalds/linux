@@ -820,7 +820,7 @@ static void aspeed_video_on(struct aspeed_video *video)
 static void aspeed_video_reset(struct aspeed_video *v)
 {
 	reset_control_assert(v->reset);
-	usleep_range(100, 200);
+	udelay(100);
 	reset_control_deassert(v->reset);
 }
 
