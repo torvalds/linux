@@ -1683,7 +1683,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 						      extack);
 		if (rc)
 			goto release;
-	} else {
+	} else if (!tc->common.chain_index) {
 		/* This is not a tunnel decap rule, ignore it */
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Ignoring foreign filter without encap match\n");
