@@ -4255,7 +4255,7 @@ static int ptp_ocp_dpll_state_get(const struct dpll_pin *pin, void *pin_priv,
 }
 
 static int ptp_ocp_dpll_mode_get(const struct dpll_device *dpll, void *priv,
-				 u32 *mode, struct netlink_ext_ack *extack)
+				 enum dpll_mode *mode, struct netlink_ext_ack *extack)
 {
 	*mode = DPLL_MODE_AUTOMATIC;
 	return 0;
