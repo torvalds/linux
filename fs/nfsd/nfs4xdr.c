@@ -4826,16 +4826,19 @@ nfsd4_encode_create_session(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_create_session *sess = &u->create_session;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 24);
-	if (!p)
-		return nfserr_resource;
-	p = xdr_encode_opaque_fixed(p, sess->sessionid.data,
-					NFS4_MAX_SESSIONID_LEN);
-	*p++ = cpu_to_be32(sess->seqid);
-	*p++ = cpu_to_be32(sess->flags);
-
+	/* csr_sessionid */
+	nfserr = nfsd4_encode_sessionid4(xdr, &sess->sessionid);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* csr_sequence */
+	nfserr = nfsd4_encode_sequenceid4(xdr, sess->seqid);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* csr_flags */
+	nfserr = nfsd4_encode_uint32_t(xdr, sess->flags);
+	if (nfserr != nfs_ok)
+		return nfserr;
 	/* csr_fore_chan_attrs */
 	nfserr = nfsd4_encode_channel_attrs4(xdr, &sess->fore_channel);
 	if (nfserr != nfs_ok)
