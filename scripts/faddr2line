@@ -58,8 +58,21 @@ die() {
 	exit 1
 }
 
-READELF="${CROSS_COMPILE:-}readelf"
-ADDR2LINE="${CROSS_COMPILE:-}addr2line"
+UTIL_SUFFIX=""
+if [[ "${LLVM:-}" == "" ]]; then
+	UTIL_PREFIX=${CROSS_COMPILE:-}
+else
+	UTIL_PREFIX=llvm-
+
+	if [[ "${LLVM}" == *"/" ]]; then
+		UTIL_PREFIX=${LLVM}${UTIL_PREFIX}
+	elif [[ "${LLVM}" == "-"* ]]; then
+		UTIL_SUFFIX=${LLVM}
+	fi
+fi
+
+READELF="${UTIL_PREFIX}readelf${UTIL_SUFFIX}"
+ADDR2LINE="${UTIL_PREFIX}addr2line${UTIL_SUFFIX}"
 AWK="awk"
 GREP="grep"
 
