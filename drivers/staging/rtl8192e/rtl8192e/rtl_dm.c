@@ -370,8 +370,6 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 			ratr_value &= ~(RATE_ALL_OFDM_2SS);
 			rtl92e_writel(dev, RATR0, ratr_value);
 			rtl92e_writeb(dev, UFWP, 1);
-
-			pra->last_ratr = target_ratr;
 		}
 
 	} else {

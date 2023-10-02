@@ -1164,7 +1164,6 @@ struct rate_adaptive {
 	u8				ping_rssi_enable;
 	u32				ping_rssi_ratr;
 	u32				ping_rssi_thresh_for_ra;
-	u32				last_ratr;
 	u8				PreRATRState;
 
 };
