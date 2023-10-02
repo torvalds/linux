@@ -624,7 +624,7 @@ struct mlxsw_linecards {
 	struct mlxsw_linecard_types_info *types_info;
 	struct list_head event_ops_list;
 	struct mutex event_ops_list_lock; /* Locks accesses to event ops list */
-	struct mlxsw_linecard linecards[];
+	struct mlxsw_linecard linecards[] __counted_by(count);
 };
 
 static inline struct mlxsw_linecard *
