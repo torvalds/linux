@@ -32,8 +32,10 @@
 
 static const char ucode_path[] = "kernel/x86/microcode/GenuineIntel.bin";
 
+#define UCODE_BSP_LOADED	((struct microcode_intel *)0x1UL)
+
 /* Current microcode patch used in early patching on the APs. */
-static struct microcode_intel *intel_ucode_patch __read_mostly;
+static struct microcode_intel *ucode_patch_va __read_mostly;
 
 /* last level cache size per core */
 static unsigned int llc_size_per_core __ro_after_init;
@@ -240,22 +242,30 @@ int intel_microcode_sanity_check(void *mc, bool print_err, int hdr_type)
 }
 EXPORT_SYMBOL_GPL(intel_microcode_sanity_check);
 
-static void save_microcode_patch(void *data, unsigned int size)
+static void update_ucode_pointer(struct microcode_intel *mc)
 {
-	struct microcode_header_intel *p;
+	kfree(ucode_patch_va);
 
-	p = kmemdup(data, size, GFP_KERNEL);
-	if (!p)
-		return;
-
-	kfree(intel_ucode_patch);
-	/* Save for early loading */
-	intel_ucode_patch = (struct microcode_intel *)p;
+	/*
+	 * Save the virtual address for early loading and for eventual free
+	 * on late loading.
+	 */
+	ucode_patch_va = mc;
 }
 
-/* Scan CPIO for microcode matching the boot CPU's family, model, stepping */
-static struct microcode_intel *scan_microcode(void *data, size_t size,
-					      struct ucode_cpu_info *uci, bool save)
+static void save_microcode_patch(struct microcode_intel *patch)
+{
+	struct microcode_intel *mc;
+
+	mc = kmemdup(patch, get_totalsize(&patch->hdr), GFP_KERNEL);
+	if (mc)
+		update_ucode_pointer(mc);
+}
+
+/* Scan blob for microcode matching the boot CPUs family, model, stepping */
+static __init struct microcode_intel *scan_microcode(void *data, size_t size,
+						     struct ucode_cpu_info *uci,
+						     bool save)
 {
 	struct microcode_header_intel *mc_header;
 	struct microcode_intel *patch = NULL;
@@ -273,35 +283,35 @@ static struct microcode_intel *scan_microcode(void *data, size_t size,
 		if (!intel_find_matching_signature(data, uci->cpu_sig.sig, uci->cpu_sig.pf))
 			continue;
 
-		/* BSP scan: Check whether there is newer microcode */
-		if (!save && cur_rev >= mc_header->rev)
+		/*
+		 * For saving the early microcode, find the matching revision which
+		 * was loaded on the BSP.
+		 *
+		 * On the BSP during early boot, find a newer revision than
+		 * actually loaded in the CPU.
+		 */
+		if (save) {
+			if (cur_rev != mc_header->rev)
+				continue;
+		} else if (cur_rev >= mc_header->rev) {
 			continue;
-
-		/* Save scan: Check whether there is newer or matching microcode */
-		if (save && cur_rev != mc_header->rev)
-			continue;
+		}
 
 		patch = data;
 		cur_rev = mc_header->rev;
 	}
 
-	if (size)
-		return NULL;
-
-	if (save && patch)
-		save_microcode_patch(patch, mc_size);
-
-	return patch;
+	return size ? NULL : patch;
 }
 
-static int apply_microcode_early(struct ucode_cpu_info *uci)
+static enum ucode_state apply_microcode_early(struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc;
 	u32 rev, old_rev, date;
 
 	mc = uci->mc;
 	if (!mc)
-		return 0;
+		return UCODE_NFOUND;
 
 	/*
 	 * Save us the MSR write below - which is a particular expensive
@@ -327,17 +337,17 @@ static int apply_microcode_early(struct ucode_cpu_info *uci)
 
 	rev = intel_get_microcode_revision();
 	if (rev != mc->hdr.rev)
-		return -1;
+		return UCODE_ERROR;
 
 	uci->cpu_sig.rev = rev;
 
 	date = mc->hdr.date;
 	pr_info_once("updated early: 0x%x -> 0x%x, date = %04x-%02x-%02x\n",
 		     old_rev, rev, date & 0xffff, date >> 24, (date >> 16) & 0xff);
-	return 0;
+	return UCODE_UPDATED;
 }
 
-static bool load_builtin_intel_microcode(struct cpio_data *cp)
+static __init bool load_builtin_intel_microcode(struct cpio_data *cp)
 {
 	unsigned int eax = 1, ebx, ecx = 0, edx;
 	struct firmware fw;
@@ -359,39 +369,10 @@ static bool load_builtin_intel_microcode(struct cpio_data *cp)
 	return false;
 }
 
-int __init save_microcode_in_initrd_intel(void)
-{
-	struct ucode_cpu_info uci;
-	struct cpio_data cp;
-
-	/*
-	 * initrd is going away, clear patch ptr. We will scan the microcode one
-	 * last time before jettisoning and save a patch, if found. Then we will
-	 * update that pointer too, with a stable patch address to use when
-	 * resuming the cores.
-	 */
-	intel_ucode_patch = NULL;
-
-	if (!load_builtin_intel_microcode(&cp))
-		cp = find_microcode_in_initrd(ucode_path);
-
-	if (!(cp.data && cp.size))
-		return 0;
-
-	intel_cpu_collect_info(&uci);
-
-	scan_microcode(cp.data, cp.size, &uci, true);
-	return 0;
-}
-
-/*
- * @res_patch, output: a pointer to the patch we found.
- */
-static struct microcode_intel *__load_ucode_intel(struct ucode_cpu_info *uci)
+static __init struct microcode_intel *get_microcode_blob(struct ucode_cpu_info *uci, bool save)
 {
 	struct cpio_data cp;
 
-	/* try built-in microcode first */
 	if (!load_builtin_intel_microcode(&cp))
 		cp = find_microcode_in_initrd(ucode_path);
 
@@ -400,48 +381,59 @@ static struct microcode_intel *__load_ucode_intel(struct ucode_cpu_info *uci)
 
 	intel_cpu_collect_info(uci);
 
-	return scan_microcode(cp.data, cp.size, uci, false);
+	return scan_microcode(cp.data, cp.size, uci, save);
 }
 
-void __init load_ucode_intel_bsp(void)
+/*
+ * Invoked from an early init call to save the microcode blob which was
+ * selected during early boot when mm was not usable. The microcode must be
+ * saved because initrd is going away. It's an early init call so the APs
+ * just can use the pointer and do not have to scan initrd/builtin firmware
+ * again.
+ */
+static int __init save_builtin_microcode(void)
 {
-	struct microcode_intel *patch;
 	struct ucode_cpu_info uci;
 
-	patch = __load_ucode_intel(&uci);
-	if (!patch)
-		return;
+	if (xchg(&ucode_patch_va, NULL) != UCODE_BSP_LOADED)
+		return 0;
 
-	uci.mc = patch;
+	if (dis_ucode_ldr || boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return 0;
 
-	apply_microcode_early(&uci);
+	uci.mc = get_microcode_blob(&uci, true);
+	if (uci.mc)
+		save_microcode_patch(uci.mc);
+	return 0;
+}
+early_initcall(save_builtin_microcode);
+
+/* Load microcode on BSP from initrd or builtin blobs */
+void __init load_ucode_intel_bsp(void)
+{
+	struct ucode_cpu_info uci;
+
+	uci.mc = get_microcode_blob(&uci, false);
+	if (uci.mc && apply_microcode_early(&uci) == UCODE_UPDATED)
+		ucode_patch_va = UCODE_BSP_LOADED;
 }
 
 void load_ucode_intel_ap(void)
 {
 	struct ucode_cpu_info uci;
 
-	if (!intel_ucode_patch) {
-		intel_ucode_patch = __load_ucode_intel(&uci);
-		if (!intel_ucode_patch)
-			return;
-	}
-
-	uci.mc = intel_ucode_patch;
-	apply_microcode_early(&uci);
+	uci.mc = ucode_patch_va;
+	if (uci.mc)
+		apply_microcode_early(&uci);
 }
 
+/* Reload microcode on resume */
 void reload_ucode_intel(void)
 {
-	struct ucode_cpu_info uci;
+	struct ucode_cpu_info uci = { .mc = ucode_patch_va, };
 
-	intel_cpu_collect_info(&uci);
-
-	uci.mc = intel_ucode_patch;
-	if (!uci.mc)
-		return;
-
-	apply_microcode_early(&uci);
+	if (uci.mc)
+		apply_microcode_early(&uci);
 }
 
 static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)
@@ -478,7 +470,7 @@ static enum ucode_state apply_microcode_intel(int cpu)
 	if (WARN_ON(raw_smp_processor_id() != cpu))
 		return UCODE_ERROR;
 
-	mc = intel_ucode_patch;
+	mc = ucode_patch_va;
 	if (!mc) {
 		mc = uci->mc;
 		if (!mc)
@@ -538,8 +530,8 @@ out:
 static enum ucode_state parse_microcode_blobs(int cpu, struct iov_iter *iter)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	unsigned int curr_mc_size = 0, new_mc_size = 0;
 	int cur_rev = uci->cpu_sig.rev;
+	unsigned int curr_mc_size = 0;
 	u8 *new_mc = NULL, *mc = NULL;
 
 	while (iov_iter_count(iter)) {
@@ -589,7 +581,6 @@ static enum ucode_state parse_microcode_blobs(int cpu, struct iov_iter *iter)
 		vfree(new_mc);
 		cur_rev = mc_header.rev;
 		new_mc  = mc;
-		new_mc_size = mc_size;
 		mc = NULL;
 	}
 
@@ -603,11 +594,11 @@ static enum ucode_state parse_microcode_blobs(int cpu, struct iov_iter *iter)
 	if (!new_mc)
 		return UCODE_NFOUND;
 
-	vfree(uci->mc);
-	uci->mc = (struct microcode_intel *)new_mc;
-
 	/* Save for CPU hotplug */
-	save_microcode_patch(new_mc, new_mc_size);
+	save_microcode_patch((struct microcode_intel *)new_mc);
+	uci->mc = ucode_patch_va;
+
+	vfree(new_mc);
 
 	pr_debug("CPU%d found a matching microcode update with version 0x%x (current=0x%x)\n",
 		 cpu, cur_rev, uci->cpu_sig.rev);
