@@ -318,7 +318,7 @@
 	status = "okay";
 
 	ssif-bmc@10 {
-		compatible = "aspeed,ast2600-ssif-bmc";
+		compatible = "ssif-bmc";
 		reg = <0x10>;
 	};
 };
