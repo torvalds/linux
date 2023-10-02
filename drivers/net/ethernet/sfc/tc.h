@@ -140,10 +140,14 @@ static inline bool efx_tc_match_is_encap(const struct efx_tc_match_fields *mask)
  *	The pseudo encap match may be referenced again by an encap match
  *	with different values for these fields, but all masks must match the
  *	first (stored in our child_* fields).
+ * @EFX_TC_EM_PSEUDO_OR: registered by an fLHS rule that fits in the OR
+ *	table.  The &struct efx_tc_lhs_rule already holds the HW OR entry.
+ *	Only one reference to this encap match may exist.
  */
 enum efx_tc_em_pseudo_type {
 	EFX_TC_EM_DIRECT,
 	EFX_TC_EM_PSEUDO_MASK,
+	EFX_TC_EM_PSEUDO_OR,
 };
 
 struct efx_tc_encap_match {
@@ -183,6 +187,7 @@ struct efx_tc_action_set_list {
 };
 
 struct efx_tc_lhs_action {
+	enum efx_encap_type tun_type;
 	struct efx_tc_recirc_id *rid;
 	struct efx_tc_ct_zone *zone;
 	struct efx_tc_counter_index *count;

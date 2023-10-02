@@ -1705,8 +1705,10 @@ static int efx_mae_insert_lhs_outer_rule(struct efx_nic *efx,
 
 	/* action */
 	act = &rule->lhs_act;
-	MCDI_SET_DWORD(inbuf, MAE_OUTER_RULE_INSERT_IN_ENCAP_TYPE,
-		       MAE_MCDI_ENCAP_TYPE_NONE);
+	rc = efx_mae_encap_type_to_mae_type(act->tun_type);
+	if (rc < 0)
+		return rc;
+	MCDI_SET_DWORD(inbuf, MAE_OUTER_RULE_INSERT_IN_ENCAP_TYPE, rc);
 	/* We always inhibit CT lookup on TCP_INTERESTING_FLAGS, since the
 	 * SW path needs to process the packet to update the conntrack tables
 	 * on connection establishment (SYN) or termination (FIN, RST).
