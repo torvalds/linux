@@ -1351,7 +1351,7 @@ config RTC_DRV_DIGICOLOR
 
 config RTC_DRV_IMXDI
 	tristate "Freescale IMX DryIce Real Time Clock"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on OF
 	help
 	   Support for Freescale IMX DryIce RTC
