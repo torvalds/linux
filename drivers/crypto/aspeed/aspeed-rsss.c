@@ -143,23 +143,22 @@ static int aspeed_rsss_probe(struct platform_device *pdev)
 	}
 
 	rc = aspeed_rsss_rsa_init(rsss_dev);
-	if (rc)
-		goto clk_exit;
+	if (rc) {
+		dev_err(dev, "RSA init failed\n");
+		return rc;
+	}
 
 	rc = aspeed_rsss_sha3_init(rsss_dev);
-	if (rc)
-		goto clk_exit;
+	if (rc) {
+		dev_err(dev, "SHA3 init failed\n");
+		return rc;
+	}
 
 	aspeed_rsss_register(rsss_dev);
 
 	dev_info(dev, "Aspeed RSSS Hardware Accelerator successfully registered\n");
 
 	return 0;
-
-clk_exit:
-	clk_disable_unprepare(rsss_dev->clk);
-
-	return rc;
 }
 
 static int aspeed_rsss_remove(struct platform_device *pdev)
@@ -169,7 +168,6 @@ static int aspeed_rsss_remove(struct platform_device *pdev)
 	aspeed_rsss_unregister(rsss_dev);
 	aspeed_rsss_rsa_exit(rsss_dev);
 	aspeed_rsss_sha3_exit(rsss_dev);
-	clk_disable_unprepare(rsss_dev->clk);
 
 	return 0;
 }

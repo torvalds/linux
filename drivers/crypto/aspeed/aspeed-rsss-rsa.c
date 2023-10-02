@@ -481,7 +481,7 @@ struct aspeed_rsss_alg aspeed_rsss_algs_rsa = {
 		.exit = aspeed_rsa_exit_tfm,
 		.base = {
 			.cra_name = "rsa",
-			.cra_driver_name = "aspeed-rsss-rsa",
+			.cra_driver_name = "aspeed-rsa",
 			.cra_priority = 300,
 			.cra_flags = CRYPTO_ALG_TYPE_AKCIPHER |
 				CRYPTO_ALG_ASYNC |
