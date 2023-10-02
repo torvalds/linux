@@ -655,7 +655,7 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 	_rtl92e_cancel_deferred_work(priv);
 	cancel_delayed_work(&priv->rtllib->hw_wakeup_wq);
 
-	rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
+	rtllib_softmac_stop_protocol(priv->rtllib);
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	while (priv->rf_change_in_progress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
@@ -1763,7 +1763,7 @@ void rtl92e_commit(struct net_device *dev)
 
 	if (priv->up == 0)
 		return;
-	rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
+	rtllib_softmac_stop_protocol(priv->rtllib);
 	rtl92e_irq_disable(dev);
 	rtl92e_stop_adapter(dev, true);
 	_rtl92e_up(dev);

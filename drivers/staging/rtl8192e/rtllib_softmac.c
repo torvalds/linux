@@ -2279,12 +2279,11 @@ struct sk_buff *rtllib_get_beacon(struct rtllib_device *ieee)
 }
 EXPORT_SYMBOL(rtllib_get_beacon);
 
-void rtllib_softmac_stop_protocol(struct rtllib_device *ieee, u8 mesh_flag,
-				  u8 shutdown)
+void rtllib_softmac_stop_protocol(struct rtllib_device *ieee)
 {
 	rtllib_stop_scan_syncro(ieee);
 	mutex_lock(&ieee->wx_mutex);
-	rtllib_stop_protocol(ieee, shutdown);
+	rtllib_stop_protocol(ieee, true);
 	mutex_unlock(&ieee->wx_mutex);
 }
 EXPORT_SYMBOL(rtllib_softmac_stop_protocol);
