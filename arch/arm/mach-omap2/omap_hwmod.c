@@ -2209,7 +2209,7 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 		return err;
 
 	pr_debug("omap_hwmod: %s %pOFn at %pR\n",
-		 oh->name, np, &res);
+		 oh->name, np, res);
 
 	if (oh && oh->mpu_rt_idx) {
 		omap_hwmod_fix_mpu_rt_idx(oh, np, res);
