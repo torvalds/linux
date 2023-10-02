@@ -919,6 +919,10 @@ static const struct nla_policy fq_policy[TCA_FQ_MAX + 1] = {
 			.type = NLA_BINARY,
 			.len = sizeof(struct tc_prio_qopt),
 		},
+	[TCA_FQ_WEIGHTS]		= {
+			.type = NLA_BINARY,
+			.len = FQ_BANDS * sizeof(s32),
+		},
 };
 
 /* compress a u8 array with all elems <= 3 to an array of 2-bit fields */
@@ -939,6 +943,25 @@ static void fq_prio2band_decompress_crumb(const u8 *in, u8 *out)
 
 	for (i = 0; i < num_elems; i++)
 		out[i] = fq_prio2band(in, i);
+}
+
+static int fq_load_weights(struct fq_sched_data *q,
+			   const struct nlattr *attr,
+			   struct netlink_ext_ack *extack)
+{
+	s32 *weights = nla_data(attr);
+	int i;
+
+	for (i = 0; i < FQ_BANDS; i++) {
+		if (weights[i] < FQ_MIN_WEIGHT) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "Weight %d less that minimum allowed %d",
+					       weights[i], FQ_MIN_WEIGHT);
+			return -EINVAL;
+		}
+	}
+	for (i = 0; i < FQ_BANDS; i++)
+		q->band_flows[i].quantum = weights[i];
+	return 0;
 }
 
 static int fq_load_priomap(struct fq_sched_data *q,
@@ -1039,6 +1062,9 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt,
 
 	if (!err && tb[TCA_FQ_PRIOMAP])
 		err = fq_load_priomap(q, tb[TCA_FQ_PRIOMAP], extack);
+
+	if (!err && tb[TCA_FQ_WEIGHTS])
+		err = fq_load_weights(q, tb[TCA_FQ_WEIGHTS], extack);
 
 	if (tb[TCA_FQ_ORPHAN_MASK])
 		q->orphan_mask = nla_get_u32(tb[TCA_FQ_ORPHAN_MASK]);
@@ -1142,6 +1168,7 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	};
 	u64 horizon = q->horizon;
 	struct nlattr *opts;
+	s32 weights[3];
 
 	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
@@ -1173,6 +1200,12 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 	fq_prio2band_decompress_crumb(q->prio2band, prio.priomap);
 	if (nla_put(skb, TCA_FQ_PRIOMAP, sizeof(prio), &prio))
+		goto nla_put_failure;
+
+	weights[0] = q->band_flows[0].quantum;
+	weights[1] = q->band_flows[1].quantum;
+	weights[2] = q->band_flows[2].quantum;
+	if (nla_put(skb, TCA_FQ_WEIGHTS, sizeof(weights), &weights))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);

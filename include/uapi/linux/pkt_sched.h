@@ -943,12 +943,15 @@ enum {
 
 	TCA_FQ_PRIOMAP,		/* prio2band */
 
+	TCA_FQ_WEIGHTS,		/* Weights for each band */
+
 	__TCA_FQ_MAX
 };
 
 #define TCA_FQ_MAX	(__TCA_FQ_MAX - 1)
 
 #define FQ_BANDS 3
+#define FQ_MIN_WEIGHT 16384
 
 struct tc_fq_qd_stats {
 	__u64	gc_flows;
