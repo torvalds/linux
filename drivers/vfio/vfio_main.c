@@ -946,6 +946,11 @@ void vfio_combine_iova_ranges(struct rb_root_cached *root, u32 cur_nodes,
 		unsigned long last;
 
 		comb_start = interval_tree_iter_first(root, 0, ULONG_MAX);
+
+		/* Empty list */
+		if (WARN_ON_ONCE(!comb_start))
+			return;
+
 		curr = comb_start;
 		while (curr) {
 			last = curr->last;
@@ -975,6 +980,11 @@ void vfio_combine_iova_ranges(struct rb_root_cached *root, u32 cur_nodes,
 			prev = curr;
 			curr = interval_tree_iter_next(curr, 0, ULONG_MAX);
 		}
+
+		/* Empty list or no nodes to combine */
+		if (WARN_ON_ONCE(min_gap == ULONG_MAX))
+			break;
+
 		comb_start->last = comb_end->last;
 		interval_tree_remove(comb_end, root);
 		cur_nodes--;
