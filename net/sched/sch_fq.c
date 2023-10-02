@@ -106,7 +106,6 @@ struct fq_sched_data {
 
 	struct rb_root	delayed;	/* for rate limited flows */
 	u64		time_next_delayed_flow;
-	u64		ktime_cache;	/* copy of last ktime_get_ns() */
 	unsigned long	unthrottle_latency_ns;
 
 	struct fq_flow	internal;	/* for non classified or high prio packets */
@@ -282,12 +281,13 @@ static void fq_gc(struct fq_sched_data *q,
  *
  * FQ can not use generic TCQ_F_CAN_BYPASS infrastructure.
  */
-static bool fq_fastpath_check(const struct Qdisc *sch, struct sk_buff *skb)
+static bool fq_fastpath_check(const struct Qdisc *sch, struct sk_buff *skb,
+			      u64 now)
 {
 	const struct fq_sched_data *q = qdisc_priv(sch);
 	const struct sock *sk;
 
-	if (fq_skb_cb(skb)->time_to_send > q->ktime_cache)
+	if (fq_skb_cb(skb)->time_to_send > now)
 		return false;
 
 	if (sch->q.qlen != 0) {
@@ -317,7 +317,8 @@ static bool fq_fastpath_check(const struct Qdisc *sch, struct sk_buff *skb)
 	return true;
 }
 
-static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb)
+static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb,
+				   u64 now)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
 	struct rb_node **p, *parent;
@@ -360,7 +361,7 @@ static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb)
 		sk = (struct sock *)((hash << 1) | 1UL);
 	}
 
-	if (fq_fastpath_check(sch, skb)) {
+	if (fq_fastpath_check(sch, skb, now)) {
 		q->internal.stat_fastpath_packets++;
 		return &q->internal;
 	}
@@ -497,9 +498,9 @@ static void flow_queue_add(struct fq_flow *flow, struct sk_buff *skb)
 }
 
 static bool fq_packet_beyond_horizon(const struct sk_buff *skb,
-				    const struct fq_sched_data *q)
+				     const struct fq_sched_data *q, u64 now)
 {
-	return unlikely((s64)skb->tstamp > (s64)(q->ktime_cache + q->horizon));
+	return unlikely((s64)skb->tstamp > (s64)(now + q->horizon));
 }
 
 static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
@@ -507,27 +508,28 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
 	struct fq_flow *f;
+	u64 now;
 
 	if (unlikely(sch->q.qlen >= sch->limit))
 		return qdisc_drop(skb, sch, to_free);
 
-	q->ktime_cache = ktime_get_ns();
+	now = ktime_get_ns();
 	if (!skb->tstamp) {
-		fq_skb_cb(skb)->time_to_send = q->ktime_cache;
+		fq_skb_cb(skb)->time_to_send = now;
 	} else {
 		/* Check if packet timestamp is too far in the future. */
-		if (fq_packet_beyond_horizon(skb, q)) {
+		if (fq_packet_beyond_horizon(skb, q, now)) {
 			if (q->horizon_drop) {
 					q->stat_horizon_drops++;
 					return qdisc_drop(skb, sch, to_free);
 			}
 			q->stat_horizon_caps++;
-			skb->tstamp = q->ktime_cache + q->horizon;
+			skb->tstamp = now + q->horizon;
 		}
 		fq_skb_cb(skb)->time_to_send = skb->tstamp;
 	}
 
-	f = fq_classify(sch, skb);
+	f = fq_classify(sch, skb, now);
 
 	if (f != &q->internal) {
 		if (unlikely(f->qlen >= q->flow_plimit)) {
@@ -602,7 +604,7 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 		goto out;
 	}
 
-	q->ktime_cache = now = ktime_get_ns();
+	now = ktime_get_ns();
 	fq_check_throttled(q, now);
 begin:
 	head = &q->new_flows;
