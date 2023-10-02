@@ -2645,12 +2645,17 @@
   __traceiter_android_vh_check_bpf_syscall
   __traceiter_android_vh_check_file_open
   __traceiter_android_vh_check_mmap_file
+  __traceiter_android_vh_compaction_exit
+  __traceiter_android_vh_compaction_try_to_compact_pages_exit
   __traceiter_android_vh_cpufreq_fast_switch
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_iommu_iovad_alloc_iova
   __traceiter_android_vh_iommu_iovad_free_iova
   __traceiter_android_vh_is_fpsimd_save
+  __traceiter_android_vh_mm_alloc_pages_direct_reclaim_enter
+  __traceiter_android_vh_mm_alloc_pages_direct_reclaim_exit
+  __traceiter_android_vh_mm_alloc_pages_may_oom_exit
   __traceiter_android_vh_rwsem_init
   __traceiter_android_vh_rwsem_wake
   __traceiter_android_vh_rwsem_write_finished
@@ -2661,6 +2666,7 @@
   __traceiter_android_vh_show_suspend_epoch_val
   __traceiter_android_vh_syscall_prctl_finished
   __traceiter_android_vh_ufs_clock_scaling
+  __traceiter_android_vh_vmscan_kswapd_done
   __traceiter_cpu_frequency
   __traceiter_gpu_mem_total
   __traceiter_ipi_entry
@@ -2740,12 +2746,17 @@
   __tracepoint_android_vh_check_bpf_syscall
   __tracepoint_android_vh_check_file_open
   __tracepoint_android_vh_check_mmap_file
+  __tracepoint_android_vh_compaction_exit
+  __tracepoint_android_vh_compaction_try_to_compact_pages_exit
   __tracepoint_android_vh_cpufreq_fast_switch
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_iommu_iovad_alloc_iova
   __tracepoint_android_vh_iommu_iovad_free_iova
   __tracepoint_android_vh_is_fpsimd_save
+  __tracepoint_android_vh_mm_alloc_pages_direct_reclaim_enter
+  __tracepoint_android_vh_mm_alloc_pages_direct_reclaim_exit
+  __tracepoint_android_vh_mm_alloc_pages_may_oom_exit
   __tracepoint_android_vh_rwsem_init
   __tracepoint_android_vh_rwsem_wake
   __tracepoint_android_vh_rwsem_write_finished
@@ -2756,6 +2767,7 @@
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_android_vh_syscall_prctl_finished
   __tracepoint_android_vh_ufs_clock_scaling
+  __tracepoint_android_vh_vmscan_kswapd_done
   __tracepoint_cpu_frequency
   __tracepoint_gpu_mem_total
   __tracepoint_ipi_entry
