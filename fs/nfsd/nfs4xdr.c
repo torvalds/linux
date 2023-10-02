@@ -3886,6 +3886,14 @@ nfsd4_encode_stateid4(struct xdr_stream *xdr, const stateid_t *sid)
 }
 
 static __be32
+nfsd4_encode_sessionid4(struct xdr_stream *xdr,
+			const struct nfs4_sessionid *sessionid)
+{
+	return nfsd4_encode_opaque_fixed(xdr, sessionid->data,
+					 NFS4_MAX_SESSIONID_LEN);
+}
+
+static __be32
 nfsd4_encode_access(struct nfsd4_compoundres *resp, __be32 nfserr,
 		    union nfsd4_op_u *u)
 {
@@ -3906,17 +3914,16 @@ static __be32 nfsd4_encode_bind_conn_to_session(struct nfsd4_compoundres *resp, 
 {
 	struct nfsd4_bind_conn_to_session *bcts = &u->bind_conn_to_session;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, NFS4_MAX_SESSIONID_LEN + 8);
-	if (!p)
+	/* bctsr_sessid */
+	nfserr = nfsd4_encode_sessionid4(xdr, &bcts->sessionid);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* bctsr_dir */
+	if (xdr_stream_encode_u32(xdr, bcts->dir) != XDR_UNIT)
 		return nfserr_resource;
-	p = xdr_encode_opaque_fixed(p, bcts->sessionid.data,
-					NFS4_MAX_SESSIONID_LEN);
-	*p++ = cpu_to_be32(bcts->dir);
-	/* Upshifting from TCP to RDMA is not supported */
-	*p++ = cpu_to_be32(0);
-	return 0;
+	/* bctsr_use_conn_in_rdma_mode */
+	return nfsd4_encode_bool(xdr, false);
 }
 
 static __be32
