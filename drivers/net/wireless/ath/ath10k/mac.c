@@ -728,20 +728,13 @@ static int ath10k_peer_create(struct ath10k *ar,
 			      const u8 *addr,
 			      enum wmi_peer_type peer_type)
 {
-	struct ath10k_vif *arvif;
 	struct ath10k_peer *peer;
-	int num_peers = 0;
 	int ret;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	num_peers = ar->num_peers;
-
-	/* Each vdev consumes a peer entry as well */
-	list_for_each_entry(arvif, &ar->arvifs, list)
-		num_peers++;
-
-	if (num_peers >= ar->max_num_peers)
+	/* Each vdev consumes a peer entry as well. */
+	if (ar->num_peers + list_count_nodes(&ar->arvifs) >= ar->max_num_peers)
 		return -ENOBUFS;
 
 	ret = ath10k_wmi_peer_create(ar, vdev_id, addr, peer_type);
