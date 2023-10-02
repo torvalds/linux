@@ -620,7 +620,7 @@ err_unmap:
 	return ret;
 }
 
-static int __exit sh_rtc_remove(struct platform_device *pdev)
+static void __exit sh_rtc_remove(struct platform_device *pdev)
 {
 	struct sh_rtc *rtc = platform_get_drvdata(pdev);
 
@@ -628,8 +628,6 @@ static int __exit sh_rtc_remove(struct platform_device *pdev)
 	sh_rtc_setcie(&pdev->dev, 0);
 
 	clk_disable(rtc->clk);
-
-	return 0;
 }
 
 static void sh_rtc_set_irq_wake(struct device *dev, int enabled)
@@ -680,7 +678,7 @@ static struct platform_driver sh_rtc_platform_driver __refdata = {
 		.pm	= &sh_rtc_pm_ops,
 		.of_match_table = sh_rtc_of_match,
 	},
-	.remove		= __exit_p(sh_rtc_remove),
+	.remove_new	= __exit_p(sh_rtc_remove),
 };
 
 module_platform_driver_probe(sh_rtc_platform_driver, sh_rtc_probe);
