@@ -14,9 +14,6 @@ description:
   digital Smart K audio amplifier with an integrated 10.25V
   smart boost convert.
 
-allOf:
-  - $ref: dai-common.yaml#
-
 properties:
   compatible:
     enum:
@@ -49,8 +46,19 @@ required:
   - compatible
   - reg
   - '#sound-dai-cells'
-  - reset-gpios
   - awinic,audio-channel
+
+allOf:
+  - $ref: dai-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - awinic,aw88261
+    then:
+      properties:
+        reset-gpios: false
 
 unevaluatedProperties: false
 
