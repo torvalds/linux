@@ -1447,15 +1447,11 @@ static int ufs_qcom_clk_scale_up_pre_change(struct ufs_hba *hba)
 	if (!ufs_qcom_cap_qunipro(host))
 		return 0;
 
-	if (attr) {
-		ret = ufs_qcom_cfg_timers(hba, attr->gear_rx,
-					attr->pwr_rx, attr->hs_rate,
-					false, true);
-		if (ret) {
-			dev_err(hba->dev, "%s ufs cfg timer failed\n",
-						__func__);
-			return ret;
-		}
+	ret = ufs_qcom_cfg_timers(hba, attr->gear_rx, attr->pwr_rx,
+				  attr->hs_rate, false, true);
+	if (ret) {
+		dev_err(hba->dev, "%s ufs cfg timer failed\n", __func__);
+		return ret;
 	}
 	/* set unipro core clock attributes and clear clock divider */
 	return ufs_qcom_set_core_clk_ctrl(hba, true);
