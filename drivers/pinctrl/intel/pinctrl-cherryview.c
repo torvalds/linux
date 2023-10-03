@@ -11,9 +11,9 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
 #include <linux/dmi.h>
 #include <linux/gpio/driver.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
