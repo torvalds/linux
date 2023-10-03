@@ -122,25 +122,6 @@ static int _rtl92e_wx_get_power(struct net_device *dev,
 	return rtllib_wx_get_power(priv->rtllib, info, wrqu, extra);
 }
 
-static int _rtl92e_wx_set_rawtx(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	int ret;
-
-	if (priv->hw_radio_off)
-		return 0;
-
-	mutex_lock(&priv->wx_mutex);
-
-	ret = rtllib_wx_set_rawtx(priv->rtllib, info, wrqu, extra);
-
-	mutex_unlock(&priv->wx_mutex);
-
-	return ret;
-}
-
 static int _rtl92e_wx_adapter_power_status(struct net_device *dev,
 					   struct iw_request_info *info,
 					   union iwreq_data *wrqu, char *extra)
@@ -1045,9 +1026,6 @@ static const struct iw_priv_args r8192_private_args[] = {
 		SIOCIWFIRSTPRIV + 0x1,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "activescan"
 	}, {
-		SIOCIWFIRSTPRIV + 0x2,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "rawtx"
-	}, {
 		SIOCIWFIRSTPRIV + 0x6,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, IW_PRIV_TYPE_NONE,
 		"set_power"
@@ -1072,7 +1050,7 @@ static const struct iw_priv_args r8192_private_args[] = {
 static iw_handler r8192_private_handler[] = {
 	(iw_handler)_rtl92e_wx_set_debug,   /*SIOCIWSECONDPRIV*/
 	(iw_handler)_rtl92e_wx_set_scan_type,
-	(iw_handler)_rtl92e_wx_set_rawtx,
+	(iw_handler)NULL,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
 	(iw_handler)NULL,

@@ -1755,10 +1755,6 @@ int rtllib_wx_get_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 		       union iwreq_data *wrqu, char *b);
 void rtllib_wx_sync_scan_wq(void *data);
 
-int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
-			struct iw_request_info *info,
-			union iwreq_data *wrqu, char *extra);
-
 int rtllib_wx_get_name(struct rtllib_device *ieee, struct iw_request_info *info,
 		       union iwreq_data *wrqu, char *extra);
 
