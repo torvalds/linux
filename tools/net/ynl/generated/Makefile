@@ -19,7 +19,7 @@ SRCS=$(patsubst %,%-user.c,${GENS})
 HDRS=$(patsubst %,%-user.h,${GENS})
 OBJS=$(patsubst %,%-user.o,${GENS})
 
-all: protos.a $(HDRS) $(SRCS) $(KHDRS) $(KSRCS) $(UAPI) regen
+all: protos.a $(HDRS) $(SRCS) $(KHDRS) $(KSRCS) $(UAPI)
 
 protos.a: $(OBJS)
 	@echo -e "\tAR $@"
