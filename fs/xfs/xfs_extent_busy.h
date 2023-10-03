@@ -50,6 +50,10 @@ xfs_extent_busy_insert(struct xfs_trans *tp, struct xfs_perag *pag,
 	xfs_agblock_t bno, xfs_extlen_t len, unsigned int flags);
 
 void
+xfs_extent_busy_insert_discard(struct xfs_perag *pag, xfs_agblock_t bno,
+	xfs_extlen_t len, struct list_head *busy_list);
+
+void
 xfs_extent_busy_clear(struct xfs_mount *mp, struct list_head *list,
 	bool do_discard);
 

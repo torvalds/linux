@@ -19,6 +19,56 @@
 #include "xfs_log.h"
 #include "xfs_ag.h"
 
+/*
+ * Notes on an efficient, low latency fstrim algorithm
+ *
+ * We need to walk the filesystem free space and issue discards on the free
+ * space that meet the search criteria (size and location). We cannot issue
+ * discards on extents that might be in use, or are so recently in use they are
+ * still marked as busy. To serialise against extent state changes whilst we are
+ * gathering extents to trim, we must hold the AGF lock to lock out other
+ * allocations and extent free operations that might change extent state.
+ *
+ * However, we cannot just hold the AGF for the entire AG free space walk whilst
+ * we issue discards on each free space that is found. Storage devices can have
+ * extremely slow discard implementations (e.g. ceph RBD) and so walking a
+ * couple of million free extents and issuing synchronous discards on each
+ * extent can take a *long* time. Whilst we are doing this walk, nothing else
+ * can access the AGF, and we can stall transactions and hence the log whilst
+ * modifications wait for the AGF lock to be released. This can lead hung tasks
+ * kicking the hung task timer and rebooting the system. This is bad.
+ *
+ * Hence we need to take a leaf from the bulkstat playbook. It takes the AGI
+ * lock, gathers a range of inode cluster buffers that are allocated, drops the
+ * AGI lock and then reads all the inode cluster buffers and processes them. It
+ * loops doing this, using a cursor to keep track of where it is up to in the AG
+ * for each iteration to restart the INOBT lookup from.
+ *
+ * We can't do this exactly with free space - once we drop the AGF lock, the
+ * state of the free extent is out of our control and we cannot run a discard
+ * safely on it in this situation. Unless, of course, we've marked the free
+ * extent as busy and undergoing a discard operation whilst we held the AGF
+ * locked.
+ *
+ * This is exactly how online discard works - free extents are marked busy when
+ * they are freed, and once the extent free has been committed to the journal,
+ * the busy extent record is marked as "undergoing discard" and the discard is
+ * then issued on the free extent. Once the discard completes, the busy extent
+ * record is removed and the extent is able to be allocated again.
+ *
+ * In the context of fstrim, if we find a free extent we need to discard, we
+ * don't have to discard it immediately. All we need to do it record that free
+ * extent as being busy and under discard, and all the allocation routines will
+ * now avoid trying to allocate it. Hence if we mark the extent as busy under
+ * the AGF lock, we can safely discard it without holding the AGF lock because
+ * nothing will attempt to allocate that free space until the discard completes.
+ *
+ * This also allows us to issue discards asynchronously like we do with online
+ * discard, and so for fast devices fstrim will run much faster as we can have
+ * multiple discard operations in flight at once, as well as pipeline the free
+ * extent search so that it overlaps in flight discard IO.
+ */
+
 struct workqueue_struct *xfs_discard_wq;
 
 static void
@@ -94,21 +144,22 @@ xfs_discard_extents(
 }
 
 
-STATIC int
-xfs_trim_extents(
+static int
+xfs_trim_gather_extents(
 	struct xfs_perag	*pag,
 	xfs_daddr_t		start,
 	xfs_daddr_t		end,
 	xfs_daddr_t		minlen,
+	struct xfs_alloc_rec_incore *tcur,
+	struct xfs_busy_extents	*extents,
 	uint64_t		*blocks_trimmed)
 {
 	struct xfs_mount	*mp = pag->pag_mount;
-	struct block_device	*bdev = mp->m_ddev_targp->bt_bdev;
 	struct xfs_btree_cur	*cur;
 	struct xfs_buf		*agbp;
-	struct xfs_agf		*agf;
 	int			error;
 	int			i;
+	int			batch = 100;
 
 	/*
 	 * Force out the log.  This means any transactions that might have freed
@@ -120,20 +171,28 @@ xfs_trim_extents(
 	error = xfs_alloc_read_agf(pag, NULL, 0, &agbp);
 	if (error)
 		return error;
-	agf = agbp->b_addr;
 
 	cur = xfs_allocbt_init_cursor(mp, NULL, agbp, pag, XFS_BTNUM_CNT);
 
 	/*
-	 * Look up the longest btree in the AGF and start with it.
+	 * Look up the extent length requested in the AGF and start with it.
 	 */
-	error = xfs_alloc_lookup_ge(cur, 0, be32_to_cpu(agf->agf_longest), &i);
+	if (tcur->ar_startblock == NULLAGBLOCK)
+		error = xfs_alloc_lookup_ge(cur, 0, tcur->ar_blockcount, &i);
+	else
+		error = xfs_alloc_lookup_le(cur, tcur->ar_startblock,
+				tcur->ar_blockcount, &i);
 	if (error)
 		goto out_del_cursor;
+	if (i == 0) {
+		/* nothing of that length left in the AG, we are done */
+		tcur->ar_blockcount = 0;
+		goto out_del_cursor;
+	}
 
 	/*
 	 * Loop until we are done with all extents that are large
-	 * enough to be worth discarding.
+	 * enough to be worth discarding or we hit batch limits.
 	 */
 	while (i) {
 		xfs_agblock_t	fbno;
@@ -148,7 +207,16 @@ xfs_trim_extents(
 			error = -EFSCORRUPTED;
 			break;
 		}
-		ASSERT(flen <= be32_to_cpu(agf->agf_longest));
+
+		if (--batch <= 0) {
+			/*
+			 * Update the cursor to point at this extent so we
+			 * restart the next batch from this extent.
+			 */
+			tcur->ar_startblock = fbno;
+			tcur->ar_blockcount = flen;
+			break;
+		}
 
 		/*
 		 * use daddr format for all range/len calculations as that is
@@ -163,6 +231,7 @@ xfs_trim_extents(
 		 */
 		if (dlen < minlen) {
 			trace_xfs_discard_toosmall(mp, pag->pag_agno, fbno, flen);
+			tcur->ar_blockcount = 0;
 			break;
 		}
 
@@ -185,14 +254,85 @@ xfs_trim_extents(
 			goto next_extent;
 		}
 
-		trace_xfs_discard_extent(mp, pag->pag_agno, fbno, flen);
-		error = blkdev_issue_discard(bdev, dbno, dlen, GFP_NOFS);
-		if (error)
-			break;
+		xfs_extent_busy_insert_discard(pag, fbno, flen,
+				&extents->extent_list);
 		*blocks_trimmed += flen;
-
 next_extent:
 		error = xfs_btree_decrement(cur, 0, &i);
+		if (error)
+			break;
+
+		/*
+		 * If there's no more records in the tree, we are done. Set the
+		 * cursor block count to 0 to indicate to the caller that there
+		 * is no more extents to search.
+		 */
+		if (i == 0)
+			tcur->ar_blockcount = 0;
+	}
+
+	/*
+	 * If there was an error, release all the gathered busy extents because
+	 * we aren't going to issue a discard on them any more.
+	 */
+	if (error)
+		xfs_extent_busy_clear(mp, &extents->extent_list, false);
+out_del_cursor:
+	xfs_btree_del_cursor(cur, error);
+	xfs_buf_relse(agbp);
+	return error;
+}
+
+/*
+ * Iterate the free list gathering extents and discarding them. We need a cursor
+ * for the repeated iteration of gather/discard loop, so use the longest extent
+ * we found in the last batch as the key to start the next.
+ */
+static int
+xfs_trim_extents(
+	struct xfs_perag	*pag,
+	xfs_daddr_t		start,
+	xfs_daddr_t		end,
+	xfs_daddr_t		minlen,
+	uint64_t		*blocks_trimmed)
+{
+	struct xfs_alloc_rec_incore tcur = {
+		.ar_blockcount = pag->pagf_longest,
+		.ar_startblock = NULLAGBLOCK,
+	};
+	int			error = 0;
+
+	do {
+		struct xfs_busy_extents	*extents;
+
+		extents = kzalloc(sizeof(*extents), GFP_KERNEL);
+		if (!extents) {
+			error = -ENOMEM;
+			break;
+		}
+
+		extents->mount = pag->pag_mount;
+		extents->owner = extents;
+		INIT_LIST_HEAD(&extents->extent_list);
+
+		error = xfs_trim_gather_extents(pag, start, end, minlen,
+				&tcur, extents, blocks_trimmed);
+		if (error) {
+			kfree(extents);
+			break;
+		}
+
+		/*
+		 * We hand the extent list to the discard function here so the
+		 * discarded extents can be removed from the busy extent list.
+		 * This allows the discards to run asynchronously with gathering
+		 * the next round of extents to discard.
+		 *
+		 * However, we must ensure that we do not reference the extent
+		 * list  after this function call, as it may have been freed by
+		 * the time control returns to us.
+		 */
+		error = xfs_discard_extents(pag->pag_mount, extents);
 		if (error)
 			break;
 
@@ -200,12 +340,10 @@ next_extent:
 			error = -ERESTARTSYS;
 			break;
 		}
-	}
+	} while (tcur.ar_blockcount != 0);
 
-out_del_cursor:
-	xfs_btree_del_cursor(cur, error);
-	xfs_buf_relse(agbp);
 	return error;
+
 }
 
 /*
