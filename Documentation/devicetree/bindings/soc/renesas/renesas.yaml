@@ -335,6 +335,13 @@ properties:
           - const: renesas,spider-cpu
           - const: renesas,r8a779f0
 
+      - description: R-Car S4-8 (R8A779F4)
+        items:
+          - enum:
+              - renesas,s4sk # R-Car S4 Starter Kit board (Y-ASK-RCAR-S4-1000BASE-T#WS12)
+          - const: renesas,r8a779f4
+          - const: renesas,r8a779f0
+
       - description: R-Car V4H (R8A779G0)
         items:
           - enum:
