@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: MIT
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2023 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -106,9 +107,8 @@ struct bw_fixed bw_frc_to_fixed(int64_t numerator, int64_t denominator)
 	return res;
 }
 
-struct bw_fixed bw_floor2(
-	const struct bw_fixed arg,
-	const struct bw_fixed significance)
+struct bw_fixed bw_floor2(const struct bw_fixed arg,
+			  const struct bw_fixed significance)
 {
 	struct bw_fixed result;
 	int64_t multiplicand;
@@ -119,9 +119,8 @@ struct bw_fixed bw_floor2(
 	return result;
 }
 
-struct bw_fixed bw_ceil2(
-	const struct bw_fixed arg,
-	const struct bw_fixed significance)
+struct bw_fixed bw_ceil2(const struct bw_fixed arg,
+			 const struct bw_fixed significance)
 {
 	struct bw_fixed result;
 	int64_t multiplicand;
