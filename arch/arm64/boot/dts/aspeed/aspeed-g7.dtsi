@@ -67,7 +67,7 @@
 			device_type = "cpu";
 			reg = <0>;
 		};
-
+/*
 		cpu@1 {
 			compatible = "arm,cortex-a35";
 			enable-method = "psci";
@@ -88,6 +88,7 @@
 			device_type = "cpu";
 			reg = <3>;
 		};
+*/
 	};
 
 	psci {
@@ -585,6 +586,15 @@
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_UART4CLK>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			no-loopback-test;
+			status = "disabled";
+		};
+
+		ecdsa: crypto@12c1e000 {
+			compatible = "aspeed,ast2700-ecdsa";
+			reg = <0x0 0x12c1e000 0x0 0x1000>;
+			interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_ECCCLK>;
+			resets = <&soc0_rst ASPEED_RESET_HACE>;
 			status = "disabled";
 		};
 

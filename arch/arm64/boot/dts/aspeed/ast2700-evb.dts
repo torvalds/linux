@@ -375,3 +375,7 @@
 &rsss {
 	status = "okay";
 };
+
+&ecdsa {
+	status = "okay";
+};
