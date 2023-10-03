@@ -81,7 +81,7 @@ static struct spmi_device *qcom_pmic_get_base_usid(struct device *dev)
 	struct spmi_device *sdev;
 	struct qcom_spmi_dev *ctx;
 	struct device_node *spmi_bus;
-	struct device_node *other_usid = NULL;
+	struct device_node *child;
 	int function_parent_usid, ret;
 	u32 pmic_addr;
 
@@ -105,28 +105,34 @@ static struct spmi_device *qcom_pmic_get_base_usid(struct device *dev)
 	 * device for USID 2.
 	 */
 	spmi_bus = of_get_parent(sdev->dev.of_node);
-	do {
-		other_usid = of_get_next_child(spmi_bus, other_usid);
+	sdev = ERR_PTR(-ENODATA);
+	for_each_child_of_node(spmi_bus, child) {
+		ret = of_property_read_u32_index(child, "reg", 0, &pmic_addr);
+		if (ret) {
+			of_node_put(child);
+			sdev = ERR_PTR(ret);
+			break;
+		}
 
-		ret = of_property_read_u32_index(other_usid, "reg", 0, &pmic_addr);
-		if (ret)
-			return ERR_PTR(ret);
-
-		sdev = spmi_device_from_of(other_usid);
 		if (pmic_addr == function_parent_usid - (ctx->num_usids - 1)) {
-			if (!sdev)
+			sdev = spmi_device_from_of(child);
+			if (!sdev) {
 				/*
 				 * If the base USID for this PMIC hasn't probed yet
 				 * but the secondary USID has, then we need to defer
 				 * the function driver so that it will attempt to
 				 * probe again when the base USID is ready.
 				 */
-				return ERR_PTR(-EPROBE_DEFER);
-			return sdev;
+				sdev = ERR_PTR(-EPROBE_DEFER);
+			}
+			of_node_put(child);
+			break;
 		}
-	} while (other_usid->sibling);
+	}
 
-	return ERR_PTR(-ENODATA);
+	of_node_put(spmi_bus);
+
+	return sdev;
 }
 
 static int pmic_spmi_load_revid(struct regmap *map, struct device *dev,
