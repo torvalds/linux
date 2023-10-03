@@ -2367,7 +2367,7 @@ static int mt9m114_probe(struct i2c_client *client)
 
 	ret = mt9m114_clk_init(sensor);
 	if (ret)
-		return ret;
+		goto error_ep_free;
 
 	/*
 	 * Identify the sensor. The driver supports runtime PM, but needs to
@@ -2378,7 +2378,7 @@ static int mt9m114_probe(struct i2c_client *client)
 	ret = mt9m114_power_on(sensor);
 	if (ret < 0) {
 		dev_err_probe(dev, ret, "Could not power on the device\n");
-		return ret;
+		goto error_ep_free;
 	}
 
 	ret = mt9m114_identify(sensor);
