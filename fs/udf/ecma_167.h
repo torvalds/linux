@@ -471,7 +471,7 @@ struct fileIdentDesc {
 	uint8_t		lengthFileIdent;
 	struct long_ad	icb;
 	__le16		lengthOfImpUse;
-	uint8_t		impUse[];
+	/* uint8_t	impUse[]; */
 	/* uint8_t	fileIdent[]; */
 	/* uint8_t	padding[]; */
 } __packed;
