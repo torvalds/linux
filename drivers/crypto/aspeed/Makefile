@@ -11,3 +11,6 @@ obj-$(CONFIG_CRYPTO_DEV_ASPEED) += $(aspeed_acry-y)
 
 obj-$(CONFIG_CRYPTO_DEV_ASPEED_RSSS) += aspeed_rsss.o
 aspeed_rsss-objs := aspeed-rsss.o aspeed-rsss-rsa.o aspeed-rsss-hash.o
+
+aspeed_ecdsa-$(CONFIG_CRYPTO_DEV_ASPEED_ECDSA) += aspeed-ecdsa.o
+obj-$(CONFIG_CRYPTO_DEV_ASPEED) += $(aspeed_ecdsa-y)

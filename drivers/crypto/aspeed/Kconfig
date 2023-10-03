@@ -74,3 +74,17 @@ config CRYPTO_DEV_ASPEED_RSSS
 	  cryptographic algorithms.
 	  It's a new hardware design from ast2700 for simply SRAM
 	  layout.
+
+config CRYPTO_DEV_ASPEED_ECDSA
+	bool "Enable Aspeed ECDSA Engine"
+	depends on CRYPTO_DEV_ASPEED && MACH_ASPEED_G7
+	select CRYPTO_ENGINE
+	select CRYPTO_ECC
+	select CRYPTO_ECDSA
+	select CRYPTO_AKCIPHER
+	help
+	  Select here to enable Aspeed ECC Engine for ECDSA driver.
+	  Supports ECDSA (Elliptic Curve Digital Signature Algorithm)
+	  using curves P-256, P-384.
+	  Only signature verification is implemented.
+
