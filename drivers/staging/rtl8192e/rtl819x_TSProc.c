@@ -242,7 +242,7 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 {
 	u8	UP = 0;
 	union tspec_body TSpec;
-	union qos_tsinfo *pTSInfo = &TSpec.f.TSInfo;
+	union qos_tsinfo *ts_info = &TSpec.f.TSInfo;
 	struct list_head *pUnusedList;
 	struct list_head *pAddmitList;
 	enum direction_value Dir;
@@ -318,15 +318,15 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		netdev_dbg(ieee->dev,
 			   "to init current TS, UP:%d, Dir:%d, addr: %pM ppTs=%p\n",
 			   UP, Dir, addr, *ppTS);
-		pTSInfo->field.ucTrafficType = 0;
-		pTSInfo->field.ucTSID = UP;
-		pTSInfo->field.ucDirection = Dir;
-		pTSInfo->field.ucAccessPolicy = 1;
-		pTSInfo->field.ucAggregation = 0;
-		pTSInfo->field.ucPSB = 0;
-		pTSInfo->field.ucUP = UP;
-		pTSInfo->field.ucTSInfoAckPolicy = 0;
-		pTSInfo->field.ucSchedule = 0;
+		ts_info->field.ucTrafficType = 0;
+		ts_info->field.ucTSID = UP;
+		ts_info->field.ucDirection = Dir;
+		ts_info->field.ucAccessPolicy = 1;
+		ts_info->field.ucAggregation = 0;
+		ts_info->field.ucPSB = 0;
+		ts_info->field.ucUP = UP;
+		ts_info->field.ucTSInfoAckPolicy = 0;
+		ts_info->field.ucSchedule = 0;
 
 		MakeTSEntry(*ppTS, addr, &TSpec, NULL, 0, 0);
 		list_add_tail(&((*ppTS)->List), pAddmitList);
