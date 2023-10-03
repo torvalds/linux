@@ -492,6 +492,146 @@ static void rtw89_phy_set_txpwr_limit_be(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void fill_limit_ru_each(struct rtw89_dev *rtwdev, u8 index,
+			       struct rtw89_txpwr_limit_ru_be *lmt_ru,
+			       u8 band, u8 ntx, u8 ch)
+{
+	lmt_ru->ru26[index] =
+		rtw89_phy_read_txpwr_limit_ru(rtwdev, band, RTW89_RU26, ntx, ch);
+	lmt_ru->ru52[index] =
+		rtw89_phy_read_txpwr_limit_ru(rtwdev, band, RTW89_RU52, ntx, ch);
+	lmt_ru->ru106[index] =
+		rtw89_phy_read_txpwr_limit_ru(rtwdev, band, RTW89_RU106, ntx, ch);
+	lmt_ru->ru52_26[index] =
+		rtw89_phy_read_txpwr_limit_ru(rtwdev, band, RTW89_RU52_26, ntx, ch);
+	lmt_ru->ru106_26[index] =
+		rtw89_phy_read_txpwr_limit_ru(rtwdev, band, RTW89_RU106_26, ntx, ch);
+}
+
+static void phy_fill_limit_ru_20m_be(struct rtw89_dev *rtwdev,
+				     struct rtw89_txpwr_limit_ru_be *lmt_ru,
+				     u8 band, u8 ntx, u8 ch)
+{
+	fill_limit_ru_each(rtwdev, 0, lmt_ru, band, ntx, ch);
+}
+
+static void phy_fill_limit_ru_40m_be(struct rtw89_dev *rtwdev,
+				     struct rtw89_txpwr_limit_ru_be *lmt_ru,
+				     u8 band, u8 ntx, u8 ch)
+{
+	fill_limit_ru_each(rtwdev, 0, lmt_ru, band, ntx, ch - 2);
+	fill_limit_ru_each(rtwdev, 1, lmt_ru, band, ntx, ch + 2);
+}
+
+static void phy_fill_limit_ru_80m_be(struct rtw89_dev *rtwdev,
+				     struct rtw89_txpwr_limit_ru_be *lmt_ru,
+				     u8 band, u8 ntx, u8 ch)
+{
+	fill_limit_ru_each(rtwdev, 0, lmt_ru, band, ntx, ch - 6);
+	fill_limit_ru_each(rtwdev, 1, lmt_ru, band, ntx, ch - 2);
+	fill_limit_ru_each(rtwdev, 2, lmt_ru, band, ntx, ch + 2);
+	fill_limit_ru_each(rtwdev, 3, lmt_ru, band, ntx, ch + 6);
+}
+
+static void phy_fill_limit_ru_160m_be(struct rtw89_dev *rtwdev,
+				      struct rtw89_txpwr_limit_ru_be *lmt_ru,
+				      u8 band, u8 ntx, u8 ch)
+{
+	fill_limit_ru_each(rtwdev, 0, lmt_ru, band, ntx, ch - 14);
+	fill_limit_ru_each(rtwdev, 1, lmt_ru, band, ntx, ch - 10);
+	fill_limit_ru_each(rtwdev, 2, lmt_ru, band, ntx, ch - 6);
+	fill_limit_ru_each(rtwdev, 3, lmt_ru, band, ntx, ch - 2);
+	fill_limit_ru_each(rtwdev, 4, lmt_ru, band, ntx, ch + 2);
+	fill_limit_ru_each(rtwdev, 5, lmt_ru, band, ntx, ch + 6);
+	fill_limit_ru_each(rtwdev, 6, lmt_ru, band, ntx, ch + 10);
+	fill_limit_ru_each(rtwdev, 7, lmt_ru, band, ntx, ch + 14);
+}
+
+static void phy_fill_limit_ru_320m_be(struct rtw89_dev *rtwdev,
+				      struct rtw89_txpwr_limit_ru_be *lmt_ru,
+				      u8 band, u8 ntx, u8 ch)
+{
+	fill_limit_ru_each(rtwdev, 0, lmt_ru, band, ntx, ch - 30);
+	fill_limit_ru_each(rtwdev, 1, lmt_ru, band, ntx, ch - 26);
+	fill_limit_ru_each(rtwdev, 2, lmt_ru, band, ntx, ch - 22);
+	fill_limit_ru_each(rtwdev, 3, lmt_ru, band, ntx, ch - 18);
+	fill_limit_ru_each(rtwdev, 4, lmt_ru, band, ntx, ch - 14);
+	fill_limit_ru_each(rtwdev, 5, lmt_ru, band, ntx, ch - 10);
+	fill_limit_ru_each(rtwdev, 6, lmt_ru, band, ntx, ch - 6);
+	fill_limit_ru_each(rtwdev, 7, lmt_ru, band, ntx, ch - 2);
+	fill_limit_ru_each(rtwdev, 8, lmt_ru, band, ntx, ch + 2);
+	fill_limit_ru_each(rtwdev, 9, lmt_ru, band, ntx, ch + 6);
+	fill_limit_ru_each(rtwdev, 10, lmt_ru, band, ntx, ch + 10);
+	fill_limit_ru_each(rtwdev, 11, lmt_ru, band, ntx, ch + 14);
+	fill_limit_ru_each(rtwdev, 12, lmt_ru, band, ntx, ch + 18);
+	fill_limit_ru_each(rtwdev, 13, lmt_ru, band, ntx, ch + 22);
+	fill_limit_ru_each(rtwdev, 14, lmt_ru, band, ntx, ch + 26);
+	fill_limit_ru_each(rtwdev, 15, lmt_ru, band, ntx, ch + 30);
+}
+
+static void rtw89_phy_fill_limit_ru_be(struct rtw89_dev *rtwdev,
+				       const struct rtw89_chan *chan,
+				       struct rtw89_txpwr_limit_ru_be *lmt_ru,
+				       u8 ntx)
+{
+	u8 band = chan->band_type;
+	u8 ch = chan->channel;
+	u8 bw = chan->band_width;
+
+	memset(lmt_ru, 0, sizeof(*lmt_ru));
+
+	switch (bw) {
+	case RTW89_CHANNEL_WIDTH_20:
+		phy_fill_limit_ru_20m_be(rtwdev, lmt_ru, band, ntx, ch);
+		break;
+	case RTW89_CHANNEL_WIDTH_40:
+		phy_fill_limit_ru_40m_be(rtwdev, lmt_ru, band, ntx, ch);
+		break;
+	case RTW89_CHANNEL_WIDTH_80:
+		phy_fill_limit_ru_80m_be(rtwdev, lmt_ru, band, ntx, ch);
+		break;
+	case RTW89_CHANNEL_WIDTH_160:
+		phy_fill_limit_ru_160m_be(rtwdev, lmt_ru, band, ntx, ch);
+		break;
+	case RTW89_CHANNEL_WIDTH_320:
+		phy_fill_limit_ru_320m_be(rtwdev, lmt_ru, band, ntx, ch);
+		break;
+	}
+}
+
+static void rtw89_phy_set_txpwr_limit_ru_be(struct rtw89_dev *rtwdev,
+					    const struct rtw89_chan *chan,
+					    enum rtw89_phy_idx phy_idx)
+{
+	struct rtw89_txpwr_limit_ru_be lmt_ru;
+	const s8 *ptr;
+	u32 addr, val;
+	u8 i, j;
+
+	BUILD_BUG_ON(sizeof(struct rtw89_txpwr_limit_ru_be) !=
+		     RTW89_TXPWR_LMT_RU_PAGE_SIZE_BE);
+
+	rtw89_debug(rtwdev, RTW89_DBG_TXPWR,
+		    "[TXPWR] set txpwr limit ru on band %d bw %d\n",
+		    chan->band_type, chan->band_width);
+
+	addr = R_BE_PWR_RU_LMT;
+	for (i = 0; i <= RTW89_NSS_2; i++) {
+		rtw89_phy_fill_limit_ru_be(rtwdev, chan, &lmt_ru, i);
+
+		ptr = (s8 *)&lmt_ru;
+		for (j = 0; j < RTW89_TXPWR_LMT_RU_PAGE_SIZE_BE;
+		     j += 4, addr += 4, ptr += 4) {
+			val = u32_encode_bits(ptr[0], GENMASK(7, 0)) |
+			      u32_encode_bits(ptr[1], GENMASK(15, 8)) |
+			      u32_encode_bits(ptr[2], GENMASK(23, 16)) |
+			      u32_encode_bits(ptr[3], GENMASK(31, 24));
+
+			rtw89_mac_txpwr_write32(rtwdev, phy_idx, addr, val);
+		}
+	}
+}
+
 const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.cr_base = 0x20000,
 	.ccx = &rtw89_ccx_regs_be,
@@ -500,5 +640,6 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_be,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_be,
 	.set_txpwr_limit = rtw89_phy_set_txpwr_limit_be,
+	.set_txpwr_limit_ru = rtw89_phy_set_txpwr_limit_ru_be,
 };
 EXPORT_SYMBOL(rtw89_phy_gen_be);

@@ -444,6 +444,28 @@ struct rtw89_txpwr_limit_be {
 	s8 mcs_40m_6p5[RTW89_BF_NUM];
 };
 
+#define RTW89_RU_SEC_NUM_AX 8
+
+#define RTW89_TXPWR_LMT_RU_PAGE_SIZE_AX 24
+
+struct rtw89_txpwr_limit_ru_ax {
+	s8 ru26[RTW89_RU_SEC_NUM_AX];
+	s8 ru52[RTW89_RU_SEC_NUM_AX];
+	s8 ru106[RTW89_RU_SEC_NUM_AX];
+};
+
+#define RTW89_RU_SEC_NUM_BE 16
+
+#define RTW89_TXPWR_LMT_RU_PAGE_SIZE_BE 80
+
+struct rtw89_txpwr_limit_ru_be {
+	s8 ru26[RTW89_RU_SEC_NUM_BE];
+	s8 ru52[RTW89_RU_SEC_NUM_BE];
+	s8 ru106[RTW89_RU_SEC_NUM_BE];
+	s8 ru52_26[RTW89_RU_SEC_NUM_BE];
+	s8 ru106_26[RTW89_RU_SEC_NUM_BE];
+};
+
 struct rtw89_phy_gen_def {
 	u32 cr_base;
 	const struct rtw89_ccx_regs *ccx;
@@ -458,6 +480,9 @@ struct rtw89_phy_gen_def {
 	void (*set_txpwr_limit)(struct rtw89_dev *rtwdev,
 				const struct rtw89_chan *chan,
 				enum rtw89_phy_idx phy_idx);
+	void (*set_txpwr_limit_ru)(struct rtw89_dev *rtwdev,
+				   const struct rtw89_chan *chan,
+				   enum rtw89_phy_idx phy_idx);
 };
 
 extern const struct rtw89_phy_gen_def rtw89_phy_gen_ax;
@@ -676,6 +701,8 @@ void rtw89_phy_load_txpwr_byrate(struct rtw89_dev *rtwdev,
 				 const struct rtw89_txpwr_table *tbl);
 s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 			      u8 bw, u8 ntx, u8 rs, u8 bf, u8 ch);
+s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
+				 u8 ru, u8 ntx, u8 ch);
 
 static inline
 void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
@@ -707,9 +734,16 @@ void rtw89_phy_set_txpwr_limit(struct rtw89_dev *rtwdev,
 	phy->set_txpwr_limit(rtwdev, chan, phy_idx);
 }
 
+static inline
 void rtw89_phy_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan,
-				  enum rtw89_phy_idx phy_idx);
+				  enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	phy->set_txpwr_limit_ru(rtwdev, chan, phy_idx);
+}
+
 void rtw89_phy_ra_assoc(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta);
 void rtw89_phy_ra_update(struct rtw89_dev *rtwdev);
 void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,
