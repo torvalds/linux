@@ -445,9 +445,9 @@ struct pinctrl_dev *pinctrl_find_and_add_gpio_range(const char *devname,
 	 * it has not probed yet, so the driver trying to register this
 	 * range need to defer probing.
 	 */
-	if (!pctldev) {
+	if (!pctldev)
 		return ERR_PTR(-EPROBE_DEFER);
-	}
+
 	pinctrl_add_gpio_range(pctldev, range);
 
 	return pctldev;
