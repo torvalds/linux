@@ -447,10 +447,10 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 				    const char *ctr_name,
 				    const char *mac_name)
 {
+	struct skcipher_alg_common *ctr;
 	u32 mask;
 	struct aead_instance *inst;
 	struct ccm_instance_ctx *ictx;
-	struct skcipher_alg *ctr;
 	struct hash_alg_common *mac;
 	int err;
 
@@ -478,13 +478,12 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 				   ctr_name, 0, mask);
 	if (err)
 		goto err_free_inst;
-	ctr = crypto_spawn_skcipher_alg(&ictx->ctr);
+	ctr = crypto_spawn_skcipher_alg_common(&ictx->ctr);
 
 	/* The skcipher algorithm must be CTR mode, using 16-byte blocks. */
 	err = -EINVAL;
 	if (strncmp(ctr->base.cra_name, "ctr(", 4) != 0 ||
-	    crypto_skcipher_alg_ivsize(ctr) != 16 ||
-	    ctr->base.cra_blocksize != 1)
+	    ctr->ivsize != 16 || ctr->base.cra_blocksize != 1)
 		goto err_free_inst;
 
 	/* ctr and cbcmac must use the same underlying block cipher. */
@@ -507,7 +506,7 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 	inst->alg.base.cra_alignmask = mac->base.cra_alignmask |
 				       ctr->base.cra_alignmask;
 	inst->alg.ivsize = 16;
-	inst->alg.chunksize = crypto_skcipher_alg_chunksize(ctr);
+	inst->alg.chunksize = ctr->chunksize;
 	inst->alg.maxauthsize = 16;
 	inst->alg.base.cra_ctxsize = sizeof(struct crypto_ccm_ctx);
 	inst->alg.init = crypto_ccm_init_tfm;
