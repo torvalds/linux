@@ -1412,6 +1412,7 @@ static const struct tipd_data tps25750_data = {
 	.irq_handler = tps25750_interrupt,
 	.register_port = tps25750_register_port,
 	.trace_power_status = trace_tps25750_power_status,
+	.trace_status = trace_tps25750_status,
 	.apply_patch = tps25750_apply_patch,
 };
 
