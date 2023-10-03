@@ -655,20 +655,21 @@ EXPORT_SYMBOL_GPL(platform_device_add_data);
  */
 int platform_device_add(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	u32 i;
 	int ret;
 
-	if (!pdev->dev.parent)
-		pdev->dev.parent = &platform_bus;
+	if (!dev->parent)
+		dev->parent = &platform_bus;
 
-	pdev->dev.bus = &platform_bus_type;
+	dev->bus = &platform_bus_type;
 
 	switch (pdev->id) {
 	default:
-		dev_set_name(&pdev->dev, "%s.%d", pdev->name,  pdev->id);
+		dev_set_name(dev, "%s.%d", pdev->name,  pdev->id);
 		break;
 	case PLATFORM_DEVID_NONE:
-		dev_set_name(&pdev->dev, "%s", pdev->name);
+		dev_set_name(dev, "%s", pdev->name);
 		break;
 	case PLATFORM_DEVID_AUTO:
 		/*
@@ -681,7 +682,7 @@ int platform_device_add(struct platform_device *pdev)
 			return ret;
 		pdev->id = ret;
 		pdev->id_auto = true;
-		dev_set_name(&pdev->dev, "%s.%d.auto", pdev->name, pdev->id);
+		dev_set_name(dev, "%s.%d.auto", pdev->name, pdev->id);
 		break;
 	}
 
@@ -689,7 +690,7 @@ int platform_device_add(struct platform_device *pdev)
 		struct resource *p, *r = &pdev->resource[i];
 
 		if (r->name == NULL)
-			r->name = dev_name(&pdev->dev);
+			r->name = dev_name(dev);
 
 		p = r->parent;
 		if (!p) {
@@ -702,16 +703,16 @@ int platform_device_add(struct platform_device *pdev)
 		if (p) {
 			ret = insert_resource(p, r);
 			if (ret) {
-				dev_err(&pdev->dev, "failed to claim resource %d: %pR\n", i, r);
+				dev_err(dev, "failed to claim resource %d: %pR\n", i, r);
 				goto failed;
 			}
 		}
 	}
 
-	pr_debug("Registering platform device '%s'. Parent at %s\n",
-		 dev_name(&pdev->dev), dev_name(pdev->dev.parent));
+	pr_debug("Registering platform device '%s'. Parent at %s\n", dev_name(dev),
+		 dev_name(dev->parent));
 
-	ret = device_add(&pdev->dev);
+	ret = device_add(dev);
 	if (ret)
 		goto failed;
 
