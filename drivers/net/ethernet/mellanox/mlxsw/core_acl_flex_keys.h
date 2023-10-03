@@ -119,6 +119,7 @@ struct mlxsw_afk_block {
 	u16 encoding; /* block ID */
 	struct mlxsw_afk_element_inst *instances;
 	unsigned int instances_count;
+	bool high_entropy;
 };
 
 #define MLXSW_AFK_BLOCK(_encoding, _instances)					\
@@ -126,6 +127,14 @@ struct mlxsw_afk_block {
 		.encoding = _encoding,						\
 		.instances = _instances,					\
 		.instances_count = ARRAY_SIZE(_instances),			\
+	}
+
+#define MLXSW_AFK_BLOCK_HIGH_ENTROPY(_encoding, _instances)			\
+	{									\
+		.encoding = _encoding,						\
+		.instances = _instances,					\
+		.instances_count = ARRAY_SIZE(_instances),			\
+		.high_entropy = true,						\
 	}
 
 struct mlxsw_afk_element_usage {
