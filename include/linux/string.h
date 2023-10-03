@@ -286,8 +286,16 @@ extern void *kmemdup(const void *src, size_t len, gfp_t gfp) __realloc_size(2);
 extern void *kvmemdup(const void *src, size_t len, gfp_t gfp) __realloc_size(2);
 extern char *kmemdup_nul(const char *s, size_t len, gfp_t gfp);
 
+/* lib/argv_split.c */
 extern char **argv_split(gfp_t gfp, const char *str, int *argcp);
 extern void argv_free(char **argv);
+
+/* lib/cmdline.c */
+extern int get_option(char **str, int *pint);
+extern char *get_options(const char *str, int nints, int *ints);
+extern unsigned long long memparse(const char *ptr, char **retptr);
+extern bool parse_option_str(const char *str, const char *option);
+extern char *next_arg(char *args, char **param, char **val);
 
 extern bool sysfs_streq(const char *s1, const char *s2);
 int match_string(const char * const *array, size_t n, const char *string);
