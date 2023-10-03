@@ -1253,7 +1253,6 @@ struct rtllib_device {
 	int scan_age;
 
 	int iw_mode; /* operating mode (IW_MODE_*) */
-	bool net_promiscuous_md;
 
 	spinlock_t lock;
 	spinlock_t wpax_suitlist_lock;

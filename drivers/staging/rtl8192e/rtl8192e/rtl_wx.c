@@ -209,7 +209,6 @@ static int _rtl92e_wx_set_mode(struct net_device *dev,
 			       union iwreq_data *wrqu, char *b)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rtllib_device *ieee = netdev_priv_rsl(dev);
 
 	enum rt_rf_power_state rt_state;
 	int ret;
@@ -218,8 +217,7 @@ static int _rtl92e_wx_set_mode(struct net_device *dev,
 		return 0;
 	rt_state = priv->rtllib->rf_power_state;
 	mutex_lock(&priv->wx_mutex);
-	if (wrqu->mode == IW_MODE_MONITOR ||
-	    ieee->net_promiscuous_md) {
+	if (wrqu->mode == IW_MODE_MONITOR) {
 		if (rt_state == rf_off) {
 			if (priv->rtllib->rf_off_reason >
 			    RF_CHANGE_BY_IPS) {

@@ -1255,12 +1255,8 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/*Filter pkt not to me*/
 	multicast = is_multicast_ether_addr(hdr->addr1);
 	unicast = !multicast;
-	if (unicast && !ether_addr_equal(dev->dev_addr, hdr->addr1)) {
-		if (ieee->net_promiscuous_md)
-			bToOtherSTA = true;
-		else
-			goto rx_dropped;
-	}
+	if (unicast && !ether_addr_equal(dev->dev_addr, hdr->addr1))
+		goto rx_dropped;
 
 	/*Filter pkt has too small length */
 	hdrlen = rtllib_rx_get_hdrlen(ieee, skb, rx_stats);
