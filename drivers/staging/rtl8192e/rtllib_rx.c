@@ -956,16 +956,6 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, struct ieee80211_hd
 		return -1;
 	}
 
-	/* Filter packets sent by an STA that will be forwarded by AP */
-	if (ieee->intel_promiscuous_md_info.promiscuous_on  &&
-		ieee->intel_promiscuous_md_info.fltr_src_sta_frame) {
-		if ((fc & IEEE80211_FCTL_TODS) && !(fc & IEEE80211_FCTL_FROMDS) &&
-		    !ether_addr_equal(dst, ieee->current_network.bssid) &&
-		    ether_addr_equal(bssid, ieee->current_network.bssid)) {
-			return -1;
-		}
-	}
-
 	/* Nullfunc frames may have PS-bit set, so they must be passed to
 	 * hostap_handle_sta_rx() before being dropped here.
 	 */

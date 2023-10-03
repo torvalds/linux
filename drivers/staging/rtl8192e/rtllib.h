@@ -1177,7 +1177,6 @@ struct rt_pmkid_list {
 
 struct rt_intel_promisc_mode {
 	bool promiscuous_on;
-	bool fltr_src_sta_frame;
 };
 
 /*************** DRIVER STATUS   *****/
