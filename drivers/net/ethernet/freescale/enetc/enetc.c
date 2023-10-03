@@ -1655,7 +1655,7 @@ out:
 	rx_ring->stats.bytes += rx_byte_cnt;
 
 	if (xdp_redirect_frm_cnt)
-		xdp_do_flush_map();
+		xdp_do_flush();
 
 	if (xdp_tx_frm_cnt)
 		enetc_update_tx_ring_tail(tx_ring);

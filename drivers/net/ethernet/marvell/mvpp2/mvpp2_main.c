@@ -4027,7 +4027,7 @@ err_drop_frame:
 	}
 
 	if (xdp_ret & MVPP2_XDP_REDIR)
-		xdp_do_flush_map();
+		xdp_do_flush();
 
 	if (ps.rx_packets) {
 		struct mvpp2_pcpu_stats *stats = this_cpu_ptr(port->stats);
