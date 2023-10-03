@@ -189,6 +189,29 @@ static long get_passive_temp(struct acpi_thermal *tz)
 	return tmp;
 }
 
+static long get_active_temp(struct acpi_thermal *tz, int index)
+{
+	char method[] = { '_', 'A', 'C', '0' + index, '\0' };
+	unsigned long long tmp;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(tz->device->handle, method, NULL, &tmp);
+	if (ACPI_FAILURE(status))
+		return THERMAL_TEMP_INVALID;
+
+	/*
+	 * If an override has been provided, apply it so there are no active
+	 * trips with thresholds greater than the override.
+	 */
+	if (act > 0) {
+		unsigned long long override = celsius_to_deci_kelvin(act);
+
+		if (tmp > override)
+			tmp = override;
+	}
+	return tmp;
+}
+
 static void acpi_thermal_update_passive_trip(struct acpi_thermal *tz)
 {
 	struct acpi_thermal_trip *acpi_trip = &tz->trips.passive.trip;
@@ -245,29 +268,6 @@ static void acpi_thermal_update_trip_devices(struct acpi_thermal *tz, int index)
 
 	acpi_trip->temp_dk = THERMAL_TEMP_INVALID;
 	ACPI_THERMAL_TRIPS_EXCEPTION(tz, "state");
-}
-
-static long get_active_temp(struct acpi_thermal *tz, int index)
-{
-	char method[] = { '_', 'A', 'C', '0' + index, '\0' };
-	unsigned long long tmp;
-	acpi_status status;
-
-	status = acpi_evaluate_integer(tz->device->handle, method, NULL, &tmp);
-	if (ACPI_FAILURE(status))
-		return THERMAL_TEMP_INVALID;
-
-	/*
-	 * If an override has been provided, apply it so there are no active
-	 * trips with thresholds greater than the override.
-	 */
-	if (act > 0) {
-		unsigned long long override = celsius_to_deci_kelvin(act);
-
-		if (tmp > override)
-			tmp = override;
-	}
-	return tmp;
 }
 
 static void acpi_thermal_update_active_trip(struct acpi_thermal *tz, int index)
