@@ -871,15 +871,13 @@ static bool stride_is_valid(const struct intel_plane_state *plane_state)
 	if (DISPLAY_VER(i915) == 2 || DISPLAY_VER(i915) == 3)
 		return stride == 4096 || stride == 8192;
 
-	if (DISPLAY_VER(i915) == 4 && !IS_G4X(i915) && stride < 2048)
+	if (DISPLAY_VER(i915) == 4 && !IS_G4X(i915) &&
+	    (stride < 2048 || stride > 16384))
 		return false;
 
 	/* Display WA #1105: skl,bxt,kbl,cfl,glk */
 	if ((DISPLAY_VER(i915) == 9 || IS_GEMINILAKE(i915)) &&
 	    fb->modifier == DRM_FORMAT_MOD_LINEAR && stride & 511)
-		return false;
-
-	if (stride > 16384)
 		return false;
 
 	return true;
