@@ -119,19 +119,19 @@ with.
 If a pin was registered with multiple parent pins, they behave like a
 multiple output multiplexer. In this case output of a
 ``DPLL_CMD_PIN_GET`` would contain multiple pin-parent nested
-attributes with current state related to each parent, like:
+attributes with current state related to each parent, like::
 
-'pin': [{{
-  'clock-id': 282574471561216,
-  'module-name': 'ice',
-  'capabilities': 4,
-  'id': 13,
-  'parent-pin': [
-  {'parent-id': 2, 'state': 'connected'},
-  {'parent-id': 3, 'state': 'disconnected'}
-  ],
-  'type': 'synce-eth-port'
-  }}]
+        'pin': [{{
+          'clock-id': 282574471561216,
+          'module-name': 'ice',
+          'capabilities': 4,
+          'id': 13,
+          'parent-pin': [
+          {'parent-id': 2, 'state': 'connected'},
+          {'parent-id': 3, 'state': 'disconnected'}
+          ],
+          'type': 'synce-eth-port'
+          }}]
 
 Only one child pin can provide its signal to the parent MUX-type pin at
 a time, the selection is done by requesting change of a child pin state
@@ -425,6 +425,7 @@ The simplest implementation is in the OCP TimeCard driver. The ops
 structures are defined like this:
 
 .. code-block:: c
+
 	static const struct dpll_device_ops dpll_ops = {
 		.lock_status_get = ptp_ocp_dpll_lock_status_get,
 		.mode_get = ptp_ocp_dpll_mode_get,
@@ -442,6 +443,7 @@ structures are defined like this:
 The registration part is then looks like this part:
 
 .. code-block:: c
+
         clkid = pci_get_dsn(pdev);
         bp->dpll = dpll_device_get(clkid, 0, THIS_MODULE);
         if (IS_ERR(bp->dpll)) {
@@ -472,6 +474,7 @@ The registration part is then looks like this part:
 In the error path we have to rewind every allocation in the reverse order:
 
 .. code-block:: c
+
         while (i) {
                 --i;
                 dpll_pin_unregister(bp->dpll, bp->sma[i].dpll_pin, &dpll_pins_ops, &bp->sma[i]);
