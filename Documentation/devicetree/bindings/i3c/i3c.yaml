@@ -119,12 +119,12 @@ patternProperties:
                 minimum: 0
                 maximum: 0x7f
               - description: |
-                  First half of the Provisional ID (following the PID
+                  First half of the Provisioned ID (following the PID
                   definition provided by the I3C specification).
 
                   Contains the manufacturer ID left-shifted by 1.
               - description: |
-                  Second half of the Provisional ID (following the PID
+                  Second half of the Provisioned ID (following the PID
                   definition provided by the I3C specification).
 
                   Contains the ORing of the part ID left-shifted by 16,

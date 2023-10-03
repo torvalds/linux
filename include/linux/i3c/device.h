@@ -96,7 +96,7 @@ enum i3c_dcr {
 
 /**
  * struct i3c_device_info - I3C device information
- * @pid: Provisional ID
+ * @pid: Provisioned ID
  * @bcr: Bus Characteristic Register
  * @dcr: Device Characteristic Register
  * @static_addr: static/I2C address
