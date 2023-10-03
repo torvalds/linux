@@ -704,7 +704,7 @@ static int isst_if_get_perf_level(void __user *argp)
 		return -EINVAL;
 
 	perf_level.max_level = power_domain_info->max_level;
-	perf_level.level_mask = power_domain_info->pp_header.allowed_level_mask;
+	perf_level.level_mask = power_domain_info->pp_header.level_en_mask;
 	perf_level.feature_rev = power_domain_info->pp_header.feature_rev;
 	_read_pp_info("current_level", perf_level.current_level, SST_PP_STATUS_OFFSET,
 		      SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
