@@ -81,7 +81,4 @@ void dcn35_dsc_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int dsc_inst,
 		bool power_on);
-
-void dcn35_set_idle_state(const struct dc *dc, bool allow_idle);
-uint32_t dcn35_get_idle_state(const struct dc *dc);
 #endif /* __DC_HWSS_DCN35_H__ */

@@ -444,9 +444,9 @@ void dcn35_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *cl
 			enable);
 }
 
-int dcn35_smu_exit_low_power_state(struct clk_mgr_internal *clk_mgr)
+void dcn35_smu_exit_low_power_state(struct clk_mgr_internal *clk_mgr)
 {
-	return dcn35_smu_send_msg_with_param(
+	dcn35_smu_send_msg_with_param(
 		clk_mgr,
 		VBIOSSMC_MSG_DispPsrExit,
 		0);
@@ -458,14 +458,4 @@ int dcn35_smu_get_ips_supported(struct clk_mgr_internal *clk_mgr)
 			clk_mgr,
 			VBIOSSMC_MSG_QueryIPS2Support,
 			0);
-}
-
-void dcn35_smu_write_ips_scratch(struct clk_mgr_internal *clk_mgr, uint32_t param)
-{
-	REG_WRITE(MP1_SMN_C2PMSG_71, param);
-}
-
-uint32_t dcn35_smu_read_ips_scratch(struct clk_mgr_internal *clk_mgr)
-{
-	return REG_READ(MP1_SMN_C2PMSG_71);
 }

@@ -652,10 +652,18 @@ bool dcn35_apply_idle_power_optimizations(struct dc *dc, bool enable)
 
 	// TODO: review other cases when idle optimization is allowed
 
+	if (!enable) {
+		// Tell PMFW to exit low power state
+		if (dc->clk_mgr->funcs->exit_low_power_state)
+			dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+
+		dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true);
+	}
+
+	dc_dmub_srv_notify_idle(dc, enable);
+
 	if (!enable)
-		dc_dmub_srv_exit_low_power_state(dc);
-	else
-		dc_dmub_srv_notify_idle(dc, enable);
+		dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true);
 
 	return true;
 }
@@ -1188,20 +1196,4 @@ void dcn35_optimize_bandwidth(
 		if (dc->hwss.root_clock_control)
 			dc->hwss.root_clock_control(dc, &pg_update_state, false);
 	}
-}
-
-void dcn35_set_idle_state(const struct dc *dc, bool allow_idle)
-{
-	// TODO: Find a more suitable communcation
-	if (dc->clk_mgr->funcs->set_idle_state)
-		dc->clk_mgr->funcs->set_idle_state(dc->clk_mgr, allow_idle);
-}
-
-uint32_t dcn35_get_idle_state(const struct dc *dc)
-{
-	// TODO: Find a more suitable communcation
-	if (dc->clk_mgr->funcs->get_idle_state)
-		return dc->clk_mgr->funcs->get_idle_state(dc->clk_mgr);
-
-	return 0;
 }

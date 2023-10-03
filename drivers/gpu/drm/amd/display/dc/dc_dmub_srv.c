@@ -1100,64 +1100,31 @@ void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 
 	cmd.idle_opt_notify_idle.cntl_data.driver_idle = allow_idle;
 
-	if (allow_idle) {
-		if (dc->hwss.set_idle_state)
-			dc->hwss.set_idle_state(dc, true);
-	}
-
 	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+
+	if (allow_idle)
+		udelay(500);
 }
 
 void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 {
-	uint32_t allow_state = 0;
-	uint32_t commit_state = 0;
-
 	if (dc->debug.dmcub_emulation)
 		return;
 
 	if (!dc->idle_optimizations_allowed)
 		return;
 
-	if (dc->hwss.get_idle_state &&
-		dc->hwss.set_idle_state &&
-		dc->clk_mgr->funcs->exit_low_power_state) {
+	// Tell PMFW to exit low power state
+	if (dc->clk_mgr->funcs->exit_low_power_state)
+		dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
 
-		allow_state = dc->hwss.get_idle_state(dc);
-		dc->hwss.set_idle_state(dc, false);
+	// Wait for dmcub to load up
+	dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true);
 
-		if (allow_state & DMUB_IPS2_ALLOW_MASK) {
-			// Wait for evaluation time
-			udelay(dc->debug.ips2_eval_delay_us);
-			commit_state = dc->hwss.get_idle_state(dc);
-			if (commit_state & DMUB_IPS2_COMMIT_MASK) {
-				// Tell PMFW to exit low power state
-				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+	// Notify dmcub disallow idle
+	dc_dmub_srv_notify_idle(dc, false);
 
-				// Wait for IPS2 entry upper bound
-				udelay(dc->debug.ips2_entry_delay_us);
-				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
-
-				do {
-					commit_state = dc->hwss.get_idle_state(dc);
-				} while (commit_state & DMUB_IPS2_COMMIT_MASK);
-
-				if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
-					ASSERT(0);
-
-				return;
-			}
-		}
-
-		dc_dmub_srv_notify_idle(dc, false);
-		if (allow_state & DMUB_IPS1_ALLOW_MASK) {
-			do {
-				commit_state = dc->hwss.get_idle_state(dc);
-			} while (commit_state & DMUB_IPS1_COMMIT_MASK);
-		}
-	}
-
-	if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
-		ASSERT(0);
+	// Confirm dmu is powered up
+	dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true);
 }
 
