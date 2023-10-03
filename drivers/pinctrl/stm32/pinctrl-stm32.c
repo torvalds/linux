@@ -222,7 +222,7 @@ static int stm32_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static void stm32_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	pinctrl_gpio_free_new(chip, offset);
+	pinctrl_gpio_free(chip, offset);
 }
 
 static int stm32_gpio_get(struct gpio_chip *chip, unsigned offset)

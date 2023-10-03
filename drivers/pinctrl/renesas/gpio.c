@@ -140,7 +140,7 @@ static int gpio_pin_request(struct gpio_chip *gc, unsigned offset)
 
 static void gpio_pin_free(struct gpio_chip *gc, unsigned offset)
 {
-	return pinctrl_gpio_free_new(gc, offset);
+	return pinctrl_gpio_free(gc, offset);
 }
 
 static void gpio_pin_set_value(struct sh_pfc_chip *chip, unsigned offset,

@@ -552,7 +552,7 @@ static int jh7110_gpio_request(struct gpio_chip *gc, unsigned int gpio)
 
 static void jh7110_gpio_free(struct gpio_chip *gc, unsigned int gpio)
 {
-	pinctrl_gpio_free_new(gc, gpio);
+	pinctrl_gpio_free(gc, gpio);
 }
 
 static int jh7110_gpio_get_direction(struct gpio_chip *gc,
