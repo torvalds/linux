@@ -364,8 +364,6 @@ void intel_device_info_runtime_init_early(struct drm_i915_private *i915)
 	intel_device_info_subplatform_init(i915);
 }
 
-static const struct intel_display_device_info no_display = {};
-
 /**
  * intel_device_info_runtime_init - initialize runtime info
  * @dev_priv: the i915 device
@@ -385,21 +383,6 @@ static const struct intel_display_device_info no_display = {};
 void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_runtime_info *runtime = RUNTIME_INFO(dev_priv);
-
-	if (HAS_DISPLAY(dev_priv))
-		intel_display_device_info_runtime_init(dev_priv);
-
-	/* Display may have been disabled by runtime init */
-	if (!HAS_DISPLAY(dev_priv)) {
-		dev_priv->drm.driver_features &= ~(DRIVER_MODESET |
-						   DRIVER_ATOMIC);
-		dev_priv->display.info.__device_info = &no_display;
-	}
-
-	/* Disable nuclear pageflip by default on pre-g4x */
-	if (!dev_priv->params.nuclear_pageflip &&
-	    DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
-		dev_priv->drm.driver_features &= ~DRIVER_ATOMIC;
 
 	BUILD_BUG_ON(BITS_PER_TYPE(intel_engine_mask_t) < I915_NUM_ENGINES);
 

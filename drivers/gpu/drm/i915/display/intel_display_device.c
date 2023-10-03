@@ -939,7 +939,7 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	}
 }
 
-void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
+static void __intel_display_device_info_runtime_init(struct drm_i915_private *i915)
 {
 	struct intel_display_runtime_info *display_runtime = DISPLAY_RUNTIME_INFO(i915);
 	enum pipe pipe;
@@ -1069,6 +1069,23 @@ void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
 
 display_fused_off:
 	memset(display_runtime, 0, sizeof(*display_runtime));
+}
+
+void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
+{
+	if (HAS_DISPLAY(i915))
+		__intel_display_device_info_runtime_init(i915);
+
+	/* Display may have been disabled by runtime init */
+	if (!HAS_DISPLAY(i915)) {
+		i915->drm.driver_features &= ~(DRIVER_MODESET | DRIVER_ATOMIC);
+		i915->display.info.__device_info = &no_display;
+	}
+
+	/* Disable nuclear pageflip by default on pre-g4x */
+	if (!i915->params.nuclear_pageflip &&
+	    DISPLAY_VER(i915) < 5 && !IS_G4X(i915))
+		i915->drm.driver_features &= ~DRIVER_ATOMIC;
 }
 
 void intel_display_device_info_print(const struct intel_display_device_info *info,
