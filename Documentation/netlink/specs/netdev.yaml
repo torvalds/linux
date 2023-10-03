@@ -74,7 +74,6 @@ attribute-sets:
         doc: Bitmask of enabled xdp-features.
         type: u64
         enum: xdp-act
-        enum-as-flags: true
       -
         name: xdp-zc-max-segs
         doc: max fragment count supported by ZC driver
@@ -87,7 +86,6 @@ attribute-sets:
              See Documentation/networking/xdp-rx-metadata.rst for more details.
         type: u64
         enum: xdp-rx-metadata
-        enum-as-flags: true
 
 operations:
   list:
