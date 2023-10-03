@@ -138,6 +138,7 @@ mlxsw_afk_key_info_find(struct mlxsw_afk *mlxsw_afk,
 
 struct mlxsw_afk_picker {
 	DECLARE_BITMAP(element, MLXSW_AFK_ELEMENT_MAX);
+	DECLARE_BITMAP(chosen_element, MLXSW_AFK_ELEMENT_MAX);
 	unsigned int total;
 };
 
@@ -208,7 +209,7 @@ static int mlxsw_afk_picker_key_info_add(struct mlxsw_afk *mlxsw_afk,
 	if (key_info->blocks_count == mlxsw_afk->max_blocks)
 		return -EINVAL;
 
-	for_each_set_bit(element, picker[block_index].element,
+	for_each_set_bit(element, picker[block_index].chosen_element,
 			 MLXSW_AFK_ELEMENT_MAX) {
 		key_info->element_to_block[element] = key_info->blocks_count;
 		mlxsw_afk_element_usage_add(&key_info->elusage, element);
@@ -265,6 +266,9 @@ static int mlxsw_afk_picker(struct mlxsw_afk *mlxsw_afk,
 		}
 
 		__set_bit(block_index, chosen_blocks_bm);
+
+		bitmap_copy(picker[block_index].chosen_element,
+			    picker[block_index].element, MLXSW_AFK_ELEMENT_MAX);
 
 		err = mlxsw_afk_picker_key_info_add(mlxsw_afk, picker,
 						    block_index, key_info);
