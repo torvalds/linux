@@ -29,7 +29,8 @@ BASICS := \
 	fixpt31_32.o \
 	vector.o \
 	dc_common.o \
-	dce_calcs.o
+	dce_calcs.o \
+	custom_float.o
 
 AMD_DAL_BASICS = $(addprefix $(AMDDALPATH)/dc/basics/,$(BASICS))
 
