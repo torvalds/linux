@@ -327,6 +327,8 @@ politely and address the problems they have pointed out.  When sending a next
 version, add a ``patch changelog`` to the cover letter or to individual patches
 explaining difference against previous submission (see
 :ref:`the_canonical_patch_format`).
+Notify people that commented on your patch about new versions by adding them to
+the patches CC list.
 
 See Documentation/process/email-clients.rst for recommendations on email
 clients and mailing list etiquette.
