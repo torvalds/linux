@@ -314,6 +314,23 @@ out:
 	mutex_unlock(&dev_priv->display.dpll.lock);
 }
 
+static unsigned long
+intel_dpll_mask_all(struct drm_i915_private *i915)
+{
+	unsigned long dpll_mask = 0;
+	int i;
+
+	for (i = 0; i < i915->display.dpll.num_shared_dpll; i++) {
+		struct intel_shared_dpll *pll = &i915->display.dpll.shared_dplls[i];
+
+		drm_WARN_ON(&i915->drm, dpll_mask & BIT(pll->info->id));
+
+		dpll_mask |= BIT(pll->info->id);
+	}
+
+	return dpll_mask;
+}
+
 static struct intel_shared_dpll *
 intel_find_shared_dpll(struct intel_atomic_state *state,
 		       const struct intel_crtc *crtc,
@@ -321,15 +338,16 @@ intel_find_shared_dpll(struct intel_atomic_state *state,
 		       unsigned long dpll_mask)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	unsigned long dpll_mask_all = intel_dpll_mask_all(dev_priv);
 	struct intel_shared_dpll_state *shared_dpll;
 	struct intel_shared_dpll *unused_pll = NULL;
 	enum intel_dpll_id id;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
-	drm_WARN_ON(&dev_priv->drm, dpll_mask & ~(BIT(I915_NUM_PLLS) - 1));
+	drm_WARN_ON(&dev_priv->drm, dpll_mask & ~dpll_mask_all);
 
-	for_each_set_bit(id, &dpll_mask, I915_NUM_PLLS) {
+	for_each_set_bit(id, &dpll_mask, fls(dpll_mask_all)) {
 		struct intel_shared_dpll *pll;
 
 		pll = intel_get_shared_dpll_by_id(dev_priv, id);
@@ -4187,6 +4205,10 @@ void intel_shared_dpll_init(struct drm_i915_private *dev_priv)
 	for (i = 0; dpll_info[i].name; i++) {
 		if (drm_WARN_ON(&dev_priv->drm,
 				i >= ARRAY_SIZE(dev_priv->display.dpll.shared_dplls)))
+			break;
+
+		/* must fit into unsigned long bitmask on 32bit */
+		if (drm_WARN_ON(&dev_priv->drm, dpll_info[i].id >= 32))
 			break;
 
 		dev_priv->display.dpll.shared_dplls[i].info = &dpll_info[i];
