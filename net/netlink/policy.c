@@ -21,7 +21,7 @@ struct netlink_policy_dump_state {
 	struct {
 		const struct nla_policy *policy;
 		unsigned int maxtype;
-	} policies[];
+	} policies[] __counted_by(n_alloc);
 };
 
 static int add_policy(struct netlink_policy_dump_state **statep,
@@ -29,7 +29,7 @@ static int add_policy(struct netlink_policy_dump_state **statep,
 		      unsigned int maxtype)
 {
 	struct netlink_policy_dump_state *state = *statep;
-	unsigned int n_alloc, i;
+	unsigned int old_n_alloc, n_alloc, i;
 
 	if (!policy || !maxtype)
 		return 0;
@@ -52,12 +52,13 @@ static int add_policy(struct netlink_policy_dump_state **statep,
 	if (!state)
 		return -ENOMEM;
 
-	memset(&state->policies[state->n_alloc], 0,
-	       flex_array_size(state, policies, n_alloc - state->n_alloc));
-
-	state->policies[state->n_alloc].policy = policy;
-	state->policies[state->n_alloc].maxtype = maxtype;
+	old_n_alloc = state->n_alloc;
 	state->n_alloc = n_alloc;
+	memset(&state->policies[old_n_alloc], 0,
+	       flex_array_size(state, policies, n_alloc - old_n_alloc));
+
+	state->policies[old_n_alloc].policy = policy;
+	state->policies[old_n_alloc].maxtype = maxtype;
 	*statep = state;
 
 	return 0;
