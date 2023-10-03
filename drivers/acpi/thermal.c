@@ -212,14 +212,25 @@ static long get_active_temp(struct acpi_thermal *tz, int index)
 	return tmp;
 }
 
-static void acpi_thermal_update_passive_trip(struct acpi_thermal *tz)
+static void acpi_thermal_update_trip(struct acpi_thermal *tz,
+				     int index)
 {
-	struct acpi_thermal_trip *acpi_trip = &tz->trips.passive.trip;
+	struct acpi_thermal_trip *acpi_trip;
 
-	if (!acpi_thermal_trip_valid(acpi_trip) || psv > 0)
+	acpi_trip = index == ACPI_THERMAL_TRIP_PASSIVE ?
+			&tz->trips.passive.trip : &tz->trips.active[index].trip;
+	if (!acpi_thermal_trip_valid(acpi_trip))
 		return;
 
-	acpi_trip->temp_dk = get_passive_temp(tz);
+	if (index == ACPI_THERMAL_TRIP_PASSIVE) {
+		if (psv > 0)
+			return;
+
+		acpi_trip->temp_dk = get_passive_temp(tz);
+	} else {
+		acpi_trip->temp_dk = get_active_temp(tz, index);
+	}
+
 	if (!acpi_thermal_trip_valid(acpi_trip))
 		ACPI_THERMAL_TRIPS_EXCEPTION(tz, "state");
 }
@@ -270,18 +281,6 @@ static void acpi_thermal_update_trip_devices(struct acpi_thermal *tz, int index)
 	ACPI_THERMAL_TRIPS_EXCEPTION(tz, "state");
 }
 
-static void acpi_thermal_update_active_trip(struct acpi_thermal *tz, int index)
-{
-	struct acpi_thermal_trip *acpi_trip = &tz->trips.active[index].trip;
-
-	if (!acpi_thermal_trip_valid(acpi_trip))
-		return;
-
-	acpi_trip->temp_dk = get_active_temp(tz, index);
-	if (!acpi_thermal_trip_valid(acpi_trip))
-		ACPI_THERMAL_TRIPS_EXCEPTION(tz, "state");
-}
-
 static int acpi_thermal_adjust_trip(struct thermal_trip *trip, void *data)
 {
 	struct acpi_thermal_trip *acpi_trip = trip->priv;
@@ -305,9 +304,9 @@ static void acpi_thermal_adjust_thermal_zone(struct thermal_zone_device *thermal
 	int i;
 
 	if (data == ACPI_THERMAL_NOTIFY_THRESHOLDS) {
-		acpi_thermal_update_passive_trip(tz);
+		acpi_thermal_update_trip(tz, ACPI_THERMAL_TRIP_PASSIVE);
 		for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++)
-			acpi_thermal_update_active_trip(tz, i);
+			acpi_thermal_update_trip(tz, i);
 	} else {
 		acpi_thermal_update_trip_devices(tz, ACPI_THERMAL_TRIP_PASSIVE);
 		for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++)
