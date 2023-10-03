@@ -67,7 +67,7 @@
 
 struct disttable {
 	u32  size;
-	s16 table[];
+	s16 table[] __counted_by(size);
 };
 
 struct netem_sched_data {
