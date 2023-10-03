@@ -2549,7 +2549,7 @@ static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest 
 			if (strchr(ent->d_name, '.'))
 				continue;
 
-			/* exclude parametrized ones (name contains '?') */
+			/* exclude parameterized ones (name contains '?') */
 			n = snprintf(pmu_event, sizeof(pmu_event), "%s%s", path, ent->d_name);
 			if (n >= PATH_MAX) {
 				pr_err("pmu event name crossed PATH_MAX(%d) size\n", PATH_MAX);
@@ -2578,7 +2578,7 @@ static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest 
 			fclose(file);
 
 			if (is_event_parameterized == 1) {
-				pr_debug("skipping parametrized PMU event: %s which contains ?\n", pmu_event);
+				pr_debug("skipping parameterized PMU event: %s which contains ?\n", pmu_event);
 				continue;
 			}
 
