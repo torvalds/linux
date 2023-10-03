@@ -497,8 +497,8 @@ static int dapm_kcontrol_add_widget(struct snd_kcontrol *kcontrol,
 	if (!new_wlist)
 		return -ENOMEM;
 
-	new_wlist->widgets[n - 1] = widget;
 	new_wlist->num_widgets = n;
+	new_wlist->widgets[n - 1] = widget;
 
 	data->wlist = new_wlist;
 
