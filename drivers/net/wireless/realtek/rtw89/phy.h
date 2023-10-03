@@ -404,6 +404,10 @@ struct rtw89_phy_gen_def {
 	u32 cr_base;
 	const struct rtw89_ccx_regs *ccx;
 	const struct rtw89_physts_regs *physts;
+
+	void (*set_txpwr_byrate)(struct rtw89_dev *rtwdev,
+				 const struct rtw89_chan *chan,
+				 enum rtw89_phy_idx phy_idx);
 };
 
 extern const struct rtw89_phy_gen_def rtw89_phy_gen_ax;
@@ -616,13 +620,23 @@ u32 rtw89_phy_read32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 s8 *rtw89_phy_raw_byr_seek(struct rtw89_dev *rtwdev,
 			   struct rtw89_txpwr_byrate *head,
 			   const struct rtw89_rate_desc *desc);
+s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band, u8 bw,
+			       const struct rtw89_rate_desc *rate_desc);
 void rtw89_phy_load_txpwr_byrate(struct rtw89_dev *rtwdev,
 				 const struct rtw89_txpwr_table *tbl);
 s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 			      u8 bw, u8 ntx, u8 rs, u8 bf, u8 ch);
+
+static inline
 void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 				const struct rtw89_chan *chan,
-				enum rtw89_phy_idx phy_idx);
+				enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	phy->set_txpwr_byrate(rtwdev, chan, phy_idx);
+}
+
 void rtw89_phy_set_txpwr_offset(struct rtw89_dev *rtwdev,
 				const struct rtw89_chan *chan,
 				enum rtw89_phy_idx phy_idx);

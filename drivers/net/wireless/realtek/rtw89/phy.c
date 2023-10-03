@@ -1519,7 +1519,7 @@ void rtw89_phy_write_reg3_tbl(struct rtw89_dev *rtwdev,
 }
 EXPORT_SYMBOL(rtw89_phy_write_reg3_tbl);
 
-static const u8 rtw89_rs_idx_num[] = {
+static const u8 rtw89_rs_idx_num_ax[] = {
 	[RTW89_RS_CCK] = RTW89_RATE_CCK_NUM,
 	[RTW89_RS_OFDM] = RTW89_RATE_OFDM_NUM,
 	[RTW89_RS_MCS] = RTW89_RATE_MCS_NUM_AX,
@@ -1527,7 +1527,7 @@ static const u8 rtw89_rs_idx_num[] = {
 	[RTW89_RS_OFFSET] = RTW89_RATE_OFFSET_NUM_AX,
 };
 
-static const u8 rtw89_rs_nss_num[] = {
+static const u8 rtw89_rs_nss_num_ax[] = {
 	[RTW89_RS_CCK] = 1,
 	[RTW89_RS_OFDM] = 1,
 	[RTW89_RS_MCS] = RTW89_NSS_NUM,
@@ -1589,7 +1589,6 @@ static s8 rtw89_phy_txpwr_rf_to_mac(struct rtw89_dev *rtwdev, s8 txpwr_rf)
 	return txpwr_rf >> (chip->txpwr_factor_rf - chip->txpwr_factor_mac);
 }
 
-static
 s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band, u8 bw,
 			       const struct rtw89_rate_desc *rate_desc)
 {
@@ -2098,9 +2097,9 @@ void rtw89_phy_fill_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 	}
 }
 
-void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
-				const struct rtw89_chan *chan,
-				enum rtw89_phy_idx phy_idx)
+static void rtw89_phy_set_txpwr_byrate_ax(struct rtw89_dev *rtwdev,
+					  const struct rtw89_chan *chan,
+					  enum rtw89_phy_idx phy_idx)
 {
 	u8 max_nss_num = rtwdev->chip->rf_path_num;
 	static const u8 rs[] = {
@@ -2119,19 +2118,19 @@ void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 	rtw89_debug(rtwdev, RTW89_DBG_TXPWR,
 		    "[TXPWR] set txpwr byrate with ch=%d\n", ch);
 
-	BUILD_BUG_ON(rtw89_rs_idx_num[RTW89_RS_CCK] % 4);
-	BUILD_BUG_ON(rtw89_rs_idx_num[RTW89_RS_OFDM] % 4);
-	BUILD_BUG_ON(rtw89_rs_idx_num[RTW89_RS_MCS] % 4);
-	BUILD_BUG_ON(rtw89_rs_idx_num[RTW89_RS_HEDCM] % 4);
+	BUILD_BUG_ON(rtw89_rs_idx_num_ax[RTW89_RS_CCK] % 4);
+	BUILD_BUG_ON(rtw89_rs_idx_num_ax[RTW89_RS_OFDM] % 4);
+	BUILD_BUG_ON(rtw89_rs_idx_num_ax[RTW89_RS_MCS] % 4);
+	BUILD_BUG_ON(rtw89_rs_idx_num_ax[RTW89_RS_HEDCM] % 4);
 
 	addr = R_AX_PWR_BY_RATE;
 	for (cur.nss = 0; cur.nss < max_nss_num; cur.nss++) {
 		for (i = 0; i < ARRAY_SIZE(rs); i++) {
-			if (cur.nss >= rtw89_rs_nss_num[rs[i]])
+			if (cur.nss >= rtw89_rs_nss_num_ax[rs[i]])
 				continue;
 
 			cur.rs = rs[i];
-			for (cur.idx = 0; cur.idx < rtw89_rs_idx_num[rs[i]];
+			for (cur.idx = 0; cur.idx < rtw89_rs_idx_num_ax[rs[i]];
 			     cur.idx++) {
 				v[cur.idx % 4] =
 					rtw89_phy_read_txpwr_byrate(rtwdev,
@@ -2153,7 +2152,6 @@ void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 		}
 	}
 }
-EXPORT_SYMBOL(rtw89_phy_set_txpwr_byrate);
 
 void rtw89_phy_set_txpwr_offset(struct rtw89_dev *rtwdev,
 				const struct rtw89_chan *chan,
@@ -4905,5 +4903,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_ax = {
 	.cr_base = 0x10000,
 	.ccx = &rtw89_ccx_regs_ax,
 	.physts = &rtw89_physts_regs_ax,
+
+	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_ax,
 };
 EXPORT_SYMBOL(rtw89_phy_gen_ax);
