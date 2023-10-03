@@ -23,6 +23,8 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
+#include <linux/gpio/driver.h>
+
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/devinfo.h>
 #include <linux/pinctrl/machine.h>
@@ -781,14 +783,13 @@ bool pinctrl_gpio_can_use_line(unsigned gpio)
 }
 EXPORT_SYMBOL_GPL(pinctrl_gpio_can_use_line);
 
-/**
- * pinctrl_gpio_request() - request a single pin to be used as GPIO
- * @gpio: the GPIO pin number from the GPIO subsystem number space
- *
- * This function should *ONLY* be used from gpiolib-based GPIO drivers,
- * as part of their gpio_request() semantics, platforms and individual drivers
- * shall *NOT* request GPIO pins to be muxed in.
- */
+bool pinctrl_gpio_can_use_line_new(struct gpio_chip *gc, unsigned int offset)
+{
+	return pinctrl_gpio_can_use_line(gc->base + offset);
+}
+EXPORT_SYMBOL_GPL(pinctrl_gpio_can_use_line_new);
+
+/* This function is deprecated and will be removed. Don't use. */
 int pinctrl_gpio_request(unsigned gpio)
 {
 	struct pinctrl_dev *pctldev;
@@ -817,13 +818,21 @@ int pinctrl_gpio_request(unsigned gpio)
 EXPORT_SYMBOL_GPL(pinctrl_gpio_request);
 
 /**
- * pinctrl_gpio_free() - free control on a single pin, currently used as GPIO
- * @gpio: the GPIO pin number from the GPIO subsystem number space
+ * pinctrl_gpio_request_new() - request a single pin to be used as GPIO
+ * @gc: GPIO chip structure from the GPIO subsystem
+ * @offset: hardware offset of the GPIO relative to the controller
  *
  * This function should *ONLY* be used from gpiolib-based GPIO drivers,
- * as part of their gpio_free() semantics, platforms and individual drivers
- * shall *NOT* request GPIO pins to be muxed out.
+ * as part of their gpio_request() semantics, platforms and individual drivers
+ * shall *NOT* request GPIO pins to be muxed in.
  */
+int pinctrl_gpio_request_new(struct gpio_chip *gc, unsigned int offset)
+{
+	return pinctrl_gpio_request(gc->base + offset);
+}
+EXPORT_SYMBOL_GPL(pinctrl_gpio_request_new);
+
+/* This function is deprecated and will be removed. Don't use. */
 void pinctrl_gpio_free(unsigned gpio)
 {
 	struct pinctrl_dev *pctldev;
@@ -845,6 +854,21 @@ void pinctrl_gpio_free(unsigned gpio)
 	mutex_unlock(&pctldev->mutex);
 }
 EXPORT_SYMBOL_GPL(pinctrl_gpio_free);
+
+/**
+ * pinctrl_gpio_free_new() - free control on a single pin, currently used as GPIO
+ * @gc: GPIO chip structure from the GPIO subsystem
+ * @offset: hardware offset of the GPIO relative to the controller
+ *
+ * This function should *ONLY* be used from gpiolib-based GPIO drivers,
+ * as part of their gpio_request() semantics, platforms and individual drivers
+ * shall *NOT* request GPIO pins to be muxed in.
+ */
+void pinctrl_gpio_free_new(struct gpio_chip *gc, unsigned int offset)
+{
+	return pinctrl_gpio_free(gc->base + offset);
+}
+EXPORT_SYMBOL_GPL(pinctrl_gpio_free_new);
 
 static int pinctrl_gpio_direction(unsigned gpio, bool input)
 {
@@ -869,14 +893,7 @@ static int pinctrl_gpio_direction(unsigned gpio, bool input)
 	return ret;
 }
 
-/**
- * pinctrl_gpio_direction_input() - request a GPIO pin to go into input mode
- * @gpio: the GPIO pin number from the GPIO subsystem number space
- *
- * This function should *ONLY* be used from gpiolib-based GPIO drivers,
- * as part of their gpio_direction_input() semantics, platforms and individual
- * drivers shall *NOT* touch pin control GPIO calls.
- */
+/* This function is deprecated and will be removed. Don't use. */
 int pinctrl_gpio_direction_input(unsigned gpio)
 {
 	return pinctrl_gpio_direction(gpio, true);
@@ -884,13 +901,21 @@ int pinctrl_gpio_direction_input(unsigned gpio)
 EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_input);
 
 /**
- * pinctrl_gpio_direction_output() - request a GPIO pin to go into output mode
- * @gpio: the GPIO pin number from the GPIO subsystem number space
+ * pinctrl_gpio_direction_input_new() - request a GPIO pin to go into input mode
+ * @gc: GPIO chip structure from the GPIO subsystem
+ * @offset: hardware offset of the GPIO relative to the controller
  *
  * This function should *ONLY* be used from gpiolib-based GPIO drivers,
- * as part of their gpio_direction_output() semantics, platforms and individual
+ * as part of their gpio_direction_input() semantics, platforms and individual
  * drivers shall *NOT* touch pin control GPIO calls.
  */
+int pinctrl_gpio_direction_input_new(struct gpio_chip *gc, unsigned int offset)
+{
+	return pinctrl_gpio_direction_input(gc->base + offset);
+}
+EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_input_new);
+
+/* This function is deprecated and will be removed. Don't use. */
 int pinctrl_gpio_direction_output(unsigned gpio)
 {
 	return pinctrl_gpio_direction(gpio, false);
@@ -898,14 +923,22 @@ int pinctrl_gpio_direction_output(unsigned gpio)
 EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_output);
 
 /**
- * pinctrl_gpio_set_config() - Apply config to given GPIO pin
- * @gpio: the GPIO pin number from the GPIO subsystem number space
- * @config: the configuration to apply to the GPIO
+ * pinctrl_gpio_direction_output_new() - request a GPIO pin to go into output
+ *                                       mode
+ * @gc: GPIO chip structure from the GPIO subsystem
+ * @offset: hardware offset of the GPIO relative to the controller
  *
- * This function should *ONLY* be used from gpiolib-based GPIO drivers, if
- * they need to call the underlying pin controller to change GPIO config
- * (for example set debounce time).
+ * This function should *ONLY* be used from gpiolib-based GPIO drivers,
+ * as part of their gpio_direction_output() semantics, platforms and individual
+ * drivers shall *NOT* touch pin control GPIO calls.
  */
+int pinctrl_gpio_direction_output_new(struct gpio_chip *gc, unsigned int offset)
+{
+	return pinctrl_gpio_direction_output(gc->base + offset);
+}
+EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_output_new);
+
+/* This function is deprecated and will be removed. Don't use. */
 int pinctrl_gpio_set_config(unsigned gpio, unsigned long config)
 {
 	unsigned long configs[] = { config };
@@ -925,6 +958,23 @@ int pinctrl_gpio_set_config(unsigned gpio, unsigned long config)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pinctrl_gpio_set_config);
+
+/**
+ * pinctrl_gpio_set_config_new() - Apply config to given GPIO pin
+ * @gc: GPIO chip structure from the GPIO subsystem
+ * @offset: hardware offset of the GPIO relative to the controller
+ * @config: the configuration to apply to the GPIO
+ *
+ * This function should *ONLY* be used from gpiolib-based GPIO drivers, if
+ * they need to call the underlying pin controller to change GPIO config
+ * (for example set debounce time).
+ */
+int pinctrl_gpio_set_config_new(struct gpio_chip *gc, unsigned int offset,
+				unsigned long config)
+{
+	return pinctrl_gpio_set_config(gc->base + offset, config);
+}
+EXPORT_SYMBOL_GPL(pinctrl_gpio_set_config_new);
 
 static struct pinctrl_state *find_state(struct pinctrl *p,
 					const char *name)
