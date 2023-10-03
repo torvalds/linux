@@ -241,7 +241,7 @@ const struct qcom_spmi_pmic *qcom_pmic_get(struct device *dev)
 
 	return &spmi->pmic;
 }
-EXPORT_SYMBOL(qcom_pmic_get);
+EXPORT_SYMBOL_GPL(qcom_pmic_get);
 
 static const struct regmap_config spmi_regmap_config = {
 	.reg_bits	= 16,
