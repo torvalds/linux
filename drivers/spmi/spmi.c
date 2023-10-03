@@ -388,7 +388,7 @@ static struct bus_type spmi_bus_type = {
 };
 
 /**
- * spmi_device_from_of() - get the associated SPMI device from a device node
+ * spmi_find_device_by_of_node() - look up an SPMI device from a device node
  *
  * @np:		device node
  *
@@ -397,7 +397,7 @@ static struct bus_type spmi_bus_type = {
  *
  * Returns the struct spmi_device associated with a device node or NULL.
  */
-struct spmi_device *spmi_device_from_of(struct device_node *np)
+struct spmi_device *spmi_find_device_by_of_node(struct device_node *np)
 {
 	struct device *dev = bus_find_device_by_of_node(&spmi_bus_type, np);
 
@@ -405,7 +405,7 @@ struct spmi_device *spmi_device_from_of(struct device_node *np)
 		return to_spmi_device(dev);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(spmi_device_from_of);
+EXPORT_SYMBOL_GPL(spmi_find_device_by_of_node);
 
 /**
  * spmi_device_alloc() - Allocate a new SPMI device

@@ -116,7 +116,7 @@ static struct spmi_device *qcom_pmic_get_base_usid(struct spmi_device *sdev, str
 		}
 
 		if (pmic_addr == function_parent_usid - (ctx->num_usids - 1)) {
-			sdev = spmi_device_from_of(child);
+			sdev = spmi_find_device_by_of_node(child);
 			if (!sdev) {
 				/*
 				 * If the base USID for this PMIC hasn't been
