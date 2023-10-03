@@ -114,7 +114,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	ieee->drop_unencrypted = 0;
 	ieee->privacy_invoked = 0;
 	ieee->ieee802_1x = 1;
-	ieee->raw_tx = 0;
 	ieee->hwsec_active = 0;
 
 	memset(ieee->swcamtable, 0, sizeof(struct sw_cam_table) * 32);

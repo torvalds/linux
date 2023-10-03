@@ -1364,7 +1364,6 @@ struct rtllib_device {
 	u64 ps_time;
 	bool polling;
 
-	short raw_tx;
 	/* used if IEEE_SOFTMAC_TX_QUEUE is set */
 	short queue_stop;
 	short scanning_continue;
