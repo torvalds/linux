@@ -11,7 +11,7 @@
 #include <linux/platform_data/cros_ec_proto.h>
 
 #include "cros_ec.h"
-#include "cros_kunit_util.h"
+#include "cros_ec_proto_test_util.h"
 
 #define BUFSIZE 512
 

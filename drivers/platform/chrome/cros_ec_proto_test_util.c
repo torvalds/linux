@@ -11,7 +11,7 @@
 #include <linux/platform_data/cros_ec_proto.h>
 
 #include "cros_ec.h"
-#include "cros_kunit_util.h"
+#include "cros_ec_proto_test_util.h"
 
 int cros_kunit_ec_xfer_mock_default_result;
 int cros_kunit_ec_xfer_mock_default_ret;
@@ -126,5 +126,3 @@ void cros_kunit_mock_reset(void)
 	cros_kunit_readmem_mock_data = NULL;
 	cros_kunit_readmem_mock_ret = 0;
 }
-
-MODULE_LICENSE("GPL");
