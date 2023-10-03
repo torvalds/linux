@@ -338,9 +338,9 @@ static void xts_free_instance(struct skcipher_instance *inst)
 
 static int xts_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
+	struct skcipher_alg_common *alg;
 	struct skcipher_instance *inst;
 	struct xts_instance_ctx *ctx;
-	struct skcipher_alg *alg;
 	const char *cipher_name;
 	u32 mask;
 	int err;
@@ -375,13 +375,13 @@ static int xts_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (err)
 		goto err_free_inst;
 
-	alg = crypto_skcipher_spawn_alg(&ctx->spawn);
+	alg = crypto_spawn_skcipher_alg_common(&ctx->spawn);
 
 	err = -EINVAL;
 	if (alg->base.cra_blocksize != XTS_BLOCK_SIZE)
 		goto err_free_inst;
 
-	if (crypto_skcipher_alg_ivsize(alg))
+	if (alg->ivsize)
 		goto err_free_inst;
 
 	err = crypto_inst_setname(skcipher_crypto_instance(inst), "xts",
@@ -421,8 +421,8 @@ static int xts_create(struct crypto_template *tmpl, struct rtattr **tb)
 				       (__alignof__(u64) - 1);
 
 	inst->alg.ivsize = XTS_BLOCK_SIZE;
-	inst->alg.min_keysize = crypto_skcipher_alg_min_keysize(alg) * 2;
-	inst->alg.max_keysize = crypto_skcipher_alg_max_keysize(alg) * 2;
+	inst->alg.min_keysize = alg->min_keysize * 2;
+	inst->alg.max_keysize = alg->max_keysize * 2;
 
 	inst->alg.base.cra_ctxsize = sizeof(struct xts_tfm_ctx);
 
