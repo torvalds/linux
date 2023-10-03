@@ -11,7 +11,7 @@
 #ifndef __LINUX_PINCTRL_MACHINE_H
 #define __LINUX_PINCTRL_MACHINE_H
 
-#include <linux/kernel.h>	/* ARRAY_SIZE() */
+#include <linux/array_size.h>
 
 #include <linux/pinctrl/pinctrl-state.h>
 

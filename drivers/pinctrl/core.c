@@ -12,12 +12,12 @@
  */
 #define pr_fmt(fmt) "pinctrl core: " fmt
 
+#include <linux/array_size.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/seq_file.h>
