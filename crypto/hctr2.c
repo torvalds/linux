@@ -406,10 +406,10 @@ static int hctr2_create_common(struct crypto_template *tmpl,
 			       const char *xctr_name,
 			       const char *polyval_name)
 {
+	struct skcipher_alg_common *xctr_alg;
 	u32 mask;
 	struct skcipher_instance *inst;
 	struct hctr2_instance_ctx *ictx;
-	struct skcipher_alg *xctr_alg;
 	struct crypto_alg *blockcipher_alg;
 	struct shash_alg *polyval_alg;
 	char blockcipher_name[CRYPTO_MAX_ALG_NAME];
@@ -431,7 +431,7 @@ static int hctr2_create_common(struct crypto_template *tmpl,
 				   xctr_name, 0, mask);
 	if (err)
 		goto err_free_inst;
-	xctr_alg = crypto_spawn_skcipher_alg(&ictx->xctr_spawn);
+	xctr_alg = crypto_spawn_skcipher_alg_common(&ictx->xctr_spawn);
 
 	err = -EINVAL;
 	if (strncmp(xctr_alg->base.cra_name, "xctr(", 5))
@@ -500,8 +500,8 @@ static int hctr2_create_common(struct crypto_template *tmpl,
 	inst->alg.decrypt = hctr2_decrypt;
 	inst->alg.init = hctr2_init_tfm;
 	inst->alg.exit = hctr2_exit_tfm;
-	inst->alg.min_keysize = crypto_skcipher_alg_min_keysize(xctr_alg);
-	inst->alg.max_keysize = crypto_skcipher_alg_max_keysize(xctr_alg);
+	inst->alg.min_keysize = xctr_alg->min_keysize;
+	inst->alg.max_keysize = xctr_alg->max_keysize;
 	inst->alg.ivsize = TWEAK_SIZE;
 
 	inst->free = hctr2_free_instance;
