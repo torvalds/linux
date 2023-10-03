@@ -167,6 +167,7 @@ void __init of_core_init(void)
 {
 	struct device_node *np;
 
+	of_platform_register_reconfig_notifier();
 
 	/* Create the kset, and register existing nodes */
 	mutex_lock(&of_mutex);
@@ -1529,6 +1530,20 @@ int of_count_phandle_with_args(const struct device_node *np, const char *list_na
 }
 EXPORT_SYMBOL(of_count_phandle_with_args);
 
+static struct property *__of_remove_property_from_list(struct property **list, struct property *prop)
+{
+	struct property **next;
+
+	for (next = list; *next; next = &(*next)->next) {
+		if (*next == prop) {
+			*next = prop->next;
+			prop->next = NULL;
+			return prop;
+		}
+	}
+	return NULL;
+}
+
 /**
  * __of_add_property - Add a property to a node without lock operations
  * @np:		Caller's Device Node
@@ -1536,19 +1551,32 @@ EXPORT_SYMBOL(of_count_phandle_with_args);
  */
 int __of_add_property(struct device_node *np, struct property *prop)
 {
+	int rc = 0;
+	unsigned long flags;
 	struct property **next;
+
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+
+	__of_remove_property_from_list(&np->deadprops, prop);
 
 	prop->next = NULL;
 	next = &np->properties;
 	while (*next) {
-		if (strcmp(prop->name, (*next)->name) == 0)
+		if (strcmp(prop->name, (*next)->name) == 0) {
 			/* duplicate ! don't insert it */
-			return -EEXIST;
-
+			rc = -EEXIST;
+			goto out_unlock;
+		}
 		next = &(*next)->next;
 	}
 	*next = prop;
 
+out_unlock:
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+	if (rc)
+		return rc;
+
+	__of_add_property_sysfs(np, prop);
 	return 0;
 }
 
@@ -1559,18 +1587,10 @@ int __of_add_property(struct device_node *np, struct property *prop)
  */
 int of_add_property(struct device_node *np, struct property *prop)
 {
-	unsigned long flags;
 	int rc;
 
 	mutex_lock(&of_mutex);
-
-	raw_spin_lock_irqsave(&devtree_lock, flags);
 	rc = __of_add_property(np, prop);
-	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-
-	if (!rc)
-		__of_add_property_sysfs(np, prop);
-
 	mutex_unlock(&of_mutex);
 
 	if (!rc)
@@ -1582,20 +1602,23 @@ EXPORT_SYMBOL_GPL(of_add_property);
 
 int __of_remove_property(struct device_node *np, struct property *prop)
 {
-	struct property **next;
+	unsigned long flags;
+	int rc = -ENODEV;
 
-	for (next = &np->properties; *next; next = &(*next)->next) {
-		if (*next == prop)
-			break;
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+
+	if (__of_remove_property_from_list(&np->properties, prop)) {
+		/* Found the property, add it to deadprops list */
+		prop->next = np->deadprops;
+		np->deadprops = prop;
+		rc = 0;
 	}
-	if (*next == NULL)
-		return -ENODEV;
 
-	/* found the node */
-	*next = prop->next;
-	prop->next = np->deadprops;
-	np->deadprops = prop;
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+	if (rc)
+		return rc;
 
+	__of_remove_property_sysfs(np, prop);
 	return 0;
 }
 
@@ -1611,21 +1634,13 @@ int __of_remove_property(struct device_node *np, struct property *prop)
  */
 int of_remove_property(struct device_node *np, struct property *prop)
 {
-	unsigned long flags;
 	int rc;
 
 	if (!prop)
 		return -ENODEV;
 
 	mutex_lock(&of_mutex);
-
-	raw_spin_lock_irqsave(&devtree_lock, flags);
 	rc = __of_remove_property(np, prop);
-	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-
-	if (!rc)
-		__of_remove_property_sysfs(np, prop);
-
 	mutex_unlock(&of_mutex);
 
 	if (!rc)
@@ -1639,6 +1654,11 @@ int __of_update_property(struct device_node *np, struct property *newprop,
 		struct property **oldpropp)
 {
 	struct property **next, *oldprop;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+
+	__of_remove_property_from_list(&np->deadprops, newprop);
 
 	for (next = &np->properties; *next; next = &(*next)->next) {
 		if (of_prop_cmp((*next)->name, newprop->name) == 0)
@@ -1658,6 +1678,10 @@ int __of_update_property(struct device_node *np, struct property *newprop,
 		*next = newprop;
 	}
 
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+	__of_update_property_sysfs(np, newprop, oldprop);
+
 	return 0;
 }
 
@@ -1673,21 +1697,13 @@ int __of_update_property(struct device_node *np, struct property *newprop,
 int of_update_property(struct device_node *np, struct property *newprop)
 {
 	struct property *oldprop;
-	unsigned long flags;
 	int rc;
 
 	if (!newprop->name)
 		return -EINVAL;
 
 	mutex_lock(&of_mutex);
-
-	raw_spin_lock_irqsave(&devtree_lock, flags);
 	rc = __of_update_property(np, newprop, &oldprop);
-	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-
-	if (!rc)
-		__of_update_property_sysfs(np, newprop, oldprop);
-
 	mutex_unlock(&of_mutex);
 
 	if (!rc)

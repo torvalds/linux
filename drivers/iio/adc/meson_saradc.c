@@ -17,7 +17,6 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -156,6 +155,10 @@
  */
 #define MESON_SAR_ADC_REG11					0x2c
 	#define MESON_SAR_ADC_REG11_BANDGAP_EN			BIT(13)
+	#define MESON_SAR_ADC_REG11_CMV_SEL                     BIT(6)
+	#define MESON_SAR_ADC_REG11_VREF_VOLTAGE                BIT(5)
+	#define MESON_SAR_ADC_REG11_EOC                         BIT(1)
+	#define MESON_SAR_ADC_REG11_VREF_SEL                    BIT(0)
 
 #define MESON_SAR_ADC_REG13					0x34
 	#define MESON_SAR_ADC_REG13_12BIT_CALIBRATION_MASK	GENMASK(13, 8)
@@ -163,6 +166,7 @@
 #define MESON_SAR_ADC_MAX_FIFO_SIZE				32
 #define MESON_SAR_ADC_TIMEOUT					100 /* ms */
 #define MESON_SAR_ADC_VOLTAGE_AND_TEMP_CHANNEL			6
+#define MESON_SAR_ADC_VOLTAGE_AND_MUX_CHANNEL			7
 #define MESON_SAR_ADC_TEMP_OFFSET				27
 
 /* temperature sensor calibration information in eFuse */
@@ -202,29 +206,22 @@
 	.datasheet_name = "TEMP_SENSOR",				\
 }
 
-static const struct iio_chan_spec meson_sar_adc_iio_channels[] = {
-	MESON_SAR_ADC_CHAN(0),
-	MESON_SAR_ADC_CHAN(1),
-	MESON_SAR_ADC_CHAN(2),
-	MESON_SAR_ADC_CHAN(3),
-	MESON_SAR_ADC_CHAN(4),
-	MESON_SAR_ADC_CHAN(5),
-	MESON_SAR_ADC_CHAN(6),
-	MESON_SAR_ADC_CHAN(7),
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-};
+#define MESON_SAR_ADC_MUX(_chan, _sel) {				\
+	.type = IIO_VOLTAGE,						\
+	.channel = _chan,						\
+	.indexed = 1,							\
+	.address = MESON_SAR_ADC_VOLTAGE_AND_MUX_CHANNEL,		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
+				BIT(IIO_CHAN_INFO_AVERAGE_RAW),		\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_CALIBBIAS) |	\
+				BIT(IIO_CHAN_INFO_CALIBSCALE),		\
+	.datasheet_name = "SAR_ADC_MUX_"#_sel,				\
+}
 
-static const struct iio_chan_spec meson_sar_adc_and_temp_iio_channels[] = {
-	MESON_SAR_ADC_CHAN(0),
-	MESON_SAR_ADC_CHAN(1),
-	MESON_SAR_ADC_CHAN(2),
-	MESON_SAR_ADC_CHAN(3),
-	MESON_SAR_ADC_CHAN(4),
-	MESON_SAR_ADC_CHAN(5),
-	MESON_SAR_ADC_CHAN(6),
-	MESON_SAR_ADC_CHAN(7),
-	MESON_SAR_ADC_TEMP_CHAN(8),
-	IIO_CHAN_SOFT_TIMESTAMP(9),
+enum meson_sar_adc_vref_sel {
+	VREF_CALIBATION_VOLTAGE = 0,
+	VREF_VDDA = 1,
 };
 
 enum meson_sar_adc_avg_mode {
@@ -249,6 +246,72 @@ enum meson_sar_adc_chan7_mux_sel {
 	CHAN7_MUX_CH7_INPUT = 0x7,
 };
 
+enum meson_sar_adc_channel_index {
+	NUM_CHAN_0,
+	NUM_CHAN_1,
+	NUM_CHAN_2,
+	NUM_CHAN_3,
+	NUM_CHAN_4,
+	NUM_CHAN_5,
+	NUM_CHAN_6,
+	NUM_CHAN_7,
+	NUM_CHAN_TEMP,
+	NUM_MUX_0_VSS,
+	NUM_MUX_1_VDD_DIV4,
+	NUM_MUX_2_VDD_DIV2,
+	NUM_MUX_3_VDD_MUL3_DIV4,
+	NUM_MUX_4_VDD,
+};
+
+static enum meson_sar_adc_chan7_mux_sel chan7_mux_values[] = {
+	CHAN7_MUX_VSS,
+	CHAN7_MUX_VDD_DIV4,
+	CHAN7_MUX_VDD_DIV2,
+	CHAN7_MUX_VDD_MUL3_DIV4,
+	CHAN7_MUX_VDD,
+};
+
+static const char * const chan7_mux_names[] = {
+	[CHAN7_MUX_VSS] = "gnd",
+	[CHAN7_MUX_VDD_DIV4] = "0.25vdd",
+	[CHAN7_MUX_VDD_DIV2] = "0.5vdd",
+	[CHAN7_MUX_VDD_MUL3_DIV4] = "0.75vdd",
+	[CHAN7_MUX_VDD] = "vdd",
+};
+
+static const struct iio_chan_spec meson_sar_adc_iio_channels[] = {
+	MESON_SAR_ADC_CHAN(NUM_CHAN_0),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_1),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_2),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_3),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_4),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_5),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_6),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_7),
+	MESON_SAR_ADC_MUX(NUM_MUX_0_VSS, 0),
+	MESON_SAR_ADC_MUX(NUM_MUX_1_VDD_DIV4, 1),
+	MESON_SAR_ADC_MUX(NUM_MUX_2_VDD_DIV2, 2),
+	MESON_SAR_ADC_MUX(NUM_MUX_3_VDD_MUL3_DIV4, 3),
+	MESON_SAR_ADC_MUX(NUM_MUX_4_VDD, 4),
+};
+
+static const struct iio_chan_spec meson_sar_adc_and_temp_iio_channels[] = {
+	MESON_SAR_ADC_CHAN(NUM_CHAN_0),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_1),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_2),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_3),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_4),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_5),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_6),
+	MESON_SAR_ADC_CHAN(NUM_CHAN_7),
+	MESON_SAR_ADC_TEMP_CHAN(NUM_CHAN_TEMP),
+	MESON_SAR_ADC_MUX(NUM_MUX_0_VSS, 0),
+	MESON_SAR_ADC_MUX(NUM_MUX_1_VDD_DIV4, 1),
+	MESON_SAR_ADC_MUX(NUM_MUX_2_VDD_DIV2, 2),
+	MESON_SAR_ADC_MUX(NUM_MUX_3_VDD_MUL3_DIV4, 3),
+	MESON_SAR_ADC_MUX(NUM_MUX_4_VDD, 4),
+};
+
 struct meson_sar_adc_param {
 	bool					has_bl30_integration;
 	unsigned long				clock_rate;
@@ -258,6 +321,13 @@ struct meson_sar_adc_param {
 	u8					temperature_trimming_bits;
 	unsigned int				temperature_multiplier;
 	unsigned int				temperature_divider;
+	u8					disable_ring_counter;
+	bool					has_reg11;
+	bool					has_vref_select;
+	u8					vref_select;
+	u8					cmv_select;
+	u8					adc_eoc;
+	enum meson_sar_adc_vref_sel		vref_volatge;
 };
 
 struct meson_sar_adc_data {
@@ -285,6 +355,7 @@ struct meson_sar_adc_priv {
 	bool					temperature_sensor_calibrated;
 	u8					temperature_sensor_coefficient;
 	u16					temperature_sensor_adc_val;
+	enum meson_sar_adc_chan7_mux_sel	chan7_mux_sel;
 };
 
 static const struct regmap_config meson_sar_adc_regmap_config_gxbb = {
@@ -300,6 +371,17 @@ static const struct regmap_config meson_sar_adc_regmap_config_meson8 = {
 	.reg_stride = 4,
 	.max_register = MESON_SAR_ADC_DELTA_10,
 };
+
+static const struct iio_chan_spec *
+find_channel_by_num(struct iio_dev *indio_dev, int num)
+{
+	int i;
+
+	for (i = 0; i < indio_dev->num_channels; i++)
+		if (indio_dev->channels[i].channel == num)
+			return &indio_dev->channels[i];
+	return NULL;
+}
 
 static unsigned int meson_sar_adc_get_fifo_count(struct iio_dev *indio_dev)
 {
@@ -336,6 +418,21 @@ static int meson_sar_adc_wait_busy_clear(struct iio_dev *indio_dev)
 	return regmap_read_poll_timeout_atomic(priv->regmap, MESON_SAR_ADC_REG0, val,
 					       !FIELD_GET(MESON_SAR_ADC_REG0_BUSY_MASK, val),
 					       1, 10000);
+}
+
+static void meson_sar_adc_set_chan7_mux(struct iio_dev *indio_dev,
+					enum meson_sar_adc_chan7_mux_sel sel)
+{
+	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
+	u32 regval;
+
+	regval = FIELD_PREP(MESON_SAR_ADC_REG3_CTRL_CHAN7_MUX_SEL_MASK, sel);
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG3,
+			   MESON_SAR_ADC_REG3_CTRL_CHAN7_MUX_SEL_MASK, regval);
+
+	usleep_range(10, 20);
+
+	priv->chan7_mux_sel = sel;
 }
 
 static int meson_sar_adc_read_raw_sample(struct iio_dev *indio_dev,
@@ -431,20 +528,16 @@ static void meson_sar_adc_enable_channel(struct iio_dev *indio_dev,
 		regmap_update_bits(priv->regmap,
 				   MESON_SAR_ADC_DELTA_10,
 				   MESON_SAR_ADC_DELTA_10_TEMP_SEL, regval);
+	} else if (chan->address == MESON_SAR_ADC_VOLTAGE_AND_MUX_CHANNEL) {
+		enum meson_sar_adc_chan7_mux_sel sel;
+
+		if (chan->channel == NUM_CHAN_7)
+			sel = CHAN7_MUX_CH7_INPUT;
+		else
+			sel = chan7_mux_values[chan->channel - NUM_MUX_0_VSS];
+		if (sel != priv->chan7_mux_sel)
+			meson_sar_adc_set_chan7_mux(indio_dev, sel);
 	}
-}
-
-static void meson_sar_adc_set_chan7_mux(struct iio_dev *indio_dev,
-					enum meson_sar_adc_chan7_mux_sel sel)
-{
-	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
-	u32 regval;
-
-	regval = FIELD_PREP(MESON_SAR_ADC_REG3_CTRL_CHAN7_MUX_SEL_MASK, sel);
-	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG3,
-			   MESON_SAR_ADC_REG3_CTRL_CHAN7_MUX_SEL_MASK, regval);
-
-	usleep_range(10, 20);
 }
 
 static void meson_sar_adc_start_sample_engine(struct iio_dev *indio_dev)
@@ -821,6 +914,22 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_MUX_SEL_MASK,
 			   regval);
 
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_XP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_XP_DRIVE_SW);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_YP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN0_YP_DRIVE_SW);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_XP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_XP_DRIVE_SW);
+
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_CHAN_10_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_YP_DRIVE_SW,
+			   MESON_SAR_ADC_CHAN_10_SW_CHAN1_YP_DRIVE_SW);
+
 	/*
 	 * set up the input channel muxes in MESON_SAR_ADC_AUX_SW
 	 * (2 = SAR_ADC_CH2, 3 = SAR_ADC_CH3, ...) and enable
@@ -871,6 +980,35 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 				   MESON_SAR_ADC_DELTA_10_TS_REVE1, 0);
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELTA_10,
 				   MESON_SAR_ADC_DELTA_10_TS_REVE0, 0);
+	}
+
+	regval = FIELD_PREP(MESON_SAR_ADC_REG3_CTRL_CONT_RING_COUNTER_EN,
+			    priv->param->disable_ring_counter);
+	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG3,
+			   MESON_SAR_ADC_REG3_CTRL_CONT_RING_COUNTER_EN,
+			   regval);
+
+	if (priv->param->has_reg11) {
+		regval = FIELD_PREP(MESON_SAR_ADC_REG11_EOC, priv->param->adc_eoc);
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+				   MESON_SAR_ADC_REG11_EOC, regval);
+
+		if (priv->param->has_vref_select) {
+			regval = FIELD_PREP(MESON_SAR_ADC_REG11_VREF_SEL,
+					    priv->param->vref_select);
+			regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+					   MESON_SAR_ADC_REG11_VREF_SEL, regval);
+		}
+
+		regval = FIELD_PREP(MESON_SAR_ADC_REG11_VREF_VOLTAGE,
+				    priv->param->vref_volatge);
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+				   MESON_SAR_ADC_REG11_VREF_VOLTAGE, regval);
+
+		regval = FIELD_PREP(MESON_SAR_ADC_REG11_CMV_SEL,
+				    priv->param->cmv_select);
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+				   MESON_SAR_ADC_REG11_CMV_SEL, regval);
 	}
 
 	ret = clk_set_parent(priv->adc_sel_clk, priv->clkin);
@@ -1006,7 +1144,8 @@ static int meson_sar_adc_calib(struct iio_dev *indio_dev)
 	meson_sar_adc_set_chan7_mux(indio_dev, CHAN7_MUX_VDD_DIV4);
 	usleep_range(10, 20);
 	ret = meson_sar_adc_get_sample(indio_dev,
-				       &indio_dev->channels[7],
+				       find_channel_by_num(indio_dev,
+							   NUM_MUX_1_VDD_DIV4),
 				       MEAN_AVERAGING, EIGHT_SAMPLES, &value0);
 	if (ret < 0)
 		goto out;
@@ -1014,7 +1153,8 @@ static int meson_sar_adc_calib(struct iio_dev *indio_dev)
 	meson_sar_adc_set_chan7_mux(indio_dev, CHAN7_MUX_VDD_MUL3_DIV4);
 	usleep_range(10, 20);
 	ret = meson_sar_adc_get_sample(indio_dev,
-				       &indio_dev->channels[7],
+				       find_channel_by_num(indio_dev,
+							   NUM_MUX_3_VDD_MUL3_DIV4),
 				       MEAN_AVERAGING, EIGHT_SAMPLES, &value1);
 	if (ret < 0)
 		goto out;
@@ -1035,8 +1175,23 @@ out:
 	return ret;
 }
 
+static int read_label(struct iio_dev *indio_dev,
+		      struct iio_chan_spec const *chan,
+		      char *label)
+{
+	if (chan->type == IIO_TEMP)
+		return sprintf(label, "temp-sensor\n");
+	if (chan->type == IIO_VOLTAGE && chan->channel >= NUM_MUX_0_VSS)
+		return sprintf(label, "%s\n",
+			       chan7_mux_names[chan->channel - NUM_MUX_0_VSS]);
+	if (chan->type == IIO_VOLTAGE)
+		return sprintf(label, "channel-%d\n", chan->channel);
+	return 0;
+}
+
 static const struct iio_info meson_sar_adc_iio_info = {
 	.read_raw = meson_sar_adc_iio_info_read_raw,
+	.read_label = read_label,
 };
 
 static const struct meson_sar_adc_param meson_sar_adc_meson8_param = {
@@ -1067,6 +1222,9 @@ static const struct meson_sar_adc_param meson_sar_adc_gxbb_param = {
 	.bandgap_reg = MESON_SAR_ADC_REG11,
 	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 10,
+	.has_reg11 = true,
+	.vref_volatge = 1,
+	.cmv_select = 1,
 };
 
 static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
@@ -1075,6 +1233,10 @@ static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
 	.bandgap_reg = MESON_SAR_ADC_REG11,
 	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 12,
+	.disable_ring_counter = 1,
+	.has_reg11 = true,
+	.vref_volatge = 1,
+	.cmv_select = 1,
 };
 
 static const struct meson_sar_adc_param meson_sar_adc_g12a_param = {
@@ -1083,6 +1245,11 @@ static const struct meson_sar_adc_param meson_sar_adc_g12a_param = {
 	.bandgap_reg = MESON_SAR_ADC_REG11,
 	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 12,
+	.disable_ring_counter = 1,
+	.has_reg11 = true,
+	.adc_eoc = 1,
+	.has_vref_select = true,
+	.vref_select = VREF_VDDA,
 };
 
 static const struct meson_sar_adc_data meson_sar_adc_meson8_data = {

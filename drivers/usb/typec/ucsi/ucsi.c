@@ -1530,6 +1530,7 @@ EXPORT_SYMBOL_GPL(ucsi_create);
  */
 void ucsi_destroy(struct ucsi *ucsi)
 {
+	ucsi_debugfs_unregister(ucsi);
 	kfree(ucsi);
 }
 EXPORT_SYMBOL_GPL(ucsi_destroy);
@@ -1552,6 +1553,7 @@ int ucsi_register(struct ucsi *ucsi)
 
 	queue_delayed_work(system_long_wq, &ucsi->work, 0);
 
+	ucsi_debugfs_register(ucsi);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ucsi_register);
@@ -1610,6 +1612,19 @@ void ucsi_unregister(struct ucsi *ucsi)
 	kfree(ucsi->connector);
 }
 EXPORT_SYMBOL_GPL(ucsi_unregister);
+
+static int __init ucsi_module_init(void)
+{
+	ucsi_debugfs_init();
+	return 0;
+}
+module_init(ucsi_module_init);
+
+static void __exit ucsi_module_exit(void)
+{
+	ucsi_debugfs_exit();
+}
+module_exit(ucsi_module_exit);
 
 MODULE_AUTHOR("Heikki Krogerus <heikki.krogerus@linux.intel.com>");
 MODULE_LICENSE("GPL v2");

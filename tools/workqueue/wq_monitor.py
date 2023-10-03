@@ -20,8 +20,11 @@ https://github.com/osandov/drgn.
            and got excluded from concurrency management to avoid stalling
            other work items.
 
-  CMwake   The number of concurrency-management wake-ups while executing a
-           work item of the workqueue.
+  CMW/RPR  For per-cpu workqueues, the number of concurrency-management
+           wake-ups while executing a work item of the workqueue. For
+           unbound workqueues, the number of times a worker was repatriated
+           to its affinity scope after being migrated to an off-scope CPU by
+           the scheduler.
 
   mayday   The number of times the rescuer was requested while waiting for
            new worker creation.
@@ -65,6 +68,7 @@ PWQ_STAT_COMPLETED      = prog['PWQ_STAT_COMPLETED']	# work items completed exec
 PWQ_STAT_CPU_TIME       = prog['PWQ_STAT_CPU_TIME']     # total CPU time consumed
 PWQ_STAT_CPU_INTENSIVE  = prog['PWQ_STAT_CPU_INTENSIVE'] # wq_cpu_intensive_thresh_us violations
 PWQ_STAT_CM_WAKEUP      = prog['PWQ_STAT_CM_WAKEUP']    # concurrency-management worker wakeups
+PWQ_STAT_REPATRIATED    = prog['PWQ_STAT_REPATRIATED']  # unbound workers brought back into scope
 PWQ_STAT_MAYDAY         = prog['PWQ_STAT_MAYDAY']	# maydays to rescuer
 PWQ_STAT_RESCUED        = prog['PWQ_STAT_RESCUED']	# linked work items executed by rescuer
 PWQ_NR_STATS            = prog['PWQ_NR_STATS']
@@ -89,22 +93,25 @@ class WqStats:
                  'cpu_time'             : self.stats[PWQ_STAT_CPU_TIME],
                  'cpu_intensive'        : self.stats[PWQ_STAT_CPU_INTENSIVE],
                  'cm_wakeup'            : self.stats[PWQ_STAT_CM_WAKEUP],
+                 'repatriated'          : self.stats[PWQ_STAT_REPATRIATED],
                  'mayday'               : self.stats[PWQ_STAT_MAYDAY],
                  'rescued'              : self.stats[PWQ_STAT_RESCUED], }
 
     def table_header_str():
         return f'{"":>24} {"total":>8} {"infl":>5} {"CPUtime":>8} '\
-            f'{"CPUitsv":>7} {"CMwake":>7} {"mayday":>7} {"rescued":>7}'
+            f'{"CPUitsv":>7} {"CMW/RPR":>7} {"mayday":>7} {"rescued":>7}'
 
     def table_row_str(self):
         cpu_intensive = '-'
-        cm_wakeup = '-'
+        cmw_rpr = '-'
         mayday = '-'
         rescued = '-'
 
-        if not self.unbound:
+        if self.unbound:
+            cmw_rpr = str(self.stats[PWQ_STAT_REPATRIATED]);
+        else:
             cpu_intensive = str(self.stats[PWQ_STAT_CPU_INTENSIVE])
-            cm_wakeup = str(self.stats[PWQ_STAT_CM_WAKEUP])
+            cmw_rpr = str(self.stats[PWQ_STAT_CM_WAKEUP])
 
         if self.mem_reclaim:
             mayday = str(self.stats[PWQ_STAT_MAYDAY])
@@ -115,7 +122,7 @@ class WqStats:
               f'{max(self.stats[PWQ_STAT_STARTED] - self.stats[PWQ_STAT_COMPLETED], 0):5} ' \
               f'{self.stats[PWQ_STAT_CPU_TIME] / 1000000:8.1f} ' \
               f'{cpu_intensive:>7} ' \
-              f'{cm_wakeup:>7} ' \
+              f'{cmw_rpr:>7} ' \
               f'{mayday:>7} ' \
               f'{rescued:>7} '
         return out.rstrip(':')

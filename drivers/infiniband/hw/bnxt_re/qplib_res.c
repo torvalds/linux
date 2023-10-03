@@ -118,11 +118,11 @@ static int __alloc_pbl(struct bnxt_qplib_res *res,
 	else
 		pages = sginfo->npages;
 	/* page ptr arrays */
-	pbl->pg_arr = vmalloc(pages * sizeof(void *));
+	pbl->pg_arr = vmalloc_array(pages, sizeof(void *));
 	if (!pbl->pg_arr)
 		return -ENOMEM;
 
-	pbl->pg_map_arr = vmalloc(pages * sizeof(dma_addr_t));
+	pbl->pg_map_arr = vmalloc_array(pages, sizeof(dma_addr_t));
 	if (!pbl->pg_map_arr) {
 		vfree(pbl->pg_arr);
 		pbl->pg_arr = NULL;
@@ -385,7 +385,7 @@ static int bnxt_qplib_alloc_tqm_rings(struct bnxt_qplib_res *res,
 	struct bnxt_qplib_hwq_attr hwq_attr = {};
 	struct bnxt_qplib_sg_info sginfo = {};
 	struct bnxt_qplib_tqm_ctx *tqmctx;
-	int rc = 0;
+	int rc;
 	int i;
 
 	tqmctx = &ctx->tqm_ctx;
@@ -463,7 +463,7 @@ static void bnxt_qplib_map_tqm_pgtbl(struct bnxt_qplib_tqm_ctx *ctx)
 static int bnxt_qplib_setup_tqm_rings(struct bnxt_qplib_res *res,
 				      struct bnxt_qplib_ctx *ctx)
 {
-	int rc = 0;
+	int rc;
 
 	rc = bnxt_qplib_alloc_tqm_rings(res, ctx);
 	if (rc)
@@ -501,7 +501,7 @@ int bnxt_qplib_alloc_ctx(struct bnxt_qplib_res *res,
 {
 	struct bnxt_qplib_hwq_attr hwq_attr = {};
 	struct bnxt_qplib_sg_info sginfo = {};
-	int rc = 0;
+	int rc;
 
 	if (virt_fn || is_p5)
 		goto stats_alloc;
@@ -642,31 +642,44 @@ static void bnxt_qplib_init_sgid_tbl(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 }
 
 /* PDs */
-int bnxt_qplib_alloc_pd(struct bnxt_qplib_pd_tbl *pdt, struct bnxt_qplib_pd *pd)
+int bnxt_qplib_alloc_pd(struct bnxt_qplib_res  *res, struct bnxt_qplib_pd *pd)
 {
+	struct bnxt_qplib_pd_tbl *pdt = &res->pd_tbl;
 	u32 bit_num;
+	int rc = 0;
 
+	mutex_lock(&res->pd_tbl_lock);
 	bit_num = find_first_bit(pdt->tbl, pdt->max);
-	if (bit_num == pdt->max)
-		return -ENOMEM;
+	if (bit_num == pdt->max) {
+		rc = -ENOMEM;
+		goto exit;
+	}
 
 	/* Found unused PD */
 	clear_bit(bit_num, pdt->tbl);
 	pd->id = bit_num;
-	return 0;
+exit:
+	mutex_unlock(&res->pd_tbl_lock);
+	return rc;
 }
 
 int bnxt_qplib_dealloc_pd(struct bnxt_qplib_res *res,
 			  struct bnxt_qplib_pd_tbl *pdt,
 			  struct bnxt_qplib_pd *pd)
 {
+	int rc = 0;
+
+	mutex_lock(&res->pd_tbl_lock);
 	if (test_and_set_bit(pd->id, pdt->tbl)) {
 		dev_warn(&res->pdev->dev, "Freeing an unused PD? pdn = %d\n",
 			 pd->id);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto exit;
 	}
 	pd->id = 0;
-	return 0;
+exit:
+	mutex_unlock(&res->pd_tbl_lock);
+	return rc;
 }
 
 static void bnxt_qplib_free_pd_tbl(struct bnxt_qplib_pd_tbl *pdt)
@@ -691,6 +704,7 @@ static int bnxt_qplib_alloc_pd_tbl(struct bnxt_qplib_res *res,
 
 	pdt->max = max;
 	memset((u8 *)pdt->tbl, 0xFF, bytes);
+	mutex_init(&res->pd_tbl_lock);
 
 	return 0;
 }
@@ -877,7 +891,7 @@ int bnxt_qplib_alloc_res(struct bnxt_qplib_res *res, struct pci_dev *pdev,
 			 struct net_device *netdev,
 			 struct bnxt_qplib_dev_attr *dev_attr)
 {
-	int rc = 0;
+	int rc;
 
 	res->pdev = pdev;
 	res->netdev = netdev;

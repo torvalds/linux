@@ -15,6 +15,7 @@
 #include "vkms_formats.h"
 
 static const u32 vkms_wb_formats[] = {
+	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XRGB16161616,
 	DRM_FORMAT_ARGB16161616,
@@ -142,13 +143,15 @@ static void vkms_wb_atomic_commit(struct drm_connector *conn,
 
 	spin_lock_irq(&output->composer_lock);
 	crtc_state->active_writeback = active_wb;
+	crtc_state->wb_pending = true;
+	spin_unlock_irq(&output->composer_lock);
+
 	wb_frame_info->offset = fb->offsets[0];
 	wb_frame_info->pitch = fb->pitches[0];
 	wb_frame_info->cpp = fb->format->cpp[0];
-	crtc_state->wb_pending = true;
-	spin_unlock_irq(&output->composer_lock);
+
 	drm_writeback_queue_job(wb_conn, connector_state);
-	active_wb->wb_write = get_line_to_frame_function(wb_format);
+	active_wb->pixel_write = get_pixel_write_function(wb_format);
 	drm_rect_init(&wb_frame_info->src, 0, 0, crtc_width, crtc_height);
 	drm_rect_init(&wb_frame_info->dst, 0, 0, crtc_width, crtc_height);
 }

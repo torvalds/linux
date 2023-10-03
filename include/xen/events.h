@@ -75,7 +75,6 @@ void evtchn_put(evtchn_port_t evtchn);
 
 void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector);
 void rebind_evtchn_irq(evtchn_port_t evtchn, int irq);
-int xen_set_affinity_evtchn(struct irq_desc *desc, unsigned int tcpu);
 
 static inline void notify_remote_via_evtchn(evtchn_port_t port)
 {
@@ -106,8 +105,7 @@ int irq_from_virq(unsigned int cpu, unsigned int virq);
 evtchn_port_t evtchn_from_irq(unsigned irq);
 
 int xen_set_callback_via(uint64_t via);
-void xen_evtchn_do_upcall(struct pt_regs *regs);
-int xen_hvm_evtchn_do_upcall(void);
+int xen_evtchn_do_upcall(void);
 
 /* Bind a pirq for a physical interrupt to an irq. */
 int xen_bind_pirq_gsi_to_irq(unsigned gsi,

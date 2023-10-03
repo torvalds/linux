@@ -113,6 +113,11 @@ bool evsel__is_aux_event(const struct evsel *evsel __maybe_unused)
 	return false;
 }
 
+bool perf_pmus__supports_extended_type(void)
+{
+	return false;
+}
+
 /*
  * Add this one here not to drag util/metricgroup.c
  */

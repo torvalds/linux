@@ -1230,6 +1230,10 @@ static struct snd_soc_dai_driver q6asm_fe_dais_template[] = {
 	Q6ASM_FEDAI_DRIVER(8),
 };
 
+static const struct snd_soc_dai_ops q6asm_dai_ops = {
+	.compress_new = snd_soc_new_compress,
+};
+
 static int of_q6asm_parse_dai_data(struct device *dev,
 				    struct q6asm_dai_data *pdata)
 {
@@ -1272,7 +1276,7 @@ static int of_q6asm_parse_dai_data(struct device *dev,
 			dai_drv->playback = empty_stream;
 
 		if (of_property_read_bool(node, "is-compress-dai"))
-			dai_drv->compress_new = snd_soc_new_compress;
+			dai_drv->ops = &q6asm_dai_ops;
 	}
 
 	return 0;

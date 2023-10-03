@@ -570,7 +570,7 @@ struct uart_port {
 	struct serial_port_device *port_dev;		/* serial core port device */
 
 	unsigned long		sysrq;			/* sysrq timeout */
-	unsigned int		sysrq_ch;		/* char for sysrq */
+	u8			sysrq_ch;		/* char for sysrq */
 	unsigned char		has_sysrq;
 	unsigned char		sysrq_seq;		/* index in sysrq_toggle_seq */
 
@@ -904,16 +904,16 @@ void uart_handle_dcd_change(struct uart_port *uport, bool active);
 void uart_handle_cts_change(struct uart_port *uport, bool active);
 
 void uart_insert_char(struct uart_port *port, unsigned int status,
-		      unsigned int overrun, unsigned int ch, unsigned int flag);
+		      unsigned int overrun, u8 ch, u8 flag);
 
 void uart_xchar_out(struct uart_port *uport, int offset);
 
 #ifdef CONFIG_MAGIC_SYSRQ_SERIAL
 #define SYSRQ_TIMEOUT	(HZ * 5)
 
-bool uart_try_toggle_sysrq(struct uart_port *port, unsigned int ch);
+bool uart_try_toggle_sysrq(struct uart_port *port, u8 ch);
 
-static inline int uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
+static inline int uart_handle_sysrq_char(struct uart_port *port, u8 ch)
 {
 	if (!port->sysrq)
 		return 0;
@@ -932,7 +932,7 @@ static inline int uart_handle_sysrq_char(struct uart_port *port, unsigned int ch
 	return 0;
 }
 
-static inline int uart_prepare_sysrq_char(struct uart_port *port, unsigned int ch)
+static inline int uart_prepare_sysrq_char(struct uart_port *port, u8 ch)
 {
 	if (!port->sysrq)
 		return 0;
@@ -953,7 +953,7 @@ static inline int uart_prepare_sysrq_char(struct uart_port *port, unsigned int c
 
 static inline void uart_unlock_and_check_sysrq(struct uart_port *port)
 {
-	int sysrq_ch;
+	u8 sysrq_ch;
 
 	if (!port->has_sysrq) {
 		spin_unlock(&port->lock);
@@ -972,7 +972,7 @@ static inline void uart_unlock_and_check_sysrq(struct uart_port *port)
 static inline void uart_unlock_and_check_sysrq_irqrestore(struct uart_port *port,
 		unsigned long flags)
 {
-	int sysrq_ch;
+	u8 sysrq_ch;
 
 	if (!port->has_sysrq) {
 		spin_unlock_irqrestore(&port->lock, flags);
@@ -988,11 +988,11 @@ static inline void uart_unlock_and_check_sysrq_irqrestore(struct uart_port *port
 		handle_sysrq(sysrq_ch);
 }
 #else	/* CONFIG_MAGIC_SYSRQ_SERIAL */
-static inline int uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
+static inline int uart_handle_sysrq_char(struct uart_port *port, u8 ch)
 {
 	return 0;
 }
-static inline int uart_prepare_sysrq_char(struct uart_port *port, unsigned int ch)
+static inline int uart_prepare_sysrq_char(struct uart_port *port, u8 ch)
 {
 	return 0;
 }

@@ -3218,7 +3218,7 @@ const struct regmap_config wm5110_i2c_regmap = {
 	.readable_reg = wm5110_readable_register,
 	.volatile_reg = wm5110_volatile_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm5110_reg_default,
 	.num_reg_defaults = ARRAY_SIZE(wm5110_reg_default),
 };

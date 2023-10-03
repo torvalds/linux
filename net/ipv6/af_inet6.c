@@ -102,9 +102,9 @@ bool ipv6_mod_enabled(void)
 }
 EXPORT_SYMBOL_GPL(ipv6_mod_enabled);
 
-static __inline__ struct ipv6_pinfo *inet6_sk_generic(struct sock *sk)
+static struct ipv6_pinfo *inet6_sk_generic(struct sock *sk)
 {
-	const int offset = sk->sk_prot->obj_size - sizeof(struct ipv6_pinfo);
+	const int offset = sk->sk_prot->ipv6_pinfo_offset;
 
 	return (struct ipv6_pinfo *)(((u8 *)sk) + offset);
 }
@@ -200,12 +200,12 @@ lookup_protocol:
 		sk->sk_reuse = SK_CAN_REUSE;
 
 	inet = inet_sk(sk);
-	inet->is_icsk = (INET_PROTOSW_ICSK & answer_flags) != 0;
+	inet_assign_bit(IS_ICSK, sk, INET_PROTOSW_ICSK & answer_flags);
 
 	if (SOCK_RAW == sock->type) {
 		inet->inet_num = protocol;
 		if (IPPROTO_RAW == protocol)
-			inet->hdrincl = 1;
+			inet_set_bit(HDRINCL, sk);
 	}
 
 	sk->sk_destruct		= inet6_sock_destruct;
@@ -229,7 +229,7 @@ lookup_protocol:
 	 */
 	inet->uc_ttl	= -1;
 
-	inet->mc_loop	= 1;
+	inet_set_bit(MC_LOOP, sk);
 	inet->mc_ttl	= 1;
 	inet->mc_index	= 0;
 	RCU_INIT_POINTER(inet->mc_list, NULL);
@@ -399,7 +399,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		sk->sk_ipv6only = 1;
 
 	/* Make sure we are allowed to bind here. */
-	if (snum || !(inet->bind_address_no_port ||
+	if (snum || !(inet_test_bit(BIND_ADDRESS_NO_PORT, sk) ||
 		      (flags & BIND_FORCE_ADDRESS_NO_PORT))) {
 		err = sk->sk_prot->get_port(sk, snum);
 		if (err) {
@@ -435,10 +435,8 @@ out_unlock:
 	goto out;
 }
 
-/* bind for INET6 API */
-int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+int inet6_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
-	struct sock *sk = sock->sk;
 	u32 flags = BIND_WITH_LOCK;
 	const struct proto *prot;
 	int err = 0;
@@ -461,6 +459,12 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		return err;
 
 	return __inet6_bind(sk, uaddr, addr_len, flags);
+}
+
+/* bind for INET6 API */
+int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+{
+	return inet6_bind_sk(sock->sk, uaddr, addr_len);
 }
 EXPORT_SYMBOL(inet6_bind);
 

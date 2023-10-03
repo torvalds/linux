@@ -432,71 +432,6 @@ out:
 EXPORT_SYMBOL(wx_read_ee_hostif_buffer);
 
 /**
- *  wx_calculate_checksum - Calculate checksum for buffer
- *  @buffer: pointer to EEPROM
- *  @length: size of EEPROM to calculate a checksum for
- *  Calculates the checksum for some buffer on a specified length.  The
- *  checksum calculated is returned.
- **/
-static u8 wx_calculate_checksum(u8 *buffer, u32 length)
-{
-	u8 sum = 0;
-	u32 i;
-
-	if (!buffer)
-		return 0;
-
-	for (i = 0; i < length; i++)
-		sum += buffer[i];
-
-	return (u8)(0 - sum);
-}
-
-/**
- *  wx_reset_hostif - send reset cmd to fw
- *  @wx: pointer to hardware structure
- *
- *  Sends reset cmd to firmware through the manageability
- *  block.
- **/
-int wx_reset_hostif(struct wx *wx)
-{
-	struct wx_hic_reset reset_cmd;
-	int ret_val = 0;
-	int i;
-
-	reset_cmd.hdr.cmd = FW_RESET_CMD;
-	reset_cmd.hdr.buf_len = FW_RESET_LEN;
-	reset_cmd.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
-	reset_cmd.lan_id = wx->bus.func;
-	reset_cmd.reset_type = (u16)wx->reset_type;
-	reset_cmd.hdr.checksum = 0;
-	reset_cmd.hdr.checksum = wx_calculate_checksum((u8 *)&reset_cmd,
-						       (FW_CEM_HDR_LEN +
-							reset_cmd.hdr.buf_len));
-
-	for (i = 0; i <= FW_CEM_MAX_RETRIES; i++) {
-		ret_val = wx_host_interface_command(wx, (u32 *)&reset_cmd,
-						    sizeof(reset_cmd),
-						    WX_HI_COMMAND_TIMEOUT,
-						    true);
-		if (ret_val != 0)
-			continue;
-
-		if (reset_cmd.hdr.cmd_or_resp.ret_status ==
-		    FW_CEM_RESP_STATUS_SUCCESS)
-			ret_val = 0;
-		else
-			ret_val = -EFAULT;
-
-		break;
-	}
-
-	return ret_val;
-}
-EXPORT_SYMBOL(wx_reset_hostif);
-
-/**
  *  wx_init_eeprom_params - Initialize EEPROM params
  *  @wx: pointer to hardware structure
  *
@@ -1501,7 +1436,7 @@ static void wx_restore_vlan(struct wx *wx)
  *
  * Configure the Rx unit of the MAC after a reset.
  **/
-static void wx_configure_rx(struct wx *wx)
+void wx_configure_rx(struct wx *wx)
 {
 	u32 psrtype, i;
 	int ret;
@@ -1544,6 +1479,7 @@ static void wx_configure_rx(struct wx *wx)
 	wx_enable_rx(wx);
 	wx_enable_sec_rx_path(wx);
 }
+EXPORT_SYMBOL(wx_configure_rx);
 
 static void wx_configure_isb(struct wx *wx)
 {

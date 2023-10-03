@@ -989,13 +989,6 @@ copy_iov:
 	return ret;
 }
 
-static void io_cqring_ev_posted_iopoll(struct io_ring_ctx *ctx)
-{
-	io_commit_cqring_flush(ctx);
-	if (ctx->flags & IORING_SETUP_SQPOLL)
-		io_cqring_wake(ctx);
-}
-
 void io_rw_fail(struct io_kiocb *req)
 {
 	int res;
@@ -1066,24 +1059,17 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 		if (!smp_load_acquire(&req->iopoll_completed))
 			break;
 		nr_events++;
-		if (unlikely(req->flags & REQ_F_CQE_SKIP))
-			continue;
-
 		req->cqe.flags = io_put_kbuf(req, 0);
-		if (unlikely(!__io_fill_cqe_req(ctx, req))) {
-			spin_lock(&ctx->completion_lock);
-			io_req_cqe_overflow(req);
-			spin_unlock(&ctx->completion_lock);
-		}
 	}
-
 	if (unlikely(!nr_events))
 		return 0;
 
-	io_commit_cqring(ctx);
-	io_cqring_ev_posted_iopoll(ctx);
 	pos = start ? start->next : ctx->iopoll_list.first;
 	wq_list_cut(&ctx->iopoll_list, prev, start);
-	io_free_batch_list(ctx, pos);
+
+	if (WARN_ON_ONCE(!wq_list_empty(&ctx->submit_state.compl_reqs)))
+		return 0;
+	ctx->submit_state.compl_reqs.first = pos;
+	__io_submit_flush_completions(ctx);
 	return nr_events;
 }

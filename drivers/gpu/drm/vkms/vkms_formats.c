@@ -111,6 +111,19 @@ static void RGB565_to_argb_u16(u8 *src_pixels, struct pixel_argb_u16 *out_pixel)
 	out_pixel->b = drm_fixp2int_round(drm_fixp_mul(fp_b, fp_rb_ratio));
 }
 
+/**
+ * vkms_compose_row - compose a single row of a plane
+ * @stage_buffer: output line with the composed pixels
+ * @plane: state of the plane that is being composed
+ * @y: y coordinate of the row
+ *
+ * This function composes a single row of a plane. It gets the source pixels
+ * through the y coordinate (see get_packed_src_addr()) and goes linearly
+ * through the source pixel, reading the pixels and converting it to
+ * ARGB16161616 (see the pixel_read() callback). For rotate-90 and rotate-270,
+ * the source pixels are not traversed linearly. The source pixels are queried
+ * on each iteration in order to traverse the pixels vertically.
+ */
 void vkms_compose_row(struct line_buffer *stage_buffer, struct vkms_plane_state *plane, int y)
 {
 	struct pixel_argb_u16 *out_pixels = stage_buffer->pixels;
@@ -137,107 +150,81 @@ void vkms_compose_row(struct line_buffer *stage_buffer, struct vkms_plane_state 
  * They are used in the `compose_active_planes` to convert and store a line
  * from the src_buffer to the writeback buffer.
  */
-static void argb_u16_to_ARGB8888(struct vkms_frame_info *frame_info,
-				 const struct line_buffer *src_buffer, int y)
+static void argb_u16_to_ARGB8888(u8 *dst_pixels, struct pixel_argb_u16 *in_pixel)
 {
-	int x_dst = frame_info->dst.x1;
-	u8 *dst_pixels = packed_pixels_addr(frame_info, x_dst, y);
-	struct pixel_argb_u16 *in_pixels = src_buffer->pixels;
-	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
-			    src_buffer->n_pixels);
-
-	for (size_t x = 0; x < x_limit; x++, dst_pixels += 4) {
-		/*
-		 * This sequence below is important because the format's byte order is
-		 * in little-endian. In the case of the ARGB8888 the memory is
-		 * organized this way:
-		 *
-		 * | Addr     | = blue channel
-		 * | Addr + 1 | = green channel
-		 * | Addr + 2 | = Red channel
-		 * | Addr + 3 | = Alpha channel
-		 */
-		dst_pixels[3] = DIV_ROUND_CLOSEST(in_pixels[x].a, 257);
-		dst_pixels[2] = DIV_ROUND_CLOSEST(in_pixels[x].r, 257);
-		dst_pixels[1] = DIV_ROUND_CLOSEST(in_pixels[x].g, 257);
-		dst_pixels[0] = DIV_ROUND_CLOSEST(in_pixels[x].b, 257);
-	}
+	/*
+	 * This sequence below is important because the format's byte order is
+	 * in little-endian. In the case of the ARGB8888 the memory is
+	 * organized this way:
+	 *
+	 * | Addr     | = blue channel
+	 * | Addr + 1 | = green channel
+	 * | Addr + 2 | = Red channel
+	 * | Addr + 3 | = Alpha channel
+	 */
+	dst_pixels[3] = DIV_ROUND_CLOSEST(in_pixel->a, 257);
+	dst_pixels[2] = DIV_ROUND_CLOSEST(in_pixel->r, 257);
+	dst_pixels[1] = DIV_ROUND_CLOSEST(in_pixel->g, 257);
+	dst_pixels[0] = DIV_ROUND_CLOSEST(in_pixel->b, 257);
 }
 
-static void argb_u16_to_XRGB8888(struct vkms_frame_info *frame_info,
-				 const struct line_buffer *src_buffer, int y)
+static void argb_u16_to_XRGB8888(u8 *dst_pixels, struct pixel_argb_u16 *in_pixel)
 {
-	int x_dst = frame_info->dst.x1;
-	u8 *dst_pixels = packed_pixels_addr(frame_info, x_dst, y);
-	struct pixel_argb_u16 *in_pixels = src_buffer->pixels;
-	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
-			    src_buffer->n_pixels);
-
-	for (size_t x = 0; x < x_limit; x++, dst_pixels += 4) {
-		dst_pixels[3] = 0xff;
-		dst_pixels[2] = DIV_ROUND_CLOSEST(in_pixels[x].r, 257);
-		dst_pixels[1] = DIV_ROUND_CLOSEST(in_pixels[x].g, 257);
-		dst_pixels[0] = DIV_ROUND_CLOSEST(in_pixels[x].b, 257);
-	}
+	dst_pixels[3] = 0xff;
+	dst_pixels[2] = DIV_ROUND_CLOSEST(in_pixel->r, 257);
+	dst_pixels[1] = DIV_ROUND_CLOSEST(in_pixel->g, 257);
+	dst_pixels[0] = DIV_ROUND_CLOSEST(in_pixel->b, 257);
 }
 
-static void argb_u16_to_ARGB16161616(struct vkms_frame_info *frame_info,
-				     const struct line_buffer *src_buffer, int y)
+static void argb_u16_to_ARGB16161616(u8 *dst_pixels, struct pixel_argb_u16 *in_pixel)
 {
-	int x_dst = frame_info->dst.x1;
-	u16 *dst_pixels = packed_pixels_addr(frame_info, x_dst, y);
-	struct pixel_argb_u16 *in_pixels = src_buffer->pixels;
-	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
-			    src_buffer->n_pixels);
+	u16 *pixels = (u16 *)dst_pixels;
 
-	for (size_t x = 0; x < x_limit; x++, dst_pixels += 4) {
-		dst_pixels[3] = cpu_to_le16(in_pixels[x].a);
-		dst_pixels[2] = cpu_to_le16(in_pixels[x].r);
-		dst_pixels[1] = cpu_to_le16(in_pixels[x].g);
-		dst_pixels[0] = cpu_to_le16(in_pixels[x].b);
-	}
+	pixels[3] = cpu_to_le16(in_pixel->a);
+	pixels[2] = cpu_to_le16(in_pixel->r);
+	pixels[1] = cpu_to_le16(in_pixel->g);
+	pixels[0] = cpu_to_le16(in_pixel->b);
 }
 
-static void argb_u16_to_XRGB16161616(struct vkms_frame_info *frame_info,
-				     const struct line_buffer *src_buffer, int y)
+static void argb_u16_to_XRGB16161616(u8 *dst_pixels, struct pixel_argb_u16 *in_pixel)
 {
-	int x_dst = frame_info->dst.x1;
-	u16 *dst_pixels = packed_pixels_addr(frame_info, x_dst, y);
-	struct pixel_argb_u16 *in_pixels = src_buffer->pixels;
-	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
-			    src_buffer->n_pixels);
+	u16 *pixels = (u16 *)dst_pixels;
 
-	for (size_t x = 0; x < x_limit; x++, dst_pixels += 4) {
-		dst_pixels[3] = 0xffff;
-		dst_pixels[2] = cpu_to_le16(in_pixels[x].r);
-		dst_pixels[1] = cpu_to_le16(in_pixels[x].g);
-		dst_pixels[0] = cpu_to_le16(in_pixels[x].b);
-	}
+	pixels[3] = 0xffff;
+	pixels[2] = cpu_to_le16(in_pixel->r);
+	pixels[1] = cpu_to_le16(in_pixel->g);
+	pixels[0] = cpu_to_le16(in_pixel->b);
 }
 
-static void argb_u16_to_RGB565(struct vkms_frame_info *frame_info,
-			       const struct line_buffer *src_buffer, int y)
+static void argb_u16_to_RGB565(u8 *dst_pixels, struct pixel_argb_u16 *in_pixel)
 {
-	int x_dst = frame_info->dst.x1;
-	u16 *dst_pixels = packed_pixels_addr(frame_info, x_dst, y);
-	struct pixel_argb_u16 *in_pixels = src_buffer->pixels;
-	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
-			    src_buffer->n_pixels);
+	u16 *pixels = (u16 *)dst_pixels;
 
 	s64 fp_rb_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(31));
 	s64 fp_g_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(63));
 
-	for (size_t x = 0; x < x_limit; x++, dst_pixels++) {
-		s64 fp_r = drm_int2fixp(in_pixels[x].r);
-		s64 fp_g = drm_int2fixp(in_pixels[x].g);
-		s64 fp_b = drm_int2fixp(in_pixels[x].b);
+	s64 fp_r = drm_int2fixp(in_pixel->r);
+	s64 fp_g = drm_int2fixp(in_pixel->g);
+	s64 fp_b = drm_int2fixp(in_pixel->b);
 
-		u16 r = drm_fixp2int_round(drm_fixp_div(fp_r, fp_rb_ratio));
-		u16 g = drm_fixp2int_round(drm_fixp_div(fp_g, fp_g_ratio));
-		u16 b = drm_fixp2int_round(drm_fixp_div(fp_b, fp_rb_ratio));
+	u16 r = drm_fixp2int(drm_fixp_div(fp_r, fp_rb_ratio));
+	u16 g = drm_fixp2int(drm_fixp_div(fp_g, fp_g_ratio));
+	u16 b = drm_fixp2int(drm_fixp_div(fp_b, fp_rb_ratio));
 
-		*dst_pixels = cpu_to_le16(r << 11 | g << 5 | b);
-	}
+	*pixels = cpu_to_le16(r << 11 | g << 5 | b);
+}
+
+void vkms_writeback_row(struct vkms_writeback_job *wb,
+			const struct line_buffer *src_buffer, int y)
+{
+	struct vkms_frame_info *frame_info = &wb->wb_frame_info;
+	int x_dst = frame_info->dst.x1;
+	u8 *dst_pixels = packed_pixels_addr(frame_info, x_dst, y);
+	struct pixel_argb_u16 *in_pixels = src_buffer->pixels;
+	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst), src_buffer->n_pixels);
+
+	for (size_t x = 0; x < x_limit; x++, dst_pixels += frame_info->cpp)
+		wb->pixel_write(dst_pixels, &in_pixels[x]);
 }
 
 void *get_pixel_conversion_function(u32 format)
@@ -258,7 +245,7 @@ void *get_pixel_conversion_function(u32 format)
 	}
 }
 
-void *get_line_to_frame_function(u32 format)
+void *get_pixel_write_function(u32 format)
 {
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:

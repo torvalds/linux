@@ -597,7 +597,7 @@ static void uv_nmi_nr_cpus_ping(void)
 	for_each_cpu(cpu, uv_nmi_cpu_mask)
 		uv_cpu_nmi_per(cpu).pinging = 1;
 
-	apic->send_IPI_mask(uv_nmi_cpu_mask, APIC_DM_NMI);
+	__apic_send_IPI_mask(uv_nmi_cpu_mask, APIC_DM_NMI);
 }
 
 /* Clean up flags for CPU's that ignored both NMI and ping */

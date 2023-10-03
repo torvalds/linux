@@ -24,7 +24,7 @@ const struct nla_policy ethnl_phc_vclocks_get_policy[] = {
 
 static int phc_vclocks_prepare_data(const struct ethnl_req_info *req_base,
 				    struct ethnl_reply_data *reply_base,
-				    struct genl_info *info)
+				    const struct genl_info *info)
 {
 	struct phc_vclocks_reply_data *data = PHC_VCLOCKS_REPDATA(reply_base);
 	struct net_device *dev = reply_base->dev;

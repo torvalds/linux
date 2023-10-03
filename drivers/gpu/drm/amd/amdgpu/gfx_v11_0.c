@@ -667,7 +667,7 @@ static void gfx_v11_0_init_rlcg_reg_access_ctrl(struct amdgpu_device *adev)
 {
 	struct amdgpu_rlcg_reg_access_ctrl *reg_access_ctrl;
 
-	reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl;
+	reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl[0];
 	reg_access_ctrl->scratch_reg0 = SOC15_REG_OFFSET(GC, 0, regSCRATCH_REG0);
 	reg_access_ctrl->scratch_reg1 = SOC15_REG_OFFSET(GC, 0, regSCRATCH_REG1);
 	reg_access_ctrl->scratch_reg2 = SOC15_REG_OFFSET(GC, 0, regSCRATCH_REG2);
@@ -4654,26 +4654,6 @@ static int gfx_v11_0_early_init(void *handle)
 	return gfx_v11_0_init_microcode(adev);
 }
 
-static int gfx_v11_0_ras_late_init(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct ras_common_if *gfx_common_if;
-	int ret;
-
-	gfx_common_if = kzalloc(sizeof(struct ras_common_if), GFP_KERNEL);
-	if (!gfx_common_if)
-		return -ENOMEM;
-
-	gfx_common_if->block = AMDGPU_RAS_BLOCK__GFX;
-
-	ret = amdgpu_ras_feature_enable(adev, gfx_common_if, true);
-	if (ret)
-		dev_warn(adev->dev, "Failed to enable gfx11 ras feature\n");
-
-	kfree(gfx_common_if);
-	return 0;
-}
-
 static int gfx_v11_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -4686,12 +4666,6 @@ static int gfx_v11_0_late_init(void *handle)
 	r = amdgpu_irq_get(adev, &adev->gfx.priv_inst_irq, 0);
 	if (r)
 		return r;
-
-	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 3)) {
-		r = gfx_v11_0_ras_late_init(handle);
-		if (r)
-			return r;
-	}
 
 	return 0;
 }
@@ -6394,7 +6368,7 @@ static int gfx_v11_0_get_cu_info(struct amdgpu_device *adev,
 			 *    SE6: {SH0,SH1} --> {bitmap[2][2], bitmap[2][3]}
 			 *    SE7: {SH0,SH1} --> {bitmap[3][2], bitmap[3][3]}
 			 */
-			cu_info->bitmap[i % 4][j + (i / 4) * 2] = bitmap;
+			cu_info->bitmap[0][i % 4][j + (i / 4) * 2] = bitmap;
 
 			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k++) {
 				if (bitmap & mask)

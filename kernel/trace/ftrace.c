@@ -6779,8 +6779,7 @@ void ftrace_release_mod(struct module *mod)
 	last_pg = &ftrace_pages_start;
 	for (pg = ftrace_pages_start; pg; pg = *last_pg) {
 		rec = &pg->records[0];
-		if (within_module_core(rec->ip, mod) ||
-		    within_module_init(rec->ip, mod)) {
+		if (within_module(rec->ip, mod)) {
 			/*
 			 * As core pages are first, the first
 			 * page should never be a module page.
@@ -6852,8 +6851,7 @@ void ftrace_module_enable(struct module *mod)
 		 * not part of this module, then skip this pg,
 		 * which the "break" will do.
 		 */
-		if (!within_module_core(rec->ip, mod) &&
-		    !within_module_init(rec->ip, mod))
+		if (!within_module(rec->ip, mod))
 			break;
 
 		/* Weak functions should still be ignored */
@@ -7142,9 +7140,7 @@ void ftrace_free_mem(struct module *mod, void *start_ptr, void *end_ptr)
 	struct dyn_ftrace key;
 	struct ftrace_mod_map *mod_map = NULL;
 	struct ftrace_init_func *func, *func_next;
-	struct list_head clear_hash;
-
-	INIT_LIST_HEAD(&clear_hash);
+	LIST_HEAD(clear_hash);
 
 	key.ip = start;
 	key.flags = end;	/* overload flags, as it is unsigned long */

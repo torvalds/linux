@@ -2113,7 +2113,7 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		if (MLX4_COMM_CMD_FLR == slave_state[slave].last_cmd)
 			goto inform_slave_state;
 
-		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_SHUTDOWN, slave);
+		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_SHUTDOWN, &slave);
 
 		/* write the version in the event field */
 		reply |= mlx4_comm_get_version();
@@ -2152,7 +2152,7 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		if (mlx4_master_activate_admin_state(priv, slave))
 				goto reset_slave;
 		slave_state[slave].active = true;
-		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_INIT, slave);
+		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_INIT, &slave);
 		break;
 	case MLX4_COMM_CMD_VHCR_POST:
 		if ((slave_state[slave].last_cmd != MLX4_COMM_CMD_VHCR_EN) &&

@@ -44,12 +44,14 @@ static __always_inline void count(void *map)
 		bpf_map_update_elem(map, &key, &init_val, BPF_NOEXIST);
 }
 
+#if !defined(__aarch64__)
 SEC("tracepoint/syscalls/sys_enter_open")
 int trace_enter_open(struct syscalls_enter_open_args *ctx)
 {
 	count(&enter_open_map);
 	return 0;
 }
+#endif
 
 SEC("tracepoint/syscalls/sys_enter_openat")
 int trace_enter_open_at(struct syscalls_enter_open_args *ctx)
@@ -65,12 +67,14 @@ int trace_enter_open_at2(struct syscalls_enter_open_args *ctx)
 	return 0;
 }
 
+#if !defined(__aarch64__)
 SEC("tracepoint/syscalls/sys_exit_open")
 int trace_enter_exit(struct syscalls_exit_open_args *ctx)
 {
 	count(&exit_open_map);
 	return 0;
 }
+#endif
 
 SEC("tracepoint/syscalls/sys_exit_openat")
 int trace_enter_exit_at(struct syscalls_exit_open_args *ctx)

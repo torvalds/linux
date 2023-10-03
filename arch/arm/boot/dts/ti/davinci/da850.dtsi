@@ -170,55 +170,55 @@
 				#pinctrl-single,gpio-range-cells = <3>;
 			};
 
-			serial0_rtscts_pins: pinmux_serial0_rtscts_pins {
+			serial0_rtscts_pins: serial0-rtscts-pins {
 				pinctrl-single,bits = <
 					/* UART0_RTS UART0_CTS */
 					0x0c 0x22000000 0xff000000
 				>;
 			};
-			serial0_rxtx_pins: pinmux_serial0_rxtx_pins {
+			serial0_rxtx_pins: serial0-rxtx-pins {
 				pinctrl-single,bits = <
 					/* UART0_TXD UART0_RXD */
 					0x0c 0x00220000 0x00ff0000
 				>;
 			};
-			serial1_rtscts_pins: pinmux_serial1_rtscts_pins {
+			serial1_rtscts_pins: serial1-rtscts-pins {
 				pinctrl-single,bits = <
 					/* UART1_CTS UART1_RTS */
 					0x00 0x00440000 0x00ff0000
 				>;
 			};
-			serial1_rxtx_pins: pinmux_serial1_rxtx_pins {
+			serial1_rxtx_pins: serial1-rxtx-pins {
 				pinctrl-single,bits = <
 					/* UART1_TXD UART1_RXD */
 					0x10 0x22000000 0xff000000
 				>;
 			};
-			serial2_rtscts_pins: pinmux_serial2_rtscts_pins {
+			serial2_rtscts_pins: serial2-rtscts-pins {
 				pinctrl-single,bits = <
 					/* UART2_CTS UART2_RTS */
 					0x00 0x44000000 0xff000000
 				>;
 			};
-			serial2_rxtx_pins: pinmux_serial2_rxtx_pins {
+			serial2_rxtx_pins: serial2-rxtx-pins {
 				pinctrl-single,bits = <
 					/* UART2_TXD UART2_RXD */
 					0x10 0x00220000 0x00ff0000
 				>;
 			};
-			i2c0_pins: pinmux_i2c0_pins {
+			i2c0_pins: i2c0-pins {
 				pinctrl-single,bits = <
 					/* I2C0_SDA,I2C0_SCL */
 					0x10 0x00002200 0x0000ff00
 				>;
 			};
-			i2c1_pins: pinmux_i2c1_pins {
+			i2c1_pins: i2c1-pins {
 				pinctrl-single,bits = <
 					/* I2C1_SDA, I2C1_SCL */
 					0x10 0x00440000 0x00ff0000
 				>;
 			};
-			mmc0_pins: pinmux_mmc_pins {
+			mmc0_pins: mmc-pins {
 				pinctrl-single,bits = <
 					/* MMCSD0_DAT[3] MMCSD0_DAT[2]
 					 * MMCSD0_DAT[1] MMCSD0_DAT[0]
@@ -227,85 +227,85 @@
 					0x28 0x00222222  0x00ffffff
 				>;
 			};
-			ehrpwm0a_pins: pinmux_ehrpwm0a_pins {
+			ehrpwm0a_pins: ehrpwm0a-pins {
 				pinctrl-single,bits = <
 					/* EPWM0A */
 					0xc 0x00000002 0x0000000f
 				>;
 			};
-			ehrpwm0b_pins: pinmux_ehrpwm0b_pins {
+			ehrpwm0b_pins: ehrpwm0b-pins {
 				pinctrl-single,bits = <
 					/* EPWM0B */
 					0xc 0x00000020 0x000000f0
 				>;
 			};
-			ehrpwm1a_pins: pinmux_ehrpwm1a_pins {
+			ehrpwm1a_pins: ehrpwm1a-pins {
 				pinctrl-single,bits = <
 					/* EPWM1A */
 					0x14 0x00000002 0x0000000f
 				>;
 			};
-			ehrpwm1b_pins: pinmux_ehrpwm1b_pins {
+			ehrpwm1b_pins: ehrpwm1b-pins {
 				pinctrl-single,bits = <
 					/* EPWM1B */
 					0x14 0x00000020 0x000000f0
 				>;
 			};
-			ecap0_pins: pinmux_ecap0_pins {
+			ecap0_pins: ecap0-pins {
 				pinctrl-single,bits = <
 					/* ECAP0_APWM0 */
 					0x8 0x20000000 0xf0000000
 				>;
 			};
-			ecap1_pins: pinmux_ecap1_pins {
+			ecap1_pins: ecap1-pins {
 				pinctrl-single,bits = <
 					/* ECAP1_APWM1 */
 					0x4 0x40000000 0xf0000000
 				>;
 			};
-			ecap2_pins: pinmux_ecap2_pins {
+			ecap2_pins: ecap2-pins {
 				pinctrl-single,bits = <
 					/* ECAP2_APWM2 */
 					0x4 0x00000004 0x0000000f
 				>;
 			};
-			spi0_pins: pinmux_spi0_pins {
+			spi0_pins: spi0-pins {
 				pinctrl-single,bits = <
 					/* SIMO, SOMI, CLK */
 					0xc 0x00001101 0x0000ff0f
 				>;
 			};
-			spi0_cs0_pin: pinmux_spi0_cs0 {
+			spi0_cs0_pin: spi0-cs0-pins {
 				pinctrl-single,bits = <
 					/* CS0 */
 					0x10 0x00000010 0x000000f0
 				>;
 			};
-			spi0_cs3_pin: pinmux_spi0_cs3_pin {
+			spi0_cs3_pin: spi0-cs3-pins {
 				pinctrl-single,bits = <
 					/* CS3 */
 					0xc 0x01000000 0x0f000000
 				>;
 			};
-			spi1_pins: pinmux_spi1_pins {
+			spi1_pins: spi1-pins {
 				pinctrl-single,bits = <
 					/* SIMO, SOMI, CLK */
 					0x14 0x00110100 0x00ff0f00
 				>;
 			};
-			spi1_cs0_pin: pinmux_spi1_cs0 {
+			spi1_cs0_pin: spi1-cs0-pins {
 				pinctrl-single,bits = <
 					/* CS0 */
 					0x14 0x00000010 0x000000f0
 				>;
 			};
-			mdio_pins: pinmux_mdio_pins {
+			mdio_pins: mdio-pins {
 				pinctrl-single,bits = <
 					/* MDIO_CLK, MDIO_D */
 					0x10 0x00000088 0x000000ff
 				>;
 			};
-			mii_pins: pinmux_mii_pins {
+			mii_pins: mii-pins {
 				pinctrl-single,bits = <
 					/*
 					 * MII_TXEN, MII_TXCLK, MII_COL
@@ -321,7 +321,7 @@
 					0xc 0x88888888 0xffffffff
 				>;
 			};
-			lcd_pins: pinmux_lcd_pins {
+			lcd_pins: lcd-pins {
 				pinctrl-single,bits = <
 					/*
 					 * LCD_D[2], LCD_D[3], LCD_D[4], LCD_D[5],
@@ -342,7 +342,7 @@
 					0x4c 0x02000022 0x0f0000ff
 				>;
 			};
-			vpif_capture_pins: vpif_capture_pins {
+			vpif_capture_pins: vpif-capture-pins {
 				pinctrl-single,bits = <
 					/* VP_DIN[2..7], VP_CLKIN1, VP_CLKIN0 */
 					0x38 0x11111111 0xffffffff
@@ -352,7 +352,7 @@
 					0x40 0x00000011 0x000000ff
 				>;
 			};
-			vpif_display_pins: vpif_display_pins {
+			vpif_display_pins: vpif-display-pins {
 				pinctrl-single,bits = <
 					/* VP_DOUT[2..7] */
 					0x40 0x11111100 0xffffff00
@@ -421,7 +421,7 @@
 			/* eDMA3 CC0: 0x01c0 0000 - 0x01c0 7fff */
 			reg = <0x0 0x8000>;
 			reg-names = "edma3_cc";
-			interrupts = <11 12>;
+			interrupts = <11>, <12>;
 			interrupt-names = "edma3_ccint", "edma3_ccerrint";
 			#dma-cells = <2>;
 
@@ -447,7 +447,7 @@
 			/* eDMA3 CC1: 0x01e3 0000 - 0x01e3 7fff */
 			reg = <0x230000 0x8000>;
 			reg-names = "edma3_cc";
-			interrupts = <93 94>;
+			interrupts = <93>, <94>;
 			interrupt-names = "edma3_ccint", "edma3_ccerrint";
 			#dma-cells = <2>;
 
@@ -494,8 +494,7 @@
 		rtc0: rtc@23000 {
 			compatible = "ti,da830-rtc";
 			reg = <0x23000 0x1000>;
-			interrupts = <19
-				      19>;
+			interrupts = <19>, <19>;
 			clocks = <&pll0_auxclk>;
 			clock-names = "int-clk";
 			status = "disabled";
@@ -725,11 +724,7 @@
 			ti,davinci-ctrl-ram-offset = <0>;
 			ti,davinci-ctrl-ram-size = <0x2000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <33
-					34
-					35
-					36
-					>;
+			interrupts = <33>, <34>, <35>,<36>;
 			clocks = <&psc1 5>;
 			power-domains = <&psc1 5>;
 			status = "disabled";
@@ -748,7 +743,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			reg = <0x226000 0x1000>;
-			interrupts = <42 43 44 45 46 47 48 49 50>;
+			interrupts = <42>, <43>, <44>, <45>, <46>, <47>, <48>, <49>, <50>;
 			ti,ngpio = <144>;
 			ti,davinci-gpio-unbanked = <0>;
 			clocks = <&psc1 3>;

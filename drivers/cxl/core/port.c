@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. All rights reserved. */
+#include <linux/platform_device.h>
 #include <linux/memregion.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
@@ -706,16 +707,20 @@ static int cxl_setup_comp_regs(struct device *dev, struct cxl_register_map *map,
 	return cxl_setup_regs(map);
 }
 
-static inline int cxl_port_setup_regs(struct cxl_port *port,
-				      resource_size_t component_reg_phys)
+static int cxl_port_setup_regs(struct cxl_port *port,
+			resource_size_t component_reg_phys)
 {
+	if (dev_is_platform(port->uport_dev))
+		return 0;
 	return cxl_setup_comp_regs(&port->dev, &port->comp_map,
 				   component_reg_phys);
 }
 
-static inline int cxl_dport_setup_regs(struct cxl_dport *dport,
-				       resource_size_t component_reg_phys)
+static int cxl_dport_setup_regs(struct cxl_dport *dport,
+				resource_size_t component_reg_phys)
 {
+	if (dev_is_platform(dport->dport_dev))
+		return 0;
 	return cxl_setup_comp_regs(dport->dport_dev, &dport->comp_map,
 				   component_reg_phys);
 }

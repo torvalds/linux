@@ -418,20 +418,20 @@
 	arm64.nobti	[ARM64] Unconditionally disable Branch Target
 			Identification support
 
-	arm64.nopauth	[ARM64] Unconditionally disable Pointer Authentication
-			support
+	arm64.nomops	[ARM64] Unconditionally disable Memory Copy and Memory
+			Set instructions support
 
 	arm64.nomte	[ARM64] Unconditionally disable Memory Tagging Extension
 			support
 
-	arm64.nosve	[ARM64] Unconditionally disable Scalable Vector
-			Extension support
+	arm64.nopauth	[ARM64] Unconditionally disable Pointer Authentication
+			support
 
 	arm64.nosme	[ARM64] Unconditionally disable Scalable Matrix
 			Extension support
 
-	arm64.nomops	[ARM64] Unconditionally disable Memory Copy and Memory
-			Set instructions support
+	arm64.nosve	[ARM64] Unconditionally disable Scalable Vector
+			Extension support
 
 	ataflop=	[HW,M68k]
 
@@ -553,7 +553,7 @@
 			others).
 
 	ccw_timeout_log	[S390]
-			See Documentation/s390/common_io.rst for details.
+			See Documentation/arch/s390/common_io.rst for details.
 
 	cgroup_disable=	[KNL] Disable a particular controller or optional feature
 			Format: {name of the controller(s) or feature(s) to disable}
@@ -598,7 +598,7 @@
 			Setting checkreqprot to 1 is deprecated.
 
 	cio_ignore=	[S390]
-			See Documentation/s390/common_io.rst for details.
+			See Documentation/arch/s390/common_io.rst for details.
 
 	clearcpuid=X[,X...] [X86]
 			Disable CPUID feature X for the kernel. See
@@ -696,13 +696,24 @@
 			kernel/dma/contiguous.c
 
 	cma_pernuma=nn[MG]
-			[ARM64,KNL,CMA]
+			[KNL,CMA]
 			Sets the size of kernel per-numa memory area for
 			contiguous memory allocations. A value of 0 disables
 			per-numa CMA altogether. And If this option is not
 			specified, the default value is 0.
 			With per-numa CMA enabled, DMA users on node nid will
 			first try to allocate buffer from the pernuma area
+			which is located in node nid, if the allocation fails,
+			they will fallback to the global default memory area.
+
+	numa_cma=<node>:nn[MG][,<node>:nn[MG]]
+			[KNL,CMA]
+			Sets the size of kernel numa memory area for
+			contiguous memory allocations. It will reserve CMA
+			area for the specified node.
+
+			With numa CMA enabled, DMA users on node nid will
+			first try to allocate buffer from the numa area
 			which is located in node nid, if the allocation fails,
 			they will fallback to the global default memory area.
 
@@ -862,7 +873,7 @@
 			memory region [offset, offset + size] for that kernel
 			image. If '@offset' is omitted, then a suitable offset
 			is selected automatically.
-			[KNL, X86-64, ARM64] Select a region under 4G first, and
+			[KNL, X86-64, ARM64, RISCV] Select a region under 4G first, and
 			fall back to reserve region above 4G when '@offset'
 			hasn't been specified.
 			See Documentation/admin-guide/kdump/kdump.rst for further details.
@@ -875,14 +886,14 @@
 			Documentation/admin-guide/kdump/kdump.rst for an example.
 
 	crashkernel=size[KMG],high
-			[KNL, X86-64, ARM64] range could be above 4G. Allow kernel
-			to allocate physical memory region from top, so could
-			be above 4G if system have more than 4G ram installed.
-			Otherwise memory region will be allocated below 4G, if
-			available.
+			[KNL, X86-64, ARM64, RISCV] range could be above 4G.
+			Allow kernel to allocate physical memory region from top,
+			so could be above 4G if system have more than 4G ram
+			installed. Otherwise memory region will be allocated
+			below 4G, if available.
 			It will be ignored if crashkernel=X is specified.
 	crashkernel=size[KMG],low
-			[KNL, X86-64, ARM64] range under 4G. When crashkernel=X,high
+			[KNL, X86-64, ARM64, RISCV] range under 4G. When crashkernel=X,high
 			is passed, kernel could allocate physical memory region
 			above 4G, that cause second kernel crash on system
 			that require some amount of low memory, e.g. swiotlb
@@ -893,6 +904,7 @@
 			size is	platform dependent.
 			  --> x86: max(swiotlb_size_or_default() + 8MiB, 256MiB)
 			  --> arm64: 128MiB
+			  --> riscv: 128MiB
 			This one lets the user specify own low range under 4G
 			for second kernel instead.
 			0: to disable low allocation.
@@ -2644,7 +2656,7 @@
 
 	kvm-intel.flexpriority=
 			[KVM,Intel] Control KVM's use of FlexPriority feature
-			(TPR shadow). Default is 1 (enabled). Disalbe by KVM if
+			(TPR shadow). Default is 1 (enabled). Disable by KVM if
 			hardware lacks support for it.
 
 	kvm-intel.nested=
@@ -3129,7 +3141,7 @@
 			[KNL,SH] Allow user to override the default size for
 			per-device physically contiguous DMA buffers.
 
-	memhp_default_state=online/offline
+	memhp_default_state=online/offline/online_kernel/online_movable
 			[KNL] Set the initial state for the memory hotplug
 			onlining policy. If not specified, the default value is
 			set according to the
@@ -3742,7 +3754,7 @@
 
 	nohibernate	[HIBERNATION] Disable hibernation and resume.
 
-	nohlt		[ARM,ARM64,MICROBLAZE,MIPS,SH] Forces the kernel to
+	nohlt		[ARM,ARM64,MICROBLAZE,MIPS,PPC,SH] Forces the kernel to
 			busy wait in do_idle() and not use the arch_cpu_idle()
 			implementation; requires CONFIG_GENERIC_IDLE_POLL_SETUP
 			to be effective. This is useful on platforms where the
@@ -3878,10 +3890,10 @@
 	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel,
 			and disable the IO APIC.  legacy for "maxcpus=0".
 
-	nosmt		[KNL,MIPS,S390] Disable symmetric multithreading (SMT).
+	nosmt		[KNL,MIPS,PPC,S390] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
 
-			[KNL,X86] Disable symmetric multithreading (SMT).
+			[KNL,X86,PPC] Disable symmetric multithreading (SMT).
 			nosmt=force: Force disable SMT, cannot be undone
 				     via the sysfs control file.
 
@@ -4062,20 +4074,6 @@
 			timeout < 0: reboot immediately
 			Format: <timeout>
 
-	panic_print=	Bitmask for printing system info when panic happens.
-			User can chose combination of the following bits:
-			bit 0: print all tasks info
-			bit 1: print system memory info
-			bit 2: print timer info
-			bit 3: print locks info if CONFIG_LOCKDEP is on
-			bit 4: print ftrace buffer
-			bit 5: print all printk messages in buffer
-			bit 6: print all CPUs backtrace (if available in the arch)
-			*Be aware* that this option may print a _lot_ of lines,
-			so there are risks of losing older messages in the log.
-			Use this option carefully, maybe worth to setup a
-			bigger log buffer with "log_buf_len" along with this.
-
 	panic_on_taint=	Bitmask for conditionally calling panic() in add_taint()
 			Format: <hex>[,nousertaint]
 			Hexadecimal bitmask representing the set of TAINT flags
@@ -4091,6 +4089,20 @@
 
 	panic_on_warn=1	panic() instead of WARN().  Useful to cause kdump
 			on a WARN().
+
+	panic_print=	Bitmask for printing system info when panic happens.
+			User can chose combination of the following bits:
+			bit 0: print all tasks info
+			bit 1: print system memory info
+			bit 2: print timer info
+			bit 3: print locks info if CONFIG_LOCKDEP is on
+			bit 4: print ftrace buffer
+			bit 5: print all printk messages in buffer
+			bit 6: print all CPUs backtrace (if available in the arch)
+			*Be aware* that this option may print a _lot_ of lines,
+			so there are risks of losing older messages in the log.
+			Use this option carefully, maybe worth to setup a
+			bigger log buffer with "log_buf_len" along with this.
 
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
 			connected to, default is 0.
@@ -4211,7 +4223,7 @@
 			mode 0, bit 1 is for mode 1, and so on.  Mode 0 only
 			allowed by default.
 
-	pause_on_oops=
+	pause_on_oops=<int>
 			Halt all CPUs after the first oops has been printed for
 			the specified number of seconds.  This is to be used if
 			your oopses keep scrolling off the screen.
@@ -5543,6 +5555,13 @@
 			[KNL] Disable ring 3 MONITOR/MWAIT feature on supported
 			CPUs.
 
+	riscv_isa_fallback [RISCV]
+			When CONFIG_RISCV_ISA_FALLBACK is not enabled, permit
+			falling back to detecting extension support by parsing
+			"riscv,isa" property on devicetree systems when the
+			replacement properties are not found. See the Kconfig
+			entry for RISCV_ISA_FALLBACK.
+
 	ro		[KNL] Mount root device read-only on boot
 
 	rodata=		[KNL]
@@ -6333,10 +6352,6 @@
 			-1: disable all critical trip points in all thermal zones
 			<degrees C>: override all critical trip points
 
-	thermal.nocrt=	[HW,ACPI]
-			Set to disable actions on ACPI thermal zone
-			critical and hot trip points.
-
 	thermal.off=	[HW,ACPI]
 			1: disable ACPI thermal control
 
@@ -6397,6 +6412,13 @@
 			flush the last written pcr on TPM_SaveState.
 			This will guarantee that all the other pcrs
 			are saved.
+
+	tpm_tis.interrupts= [HW,TPM]
+			Enable interrupts for the MMIO based physical layer
+			for the FIFO interface. By default it is set to false
+			(0). For more information about TPM hardware interfaces
+			defined by Trusted Computing Group (TCG) see
+			https://trustedcomputinggroup.org/resource/pc-client-platform-tpm-profile-ptp-specification/
 
 	tp_printk	[FTRACE]
 			Have the tracepoints sent to printk as well as the
@@ -6697,7 +6719,7 @@
 
 	usbcore.authorized_default=
 			[USB] Default USB device authorization:
-			(default -1 = authorized except for wireless USB,
+			(default -1 = authorized (same as 1),
 			0 = not authorized, 1 = authorized, 2 = authorized
 			if device connected to internal port)
 
@@ -7054,6 +7076,13 @@
 			disables both lockup detectors. Default is 10
 			seconds.
 
+	workqueue.unbound_cpus=
+			[KNL,SMP] Specify to constrain one or some CPUs
+			to use in unbound workqueues.
+			Format: <cpu-list>
+			By default, all online CPUs are available for
+			unbound workqueues.
+
 	workqueue.watchdog_thresh=
 			If CONFIG_WQ_WATCHDOG is configured, workqueue can
 			warn stall conditions and dump internal state to
@@ -7075,15 +7104,6 @@
 			threshold repeatedly. They are likely good
 			candidates for using WQ_UNBOUND workqueues instead.
 
-	workqueue.disable_numa
-			By default, all work items queued to unbound
-			workqueues are affine to the NUMA nodes they're
-			issued on, which results in better behavior in
-			general.  If NUMA affinity needs to be disabled for
-			whatever reason, this option can be used.  Note
-			that this also can be controlled per-workqueue for
-			workqueues visible under /sys/bus/workqueue/.
-
 	workqueue.power_efficient
 			Per-cpu workqueues are generally preferred because
 			they show better performance thanks to cache
@@ -7098,6 +7118,18 @@
 
 			The default value of this parameter is determined by
 			the config option CONFIG_WQ_POWER_EFFICIENT_DEFAULT.
+
+        workqueue.default_affinity_scope=
+			Select the default affinity scope to use for unbound
+			workqueues. Can be one of "cpu", "smt", "cache",
+			"numa" and "system". Default is "cache". For more
+			information, see the Affinity Scopes section in
+			Documentation/core-api/workqueue.rst.
+
+			This can be changed after boot by writing to the
+			matching /sys/module/workqueue/parameters file. All
+			workqueues with the "default" affinity scope will be
+			updated accordignly.
 
 	workqueue.debug_force_rr_cpu
 			Workqueue used to implicitly guarantee that work

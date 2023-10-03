@@ -88,6 +88,7 @@
 #define sk_v6_rcv_saddr		__sk_common.skc_v6_rcv_saddr
 #define sk_flags		__sk_common.skc_flags
 #define sk_reuse		__sk_common.skc_reuse
+#define sk_cookie		__sk_common.skc_cookie
 
 #define s6_addr32		in6_u.u6_addr32
 

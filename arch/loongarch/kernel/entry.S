@@ -58,6 +58,11 @@ SYM_FUNC_START(handle_syscall)
 
 	SAVE_STATIC
 
+#ifdef CONFIG_KGDB
+	li.w		t1, CSR_CRMD_WE
+	csrxchg		t1, t1, LOONGARCH_CSR_CRMD
+#endif
+
 	move		u0, t0
 	li.d		tp, ~_THREAD_MASK
 	and		tp, tp, sp

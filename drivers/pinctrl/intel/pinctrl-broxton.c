@@ -1028,3 +1028,4 @@ MODULE_DESCRIPTION("Intel Broxton SoC pinctrl/GPIO driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:apollolake-pinctrl");
 MODULE_ALIAS("platform:broxton-pinctrl");
+MODULE_IMPORT_NS(PINCTRL_INTEL);

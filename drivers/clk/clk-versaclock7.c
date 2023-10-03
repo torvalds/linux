@@ -14,7 +14,6 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/swab.h>
@@ -1109,7 +1108,7 @@ static int vc7_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, vc7);
 	vc7->client = client;
-	vc7->chip_info = device_get_match_data(&client->dev);
+	vc7->chip_info = i2c_get_match_data(client);
 
 	vc7->pin_xin = devm_clk_get(&client->dev, "xin");
 	if (PTR_ERR(vc7->pin_xin) == -EPROBE_DEFER) {

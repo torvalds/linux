@@ -765,9 +765,10 @@ bool sk_mc_loop(struct sock *sk)
 		return false;
 	if (!sk)
 		return true;
-	switch (sk->sk_family) {
+	/* IPV6_ADDRFORM can change sk->sk_family under us. */
+	switch (READ_ONCE(sk->sk_family)) {
 	case AF_INET:
-		return inet_sk(sk)->mc_loop;
+		return inet_test_bit(MC_LOOP, sk);
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		return inet6_sk(sk)->mc_loop;
@@ -797,7 +798,7 @@ EXPORT_SYMBOL(sock_set_reuseport);
 void sock_no_linger(struct sock *sk)
 {
 	lock_sock(sk);
-	sk->sk_lingertime = 0;
+	WRITE_ONCE(sk->sk_lingertime, 0);
 	sock_set_flag(sk, SOCK_LINGER);
 	release_sock(sk);
 }
@@ -893,7 +894,7 @@ static int sock_timestamping_bind_phc(struct sock *sk, int phc_index)
 	if (!match)
 		return -EINVAL;
 
-	sk->sk_bind_phc = phc_index;
+	WRITE_ONCE(sk->sk_bind_phc, phc_index);
 
 	return 0;
 }
@@ -936,7 +937,7 @@ int sock_set_timestamping(struct sock *sk, int optname,
 			return ret;
 	}
 
-	sk->sk_tsflags = val;
+	WRITE_ONCE(sk->sk_tsflags, val);
 	sock_valbool_flag(sk, SOCK_TSTAMP_NEW, optname == SO_TIMESTAMPING_NEW);
 
 	if (val & SOF_TIMESTAMPING_RX_SOFTWARE)
@@ -1044,7 +1045,7 @@ static int sock_reserve_memory(struct sock *sk, int bytes)
 		mem_cgroup_uncharge_skmem(sk->sk_memcg, pages);
 		return -ENOMEM;
 	}
-	sk->sk_forward_alloc += pages << PAGE_SHIFT;
+	sk_forward_alloc_add(sk, pages << PAGE_SHIFT);
 
 	WRITE_ONCE(sk->sk_reserved_mem,
 		   sk->sk_reserved_mem + (pages << PAGE_SHIFT));
@@ -1230,15 +1231,15 @@ set_sndbuf:
 			ret = -EFAULT;
 			break;
 		}
-		if (!ling.l_onoff)
+		if (!ling.l_onoff) {
 			sock_reset_flag(sk, SOCK_LINGER);
-		else {
-#if (BITS_PER_LONG == 32)
-			if ((unsigned int)ling.l_linger >= MAX_SCHEDULE_TIMEOUT/HZ)
-				sk->sk_lingertime = MAX_SCHEDULE_TIMEOUT;
+		} else {
+			unsigned long t_sec = ling.l_linger;
+
+			if (t_sec >= MAX_SCHEDULE_TIMEOUT / HZ)
+				WRITE_ONCE(sk->sk_lingertime, MAX_SCHEDULE_TIMEOUT);
 			else
-#endif
-				sk->sk_lingertime = (unsigned int)ling.l_linger * HZ;
+				WRITE_ONCE(sk->sk_lingertime, t_sec * HZ);
 			sock_set_flag(sk, SOCK_LINGER);
 		}
 		break;
@@ -1247,17 +1248,11 @@ set_sndbuf:
 		break;
 
 	case SO_PASSCRED:
-		if (valbool)
-			set_bit(SOCK_PASSCRED, &sock->flags);
-		else
-			clear_bit(SOCK_PASSCRED, &sock->flags);
+		assign_bit(SOCK_PASSCRED, &sock->flags, valbool);
 		break;
 
 	case SO_PASSPIDFD:
-		if (valbool)
-			set_bit(SOCK_PASSPIDFD, &sock->flags);
-		else
-			clear_bit(SOCK_PASSPIDFD, &sock->flags);
+		assign_bit(SOCK_PASSPIDFD, &sock->flags, valbool);
 		break;
 
 	case SO_TIMESTAMP_OLD:
@@ -1283,14 +1278,19 @@ set_sndbuf:
 		break;
 
 	case SO_RCVLOWAT:
+		{
+		int (*set_rcvlowat)(struct sock *sk, int val) = NULL;
+
 		if (val < 0)
 			val = INT_MAX;
-		if (sock && sock->ops->set_rcvlowat)
-			ret = sock->ops->set_rcvlowat(sk, val);
+		if (sock)
+			set_rcvlowat = READ_ONCE(sock->ops)->set_rcvlowat;
+		if (set_rcvlowat)
+			ret = set_rcvlowat(sk, val);
 		else
 			WRITE_ONCE(sk->sk_rcvlowat, val ? : 1);
 		break;
-
+		}
 	case SO_RCVTIMEO_OLD:
 	case SO_RCVTIMEO_NEW:
 		ret = sock_set_timeout(&sk->sk_rcvtimeo, optval,
@@ -1361,10 +1361,7 @@ set_sndbuf:
 		break;
 
 	case SO_PASSSEC:
-		if (valbool)
-			set_bit(SOCK_PASSSEC, &sock->flags);
-		else
-			clear_bit(SOCK_PASSSEC, &sock->flags);
+		assign_bit(SOCK_PASSSEC, &sock->flags, valbool);
 		break;
 	case SO_MARK:
 		if (!sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) &&
@@ -1388,11 +1385,16 @@ set_sndbuf:
 		break;
 
 	case SO_PEEK_OFF:
-		if (sock->ops->set_peek_off)
-			ret = sock->ops->set_peek_off(sk, val);
+		{
+		int (*set_peek_off)(struct sock *sk, int val);
+
+		set_peek_off = READ_ONCE(sock->ops)->set_peek_off;
+		if (set_peek_off)
+			ret = set_peek_off(sk, val);
 		else
 			ret = -EOPNOTSUPP;
 		break;
+		}
 
 	case SO_NOFCS:
 		sock_valbool_flag(sk, SOCK_NOFCS, valbool);
@@ -1691,7 +1693,7 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 	case SO_LINGER:
 		lv		= sizeof(v.ling);
 		v.ling.l_onoff	= sock_flag(sk, SOCK_LINGER);
-		v.ling.l_linger	= sk->sk_lingertime / HZ;
+		v.ling.l_linger	= READ_ONCE(sk->sk_lingertime) / HZ;
 		break;
 
 	case SO_BSDCOMPAT:
@@ -1717,8 +1719,8 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 
 	case SO_TIMESTAMPING_OLD:
 		lv = sizeof(v.timestamping);
-		v.timestamping.flags = sk->sk_tsflags;
-		v.timestamping.bind_phc = sk->sk_bind_phc;
+		v.timestamping.flags = READ_ONCE(sk->sk_tsflags);
+		v.timestamping.bind_phc = READ_ONCE(sk->sk_bind_phc);
 		break;
 
 	case SO_RCVTIMEO_OLD:
@@ -1823,14 +1825,14 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 
 	case SO_PEERNAME:
 	{
-		char address[128];
+		struct sockaddr_storage address;
 
-		lv = sock->ops->getname(sock, (struct sockaddr *)address, 2);
+		lv = READ_ONCE(sock->ops)->getname(sock, (struct sockaddr *)&address, 2);
 		if (lv < 0)
 			return -ENOTCONN;
 		if (lv < len)
 			return -EINVAL;
-		if (copy_to_sockptr(optval, address, len))
+		if (copy_to_sockptr(optval, &address, len))
 			return -EFAULT;
 		goto lenout;
 	}
@@ -1867,7 +1869,7 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case SO_PEEK_OFF:
-		if (!sock->ops->set_peek_off)
+		if (!READ_ONCE(sock->ops)->set_peek_off)
 			return -EOPNOTSUPP;
 
 		v.val = READ_ONCE(sk->sk_peek_off);
@@ -2745,9 +2747,9 @@ static long sock_wait_for_wmem(struct sock *sk, long timeo)
 		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 		if (refcount_read(&sk->sk_wmem_alloc) < READ_ONCE(sk->sk_sndbuf))
 			break;
-		if (sk->sk_shutdown & SEND_SHUTDOWN)
+		if (READ_ONCE(sk->sk_shutdown) & SEND_SHUTDOWN)
 			break;
-		if (sk->sk_err)
+		if (READ_ONCE(sk->sk_err))
 			break;
 		timeo = schedule_timeout(timeo);
 	}
@@ -2775,7 +2777,7 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 			goto failure;
 
 		err = -EPIPE;
-		if (sk->sk_shutdown & SEND_SHUTDOWN)
+		if (READ_ONCE(sk->sk_shutdown) & SEND_SHUTDOWN)
 			goto failure;
 
 		if (sk_wmem_alloc_get(sk) < READ_ONCE(sk->sk_sndbuf))
@@ -3137,10 +3139,10 @@ int __sk_mem_schedule(struct sock *sk, int size, int kind)
 {
 	int ret, amt = sk_mem_pages(size);
 
-	sk->sk_forward_alloc += amt << PAGE_SHIFT;
+	sk_forward_alloc_add(sk, amt << PAGE_SHIFT);
 	ret = __sk_mem_raise_allocated(sk, size, amt, kind);
 	if (!ret)
-		sk->sk_forward_alloc -= amt << PAGE_SHIFT;
+		sk_forward_alloc_add(sk, -(amt << PAGE_SHIFT));
 	return ret;
 }
 EXPORT_SYMBOL(__sk_mem_schedule);
@@ -3172,7 +3174,7 @@ void __sk_mem_reduce_allocated(struct sock *sk, int amount)
 void __sk_mem_reclaim(struct sock *sk, int amount)
 {
 	amount >>= PAGE_SHIFT;
-	sk->sk_forward_alloc -= amount << PAGE_SHIFT;
+	sk_forward_alloc_add(sk, -(amount << PAGE_SHIFT));
 	__sk_mem_reduce_allocated(sk, amount);
 }
 EXPORT_SYMBOL(__sk_mem_reclaim);
@@ -3741,7 +3743,7 @@ void sk_get_meminfo(const struct sock *sk, u32 *mem)
 	mem[SK_MEMINFO_RCVBUF] = READ_ONCE(sk->sk_rcvbuf);
 	mem[SK_MEMINFO_WMEM_ALLOC] = sk_wmem_alloc_get(sk);
 	mem[SK_MEMINFO_SNDBUF] = READ_ONCE(sk->sk_sndbuf);
-	mem[SK_MEMINFO_FWD_ALLOC] = sk->sk_forward_alloc;
+	mem[SK_MEMINFO_FWD_ALLOC] = sk_forward_alloc_get(sk);
 	mem[SK_MEMINFO_WMEM_QUEUED] = READ_ONCE(sk->sk_wmem_queued);
 	mem[SK_MEMINFO_OPTMEM] = atomic_read(&sk->sk_omem_alloc);
 	mem[SK_MEMINFO_BACKLOG] = READ_ONCE(sk->sk_backlog.len);

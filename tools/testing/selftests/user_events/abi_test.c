@@ -19,6 +19,7 @@
 #include <asm/unistd.h>
 
 #include "../kselftest_harness.h"
+#include "user_events_selftests.h"
 
 const char *data_file = "/sys/kernel/tracing/user_events_data";
 const char *enable_file = "/sys/kernel/tracing/events/user_events/__abi_event/enable";
@@ -90,14 +91,18 @@ static int reg_disable(long *enable, int bit)
 
 FIXTURE(user) {
 	long check;
+	bool umount;
 };
 
 FIXTURE_SETUP(user) {
+	USER_EVENT_FIXTURE_SETUP(return, self->umount);
+
 	change_event(false);
 	self->check = 0;
 }
 
 FIXTURE_TEARDOWN(user) {
+	USER_EVENT_FIXTURE_TEARDOWN(self->umount);
 }
 
 TEST_F(user, enablement) {

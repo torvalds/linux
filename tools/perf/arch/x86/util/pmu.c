@@ -126,7 +126,7 @@ close_dir:
 	return ret;
 }
 
-static char *__pmu_find_real_name(const char *name)
+static const char *__pmu_find_real_name(const char *name)
 {
 	struct pmu_alias *pmu_alias;
 
@@ -135,10 +135,10 @@ static char *__pmu_find_real_name(const char *name)
 			return pmu_alias->name;
 	}
 
-	return (char *)name;
+	return name;
 }
 
-char *pmu_find_real_name(const char *name)
+const char *pmu_find_real_name(const char *name)
 {
 	if (cached_list)
 		return __pmu_find_real_name(name);
@@ -149,7 +149,7 @@ char *pmu_find_real_name(const char *name)
 	return __pmu_find_real_name(name);
 }
 
-static char *__pmu_find_alias_name(const char *name)
+static const char *__pmu_find_alias_name(const char *name)
 {
 	struct pmu_alias *pmu_alias;
 
@@ -160,7 +160,7 @@ static char *__pmu_find_alias_name(const char *name)
 	return NULL;
 }
 
-char *pmu_find_alias_name(const char *name)
+const char *pmu_find_alias_name(const char *name)
 {
 	if (cached_list)
 		return __pmu_find_alias_name(name);

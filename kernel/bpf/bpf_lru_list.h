@@ -75,6 +75,5 @@ void bpf_lru_populate(struct bpf_lru *lru, void *buf, u32 node_offset,
 void bpf_lru_destroy(struct bpf_lru *lru);
 struct bpf_lru_node *bpf_lru_pop_free(struct bpf_lru *lru, u32 hash);
 void bpf_lru_push_free(struct bpf_lru *lru, struct bpf_lru_node *node);
-void bpf_lru_promote(struct bpf_lru *lru, struct bpf_lru_node *node);
 
 #endif

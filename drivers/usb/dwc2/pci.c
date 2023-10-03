@@ -24,7 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/usb_phy_generic.h>
 
-#define PCI_PRODUCT_ID_HAPS_HSOTG	0xabc0
+#include "core.h"
 
 static const char dwc2_driver_name[] = "dwc2-pci";
 
@@ -121,18 +121,6 @@ err:
 	platform_device_put(dwc2);
 	return ret;
 }
-
-static const struct pci_device_id dwc2_pci_ids[] = {
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS, PCI_PRODUCT_ID_HAPS_HSOTG),
-	},
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_STMICRO,
-			   PCI_DEVICE_ID_STMICRO_USB_OTG),
-	},
-	{ /* end: all zeroes */ }
-};
-MODULE_DEVICE_TABLE(pci, dwc2_pci_ids);
 
 static struct pci_driver dwc2_pci_driver = {
 	.name = dwc2_driver_name,

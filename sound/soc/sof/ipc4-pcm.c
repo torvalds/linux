@@ -23,7 +23,8 @@ static int sof_ipc4_set_multi_pipeline_state(struct snd_sof_dev *sdev, u32 state
 
 	/* trigger a single pipeline */
 	if (trigger_list->count == 1)
-		return sof_ipc4_set_pipeline_state(sdev, trigger_list->pipeline_ids[0], state);
+		return sof_ipc4_set_pipeline_state(sdev, trigger_list->pipeline_instance_ids[0],
+						   state);
 
 	primary = state;
 	primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_SET_PIPELINE_STATE);
@@ -42,15 +43,15 @@ static int sof_ipc4_set_multi_pipeline_state(struct snd_sof_dev *sdev, u32 state
 	return sof_ipc_tx_message_no_reply(sdev->ipc, &msg, ipc_size);
 }
 
-int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 id, u32 state)
+int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 instance_id, u32 state)
 {
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 primary;
 
-	dev_dbg(sdev->dev, "ipc4 set pipeline %d state %d", id, state);
+	dev_dbg(sdev->dev, "ipc4 set pipeline instance %d state %d", instance_id, state);
 
 	primary = state;
-	primary |= SOF_IPC4_GLB_PIPE_STATE_ID(id);
+	primary |= SOF_IPC4_GLB_PIPE_STATE_ID(instance_id);
 	primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_SET_PIPELINE_STATE);
 	primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
 	primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_FW_GEN_MSG);
@@ -79,19 +80,19 @@ sof_ipc4_add_pipeline_to_trigger_list(struct snd_sof_dev *sdev, int state,
 		 * for the first time
 		 */
 		if (spipe->started_count == spipe->paused_count)
-			trigger_list->pipeline_ids[trigger_list->count++] =
+			trigger_list->pipeline_instance_ids[trigger_list->count++] =
 				pipe_widget->instance_id;
 		break;
 	case SOF_IPC4_PIPE_RESET:
 		/* RESET if the pipeline is neither running nor paused */
 		if (!spipe->started_count && !spipe->paused_count)
-			trigger_list->pipeline_ids[trigger_list->count++] =
+			trigger_list->pipeline_instance_ids[trigger_list->count++] =
 				pipe_widget->instance_id;
 		break;
 	case SOF_IPC4_PIPE_PAUSED:
 		/* Pause the pipeline only when its started_count is 1 more than paused_count */
 		if (spipe->paused_count == (spipe->started_count - 1))
-			trigger_list->pipeline_ids[trigger_list->count++] =
+			trigger_list->pipeline_instance_ids[trigger_list->count++] =
 				pipe_widget->instance_id;
 		break;
 	default:
@@ -113,7 +114,7 @@ sof_ipc4_update_pipeline_state(struct snd_sof_dev *sdev, int state, int cmd,
 
 	/* set state for pipeline if it was just triggered */
 	for (i = 0; i < trigger_list->count; i++) {
-		if (trigger_list->pipeline_ids[i] == pipe_widget->instance_id) {
+		if (trigger_list->pipeline_instance_ids[i] == pipe_widget->instance_id) {
 			pipeline->state = state;
 			break;
 		}
@@ -314,8 +315,8 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 		return sof_ipc4_chain_dma_trigger(sdev, pipeline_list, state, cmd);
 
 	/* allocate memory for the pipeline data */
-	trigger_list = kzalloc(struct_size(trigger_list, pipeline_ids, pipeline_list->count),
-			       GFP_KERNEL);
+	trigger_list = kzalloc(struct_size(trigger_list, pipeline_instance_ids,
+					   pipeline_list->count), GFP_KERNEL);
 	if (!trigger_list)
 		return -ENOMEM;
 

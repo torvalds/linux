@@ -413,6 +413,10 @@ def has_event(event: Event) -> Function:
   # pylint: disable=invalid-name
   return Function('has_event', event)
 
+def strcmp_cpuid_str(cpuid: Event) -> Function:
+  # pylint: disable=redefined-builtin
+  # pylint: disable=invalid-name
+  return Function('strcmp_cpuid_str', cpuid)
 
 class Metric:
   """An individual metric that will specifiable on the perf command line."""
@@ -541,14 +545,23 @@ def ParsePerfJson(orig: str) -> Expression:
   """
   # pylint: disable=eval-used
   py = orig.strip()
+  # First try to convert everything that looks like a string (event name) into Event(r"EVENT_NAME").
+  # This isn't very selective so is followed up by converting some unwanted conversions back again
   py = re.sub(r'([a-zA-Z][^-+/\* \\\(\),]*(?:\\.[^-+/\* \\\(\),]*)*)',
               r'Event(r"\1")', py)
+  # If it started with a # it should have been a literal, rather than an event name
   py = re.sub(r'#Event\(r"([^"]*)"\)', r'Literal("#\1")', py)
+  # Convert accidentally converted hex constants ("0Event(r"xDEADBEEF)"") back to a constant,
+  # but keep it wrapped in Event(), otherwise Python drops the 0x prefix and it gets interpreted as
+  # a double by the Bison parser
+  py = re.sub(r'0Event\(r"[xX]([0-9a-fA-F]*)"\)', r'Event("0x\1")', py)
+  # Convert accidentally converted scientific notation constants back
   py = re.sub(r'([0-9]+)Event\(r"(e[0-9]+)"\)', r'\1\2', py)
-  keywords = ['if', 'else', 'min', 'max', 'd_ratio', 'source_count', 'has_event']
+  # Convert all the known keywords back from events to just the keyword
+  keywords = ['if', 'else', 'min', 'max', 'd_ratio', 'source_count', 'has_event', 'strcmp_cpuid_str',
+              'cpuid_not_more_than']
   for kw in keywords:
     py = re.sub(rf'Event\(r"{kw}"\)', kw, py)
-
   try:
     parsed = ast.parse(py, mode='eval')
   except SyntaxError as e:

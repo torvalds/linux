@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 #include <dt-bindings/interconnect/qcom,osm-l3.h>
@@ -232,6 +232,7 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, struct_size(data, nodes, num_nodes), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+	data->num_nodes = num_nodes;
 
 	provider = &qp->provider;
 	provider->dev = &pdev->dev;
@@ -261,7 +262,6 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 
 		data->nodes[i] = node;
 	}
-	data->num_nodes = num_nodes;
 
 	ret = icc_provider_register(provider);
 	if (ret)

@@ -366,8 +366,7 @@ static int rt711_sdca_sdw_remove(struct sdw_slave *slave)
 		cancel_delayed_work_sync(&rt711->jack_btn_check_work);
 	}
 
-	if (rt711->first_hw_init)
-		pm_runtime_disable(&slave->dev);
+	pm_runtime_disable(&slave->dev);
 
 	mutex_destroy(&rt711->calibrate_mutex);
 	mutex_destroy(&rt711->disable_irq_lock);

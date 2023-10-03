@@ -5,8 +5,14 @@
  */
 
 #include <net/genetlink.h>
+#define CREATE_TRACE_POINTS
+#include <trace/events/devlink.h>
 
 #include "devl_internal.h"
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwmsg);
+EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwerr);
+EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_trap_report);
 
 DEFINE_XARRAY_FLAGS(devlinks, XA_FLAGS_ALLOC);
 

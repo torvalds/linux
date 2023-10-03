@@ -382,6 +382,11 @@ static const struct iio_info admv1013_info = {
 	.debugfs_reg_access = &admv1013_reg_access,
 };
 
+static const char * const admv1013_vcc_regs[] = {
+	 "vcc-drv", "vcc2-drv", "vcc-vva", "vcc-amp1", "vcc-amp2",
+	 "vcc-env", "vcc-bg", "vcc-bg2", "vcc-mixer", "vcc-quad"
+};
+
 static int admv1013_freq_change(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct admv1013_state *st = container_of(nb, struct admv1013_state, nb);
@@ -556,6 +561,15 @@ static int admv1013_properties_parse(struct admv1013_state *st)
 	if (IS_ERR(st->reg))
 		return dev_err_probe(&spi->dev, PTR_ERR(st->reg),
 				     "failed to get the common-mode voltage\n");
+
+	ret = devm_regulator_bulk_get_enable(&st->spi->dev,
+					     ARRAY_SIZE(admv1013_vcc_regs),
+					     admv1013_vcc_regs);
+	if (ret) {
+		dev_err_probe(&spi->dev, ret,
+			      "Failed to request VCC regulators\n");
+		return ret;
+	}
 
 	return 0;
 }

@@ -236,6 +236,7 @@ static int sun50i_dmic_soc_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops sun50i_dmic_dai_ops = {
+	.probe		= sun50i_dmic_soc_dai_probe,
 	.startup        = sun50i_dmic_startup,
 	.trigger        = sun50i_dmic_trigger,
 	.hw_params      = sun50i_dmic_hw_params,
@@ -260,7 +261,6 @@ static struct snd_soc_dai_driver sun50i_dmic_dai = {
 		.formats = SUN50I_DMIC_FORMATS,
 		.sig_bits = 21,
 	},
-	.probe = sun50i_dmic_soc_dai_probe,
 	.ops = &sun50i_dmic_dai_ops,
 	.name = "dmic",
 };

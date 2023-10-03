@@ -16,8 +16,6 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>

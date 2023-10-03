@@ -140,7 +140,7 @@
  *
  * After this it is safe to call the "C" handlers
  *-------------------------------------------------------------*/
-.macro EXCEPTION_PROLOGUE
+.macro EXCEPTION_PROLOGUE_KEEP_AE
 
 	/* Need at least 1 reg to code the early exception prologue */
 	PROLOG_FREEUP_REG r9, @ex_saved_reg1
@@ -150,14 +150,6 @@
 
 	/* ARC700 doesn't provide auto-stack switching */
 	SWITCH_TO_KERNEL_STK
-
-#ifdef CONFIG_ARC_CURR_IN_REG
-	/* Treat r25 as scratch reg (save on stack) and load with "current" */
-	PUSH    r25
-	GET_CURR_TASK_ON_CPU   r25
-#else
-	sub     sp, sp, 4
-#endif
 
 	st.a	r0, [sp, -8]    /* orig_r0 needed for syscall (skip ECR slot) */
 	sub	sp, sp, 4	/* skip pt_regs->sp, already saved above */
@@ -178,7 +170,23 @@
 	PUSHAX	erbta
 
 	lr	r10, [ecr]
-	st      r10, [sp, PT_event]    /* EV_Trap expects r10 to have ECR */
+	st      r10, [sp, PT_event]
+
+#ifdef CONFIG_ARC_CURR_IN_REG
+	/* gp already saved on stack: now load with "current" */
+	GET_CURR_TASK_ON_CPU   gp
+#endif
+	; OUTPUT: r10 has ECR expected by EV_Trap
+.endm
+
+.macro EXCEPTION_PROLOGUE
+
+	EXCEPTION_PROLOGUE_KEEP_AE	; return ECR in r10
+
+	lr  r0, [efa]
+	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN		; clobbers r9
 .endm
 
 /*--------------------------------------------------------------
@@ -208,11 +216,8 @@
 	POP	gp
 	RESTORE_R12_TO_R0
 
-#ifdef CONFIG_ARC_CURR_IN_REG
-	ld	r25, [sp, 12]
-#endif
 	ld  sp, [sp] /* restore original sp */
-	/* orig_r0, ECR, user_r25 skipped automatically */
+	/* orig_r0, ECR skipped automatically */
 .endm
 
 /* Dummy ECR values for Interrupts */
@@ -229,13 +234,6 @@
 
 	SWITCH_TO_KERNEL_STK
 
-#ifdef CONFIG_ARC_CURR_IN_REG
-	/* Treat r25 as scratch reg (save on stack) and load with "current" */
-	PUSH    r25
-	GET_CURR_TASK_ON_CPU   r25
-#else
-	sub     sp, sp, 4
-#endif
 
 	PUSH	0x003\LVL\()abcd    /* Dummy ECR */
 	sub	sp, sp, 8	    /* skip orig_r0 (not needed)
@@ -255,6 +253,10 @@
 	PUSHAX	lp_start
 	PUSHAX	bta_l\LVL\()
 
+#ifdef CONFIG_ARC_CURR_IN_REG
+	/* gp already saved on stack: now load with "current" */
+	GET_CURR_TASK_ON_CPU   gp
+#endif
 .endm
 
 /*--------------------------------------------------------------
@@ -282,11 +284,7 @@
 	POP	gp
 	RESTORE_R12_TO_R0
 
-#ifdef CONFIG_ARC_CURR_IN_REG
-	ld	r25, [sp, 12]
-#endif
-	ld  sp, [sp] /* restore original sp */
-	/* orig_r0, ECR, user_r25 skipped automatically */
+	ld  sp, [sp] /* restore original sp; orig_r0, ECR skipped implicitly */
 .endm
 
 /* Get thread_info of "current" tsk */

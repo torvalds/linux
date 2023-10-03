@@ -1671,7 +1671,7 @@ static inline unsigned int __task_state_index(unsigned int tsk_state,
 
 	BUILD_BUG_ON_NOT_POWER_OF_2(TASK_REPORT_MAX);
 
-	if (tsk_state == TASK_IDLE)
+	if ((tsk_state & TASK_IDLE) == TASK_IDLE)
 		state = TASK_REPORT_IDLE;
 
 	/*
@@ -1679,7 +1679,7 @@ static inline unsigned int __task_state_index(unsigned int tsk_state,
 	 * to userspace, we can make this appear as if the task has gone through
 	 * a regular rt_mutex_lock() call.
 	 */
-	if (tsk_state == TASK_RTLOCK_WAIT)
+	if (tsk_state & TASK_RTLOCK_WAIT)
 		state = TASK_UNINTERRUPTIBLE;
 
 	return fls(state);
@@ -1858,7 +1858,17 @@ extern int task_can_attach(struct task_struct *p);
 extern int dl_bw_alloc(int cpu, u64 dl_bw);
 extern void dl_bw_free(int cpu, u64 dl_bw);
 #ifdef CONFIG_SMP
+
+/* do_set_cpus_allowed() - consider using set_cpus_allowed_ptr() instead */
 extern void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask);
+
+/**
+ * set_cpus_allowed_ptr - set CPU affinity mask of a task
+ * @p: the task
+ * @new_mask: CPU affinity mask
+ *
+ * Return: zero if successful, or a negative error code
+ */
 extern int set_cpus_allowed_ptr(struct task_struct *p, const struct cpumask *new_mask);
 extern int dup_user_cpus_ptr(struct task_struct *dst, struct task_struct *src, int node);
 extern void release_user_cpus_ptr(struct task_struct *p);

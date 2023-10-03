@@ -34,6 +34,7 @@
 #include <asm/hvcall.h>
 #include <asm/setup.h>
 #include <asm/vdso.h>
+#include <asm/vphn.h>
 #include <asm/drmem.h>
 
 static int numa_enabled = 1;

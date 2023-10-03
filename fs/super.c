@@ -434,6 +434,33 @@ void put_super(struct super_block *sb)
 	spin_unlock(&sb_lock);
 }
 
+static void kill_super_notify(struct super_block *sb)
+{
+	lockdep_assert_not_held(&sb->s_umount);
+
+	/* already notified earlier */
+	if (sb->s_flags & SB_DEAD)
+		return;
+
+	/*
+	 * Remove it from @fs_supers so it isn't found by new
+	 * sget{_fc}() walkers anymore. Any concurrent mounter still
+	 * managing to grab a temporary reference is guaranteed to
+	 * already see SB_DYING and will wait until we notify them about
+	 * SB_DEAD.
+	 */
+	spin_lock(&sb_lock);
+	hlist_del_init(&sb->s_instances);
+	spin_unlock(&sb_lock);
+
+	/*
+	 * Let concurrent mounts know that this thing is really dead.
+	 * We don't need @sb->s_umount here as every concurrent caller
+	 * will see SB_DYING and either discard the superblock or wait
+	 * for SB_DEAD.
+	 */
+	super_wake(sb, SB_DEAD);
+}
 
 /**
  *	deactivate_locked_super	-	drop an active reference to superblock
@@ -453,6 +480,8 @@ void deactivate_locked_super(struct super_block *s)
 		unregister_shrinker(&s->s_shrink);
 		fs->kill_sb(s);
 
+		kill_super_notify(s);
+
 		/*
 		 * Since list_lru_destroy() may sleep, we cannot call it from
 		 * put_super(), where we hold the sb_lock. Therefore we destroy
@@ -460,25 +489,6 @@ void deactivate_locked_super(struct super_block *s)
 		 */
 		list_lru_destroy(&s->s_dentry_lru);
 		list_lru_destroy(&s->s_inode_lru);
-
-		/*
-		 * Remove it from @fs_supers so it isn't found by new
-		 * sget{_fc}() walkers anymore. Any concurrent mounter still
-		 * managing to grab a temporary reference is guaranteed to
-		 * already see SB_DYING and will wait until we notify them about
-		 * SB_DEAD.
-		 */
-		spin_lock(&sb_lock);
-		hlist_del_init(&s->s_instances);
-		spin_unlock(&sb_lock);
-
-		/*
-		 * Let concurrent mounts know that this thing is really dead.
-		 * We don't need @sb->s_umount here as every concurrent caller
-		 * will see SB_DYING and either discard the superblock or wait
-		 * for SB_DEAD.
-		 */
-		super_wake(s, SB_DEAD);
 
 		put_filesystem(fs);
 		put_super(s);
@@ -570,8 +580,8 @@ static bool grab_super_dead(struct super_block *sb)
 		return true;
 	}
 	wait_var_event(&sb->s_flags, wait_dead(sb));
-	put_super(sb);
 	lockdep_assert_not_held(&sb->s_umount);
+	put_super(sb);
 	return false;
 }
 
@@ -1199,7 +1209,9 @@ static void do_thaw_all_callback(struct super_block *sb)
 	bool born = super_lock_excl(sb);
 
 	if (born && sb->s_root) {
-		emergency_thaw_bdev(sb);
+		if (IS_ENABLED(CONFIG_BLOCK))
+			while (sb->s_bdev && !thaw_bdev(sb->s_bdev))
+				pr_warn("Emergency Thaw on %pg\n", sb->s_bdev);
 		thaw_super_locked(sb, FREEZE_HOLDER_USERSPACE);
 	} else {
 		super_unlock_excl(sb);
@@ -1278,6 +1290,7 @@ void kill_anon_super(struct super_block *sb)
 {
 	dev_t dev = sb->s_dev;
 	generic_shutdown_super(sb);
+	kill_super_notify(sb);
 	free_anon_bdev(dev);
 }
 EXPORT_SYMBOL(kill_anon_super);
@@ -1360,6 +1373,50 @@ int get_tree_keyed(struct fs_context *fc,
 }
 EXPORT_SYMBOL(get_tree_keyed);
 
+static int set_bdev_super(struct super_block *s, void *data)
+{
+	s->s_dev = *(dev_t *)data;
+	return 0;
+}
+
+static int super_s_dev_set(struct super_block *s, struct fs_context *fc)
+{
+	return set_bdev_super(s, fc->sget_key);
+}
+
+static int super_s_dev_test(struct super_block *s, struct fs_context *fc)
+{
+	return !(s->s_iflags & SB_I_RETIRED) &&
+		s->s_dev == *(dev_t *)fc->sget_key;
+}
+
+/**
+ * sget_dev - Find or create a superblock by device number
+ * @fc: Filesystem context.
+ * @dev: device number
+ *
+ * Find or create a superblock using the provided device number that
+ * will be stored in fc->sget_key.
+ *
+ * If an extant superblock is matched, then that will be returned with
+ * an elevated reference count that the caller must transfer or discard.
+ *
+ * If no match is made, a new superblock will be allocated and basic
+ * initialisation will be performed (s_type, s_fs_info, s_id, s_dev will
+ * be set). The superblock will be published and it will be returned in
+ * a partially constructed state with SB_BORN and SB_ACTIVE as yet
+ * unset.
+ *
+ * Return: an existing or newly created superblock on success, an error
+ *         pointer on failure.
+ */
+struct super_block *sget_dev(struct fs_context *fc, dev_t dev)
+{
+	fc->sget_key = &dev;
+	return sget_fc(fc, super_s_dev_test, super_s_dev_set);
+}
+EXPORT_SYMBOL(sget_dev);
+
 #ifdef CONFIG_BLOCK
 /*
  * Lock a super block that the callers holds a reference to.
@@ -1417,23 +1474,6 @@ const struct blk_holder_ops fs_holder_ops = {
 	.sync			= fs_bdev_sync,
 };
 EXPORT_SYMBOL_GPL(fs_holder_ops);
-
-static int set_bdev_super(struct super_block *s, void *data)
-{
-	s->s_dev = *(dev_t *)data;
-	return 0;
-}
-
-static int set_bdev_super_fc(struct super_block *s, struct fs_context *fc)
-{
-	return set_bdev_super(s, fc->sget_key);
-}
-
-static int test_bdev_super_fc(struct super_block *s, struct fs_context *fc)
-{
-	return !(s->s_iflags & SB_I_RETIRED) &&
-		s->s_dev == *(dev_t *)fc->sget_key;
-}
 
 int setup_bdev_super(struct super_block *sb, int sb_flags,
 		struct fs_context *fc)
@@ -1512,8 +1552,7 @@ int get_tree_bdev(struct fs_context *fc,
 	}
 
 	fc->sb_flags |= SB_NOSEC;
-	fc->sget_key = &dev;
-	s = sget_fc(fc, test_bdev_super_fc, set_bdev_super_fc);
+	s = sget_dev(fc, dev);
 	if (IS_ERR(s))
 		return PTR_ERR(s);
 

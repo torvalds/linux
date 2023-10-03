@@ -1,0 +1,12 @@
+What:		/sys/devices/platform/.../power_on_reason
+Date:		June 2023
+KernelVersion:	6.5
+Contact:	Kamel Bouhara <kamel.bouhara@bootlin.com>
+Description:	Shows system power on reason. The following strings/reasons can
+		be read (the list can be extended):
+		"regular power-up", "RTC wakeup", "watchdog timeout",
+		"software reset", "reset button action", "CPU clock failure",
+		"crystal oscillator failure", "brown-out reset",
+		"unknown reason".
+
+		The file is read only.

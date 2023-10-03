@@ -18,8 +18,12 @@ config VALIDATE_FS_PARSER
 config FS_IOMAP
 	bool
 
+config BUFFER_HEAD
+	bool
+
 # old blockdev_direct_IO implementation.  Use iomap for new code instead
 config LEGACY_DIRECT_IO
+	depends on BUFFER_HEAD
 	bool
 
 if BLOCK
@@ -169,6 +173,7 @@ source "fs/sysfs/Kconfig"
 config TMPFS
 	bool "Tmpfs virtual memory file system support (former shm fs)"
 	depends on SHMEM
+	select MEMFD_CREATE
 	help
 	  Tmpfs is a file system which keeps all files in virtual memory.
 
@@ -252,6 +257,7 @@ config HUGETLBFS
 	bool "HugeTLB file system support"
 	depends on X86 || IA64 || SPARC64 || ARCH_SUPPORTS_HUGETLBFS || BROKEN
 	depends on (SYSFS || SYSCTL)
+	select MEMFD_CREATE
 	help
 	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
 	  ramfs. For architectures that support it, say Y here and read
@@ -264,7 +270,7 @@ config HUGETLB_PAGE
 
 config HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 	def_bool HUGETLB_PAGE
-	depends on ARCH_WANT_OPTIMIZE_VMEMMAP
+	depends on ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
 	depends on SPARSEMEM_VMEMMAP
 
 config HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON
@@ -275,9 +281,6 @@ config HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON
 	  The HugeTLB VmemmapvOptimization (HVO) defaults to off. Say Y here to
 	  enable HVO by default. It can be disabled via hugetlb_free_vmemmap=off
 	  (boot command line) or hugetlb_optimize_vmemmap (sysctl).
-
-config MEMFD_CREATE
-	def_bool TMPFS || HUGETLBFS
 
 config ARCH_HAS_GIGANTIC_PAGE
 	bool

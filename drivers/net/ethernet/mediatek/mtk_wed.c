@@ -2,6 +2,7 @@
 /* Copyright (C) 2021 Felix Fietkau <nbd@nbd.name> */
 
 #include <linux/kernel.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/bitfield.h>
@@ -1099,7 +1100,7 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
 	} else {
 		struct mtk_eth *eth = dev->hw->eth;
 
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		if (mtk_is_netsys_v2_or_greater(eth))
 			wed_set(dev, MTK_WED_RESET_IDX,
 				MTK_WED_RESET_IDX_RX_V2);
 		else
@@ -1915,7 +1916,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
 	hw->wdma = wdma;
 	hw->index = index;
 	hw->irq = irq;
-	hw->version = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ? 2 : 1;
+	hw->version = mtk_is_netsys_v1(eth) ? 1 : 2;
 
 	if (hw->version == 1) {
 		hw->mirror = syscon_regmap_lookup_by_phandle(eth_np,

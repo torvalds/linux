@@ -312,7 +312,7 @@ static int ipc3_wait_tx_done(struct snd_sof_ipc *ipc, void *reply_data)
 		} else {
 			if (sof_debug_check_flag(SOF_DBG_PRINT_IPC_SUCCESS_LOGS))
 				ipc3_log_header(sdev->dev, "ipc tx succeeded", hdr->cmd);
-			if (msg->reply_size)
+			if (reply_data && msg->reply_size)
 				/* copy the data returned from DSP */
 				memcpy(reply_data, msg->reply_data,
 				       msg->reply_size);
@@ -567,13 +567,10 @@ int sof_ipc3_get_cc_info(struct snd_sof_dev *sdev,
 	/* create read-only cc_version debugfs to store compiler version info */
 	/* use local copy of the cc_version to prevent data corruption */
 	if (sdev->first_boot) {
-		sdev->cc_version = devm_kmalloc(sdev->dev, cc->ext_hdr.hdr.size,
-						GFP_KERNEL);
-
+		sdev->cc_version = devm_kmemdup(sdev->dev, cc, cc->ext_hdr.hdr.size, GFP_KERNEL);
 		if (!sdev->cc_version)
 			return -ENOMEM;
 
-		memcpy(sdev->cc_version, cc, cc->ext_hdr.hdr.size);
 		ret = snd_sof_debugfs_buf_item(sdev, sdev->cc_version,
 					       cc->ext_hdr.hdr.size,
 					       "cc_version", 0444);

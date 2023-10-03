@@ -216,7 +216,7 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 
 	if (q->wptr_bo) {
 		wptr_addr_off = (uint64_t)q->properties.write_ptr & (PAGE_SIZE - 1);
-		queue_input.wptr_mc_addr = ((uint64_t)q->wptr_bo->tbo.resource->start << PAGE_SHIFT) + wptr_addr_off;
+		queue_input.wptr_mc_addr = amdgpu_bo_gpu_offset(q->wptr_bo) + wptr_addr_off;
 	}
 
 	queue_input.is_kfd_process = 1;
@@ -227,7 +227,8 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 	queue_input.tba_addr = qpd->tba_addr;
 	queue_input.tma_addr = qpd->tma_addr;
 	queue_input.trap_en = !kfd_dbg_has_cwsr_workaround(q->device);
-	queue_input.skip_process_ctx_clear = qpd->pqm->process->debug_trap_enabled;
+	queue_input.skip_process_ctx_clear = qpd->pqm->process->debug_trap_enabled ||
+					     kfd_dbg_has_ttmps_always_setup(q->device);
 
 	queue_type = convert_to_mes_queue_type(q->properties.type);
 	if (queue_type < 0) {
@@ -237,10 +238,7 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 	}
 	queue_input.queue_type = (uint32_t)queue_type;
 
-	if (q->gws) {
-		queue_input.gws_base = 0;
-		queue_input.gws_size = qpd->num_gws;
-	}
+	queue_input.exclusively_scheduled = q->properties.is_gws;
 
 	amdgpu_mes_lock(&adev->mes);
 	r = adev->mes.funcs->add_hw_queue(&adev->mes, &queue_input);
@@ -250,7 +248,7 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 			q->properties.doorbell_off);
 		pr_err("MES might be in unrecoverable state, issue a GPU reset\n");
 		kfd_hws_hang(dqm);
-}
+	}
 
 	return r;
 }
@@ -397,7 +395,7 @@ static int allocate_doorbell(struct qcm_process_device *qpd,
 			unsigned int found;
 
 			found = find_first_zero_bit(qpd->doorbell_bitmap,
-						KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
+						    KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 			if (found >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS) {
 				pr_debug("No doorbells available");
 				return -EBUSY;
@@ -407,9 +405,9 @@ static int allocate_doorbell(struct qcm_process_device *qpd,
 		}
 	}
 
-	q->properties.doorbell_off =
-		kfd_get_doorbell_dw_offset_in_bar(dev->kfd, qpd_to_pdd(qpd),
-					  q->doorbell_id);
+	q->properties.doorbell_off = amdgpu_doorbell_index_on_bar(dev->adev,
+								  qpd->proc_doorbells,
+								  q->doorbell_id);
 	return 0;
 }
 
@@ -1620,7 +1618,8 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 
 	if (dqm->dev->kfd2kgd->get_iq_wait_times)
 		dqm->dev->kfd2kgd->get_iq_wait_times(dqm->dev->adev,
-					&dqm->wait_times);
+					&dqm->wait_times,
+					ffs(dqm->dev->xcc_mask) - 1);
 	return 0;
 }
 
@@ -1662,6 +1661,25 @@ static int start_cpsch(struct device_queue_manager *dqm)
 
 	if (!dqm->dev->kfd->shared_resources.enable_mes)
 		execute_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0, USE_DEFAULT_GRACE_PERIOD);
+
+	/* Set CWSR grace period to 1x1000 cycle for GFX9.4.3 APU */
+	if (amdgpu_emu_mode == 0 && dqm->dev->adev->gmc.is_app_apu &&
+	    (KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 4, 3))) {
+		uint32_t reg_offset = 0;
+		uint32_t grace_period = 1;
+
+		retval = pm_update_grace_period(&dqm->packet_mgr,
+						grace_period);
+		if (retval)
+			pr_err("Setting grace timeout failed\n");
+		else if (dqm->dev->kfd2kgd->build_grace_period_packet_info)
+			/* Update dqm->wait_times maintained in software */
+			dqm->dev->kfd2kgd->build_grace_period_packet_info(
+					dqm->dev->adev,	dqm->wait_times,
+					grace_period, &reg_offset,
+					&dqm->wait_times);
+	}
+
 	dqm_unlock(dqm);
 
 	return 0;
@@ -2540,7 +2558,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_node *dev)
 	switch (dev->adev->asic_type) {
 	case CHIP_KAVERI:
 	case CHIP_HAWAII:
-		device_queue_manager_init_cik_hawaii(&dqm->asic_ops);
+		device_queue_manager_init_cik(&dqm->asic_ops);
 		break;
 
 	case CHIP_CARRIZO:
@@ -2550,14 +2568,14 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_node *dev)
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
 	case CHIP_VEGAM:
-		device_queue_manager_init_vi_tonga(&dqm->asic_ops);
+		device_queue_manager_init_vi(&dqm->asic_ops);
 		break;
 
 	default:
 		if (KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0))
 			device_queue_manager_init_v11(&dqm->asic_ops);
 		else if (KFD_GC_VERSION(dev) >= IP_VERSION(10, 1, 1))
-			device_queue_manager_init_v10_navi10(&dqm->asic_ops);
+			device_queue_manager_init_v10(&dqm->asic_ops);
 		else if (KFD_GC_VERSION(dev) >= IP_VERSION(9, 0, 1))
 			device_queue_manager_init_v9(&dqm->asic_ops);
 		else {
@@ -2797,19 +2815,11 @@ static void copy_context_work_handler (struct work_struct *work)
 static uint32_t *get_queue_ids(uint32_t num_queues, uint32_t *usr_queue_id_array)
 {
 	size_t array_size = num_queues * sizeof(uint32_t);
-	uint32_t *queue_ids = NULL;
 
 	if (!usr_queue_id_array)
 		return NULL;
 
-	queue_ids = kzalloc(array_size, GFP_KERNEL);
-	if (!queue_ids)
-		return ERR_PTR(-ENOMEM);
-
-	if (copy_from_user(queue_ids, usr_queue_id_array, array_size))
-		return ERR_PTR(-EFAULT);
-
-	return queue_ids;
+	return memdup_user(usr_queue_id_array, array_size);
 }
 
 int resume_queues(struct kfd_process *p,

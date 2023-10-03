@@ -458,7 +458,7 @@ struct anx7625_data {
 	int hdcp_cp;
 	/* Lock for work queue */
 	struct mutex lock;
-	struct i2c_client *client;
+	struct device *dev;
 	struct anx7625_i2c_client i2c;
 	struct i2c_client *last_client;
 	struct timer_list hdcp_timer;

@@ -20,8 +20,10 @@
 
 #include <linux/device.h>
 #include <linux/dma-buf.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/wait.h>
 
 #include "rcar_du_crtc.h"
@@ -933,7 +935,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	/* Initialize the Color Management Modules. */
 	ret = rcar_du_cmm_init(rcdu);
 	if (ret)
-		return ret;
+		return dev_err_probe(rcdu->dev, ret,
+				     "failed to initialize CMM\n");
 
 	/* Create the CRTCs. */
 	for (swindex = 0, hwindex = 0; swindex < rcdu->num_crtcs; ++hwindex) {
@@ -953,7 +956,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	/* Initialize the encoders. */
 	ret = rcar_du_encoders_init(rcdu);
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(rcdu->dev, ret,
+				     "failed to initialize encoders\n");
 
 	if (ret == 0) {
 		dev_err(rcdu->dev, "error: no encoder could be initialized\n");

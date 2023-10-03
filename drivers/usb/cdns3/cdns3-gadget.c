@@ -61,6 +61,7 @@
 #include <linux/module.h>
 #include <linux/dmapool.h>
 #include <linux/iopoll.h>
+#include <linux/property.h>
 
 #include "core.h"
 #include "gadget-export.h"

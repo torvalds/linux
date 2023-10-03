@@ -16,14 +16,14 @@ static int
 mt7921s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			 int cmd, int *seq)
 {
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 	enum mt7921_sdio_pkt_type type = MT7921_SDIO_CMD;
 	enum mt76_mcuq_id txq = MT_MCUQ_WM;
 	int ret, pad;
 
 	/* We just return in case firmware assertion to avoid blocking the
 	 * common workqueue to run, for example, the coredump work might be
-	 * blocked by mt7921_mac_work that is excuting register access via sdio
+	 * blocked by mt792x_mac_work that is excuting register access via sdio
 	 * bus.
 	 */
 	if (dev->fw_assert)
@@ -51,14 +51,14 @@ mt7921s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	return ret;
 }
 
-static u32 mt7921s_read_rm3r(struct mt7921_dev *dev)
+static u32 mt7921s_read_rm3r(struct mt792x_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->mt76.sdio;
 
 	return sdio_readl(sdio->func, MCR_D2HRM3R, NULL);
 }
 
-static u32 mt7921s_clear_rm3r_drv_own(struct mt7921_dev *dev)
+static u32 mt7921s_clear_rm3r_drv_own(struct mt792x_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->mt76.sdio;
 	u32 val;
@@ -71,7 +71,7 @@ static u32 mt7921s_clear_rm3r_drv_own(struct mt7921_dev *dev)
 	return val;
 }
 
-int mt7921s_mcu_init(struct mt7921_dev *dev)
+int mt7921s_mcu_init(struct mt792x_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7921s_mcu_ops = {
 		.headroom = MT_SDIO_HDR_SIZE +
@@ -97,7 +97,7 @@ int mt7921s_mcu_init(struct mt7921_dev *dev)
 	return 0;
 }
 
-int mt7921s_mcu_drv_pmctrl(struct mt7921_dev *dev)
+int mt7921s_mcu_drv_pmctrl(struct mt792x_dev *dev)
 {
 	struct sdio_func *func = dev->mt76.sdio.func;
 	struct mt76_phy *mphy = &dev->mt76.phy;
@@ -133,7 +133,7 @@ int mt7921s_mcu_drv_pmctrl(struct mt7921_dev *dev)
 	return 0;
 }
 
-int mt7921s_mcu_fw_pmctrl(struct mt7921_dev *dev)
+int mt7921s_mcu_fw_pmctrl(struct mt792x_dev *dev)
 {
 	struct sdio_func *func = dev->mt76.sdio.func;
 	struct mt76_phy *mphy = &dev->mt76.phy;

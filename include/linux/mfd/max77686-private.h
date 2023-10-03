@@ -441,8 +441,4 @@ enum max77686_types {
 	TYPE_MAX77802,
 };
 
-extern int max77686_irq_init(struct max77686_dev *max77686);
-extern void max77686_irq_exit(struct max77686_dev *max77686);
-extern int max77686_irq_resume(struct max77686_dev *max77686);
-
 #endif /*  __LINUX_MFD_MAX77686_PRIV_H */

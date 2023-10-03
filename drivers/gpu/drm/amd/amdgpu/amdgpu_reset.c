@@ -87,7 +87,7 @@ int amdgpu_reset_prepare_hwcontext(struct amdgpu_device *adev,
 		reset_handler = adev->reset_cntl->get_reset_handler(
 			adev->reset_cntl, reset_context);
 	if (!reset_handler)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	return reset_handler->prepare_hwcontext(adev->reset_cntl,
 						reset_context);
@@ -103,7 +103,7 @@ int amdgpu_reset_perform_reset(struct amdgpu_device *adev,
 		reset_handler = adev->reset_cntl->get_reset_handler(
 			adev->reset_cntl, reset_context);
 	if (!reset_handler)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	ret = reset_handler->perform_reset(adev->reset_cntl, reset_context);
 	if (ret)

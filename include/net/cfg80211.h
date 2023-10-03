@@ -263,7 +263,7 @@ enum ieee80211_privacy {
  * are only for driver use when pointers to this structure are
  * passed around.
  *
- * @flags: rate-specific flags
+ * @flags: rate-specific flags from &enum ieee80211_rate_flags
  * @bitrate: bitrate in units of 100 Kbps
  * @hw_value: driver/hardware value for this rate
  * @hw_value_short: driver/hardware value for this rate when
@@ -811,7 +811,7 @@ struct cfg80211_tid_cfg {
 struct cfg80211_tid_config {
 	const u8 *peer;
 	u32 n_tid_conf;
-	struct cfg80211_tid_cfg tid_conf[];
+	struct cfg80211_tid_cfg tid_conf[] __counted_by(n_tid_conf);
 };
 
 /**
@@ -1187,7 +1187,7 @@ struct cfg80211_mbssid_elems {
 	struct {
 		const u8 *data;
 		size_t len;
-	} elem[];
+	} elem[] __counted_by(cnt);
 };
 
 /**
@@ -1204,7 +1204,7 @@ struct cfg80211_rnr_elems {
 	struct {
 		const u8 *data;
 		size_t len;
-	} elem[];
+	} elem[] __counted_by(cnt);
 };
 
 /**
@@ -1282,7 +1282,7 @@ struct cfg80211_acl_data {
 	int n_acl_entries;
 
 	/* Keep it last */
-	struct mac_address mac_addrs[];
+	struct mac_address mac_addrs[] __counted_by(n_acl_entries);
 };
 
 /**
@@ -1353,7 +1353,7 @@ struct cfg80211_unsol_bcast_probe_resp {
  * @twt_responder: Enable Target Wait Time
  * @he_required: stations must support HE
  * @sae_h2e_required: stations must support direct H2E technique in SAE
- * @flags: flags, as defined in enum cfg80211_ap_settings_flags
+ * @flags: flags, as defined in &enum nl80211_ap_settings_flags
  * @he_obss_pd: OBSS Packet Detection settings
  * @he_oper: HE operation IE (or %NULL if HE isn't enabled)
  * @fils_discovery: FILS discovery transmission parameters
@@ -1482,7 +1482,6 @@ struct iface_combination_params {
  * @STATION_PARAM_APPLY_UAPSD: apply new uAPSD parameters (uapsd_queues, max_sp)
  * @STATION_PARAM_APPLY_CAPABILITY: apply new capability
  * @STATION_PARAM_APPLY_PLINK_STATE: apply new plink state
- * @STATION_PARAM_APPLY_STA_TXPOWER: apply tx power for STA
  *
  * Not all station parameters have in-band "no change" signalling,
  * for those that don't these flags will are used.
@@ -2156,7 +2155,7 @@ enum mpath_info_flags {
  * @sn: target sequence number
  * @metric: metric (cost) of this mesh path
  * @exptime: expiration time for the mesh path from now, in msecs
- * @flags: mesh path flags
+ * @flags: mesh path flags from &enum mesh_path_flags
  * @discovery_timeout: total mesh path discovery timeout, in msecs
  * @discovery_retries: mesh path discovery retries
  * @generation: generation number for nl80211 dumps.
@@ -2496,7 +2495,7 @@ struct cfg80211_scan_6ghz_params {
  *	the actual dwell time may be shorter.
  * @duration_mandatory: if set, the scan duration must be as specified by the
  *	%duration field.
- * @flags: bit field of flags controlling operation
+ * @flags: control flags from &enum nl80211_scan_flags
  * @rates: bitmap of rates to advertise for each band
  * @wiphy: the wiphy this was for
  * @scan_start: time (in jiffies) when the scan started
@@ -2544,7 +2543,7 @@ struct cfg80211_scan_request {
 	struct cfg80211_scan_6ghz_params *scan_6ghz_params;
 
 	/* keep last */
-	struct ieee80211_channel *channels[];
+	struct ieee80211_channel *channels[] __counted_by(n_channels);
 };
 
 static inline void get_random_mask_addr(u8 *buf, const u8 *addr, const u8 *mask)
@@ -2616,7 +2615,7 @@ struct cfg80211_bss_select_adjust {
  * @scan_width: channel width for scanning
  * @ie: optional information element(s) to add into Probe Request or %NULL
  * @ie_len: length of ie in octets
- * @flags: bit field of flags controlling operation
+ * @flags: control flags from &enum nl80211_scan_flags
  * @match_sets: sets of parameters to be matched for a scan result
  *	entry to be considered valid and to be passed to the host
  *	(others are filtered out).
@@ -3948,7 +3947,7 @@ struct cfg80211_pmsr_request {
 
 	struct list_head list;
 
-	struct cfg80211_pmsr_request_peer peers[];
+	struct cfg80211_pmsr_request_peer peers[] __counted_by(n_peers);
 };
 
 /**
@@ -8118,7 +8117,7 @@ void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
  * @link_id: the ID of the link the frame was received	on
  * @buf: Management frame (header + body)
  * @len: length of the frame data
- * @flags: flags, as defined in enum nl80211_rxmgmt_flags
+ * @flags: flags, as defined in &enum nl80211_rxmgmt_flags
  * @rx_tstamp: Hardware timestamp of frame RX in nanoseconds
  * @ack_tstamp: Hardware timestamp of ack TX in nanoseconds
  */

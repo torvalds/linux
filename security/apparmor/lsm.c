@@ -144,7 +144,7 @@ static int apparmor_ptrace_traceme(struct task_struct *parent)
 }
 
 /* Derived from security/commoncap.c:cap_capget */
-static int apparmor_capget(struct task_struct *target, kernel_cap_t *effective,
+static int apparmor_capget(const struct task_struct *target, kernel_cap_t *effective,
 			   kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
 	struct aa_label *label;

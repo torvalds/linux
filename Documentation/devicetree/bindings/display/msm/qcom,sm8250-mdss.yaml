@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/display/msm/qcom,sm8250-mdss.yaml#
@@ -76,7 +76,7 @@ examples:
     #include <dt-bindings/clock/qcom,rpmh.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interconnect/qcom,sm8250.h>
-    #include <dt-bindings/power/qcom-rpmpd.h>
+    #include <dt-bindings/power/qcom,rpmhpd.h>
 
     display-subsystem@ae00000 {
         compatible = "qcom,sm8250-mdss";
@@ -121,7 +121,7 @@ examples:
             assigned-clock-rates = <19200000>;
 
             operating-points-v2 = <&mdp_opp_table>;
-            power-domains = <&rpmhpd SM8250_MMCX>;
+            power-domains = <&rpmhpd RPMHPD_MMCX>;
 
             interrupt-parent = <&mdss>;
             interrupts = <0>;
@@ -196,7 +196,7 @@ examples:
             assigned-clock-parents = <&dsi0_phy 0>, <&dsi0_phy 1>;
 
             operating-points-v2 = <&dsi_opp_table>;
-            power-domains = <&rpmhpd SM8250_MMCX>;
+            power-domains = <&rpmhpd RPMHPD_MMCX>;
 
             phys = <&dsi0_phy>;
             phy-names = "dsi";
@@ -286,7 +286,7 @@ examples:
             assigned-clock-parents = <&dsi1_phy 0>, <&dsi1_phy 1>;
 
             operating-points-v2 = <&dsi_opp_table>;
-            power-domains = <&rpmhpd SM8250_MMCX>;
+            power-domains = <&rpmhpd RPMHPD_MMCX>;
 
             phys = <&dsi1_phy>;
             phy-names = "dsi";

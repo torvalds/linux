@@ -149,6 +149,40 @@ static void ftmac100_set_mac(struct ftmac100 *priv, const unsigned char *mac)
 	iowrite32(laddr, priv->base + FTMAC100_OFFSET_MAC_LADR);
 }
 
+static void ftmac100_setup_mc_ht(struct ftmac100 *priv)
+{
+	struct netdev_hw_addr *ha;
+	u64 maht = 0; /* Multicast Address Hash Table */
+
+	netdev_for_each_mc_addr(ha, priv->netdev) {
+		u32 hash = ether_crc(ETH_ALEN, ha->addr) >> 26;
+
+		maht |= BIT_ULL(hash);
+	}
+
+	iowrite32(lower_32_bits(maht), priv->base + FTMAC100_OFFSET_MAHT0);
+	iowrite32(upper_32_bits(maht), priv->base + FTMAC100_OFFSET_MAHT1);
+}
+
+static void ftmac100_set_rx_bits(struct ftmac100 *priv, unsigned int *maccr)
+{
+	struct net_device *netdev = priv->netdev;
+
+	/* Clear all */
+	*maccr &= ~(FTMAC100_MACCR_RCV_ALL | FTMAC100_MACCR_RX_MULTIPKT |
+		   FTMAC100_MACCR_HT_MULTI_EN);
+
+	/* Set the requested bits */
+	if (netdev->flags & IFF_PROMISC)
+		*maccr |= FTMAC100_MACCR_RCV_ALL;
+	if (netdev->flags & IFF_ALLMULTI)
+		*maccr |= FTMAC100_MACCR_RX_MULTIPKT;
+	else if (netdev_mc_count(netdev)) {
+		*maccr |= FTMAC100_MACCR_HT_MULTI_EN;
+		ftmac100_setup_mc_ht(priv);
+	}
+}
+
 #define MACCR_ENABLE_ALL	(FTMAC100_MACCR_XMT_EN	| \
 				 FTMAC100_MACCR_RCV_EN	| \
 				 FTMAC100_MACCR_XDMA_EN	| \
@@ -182,11 +216,7 @@ static int ftmac100_start_hw(struct ftmac100 *priv)
 	if (netdev->mtu > ETH_DATA_LEN)
 		maccr |= FTMAC100_MACCR_RX_FTL;
 
-	/* Add other bits as needed */
-	if (netdev->flags & IFF_PROMISC)
-		maccr |= FTMAC100_MACCR_RCV_ALL;
-	if (netdev->flags & IFF_ALLMULTI)
-		maccr |= FTMAC100_MACCR_RX_MULTIPKT;
+	ftmac100_set_rx_bits(priv, &maccr);
 
 	iowrite32(maccr, priv->base + FTMAC100_OFFSET_MACCR);
 	return 0;
@@ -1067,6 +1097,15 @@ static int ftmac100_change_mtu(struct net_device *netdev, int mtu)
 	return 0;
 }
 
+static void ftmac100_set_rx_mode(struct net_device *netdev)
+{
+	struct ftmac100 *priv = netdev_priv(netdev);
+	unsigned int maccr = ioread32(priv->base + FTMAC100_OFFSET_MACCR);
+
+	ftmac100_set_rx_bits(priv, &maccr);
+	iowrite32(maccr, priv->base + FTMAC100_OFFSET_MACCR);
+}
+
 static const struct net_device_ops ftmac100_netdev_ops = {
 	.ndo_open		= ftmac100_open,
 	.ndo_stop		= ftmac100_stop,
@@ -1075,6 +1114,7 @@ static const struct net_device_ops ftmac100_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_eth_ioctl		= ftmac100_do_ioctl,
 	.ndo_change_mtu		= ftmac100_change_mtu,
+	.ndo_set_rx_mode	= ftmac100_set_rx_mode,
 };
 
 /******************************************************************************

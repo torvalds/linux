@@ -15,8 +15,8 @@
 #include <linux/pm_clock.h>
 #include <linux/pm_runtime.h>
 #include <linux/device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
 #include <dt-bindings/clock/qcom,sm8250-lpass-audiocc.h>
 #include <dt-bindings/clock/qcom,sm8250-lpass-aoncc.h>
 

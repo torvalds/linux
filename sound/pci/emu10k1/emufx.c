@@ -1,17 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
+ *                   James Courtier-Dutton <James@superbug.co.uk>
+ *                   Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
  *                   Creative Labs, Inc.
+ *
  *  Routines for effect processor FX8010
- *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
- *  	Added EMU 1010 support.
- *
- *  BUGS:
- *    --
- *
- *  TODO:
- *    --
  */
 
 #include <linux/pci.h>
@@ -799,13 +793,10 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 		if (snd_emu10k1_look_for_ctl(emu, &gctl->id))
 			continue;
 		gctl_id = (struct snd_ctl_elem_id *)&gctl->id;
-		down_read(&emu->card->controls_rwsem);
 		if (snd_ctl_find_id(emu->card, gctl_id)) {
-			up_read(&emu->card->controls_rwsem);
 			err = -EEXIST;
 			goto __error;
 		}
-		up_read(&emu->card->controls_rwsem);
 		if (gctl_id->iface != SNDRV_CTL_ELEM_IFACE_MIXER &&
 		    gctl_id->iface != SNDRV_CTL_ELEM_IFACE_PCM) {
 			err = -EINVAL;
@@ -977,11 +968,9 @@ static int snd_emu10k1_del_controls(struct snd_emu10k1 *emu,
 				       in_kernel);
 		if (err < 0)
 			return err;
-		down_write(&card->controls_rwsem);
 		ctl = snd_emu10k1_look_for_ctl(emu, &id);
 		if (ctl)
 			snd_ctl_remove(card, ctl->kcontrol);
-		up_write(&card->controls_rwsem);
 	}
 	return 0;
 }

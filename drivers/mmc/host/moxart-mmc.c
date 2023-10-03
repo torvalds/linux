@@ -687,12 +687,10 @@ out_mmc:
 	return ret;
 }
 
-static int moxart_remove(struct platform_device *pdev)
+static void moxart_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(&pdev->dev);
 	struct moxart_host *host = mmc_priv(mmc);
-
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	if (!IS_ERR_OR_NULL(host->dma_chan_tx))
 		dma_release_channel(host->dma_chan_tx);
@@ -705,8 +703,6 @@ static int moxart_remove(struct platform_device *pdev)
 	writel(readl(host->base + REG_CLOCK_CONTROL) | CLK_OFF,
 	       host->base + REG_CLOCK_CONTROL);
 	mmc_free_host(mmc);
-
-	return 0;
 }
 
 static const struct of_device_id moxart_mmc_match[] = {
@@ -718,7 +714,7 @@ MODULE_DEVICE_TABLE(of, moxart_mmc_match);
 
 static struct platform_driver moxart_mmc_driver = {
 	.probe      = moxart_probe,
-	.remove     = moxart_remove,
+	.remove_new = moxart_remove,
 	.driver     = {
 		.name		= "mmc-moxart",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,

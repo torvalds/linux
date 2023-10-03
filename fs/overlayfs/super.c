@@ -32,6 +32,7 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 				 const struct inode *inode)
 {
 	struct dentry *real = NULL, *lower;
+	int err;
 
 	/* It's an overlay file */
 	if (inode && d_inode(dentry) == inode)
@@ -58,7 +59,9 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 	 * uprobes on offset within the file, so lowerdata should be available
 	 * when setting the uprobe.
 	 */
-	ovl_maybe_lookup_lowerdata(dentry);
+	err = ovl_verify_lowerdata(dentry);
+	if (err)
+		goto bug;
 	lower = ovl_dentry_lowerdata(dentry);
 	if (!lower)
 		goto bug;
@@ -182,7 +185,7 @@ static void ovl_destroy_inode(struct inode *inode)
 
 static void ovl_put_super(struct super_block *sb)
 {
-	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(sb);
 
 	if (ofs)
 		ovl_free_fs(ofs);
@@ -191,7 +194,7 @@ static void ovl_put_super(struct super_block *sb)
 /* Sync real dirty inodes in upper filesystem (if it exists) */
 static int ovl_sync_fs(struct super_block *sb, int wait)
 {
-	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(sb);
 	struct super_block *upper_sb;
 	int ret;
 
@@ -239,8 +242,9 @@ static int ovl_sync_fs(struct super_block *sb, int wait)
  */
 static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
-	struct dentry *root_dentry = dentry->d_sb->s_root;
+	struct super_block *sb = dentry->d_sb;
+	struct ovl_fs *ofs = OVL_FS(sb);
+	struct dentry *root_dentry = sb->s_root;
 	struct path path;
 	int err;
 
@@ -250,6 +254,8 @@ static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (!err) {
 		buf->f_namelen = ofs->namelen;
 		buf->f_type = OVERLAYFS_SUPER_MAGIC;
+		if (ovl_has_fsid(ofs))
+			buf->f_fsid = uuid_to_fsid(sb->s_uuid.b);
 	}
 
 	return err;
@@ -397,6 +403,7 @@ static int ovl_lower_dir(const char *name, struct path *path,
 		pr_warn("fs on '%s' does not support file handles, falling back to index=off,nfs_export=off.\n",
 			name);
 	}
+	ofs->nofh |= !fh_type;
 	/*
 	 * Decoding origin file handle is required for persistent st_ino.
 	 * Without persistent st_ino, xino=auto falls back to xino=off.
@@ -770,6 +777,10 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 			ofs->config.index = false;
 			pr_warn("...falling back to index=off.\n");
 		}
+		if (ovl_has_fsid(ofs)) {
+			ofs->config.uuid = OVL_UUID_NULL;
+			pr_warn("...falling back to uuid=null.\n");
+		}
 		/*
 		 * xattr support is required for persistent st_ino.
 		 * Without persistent st_ino, xino=auto falls back to xino=off.
@@ -815,6 +826,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 		ofs->config.index = false;
 		pr_warn("upper fs does not support file handles, falling back to index=off.\n");
 	}
+	ofs->nofh |= !fh_type;
 
 	/* Check if upper fs has 32bit inode numbers */
 	if (fh_type != FILEID_INO32_GEN)
@@ -1416,9 +1428,12 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!ovl_upper_mnt(ofs))
 		sb->s_flags |= SB_RDONLY;
 
-	if (!ofs->config.uuid && ofs->numfs > 1) {
-		pr_warn("The uuid=off requires a single fs for lower and upper, falling back to uuid=on.\n");
-		ofs->config.uuid = true;
+	if (!ovl_origin_uuid(ofs) && ofs->numfs > 1) {
+		pr_warn("The uuid=off requires a single fs for lower and upper, falling back to uuid=null.\n");
+		ofs->config.uuid = OVL_UUID_NULL;
+	} else if (ovl_has_fsid(ofs) && ovl_upper_mnt(ofs)) {
+		/* Use per instance persistent uuid/fsid */
+		ovl_init_uuid_xattr(sb, ofs, &ctx->upper);
 	}
 
 	if (!ovl_force_readonly(ofs) && ofs->config.index) {
@@ -1449,8 +1464,15 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 		ofs->config.nfs_export = false;
 	}
 
+	/*
+	 * Support encoding decodable file handles with nfs_export=on
+	 * and encoding non-decodable file handles with nfs_export=off
+	 * if all layers support file handles.
+	 */
 	if (ofs->config.nfs_export)
 		sb->s_export_op = &ovl_export_operations;
+	else if (!ofs->nofh)
+		sb->s_export_op = &ovl_export_fid_operations;
 
 	/* Never override disk quota limits or use reserved space */
 	cap_lower(cred->cap_effective, CAP_SYS_RESOURCE);
@@ -1479,7 +1501,7 @@ out_err:
 	return err;
 }
 
-static struct file_system_type ovl_fs_type = {
+struct file_system_type ovl_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "overlay",
 	.init_fs_context	= ovl_init_fs_context,

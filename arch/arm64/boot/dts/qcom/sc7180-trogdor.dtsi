@@ -13,6 +13,7 @@
 #include <dt-bindings/sound/sc7180-lpass.h>
 
 #include "sc7180.dtsi"
+#include "sc7180-firmware-tfa.dtsi"
 /* PMICs depend on spmi_bus label and so must come after sc7180.dtsi */
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
@@ -837,10 +838,11 @@ hp_i2c: &i2c9 {
 };
 
 &pm6150_adc {
-	charger-thermistor@4f {
+	channel@4f {
 		reg = <ADC5_AMUX_THM3_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
+		label = "charger_therm";
 	};
 };
 

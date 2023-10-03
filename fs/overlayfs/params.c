@@ -55,6 +55,7 @@ enum {
 	Opt_userxattr,
 	Opt_xino,
 	Opt_metacopy,
+	Opt_verity,
 	Opt_volatile,
 };
 
@@ -63,6 +64,24 @@ static const struct constant_table ovl_parameter_bool[] = {
 	{ "off",	false },
 	{}
 };
+
+static const struct constant_table ovl_parameter_uuid[] = {
+	{ "off",	OVL_UUID_OFF  },
+	{ "null",	OVL_UUID_NULL },
+	{ "auto",	OVL_UUID_AUTO },
+	{ "on",		OVL_UUID_ON   },
+	{}
+};
+
+static const char *ovl_uuid_mode(struct ovl_config *config)
+{
+	return ovl_parameter_uuid[config->uuid].name;
+}
+
+static int ovl_uuid_def(void)
+{
+	return OVL_UUID_AUTO;
+}
 
 static const struct constant_table ovl_parameter_xino[] = {
 	{ "off",	OVL_XINO_OFF  },
@@ -101,6 +120,23 @@ static int ovl_redirect_mode_def(void)
 					    OVL_REDIRECT_NOFOLLOW;
 }
 
+static const struct constant_table ovl_parameter_verity[] = {
+	{ "off",	OVL_VERITY_OFF     },
+	{ "on",		OVL_VERITY_ON      },
+	{ "require",	OVL_VERITY_REQUIRE },
+	{}
+};
+
+static const char *ovl_verity_mode(struct ovl_config *config)
+{
+	return ovl_parameter_verity[config->verity_mode].name;
+}
+
+static int ovl_verity_mode_def(void)
+{
+	return OVL_VERITY_OFF;
+}
+
 #define fsparam_string_empty(NAME, OPT) \
 	__fsparam(fs_param_is_string, NAME, OPT, fs_param_can_be_empty, NULL)
 
@@ -111,11 +147,12 @@ const struct fs_parameter_spec ovl_parameter_spec[] = {
 	fsparam_flag("default_permissions", Opt_default_permissions),
 	fsparam_enum("redirect_dir",        Opt_redirect_dir, ovl_parameter_redirect_dir),
 	fsparam_enum("index",               Opt_index, ovl_parameter_bool),
-	fsparam_enum("uuid",                Opt_uuid, ovl_parameter_bool),
+	fsparam_enum("uuid",                Opt_uuid, ovl_parameter_uuid),
 	fsparam_enum("nfs_export",          Opt_nfs_export, ovl_parameter_bool),
 	fsparam_flag("userxattr",           Opt_userxattr),
 	fsparam_enum("xino",                Opt_xino, ovl_parameter_xino),
 	fsparam_enum("metacopy",            Opt_metacopy, ovl_parameter_bool),
+	fsparam_enum("verity",              Opt_verity, ovl_parameter_verity),
 	fsparam_flag("volatile",            Opt_volatile),
 	{}
 };
@@ -572,6 +609,9 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		config->metacopy = result.uint_32;
 		ctx->set.metacopy = true;
 		break;
+	case Opt_verity:
+		config->verity_mode = result.uint_32;
+		break;
 	case Opt_volatile:
 		config->ovl_volatile = true;
 		break;
@@ -622,7 +662,7 @@ static void ovl_free(struct fs_context *fc)
 static int ovl_reconfigure(struct fs_context *fc)
 {
 	struct super_block *sb = fc->root->d_sb;
-	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(sb);
 	struct super_block *upper_sb;
 	int ret = 0;
 
@@ -679,7 +719,7 @@ int ovl_init_fs_context(struct fs_context *fc)
 
 	ofs->config.redirect_mode	= ovl_redirect_mode_def();
 	ofs->config.index		= ovl_index_def;
-	ofs->config.uuid		= true;
+	ofs->config.uuid		= ovl_uuid_def();
 	ofs->config.nfs_export		= ovl_nfs_export_def;
 	ofs->config.xino		= ovl_xino_def();
 	ofs->config.metacopy		= ovl_metacopy_def;
@@ -762,6 +802,23 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 		config->ovl_volatile = false;
 	}
 
+	if (!config->upperdir && config->uuid == OVL_UUID_ON) {
+		pr_info("option \"uuid=on\" requires an upper fs, falling back to uuid=null.\n");
+		config->uuid = OVL_UUID_NULL;
+	}
+
+	/* Resolve verity -> metacopy dependency */
+	if (config->verity_mode && !config->metacopy) {
+		/* Don't allow explicit specified conflicting combinations */
+		if (set.metacopy) {
+			pr_err("conflicting options: metacopy=off,verity=%s\n",
+			       ovl_verity_mode(config));
+			return -EINVAL;
+		}
+		/* Otherwise automatically enable metacopy. */
+		config->metacopy = true;
+	}
+
 	/*
 	 * This is to make the logic below simpler.  It doesn't make any other
 	 * difference, since redirect_dir=on is only used for upper.
@@ -769,11 +826,16 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 	if (!config->upperdir && config->redirect_mode == OVL_REDIRECT_FOLLOW)
 		config->redirect_mode = OVL_REDIRECT_ON;
 
-	/* Resolve metacopy -> redirect_dir dependency */
+	/* Resolve verity -> metacopy -> redirect_dir dependency */
 	if (config->metacopy && config->redirect_mode != OVL_REDIRECT_ON) {
 		if (set.metacopy && set.redirect) {
 			pr_err("conflicting options: metacopy=on,redirect_dir=%s\n",
 			       ovl_redirect_mode(config));
+			return -EINVAL;
+		}
+		if (config->verity_mode && set.redirect) {
+			pr_err("conflicting options: verity=%s,redirect_dir=%s\n",
+			       ovl_verity_mode(config), ovl_redirect_mode(config));
 			return -EINVAL;
 		}
 		if (set.redirect) {
@@ -812,7 +874,7 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 		}
 	}
 
-	/* Resolve nfs_export -> !metacopy dependency */
+	/* Resolve nfs_export -> !metacopy && !verity dependency */
 	if (config->nfs_export && config->metacopy) {
 		if (set.nfs_export && set.metacopy) {
 			pr_err("conflicting options: nfs_export=on,metacopy=on\n");
@@ -825,6 +887,14 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 			 */
 			pr_info("disabling nfs_export due to metacopy=on\n");
 			config->nfs_export = false;
+		} else if (config->verity_mode) {
+			/*
+			 * There was an explicit verity=.. that resulted
+			 * in this conflict.
+			 */
+			pr_info("disabling nfs_export due to verity=%s\n",
+				ovl_verity_mode(config));
+			config->nfs_export = false;
 		} else {
 			/*
 			 * There was an explicit nfs_export=on that resulted
@@ -836,7 +906,7 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 	}
 
 
-	/* Resolve userxattr -> !redirect && !metacopy dependency */
+	/* Resolve userxattr -> !redirect && !metacopy && !verity dependency */
 	if (config->userxattr) {
 		if (set.redirect &&
 		    config->redirect_mode != OVL_REDIRECT_NOFOLLOW) {
@@ -846,6 +916,11 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 		}
 		if (config->metacopy && set.metacopy) {
 			pr_err("conflicting options: userxattr,metacopy=on\n");
+			return -EINVAL;
+		}
+		if (config->verity_mode) {
+			pr_err("conflicting options: userxattr,verity=%s\n",
+			       ovl_verity_mode(config));
 			return -EINVAL;
 		}
 		/*
@@ -872,7 +947,7 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 {
 	struct super_block *sb = dentry->d_sb;
-	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(sb);
 	size_t nr, nr_merged_lower = ofs->numlayer - ofs->numdatalayer;
 	const struct ovl_layer *data_layers = &ofs->layers[nr_merged_lower];
 
@@ -895,8 +970,8 @@ int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 			   ovl_redirect_mode(&ofs->config));
 	if (ofs->config.index != ovl_index_def)
 		seq_printf(m, ",index=%s", ofs->config.index ? "on" : "off");
-	if (!ofs->config.uuid)
-		seq_puts(m, ",uuid=off");
+	if (ofs->config.uuid != ovl_uuid_def())
+		seq_printf(m, ",uuid=%s", ovl_uuid_mode(&ofs->config));
 	if (ofs->config.nfs_export != ovl_nfs_export_def)
 		seq_printf(m, ",nfs_export=%s", ofs->config.nfs_export ?
 						"on" : "off");
@@ -909,5 +984,8 @@ int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 		seq_puts(m, ",volatile");
 	if (ofs->config.userxattr)
 		seq_puts(m, ",userxattr");
+	if (ofs->config.verity_mode != ovl_verity_mode_def())
+		seq_printf(m, ",verity=%s",
+			   ovl_verity_mode(&ofs->config));
 	return 0;
 }

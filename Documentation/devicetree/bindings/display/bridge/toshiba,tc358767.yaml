@@ -49,6 +49,9 @@ properties:
     description: |
         OF device-tree gpio specification for RSTX pin(active low system reset)
 
+  interrupts:
+    maxItems: 1
+
   toshiba,hpd-pin:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:

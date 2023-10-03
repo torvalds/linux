@@ -22,6 +22,9 @@
  * daddr: physical block number in 512b blocks
  * bbcount: number of blocks in a physical extent, in 512b blocks
  *
+ * rtx: physical rt extent number for extent mappings
+ * rtxcount: number of rt extents in an extent mapping
+ *
  * owner: reverse-mapping owner, usually inodes
  *
  * fileoff: file offset, in fs blocks
@@ -802,36 +805,28 @@ DEFINE_INODE_EVENT(xfs_inode_inactivating);
  * ring buffer.  Somehow this was only worth mentioning in the ftrace sample
  * code.
  */
-TRACE_DEFINE_ENUM(PE_SIZE_PTE);
-TRACE_DEFINE_ENUM(PE_SIZE_PMD);
-TRACE_DEFINE_ENUM(PE_SIZE_PUD);
-
 TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_SHARED);
 TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_COW);
 
 TRACE_EVENT(xfs_filemap_fault,
-	TP_PROTO(struct xfs_inode *ip, enum page_entry_size pe_size,
-		 bool write_fault),
-	TP_ARGS(ip, pe_size, write_fault),
+	TP_PROTO(struct xfs_inode *ip, unsigned int order, bool write_fault),
+	TP_ARGS(ip, order, write_fault),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
-		__field(enum page_entry_size, pe_size)
+		__field(unsigned int, order)
 		__field(bool, write_fault)
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->pe_size = pe_size;
+		__entry->order = order;
 		__entry->write_fault = write_fault;
 	),
-	TP_printk("dev %d:%d ino 0x%llx %s write_fault %d",
+	TP_printk("dev %d:%d ino 0x%llx order %u write_fault %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
-		  __print_symbolic(__entry->pe_size,
-			{ PE_SIZE_PTE,	"PTE" },
-			{ PE_SIZE_PMD,	"PMD" },
-			{ PE_SIZE_PUD,	"PUD" }),
+		  __entry->order,
 		  __entry->write_fault)
 )
 
@@ -3827,6 +3822,51 @@ TRACE_EVENT(xfs_iunlink_update_dinode,
 		  __entry->agino,
 		  __entry->old_ptr,
 		  __entry->new_ptr)
+);
+
+TRACE_EVENT(xfs_iunlink_reload_next,
+	TP_PROTO(struct xfs_inode *ip),
+	TP_ARGS(ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(xfs_agino_t, prev_agino)
+		__field(xfs_agino_t, next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
+		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->prev_agino = ip->i_prev_unlinked;
+		__entry->next_agino = ip->i_next_unlinked;
+	),
+	TP_printk("dev %d:%d agno 0x%x agino 0x%x prev_unlinked 0x%x next_unlinked 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino,
+		  __entry->prev_agino,
+		  __entry->next_agino)
+);
+
+TRACE_EVENT(xfs_inode_reload_unlinked_bucket,
+	TP_PROTO(struct xfs_inode *ip),
+	TP_ARGS(ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
+		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+	),
+	TP_printk("dev %d:%d agno 0x%x agino 0x%x bucket %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino,
+		  __entry->agino % XFS_AGI_UNLINKED_BUCKETS)
 );
 
 DECLARE_EVENT_CLASS(xfs_ag_inode_class,

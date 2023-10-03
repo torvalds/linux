@@ -7,8 +7,8 @@
  *
  */
 
+#include <linux/export.h>
 #include <asm/ppc_asm.h>
-#include <asm/export.h>
 
 	.text
 

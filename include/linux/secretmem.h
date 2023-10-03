@@ -6,24 +6,23 @@
 
 extern const struct address_space_operations secretmem_aops;
 
-static inline bool page_is_secretmem(struct page *page)
+static inline bool folio_is_secretmem(struct folio *folio)
 {
 	struct address_space *mapping;
 
 	/*
-	 * Using page_mapping() is quite slow because of the actual call
-	 * instruction and repeated compound_head(page) inside the
-	 * page_mapping() function.
+	 * Using folio_mapping() is quite slow because of the actual call
+	 * instruction.
 	 * We know that secretmem pages are not compound and LRU so we can
 	 * save a couple of cycles here.
 	 */
-	if (PageCompound(page) || !PageLRU(page))
+	if (folio_test_large(folio) || !folio_test_lru(folio))
 		return false;
 
 	mapping = (struct address_space *)
-		((unsigned long)page->mapping & ~PAGE_MAPPING_FLAGS);
+		((unsigned long)folio->mapping & ~PAGE_MAPPING_FLAGS);
 
-	if (!mapping || mapping != page->mapping)
+	if (!mapping || mapping != folio->mapping)
 		return false;
 
 	return mapping->a_ops == &secretmem_aops;
@@ -39,7 +38,7 @@ static inline bool vma_is_secretmem(struct vm_area_struct *vma)
 	return false;
 }
 
-static inline bool page_is_secretmem(struct page *page)
+static inline bool folio_is_secretmem(struct folio *folio)
 {
 	return false;
 }

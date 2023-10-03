@@ -626,4 +626,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	paging_init();
+
+#ifdef CONFIG_KASAN
+	kasan_init();
+#endif
 }

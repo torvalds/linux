@@ -28,6 +28,7 @@ ga102_ce = {
 	.oneinit = ga100_ce_oneinit,
 	.init = ga100_ce_init,
 	.fini = ga100_ce_fini,
+	.nonstall = ga100_ce_nonstall,
 	.cclass = &gv100_ce_cclass,
 	.sclass = {
 		{ -1, -1, AMPERE_DMA_COPY_A },

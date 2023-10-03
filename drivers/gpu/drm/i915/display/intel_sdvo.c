@@ -2097,7 +2097,7 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 		const struct edid *edid = drm_edid_raw(drm_edid);
 
 		/* DDC bus is shared, match EDID to connector type */
-		if (edid->input & DRM_EDID_INPUT_DIGITAL)
+		if (edid && edid->input & DRM_EDID_INPUT_DIGITAL)
 			status = connector_status_connected;
 		else
 			status = connector_status_disconnected;
@@ -3313,13 +3313,19 @@ intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
 	return i2c_add_adapter(&sdvo->ddc) == 0;
 }
 
-static void assert_sdvo_port_valid(const struct drm_i915_private *dev_priv,
-				   enum port port)
+static bool is_sdvo_port_valid(struct drm_i915_private *dev_priv, enum port port)
 {
 	if (HAS_PCH_SPLIT(dev_priv))
-		drm_WARN_ON(&dev_priv->drm, port != PORT_B);
+		return port == PORT_B;
 	else
-		drm_WARN_ON(&dev_priv->drm, port != PORT_B && port != PORT_C);
+		return port == PORT_B || port == PORT_C;
+}
+
+static bool assert_sdvo_port_valid(struct drm_i915_private *dev_priv,
+				   enum port port)
+{
+	return !drm_WARN(&dev_priv->drm, !is_sdvo_port_valid(dev_priv, port),
+			 "Platform does not support SDVO %c\n", port_name(port));
 }
 
 bool intel_sdvo_init(struct drm_i915_private *dev_priv,
@@ -3329,7 +3335,11 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 	struct intel_sdvo *intel_sdvo;
 	int i;
 
-	assert_sdvo_port_valid(dev_priv, port);
+	if (!assert_port_valid(dev_priv, port))
+		return false;
+
+	if (!assert_sdvo_port_valid(dev_priv, port))
+		return false;
 
 	intel_sdvo = kzalloc(sizeof(*intel_sdvo), GFP_KERNEL);
 	if (!intel_sdvo)

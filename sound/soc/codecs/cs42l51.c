@@ -703,7 +703,7 @@ const struct regmap_config cs42l51_regmap = {
 	.volatile_reg = cs42l51_volatile_reg,
 	.writeable_reg = cs42l51_writeable_reg,
 	.max_register = CS42L51_CHARGE_FREQ,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_GPL(cs42l51_regmap);
 

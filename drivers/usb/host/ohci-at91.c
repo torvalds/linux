@@ -17,13 +17,13 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/atmel.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mfd/syscon.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -190,18 +190,15 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	int irq;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_dbg(dev, "hcd probe: missing irq resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	hcd = usb_create_hcd(driver, dev, "at91");
 	if (!hcd)
 		return -ENOMEM;
 	ohci_at91 = hcd_to_ohci_at91_priv(hcd);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(dev, res);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err;

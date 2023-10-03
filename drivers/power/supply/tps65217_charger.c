@@ -17,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/power_supply.h>
 
 #include <linux/mfd/core.h>

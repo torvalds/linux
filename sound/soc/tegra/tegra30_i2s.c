@@ -304,6 +304,7 @@ static int tegra30_i2s_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops tegra30_i2s_dai_ops = {
+	.probe		= tegra30_i2s_probe,
 	.set_fmt	= tegra30_i2s_set_fmt,
 	.hw_params	= tegra30_i2s_hw_params,
 	.trigger	= tegra30_i2s_trigger,
@@ -311,7 +312,6 @@ static const struct snd_soc_dai_ops tegra30_i2s_dai_ops = {
 };
 
 static const struct snd_soc_dai_driver tegra30_i2s_dai_template = {
-	.probe = tegra30_i2s_probe,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,

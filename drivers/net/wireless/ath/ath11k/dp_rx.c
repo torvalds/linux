@@ -2408,7 +2408,7 @@ static void ath11k_dp_rx_h_ppdu(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 		rx_status->freq = center_freq;
 	} else if (channel_num >= 1 && channel_num <= 14) {
 		rx_status->band = NL80211_BAND_2GHZ;
-	} else if (channel_num >= 36 && channel_num <= 173) {
+	} else if (channel_num >= 36 && channel_num <= 177) {
 		rx_status->band = NL80211_BAND_5GHZ;
 	} else {
 		spin_lock_bh(&ar->data_lock);
@@ -3423,7 +3423,7 @@ static int ath11k_dp_rx_h_defrag_reo_reinject(struct ath11k *ar, struct dp_rx_ti
 	ath11k_hal_rx_buf_addr_info_set(msdu0, paddr, cookie,
 					ab->hw_params.hal_params->rx_buf_rbm);
 
-	/* Fill mpdu details into reo entrace ring */
+	/* Fill mpdu details into reo entrance ring */
 	srng = &ab->hal.srng_list[ab->dp.reo_reinject_ring.ring_id];
 
 	spin_lock_bh(&srng->lock);

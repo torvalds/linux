@@ -423,7 +423,7 @@ static bool wrpll_uses_pch_ssc(struct drm_i915_private *dev_priv,
 	if ((ctl & WRPLL_REF_MASK) == WRPLL_REF_PCH_SSC)
 		return true;
 
-	if ((IS_BROADWELL(dev_priv) || IS_HSW_ULT(dev_priv)) &&
+	if ((IS_BROADWELL(dev_priv) || IS_HASWELL_ULT(dev_priv)) &&
 	    (ctl & WRPLL_REF_MASK) == WRPLL_REF_MUXED_SSC_BDW &&
 	    (fuse_strap & HSW_CPU_SSC_ENABLE) == 0)
 		return true;

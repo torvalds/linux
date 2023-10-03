@@ -352,8 +352,6 @@ int udf_expand_file_adinicb(struct inode *inode)
 			iinfo->i_alloc_type = ICBTAG_FLAG_AD_SHORT;
 		else
 			iinfo->i_alloc_type = ICBTAG_FLAG_AD_LONG;
-		/* from now on we have normal address_space methods */
-		inode->i_data.a_ops = &udf_aops;
 		up_write(&iinfo->i_data_sem);
 		mark_inode_dirty(inode);
 		return 0;

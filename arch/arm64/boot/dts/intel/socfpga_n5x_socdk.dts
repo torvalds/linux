@@ -19,10 +19,10 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		/* We expect the bootloader to fill in the reg */
-		reg = <0 0 0 0>;
+		reg = <0 0x80000000 0 0>;
 	};
 
 	soc {
@@ -109,7 +109,7 @@
 				reg = <0x0 0x03FE0000>;
 			};
 
-			qspi_rootfs: partition@3FE0000 {
+			qspi_rootfs: partition@3fe0000 {
 				label = "Root Filesystem - JFFS2";
 				reg = <0x03FE0000 0x0C020000>;
 			};

@@ -885,7 +885,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(host->rstc), "rst get fail\n");
 
 	host->irq = platform_get_irq(pdev, 0);
-	if (host->irq <= 0)
+	if (host->irq < 0)
 		return host->irq;
 
 	ret = devm_request_threaded_irq(&pdev->dev, host->irq,
@@ -939,7 +939,7 @@ clk_disable:
 	return ret;
 }
 
-static int spmmc_drv_remove(struct platform_device *dev)
+static void spmmc_drv_remove(struct platform_device *dev)
 {
 	struct spmmc_host *host = platform_get_drvdata(dev);
 
@@ -948,9 +948,6 @@ static int spmmc_drv_remove(struct platform_device *dev)
 	clk_disable_unprepare(host->clk);
 	pm_runtime_put_noidle(&dev->dev);
 	pm_runtime_disable(&dev->dev);
-	platform_set_drvdata(dev, NULL);
-
-	return 0;
 }
 
 static int spmmc_pm_runtime_suspend(struct device *dev)
@@ -985,7 +982,7 @@ MODULE_DEVICE_TABLE(of, spmmc_of_table);
 
 static struct platform_driver spmmc_driver = {
 	.probe = spmmc_drv_probe,
-	.remove = spmmc_drv_remove,
+	.remove_new = spmmc_drv_remove,
 	.driver = {
 		.name = "spmmc",
 		.pm = pm_ptr(&spmmc_pm_ops),

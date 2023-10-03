@@ -56,7 +56,7 @@
 		};
 
 		epwm_tbclk: clock-controller@4130 {
-			compatible = "ti,am62-epwm-tbclk", "syscon";
+			compatible = "ti,am62-epwm-tbclk";
 			reg = <0x4130 0x4>;
 			#clock-cells = <1>;
 		};
@@ -150,8 +150,8 @@
 		reg-names = "debug_messages";
 		ti,host-id = <12>;
 		mbox-names = "rx", "tx";
-		mboxes= <&secure_proxy_main 12>,
-			<&secure_proxy_main 13>;
+		mboxes = <&secure_proxy_main 12>,
+			 <&secure_proxy_main 13>;
 
 		k3_pds: power-controller {
 			compatible = "ti,sci-pm-domain";
@@ -527,7 +527,7 @@
 
 		usb0: usb@31000000 {
 			compatible = "snps,dwc3";
-			reg =<0x00 0x31000000 0x00 0x50000>;
+			reg = <0x00 0x31000000 0x00 0x50000>;
 			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>, /* irq.0 */
 				     <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>; /* irq.0 */
 			interrupt-names = "host", "peripheral";
@@ -550,7 +550,7 @@
 
 		usb1: usb@31100000 {
 			compatible = "snps,dwc3";
-			reg =<0x00 0x31100000 0x00 0x50000>;
+			reg = <0x00 0x31100000 0x00 0x50000>;
 			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>, /* irq.0 */
 				     <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>; /* irq.0 */
 			interrupt-names = "host", "peripheral";

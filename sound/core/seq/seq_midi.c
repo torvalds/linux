@@ -349,9 +349,9 @@ snd_seq_midisynth_probe(struct device *_dev)
 		if (! port->name[0]) {
 			if (info->name[0]) {
 				if (ports > 1)
-					snprintf(port->name, sizeof(port->name), "%s-%u", info->name, p);
+					scnprintf(port->name, sizeof(port->name), "%s-%u", info->name, p);
 				else
-					snprintf(port->name, sizeof(port->name), "%s", info->name);
+					scnprintf(port->name, sizeof(port->name), "%s", info->name);
 			} else {
 				/* last resort */
 				if (ports > 1)

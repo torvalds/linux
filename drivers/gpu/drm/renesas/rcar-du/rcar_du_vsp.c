@@ -22,6 +22,7 @@
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
@@ -122,6 +123,8 @@ static const u32 rcar_du_vsp_formats[] = {
 	DRM_FORMAT_RGB888,
 	DRM_FORMAT_BGRA8888,
 	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_UYVY,
@@ -154,6 +157,8 @@ static const u32 rcar_du_vsp_formats_gen4[] = {
 	DRM_FORMAT_RGB888,
 	DRM_FORMAT_BGRA8888,
 	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_RGBX1010102,
@@ -176,6 +181,41 @@ static const u32 rcar_du_vsp_formats_gen4[] = {
 	DRM_FORMAT_Y212,
 };
 
+static u32 rcar_du_vsp_state_get_format(struct rcar_du_vsp_plane_state *state)
+{
+	u32 fourcc = state->format->fourcc;
+
+	if (state->state.pixel_blend_mode == DRM_MODE_BLEND_PIXEL_NONE) {
+		switch (fourcc) {
+		case DRM_FORMAT_ARGB1555:
+			fourcc = DRM_FORMAT_XRGB1555;
+			break;
+
+		case DRM_FORMAT_ARGB4444:
+			fourcc = DRM_FORMAT_XRGB4444;
+			break;
+
+		case DRM_FORMAT_ARGB8888:
+			fourcc = DRM_FORMAT_XRGB8888;
+			break;
+
+		case DRM_FORMAT_ABGR8888:
+			fourcc = DRM_FORMAT_XBGR8888;
+			break;
+
+		case DRM_FORMAT_BGRA8888:
+			fourcc = DRM_FORMAT_BGRX8888;
+			break;
+
+		case DRM_FORMAT_RGBA1010102:
+			fourcc = DRM_FORMAT_RGBX1010102;
+			break;
+		}
+	}
+
+	return fourcc;
+}
+
 static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 {
 	struct rcar_du_vsp_plane_state *state =
@@ -189,7 +229,7 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 		.alpha = state->state.alpha >> 8,
 		.zpos = state->state.zpos,
 	};
-	u32 fourcc = state->format->fourcc;
+	u32 fourcc = rcar_du_vsp_state_get_format(state);
 	unsigned int i;
 
 	cfg.src.left = state->state.src.x1 >> 16;
@@ -205,22 +245,6 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 	for (i = 0; i < state->format->planes; ++i)
 		cfg.mem[i] = sg_dma_address(state->sg_tables[i].sgl)
 			   + fb->offsets[i];
-
-	if (state->state.pixel_blend_mode == DRM_MODE_BLEND_PIXEL_NONE) {
-		switch (fourcc) {
-		case DRM_FORMAT_ARGB1555:
-			fourcc = DRM_FORMAT_XRGB1555;
-			break;
-
-		case DRM_FORMAT_ARGB4444:
-			fourcc = DRM_FORMAT_XRGB4444;
-			break;
-
-		case DRM_FORMAT_ARGB8888:
-			fourcc = DRM_FORMAT_XRGB8888;
-			break;
-		}
-	}
 
 	format = rcar_du_format_info(fourcc);
 	cfg.pixelformat = format->v4l2;

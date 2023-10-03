@@ -4,8 +4,7 @@
  */
 #include <linux/slab.h>
 #include <linux/clk-provider.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 #include <dt-bindings/clock/agilex-clock.h>
@@ -458,12 +457,10 @@ static int agilex_clkmgr_init(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct stratix10_clock_data *clk_data;
-	struct resource *res;
 	void __iomem *base;
 	int i, num_clks;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

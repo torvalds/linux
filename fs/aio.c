@@ -80,7 +80,7 @@ struct aio_ring {
 struct kioctx_table {
 	struct rcu_head		rcu;
 	unsigned		nr;
-	struct kioctx __rcu	*table[];
+	struct kioctx __rcu	*table[] __counted_by(nr);
 };
 
 struct kioctx_cpu {
@@ -558,7 +558,7 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
 
 	ctx->mmap_base = do_mmap(ctx->aio_ring_file, 0, ctx->mmap_size,
 				 PROT_READ | PROT_WRITE,
-				 MAP_SHARED, 0, &unused, NULL);
+				 MAP_SHARED, 0, 0, &unused, NULL);
 	mmap_write_unlock(mm);
 	if (IS_ERR((void *)ctx->mmap_base)) {
 		ctx->mmap_size = 0;

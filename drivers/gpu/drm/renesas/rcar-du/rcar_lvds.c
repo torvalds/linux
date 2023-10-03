@@ -918,15 +918,13 @@ static int rcar_lvds_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rcar_lvds_remove(struct platform_device *pdev)
+static void rcar_lvds_remove(struct platform_device *pdev)
 {
 	struct rcar_lvds *lvds = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&lvds->bridge);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct rcar_lvds_device_info rcar_lvds_gen2_info = {
@@ -1020,7 +1018,7 @@ static const struct dev_pm_ops rcar_lvds_pm_ops = {
 
 static struct platform_driver rcar_lvds_platform_driver = {
 	.probe		= rcar_lvds_probe,
-	.remove		= rcar_lvds_remove,
+	.remove_new	= rcar_lvds_remove,
 	.driver		= {
 		.name	= "rcar-lvds",
 		.pm	= &rcar_lvds_pm_ops,

@@ -21,6 +21,8 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
+#include "of_private.h"
+
 const struct of_device_id of_default_bus_match_table[] = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "simple-mfd", },
@@ -28,11 +30,6 @@ const struct of_device_id of_default_bus_match_table[] = {
 #ifdef CONFIG_ARM_AMBA
 	{ .compatible = "arm,amba-bus", },
 #endif /* CONFIG_ARM_AMBA */
-	{} /* Empty terminated list */
-};
-
-static const struct of_device_id of_skipped_node_table[] = {
-	{ .compatible = "operating-points-v2", },
 	{} /* Empty terminated list */
 };
 
@@ -54,7 +51,44 @@ struct platform_device *of_find_device_by_node(struct device_node *np)
 }
 EXPORT_SYMBOL(of_find_device_by_node);
 
+int of_device_add(struct platform_device *ofdev)
+{
+	BUG_ON(ofdev->dev.of_node == NULL);
+
+	/* name and id have to be set so that the platform bus doesn't get
+	 * confused on matching */
+	ofdev->name = dev_name(&ofdev->dev);
+	ofdev->id = PLATFORM_DEVID_NONE;
+
+	/*
+	 * If this device has not binding numa node in devicetree, that is
+	 * of_node_to_nid returns NUMA_NO_NODE. device_add will assume that this
+	 * device is on the same node as the parent.
+	 */
+	set_dev_node(&ofdev->dev, of_node_to_nid(ofdev->dev.of_node));
+
+	return device_add(&ofdev->dev);
+}
+
+int of_device_register(struct platform_device *pdev)
+{
+	device_initialize(&pdev->dev);
+	return of_device_add(pdev);
+}
+EXPORT_SYMBOL(of_device_register);
+
+void of_device_unregister(struct platform_device *ofdev)
+{
+	device_unregister(&ofdev->dev);
+}
+EXPORT_SYMBOL(of_device_unregister);
+
 #ifdef CONFIG_OF_ADDRESS
+static const struct of_device_id of_skipped_node_table[] = {
+	{ .compatible = "operating-points-v2", },
+	{} /* Empty terminated list */
+};
+
 /*
  * The following routines scan a subtree and registers a device for
  * each applicable node.

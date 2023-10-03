@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 
 #include <linux/io.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 #include "niu.h"
 

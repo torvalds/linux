@@ -115,8 +115,10 @@ static int __process_request(struct ksmbd_work *work, struct ksmbd_conn *conn,
 	if (check_conn_state(work))
 		return SERVER_HANDLER_CONTINUE;
 
-	if (ksmbd_verify_smb_message(work))
+	if (ksmbd_verify_smb_message(work)) {
+		conn->ops->set_rsp_status(work, STATUS_INVALID_PARAMETER);
 		return SERVER_HANDLER_ABORT;
+	}
 
 	command = conn->ops->get_cmd_val(work);
 	*cmd = command;
@@ -163,6 +165,7 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 {
 	u16 command = 0;
 	int rc;
+	bool is_chained = false;
 
 	if (conn->ops->allocate_rsp_buf(work))
 		return;
@@ -229,14 +232,13 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 			}
 		}
 
+		is_chained = is_chained_smb2_message(work);
+
 		if (work->sess &&
 		    (work->sess->sign || smb3_11_final_sess_setup_resp(work) ||
 		     conn->ops->is_sign_req(work, command)))
 			conn->ops->set_sign_rsp(work);
-	} while (is_chained_smb2_message(work));
-
-	if (work->send_no_response)
-		return;
+	} while (is_chained == true);
 
 send:
 	smb3_preauth_hash_rsp(work);
@@ -589,8 +591,6 @@ static int __init ksmbd_server_init(void)
 	ret = ksmbd_workqueue_init();
 	if (ret)
 		goto err_crypto_destroy;
-
-	pr_warn_once("The ksmbd server is experimental\n");
 
 	return 0;
 

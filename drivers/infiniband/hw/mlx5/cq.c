@@ -993,7 +993,7 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		INIT_WORK(&cq->notify_work, notify_soft_wc_handler);
 	}
 
-	err = mlx5_vector2eqn(dev->mdev, vector, &eqn);
+	err = mlx5_comp_eqn_get(dev->mdev, vector, &eqn);
 	if (err)
 		goto err_cqb;
 

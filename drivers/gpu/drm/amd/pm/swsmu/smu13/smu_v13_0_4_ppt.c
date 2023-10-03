@@ -257,7 +257,7 @@ static ssize_t smu_v13_0_4_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->average_gfx_activity = metrics.GfxActivity;
 	gpu_metrics->average_mm_activity = metrics.UvdActivity;
 
-	gpu_metrics->average_socket_power = metrics.CurrentSocketPower;
+	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
 	gpu_metrics->average_gfx_power = metrics.Power[0];
 	gpu_metrics->average_soc_power = metrics.Power[1];
 	memcpy(&gpu_metrics->average_core_power[0],
@@ -321,6 +321,9 @@ static int smu_v13_0_4_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->UvdActivity;
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
+		*value = (metrics->AverageSocketPower << 8) / 1000;
+		break;
+	case METRICS_CURR_SOCKETPOWER:
 		*value = (metrics->CurrentSocketPower << 8) / 1000;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
@@ -569,9 +572,15 @@ static int smu_v13_0_4_read_sensor(struct smu_context *smu,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 		ret = smu_v13_0_4_get_smu_metrics_data(smu,
 						       METRICS_AVERAGE_SOCKETPOWER,
+						       (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
+		ret = smu_v13_0_4_get_smu_metrics_data(smu,
+						       METRICS_CURR_SOCKETPOWER,
 						       (uint32_t *)data);
 		*size = 4;
 		break;

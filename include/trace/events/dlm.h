@@ -7,6 +7,7 @@
 
 #include <linux/dlm.h>
 #include <linux/dlmconstants.h>
+#include <uapi/linux/dlm_plock.h>
 #include <linux/tracepoint.h>
 
 #include "../../../fs/dlm/dlm_internal.h"
@@ -584,6 +585,56 @@ TRACE_EVENT(dlm_recv_message,
 				  __get_dynamic_array_len(m_extra)))
 
 );
+
+DECLARE_EVENT_CLASS(dlm_plock_template,
+
+	TP_PROTO(const struct dlm_plock_info *info),
+
+	TP_ARGS(info),
+
+	TP_STRUCT__entry(
+		__field(uint8_t, optype)
+		__field(uint8_t, ex)
+		__field(uint8_t, wait)
+		__field(uint8_t, flags)
+		__field(uint32_t, pid)
+		__field(int32_t, nodeid)
+		__field(int32_t, rv)
+		__field(uint32_t, fsid)
+		__field(uint64_t, number)
+		__field(uint64_t, start)
+		__field(uint64_t, end)
+		__field(uint64_t, owner)
+	),
+
+	TP_fast_assign(
+		__entry->optype = info->optype;
+		__entry->ex = info->ex;
+		__entry->wait = info->wait;
+		__entry->flags = info->flags;
+		__entry->pid = info->pid;
+		__entry->nodeid = info->nodeid;
+		__entry->rv = info->rv;
+		__entry->fsid = info->fsid;
+		__entry->number = info->number;
+		__entry->start = info->start;
+		__entry->end = info->end;
+		__entry->owner = info->owner;
+	),
+
+	TP_printk("fsid=%u number=%llx owner=%llx optype=%d ex=%d wait=%d flags=%x pid=%u nodeid=%d rv=%d start=%llx end=%llx",
+		  __entry->fsid, __entry->number, __entry->owner,
+		  __entry->optype, __entry->ex, __entry->wait,
+		  __entry->flags, __entry->pid, __entry->nodeid,
+		  __entry->rv, __entry->start, __entry->end)
+
+);
+
+DEFINE_EVENT(dlm_plock_template, dlm_plock_read,
+	     TP_PROTO(const struct dlm_plock_info *info), TP_ARGS(info));
+
+DEFINE_EVENT(dlm_plock_template, dlm_plock_write,
+	     TP_PROTO(const struct dlm_plock_info *info), TP_ARGS(info));
 
 TRACE_EVENT(dlm_send,
 

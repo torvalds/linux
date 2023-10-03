@@ -340,18 +340,13 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 	return size;
 }
 
-static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
+static int tpm_tis_try_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	int size = 0;
 	int status;
 	u32 expected;
 	int rc;
-
-	if (count < TPM_HEADER_SIZE) {
-		size = -EIO;
-		goto out;
-	}
 
 	size = recv_data(chip, buf, TPM_HEADER_SIZE);
 	/* read first 10 bytes, including tag, paramsize, and result */
@@ -385,7 +380,7 @@ static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		goto out;
 	}
 	status = tpm_tis_status(chip);
-	if (status & TPM_STS_DATA_AVAIL) {	/* retry? */
+	if (status & TPM_STS_DATA_AVAIL) {
 		dev_err(&chip->dev, "Error left over data\n");
 		size = -EIO;
 		goto out;
@@ -399,8 +394,34 @@ static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	}
 
 out:
-	tpm_tis_ready(chip);
 	return size;
+}
+
+static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
+{
+	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
+	unsigned int try;
+	int rc = 0;
+
+	if (count < TPM_HEADER_SIZE)
+		return -EIO;
+
+	for (try = 0; try < TPM_RETRY; try++) {
+		rc = tpm_tis_try_recv(chip, buf, count);
+
+		if (rc == -EIO)
+			/* Data transfer errors, indicated by EIO, can be
+			 * recovered by rereading the response.
+			 */
+			tpm_tis_write8(priv, TPM_STS(priv->locality),
+				       TPM_STS_RESPONSE_RETRY);
+		else
+			break;
+	}
+
+	tpm_tis_ready(chip);
+
+	return rc;
 }
 
 /*
@@ -469,6 +490,12 @@ static int tpm_tis_send_data(struct tpm_chip *chip, const u8 *buf, size_t len)
 		goto out_err;
 	}
 
+	rc = tpm_tis_verify_crc(priv, len, buf);
+	if (rc < 0) {
+		dev_err(&chip->dev, "CRC mismatch for command.\n");
+		goto out_err;
+	}
+
 	return 0;
 
 out_err:
@@ -512,15 +539,16 @@ static int tpm_tis_send_main(struct tpm_chip *chip, const u8 *buf, size_t len)
 	int rc;
 	u32 ordinal;
 	unsigned long dur;
+	unsigned int try;
 
-	rc = tpm_tis_send_data(chip, buf, len);
-	if (rc < 0)
-		return rc;
-
-	rc = tpm_tis_verify_crc(priv, len, buf);
-	if (rc < 0) {
-		dev_err(&chip->dev, "CRC mismatch for command.\n");
-		return rc;
+	for (try = 0; try < TPM_RETRY; try++) {
+		rc = tpm_tis_send_data(chip, buf, len);
+		if (rc >= 0)
+			/* Data transfer done successfully */
+			break;
+		else if (rc != -EIO)
+			/* Data transfer failed, not recoverable */
+			return rc;
 	}
 
 	/* go and do it */

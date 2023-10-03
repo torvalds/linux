@@ -85,7 +85,7 @@
 #ifndef __ASSEMBLY__
 /* pte_clear moved to later in this file */
 
-static inline pte_t pte_mkwrite(pte_t pte)
+static inline pte_t pte_mkwrite_novma(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_RW);
 }
@@ -127,7 +127,7 @@ static inline pte_t pmd_pte(pmd_t pmd)
 #define	pmd_bad(pmd)		(!is_kernel_addr(pmd_val(pmd)) \
 				 || (pmd_val(pmd) & PMD_BAD_BITS))
 #define	pmd_present(pmd)	(!pmd_none(pmd))
-#define pmd_page_vaddr(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
+#define pmd_page_vaddr(pmd)	((const void *)(pmd_val(pmd) & ~PMD_MASKED_BITS))
 extern struct page *pmd_page(pmd_t pmd);
 #define pmd_pfn(pmd)		(page_to_pfn(pmd_page(pmd)))
 

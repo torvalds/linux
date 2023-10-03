@@ -8,6 +8,7 @@
 #include "gem/i915_gem_lmem.h"
 
 #include "i915_trace.h"
+#include "intel_gt.h"
 #include "intel_gtt.h"
 #include "gen6_ppgtt.h"
 #include "gen8_ppgtt.h"
@@ -210,8 +211,7 @@ void ppgtt_unbind_vma(struct i915_address_space *vm,
 		return;
 
 	vm->clear_range(vm, vma_res->start, vma_res->vma_size);
-	if (vma_res->tlb)
-		vma_invalidate_tlb(vm, vma_res->tlb);
+	vma_invalidate_tlb(vm, vma_res->tlb);
 }
 
 static unsigned long pd_count(u64 size, int shift)

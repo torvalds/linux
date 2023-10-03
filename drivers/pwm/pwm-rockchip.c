@@ -52,9 +52,9 @@ struct rockchip_pwm_data {
 	u32 enable_conf;
 };
 
-static inline struct rockchip_pwm_chip *to_rockchip_pwm_chip(struct pwm_chip *c)
+static inline struct rockchip_pwm_chip *to_rockchip_pwm_chip(struct pwm_chip *chip)
 {
-	return container_of(c, struct rockchip_pwm_chip, chip);
+	return container_of(chip, struct rockchip_pwm_chip, chip);
 }
 
 static int rockchip_pwm_get_state(struct pwm_chip *chip,

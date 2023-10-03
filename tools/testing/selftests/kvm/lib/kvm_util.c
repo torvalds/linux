@@ -312,6 +312,7 @@ static uint64_t vm_nr_pages_required(enum vm_guest_mode mode,
 				     uint32_t nr_runnable_vcpus,
 				     uint64_t extra_mem_pages)
 {
+	uint64_t page_size = vm_guest_mode_params[mode].page_size;
 	uint64_t nr_pages;
 
 	TEST_ASSERT(nr_runnable_vcpus,
@@ -339,6 +340,9 @@ static uint64_t vm_nr_pages_required(enum vm_guest_mode mode,
 	 * than N/x*2.
 	 */
 	nr_pages += (nr_pages + extra_mem_pages) / PTES_PER_MIN_PAGE * 2;
+
+	/* Account for the number of pages needed by ucall. */
+	nr_pages += ucall_nr_pages_required(page_size);
 
 	return vm_adjust_num_guest_pages(mode, nr_pages);
 }
@@ -994,7 +998,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	if (src_type == VM_MEM_SRC_ANONYMOUS_THP)
 		alignment = max(backing_src_pagesz, alignment);
 
-	ASSERT_EQ(guest_paddr, align_up(guest_paddr, backing_src_pagesz));
+	TEST_ASSERT_EQ(guest_paddr, align_up(guest_paddr, backing_src_pagesz));
 
 	/* Add enough memory to align up if necessary */
 	if (alignment > 1)

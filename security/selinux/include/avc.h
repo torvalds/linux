@@ -2,7 +2,7 @@
 /*
  * Access vector cache interface for object managers.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
 #ifndef _SELINUX_AVC_H_
 #define _SELINUX_AVC_H_

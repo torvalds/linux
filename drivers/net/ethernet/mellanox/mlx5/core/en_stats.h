@@ -194,7 +194,13 @@ struct mlx5e_sw_stats {
 	u64 rx_cqe_compress_blks;
 	u64 rx_cqe_compress_pkts;
 	u64 rx_congst_umr;
+#ifdef CONFIG_MLX5_EN_ARFS
+	u64 rx_arfs_add;
+	u64 rx_arfs_request_in;
+	u64 rx_arfs_request_out;
+	u64 rx_arfs_expired;
 	u64 rx_arfs_err;
+#endif
 	u64 rx_recover;
 	u64 ch_events;
 	u64 ch_poll;
@@ -256,7 +262,6 @@ struct mlx5e_sw_stats {
 	u64 rx_xsk_cqe_compress_blks;
 	u64 rx_xsk_cqe_compress_pkts;
 	u64 rx_xsk_congst_umr;
-	u64 rx_xsk_arfs_err;
 	u64 tx_xsk_xmit;
 	u64 tx_xsk_mpwqe;
 	u64 tx_xsk_inlnw;
@@ -358,7 +363,13 @@ struct mlx5e_rq_stats {
 	u64 cqe_compress_blks;
 	u64 cqe_compress_pkts;
 	u64 congst_umr;
+#ifdef CONFIG_MLX5_EN_ARFS
+	u64 arfs_add;
+	u64 arfs_request_in;
+	u64 arfs_request_out;
+	u64 arfs_expired;
 	u64 arfs_err;
+#endif
 	u64 recover;
 #ifdef CONFIG_PAGE_POOL_STATS
 	u64 pp_alloc_fast;
@@ -449,9 +460,7 @@ struct mlx5e_ptp_cq_stats {
 	u64 err_cqe;
 	u64 abort;
 	u64 abort_abs_diff_ns;
-	u64 resync_cqe;
-	u64 resync_event;
-	u64 ooo_cqe_drop;
+	u64 late_cqe;
 };
 
 struct mlx5e_rep_stats {

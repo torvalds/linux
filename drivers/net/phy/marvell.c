@@ -2893,6 +2893,272 @@ static int m88e1318_led_blink_set(struct phy_device *phydev, u8 index,
 			       MII_88E1318S_PHY_LED_FUNC, reg);
 }
 
+struct marvell_led_rules {
+	int mode;
+	unsigned long rules;
+};
+
+static const struct marvell_led_rules marvell_led0[] = {
+	{
+		.mode = 0,
+		.rules = BIT(TRIGGER_NETDEV_LINK),
+	},
+	{
+		.mode = 1,
+		.rules = (BIT(TRIGGER_NETDEV_LINK) |
+			  BIT(TRIGGER_NETDEV_RX) |
+			  BIT(TRIGGER_NETDEV_TX)),
+	},
+	{
+		.mode = 3,
+		.rules = (BIT(TRIGGER_NETDEV_RX) |
+			  BIT(TRIGGER_NETDEV_TX)),
+	},
+	{
+		.mode = 4,
+		.rules = (BIT(TRIGGER_NETDEV_RX) |
+			  BIT(TRIGGER_NETDEV_TX)),
+	},
+	{
+		.mode = 5,
+		.rules = BIT(TRIGGER_NETDEV_TX),
+	},
+	{
+		.mode = 6,
+		.rules = BIT(TRIGGER_NETDEV_LINK),
+	},
+	{
+		.mode = 7,
+		.rules = BIT(TRIGGER_NETDEV_LINK_1000),
+	},
+	{
+		.mode = 8,
+		.rules = 0,
+	},
+};
+
+static const struct marvell_led_rules marvell_led1[] = {
+	{
+		.mode = 1,
+		.rules = (BIT(TRIGGER_NETDEV_LINK) |
+			  BIT(TRIGGER_NETDEV_RX) |
+			  BIT(TRIGGER_NETDEV_TX)),
+	},
+	{
+		.mode = 2,
+		.rules = (BIT(TRIGGER_NETDEV_LINK) |
+			  BIT(TRIGGER_NETDEV_RX)),
+	},
+	{
+		.mode = 3,
+		.rules = (BIT(TRIGGER_NETDEV_RX) |
+			  BIT(TRIGGER_NETDEV_TX)),
+	},
+	{
+		.mode = 4,
+		.rules = (BIT(TRIGGER_NETDEV_RX) |
+			  BIT(TRIGGER_NETDEV_TX)),
+	},
+	{
+		.mode = 6,
+		.rules = (BIT(TRIGGER_NETDEV_LINK_100) |
+			  BIT(TRIGGER_NETDEV_LINK_1000)),
+	},
+	{
+		.mode = 7,
+		.rules = BIT(TRIGGER_NETDEV_LINK_100),
+	},
+	{
+		.mode = 8,
+		.rules = 0,
+	},
+};
+
+static const struct marvell_led_rules marvell_led2[] = {
+	{
+		.mode = 0,
+		.rules = BIT(TRIGGER_NETDEV_LINK),
+	},
+	{
+		.mode = 1,
+		.rules = (BIT(TRIGGER_NETDEV_LINK) |
+			  BIT(TRIGGER_NETDEV_RX) |
+			  BIT(TRIGGER_NETDEV_TX)),
+	},
+	{
+		.mode = 3,
+		.rules = (BIT(TRIGGER_NETDEV_RX) |
+			  BIT(TRIGGER_NETDEV_TX)),
+	},
+	{
+		.mode = 4,
+		.rules = (BIT(TRIGGER_NETDEV_RX) |
+			  BIT(TRIGGER_NETDEV_TX)),
+	},
+	{
+		.mode = 5,
+		.rules = BIT(TRIGGER_NETDEV_TX),
+	},
+	{
+		.mode = 6,
+		.rules = (BIT(TRIGGER_NETDEV_LINK_10) |
+			  BIT(TRIGGER_NETDEV_LINK_1000)),
+	},
+	{
+		.mode = 7,
+		.rules = BIT(TRIGGER_NETDEV_LINK_10),
+	},
+	{
+		.mode = 8,
+		.rules = 0,
+	},
+};
+
+static int marvell_find_led_mode(unsigned long rules,
+				 const struct marvell_led_rules *marvell_rules,
+				 int count,
+				 int *mode)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		if (marvell_rules[i].rules == rules) {
+			*mode = marvell_rules[i].mode;
+			return 0;
+		}
+	}
+	return -EOPNOTSUPP;
+}
+
+static int marvell_get_led_mode(u8 index, unsigned long rules, int *mode)
+{
+	int ret;
+
+	switch (index) {
+	case 0:
+		ret = marvell_find_led_mode(rules, marvell_led0,
+					    ARRAY_SIZE(marvell_led0), mode);
+		break;
+	case 1:
+		ret = marvell_find_led_mode(rules, marvell_led1,
+					    ARRAY_SIZE(marvell_led1), mode);
+		break;
+	case 2:
+		ret = marvell_find_led_mode(rules, marvell_led2,
+					    ARRAY_SIZE(marvell_led2), mode);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int marvell_find_led_rules(unsigned long *rules,
+				  const struct marvell_led_rules *marvell_rules,
+				  int count,
+				  int mode)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		if (marvell_rules[i].mode == mode) {
+			*rules = marvell_rules[i].rules;
+			return 0;
+		}
+	}
+	return -EOPNOTSUPP;
+}
+
+static int marvell_get_led_rules(u8 index, unsigned long *rules, int mode)
+{
+	int ret;
+
+	switch (index) {
+	case 0:
+		ret = marvell_find_led_rules(rules, marvell_led0,
+					     ARRAY_SIZE(marvell_led0), mode);
+		break;
+	case 1:
+		ret = marvell_find_led_rules(rules, marvell_led1,
+					     ARRAY_SIZE(marvell_led1), mode);
+		break;
+	case 2:
+		ret = marvell_find_led_rules(rules, marvell_led2,
+					     ARRAY_SIZE(marvell_led2), mode);
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
+static int m88e1318_led_hw_is_supported(struct phy_device *phydev, u8 index,
+					unsigned long rules)
+{
+	int mode, ret;
+
+	switch (index) {
+	case 0:
+	case 1:
+	case 2:
+		ret = marvell_get_led_mode(index, rules, &mode);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int m88e1318_led_hw_control_set(struct phy_device *phydev, u8 index,
+				       unsigned long rules)
+{
+	int mode, ret, reg;
+
+	switch (index) {
+	case 0:
+	case 1:
+	case 2:
+		ret = marvell_get_led_mode(index, rules, &mode);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	if (ret < 0)
+		return ret;
+
+	reg = phy_read_paged(phydev, MII_MARVELL_LED_PAGE,
+			     MII_88E1318S_PHY_LED_FUNC);
+	if (reg < 0)
+		return reg;
+
+	reg &= ~(0xf << (4 * index));
+	reg |= mode << (4 * index);
+	return phy_write_paged(phydev, MII_MARVELL_LED_PAGE,
+			       MII_88E1318S_PHY_LED_FUNC, reg);
+}
+
+static int m88e1318_led_hw_control_get(struct phy_device *phydev, u8 index,
+				       unsigned long *rules)
+{
+	int mode, reg;
+
+	if (index > 2)
+		return -EINVAL;
+
+	reg = phy_read_paged(phydev, MII_MARVELL_LED_PAGE,
+			     MII_88E1318S_PHY_LED_FUNC);
+	if (reg < 0)
+		return reg;
+
+	mode = (reg >> (4 * index)) & 0xf;
+
+	return marvell_get_led_rules(index, rules, mode);
+}
+
 static int marvell_probe(struct phy_device *phydev)
 {
 	struct marvell_priv *priv;
@@ -3144,6 +3410,9 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.led_brightness_set = m88e1318_led_brightness_set,
 		.led_blink_set = m88e1318_led_blink_set,
+		.led_hw_is_supported = m88e1318_led_hw_is_supported,
+		.led_hw_control_set = m88e1318_led_hw_control_set,
+		.led_hw_control_get = m88e1318_led_hw_control_get,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1145,
@@ -3252,6 +3521,9 @@ static struct phy_driver marvell_drivers[] = {
 		.cable_test_get_status = marvell_vct7_cable_test_get_status,
 		.led_brightness_set = m88e1318_led_brightness_set,
 		.led_blink_set = m88e1318_led_blink_set,
+		.led_hw_is_supported = m88e1318_led_hw_is_supported,
+		.led_hw_control_set = m88e1318_led_hw_control_set,
+		.led_hw_control_get = m88e1318_led_hw_control_get,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1540,
@@ -3280,6 +3552,9 @@ static struct phy_driver marvell_drivers[] = {
 		.cable_test_get_status = marvell_vct7_cable_test_get_status,
 		.led_brightness_set = m88e1318_led_brightness_set,
 		.led_blink_set = m88e1318_led_blink_set,
+		.led_hw_is_supported = m88e1318_led_hw_is_supported,
+		.led_hw_control_set = m88e1318_led_hw_control_set,
+		.led_hw_control_get = m88e1318_led_hw_control_get,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1545,
@@ -3308,6 +3583,9 @@ static struct phy_driver marvell_drivers[] = {
 		.cable_test_get_status = marvell_vct7_cable_test_get_status,
 		.led_brightness_set = m88e1318_led_brightness_set,
 		.led_blink_set = m88e1318_led_blink_set,
+		.led_hw_is_supported = m88e1318_led_hw_is_supported,
+		.led_hw_control_set = m88e1318_led_hw_control_set,
+		.led_hw_control_get = m88e1318_led_hw_control_get,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E3016,
@@ -3451,6 +3729,9 @@ static struct phy_driver marvell_drivers[] = {
 		.set_tunable = m88e1540_set_tunable,
 		.led_brightness_set = m88e1318_led_brightness_set,
 		.led_blink_set = m88e1318_led_blink_set,
+		.led_hw_is_supported = m88e1318_led_hw_is_supported,
+		.led_hw_control_set = m88e1318_led_hw_control_set,
+		.led_hw_control_get = m88e1318_led_hw_control_get,
 	},
 };
 

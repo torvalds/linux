@@ -1532,7 +1532,7 @@ err_free_dss:
 	return r;
 }
 
-static int dss_remove(struct platform_device *pdev)
+static void dss_remove(struct platform_device *pdev)
 {
 	struct dss_device *dss = platform_get_drvdata(pdev);
 
@@ -1557,8 +1557,6 @@ static int dss_remove(struct platform_device *pdev)
 	dss_put_clocks(dss);
 
 	kfree(dss);
-
-	return 0;
 }
 
 static void dss_shutdown(struct platform_device *pdev)
@@ -1607,7 +1605,7 @@ static const struct dev_pm_ops dss_pm_ops = {
 
 struct platform_driver omap_dsshw_driver = {
 	.probe		= dss_probe,
-	.remove		= dss_remove,
+	.remove_new	= dss_remove,
 	.shutdown	= dss_shutdown,
 	.driver         = {
 		.name   = "omapdss_dss",

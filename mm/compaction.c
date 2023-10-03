@@ -249,8 +249,33 @@ static unsigned long skip_offline_sections(unsigned long start_pfn)
 
 	return 0;
 }
+
+/*
+ * If the PFN falls into an offline section, return the end PFN of the
+ * next online section in reverse. If the PFN falls into an online section
+ * or if there is no next online section in reverse, return 0.
+ */
+static unsigned long skip_offline_sections_reverse(unsigned long start_pfn)
+{
+	unsigned long start_nr = pfn_to_section_nr(start_pfn);
+
+	if (!start_nr || online_section_nr(start_nr))
+		return 0;
+
+	while (start_nr-- > 0) {
+		if (online_section_nr(start_nr))
+			return section_nr_to_pfn(start_nr) + PAGES_PER_SECTION;
+	}
+
+	return 0;
+}
 #else
 static unsigned long skip_offline_sections(unsigned long start_pfn)
+{
+	return 0;
+}
+
+static unsigned long skip_offline_sections_reverse(unsigned long start_pfn)
 {
 	return 0;
 }
@@ -438,12 +463,13 @@ static void update_cached_migrate(struct compact_control *cc, unsigned long pfn)
 {
 	struct zone *zone = cc->zone;
 
-	pfn = pageblock_end_pfn(pfn);
-
 	/* Set for isolation rather than compaction */
 	if (cc->no_set_skip_hint)
 		return;
 
+	pfn = pageblock_end_pfn(pfn);
+
+	/* Update where async and sync compaction should restart */
 	if (pfn > zone->compact_cached_migrate_pfn[0])
 		zone->compact_cached_migrate_pfn[0] = pfn;
 	if (cc->mode != MIGRATE_ASYNC &&
@@ -465,7 +491,6 @@ static void update_pageblock_skip(struct compact_control *cc,
 
 	set_pageblock_skip(page);
 
-	/* Update where async and sync compaction should restart */
 	if (pfn < zone->compact_cached_free_pfn)
 		zone->compact_cached_free_pfn = pfn;
 }
@@ -564,7 +589,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 				bool strict)
 {
 	int nr_scanned = 0, total_isolated = 0;
-	struct page *cursor;
+	struct page *page;
 	unsigned long flags = 0;
 	bool locked = false;
 	unsigned long blockpfn = *start_pfn;
@@ -574,12 +599,11 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 	if (strict)
 		stride = 1;
 
-	cursor = pfn_to_page(blockpfn);
+	page = pfn_to_page(blockpfn);
 
 	/* Isolate free pages. */
-	for (; blockpfn < end_pfn; blockpfn += stride, cursor += stride) {
+	for (; blockpfn < end_pfn; blockpfn += stride, page += stride) {
 		int isolated;
-		struct page *page = cursor;
 
 		/*
 		 * Periodically drop the lock (if held) regardless of its
@@ -604,7 +628,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 
 			if (likely(order <= MAX_ORDER)) {
 				blockpfn += (1UL << order) - 1;
-				cursor += (1UL << order) - 1;
+				page += (1UL << order) - 1;
 				nr_scanned += (1UL << order) - 1;
 			}
 			goto isolate_fail;
@@ -641,14 +665,12 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 		}
 		/* Advance to the end of split page */
 		blockpfn += isolated - 1;
-		cursor += isolated - 1;
+		page += isolated - 1;
 		continue;
 
 isolate_fail:
 		if (strict)
 			break;
-		else
-			continue;
 
 	}
 
@@ -715,8 +737,6 @@ isolate_freepages_range(struct compact_control *cc,
 		/* Protect pfn from changing by isolate_freepages_block */
 		unsigned long isolate_start_pfn = pfn;
 
-		block_end_pfn = min(block_end_pfn, end_pfn);
-
 		/*
 		 * pfn could pass the block_end_pfn if isolated freepage
 		 * is more than pageblock order. In this case, we adjust
@@ -725,8 +745,9 @@ isolate_freepages_range(struct compact_control *cc,
 		if (pfn >= block_end_pfn) {
 			block_start_pfn = pageblock_start_pfn(pfn);
 			block_end_pfn = pageblock_end_pfn(pfn);
-			block_end_pfn = min(block_end_pfn, end_pfn);
 		}
+
+		block_end_pfn = min(block_end_pfn, end_pfn);
 
 		if (!pageblock_pfn_to_page(block_start_pfn,
 					block_end_pfn, cc->zone))
@@ -1076,13 +1097,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			bool migrate_dirty;
 
 			/*
-			 * Only pages without mappings or that have a
-			 * ->migrate_folio callback are possible to migrate
-			 * without blocking. However, we can be racing with
-			 * truncation so it's necessary to lock the page
-			 * to stabilise the mapping as truncation holds
-			 * the page lock until after the page is removed
-			 * from the page cache.
+			 * Only folios without mappings or that have
+			 * a ->migrate_folio callback are possible to
+			 * migrate without blocking.  However, we may
+			 * be racing with truncation, which can free
+			 * the mapping.  Truncation holds the folio lock
+			 * until after the folio is removed from the page
+			 * cache so holding it ourselves is sufficient.
 			 */
 			if (!folio_trylock(folio))
 				goto isolate_fail_put;
@@ -1120,6 +1141,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 				skip_updated = true;
 				if (test_and_set_skip(cc, valid_page) &&
 				    !cc->finish_pageblock) {
+					low_pfn = end_pfn;
 					goto isolate_abort;
 				}
 			}
@@ -1421,10 +1443,8 @@ fast_isolate_around(struct compact_control *cc, unsigned long pfn)
 	isolate_freepages_block(cc, &start_pfn, end_pfn, &cc->freepages, 1, false);
 
 	/* Skip this pageblock in the future as it's full or nearly full */
-	if (start_pfn == end_pfn)
+	if (start_pfn == end_pfn && !cc->no_set_skip_hint)
 		set_pageblock_skip(page);
-
-	return;
 }
 
 /* Search orders in round-robin fashion */
@@ -1501,7 +1521,7 @@ static void fast_isolate_freepages(struct compact_control *cc)
 
 		spin_lock_irqsave(&cc->zone->lock, flags);
 		freelist = &area->free_list[MIGRATE_MOVABLE];
-		list_for_each_entry_reverse(freepage, freelist, lru) {
+		list_for_each_entry_reverse(freepage, freelist, buddy_list) {
 			unsigned long pfn;
 
 			order_scanned++;
@@ -1530,7 +1550,7 @@ static void fast_isolate_freepages(struct compact_control *cc)
 				break;
 		}
 
-		/* Use a minimum pfn if a preferred one was not found */
+		/* Use a maximum candidate pfn if a preferred one was not found */
 		if (!page && high_pfn) {
 			page = pfn_to_page(high_pfn);
 
@@ -1669,8 +1689,15 @@ static void isolate_freepages(struct compact_control *cc)
 
 		page = pageblock_pfn_to_page(block_start_pfn, block_end_pfn,
 									zone);
-		if (!page)
+		if (!page) {
+			unsigned long next_pfn;
+
+			next_pfn = skip_offline_sections_reverse(block_start_pfn);
+			if (next_pfn)
+				block_start_pfn = max(next_pfn, low_pfn);
+
 			continue;
+		}
 
 		/* Check the block is suitable for migration */
 		if (!suitable_migration_target(cc, page))
@@ -1686,7 +1713,8 @@ static void isolate_freepages(struct compact_control *cc)
 
 		/* Update the skip hint if the full pageblock was scanned */
 		if (isolate_start_pfn == block_end_pfn)
-			update_pageblock_skip(cc, page, block_start_pfn);
+			update_pageblock_skip(cc, page, block_start_pfn -
+					      pageblock_nr_pages);
 
 		/* Are enough freepages isolated? */
 		if (cc->nr_freepages >= cc->nr_migratepages) {
@@ -1884,7 +1912,7 @@ static unsigned long fast_find_migrateblock(struct compact_control *cc)
 
 		spin_lock_irqsave(&cc->zone->lock, flags);
 		freelist = &area->free_list[MIGRATE_MOVABLE];
-		list_for_each_entry(freepage, freelist, lru) {
+		list_for_each_entry(freepage, freelist, buddy_list) {
 			unsigned long free_pfn;
 
 			if (nr_scanned++ >= limit) {
@@ -1958,9 +1986,9 @@ static isolate_migrate_t isolate_migratepages(struct compact_control *cc)
 		block_start_pfn = cc->zone->zone_start_pfn;
 
 	/*
-	 * fast_find_migrateblock marks a pageblock skipped so to avoid
-	 * the isolation_suitable check below, check whether the fast
-	 * search was successful.
+	 * fast_find_migrateblock() has already ensured the pageblock is not
+	 * set with a skipped flag, so to avoid the isolation_suitable check
+	 * below again, check whether the fast search was successful.
 	 */
 	fast_find_block = low_pfn != cc->migrate_pfn && !cc->fast_search_fail;
 
@@ -2114,7 +2142,7 @@ static unsigned int fragmentation_score_node(pg_data_t *pgdat)
 	return score;
 }
 
-static unsigned int fragmentation_score_wmark(pg_data_t *pgdat, bool low)
+static unsigned int fragmentation_score_wmark(bool low)
 {
 	unsigned int wmark_low;
 
@@ -2134,7 +2162,7 @@ static bool should_proactive_compact_node(pg_data_t *pgdat)
 	if (!sysctl_compaction_proactiveness || kswapd_is_running(pgdat))
 		return false;
 
-	wmark_high = fragmentation_score_wmark(pgdat, false);
+	wmark_high = fragmentation_score_wmark(false);
 	return fragmentation_score_node(pgdat) > wmark_high;
 }
 
@@ -2173,7 +2201,7 @@ static enum compact_result __compact_finished(struct compact_control *cc)
 			return COMPACT_PARTIAL_SKIPPED;
 
 		score = fragmentation_score_zone(cc->zone);
-		wmark_low = fragmentation_score_wmark(pgdat, true);
+		wmark_low = fragmentation_score_wmark(true);
 
 		if (score > wmark_low)
 			ret = COMPACT_CONTINUE;
@@ -2480,7 +2508,8 @@ rescan:
 			goto check_drain;
 		case ISOLATE_SUCCESS:
 			update_cached = false;
-			last_migrated_pfn = iteration_start_pfn;
+			last_migrated_pfn = max(cc->zone->zone_start_pfn,
+				pageblock_start_pfn(cc->migrate_pfn - 1));
 		}
 
 		err = migrate_pages(&cc->migratepages, compaction_alloc,
@@ -2503,7 +2532,7 @@ rescan:
 			}
 			/*
 			 * If an ASYNC or SYNC_LIGHT fails to migrate a page
-			 * within the current order-aligned block and
+			 * within the pageblock_order-aligned block and
 			 * fast_find_migrateblock may be used then scan the
 			 * remainder of the pageblock. This will mark the
 			 * pageblock "skip" to avoid rescanning in the near
@@ -2869,7 +2898,7 @@ int compaction_register_node(struct node *node)
 
 void compaction_unregister_node(struct node *node)
 {
-	return device_remove_file(&node->dev, &dev_attr_compact);
+	device_remove_file(&node->dev, &dev_attr_compact);
 }
 #endif /* CONFIG_SYSFS && CONFIG_NUMA */
 

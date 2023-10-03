@@ -296,6 +296,7 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 
 	if (!aconnector->edid) {
 		struct edid *edid;
+
 		edid = drm_dp_mst_get_edid(connector, &aconnector->mst_root->mst_mgr, aconnector->mst_output_port);
 
 		if (!edid) {
@@ -827,6 +828,7 @@ static void set_dsc_configs_from_fairness_vars(struct dsc_mst_fairness_params *p
 					&dsc_options,
 					0,
 					params[i].timing,
+					dc_link_get_highest_encoding_format(params[i].aconnector->dc_link),
 					&params[i].timing->dsc_cfg)) {
 			params[i].timing->flags.DSC = 1;
 
@@ -877,7 +879,9 @@ static int bpp_x16_from_pbn(struct dsc_mst_fairness_params param, int pbn)
 			param.sink->ctx->dc->res_pool->dscs[0],
 			&param.sink->dsc_caps.dsc_dec_caps,
 			&dsc_options,
-			(int) kbps, param.timing, &dsc_config);
+			(int) kbps, param.timing,
+			dc_link_get_highest_encoding_format(param.aconnector->dc_link),
+			&dsc_config);
 
 	return dsc_config.bits_per_pixel;
 }
@@ -1115,8 +1119,11 @@ static int compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 				dsc_policy.min_target_bpp * 16,
 				dsc_policy.max_target_bpp * 16,
 				&stream->sink->dsc_caps.dsc_dec_caps,
-				&stream->timing, &params[count].bw_range))
-			params[count].bw_range.stream_kbps = dc_bandwidth_in_kbps_from_timing(&stream->timing);
+				&stream->timing,
+				dc_link_get_highest_encoding_format(dc_link),
+				&params[count].bw_range))
+			params[count].bw_range.stream_kbps = dc_bandwidth_in_kbps_from_timing(&stream->timing,
+					dc_link_get_highest_encoding_format(dc_link));
 
 		count++;
 	}
@@ -1576,7 +1583,7 @@ static bool is_dsc_common_config_possible(struct dc_stream_state *stream,
 				       dsc_policy.min_target_bpp * 16,
 				       dsc_policy.max_target_bpp * 16,
 				       &stream->sink->dsc_caps.dsc_dec_caps,
-				       &stream->timing, bw_range);
+				       &stream->timing, dc_link_get_highest_encoding_format(stream->link), bw_range);
 
 	return bw_range->max_target_bpp_x16 && bw_range->min_target_bpp_x16;
 }

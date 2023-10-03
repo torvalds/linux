@@ -83,6 +83,9 @@ struct pid_namespace init_pid_ns = {
 #ifdef CONFIG_PID_NS
 	.ns.ops = &pidns_operations,
 #endif
+#if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
+	.memfd_noexec_scope = MEMFD_NOEXEC_SCOPE_EXEC,
+#endif
 };
 EXPORT_SYMBOL_GPL(init_pid_ns);
 
@@ -606,7 +609,7 @@ int pidfd_create(struct pid *pid, unsigned int flags)
 }
 
 /**
- * pidfd_open() - Open new pid file descriptor.
+ * sys_pidfd_open() - Open new pid file descriptor.
  *
  * @pid:   pid for which to retrieve a pidfd
  * @flags: flags to pass

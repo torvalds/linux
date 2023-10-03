@@ -312,6 +312,8 @@ static inline bool macsec_send_sci(const struct macsec_secy *secy)
 	return tx_sc->send_sci ||
 		(secy->n_rx_sc > 1 && !tx_sc->end_station && !tx_sc->scb);
 }
+struct net_device *macsec_get_real_dev(const struct net_device *dev);
+bool macsec_netdev_is_offloaded(struct net_device *dev);
 
 static inline void *macsec_netdev_priv(const struct net_device *dev)
 {

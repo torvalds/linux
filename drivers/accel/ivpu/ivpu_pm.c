@@ -259,6 +259,7 @@ void ivpu_pm_reset_prepare_cb(struct pci_dev *pdev)
 	pm_runtime_get_sync(vdev->drm.dev);
 
 	ivpu_dbg(vdev, PM, "Pre-reset..\n");
+	atomic_inc(&vdev->pm->reset_counter);
 	atomic_set(&vdev->pm->in_reset, 1);
 	ivpu_shutdown(vdev);
 	ivpu_pm_prepare_cold_boot(vdev);

@@ -21,7 +21,8 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
 #include <linux/reset.h>
-#include <net/page_pool.h>
+#include <net/page_pool/types.h>
+#include <net/xdp.h>
 #include <uapi/linux/bpf.h>
 
 struct stmmac_resources {

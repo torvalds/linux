@@ -57,9 +57,7 @@ static int save_result(void)
 		r->is_core = pmu->is_core;
 		r->nr_caps = pmu->nr_caps;
 
-		r->nr_aliases = 0;
-		list_for_each(list, &pmu->aliases)
-			r->nr_aliases++;
+		r->nr_aliases = perf_pmu__num_events(pmu);
 
 		r->nr_formats = 0;
 		list_for_each(list, &pmu->format)
@@ -98,9 +96,7 @@ static int check_result(bool core_only)
 			return -1;
 		}
 
-		nr = 0;
-		list_for_each(list, &pmu->aliases)
-			nr++;
+		nr = perf_pmu__num_events(pmu);
 		if (nr != r->nr_aliases) {
 			pr_err("Unmatched number of event aliases in %s: expect %d vs got %d\n",
 				pmu->name, r->nr_aliases, nr);

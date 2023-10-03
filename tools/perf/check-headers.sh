@@ -21,6 +21,7 @@ FILES=(
   "include/uapi/linux/perf_event.h"
   "include/uapi/linux/prctl.h"
   "include/uapi/linux/sched.h"
+  "include/uapi/linux/seccomp.h"
   "include/uapi/linux/stat.h"
   "include/uapi/linux/usbdevice_fs.h"
   "include/uapi/linux/vhost.h"
@@ -123,7 +124,7 @@ check () {
 
   shift
 
-  check_2 "tools/$file" "$file" $*
+  check_2 "tools/$file" "$file" "$@"
 }
 
 beauty_check () {
@@ -131,7 +132,7 @@ beauty_check () {
 
   shift
 
-  check_2 "tools/perf/trace/beauty/$file" "$file" $*
+  check_2 "tools/perf/trace/beauty/$file" "$file" "$@"
 }
 
 # Check if we have the kernel headers (tools/perf/../../include), else
@@ -183,7 +184,7 @@ done
 check_2 tools/perf/util/hashmap.h tools/lib/bpf/hashmap.h
 check_2 tools/perf/util/hashmap.c tools/lib/bpf/hashmap.c
 
-cd tools/perf
+cd tools/perf || exit
 
 if [ ${#FAILURES[@]} -gt 0 ]
 then

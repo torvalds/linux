@@ -918,17 +918,9 @@ static int mmc_sd_num_wr_blocks(struct mmc_card *card, u32 *written_blocks)
 
 	struct scatterlist sg;
 
-	cmd.opcode = MMC_APP_CMD;
-	cmd.arg = card->rca << 16;
-	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
-
-	err = mmc_wait_for_cmd(card->host, &cmd, 0);
+	err = mmc_app_cmd(card->host, card);
 	if (err)
 		return err;
-	if (!mmc_host_is_spi(card->host) && !(cmd.resp[0] & R1_APP_CMD))
-		return -EIO;
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = SD_APP_SEND_NUM_WR_BLKS;
 	cmd.arg = 0;
@@ -3026,7 +3018,6 @@ static void mmc_blk_remove(struct mmc_card *card)
 		pm_runtime_disable(&card->dev);
 	pm_runtime_put_noidle(&card->dev);
 	mmc_blk_remove_req(md);
-	dev_set_drvdata(&card->dev, NULL);
 	destroy_workqueue(card->complete_wq);
 }
 

@@ -538,7 +538,7 @@ MODULE_DEVICE_TABLE(of, nct3018y_of_match);
 static struct i2c_driver nct3018y_driver = {
 	.driver		= {
 		.name	= "rtc-nct3018y",
-		.of_match_table = of_match_ptr(nct3018y_of_match),
+		.of_match_table = nct3018y_of_match,
 	},
 	.probe		= nct3018y_probe,
 	.id_table	= nct3018y_id,

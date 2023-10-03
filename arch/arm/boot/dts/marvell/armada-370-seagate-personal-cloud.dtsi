@@ -53,32 +53,25 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	regulator-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "USB Power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 27 GPIO_ACTIVE_LOW>;
+	};
 
-		regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "USB Power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&gpio1 27 GPIO_ACTIVE_LOW>;
-		};
-		regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "SATA0 power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&gpio1 18 GPIO_ACTIVE_HIGH>;
-		};
+	regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "SATA0 power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 	};
 
 	gpio-keys {

@@ -15,9 +15,10 @@ Integer types
 
 	If variable is of Type,		use printk format specifier:
 	------------------------------------------------------------
-		char			%d or %x
+		signed char		%d or %hhx
 		unsigned char		%u or %x
-		short int		%d or %x
+		char			%u or %x
+		short int		%d or %hx
 		unsigned short int	%u or %x
 		int			%d or %x
 		unsigned int		%u or %x
@@ -27,9 +28,9 @@ Integer types
 		unsigned long long	%llu or %llx
 		size_t			%zu or %zx
 		ssize_t			%zd or %zx
-		s8			%d or %x
+		s8			%d or %hhx
 		u8			%u or %x
-		s16			%d or %x
+		s16			%d or %hx
 		u16			%u or %x
 		s32			%d or %x
 		u32			%u or %x

@@ -162,8 +162,8 @@ struct team_option {
 	bool per_port;
 	unsigned int array_size; /* != 0 means the option is array */
 	enum team_option_type type;
-	int (*init)(struct team *team, struct team_option_inst_info *info);
-	int (*getter)(struct team *team, struct team_gsetter_ctx *ctx);
+	void (*init)(struct team *team, struct team_option_inst_info *info);
+	void (*getter)(struct team *team, struct team_gsetter_ctx *ctx);
 	int (*setter)(struct team *team, struct team_gsetter_ctx *ctx);
 };
 
@@ -188,6 +188,8 @@ struct team_mode {
 struct team {
 	struct net_device *dev; /* associated netdevice */
 	struct team_pcpu_stats __percpu *pcpu_stats;
+
+	const struct header_ops *header_ops_cache;
 
 	struct mutex lock; /* used for overall locking, e.g. port lists write */
 

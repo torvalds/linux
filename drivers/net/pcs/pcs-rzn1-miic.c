@@ -12,6 +12,7 @@
 #include <linux/of_platform.h>
 #include <linux/pcs-rzn1-miic.h>
 #include <linux/phylink.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <dt-bindings/net/pcs-rzn1-miic.h>
 

@@ -98,7 +98,7 @@ If you aren't subscribed to netdev and/or are simply unsure if
 repository link above for any new networking-related commits.  You may
 also check the following website for the current status:
 
-  https://patchwork.hopto.org/net-next.html
+  https://netdev.bots.linux.dev/net-next.html
 
 The ``net`` tree continues to collect fixes for the vX.Y content, and is
 fed back to Linus at regular (~weekly) intervals.  Meaning that the
@@ -120,7 +120,37 @@ queue for netdev:
   https://patchwork.kernel.org/project/netdevbpf/list/
 
 The "State" field will tell you exactly where things are at with your
-patch. Patches are indexed by the ``Message-ID`` header of the emails
+patch:
+
+================== =============================================================
+Patch state        Description
+================== =============================================================
+New, Under review  pending review, patch is in the maintainer’s queue for
+                   review; the two states are used interchangeably (depending on
+                   the exact co-maintainer handling patchwork at the time)
+Accepted           patch was applied to the appropriate networking tree, this is
+                   usually set automatically by the pw-bot
+Needs ACK          waiting for an ack from an area expert or testing
+Changes requested  patch has not passed the review, new revision is expected
+                   with appropriate code and commit message changes
+Rejected           patch has been rejected and new revision is not expected
+Not applicable     patch is expected to be applied outside of the networking
+                   subsystem
+Awaiting upstream  patch should be reviewed and handled by appropriate
+                   sub-maintainer, who will send it on to the networking trees;
+                   patches set to ``Awaiting upstream`` in netdev's patchwork
+                   will usually remain in this state, whether the sub-maintainer
+                   requested changes, accepted or rejected the patch
+Deferred           patch needs to be reposted later, usually due to dependency
+                   or because it was posted for a closed tree
+Superseded         new version of the patch was posted, usually set by the
+                   pw-bot
+RFC                not to be applied, usually not in maintainer’s review queue,
+                   pw-bot can automatically set patches to this state based
+                   on subject tags
+================== =============================================================
+
+Patches are indexed by the ``Message-ID`` header of the emails
 which carried them so if you have trouble finding your patch append
 the value of ``Message-ID`` to the URL above.
 
@@ -155,7 +185,7 @@ must match the MAINTAINERS entry) and a handful of senior reviewers.
 
 Bot records its activity here:
 
-  https://patchwork.hopto.org/pw-bot.html
+  https://netdev.bots.linux.dev/pw-bot.html
 
 Review timelines
 ~~~~~~~~~~~~~~~~
@@ -166,6 +196,8 @@ listed on the project's patch list) the chances it was missed are close to zero.
 Asking the maintainer for status updates on your
 patch is a good way to ensure your patch is ignored or pushed to the
 bottom of the priority list.
+
+.. _Changes requested:
 
 Changes requested
 ~~~~~~~~~~~~~~~~~
@@ -358,6 +390,10 @@ to recall all the context.
 Make sure you address all the feedback in your new posting. Do not post a new
 version of the code if the discussion about the previous version is still
 ongoing, unless directly instructed by a reviewer.
+
+The new version of patches should be posted as a separate thread,
+not as a reply to the previous posting. Change log should include a link
+to the previous posting (see :ref:`Changes requested`).
 
 Testing
 -------

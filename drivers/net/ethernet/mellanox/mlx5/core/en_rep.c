@@ -399,15 +399,13 @@ static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
 }
 
 static int mlx5e_sqs2vport_add_peers_rules(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep,
-					   struct mlx5_devcom *devcom,
 					   struct mlx5e_rep_sq *rep_sq, int i)
 {
-	struct mlx5_eswitch *peer_esw = NULL;
 	struct mlx5_flow_handle *flow_rule;
-	int tmp;
+	struct mlx5_devcom_comp_dev *tmp;
+	struct mlx5_eswitch *peer_esw;
 
-	mlx5_devcom_for_each_peer_entry(devcom, MLX5_DEVCOM_ESW_OFFLOADS,
-					peer_esw, tmp) {
+	mlx5_devcom_for_each_peer_entry(esw->devcom, peer_esw, tmp) {
 		u16 peer_rule_idx = MLX5_CAP_GEN(peer_esw->dev, vhca_id);
 		struct mlx5e_rep_sq_peer *sq_peer;
 		int err;
@@ -443,7 +441,6 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_rep_sq *rep_sq;
-	struct mlx5_devcom *devcom;
 	bool devcom_locked = false;
 	int err;
 	int i;
@@ -451,10 +448,10 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
 		return 0;
 
-	devcom = esw->dev->priv.devcom;
 	rpriv = mlx5e_rep_to_rep_priv(rep);
-	if (mlx5_devcom_comp_is_ready(devcom, MLX5_DEVCOM_ESW_OFFLOADS) &&
-	    mlx5_devcom_for_each_peer_begin(devcom, MLX5_DEVCOM_ESW_OFFLOADS))
+
+	if (mlx5_devcom_comp_is_ready(esw->devcom) &&
+	    mlx5_devcom_for_each_peer_begin(esw->devcom))
 		devcom_locked = true;
 
 	for (i = 0; i < sqns_num; i++) {
@@ -477,7 +474,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 
 		xa_init(&rep_sq->sq_peer);
 		if (devcom_locked) {
-			err = mlx5e_sqs2vport_add_peers_rules(esw, rep, devcom, rep_sq, i);
+			err = mlx5e_sqs2vport_add_peers_rules(esw, rep, rep_sq, i);
 			if (err) {
 				mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule);
 				xa_destroy(&rep_sq->sq_peer);
@@ -490,7 +487,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 	}
 
 	if (devcom_locked)
-		mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+		mlx5_devcom_for_each_peer_end(esw->devcom);
 
 	return 0;
 
@@ -498,7 +495,7 @@ out_err:
 	mlx5e_sqs2vport_stop(esw, rep);
 
 	if (devcom_locked)
-		mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+		mlx5_devcom_for_each_peer_end(esw->devcom);
 
 	return err;
 }
@@ -1339,6 +1336,7 @@ static mlx5e_stats_grp_t mlx5e_ul_rep_stats_grps[] = {
 	&MLX5E_STATS_GRP(channels),
 	&MLX5E_STATS_GRP(per_port_buff_congest),
 #ifdef CONFIG_MLX5_EN_IPSEC
+	&MLX5E_STATS_GRP(ipsec_hw),
 	&MLX5E_STATS_GRP(ipsec_sw),
 #endif
 	&MLX5E_STATS_GRP(ptp),

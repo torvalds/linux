@@ -164,7 +164,8 @@ enum inet_csk_ack_state_t {
 	ICSK_ACK_TIMER  = 2,
 	ICSK_ACK_PUSHED = 4,
 	ICSK_ACK_PUSHED2 = 8,
-	ICSK_ACK_NOW = 16	/* Send the next ACK immediately (once) */
+	ICSK_ACK_NOW = 16,	/* Send the next ACK immediately (once) */
+	ICSK_ACK_NOMEM = 32,
 };
 
 void inet_csk_init_xmit_timers(struct sock *sk,
@@ -341,9 +342,9 @@ static inline bool inet_csk_in_pingpong_mode(struct sock *sk)
 	return inet_csk(sk)->icsk_ack.pingpong >= TCP_PINGPONG_THRESH;
 }
 
-static inline bool inet_csk_has_ulp(struct sock *sk)
+static inline bool inet_csk_has_ulp(const struct sock *sk)
 {
-	return inet_sk(sk)->is_icsk && !!inet_csk(sk)->icsk_ulp_ops;
+	return inet_test_bit(IS_ICSK, sk) && !!inet_csk(sk)->icsk_ulp_ops;
 }
 
 #endif /* _INET_CONNECTION_SOCK_H */

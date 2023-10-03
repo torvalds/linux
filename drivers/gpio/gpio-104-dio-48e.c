@@ -9,6 +9,7 @@
 #include <linux/bits.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/i8254.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/isa.h>
@@ -16,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/regmap.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 
 #include "gpio-i8255.h"
@@ -37,6 +39,8 @@ MODULE_PARM_DESC(irq, "ACCES 104-DIO-48E interrupt line numbers");
 
 #define DIO48E_ENABLE_INTERRUPT 0xB
 #define DIO48E_DISABLE_INTERRUPT DIO48E_ENABLE_INTERRUPT
+#define DIO48E_ENABLE_COUNTER_TIMER_ADDRESSING 0xD
+#define DIO48E_DISABLE_COUNTER_TIMER_ADDRESSING DIO48E_ENABLE_COUNTER_TIMER_ADDRESSING
 #define DIO48E_CLEAR_INTERRUPT 0xF
 
 #define DIO48E_NUM_PPI 2
@@ -75,18 +79,20 @@ static const struct regmap_access_table dio48e_precious_table = {
 	.yes_ranges = dio48e_precious_ranges,
 	.n_yes_ranges = ARRAY_SIZE(dio48e_precious_ranges),
 };
-static const struct regmap_config dio48e_regmap_config = {
-	.reg_bits = 8,
-	.reg_stride = 1,
-	.val_bits = 8,
-	.io_port = true,
-	.max_register = 0xF,
-	.wr_table = &dio48e_wr_table,
-	.rd_table = &dio48e_rd_table,
-	.volatile_table = &dio48e_volatile_table,
-	.precious_table = &dio48e_precious_table,
-	.cache_type = REGCACHE_FLAT,
-	.use_raw_spinlock = true,
+
+static const struct regmap_range pit_wr_ranges[] = {
+	regmap_reg_range(0x0, 0x3),
+};
+static const struct regmap_range pit_rd_ranges[] = {
+	regmap_reg_range(0x0, 0x2),
+};
+static const struct regmap_access_table pit_wr_table = {
+	.yes_ranges = pit_wr_ranges,
+	.n_yes_ranges = ARRAY_SIZE(pit_wr_ranges),
+};
+static const struct regmap_access_table pit_rd_table = {
+	.yes_ranges = pit_rd_ranges,
+	.n_yes_ranges = ARRAY_SIZE(pit_rd_ranges),
 };
 
 /* only bit 3 on each respective Port C supports interrupts */
@@ -102,13 +108,55 @@ static const struct regmap_irq dio48e_regmap_irqs[] = {
 
 /**
  * struct dio48e_gpio - GPIO device private data structure
+ * @lock:	synchronization lock to prevent I/O race conditions
  * @map:	Regmap for the device
+ * @regs:	virtual mapping for device registers
+ * @flags:	IRQ flags saved during locking
  * @irq_mask:	Current IRQ mask state on the device
  */
 struct dio48e_gpio {
+	raw_spinlock_t lock;
 	struct regmap *map;
+	void __iomem *regs;
+	unsigned long flags;
 	unsigned int irq_mask;
 };
+
+static void dio48e_regmap_lock(void *lock_arg) __acquires(&dio48egpio->lock)
+{
+	struct dio48e_gpio *const dio48egpio = lock_arg;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&dio48egpio->lock, flags);
+	dio48egpio->flags = flags;
+}
+
+static void dio48e_regmap_unlock(void *lock_arg) __releases(&dio48egpio->lock)
+{
+	struct dio48e_gpio *const dio48egpio = lock_arg;
+
+	raw_spin_unlock_irqrestore(&dio48egpio->lock, dio48egpio->flags);
+}
+
+static void pit_regmap_lock(void *lock_arg) __acquires(&dio48egpio->lock)
+{
+	struct dio48e_gpio *const dio48egpio = lock_arg;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&dio48egpio->lock, flags);
+	dio48egpio->flags = flags;
+
+	iowrite8(0x00, dio48egpio->regs + DIO48E_ENABLE_COUNTER_TIMER_ADDRESSING);
+}
+
+static void pit_regmap_unlock(void *lock_arg) __releases(&dio48egpio->lock)
+{
+	struct dio48e_gpio *const dio48egpio = lock_arg;
+
+	ioread8(dio48egpio->regs + DIO48E_DISABLE_COUNTER_TIMER_ADDRESSING);
+
+	raw_spin_unlock_irqrestore(&dio48egpio->lock, dio48egpio->flags);
+}
 
 static int dio48e_handle_mask_sync(const int index,
 				   const unsigned int mask_buf_def,
@@ -176,6 +224,9 @@ static int dio48e_probe(struct device *dev, unsigned int id)
 	struct i8255_regmap_config config = {};
 	void __iomem *regs;
 	struct regmap *map;
+	struct regmap_config dio48e_regmap_config;
+	struct regmap_config pit_regmap_config;
+	struct i8254_regmap_config pit_config;
 	int err;
 	struct regmap_irq_chip *chip;
 	struct dio48e_gpio *dio48egpio;
@@ -187,20 +238,57 @@ static int dio48e_probe(struct device *dev, unsigned int id)
 		return -EBUSY;
 	}
 
+	dio48egpio = devm_kzalloc(dev, sizeof(*dio48egpio), GFP_KERNEL);
+	if (!dio48egpio)
+		return -ENOMEM;
+
 	regs = devm_ioport_map(dev, base[id], DIO48E_EXTENT);
 	if (!regs)
 		return -ENOMEM;
+
+	dio48egpio->regs = regs;
+
+	raw_spin_lock_init(&dio48egpio->lock);
+
+	dio48e_regmap_config = (struct regmap_config) {
+		.reg_bits = 8,
+		.reg_stride = 1,
+		.val_bits = 8,
+		.lock = dio48e_regmap_lock,
+		.unlock = dio48e_regmap_unlock,
+		.lock_arg = dio48egpio,
+		.io_port = true,
+		.wr_table = &dio48e_wr_table,
+		.rd_table = &dio48e_rd_table,
+		.volatile_table = &dio48e_volatile_table,
+		.precious_table = &dio48e_precious_table,
+		.cache_type = REGCACHE_FLAT,
+	};
 
 	map = devm_regmap_init_mmio(dev, regs, &dio48e_regmap_config);
 	if (IS_ERR(map))
 		return dev_err_probe(dev, PTR_ERR(map),
 				     "Unable to initialize register map\n");
 
-	dio48egpio = devm_kzalloc(dev, sizeof(*dio48egpio), GFP_KERNEL);
-	if (!dio48egpio)
-		return -ENOMEM;
-
 	dio48egpio->map = map;
+
+	pit_regmap_config = (struct regmap_config) {
+		.name = "i8254",
+		.reg_bits = 8,
+		.reg_stride = 1,
+		.val_bits = 8,
+		.lock = pit_regmap_lock,
+		.unlock = pit_regmap_unlock,
+		.lock_arg = dio48egpio,
+		.io_port = true,
+		.wr_table = &pit_wr_table,
+		.rd_table = &pit_rd_table,
+	};
+
+	pit_config.map = devm_regmap_init_mmio(dev, regs, &pit_regmap_config);
+	if (IS_ERR(pit_config.map))
+		return dev_err_probe(dev, PTR_ERR(pit_config.map),
+				     "Unable to initialize i8254 register map\n");
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -225,6 +313,12 @@ static int dio48e_probe(struct device *dev, unsigned int id)
 	if (err)
 		return dev_err_probe(dev, err, "IRQ registration failed\n");
 
+	pit_config.parent = dev;
+
+	err = devm_i8254_regmap_register(dev, &pit_config);
+	if (err)
+		return err;
+
 	config.parent = dev;
 	config.map = map;
 	config.num_ppi = DIO48E_NUM_PPI;
@@ -245,3 +339,4 @@ module_isa_driver_with_irq(dio48e_driver, num_dio48e, num_irq);
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES 104-DIO-48E GPIO driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(I8254);

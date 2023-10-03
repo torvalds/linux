@@ -365,7 +365,7 @@ static int yellow_carp_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_AVERAGE_VCNACTIVITY:
 		*value = metrics->UvdActivity;
 		break;
-	case METRICS_AVERAGE_SOCKETPOWER:
+	case METRICS_CURR_SOCKETPOWER:
 		*value = (metrics->CurrentSocketPower << 8) / 1000;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
@@ -423,9 +423,9 @@ static int yellow_carp_read_sensor(struct smu_context *smu,
 								(uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 		ret = yellow_carp_get_smu_metrics_data(smu,
-								METRICS_AVERAGE_SOCKETPOWER,
+								METRICS_CURR_SOCKETPOWER,
 								(uint32_t *)data);
 		*size = 4;
 		break;
@@ -479,6 +479,7 @@ static int yellow_carp_read_sensor(struct smu_context *smu,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 	default:
 		ret = -EOPNOTSUPP;
 		break;

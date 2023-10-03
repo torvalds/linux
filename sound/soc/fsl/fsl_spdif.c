@@ -514,6 +514,10 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 	int ret;
 
 	switch (sample_rate) {
+	case 22050:
+		rate = SPDIF_TXRATE_22050;
+		csfs = IEC958_AES3_CON_FS_22050;
+		break;
 	case 32000:
 		rate = SPDIF_TXRATE_32000;
 		csfs = IEC958_AES3_CON_FS_32000;
@@ -760,14 +764,6 @@ static int fsl_spdif_trigger(struct snd_pcm_substream *substream,
 
 	return 0;
 }
-
-static const struct snd_soc_dai_ops fsl_spdif_dai_ops = {
-	.startup = fsl_spdif_startup,
-	.hw_params = fsl_spdif_hw_params,
-	.trigger = fsl_spdif_trigger,
-	.shutdown = fsl_spdif_shutdown,
-};
-
 
 /*
  * FSL SPDIF IEC958 controller(mixer) functions
@@ -1279,8 +1275,15 @@ static int fsl_spdif_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops fsl_spdif_dai_ops = {
+	.probe		= fsl_spdif_dai_probe,
+	.startup	= fsl_spdif_startup,
+	.hw_params	= fsl_spdif_hw_params,
+	.trigger	= fsl_spdif_trigger,
+	.shutdown	= fsl_spdif_shutdown,
+};
+
 static struct snd_soc_dai_driver fsl_spdif_dai = {
-	.probe = &fsl_spdif_dai_probe,
 	.playback = {
 		.stream_name = "CPU-Playback",
 		.channels_min = 2,
@@ -1424,7 +1427,7 @@ static u32 fsl_spdif_txclk_caldiv(struct fsl_spdif_priv *spdif_priv,
 				struct clk *clk, u64 savesub,
 				enum spdif_txrate index, bool round)
 {
-	static const u32 rate[] = { 32000, 44100, 48000, 88200, 96000, 176400,
+	static const u32 rate[] = { 22050, 32000, 44100, 48000, 88200, 96000, 176400,
 				    192000, };
 	bool is_sysclk = clk_is_match(clk, spdif_priv->sysclk);
 	u64 rate_ideal, rate_actual, sub;
@@ -1485,7 +1488,7 @@ out:
 static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 				enum spdif_txrate index)
 {
-	static const u32 rate[] = { 32000, 44100, 48000, 88200, 96000, 176400,
+	static const u32 rate[] = { 22050, 32000, 44100, 48000, 88200, 96000, 176400,
 				    192000, };
 	struct platform_device *pdev = spdif_priv->pdev;
 	struct device *dev = &pdev->dev;

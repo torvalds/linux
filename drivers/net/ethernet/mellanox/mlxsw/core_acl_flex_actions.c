@@ -1887,6 +1887,46 @@ int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid,
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_fid_set);
 
+/* Ignore Action
+ * -------------
+ * The ignore action is used to ignore basic switching functions such as
+ * learning on a per-packet basis.
+ */
+
+#define MLXSW_AFA_IGNORE_CODE 0x0F
+#define MLXSW_AFA_IGNORE_SIZE 1
+
+/* afa_ignore_disable_learning
+ * Disable learning on ingress.
+ */
+MLXSW_ITEM32(afa, ignore, disable_learning, 0x00, 29, 1);
+
+/* afa_ignore_disable_security
+ * Disable security lookup on ingress.
+ * Reserved when Spectrum-1.
+ */
+MLXSW_ITEM32(afa, ignore, disable_security, 0x00, 28, 1);
+
+static void mlxsw_afa_ignore_pack(char *payload, bool disable_learning,
+				  bool disable_security)
+{
+	mlxsw_afa_ignore_disable_learning_set(payload, disable_learning);
+	mlxsw_afa_ignore_disable_security_set(payload, disable_security);
+}
+
+int mlxsw_afa_block_append_ignore(struct mlxsw_afa_block *block,
+				  bool disable_learning, bool disable_security)
+{
+	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_IGNORE_CODE,
+						  MLXSW_AFA_IGNORE_SIZE);
+
+	if (IS_ERR(act))
+		return PTR_ERR(act);
+	mlxsw_afa_ignore_pack(act, disable_learning, disable_security);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_ignore);
+
 /* MC Routing Action
  * -----------------
  * The Multicast router action. Can be used by RMFT_V2 - Router Multicast

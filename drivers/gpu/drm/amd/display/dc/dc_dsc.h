@@ -73,6 +73,7 @@ bool dc_dsc_compute_bandwidth_range(
 		uint32_t max_bpp_x16,
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
 		const struct dc_crtc_timing *timing,
+		const enum dc_link_encoding_format link_encoding,
 		struct dc_dsc_bw_range *range);
 
 bool dc_dsc_compute_config(
@@ -81,6 +82,7 @@ bool dc_dsc_compute_config(
 		const struct dc_dsc_config_options *options,
 		uint32_t target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
+		const enum dc_link_encoding_format link_encoding,
 		struct dc_dsc_config *dsc_cfg);
 
 uint32_t dc_dsc_stream_bandwidth_in_kbps(const struct dc_crtc_timing *timing,

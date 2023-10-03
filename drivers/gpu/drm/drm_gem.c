@@ -164,6 +164,9 @@ void drm_gem_private_object_init(struct drm_device *dev,
 	if (!obj->resv)
 		obj->resv = &obj->_resv;
 
+	if (drm_core_check_feature(dev, DRIVER_GEM_GPUVA))
+		drm_gem_gpuva_init(obj);
+
 	drm_vma_node_reset(&obj->vma_node);
 	INIT_LIST_HEAD(&obj->lru_node);
 }
@@ -1160,8 +1163,8 @@ int drm_gem_pin(struct drm_gem_object *obj)
 {
 	if (obj->funcs->pin)
 		return obj->funcs->pin(obj);
-	else
-		return 0;
+
+	return 0;
 }
 
 void drm_gem_unpin(struct drm_gem_object *obj)

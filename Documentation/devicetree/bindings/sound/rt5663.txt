@@ -28,7 +28,7 @@ Optional properties:
   If the value is 0, it means the impedance sensing is not supported.
 - "realtek,impedance_sensing_table"
   The matrix rows of the impedance sensing table are consisted by impedance
-  minimum, impedance maximun, volume, DC offset w/o and w/ mic of each L and
+  minimum, impedance maximum, volume, DC offset w/o and w/ mic of each L and
   R channel accordingly. Example is shown as following.
   <   0    300  7  0xffd160  0xffd1c0  0xff8a10  0xff8ab0
     301  65535  4  0xffe470  0xffe470  0xffb8e0  0xffb8e0>

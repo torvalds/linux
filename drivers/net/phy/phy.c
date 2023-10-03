@@ -456,6 +456,40 @@ int phy_do_ioctl_running(struct net_device *dev, struct ifreq *ifr, int cmd)
 EXPORT_SYMBOL(phy_do_ioctl_running);
 
 /**
+ * __phy_hwtstamp_get - Get hardware timestamping configuration from PHY
+ *
+ * @phydev: the PHY device structure
+ * @config: structure holding the timestamping configuration
+ *
+ * Query the PHY device for its current hardware timestamping configuration.
+ */
+int __phy_hwtstamp_get(struct phy_device *phydev,
+		       struct kernel_hwtstamp_config *config)
+{
+	if (!phydev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(phydev, config->ifr, SIOCGHWTSTAMP);
+}
+
+/**
+ * __phy_hwtstamp_set - Modify PHY hardware timestamping configuration
+ *
+ * @phydev: the PHY device structure
+ * @config: structure holding the timestamping configuration
+ * @extack: netlink extended ack structure, for error reporting
+ */
+int __phy_hwtstamp_set(struct phy_device *phydev,
+		       struct kernel_hwtstamp_config *config,
+		       struct netlink_ext_ack *extack)
+{
+	if (!phydev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(phydev, config->ifr, SIOCSHWTSTAMP);
+}
+
+/**
  * phy_queue_state_machine - Trigger the state machine to run soon
  *
  * @phydev: the phy_device struct

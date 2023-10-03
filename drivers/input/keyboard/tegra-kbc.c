@@ -640,7 +640,7 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 
 	timer_setup(&kbc->timer, tegra_kbc_keypress_timer, 0);
 
-	kbc->mmio = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
+	kbc->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(kbc->mmio))
 		return PTR_ERR(kbc->mmio);
 

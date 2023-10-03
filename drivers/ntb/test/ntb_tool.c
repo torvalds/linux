@@ -370,16 +370,9 @@ static ssize_t tool_fn_write(struct tool_ctx *tc,
 	if (*offp)
 		return 0;
 
-	buf = kmalloc(size + 1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, ubuf, size)) {
-		kfree(buf);
-		return -EFAULT;
-	}
-
-	buf[size] = 0;
+	buf = memdup_user_nul(ubuf, size);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	n = sscanf(buf, "%c %lli", &cmd, &bits);
 
@@ -1495,8 +1488,6 @@ static void tool_setup_dbgfs(struct tool_ctx *tc)
 
 	tc->dbgfs_dir = debugfs_create_dir(dev_name(&tc->ntb->dev),
 					   tool_dbgfs_topdir);
-	if (!tc->dbgfs_dir)
-		return;
 
 	debugfs_create_file("port", 0600, tc->dbgfs_dir,
 			    tc, &tool_port_fops);

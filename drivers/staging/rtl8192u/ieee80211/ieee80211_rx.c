@@ -1121,10 +1121,12 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	/* skb: hdr + (possibly fragmented, possibly encrypted) payload */
 
-	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
-	    (keyidx = ieee80211_rx_frame_decrypt(ieee, skb, crypt)) < 0) {
-		netdev_dbg(ieee->dev, "decrypt frame error\n");
-		goto rx_dropped;
+	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_WEP)) {
+		keyidx = ieee80211_rx_frame_decrypt(ieee, skb, crypt);
+		if (keyidx < 0) {
+			netdev_dbg(ieee->dev, "decrypt frame error\n");
+			goto rx_dropped;
+		}
 	}
 
 

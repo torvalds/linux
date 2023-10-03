@@ -236,7 +236,7 @@ static void early_exit_filter(struct kvm_vcpu *vcpu, u64 *exit_code)
 		 * KVM_ARM_VCPU_INIT, however, this is likely not possible for
 		 * protected VMs.
 		 */
-		vcpu->arch.target = -1;
+		vcpu_clear_flag(vcpu, VCPU_INITIALIZED);
 		*exit_code &= BIT(ARM_EXIT_WITH_SERROR_BIT);
 		*exit_code |= ARM_EXCEPTION_IL;
 	}

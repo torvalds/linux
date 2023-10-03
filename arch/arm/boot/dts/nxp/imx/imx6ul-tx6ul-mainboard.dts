@@ -133,7 +133,7 @@
 	pinctrl-0 = <&pinctrl_disp0_3>;
 };
 
-&reg_usbotg_vbus{
+&reg_usbotg_vbus {
 	status = "disabled";
 };
 

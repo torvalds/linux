@@ -14,6 +14,8 @@
 
 struct rtw89_dev;
 struct rtw89_pci_info;
+struct rtw89_mac_gen_def;
+struct rtw89_phy_gen_def;
 
 extern const struct ieee80211_ops rtw89_ops;
 
@@ -109,6 +111,14 @@ enum rtw89_core_chip_id {
 	RTL8852B,
 	RTL8852C,
 	RTL8851B,
+	RTL8922A,
+};
+
+enum rtw89_chip_gen {
+	RTW89_CHIP_AX,
+	RTW89_CHIP_BE,
+
+	RTW89_CHIP_GEN_NUM,
 };
 
 enum rtw89_cv {
@@ -387,10 +397,201 @@ enum rtw89_hw_rate {
 	RTW89_HW_RATE_HE_NSS4_MCS9	= 0x1B9,
 	RTW89_HW_RATE_HE_NSS4_MCS10	= 0x1BA,
 	RTW89_HW_RATE_HE_NSS4_MCS11	= 0x1BB,
+
+	RTW89_HW_RATE_V1_MCS0		= 0x100,
+	RTW89_HW_RATE_V1_MCS1		= 0x101,
+	RTW89_HW_RATE_V1_MCS2		= 0x102,
+	RTW89_HW_RATE_V1_MCS3		= 0x103,
+	RTW89_HW_RATE_V1_MCS4		= 0x104,
+	RTW89_HW_RATE_V1_MCS5		= 0x105,
+	RTW89_HW_RATE_V1_MCS6		= 0x106,
+	RTW89_HW_RATE_V1_MCS7		= 0x107,
+	RTW89_HW_RATE_V1_MCS8		= 0x108,
+	RTW89_HW_RATE_V1_MCS9		= 0x109,
+	RTW89_HW_RATE_V1_MCS10		= 0x10A,
+	RTW89_HW_RATE_V1_MCS11		= 0x10B,
+	RTW89_HW_RATE_V1_MCS12		= 0x10C,
+	RTW89_HW_RATE_V1_MCS13		= 0x10D,
+	RTW89_HW_RATE_V1_MCS14		= 0x10E,
+	RTW89_HW_RATE_V1_MCS15		= 0x10F,
+	RTW89_HW_RATE_V1_MCS16		= 0x110,
+	RTW89_HW_RATE_V1_MCS17		= 0x111,
+	RTW89_HW_RATE_V1_MCS18		= 0x112,
+	RTW89_HW_RATE_V1_MCS19		= 0x113,
+	RTW89_HW_RATE_V1_MCS20		= 0x114,
+	RTW89_HW_RATE_V1_MCS21		= 0x115,
+	RTW89_HW_RATE_V1_MCS22		= 0x116,
+	RTW89_HW_RATE_V1_MCS23		= 0x117,
+	RTW89_HW_RATE_V1_MCS24		= 0x118,
+	RTW89_HW_RATE_V1_MCS25		= 0x119,
+	RTW89_HW_RATE_V1_MCS26		= 0x11A,
+	RTW89_HW_RATE_V1_MCS27		= 0x11B,
+	RTW89_HW_RATE_V1_MCS28		= 0x11C,
+	RTW89_HW_RATE_V1_MCS29		= 0x11D,
+	RTW89_HW_RATE_V1_MCS30		= 0x11E,
+	RTW89_HW_RATE_V1_MCS31		= 0x11F,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS0	= 0x200,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS1	= 0x201,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS2	= 0x202,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS3	= 0x203,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS4	= 0x204,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS5	= 0x205,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS6	= 0x206,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS7	= 0x207,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS8	= 0x208,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS9	= 0x209,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS10	= 0x20A,
+	RTW89_HW_RATE_V1_VHT_NSS1_MCS11	= 0x20B,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS0	= 0x220,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS1	= 0x221,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS2	= 0x222,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS3	= 0x223,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS4	= 0x224,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS5	= 0x225,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS6	= 0x226,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS7	= 0x227,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS8	= 0x228,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS9	= 0x229,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS10	= 0x22A,
+	RTW89_HW_RATE_V1_VHT_NSS2_MCS11	= 0x22B,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS0	= 0x240,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS1	= 0x241,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS2	= 0x242,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS3	= 0x243,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS4	= 0x244,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS5	= 0x245,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS6	= 0x246,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS7	= 0x247,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS8	= 0x248,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS9	= 0x249,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS10	= 0x24A,
+	RTW89_HW_RATE_V1_VHT_NSS3_MCS11	= 0x24B,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS0	= 0x260,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS1	= 0x261,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS2	= 0x262,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS3	= 0x263,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS4	= 0x264,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS5	= 0x265,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS6	= 0x266,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS7	= 0x267,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS8	= 0x268,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS9	= 0x269,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS10	= 0x26A,
+	RTW89_HW_RATE_V1_VHT_NSS4_MCS11	= 0x26B,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS0	= 0x300,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS1	= 0x301,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS2	= 0x302,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS3	= 0x303,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS4	= 0x304,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS5	= 0x305,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS6	= 0x306,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS7	= 0x307,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS8	= 0x308,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS9	= 0x309,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS10	= 0x30A,
+	RTW89_HW_RATE_V1_HE_NSS1_MCS11	= 0x30B,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS0	= 0x320,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS1	= 0x321,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS2	= 0x322,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS3	= 0x323,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS4	= 0x324,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS5	= 0x325,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS6	= 0x326,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS7	= 0x327,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS8	= 0x328,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS9	= 0x329,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS10	= 0x32A,
+	RTW89_HW_RATE_V1_HE_NSS2_MCS11	= 0x32B,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS0	= 0x340,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS1	= 0x341,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS2	= 0x342,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS3	= 0x343,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS4	= 0x344,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS5	= 0x345,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS6	= 0x346,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS7	= 0x347,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS8	= 0x348,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS9	= 0x349,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS10	= 0x34A,
+	RTW89_HW_RATE_V1_HE_NSS3_MCS11	= 0x34B,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS0	= 0x360,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS1	= 0x361,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS2	= 0x362,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS3	= 0x363,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS4	= 0x364,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS5	= 0x365,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS6	= 0x366,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS7	= 0x367,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS8	= 0x368,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS9	= 0x369,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS10	= 0x36A,
+	RTW89_HW_RATE_V1_HE_NSS4_MCS11	= 0x36B,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS0	= 0x400,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS1	= 0x401,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS2	= 0x402,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS3	= 0x403,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS4	= 0x404,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS5	= 0x405,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS6	= 0x406,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS7	= 0x407,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS8	= 0x408,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS9	= 0x409,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS10	= 0x40A,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS11	= 0x40B,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS12	= 0x40C,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS13	= 0x40D,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS14	= 0x40E,
+	RTW89_HW_RATE_V1_EHT_NSS1_MCS15	= 0x40F,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS0	= 0x420,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS1	= 0x421,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS2	= 0x422,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS3	= 0x423,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS4	= 0x424,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS5	= 0x425,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS6	= 0x426,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS7	= 0x427,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS8	= 0x428,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS9	= 0x429,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS10	= 0x42A,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS11	= 0x42B,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS12	= 0x42C,
+	RTW89_HW_RATE_V1_EHT_NSS2_MCS13	= 0x42D,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS0	= 0x440,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS1	= 0x441,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS2	= 0x442,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS3	= 0x443,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS4	= 0x444,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS5	= 0x445,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS6	= 0x446,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS7	= 0x447,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS8	= 0x448,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS9	= 0x449,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS10	= 0x44A,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS11	= 0x44B,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS12	= 0x44C,
+	RTW89_HW_RATE_V1_EHT_NSS3_MCS13	= 0x44D,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS0	= 0x460,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS1	= 0x461,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS2	= 0x462,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS3	= 0x463,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS4	= 0x464,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS5	= 0x465,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS6	= 0x466,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS7	= 0x467,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS8	= 0x468,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS9	= 0x469,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS10	= 0x46A,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS11	= 0x46B,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS12	= 0x46C,
+	RTW89_HW_RATE_V1_EHT_NSS4_MCS13	= 0x46D,
+
 	RTW89_HW_RATE_NR,
+	RTW89_HW_RATE_INVAL,
 
 	RTW89_HW_RATE_MASK_MOD = GENMASK(8, 7),
 	RTW89_HW_RATE_MASK_VAL = GENMASK(6, 0),
+	RTW89_HW_RATE_V1_MASK_MOD = GENMASK(10, 8),
+	RTW89_HW_RATE_V1_MASK_VAL = GENMASK(7, 0),
 };
 
 /* 2G channels,
@@ -590,6 +791,7 @@ enum rtw89_phy_idx {
 
 enum rtw89_sub_entity_idx {
 	RTW89_SUB_ENTITY_0 = 0,
+	RTW89_SUB_ENTITY_1 = 1,
 
 	NUM_OF_RTW89_SUB_ENTITY,
 	RTW89_SUB_ENTITY_IDLE = NUM_OF_RTW89_SUB_ENTITY,
@@ -701,6 +903,7 @@ struct rtw89_chan {
 struct rtw89_chan_rcd {
 	u8 prev_primary_channel;
 	enum rtw89_band prev_band_type;
+	bool band_changed;
 };
 
 struct rtw89_channel_help_params {
@@ -2457,6 +2660,17 @@ struct rtw89_btc {
 	bool lps;
 };
 
+enum rtw89_btc_hmsg {
+	RTW89_BTC_HMSG_TMR_EN = 0x0,
+	RTW89_BTC_HMSG_BT_REG_READBACK = 0x1,
+	RTW89_BTC_HMSG_SET_BT_REQ_SLOT = 0x2,
+	RTW89_BTC_HMSG_FW_EV = 0x3,
+	RTW89_BTC_HMSG_BT_LINK_CHG = 0x4,
+	RTW89_BTC_HMSG_SET_BT_REQ_STBC = 0x5,
+
+	NUM_OF_RTW89_BTC_HMSG,
+};
+
 enum rtw89_ra_mode {
 	RTW89_RA_MODE_CCK = BIT(0),
 	RTW89_RA_MODE_OFDM = BIT(1),
@@ -2504,9 +2718,10 @@ struct rtw89_ra_info {
 	 * Bit2 : HT
 	 * Bit3 : VHT
 	 * Bit4 : HE
+	 * Bit5 : EHT
 	 */
-	u8 mode_ctrl:5;
-	u8 bw_cap:2;
+	u8 mode_ctrl:6;
+	u8 bw_cap:3; /* enum rtw89_bandwidth */
 	u8 macid;
 	u8 dcm_cap:1;
 	u8 er_cap:1;
@@ -2685,6 +2900,32 @@ struct rtw89_roc {
 
 #define RTW89_P2P_MAX_NOA_NUM 2
 
+struct rtw89_p2p_ie_head {
+	u8 eid;
+	u8 ie_len;
+	u8 oui[3];
+	u8 oui_type;
+} __packed;
+
+struct rtw89_noa_attr_head {
+	u8 attr_type;
+	__le16 attr_len;
+	u8 index;
+	u8 oppps_ctwindow;
+} __packed;
+
+struct rtw89_p2p_noa_ie {
+	struct rtw89_p2p_ie_head p2p_head;
+	struct rtw89_noa_attr_head noa_head;
+	struct ieee80211_p2p_noa_desc noa_desc[RTW89_P2P_MAX_NOA_NUM];
+} __packed;
+
+struct rtw89_p2p_noa_setter {
+	struct rtw89_p2p_noa_ie ie;
+	u8 noa_count;
+	u8 noa_index;
+};
+
 struct rtw89_vif {
 	struct list_head list;
 	struct rtw89_dev *rtwdev;
@@ -2727,6 +2968,7 @@ struct rtw89_vif {
 	struct cfg80211_scan_request *scan_req;
 	struct ieee80211_scan_ies *scan_ies;
 	struct list_head general_pkt_list;
+	struct rtw89_p2p_noa_setter p2p_noa;
 };
 
 enum rtw89_lv1_rcvy_step {
@@ -3139,6 +3381,10 @@ struct rtw89_dig_regs {
 	u32 seg0_pd_reg;
 	u32 pd_lower_bound_mask;
 	u32 pd_spatial_reuse_en;
+	u32 bmode_pd_reg;
+	u32 bmode_cca_rssi_limit_en;
+	u32 bmode_pd_lower_bound_reg;
+	u32 bmode_rssi_nocca_low_th_mask;
 	struct rtw89_reg_def p0_lna_init;
 	struct rtw89_reg_def p1_lna_init;
 	struct rtw89_reg_def p0_tia_init;
@@ -3175,12 +3421,32 @@ struct rtw89_antdiv_info {
 	bool get_stats;
 };
 
+enum rtw89_chanctx_state {
+	RTW89_CHANCTX_STATE_MCC_START,
+	RTW89_CHANCTX_STATE_MCC_STOP,
+};
+
+enum rtw89_chanctx_callbacks {
+	RTW89_CHANCTX_CALLBACK_PLACEHOLDER,
+
+	NUM_OF_RTW89_CHANCTX_CALLBACKS,
+};
+
+struct rtw89_chanctx_listener {
+	void (*callbacks[NUM_OF_RTW89_CHANCTX_CALLBACKS])
+		(struct rtw89_dev *rtwdev, enum rtw89_chanctx_state state);
+};
+
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
+	enum rtw89_chip_gen chip_gen;
 	const struct rtw89_chip_ops *ops;
+	const struct rtw89_mac_gen_def *mac_def;
+	const struct rtw89_phy_gen_def *phy_def;
 	const char *fw_basename;
 	u8 fw_format_max;
 	bool try_ce_fw;
+	u32 needed_fw_elms;
 	u32 fifo_size;
 	bool small_fifo_size;
 	u32 dle_scc_rsvd_size;
@@ -3232,6 +3498,7 @@ struct rtw89_chip_info {
 	/* NULL if no rfe-specific, or a null-terminated array by rfe_parms */
 	const struct rtw89_rfe_parms_conf *rfe_parms_conf;
 	const struct rtw89_rfe_parms *dflt_parms;
+	const struct rtw89_chanctx_listener *chanctx_listener;
 
 	u8 txpwr_factor_rf;
 	u8 txpwr_factor_mac;
@@ -3347,6 +3614,9 @@ enum rtw89_fw_type {
 	RTW89_FW_NORMAL = 1,
 	RTW89_FW_WOWLAN = 3,
 	RTW89_FW_NORMAL_CE = 5,
+	RTW89_FW_BBMCU0 = 64,
+	RTW89_FW_BBMCU1 = 65,
+	RTW89_FW_LOGFMT = 255,
 };
 
 enum rtw89_fw_feature {
@@ -3361,6 +3631,7 @@ enum rtw89_fw_feature {
 };
 
 struct rtw89_fw_suit {
+	enum rtw89_fw_type type;
 	const u8 *data;
 	u32 size;
 	u8 major_ver;
@@ -3373,6 +3644,8 @@ struct rtw89_fw_suit {
 	u16 build_hour;
 	u16 build_min;
 	u8 cmd_ver;
+	u8 hdr_ver;
+	u32 commitid;
 };
 
 #define RTW89_FW_VER_CODE(major, minor, sub, idx)	\
@@ -3397,6 +3670,22 @@ struct rtw89_fw_req_info {
 	struct completion completion;
 };
 
+struct rtw89_fw_log {
+	struct rtw89_fw_suit suit;
+	bool enable;
+	u32 last_fmt_id;
+	u32 fmt_count;
+	const __le32 *fmt_ids;
+	const char *(*fmts)[];
+};
+
+struct rtw89_fw_elm_info {
+	struct rtw89_phy_table *bb_tbl;
+	struct rtw89_phy_table *bb_gain;
+	struct rtw89_phy_table *rf_radio[RF_PATH_MAX];
+	struct rtw89_phy_table *rf_nctl;
+};
+
 struct rtw89_fw_info {
 	struct rtw89_fw_req_info req;
 	int fw_format;
@@ -3406,8 +3695,11 @@ struct rtw89_fw_info {
 	u8 c2h_counter;
 	struct rtw89_fw_suit normal;
 	struct rtw89_fw_suit wowlan;
-	bool fw_log_enable;
+	struct rtw89_fw_suit bbmcu0;
+	struct rtw89_fw_suit bbmcu1;
+	struct rtw89_fw_log log;
 	u32 feature_map;
+	struct rtw89_fw_elm_info elm_info;
 };
 
 #define RTW89_CHK_FW_FEATURE(_feat, _fw) \
@@ -3463,12 +3755,34 @@ struct rtw89_sar_info {
 	};
 };
 
+enum rtw89_tas_state {
+	RTW89_TAS_STATE_DPR_OFF,
+	RTW89_TAS_STATE_DPR_ON,
+	RTW89_TAS_STATE_DPR_FORBID,
+};
+
+#define RTW89_TAS_MAX_WINDOW 50
+struct rtw89_tas_info {
+	s16 txpwr_history[RTW89_TAS_MAX_WINDOW];
+	s32 total_txpwr;
+	u8 cur_idx;
+	s8 dpr_gap;
+	s8 delta;
+	enum rtw89_tas_state state;
+	bool enable;
+};
+
 struct rtw89_chanctx_cfg {
 	enum rtw89_sub_entity_idx idx;
 };
 
 enum rtw89_entity_mode {
 	RTW89_ENTITY_MODE_SCC,
+	RTW89_ENTITY_MODE_MCC_PREPARE,
+	RTW89_ENTITY_MODE_MCC,
+
+	NUM_OF_RTW89_ENTITY_MODE,
+	RTW89_ENTITY_MODE_INVALID = NUM_OF_RTW89_ENTITY_MODE,
 };
 
 struct rtw89_sub_entity {
@@ -4125,6 +4439,7 @@ struct rtw89_dev {
 	struct rtw89_antdiv_info antdiv;
 
 	struct delayed_work track_work;
+	struct delayed_work chanctx_work;
 	struct delayed_work coex_act1_work;
 	struct delayed_work coex_bt_devinfo_work;
 	struct delayed_work coex_rfk_chk_work;
@@ -4138,6 +4453,7 @@ struct rtw89_dev {
 
 	struct rtw89_regulatory_info regulatory;
 	struct rtw89_sar_info sar;
+	struct rtw89_tas_info tas;
 
 	struct rtw89_btc btc;
 	enum rtw89_ps_mode ps_mode;
@@ -4673,6 +4989,18 @@ const struct rtw89_chan_rcd *rtw89_chan_rcd_get(struct rtw89_dev *rtwdev,
 	return &hal->sub[idx].rcd;
 }
 
+static inline
+const struct rtw89_chan *rtw89_scan_chan_get(struct rtw89_dev *rtwdev)
+{
+	struct ieee80211_vif *vif = rtwdev->scan_info.scanning_vif;
+	struct rtw89_vif *rtwvif = vif_to_rtwvif_safe(vif);
+
+	if (rtwvif)
+		return rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
+	else
+		return rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+}
+
 static inline void rtw89_chip_fem_setup(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
@@ -4940,8 +5268,19 @@ static inline struct rtw89_fw_suit *rtw89_fw_suit_get(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 
-	if (type == RTW89_FW_WOWLAN)
+	switch (type) {
+	case RTW89_FW_WOWLAN:
 		return &fw_info->wowlan;
+	case RTW89_FW_LOGFMT:
+		return &fw_info->log.suit;
+	case RTW89_FW_BBMCU0:
+		return &fw_info->bbmcu0;
+	case RTW89_FW_BBMCU1:
+		return &fw_info->bbmcu1;
+	default:
+		break;
+	}
+
 	return &fw_info->normal;
 }
 
@@ -5035,6 +5374,8 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 void rtw89_free_ieee80211_hw(struct rtw89_dev *rtwdev);
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev);
 void rtw89_get_default_chandef(struct cfg80211_chan_def *chandef);
+void rtw89_get_channel_params(const struct cfg80211_chan_def *chandef,
+			      struct rtw89_chan *chan);
 void rtw89_set_channel(struct rtw89_dev *rtwdev);
 void rtw89_get_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		       struct rtw89_chan *chan);
@@ -5069,5 +5410,6 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 			      struct ieee80211_vif *vif, bool hw_scan);
 void rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif *rtwvif, bool active);
+void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event);
 
 #endif

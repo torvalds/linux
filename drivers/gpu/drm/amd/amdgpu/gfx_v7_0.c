@@ -90,8 +90,7 @@ MODULE_FIRMWARE("amdgpu/mullins_ce.bin");
 MODULE_FIRMWARE("amdgpu/mullins_rlc.bin");
 MODULE_FIRMWARE("amdgpu/mullins_mec.bin");
 
-static const struct amdgpu_gds_reg_offset amdgpu_gds_reg_offset[] =
-{
+static const struct amdgpu_gds_reg_offset amdgpu_gds_reg_offset[] = {
 	{mmGDS_VMID0_BASE, mmGDS_VMID0_SIZE, mmGDS_GWS_VMID0, mmGDS_OA_VMID0},
 	{mmGDS_VMID1_BASE, mmGDS_VMID1_SIZE, mmGDS_GWS_VMID1, mmGDS_OA_VMID1},
 	{mmGDS_VMID2_BASE, mmGDS_VMID2_SIZE, mmGDS_GWS_VMID2, mmGDS_OA_VMID2},
@@ -110,8 +109,7 @@ static const struct amdgpu_gds_reg_offset amdgpu_gds_reg_offset[] =
 	{mmGDS_VMID15_BASE, mmGDS_VMID15_SIZE, mmGDS_GWS_VMID15, mmGDS_OA_VMID15}
 };
 
-static const u32 spectre_rlc_save_restore_register_list[] =
-{
+static const u32 spectre_rlc_save_restore_register_list[] = {
 	(0x0e00 << 16) | (0xc12c >> 2),
 	0x00000000,
 	(0x0e00 << 16) | (0xc140 >> 2),
@@ -557,8 +555,7 @@ static const u32 spectre_rlc_save_restore_register_list[] =
 	(0x0e00 << 16) | (0x9600 >> 2),
 };
 
-static const u32 kalindi_rlc_save_restore_register_list[] =
-{
+static const u32 kalindi_rlc_save_restore_register_list[] = {
 	(0x0e00 << 16) | (0xc12c >> 2),
 	0x00000000,
 	(0x0e00 << 16) | (0xc140 >> 2),
@@ -933,7 +930,8 @@ static int gfx_v7_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_MULLINS:
 		chip_name = "mullins";
 		break;
-	default: BUG();
+	default:
+		BUG();
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_pfp.bin", chip_name);
@@ -2759,8 +2757,7 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-struct hqd_registers
-{
+struct hqd_registers {
 	u32 cp_mqd_base_addr;
 	u32 cp_mqd_base_addr_hi;
 	u32 cp_hqd_active;
@@ -5122,13 +5119,13 @@ static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 				gfx_v7_0_set_user_cu_inactive_bitmap(
 					adev, disable_masks[i * 2 + j]);
 			bitmap = gfx_v7_0_get_cu_active_bitmap(adev);
-			cu_info->bitmap[i][j] = bitmap;
+			cu_info->bitmap[0][i][j] = bitmap;
 
-			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k ++) {
+			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k++) {
 				if (bitmap & mask) {
 					if (counter < ao_cu_num)
 						ao_bitmap |= mask;
-					counter ++;
+					counter++;
 				}
 				mask <<= 1;
 			}
@@ -5150,8 +5147,7 @@ static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 	cu_info->lds_size = 64;
 }
 
-const struct amdgpu_ip_block_version gfx_v7_1_ip_block =
-{
+const struct amdgpu_ip_block_version gfx_v7_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
 	.major = 7,
 	.minor = 1,
@@ -5159,8 +5155,7 @@ const struct amdgpu_ip_block_version gfx_v7_1_ip_block =
 	.funcs = &gfx_v7_0_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version gfx_v7_2_ip_block =
-{
+const struct amdgpu_ip_block_version gfx_v7_2_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
 	.major = 7,
 	.minor = 2,
@@ -5168,8 +5163,7 @@ const struct amdgpu_ip_block_version gfx_v7_2_ip_block =
 	.funcs = &gfx_v7_0_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version gfx_v7_3_ip_block =
-{
+const struct amdgpu_ip_block_version gfx_v7_3_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
 	.major = 7,
 	.minor = 3,

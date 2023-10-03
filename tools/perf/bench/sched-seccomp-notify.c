@@ -9,7 +9,7 @@
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
 #include <linux/time64.h>
-#include <linux/seccomp.h>
+#include <uapi/linux/seccomp.h>
 #include <sys/prctl.h>
 
 #include <unistd.h>

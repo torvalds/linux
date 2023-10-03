@@ -32,7 +32,7 @@
 #define  CDNS_PCIE_LM_ID_SUBSYS(sub) \
 	(((sub) << CDNS_PCIE_LM_ID_SUBSYS_SHIFT) & CDNS_PCIE_LM_ID_SUBSYS_MASK)
 
-/* Root Port Requestor ID Register */
+/* Root Port Requester ID Register */
 #define CDNS_PCIE_LM_RP_RID	(CDNS_PCIE_LM_BASE + 0x0228)
 #define  CDNS_PCIE_LM_RP_RID_MASK	GENMASK(15, 0)
 #define  CDNS_PCIE_LM_RP_RID_SHIFT	0

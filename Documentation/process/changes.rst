@@ -31,8 +31,8 @@ you probably needn't concern yourself with pcmciautils.
 ====================== ===============  ========================================
 GNU C                  5.1              gcc --version
 Clang/LLVM (optional)  11.0.0           clang --version
-Rust (optional)        1.68.2           rustc --version
-bindgen (optional)     0.56.0           bindgen --version
+Rust (optional)        1.71.1           rustc --version
+bindgen (optional)     0.65.1           bindgen --version
 GNU make               3.82             make --version
 bash                   4.2              bash --version
 binutils               2.25             ld -v
@@ -482,7 +482,7 @@ E2fsprogs
 JFSutils
 --------
 
-- <http://jfs.sourceforge.net/>
+- <https://jfs.sourceforge.net/>
 
 Reiserfsprogs
 -------------
@@ -503,7 +503,7 @@ Pcmciautils
 Quota-tools
 -----------
 
-- <http://sourceforge.net/projects/linuxquota/>
+- <https://sourceforge.net/projects/linuxquota/>
 
 
 Intel P6 microcode
@@ -524,7 +524,7 @@ FUSE
 mcelog
 ------
 
-- <http://www.mcelog.org/>
+- <https://www.mcelog.org/>
 
 cpio
 ----
@@ -544,7 +544,8 @@ PPP
 NFS-utils
 ---------
 
-- <http://sourceforge.net/project/showfiles.php?group_id=14>
+- <https://sourceforge.net/project/showfiles.php?group_id=14>
+- <https://nfs.sourceforge.net/>
 
 Iptables
 --------
@@ -559,12 +560,7 @@ Ip-route2
 OProfile
 --------
 
-- <http://oprofile.sf.net/download/>
-
-NFS-Utils
----------
-
-- <http://nfs.sourceforge.net/>
+- <https://oprofile.sf.net/download/>
 
 Kernel documentation
 ********************

@@ -1,0 +1,39 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+set -e
+
+destdir=${1}
+
+test -n "${srctree}"
+test -n "${SRCARCH}"
+
+is_enabled() {
+	grep -q "^$1=y" include/config/auto.conf
+}
+
+mkdir -p "${destdir}"
+
+(
+	cd "${srctree}"
+	echo Makefile
+	find "arch/${SRCARCH}" -maxdepth 1 -name 'Makefile*'
+	find include scripts -type f -o -type l
+	find "arch/${SRCARCH}" -name Kbuild.platforms -o -name Platform
+	find "arch/${SRCARCH}" -name include -o -name scripts -type d
+) | tar -c -f - -C "${srctree}" -T - | tar -xf - -C "${destdir}"
+
+{
+	if is_enabled CONFIG_OBJTOOL; then
+		echo tools/objtool/objtool
+	fi
+
+	find "arch/${SRCARCH}/include" Module.symvers include scripts -type f
+
+	if is_enabled CONFIG_GCC_PLUGINS; then
+		find scripts/gcc-plugins -name '*.so'
+	fi
+} | tar -c -f - -T - | tar -xf - -C "${destdir}"
+
+# copy .config manually to be where it's expected to be
+cp "${KCONFIG_CONFIG}" "${destdir}/.config"

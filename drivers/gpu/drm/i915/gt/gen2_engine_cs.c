@@ -76,7 +76,7 @@ int gen4_emit_flush_rcs(struct i915_request *rq, u32 mode)
 	cmd = MI_FLUSH;
 	if (mode & EMIT_INVALIDATE) {
 		cmd |= MI_EXE_FLUSH;
-		if (IS_G4X(rq->engine->i915) || GRAPHICS_VER(rq->engine->i915) == 5)
+		if (IS_G4X(rq->i915) || GRAPHICS_VER(rq->i915) == 5)
 			cmd |= MI_INVALIDATE_ISP;
 	}
 

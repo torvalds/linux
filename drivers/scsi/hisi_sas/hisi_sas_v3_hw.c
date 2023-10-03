@@ -1326,7 +1326,7 @@ static void prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
 
 	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
 	if (!tmf) {
-		buf_cmd[9] = ssp_task->task_attr | (ssp_task->task_prio << 3);
+		buf_cmd[9] = ssp_task->task_attr;
 		memcpy(buf_cmd + 12, scsi_cmnd->cmnd, scsi_cmnd->cmd_len);
 	} else {
 		buf_cmd[10] = tmf->tmf;
@@ -2257,7 +2257,8 @@ slot_err_v3_hw(struct hisi_hba *hisi_hba, struct sas_task *task,
 			ts->stat = SAS_OPEN_REJECT;
 			ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		}
-		hisi_sas_sata_done(task, slot);
+		if (dw0 & CMPLT_HDR_RSPNS_XFRD_MSK)
+			hisi_sas_sata_done(task, slot);
 		break;
 	case SAS_PROTOCOL_SMP:
 		ts->stat = SAS_SAM_STAT_CHECK_CONDITION;
@@ -2384,7 +2385,8 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
 		ts->stat = SAS_SAM_STAT_GOOD;
-		hisi_sas_sata_done(task, slot);
+		if (dw0 & CMPLT_HDR_RSPNS_XFRD_MSK)
+			hisi_sas_sata_done(task, slot);
 		break;
 	default:
 		ts->stat = SAS_SAM_STAT_CHECK_CONDITION;
@@ -3104,21 +3106,25 @@ static const struct hisi_sas_debugfs_reg debugfs_ras_reg = {
 
 static void debugfs_snapshot_prepare_v3_hw(struct hisi_hba *hisi_hba)
 {
-	set_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+	struct Scsi_Host *shost = hisi_hba->shost;
 
-	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0);
-
+	scsi_block_requests(shost);
 	wait_cmds_complete_timeout_v3_hw(hisi_hba, 100, 5000);
 
+	set_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 	hisi_sas_sync_cqs(hisi_hba);
+	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0);
 }
 
 static void debugfs_snapshot_restore_v3_hw(struct hisi_hba *hisi_hba)
 {
+	struct Scsi_Host *shost = hisi_hba->shost;
+
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE,
 			 (u32)((1ULL << hisi_hba->queue_count) - 1));
 
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+	scsi_unblock_requests(shost);
 }
 
 static void read_iost_itct_cache_v3_hw(struct hisi_hba *hisi_hba,
@@ -4576,7 +4582,7 @@ static int debugfs_fifo_data_v3_hw_show(struct seq_file *s, void *p)
 	debugfs_read_fifo_data_v3_hw(phy);
 
 	debugfs_show_row_32_v3_hw(s, 0, HISI_SAS_FIFO_DATA_DW_SIZE * 4,
-				  phy->fifo.rd_data);
+				  (__le32 *)phy->fifo.rd_data);
 
 	return 0;
 }
@@ -4950,7 +4956,7 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	sha->sas_phy = arr_phy;
 	sha->sas_port = arr_port;
-	sha->core.shost = shost;
+	sha->shost = shost;
 	sha->lldd_ha = hisi_hba;
 
 	shost->transportt = hisi_sas_stt;
@@ -4967,7 +4973,6 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	sha->sas_ha_name = DRV_NAME;
 	sha->dev = dev;
-	sha->lldd_module = THIS_MODULE;
 	sha->sas_addr = &hisi_hba->sas_addr[0];
 	sha->num_phys = hisi_hba->n_phy;
 
@@ -5055,14 +5060,14 @@ static void hisi_sas_v3_remove(struct pci_dev *pdev)
 	struct device *dev = &pdev->dev;
 	struct sas_ha_struct *sha = dev_get_drvdata(dev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
-	struct Scsi_Host *shost = sha->core.shost;
+	struct Scsi_Host *shost = sha->shost;
 
 	pm_runtime_get_noresume(dev);
 	del_timer_sync(&hisi_hba->timer);
 
 	sas_unregister_ha(sha);
 	flush_workqueue(hisi_hba->wq);
-	sas_remove_host(sha->core.shost);
+	sas_remove_host(shost);
 
 	hisi_sas_v3_destroy_irqs(pdev, hisi_hba);
 	hisi_sas_free(hisi_hba);

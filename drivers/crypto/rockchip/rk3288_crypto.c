@@ -10,14 +10,21 @@
  */
 
 #include "rk3288_crypto.h"
+#include <crypto/engine.h>
+#include <crypto/internal/hash.h>
+#include <crypto/internal/skcipher.h>
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
+#include <linux/debugfs.h>
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/clk.h>
-#include <linux/crypto.h>
 #include <linux/reset.h>
+#include <linux/spinlock.h>
 
 static struct rockchip_ip rocklist = {
 	.dev_list = LIST_HEAD_INIT(rocklist.dev_list),
@@ -184,7 +191,6 @@ static struct rk_crypto_tmp *rk_cipher_algs[] = {
 	&rk_ahash_md5,
 };
 
-#ifdef CONFIG_CRYPTO_DEV_ROCKCHIP_DEBUG
 static int rk_crypto_debugfs_show(struct seq_file *seq, void *v)
 {
 	struct rk_crypto_info *dd;
@@ -204,8 +210,8 @@ static int rk_crypto_debugfs_show(struct seq_file *seq, void *v)
 		switch (rk_cipher_algs[i]->type) {
 		case CRYPTO_ALG_TYPE_SKCIPHER:
 			seq_printf(seq, "%s %s reqs=%lu fallback=%lu\n",
-				   rk_cipher_algs[i]->alg.skcipher.base.cra_driver_name,
-				   rk_cipher_algs[i]->alg.skcipher.base.cra_name,
+				   rk_cipher_algs[i]->alg.skcipher.base.base.cra_driver_name,
+				   rk_cipher_algs[i]->alg.skcipher.base.base.cra_name,
 				   rk_cipher_algs[i]->stat_req, rk_cipher_algs[i]->stat_fb);
 			seq_printf(seq, "\tfallback due to length: %lu\n",
 				   rk_cipher_algs[i]->stat_fb_len);
@@ -216,8 +222,8 @@ static int rk_crypto_debugfs_show(struct seq_file *seq, void *v)
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:
 			seq_printf(seq, "%s %s reqs=%lu fallback=%lu\n",
-				   rk_cipher_algs[i]->alg.hash.halg.base.cra_driver_name,
-				   rk_cipher_algs[i]->alg.hash.halg.base.cra_name,
+				   rk_cipher_algs[i]->alg.hash.base.halg.base.cra_driver_name,
+				   rk_cipher_algs[i]->alg.hash.base.halg.base.cra_name,
 				   rk_cipher_algs[i]->stat_req, rk_cipher_algs[i]->stat_fb);
 			break;
 		}
@@ -226,17 +232,20 @@ static int rk_crypto_debugfs_show(struct seq_file *seq, void *v)
 }
 
 DEFINE_SHOW_ATTRIBUTE(rk_crypto_debugfs);
-#endif
 
 static void register_debugfs(struct rk_crypto_info *crypto_info)
 {
-#ifdef CONFIG_CRYPTO_DEV_ROCKCHIP_DEBUG
+	struct dentry *dbgfs_dir __maybe_unused;
+	struct dentry *dbgfs_stats __maybe_unused;
+
 	/* Ignore error of debugfs */
-	rocklist.dbgfs_dir = debugfs_create_dir("rk3288_crypto", NULL);
-	rocklist.dbgfs_stats = debugfs_create_file("stats", 0444,
-						   rocklist.dbgfs_dir,
-						   &rocklist,
-						   &rk_crypto_debugfs_fops);
+	dbgfs_dir = debugfs_create_dir("rk3288_crypto", NULL);
+	dbgfs_stats = debugfs_create_file("stats", 0444, dbgfs_dir, &rocklist,
+					  &rk_crypto_debugfs_fops);
+
+#ifdef CONFIG_CRYPTO_DEV_ROCKCHIP_DEBUG
+	rocklist.dbgfs_dir = dbgfs_dir;
+	rocklist.dbgfs_stats = dbgfs_stats;
 #endif
 }
 
@@ -250,15 +259,15 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 		switch (rk_cipher_algs[i]->type) {
 		case CRYPTO_ALG_TYPE_SKCIPHER:
 			dev_info(crypto_info->dev, "Register %s as %s\n",
-				 rk_cipher_algs[i]->alg.skcipher.base.cra_name,
-				 rk_cipher_algs[i]->alg.skcipher.base.cra_driver_name);
-			err = crypto_register_skcipher(&rk_cipher_algs[i]->alg.skcipher);
+				 rk_cipher_algs[i]->alg.skcipher.base.base.cra_name,
+				 rk_cipher_algs[i]->alg.skcipher.base.base.cra_driver_name);
+			err = crypto_engine_register_skcipher(&rk_cipher_algs[i]->alg.skcipher);
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:
 			dev_info(crypto_info->dev, "Register %s as %s\n",
-				 rk_cipher_algs[i]->alg.hash.halg.base.cra_name,
-				 rk_cipher_algs[i]->alg.hash.halg.base.cra_driver_name);
-			err = crypto_register_ahash(&rk_cipher_algs[i]->alg.hash);
+				 rk_cipher_algs[i]->alg.hash.base.halg.base.cra_name,
+				 rk_cipher_algs[i]->alg.hash.base.halg.base.cra_driver_name);
+			err = crypto_engine_register_ahash(&rk_cipher_algs[i]->alg.hash);
 			break;
 		default:
 			dev_err(crypto_info->dev, "unknown algorithm\n");
@@ -271,9 +280,9 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 err_cipher_algs:
 	for (k = 0; k < i; k++) {
 		if (rk_cipher_algs[i]->type == CRYPTO_ALG_TYPE_SKCIPHER)
-			crypto_unregister_skcipher(&rk_cipher_algs[k]->alg.skcipher);
+			crypto_engine_unregister_skcipher(&rk_cipher_algs[k]->alg.skcipher);
 		else
-			crypto_unregister_ahash(&rk_cipher_algs[i]->alg.hash);
+			crypto_engine_unregister_ahash(&rk_cipher_algs[i]->alg.hash);
 	}
 	return err;
 }
@@ -284,9 +293,9 @@ static void rk_crypto_unregister(void)
 
 	for (i = 0; i < ARRAY_SIZE(rk_cipher_algs); i++) {
 		if (rk_cipher_algs[i]->type == CRYPTO_ALG_TYPE_SKCIPHER)
-			crypto_unregister_skcipher(&rk_cipher_algs[i]->alg.skcipher);
+			crypto_engine_unregister_skcipher(&rk_cipher_algs[i]->alg.skcipher);
 		else
-			crypto_unregister_ahash(&rk_cipher_algs[i]->alg.hash);
+			crypto_engine_unregister_ahash(&rk_cipher_algs[i]->alg.hash);
 	}
 }
 

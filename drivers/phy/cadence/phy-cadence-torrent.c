@@ -17,8 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
@@ -27,13 +25,10 @@
 #define REF_CLK_19_2MHZ		19200000
 #define REF_CLK_25MHZ		25000000
 #define REF_CLK_100MHZ		100000000
+#define REF_CLK_156_25MHZ	156250000
 
 #define MAX_NUM_LANES		4
 #define DEFAULT_MAX_BIT_RATE	8100 /* in Mbps */
-
-#define NUM_SSC_MODE		3
-#define NUM_REF_CLK		3
-#define NUM_PHY_TYPE		6
 
 #define POLL_TIMEOUT_US		5000
 #define PLL_LOCK_TIMEOUT	100000
@@ -106,6 +101,7 @@
 #define CMN_PLL0_HIGH_THR_M0		0x0093U
 #define CMN_PLL0_DSM_DIAG_M0		0x0094U
 #define CMN_PLL0_DSM_FBH_OVRD_M0	0x0095U
+#define CMN_PLL0_DSM_FBL_OVRD_M0	0x0096U
 #define CMN_PLL0_SS_CTRL1_M0		0x0098U
 #define CMN_PLL0_SS_CTRL2_M0            0x0099U
 #define CMN_PLL0_SS_CTRL3_M0            0x009AU
@@ -196,6 +192,10 @@
 #define RX_PSC_A2			0x0002U
 #define RX_PSC_A3			0x0003U
 #define RX_PSC_CAL			0x0006U
+#define RX_SDCAL0_INIT_TMR		0x0044U
+#define RX_SDCAL0_ITER_TMR		0x0045U
+#define RX_SDCAL1_INIT_TMR		0x004CU
+#define RX_SDCAL1_ITER_TMR		0x004DU
 #define RX_CDRLF_CNFG			0x0080U
 #define RX_CDRLF_CNFG3			0x0082U
 #define RX_SIGDET_HL_FILT_TMR		0x0090U
@@ -294,19 +294,48 @@ enum cdns_torrent_phy_type {
 	TYPE_SGMII,
 	TYPE_QSGMII,
 	TYPE_USB,
+	TYPE_USXGMII,
 };
 
 enum cdns_torrent_ref_clk {
 	CLK_19_2_MHZ,
 	CLK_25_MHZ,
-	CLK_100_MHZ
+	CLK_100_MHZ,
+	CLK_156_25_MHZ,
+	CLK_ANY,
 };
 
 enum cdns_torrent_ssc_mode {
 	NO_SSC,
 	EXTERNAL_SSC,
-	INTERNAL_SSC
+	INTERNAL_SSC,
+	ANY_SSC,
 };
+
+/* Unique key id for vals table entry
+ * REFCLK0_RATE | REFCLK1_RATE | LINK0_TYPE | LINK1_TYPE | SSC_TYPE
+ */
+#define REFCLK0_SHIFT	12
+#define REFCLK0_MASK	GENMASK(14, 12)
+#define REFCLK1_SHIFT	9
+#define REFCLK1_MASK	GENMASK(11, 9)
+#define LINK0_SHIFT	6
+#define LINK0_MASK	GENMASK(8, 6)
+#define LINK1_SHIFT	3
+#define LINK1_MASK	GENMASK(5, 3)
+#define SSC_SHIFT	0
+#define SSC_MASK	GENMASK(2, 0)
+
+#define CDNS_TORRENT_KEY(refclk0, refclk1, link0, link1, ssc) \
+			((((refclk0) << REFCLK0_SHIFT) & REFCLK0_MASK) | \
+			(((refclk1) << REFCLK1_SHIFT) & REFCLK1_MASK) | \
+			(((link0) << LINK0_SHIFT) & LINK0_MASK) | \
+			(((link1) << LINK1_SHIFT) & LINK1_MASK) | \
+			(((ssc) << SSC_SHIFT) & SSC_MASK))
+
+#define CDNS_TORRENT_KEY_ANYCLK(link0, link1) \
+			CDNS_TORRENT_KEY(CLK_ANY, CLK_ANY, \
+					 (link0), (link1), ANY_SSC)
 
 struct cdns_torrent_inst {
 	struct phy *phy;
@@ -394,21 +423,26 @@ struct cdns_torrent_vals {
 	u32 num_regs;
 };
 
+struct cdns_torrent_vals_entry {
+	u32 key;
+	struct cdns_torrent_vals *vals;
+};
+
+struct cdns_torrent_vals_table {
+	struct cdns_torrent_vals_entry *entries;
+	u32 num_entries;
+};
+
 struct cdns_torrent_data {
 	u8 block_offset_shift;
 	u8 reg_offset_shift;
-	struct cdns_torrent_vals *link_cmn_vals[NUM_PHY_TYPE][NUM_PHY_TYPE]
-					       [NUM_SSC_MODE];
-	struct cdns_torrent_vals *xcvr_diag_vals[NUM_PHY_TYPE][NUM_PHY_TYPE]
-						[NUM_SSC_MODE];
-	struct cdns_torrent_vals *pcs_cmn_vals[NUM_PHY_TYPE][NUM_PHY_TYPE]
-					      [NUM_SSC_MODE];
-	struct cdns_torrent_vals *cmn_vals[NUM_REF_CLK][NUM_PHY_TYPE]
-					  [NUM_PHY_TYPE][NUM_SSC_MODE];
-	struct cdns_torrent_vals *tx_ln_vals[NUM_REF_CLK][NUM_PHY_TYPE]
-					    [NUM_PHY_TYPE][NUM_SSC_MODE];
-	struct cdns_torrent_vals *rx_ln_vals[NUM_REF_CLK][NUM_PHY_TYPE]
-					    [NUM_PHY_TYPE][NUM_SSC_MODE];
+	struct cdns_torrent_vals_table link_cmn_vals_tbl;
+	struct cdns_torrent_vals_table xcvr_diag_vals_tbl;
+	struct cdns_torrent_vals_table pcs_cmn_vals_tbl;
+	struct cdns_torrent_vals_table phy_pma_cmn_vals_tbl;
+	struct cdns_torrent_vals_table cmn_vals_tbl;
+	struct cdns_torrent_vals_table tx_ln_vals_tbl;
+	struct cdns_torrent_vals_table rx_ln_vals_tbl;
 };
 
 struct cdns_regmap_cdb_context {
@@ -416,6 +450,24 @@ struct cdns_regmap_cdb_context {
 	void __iomem *base;
 	u8 reg_offset_shift;
 };
+
+static struct cdns_torrent_vals *cdns_torrent_get_tbl_vals(const struct cdns_torrent_vals_table *tbl,
+							   enum cdns_torrent_ref_clk refclk0,
+							   enum cdns_torrent_ref_clk refclk1,
+							   enum cdns_torrent_phy_type link0,
+							   enum cdns_torrent_phy_type link1,
+							   enum cdns_torrent_ssc_mode ssc)
+{
+	int i;
+	u32 key = CDNS_TORRENT_KEY(refclk0, refclk1, link0, link1, ssc);
+
+	for (i = 0; i < tbl->num_entries; i++) {
+		if (tbl->entries[i].key == key)
+			return tbl->entries[i].vals;
+	}
+
+	return NULL;
+}
 
 static int cdns_regmap_write(void *context, unsigned int reg, unsigned int val)
 {
@@ -644,6 +696,8 @@ static const char *cdns_torrent_get_phy_type(enum cdns_torrent_phy_type phy_type
 		return "QSGMII";
 	case TYPE_USB:
 		return "USB";
+	case TYPE_USXGMII:
+		return "USXGMII";
 	default:
 		return "None";
 	}
@@ -2244,6 +2298,7 @@ static int cdns_torrent_phy_init(struct phy *phy)
 	struct cdns_torrent_inst *inst = phy_get_drvdata(phy);
 	enum cdns_torrent_phy_type phy_type = inst->phy_type;
 	enum cdns_torrent_ssc_mode ssc = inst->ssc_mode;
+	struct cdns_torrent_vals *phy_pma_cmn_vals;
 	struct cdns_torrent_vals *pcs_cmn_vals;
 	struct cdns_reg_pairs *reg_pairs;
 	struct regmap *regmap;
@@ -2258,13 +2313,16 @@ static int cdns_torrent_phy_init(struct phy *phy)
 
 	/**
 	 * Spread spectrum generation is not required or supported
-	 * for SGMII/QSGMII
+	 * for SGMII/QSGMII/USXGMII
 	 */
-	if (phy_type == TYPE_SGMII || phy_type == TYPE_QSGMII)
+	if (phy_type == TYPE_SGMII || phy_type == TYPE_QSGMII || phy_type == TYPE_USXGMII)
 		ssc = NO_SSC;
 
 	/* PHY configuration specific registers for single link */
-	link_cmn_vals = init_data->link_cmn_vals[phy_type][TYPE_NONE][ssc];
+	link_cmn_vals = cdns_torrent_get_tbl_vals(&init_data->link_cmn_vals_tbl,
+						  CLK_ANY, CLK_ANY,
+						  phy_type, TYPE_NONE,
+						  ANY_SSC);
 	if (link_cmn_vals) {
 		reg_pairs = link_cmn_vals->reg_pairs;
 		num_regs = link_cmn_vals->num_regs;
@@ -2281,7 +2339,10 @@ static int cdns_torrent_phy_init(struct phy *phy)
 				     reg_pairs[i].val);
 	}
 
-	xcvr_diag_vals = init_data->xcvr_diag_vals[phy_type][TYPE_NONE][ssc];
+	xcvr_diag_vals = cdns_torrent_get_tbl_vals(&init_data->xcvr_diag_vals_tbl,
+						   CLK_ANY, CLK_ANY,
+						   phy_type, TYPE_NONE,
+						   ANY_SSC);
 	if (xcvr_diag_vals) {
 		reg_pairs = xcvr_diag_vals->reg_pairs;
 		num_regs = xcvr_diag_vals->num_regs;
@@ -2294,7 +2355,10 @@ static int cdns_torrent_phy_init(struct phy *phy)
 	}
 
 	/* PHY PCS common registers configurations */
-	pcs_cmn_vals = init_data->pcs_cmn_vals[phy_type][TYPE_NONE][ssc];
+	pcs_cmn_vals = cdns_torrent_get_tbl_vals(&init_data->pcs_cmn_vals_tbl,
+						 CLK_ANY, CLK_ANY,
+						 phy_type, TYPE_NONE,
+						 ANY_SSC);
 	if (pcs_cmn_vals) {
 		reg_pairs = pcs_cmn_vals->reg_pairs;
 		num_regs = pcs_cmn_vals->num_regs;
@@ -2304,8 +2368,25 @@ static int cdns_torrent_phy_init(struct phy *phy)
 				     reg_pairs[i].val);
 	}
 
+	/* PHY PMA common registers configurations */
+	phy_pma_cmn_vals = cdns_torrent_get_tbl_vals(&init_data->phy_pma_cmn_vals_tbl,
+						     CLK_ANY, CLK_ANY,
+						     phy_type, TYPE_NONE,
+						     ANY_SSC);
+	if (phy_pma_cmn_vals) {
+		reg_pairs = phy_pma_cmn_vals->reg_pairs;
+		num_regs = phy_pma_cmn_vals->num_regs;
+		regmap = cdns_phy->regmap_phy_pma_common_cdb;
+		for (i = 0; i < num_regs; i++)
+			regmap_write(regmap, reg_pairs[i].off,
+				     reg_pairs[i].val);
+	}
+
 	/* PMA common registers configurations */
-	cmn_vals = init_data->cmn_vals[ref_clk][phy_type][TYPE_NONE][ssc];
+	cmn_vals = cdns_torrent_get_tbl_vals(&init_data->cmn_vals_tbl,
+					     ref_clk, ref_clk,
+					     phy_type, TYPE_NONE,
+					     ssc);
 	if (cmn_vals) {
 		reg_pairs = cmn_vals->reg_pairs;
 		num_regs = cmn_vals->num_regs;
@@ -2316,7 +2397,10 @@ static int cdns_torrent_phy_init(struct phy *phy)
 	}
 
 	/* PMA TX lane registers configurations */
-	tx_ln_vals = init_data->tx_ln_vals[ref_clk][phy_type][TYPE_NONE][ssc];
+	tx_ln_vals = cdns_torrent_get_tbl_vals(&init_data->tx_ln_vals_tbl,
+					       ref_clk, ref_clk,
+					       phy_type, TYPE_NONE,
+					       ssc);
 	if (tx_ln_vals) {
 		reg_pairs = tx_ln_vals->reg_pairs;
 		num_regs = tx_ln_vals->num_regs;
@@ -2329,7 +2413,10 @@ static int cdns_torrent_phy_init(struct phy *phy)
 	}
 
 	/* PMA RX lane registers configurations */
-	rx_ln_vals = init_data->rx_ln_vals[ref_clk][phy_type][TYPE_NONE][ssc];
+	rx_ln_vals = cdns_torrent_get_tbl_vals(&init_data->rx_ln_vals_tbl,
+					       ref_clk, ref_clk,
+					       phy_type, TYPE_NONE,
+					       ssc);
 	if (rx_ln_vals) {
 		reg_pairs = rx_ln_vals->reg_pairs;
 		num_regs = rx_ln_vals->num_regs;
@@ -2418,7 +2505,9 @@ int cdns_torrent_phy_configure_multilink(struct cdns_torrent_phy *cdns_phy)
 		 * being configured, but these can be different for particular
 		 * PHY type and are per lane.
 		 */
-		link_cmn_vals = init_data->link_cmn_vals[phy_t1][phy_t2][ssc];
+		link_cmn_vals = cdns_torrent_get_tbl_vals(&init_data->link_cmn_vals_tbl,
+							  CLK_ANY, CLK_ANY,
+							  phy_t1, phy_t2, ANY_SSC);
 		if (link_cmn_vals) {
 			reg_pairs = link_cmn_vals->reg_pairs;
 			num_regs = link_cmn_vals->num_regs;
@@ -2436,7 +2525,9 @@ int cdns_torrent_phy_configure_multilink(struct cdns_torrent_phy *cdns_phy)
 					     reg_pairs[i].val);
 		}
 
-		xcvr_diag_vals = init_data->xcvr_diag_vals[phy_t1][phy_t2][ssc];
+		xcvr_diag_vals = cdns_torrent_get_tbl_vals(&init_data->xcvr_diag_vals_tbl,
+							   CLK_ANY, CLK_ANY,
+							   phy_t1, phy_t2, ANY_SSC);
 		if (xcvr_diag_vals) {
 			reg_pairs = xcvr_diag_vals->reg_pairs;
 			num_regs = xcvr_diag_vals->num_regs;
@@ -2449,7 +2540,9 @@ int cdns_torrent_phy_configure_multilink(struct cdns_torrent_phy *cdns_phy)
 		}
 
 		/* PHY PCS common registers configurations */
-		pcs_cmn_vals = init_data->pcs_cmn_vals[phy_t1][phy_t2][ssc];
+		pcs_cmn_vals = cdns_torrent_get_tbl_vals(&init_data->pcs_cmn_vals_tbl,
+							 CLK_ANY, CLK_ANY,
+							 phy_t1, phy_t2, ANY_SSC);
 		if (pcs_cmn_vals) {
 			reg_pairs = pcs_cmn_vals->reg_pairs;
 			num_regs = pcs_cmn_vals->num_regs;
@@ -2460,7 +2553,9 @@ int cdns_torrent_phy_configure_multilink(struct cdns_torrent_phy *cdns_phy)
 		}
 
 		/* PMA common registers configurations */
-		cmn_vals = init_data->cmn_vals[ref_clk][phy_t1][phy_t2][ssc];
+		cmn_vals = cdns_torrent_get_tbl_vals(&init_data->cmn_vals_tbl,
+						     ref_clk, ref_clk,
+						     phy_t1, phy_t2, ssc);
 		if (cmn_vals) {
 			reg_pairs = cmn_vals->reg_pairs;
 			num_regs = cmn_vals->num_regs;
@@ -2471,7 +2566,9 @@ int cdns_torrent_phy_configure_multilink(struct cdns_torrent_phy *cdns_phy)
 		}
 
 		/* PMA TX lane registers configurations */
-		tx_ln_vals = init_data->tx_ln_vals[ref_clk][phy_t1][phy_t2][ssc];
+		tx_ln_vals = cdns_torrent_get_tbl_vals(&init_data->tx_ln_vals_tbl,
+						       ref_clk, ref_clk,
+						       phy_t1, phy_t2, ssc);
 		if (tx_ln_vals) {
 			reg_pairs = tx_ln_vals->reg_pairs;
 			num_regs = tx_ln_vals->num_regs;
@@ -2484,7 +2581,9 @@ int cdns_torrent_phy_configure_multilink(struct cdns_torrent_phy *cdns_phy)
 		}
 
 		/* PMA RX lane registers configurations */
-		rx_ln_vals = init_data->rx_ln_vals[ref_clk][phy_t1][phy_t2][ssc];
+		rx_ln_vals = cdns_torrent_get_tbl_vals(&init_data->rx_ln_vals_tbl,
+						       ref_clk, ref_clk,
+						       phy_t1, phy_t2, ssc);
 		if (rx_ln_vals) {
 			reg_pairs = rx_ln_vals->reg_pairs;
 			num_regs = rx_ln_vals->num_regs;
@@ -2617,6 +2716,9 @@ static int cdns_torrent_clk(struct cdns_torrent_phy *cdns_phy)
 	case REF_CLK_100MHZ:
 		cdns_phy->ref_clk_rate = CLK_100_MHZ;
 		break;
+	case REF_CLK_156_25MHZ:
+		cdns_phy->ref_clk_rate = CLK_156_25_MHZ;
+		break;
 	default:
 		dev_err(cdns_phy->dev, "Invalid Ref Clock Rate\n");
 		clk_disable_unprepare(cdns_phy->clk);
@@ -2735,6 +2837,9 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 			break;
 		case PHY_TYPE_USB3:
 			cdns_phy->phys[node].phy_type = TYPE_USB;
+			break;
+		case PHY_TYPE_USXGMII:
+			cdns_phy->phys[node].phy_type = TYPE_USXGMII;
 			break;
 		default:
 			dev_err(dev, "Unsupported protocol\n");
@@ -2927,6 +3032,123 @@ static struct cdns_torrent_vals usb_dp_xcvr_diag_ln_vals = {
 static struct cdns_torrent_vals dp_usb_xcvr_diag_ln_vals = {
 	.reg_pairs = dp_usb_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(dp_usb_xcvr_diag_ln_regs),
+};
+
+/* TI USXGMII configuration: Enable cmn_refclk_rcv_out_en */
+static struct cdns_reg_pairs ti_usxgmii_phy_pma_cmn_regs[] = {
+	{0x0040, PHY_PMA_CMN_CTRL1},
+};
+
+static struct cdns_torrent_vals ti_usxgmii_phy_pma_cmn_vals = {
+	.reg_pairs = ti_usxgmii_phy_pma_cmn_regs,
+	.num_regs = ARRAY_SIZE(ti_usxgmii_phy_pma_cmn_regs),
+};
+
+/* Single USXGMII link configuration */
+static struct cdns_reg_pairs sl_usxgmii_link_cmn_regs[] = {
+	{0x0000, PHY_PLL_CFG},
+	{0x0400, CMN_PDIAG_PLL0_CLK_SEL_M0}
+};
+
+static struct cdns_reg_pairs sl_usxgmii_xcvr_diag_ln_regs[] = {
+	{0x0000, XCVR_DIAG_HSCLK_SEL},
+	{0x0001, XCVR_DIAG_HSCLK_DIV},
+	{0x0001, XCVR_DIAG_PLLDRC_CTRL}
+};
+
+static struct cdns_torrent_vals sl_usxgmii_link_cmn_vals = {
+	.reg_pairs = sl_usxgmii_link_cmn_regs,
+	.num_regs = ARRAY_SIZE(sl_usxgmii_link_cmn_regs),
+};
+
+static struct cdns_torrent_vals sl_usxgmii_xcvr_diag_ln_vals = {
+	.reg_pairs = sl_usxgmii_xcvr_diag_ln_regs,
+	.num_regs = ARRAY_SIZE(sl_usxgmii_xcvr_diag_ln_regs),
+};
+
+/* Single link USXGMII, 156.25 MHz Ref clk, no SSC */
+static struct cdns_reg_pairs sl_usxgmii_156_25_no_ssc_cmn_regs[] = {
+	{0x0014, CMN_SSM_BIAS_TMR},
+	{0x0028, CMN_PLLSM0_PLLPRE_TMR},
+	{0x00A4, CMN_PLLSM0_PLLLOCK_TMR},
+	{0x0028, CMN_PLLSM1_PLLPRE_TMR},
+	{0x00A4, CMN_PLLSM1_PLLLOCK_TMR},
+	{0x0062, CMN_BGCAL_INIT_TMR},
+	{0x0062, CMN_BGCAL_ITER_TMR},
+	{0x0014, CMN_IBCAL_INIT_TMR},
+	{0x0018, CMN_TXPUCAL_INIT_TMR},
+	{0x0005, CMN_TXPUCAL_ITER_TMR},
+	{0x0018, CMN_TXPDCAL_INIT_TMR},
+	{0x0005, CMN_TXPDCAL_ITER_TMR},
+	{0x024A, CMN_RXCAL_INIT_TMR},
+	{0x0005, CMN_RXCAL_ITER_TMR},
+	{0x000B, CMN_SD_CAL_REFTIM_START},
+	{0x0132, CMN_SD_CAL_PLLCNT_START},
+	{0x0028, CMN_PDIAG_PLL1_CP_PADJ_M0},
+	{0x0014, CMN_PLL0_DSM_FBH_OVRD_M0},
+	{0x0014, CMN_PLL1_DSM_FBH_OVRD_M0},
+	{0x0005, CMN_PLL0_DSM_FBL_OVRD_M0},
+	{0x0005, CMN_PLL1_DSM_FBL_OVRD_M0},
+	{0x061B, CMN_PLL0_VCOCAL_INIT_TMR},
+	{0x061B, CMN_PLL1_VCOCAL_INIT_TMR},
+	{0x0019, CMN_PLL0_VCOCAL_ITER_TMR},
+	{0x0019, CMN_PLL1_VCOCAL_ITER_TMR},
+	{0x1354, CMN_PLL0_VCOCAL_REFTIM_START},
+	{0x1354, CMN_PLL1_VCOCAL_REFTIM_START},
+	{0x1354, CMN_PLL0_VCOCAL_PLLCNT_START},
+	{0x1354, CMN_PLL1_VCOCAL_PLLCNT_START},
+	{0x0003, CMN_PLL0_VCOCAL_TCTRL},
+	{0x0003, CMN_PLL1_VCOCAL_TCTRL},
+	{0x0138, CMN_PLL0_LOCK_REFCNT_START},
+	{0x0138, CMN_PLL1_LOCK_REFCNT_START},
+	{0x0138, CMN_PLL0_LOCK_PLLCNT_START},
+	{0x0138, CMN_PLL1_LOCK_PLLCNT_START}
+};
+
+static struct cdns_reg_pairs usxgmii_156_25_no_ssc_tx_ln_regs[] = {
+	{0x07A2, TX_RCVDET_ST_TMR},
+	{0x00F3, TX_PSC_A0},
+	{0x04A2, TX_PSC_A2},
+	{0x04A2, TX_PSC_A3},
+	{0x0000, TX_TXCC_CPOST_MULT_00},
+	{0x0000, XCVR_DIAG_PSC_OVRD}
+};
+
+static struct cdns_reg_pairs usxgmii_156_25_no_ssc_rx_ln_regs[] = {
+	{0x0014, RX_SDCAL0_INIT_TMR},
+	{0x0062, RX_SDCAL0_ITER_TMR},
+	{0x0014, RX_SDCAL1_INIT_TMR},
+	{0x0062, RX_SDCAL1_ITER_TMR},
+	{0x091D, RX_PSC_A0},
+	{0x0900, RX_PSC_A2},
+	{0x0100, RX_PSC_A3},
+	{0x0030, RX_REE_SMGM_CTRL1},
+	{0x03C7, RX_REE_GCSM1_EQENM_PH1},
+	{0x01C7, RX_REE_GCSM1_EQENM_PH2},
+	{0x0000, RX_DIAG_DFE_CTRL},
+	{0x0019, RX_REE_TAP1_CLIP},
+	{0x0019, RX_REE_TAP2TON_CLIP},
+	{0x00B9, RX_DIAG_NQST_CTRL},
+	{0x0C21, RX_DIAG_DFE_AMP_TUNE_2},
+	{0x0002, RX_DIAG_DFE_AMP_TUNE_3},
+	{0x0033, RX_DIAG_PI_RATE},
+	{0x0001, RX_DIAG_ACYA},
+	{0x018C, RX_CDRLF_CNFG}
+};
+
+static struct cdns_torrent_vals sl_usxgmii_156_25_no_ssc_cmn_vals = {
+	.reg_pairs = sl_usxgmii_156_25_no_ssc_cmn_regs,
+	.num_regs = ARRAY_SIZE(sl_usxgmii_156_25_no_ssc_cmn_regs),
+};
+
+static struct cdns_torrent_vals usxgmii_156_25_no_ssc_tx_ln_vals = {
+	.reg_pairs = usxgmii_156_25_no_ssc_tx_ln_regs,
+	.num_regs = ARRAY_SIZE(usxgmii_156_25_no_ssc_tx_ln_regs),
+};
+
+static struct cdns_torrent_vals usxgmii_156_25_no_ssc_rx_ln_vals = {
+	.reg_pairs = usxgmii_156_25_no_ssc_rx_ln_regs,
+	.num_regs = ARRAY_SIZE(usxgmii_156_25_no_ssc_rx_ln_regs),
 };
 
 /* PCIe and DP link configuration */
@@ -3934,1093 +4156,401 @@ static struct cdns_torrent_vals pcie_100_no_ssc_rx_ln_vals = {
 	.num_regs = ARRAY_SIZE(pcie_100_ext_no_ssc_rx_ln_regs),
 };
 
+static struct cdns_torrent_vals_entry link_cmn_vals_entries[] = {
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_NONE), &sl_dp_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_PCIE), &pcie_dp_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_USB), &usb_dp_link_cmn_vals},
+
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_PCIE, TYPE_NONE), NULL},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_PCIE, TYPE_SGMII), &pcie_sgmii_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_PCIE, TYPE_QSGMII), &pcie_sgmii_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_PCIE, TYPE_USB), &pcie_usb_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_PCIE, TYPE_DP), &pcie_dp_link_cmn_vals},
+
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_NONE), &sl_sgmii_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_PCIE), &pcie_sgmii_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_USB), &usb_sgmii_link_cmn_vals},
+
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_NONE), &sl_sgmii_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_PCIE), &pcie_sgmii_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_USB), &usb_sgmii_link_cmn_vals},
+
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_NONE), &sl_usb_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_PCIE), &pcie_usb_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_SGMII), &usb_sgmii_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_QSGMII), &usb_sgmii_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_DP), &usb_dp_link_cmn_vals},
+
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USXGMII, TYPE_NONE), &sl_usxgmii_link_cmn_vals},
+};
+
+static struct cdns_torrent_vals_entry xcvr_diag_vals_entries[] = {
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_NONE), &sl_dp_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_PCIE), &dp_pcie_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_USB), &dp_usb_xcvr_diag_ln_vals},
+
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_PCIE, TYPE_NONE), NULL},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_PCIE, TYPE_SGMII), &pcie_sgmii_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_PCIE, TYPE_QSGMII), &pcie_sgmii_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_PCIE, TYPE_USB), &pcie_usb_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_PCIE, TYPE_DP), &pcie_dp_xcvr_diag_ln_vals},
+
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_NONE), &sl_sgmii_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_PCIE), &sgmii_pcie_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_USB), &sgmii_usb_xcvr_diag_ln_vals},
+
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_NONE), &sl_sgmii_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_PCIE), &sgmii_pcie_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_USB), &sgmii_usb_xcvr_diag_ln_vals},
+
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_NONE), &sl_usb_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_PCIE), &usb_pcie_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_SGMII), &usb_sgmii_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_QSGMII), &usb_sgmii_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_DP), &usb_dp_xcvr_diag_ln_vals},
+
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USXGMII, TYPE_NONE), &sl_usxgmii_xcvr_diag_ln_vals},
+};
+
+static struct cdns_torrent_vals_entry pcs_cmn_vals_entries[] = {
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_NONE), &usb_phy_pcs_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_PCIE), &usb_phy_pcs_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_SGMII), &usb_phy_pcs_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_QSGMII), &usb_phy_pcs_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_DP), &usb_phy_pcs_cmn_vals},
+};
+
+static struct cdns_torrent_vals_entry cmn_vals_entries[] = {
+	{CDNS_TORRENT_KEY(CLK_19_2_MHZ, CLK_19_2_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_19_2_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_25_MHZ, CLK_25_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_25_no_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_PCIE, NO_SSC), &dp_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_USB, NO_SSC), &sl_dp_100_no_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, NO_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, EXTERNAL_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, INTERNAL_SSC), &sl_pcie_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, NO_SSC), &pcie_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, EXTERNAL_SSC), &pcie_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, INTERNAL_SSC), &pcie_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, NO_SSC), &pcie_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, EXTERNAL_SSC), &pcie_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, INTERNAL_SSC), &pcie_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, NO_SSC), &pcie_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, EXTERNAL_SSC), &pcie_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, INTERNAL_SSC), &pcie_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_DP, NO_SSC), NULL},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_NONE, NO_SSC), &sl_sgmii_100_no_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, NO_SSC), &sgmii_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, EXTERNAL_SSC), &sgmii_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, INTERNAL_SSC), &sgmii_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, NO_SSC), &sgmii_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, EXTERNAL_SSC), &sgmii_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, INTERNAL_SSC), &sgmii_100_no_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_NONE, NO_SSC), &sl_qsgmii_100_no_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, NO_SSC), &qsgmii_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, EXTERNAL_SSC), &qsgmii_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, INTERNAL_SSC), &qsgmii_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, NO_SSC), &qsgmii_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, EXTERNAL_SSC), &qsgmii_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, INTERNAL_SSC), &qsgmii_100_no_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, NO_SSC), &sl_usb_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, EXTERNAL_SSC), &sl_usb_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, INTERNAL_SSC), &sl_usb_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, NO_SSC), &usb_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, EXTERNAL_SSC), &usb_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, INTERNAL_SSC), &usb_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, NO_SSC), &sl_usb_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, EXTERNAL_SSC), &sl_usb_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, INTERNAL_SSC), &sl_usb_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, NO_SSC), &sl_usb_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, EXTERNAL_SSC), &sl_usb_100_no_ssc_cmn_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, INTERNAL_SSC), &sl_usb_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_DP, NO_SSC), &usb_100_no_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_156_25_MHZ, CLK_156_25_MHZ, TYPE_USXGMII, TYPE_NONE, NO_SSC), &sl_usxgmii_156_25_no_ssc_cmn_vals},
+};
+
+static struct cdns_torrent_vals_entry cdns_tx_ln_vals_entries[] = {
+	{CDNS_TORRENT_KEY(CLK_19_2_MHZ, CLK_19_2_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_19_2_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_25_MHZ, CLK_25_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_25_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_PCIE, NO_SSC), &dp_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_USB, NO_SSC), &dp_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, NO_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, EXTERNAL_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, INTERNAL_SSC), NULL},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, NO_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, EXTERNAL_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, INTERNAL_SSC), NULL},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, NO_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, EXTERNAL_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, INTERNAL_SSC), NULL},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, NO_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, EXTERNAL_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, INTERNAL_SSC), NULL},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_DP, NO_SSC), NULL},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_NONE, NO_SSC), &sgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, NO_SSC), &sgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, EXTERNAL_SSC), &sgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, INTERNAL_SSC), &sgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, NO_SSC), &sgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, EXTERNAL_SSC), &sgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, INTERNAL_SSC), &sgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_NONE, NO_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, NO_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, EXTERNAL_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, INTERNAL_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, NO_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, EXTERNAL_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, INTERNAL_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, NO_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, EXTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, INTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, NO_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, EXTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, INTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, NO_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, EXTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, INTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, NO_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, EXTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, INTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_DP, NO_SSC), &usb_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_156_25_MHZ, CLK_156_25_MHZ, TYPE_USXGMII, TYPE_NONE, NO_SSC), &usxgmii_156_25_no_ssc_tx_ln_vals},
+};
+
+static struct cdns_torrent_vals_entry cdns_rx_ln_vals_entries[] = {
+	{CDNS_TORRENT_KEY(CLK_19_2_MHZ, CLK_19_2_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_19_2_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_25_MHZ, CLK_25_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_25_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_PCIE, NO_SSC), &dp_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_USB, NO_SSC), &dp_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, NO_SSC), &pcie_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, EXTERNAL_SSC), &pcie_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, INTERNAL_SSC), &pcie_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, NO_SSC), &pcie_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, EXTERNAL_SSC), &pcie_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, INTERNAL_SSC), &pcie_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, NO_SSC), &pcie_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, EXTERNAL_SSC), &pcie_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, INTERNAL_SSC), &pcie_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, NO_SSC), &pcie_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, EXTERNAL_SSC), &pcie_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, INTERNAL_SSC), &pcie_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_DP, NO_SSC), &pcie_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_NONE, NO_SSC), &sgmii_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, NO_SSC), &sgmii_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, EXTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, INTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, NO_SSC), &sgmii_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, EXTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, INTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_NONE, NO_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, NO_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, EXTERNAL_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, INTERNAL_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, NO_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, EXTERNAL_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, INTERNAL_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, NO_SSC), &usb_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, EXTERNAL_SSC), &usb_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, INTERNAL_SSC), &usb_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, NO_SSC), &usb_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, EXTERNAL_SSC), &usb_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, INTERNAL_SSC), &usb_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, NO_SSC), &usb_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, EXTERNAL_SSC), &usb_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, INTERNAL_SSC), &usb_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, NO_SSC), &usb_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, EXTERNAL_SSC), &usb_100_no_ssc_rx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, INTERNAL_SSC), &usb_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_DP, NO_SSC), &usb_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_156_25_MHZ, CLK_156_25_MHZ, TYPE_USXGMII, TYPE_NONE, NO_SSC), &usxgmii_156_25_no_ssc_rx_ln_vals},
+};
+
 static const struct cdns_torrent_data cdns_map_torrent = {
 	.block_offset_shift = 0x2,
 	.reg_offset_shift = 0x2,
-	.link_cmn_vals = {
-		[TYPE_DP] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_dp_link_cmn_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &pcie_dp_link_cmn_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &usb_dp_link_cmn_vals,
-			},
-		},
-		[TYPE_PCIE] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = NULL,
-				[EXTERNAL_SSC] = NULL,
-				[INTERNAL_SSC] = NULL,
-			},
-			[TYPE_SGMII] = {
-				[NO_SSC] = &pcie_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-			},
-			[TYPE_QSGMII] = {
-				[NO_SSC] = &pcie_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &pcie_usb_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_usb_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_usb_link_cmn_vals,
-			},
-			[TYPE_DP] = {
-				[NO_SSC] = &pcie_dp_link_cmn_vals,
-			},
-		},
-		[TYPE_SGMII] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_sgmii_link_cmn_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &pcie_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &usb_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-			},
-		},
-		[TYPE_QSGMII] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_sgmii_link_cmn_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &pcie_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &usb_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-			},
-		},
-		[TYPE_USB] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_usb_link_cmn_vals,
-				[EXTERNAL_SSC] = &sl_usb_link_cmn_vals,
-				[INTERNAL_SSC] = &sl_usb_link_cmn_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &pcie_usb_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_usb_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_usb_link_cmn_vals,
-			},
-			[TYPE_SGMII] = {
-				[NO_SSC] = &usb_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-			},
-			[TYPE_QSGMII] = {
-				[NO_SSC] = &usb_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-			},
-			[TYPE_DP] = {
-				[NO_SSC] = &usb_dp_link_cmn_vals,
-			},
-		},
+	.link_cmn_vals_tbl = {
+		.entries = link_cmn_vals_entries,
+		.num_entries = ARRAY_SIZE(link_cmn_vals_entries),
 	},
-	.xcvr_diag_vals = {
-		[TYPE_DP] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_dp_xcvr_diag_ln_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &dp_pcie_xcvr_diag_ln_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &dp_usb_xcvr_diag_ln_vals,
-			},
-		},
-		[TYPE_PCIE] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = NULL,
-				[EXTERNAL_SSC] = NULL,
-				[INTERNAL_SSC] = NULL,
-			},
-			[TYPE_SGMII] = {
-				[NO_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_QSGMII] = {
-				[NO_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &pcie_usb_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &pcie_usb_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &pcie_usb_xcvr_diag_ln_vals,
-			},
-			[TYPE_DP] = {
-				[NO_SSC] = &pcie_dp_xcvr_diag_ln_vals,
-			},
-		},
-		[TYPE_SGMII] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-			},
-		},
-		[TYPE_QSGMII] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-			},
-		},
-		[TYPE_USB] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_usb_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &sl_usb_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &sl_usb_xcvr_diag_ln_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &usb_pcie_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &usb_pcie_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &usb_pcie_xcvr_diag_ln_vals,
-			},
-			[TYPE_SGMII] = {
-				[NO_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_QSGMII] = {
-				[NO_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_DP] = {
-				[NO_SSC] = &usb_dp_xcvr_diag_ln_vals,
-			},
-		},
+	.xcvr_diag_vals_tbl = {
+		.entries = xcvr_diag_vals_entries,
+		.num_entries = ARRAY_SIZE(xcvr_diag_vals_entries),
 	},
-	.pcs_cmn_vals = {
-		[TYPE_USB] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &usb_phy_pcs_cmn_vals,
-				[EXTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-				[INTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &usb_phy_pcs_cmn_vals,
-				[EXTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-				[INTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-			},
-			[TYPE_SGMII] = {
-				[NO_SSC] = &usb_phy_pcs_cmn_vals,
-				[EXTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-				[INTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-			},
-			[TYPE_QSGMII] = {
-				[NO_SSC] = &usb_phy_pcs_cmn_vals,
-				[EXTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-				[INTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-			},
-			[TYPE_DP] = {
-				[NO_SSC] = &usb_phy_pcs_cmn_vals,
-			},
-		},
+	.pcs_cmn_vals_tbl = {
+		.entries = pcs_cmn_vals_entries,
+		.num_entries = ARRAY_SIZE(pcs_cmn_vals_entries),
 	},
-	.cmn_vals = {
-		[CLK_19_2_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_19_2_no_ssc_cmn_vals,
-				},
-			},
-		},
-		[CLK_25_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_25_no_ssc_cmn_vals,
-				},
-			},
-		},
-		[CLK_100_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_100_no_ssc_cmn_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &dp_100_no_ssc_cmn_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &sl_dp_100_no_ssc_cmn_vals,
-				},
-			},
-			[TYPE_PCIE] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = NULL,
-					[EXTERNAL_SSC] = NULL,
-					[INTERNAL_SSC] = &sl_pcie_100_int_ssc_cmn_vals,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &pcie_100_int_ssc_cmn_vals,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &pcie_100_int_ssc_cmn_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &pcie_100_int_ssc_cmn_vals,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = NULL,
-				},
-			},
-			[TYPE_SGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_sgmii_100_no_ssc_cmn_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &sgmii_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &sgmii_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &sgmii_100_int_ssc_cmn_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &sgmii_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &sgmii_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &sgmii_100_no_ssc_cmn_vals,
-				},
-			},
-			[TYPE_QSGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_qsgmii_100_no_ssc_cmn_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &qsgmii_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &qsgmii_100_int_ssc_cmn_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &qsgmii_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &qsgmii_100_no_ssc_cmn_vals,
-				},
-			},
-			[TYPE_USB] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &usb_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &usb_100_int_ssc_cmn_vals,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = &usb_100_no_ssc_cmn_vals,
-				},
-			},
-		},
+	.cmn_vals_tbl = {
+		.entries = cmn_vals_entries,
+		.num_entries = ARRAY_SIZE(cmn_vals_entries),
 	},
-	.tx_ln_vals = {
-		[CLK_19_2_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_19_2_no_ssc_tx_ln_vals,
-				},
-			},
-		},
-		[CLK_25_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_25_no_ssc_tx_ln_vals,
-				},
-			},
-		},
-		[CLK_100_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &dp_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &dp_100_no_ssc_tx_ln_vals,
-				},
-			},
-			[TYPE_PCIE] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = NULL,
-					[EXTERNAL_SSC] = NULL,
-					[INTERNAL_SSC] = NULL,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = NULL,
-					[EXTERNAL_SSC] = NULL,
-					[INTERNAL_SSC] = NULL,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = NULL,
-					[EXTERNAL_SSC] = NULL,
-					[INTERNAL_SSC] = NULL,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = NULL,
-					[EXTERNAL_SSC] = NULL,
-					[INTERNAL_SSC] = NULL,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = NULL,
-				},
-			},
-			[TYPE_SGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &sgmii_100_no_ssc_tx_ln_vals,
-				},
-			},
-			[TYPE_QSGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &qsgmii_100_no_ssc_tx_ln_vals,
-				},
-			},
-			[TYPE_USB] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = &usb_100_no_ssc_tx_ln_vals,
-				},
-			},
-		},
+	.tx_ln_vals_tbl = {
+		.entries = cdns_tx_ln_vals_entries,
+		.num_entries = ARRAY_SIZE(cdns_tx_ln_vals_entries),
 	},
-	.rx_ln_vals = {
-		[CLK_19_2_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_19_2_no_ssc_rx_ln_vals,
-				},
-			},
-		},
-		[CLK_25_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_25_no_ssc_rx_ln_vals,
-				},
-			},
-		},
-		[CLK_100_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &dp_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &dp_100_no_ssc_rx_ln_vals,
-				},
-			},
-			[TYPE_PCIE] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-				},
-			},
-			[TYPE_SGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-				},
-			},
-			[TYPE_QSGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-				},
-			},
-			[TYPE_USB] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = &usb_100_no_ssc_rx_ln_vals,
-				},
-			},
-		},
+	.rx_ln_vals_tbl = {
+		.entries = cdns_rx_ln_vals_entries,
+		.num_entries = ARRAY_SIZE(cdns_rx_ln_vals_entries),
 	},
+};
+
+static struct cdns_torrent_vals_entry j721e_phy_pma_cmn_vals_entries[] = {
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USXGMII, TYPE_NONE), &ti_usxgmii_phy_pma_cmn_vals},
+};
+
+static struct cdns_torrent_vals_entry ti_tx_ln_vals_entries[] = {
+	{CDNS_TORRENT_KEY(CLK_19_2_MHZ, CLK_19_2_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_19_2_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_25_MHZ, CLK_25_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_25_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_PCIE, NO_SSC), &dp_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_DP, TYPE_USB, NO_SSC), &dp_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, NO_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, EXTERNAL_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_NONE, INTERNAL_SSC), NULL},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, NO_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, EXTERNAL_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_SGMII, INTERNAL_SSC), NULL},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, NO_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, EXTERNAL_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_QSGMII, INTERNAL_SSC), NULL},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, NO_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, EXTERNAL_SSC), NULL},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_USB, INTERNAL_SSC), NULL},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_PCIE, TYPE_DP, NO_SSC), NULL},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_NONE, NO_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, NO_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, EXTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, INTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, NO_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, EXTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, INTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_NONE, NO_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, NO_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, EXTERNAL_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, INTERNAL_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, NO_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, EXTERNAL_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, INTERNAL_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, NO_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, EXTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_NONE, INTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, NO_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, EXTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_PCIE, INTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, NO_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, EXTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_SGMII, INTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, NO_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, EXTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_QSGMII, INTERNAL_SSC), &usb_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_USB, TYPE_DP, NO_SSC), &usb_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_156_25_MHZ, CLK_156_25_MHZ, TYPE_USXGMII, TYPE_NONE, NO_SSC), &usxgmii_156_25_no_ssc_tx_ln_vals},
 };
 
 static const struct cdns_torrent_data ti_j721e_map_torrent = {
 	.block_offset_shift = 0x0,
 	.reg_offset_shift = 0x1,
-	.link_cmn_vals = {
-		[TYPE_DP] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_dp_link_cmn_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &pcie_dp_link_cmn_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &usb_dp_link_cmn_vals,
-			},
-		},
-		[TYPE_PCIE] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = NULL,
-				[EXTERNAL_SSC] = NULL,
-				[INTERNAL_SSC] = NULL,
-			},
-			[TYPE_SGMII] = {
-				[NO_SSC] = &pcie_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-			},
-			[TYPE_QSGMII] = {
-				[NO_SSC] = &pcie_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &pcie_usb_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_usb_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_usb_link_cmn_vals,
-			},
-			[TYPE_DP] = {
-				[NO_SSC] = &pcie_dp_link_cmn_vals,
-			},
-		},
-		[TYPE_SGMII] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_sgmii_link_cmn_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &pcie_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &usb_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-			},
-		},
-		[TYPE_QSGMII] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_sgmii_link_cmn_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &pcie_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_link_cmn_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &usb_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-			},
-		},
-		[TYPE_USB] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_usb_link_cmn_vals,
-				[EXTERNAL_SSC] = &sl_usb_link_cmn_vals,
-				[INTERNAL_SSC] = &sl_usb_link_cmn_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &pcie_usb_link_cmn_vals,
-				[EXTERNAL_SSC] = &pcie_usb_link_cmn_vals,
-				[INTERNAL_SSC] = &pcie_usb_link_cmn_vals,
-			},
-			[TYPE_SGMII] = {
-				[NO_SSC] = &usb_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-			},
-			[TYPE_QSGMII] = {
-				[NO_SSC] = &usb_sgmii_link_cmn_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-				[INTERNAL_SSC] = &usb_sgmii_link_cmn_vals,
-			},
-			[TYPE_DP] = {
-				[NO_SSC] = &usb_dp_link_cmn_vals,
-			},
-		},
+	.link_cmn_vals_tbl = {
+		.entries = link_cmn_vals_entries,
+		.num_entries = ARRAY_SIZE(link_cmn_vals_entries),
 	},
-	.xcvr_diag_vals = {
-		[TYPE_DP] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_dp_xcvr_diag_ln_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &dp_pcie_xcvr_diag_ln_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &dp_usb_xcvr_diag_ln_vals,
-			},
-		},
-		[TYPE_PCIE] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = NULL,
-				[EXTERNAL_SSC] = NULL,
-				[INTERNAL_SSC] = NULL,
-			},
-			[TYPE_SGMII] = {
-				[NO_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_QSGMII] = {
-				[NO_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &pcie_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &pcie_usb_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &pcie_usb_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &pcie_usb_xcvr_diag_ln_vals,
-			},
-			[TYPE_DP] = {
-				[NO_SSC] = &pcie_dp_xcvr_diag_ln_vals,
-			},
-		},
-		[TYPE_SGMII] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-			},
-		},
-		[TYPE_QSGMII] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &sgmii_pcie_xcvr_diag_ln_vals,
-			},
-			[TYPE_USB] = {
-				[NO_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &sgmii_usb_xcvr_diag_ln_vals,
-			},
-		},
-		[TYPE_USB] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &sl_usb_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &sl_usb_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &sl_usb_xcvr_diag_ln_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &usb_pcie_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &usb_pcie_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &usb_pcie_xcvr_diag_ln_vals,
-			},
-			[TYPE_SGMII] = {
-				[NO_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_QSGMII] = {
-				[NO_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-				[EXTERNAL_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-				[INTERNAL_SSC] = &usb_sgmii_xcvr_diag_ln_vals,
-			},
-			[TYPE_DP] = {
-				[NO_SSC] = &usb_dp_xcvr_diag_ln_vals,
-			},
-		},
+	.xcvr_diag_vals_tbl = {
+		.entries = xcvr_diag_vals_entries,
+		.num_entries = ARRAY_SIZE(xcvr_diag_vals_entries),
 	},
-	.pcs_cmn_vals = {
-		[TYPE_USB] = {
-			[TYPE_NONE] = {
-				[NO_SSC] = &usb_phy_pcs_cmn_vals,
-				[EXTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-				[INTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-			},
-			[TYPE_PCIE] = {
-				[NO_SSC] = &usb_phy_pcs_cmn_vals,
-				[EXTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-				[INTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-			},
-			[TYPE_SGMII] = {
-				[NO_SSC] = &usb_phy_pcs_cmn_vals,
-				[EXTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-				[INTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-			},
-			[TYPE_QSGMII] = {
-				[NO_SSC] = &usb_phy_pcs_cmn_vals,
-				[EXTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-				[INTERNAL_SSC] = &usb_phy_pcs_cmn_vals,
-			},
-			[TYPE_DP] = {
-				[NO_SSC] = &usb_phy_pcs_cmn_vals,
-			},
-		},
+	.pcs_cmn_vals_tbl = {
+		.entries = pcs_cmn_vals_entries,
+		.num_entries = ARRAY_SIZE(pcs_cmn_vals_entries),
 	},
-	.cmn_vals = {
-		[CLK_19_2_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_19_2_no_ssc_cmn_vals,
-				},
-			},
-		},
-		[CLK_25_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_25_no_ssc_cmn_vals,
-				},
-			},
-		},
-		[CLK_100_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_100_no_ssc_cmn_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &dp_100_no_ssc_cmn_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &sl_dp_100_no_ssc_cmn_vals,
-				},
-			},
-			[TYPE_PCIE] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = NULL,
-					[EXTERNAL_SSC] = NULL,
-					[INTERNAL_SSC] = &sl_pcie_100_int_ssc_cmn_vals,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &pcie_100_int_ssc_cmn_vals,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &pcie_100_int_ssc_cmn_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &pcie_100_int_ssc_cmn_vals,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = NULL,
-				},
-			},
-			[TYPE_SGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_sgmii_100_no_ssc_cmn_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &sgmii_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &sgmii_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &sgmii_100_int_ssc_cmn_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &sgmii_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &sgmii_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &sgmii_100_no_ssc_cmn_vals,
-				},
-			},
-			[TYPE_QSGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_qsgmii_100_no_ssc_cmn_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &qsgmii_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &qsgmii_100_int_ssc_cmn_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &qsgmii_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &qsgmii_100_no_ssc_cmn_vals,
-				},
-			},
-			[TYPE_USB] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &usb_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &usb_100_int_ssc_cmn_vals,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[EXTERNAL_SSC] = &sl_usb_100_no_ssc_cmn_vals,
-					[INTERNAL_SSC] = &sl_usb_100_int_ssc_cmn_vals,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = &usb_100_no_ssc_cmn_vals,
-				},
-			},
-		},
+	.phy_pma_cmn_vals_tbl = {
+		.entries = j721e_phy_pma_cmn_vals_entries,
+		.num_entries = ARRAY_SIZE(j721e_phy_pma_cmn_vals_entries),
 	},
-	.tx_ln_vals = {
-		[CLK_19_2_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_19_2_no_ssc_tx_ln_vals,
-				},
-			},
-		},
-		[CLK_25_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_25_no_ssc_tx_ln_vals,
-				},
-			},
-		},
-		[CLK_100_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &dp_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &dp_100_no_ssc_tx_ln_vals,
-				},
-			},
-			[TYPE_PCIE] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = NULL,
-					[EXTERNAL_SSC] = NULL,
-					[INTERNAL_SSC] = NULL,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = NULL,
-					[EXTERNAL_SSC] = NULL,
-					[INTERNAL_SSC] = NULL,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = NULL,
-					[EXTERNAL_SSC] = NULL,
-					[INTERNAL_SSC] = NULL,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = NULL,
-					[EXTERNAL_SSC] = NULL,
-					[INTERNAL_SSC] = NULL,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = NULL,
-				},
-			},
-			[TYPE_SGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &ti_sgmii_100_no_ssc_tx_ln_vals,
-				},
-			},
-			[TYPE_QSGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &ti_qsgmii_100_no_ssc_tx_ln_vals,
-				},
-			},
-			[TYPE_USB] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_tx_ln_vals,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = &usb_100_no_ssc_tx_ln_vals,
-				},
-			},
-		},
+	.cmn_vals_tbl = {
+		.entries = cmn_vals_entries,
+		.num_entries = ARRAY_SIZE(cmn_vals_entries),
 	},
-	.rx_ln_vals = {
-		[CLK_19_2_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_19_2_no_ssc_rx_ln_vals,
-				},
-			},
-		},
-		[CLK_25_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_25_no_ssc_rx_ln_vals,
-				},
-			},
-		},
-		[CLK_100_MHZ] = {
-			[TYPE_DP] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sl_dp_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &dp_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &dp_100_no_ssc_rx_ln_vals,
-				},
-			},
-			[TYPE_PCIE] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = &pcie_100_no_ssc_rx_ln_vals,
-				},
-			},
-			[TYPE_SGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &sgmii_100_no_ssc_rx_ln_vals,
-				},
-			},
-			[TYPE_QSGMII] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_USB] = {
-					[NO_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &qsgmii_100_no_ssc_rx_ln_vals,
-				},
-			},
-			[TYPE_USB] = {
-				[TYPE_NONE] = {
-					[NO_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_PCIE] = {
-					[NO_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_SGMII] = {
-					[NO_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_QSGMII] = {
-					[NO_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[EXTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-					[INTERNAL_SSC] = &usb_100_no_ssc_rx_ln_vals,
-				},
-				[TYPE_DP] = {
-					[NO_SSC] = &usb_100_no_ssc_rx_ln_vals,
-				},
-			},
-		},
+	.tx_ln_vals_tbl = {
+		.entries = ti_tx_ln_vals_entries,
+		.num_entries = ARRAY_SIZE(ti_tx_ln_vals_entries),
+	},
+	.rx_ln_vals_tbl = {
+		.entries = cdns_rx_ln_vals_entries,
+		.num_entries = ARRAY_SIZE(cdns_rx_ln_vals_entries),
 	},
 };
 

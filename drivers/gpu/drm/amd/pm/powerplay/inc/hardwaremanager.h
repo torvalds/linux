@@ -44,8 +44,7 @@ struct phm_fan_speed_info {
 };
 
 /* Automatic Power State Throttling */
-enum PHM_AutoThrottleSource
-{
+enum PHM_AutoThrottleSource {
     PHM_AutoThrottleSource_Thermal,
     PHM_AutoThrottleSource_External
 };

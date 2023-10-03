@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1069,6 +1069,7 @@ struct iwl_trans_txqs {
  * @mbx_addr_1_step: step address data 1
  * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
  *	only valid for discrete (not integrated) NICs
+ * @invalid_tx_cmd: invalid TX command buffer
  */
 struct iwl_trans {
 	bool csme_own;
@@ -1132,6 +1133,8 @@ struct iwl_trans {
 	u32 mbx_addr_1_step;
 
 	u8 pcie_link_speed;
+
+	struct iwl_dma_ptr invalid_tx_cmd;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -1490,7 +1493,7 @@ static inline u32 iwl_trans_read_mem32(struct iwl_trans *trans, u32 addr)
 {
 	u32 value;
 
-	if (WARN_ON(iwl_trans_read_mem(trans, addr, &value, 1)))
+	if (iwl_trans_read_mem(trans, addr, &value, 1))
 		return 0xa5a5a5a5;
 
 	return value;

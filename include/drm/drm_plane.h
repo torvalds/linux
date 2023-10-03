@@ -56,7 +56,7 @@ struct drm_plane_state {
 	/**
 	 * @crtc:
 	 *
-	 * Currently bound CRTC, NULL if disabled. Do not this write directly,
+	 * Currently bound CRTC, NULL if disabled. Do not write this directly,
 	 * use drm_atomic_set_crtc_for_plane()
 	 */
 	struct drm_crtc *crtc;

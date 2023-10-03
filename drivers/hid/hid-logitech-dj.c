@@ -1285,6 +1285,9 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 		 * 50 msec should gives enough time to the receiver to be ready.
 		 */
 		msleep(50);
+
+		if (retval)
+			return retval;
 	}
 
 	/*
@@ -1306,7 +1309,7 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 	buf[5] = 0x09;
 	buf[6] = 0x00;
 
-	hid_hw_raw_request(hdev, REPORT_ID_HIDPP_SHORT, buf,
+	retval = hid_hw_raw_request(hdev, REPORT_ID_HIDPP_SHORT, buf,
 			HIDPP_REPORT_SHORT_LENGTH, HID_OUTPUT_REPORT,
 			HID_REQ_SET_REPORT);
 
@@ -1692,11 +1695,12 @@ static int logi_dj_raw_event(struct hid_device *hdev,
 		}
 		/*
 		 * Mouse-only receivers send unnumbered mouse data. The 27 MHz
-		 * receiver uses 6 byte packets, the nano receiver 8 bytes.
+		 * receiver uses 6 byte packets, the nano receiver 8 bytes,
+		 * the lightspeed receiver (Pro X Superlight) 13 bytes.
 		 */
 		if (djrcv_dev->unnumbered_application == HID_GD_MOUSE &&
-		    size <= 8) {
-			u8 mouse_report[9];
+		    size <= 13){
+			u8 mouse_report[14];
 
 			/* Prepend report id */
 			mouse_report[0] = REPORT_TYPE_MOUSE;
@@ -1979,6 +1983,10 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	{ /* Logitech lightspeed receiver (0xc53f) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_1),
+	 .driver_data = recvr_type_gaming_hidpp},
+	{ /* Logitech lightspeed receiver (0xc547) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_2),
 	 .driver_data = recvr_type_gaming_hidpp},
 
 	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc513) */

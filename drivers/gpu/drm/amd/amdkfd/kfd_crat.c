@@ -26,7 +26,6 @@
 #include "kfd_crat.h"
 #include "kfd_priv.h"
 #include "kfd_topology.h"
-#include "kfd_iommu.h"
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
 
@@ -1536,72 +1535,6 @@ int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pc
 	return num_of_cache_types;
 }
 
-static bool kfd_ignore_crat(void)
-{
-	bool ret;
-
-	if (ignore_crat)
-		return true;
-
-	ret = true;
-
-	return ret;
-}
-
-/*
- * kfd_create_crat_image_acpi - Allocates memory for CRAT image and
- * copies CRAT from ACPI (if available).
- * NOTE: Call kfd_destroy_crat_image to free CRAT image memory
- *
- *	@crat_image: CRAT read from ACPI. If no CRAT in ACPI then
- *		     crat_image will be NULL
- *	@size: [OUT] size of crat_image
- *
- *	Return 0 if successful else return error code
- */
-int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
-{
-	struct acpi_table_header *crat_table;
-	acpi_status status;
-	void *pcrat_image;
-	int rc = 0;
-
-	if (!crat_image)
-		return -EINVAL;
-
-	*crat_image = NULL;
-
-	if (kfd_ignore_crat()) {
-		pr_info("CRAT table disabled by module option\n");
-		return -ENODATA;
-	}
-
-	/* Fetch the CRAT table from ACPI */
-	status = acpi_get_table(CRAT_SIGNATURE, 0, &crat_table);
-	if (status == AE_NOT_FOUND) {
-		pr_info("CRAT table not found\n");
-		return -ENODATA;
-	} else if (ACPI_FAILURE(status)) {
-		const char *err = acpi_format_exception(status);
-
-		pr_err("CRAT table error: %s\n", err);
-		return -EINVAL;
-	}
-
-	pcrat_image = kvmalloc(crat_table->length, GFP_KERNEL);
-	if (!pcrat_image) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	memcpy(pcrat_image, crat_table, crat_table->length);
-	*crat_image = pcrat_image;
-	*size = crat_table->length;
-out:
-	acpi_put_table(crat_table);
-	return rc;
-}
-
 /* Memory required to create Virtual CRAT.
  * Since there is no easy way to predict the amount of memory required, the
  * following amount is allocated for GPU Virtual CRAT. This is
@@ -2154,7 +2087,8 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 
 	amdgpu_amdkfd_get_cu_info(kdev->adev, &cu_info);
 	cu->num_simd_per_cu = cu_info.simd_per_cu;
-	cu->num_simd_cores = cu_info.simd_per_cu * cu_info.cu_active_number;
+	cu->num_simd_cores = cu_info.simd_per_cu *
+			(cu_info.cu_active_number / kdev->kfd->num_nodes);
 	cu->max_waves_simd = cu_info.max_waves_per_simd;
 
 	cu->wave_front_size = cu_info.wave_front_size;
@@ -2168,12 +2102,6 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	cu->lds_size_in_kb = cu_info.lds_size;
 
 	cu->hsa_capability = 0;
-
-	/* Check if this node supports IOMMU. During parsing this flag will
-	 * translate to HSA_CAP_ATS_PRESENT
-	 */
-	if (!kfd_iommu_check_device(kdev->kfd))
-		cu->hsa_capability |= CRAT_CU_FLAGS_IOMMU_PRESENT;
 
 	crat_table->length += sub_type_hdr->length;
 	crat_table->total_entries++;

@@ -85,12 +85,10 @@ extern void				icmpv6_param_prob_reason(struct sk_buff *skb,
 
 struct flowi6;
 struct in6_addr;
-extern void				icmpv6_flow_init(struct sock *sk,
-							 struct flowi6 *fl6,
-							 u8 type,
-							 const struct in6_addr *saddr,
-							 const struct in6_addr *daddr,
-							 int oif);
+
+void icmpv6_flow_init(const struct sock *sk, struct flowi6 *fl6, u8 type,
+		      const struct in6_addr *saddr,
+		      const struct in6_addr *daddr, int oif);
 
 static inline void icmpv6_param_prob(struct sk_buff *skb, u8 code, int pos)
 {

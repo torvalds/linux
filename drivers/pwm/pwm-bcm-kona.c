@@ -61,9 +61,9 @@ struct kona_pwmc {
 	struct clk *clk;
 };
 
-static inline struct kona_pwmc *to_kona_pwmc(struct pwm_chip *_chip)
+static inline struct kona_pwmc *to_kona_pwmc(struct pwm_chip *chip)
 {
-	return container_of(_chip, struct kona_pwmc, chip);
+	return container_of(chip, struct kona_pwmc, chip);
 }
 
 /*

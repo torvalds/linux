@@ -649,6 +649,8 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 	struct drm_printer p = i915_error_printer(m);
 
 	intel_device_info_print(&error->device_info, &error->runtime_info, &p);
+	intel_display_device_info_print(&error->display_device_info,
+					&error->display_runtime_info, &p);
 	intel_driver_caps_print(&error->driver_caps, &p);
 }
 
@@ -1173,9 +1175,9 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 
 			drm_clflush_pages(&page, 1);
 
-			s = kmap(page);
+			s = kmap_local_page(page);
 			ret = compress_page(compress, s, dst, false);
-			kunmap(page);
+			kunmap_local(s);
 
 			drm_clflush_pages(&page, 1);
 
@@ -1983,6 +1985,10 @@ static void capture_gen(struct i915_gpu_coredump *error)
 	memcpy(&error->runtime_info,
 	       RUNTIME_INFO(i915),
 	       sizeof(error->runtime_info));
+	memcpy(&error->display_device_info, DISPLAY_INFO(i915),
+	       sizeof(error->display_device_info));
+	memcpy(&error->display_runtime_info, DISPLAY_RUNTIME_INFO(i915),
+	       sizeof(error->display_runtime_info));
 	error->driver_caps = i915->caps;
 }
 

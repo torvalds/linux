@@ -2232,8 +2232,7 @@ int register_kretprobe(struct kretprobe *rp)
 		return -ENOMEM;
 
 	for (i = 0; i < rp->maxactive; i++) {
-		inst = kzalloc(sizeof(struct kretprobe_instance) +
-			       rp->data_size, GFP_KERNEL);
+		inst = kzalloc(struct_size(inst, data, rp->data_size), GFP_KERNEL);
 		if (inst == NULL) {
 			rethook_free(rp->rh);
 			rp->rh = NULL;
@@ -2256,8 +2255,7 @@ int register_kretprobe(struct kretprobe *rp)
 
 	rp->rph->rp = rp;
 	for (i = 0; i < rp->maxactive; i++) {
-		inst = kzalloc(sizeof(struct kretprobe_instance) +
-			       rp->data_size, GFP_KERNEL);
+		inst = kzalloc(struct_size(inst, data, rp->data_size), GFP_KERNEL);
 		if (inst == NULL) {
 			refcount_set(&rp->rph->ref, i);
 			free_rp_inst(rp);

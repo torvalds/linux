@@ -1134,6 +1134,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 	if (index < 0 || !remote->remotes[index].registered)
 		goto out;
 
+	remote->remotes[i].active_time = ktime_get();
 	input = remote->remotes[index].input;
 
 	input_report_key(input, BTN_0, (data[9] & 0x01));
@@ -1196,22 +1197,20 @@ static void wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
 	unsigned char *data = wacom_wac->data;
 	struct wacom_remote *remote = wacom->remote;
-	struct wacom_remote_data remote_data;
+	struct wacom_remote_work_data remote_data;
 	unsigned long flags;
 	int i, ret;
 
 	if (data[0] != WACOM_REPORT_DEVICE_LIST)
 		return;
 
-	memset(&remote_data, 0, sizeof(struct wacom_remote_data));
+	memset(&remote_data, 0, sizeof(struct wacom_remote_work_data));
 
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		int j = i * 6;
 		int serial = (data[j+6] << 16) + (data[j+5] << 8) + data[j+4];
-		bool connected = data[j+2];
 
 		remote_data.remote[i].serial = serial;
-		remote_data.remote[i].connected = connected;
 	}
 
 	spin_lock_irqsave(&remote->remote_lock, flags);

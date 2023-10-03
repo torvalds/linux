@@ -10,13 +10,25 @@
 
 #include <uapi/linux/elf-fdpic.h>
 
+#if ELF_CLASS == ELFCLASS32
+#define Elf_Sword			Elf32_Sword
+#define elf_fdpic_loadseg		elf32_fdpic_loadseg
+#define elf_fdpic_loadmap		elf32_fdpic_loadmap
+#define ELF_FDPIC_LOADMAP_VERSION	ELF32_FDPIC_LOADMAP_VERSION
+#else
+#define Elf_Sword			Elf64_Sxword
+#define elf_fdpic_loadmap		elf64_fdpic_loadmap
+#define elf_fdpic_loadseg		elf64_fdpic_loadseg
+#define ELF_FDPIC_LOADMAP_VERSION	ELF64_FDPIC_LOADMAP_VERSION
+#endif
+
 /*
  * binfmt binary parameters structure
  */
 struct elf_fdpic_params {
 	struct elfhdr			hdr;		/* ref copy of ELF header */
 	struct elf_phdr			*phdrs;		/* ref copy of PT_PHDR table */
-	struct elf32_fdpic_loadmap	*loadmap;	/* loadmap to be passed to userspace */
+	struct elf_fdpic_loadmap	*loadmap;	/* loadmap to be passed to userspace */
 	unsigned long			elfhdr_addr;	/* mapped ELF header user address */
 	unsigned long			ph_addr;	/* mapped PT_PHDR user address */
 	unsigned long			map_addr;	/* mapped loadmap user address */

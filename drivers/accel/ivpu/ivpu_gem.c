@@ -282,10 +282,12 @@ ivpu_bo_alloc_vpu_addr(struct ivpu_bo *bo, struct ivpu_mmu_context *ctx,
 	int ret;
 
 	if (!range) {
-		if (bo->flags & DRM_IVPU_BO_HIGH_MEM)
-			range = &vdev->hw->ranges.user_high;
+		if (bo->flags & DRM_IVPU_BO_SHAVE_MEM)
+			range = &vdev->hw->ranges.shave;
+		else if (bo->flags & DRM_IVPU_BO_DMA_MEM)
+			range = &vdev->hw->ranges.dma;
 		else
-			range = &vdev->hw->ranges.user_low;
+			range = &vdev->hw->ranges.user;
 	}
 
 	mutex_lock(&ctx->lock);
@@ -573,7 +575,7 @@ ivpu_bo_alloc_internal(struct ivpu_device *vdev, u64 vpu_addr, u64 size, u32 fla
 		fixed_range.end = vpu_addr + size;
 		range = &fixed_range;
 	} else {
-		range = &vdev->hw->ranges.global_low;
+		range = &vdev->hw->ranges.global;
 	}
 
 	bo = ivpu_bo_alloc(vdev, &vdev->gctx, size, flags, &internal_ops, range, 0);

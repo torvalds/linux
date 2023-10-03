@@ -119,10 +119,8 @@ static int pmagbafb_setcolreg(unsigned int regno, unsigned int red,
 
 static const struct fb_ops pmagbafb_ops = {
 	.owner		= THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_setcolreg	= pmagbafb_setcolreg,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
 };
 
 
@@ -166,7 +164,6 @@ static int pmagbafb_probe(struct device *dev)
 	info->fbops = &pmagbafb_ops;
 	info->fix = pmagbafb_fix;
 	info->var = pmagbafb_defined;
-	info->flags = FBINFO_DEFAULT;
 
 	/* Request the I/O MEM resource.  */
 	start = tdev->resource.start;

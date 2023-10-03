@@ -772,7 +772,7 @@ The ``s_default_mount_opts`` field is any combination of the following:
    * - 0x0010
      - Do not support 32-bit UIDs. (EXT4_DEFM_UID16)
    * - 0x0020
-     - All data and metadata are commited to the journal.
+     - All data and metadata are committed to the journal.
        (EXT4_DEFM_JMODE_DATA)
    * - 0x0040
      - All data are flushed to the disk before metadata are committed to the

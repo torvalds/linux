@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/panasonic,an30259a.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Panasonic AN30259A 3-channel LED controller
+
+maintainers:
+  - Iskren Chernev <me@iskren.info>
+
+description:
+  The AN30259A is a LED controller capable of driving three LEDs independently.
+  It supports constant current output and sloping current output modes. The chip
+  is connected over I2C.
+
+properties:
+  compatible:
+    const: panasonic,an30259a
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+patternProperties:
+  "^led@[1-3]$":
+    $ref: common.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        enum: [ 1, 2, 3 ]
+
+required:
+  - compatible
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/leds/common.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        led-controller@30 {
+            compatible = "panasonic,an30259a";
+            reg = <0x30>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            led@1 {
+                reg = <1>;
+                linux,default-trigger = "heartbeat";
+                function = LED_FUNCTION_INDICATOR;
+                color = <LED_COLOR_ID_RED>;
+            };
+
+            led@2 {
+                reg = <2>;
+                function = LED_FUNCTION_INDICATOR;
+                color = <LED_COLOR_ID_GREEN>;
+            };
+
+            led@3 {
+                reg = <3>;
+                function = LED_FUNCTION_INDICATOR;
+                color = <LED_COLOR_ID_BLUE>;
+            };
+        };
+    };
+...

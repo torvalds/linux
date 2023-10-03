@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/uuid.h>
 #include <linux/fs.h>
+#include <linux/fsverity.h>
 #include <linux/namei.h>
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
@@ -36,6 +37,7 @@ enum ovl_xattr {
 	OVL_XATTR_IMPURE,
 	OVL_XATTR_NLINK,
 	OVL_XATTR_UPPER,
+	OVL_XATTR_UUID,
 	OVL_XATTR_METACOPY,
 	OVL_XATTR_PROTATTR,
 };
@@ -49,6 +51,8 @@ enum ovl_inode_flag {
 	OVL_UPPERDATA,
 	/* Inode number will remain constant over copy up. */
 	OVL_CONST_INO,
+	OVL_HAS_DIGEST,
+	OVL_VERIFIED_DIGEST,
 };
 
 enum ovl_entry_flag {
@@ -65,9 +69,22 @@ enum {
 };
 
 enum {
+	OVL_UUID_OFF,
+	OVL_UUID_NULL,
+	OVL_UUID_AUTO,
+	OVL_UUID_ON,
+};
+
+enum {
 	OVL_XINO_OFF,
 	OVL_XINO_AUTO,
 	OVL_XINO_ON,
+};
+
+enum {
+	OVL_VERITY_OFF,
+	OVL_VERITY_ON,
+	OVL_VERITY_REQUIRE,
 };
 
 /*
@@ -125,6 +142,26 @@ struct ovl_fh {
 #define OVL_FH_LEN(fh)		(OVL_FH_WIRE_OFFSET + (fh)->fb.len)
 #define OVL_FH_FID_OFFSET	(OVL_FH_WIRE_OFFSET + \
 				 offsetof(struct ovl_fb, fid))
+
+/* On-disk format for "metacopy" xattr (if non-zero size) */
+struct ovl_metacopy {
+	u8 version;	/* 0 */
+	u8 len;         /* size of this header + used digest bytes */
+	u8 flags;
+	u8 digest_algo;	/* FS_VERITY_HASH_ALG_* constant, 0 for no digest */
+	u8 digest[FS_VERITY_MAX_DIGEST_SIZE];  /* Only the used part on disk */
+} __packed;
+
+#define OVL_METACOPY_MAX_SIZE (sizeof(struct ovl_metacopy))
+#define OVL_METACOPY_MIN_SIZE (OVL_METACOPY_MAX_SIZE - FS_VERITY_MAX_DIGEST_SIZE)
+#define OVL_METACOPY_INIT { 0, OVL_METACOPY_MIN_SIZE }
+
+static inline int ovl_metadata_digest_size(const struct ovl_metacopy *metacopy)
+{
+	if (metacopy->len < OVL_METACOPY_MIN_SIZE)
+		return 0;
+	return (int)metacopy->len - OVL_METACOPY_MIN_SIZE;
+}
 
 extern const char *const ovl_xattr_table[][2];
 static inline const char *ovl_xattr(struct ovl_fs *ofs, enum ovl_xattr ox)
@@ -430,6 +467,8 @@ bool ovl_already_copied_up(struct dentry *dentry, int flags);
 bool ovl_path_check_dir_xattr(struct ovl_fs *ofs, const struct path *path,
 			      enum ovl_xattr ox);
 bool ovl_path_check_origin_xattr(struct ovl_fs *ofs, const struct path *path);
+bool ovl_init_uuid_xattr(struct super_block *sb, struct ovl_fs *ofs,
+			 const struct path *upperpath);
 
 static inline bool ovl_check_origin_xattr(struct ovl_fs *ofs,
 					  struct dentry *upperdentry)
@@ -452,9 +491,20 @@ bool ovl_need_index(struct dentry *dentry);
 int ovl_nlink_start(struct dentry *dentry);
 void ovl_nlink_end(struct dentry *dentry);
 int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir);
-int ovl_check_metacopy_xattr(struct ovl_fs *ofs, const struct path *path);
+int ovl_check_metacopy_xattr(struct ovl_fs *ofs, const struct path *path,
+			     struct ovl_metacopy *data);
+int ovl_set_metacopy_xattr(struct ovl_fs *ofs, struct dentry *d,
+			   struct ovl_metacopy *metacopy);
 bool ovl_is_metacopy_dentry(struct dentry *dentry);
 char *ovl_get_redirect_xattr(struct ovl_fs *ofs, const struct path *path, int padding);
+int ovl_ensure_verity_loaded(struct path *path);
+int ovl_get_verity_xattr(struct ovl_fs *ofs, const struct path *path,
+			 u8 *digest_buf, int *buf_length);
+int ovl_validate_verity(struct ovl_fs *ofs,
+			struct path *metapath,
+			struct path *datapath);
+int ovl_get_verity_digest(struct ovl_fs *ofs, struct path *src,
+			  struct ovl_metacopy *metacopy);
 int ovl_sync_status(struct ovl_fs *ofs);
 
 static inline void ovl_set_flag(unsigned long flag, struct inode *inode)
@@ -492,6 +542,17 @@ static inline bool ovl_redirect_follow(struct ovl_fs *ofs)
 static inline bool ovl_redirect_dir(struct ovl_fs *ofs)
 {
 	return ofs->config.redirect_mode == OVL_REDIRECT_ON;
+}
+
+static inline bool ovl_origin_uuid(struct ovl_fs *ofs)
+{
+	return ofs->config.uuid != OVL_UUID_OFF;
+}
+
+static inline bool ovl_has_fsid(struct ovl_fs *ofs)
+{
+	return ofs->config.uuid == OVL_UUID_ON ||
+	       ofs->config.uuid == OVL_UUID_AUTO;
 }
 
 /*
@@ -574,7 +635,7 @@ struct dentry *ovl_get_index_fh(struct ovl_fs *ofs, struct ovl_fh *fh);
 struct dentry *ovl_lookup_index(struct ovl_fs *ofs, struct dentry *upper,
 				struct dentry *origin, bool verify);
 int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
-int ovl_maybe_lookup_lowerdata(struct dentry *dentry);
+int ovl_verify_lowerdata(struct dentry *dentry);
 struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			  unsigned int flags);
 bool ovl_lower_positive(struct dentry *dentry);
@@ -759,6 +820,7 @@ int ovl_set_origin(struct ovl_fs *ofs, struct dentry *lower,
 
 /* export.c */
 extern const struct export_operations ovl_export_operations;
+extern const struct export_operations ovl_export_fid_operations;
 
 /* super.c */
 int ovl_fill_super(struct super_block *sb, struct fs_context *fc);

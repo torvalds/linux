@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 	vcpu_run(vcpu);
 	handle_flds_emulation_failure_exit(vcpu);
 	vcpu_run(vcpu);
-	ASSERT_EQ(get_ucall(vcpu, NULL), UCALL_DONE);
+	TEST_ASSERT_EQ(get_ucall(vcpu, NULL), UCALL_DONE);
 
 	kvm_vm_free(vm);
 	return 0;

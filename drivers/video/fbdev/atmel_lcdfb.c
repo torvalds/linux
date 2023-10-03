@@ -806,14 +806,12 @@ static int atmel_lcdfb_blank(int blank_mode, struct fb_info *info)
 
 static const struct fb_ops atmel_lcdfb_ops = {
 	.owner		= THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_check_var	= atmel_lcdfb_check_var,
 	.fb_set_par	= atmel_lcdfb_set_par,
 	.fb_setcolreg	= atmel_lcdfb_setcolreg,
 	.fb_blank	= atmel_lcdfb_blank,
 	.fb_pan_display	= atmel_lcdfb_pan_display,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
 };
 
 static irqreturn_t atmel_lcdfb_interrupt(int irq, void *dev_id)
@@ -1059,7 +1057,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	if (IS_ERR(sinfo->reg_lcd))
 		sinfo->reg_lcd = NULL;
 
-	info->flags = FBINFO_DEFAULT | FBINFO_PARTIAL_PAN_OK |
+	info->flags = FBINFO_PARTIAL_PAN_OK |
 		      FBINFO_HWACCEL_YPAN;
 	info->pseudo_palette = sinfo->pseudo_palette;
 	info->fbops = &atmel_lcdfb_ops;

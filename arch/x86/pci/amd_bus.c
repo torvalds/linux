@@ -51,6 +51,14 @@ static struct pci_root_info __init *find_pci_root_info(int node, int link)
 	return NULL;
 }
 
+static inline resource_size_t cap_resource(u64 val)
+{
+	if (val > RESOURCE_SIZE_MAX)
+		return RESOURCE_SIZE_MAX;
+
+	return val;
+}
+
 /**
  * early_root_info_init()
  * called before pcibios_scan_root and pci_scan_bus

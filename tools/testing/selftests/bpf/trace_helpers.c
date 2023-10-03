@@ -18,7 +18,7 @@
 #define TRACEFS_PIPE	"/sys/kernel/tracing/trace_pipe"
 #define DEBUGFS_PIPE	"/sys/kernel/debug/tracing/trace_pipe"
 
-#define MAX_SYMS 300000
+#define MAX_SYMS 400000
 static struct ksym syms[MAX_SYMS];
 static int sym_cnt;
 
@@ -46,6 +46,9 @@ int load_kallsyms_refresh(void)
 			break;
 		if (!addr)
 			continue;
+		if (i >= MAX_SYMS)
+			return -EFBIG;
+
 		syms[i].addr = (long) addr;
 		syms[i].name = strdup(func);
 		i++;

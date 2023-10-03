@@ -17,6 +17,19 @@
 #include "ipc4-topology.h"
 #include "ops.h"
 
+/*
+ * The ignore_cpc flag can be used to ignore the CPC value for all modules by
+ * using 0 instead.
+ * The CPC is sent to the firmware along with the SOF_IPC4_MOD_INIT_INSTANCE
+ * message and it is used for clock scaling.
+ * 0 as CPC value will instruct the firmware to use maximum frequency, thus
+ * deactivating the clock scaling.
+ */
+static bool ignore_cpc;
+module_param_named(ipc4_ignore_cpc, ignore_cpc, bool, 0444);
+MODULE_PARM_DESC(ipc4_ignore_cpc,
+		 "Ignore CPC values. This option will disable clock scaling in firmware.");
+
 #define SOF_IPC4_GAIN_PARAM_ID  0
 #define SOF_IPC4_TPLG_ABI_SIZE 6
 #define SOF_IPC4_CHAIN_DMA_BUF_SIZE_MS 2
@@ -218,7 +231,7 @@ static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 
 	ret = sof_update_ipc_object(scomp, available_fmt,
 				    SOF_AUDIO_FMT_NUM_TOKENS, swidget->tuples,
-				    swidget->num_tuples, sizeof(available_fmt), 1);
+				    swidget->num_tuples, sizeof(*available_fmt), 1);
 	if (ret) {
 		dev_err(scomp->dev, "Failed to parse audio format token count\n");
 		return ret;
@@ -970,9 +983,16 @@ sof_ipc4_update_resource_usage(struct snd_sof_dev *sdev, struct snd_sof_widget *
 	/* Update base_config->cpc from the module manifest */
 	sof_ipc4_update_cpc_from_manifest(sdev, fw_module, base_config);
 
-	dev_dbg(sdev->dev, "%s: ibs / obs / cpc: %u / %u / %u\n",
-		swidget->widget->name, base_config->ibs, base_config->obs,
-		base_config->cpc);
+	if (ignore_cpc) {
+		dev_dbg(sdev->dev, "%s: ibs / obs: %u / %u, forcing cpc to 0 from %u\n",
+			swidget->widget->name, base_config->ibs, base_config->obs,
+			base_config->cpc);
+		base_config->cpc = 0;
+	} else {
+		dev_dbg(sdev->dev, "%s: ibs / obs / cpc: %u / %u / %u\n",
+			swidget->widget->name, base_config->ibs, base_config->obs,
+			base_config->cpc);
+	}
 }
 
 static int sof_ipc4_widget_assign_instance_id(struct snd_sof_dev *sdev,
@@ -1349,23 +1369,29 @@ static int snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_s
 }
 #endif
 
-static int ipc4_set_fmt_mask(struct snd_mask *fmt, unsigned int bit_depth)
+static bool sof_ipc4_copier_is_single_format(struct snd_sof_dev *sdev,
+					     struct sof_ipc4_pin_format *pin_fmts,
+					     u32 pin_fmts_size)
 {
-	switch (bit_depth) {
-	case 16:
-		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
-		break;
-	case 24:
-		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
-		break;
-	case 32:
-		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
-		break;
-	default:
-		return -EINVAL;
+	struct sof_ipc4_audio_format *fmt;
+	u32 valid_bits;
+	int i;
+
+	fmt = &pin_fmts[0].audio_fmt;
+	valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+
+	/* check if all output formats in topology are the same */
+	for (i = 1; i < pin_fmts_size; i++) {
+		u32 _valid_bits;
+
+		fmt = &pin_fmts[i].audio_fmt;
+		_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+
+		if (_valid_bits != valid_bits)
+			return false;
 	}
 
-	return 0;
+	return true;
 }
 
 static int
@@ -1381,8 +1407,6 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	struct snd_pcm_hw_params *ref_params;
 	struct sof_ipc4_copier *ipc4_copier;
 	struct snd_sof_dai *dai;
-	struct snd_mask *fmt;
-	int out_sample_valid_bits;
 	u32 gtw_cfg_config_length;
 	u32 dma_config_tlv_size = 0;
 	void **ipc_config_data;
@@ -1392,6 +1416,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	u32 out_ref_rate, out_ref_channels;
 	u32 deep_buffer_dma_ms = 0;
 	int output_fmt_index;
+	bool single_output_format;
 
 	dev_dbg(sdev->dev, "copier %s, type %d", swidget->widget->name, swidget->id);
 
@@ -1525,6 +1550,9 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		return ret;
 
 	/* set the reference params for output format selection */
+	single_output_format = sof_ipc4_copier_is_single_format(sdev,
+								available_fmt->output_pin_fmts,
+								available_fmt->num_output_formats);
 	switch (swidget->id) {
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_dai_out:
@@ -1535,17 +1563,21 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		in_fmt = &available_fmt->input_pin_fmts[ret].audio_fmt;
 		out_ref_rate = in_fmt->sampling_frequency;
 		out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
-		out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
+
+		if (!single_output_format)
+			out_ref_valid_bits =
+				SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
 		break;
 	}
 	case snd_soc_dapm_aif_out:
 	case snd_soc_dapm_dai_in:
-		out_ref_valid_bits = sof_ipc4_get_valid_bits(sdev, fe_params);
-		if (out_ref_valid_bits < 0)
-			return out_ref_valid_bits;
-
 		out_ref_rate = params_rate(fe_params);
 		out_ref_channels = params_channels(fe_params);
+		if (!single_output_format) {
+			out_ref_valid_bits = sof_ipc4_get_valid_bits(sdev, fe_params);
+			if (out_ref_valid_bits < 0)
+				return out_ref_valid_bits;
+		}
 		break;
 	default:
 		/*
@@ -1554,6 +1586,21 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		 */
 		return -EINVAL;
 	}
+
+	/*
+	 * if the output format is the same across all available output formats, choose
+	 * that as the reference.
+	 */
+	if (single_output_format) {
+		struct sof_ipc4_audio_format *out_fmt;
+
+		out_fmt = &available_fmt->output_pin_fmts[0].audio_fmt;
+		out_ref_valid_bits =
+			SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(out_fmt->fmt_cfg);
+	}
+
+	dev_dbg(sdev->dev, "copier %s: reference output rate %d, channels %d valid_bits %d\n",
+		swidget->widget->name, out_ref_rate, out_ref_channels, out_ref_valid_bits);
 
 	output_fmt_index = sof_ipc4_init_output_audio_fmt(sdev, &copier_data->base_config,
 							  available_fmt, out_ref_rate,
@@ -1664,11 +1711,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	}
 
 	/* modify the input params for the next widget */
-	fmt = hw_param_mask(pipeline_params, SNDRV_PCM_HW_PARAM_FORMAT);
-	out_sample_valid_bits =
-		SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(copier_data->out_format.fmt_cfg);
-	snd_mask_none(fmt);
-	ret = ipc4_set_fmt_mask(fmt, out_sample_valid_bits);
+	ret = sof_ipc4_update_hw_params(sdev, pipeline_params, &copier_data->out_format);
 	if (ret)
 		return ret;
 
@@ -1745,6 +1788,12 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		memcpy(*ipc_config_data + sizeof(*copier_data) +
 		       gtw_cfg_config_length,
 		       &ipc4_copier->dma_config_tlv, dma_config_tlv_size);
+
+	/*
+	 * Restore gateway config length now that IPC payload is prepared. This avoids
+	 * counting the DMA CONFIG TLV multiple times
+	 */
+	copier_data->gtw_cfg.config_length = gtw_cfg_config_length / 4;
 
 	return 0;
 }
@@ -1832,37 +1881,58 @@ static int sof_ipc4_prepare_src_module(struct snd_sof_widget *swidget,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc4_src *src = swidget->private;
 	struct sof_ipc4_available_audio_format *available_fmt = &src->available_fmt;
-	struct sof_ipc4_audio_format *in_fmt;
+	struct sof_ipc4_audio_format *out_audio_fmt;
+	struct sof_ipc4_audio_format *in_audio_fmt;
 	u32 out_ref_rate, out_ref_channels, out_ref_valid_bits;
-	struct snd_interval *rate;
-	int ret;
+	int output_format_index, input_format_index;
 
-	ret = sof_ipc4_init_input_audio_fmt(sdev, swidget, &src->base_config,
-					    pipeline_params, available_fmt);
-	if (ret < 0)
-		return ret;
+	input_format_index = sof_ipc4_init_input_audio_fmt(sdev, swidget, &src->base_config,
+							   pipeline_params, available_fmt);
+	if (input_format_index < 0)
+		return input_format_index;
 
-	in_fmt = &available_fmt->input_pin_fmts[ret].audio_fmt;
-	out_ref_rate = in_fmt->sampling_frequency;
-	out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
-	out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
+	/*
+	 * For playback, the SRC sink rate will be configured based on the requested output
+	 * format, which is restricted to only deal with DAI's with a single format for now.
+	 */
+	if (dir == SNDRV_PCM_STREAM_PLAYBACK && available_fmt->num_output_formats > 1) {
+		dev_err(sdev->dev, "Invalid number of output formats: %d for SRC %s\n",
+			available_fmt->num_output_formats, swidget->widget->name);
+		return -EINVAL;
+	}
 
-	ret = sof_ipc4_init_output_audio_fmt(sdev, &src->base_config, available_fmt,
-					     out_ref_rate, out_ref_channels, out_ref_valid_bits);
-	if (ret < 0) {
+	/*
+	 * SRC does not perform format conversion, so the output channels and valid bit depth must
+	 * be the same as that of the input.
+	 */
+	in_audio_fmt = &available_fmt->input_pin_fmts[input_format_index].audio_fmt;
+	out_ref_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_audio_fmt->fmt_cfg);
+	out_ref_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_audio_fmt->fmt_cfg);
+
+	/*
+	 * For capture, the SRC module should convert the rate to match the rate requested by the
+	 * PCM hw_params. Set the reference params based on the fe_params unconditionally as it
+	 * will be ignored for playback anyway.
+	 */
+	out_ref_rate = params_rate(fe_params);
+
+	output_format_index = sof_ipc4_init_output_audio_fmt(sdev, &src->base_config,
+							     available_fmt, out_ref_rate,
+							     out_ref_channels, out_ref_valid_bits);
+	if (output_format_index < 0) {
 		dev_err(sdev->dev, "Failed to initialize output format for %s",
 			swidget->widget->name);
+		return output_format_index;
 	}
 
 	/* update pipeline memory usage */
 	sof_ipc4_update_resource_usage(sdev, swidget, &src->base_config);
 
-	/* update pipeline_params for sink widgets */
-	rate = hw_param_interval(pipeline_params, SNDRV_PCM_HW_PARAM_RATE);
-	rate->min = src->sink_rate;
-	rate->max = rate->min;
+	out_audio_fmt = &available_fmt->output_pin_fmts[output_format_index].audio_fmt;
+	src->sink_rate = out_audio_fmt->sampling_frequency;
 
-	return 0;
+	/* update pipeline_params for sink widgets */
+	return sof_ipc4_update_hw_params(sdev, pipeline_params, out_audio_fmt);
 }
 
 static int
@@ -2319,6 +2389,7 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 		pipeline->mem_usage = 0;
 		pipeline->state = SOF_IPC4_PIPE_UNINITIALIZED;
 		ida_free(&pipeline_ida, swidget->instance_id);
+		swidget->instance_id = -EINVAL;
 	} else {
 		struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 		struct sof_ipc4_pipeline *pipeline = pipe_widget->private;

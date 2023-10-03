@@ -142,7 +142,7 @@ int ui__init(void)
 		goto out;
 	}
 
-	SLkp_define_keysym((char *)"^(kB)", SL_KEY_UNTAB);
+	SLkp_define_keysym("^(kB)", SL_KEY_UNTAB);
 
 	signal(SIGSEGV, ui__signal_backtrace);
 	signal(SIGFPE, ui__signal_backtrace);

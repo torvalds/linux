@@ -232,7 +232,6 @@ static const struct scsi_host_template pdc_sata_sht = {
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 };
 
-/* TODO: inherit from base port_ops after converting to new EH */
 static struct ata_port_operations pdc_20621_ops = {
 	.inherits		= &ata_sff_port_ops,
 

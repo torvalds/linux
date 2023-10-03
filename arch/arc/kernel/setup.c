@@ -29,6 +29,7 @@
 #include <asm/mach_desc.h>
 #include <asm/smp.h>
 #include <asm/dsp-impl.h>
+#include <soc/arc/mcip.h>
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
@@ -43,19 +44,22 @@ const struct machine_desc *machine_desc;
 
 struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
 
-struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
+struct cpuinfo_arc {
+	int arcver;
+	unsigned int t0:1, t1:1;
+	struct {
+		unsigned long base;
+		unsigned int sz;
+	} iccm, dccm;
+};
 
-static const struct id_to_str arc_legacy_rel[] = {
+#ifdef CONFIG_ISA_ARCV2
+
+static const struct id_to_str arc_hs_rel[] = {
 	/* ID.ARCVER,	Release */
-#ifdef CONFIG_ISA_ARCOMPACT
-	{ 0x34, 	"R4.10"},
-	{ 0x35, 	"R4.11"},
-#else
 	{ 0x51, 	"R2.0" },
 	{ 0x52, 	"R2.1" },
 	{ 0x53,		"R3.0" },
-#endif
-	{ 0x00,		NULL   }
 };
 
 static const struct id_to_str arc_hs_ver54_rel[] = {
@@ -66,323 +70,296 @@ static const struct id_to_str arc_hs_ver54_rel[] = {
 	{  3,		"R4.00a"},
 	{  0xFF,	NULL   }
 };
+#endif
 
-static void read_decode_ccm_bcr(struct cpuinfo_arc *cpu)
+static int
+arcompact_mumbojumbo(int c, struct cpuinfo_arc *info, char *buf, int len)
 {
-	if (is_isa_arcompact()) {
-		struct bcr_iccm_arcompact iccm;
-		struct bcr_dccm_arcompact dccm;
+	int n = 0;
+#ifdef CONFIG_ISA_ARCOMPACT
+	char *cpu_nm, *isa_nm = "ARCompact";
+	struct bcr_fp_arcompact fpu_sp, fpu_dp;
+	int atomic = 0, be, present;
+	int bpu_full, bpu_cache, bpu_pred;
+	struct bcr_bpu_arcompact bpu;
+	struct bcr_iccm_arcompact iccm;
+	struct bcr_dccm_arcompact dccm;
+	struct bcr_generic isa;
 
-		READ_BCR(ARC_REG_ICCM_BUILD, iccm);
-		if (iccm.ver) {
-			cpu->iccm.sz = 4096 << iccm.sz;	/* 8K to 512K */
-			cpu->iccm.base_addr = iccm.base << 16;
-		}
+	READ_BCR(ARC_REG_ISA_CFG_BCR, isa);
 
-		READ_BCR(ARC_REG_DCCM_BUILD, dccm);
-		if (dccm.ver) {
-			unsigned long base;
-			cpu->dccm.sz = 2048 << dccm.sz;	/* 2K to 256K */
-
-			base = read_aux_reg(ARC_REG_DCCM_BASE_BUILD);
-			cpu->dccm.base_addr = base & ~0xF;
-		}
-	} else {
-		struct bcr_iccm_arcv2 iccm;
-		struct bcr_dccm_arcv2 dccm;
-		unsigned long region;
-
-		READ_BCR(ARC_REG_ICCM_BUILD, iccm);
-		if (iccm.ver) {
-			cpu->iccm.sz = 256 << iccm.sz00;	/* 512B to 16M */
-			if (iccm.sz00 == 0xF && iccm.sz01 > 0)
-				cpu->iccm.sz <<= iccm.sz01;
-
-			region = read_aux_reg(ARC_REG_AUX_ICCM);
-			cpu->iccm.base_addr = region & 0xF0000000;
-		}
-
-		READ_BCR(ARC_REG_DCCM_BUILD, dccm);
-		if (dccm.ver) {
-			cpu->dccm.sz = 256 << dccm.sz0;
-			if (dccm.sz0 == 0xF && dccm.sz1 > 0)
-				cpu->dccm.sz <<= dccm.sz1;
-
-			region = read_aux_reg(ARC_REG_AUX_DCCM);
-			cpu->dccm.base_addr = region & 0xF0000000;
-		}
+	if (!isa.ver)	/* ISA BCR absent, use Kconfig info */
+		atomic = IS_ENABLED(CONFIG_ARC_HAS_LLSC);
+	else {
+		/* ARC700_BUILD only has 2 bits of isa info */
+		atomic = isa.info & 1;
 	}
+
+	be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
+
+	if (info->arcver < 0x34)
+		cpu_nm = "ARC750";
+	else
+		cpu_nm = "ARC770";
+
+	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s (%s ISA) %s%s%s\n",
+		       c, cpu_nm, isa_nm,
+		       IS_AVAIL2(atomic, "atomic ", CONFIG_ARC_HAS_LLSC),
+		       IS_AVAIL1(be, "[Big-Endian]"));
+
+	READ_BCR(ARC_REG_FP_BCR, fpu_sp);
+	READ_BCR(ARC_REG_DPFP_BCR, fpu_dp);
+
+	if (fpu_sp.ver | fpu_dp.ver)
+		n += scnprintf(buf + n, len - n, "FPU\t\t: %s%s\n",
+			       IS_AVAIL1(fpu_sp.ver, "SP "),
+			       IS_AVAIL1(fpu_dp.ver, "DP "));
+
+	READ_BCR(ARC_REG_BPU_BCR, bpu);
+	bpu_full = bpu.fam ? 1 : 0;
+	bpu_cache = 256 << (bpu.ent - 1);
+	bpu_pred = 256 << (bpu.ent - 1);
+
+	n += scnprintf(buf + n, len - n,
+			"BPU\t\t: %s%s match, cache:%d, Predict Table:%d\n",
+			IS_AVAIL1(bpu_full, "full"),
+			IS_AVAIL1(!bpu_full, "partial"),
+			bpu_cache, bpu_pred);
+
+	READ_BCR(ARC_REG_ICCM_BUILD, iccm);
+	if (iccm.ver) {
+		info->iccm.sz = 4096 << iccm.sz;	/* 8K to 512K */
+		info->iccm.base = iccm.base << 16;
+	}
+
+	READ_BCR(ARC_REG_DCCM_BUILD, dccm);
+	if (dccm.ver) {
+		unsigned long base;
+		info->dccm.sz = 2048 << dccm.sz;	/* 2K to 256K */
+
+		base = read_aux_reg(ARC_REG_DCCM_BASE_BUILD);
+		info->dccm.base = base & ~0xF;
+	}
+
+	/* ARCompact ISA specific sanity checks */
+	present = fpu_dp.ver;	/* SP has no arch visible regs */
+	CHK_OPT_STRICT(CONFIG_ARC_FPU_SAVE_RESTORE, present);
+#endif
+	return n;
+
 }
 
-static void decode_arc_core(struct cpuinfo_arc *cpu)
+static int arcv2_mumbojumbo(int c, struct cpuinfo_arc *info, char *buf, int len)
 {
-	struct bcr_uarch_build_arcv2 uarch;
-	const struct id_to_str *tbl;
-
-	if (cpu->core.family < 0x54) { /* includes arc700 */
-
-		for (tbl = &arc_legacy_rel[0]; tbl->id != 0; tbl++) {
-			if (cpu->core.family == tbl->id) {
-				cpu->release = tbl->str;
-				break;
-			}
-		}
-
-		if (is_isa_arcompact())
-			cpu->name = "ARC700";
-		else if (tbl->str)
-			cpu->name = "HS38";
-		else
-			cpu->name = cpu->release = "Unknown";
-
-		return;
-	}
+	int n = 0;
+#ifdef CONFIG_ISA_ARCV2
+	const char *release, *cpu_nm, *isa_nm = "ARCv2";
+	int dual_issue = 0, dual_enb = 0, mpy_opt, present;
+	int bpu_full, bpu_cache, bpu_pred, bpu_ret_stk;
+	char mpy_nm[16], lpb_nm[32];
+	struct bcr_isa_arcv2 isa;
+	struct bcr_mpy mpy;
+	struct bcr_fp_arcv2 fpu;
+	struct bcr_bpu_arcv2 bpu;
+	struct bcr_lpb lpb;
+	struct bcr_iccm_arcv2 iccm;
+	struct bcr_dccm_arcv2 dccm;
+	struct bcr_erp erp;
 
 	/*
 	 * Initial HS cores bumped AUX IDENTITY.ARCVER for each release until
 	 * ARCVER 0x54 which introduced AUX MICRO_ARCH_BUILD and subsequent
 	 * releases only update it.
 	 */
-	READ_BCR(ARC_REG_MICRO_ARCH_BCR, uarch);
 
-	if (uarch.prod == 4) {
-		cpu->name = "HS48";
-		cpu->extn.dual = 1;
+	cpu_nm = "HS38";
 
+	if (info->arcver > 0x50 && info->arcver <= 0x53) {
+		release = arc_hs_rel[info->arcver - 0x51].str;
 	} else {
-		cpu->name = "HS38";
-	}
+		const struct id_to_str *tbl;
+		struct bcr_uarch_build uarch;
 
-	for (tbl = &arc_hs_ver54_rel[0]; tbl->id != 0xFF; tbl++) {
-		if (uarch.maj == tbl->id) {
-			cpu->release = tbl->str;
-			break;
+		READ_BCR(ARC_REG_MICRO_ARCH_BCR, uarch);
+
+		for (tbl = &arc_hs_ver54_rel[0]; tbl->id != 0xFF; tbl++) {
+			if (uarch.maj == tbl->id) {
+				release = tbl->str;
+				break;
+			}
 		}
-	}
-}
-
-static void read_arc_build_cfg_regs(void)
-{
-	struct bcr_timer timer;
-	struct bcr_generic bcr;
-	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
-	struct bcr_isa_arcv2 isa;
-	struct bcr_actionpoint ap;
-
-	FIX_PTR(cpu);
-
-	READ_BCR(AUX_IDENTITY, cpu->core);
-	decode_arc_core(cpu);
-
-	READ_BCR(ARC_REG_TIMERS_BCR, timer);
-	cpu->extn.timer0 = timer.t0;
-	cpu->extn.timer1 = timer.t1;
-	cpu->extn.rtc = timer.rtc;
-
-	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
-
-	READ_BCR(ARC_REG_MUL_BCR, cpu->extn_mpy);
-
-	/* Read CCM BCRs for boot reporting even if not enabled in Kconfig */
-	read_decode_ccm_bcr(cpu);
-
-	read_decode_mmu_bcr();
-	read_decode_cache_bcr();
-
-	if (is_isa_arcompact()) {
-		struct bcr_fp_arcompact sp, dp;
-		struct bcr_bpu_arcompact bpu;
-
-		READ_BCR(ARC_REG_FP_BCR, sp);
-		READ_BCR(ARC_REG_DPFP_BCR, dp);
-		cpu->extn.fpu_sp = sp.ver ? 1 : 0;
-		cpu->extn.fpu_dp = dp.ver ? 1 : 0;
-
-		READ_BCR(ARC_REG_BPU_BCR, bpu);
-		cpu->bpu.ver = bpu.ver;
-		cpu->bpu.full = bpu.fam ? 1 : 0;
-		if (bpu.ent) {
-			cpu->bpu.num_cache = 256 << (bpu.ent - 1);
-			cpu->bpu.num_pred = 256 << (bpu.ent - 1);
-		}
-	} else {
-		struct bcr_fp_arcv2 spdp;
-		struct bcr_bpu_arcv2 bpu;
-
-		READ_BCR(ARC_REG_FP_V2_BCR, spdp);
-		cpu->extn.fpu_sp = spdp.sp ? 1 : 0;
-		cpu->extn.fpu_dp = spdp.dp ? 1 : 0;
-
-		READ_BCR(ARC_REG_BPU_BCR, bpu);
-		cpu->bpu.ver = bpu.ver;
-		cpu->bpu.full = bpu.ft;
-		cpu->bpu.num_cache = 256 << bpu.bce;
-		cpu->bpu.num_pred = 2048 << bpu.pte;
-		cpu->bpu.ret_stk = 4 << bpu.rse;
-
-		/* if dual issue hardware, is it enabled ? */
-		if (cpu->extn.dual) {
+		if (uarch.prod == 4) {
 			unsigned int exec_ctrl;
 
+			cpu_nm = "HS48";
+			dual_issue = 1;
+			/* if dual issue hardware, is it enabled ? */
 			READ_BCR(AUX_EXEC_CTRL, exec_ctrl);
-			cpu->extn.dual_enb = !(exec_ctrl & 1);
+			dual_enb = !(exec_ctrl & 1);
 		}
 	}
-
-	READ_BCR(ARC_REG_AP_BCR, ap);
-	if (ap.ver) {
-		cpu->extn.ap_num = 2 << ap.num;
-		cpu->extn.ap_full = !ap.min;
-	}
-
-	READ_BCR(ARC_REG_SMART_BCR, bcr);
-	cpu->extn.smart = bcr.ver ? 1 : 0;
-
-	READ_BCR(ARC_REG_RTT_BCR, bcr);
-	cpu->extn.rtt = bcr.ver ? 1 : 0;
 
 	READ_BCR(ARC_REG_ISA_CFG_BCR, isa);
 
-	/* some hacks for lack of feature BCR info in old ARC700 cores */
-	if (is_isa_arcompact()) {
-		if (!isa.ver)	/* ISA BCR absent, use Kconfig info */
-			cpu->isa.atomic = IS_ENABLED(CONFIG_ARC_HAS_LLSC);
-		else {
-			/* ARC700_BUILD only has 2 bits of isa info */
-			struct bcr_generic bcr = *(struct bcr_generic *)&isa;
-			cpu->isa.atomic = bcr.info & 1;
-		}
+	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s %s (%s ISA) %s%s%s\n",
+		       c, cpu_nm, release, isa_nm,
+		       IS_AVAIL1(isa.be, "[Big-Endian]"),
+		       IS_AVAIL3(dual_issue, dual_enb, " Dual-Issue "));
 
-		cpu->isa.be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
+	READ_BCR(ARC_REG_MPY_BCR, mpy);
+	mpy_opt = 2;	/* stock MPY/MPYH */
+	if (mpy.dsp)	/* OPT 7-9 */
+		mpy_opt = mpy.dsp + 6;
 
-		 /* there's no direct way to distinguish 750 vs. 770 */
-		if (unlikely(cpu->core.family < 0x34 || cpu->mmu.ver < 3))
-			cpu->name = "ARC750";
-	} else {
-		cpu->isa = isa;
+	scnprintf(mpy_nm, 16, "mpy[opt %d] ", mpy_opt);
+
+	READ_BCR(ARC_REG_FP_V2_BCR, fpu);
+
+	n += scnprintf(buf + n, len - n, "ISA Extn\t: %s%s%s%s%s%s%s%s%s%s%s\n",
+		       IS_AVAIL2(isa.atomic, "atomic ", CONFIG_ARC_HAS_LLSC),
+		       IS_AVAIL2(isa.ldd, "ll64 ", CONFIG_ARC_HAS_LL64),
+		       IS_AVAIL2(isa.unalign, "unalign ", CONFIG_ARC_USE_UNALIGNED_MEM_ACCESS),
+		       IS_AVAIL1(mpy.ver, mpy_nm),
+		       IS_AVAIL1(isa.div_rem, "div_rem "),
+		       IS_AVAIL1((fpu.sp | fpu.dp), "  FPU:"),
+		       IS_AVAIL1(fpu.sp, " sp"),
+		       IS_AVAIL1(fpu.dp, " dp"));
+
+	READ_BCR(ARC_REG_BPU_BCR, bpu);
+	bpu_full = bpu.ft;
+	bpu_cache = 256 << bpu.bce;
+	bpu_pred = 2048 << bpu.pte;
+	bpu_ret_stk = 4 << bpu.rse;
+
+	READ_BCR(ARC_REG_LPB_BUILD, lpb);
+	if (lpb.ver) {
+		unsigned int ctl;
+		ctl = read_aux_reg(ARC_REG_LPB_CTRL);
+
+		scnprintf(lpb_nm, sizeof(lpb_nm), " Loop Buffer:%d %s",
+			  lpb.entries, IS_DISABLED_RUN(!ctl));
 	}
-}
-
-static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
-{
-	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
-	struct bcr_identity *core = &cpu->core;
-	char mpy_opt[16];
-	int n = 0;
-
-	FIX_PTR(cpu);
 
 	n += scnprintf(buf + n, len - n,
-		       "\nIDENTITY\t: ARCVER [%#02x] ARCNUM [%#02x] CHIPID [%#4x]\n",
-		       core->family, core->cpu_id, core->chip_id);
+			"BPU\t\t: %s%s match, cache:%d, Predict Table:%d Return stk: %d%s\n",
+			IS_AVAIL1(bpu_full, "full"),
+			IS_AVAIL1(!bpu_full, "partial"),
+			bpu_cache, bpu_pred, bpu_ret_stk,
+			lpb_nm);
 
-	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s %s (%s ISA) %s%s%s\n",
-		       cpu_id, cpu->name, cpu->release,
-		       is_isa_arcompact() ? "ARCompact" : "ARCv2",
-		       IS_AVAIL1(cpu->isa.be, "[Big-Endian]"),
-		       IS_AVAIL3(cpu->extn.dual, cpu->extn.dual_enb, " Dual-Issue "));
-
-	n += scnprintf(buf + n, len - n, "Timers\t\t: %s%s%s%s%s%s\nISA Extn\t: ",
-		       IS_AVAIL1(cpu->extn.timer0, "Timer0 "),
-		       IS_AVAIL1(cpu->extn.timer1, "Timer1 "),
-		       IS_AVAIL2(cpu->extn.rtc, "RTC [UP 64-bit] ", CONFIG_ARC_TIMERS_64BIT),
-		       IS_AVAIL2(cpu->extn.gfrc, "GFRC [SMP 64-bit] ", CONFIG_ARC_TIMERS_64BIT));
-
-	if (cpu->extn_mpy.ver) {
-		if (is_isa_arcompact()) {
-			scnprintf(mpy_opt, 16, "mpy");
-		} else {
-
-			int opt = 2;	/* stock MPY/MPYH */
-
-			if (cpu->extn_mpy.dsp)	/* OPT 7-9 */
-				opt = cpu->extn_mpy.dsp + 6;
-
-			scnprintf(mpy_opt, 16, "mpy[opt %d] ", opt);
-		}
+	READ_BCR(ARC_REG_ICCM_BUILD, iccm);
+	if (iccm.ver) {
+		unsigned long base;
+		info->iccm.sz = 256 << iccm.sz00;	/* 512B to 16M */
+		if (iccm.sz00 == 0xF && iccm.sz01 > 0)
+			info->iccm.sz <<= iccm.sz01;
+		base = read_aux_reg(ARC_REG_AUX_ICCM);
+		info->iccm.base = base & 0xF0000000;
 	}
 
-	n += scnprintf(buf + n, len - n, "%s%s%s%s%s%s%s%s\n",
-		       IS_AVAIL2(cpu->isa.atomic, "atomic ", CONFIG_ARC_HAS_LLSC),
-		       IS_AVAIL2(cpu->isa.ldd, "ll64 ", CONFIG_ARC_HAS_LL64),
-		       IS_AVAIL2(cpu->isa.unalign, "unalign ", CONFIG_ARC_USE_UNALIGNED_MEM_ACCESS),
-		       IS_AVAIL1(cpu->extn_mpy.ver, mpy_opt),
-		       IS_AVAIL1(cpu->isa.div_rem, "div_rem "));
-
-	if (cpu->bpu.ver) {
-		n += scnprintf(buf + n, len - n,
-			      "BPU\t\t: %s%s match, cache:%d, Predict Table:%d Return stk: %d",
-			      IS_AVAIL1(cpu->bpu.full, "full"),
-			      IS_AVAIL1(!cpu->bpu.full, "partial"),
-			      cpu->bpu.num_cache, cpu->bpu.num_pred, cpu->bpu.ret_stk);
-
-		if (is_isa_arcv2()) {
-			struct bcr_lpb lpb;
-
-			READ_BCR(ARC_REG_LPB_BUILD, lpb);
-			if (lpb.ver) {
-				unsigned int ctl;
-				ctl = read_aux_reg(ARC_REG_LPB_CTRL);
-
-				n += scnprintf(buf + n, len - n, " Loop Buffer:%d %s",
-					       lpb.entries,
-					       IS_DISABLED_RUN(!ctl));
-			}
-		}
-		n += scnprintf(buf + n, len - n, "\n");
+	READ_BCR(ARC_REG_DCCM_BUILD, dccm);
+	if (dccm.ver) {
+		unsigned long base;
+		info->dccm.sz = 256 << dccm.sz0;
+		if (dccm.sz0 == 0xF && dccm.sz1 > 0)
+			info->dccm.sz <<= dccm.sz1;
+		base = read_aux_reg(ARC_REG_AUX_DCCM);
+		info->dccm.base = base & 0xF0000000;
 	}
 
-	return buf;
-}
-
-static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
-{
-	int n = 0;
-	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
-
-	FIX_PTR(cpu);
-
-	n += scnprintf(buf + n, len - n, "Vector Table\t: %#x\n", cpu->vec_base);
-
-	if (cpu->extn.fpu_sp || cpu->extn.fpu_dp)
-		n += scnprintf(buf + n, len - n, "FPU\t\t: %s%s\n",
-			       IS_AVAIL1(cpu->extn.fpu_sp, "SP "),
-			       IS_AVAIL1(cpu->extn.fpu_dp, "DP "));
-
-	if (cpu->extn.ap_num | cpu->extn.smart | cpu->extn.rtt) {
-		n += scnprintf(buf + n, len - n, "DEBUG\t\t: %s%s",
-			       IS_AVAIL1(cpu->extn.smart, "smaRT "),
-			       IS_AVAIL1(cpu->extn.rtt, "RTT "));
-		if (cpu->extn.ap_num) {
-			n += scnprintf(buf + n, len - n, "ActionPoint %d/%s",
-				       cpu->extn.ap_num,
-				       cpu->extn.ap_full ? "full":"min");
-		}
-		n += scnprintf(buf + n, len - n, "\n");
-	}
-
-	if (cpu->dccm.sz || cpu->iccm.sz)
-		n += scnprintf(buf + n, len - n, "Extn [CCM]\t: DCCM @ %x, %d KB / ICCM: @ %x, %d KB\n",
-			       cpu->dccm.base_addr, TO_KB(cpu->dccm.sz),
-			       cpu->iccm.base_addr, TO_KB(cpu->iccm.sz));
-
-	if (is_isa_arcv2()) {
-
-		/* Error Protection: ECC/Parity */
-		struct bcr_erp erp;
-		READ_BCR(ARC_REG_ERP_BUILD, erp);
-
-		if (erp.ver) {
-			struct  ctl_erp ctl;
-			READ_BCR(ARC_REG_ERP_CTRL, ctl);
-
-			/* inverted bits: 0 means enabled */
-			n += scnprintf(buf + n, len - n, "Extn [ECC]\t: %s%s%s%s%s%s\n",
+	/* Error Protection: ECC/Parity */
+	READ_BCR(ARC_REG_ERP_BUILD, erp);
+	if (erp.ver) {
+		struct ctl_erp ctl;
+		READ_BCR(ARC_REG_ERP_CTRL, ctl);
+		/* inverted bits: 0 means enabled */
+		n += scnprintf(buf + n, len - n, "Extn [ECC]\t: %s%s%s%s%s%s\n",
 				IS_AVAIL3(erp.ic,  !ctl.dpi, "IC "),
 				IS_AVAIL3(erp.dc,  !ctl.dpd, "DC "),
 				IS_AVAIL3(erp.mmu, !ctl.mpd, "MMU "));
-		}
 	}
+
+	/* ARCv2 ISA specific sanity checks */
+	present = fpu.sp | fpu.dp | mpy.dsp;	/* DSP and/or FPU */
+	CHK_OPT_STRICT(CONFIG_ARC_HAS_ACCL_REGS, present);
+
+	dsp_config_check();
+#endif
+	return n;
+}
+
+static char *arc_cpu_mumbojumbo(int c, struct cpuinfo_arc *info, char *buf, int len)
+{
+	struct bcr_identity ident;
+	struct bcr_timer timer;
+	struct bcr_generic bcr;
+	struct mcip_bcr mp;
+	struct bcr_actionpoint ap;
+	unsigned long vec_base;
+	int ap_num, ap_full, smart, rtt, n;
+
+	memset(info, 0, sizeof(struct cpuinfo_arc));
+
+	READ_BCR(AUX_IDENTITY, ident);
+	info->arcver = ident.family;
+
+	n = scnprintf(buf, len,
+		       "\nIDENTITY\t: ARCVER [%#02x] ARCNUM [%#02x] CHIPID [%#4x]\n",
+		       ident.family, ident.cpu_id, ident.chip_id);
+
+	if (is_isa_arcompact()) {
+		n += arcompact_mumbojumbo(c, info, buf + n, len - n);
+	} else if (is_isa_arcv2()){
+		n += arcv2_mumbojumbo(c, info, buf + n, len - n);
+	}
+
+	n += arc_mmu_mumbojumbo(c, buf + n, len - n);
+	n += arc_cache_mumbojumbo(c, buf + n, len - n);
+
+	READ_BCR(ARC_REG_TIMERS_BCR, timer);
+	info->t0 = timer.t0;
+	info->t1 = timer.t1;
+
+	READ_BCR(ARC_REG_MCIP_BCR, mp);
+	vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
+
+	n += scnprintf(buf + n, len - n,
+		       "Timers\t\t: %s%s%s%s%s%s\nVector Table\t: %#lx\n",
+		       IS_AVAIL1(timer.t0, "Timer0 "),
+		       IS_AVAIL1(timer.t1, "Timer1 "),
+		       IS_AVAIL2(timer.rtc, "RTC [UP 64-bit] ", CONFIG_ARC_TIMERS_64BIT),
+		       IS_AVAIL2(mp.gfrc, "GFRC [SMP 64-bit] ", CONFIG_ARC_TIMERS_64BIT),
+		       vec_base);
+
+	READ_BCR(ARC_REG_AP_BCR, ap);
+	if (ap.ver) {
+		ap_num = 2 << ap.num;
+		ap_full = !ap.min;
+	}
+
+	READ_BCR(ARC_REG_SMART_BCR, bcr);
+	smart = bcr.ver ? 1 : 0;
+
+	READ_BCR(ARC_REG_RTT_BCR, bcr);
+	rtt = bcr.ver ? 1 : 0;
+
+	if (ap.ver | smart | rtt) {
+		n += scnprintf(buf + n, len - n, "DEBUG\t\t: %s%s",
+			       IS_AVAIL1(smart, "smaRT "),
+			       IS_AVAIL1(rtt, "RTT "));
+		if (ap.ver) {
+			n += scnprintf(buf + n, len - n, "ActionPoint %d/%s",
+				       ap_num,
+				       ap_full ? "full":"min");
+		}
+		n += scnprintf(buf + n, len - n, "\n");
+	}
+
+	if (info->dccm.sz || info->iccm.sz)
+		n += scnprintf(buf + n, len - n,
+			       "Extn [CCM]\t: DCCM @ %lx, %d KB / ICCM: @ %lx, %d KB\n",
+			       info->dccm.base, TO_KB(info->dccm.sz),
+			       info->iccm.base, TO_KB(info->iccm.sz));
 
 	return buf;
 }
@@ -401,15 +378,15 @@ void chk_opt_weak(char *opt_name, bool hw_exists, bool opt_ena)
 		panic("Disable %s, hardware NOT present\n", opt_name);
 }
 
-static void arc_chk_core_config(void)
+/*
+ * ISA agnostic sanity checks
+ */
+static void arc_chk_core_config(struct cpuinfo_arc *info)
 {
-	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
-	int present = 0;
-
-	if (!cpu->extn.timer0)
+	if (!info->t0)
 		panic("Timer0 is not present!\n");
 
-	if (!cpu->extn.timer1)
+	if (!info->t1)
 		panic("Timer1 is not present!\n");
 
 #ifdef CONFIG_ARC_HAS_DCCM
@@ -417,35 +394,17 @@ static void arc_chk_core_config(void)
 	 * DCCM can be arbit placed in hardware.
 	 * Make sure it's placement/sz matches what Linux is built with
 	 */
-	if ((unsigned int)__arc_dccm_base != cpu->dccm.base_addr)
+	if ((unsigned int)__arc_dccm_base != info->dccm.base)
 		panic("Linux built with incorrect DCCM Base address\n");
 
-	if (CONFIG_ARC_DCCM_SZ * SZ_1K != cpu->dccm.sz)
+	if (CONFIG_ARC_DCCM_SZ * SZ_1K != info->dccm.sz)
 		panic("Linux built with incorrect DCCM Size\n");
 #endif
 
 #ifdef CONFIG_ARC_HAS_ICCM
-	if (CONFIG_ARC_ICCM_SZ * SZ_1K != cpu->iccm.sz)
+	if (CONFIG_ARC_ICCM_SZ * SZ_1K != info->iccm.sz)
 		panic("Linux built with incorrect ICCM Size\n");
 #endif
-
-	/*
-	 * FP hardware/software config sanity
-	 * -If hardware present, kernel needs to save/restore FPU state
-	 * -If not, it will crash trying to save/restore the non-existant regs
-	 */
-
-	if (is_isa_arcompact()) {
-		/* only DPDP checked since SP has no arch visible regs */
-		present = cpu->extn.fpu_dp;
-		CHK_OPT_STRICT(CONFIG_ARC_FPU_SAVE_RESTORE, present);
-	} else {
-		/* Accumulator Low:High pair (r58:59) present if DSP MPY or FPU */
-		present = cpu->extn_mpy.dsp | cpu->extn.fpu_sp | cpu->extn.fpu_dp;
-		CHK_OPT_STRICT(CONFIG_ARC_HAS_ACCL_REGS, present);
-
-		dsp_config_check();
-	}
 }
 
 /*
@@ -456,21 +415,19 @@ static void arc_chk_core_config(void)
 
 void setup_processor(void)
 {
+	struct cpuinfo_arc info;
+	int c = smp_processor_id();
 	char str[512];
-	int cpu_id = smp_processor_id();
 
-	read_arc_build_cfg_regs();
+	pr_info("%s", arc_cpu_mumbojumbo(c, &info, str, sizeof(str)));
+	pr_info("%s", arc_platform_smp_cpuinfo());
+
+	arc_chk_core_config(&info);
+
 	arc_init_IRQ();
-
-	pr_info("%s", arc_cpu_mumbojumbo(cpu_id, str, sizeof(str)));
-
 	arc_mmu_init();
 	arc_cache_init();
 
-	pr_info("%s", arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
-	pr_info("%s", arc_platform_smp_cpuinfo());
-
-	arc_chk_core_config();
 }
 
 static inline bool uboot_arg_invalid(unsigned long addr)
@@ -617,6 +574,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	char *str;
 	int cpu_id = ptr_to_cpu(v);
 	struct device *cpu_dev = get_cpu_device(cpu_id);
+	struct cpuinfo_arc info;
 	struct clk *cpu_clk;
 	unsigned long freq = 0;
 
@@ -629,7 +587,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (!str)
 		goto done;
 
-	seq_printf(m, arc_cpu_mumbojumbo(cpu_id, str, PAGE_SIZE));
+	seq_printf(m, arc_cpu_mumbojumbo(cpu_id, &info, str, PAGE_SIZE));
 
 	cpu_clk = clk_get(cpu_dev, NULL);
 	if (IS_ERR(cpu_clk)) {
@@ -646,9 +604,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   loops_per_jiffy / (500000 / HZ),
 		   (loops_per_jiffy / (5000 / HZ)) % 100);
 
-	seq_printf(m, arc_mmu_mumbojumbo(cpu_id, str, PAGE_SIZE));
-	seq_printf(m, arc_cache_mumbojumbo(cpu_id, str, PAGE_SIZE));
-	seq_printf(m, arc_extn_mumbojumbo(cpu_id, str, PAGE_SIZE));
 	seq_printf(m, arc_platform_smp_cpuinfo());
 
 	free_page((unsigned long)str);

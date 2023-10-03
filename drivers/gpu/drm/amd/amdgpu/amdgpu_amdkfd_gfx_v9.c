@@ -822,7 +822,8 @@ uint32_t kgd_gfx_v9_set_address_watch(struct amdgpu_device *adev,
 					uint32_t watch_address_mask,
 					uint32_t watch_id,
 					uint32_t watch_mode,
-					uint32_t debug_vmid)
+					uint32_t debug_vmid,
+					uint32_t inst)
 {
 	uint32_t watch_address_high;
 	uint32_t watch_address_low;
@@ -903,10 +904,12 @@ uint32_t kgd_gfx_v9_clear_address_watch(struct amdgpu_device *adev,
  *     deq_retry_wait_time      -- Wait Count for Global Wave Syncs.
  */
 void kgd_gfx_v9_get_iq_wait_times(struct amdgpu_device *adev,
-					uint32_t *wait_times)
+					uint32_t *wait_times,
+					uint32_t inst)
 
 {
-	*wait_times = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_IQ_WAIT_TIME2));
+	*wait_times = RREG32(SOC15_REG_OFFSET(GC, GET_INST(GC, inst),
+			mmCP_IQ_WAIT_TIME2));
 }
 
 void kgd_gfx_v9_set_vm_context_page_table_base(struct amdgpu_device *adev,
@@ -1105,7 +1108,7 @@ void kgd_gfx_v9_build_grace_period_packet_info(struct amdgpu_device *adev,
 	*reg_data = wait_times;
 
 	/*
-	 * The CP cannont handle a 0 grace period input and will result in
+	 * The CP cannot handle a 0 grace period input and will result in
 	 * an infinite grace period being set so set to 1 to prevent this.
 	 */
 	if (grace_period == 0)
@@ -1128,9 +1131,9 @@ void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,
 	 * Program TBA registers
 	 */
 	WREG32_SOC15(GC, GET_INST(GC, inst), mmSQ_SHADER_TBA_LO,
-                        lower_32_bits(tba_addr >> 8));
+			lower_32_bits(tba_addr >> 8));
 	WREG32_SOC15(GC, GET_INST(GC, inst), mmSQ_SHADER_TBA_HI,
-                        upper_32_bits(tba_addr >> 8));
+			upper_32_bits(tba_addr >> 8));
 
 	/*
 	 * Program TMA registers

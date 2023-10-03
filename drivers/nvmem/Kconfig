@@ -226,6 +226,19 @@ config NVMEM_QCOM_QFPROM
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_qfprom.
 
+config NVMEM_QCOM_SEC_QFPROM
+        tristate "QCOM SECURE QFPROM Support"
+        depends on ARCH_QCOM || COMPILE_TEST
+        depends on HAS_IOMEM
+        depends on OF
+        select QCOM_SCM
+        help
+          Say y here to enable secure QFPROM support. The secure QFPROM provides access
+          functions for QFPROM data to rest of the drivers via nvmem interface.
+
+          This driver can also be built as a module. If so, the module will be called
+          nvmem_sec_qfprom.
+
 config NVMEM_RAVE_SP_EEPROM
 	tristate "Rave SP EEPROM Support"
 	depends on RAVE_SP_CORE
@@ -247,7 +260,7 @@ config NVMEM_ROCKCHIP_EFUSE
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
-	  This is a simple drive to dump specified values of Rockchip SoC
+	  This is a simple driver to dump specified values of Rockchip SoC
 	  from eFuse, such as cpu-leakage.
 
 	  This driver can also be built as a module. If so, the module
@@ -258,8 +271,8 @@ config NVMEM_ROCKCHIP_OTP
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
-	  This is a simple drive to dump specified values of Rockchip SoC
-	  from otp, such as cpu-leakage.
+	  This is a simple driver to dump specified values of Rockchip SoC
+	  from OTP, such as cpu-leakage.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_rockchip_otp.
@@ -391,5 +404,17 @@ config NVMEM_ZYNQMP
 	  interface.
 
 	  If sure, say yes. If unsure, say no.
+
+config NVMEM_QORIQ_EFUSE
+	tristate "NXP QorIQ eFuse support"
+	depends on PPC_85xx || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This driver provides read support for the eFuses (SFP) on NXP QorIQ
+	  series SoC's. This includes secure boot settings, the globally unique
+	  NXP ID 'FUIDR' and the OEM unique ID 'OUIDR'.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_qoriq_efuse.
 
 endif

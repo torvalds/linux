@@ -237,7 +237,7 @@ Fish Eye sensor: ::
 camera projectors. As we have another field for "Laser Power" we introduced
 "LED Power" for extra emitter.
 
-The "Laser mode" __u32 fiels has been split into: ::
+The "Laser mode" __u32 fields has been split into: ::
    1 __u8 Emitter mode
    2 __u8 RFU byte
    3 __u16 LED Power

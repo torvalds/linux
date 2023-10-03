@@ -523,26 +523,6 @@ toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type, int we
 	return 0;
 }
 
-__weak int arch_reserve_bp_slot(struct perf_event *bp)
-{
-	return 0;
-}
-
-__weak void arch_release_bp_slot(struct perf_event *bp)
-{
-}
-
-/*
- * Function to perform processor-specific cleanup during unregistration
- */
-__weak void arch_unregister_hw_breakpoint(struct perf_event *bp)
-{
-	/*
-	 * A weak stub function here for those archs that don't define
-	 * it inside arch/.../kernel/hw_breakpoint.c
-	 */
-}
-
 /*
  * Constraints to check before allowing this new breakpoint counter.
  *
@@ -594,7 +574,6 @@ static int __reserve_bp_slot(struct perf_event *bp, u64 bp_type)
 	enum bp_type_idx type;
 	int max_pinned_slots;
 	int weight;
-	int ret;
 
 	/* We couldn't initialize breakpoint constraints on boot */
 	if (!constraints_initialized)
@@ -613,10 +592,6 @@ static int __reserve_bp_slot(struct perf_event *bp, u64 bp_type)
 	if (max_pinned_slots > hw_breakpoint_slots_cached(type))
 		return -ENOSPC;
 
-	ret = arch_reserve_bp_slot(bp);
-	if (ret)
-		return ret;
-
 	return toggle_bp_slot(bp, true, type, weight);
 }
 
@@ -634,8 +609,6 @@ static void __release_bp_slot(struct perf_event *bp, u64 bp_type)
 	enum bp_type_idx type;
 	int weight;
 
-	arch_release_bp_slot(bp);
-
 	type = find_slot_idx(bp_type);
 	weight = hw_breakpoint_weight(bp);
 	WARN_ON(toggle_bp_slot(bp, false, type, weight));
@@ -645,7 +618,6 @@ void release_bp_slot(struct perf_event *bp)
 {
 	struct mutex *mtx = bp_constraints_lock(bp);
 
-	arch_unregister_hw_breakpoint(bp);
 	__release_bp_slot(bp, bp->attr.bp_type);
 	bp_constraints_unlock(mtx);
 }

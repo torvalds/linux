@@ -385,12 +385,16 @@ ext2_blks_to_allocate(Indirect * branch, int k, unsigned long blks,
 }
 
 /**
- *	ext2_alloc_blocks: multiple allocate blocks needed for a branch
- *	@indirect_blks: the number of blocks need to allocate for indirect
- *			blocks
- *	@blks: the number of blocks need to allocate for direct blocks
- *	@new_blocks: on return it will store the new block numbers for
- *	the indirect blocks(if needed) and the first direct block,
+ * ext2_alloc_blocks: Allocate multiple blocks needed for a branch.
+ * @inode: Owner.
+ * @goal: Preferred place for allocation.
+ * @indirect_blks: The number of blocks needed to allocate for indirect blocks.
+ * @blks: The number of blocks need to allocate for direct blocks.
+ * @new_blocks: On return it will store the new block numbers for
+ *	the indirect blocks(if needed) and the first direct block.
+ * @err: Error pointer.
+ *
+ * Return: Number of blocks allocated.
  */
 static int ext2_alloc_blocks(struct inode *inode,
 			ext2_fsblk_t goal, int indirect_blks, int blks,
@@ -415,7 +419,7 @@ static int ext2_alloc_blocks(struct inode *inode,
 	while (1) {
 		count = target;
 		/* allocating blocks for indirect blocks and direct blocks */
-		current_block = ext2_new_blocks(inode,goal,&count,err);
+		current_block = ext2_new_blocks(inode, goal, &count, err, 0);
 		if (*err)
 			goto failed_out;
 
@@ -1082,8 +1086,8 @@ no_top:
  */
 static inline void ext2_free_data(struct inode *inode, __le32 *p, __le32 *q)
 {
-	unsigned long block_to_free = 0, count = 0;
-	unsigned long nr;
+	ext2_fsblk_t block_to_free = 0, count = 0;
+	ext2_fsblk_t nr;
 
 	for ( ; p < q ; p++) {
 		nr = le32_to_cpu(*p);
@@ -1123,7 +1127,7 @@ static inline void ext2_free_data(struct inode *inode, __le32 *p, __le32 *q)
 static void ext2_free_branches(struct inode *inode, __le32 *p, __le32 *q, int depth)
 {
 	struct buffer_head * bh;
-	unsigned long nr;
+	ext2_fsblk_t nr;
 
 	if (depth--) {
 		int addr_per_block = EXT2_ADDR_PER_BLOCK(inode->i_sb);

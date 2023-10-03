@@ -14,7 +14,7 @@
         中文版校譯者： Yinglin Luan <synmyth@gmail.com>
         	       Xiaochen Wang <wangxiaochen0@gmail.com>
                        yaxinsn <yaxinsn@163.com>
-                      Hu Haowen <src.res@email.cn>
+                      Hu Haowen <src.res.211@gmail.com>
 
 Linux郵件客戶端配置信息
 =======================

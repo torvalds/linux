@@ -824,7 +824,7 @@ err_free:
 	return r;
 }
 
-static int hdmi4_remove(struct platform_device *pdev)
+static void hdmi4_remove(struct platform_device *pdev)
 {
 	struct omap_hdmi *hdmi = platform_get_drvdata(pdev);
 
@@ -835,7 +835,6 @@ static int hdmi4_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	kfree(hdmi);
-	return 0;
 }
 
 static const struct of_device_id hdmi_of_match[] = {
@@ -845,7 +844,7 @@ static const struct of_device_id hdmi_of_match[] = {
 
 struct platform_driver omapdss_hdmi4hw_driver = {
 	.probe		= hdmi4_probe,
-	.remove		= hdmi4_remove,
+	.remove_new	= hdmi4_remove,
 	.driver         = {
 		.name   = "omapdss_hdmi",
 		.of_match_table = hdmi_of_match,

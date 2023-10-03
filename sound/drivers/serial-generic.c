@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/serdev.h>
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
@@ -366,7 +366,7 @@ MODULE_DEVICE_TABLE(of, snd_serial_generic_dt_ids);
 static struct serdev_device_driver snd_serial_generic_driver = {
 	.driver	= {
 		.name		= "snd-serial-generic",
-		.of_match_table	= of_match_ptr(snd_serial_generic_dt_ids),
+		.of_match_table	= snd_serial_generic_dt_ids,
 	},
 	.probe	= snd_serial_generic_probe,
 };

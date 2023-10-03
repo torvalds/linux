@@ -860,7 +860,7 @@ static struct i2c_driver ssif_bmc_driver = {
 		.name           = DEVICE_NAME,
 		.of_match_table = ssif_bmc_match,
 	},
-	.probe_new      = ssif_bmc_probe,
+	.probe          = ssif_bmc_probe,
 	.remove         = ssif_bmc_remove,
 	.id_table       = ssif_bmc_id,
 };

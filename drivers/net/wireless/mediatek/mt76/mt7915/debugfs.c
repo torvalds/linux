@@ -251,7 +251,6 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 {
 	struct mt7915_phy *phy = file->private;
 	struct mt7915_dev *dev = phy->dev;
-	struct mt7915_mcu_muru_stats mu_stats = {};
 	static const char * const dl_non_he_type[] = {
 		"CCK", "OFDM", "HT MIX", "HT GF",
 		"VHT SU", "VHT 2MU", "VHT 3MU", "VHT 4MU"
@@ -275,7 +274,7 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 
 	mutex_lock(&dev->mt76.mutex);
 
-	ret = mt7915_mcu_muru_debug_get(phy, &mu_stats);
+	ret = mt7915_mcu_muru_debug_get(phy);
 	if (ret)
 		goto exit;
 
@@ -285,14 +284,13 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 	for (i = 0; i < 5; i++)
 		seq_printf(file, "%8s | ", dl_non_he_type[i]);
 
-#define __dl_u32(s)     le32_to_cpu(mu_stats.dl.s)
 	seq_puts(file, "\nTotal Count:");
 	seq_printf(file, "%8u | %8u | %8u | %8u | %8u | ",
-		   __dl_u32(cck_cnt),
-		   __dl_u32(ofdm_cnt),
-		   __dl_u32(htmix_cnt),
-		   __dl_u32(htgf_cnt),
-		   __dl_u32(vht_su_cnt));
+		   phy->mib.dl_cck_cnt,
+		   phy->mib.dl_ofdm_cnt,
+		   phy->mib.dl_htmix_cnt,
+		   phy->mib.dl_htgf_cnt,
+		   phy->mib.dl_vht_su_cnt);
 
 	seq_puts(file, "\nDownlink MU-MIMO\nData Type:  ");
 
@@ -301,23 +299,23 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 
 	seq_puts(file, "\nTotal Count:");
 	seq_printf(file, "%8u | %8u | %8u | ",
-		   __dl_u32(vht_2mu_cnt),
-		   __dl_u32(vht_3mu_cnt),
-		   __dl_u32(vht_4mu_cnt));
+		   phy->mib.dl_vht_2mu_cnt,
+		   phy->mib.dl_vht_3mu_cnt,
+		   phy->mib.dl_vht_4mu_cnt);
 
-	sub_total_cnt = __dl_u32(vht_2mu_cnt) +
-		__dl_u32(vht_3mu_cnt) +
-		__dl_u32(vht_4mu_cnt);
+	sub_total_cnt = phy->mib.dl_vht_2mu_cnt +
+			phy->mib.dl_vht_3mu_cnt +
+			phy->mib.dl_vht_4mu_cnt;
 
 	seq_printf(file, "\nTotal non-HE MU-MIMO DL PPDU count: %lld",
 		   sub_total_cnt);
 
 	total_ppdu_cnt = sub_total_cnt +
-		__dl_u32(cck_cnt) +
-		__dl_u32(ofdm_cnt) +
-		__dl_u32(htmix_cnt) +
-		__dl_u32(htgf_cnt) +
-		__dl_u32(vht_su_cnt);
+			 phy->mib.dl_cck_cnt +
+			 phy->mib.dl_ofdm_cnt +
+			 phy->mib.dl_htmix_cnt +
+			 phy->mib.dl_htgf_cnt +
+			 phy->mib.dl_vht_su_cnt;
 
 	seq_printf(file, "\nAll non-HE DL PPDU count: %lld", total_ppdu_cnt);
 
@@ -329,8 +327,7 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 
 	seq_puts(file, "\nTotal Count:");
 	seq_printf(file, "%8u | %8u | ",
-		   __dl_u32(he_su_cnt),
-		   __dl_u32(he_ext_su_cnt));
+		   phy->mib.dl_he_su_cnt, phy->mib.dl_he_ext_su_cnt);
 
 	seq_puts(file, "\nDownlink MU-MIMO\nData Type:  ");
 
@@ -339,9 +336,8 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 
 	seq_puts(file, "\nTotal Count:");
 	seq_printf(file, "%8u | %8u | %8u | ",
-		   __dl_u32(he_2mu_cnt),
-		   __dl_u32(he_3mu_cnt),
-		   __dl_u32(he_4mu_cnt));
+		   phy->mib.dl_he_2mu_cnt, phy->mib.dl_he_3mu_cnt,
+		   phy->mib.dl_he_4mu_cnt);
 
 	seq_puts(file, "\nDownlink OFDMA\nData Type:  ");
 
@@ -350,37 +346,35 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 
 	seq_puts(file, "\nTotal Count:");
 	seq_printf(file, "%8u | %8u | %8u | %8u | %9u | %8u | ",
-		   __dl_u32(he_2ru_cnt),
-		   __dl_u32(he_3ru_cnt),
-		   __dl_u32(he_4ru_cnt),
-		   __dl_u32(he_5to8ru_cnt),
-		   __dl_u32(he_9to16ru_cnt),
-		   __dl_u32(he_gtr16ru_cnt));
+		   phy->mib.dl_he_2ru_cnt,
+		   phy->mib.dl_he_3ru_cnt,
+		   phy->mib.dl_he_4ru_cnt,
+		   phy->mib.dl_he_5to8ru_cnt,
+		   phy->mib.dl_he_9to16ru_cnt,
+		   phy->mib.dl_he_gtr16ru_cnt);
 
-	sub_total_cnt = __dl_u32(he_2mu_cnt) +
-		__dl_u32(he_3mu_cnt) +
-		__dl_u32(he_4mu_cnt);
+	sub_total_cnt = phy->mib.dl_he_2mu_cnt +
+			phy->mib.dl_he_3mu_cnt +
+			phy->mib.dl_he_4mu_cnt;
 	total_ppdu_cnt = sub_total_cnt;
 
 	seq_printf(file, "\nTotal HE MU-MIMO DL PPDU count: %lld",
 		   sub_total_cnt);
 
-	sub_total_cnt = __dl_u32(he_2ru_cnt) +
-		__dl_u32(he_3ru_cnt) +
-		__dl_u32(he_4ru_cnt) +
-		__dl_u32(he_5to8ru_cnt) +
-		__dl_u32(he_9to16ru_cnt) +
-		__dl_u32(he_gtr16ru_cnt);
+	sub_total_cnt = phy->mib.dl_he_2ru_cnt +
+			phy->mib.dl_he_3ru_cnt +
+			phy->mib.dl_he_4ru_cnt +
+			phy->mib.dl_he_5to8ru_cnt +
+			phy->mib.dl_he_9to16ru_cnt +
+			phy->mib.dl_he_gtr16ru_cnt;
 	total_ppdu_cnt += sub_total_cnt;
 
 	seq_printf(file, "\nTotal HE OFDMA DL PPDU count: %lld",
 		   sub_total_cnt);
 
-	total_ppdu_cnt += __dl_u32(he_su_cnt) +
-		__dl_u32(he_ext_su_cnt);
+	total_ppdu_cnt += phy->mib.dl_he_su_cnt + phy->mib.dl_he_ext_su_cnt;
 
 	seq_printf(file, "\nAll HE DL PPDU count: %lld", total_ppdu_cnt);
-#undef __dl_u32
 
 	/* HE Uplink */
 	seq_puts(file, "\n\nUplink");
@@ -389,12 +383,11 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 	for (i = 0; i < 3; i++)
 		seq_printf(file, "%8s | ", ul_he_type[i]);
 
-#define __ul_u32(s)     le32_to_cpu(mu_stats.ul.s)
 	seq_puts(file, "\nTotal Count:");
 	seq_printf(file, "%8u | %8u | %8u | ",
-		   __ul_u32(hetrig_2mu_cnt),
-		   __ul_u32(hetrig_3mu_cnt),
-		   __ul_u32(hetrig_4mu_cnt));
+		   phy->mib.ul_hetrig_2mu_cnt,
+		   phy->mib.ul_hetrig_3mu_cnt,
+		   phy->mib.ul_hetrig_4mu_cnt);
 
 	seq_puts(file, "\nTrigger-based Uplink OFDMA\nData Type:  ");
 
@@ -403,37 +396,36 @@ static int mt7915_muru_stats_show(struct seq_file *file, void *data)
 
 	seq_puts(file, "\nTotal Count:");
 	seq_printf(file, "%8u | %8u | %8u | %8u | %8u | %9u |  %7u | ",
-		   __ul_u32(hetrig_su_cnt),
-		   __ul_u32(hetrig_2ru_cnt),
-		   __ul_u32(hetrig_3ru_cnt),
-		   __ul_u32(hetrig_4ru_cnt),
-		   __ul_u32(hetrig_5to8ru_cnt),
-		   __ul_u32(hetrig_9to16ru_cnt),
-		   __ul_u32(hetrig_gtr16ru_cnt));
+		   phy->mib.ul_hetrig_su_cnt,
+		   phy->mib.ul_hetrig_2ru_cnt,
+		   phy->mib.ul_hetrig_3ru_cnt,
+		   phy->mib.ul_hetrig_4ru_cnt,
+		   phy->mib.ul_hetrig_5to8ru_cnt,
+		   phy->mib.ul_hetrig_9to16ru_cnt,
+		   phy->mib.ul_hetrig_gtr16ru_cnt);
 
-	sub_total_cnt = __ul_u32(hetrig_2mu_cnt) +
-		__ul_u32(hetrig_3mu_cnt) +
-		__ul_u32(hetrig_4mu_cnt);
+	sub_total_cnt = phy->mib.ul_hetrig_2mu_cnt +
+			phy->mib.ul_hetrig_3mu_cnt +
+			phy->mib.ul_hetrig_4mu_cnt;
 	total_ppdu_cnt = sub_total_cnt;
 
 	seq_printf(file, "\nTotal HE MU-MIMO UL TB PPDU count: %lld",
 		   sub_total_cnt);
 
-	sub_total_cnt = __ul_u32(hetrig_2ru_cnt) +
-		__ul_u32(hetrig_3ru_cnt) +
-		__ul_u32(hetrig_4ru_cnt) +
-		__ul_u32(hetrig_5to8ru_cnt) +
-		__ul_u32(hetrig_9to16ru_cnt) +
-		__ul_u32(hetrig_gtr16ru_cnt);
+	sub_total_cnt = phy->mib.ul_hetrig_2ru_cnt +
+			phy->mib.ul_hetrig_3ru_cnt +
+			phy->mib.ul_hetrig_4ru_cnt +
+			phy->mib.ul_hetrig_5to8ru_cnt +
+			phy->mib.ul_hetrig_9to16ru_cnt +
+			phy->mib.ul_hetrig_gtr16ru_cnt;
 	total_ppdu_cnt += sub_total_cnt;
 
 	seq_printf(file, "\nTotal HE OFDMA UL TB PPDU count: %lld",
 		   sub_total_cnt);
 
-	total_ppdu_cnt += __ul_u32(hetrig_su_cnt);
+	total_ppdu_cnt += phy->mib.ul_hetrig_su_cnt;
 
 	seq_printf(file, "\nAll HE UL TB PPDU count: %lld\n", total_ppdu_cnt);
-#undef __ul_u32
 
 exit:
 	mutex_unlock(&dev->mt76.mutex);
@@ -719,10 +711,10 @@ mt7915_ampdu_stat_read_phy(struct mt7915_phy *phy,
 static void
 mt7915_txbf_stat_read_phy(struct mt7915_phy *phy, struct seq_file *s)
 {
+	struct mt76_mib_stats *mib = &phy->mib;
 	static const char * const bw[] = {
 		"BW20", "BW40", "BW80", "BW160"
 	};
-	struct mib_stats *mib = &phy->mib;
 
 	/* Tx Beamformer monitor */
 	seq_puts(s, "\nTx Beamformer applied PPDU counts: ");
@@ -768,7 +760,7 @@ mt7915_tx_stats_show(struct seq_file *file, void *data)
 {
 	struct mt7915_phy *phy = file->private;
 	struct mt7915_dev *dev = phy->dev;
-	struct mib_stats *mib = &phy->mib;
+	struct mt76_mib_stats *mib = &phy->mib;
 	int i;
 
 	mutex_lock(&dev->mt76.mutex);

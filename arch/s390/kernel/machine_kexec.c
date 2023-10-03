@@ -13,6 +13,7 @@
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
+#include <asm/pfault.h>
 #include <asm/cio.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
@@ -215,8 +216,8 @@ void arch_crash_save_vmcoreinfo(void)
 	VMCOREINFO_SYMBOL(lowcore_ptr);
 	VMCOREINFO_SYMBOL(high_memory);
 	VMCOREINFO_LENGTH(lowcore_ptr, NR_CPUS);
-	vmcoreinfo_append_str("SAMODE31=%lx\n", __samode31);
-	vmcoreinfo_append_str("EAMODE31=%lx\n", __eamode31);
+	vmcoreinfo_append_str("SAMODE31=%lx\n", (unsigned long)__samode31);
+	vmcoreinfo_append_str("EAMODE31=%lx\n", (unsigned long)__eamode31);
 	vmcoreinfo_append_str("KERNELOFFSET=%lx\n", kaslr_offset());
 	abs_lc = get_abs_lowcore();
 	abs_lc->vmcore_info = paddr_vmcoreinfo_note();

@@ -83,44 +83,7 @@ static int __init warp_post_info(void)
 
 #ifdef CONFIG_SENSORS_AD7414
 
-static LIST_HEAD(dtm_shutdown_list);
 static void __iomem *dtm_fpga;
-
-struct dtm_shutdown {
-	struct list_head list;
-	void (*func)(void *arg);
-	void *arg;
-};
-
-int pika_dtm_register_shutdown(void (*func)(void *arg), void *arg)
-{
-	struct dtm_shutdown *shutdown;
-
-	shutdown = kmalloc(sizeof(struct dtm_shutdown), GFP_KERNEL);
-	if (shutdown == NULL)
-		return -ENOMEM;
-
-	shutdown->func = func;
-	shutdown->arg = arg;
-
-	list_add(&shutdown->list, &dtm_shutdown_list);
-
-	return 0;
-}
-
-int pika_dtm_unregister_shutdown(void (*func)(void *arg), void *arg)
-{
-	struct dtm_shutdown *shutdown;
-
-	list_for_each_entry(shutdown, &dtm_shutdown_list, list)
-		if (shutdown->func == func && shutdown->arg == arg) {
-			list_del(&shutdown->list);
-			kfree(shutdown);
-			return 0;
-		}
-
-	return -EINVAL;
-}
 
 #define WARP_GREEN_LED	0
 #define WARP_RED_LED	1
@@ -153,16 +116,11 @@ static struct platform_device warp_gpio_leds = {
 
 static irqreturn_t temp_isr(int irq, void *context)
 {
-	struct dtm_shutdown *shutdown;
 	int value = 1;
 
 	local_irq_disable();
 
 	gpiod_set_value(warp_gpio_led_pins[WARP_GREEN_LED].gpiod, 0);
-
-	/* Run through the shutdown list. */
-	list_for_each_entry(shutdown, &dtm_shutdown_list, list)
-		shutdown->func(shutdown->arg);
 
 	printk(KERN_EMERG "\n\nCritical Temperature Shutdown\n\n");
 
@@ -366,19 +324,6 @@ machine_late_initcall(warp, pika_dtm_start);
 
 #else /* !CONFIG_SENSORS_AD7414 */
 
-int pika_dtm_register_shutdown(void (*func)(void *arg), void *arg)
-{
-	return 0;
-}
-
-int pika_dtm_unregister_shutdown(void (*func)(void *arg), void *arg)
-{
-	return 0;
-}
-
 machine_late_initcall(warp, warp_post_info);
 
 #endif
-
-EXPORT_SYMBOL(pika_dtm_register_shutdown);
-EXPORT_SYMBOL(pika_dtm_unregister_shutdown);

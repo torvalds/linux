@@ -56,6 +56,22 @@ const char *const port_state_str[] = {
 	[FCS_ONLINE]		= "ONLINE"
 };
 
+#define SFP_DISABLE_LASER_INITIATED    0x15  /* Sub code of 8070 AEN */
+#define SFP_ENABLE_LASER_INITIATED     0x16  /* Sub code of 8070 AEN */
+
+static inline void display_Laser_info(scsi_qla_host_t *vha,
+				      u16 mb1, u16 mb2, u16 mb3) {
+
+	if (mb1 == SFP_DISABLE_LASER_INITIATED)
+		ql_log(ql_log_warn, vha, 0xf0a2,
+		       "SFP temperature (%d C) reached/exceeded the threshold (%d C). Laser is disabled.\n",
+		       mb3, mb2);
+	if (mb1 == SFP_ENABLE_LASER_INITIATED)
+		ql_log(ql_log_warn, vha, 0xf0a3,
+		       "SFP temperature (%d C) reached normal operating level. Laser is enabled.\n",
+		       mb3);
+}
+
 static void
 qla24xx_process_abts(struct scsi_qla_host *vha, struct purex_item *pkt)
 {
@@ -823,6 +839,135 @@ qla83xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 	}
 }
 
+/**
+ * qla27xx_copy_multiple_pkt() - Copy over purex/purls packets that can
+ * span over multiple IOCBs.
+ * @vha: SCSI driver HA context
+ * @pkt: ELS packet
+ * @rsp: Response queue
+ * @is_purls: True, for Unsolicited Received FC-NVMe LS rsp IOCB
+ *            false, for Unsolicited Received ELS IOCB
+ * @byte_order: True, to change the byte ordering of iocb payload
+ */
+struct purex_item *
+qla27xx_copy_multiple_pkt(struct scsi_qla_host *vha, void **pkt,
+			  struct rsp_que **rsp, bool is_purls,
+			  bool byte_order)
+{
+	struct purex_entry_24xx *purex = NULL;
+	struct pt_ls4_rx_unsol *purls = NULL;
+	struct rsp_que *rsp_q = *rsp;
+	sts_cont_entry_t *new_pkt;
+	uint16_t no_bytes = 0, total_bytes = 0, pending_bytes = 0;
+	uint16_t buffer_copy_offset = 0, payload_size = 0;
+	uint16_t entry_count, entry_count_remaining;
+	struct purex_item *item;
+	void *iocb_pkt = NULL;
+
+	if (is_purls) {
+		purls = *pkt;
+		total_bytes = (le16_to_cpu(purls->frame_size) & 0x0FFF) -
+			      PURX_ELS_HEADER_SIZE;
+		entry_count = entry_count_remaining = purls->entry_count;
+		payload_size = sizeof(purls->payload);
+	} else {
+		purex = *pkt;
+		total_bytes = (le16_to_cpu(purex->frame_size) & 0x0FFF) -
+			      PURX_ELS_HEADER_SIZE;
+		entry_count = entry_count_remaining = purex->entry_count;
+		payload_size = sizeof(purex->els_frame_payload);
+	}
+
+	pending_bytes = total_bytes;
+	no_bytes = (pending_bytes > payload_size) ? payload_size :
+		   pending_bytes;
+	ql_dbg(ql_dbg_async, vha, 0x509a,
+	       "%s LS, frame_size 0x%x, entry count %d\n",
+	       (is_purls ? "PURLS" : "FPIN"), total_bytes, entry_count);
+
+	item = qla24xx_alloc_purex_item(vha, total_bytes);
+	if (!item)
+		return item;
+
+	iocb_pkt = &item->iocb;
+
+	if (is_purls)
+		memcpy(iocb_pkt, &purls->payload[0], no_bytes);
+	else
+		memcpy(iocb_pkt, &purex->els_frame_payload[0], no_bytes);
+	buffer_copy_offset += no_bytes;
+	pending_bytes -= no_bytes;
+	--entry_count_remaining;
+
+	if (is_purls)
+		((response_t *)purls)->signature = RESPONSE_PROCESSED;
+	else
+		((response_t *)purex)->signature = RESPONSE_PROCESSED;
+	wmb();
+
+	do {
+		while ((total_bytes > 0) && (entry_count_remaining > 0)) {
+			if (rsp_q->ring_ptr->signature == RESPONSE_PROCESSED) {
+				ql_dbg(ql_dbg_async, vha, 0x5084,
+				       "Ran out of IOCBs, partial data 0x%x\n",
+				       buffer_copy_offset);
+				cpu_relax();
+				continue;
+			}
+
+			new_pkt = (sts_cont_entry_t *)rsp_q->ring_ptr;
+			*pkt = new_pkt;
+
+			if (new_pkt->entry_type != STATUS_CONT_TYPE) {
+				ql_log(ql_log_warn, vha, 0x507a,
+				       "Unexpected IOCB type, partial data 0x%x\n",
+				       buffer_copy_offset);
+				break;
+			}
+
+			rsp_q->ring_index++;
+			if (rsp_q->ring_index == rsp_q->length) {
+				rsp_q->ring_index = 0;
+				rsp_q->ring_ptr = rsp_q->ring;
+			} else {
+				rsp_q->ring_ptr++;
+			}
+			no_bytes = (pending_bytes > sizeof(new_pkt->data)) ?
+				sizeof(new_pkt->data) : pending_bytes;
+			if ((buffer_copy_offset + no_bytes) <= total_bytes) {
+				memcpy(((uint8_t *)iocb_pkt + buffer_copy_offset),
+				       new_pkt->data, no_bytes);
+				buffer_copy_offset += no_bytes;
+				pending_bytes -= no_bytes;
+				--entry_count_remaining;
+			} else {
+				ql_log(ql_log_warn, vha, 0x5044,
+				       "Attempt to copy more that we got, optimizing..%x\n",
+				       buffer_copy_offset);
+				memcpy(((uint8_t *)iocb_pkt + buffer_copy_offset),
+				       new_pkt->data,
+				       total_bytes - buffer_copy_offset);
+			}
+
+			((response_t *)new_pkt)->signature = RESPONSE_PROCESSED;
+			wmb();
+		}
+
+		if (pending_bytes != 0 || entry_count_remaining != 0) {
+			ql_log(ql_log_fatal, vha, 0x508b,
+			       "Dropping partial FPIN, underrun bytes = 0x%x, entry cnts 0x%x\n",
+			       total_bytes, entry_count_remaining);
+			qla24xx_free_purex_item(item);
+			return NULL;
+		}
+	} while (entry_count_remaining > 0);
+
+	if (byte_order)
+		host_to_fcp_swap((uint8_t *)&item->iocb, total_bytes);
+
+	return item;
+}
+
 int
 qla2x00_is_a_vp_did(scsi_qla_host_t *vha, uint32_t rscn_entry)
 {
@@ -958,7 +1103,7 @@ initialize_purex_header:
 	return item;
 }
 
-static void
+void
 qla24xx_queue_purex_item(scsi_qla_host_t *vha, struct purex_item *pkt,
 			 void (*process_item)(struct scsi_qla_host *vha,
 					      struct purex_item *pkt))
@@ -1121,8 +1266,12 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 	unsigned long	flags;
 	fc_port_t	*fcport = NULL;
 
-	if (!vha->hw->flags.fw_started)
+	if (!vha->hw->flags.fw_started) {
+		ql_log(ql_log_warn, vha, 0x50ff,
+		    "Dropping AEN - %04x %04x %04x %04x.\n",
+		    mb[0], mb[1], mb[2], mb[3]);
 		return;
+	}
 
 	/* Setup to process RIO completion. */
 	handle_cnt = 0;
@@ -1794,6 +1943,8 @@ global_port_update:
 		break;
 
 	case MBA_TEMPERATURE_ALERT:
+		if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
+			display_Laser_info(vha, mb[1], mb[2], mb[3]);
 		ql_dbg(ql_dbg_async, vha, 0x505e,
 		    "TEMPERATURE ALERT: %04x %04x %04x\n", mb[1], mb[2], mb[3]);
 		break;
@@ -2539,7 +2690,6 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	case CS_PORT_BUSY:
 	case CS_INCOMPLETE:
 	case CS_PORT_UNAVAILABLE:
-	case CS_TIMEOUT:
 	case CS_RESET:
 		if (atomic_read(&fcport->state) == FCS_ONLINE) {
 			ql_dbg(ql_dbg_disc, fcport->vha, 0x3021,
@@ -3808,13 +3958,14 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 	struct qla_hw_data *ha = vha->hw;
 	struct purex_entry_24xx *purex_entry;
 	struct purex_item *pure_item;
+	struct pt_ls4_rx_unsol *p;
 	u16 rsp_in = 0, cur_ring_index;
 	int is_shadow_hba;
 
 	if (!ha->flags.fw_started)
 		return;
 
-	if (rsp->qpair->cpuid != smp_processor_id() || !rsp->qpair->rcv_intr) {
+	if (rsp->qpair->cpuid != raw_smp_processor_id() || !rsp->qpair->rcv_intr) {
 		rsp->qpair->rcv_intr = 1;
 
 		if (!rsp->qpair->cpu_mapped)
@@ -3980,7 +4131,19 @@ process_err:
 			qla28xx_sa_update_iocb_entry(vha, rsp->req,
 				(struct sa_update_28xx *)pkt);
 			break;
+		case PT_LS4_UNSOL:
+			p = (void *)pkt;
+			if (qla_chk_cont_iocb_avail(vha, rsp, (response_t *)pkt, rsp_in)) {
+				rsp->ring_ptr = (response_t *)pkt;
+				rsp->ring_index = cur_ring_index;
 
+				ql_dbg(ql_dbg_init, vha, 0x2124,
+				       "Defer processing UNSOL LS req opcode %#x...\n",
+				       p->payload[0]);
+				return;
+			}
+			qla2xxx_process_purls_iocb((void **)&pkt, &rsp);
+			break;
 		default:
 			/* Type Not Supported. */
 			ql_dbg(ql_dbg_async, vha, 0x5042,
@@ -4305,7 +4468,7 @@ qla2xxx_msix_rsp_q(int irq, void *dev_id)
 	}
 	ha = qpair->hw;
 
-	queue_work_on(smp_processor_id(), ha->wq, &qpair->q_work);
+	queue_work(ha->wq, &qpair->q_work);
 
 	return IRQ_HANDLED;
 }
@@ -4331,7 +4494,7 @@ qla2xxx_msix_rsp_q_hs(int irq, void *dev_id)
 	wrt_reg_dword(&reg->hccr, HCCRX_CLR_RISC_INT);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	queue_work_on(smp_processor_id(), ha->wq, &qpair->q_work);
+	queue_work(ha->wq, &qpair->q_work);
 
 	return IRQ_HANDLED;
 }

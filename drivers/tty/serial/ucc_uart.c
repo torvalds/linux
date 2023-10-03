@@ -17,18 +17,18 @@
  */
 
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 
-#include <linux/fs_uart_pd.h>
 #include <soc/fsl/qe/ucc_slow.h>
 
 #include <linux/firmware.h>

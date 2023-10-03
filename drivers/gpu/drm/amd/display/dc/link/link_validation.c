@@ -130,7 +130,8 @@ static bool dp_active_dongle_validate_timing(
 				/* DP input has DSC, HDMI FRL output doesn't have DSC, remove DSC from output timing */
 				outputTiming.flags.DSC = 0;
 #endif
-			if (dc_bandwidth_in_kbps_from_timing(&outputTiming) > dongle_caps->dp_hdmi_frl_max_link_bw_in_kbps)
+			if (dc_bandwidth_in_kbps_from_timing(&outputTiming, DC_LINK_ENCODING_HDMI_FRL) >
+					dongle_caps->dp_hdmi_frl_max_link_bw_in_kbps)
 				return false;
 		} else { // DP to HDMI TMDS converter
 			if (get_tmds_output_pixel_clock_100hz(timing) > (dongle_caps->dp_hdmi_max_pixel_clk_in_khz * 10))
@@ -285,7 +286,7 @@ static bool dp_validate_mode_timing(
 		link_setting = &link->verified_link_cap;
 	*/
 
-	req_bw = dc_bandwidth_in_kbps_from_timing(timing);
+	req_bw = dc_bandwidth_in_kbps_from_timing(timing, dc_link_get_highest_encoding_format(link));
 	max_bw = dp_link_bandwidth_kbps(link, link_setting);
 
 	if (req_bw <= max_bw) {
@@ -357,7 +358,8 @@ bool link_validate_dpia_bandwidth(const struct dc_stream_state *stream, const un
 	for (uint8_t i = 0; i < num_streams; ++i) {
 
 		link[i] = stream[i].link;
-		bw_needed[i] = dc_bandwidth_in_kbps_from_timing(&stream[i].timing);
+		bw_needed[i] = dc_bandwidth_in_kbps_from_timing(&stream[i].timing,
+				dc_link_get_highest_encoding_format(link[i]));
 	}
 
 	ret = dpia_validate_usb4_bw(link, bw_needed, num_streams);

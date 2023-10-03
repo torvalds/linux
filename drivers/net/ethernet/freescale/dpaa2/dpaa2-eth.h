@@ -12,6 +12,7 @@
 #include <linux/fsl/mc.h>
 #include <linux/net_tstamp.h>
 #include <net/devlink.h>
+#include <net/xdp.h>
 
 #include <soc/fsl/dpaa2-io.h>
 #include <soc/fsl/dpaa2-fd.h>

@@ -95,7 +95,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 
 	size = rdev->vce_fw->size - strlen(fw_version) - 9;
 	c = rdev->vce_fw->data;
-	for (;size > 0; --size, ++c)
+	for (; size > 0; --size, ++c)
 		if (strncmp(c, fw_version, strlen(fw_version)) == 0)
 			break;
 
@@ -110,7 +110,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 
 	size = rdev->vce_fw->size - strlen(fb_version) - 3;
 	c = rdev->vce_fw->data;
-	for (;size > 0; --size, ++c)
+	for (; size > 0; --size, ++c)
 		if (strncmp(c, fb_version, strlen(fb_version)) == 0)
 			break;
 

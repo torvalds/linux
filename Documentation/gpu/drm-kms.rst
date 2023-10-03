@@ -66,11 +66,11 @@ Composition Properties`_ and related chapters.
 For the output routing the first step is encoders (represented by
 :c:type:`struct drm_encoder <drm_encoder>`, see `Encoder Abstraction`_). Those
 are really just internal artifacts of the helper libraries used to implement KMS
-drivers. Besides that they make it unecessarily more complicated for userspace
+drivers. Besides that they make it unnecessarily more complicated for userspace
 to figure out which connections between a CRTC and a connector are possible, and
 what kind of cloning is supported, they serve no purpose in the userspace API.
 Unfortunately encoders have been exposed to userspace, hence can't remove them
-at this point.  Futhermore the exposed restrictions are often wrongly set by
+at this point.  Furthermore the exposed restrictions are often wrongly set by
 drivers, and in many cases not powerful enough to express the real restrictions.
 A CRTC can be connected to multiple encoders, and for an active CRTC there must
 be at least one encoder.
@@ -260,7 +260,7 @@ Taken all together there's two consequences for the atomic design:
   drm_crtc_state <drm_crtc_state>` for CRTCs and :c:type:`struct
   drm_connector_state <drm_connector_state>` for connectors. These are the only
   objects with userspace-visible and settable state. For internal state drivers
-  can subclass these structures through embeddeding, or add entirely new state
+  can subclass these structures through embedding, or add entirely new state
   structures for their globally shared hardware functions, see :c:type:`struct
   drm_private_state<drm_private_state>`.
 

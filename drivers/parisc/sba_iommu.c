@@ -46,8 +46,6 @@
 #include <linux/module.h>
 
 #include <asm/ropes.h>
-#include <asm/mckinley.h>	/* for proc_mckinley_root */
-#include <asm/runway.h>		/* for proc_runway_root */
 #include <asm/page.h>		/* for PAGE0 */
 #include <asm/pdc.h>		/* for PDC_MODEL_* */
 #include <asm/pdcpat.h>		/* for is_pdc_pat() */
@@ -121,8 +119,8 @@ module_param(sba_reserve_agpgart, int, 0444);
 MODULE_PARM_DESC(sba_reserve_agpgart, "Reserve half of IO pdir as AGPGART");
 #endif
 
-struct proc_dir_entry *proc_runway_root __ro_after_init;
-struct proc_dir_entry *proc_mckinley_root __ro_after_init;
+static struct proc_dir_entry *proc_runway_root __ro_after_init;
+static struct proc_dir_entry *proc_mckinley_root __ro_after_init;
 
 /************************************
 ** SBA register read and write support
@@ -204,7 +202,7 @@ static void
 sba_dump_pdir_entry(struct ioc *ioc, char *msg, uint pide)
 {
 	/* start printing from lowest pde in rval */
-	u64 *ptr = &(ioc->pdir_base[pide & (~0U * BITS_PER_LONG)]);
+	__le64 *ptr = &(ioc->pdir_base[pide & (~0U * BITS_PER_LONG)]);
 	unsigned long *rptr = (unsigned long *) &(ioc->res_map[(pide >>3) & ~(sizeof(unsigned long) - 1)]);
 	uint rcnt;
 
@@ -571,7 +569,7 @@ typedef unsigned long space_t;
  */
 
 static void
-sba_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
+sba_io_pdir_entry(__le64 *pdir_ptr, space_t sid, unsigned long vba,
 		  unsigned long hint)
 {
 	u64 pa; /* physical address */
@@ -615,7 +613,7 @@ static void
 sba_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
 {
 	u32 iovp = (u32) SBA_IOVP(ioc,iova);
-	u64 *pdir_ptr = &ioc->pdir_base[PDIR_INDEX(iovp)];
+	__le64 *pdir_ptr = &ioc->pdir_base[PDIR_INDEX(iovp)];
 
 #ifdef ASSERT_PDIR_SANITY
 	/* Assert first pdir entry is set.
@@ -716,7 +714,7 @@ sba_map_single(struct device *dev, void *addr, size_t size,
 	unsigned long flags; 
 	dma_addr_t iovp;
 	dma_addr_t offset;
-	u64 *pdir_start;
+	__le64 *pdir_start;
 	int pide;
 
 	ioc = GET_IOC(dev);
@@ -1434,7 +1432,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 
 	ioc->pdir_size = pdir_size = (iova_space_size/IOVP_SIZE) * sizeof(u64);
 
-	DBG_INIT("%s() hpa 0x%lx mem %ldMB IOV %dMB (%d bits)\n",
+	DBG_INIT("%s() hpa %px mem %ldMB IOV %dMB (%d bits)\n",
 			__func__,
 			ioc->ioc_hpa,
 			(unsigned long) totalram_pages() >> (20 - PAGE_SHIFT),
@@ -1471,7 +1469,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	ioc->iovp_mask = ~(iova_space_mask + PAGE_SIZE - 1);
 #endif
 
-	DBG_INIT("%s() IOV base 0x%lx mask 0x%0lx\n",
+	DBG_INIT("%s() IOV base %#lx mask %#0lx\n",
 		__func__, ioc->ibase, ioc->imask);
 
 	/*
@@ -1583,7 +1581,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 
 	if (!IS_PLUTO(sba_dev->dev)) {
 		ioc_ctl = READ_REG(sba_dev->sba_hpa+IOC_CTRL);
-		DBG_INIT("%s() hpa 0x%lx ioc_ctl 0x%Lx ->",
+		DBG_INIT("%s() hpa %px ioc_ctl 0x%Lx ->",
 			__func__, sba_dev->sba_hpa, ioc_ctl);
 		ioc_ctl &= ~(IOC_CTRL_RM | IOC_CTRL_NC | IOC_CTRL_CE);
 		ioc_ctl |= IOC_CTRL_DD | IOC_CTRL_D4 | IOC_CTRL_TC;
@@ -1668,14 +1666,14 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 		/* flush out the last writes */
 		READ_REG(sba_dev->ioc[i].ioc_hpa + ROPE7_CTL);
 
-		DBG_INIT("	ioc[%d] ROPE_CFG 0x%Lx  ROPE_DBG 0x%Lx\n",
+		DBG_INIT("	ioc[%d] ROPE_CFG %#lx  ROPE_DBG %lx\n",
 				i,
-				READ_REG(sba_dev->ioc[i].ioc_hpa + 0x40),
-				READ_REG(sba_dev->ioc[i].ioc_hpa + 0x50)
+				(unsigned long) READ_REG(sba_dev->ioc[i].ioc_hpa + 0x40),
+				(unsigned long) READ_REG(sba_dev->ioc[i].ioc_hpa + 0x50)
 			);
-		DBG_INIT("	STATUS_CONTROL 0x%Lx  FLUSH_CTRL 0x%Lx\n",
-				READ_REG(sba_dev->ioc[i].ioc_hpa + 0x108),
-				READ_REG(sba_dev->ioc[i].ioc_hpa + 0x400)
+		DBG_INIT("	STATUS_CONTROL %#lx  FLUSH_CTRL %#lx\n",
+				(unsigned long) READ_REG(sba_dev->ioc[i].ioc_hpa + 0x108),
+				(unsigned long) READ_REG(sba_dev->ioc[i].ioc_hpa + 0x400)
 			);
 
 		if (IS_PLUTO(sba_dev->dev)) {
@@ -1739,7 +1737,7 @@ sba_common_init(struct sba_device *sba_dev)
 #ifdef ASSERT_PDIR_SANITY
 		/* Mark first bit busy - ie no IOVA 0 */
 		sba_dev->ioc[i].res_map[0] = 0x80;
-		sba_dev->ioc[i].pdir_base[0] = 0xeeffc0addbba0080ULL;
+		sba_dev->ioc[i].pdir_base[0] = (__force __le64) 0xeeffc0addbba0080ULL;
 #endif
 
 		/* Third (and last) part of PIRANHA BUG */
@@ -1899,9 +1897,7 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 	int i;
 	char *version;
 	void __iomem *sba_addr = ioremap(dev->hpa.start, SBA_FUNC_SIZE);
-#ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *root;
-#endif
+	struct proc_dir_entry *root __maybe_unused;
 
 	sba_dump_ranges(sba_addr);
 
@@ -1967,7 +1963,6 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 
 	hppa_dma_ops = &sba_ops;
 
-#ifdef CONFIG_PROC_FS
 	switch (dev->id.hversion) {
 	case PLUTO_MCKINLEY_PORT:
 		if (!proc_mckinley_root)
@@ -1985,7 +1980,6 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 
 	proc_create_single("sba_iommu", 0, root, sba_proc_info);
 	proc_create_single("sba_iommu-bitmap", 0, root, sba_proc_bitmap_info);
-#endif
 	return 0;
 }
 
@@ -1994,10 +1988,11 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 ** This is the only routine which is NOT static.
 ** Must be called exactly once before pci_init().
 */
-void __init sba_init(void)
+static int __init sba_init(void)
 {
-	register_parisc_driver(&sba_driver);
+	return register_parisc_driver(&sba_driver);
 }
+arch_initcall(sba_init);
 
 
 /**

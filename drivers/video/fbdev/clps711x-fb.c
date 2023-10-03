@@ -310,7 +310,6 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 	}
 
 	info->fbops = &clps711x_fb_ops;
-	info->flags = FBINFO_DEFAULT;
 	info->var.activate = FB_ACTIVATE_FORCE | FB_ACTIVATE_NOW;
 	info->var.height = -1;
 	info->var.width = -1;

@@ -148,44 +148,31 @@ static void __flush_dcache_icache(void *p)
 	invalidate_icache_range(addr, addr + PAGE_SIZE);
 }
 
-static void flush_dcache_icache_hugepage(struct page *page)
+void flush_dcache_icache_folio(struct folio *folio)
 {
-	int i;
-	int nr = compound_nr(page);
+	unsigned int i, nr = folio_nr_pages(folio);
 
-	if (!PageHighMem(page)) {
+	if (flush_coherent_icache())
+		return;
+
+	if (!folio_test_highmem(folio)) {
+		void *addr = folio_address(folio);
 		for (i = 0; i < nr; i++)
-			__flush_dcache_icache(lowmem_page_address(page + i));
-	} else {
+			__flush_dcache_icache(addr + i * PAGE_SIZE);
+	} else if (IS_ENABLED(CONFIG_BOOKE) || sizeof(phys_addr_t) > sizeof(void *)) {
 		for (i = 0; i < nr; i++) {
-			void *start = kmap_local_page(page + i);
+			void *start = kmap_local_folio(folio, i * PAGE_SIZE);
 
 			__flush_dcache_icache(start);
 			kunmap_local(start);
 		}
-	}
-}
-
-void flush_dcache_icache_page(struct page *page)
-{
-	if (flush_coherent_icache())
-		return;
-
-	if (PageCompound(page))
-		return flush_dcache_icache_hugepage(page);
-
-	if (!PageHighMem(page)) {
-		__flush_dcache_icache(lowmem_page_address(page));
-	} else if (IS_ENABLED(CONFIG_BOOKE) || sizeof(phys_addr_t) > sizeof(void *)) {
-		void *start = kmap_local_page(page);
-
-		__flush_dcache_icache(start);
-		kunmap_local(start);
 	} else {
-		flush_dcache_icache_phys(page_to_phys(page));
+		unsigned long pfn = folio_pfn(folio);
+		for (i = 0; i < nr; i++)
+			flush_dcache_icache_phys((pfn + i) * PAGE_SIZE);
 	}
 }
-EXPORT_SYMBOL(flush_dcache_icache_page);
+EXPORT_SYMBOL(flush_dcache_icache_folio);
 
 void clear_user_page(void *page, unsigned long vaddr, struct page *pg)
 {

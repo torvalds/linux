@@ -1791,8 +1791,7 @@ atmel_nand_controller_legacy_add_nands(struct atmel_nand_controller *nc)
 
 	nand->numcs = 1;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	nand->cs[0].io.virt = devm_ioremap_resource(dev, res);
+	nand->cs[0].io.virt = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(nand->cs[0].io.virt))
 		return PTR_ERR(nand->cs[0].io.virt);
 

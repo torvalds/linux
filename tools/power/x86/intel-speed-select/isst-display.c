@@ -442,7 +442,7 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 		}
 
 		if (ctdp_level->mem_freq) {
-			snprintf(header, sizeof(header), "mem-frequency(MHz)");
+			snprintf(header, sizeof(header), "max-mem-frequency(MHz)");
 			snprintf(value, sizeof(value), "%d",
 				 ctdp_level->mem_freq);
 			format_and_print(outf, level + 2, header, value);

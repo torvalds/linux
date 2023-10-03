@@ -2229,8 +2229,8 @@ static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 	u32 *cs;
 	int i;
 
-	if (GRAPHICS_VER(rq->engine->i915) != 7 || rq->engine->id != RCS0) {
-		drm_dbg(&rq->engine->i915->drm, "sol reset is gen7/rcs only\n");
+	if (GRAPHICS_VER(rq->i915) != 7 || rq->engine->id != RCS0) {
+		drm_dbg(&rq->i915->drm, "sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
 
@@ -2691,6 +2691,7 @@ static int
 eb_select_engine(struct i915_execbuffer *eb)
 {
 	struct intel_context *ce, *child;
+	struct intel_gt *gt;
 	unsigned int idx;
 	int err;
 
@@ -2714,10 +2715,17 @@ eb_select_engine(struct i915_execbuffer *eb)
 		}
 	}
 	eb->num_batches = ce->parallel.number_children + 1;
+	gt = ce->engine->gt;
 
 	for_each_child(ce, child)
 		intel_context_get(child);
-	intel_gt_pm_get(ce->engine->gt);
+	intel_gt_pm_get(gt);
+	/*
+	 * Keep GT0 active on MTL so that i915_vma_parked() doesn't
+	 * free VMAs while execbuf ioctl is validating VMAs.
+	 */
+	if (gt->info.id)
+		intel_gt_pm_get(to_gt(gt->i915));
 
 	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags)) {
 		err = intel_context_alloc_state(ce);
@@ -2756,7 +2764,10 @@ eb_select_engine(struct i915_execbuffer *eb)
 	return err;
 
 err:
-	intel_gt_pm_put(ce->engine->gt);
+	if (gt->info.id)
+		intel_gt_pm_put(to_gt(gt->i915));
+
+	intel_gt_pm_put(gt);
 	for_each_child(ce, child)
 		intel_context_put(child);
 	intel_context_put(ce);
@@ -2769,6 +2780,12 @@ eb_put_engine(struct i915_execbuffer *eb)
 	struct intel_context *child;
 
 	i915_vm_put(eb->context->vm);
+	/*
+	 * This works in conjunction with eb_select_engine() to prevent
+	 * i915_vma_parked() from interfering while execbuf validates vmas.
+	 */
+	if (eb->gt->info.id)
+		intel_gt_pm_put(to_gt(eb->gt->i915));
 	intel_gt_pm_put(eb->gt);
 	for_each_child(eb->context, child)
 		intel_context_put(child);

@@ -578,7 +578,7 @@ static void print_metric_only_csv(struct perf_stat_config *config __maybe_unused
 	if (!valid_only_metric(unit))
 		return;
 	unit = fixunit(tbuf, os->evsel, unit);
-	snprintf(buf, sizeof buf, fmt, val);
+	snprintf(buf, sizeof(buf), fmt ?: "", val);
 	ends = vals = skip_spaces(buf);
 	while (isdigit(*ends) || *ends == '.')
 		ends++;
@@ -600,7 +600,7 @@ static void print_metric_only_json(struct perf_stat_config *config __maybe_unuse
 	if (!valid_only_metric(unit))
 		return;
 	unit = fixunit(tbuf, os->evsel, unit);
-	snprintf(buf, sizeof(buf), fmt, val);
+	snprintf(buf, sizeof(buf), fmt ?: "", val);
 	ends = vals = skip_spaces(buf);
 	while (isdigit(*ends) || *ends == '.')
 		ends++;

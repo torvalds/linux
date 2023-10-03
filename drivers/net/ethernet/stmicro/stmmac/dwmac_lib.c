@@ -10,6 +10,7 @@
 #include <linux/iopoll.h>
 #include "common.h"
 #include "dwmac_dma.h"
+#include "stmmac.h"
 
 #define GMAC_HI_REG_AE		0x80000000
 
@@ -161,6 +162,8 @@ static void show_rx_process_state(unsigned int status)
 int dwmac_dma_interrupt(struct stmmac_priv *priv, void __iomem *ioaddr,
 			struct stmmac_extra_stats *x, u32 chan, u32 dir)
 {
+	struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[chan];
+	struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[chan];
 	int ret = 0;
 	/* read the status register (CSR5) */
 	u32 intr_status = readl(ioaddr + DMA_STATUS);
@@ -208,17 +211,20 @@ int dwmac_dma_interrupt(struct stmmac_priv *priv, void __iomem *ioaddr,
 	}
 	/* TX/RX NORMAL interrupts */
 	if (likely(intr_status & DMA_STATUS_NIS)) {
-		x->normal_irq_n++;
 		if (likely(intr_status & DMA_STATUS_RI)) {
 			u32 value = readl(ioaddr + DMA_INTR_ENA);
 			/* to schedule NAPI on real RIE event. */
 			if (likely(value & DMA_INTR_ENA_RIE)) {
-				x->rx_normal_irq_n++;
+				u64_stats_update_begin(&rxq_stats->syncp);
+				rxq_stats->rx_normal_irq_n++;
+				u64_stats_update_end(&rxq_stats->syncp);
 				ret |= handle_rx;
 			}
 		}
 		if (likely(intr_status & DMA_STATUS_TI)) {
-			x->tx_normal_irq_n++;
+			u64_stats_update_begin(&txq_stats->syncp);
+			txq_stats->tx_normal_irq_n++;
+			u64_stats_update_end(&txq_stats->syncp);
 			ret |= handle_tx;
 		}
 		if (unlikely(intr_status & DMA_STATUS_ERI))

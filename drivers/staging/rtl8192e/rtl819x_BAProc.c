@@ -10,51 +10,51 @@
 #include "rtllib.h"
 #include "rtl819x_BA.h"
 
-static void ActivateBAEntry(struct ba_record *pBA, u16 Time)
+static void activate_ba_entry(struct ba_record *pBA, u16 Time)
 {
 	pBA->b_valid = true;
 	if (Time != 0)
 		mod_timer(&pBA->timer, jiffies + msecs_to_jiffies(Time));
 }
 
-static void DeActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA)
+static void deactivate_ba_entry(struct rtllib_device *ieee, struct ba_record *pBA)
 {
 	pBA->b_valid = false;
 	del_timer_sync(&pBA->timer);
 }
 
-static u8 TxTsDeleteBA(struct rtllib_device *ieee, struct tx_ts_record *pTxTs)
+static u8 tx_ts_delete_ba(struct rtllib_device *ieee, struct tx_ts_record *pTxTs)
 {
 	struct ba_record *pAdmittedBa = &pTxTs->TxAdmittedBARecord;
 	struct ba_record *pPendingBa = &pTxTs->TxPendingBARecord;
 	u8 bSendDELBA = false;
 
 	if (pPendingBa->b_valid) {
-		DeActivateBAEntry(ieee, pPendingBa);
+		deactivate_ba_entry(ieee, pPendingBa);
 		bSendDELBA = true;
 	}
 
 	if (pAdmittedBa->b_valid) {
-		DeActivateBAEntry(ieee, pAdmittedBa);
+		deactivate_ba_entry(ieee, pAdmittedBa);
 		bSendDELBA = true;
 	}
 	return bSendDELBA;
 }
 
-static u8 RxTsDeleteBA(struct rtllib_device *ieee, struct rx_ts_record *pRxTs)
+static u8 rx_ts_delete_ba(struct rtllib_device *ieee, struct rx_ts_record *pRxTs)
 {
 	struct ba_record *pBa = &pRxTs->rx_admitted_ba_record;
 	u8			bSendDELBA = false;
 
 	if (pBa->b_valid) {
-		DeActivateBAEntry(ieee, pBa);
+		deactivate_ba_entry(ieee, pBa);
 		bSendDELBA = true;
 	}
 
 	return bSendDELBA;
 }
 
-void ResetBaEntry(struct ba_record *pBA)
+void rtllib_reset_ba_entry(struct ba_record *pBA)
 {
 	pBA->b_valid			  = false;
 	pBA->ba_param_set.short_data	  = 0;
@@ -270,7 +270,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 
 	rtllib_FlushRxTsPendingPkts(ieee, pTS);
 
-	DeActivateBAEntry(ieee, pBA);
+	deactivate_ba_entry(ieee, pBA);
 	pBA->dialog_token = *pDialogToken;
 	pBA->ba_param_set = *pBaParamSet;
 	pBA->ba_timeout_value = *pBaTimeoutVal;
@@ -282,7 +282,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	else
 		pBA->ba_param_set.field.buffer_size = 32;
 
-	ActivateBAEntry(pBA, 0);
+	activate_ba_entry(pBA, 0);
 	rtllib_send_ADDBARsp(ieee, dst, pBA, ADDBA_STATUS_SUCCESS);
 
 	return 0;
@@ -363,13 +363,13 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		netdev_dbg(ieee->dev,
 			   "%s(): Recv ADDBA Rsp. BA is admitted! Status code:%X\n",
 			   __func__, *pStatusCode);
-		DeActivateBAEntry(ieee, pPendingBA);
+		deactivate_ba_entry(ieee, pPendingBA);
 	}
 
 	if (*pStatusCode == ADDBA_STATUS_SUCCESS) {
 		if (pBaParamSet->field.ba_policy == BA_POLICY_DELAYED) {
 			pTS->bAddBaReqDelayed = true;
-			DeActivateBAEntry(ieee, pAdmittedBA);
+			deactivate_ba_entry(ieee, pAdmittedBA);
 			ReasonCode = DELBA_REASON_END_BA;
 			goto OnADDBARsp_Reject;
 		}
@@ -378,8 +378,8 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		pAdmittedBA->ba_timeout_value = *pBaTimeoutVal;
 		pAdmittedBA->ba_start_seq_ctrl = pPendingBA->ba_start_seq_ctrl;
 		pAdmittedBA->ba_param_set = *pBaParamSet;
-		DeActivateBAEntry(ieee, pAdmittedBA);
-		ActivateBAEntry(pAdmittedBA, *pBaTimeoutVal);
+		deactivate_ba_entry(ieee, pAdmittedBA);
+		activate_ba_entry(pAdmittedBA, *pBaTimeoutVal);
 	} else {
 		pTS->bAddBaReqDelayed = true;
 		pTS->bDisable_AddBa = true;
@@ -441,7 +441,7 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 			return -1;
 		}
 
-		RxTsDeleteBA(ieee, pRxTs);
+		rx_ts_delete_ba(ieee, pRxTs);
 	} else {
 		struct tx_ts_record *pTxTs;
 
@@ -456,20 +456,20 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 		pTxTs->bAddBaReqInProgress = false;
 		pTxTs->bAddBaReqDelayed = false;
 		del_timer_sync(&pTxTs->TsAddBaTimer);
-		TxTsDeleteBA(ieee, pTxTs);
+		tx_ts_delete_ba(ieee, pTxTs);
 	}
 	return 0;
 }
 
-void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
-		 u8 Policy, u8	bOverwritePending)
+void rtllib_ts_init_add_ba(struct rtllib_device *ieee, struct tx_ts_record *pTS,
+			   u8 Policy, u8	bOverwritePending)
 {
 	struct ba_record *pBA = &pTS->TxPendingBARecord;
 
 	if (pBA->b_valid && !bOverwritePending)
 		return;
 
-	DeActivateBAEntry(ieee, pBA);
+	deactivate_ba_entry(ieee, pBA);
 
 	pBA->dialog_token++;
 	pBA->ba_param_set.field.amsdu_support = 0;
@@ -479,20 +479,20 @@ void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 	pBA->ba_timeout_value = 0;
 	pBA->ba_start_seq_ctrl.field.seq_num = (pTS->TxCurSeq + 3) % 4096;
 
-	ActivateBAEntry(pBA, BA_SETUP_TIMEOUT);
+	activate_ba_entry(pBA, BA_SETUP_TIMEOUT);
 
 	rtllib_send_ADDBAReq(ieee, pTS->TsCommonInfo.Addr, pBA);
 }
 
-void TsInitDelBA(struct rtllib_device *ieee,
-		 struct ts_common_info *pTsCommonInfo,
-		 enum tr_select TxRxSelect)
+void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
+			   struct ts_common_info *pTsCommonInfo,
+			   enum tr_select TxRxSelect)
 {
 	if (TxRxSelect == TX_DIR) {
 		struct tx_ts_record *pTxTs =
 			 (struct tx_ts_record *)pTsCommonInfo;
 
-		if (TxTsDeleteBA(ieee, pTxTs))
+		if (tx_ts_delete_ba(ieee, pTxTs))
 			rtllib_send_DELBA(ieee, pTsCommonInfo->Addr,
 					  (pTxTs->TxAdmittedBARecord.b_valid) ?
 					 (&pTxTs->TxAdmittedBARecord) :
@@ -501,14 +501,14 @@ void TsInitDelBA(struct rtllib_device *ieee,
 	} else if (TxRxSelect == RX_DIR) {
 		struct rx_ts_record *pRxTs =
 				 (struct rx_ts_record *)pTsCommonInfo;
-		if (RxTsDeleteBA(ieee, pRxTs))
+		if (rx_ts_delete_ba(ieee, pRxTs))
 			rtllib_send_DELBA(ieee, pTsCommonInfo->Addr,
 					  &pRxTs->rx_admitted_ba_record,
 					  TxRxSelect, DELBA_REASON_END_BA);
 	}
 }
 
-void BaSetupTimeOut(struct timer_list *t)
+void rtllib_ba_setup_timeout(struct timer_list *t)
 {
 	struct tx_ts_record *pTxTs = from_timer(pTxTs, t,
 					      TxPendingBARecord.timer);
@@ -518,26 +518,26 @@ void BaSetupTimeOut(struct timer_list *t)
 	pTxTs->TxPendingBARecord.b_valid = false;
 }
 
-void TxBaInactTimeout(struct timer_list *t)
+void rtllib_tx_ba_inact_timeout(struct timer_list *t)
 {
 	struct tx_ts_record *pTxTs = from_timer(pTxTs, t,
 					      TxAdmittedBARecord.timer);
 	struct rtllib_device *ieee = container_of(pTxTs, struct rtllib_device,
 				     TxTsRecord[pTxTs->num]);
-	TxTsDeleteBA(ieee, pTxTs);
+	tx_ts_delete_ba(ieee, pTxTs);
 	rtllib_send_DELBA(ieee, pTxTs->TsCommonInfo.Addr,
 			  &pTxTs->TxAdmittedBARecord, TX_DIR,
 			  DELBA_REASON_TIMEOUT);
 }
 
-void RxBaInactTimeout(struct timer_list *t)
+void rtllib_rx_ba_inact_timeout(struct timer_list *t)
 {
 	struct rx_ts_record *pRxTs = from_timer(pRxTs, t,
 					      rx_admitted_ba_record.timer);
 	struct rtllib_device *ieee = container_of(pRxTs, struct rtllib_device,
 				     RxTsRecord[pRxTs->num]);
 
-	RxTsDeleteBA(ieee, pRxTs);
+	rx_ts_delete_ba(ieee, pRxTs);
 	rtllib_send_DELBA(ieee, pRxTs->ts_common_info.Addr,
 			  &pRxTs->rx_admitted_ba_record, RX_DIR,
 			  DELBA_REASON_TIMEOUT);

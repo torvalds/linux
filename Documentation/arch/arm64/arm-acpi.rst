@@ -99,7 +99,7 @@ to replace the kernel.
 
 When a Linux driver or subsystem is first implemented using ACPI, it by
 definition ends up requiring a specific version of the ACPI specification
--- it's baseline.  ACPI firmware must continue to work, even though it may
+-- its baseline.  ACPI firmware must continue to work, even though it may
 not be optimal, with the earliest kernel version that first provides support
 for that baseline version of ACPI.  There may be a need for additional drivers,
 but adding new functionality (e.g., CPU power management) should not break

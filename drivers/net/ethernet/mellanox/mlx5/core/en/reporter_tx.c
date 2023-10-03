@@ -164,6 +164,43 @@ static int mlx5e_tx_reporter_timeout_recover(void *ctx)
 	return err;
 }
 
+static int mlx5e_tx_reporter_ptpsq_unhealthy_recover(void *ctx)
+{
+	struct mlx5e_ptpsq *ptpsq = ctx;
+	struct mlx5e_channels *chs;
+	struct net_device *netdev;
+	struct mlx5e_priv *priv;
+	int carrier_ok;
+	int err;
+
+	if (!test_bit(MLX5E_SQ_STATE_RECOVERING, &ptpsq->txqsq.state))
+		return 0;
+
+	priv = ptpsq->txqsq.priv;
+
+	mutex_lock(&priv->state_lock);
+	chs = &priv->channels;
+	netdev = priv->netdev;
+
+	carrier_ok = netif_carrier_ok(netdev);
+	netif_carrier_off(netdev);
+
+	mlx5e_deactivate_priv_channels(priv);
+
+	mlx5e_ptp_close(chs->ptp);
+	err = mlx5e_ptp_open(priv, &chs->params, chs->c[0]->lag_port, &chs->ptp);
+
+	mlx5e_activate_priv_channels(priv);
+
+	/* return carrier back if needed */
+	if (carrier_ok)
+		netif_carrier_on(netdev);
+
+	mutex_unlock(&priv->state_lock);
+
+	return err;
+}
+
 /* state lock cannot be grabbed within this function.
  * It can cause a dead lock or a read-after-free.
  */
@@ -516,6 +553,15 @@ static int mlx5e_tx_reporter_timeout_dump(struct mlx5e_priv *priv, struct devlin
 	return mlx5e_tx_reporter_dump_sq(priv, fmsg, to_ctx->sq);
 }
 
+static int mlx5e_tx_reporter_ptpsq_unhealthy_dump(struct mlx5e_priv *priv,
+						  struct devlink_fmsg *fmsg,
+						  void *ctx)
+{
+	struct mlx5e_ptpsq *ptpsq = ctx;
+
+	return mlx5e_tx_reporter_dump_sq(priv, fmsg, &ptpsq->txqsq);
+}
+
 static int mlx5e_tx_reporter_dump_all_sqs(struct mlx5e_priv *priv,
 					  struct devlink_fmsg *fmsg)
 {
@@ -619,6 +665,25 @@ int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq)
 
 	mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
 	return to_ctx.status;
+}
+
+void mlx5e_reporter_tx_ptpsq_unhealthy(struct mlx5e_ptpsq *ptpsq)
+{
+	struct mlx5e_ptp_metadata_map *map = &ptpsq->metadata_map;
+	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_txqsq *txqsq = &ptpsq->txqsq;
+	struct mlx5e_cq *ts_cq = &ptpsq->ts_cq;
+	struct mlx5e_priv *priv = txqsq->priv;
+	struct mlx5e_err_ctx err_ctx = {};
+
+	err_ctx.ctx = ptpsq;
+	err_ctx.recover = mlx5e_tx_reporter_ptpsq_unhealthy_recover;
+	err_ctx.dump = mlx5e_tx_reporter_ptpsq_unhealthy_dump;
+	snprintf(err_str, sizeof(err_str),
+		 "Unhealthy TX port TS queue: %d, SQ: 0x%x, CQ: 0x%x, Undelivered CQEs: %u Map Capacity: %u",
+		 txqsq->ch_ix, txqsq->sqn, ts_cq->mcq.cqn, map->undelivered_counter, map->capacity);
+
+	mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
 }
 
 static const struct devlink_health_reporter_ops mlx5_tx_reporter_ops = {

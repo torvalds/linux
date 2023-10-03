@@ -24,6 +24,8 @@
 #include <linux/random.h>
 
 #include "gt/intel_gt_pm.h"
+#include "gt/uc/intel_gsc_fw.h"
+
 #include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_selftest.h"
@@ -127,6 +129,31 @@ static void set_default_test_all(struct selftest *st, unsigned int count)
 		st[i].enabled = true;
 }
 
+static bool
+__gsc_proxy_init_progressing(struct intel_gsc_uc *gsc)
+{
+	return intel_gsc_uc_fw_proxy_get_status(gsc) == -EAGAIN;
+}
+
+static void
+__wait_gsc_proxy_completed(struct drm_i915_private *i915)
+{
+	bool need_to_wait = (IS_ENABLED(CONFIG_INTEL_MEI_GSC_PROXY) &&
+			     i915->media_gt &&
+			     HAS_ENGINE(i915->media_gt, GSC0) &&
+			     intel_uc_fw_is_loadable(&i915->media_gt->uc.gsc.fw));
+	/*
+	 * The gsc proxy component depends on the kernel component driver load ordering
+	 * and in corner cases (the first time after an IFWI flash), init-completion
+	 * firmware flows take longer.
+	 */
+	unsigned long timeout_ms = 8000;
+
+	if (need_to_wait && wait_for(!__gsc_proxy_init_progressing(&i915->media_gt->uc.gsc),
+				     timeout_ms))
+		pr_warn(DRIVER_NAME "Timed out waiting for gsc_proxy_completion!\n");
+}
+
 static int __run_selftests(const char *name,
 			   struct selftest *st,
 			   unsigned int count,
@@ -206,6 +233,8 @@ int i915_live_selftests(struct pci_dev *pdev)
 	if (!i915_selftest.live)
 		return 0;
 
+	__wait_gsc_proxy_completed(pdev_to_i915(pdev));
+
 	err = run_selftests(live, pdev_to_i915(pdev));
 	if (err) {
 		i915_selftest.live = err;
@@ -226,6 +255,8 @@ int i915_perf_selftests(struct pci_dev *pdev)
 
 	if (!i915_selftest.perf)
 		return 0;
+
+	__wait_gsc_proxy_completed(pdev_to_i915(pdev));
 
 	err = run_selftests(perf, pdev_to_i915(pdev));
 	if (err) {

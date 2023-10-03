@@ -503,15 +503,15 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	}
 
 	list_for_each_entry(subdev_entity, &isc->subdev_entities, list) {
-		struct v4l2_async_subdev *asd;
+		struct v4l2_async_connection *asd;
 		struct fwnode_handle *fwnode =
 			of_fwnode_handle(subdev_entity->epn);
 
-		v4l2_async_nf_init(&subdev_entity->notifier);
+		v4l2_async_nf_init(&subdev_entity->notifier, &isc->v4l2_dev);
 
 		asd = v4l2_async_nf_add_fwnode_remote(&subdev_entity->notifier,
 						      fwnode,
-						      struct v4l2_async_subdev);
+						      struct v4l2_async_connection);
 
 		of_node_put(subdev_entity->epn);
 		subdev_entity->epn = NULL;
@@ -523,8 +523,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 
 		subdev_entity->notifier.ops = &atmel_isc_async_ops;
 
-		ret = v4l2_async_nf_register(&isc->v4l2_dev,
-					     &subdev_entity->notifier);
+		ret = v4l2_async_nf_register(&subdev_entity->notifier);
 		if (ret) {
 			dev_err(dev, "fail to register async notifier\n");
 			goto cleanup_subdev;

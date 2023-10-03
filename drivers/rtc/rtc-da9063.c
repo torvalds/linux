@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/regmap.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
@@ -495,6 +496,12 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "Failed to request ALARM IRQ %d: %d\n",
 			irq_alarm, ret);
+
+	ret = dev_pm_set_wake_irq(&pdev->dev, irq_alarm);
+	if (ret)
+		dev_warn(&pdev->dev,
+			 "Failed to set IRQ %d as a wake IRQ: %d\n",
+			 irq_alarm, ret);
 
 	device_init_wakeup(&pdev->dev, true);
 

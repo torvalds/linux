@@ -58,7 +58,11 @@ struct vm_fault;
 #define IOMAP_F_DIRTY		(1U << 1)
 #define IOMAP_F_SHARED		(1U << 2)
 #define IOMAP_F_MERGED		(1U << 3)
+#ifdef CONFIG_BUFFER_HEAD
 #define IOMAP_F_BUFFER_HEAD	(1U << 4)
+#else
+#define IOMAP_F_BUFFER_HEAD	0
+#endif /* CONFIG_BUFFER_HEAD */
 #define IOMAP_F_XATTR		(1U << 5)
 
 /*

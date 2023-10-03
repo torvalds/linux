@@ -913,6 +913,10 @@ static inline void cmos_check_acpi_rtc_status(struct device *dev,
 #define	INITSECTION	__init
 #endif
 
+#define SECS_PER_DAY	(24 * 60 * 60)
+#define SECS_PER_MONTH	(28 * SECS_PER_DAY)
+#define SECS_PER_YEAR	(365 * SECS_PER_DAY)
+
 static int INITSECTION
 cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 {
@@ -1018,6 +1022,13 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 		retval = PTR_ERR(cmos_rtc.rtc);
 		goto cleanup0;
 	}
+
+	if (cmos_rtc.mon_alrm)
+		cmos_rtc.rtc->alarm_offset_max = SECS_PER_YEAR - 1;
+	else if (cmos_rtc.day_alrm)
+		cmos_rtc.rtc->alarm_offset_max = SECS_PER_MONTH - 1;
+	else
+		cmos_rtc.rtc->alarm_offset_max = SECS_PER_DAY - 1;
 
 	rename_region(ports, dev_name(&cmos_rtc.rtc->dev));
 

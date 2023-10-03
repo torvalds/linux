@@ -140,7 +140,7 @@ static const u32 *__live_rc6_ctx(struct intel_context *ce)
 	}
 
 	cmd = MI_STORE_REGISTER_MEM | MI_USE_GGTT;
-	if (GRAPHICS_VER(rq->engine->i915) >= 8)
+	if (GRAPHICS_VER(rq->i915) >= 8)
 		cmd++;
 
 	*cs++ = cmd;

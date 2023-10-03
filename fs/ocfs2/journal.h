@@ -29,7 +29,7 @@ struct ocfs2_dinode;
 
 struct ocfs2_recovery_map {
 	unsigned int rm_used;
-	unsigned int *rm_entries;
+	unsigned int rm_entries[];
 };
 
 

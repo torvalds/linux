@@ -92,10 +92,43 @@
 #define SLOT_WIDTH_24	0x18
 #define SLOT_WIDTH_32	0x20
 
+#define ACP6X_PGFSM_CONTROL                     0x1024
+#define ACP6X_PGFSM_STATUS                      0x1028
+
+#define ACP_SOFT_RST_DONE_MASK	0x00010001
+
+#define ACP_PGFSM_CNTL_POWER_ON_MASK            0x01
+#define ACP_PGFSM_CNTL_POWER_OFF_MASK           0x00
+#define ACP_PGFSM_STATUS_MASK                   0x03
+#define ACP_POWERED_ON                          0x00
+#define ACP_POWER_ON_IN_PROGRESS                0x01
+#define ACP_POWERED_OFF                         0x02
+#define ACP_POWER_OFF_IN_PROGRESS               0x03
+
+#define ACP_ERROR_MASK                          0x20000000
+#define ACP_EXT_INTR_STAT_CLEAR_MASK            0xffffffff
+
+#define ACP_TIMEOUT		500
+#define DELAY_US		5
+#define ACP_SUSPEND_DELAY_MS   2000
+
+#define PDM_DMA_STAT            0x10
+#define PDM_DMA_INTR_MASK       0x10000
+#define PDM_DEC_64              0x2
+#define PDM_CLK_FREQ_MASK       0x07
+#define PDM_MISC_CTRL_MASK      0x10
+#define PDM_ENABLE              0x01
+#define PDM_DISABLE             0x00
+#define DMA_EN_MASK             0x02
+#define DELAY_US                5
+#define PDM_TIMEOUT             1000
+#define ACP_REGION2_OFFSET      0x02000000
+
 struct acp_chip_info {
 	char *name;		/* Platform name */
 	unsigned int acp_rev;	/* ACP Revision id */
 	void __iomem *base;	/* ACP memory PCI base */
+	struct platform_device *chip_pdev;
 };
 
 struct acp_stream {
@@ -144,8 +177,11 @@ struct acp_dev_data {
 	u32 lrclk_div;
 
 	struct acp_resource *rsrc;
+	u32 ch_mask;
 	u32 tdm_tx_fmt[3];
 	u32 tdm_rx_fmt[3];
+	u32 xfer_tx_resolution[3];
+	u32 xfer_rx_resolution[3];
 };
 
 union acp_i2stdm_mstrclkgen {
@@ -162,14 +198,28 @@ union acp_i2stdm_mstrclkgen {
 extern const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops;
 extern const struct snd_soc_dai_ops acp_dmic_dai_ops;
 
-int asoc_acp_i2s_probe(struct snd_soc_dai *dai);
 int acp_platform_register(struct device *dev);
 int acp_platform_unregister(struct device *dev);
 
 int acp_machine_select(struct acp_dev_data *adata);
 
+int smn_read(struct pci_dev *dev, u32 smn_addr);
+int smn_write(struct pci_dev *dev, u32 smn_addr, u32 data);
+
+int acp_init(struct acp_chip_info *chip);
+int acp_deinit(void __iomem *base);
+void acp_enable_interrupts(struct acp_dev_data *adata);
+void acp_disable_interrupts(struct acp_dev_data *adata);
 /* Machine configuration */
 int snd_amd_acp_find_config(struct pci_dev *pci);
+
+void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream *stream);
+void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int size);
+void restore_acp_pdm_params(struct snd_pcm_substream *substream,
+			    struct acp_dev_data *adata);
+
+int restore_acp_i2s_params(struct snd_pcm_substream *substream,
+			   struct acp_dev_data *adata, struct acp_stream *stream);
 
 static inline u64 acp_get_byte_count(struct acp_dev_data *adata, int dai_id, int direction)
 {

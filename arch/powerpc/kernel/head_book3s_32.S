@@ -31,7 +31,6 @@
 #include <asm/ptrace.h>
 #include <asm/bug.h>
 #include <asm/kvm_book3s_asm.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 #include <asm/interrupt.h>
 

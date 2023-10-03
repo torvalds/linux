@@ -3,6 +3,8 @@
 #ifndef __ASM_CSKY_TRAPS_H
 #define __ASM_CSKY_TRAPS_H
 
+#include <linux/linkage.h>
+
 #define VEC_RESET	0
 #define VEC_ALIGN	1
 #define VEC_ACCESS	2
@@ -39,5 +41,20 @@ do { \
 } while (0)
 
 void csky_alignment(struct pt_regs *regs);
+
+asmlinkage void do_trap_unknown(struct pt_regs *regs);
+asmlinkage void do_trap_zdiv(struct pt_regs *regs);
+asmlinkage void do_trap_buserr(struct pt_regs *regs);
+asmlinkage void do_trap_misaligned(struct pt_regs *regs);
+asmlinkage void do_trap_bkpt(struct pt_regs *regs);
+asmlinkage void do_trap_illinsn(struct pt_regs *regs);
+asmlinkage void do_trap_fpe(struct pt_regs *regs);
+asmlinkage void do_trap_priv(struct pt_regs *regs);
+asmlinkage void trap_c(struct pt_regs *regs);
+
+asmlinkage void do_notify_resume(struct pt_regs *regs,
+			unsigned long thread_info_flags);
+
+void trap_init(void);
 
 #endif /* __ASM_CSKY_TRAPS_H */

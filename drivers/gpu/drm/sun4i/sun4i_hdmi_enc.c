@@ -10,7 +10,7 @@
 #include <linux/i2c.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -693,11 +693,9 @@ static int sun4i_hdmi_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &sun4i_hdmi_ops);
 }
 
-static int sun4i_hdmi_remove(struct platform_device *pdev)
+static void sun4i_hdmi_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &sun4i_hdmi_ops);
-
-	return 0;
 }
 
 static const struct of_device_id sun4i_hdmi_of_table[] = {
@@ -710,7 +708,7 @@ MODULE_DEVICE_TABLE(of, sun4i_hdmi_of_table);
 
 static struct platform_driver sun4i_hdmi_driver = {
 	.probe		= sun4i_hdmi_probe,
-	.remove		= sun4i_hdmi_remove,
+	.remove_new	= sun4i_hdmi_remove,
 	.driver		= {
 		.name		= "sun4i-hdmi",
 		.of_match_table	= sun4i_hdmi_of_table,

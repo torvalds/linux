@@ -20,7 +20,7 @@
 #include <linux/kdev_t.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>

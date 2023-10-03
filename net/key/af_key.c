@@ -1281,7 +1281,6 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 				ext_hdrs[SADB_X_EXT_NAT_T_DPORT-1];
 			natt->encap_dport = n_port->sadb_x_nat_t_port_port;
 		}
-		memset(&natt->encap_oa, 0, sizeof(natt->encap_oa));
 	}
 
 	err = xfrm_init_state(x);

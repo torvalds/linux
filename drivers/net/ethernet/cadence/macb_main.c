@@ -26,7 +26,6 @@
 #include <linux/platform_device.h>
 #include <linux/phylink.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
@@ -757,8 +756,6 @@ static void macb_mac_link_up(struct phylink_config *config,
 		if (rx_pause)
 			ctrl |= MACB_BIT(PAE);
 
-		macb_set_tx_clk(bp, speed);
-
 		/* Initialize rings & buffers as clearing MACB_BIT(TE) in link down
 		 * cleared the pipeline and control registers.
 		 */
@@ -777,6 +774,9 @@ static void macb_mac_link_up(struct phylink_config *config,
 							gem_readl(bp, HS_MAC_CONFIG)));
 
 	spin_unlock_irqrestore(&bp->lock, flags);
+
+	if (!(bp->caps & MACB_CAPS_MACB_IS_EMAC))
+		macb_set_tx_clk(bp, speed);
 
 	/* Enable Rx and Tx; Enable PTP unicast */
 	ctrl = macb_readl(bp, NCR);

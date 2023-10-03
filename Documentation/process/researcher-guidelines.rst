@@ -44,6 +44,33 @@ explicit agreement of, and full disclosure to, the individual developers
 involved. Developers cannot be interacted with/experimented on without
 consent; this, too, is standard research ethics.
 
+Surveys
+=======
+
+Research often takes the form of surveys sent to maintainers or
+contributors.  As a general rule, though, the kernel community derives
+little value from these surveys.  The kernel development process works
+because every developer benefits from their participation, even working
+with others who have different goals.  Responding to a survey, though, is a
+one-way demand placed on busy developers with no corresponding benefit to
+themselves or to the kernel community as a whole.  For this reason, this
+method of research is discouraged.
+
+Kernel community members already receive far too much email and are likely
+to perceive survey requests as just another demand on their time.  Sending
+such requests deprives the community of valuable contributor time and is
+unlikely to yield a statistically useful response.
+
+As an alternative, researchers should consider attending developer events,
+hosting sessions where the research project and its benefits to the
+participants can be explained, and interacting directly with the community
+there.  The information received will be far richer than that obtained from
+an email survey, and the community will gain from the ability to learn from
+your insights as well.
+
+Patches
+=======
+
 To help clarify: sending patches to developers *is* interacting
 with them, but they have already consented to receiving *good faith
 contributions*. Sending intentionally flawed/vulnerable patches or

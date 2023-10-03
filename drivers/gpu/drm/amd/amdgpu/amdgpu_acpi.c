@@ -706,7 +706,7 @@ int amdgpu_acpi_pcie_performance_request(struct amdgpu_device *adev,
 
 	atcs_input.size = sizeof(struct atcs_pref_req_input);
 	/* client id (bit 2-0: func num, 7-3: dev num, 15-8: bus num) */
-	atcs_input.client_id = adev->pdev->devfn | (adev->pdev->bus->number << 8);
+	atcs_input.client_id = pci_dev_id(adev->pdev);
 	atcs_input.valid_flags_mask = ATCS_VALID_FLAGS_MASK;
 	atcs_input.flags = ATCS_WAIT_FOR_COMPLETION;
 	if (advertise)
@@ -776,7 +776,7 @@ int amdgpu_acpi_power_shift_control(struct amdgpu_device *adev,
 
 	atcs_input.size = sizeof(struct atcs_pwr_shift_input);
 	/* dGPU id (bit 2-0: func num, 7-3: dev num, 15-8: bus num) */
-	atcs_input.dgpu_id = adev->pdev->devfn | (adev->pdev->bus->number << 8);
+	atcs_input.dgpu_id = pci_dev_id(adev->pdev);
 	atcs_input.dev_acpi_state = dev_state;
 	atcs_input.drv_state = drv_state;
 
@@ -868,7 +868,7 @@ static struct amdgpu_numa_info *amdgpu_acpi_get_numa_info(uint32_t pxm)
 	if (!numa_info) {
 		struct sysinfo info;
 
-		numa_info = kzalloc(sizeof *numa_info, GFP_KERNEL);
+		numa_info = kzalloc(sizeof(*numa_info), GFP_KERNEL);
 		if (!numa_info)
 			return NULL;
 
@@ -1141,7 +1141,7 @@ int amdgpu_acpi_get_tmr_info(struct amdgpu_device *adev, u64 *tmr_offset,
 	if (!tmr_offset || !tmr_size)
 		return -EINVAL;
 
-	bdf = (adev->pdev->bus->number << 8) | adev->pdev->devfn;
+	bdf = pci_dev_id(adev->pdev);
 	dev_info = amdgpu_acpi_get_dev(bdf);
 	if (!dev_info)
 		return -ENOENT;
@@ -1162,7 +1162,7 @@ int amdgpu_acpi_get_mem_info(struct amdgpu_device *adev, int xcc_id,
 	if (!numa_info)
 		return -EINVAL;
 
-	bdf = (adev->pdev->bus->number << 8) | adev->pdev->devfn;
+	bdf = pci_dev_id(adev->pdev);
 	dev_info = amdgpu_acpi_get_dev(bdf);
 	if (!dev_info)
 		return -ENOENT;

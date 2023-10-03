@@ -1192,9 +1192,11 @@ struct ieee80211_tx_info {
 			u8 ampdu_ack_len;
 			u8 ampdu_len;
 			u8 antenna;
+			u8 pad;
 			u16 tx_time;
 			u8 flags;
-			void *status_driver_data[18 / sizeof(void *)];
+			u8 pad2;
+			void *status_driver_data[16 / sizeof(void *)];
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
@@ -2259,6 +2261,7 @@ struct ieee80211_sta_aggregates {
  * @he_cap: HE capabilities of this STA
  * @he_6ghz_capa: on 6 GHz, holds the HE 6 GHz band capabilities
  * @eht_cap: EHT capabilities of this STA
+ * @agg: per-link data for multi-link aggregation
  * @bandwidth: current bandwidth the station can receive with
  * @rx_nss: in HT/VHT, the maximum number of spatial streams the
  *	station can receive at the moment, changed by operating mode

@@ -80,18 +80,23 @@
 /* possible frequency drift (1Mhz) */
 #define EPSILON 1
 
-#define smnPCIE_ESM_CTRL 0x193D0
+#define smnPCIE_ESM_CTRL 0x93D0
 #define smnPCIE_LC_LINK_WIDTH_CNTL 0x1a340288
 #define PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK 0x00000070L
 #define PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT 0x4
 #define MAX_LINK_WIDTH 6
 
+#define smnPCIE_LC_SPEED_CNTL                   0x1a340290
+#define PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK 0xE0
+#define PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT 0x5
+#define LINK_SPEED_MAX				4
+
 static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion,			1),
 	MSG_MAP(GetDriverIfVersion,		     PPSMC_MSG_GetDriverIfVersion,		1),
-	MSG_MAP(EnableAllSmuFeatures,		     PPSMC_MSG_EnableAllSmuFeatures,		1),
-	MSG_MAP(DisableAllSmuFeatures,		     PPSMC_MSG_DisableAllSmuFeatures,		1),
+	MSG_MAP(EnableAllSmuFeatures,		     PPSMC_MSG_EnableAllSmuFeatures,		0),
+	MSG_MAP(DisableAllSmuFeatures,		     PPSMC_MSG_DisableAllSmuFeatures,		0),
 	MSG_MAP(RequestI2cTransaction,		     PPSMC_MSG_RequestI2cTransaction,		0),
 	MSG_MAP(GetMetricsTable,		     PPSMC_MSG_GetMetricsTable,			1),
 	MSG_MAP(GetEnabledSmuFeaturesHigh,	     PPSMC_MSG_GetEnabledSmuFeaturesHigh,	1),
@@ -102,8 +107,8 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(SetToolsDramAddrLow,		     PPSMC_MSG_SetToolsDramAddrLow,		0),
 	MSG_MAP(SetSoftMinByFreq,		     PPSMC_MSG_SetSoftMinByFreq,		0),
 	MSG_MAP(SetSoftMaxByFreq,		     PPSMC_MSG_SetSoftMaxByFreq,		0),
-	MSG_MAP(GetMinDpmFreq,			     PPSMC_MSG_GetMinDpmFreq,			0),
-	MSG_MAP(GetMaxDpmFreq,			     PPSMC_MSG_GetMaxDpmFreq,			0),
+	MSG_MAP(GetMinDpmFreq,			     PPSMC_MSG_GetMinDpmFreq,			1),
+	MSG_MAP(GetMaxDpmFreq,			     PPSMC_MSG_GetMaxDpmFreq,			1),
 	MSG_MAP(GetDpmFreqByIndex,		     PPSMC_MSG_GetDpmFreqByIndex,		1),
 	MSG_MAP(SetPptLimit,			     PPSMC_MSG_SetPptLimit,			0),
 	MSG_MAP(GetPptLimit,			     PPSMC_MSG_GetPptLimit,			1),
@@ -122,11 +127,12 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(EnableDeterminism,		     PPSMC_MSG_EnableDeterminism,		0),
 	MSG_MAP(DisableDeterminism,		     PPSMC_MSG_DisableDeterminism,		0),
 	MSG_MAP(GfxDriverResetRecovery,		     PPSMC_MSG_GfxDriverResetRecovery,		0),
-	MSG_MAP(GetMinGfxclkFrequency,               PPSMC_MSG_GetMinGfxDpmFreq,                0),
-	MSG_MAP(GetMaxGfxclkFrequency,               PPSMC_MSG_GetMaxGfxDpmFreq,                0),
+	MSG_MAP(GetMinGfxclkFrequency,               PPSMC_MSG_GetMinGfxDpmFreq,                1),
+	MSG_MAP(GetMaxGfxclkFrequency,               PPSMC_MSG_GetMaxGfxDpmFreq,                1),
 	MSG_MAP(SetSoftMinGfxclk,                    PPSMC_MSG_SetSoftMinGfxClk,                0),
 	MSG_MAP(SetSoftMaxGfxClk,                    PPSMC_MSG_SetSoftMaxGfxClk,                0),
 	MSG_MAP(PrepareMp1ForUnload,                 PPSMC_MSG_PrepareForDriverUnload,          0),
+	MSG_MAP(GetCTFLimit,                         PPSMC_MSG_GetCTFLimit,                     0),
 };
 
 static const struct cmn2asic_mapping smu_v13_0_6_clk_map[SMU_CLK_COUNT] = {
@@ -326,14 +332,24 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
 	struct PPTable_t *pptable =
 		(struct PPTable_t *)smu_table->driver_pptable;
-	int ret;
-	int i;
+	int ret, i, retry = 100;
 
 	/* Store one-time values in driver PPTable */
 	if (!pptable->Init) {
-		ret = smu_v13_0_6_get_metrics_table(smu, NULL, false);
-		if (ret)
-			return ret;
+		while (--retry) {
+			ret = smu_v13_0_6_get_metrics_table(smu, NULL, true);
+			if (ret)
+				return ret;
+
+			/* Ensure that metrics have been updated */
+			if (metrics->AccumulationCounter)
+				break;
+
+			usleep_range(1000, 1100);
+		}
+
+		if (!retry)
+			return -ETIME;
 
 		pptable->MaxSocketPowerLimit =
 			SMUQ10_TO_UINT(metrics->MaxSocketPowerLimit);
@@ -705,7 +721,7 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_AVERAGE_MEMACTIVITY:
 		*value = SMUQ10_TO_UINT(metrics->DramBandwidthUtilization);
 		break;
-	case METRICS_AVERAGE_SOCKETPOWER:
+	case METRICS_CURR_SOCKETPOWER:
 		*value = SMUQ10_TO_UINT(metrics->SocketPower) << 8;
 		break;
 	case METRICS_TEMPERATURE_HOTSPOT:
@@ -776,8 +792,6 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 	struct smu_13_0_dpm_table *single_dpm_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_13_0_dpm_context *dpm_context = NULL;
-	uint32_t display_levels;
-	uint32_t freq_values[3] = { 0 };
 	uint32_t min_clk, max_clk;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
@@ -802,50 +816,24 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 			return ret;
 		}
 
-		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
-		ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
-		if (ret) {
-			dev_err(smu->adev->dev,
-				"Attempt to get gfx clk levels Failed!");
-			return ret;
-		}
-
-		display_levels = clocks.num_levels;
-
 		min_clk = pstate_table->gfxclk_pstate.curr.min;
 		max_clk = pstate_table->gfxclk_pstate.curr.max;
 
-		freq_values[0] = min_clk;
-		freq_values[1] = max_clk;
-
-		/* fine-grained dpm has only 2 levels */
-		if (now > min_clk && now < max_clk) {
-			display_levels = clocks.num_levels + 1;
-			freq_values[2] = max_clk;
-			freq_values[1] = now;
-		}
-
-		/*
-		 * For DPM disabled case, there will be only one clock level.
-		 * And it's safe to assume that is always the current clock.
-		 */
-		if (display_levels == clocks.num_levels) {
-			for (i = 0; i < clocks.num_levels; i++)
-				size += sysfs_emit_at(
-					buf, size, "%d: %uMhz %s\n", i,
-					freq_values[i],
-					(clocks.num_levels == 1) ?
-						"*" :
-						(smu_v13_0_6_freqs_in_same_level(
-							 freq_values[i], now) ?
-							 "*" :
-							 ""));
+		if (!smu_v13_0_6_freqs_in_same_level(now, min_clk) &&
+		    !smu_v13_0_6_freqs_in_same_level(now, max_clk)) {
+			size += sysfs_emit_at(buf, size, "0: %uMhz\n",
+					      min_clk);
+			size += sysfs_emit_at(buf, size, "1: %uMhz *\n",
+					      now);
+			size += sysfs_emit_at(buf, size, "2: %uMhz\n",
+					      max_clk);
 		} else {
-			for (i = 0; i < display_levels; i++)
-				size += sysfs_emit_at(buf, size,
-						      "%d: %uMhz %s\n", i,
-						      freq_values[i],
-						      i == 1 ? "*" : "");
+			size += sysfs_emit_at(buf, size, "0: %uMhz %s\n",
+					      min_clk,
+					      smu_v13_0_6_freqs_in_same_level(now, min_clk) ? "*" : "");
+			size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
+					      max_clk,
+					      smu_v13_0_6_freqs_in_same_level(now, max_clk) ? "*" : "");
 		}
 
 		break;
@@ -1158,15 +1146,6 @@ static int smu_v13_0_6_get_current_activity_percent(struct smu_context *smu,
 	return ret;
 }
 
-static int smu_v13_0_6_get_gpu_power(struct smu_context *smu, uint32_t *value)
-{
-	if (!value)
-		return -EINVAL;
-
-	return smu_v13_0_6_get_smu_metrics_data(smu, METRICS_AVERAGE_SOCKETPOWER,
-					       value);
-}
-
 static int smu_v13_0_6_thermal_get_temperature(struct smu_context *smu,
 					       enum amd_pp_sensors sensor,
 					       uint32_t *value)
@@ -1212,8 +1191,10 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 							       (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
-		ret = smu_v13_0_6_get_gpu_power(smu, (uint32_t *)data);
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
+		ret = smu_v13_0_6_get_smu_metrics_data(smu,
+						       METRICS_CURR_SOCKETPOWER,
+						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
@@ -1239,6 +1220,7 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 		ret = smu_v13_0_get_gfx_vdd(smu, (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 	default:
 		ret = -EOPNOTSUPP;
 		break;
@@ -1252,9 +1234,9 @@ static int smu_v13_0_6_get_power_limit(struct smu_context *smu,
 				       uint32_t *default_power_limit,
 				       uint32_t *max_power_limit)
 {
-        struct smu_table_context *smu_table = &smu->smu_table;
-        struct PPTable_t *pptable =
-                (struct PPTable_t *)smu_table->driver_pptable;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct PPTable_t *pptable =
+		(struct PPTable_t *)smu_table->driver_pptable;
 	uint32_t power_limit = 0;
 	int ret;
 
@@ -1370,8 +1352,7 @@ static int smu_v13_0_6_set_irq_state(struct amdgpu_device *adev,
 	return 0;
 }
 
-static const struct amdgpu_irq_src_funcs smu_v13_0_6_irq_funcs =
-{
+static const struct amdgpu_irq_src_funcs smu_v13_0_6_irq_funcs = {
 	.set = smu_v13_0_6_set_irq_state,
 	.process = smu_v13_0_6_irq_process,
 };
@@ -1417,6 +1398,9 @@ static int smu_v13_0_6_system_features_control(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
 
 	if (enable) {
 		if (!(adev->flags & AMD_IS_APU))
@@ -1952,6 +1936,7 @@ smu_v13_0_6_get_current_pcie_link_width_level(struct smu_context *smu)
 static int smu_v13_0_6_get_current_pcie_link_speed(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	uint32_t speed_level;
 	uint32_t esm_ctrl;
 
 	/* TODO: confirm this on real target */
@@ -1959,7 +1944,13 @@ static int smu_v13_0_6_get_current_pcie_link_speed(struct smu_context *smu)
 	if ((esm_ctrl >> 15) & 0x1FFFF)
 		return (((esm_ctrl >> 8) & 0x3F) + 128);
 
-	return smu_v13_0_get_current_pcie_link_speed(smu);
+	speed_level = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
+		PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
+		>> PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
+	if (speed_level > LINK_SPEED_MAX)
+		speed_level = 0;
+
+	return pcie_gen_to_speed(speed_level + 1);
 }
 
 static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table)
@@ -2091,6 +2082,55 @@ out:
 	return ret;
 }
 
+static int smu_v13_0_6_get_thermal_temperature_range(struct smu_context *smu,
+						     struct smu_temperature_range *range)
+{
+	struct amdgpu_device *adev = smu->adev;
+	u32 aid_temp, xcd_temp, mem_temp;
+	uint32_t smu_version;
+	u32 ccd_temp = 0;
+	int ret;
+
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
+
+	if (!range)
+		return -EINVAL;
+
+	/*Check smu version, GetCtfLimit message only supported for smu version 85.69 or higher */
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (smu_version < 0x554500)
+		return 0;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+					      PPSMC_AID_THM_TYPE, &aid_temp);
+	if (ret)
+		goto failed;
+
+	if (adev->flags & AMD_IS_APU) {
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+						      PPSMC_CCD_THM_TYPE, &ccd_temp);
+		if (ret)
+			goto failed;
+	}
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+					      PPSMC_XCD_THM_TYPE, &xcd_temp);
+	if (ret)
+		goto failed;
+
+	range->hotspot_crit_max = max3(aid_temp, xcd_temp, ccd_temp) *
+				       SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+					      PPSMC_HBM_THM_TYPE, &mem_temp);
+	if (ret)
+		goto failed;
+
+	range->mem_crit_max = mem_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+failed:
+	return ret;
+}
+
 static int smu_v13_0_6_mode1_reset(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -2118,8 +2158,7 @@ static int smu_v13_0_6_mode1_reset(struct smu_context *smu)
 
 static bool smu_v13_0_6_is_mode1_reset_supported(struct smu_context *smu)
 {
-	/* TODO: Enable this when FW support is added */
-	return false;
+	return true;
 }
 
 static bool smu_v13_0_6_is_mode2_reset_supported(struct smu_context *smu)
@@ -2187,6 +2226,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 	.get_gpu_metrics = smu_v13_0_6_get_gpu_metrics,
+	.get_thermal_temperature_range = smu_v13_0_6_get_thermal_temperature_range,
 	.mode1_reset_is_support = smu_v13_0_6_is_mode1_reset_supported,
 	.mode2_reset_is_support = smu_v13_0_6_is_mode2_reset_supported,
 	.mode1_reset = smu_v13_0_6_mode1_reset,

@@ -236,6 +236,34 @@
 			reg = <0 0xa3f03000 0 0x400>;
 		};
 
+		csi0: spi@a4020000 {
+			compatible = "renesas,rzv2m-csi";
+			reg = <0 0xa4020000 0 0x80>;
+			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G011_CSI0_CLK>,
+				 <&cpg CPG_MOD R9A09G011_CPERI_GRPG_PCLK>;
+			clock-names = "csiclk", "pclk";
+			resets = <&cpg R9A09G011_CSI_GPG_PRESETN>;
+			power-domains = <&cpg>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		csi4: spi@a4020200 {
+			compatible = "renesas,rzv2m-csi";
+			reg = <0 0xa4020200 0 0x80>;
+			interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD R9A09G011_CSI4_CLK>,
+				 <&cpg CPG_MOD R9A09G011_CPERI_GRPH_PCLK>;
+			clock-names = "csiclk", "pclk";
+			resets = <&cpg R9A09G011_CSI_GPH_PRESETN>;
+			power-domains = <&cpg>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		i2c0: i2c@a4030000 {
 			#address-cells = <1>;
 			#size-cells = <0>;

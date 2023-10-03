@@ -356,8 +356,8 @@ devlink_health_reporter_get_from_info(struct devlink *devlink,
 	return devlink_health_reporter_get_from_attrs(devlink, info->attrs);
 }
 
-int devlink_nl_cmd_health_reporter_get_doit(struct sk_buff *skb,
-					    struct genl_info *info)
+int devlink_nl_health_reporter_get_doit(struct sk_buff *skb,
+					struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_health_reporter *reporter;
@@ -384,17 +384,28 @@ int devlink_nl_cmd_health_reporter_get_doit(struct sk_buff *skb,
 	return genlmsg_reply(msg, info);
 }
 
-static int
-devlink_nl_cmd_health_reporter_get_dump_one(struct sk_buff *msg,
-					    struct devlink *devlink,
-					    struct netlink_callback *cb)
+static int devlink_nl_health_reporter_get_dump_one(struct sk_buff *msg,
+						   struct devlink *devlink,
+						   struct netlink_callback *cb,
+						   int flags)
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
+	const struct genl_info *info = genl_info_dump(cb);
 	struct devlink_health_reporter *reporter;
+	unsigned long port_index_end = ULONG_MAX;
+	struct nlattr **attrs = info->attrs;
+	unsigned long port_index_start = 0;
 	struct devlink_port *port;
 	unsigned long port_index;
 	int idx = 0;
 	int err;
+
+	if (attrs && attrs[DEVLINK_ATTR_PORT_INDEX]) {
+		port_index_start = nla_get_u32(attrs[DEVLINK_ATTR_PORT_INDEX]);
+		port_index_end = port_index_start;
+		flags |= NLM_F_DUMP_FILTERED;
+		goto per_port_dump;
+	}
 
 	list_for_each_entry(reporter, &devlink->reporter_list, list) {
 		if (idx < state->idx) {
@@ -405,14 +416,16 @@ devlink_nl_cmd_health_reporter_get_dump_one(struct sk_buff *msg,
 						      DEVLINK_CMD_HEALTH_REPORTER_GET,
 						      NETLINK_CB(cb->skb).portid,
 						      cb->nlh->nlmsg_seq,
-						      NLM_F_MULTI);
+						      flags);
 		if (err) {
 			state->idx = idx;
 			return err;
 		}
 		idx++;
 	}
-	xa_for_each(&devlink->ports, port_index, port) {
+per_port_dump:
+	xa_for_each_range(&devlink->ports, port_index, port,
+			  port_index_start, port_index_end) {
 		list_for_each_entry(reporter, &port->reporter_list, list) {
 			if (idx < state->idx) {
 				idx++;
@@ -422,7 +435,7 @@ devlink_nl_cmd_health_reporter_get_dump_one(struct sk_buff *msg,
 							      DEVLINK_CMD_HEALTH_REPORTER_GET,
 							      NETLINK_CB(cb->skb).portid,
 							      cb->nlh->nlmsg_seq,
-							      NLM_F_MULTI);
+							      flags);
 			if (err) {
 				state->idx = idx;
 				return err;
@@ -434,9 +447,12 @@ devlink_nl_cmd_health_reporter_get_dump_one(struct sk_buff *msg,
 	return 0;
 }
 
-const struct devlink_cmd devl_cmd_health_reporter_get = {
-	.dump_one		= devlink_nl_cmd_health_reporter_get_dump_one,
-};
+int devlink_nl_health_reporter_get_dumpit(struct sk_buff *skb,
+					  struct netlink_callback *cb)
+{
+	return devlink_nl_dumpit(skb, cb,
+				 devlink_nl_health_reporter_get_dump_one);
+}
 
 int devlink_nl_cmd_health_reporter_set_doit(struct sk_buff *skb,
 					    struct genl_info *info)
@@ -1248,7 +1264,7 @@ out:
 static struct devlink_health_reporter *
 devlink_health_reporter_get_from_cb(struct netlink_callback *cb)
 {
-	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	const struct genl_info *info = genl_info_dump(cb);
 	struct devlink_health_reporter *reporter;
 	struct nlattr **attrs = info->attrs;
 	struct devlink *devlink;

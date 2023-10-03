@@ -13,9 +13,9 @@
  * 05/24/2000 eranian Added support for physical mode static calls
  */
 
+#include <linux/export.h>
 #include <asm/asmmacro.h>
 #include <asm/processor.h>
-#include <asm/export.h>
 
 	.data
 pal_entry_point:

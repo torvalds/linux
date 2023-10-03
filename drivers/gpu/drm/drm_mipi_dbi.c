@@ -1140,10 +1140,13 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *dbi, u8 *cmd,
 		return -ENOMEM;
 
 	tr[1].rx_buf = buf;
+
+	spi_bus_lock(spi->controller);
 	gpiod_set_value_cansleep(dbi->dc, 0);
 
 	spi_message_init_with_transfers(&m, tr, ARRAY_SIZE(tr));
-	ret = spi_sync(spi, &m);
+	ret = spi_sync_locked(spi, &m);
+	spi_bus_unlock(spi->controller);
 	if (ret)
 		goto err_free;
 
@@ -1177,19 +1180,24 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *dbi, u8 *cmd,
 
 	MIPI_DBI_DEBUG_COMMAND(*cmd, par, num);
 
+	spi_bus_lock(spi->controller);
 	gpiod_set_value_cansleep(dbi->dc, 0);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, 1);
 	ret = mipi_dbi_spi_transfer(spi, speed_hz, 8, cmd, 1);
+	spi_bus_unlock(spi->controller);
 	if (ret || !num)
 		return ret;
 
 	if (*cmd == MIPI_DCS_WRITE_MEMORY_START && !dbi->swap_bytes)
 		bpw = 16;
 
+	spi_bus_lock(spi->controller);
 	gpiod_set_value_cansleep(dbi->dc, 1);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, num);
+	ret = mipi_dbi_spi_transfer(spi, speed_hz, bpw, par, num);
+	spi_bus_unlock(spi->controller);
 
-	return mipi_dbi_spi_transfer(spi, speed_hz, bpw, par, num);
+	return ret;
 }
 
 /**
@@ -1271,7 +1279,8 @@ EXPORT_SYMBOL(mipi_dbi_spi_init);
  * @len: Buffer length
  *
  * This SPI transfer helper breaks up the transfer of @buf into chunks which
- * the SPI controller driver can handle.
+ * the SPI controller driver can handle. The SPI bus must be locked when
+ * calling this.
  *
  * Returns:
  * Zero on success, negative error code on failure.
@@ -1305,7 +1314,7 @@ int mipi_dbi_spi_transfer(struct spi_device *spi, u32 speed_hz,
 		buf += chunk;
 		len -= chunk;
 
-		ret = spi_sync(spi, &m);
+		ret = spi_sync_locked(spi, &m);
 		if (ret)
 			return ret;
 	}

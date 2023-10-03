@@ -77,7 +77,7 @@ static DEFINE_MUTEX(video_list_lock);
 static LIST_HEAD(video_bus_head);
 static int acpi_video_bus_add(struct acpi_device *device);
 static void acpi_video_bus_remove(struct acpi_device *device);
-static void acpi_video_bus_notify(struct acpi_device *device, u32 event);
+static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data);
 
 /*
  * Indices in the _BCL method response: the first two items are special,
@@ -104,7 +104,6 @@ static struct acpi_driver acpi_video_bus = {
 	.ops = {
 		.add = acpi_video_bus_add,
 		.remove = acpi_video_bus_remove,
-		.notify = acpi_video_bus_notify,
 		},
 };
 
@@ -1527,8 +1526,9 @@ static int acpi_video_bus_stop_devices(struct acpi_video_bus *video)
 				  acpi_osi_is_win8() ? 0 : 1);
 }
 
-static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
+static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 {
+	struct acpi_device *device = data;
 	struct acpi_video_bus *video = acpi_driver_data(device);
 	struct input_dev *input;
 	int keycode = 0;
@@ -2027,6 +2027,12 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	if (error)
 		goto err_put_video;
 
+	/*
+	 * HP ZBook Fury 16 G10 requires ACPI video's child devices have _PS0
+	 * evaluated to have functional panel brightness control.
+	 */
+	acpi_device_fix_up_power_extended(device);
+
 	pr_info("%s [%s] (multi-head: %s  rom: %s  post: %s)\n",
 	       ACPI_VIDEO_DEVICE_NAME, acpi_device_bid(device),
 	       video->flags.multihead ? "yes" : "no",
@@ -2051,10 +2057,24 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	    !auto_detect)
 		acpi_video_bus_register_backlight(video);
 
-	acpi_video_bus_add_notify_handler(video);
+	error = acpi_video_bus_add_notify_handler(video);
+	if (error)
+		goto err_del;
+
+	error = acpi_dev_install_notify_handler(device, ACPI_DEVICE_NOTIFY,
+						acpi_video_bus_notify);
+	if (error)
+		goto err_remove;
 
 	return 0;
 
+err_remove:
+	acpi_video_bus_remove_notify_handler(video);
+err_del:
+	mutex_lock(&video_list_lock);
+	list_del(&video->entry);
+	mutex_unlock(&video_list_lock);
+	acpi_video_bus_unregister_backlight(video);
 err_put_video:
 	acpi_video_bus_put_devices(video);
 	kfree(video->attached_array);
@@ -2074,6 +2094,9 @@ static void acpi_video_bus_remove(struct acpi_device *device)
 		return;
 
 	video = acpi_driver_data(device);
+
+	acpi_dev_remove_notify_handler(device, ACPI_DEVICE_NOTIFY,
+				       acpi_video_bus_notify);
 
 	mutex_lock(&video_list_lock);
 	list_del(&video->entry);

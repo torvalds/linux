@@ -321,3 +321,15 @@ command line arguments:
 
 - ``--json``: If set, stores the test results in a JSON format and prints to `stdout` or
   saves to a file if a filename is specified.
+
+- ``--filter``: Specifies filters on test attributes, for example, ``speed!=slow``.
+  Multiple filters can be used by wrapping input in quotes and separating filters
+  by commas. Example: ``--filter "speed>slow, module=example"``.
+
+- ``--filter_action``: If set to ``skip``, filtered tests will be shown as skipped
+  in the output rather than showing no output.
+
+- ``--list_tests``: If set, lists all tests that will be run.
+
+- ``--list_tests_attr``: If set, lists all tests that will be run and all of their
+  attributes.

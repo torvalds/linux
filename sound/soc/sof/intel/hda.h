@@ -785,6 +785,7 @@ int hda_sdw_check_lcount_ext(struct snd_sof_dev *sdev);
 int hda_sdw_startup(struct snd_sof_dev *sdev);
 void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable);
 void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable);
+bool hda_sdw_check_wakeen_irq_common(struct snd_sof_dev *sdev);
 void hda_sdw_process_wakeen(struct snd_sof_dev *sdev);
 bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev);
 
@@ -813,6 +814,11 @@ static inline void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable)
 {
 }
 
+static inline bool hda_sdw_check_wakeen_irq_common(struct snd_sof_dev *sdev)
+{
+	return false;
+}
+
 static inline void hda_sdw_process_wakeen(struct snd_sof_dev *sdev)
 {
 }
@@ -823,6 +829,18 @@ static inline bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev)
 }
 
 #endif
+
+int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
+			  struct snd_pcm_hw_params *params,
+			  struct snd_soc_dai *cpu_dai,
+			  int link_id);
+
+int sdw_hda_dai_hw_free(struct snd_pcm_substream *substream,
+			struct snd_soc_dai *cpu_dai,
+			int link_id);
+
+int sdw_hda_dai_trigger(struct snd_pcm_substream *substream, int cmd,
+			struct snd_soc_dai *cpu_dai);
 
 /* common dai driver */
 extern struct snd_soc_dai_driver skl_dai[];
@@ -845,6 +863,8 @@ extern struct snd_sof_dsp_ops sof_icl_ops;
 int sof_icl_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_mtl_ops;
 int sof_mtl_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_lnl_ops;
+int sof_lnl_ops_init(struct snd_sof_dev *sdev);
 
 extern const struct sof_intel_dsp_desc skl_chip_info;
 extern const struct sof_intel_dsp_desc apl_chip_info;
@@ -856,6 +876,7 @@ extern const struct sof_intel_dsp_desc ehl_chip_info;
 extern const struct sof_intel_dsp_desc jsl_chip_info;
 extern const struct sof_intel_dsp_desc adls_chip_info;
 extern const struct sof_intel_dsp_desc mtl_chip_info;
+extern const struct sof_intel_dsp_desc lnl_chip_info;
 
 /* Probes support */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_PROBES)

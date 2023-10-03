@@ -86,7 +86,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = false,
 		.idle_ps = false,
 		.supports_sta_ps = false,
-		.cold_boot_calib = true,
+		.coldboot_cal_mm = true,
+		.coldboot_cal_ftm = true,
 		.cbcal_restart_fw = true,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -167,7 +168,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = false,
 		.idle_ps = false,
 		.supports_sta_ps = false,
-		.cold_boot_calib = true,
+		.coldboot_cal_mm = true,
+		.coldboot_cal_ftm = true,
 		.cbcal_restart_fw = true,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -248,7 +250,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = true,
 		.idle_ps = true,
 		.supports_sta_ps = true,
-		.cold_boot_calib = false,
+		.coldboot_cal_mm = false,
+		.coldboot_cal_ftm = false,
 		.cbcal_restart_fw = false,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -332,8 +335,9 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = false,
 		.idle_ps = false,
 		.supports_sta_ps = false,
-		.cold_boot_calib = false,
-		.cbcal_restart_fw = false,
+		.coldboot_cal_mm = false,
+		.coldboot_cal_ftm = true,
+		.cbcal_restart_fw = true,
 		.fw_mem_mode = 2,
 		.num_vdevs = 8,
 		.num_peers = 128,
@@ -413,7 +417,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = true,
 		.idle_ps = true,
 		.supports_sta_ps = true,
-		.cold_boot_calib = false,
+		.coldboot_cal_mm = false,
+		.coldboot_cal_ftm = false,
 		.cbcal_restart_fw = false,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -495,7 +500,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = true,
 		.idle_ps = true,
 		.supports_sta_ps = true,
-		.cold_boot_calib = false,
+		.coldboot_cal_mm = false,
+		.coldboot_cal_ftm = false,
 		.cbcal_restart_fw = false,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -578,7 +584,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = true,
 		.idle_ps = true,
 		.supports_sta_ps = true,
-		.cold_boot_calib = true,
+		.coldboot_cal_mm = true,
+		.coldboot_cal_ftm = true,
 		.cbcal_restart_fw = false,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -667,7 +674,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_suspend = false,
 		.hal_params = &ath11k_hw_hal_params_ipq8074,
 		.single_pdev_only = false,
-		.cold_boot_calib = true,
+		.coldboot_cal_mm = true,
+		.coldboot_cal_ftm = true,
 		.cbcal_restart_fw = true,
 		.fix_l1ss = true,
 		.supports_dynamic_smps_6ghz = false,
@@ -747,6 +755,18 @@ void ath11k_fw_stats_free(struct ath11k_fw_stats *stats)
 	ath11k_fw_stats_pdevs_free(&stats->pdevs);
 	ath11k_fw_stats_vdevs_free(&stats->vdevs);
 	ath11k_fw_stats_bcn_free(&stats->bcn);
+}
+
+bool ath11k_core_coldboot_cal_support(struct ath11k_base *ab)
+{
+	if (!ath11k_cold_boot_cal)
+		return false;
+
+	if (ath11k_ftm_mode)
+		return ab->hw_params.coldboot_cal_ftm;
+
+	else
+		return ab->hw_params.coldboot_cal_mm;
 }
 
 int ath11k_core_suspend(struct ath11k_base *ab)

@@ -314,7 +314,7 @@ static const struct v4l2_subdev_ops video_mux_subdev_ops = {
 
 static int video_mux_notify_bound(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *sd,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct video_mux *vmux = notifier_to_video_mux(notifier);
 
@@ -331,10 +331,10 @@ static int video_mux_async_register(struct video_mux *vmux,
 	unsigned int i;
 	int ret;
 
-	v4l2_async_nf_init(&vmux->notifier);
+	v4l2_async_subdev_nf_init(&vmux->notifier, &vmux->subdev);
 
 	for (i = 0; i < num_input_pads; i++) {
-		struct v4l2_async_subdev *asd;
+		struct v4l2_async_connection *asd;
 		struct fwnode_handle *ep, *remote_ep;
 
 		ep = fwnode_graph_get_endpoint_by_id(
@@ -352,7 +352,7 @@ static int video_mux_async_register(struct video_mux *vmux,
 		fwnode_handle_put(remote_ep);
 
 		asd = v4l2_async_nf_add_fwnode_remote(&vmux->notifier, ep,
-						      struct v4l2_async_subdev);
+						      struct v4l2_async_connection);
 
 		fwnode_handle_put(ep);
 
@@ -366,7 +366,7 @@ static int video_mux_async_register(struct video_mux *vmux,
 
 	vmux->notifier.ops = &video_mux_notify_ops;
 
-	ret = v4l2_async_subdev_nf_register(&vmux->subdev, &vmux->notifier);
+	ret = v4l2_async_nf_register(&vmux->notifier);
 	if (ret)
 		goto err_nf_cleanup;
 

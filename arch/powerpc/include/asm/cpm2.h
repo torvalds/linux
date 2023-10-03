@@ -1080,6 +1080,9 @@ typedef struct im_idma {
 #define FCC2_MEM_OFFSET FCC_MEM_OFFSET(1)
 #define FCC3_MEM_OFFSET FCC_MEM_OFFSET(2)
 
+/* Pipeline Maximum Depth */
+#define MPC82XX_BCR_PLDP 0x00800000
+
 /* Clocks and GRG's */
 
 enum cpm_clk_dir {

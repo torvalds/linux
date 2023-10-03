@@ -20,6 +20,7 @@
 
 extern struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[];
 extern struct snd_soc_acpi_mach snd_soc_acpi_amd_rmb_sof_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_amd_vangogh_sof_machines[];
 
 struct config_entry {
 	u32 flags;

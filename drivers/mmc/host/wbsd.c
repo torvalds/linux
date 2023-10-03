@@ -1264,8 +1264,6 @@ static void wbsd_free_mmc(struct device *dev)
 	del_timer_sync(&host->ignore_timer);
 
 	mmc_free_host(mmc);
-
-	dev_set_drvdata(dev, NULL);
 }
 
 /*
@@ -1756,11 +1754,9 @@ static int wbsd_probe(struct platform_device *dev)
 	return wbsd_init(&dev->dev, param_io, param_irq, param_dma, 0);
 }
 
-static int wbsd_remove(struct platform_device *dev)
+static void wbsd_remove(struct platform_device *dev)
 {
 	wbsd_shutdown(&dev->dev, 0);
-
-	return 0;
 }
 
 /*
@@ -1902,8 +1898,7 @@ static struct platform_device *wbsd_device;
 
 static struct platform_driver wbsd_driver = {
 	.probe		= wbsd_probe,
-	.remove		= wbsd_remove,
-
+	.remove_new	= wbsd_remove,
 	.suspend	= wbsd_platform_suspend,
 	.resume		= wbsd_platform_resume,
 	.driver		= {

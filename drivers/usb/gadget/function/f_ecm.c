@@ -65,17 +65,6 @@ static inline struct f_ecm *func_to_ecm(struct usb_function *f)
 	return container_of(f, struct f_ecm, port.func);
 }
 
-/* peak (theoretical) bulk transfer rate in bits-per-second */
-static inline unsigned ecm_bitrate(struct usb_gadget *g)
-{
-	if (gadget_is_superspeed(g) && g->speed == USB_SPEED_SUPER)
-		return 13 * 1024 * 8 * 1000 * 8;
-	else if (gadget_is_dualspeed(g) && g->speed == USB_SPEED_HIGH)
-		return 13 * 512 * 8 * 1000 * 8;
-	else
-		return 19 * 64 * 1 * 1000 * 8;
-}
-
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -411,10 +400,10 @@ static void ecm_do_notify(struct f_ecm *ecm)
 
 		/* SPEED_CHANGE data is up/down speeds in bits/sec */
 		data = req->buf + sizeof *event;
-		data[0] = cpu_to_le32(ecm_bitrate(cdev->gadget));
+		data[0] = cpu_to_le32(gether_bitrate(cdev->gadget));
 		data[1] = data[0];
 
-		DBG(cdev, "notify speed %d\n", ecm_bitrate(cdev->gadget));
+		DBG(cdev, "notify speed %d\n", gether_bitrate(cdev->gadget));
 		ecm->notify_state = ECM_NOTIFY_NONE;
 		break;
 	}
@@ -799,9 +788,7 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	ecm->port.open = ecm_open;
 	ecm->port.close = ecm_close;
 
-	DBG(cdev, "CDC Ethernet: %s speed IN/%s OUT/%s NOTIFY/%s\n",
-			gadget_is_superspeed(c->cdev->gadget) ? "super" :
-			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
+	DBG(cdev, "CDC Ethernet: IN/%s OUT/%s NOTIFY/%s\n",
 			ecm->port.in_ep->name, ecm->port.out_ep->name,
 			ecm->notify->name);
 	return 0;

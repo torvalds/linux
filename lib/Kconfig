@@ -415,6 +415,7 @@ config REED_SOLOMON_DEC16
 #
 config BCH
 	tristate
+	select BITREVERSE
 
 config BCH_CONST_PARAMS
 	bool

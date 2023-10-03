@@ -1,7 +1,7 @@
 Synopsys ARC Local Timer with Interrupt Capabilities
 - Found on all ARC CPUs (ARC700/ARCHS)
 - Can be optionally programmed to interrupt on Limit
-- Two idential copies TIMER0 and TIMER1 exist in ARC cores and historically
+- Two identical copies TIMER0 and TIMER1 exist in ARC cores and historically
   TIMER0 used as clockevent provider (true for all ARC cores)
   TIMER1 used for clocksource (mandatory for ARC700, optional for ARC HS)
 

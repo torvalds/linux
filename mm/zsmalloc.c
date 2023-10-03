@@ -795,8 +795,8 @@ static unsigned long handle_to_obj(unsigned long handle)
 	return *(unsigned long *)handle;
 }
 
-static bool obj_tagged(struct page *page, void *obj, unsigned long *phandle,
-		int tag)
+static inline bool obj_allocated(struct page *page, void *obj,
+				 unsigned long *phandle)
 {
 	unsigned long handle;
 	struct zspage *zspage = get_zspage(page);
@@ -807,17 +807,12 @@ static bool obj_tagged(struct page *page, void *obj, unsigned long *phandle,
 	} else
 		handle = *(unsigned long *)obj;
 
-	if (!(handle & tag))
+	if (!(handle & OBJ_ALLOCATED_TAG))
 		return false;
 
 	/* Clear all tags before returning the handle */
 	*phandle = handle & ~OBJ_TAG_MASK;
 	return true;
-}
-
-static inline bool obj_allocated(struct page *page, void *obj, unsigned long *phandle)
-{
-	return obj_tagged(page, obj, phandle, OBJ_ALLOCATED_TAG);
 }
 
 static void reset_page(struct page *page)
@@ -1145,6 +1140,11 @@ static bool can_merge(struct size_class *prev, int pages_per_zspage,
 static bool zspage_full(struct size_class *class, struct zspage *zspage)
 {
 	return get_zspage_inuse(zspage) == class->objs_per_zspage;
+}
+
+static bool zspage_empty(struct zspage *zspage)
+{
+	return get_zspage_inuse(zspage) == 0;
 }
 
 /**
@@ -1546,11 +1546,11 @@ static void zs_object_copy(struct size_class *class, unsigned long dst,
 }
 
 /*
- * Find object with a certain tag in zspage from index object and
+ * Find alloced object in zspage from index object and
  * return handle.
  */
-static unsigned long find_tagged_obj(struct size_class *class,
-					struct page *page, int *obj_idx, int tag)
+static unsigned long find_alloced_obj(struct size_class *class,
+				      struct page *page, int *obj_idx)
 {
 	unsigned int offset;
 	int index = *obj_idx;
@@ -1561,7 +1561,7 @@ static unsigned long find_tagged_obj(struct size_class *class,
 	offset += class->size * index;
 
 	while (offset < PAGE_SIZE) {
-		if (obj_tagged(page, addr + offset, &handle, tag))
+		if (obj_allocated(page, addr + offset, &handle))
 			break;
 
 		offset += class->size;
@@ -1575,35 +1575,14 @@ static unsigned long find_tagged_obj(struct size_class *class,
 	return handle;
 }
 
-/*
- * Find alloced object in zspage from index object and
- * return handle.
- */
-static unsigned long find_alloced_obj(struct size_class *class,
-					struct page *page, int *obj_idx)
-{
-	return find_tagged_obj(class, page, obj_idx, OBJ_ALLOCATED_TAG);
-}
-
-struct zs_compact_control {
-	/* Source spage for migration which could be a subpage of zspage */
-	struct page *s_page;
-	/* Destination page for migration which should be a first page
-	 * of zspage. */
-	struct page *d_page;
-	 /* Starting object index within @s_page which used for live object
-	  * in the subpage. */
-	int obj_idx;
-};
-
-static void migrate_zspage(struct zs_pool *pool, struct size_class *class,
-			   struct zs_compact_control *cc)
+static void migrate_zspage(struct zs_pool *pool, struct zspage *src_zspage,
+			   struct zspage *dst_zspage)
 {
 	unsigned long used_obj, free_obj;
 	unsigned long handle;
-	struct page *s_page = cc->s_page;
-	struct page *d_page = cc->d_page;
-	int obj_idx = cc->obj_idx;
+	int obj_idx = 0;
+	struct page *s_page = get_first_page(src_zspage);
+	struct size_class *class = pool->size_class[src_zspage->class];
 
 	while (1) {
 		handle = find_alloced_obj(class, s_page, &obj_idx);
@@ -1615,21 +1594,21 @@ static void migrate_zspage(struct zs_pool *pool, struct size_class *class,
 			continue;
 		}
 
-		/* Stop if there is no more space */
-		if (zspage_full(class, get_zspage(d_page)))
-			break;
-
 		used_obj = handle_to_obj(handle);
-		free_obj = obj_malloc(pool, get_zspage(d_page), handle);
+		free_obj = obj_malloc(pool, dst_zspage, handle);
 		zs_object_copy(class, free_obj, used_obj);
 		obj_idx++;
 		record_obj(handle, free_obj);
 		obj_free(class->size, used_obj);
-	}
 
-	/* Remember last position in this iteration */
-	cc->s_page = s_page;
-	cc->obj_idx = obj_idx;
+		/* Stop if there is no more space */
+		if (zspage_full(class, dst_zspage))
+			break;
+
+		/* Stop if there are no more objects to migrate */
+		if (zspage_empty(src_zspage))
+			break;
+	}
 }
 
 static struct zspage *isolate_src_zspage(struct size_class *class)
@@ -2008,7 +1987,6 @@ static unsigned long zs_can_compact(struct size_class *class)
 static unsigned long __zs_compact(struct zs_pool *pool,
 				  struct size_class *class)
 {
-	struct zs_compact_control cc;
 	struct zspage *src_zspage = NULL;
 	struct zspage *dst_zspage = NULL;
 	unsigned long pages_freed = 0;
@@ -2026,7 +2004,6 @@ static unsigned long __zs_compact(struct zs_pool *pool,
 			if (!dst_zspage)
 				break;
 			migrate_write_lock(dst_zspage);
-			cc.d_page = get_first_page(dst_zspage);
 		}
 
 		src_zspage = isolate_src_zspage(class);
@@ -2035,9 +2012,7 @@ static unsigned long __zs_compact(struct zs_pool *pool,
 
 		migrate_write_lock_nested(src_zspage);
 
-		cc.obj_idx = 0;
-		cc.s_page = get_first_page(src_zspage);
-		migrate_zspage(pool, class, &cc);
+		migrate_zspage(pool, src_zspage, dst_zspage);
 		fg = putback_zspage(class, src_zspage);
 		migrate_write_unlock(src_zspage);
 

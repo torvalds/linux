@@ -784,6 +784,11 @@ static inline bool ipv6_addr_v4mapped(const struct in6_addr *a)
 					cpu_to_be32(0x0000ffff))) == 0UL;
 }
 
+static inline bool ipv6_addr_v4mapped_any(const struct in6_addr *a)
+{
+	return ipv6_addr_v4mapped(a) && ipv4_is_zeronet(a->s6_addr32[3]);
+}
+
 static inline bool ipv6_addr_v4mapped_loopback(const struct in6_addr *a)
 {
 	return ipv6_addr_v4mapped(a) && ipv4_is_loopback(a->s6_addr32[3]);
@@ -937,7 +942,8 @@ static inline bool ipv6_can_nonlocal_bind(struct net *net,
 					  struct inet_sock *inet)
 {
 	return net->ipv6.sysctl.ip_nonlocal_bind ||
-		inet->freebind || inet->transparent;
+		test_bit(INET_FLAGS_FREEBIND, &inet->inet_flags) ||
+		test_bit(INET_FLAGS_TRANSPARENT, &inet->inet_flags);
 }
 
 /* Sysctl settings for net ipv6.auto_flowlabels */
@@ -1216,6 +1222,7 @@ void inet6_cleanup_sock(struct sock *sk);
 void inet6_sock_destruct(struct sock *sk);
 int inet6_release(struct socket *sock);
 int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
+int inet6_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len);
 int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 		  int peer);
 int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
@@ -1270,7 +1277,9 @@ static inline int snmp6_unregister_dev(struct inet6_dev *idev) { return 0; }
 
 #ifdef CONFIG_SYSCTL
 struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
+size_t ipv6_icmp_sysctl_table_size(void);
 struct ctl_table *ipv6_route_sysctl_init(struct net *net);
+size_t ipv6_route_sysctl_table_size(struct net *net);
 int ipv6_sysctl_register(void);
 void ipv6_sysctl_unregister(void);
 #endif
@@ -1356,7 +1365,7 @@ static inline int __ip6_sock_set_addr_preferences(struct sock *sk, int val)
 	return 0;
 }
 
-static inline int ip6_sock_set_addr_preferences(struct sock *sk, bool val)
+static inline int ip6_sock_set_addr_preferences(struct sock *sk, int val)
 {
 	int ret;
 

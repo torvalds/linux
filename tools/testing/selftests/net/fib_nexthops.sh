@@ -29,6 +29,7 @@ IPV4_TESTS="
 	ipv4_large_res_grp
 	ipv4_compat_mode
 	ipv4_fdb_grp_fcnal
+	ipv4_mpath_select
 	ipv4_torture
 	ipv4_res_torture
 "
@@ -42,6 +43,7 @@ IPV6_TESTS="
 	ipv6_large_res_grp
 	ipv6_compat_mode
 	ipv6_fdb_grp_fcnal
+	ipv6_mpath_select
 	ipv6_torture
 	ipv6_res_torture
 "
@@ -370,6 +372,27 @@ check_large_res_grp()
 	log_test $? 0 "Dump large (x$buckets) nexthop buckets"
 }
 
+get_route_dev()
+{
+	local pfx="$1"
+	local out
+
+	if out=$($IP -j route get "$pfx" | jq -re ".[0].dev"); then
+		echo "$out"
+	fi
+}
+
+check_route_dev()
+{
+	local pfx="$1"
+	local expected="$2"
+	local out
+
+	out=$(get_route_dev "$pfx")
+
+	check_output "$out" "$expected"
+}
+
 start_ip_monitor()
 {
 	local mtype=$1
@@ -573,6 +596,112 @@ ipv4_fdb_grp_fcnal()
 	log_test $? 254 "Fdb entry after deleting a nexthop group"
 
 	$IP link del dev vx10
+}
+
+ipv4_mpath_select()
+{
+	local rc dev match h addr
+
+	echo
+	echo "IPv4 multipath selection"
+	echo "------------------------"
+	if [ ! -x "$(command -v jq)" ]; then
+		echo "SKIP: Could not run test; need jq tool"
+		return $ksft_skip
+	fi
+
+	# Use status of existing neighbor entry when determining nexthop for
+	# multipath routes.
+	local -A gws
+	gws=([veth1]=172.16.1.2 [veth3]=172.16.2.2)
+	local -A other_dev
+	other_dev=([veth1]=veth3 [veth3]=veth1)
+
+	run_cmd "$IP nexthop add id 1 via ${gws["veth1"]} dev veth1"
+	run_cmd "$IP nexthop add id 2 via ${gws["veth3"]} dev veth3"
+	run_cmd "$IP nexthop add id 1001 group 1/2"
+	run_cmd "$IP ro add 172.16.101.0/24 nhid 1001"
+	rc=0
+	for dev in veth1 veth3; do
+		match=0
+		for h in {1..254}; do
+			addr="172.16.101.$h"
+			if [ "$(get_route_dev "$addr")" = "$dev" ]; then
+				match=1
+				break
+			fi
+		done
+		if (( match == 0 )); then
+			echo "SKIP: Did not find a route using device $dev"
+			return $ksft_skip
+		fi
+		run_cmd "$IP neigh add ${gws[$dev]} dev $dev nud failed"
+		if ! check_route_dev "$addr" "${other_dev[$dev]}"; then
+			rc=1
+			break
+		fi
+		run_cmd "$IP neigh del ${gws[$dev]} dev $dev"
+	done
+	log_test $rc 0 "Use valid neighbor during multipath selection"
+
+	run_cmd "$IP neigh add 172.16.1.2 dev veth1 nud incomplete"
+	run_cmd "$IP neigh add 172.16.2.2 dev veth3 nud incomplete"
+	run_cmd "$IP route get 172.16.101.1"
+	# if we did not crash, success
+	log_test $rc 0 "Multipath selection with no valid neighbor"
+}
+
+ipv6_mpath_select()
+{
+	local rc dev match h addr
+
+	echo
+	echo "IPv6 multipath selection"
+	echo "------------------------"
+	if [ ! -x "$(command -v jq)" ]; then
+		echo "SKIP: Could not run test; need jq tool"
+		return $ksft_skip
+	fi
+
+	# Use status of existing neighbor entry when determining nexthop for
+	# multipath routes.
+	local -A gws
+	gws=([veth1]=2001:db8:91::2 [veth3]=2001:db8:92::2)
+	local -A other_dev
+	other_dev=([veth1]=veth3 [veth3]=veth1)
+
+	run_cmd "$IP nexthop add id 1 via ${gws["veth1"]} dev veth1"
+	run_cmd "$IP nexthop add id 2 via ${gws["veth3"]} dev veth3"
+	run_cmd "$IP nexthop add id 1001 group 1/2"
+	run_cmd "$IP ro add 2001:db8:101::/64 nhid 1001"
+	rc=0
+	for dev in veth1 veth3; do
+		match=0
+		for h in {1..65535}; do
+			addr=$(printf "2001:db8:101::%x" $h)
+			if [ "$(get_route_dev "$addr")" = "$dev" ]; then
+				match=1
+				break
+			fi
+		done
+		if (( match == 0 )); then
+			echo "SKIP: Did not find a route using device $dev"
+			return $ksft_skip
+		fi
+		run_cmd "$IP neigh add ${gws[$dev]} dev $dev nud failed"
+		if ! check_route_dev "$addr" "${other_dev[$dev]}"; then
+			rc=1
+			break
+		fi
+		run_cmd "$IP neigh del ${gws[$dev]} dev $dev"
+	done
+	log_test $rc 0 "Use valid neighbor during multipath selection"
+
+	run_cmd "$IP neigh add 2001:db8:91::2 dev veth1 nud incomplete"
+	run_cmd "$IP neigh add 2001:db8:92::2 dev veth3 nud incomplete"
+	run_cmd "$IP route get 2001:db8:101::1"
+	# if we did not crash, success
+	log_test $rc 0 "Multipath selection with no valid neighbor"
 }
 
 ################################################################################

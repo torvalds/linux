@@ -30,7 +30,9 @@ void test_get_func_args_test(void)
 	prog_fd = bpf_program__fd(skel->progs.fmod_ret_test);
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	ASSERT_OK(err, "test_run");
-	ASSERT_EQ(topts.retval, 1234, "test_run");
+
+	ASSERT_EQ(topts.retval >> 16, 1, "test_run");
+	ASSERT_EQ(topts.retval & 0xffff, 1234 + 29, "test_run");
 
 	ASSERT_EQ(skel->bss->test1_result, 1, "test1_result");
 	ASSERT_EQ(skel->bss->test2_result, 1, "test2_result");

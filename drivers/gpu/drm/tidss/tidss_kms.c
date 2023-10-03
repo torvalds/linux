@@ -193,7 +193,6 @@ static int tidss_dispc_modeset_init(struct tidss_device *tidss)
 	for (i = 0; i < num_pipes; ++i) {
 		struct tidss_plane *tplane;
 		struct tidss_crtc *tcrtc;
-		struct drm_encoder *enc;
 		u32 hw_plane_id = feat->vid_order[tidss->num_planes];
 		int ret;
 
@@ -216,16 +215,13 @@ static int tidss_dispc_modeset_init(struct tidss_device *tidss)
 
 		tidss->crtcs[tidss->num_crtcs++] = &tcrtc->crtc;
 
-		enc = tidss_encoder_create(tidss, pipes[i].enc_type,
+		ret = tidss_encoder_create(tidss, pipes[i].bridge,
+					   pipes[i].enc_type,
 					   1 << tcrtc->crtc.index);
-		if (IS_ERR(enc)) {
+		if (ret) {
 			dev_err(tidss->dev, "encoder create failed\n");
-			return PTR_ERR(enc);
-		}
-
-		ret = drm_bridge_attach(enc, pipes[i].bridge, NULL, 0);
-		if (ret)
 			return ret;
+		}
 	}
 
 	/* create overlay planes of the leftover planes */

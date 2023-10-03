@@ -101,12 +101,12 @@ static int rpckbd_probe(struct platform_device *dev)
 	int tx_irq, rx_irq;
 
 	rx_irq = platform_get_irq(dev, 0);
-	if (rx_irq <= 0)
-		return rx_irq < 0 ? rx_irq : -ENXIO;
+	if (rx_irq < 0)
+		return rx_irq;
 
 	tx_irq = platform_get_irq(dev, 1);
-	if (tx_irq <= 0)
-		return tx_irq < 0 ? tx_irq : -ENXIO;
+	if (tx_irq < 0)
+		return tx_irq;
 
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	rpckbd = kzalloc(sizeof(*rpckbd), GFP_KERNEL);

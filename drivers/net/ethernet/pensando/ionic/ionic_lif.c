@@ -434,7 +434,7 @@ static void ionic_qcq_free(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	}
 }
 
-static void ionic_qcqs_free(struct ionic_lif *lif)
+void ionic_qcqs_free(struct ionic_lif *lif)
 {
 	struct device *dev = lif->ionic->dev;
 	struct ionic_qcq *adminqcq;
@@ -1754,7 +1754,7 @@ static int ionic_set_mac_address(struct net_device *netdev, void *sa)
 	return ionic_lif_addr_add(netdev_priv(netdev), mac);
 }
 
-static void ionic_stop_queues_reconfig(struct ionic_lif *lif)
+void ionic_stop_queues_reconfig(struct ionic_lif *lif)
 {
 	/* Stop and clean the queues before reconfiguration */
 	netif_device_detach(lif->netdev);
@@ -2013,7 +2013,7 @@ static void ionic_txrx_deinit(struct ionic_lif *lif)
 	}
 }
 
-static void ionic_txrx_free(struct ionic_lif *lif)
+void ionic_txrx_free(struct ionic_lif *lif)
 {
 	unsigned int i;
 
@@ -3275,26 +3275,10 @@ static void ionic_lif_handle_fw_down(struct ionic_lif *lif)
 	dev_info(ionic->dev, "FW Down: LIFs stopped\n");
 }
 
-static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
+int ionic_restart_lif(struct ionic_lif *lif)
 {
 	struct ionic *ionic = lif->ionic;
 	int err;
-
-	if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state))
-		return;
-
-	dev_info(ionic->dev, "FW Up: restarting LIFs\n");
-
-	ionic_init_devinfo(ionic);
-	err = ionic_identify(ionic);
-	if (err)
-		goto err_out;
-	err = ionic_port_identify(ionic);
-	if (err)
-		goto err_out;
-	err = ionic_port_init(ionic);
-	if (err)
-		goto err_out;
 
 	mutex_lock(&lif->queue_lock);
 
@@ -3331,12 +3315,8 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 	clear_bit(IONIC_LIF_F_FW_RESET, lif->state);
 	ionic_link_status_check_request(lif, CAN_SLEEP);
 	netif_device_attach(lif->netdev);
-	dev_info(ionic->dev, "FW Up: LIFs restarted\n");
 
-	/* restore the hardware timestamping queues */
-	ionic_lif_hwstamp_replay(lif);
-
-	return;
+	return 0;
 
 err_txrx_free:
 	ionic_txrx_free(lif);
@@ -3346,6 +3326,46 @@ err_qcqs_free:
 	ionic_qcqs_free(lif);
 err_unlock:
 	mutex_unlock(&lif->queue_lock);
+
+	return err;
+}
+
+static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
+{
+	struct ionic *ionic = lif->ionic;
+	int err;
+
+	if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		return;
+
+	dev_info(ionic->dev, "FW Up: restarting LIFs\n");
+
+	/* This is a little different from what happens at
+	 * probe time because the LIF already exists so we
+	 * just need to reanimate it.
+	 */
+	ionic_init_devinfo(ionic);
+	err = ionic_identify(ionic);
+	if (err)
+		goto err_out;
+	err = ionic_port_identify(ionic);
+	if (err)
+		goto err_out;
+	err = ionic_port_init(ionic);
+	if (err)
+		goto err_out;
+
+	err = ionic_restart_lif(lif);
+	if (err)
+		goto err_out;
+
+	dev_info(ionic->dev, "FW Up: LIFs restarted\n");
+
+	/* restore the hardware timestamping queues */
+	ionic_lif_hwstamp_replay(lif);
+
+	return;
+
 err_out:
 	dev_err(ionic->dev, "FW Up: LIFs restart failed - err %d\n", err);
 }

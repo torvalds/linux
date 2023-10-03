@@ -17,7 +17,7 @@ chipsets are able to deal with these errors; these include PCI-E chipsets,
 and the PCI-host bridges found on IBM Power4, Power5 and Power6-based
 pSeries boxes. A typical action taken is to disconnect the affected device,
 halting all I/O to it.  The goal of a disconnection is to avoid system
-corruption; for example, to halt system memory corruption due to DMA's
+corruption; for example, to halt system memory corruption due to DMAs
 to "wild" addresses. Typically, a reconnection mechanism is also
 offered, so that the affected PCI device(s) are reset and put back
 into working condition. The reset phase requires coordination
@@ -178,9 +178,9 @@ is STEP 6 (Permanent Failure).
    complex and not worth implementing.
 
    The current powerpc implementation doesn't much care if the device
-   attempts I/O at this point, or not.  I/O's will fail, returning
+   attempts I/O at this point, or not.  I/Os will fail, returning
    a value of 0xff on read, and writes will be dropped. If more than
-   EEH_MAX_FAILS I/O's are attempted to a frozen adapter, EEH
+   EEH_MAX_FAILS I/Os are attempted to a frozen adapter, EEH
    assumes that the device driver has gone into an infinite loop
    and prints an error to syslog.  A reboot is then required to
    get the device working again.
@@ -204,7 +204,7 @@ instead will have gone directly to STEP 3 (Link Reset) or STEP 4 (Slot Reset)
 .. note::
 
    The following is proposed; no platform implements this yet:
-   Proposal: All I/O's should be done _synchronously_ from within
+   Proposal: All I/Os should be done _synchronously_ from within
    this callback, errors triggered by them will be returned via
    the normal pci_check_whatever() API, no new error_detected()
    callback will be issued due to an error happening here. However,
@@ -258,7 +258,7 @@ Powerpc platforms implement two levels of slot reset:
 soft reset(default) and fundamental(optional) reset.
 
 Powerpc soft reset consists of asserting the adapter #RST line and then
-restoring the PCI BAR's and PCI configuration header to a state
+restoring the PCI BARs and PCI configuration header to a state
 that is equivalent to what it would be after a fresh system
 power-on followed by power-on BIOS/system firmware initialization.
 Soft reset is also known as hot-reset.
@@ -362,7 +362,7 @@ permanent failure in some way.  If the device is hotplug-capable,
 the operator will probably want to remove and replace the device.
 Note, however, not all failures are truly "permanent". Some are
 caused by over-heating, some by a poorly seated card. Many
-PCI error events are caused by software bugs, e.g. DMA's to
+PCI error events are caused by software bugs, e.g. DMAs to
 wild addresses or bogus split transactions due to programming
 errors. See the discussion in Documentation/powerpc/eeh-pci-error-recovery.rst
 for additional detail on real-life experience of the causes of

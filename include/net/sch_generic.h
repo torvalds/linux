@@ -599,6 +599,7 @@ get_default_qdisc_ops(const struct net_device *dev, int ntx)
 
 struct Qdisc_class_common {
 	u32			classid;
+	unsigned int		filter_cnt;
 	struct hlist_node	hnode;
 };
 
@@ -631,6 +632,31 @@ qdisc_class_find(const struct Qdisc_class_hash *hash, u32 id)
 			return cl;
 	}
 	return NULL;
+}
+
+static inline bool qdisc_class_in_use(const struct Qdisc_class_common *cl)
+{
+	return cl->filter_cnt > 0;
+}
+
+static inline void qdisc_class_get(struct Qdisc_class_common *cl)
+{
+	unsigned int res;
+
+	if (check_add_overflow(cl->filter_cnt, 1, &res))
+		WARN(1, "Qdisc class overflow");
+
+	cl->filter_cnt = res;
+}
+
+static inline void qdisc_class_put(struct Qdisc_class_common *cl)
+{
+	unsigned int res;
+
+	if (check_sub_overflow(cl->filter_cnt, 1, &res))
+		WARN(1, "Qdisc class underflow");
+
+	cl->filter_cnt = res;
 }
 
 static inline int tc_classid_to_hwtc(struct net_device *dev, u32 classid)
@@ -703,7 +729,7 @@ int skb_do_redirect(struct sk_buff *);
 
 static inline bool skb_at_tc_ingress(const struct sk_buff *skb)
 {
-#ifdef CONFIG_NET_CLS_ACT
+#ifdef CONFIG_NET_XGRESS
 	return skb->tc_at_ingress;
 #else
 	return false;

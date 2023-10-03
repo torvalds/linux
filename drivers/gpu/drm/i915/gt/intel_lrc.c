@@ -1092,10 +1092,19 @@ __lrc_alloc_state(struct intel_context *ce, struct intel_engine_cs *engine)
 
 	obj = i915_gem_object_create_lmem(engine->i915, context_size,
 					  I915_BO_ALLOC_PM_VOLATILE);
-	if (IS_ERR(obj))
+	if (IS_ERR(obj)) {
 		obj = i915_gem_object_create_shmem(engine->i915, context_size);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
+		if (IS_ERR(obj))
+			return ERR_CAST(obj);
+
+		/*
+		 * Wa_22016122933: For Media version 13.0, all Media GT shared
+		 * memory needs to be mapped as WC on CPU side and UC (PAT
+		 * index 2) on GPU side.
+		 */
+		if (intel_gt_needs_wa_22016122933(engine->gt))
+			i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
+	}
 
 	vma = i915_vma_instance(obj, &engine->gt->ggtt->vm, NULL);
 	if (IS_ERR(vma)) {
@@ -1184,9 +1193,9 @@ lrc_pre_pin(struct intel_context *ce,
 	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
 
 	*vaddr = i915_gem_object_pin_map(ce->state->obj,
-					 i915_coherent_map_type(ce->engine->i915,
-								ce->state->obj,
-								false) |
+					 intel_gt_coherent_map_type(ce->engine->gt,
+								    ce->state->obj,
+								    false) |
 					 I915_MAP_OVERRIDE);
 
 	return PTR_ERR_OR_ZERO(*vaddr);

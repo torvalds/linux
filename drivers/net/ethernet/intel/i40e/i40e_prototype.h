@@ -18,7 +18,6 @@
 /* adminq functions */
 int i40e_init_adminq(struct i40e_hw *hw);
 void i40e_shutdown_adminq(struct i40e_hw *hw);
-void i40e_adminq_init_ring_data(struct i40e_hw *hw);
 int i40e_clean_arq_element(struct i40e_hw *hw,
 			   struct i40e_arq_event_info *e,
 			   u16 *events_pending);
@@ -51,7 +50,6 @@ i40e_asq_send_command_atomic_v2(struct i40e_hw *hw,
 void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask,
 		   void *desc, void *buffer, u16 buf_len);
 
-void i40e_idle_aq(struct i40e_hw *hw);
 bool i40e_check_asq_alive(struct i40e_hw *hw);
 int i40e_aq_queue_shutdown(struct i40e_hw *hw, bool unloading);
 const char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err);
@@ -117,9 +115,6 @@ int i40e_aq_set_link_restart_an(struct i40e_hw *hw,
 int i40e_aq_get_link_info(struct i40e_hw *hw,
 			  bool enable_lse, struct i40e_link_status *link,
 			  struct i40e_asq_cmd_details *cmd_details);
-int i40e_aq_set_local_advt_reg(struct i40e_hw *hw,
-			       u64 advt_reg,
-			       struct i40e_asq_cmd_details *cmd_details);
 int i40e_aq_send_driver_version(struct i40e_hw *hw,
 				struct i40e_driver_version *dv,
 				struct i40e_asq_cmd_details *cmd_details);
@@ -269,9 +264,6 @@ int i40e_aq_config_vsi_bw_limit(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 int i40e_aq_dcb_updated(struct i40e_hw *hw,
 			struct i40e_asq_cmd_details *cmd_details);
-int i40e_aq_config_switch_comp_bw_limit(struct i40e_hw *hw,
-					u16 seid, u16 credit, u8 max_bw,
-					struct i40e_asq_cmd_details *cmd_details);
 int i40e_aq_config_vsi_tc_bw(struct i40e_hw *hw, u16 seid,
 			     struct i40e_aqc_configure_vsi_tc_bw_data *bw_data,
 			     struct i40e_asq_cmd_details *cmd_details);
@@ -350,7 +342,6 @@ i40e_aq_configure_partition_bw(struct i40e_hw *hw,
 int i40e_get_port_mac_addr(struct i40e_hw *hw, u8 *mac_addr);
 int i40e_read_pba_string(struct i40e_hw *hw, u8 *pba_num,
 			 u32 pba_num_size);
-int i40e_validate_mac_addr(u8 *mac_addr);
 void i40e_pre_tx_queue_cfg(struct i40e_hw *hw, u32 queue, bool enable);
 /* prototype for functions used for NVM access */
 int i40e_init_nvm(struct i40e_hw *hw);
@@ -425,14 +416,6 @@ i40e_virtchnl_link_speed(enum i40e_aq_link_speed link_speed)
 /* prototype for functions used for SW locks */
 
 /* i40e_common for VF drivers*/
-void i40e_vf_parse_hw_config(struct i40e_hw *hw,
-			     struct virtchnl_vf_resource *msg);
-int i40e_vf_reset(struct i40e_hw *hw);
-int i40e_aq_send_msg_to_pf(struct i40e_hw *hw,
-			   enum virtchnl_ops v_opcode,
-			   int v_retval,
-			   u8 *msg, u16 msglen,
-			   struct i40e_asq_cmd_details *cmd_details);
 int i40e_set_filter_control(struct i40e_hw *hw,
 			    struct i40e_filter_control_settings *settings);
 int i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,

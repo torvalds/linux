@@ -427,7 +427,7 @@ Changes from 20041207 to 20041213
 	* Changed version number to 8.0.17
 	* Fix sparse warnings by adding __iomem markers to lpfc_compat.h.
 	* Fix some sparse warnings -- 0 used as NULL pointer.
-	* Make sure there's a space between every if and it's (.
+	* Make sure there's a space between every if and its (.
 	* Fix some overly long lines and make sure hard tabs are used for
 	  indentation.
 	* Remove all trailing whitespace.

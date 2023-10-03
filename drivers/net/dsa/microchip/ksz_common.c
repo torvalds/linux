@@ -18,8 +18,8 @@
 #include <linux/if_vlan.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/of.h>
 #include <linux/of_mdio.h>
-#include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/micrel_phy.h>
 #include <net/dsa.h>
@@ -1619,8 +1619,6 @@ static void ksz_phylink_get_caps(struct dsa_switch *ds, int port,
 {
 	struct ksz_device *dev = ds->priv;
 
-	config->legacy_pre_march2020 = false;
-
 	if (dev->info->supports_mii[port])
 		__set_bit(PHY_INTERFACE_MODE_MII, config->supported_interfaces);
 
@@ -2337,13 +2335,27 @@ static u32 ksz_get_phy_flags(struct dsa_switch *ds, int port)
 {
 	struct ksz_device *dev = ds->priv;
 
-	if (dev->chip_id == KSZ8830_CHIP_ID) {
+	switch (dev->chip_id) {
+	case KSZ8830_CHIP_ID:
 		/* Silicon Errata Sheet (DS80000830A):
 		 * Port 1 does not work with LinkMD Cable-Testing.
 		 * Port 1 does not respond to received PAUSE control frames.
 		 */
 		if (!port)
 			return MICREL_KSZ8_P1_ERRATA;
+		break;
+	case KSZ9477_CHIP_ID:
+		/* KSZ9477 Errata DS80000754C
+		 *
+		 * Module 4: Energy Efficient Ethernet (EEE) feature select must
+		 * be manually disabled
+		 *   The EEE feature is enabled by default, but it is not fully
+		 *   operational. It must be manually disabled through register
+		 *   controls. If not disabled, the PHY ports can auto-negotiate
+		 *   to enable EEE, and this feature can cause link drops when
+		 *   linked to another device supporting EEE.
+		 */
+		return MICREL_NO_EEE;
 	}
 
 	return 0;

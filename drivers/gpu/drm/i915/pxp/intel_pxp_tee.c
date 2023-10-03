@@ -11,6 +11,7 @@
 #include "gem/i915_gem_lmem.h"
 
 #include "i915_drv.h"
+#include "gt/intel_gt.h"
 
 #include "intel_pxp.h"
 #include "intel_pxp_cmd_interface_42.h"
@@ -245,7 +246,9 @@ static int alloc_streaming_command(struct intel_pxp *pxp)
 	}
 
 	/* map the lmem into the virtual memory pointer */
-	cmd = i915_gem_object_pin_map_unlocked(obj, i915_coherent_map_type(i915, obj, true));
+	cmd = i915_gem_object_pin_map_unlocked(obj,
+					       intel_gt_coherent_map_type(pxp->ctrl_gt,
+									  obj, true));
 	if (IS_ERR(cmd)) {
 		drm_err(&i915->drm, "Failed to map gsc message page!\n");
 		err = PTR_ERR(cmd);

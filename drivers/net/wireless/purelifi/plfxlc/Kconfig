@@ -3,7 +3,7 @@ config PLFXLC
 	tristate "pureLiFi X, XL, XC device support"
 	depends on CFG80211 && MAC80211 && USB
 	help
-	   This option adds support for pureLiFi LiFi wireless USB
+	   This option adds support for pureLiFi LiFi USB wireless
 	   adapters. The pureLiFi X, XL, XC USB devices are based on
 	   802.11 OFDM PHY but uses light as the transmission medium.
 	   The driver supports common 802.11 encryption/authentication

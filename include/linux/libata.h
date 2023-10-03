@@ -192,6 +192,7 @@ enum {
 	ATA_PFLAG_UNLOADING	= (1 << 9), /* driver is being unloaded */
 	ATA_PFLAG_UNLOADED	= (1 << 10), /* driver is unloaded */
 
+	ATA_PFLAG_RESUMING	= (1 << 16),  /* port is being resumed */
 	ATA_PFLAG_SUSPENDED	= (1 << 17), /* port is suspended (power) */
 	ATA_PFLAG_PM_PENDING	= (1 << 18), /* PM operation pending */
 	ATA_PFLAG_INIT_GTM_VALID = (1 << 19), /* initial gtm data valid */
@@ -221,6 +222,10 @@ enum {
 	ATA_HOST_STARTED	= (1 << 1),	/* Host started */
 	ATA_HOST_PARALLEL_SCAN	= (1 << 2),	/* Ports on this host can be scanned in parallel */
 	ATA_HOST_IGNORE_ATA	= (1 << 3),	/* Ignore ATA devices on this host. */
+
+	ATA_HOST_NO_PART	= (1 << 4), /* Host does not support partial */
+	ATA_HOST_NO_SSC		= (1 << 5), /* Host does not support slumber */
+	ATA_HOST_NO_DEVSLP	= (1 << 6), /* Host does not support devslp */
 
 	/* bits 24:31 of host->flags are reserved for LLD specific flags */
 
@@ -255,7 +260,7 @@ enum {
 	 * advised to wait only for the following duration before
 	 * doing SRST.
 	 */
-	ATA_TMOUT_PMP_SRST_WAIT	= 5000,
+	ATA_TMOUT_PMP_SRST_WAIT	= 10000,
 
 	/* When the LPM policy is set to ATA_LPM_MAX_POWER, there might
 	 * be a spurious PHY event, so ignore the first PHY event that
@@ -314,9 +319,10 @@ enum {
 	ATA_EH_ENABLE_LINK	= (1 << 3),
 	ATA_EH_PARK		= (1 << 5), /* unload heads and stop I/O */
 	ATA_EH_GET_SUCCESS_SENSE = (1 << 6), /* Get sense data for successful cmd */
+	ATA_EH_SET_ACTIVE	= (1 << 7), /* Set a device to active power mode */
 
 	ATA_EH_PERDEV_MASK	= ATA_EH_REVALIDATE | ATA_EH_PARK |
-				  ATA_EH_GET_SUCCESS_SENSE,
+				  ATA_EH_GET_SUCCESS_SENSE | ATA_EH_SET_ACTIVE,
 	ATA_EH_ALL_ACTIONS	= ATA_EH_REVALIDATE | ATA_EH_RESET |
 				  ATA_EH_ENABLE_LINK,
 
@@ -344,7 +350,6 @@ enum {
 	ATA_LINK_RESUME_TRIES	= 5,
 
 	/* how hard are we gonna try to probe/recover devices */
-	ATA_PROBE_MAX_TRIES	= 3,
 	ATA_EH_DEV_TRIES	= 3,
 	ATA_EH_PMP_TRIES	= 5,
 	ATA_EH_PMP_LINK_TRIES	= 3,
@@ -354,7 +359,7 @@ enum {
 	/* This should match the actual table size of
 	 * ata_eh_cmd_timeout_table in libata-eh.c.
 	 */
-	ATA_EH_CMD_TIMEOUT_TABLE_SIZE = 7,
+	ATA_EH_CMD_TIMEOUT_TABLE_SIZE = 8,
 
 	/* Horkage types. May be set by libata or controller on drives
 	   (some horkage may be drive/controller pair dependent */
@@ -977,12 +982,6 @@ struct ata_port_operations {
 					ssize_t size);
 
 	/*
-	 * Obsolete
-	 */
-	void (*phy_reset)(struct ata_port *ap);
-	void (*eng_timeout)(struct ata_port *ap);
-
-	/*
 	 * ->inherits must be the last field and all the preceding
 	 * fields must be pointers.
 	 */
@@ -1116,7 +1115,7 @@ static inline void ata_sas_port_resume(struct ata_port *ap)
 extern int ata_ratelimit(void);
 extern void ata_msleep(struct ata_port *ap, unsigned int msecs);
 extern u32 ata_wait_register(struct ata_port *ap, void __iomem *reg, u32 mask,
-			u32 val, unsigned long interval, unsigned long timeout);
+			     u32 val, unsigned int interval, unsigned int timeout);
 extern int atapi_cmd_type(u8 opcode);
 extern unsigned int ata_pack_xfermask(unsigned int pio_mask,
 				      unsigned int mwdma_mask,
@@ -1151,6 +1150,7 @@ extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
 			      sector_t capacity, int geom[]);
 extern void ata_scsi_unlock_native_capacity(struct scsi_device *sdev);
+extern int ata_scsi_slave_alloc(struct scsi_device *sdev);
 extern int ata_scsi_slave_config(struct scsi_device *sdev);
 extern void ata_scsi_slave_destroy(struct scsi_device *sdev);
 extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
@@ -1166,11 +1166,11 @@ extern void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *
  * SATA specific code - drivers/ata/libata-sata.c
  */
 #ifdef CONFIG_SATA_HOST
-extern const unsigned long sata_deb_timing_normal[];
-extern const unsigned long sata_deb_timing_hotplug[];
-extern const unsigned long sata_deb_timing_long[];
+extern const unsigned int sata_deb_timing_normal[];
+extern const unsigned int sata_deb_timing_hotplug[];
+extern const unsigned int sata_deb_timing_long[];
 
-static inline const unsigned long *
+static inline const unsigned int *
 sata_ehc_deb_timing(struct ata_eh_context *ehc)
 {
 	if (ehc->i.flags & ATA_EHI_HOTPLUGGED)
@@ -1185,14 +1185,14 @@ extern int sata_scr_write(struct ata_link *link, int reg, u32 val);
 extern int sata_scr_write_flush(struct ata_link *link, int reg, u32 val);
 extern int sata_set_spd(struct ata_link *link);
 extern int sata_link_hardreset(struct ata_link *link,
-			const unsigned long *timing, unsigned long deadline,
+			const unsigned int *timing, unsigned long deadline,
 			bool *online, int (*check_ready)(struct ata_link *));
-extern int sata_link_resume(struct ata_link *link, const unsigned long *params,
+extern int sata_link_resume(struct ata_link *link, const unsigned int *params,
 			    unsigned long deadline);
 extern int ata_eh_read_sense_success_ncq_log(struct ata_link *link);
 extern void ata_eh_analyze_ncq_error(struct ata_link *link);
 #else
-static inline const unsigned long *
+static inline const unsigned int *
 sata_ehc_deb_timing(struct ata_eh_context *ehc)
 {
 	return NULL;
@@ -1212,7 +1212,7 @@ static inline int sata_scr_write_flush(struct ata_link *link, int reg, u32 val)
 }
 static inline int sata_set_spd(struct ata_link *link) { return -EOPNOTSUPP; }
 static inline int sata_link_hardreset(struct ata_link *link,
-				      const unsigned long *timing,
+				      const unsigned int *timing,
 				      unsigned long deadline,
 				      bool *online,
 				      int (*check_ready)(struct ata_link *))
@@ -1222,7 +1222,7 @@ static inline int sata_link_hardreset(struct ata_link *link,
 	return -EOPNOTSUPP;
 }
 static inline int sata_link_resume(struct ata_link *link,
-				   const unsigned long *params,
+				   const unsigned int *params,
 				   unsigned long deadline)
 {
 	return -EOPNOTSUPP;
@@ -1234,20 +1234,15 @@ static inline int ata_eh_read_sense_success_ncq_log(struct ata_link *link)
 static inline void ata_eh_analyze_ncq_error(struct ata_link *link) { }
 #endif
 extern int sata_link_debounce(struct ata_link *link,
-			const unsigned long *params, unsigned long deadline);
+			      const unsigned int *params, unsigned long deadline);
 extern int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 			     bool spm_wakeup);
 extern int ata_slave_link_init(struct ata_port *ap);
-extern void ata_sas_port_destroy(struct ata_port *);
 extern struct ata_port *ata_sas_port_alloc(struct ata_host *,
 					   struct ata_port_info *, struct Scsi_Host *);
-extern void ata_sas_async_probe(struct ata_port *ap);
-extern int ata_sas_sync_probe(struct ata_port *ap);
-extern int ata_sas_port_init(struct ata_port *);
-extern int ata_sas_port_start(struct ata_port *ap);
+extern void ata_port_probe(struct ata_port *ap);
 extern int ata_sas_tport_add(struct device *parent, struct ata_port *ap);
 extern void ata_sas_tport_delete(struct ata_port *ap);
-extern void ata_sas_port_stop(struct ata_port *ap);
 extern int ata_sas_slave_configure(struct scsi_device *, struct ata_port *);
 extern int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap);
 extern void ata_tf_to_fis(const struct ata_taskfile *tf,
@@ -1404,6 +1399,7 @@ extern const struct attribute_group *ata_common_sdev_groups[];
 	.this_id		= ATA_SHT_THIS_ID,		\
 	.emulated		= ATA_SHT_EMULATED,		\
 	.proc_name		= drv_name,			\
+	.slave_alloc		= ata_scsi_slave_alloc,		\
 	.slave_destroy		= ata_scsi_slave_destroy,	\
 	.bios_param		= ata_std_bios_param,		\
 	.unlock_native_capacity	= ata_scsi_unlock_native_capacity,\
@@ -1785,7 +1781,7 @@ static inline struct ata_queued_cmd *ata_qc_from_tag(struct ata_port *ap,
 {
 	struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
 
-	if (unlikely(!qc) || !ap->ops->error_handler)
+	if (unlikely(!qc))
 		return qc;
 
 	if ((qc->flags & (ATA_QCFLAG_ACTIVE |
@@ -1876,7 +1872,7 @@ static inline int ata_check_ready(u8 status)
 }
 
 static inline unsigned long ata_deadline(unsigned long from_jiffies,
-					 unsigned long timeout_msecs)
+					 unsigned int timeout_msecs)
 {
 	return from_jiffies + msecs_to_jiffies(timeout_msecs);
 }

@@ -431,7 +431,7 @@ static void *cgroup_pidlist_start(struct seq_file *s, loff_t *pos)
 			if (l->list[mid] == pid) {
 				index = mid;
 				break;
-			} else if (l->list[mid] <= pid)
+			} else if (l->list[mid] < pid)
 				index = mid + 1;
 			else
 				end = mid;

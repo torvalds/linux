@@ -13,9 +13,9 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/clk.h>
-#include <linux/of_platform.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/of_pci.h>
+#include <linux/platform_device.h>
 
 #include <asm/addrspace.h>
 

@@ -62,6 +62,15 @@ config FSI_MASTER_ASPEED
 
 	 Enable it for your BMC kernel in an OpenPower or IBM Power system.
 
+config FSI_MASTER_I2CR
+	tristate "IBM I2C Responder virtual FSI master"
+	depends on I2C
+	help
+	  This option enables a virtual FSI master in order to access a CFAM
+	  behind an IBM I2C Responder (I2CR) chip. The I2CR is an I2C device
+	  that translates I2C commands to CFAM or SCOM operations, effectively
+	  implementing an FSI master and bus.
+
 config FSI_SCOM
 	tristate "SCOM FSI client device driver"
 	help
@@ -84,5 +93,13 @@ config FSI_OCC
 	and aggregates sensor data from the processor and system. The OCC can
 	provide the raw sensor data as well as perform thermal and power
 	management on the system.
+
+config I2CR_SCOM
+	tristate "IBM I2C Responder SCOM driver"
+	depends on FSI_MASTER_I2CR
+	help
+	  This option enables an I2C Responder based SCOM device driver. The
+	  I2CR has the capability to directly perform SCOM operations instead
+	  of using the FSI2PIB engine.
 
 endif

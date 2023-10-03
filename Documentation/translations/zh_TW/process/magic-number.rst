@@ -12,7 +12,7 @@
         中文版維護者： 賈威威 Jia Wei Wei <harryxiyou@gmail.com>
         中文版翻譯者： 賈威威 Jia Wei Wei <harryxiyou@gmail.com>
         中文版校譯者： 賈威威 Jia Wei Wei <harryxiyou@gmail.com>
-                      胡皓文 Hu Haowen <src.res@email.cn>
+                      胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 Linux 魔術數
 ============

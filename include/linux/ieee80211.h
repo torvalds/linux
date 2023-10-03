@@ -836,9 +836,14 @@ enum ieee80211_preq_target_flags {
 };
 
 /**
- * struct ieee80211_quiet_ie
+ * struct ieee80211_quiet_ie - Quiet element
+ * @count: Quiet Count
+ * @period: Quiet Period
+ * @duration: Quiet Duration
+ * @offset: Quiet Offset
  *
- * This structure refers to "Quiet information element"
+ * This structure represents the payload of the "Quiet element" as
+ * described in IEEE Std 802.11-2020 section 9.4.2.22.
  */
 struct ieee80211_quiet_ie {
 	u8 count;
@@ -848,9 +853,15 @@ struct ieee80211_quiet_ie {
 } __packed;
 
 /**
- * struct ieee80211_msrment_ie
+ * struct ieee80211_msrment_ie - Measurement element
+ * @token: Measurement Token
+ * @mode: Measurement Report Mode
+ * @type: Measurement Type
+ * @request: Measurement Request or Measurement Report
  *
- * This structure refers to "Measurement Request/Report information element"
+ * This structure represents the payload of both the "Measurement
+ * Request element" and the "Measurement Report element" as described
+ * in IEEE Std 802.11-2020 sections 9.4.2.20 and 9.4.2.21.
  */
 struct ieee80211_msrment_ie {
 	u8 token;
@@ -860,9 +871,14 @@ struct ieee80211_msrment_ie {
 } __packed;
 
 /**
- * struct ieee80211_channel_sw_ie
+ * struct ieee80211_channel_sw_ie - Channel Switch Announcement element
+ * @mode: Channel Switch Mode
+ * @new_ch_num: New Channel Number
+ * @count: Channel Switch Count
  *
- * This structure refers to "Channel Switch Announcement information element"
+ * This structure represents the payload of the "Channel Switch
+ * Announcement element" as described in IEEE Std 802.11-2020 section
+ * 9.4.2.18.
  */
 struct ieee80211_channel_sw_ie {
 	u8 mode;
@@ -871,9 +887,14 @@ struct ieee80211_channel_sw_ie {
 } __packed;
 
 /**
- * struct ieee80211_ext_chansw_ie
+ * struct ieee80211_ext_chansw_ie - Extended Channel Switch Announcement element
+ * @mode: Channel Switch Mode
+ * @new_operating_class: New Operating Class
+ * @new_ch_num: New Channel Number
+ * @count: Channel Switch Count
  *
- * This structure represents the "Extended Channel Switch Announcement element"
+ * This structure represents the "Extended Channel Switch Announcement
+ * element" as described in IEEE Std 802.11-2020 section 9.4.2.52.
  */
 struct ieee80211_ext_chansw_ie {
 	u8 mode;
@@ -894,8 +915,14 @@ struct ieee80211_sec_chan_offs_ie {
 
 /**
  * struct ieee80211_mesh_chansw_params_ie - mesh channel switch parameters IE
+ * @mesh_ttl: Time To Live
+ * @mesh_flags: Flags
+ * @mesh_reason: Reason Code
+ * @mesh_pre_value: Precedence Value
  *
- * This structure represents the "Mesh Channel Switch Paramters element"
+ * This structure represents the payload of the "Mesh Channel Switch
+ * Parameters element" as described in IEEE Std 802.11-2020 section
+ * 9.4.2.102.
  */
 struct ieee80211_mesh_chansw_params_ie {
 	u8 mesh_ttl;
@@ -906,6 +933,13 @@ struct ieee80211_mesh_chansw_params_ie {
 
 /**
  * struct ieee80211_wide_bw_chansw_ie - wide bandwidth channel switch IE
+ * @new_channel_width: New Channel Width
+ * @new_center_freq_seg0: New Channel Center Frequency Segment 0
+ * @new_center_freq_seg1: New Channel Center Frequency Segment 1
+ *
+ * This structure represents the payload of the "Wide Bandwidth
+ * Channel Switch element" as described in IEEE Std 802.11-2020
+ * section 9.4.2.160.
  */
 struct ieee80211_wide_bw_chansw_ie {
 	u8 new_channel_width;
@@ -913,9 +947,14 @@ struct ieee80211_wide_bw_chansw_ie {
 } __packed;
 
 /**
- * struct ieee80211_tim
+ * struct ieee80211_tim_ie - Traffic Indication Map information element
+ * @dtim_count: DTIM Count
+ * @dtim_period: DTIM Period
+ * @bitmap_ctrl: Bitmap Control
+ * @virtual_map: Partial Virtual Bitmap
  *
- * This structure refers to "Traffic Indication Map information element"
+ * This structure represents the payload of the "TIM element" as
+ * described in IEEE Std 802.11-2020 section 9.4.2.5.
  */
 struct ieee80211_tim_ie {
 	u8 dtim_count;
@@ -926,9 +965,17 @@ struct ieee80211_tim_ie {
 } __packed;
 
 /**
- * struct ieee80211_meshconf_ie
+ * struct ieee80211_meshconf_ie - Mesh Configuration element
+ * @meshconf_psel: Active Path Selection Protocol Identifier
+ * @meshconf_pmetric: Active Path Selection Metric Identifier
+ * @meshconf_congest: Congestion Control Mode Identifier
+ * @meshconf_synch: Synchronization Method Identifier
+ * @meshconf_auth: Authentication Protocol Identifier
+ * @meshconf_form: Mesh Formation Info
+ * @meshconf_cap: Mesh Capability (see &enum mesh_config_capab_flags)
  *
- * This structure refers to "Mesh Configuration information element"
+ * This structure represents the payload of the "Mesh Configuration
+ * element" as described in IEEE Std 802.11-2020 section 9.4.2.97.
  */
 struct ieee80211_meshconf_ie {
 	u8 meshconf_psel;
@@ -950,6 +997,9 @@ struct ieee80211_meshconf_ie {
  *	is ongoing
  * @IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL: STA is in deep sleep mode or has
  *	neighbors in deep sleep mode
+ *
+ * Enumerates the "Mesh Capability" as described in IEEE Std
+ * 802.11-2020 section 9.4.2.97.7.
  */
 enum mesh_config_capab_flags {
 	IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS		= 0x01,
@@ -960,7 +1010,7 @@ enum mesh_config_capab_flags {
 
 #define IEEE80211_MESHCONF_FORM_CONNECTED_TO_GATE 0x1
 
-/**
+/*
  * mesh channel switch parameters element's flag indicator
  *
  */
@@ -969,9 +1019,17 @@ enum mesh_config_capab_flags {
 #define WLAN_EID_CHAN_SWITCH_PARAM_REASON BIT(2)
 
 /**
- * struct ieee80211_rann_ie
+ * struct ieee80211_rann_ie - RANN (root announcement) element
+ * @rann_flags: Flags
+ * @rann_hopcount: Hop Count
+ * @rann_ttl: Element TTL
+ * @rann_addr: Root Mesh STA Address
+ * @rann_seq: HWMP Sequence Number
+ * @rann_interval: Interval
+ * @rann_metric: Metric
  *
- * This structure refers to "Root Announcement information element"
+ * This structure represents the payload of the "RANN element" as
+ * described in IEEE Std 802.11-2020 section 9.4.2.111.
  */
 struct ieee80211_rann_ie {
 	u8 rann_flags;
@@ -993,7 +1051,7 @@ enum ieee80211_ht_chanwidth_values {
 };
 
 /**
- * enum ieee80211_opmode_bits - VHT operating mode field bits
+ * enum ieee80211_vht_opmode_bits - VHT operating mode field bits
  * @IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK: channel width mask
  * @IEEE80211_OPMODE_NOTIF_CHANWIDTH_20MHZ: 20 MHz channel width
  * @IEEE80211_OPMODE_NOTIF_CHANWIDTH_40MHZ: 40 MHz channel width
@@ -1042,9 +1100,12 @@ enum ieee80211_s1g_chanwidth {
 #define WLAN_USER_POSITION_LEN 16
 
 /**
- * struct ieee80211_tpc_report_ie
+ * struct ieee80211_tpc_report_ie - TPC Report element
+ * @tx_power: Transmit Power
+ * @link_margin: Link Margin
  *
- * This structure refers to "TPC Report element"
+ * This structure represents the payload of the "TPC Report element" as
+ * described in IEEE Std 802.11-2020 section 9.4.2.16.
  */
 struct ieee80211_tpc_report_ie {
 	u8 tx_power;
@@ -1062,9 +1123,14 @@ struct ieee80211_addba_ext_ie {
 } __packed;
 
 /**
- * struct ieee80211_s1g_bcn_compat_ie
+ * struct ieee80211_s1g_bcn_compat_ie - S1G Beacon Compatibility element
+ * @compat_info: Compatibility Information
+ * @beacon_int: Beacon Interval
+ * @tsf_completion: TSF Completion
  *
- * S1G Beacon Compatibility element
+ * This structure represents the payload of the "S1G Beacon
+ * Compatibility element" as described in IEEE Std 802.11-2020 section
+ * 9.4.2.196.
  */
 struct ieee80211_s1g_bcn_compat_ie {
 	__le16 compat_info;
@@ -1073,9 +1139,15 @@ struct ieee80211_s1g_bcn_compat_ie {
 } __packed;
 
 /**
- * struct ieee80211_s1g_oper_ie
+ * struct ieee80211_s1g_oper_ie - S1G Operation element
+ * @ch_width: S1G Operation Information Channel Width
+ * @oper_class: S1G Operation Information Operating Class
+ * @primary_ch: S1G Operation Information Primary Channel Number
+ * @oper_ch: S1G Operation Information  Channel Center Frequency
+ * @basic_mcs_nss: Basic S1G-MCS and NSS Set
  *
- * S1G Operation element
+ * This structure represents the payload of the "S1G Operation
+ * element" as described in IEEE Std 802.11-2020 section 9.4.2.212.
  */
 struct ieee80211_s1g_oper_ie {
 	u8 ch_width;
@@ -1086,9 +1158,13 @@ struct ieee80211_s1g_oper_ie {
 } __packed;
 
 /**
- * struct ieee80211_aid_response_ie
+ * struct ieee80211_aid_response_ie - AID Response element
+ * @aid: AID/Group AID
+ * @switch_count: AID Switch Count
+ * @response_int: AID Response Interval
  *
- * AID Response element
+ * This structure represents the payload of the "AID Response element"
+ * as described in IEEE Std 802.11-2020 section 9.4.2.194.
  */
 struct ieee80211_aid_response_ie {
 	__le16 aid;
@@ -1489,7 +1565,7 @@ struct ieee80211_tdls_data {
 /*
  * Peer-to-Peer IE attribute related definitions.
  */
-/**
+/*
  * enum ieee80211_p2p_attr_id - identifies type of peer-to-peer attribute.
  */
 enum ieee80211_p2p_attr_id {
@@ -1539,11 +1615,17 @@ struct ieee80211_p2p_noa_attr {
 #define IEEE80211_P2P_OPPPS_CTWINDOW_MASK	0x7F
 
 /**
- * struct ieee80211_bar - HT Block Ack Request
+ * struct ieee80211_bar - Block Ack Request frame format
+ * @frame_control: Frame Control
+ * @duration: Duration
+ * @ra: RA
+ * @ta: TA
+ * @control: BAR Control
+ * @start_seq_num: Starting Sequence Number (see Figure 9-37)
  *
- * This structure refers to "HT BlockAckReq" as
- * described in 802.11n draft section 7.2.1.7.1
- */
+ * This structure represents the "BlockAckReq frame format"
+ * as described in IEEE Std 802.11-2020 section 9.3.1.7.
+*/
 struct ieee80211_bar {
 	__le16 frame_control;
 	__le16 duration;
@@ -1563,13 +1645,17 @@ struct ieee80211_bar {
 #define IEEE80211_HT_MCS_MASK_LEN		10
 
 /**
- * struct ieee80211_mcs_info - MCS information
+ * struct ieee80211_mcs_info - Supported MCS Set field
  * @rx_mask: RX mask
  * @rx_highest: highest supported RX rate. If set represents
  *	the highest supported RX data rate in units of 1 Mbps.
  *	If this field is 0 this value should not be used to
  *	consider the highest RX data rate supported.
  * @tx_params: TX parameters
+ * @reserved: Reserved bits
+ *
+ * This structure represents the "Supported MCS Set field" as
+ * described in IEEE Std 802.11-2020 section 9.4.2.55.4.
  */
 struct ieee80211_mcs_info {
 	u8 rx_mask[IEEE80211_HT_MCS_MASK_LEN];
@@ -1600,10 +1686,16 @@ struct ieee80211_mcs_info {
 	(IEEE80211_HT_MCS_UNEQUAL_MODULATION_START / 8)
 
 /**
- * struct ieee80211_ht_cap - HT capabilities
+ * struct ieee80211_ht_cap - HT capabilities element
+ * @cap_info: HT Capability Information
+ * @ampdu_params_info: A-MPDU Parameters
+ * @mcs: Supported MCS Set
+ * @extended_ht_cap_info: HT Extended Capabilities
+ * @tx_BF_cap_info: Transmit Beamforming Capabilities
+ * @antenna_selection_info: ASEL Capability
  *
- * This structure is the "HT capabilities element" as
- * described in 802.11n D5.0 7.3.2.57
+ * This structure represents the payload of the "HT Capabilities
+ * element" as described in IEEE Std 802.11-2020 section 9.4.2.55.
  */
 struct ieee80211_ht_cap {
 	__le16 cap_info;
@@ -1691,9 +1783,14 @@ enum ieee80211_min_mpdu_spacing {
 
 /**
  * struct ieee80211_ht_operation - HT operation IE
+ * @primary_chan: Primary Channel
+ * @ht_param: HT Operation Information parameters
+ * @operation_mode: HT Operation Information operation mode
+ * @stbc_param: HT Operation Information STBC params
+ * @basic_set: Basic HT-MCS Set
  *
- * This structure is the "HT operation element" as
- * described in 802.11n-2009 7.3.2.57
+ * This structure represents the payload of the "HT Operation
+ * element" as described in IEEE Std 802.11-2020 section 9.4.2.56.
  */
 struct ieee80211_ht_operation {
 	u8 primary_chan;
@@ -1862,9 +1959,12 @@ struct ieee80211_vht_operation {
 
 /**
  * struct ieee80211_he_cap_elem - HE capabilities element
+ * @mac_cap_info: HE MAC Capabilities Information
+ * @phy_cap_info: HE PHY Capabilities Information
  *
- * This structure is the "HE capabilities element" fixed fields as
- * described in P802.11ax_D4.0 section 9.4.2.242.2 and 9.4.2.242.3
+ * This structure represents the fixed fields of the payload of the
+ * "HE capabilities element" as described in IEEE Std 802.11ax-2021
+ * sections 9.4.2.248.2 and 9.4.2.248.3.
  */
 struct ieee80211_he_cap_elem {
 	u8 mac_cap_info[6];
@@ -1923,35 +2023,45 @@ struct ieee80211_he_mcs_nss_supp {
 } __packed;
 
 /**
- * struct ieee80211_he_operation - HE capabilities element
+ * struct ieee80211_he_operation - HE Operation element
+ * @he_oper_params: HE Operation Parameters + BSS Color Information
+ * @he_mcs_nss_set: Basic HE-MCS And NSS Set
+ * @optional: Optional fields VHT Operation Information, Max Co-Hosted
+ *            BSSID Indicator, and 6 GHz Operation Information
  *
- * This structure is the "HE operation element" fields as
- * described in P802.11ax_D4.0 section 9.4.2.243
+ * This structure represents the payload of the "HE Operation
+ * element" as described in IEEE Std 802.11ax-2021 section 9.4.2.249.
  */
 struct ieee80211_he_operation {
 	__le32 he_oper_params;
 	__le16 he_mcs_nss_set;
-	/* Optional 0,1,3,4,5,7 or 8 bytes: depends on @he_oper_params */
 	u8 optional[];
 } __packed;
 
 /**
- * struct ieee80211_he_spr - HE spatial reuse element
+ * struct ieee80211_he_spr - Spatial Reuse Parameter Set element
+ * @he_sr_control: SR Control
+ * @optional: Optional fields Non-SRG OBSS PD Max Offset, SRG OBSS PD
+ *            Min Offset, SRG OBSS PD Max Offset, SRG BSS Color
+ *            Bitmap, and SRG Partial BSSID Bitmap
  *
- * This structure is the "HE spatial reuse element" element as
- * described in P802.11ax_D4.0 section 9.4.2.241
+ * This structure represents the payload of the "Spatial Reuse
+ * Parameter Set element" as described in IEEE Std 802.11ax-2021
+ * section 9.4.2.252.
  */
 struct ieee80211_he_spr {
 	u8 he_sr_control;
-	/* Optional 0 to 19 bytes: depends on @he_sr_control */
 	u8 optional[];
 } __packed;
 
 /**
  * struct ieee80211_he_mu_edca_param_ac_rec - MU AC Parameter Record field
+ * @aifsn: ACI/AIFSN
+ * @ecw_min_max: ECWmin/ECWmax
+ * @mu_edca_timer: MU EDCA Timer
  *
- * This structure is the "MU AC Parameter Record" fields as
- * described in P802.11ax_D4.0 section 9.4.2.245
+ * This structure represents the "MU AC Parameter Record" as described
+ * in IEEE Std 802.11ax-2021 section 9.4.2.251, Figure 9-788p.
  */
 struct ieee80211_he_mu_edca_param_ac_rec {
 	u8 aifsn;
@@ -1961,9 +2071,14 @@ struct ieee80211_he_mu_edca_param_ac_rec {
 
 /**
  * struct ieee80211_mu_edca_param_set - MU EDCA Parameter Set element
+ * @mu_qos_info: QoS Info
+ * @ac_be: MU AC_BE Parameter Record
+ * @ac_bk: MU AC_BK Parameter Record
+ * @ac_vi: MU AC_VI Parameter Record
+ * @ac_vo: MU AC_VO Parameter Record
  *
- * This structure is the "MU EDCA Parameter Set element" fields as
- * described in P802.11ax_D4.0 section 9.4.2.245
+ * This structure represents the payload of the "MU EDCA Parameter Set
+ * element" as described in IEEE Std 802.11ax-2021 section 9.4.2.251.
  */
 struct ieee80211_mu_edca_param_set {
 	u8 mu_qos_info;
@@ -2177,9 +2292,9 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
  * enum ieee80211_ap_reg_power - regulatory power for a Access Point
  *
  * @IEEE80211_REG_UNSET_AP: Access Point has no regulatory power mode
- * @IEEE80211_REG_LPI: Indoor Access Point
- * @IEEE80211_REG_SP: Standard power Access Point
- * @IEEE80211_REG_VLP: Very low power Access Point
+ * @IEEE80211_REG_LPI_AP: Indoor Access Point
+ * @IEEE80211_REG_SP_AP: Standard power Access Point
+ * @IEEE80211_REG_VLP_AP: Very low power Access Point
  * @IEEE80211_REG_AP_POWER_AFTER_LAST: internal
  * @IEEE80211_REG_AP_POWER_MAX: maximum value
  */
@@ -2567,7 +2682,7 @@ static inline bool ieee80211_he_capa_size_ok(const u8 *data, u8 len)
 #define IEEE80211_6GHZ_CTRL_REG_SP_AP	1
 
 /**
- * ieee80211_he_6ghz_oper - HE 6 GHz operation Information field
+ * struct ieee80211_he_6ghz_oper - HE 6 GHz operation Information field
  * @primary: primary channel
  * @control: control flags
  * @ccfs0: channel center frequency segment 0
@@ -2614,9 +2729,13 @@ enum ieee80211_tx_power_intrpt_type {
 };
 
 /**
- * struct ieee80211_tx_pwr_env
+ * struct ieee80211_tx_pwr_env - Transmit Power Envelope
+ * @tx_power_info: Transmit Power Information field
+ * @tx_power: Maximum Transmit Power field
  *
- * This structure represents the "Transmit Power Envelope element"
+ * This structure represents the payload of the "Transmit Power
+ * Envelope element" as described in IEEE Std 802.11ax-2021 section
+ * 9.4.2.161
  */
 struct ieee80211_tx_pwr_env {
 	u8 tx_power_info;
@@ -4478,7 +4597,7 @@ static inline bool for_each_element_completed(const struct element *element,
 	return (const u8 *)element == (const u8 *)data + datalen;
 }
 
-/**
+/*
  * RSNX Capabilities:
  * bits 0-3: Field length (n-1)
  */
@@ -4721,7 +4840,7 @@ ieee80211_mle_get_bss_param_ch_cnt(const struct ieee80211_multi_link_elem *mle)
 }
 
 /**
- * ieee80211_mle_get_eml_sync_delay - returns the medium sync delay
+ * ieee80211_mle_get_eml_med_sync_delay - returns the medium sync delay
  * @data: pointer to the multi link EHT IE
  *
  * The element is assumed to be of the correct type (BASIC) and big enough,

@@ -139,7 +139,7 @@ void test_mmap(unsigned long size, unsigned flags)
 		before, after, before - after, size);
 	assert(size == getpagesize() || (before - after) == NUM_PAGES);
 	show(size);
-	err = munmap(map, size);
+	err = munmap(map, size * NUM_PAGES);
 	assert(!err);
 }
 
@@ -222,7 +222,7 @@ int main(void)
 		test_mmap(ps, MAP_HUGETLB | arg);
 	}
 	printf("Testing default huge mmap\n");
-	test_mmap(default_hps, SHM_HUGETLB);
+	test_mmap(default_hps, MAP_HUGETLB);
 
 	puts("Testing non-huge shmget");
 	test_shmget(getpagesize(), 0);

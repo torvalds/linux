@@ -649,13 +649,8 @@ static int f2fs_compress_pages(struct compress_ctx *cc)
 		goto destroy_compress_ctx;
 	}
 
-	for (i = 0; i < cc->nr_cpages; i++) {
+	for (i = 0; i < cc->nr_cpages; i++)
 		cc->cpages[i] = f2fs_compress_alloc_page();
-		if (!cc->cpages[i]) {
-			ret = -ENOMEM;
-			goto out_free_cpages;
-		}
-	}
 
 	cc->rbuf = f2fs_vmap(cc->rpages, cc->cluster_size);
 	if (!cc->rbuf) {
@@ -1574,8 +1569,6 @@ static int f2fs_prepare_decomp_mem(struct decompress_io_ctx *dic,
 		}
 
 		dic->tpages[i] = f2fs_compress_alloc_page();
-		if (!dic->tpages[i])
-			return -ENOMEM;
 	}
 
 	dic->rbuf = f2fs_vmap(dic->tpages, dic->cluster_size);
@@ -1656,11 +1649,6 @@ struct decompress_io_ctx *f2fs_alloc_dic(struct compress_ctx *cc)
 		struct page *page;
 
 		page = f2fs_compress_alloc_page();
-		if (!page) {
-			ret = -ENOMEM;
-			goto out_free;
-		}
-
 		f2fs_set_compressed_page(page, cc->inode,
 					start_idx + i + 1, dic);
 		dic->cpages[i] = page;

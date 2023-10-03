@@ -188,7 +188,7 @@ static int kexec_file_add_ipl_report(struct kimage *image,
 	data->memsz = ALIGN(data->memsz, PAGE_SIZE);
 	buf.mem = data->memsz;
 
-	ptr = (void *)ipl_cert_list_addr;
+	ptr = __va(ipl_cert_list_addr);
 	end = ptr + ipl_cert_list_size;
 	ncerts = 0;
 	while (ptr < end) {
@@ -200,7 +200,7 @@ static int kexec_file_add_ipl_report(struct kimage *image,
 
 	addr = data->memsz + data->report->size;
 	addr += ncerts * sizeof(struct ipl_rb_certificate_entry);
-	ptr = (void *)ipl_cert_list_addr;
+	ptr = __va(ipl_cert_list_addr);
 	while (ptr < end) {
 		len = *(unsigned int *)ptr;
 		ptr += sizeof(len);

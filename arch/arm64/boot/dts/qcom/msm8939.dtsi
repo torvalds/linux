@@ -55,6 +55,7 @@
 			L2_1: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 			};
 		};
 
@@ -111,6 +112,7 @@
 			L2_0: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 			};
 		};
 
@@ -155,7 +157,7 @@
 
 		idle-states {
 			CPU_SLEEP_0: cpu-sleep-0 {
-				compatible ="qcom,idle-state-spc", "arm,idle-state";
+				compatible = "arm,idle-state";
 				entry-latency-us = <130>;
 				exit-latency-us = <150>;
 				min-residency-us = <2000>;
@@ -240,6 +242,62 @@
 		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
+	rpm: remoteproc {
+		compatible = "qcom,msm8936-rpm-proc", "qcom,rpm-proc";
+
+		smd-edge {
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			qcom,ipc = <&apcs1_mbox 8 0>;
+			qcom,smd-edge = <15>;
+
+			rpm_requests: rpm-requests {
+				compatible = "qcom,rpm-msm8936";
+				qcom,smd-channels = "rpm_requests";
+
+				rpmcc: clock-controller {
+					compatible = "qcom,rpmcc-msm8936", "qcom,rpmcc";
+					#clock-cells = <1>;
+					clock-names = "xo";
+					clocks = <&xo_board>;
+				};
+
+				rpmpd: power-controller {
+					compatible = "qcom,msm8939-rpmpd";
+					#power-domain-cells = <1>;
+					operating-points-v2 = <&rpmpd_opp_table>;
+
+					rpmpd_opp_table: opp-table {
+						compatible = "operating-points-v2";
+
+						rpmpd_opp_ret: opp1 {
+							opp-level = <1>;
+						};
+
+						rpmpd_opp_svs_krait: opp2 {
+							opp-level = <2>;
+						};
+
+						rpmpd_opp_svs_soc: opp3 {
+							opp-level = <3>;
+						};
+
+						rpmpd_opp_nom: opp4 {
+							opp-level = <4>;
+						};
+
+						rpmpd_opp_turbo: opp5 {
+							opp-level = <5>;
+						};
+
+						rpmpd_opp_super_turbo: opp6 {
+							opp-level = <6>;
+						};
+					};
+				};
+			};
+		};
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -308,62 +366,6 @@
 		};
 	};
 
-	smd {
-		compatible = "qcom,smd";
-
-		rpm {
-			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
-			qcom,ipc = <&apcs1_mbox 8 0>;
-			qcom,smd-edge = <15>;
-
-			rpm_requests: rpm-requests {
-				compatible = "qcom,rpm-msm8936";
-				qcom,smd-channels = "rpm_requests";
-
-				rpmcc: clock-controller {
-					compatible = "qcom,rpmcc-msm8936", "qcom,rpmcc";
-					#clock-cells = <1>;
-					clock-names = "xo";
-					clocks = <&xo_board>;
-				};
-
-				rpmpd: power-controller {
-					compatible = "qcom,msm8939-rpmpd";
-					#power-domain-cells = <1>;
-					operating-points-v2 = <&rpmpd_opp_table>;
-
-					rpmpd_opp_table: opp-table {
-						compatible = "operating-points-v2";
-
-						rpmpd_opp_ret: opp1 {
-							opp-level = <1>;
-						};
-
-						rpmpd_opp_svs_krait: opp2 {
-							opp-level = <2>;
-						};
-
-						rpmpd_opp_svs_soc: opp3 {
-							opp-level = <3>;
-						};
-
-						rpmpd_opp_nom: opp4 {
-							opp-level = <4>;
-						};
-
-						rpmpd_opp_turbo: opp5 {
-							opp-level = <5>;
-						};
-
-						rpmpd_opp_super_turbo: opp6 {
-							opp-level = <6>;
-						};
-					};
-				};
-			};
-		};
-	};
-
 	smp2p-hexagon {
 		compatible = "qcom,smp2p";
 		qcom,smem = <435>, <428>;
@@ -386,8 +388,6 @@
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			#address-cells = <0>;
-			#size-cells = <0>;
 		};
 	};
 
@@ -1644,7 +1644,7 @@
 			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
 				 <&gcc GCC_SDCC2_APPS_CLK>,
 				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
-			clock-names =  "iface", "core", "xo";
+			clock-names = "iface", "core", "xo";
 			resets = <&gcc GCC_SDCC2_BCR>;
 			pinctrl-0 = <&sdc2_default>;
 			pinctrl-1 = <&sdc2_sleep>;
@@ -1731,7 +1731,7 @@
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
-			clock-names =  "core", "iface";
+			clock-names = "core", "iface";
 			dmas = <&blsp_dma 6>, <&blsp_dma 7>;
 			dma-names = "tx", "rx";
 			pinctrl-0 = <&blsp_i2c2_default>;
@@ -1765,7 +1765,7 @@
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
-			clock-names =  "core", "iface";
+			clock-names = "core", "iface";
 			dmas = <&blsp_dma 8>, <&blsp_dma 9>;
 			dma-names = "tx", "rx";
 			pinctrl-0 = <&blsp_i2c3_default>;
@@ -1799,7 +1799,7 @@
 			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP4_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
-			clock-names =  "core", "iface";
+			clock-names = "core", "iface";
 			dmas = <&blsp_dma 10>, <&blsp_dma 11>;
 			dma-names = "tx", "rx";
 			pinctrl-0 = <&blsp_i2c4_default>;
@@ -1833,7 +1833,7 @@
 			interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP5_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
-			clock-names =  "core", "iface";
+			clock-names = "core", "iface";
 			dmas = <&blsp_dma 12>, <&blsp_dma 13>;
 			dma-names = "tx", "rx";
 			pinctrl-0 = <&blsp_i2c5_default>;
@@ -1867,7 +1867,7 @@
 			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP6_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
-			clock-names =  "core", "iface";
+			clock-names = "core", "iface";
 			dmas = <&blsp_dma 14>, <&blsp_dma 15>;
 			dma-names = "tx", "rx";
 			pinctrl-0 = <&blsp_i2c6_default>;
@@ -1975,7 +1975,7 @@
 			};
 
 			smd-edge {
-				interrupts = <GIC_SPI 142 1>;
+				interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
 				qcom,ipc = <&apcs1_mbox 8 17>;
 				qcom,smd-edge = <6>;
 				qcom,remote-pid = <4>;

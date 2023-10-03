@@ -3,7 +3,7 @@
 .. include:: ../disclaimer-zh_TW.rst
 
 :Original: :doc:`../../../admin-guide/index`
-:Translator: 胡皓文 Hu Haowen <src.res@email.cn>
+:Translator: 胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 Linux 內核用戶和管理員指南
 ==========================

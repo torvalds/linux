@@ -460,45 +460,18 @@ static const struct super_operations hypfs_s_ops = {
 	.show_options	= hypfs_show_options,
 };
 
-static int __init hypfs_init(void)
+int __init __hypfs_fs_init(void)
 {
 	int rc;
 
-	hypfs_dbfs_init();
-
-	if (hypfs_diag_init()) {
-		rc = -ENODATA;
-		goto fail_dbfs_exit;
-	}
-	if (hypfs_vm_init()) {
-		rc = -ENODATA;
-		goto fail_hypfs_diag_exit;
-	}
-	hypfs_sprp_init();
-	if (hypfs_diag0c_init()) {
-		rc = -ENODATA;
-		goto fail_hypfs_sprp_exit;
-	}
 	rc = sysfs_create_mount_point(hypervisor_kobj, "s390");
 	if (rc)
-		goto fail_hypfs_diag0c_exit;
+		return rc;
 	rc = register_filesystem(&hypfs_type);
 	if (rc)
-		goto fail_filesystem;
+		goto fail;
 	return 0;
-
-fail_filesystem:
+fail:
 	sysfs_remove_mount_point(hypervisor_kobj, "s390");
-fail_hypfs_diag0c_exit:
-	hypfs_diag0c_exit();
-fail_hypfs_sprp_exit:
-	hypfs_sprp_exit();
-	hypfs_vm_exit();
-fail_hypfs_diag_exit:
-	hypfs_diag_exit();
-	pr_err("Initialization of hypfs failed with rc=%i\n", rc);
-fail_dbfs_exit:
-	hypfs_dbfs_exit();
 	return rc;
 }
-device_initcall(hypfs_init)

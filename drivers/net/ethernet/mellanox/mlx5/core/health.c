@@ -50,20 +50,6 @@ enum {
 };
 
 enum {
-	MLX5_HEALTH_SYNDR_FW_ERR		= 0x1,
-	MLX5_HEALTH_SYNDR_IRISC_ERR		= 0x7,
-	MLX5_HEALTH_SYNDR_HW_UNRECOVERABLE_ERR	= 0x8,
-	MLX5_HEALTH_SYNDR_CRC_ERR		= 0x9,
-	MLX5_HEALTH_SYNDR_FETCH_PCI_ERR		= 0xa,
-	MLX5_HEALTH_SYNDR_HW_FTL_ERR		= 0xb,
-	MLX5_HEALTH_SYNDR_ASYNC_EQ_OVERRUN_ERR	= 0xc,
-	MLX5_HEALTH_SYNDR_EQ_ERR		= 0xd,
-	MLX5_HEALTH_SYNDR_EQ_INV		= 0xe,
-	MLX5_HEALTH_SYNDR_FFSER_ERR		= 0xf,
-	MLX5_HEALTH_SYNDR_HIGH_TEMP		= 0x10
-};
-
-enum {
 	MLX5_DROP_HEALTH_WORK,
 };
 
@@ -357,27 +343,27 @@ static int mlx5_health_try_recover(struct mlx5_core_dev *dev)
 static const char *hsynd_str(u8 synd)
 {
 	switch (synd) {
-	case MLX5_HEALTH_SYNDR_FW_ERR:
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_FW_INTERNAL_ERR:
 		return "firmware internal error";
-	case MLX5_HEALTH_SYNDR_IRISC_ERR:
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_DEAD_IRISC:
 		return "irisc not responding";
-	case MLX5_HEALTH_SYNDR_HW_UNRECOVERABLE_ERR:
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_HW_FATAL_ERR:
 		return "unrecoverable hardware error";
-	case MLX5_HEALTH_SYNDR_CRC_ERR:
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_FW_CRC_ERR:
 		return "firmware CRC error";
-	case MLX5_HEALTH_SYNDR_FETCH_PCI_ERR:
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_ICM_FETCH_PCI_ERR:
 		return "ICM fetch PCI error";
-	case MLX5_HEALTH_SYNDR_HW_FTL_ERR:
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_ICM_PAGE_ERR:
 		return "HW fatal error\n";
-	case MLX5_HEALTH_SYNDR_ASYNC_EQ_OVERRUN_ERR:
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_ASYNCHRONOUS_EQ_BUF_OVERRUN:
 		return "async EQ buffer overrun";
-	case MLX5_HEALTH_SYNDR_EQ_ERR:
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_EQ_IN_ERR:
 		return "EQ error";
-	case MLX5_HEALTH_SYNDR_EQ_INV:
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_EQ_INV:
 		return "Invalid EQ referenced";
-	case MLX5_HEALTH_SYNDR_FFSER_ERR:
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_FFSER_ERR:
 		return "FFSER error";
-	case MLX5_HEALTH_SYNDR_HIGH_TEMP:
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_HIGH_TEMP_ERR:
 		return "High temperature";
 	default:
 		return "unrecognized error";

@@ -110,9 +110,9 @@ bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev,
  * The bitmask of CUs to be disabled in the shader array determined by se and
  * sh is stored in mask[se * max_sh + sh].
  */
-void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se, unsigned max_sh)
+void amdgpu_gfx_parse_disable_cu(unsigned int *mask, unsigned int max_se, unsigned int max_sh)
 {
-	unsigned se, sh, cu;
+	unsigned int se, sh, cu;
 	const char *p;
 
 	memset(mask, 0, sizeof(*mask) * max_se * max_sh);
@@ -124,6 +124,7 @@ void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se, unsigned max_s
 	for (;;) {
 		char *next;
 		int ret = sscanf(p, "%u.%u.%u", &se, &sh, &cu);
+
 		if (ret < 3) {
 			DRM_ERROR("amdgpu: could not parse disable_cu\n");
 			return;
@@ -349,7 +350,7 @@ void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev, int xcc_id)
 }
 
 int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
-			unsigned hpd_size, int xcc_id)
+			unsigned int hpd_size, int xcc_id)
 {
 	int r;
 	u32 *hpd;
@@ -376,7 +377,7 @@ int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
 
 /* create MQD for each compute/gfx queue */
 int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
-			   unsigned mqd_size, int xcc_id)
+			   unsigned int mqd_size, int xcc_id)
 {
 	int r, i, j;
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
@@ -407,8 +408,11 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 
 		/* prepare MQD backup */
 		kiq->mqd_backup = kmalloc(mqd_size, GFP_KERNEL);
-		if (!kiq->mqd_backup)
-				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
+		if (!kiq->mqd_backup) {
+			dev_warn(adev->dev,
+				 "no memory to create MQD backup for ring %s\n", ring->name);
+			return -ENOMEM;
+		}
 	}
 
 	if (adev->asic_type >= CHIP_NAVI10 && amdgpu_async_gfx_ring) {
@@ -427,8 +431,10 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 				ring->mqd_size = mqd_size;
 				/* prepare MQD backup */
 				adev->gfx.me.mqd_backup[i] = kmalloc(mqd_size, GFP_KERNEL);
-				if (!adev->gfx.me.mqd_backup[i])
+				if (!adev->gfx.me.mqd_backup[i]) {
 					dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
+					return -ENOMEM;
+				}
 			}
 		}
 	}
@@ -449,8 +455,10 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 			ring->mqd_size = mqd_size;
 			/* prepare MQD backup */
 			adev->gfx.mec.mqd_backup[j] = kmalloc(mqd_size, GFP_KERNEL);
-			if (!adev->gfx.mec.mqd_backup[j])
+			if (!adev->gfx.mec.mqd_backup[j]) {
 				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
+				return -ENOMEM;
+			}
 		}
 	}
 
@@ -1274,11 +1282,11 @@ static ssize_t amdgpu_gfx_get_available_compute_partition(struct device *dev,
 	return sysfs_emit(buf, "%s\n", supported_partition);
 }
 
-static DEVICE_ATTR(current_compute_partition, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(current_compute_partition, 0644,
 		   amdgpu_gfx_get_current_compute_partition,
 		   amdgpu_gfx_set_compute_partition);
 
-static DEVICE_ATTR(available_compute_partition, S_IRUGO,
+static DEVICE_ATTR(available_compute_partition, 0444,
 		   amdgpu_gfx_get_available_compute_partition, NULL);
 
 int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)

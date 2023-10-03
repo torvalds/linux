@@ -5,6 +5,7 @@
  * Copyright (C) 2021 Texas Instruments Incorporated - https://www.ti.com
  *
  */
+#include <linux/of.h>
 #include<linux/phy/phy.h>
 #include<linux/platform_device.h>
 #include<linux/module.h>

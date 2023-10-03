@@ -20,6 +20,7 @@
 #include "super.h"
 #include "mds_client.h"
 #include "cache.h"
+#include "crypto.h"
 
 #include <linux/ceph/ceph_features.h>
 #include <linux/ceph/decode.h>
@@ -46,6 +47,7 @@ static void ceph_put_super(struct super_block *s)
 	struct ceph_fs_client *fsc = ceph_sb_to_client(s);
 
 	dout("put_super\n");
+	ceph_fscrypt_free_dummy_policy(fsc);
 	ceph_mdsc_close_sessions(fsc->mdsc);
 }
 
@@ -151,6 +153,7 @@ enum {
 	Opt_recover_session,
 	Opt_source,
 	Opt_mon_addr,
+	Opt_test_dummy_encryption,
 	/* string args above */
 	Opt_dirstat,
 	Opt_rbytes,
@@ -165,6 +168,7 @@ enum {
 	Opt_copyfrom,
 	Opt_wsync,
 	Opt_pagecache,
+	Opt_sparseread,
 };
 
 enum ceph_recover_session_mode {
@@ -192,6 +196,7 @@ static const struct fs_parameter_spec ceph_mount_parameters[] = {
 	fsparam_string	("fsc",				Opt_fscache), // fsc=...
 	fsparam_flag_no ("ino32",			Opt_ino32),
 	fsparam_string	("mds_namespace",		Opt_mds_namespace),
+	fsparam_string	("mon_addr",			Opt_mon_addr),
 	fsparam_flag_no ("poolperm",			Opt_poolperm),
 	fsparam_flag_no ("quotadf",			Opt_quotadf),
 	fsparam_u32	("rasize",			Opt_rasize),
@@ -203,10 +208,12 @@ static const struct fs_parameter_spec ceph_mount_parameters[] = {
 	fsparam_u32	("rsize",			Opt_rsize),
 	fsparam_string	("snapdirname",			Opt_snapdirname),
 	fsparam_string	("source",			Opt_source),
-	fsparam_string	("mon_addr",			Opt_mon_addr),
+	fsparam_flag	("test_dummy_encryption",	Opt_test_dummy_encryption),
+	fsparam_string	("test_dummy_encryption",	Opt_test_dummy_encryption),
 	fsparam_u32	("wsize",			Opt_wsize),
 	fsparam_flag_no	("wsync",			Opt_wsync),
 	fsparam_flag_no	("pagecache",			Opt_pagecache),
+	fsparam_flag_no	("sparseread",			Opt_sparseread),
 	{}
 };
 
@@ -576,6 +583,29 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		else
 			fsopt->flags &= ~CEPH_MOUNT_OPT_NOPAGECACHE;
 		break;
+	case Opt_sparseread:
+		if (result.negated)
+			fsopt->flags &= ~CEPH_MOUNT_OPT_SPARSEREAD;
+		else
+			fsopt->flags |= CEPH_MOUNT_OPT_SPARSEREAD;
+		break;
+	case Opt_test_dummy_encryption:
+#ifdef CONFIG_FS_ENCRYPTION
+		fscrypt_free_dummy_policy(&fsopt->dummy_enc_policy);
+		ret = fscrypt_parse_test_dummy_encryption(param,
+						&fsopt->dummy_enc_policy);
+		if (ret == -EINVAL) {
+			warnfc(fc, "Value of option \"%s\" is unrecognized",
+			       param->key);
+		} else if (ret == -EEXIST) {
+			warnfc(fc, "Conflicting test_dummy_encryption options");
+			ret = -EINVAL;
+		}
+#else
+		warnfc(fc,
+		       "FS encryption not supported: test_dummy_encryption mount option ignored");
+#endif
+		break;
 	default:
 		BUG();
 	}
@@ -596,6 +626,7 @@ static void destroy_mount_options(struct ceph_mount_options *args)
 	kfree(args->server_path);
 	kfree(args->fscache_uniq);
 	kfree(args->mon_addr);
+	fscrypt_free_dummy_policy(&args->dummy_enc_policy);
 	kfree(args);
 }
 
@@ -710,9 +741,12 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 
 	if (!(fsopt->flags & CEPH_MOUNT_OPT_ASYNC_DIROPS))
 		seq_puts(m, ",wsync");
-
 	if (fsopt->flags & CEPH_MOUNT_OPT_NOPAGECACHE)
 		seq_puts(m, ",nopagecache");
+	if (fsopt->flags & CEPH_MOUNT_OPT_SPARSEREAD)
+		seq_puts(m, ",sparseread");
+
+	fscrypt_show_test_dummy_encryption(m, ',', root->d_sb);
 
 	if (fsopt->wsize != CEPH_MAX_WRITE_SIZE)
 		seq_printf(m, ",wsize=%u", fsopt->wsize);
@@ -1052,6 +1086,50 @@ out:
 	return root;
 }
 
+#ifdef CONFIG_FS_ENCRYPTION
+static int ceph_apply_test_dummy_encryption(struct super_block *sb,
+					    struct fs_context *fc,
+					    struct ceph_mount_options *fsopt)
+{
+	struct ceph_fs_client *fsc = sb->s_fs_info;
+
+	if (!fscrypt_is_dummy_policy_set(&fsopt->dummy_enc_policy))
+		return 0;
+
+	/* No changing encryption context on remount. */
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE &&
+	    !fscrypt_is_dummy_policy_set(&fsc->fsc_dummy_enc_policy)) {
+		if (fscrypt_dummy_policies_equal(&fsopt->dummy_enc_policy,
+						 &fsc->fsc_dummy_enc_policy))
+			return 0;
+		errorfc(fc, "Can't set test_dummy_encryption on remount");
+		return -EINVAL;
+	}
+
+	/* Also make sure fsopt doesn't contain a conflicting value. */
+	if (fscrypt_is_dummy_policy_set(&fsc->fsc_dummy_enc_policy)) {
+		if (fscrypt_dummy_policies_equal(&fsopt->dummy_enc_policy,
+						 &fsc->fsc_dummy_enc_policy))
+			return 0;
+		errorfc(fc, "Conflicting test_dummy_encryption options");
+		return -EINVAL;
+	}
+
+	fsc->fsc_dummy_enc_policy = fsopt->dummy_enc_policy;
+	memset(&fsopt->dummy_enc_policy, 0, sizeof(fsopt->dummy_enc_policy));
+
+	warnfc(fc, "test_dummy_encryption mode enabled");
+	return 0;
+}
+#else
+static int ceph_apply_test_dummy_encryption(struct super_block *sb,
+					    struct fs_context *fc,
+					    struct ceph_mount_options *fsopt)
+{
+	return 0;
+}
+#endif
+
 /*
  * mount: join the ceph cluster, and open root directory.
  */
@@ -1080,6 +1158,11 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
 				goto out;
 		}
 
+		err = ceph_apply_test_dummy_encryption(fsc->sb, fc,
+						       fsc->mount_options);
+		if (err)
+			goto out;
+
 		dout("mount opening path '%s'\n", path);
 
 		ceph_fs_debugfs_init(fsc);
@@ -1101,6 +1184,7 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
 
 out:
 	mutex_unlock(&fsc->client->mount_mutex);
+	ceph_fscrypt_free_dummy_policy(fsc);
 	return ERR_PTR(err);
 }
 
@@ -1125,6 +1209,8 @@ static int ceph_set_super(struct super_block *s, struct fs_context *fc)
 	s->s_time_min = 0;
 	s->s_time_max = U32_MAX;
 	s->s_flags |= SB_NODIRATIME | SB_NOATIME;
+
+	ceph_fscrypt_set_ops(s);
 
 	ret = set_anon_super_fc(s, fc);
 	if (ret != 0)
@@ -1287,14 +1373,25 @@ static void ceph_free_fc(struct fs_context *fc)
 
 static int ceph_reconfigure_fc(struct fs_context *fc)
 {
+	int err;
 	struct ceph_parse_opts_ctx *pctx = fc->fs_private;
 	struct ceph_mount_options *fsopt = pctx->opts;
-	struct ceph_fs_client *fsc = ceph_sb_to_client(fc->root->d_sb);
+	struct super_block *sb = fc->root->d_sb;
+	struct ceph_fs_client *fsc = ceph_sb_to_client(sb);
+
+	err = ceph_apply_test_dummy_encryption(sb, fc, fsopt);
+	if (err)
+		return err;
 
 	if (fsopt->flags & CEPH_MOUNT_OPT_ASYNC_DIROPS)
 		ceph_set_mount_opt(fsc, ASYNC_DIROPS);
 	else
 		ceph_clear_mount_opt(fsc, ASYNC_DIROPS);
+
+	if (fsopt->flags & CEPH_MOUNT_OPT_SPARSEREAD)
+		ceph_set_mount_opt(fsc, SPARSEREAD);
+	else
+		ceph_clear_mount_opt(fsc, SPARSEREAD);
 
 	if (strcmp_null(fsc->mount_options->mon_addr, fsopt->mon_addr)) {
 		kfree(fsc->mount_options->mon_addr);
@@ -1303,7 +1400,7 @@ static int ceph_reconfigure_fc(struct fs_context *fc)
 		pr_notice("ceph: monitor addresses recorded, but not used for reconnection");
 	}
 
-	sync_filesystem(fc->root->d_sb);
+	sync_filesystem(sb);
 	return 0;
 }
 
@@ -1365,25 +1462,101 @@ nomem:
 	return -ENOMEM;
 }
 
+/*
+ * Return true if it successfully increases the blocker counter,
+ * or false if the mdsc is in stopping and flushed state.
+ */
+static bool __inc_stopping_blocker(struct ceph_mds_client *mdsc)
+{
+	spin_lock(&mdsc->stopping_lock);
+	if (mdsc->stopping >= CEPH_MDSC_STOPPING_FLUSHING) {
+		spin_unlock(&mdsc->stopping_lock);
+		return false;
+	}
+	atomic_inc(&mdsc->stopping_blockers);
+	spin_unlock(&mdsc->stopping_lock);
+	return true;
+}
+
+static void __dec_stopping_blocker(struct ceph_mds_client *mdsc)
+{
+	spin_lock(&mdsc->stopping_lock);
+	if (!atomic_dec_return(&mdsc->stopping_blockers) &&
+	    mdsc->stopping >= CEPH_MDSC_STOPPING_FLUSHING)
+		complete_all(&mdsc->stopping_waiter);
+	spin_unlock(&mdsc->stopping_lock);
+}
+
+/* For metadata IO requests */
+bool ceph_inc_mds_stopping_blocker(struct ceph_mds_client *mdsc,
+				   struct ceph_mds_session *session)
+{
+	mutex_lock(&session->s_mutex);
+	inc_session_sequence(session);
+	mutex_unlock(&session->s_mutex);
+
+	return __inc_stopping_blocker(mdsc);
+}
+
+void ceph_dec_mds_stopping_blocker(struct ceph_mds_client *mdsc)
+{
+	__dec_stopping_blocker(mdsc);
+}
+
+/* For data IO requests */
+bool ceph_inc_osd_stopping_blocker(struct ceph_mds_client *mdsc)
+{
+	return __inc_stopping_blocker(mdsc);
+}
+
+void ceph_dec_osd_stopping_blocker(struct ceph_mds_client *mdsc)
+{
+	__dec_stopping_blocker(mdsc);
+}
+
 static void ceph_kill_sb(struct super_block *s)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(s);
+	struct ceph_mds_client *mdsc = fsc->mdsc;
+	bool wait;
 
 	dout("kill_sb %p\n", s);
 
-	ceph_mdsc_pre_umount(fsc->mdsc);
+	ceph_mdsc_pre_umount(mdsc);
 	flush_fs_workqueues(fsc);
 
 	/*
 	 * Though the kill_anon_super() will finally trigger the
-	 * sync_filesystem() anyway, we still need to do it here
-	 * and then bump the stage of shutdown to stop the work
-	 * queue as earlier as possible.
+	 * sync_filesystem() anyway, we still need to do it here and
+	 * then bump the stage of shutdown. This will allow us to
+	 * drop any further message, which will increase the inodes'
+	 * i_count reference counters but makes no sense any more,
+	 * from MDSs.
+	 *
+	 * Without this when evicting the inodes it may fail in the
+	 * kill_anon_super(), which will trigger a warning when
+	 * destroying the fscrypt keyring and then possibly trigger
+	 * a further crash in ceph module when the iput() tries to
+	 * evict the inodes later.
 	 */
 	sync_filesystem(s);
 
-	fsc->mdsc->stopping = CEPH_MDSC_STOPPING_FLUSHED;
+	spin_lock(&mdsc->stopping_lock);
+	mdsc->stopping = CEPH_MDSC_STOPPING_FLUSHING;
+	wait = !!atomic_read(&mdsc->stopping_blockers);
+	spin_unlock(&mdsc->stopping_lock);
 
+	if (wait && atomic_read(&mdsc->stopping_blockers)) {
+		long timeleft = wait_for_completion_killable_timeout(
+					&mdsc->stopping_waiter,
+					fsc->client->options->mount_timeout);
+		if (!timeleft) /* timed out */
+			pr_warn("umount timed out, %ld\n", timeleft);
+		else if (timeleft < 0) /* killed */
+			pr_warn("umount was killed, %ld\n", timeleft);
+	}
+
+	mdsc->stopping = CEPH_MDSC_STOPPING_FLUSHED;
 	kill_anon_super(s);
 
 	fsc->client->extra_mon_dispatch = NULL;

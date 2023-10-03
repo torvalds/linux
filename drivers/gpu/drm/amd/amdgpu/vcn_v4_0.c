@@ -169,6 +169,12 @@ static int vcn_v4_0_sw_init(void *handle)
 		fw_shared->smu_dpm_interface.smu_interface_type = (adev->flags & AMD_IS_APU) ?
 			AMDGPU_VCN_SMU_DPM_INTERFACE_APU : AMDGPU_VCN_SMU_DPM_INTERFACE_DGPU;
 
+		if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(4, 0, 2)) {
+			fw_shared->present_flag_0 |= AMDGPU_FW_SHARED_FLAG_0_DRM_KEY_INJECT;
+			fw_shared->drm_key_wa.method =
+				AMDGPU_DRM_KEY_INJECT_WORKAROUND_VCNFW_ASD_HANDSHAKING;
+		}
+
 		if (amdgpu_sriov_vf(adev))
 			fw_shared->present_flag_0 |= cpu_to_le32(AMDGPU_VCN_VF_RB_SETUP_FLAG);
 
@@ -993,9 +999,7 @@ static int vcn_v4_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 
 
 	if (indirect)
-		psp_update_vcn_sram(adev, inst_idx, adev->vcn.inst[inst_idx].dpg_sram_gpu_addr,
-			(uint32_t)((uintptr_t)adev->vcn.inst[inst_idx].dpg_sram_curr_addr -
-				(uintptr_t)adev->vcn.inst[inst_idx].dpg_sram_cpu_addr));
+		amdgpu_vcn_psp_update_sram(adev, inst_idx, 0);
 
 	ring = &adev->vcn.inst[inst_idx].ring_enc[0];
 
@@ -1135,11 +1139,11 @@ static int vcn_v4_0_start(struct amdgpu_device *adev)
 				if (status & 2)
 					break;
 				mdelay(10);
-				if (amdgpu_emu_mode==1)
+				if (amdgpu_emu_mode == 1)
 					msleep(1);
 			}
 
-			if (amdgpu_emu_mode==1) {
+			if (amdgpu_emu_mode == 1) {
 				r = -1;
 				if (status & 2) {
 					r = 0;
@@ -1800,7 +1804,7 @@ static int vcn_v4_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
 	return 0;
 }
 
-static const struct amdgpu_ring_funcs vcn_v4_0_unified_ring_vm_funcs = {
+static struct amdgpu_ring_funcs vcn_v4_0_unified_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_ENC,
 	.align_mask = 0x3f,
 	.nop = VCN_ENC_CMD_NO_OP,
@@ -1845,7 +1849,11 @@ static void vcn_v4_0_set_unified_ring_funcs(struct amdgpu_device *adev)
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
-		adev->vcn.inst[i].ring_enc[0].funcs = &vcn_v4_0_unified_ring_vm_funcs;
+		if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(4, 0, 2))
+			vcn_v4_0_unified_ring_vm_funcs.secure_submission_supported = true;
+
+		adev->vcn.inst[i].ring_enc[0].funcs =
+		       (const struct amdgpu_ring_funcs *)&vcn_v4_0_unified_ring_vm_funcs;
 		adev->vcn.inst[i].ring_enc[0].me = i;
 
 		DRM_INFO("VCN(%d) encode/decode are enabled in VM mode\n", i);
@@ -1910,7 +1918,7 @@ static int vcn_v4_0_wait_for_idle(void *handle)
 static int vcn_v4_0_set_clockgating_state(void *handle, enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	bool enable = state == AMD_CG_STATE_GATE;
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
@@ -1951,7 +1959,7 @@ static int vcn_v4_0_set_powergating_state(void *handle, enum amd_powergating_sta
 		return 0;
 	}
 
-	if(state == adev->vcn.cur_state)
+	if (state == adev->vcn.cur_state)
 		return 0;
 
 	if (state == AMD_PG_STATE_GATE)
@@ -1959,7 +1967,7 @@ static int vcn_v4_0_set_powergating_state(void *handle, enum amd_powergating_sta
 	else
 		ret = vcn_v4_0_start(adev);
 
-	if(!ret)
+	if (!ret)
 		adev->vcn.cur_state = state;
 
 	return ret;
@@ -2093,8 +2101,7 @@ static const struct amd_ip_funcs vcn_v4_0_ip_funcs = {
 	.set_powergating_state = vcn_v4_0_set_powergating_state,
 };
 
-const struct amdgpu_ip_block_version vcn_v4_0_ip_block =
-{
+const struct amdgpu_ip_block_version vcn_v4_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCN,
 	.major = 4,
 	.minor = 0,

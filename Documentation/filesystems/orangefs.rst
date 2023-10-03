@@ -274,7 +274,7 @@ then contains:
     of kcalloced memory. This memory is used as an array of pointers
     to each of the pages in the IO buffer through a call to get_user_pages.
   * desc_array - a pointer to ``desc_count * (sizeof(struct orangefs_bufmap_desc))``
-    bytes of kcalloced memory. This memory is further intialized:
+    bytes of kcalloced memory. This memory is further initialized:
 
       user_desc is the kernel's copy of the IO buffer's ORANGEFS_dev_map_desc
       structure. user_desc->ptr points to the IO buffer.

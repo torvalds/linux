@@ -15,7 +15,7 @@
 #include <linux/bpf_trace.h>
 
 #include <net/tcp.h>
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 #include <net/ip6_checksum.h>
 
 #define NETSEC_REG_SOFT_RST			0x104

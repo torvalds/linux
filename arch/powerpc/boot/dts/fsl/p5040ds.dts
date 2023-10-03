@@ -41,7 +41,7 @@
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
 
-	aliases{
+	aliases {
 		phy_sgmii_slot2_1c = &phy_sgmii_slot2_1c;
 		phy_sgmii_slot2_1d = &phy_sgmii_slot2_1d;
 		phy_sgmii_slot2_1e = &phy_sgmii_slot2_1e;

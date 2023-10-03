@@ -116,7 +116,7 @@ copy_user_generic(void *to, const void *from, unsigned long len)
 		"2:\n"
 		_ASM_EXTABLE_UA(1b, 2b)
 		:"+c" (len), "+D" (to), "+S" (from), ASM_CALL_CONSTRAINT
-		: : "memory", "rax", "r8", "r9", "r10", "r11");
+		: : "memory", "rax");
 	clac();
 	return len;
 }

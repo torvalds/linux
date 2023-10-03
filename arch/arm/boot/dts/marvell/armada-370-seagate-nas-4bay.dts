@@ -46,29 +46,26 @@
 		};
 	};
 
-	regulators {
-		regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "SATA2 power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&pca9554 6 GPIO_ACTIVE_HIGH>;
-		};
-		regulator@4 {
-			compatible = "regulator-fixed";
-			reg = <4>;
-			regulator-name = "SATA3 power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&pca9554 7 GPIO_ACTIVE_HIGH>;
-		};
+	regulator-3 {
+		compatible = "regulator-fixed";
+		regulator-name = "SATA2 power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&pca9554 6 GPIO_ACTIVE_HIGH>;
+	};
+
+	regulator-4 {
+		compatible = "regulator-fixed";
+		regulator-name = "SATA3 power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&pca9554 7 GPIO_ACTIVE_HIGH>;
 	};
 
 	gpio-leds {

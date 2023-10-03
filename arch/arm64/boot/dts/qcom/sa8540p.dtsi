@@ -207,7 +207,7 @@
 
 	linux,pci-domain = <2>;
 
-	interrupts =  <GIC_SPI 567 IRQ_TYPE_LEVEL_HIGH>;
+	interrupts = <GIC_SPI 567 IRQ_TYPE_LEVEL_HIGH>;
 	interrupt-names = "msi";
 
 	interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 541 IRQ_TYPE_LEVEL_HIGH>,

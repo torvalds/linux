@@ -140,7 +140,7 @@
 		};
 
 		/* Power Management Controller */
-		pmc@1000{
+		pmc@1000 {
 			compatible = "fsl,mpc5121-pmc";
 			reg = <0x1000 0x100>;
 			interrupts = <83 0x8>;

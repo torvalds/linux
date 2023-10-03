@@ -950,7 +950,7 @@ struct inode *__ext4_new_inode(struct mnt_idmap *idmap,
 	sb = dir->i_sb;
 	sbi = EXT4_SB(sb);
 
-	if (unlikely(ext4_forced_shutdown(sbi)))
+	if (unlikely(ext4_forced_shutdown(sb)))
 		return ERR_PTR(-EIO);
 
 	ngroups = ext4_get_groups_count(sb);
@@ -1522,12 +1522,6 @@ int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 	ext4_fsblk_t blk;
 	int num, ret = 0, used_blks = 0;
 	unsigned long used_inos = 0;
-
-	/* This should not happen, but just to be sure check this */
-	if (sb_rdonly(sb)) {
-		ret = 1;
-		goto out;
-	}
 
 	gdp = ext4_get_group_desc(sb, group, &group_desc_bh);
 	if (!gdp || !grp)

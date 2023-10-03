@@ -13,7 +13,8 @@
 #include <linux/errno.h>
 #include <linux/fsl/guts.h>
 #include <linux/pci.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/pci-bridge.h>
 #include <asm/udbg.h>

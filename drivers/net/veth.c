@@ -26,7 +26,7 @@
 #include <linux/ptr_ring.h>
 #include <linux/bpf_trace.h>
 #include <linux/net_tstamp.h>
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 
 #define DRV_NAME	"veth"
 #define DRV_VERSION	"1.0"
@@ -344,6 +344,7 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct veth_priv *rcv_priv, *priv = netdev_priv(dev);
 	struct veth_rq *rq = NULL;
+	int ret = NETDEV_TX_OK;
 	struct net_device *rcv;
 	int length = skb->len;
 	bool use_napi = false;
@@ -373,17 +374,17 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (likely(veth_forward_skb(rcv, skb, rq, use_napi) == NET_RX_SUCCESS)) {
 		if (!use_napi)
 			dev_lstats_add(dev, length);
+		else
+			__veth_xdp_flush(rq);
 	} else {
 drop:
 		atomic64_inc(&priv->dropped);
+		ret = NET_XMIT_DROP;
 	}
-
-	if (use_napi)
-		__veth_xdp_flush(rq);
 
 	rcu_read_unlock();
 
-	return NETDEV_TX_OK;
+	return ret;
 }
 
 static u64 veth_stats_tx(struct net_device *dev, u64 *packets, u64 *bytes)
@@ -1444,6 +1445,8 @@ static int veth_open(struct net_device *dev)
 		netif_carrier_on(dev);
 		netif_carrier_on(peer);
 	}
+
+	veth_set_xdp_features(dev);
 
 	return 0;
 }

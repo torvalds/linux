@@ -9,9 +9,10 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/math64.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/watchdog.h>
 
 /* Max timeout is calculated at 100MHz source clock */
@@ -71,7 +72,7 @@ static int xilinx_wwdt_start(struct watchdog_device *wdd)
 
 	/* Calculate timeout count */
 	time_out = xdev->freq * wdd->timeout;
-	closed_timeout = (time_out * xdev->close_percent) / 100;
+	closed_timeout = div_u64(time_out * xdev->close_percent, 100);
 	open_timeout = time_out - closed_timeout;
 	wdd->min_hw_heartbeat_ms = xdev->close_percent * 10 * wdd->timeout;
 

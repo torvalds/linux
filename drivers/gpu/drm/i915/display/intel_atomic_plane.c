@@ -212,6 +212,7 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int width, height;
+	unsigned int rel_data_rate;
 
 	if (plane->id == PLANE_CURSOR)
 		return 0;
@@ -241,7 +242,11 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 		height /= 2;
 	}
 
-	return width * height * fb->format->cpp[color_plane];
+	rel_data_rate = width * height * fb->format->cpp[color_plane];
+
+	return intel_adjusted_rate(&plane_state->uapi.src,
+				   &plane_state->uapi.dst,
+				   rel_data_rate);
 }
 
 int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,

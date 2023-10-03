@@ -618,7 +618,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		arcturus_set_ppt_funcs(smu);
 		/* OD is not supported on Arcturus */
-		smu->od_enabled =false;
+		smu->od_enabled = false;
 		break;
 	case IP_VERSION(13, 0, 2):
 		aldebaran_set_ppt_funcs(smu);
@@ -1648,7 +1648,7 @@ static int smu_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 
-	if (amdgpu_sriov_vf(adev)&& !amdgpu_sriov_is_pp_one_vf(adev))
+	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
 		return 0;
 
 	smu_dpm_set_vcn_enable(smu, false);
@@ -1700,7 +1700,7 @@ static int smu_suspend(void *handle)
 	int ret;
 	uint64_t count;
 
-	if (amdgpu_sriov_vf(adev)&& !amdgpu_sriov_is_pp_one_vf(adev))
+	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
 		return 0;
 
 	if (!smu->pm_enabled)
@@ -2217,8 +2217,7 @@ const struct amd_ip_funcs smu_ip_funcs = {
 	.set_powergating_state = smu_set_powergating_state,
 };
 
-const struct amdgpu_ip_block_version smu_v11_0_ip_block =
-{
+const struct amdgpu_ip_block_version smu_v11_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 11,
 	.minor = 0,
@@ -2226,8 +2225,7 @@ const struct amdgpu_ip_block_version smu_v11_0_ip_block =
 	.funcs = &smu_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version smu_v12_0_ip_block =
-{
+const struct amdgpu_ip_block_version smu_v12_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 12,
 	.minor = 0,
@@ -2235,8 +2233,7 @@ const struct amdgpu_ip_block_version smu_v12_0_ip_block =
 	.funcs = &smu_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version smu_v13_0_ip_block =
-{
+const struct amdgpu_ip_block_version smu_v13_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 13,
 	.minor = 0,
@@ -2337,7 +2334,7 @@ int smu_get_power_limit(void *handle,
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	switch(pp_power_type) {
+	switch (pp_power_type) {
 	case PP_PWR_TYPE_SUSTAINED:
 		limit_type = SMU_DEFAULT_PPT_LIMIT;
 		break;
@@ -2349,7 +2346,7 @@ int smu_get_power_limit(void *handle,
 		break;
 	}
 
-	switch(pp_limit_level){
+	switch (pp_limit_level) {
 	case PP_PWR_LIMIT_CURRENT:
 		limit_level = SMU_PPT_LIMIT_CURRENT;
 		break;
@@ -2595,7 +2592,7 @@ static int smu_read_sensor(void *handle,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_VCN_POWER_STATE:
-		*(uint32_t *)data = atomic_read(&smu->smu_power.power_gate.vcn_gated) ? 0: 1;
+		*(uint32_t *)data = atomic_read(&smu->smu_power.power_gate.vcn_gated) ? 0 : 1;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_MIN_FAN_RPM:
@@ -2868,7 +2865,7 @@ static int smu_set_xgmi_pstate(void *handle,
 	if (smu->ppt_funcs->set_xgmi_pstate)
 		ret = smu->ppt_funcs->set_xgmi_pstate(smu, pstate);
 
-	if(ret)
+	if (ret)
 		dev_err(smu->adev->dev, "Failed to set XGMI pstate!\n");
 
 	return ret;

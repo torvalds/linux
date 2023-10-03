@@ -7,6 +7,8 @@
 #include "ice_lib.h"
 #include "ice_protocol_type.h"
 
+#define ICE_TC_METADATA_LKUP_IDX 0
+
 /**
  * ice_tc_count_lkups - determine lookup count for switch filter
  * @flags: TC-flower flags
@@ -19,7 +21,13 @@ static int
 ice_tc_count_lkups(u32 flags, struct ice_tc_flower_lyr_2_4_hdrs *headers,
 		   struct ice_tc_flower_fltr *fltr)
 {
-	int lkups_cnt = 0;
+	int lkups_cnt = 1; /* 0th lookup is metadata */
+
+	/* Always add metadata as the 0th lookup. Included elements:
+	 * - Direction flag (always present)
+	 * - ICE_TC_FLWR_FIELD_VLAN_TPID (present if specified)
+	 * - Tunnel flag (present if tunnel)
+	 */
 
 	if (flags & ICE_TC_FLWR_FIELD_TENANT_ID)
 		lkups_cnt++;
@@ -54,10 +62,6 @@ ice_tc_count_lkups(u32 flags, struct ice_tc_flower_lyr_2_4_hdrs *headers,
 	if (flags & (ICE_TC_FLWR_FIELD_VLAN | ICE_TC_FLWR_FIELD_VLAN_PRIO))
 		lkups_cnt++;
 
-	/* is VLAN TPID specified */
-	if (flags & ICE_TC_FLWR_FIELD_VLAN_TPID)
-		lkups_cnt++;
-
 	/* is CVLAN specified? */
 	if (flags & (ICE_TC_FLWR_FIELD_CVLAN | ICE_TC_FLWR_FIELD_CVLAN_PRIO))
 		lkups_cnt++;
@@ -82,10 +86,6 @@ ice_tc_count_lkups(u32 flags, struct ice_tc_flower_lyr_2_4_hdrs *headers,
 	/* is L4 (TCP/UDP/any other L4 protocol fields) specified? */
 	if (flags & (ICE_TC_FLWR_FIELD_DEST_L4_PORT |
 		     ICE_TC_FLWR_FIELD_SRC_L4_PORT))
-		lkups_cnt++;
-
-	/* matching for tunneled packets in metadata */
-	if (fltr->tunnel_type != TNL_LAST)
 		lkups_cnt++;
 
 	return lkups_cnt;
@@ -176,10 +176,9 @@ static u16 ice_check_supported_vlan_tpid(u16 vlan_tpid)
 
 static int
 ice_tc_fill_tunnel_outer(u32 flags, struct ice_tc_flower_fltr *fltr,
-			 struct ice_adv_lkup_elem *list)
+			 struct ice_adv_lkup_elem *list, int i)
 {
 	struct ice_tc_flower_lyr_2_4_hdrs *hdr = &fltr->outer_headers;
-	int i = 0;
 
 	if (flags & ICE_TC_FLWR_FIELD_TENANT_ID) {
 		u32 tenant_id;
@@ -329,8 +328,7 @@ ice_tc_fill_tunnel_outer(u32 flags, struct ice_tc_flower_fltr *fltr,
 	}
 
 	/* always fill matching on tunneled packets in metadata */
-	ice_rule_add_tunnel_metadata(&list[i]);
-	i++;
+	ice_rule_add_tunnel_metadata(&list[ICE_TC_METADATA_LKUP_IDX]);
 
 	return i;
 }
@@ -358,13 +356,16 @@ ice_tc_fill_rules(struct ice_hw *hw, u32 flags,
 	struct ice_tc_flower_lyr_2_4_hdrs *headers = &tc_fltr->outer_headers;
 	bool inner = false;
 	u16 vlan_tpid = 0;
-	int i = 0;
+	int i = 1; /* 0th lookup is metadata */
 
 	rule_info->vlan_type = vlan_tpid;
 
+	/* Always add direction metadata */
+	ice_rule_add_direction_metadata(&list[ICE_TC_METADATA_LKUP_IDX]);
+
 	rule_info->tun_type = ice_sw_type_from_tunnel(tc_fltr->tunnel_type);
 	if (tc_fltr->tunnel_type != TNL_LAST) {
-		i = ice_tc_fill_tunnel_outer(flags, tc_fltr, list);
+		i = ice_tc_fill_tunnel_outer(flags, tc_fltr, list, i);
 
 		headers = &tc_fltr->inner_headers;
 		inner = true;
@@ -431,8 +432,7 @@ ice_tc_fill_rules(struct ice_hw *hw, u32 flags,
 		rule_info->vlan_type =
 				ice_check_supported_vlan_tpid(vlan_tpid);
 
-		ice_rule_add_vlan_metadata(&list[i]);
-		i++;
+		ice_rule_add_vlan_metadata(&list[ICE_TC_METADATA_LKUP_IDX]);
 	}
 
 	if (flags & (ICE_TC_FLWR_FIELD_CVLAN | ICE_TC_FLWR_FIELD_CVLAN_PRIO)) {
@@ -1343,24 +1343,24 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 	dissector = rule->match.dissector;
 
 	if (dissector->used_keys &
-	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
-	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
-	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
-	      BIT(FLOW_DISSECTOR_KEY_CVLAN) |
-	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_OPTS) |
-	      BIT(FLOW_DISSECTOR_KEY_IP) |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_IP) |
-	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
-	      BIT(FLOW_DISSECTOR_KEY_PPPOE) |
-	      BIT(FLOW_DISSECTOR_KEY_L2TPV3))) {
+	    ~(BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_VLAN) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_CVLAN) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_CONTROL) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_KEYID) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_PORTS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_OPTS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_IP) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IP) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_PPPOE) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_L2TPV3))) {
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Unsupported key used");
 		return -EOPNOTSUPP;
 	}
@@ -1382,10 +1382,10 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 		 */
 		headers = &fltr->inner_headers;
 	} else if (dissector->used_keys &
-		  (BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
-		   BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
-		   BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) |
-		   BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))) {
+		  (BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) |
+		   BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
+		   BIT_ULL(FLOW_DISSECTOR_KEY_ENC_KEYID) |
+		   BIT_ULL(FLOW_DISSECTOR_KEY_ENC_PORTS))) {
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Tunnel key used, but device isn't a tunnel");
 		return -EOPNOTSUPP;
 	} else {

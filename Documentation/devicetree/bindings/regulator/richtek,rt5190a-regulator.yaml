@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The RT5190A integrates 1 channel buck controller, 3 channels high efficiency
-  synchronous buck converters, 1 LDO, I2C control interface and peripherial
+  synchronous buck converters, 1 LDO, I2C control interface and peripheral
   logical control.
 
   It also supports mute AC OFF depop sound and quick setting storage while

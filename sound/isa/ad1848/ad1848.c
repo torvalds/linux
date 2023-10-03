@@ -96,13 +96,13 @@ static int snd_ad1848_probe(struct device *dev, unsigned int n)
 	strscpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
 
 	if (!thinkpad[n])
-		snprintf(card->longname, sizeof(card->longname),
-			 "%s at 0x%lx, irq %d, dma %d",
-			 chip->pcm->name, chip->port, irq[n], dma1[n]);
+		scnprintf(card->longname, sizeof(card->longname),
+			  "%s at 0x%lx, irq %d, dma %d",
+			  chip->pcm->name, chip->port, irq[n], dma1[n]);
 	else
-		snprintf(card->longname, sizeof(card->longname),
-			 "%s at 0x%lx, irq %d, dma %d [Thinkpad]",
-			 chip->pcm->name, chip->port, irq[n], dma1[n]);
+		scnprintf(card->longname, sizeof(card->longname),
+			  "%s at 0x%lx, irq %d, dma %d [Thinkpad]",
+			  chip->pcm->name, chip->port, irq[n], dma1[n]);
 
 	error = snd_card_register(card);
 	if (error < 0)

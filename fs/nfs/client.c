@@ -517,6 +517,8 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		.authflavor	= flavor,
 		.cred		= cl_init->cred,
 		.xprtsec	= cl_init->xprtsec,
+		.connect_timeout = cl_init->connect_timeout,
+		.reconnect_timeout = cl_init->reconnect_timeout,
 	};
 
 	if (test_bit(NFS_CS_DISCRTRY, &clp->cl_flags))

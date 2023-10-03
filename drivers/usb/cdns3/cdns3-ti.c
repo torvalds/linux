@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 
 /* USB Wrapper register offsets */
 #define USBSS_PID		0x0

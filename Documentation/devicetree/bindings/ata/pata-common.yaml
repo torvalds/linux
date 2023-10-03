@@ -12,7 +12,7 @@ maintainers:
 description: |
   This document defines device tree properties common to most Parallel
   ATA (PATA, also known as IDE) AT attachment storage devices.
-  It doesn't constitue a device tree binding specification by itself but is
+  It doesn't constitute a device tree binding specification by itself but is
   meant to be referenced by device tree bindings.
 
   The PATA (IDE) controller-specific device tree bindings are responsible for
@@ -38,6 +38,7 @@ patternProperties:
       ID number 0 and the slave drive will have ID number 1. The PATA port
       nodes will be named "ide-port".
     type: object
+    additionalProperties: false
 
     properties:
       reg:

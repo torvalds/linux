@@ -58,10 +58,11 @@ unsigned int dcn20_calc_max_scaled_time(
 		enum mmhubbub_wbif_mode mode,
 		unsigned int urgent_watermark);
 
-struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(
-		struct dc_state *state,
+struct pipe_ctx *dcn20_acquire_free_pipe_for_layer(
+		const struct dc_state *cur_ctx,
+		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
-		struct dc_stream_state *stream);
+		const struct pipe_ctx *opp_head_pipe);
 
 struct stream_encoder *dcn20_stream_encoder_create(
 	enum engine_id eng_id,

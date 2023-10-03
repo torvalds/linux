@@ -43,8 +43,5 @@ int intel_c20pll_calc_port_clock(struct intel_encoder *encoder,
 void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 				     const struct intel_crtc_state *crtc_state);
 int intel_cx0_phy_check_hdmi_link_rate(struct intel_hdmi *hdmi, int clock);
-void intel_cx0_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
-				       const struct intel_crtc_state *crtc_state,
-				       u32 level);
 int intel_mtl_tbt_calc_port_clock(struct intel_encoder *encoder);
 #endif /* __INTEL_CX0_PHY_H__ */
