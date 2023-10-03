@@ -897,13 +897,6 @@ static bool icl_fbc_stride_is_valid(const struct intel_plane_state *plane_state)
 static bool stride_is_valid(const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	unsigned int stride = intel_fbc_plane_stride(plane_state) *
-		fb->format->cpp[0];
-
-	/* This should have been caught earlier. */
-	if (drm_WARN_ON_ONCE(&i915->drm, (stride & (64 - 1)) != 0))
-		return false;
 
 	if (DISPLAY_VER(i915) >= 11)
 		return icl_fbc_stride_is_valid(plane_state);
