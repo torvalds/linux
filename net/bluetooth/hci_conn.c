@@ -2147,7 +2147,7 @@ int hci_le_big_create_sync(struct hci_dev *hdev, struct hci_conn *hcon,
 	} pdu;
 	int err;
 
-	if (num_bis > sizeof(pdu.bis))
+	if (num_bis < 0x01 || num_bis > sizeof(pdu.bis))
 		return -EINVAL;
 
 	err = qos_set_big(hdev, qos);
