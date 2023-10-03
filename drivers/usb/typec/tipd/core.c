@@ -282,9 +282,10 @@ static void tps6598x_disconnect(struct tps6598x *tps, u32 status)
 	power_supply_changed(tps->psy);
 }
 
-static int tps6598x_exec_cmd(struct tps6598x *tps, const char *cmd,
+static int tps6598x_exec_cmd_tmo(struct tps6598x *tps, const char *cmd,
 			     size_t in_len, u8 *in_data,
-			     size_t out_len, u8 *out_data)
+			     size_t out_len, u8 *out_data,
+			     u32 cmd_timeout_ms, u32 res_delay_ms)
 {
 	unsigned long timeout;
 	u32 val;
@@ -307,8 +308,7 @@ static int tps6598x_exec_cmd(struct tps6598x *tps, const char *cmd,
 	if (ret < 0)
 		return ret;
 
-	/* XXX: Using 1s for now, but it may not be enough for every command. */
-	timeout = jiffies + msecs_to_jiffies(1000);
+	timeout = jiffies + msecs_to_jiffies(cmd_timeout_ms);
 
 	do {
 		ret = tps6598x_read32(tps, TPS_REG_CMD1, &val);
@@ -320,6 +320,9 @@ static int tps6598x_exec_cmd(struct tps6598x *tps, const char *cmd,
 		if (time_is_before_jiffies(timeout))
 			return -ETIMEDOUT;
 	} while (val);
+
+	/* some commands require delay for the result to be available */
+	mdelay(res_delay_ms);
 
 	if (out_len) {
 		ret = tps6598x_block_read(tps, TPS_REG_DATA1,
@@ -343,6 +346,14 @@ static int tps6598x_exec_cmd(struct tps6598x *tps, const char *cmd,
 	}
 
 	return 0;
+}
+
+static int tps6598x_exec_cmd(struct tps6598x *tps, const char *cmd,
+			     size_t in_len, u8 *in_data,
+			     size_t out_len, u8 *out_data)
+{
+	return tps6598x_exec_cmd_tmo(tps, cmd, in_len, in_data,
+				     out_len, out_data, 1000, 0);
 }
 
 static int tps6598x_dr_set(struct typec_port *port, enum typec_data_role role)
