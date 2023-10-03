@@ -400,6 +400,50 @@ struct rtw89_physts_regs {
 	u32 dis_trigger_brk_mask;
 };
 
+enum rtw89_bandwidth_section_num_ax {
+	RTW89_BW20_SEC_NUM_AX = 8,
+	RTW89_BW40_SEC_NUM_AX = 4,
+	RTW89_BW80_SEC_NUM_AX = 2,
+};
+
+enum rtw89_bandwidth_section_num_be {
+	RTW89_BW20_SEC_NUM_BE = 16,
+	RTW89_BW40_SEC_NUM_BE = 8,
+	RTW89_BW80_SEC_NUM_BE = 4,
+	RTW89_BW160_SEC_NUM_BE = 2,
+};
+
+#define RTW89_TXPWR_LMT_PAGE_SIZE_AX 40
+
+struct rtw89_txpwr_limit_ax {
+	s8 cck_20m[RTW89_BF_NUM];
+	s8 cck_40m[RTW89_BF_NUM];
+	s8 ofdm[RTW89_BF_NUM];
+	s8 mcs_20m[RTW89_BW20_SEC_NUM_AX][RTW89_BF_NUM];
+	s8 mcs_40m[RTW89_BW40_SEC_NUM_AX][RTW89_BF_NUM];
+	s8 mcs_80m[RTW89_BW80_SEC_NUM_AX][RTW89_BF_NUM];
+	s8 mcs_160m[RTW89_BF_NUM];
+	s8 mcs_40m_0p5[RTW89_BF_NUM];
+	s8 mcs_40m_2p5[RTW89_BF_NUM];
+};
+
+#define RTW89_TXPWR_LMT_PAGE_SIZE_BE 76
+
+struct rtw89_txpwr_limit_be {
+	s8 cck_20m[RTW89_BF_NUM];
+	s8 cck_40m[RTW89_BF_NUM];
+	s8 ofdm[RTW89_BF_NUM];
+	s8 mcs_20m[RTW89_BW20_SEC_NUM_BE][RTW89_BF_NUM];
+	s8 mcs_40m[RTW89_BW40_SEC_NUM_BE][RTW89_BF_NUM];
+	s8 mcs_80m[RTW89_BW80_SEC_NUM_BE][RTW89_BF_NUM];
+	s8 mcs_160m[RTW89_BW160_SEC_NUM_BE][RTW89_BF_NUM];
+	s8 mcs_320m[RTW89_BF_NUM];
+	s8 mcs_40m_0p5[RTW89_BF_NUM];
+	s8 mcs_40m_2p5[RTW89_BF_NUM];
+	s8 mcs_40m_4p5[RTW89_BF_NUM];
+	s8 mcs_40m_6p5[RTW89_BF_NUM];
+};
+
 struct rtw89_phy_gen_def {
 	u32 cr_base;
 	const struct rtw89_ccx_regs *ccx;
@@ -411,6 +455,9 @@ struct rtw89_phy_gen_def {
 	void (*set_txpwr_offset)(struct rtw89_dev *rtwdev,
 				 const struct rtw89_chan *chan,
 				 enum rtw89_phy_idx phy_idx);
+	void (*set_txpwr_limit)(struct rtw89_dev *rtwdev,
+				const struct rtw89_chan *chan,
+				enum rtw89_phy_idx phy_idx);
 };
 
 extern const struct rtw89_phy_gen_def rtw89_phy_gen_ax;
@@ -650,9 +697,16 @@ void rtw89_phy_set_txpwr_offset(struct rtw89_dev *rtwdev,
 	phy->set_txpwr_offset(rtwdev, chan, phy_idx);
 }
 
+static inline
 void rtw89_phy_set_txpwr_limit(struct rtw89_dev *rtwdev,
 			       const struct rtw89_chan *chan,
-			       enum rtw89_phy_idx phy_idx);
+			       enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	phy->set_txpwr_limit(rtwdev, chan, phy_idx);
+}
+
 void rtw89_phy_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan,
 				  enum rtw89_phy_idx phy_idx);

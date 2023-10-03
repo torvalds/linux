@@ -1711,9 +1711,9 @@ EXPORT_SYMBOL(rtw89_phy_read_txpwr_limit);
 							      (ch));	\
 	} while (0)
 
-static void rtw89_phy_fill_txpwr_limit_20m(struct rtw89_dev *rtwdev,
-					   struct rtw89_txpwr_limit *lmt,
-					   u8 band, u8 ntx, u8 ch)
+static void rtw89_phy_fill_txpwr_limit_20m_ax(struct rtw89_dev *rtwdev,
+					      struct rtw89_txpwr_limit_ax *lmt,
+					      u8 band, u8 ntx, u8 ch)
 {
 	__fill_txpwr_limit_nonbf_bf(lmt->cck_20m, band, RTW89_CHANNEL_WIDTH_20,
 				    ntx, RTW89_RS_CCK, ch);
@@ -1726,9 +1726,9 @@ static void rtw89_phy_fill_txpwr_limit_20m(struct rtw89_dev *rtwdev,
 				    ntx, RTW89_RS_MCS, ch);
 }
 
-static void rtw89_phy_fill_txpwr_limit_40m(struct rtw89_dev *rtwdev,
-					   struct rtw89_txpwr_limit *lmt,
-					   u8 band, u8 ntx, u8 ch, u8 pri_ch)
+static void rtw89_phy_fill_txpwr_limit_40m_ax(struct rtw89_dev *rtwdev,
+					      struct rtw89_txpwr_limit_ax *lmt,
+					      u8 band, u8 ntx, u8 ch, u8 pri_ch)
 {
 	__fill_txpwr_limit_nonbf_bf(lmt->cck_20m, band, RTW89_CHANNEL_WIDTH_20,
 				    ntx, RTW89_RS_CCK, ch - 2);
@@ -1747,9 +1747,9 @@ static void rtw89_phy_fill_txpwr_limit_40m(struct rtw89_dev *rtwdev,
 				    ntx, RTW89_RS_MCS, ch);
 }
 
-static void rtw89_phy_fill_txpwr_limit_80m(struct rtw89_dev *rtwdev,
-					   struct rtw89_txpwr_limit *lmt,
-					   u8 band, u8 ntx, u8 ch, u8 pri_ch)
+static void rtw89_phy_fill_txpwr_limit_80m_ax(struct rtw89_dev *rtwdev,
+					      struct rtw89_txpwr_limit_ax *lmt,
+					      u8 band, u8 ntx, u8 ch, u8 pri_ch)
 {
 	s8 val_0p5_n[RTW89_BF_NUM];
 	s8 val_0p5_p[RTW89_BF_NUM];
@@ -1788,9 +1788,9 @@ static void rtw89_phy_fill_txpwr_limit_80m(struct rtw89_dev *rtwdev,
 		lmt->mcs_40m_0p5[i] = min_t(s8, val_0p5_n[i], val_0p5_p[i]);
 }
 
-static void rtw89_phy_fill_txpwr_limit_160m(struct rtw89_dev *rtwdev,
-					    struct rtw89_txpwr_limit *lmt,
-					    u8 band, u8 ntx, u8 ch, u8 pri_ch)
+static void rtw89_phy_fill_txpwr_limit_160m_ax(struct rtw89_dev *rtwdev,
+					       struct rtw89_txpwr_limit_ax *lmt,
+					       u8 band, u8 ntx, u8 ch, u8 pri_ch)
 {
 	s8 val_0p5_n[RTW89_BF_NUM];
 	s8 val_0p5_p[RTW89_BF_NUM];
@@ -1875,10 +1875,10 @@ static void rtw89_phy_fill_txpwr_limit_160m(struct rtw89_dev *rtwdev,
 }
 
 static
-void rtw89_phy_fill_txpwr_limit(struct rtw89_dev *rtwdev,
-				const struct rtw89_chan *chan,
-				struct rtw89_txpwr_limit *lmt,
-				u8 ntx)
+void rtw89_phy_fill_txpwr_limit_ax(struct rtw89_dev *rtwdev,
+				   const struct rtw89_chan *chan,
+				   struct rtw89_txpwr_limit_ax *lmt,
+				   u8 ntx)
 {
 	u8 band = chan->band_type;
 	u8 pri_ch = chan->primary_channel;
@@ -1889,19 +1889,19 @@ void rtw89_phy_fill_txpwr_limit(struct rtw89_dev *rtwdev,
 
 	switch (bw) {
 	case RTW89_CHANNEL_WIDTH_20:
-		rtw89_phy_fill_txpwr_limit_20m(rtwdev, lmt, band, ntx, ch);
+		rtw89_phy_fill_txpwr_limit_20m_ax(rtwdev, lmt, band, ntx, ch);
 		break;
 	case RTW89_CHANNEL_WIDTH_40:
-		rtw89_phy_fill_txpwr_limit_40m(rtwdev, lmt, band, ntx, ch,
-					       pri_ch);
+		rtw89_phy_fill_txpwr_limit_40m_ax(rtwdev, lmt, band, ntx, ch,
+						  pri_ch);
 		break;
 	case RTW89_CHANNEL_WIDTH_80:
-		rtw89_phy_fill_txpwr_limit_80m(rtwdev, lmt, band, ntx, ch,
-					       pri_ch);
+		rtw89_phy_fill_txpwr_limit_80m_ax(rtwdev, lmt, band, ntx, ch,
+						  pri_ch);
 		break;
 	case RTW89_CHANNEL_WIDTH_160:
-		rtw89_phy_fill_txpwr_limit_160m(rtwdev, lmt, band, ntx, ch,
-						pri_ch);
+		rtw89_phy_fill_txpwr_limit_160m_ax(rtwdev, lmt, band, ntx, ch,
+						   pri_ch);
 		break;
 	}
 }
@@ -2182,12 +2182,12 @@ void rtw89_phy_set_txpwr_offset_ax(struct rtw89_dev *rtwdev,
 				     GENMASK(19, 0), val);
 }
 
-void rtw89_phy_set_txpwr_limit(struct rtw89_dev *rtwdev,
-			       const struct rtw89_chan *chan,
-			       enum rtw89_phy_idx phy_idx)
+static void rtw89_phy_set_txpwr_limit_ax(struct rtw89_dev *rtwdev,
+					 const struct rtw89_chan *chan,
+					 enum rtw89_phy_idx phy_idx)
 {
 	u8 max_ntx_num = rtwdev->chip->rf_path_num;
-	struct rtw89_txpwr_limit lmt;
+	struct rtw89_txpwr_limit_ax lmt;
 	u8 ch = chan->channel;
 	u8 bw = chan->band_width;
 	const s8 *ptr;
@@ -2197,15 +2197,15 @@ void rtw89_phy_set_txpwr_limit(struct rtw89_dev *rtwdev,
 	rtw89_debug(rtwdev, RTW89_DBG_TXPWR,
 		    "[TXPWR] set txpwr limit with ch=%d bw=%d\n", ch, bw);
 
-	BUILD_BUG_ON(sizeof(struct rtw89_txpwr_limit) !=
-		     RTW89_TXPWR_LMT_PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct rtw89_txpwr_limit_ax) !=
+		     RTW89_TXPWR_LMT_PAGE_SIZE_AX);
 
 	addr = R_AX_PWR_LMT;
 	for (i = 0; i < max_ntx_num; i++) {
-		rtw89_phy_fill_txpwr_limit(rtwdev, chan, &lmt, i);
+		rtw89_phy_fill_txpwr_limit_ax(rtwdev, chan, &lmt, i);
 
 		ptr = (s8 *)&lmt;
-		for (j = 0; j < RTW89_TXPWR_LMT_PAGE_SIZE;
+		for (j = 0; j < RTW89_TXPWR_LMT_PAGE_SIZE_AX;
 		     j += 4, addr += 4, ptr += 4) {
 			val = FIELD_PREP(GENMASK(7, 0), ptr[0]) |
 			      FIELD_PREP(GENMASK(15, 8), ptr[1]) |
@@ -2216,7 +2216,6 @@ void rtw89_phy_set_txpwr_limit(struct rtw89_dev *rtwdev,
 		}
 	}
 }
-EXPORT_SYMBOL(rtw89_phy_set_txpwr_limit);
 
 void rtw89_phy_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan,
@@ -4906,5 +4905,6 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_ax = {
 
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_ax,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_ax,
+	.set_txpwr_limit = rtw89_phy_set_txpwr_limit_ax,
 };
 EXPORT_SYMBOL(rtw89_phy_gen_ax);

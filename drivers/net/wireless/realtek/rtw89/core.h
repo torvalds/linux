@@ -745,26 +745,6 @@ struct rtw89_txpwr_byrate {
 	s8 trap;
 };
 
-enum rtw89_bandwidth_section_num {
-	RTW89_BW20_SEC_NUM = 8,
-	RTW89_BW40_SEC_NUM = 4,
-	RTW89_BW80_SEC_NUM = 2,
-};
-
-#define RTW89_TXPWR_LMT_PAGE_SIZE 40
-
-struct rtw89_txpwr_limit {
-	s8 cck_20m[RTW89_BF_NUM];
-	s8 cck_40m[RTW89_BF_NUM];
-	s8 ofdm[RTW89_BF_NUM];
-	s8 mcs_20m[RTW89_BW20_SEC_NUM][RTW89_BF_NUM];
-	s8 mcs_40m[RTW89_BW40_SEC_NUM][RTW89_BF_NUM];
-	s8 mcs_80m[RTW89_BW80_SEC_NUM][RTW89_BF_NUM];
-	s8 mcs_160m[RTW89_BF_NUM];
-	s8 mcs_40m_0p5[RTW89_BF_NUM];
-	s8 mcs_40m_2p5[RTW89_BF_NUM];
-};
-
 #define RTW89_RU_SEC_NUM 8
 
 #define RTW89_TXPWR_LMT_RU_PAGE_SIZE 24
