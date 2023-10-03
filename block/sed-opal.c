@@ -2888,12 +2888,11 @@ static int opal_lock_unlock(struct opal_dev *dev,
 	if (lk_unlk->session.who > OPAL_USER9)
 		return -EINVAL;
 
-	ret = opal_get_key(dev, &lk_unlk->session.opal_key);
-	if (ret)
-		return ret;
 	mutex_lock(&dev->dev_lock);
 	opal_lock_check_for_saved_key(dev, lk_unlk);
-	ret = __opal_lock_unlock(dev, lk_unlk);
+	ret = opal_get_key(dev, &lk_unlk->session.opal_key);
+	if (!ret)
+		ret = __opal_lock_unlock(dev, lk_unlk);
 	mutex_unlock(&dev->dev_lock);
 
 	return ret;
