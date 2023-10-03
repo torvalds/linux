@@ -327,9 +327,9 @@ struct intel_shared_dpll {
 
 /* shared dpll functions */
 struct intel_shared_dpll *
-intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
+intel_get_shared_dpll_by_id(struct drm_i915_private *i915,
 			    enum intel_dpll_id id);
-void assert_shared_dpll(struct drm_i915_private *dev_priv,
+void assert_shared_dpll(struct drm_i915_private *i915,
 			struct intel_shared_dpll *pll,
 			bool state);
 #define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
@@ -359,12 +359,12 @@ bool intel_dpll_get_hw_state(struct drm_i915_private *i915,
 void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_shared_dpll_swap_state(struct intel_atomic_state *state);
-void intel_shared_dpll_init(struct drm_i915_private *dev_priv);
-void intel_dpll_update_ref_clks(struct drm_i915_private *dev_priv);
-void intel_dpll_readout_hw_state(struct drm_i915_private *dev_priv);
-void intel_dpll_sanitize_state(struct drm_i915_private *dev_priv);
+void intel_shared_dpll_init(struct drm_i915_private *i915);
+void intel_dpll_update_ref_clks(struct drm_i915_private *i915);
+void intel_dpll_readout_hw_state(struct drm_i915_private *i915);
+void intel_dpll_sanitize_state(struct drm_i915_private *i915);
 
-void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
+void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
 			      const struct intel_dpll_hw_state *hw_state);
 enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port);
 bool intel_dpll_is_combophy(enum intel_dpll_id id);
