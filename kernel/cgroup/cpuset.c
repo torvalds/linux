@@ -1806,17 +1806,28 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 		 *
 		 * Compute add/delete mask to/from effective_cpus
 		 *
-		 * addmask = effective_xcpus & ~newmask & parent->effective_xcpus
-		 * delmask = newmask & ~cs->effective_xcpus
-		 *		     & parent->effective_xcpus
+		 * For valid partition:
+		 *   addmask = exclusive_cpus & ~newmask
+		 *			      & parent->effective_xcpus
+		 *   delmask = newmask & ~exclusive_cpus
+		 *		       & parent->effective_xcpus
+		 *
+		 * For invalid partition:
+		 *   delmask = newmask & parent->effective_xcpus
 		 */
-		cpumask_andnot(tmp->addmask, xcpus, newmask);
-		adding = cpumask_and(tmp->addmask, tmp->addmask,
-				     parent->effective_xcpus);
+		if (is_prs_invalid(old_prs)) {
+			adding = false;
+			deleting = cpumask_and(tmp->delmask,
+					newmask, parent->effective_xcpus);
+		} else {
+			cpumask_andnot(tmp->addmask, xcpus, newmask);
+			adding = cpumask_and(tmp->addmask, tmp->addmask,
+					     parent->effective_xcpus);
 
-		cpumask_andnot(tmp->delmask, newmask, xcpus);
-		deleting = cpumask_and(tmp->delmask, tmp->delmask,
-				       parent->effective_xcpus);
+			cpumask_andnot(tmp->delmask, newmask, xcpus);
+			deleting = cpumask_and(tmp->delmask, tmp->delmask,
+					       parent->effective_xcpus);
+		}
 		/*
 		 * Make partition invalid if parent's effective_cpus could
 		 * become empty and there are tasks in the parent.
@@ -1910,9 +1921,11 @@ write_error:
 
 	/*
 	 * Transitioning between invalid to valid or vice versa may require
-	 * changing CS_CPU_EXCLUSIVE.
+	 * changing CS_CPU_EXCLUSIVE. In the case of partcmd_update,
+	 * validate_change() has already been successfully called and
+	 * CPU lists in cs haven't been updated yet. So defer it to later.
 	 */
-	if (old_prs != new_prs) {
+	if ((old_prs != new_prs) && (cmd != partcmd_update))  {
 		int err = update_partition_exclusive(cs, new_prs);
 
 		if (err)
@@ -1959,6 +1972,9 @@ write_error:
 	}
 
 	spin_unlock_irq(&callback_lock);
+
+	if ((old_prs != new_prs) && (cmd == partcmd_update))
+		update_partition_exclusive(cs, new_prs);
 
 	if (adding || deleting) {
 		update_tasks_cpumask(parent, tmp->addmask);
@@ -2356,8 +2372,9 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	if (alloc_cpumasks(NULL, &tmp))
 		return -ENOMEM;
 
-	if (is_partition_valid(cs)) {
-		if (cpumask_empty(trialcs->effective_xcpus)) {
+	if (old_prs) {
+		if (is_partition_valid(cs) &&
+		    cpumask_empty(trialcs->effective_xcpus)) {
 			invalidate = true;
 			cs->prs_err = PERR_INVCPUS;
 		} else if (prstate_housekeeping_conflict(old_prs, trialcs->effective_xcpus)) {
@@ -2391,13 +2408,16 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 		 */
 		invalidate = true;
 		rcu_read_lock();
-		cpuset_for_each_child(cp, css, parent)
+		cpuset_for_each_child(cp, css, parent) {
+			struct cpumask *xcpus = fetch_xcpus(trialcs);
+
 			if (is_partition_valid(cp) &&
-			    cpumask_intersects(trialcs->effective_xcpus, cp->effective_xcpus)) {
+			    cpumask_intersects(xcpus, cp->effective_xcpus)) {
 				rcu_read_unlock();
 				update_parent_effective_cpumask(cp, partcmd_invalidate, NULL, &tmp);
 				rcu_read_lock();
 			}
+		}
 		rcu_read_unlock();
 		retval = 0;
 	}
@@ -2405,18 +2425,24 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	if (retval < 0)
 		goto out_free;
 
-	if (is_partition_valid(cs)) {
+	if (is_partition_valid(cs) ||
+	   (is_partition_invalid(cs) && !invalidate)) {
+		struct cpumask *xcpus = trialcs->effective_xcpus;
+
+		if (cpumask_empty(xcpus) && is_partition_invalid(cs))
+			xcpus = trialcs->cpus_allowed;
+
 		/*
 		 * Call remote_cpus_update() to handle valid remote partition
 		 */
 		if (is_remote_partition(cs))
-			remote_cpus_update(cs, trialcs->effective_xcpus, &tmp);
+			remote_cpus_update(cs, xcpus, &tmp);
 		else if (invalidate)
 			update_parent_effective_cpumask(cs, partcmd_invalidate,
 							NULL, &tmp);
 		else
 			update_parent_effective_cpumask(cs, partcmd_update,
-						trialcs->effective_xcpus, &tmp);
+							xcpus, &tmp);
 	} else if (!cpumask_empty(cs->exclusive_cpus)) {
 		/*
 		 * Use trialcs->effective_cpus as a temp cpumask
@@ -2493,7 +2519,7 @@ static int update_exclusive_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	if (retval)
 		return retval;
 
-	if (is_partition_valid(cs)) {
+	if (old_prs) {
 		if (cpumask_empty(trialcs->effective_xcpus)) {
 			invalidate = true;
 			cs->prs_err = PERR_INVCPUS;
@@ -2927,19 +2953,10 @@ static int update_prstate(struct cpuset *cs, int new_prs)
 		return 0;
 
 	/*
-	 * For a previously invalid partition root with valid partition root
-	 * parent, treat it as if it is a "member". Otherwise, reject it as
-	 * remote partition cannot currently self-recover from an invalid
-	 * state.
+	 * Treat a previously invalid partition root as if it is a "member".
 	 */
-	if (new_prs && is_prs_invalid(old_prs)) {
-		if (is_partition_valid(parent)) {
-			old_prs = PRS_MEMBER;
-		} else {
-			cs->partition_root_state = -new_prs;
-			return 0;
-		}
-	}
+	if (new_prs && is_prs_invalid(old_prs))
+		old_prs = PRS_MEMBER;
 
 	if (alloc_cpumasks(NULL, &tmpmask))
 		return -ENOMEM;
