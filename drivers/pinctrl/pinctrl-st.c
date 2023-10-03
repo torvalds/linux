@@ -719,7 +719,7 @@ static void st_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int st_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	pinctrl_gpio_direction_input_new(chip, offset);
+	pinctrl_gpio_direction_input(chip, offset);
 
 	return 0;
 }

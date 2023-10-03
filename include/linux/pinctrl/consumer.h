@@ -29,8 +29,8 @@ struct pinctrl_state;
 bool pinctrl_gpio_can_use_line(struct gpio_chip *gc, unsigned int offset);
 int pinctrl_gpio_request(struct gpio_chip *gc, unsigned int offset);
 void pinctrl_gpio_free(struct gpio_chip *gc, unsigned int offset);
-int pinctrl_gpio_direction_input_new(struct gpio_chip *gc,
-				     unsigned int offset);
+int pinctrl_gpio_direction_input(struct gpio_chip *gc,
+				 unsigned int offset);
 int pinctrl_gpio_direction_output_new(struct gpio_chip *gc,
 				      unsigned int offset);
 int pinctrl_gpio_set_config_new(struct gpio_chip *gc, unsigned int offset,
@@ -85,7 +85,7 @@ pinctrl_gpio_free(struct gpio_chip *gc, unsigned int offset)
 }
 
 static inline int
-pinctrl_gpio_direction_input_new(struct gpio_chip *gc, unsigned int offset)
+pinctrl_gpio_direction_input(struct gpio_chip *gc, unsigned int offset)
 {
 	return 0;
 }
