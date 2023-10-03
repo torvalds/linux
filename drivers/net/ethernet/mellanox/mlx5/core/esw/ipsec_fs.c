@@ -50,7 +50,7 @@ int mlx5_esw_ipsec_rx_setup_modify_header(struct mlx5e_ipsec_sa_entry *sa_entry,
 	u32 mapped_id;
 	int err;
 
-	err = xa_alloc_bh(&ipsec->rx_esw->ipsec_obj_id_map, &mapped_id,
+	err = xa_alloc_bh(&ipsec->ipsec_obj_id_map, &mapped_id,
 			  xa_mk_value(sa_entry->ipsec_obj_id),
 			  XA_LIMIT(1, ESW_IPSEC_RX_MAPPED_ID_MASK), 0);
 	if (err)
@@ -81,7 +81,7 @@ int mlx5_esw_ipsec_rx_setup_modify_header(struct mlx5e_ipsec_sa_entry *sa_entry,
 	return 0;
 
 err_header_alloc:
-	xa_erase_bh(&ipsec->rx_esw->ipsec_obj_id_map, mapped_id);
+	xa_erase_bh(&ipsec->ipsec_obj_id_map, mapped_id);
 	return err;
 }
 
@@ -90,7 +90,7 @@ void mlx5_esw_ipsec_rx_id_mapping_remove(struct mlx5e_ipsec_sa_entry *sa_entry)
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
 
 	if (sa_entry->rx_mapped_id)
-		xa_erase_bh(&ipsec->rx_esw->ipsec_obj_id_map,
+		xa_erase_bh(&ipsec->ipsec_obj_id_map,
 			    sa_entry->rx_mapped_id);
 }
 
@@ -100,7 +100,7 @@ int mlx5_esw_ipsec_rx_ipsec_obj_id_search(struct mlx5e_priv *priv, u32 id,
 	struct mlx5e_ipsec *ipsec = priv->ipsec;
 	void *val;
 
-	val = xa_load(&ipsec->rx_esw->ipsec_obj_id_map, id);
+	val = xa_load(&ipsec->ipsec_obj_id_map, id);
 	if (!val)
 		return -ENOENT;
 
