@@ -160,6 +160,12 @@ static inline struct lskcipher_alg *crypto_lskcipher_spawn_alg(
 	return container_of(spawn->base.alg, struct lskcipher_alg, co.base);
 }
 
+static inline struct skcipher_alg_common *crypto_spawn_skcipher_alg_common(
+	struct crypto_skcipher_spawn *spawn)
+{
+	return container_of(spawn->base.alg, struct skcipher_alg_common, base);
+}
+
 static inline struct skcipher_alg *crypto_spawn_skcipher_alg(
 	struct crypto_skcipher_spawn *spawn)
 {
