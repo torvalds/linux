@@ -153,13 +153,6 @@
 #define SW_DOUBLE_TAG			BIT(7)
 #define SW_RESET			BIT(1)
 
-#define REG_SW_MAC_ADDR_0		0x0302
-#define REG_SW_MAC_ADDR_1		0x0303
-#define REG_SW_MAC_ADDR_2		0x0304
-#define REG_SW_MAC_ADDR_3		0x0305
-#define REG_SW_MAC_ADDR_4		0x0306
-#define REG_SW_MAC_ADDR_5		0x0307
-
 #define REG_SW_MTU__2			0x0308
 #define REG_SW_MTU_MASK			GENMASK(13, 0)
 

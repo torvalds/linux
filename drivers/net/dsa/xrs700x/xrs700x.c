@@ -548,7 +548,8 @@ static void xrs700x_bridge_leave(struct dsa_switch *ds, int port,
 }
 
 static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
-			    struct net_device *hsr)
+			    struct net_device *hsr,
+			    struct netlink_ext_ack *extack)
 {
 	unsigned int val = XRS_HSR_CFG_HSR_PRP;
 	struct dsa_port *partner = NULL, *dp;
@@ -562,16 +563,21 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	if (ret)
 		return ret;
 
-	/* Only ports 1 and 2 can be HSR/PRP redundant ports. */
-	if (port != 1 && port != 2)
+	if (port != 1 && port != 2) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Only ports 1 and 2 can offload HSR/PRP");
 		return -EOPNOTSUPP;
+	}
 
-	if (ver == HSR_V1)
+	if (ver == HSR_V1) {
 		val |= XRS_HSR_CFG_HSR;
-	else if (ver == PRP_V1)
+	} else if (ver == PRP_V1) {
 		val |= XRS_HSR_CFG_PRP;
-	else
+	} else {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Only HSR v1 and PRP v1 can be offloaded");
 		return -EOPNOTSUPP;
+	}
 
 	dsa_hsr_foreach_port(dp, ds, hsr) {
 		if (dp->index != port) {

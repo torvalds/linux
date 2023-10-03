@@ -969,6 +969,16 @@ struct dsa_switch_ops {
 			       struct phy_device *phy);
 	void	(*port_disable)(struct dsa_switch *ds, int port);
 
+
+	/*
+	 * Notification for MAC address changes on user ports. Drivers can
+	 * currently only veto operations. They should not use the method to
+	 * program the hardware, since the operation is not rolled back in case
+	 * of other errors.
+	 */
+	int	(*port_set_mac_address)(struct dsa_switch *ds, int port,
+					const unsigned char *addr);
+
 	/*
 	 * Compatibility between device trees defining multiple CPU ports and
 	 * drivers which are not OK to use by default the numerically smallest
@@ -1198,7 +1208,8 @@ struct dsa_switch_ops {
 	 * HSR integration
 	 */
 	int	(*port_hsr_join)(struct dsa_switch *ds, int port,
-				 struct net_device *hsr);
+				 struct net_device *hsr,
+				 struct netlink_ext_ack *extack);
 	int	(*port_hsr_leave)(struct dsa_switch *ds, int port,
 				  struct net_device *hsr);
 

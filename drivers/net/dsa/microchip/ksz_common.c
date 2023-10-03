@@ -16,6 +16,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
+#include <linux/if_hsr.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
@@ -364,6 +365,7 @@ static const struct ksz_dev_ops lan937x_dev_ops = {
 };
 
 static const u16 ksz8795_regs[] = {
+	[REG_SW_MAC_ADDR]		= 0x68,
 	[REG_IND_CTRL_0]		= 0x6E,
 	[REG_IND_DATA_8]		= 0x70,
 	[REG_IND_DATA_CHECK]		= 0x72,
@@ -492,6 +494,7 @@ static u8 ksz8863_shifts[] = {
 };
 
 static const u16 ksz9477_regs[] = {
+	[REG_SW_MAC_ADDR]		= 0x0302,
 	[P_STP_CTRL]			= 0x0B04,
 	[S_START_CTRL]			= 0x0300,
 	[S_BROADCAST_CTRL]		= 0x0332,
@@ -3539,6 +3542,149 @@ static int ksz_setup_tc(struct dsa_switch *ds, int port,
 	}
 }
 
+static int ksz_port_set_mac_address(struct dsa_switch *ds, int port,
+				    const unsigned char *addr)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+
+	if (dp->hsr_dev) {
+		dev_err(ds->dev,
+			"Cannot change MAC address on port %d with active HSR offload\n",
+			port);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+/* Program the switch's MAC address register with the MAC address of the
+ * requesting user port. This single address is used by the switch for multiple
+ * features, like HSR self-address filtering and WoL. Other user ports are
+ * allowed to share ownership of this address as long as their MAC address is
+ * the same. The user ports' MAC addresses must not change while they have
+ * ownership of the switch MAC address.
+ */
+static int ksz_switch_macaddr_get(struct dsa_switch *ds, int port,
+				  struct netlink_ext_ack *extack)
+{
+	struct net_device *slave = dsa_to_port(ds, port)->slave;
+	const unsigned char *addr = slave->dev_addr;
+	struct ksz_switch_macaddr *switch_macaddr;
+	struct ksz_device *dev = ds->priv;
+	const u16 *regs = dev->info->regs;
+	int i;
+
+	/* Make sure concurrent MAC address changes are blocked */
+	ASSERT_RTNL();
+
+	switch_macaddr = dev->switch_macaddr;
+	if (switch_macaddr) {
+		if (!ether_addr_equal(switch_macaddr->addr, addr)) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Switch already configured for MAC address %pM",
+					       switch_macaddr->addr);
+			return -EBUSY;
+		}
+
+		refcount_inc(&switch_macaddr->refcount);
+		return 0;
+	}
+
+	switch_macaddr = kzalloc(sizeof(*switch_macaddr), GFP_KERNEL);
+	if (!switch_macaddr)
+		return -ENOMEM;
+
+	ether_addr_copy(switch_macaddr->addr, addr);
+	refcount_set(&switch_macaddr->refcount, 1);
+	dev->switch_macaddr = switch_macaddr;
+
+	/* Program the switch MAC address to hardware */
+	for (i = 0; i < ETH_ALEN; i++)
+		ksz_write8(dev, regs[REG_SW_MAC_ADDR] + i, addr[i]);
+
+	return 0;
+}
+
+static void ksz_switch_macaddr_put(struct dsa_switch *ds)
+{
+	struct ksz_switch_macaddr *switch_macaddr;
+	struct ksz_device *dev = ds->priv;
+	const u16 *regs = dev->info->regs;
+	int i;
+
+	/* Make sure concurrent MAC address changes are blocked */
+	ASSERT_RTNL();
+
+	switch_macaddr = dev->switch_macaddr;
+	if (!refcount_dec_and_test(&switch_macaddr->refcount))
+		return;
+
+	for (i = 0; i < ETH_ALEN; i++)
+		ksz_write8(dev, regs[REG_SW_MAC_ADDR] + i, 0);
+
+	dev->switch_macaddr = NULL;
+	kfree(switch_macaddr);
+}
+
+static int ksz_hsr_join(struct dsa_switch *ds, int port, struct net_device *hsr,
+			struct netlink_ext_ack *extack)
+{
+	struct ksz_device *dev = ds->priv;
+	enum hsr_version ver;
+	int ret;
+
+	ret = hsr_get_version(hsr, &ver);
+	if (ret)
+		return ret;
+
+	if (dev->chip_id != KSZ9477_CHIP_ID) {
+		NL_SET_ERR_MSG_MOD(extack, "Chip does not support HSR offload");
+		return -EOPNOTSUPP;
+	}
+
+	/* KSZ9477 can support HW offloading of only 1 HSR device */
+	if (dev->hsr_dev && hsr != dev->hsr_dev) {
+		NL_SET_ERR_MSG_MOD(extack, "Offload supported for a single HSR");
+		return -EOPNOTSUPP;
+	}
+
+	/* KSZ9477 only supports HSR v0 and v1 */
+	if (!(ver == HSR_V0 || ver == HSR_V1)) {
+		NL_SET_ERR_MSG_MOD(extack, "Only HSR v0 and v1 supported");
+		return -EOPNOTSUPP;
+	}
+
+	/* Self MAC address filtering, to avoid frames traversing
+	 * the HSR ring more than once.
+	 */
+	ret = ksz_switch_macaddr_get(ds, port, extack);
+	if (ret)
+		return ret;
+
+	ksz9477_hsr_join(ds, port, hsr);
+	dev->hsr_dev = hsr;
+	dev->hsr_ports |= BIT(port);
+
+	return 0;
+}
+
+static int ksz_hsr_leave(struct dsa_switch *ds, int port,
+			 struct net_device *hsr)
+{
+	struct ksz_device *dev = ds->priv;
+
+	WARN_ON(dev->chip_id != KSZ9477_CHIP_ID);
+
+	ksz9477_hsr_leave(ds, port, hsr);
+	dev->hsr_ports &= ~BIT(port);
+	if (!dev->hsr_ports)
+		dev->hsr_dev = NULL;
+
+	ksz_switch_macaddr_put(ds);
+
+	return 0;
+}
+
 static const struct dsa_switch_ops ksz_switch_ops = {
 	.get_tag_protocol	= ksz_get_tag_protocol,
 	.connect_tag_protocol   = ksz_connect_tag_protocol,
@@ -3558,6 +3704,9 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.get_sset_count		= ksz_sset_count,
 	.port_bridge_join	= ksz_port_bridge_join,
 	.port_bridge_leave	= ksz_port_bridge_leave,
+	.port_hsr_join		= ksz_hsr_join,
+	.port_hsr_leave		= ksz_hsr_leave,
+	.port_set_mac_address	= ksz_port_set_mac_address,
 	.port_stp_state_set	= ksz_port_stp_state_set,
 	.port_teardown		= ksz_port_teardown,
 	.port_pre_bridge_flags	= ksz_port_pre_bridge_flags,
