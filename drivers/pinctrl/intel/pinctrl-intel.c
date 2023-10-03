@@ -674,16 +674,8 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 	unsigned int param = pinconf_to_config_param(config);
 	unsigned int arg = pinconf_to_config_argument(config);
 	const struct intel_community *community;
+	u32 term = 0, up = 0, value;
 	void __iomem *padcfg1;
-	u32 value;
-
-	community = intel_get_community(pctrl, pin);
-	padcfg1 = intel_get_padcfg(pctrl, pin, PADCFG1);
-
-	guard(raw_spinlock_irqsave)(&pctrl->lock);
-
-	value = readl(padcfg1);
-	value &= ~(PADCFG1_TERM_MASK | PADCFG1_TERM_UP);
 
 	/* Set default strength value in case none is given */
 	if (arg == 1)
@@ -696,47 +688,49 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 	case PIN_CONFIG_BIAS_PULL_UP:
 		switch (arg) {
 		case 20000:
-			value |= PADCFG1_TERM_20K << PADCFG1_TERM_SHIFT;
+			term = PADCFG1_TERM_20K;
 			break;
 		case 5000:
-			value |= PADCFG1_TERM_5K << PADCFG1_TERM_SHIFT;
+			term = PADCFG1_TERM_5K;
 			break;
 		case 4000:
-			value |= PADCFG1_TERM_4K << PADCFG1_TERM_SHIFT;
+			term = PADCFG1_TERM_4K;
 			break;
 		case 1000:
-			value |= PADCFG1_TERM_1K << PADCFG1_TERM_SHIFT;
+			term = PADCFG1_TERM_1K;
 			break;
 		case 833:
-			value |= PADCFG1_TERM_833 << PADCFG1_TERM_SHIFT;
+			term = PADCFG1_TERM_833;
 			break;
 		default:
 			return -EINVAL;
 		}
 
-		value |= PADCFG1_TERM_UP;
+		up = PADCFG1_TERM_UP;
 		break;
 
 	case PIN_CONFIG_BIAS_PULL_DOWN:
+		community = intel_get_community(pctrl, pin);
+
 		switch (arg) {
 		case 20000:
-			value |= PADCFG1_TERM_20K << PADCFG1_TERM_SHIFT;
+			term = PADCFG1_TERM_20K;
 			break;
 		case 5000:
-			value |= PADCFG1_TERM_5K << PADCFG1_TERM_SHIFT;
+			term = PADCFG1_TERM_5K;
 			break;
 		case 4000:
-			value |= PADCFG1_TERM_4K << PADCFG1_TERM_SHIFT;
+			term = PADCFG1_TERM_4K;
 			break;
 		case 1000:
 			if (!(community->features & PINCTRL_FEATURE_1K_PD))
 				return -EINVAL;
-			value |= PADCFG1_TERM_1K << PADCFG1_TERM_SHIFT;
+			term = PADCFG1_TERM_1K;
 			break;
 		case 833:
 			if (!(community->features & PINCTRL_FEATURE_1K_PD))
 				return -EINVAL;
-			value |= PADCFG1_TERM_833 << PADCFG1_TERM_SHIFT;
+			term = PADCFG1_TERM_833;
 			break;
 		default:
 			return -EINVAL;
@@ -748,6 +742,13 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 		return -EINVAL;
 	}
 
+	padcfg1 = intel_get_padcfg(pctrl, pin, PADCFG1);
+
+	guard(raw_spinlock_irqsave)(&pctrl->lock);
+
+	value = readl(padcfg1);
+	value = (value & ~PADCFG1_TERM_MASK) | (term << PADCFG1_TERM_SHIFT);
+	value = (value & ~PADCFG1_TERM_UP) | up;
 	writel(value, padcfg1);
 
 	return 0;
