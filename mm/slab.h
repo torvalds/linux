@@ -416,9 +416,6 @@ kmalloc_slab(size_t size, gfp_t flags, unsigned long caller)
 	return kmalloc_caches[kmalloc_type(flags, caller)][index];
 }
 
-void *__kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags,
-			      int node, size_t orig_size,
-			      unsigned long caller);
 gfp_t kmalloc_fix_flags(gfp_t flags);
 
 /* Functions provided by the slab allocators */
