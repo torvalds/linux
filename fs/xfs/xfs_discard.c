@@ -283,6 +283,12 @@ out_del_cursor:
 	return error;
 }
 
+static bool
+xfs_trim_should_stop(void)
+{
+	return fatal_signal_pending(current) || freezing(current);
+}
+
 /*
  * Iterate the free list gathering extents and discarding them. We need a cursor
  * for the repeated iteration of gather/discard loop, so use the longest extent
@@ -336,10 +342,9 @@ xfs_trim_extents(
 		if (error)
 			break;
 
-		if (fatal_signal_pending(current)) {
-			error = -ERESTARTSYS;
+		if (xfs_trim_should_stop())
 			break;
-		}
+
 	} while (tcur.ar_blockcount != 0);
 
 	return error;
@@ -408,12 +413,12 @@ xfs_ioc_trim(
 	for_each_perag_range(mp, agno, xfs_daddr_to_agno(mp, end), pag) {
 		error = xfs_trim_extents(pag, start, end, minlen,
 					  &blocks_trimmed);
-		if (error) {
+		if (error)
 			last_error = error;
-			if (error == -ERESTARTSYS) {
-				xfs_perag_rele(pag);
-				break;
-			}
+
+		if (xfs_trim_should_stop()) {
+			xfs_perag_rele(pag);
+			break;
 		}
 	}
 
