@@ -3370,6 +3370,8 @@ return indicates the attribute is implemented.  It does not necessarily
 indicate that the attribute can be read or written in the device's
 current state.  "addr" is ignored.
 
+.. _KVM_ARM_VCPU_INIT:
+
 4.82 KVM_ARM_VCPU_INIT
 ----------------------
 
@@ -6069,6 +6071,8 @@ Note that using this ioctl results in KVM ignoring subsequent userspace
 writes to the CNTVCT_EL0 and CNTPCT_EL0 registers using the SET_ONE_REG
 interface. No error will be returned, but the resulting offset will not be
 applied.
+
+.. _KVM_ARM_GET_REG_WRITABLE_MASKS:
 
 4.139 KVM_ARM_GET_REG_WRITABLE_MASKS
 -------------------------------------------
