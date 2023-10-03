@@ -4487,30 +4487,9 @@ static const struct of_device_id msm_geni_device_tbl[] = {
 static void msm_geni_serial_init_gsi(struct uart_port *uport)
 {
 	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
-	int ret;
 
-	ret = geni_icc_enable(&msm_port->se);
-	if (ret) {
-		UART_LOG_DBG(msm_port->ipc_log_misc, msm_port->uport.dev,
-			     "%s: Error %d geni_icc_enable failed\n", __func__, ret);
-		return;
-	}
-
-	ret = geni_icc_set_bw(&msm_port->se);
-	if (ret) {
-		UART_LOG_DBG(msm_port->ipc_log_misc, msm_port->uport.dev,
-			     "%s: Error %d ICC BW voting failed\n", __func__, ret);
-		return;
-	}
 	msm_port->gsi_mode = geni_read_reg(uport->membase,
 					   GENI_IF_DISABLE_RO) & FIFO_IF_DISABLE;
-	ret = geni_icc_disable(&msm_port->se);
-	if (ret) {
-		UART_LOG_DBG(msm_port->ipc_log_misc, msm_port->uport.dev,
-			"%s: Error %d geni_icc_disable failed\n", __func__, ret);
-		return;
-	}
-
 	dev_info(uport->dev, "gsi_mode:%d\n", msm_port->gsi_mode);
 	if (msm_port->gsi_mode) {
 		msm_port->gsi = devm_kzalloc(uport->dev, sizeof(*msm_port->gsi),
@@ -4587,6 +4566,7 @@ static int msm_geni_serial_get_ver_info(struct uart_port *uport)
 		&msm_port->ver_info.hw_minor_ver,
 		&msm_port->ver_info.hw_step_ver);
 
+	msm_geni_serial_init_gsi(uport);
 	msm_geni_serial_enable_interrupts(uport);
 
 exit_ver_info:
@@ -4980,8 +4960,6 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 	dev_port->port_setup = false;
 
 	dev_port->uart_error = UART_ERROR_DEFAULT;
-	/* Initialize the GSI mode */
-	msm_geni_serial_init_gsi(uport);
 
 	/*
 	 * In abrupt kill scenarios, previous state of the uart causing runtime
