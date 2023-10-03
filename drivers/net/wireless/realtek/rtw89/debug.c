@@ -390,7 +390,7 @@ struct txpwr_map {
 	  _e0 "  " _e1 "  " _e2 "  " _e3 "  " \
 	  _e4 "  " _e5 "  " _e6 "  " _e7 }
 
-static const struct txpwr_ent __txpwr_ent_byr[] = {
+static const struct txpwr_ent __txpwr_ent_byr_ax[] = {
 	__GEN_TXPWR_ENT4("CCK       ", "1M   ", "2M   ", "5.5M ", "11M  "),
 	__GEN_TXPWR_ENT4("LEGACY    ", "6M   ", "9M   ", "12M  ", "18M  "),
 	__GEN_TXPWR_ENT4("LEGACY    ", "24M  ", "36M  ", "48M  ", "54M  "),
@@ -406,18 +406,18 @@ static const struct txpwr_ent __txpwr_ent_byr[] = {
 	__GEN_TXPWR_ENT4("HEDCM_2NSS", "MCS0 ", "MCS1 ", "MCS3 ", "MCS4 "),
 };
 
-static_assert((ARRAY_SIZE(__txpwr_ent_byr) * 4) ==
+static_assert((ARRAY_SIZE(__txpwr_ent_byr_ax) * 4) ==
 	(R_AX_PWR_BY_RATE_MAX - R_AX_PWR_BY_RATE + 4));
 
-static const struct txpwr_map __txpwr_map_byr = {
-	.ent = __txpwr_ent_byr,
-	.size = ARRAY_SIZE(__txpwr_ent_byr),
+static const struct txpwr_map __txpwr_map_byr_ax = {
+	.ent = __txpwr_ent_byr_ax,
+	.size = ARRAY_SIZE(__txpwr_ent_byr_ax),
 	.addr_from = R_AX_PWR_BY_RATE,
 	.addr_to = R_AX_PWR_BY_RATE_MAX,
 	.addr_to_1ss = R_AX_PWR_BY_RATE_1SS_MAX,
 };
 
-static const struct txpwr_ent __txpwr_ent_lmt[] = {
+static const struct txpwr_ent __txpwr_ent_lmt_ax[] = {
 	/* 1TX */
 	__GEN_TXPWR_ENT2("CCK_1TX_20M    ", "NON_BF", "BF"),
 	__GEN_TXPWR_ENT2("CCK_1TX_40M    ", "NON_BF", "BF"),
@@ -462,18 +462,18 @@ static const struct txpwr_ent __txpwr_ent_lmt[] = {
 	__GEN_TXPWR_ENT2("MCS_2TX_40M_2p5", "NON_BF", "BF"),
 };
 
-static_assert((ARRAY_SIZE(__txpwr_ent_lmt) * 2) ==
+static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ax) * 2) ==
 	(R_AX_PWR_LMT_MAX - R_AX_PWR_LMT + 4));
 
-static const struct txpwr_map __txpwr_map_lmt = {
-	.ent = __txpwr_ent_lmt,
-	.size = ARRAY_SIZE(__txpwr_ent_lmt),
+static const struct txpwr_map __txpwr_map_lmt_ax = {
+	.ent = __txpwr_ent_lmt_ax,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_ax),
 	.addr_from = R_AX_PWR_LMT,
 	.addr_to = R_AX_PWR_LMT_MAX,
 	.addr_to_1ss = R_AX_PWR_LMT_1SS_MAX,
 };
 
-static const struct txpwr_ent __txpwr_ent_lmt_ru[] = {
+static const struct txpwr_ent __txpwr_ent_lmt_ru_ax[] = {
 	/* 1TX */
 	__GEN_TXPWR_ENT8("1TX", "RU26__0", "RU26__1", "RU26__2", "RU26__3",
 			 "RU26__4", "RU26__5", "RU26__6", "RU26__7"),
@@ -490,12 +490,12 @@ static const struct txpwr_ent __txpwr_ent_lmt_ru[] = {
 			 "RU106_4", "RU106_5", "RU106_6", "RU106_7"),
 };
 
-static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ru) * 8) ==
+static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ru_ax) * 8) ==
 	(R_AX_PWR_RU_LMT_MAX - R_AX_PWR_RU_LMT + 4));
 
-static const struct txpwr_map __txpwr_map_lmt_ru = {
-	.ent = __txpwr_ent_lmt_ru,
-	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru),
+static const struct txpwr_map __txpwr_map_lmt_ru_ax = {
+	.ent = __txpwr_ent_lmt_ru_ax,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru_ax),
 	.addr_from = R_AX_PWR_RU_LMT,
 	.addr_to = R_AX_PWR_RU_LMT_MAX,
 	.addr_to_1ss = R_AX_PWR_RU_LMT_1SS_MAX,
@@ -600,10 +600,28 @@ static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev,
 
 #undef case_REGD
 
+struct dbgfs_txpwr_table {
+	const struct txpwr_map *byr;
+	const struct txpwr_map *lmt;
+	const struct txpwr_map *lmt_ru;
+};
+
+static const struct dbgfs_txpwr_table dbgfs_txpwr_table_ax = {
+	.byr = &__txpwr_map_byr_ax,
+	.lmt = &__txpwr_map_lmt_ax,
+	.lmt_ru = &__txpwr_map_lmt_ru_ax,
+};
+
+static const struct dbgfs_txpwr_table *dbgfs_txpwr_tables[RTW89_CHIP_GEN_NUM] = {
+	[RTW89_CHIP_AX] = &dbgfs_txpwr_table_ax,
+};
+
 static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+	const struct dbgfs_txpwr_table *tbl;
 	const struct rtw89_chan *chan;
 	int ret = 0;
 
@@ -620,18 +638,24 @@ static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 	seq_puts(m, "[TAS]\n");
 	rtw89_print_tas(m, rtwdev);
 
+	tbl = dbgfs_txpwr_tables[chip_gen];
+	if (!tbl) {
+		ret = -EOPNOTSUPP;
+		goto err;
+	}
+
 	seq_puts(m, "\n[TX power byrate]\n");
-	ret = __print_txpwr_map(m, rtwdev, &__txpwr_map_byr);
+	ret = __print_txpwr_map(m, rtwdev, tbl->byr);
 	if (ret)
 		goto err;
 
 	seq_puts(m, "\n[TX power limit]\n");
-	ret = __print_txpwr_map(m, rtwdev, &__txpwr_map_lmt);
+	ret = __print_txpwr_map(m, rtwdev, tbl->lmt);
 	if (ret)
 		goto err;
 
 	seq_puts(m, "\n[TX power limit_ru]\n");
-	ret = __print_txpwr_map(m, rtwdev, &__txpwr_map_lmt_ru);
+	ret = __print_txpwr_map(m, rtwdev, tbl->lmt_ru);
 	if (ret)
 		goto err;
 
