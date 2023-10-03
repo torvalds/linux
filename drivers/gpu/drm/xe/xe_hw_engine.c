@@ -770,7 +770,7 @@ void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
 	drm_printf(p, "\tRING_HEAD:  0x%08x\n", snapshot->reg.ring_head);
 	drm_printf(p, "\tRING_TAIL:  0x%08x\n", snapshot->reg.ring_tail);
 	drm_printf(p, "\tRING_CTL: 0x%08x\n", snapshot->reg.ring_ctl);
-	drm_printf(p, "\tRING_MODE: 0x%08x\n", snapshot->reg.ring_mi_mode);
+	drm_printf(p, "\tRING_MI_MODE: 0x%08x\n", snapshot->reg.ring_mi_mode);
 	drm_printf(p, "\tRING_MODE: 0x%08x\n",
 		   snapshot->reg.ring_mode);
 	drm_printf(p, "\tRING_IMR:   0x%08x\n", snapshot->reg.ring_imr);
