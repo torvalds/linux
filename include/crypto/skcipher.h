@@ -395,17 +395,6 @@ static inline struct lskcipher_alg *crypto_lskcipher_alg(
 			    struct lskcipher_alg, co.base);
 }
 
-static inline unsigned int crypto_skcipher_alg_ivsize(struct skcipher_alg *alg)
-{
-	return alg->ivsize;
-}
-
-static inline unsigned int crypto_lskcipher_alg_ivsize(
-	struct lskcipher_alg *alg)
-{
-	return alg->co.ivsize;
-}
-
 /**
  * crypto_skcipher_ivsize() - obtain IV size
  * @tfm: cipher handle
@@ -473,18 +462,6 @@ static inline unsigned int crypto_lskcipher_blocksize(
 	return crypto_tfm_alg_blocksize(crypto_lskcipher_tfm(tfm));
 }
 
-static inline unsigned int crypto_skcipher_alg_chunksize(
-	struct skcipher_alg *alg)
-{
-	return alg->chunksize;
-}
-
-static inline unsigned int crypto_lskcipher_alg_chunksize(
-	struct lskcipher_alg *alg)
-{
-	return alg->co.chunksize;
-}
-
 /**
  * crypto_skcipher_chunksize() - obtain chunk size
  * @tfm: cipher handle
@@ -516,7 +493,7 @@ static inline unsigned int crypto_skcipher_chunksize(
 static inline unsigned int crypto_lskcipher_chunksize(
 	struct crypto_lskcipher *tfm)
 {
-	return crypto_lskcipher_alg_chunksize(crypto_lskcipher_alg(tfm));
+	return crypto_lskcipher_alg(tfm)->co.chunksize;
 }
 
 static inline unsigned int crypto_sync_skcipher_blocksize(
