@@ -539,7 +539,7 @@ static bool mobiveil_pcie_is_bridge(struct mobiveil_pcie *pcie)
 	u32 header_type;
 
 	header_type = mobiveil_csr_readb(pcie, PCI_HEADER_TYPE);
-	header_type &= 0x7f;
+	header_type &= PCI_HEADER_TYPE_MASK;
 
 	return header_type == PCI_HEADER_TYPE_BRIDGE;
 }
