@@ -408,6 +408,9 @@ struct rtw89_phy_gen_def {
 	void (*set_txpwr_byrate)(struct rtw89_dev *rtwdev,
 				 const struct rtw89_chan *chan,
 				 enum rtw89_phy_idx phy_idx);
+	void (*set_txpwr_offset)(struct rtw89_dev *rtwdev,
+				 const struct rtw89_chan *chan,
+				 enum rtw89_phy_idx phy_idx);
 };
 
 extern const struct rtw89_phy_gen_def rtw89_phy_gen_ax;
@@ -637,9 +640,16 @@ void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 	phy->set_txpwr_byrate(rtwdev, chan, phy_idx);
 }
 
+static inline
 void rtw89_phy_set_txpwr_offset(struct rtw89_dev *rtwdev,
 				const struct rtw89_chan *chan,
-				enum rtw89_phy_idx phy_idx);
+				enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	phy->set_txpwr_offset(rtwdev, chan, phy_idx);
+}
+
 void rtw89_phy_set_txpwr_limit(struct rtw89_dev *rtwdev,
 			       const struct rtw89_chan *chan,
 			       enum rtw89_phy_idx phy_idx);
