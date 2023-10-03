@@ -5358,7 +5358,7 @@ intel_dp_detect(struct drm_connector *connector,
 	drm_WARN_ON(&dev_priv->drm,
 		    !drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
 
-	if (!INTEL_DISPLAY_ENABLED(dev_priv))
+	if (!intel_display_device_enabled(dev_priv))
 		return connector_status_disconnected;
 
 	/* Can't disconnect eDP */

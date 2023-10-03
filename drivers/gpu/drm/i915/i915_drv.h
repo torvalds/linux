@@ -821,12 +821,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define NUM_L3_SLICES(i915) (IS_HASWELL_GT3(i915) ? \
 				 2 : HAS_L3_DPF(i915))
 
-/* Only valid when HAS_DISPLAY() is true */
-#define INTEL_DISPLAY_ENABLED(i915) \
-	(drm_WARN_ON(&(i915)->drm, !HAS_DISPLAY(i915)),		\
-	 !(i915)->params.disable_display &&				\
-	 !intel_opregion_headless_sku(i915))
-
 #define HAS_GUC_DEPRIVILEGE(i915) \
 	(INTEL_INFO(i915)->has_guc_deprivilege)
 

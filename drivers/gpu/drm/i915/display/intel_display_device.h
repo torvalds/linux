@@ -150,6 +150,7 @@ struct intel_display_device_info {
 	} color;
 };
 
+bool intel_display_device_enabled(struct drm_i915_private *i915);
 void intel_display_device_probe(struct drm_i915_private *i915);
 void intel_display_device_info_runtime_init(struct drm_i915_private *i915);
 

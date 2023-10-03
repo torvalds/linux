@@ -1091,3 +1091,20 @@ void intel_display_device_info_print(const struct intel_display_device_info *inf
 	drm_printf(p, "has_dmc: %s\n", str_yes_no(runtime->has_dmc));
 	drm_printf(p, "has_dsc: %s\n", str_yes_no(runtime->has_dsc));
 }
+
+/*
+ * Assuming the device has display hardware, should it be enabled?
+ *
+ * It's an error to call this function if the device does not have display
+ * hardware.
+ *
+ * Disabling display means taking over the display hardware, putting it to
+ * sleep, and preventing connectors from being connected via any means.
+ */
+bool intel_display_device_enabled(struct drm_i915_private *i915)
+{
+	/* Only valid when HAS_DISPLAY() is true */
+	drm_WARN_ON(&i915->drm, !HAS_DISPLAY(i915));
+
+	return !i915->params.disable_display && !intel_opregion_headless_sku(i915);
+}

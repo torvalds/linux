@@ -2121,7 +2121,7 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 
-	if (!INTEL_DISPLAY_ENABLED(i915))
+	if (!intel_display_device_enabled(i915))
 		return connector_status_disconnected;
 
 	if (!intel_sdvo_set_target_output(intel_sdvo,
