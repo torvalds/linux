@@ -2736,30 +2736,30 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 	rwlock_init(&sp->lock);
 
 	if (mpol) {
-		struct vm_area_struct pvma;
-		struct mempolicy *new;
+		struct sp_node *sn;
+		struct mempolicy *npol;
 		NODEMASK_SCRATCH(scratch);
 
 		if (!scratch)
 			goto put_mpol;
-		/* contextualize the tmpfs mount point mempolicy */
-		new = mpol_new(mpol->mode, mpol->flags, &mpol->w.user_nodemask);
-		if (IS_ERR(new))
+
+		/* contextualize the tmpfs mount point mempolicy to this file */
+		npol = mpol_new(mpol->mode, mpol->flags, &mpol->w.user_nodemask);
+		if (IS_ERR(npol))
 			goto free_scratch; /* no valid nodemask intersection */
 
 		task_lock(current);
-		ret = mpol_set_nodemask(new, &mpol->w.user_nodemask, scratch);
+		ret = mpol_set_nodemask(npol, &mpol->w.user_nodemask, scratch);
 		task_unlock(current);
 		if (ret)
-			goto put_new;
+			goto put_npol;
 
-		/* Create pseudo-vma that contains just the policy */
-		vma_init(&pvma, NULL);
-		pvma.vm_end = TASK_SIZE;	/* policy covers entire file */
-		mpol_set_shared_policy(sp, &pvma, new); /* adds ref */
-
-put_new:
-		mpol_put(new);			/* drop initial ref */
+		/* alloc node covering entire file; adds ref to file's npol */
+		sn = sp_alloc(0, MAX_LFS_FILESIZE >> PAGE_SHIFT, npol);
+		if (sn)
+			sp_insert(sp, sn);
+put_npol:
+		mpol_put(npol);	/* drop initial ref on file's npol */
 free_scratch:
 		NODEMASK_SCRATCH_FREE(scratch);
 put_mpol:
