@@ -27,7 +27,7 @@ struct pinctrl_state;
 
 /* External interface to pin control */
 bool pinctrl_gpio_can_use_line(struct gpio_chip *gc, unsigned int offset);
-int pinctrl_gpio_request_new(struct gpio_chip *gc, unsigned int offset);
+int pinctrl_gpio_request(struct gpio_chip *gc, unsigned int offset);
 void pinctrl_gpio_free_new(struct gpio_chip *gc, unsigned int offset);
 int pinctrl_gpio_direction_input_new(struct gpio_chip *gc,
 				     unsigned int offset);
@@ -74,7 +74,7 @@ pinctrl_gpio_can_use_line(struct gpio_chip *gc, unsigned int offset)
 }
 
 static inline int
-pinctrl_gpio_request_new(struct gpio_chip *gc, unsigned int offset)
+pinctrl_gpio_request(struct gpio_chip *gc, unsigned int offset)
 {
 	return 0;
 }

@@ -784,7 +784,7 @@ bool pinctrl_gpio_can_use_line(struct gpio_chip *gc, unsigned int offset)
 EXPORT_SYMBOL_GPL(pinctrl_gpio_can_use_line);
 
 /**
- * pinctrl_gpio_request_new() - request a single pin to be used as GPIO
+ * pinctrl_gpio_request() - request a single pin to be used as GPIO
  * @gc: GPIO chip structure from the GPIO subsystem
  * @offset: hardware offset of the GPIO relative to the controller
  *
@@ -792,7 +792,7 @@ EXPORT_SYMBOL_GPL(pinctrl_gpio_can_use_line);
  * as part of their gpio_request() semantics, platforms and individual drivers
  * shall *NOT* request GPIO pins to be muxed in.
  */
-int pinctrl_gpio_request_new(struct gpio_chip *gc, unsigned int offset)
+int pinctrl_gpio_request(struct gpio_chip *gc, unsigned int offset)
 {
 	struct pinctrl_gpio_range *range;
 	struct pinctrl_dev *pctldev;
@@ -817,7 +817,7 @@ int pinctrl_gpio_request_new(struct gpio_chip *gc, unsigned int offset)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(pinctrl_gpio_request_new);
+EXPORT_SYMBOL_GPL(pinctrl_gpio_request);
 
 /**
  * pinctrl_gpio_free_new() - free control on a single pin, currently used as GPIO
