@@ -805,6 +805,10 @@ class Family(SpecFamily):
             self.uapi_header = self.yaml['uapi-header']
         else:
             self.uapi_header = f"linux/{self.name}.h"
+        if self.uapi_header.startswith("linux/") and self.uapi_header.endswith('.h'):
+            self.uapi_header_name = self.uapi_header[6:-2]
+        else:
+            self.uapi_header_name = self.name
 
     def resolve(self):
         self.resolve_up(super())
@@ -2124,7 +2128,7 @@ def uapi_enum_start(family, cw, obj, ckey='', enum_name='enum-name'):
 
 
 def render_uapi(family, cw):
-    hdr_prot = f"_UAPI_LINUX_{family.name.upper()}_H"
+    hdr_prot = f"_UAPI_LINUX_{c_upper(family.uapi_header_name)}_H"
     cw.p('#ifndef ' + hdr_prot)
     cw.p('#define ' + hdr_prot)
     cw.nl()
