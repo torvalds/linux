@@ -3722,10 +3722,19 @@ EXPORT_SYMBOL(skb_dequeue_tail);
 void skb_queue_purge_reason(struct sk_buff_head *list,
 			    enum skb_drop_reason reason)
 {
-	struct sk_buff *skb;
+	struct sk_buff_head tmp;
+	unsigned long flags;
 
-	while ((skb = skb_dequeue(list)) != NULL)
-		kfree_skb_reason(skb, reason);
+	if (skb_queue_empty_lockless(list))
+		return;
+
+	__skb_queue_head_init(&tmp);
+
+	spin_lock_irqsave(&list->lock, flags);
+	skb_queue_splice_init(list, &tmp);
+	spin_unlock_irqrestore(&list->lock, flags);
+
+	__skb_queue_purge_reason(&tmp, reason);
 }
 EXPORT_SYMBOL(skb_queue_purge_reason);
 
