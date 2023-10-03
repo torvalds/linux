@@ -124,10 +124,9 @@ struct shared_policy {
 
 int vma_dup_policy(struct vm_area_struct *src, struct vm_area_struct *dst);
 void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol);
-int mpol_set_shared_policy(struct shared_policy *info,
-				struct vm_area_struct *vma,
-				struct mempolicy *new);
-void mpol_free_shared_policy(struct shared_policy *p);
+int mpol_set_shared_policy(struct shared_policy *sp,
+			   struct vm_area_struct *vma, struct mempolicy *mpol);
+void mpol_free_shared_policy(struct shared_policy *sp);
 struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
 					    unsigned long idx);
 
@@ -191,7 +190,7 @@ static inline bool mpol_equal(struct mempolicy *a, struct mempolicy *b)
 	return true;
 }
 
-static inline void mpol_put(struct mempolicy *p)
+static inline void mpol_put(struct mempolicy *pol)
 {
 }
 
@@ -210,7 +209,7 @@ static inline void mpol_shared_policy_init(struct shared_policy *sp,
 {
 }
 
-static inline void mpol_free_shared_policy(struct shared_policy *p)
+static inline void mpol_free_shared_policy(struct shared_policy *sp)
 {
 }
 

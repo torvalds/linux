@@ -25,7 +25,7 @@
  *                to the last. It would be better if bind would truly restrict
  *                the allocation to memory nodes instead
  *
- * preferred       Try a specific node first before normal fallback.
+ * preferred      Try a specific node first before normal fallback.
  *                As a special case NUMA_NO_NODE here means do the allocation
  *                on the local CPU. This is normally identical to default,
  *                but useful to set in a VMA when you have a non default
@@ -52,7 +52,7 @@
  * on systems with highmem kernel lowmem allocation don't get policied.
  * Same with GFP_DMA allocations.
  *
- * For shmfs/tmpfs/hugetlbfs shared memory the policy is shared between
+ * For shmem/tmpfs shared memory the policy is shared between
  * all users and remembered even when nobody has memory mapped.
  */
 
@@ -291,6 +291,7 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 			return ERR_PTR(-EINVAL);
 	} else if (nodes_empty(*nodes))
 		return ERR_PTR(-EINVAL);
+
 	policy = kmem_cache_alloc(policy_cache, GFP_KERNEL);
 	if (!policy)
 		return ERR_PTR(-ENOMEM);
@@ -303,11 +304,11 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 }
 
 /* Slow path of a mpol destructor. */
-void __mpol_put(struct mempolicy *p)
+void __mpol_put(struct mempolicy *pol)
 {
-	if (!atomic_dec_and_test(&p->refcnt))
+	if (!atomic_dec_and_test(&pol->refcnt))
 		return;
-	kmem_cache_free(policy_cache, p);
+	kmem_cache_free(policy_cache, pol);
 }
 
 static void mpol_rebind_default(struct mempolicy *pol, const nodemask_t *nodes)
@@ -364,7 +365,6 @@ static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
  *
  * Called with task's alloc_lock held.
  */
-
 void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new)
 {
 	mpol_rebind_policy(tsk->mempolicy, new);
@@ -375,7 +375,6 @@ void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new)
  *
  * Call holding a reference to mm.  Takes mm->mmap_lock during call.
  */
-
 void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
 {
 	struct vm_area_struct *vma;
@@ -757,7 +756,7 @@ queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
  * This must be called with the mmap_lock held for writing.
  */
 static int vma_replace_policy(struct vm_area_struct *vma,
-						struct mempolicy *pol)
+				struct mempolicy *pol)
 {
 	int err;
 	struct mempolicy *old;
@@ -800,7 +799,7 @@ static int mbind_range(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		vmstart = vma->vm_start;
 	}
 
-	if (mpol_equal(vma_policy(vma), new_pol)) {
+	if (mpol_equal(vma->vm_policy, new_pol)) {
 		*prev = vma;
 		return 0;
 	}
@@ -855,18 +854,18 @@ out:
  *
  * Called with task's alloc_lock held
  */
-static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
+static void get_policy_nodemask(struct mempolicy *pol, nodemask_t *nodes)
 {
 	nodes_clear(*nodes);
-	if (p == &default_policy)
+	if (pol == &default_policy)
 		return;
 
-	switch (p->mode) {
+	switch (pol->mode) {
 	case MPOL_BIND:
 	case MPOL_INTERLEAVE:
 	case MPOL_PREFERRED:
 	case MPOL_PREFERRED_MANY:
-		*nodes = p->nodes;
+		*nodes = pol->nodes;
 		break;
 	case MPOL_LOCAL:
 		/* return empty node mask for local allocation */
@@ -1634,7 +1633,6 @@ out:
 out_put:
 	put_task_struct(task);
 	goto out;
-
 }
 
 SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
@@ -1643,7 +1641,6 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
 {
 	return kernel_migrate_pages(pid, maxnode, old_nodes, new_nodes);
 }
-
 
 /* Retrieve NUMA policy */
 static int kernel_get_mempolicy(int __user *policy,
@@ -1827,10 +1824,10 @@ nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
  * policy_node() is always coupled with policy_nodemask(), which
  * secures the nodemask limit for 'bind' and 'prefer-many' policy.
  */
-static int policy_node(gfp_t gfp, struct mempolicy *policy, int nd)
+static int policy_node(gfp_t gfp, struct mempolicy *policy, int nid)
 {
 	if (policy->mode == MPOL_PREFERRED) {
-		nd = first_node(policy->nodes);
+		nid = first_node(policy->nodes);
 	} else {
 		/*
 		 * __GFP_THISNODE shouldn't even be used with the bind policy
@@ -1845,19 +1842,18 @@ static int policy_node(gfp_t gfp, struct mempolicy *policy, int nd)
 	    policy->home_node != NUMA_NO_NODE)
 		return policy->home_node;
 
-	return nd;
+	return nid;
 }
 
 /* Do dynamic interleaving for a process */
-static unsigned interleave_nodes(struct mempolicy *policy)
+static unsigned int interleave_nodes(struct mempolicy *policy)
 {
-	unsigned next;
-	struct task_struct *me = current;
+	unsigned int nid;
 
-	next = next_node_in(me->il_prev, policy->nodes);
-	if (next < MAX_NUMNODES)
-		me->il_prev = next;
-	return next;
+	nid = next_node_in(current->il_prev, policy->nodes);
+	if (nid < MAX_NUMNODES)
+		current->il_prev = nid;
+	return nid;
 }
 
 /*
@@ -2347,7 +2343,7 @@ unsigned long alloc_pages_bulk_array_mempolicy(gfp_t gfp,
 
 int vma_dup_policy(struct vm_area_struct *src, struct vm_area_struct *dst)
 {
-	struct mempolicy *pol = mpol_dup(vma_policy(src));
+	struct mempolicy *pol = mpol_dup(src->vm_policy);
 
 	if (IS_ERR(pol))
 		return PTR_ERR(pol);
@@ -2771,40 +2767,40 @@ put_mpol:
 	}
 }
 
-int mpol_set_shared_policy(struct shared_policy *info,
-			struct vm_area_struct *vma, struct mempolicy *npol)
+int mpol_set_shared_policy(struct shared_policy *sp,
+			struct vm_area_struct *vma, struct mempolicy *pol)
 {
 	int err;
 	struct sp_node *new = NULL;
 	unsigned long sz = vma_pages(vma);
 
-	if (npol) {
-		new = sp_alloc(vma->vm_pgoff, vma->vm_pgoff + sz, npol);
+	if (pol) {
+		new = sp_alloc(vma->vm_pgoff, vma->vm_pgoff + sz, pol);
 		if (!new)
 			return -ENOMEM;
 	}
-	err = shared_policy_replace(info, vma->vm_pgoff, vma->vm_pgoff+sz, new);
+	err = shared_policy_replace(sp, vma->vm_pgoff, vma->vm_pgoff + sz, new);
 	if (err && new)
 		sp_free(new);
 	return err;
 }
 
 /* Free a backing policy store on inode delete. */
-void mpol_free_shared_policy(struct shared_policy *p)
+void mpol_free_shared_policy(struct shared_policy *sp)
 {
 	struct sp_node *n;
 	struct rb_node *next;
 
-	if (!p->root.rb_node)
+	if (!sp->root.rb_node)
 		return;
-	write_lock(&p->lock);
-	next = rb_first(&p->root);
+	write_lock(&sp->lock);
+	next = rb_first(&sp->root);
 	while (next) {
 		n = rb_entry(next, struct sp_node, nd);
 		next = rb_next(&n->nd);
-		sp_delete(p, n);
+		sp_delete(sp, n);
 	}
-	write_unlock(&p->lock);
+	write_unlock(&sp->lock);
 }
 
 #ifdef CONFIG_NUMA_BALANCING
@@ -2854,7 +2850,6 @@ static inline void __init check_numabalancing_enable(void)
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
-/* assumes fs == KERNEL_DS */
 void __init numa_policy_init(void)
 {
 	nodemask_t interleave_nodes;
@@ -2917,7 +2912,6 @@ void numa_default_policy(void)
 /*
  * Parse and format mempolicy from/to strings
  */
-
 static const char * const policy_modes[] =
 {
 	[MPOL_DEFAULT]    = "default",
@@ -2927,7 +2921,6 @@ static const char * const policy_modes[] =
 	[MPOL_LOCAL]      = "local",
 	[MPOL_PREFERRED_MANY]  = "prefer (many)",
 };
-
 
 #ifdef CONFIG_TMPFS
 /**
