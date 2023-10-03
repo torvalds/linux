@@ -428,6 +428,11 @@ static bool strictly_unmovable(unsigned long flags)
 			 MPOL_MF_STRICT;
 }
 
+struct migration_mpol {		/* for alloc_migration_target_by_mpol() */
+	struct mempolicy *pol;
+	pgoff_t ilx;
+};
+
 struct queue_pages {
 	struct list_head *pagelist;
 	unsigned long flags;
@@ -1156,8 +1161,9 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 static struct folio *alloc_migration_target_by_mpol(struct folio *src,
 						    unsigned long private)
 {
-	struct mempolicy *pol = (struct mempolicy *)private;
-	pgoff_t ilx = 0;	/* improve on this later */
+	struct migration_mpol *mmpol = (struct migration_mpol *)private;
+	struct mempolicy *pol = mmpol->pol;
+	pgoff_t ilx = mmpol->ilx;
 	struct page *page;
 	unsigned int order;
 	int nid = numa_node_id();
@@ -1212,6 +1218,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma, *prev;
 	struct vma_iterator vmi;
+	struct migration_mpol mmpol;
 	struct mempolicy *new;
 	unsigned long end;
 	long err;
@@ -1284,17 +1291,55 @@ static long do_mbind(unsigned long start, unsigned long len,
 		}
 	}
 
-	mmap_write_unlock(mm);
-
 	if (!err && !list_empty(&pagelist)) {
 		/* Convert MPOL_DEFAULT's NULL to task or default policy */
 		if (!new) {
 			new = get_task_policy(current);
 			mpol_get(new);
 		}
+		mmpol.pol = new;
+		mmpol.ilx = 0;
+
+		/*
+		 * In the interleaved case, attempt to allocate on exactly the
+		 * targeted nodes, for the first VMA to be migrated; for later
+		 * VMAs, the nodes will still be interleaved from the targeted
+		 * nodemask, but one by one may be selected differently.
+		 */
+		if (new->mode == MPOL_INTERLEAVE) {
+			struct page *page;
+			unsigned int order;
+			unsigned long addr = -EFAULT;
+
+			list_for_each_entry(page, &pagelist, lru) {
+				if (!PageKsm(page))
+					break;
+			}
+			if (!list_entry_is_head(page, &pagelist, lru)) {
+				vma_iter_init(&vmi, mm, start);
+				for_each_vma_range(vmi, vma, end) {
+					addr = page_address_in_vma(page, vma);
+					if (addr != -EFAULT)
+						break;
+				}
+			}
+			if (addr != -EFAULT) {
+				order = compound_order(page);
+				/* We already know the pol, but not the ilx */
+				mpol_cond_put(get_vma_policy(vma, addr, order,
+							     &mmpol.ilx));
+				/* Set base from which to increment by index */
+				mmpol.ilx -= page->index >> order;
+			}
+		}
+	}
+
+	mmap_write_unlock(mm);
+
+	if (!err && !list_empty(&pagelist)) {
 		nr_failed |= migrate_pages(&pagelist,
 				alloc_migration_target_by_mpol, NULL,
-				(unsigned long)new, MIGRATE_SYNC,
+				(unsigned long)&mmpol, MIGRATE_SYNC,
 				MR_MEMPOLICY_MBIND, NULL);
 	}
 
