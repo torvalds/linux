@@ -364,9 +364,6 @@ static int sst_main(struct auxiliary_device *auxdev, struct tpmi_per_power_domai
 	/* Read PP header */
 	*((u64 *)&pd_info->pp_header) = readq(pd_info->sst_base + pd_info->sst_header.pp_offset);
 
-	/* Force level_en_mask level 0 */
-	pd_info->pp_header.level_en_mask |= 0x01;
-
 	mask = 0x01;
 	levels = 0;
 	for (i = 0; i < 8; ++i) {
