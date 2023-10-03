@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2010 Red Hat, Inc.
+ * Copyright (C) 2010, 2023 Red Hat, Inc.
  * All Rights Reserved.
  */
 #include "xfs.h"
@@ -18,6 +18,81 @@
 #include "xfs_trace.h"
 #include "xfs_log.h"
 #include "xfs_ag.h"
+
+struct workqueue_struct *xfs_discard_wq;
+
+static void
+xfs_discard_endio_work(
+	struct work_struct	*work)
+{
+	struct xfs_busy_extents	*extents =
+		container_of(work, struct xfs_busy_extents, endio_work);
+
+	xfs_extent_busy_clear(extents->mount, &extents->extent_list, false);
+	kmem_free(extents->owner);
+}
+
+/*
+ * Queue up the actual completion to a thread to avoid IRQ-safe locking for
+ * pagb_lock.
+ */
+static void
+xfs_discard_endio(
+	struct bio		*bio)
+{
+	struct xfs_busy_extents	*extents = bio->bi_private;
+
+	INIT_WORK(&extents->endio_work, xfs_discard_endio_work);
+	queue_work(xfs_discard_wq, &extents->endio_work);
+	bio_put(bio);
+}
+
+/*
+ * Walk the discard list and issue discards on all the busy extents in the
+ * list. We plug and chain the bios so that we only need a single completion
+ * call to clear all the busy extents once the discards are complete.
+ */
+int
+xfs_discard_extents(
+	struct xfs_mount	*mp,
+	struct xfs_busy_extents	*extents)
+{
+	struct xfs_extent_busy	*busyp;
+	struct bio		*bio = NULL;
+	struct blk_plug		plug;
+	int			error = 0;
+
+	blk_start_plug(&plug);
+	list_for_each_entry(busyp, &extents->extent_list, list) {
+		trace_xfs_discard_extent(mp, busyp->agno, busyp->bno,
+					 busyp->length);
+
+		error = __blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
+				XFS_AGB_TO_DADDR(mp, busyp->agno, busyp->bno),
+				XFS_FSB_TO_BB(mp, busyp->length),
+				GFP_NOFS, &bio);
+		if (error && error != -EOPNOTSUPP) {
+			xfs_info(mp,
+	 "discard failed for extent [0x%llx,%u], error %d",
+				 (unsigned long long)busyp->bno,
+				 busyp->length,
+				 error);
+			break;
+		}
+	}
+
+	if (bio) {
+		bio->bi_private = extents;
+		bio->bi_end_io = xfs_discard_endio;
+		submit_bio(bio);
+	} else {
+		xfs_discard_endio_work(&extents->endio_work);
+	}
+	blk_finish_plug(&plug);
+
+	return error;
+}
+
 
 STATIC int
 xfs_trim_extents(

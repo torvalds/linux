@@ -16,9 +16,6 @@ struct xfs_alloc_arg;
 /*
  * Busy block/extent entry.  Indexed by a rbtree in perag to mark blocks that
  * have been freed but whose transactions aren't committed to disk yet.
- *
- * Note that we use the transaction ID to record the transaction, not the
- * transaction structure itself. See xfs_extent_busy_insert() for details.
  */
 struct xfs_extent_busy {
 	struct rb_node	rb_node;	/* ag by-bno indexed search tree */
@@ -29,6 +26,23 @@ struct xfs_extent_busy {
 	unsigned int	flags;
 #define XFS_EXTENT_BUSY_DISCARDED	0x01	/* undergoing a discard op. */
 #define XFS_EXTENT_BUSY_SKIP_DISCARD	0x02	/* do not discard */
+};
+
+/*
+ * List used to track groups of related busy extents all the way through
+ * to discard completion.
+ */
+struct xfs_busy_extents {
+	struct xfs_mount	*mount;
+	struct list_head	extent_list;
+	struct work_struct	endio_work;
+
+	/*
+	 * Owner is the object containing the struct xfs_busy_extents to free
+	 * once the busy extents have been processed. If only the
+	 * xfs_busy_extents object needs freeing, then point this at itself.
+	 */
+	void			*owner;
 };
 
 void
