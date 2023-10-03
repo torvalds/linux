@@ -94,6 +94,7 @@ static int isst_if_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct isst_if_device *punit_dev;
 	struct isst_if_cmd_cb cb;
 	u32 mmio_base, pcu_base;
+	struct resource r;
 	u64 base_addr;
 	int ret;
 
@@ -118,10 +119,10 @@ static int isst_if_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	punit_dev->mmio_range = (struct isst_mmio_range *) ent->driver_data;
 
-	punit_dev->punit_mmio = devm_ioremap(&pdev->dev, base_addr,
-					     punit_dev->mmio_range[1].size);
-	if (!punit_dev->punit_mmio)
-		return -ENOMEM;
+	r = DEFINE_RES_MEM(base_addr, punit_dev->mmio_range[1].size);
+	punit_dev->punit_mmio = devm_ioremap_resource(&pdev->dev, &r);
+	if (IS_ERR(punit_dev->punit_mmio))
+		return PTR_ERR(punit_dev->punit_mmio);
 
 	mutex_init(&punit_dev->mutex);
 	pci_set_drvdata(pdev, punit_dev);
