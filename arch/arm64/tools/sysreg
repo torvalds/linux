@@ -1239,6 +1239,7 @@ EndEnum
 UnsignedEnum	23:20	ATOMIC
 	0b0000	NI
 	0b0010	IMP
+	0b0011	FEAT_LSE128
 EndEnum
 UnsignedEnum	19:16	CRC32
 	0b0000	NI
