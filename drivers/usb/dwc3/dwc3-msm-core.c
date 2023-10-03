@@ -3597,6 +3597,13 @@ static void dwc3_dis_sleep_mode(struct dwc3_msm *mdwc)
 	dwc3_msm_write_reg(mdwc->base, DWC3_GUCTL1, reg);
 }
 
+/* Force Gen1 speed on Gen2 controller if required */
+static void dwc3_force_gen1(struct dwc3_msm *mdwc)
+{
+	if (mdwc->force_gen1 && (mdwc->ip == DWC31_IP))
+		dwc3_msm_write_reg_field(mdwc->base, DWC3_LLUCTL, DWC3_LLUCTL_FORCE_GEN1, 1);
+}
+
 static int dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
 {
 	struct dwc3 *dwc = NULL;
@@ -3644,9 +3651,7 @@ static int dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
 			mdwc3_dis_sending_cm_l1(mdwc);
 	}
 
-	/* Force Gen1 speed on Gen2 controller if required */
-	if (mdwc->force_gen1 && mdwc->ip == DWC31_IP)
-		dwc3_msm_write_reg_field(mdwc->base, DWC3_LLUCTL, DWC3_LLUCTL_FORCE_GEN1, 1);
+	dwc3_force_gen1(mdwc);
 	return 0;
 }
 
@@ -5851,6 +5856,7 @@ static int dwc3_msm_core_init(struct dwc3_msm *mdwc)
 	if (!mdwc->xhci_pm_ops)
 		goto free_dwc_pm_ops;
 
+	dwc3_force_gen1(mdwc);
 	dwc3_msm_notify_event(dwc, DWC3_GSI_EVT_BUF_ALLOC, 0);
 	pm_runtime_set_autosuspend_delay(dwc->dev, 0);
 	pm_runtime_allow(dwc->dev);
