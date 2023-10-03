@@ -1175,10 +1175,6 @@ struct rt_pmkid_list {
 	u8 bUsed;
 };
 
-struct rt_intel_promisc_mode {
-	bool promiscuous_on;
-};
-
 /*************** DRIVER STATUS   *****/
 #define STATUS_SCANNING			0
 /*************** DRIVER STATUS   *****/
@@ -1258,7 +1254,6 @@ struct rtllib_device {
 
 	int iw_mode; /* operating mode (IW_MODE_*) */
 	bool net_promiscuous_md;
-	struct rt_intel_promisc_mode intel_promiscuous_md_info;
 
 	spinlock_t lock;
 	spinlock_t wpax_suitlist_lock;

@@ -959,18 +959,16 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, struct ieee80211_hd
 	/* Nullfunc frames may have PS-bit set, so they must be passed to
 	 * hostap_handle_sta_rx() before being dropped here.
 	 */
-	if (!ieee->intel_promiscuous_md_info.promiscuous_on) {
-		if (stype != IEEE80211_STYPE_DATA &&
-		    stype != IEEE80211_STYPE_DATA_CFACK &&
-		    stype != IEEE80211_STYPE_DATA_CFPOLL &&
-		    stype != IEEE80211_STYPE_DATA_CFACKPOLL &&
-		    stype != IEEE80211_STYPE_QOS_DATA) {
-			if (stype != IEEE80211_STYPE_NULLFUNC)
-				netdev_dbg(ieee->dev,
-					   "RX: dropped data frame with no data (type=0x%02x, subtype=0x%02x)\n",
-					   type, stype);
-			return -1;
-		}
+	if (stype != IEEE80211_STYPE_DATA &&
+	    stype != IEEE80211_STYPE_DATA_CFACK &&
+	    stype != IEEE80211_STYPE_DATA_CFPOLL &&
+	    stype != IEEE80211_STYPE_DATA_CFACKPOLL &&
+	    stype != IEEE80211_STYPE_QOS_DATA) {
+		if (stype != IEEE80211_STYPE_NULLFUNC)
+			netdev_dbg(ieee->dev,
+				   "RX: dropped data frame with no data (type=0x%02x, subtype=0x%02x)\n",
+				   type, stype);
+		return -1;
 	}
 
 	/* packets from our adapter are dropped (echo) */

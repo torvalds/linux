@@ -706,10 +706,7 @@ void rtl92e_link_change(struct net_device *dev)
 
 		reg = rtl92e_readl(dev, RCR);
 		if (priv->rtllib->link_state == MAC80211_LINKED) {
-			if (ieee->intel_promiscuous_md_info.promiscuous_on)
-				;
-			else
-				priv->receive_config = reg |= RCR_CBSSID;
+			priv->receive_config = reg |= RCR_CBSSID;
 		} else {
 			priv->receive_config = reg &= ~RCR_CBSSID;
 		}
