@@ -727,7 +727,6 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 		hw_engine_mmio_read32(hwe, RING_DMA_FADD_UDW(0));
 	snapshot->reg.ring_dma_fadd =
 		hw_engine_mmio_read32(hwe, RING_DMA_FADD(0));
-	snapshot->reg.ipeir = hw_engine_mmio_read32(hwe, IPEIR(0));
 	snapshot->reg.ipehr = hw_engine_mmio_read32(hwe, RING_IPEHR(0));
 
 	if (snapshot->class == XE_ENGINE_CLASS_COMPUTE)
@@ -784,7 +783,6 @@ void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
 	drm_printf(p, "\tDMA_FADDR: 0x%08x_%08x\n",
 		   snapshot->reg.ring_dma_fadd_udw,
 		   snapshot->reg.ring_dma_fadd);
-	drm_printf(p, "\tIPEIR: 0x%08x\n", snapshot->reg.ipeir);
 	drm_printf(p, "\tIPEHR: 0x%08x\n\n", snapshot->reg.ipehr);
 	if (snapshot->class == XE_ENGINE_CLASS_COMPUTE)
 		drm_printf(p, "\tRCU_MODE: 0x%08x\n",

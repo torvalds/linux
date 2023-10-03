@@ -217,8 +217,6 @@ struct xe_hw_engine_snapshot {
 		u32 ring_dma_fadd_udw;
 		/** @ring_dma_fadd: RING_DMA_FADD */
 		u32 ring_dma_fadd;
-		/** @ipeir: IPEIR */
-		u32 ipeir;
 		/** @ipehr: IPEHR */
 		u32 ipehr;
 		/** @rcu_mode: RCU_MODE */
