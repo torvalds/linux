@@ -658,9 +658,6 @@ int platform_device_add(struct platform_device *pdev)
 	u32 i;
 	int ret;
 
-	if (!pdev)
-		return -EINVAL;
-
 	if (!pdev->dev.parent)
 		pdev->dev.parent = &platform_bus;
 
