@@ -2316,7 +2316,7 @@ void rtllib_stop_protocol(struct rtllib_device *ieee)
 	ieee->assocresp_ies_len = 0;
 }
 
-void rtllib_softmac_start_protocol(struct rtllib_device *ieee, u8 mesh_flag)
+void rtllib_softmac_start_protocol(struct rtllib_device *ieee)
 {
 	mutex_lock(&ieee->wx_mutex);
 	rtllib_start_protocol(ieee);

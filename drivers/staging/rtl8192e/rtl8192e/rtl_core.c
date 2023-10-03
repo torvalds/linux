@@ -611,7 +611,7 @@ static int _rtl92e_sta_up(struct net_device *dev)
 		rtl92e_check_rfctrl_gpio_timer(&priv->gpio_polling_timer);
 
 	if (priv->rtllib->link_state != MAC80211_LINKED)
-		rtllib_softmac_start_protocol(priv->rtllib, 0);
+		rtllib_softmac_start_protocol(priv->rtllib);
 	rtllib_reset_queue(priv->rtllib);
 	_rtl92e_watchdog_timer_cb(&priv->watch_dog_timer);
 
