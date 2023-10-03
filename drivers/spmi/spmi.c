@@ -392,6 +392,9 @@ static struct bus_type spmi_bus_type = {
  *
  * @np:		device node
  *
+ * Takes a reference to the embedded struct device which needs to be dropped
+ * after use.
+ *
  * Returns the struct spmi_device associated with a device node or NULL.
  */
 struct spmi_device *spmi_device_from_of(struct device_node *np)
