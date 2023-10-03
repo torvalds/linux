@@ -2135,13 +2135,6 @@ void rtllib_wake_all_queues(struct rtllib_device *ieee)
 	netif_tx_wake_all_queues(ieee->dev);
 }
 
-static void rtllib_start_monitor_mode(struct rtllib_device *ieee)
-{
-	/* reset hardware status */
-	if (ieee->raw_tx)
-		netif_carrier_on(ieee->dev);
-}
-
 /* this is called only in user context, with wx_mutex held */
 static void rtllib_start_bss(struct rtllib_device *ieee)
 {
@@ -2370,9 +2363,6 @@ void rtllib_start_protocol(struct rtllib_device *ieee)
 	switch (ieee->iw_mode) {
 	case IW_MODE_INFRA:
 		rtllib_start_bss(ieee);
-		break;
-	case IW_MODE_MONITOR:
-		rtllib_start_monitor_mode(ieee);
 		break;
 	}
 }
