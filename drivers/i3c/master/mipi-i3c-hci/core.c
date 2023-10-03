@@ -191,6 +191,139 @@
 #define ast_inhouse_read(r)		readl(hci->EXTCAPS_regs + (r))
 #define ast_inhouse_write(r, v)		writel(v, hci->EXTCAPS_regs + (r))
 
+#define ASPEED_PHY_REGS_OFFSET		0xE00
+#define ast_phy_read(r)			readl(hci->PHY_regs + (r))
+#define ast_phy_write(r, v)		writel(v, hci->PHY_regs + (r))
+
+/* I2C FM */
+#define PHY_I2C_FM_CTRL0		0x8
+#define PHY_I2C_FM_CTRL0_CAS		GENMASK(25, 16)
+#define PHY_I2C_FM_CTRL0_SU_STO		GENMASK(9, 0)
+#define PHY_I2C_FM_CTRL1		0xC
+#define PHY_I2C_FM_CTRL1_SCL_H		GENMASK(25, 16)
+#define PHY_I2C_FM_CTRL1_SCL_L		GENMASK(9, 0)
+#define PHY_I2C_FM_CTRL2		0x10
+#define PHY_I2C_FM_CTRL2_ACK_H		GENMASK(25, 16)
+#define PHY_I2C_FM_CTRL2_ACK_L		GENMASK(9, 0)
+#define PHY_I2C_FM_CTRL3		0x14
+#define PHY_I2C_FM_CTRL3_HD_DAT		GENMASK(25, 16)
+#define PHY_I2C_FM_CTRL3_AHD_DAT	GENMASK(9, 0)
+/* I2C FMP */
+#define PHY_I2C_FMP_CTRL0		0x18
+#define PHY_I2C_FMP_CTRL0_CAS		GENMASK(25, 16)
+#define PHY_I2C_FMP_CTRL0_SU_STO	GENMASK(9, 0)
+#define PHY_I2C_FMP_CTRL1		0x1C
+#define PHY_I2C_FMP_CTRL1_SCL_H		GENMASK(25, 16)
+#define PHY_I2C_FMP_CTRL1_SCL_L		GENMASK(9, 0)
+#define PHY_I2C_FMP_CTRL2		0x20
+#define PHY_I2C_FMP_CTRL2_ACK_H		GENMASK(25, 16)
+#define PHY_I2C_FMP_CTRL2_ACK_L		GENMASK(9, 0)
+#define PHY_I2C_FMP_CTRL3		0x24
+#define PHY_I2C_FMP_CTRL3_HD_DAT	GENMASK(25, 16)
+#define PHY_I2C_FMP_CTRL3_AHD_DAT	GENMASK(9, 0)
+/* I3C OD */
+#define PHY_I3C_OD_CTRL0		0x28
+#define PHY_I3C_OD_CTRL0_CAS		GENMASK(25, 16)
+#define PHY_I3C_OD_CTRL0_SU_STO		GENMASK(9, 0)
+#define PHY_I3C_OD_CTRL1		0x2C
+#define PHY_I3C_OD_CTRL1_SCL_H		GENMASK(25, 16)
+#define PHY_I3C_OD_CTRL1_SCL_L		GENMASK(9, 0)
+#define PHY_I3C_OD_CTRL2		0x30
+#define PHY_I3C_OD_CTRL2_ACK_H		GENMASK(25, 16)
+#define PHY_I3C_OD_CTRL2_ACK_L		GENMASK(9, 0)
+#define PHY_I3C_OD_CTRL3		0x34
+#define PHY_I3C_OD_CTRL3_HD_DAT		GENMASK(25, 16)
+#define PHY_I3C_OD_CTRL3_AHD_DAT	GENMASK(9, 0)
+
+#define PHY_I3C_OD_DEFAULT_CAS_NS	40
+#define PHY_I3C_OD_DEFAULT_SU_STO_NS	40
+#define PHY_I3C_OD_DEFAULT_SCL_H_NS	380
+#define PHY_I3C_OD_DEFAULT_SCL_L_NS	620
+#define PHY_I3C_OD_DEFAULT_HD_DAT	10
+#define PHY_I3C_OD_DEFAULT_AHD_DAT	10
+
+/* I3C PP SDR0 */
+#define PHY_I3C_SDR0_CTRL0			0x38
+#define PHY_I3C_SDR0_CTRL0_SCL_H		GENMASK(25, 16)
+#define PHY_I3C_SDR0_CTRL0_SCL_L		GENMASK(9, 0)
+#define PHY_I3C_SDR0_CTRL1			0x3C
+#define PHY_I3C_SDR0_CTRL1_TBIT_H		GENMASK(25, 16)
+#define PHY_I3C_SDR0_CTRL1_TBIT_L		GENMASK(9, 0)
+#define PHY_I3C_SDR0_CTRL2			0x40
+#define PHY_I3C_SDR0_CTRL2_HD_PP		GENMASK(25, 16)
+#define PHY_I3C_SDR0_CTRL2_TBIT_HD_PP		GENMASK(9, 0)
+
+/* 12.5MHz */
+#define PHY_I3C_SDR0_DEFAULT_SCL_H_NS		40
+#define PHY_I3C_SDR0_DEFAULT_SCL_L_NS		40
+#define PHY_I3C_SDR0_DEFAULT_TBIT_H_NS		60
+#define PHY_I3C_SDR0_DEFAULT_TBIT_L_NS		60
+#define PHY_I3C_SDR0_DEFAULT_HD_PP_NS		10
+#define PHY_I3C_SDR0_DEFAULT_TBIT_HD_PP_NS	10
+
+/* I3C PP SDR1 */
+#define PHY_I3C_SDR1_CTRL0			0x44
+#define PHY_I3C_SDR1_CTRL0_SCL_H		GENMASK(25, 16)
+#define PHY_I3C_SDR1_CTRL0_SCL_L		GENMASK(9, 0)
+#define PHY_I3C_SDR1_CTRL1			0x48
+#define PHY_I3C_SDR1_CTRL1_TBIT_H		GENMASK(25, 16)
+#define PHY_I3C_SDR1_CTRL1_TBIT_L		GENMASK(9, 0)
+#define PHY_I3C_SDR1_CTRL2			0x4C
+#define PHY_I3C_SDR1_CTRL2_HD_PP		GENMASK(25, 16)
+#define PHY_I3C_SDR1_CTRL2_TBIT_HD_PP		GENMASK(9, 0)
+/* I3C PP SDR2 */
+#define PHY_I3C_SDR2_CTRL0			0x50
+#define PHY_I3C_SDR2_CTRL0_SCL_H		GENMASK(25, 16)
+#define PHY_I3C_SDR2_CTRL0_SCL_L		GENMASK(9, 0)
+#define PHY_I3C_SDR2_CTRL1			0x54
+#define PHY_I3C_SDR2_CTRL1_TBIT_H		GENMASK(25, 16)
+#define PHY_I3C_SDR2_CTRL1_TBIT_L		GENMASK(9, 0)
+#define PHY_I3C_SDR2_CTRL2			0x58
+#define PHY_I3C_SDR2_CTRL2_HD_PP		GENMASK(25, 16)
+#define PHY_I3C_SDR2_CTRL2_TBIT_HD_PP		GENMASK(9, 0)
+/* I3C PP SDR3 */
+#define PHY_I3C_SDR3_CTRL0			0x5C
+#define PHY_I3C_SDR3_CTRL0_SCL_H		GENMASK(25, 16)
+#define PHY_I3C_SDR3_CTRL0_SCL_L		GENMASK(9, 0)
+#define PHY_I3C_SDR3_CTRL1			0x60
+#define PHY_I3C_SDR3_CTRL1_TBIT_H		GENMASK(25, 16)
+#define PHY_I3C_SDR3_CTRL1_TBIT_L		GENMASK(9, 0)
+#define PHY_I3C_SDR3_CTRL2			0x64
+#define PHY_I3C_SDR3_CTRL2_HD_PP		GENMASK(25, 16)
+#define PHY_I3C_SDR3_CTRL2_TBIT_HD_PP		GENMASK(9, 0)
+/* I3C PP SDR4 */
+#define PHY_I3C_SDR5_CTRL0			0x68
+#define PHY_I3C_SDR5_CTRL0_SCL_H		GENMASK(25, 16)
+#define PHY_I3C_SDR5_CTRL0_SCL_L		GENMASK(9, 0)
+#define PHY_I3C_SDR5_CTRL1			0x6C
+#define PHY_I3C_SDR5_CTRL1_TBIT_H		GENMASK(25, 16)
+#define PHY_I3C_SDR5_CTRL1_TBIT_L		GENMASK(9, 0)
+#define PHY_I3C_SDR5_CTRL2			0x70
+#define PHY_I3C_SDR5_CTRL2_HD_PP		GENMASK(25, 16)
+#define PHY_I3C_SDR5_CTRL2_TBIT_HD_PP		GENMASK(9, 0)
+/* I3C PP DDR */
+#define PHY_I3C_DDR_CTRL0			0x74
+#define PHY_I3C_DDR_CTRL0_SCL_H			GENMASK(25, 16)
+#define PHY_I3C_DDR_CTRL0_SCL_L			GENMASK(9, 0)
+#define PHY_I3C_DDR_CTRL1			0x78
+#define PHY_I3C_DDR_CTRL1_TBIT_H		GENMASK(25, 16)
+#define PHY_I3C_DDR_CTRL1_TBIT_L		GENMASK(9, 0)
+#define PHY_I3C_DDR_CTRL2			0x7C
+#define PHY_I3C_DDR_CTRL2_HD_PP			GENMASK(25, 16)
+#define PHY_I3C_DDR_CTRL2_TBIT_HD_PP		GENMASK(9, 0)
+
+#define PHY_I3C_SR_P_PREPARE_CTRL		0x80
+#define PHY_I3C_SR_P_PREPARE_CTRL_HD		GENMASK(25, 16)
+#define PHY_I3C_SR_P_PREPARE_CTRL_SCL_L		GENMASK(9, 0)
+#define PHY_I3C_SR_P_DEFAULT_HD_NS	10
+#define PHY_I3C_SR_P_DEFAULT_SCL_L_NS	40
+
+#define PHY_PULLUP_EN		0x98
+#define PHY_PULLUP_EN_SCL	GENMASK(14, 12)
+#define PHY_PULLUP_EN_SDA	GENMASK(10, 8)
+#define PHY_PULLUP_EN_DDR_SCL	GENMASK(6, 4)
+#define PHY_PULLUP_EN_DDR_SDA	GENMASK(2, 0)
+
 #define IBI_NOTIFY_CTRL			0x58	/* IBI Notify Control */
 #define IBI_NOTIFY_SIR_REJECTED		BIT(3)	/* Rejected Target Interrupt Request */
 #define IBI_NOTIFY_MR_REJECTED		BIT(1)	/* Rejected Master Request Control */
@@ -764,6 +897,8 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	dev_info(&hci->master.dev, "Extended Caps at offset %#x\n", offset);
 
 #ifdef CONFIG_ARCH_ASPEED
+	hci->PHY_regs = hci->base_regs + ASPEED_PHY_REGS_OFFSET;
+	dev_info(&hci->master.dev, "PHY control at offset %#x\n", ASPEED_PHY_REGS_OFFSET);
 	ast_inhouse_write(ASPEED_I3C_CTRL,
 			  ASPEED_I3C_CTRL_INIT |
 				  FIELD_PREP(ASPEED_I3C_CTRL_INIT_MODE, INIT_MST_MODE));
@@ -868,6 +1003,71 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	return 0;
 }
 
+#ifdef CONFIG_ARCH_ASPEED
+static int aspeed_i3c_of_populate_bus_timing(struct i3c_hci *hci,
+					     struct device_node *np)
+{
+	u16 hcnt, lcnt;
+	unsigned long core_rate, core_period;
+
+	core_rate = clk_get_rate(hci->clk);
+	/* core_period is in nanosecond */
+	core_period = DIV_ROUND_UP(1000000000, core_rate);
+
+	dev_info(&hci->master.dev, "core rate = %ld core period = %ld ns",
+		 core_rate, core_period);
+
+	hcnt = DIV_ROUND_CLOSEST(PHY_I3C_OD_DEFAULT_CAS_NS, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I3C_OD_DEFAULT_SU_STO_NS, core_period) - 1;
+	ast_phy_write(PHY_I3C_OD_CTRL0,
+		      FIELD_PREP(PHY_I3C_OD_CTRL0_CAS, hcnt) |
+			      FIELD_PREP(PHY_I3C_OD_CTRL0_SU_STO, lcnt));
+
+	hcnt = DIV_ROUND_CLOSEST(PHY_I3C_OD_DEFAULT_SCL_H_NS, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I3C_OD_DEFAULT_SCL_L_NS, core_period) - 1;
+	ast_phy_write(PHY_I3C_OD_CTRL1,
+		      FIELD_PREP(PHY_I3C_OD_CTRL1_SCL_H, hcnt) |
+			      FIELD_PREP(PHY_I3C_OD_CTRL1_SCL_L, lcnt));
+	ast_phy_write(PHY_I3C_OD_CTRL2,
+		      FIELD_PREP(PHY_I3C_OD_CTRL2_ACK_H, hcnt) |
+			      FIELD_PREP(PHY_I3C_OD_CTRL2_ACK_L, hcnt));
+	hcnt = DIV_ROUND_CLOSEST(PHY_I3C_OD_DEFAULT_HD_DAT, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I3C_OD_DEFAULT_AHD_DAT, core_period) - 1;
+	ast_phy_write(PHY_I3C_OD_CTRL3,
+		      FIELD_PREP(PHY_I3C_OD_CTRL3_HD_DAT, hcnt) |
+			      FIELD_PREP(PHY_I3C_OD_CTRL3_AHD_DAT, lcnt));
+
+	hcnt = DIV_ROUND_CLOSEST(PHY_I3C_SDR0_DEFAULT_SCL_H_NS, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I3C_SDR0_DEFAULT_SCL_L_NS, core_period) - 1;
+	ast_phy_write(PHY_I3C_SDR0_CTRL0,
+		      FIELD_PREP(PHY_I3C_SDR0_CTRL0_SCL_H, hcnt) |
+			      FIELD_PREP(PHY_I3C_SDR0_CTRL0_SCL_L, lcnt));
+	hcnt = DIV_ROUND_CLOSEST(PHY_I3C_SDR0_DEFAULT_TBIT_H_NS, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I3C_SDR0_DEFAULT_TBIT_L_NS, core_period) - 1;
+	ast_phy_write(PHY_I3C_SDR0_CTRL1,
+		      FIELD_PREP(PHY_I3C_SDR0_CTRL1_TBIT_H, hcnt) |
+			      FIELD_PREP(PHY_I3C_SDR0_CTRL1_TBIT_L, lcnt));
+	hcnt = DIV_ROUND_CLOSEST(PHY_I3C_SDR0_DEFAULT_HD_PP_NS, core_period) -
+	       1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I3C_SDR0_DEFAULT_TBIT_HD_PP_NS,
+				 core_period) -
+	       1;
+	ast_phy_write(PHY_I3C_SDR0_CTRL2,
+		      FIELD_PREP(PHY_I3C_SDR0_CTRL2_HD_PP, hcnt) |
+			      FIELD_PREP(PHY_I3C_SDR0_CTRL2_TBIT_HD_PP, lcnt));
+
+	hcnt = DIV_ROUND_CLOSEST(PHY_I3C_SR_P_DEFAULT_HD_NS, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I3C_SR_P_DEFAULT_SCL_L_NS, core_period) - 1;
+	ast_phy_write(PHY_I3C_SR_P_PREPARE_CTRL,
+		      FIELD_PREP(PHY_I3C_SR_P_PREPARE_CTRL_HD, hcnt) |
+			      FIELD_PREP(PHY_I3C_SR_P_PREPARE_CTRL_SCL_L,
+					 lcnt));
+	ast_phy_write(PHY_PULLUP_EN, 0x0);
+
+	return 0;
+}
+#endif
+
 static int i3c_hci_probe(struct platform_device *pdev)
 {
 	struct i3c_hci *hci;
@@ -884,9 +1084,9 @@ static int i3c_hci_probe(struct platform_device *pdev)
 	/* temporary for dev_printk's, to be replaced in i3c_master_register */
 	hci->master.dev.init_name = dev_name(&pdev->dev);
 
-	hci->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
+	hci->rst = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(hci->rst)) {
-		dev_err(&hci->master.dev,
+		dev_err(&pdev->dev,
 			"missing or invalid reset controller device tree entry");
 		return PTR_ERR(hci->rst);
 	}
@@ -908,6 +1108,12 @@ static int i3c_hci_probe(struct platform_device *pdev)
 	ret = i3c_hci_init(hci);
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_ARCH_ASPEED
+	ret = aspeed_i3c_of_populate_bus_timing(hci, pdev->dev.of_node);
+	if (ret)
+		return ret;
+#endif
 
 	irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(&pdev->dev, irq, i3c_aspeed_irq_handler,
