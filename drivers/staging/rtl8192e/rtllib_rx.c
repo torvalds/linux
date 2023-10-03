@@ -1244,7 +1244,6 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	u8 bssid[ETH_ALEN] = {0};
 
 	size_t hdrlen = 0;
-	bool bToOtherSTA = false;
 	int ret = 0, i = 0;
 
 	fc = le16_to_cpu(hdr->frame_control);
@@ -1278,8 +1277,6 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	/* Filter MGNT Frame */
 	if (type == RTLLIB_FTYPE_MGMT) {
-		if (bToOtherSTA)
-			goto rx_dropped;
 		if (rtllib_rx_frame_mgmt(ieee, skb, rx_stats, type, stype))
 			goto rx_dropped;
 		else
@@ -1289,10 +1286,8 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* Filter WAPI DATA Frame */
 
 	/* Update statstics for AP roaming */
-	if (!bToOtherSTA) {
-		ieee->link_detect_info.NumRecvDataInPeriod++;
-		ieee->link_detect_info.NumRxOkInPeriod++;
-	}
+	ieee->link_detect_info.NumRecvDataInPeriod++;
+	ieee->link_detect_info.NumRxOkInPeriod++;
 
 	/* Data frame - extract src/dst addresses */
 	rtllib_rx_extract_addr(ieee, hdr, dst, src, bssid);
@@ -1308,7 +1303,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* Send pspoll based on moredata */
 	if ((ieee->iw_mode == IW_MODE_INFRA)  &&
 	    (ieee->sta_sleep == LPS_IS_SLEEP) &&
-	    (ieee->polling) && (!bToOtherSTA)) {
+	    (ieee->polling)) {
 		if (WLAN_FC_MORE_DATA(fc)) {
 			/* more data bit is set, let's request a new frame
 			 * from the AP
@@ -1334,8 +1329,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* Get TS for Rx Reorder  */
 	hdr = (struct ieee80211_hdr *)skb->data;
 	if (ieee->current_network.qos_data.active && IsQoSDataFrame(skb->data)
-		&& !is_multicast_ether_addr(hdr->addr1)
-		&& (!bToOtherSTA)) {
+		&& !is_multicast_ether_addr(hdr->addr1)) {
 		TID = Frame_QoSTID(skb->data);
 		SeqNum = WLAN_GET_SEQ_SEQ(sc);
 		rtllib_get_ts(ieee, (struct ts_common_info **)&ts, hdr->addr2, TID,
@@ -1366,18 +1360,16 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* Update WAPI PN */
 
 	/* Check if leave LPS */
-	if (!bToOtherSTA) {
-		if (ieee->bIsAggregateFrame)
-			nr_subframes = rxb->nr_subframes;
-		else
-			nr_subframes = 1;
-		if (unicast)
-			ieee->link_detect_info.NumRxUnicastOkInPeriod += nr_subframes;
-		rtllib_rx_check_leave_lps(ieee, unicast, nr_subframes);
-	}
+	if (ieee->bIsAggregateFrame)
+		nr_subframes = rxb->nr_subframes;
+	else
+		nr_subframes = 1;
+	if (unicast)
+		ieee->link_detect_info.NumRxUnicastOkInPeriod += nr_subframes;
+	rtllib_rx_check_leave_lps(ieee, unicast, nr_subframes);
 
 	/* Indicate packets to upper layer or Rx Reorder */
-	if (!ieee->ht_info->cur_rx_reorder_enable || ts == NULL || bToOtherSTA)
+	if (!ieee->ht_info->cur_rx_reorder_enable || ts == NULL)
 		rtllib_rx_indicate_pkt_legacy(ieee, rx_stats, rxb, dst, src);
 	else
 		RxReorderIndicatePacket(ieee, rxb, ts, SeqNum);
