@@ -82,6 +82,15 @@ static const char *const modes[] = {
 /* Unrecognized commands will be replaced with "!CMD" */
 #define INVALID_CMD(_cmd_)		(_cmd_ == 0x444d4321)
 
+struct tps6598x;
+
+struct tipd_data {
+	irq_handler_t irq_handler;
+	int (*register_port)(struct tps6598x *tps, struct fwnode_handle *node);
+	void (*trace_power_status)(u16 status);
+	void (*trace_status)(u32 status);
+};
+
 struct tps6598x {
 	struct device *dev;
 	struct regmap *regmap;
@@ -101,7 +110,8 @@ struct tps6598x {
 	int wakeup;
 	u16 pwr_status;
 	struct delayed_work	wq_poll;
-	irq_handler_t irq_handler;
+
+	const struct tipd_data *data;
 };
 
 static enum power_supply_property tps6598x_psy_props[] = {
@@ -432,7 +442,9 @@ static bool tps6598x_read_status(struct tps6598x *tps, u32 *status)
 		dev_err(tps->dev, "%s: failed to read status\n", __func__);
 		return false;
 	}
-	trace_tps6598x_status(*status);
+
+	if (tps->data->trace_status)
+		tps->data->trace_status(*status);
 
 	return true;
 }
@@ -463,7 +475,9 @@ static bool tps6598x_read_power_status(struct tps6598x *tps)
 		return false;
 	}
 	tps->pwr_status = pwr_status;
-	trace_tps6598x_power_status(pwr_status);
+
+	if (tps->data->trace_power_status)
+		tps->data->trace_power_status(pwr_status);
 
 	return true;
 }
@@ -581,7 +595,7 @@ static void tps6598x_poll_work(struct work_struct *work)
 	struct tps6598x *tps = container_of(to_delayed_work(work),
 					    struct tps6598x, wq_poll);
 
-	tps->irq_handler(0, tps);
+	tps->data->irq_handler(0, tps);
 	queue_delayed_work(system_power_efficient_wq,
 			   &tps->wq_poll, msecs_to_jiffies(POLL_INTERVAL));
 }
@@ -765,7 +779,6 @@ tps6598x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 
 static int tps6598x_probe(struct i2c_client *client)
 {
-	irq_handler_t irq_handler = tps6598x_interrupt;
 	struct device_node *np = client->dev.of_node;
 	struct tps6598x *tps;
 	struct fwnode_handle *fwnode;
@@ -807,7 +820,6 @@ static int tps6598x_probe(struct i2c_client *client)
 			APPLE_CD_REG_INT_DATA_STATUS_UPDATE |
 			APPLE_CD_REG_INT_PLUG_EVENT;
 
-		irq_handler = cd321x_interrupt;
 	} else {
 		/* Enable power status, data status and plug event interrupts */
 		mask1 = TPS_REG_INT_POWER_STATUS_UPDATE |
@@ -815,7 +827,10 @@ static int tps6598x_probe(struct i2c_client *client)
 			TPS_REG_INT_PLUG_EVENT;
 	}
 
-	tps->irq_handler = irq_handler;
+	tps->data = device_get_match_data(tps->dev);
+	if (!tps->data)
+		return -EINVAL;
+
 	/* Make sure the controller has application firmware running */
 	ret = tps6598x_check_mode(tps);
 	if (ret)
@@ -825,10 +840,10 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	ret = tps6598x_read32(tps, TPS_REG_STATUS, &status);
-	if (ret < 0)
+	if (!tps6598x_read_status(tps, &status)) {
+		ret = -ENODEV;
 		goto err_clear_mask;
-	trace_tps6598x_status(status);
+	}
 
 	/*
 	 * This fwnode has a "compatible" property, but is never populated as a
@@ -851,7 +866,7 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (ret)
 		goto err_role_put;
 
-	ret = tps6598x_register_port(tps, fwnode);
+	ret = tps->data->register_port(tps, fwnode);
 	if (ret)
 		goto err_role_put;
 
@@ -868,7 +883,7 @@ static int tps6598x_probe(struct i2c_client *client)
 
 	if (client->irq) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-						irq_handler,
+						tps->data->irq_handler,
 						IRQF_SHARED | IRQF_ONESHOT,
 						dev_name(&client->dev), tps);
 	} else {
@@ -954,9 +969,23 @@ static const struct dev_pm_ops tps6598x_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tps6598x_suspend, tps6598x_resume)
 };
 
+static const struct tipd_data cd321x_data = {
+	.irq_handler = cd321x_interrupt,
+	.register_port = tps6598x_register_port,
+	.trace_power_status = trace_tps6598x_power_status,
+	.trace_status = trace_tps6598x_status,
+};
+
+static const struct tipd_data tps6598x_data = {
+	.irq_handler = tps6598x_interrupt,
+	.register_port = tps6598x_register_port,
+	.trace_power_status = trace_tps6598x_power_status,
+	.trace_status = trace_tps6598x_status,
+};
+
 static const struct of_device_id tps6598x_of_match[] = {
-	{ .compatible = "ti,tps6598x", },
-	{ .compatible = "apple,cd321x", },
+	{ .compatible = "ti,tps6598x", &tps6598x_data},
+	{ .compatible = "apple,cd321x", &cd321x_data},
 	{}
 };
 MODULE_DEVICE_TABLE(of, tps6598x_of_match);
