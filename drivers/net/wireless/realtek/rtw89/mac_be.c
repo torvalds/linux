@@ -205,6 +205,44 @@ static int rtw89_fwdl_check_path_ready_be(struct rtw89_dev *rtwdev,
 					rtwdev, R_BE_WCPU_FW_CTRL);
 }
 
+static bool rtw89_mac_get_txpwr_cr_be(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_idx phy_idx,
+				      u32 reg_base, u32 *cr)
+{
+	const struct rtw89_dle_mem *dle_mem = rtwdev->chip->dle_mem;
+	enum rtw89_qta_mode mode = dle_mem->mode;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, (enum rtw89_mac_idx)phy_idx,
+				     RTW89_CMAC_SEL);
+	if (ret) {
+		if (test_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags))
+			return false;
+
+		rtw89_err(rtwdev, "[TXPWR] check mac enable failed\n");
+		return false;
+	}
+
+	if (reg_base < R_BE_PWR_MODULE || reg_base > R_BE_CMAC_FUNC_EN_C1) {
+		rtw89_err(rtwdev, "[TXPWR] reg_base=0x%x exceed txpwr cr\n",
+			  reg_base);
+		return false;
+	}
+
+	*cr = rtw89_mac_reg_by_idx(rtwdev, reg_base, phy_idx);
+
+	if (*cr >= CMAC1_START_ADDR_BE && *cr <= CMAC1_END_ADDR_BE) {
+		if (mode == RTW89_QTA_SCC) {
+			rtw89_err(rtwdev,
+				  "[TXPWR] addr=0x%x but hw not enable\n",
+				  *cr);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.band1_offset = RTW89_MAC_BE_BAND_REG_OFFSET,
 	.filter_model_addr = R_BE_FILTER_MODEL_ADDR,
@@ -217,5 +255,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.fwdl_enable_wcpu = rtw89_mac_fwdl_enable_wcpu_be,
 	.fwdl_get_status = fwdl_get_status_be,
 	.fwdl_check_path_ready = rtw89_fwdl_check_path_ready_be,
+
+	.get_txpwr_cr = rtw89_mac_get_txpwr_cr_be,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_be);

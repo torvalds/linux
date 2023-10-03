@@ -865,6 +865,10 @@ struct rtw89_mac_gen_def {
 				bool dlfw, bool include_bb);
 	u8 (*fwdl_get_status)(struct rtw89_dev *rtwdev, enum rtw89_fwdl_check_type type);
 	int (*fwdl_check_path_ready)(struct rtw89_dev *rtwdev, bool h2c_or_fwdl);
+
+	bool (*get_txpwr_cr)(struct rtw89_dev *rtwdev,
+			     enum rtw89_phy_idx phy_idx,
+			     u32 reg_base, u32 *cr);
 };
 
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;
@@ -1028,9 +1032,6 @@ u32 rtw89_mac_get_sb(struct rtw89_dev *rtwdev);
 bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev);
 int rtw89_mac_cfg_ctrl_path(struct rtw89_dev *rtwdev, bool wl);
 int rtw89_mac_cfg_ctrl_path_v1(struct rtw89_dev *rtwdev, bool wl);
-bool rtw89_mac_get_txpwr_cr(struct rtw89_dev *rtwdev,
-			    enum rtw89_phy_idx phy_idx,
-			    u32 reg_base, u32 *cr);
 void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter);
 void rtw89_mac_notify_wake(struct rtw89_dev *rtwdev);
 void rtw89_mac_bf_assoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
@@ -1060,9 +1061,10 @@ static inline int rtw89_mac_txpwr_read32(struct rtw89_dev *rtwdev,
 					 enum rtw89_phy_idx phy_idx,
 					 u32 reg_base, u32 *val)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 cr;
 
-	if (!rtw89_mac_get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
+	if (!mac->get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
 		return -EINVAL;
 
 	*val = rtw89_read32(rtwdev, cr);
@@ -1073,9 +1075,10 @@ static inline int rtw89_mac_txpwr_write32(struct rtw89_dev *rtwdev,
 					  enum rtw89_phy_idx phy_idx,
 					  u32 reg_base, u32 val)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 cr;
 
-	if (!rtw89_mac_get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
+	if (!mac->get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
 		return -EINVAL;
 
 	rtw89_write32(rtwdev, cr, val);
@@ -1086,9 +1089,10 @@ static inline int rtw89_mac_txpwr_write32_mask(struct rtw89_dev *rtwdev,
 					       enum rtw89_phy_idx phy_idx,
 					       u32 reg_base, u32 mask, u32 val)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 cr;
 
-	if (!rtw89_mac_get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
+	if (!mac->get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
 		return -EINVAL;
 
 	rtw89_write32_mask(rtwdev, cr, mask, val);

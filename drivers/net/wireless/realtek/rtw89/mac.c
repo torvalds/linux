@@ -4774,21 +4774,22 @@ void rtw89_mac_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	handler(rtwdev, skb, len);
 }
 
-bool rtw89_mac_get_txpwr_cr(struct rtw89_dev *rtwdev,
-			    enum rtw89_phy_idx phy_idx,
-			    u32 reg_base, u32 *cr)
+static
+bool rtw89_mac_get_txpwr_cr_ax(struct rtw89_dev *rtwdev,
+			       enum rtw89_phy_idx phy_idx,
+			       u32 reg_base, u32 *cr)
 {
 	const struct rtw89_dle_mem *dle_mem = rtwdev->chip->dle_mem;
 	enum rtw89_qta_mode mode = dle_mem->mode;
 	u32 addr = rtw89_mac_reg_by_idx(rtwdev, reg_base, phy_idx);
 
-	if (addr < R_AX_PWR_RATE_CTRL || addr > CMAC1_END_ADDR) {
+	if (addr < R_AX_PWR_RATE_CTRL || addr > CMAC1_END_ADDR_AX) {
 		rtw89_err(rtwdev, "[TXPWR] addr=0x%x exceed txpwr cr\n",
 			  addr);
 		goto error;
 	}
 
-	if (addr >= CMAC1_START_ADDR && addr <= CMAC1_END_ADDR)
+	if (addr >= CMAC1_START_ADDR_AX && addr <= CMAC1_END_ADDR_AX)
 		if (mode == RTW89_QTA_SCC) {
 			rtw89_err(rtwdev,
 				  "[TXPWR] addr=0x%x but hw not enable\n",
@@ -4805,7 +4806,6 @@ error:
 
 	return false;
 }
-EXPORT_SYMBOL(rtw89_mac_get_txpwr_cr);
 
 int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 {
@@ -5756,5 +5756,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.fwdl_enable_wcpu = rtw89_mac_enable_cpu_ax,
 	.fwdl_get_status = rtw89_fw_get_rdy_ax,
 	.fwdl_check_path_ready = rtw89_fwdl_check_path_ready_ax,
+
+	.get_txpwr_cr = rtw89_mac_get_txpwr_cr_ax,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_ax);
