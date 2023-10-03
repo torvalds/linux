@@ -1494,6 +1494,18 @@ static int qos_set_bis(struct hci_dev *hdev, struct bt_iso_qos *qos)
 
 	/* Allocate BIS if not set */
 	if (qos->bcast.bis == BT_ISO_QOS_BIS_UNSET) {
+		if (qos->bcast.big != BT_ISO_QOS_BIG_UNSET) {
+			conn = hci_conn_hash_lookup_big(hdev, qos->bcast.big);
+
+			if (conn) {
+				/* If the BIG handle is already matched to an advertising
+				 * handle, do not allocate a new one.
+				 */
+				qos->bcast.bis = conn->iso_qos.bcast.bis;
+				return 0;
+			}
+		}
+
 		/* Find an unused adv set to advertise BIS, skip instance 0x00
 		 * since it is reserved as general purpose set.
 		 */
