@@ -1920,6 +1920,18 @@ static int iommu_get_default_domain_type(struct iommu_group *group,
 		}
 	}
 
+	/*
+	 * If the common dma ops are not selected in kconfig then we cannot use
+	 * IOMMU_DOMAIN_DMA at all. Force IDENTITY if nothing else has been
+	 * selected.
+	 */
+	if (!IS_ENABLED(CONFIG_IOMMU_DMA)) {
+		if (WARN_ON(driver_type == IOMMU_DOMAIN_DMA))
+			return -1;
+		if (!driver_type)
+			driver_type = IOMMU_DOMAIN_IDENTITY;
+	}
+
 	if (untrusted) {
 		if (driver_type && driver_type != IOMMU_DOMAIN_DMA) {
 			dev_err_ratelimited(
