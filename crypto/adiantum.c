@@ -468,7 +468,7 @@ static void adiantum_free_instance(struct skcipher_instance *inst)
  * Check for a supported set of inner algorithms.
  * See the comment at the beginning of this file.
  */
-static bool adiantum_supported_algorithms(struct skcipher_alg *streamcipher_alg,
+static bool adiantum_supported_algorithms(struct skcipher_alg_common *streamcipher_alg,
 					  struct crypto_alg *blockcipher_alg,
 					  struct shash_alg *hash_alg)
 {
@@ -494,7 +494,7 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 	const char *nhpoly1305_name;
 	struct skcipher_instance *inst;
 	struct adiantum_instance_ctx *ictx;
-	struct skcipher_alg *streamcipher_alg;
+	struct skcipher_alg_common *streamcipher_alg;
 	struct crypto_alg *blockcipher_alg;
 	struct shash_alg *hash_alg;
 	int err;
@@ -514,7 +514,7 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 				   crypto_attr_alg_name(tb[1]), 0, mask);
 	if (err)
 		goto err_free_inst;
-	streamcipher_alg = crypto_spawn_skcipher_alg(&ictx->streamcipher_spawn);
+	streamcipher_alg = crypto_spawn_skcipher_alg_common(&ictx->streamcipher_spawn);
 
 	/* Block cipher, e.g. "aes" */
 	err = crypto_grab_cipher(&ictx->blockcipher_spawn,
@@ -578,8 +578,8 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.decrypt = adiantum_decrypt;
 	inst->alg.init = adiantum_init_tfm;
 	inst->alg.exit = adiantum_exit_tfm;
-	inst->alg.min_keysize = crypto_skcipher_alg_min_keysize(streamcipher_alg);
-	inst->alg.max_keysize = crypto_skcipher_alg_max_keysize(streamcipher_alg);
+	inst->alg.min_keysize = streamcipher_alg->min_keysize;
+	inst->alg.max_keysize = streamcipher_alg->max_keysize;
 	inst->alg.ivsize = TWEAK_SIZE;
 
 	inst->free = adiantum_free_instance;
