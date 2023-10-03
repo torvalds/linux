@@ -948,6 +948,13 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 	BUILD_BUG_ON(BITS_PER_TYPE(display_runtime->cpu_transcoder_mask) < I915_MAX_TRANSCODERS);
 	BUILD_BUG_ON(BITS_PER_TYPE(display_runtime->port_mask) < I915_MAX_PORTS);
 
+	/* This covers both ULT and ULX */
+	if (IS_HASWELL_ULT(i915) || IS_BROADWELL_ULT(i915))
+		display_runtime->port_mask &= ~BIT(PORT_D);
+
+	if (IS_ICL_WITH_PORT_F(i915))
+		display_runtime->port_mask |= BIT(PORT_F);
+
 	/* Wa_14011765242: adl-s A0,A1 */
 	if (IS_ALDERLAKE_S(i915) && IS_DISPLAY_STEP(i915, STEP_A0, STEP_A2))
 		for_each_pipe(i915, pipe)
