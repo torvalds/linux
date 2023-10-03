@@ -918,48 +918,6 @@ static int _rtl92e_wx_get_gen_ie(struct net_device *dev,
 	return ret;
 }
 
-#define OID_RT_INTEL_PROMISCUOUS_MODE	0xFF0101F6
-
-static int _rtl92e_wx_set_promisc_mode(struct net_device *dev,
-				       struct iw_request_info *info,
-				       union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rtllib_device *ieee = priv->rtllib;
-
-	u32 info_buf[3];
-
-	u32 oid;
-	u32 promiscuous_on;
-	u32 fltr_src_sta_frame;
-
-	if (copy_from_user(info_buf, wrqu->data.pointer, sizeof(info_buf)))
-		return -EFAULT;
-
-	oid = info_buf[0];
-	promiscuous_on = info_buf[1];
-	fltr_src_sta_frame = info_buf[2];
-
-	if (oid == OID_RT_INTEL_PROMISCUOUS_MODE) {
-		ieee->intel_promiscuous_md_info.promiscuous_on =
-					(promiscuous_on) ? (true) : (false);
-		ieee->intel_promiscuous_md_info.fltr_src_sta_frame =
-			(fltr_src_sta_frame) ? (true) : (false);
-		(promiscuous_on) ?
-		(rtllib_EnableIntelPromiscuousMode(dev, false)) :
-		(rtllib_DisableIntelPromiscuousMode(dev, false));
-
-		netdev_info(dev,
-			    "=======>%s(), on = %d, filter src sta = %d\n",
-			    __func__, promiscuous_on,
-			    fltr_src_sta_frame);
-	} else {
-		return -1;
-	}
-
-	return 0;
-}
-
 static int _rtl92e_wx_get_promisc_mode(struct net_device *dev,
 				       struct iw_request_info *info,
 				       union iwreq_data *wrqu, char *extra)
@@ -1038,9 +996,6 @@ static const struct iw_priv_args r8192_private_args[] = {
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, IW_PRIV_TYPE_NONE,
 		"lps_force"
 	}, {
-		SIOCIWFIRSTPRIV + 0x16,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3, 0, "setpromisc"
-	}, {
 		SIOCIWFIRSTPRIV + 0x17,
 		0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED | 45, "getpromisc"
 	}
@@ -1070,7 +1025,7 @@ static iw_handler r8192_private_handler[] = {
 	(iw_handler)NULL,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
-	(iw_handler)_rtl92e_wx_set_promisc_mode,
+	(iw_handler)NULL,
 	(iw_handler)_rtl92e_wx_get_promisc_mode,
 };
 

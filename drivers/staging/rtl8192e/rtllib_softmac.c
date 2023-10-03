@@ -406,49 +406,6 @@ void rtllib_DisableNetMonitorMode(struct net_device *dev,
 	ieee->AllowAllDestAddrHandler(dev, false, !bInitState);
 }
 
-/* Enables the specialized promiscuous mode required by Intel.
- * In this mode, Intel intends to hear traffics from/to other STAs in the
- * same BSS. Therefore we don't have to disable checking BSSID and we only need
- * to allow all dest. BUT: if we enable checking BSSID then we can't recv
- * packets from other STA.
- */
-void rtllib_EnableIntelPromiscuousMode(struct net_device *dev,
-		bool bInitState)
-{
-	bool bFilterOutNonAssociatedBSSID = false;
-
-	struct rtllib_device *ieee = netdev_priv_rsl(dev);
-
-	netdev_info(dev, "========>Enter Intel Promiscuous Mode\n");
-
-	ieee->AllowAllDestAddrHandler(dev, true, !bInitState);
-	ieee->SetHwRegHandler(dev, HW_VAR_CECHK_BSSID,
-			     (u8 *)&bFilterOutNonAssociatedBSSID);
-
-	ieee->net_promiscuous_md = true;
-}
-EXPORT_SYMBOL(rtllib_EnableIntelPromiscuousMode);
-
-/* Disables the specialized promiscuous mode required by Intel.
- * See MgntEnableIntelPromiscuousMode for detail.
- */
-void rtllib_DisableIntelPromiscuousMode(struct net_device *dev,
-		bool bInitState)
-{
-	bool bFilterOutNonAssociatedBSSID = true;
-
-	struct rtllib_device *ieee = netdev_priv_rsl(dev);
-
-	netdev_info(dev, "========>Exit Intel Promiscuous Mode\n");
-
-	ieee->AllowAllDestAddrHandler(dev, false, !bInitState);
-	ieee->SetHwRegHandler(dev, HW_VAR_CECHK_BSSID,
-			     (u8 *)&bFilterOutNonAssociatedBSSID);
-
-	ieee->net_promiscuous_md = false;
-}
-EXPORT_SYMBOL(rtllib_DisableIntelPromiscuousMode);
-
 static void rtllib_send_probe(struct rtllib_device *ieee)
 {
 	struct sk_buff *skb;

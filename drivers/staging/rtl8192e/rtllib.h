@@ -1701,9 +1701,7 @@ void rtllib_stop_protocol(struct rtllib_device *ieee);
 
 void rtllib_EnableNetMonitorMode(struct net_device *dev, bool bInitState);
 void rtllib_DisableNetMonitorMode(struct net_device *dev, bool bInitState);
-void rtllib_EnableIntelPromiscuousMode(struct net_device *dev, bool bInitState);
-void rtllib_DisableIntelPromiscuousMode(struct net_device *dev,
-					bool bInitState);
+
 void rtllib_softmac_stop_protocol(struct rtllib_device *ieee);
 void rtllib_softmac_start_protocol(struct rtllib_device *ieee);
 
