@@ -178,18 +178,19 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 	ret = dev->archdata.irqs[num];
 	goto out;
 #else
+	struct fwnode_handle *fwnode = dev_fwnode(&dev->dev);
 	struct resource *r;
 
-	if (IS_ENABLED(CONFIG_OF_IRQ) && dev->dev.of_node) {
-		ret = of_irq_get(dev->dev.of_node, num);
+	if (is_of_node(fwnode)) {
+		ret = of_irq_get(to_of_node(fwnode), num);
 		if (ret > 0 || ret == -EPROBE_DEFER)
 			goto out;
 	}
 
 	r = platform_get_resource(dev, IORESOURCE_IRQ, num);
-	if (has_acpi_companion(&dev->dev)) {
+	if (is_acpi_device_node(fwnode)) {
 		if (r && r->flags & IORESOURCE_DISABLED) {
-			ret = acpi_irq_get(ACPI_HANDLE(&dev->dev), num, r);
+			ret = acpi_irq_get(ACPI_HANDLE_FWNODE(fwnode), num, r);
 			if (ret)
 				goto out;
 		}
@@ -222,8 +223,8 @@ int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
 	 * the device will only expose one IRQ, and this fallback
 	 * allows a common code path across either kind of resource.
 	 */
-	if (num == 0 && has_acpi_companion(&dev->dev)) {
-		ret = acpi_dev_gpio_irq_get(ACPI_COMPANION(&dev->dev), num);
+	if (num == 0 && is_acpi_device_node(fwnode)) {
+		ret = acpi_dev_gpio_irq_get(to_acpi_device_node(fwnode), num);
 		/* Our callers expect -ENXIO for missing IRQs. */
 		if (ret >= 0 || ret == -EPROBE_DEFER)
 			goto out;
@@ -312,7 +313,7 @@ static void devm_platform_get_irqs_affinity_release(struct device *dev,
 	for (i = 0; i < ptr->count; i++) {
 		irq_dispose_mapping(ptr->irq[i]);
 
-		if (has_acpi_companion(dev))
+		if (is_acpi_device_node(dev_fwnode(dev)))
 			platform_disable_acpi_irq(to_platform_device(dev), i);
 	}
 }
@@ -1446,13 +1447,14 @@ static void platform_shutdown(struct device *_dev)
 static int platform_dma_configure(struct device *dev)
 {
 	struct platform_driver *drv = to_platform_driver(dev->driver);
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	enum dev_dma_attr attr;
 	int ret = 0;
 
-	if (dev->of_node) {
-		ret = of_dma_configure(dev, dev->of_node, true);
-	} else if (has_acpi_companion(dev)) {
-		attr = acpi_get_dma_attr(to_acpi_device_node(dev->fwnode));
+	if (is_of_node(fwnode)) {
+		ret = of_dma_configure(dev, to_of_node(fwnode), true);
+	} else if (is_acpi_device_node(fwnode)) {
+		attr = acpi_get_dma_attr(to_acpi_device_node(fwnode));
 		ret = acpi_dma_configure(dev, attr);
 	}
 	if (ret || drv->driver_managed_dma)
