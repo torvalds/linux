@@ -769,7 +769,7 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	encrypt = crypt && crypt->ops &&
 		((strcmp(crypt->ops->name, "R-WEP") == 0 || wpa_ie_len));
-	if (ieee->ht_info->bCurrentHTSupport) {
+	if (ieee->ht_info->current_ht_support) {
 		tmp_ht_cap_buf = (u8 *)&(ieee->ht_info->SelfHTCap);
 		tmp_ht_cap_len = sizeof(ieee->ht_info->SelfHTCap);
 		tmp_ht_info_buf = (u8 *)&(ieee->ht_info->SelfHTInfo);
@@ -976,7 +976,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 		ieee->mode = WIRELESS_MODE_G;
 	}
 
-	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht) {
+	if (ieee->ht_info->current_ht_support && ieee->ht_info->enable_ht) {
 		ht_cap_buf = (u8 *)&(ieee->ht_info->SelfHTCap);
 		ht_cap_len = sizeof(ieee->ht_info->SelfHTCap);
 		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len,
@@ -1114,7 +1114,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 		memcpy(tag, osCcxVerNum.Octet, osCcxVerNum.Length);
 		tag += osCcxVerNum.Length;
 	}
-	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht) {
+	if (ieee->ht_info->current_ht_support && ieee->ht_info->enable_ht) {
 		if (ieee->ht_info->ePeerHTSpecVer != HT_SPEC_VER_EWC) {
 			tag = skb_put(skb, ht_cap_len);
 			*tag++ = MFIE_TYPE_HT_CAP;
@@ -1148,7 +1148,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 		rtllib_TURBO_Info(ieee, &tag);
 	}
 
-	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht) {
+	if (ieee->ht_info->current_ht_support && ieee->ht_info->enable_ht) {
 		if (ieee->ht_info->ePeerHTSpecVer == HT_SPEC_VER_EWC) {
 			tag = skb_put(skb, ht_cap_len);
 			*tag++ = MFIE_TYPE_GENERIC;
@@ -1311,13 +1311,13 @@ static void rtllib_associate_complete_wq(void *data)
 		ieee->set_wireless_mode(ieee->dev, WIRELESS_MODE_B);
 		netdev_info(ieee->dev, "Using B rates:%d\n", ieee->rate);
 	}
-	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht) {
+	if (ieee->ht_info->current_ht_support && ieee->ht_info->enable_ht) {
 		netdev_info(ieee->dev, "Successfully associated, ht enabled\n");
 		HTOnAssocRsp(ieee);
 	} else {
 		netdev_info(ieee->dev,
 			    "Successfully associated, ht not enabled(%d, %d)\n",
-			    ieee->ht_info->bCurrentHTSupport,
+			    ieee->ht_info->current_ht_support,
 			    ieee->ht_info->enable_ht);
 		memset(ieee->dot11ht_oper_rate_set, 0, 16);
 	}
@@ -1471,8 +1471,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 					HTResetSelfAndSavePeerSetting(ieee,
 						 &(ieee->current_network));
 				else
-					ieee->ht_info->bCurrentHTSupport =
-								 false;
+					ieee->ht_info->current_ht_support = false;
 
 				ieee->link_state = RTLLIB_ASSOCIATING;
 				schedule_delayed_work(

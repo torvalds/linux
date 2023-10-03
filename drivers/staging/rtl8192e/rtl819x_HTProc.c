@@ -489,7 +489,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	static const u8 EWC11NHTCap[] = { 0x00, 0x90, 0x4c, 0x33 };
 	static const u8 EWC11NHTInfo[] = { 0x00, 0x90, 0x4c, 0x34 };
 
-	if (!ht_info->bCurrentHTSupport) {
+	if (!ht_info->current_ht_support) {
 		netdev_warn(ieee->dev, "%s(): HT_DISABLE\n", __func__);
 		return;
 	}
@@ -594,7 +594,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
-	ht_info->bCurrentHTSupport = false;
+	ht_info->current_ht_support = false;
 
 	ht_info->bCurBW40MHz = false;
 	ht_info->cur_tx_bw40mhz = false;
@@ -665,7 +665,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 	 * function rtllib_softmac_new_net. WB 2008.09.10
 	 */
 	if (pNetwork->bssht.bd_support_ht) {
-		ht_info->bCurrentHTSupport = true;
+		ht_info->current_ht_support = true;
 		ht_info->ePeerHTSpecVer = pNetwork->bssht.bd_ht_spec_ver;
 
 		if (pNetwork->bssht.bd_ht_cap_len > 0 &&
@@ -719,7 +719,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 		if (bIOTAction)
 			ht_info->iot_action |= HT_IOT_ACT_CDD_FSYNC;
 	} else {
-		ht_info->bCurrentHTSupport = false;
+		ht_info->current_ht_support = false;
 		ht_info->current_rt2rt_aggregation = false;
 		ht_info->current_rt2rt_long_slot_time = false;
 		ht_info->RT2RT_HT_Mode = (enum rt_ht_capability)0;
@@ -736,7 +736,7 @@ void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
 	struct ht_info_ele *pPeerHTInfo =
 		 (struct ht_info_ele *)pNetwork->bssht.bd_ht_info_buf;
 
-	if (ht_info->bCurrentHTSupport) {
+	if (ht_info->current_ht_support) {
 		if (pNetwork->bssht.bd_ht_info_len != 0)
 			ht_info->current_op_mode = pPeerHTInfo->OptMode;
 	}
@@ -745,7 +745,7 @@ EXPORT_SYMBOL(HT_update_self_and_peer_setting);
 
 u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame)
 {
-	if (ieee->ht_info->bCurrentHTSupport) {
+	if (ieee->ht_info->current_ht_support) {
 		if ((IsQoSDataFrame(pFrame) && Frame_Order(pFrame)) == 1) {
 			netdev_dbg(ieee->dev, "HT CONTROL FILED EXIST!!\n");
 			return true;
