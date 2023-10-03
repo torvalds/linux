@@ -37,7 +37,6 @@
 #define RING_DMA_FADD(base)			XE_REG((base) + 0x78)
 #define RING_HWS_PGA(base)			XE_REG((base) + 0x80)
 #define IPEIR(base)				XE_REG((base) + 0x88)
-#define IPEHR(base)				XE_REG((base) + 0x8c)
 #define RING_HWSTAM(base)			XE_REG((base) + 0x98)
 #define RING_MI_MODE(base)			XE_REG((base) + 0x9c)
 #define RING_NOPID(base)			XE_REG((base) + 0x94)
