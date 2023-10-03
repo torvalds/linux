@@ -84,6 +84,7 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev, struct drm_file *filp,
 
 	kref_init(&list->refcount);
 
+	list->num_entries = num_entries;
 	array = list->entries;
 
 	for (i = 0; i < num_entries; ++i) {
@@ -129,7 +130,6 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev, struct drm_file *filp,
 	}
 
 	list->first_userptr = first_userptr;
-	list->num_entries = num_entries;
 	sort(array, last_entry, sizeof(struct amdgpu_bo_list_entry),
 	     amdgpu_bo_list_entry_cmp, NULL);
 
