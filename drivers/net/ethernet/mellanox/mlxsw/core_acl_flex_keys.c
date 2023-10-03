@@ -225,6 +225,7 @@ static int mlxsw_afk_picker(struct mlxsw_afk *mlxsw_afk,
 			    struct mlxsw_afk_key_info *key_info,
 			    struct mlxsw_afk_element_usage *elusage)
 {
+	DECLARE_BITMAP(elusage_chosen, MLXSW_AFK_ELEMENT_MAX) = {0};
 	struct mlxsw_afk_picker *picker;
 	unsigned long *chosen_blocks_bm;
 	enum mlxsw_afk_element element;
@@ -270,12 +271,18 @@ static int mlxsw_afk_picker(struct mlxsw_afk *mlxsw_afk,
 		bitmap_copy(picker[block_index].chosen_element,
 			    picker[block_index].element, MLXSW_AFK_ELEMENT_MAX);
 
+		bitmap_or(elusage_chosen, elusage_chosen,
+			  picker[block_index].chosen_element,
+			  MLXSW_AFK_ELEMENT_MAX);
+
 		err = mlxsw_afk_picker_key_info_add(mlxsw_afk, picker,
 						    block_index, key_info);
 		if (err)
 			goto out;
 		mlxsw_afk_picker_subtract_hits(mlxsw_afk, picker, block_index);
-	} while (!mlxsw_afk_key_info_elements_eq(key_info, elusage));
+
+	} while (!bitmap_equal(elusage_chosen, elusage->usage,
+			       MLXSW_AFK_ELEMENT_MAX));
 
 	err = 0;
 out:
