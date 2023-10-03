@@ -172,10 +172,10 @@ static void glink_pkt_kfree_skb(struct glink_pkt_device *gpdev, struct sk_buff *
 		/*
 		 * Data memory is freed by qcom_glink_rx_done(), reset the
 		 * skb data pointers so kfree_skb() does not try to free
-		 * a second time.
+		 * a second time and originally allocated buffer is freed
+		 * correctly.
 		 */
-		skb->head = NULL;
-		skb->data = NULL;
+		skb->data = skb->head;
 	}
 	kfree_skb(skb);
 }
@@ -216,11 +216,10 @@ static int glink_pkt_rpdev_no_copy_cb(struct rpmsg_device *rpdev, void *buf,
 		return -ENOMEM;
 	}
 
-	skb->head = buf;
 	skb->data = buf;
 	skb_reset_tail_pointer(skb);
-	skb_set_end_offset(skb, len);
-	skb_put(skb, len);
+	/* For external buffer, skb->tail and skb->len calculation does not match */
+	skb->len += len;
 
 	spin_lock_irqsave(&gpdev->queue_lock, flags);
 	skb_queue_tail(&gpdev->queue, skb);
