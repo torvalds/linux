@@ -999,7 +999,7 @@ static int intel_gpio_direction_output(struct gpio_chip *chip, unsigned int offs
 				       int value)
 {
 	intel_gpio_set(chip, offset, value);
-	return pinctrl_gpio_direction_output_new(chip, offset);
+	return pinctrl_gpio_direction_output(chip, offset);
 }
 
 static const struct gpio_chip intel_gpio_chip = {

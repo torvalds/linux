@@ -161,7 +161,7 @@ static int rockchip_gpio_set_direction(struct gpio_chip *chip,
 	if (input)
 		pinctrl_gpio_direction_input(chip, offset);
 	else
-		pinctrl_gpio_direction_output_new(chip, offset);
+		pinctrl_gpio_direction_output(chip, offset);
 
 	raw_spin_lock_irqsave(&bank->slock, flags);
 	rockchip_gpio_writel_bit(bank, offset, data, bank->gpio_regs->port_ddr);

@@ -1155,7 +1155,7 @@ static int chv_gpio_direction_output(struct gpio_chip *chip, unsigned int offset
 				     int value)
 {
 	chv_gpio_set(chip, offset, value);
-	return pinctrl_gpio_direction_output_new(chip, offset);
+	return pinctrl_gpio_direction_output(chip, offset);
 }
 
 static const struct gpio_chip chv_gpio_chip = {

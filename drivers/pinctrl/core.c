@@ -889,8 +889,7 @@ int pinctrl_gpio_direction_input(struct gpio_chip *gc, unsigned int offset)
 EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_input);
 
 /**
- * pinctrl_gpio_direction_output_new() - request a GPIO pin to go into output
- *                                       mode
+ * pinctrl_gpio_direction_output() - request a GPIO pin to go into output mode
  * @gc: GPIO chip structure from the GPIO subsystem
  * @offset: hardware offset of the GPIO relative to the controller
  *
@@ -898,11 +897,11 @@ EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_input);
  * as part of their gpio_direction_output() semantics, platforms and individual
  * drivers shall *NOT* touch pin control GPIO calls.
  */
-int pinctrl_gpio_direction_output_new(struct gpio_chip *gc, unsigned int offset)
+int pinctrl_gpio_direction_output(struct gpio_chip *gc, unsigned int offset)
 {
 	return pinctrl_gpio_direction(gc->base + offset, false);
 }
-EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_output_new);
+EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_output);
 
 /**
  * pinctrl_gpio_set_config_new() - Apply config to given GPIO pin
