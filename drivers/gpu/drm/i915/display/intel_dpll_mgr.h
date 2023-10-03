@@ -262,8 +262,7 @@ struct dpll_info {
 	const struct intel_shared_dpll_funcs *funcs;
 
 	/**
-	 * @id: unique indentifier for this DPLL; should match the index in the
-	 * dev_priv->shared_dplls array
+	 * @id: unique indentifier for this DPLL
 	 */
 	enum intel_dpll_id id;
 
@@ -289,6 +288,11 @@ struct intel_shared_dpll {
 	 * and CRTCs using it.
 	 */
 	struct intel_shared_dpll_state state;
+
+	/**
+	 * @index: index for atomic state
+	 */
+	u8 index;
 
 	/**
 	 * @active_mask: mask of active pipes (i.e. DPMS on) using this DPLL

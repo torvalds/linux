@@ -656,8 +656,8 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 	for (i = 0; i < dev_priv->display.dpll.num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll = &dev_priv->display.dpll.shared_dplls[i];
 
-		seq_printf(m, "DPLL%i: %s, id: %i\n", i, pll->info->name,
-			   pll->info->id);
+		seq_printf(m, "DPLL%i: %s, id: %i\n", pll->index,
+			   pll->info->name, pll->info->id);
 		seq_printf(m, " pipe_mask: 0x%x, active: 0x%x, on: %s\n",
 			   pll->state.pipe_mask, pll->active_mask,
 			   str_yes_no(pll->on));

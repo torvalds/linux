@@ -528,7 +528,10 @@ static void ilk_init_pch_refclk(struct drm_i915_private *dev_priv)
 
 	/* Check if any DPLLs are using the SSC source */
 	for (i = 0; i < dev_priv->display.dpll.num_shared_dpll; i++) {
-		u32 temp = intel_de_read(dev_priv, PCH_DPLL(i));
+		struct intel_shared_dpll *pll = &dev_priv->display.dpll.shared_dplls[i];
+		u32 temp;
+
+		temp = intel_de_read(dev_priv, PCH_DPLL(pll->info->id));
 
 		if (!(temp & DPLL_VCO_ENABLE))
 			continue;

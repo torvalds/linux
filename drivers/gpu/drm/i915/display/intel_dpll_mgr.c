@@ -115,13 +115,13 @@ static void
 intel_atomic_duplicate_dpll_state(struct drm_i915_private *dev_priv,
 				  struct intel_shared_dpll_state *shared_dpll)
 {
-	enum intel_dpll_id i;
+	int i;
 
 	/* Copy shared dpll state */
 	for (i = 0; i < dev_priv->display.dpll.num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll = &dev_priv->display.dpll.shared_dplls[i];
 
-		shared_dpll[i] = pll->state;
+		shared_dpll[pll->index] = pll->state;
 	}
 }
 
@@ -154,7 +154,17 @@ struct intel_shared_dpll *
 intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
 			    enum intel_dpll_id id)
 {
-	return &dev_priv->display.dpll.shared_dplls[id];
+	int i;
+
+	for (i = 0; i < dev_priv->display.dpll.num_shared_dpll; i++) {
+		struct intel_shared_dpll *pll = &dev_priv->display.dpll.shared_dplls[i];
+
+		if (pll->info->id == id)
+			return pll;
+	}
+
+	MISSING_CASE(id);
+	return NULL;
 }
 
 /* For ILK+ */
@@ -311,32 +321,36 @@ intel_find_shared_dpll(struct intel_atomic_state *state,
 		       unsigned long dpll_mask)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_shared_dpll *pll, *unused_pll = NULL;
 	struct intel_shared_dpll_state *shared_dpll;
-	enum intel_dpll_id i;
+	struct intel_shared_dpll *unused_pll = NULL;
+	enum intel_dpll_id id;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
 	drm_WARN_ON(&dev_priv->drm, dpll_mask & ~(BIT(I915_NUM_PLLS) - 1));
 
-	for_each_set_bit(i, &dpll_mask, I915_NUM_PLLS) {
-		pll = &dev_priv->display.dpll.shared_dplls[i];
+	for_each_set_bit(id, &dpll_mask, I915_NUM_PLLS) {
+		struct intel_shared_dpll *pll;
+
+		pll = intel_get_shared_dpll_by_id(dev_priv, id);
+		if (!pll)
+			continue;
 
 		/* Only want to check enabled timings first */
-		if (shared_dpll[i].pipe_mask == 0) {
+		if (shared_dpll[pll->index].pipe_mask == 0) {
 			if (!unused_pll)
 				unused_pll = pll;
 			continue;
 		}
 
 		if (memcmp(pll_state,
-			   &shared_dpll[i].hw_state,
+			   &shared_dpll[pll->index].hw_state,
 			   sizeof(*pll_state)) == 0) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "[CRTC:%d:%s] sharing existing %s (pipe mask 0x%x, active 0x%x)\n",
 				    crtc->base.base.id, crtc->base.name,
 				    pll->info->name,
-				    shared_dpll[i].pipe_mask,
+				    shared_dpll[pll->index].pipe_mask,
 				    pll->active_mask);
 			return pll;
 		}
@@ -383,14 +397,13 @@ intel_reference_shared_dpll(struct intel_atomic_state *state,
 			    const struct intel_dpll_hw_state *pll_state)
 {
 	struct intel_shared_dpll_state *shared_dpll;
-	const enum intel_dpll_id id = pll->info->id;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
-	if (shared_dpll[id].pipe_mask == 0)
-		shared_dpll[id].hw_state = *pll_state;
+	if (shared_dpll[pll->index].pipe_mask == 0)
+		shared_dpll[pll->index].hw_state = *pll_state;
 
-	intel_reference_shared_dpll_crtc(crtc, pll, &shared_dpll[id]);
+	intel_reference_shared_dpll_crtc(crtc, pll, &shared_dpll[pll->index]);
 }
 
 /**
@@ -421,11 +434,10 @@ static void intel_unreference_shared_dpll(struct intel_atomic_state *state,
 					  const struct intel_shared_dpll *pll)
 {
 	struct intel_shared_dpll_state *shared_dpll;
-	const enum intel_dpll_id id = pll->info->id;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
-	intel_unreference_shared_dpll_crtc(crtc, pll, &shared_dpll[id]);
+	intel_unreference_shared_dpll_crtc(crtc, pll, &shared_dpll[pll->index]);
 }
 
 static void intel_put_dpll(struct intel_atomic_state *state,
@@ -459,16 +471,15 @@ void intel_shared_dpll_swap_state(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_shared_dpll_state *shared_dpll = state->shared_dpll;
-	enum intel_dpll_id i;
+	int i;
 
 	if (!state->dpll_set)
 		return;
 
 	for (i = 0; i < dev_priv->display.dpll.num_shared_dpll; i++) {
-		struct intel_shared_dpll *pll =
-			&dev_priv->display.dpll.shared_dplls[i];
+		struct intel_shared_dpll *pll = &dev_priv->display.dpll.shared_dplls[i];
 
-		swap(pll->state, shared_dpll[i]);
+		swap(pll->state, shared_dpll[pll->index]);
 	}
 }
 
@@ -559,12 +570,12 @@ static int ibx_get_dpll(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll;
-	enum intel_dpll_id i;
+	enum intel_dpll_id id;
 
 	if (HAS_PCH_IBX(dev_priv)) {
 		/* Ironlake PCH has a fixed PLL->PCH pipe mapping. */
-		i = (enum intel_dpll_id) crtc->pipe;
-		pll = &dev_priv->display.dpll.shared_dplls[i];
+		id = (enum intel_dpll_id) crtc->pipe;
+		pll = intel_get_shared_dpll_by_id(dev_priv, id);
 
 		drm_dbg_kms(&dev_priv->drm,
 			    "[CRTC:%d:%s] using pre-allocated %s\n",
@@ -4168,10 +4179,8 @@ void intel_shared_dpll_init(struct drm_i915_private *dev_priv)
 	else if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
 		dpll_mgr = &pch_pll_mgr;
 
-	if (!dpll_mgr) {
-		dev_priv->display.dpll.num_shared_dpll = 0;
+	if (!dpll_mgr)
 		return;
-	}
 
 	dpll_info = dpll_mgr->dpll_info;
 
@@ -4180,8 +4189,8 @@ void intel_shared_dpll_init(struct drm_i915_private *dev_priv)
 				i >= ARRAY_SIZE(dev_priv->display.dpll.shared_dplls)))
 			break;
 
-		drm_WARN_ON(&dev_priv->drm, i != dpll_info[i].id);
 		dev_priv->display.dpll.shared_dplls[i].info = &dpll_info[i];
+		dev_priv->display.dpll.shared_dplls[i].index = i;
 	}
 
 	dev_priv->display.dpll.mgr = dpll_mgr;
