@@ -187,7 +187,7 @@ struct nh_notifier_grp_entry_info {
 struct nh_notifier_grp_info {
 	u16 num_nh;
 	bool is_fdb;
-	struct nh_notifier_grp_entry_info nh_entries[];
+	struct nh_notifier_grp_entry_info nh_entries[] __counted_by(num_nh);
 };
 
 struct nh_notifier_res_bucket_info {
