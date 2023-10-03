@@ -994,22 +994,37 @@ static bool intel_fbc_hw_tracking_covers_screen(const struct intel_plane_state *
 	return effective_w <= max_w && effective_h <= max_h;
 }
 
-static bool tiling_is_valid(const struct intel_plane_state *plane_state)
+static bool i8xx_fbc_tiling_valid(const struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+
+	return fb->modifier == I915_FORMAT_MOD_X_TILED;
+}
+
+static bool skl_fbc_tiling_valid(const struct intel_plane_state *plane_state)
+{
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
 	case I915_FORMAT_MOD_Y_TILED:
 	case I915_FORMAT_MOD_Yf_TILED:
-		return DISPLAY_VER(i915) >= 9;
 	case I915_FORMAT_MOD_4_TILED:
 	case I915_FORMAT_MOD_X_TILED:
 		return true;
 	default:
 		return false;
 	}
+}
+
+static bool tiling_is_valid(const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
+
+	if (DISPLAY_VER(i915) >= 9)
+		return skl_fbc_tiling_valid(plane_state);
+	else
+		return i8xx_fbc_tiling_valid(plane_state);
 }
 
 static void intel_fbc_update_state(struct intel_atomic_state *state,
