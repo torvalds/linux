@@ -765,7 +765,7 @@ static int svc_i3c_master_do_daa_locked(struct svc_i3c_master *master,
 			u8 data[6];
 
 			/*
-			 * We only care about the 48-bit provisional ID yet to
+			 * We only care about the 48-bit provisioned ID yet to
 			 * be sure a device does not nack an address twice.
 			 * Otherwise, we would just need to flush the RX FIFO.
 			 */
