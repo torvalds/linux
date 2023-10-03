@@ -6,7 +6,6 @@
 
 #include <ctype.h>
 #include <linux/isst_if.h>
-#include <sys/utsname.h>
 
 #include "isst.h"
 
@@ -56,6 +55,8 @@ static int clos_min = -1;
 static int clos_max = -1;
 static int clos_desired = -1;
 static int clos_priority_type;
+static int cpu_0_cgroupv2;
+static int cpu_0_workaround(int isolate);
 
 struct _cpu_map {
 	unsigned short core_id;
@@ -475,42 +476,15 @@ static unsigned int is_cpu_online(int cpu)
 	return online;
 }
 
-static int get_kernel_version(int *major, int *minor)
-{
-	struct utsname buf;
-	int ret;
-
-	ret = uname(&buf);
-	if (ret)
-		return ret;
-
-	ret = sscanf(buf.release, "%d.%d", major, minor);
-	if (ret != 2)
-		return ret;
-
-	return 0;
-}
-
-#define CPU0_HOTPLUG_DEPRECATE_MAJOR_VER	6
-#define CPU0_HOTPLUG_DEPRECATE_MINOR_VER	5
-
 void set_cpu_online_offline(int cpu, int state)
 {
 	char buffer[128];
 	int fd, ret;
 
-	if (!cpu) {
-		int major, minor;
-
-		ret = get_kernel_version(&major, &minor);
-		if (!ret) {
-			if (major > CPU0_HOTPLUG_DEPRECATE_MAJOR_VER || (major == CPU0_HOTPLUG_DEPRECATE_MAJOR_VER &&
-				minor >= CPU0_HOTPLUG_DEPRECATE_MINOR_VER)) {
-				debug_printf("Ignore CPU 0 offline/online for kernel version >= %d.%d\n", major, minor);
-				debug_printf("Use cgroups to isolate CPU 0\n");
-				return;
-			}
-		}
+	if (cpu_0_cgroupv2 && !cpu) {
+		fprintf(stderr, "Will use cgroup v2 for CPU 0\n");
+		cpu_0_workaround(!state);
+		return;
 	}
 
 	snprintf(buffer, sizeof(buffer),
@@ -518,9 +492,10 @@ void set_cpu_online_offline(int cpu, int state)
 
 	fd = open(buffer, O_WRONLY);
 	if (fd < 0) {
-		if (!cpu && state) {
+		if (!cpu) {
 			fprintf(stderr, "This system is not configured for CPU 0 online/offline\n");
-			fprintf(stderr, "Ignoring online request for CPU 0 as this is already online\n");
+			fprintf(stderr, "Will use cgroup v2\n");
+			cpu_0_workaround(!state);
 			return;
 		}
 		err(-1, "%s open failed", buffer);
@@ -907,7 +882,7 @@ int enable_cpuset_controller(void)
 	return 0;
 }
 
-int isolate_cpus(struct isst_id *id, int mask_size, cpu_set_t *cpu_mask, int level)
+int isolate_cpus(struct isst_id *id, int mask_size, cpu_set_t *cpu_mask, int level, int cpu_0_only)
 {
 	int i, first, curr_index, index, ret, fd;
 	static char str[512], dir_name[64];
@@ -950,6 +925,12 @@ int isolate_cpus(struct isst_id *id, int mask_size, cpu_set_t *cpu_mask, int lev
 	curr_index = 0;
 	first = 1;
 	str[0] = '\0';
+
+	if (cpu_0_only) {
+		snprintf(str, str_len, "0");
+		goto create_partition;
+	}
+
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
 		if (!is_cpu_in_power_domain(i, id))
 			continue;
@@ -972,6 +953,7 @@ int isolate_cpus(struct isst_id *id, int mask_size, cpu_set_t *cpu_mask, int lev
 		first = 0;
 	}
 
+create_partition:
 	debug_printf("isolated CPUs list: package:%d curr_index:%d [%s]\n", id->pkg, curr_index ,str);
 
 	snprintf(cpuset_cpus, sizeof(cpuset_cpus), "%s/cpuset.cpus", dir_name);
@@ -1010,6 +992,74 @@ int isolate_cpus(struct isst_id *id, int mask_size, cpu_set_t *cpu_mask, int lev
 		return ret;
 
 	return 0;
+}
+
+static int cpu_0_workaround(int isolate)
+{
+	int fd, fd1, len, ret;
+	cpu_set_t cpu_mask;
+	struct isst_id id;
+	char str[2];
+
+	debug_printf("isolate CPU 0 state: %d\n", isolate);
+
+	if (isolate)
+		goto isolate;
+
+	/* First check if CPU 0 was isolated to remove isolation. */
+
+	/* If the cpuset.cpus doesn't exist, that means that none of the CPUs are isolated*/
+	fd = open("/sys/fs/cgroup/0-0-0/cpuset.cpus", O_RDONLY, 0);
+	if (fd < 0)
+		return 0;
+
+	len = read(fd, str, sizeof(str));
+	/* Error check, but unlikely to fail. If fails that means that not isolated */
+	if (len == -1)
+		return 0;
+
+
+	/* Is CPU 0 is in isolate list, the display is sorted so first element will be CPU 0*/
+	if (str[0] != '0') {
+		close(fd);
+		return 0;
+	}
+
+	fd1 = open("/sys/fs/cgroup/0-0-0/cpuset.cpus.partition", O_RDONLY, 0);
+	/* Unlikely that, this attribute is not present, but handle error */
+	if (fd1 < 0) {
+		close(fd);
+		return 0;
+	}
+
+	/* Is CPU 0 already changed partition to "member" */
+	len = read(fd1, str, sizeof(str));
+	if (len != -1 && str[0] == 'm') {
+		close(fd1);
+		close(fd);
+		return 0;
+	}
+
+	close(fd1);
+	close(fd);
+
+	debug_printf("CPU 0 was isolated before, so remove isolation\n");
+
+isolate:
+	ret = enable_cpuset_controller();
+	if (ret)
+		goto isolate_fail;
+
+	CPU_ZERO(&cpu_mask);
+	memset(&id, 0, sizeof(struct isst_id));
+	CPU_SET(0, &cpu_mask);
+
+	ret = isolate_cpus(&id, sizeof(cpu_mask), &cpu_mask, isolate, 1);
+isolate_fail:
+	if (ret)
+		fprintf(stderr, "Can't isolate CPU 0\n");
+
+	return ret;
 }
 
 static int isst_fill_platform_info(void)
@@ -1458,7 +1508,8 @@ display_result:
 			if (ret)
 				goto use_offline;
 
-			ret = isolate_cpus(id, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask, tdp_level);
+			ret = isolate_cpus(id, ctdp_level.core_cpumask_size,
+					   ctdp_level.core_cpumask, tdp_level, 0);
 			if (ret)
 				goto use_offline;
 
@@ -3054,6 +3105,7 @@ static void usage(void)
 	printf("\t[-n|--no-daemon : Don't run as daemon. By default --oob will turn on daemon mode\n");
 	printf("\t[-w|--delay : Delay for reading config level state change in OOB poll mode.\n");
 	printf("\t[-g|--cgroupv2 : Try to use cgroup v2 CPU isolation instead of CPU online/offline.\n");
+	printf("\t[-u|--cpu0-workaround : Don't try to online/offline CPU0 instead use cgroup v2.\n");
 	printf("\nResult format\n");
 	printf("\tResult display uses a common format for each command:\n");
 	printf("\tResults are formatted in text/JSON with\n");
@@ -3107,6 +3159,7 @@ static void cmdline(int argc, char **argv)
 		{ "no-daemon", no_argument, 0, 'n' },
 		{ "poll-interval", required_argument, 0, 'w' },
 		{ "cgroupv2", required_argument, 0, 'g' },
+		{ "cpu0-workaround", required_argument, 0, 'u' },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -3137,7 +3190,7 @@ static void cmdline(int argc, char **argv)
 		goto out;
 
 	progname = argv[0];
-	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:vabw:ng", long_options,
+	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:vabw:ngu", long_options,
 				       &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -3198,6 +3251,9 @@ static void cmdline(int argc, char **argv)
 			break;
 		case 'g':
 			cgroupv2 = 1;
+			break;
+		case 'u':
+			cpu_0_cgroupv2 = 1;
 			break;
 		default:
 			usage();
