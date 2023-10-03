@@ -225,12 +225,19 @@ static int mlxsw_afk_picker(struct mlxsw_afk *mlxsw_afk,
 			    struct mlxsw_afk_element_usage *elusage)
 {
 	struct mlxsw_afk_picker *picker;
+	unsigned long *chosen_blocks_bm;
 	enum mlxsw_afk_element element;
 	int err;
 
 	picker = kcalloc(mlxsw_afk->blocks_count, sizeof(*picker), GFP_KERNEL);
 	if (!picker)
 		return -ENOMEM;
+
+	chosen_blocks_bm = bitmap_zalloc(mlxsw_afk->blocks_count, GFP_KERNEL);
+	if (!chosen_blocks_bm) {
+		err = -ENOMEM;
+		goto err_bitmap_alloc;
+	}
 
 	/* Since the same elements could be present in multiple blocks,
 	 * we must find out optimal block list in order to make the
@@ -256,6 +263,9 @@ static int mlxsw_afk_picker(struct mlxsw_afk *mlxsw_afk,
 			err = block_index;
 			goto out;
 		}
+
+		__set_bit(block_index, chosen_blocks_bm);
+
 		err = mlxsw_afk_picker_key_info_add(mlxsw_afk, picker,
 						    block_index, key_info);
 		if (err)
@@ -265,6 +275,8 @@ static int mlxsw_afk_picker(struct mlxsw_afk *mlxsw_afk,
 
 	err = 0;
 out:
+	bitmap_free(chosen_blocks_bm);
+err_bitmap_alloc:
 	kfree(picker);
 	return err;
 }
