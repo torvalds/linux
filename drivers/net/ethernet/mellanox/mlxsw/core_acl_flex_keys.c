@@ -221,6 +221,36 @@ static int mlxsw_afk_picker_key_info_add(struct mlxsw_afk *mlxsw_afk,
 	return 0;
 }
 
+static int mlxsw_afk_keys_fill(struct mlxsw_afk *mlxsw_afk,
+			       unsigned long *chosen_blocks_bm,
+			       struct mlxsw_afk_picker *picker,
+			       struct mlxsw_afk_key_info *key_info)
+{
+	int i, err;
+
+	/* First fill only key blocks with high_entropy. */
+	for_each_set_bit(i, chosen_blocks_bm, mlxsw_afk->blocks_count) {
+		if (!mlxsw_afk->blocks[i].high_entropy)
+			continue;
+
+		err = mlxsw_afk_picker_key_info_add(mlxsw_afk, picker, i,
+						    key_info);
+		if (err)
+			return err;
+		__clear_bit(i, chosen_blocks_bm);
+	}
+
+	/* Fill the rest of key blocks. */
+	for_each_set_bit(i, chosen_blocks_bm, mlxsw_afk->blocks_count) {
+		err = mlxsw_afk_picker_key_info_add(mlxsw_afk, picker, i,
+						    key_info);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int mlxsw_afk_picker(struct mlxsw_afk *mlxsw_afk,
 			    struct mlxsw_afk_key_info *key_info,
 			    struct mlxsw_afk_element_usage *elusage)
@@ -275,16 +305,13 @@ static int mlxsw_afk_picker(struct mlxsw_afk *mlxsw_afk,
 			  picker[block_index].chosen_element,
 			  MLXSW_AFK_ELEMENT_MAX);
 
-		err = mlxsw_afk_picker_key_info_add(mlxsw_afk, picker,
-						    block_index, key_info);
-		if (err)
-			goto out;
 		mlxsw_afk_picker_subtract_hits(mlxsw_afk, picker, block_index);
 
 	} while (!bitmap_equal(elusage_chosen, elusage->usage,
 			       MLXSW_AFK_ELEMENT_MAX));
 
-	err = 0;
+	err = mlxsw_afk_keys_fill(mlxsw_afk, chosen_blocks_bm, picker,
+				  key_info);
 out:
 	bitmap_free(chosen_blocks_bm);
 err_bitmap_alloc:
