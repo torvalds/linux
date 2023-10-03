@@ -10,6 +10,8 @@
 
 #include <linux/interrupt.h>
 
+struct cros_ec_device;
+
 int cros_ec_register(struct cros_ec_device *ec_dev);
 void cros_ec_unregister(struct cros_ec_device *ec_dev);
 
