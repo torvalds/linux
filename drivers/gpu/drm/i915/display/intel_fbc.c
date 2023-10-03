@@ -945,20 +945,38 @@ static bool pixel_format_is_valid(const struct intel_plane_state *plane_state)
 	}
 }
 
-static bool rotation_is_valid(const struct intel_plane_state *plane_state)
+static bool i8xx_fbc_rotation_is_valid(const struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
+	return plane_state->hw.rotation == DRM_MODE_ROTATE_0;
+}
+
+static bool g4x_fbc_rotation_is_valid(const struct intel_plane_state *plane_state)
+{
+	return true;
+}
+
+static bool skl_fbc_rotation_is_valid(const struct intel_plane_state *plane_state)
+{
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int rotation = plane_state->hw.rotation;
 
-	if (DISPLAY_VER(i915) >= 9 && fb->format->format == DRM_FORMAT_RGB565 &&
+	if (fb->format->format == DRM_FORMAT_RGB565 &&
 	    drm_rotation_90_or_270(rotation))
-		return false;
-	else if (DISPLAY_VER(i915) <= 4 && !IS_G4X(i915) &&
-		 rotation != DRM_MODE_ROTATE_0)
 		return false;
 
 	return true;
+}
+
+static bool rotation_is_valid(const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
+
+	if (DISPLAY_VER(i915) >= 9)
+		return skl_fbc_rotation_is_valid(plane_state);
+	else if (DISPLAY_VER(i915) >= 5 || IS_G4X(i915))
+		return g4x_fbc_rotation_is_valid(plane_state);
+	else
+		return i8xx_fbc_rotation_is_valid(plane_state);
 }
 
 /*
