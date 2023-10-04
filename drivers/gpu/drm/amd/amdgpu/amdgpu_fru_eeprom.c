@@ -200,10 +200,19 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 
 	/* Now extract useful information from the PIA.
 	 *
-	 * Skip the Manufacturer Name at [3] and go directly to
-	 * the Product Name field.
+	 * Read Manufacturer Name field whose length is [3].
 	 */
-	addr = 3 + 1 + (pia[3] & 0x3F);
+	addr = 3;
+	if (addr + 1 >= len)
+		goto Out;
+	memcpy(fru_info->manufacturer_name, pia + addr + 1,
+	       min_t(size_t, sizeof(fru_info->manufacturer_name),
+		     pia[addr] & 0x3F));
+	fru_info->manufacturer_name[sizeof(fru_info->manufacturer_name) - 1] =
+		'\0';
+
+	/* Read Product Name field. */
+	addr += 1 + (pia[addr] & 0x3F);
 	if (addr + 1 >= len)
 		goto Out;
 	memcpy(fru_info->product_name, pia + addr + 1,
@@ -229,6 +238,18 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	memcpy(fru_info->serial, pia + addr + 1,
 	       min_t(size_t, sizeof(fru_info->serial), pia[addr] & 0x3F));
 	fru_info->serial[sizeof(fru_info->serial) - 1] = '\0';
+
+	/* Asset Tag field */
+	addr += 1 + (pia[addr] & 0x3F);
+
+	/* FRU File Id field. This could be 'null'. */
+	addr += 1 + (pia[addr] & 0x3F);
+	if ((addr + 1 >= len) || !(pia[addr] & 0x3F))
+		goto Out;
+	memcpy(fru_info->fru_id, pia + addr + 1,
+	       min_t(size_t, sizeof(fru_info->fru_id), pia[addr] & 0x3F));
+	fru_info->fru_id[sizeof(fru_info->fru_id) - 1] = '\0';
+
 Out:
 	kfree(pia);
 	return 0;
@@ -300,10 +321,35 @@ static ssize_t amdgpu_fru_serial_number_show(struct device *dev,
 
 static DEVICE_ATTR(serial_number, 0444, amdgpu_fru_serial_number_show, NULL);
 
+static ssize_t amdgpu_fru_id_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	return sysfs_emit(buf, "%s\n", adev->fru_info->fru_id);
+}
+
+static DEVICE_ATTR(fru_id, 0444, amdgpu_fru_id_show, NULL);
+
+static ssize_t amdgpu_fru_manufacturer_name_show(struct device *dev,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	return sysfs_emit(buf, "%s\n", adev->fru_info->manufacturer_name);
+}
+
+static DEVICE_ATTR(manufacturer, 0444, amdgpu_fru_manufacturer_name_show, NULL);
+
 static const struct attribute *amdgpu_fru_attributes[] = {
 	&dev_attr_product_name.attr,
 	&dev_attr_product_number.attr,
 	&dev_attr_serial_number.attr,
+	&dev_attr_fru_id.attr,
+	&dev_attr_manufacturer.attr,
 	NULL
 };
 
