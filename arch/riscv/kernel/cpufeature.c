@@ -568,6 +568,9 @@ void check_unaligned_access(int cpu)
 	void *src;
 	long speed = RISCV_HWPROBE_MISALIGNED_SLOW;
 
+	if (check_unaligned_access_emulated(cpu))
+		return;
+
 	page = alloc_pages(GFP_NOWAIT, get_order(MISALIGNED_BUFFER_SIZE));
 	if (!page) {
 		pr_warn("Can't alloc pages to measure memcpy performance");
@@ -648,6 +651,7 @@ out:
 static int __init check_unaligned_access_boot_cpu(void)
 {
 	check_unaligned_access(0);
+	unaligned_emulation_finish();
 	return 0;
 }
 

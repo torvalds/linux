@@ -14,6 +14,8 @@
 #include <asm/ptrace.h>
 #include <asm/csr.h>
 #include <asm/entry-common.h>
+#include <asm/hwprobe.h>
+#include <asm/cpufeature.h>
 
 #define INSN_MATCH_LB			0x3
 #define INSN_MASK_LB			0x707f
@@ -396,6 +398,8 @@ union reg_data {
 	u64 data_u64;
 };
 
+static bool unaligned_ctl __read_mostly;
+
 /* sysctl hooks */
 int unaligned_enabled __read_mostly = 1;	/* Enabled by default */
 
@@ -408,6 +412,8 @@ int handle_misaligned_load(struct pt_regs *regs)
 	int i, fp = 0, shift = 0, len = 0;
 
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, addr);
+
+	*this_cpu_ptr(&misaligned_access_speed) = RISCV_HWPROBE_MISALIGNED_EMULATED;
 
 	if (!unaligned_enabled)
 		return -1;
@@ -584,4 +590,54 @@ int handle_misaligned_store(struct pt_regs *regs)
 	regs->epc = epc + INSN_LEN(insn);
 
 	return 0;
+}
+
+bool check_unaligned_access_emulated(int cpu)
+{
+	long *mas_ptr = per_cpu_ptr(&misaligned_access_speed, cpu);
+	unsigned long tmp_var, tmp_val;
+	bool misaligned_emu_detected;
+
+	*mas_ptr = RISCV_HWPROBE_MISALIGNED_UNKNOWN;
+
+	__asm__ __volatile__ (
+		"       "REG_L" %[tmp], 1(%[ptr])\n"
+		: [tmp] "=r" (tmp_val) : [ptr] "r" (&tmp_var) : "memory");
+
+	misaligned_emu_detected = (*mas_ptr == RISCV_HWPROBE_MISALIGNED_EMULATED);
+	/*
+	 * If unaligned_ctl is already set, this means that we detected that all
+	 * CPUS uses emulated misaligned access at boot time. If that changed
+	 * when hotplugging the new cpu, this is something we don't handle.
+	 */
+	if (unlikely(unaligned_ctl && !misaligned_emu_detected)) {
+		pr_crit("CPU misaligned accesses non homogeneous (expected all emulated)\n");
+		while (true)
+			cpu_relax();
+	}
+
+	return misaligned_emu_detected;
+}
+
+void __init unaligned_emulation_finish(void)
+{
+	int cpu;
+
+	/*
+	 * We can only support PR_UNALIGN controls if all CPUs have misaligned
+	 * accesses emulated since tasks requesting such control can run on any
+	 * CPU.
+	 */
+	for_each_present_cpu(cpu) {
+		if (per_cpu(misaligned_access_speed, cpu) !=
+					RISCV_HWPROBE_MISALIGNED_EMULATED) {
+			return;
+		}
+	}
+	unaligned_ctl = true;
+}
+
+bool unaligned_ctl_available(void)
+{
+	return unaligned_ctl;
 }
