@@ -571,6 +571,14 @@ static struct btrfs_fs_devices *find_fsid_by_device(
 	if (btrfs_super_num_devices(disk_super) != 1)
 		return fsid_fs_devices;
 
+	/*
+	 * A seed device is an integral component of the sprout device, which
+	 * functions as a multi-device filesystem. So, temp-fsid feature is
+	 * not supported.
+	 */
+	if (btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_SEEDING)
+		return fsid_fs_devices;
+
 	/* Try to find a fs_devices by matching devt. */
 	list_for_each_entry(devt_fs_devices, &fs_uuids, fs_list) {
 		struct btrfs_device *device;
