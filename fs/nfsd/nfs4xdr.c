@@ -3664,6 +3664,22 @@ __be32 nfsd4_encode_fattr_to_buf(__be32 **p, int words,
 	return ret;
 }
 
+/*
+ * The buffer space for this field was reserved during a previous
+ * call to nfsd4_encode_entry4().
+ */
+static void nfsd4_encode_entry4_nfs_cookie4(const struct nfsd4_readdir *readdir,
+					    u64 offset)
+{
+	__be64 cookie = cpu_to_be64(offset);
+	struct xdr_stream *xdr = readdir->xdr;
+
+	if (!readdir->cookie_offset)
+		return;
+	write_bytes_to_xdr_buf(xdr->buf, readdir->cookie_offset, &cookie,
+			       sizeof(cookie));
+}
+
 static inline int attributes_need_mount(u32 *bmval)
 {
 	if (bmval[0] & ~(FATTR4_WORD0_RDATTR_ERROR | FATTR4_WORD0_LEASE_TIME))
@@ -3756,7 +3772,6 @@ nfsd4_encode_entry4(void *ccdv, const char *name, int namlen,
 	u32 name_and_cookie;
 	int entry_bytes;
 	__be32 nfserr = nfserr_toosmall;
-	__be64 wire_offset;
 	__be32 *p;
 
 	/* In nfsv4, "." and ".." never make it onto the wire.. */
@@ -3765,11 +3780,8 @@ nfsd4_encode_entry4(void *ccdv, const char *name, int namlen,
 		return 0;
 	}
 
-	if (cd->cookie_offset) {
-		wire_offset = cpu_to_be64(offset);
-		write_bytes_to_xdr_buf(xdr->buf, cd->cookie_offset,
-							&wire_offset, 8);
-	}
+	/* Encode the previous entry's cookie value */
+	nfsd4_encode_entry4_nfs_cookie4(cd, offset);
 
 	p = xdr_reserve_space(xdr, 4);
 	if (!p)
@@ -4451,7 +4463,6 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr,
 	int maxcount;
 	int bytes_left;
 	loff_t offset;
-	__be64 wire_offset;
 	struct xdr_stream *xdr = resp->xdr;
 	int starting_len = xdr->buf->len;
 	__be32 *p;
@@ -4509,11 +4520,8 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr,
 	if (nfserr)
 		goto err_no_verf;
 
-	if (readdir->cookie_offset) {
-		wire_offset = cpu_to_be64(offset);
-		write_bytes_to_xdr_buf(xdr->buf, readdir->cookie_offset,
-							&wire_offset, 8);
-	}
+	/* Encode the final entry's cookie value */
+	nfsd4_encode_entry4_nfs_cookie4(readdir, offset);
 
 	p = xdr_reserve_space(xdr, 8);
 	if (!p) {
