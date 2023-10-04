@@ -158,6 +158,11 @@ static void init_smccc_filter(struct kvm *kvm)
 
 }
 
+static bool kvm_smccc_filter_configured(struct kvm *kvm)
+{
+	return test_bit(KVM_ARCH_FLAT_SMCCC_FILTER_CONFIGURED, &kvm->arch.flags);
+}
+
 static int kvm_smccc_set_filter(struct kvm *kvm, struct kvm_smccc_filter __user *uaddr)
 {
 	const void *zero_page = page_to_virt(ZERO_PAGE(0));
@@ -201,7 +206,7 @@ static u8 kvm_smccc_filter_get_action(struct kvm *kvm, u32 func_id)
 	unsigned long idx = func_id;
 	void *val;
 
-	if (!test_bit(KVM_ARCH_FLAG_SMCCC_FILTER_CONFIGURED, &kvm->arch.flags))
+	if (!kvm_smccc_filter_configured(kvm))
 		return KVM_SMCCC_FILTER_HANDLE;
 
 	/*
