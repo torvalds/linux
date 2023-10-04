@@ -399,14 +399,14 @@ static int qla_nvme_xmt_ls_rsp(struct nvme_fc_local_port *lport,
 	nvme->u.nvme.dl = 0;
 	nvme->u.nvme.timeout_sec = 0;
 	nvme->u.nvme.cmd_dma = fd_resp->rspdma;
-	nvme->u.nvme.cmd_len = fd_resp->rsplen;
+	nvme->u.nvme.cmd_len = cpu_to_le32(fd_resp->rsplen);
 	nvme->u.nvme.rsp_len = 0;
 	nvme->u.nvme.rsp_dma = 0;
 	nvme->u.nvme.exchange_address = uctx->exchange_address;
 	nvme->u.nvme.nport_handle = uctx->nport_handle;
 	nvme->u.nvme.ox_id = uctx->ox_id;
 	dma_sync_single_for_device(&ha->pdev->dev, nvme->u.nvme.cmd_dma,
-				   le32_to_cpu(fd_resp->rsplen), DMA_TO_DEVICE);
+				   fd_resp->rsplen, DMA_TO_DEVICE);
 
 	ql_dbg(ql_dbg_unsol, vha, 0x2122,
 	       "Unsol lsreq portid=%06x %8phC exchange_address 0x%x ox_id 0x%x hdl 0x%x\n",
@@ -504,13 +504,13 @@ static int qla_nvme_ls_req(struct nvme_fc_local_port *lport,
 	nvme->u.nvme.desc = fd;
 	nvme->u.nvme.dir = 0;
 	nvme->u.nvme.dl = 0;
-	nvme->u.nvme.cmd_len = fd->rqstlen;
-	nvme->u.nvme.rsp_len = fd->rsplen;
+	nvme->u.nvme.cmd_len = cpu_to_le32(fd->rqstlen);
+	nvme->u.nvme.rsp_len = cpu_to_le32(fd->rsplen);
 	nvme->u.nvme.rsp_dma = fd->rspdma;
 	nvme->u.nvme.timeout_sec = fd->timeout;
 	nvme->u.nvme.cmd_dma = fd->rqstdma;
 	dma_sync_single_for_device(&ha->pdev->dev, nvme->u.nvme.cmd_dma,
-	    le32_to_cpu(fd->rqstlen), DMA_TO_DEVICE);
+	    fd->rqstlen, DMA_TO_DEVICE);
 
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {

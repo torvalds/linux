@@ -231,6 +231,12 @@ struct xfs_cil_ctx {
 	struct work_struct	discard_endio_work;
 	struct work_struct	push_work;
 	atomic_t		order_id;
+
+	/*
+	 * CPUs that could have added items to the percpu CIL data.  Access is
+	 * coordinated with xc_ctx_lock.
+	 */
+	struct cpumask		cil_pcpmask;
 };
 
 /*
@@ -278,9 +284,6 @@ struct xfs_cil {
 	wait_queue_head_t	xc_push_wait;	/* background push throttle */
 
 	void __percpu		*xc_pcp;	/* percpu CIL structures */
-#ifdef CONFIG_HOTPLUG_CPU
-	struct list_head	xc_pcp_list;
-#endif
 } ____cacheline_aligned_in_smp;
 
 /* xc_flags bit values */
@@ -704,10 +707,5 @@ xlog_kvmalloc(
 
 	return p;
 }
-
-/*
- * CIL CPU dead notifier
- */
-void xlog_cil_pcp_dead(struct xlog *log, unsigned int cpu);
 
 #endif	/* __XFS_LOG_PRIV_H__ */

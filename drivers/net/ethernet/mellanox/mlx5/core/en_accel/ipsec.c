@@ -850,6 +850,7 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 
 	xa_init_flags(&ipsec->sadb, XA_FLAGS_ALLOC);
 	ipsec->mdev = priv->mdev;
+	init_completion(&ipsec->comp);
 	ipsec->wq = alloc_workqueue("mlx5e_ipsec: %s", WQ_UNBOUND, 0,
 				    priv->netdev->name);
 	if (!ipsec->wq)
@@ -870,7 +871,7 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	}
 
 	ipsec->is_uplink_rep = mlx5e_is_uplink_rep(priv);
-	ret = mlx5e_accel_ipsec_fs_init(ipsec);
+	ret = mlx5e_accel_ipsec_fs_init(ipsec, &priv->devcom);
 	if (ret)
 		goto err_fs_init;
 

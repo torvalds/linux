@@ -577,8 +577,8 @@ void bcmasp_netfilt_release(struct bcmasp_intf *intf,
 
 int bcmasp_netfilt_get_active(struct bcmasp_intf *intf);
 
-void bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
-				   u32 *rule_cnt);
+int bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
+				  u32 *rule_cnt);
 
 void bcmasp_netfilt_suspend(struct bcmasp_intf *intf);
 

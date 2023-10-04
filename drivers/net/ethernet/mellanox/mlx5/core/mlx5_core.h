@@ -97,6 +97,22 @@ do {								\
 			     __func__, __LINE__, current->pid,	\
 			     ##__VA_ARGS__)
 
+#define ACCESS_KEY_LEN  32
+#define FT_ID_FT_TYPE_OFFSET 24
+
+struct mlx5_cmd_allow_other_vhca_access_attr {
+	u16 obj_type;
+	u32 obj_id;
+	u8 access_key[ACCESS_KEY_LEN];
+};
+
+struct mlx5_cmd_alias_obj_create_attr {
+	u32 obj_id;
+	u16 vhca_id;
+	u16 obj_type;
+	u8 access_key[ACCESS_KEY_LEN];
+};
+
 static inline void mlx5_printk(struct mlx5_core_dev *dev, int level, const char *format, ...)
 {
 	struct device *device = dev->device;
@@ -343,6 +359,12 @@ bool mlx5_eth_supported(struct mlx5_core_dev *dev);
 bool mlx5_rdma_supported(struct mlx5_core_dev *dev);
 bool mlx5_vnet_supported(struct mlx5_core_dev *dev);
 bool mlx5_same_hw_devs(struct mlx5_core_dev *dev, struct mlx5_core_dev *peer_dev);
+int mlx5_cmd_allow_other_vhca_access(struct mlx5_core_dev *dev,
+				     struct mlx5_cmd_allow_other_vhca_access_attr *attr);
+int mlx5_cmd_alias_obj_create(struct mlx5_core_dev *dev,
+			      struct mlx5_cmd_alias_obj_create_attr *alias_attr,
+			      u32 *obj_id);
+int mlx5_cmd_alias_obj_destroy(struct mlx5_core_dev *dev, u32 obj_id, u16 obj_type);
 
 static inline u16 mlx5_core_ec_vf_vport_base(const struct mlx5_core_dev *dev)
 {

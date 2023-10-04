@@ -2555,7 +2555,7 @@ static unsigned long calculate_high_delay(struct mem_cgroup *memcg,
  * Scheduled by try_charge() to be executed from the userland return path
  * and reclaims memory over the high limit.
  */
-void mem_cgroup_handle_over_high(void)
+void mem_cgroup_handle_over_high(gfp_t gfp_mask)
 {
 	unsigned long penalty_jiffies;
 	unsigned long pflags;
@@ -2583,7 +2583,7 @@ retry_reclaim:
 	 */
 	nr_reclaimed = reclaim_high(memcg,
 				    in_retry ? SWAP_CLUSTER_MAX : nr_pages,
-				    GFP_KERNEL);
+				    gfp_mask);
 
 	/*
 	 * memory.high is breached and reclaim is unable to keep up. Throttle
@@ -2819,7 +2819,7 @@ done_restock:
 	if (current->memcg_nr_pages_over_high > MEMCG_CHARGE_BATCH &&
 	    !(current->flags & PF_MEMALLOC) &&
 	    gfpflags_allow_blocking(gfp_mask)) {
-		mem_cgroup_handle_over_high();
+		mem_cgroup_handle_over_high(gfp_mask);
 	}
 	return 0;
 }

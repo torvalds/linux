@@ -691,12 +691,12 @@ static int imx219_init_cfg(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
-	/* Initialize try_fmt */
+	/* Initialize the format. */
 	format = v4l2_subdev_get_pad_format(sd, state, 0);
 	imx219_update_pad_format(imx219, &supported_modes[0], format,
 				 MEDIA_BUS_FMT_SRGGB10_1X10);
 
-	/* Initialize crop rectangle. */
+	/* Initialize the crop rectangle. */
 	crop = v4l2_subdev_get_pad_crop(sd, state, 0);
 	crop->top = IMX219_PIXEL_ARRAY_TOP;
 	crop->left = IMX219_PIXEL_ARRAY_LEFT;
@@ -750,6 +750,7 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 	const struct imx219_mode *mode;
 	int exposure_max, exposure_def, hblank;
 	struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect *crop;
 
 	mode = v4l2_find_nearest_size(supported_modes,
 				      ARRAY_SIZE(supported_modes),
@@ -757,10 +758,12 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 
 	imx219_update_pad_format(imx219, mode, &fmt->format, fmt->format.code);
-	format = v4l2_subdev_get_pad_format(sd, sd_state, 0);
 
-	if (imx219->mode == mode && format->code == fmt->format.code)
-		return 0;
+	format = v4l2_subdev_get_pad_format(sd, sd_state, 0);
+	crop = v4l2_subdev_get_pad_crop(sd, sd_state, 0);
+
+	*format = fmt->format;
+	*crop = mode->crop;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		imx219->mode = mode;
@@ -787,8 +790,6 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(imx219->hblank, hblank, hblank, 1,
 					 hblank);
 	}
-
-	*format = fmt->format;
 
 	return 0;
 }
