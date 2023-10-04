@@ -844,8 +844,8 @@ xfs_init_new_inode(
 	ASSERT(ip->i_nblocks == 0);
 
 	tv = inode_set_ctime_current(inode);
-	inode->i_mtime = tv;
-	inode->i_atime = tv;
+	inode_set_mtime_to_ts(inode, tv);
+	inode_set_atime_to_ts(inode, tv);
 
 	ip->i_extsize = 0;
 	ip->i_diflags = 0;
