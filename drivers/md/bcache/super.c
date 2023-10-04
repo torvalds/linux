@@ -2354,6 +2354,13 @@ static int register_cache(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 
 	ret = cache_alloc(ca);
 	if (ret != 0) {
+		if (ret == -ENOMEM)
+			err = "cache_alloc(): -ENOMEM";
+		else if (ret == -EPERM)
+			err = "cache_alloc(): cache device is too small";
+		else
+			err = "cache_alloc(): unknown error";
+		pr_notice("error %pg: %s\n", bdev_handle->bdev, err);
 		/*
 		 * If we failed here, it means ca->kobj is not initialized yet,
 		 * kobject_put() won't be called and there is no chance to
@@ -2361,17 +2368,12 @@ static int register_cache(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 		 * we explicitly call bdev_release() here.
 		 */
 		bdev_release(bdev_handle);
-		if (ret == -ENOMEM)
-			err = "cache_alloc(): -ENOMEM";
-		else if (ret == -EPERM)
-			err = "cache_alloc(): cache device is too small";
-		else
-			err = "cache_alloc(): unknown error";
-		goto err;
+		return ret;
 	}
 
 	if (kobject_add(&ca->kobj, bdev_kobj(bdev_handle->bdev), "bcache")) {
-		err = "error calling kobject_add";
+		pr_notice("error %pg: error calling kobject_add\n",
+			  bdev_handle->bdev);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -2389,11 +2391,6 @@ static int register_cache(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 
 out:
 	kobject_put(&ca->kobj);
-
-err:
-	if (err)
-		pr_notice("error %pg: %s\n", ca->bdev_handle->bdev, err);
-
 	return ret;
 }
 
