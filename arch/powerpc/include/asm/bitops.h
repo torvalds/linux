@@ -233,7 +233,6 @@ static inline int arch_test_and_change_bit(unsigned long nr,
 	return test_and_change_bits(BIT_MASK(nr), addr + BIT_WORD(nr)) != 0;
 }
 
-#ifdef CONFIG_PPC64
 static inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
 		volatile unsigned long *p)
 {
@@ -251,10 +250,7 @@ static inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
 
 	return (old & BIT_MASK(7)) != 0;
 }
-
 #define arch_xor_unlock_is_negative_byte arch_xor_unlock_is_negative_byte
-
-#endif /* CONFIG_PPC64 */
 
 #include <asm-generic/bitops/non-atomic.h>
 
