@@ -1198,6 +1198,30 @@ int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pk
 	return 0;
 }
 
+int is_cpu_first_thread_in_core(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+{
+	UNUSED(c);
+	UNUSED(p);
+
+	return (t->flags & CPU_IS_FIRST_THREAD_IN_CORE);
+}
+
+int is_cpu_first_core_in_package(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+{
+	UNUSED(c);
+	UNUSED(p);
+
+	return (t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE);
+}
+
+int is_cpu_first_thread_in_package(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+{
+	UNUSED(c);
+	UNUSED(p);
+
+	return (t->flags & CPU_IS_FIRST_THREAD_IN_CORE) && (t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE);
+}
+
 int cpu_migrate(int cpu)
 {
 	CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
@@ -1682,11 +1706,11 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	int printed = 0;
 
 	/* if showing only 1st thread in core and this isn't one, bail out */
-	if (show_core_only && !(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
+	if (show_core_only && !is_cpu_first_thread_in_core(t, c, p))
 		return 0;
 
 	/* if showing only 1st thread in pkg and this isn't one, bail out */
-	if (show_pkg_only && !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+	if (show_pkg_only && !is_cpu_first_core_in_package(t, c, p))
 		return 0;
 
 	/*if not summary line and --cpu is used */
@@ -1820,7 +1844,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * t->c1 / tsc);
 
 	/* print per-core data only for 1st thread in core */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
+	if (!is_cpu_first_thread_in_core(t, c, p))
 		goto done;
 
 	if (DO_BIC(BIC_CPU_c3))
@@ -1867,7 +1891,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), c->core_energy * rapl_energy_units);
 
 	/* print per-package data only for 1st core in package */
-	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+	if (!is_cpu_first_core_in_package(t, c, p))
 		goto done;
 
 	/* PkgTmp */
@@ -2202,7 +2226,7 @@ int delta_cpu(struct thread_data *t, struct core_data *c,
 	int retval = 0;
 
 	/* calculate core delta only for 1st thread in core */
-	if (t->flags & CPU_IS_FIRST_THREAD_IN_CORE)
+	if (is_cpu_first_thread_in_core(t, c, p))
 		delta_core(c, c2);
 
 	/* always calculate thread delta */
@@ -2211,7 +2235,7 @@ int delta_cpu(struct thread_data *t, struct core_data *c,
 		return retval;
 
 	/* calculate package delta only for 1st core in package */
-	if (t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE)
+	if (is_cpu_first_core_in_package(t, c, p))
 		retval = delta_package(p, p2);
 
 	return retval;
@@ -2325,7 +2349,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	}
 
 	/* sum per-core values only for 1st thread in core */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
+	if (!is_cpu_first_thread_in_core(t, c, p))
 		return 0;
 
 	average.cores.c3 += c->c3;
@@ -2345,7 +2369,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	}
 
 	/* sum per-pkg values only for 1st core in pkg */
-	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+	if (!is_cpu_first_core_in_package(t, c, p))
 		return 0;
 
 	if (DO_BIC(BIC_Totl_c0))
@@ -2745,7 +2769,7 @@ retry:
 	}
 
 	/* collect core counters only for 1st thread in core */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
+	if (!is_cpu_first_thread_in_core(t, c, p))
 		goto done;
 
 	if (DO_BIC(BIC_CPU_c3) || soft_c1_residency_display(BIC_CPU_c3)) {
@@ -2800,7 +2824,7 @@ retry:
 	}
 
 	/* collect package counters only for 1st core in package */
-	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+	if (!is_cpu_first_core_in_package(t, c, p))
 		goto done;
 
 	if (DO_BIC(BIC_Totl_c0)) {
@@ -4581,7 +4605,7 @@ int print_epb(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	cpu = t->cpu_id;
 
 	/* EPB is per-package */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE) || !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+	if (!is_cpu_first_thread_in_package(t, c, p))
 		return 0;
 
 	if (cpu_migrate(cpu)) {
@@ -4630,7 +4654,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	cpu = t->cpu_id;
 
 	/* MSR_HWP_CAPABILITIES is per-package */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE) || !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+	if (!is_cpu_first_thread_in_package(t, c, p))
 		return 0;
 
 	if (cpu_migrate(cpu)) {
@@ -4713,7 +4737,7 @@ int print_perf_limit(struct thread_data *t, struct core_data *c, struct pkg_data
 	cpu = t->cpu_id;
 
 	/* per-package */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE) || !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+	if (!is_cpu_first_thread_in_package(t, c, p))
 		return 0;
 
 	if (cpu_migrate(cpu)) {
@@ -4930,7 +4954,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return 0;
 
 	/* RAPL counters are per package, so print only for 1st thread/package */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE) || !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+	if (!is_cpu_first_thread_in_package(t, c, p))
 		return 0;
 
 	cpu = t->cpu_id;
@@ -5083,7 +5107,7 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 		return 0;
 
 	/* this is a per-package concept */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE) || !(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
+	if (!is_cpu_first_thread_in_package(t, c, p))
 		return 0;
 
 	cpu = t->cpu_id;
@@ -5152,7 +5176,7 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 	cpu = t->cpu_id;
 
 	/* DTS is per-core, no need to print for each thread */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
+	if (!is_cpu_first_thread_in_core(t, c, p))
 		return 0;
 
 	if (cpu_migrate(cpu)) {
@@ -5160,7 +5184,7 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		return -1;
 	}
 
-	if (do_ptm && (t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE)) {
+	if (do_ptm && is_cpu_first_core_in_package(t, c, p)) {
 		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_STATUS, &msr))
 			return 0;
 
