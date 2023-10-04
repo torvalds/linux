@@ -1993,11 +1993,11 @@ int intel_snps_phy_check_hdmi_link_rate(int clock)
 }
 
 void intel_mpllb_state_verify(struct intel_atomic_state *state,
-			      struct intel_crtc_state *new_crtc_state)
+			      const struct intel_crtc_state *new_crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_mpllb_state mpllb_hw_state = { 0 };
-	struct intel_mpllb_state *mpllb_sw_state = &new_crtc_state->mpllb_state;
+	const struct intel_mpllb_state *mpllb_sw_state = &new_crtc_state->mpllb_state;
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct intel_encoder *encoder;
 
