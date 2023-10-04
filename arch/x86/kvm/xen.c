@@ -1423,12 +1423,8 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 			return true;
 		}
 
+		/* A delta <= 0 results in an immediate callback, which is what we want */
 		delta = oneshot.timeout_abs_ns - get_kvmclock_ns(vcpu->kvm);
-		if ((oneshot.flags & VCPU_SSHOTTMR_future) && delta < 0) {
-			*r = -ETIME;
-			return true;
-		}
-
 		kvm_xen_start_timer(vcpu, oneshot.timeout_abs_ns, delta);
 		*r = 0;
 		return true;
