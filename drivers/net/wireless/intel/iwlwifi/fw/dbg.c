@@ -1055,6 +1055,20 @@ iwl_dump_ini_prph_mac_iter(struct iwl_fw_runtime *fwrt,
 						 reg->dev_addr.size);
 }
 
+static int
+iwl_dump_ini_prph_mac_block_iter(struct iwl_fw_runtime *fwrt,
+				 struct iwl_dump_ini_region_data *reg_data,
+				 void *range_ptr, u32 range_len, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_addr_size *pairs = (void *)reg->addrs;
+	u32 addr = le32_to_cpu(reg->dev_addr_range.offset) +
+		   le32_to_cpu(pairs[idx].addr);
+
+	return iwl_dump_ini_prph_mac_iter_common(fwrt, range_ptr, addr,
+						 pairs[idx].size);
+}
+
 static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 					     void *range_ptr, u32 addr,
 					     __le32 size, __le32 offset)
@@ -1113,6 +1127,20 @@ iwl_dump_ini_prph_phy_iter(struct iwl_fw_runtime *fwrt,
 	return iwl_dump_ini_prph_phy_iter_common(fwrt, range_ptr, addr,
 						 reg->dev_addr.size,
 						 reg->dev_addr.offset);
+}
+
+static int
+iwl_dump_ini_prph_phy_block_iter(struct iwl_fw_runtime *fwrt,
+				 struct iwl_dump_ini_region_data *reg_data,
+				 void *range_ptr, u32 range_len, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_addr_size *pairs = (void *)reg->addrs;
+	u32 addr = le32_to_cpu(pairs[idx].addr);
+
+	return iwl_dump_ini_prph_phy_iter_common(fwrt, range_ptr, addr,
+						 pairs[idx].size,
+						 reg->dev_addr_range.offset);
 }
 
 static int iwl_dump_ini_csr_iter(struct iwl_fw_runtime *fwrt,
@@ -1799,6 +1827,16 @@ static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
 	return iwl_tlv_array_len(reg_data->reg_tlv, reg, addrs);
 }
 
+static u32
+iwl_dump_ini_mem_block_ranges(struct iwl_fw_runtime *fwrt,
+			      struct iwl_dump_ini_region_data *reg_data)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	size_t size = sizeof(struct iwl_fw_ini_addr_size);
+
+	return iwl_tlv_array_len_with_size(reg_data->reg_tlv, reg, size);
+}
+
 static u32 iwl_dump_ini_paging_ranges(struct iwl_fw_runtime *fwrt,
 				      struct iwl_dump_ini_region_data *reg_data)
 {
@@ -1882,6 +1920,25 @@ static u32 iwl_dump_ini_mem_get_size(struct iwl_fw_runtime *fwrt,
 
 	return sizeof(struct iwl_fw_ini_error_dump) + ranges *
 		(size + sizeof(struct iwl_fw_ini_error_dump_range));
+}
+
+static u32
+iwl_dump_ini_mem_block_get_size(struct iwl_fw_runtime *fwrt,
+				struct iwl_dump_ini_region_data *reg_data)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_addr_size *pairs = (void *)reg->addrs;
+	u32 ranges = iwl_dump_ini_mem_block_ranges(fwrt, reg_data);
+	u32 size = sizeof(struct iwl_fw_ini_error_dump);
+	int range;
+
+	if (!ranges)
+		return 0;
+
+	for (range = 0; range < ranges; range++)
+		size += le32_to_cpu(pairs[range].size);
+
+	return size + ranges * sizeof(struct iwl_fw_ini_error_dump_range);
 }
 
 static u32
@@ -2431,6 +2488,18 @@ static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
 		.fill_range = iwl_dump_ini_prph_phy_iter,
 	},
+	[IWL_FW_INI_REGION_PERIPHERY_MAC_RANGE] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_block_ranges,
+		.get_size = iwl_dump_ini_mem_block_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_prph_mac_block_iter,
+	},
+	[IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_block_ranges,
+		.get_size = iwl_dump_ini_mem_block_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_prph_phy_block_iter,
+	},
 	[IWL_FW_INI_REGION_PERIPHERY_AUX] = {},
 	[IWL_FW_INI_REGION_PAGING] = {
 		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
@@ -2510,7 +2579,8 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 		if (reg_type >= ARRAY_SIZE(iwl_dump_ini_region_ops))
 			continue;
 
-		if (reg_type == IWL_FW_INI_REGION_PERIPHERY_PHY &&
+		if ((reg_type == IWL_FW_INI_REGION_PERIPHERY_PHY ||
+		     reg_type == IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE) &&
 		    tp_id != IWL_FW_INI_TIME_POINT_FW_ASSERT) {
 			IWL_WARN(fwrt,
 				 "WRT: trying to collect phy prph at time point: %d, skipping\n",

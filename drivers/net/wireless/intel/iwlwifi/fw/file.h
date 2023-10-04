@@ -975,4 +975,6 @@ static inline size_t _iwl_tlv_array_len(const struct iwl_ucode_tlv *tlv,
 	_iwl_tlv_array_len((_tlv_ptr), sizeof(*(_struct_ptr)),		\
 			   sizeof(_struct_ptr->_memb[0]))
 
+#define iwl_tlv_array_len_with_size(_tlv_ptr, _struct_ptr, _size)	\
+	_iwl_tlv_array_len((_tlv_ptr), sizeof(*(_struct_ptr)), _size)
 #endif  /* __iwl_fw_file_h__ */
