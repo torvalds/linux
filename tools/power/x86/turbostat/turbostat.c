@@ -1182,7 +1182,7 @@ int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pk
 
 					t = GET_THREAD(thread_base, thread_no, core_no, node_no, pkg_no);
 
-					if (cpu_is_not_present(t->cpu_id))
+					if (cpu_is_not_allowed(t->cpu_id))
 						continue;
 
 					c = GET_CORE(core_base, core_no, node_no, pkg_no);
@@ -3618,7 +3618,7 @@ int for_all_cpus_2(int (func) (struct thread_data *, struct core_data *,
 
 					t = GET_THREAD(thread_base, thread_no, core_no, node_no, pkg_no);
 
-					if (cpu_is_not_present(t->cpu_id))
+					if (cpu_is_not_allowed(t->cpu_id))
 						continue;
 
 					t2 = GET_THREAD(thread_base2, thread_no, core_no, node_no, pkg_no);
