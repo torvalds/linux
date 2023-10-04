@@ -133,7 +133,6 @@ struct mock_event_log {
 };
 
 struct mock_event_store {
-	struct cxl_memdev_state *mds;
 	struct mock_event_log mock_logs[CXL_EVENT_TYPE_MAX];
 	u32 ev_status;
 };
@@ -150,6 +149,7 @@ struct cxl_mockmem_data {
 	int user_limit;
 	int master_limit;
 	struct mock_event_store mes;
+	struct cxl_memdev_state *mds;
 	u8 event_buf[SZ_4K];
 	u64 timestamp;
 };
@@ -326,7 +326,7 @@ static void cxl_mock_event_trigger(struct device *dev)
 			event_reset_log(log);
 	}
 
-	cxl_mem_get_event_records(mes->mds, mes->ev_status);
+	cxl_mem_get_event_records(mdata->mds, mes->ev_status);
 }
 
 struct cxl_event_record_raw maint_needed = {
@@ -1415,6 +1415,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (IS_ERR(mds))
 		return PTR_ERR(mds);
 
+	mdata->mds = mds;
 	mds->mbox_send = cxl_mock_mbox_send;
 	mds->payload_size = SZ_4K;
 	mds->event.buf = (struct cxl_get_event_payload *) mdata->event_buf;
@@ -1447,7 +1448,6 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	mdata->mes.mds = mds;
 	cxl_mock_add_event_logs(&mdata->mes);
 
 	cxlmd = devm_cxl_add_memdev(&pdev->dev, cxlds);
