@@ -668,7 +668,7 @@ static int nf_xfrm_me_harder(struct net *net, struct sk_buff *skb, unsigned int 
 	struct flowi fl;
 	int err;
 
-	err = xfrm_decode_session(skb, &fl, family);
+	err = xfrm_decode_session(net, skb, &fl, family);
 	if (err < 0)
 		return err;
 

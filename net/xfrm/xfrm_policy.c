@@ -2853,7 +2853,7 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 	/* Fixup the mark to support VTI. */
 	skb_mark = skb->mark;
 	skb->mark = pol->mark.v;
-	xfrm_decode_session(skb, &fl, dst->ops->family);
+	xfrm_decode_session(net, skb, &fl, dst->ops->family);
 	skb->mark = skb_mark;
 	spin_unlock(&pq->hold_queue.lock);
 
@@ -2889,7 +2889,7 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 		/* Fixup the mark to support VTI. */
 		skb_mark = skb->mark;
 		skb->mark = pol->mark.v;
-		xfrm_decode_session(skb, &fl, skb_dst(skb)->ops->family);
+		xfrm_decode_session(net, skb, &fl, skb_dst(skb)->ops->family);
 		skb->mark = skb_mark;
 
 		dst_hold(xfrm_dst_path(skb_dst(skb)));
@@ -3554,7 +3554,7 @@ decode_session6(struct sk_buff *skb, struct flowi *fl, bool reverse)
 }
 #endif
 
-int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
+int __xfrm_decode_session(struct net *net, struct sk_buff *skb, struct flowi *fl,
 			  unsigned int family, int reverse)
 {
 	switch (family) {
@@ -3618,7 +3618,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	reverse = dir & ~XFRM_POLICY_MASK;
 	dir &= XFRM_POLICY_MASK;
 
-	if (__xfrm_decode_session(skb, &fl, family, reverse) < 0) {
+	if (__xfrm_decode_session(net, skb, &fl, family, reverse) < 0) {
 		XFRM_INC_STATS(net, LINUX_MIB_XFRMINHDRERROR);
 		return 0;
 	}
@@ -3774,7 +3774,7 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 	struct dst_entry *dst;
 	int res = 1;
 
-	if (xfrm_decode_session(skb, &fl, family) < 0) {
+	if (xfrm_decode_session(net, skb, &fl, family) < 0) {
 		XFRM_INC_STATS(net, LINUX_MIB_XFRMFWDHDRERROR);
 		return 0;
 	}
