@@ -419,12 +419,6 @@ SYSCALL_DEFINE2(fstat, unsigned int, fd, struct __old_kernel_stat __user *, stat
 
 #ifdef __ARCH_WANT_NEW_STAT
 
-#if BITS_PER_LONG == 32
-#  define choose_32_64(a,b) a
-#else
-#  define choose_32_64(a,b) b
-#endif
-
 #ifndef INIT_STRUCT_STAT_PADDING
 #  define INIT_STRUCT_STAT_PADDING(st) memset(&st, 0, sizeof(st))
 #endif

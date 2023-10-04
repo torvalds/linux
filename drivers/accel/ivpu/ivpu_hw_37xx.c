@@ -104,6 +104,11 @@ static void ivpu_hw_wa_init(struct ivpu_device *vdev)
 
 	if (ivpu_device_id(vdev) == PCI_DEVICE_ID_MTL && ivpu_revision(vdev) < 4)
 		vdev->wa.interrupt_clear_with_0 = true;
+
+	IVPU_PRINT_WA(punit_disabled);
+	IVPU_PRINT_WA(clear_runtime_mem);
+	IVPU_PRINT_WA(d3hot_after_power_off);
+	IVPU_PRINT_WA(interrupt_clear_with_0);
 }
 
 static void ivpu_hw_timeouts_init(struct ivpu_device *vdev)
@@ -113,11 +118,13 @@ static void ivpu_hw_timeouts_init(struct ivpu_device *vdev)
 		vdev->timeout.jsm = 50000;
 		vdev->timeout.tdr = 2000000;
 		vdev->timeout.reschedule_suspend = 1000;
+		vdev->timeout.autosuspend = -1;
 	} else {
 		vdev->timeout.boot = 1000;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 2000;
 		vdev->timeout.reschedule_suspend = 10;
+		vdev->timeout.autosuspend = 10;
 	}
 }
 
@@ -345,10 +352,10 @@ static int ivpu_boot_noc_qdeny_check(struct ivpu_device *vdev, u32 exp_val)
 
 static int ivpu_boot_top_noc_qrenqn_check(struct ivpu_device *vdev, u32 exp_val)
 {
-	u32 val = REGV_RD32(MTL_VPU_TOP_NOC_QREQN);
+	u32 val = REGV_RD32(VPU_37XX_TOP_NOC_QREQN);
 
-	if (!REG_TEST_FLD_NUM(MTL_VPU_TOP_NOC_QREQN, CPU_CTRL, exp_val, val) ||
-	    !REG_TEST_FLD_NUM(MTL_VPU_TOP_NOC_QREQN, HOSTIF_L2CACHE, exp_val, val))
+	if (!REG_TEST_FLD_NUM(VPU_37XX_TOP_NOC_QREQN, CPU_CTRL, exp_val, val) ||
+	    !REG_TEST_FLD_NUM(VPU_37XX_TOP_NOC_QREQN, HOSTIF_L2CACHE, exp_val, val))
 		return -EIO;
 
 	return 0;
@@ -356,10 +363,10 @@ static int ivpu_boot_top_noc_qrenqn_check(struct ivpu_device *vdev, u32 exp_val)
 
 static int ivpu_boot_top_noc_qacceptn_check(struct ivpu_device *vdev, u32 exp_val)
 {
-	u32 val = REGV_RD32(MTL_VPU_TOP_NOC_QACCEPTN);
+	u32 val = REGV_RD32(VPU_37XX_TOP_NOC_QACCEPTN);
 
-	if (!REG_TEST_FLD_NUM(MTL_VPU_TOP_NOC_QACCEPTN, CPU_CTRL, exp_val, val) ||
-	    !REG_TEST_FLD_NUM(MTL_VPU_TOP_NOC_QACCEPTN, HOSTIF_L2CACHE, exp_val, val))
+	if (!REG_TEST_FLD_NUM(VPU_37XX_TOP_NOC_QACCEPTN, CPU_CTRL, exp_val, val) ||
+	    !REG_TEST_FLD_NUM(VPU_37XX_TOP_NOC_QACCEPTN, HOSTIF_L2CACHE, exp_val, val))
 		return -EIO;
 
 	return 0;
@@ -367,10 +374,10 @@ static int ivpu_boot_top_noc_qacceptn_check(struct ivpu_device *vdev, u32 exp_va
 
 static int ivpu_boot_top_noc_qdeny_check(struct ivpu_device *vdev, u32 exp_val)
 {
-	u32 val = REGV_RD32(MTL_VPU_TOP_NOC_QDENY);
+	u32 val = REGV_RD32(VPU_37XX_TOP_NOC_QDENY);
 
-	if (!REG_TEST_FLD_NUM(MTL_VPU_TOP_NOC_QDENY, CPU_CTRL, exp_val, val) ||
-	    !REG_TEST_FLD_NUM(MTL_VPU_TOP_NOC_QDENY, HOSTIF_L2CACHE, exp_val, val))
+	if (!REG_TEST_FLD_NUM(VPU_37XX_TOP_NOC_QDENY, CPU_CTRL, exp_val, val) ||
+	    !REG_TEST_FLD_NUM(VPU_37XX_TOP_NOC_QDENY, HOSTIF_L2CACHE, exp_val, val))
 		return -EIO;
 
 	return 0;
@@ -423,15 +430,15 @@ static int ivpu_boot_host_ss_top_noc_drive(struct ivpu_device *vdev, bool enable
 	int ret;
 	u32 val;
 
-	val = REGV_RD32(MTL_VPU_TOP_NOC_QREQN);
+	val = REGV_RD32(VPU_37XX_TOP_NOC_QREQN);
 	if (enable) {
-		val = REG_SET_FLD(MTL_VPU_TOP_NOC_QREQN, CPU_CTRL, val);
-		val = REG_SET_FLD(MTL_VPU_TOP_NOC_QREQN, HOSTIF_L2CACHE, val);
+		val = REG_SET_FLD(VPU_37XX_TOP_NOC_QREQN, CPU_CTRL, val);
+		val = REG_SET_FLD(VPU_37XX_TOP_NOC_QREQN, HOSTIF_L2CACHE, val);
 	} else {
-		val = REG_CLR_FLD(MTL_VPU_TOP_NOC_QREQN, CPU_CTRL, val);
-		val = REG_CLR_FLD(MTL_VPU_TOP_NOC_QREQN, HOSTIF_L2CACHE, val);
+		val = REG_CLR_FLD(VPU_37XX_TOP_NOC_QREQN, CPU_CTRL, val);
+		val = REG_CLR_FLD(VPU_37XX_TOP_NOC_QREQN, HOSTIF_L2CACHE, val);
 	}
-	REGV_WR32(MTL_VPU_TOP_NOC_QREQN, val);
+	REGV_WR32(VPU_37XX_TOP_NOC_QREQN, val);
 
 	ret = ivpu_boot_top_noc_qacceptn_check(vdev, enable ? 0x1 : 0x0);
 	if (ret) {
@@ -563,17 +570,17 @@ static void ivpu_boot_soc_cpu_boot(struct ivpu_device *vdev)
 {
 	u32 val;
 
-	val = REGV_RD32(MTL_VPU_CPU_SS_MSSCPU_CPR_LEON_RT_VEC);
-	val = REG_SET_FLD(MTL_VPU_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, IRQI_RSTRUN0, val);
+	val = REGV_RD32(VPU_37XX_CPU_SS_MSSCPU_CPR_LEON_RT_VEC);
+	val = REG_SET_FLD(VPU_37XX_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, IRQI_RSTRUN0, val);
 
-	val = REG_CLR_FLD(MTL_VPU_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, IRQI_RSTVEC, val);
-	REGV_WR32(MTL_VPU_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, val);
+	val = REG_CLR_FLD(VPU_37XX_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, IRQI_RSTVEC, val);
+	REGV_WR32(VPU_37XX_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, val);
 
-	val = REG_SET_FLD(MTL_VPU_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, IRQI_RESUME0, val);
-	REGV_WR32(MTL_VPU_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, val);
+	val = REG_SET_FLD(VPU_37XX_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, IRQI_RESUME0, val);
+	REGV_WR32(VPU_37XX_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, val);
 
-	val = REG_CLR_FLD(MTL_VPU_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, IRQI_RESUME0, val);
-	REGV_WR32(MTL_VPU_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, val);
+	val = REG_CLR_FLD(VPU_37XX_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, IRQI_RESUME0, val);
+	REGV_WR32(VPU_37XX_CPU_SS_MSSCPU_CPR_LEON_RT_VEC, val);
 
 	val = vdev->fw->entry_point >> 9;
 	REGV_WR32(VPU_37XX_HOST_SS_LOADING_ADDRESS_LO, val);
@@ -777,17 +784,17 @@ static void ivpu_hw_37xx_wdt_disable(struct ivpu_device *vdev)
 	u32 val;
 
 	/* Enable writing and set non-zero WDT value */
-	REGV_WR32(MTL_VPU_CPU_SS_TIM_SAFE, TIM_SAFE_ENABLE);
-	REGV_WR32(MTL_VPU_CPU_SS_TIM_WATCHDOG, TIM_WATCHDOG_RESET_VALUE);
+	REGV_WR32(VPU_37XX_CPU_SS_TIM_SAFE, TIM_SAFE_ENABLE);
+	REGV_WR32(VPU_37XX_CPU_SS_TIM_WATCHDOG, TIM_WATCHDOG_RESET_VALUE);
 
 	/* Enable writing and disable watchdog timer */
-	REGV_WR32(MTL_VPU_CPU_SS_TIM_SAFE, TIM_SAFE_ENABLE);
-	REGV_WR32(MTL_VPU_CPU_SS_TIM_WDOG_EN, 0);
+	REGV_WR32(VPU_37XX_CPU_SS_TIM_SAFE, TIM_SAFE_ENABLE);
+	REGV_WR32(VPU_37XX_CPU_SS_TIM_WDOG_EN, 0);
 
 	/* Now clear the timeout interrupt */
-	val = REGV_RD32(MTL_VPU_CPU_SS_TIM_GEN_CONFIG);
-	val = REG_CLR_FLD(MTL_VPU_CPU_SS_TIM_GEN_CONFIG, WDOG_TO_INT_CLR, val);
-	REGV_WR32(MTL_VPU_CPU_SS_TIM_GEN_CONFIG, val);
+	val = REGV_RD32(VPU_37XX_CPU_SS_TIM_GEN_CONFIG);
+	val = REG_CLR_FLD(VPU_37XX_CPU_SS_TIM_GEN_CONFIG, WDOG_TO_INT_CLR, val);
+	REGV_WR32(VPU_37XX_CPU_SS_TIM_GEN_CONFIG, val);
 }
 
 static u32 ivpu_hw_37xx_pll_to_freq(u32 ratio, u32 config)
@@ -834,10 +841,10 @@ static u32 ivpu_hw_37xx_reg_telemetry_enable_get(struct ivpu_device *vdev)
 
 static void ivpu_hw_37xx_reg_db_set(struct ivpu_device *vdev, u32 db_id)
 {
-	u32 reg_stride = MTL_VPU_CPU_SS_DOORBELL_1 - MTL_VPU_CPU_SS_DOORBELL_0;
-	u32 val = REG_FLD(MTL_VPU_CPU_SS_DOORBELL_0, SET);
+	u32 reg_stride = VPU_37XX_CPU_SS_DOORBELL_1 - VPU_37XX_CPU_SS_DOORBELL_0;
+	u32 val = REG_FLD(VPU_37XX_CPU_SS_DOORBELL_0, SET);
 
-	REGV_WR32I(MTL_VPU_CPU_SS_DOORBELL_0, reg_stride, db_id, val);
+	REGV_WR32I(VPU_37XX_CPU_SS_DOORBELL_0, reg_stride, db_id, val);
 }
 
 static u32 ivpu_hw_37xx_reg_ipc_rx_addr_get(struct ivpu_device *vdev)
@@ -854,7 +861,7 @@ static u32 ivpu_hw_37xx_reg_ipc_rx_count_get(struct ivpu_device *vdev)
 
 static void ivpu_hw_37xx_reg_ipc_tx_set(struct ivpu_device *vdev, u32 vpu_addr)
 {
-	REGV_WR32(MTL_VPU_CPU_SS_TIM_IPC_FIFO, vpu_addr);
+	REGV_WR32(VPU_37XX_CPU_SS_TIM_IPC_FIFO, vpu_addr);
 }
 
 static void ivpu_hw_37xx_irq_clear(struct ivpu_device *vdev)

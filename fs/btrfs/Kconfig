@@ -31,7 +31,7 @@ config BTRFS_FS
 	  continue to be mountable and usable by newer kernels.
 
 	  For more information, please see the web pages at
-	  http://btrfs.wiki.kernel.org.
+	  https://btrfs.readthedocs.io
 
 	  To compile this file system support as a module, choose M here. The
 	  module will be called btrfs.

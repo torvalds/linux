@@ -486,3 +486,10 @@ and the CRTC index is its position in this array.
 
 .. kernel-doc:: include/uapi/drm/drm_mode.h
    :internal:
+
+
+dma-buf interoperability
+========================
+
+Please see Documentation/userspace-api/dma-buf-alloc-exchange.rst for
+information on how dma-buf is integrated and exposed within DRM.

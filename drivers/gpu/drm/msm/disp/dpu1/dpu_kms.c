@@ -1302,11 +1302,9 @@ static int dpu_dev_probe(struct platform_device *pdev)
 	return msm_drv_probe(&pdev->dev, dpu_kms_init);
 }
 
-static int dpu_dev_remove(struct platform_device *pdev)
+static void dpu_dev_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &msm_drm_ops);
-
-	return 0;
 }
 
 static int __maybe_unused dpu_runtime_suspend(struct device *dev)
@@ -1382,7 +1380,7 @@ MODULE_DEVICE_TABLE(of, dpu_dt_match);
 
 static struct platform_driver dpu_driver = {
 	.probe = dpu_dev_probe,
-	.remove = dpu_dev_remove,
+	.remove_new = dpu_dev_remove,
 	.shutdown = msm_drv_shutdown,
 	.driver = {
 		.name = "msm_dpu",

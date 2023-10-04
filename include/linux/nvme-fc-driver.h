@@ -53,10 +53,10 @@
 struct nvmefc_ls_req {
 	void			*rqstaddr;
 	dma_addr_t		rqstdma;
-	__le32			rqstlen;
+	u32			rqstlen;
 	void			*rspaddr;
 	dma_addr_t		rspdma;
-	__le32			rsplen;
+	u32			rsplen;
 	u32			timeout;
 
 	void			*private;
@@ -120,7 +120,7 @@ struct nvmefc_ls_req {
 struct nvmefc_ls_rsp {
 	void		*rspbuf;
 	dma_addr_t	rspdma;
-	__le32		rsplen;
+	u16		rsplen;
 
 	void (*done)(struct nvmefc_ls_rsp *rsp);
 	void		*nvme_fc_private;	/* LLDD is not to access !! */

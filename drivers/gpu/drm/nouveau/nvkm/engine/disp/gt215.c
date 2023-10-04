@@ -182,11 +182,49 @@ gt215_sor_hdmi = {
 	.infoframe_vsi = gt215_sor_hdmi_infoframe_vsi,
 };
 
+static int
+gt215_sor_bl_set(struct nvkm_ior *ior, int lvl)
+{
+	struct nvkm_device *device = ior->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(ior);
+	u32 div, val;
+
+	div = nvkm_rd32(device, 0x61c080 + soff);
+	val = (lvl * div) / 100;
+	if (div)
+		nvkm_wr32(device, 0x61c084 + soff, 0xc0000000 | val);
+
+	return 0;
+}
+
+static int
+gt215_sor_bl_get(struct nvkm_ior *ior)
+{
+	struct nvkm_device *device = ior->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(ior);
+	u32 div, val;
+
+	div  = nvkm_rd32(device, 0x61c080 + soff);
+	val  = nvkm_rd32(device, 0x61c084 + soff);
+	val &= 0x00ffffff;
+	if (div && div >= val)
+		return ((val * 100) + (div / 2)) / div;
+
+	return 100;
+}
+
+const struct nvkm_ior_func_bl
+gt215_sor_bl = {
+	.get = gt215_sor_bl_get,
+	.set = gt215_sor_bl_set,
+};
+
 static const struct nvkm_ior_func
 gt215_sor = {
 	.state = g94_sor_state,
 	.power = nv50_sor_power,
 	.clock = nv50_sor_clock,
+	.bl = &gt215_sor_bl,
 	.hdmi = &gt215_sor_hdmi,
 	.dp = &gt215_sor_dp,
 	.hda = &gt215_sor_hda,

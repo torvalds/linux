@@ -35,7 +35,6 @@ enum {
 };
 
 struct stk_panel {
-	bool prepared;
 	const struct drm_display_mode *mode;
 	struct backlight_device *backlight;
 	struct drm_panel base;
@@ -145,15 +144,10 @@ static int stk_panel_unprepare(struct drm_panel *panel)
 {
 	struct stk_panel *stk = to_stk_panel(panel);
 
-	if (!stk->prepared)
-		return 0;
-
 	stk_panel_off(stk);
 	regulator_bulk_disable(ARRAY_SIZE(stk->supplies), stk->supplies);
 	gpiod_set_value(stk->reset_gpio, 0);
 	gpiod_set_value(stk->enable_gpio, 1);
-
-	stk->prepared = false;
 
 	return 0;
 }
@@ -163,9 +157,6 @@ static int stk_panel_prepare(struct drm_panel *panel)
 	struct stk_panel *stk = to_stk_panel(panel);
 	struct device *dev = &stk->dsi->dev;
 	int ret;
-
-	if (stk->prepared)
-		return 0;
 
 	gpiod_set_value(stk->reset_gpio, 0);
 	gpiod_set_value(stk->enable_gpio, 0);
@@ -194,8 +185,6 @@ static int stk_panel_prepare(struct drm_panel *panel)
 		dev_err(dev, "failed to set panel on: %d\n", ret);
 		goto poweroff;
 	}
-
-	stk->prepared = true;
 
 	return 0;
 

@@ -628,13 +628,6 @@ static int mmpfb_probe(struct platform_device *pdev)
 	dev_info(fbi->dev, "loaded to /dev/fb%d <%s>.\n",
 		info->node, info->fix.id);
 
-#ifdef CONFIG_LOGO
-	if (fbi->fb_start) {
-		fb_prepare_logo(info, 0);
-		fb_show_logo(info, 0);
-	}
-#endif
-
 	return 0;
 
 failed_clear_info:

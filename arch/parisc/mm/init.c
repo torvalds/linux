@@ -32,6 +32,7 @@
 #include <asm/sections.h>
 #include <asm/msgbuf.h>
 #include <asm/sparsemem.h>
+#include <asm/asm-offsets.h>
 
 extern int  data_start;
 extern void parisc_kernel_start(void);	/* Kernel entry point in head.S */
@@ -718,6 +719,77 @@ void __init paging_init(void)
 
 	sparse_init();
 	parisc_bootmem_free();
+}
+
+static void alloc_btlb(unsigned long start, unsigned long end, int *slot,
+			unsigned long entry_info)
+{
+	const int slot_max = btlb_info.fixed_range_info.num_comb;
+	int min_num_pages = btlb_info.min_size;
+	unsigned long size;
+
+	/* map at minimum 4 pages */
+	if (min_num_pages < 4)
+		min_num_pages = 4;
+
+	size = HUGEPAGE_SIZE;
+	while (start < end && *slot < slot_max && size >= PAGE_SIZE) {
+		/* starting address must have same alignment as size! */
+		/* if correctly aligned and fits in double size, increase */
+		if (((start & (2 * size - 1)) == 0) &&
+		    (end - start) >= (2 * size)) {
+			size <<= 1;
+			continue;
+		}
+		/* if current size alignment is too big, try smaller size */
+		if ((start & (size - 1)) != 0) {
+			size >>= 1;
+			continue;
+		}
+		if ((end - start) >= size) {
+			if ((size >> PAGE_SHIFT) >= min_num_pages)
+				pdc_btlb_insert(start >> PAGE_SHIFT, __pa(start) >> PAGE_SHIFT,
+					size >> PAGE_SHIFT, entry_info, *slot);
+			(*slot)++;
+			start += size;
+			continue;
+		}
+		size /= 2;
+		continue;
+	}
+}
+
+void btlb_init_per_cpu(void)
+{
+	unsigned long s, t, e;
+	int slot;
+
+	/* BTLBs are not available on 64-bit CPUs */
+	if (IS_ENABLED(CONFIG_PA20))
+		return;
+	else if (pdc_btlb_info(&btlb_info) < 0) {
+		memset(&btlb_info, 0, sizeof btlb_info);
+	}
+
+	/* insert BLTLBs for code and data segments */
+	s = (uintptr_t) dereference_function_descriptor(&_stext);
+	e = (uintptr_t) dereference_function_descriptor(&_etext);
+	t = (uintptr_t) dereference_function_descriptor(&_sdata);
+	BUG_ON(t != e);
+
+	/* code segments */
+	slot = 0;
+	alloc_btlb(s, e, &slot, 0x13800000);
+
+	/* sanity check */
+	t = (uintptr_t) dereference_function_descriptor(&_edata);
+	e = (uintptr_t) dereference_function_descriptor(&__bss_start);
+	BUG_ON(t != e);
+
+	/* data segments */
+	s = (uintptr_t) dereference_function_descriptor(&_sdata);
+	e = (uintptr_t) dereference_function_descriptor(&__bss_stop);
+	alloc_btlb(s, e, &slot, 0x11800000);
 }
 
 #ifdef CONFIG_PA20

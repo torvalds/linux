@@ -1278,11 +1278,9 @@ static int msm_pdev_probe(struct platform_device *pdev)
 	return msm_drv_probe(&pdev->dev, NULL);
 }
 
-static int msm_pdev_remove(struct platform_device *pdev)
+static void msm_pdev_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &msm_drm_ops);
-
-	return 0;
 }
 
 void msm_drv_shutdown(struct platform_device *pdev)
@@ -1303,7 +1301,7 @@ void msm_drv_shutdown(struct platform_device *pdev)
 
 static struct platform_driver msm_platform_driver = {
 	.probe      = msm_pdev_probe,
-	.remove     = msm_pdev_remove,
+	.remove_new = msm_pdev_remove,
 	.shutdown   = msm_drv_shutdown,
 	.driver     = {
 		.name   = "msm",

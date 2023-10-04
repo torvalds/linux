@@ -19,7 +19,7 @@ struct ivpu_pm_info {
 	u32 suspend_reschedule_counter;
 };
 
-int ivpu_pm_init(struct ivpu_device *vdev);
+void ivpu_pm_init(struct ivpu_device *vdev);
 void ivpu_pm_enable(struct ivpu_device *vdev);
 void ivpu_pm_disable(struct ivpu_device *vdev);
 void ivpu_pm_cancel_recovery(struct ivpu_device *vdev);
