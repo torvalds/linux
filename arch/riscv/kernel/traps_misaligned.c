@@ -396,6 +396,9 @@ union reg_data {
 	u64 data_u64;
 };
 
+/* sysctl hooks */
+int unaligned_enabled __read_mostly = 1;	/* Enabled by default */
+
 int handle_misaligned_load(struct pt_regs *regs)
 {
 	union reg_data val;
@@ -405,6 +408,9 @@ int handle_misaligned_load(struct pt_regs *regs)
 	int i, fp = 0, shift = 0, len = 0;
 
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, addr);
+
+	if (!unaligned_enabled)
+		return -1;
 
 	if (get_insn(regs, epc, &insn))
 		return -1;
@@ -501,6 +507,9 @@ int handle_misaligned_store(struct pt_regs *regs)
 	int i, len = 0, fp = 0;
 
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, addr);
+
+	if (!unaligned_enabled)
+		return -1;
 
 	if (get_insn(regs, epc, &insn))
 		return -1;
