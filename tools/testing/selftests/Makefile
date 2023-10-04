@@ -92,7 +92,7 @@ endif
 TARGETS += tmpfs
 TARGETS += tpm2
 TARGETS += tty
-TARGETS += uevents
+TARGETS += uevent
 TARGETS += user
 TARGETS += user_events
 TARGETS += vDSO
