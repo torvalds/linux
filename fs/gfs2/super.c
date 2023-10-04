@@ -410,9 +410,9 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_nlink = cpu_to_be32(inode->i_nlink);
 	str->di_size = cpu_to_be64(i_size_read(inode));
 	str->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(inode));
-	str->di_atime = cpu_to_be64(inode->i_atime.tv_sec);
-	str->di_mtime = cpu_to_be64(inode->i_mtime.tv_sec);
-	str->di_ctime = cpu_to_be64(inode_get_ctime(inode).tv_sec);
+	str->di_atime = cpu_to_be64(inode_get_atime_sec(inode));
+	str->di_mtime = cpu_to_be64(inode_get_mtime_sec(inode));
+	str->di_ctime = cpu_to_be64(inode_get_ctime_sec(inode));
 
 	str->di_goal_meta = cpu_to_be64(ip->i_goal);
 	str->di_goal_data = cpu_to_be64(ip->i_goal);
@@ -427,9 +427,9 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_entries = cpu_to_be32(ip->i_entries);
 
 	str->di_eattr = cpu_to_be64(ip->i_eattr);
-	str->di_atime_nsec = cpu_to_be32(inode->i_atime.tv_nsec);
-	str->di_mtime_nsec = cpu_to_be32(inode->i_mtime.tv_nsec);
-	str->di_ctime_nsec = cpu_to_be32(inode_get_ctime(inode).tv_nsec);
+	str->di_atime_nsec = cpu_to_be32(inode_get_atime_nsec(inode));
+	str->di_mtime_nsec = cpu_to_be32(inode_get_mtime_nsec(inode));
+	str->di_ctime_nsec = cpu_to_be32(inode_get_ctime_nsec(inode));
 }
 
 /**
