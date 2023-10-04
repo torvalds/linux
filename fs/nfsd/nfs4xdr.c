@@ -3674,8 +3674,8 @@ static inline int attributes_need_mount(u32 *bmval)
 }
 
 static __be32
-nfsd4_encode_dirent_fattr(struct xdr_stream *xdr, struct nfsd4_readdir *cd,
-			const char *name, int namlen)
+nfsd4_encode_entry4_fattr(struct nfsd4_readdir *cd, const char *name,
+			  int namlen)
 {
 	struct svc_export *exp = cd->rd_fhp->fh_export;
 	struct dentry *dentry;
@@ -3718,7 +3718,7 @@ nfsd4_encode_dirent_fattr(struct xdr_stream *xdr, struct nfsd4_readdir *cd,
 
 	}
 out_encode:
-	nfserr = nfsd4_encode_fattr4(cd->rd_rqstp, xdr, NULL, exp, dentry,
+	nfserr = nfsd4_encode_fattr4(cd->rd_rqstp, cd->xdr, NULL, exp, dentry,
 				     cd->rd_bmval, ignore_crossmnt);
 out_put:
 	dput(dentry);
@@ -3744,7 +3744,7 @@ nfsd4_encode_rdattr_error(struct xdr_stream *xdr, __be32 nfserr)
 }
 
 static int
-nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
+nfsd4_encode_entry4(void *ccdv, const char *name, int namlen,
 		    loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct readdir_cd *ccd = ccdv;
@@ -3781,7 +3781,7 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 	p = xdr_encode_hyper(p, OFFSET_MAX);        /* offset of next entry */
 	p = xdr_encode_array(p, name, namlen);      /* name length & name */
 
-	nfserr = nfsd4_encode_dirent_fattr(xdr, cd, name, namlen);
+	nfserr = nfsd4_encode_entry4_fattr(cd, name, namlen);
 	switch (nfserr) {
 	case nfs_ok:
 		break;
@@ -4493,9 +4493,8 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr,
 	readdir->cookie_offset = 0;
 
 	offset = readdir->rd_cookie;
-	nfserr = nfsd_readdir(readdir->rd_rqstp, readdir->rd_fhp,
-			      &offset,
-			      &readdir->common, nfsd4_encode_dirent);
+	nfserr = nfsd_readdir(readdir->rd_rqstp, readdir->rd_fhp, &offset,
+			      &readdir->common, nfsd4_encode_entry4);
 	if (nfserr == nfs_ok &&
 	    readdir->common.err == nfserr_toosmall &&
 	    xdr->buf->len == starting_len + 8) {
