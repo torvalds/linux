@@ -26,6 +26,18 @@ serial_number
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_fru_eeprom.c
    :doc: serial_number
 
+fru_id
+-------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_fru_eeprom.c
+   :doc: fru_id
+
+manufacturer
+-------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_fru_eeprom.c
+   :doc: manufacturer
+
 unique_id
 ---------
 

@@ -321,6 +321,16 @@ static ssize_t amdgpu_fru_serial_number_show(struct device *dev,
 
 static DEVICE_ATTR(serial_number, 0444, amdgpu_fru_serial_number_show, NULL);
 
+/**
+ * DOC: fru_id
+ *
+ * The amdgpu driver provides a sysfs API for reporting FRU File Id
+ * for the device.
+ * The file fru_id is used for this and returns the File Id value
+ * as returned from the FRU.
+ * NOTE: This is only available for certain server cards
+ */
+
 static ssize_t amdgpu_fru_id_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -331,6 +341,15 @@ static ssize_t amdgpu_fru_id_show(struct device *dev,
 }
 
 static DEVICE_ATTR(fru_id, 0444, amdgpu_fru_id_show, NULL);
+
+/**
+ * DOC: manufacturer
+ *
+ * The amdgpu driver provides a sysfs API for reporting manufacturer name from
+ * FRU information.
+ * The file manufacturer returns the value as returned from the FRU.
+ * NOTE: This is only available for certain server cards
+ */
 
 static ssize_t amdgpu_fru_manufacturer_name_show(struct device *dev,
 						 struct device_attribute *attr,
