@@ -818,7 +818,7 @@ static void tty_update_time(struct tty_struct *tty, bool mtime)
 	spin_lock(&tty->files_lock);
 	list_for_each_entry(priv, &tty->tty_files, list) {
 		struct inode *inode = file_inode(priv->file);
-		struct timespec64 *time = mtime ? &inode->i_mtime : &inode->i_atime;
+		struct timespec64 time = mtime ? inode_get_mtime(inode) : inode_get_atime(inode);
 
 		/*
 		 * We only care if the two values differ in anything other than the
@@ -826,8 +826,12 @@ static void tty_update_time(struct tty_struct *tty, bool mtime)
 		 * the time of the tty device, otherwise it could be construded as a
 		 * security leak to let userspace know the exact timing of the tty.
 		 */
-		if ((sec ^ time->tv_sec) & ~7)
-			time->tv_sec = sec;
+		if ((sec ^ time.tv_sec) & ~7) {
+			if (mtime)
+				inode_set_mtime(inode, sec, 0);
+			else
+				inode_set_atime(inode, sec, 0);
+		}
 	}
 	spin_unlock(&tty->files_lock);
 }
