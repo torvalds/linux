@@ -305,7 +305,6 @@ static inline bool xor_unlock_is_negative_byte(unsigned long mask,
 
 	return (old & BIT(7)) != 0;
 }
-#define xor_unlock_is_negative_byte xor_unlock_is_negative_byte
 
 /*
  * ffz = Find First Zero in word. Undefined if no zero exists,

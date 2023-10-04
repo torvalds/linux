@@ -58,7 +58,6 @@ static inline bool test_and_set_bit_lock(long nr, volatile unsigned long *addr)
 	return arch_test_and_set_bit_lock(nr, addr);
 }
 
-#if defined(arch_xor_unlock_is_negative_byte)
 /**
  * xor_unlock_is_negative_byte - XOR a single byte in memory and test if
  * it is negative, for unlock.
@@ -80,8 +79,4 @@ static inline bool xor_unlock_is_negative_byte(unsigned long mask,
 	instrument_atomic_write(addr, sizeof(long));
 	return arch_xor_unlock_is_negative_byte(mask, addr);
 }
-/* Let everybody know we have it. */
-#define xor_unlock_is_negative_byte xor_unlock_is_negative_byte
-#endif
-
 #endif /* _ASM_GENERIC_BITOPS_INSTRUMENTED_LOCK_H */

@@ -202,7 +202,6 @@ static inline bool xor_unlock_is_negative_byte(unsigned long mask,
 		: "memory");
 	return (res & BIT(7)) != 0;
 }
-#define xor_unlock_is_negative_byte xor_unlock_is_negative_byte
 
 #undef __test_and_op_bit
 #undef __op_bit

@@ -1098,12 +1098,9 @@ static void kasan_bitops_test_and_modify(struct kunit *test, int nr, void *addr)
 	KUNIT_EXPECT_KASAN_FAIL(test, test_and_change_bit(nr, addr));
 	KUNIT_EXPECT_KASAN_FAIL(test, __test_and_change_bit(nr, addr));
 	KUNIT_EXPECT_KASAN_FAIL(test, kasan_int_result = test_bit(nr, addr));
-
-#if defined(xor_unlock_is_negative_byte)
 	if (nr < 7)
 		KUNIT_EXPECT_KASAN_FAIL(test, kasan_int_result =
 				xor_unlock_is_negative_byte(1 << nr, addr));
-#endif
 }
 
 static void kasan_bitops_generic(struct kunit *test)

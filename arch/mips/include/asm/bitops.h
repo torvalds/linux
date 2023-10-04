@@ -301,7 +301,6 @@ static inline bool xor_unlock_is_negative_byte(unsigned long mask,
 
 	return res;
 }
-#define xor_unlock_is_negative_byte xor_unlock_is_negative_byte
 
 #undef __bit_op
 #undef __test_bit_op

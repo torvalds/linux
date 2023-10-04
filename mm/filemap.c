@@ -1482,34 +1482,6 @@ void folio_add_wait_queue(struct folio *folio, wait_queue_entry_t *waiter)
 }
 EXPORT_SYMBOL_GPL(folio_add_wait_queue);
 
-#ifdef xor_unlock_is_negative_byte
-#define clear_bit_unlock_is_negative_byte(nr, p)	\
-	xor_unlock_is_negative_byte(1 << nr, p)
-#endif
-
-#ifndef clear_bit_unlock_is_negative_byte
-
-/*
- * PG_waiters is the high bit in the same byte as PG_lock.
- *
- * On x86 (and on many other architectures), we can clear PG_lock and
- * test the sign bit at the same time. But if the architecture does
- * not support that special operation, we just do this all by hand
- * instead.
- *
- * The read of PG_waiters has to be after (or concurrently with) PG_locked
- * being cleared, but a memory barrier should be unnecessary since it is
- * in the same byte as PG_locked.
- */
-static inline bool clear_bit_unlock_is_negative_byte(long nr, volatile void *mem)
-{
-	clear_bit_unlock(nr, mem);
-	/* smp_mb__after_atomic(); */
-	return test_bit(PG_waiters, mem);
-}
-
-#endif
-
 /**
  * folio_unlock - Unlock a locked folio.
  * @folio: The folio.
@@ -1525,7 +1497,7 @@ void folio_unlock(struct folio *folio)
 	BUILD_BUG_ON(PG_waiters != 7);
 	BUILD_BUG_ON(PG_locked > 7);
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
-	if (clear_bit_unlock_is_negative_byte(PG_locked, folio_flags(folio, 0)))
+	if (xor_unlock_is_negative_byte(1 << PG_locked, folio_flags(folio, 0)))
 		folio_wake_bit(folio, PG_locked);
 }
 EXPORT_SYMBOL(folio_unlock);
