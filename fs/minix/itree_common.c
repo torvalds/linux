@@ -350,7 +350,7 @@ do_indirects:
 		}
 		first_whole++;
 	}
-	inode->i_mtime = inode_set_ctime_current(inode);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 }
 
