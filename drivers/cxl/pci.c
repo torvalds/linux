@@ -875,6 +875,10 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
+	rc = devm_cxl_sanitize_setup_notifier(&pdev->dev, cxlmd);
+	if (rc)
+		return rc;
+
 	pmu_count = cxl_count_regblock(pdev, CXL_REGLOC_RBI_PMU);
 	for (i = 0; i < pmu_count; i++) {
 		struct cxl_pmu_regs pmu_regs;
