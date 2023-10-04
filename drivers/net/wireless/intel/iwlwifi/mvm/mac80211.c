@@ -1580,7 +1580,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	 */
 	if (vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_ADHOC) {
-		iwl_mvm_vif_dbgfs_register(mvm, vif);
+		iwl_mvm_vif_dbgfs_add_link(mvm, vif);
 		ret = 0;
 		goto out;
 	}
@@ -1644,7 +1644,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 			iwl_mvm_chandef_get_primary_80(&vif->bss_conf.chandef);
 	}
 
-	iwl_mvm_vif_dbgfs_register(mvm, vif);
+	iwl_mvm_vif_dbgfs_add_link(mvm, vif);
 
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
 	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
@@ -1732,7 +1732,7 @@ static bool iwl_mvm_mac_remove_interface_common(struct ieee80211_hw *hw,
 	if (vif->bss_conf.ftm_responder)
 		memset(&mvm->ftm_resp_stats, 0, sizeof(mvm->ftm_resp_stats));
 
-	iwl_mvm_vif_dbgfs_clean(mvm, vif);
+	iwl_mvm_vif_dbgfs_rm_link(mvm, vif);
 
 	/*
 	 * For AP/GO interface, the tear down of the resources allocated to the
@@ -6324,6 +6324,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 
 	.can_aggregate_in_amsdu = iwl_mvm_mac_can_aggregate,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
+	.vif_add_debugfs = iwl_mvm_vif_add_debugfs,
 	.link_sta_add_debugfs = iwl_mvm_link_sta_add_debugfs,
 #endif
 	.set_hw_timestamp = iwl_mvm_set_hw_timestamp,
