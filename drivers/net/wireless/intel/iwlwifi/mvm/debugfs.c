@@ -50,8 +50,18 @@ static ssize_t iwl_dbgfs_stop_ctdp_write(struct iwl_mvm *mvm, char *buf,
 					 size_t count, loff_t *ppos)
 {
 	int ret;
+	bool force;
 
-	if (!iwl_mvm_is_ctdp_supported(mvm))
+	if (!kstrtobool(buf, &force))
+		IWL_DEBUG_INFO(mvm,
+			       "force start is %d [0=disabled, 1=enabled]\n",
+			       force);
+
+	/* we allow skipping cap support check and force stop ctdp
+	 * statistics collection and with guerantee that it is
+	 * safe to use.
+	 */
+	if (!force && !iwl_mvm_is_ctdp_supported(mvm))
 		return -EOPNOTSUPP;
 
 	if (!iwl_mvm_firmware_running(mvm) ||
@@ -60,6 +70,36 @@ static ssize_t iwl_dbgfs_stop_ctdp_write(struct iwl_mvm *mvm, char *buf,
 
 	mutex_lock(&mvm->mutex);
 	ret = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_STOP, 0);
+	mutex_unlock(&mvm->mutex);
+
+	return ret ?: count;
+}
+
+static ssize_t iwl_dbgfs_start_ctdp_write(struct iwl_mvm *mvm,
+					  char *buf, size_t count,
+					  loff_t *ppos)
+{
+	int ret;
+	bool force;
+
+	if (!kstrtobool(buf, &force))
+		IWL_DEBUG_INFO(mvm,
+			       "force start is %d [0=disabled, 1=enabled]\n",
+			       force);
+
+	/* we allow skipping cap support check and force enable ctdp
+	 * for statistics collection and with guerantee that it is
+	 * safe to use.
+	 */
+	if (!force && !iwl_mvm_is_ctdp_supported(mvm))
+		return -EOPNOTSUPP;
+
+	if (!iwl_mvm_firmware_running(mvm) ||
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
+		return -EIO;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_START, 0);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
@@ -1998,6 +2038,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(prph_reg, 64);
 /* Device wide debugfs entries */
 MVM_DEBUGFS_READ_FILE_OPS(ctdp_budget);
 MVM_DEBUGFS_WRITE_FILE_OPS(stop_ctdp, 8);
+MVM_DEBUGFS_WRITE_FILE_OPS(start_ctdp, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(force_ctkill, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush, 16);
 MVM_DEBUGFS_WRITE_FILE_OPS(sta_drain, 8);
@@ -2210,6 +2251,7 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	MVM_DEBUGFS_ADD_FILE(nic_temp, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(ctdp_budget, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(stop_ctdp, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(start_ctdp, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(force_ctkill, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(stations, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(bt_notif, mvm->debugfs_dir, 0400);
