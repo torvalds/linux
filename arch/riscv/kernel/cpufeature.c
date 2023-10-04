@@ -645,7 +645,7 @@ out:
 	__free_pages(page, get_order(MISALIGNED_BUFFER_SIZE));
 }
 
-static int check_unaligned_access_boot_cpu(void)
+static int __init check_unaligned_access_boot_cpu(void)
 {
 	check_unaligned_access(0);
 	return 0;
