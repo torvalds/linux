@@ -233,16 +233,18 @@ int ocfs2_should_update_atime(struct inode *inode,
 
 	if (vfsmnt->mnt_flags & MNT_RELATIME) {
 		struct timespec64 ctime = inode_get_ctime(inode);
+		struct timespec64 atime = inode_get_atime(inode);
+		struct timespec64 mtime = inode_get_mtime(inode);
 
-		if ((timespec64_compare(&inode->i_atime, &inode->i_mtime) <= 0) ||
-		    (timespec64_compare(&inode->i_atime, &ctime) <= 0))
+		if ((timespec64_compare(&atime, &mtime) <= 0) ||
+		    (timespec64_compare(&atime, &ctime) <= 0))
 			return 1;
 
 		return 0;
 	}
 
 	now = current_time(inode);
-	if ((now.tv_sec - inode->i_atime.tv_sec <= osb->s_atime_quantum))
+	if ((now.tv_sec - inode_get_atime_sec(inode) <= osb->s_atime_quantum))
 		return 0;
 	else
 		return 1;
@@ -275,9 +277,9 @@ int ocfs2_update_inode_atime(struct inode *inode,
 	 * have i_rwsem to guard against concurrent changes to other
 	 * inode fields.
 	 */
-	inode->i_atime = current_time(inode);
-	di->i_atime = cpu_to_le64(inode->i_atime.tv_sec);
-	di->i_atime_nsec = cpu_to_le32(inode->i_atime.tv_nsec);
+	inode_set_atime_to_ts(inode, current_time(inode));
+	di->i_atime = cpu_to_le64(inode_get_atime_sec(inode));
+	di->i_atime_nsec = cpu_to_le32(inode_get_atime_nsec(inode));
 	ocfs2_update_inode_fsync_trans(handle, inode, 0);
 	ocfs2_journal_dirty(handle, bh);
 
@@ -296,7 +298,7 @@ int ocfs2_set_inode_size(handle_t *handle,
 
 	i_size_write(inode, new_i_size);
 	inode->i_blocks = ocfs2_inode_sector_count(inode);
-	inode->i_mtime = inode_set_ctime_current(inode);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 
 	status = ocfs2_mark_inode_dirty(handle, inode, fe_bh);
 	if (status < 0) {
@@ -417,12 +419,12 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 	}
 
 	i_size_write(inode, new_i_size);
-	inode->i_mtime = inode_set_ctime_current(inode);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 
 	di = (struct ocfs2_dinode *) fe_bh->b_data;
 	di->i_size = cpu_to_le64(new_i_size);
-	di->i_ctime = di->i_mtime = cpu_to_le64(inode_get_ctime(inode).tv_sec);
-	di->i_ctime_nsec = di->i_mtime_nsec = cpu_to_le32(inode_get_ctime(inode).tv_nsec);
+	di->i_ctime = di->i_mtime = cpu_to_le64(inode_get_ctime_sec(inode));
+	di->i_ctime_nsec = di->i_mtime_nsec = cpu_to_le32(inode_get_ctime_nsec(inode));
 	ocfs2_update_inode_fsync_trans(handle, inode, 0);
 
 	ocfs2_journal_dirty(handle, fe_bh);
@@ -821,9 +823,9 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 	i_size_write(inode, abs_to);
 	inode->i_blocks = ocfs2_inode_sector_count(inode);
 	di->i_size = cpu_to_le64((u64)i_size_read(inode));
-	inode->i_mtime = inode_set_ctime_current(inode);
-	di->i_mtime = di->i_ctime = cpu_to_le64(inode->i_mtime.tv_sec);
-	di->i_ctime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
+	di->i_mtime = di->i_ctime = cpu_to_le64(inode_get_mtime_sec(inode));
+	di->i_ctime_nsec = cpu_to_le32(inode_get_mtime_nsec(inode));
 	di->i_mtime_nsec = di->i_ctime_nsec;
 	if (handle) {
 		ocfs2_journal_dirty(handle, di_bh);
@@ -2040,7 +2042,7 @@ static int __ocfs2_change_file_space(struct file *file, struct inode *inode,
 		goto out_inode_unlock;
 	}
 
-	inode->i_mtime = inode_set_ctime_current(inode);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	ret = ocfs2_mark_inode_dirty(handle, inode, di_bh);
 	if (ret < 0)
 		mlog_errno(ret);

@@ -3751,8 +3751,8 @@ static int ocfs2_change_ctime(struct inode *inode,
 	}
 
 	inode_set_ctime_current(inode);
-	di->i_ctime = cpu_to_le64(inode_get_ctime(inode).tv_sec);
-	di->i_ctime_nsec = cpu_to_le32(inode_get_ctime(inode).tv_nsec);
+	di->i_ctime = cpu_to_le64(inode_get_ctime_sec(inode));
+	di->i_ctime_nsec = cpu_to_le32(inode_get_ctime_nsec(inode));
 
 	ocfs2_journal_dirty(handle, di_bh);
 
@@ -4075,10 +4075,10 @@ static int ocfs2_complete_reflink(struct inode *s_inode,
 		 */
 		inode_set_ctime_current(t_inode);
 
-		di->i_ctime = cpu_to_le64(inode_get_ctime(t_inode).tv_sec);
-		di->i_ctime_nsec = cpu_to_le32(inode_get_ctime(t_inode).tv_nsec);
+		di->i_ctime = cpu_to_le64(inode_get_ctime_sec(t_inode));
+		di->i_ctime_nsec = cpu_to_le32(inode_get_ctime_nsec(t_inode));
 
-		t_inode->i_mtime = s_inode->i_mtime;
+		inode_set_mtime_to_ts(t_inode, inode_get_mtime(s_inode));
 		di->i_mtime = s_di->i_mtime;
 		di->i_mtime_nsec = s_di->i_mtime_nsec;
 	}
@@ -4456,7 +4456,7 @@ int ocfs2_reflink_update_dest(struct inode *dest,
 	if (newlen > i_size_read(dest))
 		i_size_write(dest, newlen);
 	spin_unlock(&OCFS2_I(dest)->ip_lock);
-	dest->i_mtime = inode_set_ctime_current(dest);
+	inode_set_mtime_to_ts(dest, inode_set_ctime_current(dest));
 
 	ret = ocfs2_mark_inode_dirty(handle, dest, d_bh);
 	if (ret) {

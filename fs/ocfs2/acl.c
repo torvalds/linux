@@ -193,8 +193,8 @@ static int ocfs2_acl_set_mode(struct inode *inode, struct buffer_head *di_bh,
 	inode->i_mode = new_mode;
 	inode_set_ctime_current(inode);
 	di->i_mode = cpu_to_le16(inode->i_mode);
-	di->i_ctime = cpu_to_le64(inode_get_ctime(inode).tv_sec);
-	di->i_ctime_nsec = cpu_to_le32(inode_get_ctime(inode).tv_nsec);
+	di->i_ctime = cpu_to_le64(inode_get_ctime_sec(inode));
+	di->i_ctime_nsec = cpu_to_le32(inode_get_ctime_nsec(inode));
 	ocfs2_update_inode_fsync_trans(handle, inode, 0);
 
 	ocfs2_journal_dirty(handle, di_bh);
