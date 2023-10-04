@@ -4452,85 +4452,83 @@ out_err:
 	return nfserr;
 }
 
+static __be32 nfsd4_encode_dirlist4(struct xdr_stream *xdr,
+				    struct nfsd4_readdir *readdir,
+				    u32 max_payload)
+{
+	int bytes_left, maxcount, starting_len = xdr->buf->len;
+	loff_t offset;
+	__be32 status;
+
+	/*
+	 * Number of bytes left for directory entries allowing for the
+	 * final 8 bytes of the readdir and a following failed op.
+	 */
+	bytes_left = xdr->buf->buflen - xdr->buf->len -
+		COMPOUND_ERR_SLACK_SPACE - XDR_UNIT * 2;
+	if (bytes_left < 0)
+		return nfserr_resource;
+	maxcount = min_t(u32, readdir->rd_maxcount, max_payload);
+
+	/*
+	 * The RFC defines rd_maxcount as the size of the
+	 * READDIR4resok structure, which includes the verifier
+	 * and the 8 bytes encoded at the end of this function.
+	 */
+	if (maxcount < XDR_UNIT * 4)
+		return nfserr_toosmall;
+	maxcount = min_t(int, maxcount - XDR_UNIT * 4, bytes_left);
+
+	/* RFC 3530 14.2.24 allows us to ignore dircount when it's 0 */
+	if (!readdir->rd_dircount)
+		readdir->rd_dircount = max_payload;
+
+	/* *entries */
+	readdir->xdr = xdr;
+	readdir->rd_maxcount = maxcount;
+	readdir->common.err = 0;
+	readdir->cookie_offset = 0;
+	offset = readdir->rd_cookie;
+	status = nfsd_readdir(readdir->rd_rqstp, readdir->rd_fhp, &offset,
+			      &readdir->common, nfsd4_encode_entry4);
+	if (status)
+		return status;
+	if (readdir->common.err == nfserr_toosmall &&
+	    xdr->buf->len == starting_len) {
+		/* No entries were encoded. Which limit did we hit? */
+		if (maxcount - XDR_UNIT * 4 < bytes_left)
+			/* It was the fault of rd_maxcount */
+			return nfserr_toosmall;
+		/* We ran out of buffer space */
+		return nfserr_resource;
+	}
+	/* Encode the final entry's cookie value */
+	nfsd4_encode_entry4_nfs_cookie4(readdir, offset);
+	/* No entries follow */
+	if (xdr_stream_encode_item_absent(xdr) != XDR_UNIT)
+		return nfserr_resource;
+
+	/* eof */
+	return nfsd4_encode_bool(xdr, readdir->common.err == nfserr_eof);
+}
+
 static __be32
 nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr,
 		     union nfsd4_op_u *u)
 {
 	struct nfsd4_readdir *readdir = &u->readdir;
-	int maxcount;
-	int bytes_left;
-	loff_t offset;
 	struct xdr_stream *xdr = resp->xdr;
 	int starting_len = xdr->buf->len;
-	__be32 *p;
 
+	/* cookieverf */
 	nfserr = nfsd4_encode_verifier4(xdr, &readdir->rd_verf);
 	if (nfserr != nfs_ok)
 		return nfserr;
 
-	/*
-	 * Number of bytes left for directory entries allowing for the
-	 * final 8 bytes of the readdir and a following failed op:
-	 */
-	bytes_left = xdr->buf->buflen - xdr->buf->len
-			- COMPOUND_ERR_SLACK_SPACE - 8;
-	if (bytes_left < 0) {
-		nfserr = nfserr_resource;
-		goto err_no_verf;
-	}
-	maxcount = svc_max_payload(resp->rqstp);
-	maxcount = min_t(u32, readdir->rd_maxcount, maxcount);
-	/*
-	 * Note the rfc defines rd_maxcount as the size of the
-	 * READDIR4resok structure, which includes the verifier above
-	 * and the 8 bytes encoded at the end of this function:
-	 */
-	if (maxcount < 16) {
-		nfserr = nfserr_toosmall;
-		goto err_no_verf;
-	}
-	maxcount = min_t(int, maxcount-16, bytes_left);
-
-	/* RFC 3530 14.2.24 allows us to ignore dircount when it's 0: */
-	if (!readdir->rd_dircount)
-		readdir->rd_dircount = svc_max_payload(resp->rqstp);
-
-	readdir->xdr = xdr;
-	readdir->rd_maxcount = maxcount;
-	readdir->common.err = 0;
-	readdir->cookie_offset = 0;
-
-	offset = readdir->rd_cookie;
-	nfserr = nfsd_readdir(readdir->rd_rqstp, readdir->rd_fhp, &offset,
-			      &readdir->common, nfsd4_encode_entry4);
-	if (nfserr == nfs_ok &&
-	    readdir->common.err == nfserr_toosmall &&
-	    xdr->buf->len == starting_len + 8) {
-		/* nothing encoded; which limit did we hit?: */
-		if (maxcount - 16 < bytes_left)
-			/* It was the fault of rd_maxcount: */
-			nfserr = nfserr_toosmall;
-		else
-			/* We ran out of buffer space: */
-			nfserr = nfserr_resource;
-	}
-	if (nfserr)
-		goto err_no_verf;
-
-	/* Encode the final entry's cookie value */
-	nfsd4_encode_entry4_nfs_cookie4(readdir, offset);
-
-	p = xdr_reserve_space(xdr, 8);
-	if (!p) {
-		WARN_ON_ONCE(1);
-		goto err_no_verf;
-	}
-	*p++ = 0;	/* no more entries */
-	*p++ = htonl(readdir->common.err == nfserr_eof);
-
-	return 0;
-err_no_verf:
-	xdr_truncate_encode(xdr, starting_len);
+	/* reply */
+	nfserr = nfsd4_encode_dirlist4(xdr, readdir, svc_max_payload(resp->rqstp));
+	if (nfserr != nfs_ok)
+		xdr_truncate_encode(xdr, starting_len);
 	return nfserr;
 }
 
