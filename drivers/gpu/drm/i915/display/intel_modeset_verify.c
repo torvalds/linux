@@ -156,21 +156,20 @@ verify_encoder_state(struct drm_i915_private *dev_priv, struct intel_atomic_stat
 }
 
 static void
-verify_crtc_state(struct intel_crtc *crtc,
-		  struct intel_crtc_state *old_crtc_state,
-		  struct intel_crtc_state *new_crtc_state)
+verify_crtc_state(struct intel_atomic_state *state,
+		  struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_encoder *encoder;
-	struct intel_crtc_state *pipe_config = old_crtc_state;
-	struct drm_atomic_state *state = old_crtc_state->uapi.state;
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_crtc_state *pipe_config;
 	struct intel_crtc *master_crtc;
+	struct intel_encoder *encoder;
 
-	__drm_atomic_helper_crtc_destroy_state(&old_crtc_state->uapi);
-	intel_crtc_free_hw_state(old_crtc_state);
-	intel_crtc_state_reset(old_crtc_state, crtc);
-	old_crtc_state->uapi.state = state;
+	pipe_config = intel_crtc_state_alloc(crtc);
+	if (!pipe_config)
+		return;
 
 	drm_dbg_kms(&dev_priv->drm, "[CRTC:%d:%s]\n", crtc->base.base.id,
 		    crtc->base.name);
@@ -236,7 +235,7 @@ void intel_modeset_verify_crtc(struct intel_crtc *crtc,
 
 	intel_wm_state_verify(crtc, new_crtc_state);
 	verify_connector_state(state, crtc);
-	verify_crtc_state(crtc, old_crtc_state, new_crtc_state);
+	verify_crtc_state(state, crtc);
 	intel_shared_dpll_state_verify(crtc, old_crtc_state, new_crtc_state);
 	intel_mpllb_state_verify(state, new_crtc_state);
 	intel_c10pll_state_verify(state, new_crtc_state);
