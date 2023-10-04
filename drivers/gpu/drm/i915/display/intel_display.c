@@ -7218,7 +7218,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 		intel_set_cdclk_pre_plane_update(state);
 
-		intel_modeset_verify_disabled(dev_priv, state);
+		intel_modeset_verify_disabled(state);
 	}
 
 	intel_sagv_pre_plane_update(state);
@@ -7304,7 +7304,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 		intel_modeset_put_crtc_power_domains(crtc, &put_domains[crtc->pipe]);
 
-		intel_modeset_verify_crtc(crtc, state, old_crtc_state, new_crtc_state);
+		intel_modeset_verify_crtc(state, crtc);
 
 		/* Must be done after gamma readout due to HSW split gamma vs. IPS w/a */
 		hsw_ips_post_update(state, crtc);

@@ -86,9 +86,10 @@ verify_connector_state(struct intel_atomic_state *state,
 	}
 }
 
-static void intel_pipe_config_sanity_check(struct drm_i915_private *dev_priv,
-					   const struct intel_crtc_state *pipe_config)
+static void intel_pipe_config_sanity_check(const struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = to_i915(pipe_config->uapi.crtc->dev);
+
 	if (pipe_config->has_pch_encoder) {
 		int fdi_dotclock = intel_dotclock_calculate(intel_fdi_link_freq(dev_priv, pipe_config),
 							    &pipe_config->fdi_m_n);
@@ -106,8 +107,9 @@ static void intel_pipe_config_sanity_check(struct drm_i915_private *dev_priv,
 }
 
 static void
-verify_encoder_state(struct drm_i915_private *dev_priv, struct intel_atomic_state *state)
+verify_encoder_state(struct intel_atomic_state *state)
 {
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_encoder *encoder;
 	struct drm_connector *connector;
 	const struct drm_connector_state *old_conn_state, *new_conn_state;
@@ -214,7 +216,7 @@ verify_crtc_state(struct intel_atomic_state *state,
 	if (!new_crtc_state->hw.active)
 		return;
 
-	intel_pipe_config_sanity_check(dev_priv, pipe_config);
+	intel_pipe_config_sanity_check(pipe_config);
 
 	if (!intel_pipe_config_compare(new_crtc_state,
 				       pipe_config, false)) {
@@ -224,11 +226,12 @@ verify_crtc_state(struct intel_atomic_state *state,
 	}
 }
 
-void intel_modeset_verify_crtc(struct intel_crtc *crtc,
-			       struct intel_atomic_state *state,
-			       const struct intel_crtc_state *old_crtc_state,
-			       const struct intel_crtc_state *new_crtc_state)
+void intel_modeset_verify_crtc(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc)
 {
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
 	if (!intel_crtc_needs_modeset(new_crtc_state) &&
 	    !intel_crtc_needs_fastset(new_crtc_state))
 		return;
@@ -241,10 +244,9 @@ void intel_modeset_verify_crtc(struct intel_crtc *crtc,
 	intel_c10pll_state_verify(state, crtc);
 }
 
-void intel_modeset_verify_disabled(struct drm_i915_private *dev_priv,
-				   struct intel_atomic_state *state)
+void intel_modeset_verify_disabled(struct intel_atomic_state *state)
 {
-	verify_encoder_state(dev_priv, state);
+	verify_encoder_state(state);
 	verify_connector_state(state, NULL);
 	intel_shared_dpll_verify_disabled(state);
 }
