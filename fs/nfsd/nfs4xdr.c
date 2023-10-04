@@ -3726,21 +3726,22 @@ out_put:
 	return nfserr;
 }
 
-static __be32 *
-nfsd4_encode_rdattr_error(struct xdr_stream *xdr, __be32 nfserr)
+static __be32
+nfsd4_encode_entry4_rdattr_error(struct xdr_stream *xdr, __be32 nfserr)
 {
-	__be32 *p;
+	__be32 status;
 
-	p = xdr_reserve_space(xdr, 20);
-	if (!p)
-		return NULL;
-	*p++ = htonl(2);
-	*p++ = htonl(FATTR4_WORD0_RDATTR_ERROR); /* bmval0 */
-	*p++ = htonl(0);			 /* bmval1 */
-
-	*p++ = htonl(4);     /* attribute length */
-	*p++ = nfserr;       /* no htonl */
-	return p;
+	/* attrmask */
+	status = nfsd4_encode_bitmap4(xdr, FATTR4_WORD0_RDATTR_ERROR, 0, 0);
+	if (status != nfs_ok)
+		return status;
+	/* attr_vals */
+	if (xdr_stream_encode_u32(xdr, XDR_UNIT) != XDR_UNIT)
+		return nfserr_resource;
+	/* rdattr_error */
+	if (xdr_stream_encode_be32(xdr, nfserr) != XDR_UNIT)
+		return nfserr_resource;
+	return nfs_ok;
 }
 
 static int
@@ -3812,8 +3813,7 @@ nfsd4_encode_entry4(void *ccdv, const char *name, int namlen,
 		 */
 		if (!(cd->rd_bmval[0] & FATTR4_WORD0_RDATTR_ERROR))
 			goto fail;
-		p = nfsd4_encode_rdattr_error(xdr, nfserr);
-		if (p == NULL) {
+		if (nfsd4_encode_entry4_rdattr_error(xdr, nfserr)) {
 			nfserr = nfserr_toosmall;
 			goto fail;
 		}
