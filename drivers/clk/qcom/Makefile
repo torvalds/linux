@@ -124,6 +124,7 @@ obj-$(CONFIG_SM_DISPCC_BLAIR) += dispcc-blair.o
 obj-$(CONFIG_SM_DISPCC_HOLI) += dispcc-holi.o
 obj-$(CONFIG_SM_DISPCC_PINEAPPLE) += dispcc-pineapple.o
 obj-$(CONFIG_SM_DEBUGCC_BLAIR) += debugcc-blair.o
+obj-$(CONFIG_SM_DEBUGCC_CLIFFS) += debugcc-cliffs.o
 obj-$(CONFIG_SM_DEBUGCC_HOLI) += debugcc-holi.o
 obj-$(CONFIG_SM_DEBUGCC_PINEAPPLE) += debugcc-pineapple.o
 obj-$(CONFIG_SM_GCC_6115) += gcc-sm6115.o
