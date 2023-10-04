@@ -53,7 +53,6 @@ int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	unsigned int link_id = link_conf->link_id;
 	struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
 	struct iwl_link_config_cmd cmd = {};
-	struct iwl_mvm_phy_ctxt *phyctxt;
 
 	if (WARN_ON_ONCE(!link_info))
 		return -EINVAL;
@@ -77,12 +76,8 @@ int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
 	cmd.mac_id = cpu_to_le32(mvmvif->id);
 	cmd.spec_link_id = link_conf->link_id;
-	/* P2P-Device already has a valid PHY context during add */
-	phyctxt = link_info->phy_ctxt;
-	if (phyctxt)
-		cmd.phy_id = cpu_to_le32(phyctxt->id);
-	else
-		cmd.phy_id = cpu_to_le32(FW_CTXT_INVALID);
+	WARN_ON_ONCE(link_info->phy_ctxt);
+	cmd.phy_id = cpu_to_le32(FW_CTXT_INVALID);
 
 	memcpy(cmd.local_link_addr, link_conf->addr, ETH_ALEN);
 

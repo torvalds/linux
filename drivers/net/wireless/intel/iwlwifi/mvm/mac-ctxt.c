@@ -286,6 +286,10 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	INIT_LIST_HEAD(&mvmvif->time_event_data.list);
 	mvmvif->time_event_data.id = TE_MAX;
 
+	mvmvif->deflink.bcast_sta.sta_id = IWL_MVM_INVALID_STA;
+	mvmvif->deflink.mcast_sta.sta_id = IWL_MVM_INVALID_STA;
+	mvmvif->deflink.ap_sta_id = IWL_MVM_INVALID_STA;
+
 	/* No need to allocate data queues to P2P Device MAC and NAN.*/
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		return 0;
@@ -299,10 +303,6 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		 */
 		mvmvif->deflink.cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
 	}
-
-	mvmvif->deflink.bcast_sta.sta_id = IWL_MVM_INVALID_STA;
-	mvmvif->deflink.mcast_sta.sta_id = IWL_MVM_INVALID_STA;
-	mvmvif->deflink.ap_sta_id = IWL_MVM_INVALID_STA;
 
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++)
 		mvmvif->deflink.smps_requests[i] = IEEE80211_SMPS_AUTOMATIC;
