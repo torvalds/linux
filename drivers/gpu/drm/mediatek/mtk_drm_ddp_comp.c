@@ -507,6 +507,31 @@ static bool mtk_drm_find_comp_in_ddp(struct device *dev,
 	return false;
 }
 
+static unsigned int mtk_drm_find_comp_in_ddp_conn_path(struct device *dev,
+						       const struct mtk_drm_route *routes,
+						       unsigned int num_routes,
+						       struct mtk_ddp_comp *ddp_comp)
+{
+	int ret;
+	unsigned int i;
+
+	if (!routes) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	for (i = 0; i < num_routes; i++)
+		if (dev == ddp_comp[routes[i].route_ddp].dev)
+			return BIT(routes[i].crtc_id);
+
+	ret = -ENODEV;
+err:
+
+	DRM_INFO("Failed to find comp in ddp table, ret = %d\n", ret);
+
+	return 0;
+}
+
 int mtk_ddp_comp_get_id(struct device_node *node,
 			enum mtk_ddp_comp_type comp_type)
 {
@@ -538,7 +563,10 @@ unsigned int mtk_drm_find_possible_crtc_by_comp(struct drm_device *drm,
 					  private->data->third_len, private->ddp_comp))
 		ret = BIT(2);
 	else
-		DRM_INFO("Failed to find comp in ddp table\n");
+		ret = mtk_drm_find_comp_in_ddp_conn_path(dev,
+							 private->data->conn_routes,
+							 private->data->num_conn_routes,
+							 private->ddp_comp);
 
 	return ret;
 }
