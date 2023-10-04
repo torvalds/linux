@@ -423,14 +423,14 @@ enum {
  * reserved: bits 12-18
  * slave_exist: bit 19
  * dash: bits 20-23
- * step: bits 24-26
- * flavor: bits 27-31
+ * step: bits 24-27
+ * flavor: bits 28-31
  */
 #define REG_CRF_ID_TYPE(val)		(((val) & 0x00000FFF) >> 0)
 #define REG_CRF_ID_SLAVE(val)		(((val) & 0x00080000) >> 19)
 #define REG_CRF_ID_DASH(val)		(((val) & 0x00F00000) >> 20)
-#define REG_CRF_ID_STEP(val)		(((val) & 0x07000000) >> 24)
-#define REG_CRF_ID_FLAVOR(val)		(((val) & 0xF8000000) >> 27)
+#define REG_CRF_ID_STEP(val)		(((val) & 0x0F000000) >> 24)
+#define REG_CRF_ID_FLAVOR(val)		(((val) & 0xF0000000) >> 28)
 
 #define UREG_CHICK		(0xA05C00)
 #define UREG_CHICK_MSI_ENABLE	BIT(24)
