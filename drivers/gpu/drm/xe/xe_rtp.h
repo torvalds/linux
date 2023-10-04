@@ -350,9 +350,8 @@ struct xe_reg_sr;
  * XE_RTP_ACTIONS - Helper to set multiple actions to a struct xe_rtp_entry_sr
  * @...: Actions to be taken
  *
- * At least one rule is needed and up to 4 are supported. Multiple rules are
- * AND'ed together, i.e. all the rules must evaluate to true for the entry to
- * be processed. See XE_RTP_MATCH_* for the possible match rules. Example:
+ * At least one action is needed and up to 4 are supported. See XE_RTP_ACTION_*
+ * for the possible actions. Example:
  *
  * .. code-block:: c
  *
