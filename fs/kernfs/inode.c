@@ -151,7 +151,7 @@ ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size)
 static inline void set_default_inode_attr(struct inode *inode, umode_t mode)
 {
 	inode->i_mode = mode;
-	inode->i_atime = inode->i_mtime = inode_set_ctime_current(inode);
+	simple_inode_init_ts(inode);
 }
 
 static inline void set_inode_attr(struct inode *inode,
@@ -159,8 +159,8 @@ static inline void set_inode_attr(struct inode *inode,
 {
 	inode->i_uid = attrs->ia_uid;
 	inode->i_gid = attrs->ia_gid;
-	inode->i_atime = attrs->ia_atime;
-	inode->i_mtime = attrs->ia_mtime;
+	inode_set_atime_to_ts(inode, attrs->ia_atime);
+	inode_set_mtime_to_ts(inode, attrs->ia_mtime);
 	inode_set_ctime_to_ts(inode, attrs->ia_ctime);
 }
 
