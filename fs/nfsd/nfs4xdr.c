@@ -3772,7 +3772,6 @@ nfsd4_encode_entry4(void *ccdv, const char *name, int namlen,
 	u32 name_and_cookie;
 	int entry_bytes;
 	__be32 nfserr = nfserr_toosmall;
-	__be32 *p;
 
 	/* In nfsv4, "." and ".." never make it onto the wire.. */
 	if (name && isdotent(name, namlen)) {
@@ -3783,17 +3782,15 @@ nfsd4_encode_entry4(void *ccdv, const char *name, int namlen,
 	/* Encode the previous entry's cookie value */
 	nfsd4_encode_entry4_nfs_cookie4(cd, offset);
 
-	p = xdr_reserve_space(xdr, 4);
-	if (!p)
+	if (xdr_stream_encode_item_present(xdr) != XDR_UNIT)
 		goto fail;
-	*p++ = xdr_one;                             /* mark entry present */
-	cookie_offset = xdr->buf->len;
-	p = xdr_reserve_space(xdr, 3*4 + namlen);
-	if (!p)
-		goto fail;
-	p = xdr_encode_hyper(p, OFFSET_MAX);        /* offset of next entry */
-	p = xdr_encode_array(p, name, namlen);      /* name length & name */
 
+	/* Reserve send buffer space for this entry's cookie value. */
+	cookie_offset = xdr->buf->len;
+	if (nfsd4_encode_nfs_cookie4(xdr, OFFSET_MAX) != nfs_ok)
+		goto fail;
+	if (nfsd4_encode_component4(xdr, name, namlen) != nfs_ok)
+		goto fail;
 	nfserr = nfsd4_encode_entry4_fattr(cd, name, namlen);
 	switch (nfserr) {
 	case nfs_ok:

@@ -120,6 +120,7 @@ nfsd4_encode_uint64_t(struct xdr_stream *xdr, u64 val)
 }
 
 #define nfsd4_encode_changeid4(x, v)	nfsd4_encode_uint64_t(x, v)
+#define nfsd4_encode_nfs_cookie4(x, v)	nfsd4_encode_uint64_t(x, v)
 #define nfsd4_encode_length4(x, v)	nfsd4_encode_uint64_t(x, v)
 #define nfsd4_encode_offset4(x, v)	nfsd4_encode_uint64_t(x, v)
 
@@ -173,6 +174,8 @@ nfsd4_encode_opaque(struct xdr_stream *xdr, const void *data, size_t size)
 		memset((char *)p + size, 0, pad);
 	return nfs_ok;
 }
+
+#define nfsd4_encode_component4(x, d, s)	nfsd4_encode_opaque(x, d, s)
 
 struct nfsd4_compound_state {
 	struct svc_fh		current_fh;
