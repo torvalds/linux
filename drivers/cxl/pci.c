@@ -90,7 +90,7 @@ struct cxl_dev_id {
 };
 
 static int cxl_request_irq(struct cxl_dev_state *cxlds, int irq,
-			   irq_handler_t handler, irq_handler_t thread_fn)
+			   irq_handler_t thread_fn)
 {
 	struct device *dev = cxlds->dev;
 	struct cxl_dev_id *dev_id;
@@ -101,9 +101,9 @@ static int cxl_request_irq(struct cxl_dev_state *cxlds, int irq,
 		return -ENOMEM;
 	dev_id->cxlds = cxlds;
 
-	return devm_request_threaded_irq(dev, irq, handler, thread_fn,
-					 IRQF_SHARED | IRQF_ONESHOT,
-					 NULL, dev_id);
+	return devm_request_threaded_irq(dev, irq, NULL, thread_fn,
+					 IRQF_SHARED | IRQF_ONESHOT, NULL,
+					 dev_id);
 }
 
 static bool cxl_mbox_background_complete(struct cxl_dev_state *cxlds)
@@ -440,7 +440,7 @@ static int cxl_pci_setup_mailbox(struct cxl_memdev_state *mds)
 	if (irq < 0)
 		return 0;
 
-	if (cxl_request_irq(cxlds, irq, NULL, cxl_pci_mbox_irq))
+	if (cxl_request_irq(cxlds, irq, cxl_pci_mbox_irq))
 		return 0;
 
 	dev_dbg(cxlds->dev, "Mailbox interrupts enabled\n");
@@ -638,7 +638,7 @@ static int cxl_event_req_irq(struct cxl_dev_state *cxlds, u8 setting)
 	if (irq < 0)
 		return irq;
 
-	return cxl_request_irq(cxlds, irq, NULL, cxl_event_thread);
+	return cxl_request_irq(cxlds, irq, cxl_event_thread);
 }
 
 static int cxl_event_get_int_policy(struct cxl_memdev_state *mds,
