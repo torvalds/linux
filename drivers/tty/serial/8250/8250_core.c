@@ -611,7 +611,7 @@ static int univ8250_console_setup(struct console *co, char *options)
 	 * if so, search for the first available port that does have
 	 * console support.
 	 */
-	if (co->index >= UART_NR)
+	if (co->index < 0 || co->index >= UART_NR)
 		co->index = 0;
 
 	/*
