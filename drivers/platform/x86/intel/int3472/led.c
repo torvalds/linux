@@ -16,26 +16,15 @@ static int int3472_pled_set(struct led_classdev *led_cdev,
 	return 0;
 }
 
-int skl_int3472_register_pled(struct int3472_discrete_device *int3472,
-			      struct acpi_resource_gpio *agpio, u32 polarity)
+int skl_int3472_register_pled(struct int3472_discrete_device *int3472, struct gpio_desc *gpio)
 {
-	char *p, *path = agpio->resource_source.string_ptr;
+	char *p;
 	int ret;
 
 	if (int3472->pled.classdev.dev)
 		return -EBUSY;
 
-	int3472->pled.gpio = acpi_get_and_request_gpiod(path, agpio->pin_table[0],
-							     "int3472,privacy-led");
-	if (IS_ERR(int3472->pled.gpio))
-		return dev_err_probe(int3472->dev, PTR_ERR(int3472->pled.gpio),
-				     "getting privacy LED GPIO\n");
-
-	if (polarity == GPIO_ACTIVE_LOW)
-		gpiod_toggle_active_low(int3472->pled.gpio);
-
-	/* Ensure the pin is in output mode and non-active state */
-	gpiod_direction_output(int3472->pled.gpio, 0);
+	int3472->pled.gpio = gpio;
 
 	/* Generate the name, replacing the ':' in the ACPI devname with '_' */
 	snprintf(int3472->pled.name, sizeof(int3472->pled.name),

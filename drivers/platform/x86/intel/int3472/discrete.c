@@ -194,6 +194,7 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 	struct acpi_resource_gpio *agpio;
 	u8 active_value, pin, type;
 	union acpi_object *obj;
+	struct gpio_desc *gpio;
 	const char *err_msg;
 	const char *func;
 	u32 polarity;
@@ -244,22 +245,38 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 
 		break;
 	case INT3472_GPIO_TYPE_CLK_ENABLE:
-		ret = skl_int3472_register_gpio_clock(int3472, agpio, polarity);
-		if (ret)
-			err_msg = "Failed to register clock\n";
-
-		break;
 	case INT3472_GPIO_TYPE_PRIVACY_LED:
-		ret = skl_int3472_register_pled(int3472, agpio, polarity);
-		if (ret)
-			err_msg = "Failed to register LED\n";
-
-		break;
 	case INT3472_GPIO_TYPE_POWER_ENABLE:
-		ret = skl_int3472_register_regulator(int3472, agpio);
-		if (ret)
-			err_msg = "Failed to map regulator to sensor\n";
+		gpio = skl_int3472_gpiod_get_from_temp_lookup(int3472, agpio, func, polarity);
+		if (IS_ERR(gpio)) {
+			ret = PTR_ERR(gpio);
+			err_msg = "Failed to get GPIO\n";
+			break;
+		}
 
+		switch (type) {
+		case INT3472_GPIO_TYPE_CLK_ENABLE:
+			ret = skl_int3472_register_gpio_clock(int3472, gpio);
+			if (ret)
+				err_msg = "Failed to register clock\n";
+
+			break;
+		case INT3472_GPIO_TYPE_PRIVACY_LED:
+			ret = skl_int3472_register_pled(int3472, gpio);
+			if (ret)
+				err_msg = "Failed to register LED\n";
+
+			break;
+		case INT3472_GPIO_TYPE_POWER_ENABLE:
+			ret = skl_int3472_register_regulator(int3472, gpio);
+			if (ret)
+				err_msg = "Failed to map regulator to sensor\n";
+
+			break;
+		default: /* Never reached */
+			ret = -EINVAL;
+			break;
+		}
 		break;
 	default:
 		dev_warn(int3472->dev,
