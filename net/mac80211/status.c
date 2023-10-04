@@ -731,12 +731,9 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 		if (!sdata) {
 			skb->dev = NULL;
 		} else if (!dropped) {
-			unsigned int hdr_size =
-				ieee80211_hdrlen(hdr->frame_control);
-
 			/* Check to see if packet is a TDLS teardown packet */
 			if (ieee80211_is_data(hdr->frame_control) &&
-			    (ieee80211_get_tdls_action(skb, hdr_size) ==
+			    (ieee80211_get_tdls_action(skb) ==
 			     WLAN_TDLS_TEARDOWN)) {
 				ieee80211_tdls_td_tx_handle(local, sdata, skb,
 							    info->flags);
