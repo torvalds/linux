@@ -369,9 +369,8 @@ void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
 enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port);
 bool intel_dpll_is_combophy(enum intel_dpll_id id);
 
-void intel_shared_dpll_state_verify(struct intel_crtc *crtc,
-				    const struct intel_crtc_state *old_crtc_state,
-				    const struct intel_crtc_state *new_crtc_state);
-void intel_shared_dpll_verify_disabled(struct drm_i915_private *i915);
+void intel_shared_dpll_state_verify(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc);
+void intel_shared_dpll_verify_disabled(struct intel_atomic_state *state);
 
 #endif /* _INTEL_DPLL_MGR_H_ */

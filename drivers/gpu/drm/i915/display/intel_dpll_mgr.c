@@ -4512,11 +4512,14 @@ verify_single_dpll_state(struct drm_i915_private *i915,
 			"pll hw state mismatch\n");
 }
 
-void intel_shared_dpll_state_verify(struct intel_crtc *crtc,
-				    const struct intel_crtc_state *old_crtc_state,
-				    const struct intel_crtc_state *new_crtc_state)
+void intel_shared_dpll_state_verify(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
 	if (new_crtc_state->shared_dpll)
 		verify_single_dpll_state(i915, new_crtc_state->shared_dpll,
@@ -4536,8 +4539,9 @@ void intel_shared_dpll_state_verify(struct intel_crtc *crtc,
 	}
 }
 
-void intel_shared_dpll_verify_disabled(struct drm_i915_private *i915)
+void intel_shared_dpll_verify_disabled(struct intel_atomic_state *state)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_shared_dpll *pll;
 	int i;
 

@@ -236,7 +236,7 @@ void intel_modeset_verify_crtc(struct intel_crtc *crtc,
 	intel_wm_state_verify(crtc, new_crtc_state);
 	verify_connector_state(state, crtc);
 	verify_crtc_state(state, crtc);
-	intel_shared_dpll_state_verify(crtc, old_crtc_state, new_crtc_state);
+	intel_shared_dpll_state_verify(state, crtc);
 	intel_mpllb_state_verify(state, new_crtc_state);
 	intel_c10pll_state_verify(state, new_crtc_state);
 }
@@ -246,5 +246,5 @@ void intel_modeset_verify_disabled(struct drm_i915_private *dev_priv,
 {
 	verify_encoder_state(dev_priv, state);
 	verify_connector_state(state, NULL);
-	intel_shared_dpll_verify_disabled(dev_priv);
+	intel_shared_dpll_verify_disabled(state);
 }
