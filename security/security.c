@@ -3957,7 +3957,7 @@ void security_inode_invalidate_secctx(struct inode *inode)
 EXPORT_SYMBOL(security_inode_invalidate_secctx);
 
 /**
- * security_inode_notifysecctx() - Nofify the LSM of an inode's security label
+ * security_inode_notifysecctx() - Notify the LSM of an inode's security label
  * @inode: inode
  * @ctx: secctx
  * @ctxlen: length of secctx
