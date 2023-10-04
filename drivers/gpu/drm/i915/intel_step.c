@@ -124,6 +124,7 @@ static const struct intel_step_info dg2_g11_revid_step_tbl[] = {
 
 static const struct intel_step_info dg2_g12_revid_step_tbl[] = {
 	[0x0] = { COMMON_GT_MEDIA_STEP(A0), .display_step = STEP_C0 },
+	[0x1] = { COMMON_GT_MEDIA_STEP(A1), .display_step = STEP_C0 },
 };
 
 static const struct intel_step_info adls_rpls_revids[] = {

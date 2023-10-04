@@ -521,7 +521,8 @@ static void init_bdb_blocks(struct drm_i915_private *i915,
 }
 
 static void
-fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
+fill_detail_timing_data(struct drm_i915_private *i915,
+			struct drm_display_mode *panel_fixed_mode,
 			const struct lvds_dvo_timing *dvo_timing)
 {
 	panel_fixed_mode->hdisplay = (dvo_timing->hactive_hi << 8) |
@@ -561,11 +562,17 @@ fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
 	panel_fixed_mode->height_mm = (dvo_timing->vimage_hi << 8) |
 		dvo_timing->vimage_lo;
 
-	/* Some VBTs have bogus h/vtotal values */
-	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal)
-		panel_fixed_mode->htotal = panel_fixed_mode->hsync_end + 1;
-	if (panel_fixed_mode->vsync_end > panel_fixed_mode->vtotal)
-		panel_fixed_mode->vtotal = panel_fixed_mode->vsync_end + 1;
+	/* Some VBTs have bogus h/vsync_end values */
+	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal) {
+		drm_dbg_kms(&i915->drm, "reducing hsync_end %d->%d\n",
+			    panel_fixed_mode->hsync_end, panel_fixed_mode->htotal);
+		panel_fixed_mode->hsync_end = panel_fixed_mode->htotal;
+	}
+	if (panel_fixed_mode->vsync_end > panel_fixed_mode->vtotal) {
+		drm_dbg_kms(&i915->drm, "reducing vsync_end %d->%d\n",
+			    panel_fixed_mode->vsync_end, panel_fixed_mode->vtotal);
+		panel_fixed_mode->vsync_end = panel_fixed_mode->vtotal;
+	}
 
 	drm_mode_set_name(panel_fixed_mode);
 }
@@ -849,7 +856,7 @@ parse_lfp_panel_dtd(struct drm_i915_private *i915,
 	if (!panel_fixed_mode)
 		return;
 
-	fill_detail_timing_data(panel_fixed_mode, panel_dvo_timing);
+	fill_detail_timing_data(i915, panel_fixed_mode, panel_dvo_timing);
 
 	panel->vbt.lfp_lvds_vbt_mode = panel_fixed_mode;
 
@@ -1134,7 +1141,7 @@ parse_sdvo_panel_data(struct drm_i915_private *i915,
 	if (!panel_fixed_mode)
 		return;
 
-	fill_detail_timing_data(panel_fixed_mode, &dtds->dtds[index]);
+	fill_detail_timing_data(i915, panel_fixed_mode, &dtds->dtds[index]);
 
 	panel->vbt.sdvo_lvds_vbt_mode = panel_fixed_mode;
 
@@ -2194,7 +2201,8 @@ static u8 map_ddc_pin(struct drm_i915_private *i915, u8 vbt_pin)
 	const u8 *ddc_pin_map;
 	int i, n_entries;
 
-	if (HAS_PCH_MTP(i915) || IS_ALDERLAKE_P(i915)) {
+	if (INTEL_PCH_TYPE(i915) >= PCH_LNL || HAS_PCH_MTP(i915) ||
+	    IS_ALDERLAKE_P(i915)) {
 		ddc_pin_map = adlp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(adlp_ddc_pin_map);
 	} else if (IS_ALDERLAKE_S(i915)) {

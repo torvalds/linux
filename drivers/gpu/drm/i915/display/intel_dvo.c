@@ -328,7 +328,6 @@ intel_dvo_detect(struct drm_connector *_connector, bool force)
 static int intel_dvo_get_modes(struct drm_connector *_connector)
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	int num_modes;
 
 	/*
@@ -337,8 +336,7 @@ static int intel_dvo_get_modes(struct drm_connector *_connector)
 	 * (TV-out, for example), but for now with just TMDS and LVDS,
 	 * that's not the case.
 	 */
-	num_modes = intel_ddc_get_modes(&connector->base,
-					intel_gmbus_get_adapter(i915, GMBUS_PIN_DPC));
+	num_modes = intel_ddc_get_modes(&connector->base, connector->base.ddc);
 	if (num_modes)
 		return num_modes;
 
@@ -533,9 +531,10 @@ void intel_dvo_init(struct drm_i915_private *i915)
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
 			DRM_CONNECTOR_POLL_DISCONNECT;
 
-	drm_connector_init(&i915->drm, &connector->base,
-			   &intel_dvo_connector_funcs,
-			   intel_dvo_connector_type(&intel_dvo->dev));
+	drm_connector_init_with_ddc(&i915->drm, &connector->base,
+				    &intel_dvo_connector_funcs,
+				    intel_dvo_connector_type(&intel_dvo->dev),
+				    intel_gmbus_get_adapter(i915, GMBUS_PIN_DPC));
 
 	drm_connector_helper_add(&connector->base,
 				 &intel_dvo_connector_helper_funcs);
