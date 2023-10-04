@@ -454,15 +454,13 @@ free:
 	return res;
 }
 
-static int altr_sdram_remove(struct platform_device *pdev)
+static void altr_sdram_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
 
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 /*
@@ -484,7 +482,7 @@ static const struct dev_pm_ops altr_sdram_pm_ops = {
 
 static struct platform_driver altr_sdram_edac_driver = {
 	.probe = altr_sdram_probe,
-	.remove = altr_sdram_remove,
+	.remove_new = altr_sdram_remove,
 	.driver = {
 		.name = "altr_sdram_edac",
 #ifdef CONFIG_PM
@@ -807,7 +805,7 @@ fail:
 	return res;
 }
 
-static int altr_edac_device_remove(struct platform_device *pdev)
+static void altr_edac_device_remove(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *dci = platform_get_drvdata(pdev);
 	struct altr_edac_device_dev *drvdata = dci->pvt_info;
@@ -815,13 +813,11 @@ static int altr_edac_device_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(drvdata->debugfs_dir);
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(dci);
-
-	return 0;
 }
 
 static struct platform_driver altr_edac_device_driver = {
 	.probe =  altr_edac_device_probe,
-	.remove = altr_edac_device_remove,
+	.remove_new = altr_edac_device_remove,
 	.driver = {
 		.name = "altr_edac_device",
 		.of_match_table = altr_edac_device_of_match,
