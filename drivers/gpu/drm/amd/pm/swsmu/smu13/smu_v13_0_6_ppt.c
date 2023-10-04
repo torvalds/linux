@@ -1880,8 +1880,6 @@ static void smu_v13_0_6_get_unique_id(struct smu_context *smu)
 		(struct PPTable_t *)smu_table->driver_pptable;
 
 	adev->unique_id = pptable->PublicSerialNumber_AID;
-	if (adev->serial[0] == '\0')
-		sprintf(adev->serial, "%016llx", adev->unique_id);
 }
 
 static bool smu_v13_0_6_is_baco_supported(struct smu_context *smu)

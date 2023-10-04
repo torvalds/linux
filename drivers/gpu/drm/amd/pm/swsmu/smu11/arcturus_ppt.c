@@ -2192,10 +2192,6 @@ static void arcturus_get_unique_id(struct smu_context *smu)
 
 	id = ((uint64_t)bottom32 << 32) | top32;
 	adev->unique_id = id;
-	/* For Arcturus-and-later, unique_id == serial_number, so convert it to a
-	 * 16-digit HEX string for convenience and backwards-compatibility
-	 */
-	sprintf(adev->serial, "%llx", id);
 }
 
 static int arcturus_set_df_cstate(struct smu_context *smu,

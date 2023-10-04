@@ -2264,8 +2264,6 @@ static void smu_v13_0_0_get_unique_id(struct smu_context *smu)
 
 out:
 	adev->unique_id = ((uint64_t)upper32 << 32) | lower32;
-	if (adev->serial[0] == '\0')
-		sprintf(adev->serial, "%016llx", adev->unique_id);
 }
 
 static int smu_v13_0_0_get_fan_speed_pwm(struct smu_context *smu,

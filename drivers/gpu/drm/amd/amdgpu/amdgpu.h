@@ -770,8 +770,8 @@ struct amdgpu_mqd {
 
 #define AMDGPU_RESET_MAGIC_NUM 64
 #define AMDGPU_MAX_DF_PERFMONS 4
-#define AMDGPU_PRODUCT_NAME_LEN 64
 struct amdgpu_reset_domain;
+struct amdgpu_fru_info;
 
 /*
  * Non-zero (true) if the GPU has VRAM. Zero (false) otherwise.
@@ -1055,11 +1055,7 @@ struct amdgpu_device {
 
 	bool                            ucode_sysfs_en;
 
-	/* Chip product information */
-	char				product_number[20];
-	char				product_name[AMDGPU_PRODUCT_NAME_LEN];
-	char				serial[20];
-
+	struct amdgpu_fru_info		*fru_info;
 	atomic_t			throttling_logging_enabled;
 	struct ratelimit_state		throttling_logging_rs;
 	uint32_t                        ras_hw_enabled;

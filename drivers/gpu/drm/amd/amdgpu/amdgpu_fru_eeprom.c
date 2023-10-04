@@ -109,6 +109,7 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 
 int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 {
+	struct amdgpu_fru_info *fru_info;
 	unsigned char buf[8], *pia;
 	u32 addr, fru_addr;
 	int size, len;
@@ -116,6 +117,19 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 
 	if (!is_fru_eeprom_supported(adev, &fru_addr))
 		return 0;
+
+	if (!adev->fru_info) {
+		adev->fru_info = kzalloc(sizeof(*adev->fru_info), GFP_KERNEL);
+		if (!adev->fru_info)
+			return -ENOMEM;
+	}
+
+	fru_info = adev->fru_info;
+	/* For Arcturus-and-later, default value of serial_number is unique_id
+	 * so convert it to a 16-digit HEX string for convenience and
+	 * backwards-compatibility.
+	 */
+	sprintf(fru_info->serial, "%llx", adev->unique_id);
 
 	/* If algo exists, it means that the i2c_adapter's initialized */
 	if (!adev->pm.fru_eeprom_i2c_bus || !adev->pm.fru_eeprom_i2c_bus->algo) {
@@ -192,21 +206,18 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	addr = 3 + 1 + (pia[3] & 0x3F);
 	if (addr + 1 >= len)
 		goto Out;
-	memcpy(adev->product_name, pia + addr + 1,
-	       min_t(size_t,
-		     sizeof(adev->product_name),
-		     pia[addr] & 0x3F));
-	adev->product_name[sizeof(adev->product_name) - 1] = '\0';
+	memcpy(fru_info->product_name, pia + addr + 1,
+	       min_t(size_t, sizeof(fru_info->product_name), pia[addr] & 0x3F));
+	fru_info->product_name[sizeof(fru_info->product_name) - 1] = '\0';
 
 	/* Go to the Product Part/Model Number field. */
 	addr += 1 + (pia[addr] & 0x3F);
 	if (addr + 1 >= len)
 		goto Out;
-	memcpy(adev->product_number, pia + addr + 1,
-	       min_t(size_t,
-		     sizeof(adev->product_number),
+	memcpy(fru_info->product_number, pia + addr + 1,
+	       min_t(size_t, sizeof(fru_info->product_number),
 		     pia[addr] & 0x3F));
-	adev->product_number[sizeof(adev->product_number) - 1] = '\0';
+	fru_info->product_number[sizeof(fru_info->product_number) - 1] = '\0';
 
 	/* Go to the Product Version field. */
 	addr += 1 + (pia[addr] & 0x3F);
@@ -215,10 +226,9 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	addr += 1 + (pia[addr] & 0x3F);
 	if (addr + 1 >= len)
 		goto Out;
-	memcpy(adev->serial, pia + addr + 1, min_t(size_t,
-						   sizeof(adev->serial),
-						   pia[addr] & 0x3F));
-	adev->serial[sizeof(adev->serial) - 1] = '\0';
+	memcpy(fru_info->serial, pia + addr + 1,
+	       min_t(size_t, sizeof(fru_info->serial), pia[addr] & 0x3F));
+	fru_info->serial[sizeof(fru_info->serial) - 1] = '\0';
 Out:
 	kfree(pia);
 	return 0;
@@ -241,7 +251,7 @@ static ssize_t amdgpu_fru_product_name_show(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 
-	return sysfs_emit(buf, "%s\n", adev->product_name);
+	return sysfs_emit(buf, "%s\n", adev->fru_info->product_name);
 }
 
 static DEVICE_ATTR(product_name, 0444, amdgpu_fru_product_name_show, NULL);
@@ -263,7 +273,7 @@ static ssize_t amdgpu_fru_product_number_show(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 
-	return sysfs_emit(buf, "%s\n", adev->product_number);
+	return sysfs_emit(buf, "%s\n", adev->fru_info->product_number);
 }
 
 static DEVICE_ATTR(product_number, 0444, amdgpu_fru_product_number_show, NULL);
@@ -285,7 +295,7 @@ static ssize_t amdgpu_fru_serial_number_show(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 
-	return sysfs_emit(buf, "%s\n", adev->serial);
+	return sysfs_emit(buf, "%s\n", adev->fru_info->serial);
 }
 
 static DEVICE_ATTR(serial_number, 0444, amdgpu_fru_serial_number_show, NULL);
@@ -299,7 +309,7 @@ static const struct attribute *amdgpu_fru_attributes[] = {
 
 int amdgpu_fru_sysfs_init(struct amdgpu_device *adev)
 {
-	if (!is_fru_eeprom_supported(adev, NULL))
+	if (!is_fru_eeprom_supported(adev, NULL) || !adev->fru_info)
 		return 0;
 
 	return sysfs_create_files(&adev->dev->kobj, amdgpu_fru_attributes);
@@ -307,7 +317,7 @@ int amdgpu_fru_sysfs_init(struct amdgpu_device *adev)
 
 void amdgpu_fru_sysfs_fini(struct amdgpu_device *adev)
 {
-	if (!is_fru_eeprom_supported(adev, NULL))
+	if (!is_fru_eeprom_supported(adev, NULL) || !adev->fru_info)
 		return;
 
 	sysfs_remove_files(&adev->dev->kobj, amdgpu_fru_attributes);
