@@ -36,6 +36,7 @@ struct wfx_tx_policy_cache {
 struct wfx_tx_priv {
 	ktime_t xmit_timestamp;
 	unsigned char icv_size;
+	unsigned char vif_id;
 };
 
 void wfx_tx_policy_init(struct wfx_vif *wvif);
@@ -47,5 +48,6 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u32 queues, b
 
 struct wfx_tx_priv *wfx_skb_tx_priv(struct sk_buff *skb);
 struct wfx_hif_req_tx *wfx_skb_txreq(struct sk_buff *skb);
+struct wfx_vif *wfx_skb_wvif(struct wfx_dev *wdev, struct sk_buff *skb);
 
 #endif
