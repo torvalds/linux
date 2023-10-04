@@ -1122,7 +1122,7 @@ static void rtl8723e_dm_bt_2_ant_hid_sco_esco(struct ieee80211_hw *hw)
 	/* Always ignore WlanAct if bHid|bSCOBusy|bSCOeSCO */
 
 	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
-		"[BTCoex], BT btInqPageStartTime = 0x%x, btTxRxCntLvl = %d\n",
+		"[BTCoex], BT btInqPageStartTime = 0x%lx, btTxRxCntLvl = %d\n",
 		hal_coex_8723.bt_inq_page_start_time, bt_tx_rx_cnt_lvl);
 	if ((hal_coex_8723.bt_inq_page_start_time) ||
 	    (BT_TXRX_CNT_LEVEL_3 == bt_tx_rx_cnt_lvl)) {
@@ -1335,7 +1335,7 @@ static void rtl8723e_dm_bt_2_ant_ftp_a2dp(struct ieee80211_hw *hw)
 		btdm8723.dec_bt_pwr = true;
 
 	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
-		"[BTCoex], BT btInqPageStartTime = 0x%x, btTxRxCntLvl = %d\n",
+		"[BTCoex], BT btInqPageStartTime = 0x%lx, btTxRxCntLvl = %d\n",
 		hal_coex_8723.bt_inq_page_start_time, bt_tx_rx_cnt_lvl);
 
 	if ((hal_coex_8723.bt_inq_page_start_time) ||
@@ -1358,9 +1358,8 @@ static void rtl8723e_dm_bt_2_ant_ftp_a2dp(struct ieee80211_hw *hw)
 static void rtl8723e_dm_bt_inq_page_monitor(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 cur_time;
+	unsigned long cur_time = jiffies;
 
-	cur_time = jiffies;
 	if (hal_coex_8723.c2h_bt_inquiry_page) {
 		/* bt inquiry or page is started. */
 		if (hal_coex_8723.bt_inq_page_start_time == 0) {
@@ -1368,18 +1367,17 @@ static void rtl8723e_dm_bt_inq_page_monitor(struct ieee80211_hw *hw)
 			BT_COEX_STATE_BT_INQ_PAGE;
 			hal_coex_8723.bt_inq_page_start_time = cur_time;
 			rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
-				"[BTCoex], BT Inquiry/page is started at time : 0x%x\n",
+				"[BTCoex], BT Inquiry/page is started at time : 0x%lx\n",
 				hal_coex_8723.bt_inq_page_start_time);
 		}
 	}
 	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
-		"[BTCoex], BT Inquiry/page started time : 0x%x, cur_time : 0x%x\n",
+		"[BTCoex], BT Inquiry/page started time : 0x%lx, cur_time : 0x%lx\n",
 		hal_coex_8723.bt_inq_page_start_time, cur_time);
 
 	if (hal_coex_8723.bt_inq_page_start_time) {
-		if ((((long)cur_time -
-			(long)hal_coex_8723.bt_inq_page_start_time) / HZ)
-			>= 10) {
+		if (jiffies_to_msecs(cur_time -
+				     hal_coex_8723.bt_inq_page_start_time) >= 10000) {
 			rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
 				"[BTCoex], BT Inquiry/page >= 10sec!!!\n");
 			hal_coex_8723.bt_inq_page_start_time = 0;
