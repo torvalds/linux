@@ -5,6 +5,10 @@
  *
  * Copyright (C) 2023 Maximilian Luz <luzmaximilian@gmail.com>
  */
+
+#ifndef __QCOM_QSEECOM_H
+#define __QCOM_QSEECOM_H
+
 #include <linux/auxiliary_bus.h>
 #include <linux/types.h>
 
@@ -44,3 +48,5 @@ static inline int qcom_qseecom_app_send(struct qseecom_client *client, void *req
 {
 	return qcom_scm_qseecom_app_send(client->app_id, req, req_size, rsp, rsp_size);
 }
+
+#endif /* __QCOM_QSEECOM_H */
