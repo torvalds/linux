@@ -3316,7 +3316,7 @@ static const struct nla_policy nft_rule_policy[NFTA_RULE_MAX + 1] = {
 	[NFTA_RULE_CHAIN]	= { .type = NLA_STRING,
 				    .len = NFT_CHAIN_MAXNAMELEN - 1 },
 	[NFTA_RULE_HANDLE]	= { .type = NLA_U64 },
-	[NFTA_RULE_EXPRESSIONS]	= { .type = NLA_NESTED },
+	[NFTA_RULE_EXPRESSIONS]	= NLA_POLICY_NESTED_ARRAY(nft_expr_policy),
 	[NFTA_RULE_COMPAT]	= { .type = NLA_NESTED },
 	[NFTA_RULE_POSITION]	= { .type = NLA_U64 },
 	[NFTA_RULE_USERDATA]	= { .type = NLA_BINARY,
@@ -4254,12 +4254,16 @@ static const struct nla_policy nft_set_policy[NFTA_SET_MAX + 1] = {
 	[NFTA_SET_OBJ_TYPE]		= { .type = NLA_U32 },
 	[NFTA_SET_HANDLE]		= { .type = NLA_U64 },
 	[NFTA_SET_EXPR]			= { .type = NLA_NESTED },
-	[NFTA_SET_EXPRESSIONS]		= { .type = NLA_NESTED },
+	[NFTA_SET_EXPRESSIONS]		= NLA_POLICY_NESTED_ARRAY(nft_expr_policy),
+};
+
+static const struct nla_policy nft_concat_policy[NFTA_SET_FIELD_MAX + 1] = {
+	[NFTA_SET_FIELD_LEN]	= { .type = NLA_U32 },
 };
 
 static const struct nla_policy nft_set_desc_policy[NFTA_SET_DESC_MAX + 1] = {
 	[NFTA_SET_DESC_SIZE]		= { .type = NLA_U32 },
-	[NFTA_SET_DESC_CONCAT]		= { .type = NLA_NESTED },
+	[NFTA_SET_DESC_CONCAT]		= NLA_POLICY_NESTED_ARRAY(nft_concat_policy),
 };
 
 static struct nft_set *nft_set_lookup(const struct nft_table *table,
@@ -4695,8 +4699,10 @@ static int nf_tables_getset(struct sk_buff *skb, const struct nfnl_info *info,
 		return -EINVAL;
 
 	set = nft_set_lookup(table, nla[NFTA_SET_NAME], genmask);
-	if (IS_ERR(set))
+	if (IS_ERR(set)) {
+		NL_SET_BAD_ATTR(extack, nla[NFTA_SET_NAME]);
 		return PTR_ERR(set);
+	}
 
 	skb2 = alloc_skb(NLMSG_GOODSIZE, GFP_ATOMIC);
 	if (skb2 == NULL)
@@ -4712,10 +4718,6 @@ err_fill_set_info:
 	kfree_skb(skb2);
 	return err;
 }
-
-static const struct nla_policy nft_concat_policy[NFTA_SET_FIELD_MAX + 1] = {
-	[NFTA_SET_FIELD_LEN]	= { .type = NLA_U32 },
-};
 
 static int nft_set_desc_concat_parse(const struct nlattr *attr,
 				     struct nft_set_desc *desc)
@@ -5498,7 +5500,7 @@ static const struct nla_policy nft_set_elem_policy[NFTA_SET_ELEM_MAX + 1] = {
 	[NFTA_SET_ELEM_OBJREF]		= { .type = NLA_STRING,
 					    .len = NFT_OBJ_MAXNAMELEN - 1 },
 	[NFTA_SET_ELEM_KEY_END]		= { .type = NLA_NESTED },
-	[NFTA_SET_ELEM_EXPRESSIONS]	= { .type = NLA_NESTED },
+	[NFTA_SET_ELEM_EXPRESSIONS]	= NLA_POLICY_NESTED_ARRAY(nft_expr_policy),
 };
 
 static const struct nla_policy nft_set_elem_list_policy[NFTA_SET_ELEM_LIST_MAX + 1] = {
@@ -5506,7 +5508,7 @@ static const struct nla_policy nft_set_elem_list_policy[NFTA_SET_ELEM_LIST_MAX +
 					    .len = NFT_TABLE_MAXNAMELEN - 1 },
 	[NFTA_SET_ELEM_LIST_SET]	= { .type = NLA_STRING,
 					    .len = NFT_SET_MAXNAMELEN - 1 },
-	[NFTA_SET_ELEM_LIST_ELEMENTS]	= { .type = NLA_NESTED },
+	[NFTA_SET_ELEM_LIST_ELEMENTS]	= NLA_POLICY_NESTED_ARRAY(nft_set_elem_policy),
 	[NFTA_SET_ELEM_LIST_SET_ID]	= { .type = NLA_U32 },
 };
 
@@ -6025,8 +6027,10 @@ static int nf_tables_getsetelem(struct sk_buff *skb,
 	}
 
 	set = nft_set_lookup(table, nla[NFTA_SET_ELEM_LIST_SET], genmask);
-	if (IS_ERR(set))
+	if (IS_ERR(set)) {
+		NL_SET_BAD_ATTR(extack, nla[NFTA_SET_ELEM_LIST_SET]);
 		return PTR_ERR(set);
+	}
 
 	nft_ctx_init(&ctx, net, skb, info->nlh, family, table, NULL, nla);
 
@@ -6919,8 +6923,10 @@ static int nf_tables_newsetelem(struct sk_buff *skb,
 
 	set = nft_set_lookup_global(net, table, nla[NFTA_SET_ELEM_LIST_SET],
 				    nla[NFTA_SET_ELEM_LIST_SET_ID], genmask);
-	if (IS_ERR(set))
+	if (IS_ERR(set)) {
+		NL_SET_BAD_ATTR(extack, nla[NFTA_SET_ELEM_LIST_SET]);
 		return PTR_ERR(set);
+	}
 
 	if (!list_empty(&set->bindings) &&
 	    (set->flags & (NFT_SET_CONSTANT | NFT_SET_ANONYMOUS)))
@@ -7195,8 +7201,10 @@ static int nf_tables_delsetelem(struct sk_buff *skb,
 	}
 
 	set = nft_set_lookup(table, nla[NFTA_SET_ELEM_LIST_SET], genmask);
-	if (IS_ERR(set))
+	if (IS_ERR(set)) {
+		NL_SET_BAD_ATTR(extack, nla[NFTA_SET_ELEM_LIST_SET]);
 		return PTR_ERR(set);
+	}
 
 	if (nft_set_is_anonymous(set))
 		return -EOPNOTSUPP;
@@ -8680,6 +8688,7 @@ static int nf_tables_getflowtable(struct sk_buff *skb,
 				  const struct nfnl_info *info,
 				  const struct nlattr * const nla[])
 {
+	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_cur(info->net);
 	u8 family = info->nfmsg->nfgen_family;
 	struct nft_flowtable *flowtable;
@@ -8705,13 +8714,17 @@ static int nf_tables_getflowtable(struct sk_buff *skb,
 
 	table = nft_table_lookup(net, nla[NFTA_FLOWTABLE_TABLE], family,
 				 genmask, 0);
-	if (IS_ERR(table))
+	if (IS_ERR(table)) {
+		NL_SET_BAD_ATTR(extack, nla[NFTA_FLOWTABLE_TABLE]);
 		return PTR_ERR(table);
+	}
 
 	flowtable = nft_flowtable_lookup(table, nla[NFTA_FLOWTABLE_NAME],
 					 genmask);
-	if (IS_ERR(flowtable))
+	if (IS_ERR(flowtable)) {
+		NL_SET_BAD_ATTR(extack, nla[NFTA_FLOWTABLE_NAME]);
 		return PTR_ERR(flowtable);
+	}
 
 	skb2 = alloc_skb(NLMSG_GOODSIZE, GFP_ATOMIC);
 	if (!skb2)
