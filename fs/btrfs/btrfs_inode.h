@@ -390,7 +390,7 @@ static inline bool btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 	spin_lock(&inode->lock);
 	if (inode->logged_trans == generation &&
 	    inode->last_sub_trans <= inode->last_log_commit &&
-	    inode->last_sub_trans <= inode->root->last_log_commit)
+	    inode->last_sub_trans <= btrfs_get_root_last_log_commit(inode->root))
 		ret = true;
 	spin_unlock(&inode->lock);
 	return ret;

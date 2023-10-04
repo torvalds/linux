@@ -677,7 +677,7 @@ static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 	atomic_set(&root->nr_swapfiles, 0);
 	root->log_transid = 0;
 	root->log_transid_committed = -1;
-	root->last_log_commit = 0;
+	btrfs_set_root_last_log_commit(root, 0);
 	root->anon_dev = 0;
 	if (!dummy) {
 		extent_io_tree_init(fs_info, &root->dirty_log_pages,
@@ -1006,7 +1006,7 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 	root->log_root = log_root;
 	root->log_transid = 0;
 	root->log_transid_committed = -1;
-	root->last_log_commit = 0;
+	btrfs_set_root_last_log_commit(root, 0);
 	return 0;
 }
 

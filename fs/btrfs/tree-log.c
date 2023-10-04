@@ -3133,8 +3133,8 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * someone else already started it. We use <= and not < because the
 	 * first log transaction has an ID of 0.
 	 */
-	ASSERT(root->last_log_commit <= log_transid);
-	root->last_log_commit = log_transid;
+	ASSERT(btrfs_get_root_last_log_commit(root) <= log_transid);
+	btrfs_set_root_last_log_commit(root, log_transid);
 
 out_wake_log_root:
 	mutex_lock(&log_root_tree->log_mutex);

@@ -194,7 +194,11 @@ struct btrfs_root {
 	int log_transid;
 	/* No matter the commit succeeds or not*/
 	int log_transid_committed;
-	/* Just be updated when the commit succeeds. */
+	/*
+	 * Just be updated when the commit succeeds. Use
+	 * btrfs_get_root_last_log_commit() and btrfs_set_root_last_log_commit()
+	 * to access this field.
+	 */
 	int last_log_commit;
 	pid_t log_start_pid;
 
@@ -326,6 +330,16 @@ static inline bool btrfs_root_dead(const struct btrfs_root *root)
 static inline u64 btrfs_root_id(const struct btrfs_root *root)
 {
 	return root->root_key.objectid;
+}
+
+static inline int btrfs_get_root_last_log_commit(const struct btrfs_root *root)
+{
+	return READ_ONCE(root->last_log_commit);
+}
+
+static inline void btrfs_set_root_last_log_commit(struct btrfs_root *root, int commit_id)
+{
+	WRITE_ONCE(root->last_log_commit, commit_id);
 }
 
 /*
