@@ -151,6 +151,8 @@ static const struct ieee80211_ops wfx_ops = {
 	.change_chanctx          = wfx_change_chanctx,
 	.assign_vif_chanctx      = wfx_assign_vif_chanctx,
 	.unassign_vif_chanctx    = wfx_unassign_vif_chanctx,
+	.remain_on_channel       = wfx_remain_on_channel,
+	.cancel_remain_on_channel = wfx_cancel_remain_on_channel,
 };
 
 bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
@@ -289,6 +291,7 @@ struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_da
 	hw->wiphy->features |= NL80211_FEATURE_AP_SCAN;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
+	hw->wiphy->max_remain_on_channel_duration = 5000;
 	hw->wiphy->max_ap_assoc_sta = HIF_LINK_ID_MAX;
 	hw->wiphy->max_scan_ssids = 2;
 	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;

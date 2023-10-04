@@ -728,6 +728,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	init_completion(&wvif->scan_complete);
 	INIT_WORK(&wvif->scan_work, wfx_hw_scan_work);
+	INIT_WORK(&wvif->remain_on_channel_work, wfx_remain_on_channel_work);
 
 	wfx_tx_queues_init(wvif);
 	wfx_tx_policy_init(wvif);

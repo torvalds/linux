@@ -70,6 +70,7 @@ struct wfx_vif {
 
 	bool                       after_dtim_tx_allowed;
 	bool                       join_in_progress;
+	struct completion          set_pm_mode_complete;
 
 	struct delayed_work        beacon_loss_work;
 
@@ -87,7 +88,9 @@ struct wfx_vif {
 	bool                       scan_abort;
 	struct ieee80211_scan_request *scan_req;
 
-	struct completion          set_pm_mode_complete;
+	struct ieee80211_channel   *remain_on_channel_chan;
+	int                        remain_on_channel_duration;
+	struct work_struct         remain_on_channel_work;
 };
 
 static inline struct ieee80211_vif *wvif_to_vif(struct wfx_vif *wvif)
