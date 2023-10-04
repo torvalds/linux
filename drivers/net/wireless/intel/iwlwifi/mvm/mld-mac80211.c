@@ -623,6 +623,126 @@ static int iwl_mvm_mld_mac_sta_state(struct ieee80211_hw *hw,
 					    &callbacks);
 }
 
+struct iwl_mvm_link_sel_data {
+	u8 link_id;
+	enum nl80211_band band;
+	bool active;
+};
+
+static bool iwl_mvm_mld_valid_link_pair(struct iwl_mvm_link_sel_data *a,
+					struct iwl_mvm_link_sel_data *b)
+{
+	return a->band != b->band;
+}
+
+void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			      bool valid_links_changed)
+{
+	struct iwl_mvm_link_sel_data data[IEEE80211_MLD_MAX_NUM_LINKS];
+	unsigned long usable_links = ieee80211_vif_usable_links(vif);
+	u32 max_active_links = iwl_mvm_max_active_links(mvm, vif);
+	u16 new_active_links;
+	u8 link_id, n_data = 0, i, j;
+
+	if (!IWL_MVM_AUTO_EML_ENABLE)
+		return;
+
+	if (!ieee80211_vif_is_mld(vif) || usable_links == 1)
+		return;
+
+	/* The logic below is a simple version that doesn't suit more than 2
+	 * links
+	 */
+	WARN_ON_ONCE(max_active_links > 2);
+
+	/* if only a single active link is supported, assume that the one
+	 * selected by higher layer for connection establishment is the best.
+	 */
+	if (max_active_links == 1 && !valid_links_changed)
+		return;
+
+	/* If we are already using the maximal number of active links, don't do
+	 * any change. This can later be optimized to pick a 'better' link pair.
+	 */
+	if (hweight16(vif->active_links) == max_active_links)
+		return;
+
+	rcu_read_lock();
+
+	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_bss_conf *link_conf =
+			rcu_dereference(vif->link_conf[link_id]);
+
+		if (WARN_ON_ONCE(!link_conf))
+			continue;
+
+		data[n_data].link_id = link_id;
+		data[n_data].band = link_conf->chandef.chan->band;
+		data[n_data].active = vif->active_links & BIT(link_id);
+		n_data++;
+	}
+
+	rcu_read_unlock();
+
+	/* this is expected to be the current active link */
+	if (n_data == 1)
+		return;
+
+	new_active_links = 0;
+
+	/* Assume that after association only a single link is active, thus,
+	 * select only the 2nd link
+	 */
+	if (!valid_links_changed) {
+		for (i = 0; i < n_data; i++) {
+			if (data[i].active)
+				break;
+		}
+
+		if (WARN_ON_ONCE(i == n_data))
+			return;
+
+		for (j = 0; j < n_data; j++) {
+			if (i == j)
+				continue;
+
+			if (iwl_mvm_mld_valid_link_pair(&data[i], &data[j]))
+				break;
+		}
+
+		if (j != n_data)
+			new_active_links = BIT(data[i].link_id) |
+				BIT(data[j].link_id);
+	} else {
+		/* Try to find a valid link pair for EMLSR operation. If a pair
+		 * is not found continue using the current active link.
+		 */
+		for (i = 0; i < n_data; i++) {
+			for (j = 0; j < n_data; j++) {
+				if (i == j)
+					continue;
+
+				if (iwl_mvm_mld_valid_link_pair(&data[i],
+								&data[j]))
+					break;
+			}
+
+			/* found a valid pair for EMLSR, use it */
+			if (j != n_data) {
+				new_active_links = BIT(data[i].link_id) |
+					BIT(data[j].link_id);
+				break;
+			}
+		}
+	}
+
+	if (WARN_ON(!new_active_links))
+		return;
+
+	if (vif->active_links != new_active_links)
+		ieee80211_set_active_links_async(vif, new_active_links);
+}
+
 static void
 iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
@@ -666,6 +786,9 @@ iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 	ret = iwl_mvm_mld_mac_ctxt_changed(mvm, vif, false);
 	if (ret)
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
+
+	if (changes & BSS_CHANGED_MLD_VALID_LINKS)
+		iwl_mvm_mld_select_links(mvm, vif, true);
 
 	memcpy(mvmvif->link[link_conf->link_id]->bssid, link_conf->bssid,
 	       ETH_ALEN);
