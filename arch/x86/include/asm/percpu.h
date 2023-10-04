@@ -28,26 +28,50 @@
 #include <linux/stringify.h>
 
 #ifdef CONFIG_SMP
+
+#ifdef CONFIG_CC_HAS_NAMED_AS
+
+#ifdef CONFIG_X86_64
+#define __percpu_seg_override	__seg_gs
+#else
+#define __percpu_seg_override	__seg_fs
+#endif
+
+#define __percpu_prefix		""
+
+#else /* CONFIG_CC_HAS_NAMED_AS */
+
+#define __percpu_seg_override
 #define __percpu_prefix		"%%"__stringify(__percpu_seg)":"
+
+#endif /* CONFIG_CC_HAS_NAMED_AS */
+
+#define __force_percpu_prefix	"%%"__stringify(__percpu_seg)":"
 #define __my_cpu_offset		this_cpu_read(this_cpu_off)
 
 /*
  * Compared to the generic __my_cpu_offset version, the following
  * saves one instruction and avoids clobbering a temp register.
  */
-#define arch_raw_cpu_ptr(ptr)				\
-({							\
-	unsigned long tcp_ptr__;			\
-	asm ("add " __percpu_arg(1) ", %0"		\
-	     : "=r" (tcp_ptr__)				\
-	     : "m" (this_cpu_off), "0" (ptr));		\
-	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;	\
+#define arch_raw_cpu_ptr(ptr)					\
+({								\
+	unsigned long tcp_ptr__;				\
+	asm ("add " __percpu_arg(1) ", %0"			\
+	     : "=r" (tcp_ptr__)					\
+	     : "m" (__my_cpu_var(this_cpu_off)), "0" (ptr));	\
+	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;		\
 })
-#else
+#else /* CONFIG_SMP */
+#define __percpu_seg_override
 #define __percpu_prefix		""
-#endif
+#define __force_percpu_prefix	""
+#endif /* CONFIG_SMP */
 
+#define __my_cpu_type(var)	typeof(var) __percpu_seg_override
+#define __my_cpu_ptr(ptr)	(__my_cpu_type(*ptr) *)(uintptr_t)(ptr)
+#define __my_cpu_var(var)	(*__my_cpu_ptr(&var))
 #define __percpu_arg(x)		__percpu_prefix "%" #x
+#define __force_percpu_arg(x)	__force_percpu_prefix "%" #x
 
 /*
  * Initialized pointers to per-cpu variables needed for the boot
@@ -107,14 +131,14 @@ do {									\
 		(void)pto_tmp__;					\
 	}								\
 	asm qual(__pcpu_op2_##size(op, "%[val]", __percpu_arg([var]))	\
-	    : [var] "+m" (_var)						\
+	    : [var] "+m" (__my_cpu_var(_var))				\
 	    : [val] __pcpu_reg_imm_##size(pto_val__));			\
 } while (0)
 
 #define percpu_unary_op(size, qual, op, _var)				\
 ({									\
 	asm qual (__pcpu_op1_##size(op, __percpu_arg([var]))		\
-	    : [var] "+m" (_var));					\
+	    : [var] "+m" (__my_cpu_var(_var)));				\
 })
 
 /*
@@ -144,14 +168,14 @@ do {									\
 	__pcpu_type_##size pfo_val__;					\
 	asm qual (__pcpu_op2_##size(op, __percpu_arg([var]), "%[val]")	\
 	    : [val] __pcpu_reg_##size("=", pfo_val__)			\
-	    : [var] "m" (_var));					\
+	    : [var] "m" (__my_cpu_var(_var)));				\
 	(typeof(_var))(unsigned long) pfo_val__;			\
 })
 
 #define percpu_stable_op(size, op, _var)				\
 ({									\
 	__pcpu_type_##size pfo_val__;					\
-	asm(__pcpu_op2_##size(op, __percpu_arg(P[var]), "%[val]")	\
+	asm(__pcpu_op2_##size(op, __force_percpu_arg(P[var]), "%[val]")	\
 	    : [val] __pcpu_reg_##size("=", pfo_val__)			\
 	    : [var] "p" (&(_var)));					\
 	(typeof(_var))(unsigned long) pfo_val__;			\
@@ -166,7 +190,7 @@ do {									\
 	asm qual (__pcpu_op2_##size("xadd", "%[tmp]",			\
 				     __percpu_arg([var]))		\
 		  : [tmp] __pcpu_reg_##size("+", paro_tmp__),		\
-		    [var] "+m" (_var)					\
+		    [var] "+m" (__my_cpu_var(_var))			\
 		  : : "memory");					\
 	(typeof(_var))(unsigned long) (paro_tmp__ + _val);		\
 })
@@ -187,7 +211,7 @@ do {									\
 				    __percpu_arg([var]))		\
 		  "\n\tjnz 1b"						\
 		  : [oval] "=&a" (pxo_old__),				\
-		    [var] "+m" (_var)					\
+		    [var] "+m" (__my_cpu_var(_var))			\
 		  : [nval] __pcpu_reg_##size(, pxo_new__)		\
 		  : "memory");						\
 	(typeof(_var))(unsigned long) pxo_old__;			\
@@ -204,7 +228,7 @@ do {									\
 	asm qual (__pcpu_op2_##size("cmpxchg", "%[nval]",		\
 				    __percpu_arg([var]))		\
 		  : [oval] "+a" (pco_old__),				\
-		    [var] "+m" (_var)					\
+		    [var] "+m" (__my_cpu_var(_var))			\
 		  : [nval] __pcpu_reg_##size(, pco_new__)		\
 		  : "memory");						\
 	(typeof(_var))(unsigned long) pco_old__;			\
@@ -221,7 +245,7 @@ do {									\
 		  CC_SET(z)						\
 		  : CC_OUT(z) (success),				\
 		    [oval] "+a" (pco_old__),				\
-		    [var] "+m" (_var)					\
+		    [var] "+m" (__my_cpu_var(_var))			\
 		  : [nval] __pcpu_reg_##size(, pco_new__)		\
 		  : "memory");						\
 	if (unlikely(!success))						\
@@ -244,7 +268,7 @@ do {									\
 									\
 	asm qual (ALTERNATIVE("call this_cpu_cmpxchg8b_emu",		\
 			      "cmpxchg8b " __percpu_arg([var]), X86_FEATURE_CX8) \
-		  : [var] "+m" (_var),					\
+		  : [var] "+m" (__my_cpu_var(_var)),			\
 		    "+a" (old__.low),					\
 		    "+d" (old__.high)					\
 		  : "b" (new__.low),					\
@@ -276,7 +300,7 @@ do {									\
 			      "cmpxchg8b " __percpu_arg([var]), X86_FEATURE_CX8) \
 		  CC_SET(z)						\
 		  : CC_OUT(z) (success),				\
-		    [var] "+m" (_var),					\
+		    [var] "+m" (__my_cpu_var(_var)),			\
 		    "+a" (old__.low),					\
 		    "+d" (old__.high)					\
 		  : "b" (new__.low),					\
@@ -313,7 +337,7 @@ do {									\
 									\
 	asm qual (ALTERNATIVE("call this_cpu_cmpxchg16b_emu",		\
 			      "cmpxchg16b " __percpu_arg([var]), X86_FEATURE_CX16) \
-		  : [var] "+m" (_var),					\
+		  : [var] "+m" (__my_cpu_var(_var)),			\
 		    "+a" (old__.low),					\
 		    "+d" (old__.high)					\
 		  : "b" (new__.low),					\
@@ -345,7 +369,7 @@ do {									\
 			      "cmpxchg16b " __percpu_arg([var]), X86_FEATURE_CX16) \
 		  CC_SET(z)						\
 		  : CC_OUT(z) (success),				\
-		    [var] "+m" (_var),					\
+		    [var] "+m" (__my_cpu_var(_var)),			\
 		    "+a" (old__.low),					\
 		    "+d" (old__.high)					\
 		  : "b" (new__.low),					\
@@ -494,7 +518,7 @@ static inline bool x86_this_cpu_variable_test_bit(int nr,
 	asm volatile("btl "__percpu_arg(2)",%1"
 			CC_SET(c)
 			: CC_OUT(c) (oldbit)
-			: "m" (*(unsigned long __percpu *)addr), "Ir" (nr));
+			: "m" (*__my_cpu_ptr((unsigned long __percpu *)(addr))), "Ir" (nr));
 
 	return oldbit;
 }
