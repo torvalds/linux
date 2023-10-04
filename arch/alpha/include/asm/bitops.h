@@ -286,6 +286,27 @@ arch___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 #define arch_test_bit generic_test_bit
 #define arch_test_bit_acquire generic_test_bit_acquire
 
+static inline bool xor_unlock_is_negative_byte(unsigned long mask,
+		volatile unsigned long *p)
+{
+	unsigned long temp, old;
+
+	__asm__ __volatile__(
+	"1:	ldl_l %0,%4\n"
+	"	mov %0,%2\n"
+	"	xor %0,%3,%0\n"
+	"	stl_c %0,%1\n"
+	"	beq %0,2f\n"
+	".subsection 2\n"
+	"2:	br 1b\n"
+	".previous"
+	:"=&r" (temp), "=m" (*p), "=&r" (old)
+	:"Ir" (mask), "m" (*p));
+
+	return (old & BIT(7)) != 0;
+}
+#define xor_unlock_is_negative_byte xor_unlock_is_negative_byte
+
 /*
  * ffz = Find First Zero in word. Undefined if no zero exists,
  * so code should check against ~0UL first..
