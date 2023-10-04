@@ -2051,7 +2051,7 @@ int btrfs_verify_level_key(struct extent_buffer *eb, int level,
 	 * So we only checks tree blocks which is read from disk, whose
 	 * generation <= fs_info->last_trans_committed.
 	 */
-	if (btrfs_header_generation(eb) > fs_info->last_trans_committed)
+	if (btrfs_header_generation(eb) > btrfs_get_last_trans_committed(fs_info))
 		return 0;
 
 	/* We have @first_key, so this @eb must have at least one item */

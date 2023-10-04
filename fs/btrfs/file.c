@@ -1760,7 +1760,7 @@ static inline bool skip_inode_logging(const struct btrfs_log_ctx *ctx)
 	 * and for a fast fsync we don't wait for that, we only wait for the
 	 * writeback to complete.
 	 */
-	if (inode->last_trans <= fs_info->last_trans_committed &&
+	if (inode->last_trans <= btrfs_get_last_trans_committed(fs_info) &&
 	    (test_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags) ||
 	     list_empty(&ctx->ordered_extents)))
 		return true;

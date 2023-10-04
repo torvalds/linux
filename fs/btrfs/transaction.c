@@ -980,7 +980,7 @@ int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid)
 	int ret = 0;
 
 	if (transid) {
-		if (transid <= fs_info->last_trans_committed)
+		if (transid <= btrfs_get_last_trans_committed(fs_info))
 			goto out;
 
 		/* find specified transaction */
@@ -1004,7 +1004,7 @@ int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid)
 		 * raced with btrfs_commit_transaction
 		 */
 		if (!cur_trans) {
-			if (transid > fs_info->last_trans_committed)
+			if (transid > btrfs_get_last_trans_committed(fs_info))
 				ret = -EINVAL;
 			goto out;
 		}
@@ -2587,7 +2587,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	if (test_bit(BTRFS_TRANS_HAVE_FREE_BGS, &cur_trans->flags))
 		btrfs_clear_space_info_full(fs_info);
 
-	fs_info->last_trans_committed = cur_trans->transid;
+	btrfs_set_last_trans_committed(fs_info, cur_trans->transid);
 	/*
 	 * We needn't acquire the lock here because there is no other task
 	 * which can change it.

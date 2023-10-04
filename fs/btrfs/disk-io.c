@@ -244,6 +244,7 @@ blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio)
 	struct extent_buffer *eb = bbio->private;
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	u64 found_start = btrfs_header_bytenr(eb);
+	u64 last_trans;
 	u8 result[BTRFS_CSUM_SIZE];
 	int ret;
 
@@ -281,12 +282,12 @@ blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio)
 	 * Also check the generation, the eb reached here must be newer than
 	 * last committed. Or something seriously wrong happened.
 	 */
-	if (unlikely(btrfs_header_generation(eb) <= fs_info->last_trans_committed)) {
+	last_trans = btrfs_get_last_trans_committed(fs_info);
+	if (unlikely(btrfs_header_generation(eb) <= last_trans)) {
 		ret = -EUCLEAN;
 		btrfs_err(fs_info,
 			"block=%llu bad generation, have %llu expect > %llu",
-			  eb->start, btrfs_header_generation(eb),
-			  fs_info->last_trans_committed);
+			  eb->start, btrfs_header_generation(eb), last_trans);
 		goto error;
 	}
 	write_extent_buffer(eb, result, 0, fs_info->csum_size);
@@ -2653,7 +2654,7 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 
 		/* All successful */
 		fs_info->generation = btrfs_header_generation(tree_root->node);
-		fs_info->last_trans_committed = fs_info->generation;
+		btrfs_set_last_trans_committed(fs_info, fs_info->generation);
 		fs_info->last_reloc_trans = 0;
 
 		/* Always begin writing backup roots after the one being used */

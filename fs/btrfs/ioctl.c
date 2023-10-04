@@ -3131,7 +3131,7 @@ static noinline long btrfs_ioctl_start_sync(struct btrfs_root *root,
 			return PTR_ERR(trans);
 
 		/* No running transaction, don't bother */
-		transid = root->fs_info->last_trans_committed;
+		transid = btrfs_get_last_trans_committed(root->fs_info);
 		goto out;
 	}
 	transid = trans->transid;
