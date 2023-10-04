@@ -23,6 +23,12 @@
 		stdout-path = &uart2;
 	};
 
+	clk_xtal25: clock-xtal25 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
 	connector {
 		compatible = "usb-c-connector";
 		label = "USB-C";
@@ -110,12 +116,6 @@
 			gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
-	};
-
-	pcie0_refclk: clock-pcie {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <100000000>;
 	};
 
 	reg_audio: regulator-wm8962 {
@@ -246,6 +246,13 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
+
+	pcieclk: clock-generator@68 {
+		compatible = "renesas,9fgv0241";
+		reg = <0x68>;
+		clocks = <&clk_xtal25>;
+		#clock-cells = <1>;
+	};
 };
 
 &i2c3 {
@@ -372,8 +379,9 @@
 };
 
 &pcie_phy {
+	fsl,clkreq-unsupported;
 	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
-	clocks = <&pcie0_refclk>;
+	clocks = <&pcieclk 1>;
 	clock-names = "ref";
 	status = "okay";
 };
