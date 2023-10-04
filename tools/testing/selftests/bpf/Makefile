@@ -188,7 +188,7 @@ $(OUTPUT)/%:%.c
 	$(Q)$(LINK.c) $^ $(LDLIBS) -o $@
 
 # LLVM's ld.lld doesn't support all the architectures, so use it only on x86
-ifeq ($(SRCARCH),x86)
+ifeq ($(SRCARCH),$(filter $(SRCARCH),x86 riscv))
 LLD := lld
 else
 LLD := ld
