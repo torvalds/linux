@@ -228,10 +228,10 @@ static bool __init test_barrier(void)
 	spin_lock(&test_spinlock);
 	KCSAN_CHECK_RW_BARRIER(spin_unlock(&test_spinlock));
 
-#ifdef clear_bit_unlock_is_negative_byte
-	KCSAN_CHECK_RW_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var));
-	KCSAN_CHECK_READ_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var));
-	KCSAN_CHECK_WRITE_BARRIER(clear_bit_unlock_is_negative_byte(0, &test_var));
+#ifdef xor_unlock_is_negative_byte
+	KCSAN_CHECK_RW_BARRIER(xor_unlock_is_negative_byte(1, &test_var));
+	KCSAN_CHECK_READ_BARRIER(xor_unlock_is_negative_byte(1, &test_var));
+	KCSAN_CHECK_WRITE_BARRIER(xor_unlock_is_negative_byte(1, &test_var));
 #endif
 	kcsan_nestable_atomic_end();
 

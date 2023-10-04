@@ -234,32 +234,25 @@ static inline int arch_test_and_change_bit(unsigned long nr,
 }
 
 #ifdef CONFIG_PPC64
-static inline unsigned long
-clear_bit_unlock_return_word(int nr, volatile unsigned long *addr)
+static inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
+		volatile unsigned long *p)
 {
 	unsigned long old, t;
-	unsigned long *p = (unsigned long *)addr + BIT_WORD(nr);
-	unsigned long mask = BIT_MASK(nr);
 
 	__asm__ __volatile__ (
 	PPC_RELEASE_BARRIER
 "1:"	PPC_LLARX "%0,0,%3,0\n"
-	"andc %1,%0,%2\n"
+	"xor %1,%0,%2\n"
 	PPC_STLCX "%1,0,%3\n"
 	"bne- 1b\n"
 	: "=&r" (old), "=&r" (t)
 	: "r" (mask), "r" (p)
 	: "cc", "memory");
 
-	return old;
+	return (old & BIT_MASK(7)) != 0;
 }
 
-/*
- * This is a special function for mm/filemap.c
- * Bit 7 corresponds to PG_waiters.
- */
-#define arch_clear_bit_unlock_is_negative_byte(nr, addr)		\
-	(clear_bit_unlock_return_word(nr, addr) & BIT_MASK(7))
+#define arch_xor_unlock_is_negative_byte arch_xor_unlock_is_negative_byte
 
 #endif /* CONFIG_PPC64 */
 

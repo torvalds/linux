@@ -58,27 +58,30 @@ static inline bool test_and_set_bit_lock(long nr, volatile unsigned long *addr)
 	return arch_test_and_set_bit_lock(nr, addr);
 }
 
-#if defined(arch_clear_bit_unlock_is_negative_byte)
+#if defined(arch_xor_unlock_is_negative_byte)
 /**
- * clear_bit_unlock_is_negative_byte - Clear a bit in memory and test if bottom
- *                                     byte is negative, for unlock.
- * @nr: the bit to clear
- * @addr: the address to start counting from
+ * xor_unlock_is_negative_byte - XOR a single byte in memory and test if
+ * it is negative, for unlock.
+ * @mask: Change the bits which are set in this mask.
+ * @addr: The address of the word containing the byte to change.
  *
+ * Changes some of bits 0-6 in the word pointed to by @addr.
  * This operation is atomic and provides release barrier semantics.
+ * Used to optimise some folio operations which are commonly paired
+ * with an unlock or end of writeback.  Bit 7 is used as PG_waiters to
+ * indicate whether anybody is waiting for the unlock.
  *
- * This is a bit of a one-trick-pony for the filemap code, which clears
- * PG_locked and tests PG_waiters,
+ * Return: Whether the top bit of the byte is set.
  */
-static inline bool
-clear_bit_unlock_is_negative_byte(long nr, volatile unsigned long *addr)
+static inline bool xor_unlock_is_negative_byte(unsigned long mask,
+		volatile unsigned long *addr)
 {
 	kcsan_release();
-	instrument_atomic_write(addr + BIT_WORD(nr), sizeof(long));
-	return arch_clear_bit_unlock_is_negative_byte(nr, addr);
+	instrument_atomic_write(addr, sizeof(long));
+	return arch_xor_unlock_is_negative_byte(mask, addr);
 }
 /* Let everybody know we have it. */
-#define clear_bit_unlock_is_negative_byte clear_bit_unlock_is_negative_byte
+#define xor_unlock_is_negative_byte xor_unlock_is_negative_byte
 #endif
 
 #endif /* _ASM_GENERIC_BITOPS_INSTRUMENTED_LOCK_H */

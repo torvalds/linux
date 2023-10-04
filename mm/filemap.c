@@ -1482,6 +1482,11 @@ void folio_add_wait_queue(struct folio *folio, wait_queue_entry_t *waiter)
 }
 EXPORT_SYMBOL_GPL(folio_add_wait_queue);
 
+#ifdef xor_unlock_is_negative_byte
+#define clear_bit_unlock_is_negative_byte(nr, p)	\
+	xor_unlock_is_negative_byte(1 << nr, p)
+#endif
+
 #ifndef clear_bit_unlock_is_negative_byte
 
 /*
