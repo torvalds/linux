@@ -379,6 +379,33 @@ int adf_init_admin_pm(struct adf_accel_dev *accel_dev, u32 idle_delay)
 	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
 }
 
+int adf_get_pm_info(struct adf_accel_dev *accel_dev, dma_addr_t p_state_addr,
+		    size_t buff_size)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct icp_qat_fw_init_admin_req req = { };
+	struct icp_qat_fw_init_admin_resp resp;
+	u32 ae_mask = hw_data->admin_ae_mask;
+	int ret;
+
+	/* Query pm info via init/admin cmd */
+	if (!accel_dev->admin) {
+		dev_err(&GET_DEV(accel_dev), "adf_admin is not available\n");
+		return -EFAULT;
+	}
+
+	req.cmd_id = ICP_QAT_FW_PM_INFO;
+	req.init_cfg_sz = buff_size;
+	req.init_cfg_ptr = p_state_addr;
+
+	ret = adf_send_admin(accel_dev, &req, &resp, ae_mask);
+	if (ret)
+		dev_err(&GET_DEV(accel_dev),
+			"Failed to query power-management info\n");
+
+	return ret;
+}
+
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 {
 	struct adf_admin_comms *admin;

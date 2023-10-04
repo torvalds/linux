@@ -20,6 +20,7 @@ enum icp_qat_fw_init_admin_cmd_id {
 	ICP_QAT_FW_HEARTBEAT_TIMER_SET = 13,
 	ICP_QAT_FW_TIMER_GET = 19,
 	ICP_QAT_FW_PM_STATE_CONFIG = 128,
+	ICP_QAT_FW_PM_INFO = 129,
 };
 
 enum icp_qat_fw_init_admin_resp_status {
@@ -107,5 +108,39 @@ struct icp_qat_fw_init_admin_resp {
 } __packed;
 
 #define ICP_QAT_FW_SYNC ICP_QAT_FW_HEARTBEAT_SYNC
+
+#define ICP_QAT_NUMBER_OF_PM_EVENTS 8
+
+struct icp_qat_fw_init_admin_pm_info {
+	__u16 max_pwrreq;
+	__u16 min_pwrreq;
+	__u16 resvrd1;
+	__u8 pwr_state;
+	__u8 resvrd2;
+	__u32 fusectl0;
+	struct_group(event_counters,
+		__u32 sys_pm;
+		__u32 host_msg;
+		__u32 unknown;
+		__u32 local_ssm;
+		__u32 timer;
+	);
+	__u32 event_log[ICP_QAT_NUMBER_OF_PM_EVENTS];
+	struct_group(pm,
+		__u32 fw_init;
+		__u32 pwrreq;
+		__u32 status;
+		__u32 main;
+		__u32 thread;
+	);
+	struct_group(ssm,
+		__u32 pm_enable;
+		__u32 pm_active_status;
+		__u32 pm_managed_status;
+		__u32 pm_domain_status;
+		__u32 active_constraint;
+	);
+	__u32 resvrd3[6];
+};
 
 #endif
