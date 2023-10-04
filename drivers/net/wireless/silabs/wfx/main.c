@@ -246,6 +246,7 @@ static void wfx_free_common(void *data)
 
 	mutex_destroy(&wdev->tx_power_loop_info_lock);
 	mutex_destroy(&wdev->rx_stats_lock);
+	mutex_destroy(&wdev->scan_lock);
 	mutex_destroy(&wdev->conf_mutex);
 	ieee80211_free_hw(wdev->hw);
 }
@@ -314,6 +315,7 @@ struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_da
 		gpiod_set_consumer_name(wdev->pdata.gpio_wakeup, "wfx wakeup");
 
 	mutex_init(&wdev->conf_mutex);
+	mutex_init(&wdev->scan_lock);
 	mutex_init(&wdev->rx_stats_lock);
 	mutex_init(&wdev->tx_power_loop_info_lock);
 	init_completion(&wdev->firmware_ready);

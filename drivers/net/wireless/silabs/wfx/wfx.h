@@ -43,6 +43,7 @@ struct wfx_dev {
 	struct delayed_work        cooling_timeout_work;
 	bool                       poll_irq;
 	bool                       chip_frozen;
+	struct mutex               scan_lock;
 	struct mutex               conf_mutex;
 
 	struct wfx_hif_cmd         hif_cmd;
@@ -80,8 +81,6 @@ struct wfx_vif {
 
 	unsigned long              uapsd_mask;
 
-	/* avoid some operations in parallel with scan */
-	struct mutex               scan_lock;
 	struct work_struct         scan_work;
 	struct completion          scan_complete;
 	int                        scan_nb_chan_done;

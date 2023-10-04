@@ -95,7 +95,7 @@ void wfx_hw_scan_work(struct work_struct *work)
 	int chan_cur, ret, err;
 
 	mutex_lock(&wvif->wdev->conf_mutex);
-	mutex_lock(&wvif->scan_lock);
+	mutex_lock(&wvif->wdev->scan_lock);
 	if (wvif->join_in_progress) {
 		dev_info(wvif->wdev->dev, "abort in-progress REQ_JOIN");
 		wfx_reset(wvif);
@@ -116,7 +116,7 @@ void wfx_hw_scan_work(struct work_struct *work)
 			ret = -ETIMEDOUT;
 		}
 	} while (ret >= 0 && chan_cur < hw_req->req.n_channels);
-	mutex_unlock(&wvif->scan_lock);
+	mutex_unlock(&wvif->wdev->scan_lock);
 	mutex_unlock(&wvif->wdev->conf_mutex);
 	wfx_ieee80211_scan_completed_compat(wvif->wdev->hw, ret < 0);
 }
