@@ -302,7 +302,7 @@ properties:
       - description: R-Car E3 (R8A77990)
         items:
           - enum:
-              - renesas,ebisu # Ebisu (RTP0RC77990SEB0010S)
+              - renesas,ebisu # Ebisu (RTP0RC77990SEB0010S), Ebisu-4D (RTP0RC77990SEB0020S)
           - const: renesas,r8a77990
 
       - description: R-Car D3 (R8A77995)
