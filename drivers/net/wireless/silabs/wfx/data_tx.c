@@ -208,6 +208,24 @@ static bool wfx_is_action_back(struct ieee80211_hdr *hdr)
 	return true;
 }
 
+struct wfx_tx_priv *wfx_skb_tx_priv(struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *tx_info;
+
+	if (!skb)
+		return NULL;
+	tx_info = IEEE80211_SKB_CB(skb);
+	return (struct wfx_tx_priv *)tx_info->rate_driver_data;
+}
+
+struct wfx_hif_req_tx *wfx_skb_txreq(struct sk_buff *skb)
+{
+	struct wfx_hif_msg *hif = (struct wfx_hif_msg *)skb->data;
+	struct wfx_hif_req_tx *req = (struct wfx_hif_req_tx *)hif->body;
+
+	return req;
+}
+
 static u8 wfx_tx_get_link_id(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 			     struct ieee80211_hdr *hdr)
 {
