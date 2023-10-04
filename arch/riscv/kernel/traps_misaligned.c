@@ -6,6 +6,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/perf_event.h>
 #include <linux/irq.h>
 #include <linux/stringify.h>
 
@@ -294,6 +295,8 @@ int handle_misaligned_load(struct pt_regs *regs)
 	unsigned long addr = regs->badaddr;
 	int i, fp = 0, shift = 0, len = 0;
 
+	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, addr);
+
 	if (get_insn(regs, epc, &insn))
 		return -1;
 
@@ -381,6 +384,8 @@ int handle_misaligned_store(struct pt_regs *regs)
 	unsigned long insn;
 	unsigned long addr = regs->badaddr;
 	int i, len = 0;
+
+	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, addr);
 
 	if (get_insn(regs, epc, &insn))
 		return -1;
