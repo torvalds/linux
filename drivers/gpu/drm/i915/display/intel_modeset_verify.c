@@ -23,8 +23,8 @@
  * Cross check the actual hw state with our own modeset state tracking (and its
  * internal consistency).
  */
-static void intel_connector_verify_state(struct intel_crtc_state *crtc_state,
-					 struct drm_connector_state *conn_state)
+static void intel_connector_verify_state(const struct intel_crtc_state *crtc_state,
+					 const struct drm_connector_state *conn_state)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
@@ -66,12 +66,12 @@ verify_connector_state(struct intel_atomic_state *state,
 		       struct intel_crtc *crtc)
 {
 	struct drm_connector *connector;
-	struct drm_connector_state *new_conn_state;
+	const struct drm_connector_state *new_conn_state;
 	int i;
 
 	for_each_new_connector_in_state(&state->base, connector, new_conn_state, i) {
 		struct drm_encoder *encoder = connector->encoder;
-		struct intel_crtc_state *crtc_state = NULL;
+		const struct intel_crtc_state *crtc_state = NULL;
 
 		if (new_conn_state->crtc != &crtc->base)
 			continue;
@@ -110,7 +110,7 @@ verify_encoder_state(struct drm_i915_private *dev_priv, struct intel_atomic_stat
 {
 	struct intel_encoder *encoder;
 	struct drm_connector *connector;
-	struct drm_connector_state *old_conn_state, *new_conn_state;
+	const struct drm_connector_state *old_conn_state, *new_conn_state;
 	int i;
 
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
@@ -226,8 +226,8 @@ verify_crtc_state(struct intel_atomic_state *state,
 
 void intel_modeset_verify_crtc(struct intel_crtc *crtc,
 			       struct intel_atomic_state *state,
-			       struct intel_crtc_state *old_crtc_state,
-			       struct intel_crtc_state *new_crtc_state)
+			       const struct intel_crtc_state *old_crtc_state,
+			       const struct intel_crtc_state *new_crtc_state)
 {
 	if (!intel_crtc_needs_modeset(new_crtc_state) &&
 	    !intel_crtc_needs_fastset(new_crtc_state))
