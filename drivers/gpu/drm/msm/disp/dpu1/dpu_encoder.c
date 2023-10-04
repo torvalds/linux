@@ -2400,9 +2400,6 @@ int dpu_encoder_wait_for_event(struct drm_encoder *drm_enc,
 		case MSM_ENC_TX_COMPLETE:
 			fn_wait = phys->ops.wait_for_tx_complete;
 			break;
-		case MSM_ENC_VBLANK:
-			fn_wait = phys->ops.wait_for_vblank;
-			break;
 		default:
 			DPU_ERROR_ENC(dpu_enc, "unknown wait event %d\n",
 					event);
