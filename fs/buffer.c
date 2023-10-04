@@ -282,13 +282,7 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	} while (tmp != bh);
 	spin_unlock_irqrestore(&first->b_uptodate_lock, flags);
 
-	/*
-	 * If all of the buffers are uptodate then we can set the page
-	 * uptodate.
-	 */
-	if (folio_uptodate)
-		folio_mark_uptodate(folio);
-	folio_unlock(folio);
+	folio_end_read(folio, folio_uptodate);
 	return;
 
 still_busy:
@@ -2433,12 +2427,10 @@ int block_read_full_folio(struct folio *folio, get_block_t *get_block)
 
 	if (!nr) {
 		/*
-		 * All buffers are uptodate - we can set the folio uptodate
-		 * as well. But not if get_block() returned an error.
+		 * All buffers are uptodate or get_block() returned an
+		 * error when trying to map them - we can finish the read.
 		 */
-		if (!page_error)
-			folio_mark_uptodate(folio);
-		folio_unlock(folio);
+		folio_end_read(folio, !page_error);
 		return 0;
 	}
 
