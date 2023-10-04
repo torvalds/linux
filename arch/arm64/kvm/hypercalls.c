@@ -164,7 +164,7 @@ out_destroy:
 
 static bool kvm_smccc_filter_configured(struct kvm *kvm)
 {
-	return test_bit(KVM_ARCH_FLAT_SMCCC_FILTER_CONFIGURED, &kvm->arch.flags);
+	return !mtree_empty(&kvm->arch.smccc_filter);
 }
 
 static int kvm_smccc_set_filter(struct kvm *kvm, struct kvm_smccc_filter __user *uaddr)
@@ -201,11 +201,6 @@ static int kvm_smccc_set_filter(struct kvm *kvm, struct kvm_smccc_filter __user 
 
 	r = mtree_insert_range(&kvm->arch.smccc_filter, start, end,
 			       xa_mk_value(filter.action), GFP_KERNEL_ACCOUNT);
-	if (r)
-		goto out_unlock;
-
-	set_bit(KVM_ARCH_FLAG_SMCCC_FILTER_CONFIGURED, &kvm->arch.flags);
-
 out_unlock:
 	mutex_unlock(&kvm->arch.config_lock);
 	return r;

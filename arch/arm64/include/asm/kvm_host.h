@@ -239,10 +239,8 @@ struct kvm_arch {
 #define KVM_ARCH_FLAG_VM_COUNTER_OFFSET			5
 	/* Timer PPIs made immutable */
 #define KVM_ARCH_FLAG_TIMER_PPIS_IMMUTABLE		6
-	/* SMCCC filter initialized for the VM */
-#define KVM_ARCH_FLAG_SMCCC_FILTER_CONFIGURED		7
 	/* Initial ID reg values loaded */
-#define KVM_ARCH_FLAG_ID_REGS_INITIALIZED		8
+#define KVM_ARCH_FLAG_ID_REGS_INITIALIZED		7
 	unsigned long flags;
 
 	/* VM-wide vCPU feature set */
