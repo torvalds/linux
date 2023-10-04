@@ -3800,7 +3800,7 @@ cache_index:
 	 * This is required for both inode re-read from disk and delayed inode
 	 * in delayed_nodes_tree.
 	 */
-	if (BTRFS_I(inode)->last_trans == fs_info->generation)
+	if (BTRFS_I(inode)->last_trans == btrfs_get_fs_generation(fs_info))
 		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
 			&BTRFS_I(inode)->runtime_flags);
 
@@ -4923,7 +4923,7 @@ int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size)
 			hole_em->orig_block_len = 0;
 			hole_em->ram_bytes = hole_size;
 			hole_em->compress_type = BTRFS_COMPRESS_NONE;
-			hole_em->generation = fs_info->generation;
+			hole_em->generation = btrfs_get_fs_generation(fs_info);
 
 			err = btrfs_replace_extent_map_range(inode, hole_em, true);
 			free_extent_map(hole_em);

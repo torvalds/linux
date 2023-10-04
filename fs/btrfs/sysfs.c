@@ -1201,7 +1201,7 @@ static ssize_t btrfs_generation_show(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 
-	return sysfs_emit(buf, "%llu\n", fs_info->generation);
+	return sysfs_emit(buf, "%llu\n", btrfs_get_fs_generation(fs_info));
 }
 BTRFS_ATTR(, generation, btrfs_generation_show);
 

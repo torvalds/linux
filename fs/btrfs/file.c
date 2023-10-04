@@ -1749,7 +1749,7 @@ static inline bool skip_inode_logging(const struct btrfs_log_ctx *ctx)
 	struct btrfs_inode *inode = BTRFS_I(ctx->inode);
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
-	if (btrfs_inode_in_log(inode, fs_info->generation) &&
+	if (btrfs_inode_in_log(inode, btrfs_get_fs_generation(fs_info)) &&
 	    list_empty(&ctx->ordered_extents))
 		return true;
 
