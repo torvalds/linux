@@ -114,8 +114,8 @@ static inline void nfs_fscache_update_auxdata(struct nfs_fscache_inode_auxdata *
 					      struct inode *inode)
 {
 	memset(auxdata, 0, sizeof(*auxdata));
-	auxdata->mtime_sec  = inode->i_mtime.tv_sec;
-	auxdata->mtime_nsec = inode->i_mtime.tv_nsec;
+	auxdata->mtime_sec  = inode_get_mtime(inode).tv_sec;
+	auxdata->mtime_nsec = inode_get_mtime(inode).tv_nsec;
 	auxdata->ctime_sec  = inode_get_ctime(inode).tv_sec;
 	auxdata->ctime_nsec = inode_get_ctime(inode).tv_nsec;
 
