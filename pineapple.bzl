@@ -316,4 +316,5 @@ def define_pineapple():
                 board_kernel_cmdline_extras = board_kernel_cmdline_extras,
                 board_bootconfig_extras = board_bootconfig_extras,
             ),
+            dpm_overlay = True,
         )
