@@ -502,6 +502,14 @@ u8 rtw_regd_get(struct rtw_dev *rtwdev)
 }
 EXPORT_SYMBOL(rtw_regd_get);
 
+bool rtw_regd_srrc(struct rtw_dev *rtwdev)
+{
+	struct rtw_regd *regd = &rtwdev->regd;
+
+	return rtw_reg_match(regd->regulatory, "CN");
+}
+EXPORT_SYMBOL(rtw_regd_srrc);
+
 struct rtw_regd_alternative_t {
 	bool set;
 	u8 alt;
