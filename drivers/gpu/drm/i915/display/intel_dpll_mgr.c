@@ -4460,7 +4460,7 @@ static void
 verify_single_dpll_state(struct drm_i915_private *i915,
 			 struct intel_shared_dpll *pll,
 			 struct intel_crtc *crtc,
-			 struct intel_crtc_state *new_crtc_state)
+			 const struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_dpll_hw_state dpll_hw_state;
 	u8 pipe_mask;
@@ -4513,8 +4513,8 @@ verify_single_dpll_state(struct drm_i915_private *i915,
 }
 
 void intel_shared_dpll_state_verify(struct intel_crtc *crtc,
-				    struct intel_crtc_state *old_crtc_state,
-				    struct intel_crtc_state *new_crtc_state)
+				    const struct intel_crtc_state *old_crtc_state,
+				    const struct intel_crtc_state *new_crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
