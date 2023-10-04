@@ -5731,6 +5731,10 @@ void topology_probe()
 		}
 	}
 
+	if (!CPU_COUNT_S(cpu_allowed_setsize, cpu_allowed_set))
+		err(-ENODEV, "No valid cpus found");
+	sched_setaffinity(0, cpu_allowed_setsize, cpu_allowed_set);
+
 	/*
 	 * Allocate and initialize cpu_affinity_set
 	 */
@@ -5941,12 +5945,17 @@ void setup_all_buffers(void)
 
 void set_base_cpu(void)
 {
-	base_cpu = sched_getcpu();
-	if (base_cpu < 0)
-		err(-ENODEV, "No valid cpus found");
+	int i;
 
-	if (debug > 1)
-		fprintf(outf, "base_cpu = %d\n", base_cpu);
+	for (i = 0; i < topo.max_cpu_num + 1; ++i) {
+		if (cpu_is_not_allowed(i))
+			continue;
+		base_cpu = i;
+		if (debug > 1)
+			fprintf(outf, "base_cpu = %d\n", base_cpu);
+		return;
+	}
+	err(-ENODEV, "No valid cpus found");
 }
 
 void turbostat_init()
@@ -5976,8 +5985,6 @@ int fork_it(char **argv)
 	first_counter_read = 0;
 	if (status)
 		exit(status);
-	/* clear affinity side-effect of get_counters() */
-	sched_setaffinity(0, cpu_present_setsize, cpu_present_set);
 	gettimeofday(&tv_even, (struct timezone *)NULL);
 
 	child_pid = fork();
