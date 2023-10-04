@@ -239,6 +239,7 @@ static void ovl_file_accessed(struct file *file)
 {
 	struct inode *inode, *upperinode;
 	struct timespec64 ctime, uctime;
+	struct timespec64 mtime, umtime;
 
 	if (file->f_flags & O_NOATIME)
 		return;
@@ -251,9 +252,11 @@ static void ovl_file_accessed(struct file *file)
 
 	ctime = inode_get_ctime(inode);
 	uctime = inode_get_ctime(upperinode);
-	if ((!timespec64_equal(&inode->i_mtime, &upperinode->i_mtime) ||
-	     !timespec64_equal(&ctime, &uctime))) {
-		inode->i_mtime = upperinode->i_mtime;
+	mtime = inode_get_mtime(inode);
+	umtime = inode_get_mtime(upperinode);
+	if ((!timespec64_equal(&mtime, &umtime)) ||
+	     !timespec64_equal(&ctime, &uctime)) {
+		inode_set_mtime_to_ts(inode, inode_get_mtime(upperinode));
 		inode_set_ctime_to_ts(inode, uctime);
 	}
 
