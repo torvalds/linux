@@ -3135,7 +3135,7 @@ static void skl_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
 }
 
 void intel_wm_state_verify(struct intel_crtc *crtc,
-			   struct intel_crtc_state *new_crtc_state)
+			   const struct intel_crtc_state *new_crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct skl_hw_state {
