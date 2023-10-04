@@ -342,8 +342,10 @@ enum rtw_regulatory_domains {
 	RTW_REGD_UKRAINE	= 7,
 	RTW_REGD_MEXICO		= 8,
 	RTW_REGD_CN		= 9,
-	RTW_REGD_WW,
+	RTW_REGD_QATAR		= 10,
+	RTW_REGD_UK		= 11,
 
+	RTW_REGD_WW,
 	RTW_REGD_MAX
 };
 
