@@ -317,6 +317,7 @@ struct adf_accel_dev {
 	atomic_t ref_count;
 	struct dentry *debugfs_dir;
 	struct dentry *fw_cntr_dbgfile;
+	struct dentry *cnv_dbgfile;
 	struct list_head list;
 	struct module *owner;
 	struct adf_accel_pci accel_pci_dev;

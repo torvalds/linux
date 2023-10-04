@@ -19,6 +19,7 @@ enum icp_qat_fw_init_admin_cmd_id {
 	ICP_QAT_FW_DC_CHAIN_INIT = 11,
 	ICP_QAT_FW_HEARTBEAT_TIMER_SET = 13,
 	ICP_QAT_FW_TIMER_GET = 19,
+	ICP_QAT_FW_CNV_STATS_GET = 20,
 	ICP_QAT_FW_PM_STATE_CONFIG = 128,
 	ICP_QAT_FW_PM_INFO = 129,
 };
@@ -65,6 +66,10 @@ struct icp_qat_fw_init_admin_resp {
 			__u16 version_major_num;
 		};
 		__u32 extended_features;
+		struct {
+			__u16 error_count;
+			__u16 latest_error;
+		};
 	};
 	__u64 opaque_data;
 	union {

@@ -406,6 +406,27 @@ int adf_get_pm_info(struct adf_accel_dev *accel_dev, dma_addr_t p_state_addr,
 	return ret;
 }
 
+int adf_get_cnv_stats(struct adf_accel_dev *accel_dev, u16 ae, u16 *err_cnt,
+		      u16 *latest_err)
+{
+	struct icp_qat_fw_init_admin_req req = { };
+	struct icp_qat_fw_init_admin_resp resp;
+	int ret;
+
+	req.cmd_id = ICP_QAT_FW_CNV_STATS_GET;
+
+	ret = adf_put_admin_msg_sync(accel_dev, ae, &req, &resp);
+	if (ret)
+		return ret;
+	if (resp.status)
+		return -EPROTONOSUPPORT;
+
+	*err_cnt = resp.error_count;
+	*latest_err = resp.latest_error;
+
+	return ret;
+}
+
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 {
 	struct adf_admin_comms *admin;
