@@ -675,7 +675,7 @@ static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 	refcount_set(&root->refs, 1);
 	atomic_set(&root->snapshot_force_cow, 0);
 	atomic_set(&root->nr_swapfiles, 0);
-	root->log_transid = 0;
+	btrfs_set_root_log_transid(root, 0);
 	root->log_transid_committed = -1;
 	btrfs_set_root_last_log_commit(root, 0);
 	root->anon_dev = 0;
@@ -1004,7 +1004,7 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 
 	WARN_ON(root->log_root);
 	root->log_root = log_root;
-	root->log_transid = 0;
+	btrfs_set_root_log_transid(root, 0);
 	root->log_transid_committed = -1;
 	btrfs_set_root_last_log_commit(root, 0);
 	return 0;

@@ -191,6 +191,14 @@ struct btrfs_root {
 	atomic_t log_commit[2];
 	/* Used only for log trees of subvolumes, not for the log root tree */
 	atomic_t log_batch;
+	/*
+	 * Protected by the 'log_mutex' lock but can be read without holding
+	 * that lock to avoid unnecessary lock contention, in which case it
+	 * should be read using btrfs_get_root_log_transid() except if it's a
+	 * log tree in which case it can be directly accessed. Updates to this
+	 * field should always use btrfs_set_root_log_transid(), except for log
+	 * trees where the field can be updated directly.
+	 */
 	int log_transid;
 	/* No matter the commit succeeds or not*/
 	int log_transid_committed;
@@ -330,6 +338,16 @@ static inline bool btrfs_root_dead(const struct btrfs_root *root)
 static inline u64 btrfs_root_id(const struct btrfs_root *root)
 {
 	return root->root_key.objectid;
+}
+
+static inline int btrfs_get_root_log_transid(const struct btrfs_root *root)
+{
+	return READ_ONCE(root->log_transid);
+}
+
+static inline void btrfs_set_root_log_transid(struct btrfs_root *root, int log_transid)
+{
+	WRITE_ONCE(root->log_transid, log_transid);
 }
 
 static inline int btrfs_get_root_last_log_commit(const struct btrfs_root *root)
