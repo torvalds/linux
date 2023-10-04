@@ -238,6 +238,31 @@ int wfx_hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id, void *val, s
 	return ret;
 }
 
+/* Hijack scan request to implement Remain-On-Channel */
+int wfx_hif_scan_uniq(struct wfx_vif *wvif, struct ieee80211_channel *chan, int duration)
+{
+	int ret;
+	struct wfx_hif_msg *hif;
+	size_t buf_len = sizeof(struct wfx_hif_req_start_scan_alt) + sizeof(u8);
+	struct wfx_hif_req_start_scan_alt *body = wfx_alloc_hif(buf_len, &hif);
+
+	if (!hif)
+		return -ENOMEM;
+	body->num_of_ssids = HIF_API_MAX_NB_SSIDS;
+	body->maintain_current_bss = 1;
+	body->disallow_ps = 1;
+	body->tx_power_level = cpu_to_le32(chan->max_power);
+	body->num_of_channels = 1;
+	body->channel_list[0] = chan->hw_value;
+	body->max_transmit_rate = API_RATE_INDEX_B_1MBPS;
+	body->min_channel_time = cpu_to_le32(duration);
+	body->max_channel_time = cpu_to_le32(duration * 110 / 100);
+	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_START_SCAN, buf_len);
+	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
+	kfree(hif);
+	return ret;
+}
+
 int wfx_hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
 		 int chan_start_idx, int chan_num)
 {
