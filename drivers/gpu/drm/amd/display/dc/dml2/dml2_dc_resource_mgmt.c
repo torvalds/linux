@@ -758,6 +758,148 @@ static void map_pipes_for_plane(struct dml2_context *ctx, struct dc_state *state
 	free_unused_pipes_for_plane(ctx, state, plane, &scratch->pipe_pool, stream->stream_id);
 }
 
+static unsigned int get_mpc_factor(struct dml2_context *ctx,
+		const struct dc_state *state,
+		const struct dml_display_cfg_st *disp_cfg,
+		struct dml2_dml_to_dc_pipe_mapping *mapping,
+		const struct dc_stream_status *status, unsigned int stream_id,
+		int plane_idx)
+{
+	unsigned int plane_id;
+	unsigned int cfg_idx;
+
+	get_plane_id(state, status->plane_states[plane_idx], stream_id, &plane_id);
+	cfg_idx = find_disp_cfg_idx_by_plane_id(mapping, plane_id);
+	if (ctx->architecture == dml2_architecture_20)
+		return (unsigned int)disp_cfg->hw.DPPPerSurface[cfg_idx];
+	ASSERT(false);
+	return 1;
+}
+
+static unsigned int get_odm_factor(
+		const struct dml2_context *ctx,
+		const struct dml_display_cfg_st *disp_cfg,
+		struct dml2_dml_to_dc_pipe_mapping *mapping,
+		const struct dc_stream_state *stream)
+{
+	unsigned int cfg_idx = find_disp_cfg_idx_by_stream_id(
+			mapping, stream->stream_id);
+
+	if (ctx->architecture == dml2_architecture_20)
+		switch (disp_cfg->hw.ODMMode[cfg_idx]) {
+		case dml_odm_mode_bypass:
+			return 1;
+		case dml_odm_mode_combine_2to1:
+			return 2;
+		case dml_odm_mode_combine_4to1:
+			return 4;
+		default:
+			break;
+		}
+	ASSERT(false);
+	return 1;
+}
+
+static void populate_mpc_factors_for_stream(
+		struct dml2_context *ctx,
+		const struct dml_display_cfg_st *disp_cfg,
+		struct dml2_dml_to_dc_pipe_mapping *mapping,
+		const struct dc_state *state,
+		unsigned int stream_idx,
+		unsigned int odm_factor,
+		unsigned int mpc_factors[MAX_PIPES])
+{
+	const struct dc_stream_status *status = &state->stream_status[stream_idx];
+	unsigned int stream_id = state->streams[stream_idx]->stream_id;
+	int i;
+
+	for (i = 0; i < status->plane_count; i++)
+		if (odm_factor == 1)
+			mpc_factors[i] = get_mpc_factor(
+					ctx, state, disp_cfg, mapping, status,
+					stream_id, i);
+		else
+			mpc_factors[i] = 1;
+}
+
+static void populate_odm_factors(const struct dml2_context *ctx,
+		const struct dml_display_cfg_st *disp_cfg,
+		struct dml2_dml_to_dc_pipe_mapping *mapping,
+		const struct dc_state *state,
+		unsigned int odm_factors[MAX_PIPES])
+{
+	int i;
+
+	for (i = 0; i < state->stream_count; i++)
+		odm_factors[i] = get_odm_factor(
+				ctx, disp_cfg, mapping, state->streams[i]);
+}
+
+static bool map_dc_pipes_for_stream(struct dml2_context *ctx,
+		struct dc_state *state,
+		const struct dc_state *existing_state,
+		const struct dc_stream_state *stream,
+		const struct dc_stream_status *status,
+		unsigned int odm_factor,
+		unsigned int mpc_factors[MAX_PIPES])
+{
+	int plane_idx;
+	bool result = true;
+
+	if (odm_factor == 1)
+		/*
+		 * ODM and MPC combines are by DML design mutually exclusive.
+		 * ODM factor of 1 means MPC factors may be greater than 1.
+		 * In this case, we want to set ODM factor to 1 first to free up
+		 * pipe resources from previous ODM configuration before setting
+		 * up MPC combine to acquire more pipe resources.
+		 */
+		result &= ctx->config.callbacks.update_pipes_for_stream_with_slice_count(
+				state,
+				existing_state,
+				ctx->config.callbacks.dc->res_pool,
+				stream,
+				odm_factor);
+	for (plane_idx = 0; plane_idx < status->plane_count; plane_idx++)
+		result &= ctx->config.callbacks.update_pipes_for_plane_with_slice_count(
+				state,
+				existing_state,
+				ctx->config.callbacks.dc->res_pool,
+				status->plane_states[plane_idx],
+				mpc_factors[plane_idx]);
+	if (odm_factor > 1)
+		result &= ctx->config.callbacks.update_pipes_for_stream_with_slice_count(
+				state,
+				existing_state,
+				ctx->config.callbacks.dc->res_pool,
+				stream,
+				odm_factor);
+	return result;
+}
+
+static bool map_dc_pipes_with_callbacks(struct dml2_context *ctx,
+		struct dc_state *state,
+		const struct dml_display_cfg_st *disp_cfg,
+		struct dml2_dml_to_dc_pipe_mapping *mapping,
+		const struct dc_state *existing_state)
+{
+	unsigned int odm_factors[MAX_PIPES];
+	unsigned int mpc_factors_for_stream[MAX_PIPES];
+	int i;
+	bool result = true;
+
+	populate_odm_factors(ctx, disp_cfg, mapping, state, odm_factors);
+	for (i = 0; i < state->stream_count; i++) {
+		populate_mpc_factors_for_stream(ctx, disp_cfg, mapping, state,
+				i, odm_factors[i], mpc_factors_for_stream);
+		result &= map_dc_pipes_for_stream(ctx, state, existing_state,
+				state->streams[i],
+				&state->stream_status[i],
+				odm_factors[i], mpc_factors_for_stream);
+	}
+	return result;
+}
+
 bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const struct dml_display_cfg_st *disp_cfg, struct dml2_dml_to_dc_pipe_mapping *mapping, const struct dc_state *existing_state)
 {
 	int stream_index, plane_index, i;
@@ -771,6 +913,10 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 	const unsigned int *ODMMode, *DPPPerSurface;
 	unsigned int odm_mode_array[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0}, dpp_per_surface_array[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0};
 	struct dc_pipe_mapping_scratch scratch;
+
+	if (ctx->config.map_dc_pipes_with_callbacks)
+		return map_dc_pipes_with_callbacks(
+				ctx, state, disp_cfg, mapping, existing_state);
 
 	if (ctx->architecture == dml2_architecture_21) {
 		/*

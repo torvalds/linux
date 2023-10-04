@@ -169,6 +169,7 @@ struct dml2_configuration_options {
 	struct dml2_soc_bbox_overrides bbox_overrides;
 	unsigned int max_segments_per_hubp;
 	unsigned int det_segment_size;
+	bool map_dc_pipes_with_callbacks;
 };
 
 /*
