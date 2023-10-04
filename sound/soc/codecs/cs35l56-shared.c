@@ -242,7 +242,7 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_firmware_shutdown, SND_SOC_CS35L56_SHARED);
 int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base)
 {
 	unsigned int reg;
-	unsigned int val;
+	unsigned int val = 0;
 	int read_ret, poll_ret;
 
 	if (cs35l56_base->rev < CS35L56_REVID_B0)
