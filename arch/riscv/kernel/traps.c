@@ -179,14 +179,6 @@ asmlinkage __visible __trap_section void do_trap_insn_illegal(struct pt_regs *re
 
 DO_ERROR_INFO(do_trap_load_fault,
 	SIGSEGV, SEGV_ACCERR, "load access fault");
-#ifndef CONFIG_RISCV_M_MODE
-DO_ERROR_INFO(do_trap_load_misaligned,
-	SIGBUS, BUS_ADRALN, "Oops - load address misaligned");
-DO_ERROR_INFO(do_trap_store_misaligned,
-	SIGBUS, BUS_ADRALN, "Oops - store (or AMO) address misaligned");
-#else
-int handle_misaligned_load(struct pt_regs *regs);
-int handle_misaligned_store(struct pt_regs *regs);
 
 asmlinkage __visible __trap_section void do_trap_load_misaligned(struct pt_regs *regs)
 {
@@ -229,7 +221,6 @@ asmlinkage __visible __trap_section void do_trap_store_misaligned(struct pt_regs
 		irqentry_nmi_exit(regs, state);
 	}
 }
-#endif
 DO_ERROR_INFO(do_trap_store_fault,
 	SIGSEGV, SEGV_ACCERR, "store (or AMO) access fault");
 DO_ERROR_INFO(do_trap_ecall_s,
