@@ -761,3 +761,49 @@ void iwl_mvm_vif_dbgfs_rm_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	debugfs_remove(mvmvif->dbgfs_slink);
 	mvmvif->dbgfs_slink = NULL;
 }
+
+#define MVM_DEBUGFS_WRITE_LINK_FILE_OPS(name, bufsz)			\
+	_MVM_DEBUGFS_WRITE_FILE_OPS(link_##name, bufsz,			\
+				    struct ieee80211_bss_conf)
+#define MVM_DEBUGFS_READ_WRITE_LINK_FILE_OPS(name, bufsz)		\
+	_MVM_DEBUGFS_READ_WRITE_FILE_OPS(link_##name, bufsz,		\
+					 struct ieee80211_bss_conf)
+#define MVM_DEBUGFS_ADD_LINK_FILE(name, parent, mode)			\
+	debugfs_create_file(#name, mode, parent, link_conf,		\
+			    &iwl_dbgfs_link_##name##_ops)
+
+static void iwl_mvm_debugfs_add_link_files(struct ieee80211_vif *vif,
+					   struct ieee80211_bss_conf *link_conf,
+					   struct dentry *mvm_dir)
+{
+	/* Add per-link files here*/
+}
+
+void iwl_mvm_link_add_debugfs(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf,
+			      struct dentry *dir)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	unsigned int link_id = link_conf->link_id;
+	struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
+	struct dentry *mvm_dir;
+
+	if (WARN_ON(!link_info) || !dir)
+		return;
+
+	if (dir == vif->debugfs_dir) {
+		WARN_ON(!mvmvif->dbgfs_dir);
+		mvm_dir = mvmvif->dbgfs_dir;
+	} else {
+		mvm_dir = debugfs_create_dir("iwlmvm", dir);
+		if (IS_ERR_OR_NULL(mvm_dir)) {
+			IWL_ERR(mvm, "Failed to create debugfs directory under %pd\n",
+				dir);
+			return;
+		}
+	}
+
+	iwl_mvm_debugfs_add_link_files(vif, link_conf, mvm_dir);
+}

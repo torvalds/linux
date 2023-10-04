@@ -2406,6 +2406,10 @@ void iwl_mvm_link_sta_add_debugfs(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_link_sta *link_sta,
 				  struct dentry *dir);
+void iwl_mvm_link_add_debugfs(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf,
+			      struct dentry *dir);
 #endif
 
 /* new MLD related APIs */
