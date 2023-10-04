@@ -628,6 +628,7 @@ static int
 xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		 struct xe_vm_pgtable_update *entries, u32 *num_entries)
 {
+	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_bo *bo = xe_vma_bo(vma);
 	bool is_devmem = !xe_vma_is_userptr(vma) && bo &&
 		(xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo));
@@ -649,10 +650,12 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 	struct xe_pt *pt = xe_vma_vm(vma)->pt_root[tile->id];
 	int ret;
 
+	if (vma && (vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT) &&
+	    (is_devmem || !IS_DGFX(xe)))
+		xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
+
 	if (is_devmem) {
-		xe_walk.default_pte = XE_PPGTT_PTE_DM;
-		if (vma && vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT)
-			xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
+		xe_walk.default_pte |= XE_PPGTT_PTE_DM;
 		xe_walk.dma_offset = vram_region_gpu_offset(bo->ttm.resource);
 		xe_walk.cache = XE_CACHE_WB;
 	} else {
