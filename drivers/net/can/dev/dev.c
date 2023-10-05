@@ -132,7 +132,8 @@ static void can_restart(struct net_device *dev)
 	struct can_frame *cf;
 	int err;
 
-	BUG_ON(netif_carrier_ok(dev));
+	if (netif_carrier_ok(dev))
+		netdev_err(dev, "Attempt to restart for bus-off recovery, but carrier is OK?\n");
 
 	/* No synchronization needed because the device is bus-off and
 	 * no messages can come in or go out.
@@ -141,23 +142,21 @@ static void can_restart(struct net_device *dev)
 
 	/* send restart message upstream */
 	skb = alloc_can_err_skb(dev, &cf);
-	if (!skb)
-		goto restart;
-
-	cf->can_id |= CAN_ERR_RESTARTED;
-
-	netif_rx(skb);
-
-restart:
-	netdev_dbg(dev, "restarted\n");
-	priv->can_stats.restarts++;
+	if (skb) {
+		cf->can_id |= CAN_ERR_RESTARTED;
+		netif_rx(skb);
+	}
 
 	/* Now restart the device */
-	err = priv->do_set_mode(dev, CAN_MODE_START);
-
 	netif_carrier_on(dev);
-	if (err)
-		netdev_err(dev, "Error %d during restart", err);
+	err = priv->do_set_mode(dev, CAN_MODE_START);
+	if (err) {
+		netdev_err(dev, "Restart failed, error %pe\n", ERR_PTR(err));
+		netif_carrier_off(dev);
+	} else {
+		netdev_dbg(dev, "Restarted\n");
+		priv->can_stats.restarts++;
+	}
 }
 
 static void can_restart_work(struct work_struct *work)
