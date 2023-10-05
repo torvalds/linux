@@ -64,6 +64,7 @@ static const int ffa_linux_errmap[] = {
 	-EACCES,	/* FFA_RET_DENIED */
 	-EAGAIN,	/* FFA_RET_RETRY */
 	-ECANCELED,	/* FFA_RET_ABORTED */
+	-ENODATA,	/* FFA_RET_NO_DATA */
 };
 
 static inline int ffa_to_linux_errno(int errno)
