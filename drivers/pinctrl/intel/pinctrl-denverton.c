@@ -261,6 +261,7 @@ static const struct platform_device_id dnv_pinctrl_platform_ids[] = {
 	{ "denverton-pinctrl", (kernel_ulong_t)&dnv_soc_data },
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, dnv_pinctrl_platform_ids);
 
 static struct platform_driver dnv_pinctrl_driver = {
 	.probe = intel_pinctrl_probe_by_hid,
@@ -287,5 +288,4 @@ module_exit(dnv_pinctrl_exit);
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
 MODULE_DESCRIPTION("Intel Denverton SoC pinctrl/GPIO driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:denverton-pinctrl");
 MODULE_IMPORT_NS(PINCTRL_INTEL);
