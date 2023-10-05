@@ -137,10 +137,10 @@ static inline void *xdma_blk_last_desc(struct xdma_desc_block *block)
 }
 
 /**
- * xdma_link_desc_blocks - Link descriptor blocks for DMA transfer
+ * xdma_link_sg_desc_blocks - Link SG descriptor blocks for DMA transfer
  * @sw_desc: Tx descriptor pointer
  */
-static void xdma_link_desc_blocks(struct xdma_desc *sw_desc)
+static void xdma_link_sg_desc_blocks(struct xdma_desc *sw_desc)
 {
 	struct xdma_desc_block *block;
 	u32 last_blk_desc, desc_control;
@@ -239,6 +239,7 @@ xdma_alloc_desc(struct xdma_chan *chan, u32 desc_num)
 	struct xdma_hw_desc *desc;
 	dma_addr_t dma_addr;
 	u32 dblk_num;
+	u32 control;
 	void *addr;
 	int i, j;
 
@@ -254,6 +255,8 @@ xdma_alloc_desc(struct xdma_chan *chan, u32 desc_num)
 	if (!sw_desc->desc_blocks)
 		goto failed;
 
+	control = XDMA_DESC_CONTROL(1, 0);
+
 	sw_desc->dblk_num = dblk_num;
 	for (i = 0; i < sw_desc->dblk_num; i++) {
 		addr = dma_pool_alloc(chan->desc_pool, GFP_NOWAIT, &dma_addr);
@@ -263,10 +266,10 @@ xdma_alloc_desc(struct xdma_chan *chan, u32 desc_num)
 		sw_desc->desc_blocks[i].virt_addr = addr;
 		sw_desc->desc_blocks[i].dma_addr = dma_addr;
 		for (j = 0, desc = addr; j < XDMA_DESC_ADJACENT; j++)
-			desc[j].control = cpu_to_le32(XDMA_DESC_CONTROL(1, 0));
+			desc[j].control = cpu_to_le32(control);
 	}
 
-	xdma_link_desc_blocks(sw_desc);
+	xdma_link_sg_desc_blocks(sw_desc);
 
 	return sw_desc;
 
@@ -575,6 +578,12 @@ static int xdma_alloc_chan_resources(struct dma_chan *chan)
 	}
 
 	return 0;
+}
+
+static enum dma_status xdma_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
+				      struct dma_tx_state *state)
+{
+	return dma_cookie_status(chan, cookie, state);
 }
 
 /**
@@ -923,7 +932,7 @@ static int xdma_probe(struct platform_device *pdev)
 	xdev->dma_dev.dev = &pdev->dev;
 	xdev->dma_dev.device_free_chan_resources = xdma_free_chan_resources;
 	xdev->dma_dev.device_alloc_chan_resources = xdma_alloc_chan_resources;
-	xdev->dma_dev.device_tx_status = dma_cookie_status;
+	xdev->dma_dev.device_tx_status = xdma_tx_status;
 	xdev->dma_dev.device_prep_slave_sg = xdma_prep_device_sg;
 	xdev->dma_dev.device_config = xdma_device_config;
 	xdev->dma_dev.device_issue_pending = xdma_issue_pending;
