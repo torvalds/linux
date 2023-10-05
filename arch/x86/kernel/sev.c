@@ -1552,6 +1552,9 @@ static enum es_result vc_handle_mmio(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
 			return ES_DECODE_FAILED;
 	}
 
+	if (user_mode(ctxt->regs))
+		return ES_UNSUPPORTED;
+
 	switch (mmio) {
 	case MMIO_WRITE:
 		memcpy(ghcb->shared_buffer, reg_data, bytes);
