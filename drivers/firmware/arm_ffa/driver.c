@@ -668,17 +668,9 @@ static int ffa_partition_info_get(const char *uuid_str,
 	return 0;
 }
 
-static void _ffa_mode_32bit_set(struct ffa_device *dev)
-{
-	dev->mode_32bit = true;
-}
-
 static void ffa_mode_32bit_set(struct ffa_device *dev)
 {
-	if (drv_info->version > FFA_VERSION_1_0)
-		return;
-
-	_ffa_mode_32bit_set(dev);
+	dev->mode_32bit = true;
 }
 
 static int ffa_sync_send_receive(struct ffa_device *dev,
@@ -787,7 +779,7 @@ static void ffa_setup_partitions(void)
 
 		if (drv_info->version > FFA_VERSION_1_0 &&
 		    !(tpbuf->properties & FFA_PARTITION_AARCH64_EXEC))
-			_ffa_mode_32bit_set(ffa_dev);
+			ffa_mode_32bit_set(ffa_dev);
 	}
 	kfree(pbuf);
 }
