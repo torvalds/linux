@@ -602,6 +602,13 @@ static int ffa_notification_bitmap_destroy(void)
 	(FIELD_PREP(RECEIVER_VCPU_MASK, (vcpu_r)) | \
 	 FIELD_PREP(RECEIVER_ID_MASK, (r)))
 
+#define NOTIFICATION_INFO_GET_MORE_PEND_MASK	BIT(0)
+#define NOTIFICATION_INFO_GET_ID_COUNT		GENMASK(11, 7)
+#define ID_LIST_MASK_64				GENMASK(51, 12)
+#define ID_LIST_MASK_32				GENMASK(31, 12)
+#define MAX_IDS_64				20
+#define MAX_IDS_32				10
+
 static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
 					u32 flags, bool is_bind)
 {
@@ -671,6 +678,72 @@ static int ffa_notification_get(u32 flags, struct ffa_notify_bitmaps *notify)
 	notify->arch_map = PACK_NOTIFICATION_BITMAP(ret.a6, ret.a7);
 
 	return 0;
+}
+
+static void __do_sched_recv_cb(u16 partition_id, u16 vcpu, bool is_per_vcpu)
+{
+	pr_err("Callback for partition 0x%x failed.\n", partition_id);
+}
+
+static void ffa_notification_info_get(void)
+{
+	int idx, list, max_ids, lists_cnt, ids_processed, ids_count[MAX_IDS_64];
+	bool is_64b_resp;
+	ffa_value_t ret;
+	u64 id_list;
+
+	do {
+		invoke_ffa_fn((ffa_value_t){
+			  .a0 = FFA_FN_NATIVE(NOTIFICATION_INFO_GET),
+			  }, &ret);
+
+		if (ret.a0 != FFA_FN_NATIVE(SUCCESS) && ret.a0 != FFA_SUCCESS) {
+			if (ret.a2 != FFA_RET_NO_DATA)
+				pr_err("Notification Info fetch failed: 0x%lx (0x%lx)",
+				       ret.a0, ret.a2);
+			return;
+		}
+
+		is_64b_resp = (ret.a0 == FFA_FN64_SUCCESS);
+
+		ids_processed = 0;
+		lists_cnt = FIELD_GET(NOTIFICATION_INFO_GET_ID_COUNT, ret.a2);
+		if (is_64b_resp) {
+			max_ids = MAX_IDS_64;
+			id_list = FIELD_GET(ID_LIST_MASK_64, ret.a2);
+		} else {
+			max_ids = MAX_IDS_32;
+			id_list = FIELD_GET(ID_LIST_MASK_32, ret.a2);
+		}
+
+		for (idx = 0; idx < lists_cnt; idx++, id_list >>= 2)
+			ids_count[idx] = (id_list & 0x3) + 1;
+
+		/* Process IDs */
+		for (list = 0; list < lists_cnt; list++) {
+			u16 vcpu_id, part_id, *packed_id_list = (u16 *)&ret.a3;
+
+			if (ids_processed >= max_ids - 1)
+				break;
+
+			part_id = packed_id_list[++ids_processed];
+
+			if (!ids_count[list]) { /* Global Notification */
+				__do_sched_recv_cb(part_id, 0, false);
+				continue;
+			}
+
+			/* Per vCPU Notification */
+			for (idx = 0; idx < ids_count[list]; idx++) {
+				if (ids_processed >= max_ids - 1)
+					break;
+
+				vcpu_id = packed_id_list[++ids_processed];
+
+				__do_sched_recv_cb(part_id, vcpu_id, true);
+			}
+		}
+	} while (ret.a2 & NOTIFICATION_INFO_GET_MORE_PEND_MASK);
 }
 
 static int ffa_run(struct ffa_device *dev, u16 vcpu)
