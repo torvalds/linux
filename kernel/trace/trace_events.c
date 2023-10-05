@@ -2302,7 +2302,7 @@ create_new_subsystem(const char *name)
 	return NULL;
 }
 
-int system_callback(const char *name, umode_t *mode, void **data,
+static int system_callback(const char *name, umode_t *mode, void **data,
 		    const struct file_operations **fops)
 {
 	if (strcmp(name, "filter") == 0)
