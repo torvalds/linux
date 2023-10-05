@@ -10,6 +10,7 @@
 #include <byteswap.h>
 #include <linux/kernel.h>
 #include <linux/compiler.h>
+#include <asm-generic/unaligned.h>
 
 #include "intel-pt-pkt-decoder.h"
 
@@ -78,7 +79,7 @@ static int intel_pt_get_long_tnt(const unsigned char *buf, size_t len,
 	if (len < 8)
 		return INTEL_PT_NEED_MORE_BYTES;
 
-	payload = le64_to_cpu(*(uint64_t *)buf);
+	payload = get_unaligned_le64(buf);
 
 	for (count = 47; count; count--) {
 		if (payload & BIT63)
@@ -119,7 +120,7 @@ static int intel_pt_get_cbr(const unsigned char *buf, size_t len,
 	if (len < 4)
 		return INTEL_PT_NEED_MORE_BYTES;
 	packet->type = INTEL_PT_CBR;
-	packet->payload = le16_to_cpu(*(uint16_t *)(buf + 2));
+	packet->payload = get_unaligned_le16(buf + 2);
 	return 4;
 }
 
@@ -218,12 +219,12 @@ static int intel_pt_get_ptwrite(const unsigned char *buf, size_t len,
 	case 0:
 		if (len < 6)
 			return INTEL_PT_NEED_MORE_BYTES;
-		packet->payload = le32_to_cpu(*(uint32_t *)(buf + 2));
+		packet->payload = get_unaligned_le32(buf + 2);
 		return 6;
 	case 1:
 		if (len < 10)
 			return INTEL_PT_NEED_MORE_BYTES;
-		packet->payload = le64_to_cpu(*(uint64_t *)(buf + 2));
+		packet->payload = get_unaligned_le64(buf + 2);
 		return 10;
 	default:
 		return INTEL_PT_BAD_PACKET;
@@ -248,7 +249,7 @@ static int intel_pt_get_mwait(const unsigned char *buf, size_t len,
 	if (len < 10)
 		return INTEL_PT_NEED_MORE_BYTES;
 	packet->type = INTEL_PT_MWAIT;
-	packet->payload = le64_to_cpu(*(uint64_t *)(buf + 2));
+	packet->payload = get_unaligned_le64(buf + 2);
 	return 10;
 }
 
@@ -455,13 +456,13 @@ static int intel_pt_get_ip(enum intel_pt_pkt_type type, unsigned int byte,
 		if (len < 3)
 			return INTEL_PT_NEED_MORE_BYTES;
 		ip_len = 2;
-		packet->payload = le16_to_cpu(*(uint16_t *)(buf + 1));
+		packet->payload = get_unaligned_le16(buf + 1);
 		break;
 	case 2:
 		if (len < 5)
 			return INTEL_PT_NEED_MORE_BYTES;
 		ip_len = 4;
-		packet->payload = le32_to_cpu(*(uint32_t *)(buf + 1));
+		packet->payload = get_unaligned_le32(buf + 1);
 		break;
 	case 3:
 	case 4:
@@ -474,7 +475,7 @@ static int intel_pt_get_ip(enum intel_pt_pkt_type type, unsigned int byte,
 		if (len < 9)
 			return INTEL_PT_NEED_MORE_BYTES;
 		ip_len = 8;
-		packet->payload = le64_to_cpu(*(uint64_t *)(buf + 1));
+		packet->payload = get_unaligned_le64(buf + 1);
 		break;
 	default:
 		return INTEL_PT_BAD_PACKET;
