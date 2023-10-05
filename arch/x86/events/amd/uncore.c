@@ -27,6 +27,7 @@
 
 #define COUNTER_SHIFT		16
 #define UNCORE_NAME_LEN		16
+#define UNCORE_GROUP_MAX	256
 
 #undef pr_fmt
 #define pr_fmt(fmt)	"amd_uncore: " fmt
@@ -45,6 +46,7 @@ struct amd_uncore_pmu {
 	int num_counters;
 	int rdpmc_base;
 	u32 msr_base;
+	int group;
 	cpumask_t active_mask;
 	struct pmu pmu;
 	struct amd_uncore_ctx * __percpu *ctx;
@@ -61,6 +63,7 @@ union amd_uncore_info {
 	struct {
 		u64	aux_data:32;	/* auxiliary data */
 		u64	num_pmcs:8;	/* number of counters */
+		u64	gid:8;		/* group id */
 		u64	cid:8;		/* context id */
 	} split;
 	u64		full;
@@ -372,6 +375,13 @@ int amd_uncore_ctx_cid(struct amd_uncore *uncore, unsigned int cpu)
 }
 
 static __always_inline
+int amd_uncore_ctx_gid(struct amd_uncore *uncore, unsigned int cpu)
+{
+	union amd_uncore_info *info = per_cpu_ptr(uncore->info, cpu);
+	return info->split.gid;
+}
+
+static __always_inline
 int amd_uncore_ctx_num_pmcs(struct amd_uncore *uncore, unsigned int cpu)
 {
 	union amd_uncore_info *info = per_cpu_ptr(uncore->info, cpu);
@@ -409,17 +419,22 @@ static int amd_uncore_ctx_init(struct amd_uncore *uncore, unsigned int cpu)
 {
 	struct amd_uncore_ctx *curr, *prev;
 	struct amd_uncore_pmu *pmu;
-	int node, cid, i, j;
+	int node, cid, gid, i, j;
 
 	if (!uncore->init_done || !uncore->num_pmus)
 		return 0;
 
 	cid = amd_uncore_ctx_cid(uncore, cpu);
+	gid = amd_uncore_ctx_gid(uncore, cpu);
 
 	for (i = 0; i < uncore->num_pmus; i++) {
 		pmu = &uncore->pmus[i];
 		*per_cpu_ptr(pmu->ctx, cpu) = NULL;
 		curr = NULL;
+
+		/* Check for group exclusivity */
+		if (gid != pmu->group)
+			continue;
 
 		/* Find a sibling context */
 		for_each_online_cpu(j) {
@@ -603,6 +618,7 @@ void amd_uncore_df_ctx_scan(struct amd_uncore *uncore, unsigned int cpu)
 
 	info.split.aux_data = 0;
 	info.split.num_pmcs = NUM_COUNTERS_NB;
+	info.split.gid = 0;
 	info.split.cid = topology_die_id(cpu);
 
 	if (pmu_version >= 2) {
@@ -641,6 +657,7 @@ int amd_uncore_df_ctx_init(struct amd_uncore *uncore, unsigned int cpu)
 	pmu->num_counters = amd_uncore_ctx_num_pmcs(uncore, cpu);
 	pmu->msr_base = MSR_F15H_NB_PERF_CTL;
 	pmu->rdpmc_base = RDPMC_BASE_NB;
+	pmu->group = amd_uncore_ctx_gid(uncore, cpu);
 
 	if (pmu_version >= 2) {
 		*df_attr++ = &format_attr_event14v2.attr;
@@ -734,6 +751,7 @@ void amd_uncore_l3_ctx_scan(struct amd_uncore *uncore, unsigned int cpu)
 
 	info.split.aux_data = 0;
 	info.split.num_pmcs = NUM_COUNTERS_L2;
+	info.split.gid = 0;
 	info.split.cid = get_llc_id(cpu);
 
 	if (boot_cpu_data.x86 >= 0x17)
@@ -770,6 +788,7 @@ int amd_uncore_l3_ctx_init(struct amd_uncore *uncore, unsigned int cpu)
 	pmu->num_counters = amd_uncore_ctx_num_pmcs(uncore, cpu);
 	pmu->msr_base = MSR_F16H_L2I_PERF_CTL;
 	pmu->rdpmc_base = RDPMC_BASE_LLC;
+	pmu->group = amd_uncore_ctx_gid(uncore, cpu);
 
 	if (boot_cpu_data.x86 >= 0x17) {
 		*l3_attr++ = &format_attr_event8.attr;
