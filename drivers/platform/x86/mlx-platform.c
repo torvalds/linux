@@ -6514,6 +6514,7 @@ static int mlxplat_i2c_main_init(struct mlxplat_priv *priv)
 	return 0;
 
 fail_mlxplat_i2c_mux_topology_init:
+	platform_device_unregister(priv->pdev_i2c);
 fail_platform_i2c_register:
 fail_mlxplat_mlxcpld_verify_bus_topology:
 	return err;
@@ -6521,6 +6522,7 @@ fail_mlxplat_mlxcpld_verify_bus_topology:
 
 static void mlxplat_i2c_main_exit(struct mlxplat_priv *priv)
 {
+	mlxplat_pre_exit(priv);
 	mlxplat_i2c_mux_topology_exit(priv);
 	if (priv->pdev_i2c)
 		platform_device_unregister(priv->pdev_i2c);
@@ -6597,7 +6599,7 @@ static int mlxplat_probe(struct platform_device *pdev)
 
 fail_register_reboot_notifier:
 fail_regcache_sync:
-	mlxplat_pre_exit(priv);
+	mlxplat_i2c_main_exit(priv);
 fail_mlxplat_i2c_main_init:
 fail_regmap_write:
 fail_alloc:
@@ -6614,7 +6616,6 @@ static int mlxplat_remove(struct platform_device *pdev)
 		pm_power_off = NULL;
 	if (mlxplat_reboot_nb)
 		unregister_reboot_notifier(mlxplat_reboot_nb);
-	mlxplat_pre_exit(priv);
 	mlxplat_i2c_main_exit(priv);
 	mlxplat_post_exit();
 	return 0;
