@@ -38,6 +38,7 @@ patternProperties:
       ID number 0 and the slave drive will have ID number 1. The PATA port
       nodes will be named "ide-port".
     type: object
+    additionalProperties: false
 
     properties:
       reg:

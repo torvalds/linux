@@ -368,6 +368,8 @@ int init_per_cpu(int cpunum)
 	/* FUTURE: Enable Performance Monitor : ccr bit 0x20 */
 	init_percpu_prof(cpunum);
 
+	btlb_init_per_cpu();
+
 	return ret;
 }
 

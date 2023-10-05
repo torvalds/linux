@@ -229,6 +229,7 @@ int pcie_aer_is_native(struct pci_dev *dev)
 
 	return pcie_ports_native || host->native_aer;
 }
+EXPORT_SYMBOL_NS_GPL(pcie_aer_is_native, CXL);
 
 static int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 {

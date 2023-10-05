@@ -216,7 +216,7 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 
 	if (q->wptr_bo) {
 		wptr_addr_off = (uint64_t)q->properties.write_ptr & (PAGE_SIZE - 1);
-		queue_input.wptr_mc_addr = ((uint64_t)q->wptr_bo->tbo.resource->start << PAGE_SHIFT) + wptr_addr_off;
+		queue_input.wptr_mc_addr = amdgpu_bo_gpu_offset(q->wptr_bo) + wptr_addr_off;
 	}
 
 	queue_input.is_kfd_process = 1;
@@ -1677,8 +1677,7 @@ static int start_cpsch(struct device_queue_manager *dqm)
 			dqm->dev->kfd2kgd->build_grace_period_packet_info(
 					dqm->dev->adev,	dqm->wait_times,
 					grace_period, &reg_offset,
-					&dqm->wait_times,
-					ffs(dqm->dev->xcc_mask) - 1);
+					&dqm->wait_times);
 	}
 
 	dqm_unlock(dqm);

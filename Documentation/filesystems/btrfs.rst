@@ -37,7 +37,6 @@ For more information please refer to the documentation site or wiki
 
   https://btrfs.readthedocs.io
 
-  https://btrfs.wiki.kernel.org
 
 that maintains information about administration tasks, frequently asked
 questions, use cases, mount options, comprehensible changelogs, features,
