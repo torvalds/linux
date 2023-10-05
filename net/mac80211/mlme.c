@@ -4202,10 +4202,33 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 						  elems->ht_cap_elem,
 						  link_sta);
 
-	if (elems->vht_cap_elem && !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
+	if (elems->vht_cap_elem &&
+	    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT)) {
+		const struct ieee80211_vht_cap *bss_vht_cap = NULL;
+		const struct cfg80211_bss_ies *ies;
+
+		/*
+		 * Cisco AP module 9115 with FW 17.3 has a bug and sends a
+		 * too large maximum MPDU length in the association response
+		 * (indicating 12k) that it cannot actually process ...
+		 * Work around that.
+		 */
+		rcu_read_lock();
+		ies = rcu_dereference(cbss->ies);
+		if (ies) {
+			const struct element *elem;
+
+			elem = cfg80211_find_elem(WLAN_EID_VHT_CAPABILITY,
+						  ies->data, ies->len);
+			if (elem && elem->datalen >= sizeof(*bss_vht_cap))
+				bss_vht_cap = (const void *)elem->data;
+		}
+
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
 						    elems->vht_cap_elem,
-						    link_sta);
+						    bss_vht_cap, link_sta);
+		rcu_read_unlock();
+	}
 
 	if (elems->he_operation && !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
 	    elems->he_cap) {
@@ -5107,9 +5130,10 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 				continue;
 
 			valid_links |= BIT(link_id);
-			if (assoc_data->link[link_id].disabled) {
+			if (assoc_data->link[link_id].disabled)
 				dormant_links |= BIT(link_id);
-			} else if (link_id != assoc_data->assoc_link_id) {
+
+			if (link_id != assoc_data->assoc_link_id) {
 				err = ieee80211_sta_allocate_link(sta, link_id);
 				if (err)
 					goto out_err;
@@ -5124,7 +5148,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_link_data *link;
 		struct link_sta_info *link_sta;
 
-		if (!cbss || assoc_data->link[link_id].disabled)
+		if (!cbss)
 			continue;
 
 		link = sdata_dereference(sdata->link[link_id], sdata);
@@ -5429,16 +5453,17 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 		struct ieee80211_link_data *link;
 
-		link = sdata_dereference(sdata->link[link_id], sdata);
-		if (!link)
-			continue;
-
 		if (!assoc_data->link[link_id].bss)
 			continue;
 
 		resp.links[link_id].bss = assoc_data->link[link_id].bss;
-		resp.links[link_id].addr = link->conf->addr;
+		ether_addr_copy(resp.links[link_id].addr,
+				assoc_data->link[link_id].addr);
 		resp.links[link_id].status = assoc_data->link[link_id].status;
+
+		link = sdata_dereference(sdata->link[link_id], sdata);
+		if (!link)
+			continue;
 
 		/* get uapsd queues configuration - same for all links */
 		resp.uapsd_queues = 0;

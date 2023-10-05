@@ -1594,7 +1594,7 @@ static int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
 	u64 search_start;
 	u64 hole_size;
 	u64 max_hole_start;
-	u64 max_hole_size;
+	u64 max_hole_size = 0;
 	u64 extent_end;
 	u64 search_end = device->total_bytes;
 	int ret;
@@ -1602,17 +1602,16 @@ static int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
 	struct extent_buffer *l;
 
 	search_start = dev_extent_search_start(device);
+	max_hole_start = search_start;
 
 	WARN_ON(device->zone_info &&
 		!IS_ALIGNED(num_bytes, device->zone_info->zone_size));
 
 	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-
-	max_hole_start = search_start;
-	max_hole_size = 0;
-
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
 again:
 	if (search_start >= search_end ||
 		test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state)) {

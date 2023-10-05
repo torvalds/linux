@@ -96,7 +96,7 @@ static int si521xx_regmap_i2c_write(void *context, unsigned int reg,
 				    unsigned int val)
 {
 	struct i2c_client *i2c = context;
-	const u8 data[3] = { reg, 1, val };
+	const u8 data[2] = { reg, val };
 	const int count = ARRAY_SIZE(data);
 	int ret;
 
@@ -146,7 +146,7 @@ static int si521xx_regmap_i2c_read(void *context, unsigned int reg,
 static const struct regmap_config si521xx_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_FLAT,
 	.max_register = SI521XX_REG_DA,
 	.rd_table = &si521xx_readable_table,
 	.wr_table = &si521xx_writeable_table,
@@ -281,9 +281,10 @@ static int si521xx_probe(struct i2c_client *client)
 {
 	const u16 chip_info = (u16)(uintptr_t)device_get_match_data(&client->dev);
 	const struct clk_parent_data clk_parent_data = { .index = 0 };
-	struct si521xx *si;
+	const u8 data[3] = { SI521XX_REG_BC, 1, 1 };
 	unsigned char name[6] = "DIFF0";
 	struct clk_init_data init = {};
+	struct si521xx *si;
 	int i, ret;
 
 	if (!chip_info)
@@ -308,7 +309,7 @@ static int si521xx_probe(struct i2c_client *client)
 				     "Failed to allocate register map\n");
 
 	/* Always read back 1 Byte via I2C */
-	ret = regmap_write(si->regmap, SI521XX_REG_BC, 1);
+	ret = i2c_master_send(client, data, ARRAY_SIZE(data));
 	if (ret < 0)
 		return ret;
 

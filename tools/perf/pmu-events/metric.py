@@ -413,10 +413,10 @@ def has_event(event: Event) -> Function:
   # pylint: disable=invalid-name
   return Function('has_event', event)
 
-def strcmp_cpuid_str(event: str) -> Function:
+def strcmp_cpuid_str(cpuid: Event) -> Function:
   # pylint: disable=redefined-builtin
   # pylint: disable=invalid-name
-  return Function('strcmp_cpuid_str', event)
+  return Function('strcmp_cpuid_str', cpuid)
 
 class Metric:
   """An individual metric that will specifiable on the perf command line."""
