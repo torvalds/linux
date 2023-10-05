@@ -1713,7 +1713,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	/* Enable DWB for tested platforms only */
 	if (adev->ip_versions[DCE_HWIP][0] >= IP_VERSION(3, 0, 0))
-		init_data.num_virtual_links = 1;
+		init_data.num_virtual_links = 0;
 
 	INIT_LIST_HEAD(&adev->dm.da_list);
 
