@@ -103,6 +103,7 @@ struct ffa_drv_info {
 	unsigned int cpuhp_state;
 	struct ffa_pcpu_irq __percpu *irq_pcpu;
 	struct workqueue_struct *notif_pcpu_wq;
+	struct work_struct notif_pcpu_work;
 	struct work_struct irq_work;
 	struct xarray partition_info;
 	unsigned int partition_count;
@@ -633,6 +634,10 @@ static int ffa_notification_bitmap_destroy(void)
 #define MAX_IDS_32				10
 
 #define PER_VCPU_NOTIFICATION_FLAG		BIT(0)
+#define SECURE_PARTITION_BITMAP			BIT(0)
+#define NON_SECURE_VM_BITMAP			BIT(1)
+#define SPM_FRAMEWORK_BITMAP			BIT(2)
+#define NS_HYP_FRAMEWORK_BITMAP			BIT(3)
 
 static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
 					u32 flags, bool is_bind)
@@ -1050,6 +1055,54 @@ static int ffa_notify_send(struct ffa_device *dev, int notify_id,
 				    BIT(notify_id));
 }
 
+static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
+{
+	int notify_id;
+	struct notifier_cb_info *cb_info = NULL;
+
+	for (notify_id = 0; notify_id <= FFA_MAX_NOTIFICATIONS && bitmap;
+	     notify_id++, bitmap >>= 1) {
+		if (!(bitmap & 1))
+			continue;
+
+		mutex_lock(&drv_info->notify_lock);
+		cb_info = notifier_hash_node_get(notify_id, type);
+		mutex_unlock(&drv_info->notify_lock);
+
+		if (cb_info && cb_info->cb)
+			cb_info->cb(notify_id, cb_info->cb_data);
+	}
+}
+
+static void notif_pcpu_irq_work_fn(struct work_struct *work)
+{
+	int rc;
+	struct ffa_notify_bitmaps bitmaps;
+
+	rc = ffa_notification_get(SECURE_PARTITION_BITMAP |
+				  SPM_FRAMEWORK_BITMAP, &bitmaps);
+	if (rc) {
+		pr_err("Failed to retrieve notifications with %d!\n", rc);
+		return;
+	}
+
+	handle_notif_callbacks(bitmaps.vm_map, NON_SECURE_VM);
+	handle_notif_callbacks(bitmaps.sp_map, SECURE_PARTITION);
+	handle_notif_callbacks(bitmaps.arch_map, FRAMEWORK);
+}
+
+static void
+ffa_self_notif_handle(u16 vcpu, bool is_per_vcpu, void *cb_data)
+{
+	struct ffa_drv_info *info = cb_data;
+
+	if (!is_per_vcpu)
+		notif_pcpu_irq_work_fn(&info->notif_pcpu_work);
+	else
+		queue_work_on(vcpu, info->notif_pcpu_wq,
+			      &info->notif_pcpu_work);
+}
+
 static const struct ffa_info_ops ffa_drv_info_ops = {
 	.api_version_get = ffa_api_version_get,
 	.partition_info_get = ffa_partition_info_get,
@@ -1154,6 +1207,13 @@ static void ffa_setup_partitions(void)
 	drv_info->partition_count = count;
 
 	kfree(pbuf);
+
+	/* Allocate for the host */
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return;
+	xa_store(&drv_info->partition_info, drv_info->vm_id, info, GFP_KERNEL);
+	drv_info->partition_count++;
 }
 
 static void ffa_partitions_cleanup(void)
@@ -1294,6 +1354,7 @@ static int ffa_init_pcpu_irq(unsigned int irq)
 	}
 
 	INIT_WORK(&drv_info->irq_work, ffa_sched_recv_irq_work_fn);
+	INIT_WORK(&drv_info->notif_pcpu_work, notif_pcpu_irq_work_fn);
 	drv_info->notif_pcpu_wq = create_workqueue("ffa_pcpu_irq_notification");
 	if (!drv_info->notif_pcpu_wq)
 		return -EINVAL;
@@ -1352,7 +1413,11 @@ static int ffa_notifications_setup(void)
 	hash_init(drv_info->notifier_hash);
 	mutex_init(&drv_info->notify_lock);
 
-	return 0;
+	/* Register internal scheduling callback */
+	ret = ffa_sched_recv_cb_update(drv_info->vm_id, ffa_self_notif_handle,
+				       drv_info, true);
+	if (!ret)
+		return ret;
 cleanup:
 	ffa_notifications_cleanup();
 	return ret;
