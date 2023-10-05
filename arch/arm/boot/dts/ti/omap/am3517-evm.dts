@@ -172,11 +172,24 @@
 &davinci_emac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ethernet_pins>;
+	phy-mode = "rmii";
+	phy-handle = <&ethphy0>;
 	status = "okay";
 };
 
 &davinci_mdio {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&enet_phy_pins>;
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <26 IRQ_TYPE_LEVEL_LOW>;	/* gpio_58 */
+	};
 };
 
 &dss {
@@ -254,6 +267,12 @@
 			OMAP3_CORE1_IOPAD(0x220c, PIN_OUTPUT_PULLDOWN | MUX_MODE0) /* rmii_txd1 */
 			OMAP3_CORE1_IOPAD(0x220e, PIN_OUTPUT_PULLDOWN |MUX_MODE0) /* rmii_txen */
 			OMAP3_CORE1_IOPAD(0x2210, PIN_INPUT_PULLDOWN | MUX_MODE0) /* rmii_50mhz_clk */
+		>;
+	};
+
+	enet_phy_pins: ethernet-phy-pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20bc, PIN_INPUT | MUX_MODE4)	/* gpmc_ncs7.gpio_57 */
 		>;
 	};
 
