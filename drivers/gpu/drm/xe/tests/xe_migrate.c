@@ -99,7 +99,7 @@ static const struct xe_migrate_pt_update_ops sanity_ops = {
 		} } while (0)
 
 static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
-		      struct kunit *test)
+		      struct kunit *test, u32 region)
 {
 	struct xe_device *xe = tile_to_xe(m->tile);
 	u64 retval, expected = 0;
@@ -108,83 +108,104 @@ static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
 	const char *str = big ? "Copying big bo" : "Copying small bo";
 	int err;
 
-	struct xe_bo *sysmem = xe_bo_create_locked(xe, m->tile, NULL,
+	struct xe_bo *remote = xe_bo_create_locked(xe, m->tile, NULL,
 						   bo->size,
 						   ttm_bo_type_kernel,
-						   XE_BO_CREATE_SYSTEM_BIT |
+						   region |
 						   XE_BO_NEEDS_CPU_ACCESS);
-	if (IS_ERR(sysmem)) {
-		KUNIT_FAIL(test, "Failed to allocate sysmem bo for %s: %li\n",
-			   str, PTR_ERR(sysmem));
+	if (IS_ERR(remote)) {
+		KUNIT_FAIL(test, "Failed to allocate remote bo for %s: %li\n",
+			   str, PTR_ERR(remote));
 		return;
 	}
 
-	err = xe_bo_validate(sysmem, NULL, false);
+	err = xe_bo_validate(remote, NULL, false);
 	if (err) {
 		KUNIT_FAIL(test, "Failed to validate system bo for %s: %li\n",
 			   str, err);
 		goto out_unlock;
 	}
 
-	err = xe_bo_vmap(sysmem);
+	err = xe_bo_vmap(remote);
 	if (err) {
 		KUNIT_FAIL(test, "Failed to vmap system bo for %s: %li\n",
 			   str, err);
 		goto out_unlock;
 	}
 
-	xe_map_memset(xe, &sysmem->vmap, 0, 0xd0, sysmem->size);
-	fence = xe_migrate_clear(m, sysmem, sysmem->ttm.resource);
-	if (!sanity_fence_failed(xe, fence, big ? "Clearing sysmem big bo" :
-				 "Clearing sysmem small bo", test)) {
-		retval = xe_map_rd(xe, &sysmem->vmap, 0, u64);
-		check(retval, expected, "sysmem first offset should be cleared",
+	xe_map_memset(xe, &remote->vmap, 0, 0xd0, remote->size);
+	fence = xe_migrate_clear(m, remote, remote->ttm.resource);
+	if (!sanity_fence_failed(xe, fence, big ? "Clearing remote big bo" :
+				 "Clearing remote small bo", test)) {
+		retval = xe_map_rd(xe, &remote->vmap, 0, u64);
+		check(retval, expected, "remote first offset should be cleared",
 		      test);
-		retval = xe_map_rd(xe, &sysmem->vmap, sysmem->size - 8, u64);
-		check(retval, expected, "sysmem last offset should be cleared",
+		retval = xe_map_rd(xe, &remote->vmap, remote->size - 8, u64);
+		check(retval, expected, "remote last offset should be cleared",
 		      test);
 	}
 	dma_fence_put(fence);
 
-	/* Try to copy 0xc0 from sysmem to vram with 2MB or 64KiB/4KiB pages */
-	xe_map_memset(xe, &sysmem->vmap, 0, 0xc0, sysmem->size);
+	/* Try to copy 0xc0 from remote to vram with 2MB or 64KiB/4KiB pages */
+	xe_map_memset(xe, &remote->vmap, 0, 0xc0, remote->size);
 	xe_map_memset(xe, &bo->vmap, 0, 0xd0, bo->size);
 
 	expected = 0xc0c0c0c0c0c0c0c0;
-	fence = xe_migrate_copy(m, sysmem, bo, sysmem->ttm.resource,
+	fence = xe_migrate_copy(m, remote, bo, remote->ttm.resource,
 				bo->ttm.resource);
-	if (!sanity_fence_failed(xe, fence, big ? "Copying big bo sysmem -> vram" :
-				 "Copying small bo sysmem -> vram", test)) {
+	if (!sanity_fence_failed(xe, fence, big ? "Copying big bo remote -> vram" :
+				 "Copying small bo remote -> vram", test)) {
 		retval = xe_map_rd(xe, &bo->vmap, 0, u64);
 		check(retval, expected,
-		      "sysmem -> vram bo first offset should be copied", test);
+		      "remote -> vram bo first offset should be copied", test);
 		retval = xe_map_rd(xe, &bo->vmap, bo->size - 8, u64);
 		check(retval, expected,
-		      "sysmem -> vram bo offset should be copied", test);
+		      "remote -> vram bo offset should be copied", test);
 	}
 	dma_fence_put(fence);
 
 	/* And other way around.. slightly hacky.. */
-	xe_map_memset(xe, &sysmem->vmap, 0, 0xd0, sysmem->size);
+	xe_map_memset(xe, &remote->vmap, 0, 0xd0, remote->size);
 	xe_map_memset(xe, &bo->vmap, 0, 0xc0, bo->size);
 
-	fence = xe_migrate_copy(m, bo, sysmem, bo->ttm.resource,
-				sysmem->ttm.resource);
-	if (!sanity_fence_failed(xe, fence, big ? "Copying big bo vram -> sysmem" :
-				 "Copying small bo vram -> sysmem", test)) {
-		retval = xe_map_rd(xe, &sysmem->vmap, 0, u64);
+	fence = xe_migrate_copy(m, bo, remote, bo->ttm.resource,
+				remote->ttm.resource);
+	if (!sanity_fence_failed(xe, fence, big ? "Copying big bo vram -> remote" :
+				 "Copying small bo vram -> remote", test)) {
+		retval = xe_map_rd(xe, &remote->vmap, 0, u64);
 		check(retval, expected,
-		      "vram -> sysmem bo first offset should be copied", test);
-		retval = xe_map_rd(xe, &sysmem->vmap, bo->size - 8, u64);
+		      "vram -> remote bo first offset should be copied", test);
+		retval = xe_map_rd(xe, &remote->vmap, bo->size - 8, u64);
 		check(retval, expected,
-		      "vram -> sysmem bo last offset should be copied", test);
+		      "vram -> remote bo last offset should be copied", test);
 	}
 	dma_fence_put(fence);
 
-	xe_bo_vunmap(sysmem);
+	xe_bo_vunmap(remote);
 out_unlock:
-	xe_bo_unlock(sysmem);
-	xe_bo_put(sysmem);
+	xe_bo_unlock(remote);
+	xe_bo_put(remote);
+}
+
+static void test_copy_sysmem(struct xe_migrate *m, struct xe_bo *bo,
+			     struct kunit *test)
+{
+	test_copy(m, bo, test, XE_BO_CREATE_SYSTEM_BIT);
+}
+
+static void test_copy_vram(struct xe_migrate *m, struct xe_bo *bo,
+			   struct kunit *test)
+{
+	u32 region;
+
+	if (bo->ttm.resource->mem_type == XE_PL_SYSTEM)
+		return;
+
+	if (bo->ttm.resource->mem_type == XE_PL_VRAM0)
+		region = XE_BO_CREATE_VRAM1_BIT;
+	else
+		region = XE_BO_CREATE_VRAM0_BIT;
+	test_copy(m, bo, test, region);
 }
 
 static void test_pt_update(struct xe_migrate *m, struct xe_bo *pt,
@@ -349,7 +370,11 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 	check(retval, expected, "Command clear small last value", test);
 
 	kunit_info(test, "Copying small buffer object to system\n");
-	test_copy(m, tiny, test);
+	test_copy_sysmem(m, tiny, test);
+	if (xe->info.tile_count > 1) {
+		kunit_info(test, "Copying small buffer object to other vram\n");
+		test_copy_vram(m, tiny, test);
+	}
 
 	/* Clear a big bo */
 	kunit_info(test, "Clearing big buffer object\n");
@@ -366,7 +391,11 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 	check(retval, expected, "Command clear big last value", test);
 
 	kunit_info(test, "Copying big buffer object to system\n");
-	test_copy(m, big, test);
+	test_copy_sysmem(m, big, test);
+	if (xe->info.tile_count > 1) {
+		kunit_info(test, "Copying big buffer object to other vram\n");
+		test_copy_vram(m, big, test);
+	}
 
 	kunit_info(test, "Testing page table update using CPU if GPU idle.\n");
 	test_pt_update(m, pt, test, false);
