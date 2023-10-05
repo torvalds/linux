@@ -1280,12 +1280,18 @@ struct iommu_table_group_ops spapr_tce_table_group_ops = {
 /*
  * A simple iommu_ops to allow less cruft in generic VFIO code.
  */
-static int spapr_tce_platform_iommu_attach_dev(struct iommu_domain *dom,
-					       struct device *dev)
+static int
+spapr_tce_platform_iommu_attach_dev(struct iommu_domain *platform_domain,
+				    struct device *dev)
 {
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	struct iommu_group *grp = iommu_group_get(dev);
 	struct iommu_table_group *table_group;
 	int ret = -EINVAL;
+
+	/* At first attach the ownership is already set */
+	if (!domain)
+		return 0;
 
 	if (!grp)
 		return -ENODEV;
