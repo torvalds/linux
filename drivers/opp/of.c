@@ -1077,9 +1077,11 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 
 	val = prop->value;
 	while (nr) {
+		unsigned long freq = be32_to_cpup(val++) * 1000;
+		unsigned long volt = be32_to_cpup(val++);
 		struct dev_pm_opp_data data = {
-			.freq = be32_to_cpup(val++) * 1000,
-			.u_volt = be32_to_cpup(val++),
+			.freq = freq,
+			.u_volt = volt,
 		};
 
 		ret = _opp_add_v1(opp_table, dev, &data, false);
