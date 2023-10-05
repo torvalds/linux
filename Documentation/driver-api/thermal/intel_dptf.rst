@@ -315,3 +315,57 @@ DPTF Fan Control
 ----------------------------------------
 
 Refer to Documentation/admin-guide/acpi/fan_performance_states.rst
+
+Workload Type Hints
+----------------------------------------
+
+The firmware in Meteor Lake processor generation is capable of identifying
+workload type and passing hints regarding it to the OS. A special sysfs
+interface is provided to allow user space to obtain workload type hints from
+the firmware and control the rate at which they are provided.
+
+User space can poll attribute "workload_type_index" for the current hint or
+can receive a notification whenever the value of this attribute is updated.
+
+file:`/sys/bus/pci/devices/0000:00:04.0/workload_hint/`
+Segment 0, bus 0, device 4, function 0 is reserved for the processor thermal
+device on all Intel client processors. So, the above path doesn't change
+based on the processor generation.
+
+``workload_hint_enable`` (RW)
+	Enable firmware to send workload type hints to user space.
+
+``notification_delay_ms`` (RW)
+	Minimum delay in milliseconds before firmware will notify OS. This is
+	for the rate control of notifications. This delay is between changing
+	the workload type prediction in the firmware and notifying the OS about
+	the change. The default delay is 1024 ms. The delay of 0 is invalid.
+	The delay is rounded up to the nearest power of 2 to simplify firmware
+	programming of the delay value. The read of notification_delay_ms
+	attribute shows the effective value used.
+
+``workload_type_index`` (RO)
+	Predicted workload type index. User space can get notification of
+	change via existing sysfs attribute change notification mechanism.
+
+	The supported index values and their meaning for the Meteor Lake
+	processor generation are as follows:
+
+	0 -  Idle: System performs no tasks, power and idle residency are
+		consistently low for long periods of time.
+
+	1 – Battery Life: Power is relatively low, but the processor may
+		still be actively performing a task, such as video playback for
+		a long period of time.
+
+	2 – Sustained: Power level that is relatively high for a long period
+		of time, with very few to no periods of idleness, which will
+		eventually exhaust RAPL Power Limit 1 and 2.
+
+	3 – Bursty: Consumes a relatively constant average amount of power, but
+		periods of relative idleness are interrupted by bursts of
+		activity. The bursts are relatively short and the periods of
+		relative idleness between them typically prevent RAPL Power
+		Limit 1 from being exhausted.
+
+	4 – Unknown: Can't classify.

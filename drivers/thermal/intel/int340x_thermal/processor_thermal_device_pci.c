@@ -15,6 +15,11 @@
 
 #define DRV_NAME "proc_thermal_pci"
 
+static bool use_msi;
+module_param(use_msi, bool, 0644);
+MODULE_PARM_DESC(use_msi,
+	"Use PCI MSI based interrupts for processor thermal device.");
+
 struct proc_thermal_pci {
 	struct pci_dev *pdev;
 	struct proc_thermal_device *proc_priv;
@@ -117,20 +122,44 @@ static void pkg_thermal_schedule_work(struct delayed_work *work)
 	schedule_delayed_work(work, ms);
 }
 
+static irqreturn_t proc_thermal_irq_thread_handler(int irq, void *devid)
+{
+	struct proc_thermal_pci *pci_info = devid;
+
+	proc_thermal_wt_intr_callback(pci_info->pdev, pci_info->proc_priv);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t proc_thermal_irq_handler(int irq, void *devid)
 {
 	struct proc_thermal_pci *pci_info = devid;
+	struct proc_thermal_device *proc_priv;
+	int ret = IRQ_HANDLED;
 	u32 status;
 
-	proc_thermal_mmio_read(pci_info, PROC_THERMAL_MMIO_INT_STATUS_0, &status);
+	proc_priv = pci_info->proc_priv;
 
-	/* Disable enable interrupt flag */
-	proc_thermal_mmio_write(pci_info, PROC_THERMAL_MMIO_INT_ENABLE_0, 0);
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_WT_HINT) {
+		if (proc_thermal_check_wt_intr(pci_info->proc_priv))
+			ret = IRQ_WAKE_THREAD;
+	}
+
+	/*
+	 * Since now there are two sources of interrupts: one from thermal threshold
+	 * and another from workload hint, add a check if there was really a threshold
+	 * interrupt before scheduling work function for thermal threshold.
+	 */
+	proc_thermal_mmio_read(pci_info, PROC_THERMAL_MMIO_INT_STATUS_0, &status);
+	if (status) {
+		/* Disable enable interrupt flag */
+		proc_thermal_mmio_write(pci_info, PROC_THERMAL_MMIO_INT_ENABLE_0, 0);
+		pkg_thermal_schedule_work(&pci_info->work);
+	}
+
 	pci_write_config_byte(pci_info->pdev, 0xdc, 0x01);
 
-	pkg_thermal_schedule_work(&pci_info->work);
-
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
@@ -203,6 +232,7 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 	struct proc_thermal_device *proc_priv;
 	struct proc_thermal_pci *pci_info;
 	int irq_flag = 0, irq, ret;
+	bool msi_irq = false;
 
 	proc_priv = devm_kzalloc(&pdev->dev, sizeof(*proc_priv), GFP_KERNEL);
 	if (!proc_priv)
@@ -248,18 +278,23 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 		goto err_ret_mmio;
 	}
 
-	/* request and enable interrupt */
-	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to allocate vectors!\n");
-		goto err_ret_tzone;
-	}
-	if (!pdev->msi_enabled && !pdev->msix_enabled)
-		irq_flag = IRQF_SHARED;
+	if (use_msi && (pdev->msi_enabled || pdev->msix_enabled)) {
+		/* request and enable interrupt */
+		ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to allocate vectors!\n");
+			goto err_ret_tzone;
+		}
 
-	irq =  pci_irq_vector(pdev, 0);
+		irq =  pci_irq_vector(pdev, 0);
+		msi_irq = true;
+	} else {
+		irq_flag = IRQF_SHARED;
+		irq = pdev->irq;
+	}
+
 	ret = devm_request_threaded_irq(&pdev->dev, irq,
-					proc_thermal_irq_handler, NULL,
+					proc_thermal_irq_handler, proc_thermal_irq_thread_handler,
 					irq_flag, KBUILD_MODNAME, pci_info);
 	if (ret) {
 		dev_err(&pdev->dev, "Request IRQ %d failed\n", pdev->irq);
@@ -273,7 +308,8 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 	return 0;
 
 err_free_vectors:
-	pci_free_irq_vectors(pdev);
+	if (msi_irq)
+		pci_free_irq_vectors(pdev);
 err_ret_tzone:
 	thermal_zone_device_unregister(pci_info->tzone);
 err_ret_mmio:
@@ -350,9 +386,15 @@ static SIMPLE_DEV_PM_OPS(proc_thermal_pci_pm, proc_thermal_pci_suspend,
 			 proc_thermal_pci_resume);
 
 static const struct pci_device_id proc_thermal_pci_ids[] = {
-	{ PCI_DEVICE_DATA(INTEL, ADL_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_MBOX) },
-	{ PCI_DEVICE_DATA(INTEL, MTLP_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_MBOX | PROC_THERMAL_FEATURE_DLVR) },
-	{ PCI_DEVICE_DATA(INTEL, RPL_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_MBOX) },
+	{ PCI_DEVICE_DATA(INTEL, ADL_THERMAL, PROC_THERMAL_FEATURE_RAPL |
+	  PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_WT_REQ) },
+	{ PCI_DEVICE_DATA(INTEL, MTLP_THERMAL, PROC_THERMAL_FEATURE_RAPL |
+	  PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_DLVR |
+	  PROC_THERMAL_FEATURE_WT_HINT) },
+	{ PCI_DEVICE_DATA(INTEL, ARL_S_THERMAL, PROC_THERMAL_FEATURE_RAPL |
+	  PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_DLVR | PROC_THERMAL_FEATURE_WT_HINT) },
+	{ PCI_DEVICE_DATA(INTEL, RPL_THERMAL, PROC_THERMAL_FEATURE_RAPL |
+	  PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS | PROC_THERMAL_FEATURE_WT_REQ) },
 	{ },
 };
 
@@ -367,6 +409,8 @@ static struct pci_driver proc_thermal_pci_driver = {
 };
 
 module_pci_driver(proc_thermal_pci_driver);
+
+MODULE_IMPORT_NS(INT340X_THERMAL);
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_DESCRIPTION("Processor Thermal Reporting Device Driver");
