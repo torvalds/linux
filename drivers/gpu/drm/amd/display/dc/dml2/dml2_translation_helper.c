@@ -571,6 +571,8 @@ static void populate_dml_timing_cfg_from_stream_state(struct dml_timing_cfg_st *
 	out->RefreshRate[location] = ((in->timing.pix_clk_100hz * 100) / in->timing.h_total) / in->timing.v_total;
 	out->VFrontPorch[location] = in->timing.v_front_porch;
 	out->PixelClock[location] = in->timing.pix_clk_100hz / 10000.00;
+	if (in->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
+		out->PixelClock[location] *= 2;
 	out->HTotal[location] = in->timing.h_total;
 	out->VTotal[location] = in->timing.v_total;
 	out->Interlace[location] = in->timing.flags.INTERLACE;

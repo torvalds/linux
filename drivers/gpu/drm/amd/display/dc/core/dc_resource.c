@@ -4229,7 +4229,7 @@ static void set_avi_info_frame(
 	switch (stream->content_type) {
 	case DISPLAY_CONTENT_TYPE_NO_DATA:
 		hdmi_info.bits.CN0_CN1 = 0;
-		hdmi_info.bits.ITC = 0;
+		hdmi_info.bits.ITC = 1;
 		break;
 	case DISPLAY_CONTENT_TYPE_GRAPHICS:
 		hdmi_info.bits.CN0_CN1 = 0;
