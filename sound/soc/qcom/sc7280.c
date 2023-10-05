@@ -5,6 +5,7 @@
 // ALSA SoC Machine driver for sc7280
 
 #include <dt-bindings/sound/qcom,lpass.h>
+#include <dt-bindings/sound/qcom,q6afe.h>
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/of_device.h>

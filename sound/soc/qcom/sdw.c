@@ -2,9 +2,9 @@
 // Copyright (c) 2018, Linaro Limited.
 // Copyright (c) 2018, The Linux Foundation. All rights reserved.
 
+#include <dt-bindings/sound/qcom,q6afe.h>
 #include <linux/module.h>
 #include <sound/soc.h>
-#include "qdsp6/q6afe.h"
 #include "sdw.h"
 
 int qcom_snd_sdw_prepare(struct snd_pcm_substream *substream,

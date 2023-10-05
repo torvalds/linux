@@ -16,6 +16,7 @@
 #include <sound/soc.h>
 #include <uapi/linux/input-event-codes.h>
 #include <dt-bindings/sound/apq8016-lpass.h>
+#include <dt-bindings/sound/qcom,q6afe.h>
 #include "common.h"
 #include "qdsp6/q6afe.h"
 
