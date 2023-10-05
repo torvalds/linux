@@ -616,6 +616,23 @@ static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
 	return 0;
 }
 
+static int ffa_run(struct ffa_device *dev, u16 vcpu)
+{
+	ffa_value_t ret;
+	u32 target = dev->vm_id << 16 | vcpu;
+
+	invoke_ffa_fn((ffa_value_t){ .a0 = FFA_RUN, .a1 = target, }, &ret);
+
+	while (ret.a0 == FFA_INTERRUPT)
+		invoke_ffa_fn((ffa_value_t){ .a0 = FFA_RUN, .a1 = ret.a1, },
+			      &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+
+	return 0;
+}
+
 static void ffa_set_up_mem_ops_native_flag(void)
 {
 	if (!ffa_features(FFA_FN_NATIVE(MEM_LEND), 0, NULL, NULL) ||
@@ -700,10 +717,15 @@ static const struct ffa_mem_ops ffa_drv_mem_ops = {
 	.memory_lend = ffa_memory_lend,
 };
 
+static const struct ffa_cpu_ops ffa_drv_cpu_ops = {
+	.run = ffa_run,
+};
+
 static const struct ffa_ops ffa_drv_ops = {
 	.info_ops = &ffa_drv_info_ops,
 	.msg_ops = &ffa_drv_msg_ops,
 	.mem_ops = &ffa_drv_mem_ops,
+	.cpu_ops = &ffa_drv_cpu_ops,
 };
 
 void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)

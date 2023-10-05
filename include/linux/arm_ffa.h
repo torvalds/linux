@@ -387,10 +387,15 @@ struct ffa_mem_ops {
 	int (*memory_lend)(struct ffa_mem_ops_args *args);
 };
 
+struct ffa_cpu_ops {
+	int (*run)(struct ffa_device *dev, u16 vcpu);
+};
+
 struct ffa_ops {
 	const struct ffa_info_ops *info_ops;
 	const struct ffa_msg_ops *msg_ops;
 	const struct ffa_mem_ops *mem_ops;
+	const struct ffa_cpu_ops *cpu_ops;
 };
 
 #endif /* _LINUX_ARM_FFA_H */
