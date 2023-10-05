@@ -294,34 +294,34 @@ struct cec_dmi_match {
 	const char *const *conns;
 };
 
-static const char *const fizz_conns[] = { "Port B", NULL };
-static const char *const dibbi_conns[] = { "Port D", "Port B", NULL };
-static const char *const constitution_conns[] = { "Port B", "Port A", NULL };
-static const char *const boxy_conns[] = { "Port D", NULL };
+static const char *const port_b_conns[] = { "Port B", NULL };
+static const char *const port_db_conns[] = { "Port D", "Port B", NULL };
+static const char *const port_ba_conns[] = { "Port B", "Port A", NULL };
+static const char *const port_d_conns[] = { "Port D", NULL };
 
 static const struct cec_dmi_match cec_dmi_match_table[] = {
 	/* Google Fizz */
-	{ "Google", "Fizz", "0000:00:02.0", fizz_conns },
+	{ "Google", "Fizz", "0000:00:02.0", port_b_conns },
 	/* Google Brask */
-	{ "Google", "Brask", "0000:00:02.0", fizz_conns },
+	{ "Google", "Brask", "0000:00:02.0", port_b_conns },
 	/* Google Moli */
-	{ "Google", "Moli", "0000:00:02.0", fizz_conns },
+	{ "Google", "Moli", "0000:00:02.0", port_b_conns },
 	/* Google Kinox */
-	{ "Google", "Kinox", "0000:00:02.0", fizz_conns },
+	{ "Google", "Kinox", "0000:00:02.0", port_b_conns },
 	/* Google Kuldax */
-	{ "Google", "Kuldax", "0000:00:02.0", fizz_conns },
+	{ "Google", "Kuldax", "0000:00:02.0", port_b_conns },
 	/* Google Aurash */
-	{ "Google", "Aurash", "0000:00:02.0", fizz_conns },
+	{ "Google", "Aurash", "0000:00:02.0", port_b_conns },
 	/* Google Gladios */
-	{ "Google", "Gladios", "0000:00:02.0", fizz_conns },
+	{ "Google", "Gladios", "0000:00:02.0", port_b_conns },
 	/* Google Lisbon */
-	{ "Google", "Lisbon", "0000:00:02.0", fizz_conns },
+	{ "Google", "Lisbon", "0000:00:02.0", port_b_conns },
 	/* Google Dibbi */
-	{ "Google", "Dibbi", "0000:00:02.0", dibbi_conns },
+	{ "Google", "Dibbi", "0000:00:02.0", port_db_conns },
 	/* Google Constitution */
-	{ "Google", "Constitution", "0000:00:02.0", constitution_conns },
+	{ "Google", "Constitution", "0000:00:02.0", port_ba_conns },
 	/* Google Boxy */
-	{ "Google", "Boxy", "0000:00:02.0", boxy_conns },
+	{ "Google", "Boxy", "0000:00:02.0", port_d_conns },
 };
 
 static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
