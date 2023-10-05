@@ -69,6 +69,10 @@ include ../scripts/utilities.mak
 # Define NO_LIBDW_DWARF_UNWIND if you do not want libdw support
 # for dwarf backtrace post unwind.
 #
+# Define NO_LIBTRACEEVENT=1 if you don't want libtraceevent to be linked,
+# this will remove multiple features and tools, such as 'perf trace',
+# that need it to read tracefs event format files, etc.
+#
 # Define NO_PERF_READ_VDSO32 if you do not want to build perf-read-vdso32
 # for reading the 32-bit compatibility VDSO in 64-bit mode
 #
