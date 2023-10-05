@@ -616,6 +616,26 @@ static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
 	return 0;
 }
 
+static
+int ffa_notification_set(u16 src_id, u16 dst_id, u32 flags, u64 bitmap)
+{
+	ffa_value_t ret;
+	u32 src_dst_ids = PACK_TARGET_INFO(dst_id, src_id);
+
+	invoke_ffa_fn((ffa_value_t) {
+		  .a0 = FFA_NOTIFICATION_SET, .a1 = src_dst_ids, .a2 = flags,
+		  .a3 = NOTIFICATION_BITMAP_LOW(bitmap),
+		  .a4 = NOTIFICATION_BITMAP_HIGH(bitmap),
+		  }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+	else if (ret.a0 != FFA_SUCCESS)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int ffa_run(struct ffa_device *dev, u16 vcpu)
 {
 	ffa_value_t ret;
