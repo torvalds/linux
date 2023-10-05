@@ -8,6 +8,7 @@
 #include <string.h>
 #include <endian.h>
 #include <byteswap.h>
+#include <linux/kernel.h>
 #include <linux/compiler.h>
 
 #include "intel-pt-pkt-decoder.h"
@@ -17,17 +18,11 @@
 #define BIT63		((uint64_t)1 << 63)
 
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define le16_to_cpu bswap_16
-#define le32_to_cpu bswap_32
-#define le64_to_cpu bswap_64
 #define memcpy_le64(d, s, n) do { \
 	memcpy((d), (s), (n));    \
 	*(d) = le64_to_cpu(*(d)); \
 } while (0)
 #else
-#define le16_to_cpu
-#define le32_to_cpu
-#define le64_to_cpu
 #define memcpy_le64 memcpy
 #endif
 
