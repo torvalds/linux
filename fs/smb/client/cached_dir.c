@@ -15,6 +15,7 @@
 static struct cached_fid *init_cached_dir(const char *path);
 static void free_cached_dir(struct cached_fid *cfid);
 static void smb2_close_cached_fid(struct kref *ref);
+static void cfids_laundromat_worker(struct work_struct *work);
 
 static struct cached_fid *find_or_create_cached_dir(struct cached_fids *cfids,
 						    const char *path,
@@ -572,52 +573,45 @@ static void free_cached_dir(struct cached_fid *cfid)
 	kfree(cfid);
 }
 
-static int
-cifs_cfids_laundromat_thread(void *p)
+static void cfids_laundromat_worker(struct work_struct *work)
 {
-	struct cached_fids *cfids = p;
+	struct cached_fids *cfids;
 	struct cached_fid *cfid, *q;
-	struct list_head entry;
+	LIST_HEAD(entry);
 
-	while (!kthread_should_stop()) {
-		ssleep(1);
-		INIT_LIST_HEAD(&entry);
-		if (kthread_should_stop())
-			return 0;
-		spin_lock(&cfids->cfid_list_lock);
-		list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {
-			if (time_after(jiffies, cfid->time + HZ * dir_cache_timeout)) {
-				list_del(&cfid->entry);
-				list_add(&cfid->entry, &entry);
-				cfids->num_entries--;
-			}
-		}
-		spin_unlock(&cfids->cfid_list_lock);
+	cfids = container_of(work, struct cached_fids, laundromat_work.work);
 
-		list_for_each_entry_safe(cfid, q, &entry, entry) {
-			cfid->on_list = false;
-			list_del(&cfid->entry);
-			/*
-			 * Cancel, and wait for the work to finish in
-			 * case we are racing with it.
-			 */
-			cancel_work_sync(&cfid->lease_break);
-			if (cfid->has_lease) {
-				/*
-				 * We lease has not yet been cancelled from
-				 * the server so we need to drop the reference.
-				 */
-				spin_lock(&cfids->cfid_list_lock);
-				cfid->has_lease = false;
-				spin_unlock(&cfids->cfid_list_lock);
-				kref_put(&cfid->refcount, smb2_close_cached_fid);
-			}
+	spin_lock(&cfids->cfid_list_lock);
+	list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {
+		if (time_after(jiffies, cfid->time + HZ * dir_cache_timeout)) {
+			list_move(&cfid->entry, &entry);
+			cfids->num_entries--;
 		}
 	}
+	spin_unlock(&cfids->cfid_list_lock);
 
-	return 0;
+	list_for_each_entry_safe(cfid, q, &entry, entry) {
+		cfid->on_list = false;
+		list_del(&cfid->entry);
+		/*
+		 * Cancel and wait for the work to finish in case we are racing
+		 * with it.
+		 */
+		cancel_work_sync(&cfid->lease_break);
+		if (cfid->has_lease) {
+			/*
+			 * Our lease has not yet been cancelled from the server
+			 * so we need to drop the reference.
+			 */
+			spin_lock(&cfids->cfid_list_lock);
+			cfid->has_lease = false;
+			spin_unlock(&cfids->cfid_list_lock);
+			kref_put(&cfid->refcount, smb2_close_cached_fid);
+		}
+	}
+	queue_delayed_work(cifsiod_wq, &cfids->laundromat_work,
+			   dir_cache_timeout * HZ);
 }
-
 
 struct cached_fids *init_cached_dirs(void)
 {
@@ -629,19 +623,10 @@ struct cached_fids *init_cached_dirs(void)
 	spin_lock_init(&cfids->cfid_list_lock);
 	INIT_LIST_HEAD(&cfids->entries);
 
-	/*
-	 * since we're in a cifs function already, we know that
-	 * this will succeed. No need for try_module_get().
-	 */
-	__module_get(THIS_MODULE);
-	cfids->laundromat = kthread_run(cifs_cfids_laundromat_thread,
-				  cfids, "cifsd-cfid-laundromat");
-	if (IS_ERR(cfids->laundromat)) {
-		cifs_dbg(VFS, "Failed to start cfids laundromat thread.\n");
-		kfree(cfids);
-		module_put(THIS_MODULE);
-		return NULL;
-	}
+	INIT_DELAYED_WORK(&cfids->laundromat_work, cfids_laundromat_worker);
+	queue_delayed_work(cifsiod_wq, &cfids->laundromat_work,
+			   dir_cache_timeout * HZ);
+
 	return cfids;
 }
 
@@ -657,11 +642,7 @@ void free_cached_dirs(struct cached_fids *cfids)
 	if (cfids == NULL)
 		return;
 
-	if (cfids->laundromat) {
-		kthread_stop(cfids->laundromat);
-		cfids->laundromat = NULL;
-		module_put(THIS_MODULE);
-	}
+	cancel_delayed_work_sync(&cfids->laundromat_work);
 
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {
