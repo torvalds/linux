@@ -384,14 +384,13 @@ static void uvcg_video_pump(struct work_struct *work)
 	struct uvc_video_queue *queue = &video->queue;
 	/* video->max_payload_size is only set when using bulk transfer */
 	bool is_bulk = video->max_payload_size;
-	struct uvc_device *uvc = video->uvc;
 	struct usb_request *req = NULL;
 	struct uvc_buffer *buf;
 	unsigned long flags;
 	bool buf_done;
 	int ret;
 
-	while (video->ep->enabled && uvc->state == UVC_STATE_STREAMING) {
+	while (video->ep->enabled) {
 		/*
 		 * Retrieve the first available USB request, protected by the
 		 * request lock.
@@ -489,7 +488,6 @@ static void uvcg_video_pump(struct work_struct *work)
  */
 int uvcg_video_enable(struct uvc_video *video, int enable)
 {
-	struct uvc_device *uvc = video->uvc;
 	unsigned int i;
 	int ret;
 
@@ -500,8 +498,6 @@ int uvcg_video_enable(struct uvc_video *video, int enable)
 	}
 
 	if (!enable) {
-		uvc->state = UVC_STATE_CONNECTED;
-
 		cancel_work_sync(&video->pump);
 		uvcg_queue_cancel(&video->queue, 0);
 
@@ -526,8 +522,6 @@ int uvcg_video_enable(struct uvc_video *video, int enable)
 	} else
 		video->encode = video->queue.use_sg ?
 			uvc_video_encode_isoc_sg : uvc_video_encode_isoc;
-
-	uvc->state = UVC_STATE_STREAMING;
 
 	video->req_int_count = 0;
 
