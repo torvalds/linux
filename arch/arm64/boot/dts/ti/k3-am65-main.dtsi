@@ -600,7 +600,7 @@
 	};
 
 	main_navss: bus@30800000 {
-		compatible = "simple-mfd";
+		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges = <0x0 0x30800000 0x0 0x30800000 0x0 0xbc00000>;
