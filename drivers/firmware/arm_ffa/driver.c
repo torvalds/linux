@@ -1038,6 +1038,18 @@ static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
 	return rc;
 }
 
+static int ffa_notify_send(struct ffa_device *dev, int notify_id,
+			   bool is_per_vcpu, u16 vcpu)
+{
+	u32 flags = 0;
+
+	if (is_per_vcpu)
+		flags |= (PER_VCPU_NOTIFICATION_FLAG | vcpu << 16);
+
+	return ffa_notification_set(dev->vm_id, drv_info->vm_id, flags,
+				    BIT(notify_id));
+}
+
 static const struct ffa_info_ops ffa_drv_info_ops = {
 	.api_version_get = ffa_api_version_get,
 	.partition_info_get = ffa_partition_info_get,
@@ -1063,6 +1075,7 @@ static const struct ffa_notifier_ops ffa_drv_notifier_ops = {
 	.sched_recv_cb_unregister = ffa_sched_recv_cb_unregister,
 	.notify_request = ffa_notify_request,
 	.notify_relinquish = ffa_notify_relinquish,
+	.notify_send = ffa_notify_send,
 };
 
 static const struct ffa_ops ffa_drv_ops = {
