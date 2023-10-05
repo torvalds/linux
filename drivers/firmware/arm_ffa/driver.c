@@ -423,7 +423,7 @@ static u32 ffa_get_num_pages_sg(struct scatterlist *sg)
 	return num_pages;
 }
 
-static u8 ffa_memory_attributes_get(u32 func_id)
+static u16 ffa_memory_attributes_get(u32 func_id)
 {
 	/*
 	 * For the memory lend or donate operation, if the receiver is a PE or
@@ -467,9 +467,14 @@ ffa_setup_and_transmit(u32 func_id, void *buffer, u32 max_fragsize,
 		ep_mem_access->reserved = 0;
 	}
 	mem_region->handle = 0;
-	mem_region->reserved_0 = 0;
-	mem_region->reserved_1 = 0;
 	mem_region->ep_count = args->nattrs;
+	if (drv_info->version <= FFA_VERSION_1_0) {
+		mem_region->ep_mem_size = 0;
+	} else {
+		mem_region->ep_mem_size = sizeof(*ep_mem_access);
+		mem_region->ep_mem_offset = sizeof(*mem_region);
+		memset(mem_region->reserved, 0, 12);
+	}
 
 	composite = buffer + composite_offset;
 	composite->total_pg_cnt = ffa_get_num_pages_sg(args->sg);

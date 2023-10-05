@@ -6,6 +6,7 @@
 #ifndef _LINUX_ARM_FFA_H
 #define _LINUX_ARM_FFA_H
 
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -298,8 +299,8 @@ struct ffa_mem_region {
 #define FFA_MEM_NON_SHAREABLE	(0)
 #define FFA_MEM_OUTER_SHAREABLE	(2)
 #define FFA_MEM_INNER_SHAREABLE	(3)
-	u8 attributes;
-	u8 reserved_0;
+	/* Memory region attributes, upper byte MBZ pre v1.1 */
+	u16 attributes;
 /*
  * Clear memory region contents after unmapping it from the sender and
  * before mapping it for any receiver.
@@ -337,30 +338,40 @@ struct ffa_mem_region {
 	 * memory region.
 	 */
 	u64 tag;
-	u32 reserved_1;
+	/* Size of each endpoint memory access descriptor, MBZ pre v1.1 */
+	u32 ep_mem_size;
 	/*
 	 * The number of `ffa_mem_region_attributes` entries included in this
 	 * transaction.
 	 */
 	u32 ep_count;
 	/*
-	 * An array of endpoint memory access descriptors.
-	 * Each one specifies a memory region offset, an endpoint and the
-	 * attributes with which this memory region should be mapped in that
-	 * endpoint's page table.
+	 * 16-byte aligned offset from the base address of this descriptor
+	 * to the first element of the endpoint memory access descriptor array
+	 * Valid only from v1.1
 	 */
-	struct ffa_mem_region_attributes ep_mem_access[];
+	u32 ep_mem_offset;
+	/* MBZ, valid only from v1.1 */
+	u32 reserved[3];
 };
 
-#define	COMPOSITE_OFFSET(x)	\
-	(offsetof(struct ffa_mem_region, ep_mem_access[x]))
 #define CONSTITUENTS_OFFSET(x)	\
 	(offsetof(struct ffa_composite_mem_region, constituents[x]))
 
 static inline u32
 ffa_mem_desc_offset(struct ffa_mem_region *buf, int count, u32 ffa_version)
 {
-	return COMPOSITE_OFFSET(0);
+	u32 offset = count * sizeof(struct ffa_mem_region_attributes);
+	/*
+	 * Earlier to v1.1, the endpoint memory descriptor array started at
+	 * offset 32(i.e. offset of ep_mem_offset in the current structure)
+	 */
+	if (ffa_version <= FFA_VERSION_1_0)
+		offset += offsetof(struct ffa_mem_region, ep_mem_offset);
+	else
+		offset += sizeof(struct ffa_mem_region);
+
+	return offset;
 }
 
 struct ffa_mem_ops_args {
