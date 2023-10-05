@@ -23688,7 +23688,7 @@ F:	drivers/gpio/gpio-zynq.c
 
 XILINX LL TEMAC ETHERNET DRIVER
 L:	netdev@vger.kernel.org
-S:	Obsolete
+S:	Orphan
 F:	drivers/net/ethernet/xilinx/ll_temac*
 
 XILINX PWM DRIVER
