@@ -368,7 +368,7 @@ struct mlxplat_priv {
 };
 
 static struct platform_device *mlxplat_dev;
-static int mlxplat_i2c_main_complition_notify(void *handle, int id);
+static int mlxplat_i2c_main_completion_notify(void *handle, int id);
 static void __iomem *i2c_bridge_addr, *jtag_bridge_addr;
 
 /* Regions for LPC I2C controller and LPC base register space */
@@ -384,7 +384,7 @@ static const struct resource mlxplat_lpc_resources[] = {
 
 /* Platform systems default i2c data */
 static struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_i2c_default_data = {
-	.completion_notify = mlxplat_i2c_main_complition_notify,
+	.completion_notify = mlxplat_i2c_main_completion_notify,
 };
 
 /* Platform i2c next generation systems data */
@@ -409,7 +409,7 @@ static struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_i2c_ng_data = {
 	.mask = MLXPLAT_CPLD_AGGR_MASK_COMEX,
 	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGRCO_OFFSET,
 	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_I2C,
-	.completion_notify = mlxplat_i2c_main_complition_notify,
+	.completion_notify = mlxplat_i2c_main_completion_notify,
 };
 
 /* Platform default channels */
@@ -6471,7 +6471,7 @@ static void mlxplat_i2c_mux_topology_exit(struct mlxplat_priv *priv)
 	}
 }
 
-static int mlxplat_i2c_main_complition_notify(void *handle, int id)
+static int mlxplat_i2c_main_completion_notify(void *handle, int id)
 {
 	struct mlxplat_priv *priv = handle;
 
