@@ -84,6 +84,7 @@ struct ffa_drv_info {
 	void *rx_buffer;
 	void *tx_buffer;
 	bool mem_ops_native;
+	bool bitmap_created;
 };
 
 static struct ffa_drv_info *drv_info;
@@ -555,6 +556,37 @@ static int ffa_features(u32 func_feat_id, u32 input_props,
 	return 0;
 }
 
+static int ffa_notification_bitmap_create(void)
+{
+	ffa_value_t ret;
+	u16 vcpu_count = nr_cpu_ids;
+
+	invoke_ffa_fn((ffa_value_t){
+		      .a0 = FFA_NOTIFICATION_BITMAP_CREATE,
+		      .a1 = drv_info->vm_id, .a2 = vcpu_count,
+		      }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+
+	return 0;
+}
+
+static int ffa_notification_bitmap_destroy(void)
+{
+	ffa_value_t ret;
+
+	invoke_ffa_fn((ffa_value_t){
+		      .a0 = FFA_NOTIFICATION_BITMAP_DESTROY,
+		      .a1 = drv_info->vm_id,
+		      }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+
+	return 0;
+}
+
 static void ffa_set_up_mem_ops_native_flag(void)
 {
 	if (!ffa_features(FFA_FN_NATIVE(MEM_LEND), 0, NULL, NULL) ||
@@ -704,6 +736,34 @@ static void ffa_setup_partitions(void)
 	kfree(pbuf);
 }
 
+static int ffa_notifications_setup(void)
+{
+	int ret;
+
+	ret = ffa_features(FFA_NOTIFICATION_BITMAP_CREATE, 0, NULL, NULL);
+	if (ret) {
+		pr_err("Notifications not supported, continuing with it ..\n");
+		return 0;
+	}
+
+	ret = ffa_notification_bitmap_create();
+	if (ret) {
+		pr_err("notification_bitmap_create error %d\n", ret);
+		return ret;
+	}
+	drv_info->bitmap_created = true;
+
+	return 0;
+}
+
+static void ffa_notifications_cleanup(void)
+{
+	if (drv_info->bitmap_created) {
+		ffa_notification_bitmap_destroy();
+		drv_info->bitmap_created = false;
+	}
+}
+
 static int __init ffa_init(void)
 {
 	int ret;
@@ -759,7 +819,7 @@ static int __init ffa_init(void)
 
 	ffa_set_up_mem_ops_native_flag();
 
-	return 0;
+	return ffa_notifications_setup();
 free_pages:
 	if (drv_info->tx_buffer)
 		free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
@@ -774,6 +834,7 @@ subsys_initcall(ffa_init);
 
 static void __exit ffa_exit(void)
 {
+	ffa_notifications_cleanup();
 	ffa_rxtx_unmap(drv_info->vm_id);
 	free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
 	free_pages_exact(drv_info->rx_buffer, RXTX_BUFFER_SIZE);
