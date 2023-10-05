@@ -28,12 +28,6 @@
  * 3. Decoder targets
  */
 
-/*
- * All changes to the interleave configuration occur with this lock held
- * for write.
- */
-static DECLARE_RWSEM(cxl_region_rwsem);
-
 static struct cxl_region *to_cxl_region(struct device *dev);
 
 static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,

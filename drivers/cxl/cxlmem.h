@@ -364,6 +364,7 @@ struct cxl_fw_state {
  * @state: state of last security operation
  * @enabled_cmds: All security commands enabled in the CEL
  * @poll_tmo_secs: polling timeout
+ * @sanitize_active: sanitize completion pending
  * @poll_dwork: polling work item
  * @sanitize_node: sanitation sysfs file to notify
  */
@@ -371,6 +372,7 @@ struct cxl_security_state {
 	unsigned long state;
 	DECLARE_BITMAP(enabled_cmds, CXL_SEC_ENABLED_MAX);
 	int poll_tmo_secs;
+	bool sanitize_active;
 	struct delayed_work poll_dwork;
 	struct kernfs_node *sanitize_node;
 };
@@ -884,7 +886,7 @@ static inline void cxl_mem_active_dec(void)
 }
 #endif
 
-int cxl_mem_sanitize(struct cxl_memdev_state *mds, u16 cmd);
+int cxl_mem_sanitize(struct cxl_memdev *cxlmd, u16 cmd);
 
 struct cxl_hdm {
 	struct cxl_component_regs regs;

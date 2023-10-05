@@ -650,6 +650,25 @@ static int cxl_decoder_commit(struct cxl_decoder *cxld)
 		return -EBUSY;
 	}
 
+	/*
+	 * For endpoint decoders hosted on CXL memory devices that
+	 * support the sanitize operation, make sure sanitize is not in-flight.
+	 */
+	if (is_endpoint_decoder(&cxld->dev)) {
+		struct cxl_endpoint_decoder *cxled =
+			to_cxl_endpoint_decoder(&cxld->dev);
+		struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+		struct cxl_memdev_state *mds =
+			to_cxl_memdev_state(cxlmd->cxlds);
+
+		if (mds && mds->security.sanitize_active) {
+			dev_dbg(&cxlmd->dev,
+				"attempted to commit %s during sanitize\n",
+				dev_name(&cxld->dev));
+			return -EBUSY;
+		}
+	}
+
 	down_read(&cxl_dpa_rwsem);
 	/* common decoder settings */
 	ctrl = readl(hdm + CXL_HDM_DECODER0_CTRL_OFFSET(cxld->id));

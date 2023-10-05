@@ -154,6 +154,7 @@ static void cxl_mbox_sanitize_work(struct work_struct *work)
 		mds->security.poll_tmo_secs = 0;
 		if (mds->security.sanitize_node)
 			sysfs_notify_dirent(mds->security.sanitize_node);
+		mds->security.sanitize_active = false;
 
 		dev_dbg(cxlds->dev, "Sanitization operation ended\n");
 	} else {
@@ -292,9 +293,13 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_memdev_state *mds,
 		 * and allow userspace to poll(2) for completion.
 		 */
 		if (mbox_cmd->opcode == CXL_MBOX_OP_SANITIZE) {
+			if (mds->security.sanitize_active)
+				return -EBUSY;
+
 			/* give first timeout a second */
 			timeout = 1;
 			mds->security.poll_tmo_secs = timeout;
+			mds->security.sanitize_active = true;
 			schedule_delayed_work(&mds->security.poll_dwork,
 					      timeout * HZ);
 			dev_dbg(dev, "Sanitization operation started\n");
