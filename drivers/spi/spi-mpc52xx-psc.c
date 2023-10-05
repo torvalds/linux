@@ -29,7 +29,7 @@ struct mpc52xx_psc_spi {
 	/* driver internal data */
 	struct mpc52xx_psc __iomem *psc;
 	struct mpc52xx_psc_fifo __iomem *fifo;
-	unsigned int irq;
+	int irq;
 	u8 bits_per_word;
 
 	struct completion done;

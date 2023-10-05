@@ -414,6 +414,12 @@ static ssize_t supported_sectorsizes_show(struct kobject *kobj,
 BTRFS_ATTR(static_feature, supported_sectorsizes,
 	   supported_sectorsizes_show);
 
+static ssize_t acl_show(struct kobject *kobj, struct kobj_attribute *a, char *buf)
+{
+	return sysfs_emit(buf, "%d\n", !!IS_ENABLED(CONFIG_BTRFS_FS_POSIX_ACL));
+}
+BTRFS_ATTR(static_feature, acl, acl_show);
+
 /*
  * Features which only depend on kernel version.
  *
@@ -421,6 +427,7 @@ BTRFS_ATTR(static_feature, supported_sectorsizes,
  * btrfs_supported_feature_attrs.
  */
 static struct attribute *btrfs_supported_static_feature_attrs[] = {
+	BTRFS_ATTR_PTR(static_feature, acl),
 	BTRFS_ATTR_PTR(static_feature, rmdir_subvol),
 	BTRFS_ATTR_PTR(static_feature, supported_checksums),
 	BTRFS_ATTR_PTR(static_feature, send_stream_version),

@@ -223,7 +223,20 @@ struct dwmac4_addrs {
 struct plat_stmmacenet_data {
 	int bus_id;
 	int phy_addr;
-	int interface;
+	/* MAC ----- optional PCS ----- SerDes ----- optional PHY ----- Media
+	 *       ^                               ^
+	 * mac_interface                   phy_interface
+	 *
+	 * mac_interface is the MAC-side interface, which may be the same
+	 * as phy_interface if there is no intervening PCS. If there is a
+	 * PCS, then mac_interface describes the interface mode between the
+	 * MAC and PCS, and phy_interface describes the interface mode
+	 * between the PCS and PHY.
+	 */
+	phy_interface_t mac_interface;
+	/* phy_interface is the PHY-side interface - the interface used by
+	 * an attached PHY.
+	 */
 	phy_interface_t phy_interface;
 	struct stmmac_mdio_bus_data *mdio_bus_data;
 	struct device_node *phy_node;

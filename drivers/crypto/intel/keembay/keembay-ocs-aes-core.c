@@ -5,24 +5,23 @@
  * Copyright (C) 2018-2020 Intel Corporation
  */
 
-#include <linux/clk.h>
-#include <linux/completion.h>
-#include <linux/crypto.h>
-#include <linux/dma-mapping.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
-#include <linux/module.h>
-#include <linux/of.h>
-#include <linux/platform_device.h>
-#include <linux/types.h>
-
 #include <crypto/aes.h>
 #include <crypto/engine.h>
 #include <crypto/gcm.h>
-#include <crypto/scatterwalk.h>
-
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/scatterwalk.h>
+#include <linux/clk.h>
+#include <linux/completion.h>
+#include <linux/dma-mapping.h>
+#include <linux/err.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/string.h>
 
 #include "ocs-aes.h"
 
@@ -38,7 +37,6 @@
 
 /**
  * struct ocs_aes_tctx - OCS AES Transform context
- * @engine_ctx:		Engine context.
  * @aes_dev:		The OCS AES device.
  * @key:		AES/SM4 key.
  * @key_len:		The length (in bytes) of @key.
@@ -47,7 +45,6 @@
  * @use_fallback:	Whether or not fallback cipher should be used.
  */
 struct ocs_aes_tctx {
-	struct crypto_engine_ctx engine_ctx;
 	struct ocs_aes_dev *aes_dev;
 	u8 key[OCS_AES_KEYSIZE_256];
 	unsigned int key_len;
@@ -1148,15 +1145,6 @@ static int kmb_ocs_sm4_ccm_decrypt(struct aead_request *req)
 	return kmb_ocs_aead_common(req, OCS_SM4, OCS_DECRYPT, OCS_MODE_CCM);
 }
 
-static inline int ocs_common_init(struct ocs_aes_tctx *tctx)
-{
-	tctx->engine_ctx.op.prepare_request = NULL;
-	tctx->engine_ctx.op.do_one_request = kmb_ocs_aes_sk_do_one_request;
-	tctx->engine_ctx.op.unprepare_request = NULL;
-
-	return 0;
-}
-
 static int ocs_aes_init_tfm(struct crypto_skcipher *tfm)
 {
 	const char *alg_name = crypto_tfm_alg_name(&tfm->base);
@@ -1172,16 +1160,14 @@ static int ocs_aes_init_tfm(struct crypto_skcipher *tfm)
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct ocs_aes_rctx));
 
-	return ocs_common_init(tctx);
+	return 0;
 }
 
 static int ocs_sm4_init_tfm(struct crypto_skcipher *tfm)
 {
-	struct ocs_aes_tctx *tctx = crypto_skcipher_ctx(tfm);
-
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct ocs_aes_rctx));
 
-	return ocs_common_init(tctx);
+	return 0;
 }
 
 static inline void clear_key(struct ocs_aes_tctx *tctx)
@@ -1206,15 +1192,6 @@ static void ocs_exit_tfm(struct crypto_skcipher *tfm)
 	}
 }
 
-static inline int ocs_common_aead_init(struct ocs_aes_tctx *tctx)
-{
-	tctx->engine_ctx.op.prepare_request = NULL;
-	tctx->engine_ctx.op.do_one_request = kmb_ocs_aes_aead_do_one_request;
-	tctx->engine_ctx.op.unprepare_request = NULL;
-
-	return 0;
-}
-
 static int ocs_aes_aead_cra_init(struct crypto_aead *tfm)
 {
 	const char *alg_name = crypto_tfm_alg_name(&tfm->base);
@@ -1233,7 +1210,7 @@ static int ocs_aes_aead_cra_init(struct crypto_aead *tfm)
 				    (sizeof(struct aead_request) +
 				     crypto_aead_reqsize(tctx->sw_cipher.aead))));
 
-	return ocs_common_aead_init(tctx);
+	return 0;
 }
 
 static int kmb_ocs_aead_ccm_setauthsize(struct crypto_aead *tfm,
@@ -1261,11 +1238,9 @@ static int kmb_ocs_aead_gcm_setauthsize(struct crypto_aead *tfm,
 
 static int ocs_sm4_aead_cra_init(struct crypto_aead *tfm)
 {
-	struct ocs_aes_tctx *tctx = crypto_aead_ctx(tfm);
-
 	crypto_aead_set_reqsize(tfm, sizeof(struct ocs_aes_rctx));
 
-	return ocs_common_aead_init(tctx);
+	return 0;
 }
 
 static void ocs_aead_cra_exit(struct crypto_aead *tfm)
@@ -1280,182 +1255,190 @@ static void ocs_aead_cra_exit(struct crypto_aead *tfm)
 	}
 }
 
-static struct skcipher_alg algs[] = {
+static struct skcipher_engine_alg algs[] = {
 #ifdef CONFIG_CRYPTO_DEV_KEEMBAY_OCS_AES_SM4_ECB
 	{
-		.base.cra_name = "ecb(aes)",
-		.base.cra_driver_name = "ecb-aes-keembay-ocs",
-		.base.cra_priority = KMB_OCS_PRIORITY,
-		.base.cra_flags = CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_NEED_FALLBACK,
-		.base.cra_blocksize = AES_BLOCK_SIZE,
-		.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
-		.base.cra_module = THIS_MODULE,
-		.base.cra_alignmask = 0,
+		.base.base.cra_name = "ecb(aes)",
+		.base.base.cra_driver_name = "ecb-aes-keembay-ocs",
+		.base.base.cra_priority = KMB_OCS_PRIORITY,
+		.base.base.cra_flags = CRYPTO_ALG_ASYNC |
+				       CRYPTO_ALG_KERN_DRIVER_ONLY |
+				       CRYPTO_ALG_NEED_FALLBACK,
+		.base.base.cra_blocksize = AES_BLOCK_SIZE,
+		.base.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
+		.base.base.cra_module = THIS_MODULE,
+		.base.base.cra_alignmask = 0,
 
-		.min_keysize = OCS_AES_MIN_KEY_SIZE,
-		.max_keysize = OCS_AES_MAX_KEY_SIZE,
-		.setkey = kmb_ocs_aes_set_key,
-		.encrypt = kmb_ocs_aes_ecb_encrypt,
-		.decrypt = kmb_ocs_aes_ecb_decrypt,
-		.init = ocs_aes_init_tfm,
-		.exit = ocs_exit_tfm,
+		.base.min_keysize = OCS_AES_MIN_KEY_SIZE,
+		.base.max_keysize = OCS_AES_MAX_KEY_SIZE,
+		.base.setkey = kmb_ocs_aes_set_key,
+		.base.encrypt = kmb_ocs_aes_ecb_encrypt,
+		.base.decrypt = kmb_ocs_aes_ecb_decrypt,
+		.base.init = ocs_aes_init_tfm,
+		.base.exit = ocs_exit_tfm,
+		.op.do_one_request = kmb_ocs_aes_sk_do_one_request,
 	},
 #endif /* CONFIG_CRYPTO_DEV_KEEMBAY_OCS_AES_SM4_ECB */
 	{
-		.base.cra_name = "cbc(aes)",
-		.base.cra_driver_name = "cbc-aes-keembay-ocs",
-		.base.cra_priority = KMB_OCS_PRIORITY,
-		.base.cra_flags = CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_NEED_FALLBACK,
-		.base.cra_blocksize = AES_BLOCK_SIZE,
-		.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
-		.base.cra_module = THIS_MODULE,
-		.base.cra_alignmask = 0,
+		.base.base.cra_name = "cbc(aes)",
+		.base.base.cra_driver_name = "cbc-aes-keembay-ocs",
+		.base.base.cra_priority = KMB_OCS_PRIORITY,
+		.base.base.cra_flags = CRYPTO_ALG_ASYNC |
+				       CRYPTO_ALG_KERN_DRIVER_ONLY |
+				       CRYPTO_ALG_NEED_FALLBACK,
+		.base.base.cra_blocksize = AES_BLOCK_SIZE,
+		.base.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
+		.base.base.cra_module = THIS_MODULE,
+		.base.base.cra_alignmask = 0,
 
-		.min_keysize = OCS_AES_MIN_KEY_SIZE,
-		.max_keysize = OCS_AES_MAX_KEY_SIZE,
-		.ivsize = AES_BLOCK_SIZE,
-		.setkey = kmb_ocs_aes_set_key,
-		.encrypt = kmb_ocs_aes_cbc_encrypt,
-		.decrypt = kmb_ocs_aes_cbc_decrypt,
-		.init = ocs_aes_init_tfm,
-		.exit = ocs_exit_tfm,
+		.base.min_keysize = OCS_AES_MIN_KEY_SIZE,
+		.base.max_keysize = OCS_AES_MAX_KEY_SIZE,
+		.base.ivsize = AES_BLOCK_SIZE,
+		.base.setkey = kmb_ocs_aes_set_key,
+		.base.encrypt = kmb_ocs_aes_cbc_encrypt,
+		.base.decrypt = kmb_ocs_aes_cbc_decrypt,
+		.base.init = ocs_aes_init_tfm,
+		.base.exit = ocs_exit_tfm,
+		.op.do_one_request = kmb_ocs_aes_sk_do_one_request,
 	},
 	{
-		.base.cra_name = "ctr(aes)",
-		.base.cra_driver_name = "ctr-aes-keembay-ocs",
-		.base.cra_priority = KMB_OCS_PRIORITY,
-		.base.cra_flags = CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_NEED_FALLBACK,
-		.base.cra_blocksize = 1,
-		.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
-		.base.cra_module = THIS_MODULE,
-		.base.cra_alignmask = 0,
+		.base.base.cra_name = "ctr(aes)",
+		.base.base.cra_driver_name = "ctr-aes-keembay-ocs",
+		.base.base.cra_priority = KMB_OCS_PRIORITY,
+		.base.base.cra_flags = CRYPTO_ALG_ASYNC |
+				       CRYPTO_ALG_KERN_DRIVER_ONLY |
+				       CRYPTO_ALG_NEED_FALLBACK,
+		.base.base.cra_blocksize = 1,
+		.base.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
+		.base.base.cra_module = THIS_MODULE,
+		.base.base.cra_alignmask = 0,
 
-		.min_keysize = OCS_AES_MIN_KEY_SIZE,
-		.max_keysize = OCS_AES_MAX_KEY_SIZE,
-		.ivsize = AES_BLOCK_SIZE,
-		.setkey = kmb_ocs_aes_set_key,
-		.encrypt = kmb_ocs_aes_ctr_encrypt,
-		.decrypt = kmb_ocs_aes_ctr_decrypt,
-		.init = ocs_aes_init_tfm,
-		.exit = ocs_exit_tfm,
+		.base.min_keysize = OCS_AES_MIN_KEY_SIZE,
+		.base.max_keysize = OCS_AES_MAX_KEY_SIZE,
+		.base.ivsize = AES_BLOCK_SIZE,
+		.base.setkey = kmb_ocs_aes_set_key,
+		.base.encrypt = kmb_ocs_aes_ctr_encrypt,
+		.base.decrypt = kmb_ocs_aes_ctr_decrypt,
+		.base.init = ocs_aes_init_tfm,
+		.base.exit = ocs_exit_tfm,
+		.op.do_one_request = kmb_ocs_aes_sk_do_one_request,
 	},
 #ifdef CONFIG_CRYPTO_DEV_KEEMBAY_OCS_AES_SM4_CTS
 	{
-		.base.cra_name = "cts(cbc(aes))",
-		.base.cra_driver_name = "cts-aes-keembay-ocs",
-		.base.cra_priority = KMB_OCS_PRIORITY,
-		.base.cra_flags = CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY |
-				  CRYPTO_ALG_NEED_FALLBACK,
-		.base.cra_blocksize = AES_BLOCK_SIZE,
-		.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
-		.base.cra_module = THIS_MODULE,
-		.base.cra_alignmask = 0,
+		.base.base.cra_name = "cts(cbc(aes))",
+		.base.base.cra_driver_name = "cts-aes-keembay-ocs",
+		.base.base.cra_priority = KMB_OCS_PRIORITY,
+		.base.base.cra_flags = CRYPTO_ALG_ASYNC |
+				       CRYPTO_ALG_KERN_DRIVER_ONLY |
+				       CRYPTO_ALG_NEED_FALLBACK,
+		.base.base.cra_blocksize = AES_BLOCK_SIZE,
+		.base.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
+		.base.base.cra_module = THIS_MODULE,
+		.base.base.cra_alignmask = 0,
 
-		.min_keysize = OCS_AES_MIN_KEY_SIZE,
-		.max_keysize = OCS_AES_MAX_KEY_SIZE,
-		.ivsize = AES_BLOCK_SIZE,
-		.setkey = kmb_ocs_aes_set_key,
-		.encrypt = kmb_ocs_aes_cts_encrypt,
-		.decrypt = kmb_ocs_aes_cts_decrypt,
-		.init = ocs_aes_init_tfm,
-		.exit = ocs_exit_tfm,
+		.base.min_keysize = OCS_AES_MIN_KEY_SIZE,
+		.base.max_keysize = OCS_AES_MAX_KEY_SIZE,
+		.base.ivsize = AES_BLOCK_SIZE,
+		.base.setkey = kmb_ocs_aes_set_key,
+		.base.encrypt = kmb_ocs_aes_cts_encrypt,
+		.base.decrypt = kmb_ocs_aes_cts_decrypt,
+		.base.init = ocs_aes_init_tfm,
+		.base.exit = ocs_exit_tfm,
+		.op.do_one_request = kmb_ocs_aes_sk_do_one_request,
 	},
 #endif /* CONFIG_CRYPTO_DEV_KEEMBAY_OCS_AES_SM4_CTS */
 #ifdef CONFIG_CRYPTO_DEV_KEEMBAY_OCS_AES_SM4_ECB
 	{
-		.base.cra_name = "ecb(sm4)",
-		.base.cra_driver_name = "ecb-sm4-keembay-ocs",
-		.base.cra_priority = KMB_OCS_PRIORITY,
-		.base.cra_flags = CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY,
-		.base.cra_blocksize = AES_BLOCK_SIZE,
-		.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
-		.base.cra_module = THIS_MODULE,
-		.base.cra_alignmask = 0,
+		.base.base.cra_name = "ecb(sm4)",
+		.base.base.cra_driver_name = "ecb-sm4-keembay-ocs",
+		.base.base.cra_priority = KMB_OCS_PRIORITY,
+		.base.base.cra_flags = CRYPTO_ALG_ASYNC |
+				       CRYPTO_ALG_KERN_DRIVER_ONLY,
+		.base.base.cra_blocksize = AES_BLOCK_SIZE,
+		.base.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
+		.base.base.cra_module = THIS_MODULE,
+		.base.base.cra_alignmask = 0,
 
-		.min_keysize = OCS_SM4_KEY_SIZE,
-		.max_keysize = OCS_SM4_KEY_SIZE,
-		.setkey = kmb_ocs_sm4_set_key,
-		.encrypt = kmb_ocs_sm4_ecb_encrypt,
-		.decrypt = kmb_ocs_sm4_ecb_decrypt,
-		.init = ocs_sm4_init_tfm,
-		.exit = ocs_exit_tfm,
+		.base.min_keysize = OCS_SM4_KEY_SIZE,
+		.base.max_keysize = OCS_SM4_KEY_SIZE,
+		.base.setkey = kmb_ocs_sm4_set_key,
+		.base.encrypt = kmb_ocs_sm4_ecb_encrypt,
+		.base.decrypt = kmb_ocs_sm4_ecb_decrypt,
+		.base.init = ocs_sm4_init_tfm,
+		.base.exit = ocs_exit_tfm,
+		.op.do_one_request = kmb_ocs_aes_sk_do_one_request,
 	},
 #endif /* CONFIG_CRYPTO_DEV_KEEMBAY_OCS_AES_SM4_ECB */
 	{
-		.base.cra_name = "cbc(sm4)",
-		.base.cra_driver_name = "cbc-sm4-keembay-ocs",
-		.base.cra_priority = KMB_OCS_PRIORITY,
-		.base.cra_flags = CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY,
-		.base.cra_blocksize = AES_BLOCK_SIZE,
-		.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
-		.base.cra_module = THIS_MODULE,
-		.base.cra_alignmask = 0,
+		.base.base.cra_name = "cbc(sm4)",
+		.base.base.cra_driver_name = "cbc-sm4-keembay-ocs",
+		.base.base.cra_priority = KMB_OCS_PRIORITY,
+		.base.base.cra_flags = CRYPTO_ALG_ASYNC |
+				       CRYPTO_ALG_KERN_DRIVER_ONLY,
+		.base.base.cra_blocksize = AES_BLOCK_SIZE,
+		.base.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
+		.base.base.cra_module = THIS_MODULE,
+		.base.base.cra_alignmask = 0,
 
-		.min_keysize = OCS_SM4_KEY_SIZE,
-		.max_keysize = OCS_SM4_KEY_SIZE,
-		.ivsize = AES_BLOCK_SIZE,
-		.setkey = kmb_ocs_sm4_set_key,
-		.encrypt = kmb_ocs_sm4_cbc_encrypt,
-		.decrypt = kmb_ocs_sm4_cbc_decrypt,
-		.init = ocs_sm4_init_tfm,
-		.exit = ocs_exit_tfm,
+		.base.min_keysize = OCS_SM4_KEY_SIZE,
+		.base.max_keysize = OCS_SM4_KEY_SIZE,
+		.base.ivsize = AES_BLOCK_SIZE,
+		.base.setkey = kmb_ocs_sm4_set_key,
+		.base.encrypt = kmb_ocs_sm4_cbc_encrypt,
+		.base.decrypt = kmb_ocs_sm4_cbc_decrypt,
+		.base.init = ocs_sm4_init_tfm,
+		.base.exit = ocs_exit_tfm,
+		.op.do_one_request = kmb_ocs_aes_sk_do_one_request,
 	},
 	{
-		.base.cra_name = "ctr(sm4)",
-		.base.cra_driver_name = "ctr-sm4-keembay-ocs",
-		.base.cra_priority = KMB_OCS_PRIORITY,
-		.base.cra_flags = CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY,
-		.base.cra_blocksize = 1,
-		.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
-		.base.cra_module = THIS_MODULE,
-		.base.cra_alignmask = 0,
+		.base.base.cra_name = "ctr(sm4)",
+		.base.base.cra_driver_name = "ctr-sm4-keembay-ocs",
+		.base.base.cra_priority = KMB_OCS_PRIORITY,
+		.base.base.cra_flags = CRYPTO_ALG_ASYNC |
+				       CRYPTO_ALG_KERN_DRIVER_ONLY,
+		.base.base.cra_blocksize = 1,
+		.base.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
+		.base.base.cra_module = THIS_MODULE,
+		.base.base.cra_alignmask = 0,
 
-		.min_keysize = OCS_SM4_KEY_SIZE,
-		.max_keysize = OCS_SM4_KEY_SIZE,
-		.ivsize = AES_BLOCK_SIZE,
-		.setkey = kmb_ocs_sm4_set_key,
-		.encrypt = kmb_ocs_sm4_ctr_encrypt,
-		.decrypt = kmb_ocs_sm4_ctr_decrypt,
-		.init = ocs_sm4_init_tfm,
-		.exit = ocs_exit_tfm,
+		.base.min_keysize = OCS_SM4_KEY_SIZE,
+		.base.max_keysize = OCS_SM4_KEY_SIZE,
+		.base.ivsize = AES_BLOCK_SIZE,
+		.base.setkey = kmb_ocs_sm4_set_key,
+		.base.encrypt = kmb_ocs_sm4_ctr_encrypt,
+		.base.decrypt = kmb_ocs_sm4_ctr_decrypt,
+		.base.init = ocs_sm4_init_tfm,
+		.base.exit = ocs_exit_tfm,
+		.op.do_one_request = kmb_ocs_aes_sk_do_one_request,
 	},
 #ifdef CONFIG_CRYPTO_DEV_KEEMBAY_OCS_AES_SM4_CTS
 	{
-		.base.cra_name = "cts(cbc(sm4))",
-		.base.cra_driver_name = "cts-sm4-keembay-ocs",
-		.base.cra_priority = KMB_OCS_PRIORITY,
-		.base.cra_flags = CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_KERN_DRIVER_ONLY,
-		.base.cra_blocksize = AES_BLOCK_SIZE,
-		.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
-		.base.cra_module = THIS_MODULE,
-		.base.cra_alignmask = 0,
+		.base.base.cra_name = "cts(cbc(sm4))",
+		.base.base.cra_driver_name = "cts-sm4-keembay-ocs",
+		.base.base.cra_priority = KMB_OCS_PRIORITY,
+		.base.base.cra_flags = CRYPTO_ALG_ASYNC |
+				       CRYPTO_ALG_KERN_DRIVER_ONLY,
+		.base.base.cra_blocksize = AES_BLOCK_SIZE,
+		.base.base.cra_ctxsize = sizeof(struct ocs_aes_tctx),
+		.base.base.cra_module = THIS_MODULE,
+		.base.base.cra_alignmask = 0,
 
-		.min_keysize = OCS_SM4_KEY_SIZE,
-		.max_keysize = OCS_SM4_KEY_SIZE,
-		.ivsize = AES_BLOCK_SIZE,
-		.setkey = kmb_ocs_sm4_set_key,
-		.encrypt = kmb_ocs_sm4_cts_encrypt,
-		.decrypt = kmb_ocs_sm4_cts_decrypt,
-		.init = ocs_sm4_init_tfm,
-		.exit = ocs_exit_tfm,
+		.base.min_keysize = OCS_SM4_KEY_SIZE,
+		.base.max_keysize = OCS_SM4_KEY_SIZE,
+		.base.ivsize = AES_BLOCK_SIZE,
+		.base.setkey = kmb_ocs_sm4_set_key,
+		.base.encrypt = kmb_ocs_sm4_cts_encrypt,
+		.base.decrypt = kmb_ocs_sm4_cts_decrypt,
+		.base.init = ocs_sm4_init_tfm,
+		.base.exit = ocs_exit_tfm,
+		.op.do_one_request = kmb_ocs_aes_sk_do_one_request,
 	}
 #endif /* CONFIG_CRYPTO_DEV_KEEMBAY_OCS_AES_SM4_CTS */
 };
 
-static struct aead_alg algs_aead[] = {
+static struct aead_engine_alg algs_aead[] = {
 	{
-		.base = {
+		.base.base = {
 			.cra_name = "gcm(aes)",
 			.cra_driver_name = "gcm-aes-keembay-ocs",
 			.cra_priority = KMB_OCS_PRIORITY,
@@ -1467,17 +1450,18 @@ static struct aead_alg algs_aead[] = {
 			.cra_alignmask = 0,
 			.cra_module = THIS_MODULE,
 		},
-		.init = ocs_aes_aead_cra_init,
-		.exit = ocs_aead_cra_exit,
-		.ivsize = GCM_AES_IV_SIZE,
-		.maxauthsize = AES_BLOCK_SIZE,
-		.setauthsize = kmb_ocs_aead_gcm_setauthsize,
-		.setkey = kmb_ocs_aes_aead_set_key,
-		.encrypt = kmb_ocs_aes_gcm_encrypt,
-		.decrypt = kmb_ocs_aes_gcm_decrypt,
+		.base.init = ocs_aes_aead_cra_init,
+		.base.exit = ocs_aead_cra_exit,
+		.base.ivsize = GCM_AES_IV_SIZE,
+		.base.maxauthsize = AES_BLOCK_SIZE,
+		.base.setauthsize = kmb_ocs_aead_gcm_setauthsize,
+		.base.setkey = kmb_ocs_aes_aead_set_key,
+		.base.encrypt = kmb_ocs_aes_gcm_encrypt,
+		.base.decrypt = kmb_ocs_aes_gcm_decrypt,
+		.op.do_one_request = kmb_ocs_aes_aead_do_one_request,
 	},
 	{
-		.base = {
+		.base.base = {
 			.cra_name = "ccm(aes)",
 			.cra_driver_name = "ccm-aes-keembay-ocs",
 			.cra_priority = KMB_OCS_PRIORITY,
@@ -1489,17 +1473,18 @@ static struct aead_alg algs_aead[] = {
 			.cra_alignmask = 0,
 			.cra_module = THIS_MODULE,
 		},
-		.init = ocs_aes_aead_cra_init,
-		.exit = ocs_aead_cra_exit,
-		.ivsize = AES_BLOCK_SIZE,
-		.maxauthsize = AES_BLOCK_SIZE,
-		.setauthsize = kmb_ocs_aead_ccm_setauthsize,
-		.setkey = kmb_ocs_aes_aead_set_key,
-		.encrypt = kmb_ocs_aes_ccm_encrypt,
-		.decrypt = kmb_ocs_aes_ccm_decrypt,
+		.base.init = ocs_aes_aead_cra_init,
+		.base.exit = ocs_aead_cra_exit,
+		.base.ivsize = AES_BLOCK_SIZE,
+		.base.maxauthsize = AES_BLOCK_SIZE,
+		.base.setauthsize = kmb_ocs_aead_ccm_setauthsize,
+		.base.setkey = kmb_ocs_aes_aead_set_key,
+		.base.encrypt = kmb_ocs_aes_ccm_encrypt,
+		.base.decrypt = kmb_ocs_aes_ccm_decrypt,
+		.op.do_one_request = kmb_ocs_aes_aead_do_one_request,
 	},
 	{
-		.base = {
+		.base.base = {
 			.cra_name = "gcm(sm4)",
 			.cra_driver_name = "gcm-sm4-keembay-ocs",
 			.cra_priority = KMB_OCS_PRIORITY,
@@ -1510,17 +1495,18 @@ static struct aead_alg algs_aead[] = {
 			.cra_alignmask = 0,
 			.cra_module = THIS_MODULE,
 		},
-		.init = ocs_sm4_aead_cra_init,
-		.exit = ocs_aead_cra_exit,
-		.ivsize = GCM_AES_IV_SIZE,
-		.maxauthsize = AES_BLOCK_SIZE,
-		.setauthsize = kmb_ocs_aead_gcm_setauthsize,
-		.setkey = kmb_ocs_sm4_aead_set_key,
-		.encrypt = kmb_ocs_sm4_gcm_encrypt,
-		.decrypt = kmb_ocs_sm4_gcm_decrypt,
+		.base.init = ocs_sm4_aead_cra_init,
+		.base.exit = ocs_aead_cra_exit,
+		.base.ivsize = GCM_AES_IV_SIZE,
+		.base.maxauthsize = AES_BLOCK_SIZE,
+		.base.setauthsize = kmb_ocs_aead_gcm_setauthsize,
+		.base.setkey = kmb_ocs_sm4_aead_set_key,
+		.base.encrypt = kmb_ocs_sm4_gcm_encrypt,
+		.base.decrypt = kmb_ocs_sm4_gcm_decrypt,
+		.op.do_one_request = kmb_ocs_aes_aead_do_one_request,
 	},
 	{
-		.base = {
+		.base.base = {
 			.cra_name = "ccm(sm4)",
 			.cra_driver_name = "ccm-sm4-keembay-ocs",
 			.cra_priority = KMB_OCS_PRIORITY,
@@ -1531,21 +1517,22 @@ static struct aead_alg algs_aead[] = {
 			.cra_alignmask = 0,
 			.cra_module = THIS_MODULE,
 		},
-		.init = ocs_sm4_aead_cra_init,
-		.exit = ocs_aead_cra_exit,
-		.ivsize = AES_BLOCK_SIZE,
-		.maxauthsize = AES_BLOCK_SIZE,
-		.setauthsize = kmb_ocs_aead_ccm_setauthsize,
-		.setkey = kmb_ocs_sm4_aead_set_key,
-		.encrypt = kmb_ocs_sm4_ccm_encrypt,
-		.decrypt = kmb_ocs_sm4_ccm_decrypt,
+		.base.init = ocs_sm4_aead_cra_init,
+		.base.exit = ocs_aead_cra_exit,
+		.base.ivsize = AES_BLOCK_SIZE,
+		.base.maxauthsize = AES_BLOCK_SIZE,
+		.base.setauthsize = kmb_ocs_aead_ccm_setauthsize,
+		.base.setkey = kmb_ocs_sm4_aead_set_key,
+		.base.encrypt = kmb_ocs_sm4_ccm_encrypt,
+		.base.decrypt = kmb_ocs_sm4_ccm_decrypt,
+		.op.do_one_request = kmb_ocs_aes_aead_do_one_request,
 	}
 };
 
 static void unregister_aes_algs(struct ocs_aes_dev *aes_dev)
 {
-	crypto_unregister_aeads(algs_aead, ARRAY_SIZE(algs_aead));
-	crypto_unregister_skciphers(algs, ARRAY_SIZE(algs));
+	crypto_engine_unregister_aeads(algs_aead, ARRAY_SIZE(algs_aead));
+	crypto_engine_unregister_skciphers(algs, ARRAY_SIZE(algs));
 }
 
 static int register_aes_algs(struct ocs_aes_dev *aes_dev)
@@ -1556,13 +1543,13 @@ static int register_aes_algs(struct ocs_aes_dev *aes_dev)
 	 * If any algorithm fails to register, all preceding algorithms that
 	 * were successfully registered will be automatically unregistered.
 	 */
-	ret = crypto_register_aeads(algs_aead, ARRAY_SIZE(algs_aead));
+	ret = crypto_engine_register_aeads(algs_aead, ARRAY_SIZE(algs_aead));
 	if (ret)
 		return ret;
 
-	ret = crypto_register_skciphers(algs, ARRAY_SIZE(algs));
+	ret = crypto_engine_register_skciphers(algs, ARRAY_SIZE(algs));
 	if (ret)
-		crypto_unregister_aeads(algs_aead, ARRAY_SIZE(algs));
+		crypto_engine_unregister_aeads(algs_aead, ARRAY_SIZE(algs));
 
 	return ret;
 }

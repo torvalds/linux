@@ -60,7 +60,7 @@ static int starfive_dwmac_set_mode(struct plat_stmmacenet_data *plat_dat)
 	unsigned int mode;
 	int err;
 
-	switch (plat_dat->interface) {
+	switch (plat_dat->mac_interface) {
 	case PHY_INTERFACE_MODE_RMII:
 		mode = STARFIVE_DWMAC_PHY_INFT_RMII;
 		break;
@@ -72,7 +72,7 @@ static int starfive_dwmac_set_mode(struct plat_stmmacenet_data *plat_dat)
 
 	default:
 		dev_err(dwmac->dev, "unsupported interface %d\n",
-			plat_dat->interface);
+			plat_dat->mac_interface);
 		return -EINVAL;
 	}
 

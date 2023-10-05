@@ -1400,7 +1400,7 @@ static void __prep_cap(struct cap_msg_args *arg, struct ceph_cap *cap,
 
 	arg->mtime = inode->i_mtime;
 	arg->atime = inode->i_atime;
-	arg->ctime = inode->i_ctime;
+	arg->ctime = inode_get_ctime(inode);
 	arg->btime = ci->i_btime;
 	arg->change_attr = inode_peek_iversion_raw(inode);
 

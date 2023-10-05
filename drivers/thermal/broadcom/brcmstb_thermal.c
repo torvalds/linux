@@ -17,8 +17,8 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
 #include <linux/thermal.h>
 
 #define AVS_TMON_STATUS			0x00

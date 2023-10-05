@@ -51,6 +51,59 @@
 #define TLS_DEC_STATS(net, field)				\
 	SNMP_DEC_STATS((net)->mib.tls_statistics, field)
 
+struct tls_cipher_desc {
+	unsigned int nonce;
+	unsigned int iv;
+	unsigned int key;
+	unsigned int salt;
+	unsigned int tag;
+	unsigned int rec_seq;
+	unsigned int iv_offset;
+	unsigned int key_offset;
+	unsigned int salt_offset;
+	unsigned int rec_seq_offset;
+	char *cipher_name;
+	bool offloadable;
+	size_t crypto_info;
+};
+
+#define TLS_CIPHER_MIN TLS_CIPHER_AES_GCM_128
+#define TLS_CIPHER_MAX TLS_CIPHER_ARIA_GCM_256
+extern const struct tls_cipher_desc tls_cipher_desc[TLS_CIPHER_MAX + 1 - TLS_CIPHER_MIN];
+
+static inline const struct tls_cipher_desc *get_cipher_desc(u16 cipher_type)
+{
+	if (cipher_type < TLS_CIPHER_MIN || cipher_type > TLS_CIPHER_MAX)
+		return NULL;
+
+	return &tls_cipher_desc[cipher_type - TLS_CIPHER_MIN];
+}
+
+static inline char *crypto_info_iv(struct tls_crypto_info *crypto_info,
+				   const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->iv_offset;
+}
+
+static inline char *crypto_info_key(struct tls_crypto_info *crypto_info,
+				    const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->key_offset;
+}
+
+static inline char *crypto_info_salt(struct tls_crypto_info *crypto_info,
+				     const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->salt_offset;
+}
+
+static inline char *crypto_info_rec_seq(struct tls_crypto_info *crypto_info,
+					const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->rec_seq_offset;
+}
+
+
 /* TLS records are maintained in 'struct tls_rec'. It stores the memory pages
  * allocated or mapped for each TLS record. After encryption, the records are
  * stores in a linked list.

@@ -323,6 +323,7 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 	return mmc_send_adtc_data(card, card->host, SD_SWITCH, cmd_args, resp,
 				  64);
 }
+EXPORT_SYMBOL_GPL(mmc_sd_switch);
 
 int mmc_app_sd_status(struct mmc_card *card, void *ssr)
 {

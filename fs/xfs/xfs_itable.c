@@ -100,8 +100,8 @@ xfs_bulkstat_one_int(
 	buf->bs_atime_nsec = inode->i_atime.tv_nsec;
 	buf->bs_mtime = inode->i_mtime.tv_sec;
 	buf->bs_mtime_nsec = inode->i_mtime.tv_nsec;
-	buf->bs_ctime = inode->i_ctime.tv_sec;
-	buf->bs_ctime_nsec = inode->i_ctime.tv_nsec;
+	buf->bs_ctime = inode_get_ctime(inode).tv_sec;
+	buf->bs_ctime_nsec = inode_get_ctime(inode).tv_nsec;
 	buf->bs_gen = inode->i_generation;
 	buf->bs_mode = inode->i_mode;
 

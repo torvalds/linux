@@ -364,7 +364,14 @@ static int blkdev_flushbuf(struct block_device *bdev, unsigned cmd,
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
-	fsync_bdev(bdev);
+
+	mutex_lock(&bdev->bd_holder_lock);
+	if (bdev->bd_holder_ops && bdev->bd_holder_ops->sync)
+		bdev->bd_holder_ops->sync(bdev);
+	else
+		sync_blockdev(bdev);
+	mutex_unlock(&bdev->bd_holder_lock);
+
 	invalidate_bdev(bdev);
 	return 0;
 }

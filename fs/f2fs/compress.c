@@ -1045,7 +1045,7 @@ static int prepare_compress_overwrite(struct compress_ctx *cc,
 	struct address_space *mapping = cc->inode->i_mapping;
 	struct page *page;
 	sector_t last_block_in_bio;
-	unsigned fgp_flag = FGP_LOCK | FGP_WRITE | FGP_CREAT;
+	fgf_t fgp_flag = FGP_LOCK | FGP_WRITE | FGP_CREAT;
 	pgoff_t start_idx = start_idx_of_cluster(cc);
 	int i, ret;
 

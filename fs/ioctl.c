@@ -109,9 +109,6 @@ static int ioctl_fibmap(struct file *filp, int __user *p)
  * Returns 0 on success, -errno on error, 1 if this was the last
  * extent that will fit in user array.
  */
-#define SET_UNKNOWN_FLAGS	(FIEMAP_EXTENT_DELALLOC)
-#define SET_NO_UNMOUNTED_IO_FLAGS	(FIEMAP_EXTENT_DATA_ENCRYPTED)
-#define SET_NOT_ALIGNED_FLAGS	(FIEMAP_EXTENT_DATA_TAIL|FIEMAP_EXTENT_DATA_INLINE)
 int fiemap_fill_next_extent(struct fiemap_extent_info *fieinfo, u64 logical,
 			    u64 phys, u64 len, u32 flags)
 {
@@ -126,6 +123,10 @@ int fiemap_fill_next_extent(struct fiemap_extent_info *fieinfo, u64 logical,
 
 	if (fieinfo->fi_extents_mapped >= fieinfo->fi_extents_max)
 		return 1;
+
+#define SET_UNKNOWN_FLAGS	(FIEMAP_EXTENT_DELALLOC)
+#define SET_NO_UNMOUNTED_IO_FLAGS	(FIEMAP_EXTENT_DATA_ENCRYPTED)
+#define SET_NOT_ALIGNED_FLAGS	(FIEMAP_EXTENT_DATA_TAIL|FIEMAP_EXTENT_DATA_INLINE)
 
 	if (flags & SET_UNKNOWN_FLAGS)
 		flags |= FIEMAP_EXTENT_UNKNOWN;
@@ -396,8 +397,8 @@ static int ioctl_fsfreeze(struct file *filp)
 
 	/* Freeze */
 	if (sb->s_op->freeze_super)
-		return sb->s_op->freeze_super(sb);
-	return freeze_super(sb);
+		return sb->s_op->freeze_super(sb, FREEZE_HOLDER_USERSPACE);
+	return freeze_super(sb, FREEZE_HOLDER_USERSPACE);
 }
 
 static int ioctl_fsthaw(struct file *filp)
@@ -409,8 +410,8 @@ static int ioctl_fsthaw(struct file *filp)
 
 	/* Thaw */
 	if (sb->s_op->thaw_super)
-		return sb->s_op->thaw_super(sb);
-	return thaw_super(sb);
+		return sb->s_op->thaw_super(sb, FREEZE_HOLDER_USERSPACE);
+	return thaw_super(sb, FREEZE_HOLDER_USERSPACE);
 }
 
 static int ioctl_file_dedupe_range(struct file *file,
@@ -877,6 +878,9 @@ out:
 #ifdef CONFIG_COMPAT
 /**
  * compat_ptr_ioctl - generic implementation of .compat_ioctl file operation
+ * @file: The file to operate on.
+ * @cmd: The ioctl command number.
+ * @arg: The argument to the ioctl.
  *
  * This is not normally called as a function, but instead set in struct
  * file_operations as

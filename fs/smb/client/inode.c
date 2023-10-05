@@ -172,7 +172,7 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	else
 		inode->i_atime = fattr->cf_atime;
 	inode->i_mtime = fattr->cf_mtime;
-	inode->i_ctime = fattr->cf_ctime;
+	inode_set_ctime_to_ts(inode, fattr->cf_ctime);
 	inode->i_rdev = fattr->cf_rdev;
 	cifs_nlink_fattr_to_inode(inode, fattr);
 	inode->i_uid = fattr->cf_uid;
@@ -1744,9 +1744,9 @@ out_reval:
 		cifs_inode = CIFS_I(inode);
 		cifs_inode->time = 0;	/* will force revalidate to get info
 					   when needed */
-		inode->i_ctime = current_time(inode);
+		inode_set_ctime_current(inode);
 	}
-	dir->i_ctime = dir->i_mtime = current_time(dir);
+	dir->i_mtime = inode_set_ctime_current(dir);
 	cifs_inode = CIFS_I(dir);
 	CIFS_I(dir)->time = 0;	/* force revalidate of dir as well */
 unlink_out:
@@ -2060,8 +2060,8 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	 */
 	cifsInode->time = 0;
 
-	d_inode(direntry)->i_ctime = inode->i_ctime = inode->i_mtime =
-		current_time(inode);
+	inode_set_ctime_current(d_inode(direntry));
+	inode->i_mtime = inode_set_ctime_current(inode);
 
 rmdir_exit:
 	free_dentry_path(page);
@@ -2267,8 +2267,8 @@ unlink_target:
 	/* force revalidate to go get info when needed */
 	CIFS_I(source_dir)->time = CIFS_I(target_dir)->time = 0;
 
-	source_dir->i_ctime = source_dir->i_mtime = target_dir->i_ctime =
-		target_dir->i_mtime = current_time(source_dir);
+	source_dir->i_mtime = target_dir->i_mtime = inode_set_ctime_to_ts(source_dir,
+									  inode_set_ctime_current(target_dir));
 
 cifs_rename_exit:
 	kfree(info_buf_source);
@@ -2540,7 +2540,7 @@ int cifs_getattr(struct mnt_idmap *idmap, const struct path *path,
 			return rc;
 	}
 
-	generic_fillattr(&nop_mnt_idmap, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 	stat->blksize = cifs_sb->ctx->bsize;
 	stat->ino = CIFS_I(inode)->uniqueid;
 

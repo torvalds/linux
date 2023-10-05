@@ -162,23 +162,7 @@ static struct platform_driver tis_synquacer_drv = {
 	},
 };
 
-static int __init tpm_tis_synquacer_module_init(void)
-{
-	int rc;
+module_platform_driver(tis_synquacer_drv);
 
-	rc = platform_driver_register(&tis_synquacer_drv);
-	if (rc)
-		return rc;
-
-	return 0;
-}
-
-static void __exit tpm_tis_synquacer_module_exit(void)
-{
-	platform_driver_unregister(&tis_synquacer_drv);
-}
-
-module_init(tpm_tis_synquacer_module_init);
-module_exit(tpm_tis_synquacer_module_exit);
 MODULE_DESCRIPTION("TPM MMIO Driver for Socionext SynQuacer platform");
 MODULE_LICENSE("GPL");

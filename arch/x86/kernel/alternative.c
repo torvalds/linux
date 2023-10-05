@@ -1527,6 +1527,7 @@ static noinline void __init int3_selftest(void)
 
 static __initdata int __alt_reloc_selftest_addr;
 
+extern void __init __alt_reloc_selftest(void *arg);
 __visible noinline void __init __alt_reloc_selftest(void *arg)
 {
 	WARN_ON(arg != &__alt_reloc_selftest_addr);

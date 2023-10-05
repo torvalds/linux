@@ -383,16 +383,15 @@ void show_registers(struct pt_regs *regs)
 
 static DEFINE_RAW_SPINLOCK(die_lock);
 
-void __noreturn die(const char *str, struct pt_regs *regs)
+void die(const char *str, struct pt_regs *regs)
 {
+	int ret;
 	static int die_counter;
-	int sig = SIGSEGV;
 
 	oops_enter();
 
-	if (notify_die(DIE_OOPS, str, regs, 0, current->thread.trap_nr,
-		       SIGSEGV) == NOTIFY_STOP)
-		sig = 0;
+	ret = notify_die(DIE_OOPS, str, regs, 0,
+			 current->thread.trap_nr, SIGSEGV);
 
 	console_verbose();
 	raw_spin_lock_irq(&die_lock);
@@ -405,6 +404,9 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 
 	oops_exit();
 
+	if (ret == NOTIFY_STOP)
+		return;
+
 	if (regs && kexec_should_crash(current))
 		crash_kexec(regs);
 
@@ -414,7 +416,7 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 	if (panic_on_oops)
 		panic("Fatal exception");
 
-	make_task_dead(sig);
+	make_task_dead(SIGSEGV);
 }
 
 static inline void setup_vint_size(unsigned int size)

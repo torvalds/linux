@@ -2,6 +2,7 @@
 
 #include <linux/reboot.h>
 #include <kunit/test.h>
+#include <kunit/attributes.h>
 #include <linux/glob.h>
 #include <linux/moduleparam.h>
 
@@ -12,28 +13,59 @@
 extern struct kunit_suite * const __kunit_suites_start[];
 extern struct kunit_suite * const __kunit_suites_end[];
 
-#if IS_BUILTIN(CONFIG_KUNIT)
-
-static char *filter_glob_param;
 static char *action_param;
 
-module_param_named(filter_glob, filter_glob_param, charp, 0);
-MODULE_PARM_DESC(filter_glob,
-		"Filter which KUnit test suites/tests run at boot-time, e.g. list* or list*.*del_test");
-module_param_named(action, action_param, charp, 0);
+module_param_named(action, action_param, charp, 0400);
 MODULE_PARM_DESC(action,
 		 "Changes KUnit executor behavior, valid values are:\n"
 		 "<none>: run the tests like normal\n"
-		 "'list' to list test names instead of running them.\n");
+		 "'list' to list test names instead of running them.\n"
+		 "'list_attr' to list test names and attributes instead of running them.\n");
+
+const char *kunit_action(void)
+{
+	return action_param;
+}
+
+static char *filter_glob_param;
+static char *filter_param;
+static char *filter_action_param;
+
+module_param_named(filter_glob, filter_glob_param, charp, 0400);
+MODULE_PARM_DESC(filter_glob,
+		"Filter which KUnit test suites/tests run at boot-time, e.g. list* or list*.*del_test");
+module_param_named(filter, filter_param, charp, 0400);
+MODULE_PARM_DESC(filter,
+		"Filter which KUnit test suites/tests run at boot-time using attributes, e.g. speed>slow");
+module_param_named(filter_action, filter_action_param, charp, 0400);
+MODULE_PARM_DESC(filter_action,
+		"Changes behavior of filtered tests using attributes, valid values are:\n"
+		"<none>: do not run filtered tests as normal\n"
+		"'skip': skip all filtered tests instead so tests will appear in output\n");
+
+const char *kunit_filter_glob(void)
+{
+	return filter_glob_param;
+}
+
+char *kunit_filter(void)
+{
+	return filter_param;
+}
+
+char *kunit_filter_action(void)
+{
+	return filter_action_param;
+}
 
 /* glob_match() needs NULL terminated strings, so we need a copy of filter_glob_param. */
-struct kunit_test_filter {
+struct kunit_glob_filter {
 	char *suite_glob;
 	char *test_glob;
 };
 
 /* Split "suite_glob.test_glob" into two. Assumes filter_glob is not empty. */
-static void kunit_parse_filter_glob(struct kunit_test_filter *parsed,
+static void kunit_parse_glob_filter(struct kunit_glob_filter *parsed,
 				    const char *filter_glob)
 {
 	const int len = strlen(filter_glob);
@@ -55,7 +87,7 @@ static void kunit_parse_filter_glob(struct kunit_test_filter *parsed,
 
 /* Create a copy of suite with only tests that match test_glob. */
 static struct kunit_suite *
-kunit_filter_tests(const struct kunit_suite *const suite, const char *test_glob)
+kunit_filter_glob_tests(const struct kunit_suite *const suite, const char *test_glob)
 {
 	int n = 0;
 	struct kunit_case *filtered, *test_case;
@@ -89,16 +121,7 @@ kunit_filter_tests(const struct kunit_suite *const suite, const char *test_glob)
 	return copy;
 }
 
-static char *kunit_shutdown;
-core_param(kunit_shutdown, kunit_shutdown, charp, 0644);
-
-/* Stores an array of suites, end points one past the end */
-struct suite_set {
-	struct kunit_suite * const *start;
-	struct kunit_suite * const *end;
-};
-
-static void kunit_free_suite_set(struct suite_set suite_set)
+void kunit_free_suite_set(struct kunit_suite_set suite_set)
 {
 	struct kunit_suite * const *suites;
 
@@ -107,46 +130,143 @@ static void kunit_free_suite_set(struct suite_set suite_set)
 	kfree(suite_set.start);
 }
 
-static struct suite_set kunit_filter_suites(const struct suite_set *suite_set,
-					    const char *filter_glob,
-					    int *err)
+struct kunit_suite_set
+kunit_filter_suites(const struct kunit_suite_set *suite_set,
+		    const char *filter_glob,
+		    char *filters,
+		    char *filter_action,
+		    int *err)
 {
-	int i;
-	struct kunit_suite **copy, *filtered_suite;
-	struct suite_set filtered;
-	struct kunit_test_filter filter;
+	int i, j, k;
+	int filter_count = 0;
+	struct kunit_suite **copy, **copy_start, *filtered_suite, *new_filtered_suite;
+	struct kunit_suite_set filtered = {NULL, NULL};
+	struct kunit_glob_filter parsed_glob;
+	struct kunit_attr_filter *parsed_filters = NULL;
 
 	const size_t max = suite_set->end - suite_set->start;
 
 	copy = kmalloc_array(max, sizeof(*filtered.start), GFP_KERNEL);
-	filtered.start = copy;
 	if (!copy) { /* won't be able to run anything, return an empty set */
-		filtered.end = copy;
 		return filtered;
 	}
+	copy_start = copy;
 
-	kunit_parse_filter_glob(&filter, filter_glob);
+	if (filter_glob)
+		kunit_parse_glob_filter(&parsed_glob, filter_glob);
 
-	for (i = 0; &suite_set->start[i] != suite_set->end; i++) {
-		if (!glob_match(filter.suite_glob, suite_set->start[i]->name))
-			continue;
-
-		filtered_suite = kunit_filter_tests(suite_set->start[i], filter.test_glob);
-		if (IS_ERR(filtered_suite)) {
-			*err = PTR_ERR(filtered_suite);
+	/* Parse attribute filters */
+	if (filters) {
+		filter_count = kunit_get_filter_count(filters);
+		parsed_filters = kcalloc(filter_count, sizeof(*parsed_filters), GFP_KERNEL);
+		if (!parsed_filters) {
+			kfree(copy);
 			return filtered;
 		}
+		for (j = 0; j < filter_count; j++)
+			parsed_filters[j] = kunit_next_attr_filter(&filters, err);
+		if (*err)
+			goto err;
+	}
+
+	for (i = 0; &suite_set->start[i] != suite_set->end; i++) {
+		filtered_suite = suite_set->start[i];
+		if (filter_glob) {
+			if (!glob_match(parsed_glob.suite_glob, filtered_suite->name))
+				continue;
+			filtered_suite = kunit_filter_glob_tests(filtered_suite,
+					parsed_glob.test_glob);
+			if (IS_ERR(filtered_suite)) {
+				*err = PTR_ERR(filtered_suite);
+				goto err;
+			}
+		}
+		if (filter_count > 0 && parsed_filters != NULL) {
+			for (k = 0; k < filter_count; k++) {
+				new_filtered_suite = kunit_filter_attr_tests(filtered_suite,
+						parsed_filters[k], filter_action, err);
+
+				/* Free previous copy of suite */
+				if (k > 0 || filter_glob) {
+					kfree(filtered_suite->test_cases);
+					kfree(filtered_suite);
+				}
+
+				filtered_suite = new_filtered_suite;
+
+				if (*err)
+					goto err;
+				if (IS_ERR(filtered_suite)) {
+					*err = PTR_ERR(filtered_suite);
+					goto err;
+				}
+				if (!filtered_suite)
+					break;
+			}
+		}
+
 		if (!filtered_suite)
 			continue;
 
 		*copy++ = filtered_suite;
 	}
+	filtered.start = copy_start;
 	filtered.end = copy;
 
-	kfree(filter.suite_glob);
-	kfree(filter.test_glob);
+err:
+	if (*err)
+		kfree(copy);
+
+	if (filter_glob) {
+		kfree(parsed_glob.suite_glob);
+		kfree(parsed_glob.test_glob);
+	}
+
+	if (filter_count)
+		kfree(parsed_filters);
+
 	return filtered;
 }
+
+void kunit_exec_run_tests(struct kunit_suite_set *suite_set, bool builtin)
+{
+	size_t num_suites = suite_set->end - suite_set->start;
+
+	if (builtin || num_suites) {
+		pr_info("KTAP version 1\n");
+		pr_info("1..%zu\n", num_suites);
+	}
+
+	__kunit_test_suites_init(suite_set->start, num_suites);
+}
+
+void kunit_exec_list_tests(struct kunit_suite_set *suite_set, bool include_attr)
+{
+	struct kunit_suite * const *suites;
+	struct kunit_case *test_case;
+
+	/* Hack: print a ktap header so kunit.py can find the start of KUnit output. */
+	pr_info("KTAP version 1\n");
+
+	for (suites = suite_set->start; suites < suite_set->end; suites++) {
+		/* Print suite name and suite attributes */
+		pr_info("%s\n", (*suites)->name);
+		if (include_attr)
+			kunit_print_attr((void *)(*suites), false, 0);
+
+		/* Print test case name and attributes in suite */
+		kunit_suite_for_each_test_case((*suites), test_case) {
+			pr_info("%s.%s\n", (*suites)->name, test_case->name);
+			if (include_attr)
+				kunit_print_attr((void *)test_case, true, 0);
+		}
+	}
+}
+
+#if IS_BUILTIN(CONFIG_KUNIT)
+
+static char *kunit_shutdown;
+core_param(kunit_shutdown, kunit_shutdown, charp, 0644);
 
 static void kunit_handle_shutdown(void)
 {
@@ -162,41 +282,20 @@ static void kunit_handle_shutdown(void)
 
 }
 
-static void kunit_exec_run_tests(struct suite_set *suite_set)
-{
-	size_t num_suites = suite_set->end - suite_set->start;
-
-	pr_info("KTAP version 1\n");
-	pr_info("1..%zu\n", num_suites);
-
-	__kunit_test_suites_init(suite_set->start, num_suites);
-}
-
-static void kunit_exec_list_tests(struct suite_set *suite_set)
-{
-	struct kunit_suite * const *suites;
-	struct kunit_case *test_case;
-
-	/* Hack: print a ktap header so kunit.py can find the start of KUnit output. */
-	pr_info("KTAP version 1\n");
-
-	for (suites = suite_set->start; suites < suite_set->end; suites++)
-		kunit_suite_for_each_test_case((*suites), test_case) {
-			pr_info("%s.%s\n", (*suites)->name, test_case->name);
-		}
-}
-
 int kunit_run_all_tests(void)
 {
-	struct suite_set suite_set = {__kunit_suites_start, __kunit_suites_end};
+	struct kunit_suite_set suite_set = {
+		__kunit_suites_start, __kunit_suites_end,
+	};
 	int err = 0;
 	if (!kunit_enabled()) {
 		pr_info("kunit: disabled\n");
 		goto out;
 	}
 
-	if (filter_glob_param) {
-		suite_set = kunit_filter_suites(&suite_set, filter_glob_param, &err);
+	if (filter_glob_param || filter_param) {
+		suite_set = kunit_filter_suites(&suite_set, filter_glob_param,
+				filter_param, filter_action_param, &err);
 		if (err) {
 			pr_err("kunit executor: error filtering suites: %d\n", err);
 			goto out;
@@ -204,13 +303,15 @@ int kunit_run_all_tests(void)
 	}
 
 	if (!action_param)
-		kunit_exec_run_tests(&suite_set);
+		kunit_exec_run_tests(&suite_set, true);
 	else if (strcmp(action_param, "list") == 0)
-		kunit_exec_list_tests(&suite_set);
+		kunit_exec_list_tests(&suite_set, false);
+	else if (strcmp(action_param, "list_attr") == 0)
+		kunit_exec_list_tests(&suite_set, true);
 	else
 		pr_err("kunit executor: unknown action '%s'\n", action_param);
 
-	if (filter_glob_param) { /* a copy was made of each suite */
+	if (filter_glob_param || filter_param) { /* a copy was made of each suite */
 		kunit_free_suite_set(suite_set);
 	}
 

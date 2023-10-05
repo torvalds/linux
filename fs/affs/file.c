@@ -15,6 +15,7 @@
 
 #include <linux/uio.h>
 #include <linux/blkdev.h>
+#include <linux/mpage.h>
 #include "affs.h"
 
 static struct buffer_head *affs_get_extblock_slow(struct inode *inode, u32 ext);
@@ -370,9 +371,10 @@ err_alloc:
 	return -ENOSPC;
 }
 
-static int affs_writepage(struct page *page, struct writeback_control *wbc)
+static int affs_writepages(struct address_space *mapping,
+			   struct writeback_control *wbc)
 {
-	return block_write_full_page(page, affs_get_block, wbc);
+	return mpage_writepages(mapping, wbc, affs_get_block);
 }
 
 static int affs_read_folio(struct file *file, struct folio *folio)
@@ -456,10 +458,11 @@ const struct address_space_operations affs_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio = affs_read_folio,
-	.writepage = affs_writepage,
+	.writepages = affs_writepages,
 	.write_begin = affs_write_begin,
 	.write_end = affs_write_end,
 	.direct_IO = affs_direct_IO,
+	.migrate_folio = buffer_migrate_folio,
 	.bmap = _affs_bmap
 };
 
@@ -835,9 +838,10 @@ const struct address_space_operations affs_aops_ofs = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio = affs_read_folio_ofs,
-	//.writepage = affs_writepage_ofs,
+	//.writepages = affs_writepages_ofs,
 	.write_begin = affs_write_begin_ofs,
-	.write_end = affs_write_end_ofs
+	.write_end = affs_write_end_ofs,
+	.migrate_folio = filemap_migrate_folio,
 };
 
 /* Free any preallocated blocks. */

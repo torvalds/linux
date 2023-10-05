@@ -855,16 +855,17 @@ static int via686a_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *id)
 {
 	u16 address, val;
+	int ret;
 
 	if (force_addr) {
 		address = force_addr & ~(VIA686A_EXTENT - 1);
 		dev_warn(&dev->dev, "Forcing ISA address 0x%x\n", address);
-		if (PCIBIOS_SUCCESSFUL !=
-		    pci_write_config_word(dev, VIA686A_BASE_REG, address | 1))
+		ret = pci_write_config_word(dev, VIA686A_BASE_REG, address | 1);
+		if (ret != PCIBIOS_SUCCESSFUL)
 			return -ENODEV;
 	}
-	if (PCIBIOS_SUCCESSFUL !=
-	    pci_read_config_word(dev, VIA686A_BASE_REG, &val))
+	ret = pci_read_config_word(dev, VIA686A_BASE_REG, &val);
+	if (ret != PCIBIOS_SUCCESSFUL)
 		return -ENODEV;
 
 	address = val & ~(VIA686A_EXTENT - 1);
@@ -874,8 +875,8 @@ static int via686a_pci_probe(struct pci_dev *dev,
 		return -ENODEV;
 	}
 
-	if (PCIBIOS_SUCCESSFUL !=
-	    pci_read_config_word(dev, VIA686A_ENABLE_REG, &val))
+	ret = pci_read_config_word(dev, VIA686A_ENABLE_REG, &val);
+	if (ret != PCIBIOS_SUCCESSFUL)
 		return -ENODEV;
 	if (!(val & 0x0001)) {
 		if (!force_addr) {
@@ -886,9 +887,8 @@ static int via686a_pci_probe(struct pci_dev *dev,
 		}
 
 		dev_warn(&dev->dev, "Enabling sensors\n");
-		if (PCIBIOS_SUCCESSFUL !=
-		    pci_write_config_word(dev, VIA686A_ENABLE_REG,
-					  val | 0x0001))
+		ret = pci_write_config_word(dev, VIA686A_ENABLE_REG, val | 0x1);
+		if (ret != PCIBIOS_SUCCESSFUL)
 			return -ENODEV;
 	}
 

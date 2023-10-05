@@ -773,7 +773,7 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 
 	/* Update the inode. */
 	EXT2_I(inode)->i_file_acl = new_bh ? new_bh->b_blocknr : 0;
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	if (IS_SYNC(inode)) {
 		error = sync_inode_metadata(inode, 1);
 		/* In case sync failed due to ENOSPC the inode was actually

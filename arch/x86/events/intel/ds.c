@@ -144,7 +144,7 @@ void __init intel_pmu_pebs_data_source_adl(void)
 	__intel_pmu_pebs_data_source_grt(data_source);
 }
 
-static void __init intel_pmu_pebs_data_source_cmt(u64 *data_source)
+static void __init __intel_pmu_pebs_data_source_cmt(u64 *data_source)
 {
 	data_source[0x07] = OP_LH | P(LVL, L3) | LEVEL(L3) | P(SNOOPX, FWD);
 	data_source[0x08] = OP_LH | P(LVL, L3) | LEVEL(L3) | P(SNOOP, HITM);
@@ -164,7 +164,12 @@ void __init intel_pmu_pebs_data_source_mtl(void)
 
 	data_source = x86_pmu.hybrid_pmu[X86_HYBRID_PMU_ATOM_IDX].pebs_data_source;
 	memcpy(data_source, pebs_data_source, sizeof(pebs_data_source));
-	intel_pmu_pebs_data_source_cmt(data_source);
+	__intel_pmu_pebs_data_source_cmt(data_source);
+}
+
+void __init intel_pmu_pebs_data_source_cmt(void)
+{
+	__intel_pmu_pebs_data_source_cmt(pebs_data_source);
 }
 
 static u64 precise_store_data(u64 status)

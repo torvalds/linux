@@ -336,14 +336,13 @@ static int read_trusted_verity_root_digests(unsigned int fd)
 			rc = -ENOMEM;
 			goto err;
 		}
+		trd->len = len;
 
 		if (hex2bin(trd->data, d, len)) {
 			kfree(trd);
 			rc = -EPROTO;
 			goto err;
 		}
-
-		trd->len = len;
 
 		list_add_tail(&trd->node, &dm_verity_loadpin_trusted_root_digests);
 	}

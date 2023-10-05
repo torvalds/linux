@@ -314,7 +314,8 @@ static int proc_root_getattr(struct mnt_idmap *idmap,
 			     const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {
-	generic_fillattr(&nop_mnt_idmap, d_inode(path->dentry), stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, d_inode(path->dentry),
+			 stat);
 	stat->nlink = proc_root.nlink + nr_processes();
 	return 0;
 }

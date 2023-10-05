@@ -313,21 +313,16 @@ static bool check_tree_block_fsid(struct extent_buffer *eb)
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices, *seed_devs;
 	u8 fsid[BTRFS_FSID_SIZE];
-	u8 *metadata_uuid;
 
 	read_extent_buffer(eb, fsid, offsetof(struct btrfs_header, fsid),
 			   BTRFS_FSID_SIZE);
-	/*
-	 * Checking the incompat flag is only valid for the current fs. For
-	 * seed devices it's forbidden to have their uuid changed so reading
-	 * ->fsid in this case is fine
-	 */
-	if (btrfs_fs_incompat(fs_info, METADATA_UUID))
-		metadata_uuid = fs_devices->metadata_uuid;
-	else
-		metadata_uuid = fs_devices->fsid;
 
-	if (!memcmp(fsid, metadata_uuid, BTRFS_FSID_SIZE))
+	/*
+	 * alloc_fs_devices() copies the fsid into metadata_uuid if the
+	 * metadata_uuid is unset in the superblock, including for a seed device.
+	 * So, we can use fs_devices->metadata_uuid.
+	 */
+	if (memcmp(fsid, fs_info->fs_devices->metadata_uuid, BTRFS_FSID_SIZE) == 0)
 		return false;
 
 	list_for_each_entry(seed_devs, &fs_devices->seed_list, seed_list)
@@ -2384,21 +2379,18 @@ int btrfs_validate_super(struct btrfs_fs_info *fs_info,
 		ret = -EINVAL;
 	}
 
-	if (memcmp(fs_info->fs_devices->fsid, fs_info->super_copy->fsid,
-		   BTRFS_FSID_SIZE)) {
+	if (memcmp(fs_info->fs_devices->fsid, sb->fsid, BTRFS_FSID_SIZE) != 0) {
 		btrfs_err(fs_info,
 		"superblock fsid doesn't match fsid of fs_devices: %pU != %pU",
-			fs_info->super_copy->fsid, fs_info->fs_devices->fsid);
+			  sb->fsid, fs_info->fs_devices->fsid);
 		ret = -EINVAL;
 	}
 
-	if (btrfs_fs_incompat(fs_info, METADATA_UUID) &&
-	    memcmp(fs_info->fs_devices->metadata_uuid,
-		   fs_info->super_copy->metadata_uuid, BTRFS_FSID_SIZE)) {
+	if (memcmp(fs_info->fs_devices->metadata_uuid, btrfs_sb_fsid_ptr(sb),
+		   BTRFS_FSID_SIZE) != 0) {
 		btrfs_err(fs_info,
 "superblock metadata_uuid doesn't match metadata uuid of fs_devices: %pU != %pU",
-			fs_info->super_copy->metadata_uuid,
-			fs_info->fs_devices->metadata_uuid);
+			  btrfs_sb_fsid_ptr(sb), fs_info->fs_devices->metadata_uuid);
 		ret = -EINVAL;
 	}
 
@@ -2869,6 +2861,56 @@ static int btrfs_check_uuid_tree(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
+static int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
+{
+	u64 root_objectid = 0;
+	struct btrfs_root *gang[8];
+	int i = 0;
+	int err = 0;
+	unsigned int ret = 0;
+
+	while (1) {
+		spin_lock(&fs_info->fs_roots_radix_lock);
+		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
+					     (void **)gang, root_objectid,
+					     ARRAY_SIZE(gang));
+		if (!ret) {
+			spin_unlock(&fs_info->fs_roots_radix_lock);
+			break;
+		}
+		root_objectid = gang[ret - 1]->root_key.objectid + 1;
+
+		for (i = 0; i < ret; i++) {
+			/* Avoid to grab roots in dead_roots. */
+			if (btrfs_root_refs(&gang[i]->root_item) == 0) {
+				gang[i] = NULL;
+				continue;
+			}
+			/* Grab all the search result for later use. */
+			gang[i] = btrfs_grab_root(gang[i]);
+		}
+		spin_unlock(&fs_info->fs_roots_radix_lock);
+
+		for (i = 0; i < ret; i++) {
+			if (!gang[i])
+				continue;
+			root_objectid = gang[i]->root_key.objectid;
+			err = btrfs_orphan_cleanup(gang[i]);
+			if (err)
+				goto out;
+			btrfs_put_root(gang[i]);
+		}
+		root_objectid++;
+	}
+out:
+	/* Release the uncleaned roots due to error. */
+	for (; i < ret; i++) {
+		if (gang[i])
+			btrfs_put_root(gang[i]);
+	}
+	return err;
+}
+
 /*
  * Some options only have meaning at mount time and shouldn't persist across
  * remounts, or be displayed. Clear these at the end of mount and remount
@@ -3222,7 +3264,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 
 	/* check FS state, whether FS is broken. */
 	if (btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_ERROR)
-		set_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state);
+		WRITE_ONCE(fs_info->fs_error, -EUCLEAN);
 
 	/*
 	 * In the long term, we'll store the compression type in the super
@@ -3416,6 +3458,8 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	}
 
 	btrfs_free_zone_cache(fs_info);
+
+	btrfs_check_active_zone_reservation(fs_info);
 
 	if (!sb_rdonly(sb) && fs_info->fs_devices->missing_devices &&
 	    !btrfs_check_rw_degradable(fs_info, NULL)) {
@@ -4136,56 +4180,6 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 		btrfs_put_root(root);
 }
 
-int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
-{
-	u64 root_objectid = 0;
-	struct btrfs_root *gang[8];
-	int i = 0;
-	int err = 0;
-	unsigned int ret = 0;
-
-	while (1) {
-		spin_lock(&fs_info->fs_roots_radix_lock);
-		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
-					     (void **)gang, root_objectid,
-					     ARRAY_SIZE(gang));
-		if (!ret) {
-			spin_unlock(&fs_info->fs_roots_radix_lock);
-			break;
-		}
-		root_objectid = gang[ret - 1]->root_key.objectid + 1;
-
-		for (i = 0; i < ret; i++) {
-			/* Avoid to grab roots in dead_roots */
-			if (btrfs_root_refs(&gang[i]->root_item) == 0) {
-				gang[i] = NULL;
-				continue;
-			}
-			/* grab all the search result for later use */
-			gang[i] = btrfs_grab_root(gang[i]);
-		}
-		spin_unlock(&fs_info->fs_roots_radix_lock);
-
-		for (i = 0; i < ret; i++) {
-			if (!gang[i])
-				continue;
-			root_objectid = gang[i]->root_key.objectid;
-			err = btrfs_orphan_cleanup(gang[i]);
-			if (err)
-				goto out;
-			btrfs_put_root(gang[i]);
-		}
-		root_objectid++;
-	}
-out:
-	/* release the uncleaned roots due to error */
-	for (; i < ret; i++) {
-		if (gang[i])
-			btrfs_put_root(gang[i]);
-	}
-	return err;
-}
-
 int btrfs_commit_super(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *root = fs_info->tree_root;
@@ -4228,7 +4222,7 @@ static void warn_about_uncommitted_trans(struct btrfs_fs_info *fs_info)
 		u64 found_end;
 
 		found = true;
-		while (!find_first_extent_bit(&trans->dirty_pages, cur,
+		while (find_first_extent_bit(&trans->dirty_pages, cur,
 			&found_start, &found_end, EXTENT_DIRTY, &cached)) {
 			dirty_bytes += found_end + 1 - found_start;
 			cur = found_end + 1;
@@ -4552,9 +4546,7 @@ static void btrfs_destroy_ordered_extents(struct btrfs_root *root)
 static void btrfs_destroy_all_ordered_extents(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *root;
-	struct list_head splice;
-
-	INIT_LIST_HEAD(&splice);
+	LIST_HEAD(splice);
 
 	spin_lock(&fs_info->ordered_root_lock);
 	list_splice_init(&fs_info->ordered_roots, &splice);
@@ -4660,9 +4652,7 @@ static void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 static void btrfs_destroy_delalloc_inodes(struct btrfs_root *root)
 {
 	struct btrfs_inode *btrfs_inode;
-	struct list_head splice;
-
-	INIT_LIST_HEAD(&splice);
+	LIST_HEAD(splice);
 
 	spin_lock(&root->delalloc_lock);
 	list_splice_init(&root->delalloc_inodes, &splice);
@@ -4695,9 +4685,7 @@ static void btrfs_destroy_delalloc_inodes(struct btrfs_root *root)
 static void btrfs_destroy_all_delalloc_inodes(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *root;
-	struct list_head splice;
-
-	INIT_LIST_HEAD(&splice);
+	LIST_HEAD(splice);
 
 	spin_lock(&fs_info->delalloc_root_lock);
 	list_splice_init(&fs_info->delalloc_roots, &splice);
@@ -4716,21 +4704,16 @@ static void btrfs_destroy_all_delalloc_inodes(struct btrfs_fs_info *fs_info)
 	spin_unlock(&fs_info->delalloc_root_lock);
 }
 
-static int btrfs_destroy_marked_extents(struct btrfs_fs_info *fs_info,
-					struct extent_io_tree *dirty_pages,
-					int mark)
+static void btrfs_destroy_marked_extents(struct btrfs_fs_info *fs_info,
+					 struct extent_io_tree *dirty_pages,
+					 int mark)
 {
-	int ret;
 	struct extent_buffer *eb;
 	u64 start = 0;
 	u64 end;
 
-	while (1) {
-		ret = find_first_extent_bit(dirty_pages, start, &start, &end,
-					    mark, NULL);
-		if (ret)
-			break;
-
+	while (find_first_extent_bit(dirty_pages, start, &start, &end,
+				     mark, NULL)) {
 		clear_extent_bits(dirty_pages, start, end, mark);
 		while (start <= end) {
 			eb = find_extent_buffer(fs_info, start);
@@ -4746,16 +4729,13 @@ static int btrfs_destroy_marked_extents(struct btrfs_fs_info *fs_info,
 			free_extent_buffer_stale(eb);
 		}
 	}
-
-	return ret;
 }
 
-static int btrfs_destroy_pinned_extent(struct btrfs_fs_info *fs_info,
-				       struct extent_io_tree *unpin)
+static void btrfs_destroy_pinned_extent(struct btrfs_fs_info *fs_info,
+					struct extent_io_tree *unpin)
 {
 	u64 start;
 	u64 end;
-	int ret;
 
 	while (1) {
 		struct extent_state *cached_state = NULL;
@@ -4767,9 +4747,8 @@ static int btrfs_destroy_pinned_extent(struct btrfs_fs_info *fs_info,
 		 * the same extent range.
 		 */
 		mutex_lock(&fs_info->unused_bg_unpin_mutex);
-		ret = find_first_extent_bit(unpin, 0, &start, &end,
-					    EXTENT_DIRTY, &cached_state);
-		if (ret) {
+		if (!find_first_extent_bit(unpin, 0, &start, &end,
+					   EXTENT_DIRTY, &cached_state)) {
 			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 			break;
 		}
@@ -4780,8 +4759,6 @@ static int btrfs_destroy_pinned_extent(struct btrfs_fs_info *fs_info,
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 		cond_resched();
 	}
-
-	return 0;
 }
 
 static void btrfs_cleanup_bg_io(struct btrfs_block_group *cache)

@@ -2181,12 +2181,14 @@ out_drop_write:
 	if (err)
 		return err;
 
-	err = freeze_super(sbi->sb);
+	err = freeze_super(sbi->sb, FREEZE_HOLDER_USERSPACE);
 	if (err)
 		return err;
 
 	if (f2fs_readonly(sbi->sb)) {
-		thaw_super(sbi->sb);
+		err = thaw_super(sbi->sb, FREEZE_HOLDER_USERSPACE);
+		if (err)
+			return err;
 		return -EROFS;
 	}
 
@@ -2240,6 +2242,6 @@ recover_out:
 out_err:
 	f2fs_up_write(&sbi->cp_global_sem);
 	f2fs_up_write(&sbi->gc_lock);
-	thaw_super(sbi->sb);
+	thaw_super(sbi->sb, FREEZE_HOLDER_USERSPACE);
 	return err;
 }

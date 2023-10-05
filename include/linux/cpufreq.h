@@ -19,6 +19,7 @@
 #include <linux/pm_qos.h>
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
+#include <linux/minmax.h>
 
 /*********************************************************************
  *                        CPUFREQ INTERFACE                          *
@@ -370,7 +371,7 @@ struct cpufreq_driver {
 	int		(*target_intermediate)(struct cpufreq_policy *policy,
 					       unsigned int index);
 
-	/* should be defined, if possible */
+	/* should be defined, if possible, return 0 on error */
 	unsigned int	(*get)(unsigned int cpu);
 
 	/* Called to update policy limits on firmware notifications. */
@@ -467,17 +468,8 @@ static inline void cpufreq_verify_within_limits(struct cpufreq_policy_data *poli
 						unsigned int min,
 						unsigned int max)
 {
-	if (policy->min < min)
-		policy->min = min;
-	if (policy->max < min)
-		policy->max = min;
-	if (policy->min > max)
-		policy->min = max;
-	if (policy->max > max)
-		policy->max = max;
-	if (policy->min > policy->max)
-		policy->min = policy->max;
-	return;
+	policy->max = clamp(policy->max, min, max);
+	policy->min = clamp(policy->min, min, policy->max);
 }
 
 static inline void

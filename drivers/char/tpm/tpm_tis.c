@@ -27,7 +27,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/kernel.h>
-#include <linux/dmi.h>
 #include "tpm.h"
 #include "tpm_tis_core.h"
 
@@ -89,8 +88,8 @@ static inline void tpm_tis_iowrite32(u32 b, void __iomem *iobase, u32 addr)
 	tpm_tis_flush(iobase);
 }
 
-static int interrupts;
-module_param(interrupts, int, 0444);
+static bool interrupts;
+module_param(interrupts, bool, 0444);
 MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
 static bool itpm;
@@ -102,92 +101,6 @@ static bool force;
 module_param(force, bool, 0444);
 MODULE_PARM_DESC(force, "Force device probe rather than using ACPI entry");
 #endif
-
-static int tpm_tis_disable_irq(const struct dmi_system_id *d)
-{
-	if (interrupts == -1) {
-		pr_notice("tpm_tis: %s detected: disabling interrupts.\n", d->ident);
-		interrupts = 0;
-	}
-
-	return 0;
-}
-
-static const struct dmi_system_id tpm_tis_dmi_table[] = {
-	{
-		.callback = tpm_tis_disable_irq,
-		.ident = "Framework Laptop (12th Gen Intel Core)",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Laptop (12th Gen Intel Core)"),
-		},
-	},
-	{
-		.callback = tpm_tis_disable_irq,
-		.ident = "Framework Laptop (13th Gen Intel Core)",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Laptop (13th Gen Intel Core)"),
-		},
-	},
-	{
-		.callback = tpm_tis_disable_irq,
-		.ident = "ThinkPad T490s",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T490s"),
-		},
-	},
-	{
-		.callback = tpm_tis_disable_irq,
-		.ident = "ThinkStation P360 Tiny",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkStation P360 Tiny"),
-		},
-	},
-	{
-		.callback = tpm_tis_disable_irq,
-		.ident = "ThinkPad L490",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad L490"),
-		},
-	},
-	{
-		.callback = tpm_tis_disable_irq,
-		.ident = "ThinkPad L590",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad L590"),
-		},
-	},
-	{
-		.callback = tpm_tis_disable_irq,
-		.ident = "ThinkStation P620",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkStation P620"),
-		},
-	},
-	{
-		.callback = tpm_tis_disable_irq,
-		.ident = "TUXEDO InfinityBook S 15/17 Gen7",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "TUXEDO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "TUXEDO InfinityBook S 15/17 Gen7"),
-		},
-	},
-	{
-		.callback = tpm_tis_disable_irq,
-		.ident = "UPX-TGL",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "AAEON"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "UPX-TGL01"),
-		},
-	},
-	{}
-};
 
 #if defined(CONFIG_PNP) && defined(CONFIG_ACPI)
 static int has_hid(struct acpi_device *dev, const char *hid)
@@ -311,8 +224,6 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info)
 	struct tpm_tis_tcg_phy *phy;
 	int irq = -1;
 	int rc;
-
-	dmi_check_system(tpm_tis_dmi_table);
 
 	rc = check_acpi_tpm2(dev);
 	if (rc)

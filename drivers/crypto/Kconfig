@@ -70,10 +70,9 @@ config ZCRYPT
 	select HW_RANDOM
 	help
 	  Select this option if you want to enable support for
-	  s390 cryptographic adapters like:
-	  + Crypto Express 2 up to 7 Coprocessor (CEXxC)
-	  + Crypto Express 2 up to 7 Accelerator (CEXxA)
-	  + Crypto Express 4 up to 7 EP11 Coprocessor (CEXxP)
+	  s390 cryptographic adapters like Crypto Express 4 up
+	  to 8 in Coprocessor (CEXxC), EP11 Coprocessor (CEXxP)
+	  or Accelerator (CEXxA) mode.
 
 config ZCRYPT_DEBUG
 	bool "Enable debug features for s390 cryptographic adapters"

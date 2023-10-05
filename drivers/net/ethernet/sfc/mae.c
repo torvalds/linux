@@ -1219,6 +1219,71 @@ fail:
 	return rc;
 }
 
+/**
+ * efx_mae_allocate_pedit_mac() - allocate pedit MAC address in HW.
+ * @efx:	NIC we're installing a pedit MAC address on
+ * @ped:	pedit MAC action to be installed
+ *
+ * Attempts to install @ped in HW and populates its id with an index of this
+ * entry in the firmware MAC address table on success.
+ *
+ * Return: negative value on error, 0 in success.
+ */
+int efx_mae_allocate_pedit_mac(struct efx_nic *efx,
+			       struct efx_tc_mac_pedit_action *ped)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_LEN);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_MAC_ADDR_ALLOC_IN_LEN);
+	size_t outlen;
+	int rc;
+
+	BUILD_BUG_ON(MC_CMD_MAE_MAC_ADDR_ALLOC_IN_MAC_ADDR_LEN !=
+		     sizeof(ped->h_addr));
+	memcpy(MCDI_PTR(inbuf, MAE_MAC_ADDR_ALLOC_IN_MAC_ADDR), ped->h_addr,
+	       sizeof(ped->h_addr));
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_MAC_ADDR_ALLOC, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	ped->fw_id = MCDI_DWORD(outbuf, MAE_MAC_ADDR_ALLOC_OUT_MAC_ID);
+	return 0;
+}
+
+/**
+ * efx_mae_free_pedit_mac() - free pedit MAC address in HW.
+ * @efx:	NIC we're installing a pedit MAC address on
+ * @ped:	pedit MAC action that needs to be freed
+ *
+ * Frees @ped in HW, check that firmware did not free a different one and clears
+ * the id (which denotes the index of the entry in the MAC address table).
+ */
+void efx_mae_free_pedit_mac(struct efx_nic *efx,
+			    struct efx_tc_mac_pedit_action *ped)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_MAC_ADDR_FREE_OUT_LEN(1));
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_MAC_ADDR_FREE_IN_LEN(1));
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, MAE_MAC_ADDR_FREE_IN_MAC_ID, ped->fw_id);
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_MAC_ADDR_FREE, inbuf,
+			  sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
+	if (rc || outlen < sizeof(outbuf))
+		return;
+	/* FW freed a different ID than we asked for, should also never happen.
+	 * Warn because it means we've now got a different idea to the FW of
+	 * what MAC addresses exist, which could cause mayhem later.
+	 */
+	if (WARN_ON(MCDI_DWORD(outbuf, MAE_MAC_ADDR_FREE_OUT_FREED_MAC_ID) != ped->fw_id))
+		return;
+	/* We're probably about to free @ped, but let's just make sure its
+	 * fw_id is blatted so that it won't look valid if it leaks out.
+	 */
+	ped->fw_id = MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_MAC_ID_NULL;
+}
+
 int efx_mae_alloc_action_set(struct efx_nic *efx, struct efx_tc_action_set *act)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_ACTION_SET_ALLOC_OUT_LEN);
@@ -1226,15 +1291,27 @@ int efx_mae_alloc_action_set(struct efx_nic *efx, struct efx_tc_action_set *act)
 	size_t outlen;
 	int rc;
 
-	MCDI_POPULATE_DWORD_3(inbuf, MAE_ACTION_SET_ALLOC_IN_FLAGS,
+	MCDI_POPULATE_DWORD_4(inbuf, MAE_ACTION_SET_ALLOC_IN_FLAGS,
 			      MAE_ACTION_SET_ALLOC_IN_VLAN_PUSH, act->vlan_push,
 			      MAE_ACTION_SET_ALLOC_IN_VLAN_POP, act->vlan_pop,
-			      MAE_ACTION_SET_ALLOC_IN_DECAP, act->decap);
+			      MAE_ACTION_SET_ALLOC_IN_DECAP, act->decap,
+			      MAE_ACTION_SET_ALLOC_IN_DO_DECR_IP_TTL,
+			      act->do_ttl_dec);
 
-	MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_SRC_MAC_ID,
-		       MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_MAC_ID_NULL);
-	MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_DST_MAC_ID,
-		       MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_MAC_ID_NULL);
+	if (act->src_mac)
+		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_SRC_MAC_ID,
+			       act->src_mac->fw_id);
+	else
+		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_SRC_MAC_ID,
+			       MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_MAC_ID_NULL);
+
+	if (act->dst_mac)
+		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_DST_MAC_ID,
+			       act->dst_mac->fw_id);
+	else
+		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_DST_MAC_ID,
+			       MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_MAC_ID_NULL);
+
 	if (act->count && !WARN_ON(!act->count->cnt))
 		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_COUNTER_ID,
 			       act->count->cnt->fw_id);

@@ -236,7 +236,7 @@ static int socfpga_get_plat_phymode(struct socfpga_dwmac *dwmac)
 	struct net_device *ndev = dev_get_drvdata(dwmac->dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
 
-	return priv->plat->interface;
+	return priv->plat->mac_interface;
 }
 
 static void socfpga_sgmii_config(struct socfpga_dwmac *dwmac, bool enable)

@@ -147,6 +147,8 @@ static int fpr_get(struct task_struct *target,
 {
 	int r;
 
+	save_fpu_regs(target);
+
 	if (sizeof(target->thread.fpu.fpr[0]) == sizeof(elf_fpreg_t))
 		r = gfpr_get(target, &to);
 	else
@@ -277,6 +279,8 @@ static int simd_get(struct task_struct *target,
 		    struct membuf to)
 {
 	const unsigned int wr_size = NUM_FPU_REGS * regset->size;
+
+	save_fpu_regs(target);
 
 	if (!tsk_used_math(target)) {
 		/* The task hasn't used FP or LSX, fill with 0xff */

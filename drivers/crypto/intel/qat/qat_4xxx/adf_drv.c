@@ -8,6 +8,7 @@
 #include <adf_cfg.h>
 #include <adf_common_drv.h>
 #include <adf_dbgfs.h>
+#include <adf_heartbeat.h>
 
 #include "adf_4xxx_hw_data.h"
 #include "qat_compression.h"
@@ -76,6 +77,8 @@ static int adf_cfg_dev_init(struct adf_accel_dev *accel_dev)
 					  ADF_STR);
 	if (ret)
 		return ret;
+
+	adf_heartbeat_save_cfg_param(accel_dev, ADF_CFG_HB_TIMER_MIN_MS);
 
 	return 0;
 }

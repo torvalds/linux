@@ -1386,6 +1386,18 @@ static void samsung_dsim_disable_irq(struct samsung_dsim *dsi)
 	disable_irq(dsi->irq);
 }
 
+static void samsung_dsim_set_stop_state(struct samsung_dsim *dsi, bool enable)
+{
+	u32 reg = samsung_dsim_read(dsi, DSIM_ESCMODE_REG);
+
+	if (enable)
+		reg |= DSIM_FORCE_STOP_STATE;
+	else
+		reg &= ~DSIM_FORCE_STOP_STATE;
+
+	samsung_dsim_write(dsi, DSIM_ESCMODE_REG, reg);
+}
+
 static int samsung_dsim_init(struct samsung_dsim *dsi)
 {
 	const struct samsung_dsim_driver_data *driver_data = dsi->driver_data;
@@ -1445,15 +1457,12 @@ static void samsung_dsim_atomic_enable(struct drm_bridge *bridge,
 				       struct drm_bridge_state *old_bridge_state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
-	u32 reg;
 
 	if (samsung_dsim_hw_is_exynos(dsi->plat_data->hw_type)) {
 		samsung_dsim_set_display_mode(dsi);
 		samsung_dsim_set_display_enable(dsi, true);
 	} else {
-		reg = samsung_dsim_read(dsi, DSIM_ESCMODE_REG);
-		reg &= ~DSIM_FORCE_STOP_STATE;
-		samsung_dsim_write(dsi, DSIM_ESCMODE_REG, reg);
+		samsung_dsim_set_stop_state(dsi, false);
 	}
 
 	dsi->state |= DSIM_STATE_VIDOUT_AVAILABLE;
@@ -1463,16 +1472,12 @@ static void samsung_dsim_atomic_disable(struct drm_bridge *bridge,
 					struct drm_bridge_state *old_bridge_state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
-	u32 reg;
 
 	if (!(dsi->state & DSIM_STATE_ENABLED))
 		return;
 
-	if (!samsung_dsim_hw_is_exynos(dsi->plat_data->hw_type)) {
-		reg = samsung_dsim_read(dsi, DSIM_ESCMODE_REG);
-		reg |= DSIM_FORCE_STOP_STATE;
-		samsung_dsim_write(dsi, DSIM_ESCMODE_REG, reg);
-	}
+	if (!samsung_dsim_hw_is_exynos(dsi->plat_data->hw_type))
+		samsung_dsim_set_stop_state(dsi, true);
 
 	dsi->state &= ~DSIM_STATE_VIDOUT_AVAILABLE;
 }
@@ -1774,6 +1779,8 @@ static ssize_t samsung_dsim_host_transfer(struct mipi_dsi_host *host,
 	ret = samsung_dsim_init(dsi);
 	if (ret)
 		return ret;
+
+	samsung_dsim_set_stop_state(dsi, false);
 
 	ret = mipi_dsi_create_packet(&xfer.packet, msg);
 	if (ret < 0)

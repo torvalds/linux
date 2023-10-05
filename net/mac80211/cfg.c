@@ -470,6 +470,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta = NULL;
 	struct ieee80211_key *key;
+	int err;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
@@ -561,7 +562,12 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		break;
 	}
 
-	return ieee80211_key_link(key, link, sta);
+	err = ieee80211_key_link(key, link, sta);
+	/* KRACK protection, shouldn't happen but just silently accept key */
+	if (err == -EALREADY)
+		err = 0;
+
+	return err;
 }
 
 static struct ieee80211_key *
@@ -1836,7 +1842,8 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 	/* VHT can override some HT caps such as the A-MSDU max length */
 	if (params->vht_capa)
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
-						    params->vht_capa, link_sta);
+						    params->vht_capa, NULL,
+						    link_sta);
 
 	if (params->he_capa)
 		ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband,

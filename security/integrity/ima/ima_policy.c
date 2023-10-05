@@ -68,7 +68,7 @@ enum policy_rule_list { IMA_DEFAULT_POLICY = 1, IMA_CUSTOM_POLICY };
 
 struct ima_rule_opt_list {
 	size_t count;
-	char *items[];
+	char *items[] __counted_by(count);
 };
 
 /*
@@ -342,6 +342,7 @@ static struct ima_rule_opt_list *ima_alloc_rule_opt_list(const substring_t *src)
 		kfree(src_copy);
 		return ERR_PTR(-ENOMEM);
 	}
+	opt_list->count = count;
 
 	/*
 	 * strsep() has already replaced all instances of '|' with '\0',
@@ -357,7 +358,6 @@ static struct ima_rule_opt_list *ima_alloc_rule_opt_list(const substring_t *src)
 		opt_list->items[i] = cur;
 		cur = strchr(cur, '\0') + 1;
 	}
-	opt_list->count = count;
 
 	return opt_list;
 }

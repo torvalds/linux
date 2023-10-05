@@ -297,7 +297,7 @@ static int pt_dump_init(void)
 	address_markers[ABS_LOWCORE_NR].start_address = __abs_lowcore;
 	address_markers[ABS_LOWCORE_END_NR].start_address = __abs_lowcore + ABS_LOWCORE_MAP_SIZE;
 	address_markers[MEMCPY_REAL_NR].start_address = __memcpy_real_area;
-	address_markers[MEMCPY_REAL_END_NR].start_address = __memcpy_real_area + PAGE_SIZE;
+	address_markers[MEMCPY_REAL_END_NR].start_address = __memcpy_real_area + MEMCPY_REAL_SIZE;
 	address_markers[VMEMMAP_NR].start_address = (unsigned long) vmemmap;
 	address_markers[VMEMMAP_END_NR].start_address = (unsigned long)vmemmap + vmemmap_size;
 	address_markers[VMALLOC_NR].start_address = VMALLOC_START;

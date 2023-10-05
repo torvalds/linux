@@ -1234,16 +1234,16 @@ static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 	ret = freq_qos_add_notifier(&policy->constraints, FREQ_QOS_MIN,
 				    &policy->nb_min);
 	if (ret) {
-		dev_err(dev, "Failed to register MIN QoS notifier: %d (%*pbl)\n",
-			ret, cpumask_pr_args(policy->cpus));
+		dev_err(dev, "Failed to register MIN QoS notifier: %d (CPU%u)\n",
+			ret, cpu);
 		goto err_kobj_remove;
 	}
 
 	ret = freq_qos_add_notifier(&policy->constraints, FREQ_QOS_MAX,
 				    &policy->nb_max);
 	if (ret) {
-		dev_err(dev, "Failed to register MAX QoS notifier: %d (%*pbl)\n",
-			ret, cpumask_pr_args(policy->cpus));
+		dev_err(dev, "Failed to register MAX QoS notifier: %d (CPU%u)\n",
+			ret, cpu);
 		goto err_min_qos_notifier;
 	}
 

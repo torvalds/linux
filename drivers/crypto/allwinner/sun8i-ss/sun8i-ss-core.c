@@ -9,22 +9,23 @@
  *
  * You could find a link for the datasheet in Documentation/arch/arm/sunxi.rst
  */
+
+#include <crypto/engine.h>
+#include <crypto/internal/rng.h>
+#include <crypto/internal/skcipher.h>
 #include <linux/clk.h>
-#include <linux/crypto.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
-#include <crypto/internal/rng.h>
-#include <crypto/internal/skcipher.h>
 
 #include "sun8i-ss.h"
 
@@ -168,7 +169,7 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
 	.ss_algo_id = SS_ID_CIPHER_AES,
 	.ss_blockmode = SS_ID_OP_CBC,
-	.alg.skcipher = {
+	.alg.skcipher.base = {
 		.base = {
 			.cra_name = "cbc(aes)",
 			.cra_driver_name = "cbc-aes-sun8i-ss",
@@ -189,13 +190,16 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 		.setkey		= sun8i_ss_aes_setkey,
 		.encrypt	= sun8i_ss_skencrypt,
 		.decrypt	= sun8i_ss_skdecrypt,
-	}
+	},
+	.alg.skcipher.op = {
+		.do_one_request = sun8i_ss_handle_cipher_request,
+	},
 },
 {
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
 	.ss_algo_id = SS_ID_CIPHER_AES,
 	.ss_blockmode = SS_ID_OP_ECB,
-	.alg.skcipher = {
+	.alg.skcipher.base = {
 		.base = {
 			.cra_name = "ecb(aes)",
 			.cra_driver_name = "ecb-aes-sun8i-ss",
@@ -215,13 +219,16 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 		.setkey		= sun8i_ss_aes_setkey,
 		.encrypt	= sun8i_ss_skencrypt,
 		.decrypt	= sun8i_ss_skdecrypt,
-	}
+	},
+	.alg.skcipher.op = {
+		.do_one_request = sun8i_ss_handle_cipher_request,
+	},
 },
 {
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
 	.ss_algo_id = SS_ID_CIPHER_DES3,
 	.ss_blockmode = SS_ID_OP_CBC,
-	.alg.skcipher = {
+	.alg.skcipher.base = {
 		.base = {
 			.cra_name = "cbc(des3_ede)",
 			.cra_driver_name = "cbc-des3-sun8i-ss",
@@ -242,13 +249,16 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 		.setkey		= sun8i_ss_des3_setkey,
 		.encrypt	= sun8i_ss_skencrypt,
 		.decrypt	= sun8i_ss_skdecrypt,
-	}
+	},
+	.alg.skcipher.op = {
+		.do_one_request = sun8i_ss_handle_cipher_request,
+	},
 },
 {
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
 	.ss_algo_id = SS_ID_CIPHER_DES3,
 	.ss_blockmode = SS_ID_OP_ECB,
-	.alg.skcipher = {
+	.alg.skcipher.base = {
 		.base = {
 			.cra_name = "ecb(des3_ede)",
 			.cra_driver_name = "ecb-des3-sun8i-ss",
@@ -268,7 +278,10 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 		.setkey		= sun8i_ss_des3_setkey,
 		.encrypt	= sun8i_ss_skencrypt,
 		.decrypt	= sun8i_ss_skdecrypt,
-	}
+	},
+	.alg.skcipher.op = {
+		.do_one_request = sun8i_ss_handle_cipher_request,
+	},
 },
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_PRNG
 {
@@ -292,7 +305,7 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_HASH
 {	.type = CRYPTO_ALG_TYPE_AHASH,
 	.ss_algo_id = SS_ID_HASH_MD5,
-	.alg.hash = {
+	.alg.hash.base = {
 		.init = sun8i_ss_hash_init,
 		.update = sun8i_ss_hash_update,
 		.final = sun8i_ss_hash_final,
@@ -300,6 +313,8 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 		.digest = sun8i_ss_hash_digest,
 		.export = sun8i_ss_hash_export,
 		.import = sun8i_ss_hash_import,
+		.init_tfm = sun8i_ss_hash_init_tfm,
+		.exit_tfm = sun8i_ss_hash_exit_tfm,
 		.halg = {
 			.digestsize = MD5_DIGEST_SIZE,
 			.statesize = sizeof(struct md5_state),
@@ -314,15 +329,16 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct sun8i_ss_hash_tfm_ctx),
 				.cra_module = THIS_MODULE,
-				.cra_init = sun8i_ss_hash_crainit,
-				.cra_exit = sun8i_ss_hash_craexit,
 			}
 		}
-	}
+	},
+	.alg.hash.op = {
+		.do_one_request = sun8i_ss_hash_run,
+	},
 },
 {	.type = CRYPTO_ALG_TYPE_AHASH,
 	.ss_algo_id = SS_ID_HASH_SHA1,
-	.alg.hash = {
+	.alg.hash.base = {
 		.init = sun8i_ss_hash_init,
 		.update = sun8i_ss_hash_update,
 		.final = sun8i_ss_hash_final,
@@ -330,6 +346,8 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 		.digest = sun8i_ss_hash_digest,
 		.export = sun8i_ss_hash_export,
 		.import = sun8i_ss_hash_import,
+		.init_tfm = sun8i_ss_hash_init_tfm,
+		.exit_tfm = sun8i_ss_hash_exit_tfm,
 		.halg = {
 			.digestsize = SHA1_DIGEST_SIZE,
 			.statesize = sizeof(struct sha1_state),
@@ -344,15 +362,16 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_blocksize = SHA1_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct sun8i_ss_hash_tfm_ctx),
 				.cra_module = THIS_MODULE,
-				.cra_init = sun8i_ss_hash_crainit,
-				.cra_exit = sun8i_ss_hash_craexit,
 			}
 		}
-	}
+	},
+	.alg.hash.op = {
+		.do_one_request = sun8i_ss_hash_run,
+	},
 },
 {	.type = CRYPTO_ALG_TYPE_AHASH,
 	.ss_algo_id = SS_ID_HASH_SHA224,
-	.alg.hash = {
+	.alg.hash.base = {
 		.init = sun8i_ss_hash_init,
 		.update = sun8i_ss_hash_update,
 		.final = sun8i_ss_hash_final,
@@ -360,6 +379,8 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 		.digest = sun8i_ss_hash_digest,
 		.export = sun8i_ss_hash_export,
 		.import = sun8i_ss_hash_import,
+		.init_tfm = sun8i_ss_hash_init_tfm,
+		.exit_tfm = sun8i_ss_hash_exit_tfm,
 		.halg = {
 			.digestsize = SHA224_DIGEST_SIZE,
 			.statesize = sizeof(struct sha256_state),
@@ -374,15 +395,16 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_blocksize = SHA224_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct sun8i_ss_hash_tfm_ctx),
 				.cra_module = THIS_MODULE,
-				.cra_init = sun8i_ss_hash_crainit,
-				.cra_exit = sun8i_ss_hash_craexit,
 			}
 		}
-	}
+	},
+	.alg.hash.op = {
+		.do_one_request = sun8i_ss_hash_run,
+	},
 },
 {	.type = CRYPTO_ALG_TYPE_AHASH,
 	.ss_algo_id = SS_ID_HASH_SHA256,
-	.alg.hash = {
+	.alg.hash.base = {
 		.init = sun8i_ss_hash_init,
 		.update = sun8i_ss_hash_update,
 		.final = sun8i_ss_hash_final,
@@ -390,6 +412,8 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 		.digest = sun8i_ss_hash_digest,
 		.export = sun8i_ss_hash_export,
 		.import = sun8i_ss_hash_import,
+		.init_tfm = sun8i_ss_hash_init_tfm,
+		.exit_tfm = sun8i_ss_hash_exit_tfm,
 		.halg = {
 			.digestsize = SHA256_DIGEST_SIZE,
 			.statesize = sizeof(struct sha256_state),
@@ -404,15 +428,16 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_blocksize = SHA256_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct sun8i_ss_hash_tfm_ctx),
 				.cra_module = THIS_MODULE,
-				.cra_init = sun8i_ss_hash_crainit,
-				.cra_exit = sun8i_ss_hash_craexit,
 			}
 		}
-	}
+	},
+	.alg.hash.op = {
+		.do_one_request = sun8i_ss_hash_run,
+	},
 },
 {	.type = CRYPTO_ALG_TYPE_AHASH,
 	.ss_algo_id = SS_ID_HASH_SHA1,
-	.alg.hash = {
+	.alg.hash.base = {
 		.init = sun8i_ss_hash_init,
 		.update = sun8i_ss_hash_update,
 		.final = sun8i_ss_hash_final,
@@ -420,6 +445,8 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 		.digest = sun8i_ss_hash_digest,
 		.export = sun8i_ss_hash_export,
 		.import = sun8i_ss_hash_import,
+		.init_tfm = sun8i_ss_hash_init_tfm,
+		.exit_tfm = sun8i_ss_hash_exit_tfm,
 		.setkey = sun8i_ss_hmac_setkey,
 		.halg = {
 			.digestsize = SHA1_DIGEST_SIZE,
@@ -435,23 +462,28 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_blocksize = SHA1_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct sun8i_ss_hash_tfm_ctx),
 				.cra_module = THIS_MODULE,
-				.cra_init = sun8i_ss_hash_crainit,
-				.cra_exit = sun8i_ss_hash_craexit,
 			}
 		}
-	}
+	},
+	.alg.hash.op = {
+		.do_one_request = sun8i_ss_hash_run,
+	},
 },
 #endif
 };
 
-#ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG
 static int sun8i_ss_debugfs_show(struct seq_file *seq, void *v)
 {
-	struct sun8i_ss_dev *ss = seq->private;
+	struct sun8i_ss_dev *ss __maybe_unused = seq->private;
 	unsigned int i;
 
 	for (i = 0; i < MAXFLOW; i++)
-		seq_printf(seq, "Channel %d: nreq %lu\n", i, ss->flows[i].stat_req);
+		seq_printf(seq, "Channel %d: nreq %lu\n", i,
+#ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG
+			   ss->flows[i].stat_req);
+#else
+			   0ul);
+#endif
 
 	for (i = 0; i < ARRAY_SIZE(ss_algs); i++) {
 		if (!ss_algs[i].ss)
@@ -459,8 +491,8 @@ static int sun8i_ss_debugfs_show(struct seq_file *seq, void *v)
 		switch (ss_algs[i].type) {
 		case CRYPTO_ALG_TYPE_SKCIPHER:
 			seq_printf(seq, "%s %s reqs=%lu fallback=%lu\n",
-				   ss_algs[i].alg.skcipher.base.cra_driver_name,
-				   ss_algs[i].alg.skcipher.base.cra_name,
+				   ss_algs[i].alg.skcipher.base.base.cra_driver_name,
+				   ss_algs[i].alg.skcipher.base.base.cra_name,
 				   ss_algs[i].stat_req, ss_algs[i].stat_fb);
 
 			seq_printf(seq, "\tLast fallback is: %s\n",
@@ -482,8 +514,8 @@ static int sun8i_ss_debugfs_show(struct seq_file *seq, void *v)
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:
 			seq_printf(seq, "%s %s reqs=%lu fallback=%lu\n",
-				   ss_algs[i].alg.hash.halg.base.cra_driver_name,
-				   ss_algs[i].alg.hash.halg.base.cra_name,
+				   ss_algs[i].alg.hash.base.halg.base.cra_driver_name,
+				   ss_algs[i].alg.hash.base.halg.base.cra_name,
 				   ss_algs[i].stat_req, ss_algs[i].stat_fb);
 			seq_printf(seq, "\tLast fallback is: %s\n",
 				   ss_algs[i].fbname);
@@ -502,7 +534,6 @@ static int sun8i_ss_debugfs_show(struct seq_file *seq, void *v)
 }
 
 DEFINE_SHOW_ATTRIBUTE(sun8i_ss_debugfs);
-#endif
 
 static void sun8i_ss_free_flows(struct sun8i_ss_dev *ss, int i)
 {
@@ -659,7 +690,7 @@ static int sun8i_ss_register_algs(struct sun8i_ss_dev *ss)
 			if (ss_method == SS_ID_NOTSUPP) {
 				dev_info(ss->dev,
 					 "DEBUG: Algo of %s not supported\n",
-					 ss_algs[i].alg.skcipher.base.cra_name);
+					 ss_algs[i].alg.skcipher.base.base.cra_name);
 				ss_algs[i].ss = NULL;
 				break;
 			}
@@ -667,16 +698,16 @@ static int sun8i_ss_register_algs(struct sun8i_ss_dev *ss)
 			ss_method = ss->variant->op_mode[id];
 			if (ss_method == SS_ID_NOTSUPP) {
 				dev_info(ss->dev, "DEBUG: Blockmode of %s not supported\n",
-					 ss_algs[i].alg.skcipher.base.cra_name);
+					 ss_algs[i].alg.skcipher.base.base.cra_name);
 				ss_algs[i].ss = NULL;
 				break;
 			}
 			dev_info(ss->dev, "DEBUG: Register %s\n",
-				 ss_algs[i].alg.skcipher.base.cra_name);
-			err = crypto_register_skcipher(&ss_algs[i].alg.skcipher);
+				 ss_algs[i].alg.skcipher.base.base.cra_name);
+			err = crypto_engine_register_skcipher(&ss_algs[i].alg.skcipher);
 			if (err) {
 				dev_err(ss->dev, "Fail to register %s\n",
-					ss_algs[i].alg.skcipher.base.cra_name);
+					ss_algs[i].alg.skcipher.base.base.cra_name);
 				ss_algs[i].ss = NULL;
 				return err;
 			}
@@ -695,16 +726,16 @@ static int sun8i_ss_register_algs(struct sun8i_ss_dev *ss)
 			if (ss_method == SS_ID_NOTSUPP) {
 				dev_info(ss->dev,
 					"DEBUG: Algo of %s not supported\n",
-					ss_algs[i].alg.hash.halg.base.cra_name);
+					ss_algs[i].alg.hash.base.halg.base.cra_name);
 				ss_algs[i].ss = NULL;
 				break;
 			}
 			dev_info(ss->dev, "Register %s\n",
-				 ss_algs[i].alg.hash.halg.base.cra_name);
-			err = crypto_register_ahash(&ss_algs[i].alg.hash);
+				 ss_algs[i].alg.hash.base.halg.base.cra_name);
+			err = crypto_engine_register_ahash(&ss_algs[i].alg.hash);
 			if (err) {
 				dev_err(ss->dev, "ERROR: Fail to register %s\n",
-					ss_algs[i].alg.hash.halg.base.cra_name);
+					ss_algs[i].alg.hash.base.halg.base.cra_name);
 				ss_algs[i].ss = NULL;
 				return err;
 			}
@@ -727,8 +758,8 @@ static void sun8i_ss_unregister_algs(struct sun8i_ss_dev *ss)
 		switch (ss_algs[i].type) {
 		case CRYPTO_ALG_TYPE_SKCIPHER:
 			dev_info(ss->dev, "Unregister %d %s\n", i,
-				 ss_algs[i].alg.skcipher.base.cra_name);
-			crypto_unregister_skcipher(&ss_algs[i].alg.skcipher);
+				 ss_algs[i].alg.skcipher.base.base.cra_name);
+			crypto_engine_unregister_skcipher(&ss_algs[i].alg.skcipher);
 			break;
 		case CRYPTO_ALG_TYPE_RNG:
 			dev_info(ss->dev, "Unregister %d %s\n", i,
@@ -737,8 +768,8 @@ static void sun8i_ss_unregister_algs(struct sun8i_ss_dev *ss)
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:
 			dev_info(ss->dev, "Unregister %d %s\n", i,
-				 ss_algs[i].alg.hash.halg.base.cra_name);
-			crypto_unregister_ahash(&ss_algs[i].alg.hash);
+				 ss_algs[i].alg.hash.base.halg.base.cra_name);
+			crypto_engine_unregister_ahash(&ss_algs[i].alg.hash);
 			break;
 		}
 	}
@@ -851,13 +882,21 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 
 	pm_runtime_put_sync(ss->dev);
 
+	if (IS_ENABLED(CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG)) {
+		struct dentry *dbgfs_dir __maybe_unused;
+		struct dentry *dbgfs_stats __maybe_unused;
+
+		/* Ignore error of debugfs */
+		dbgfs_dir = debugfs_create_dir("sun8i-ss", NULL);
+		dbgfs_stats = debugfs_create_file("stats", 0444,
+						   dbgfs_dir, ss,
+						   &sun8i_ss_debugfs_fops);
+
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG
-	/* Ignore error of debugfs */
-	ss->dbgfs_dir = debugfs_create_dir("sun8i-ss", NULL);
-	ss->dbgfs_stats = debugfs_create_file("stats", 0444,
-					      ss->dbgfs_dir, ss,
-					      &sun8i_ss_debugfs_fops);
+		ss->dbgfs_dir = dbgfs_dir;
+		ss->dbgfs_stats = dbgfs_stats;
 #endif
+	}
 
 	return 0;
 error_alg:

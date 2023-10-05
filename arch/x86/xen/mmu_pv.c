@@ -2202,13 +2202,13 @@ static void xen_zap_pfn_range(unsigned long vaddr, unsigned int order,
 		mcs = __xen_mc_entry(0);
 
 		if (in_frames)
-			in_frames[i] = virt_to_mfn(vaddr);
+			in_frames[i] = virt_to_mfn((void *)vaddr);
 
 		MULTI_update_va_mapping(mcs.mc, vaddr, VOID_PTE, 0);
-		__set_phys_to_machine(virt_to_pfn(vaddr), INVALID_P2M_ENTRY);
+		__set_phys_to_machine(virt_to_pfn((void *)vaddr), INVALID_P2M_ENTRY);
 
 		if (out_frames)
-			out_frames[i] = virt_to_pfn(vaddr);
+			out_frames[i] = virt_to_pfn((void *)vaddr);
 	}
 	xen_mc_issue(0);
 }
@@ -2250,7 +2250,7 @@ static void xen_remap_exchanged_ptes(unsigned long vaddr, int order,
 		MULTI_update_va_mapping(mcs.mc, vaddr,
 				mfn_pte(mfn, PAGE_KERNEL), flags);
 
-		set_phys_to_machine(virt_to_pfn(vaddr), mfn);
+		set_phys_to_machine(virt_to_pfn((void *)vaddr), mfn);
 	}
 
 	xen_mc_issue(0);
@@ -2310,12 +2310,6 @@ int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
 	int            success;
 	unsigned long vstart = (unsigned long)phys_to_virt(pstart);
 
-	/*
-	 * Currently an auto-translated guest will not perform I/O, nor will
-	 * it require PAE page directories below 4GB. Therefore any calls to
-	 * this function are redundant and can be ignored.
-	 */
-
 	if (unlikely(order > MAX_CONTIG_ORDER))
 		return -ENOMEM;
 
@@ -2327,7 +2321,7 @@ int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
 	xen_zap_pfn_range(vstart, order, in_frames, NULL);
 
 	/* 2. Get a new contiguous memory extent. */
-	out_frame = virt_to_pfn(vstart);
+	out_frame = virt_to_pfn((void *)vstart);
 	success = xen_exchange_memory(1UL << order, 0, in_frames,
 				      1, order, &out_frame,
 				      address_bits);
@@ -2360,7 +2354,7 @@ void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order)
 	spin_lock_irqsave(&xen_reservation_lock, flags);
 
 	/* 1. Find start MFN of contiguous extent. */
-	in_frame = virt_to_mfn(vstart);
+	in_frame = virt_to_mfn((void *)vstart);
 
 	/* 2. Zap current PTEs. */
 	xen_zap_pfn_range(vstart, order, NULL, out_frames);

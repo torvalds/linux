@@ -795,6 +795,9 @@ static const char * const acpi_ignore_dep_ids[] = {
 /* List of HIDs for which we honor deps of matching ACPI devs, when checking _DEP lists. */
 static const char * const acpi_honor_dep_ids[] = {
 	"INT3472", /* Camera sensor PMIC / clk and regulator info */
+	"INTC1059", /* IVSC (TGL) driver must be loaded to allow i2c access to camera sensors */
+	"INTC1095", /* IVSC (ADL) driver must be loaded to allow i2c access to camera sensors */
+	"INTC100A", /* IVSC (RPL) driver must be loaded to allow i2c access to camera sensors */
 	NULL
 };
 
@@ -2616,7 +2619,6 @@ void __init acpi_scan_init(void)
 	acpi_watchdog_init();
 	acpi_pnp_init();
 	acpi_int340x_thermal_init();
-	acpi_amba_init();
 	acpi_init_lpit();
 
 	acpi_scan_add_handler(&generic_device_handler);

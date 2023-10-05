@@ -10,10 +10,10 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/err.h>
 #include <linux/types.h>
-#include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/thermal.h>
 #include <linux/of.h>

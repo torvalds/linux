@@ -3,6 +3,7 @@
  * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
  */
 
+#include <linux/etherdevice.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
@@ -11,6 +12,8 @@
 #include <linux/xarray.h>
 #include <net/devlink.h>
 #include <net/net_namespace.h>
+#include <net/rtnetlink.h>
+#include <rdma/ib_verbs.h>
 
 #include "netlink_gen.h"
 
@@ -118,13 +121,8 @@ typedef int devlink_nl_dump_one_func_t(struct sk_buff *msg,
 				       struct netlink_callback *cb,
 				       int flags);
 
-extern const struct genl_small_ops devlink_nl_small_ops[40];
-
 struct devlink *
 devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs);
-
-void devlink_notify_unregister(struct devlink *devlink);
-void devlink_notify_register(struct devlink *devlink);
 
 int devlink_nl_dumpit(struct sk_buff *msg, struct netlink_callback *cb,
 		      devlink_nl_dump_one_func_t *dump_one);
@@ -147,13 +145,36 @@ devlink_nl_put_handle(struct sk_buff *msg, struct devlink *devlink)
 	return 0;
 }
 
+int devlink_nl_msg_reply_and_new(struct sk_buff **msg, struct genl_info *info);
+
 /* Notify */
-void devlink_notify(struct devlink *devlink, enum devlink_command cmd);
+void devlink_notify_register(struct devlink *devlink);
+void devlink_notify_unregister(struct devlink *devlink);
+void devlink_ports_notify_register(struct devlink *devlink);
+void devlink_ports_notify_unregister(struct devlink *devlink);
+void devlink_params_notify_register(struct devlink *devlink);
+void devlink_params_notify_unregister(struct devlink *devlink);
+void devlink_regions_notify_register(struct devlink *devlink);
+void devlink_regions_notify_unregister(struct devlink *devlink);
+void devlink_trap_policers_notify_register(struct devlink *devlink);
+void devlink_trap_policers_notify_unregister(struct devlink *devlink);
+void devlink_trap_groups_notify_register(struct devlink *devlink);
+void devlink_trap_groups_notify_unregister(struct devlink *devlink);
+void devlink_traps_notify_register(struct devlink *devlink);
+void devlink_traps_notify_unregister(struct devlink *devlink);
+void devlink_rates_notify_register(struct devlink *devlink);
+void devlink_rates_notify_unregister(struct devlink *devlink);
+void devlink_linecards_notify_register(struct devlink *devlink);
+void devlink_linecards_notify_unregister(struct devlink *devlink);
 
 /* Ports */
+#define ASSERT_DEVLINK_PORT_INITIALIZED(devlink_port)				\
+	WARN_ON_ONCE(!(devlink_port)->initialized)
+
+struct devlink_port *devlink_port_get_by_index(struct devlink *devlink,
+					       unsigned int port_index);
 int devlink_port_netdevice_event(struct notifier_block *nb,
 				 unsigned long event, void *ptr);
-
 struct devlink_port *
 devlink_port_get_from_info(struct devlink *devlink, struct genl_info *info);
 struct devlink_port *devlink_port_get_from_attrs(struct devlink *devlink,
@@ -184,12 +205,62 @@ int devlink_resources_validate(struct devlink *devlink,
 int devlink_rate_nodes_check(struct devlink *devlink, u16 mode,
 			     struct netlink_ext_ack *extack);
 
+/* Linecards */
+struct devlink_linecard {
+	struct list_head list;
+	struct devlink *devlink;
+	unsigned int index;
+	const struct devlink_linecard_ops *ops;
+	void *priv;
+	enum devlink_linecard_state state;
+	struct mutex state_lock; /* Protects state */
+	const char *type;
+	struct devlink_linecard_type *types;
+	unsigned int types_count;
+	struct devlink *nested_devlink;
+};
+
 /* Devlink nl cmds */
 int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_flash_update(struct sk_buff *skb, struct genl_info *info);
 int devlink_nl_cmd_selftests_run(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_port_set_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_port_split_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
+				     struct genl_info *info);
+int devlink_nl_cmd_port_new_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_port_del_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_sb_pool_set_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_sb_port_pool_set_doit(struct sk_buff *skb,
+					 struct genl_info *info);
+int devlink_nl_cmd_sb_tc_pool_bind_set_doit(struct sk_buff *skb,
+					    struct genl_info *info);
+int devlink_nl_cmd_sb_occ_snapshot_doit(struct sk_buff *skb,
+					struct genl_info *info);
+int devlink_nl_cmd_sb_occ_max_clear_doit(struct sk_buff *skb,
+					 struct genl_info *info);
+int devlink_nl_cmd_dpipe_table_get(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_dpipe_entries_get(struct sk_buff *skb,
+				     struct genl_info *info);
+int devlink_nl_cmd_dpipe_headers_get(struct sk_buff *skb,
+				     struct genl_info *info);
+int devlink_nl_cmd_dpipe_table_counters_set(struct sk_buff *skb,
+					    struct genl_info *info);
+int devlink_nl_cmd_resource_set(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_resource_dump(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_param_set_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_port_param_get_dumpit(struct sk_buff *msg,
+					 struct netlink_callback *cb);
+int devlink_nl_cmd_port_param_get_doit(struct sk_buff *skb,
+				       struct genl_info *info);
+int devlink_nl_cmd_port_param_set_doit(struct sk_buff *skb,
+				       struct genl_info *info);
+int devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_region_del(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
+				      struct netlink_callback *cb);
 int devlink_nl_cmd_health_reporter_set_doit(struct sk_buff *skb,
 					    struct genl_info *info);
 int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
@@ -202,3 +273,13 @@ int devlink_nl_cmd_health_reporter_dump_clear_doit(struct sk_buff *skb,
 						   struct genl_info *info);
 int devlink_nl_cmd_health_reporter_test_doit(struct sk_buff *skb,
 					     struct genl_info *info);
+int devlink_nl_cmd_trap_set_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_trap_group_set_doit(struct sk_buff *skb,
+				       struct genl_info *info);
+int devlink_nl_cmd_trap_policer_set_doit(struct sk_buff *skb,
+					 struct genl_info *info);
+int devlink_nl_cmd_rate_set_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_rate_new_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_rate_del_doit(struct sk_buff *skb, struct genl_info *info);
+int devlink_nl_cmd_linecard_set_doit(struct sk_buff *skb,
+				     struct genl_info *info);

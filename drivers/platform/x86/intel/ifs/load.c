@@ -3,7 +3,7 @@
 
 #include <linux/firmware.h>
 #include <asm/cpu.h>
-#include <asm/microcode_intel.h>
+#include <asm/microcode.h>
 
 #include "ifs.h"
 
@@ -56,12 +56,13 @@ struct metadata_header {
 
 static struct metadata_header *find_meta_data(void *ucode, unsigned int meta_type)
 {
+	struct microcode_header_intel *hdr = &((struct microcode_intel *)ucode)->hdr;
 	struct metadata_header *meta_header;
 	unsigned long data_size, total_meta;
 	unsigned long meta_size = 0;
 
-	data_size = get_datasize(ucode);
-	total_meta = ((struct microcode_intel *)ucode)->hdr.metasize;
+	data_size = intel_microcode_get_datasize(hdr);
+	total_meta = hdr->metasize;
 	if (!total_meta)
 		return NULL;
 

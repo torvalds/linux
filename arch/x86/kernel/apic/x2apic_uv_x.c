@@ -294,8 +294,7 @@ static void __init early_get_apic_socketid_shift(void)
 
 static void __init uv_stringify(int len, char *to, char *from)
 {
-	/* Relies on 'to' being NULL chars so result will be NULL terminated */
-	strncpy(to, from, len-1);
+	strscpy(to, from, len);
 
 	/* Trim trailing spaces */
 	(void)strim(to);
@@ -1013,7 +1012,7 @@ static void __init calc_mmioh_map(enum mmioh_arch index,
 
 	/* One (UV2) mapping */
 	if (index == UV2_MMIOH) {
-		strncpy(id, "MMIOH", sizeof(id));
+		strscpy(id, "MMIOH", sizeof(id));
 		max_io = max_pnode;
 		mapped = 0;
 		goto map_exit;

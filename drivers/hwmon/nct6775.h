@@ -8,7 +8,7 @@ enum kinds { nct6106, nct6116, nct6775, nct6776, nct6779, nct6791, nct6792,
 	     nct6793, nct6795, nct6796, nct6797, nct6798, nct6799 };
 enum pwm_enable { off, manual, thermal_cruise, speed_cruise, sf3, sf4 };
 
-#define NUM_TEMP	10	/* Max number of temp attribute sets w/ limits*/
+#define NUM_TEMP	12	/* Max number of temp attribute sets w/ limits*/
 #define NUM_TEMP_FIXED	6	/* Max number of fixed temp attribute sets */
 #define NUM_TSI_TEMP	8	/* Max number of TSI temp register pairs */
 
@@ -16,6 +16,7 @@ enum pwm_enable { off, manual, thermal_cruise, speed_cruise, sf3, sf4 };
 #define NUM_REG_BEEP	5	/* Max number of beep registers */
 
 #define NUM_FAN		7
+#define NUM_IN		18
 
 struct nct6775_data {
 	int addr;	/* IO base of hw monitor block */
@@ -97,7 +98,7 @@ struct nct6775_data {
 	/* Register values */
 	u8 bank;		/* current register bank */
 	u8 in_num;		/* number of in inputs we have */
-	u8 in[15][3];		/* [0]=in, [1]=in_max, [2]=in_min */
+	u8 in[NUM_IN][3];	/* [0]=in, [1]=in_max, [2]=in_min */
 	const u16 *scale_in;	/* internal scaling factors */
 	unsigned int rpm[NUM_FAN];
 	u16 fan_min[NUM_FAN];
@@ -166,7 +167,7 @@ struct nct6775_data {
 	u16 have_temp;
 	u16 have_temp_fixed;
 	u16 have_tsi_temp;
-	u16 have_in;
+	u32 have_in;
 
 	/* Remember extra register values over suspend/resume */
 	u8 vbat;
@@ -239,10 +240,25 @@ nct6775_add_attr_group(struct nct6775_data *data, const struct attribute_group *
 
 #define NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE	0x28
 
-#define FAN_ALARM_BASE		16
-#define TEMP_ALARM_BASE		24
-#define INTRUSION_ALARM_BASE	30
-#define BEEP_ENABLE_BASE	15
+/*
+ * ALARM_BITS and BEEP_BITS store bit-index for the mask of the registers
+ * loaded into data->alarm and data->beep.
+ *
+ * Every input register (IN/TEMP/FAN) must have a corresponding
+ *   ALARM/BEEP bit at the same index BITS[BASE + index]
+ * Set value to -1 to disable the visibility of that '*_alarm' attribute and
+ * to pad the bits until the next BASE
+ *
+ * Beep has an additional GLOBAL_BEEP_ENABLE bit
+ */
+#define VIN_ALARM_BASE		 0
+#define FAN_ALARM_BASE		24
+#define TEMP_ALARM_BASE		36
+#define INTRUSION_ALARM_BASE	48
+#define BEEP_ENABLE_BASE	50
+
+#define NUM_ALARM_BITS		(INTRUSION_ALARM_BASE + 4)
+#define NUM_BEEP_BITS		(BEEP_ENABLE_BASE + 1)
 
 /*
  * Not currently used:

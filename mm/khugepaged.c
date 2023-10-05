@@ -1955,10 +1955,6 @@ static int collapse_file(struct mm_struct *mm, unsigned long addr,
 						goto xa_locked;
 					}
 				}
-				if (!shmem_charge(mapping->host, 1)) {
-					result = SCAN_FAIL;
-					goto xa_locked;
-				}
 				nr_none++;
 				continue;
 			}
@@ -2145,8 +2141,13 @@ xa_unlocked:
 	 */
 	try_to_unmap_flush();
 
-	if (result != SCAN_SUCCEED)
+	if (result == SCAN_SUCCEED && nr_none &&
+	    !shmem_charge(mapping->host, nr_none))
+		result = SCAN_FAIL;
+	if (result != SCAN_SUCCEED) {
+		nr_none = 0;
 		goto rollback;
+	}
 
 	/*
 	 * The old pages are locked, so they won't change anymore.
@@ -2283,8 +2284,8 @@ rollback:
 	if (nr_none) {
 		xas_lock_irq(&xas);
 		mapping->nrpages -= nr_none;
-		shmem_uncharge(mapping->host, nr_none);
 		xas_unlock_irq(&xas);
+		shmem_uncharge(mapping->host, nr_none);
 	}
 
 	list_for_each_entry_safe(page, tmp, &pagelist, lru) {

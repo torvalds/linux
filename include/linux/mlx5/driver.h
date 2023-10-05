@@ -813,6 +813,7 @@ struct mlx5_core_dev {
 	/* MACsec notifier chain to sync MACsec core and IB database */
 	struct blocking_notifier_head macsec_nh;
 #endif
+	u64 num_ipsec_offloads;
 };
 
 struct mlx5_db {

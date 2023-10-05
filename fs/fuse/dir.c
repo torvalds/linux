@@ -933,7 +933,7 @@ void fuse_flush_time_update(struct inode *inode)
 static void fuse_update_ctime_in_cache(struct inode *inode)
 {
 	if (!IS_NOCMTIME(inode)) {
-		inode->i_ctime = current_time(inode);
+		inode_set_ctime_current(inode);
 		mark_inode_dirty_sync(inode);
 		fuse_flush_time_update(inode);
 	}
@@ -1222,7 +1222,7 @@ static int fuse_update_get_attr(struct inode *inode, struct file *file,
 		forget_all_cached_acls(inode);
 		err = fuse_do_getattr(inode, stat, file);
 	} else if (stat) {
-		generic_fillattr(&nop_mnt_idmap, inode, stat);
+		generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 		stat->mode = fi->orig_i_mode;
 		stat->ino = fi->orig_ino;
 	}
@@ -1715,8 +1715,8 @@ int fuse_flush_times(struct inode *inode, struct fuse_file *ff)
 	inarg.mtimensec = inode->i_mtime.tv_nsec;
 	if (fm->fc->minor >= 23) {
 		inarg.valid |= FATTR_CTIME;
-		inarg.ctime = inode->i_ctime.tv_sec;
-		inarg.ctimensec = inode->i_ctime.tv_nsec;
+		inarg.ctime = inode_get_ctime(inode).tv_sec;
+		inarg.ctimensec = inode_get_ctime(inode).tv_nsec;
 	}
 	if (ff) {
 		inarg.valid |= FATTR_FH;
@@ -1857,7 +1857,7 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 		if (attr->ia_valid & ATTR_MTIME)
 			inode->i_mtime = attr->ia_mtime;
 		if (attr->ia_valid & ATTR_CTIME)
-			inode->i_ctime = attr->ia_ctime;
+			inode_set_ctime_to_ts(inode, attr->ia_ctime);
 		/* FIXME: clear I_DIRTY_SYNC? */
 	}
 

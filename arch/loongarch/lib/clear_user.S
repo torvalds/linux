@@ -3,12 +3,12 @@
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
 
+#include <linux/export.h>
 #include <asm/alternative-asm.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/asm-extable.h>
 #include <asm/cpu.h>
-#include <asm/export.h>
 #include <asm/regdef.h>
 
 .irp to, 0, 1, 2, 3, 4, 5, 6, 7

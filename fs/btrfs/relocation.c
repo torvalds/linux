@@ -3006,9 +3006,6 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 		if (!page)
 			return -ENOMEM;
 	}
-	ret = set_page_extent_mapped(page);
-	if (ret < 0)
-		goto release_page;
 
 	if (PageReadahead(page))
 		page_cache_async_readahead(inode->i_mapping, ra, NULL,
@@ -3023,6 +3020,15 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 			goto release_page;
 		}
 	}
+
+	/*
+	 * We could have lost page private when we dropped the lock to read the
+	 * page above, make sure we set_page_extent_mapped here so we have any
+	 * of the subpage blocksize stuff we need in place.
+	 */
+	ret = set_page_extent_mapped(page);
+	if (ret < 0)
+		goto release_page;
 
 	page_start = page_offset(page);
 	page_end = page_start + PAGE_SIZE - 1;
@@ -3250,12 +3256,13 @@ static int add_tree_block(struct reloc_control *rc,
 			if (type == BTRFS_TREE_BLOCK_REF_KEY)
 				owner = btrfs_extent_inline_ref_offset(eb, iref);
 		}
-	} else if (unlikely(item_size == sizeof(struct btrfs_extent_item_v0))) {
-		btrfs_print_v0_err(eb->fs_info);
-		btrfs_handle_fs_error(eb->fs_info, -EINVAL, NULL);
-		return -EINVAL;
 	} else {
-		BUG();
+		btrfs_print_leaf(eb);
+		btrfs_err(rc->block_group->fs_info,
+			  "unrecognized tree backref at tree block %llu slot %u",
+			  eb->start, path->slots[0]);
+		btrfs_release_path(path);
+		return -EUCLEAN;
 	}
 
 	btrfs_release_path(path);
@@ -3498,6 +3505,8 @@ int find_next_extent(struct reloc_control *rc, struct btrfs_path *path,
 
 	last = rc->block_group->start + rc->block_group->length;
 	while (1) {
+		bool block_found;
+
 		cond_resched();
 		if (rc->search_start >= last) {
 			ret = 1;
@@ -3548,11 +3557,11 @@ next:
 			goto next;
 		}
 
-		ret = find_first_extent_bit(&rc->processed_blocks,
-					    key.objectid, &start, &end,
-					    EXTENT_DIRTY, NULL);
+		block_found = find_first_extent_bit(&rc->processed_blocks,
+						    key.objectid, &start, &end,
+						    EXTENT_DIRTY, NULL);
 
-		if (ret == 0 && start <= key.objectid) {
+		if (block_found && start <= key.objectid) {
 			btrfs_release_path(path);
 			rc->search_start = end + 1;
 		} else {

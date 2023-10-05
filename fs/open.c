@@ -671,11 +671,20 @@ SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
 	return err;
 }
 
-static int do_fchmodat(int dfd, const char __user *filename, umode_t mode)
+static int do_fchmodat(int dfd, const char __user *filename, umode_t mode,
+		       unsigned int flags)
 {
 	struct path path;
 	int error;
-	unsigned int lookup_flags = LOOKUP_FOLLOW;
+	unsigned int lookup_flags;
+
+	if (unlikely(flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)))
+		return -EINVAL;
+
+	lookup_flags = (flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	if (flags & AT_EMPTY_PATH)
+		lookup_flags |= LOOKUP_EMPTY;
+
 retry:
 	error = user_path_at(dfd, filename, lookup_flags, &path);
 	if (!error) {
@@ -689,15 +698,21 @@ retry:
 	return error;
 }
 
+SYSCALL_DEFINE4(fchmodat2, int, dfd, const char __user *, filename,
+		umode_t, mode, unsigned int, flags)
+{
+	return do_fchmodat(dfd, filename, mode, flags);
+}
+
 SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename,
 		umode_t, mode)
 {
-	return do_fchmodat(dfd, filename, mode);
+	return do_fchmodat(dfd, filename, mode, 0);
 }
 
 SYSCALL_DEFINE2(chmod, const char __user *, filename, umode_t, mode)
 {
-	return do_fchmodat(AT_FDCWD, filename, mode);
+	return do_fchmodat(AT_FDCWD, filename, mode, 0);
 }
 
 /*
@@ -1150,7 +1165,7 @@ EXPORT_SYMBOL_GPL(kernel_file_open);
  * backing_file_open - open a backing file for kernel internal use
  * @path:	path of the file to open
  * @flags:	open flags
- * @path:	path of the backing file
+ * @real_path:	path of the backing file
  * @cred:	credentials for open
  *
  * Open a backing file for a stackable filesystem (e.g., overlayfs).
@@ -1503,7 +1518,7 @@ SYSCALL_DEFINE2(creat, const char __user *, pathname, umode_t, mode)
  * "id" is the POSIX thread ID. We use the
  * files pointer for this..
  */
-int filp_close(struct file *filp, fl_owner_t id)
+static int filp_flush(struct file *filp, fl_owner_t id)
 {
 	int retval = 0;
 
@@ -1520,10 +1535,18 @@ int filp_close(struct file *filp, fl_owner_t id)
 		dnotify_flush(filp, id);
 		locks_remove_posix(filp, id);
 	}
-	fput(filp);
 	return retval;
 }
 
+int filp_close(struct file *filp, fl_owner_t id)
+{
+	int retval;
+
+	retval = filp_flush(filp, id);
+	fput(filp);
+
+	return retval;
+}
 EXPORT_SYMBOL(filp_close);
 
 /*
@@ -1533,7 +1556,20 @@ EXPORT_SYMBOL(filp_close);
  */
 SYSCALL_DEFINE1(close, unsigned int, fd)
 {
-	int retval = close_fd(fd);
+	int retval;
+	struct file *file;
+
+	file = close_fd_get_file(fd);
+	if (!file)
+		return -EBADF;
+
+	retval = filp_flush(file, current->files);
+
+	/*
+	 * We're returning to user space. Don't bother
+	 * with any delayed fput() cases.
+	 */
+	__fput_sync(file);
 
 	/* can't restart close syscall because file table entry was cleared */
 	if (unlikely(retval == -ERESTARTSYS ||
@@ -1546,7 +1582,7 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 }
 
 /**
- * close_range() - Close all file descriptors in a given range.
+ * sys_close_range() - Close all file descriptors in a given range.
  *
  * @fd:     starting file descriptor to close
  * @max_fd: last file descriptor to close

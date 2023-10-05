@@ -750,7 +750,8 @@ static inline int bdev_read_only(struct block_device *bdev)
 }
 
 bool set_capacity_and_notify(struct gendisk *disk, sector_t size);
-bool disk_force_media_change(struct gendisk *disk, unsigned int events);
+void disk_force_media_change(struct gendisk *disk);
+void bdev_mark_dead(struct block_device *bdev, bool surprise);
 
 void add_disk_randomness(struct gendisk *disk) __latent_entropy;
 void rand_initialize_disk(struct gendisk *disk);
@@ -809,7 +810,6 @@ int __register_blkdev(unsigned int major, const char *name,
 void unregister_blkdev(unsigned int major, const char *name);
 
 bool disk_check_media_change(struct gendisk *disk);
-int __invalidate_device(struct block_device *bdev, bool kill_dirty);
 void set_capacity(struct gendisk *disk, sector_t size);
 
 #ifdef CONFIG_BLOCK_HOLDER_DEPRECATED
@@ -1460,8 +1460,15 @@ void blkdev_show(struct seq_file *seqf, off_t offset);
 #endif
 
 struct blk_holder_ops {
-	void (*mark_dead)(struct block_device *bdev);
+	void (*mark_dead)(struct block_device *bdev, bool surprise);
+
+	/*
+	 * Sync the file system mounted on the block device.
+	 */
+	void (*sync)(struct block_device *bdev);
 };
+
+extern const struct blk_holder_ops fs_holder_ops;
 
 /*
  * Return the correct open flags for blkdev_get_by_* for super block flags
@@ -1520,8 +1527,6 @@ static inline int early_lookup_bdev(const char *pathname, dev_t *dev)
 	return -EINVAL;
 }
 #endif /* CONFIG_BLOCK */
-
-int fsync_bdev(struct block_device *bdev);
 
 int freeze_bdev(struct block_device *bdev);
 int thaw_bdev(struct block_device *bdev);

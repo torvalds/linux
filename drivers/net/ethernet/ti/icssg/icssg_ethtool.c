@@ -109,6 +109,26 @@ static void emac_get_ethtool_stats(struct net_device *ndev,
 			*(data++) = emac->stats[i];
 }
 
+static int emac_get_ts_info(struct net_device *ndev,
+			    struct ethtool_ts_info *info)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+
+	info->so_timestamping =
+		SOF_TIMESTAMPING_TX_HARDWARE |
+		SOF_TIMESTAMPING_TX_SOFTWARE |
+		SOF_TIMESTAMPING_RX_HARDWARE |
+		SOF_TIMESTAMPING_RX_SOFTWARE |
+		SOF_TIMESTAMPING_SOFTWARE |
+		SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	info->phc_index = icss_iep_get_ptp_clock_idx(emac->iep);
+	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | BIT(HWTSTAMP_FILTER_ALL);
+
+	return 0;
+}
+
 static int emac_set_channels(struct net_device *ndev,
 			     struct ethtool_channels *ch)
 {
@@ -176,6 +196,7 @@ const struct ethtool_ops icssg_ethtool_ops = {
 	.get_sset_count = emac_get_sset_count,
 	.get_ethtool_stats = emac_get_ethtool_stats,
 	.get_strings = emac_get_strings,
+	.get_ts_info = emac_get_ts_info,
 	.get_channels = emac_get_channels,
 	.set_channels = emac_set_channels,
 	.get_link_ksettings = emac_get_link_ksettings,

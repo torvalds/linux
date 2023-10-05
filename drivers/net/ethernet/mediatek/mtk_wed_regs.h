@@ -266,6 +266,8 @@ struct mtk_wdma_desc {
 
 #define MTK_WED_WPDMA_TX_MIB(_n)			(0x5a0 + (_n) * 4)
 #define MTK_WED_WPDMA_TX_COHERENT_MIB(_n)		(0x5d0 + (_n) * 4)
+#define MTK_WED_WPDMA_RX_MIB(_n)			(0x5e0 + (_n) * 4)
+#define MTK_WED_WPDMA_RX_COHERENT_MIB(_n)		(0x5f0 + (_n) * 4)
 
 #define MTK_WED_WPDMA_RING_TX(_n)			(0x600 + (_n) * 0x10)
 #define MTK_WED_WPDMA_RING_RX(_n)			(0x700 + (_n) * 0x10)

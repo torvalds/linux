@@ -1250,7 +1250,7 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(ROCKETLAKE,		&rapl_defaults_core),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE,		&rapl_defaults_core),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		&rapl_defaults_core),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_N,		&rapl_defaults_core),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GRACEMONT,	&rapl_defaults_core),
 	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE,		&rapl_defaults_core),
 	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_P,        &rapl_defaults_core),
 	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_S,	&rapl_defaults_core),
@@ -1485,7 +1485,7 @@ static int rapl_detect_domains(struct rapl_package *rp)
 	}
 	pr_debug("found %d domains on %s\n", rp->nr_domains, rp->name);
 
-	rp->domains = kcalloc(rp->nr_domains + 1, sizeof(struct rapl_domain),
+	rp->domains = kcalloc(rp->nr_domains, sizeof(struct rapl_domain),
 			      GFP_KERNEL);
 	if (!rp->domains)
 		return -ENOMEM;

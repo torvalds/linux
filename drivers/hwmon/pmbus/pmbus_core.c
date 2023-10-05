@@ -561,7 +561,8 @@ static bool pmbus_check_register(struct i2c_client *client,
 		rv = pmbus_check_status_cml(client);
 	if (rv < 0 && (data->flags & PMBUS_READ_STATUS_AFTER_FAILED_CHECK))
 		data->read_status(client, -1);
-	pmbus_clear_fault_page(client, -1);
+	if (reg < PMBUS_VIRT_BASE)
+		pmbus_clear_fault_page(client, -1);
 	return rv >= 0;
 }
 
@@ -2540,7 +2541,6 @@ static int pmbus_identify_common(struct i2c_client *client,
 		}
 	}
 
-	pmbus_clear_fault_page(client, page);
 	return 0;
 }
 

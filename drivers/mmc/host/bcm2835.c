@@ -1431,7 +1431,7 @@ err:
 	return ret;
 }
 
-static int bcm2835_remove(struct platform_device *pdev)
+static void bcm2835_remove(struct platform_device *pdev)
 {
 	struct bcm2835_host *host = platform_get_drvdata(pdev);
 	struct mmc_host *mmc = mmc_from_priv(host);
@@ -1449,8 +1449,6 @@ static int bcm2835_remove(struct platform_device *pdev)
 		dma_release_channel(host->dma_chan_rxtx);
 
 	mmc_free_host(mmc);
-
-	return 0;
 }
 
 static const struct of_device_id bcm2835_match[] = {
@@ -1461,7 +1459,7 @@ MODULE_DEVICE_TABLE(of, bcm2835_match);
 
 static struct platform_driver bcm2835_driver = {
 	.probe      = bcm2835_probe,
-	.remove     = bcm2835_remove,
+	.remove_new = bcm2835_remove,
 	.driver     = {
 		.name		= "sdhost-bcm2835",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,

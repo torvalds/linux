@@ -470,7 +470,6 @@ F:	drivers/hwmon/adm1029.c
 ADM8211 WIRELESS DRIVER
 L:	linux-wireless@vger.kernel.org
 S:	Orphan
-W:	https://wireless.wiki.kernel.org/
 F:	drivers/net/wireless/admtek/adm8211.*
 
 ADP1653 FLASH CONTROLLER DRIVER
@@ -914,6 +913,18 @@ L:	linux-crypto@vger.kernel.org
 S:	Supported
 F:	drivers/crypto/ccp/sev*
 F:	include/uapi/linux/psp-sev.h
+
+AMD CRYPTOGRAPHIC COPROCESSOR (CCP) DRIVER - DBC SUPPORT
+M:	Mario Limonciello <mario.limonciello@amd.com>
+L:	linux-crypto@vger.kernel.org
+S:	Supported
+F:	drivers/crypto/ccp/dbc.c
+F:	drivers/crypto/ccp/dbc.h
+F:	drivers/crypto/ccp/platform-access.c
+F:	drivers/crypto/ccp/platform-access.h
+F:	include/uapi/linux/psp-dbc.h
+F:	tools/crypto/ccp/*.c
+F:	tools/crypto/ccp/*.py
 
 AMD DISPLAY CORE
 M:	Harry Wentland <harry.wentland@amd.com>
@@ -4138,7 +4149,7 @@ BROADCOM BCM6348/BCM6358 SPI controller DRIVER
 M:	Jonas Gorski <jonas.gorski@gmail.com>
 L:	linux-spi@vger.kernel.org
 S:	Odd Fixes
-F:	Documentation/devicetree/bindings/spi/spi-bcm63xx.txt
+F:	Documentation/devicetree/bindings/spi/brcm,bcm63xx-spi.yaml
 F:	drivers/spi/spi-bcm63xx.c
 
 BROADCOM ETHERNET PHY DRIVERS
@@ -4207,7 +4218,7 @@ BROADCOM KONA GPIO DRIVER
 M:	Ray Jui <rjui@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/gpio/brcm,kona-gpio.txt
+F:	Documentation/devicetree/bindings/gpio/brcm,kona-gpio.yaml
 F:	drivers/gpio/gpio-bcm-kona.c
 
 BROADCOM MPI3 STORAGE CONTROLLER DRIVER
@@ -4831,6 +4842,7 @@ F:	drivers/input/touchscreen/chipone_icn8505.c
 
 CHROME HARDWARE PLATFORM SUPPORT
 M:	Benson Leung <bleung@chromium.org>
+M:	Tzung-Bi Shih <tzungbi@kernel.org>
 L:	chrome-platform@lists.linux.dev
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/chrome-platform/linux.git
@@ -4898,7 +4910,11 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 L:	patches@opensource.cirrus.com
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/cirrus,cs*
+F:	drivers/mfd/cs42l43*
+F:	drivers/pinctrl/cirrus/pinctrl-cs42l43*
+F:	drivers/spi/spi-cs42l43*
 F:	include/dt-bindings/sound/cs*
+F:	include/linux/mfd/cs42l43*
 F:	include/sound/cs*
 F:	sound/pci/hda/cs*
 F:	sound/pci/hda/hda_cs_dsp_ctl.*
@@ -6021,7 +6037,7 @@ F:	Documentation/devicetree/bindings/mfd/da90*.txt
 F:	Documentation/devicetree/bindings/mfd/dlg,da90*.yaml
 F:	Documentation/devicetree/bindings/regulator/da92*.txt
 F:	Documentation/devicetree/bindings/regulator/dlg,da9*.yaml
-F:	Documentation/devicetree/bindings/regulator/slg51000.txt
+F:	Documentation/devicetree/bindings/regulator/dlg,slg51000.yaml
 F:	Documentation/devicetree/bindings/sound/da[79]*.txt
 F:	Documentation/devicetree/bindings/thermal/da90??-thermal.txt
 F:	Documentation/devicetree/bindings/watchdog/da90??-wdt.txt
@@ -8788,6 +8804,15 @@ S:	Supported
 F:	Documentation/networking/device_drivers/ethernet/google/gve.rst
 F:	drivers/net/ethernet/google
 
+GOOGLE FIRMWARE DRIVERS
+M:	Tzung-Bi Shih <tzungbi@kernel.org>
+R:	Brian Norris <briannorris@chromium.org>
+R:	Julius Werner <jwerner@chromium.org>
+L:	chrome-platform@lists.linux.dev
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/chrome-platform/linux.git
+F:	drivers/firmware/google/
+
 GPD POCKET FAN DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
 L:	platform-driver-x86@vger.kernel.org
@@ -9325,7 +9350,7 @@ F:	drivers/crypto/hisilicon/hpre/hpre_crypto.c
 F:	drivers/crypto/hisilicon/hpre/hpre_main.c
 
 HISILICON HNS3 PMU DRIVER
-M:	Guangbin Huang <huangguangbin2@huawei.com>
+M:	Jijie Shao <shaojijie@huawei.com>
 S:	Supported
 F:	Documentation/admin-guide/perf/hns3-pmu.rst
 F:	drivers/perf/hisilicon/hns3_pmu.c
@@ -9363,7 +9388,7 @@ F:	Documentation/devicetree/bindings/net/hisilicon*.txt
 F:	drivers/net/ethernet/hisilicon/
 
 HISILICON PMU DRIVER
-M:	Shaokun Zhang <zhangshaokun@hisilicon.com>
+M:	Yicong Yang <yangyicong@hisilicon.com>
 M:	Jonathan Cameron <jonathan.cameron@huawei.com>
 S:	Supported
 W:	http://www.hisilicon.com
@@ -9477,10 +9502,8 @@ F:	Documentation/devicetree/bindings/iio/pressure/honeywell,mprls0025pa.yaml
 F:	drivers/iio/pressure/mprls0025pa.c
 
 HOST AP DRIVER
-M:	Jouni Malinen <j@w1.fi>
 L:	linux-wireless@vger.kernel.org
 S:	Obsolete
-W:	http://w1.fi/hostap-driver.html
 F:	drivers/net/wireless/intersil/hostap/
 
 HP COMPAQ TC1100 TABLET WMI EXTRAS DRIVER
@@ -9513,6 +9536,12 @@ M:	Mikulas Patocka <mikulas@artax.karlin.mff.cuni.cz>
 S:	Maintained
 W:	http://artax.karlin.mff.cuni.cz/~mikulas/vyplody/hpfs/index-e.cgi
 F:	fs/hpfs/
+
+HS3001 Hardware Temperature and Humidity Sensor
+M:	Andre Werner <andre.werner@systec-electronic.com>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	drivers/hwmon/hs3001.c
 
 HSI SUBSYSTEM
 M:	Sebastian Reichel <sre@kernel.org>
@@ -11403,6 +11432,8 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shuah/linux-kselftest.git k
 F:	Documentation/dev-tools/kunit/
 F:	include/kunit/
 F:	lib/kunit/
+F:	rust/kernel/kunit.rs
+F:	scripts/rustdoc_test_*
 F:	tools/testing/kunit/
 
 KERNEL USERMODE HELPER
@@ -12288,6 +12319,16 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/clock/loongson,ls2k-clk.yaml
 F:	drivers/clk/clk-loongson2.c
 F:	include/dt-bindings/clock/loongson,ls2k-clk.h
+
+LOONGSON SPI DRIVER
+M:	Yinbo Zhu <zhuyinbo@loongson.cn>
+L:	linux-spi@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/spi/loongson,ls2k-spi.yaml
+F:	drivers/spi/spi-loongson-core.c
+F:	drivers/spi/spi-loongson-pci.c
+F:	drivers/spi/spi-loongson-plat.c
+F:	drivers/spi/spi-loongson.h
 
 LOONGSON-2 SOC SERIES GUTS DRIVER
 M:	Yinbo Zhu <zhuyinbo@loongson.cn>
@@ -15017,6 +15058,7 @@ F:	include/linux/power/bq27xxx_battery.h
 
 NOLIBC HEADER FILE
 M:	Willy Tarreau <w@1wt.eu>
+M:	Thomas Weißschuh <linux@weissschuh.net>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wtarreau/nolibc.git
 F:	tools/include/nolibc/
@@ -17076,6 +17118,7 @@ F:	drivers/net/ppp/pptp.c
 PRESSURE STALL INFORMATION (PSI)
 M:	Johannes Weiner <hannes@cmpxchg.org>
 M:	Suren Baghdasaryan <surenb@google.com>
+R:	Peter Ziljstra <peterz@infradead.org>
 S:	Maintained
 F:	include/linux/psi*
 F:	kernel/sched/psi.c
@@ -17485,6 +17528,7 @@ M:	Kalle Valo <kvalo@kernel.org>
 M:	Jeff Johnson <quic_jjohnson@quicinc.com>
 L:	ath12k@lists.infradead.org
 S:	Supported
+W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath12k
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
 F:	drivers/net/wireless/ath/ath12k/
 
@@ -18016,8 +18060,6 @@ REALTEK WIRELESS DRIVER (rtlwifi family)
 M:	Ping-Ke Shih <pkshih@realtek.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-W:	https://wireless.wiki.kernel.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 F:	drivers/net/wireless/realtek/rtlwifi/
 
 REALTEK WIRELESS DRIVER (rtw88)
@@ -18545,7 +18587,6 @@ F:	drivers/media/dvb-frontends/rtl2832_sdr*
 RTL8180 WIRELESS DRIVER
 L:	linux-wireless@vger.kernel.org
 S:	Orphan
-W:	https://wireless.wiki.kernel.org/
 F:	drivers/net/wireless/realtek/rtl818x/rtl8180/
 
 RTL8187 WIRELESS DRIVER
@@ -18553,14 +18594,12 @@ M:	Hin-Tak Leung <hintak.leung@gmail.com>
 M:	Larry Finger <Larry.Finger@lwfinger.net>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-W:	https://wireless.wiki.kernel.org/
 F:	drivers/net/wireless/realtek/rtl818x/rtl8187/
 
 RTL8XXXU WIRELESS DRIVER (rtl8xxxu)
 M:	Jes Sorensen <Jes.Sorensen@gmail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jes/linux.git rtl8xxxu-devel
 F:	drivers/net/wireless/realtek/rtl8xxxu/
 
 RTRS TRANSPORT DRIVERS
@@ -18589,6 +18628,8 @@ R:	Boqun Feng <boqun.feng@gmail.com>
 R:	Gary Guo <gary@garyguo.net>
 R:	Björn Roy Baron <bjorn3_gh@protonmail.com>
 R:	Benno Lossin <benno.lossin@proton.me>
+R:	Andreas Hindborg <a.hindborg@samsung.com>
+R:	Alice Ryhl <aliceryhl@google.com>
 L:	rust-for-linux@vger.kernel.org
 S:	Supported
 W:	https://github.com/Rust-for-Linux/linux
@@ -18630,7 +18671,7 @@ L:	linux-s390@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/s390/linux.git
 F:	Documentation/driver-api/s390-drivers.rst
-F:	Documentation/s390/
+F:	Documentation/arch/s390/
 F:	arch/s390/
 F:	drivers/s390/
 F:	drivers/watchdog/diag288_wdt.c
@@ -18691,7 +18732,7 @@ M:	Niklas Schnelle <schnelle@linux.ibm.com>
 M:	Gerald Schaefer <gerald.schaefer@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 S:	Supported
-F:	Documentation/s390/pci.rst
+F:	Documentation/arch/s390/pci.rst
 F:	arch/s390/pci/
 F:	drivers/pci/hotplug/s390_pci_hpc.c
 
@@ -18708,7 +18749,7 @@ M:	Halil Pasic <pasic@linux.ibm.com>
 M:	Jason Herne <jjherne@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 S:	Supported
-F:	Documentation/s390/vfio-ap*
+F:	Documentation/arch/s390/vfio-ap*
 F:	drivers/s390/crypto/vfio_ap*
 
 S390 VFIO-CCW DRIVER
@@ -18718,7 +18759,7 @@ R:	Halil Pasic <pasic@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 L:	kvm@vger.kernel.org
 S:	Supported
-F:	Documentation/s390/vfio-ccw.rst
+F:	Documentation/arch/s390/vfio-ccw.rst
 F:	drivers/s390/cio/vfio_ccw*
 F:	include/uapi/linux/vfio_ccw.h
 
@@ -19311,7 +19352,6 @@ F:	drivers/misc/sgi-gru/
 SGI XP/XPC/XPNET DRIVER
 M:	Robin Holt <robinmholt@gmail.com>
 M:	Steve Wahl <steve.wahl@hpe.com>
-R:	Mike Travis <mike.travis@hpe.com>
 S:	Maintained
 F:	drivers/misc/sgi-xp/
 
@@ -19621,13 +19661,6 @@ SMC91x ETHERNET DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Odd Fixes
 F:	drivers/net/ethernet/smsc/smc91x.*
-
-SMM665 HARDWARE MONITOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/hwmon/smm665.rst
-F:	drivers/hwmon/smm665.c
 
 SMSC EMC2103 HARDWARE MONITOR DRIVER
 M:	Steve Glendinning <steve.glendinning@shawell.net>
@@ -21088,6 +21121,39 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/sound/davinci-mcasp-audio.yaml
 F:	sound/soc/ti/
 
+TEXAS INSTRUMENTS AUDIO (ASoC/HDA) DRIVERS
+M:	Shenghao Ding <shenghao-ding@ti.com>
+M:	Kevin Lu <kevin-lu@ti.com>
+M:	Baojun Xu <x1077012@ti.com>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/tas2552.txt
+F:	Documentation/devicetree/bindings/sound/tas2562.yaml
+F:	Documentation/devicetree/bindings/sound/tas2770.yaml
+F:	Documentation/devicetree/bindings/sound/tas27xx.yaml
+F:	Documentation/devicetree/bindings/sound/ti,pcm1681.txt
+F:	Documentation/devicetree/bindings/sound/ti,pcm3168a.yaml
+F:	Documentation/devicetree/bindings/sound/ti,tlv320*.yaml
+F:	Documentation/devicetree/bindings/sound/tlv320adcx140.yaml
+F:	Documentation/devicetree/bindings/sound/tlv320aic31xx.txt
+F:	Documentation/devicetree/bindings/sound/tpa6130a2.txt
+F:	include/sound/tas2*.h
+F:	include/sound/tlv320*.h
+F:	include/sound/tpa6130a2-plat.h
+F:	sound/pci/hda/tas2781_hda_i2c.c
+F:	sound/soc/codecs/pcm1681.c
+F:	sound/soc/codecs/pcm1789*.*
+F:	sound/soc/codecs/pcm179x*.*
+F:	sound/soc/codecs/pcm186x*.*
+F:	sound/soc/codecs/pcm3008.*
+F:	sound/soc/codecs/pcm3060*.*
+F:	sound/soc/codecs/pcm3168a*.*
+F:	sound/soc/codecs/pcm5102a.c
+F:	sound/soc/codecs/pcm512x*.*
+F:	sound/soc/codecs/tas2*.*
+F:	sound/soc/codecs/tlv320*.*
+F:	sound/soc/codecs/tpa6130a2.*
+
 TEXAS INSTRUMENTS DMA DRIVERS
 M:	Peter Ujfalusi <peter.ujfalusi@gmail.com>
 L:	dmaengine@vger.kernel.org
@@ -21445,7 +21511,6 @@ L:	linux-wireless@vger.kernel.org
 S:	Orphan
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/wl12xx
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/wl1251
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/luca/wl12xx.git
 F:	drivers/net/wireless/ti/
 
 TIMEKEEPING, CLOCKSOURCE CORE, NTP, ALARMTIMER
@@ -23176,7 +23241,8 @@ F:	arch/x86/platform
 
 X86 PLATFORM UV HPE SUPERDOME FLEX
 M:	Steve Wahl <steve.wahl@hpe.com>
-R:	Mike Travis <mike.travis@hpe.com>
+R:	Justin Ernst <justin.ernst@hpe.com>
+R:	Kyle Meyer <kyle.meyer@hpe.com>
 R:	Dimitri Sivanich <dimitri.sivanich@hpe.com>
 R:	Russ Anderson <russ.anderson@hpe.com>
 S:	Supported

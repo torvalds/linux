@@ -668,7 +668,7 @@ EXPORT_SYMBOL(close_fd); /* for ksys_close() */
 
 /**
  * last_fd - return last valid index into fd table
- * @cur_fds: files struct
+ * @fdt: File descriptor table.
  *
  * Context: Either rcu read lock or files_lock must be held.
  *
@@ -693,29 +693,30 @@ static inline void __range_cloexec(struct files_struct *cur_fds,
 	spin_unlock(&cur_fds->file_lock);
 }
 
-static inline void __range_close(struct files_struct *cur_fds, unsigned int fd,
+static inline void __range_close(struct files_struct *files, unsigned int fd,
 				 unsigned int max_fd)
 {
+	struct file *file;
 	unsigned n;
 
-	rcu_read_lock();
-	n = last_fd(files_fdtable(cur_fds));
-	rcu_read_unlock();
+	spin_lock(&files->file_lock);
+	n = last_fd(files_fdtable(files));
 	max_fd = min(max_fd, n);
 
-	while (fd <= max_fd) {
-		struct file *file;
-
-		spin_lock(&cur_fds->file_lock);
-		file = pick_file(cur_fds, fd++);
-		spin_unlock(&cur_fds->file_lock);
-
+	for (; fd <= max_fd; fd++) {
+		file = pick_file(files, fd);
 		if (file) {
-			/* found a valid file to close */
-			filp_close(file, cur_fds);
+			spin_unlock(&files->file_lock);
+			filp_close(file, files);
 			cond_resched();
+			spin_lock(&files->file_lock);
+		} else if (need_resched()) {
+			spin_unlock(&files->file_lock);
+			cond_resched();
+			spin_lock(&files->file_lock);
 		}
 	}
+	spin_unlock(&files->file_lock);
 }
 
 /**
@@ -723,6 +724,7 @@ static inline void __range_close(struct files_struct *cur_fds, unsigned int fd,
  *
  * @fd:     starting file descriptor to close
  * @max_fd: last file descriptor to close
+ * @flags:  CLOSE_RANGE flags.
  *
  * This closes a range of file descriptors. All file descriptors
  * from @fd up to and including @max_fd are closed.

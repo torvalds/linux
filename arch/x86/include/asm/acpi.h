@@ -6,7 +6,7 @@
  *  Copyright (C) 2001 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  *  Copyright (C) 2001 Patrick Mochel <mochel@osdl.org>
  */
-#include <acpi/pdc_intel.h>
+#include <acpi/proc_cap_intel.h>
 
 #include <asm/numa.h>
 #include <asm/fixmap.h>
@@ -102,23 +102,31 @@ static inline bool arch_has_acpi_pdc(void)
 		c->x86_vendor == X86_VENDOR_CENTAUR);
 }
 
-static inline void arch_acpi_set_pdc_bits(u32 *buf)
+static inline void arch_acpi_set_proc_cap_bits(u32 *cap)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
 
-	buf[2] |= ACPI_PDC_C_CAPABILITY_SMP;
+	*cap |= ACPI_PROC_CAP_C_CAPABILITY_SMP;
+
+	/* Enable coordination with firmware's _TSD info */
+	*cap |= ACPI_PROC_CAP_SMP_T_SWCOORD;
 
 	if (cpu_has(c, X86_FEATURE_EST))
-		buf[2] |= ACPI_PDC_EST_CAPABILITY_SWSMP;
+		*cap |= ACPI_PROC_CAP_EST_CAPABILITY_SWSMP;
 
 	if (cpu_has(c, X86_FEATURE_ACPI))
-		buf[2] |= ACPI_PDC_T_FFH;
+		*cap |= ACPI_PROC_CAP_T_FFH;
+
+	if (cpu_has(c, X86_FEATURE_HWP))
+		*cap |= ACPI_PROC_CAP_COLLAB_PROC_PERF;
 
 	/*
-	 * If mwait/monitor is unsupported, C2/C3_FFH will be disabled
+	 * If mwait/monitor is unsupported, C_C1_FFH and
+	 * C2/C3_FFH will be disabled.
 	 */
-	if (!cpu_has(c, X86_FEATURE_MWAIT))
-		buf[2] &= ~(ACPI_PDC_C_C2C3_FFH);
+	if (!cpu_has(c, X86_FEATURE_MWAIT) ||
+	    boot_option_idle_override == IDLE_NOMWAIT)
+		*cap &= ~(ACPI_PROC_CAP_C_C1_FFH | ACPI_PROC_CAP_C_C2C3_FFH);
 }
 
 static inline bool acpi_has_cpu_in_madt(void)

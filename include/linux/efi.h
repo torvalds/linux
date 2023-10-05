@@ -726,7 +726,6 @@ static inline efi_status_t efi_query_variable_store(u32 attributes,
 	return EFI_SUCCESS;
 }
 #endif
-extern void __iomem *efi_lookup_mapped_addr(u64 phys_addr);
 
 extern int __init __efi_memmap_init(struct efi_memory_map_data *data);
 extern int __init efi_memmap_init_early(struct efi_memory_map_data *data);
@@ -1130,7 +1129,7 @@ extern bool efi_runtime_disabled(void);
 static inline bool efi_runtime_disabled(void) { return true; }
 #endif
 
-extern void efi_call_virt_check_flags(unsigned long flags, const char *call);
+extern void efi_call_virt_check_flags(unsigned long flags, const void *caller);
 extern unsigned long efi_call_virt_save_flags(void);
 
 enum efi_secureboot_mode {
@@ -1171,8 +1170,7 @@ static inline void efi_check_for_embedded_firmwares(void) { }
 #define arch_efi_call_virt(p, f, args...)	((p)->f(args))
 
 /*
- * Arch code can implement the following three template macros, avoiding
- * reptition for the void/non-void return cases of {__,}efi_call_virt():
+ * Arch code must implement the following three routines:
  *
  *  * arch_efi_call_virt_setup()
  *
@@ -1181,9 +1179,8 @@ static inline void efi_check_for_embedded_firmwares(void) { }
  *
  *  * arch_efi_call_virt()
  *
- *    Performs the call. The last expression in the macro must be the call
- *    itself, allowing the logic to be shared by the void and non-void
- *    cases.
+ *    Performs the call. This routine takes a variable number of arguments so
+ *    it must be implemented as a variadic preprocessor macro.
  *
  *  * arch_efi_call_virt_teardown()
  *
@@ -1192,31 +1189,18 @@ static inline void efi_check_for_embedded_firmwares(void) { }
 
 #define efi_call_virt_pointer(p, f, args...)				\
 ({									\
-	efi_status_t __s;						\
+	typeof((p)->f(args)) __s;					\
 	unsigned long __flags;						\
 									\
 	arch_efi_call_virt_setup();					\
 									\
 	__flags = efi_call_virt_save_flags();				\
 	__s = arch_efi_call_virt(p, f, args);				\
-	efi_call_virt_check_flags(__flags, __stringify(f));		\
+	efi_call_virt_check_flags(__flags, NULL);			\
 									\
 	arch_efi_call_virt_teardown();					\
 									\
 	__s;								\
-})
-
-#define __efi_call_virt_pointer(p, f, args...)				\
-({									\
-	unsigned long __flags;						\
-									\
-	arch_efi_call_virt_setup();					\
-									\
-	__flags = efi_call_virt_save_flags();				\
-	arch_efi_call_virt(p, f, args);					\
-	efi_call_virt_check_flags(__flags, __stringify(f));		\
-									\
-	arch_efi_call_virt_teardown();					\
 })
 
 #define EFI_RANDOM_SEED_SIZE		32U // BLAKE2S_HASH_SIZE
@@ -1244,6 +1228,10 @@ extern int efi_tpm_final_log_size;
 
 extern unsigned long rci2_table_phys;
 
+efi_status_t
+efi_call_acpi_prm_handler(efi_status_t (__efiapi *handler_addr)(u64, void *),
+			  u64 param_buffer_addr, void *context);
+
 /*
  * efi_runtime_service() function identifiers.
  * "NONE" is used by efi_recover_from_page_fault() to check if the page
@@ -1263,25 +1251,26 @@ enum efi_rts_ids {
 	EFI_RESET_SYSTEM,
 	EFI_UPDATE_CAPSULE,
 	EFI_QUERY_CAPSULE_CAPS,
+	EFI_ACPI_PRM_HANDLER,
 };
+
+union efi_rts_args;
 
 /*
  * efi_runtime_work:	Details of EFI Runtime Service work
- * @arg<1-5>:		EFI Runtime Service function arguments
+ * @args:		Pointer to union describing the arguments
  * @status:		Status of executing EFI Runtime Service
  * @efi_rts_id:		EFI Runtime Service function identifier
  * @efi_rts_comp:	Struct used for handling completions
+ * @caller:		The caller of the runtime service
  */
 struct efi_runtime_work {
-	void *arg1;
-	void *arg2;
-	void *arg3;
-	void *arg4;
-	void *arg5;
-	efi_status_t status;
-	struct work_struct work;
-	enum efi_rts_ids efi_rts_id;
-	struct completion efi_rts_comp;
+	union efi_rts_args	*args;
+	efi_status_t		status;
+	struct work_struct	work;
+	enum efi_rts_ids	efi_rts_id;
+	struct completion	efi_rts_comp;
+	const void		*caller;
 };
 
 extern struct efi_runtime_work efi_rts_work;

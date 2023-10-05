@@ -50,7 +50,6 @@ acpi-$(CONFIG_PCI)		+= acpi_lpss.o
 acpi-y				+= acpi_apd.o
 acpi-y				+= acpi_platform.o
 acpi-y				+= acpi_pnp.o
-acpi-$(CONFIG_ARM_AMBA)	+= acpi_amba.o
 acpi-y				+= power.o
 acpi-y				+= event.o
 acpi-y				+= evged.o

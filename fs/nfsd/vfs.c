@@ -520,7 +520,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	nfsd_sanitize_attrs(inode, iap);
 
-	if (check_guard && guardtime != inode->i_ctime.tv_sec)
+	if (check_guard && guardtime != inode_get_ctime(inode).tv_sec)
 		return nfserr_notsync;
 
 	/*

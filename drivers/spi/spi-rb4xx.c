@@ -80,7 +80,7 @@ static void do_spi_byte_two(struct rb4xx_spi *rbspi, u32 spi_ioc, u8 byte)
 
 static void rb4xx_set_cs(struct spi_device *spi, bool enable)
 {
-	struct rb4xx_spi *rbspi = spi_master_get_devdata(spi->master);
+	struct rb4xx_spi *rbspi = spi_controller_get_devdata(spi->controller);
 
 	/*
 	 * Setting CS is done along with bitbanging the actual values,
@@ -92,10 +92,10 @@ static void rb4xx_set_cs(struct spi_device *spi, bool enable)
 			    AR71XX_SPI_IOC_CS0 | AR71XX_SPI_IOC_CS1);
 }
 
-static int rb4xx_transfer_one(struct spi_master *master,
+static int rb4xx_transfer_one(struct spi_controller *host,
 			      struct spi_device *spi, struct spi_transfer *t)
 {
-	struct rb4xx_spi *rbspi = spi_master_get_devdata(master);
+	struct rb4xx_spi *rbspi = spi_controller_get_devdata(host);
 	int i;
 	u32 spi_ioc;
 	u8 *rx_buf;
@@ -126,14 +126,14 @@ static int rb4xx_transfer_one(struct spi_master *master,
 			continue;
 		rx_buf[i] = rb4xx_read(rbspi, AR71XX_SPI_REG_RDS);
 	}
-	spi_finalize_current_transfer(master);
+	spi_finalize_current_transfer(host);
 
 	return 0;
 }
 
 static int rb4xx_spi_probe(struct platform_device *pdev)
 {
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct clk *ahb_clk;
 	struct rb4xx_spi *rbspi;
 	int err;
@@ -143,31 +143,31 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(spi_base))
 		return PTR_ERR(spi_base);
 
-	master = devm_spi_alloc_master(&pdev->dev, sizeof(*rbspi));
-	if (!master)
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*rbspi));
+	if (!host)
 		return -ENOMEM;
 
 	ahb_clk = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(ahb_clk))
 		return PTR_ERR(ahb_clk);
 
-	master->dev.of_node = pdev->dev.of_node;
-	master->bus_num = 0;
-	master->num_chipselect = 3;
-	master->mode_bits = SPI_TX_DUAL;
-	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->flags = SPI_MASTER_MUST_TX;
-	master->transfer_one = rb4xx_transfer_one;
-	master->set_cs = rb4xx_set_cs;
+	host->dev.of_node = pdev->dev.of_node;
+	host->bus_num = 0;
+	host->num_chipselect = 3;
+	host->mode_bits = SPI_TX_DUAL;
+	host->bits_per_word_mask = SPI_BPW_MASK(8);
+	host->flags = SPI_CONTROLLER_MUST_TX;
+	host->transfer_one = rb4xx_transfer_one;
+	host->set_cs = rb4xx_set_cs;
 
-	rbspi = spi_master_get_devdata(master);
+	rbspi = spi_controller_get_devdata(host);
 	rbspi->base = spi_base;
 	rbspi->clk = ahb_clk;
 	platform_set_drvdata(pdev, rbspi);
 
-	err = devm_spi_register_master(&pdev->dev, master);
+	err = devm_spi_register_controller(&pdev->dev, host);
 	if (err) {
-		dev_err(&pdev->dev, "failed to register SPI master\n");
+		dev_err(&pdev->dev, "failed to register SPI host\n");
 		return err;
 	}
 

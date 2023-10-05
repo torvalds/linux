@@ -58,13 +58,9 @@
 #[cfg(not(no_global_oom_handling))]
 use core::cmp;
 use core::cmp::Ordering;
-use core::convert::TryFrom;
 use core::fmt;
 use core::hash::{Hash, Hasher};
-use core::intrinsics::assume;
 use core::iter;
-#[cfg(not(no_global_oom_handling))]
-use core::iter::FromIterator;
 use core::marker::PhantomData;
 use core::mem::{self, ManuallyDrop, MaybeUninit, SizedTypeProperties};
 use core::ops::{self, Index, IndexMut, Range, RangeBounds};
@@ -381,8 +377,8 @@ mod spec_extend;
 /// Currently, `Vec` does not guarantee the order in which elements are dropped.
 /// The order has changed in the past and may change again.
 ///
-/// [`get`]: ../../std/vec/struct.Vec.html#method.get
-/// [`get_mut`]: ../../std/vec/struct.Vec.html#method.get_mut
+/// [`get`]: slice::get
+/// [`get_mut`]: slice::get_mut
 /// [`String`]: crate::string::String
 /// [`&str`]: type@str
 /// [`shrink_to_fit`]: Vec::shrink_to_fit
@@ -708,14 +704,14 @@ impl<T, A: Allocator> Vec<T, A> {
     ///
     /// // The vector contains no items, even though it has capacity for more
     /// assert_eq!(vec.len(), 0);
-    /// assert_eq!(vec.capacity(), 10);
+    /// assert!(vec.capacity() >= 10);
     ///
     /// // These are all done without reallocating...
     /// for i in 0..10 {
     ///     vec.push(i);
     /// }
     /// assert_eq!(vec.len(), 10);
-    /// assert_eq!(vec.capacity(), 10);
+    /// assert!(vec.capacity() >= 10);
     ///
     /// // ...but this may make the vector reallocate
     /// vec.push(11);
@@ -766,14 +762,14 @@ impl<T, A: Allocator> Vec<T, A> {
     ///
     /// // The vector contains no items, even though it has capacity for more
     /// assert_eq!(vec.len(), 0);
-    /// assert_eq!(vec.capacity(), 10);
+    /// assert!(vec.capacity() >= 10);
     ///
     /// // These are all done without reallocating...
     /// for i in 0..10 {
     ///     vec.push(i);
     /// }
     /// assert_eq!(vec.len(), 10);
-    /// assert_eq!(vec.capacity(), 10);
+    /// assert!(vec.capacity() >= 10);
     ///
     /// // ...but this may make the vector reallocate
     /// vec.push(11);
@@ -999,7 +995,7 @@ impl<T, A: Allocator> Vec<T, A> {
     /// ```
     /// let mut vec: Vec<i32> = Vec::with_capacity(10);
     /// vec.push(42);
-    /// assert_eq!(vec.capacity(), 10);
+    /// assert!(vec.capacity() >= 10);
     /// ```
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
@@ -1150,7 +1146,7 @@ impl<T, A: Allocator> Vec<T, A> {
     /// ```
     /// let mut vec = Vec::with_capacity(10);
     /// vec.extend([1, 2, 3]);
-    /// assert_eq!(vec.capacity(), 10);
+    /// assert!(vec.capacity() >= 10);
     /// vec.shrink_to_fit();
     /// assert!(vec.capacity() >= 3);
     /// ```
@@ -1177,7 +1173,7 @@ impl<T, A: Allocator> Vec<T, A> {
     /// ```
     /// let mut vec = Vec::with_capacity(10);
     /// vec.extend([1, 2, 3]);
-    /// assert_eq!(vec.capacity(), 10);
+    /// assert!(vec.capacity() >= 10);
     /// vec.shrink_to(4);
     /// assert!(vec.capacity() >= 4);
     /// vec.shrink_to(0);
@@ -1212,7 +1208,7 @@ impl<T, A: Allocator> Vec<T, A> {
     /// let mut vec = Vec::with_capacity(10);
     /// vec.extend([1, 2, 3]);
     ///
-    /// assert_eq!(vec.capacity(), 10);
+    /// assert!(vec.capacity() >= 10);
     /// let slice = vec.into_boxed_slice();
     /// assert_eq!(slice.into_vec().capacity(), 3);
     /// ```
@@ -1358,11 +1354,7 @@ impl<T, A: Allocator> Vec<T, A> {
     pub fn as_ptr(&self) -> *const T {
         // We shadow the slice method of the same name to avoid going through
         // `deref`, which creates an intermediate reference.
-        let ptr = self.buf.ptr();
-        unsafe {
-            assume(!ptr.is_null());
-        }
-        ptr
+        self.buf.ptr()
     }
 
     /// Returns an unsafe mutable pointer to the vector's buffer, or a dangling
@@ -1395,11 +1387,7 @@ impl<T, A: Allocator> Vec<T, A> {
     pub fn as_mut_ptr(&mut self) -> *mut T {
         // We shadow the slice method of the same name to avoid going through
         // `deref_mut`, which creates an intermediate reference.
-        let ptr = self.buf.ptr();
-        unsafe {
-            assume(!ptr.is_null());
-        }
-        ptr
+        self.buf.ptr()
     }
 
     /// Returns a reference to the underlying allocator.
@@ -2892,35 +2880,6 @@ impl<T, A: Allocator> ops::DerefMut for Vec<T, A> {
 }
 
 #[cfg(not(no_global_oom_handling))]
-trait SpecCloneFrom {
-    fn clone_from(this: &mut Self, other: &Self);
-}
-
-#[cfg(not(no_global_oom_handling))]
-impl<T: Clone, A: Allocator> SpecCloneFrom for Vec<T, A> {
-    default fn clone_from(this: &mut Self, other: &Self) {
-        // drop anything that will not be overwritten
-        this.truncate(other.len());
-
-        // self.len <= other.len due to the truncate above, so the
-        // slices here are always in-bounds.
-        let (init, tail) = other.split_at(this.len());
-
-        // reuse the contained values' allocations/resources.
-        this.clone_from_slice(init);
-        this.extend_from_slice(tail);
-    }
-}
-
-#[cfg(not(no_global_oom_handling))]
-impl<T: Copy, A: Allocator> SpecCloneFrom for Vec<T, A> {
-    fn clone_from(this: &mut Self, other: &Self) {
-        this.clear();
-        this.extend_from_slice(other);
-    }
-}
-
-#[cfg(not(no_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: Clone, A: Allocator + Clone> Clone for Vec<T, A> {
     #[cfg(not(test))]
@@ -2940,7 +2899,7 @@ impl<T: Clone, A: Allocator + Clone> Clone for Vec<T, A> {
     }
 
     fn clone_from(&mut self, other: &Self) {
-        SpecCloneFrom::clone_from(self, other)
+        crate::slice::SpecCloneIntoVec::clone_into(other.as_slice(), self);
     }
 }
 
@@ -2948,7 +2907,6 @@ impl<T: Clone, A: Allocator + Clone> Clone for Vec<T, A> {
 /// as required by the `core::borrow::Borrow` implementation.
 ///
 /// ```
-/// #![feature(build_hasher_simple_hash_one)]
 /// use std::hash::BuildHasher;
 ///
 /// let b = std::collections::hash_map::RandomState::new();
@@ -3330,7 +3288,7 @@ impl<'a, T: Copy + 'a, A: Allocator + 'a> Extend<&'a T> for Vec<T, A> {
     }
 }
 
-/// Implements comparison of vectors, [lexicographically](core::cmp::Ord#lexicographical-comparison).
+/// Implements comparison of vectors, [lexicographically](Ord#lexicographical-comparison).
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: PartialOrd, A: Allocator> PartialOrd for Vec<T, A> {
     #[inline]
@@ -3342,7 +3300,7 @@ impl<T: PartialOrd, A: Allocator> PartialOrd for Vec<T, A> {
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: Eq, A: Allocator> Eq for Vec<T, A> {}
 
-/// Implements ordering of vectors, [lexicographically](core::cmp::Ord#lexicographical-comparison).
+/// Implements ordering of vectors, [lexicographically](Ord#lexicographical-comparison).
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: Ord, A: Allocator> Ord for Vec<T, A> {
     #[inline]
@@ -3365,8 +3323,7 @@ unsafe impl<#[may_dangle] T, A: Allocator> Drop for Vec<T, A> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-#[rustc_const_unstable(feature = "const_default_impls", issue = "87864")]
-impl<T> const Default for Vec<T> {
+impl<T> Default for Vec<T> {
     /// Creates an empty `Vec<T>`.
     ///
     /// The vector will not allocate until elements are pushed onto it.
@@ -3462,10 +3419,7 @@ impl<T, const N: usize> From<[T; N]> for Vec<T> {
     /// ```
     #[cfg(not(test))]
     fn from(s: [T; N]) -> Vec<T> {
-        <[T]>::into_vec(
-            #[rustc_box]
-            Box::new(s),
-        )
+        <[T]>::into_vec(Box::new(s))
     }
 
     #[cfg(test)]
@@ -3490,8 +3444,8 @@ where
     ///
     /// ```
     /// # use std::borrow::Cow;
-    /// let o: Cow<[i32]> = Cow::Owned(vec![1, 2, 3]);
-    /// let b: Cow<[i32]> = Cow::Borrowed(&[1, 2, 3]);
+    /// let o: Cow<'_, [i32]> = Cow::Owned(vec![1, 2, 3]);
+    /// let b: Cow<'_, [i32]> = Cow::Borrowed(&[1, 2, 3]);
     /// assert_eq!(Vec::from(o), Vec::from(b));
     /// ```
     fn from(s: Cow<'a, [T]>) -> Vec<T> {

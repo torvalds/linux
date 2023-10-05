@@ -4265,6 +4265,10 @@ static inline unsigned char mas_wr_new_end(struct ma_wr_state *wr_mas)
  * mas_wr_append: Attempt to append
  * @wr_mas: the maple write state
  *
+ * This is currently unsafe in rcu mode since the end of the node may be cached
+ * by readers while the node contents may be updated which could result in
+ * inaccurate information.
+ *
  * Return: True if appended, false otherwise
  */
 static inline bool mas_wr_append(struct ma_wr_state *wr_mas)
@@ -4273,6 +4277,9 @@ static inline bool mas_wr_append(struct ma_wr_state *wr_mas)
 	unsigned char new_end = end + 1;
 	struct ma_state *mas = wr_mas->mas;
 	unsigned char node_pivots = mt_pivots[wr_mas->type];
+
+	if (mt_in_rcu(mas->tree))
+		return false;
 
 	if (mas->offset != wr_mas->node_end)
 		return false;

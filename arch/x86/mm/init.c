@@ -20,7 +20,6 @@
 #include <asm/tlb.h>
 #include <asm/proto.h>
 #include <asm/dma.h>		/* for MAX_DMA_PFN */
-#include <asm/microcode.h>
 #include <asm/kaslr.h>
 #include <asm/hypervisor.h>
 #include <asm/cpufeature.h>
@@ -273,7 +272,7 @@ static void __init probe_page_size_mask(void)
 static const struct x86_cpu_id invlpg_miss_ids[] = {
 	INTEL_MATCH(INTEL_FAM6_ALDERLAKE   ),
 	INTEL_MATCH(INTEL_FAM6_ALDERLAKE_L ),
-	INTEL_MATCH(INTEL_FAM6_ALDERLAKE_N ),
+	INTEL_MATCH(INTEL_FAM6_ATOM_GRACEMONT ),
 	INTEL_MATCH(INTEL_FAM6_RAPTORLAKE  ),
 	INTEL_MATCH(INTEL_FAM6_RAPTORLAKE_P),
 	INTEL_MATCH(INTEL_FAM6_RAPTORLAKE_S),

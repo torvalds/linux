@@ -662,5 +662,3 @@ source "kernel/power/Kconfig"
 source "drivers/acpi/Kconfig"
 
 endmenu
-
-source "drivers/firmware/Kconfig"

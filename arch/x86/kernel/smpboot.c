@@ -327,14 +327,6 @@ static void notrace start_secondary(void *unused)
 }
 
 /**
- * topology_smt_supported - Check whether SMT is supported by the CPUs
- */
-bool topology_smt_supported(void)
-{
-	return smp_num_siblings > 1;
-}
-
-/**
  * topology_phys_to_logical_pkg - Map a physical package id to a logical
  * @phys_pkg:	The physical package id to map
  *
@@ -632,14 +624,9 @@ static void __init build_sched_topology(void)
 	};
 #endif
 #ifdef CONFIG_SCHED_CLUSTER
-	/*
-	 * For now, skip the cluster domain on Hybrid.
-	 */
-	if (!cpu_feature_enabled(X86_FEATURE_HYBRID_CPU)) {
-		x86_topology[i++] = (struct sched_domain_topology_level){
-			cpu_clustergroup_mask, x86_cluster_flags, SD_INIT_NAME(CLS)
-		};
-	}
+	x86_topology[i++] = (struct sched_domain_topology_level){
+		cpu_clustergroup_mask, x86_cluster_flags, SD_INIT_NAME(CLS)
+	};
 #endif
 #ifdef CONFIG_SCHED_MC
 	x86_topology[i++] = (struct sched_domain_topology_level){

@@ -108,8 +108,6 @@ extern int __irq_get_irqchip_state(struct irq_data *data,
 				   enum irqchip_irq_state which,
 				   bool *state);
 
-extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
-
 irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc);
 irqreturn_t handle_irq_event_percpu(struct irq_desc *desc);
 irqreturn_t handle_irq_event(struct irq_desc *desc);
@@ -120,6 +118,8 @@ void clear_irq_resend(struct irq_desc *desc);
 void irq_resend_init(struct irq_desc *desc);
 bool irq_wait_for_poll(struct irq_desc *desc);
 void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action);
+
+void wake_threads_waitq(struct irq_desc *desc);
 
 #ifdef CONFIG_PROC_FS
 extern void register_irq_proc(unsigned int irq, struct irq_desc *desc);

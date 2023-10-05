@@ -8,8 +8,8 @@
 
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/machine.h>
@@ -41,7 +41,7 @@ static const struct linear_range tps6287x_voltage_ranges[] = {
 };
 
 static const unsigned int tps6287x_voltage_range_sel[] = {
-	0x0, 0x4, 0x8, 0xC
+	0x0, 0x1, 0x2, 0x3
 };
 
 static const unsigned int tps6287x_ramp_table[] = {
@@ -122,7 +122,7 @@ static struct regulator_desc tps6287x_reg = {
 	.n_voltages = 256,
 	.linear_ranges = tps6287x_voltage_ranges,
 	.n_linear_ranges = ARRAY_SIZE(tps6287x_voltage_ranges),
-	.linear_range_selectors = tps6287x_voltage_range_sel,
+	.linear_range_selectors_bitfield = tps6287x_voltage_range_sel,
 };
 
 static int tps6287x_i2c_probe(struct i2c_client *i2c)

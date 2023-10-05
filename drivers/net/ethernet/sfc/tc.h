@@ -18,6 +18,23 @@
 
 #define IS_ALL_ONES(v)	(!(typeof (v))~(v))
 
+/**
+ * struct efx_tc_mac_pedit_action - mac pedit action fields
+ *
+ * @h_addr:	mac address field of ethernet header
+ * @linkage:	rhashtable reference
+ * @ref:	reference count
+ * @fw_id:	index of this entry in firmware MAC address table
+ *
+ * MAC address edits are indirected through a table in the hardware
+ */
+struct efx_tc_mac_pedit_action {
+	u8 h_addr[ETH_ALEN];
+	struct rhash_head linkage;
+	refcount_t ref;
+	u32 fw_id; /* index of this entry in firmware MAC address table */
+};
+
 static inline bool efx_ipv6_addr_all_ones(struct in6_addr *addr)
 {
 	return !memchr_inv(addr, 0xff, sizeof(*addr));
@@ -25,20 +42,45 @@ static inline bool efx_ipv6_addr_all_ones(struct in6_addr *addr)
 
 struct efx_tc_encap_action; /* see tc_encap_actions.h */
 
+/**
+ * struct efx_tc_action_set - collection of tc action fields
+ *
+ * @vlan_push: the number of vlan headers to push
+ * @vlan_pop: the number of vlan headers to pop
+ * @decap: used to indicate a tunnel header decapsulation should take place
+ * @do_ttl_dec: used to indicate IP TTL / Hop Limit should be decremented
+ * @deliver: used to indicate a deliver action should take place
+ * @vlan_tci: tci fields for vlan push actions
+ * @vlan_proto: ethernet types for vlan push actions
+ * @count: counter mapping
+ * @encap_md: encap entry in tc_encap_ht table
+ * @encap_user: linked list of encap users (encap_md->users)
+ * @user: owning action-set-list. Only populated if @encap_md is; used by efx_tc_update_encap() fallback handling
+ * @count_user: linked list of counter users (counter->users)
+ * @dest_mport: destination mport
+ * @src_mac: source mac entry in tc_mac_ht table
+ * @dst_mac: destination mac entry in tc_mac_ht table
+ * @fw_id: index of this entry in firmware actions table
+ * @list: linked list of tc actions
+ *
+ */
 struct efx_tc_action_set {
 	u16 vlan_push:2;
 	u16 vlan_pop:2;
 	u16 decap:1;
+	u16 do_ttl_dec:1;
 	u16 deliver:1;
-	__be16 vlan_tci[2]; /* TCIs for vlan_push */
-	__be16 vlan_proto[2]; /* Ethertypes for vlan_push */
+	__be16 vlan_tci[2];
+	__be16 vlan_proto[2];
 	struct efx_tc_counter_index *count;
-	struct efx_tc_encap_action *encap_md; /* entry in tc_encap_ht table */
-	struct list_head encap_user; /* entry on encap_md->users list */
-	struct efx_tc_action_set_list *user; /* Only populated if encap_md */
-	struct list_head count_user; /* entry on counter->users list, if encap */
+	struct efx_tc_encap_action *encap_md;
+	struct list_head encap_user;
+	struct efx_tc_action_set_list *user;
+	struct list_head count_user;
 	u32 dest_mport;
-	u32 fw_id; /* index of this entry in firmware actions table */
+	struct efx_tc_mac_pedit_action *src_mac;
+	struct efx_tc_mac_pedit_action *dst_mac;
+	u32 fw_id;
 	struct list_head list;
 };
 
@@ -220,6 +262,7 @@ struct efx_tc_table_ct { /* TABLE_ID_CONNTRACK_TABLE */
  * @counter_ht: Hashtable of TC counters (FW IDs and counter values)
  * @counter_id_ht: Hashtable mapping TC counter cookies to counters
  * @encap_ht: Hashtable of TC encap actions
+ * @mac_ht: Hashtable of MAC address entries (for pedits)
  * @encap_match_ht: Hashtable of TC encap matches
  * @match_action_ht: Hashtable of TC match-action rules
  * @lhs_rule_ht: Hashtable of TC left-hand (act ct & goto chain) rules
@@ -257,6 +300,7 @@ struct efx_tc_state {
 	struct rhashtable counter_ht;
 	struct rhashtable counter_id_ht;
 	struct rhashtable encap_ht;
+	struct rhashtable mac_ht;
 	struct rhashtable encap_match_ht;
 	struct rhashtable match_action_ht;
 	struct rhashtable lhs_rule_ht;

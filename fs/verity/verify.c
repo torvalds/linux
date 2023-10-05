@@ -346,7 +346,7 @@ void fsverity_enqueue_verify_work(struct work_struct *work)
 }
 EXPORT_SYMBOL_GPL(fsverity_enqueue_verify_work);
 
-int __init fsverity_init_workqueue(void)
+void __init fsverity_init_workqueue(void)
 {
 	/*
 	 * Use a high-priority workqueue to prioritize verification work, which
@@ -360,12 +360,5 @@ int __init fsverity_init_workqueue(void)
 						  WQ_HIGHPRI,
 						  num_online_cpus());
 	if (!fsverity_read_workqueue)
-		return -ENOMEM;
-	return 0;
-}
-
-void __init fsverity_exit_workqueue(void)
-{
-	destroy_workqueue(fsverity_read_workqueue);
-	fsverity_read_workqueue = NULL;
+		panic("failed to allocate fsverity_read_queue");
 }

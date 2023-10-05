@@ -174,6 +174,7 @@ config S390
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_ARG_ACCESS_API
 	select HAVE_FUNCTION_ERROR_INJECTION
+	select HAVE_FUNCTION_GRAPH_RETVAL
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_GCC_PLUGINS
@@ -512,6 +513,17 @@ config KEXEC_SIG
 	  verification for the corresponding kernel image type being
 	  loaded in order for this to work.
 
+config CERT_STORE
+	bool "Get user certificates via DIAG320"
+	depends on KEYS
+	select CRYPTO_LIB_SHA256
+	help
+	  Enable this option if you want to access user-provided secure boot
+	  certificates via DIAG 0x320.
+
+	  These certificates will be made available via the keyring named
+	  'cert_store'.
+
 config KERNEL_NOBP
 	def_bool n
 	prompt "Enable modified branch prediction for the kernel by default"
@@ -743,9 +755,9 @@ config CRASH_DUMP
 	  Crash dump kernels are loaded in the main kernel with kexec-tools
 	  into a specially reserved region and then later executed after
 	  a crash by kdump/kexec.
-	  Refer to <file:Documentation/s390/zfcpdump.rst> for more details on this.
+	  Refer to <file:Documentation/arch/s390/zfcpdump.rst> for more details on this.
 	  This option also enables s390 zfcpdump.
-	  See also <file:Documentation/s390/zfcpdump.rst>
+	  See also <file:Documentation/arch/s390/zfcpdump.rst>
 
 endmenu
 
@@ -867,13 +879,24 @@ config APPLDATA_NET_SUM
 	  This can also be compiled as a module, which will be called
 	  appldata_net_sum.o.
 
-config S390_HYPFS_FS
+config S390_HYPFS
 	def_bool y
+	prompt "s390 hypervisor information"
+	help
+	  This provides several binary files at (debugfs)/s390_hypfs/ to
+	  provide accounting information in an s390 hypervisor environment.
+
+config S390_HYPFS_FS
+	def_bool n
 	prompt "s390 hypervisor file system support"
 	select SYS_HYPERVISOR
+	depends on S390_HYPFS
 	help
 	  This is a virtual file system intended to provide accounting
-	  information in an s390 hypervisor environment.
+	  information in an s390 hypervisor environment. This file system
+	  is deprecated and should not be used.
+
+	  Say N if you are unsure.
 
 source "arch/s390/kvm/Kconfig"
 

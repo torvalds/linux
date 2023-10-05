@@ -143,7 +143,7 @@
  * @base: Beginning of MMIO space
  * @pregs: Start of protection registers
  * @sregs: Start of software sequencer registers
- * @master: Pointer to the SPI controller structure
+ * @host: Pointer to the SPI controller structure
  * @nregions: Maximum number of regions
  * @pr_num: Maximum number of protected range registers
  * @chip0_size: Size of the first flash chip in bytes
@@ -161,7 +161,7 @@ struct intel_spi {
 	void __iomem *base;
 	void __iomem *pregs;
 	void __iomem *sregs;
-	struct spi_controller *master;
+	struct spi_controller *host;
 	size_t nregions;
 	size_t pr_num;
 	size_t chip0_size;
@@ -747,7 +747,7 @@ intel_spi_match_mem_op(struct intel_spi *ispi, const struct spi_mem_op *op)
 static bool intel_spi_supports_mem_op(struct spi_mem *mem,
 				      const struct spi_mem_op *op)
 {
-	struct intel_spi *ispi = spi_master_get_devdata(mem->spi->master);
+	struct intel_spi *ispi = spi_controller_get_devdata(mem->spi->controller);
 	const struct intel_spi_mem_op *iop;
 
 	iop = intel_spi_match_mem_op(ispi, op);
@@ -778,7 +778,7 @@ static bool intel_spi_supports_mem_op(struct spi_mem *mem,
 
 static int intel_spi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
-	struct intel_spi *ispi = spi_master_get_devdata(mem->spi->master);
+	struct intel_spi *ispi = spi_controller_get_devdata(mem->spi->controller);
 	const struct intel_spi_mem_op *iop;
 
 	iop = intel_spi_match_mem_op(ispi, op);
@@ -790,7 +790,7 @@ static int intel_spi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *o
 
 static const char *intel_spi_get_name(struct spi_mem *mem)
 {
-	const struct intel_spi *ispi = spi_master_get_devdata(mem->spi->master);
+	const struct intel_spi *ispi = spi_controller_get_devdata(mem->spi->controller);
 
 	/*
 	 * Return name of the flash controller device to be compatible
@@ -801,7 +801,7 @@ static const char *intel_spi_get_name(struct spi_mem *mem)
 
 static int intel_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 {
-	struct intel_spi *ispi = spi_master_get_devdata(desc->mem->spi->master);
+	struct intel_spi *ispi = spi_controller_get_devdata(desc->mem->spi->controller);
 	const struct intel_spi_mem_op *iop;
 
 	iop = intel_spi_match_mem_op(ispi, &desc->info.op_tmpl);
@@ -815,7 +815,7 @@ static int intel_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 static ssize_t intel_spi_dirmap_read(struct spi_mem_dirmap_desc *desc, u64 offs,
 				     size_t len, void *buf)
 {
-	struct intel_spi *ispi = spi_master_get_devdata(desc->mem->spi->master);
+	struct intel_spi *ispi = spi_controller_get_devdata(desc->mem->spi->controller);
 	const struct intel_spi_mem_op *iop = desc->priv;
 	struct spi_mem_op op = desc->info.op_tmpl;
 	int ret;
@@ -832,7 +832,7 @@ static ssize_t intel_spi_dirmap_read(struct spi_mem_dirmap_desc *desc, u64 offs,
 static ssize_t intel_spi_dirmap_write(struct spi_mem_dirmap_desc *desc, u64 offs,
 				      size_t len, const void *buf)
 {
-	struct intel_spi *ispi = spi_master_get_devdata(desc->mem->spi->master);
+	struct intel_spi *ispi = spi_controller_get_devdata(desc->mem->spi->controller);
 	const struct intel_spi_mem_op *iop = desc->priv;
 	struct spi_mem_op op = desc->info.op_tmpl;
 	int ret;
@@ -1332,14 +1332,14 @@ static int intel_spi_read_desc(struct intel_spi *ispi)
 
 	nc = (buf[1] & FLMAP0_NC_MASK) >> FLMAP0_NC_SHIFT;
 	if (!nc)
-		ispi->master->num_chipselect = 1;
+		ispi->host->num_chipselect = 1;
 	else if (nc == 1)
-		ispi->master->num_chipselect = 2;
+		ispi->host->num_chipselect = 2;
 	else
 		return -EINVAL;
 
 	dev_dbg(ispi->dev, "%u flash components found\n",
-		ispi->master->num_chipselect);
+		ispi->host->num_chipselect);
 	return 0;
 }
 
@@ -1365,7 +1365,7 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 	snprintf(chip.modalias, 8, "spi-nor");
 	chip.platform_data = pdata;
 
-	if (!spi_new_device(ispi->master, &chip))
+	if (!spi_new_device(ispi->host, &chip))
 		return -ENODEV;
 
 	ret = intel_spi_read_desc(ispi);
@@ -1373,13 +1373,13 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 		return ret;
 
 	/* Add the second chip if present */
-	if (ispi->master->num_chipselect < 2)
+	if (ispi->host->num_chipselect < 2)
 		return 0;
 
 	chip.platform_data = NULL;
 	chip.chip_select = 1;
 
-	if (!spi_new_device(ispi->master, &chip))
+	if (!spi_new_device(ispi->host, &chip))
 		return -ENODEV;
 	return 0;
 }
@@ -1396,31 +1396,31 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 int intel_spi_probe(struct device *dev, struct resource *mem,
 		    const struct intel_spi_boardinfo *info)
 {
-	struct spi_controller *master;
+	struct spi_controller *host;
 	struct intel_spi *ispi;
 	int ret;
 
-	master = devm_spi_alloc_master(dev, sizeof(*ispi));
-	if (!master)
+	host = devm_spi_alloc_host(dev, sizeof(*ispi));
+	if (!host)
 		return -ENOMEM;
 
-	master->mem_ops = &intel_spi_mem_ops;
+	host->mem_ops = &intel_spi_mem_ops;
 
-	ispi = spi_master_get_devdata(master);
+	ispi = spi_controller_get_devdata(host);
 
 	ispi->base = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(ispi->base))
 		return PTR_ERR(ispi->base);
 
 	ispi->dev = dev;
-	ispi->master = master;
+	ispi->host = host;
 	ispi->info = info;
 
 	ret = intel_spi_init(ispi);
 	if (ret)
 		return ret;
 
-	ret = devm_spi_register_master(dev, master);
+	ret = devm_spi_register_controller(dev, host);
 	if (ret)
 		return ret;
 

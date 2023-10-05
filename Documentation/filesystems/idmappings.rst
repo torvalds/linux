@@ -146,9 +146,10 @@ For the rest of this document we will prefix all userspace ids with ``u`` and
 all kernel ids with ``k``. Ranges of idmappings will be prefixed with ``r``. So
 an idmapping will be written as ``u0:k10000:r10000``.
 
-For example, the id ``u1000`` is an id in the upper idmapset or "userspace
-idmapset" starting with ``u1000``. And it is mapped to ``k11000`` which is a
-kernel id in the lower idmapset or "kernel idmapset" starting with ``k10000``.
+For example, within this idmapping, the id ``u1000`` is an id in the upper
+idmapset or "userspace idmapset" starting with ``u0``. And it is mapped to
+``k11000`` which is a kernel id in the lower idmapset or "kernel idmapset"
+starting with ``k10000``.
 
 A kernel id is always created by an idmapping. Such idmappings are associated
 with user namespaces. Since we mainly care about how idmappings work we're not
@@ -372,6 +373,13 @@ crossmapping algorithm we mentioned above in a previous section. First, the
 kernel maps the caller's userspace id down into a kernel id according to the
 caller's idmapping and then maps that kernel id up according to the
 filesystem's idmapping.
+
+From the implementation point it's worth mentioning how idmappings are represented.
+All idmappings are taken from the corresponding user namespace.
+
+    - caller's idmapping (usually taken from ``current_user_ns()``)
+    - filesystem's idmapping (``sb->s_user_ns``)
+    - mount's idmapping (``mnt_idmap(vfsmnt)``)
 
 Let's see some examples with caller/filesystem idmapping but without mount
 idmappings. This will exhibit some problems we can hit. After that we will

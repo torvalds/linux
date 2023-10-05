@@ -1793,9 +1793,6 @@ config ARM64_PAN
 	  The feature is detected at runtime, and will remain as a 'nop'
 	  instruction if the cpu does not implement the feature.
 
-config AS_HAS_LDAPR
-	def_bool $(as-instr,.arch_extension rcpc)
-
 config AS_HAS_LSE_ATOMICS
 	def_bool $(as-instr,.arch_extension lse)
 
@@ -1932,6 +1929,9 @@ config AS_HAS_ARMV8_3
 
 config AS_HAS_CFI_NEGATE_RA_STATE
 	def_bool $(as-instr,.cfi_startproc\n.cfi_negate_ra_state\n.cfi_endproc\n)
+
+config AS_HAS_LDAPR
+	def_bool $(as-instr,.arch_extension rcpc)
 
 endmenu # "ARMv8.3 architectural features"
 

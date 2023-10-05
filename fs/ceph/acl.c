@@ -93,7 +93,7 @@ int ceph_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	char *value = NULL;
 	struct iattr newattrs;
 	struct inode *inode = d_inode(dentry);
-	struct timespec64 old_ctime = inode->i_ctime;
+	struct timespec64 old_ctime = inode_get_ctime(inode);
 	umode_t new_mode = inode->i_mode, old_mode = inode->i_mode;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP) {

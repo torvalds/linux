@@ -74,6 +74,7 @@ extern unsigned int zlib_dfltcc_support;
 
 extern int noexec_disabled;
 extern unsigned long ident_map_size;
+extern unsigned long max_mappable;
 
 /* The Write Back bit position in the physaddr is given by the SLPC PCI */
 extern unsigned long mio_wb_bit_mask;
@@ -116,14 +117,6 @@ extern unsigned int console_irq;
 #define SET_CONSOLE_3270	do { console_mode = 3; } while (0)
 #define SET_CONSOLE_VT220	do { console_mode = 4; } while (0)
 #define SET_CONSOLE_HVC		do { console_mode = 5; } while (0)
-
-#ifdef CONFIG_PFAULT
-extern int pfault_init(void);
-extern void pfault_fini(void);
-#else /* CONFIG_PFAULT */
-#define pfault_init()		({-1;})
-#define pfault_fini()		do { } while (0)
-#endif /* CONFIG_PFAULT */
 
 #ifdef CONFIG_VMCP
 void vmcp_cma_reserve(void);

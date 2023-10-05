@@ -103,6 +103,10 @@ int efx_mae_update_encap_md(struct efx_nic *efx,
 int efx_mae_free_encap_md(struct efx_nic *efx,
 			  struct efx_tc_encap_action *encap);
 
+int efx_mae_allocate_pedit_mac(struct efx_nic *efx,
+			       struct efx_tc_mac_pedit_action *ped);
+void efx_mae_free_pedit_mac(struct efx_nic *efx,
+			    struct efx_tc_mac_pedit_action *ped);
 int efx_mae_alloc_action_set(struct efx_nic *efx, struct efx_tc_action_set *act);
 int efx_mae_free_action_set(struct efx_nic *efx, u32 fw_id);
 

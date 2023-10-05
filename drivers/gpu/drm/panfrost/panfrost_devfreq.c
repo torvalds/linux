@@ -96,7 +96,7 @@ static int panfrost_read_speedbin(struct device *dev)
 		 * keep going without it; any other error means that we are
 		 * supposed to read the bin value, but we failed doing so.
 		 */
-		if (ret != -ENOENT) {
+		if (ret != -ENOENT && ret != -EOPNOTSUPP) {
 			DRM_DEV_ERROR(dev, "Cannot read speed-bin (%d).", ret);
 			return ret;
 		}

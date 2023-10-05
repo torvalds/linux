@@ -163,6 +163,8 @@ struct mlx5_vport_info {
 	u8                      trusted: 1;
 	u8                      roce_enabled: 1;
 	u8                      mig_enabled: 1;
+	u8                      ipsec_crypto_enabled: 1;
+	u8                      ipsec_packet_enabled: 1;
 };
 
 /* Vport context events */
@@ -380,6 +382,7 @@ struct mlx5_eswitch {
 	struct blocking_notifier_head n_head;
 	struct xarray paired;
 	struct mlx5_devcom_comp_dev *devcom;
+	u16 enabled_ipsec_vf_count;
 };
 
 void esw_offloads_disable(struct mlx5_eswitch *esw);
@@ -558,6 +561,16 @@ int mlx5_devlink_port_fn_migratable_get(struct devlink_port *port, bool *is_enab
 					struct netlink_ext_ack *extack);
 int mlx5_devlink_port_fn_migratable_set(struct devlink_port *port, bool enable,
 					struct netlink_ext_ack *extack);
+#ifdef CONFIG_XFRM_OFFLOAD
+int mlx5_devlink_port_fn_ipsec_crypto_get(struct devlink_port *port, bool *is_enabled,
+					  struct netlink_ext_ack *extack);
+int mlx5_devlink_port_fn_ipsec_crypto_set(struct devlink_port *port, bool enable,
+					  struct netlink_ext_ack *extack);
+int mlx5_devlink_port_fn_ipsec_packet_get(struct devlink_port *port, bool *is_enabled,
+					  struct netlink_ext_ack *extack);
+int mlx5_devlink_port_fn_ipsec_packet_set(struct devlink_port *port, bool enable,
+					  struct netlink_ext_ack *extack);
+#endif /* CONFIG_XFRM_OFFLOAD */
 void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type);
 
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
@@ -829,10 +842,8 @@ int mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw);
 bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev);
 void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev);
 
-int mlx5_eswitch_block_mode_trylock(struct mlx5_core_dev *dev);
-void mlx5_eswitch_block_mode_unlock(struct mlx5_core_dev *dev, int err);
-void mlx5_eswitch_unblock_mode_lock(struct mlx5_core_dev *dev);
-void mlx5_eswitch_unblock_mode_unlock(struct mlx5_core_dev *dev);
+int mlx5_eswitch_block_mode(struct mlx5_core_dev *dev);
+void mlx5_eswitch_unblock_mode(struct mlx5_core_dev *dev);
 
 static inline int mlx5_eswitch_num_vfs(struct mlx5_eswitch *esw)
 {
@@ -857,6 +868,22 @@ mlx5_eswitch_get_slow_fdb(struct mlx5_eswitch *esw)
 
 int mlx5_eswitch_restore_ipsec_rule(struct mlx5_eswitch *esw, struct mlx5_flow_handle *rule,
 				    struct mlx5_esw_flow_attr *esw_attr, int attr_idx);
+bool mlx5_eswitch_block_ipsec(struct mlx5_core_dev *dev);
+void mlx5_eswitch_unblock_ipsec(struct mlx5_core_dev *dev);
+bool mlx5_esw_ipsec_vf_offload_supported(struct mlx5_core_dev *dev);
+int mlx5_esw_ipsec_vf_offload_get(struct mlx5_core_dev *dev,
+				  struct mlx5_vport *vport);
+int mlx5_esw_ipsec_vf_crypto_offload_supported(struct mlx5_core_dev *dev,
+					       u16 vport_num);
+int mlx5_esw_ipsec_vf_crypto_offload_set(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
+					 bool enable);
+int mlx5_esw_ipsec_vf_packet_offload_set(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
+					 bool enable);
+int mlx5_esw_ipsec_vf_packet_offload_supported(struct mlx5_core_dev *dev,
+					       u16 vport_num);
+void mlx5_esw_vport_ipsec_offload_enable(struct mlx5_eswitch *esw);
+void mlx5_esw_vport_ipsec_offload_disable(struct mlx5_eswitch *esw);
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
@@ -916,13 +943,14 @@ static inline void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev)
 {
 }
 
-static inline int mlx5_eswitch_block_mode_trylock(struct mlx5_core_dev *dev) { return 0; }
+static inline int mlx5_eswitch_block_mode(struct mlx5_core_dev *dev) { return 0; }
+static inline void mlx5_eswitch_unblock_mode(struct mlx5_core_dev *dev) {}
+static inline bool mlx5_eswitch_block_ipsec(struct mlx5_core_dev *dev)
+{
+	return false;
+}
 
-static inline void mlx5_eswitch_block_mode_unlock(struct mlx5_core_dev *dev, int err) {}
-
-static inline void mlx5_eswitch_unblock_mode_lock(struct mlx5_core_dev *dev) {}
-
-static inline void mlx5_eswitch_unblock_mode_unlock(struct mlx5_core_dev *dev) {}
+static inline void mlx5_eswitch_unblock_ipsec(struct mlx5_core_dev *dev) {}
 #endif /* CONFIG_MLX5_ESWITCH */
 
 #endif /* __MLX5_ESWITCH_H__ */

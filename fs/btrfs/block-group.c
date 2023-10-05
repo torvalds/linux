@@ -504,13 +504,20 @@ static void fragment_free_space(struct btrfs_block_group *block_group)
 #endif
 
 /*
- * This is only called by btrfs_cache_block_group, since we could have freed
- * extents we need to check the pinned_extents for any extents that can't be
- * used yet since their free space will be released as soon as the transaction
- * commits.
+ * Add a free space range to the in memory free space cache of a block group.
+ * This checks if the range contains super block locations and any such
+ * locations are not added to the free space cache.
+ *
+ * @block_group:      The target block group.
+ * @start:            Start offset of the range.
+ * @end:              End offset of the range (exclusive).
+ * @total_added_ret:  Optional pointer to return the total amount of space
+ *                    added to the block group's free space cache.
+ *
+ * Returns 0 on success or < 0 on error.
  */
-int add_new_free_space(struct btrfs_block_group *block_group, u64 start, u64 end,
-		       u64 *total_added_ret)
+int btrfs_add_new_free_space(struct btrfs_block_group *block_group, u64 start,
+			     u64 end, u64 *total_added_ret)
 {
 	struct btrfs_fs_info *info = block_group->fs_info;
 	u64 extent_start, extent_end, size;
@@ -520,11 +527,10 @@ int add_new_free_space(struct btrfs_block_group *block_group, u64 start, u64 end
 		*total_added_ret = 0;
 
 	while (start < end) {
-		ret = find_first_extent_bit(&info->excluded_extents, start,
-					    &extent_start, &extent_end,
-					    EXTENT_DIRTY | EXTENT_UPTODATE,
-					    NULL);
-		if (ret)
+		if (!find_first_extent_bit(&info->excluded_extents, start,
+					   &extent_start, &extent_end,
+					   EXTENT_DIRTY | EXTENT_UPTODATE,
+					   NULL))
 			break;
 
 		if (extent_start <= start) {
@@ -799,8 +805,8 @@ next:
 		    key.type == BTRFS_METADATA_ITEM_KEY) {
 			u64 space_added;
 
-			ret = add_new_free_space(block_group, last, key.objectid,
-						 &space_added);
+			ret = btrfs_add_new_free_space(block_group, last,
+						       key.objectid, &space_added);
 			if (ret)
 				goto out;
 			total_found += space_added;
@@ -821,12 +827,18 @@ next:
 		path->slots[0]++;
 	}
 
-	ret = add_new_free_space(block_group, last,
-				 block_group->start + block_group->length,
-				 NULL);
+	ret = btrfs_add_new_free_space(block_group, last,
+				       block_group->start + block_group->length,
+				       NULL);
 out:
 	btrfs_free_path(path);
 	return ret;
+}
+
+static inline void btrfs_free_excluded_extents(const struct btrfs_block_group *bg)
+{
+	clear_extent_bits(&bg->fs_info->excluded_extents, bg->start,
+			  bg->start + bg->length - 1, EXTENT_UPTODATE);
 }
 
 static noinline void caching_thread(struct btrfs_work *work)
@@ -2098,8 +2110,9 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 	if (cache->start < BTRFS_SUPER_INFO_OFFSET) {
 		stripe_len = BTRFS_SUPER_INFO_OFFSET - cache->start;
 		cache->bytes_super += stripe_len;
-		ret = btrfs_add_excluded_extent(fs_info, cache->start,
-						stripe_len);
+		ret = set_extent_bit(&fs_info->excluded_extents, cache->start,
+				     cache->start + stripe_len - 1,
+				     EXTENT_UPTODATE, NULL);
 		if (ret)
 			return ret;
 	}
@@ -2125,8 +2138,9 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 				cache->start + cache->length - logical[nr]);
 
 			cache->bytes_super += len;
-			ret = btrfs_add_excluded_extent(fs_info, logical[nr],
-							len);
+			ret = set_extent_bit(&fs_info->excluded_extents, logical[nr],
+					     logical[nr] + len - 1,
+					     EXTENT_UPTODATE, NULL);
 			if (ret) {
 				kfree(logical);
 				return ret;
@@ -2319,8 +2333,8 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 		btrfs_free_excluded_extents(cache);
 	} else if (cache->used == 0) {
 		cache->cached = BTRFS_CACHE_FINISHED;
-		ret = add_new_free_space(cache, cache->start,
-					 cache->start + cache->length, NULL);
+		ret = btrfs_add_new_free_space(cache, cache->start,
+					       cache->start + cache->length, NULL);
 		btrfs_free_excluded_extents(cache);
 		if (ret)
 			goto error;
@@ -2767,7 +2781,7 @@ struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *tran
 		return ERR_PTR(ret);
 	}
 
-	ret = add_new_free_space(cache, chunk_offset, chunk_offset + size, NULL);
+	ret = btrfs_add_new_free_space(cache, chunk_offset, chunk_offset + size, NULL);
 	btrfs_free_excluded_extents(cache);
 	if (ret) {
 		btrfs_put_block_group(cache);
@@ -4075,7 +4089,7 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 
 	if (IS_ERR(ret_bg)) {
 		ret = PTR_ERR(ret_bg);
-	} else if (from_extent_allocation) {
+	} else if (from_extent_allocation && (flags & BTRFS_BLOCK_GROUP_DATA)) {
 		/*
 		 * New block group is likely to be used soon. Try to activate
 		 * it now. Failure is OK for now.
@@ -4272,6 +4286,17 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 	struct btrfs_space_info *space_info;
 	struct btrfs_caching_control *caching_ctl;
 	struct rb_node *n;
+
+	if (btrfs_is_zoned(info)) {
+		if (info->active_meta_bg) {
+			btrfs_put_block_group(info->active_meta_bg);
+			info->active_meta_bg = NULL;
+		}
+		if (info->active_system_bg) {
+			btrfs_put_block_group(info->active_system_bg);
+			info->active_system_bg = NULL;
+		}
+	}
 
 	write_lock(&info->block_group_cache_lock);
 	while (!list_empty(&info->caching_block_groups)) {

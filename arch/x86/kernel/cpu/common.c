@@ -59,7 +59,6 @@
 #include <asm/cacheinfo.h>
 #include <asm/memtype.h>
 #include <asm/microcode.h>
-#include <asm/microcode_intel.h>
 #include <asm/intel-family.h>
 #include <asm/cpu_device_id.h>
 #include <asm/uv/uv.h>
@@ -2300,8 +2299,7 @@ void store_cpu_caps(struct cpuinfo_x86 *curr_info)
  * @prev_info:	CPU capabilities stored before an update.
  *
  * The microcode loader calls this upon late microcode load to recheck features,
- * only when microcode has been updated. Caller holds microcode_mutex and CPU
- * hotplug lock.
+ * only when microcode has been updated. Caller holds and CPU hotplug lock.
  *
  * Return: None
  */
@@ -2343,7 +2341,7 @@ void __init arch_cpu_finalize_init(void)
 	 * identify_boot_cpu() initialized SMT support information, let the
 	 * core code know.
 	 */
-	cpu_smt_check_topology();
+	cpu_smt_set_num_threads(smp_num_siblings, smp_num_siblings);
 
 	if (!IS_ENABLED(CONFIG_SMP)) {
 		pr_info("CPU: ");

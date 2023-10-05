@@ -75,14 +75,14 @@ struct user_event_mm;
  * Task state bitmask. NOTE! These bits are also
  * encoded in fs/proc/array.c: get_task_state().
  *
- * We have two separate sets of flags: task->state
+ * We have two separate sets of flags: task->__state
  * is about runnability, while task->exit_state are
  * about the task exiting. Confusing, but this way
  * modifying one set can't modify the other one by
  * mistake.
  */
 
-/* Used in tsk->state: */
+/* Used in tsk->__state: */
 #define TASK_RUNNING			0x00000000
 #define TASK_INTERRUPTIBLE		0x00000001
 #define TASK_UNINTERRUPTIBLE		0x00000002
@@ -92,7 +92,7 @@ struct user_event_mm;
 #define EXIT_DEAD			0x00000010
 #define EXIT_ZOMBIE			0x00000020
 #define EXIT_TRACE			(EXIT_ZOMBIE | EXIT_DEAD)
-/* Used in tsk->state again: */
+/* Used in tsk->__state again: */
 #define TASK_PARKED			0x00000040
 #define TASK_DEAD			0x00000080
 #define TASK_WAKEKILL			0x00000100
@@ -173,7 +173,7 @@ struct user_event_mm;
 #endif
 
 /*
- * set_current_state() includes a barrier so that the write of current->state
+ * set_current_state() includes a barrier so that the write of current->__state
  * is correctly serialised wrt the caller's subsequent test of whether to
  * actually sleep:
  *
@@ -196,9 +196,9 @@ struct user_event_mm;
  *   wake_up_state(p, TASK_UNINTERRUPTIBLE);
  *
  * where wake_up_state()/try_to_wake_up() executes a full memory barrier before
- * accessing p->state.
+ * accessing p->__state.
  *
- * Wakeup will do: if (@state & p->state) p->state = TASK_RUNNING, that is,
+ * Wakeup will do: if (@state & p->__state) p->__state = TASK_RUNNING, that is,
  * once it observes the TASK_UNINTERRUPTIBLE store the waking CPU can issue a
  * TASK_RUNNING store which can collide with __set_current_state(TASK_RUNNING).
  *
@@ -549,13 +549,18 @@ struct sched_entity {
 	/* For load-balancing: */
 	struct load_weight		load;
 	struct rb_node			run_node;
+	u64				deadline;
+	u64				min_deadline;
+
 	struct list_head		group_node;
 	unsigned int			on_rq;
 
 	u64				exec_start;
 	u64				sum_exec_runtime;
-	u64				vruntime;
 	u64				prev_sum_exec_runtime;
+	u64				vruntime;
+	s64				vlag;
+	u64				slice;
 
 	u64				nr_migrations;
 
@@ -2433,9 +2438,11 @@ extern void sched_core_free(struct task_struct *tsk);
 extern void sched_core_fork(struct task_struct *p);
 extern int sched_core_share_pid(unsigned int cmd, pid_t pid, enum pid_type type,
 				unsigned long uaddr);
+extern int sched_core_idle_cpu(int cpu);
 #else
 static inline void sched_core_free(struct task_struct *tsk) { }
 static inline void sched_core_fork(struct task_struct *p) { }
+static inline int sched_core_idle_cpu(int cpu) { return idle_cpu(cpu); }
 #endif
 
 extern void sched_set_stop_task(int cpu, struct task_struct *stop);

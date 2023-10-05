@@ -21,11 +21,6 @@
 
 static const struct crypto_type crypto_sig_type;
 
-static inline struct crypto_sig *__crypto_sig_tfm(struct crypto_tfm *tfm)
-{
-	return container_of(tfm, struct crypto_sig, base);
-}
-
 static int crypto_sig_init_tfm(struct crypto_tfm *tfm)
 {
 	if (tfm->__crt_alg->cra_type != &crypto_sig_type)
