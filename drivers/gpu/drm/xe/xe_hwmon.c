@@ -585,6 +585,13 @@ xe_hwmon_get_preregistration_info(struct xe_device *xe)
 		xe_hwmon_energy_get(hwmon, &energy);
 }
 
+static void xe_hwmon_mutex_destroy(void *arg)
+{
+	struct xe_hwmon *hwmon = arg;
+
+	mutex_destroy(&hwmon->hwmon_lock);
+}
+
 void xe_hwmon_register(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
@@ -600,7 +607,9 @@ void xe_hwmon_register(struct xe_device *xe)
 
 	xe->hwmon = hwmon;
 
-	drmm_mutex_init(&xe->drm, &hwmon->hwmon_lock);
+	mutex_init(&hwmon->hwmon_lock);
+	if (devm_add_action_or_reset(dev, xe_hwmon_mutex_destroy, hwmon))
+		return;
 
 	/* primary GT to access device level properties */
 	hwmon->gt = xe->tiles[0].primary_gt;
