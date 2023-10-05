@@ -318,26 +318,28 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 
 static void xe_mmio_probe_tiles(struct xe_device *xe)
 {
+	u8 adj_tile_count = xe->info.tile_count;
 	struct xe_gt *gt = xe_root_mmio_gt(xe);
 	u32 mtcfg;
-	u8 adj_tile_count;
 	u8 id;
 
 	if (xe->info.tile_count == 1)
 		return;
 
-	mtcfg = xe_mmio_read64_2x32(gt, XEHP_MTCFG_ADDR);
-	adj_tile_count = xe->info.tile_count =
-		REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
+	if (!xe->info.bypass_mtcfg) {
+		mtcfg = xe_mmio_read64_2x32(gt, XEHP_MTCFG_ADDR);
+		adj_tile_count = xe->info.tile_count =
+			REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
 
-	/*
-	 * FIXME: Needs some work for standalone media, but should be impossible
-	 * with multi-tile for now.
-	 */
-	xe->info.gt_count = xe->info.tile_count;
+		/*
+		 * FIXME: Needs some work for standalone media, but should be impossible
+		 * with multi-tile for now.
+		 */
+		xe->info.gt_count = xe->info.tile_count;
 
-	drm_info(&xe->drm, "tile_count: %d, adj_tile_count %d\n",
-		 xe->info.tile_count, adj_tile_count);
+		drm_info(&xe->drm, "tile_count: %d, adj_tile_count %d\n",
+			 xe->info.tile_count, adj_tile_count);
+	}
 
 	if (xe->info.tile_count > 1) {
 		const int mmio_bar = 0;

@@ -243,6 +243,8 @@ struct xe_device {
 		u8 has_llc:1;
 		/** @has_range_tlb_invalidation: Has range based TLB invalidations */
 		u8 has_range_tlb_invalidation:1;
+		/** @bypass_mtcfg: Bypass Multi-Tile configuration from MTCFG register */
+		u8 bypass_mtcfg:1;
 	} info;
 
 	/** @irq: device interrupt state */
