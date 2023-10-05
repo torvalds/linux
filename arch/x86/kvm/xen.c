@@ -59,7 +59,7 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 		 * This code mirrors kvm_write_wall_clock() except that it writes
 		 * directly through the pfn cache and doesn't mark the page dirty.
 		 */
-		wall_nsec = ktime_get_real_ns() - get_kvmclock_ns(kvm);
+		wall_nsec = kvm_get_wall_clock_epoch(kvm);
 
 		/* It could be invalid again already, so we need to check */
 		read_lock_irq(&gpc->lock);
@@ -98,7 +98,7 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	wc_version = wc->version = (wc->version + 1) | 1;
 	smp_wmb();
 
-	wc->nsec = do_div(wall_nsec,  1000000000);
+	wc->nsec = do_div(wall_nsec, NSEC_PER_SEC);
 	wc->sec = (u32)wall_nsec;
 	*wc_sec_hi = wall_nsec >> 32;
 	smp_wmb();

@@ -2331,14 +2331,9 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock, int sec_hi_o
 	if (kvm_write_guest(kvm, wall_clock, &version, sizeof(version)))
 		return;
 
-	/*
-	 * The guest calculates current wall clock time by adding
-	 * system time (updated by kvm_guest_time_update below) to the
-	 * wall clock specified here.  We do the reverse here.
-	 */
-	wall_nsec = ktime_get_real_ns() - get_kvmclock_ns(kvm);
+	wall_nsec = kvm_get_wall_clock_epoch(kvm);
 
-	wc.nsec = do_div(wall_nsec, 1000000000);
+	wc.nsec = do_div(wall_nsec, NSEC_PER_SEC);
 	wc.sec = (u32)wall_nsec; /* overflow in 2106 guest time */
 	wc.version = version;
 
@@ -3239,6 +3234,82 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		kvm_setup_guest_pvclock(v, &vcpu->xen.vcpu_time_info_cache, 0);
 	kvm_hv_setup_tsc_page(v->kvm, &vcpu->hv_clock);
 	return 0;
+}
+
+/*
+ * The pvclock_wall_clock ABI tells the guest the wall clock time at
+ * which it started (i.e. its epoch, when its kvmclock was zero).
+ *
+ * In fact those clocks are subtly different; wall clock frequency is
+ * adjusted by NTP and has leap seconds, while the kvmclock is a
+ * simple function of the TSC without any such adjustment.
+ *
+ * Perhaps the ABI should have exposed CLOCK_TAI and a ratio between
+ * that and kvmclock, but even that would be subject to change over
+ * time.
+ *
+ * Attempt to calculate the epoch at a given moment using the *same*
+ * TSC reading via kvm_get_walltime_and_clockread() to obtain both
+ * wallclock and kvmclock times, and subtracting one from the other.
+ *
+ * Fall back to using their values at slightly different moments by
+ * calling ktime_get_real_ns() and get_kvmclock_ns() separately.
+ */
+uint64_t kvm_get_wall_clock_epoch(struct kvm *kvm)
+{
+#ifdef CONFIG_X86_64
+	struct pvclock_vcpu_time_info hv_clock;
+	struct kvm_arch *ka = &kvm->arch;
+	unsigned long seq, local_tsc_khz;
+	struct timespec64 ts;
+	uint64_t host_tsc;
+
+	do {
+		seq = read_seqcount_begin(&ka->pvclock_sc);
+
+		local_tsc_khz = 0;
+		if (!ka->use_master_clock)
+			break;
+
+		/*
+		 * The TSC read and the call to get_cpu_tsc_khz() must happen
+		 * on the same CPU.
+		 */
+		get_cpu();
+
+		local_tsc_khz = get_cpu_tsc_khz();
+
+		if (local_tsc_khz &&
+		    !kvm_get_walltime_and_clockread(&ts, &host_tsc))
+			local_tsc_khz = 0; /* Fall back to old method */
+
+		put_cpu();
+
+		/*
+		 * These values must be snapshotted within the seqcount loop.
+		 * After that, it's just mathematics which can happen on any
+		 * CPU at any time.
+		 */
+		hv_clock.tsc_timestamp = ka->master_cycle_now;
+		hv_clock.system_time = ka->master_kernel_ns + ka->kvmclock_offset;
+
+	} while (read_seqcount_retry(&ka->pvclock_sc, seq));
+
+	/*
+	 * If the conditions were right, and obtaining the wallclock+TSC was
+	 * successful, calculate the KVM clock at the corresponding time and
+	 * subtract one from the other to get the guest's epoch in nanoseconds
+	 * since 1970-01-01.
+	 */
+	if (local_tsc_khz) {
+		kvm_get_time_scale(NSEC_PER_SEC, local_tsc_khz * NSEC_PER_USEC,
+				   &hv_clock.tsc_shift,
+				   &hv_clock.tsc_to_system_mul);
+		return ts.tv_nsec + NSEC_PER_SEC * ts.tv_sec -
+			__pvclock_read_cycles(&hv_clock, host_tsc);
+	}
+#endif
+	return ktime_get_real_ns() - get_kvmclock_ns(kvm);
 }
 
 /*
