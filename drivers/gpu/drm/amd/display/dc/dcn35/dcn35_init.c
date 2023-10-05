@@ -120,6 +120,8 @@ static const struct hw_sequencer_funcs dcn35_funcs = {
 	.calc_blocks_to_ungate = dcn35_calc_blocks_to_ungate,
 	.block_power_control = dcn35_block_power_control,
 	.root_clock_control = dcn35_root_clock_control,
+	.set_idle_state = dcn35_set_idle_state,
+	.get_idle_state = dcn35_get_idle_state
 };
 
 static const struct hwseq_private_funcs dcn35_private_funcs = {

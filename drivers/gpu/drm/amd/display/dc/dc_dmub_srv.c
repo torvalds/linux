@@ -1100,31 +1100,80 @@ void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 
 	cmd.idle_opt_notify_idle.cntl_data.driver_idle = allow_idle;
 
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	if (allow_idle) {
+		if (dc->hwss.set_idle_state)
+			dc->hwss.set_idle_state(dc, true);
+	}
 
-	if (allow_idle)
-		udelay(500);
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 {
+	const uint32_t max_num_polls = 10000;
+	uint32_t allow_state = 0;
+	uint32_t commit_state = 0;
+	uint32_t i;
+
 	if (dc->debug.dmcub_emulation)
 		return;
 
 	if (!dc->idle_optimizations_allowed)
 		return;
 
-	// Tell PMFW to exit low power state
-	if (dc->clk_mgr->funcs->exit_low_power_state)
-		dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+	if (dc->hwss.get_idle_state &&
+		dc->hwss.set_idle_state &&
+		dc->clk_mgr->funcs->exit_low_power_state) {
 
-	// Wait for dmcub to load up
-	dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true);
+		allow_state = dc->hwss.get_idle_state(dc);
+		dc->hwss.set_idle_state(dc, false);
 
-	// Notify dmcub disallow idle
-	dc_dmub_srv_notify_idle(dc, false);
+		if (allow_state & DMUB_IPS2_ALLOW_MASK) {
+			// Wait for evaluation time
+			udelay(dc->debug.ips2_eval_delay_us);
+			commit_state = dc->hwss.get_idle_state(dc);
+			if (commit_state & DMUB_IPS2_COMMIT_MASK) {
+				// Tell PMFW to exit low power state
+				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
 
-	// Confirm dmu is powered up
-	dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true);
+				// Wait for IPS2 entry upper bound
+				udelay(dc->debug.ips2_entry_delay_us);
+				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+
+				for (i = 0; i < max_num_polls; ++i) {
+					commit_state = dc->hwss.get_idle_state(dc);
+					if (!(commit_state & DMUB_IPS2_COMMIT_MASK))
+						break;
+
+					udelay(1);
+				}
+				ASSERT(i < max_num_polls);
+
+				if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
+					ASSERT(0);
+
+				/* TODO: See if we can return early here - IPS2 should go
+				 * back directly to IPS0 and clear the flags, but it will
+				 * be safer to directly notify DMCUB of this.
+				 */
+				allow_state = dc->hwss.get_idle_state(dc);
+			}
+		}
+
+		dc_dmub_srv_notify_idle(dc, false);
+		if (allow_state & DMUB_IPS1_ALLOW_MASK) {
+			for (i = 0; i < max_num_polls; ++i) {
+				commit_state = dc->hwss.get_idle_state(dc);
+				if (!(commit_state & DMUB_IPS1_COMMIT_MASK))
+					break;
+
+				udelay(1);
+			}
+			ASSERT(i < max_num_polls);
+		}
+	}
+
+	if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
+		ASSERT(0);
 }
 
