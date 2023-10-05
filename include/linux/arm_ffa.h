@@ -357,6 +357,12 @@ struct ffa_mem_region {
 #define CONSTITUENTS_OFFSET(x)	\
 	(offsetof(struct ffa_composite_mem_region, constituents[x]))
 
+static inline u32
+ffa_mem_desc_offset(struct ffa_mem_region *buf, int count, u32 ffa_version)
+{
+	return COMPOSITE_OFFSET(0);
+}
+
 struct ffa_mem_ops_args {
 	bool use_txbuf;
 	u32 nattrs;
