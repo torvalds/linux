@@ -61,13 +61,6 @@ struct path *backing_file_real_path(struct file *f)
 }
 EXPORT_SYMBOL_GPL(backing_file_real_path);
 
-static void file_free_rcu(struct rcu_head *head)
-{
-	struct file *f = container_of(head, struct file, f_rcuhead);
-
-	kfree(backing_file(f));
-}
-
 static inline void file_free(struct file *f)
 {
 	security_file_free(f);
@@ -76,7 +69,7 @@ static inline void file_free(struct file *f)
 	put_cred(f->f_cred);
 	if (unlikely(f->f_mode & FMODE_BACKING)) {
 		path_put(backing_file_real_path(f));
-		call_rcu(&f->f_rcuhead, file_free_rcu);
+		kfree(backing_file(f));
 	} else {
 		kmem_cache_free(filp_cachep, f);
 	}

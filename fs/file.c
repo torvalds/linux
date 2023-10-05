@@ -604,6 +604,9 @@ void fd_install(unsigned int fd, struct file *file)
 	struct files_struct *files = current->files;
 	struct fdtable *fdt;
 
+	if (WARN_ON_ONCE(unlikely(file->f_mode & FMODE_BACKING)))
+		return;
+
 	rcu_read_lock_sched();
 
 	if (unlikely(files->resize_in_progress)) {
