@@ -318,50 +318,56 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 
 static void xe_mmio_probe_tiles(struct xe_device *xe)
 {
-	u8 adj_tile_count = xe->info.tile_count;
+	size_t tile_mmio_size = SZ_16M, tile_mmio_ext_size = xe->info.tile_mmio_ext_size;
+	u8 id, tile_count = xe->info.tile_count;
 	struct xe_gt *gt = xe_root_mmio_gt(xe);
+	const int mmio_bar = 0;
+	struct xe_tile *tile;
+	void *regs;
 	u32 mtcfg;
-	u8 id;
 
-	if (xe->info.tile_count == 1)
-		return;
+	if (tile_count == 1)
+		goto add_mmio_ext;
 
 	if (!xe->info.bypass_mtcfg) {
 		mtcfg = xe_mmio_read64_2x32(gt, XEHP_MTCFG_ADDR);
-		adj_tile_count = xe->info.tile_count =
-			REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
+		tile_count = REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
+		if (tile_count < xe->info.tile_count) {
+			drm_info(&xe->drm, "tile_count: %d, reduced_tile_count %d\n",
+					xe->info.tile_count, tile_count);
+			pci_iounmap(to_pci_dev(xe->drm.dev), xe->mmio.regs);
+			xe->mmio.size = (tile_mmio_size + tile_mmio_ext_size) * tile_count;
+			xe->mmio.regs = pci_iomap(to_pci_dev(xe->drm.dev), mmio_bar, xe->mmio.size);
+			xe->info.tile_count = tile_count;
 
-		/*
-		 * FIXME: Needs some work for standalone media, but should be impossible
-		 * with multi-tile for now.
-		 */
-		xe->info.gt_count = xe->info.tile_count;
-
-		drm_info(&xe->drm, "tile_count: %d, adj_tile_count %d\n",
-			 xe->info.tile_count, adj_tile_count);
+			/*
+			 * FIXME: Needs some work for standalone media, but should be impossible
+			 * with multi-tile for now.
+			 */
+			xe->info.gt_count = xe->info.tile_count;
+		}
 	}
 
-	if (xe->info.tile_count > 1) {
-		const int mmio_bar = 0;
-		struct xe_tile *tile;
-		size_t size;
-		void *regs;
+	regs = xe->mmio.regs;
+	for_each_tile(tile, xe, id) {
+		tile->mmio.size = tile_mmio_size;
+		tile->mmio.regs = regs;
+		regs += tile_mmio_size;
+	}
 
-		if (adj_tile_count > 1) {
-			pci_iounmap(to_pci_dev(xe->drm.dev), xe->mmio.regs);
-			xe->mmio.size = SZ_16M * adj_tile_count;
-			xe->mmio.regs = pci_iomap(to_pci_dev(xe->drm.dev),
-						  mmio_bar, xe->mmio.size);
-		}
-
-		size = xe->mmio.size / adj_tile_count;
-		regs = xe->mmio.regs;
+add_mmio_ext:
+	/* By design, there's a contiguous multi-tile MMIO space (16MB hard coded per tile).
+	 * When supported, there could be an additional contiguous multi-tile MMIO extension
+	 * space ON TOP of it, and hence the necessity for distinguished MMIO spaces.
+	 */
+	if (xe->info.supports_mmio_ext) {
+		regs = xe->mmio.regs + tile_mmio_size * tile_count;
 
 		for_each_tile(tile, xe, id) {
-			tile->mmio.size = size;
-			tile->mmio.regs = regs;
+			tile->mmio_ext.size = tile_mmio_ext_size;
+			tile->mmio_ext.regs = regs;
 
-			regs += size;
+			regs += tile_mmio_ext_size;
 		}
 	}
 }
