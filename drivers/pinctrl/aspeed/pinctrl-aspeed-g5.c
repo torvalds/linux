@@ -2742,15 +2742,20 @@ static int aspeed_g5_sig_expr_set(struct aspeed_pinmux_data *ctx,
 		 * deconfigured and is the reason we re-evaluate after writing
 		 * all descriptor bits.
 		 *
-		 * Port D and port E GPIO loopback modes are the only exception
-		 * as those are commonly used with front-panel buttons to allow
-		 * normal operation of the host when the BMC is powered off or
-		 * fails to boot. Once the BMC has booted, the loopback mode
-		 * must be disabled for the BMC to control host power-on and
-		 * reset.
+		 * We make two exceptions to the read-only rule:
+		 *
+		 * - The passthrough mode of GPIO ports D and E are commonly
+		 *   used with front-panel buttons to allow normal operation
+		 *   of the host if the BMC is powered off or fails to boot.
+		 *   Once the BMC has booted, the loopback mode must be
+		 *   disabled for the BMC to control host power-on and reset.
+		 *
+		 * - The operating mode of the SPI1 interface is simply
+		 *   strapped incorrectly on some systems and requires a
+		 *   software fixup, which we allow to be done via pinctrl.
 		 */
 		if (desc->ip == ASPEED_IP_SCU && desc->reg == HW_STRAP1 &&
-		    !(desc->mask & (BIT(21) | BIT(22))))
+		    !(desc->mask & (BIT(22) | BIT(21) | BIT(13) | BIT(12))))
 			continue;
 
 		if (desc->ip == ASPEED_IP_SCU && desc->reg == HW_STRAP2)
