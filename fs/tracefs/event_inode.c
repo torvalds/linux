@@ -901,22 +901,17 @@ void eventfs_remove_dir(struct eventfs_inode *ei)
 }
 
 /**
- * eventfs_remove_events_dir - remove eventfs dir or file from list
- * @dentry: events's dentry to be removed.
+ * eventfs_remove_events_dir - remove the top level eventfs directory
+ * @ei: the event_inode returned by eventfs_create_events_dir().
  *
- * This function remove events main directory
+ * This function removes the events main directory
  */
-void eventfs_remove_events_dir(struct dentry *dentry)
+void eventfs_remove_events_dir(struct eventfs_inode *ei)
 {
-	struct tracefs_inode *ti;
+	struct dentry *dentry = ei->dentry;
 
-	if (!dentry || !dentry->d_inode)
-		return;
+	eventfs_remove_dir(ei);
 
-	ti = get_tracefs(dentry->d_inode);
-	if (!ti || !(ti->flags & TRACEFS_EVENT_INODE))
-		return;
-
-	d_invalidate(dentry);
+	/* Matches the dget() from eventfs_create_events_dir() */
 	dput(dentry);
 }
