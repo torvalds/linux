@@ -27,11 +27,13 @@
 #include <linux/bitfield.h>
 #include <linux/cpuhotplug.h>
 #include <linux/device.h>
+#include <linux/hashtable.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/mutex.h>
 #include <linux/of_irq.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -56,6 +58,8 @@
  * 64K may be preferred to keep it min a page in 64K PAGE_SIZE config
  */
 #define RXTX_BUFFER_SIZE	SZ_4K
+
+#define FFA_MAX_NOTIFICATIONS		64
 
 static ffa_fn *invoke_ffa_fn;
 
@@ -102,6 +106,8 @@ struct ffa_drv_info {
 	struct work_struct irq_work;
 	struct xarray partition_info;
 	unsigned int partition_count;
+	DECLARE_HASHTABLE(notifier_hash, ilog2(FFA_MAX_NOTIFICATIONS));
+	struct mutex notify_lock; /* lock to protect notifier hashtable  */
 };
 
 static struct ffa_drv_info *drv_info;
@@ -626,6 +632,8 @@ static int ffa_notification_bitmap_destroy(void)
 #define MAX_IDS_64				20
 #define MAX_IDS_32				10
 
+#define PER_VCPU_NOTIFICATION_FLAG		BIT(0)
+
 static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
 					u32 flags, bool is_bind)
 {
@@ -865,6 +873,21 @@ static int ffa_memory_lend(struct ffa_mem_ops_args *args)
 	return ffa_memory_ops(FFA_MEM_LEND, args);
 }
 
+#define FFA_SECURE_PARTITION_ID_FLAG	BIT(15)
+
+enum notify_type {
+	NON_SECURE_VM,
+	SECURE_PARTITION,
+	FRAMEWORK,
+};
+
+struct notifier_cb_info {
+	struct hlist_node hnode;
+	ffa_notifier_cb cb;
+	void *cb_data;
+	enum notify_type type;
+};
+
 static int ffa_sched_recv_cb_update(u16 part_id, ffa_sched_recv_cb callback,
 				    void *cb_data, bool is_registration)
 {
@@ -898,6 +921,123 @@ static int ffa_sched_recv_cb_unregister(struct ffa_device *dev)
 	return ffa_sched_recv_cb_update(dev->vm_id, NULL, NULL, false);
 }
 
+static int ffa_notification_bind(u16 dst_id, u64 bitmap, u32 flags)
+{
+	return ffa_notification_bind_common(dst_id, bitmap, flags, true);
+}
+
+static int ffa_notification_unbind(u16 dst_id, u64 bitmap)
+{
+	return ffa_notification_bind_common(dst_id, bitmap, 0, false);
+}
+
+/* Should be called while the notify_lock is taken */
+static struct notifier_cb_info *
+notifier_hash_node_get(u16 notify_id, enum notify_type type)
+{
+	struct notifier_cb_info *node;
+
+	hash_for_each_possible(drv_info->notifier_hash, node, hnode, notify_id)
+		if (type == node->type)
+			return node;
+
+	return NULL;
+}
+
+static int
+update_notifier_cb(int notify_id, enum notify_type type, ffa_notifier_cb cb,
+		   void *cb_data, bool is_registration)
+{
+	struct notifier_cb_info *cb_info = NULL;
+	bool cb_found;
+
+	cb_info = notifier_hash_node_get(notify_id, type);
+	cb_found = !!cb_info;
+
+	if (!(is_registration ^ cb_found))
+		return -EINVAL;
+
+	if (is_registration) {
+		cb_info = kzalloc(sizeof(*cb_info), GFP_KERNEL);
+		if (!cb_info)
+			return -ENOMEM;
+
+		cb_info->type = type;
+		cb_info->cb = cb;
+		cb_info->cb_data = cb_data;
+
+		hash_add(drv_info->notifier_hash, &cb_info->hnode, notify_id);
+	} else {
+		hash_del(&cb_info->hnode);
+	}
+
+	return 0;
+}
+
+static enum notify_type ffa_notify_type_get(u16 vm_id)
+{
+	if (vm_id & FFA_SECURE_PARTITION_ID_FLAG)
+		return SECURE_PARTITION;
+	else
+		return NON_SECURE_VM;
+}
+
+static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id)
+{
+	int rc;
+	enum notify_type type = ffa_notify_type_get(dev->vm_id);
+
+	if (notify_id >= FFA_MAX_NOTIFICATIONS)
+		return -EINVAL;
+
+	mutex_lock(&drv_info->notify_lock);
+
+	rc = update_notifier_cb(notify_id, type, NULL, NULL, false);
+	if (rc) {
+		pr_err("Could not unregister notification callback\n");
+		mutex_unlock(&drv_info->notify_lock);
+		return rc;
+	}
+
+	rc = ffa_notification_unbind(dev->vm_id, BIT(notify_id));
+
+	mutex_unlock(&drv_info->notify_lock);
+
+	return rc;
+}
+
+static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
+			      ffa_notifier_cb cb, void *cb_data, int notify_id)
+{
+	int rc;
+	u32 flags = 0;
+	enum notify_type type = ffa_notify_type_get(dev->vm_id);
+
+	if (notify_id >= FFA_MAX_NOTIFICATIONS)
+		return -EINVAL;
+
+	mutex_lock(&drv_info->notify_lock);
+
+	if (is_per_vcpu)
+		flags = PER_VCPU_NOTIFICATION_FLAG;
+
+	rc = ffa_notification_bind(dev->vm_id, BIT(notify_id), flags);
+	if (rc) {
+		mutex_unlock(&drv_info->notify_lock);
+		return rc;
+	}
+
+	rc = update_notifier_cb(notify_id, type, cb, cb_data, true);
+	if (rc) {
+		pr_err("Failed to register callback for %d - %d\n",
+		       notify_id, rc);
+		ffa_notification_unbind(dev->vm_id, BIT(notify_id));
+	}
+	mutex_unlock(&drv_info->notify_lock);
+
+	return rc;
+}
+
 static const struct ffa_info_ops ffa_drv_info_ops = {
 	.api_version_get = ffa_api_version_get,
 	.partition_info_get = ffa_partition_info_get,
@@ -921,6 +1061,8 @@ static const struct ffa_cpu_ops ffa_drv_cpu_ops = {
 static const struct ffa_notifier_ops ffa_drv_notifier_ops = {
 	.sched_recv_cb_register = ffa_sched_recv_cb_register,
 	.sched_recv_cb_unregister = ffa_sched_recv_cb_unregister,
+	.notify_request = ffa_notify_request,
+	.notify_relinquish = ffa_notify_relinquish,
 };
 
 static const struct ffa_ops ffa_drv_ops = {
@@ -1193,6 +1335,9 @@ static int ffa_notifications_setup(void)
 	ret = ffa_init_pcpu_irq(irq);
 	if (ret)
 		goto cleanup;
+
+	hash_init(drv_info->notifier_hash);
+	mutex_init(&drv_info->notify_lock);
 
 	return 0;
 cleanup:
