@@ -805,4 +805,18 @@
 		output-high;
 		line-name = "i2c4-o-en";
 	};
+
+	ocp-aux-pwren-hog {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(R, 3) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "ocp-aux-pwren";
+	};
+
+	bmc-ready {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(AC, 5) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "bmc-ready";
+	};
 };
