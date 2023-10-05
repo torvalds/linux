@@ -121,8 +121,8 @@ static int mlx5_dpll_device_lock_status_get(const struct dpll_device *dpll,
 }
 
 static int mlx5_dpll_device_mode_get(const struct dpll_device *dpll,
-				     void *priv,
-				     u32 *mode, struct netlink_ext_ack *extack)
+				     void *priv, enum dpll_mode *mode,
+				     struct netlink_ext_ack *extack)
 {
 	*mode = DPLL_MODE_MANUAL;
 	return 0;
