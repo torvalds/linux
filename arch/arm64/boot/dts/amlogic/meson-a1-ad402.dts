@@ -103,6 +103,8 @@
 
 &spifc {
 	status = "okay";
+	pinctrl-0 = <&spifc_pins>;
+	pinctrl-names = "default";
 
 	spi_nand@0 {
 		compatible = "spi-nand";
