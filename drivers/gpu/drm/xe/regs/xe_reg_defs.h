@@ -19,7 +19,7 @@ struct xe_reg {
 	union {
 		struct {
 			/** @addr: address */
-			u32 addr:22;
+			u32 addr:28;
 			/**
 			 * @masked: register is "masked", with upper 16bits used
 			 * to identify the bits that are updated on the lower
@@ -35,6 +35,10 @@ struct xe_reg {
 			 * value can inspect it.
 			 */
 			u32 mcr:1;
+			/**
+			 * @ext: access MMIO extension space for current register.
+			 */
+			u32 ext:1;
 		};
 		/** @raw: Raw value with both address and options */
 		u32 raw;
@@ -83,6 +87,16 @@ struct xe_reg_mcr {
  *       options.
  */
 #define XE_REG(r_, ...)		((const struct xe_reg)XE_REG_INITIALIZER(r_, ##__VA_ARGS__))
+
+/**
+ * XE_REG_EXT - Create a struct xe_reg from extension offset and additional
+ * flags
+ * @r_: Register extension offset
+ * @...: Additional options like access mode. See struct xe_reg for available
+ *       options.
+ */
+#define XE_REG_EXT(r_, ...)	\
+	((const struct xe_reg)XE_REG_INITIALIZER(r_, ##__VA_ARGS__, .ext = 1))
 
 /**
  * XE_REG_MCR - Create a struct xe_reg_mcr from offset and additional flags
