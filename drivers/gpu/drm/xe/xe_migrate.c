@@ -114,8 +114,13 @@ static u64 xe_migrate_vm_addr(u64 slot, u32 level)
 	return (slot + 1ULL) << xe_pt_shift(level + 1);
 }
 
-static u64 xe_migrate_vram_ofs(u64 addr)
+static u64 xe_migrate_vram_ofs(struct xe_device *xe, u64 addr)
 {
+	/*
+	 * Remove the DPA to get a correct offset into identity table for the
+	 * migrate offset
+	 */
+	addr -= xe->mem.vram.dpa_base;
 	return addr + (256ULL << xe_pt_shift(2));
 }
 
@@ -149,7 +154,7 @@ static int xe_migrate_create_cleared_bo(struct xe_migrate *m, struct xe_vm *vm)
 
 	xe_map_memset(xe, &m->cleared_bo->vmap, 0, 0x00, cleared_size);
 	vram_addr = xe_bo_addr(m->cleared_bo, 0, XE_PAGE_SIZE);
-	m->cleared_vram_ofs = xe_migrate_vram_ofs(vram_addr);
+	m->cleared_vram_ofs = xe_migrate_vram_ofs(xe, vram_addr);
 
 	return 0;
 }
@@ -225,12 +230,12 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	} else {
 		u64 batch_addr = xe_bo_addr(batch, 0, XE_PAGE_SIZE);
 
-		m->batch_base_ofs = xe_migrate_vram_ofs(batch_addr);
+		m->batch_base_ofs = xe_migrate_vram_ofs(xe, batch_addr);
 
 		if (xe->info.supports_usm) {
 			batch = tile->primary_gt->usm.bb_pool->bo;
 			batch_addr = xe_bo_addr(batch, 0, XE_PAGE_SIZE);
-			m->usm_batch_base_ofs = xe_migrate_vram_ofs(batch_addr);
+			m->usm_batch_base_ofs = xe_migrate_vram_ofs(xe, batch_addr);
 		}
 	}
 
@@ -268,7 +273,9 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		 * Use 1GB pages, it shouldn't matter the physical amount of
 		 * vram is less, when we don't access it.
 		 */
-		for (pos = 0; pos < xe->mem.vram.actual_physical_size; pos += SZ_1G, ofs += 8)
+		for (pos = xe->mem.vram.dpa_base;
+		     pos < xe->mem.vram.actual_physical_size + xe->mem.vram.dpa_base;
+		     pos += SZ_1G, ofs += 8)
 			xe_map_wr(xe, &bo->vmap, ofs, u64, pos | flags);
 	}
 
@@ -443,8 +450,8 @@ static u32 pte_update_size(struct xe_migrate *m,
 		cmds += cmd_size;
 	} else {
 		/* Offset into identity map. */
-		*L0_ofs = xe_migrate_vram_ofs(cur->start +
-					      vram_region_gpu_offset(res));
+		*L0_ofs = xe_migrate_vram_ofs(tile_to_xe(m->tile),
+					      cur->start + vram_region_gpu_offset(res));
 		cmds += cmd_size;
 	}
 
@@ -1060,10 +1067,10 @@ static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 	 * pages are used. Hence the assert.
 	 */
 	xe_tile_assert(tile, update->qwords <= 0x1ff);
-	if (!ppgtt_ofs) {
-		ppgtt_ofs = xe_migrate_vram_ofs(xe_bo_addr(update->pt_bo, 0,
+	if (!ppgtt_ofs)
+		ppgtt_ofs = xe_migrate_vram_ofs(tile_to_xe(tile),
+						xe_bo_addr(update->pt_bo, 0,
 							   XE_PAGE_SIZE));
-	}
 
 	do {
 		u64 addr = ppgtt_ofs + ofs * 8;
