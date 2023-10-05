@@ -339,7 +339,6 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	spin_lock_init(&ctx->completion_lock);
 	spin_lock_init(&ctx->timeout_lock);
 	INIT_WQ_LIST(&ctx->iopoll_list);
-	INIT_LIST_HEAD(&ctx->io_buffers_pages);
 	INIT_LIST_HEAD(&ctx->io_buffers_comp);
 	INIT_LIST_HEAD(&ctx->defer_list);
 	INIT_LIST_HEAD(&ctx->timeout_list);
@@ -4720,6 +4719,9 @@ static int __init io_uring_init(void)
 				SLAB_ACCOUNT | SLAB_TYPESAFE_BY_RCU,
 				offsetof(struct io_kiocb, cmd.data),
 				sizeof_field(struct io_kiocb, cmd.data), NULL);
+	io_buf_cachep = kmem_cache_create("io_buffer", sizeof(struct io_buffer), 0,
+					  SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT,
+					  NULL);
 
 #ifdef CONFIG_SYSCTL
 	register_sysctl_init("kernel", kernel_io_uring_disabled_table);
