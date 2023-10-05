@@ -7,8 +7,8 @@
 #include "iavf_trace.h"
 #include "iavf_prototype.h"
 
-static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
-				u32 td_tag)
+static __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
+			 u32 td_tag)
 {
 	return cpu_to_le64(IAVF_TX_DESC_DTYPE_DATA |
 			   ((u64)td_cmd  << IAVF_TXD_QW1_CMD_SHIFT) |
@@ -370,8 +370,8 @@ static void iavf_enable_wb_on_itr(struct iavf_vsi *vsi,
 	q_vector->arm_wb_state = true;
 }
 
-static inline bool iavf_container_is_rx(struct iavf_q_vector *q_vector,
-					struct iavf_ring_container *rc)
+static bool iavf_container_is_rx(struct iavf_q_vector *q_vector,
+				 struct iavf_ring_container *rc)
 {
 	return &q_vector->rx == rc;
 }
@@ -806,7 +806,7 @@ err:
  * @rx_ring: ring to bump
  * @val: new head index
  **/
-static inline void iavf_release_rx_desc(struct iavf_ring *rx_ring, u32 val)
+static void iavf_release_rx_desc(struct iavf_ring *rx_ring, u32 val)
 {
 	rx_ring->next_to_use = val;
 
@@ -828,7 +828,7 @@ static inline void iavf_release_rx_desc(struct iavf_ring *rx_ring, u32 val)
  *
  * Returns the offset value for ring into the data buffer.
  */
-static inline unsigned int iavf_rx_offset(struct iavf_ring *rx_ring)
+static unsigned int iavf_rx_offset(struct iavf_ring *rx_ring)
 {
 	return ring_uses_build_skb(rx_ring) ? IAVF_SKB_PAD : 0;
 }
@@ -977,9 +977,9 @@ no_buffers:
  * @skb: skb currently being received and modified
  * @rx_desc: the receive descriptor
  **/
-static inline void iavf_rx_checksum(struct iavf_vsi *vsi,
-				    struct sk_buff *skb,
-				    union iavf_rx_desc *rx_desc)
+static void iavf_rx_checksum(struct iavf_vsi *vsi,
+			     struct sk_buff *skb,
+			     union iavf_rx_desc *rx_desc)
 {
 	struct iavf_rx_ptype_decoded decoded;
 	u32 rx_error, rx_status;
@@ -1061,7 +1061,7 @@ checksum_fail:
  *
  * Returns a hash type to be used by skb_set_hash
  **/
-static inline int iavf_ptype_to_htype(u8 ptype)
+static int iavf_ptype_to_htype(u8 ptype)
 {
 	struct iavf_rx_ptype_decoded decoded = decode_rx_desc_ptype(ptype);
 
@@ -1085,10 +1085,10 @@ static inline int iavf_ptype_to_htype(u8 ptype)
  * @skb: skb currently being received and modified
  * @rx_ptype: Rx packet type
  **/
-static inline void iavf_rx_hash(struct iavf_ring *ring,
-				union iavf_rx_desc *rx_desc,
-				struct sk_buff *skb,
-				u8 rx_ptype)
+static void iavf_rx_hash(struct iavf_ring *ring,
+			 union iavf_rx_desc *rx_desc,
+			 struct sk_buff *skb,
+			 u8 rx_ptype)
 {
 	u32 hash;
 	const __le64 rss_mask =
@@ -1115,10 +1115,10 @@ static inline void iavf_rx_hash(struct iavf_ring *ring,
  * order to populate the hash, checksum, VLAN, protocol, and
  * other fields within the skb.
  **/
-static inline
-void iavf_process_skb_fields(struct iavf_ring *rx_ring,
-			     union iavf_rx_desc *rx_desc, struct sk_buff *skb,
-			     u8 rx_ptype)
+static void
+iavf_process_skb_fields(struct iavf_ring *rx_ring,
+			union iavf_rx_desc *rx_desc, struct sk_buff *skb,
+			u8 rx_ptype)
 {
 	iavf_rx_hash(rx_ring, rx_desc, skb, rx_ptype);
 
@@ -1662,8 +1662,8 @@ static inline u32 iavf_buildreg_itr(const int type, u16 itr)
  * @q_vector: q_vector for which itr is being updated and interrupt enabled
  *
  **/
-static inline void iavf_update_enable_itr(struct iavf_vsi *vsi,
-					  struct iavf_q_vector *q_vector)
+static void iavf_update_enable_itr(struct iavf_vsi *vsi,
+				   struct iavf_q_vector *q_vector)
 {
 	struct iavf_hw *hw = &vsi->back->hw;
 	u32 intval;
@@ -2275,9 +2275,9 @@ int __iavf_maybe_stop_tx(struct iavf_ring *tx_ring, int size)
  * @td_cmd:   the command field in the descriptor
  * @td_offset: offset for checksum or crc
  **/
-static inline void iavf_tx_map(struct iavf_ring *tx_ring, struct sk_buff *skb,
-			       struct iavf_tx_buffer *first, u32 tx_flags,
-			       const u8 hdr_len, u32 td_cmd, u32 td_offset)
+static void iavf_tx_map(struct iavf_ring *tx_ring, struct sk_buff *skb,
+			struct iavf_tx_buffer *first, u32 tx_flags,
+			const u8 hdr_len, u32 td_cmd, u32 td_offset)
 {
 	unsigned int data_len = skb->data_len;
 	unsigned int size = skb_headlen(skb);
