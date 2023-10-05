@@ -29,7 +29,7 @@ static inline u8 xe_mmio_read8(struct xe_gt *gt, struct xe_reg reg)
 	if (reg.addr < gt->mmio.adj_limit)
 		reg.addr += gt->mmio.adj_offset;
 
-	return readb(tile->mmio.regs + reg.addr);
+	return readb((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + reg.addr);
 }
 
 static inline u16 xe_mmio_read16(struct xe_gt *gt, struct xe_reg reg)
@@ -39,7 +39,7 @@ static inline u16 xe_mmio_read16(struct xe_gt *gt, struct xe_reg reg)
 	if (reg.addr < gt->mmio.adj_limit)
 		reg.addr += gt->mmio.adj_offset;
 
-	return readw(tile->mmio.regs + reg.addr);
+	return readw((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + reg.addr);
 }
 
 static inline void xe_mmio_write32(struct xe_gt *gt,
@@ -50,7 +50,7 @@ static inline void xe_mmio_write32(struct xe_gt *gt,
 	if (reg.addr < gt->mmio.adj_limit)
 		reg.addr += gt->mmio.adj_offset;
 
-	writel(val, tile->mmio.regs + reg.addr);
+	writel(val, (reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + reg.addr);
 }
 
 static inline u32 xe_mmio_read32(struct xe_gt *gt, struct xe_reg reg)
@@ -60,7 +60,7 @@ static inline u32 xe_mmio_read32(struct xe_gt *gt, struct xe_reg reg)
 	if (reg.addr < gt->mmio.adj_limit)
 		reg.addr += gt->mmio.adj_offset;
 
-	return readl(tile->mmio.regs + reg.addr);
+	return readl((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + reg.addr);
 }
 
 static inline u32 xe_mmio_rmw32(struct xe_gt *gt, struct xe_reg reg, u32 clr,
