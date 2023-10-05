@@ -454,8 +454,10 @@ ffa_setup_and_transmit(u32 func_id, void *buffer, u32 max_fragsize,
 	mem_region->flags = args->flags;
 	mem_region->sender_id = drv_info->vm_id;
 	mem_region->attributes = ffa_memory_attributes_get(func_id);
-	ep_mem_access = buffer + COMPOSITE_OFFSET(0);
-	composite_offset = COMPOSITE_OFFSET(args->nattrs);
+	ep_mem_access = buffer +
+			ffa_mem_desc_offset(buffer, 0, drv_info->version);
+	composite_offset = ffa_mem_desc_offset(buffer, args->nattrs,
+					       drv_info->version);
 
 	for (idx = 0; idx < args->nattrs; idx++, ep_mem_access++) {
 		ep_mem_access->receiver = args->attrs[idx].receiver;
