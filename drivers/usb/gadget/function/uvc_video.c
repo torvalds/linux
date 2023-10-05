@@ -259,12 +259,6 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 	struct uvc_device *uvc = video->uvc;
 	unsigned long flags;
 
-	if (uvc->state == UVC_STATE_CONNECTED) {
-		usb_ep_free_request(video->ep, ureq->req);
-		ureq->req = NULL;
-		return;
-	}
-
 	switch (req->status) {
 	case 0:
 		break;
