@@ -168,6 +168,18 @@
 						bias-pull-down;
 					};
 				};
+
+				spifc_pins: spifc {
+					mux {
+						groups = "spif_mo",
+							 "spif_mi",
+							 "spif_clk",
+							 "spif_cs",
+							 "spif_hold_n",
+							 "spif_wp_n";
+						function = "spif";
+					};
+				};
 			};
 
 			gpio_intc: interrupt-controller@440 {
