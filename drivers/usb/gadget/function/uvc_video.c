@@ -397,7 +397,7 @@ static void uvcg_video_pump(struct work_struct *work)
 	bool buf_done;
 	int ret;
 
-	if (video->ep->enabled && uvc->state == UVC_STATE_STREAMING) {
+	while (video->ep->enabled && uvc->state == UVC_STATE_STREAMING) {
 		/*
 		 * Retrieve the first available USB request, protected by the
 		 * request lock.
@@ -409,11 +409,6 @@ static void uvcg_video_pump(struct work_struct *work)
 		}
 		req = list_first_entry(&video->req_free, struct usb_request,
 					list);
-		if (!req) {
-			spin_unlock_irqrestore(&video->req_lock, flags);
-			return;
-		}
-
 		list_del(&req->list);
 		spin_unlock_irqrestore(&video->req_lock, flags);
 
@@ -442,7 +437,7 @@ static void uvcg_video_pump(struct work_struct *work)
 			 * further.
 			 */
 			spin_unlock_irqrestore(&queue->irqlock, flags);
-			goto out;
+			break;
 		}
 
 		/*
@@ -475,23 +470,20 @@ static void uvcg_video_pump(struct work_struct *work)
 		/* Queue the USB request */
 		ret = uvcg_video_ep_queue(video, req);
 		spin_unlock_irqrestore(&queue->irqlock, flags);
+
 		if (ret < 0) {
 			uvcg_queue_cancel(queue, 0);
-			goto out;
+			break;
 		}
 
 		/* Endpoint now owns the request */
 		req = NULL;
 		video->req_int_count++;
-	} else {
-		return;
 	}
 
-	if (uvc->state == UVC_STATE_STREAMING)
-		queue_work(video->async_wq, &video->pump);
+	if (!req)
+		return;
 
-	return;
-out:
 	spin_lock_irqsave(&video->req_lock, flags);
 	list_add_tail(&req->list, &video->req_free);
 	spin_unlock_irqrestore(&video->req_lock, flags);
