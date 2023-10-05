@@ -3571,7 +3571,9 @@ int __init vty_init(const struct file_operations *console_fops)
 	return 0;
 }
 
-static struct class *vtconsole_class;
+static const struct class vtconsole_class = {
+	.name = "vtconsole",
+};
 
 static int do_bind_con_driver(const struct consw *csw, int first, int last,
 			   int deflt)
@@ -4098,7 +4100,7 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 		goto err;
 
 	con_driver->dev =
-		device_create_with_groups(vtconsole_class, NULL,
+		device_create_with_groups(&vtconsole_class, NULL,
 					  MKDEV(0, con_driver->node),
 					  con_driver, con_dev_groups,
 					  "vtcon%i", con_driver->node);
@@ -4179,7 +4181,7 @@ static void con_driver_unregister_callback(struct work_struct *ignored)
 		console_unlock();
 
 		vtconsole_deinit_device(con_driver);
-		device_destroy(vtconsole_class, MKDEV(0, con_driver->node));
+		device_destroy(&vtconsole_class, MKDEV(0, con_driver->node));
 
 		console_lock();
 
@@ -4240,12 +4242,9 @@ static int __init vtconsole_class_init(void)
 {
 	int i;
 
-	vtconsole_class = class_create("vtconsole");
-	if (IS_ERR(vtconsole_class)) {
-		pr_warn("Unable to create vt console class; errno = %ld\n",
-			PTR_ERR(vtconsole_class));
-		vtconsole_class = NULL;
-	}
+	i = class_register(&vtconsole_class);
+	if (i)
+		pr_warn("Unable to create vt console class; errno = %d\n", i);
 
 	/* Add system drivers to sysfs */
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
@@ -4253,7 +4252,7 @@ static int __init vtconsole_class_init(void)
 
 		if (con->con && !con->dev) {
 			con->dev =
-				device_create_with_groups(vtconsole_class, NULL,
+				device_create_with_groups(&vtconsole_class, NULL,
 							  MKDEV(0, con->node),
 							  con, con_dev_groups,
 							  "vtcon%i", con->node);
