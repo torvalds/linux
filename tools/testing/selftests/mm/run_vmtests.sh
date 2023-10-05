@@ -223,6 +223,10 @@ CATEGORY="hugetlb" run_test ./hugepage-mremap
 CATEGORY="hugetlb" run_test ./hugepage-vmemmap
 CATEGORY="hugetlb" run_test ./hugetlb-madvise
 
+# For this test, we need one and just one huge page
+echo 1 > /proc/sys/vm/nr_hugepages
+CATEGORY="hugetlb" run_test ./hugetlb_fault_after_madv
+
 if test_selected "hugetlb"; then
 	echo "NOTE: These hugetlb tests provide minimal coverage.  Use"
 	echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for"
