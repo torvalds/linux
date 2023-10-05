@@ -732,6 +732,7 @@ static bool bwmon_update_cur_freq(struct hwmon_node *node)
 {
 	struct bw_hwmon *hw = node->hw;
 	struct dcvs_freq new_freq;
+	u32 primary_mbps;
 
 	get_bw_and_set_irq(node, &new_freq);
 
@@ -740,6 +741,7 @@ static bool bwmon_update_cur_freq(struct hwmon_node *node)
 	new_freq.ib = MBPS_TO_KHZ(new_freq.ib, hw->dcvs_width);
 	new_freq.ib = max(new_freq.ib, node->min_freq);
 	new_freq.ib = min(new_freq.ib, node->max_freq);
+	primary_mbps = KHZ_TO_MBPS(new_freq.ib, hw->dcvs_width);
 
 	if (new_freq.ib != node->cur_freqs[0].ib ||
 			new_freq.ab != node->cur_freqs[0].ab) {
@@ -750,7 +752,7 @@ static bool bwmon_update_cur_freq(struct hwmon_node *node)
 				node->cur_freqs[1].ib = get_dst_from_map(hw,
 								new_freq.ib);
 			else if (hw->second_dcvs_width)
-				node->cur_freqs[1].ib = MBPS_TO_KHZ(new_freq.ib,
+				node->cur_freqs[1].ib = MBPS_TO_KHZ(primary_mbps,
 							hw->second_dcvs_width);
 			else
 				node->cur_freqs[1].ib = 0;
