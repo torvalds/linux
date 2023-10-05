@@ -57,6 +57,7 @@ struct xe_device_desc {
 	u8 is_dgfx:1;
 	u8 has_llc:1;
 	u8 bypass_mtcfg:1;
+	u8 supports_mmio_ext:1;
 };
 
 #define PLATFORM(x)		\
@@ -555,6 +556,8 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.media_name = media_desc ? media_desc->name : "none";
 	xe->info.has_llc = desc->has_llc;
 	xe->info.bypass_mtcfg = desc->bypass_mtcfg;
+	xe->info.supports_mmio_ext = desc->supports_mmio_ext;
+	xe->info.tile_mmio_ext_size = graphics_desc->tile_mmio_ext_size;
 
 	xe->info.dma_mask_size = graphics_desc->dma_mask_size;
 	xe->info.vram_flags = graphics_desc->vram_flags;
