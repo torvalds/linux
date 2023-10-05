@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/uuid.h>
+#include <linux/xarray.h>
 
 #include "common.h"
 
@@ -99,6 +100,8 @@ struct ffa_drv_info {
 	struct ffa_pcpu_irq __percpu *irq_pcpu;
 	struct workqueue_struct *notif_pcpu_wq;
 	struct work_struct irq_work;
+	struct xarray partition_info;
+	unsigned int partition_count;
 };
 
 static struct ffa_drv_info *drv_info;
@@ -694,9 +697,26 @@ static int ffa_notification_get(u32 flags, struct ffa_notify_bitmaps *notify)
 	return 0;
 }
 
-static void __do_sched_recv_cb(u16 partition_id, u16 vcpu, bool is_per_vcpu)
+struct ffa_dev_part_info {
+	ffa_sched_recv_cb callback;
+	void *cb_data;
+	rwlock_t rw_lock;
+};
+
+static void __do_sched_recv_cb(u16 part_id, u16 vcpu, bool is_per_vcpu)
 {
-	pr_err("Callback for partition 0x%x failed.\n", partition_id);
+	struct ffa_dev_part_info *partition;
+	ffa_sched_recv_cb callback;
+	void *cb_data;
+
+	partition = xa_load(&drv_info->partition_info, part_id);
+	read_lock(&partition->rw_lock);
+	callback = partition->callback;
+	cb_data = partition->cb_data;
+	read_unlock(&partition->rw_lock);
+
+	if (callback)
+		callback(vcpu, is_per_vcpu, cb_data);
 }
 
 static void ffa_notification_info_get(void)
@@ -845,6 +865,39 @@ static int ffa_memory_lend(struct ffa_mem_ops_args *args)
 	return ffa_memory_ops(FFA_MEM_LEND, args);
 }
 
+static int ffa_sched_recv_cb_update(u16 part_id, ffa_sched_recv_cb callback,
+				    void *cb_data, bool is_registration)
+{
+	struct ffa_dev_part_info *partition;
+	bool cb_valid;
+
+	partition = xa_load(&drv_info->partition_info, part_id);
+	write_lock(&partition->rw_lock);
+
+	cb_valid = !!partition->callback;
+	if (!(is_registration ^ cb_valid)) {
+		write_unlock(&partition->rw_lock);
+		return -EINVAL;
+	}
+
+	partition->callback = callback;
+	partition->cb_data = cb_data;
+
+	write_unlock(&partition->rw_lock);
+	return 0;
+}
+
+static int ffa_sched_recv_cb_register(struct ffa_device *dev,
+				      ffa_sched_recv_cb cb, void *cb_data)
+{
+	return ffa_sched_recv_cb_update(dev->vm_id, cb, cb_data, true);
+}
+
+static int ffa_sched_recv_cb_unregister(struct ffa_device *dev)
+{
+	return ffa_sched_recv_cb_update(dev->vm_id, NULL, NULL, false);
+}
+
 static const struct ffa_info_ops ffa_drv_info_ops = {
 	.api_version_get = ffa_api_version_get,
 	.partition_info_get = ffa_partition_info_get,
@@ -865,11 +918,17 @@ static const struct ffa_cpu_ops ffa_drv_cpu_ops = {
 	.run = ffa_run,
 };
 
+static const struct ffa_notifier_ops ffa_drv_notifier_ops = {
+	.sched_recv_cb_register = ffa_sched_recv_cb_register,
+	.sched_recv_cb_unregister = ffa_sched_recv_cb_unregister,
+};
+
 static const struct ffa_ops ffa_drv_ops = {
 	.info_ops = &ffa_drv_info_ops,
 	.msg_ops = &ffa_drv_msg_ops,
 	.mem_ops = &ffa_drv_mem_ops,
 	.cpu_ops = &ffa_drv_cpu_ops,
+	.notifier_ops = &ffa_drv_notifier_ops,
 };
 
 void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
@@ -900,6 +959,7 @@ static void ffa_setup_partitions(void)
 	int count, idx;
 	uuid_t uuid;
 	struct ffa_device *ffa_dev;
+	struct ffa_dev_part_info *info;
 	struct ffa_partition_info *pbuf, *tpbuf;
 
 	count = ffa_partition_probe(&uuid_null, &pbuf);
@@ -908,6 +968,7 @@ static void ffa_setup_partitions(void)
 		return;
 	}
 
+	xa_init(&drv_info->partition_info);
 	for (idx = 0, tpbuf = pbuf; idx < count; idx++, tpbuf++) {
 		import_uuid(&uuid, (u8 *)tpbuf->uuid);
 
@@ -927,8 +988,40 @@ static void ffa_setup_partitions(void)
 		if (drv_info->version > FFA_VERSION_1_0 &&
 		    !(tpbuf->properties & FFA_PARTITION_AARCH64_EXEC))
 			ffa_mode_32bit_set(ffa_dev);
+
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		if (!info) {
+			ffa_device_unregister(ffa_dev);
+			continue;
+		}
+		xa_store(&drv_info->partition_info, tpbuf->id, info, GFP_KERNEL);
 	}
+	drv_info->partition_count = count;
+
 	kfree(pbuf);
+}
+
+static void ffa_partitions_cleanup(void)
+{
+	struct ffa_dev_part_info **info;
+	int idx, count = drv_info->partition_count;
+
+	if (!count)
+		return;
+
+	info = kcalloc(count, sizeof(**info), GFP_KERNEL);
+	if (!info)
+		return;
+
+	xa_extract(&drv_info->partition_info, (void **)info, 0, VM_ID_MASK,
+		   count, XA_PRESENT);
+
+	for (idx = 0; idx < count; idx++)
+		kfree(info[idx]);
+	kfree(info);
+
+	drv_info->partition_count = 0;
+	xa_destroy(&drv_info->partition_info);
 }
 
 /* FFA FEATURE IDs */
@@ -1164,9 +1257,11 @@ static int __init ffa_init(void)
 
 	ret = ffa_notifications_setup();
 	if (ret)
-		goto free_pages;
+		goto partitions_cleanup;
 
 	return 0;
+partitions_cleanup:
+	ffa_partitions_cleanup();
 free_pages:
 	if (drv_info->tx_buffer)
 		free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
@@ -1182,9 +1277,11 @@ subsys_initcall(ffa_init);
 static void __exit ffa_exit(void)
 {
 	ffa_notifications_cleanup();
+	ffa_partitions_cleanup();
 	ffa_rxtx_unmap(drv_info->vm_id);
 	free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
 	free_pages_exact(drv_info->rx_buffer, RXTX_BUFFER_SIZE);
+	xa_destroy(&drv_info->partition_info);
 	kfree(drv_info);
 	arm_ffa_bus_exit();
 }
