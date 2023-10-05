@@ -9880,7 +9880,7 @@ static int dm_update_plane_state(struct dc *dc,
 
 		/* Block top most plane from being a video plane */
 		if (plane->type == DRM_PLANE_TYPE_OVERLAY) {
-			if (is_video_format(new_plane_state->fb->format->format) && *is_top_most_overlay)
+			if (amdgpu_dm_plane_is_video_format(new_plane_state->fb->format->format) && *is_top_most_overlay)
 				return -EINVAL;
 
 			*is_top_most_overlay = false;
