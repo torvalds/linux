@@ -442,23 +442,25 @@ ffa_setup_and_transmit(u32 func_id, void *buffer, u32 max_fragsize,
 {
 	int rc = 0;
 	bool first = true;
+	u32 composite_offset;
 	phys_addr_t addr = 0;
+	struct ffa_mem_region *mem_region = buffer;
 	struct ffa_composite_mem_region *composite;
 	struct ffa_mem_region_addr_range *constituents;
 	struct ffa_mem_region_attributes *ep_mem_access;
-	struct ffa_mem_region *mem_region = buffer;
 	u32 idx, frag_len, length, buf_sz = 0, num_entries = sg_nents(args->sg);
 
 	mem_region->tag = args->tag;
 	mem_region->flags = args->flags;
 	mem_region->sender_id = drv_info->vm_id;
 	mem_region->attributes = ffa_memory_attributes_get(func_id);
-	ep_mem_access = &mem_region->ep_mem_access[0];
+	ep_mem_access = buffer + COMPOSITE_OFFSET(0);
+	composite_offset = COMPOSITE_OFFSET(args->nattrs);
 
 	for (idx = 0; idx < args->nattrs; idx++, ep_mem_access++) {
 		ep_mem_access->receiver = args->attrs[idx].receiver;
 		ep_mem_access->attrs = args->attrs[idx].attrs;
-		ep_mem_access->composite_off = COMPOSITE_OFFSET(args->nattrs);
+		ep_mem_access->composite_off = composite_offset;
 		ep_mem_access->flag = 0;
 		ep_mem_access->reserved = 0;
 	}
@@ -467,13 +469,13 @@ ffa_setup_and_transmit(u32 func_id, void *buffer, u32 max_fragsize,
 	mem_region->reserved_1 = 0;
 	mem_region->ep_count = args->nattrs;
 
-	composite = buffer + COMPOSITE_OFFSET(args->nattrs);
+	composite = buffer + composite_offset;
 	composite->total_pg_cnt = ffa_get_num_pages_sg(args->sg);
 	composite->addr_range_cnt = num_entries;
 	composite->reserved = 0;
 
-	length = COMPOSITE_CONSTITUENTS_OFFSET(args->nattrs, num_entries);
-	frag_len = COMPOSITE_CONSTITUENTS_OFFSET(args->nattrs, 0);
+	length = composite_offset + CONSTITUENTS_OFFSET(num_entries);
+	frag_len = composite_offset + CONSTITUENTS_OFFSET(0);
 	if (frag_len > max_fragsize)
 		return -ENXIO;
 
