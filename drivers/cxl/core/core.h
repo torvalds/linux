@@ -75,6 +75,7 @@ resource_size_t __rcrb_to_component(struct device *dev,
 				    enum cxl_rcrb which);
 
 extern struct rw_semaphore cxl_dpa_rwsem;
+extern struct rw_semaphore cxl_region_rwsem;
 
 int cxl_memdev_init(void);
 void cxl_memdev_exit(void);

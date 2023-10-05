@@ -125,13 +125,16 @@ static ssize_t security_state_show(struct device *dev,
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
-	u64 reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_BG_CMD_STATUS_OFFSET);
-	u32 pct = FIELD_GET(CXLDEV_MBOX_BG_CMD_COMMAND_PCT_MASK, reg);
-	u16 cmd = FIELD_GET(CXLDEV_MBOX_BG_CMD_COMMAND_OPCODE_MASK, reg);
 	unsigned long state = mds->security.state;
+	int rc = 0;
 
-	if (cmd == CXL_MBOX_OP_SANITIZE && pct != 100)
-		return sysfs_emit(buf, "sanitize\n");
+	/* sync with latest submission state */
+	mutex_lock(&mds->mbox_mutex);
+	if (mds->security.sanitize_active)
+		rc = sysfs_emit(buf, "sanitize\n");
+	mutex_unlock(&mds->mbox_mutex);
+	if (rc)
+		return rc;
 
 	if (!(state & CXL_PMEM_SEC_STATE_USER_PASS_SET))
 		return sysfs_emit(buf, "disabled\n");
@@ -152,24 +155,17 @@ static ssize_t security_sanitize_store(struct device *dev,
 				       const char *buf, size_t len)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
-	struct cxl_port *port = cxlmd->endpoint;
 	bool sanitize;
 	ssize_t rc;
 
 	if (kstrtobool(buf, &sanitize) || !sanitize)
 		return -EINVAL;
 
-	if (!port || !is_cxl_endpoint(port))
-		return -EINVAL;
+	rc = cxl_mem_sanitize(cxlmd, CXL_MBOX_OP_SANITIZE);
+	if (rc)
+		return rc;
 
-	/* ensure no regions are mapped to this memdev */
-	if (port->commit_end != -1)
-		return -EBUSY;
-
-	rc = cxl_mem_sanitize(mds, CXL_MBOX_OP_SANITIZE);
-
-	return rc ? rc : len;
+	return len;
 }
 static struct device_attribute dev_attr_security_sanitize =
 	__ATTR(sanitize, 0200, NULL, security_sanitize_store);
@@ -179,24 +175,17 @@ static ssize_t security_erase_store(struct device *dev,
 				    const char *buf, size_t len)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
-	struct cxl_port *port = cxlmd->endpoint;
 	ssize_t rc;
 	bool erase;
 
 	if (kstrtobool(buf, &erase) || !erase)
 		return -EINVAL;
 
-	if (!port || !is_cxl_endpoint(port))
-		return -EINVAL;
+	rc = cxl_mem_sanitize(cxlmd, CXL_MBOX_OP_SECURE_ERASE);
+	if (rc)
+		return rc;
 
-	/* ensure no regions are mapped to this memdev */
-	if (port->commit_end != -1)
-		return -EBUSY;
-
-	rc = cxl_mem_sanitize(mds, CXL_MBOX_OP_SECURE_ERASE);
-
-	return rc ? rc : len;
+	return len;
 }
 static struct device_attribute dev_attr_security_erase =
 	__ATTR(erase, 0200, NULL, security_erase_store);

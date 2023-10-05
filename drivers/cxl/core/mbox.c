@@ -1125,20 +1125,7 @@ int cxl_dev_state_identify(struct cxl_memdev_state *mds)
 }
 EXPORT_SYMBOL_NS_GPL(cxl_dev_state_identify, CXL);
 
-/**
- * cxl_mem_sanitize() - Send a sanitization command to the device.
- * @mds: The device data for the operation
- * @cmd: The specific sanitization command opcode
- *
- * Return: 0 if the command was executed successfully, regardless of
- * whether or not the actual security operation is done in the background,
- * such as for the Sanitize case.
- * Error return values can be the result of the mailbox command, -EINVAL
- * when security requirements are not met or invalid contexts.
- *
- * See CXL 3.0 @8.2.9.8.5.1 Sanitize and @8.2.9.8.5.2 Secure Erase.
- */
-int cxl_mem_sanitize(struct cxl_memdev_state *mds, u16 cmd)
+static int __cxl_mem_sanitize(struct cxl_memdev_state *mds, u16 cmd)
 {
 	int rc;
 	u32 sec_out = 0;
@@ -1183,7 +1170,45 @@ int cxl_mem_sanitize(struct cxl_memdev_state *mds, u16 cmd)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_mem_sanitize, CXL);
+
+
+/**
+ * cxl_mem_sanitize() - Send a sanitization command to the device.
+ * @cxlmd: The device for the operation
+ * @cmd: The specific sanitization command opcode
+ *
+ * Return: 0 if the command was executed successfully, regardless of
+ * whether or not the actual security operation is done in the background,
+ * such as for the Sanitize case.
+ * Error return values can be the result of the mailbox command, -EINVAL
+ * when security requirements are not met or invalid contexts, or -EBUSY
+ * if the sanitize operation is already in flight.
+ *
+ * See CXL 3.0 @8.2.9.8.5.1 Sanitize and @8.2.9.8.5.2 Secure Erase.
+ */
+int cxl_mem_sanitize(struct cxl_memdev *cxlmd, u16 cmd)
+{
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+	struct cxl_port  *endpoint;
+	int rc;
+
+	/* synchronize with cxl_mem_probe() and decoder write operations */
+	device_lock(&cxlmd->dev);
+	endpoint = cxlmd->endpoint;
+	down_read(&cxl_region_rwsem);
+	/*
+	 * Require an endpoint to be safe otherwise the driver can not
+	 * be sure that the device is unmapped.
+	 */
+	if (endpoint && endpoint->commit_end == -1)
+		rc = __cxl_mem_sanitize(mds, cmd);
+	else
+		rc = -EBUSY;
+	up_read(&cxl_region_rwsem);
+	device_unlock(&cxlmd->dev);
+
+	return rc;
+}
 
 static int add_dpa_res(struct device *dev, struct resource *parent,
 		       struct resource *res, resource_size_t start,
