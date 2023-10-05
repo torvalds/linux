@@ -432,11 +432,11 @@ int fscrypt_policy_from_context(union fscrypt_policy *policy_u,
 /* Retrieve an inode's encryption policy */
 static int fscrypt_get_policy(struct inode *inode, union fscrypt_policy *policy)
 {
-	const struct fscrypt_info *ci;
+	const struct fscrypt_inode_info *ci;
 	union fscrypt_context ctx;
 	int ret;
 
-	ci = fscrypt_get_info(inode);
+	ci = fscrypt_get_inode_info(inode);
 	if (ci) {
 		/* key available, use the cached policy */
 		*policy = ci->ci_policy;
@@ -674,7 +674,7 @@ int fscrypt_has_permitted_context(struct inode *parent, struct inode *child)
 
 	/*
 	 * Both parent and child are encrypted, so verify they use the same
-	 * encryption policy.  Compare the fscrypt_info structs if the keys are
+	 * encryption policy.  Compare the cached policies if the keys are
 	 * available, otherwise retrieve and compare the fscrypt_contexts.
 	 *
 	 * Note that the fscrypt_context retrieval will be required frequently
@@ -744,7 +744,7 @@ const union fscrypt_policy *fscrypt_policy_to_inherit(struct inode *dir)
  */
 int fscrypt_context_for_new_inode(void *ctx, struct inode *inode)
 {
-	struct fscrypt_info *ci = inode->i_crypt_info;
+	struct fscrypt_inode_info *ci = inode->i_crypt_info;
 
 	BUILD_BUG_ON(sizeof(union fscrypt_context) !=
 			FSCRYPT_SET_CONTEXT_MAX_SIZE);
@@ -769,7 +769,7 @@ EXPORT_SYMBOL_GPL(fscrypt_context_for_new_inode);
  */
 int fscrypt_set_context(struct inode *inode, void *fs_data)
 {
-	struct fscrypt_info *ci = inode->i_crypt_info;
+	struct fscrypt_inode_info *ci = inode->i_crypt_info;
 	union fscrypt_context ctx;
 	int ctxsize;
 

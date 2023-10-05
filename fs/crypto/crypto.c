@@ -39,7 +39,7 @@ static mempool_t *fscrypt_bounce_page_pool = NULL;
 static struct workqueue_struct *fscrypt_read_workqueue;
 static DEFINE_MUTEX(fscrypt_init_mutex);
 
-struct kmem_cache *fscrypt_info_cachep;
+struct kmem_cache *fscrypt_inode_info_cachep;
 
 void fscrypt_enqueue_decrypt_work(struct work_struct *work)
 {
@@ -85,7 +85,7 @@ EXPORT_SYMBOL(fscrypt_free_bounce_page);
  * simply contain the data unit index (e.g., IV_INO_LBLK_32).
  */
 void fscrypt_generate_iv(union fscrypt_iv *iv, u64 index,
-			 const struct fscrypt_info *ci)
+			 const struct fscrypt_inode_info *ci)
 {
 	u8 flags = fscrypt_policy_flags(&ci->ci_policy);
 
@@ -105,7 +105,7 @@ void fscrypt_generate_iv(union fscrypt_iv *iv, u64 index,
 }
 
 /* Encrypt or decrypt a single "data unit" of file contents. */
-int fscrypt_crypt_data_unit(const struct fscrypt_info *ci,
+int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
 			    fscrypt_direction_t rw, u64 index,
 			    struct page *src_page, struct page *dest_page,
 			    unsigned int len, unsigned int offs,
@@ -184,7 +184,7 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
 
 {
 	const struct inode *inode = page->mapping->host;
-	const struct fscrypt_info *ci = inode->i_crypt_info;
+	const struct fscrypt_inode_info *ci = inode->i_crypt_info;
 	const unsigned int du_bits = ci->ci_data_unit_bits;
 	const unsigned int du_size = 1U << du_bits;
 	struct page *ciphertext_page;
@@ -267,7 +267,7 @@ int fscrypt_decrypt_pagecache_blocks(struct folio *folio, size_t len,
 				     size_t offs)
 {
 	const struct inode *inode = folio->mapping->host;
-	const struct fscrypt_info *ci = inode->i_crypt_info;
+	const struct fscrypt_inode_info *ci = inode->i_crypt_info;
 	const unsigned int du_bits = ci->ci_data_unit_bits;
 	const unsigned int du_size = 1U << du_bits;
 	u64 index = ((u64)folio->index << (PAGE_SHIFT - du_bits)) +
@@ -409,18 +409,19 @@ static int __init fscrypt_init(void)
 	if (!fscrypt_read_workqueue)
 		goto fail;
 
-	fscrypt_info_cachep = KMEM_CACHE(fscrypt_info, SLAB_RECLAIM_ACCOUNT);
-	if (!fscrypt_info_cachep)
+	fscrypt_inode_info_cachep = KMEM_CACHE(fscrypt_inode_info,
+					       SLAB_RECLAIM_ACCOUNT);
+	if (!fscrypt_inode_info_cachep)
 		goto fail_free_queue;
 
 	err = fscrypt_init_keyring();
 	if (err)
-		goto fail_free_info;
+		goto fail_free_inode_info;
 
 	return 0;
 
-fail_free_info:
-	kmem_cache_destroy(fscrypt_info_cachep);
+fail_free_inode_info:
+	kmem_cache_destroy(fscrypt_inode_info_cachep);
 fail_free_queue:
 	destroy_workqueue(fscrypt_read_workqueue);
 fail:

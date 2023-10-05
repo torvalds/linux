@@ -39,7 +39,7 @@ static struct block_device **fscrypt_get_devices(struct super_block *sb,
 	return devs;
 }
 
-static unsigned int fscrypt_get_dun_bytes(const struct fscrypt_info *ci)
+static unsigned int fscrypt_get_dun_bytes(const struct fscrypt_inode_info *ci)
 {
 	const struct super_block *sb = ci->ci_inode->i_sb;
 	unsigned int flags = fscrypt_policy_flags(&ci->ci_policy);
@@ -89,7 +89,7 @@ static void fscrypt_log_blk_crypto_impl(struct fscrypt_mode *mode,
 }
 
 /* Enable inline encryption for this file if supported. */
-int fscrypt_select_encryption_impl(struct fscrypt_info *ci)
+int fscrypt_select_encryption_impl(struct fscrypt_inode_info *ci)
 {
 	const struct inode *inode = ci->ci_inode;
 	struct super_block *sb = inode->i_sb;
@@ -151,7 +151,7 @@ out_free_devs:
 
 int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
 				     const u8 *raw_key,
-				     const struct fscrypt_info *ci)
+				     const struct fscrypt_inode_info *ci)
 {
 	const struct inode *inode = ci->ci_inode;
 	struct super_block *sb = inode->i_sb;
@@ -232,7 +232,8 @@ bool __fscrypt_inode_uses_inline_crypto(const struct inode *inode)
 }
 EXPORT_SYMBOL_GPL(__fscrypt_inode_uses_inline_crypto);
 
-static void fscrypt_generate_dun(const struct fscrypt_info *ci, u64 lblk_num,
+static void fscrypt_generate_dun(const struct fscrypt_inode_info *ci,
+				 u64 lblk_num,
 				 u64 dun[BLK_CRYPTO_DUN_ARRAY_SIZE])
 {
 	u64 index = lblk_num << ci->ci_data_units_per_block_bits;
@@ -266,7 +267,7 @@ static void fscrypt_generate_dun(const struct fscrypt_info *ci, u64 lblk_num,
 void fscrypt_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
 			       u64 first_lblk, gfp_t gfp_mask)
 {
-	const struct fscrypt_info *ci;
+	const struct fscrypt_inode_info *ci;
 	u64 dun[BLK_CRYPTO_DUN_ARRAY_SIZE];
 
 	if (!fscrypt_inode_uses_inline_crypto(inode))
@@ -457,7 +458,7 @@ EXPORT_SYMBOL_GPL(fscrypt_dio_supported);
  */
 u64 fscrypt_limit_io_blocks(const struct inode *inode, u64 lblk, u64 nr_blocks)
 {
-	const struct fscrypt_info *ci;
+	const struct fscrypt_inode_info *ci;
 	u32 dun;
 
 	if (!fscrypt_inode_uses_inline_crypto(inode))

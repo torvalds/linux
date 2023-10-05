@@ -169,7 +169,7 @@ EXPORT_SYMBOL_GPL(__fscrypt_prepare_setattr);
 int fscrypt_prepare_setflags(struct inode *inode,
 			     unsigned int oldflags, unsigned int flags)
 {
-	struct fscrypt_info *ci;
+	struct fscrypt_inode_info *ci;
 	struct fscrypt_master_key *mk;
 	int err;
 

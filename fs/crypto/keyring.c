@@ -867,7 +867,7 @@ static void shrink_dcache_inode(struct inode *inode)
 
 static void evict_dentries_for_decrypted_inodes(struct fscrypt_master_key *mk)
 {
-	struct fscrypt_info *ci;
+	struct fscrypt_inode_info *ci;
 	struct inode *inode;
 	struct inode *toput_inode = NULL;
 
@@ -917,7 +917,7 @@ static int check_for_busy_inodes(struct super_block *sb,
 		/* select an example file to show for debugging purposes */
 		struct inode *inode =
 			list_first_entry(&mk->mk_decrypted_inodes,
-					 struct fscrypt_info,
+					 struct fscrypt_inode_info,
 					 ci_master_key_link)->ci_inode;
 		ino = inode->i_ino;
 	}

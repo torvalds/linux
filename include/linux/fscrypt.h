@@ -31,7 +31,7 @@
 #define FSCRYPT_CONTENTS_ALIGNMENT 16
 
 union fscrypt_policy;
-struct fscrypt_info;
+struct fscrypt_inode_info;
 struct fs_parameter;
 struct seq_file;
 
@@ -192,7 +192,8 @@ struct fscrypt_operations {
 					     unsigned int *num_devs);
 };
 
-static inline struct fscrypt_info *fscrypt_get_info(const struct inode *inode)
+static inline struct fscrypt_inode_info *
+fscrypt_get_inode_info(const struct inode *inode)
 {
 	/*
 	 * Pairs with the cmpxchg_release() in fscrypt_setup_encryption_info().
@@ -404,7 +405,8 @@ static inline void fscrypt_set_ops(struct super_block *sb,
 }
 #else  /* !CONFIG_FS_ENCRYPTION */
 
-static inline struct fscrypt_info *fscrypt_get_info(const struct inode *inode)
+static inline struct fscrypt_inode_info *
+fscrypt_get_inode_info(const struct inode *inode)
 {
 	return NULL;
 }
@@ -882,7 +884,7 @@ static inline bool fscrypt_inode_uses_fs_layer_crypto(const struct inode *inode)
  */
 static inline bool fscrypt_has_encryption_key(const struct inode *inode)
 {
-	return fscrypt_get_info(inode) != NULL;
+	return fscrypt_get_inode_info(inode) != NULL;
 }
 
 /**
