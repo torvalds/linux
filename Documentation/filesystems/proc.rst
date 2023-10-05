@@ -689,6 +689,11 @@ files are there, and which are missing.
  File         Content
  ============ ===============================================================
  apm          Advanced power management info
+ bootconfig   Kernel command line obtained from boot config,
+ 	      and, if there were kernel parameters from the
+	      boot loader, a "# Parameters from bootloader:"
+	      line followed by a line containing those
+	      parameters prefixed by "# ".			(5.5)
  buddyinfo    Kernel memory allocator information (see text)	(2.5)
  bus          Directory containing bus specific information
  cmdline      Kernel command line, both from bootloader and embedded
