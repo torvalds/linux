@@ -912,7 +912,7 @@ int ieee80211_key_link(struct ieee80211_key *key,
 	 */
 	if (ieee80211_key_identical(sdata, old_key, key)) {
 		ret = -EALREADY;
-		goto unlock;
+		goto out;
 	}
 
 	key->local = sdata->local;
@@ -940,7 +940,6 @@ int ieee80211_key_link(struct ieee80211_key *key,
 
  out:
 	ieee80211_key_free_unused(key);
- unlock:
 	mutex_unlock(&sdata->local->key_mtx);
 
 	return ret;
