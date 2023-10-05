@@ -2140,9 +2140,11 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 	struct amdgpu_device *remote_adev = NULL;
 	struct amdgpu_device *adev = ras->adev;
 	struct list_head device_list, *device_list_handle =  NULL;
+	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
 
+	if (hive)
+		atomic_set(&hive->ras_recovery, 1);
 	if (!ras->disable_ras_err_cnt_harvest) {
-		struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
 
 		/* Build list of devices to query RAS related errors */
 		if  (hive && adev->gmc.xgmi.num_physical_nodes > 1) {
@@ -2159,7 +2161,6 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 			amdgpu_ras_log_on_err_counter(remote_adev);
 		}
 
-		amdgpu_put_xgmi_hive(hive);
 	}
 
 	if (amdgpu_device_should_recover_gpu(ras->adev)) {
@@ -2194,6 +2195,10 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 		amdgpu_device_gpu_recover(ras->adev, NULL, &reset_context);
 	}
 	atomic_set(&ras->in_recovery, 0);
+	if (hive) {
+		atomic_set(&hive->ras_recovery, 0);
+		amdgpu_put_xgmi_hive(hive);
+	}
 }
 
 /* alloc/realloc bps array */
