@@ -55,6 +55,7 @@ struct amd_uncore_pmu {
 enum {
 	UNCORE_TYPE_DF,
 	UNCORE_TYPE_L3,
+	UNCORE_TYPE_UMC,
 
 	UNCORE_TYPE_MAX
 };
@@ -286,7 +287,7 @@ static struct device_attribute format_attr_##_var =			\
 DEFINE_UNCORE_FORMAT_ATTR(event12,	event,		"config:0-7,32-35");
 DEFINE_UNCORE_FORMAT_ATTR(event14,	event,		"config:0-7,32-35,59-60"); /* F17h+ DF */
 DEFINE_UNCORE_FORMAT_ATTR(event14v2,	event,		"config:0-7,32-37");	   /* PerfMonV2 DF */
-DEFINE_UNCORE_FORMAT_ATTR(event8,	event,		"config:0-7");		   /* F17h+ L3 */
+DEFINE_UNCORE_FORMAT_ATTR(event8,	event,		"config:0-7");		   /* F17h+ L3, PerfMonV2 UMC */
 DEFINE_UNCORE_FORMAT_ATTR(umask8,	umask,		"config:8-15");
 DEFINE_UNCORE_FORMAT_ATTR(umask12,	umask,		"config:8-15,24-27");	   /* PerfMonV2 DF */
 DEFINE_UNCORE_FORMAT_ATTR(coreid,	coreid,		"config:42-44");	   /* F19h L3 */
@@ -296,6 +297,7 @@ DEFINE_UNCORE_FORMAT_ATTR(threadmask2,	threadmask,	"config:56-57");	   /* F19h L
 DEFINE_UNCORE_FORMAT_ATTR(enallslices,	enallslices,	"config:46");		   /* F19h L3 */
 DEFINE_UNCORE_FORMAT_ATTR(enallcores,	enallcores,	"config:47");		   /* F19h L3 */
 DEFINE_UNCORE_FORMAT_ATTR(sliceid,	sliceid,	"config:48-50");	   /* F19h L3 */
+DEFINE_UNCORE_FORMAT_ATTR(rdwrmask,	rdwrmask,	"config:8-9");		   /* PerfMonV2 UMC */
 
 /* Common DF and NB attributes */
 static struct attribute *amd_uncore_df_format_attr[] = {
@@ -309,6 +311,13 @@ static struct attribute *amd_uncore_l3_format_attr[] = {
 	&format_attr_event12.attr,	/* event */
 	&format_attr_umask8.attr,	/* umask */
 	NULL,				/* threadmask */
+	NULL,
+};
+
+/* Common UMC attributes */
+static struct attribute *amd_uncore_umc_format_attr[] = {
+	&format_attr_event8.attr,       /* event */
+	&format_attr_rdwrmask.attr,     /* rdwrmask */
 	NULL,
 };
 
@@ -349,6 +358,11 @@ static struct attribute_group amd_f19h_uncore_l3_format_group = {
 	.is_visible = amd_f19h_uncore_is_visible,
 };
 
+static struct attribute_group amd_uncore_umc_format_group = {
+	.name = "format",
+	.attrs = amd_uncore_umc_format_attr,
+};
+
 static const struct attribute_group *amd_uncore_df_attr_groups[] = {
 	&amd_uncore_attr_group,
 	&amd_uncore_df_format_group,
@@ -364,6 +378,12 @@ static const struct attribute_group *amd_uncore_l3_attr_groups[] = {
 static const struct attribute_group *amd_uncore_l3_attr_update[] = {
 	&amd_f17h_uncore_l3_format_group,
 	&amd_f19h_uncore_l3_format_group,
+	NULL,
+};
+
+static const struct attribute_group *amd_uncore_umc_attr_groups[] = {
+	&amd_uncore_attr_group,
+	&amd_uncore_umc_format_group,
 	NULL,
 };
 
@@ -835,6 +855,133 @@ done:
 	return amd_uncore_ctx_init(uncore, cpu);
 }
 
+static int amd_uncore_umc_event_init(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	int ret = amd_uncore_event_init(event);
+
+	if (ret)
+		return ret;
+
+	hwc->config = event->attr.config & AMD64_PERFMON_V2_RAW_EVENT_MASK_UMC;
+
+	return 0;
+}
+
+static void amd_uncore_umc_start(struct perf_event *event, int flags)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (flags & PERF_EF_RELOAD)
+		wrmsrl(hwc->event_base, (u64)local64_read(&hwc->prev_count));
+
+	hwc->state = 0;
+	wrmsrl(hwc->config_base, (hwc->config | AMD64_PERFMON_V2_ENABLE_UMC));
+	perf_event_update_userpage(event);
+}
+
+static
+void amd_uncore_umc_ctx_scan(struct amd_uncore *uncore, unsigned int cpu)
+{
+	union cpuid_0x80000022_ebx ebx;
+	union amd_uncore_info info;
+	unsigned int eax, ecx, edx;
+
+	if (pmu_version < 2)
+		return;
+
+	cpuid(EXT_PERFMON_DEBUG_FEATURES, &eax, &ebx.full, &ecx, &edx);
+	info.split.aux_data = ecx;	/* stash active mask */
+	info.split.num_pmcs = ebx.split.num_umc_pmc;
+	info.split.gid = topology_die_id(cpu);
+	info.split.cid = topology_die_id(cpu);
+	*per_cpu_ptr(uncore->info, cpu) = info;
+}
+
+static
+int amd_uncore_umc_ctx_init(struct amd_uncore *uncore, unsigned int cpu)
+{
+	DECLARE_BITMAP(gmask, UNCORE_GROUP_MAX) = { 0 };
+	u8 group_num_pmus[UNCORE_GROUP_MAX] = { 0 };
+	u8 group_num_pmcs[UNCORE_GROUP_MAX] = { 0 };
+	union amd_uncore_info info;
+	struct amd_uncore_pmu *pmu;
+	int index = 0, gid, i;
+
+	if (pmu_version < 2)
+		return 0;
+
+	/* Run just once */
+	if (uncore->init_done)
+		return amd_uncore_ctx_init(uncore, cpu);
+
+	/* Find unique groups */
+	for_each_online_cpu(i) {
+		info = *per_cpu_ptr(uncore->info, i);
+		gid = info.split.gid;
+		if (test_bit(gid, gmask))
+			continue;
+
+		__set_bit(gid, gmask);
+		group_num_pmus[gid] = hweight32(info.split.aux_data);
+		group_num_pmcs[gid] = info.split.num_pmcs;
+		uncore->num_pmus += group_num_pmus[gid];
+	}
+
+	uncore->pmus = kzalloc(sizeof(*uncore->pmus) * uncore->num_pmus,
+			       GFP_KERNEL);
+	if (!uncore->pmus) {
+		uncore->num_pmus = 0;
+		goto done;
+	}
+
+	for_each_set_bit(gid, gmask, UNCORE_GROUP_MAX) {
+		for (i = 0; i < group_num_pmus[gid]; i++) {
+			pmu = &uncore->pmus[index];
+			snprintf(pmu->name, sizeof(pmu->name), "amd_umc_%d", index);
+			pmu->num_counters = group_num_pmcs[gid] / group_num_pmus[gid];
+			pmu->msr_base = MSR_F19H_UMC_PERF_CTL + i * pmu->num_counters * 2;
+			pmu->rdpmc_base = -1;
+			pmu->group = gid;
+
+			pmu->ctx = alloc_percpu(struct amd_uncore_ctx *);
+			if (!pmu->ctx)
+				goto done;
+
+			pmu->pmu = (struct pmu) {
+				.task_ctx_nr	= perf_invalid_context,
+				.attr_groups	= amd_uncore_umc_attr_groups,
+				.name		= pmu->name,
+				.event_init	= amd_uncore_umc_event_init,
+				.add		= amd_uncore_add,
+				.del		= amd_uncore_del,
+				.start		= amd_uncore_umc_start,
+				.stop		= amd_uncore_stop,
+				.read		= amd_uncore_read,
+				.capabilities	= PERF_PMU_CAP_NO_EXCLUDE | PERF_PMU_CAP_NO_INTERRUPT,
+				.module		= THIS_MODULE,
+			};
+
+			if (perf_pmu_register(&pmu->pmu, pmu->pmu.name, -1)) {
+				free_percpu(pmu->ctx);
+				pmu->ctx = NULL;
+				goto done;
+			}
+
+			pr_info("%d %s counters detected\n", pmu->num_counters,
+				pmu->pmu.name);
+
+			index++;
+		}
+	}
+
+done:
+	uncore->num_pmus = index;
+	uncore->init_done = true;
+
+	return amd_uncore_ctx_init(uncore, cpu);
+}
+
 static struct amd_uncore uncores[UNCORE_TYPE_MAX] = {
 	/* UNCORE_TYPE_DF */
 	{
@@ -847,6 +994,13 @@ static struct amd_uncore uncores[UNCORE_TYPE_MAX] = {
 	{
 		.scan = amd_uncore_l3_ctx_scan,
 		.init = amd_uncore_l3_ctx_init,
+		.move = amd_uncore_ctx_move,
+		.free = amd_uncore_ctx_free,
+	},
+	/* UNCORE_TYPE_UMC */
+	{
+		.scan = amd_uncore_umc_ctx_scan,
+		.init = amd_uncore_umc_ctx_init,
 		.move = amd_uncore_ctx_move,
 		.free = amd_uncore_ctx_free,
 	},

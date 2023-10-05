@@ -637,6 +637,10 @@
 /* AMD Last Branch Record MSRs */
 #define MSR_AMD64_LBR_SELECT			0xc000010e
 
+/* Fam 19h MSRs */
+#define MSR_F19H_UMC_PERF_CTL		0xc0010800
+#define MSR_F19H_UMC_PERF_CTR		0xc0010801
+
 /* Fam 17h MSRs */
 #define MSR_F17H_IRPERF			0xc00000e9
 
