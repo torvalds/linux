@@ -587,6 +587,35 @@ static int ffa_notification_bitmap_destroy(void)
 	return 0;
 }
 
+#define NOTIFICATION_LOW_MASK		GENMASK(31, 0)
+#define NOTIFICATION_HIGH_MASK		GENMASK(63, 32)
+#define NOTIFICATION_BITMAP_HIGH(x)	\
+		((u32)(FIELD_GET(NOTIFICATION_HIGH_MASK, (x))))
+#define NOTIFICATION_BITMAP_LOW(x)	\
+		((u32)(FIELD_GET(NOTIFICATION_LOW_MASK, (x))))
+
+static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
+					u32 flags, bool is_bind)
+{
+	ffa_value_t ret;
+	u32 func, src_dst_ids = PACK_TARGET_INFO(dst_id, drv_info->vm_id);
+
+	func = is_bind ? FFA_NOTIFICATION_BIND : FFA_NOTIFICATION_UNBIND;
+
+	invoke_ffa_fn((ffa_value_t){
+		  .a0 = func, .a1 = src_dst_ids, .a2 = flags,
+		  .a3 = NOTIFICATION_BITMAP_LOW(bitmap),
+		  .a4 = NOTIFICATION_BITMAP_HIGH(bitmap),
+		  }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+	else if (ret.a0 != FFA_SUCCESS)
+		return -EINVAL;
+
+	return 0;
+}
+
 static void ffa_set_up_mem_ops_native_flag(void)
 {
 	if (!ffa_features(FFA_FN_NATIVE(MEM_LEND), 0, NULL, NULL) ||
