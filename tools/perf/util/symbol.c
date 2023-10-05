@@ -718,6 +718,7 @@ static bool symbol__is_idle(const char *name)
 		"cpu_startup_entry",
 		"idle_cpu",
 		"intel_idle",
+		"intel_idle_ibrs",
 		"default_idle",
 		"native_safe_halt",
 		"enter_idle",
