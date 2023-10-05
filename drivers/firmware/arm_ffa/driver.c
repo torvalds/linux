@@ -593,6 +593,14 @@ static int ffa_notification_bitmap_destroy(void)
 		((u32)(FIELD_GET(NOTIFICATION_HIGH_MASK, (x))))
 #define NOTIFICATION_BITMAP_LOW(x)	\
 		((u32)(FIELD_GET(NOTIFICATION_LOW_MASK, (x))))
+#define PACK_NOTIFICATION_BITMAP(low, high)	\
+	(FIELD_PREP(NOTIFICATION_LOW_MASK, (low)) | \
+	 FIELD_PREP(NOTIFICATION_HIGH_MASK, (high)))
+
+#define RECEIVER_VCPU_MASK		GENMASK(31, 16)
+#define PACK_NOTIFICATION_GET_RECEIVER_INFO(vcpu_r, r) \
+	(FIELD_PREP(RECEIVER_VCPU_MASK, (vcpu_r)) | \
+	 FIELD_PREP(RECEIVER_ID_MASK, (r)))
 
 static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
 					u32 flags, bool is_bind)
@@ -632,6 +640,35 @@ int ffa_notification_set(u16 src_id, u16 dst_id, u32 flags, u64 bitmap)
 		return ffa_to_linux_errno((int)ret.a2);
 	else if (ret.a0 != FFA_SUCCESS)
 		return -EINVAL;
+
+	return 0;
+}
+
+struct ffa_notify_bitmaps {
+	u64 sp_map;
+	u64 vm_map;
+	u64 arch_map;
+};
+
+static int ffa_notification_get(u32 flags, struct ffa_notify_bitmaps *notify)
+{
+	ffa_value_t ret;
+	u16 src_id = drv_info->vm_id;
+	u16 cpu_id = smp_processor_id();
+	u32 rec_vcpu_ids = PACK_NOTIFICATION_GET_RECEIVER_INFO(cpu_id, src_id);
+
+	invoke_ffa_fn((ffa_value_t){
+		  .a0 = FFA_NOTIFICATION_GET, .a1 = rec_vcpu_ids, .a2 = flags,
+		  }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		return ffa_to_linux_errno((int)ret.a2);
+	else if (ret.a0 != FFA_SUCCESS)
+		return -EINVAL; /* Something else went wrong. */
+
+	notify->sp_map = PACK_NOTIFICATION_BITMAP(ret.a2, ret.a3);
+	notify->vm_map = PACK_NOTIFICATION_BITMAP(ret.a4, ret.a5);
+	notify->arch_map = PACK_NOTIFICATION_BITMAP(ret.a6, ret.a7);
 
 	return 0;
 }
