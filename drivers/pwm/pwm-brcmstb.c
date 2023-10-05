@@ -273,9 +273,7 @@ static int brcmstb_pwm_resume(struct device *dev)
 {
 	struct brcmstb_pwm *p = dev_get_drvdata(dev);
 
-	clk_prepare_enable(p->clk);
-
-	return 0;
+	return clk_prepare_enable(p->clk);
 }
 #endif
 
