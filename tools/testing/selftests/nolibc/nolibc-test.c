@@ -57,6 +57,9 @@ static int test_argc;
 /* will be used by some test cases as readable file, please don't write it */
 static const char *argv0;
 
+/* will be used by constructor tests */
+static int constructor_test_value;
+
 /* definition of a series of tests */
 struct test {
 	const char *name;              /* test name */
@@ -594,6 +597,19 @@ int expect_strne(const char *expr, int llen, const char *cmp)
 #define CASE_TEST(name) \
 	case __LINE__: llen += printf("%d %s", test, #name);
 
+/* constructors validate that they are executed in definition order */
+__attribute__((constructor))
+static void constructor1(void)
+{
+	constructor_test_value = 1;
+}
+
+__attribute__((constructor))
+static void constructor2(void)
+{
+	constructor_test_value *= 2;
+}
+
 int run_startup(int min, int max)
 {
 	int test;
@@ -630,6 +646,7 @@ int run_startup(int min, int max)
 		CASE_TEST(environ_HOME);     EXPECT_PTRNZ(1, getenv("HOME")); break;
 		CASE_TEST(auxv_addr);        EXPECT_PTRGT(test_auxv != (void *)-1, test_auxv, brk); break;
 		CASE_TEST(auxv_AT_UID);      EXPECT_EQ(1, getauxval(AT_UID), getuid()); break;
+		CASE_TEST(constructor);      EXPECT_EQ(1, constructor_test_value, 2); break;
 		case __LINE__:
 			return ret; /* must be last */
 		/* note: do not set any defaults so as to permit holes above */
