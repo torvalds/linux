@@ -61,6 +61,8 @@ struct samsung_dsim_driver_data {
 	unsigned int num_bits_resol;
 	unsigned int pll_p_offset;
 	const unsigned int *reg_values;
+	unsigned int pll_fin_min;
+	unsigned int pll_fin_max;
 	u16 m_min;
 	u16 m_max;
 };

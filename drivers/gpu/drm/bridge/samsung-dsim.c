@@ -410,6 +410,8 @@ static const struct samsung_dsim_driver_data exynos3_dsi_driver_data = {
 	.num_bits_resol = 11,
 	.pll_p_offset = 13,
 	.reg_values = reg_values,
+	.pll_fin_min = 6,
+	.pll_fin_max = 12,
 	.m_min = 41,
 	.m_max = 125,
 	.min_freq = 500,
@@ -427,6 +429,8 @@ static const struct samsung_dsim_driver_data exynos4_dsi_driver_data = {
 	.num_bits_resol = 11,
 	.pll_p_offset = 13,
 	.reg_values = reg_values,
+	.pll_fin_min = 6,
+	.pll_fin_max = 12,
 	.m_min = 41,
 	.m_max = 125,
 	.min_freq = 500,
@@ -442,6 +446,8 @@ static const struct samsung_dsim_driver_data exynos5_dsi_driver_data = {
 	.num_bits_resol = 11,
 	.pll_p_offset = 13,
 	.reg_values = reg_values,
+	.pll_fin_min = 6,
+	.pll_fin_max = 12,
 	.m_min = 41,
 	.m_max = 125,
 	.min_freq = 500,
@@ -457,6 +463,8 @@ static const struct samsung_dsim_driver_data exynos5433_dsi_driver_data = {
 	.num_bits_resol = 12,
 	.pll_p_offset = 13,
 	.reg_values = exynos5433_reg_values,
+	.pll_fin_min = 6,
+	.pll_fin_max = 12,
 	.m_min = 41,
 	.m_max = 125,
 	.min_freq = 500,
@@ -472,6 +480,8 @@ static const struct samsung_dsim_driver_data exynos5422_dsi_driver_data = {
 	.num_bits_resol = 12,
 	.pll_p_offset = 13,
 	.reg_values = exynos5422_reg_values,
+	.pll_fin_min = 6,
+	.pll_fin_max = 12,
 	.m_min = 41,
 	.m_max = 125,
 	.min_freq = 500,
@@ -491,6 +501,8 @@ static const struct samsung_dsim_driver_data imx8mm_dsi_driver_data = {
 	 */
 	.pll_p_offset = 14,
 	.reg_values = imx8mm_dsim_reg_values,
+	.pll_fin_min = 2,
+	.pll_fin_max = 30,
 	.m_min = 64,
 	.m_max = 1023,
 	.min_freq = 1050,
@@ -614,10 +626,21 @@ static unsigned long samsung_dsim_set_pll(struct samsung_dsim *dsi,
 	u16 m;
 	u32 reg;
 
-	if (dsi->pll_clk)
+	if (dsi->pll_clk) {
+		/*
+		 * Ensure that the reference clock is generated with a power of
+		 * two divider from its parent, but close to the PLLs upper
+		 * limit.
+		 */
+		fin = clk_get_rate(clk_get_parent(dsi->pll_clk));
+		while (fin > driver_data->pll_fin_max * MHZ)
+			fin /= 2;
+		clk_set_rate(dsi->pll_clk, fin);
+
 		fin = clk_get_rate(dsi->pll_clk);
-	else
+	} else {
 		fin = dsi->pll_clk_rate;
+	}
 	dev_dbg(dsi->dev, "PLL ref clock freq %lu\n", fin);
 
 	fout = samsung_dsim_pll_find_pms(dsi, fin, freq, &p, &m, &s);
