@@ -612,9 +612,14 @@ static void chv_writel(struct intel_pinctrl *pctrl, unsigned int pin, unsigned i
 }
 
 /* When Pad Cfg is locked, driver can only change GPIOTXState or GPIORXState */
+static bool chv_pad_is_locked(u32 ctrl1)
+{
+	return ctrl1 & CHV_PADCTRL1_CFGLOCK;
+}
+
 static bool chv_pad_locked(struct intel_pinctrl *pctrl, unsigned int offset)
 {
-	return chv_readl(pctrl, offset, CHV_PADCTRL1) & CHV_PADCTRL1_CFGLOCK;
+	return chv_pad_is_locked(chv_readl(pctrl, offset, CHV_PADCTRL1));
 }
 
 static void chv_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
@@ -623,13 +628,11 @@ static void chv_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	unsigned long flags;
 	u32 ctrl0, ctrl1;
-	bool locked;
 
 	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	ctrl0 = chv_readl(pctrl, offset, CHV_PADCTRL0);
 	ctrl1 = chv_readl(pctrl, offset, CHV_PADCTRL1);
-	locked = chv_pad_locked(pctrl, offset);
 
 	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
@@ -646,7 +649,7 @@ static void chv_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 
 	seq_printf(s, "0x%08x 0x%08x", ctrl0, ctrl1);
 
-	if (locked)
+	if (chv_pad_is_locked(ctrl1))
 		seq_puts(s, " [LOCKED]");
 }
 
