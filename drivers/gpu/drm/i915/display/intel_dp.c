@@ -1370,10 +1370,11 @@ static bool intel_dp_source_supports_fec(struct intel_dp *intel_dp,
 }
 
 static bool intel_dp_supports_fec(struct intel_dp *intel_dp,
+				  const struct intel_connector *connector,
 				  const struct intel_crtc_state *pipe_config)
 {
 	return intel_dp_source_supports_fec(intel_dp, pipe_config) &&
-		drm_dp_sink_supports_fec(intel_dp->fec_capable);
+		drm_dp_sink_supports_fec(connector->dp.fec_capability);
 }
 
 static bool intel_dp_supports_dsc(struct intel_dp *intel_dp,
@@ -2110,12 +2111,14 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	const struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *adjusted_mode =
 		&pipe_config->hw.adjusted_mode;
 	int ret;
 
 	pipe_config->fec_enable = !intel_dp_is_edp(intel_dp) &&
-		intel_dp_supports_fec(intel_dp, pipe_config);
+		intel_dp_supports_fec(intel_dp, connector, pipe_config);
 
 	if (!intel_dp_supports_dsc(intel_dp, pipe_config))
 		return -EINVAL;
