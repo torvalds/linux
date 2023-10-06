@@ -166,7 +166,7 @@ static void handle_se_timeout(struct spi_master *spi,
 		 * doesn`t support CMD Cancel sequnece
 		 */
 		spin_unlock_irq(&mas->lock);
-		goto unmap_if_dma;
+		goto reset_if_dma;
 	}
 
 	reinit_completion(&mas->cancel_done);
@@ -175,7 +175,7 @@ static void handle_se_timeout(struct spi_master *spi,
 
 	time_left = wait_for_completion_timeout(&mas->cancel_done, HZ);
 	if (time_left)
-		goto unmap_if_dma;
+		goto reset_if_dma;
 
 	spin_lock_irq(&mas->lock);
 	reinit_completion(&mas->abort_done);
@@ -193,7 +193,7 @@ static void handle_se_timeout(struct spi_master *spi,
 		mas->abort_failed = true;
 	}
 
-unmap_if_dma:
+reset_if_dma:
 	if (mas->cur_xfer_mode == GENI_SE_DMA) {
 		if (xfer) {
 			if (xfer->tx_buf) {
