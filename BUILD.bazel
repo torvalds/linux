@@ -112,6 +112,7 @@ filegroup(
         "android/abi_gki_aarch64_pixel",
         "android/abi_gki_aarch64_qcom",
         "android/abi_gki_aarch64_rockchip",
+        "android/abi_gki_aarch64_sony",
         "android/abi_gki_aarch64_tuxera",
         "android/abi_gki_aarch64_unisoc",
         "android/abi_gki_aarch64_virtual_device",
