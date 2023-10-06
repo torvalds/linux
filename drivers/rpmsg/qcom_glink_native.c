@@ -2551,6 +2551,7 @@ static int qcom_glink_remove_device(struct device *dev, void *data)
 void qcom_glink_native_remove(struct qcom_glink *glink)
 {
 	struct glink_channel *channel;
+	int size;
 	int cid;
 	int ret;
 
@@ -2591,6 +2592,9 @@ void qcom_glink_native_remove(struct qcom_glink *glink)
 	qcom_glink_pipe_reset(glink);
 
 	mbox_free_channel(glink->mbox_chan);
+	size = of_property_count_u32_elems(glink->dev->of_node, "cpu-affinity");
+	if (size > 0 && irq_set_affinity_hint(glink->irq, NULL))
+		dev_err(glink->dev, "failed to clear irq affinity\n");
 }
 EXPORT_SYMBOL_GPL(qcom_glink_native_remove);
 
