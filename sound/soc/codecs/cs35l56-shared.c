@@ -446,6 +446,32 @@ static const struct reg_sequence cs35l56_hibernate_wake_seq[] = {
 	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_WAKEUP),
 };
 
+static void cs35l56_issue_wake_event(struct cs35l56_base *cs35l56_base)
+{
+	/*
+	 * Dummy transactions to trigger I2C/SPI auto-wake. Issue two
+	 * transactions to meet the minimum required time from the rising edge
+	 * to the last falling edge of wake.
+	 *
+	 * It uses bypassed write because we must wake the chip before
+	 * disabling regmap cache-only.
+	 *
+	 * This can NAK on I2C which will terminate the write sequence so the
+	 * single-write sequence is issued twice.
+	 */
+	regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
+					cs35l56_hibernate_wake_seq,
+					ARRAY_SIZE(cs35l56_hibernate_wake_seq));
+
+	usleep_range(CS35L56_WAKE_HOLD_TIME_US, 2 * CS35L56_WAKE_HOLD_TIME_US);
+
+	regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
+					cs35l56_hibernate_wake_seq,
+					ARRAY_SIZE(cs35l56_hibernate_wake_seq));
+
+	cs35l56_wait_control_port_ready();
+}
+
 int cs35l56_runtime_suspend_common(struct cs35l56_base *cs35l56_base)
 {
 	unsigned int val;
@@ -500,17 +526,9 @@ int cs35l56_runtime_resume_common(struct cs35l56_base *cs35l56_base, bool is_sou
 	if (!cs35l56_base->can_hibernate)
 		goto out_sync;
 
-	if (!is_soundwire) {
-		/*
-		 * Dummy transaction to trigger I2C/SPI auto-wake. This will NAK on I2C.
-		 * Must be done before releasing cache-only.
-		 */
-		regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
-						cs35l56_hibernate_wake_seq,
-						ARRAY_SIZE(cs35l56_hibernate_wake_seq));
-
-		cs35l56_wait_control_port_ready();
-	}
+	/* Must be done before releasing cache-only */
+	if (!is_soundwire)
+		cs35l56_issue_wake_event(cs35l56_base);
 
 out_sync:
 	regcache_cache_only(cs35l56_base->regmap, false);
@@ -578,13 +596,14 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	unsigned int devid, revid, otpid, secured;
 
 	/*
-	 * If the system is not using a reset_gpio then issue a
-	 * dummy read to force a wakeup.
+	 * When the system is not using a reset_gpio ensure the device is
+	 * awake, otherwise the device has just been released from reset and
+	 * the driver must wait for the control port to become usable.
 	 */
 	if (!cs35l56_base->reset_gpio)
-		regmap_read(cs35l56_base->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1, &devid);
-
-	cs35l56_wait_control_port_ready();
+		cs35l56_issue_wake_event(cs35l56_base);
+	else
+		cs35l56_wait_control_port_ready();
 
 	/*
 	 * The HALO_STATE register is in different locations on Ax and B0
