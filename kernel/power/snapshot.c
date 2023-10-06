@@ -2647,7 +2647,7 @@ static int prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm,
 	memory_bm_free(bm, PG_UNSAFE_KEEP);
 
 	/* Make a copy of zero_bm so it can be created in safe pages */
-	error = memory_bm_create(&tmp, GFP_ATOMIC, PG_ANY);
+	error = memory_bm_create(&tmp, GFP_ATOMIC, PG_SAFE);
 	if (error)
 		goto Free;
 
@@ -2660,7 +2660,7 @@ static int prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm,
 		goto Free;
 
 	duplicate_memory_bitmap(zero_bm, &tmp);
-	memory_bm_free(&tmp, PG_UNSAFE_KEEP);
+	memory_bm_free(&tmp, PG_UNSAFE_CLEAR);
 	/* At this point zero_bm is in safe pages and it can be used for restoring. */
 
 	if (nr_highmem > 0) {
