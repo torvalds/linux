@@ -175,8 +175,8 @@ static int mpc52xx_psc_spi_transfer_rxtx(struct spi_device *spi,
 	return 0;
 }
 
-int mpc52xx_psc_spi_transfer_one_message(struct spi_controller *ctlr,
-					 struct spi_message *m)
+static int mpc52xx_psc_spi_transfer_one_message(struct spi_controller *ctlr,
+						struct spi_message *m)
 {
 	struct spi_device *spi;
 	struct spi_transfer *t = NULL;
