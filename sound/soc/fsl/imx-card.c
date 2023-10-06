@@ -5,9 +5,8 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/i2c.h>
-#include <linux/of_gpio.h>
 #include <linux/clk.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>

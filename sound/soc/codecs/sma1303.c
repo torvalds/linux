@@ -7,6 +7,7 @@
 // Auther: Gyuhwa Park <gyuhwa.park@irondevice.com>
 //         Kiseok Jo <kiseok.jo@irondevice.com>
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -21,7 +22,6 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <asm/div64.h>
 

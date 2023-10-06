@@ -9,7 +9,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/property.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
