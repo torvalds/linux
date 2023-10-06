@@ -28,6 +28,11 @@ static const struct xe_rtp_entry_sr gt_tunings[] = {
 };
 
 static const struct xe_rtp_entry_sr engine_tunings[] = {
+	{ XE_RTP_NAME("Tuning: Set Indirect State Override"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1271),
+		       ENGINE_CLASS(RENDER)),
+	  XE_RTP_ACTIONS(SET(SAMPLER_MODE, INDIRECT_STATE_BASE_ADDR_OVERRIDE))
+	},
 	{}
 };
 
