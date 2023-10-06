@@ -104,6 +104,28 @@ static void aspeed_spi_set_segment_addr_ast2600(struct aspeed_spi_host *host)
 	}
 }
 
+#define G7_SEGMENT_ADDR_VALUE(start, end) \
+	((((start) >> 16) & 0xffff) | (((end) + 1) & 0xffff0000))
+
+static void aspeed_spi_set_segment_addr_ast2700(struct aspeed_spi_host *host)
+{
+	const struct aspeed_spi_info *info = host->info;
+	u32 cs;
+	phys_addr_t start = host->ahb_base_phy;
+	phys_addr_t end;
+	u32 reg_val;
+
+	for (cs = 0; cs < info->max_cs; cs++) {
+		end = start + info->min_window_sz;
+		reg_val = G7_SEGMENT_ADDR_VALUE(start, end);
+		writel(reg_val, host->ctrl_reg + SPI_DECODE_ADDR_REG + cs * 4);
+		host->chip_ahb_base[cs] = devm_ioremap(host->dev,
+						       start,
+						       info->min_window_sz);
+		start = end;
+	}
+}
+
 static const u32 aspeed_spi_hclk_divs[] = {
 	/* HCLK, HCLK/2, HCLK/3, HCLK/4, HCLK/5, ..., HCLK/16 */
 	0xf, 0x7, 0xe, 0x6, 0xd,
@@ -510,11 +532,29 @@ struct aspeed_spi_info ast2600_spi_info = {
 	.set_segment   = aspeed_spi_set_segment_addr_ast2600,
 };
 
+struct aspeed_spi_info ast2700_fmc_info = {
+	.max_cs        = 3,
+	.min_window_sz = 0x10000,
+	.hclk_mask     = 0xf0fff0ff,
+	.get_clk_div   = apseed_get_clk_div_ast2600,
+	.set_segment   = aspeed_spi_set_segment_addr_ast2700,
+};
+
+struct aspeed_spi_info ast2700_spi_info = {
+	.max_cs        = 2,
+	.min_window_sz = 0x10000,
+	.hclk_mask     = 0xf0fff0ff,
+	.get_clk_div   = apseed_get_clk_div_ast2600,
+	.set_segment   = aspeed_spi_set_segment_addr_ast2700,
+};
+
 static const struct of_device_id aspeed_spi_of_match[] = {
 	{ .compatible = "aspeed,ast2500-fmc-txrx", .data = &ast2500_fmc_info},
 	{ .compatible = "aspeed,ast2500-spi-txrx", .data = &ast2500_spi_info},
 	{ .compatible = "aspeed,ast2600-fmc-txrx", .data = &ast2600_fmc_info},
 	{ .compatible = "aspeed,ast2600-spi-txrx", .data = &ast2600_spi_info},
+	{ .compatible = "aspeed,ast2700-fmc-txrx", .data = &ast2700_fmc_info},
+	{ .compatible = "aspeed,ast2700-spi-txrx", .data = &ast2700_spi_info},
 	{ },
 };
 
