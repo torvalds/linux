@@ -15,6 +15,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/reboot.h>
 
 #define DEFAULT_TIMEOUT_MS 3000
 
@@ -25,15 +26,9 @@ struct gpio_poweroff {
 	u32 inactive_delay_ms;
 };
 
-/*
- * Hold configuration here, cannot be more than one instance of the driver
- * since pm_power_off itself is global.
- */
-static struct gpio_poweroff *gpio_poweroff;
-
-static void gpio_poweroff_do_poweroff(void)
+static int gpio_poweroff_do_poweroff(struct sys_off_data *data)
 {
-	BUG_ON(!gpio_poweroff);
+	struct gpio_poweroff *gpio_poweroff = data->cb_data;
 
 	/* drive it active, also inactive->active edge */
 	gpiod_direction_output(gpio_poweroff->reset_gpio, 1);
@@ -50,20 +45,16 @@ static void gpio_poweroff_do_poweroff(void)
 	mdelay(gpio_poweroff->timeout_ms);
 
 	WARN_ON(1);
+
+	return NOTIFY_DONE;
 }
 
 static int gpio_poweroff_probe(struct platform_device *pdev)
 {
+	struct gpio_poweroff *gpio_poweroff;
 	bool input = false;
 	enum gpiod_flags flags;
-
-	/* If a pm_power_off function has already been added, leave it alone */
-	if (pm_power_off != NULL) {
-		dev_err(&pdev->dev,
-			"%s: pm_power_off function already registered\n",
-		       __func__);
-		return -EBUSY;
-	}
+	int ret;
 
 	gpio_poweroff = devm_kzalloc(&pdev->dev, sizeof(*gpio_poweroff), GFP_KERNEL);
 	if (!gpio_poweroff)
@@ -89,14 +80,11 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 	if (IS_ERR(gpio_poweroff->reset_gpio))
 		return PTR_ERR(gpio_poweroff->reset_gpio);
 
-	pm_power_off = &gpio_poweroff_do_poweroff;
-	return 0;
-}
-
-static int gpio_poweroff_remove(struct platform_device *pdev)
-{
-	if (pm_power_off == &gpio_poweroff_do_poweroff)
-		pm_power_off = NULL;
+	ret = devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_POWER_OFF,
+					    SYS_OFF_PRIO_DEFAULT, gpio_poweroff_do_poweroff,
+					    gpio_poweroff);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Cannot register poweroff handler\n");
 
 	return 0;
 }
@@ -109,7 +97,6 @@ MODULE_DEVICE_TABLE(of, of_gpio_poweroff_match);
 
 static struct platform_driver gpio_poweroff_driver = {
 	.probe = gpio_poweroff_probe,
-	.remove = gpio_poweroff_remove,
 	.driver = {
 		.name = "poweroff-gpio",
 		.of_match_table = of_gpio_poweroff_match,
