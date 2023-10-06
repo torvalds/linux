@@ -695,7 +695,9 @@ static const struct file_operations spidev_fops = {
  * It also simplifies memory management.
  */
 
-static struct class *spidev_class;
+static const struct class spidev_class = {
+	.name = "spidev",
+};
 
 static const struct spi_device_id spidev_spi_ids[] = {
 	{ .name = "dh2228fv" },
@@ -798,7 +800,7 @@ static int spidev_probe(struct spi_device *spi)
 		struct device *dev;
 
 		spidev->devt = MKDEV(SPIDEV_MAJOR, minor);
-		dev = device_create(spidev_class, &spi->dev, spidev->devt,
+		dev = device_create(&spidev_class, &spi->dev, spidev->devt,
 				    spidev, "spidev%d.%d",
 				    spi->master->bus_num, spi_get_chipselect(spi, 0));
 		status = PTR_ERR_OR_ZERO(dev);
@@ -834,7 +836,7 @@ static void spidev_remove(struct spi_device *spi)
 	mutex_unlock(&spidev->spi_lock);
 
 	list_del(&spidev->device_entry);
-	device_destroy(spidev_class, spidev->devt);
+	device_destroy(&spidev_class, spidev->devt);
 	clear_bit(MINOR(spidev->devt), minors);
 	if (spidev->users == 0)
 		kfree(spidev);
@@ -872,15 +874,15 @@ static int __init spidev_init(void)
 	if (status < 0)
 		return status;
 
-	spidev_class = class_create("spidev");
-	if (IS_ERR(spidev_class)) {
+	status = class_register(&spidev_class);
+	if (status) {
 		unregister_chrdev(SPIDEV_MAJOR, spidev_spi_driver.driver.name);
-		return PTR_ERR(spidev_class);
+		return status;
 	}
 
 	status = spi_register_driver(&spidev_spi_driver);
 	if (status < 0) {
-		class_destroy(spidev_class);
+		class_unregister(&spidev_class);
 		unregister_chrdev(SPIDEV_MAJOR, spidev_spi_driver.driver.name);
 	}
 	return status;
@@ -890,7 +892,7 @@ module_init(spidev_init);
 static void __exit spidev_exit(void)
 {
 	spi_unregister_driver(&spidev_spi_driver);
-	class_destroy(spidev_class);
+	class_unregister(&spidev_class);
 	unregister_chrdev(SPIDEV_MAJOR, spidev_spi_driver.driver.name);
 }
 module_exit(spidev_exit);
