@@ -60,6 +60,9 @@ struct ipv6_stub {
 #if IS_ENABLED(CONFIG_XFRM)
 	void (*xfrm6_local_rxpmtu)(struct sk_buff *skb, u32 mtu);
 	int (*xfrm6_udp_encap_rcv)(struct sock *sk, struct sk_buff *skb);
+	struct sk_buff *(*xfrm6_gro_udp_encap_rcv)(struct sock *sk,
+						   struct list_head *head,
+						   struct sk_buff *skb);
 	int (*xfrm6_rcv_encap)(struct sk_buff *skb, int nexthdr, __be32 spi,
 			       int encap_type);
 #endif
