@@ -4,7 +4,47 @@
  *
  * Copyright (c) 2010-2010 Analog Devices Inc.
  * Copyright (c) 2023 BayLibre, SAS
+ *
+ * Device register to IIO ABI mapping:
+ *
+ * Register                    | Addr | IIO ABI (sysfs)
+ * ----------------------------|------|-------------------------------------------
+ * DOS Overrange Threshold     | 0x89 | events/in_altvoltage0_thresh_rising_value
+ * DOS Mismatch Threshold      | 0x8A | events/in_altvoltage0_mag_rising_value
+ * DOS Reset Maximum Threshold | 0x8B | events/in_altvoltage0_mag_rising_reset_max
+ * DOS Reset Minimum Threshold | 0x8C | events/in_altvoltage0_mag_rising_reset_min
+ * LOT High Threshold          | 0x8D | events/in_angl1_thresh_rising_value
+ * LOT Low Threshold [1]       | 0x8E | events/in_angl1_thresh_rising_hysteresis
+ * Excitation Frequency        | 0x91 | out_altvoltage0_frequency
+ * Control                     | 0x92 | *as bit fields*
+ *   Phase lock range          | D5   | events/in_phase0_mag_rising_value
+ *   Hysteresis                | D4   | in_angl0_hysteresis
+ *   Encoder resolution        | D3:2 | *not implemented*
+ *   Resolution                | D1:0 | *device tree: assigned-resolution-bits*
+ * Soft Reset                  | 0xF0 | [2]
+ * Fault                       | 0xFF | *not implemented*
+ *
+ * [1]: The value written to the LOT low register is high value minus the
+ * hysteresis.
+ * [2]: Soft reset is performed when `out_altvoltage0_frequency` is written.
+ *
+ * Fault to event mapping:
+ *
+ * Fault                                   |    | Channel     | Type   | Direction
+ * ----------------------------------------|----|---------------------------------
+ * Sine/cosine inputs clipped [3]          | D7 | altvoltage1 | mag    | either
+ * Sine/cosine inputs below LOS            | D6 | altvoltage0 | thresh | falling
+ * Sine/cosine inputs exceed DOS overrange | D5 | altvoltage0 | thresh | rising
+ * Sine/cosine inputs exceed DOS mismatch  | D4 | altvoltage0 | mag    | rising
+ * Tracking error exceeds LOT              | D3 | angl1       | thresh | rising
+ * Velocity exceeds maximum tracking rate  | D2 | anglvel0    | mag    | rising
+ * Phase error exceeds phase lock range    | D1 | phase0      | mag    | rising
+ * Configuration parity error              | D0 | *writes to kernel log*
+ *
+ * [3]: The chip does not differentiate between fault on sine vs. cosine so
+ * there will also be an event on the altvoltage2 channel.
  */
+
 #include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/clk.h>
