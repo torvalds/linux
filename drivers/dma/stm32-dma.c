@@ -21,7 +21,6 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -1561,16 +1560,9 @@ static int stm32_dma_probe(struct platform_device *pdev)
 	struct stm32_dma_chan *chan;
 	struct stm32_dma_device *dmadev;
 	struct dma_device *dd;
-	const struct of_device_id *match;
 	struct resource *res;
 	struct reset_control *rst;
 	int i, ret;
-
-	match = of_match_device(stm32_dma_of_match, &pdev->dev);
-	if (!match) {
-		dev_err(&pdev->dev, "Error: No device match found\n");
-		return -ENODEV;
-	}
 
 	dmadev = devm_kzalloc(&pdev->dev, sizeof(*dmadev), GFP_KERNEL);
 	if (!dmadev)

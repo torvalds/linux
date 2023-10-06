@@ -15,7 +15,6 @@
 #include <linux/device.h>
 #include <linux/platform_data/mmp_dma.h>
 #include <linux/dmapool.h>
-#include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/of.h>
 
@@ -1019,7 +1018,6 @@ static struct dma_chan *mmp_pdma_dma_xlate(struct of_phandle_args *dma_spec,
 static int mmp_pdma_probe(struct platform_device *op)
 {
 	struct mmp_pdma_device *pdev;
-	const struct of_device_id *of_id;
 	struct mmp_dma_platdata *pdata = dev_get_platdata(&op->dev);
 	int i, ret, irq = 0;
 	int dma_channels = 0, irq_num = 0;
@@ -1039,8 +1037,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 	if (IS_ERR(pdev->base))
 		return PTR_ERR(pdev->base);
 
-	of_id = of_match_device(mmp_pdma_dt_ids, pdev->dev);
-	if (of_id) {
+	if (pdev->dev->of_node) {
 		/* Parse new and deprecated dma-channels properties */
 		if (of_property_read_u32(pdev->dev->of_node, "dma-channels",
 					 &dma_channels))

@@ -15,9 +15,8 @@
 #include <linux/device.h>
 #include <linux/platform_data/mmp_dma.h>
 #include <linux/dmapool.h>
-#include <linux/of_device.h>
-#include <linux/of_dma.h>
 #include <linux/of.h>
+#include <linux/of_dma.h>
 #include <linux/wait.h>
 #include <linux/dma/pxa-dma.h>
 
@@ -1344,7 +1343,6 @@ static int pxad_init_dmadev(struct platform_device *op,
 static int pxad_probe(struct platform_device *op)
 {
 	struct pxad_device *pdev;
-	const struct of_device_id *of_id;
 	const struct dma_slave_map *slave_map = NULL;
 	struct mmp_dma_platdata *pdata = dev_get_platdata(&op->dev);
 	int ret, dma_channels = 0, nb_requestors = 0, slave_map_cnt = 0;
@@ -1362,8 +1360,7 @@ static int pxad_probe(struct platform_device *op)
 	if (IS_ERR(pdev->base))
 		return PTR_ERR(pdev->base);
 
-	of_id = of_match_device(pxad_dt_ids, &op->dev);
-	if (of_id) {
+	if (op->dev.of_node) {
 		/* Parse new and deprecated dma-channels properties */
 		if (of_property_read_u32(op->dev.of_node, "dma-channels",
 					 &dma_channels))
