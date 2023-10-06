@@ -627,22 +627,6 @@ end_hw_sec:
 	return ret;
 }
 
-static int _rtl92e_wx_set_scan_type(struct net_device *dev,
-				    struct iw_request_info *aa,
-				    union iwreq_data *wrqu, char *p)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	int *parms = (int *)p;
-	int mode = parms[0];
-
-	if (priv->hw_radio_off)
-		return 0;
-
-	priv->rtllib->active_scan = mode;
-
-	return 1;
-}
-
 #define R8192_MAX_RETRY 255
 static int _rtl92e_wx_set_retry(struct net_device *dev,
 				struct iw_request_info *info,
@@ -896,16 +880,12 @@ static const struct iw_priv_args r8192_private_args[] = {
 	{
 		SIOCIWFIRSTPRIV + 0x0,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "set_debugflag"
-	}, {
-		SIOCIWFIRSTPRIV + 0x1,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "activescan"
 	}
 
 };
 
 static iw_handler r8192_private_handler[] = {
 	(iw_handler)_rtl92e_wx_set_debug,   /*SIOCIWSECONDPRIV*/
-	(iw_handler)_rtl92e_wx_set_scan_type,
 };
 
 static struct iw_statistics *_rtl92e_get_wireless_stats(struct net_device *dev)
