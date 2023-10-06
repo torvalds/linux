@@ -66,6 +66,11 @@
 #define PHASE_360_DEG_TO_RAD_INT 6
 #define PHASE_360_DEG_TO_RAD_MICRO 283185
 
+/* Threshold voltage registers have 1 LSB == 38 mV */
+#define THRESHOLD_MILLIVOLT_PER_LSB 38
+/* max voltage for threshold registers is 0x7F * 38 mV */
+#define THRESHOLD_RANGE_STR "[0 38 4826]"
+
 enum ad2s1210_mode {
 	MOD_POS = 0b00,
 	MOD_VEL = 0b01,
@@ -451,6 +456,38 @@ static const int ad2s1210_lot_threshold_urad_per_lsb[] = {
 	1237, /* 16-bit: same as 14-bit */
 };
 
+static int ad2s1210_get_voltage_threshold(struct ad2s1210_state *st,
+					  unsigned int reg, int *val)
+{
+	unsigned int reg_val;
+	int ret;
+
+	mutex_lock(&st->lock);
+	ret = regmap_read(st->regmap, reg, &reg_val);
+	mutex_unlock(&st->lock);
+
+	if (ret < 0)
+		return ret;
+
+	*val = reg_val * THRESHOLD_MILLIVOLT_PER_LSB;
+	return IIO_VAL_INT;
+}
+
+static int ad2s1210_set_voltage_threshold(struct ad2s1210_state *st,
+					  unsigned int reg, int val)
+{
+	unsigned int reg_val;
+	int ret;
+
+	reg_val = val / THRESHOLD_MILLIVOLT_PER_LSB;
+
+	mutex_lock(&st->lock);
+	ret = regmap_write(st->regmap, reg, reg_val);
+	mutex_unlock(&st->lock);
+
+	return ret;
+}
+
 static int ad2s1210_get_lot_high_threshold(struct ad2s1210_state *st,
 					   int *val, int *val2)
 {
@@ -710,9 +747,6 @@ static int ad2s1210_write_raw(struct iio_dev *indio_dev,
 static IIO_DEVICE_ATTR(fault, 0644,
 		       ad2s1210_show_fault, ad2s1210_clear_fault, 0);
 
-static IIO_DEVICE_ATTR(los_thrd, 0644,
-		       ad2s1210_show_reg, ad2s1210_store_reg,
-		       AD2S1210_REG_LOS_THRD);
 static IIO_DEVICE_ATTR(dos_ovr_thrd, 0644,
 		       ad2s1210_show_reg, ad2s1210_store_reg,
 		       AD2S1210_REG_DOS_OVR_THRD);
@@ -745,6 +779,16 @@ static const struct iio_event_spec ad2s1210_phase_event_spec[] = {
 		.type = IIO_EV_TYPE_MAG,
 		.dir = IIO_EV_DIR_RISING,
 		/* Phase lock range. */
+		.mask_separate = BIT(IIO_EV_INFO_VALUE),
+	},
+};
+
+static const struct iio_event_spec ad2s1210_monitor_signal_event_spec[] = {
+	{
+		/* Sine/cosine below LOS threshold fault. */
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_FALLING,
+		/* Loss of signal threshold. */
 		.mask_separate = BIT(IIO_EV_INFO_VALUE),
 	},
 };
@@ -807,12 +851,19 @@ static const struct iio_chan_spec ad2s1210_channels[] = {
 		.scan_index = -1,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_FREQUENCY),
 		.info_mask_separate_available = BIT(IIO_CHAN_INFO_FREQUENCY),
+	}, {
+		/* monitor signal */
+		.type = IIO_ALTVOLTAGE,
+		.indexed = 1,
+		.channel = 0,
+		.scan_index = -1,
+		.event_spec = ad2s1210_monitor_signal_event_spec,
+		.num_event_specs = ARRAY_SIZE(ad2s1210_monitor_signal_event_spec),
 	},
 };
 
 static struct attribute *ad2s1210_attributes[] = {
 	&iio_dev_attr_fault.dev_attr.attr,
-	&iio_dev_attr_los_thrd.dev_attr.attr,
 	&iio_dev_attr_dos_ovr_thrd.dev_attr.attr,
 	&iio_dev_attr_dos_mis_thrd.dev_attr.attr,
 	&iio_dev_attr_dos_rst_max_thrd.dev_attr.attr,
@@ -851,11 +902,14 @@ static IIO_CONST_ATTR(in_phase0_mag_rising_value_available,
 		      __stringify(PHASE_44_DEG_TO_RAD_MICRO) " "
 		      __stringify(PHASE_360_DEG_TO_RAD_INT) "."
 		      __stringify(PHASE_360_DEG_TO_RAD_MICRO));
+static IIO_CONST_ATTR(in_altvoltage0_thresh_falling_value_available,
+		      THRESHOLD_RANGE_STR);
 static IIO_DEVICE_ATTR_RO(in_angl1_thresh_rising_value_available, 0);
 static IIO_DEVICE_ATTR_RO(in_angl1_thresh_rising_hysteresis_available, 0);
 
 static struct attribute *ad2s1210_event_attributes[] = {
 	&iio_const_attr_in_phase0_mag_rising_value_available.dev_attr.attr,
+	&iio_const_attr_in_altvoltage0_thresh_falling_value_available.dev_attr.attr,
 	&iio_dev_attr_in_angl1_thresh_rising_value_available.dev_attr.attr,
 	&iio_dev_attr_in_angl1_thresh_rising_hysteresis_available.dev_attr.attr,
 	NULL,
@@ -908,6 +962,13 @@ static int ad2s1210_read_event_value(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+	case IIO_ALTVOLTAGE:
+		if (chan->output)
+			return -EINVAL;
+		if (type == IIO_EV_TYPE_THRESH && dir == IIO_EV_DIR_FALLING)
+			return ad2s1210_get_voltage_threshold(st,
+						AD2S1210_REG_LOS_THRD, val);
+		return -EINVAL;
 	case IIO_PHASE:
 		return ad2s1210_get_phase_lock_range(st, val, val2);
 	default:
@@ -934,6 +995,13 @@ static int ad2s1210_write_event_value(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+	case IIO_ALTVOLTAGE:
+		if (chan->output)
+			return -EINVAL;
+		if (type == IIO_EV_TYPE_THRESH && dir == IIO_EV_DIR_FALLING)
+			return ad2s1210_set_voltage_threshold(st,
+						AD2S1210_REG_LOS_THRD, val);
+		return -EINVAL;
 	case IIO_PHASE:
 		return ad2s1210_set_phase_lock_range(st, val, val2);
 	default:
