@@ -44,6 +44,16 @@ extern "C" {
 #define NOUVEAU_GETPARAM_PTIMER_TIME     14
 #define NOUVEAU_GETPARAM_HAS_BO_USAGE    15
 #define NOUVEAU_GETPARAM_HAS_PAGEFLIP    16
+
+/**
+ * @NOUVEAU_GETPARAM_EXEC_PUSH_MAX
+ *
+ * Query the maximum amount of IBs that can be pushed through a single
+ * &drm_nouveau_exec structure and hence a single &DRM_IOCTL_NOUVEAU_EXEC
+ * ioctl().
+ */
+#define NOUVEAU_GETPARAM_EXEC_PUSH_MAX   17
+
 struct drm_nouveau_getparam {
 	__u64 param;
 	__u64 value;

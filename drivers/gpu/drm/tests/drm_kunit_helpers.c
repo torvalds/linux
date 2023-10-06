@@ -118,7 +118,7 @@ void drm_kunit_helper_free_device(struct kunit *test, struct device *dev)
 
 	kunit_release_action(test,
 			     kunit_action_platform_driver_unregister,
-			     pdev);
+			     &fake_platform_driver);
 }
 EXPORT_SYMBOL_GPL(drm_kunit_helper_free_device);
 
