@@ -152,6 +152,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	display/xe_hdcp_gsc.o \
 	display/xe_plane_initial.o \
 	display/xe_display_rps.o \
+	display/xe_display_misc.o \
 	display/intel_fbdev_fb.o \
 	display/intel_fb_bo.o \
 	display/ext/i915_irq.o \
