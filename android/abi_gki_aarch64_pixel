@@ -1756,6 +1756,7 @@
   __request_region
   request_threaded_irq
   resched_curr
+  reserve_iova
   return_address
   reweight_task
   rfkill_alloc
