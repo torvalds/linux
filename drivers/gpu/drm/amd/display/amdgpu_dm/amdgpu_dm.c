@@ -2667,11 +2667,6 @@ static void hpd_rx_irq_work_suspend(struct amdgpu_display_manager *dm)
 	}
 }
 
-static int dm_set_power_state(struct dc *dc, enum dc_acpi_cm_power_state power_state)
-{
-	return dc_set_power_state(dc, power_state) ? 0 : -ENOMEM;
-}
-
 static int dm_suspend(void *handle)
 {
 	struct amdgpu_device *adev = handle;
@@ -2707,7 +2702,9 @@ static int dm_suspend(void *handle)
 
 	hpd_rx_irq_work_suspend(dm);
 
-	return dm_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D3);
+	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D3);
+
+	return 0;
 }
 
 struct drm_connector *
@@ -2901,9 +2898,7 @@ static int dm_resume(void *handle)
 		if (r)
 			DRM_ERROR("DMUB interface failed to initialize: status=%d\n", r);
 
-		r = dm_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
-		if (r)
-			return r;
+		dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
 
 		dc_resume(dm->dc);
 
@@ -2953,9 +2948,7 @@ static int dm_resume(void *handle)
 	}
 
 	/* power on hardware */
-	r = dm_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
-	if (r)
-		return r;
+	 dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
 
 	/* program HPD filter */
 	dc_resume(dm->dc);

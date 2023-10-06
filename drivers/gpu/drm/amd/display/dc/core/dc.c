@@ -4777,12 +4777,12 @@ void dc_power_down_on_boot(struct dc *dc)
 		dc->hwss.power_down_on_boot(dc);
 }
 
-bool dc_set_power_state(
+void dc_set_power_state(
 	struct dc *dc,
 	enum dc_acpi_cm_power_state power_state)
 {
 	if (!dc->current_state)
-		return true;
+		return;
 
 	switch (power_state) {
 	case DC_ACPI_CM_POWER_STATE_D0:
@@ -4805,8 +4805,6 @@ bool dc_set_power_state(
 
 		break;
 	}
-
-	return true;
 }
 
 void dc_resume(struct dc *dc)
