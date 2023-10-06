@@ -420,10 +420,6 @@ static int ksz9477_validate_and_get_src_count(struct ksz_device *dev, int port,
 		return -EINVAL;
 	}
 
-	/* Nothing to do */
-	if (src_idx == dst_idx)
-		return 0;
-
 	/* Validate if the source entries are contiguous */
 	ret = ksz9477_acl_get_cont_entr(dev, port, src_idx);
 	if (ret < 0)
@@ -555,6 +551,10 @@ static int ksz9477_acl_move_entries(struct ksz_device *dev, int port,
 	struct ksz9477_acl_priv *acl = dev->ports[port].acl_priv;
 	struct ksz9477_acl_entries *acles = &acl->acles;
 	int src_count, ret, dst_count;
+
+	/* Nothing to do */
+	if (src_idx == dst_idx)
+		return 0;
 
 	ret = ksz9477_validate_and_get_src_count(dev, port, src_idx, dst_idx,
 						 &src_count, &dst_count);
