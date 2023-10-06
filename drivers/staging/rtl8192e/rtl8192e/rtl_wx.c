@@ -122,25 +122,6 @@ static int _rtl92e_wx_get_power(struct net_device *dev,
 	return rtllib_wx_get_power(priv->rtllib, info, wrqu, extra);
 }
 
-static int _rtl92e_wx_set_debug(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u8 c = *extra;
-
-	if (priv->hw_radio_off)
-		return 0;
-
-	netdev_info(dev, "=====>%s(), *extra:%x, debugflag:%x\n", __func__,
-		    *extra, rt_global_debug_component);
-	if (c > 0)
-		rt_global_debug_component |= (1 << c);
-	else
-		rt_global_debug_component &= BIT31;
-	return 0;
-}
-
 static int _rtl92e_wx_set_mode(struct net_device *dev,
 			       struct iw_request_info *a,
 			       union iwreq_data *wrqu, char *b)
@@ -872,22 +853,6 @@ static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCSIWENCODEEXT)] = _rtl92e_wx_set_encode_ext,
 };
 
-/* the following rule need to be following,
- * Odd : get (world access),
- * even : set (root access)
- */
-static const struct iw_priv_args r8192_private_args[] = {
-	{
-		SIOCIWFIRSTPRIV + 0x0,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "set_debugflag"
-	}
-
-};
-
-static iw_handler r8192_private_handler[] = {
-	(iw_handler)_rtl92e_wx_set_debug,   /*SIOCIWSECONDPRIV*/
-};
-
 static struct iw_statistics *_rtl92e_get_wireless_stats(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -919,10 +884,5 @@ static struct iw_statistics *_rtl92e_get_wireless_stats(struct net_device *dev)
 const struct iw_handler_def r8192_wx_handlers_def = {
 	.standard = r8192_wx_handlers,
 	.num_standard = ARRAY_SIZE(r8192_wx_handlers),
-	.private = r8192_private_handler,
-	.num_private = ARRAY_SIZE(r8192_private_handler),
-	.num_private_args = sizeof(r8192_private_args) /
-			    sizeof(struct iw_priv_args),
 	.get_wireless_stats = _rtl92e_get_wireless_stats,
-	.private_args = (struct iw_priv_args *)r8192_private_args,
 };
