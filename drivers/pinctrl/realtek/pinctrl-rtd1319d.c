@@ -233,8 +233,9 @@ static const struct pinctrl_pin_desc rtd1319d_iso_pins[] = {
 	PINCTRL_PIN(RTD1319D_ISO_TESTMODE, "testmode"),
 };
 
+/* Tagged as __maybe_unused since there are pins we may use in the future */
 #define DECLARE_RTD1319D_PIN(_pin, _name) \
-	static const unsigned int rtd1319d_## _name ##_pins[] = { _pin }
+	static const unsigned int rtd1319d_## _name ##_pins[] __maybe_unused = { _pin }
 
 DECLARE_RTD1319D_PIN(RTD1319D_ISO_GPIO_0, gpio_0);
 DECLARE_RTD1319D_PIN(RTD1319D_ISO_GPIO_1, gpio_1);
