@@ -166,9 +166,10 @@ static int ad2s1210_regmap_reg_read(void *context, unsigned int reg,
 	st->tx[0] = reg;
 	/*
 	 * Must be valid register address here otherwise this could write data.
-	 * It doesn't matter which one.
+	 * It doesn't matter which one as long as reading doesn't have side-
+	 * effects.
 	 */
-	st->tx[1] = AD2S1210_REG_FAULT;
+	st->tx[1] = AD2S1210_REG_CONTROL;
 
 	ret = spi_sync_transfer(st->sdev, xfers, ARRAY_SIZE(xfers));
 	if (ret < 0)
