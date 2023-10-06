@@ -1377,14 +1377,14 @@ static bool intel_dp_supports_fec(struct intel_dp *intel_dp,
 		drm_dp_sink_supports_fec(connector->dp.fec_capability);
 }
 
-static bool intel_dp_supports_dsc(struct intel_dp *intel_dp,
+static bool intel_dp_supports_dsc(const struct intel_connector *connector,
 				  const struct intel_crtc_state *crtc_state)
 {
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP) && !crtc_state->fec_enable)
 		return false;
 
 	return intel_dsc_source_support(crtc_state) &&
-		drm_dp_sink_supports_dsc(intel_dp->dsc_dpcd);
+		drm_dp_sink_supports_dsc(connector->dp.dsc_dpcd);
 }
 
 static int intel_dp_hdmi_compute_bpc(struct intel_dp *intel_dp,
@@ -2120,7 +2120,7 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	pipe_config->fec_enable = !intel_dp_is_edp(intel_dp) &&
 		intel_dp_supports_fec(intel_dp, connector, pipe_config);
 
-	if (!intel_dp_supports_dsc(intel_dp, pipe_config))
+	if (!intel_dp_supports_dsc(connector, pipe_config))
 		return -EINVAL;
 
 	if (!intel_dp_dsc_supports_format(intel_dp, pipe_config->output_format))
