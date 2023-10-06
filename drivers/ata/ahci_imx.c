@@ -9,10 +9,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/ahci_platform.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <linux/libata.h>
@@ -1050,15 +1051,10 @@ static int imx8_sata_probe(struct device *dev, struct imx_ahci_priv *imxpriv)
 static int imx_ahci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	struct ahci_host_priv *hpriv;
 	struct imx_ahci_priv *imxpriv;
 	unsigned int reg_val;
 	int ret;
-
-	of_id = of_match_device(imx_ahci_of_match, dev);
-	if (!of_id)
-		return -EINVAL;
 
 	imxpriv = devm_kzalloc(dev, sizeof(*imxpriv), GFP_KERNEL);
 	if (!imxpriv)
@@ -1067,7 +1063,7 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	imxpriv->ahci_pdev = pdev;
 	imxpriv->no_device = false;
 	imxpriv->first_time = true;
-	imxpriv->type = (unsigned long)of_id->data;
+	imxpriv->type = (enum ahci_imx_type)device_get_match_data(dev);
 
 	imxpriv->sata_clk = devm_clk_get(dev, "sata");
 	if (IS_ERR(imxpriv->sata_clk)) {
