@@ -187,7 +187,7 @@ properties:
           type: array
           items:
             type: object
-            required: [ name, type ]
+            required: [ name ]
             additionalProperties: False
             properties:
               name:
@@ -260,6 +260,18 @@ properties:
         subset-of:
           not:
             required: [ name-prefix ]
+
+      # type property is only required if not in subset definition
+      if:
+        properties:
+          subset-of:
+            not:
+              type: string
+      then:
+        properties:
+          attributes:
+            items:
+              required: [ type ]
 
   operations:
     description: Operations supported by the protocol.
