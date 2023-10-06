@@ -1515,9 +1515,6 @@ struct cifs_io_subrequest {
 	struct list_head		list;
 	struct completion		done;
 	struct work_struct		work;
-	struct iov_iter			iter;
-	__u64				offset;
-	unsigned int			bytes;
 };
 
 /*
