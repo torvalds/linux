@@ -165,7 +165,10 @@ static int rtd_pinctrl_set_one_mux(struct pinctrl_dev *pcdev,
 		return 0;
 
 	if (!mux->functions) {
-		dev_err(pcdev->dev, "No functions available for pin %s\n", mux->name);
+		if (!mux->name)
+			dev_err(pcdev->dev, "NULL pin has no functions\n");
+		else
+			dev_err(pcdev->dev, "No functions available for pin %s\n", mux->name);
 		return -ENOTSUPP;
 	}
 
@@ -175,6 +178,11 @@ static int rtd_pinctrl_set_one_mux(struct pinctrl_dev *pcdev,
 		ret = regmap_update_bits(data->regmap_pinctrl, mux->mux_offset, mux->mux_mask,
 					mux->functions[i].mux_value);
 		return ret;
+	}
+
+	if (!mux->name) {
+		dev_err(pcdev->dev, "NULL pin provided for function %s\n", func_name);
+		return -EINVAL;
 	}
 
 	dev_err(pcdev->dev, "No function %s available for pin %s\n", func_name, mux->name);
