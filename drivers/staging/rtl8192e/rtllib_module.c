@@ -34,9 +34,6 @@
 #include <net/arp.h>
 #include "rtllib.h"
 
-u32 rt_global_debug_component = COMP_ERR;
-EXPORT_SYMBOL(rt_global_debug_component);
-
 static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 {
 	if (ieee->networks)
