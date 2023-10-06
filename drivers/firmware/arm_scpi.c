@@ -26,9 +26,12 @@
 #include <linux/list.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/printk.h>
+#include <linux/property.h>
 #include <linux/pm_opp.h>
 #include <linux/scpi_protocol.h>
 #include <linux/slab.h>
@@ -894,11 +897,6 @@ static int scpi_alloc_xfer_list(struct device *dev, struct scpi_chan *ch)
 	return 0;
 }
 
-static const struct of_device_id legacy_scpi_of_match[] = {
-	{.compatible = "arm,scpi-pre-1.0"},
-	{},
-};
-
 static const struct of_device_id shmem_of_match[] __maybe_unused = {
 	{ .compatible = "amlogic,meson-gxbb-scp-shmem", },
 	{ .compatible = "amlogic,meson-axg-scp-shmem", },
@@ -919,8 +917,7 @@ static int scpi_probe(struct platform_device *pdev)
 	if (!scpi_drvinfo)
 		return -ENOMEM;
 
-	if (of_match_device(legacy_scpi_of_match, &pdev->dev))
-		scpi_drvinfo->is_legacy = true;
+	scpi_drvinfo->is_legacy = !!device_get_match_data(dev);
 
 	count = of_count_phandle_with_args(np, "mboxes", "#mbox-cells");
 	if (count < 0) {
@@ -1038,7 +1035,7 @@ static int scpi_probe(struct platform_device *pdev)
 
 static const struct of_device_id scpi_of_match[] = {
 	{.compatible = "arm,scpi"},
-	{.compatible = "arm,scpi-pre-1.0"},
+	{.compatible = "arm,scpi-pre-1.0", .data = (void *)1UL },
 	{},
 };
 
