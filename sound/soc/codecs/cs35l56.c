@@ -706,7 +706,7 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56)
 
 	mutex_lock(&cs35l56->base.irq_lock);
 
-	init_completion(&cs35l56->init_completion);
+	reinit_completion(&cs35l56->init_completion);
 
 	cs35l56->soft_resetting = true;
 	cs35l56_system_reset(&cs35l56->base, !!cs35l56->sdw_peripheral);
