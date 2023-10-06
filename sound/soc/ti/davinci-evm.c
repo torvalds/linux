@@ -175,19 +175,16 @@ static struct snd_soc_card evm_soc_card = {
 static int davinci_evm_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	struct snd_soc_dai_link *dai;
 	struct snd_soc_card_drvdata_davinci *drvdata = NULL;
 	struct clk *mclk;
 	int ret = 0;
 
-	match = of_match_device(of_match_ptr(davinci_evm_dt_ids), &pdev->dev);
-	if (!match) {
+	dai = (struct snd_soc_dai_link *) device_get_match_data(&pdev->dev);
+	if (!dai) {
 		dev_err(&pdev->dev, "Error: No device match found\n");
 		return -ENODEV;
 	}
-
-	dai = (struct snd_soc_dai_link *) match->data;
 
 	evm_soc_card.dai_link = dai;
 

@@ -11,7 +11,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -820,7 +819,6 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct snd_soc_dai_driver *kmb_i2s_dai;
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct kmb_i2s_info *kmb_i2s;
 	struct resource *res;
@@ -831,16 +829,7 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 	if (!kmb_i2s)
 		return -ENOMEM;
 
-	kmb_i2s_dai = devm_kzalloc(dev, sizeof(*kmb_i2s_dai), GFP_KERNEL);
-	if (!kmb_i2s_dai)
-		return -ENOMEM;
-
-	match = of_match_device(kmb_plat_of_match, &pdev->dev);
-	if (!match) {
-		dev_err(&pdev->dev, "Error: No device match found\n");
-		return -ENODEV;
-	}
-	kmb_i2s_dai = (struct snd_soc_dai_driver *) match->data;
+	kmb_i2s_dai = (struct snd_soc_dai_driver *)device_get_match_data(&pdev->dev);
 
 	/* Prepare the related clocks */
 	kmb_i2s->clk_apb = devm_clk_get(dev, "apb_clk");

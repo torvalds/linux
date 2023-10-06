@@ -9,7 +9,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -1106,7 +1105,6 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 	struct resource *res;
 	const struct lpass_variant *variant;
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	int ret, i, dai_id;
 
 	dsp_of_node = of_parse_phandle(pdev->dev.of_node, "qcom,adsp", 0);
@@ -1121,17 +1119,14 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, drvdata);
 
-	match = of_match_device(dev->driver->of_match_table, dev);
-	if (!match || !match->data)
+	variant = device_get_match_data(dev);
+	if (!variant)
 		return -EINVAL;
 
-	if (of_device_is_compatible(dev->of_node, "qcom,lpass-cpu-apq8016")) {
-		dev_warn(dev, "%s compatible is deprecated\n",
-			 match->compatible);
-	}
+	if (of_device_is_compatible(dev->of_node, "qcom,lpass-cpu-apq8016"))
+		dev_warn(dev, "qcom,lpass-cpu-apq8016 compatible is deprecated\n");
 
-	drvdata->variant = (struct lpass_variant *)match->data;
-	variant = drvdata->variant;
+	drvdata->variant = variant;
 
 	of_lpass_cpu_parse_dai_data(dev, drvdata);
 
