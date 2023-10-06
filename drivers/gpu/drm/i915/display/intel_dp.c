@@ -1603,10 +1603,8 @@ int intel_dp_dsc_compute_max_bpp(const struct intel_connector *connector,
 	return 0;
 }
 
-static int intel_dp_source_dsc_version_minor(struct intel_dp *intel_dp)
+static int intel_dp_source_dsc_version_minor(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-
 	return DISPLAY_VER(i915) >= 14 ? 2 : 1;
 }
 
@@ -1666,7 +1664,7 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 		(intel_dp->dsc_dpcd[DP_DSC_REV - DP_DSC_SUPPORT] &
 		 DP_DSC_MAJOR_MASK) >> DP_DSC_MAJOR_SHIFT;
 	vdsc_cfg->dsc_version_minor =
-		min(intel_dp_source_dsc_version_minor(intel_dp),
+		min(intel_dp_source_dsc_version_minor(i915),
 		    intel_dp_sink_dsc_version_minor(intel_dp));
 	if (vdsc_cfg->convert_rgb)
 		vdsc_cfg->convert_rgb =
@@ -1697,6 +1695,7 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 static bool intel_dp_dsc_supports_format(struct intel_dp *intel_dp,
 					 enum intel_output_format output_format)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 sink_dsc_format;
 
 	switch (output_format) {
@@ -1707,7 +1706,7 @@ static bool intel_dp_dsc_supports_format(struct intel_dp *intel_dp,
 		sink_dsc_format = DP_DSC_YCbCr444;
 		break;
 	case INTEL_OUTPUT_FORMAT_YCBCR420:
-		if (min(intel_dp_source_dsc_version_minor(intel_dp),
+		if (min(intel_dp_source_dsc_version_minor(i915),
 			intel_dp_sink_dsc_version_minor(intel_dp)) < 2)
 			return false;
 		sink_dsc_format = DP_DSC_YCbCr420_Native;
