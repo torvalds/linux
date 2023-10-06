@@ -1691,10 +1691,10 @@ static int intel_dp_dsc_compute_params(const struct intel_connector *connector,
 	return drm_dsc_compute_rc_parameters(vdsc_cfg);
 }
 
-static bool intel_dp_dsc_supports_format(struct intel_dp *intel_dp,
+static bool intel_dp_dsc_supports_format(const struct intel_connector *connector,
 					 enum intel_output_format output_format)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	u8 sink_dsc_format;
 
 	switch (output_format) {
@@ -1706,7 +1706,7 @@ static bool intel_dp_dsc_supports_format(struct intel_dp *intel_dp,
 		break;
 	case INTEL_OUTPUT_FORMAT_YCBCR420:
 		if (min(intel_dp_source_dsc_version_minor(i915),
-			intel_dp_sink_dsc_version_minor(intel_dp->dsc_dpcd)) < 2)
+			intel_dp_sink_dsc_version_minor(connector->dp.dsc_dpcd)) < 2)
 			return false;
 		sink_dsc_format = DP_DSC_YCbCr420_Native;
 		break;
@@ -1714,7 +1714,7 @@ static bool intel_dp_dsc_supports_format(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	return drm_dp_dsc_sink_supports_format(intel_dp->dsc_dpcd, sink_dsc_format);
+	return drm_dp_dsc_sink_supports_format(connector->dp.dsc_dpcd, sink_dsc_format);
 }
 
 static bool is_bw_sufficient_for_dsc_config(u16 compressed_bpp, u32 link_clock,
@@ -2124,7 +2124,7 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	if (!intel_dp_supports_dsc(connector, pipe_config))
 		return -EINVAL;
 
-	if (!intel_dp_dsc_supports_format(intel_dp, pipe_config->output_format))
+	if (!intel_dp_dsc_supports_format(connector, pipe_config->output_format))
 		return -EINVAL;
 
 	/*
