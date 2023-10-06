@@ -443,6 +443,123 @@ static int ad2s1210_set_phase_lock_range(struct ad2s1210_state *st,
 	return ret;
 }
 
+/* map resolution to microradians/LSB for LOT registers */
+static const int ad2s1210_lot_threshold_urad_per_lsb[] = {
+	6184, /* 10-bit: ~0.35 deg/LSB, 45 deg max */
+	2473, /* 12-bit: ~0.14 deg/LSB, 18 deg max */
+	1237, /* 14-bit: ~0.07 deg/LSB, 9 deg max */
+	1237, /* 16-bit: same as 14-bit */
+};
+
+static int ad2s1210_get_lot_high_threshold(struct ad2s1210_state *st,
+					   int *val, int *val2)
+{
+	unsigned int reg_val;
+	int ret;
+
+	mutex_lock(&st->lock);
+	ret = regmap_read(st->regmap, AD2S1210_REG_LOT_HIGH_THRD, &reg_val);
+	mutex_unlock(&st->lock);
+
+	if (ret < 0)
+		return ret;
+
+	*val = 0;
+	*val2 = reg_val * ad2s1210_lot_threshold_urad_per_lsb[st->resolution];
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+
+static int ad2s1210_set_lot_high_threshold(struct ad2s1210_state *st,
+					   int val, int val2)
+{
+	unsigned int high_reg_val, low_reg_val, hysteresis;
+	int ret;
+
+	/* all valid values are between 0 and pi/4 radians */
+	if (val != 0)
+		return -EINVAL;
+
+	mutex_lock(&st->lock);
+	/*
+	 * We need to read both high and low registers first so we can preserve
+	 * the hysteresis.
+	 */
+	ret = regmap_read(st->regmap, AD2S1210_REG_LOT_HIGH_THRD, &high_reg_val);
+	if (ret < 0)
+		goto error_ret;
+
+	ret = regmap_read(st->regmap, AD2S1210_REG_LOT_LOW_THRD, &low_reg_val);
+	if (ret < 0)
+		goto error_ret;
+
+	hysteresis = high_reg_val - low_reg_val;
+	high_reg_val = val2 / ad2s1210_lot_threshold_urad_per_lsb[st->resolution];
+	low_reg_val = high_reg_val - hysteresis;
+
+	ret = regmap_write(st->regmap, AD2S1210_REG_LOT_HIGH_THRD, high_reg_val);
+	if (ret < 0)
+		goto error_ret;
+
+	ret = regmap_write(st->regmap, AD2S1210_REG_LOT_LOW_THRD, low_reg_val);
+
+error_ret:
+	mutex_unlock(&st->lock);
+
+	return ret;
+}
+
+static int ad2s1210_get_lot_low_threshold(struct ad2s1210_state *st,
+					  int *val, int *val2)
+{
+	unsigned int high_reg_val, low_reg_val;
+	int ret;
+
+	mutex_lock(&st->lock);
+	ret = regmap_read(st->regmap, AD2S1210_REG_LOT_HIGH_THRD, &high_reg_val);
+	if (ret < 0)
+		goto error_ret;
+
+	ret = regmap_read(st->regmap, AD2S1210_REG_LOT_LOW_THRD, &low_reg_val);
+
+error_ret:
+	mutex_unlock(&st->lock);
+
+	if (ret < 0)
+		return ret;
+
+	/* sysfs value is hysteresis rather than actual low value */
+	*val = 0;
+	*val2 = (high_reg_val - low_reg_val) *
+		ad2s1210_lot_threshold_urad_per_lsb[st->resolution];
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+
+static int ad2s1210_set_lot_low_threshold(struct ad2s1210_state *st,
+					  int val, int val2)
+{
+	unsigned int reg_val, hysteresis;
+	int ret;
+
+	/* all valid values are between 0 and pi/4 radians */
+	if (val != 0)
+		return -EINVAL;
+
+	hysteresis = val2 / ad2s1210_lot_threshold_urad_per_lsb[st->resolution];
+
+	mutex_lock(&st->lock);
+	ret = regmap_read(st->regmap, AD2S1210_REG_LOT_HIGH_THRD, &reg_val);
+	if (ret < 0)
+		goto error_ret;
+
+	ret = regmap_write(st->regmap, AD2S1210_REG_LOT_LOW_THRD,
+			   reg_val - hysteresis);
+
+error_ret:
+	mutex_unlock(&st->lock);
+
+	return ret;
+}
+
 static int ad2s1210_get_excitation_frequency(struct ad2s1210_state *st, int *val)
 {
 	unsigned int reg_val;
@@ -608,12 +725,19 @@ static IIO_DEVICE_ATTR(dos_rst_max_thrd, 0644,
 static IIO_DEVICE_ATTR(dos_rst_min_thrd, 0644,
 		       ad2s1210_show_reg, ad2s1210_store_reg,
 		       AD2S1210_REG_DOS_RST_MIN_THRD);
-static IIO_DEVICE_ATTR(lot_high_thrd, 0644,
-		       ad2s1210_show_reg, ad2s1210_store_reg,
-		       AD2S1210_REG_LOT_HIGH_THRD);
-static IIO_DEVICE_ATTR(lot_low_thrd, 0644,
-		       ad2s1210_show_reg, ad2s1210_store_reg,
-		       AD2S1210_REG_LOT_LOW_THRD);
+
+static const struct iio_event_spec ad2s1210_position_event_spec[] = {
+	{
+		/* Tracking error exceeds LOT threshold fault. */
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_RISING,
+		.mask_separate =
+			/* Loss of tracking high threshold. */
+			BIT(IIO_EV_INFO_VALUE) |
+			/* Loss of tracking low threshold. */
+			BIT(IIO_EV_INFO_HYSTERESIS),
+	},
+};
 
 static const struct iio_event_spec ad2s1210_phase_event_spec[] = {
 	{
@@ -658,6 +782,15 @@ static const struct iio_chan_spec ad2s1210_channels[] = {
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(2),
 	{
+		/* used to configure LOT thresholds and get tracking error */
+		.type = IIO_ANGL,
+		.indexed = 1,
+		.channel = 1,
+		.scan_index = -1,
+		.event_spec = ad2s1210_position_event_spec,
+		.num_event_specs = ARRAY_SIZE(ad2s1210_position_event_spec),
+	},
+	{
 		/* used to configure phase lock range and get phase lock error */
 		.type = IIO_PHASE,
 		.indexed = 1,
@@ -684,8 +817,6 @@ static struct attribute *ad2s1210_attributes[] = {
 	&iio_dev_attr_dos_mis_thrd.dev_attr.attr,
 	&iio_dev_attr_dos_rst_max_thrd.dev_attr.attr,
 	&iio_dev_attr_dos_rst_min_thrd.dev_attr.attr,
-	&iio_dev_attr_lot_high_thrd.dev_attr.attr,
-	&iio_dev_attr_lot_low_thrd.dev_attr.attr,
 	NULL,
 };
 
@@ -693,14 +824,40 @@ static const struct attribute_group ad2s1210_attribute_group = {
 	.attrs = ad2s1210_attributes,
 };
 
+static ssize_t
+in_angl1_thresh_rising_value_available_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
+	int step = ad2s1210_lot_threshold_urad_per_lsb[st->resolution];
+
+	return sysfs_emit(buf, "[0 0.%06d 0.%06d]\n", step, step * 0x7F);
+}
+
+static ssize_t
+in_angl1_thresh_rising_hysteresis_available_show(struct device *dev,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
+	int step = ad2s1210_lot_threshold_urad_per_lsb[st->resolution];
+
+	return sysfs_emit(buf, "[0 0.%06d 0.%06d]\n", step, step * 0x7F);
+}
+
 static IIO_CONST_ATTR(in_phase0_mag_rising_value_available,
 		      __stringify(PHASE_44_DEG_TO_RAD_INT) "."
 		      __stringify(PHASE_44_DEG_TO_RAD_MICRO) " "
 		      __stringify(PHASE_360_DEG_TO_RAD_INT) "."
 		      __stringify(PHASE_360_DEG_TO_RAD_MICRO));
+static IIO_DEVICE_ATTR_RO(in_angl1_thresh_rising_value_available, 0);
+static IIO_DEVICE_ATTR_RO(in_angl1_thresh_rising_hysteresis_available, 0);
 
 static struct attribute *ad2s1210_event_attributes[] = {
 	&iio_const_attr_in_phase0_mag_rising_value_available.dev_attr.attr,
+	&iio_dev_attr_in_angl1_thresh_rising_value_available.dev_attr.attr,
+	&iio_dev_attr_in_angl1_thresh_rising_hysteresis_available.dev_attr.attr,
 	NULL,
 };
 
@@ -742,6 +899,15 @@ static int ad2s1210_read_event_value(struct iio_dev *indio_dev,
 	struct ad2s1210_state *st = iio_priv(indio_dev);
 
 	switch (chan->type) {
+	case IIO_ANGL:
+		switch (info) {
+		case IIO_EV_INFO_VALUE:
+			return ad2s1210_get_lot_high_threshold(st, val, val2);
+		case IIO_EV_INFO_HYSTERESIS:
+			return ad2s1210_get_lot_low_threshold(st, val, val2);
+		default:
+			return -EINVAL;
+		}
 	case IIO_PHASE:
 		return ad2s1210_get_phase_lock_range(st, val, val2);
 	default:
@@ -759,6 +925,15 @@ static int ad2s1210_write_event_value(struct iio_dev *indio_dev,
 	struct ad2s1210_state *st = iio_priv(indio_dev);
 
 	switch (chan->type) {
+	case IIO_ANGL:
+		switch (info) {
+		case IIO_EV_INFO_VALUE:
+			return ad2s1210_set_lot_high_threshold(st, val, val2);
+		case IIO_EV_INFO_HYSTERESIS:
+			return ad2s1210_set_lot_low_threshold(st, val, val2);
+		default:
+			return -EINVAL;
+		}
 	case IIO_PHASE:
 		return ad2s1210_set_phase_lock_range(st, val, val2);
 	default:
