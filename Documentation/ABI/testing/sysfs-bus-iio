@@ -2239,3 +2239,18 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		The x and y light color coordinate on the CIE 1931 chromaticity
 		diagram.
+
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_altvoltageY_mag_either_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_altvoltageY_mag_rising_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_altvoltageY_thresh_falling_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_altvoltageY_thresh_rising_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_anglvelY_mag_rising_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_anglY_thresh_rising_label
+What:		/sys/bus/iio/devices/iio:deviceX/events/in_phaseY_mag_rising_label
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Optional symbolic label to a device channel event.
+		If a label is defined for this event add that to the event
+		specific attributes. This is useful for userspace to be able to
+		better identify an individual event.
