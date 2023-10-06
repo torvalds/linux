@@ -131,6 +131,7 @@ struct shrinker {
  */
 #define SHRINKER_NONSLAB	BIT(4)
 
+__printf(2, 3)
 struct shrinker *shrinker_alloc(unsigned int flags, const char *fmt, ...);
 void shrinker_register(struct shrinker *shrinker);
 void shrinker_free(struct shrinker *shrinker);
