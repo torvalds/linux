@@ -3391,7 +3391,7 @@ static int acpi_nfit_add(struct acpi_device *adev)
 		return rc;
 
 	rc = acpi_dev_install_notify_handler(adev, ACPI_DEVICE_NOTIFY,
-					     acpi_nfit_notify);
+					     acpi_nfit_notify, adev);
 	if (rc)
 		return rc;
 
