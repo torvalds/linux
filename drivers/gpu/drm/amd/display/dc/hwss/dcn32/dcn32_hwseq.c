@@ -494,6 +494,7 @@ bool dcn32_set_mcm_luts(
 		}
 	}
 	result = mpc->funcs->program_1dlut(mpc, lut_params, mpcc_id);
+	lut_params = NULL;
 
 	// Shaper
 	if (plane_state->in_shaper_func) {
