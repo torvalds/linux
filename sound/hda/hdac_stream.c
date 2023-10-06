@@ -252,8 +252,9 @@ EXPORT_SYMBOL_GPL(snd_hdac_stream_reset);
 /**
  * snd_hdac_stream_setup -  set up the SD for streaming
  * @azx_dev: HD-audio core stream to set up
+ * @code_loading: Whether the stream is for PCM or code-loading.
  */
-int snd_hdac_stream_setup(struct hdac_stream *azx_dev)
+int snd_hdac_stream_setup(struct hdac_stream *azx_dev, bool code_loading)
 {
 	struct hdac_bus *bus = azx_dev->bus;
 	struct snd_pcm_runtime *runtime;
@@ -302,13 +303,15 @@ int snd_hdac_stream_setup(struct hdac_stream *azx_dev)
 	/* set the interrupt enable bits in the descriptor control register */
 	snd_hdac_stream_updatel(azx_dev, SD_CTL, 0, SD_INT_MASK);
 
-	/* Once SDxFMT is set, the controller programs SDxFIFOS to non-zero value. */
-	ret = snd_hdac_stream_readw_poll(azx_dev, SD_FIFOSIZE, reg, reg & AZX_SD_FIFOSIZE_MASK,
-					 3, 300);
-	if (ret)
-		dev_dbg(bus->dev, "polling SD_FIFOSIZE 0x%04x failed: %d\n",
-			AZX_REG_SD_FIFOSIZE, ret);
-	azx_dev->fifo_size = snd_hdac_stream_readw(azx_dev, SD_FIFOSIZE);
+	if (!code_loading) {
+		/* Once SDxFMT is set, the controller programs SDxFIFOS to non-zero value. */
+		ret = snd_hdac_stream_readw_poll(azx_dev, SD_FIFOSIZE, reg,
+						 reg & AZX_SD_FIFOSIZE_MASK, 3, 300);
+		if (ret)
+			dev_dbg(bus->dev, "polling SD_FIFOSIZE 0x%04x failed: %d\n",
+				AZX_REG_SD_FIFOSIZE, ret);
+		azx_dev->fifo_size = reg;
+	}
 
 	/* when LPIB delay correction gives a small negative value,
 	 * we ignore it; currently set the threshold statically to
@@ -953,7 +956,7 @@ int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 	if (err < 0)
 		goto error;
 
-	snd_hdac_stream_setup(azx_dev);
+	snd_hdac_stream_setup(azx_dev, true);
 	snd_hdac_dsp_unlock(azx_dev);
 	return azx_dev->stream_tag;
 

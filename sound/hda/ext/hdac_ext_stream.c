@@ -21,12 +21,13 @@
 /**
  * snd_hdac_ext_host_stream_setup - Setup a HOST stream.
  * @hext_stream: HDAudio stream to set up.
+ * @code_loading: Whether the stream is for PCM or code-loading.
  *
  * Return: Zero on success or negative error code.
  */
-int snd_hdac_ext_host_stream_setup(struct hdac_ext_stream *hext_stream)
+int snd_hdac_ext_host_stream_setup(struct hdac_ext_stream *hext_stream, bool code_loading)
 {
-	return hext_stream->host_setup(hdac_stream(hext_stream));
+	return hext_stream->host_setup(hdac_stream(hext_stream), code_loading);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_host_stream_setup);
 
@@ -34,16 +35,17 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_host_stream_setup);
  * snd_hdac_apl_host_stream_setup - Setup a HOST stream following procedure
  *                                  recommended for ApolloLake devices.
  * @hstream: HDAudio stream to set up.
+ * @code_loading: Whether the stream is for PCM or code-loading.
  *
  * Return: Zero on success or negative error code.
  */
-static int snd_hdac_apl_host_stream_setup(struct hdac_stream *hstream)
+static int snd_hdac_apl_host_stream_setup(struct hdac_stream *hstream, bool code_loading)
 {
 	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
 	int ret;
 
 	snd_hdac_ext_stream_decouple(hstream->bus, hext_stream, false);
-	ret = snd_hdac_stream_setup(hstream);
+	ret = snd_hdac_stream_setup(hstream, code_loading);
 	snd_hdac_ext_stream_decouple(hstream->bus, hext_stream, true);
 
 	return ret;
@@ -89,7 +91,7 @@ int snd_hdac_ext_stream_init_all(struct hdac_bus *bus, int start_idx,
 				 int num_stream, int dir)
 {
 	struct pci_dev *pci = to_pci_dev(bus->dev);
-	int (*setup_op)(struct hdac_stream *);
+	int (*setup_op)(struct hdac_stream *, bool);
 	int stream_tag = 0;
 	int i, tag, idx = start_idx;
 
