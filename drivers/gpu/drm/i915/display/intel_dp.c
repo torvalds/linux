@@ -1205,7 +1205,7 @@ intel_dp_mode_valid(struct drm_connector *_connector,
 					   intel_dp_mode_min_output_bpp(connector, mode));
 
 	if (HAS_DSC(dev_priv) &&
-	    drm_dp_sink_supports_dsc(intel_dp->dsc_dpcd)) {
+	    drm_dp_sink_supports_dsc(connector->dp.dsc_dpcd)) {
 		enum intel_output_format sink_format, output_format;
 		int pipe_bpp;
 
@@ -1223,11 +1223,11 @@ intel_dp_mode_valid(struct drm_connector *_connector,
 		 */
 		if (intel_dp_is_edp(intel_dp)) {
 			dsc_max_compressed_bpp =
-				drm_edp_dsc_sink_output_bpp(intel_dp->dsc_dpcd) >> 4;
+				drm_edp_dsc_sink_output_bpp(connector->dp.dsc_dpcd) >> 4;
 			dsc_slice_count =
-				drm_dp_dsc_sink_max_slice_count(intel_dp->dsc_dpcd,
+				drm_dp_dsc_sink_max_slice_count(connector->dp.dsc_dpcd,
 								true);
-		} else if (drm_dp_sink_supports_fec(intel_dp->fec_capable)) {
+		} else if (drm_dp_sink_supports_fec(connector->dp.fec_capability)) {
 			dsc_max_compressed_bpp =
 				intel_dp_dsc_get_max_compressed_bpp(dev_priv,
 								    max_link_clock,
