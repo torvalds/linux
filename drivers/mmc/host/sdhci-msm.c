@@ -188,7 +188,7 @@
  * but clk's driver supply 37MHz only and uses ceil ops. So vote for
  * 37MHz to avoid picking next ceil value.
  */
-#define LEVEL_SHIFTER_HIGH_SPEED_FREQ	37000000
+#define LEVEL_SHIFTER_HIGH_SPEED_FREQ	37500000
 
 #define VS_CAPABILITIES_SDR_50_SUPPORT BIT(0)
 #define VS_CAPABILITIES_SDR_104_SUPPORT BIT(1)
