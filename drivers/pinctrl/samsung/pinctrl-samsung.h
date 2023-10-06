@@ -148,6 +148,7 @@ struct samsung_pin_bank_data {
  * @eint_mask: bit mask of pins which support EINT function.
  * @eint_offset: SoC-specific EINT register or interrupt offset of bank.
  * @name: name to be prefixed for each pin in this pin bank.
+ * @id: id of the bank, propagated to the pin range.
  * @pin_base: starting pin number of the bank.
  * @soc_priv: per-bank private data for SoC-specific code.
  * @of_node: OF node of the bank.
@@ -170,6 +171,7 @@ struct samsung_pin_bank {
 	u32		eint_mask;
 	u32		eint_offset;
 	const char	*name;
+	u32		id;
 
 	u32		pin_base;
 	void		*soc_priv;
