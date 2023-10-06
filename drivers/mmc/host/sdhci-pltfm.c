@@ -19,7 +19,6 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/property.h>
-#include <linux/of.h>
 #ifdef CONFIG_PPC
 #include <asm/machdep.h>
 #endif
@@ -56,19 +55,16 @@ static bool sdhci_wp_inverted(struct device *dev)
 
 static void sdhci_get_compatibility(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct sdhci_host *host = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node;
 
-	if (!np)
-		return;
-
-	if (of_device_is_compatible(np, "fsl,p2020-rev1-esdhc"))
+	if (device_is_compatible(dev, "fsl,p2020-rev1-esdhc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_DMA;
 
-	if (of_device_is_compatible(np, "fsl,p2020-esdhc") ||
-	    of_device_is_compatible(np, "fsl,p1010-esdhc") ||
-	    of_device_is_compatible(np, "fsl,t4240-esdhc") ||
-	    of_device_is_compatible(np, "fsl,mpc8536-esdhc"))
+	if (device_is_compatible(dev, "fsl,p2020-esdhc") ||
+	    device_is_compatible(dev, "fsl,p1010-esdhc") ||
+	    device_is_compatible(dev, "fsl,t4240-esdhc") ||
+	    device_is_compatible(dev, "fsl,mpc8536-esdhc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 }
 
