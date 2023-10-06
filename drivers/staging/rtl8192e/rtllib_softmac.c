@@ -1588,16 +1588,10 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 		if (ieee->bAwakePktSent) {
 			psc->LPSAwakeIntvl = 1;
 		} else {
-			u8 MaxPeriod = 1;
+			u8 MaxPeriod = 5;
 
 			if (psc->LPSAwakeIntvl == 0)
 				psc->LPSAwakeIntvl = 1;
-			if (psc->reg_max_lps_awake_intvl == 0)
-				MaxPeriod = 1;
-			else if (psc->reg_max_lps_awake_intvl == 0xFF)
-				MaxPeriod = ieee->current_network.dtim_period;
-			else
-				MaxPeriod = psc->reg_max_lps_awake_intvl;
 			psc->LPSAwakeIntvl = (psc->LPSAwakeIntvl >=
 					       MaxPeriod) ? MaxPeriod :
 					       (psc->LPSAwakeIntvl + 1);
