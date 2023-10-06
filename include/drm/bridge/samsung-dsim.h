@@ -88,6 +88,7 @@ struct samsung_dsim {
 	void __iomem *reg_base;
 	struct phy *phy;
 	struct clk **clks;
+	struct clk *pll_clk;
 	struct regulator_bulk_data supplies[2];
 	int irq;
 	struct gpio_desc *te_gpio;
