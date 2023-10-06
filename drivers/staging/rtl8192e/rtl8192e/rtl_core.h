@@ -370,7 +370,6 @@ struct r8192_priv {
 
 	u16		tx_counter;
 	u16		rx_ctr;
-	bool		force_lps;
 };
 
 extern const struct ethtool_ops rtl819x_ethtool_ops;
