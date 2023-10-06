@@ -1139,7 +1139,8 @@ static int hcd_name_to_id(const char *name)
 
 static int vhci_setup(struct usb_hcd *hcd)
 {
-	struct vhci *vhci = *((void **)dev_get_platdata(hcd->self.controller));
+	struct vhci *vhci = dev_get_platdata(hcd->self.controller);
+
 	if (usb_hcd_is_primary_hcd(hcd)) {
 		vhci->vhci_hcd_hs = hcd_to_vhci_hcd(hcd);
 		vhci->vhci_hcd_hs->vhci = vhci;
@@ -1256,7 +1257,7 @@ static int vhci_get_frame_number(struct usb_hcd *hcd)
 /* FIXME: suspend/resume */
 static int vhci_bus_suspend(struct usb_hcd *hcd)
 {
-	struct vhci *vhci = *((void **)dev_get_platdata(hcd->self.controller));
+	struct vhci *vhci = dev_get_platdata(hcd->self.controller);
 	unsigned long flags;
 
 	dev_dbg(&hcd->self.root_hub->dev, "%s\n", __func__);
@@ -1270,7 +1271,7 @@ static int vhci_bus_suspend(struct usb_hcd *hcd)
 
 static int vhci_bus_resume(struct usb_hcd *hcd)
 {
-	struct vhci *vhci = *((void **)dev_get_platdata(hcd->self.controller));
+	struct vhci *vhci = dev_get_platdata(hcd->self.controller);
 	int rc = 0;
 	unsigned long flags;
 
@@ -1337,7 +1338,7 @@ static const struct hc_driver vhci_hc_driver = {
 
 static int vhci_hcd_probe(struct platform_device *pdev)
 {
-	struct vhci             *vhci = *((void **)dev_get_platdata(&pdev->dev));
+	struct vhci             *vhci = dev_get_platdata(&pdev->dev);
 	struct usb_hcd		*hcd_hs;
 	struct usb_hcd		*hcd_ss;
 	int			ret;
@@ -1395,7 +1396,7 @@ put_usb2_hcd:
 
 static void vhci_hcd_remove(struct platform_device *pdev)
 {
-	struct vhci *vhci = *((void **)dev_get_platdata(&pdev->dev));
+	struct vhci *vhci = dev_get_platdata(&pdev->dev);
 
 	/*
 	 * Disconnects the root hub,
@@ -1430,7 +1431,7 @@ static int vhci_hcd_suspend(struct platform_device *pdev, pm_message_t state)
 	if (!hcd)
 		return 0;
 
-	vhci = *((void **)dev_get_platdata(hcd->self.controller));
+	vhci = dev_get_platdata(hcd->self.controller);
 
 	spin_lock_irqsave(&vhci->lock, flags);
 
@@ -1493,13 +1494,10 @@ static struct platform_driver vhci_driver = {
 
 static void del_platform_devices(void)
 {
-	struct platform_device *pdev;
 	int i;
 
 	for (i = 0; i < vhci_num_controllers; i++) {
-		pdev = vhcis[i].pdev;
-		if (pdev != NULL)
-			platform_device_unregister(pdev);
+		platform_device_unregister(vhcis[i].pdev);
 		vhcis[i].pdev = NULL;
 	}
 	sysfs_remove_link(&platform_bus.kobj, driver_name);
@@ -1519,45 +1517,32 @@ static int __init vhci_hcd_init(void)
 	if (vhcis == NULL)
 		return -ENOMEM;
 
-	for (i = 0; i < vhci_num_controllers; i++) {
-		vhcis[i].pdev = platform_device_alloc(driver_name, i);
-		if (!vhcis[i].pdev) {
-			i--;
-			while (i >= 0)
-				platform_device_put(vhcis[i--].pdev);
-			ret = -ENOMEM;
-			goto err_device_alloc;
-		}
-	}
-	for (i = 0; i < vhci_num_controllers; i++) {
-		void *vhci = &vhcis[i];
-		ret = platform_device_add_data(vhcis[i].pdev, &vhci, sizeof(void *));
-		if (ret)
-			goto err_driver_register;
-	}
-
 	ret = platform_driver_register(&vhci_driver);
 	if (ret)
 		goto err_driver_register;
 
 	for (i = 0; i < vhci_num_controllers; i++) {
-		ret = platform_device_add(vhcis[i].pdev);
+		struct platform_device_info pdevinfo = {
+			.name = driver_name,
+			.id = i,
+			.data = &vhcis[i],
+			.size_data = sizeof(void *),
+		};
+
+		vhcis[i].pdev = platform_device_register_full(&pdevinfo);
+		ret = PTR_ERR_OR_ZERO(vhcis[i].pdev);
 		if (ret < 0) {
-			i--;
-			while (i >= 0)
-				platform_device_del(vhcis[i--].pdev);
+			while (i--)
+				platform_device_unregister(vhcis[i].pdev);
 			goto err_add_hcd;
 		}
 	}
 
-	return ret;
+	return 0;
 
 err_add_hcd:
 	platform_driver_unregister(&vhci_driver);
 err_driver_register:
-	for (i = 0; i < vhci_num_controllers; i++)
-		platform_device_put(vhcis[i].pdev);
-err_device_alloc:
 	kfree(vhcis);
 	return ret;
 }
