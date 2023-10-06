@@ -124,4 +124,7 @@ bool dcn32_is_pipe_topology_transition_seamless(struct dc *dc,
 		const struct dc_state *cur_ctx,
 		const struct dc_state *new_ctx);
 
+void dcn32_prepare_bandwidth(struct dc *dc,
+	struct dc_state *context);
+
 #endif /* __DC_HWSS_DCN32_H__ */
