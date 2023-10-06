@@ -3575,7 +3575,8 @@ static void wait_for_outstanding_hw_updates(struct dc *dc, const struct dc_state
 		mpcc_inst = hubp->inst;
 		// MPCC inst is equal to pipe index in practice
 		for (opp_inst = 0; opp_inst < opp_count; opp_inst++) {
-			if (dc->res_pool->opps[opp_inst]->mpcc_disconnect_pending[mpcc_inst]) {
+			if ((dc->res_pool->opps[opp_inst] != NULL) &&
+				(dc->res_pool->opps[opp_inst]->mpcc_disconnect_pending[mpcc_inst])) {
 				dc->res_pool->mpc->funcs->wait_for_idle(dc->res_pool->mpc, mpcc_inst);
 				dc->res_pool->opps[opp_inst]->mpcc_disconnect_pending[mpcc_inst] = false;
 				break;
