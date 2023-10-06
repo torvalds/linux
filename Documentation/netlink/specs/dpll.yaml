@@ -278,36 +278,28 @@ attribute-sets:
     attributes:
       -
         name: parent-id
-        type: u32
       -
         name: direction
-        type: u32
       -
         name: prio
-        type: u32
       -
         name: state
-        type: u32
   -
     name: pin-parent-pin
     subset-of: pin
     attributes:
       -
         name: parent-id
-        type: u32
       -
         name: state
-        type: u32
   -
     name: frequency-range
     subset-of: pin
     attributes:
       -
         name: frequency-min
-        type: u64
       -
         name: frequency-max
-        type: u64
 
 operations:
   enum-name: dpll_cmd
