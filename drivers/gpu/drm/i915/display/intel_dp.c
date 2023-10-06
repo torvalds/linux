@@ -2150,7 +2150,7 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	/* Calculate Slice count */
 	if (intel_dp_is_edp(intel_dp)) {
 		pipe_config->dsc.slice_count =
-			drm_dp_dsc_sink_max_slice_count(intel_dp->dsc_dpcd,
+			drm_dp_dsc_sink_max_slice_count(connector->dp.dsc_dpcd,
 							true);
 		if (!pipe_config->dsc.slice_count) {
 			drm_dbg_kms(&dev_priv->drm, "Unsupported Slice Count %d\n",
