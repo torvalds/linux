@@ -904,8 +904,8 @@ int backwards_count;
 char *progname;
 
 #define CPU_SUBSET_MAXCPUS	1024	/* need to use before probe... */
-cpu_set_t *cpu_present_set, *cpu_affinity_set, *cpu_subset;
-size_t cpu_present_setsize, cpu_affinity_setsize, cpu_subset_size;
+cpu_set_t *cpu_present_set, *cpu_allowed_set, *cpu_affinity_set, *cpu_subset;
+size_t cpu_present_setsize, cpu_allowed_setsize, cpu_affinity_setsize, cpu_subset_size;
 #define MAX_ADDED_COUNTERS 8
 #define MAX_ADDED_THREAD_COUNTERS 24
 #define BITMASK_SIZE 32
@@ -1155,6 +1155,11 @@ char *sys_lpi_file_debugfs = "/sys/kernel/debug/pmc_core/slp_s0_residency_usec";
 int cpu_is_not_present(int cpu)
 {
 	return !CPU_ISSET_S(cpu, cpu_present_setsize, cpu_present_set);
+}
+
+int cpu_is_not_allowed(int cpu)
+{
+	return !CPU_ISSET_S(cpu, cpu_allowed_setsize, cpu_allowed_set);
 }
 
 /*
@@ -3395,6 +3400,10 @@ void free_all_buffers(void)
 	CPU_FREE(cpu_present_set);
 	cpu_present_set = NULL;
 	cpu_present_setsize = 0;
+
+	CPU_FREE(cpu_allowed_set);
+	cpu_allowed_set = NULL;
+	cpu_allowed_setsize = 0;
 
 	CPU_FREE(cpu_affinity_set);
 	cpu_affinity_set = NULL;
@@ -5698,12 +5707,28 @@ void topology_probe()
 	for_all_proc_cpus(mark_cpu_present);
 
 	/*
+	 * Allocate and initialize cpu_allowed_set
+	 */
+	cpu_allowed_set = CPU_ALLOC((topo.max_cpu_num + 1));
+	if (cpu_allowed_set == NULL)
+		err(3, "CPU_ALLOC");
+	cpu_allowed_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
+	CPU_ZERO_S(cpu_allowed_setsize, cpu_allowed_set);
+
+	/*
 	 * Validate that all cpus in cpu_subset are also in cpu_present_set
 	 */
 	for (i = 0; i < CPU_SUBSET_MAXCPUS; ++i) {
-		if (CPU_ISSET_S(i, cpu_subset_size, cpu_subset))
+		if (!cpu_subset) {
+			if (CPU_ISSET_S(i, cpu_present_setsize, cpu_present_set))
+				CPU_SET_S(i, cpu_allowed_setsize, cpu_allowed_set);
+			continue;
+		}
+		if (CPU_ISSET_S(i, cpu_subset_size, cpu_subset)) {
 			if (!CPU_ISSET_S(i, cpu_present_setsize, cpu_present_set))
 				err(1, "cpu%d not present", i);
+			CPU_SET_S(i, cpu_allowed_setsize, cpu_allowed_set);
+		}
 	}
 
 	/*
