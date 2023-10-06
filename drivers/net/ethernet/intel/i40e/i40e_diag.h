@@ -4,7 +4,10 @@
 #ifndef _I40E_DIAG_H_
 #define _I40E_DIAG_H_
 
-#include "i40e_type.h"
+#include "i40e_adminq_cmd.h"
+
+/* forward-declare the HW struct for the compiler */
+struct i40e_hw;
 
 enum i40e_lb_mode {
 	I40E_LB_MODE_NONE       = 0x0,

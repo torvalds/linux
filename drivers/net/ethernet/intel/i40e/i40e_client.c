@@ -6,7 +6,6 @@
 #include <linux/net/intel/i40e_client.h>
 
 #include "i40e.h"
-#include "i40e_prototype.h"
 
 static LIST_HEAD(i40e_devices);
 static DEFINE_MUTEX(i40e_device_mutex);

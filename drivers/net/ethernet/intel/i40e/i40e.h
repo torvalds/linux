@@ -4,47 +4,19 @@
 #ifndef _I40E_H_
 #define _I40E_H_
 
-#include <net/tcp.h>
-#include <net/udp.h>
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/netdevice.h>
-#include <linux/ioport.h>
-#include <linux/iommu.h>
-#include <linux/slab.h>
-#include <linux/list.h>
-#include <linux/hashtable.h>
-#include <linux/string.h>
-#include <linux/in.h>
-#include <linux/ip.h>
-#include <linux/sctp.h>
-#include <linux/pkt_sched.h>
-#include <linux/ipv6.h>
-#include <net/checksum.h>
-#include <net/ip6_checksum.h>
-#include <linux/ethtool.h>
-#include <linux/if_vlan.h>
-#include <linux/if_macvlan.h>
-#include <linux/if_bridge.h>
-#include <linux/clocksource.h>
-#include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
-#include <net/pkt_cls.h>
-#include <net/pkt_sched.h>
-#include <net/tc_act/tc_gact.h>
-#include <net/tc_act/tc_mirred.h>
-#include <net/udp_tunnel.h>
-#include <net/xdp_sock.h>
-#include <linux/bitfield.h>
-#include "i40e_type.h"
-#include "i40e_prototype.h"
-#include <linux/net/intel/i40e_client.h>
+#include <linux/types.h>
 #include <linux/avf/virtchnl.h>
-#include "i40e_virtchnl_pf.h"
-#include "i40e_txrx.h"
+#include <linux/net/intel/i40e_client.h>
+#include <net/pkt_cls.h>
+#include <net/udp_tunnel.h>
 #include "i40e_dcb.h"
+#include "i40e_debug.h"
+#include "i40e_io.h"
+#include "i40e_prototype.h"
+#include "i40e_register.h"
+#include "i40e_txrx.h"
 
 /* Useful i40e defaults */
 #define I40E_MAX_VEB			16
@@ -321,29 +293,6 @@ struct i40e_udp_port_config {
 	u16 port;
 	u8 type;
 	u8 filter_index;
-};
-
-#define I40_DDP_FLASH_REGION 100
-#define I40E_PROFILE_INFO_SIZE 48
-#define I40E_MAX_PROFILE_NUM 16
-#define I40E_PROFILE_LIST_SIZE \
-	(I40E_PROFILE_INFO_SIZE * I40E_MAX_PROFILE_NUM + 4)
-#define I40E_DDP_PROFILE_PATH "intel/i40e/ddp/"
-#define I40E_DDP_PROFILE_NAME_MAX 64
-
-int i40e_ddp_load(struct net_device *netdev, const u8 *data, size_t size,
-		  bool is_add);
-int i40e_ddp_flash(struct net_device *netdev, struct ethtool_flash *flash);
-
-struct i40e_ddp_profile_list {
-	u32 p_count;
-	struct i40e_profile_info p_info[];
-};
-
-struct i40e_ddp_old_profile_list {
-	struct list_head list;
-	size_t old_ddp_size;
-	u8 old_ddp_buf[];
 };
 
 /* macros related to FLX_PIT */
@@ -1320,5 +1269,16 @@ static inline u32 i40e_is_tc_mqprio_enabled(struct i40e_pf *pf)
 {
 	return pf->flags & I40E_FLAG_TC_MQPRIO;
 }
+
+/**
+ * i40e_hw_to_pf - get pf pointer from the hardware structure
+ * @hw: pointer to the device HW structure
+ **/
+static inline struct i40e_pf *i40e_hw_to_pf(struct i40e_hw *hw)
+{
+	return container_of(hw, struct i40e_pf, hw);
+}
+
+struct device *i40e_hw_to_dev(struct i40e_hw *hw);
 
 #endif /* _I40E_H_ */

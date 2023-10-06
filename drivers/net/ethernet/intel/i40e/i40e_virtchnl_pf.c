@@ -2,6 +2,8 @@
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "i40e.h"
+#include "i40e_lan_hmc.h"
+#include "i40e_virtchnl_pf.h"
 
 /*********************notification routines***********************/
 

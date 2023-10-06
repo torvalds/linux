@@ -5,6 +5,7 @@
 #define _I40E_TXRX_H_
 
 #include <net/xdp.h>
+#include "i40e_type.h"
 
 /* Interrupt Throttling and Rate Limiting Goodies */
 #define I40E_DEFAULT_IRQ_WORK      256
