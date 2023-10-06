@@ -123,7 +123,6 @@ int tcx_prog_query(const union bpf_attr *attr, union bpf_attr __user *uattr)
 {
 	bool ingress = attr->query.attach_type == BPF_TCX_INGRESS;
 	struct net *net = current->nsproxy->net_ns;
-	struct bpf_mprog_entry *entry;
 	struct net_device *dev;
 	int ret;
 
@@ -133,12 +132,7 @@ int tcx_prog_query(const union bpf_attr *attr, union bpf_attr __user *uattr)
 		ret = -ENODEV;
 		goto out;
 	}
-	entry = tcx_entry_fetch(dev, ingress);
-	if (!entry) {
-		ret = -ENOENT;
-		goto out;
-	}
-	ret = bpf_mprog_query(attr, uattr, entry);
+	ret = bpf_mprog_query(attr, uattr, tcx_entry_fetch(dev, ingress));
 out:
 	rtnl_unlock();
 	return ret;
