@@ -1258,9 +1258,16 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static const struct of_device_id of_max77693_muic_dt_match[] = {
+	{ .compatible = "maxim,max77693-muic", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, of_max77693_muic_dt_match);
+
 static struct platform_driver max77693_muic_driver = {
 	.driver		= {
 		.name	= DEV_NAME,
+		.of_match_table = of_max77693_muic_dt_match,
 	},
 	.probe		= max77693_muic_probe,
 };
