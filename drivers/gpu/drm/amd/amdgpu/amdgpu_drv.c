@@ -114,9 +114,10 @@
  *   3.53.0 - Support for GFX11 CP GFX shadowing
  *   3.54.0 - Add AMDGPU_CTX_QUERY2_FLAGS_RESET_IN_PROGRESS support
  * - 3.55.0 - Add AMDGPU_INFO_GPUVM_FAULT query
+ * - 3.56.0 - Update IB start address and size alignment for decode and encode
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	55
+#define KMS_DRIVER_MINOR	56
 #define KMS_DRIVER_PATCHLEVEL	0
 
 /*
