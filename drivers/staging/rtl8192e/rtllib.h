@@ -1332,8 +1332,6 @@ struct rtllib_device {
 	int rate;       /* current rate */
 	int basic_rate;
 
-	short active_scan;
-
 	/* this contains flags for selectively enable softmac support */
 	u16 softmac_features;
 

@@ -419,8 +419,7 @@ static void rtllib_send_probe(struct rtllib_device *ieee)
 
 static void rtllib_send_probe_requests(struct rtllib_device *ieee)
 {
-	if (ieee->active_scan && (ieee->softmac_features &
-	    IEEE_SOFTMAC_PROBERQ)) {
+	if (ieee->softmac_features & IEEE_SOFTMAC_PROBERQ) {
 		rtllib_send_probe(ieee);
 		rtllib_send_probe(ieee);
 	}
