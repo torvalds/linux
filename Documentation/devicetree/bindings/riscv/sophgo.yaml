@@ -20,6 +20,10 @@ properties:
     oneOf:
       - items:
           - enum:
+              - milkv,duo
+          - const: sophgo,cv1800b
+      - items:
+          - enum:
               - milkv,pioneer
           - const: sophgo,sg2042
 
