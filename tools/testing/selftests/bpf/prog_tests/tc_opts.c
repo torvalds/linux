@@ -2629,3 +2629,62 @@ void serial_test_tc_opts_query(void)
 	test_tc_opts_query_target(BPF_TCX_INGRESS);
 	test_tc_opts_query_target(BPF_TCX_EGRESS);
 }
+
+static void test_tc_opts_query_attach_target(int target)
+{
+	LIBBPF_OPTS(bpf_prog_attach_opts, opta);
+	LIBBPF_OPTS(bpf_prog_detach_opts, optd);
+	LIBBPF_OPTS(bpf_prog_query_opts, optq);
+	struct test_tc_link *skel;
+	__u32 prog_ids[2];
+	__u32 fd1, id1;
+	int err;
+
+	skel = test_tc_link__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_load"))
+		goto cleanup;
+
+	fd1 = bpf_program__fd(skel->progs.tc1);
+	id1 = id_from_prog_fd(fd1);
+
+	err = bpf_prog_query_opts(loopback, target, &optq);
+	if (!ASSERT_OK(err, "prog_query"))
+		goto cleanup;
+
+	ASSERT_EQ(optq.count, 0, "count");
+	ASSERT_EQ(optq.revision, 1, "revision");
+
+	LIBBPF_OPTS_RESET(opta,
+		.expected_revision = optq.revision,
+	);
+
+	err = bpf_prog_attach_opts(fd1, loopback, target, &opta);
+	if (!ASSERT_EQ(err, 0, "prog_attach"))
+		goto cleanup;
+
+	memset(prog_ids, 0, sizeof(prog_ids));
+	optq.prog_ids = prog_ids;
+	optq.count = ARRAY_SIZE(prog_ids);
+
+	err = bpf_prog_query_opts(loopback, target, &optq);
+	if (!ASSERT_OK(err, "prog_query"))
+		goto cleanup1;
+
+	ASSERT_EQ(optq.count, 1, "count");
+	ASSERT_EQ(optq.revision, 2, "revision");
+	ASSERT_EQ(optq.prog_ids[0], id1, "prog_ids[0]");
+	ASSERT_EQ(optq.prog_ids[1], 0, "prog_ids[1]");
+
+cleanup1:
+	err = bpf_prog_detach_opts(fd1, loopback, target, &optd);
+	ASSERT_OK(err, "prog_detach");
+	assert_mprog_count(target, 0);
+cleanup:
+	test_tc_link__destroy(skel);
+}
+
+void serial_test_tc_opts_query_attach(void)
+{
+	test_tc_opts_query_attach_target(BPF_TCX_INGRESS);
+	test_tc_opts_query_attach_target(BPF_TCX_EGRESS);
+}
