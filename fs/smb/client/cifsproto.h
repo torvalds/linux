@@ -601,36 +601,11 @@ void __cifs_put_smb_ses(struct cifs_ses *ses);
 extern struct cifs_ses *
 cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx);
 
-#if 0 // TODO Remove
-void cifs_readdata_release(struct cifs_io_subrequest *rdata);
-static inline void cifs_get_readdata(struct cifs_io_subrequest *rdata)
-{
-	refcount_inc(&rdata->subreq.ref);
-}
-static inline void cifs_put_readdata(struct cifs_io_subrequest *rdata)
-{
-	if (refcount_dec_and_test(&rdata->subreq.ref))
-		cifs_readdata_release(rdata);
-}
-#endif
 int cifs_async_readv(struct cifs_io_subrequest *rdata);
 int cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid);
 
 void cifs_async_writev(struct cifs_io_subrequest *wdata);
 void cifs_writev_complete(struct work_struct *work);
-#if 0 // TODO Remove
-struct cifs_io_subrequest *cifs_writedata_alloc(work_func_t complete);
-void cifs_writedata_release(struct cifs_io_subrequest *rdata);
-static inline void cifs_get_writedata(struct cifs_io_subrequest *wdata)
-{
-	refcount_inc(&wdata->subreq.ref);
-}
-static inline void cifs_put_writedata(struct cifs_io_subrequest *wdata)
-{
-	if (refcount_dec_and_test(&wdata->subreq.ref))
-		cifs_writedata_release(wdata);
-}
-#endif
 int cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			  struct cifs_sb_info *cifs_sb,
 			  const unsigned char *path, char *pbuf,

@@ -1515,18 +1515,6 @@ struct cifs_io_subrequest {
 	struct smbd_mr			*mr;
 #endif
 	struct cifs_credits		credits;
-
-#if 0 // TODO: Remove following elements
-	struct list_head		list;
-	struct completion		done;
-	struct work_struct		work;
-	struct cifsFileInfo		*cfile;
-	struct address_space		*mapping;
-	struct cifs_aio_ctx		*ctx;
-	enum writeback_sync_modes	sync_mode;
-	bool				uncached;
-	struct bio_vec			*bv;
-#endif
 };
 
 /*
