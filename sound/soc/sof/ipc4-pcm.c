@@ -62,10 +62,37 @@ int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 instance_id, u32 s
 }
 EXPORT_SYMBOL(sof_ipc4_set_pipeline_state);
 
+static void sof_ipc4_add_pipeline_by_priority(struct ipc4_pipeline_set_state_data *trigger_list,
+					      struct snd_sof_widget *pipe_widget,
+					      s8 *pipe_priority, bool ascend)
+{
+	struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
+	int i, j;
+
+	for (i = 0; i < trigger_list->count; i++) {
+		/* add pipeline from low priority to high */
+		if (ascend && pipeline->priority < pipe_priority[i])
+			break;
+		/* add pipeline from high priority to low */
+		else if (!ascend && pipeline->priority > pipe_priority[i])
+			break;
+	}
+
+	for (j = trigger_list->count - 1; j >= i; j--) {
+		trigger_list->pipeline_instance_ids[j + 1] = trigger_list->pipeline_instance_ids[j];
+		pipe_priority[j + 1] = pipe_priority[j];
+	}
+
+	trigger_list->pipeline_instance_ids[i] = pipe_widget->instance_id;
+	trigger_list->count++;
+	pipe_priority[i] = pipeline->priority;
+}
+
 static void
 sof_ipc4_add_pipeline_to_trigger_list(struct snd_sof_dev *sdev, int state,
 				      struct snd_sof_pipeline *spipe,
-				      struct ipc4_pipeline_set_state_data *trigger_list)
+				      struct ipc4_pipeline_set_state_data *trigger_list,
+				      s8 *pipe_priority)
 {
 	struct snd_sof_widget *pipe_widget = spipe->pipe_widget;
 	struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
@@ -80,20 +107,20 @@ sof_ipc4_add_pipeline_to_trigger_list(struct snd_sof_dev *sdev, int state,
 		 * for the first time
 		 */
 		if (spipe->started_count == spipe->paused_count)
-			trigger_list->pipeline_instance_ids[trigger_list->count++] =
-				pipe_widget->instance_id;
+			sof_ipc4_add_pipeline_by_priority(trigger_list, pipe_widget, pipe_priority,
+							  false);
 		break;
 	case SOF_IPC4_PIPE_RESET:
 		/* RESET if the pipeline is neither running nor paused */
 		if (!spipe->started_count && !spipe->paused_count)
-			trigger_list->pipeline_instance_ids[trigger_list->count++] =
-				pipe_widget->instance_id;
+			sof_ipc4_add_pipeline_by_priority(trigger_list, pipe_widget, pipe_priority,
+							  true);
 		break;
 	case SOF_IPC4_PIPE_PAUSED:
 		/* Pause the pipeline only when its started_count is 1 more than paused_count */
 		if (spipe->paused_count == (spipe->started_count - 1))
-			trigger_list->pipeline_instance_ids[trigger_list->count++] =
-				pipe_widget->instance_id;
+			sof_ipc4_add_pipeline_by_priority(trigger_list, pipe_widget, pipe_priority,
+							  true);
 		break;
 	default:
 		break;
@@ -288,6 +315,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	struct sof_ipc4_pipeline *pipeline;
 	struct snd_sof_pipeline *spipe;
 	struct snd_sof_pcm *spcm;
+	u8 *pipe_priority;
 	int ret;
 	int i;
 
@@ -320,6 +348,12 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	if (!trigger_list)
 		return -ENOMEM;
 
+	pipe_priority = kzalloc(pipeline_list->count, GFP_KERNEL);
+	if (!pipe_priority) {
+		kfree(trigger_list);
+		return -ENOMEM;
+	}
+
 	mutex_lock(&ipc4_data->pipeline_state_mutex);
 
 	/*
@@ -334,12 +368,14 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	if (state == SOF_IPC4_PIPE_RUNNING || state == SOF_IPC4_PIPE_RESET)
 		for (i = pipeline_list->count - 1; i >= 0; i--) {
 			spipe = pipeline_list->pipelines[i];
-			sof_ipc4_add_pipeline_to_trigger_list(sdev, state, spipe, trigger_list);
+			sof_ipc4_add_pipeline_to_trigger_list(sdev, state, spipe, trigger_list,
+							      pipe_priority);
 		}
 	else
 		for (i = 0; i < pipeline_list->count; i++) {
 			spipe = pipeline_list->pipelines[i];
-			sof_ipc4_add_pipeline_to_trigger_list(sdev, state, spipe, trigger_list);
+			sof_ipc4_add_pipeline_to_trigger_list(sdev, state, spipe, trigger_list,
+							      pipe_priority);
 		}
 
 	/* return if all pipelines are in the requested state already */
@@ -389,6 +425,7 @@ skip_pause_transition:
 free:
 	mutex_unlock(&ipc4_data->pipeline_state_mutex);
 	kfree(trigger_list);
+	kfree(pipe_priority);
 	return ret;
 }
 
