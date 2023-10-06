@@ -119,6 +119,16 @@ config SPI_ASPEED_SMC
 	  controller (SPI) for the host firmware. The implementation
 	  only supports SPI NOR.
 
+config SPI_ASPEED_TXRX
+	tristate "Aspeed SPI controllers"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on OF
+	help
+	  This enables support for SPI controller driver in the Aspeed
+	  AST2600, AST2500 and AST2400 SoCs when attached
+	  to SPI device chips with half-duplex mode. On AST2700,
+	  full-duplex mode can be enabled.
+
 config SPI_ATMEL
 	tristate "Atmel SPI Controller"
 	depends on ARCH_AT91 || COMPILE_TEST
