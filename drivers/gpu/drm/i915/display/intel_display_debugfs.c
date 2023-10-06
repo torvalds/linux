@@ -1192,8 +1192,8 @@ DEFINE_SHOW_ATTRIBUTE(i915_lpsp_capability);
 
 static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 {
-	struct drm_connector *connector = m->private;
-	struct drm_device *dev = connector->dev;
+	struct intel_connector *connector = to_intel_connector(m->private);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct drm_crtc *crtc;
 	struct intel_dp *intel_dp;
 	struct drm_modeset_acquire_ctx ctx;
@@ -1205,7 +1205,7 @@ static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 
 	do {
 		try_again = false;
-		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+		ret = drm_modeset_lock(&i915->drm.mode_config.connection_mutex,
 				       &ctx);
 		if (ret) {
 			if (ret == -EDEADLK && !drm_modeset_backoff(&ctx)) {
@@ -1214,8 +1214,8 @@ static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 			}
 			break;
 		}
-		crtc = connector->state->crtc;
-		if (connector->status != connector_status_connected || !crtc) {
+		crtc = connector->base.state->crtc;
+		if (connector->base.status != connector_status_connected || !crtc) {
 			ret = -ENODEV;
 			break;
 		}
@@ -1230,7 +1230,7 @@ static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 		} else if (ret) {
 			break;
 		}
-		intel_dp = intel_attached_dp(to_intel_connector(connector));
+		intel_dp = intel_attached_dp(connector);
 		crtc_state = to_intel_crtc_state(crtc->state);
 		seq_printf(m, "DSC_Enabled: %s\n",
 			   str_yes_no(crtc_state->dsc.compression_enable));
