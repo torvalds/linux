@@ -28,7 +28,7 @@ struct bpf_stack_map {
 	void *elems;
 	struct pcpu_freelist freelist;
 	u32 n_buckets;
-	struct stack_map_bucket *buckets[];
+	struct stack_map_bucket *buckets[] __counted_by(n_buckets);
 };
 
 static inline bool stack_map_use_build_id(struct bpf_map *map)
