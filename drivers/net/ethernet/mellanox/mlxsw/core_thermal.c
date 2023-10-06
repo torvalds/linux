@@ -536,7 +536,7 @@ mlxsw_thermal_modules_fini(struct mlxsw_thermal *thermal,
 static int
 mlxsw_thermal_gearbox_tz_init(struct mlxsw_thermal_module *gearbox_tz)
 {
-	char tz_name[THERMAL_NAME_LENGTH];
+	char tz_name[40];
 	int ret;
 
 	if (gearbox_tz->slot_index)
