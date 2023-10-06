@@ -8,6 +8,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/nospec.h>
 #include "mgb4_core.h"
 #include "mgb4_i2c.h"
 #include "mgb4_vout.h"
@@ -114,8 +115,10 @@ static ssize_t video_source_store(struct device *dev,
 
 	if (((config & 0xc) >> 2) < MGB4_VIN_DEVICES)
 		loopin_old = mgbdev->vin[(config & 0xc) >> 2];
-	if (val < MGB4_VIN_DEVICES)
+	if (val < MGB4_VIN_DEVICES) {
+		val = array_index_nospec(val, MGB4_VIN_DEVICES);
 		loopin_new = mgbdev->vin[val];
+	}
 	if (loopin_old && loopin_cnt(loopin_old) == 1)
 		mgb4_mask_reg(&mgbdev->video, loopin_old->config->regs.config,
 			      0x2, 0x0);
