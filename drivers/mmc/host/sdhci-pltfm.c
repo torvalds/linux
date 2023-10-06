@@ -115,26 +115,21 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 {
 	struct sdhci_host *host;
 	void __iomem *ioaddr;
-	int irq, ret;
+	int irq;
 
 	ioaddr = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(ioaddr)) {
-		ret = PTR_ERR(ioaddr);
-		goto err;
-	}
+	if (IS_ERR(ioaddr))
+		return ERR_CAST(ioaddr);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto err;
-	}
+	if (irq < 0)
+		return ERR_PTR(irq);
 
 	host = sdhci_alloc_host(&pdev->dev,
 		sizeof(struct sdhci_pltfm_host) + priv_size);
-
 	if (IS_ERR(host)) {
-		ret = PTR_ERR(host);
-		goto err;
+		dev_err(&pdev->dev, "%s failed %pe\n", __func__, host);
+		return ERR_CAST(host);
 	}
 
 	host->ioaddr = ioaddr;
@@ -152,9 +147,6 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 	platform_set_drvdata(pdev, host);
 
 	return host;
-err:
-	dev_err(&pdev->dev, "%s failed %d\n", __func__, ret);
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_init);
 
