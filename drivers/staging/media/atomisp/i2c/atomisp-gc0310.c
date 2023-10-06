@@ -441,11 +441,6 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 	dev_dbg(&client->dev, "%s S enable=%d\n", __func__, enable);
 	mutex_lock(&dev->input_lock);
 
-	if (dev->is_streaming == enable) {
-		dev_warn(&client->dev, "stream already %s\n", enable ? "started" : "stopped");
-		goto error_unlock;
-	}
-
 	if (enable) {
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0)
@@ -497,7 +492,6 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 error_power_down:
 	pm_runtime_put(&client->dev);
 	dev->is_streaming = false;
-error_unlock:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
