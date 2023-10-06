@@ -19,3 +19,27 @@
 		reg = <0x6b>;
 	};
 };
+
+&fan0 {
+	/delete-property/ maxim,fan-dual-tach;
+};
+
+&fan1 {
+	/delete-property/ maxim,fan-dual-tach;
+};
+
+&fan2 {
+	/delete-property/ maxim,fan-dual-tach;
+};
+
+&fan3 {
+	/delete-property/ maxim,fan-dual-tach;
+};
+
+&fan4 {
+	/delete-property/ maxim,fan-dual-tach;
+};
+
+&fan5 {
+	/delete-property/ maxim,fan-dual-tach;
+};
