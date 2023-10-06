@@ -1758,7 +1758,7 @@ static int cifs_init_netfs(void)
 {
 	cifs_io_request_cachep =
 		kmem_cache_create("cifs_io_request",
-				  sizeof(struct netfs_io_request), 0,
+				  sizeof(struct cifs_io_request), 0,
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!cifs_io_request_cachep)
 		goto nomem_req;
