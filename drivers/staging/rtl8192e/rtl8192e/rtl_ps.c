@@ -181,8 +181,7 @@ static bool _rtl92e_ps_set_mode(struct net_device *dev, u8 rtPsMode)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (!priv->ps_force)
-		priv->rtllib->ps = rtPsMode;
+	priv->rtllib->ps = rtPsMode;
 	if (priv->rtllib->sta_sleep != LPS_IS_WAKE &&
 	    rtPsMode == RTLLIB_PS_DISABLED) {
 		unsigned long flags;
