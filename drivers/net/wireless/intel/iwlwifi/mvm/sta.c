@@ -827,7 +827,7 @@ static int iwl_mvm_get_queue_size(struct ieee80211_sta *sta)
 		if (!link)
 			continue;
 
-		/* support for 1k ba size */
+		/* support for 512 ba size */
 		if (link->eht_cap.has_eht &&
 		    max_size < IWL_DEFAULT_QUEUE_SIZE_EHT)
 			max_size = IWL_DEFAULT_QUEUE_SIZE_EHT;
@@ -865,11 +865,11 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 
 	if (sta) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		struct ieee80211_link_sta *link_sta;
 		unsigned int link_id;
 
-		for (link_id = 0;
-		     link_id < ARRAY_SIZE(mvmsta->link);
-		     link_id++) {
+		rcu_read_lock();
+		for_each_sta_active_link(mvmsta->vif, sta, link_sta, link_id) {
 			struct iwl_mvm_link_sta *link =
 				rcu_dereference_protected(mvmsta->link[link_id],
 							  lockdep_is_held(&mvm->mutex));
@@ -879,6 +879,7 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 
 			sta_mask |= BIT(link->sta_id);
 		}
+		rcu_read_unlock();
 	} else {
 		sta_mask |= BIT(sta_id);
 	}

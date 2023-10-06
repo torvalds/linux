@@ -1196,6 +1196,9 @@ static int map_crf_id(struct iwl_trans *iwl_trans)
 	case REG_CRF_ID_TYPE_FMR:
 		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_FM << 12);
 		break;
+	case REG_CRF_ID_TYPE_WHP:
+		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_WH << 12);
+		break;
 	default:
 		ret = -EIO;
 		IWL_ERR(iwl_trans,

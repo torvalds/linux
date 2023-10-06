@@ -1291,7 +1291,7 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	ieee80211_conn_flags_t conn_flags = 0;
 	u32 vht_cap_info = 0;
 
-	sdata_assert_lock(sdata);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	sband = ieee80211_get_sband(sdata);
 	if (!sband)
@@ -1559,7 +1559,7 @@ int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
 	struct mesh_csa_settings *tmp_csa_settings;
 	int ret = 0;
 
-	lockdep_assert_held(&sdata->wdev.mtx);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	tmp_csa_settings = kmalloc(sizeof(*tmp_csa_settings),
 				   GFP_ATOMIC);
@@ -1691,11 +1691,11 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	u16 stype;
 
-	sdata_lock(sdata);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	/* mesh already went down */
 	if (!sdata->u.mesh.mesh_id_len)
-		goto out;
+		return;
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	mgmt = (struct ieee80211_mgmt *) skb->data;
@@ -1714,8 +1714,6 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		ieee80211_mesh_rx_mgmt_action(sdata, mgmt, skb->len, rx_status);
 		break;
 	}
-out:
-	sdata_unlock(sdata);
 }
 
 static void mesh_bss_info_changed(struct ieee80211_sub_if_data *sdata)
@@ -1745,11 +1743,11 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
-	sdata_lock(sdata);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	/* mesh already went down */
 	if (!sdata->u.mesh.mesh_id_len)
-		goto out;
+		return;
 
 	if (ifmsh->preq_queue_len &&
 	    time_after(jiffies,
@@ -1767,8 +1765,6 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 
 	if (test_and_clear_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags))
 		mesh_bss_info_changed(sdata);
-out:
-	sdata_unlock(sdata);
 }
 
 

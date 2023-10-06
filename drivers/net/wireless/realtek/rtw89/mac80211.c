@@ -145,6 +145,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif->mac_idx = RTW89_MAC_0;
 	rtwvif->phy_idx = RTW89_PHY_0;
 	rtwvif->sub_entity_idx = RTW89_SUB_ENTITY_0;
+	rtwvif->chanctx_assigned = false;
 	rtwvif->hit_rule = 0;
 	rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
@@ -445,7 +446,7 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 		rtw89_mac_bf_set_gid_table(rtwdev, vif, conf);
 
 	if (changed & BSS_CHANGED_P2P_PS)
-		rtw89_process_p2p_ps(rtwdev, vif);
+		rtw89_core_update_p2p_ps(rtwdev, vif);
 
 	if (changed & BSS_CHANGED_CQM)
 		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);

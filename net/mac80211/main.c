@@ -84,7 +84,8 @@ void ieee80211_configure_filter(struct ieee80211_local *local)
 	local->filter_flags = new_flags & ~(1<<31);
 }
 
-static void ieee80211_reconfig_filter(struct work_struct *work)
+static void ieee80211_reconfig_filter(struct wiphy *wiphy,
+				      struct wiphy_work *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, reconfig_filter);
@@ -206,7 +207,8 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 				   BSS_CHANGED_PS |\
 				   BSS_CHANGED_IBSS |\
 				   BSS_CHANGED_ARP_FILTER |\
-				   BSS_CHANGED_SSID)
+				   BSS_CHANGED_SSID |\
+				   BSS_CHANGED_MLD_VALID_LINKS)
 
 void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u64 changed)
@@ -335,14 +337,12 @@ static void ieee80211_restart_work(struct work_struct *work)
 	struct ieee80211_sub_if_data *sdata;
 	int ret;
 
-	/* wait for scan work complete */
 	flush_workqueue(local->workqueue);
-	flush_work(&local->sched_scan_stopped_work);
-	flush_work(&local->radar_detected_work);
 
 	rtnl_lock();
 	/* we might do interface manipulations, so need both */
 	wiphy_lock(local->hw.wiphy);
+	wiphy_work_flush(local->hw.wiphy, NULL);
 
 	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
 	     "%s called with hardware scan in progress\n", __func__);
@@ -366,21 +366,19 @@ static void ieee80211_restart_work(struct work_struct *work)
 			 */
 			wiphy_work_cancel(local->hw.wiphy,
 					  &sdata->u.mgd.csa_connection_drop_work);
-			if (sdata->vif.bss_conf.csa_active) {
-				sdata_lock(sdata);
+			if (sdata->vif.bss_conf.csa_active)
 				ieee80211_sta_connection_lost(sdata,
 							      WLAN_REASON_UNSPECIFIED,
 							      false);
-				sdata_unlock(sdata);
-			}
 		}
-		flush_delayed_work(&sdata->dec_tailroom_needed_wk);
+		wiphy_delayed_work_flush(local->hw.wiphy,
+					 &sdata->dec_tailroom_needed_wk);
 	}
 	ieee80211_scan_cancel(local);
 
 	/* make sure any new ROC will consider local->in_reconfig */
-	flush_delayed_work(&local->roc_work);
-	flush_work(&local->hw_roc_done);
+	wiphy_delayed_work_flush(local->hw.wiphy, &local->roc_work);
+	wiphy_work_flush(local->hw.wiphy, &local->hw_roc_done);
 
 	/* wait for all packet processing to be done */
 	synchronize_net();
@@ -439,7 +437,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 	if (!wdev)
 		return NOTIFY_DONE;
 
-	if (wdev->wiphy != local->hw.wiphy)
+	if (wdev->wiphy != local->hw.wiphy || !wdev->registered)
 		return NOTIFY_DONE;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(ndev);
@@ -454,7 +452,25 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	ifmgd = &sdata->u.mgd;
-	sdata_lock(sdata);
+
+	/*
+	 * The nested here is needed to convince lockdep that this is
+	 * all OK. Yes, we lock the wiphy mutex here while we already
+	 * hold the notifier rwsem, that's the normal case. And yes,
+	 * we also acquire the notifier rwsem again when unregistering
+	 * a netdev while we already hold the wiphy mutex, so it does
+	 * look like a typical ABBA deadlock.
+	 *
+	 * However, both of these things happen with the RTNL held
+	 * already. Therefore, they can't actually happen, since the
+	 * lock orders really are ABC and ACB, which is fine due to
+	 * the RTNL (A).
+	 *
+	 * We still need to prevent recursion, which is accomplished
+	 * by the !wdev->registered check above.
+	 */
+	mutex_lock_nested(&local->hw.wiphy->mtx, 1);
+	__acquire(&local->hw.wiphy->mtx);
 
 	/* Copy the addresses to the vif config list */
 	ifa = rtnl_dereference(idev->ifa_list);
@@ -471,7 +487,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 	if (ifmgd->associated)
 		ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_ARP_FILTER);
 
-	sdata_unlock(sdata);
+	wiphy_unlock(local->hw.wiphy);
 
 	return NOTIFY_OK;
 }
@@ -784,9 +800,6 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	__hw_addr_init(&local->mc_list);
 
 	mutex_init(&local->iflist_mtx);
-	mutex_init(&local->mtx);
-
-	mutex_init(&local->key_mtx);
 	spin_lock_init(&local->filter_lock);
 	spin_lock_init(&local->rx_path_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
@@ -807,26 +820,25 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	spin_lock_init(&local->handle_wake_tx_queue_lock);
 
 	INIT_LIST_HEAD(&local->chanctx_list);
-	mutex_init(&local->chanctx_mtx);
 
-	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
+	wiphy_delayed_work_init(&local->scan_work, ieee80211_scan_work);
 
 	INIT_WORK(&local->restart_work, ieee80211_restart_work);
 
-	INIT_WORK(&local->radar_detected_work,
-		  ieee80211_dfs_radar_detected_work);
+	wiphy_work_init(&local->radar_detected_work,
+			ieee80211_dfs_radar_detected_work);
 
-	INIT_WORK(&local->reconfig_filter, ieee80211_reconfig_filter);
+	wiphy_work_init(&local->reconfig_filter, ieee80211_reconfig_filter);
 	local->smps_mode = IEEE80211_SMPS_OFF;
 
-	INIT_WORK(&local->dynamic_ps_enable_work,
-		  ieee80211_dynamic_ps_enable_work);
-	INIT_WORK(&local->dynamic_ps_disable_work,
-		  ieee80211_dynamic_ps_disable_work);
+	wiphy_work_init(&local->dynamic_ps_enable_work,
+			ieee80211_dynamic_ps_enable_work);
+	wiphy_work_init(&local->dynamic_ps_disable_work,
+			ieee80211_dynamic_ps_disable_work);
 	timer_setup(&local->dynamic_ps_timer, ieee80211_dynamic_ps_timer, 0);
 
-	INIT_WORK(&local->sched_scan_stopped_work,
-		  ieee80211_sched_scan_stopped_work);
+	wiphy_work_init(&local->sched_scan_stopped_work,
+			ieee80211_sched_scan_stopped_work);
 
 	spin_lock_init(&local->ack_status_lock);
 	idr_init(&local->ack_status_frames);
@@ -1055,6 +1067,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	supp_he = false;
 	supp_eht = false;
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		const struct ieee80211_sband_iftype_data *iftd;
 		struct ieee80211_supported_band *sband;
 
 		sband = local->hw.wiphy->bands[band];
@@ -1101,11 +1114,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		supp_ht = supp_ht || sband->ht_cap.ht_supported;
 		supp_vht = supp_vht || sband->vht_cap.vht_supported;
 
-		for (i = 0; i < sband->n_iftype_data; i++) {
-			const struct ieee80211_sband_iftype_data *iftd;
-
-			iftd = &sband->iftype_data[i];
-
+		for_each_sband_iftype_data(sband, i, iftd) {
 			supp_he = supp_he || iftd->he_cap.has_he;
 			supp_eht = supp_eht || iftd->eht_cap.has_eht;
 		}
@@ -1446,6 +1455,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	ieee80211_remove_interfaces(local);
 	rtnl_unlock();
  fail_rate:
+	ieee80211_txq_teardown_flows(local);
  fail_flows:
 	ieee80211_led_exit(local);
 	destroy_workqueue(local->workqueue);
@@ -1482,13 +1492,17 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	 */
 	ieee80211_remove_interfaces(local);
 
+	ieee80211_txq_teardown_flows(local);
+
+	wiphy_lock(local->hw.wiphy);
+	wiphy_delayed_work_cancel(local->hw.wiphy, &local->roc_work);
+	wiphy_work_cancel(local->hw.wiphy, &local->reconfig_filter);
+	wiphy_work_cancel(local->hw.wiphy, &local->sched_scan_stopped_work);
+	wiphy_work_cancel(local->hw.wiphy, &local->radar_detected_work);
+	wiphy_unlock(local->hw.wiphy);
 	rtnl_unlock();
 
-	cancel_delayed_work_sync(&local->roc_work);
 	cancel_work_sync(&local->restart_work);
-	cancel_work_sync(&local->reconfig_filter);
-	flush_work(&local->sched_scan_stopped_work);
-	flush_work(&local->radar_detected_work);
 
 	ieee80211_clear_tx_pending(local);
 	rate_control_deinitialize(local);
@@ -1519,7 +1533,6 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	enum nl80211_band band;
 
 	mutex_destroy(&local->iflist_mtx);
-	mutex_destroy(&local->mtx);
 
 	if (local->wiphy_ciphers_allocated) {
 		kfree(local->hw.wiphy->cipher_suites);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2018, 2020-2022 Intel Corporation
+ * Copyright (C) 2018, 2020-2023 Intel Corporation
  */
 #ifndef __iwl_context_info_file_gen3_h__
 #define __iwl_context_info_file_gen3_h__
@@ -44,7 +44,7 @@ enum iwl_prph_scratch_mtr_format {
  * @IWL_PRPH_SCRATCH_EDBG_DEST_ST_ARBITER: use st arbiter, mainly for
  *	multicomm.
  * @IWL_PRPH_SCRATCH_EDBG_DEST_TB22DTF: route debug data to SoC HW
- * @IWL_PRPH_SCTATCH_RB_SIZE_4K: Use 4K RB size (the default is 2K)
+ * @IWL_PRPH_SCRATCH_RB_SIZE_4K: Use 4K RB size (the default is 2K)
  * @IWL_PRPH_SCRATCH_MTR_MODE: format used for completion - 0: for
  *	completion descriptor, 1 for responses (legacy)
  * @IWL_PRPH_SCRATCH_MTR_FORMAT: a mask for the size of the tfd.
@@ -187,11 +187,15 @@ struct iwl_prph_scratch_ctrl_cfg {
  * struct iwl_prph_scratch - peripheral scratch mapping
  * @ctrl_cfg: control and configuration of prph scratch
  * @dram: firmware images addresses in DRAM
+ * @fseq_override: FSEQ override parameters
+ * @step_analog_params: STEP analog calibration values
  * @reserved: reserved
  */
 struct iwl_prph_scratch {
 	struct iwl_prph_scratch_ctrl_cfg ctrl_cfg;
-	__le32 reserved[10];
+	__le32 fseq_override;
+	__le32 step_analog_params;
+	__le32 reserved[8];
 	struct iwl_context_info_dram dram;
 } __packed; /* PERIPH_SCRATCH_S */
 

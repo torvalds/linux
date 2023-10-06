@@ -250,7 +250,6 @@ enum iwl_cfg_trans_ltr_delay {
  * RFID can be read before deciding the remaining parameters to use.
  *
  * @base_params: pointer to basic parameters
- * @csr: csr flags and addresses that are different across devices
  * @device_family: the device family
  * @umac_prph_offset: offset to add to UMAC periphery address
  * @xtal_latency: power up latency to get the xtal stabilized
@@ -319,7 +318,6 @@ struct iwl_fw_mon_regs {
  * @non_shared_ant: the antenna that is for WiFi only
  * @nvm_ver: NVM version
  * @nvm_calib_ver: NVM calibration version
- * @lib: pointer to the lib ops
  * @ht_params: point to ht parameters
  * @led_mode: 0=blinking, 1=On(RF On)/Off(RF Off)
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
@@ -344,15 +342,12 @@ struct iwl_fw_mon_regs {
  * @nvm_type: see &enum iwl_nvm_type
  * @d3_debug_data_base_addr: base address where D3 debug data is stored
  * @d3_debug_data_length: length of the D3 debug data
- * @bisr_workaround: BISR hardware workaround (for 22260 series devices)
  * @min_txq_size: minimum number of slots required in a TX queue
  * @uhb_supported: ultra high band channels supported
  * @min_ba_txq_size: minimum number of slots required in a TX queue which
  *	based on hardware support (HE - 256, EHT - 1K).
  * @num_rbds: number of receive buffer descriptors to use
  *	(only used for multi-queue capable devices)
- * @mac_addr_csr_base: CSR base register for MAC address access, if not set
- *	assume 0x380
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs

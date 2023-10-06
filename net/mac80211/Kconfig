@@ -57,6 +57,17 @@ endif
 comment "Some wireless drivers require a rate control algorithm"
 	depends on MAC80211 && MAC80211_HAS_RC=n
 
+config MAC80211_KUNIT_TEST
+	tristate "KUnit tests for mac80211" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on MAC80211
+	default KUNIT_ALL_TESTS
+	depends on !KERNEL_6_2
+	help
+	  Enable this option to test mac80211 internals with kunit.
+
+	  If unsure, say N.
+
 config MAC80211_MESH
 	bool "Enable mac80211 mesh networking support"
 	depends on MAC80211

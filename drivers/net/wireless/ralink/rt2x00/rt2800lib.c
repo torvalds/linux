@@ -856,6 +856,7 @@ static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, u32 rxwi_w2)
 	s8 rssi0 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI0);
 	s8 rssi1 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI1);
 	s8 rssi2 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI2);
+	s8 base_val = rt2x00_rt(rt2x00dev, RT6352) ? -2 : -12;
 	u16 eeprom;
 	u8 offset0;
 	u8 offset1;
@@ -880,9 +881,9 @@ static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, u32 rxwi_w2)
 	 * If the value in the descriptor is 0, it is considered invalid
 	 * and the default (extremely low) rssi value is assumed
 	 */
-	rssi0 = (rssi0) ? (-12 - offset0 - rt2x00dev->lna_gain - rssi0) : -128;
-	rssi1 = (rssi1) ? (-12 - offset1 - rt2x00dev->lna_gain - rssi1) : -128;
-	rssi2 = (rssi2) ? (-12 - offset2 - rt2x00dev->lna_gain - rssi2) : -128;
+	rssi0 = (rssi0) ? (base_val - offset0 - rt2x00dev->lna_gain - rssi0) : -128;
+	rssi1 = (rssi1) ? (base_val - offset1 - rt2x00dev->lna_gain - rssi1) : -128;
+	rssi2 = (rssi2) ? (base_val - offset2 - rt2x00dev->lna_gain - rssi2) : -128;
 
 	/*
 	 * mac80211 only accepts a single RSSI value. Calculating the
@@ -9700,9 +9701,6 @@ static void rt2800_loft_iq_calibration(struct rt2x00_dev *rt2x00dev)
 
 				rt2x00_dbg(rt2x00dev, "Used VGA %d %x\n", vga_gain[ch_idx],
 					   rfvga_gain_table[vga_gain[ch_idx]]);
-
-				if (vga_gain[ch_idx] < 0)
-					vga_gain[ch_idx] = 0;
 			}
 
 			rfvalue = rfvga_gain_table[vga_gain[ch_idx]];

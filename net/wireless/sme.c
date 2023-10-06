@@ -67,7 +67,7 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	struct cfg80211_scan_request *request;
 	int n_channels, err;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (rdev->scan_req || rdev->scan_msg)
 		return -EBUSY;
@@ -151,7 +151,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 	struct cfg80211_assoc_request req = {};
 	int err;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (!wdev->conn)
 		return 0;
@@ -255,16 +255,13 @@ void cfg80211_conn_work(struct work_struct *work)
 		if (!wdev->netdev)
 			continue;
 
-		wdev_lock(wdev);
-		if (!netif_running(wdev->netdev)) {
-			wdev_unlock(wdev);
+		if (!netif_running(wdev->netdev))
 			continue;
-		}
+
 		if (!wdev->conn ||
-		    wdev->conn->state == CFG80211_CONN_CONNECTED) {
-			wdev_unlock(wdev);
+		    wdev->conn->state == CFG80211_CONN_CONNECTED)
 			continue;
-		}
+
 		if (wdev->conn->params.bssid) {
 			memcpy(bssid_buf, wdev->conn->params.bssid, ETH_ALEN);
 			bssid = bssid_buf;
@@ -279,7 +276,6 @@ void cfg80211_conn_work(struct work_struct *work)
 			cr.timeout_reason = treason;
 			__cfg80211_connect_result(wdev->netdev, &cr, false);
 		}
-		wdev_unlock(wdev);
 	}
 
 	wiphy_unlock(&rdev->wiphy);
@@ -300,7 +296,7 @@ static struct cfg80211_bss *cfg80211_get_conn_bss(struct wireless_dev *wdev)
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_bss *bss;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	bss = cfg80211_get_bss(wdev->wiphy, wdev->conn->params.channel,
 			       wdev->conn->params.bssid,
@@ -317,13 +313,13 @@ static struct cfg80211_bss *cfg80211_get_conn_bss(struct wireless_dev *wdev)
 	return bss;
 }
 
-static void __cfg80211_sme_scan_done(struct net_device *dev)
+void cfg80211_sme_scan_done(struct net_device *dev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_bss *bss;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (!wdev->conn)
 		return;
@@ -339,15 +335,6 @@ static void __cfg80211_sme_scan_done(struct net_device *dev)
 		schedule_work(&rdev->conn_work);
 }
 
-void cfg80211_sme_scan_done(struct net_device *dev)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-
-	wdev_lock(wdev);
-	__cfg80211_sme_scan_done(dev);
-	wdev_unlock(wdev);
-}
-
 void cfg80211_sme_rx_auth(struct wireless_dev *wdev, const u8 *buf, size_t len)
 {
 	struct wiphy *wiphy = wdev->wiphy;
@@ -355,7 +342,7 @@ void cfg80211_sme_rx_auth(struct wireless_dev *wdev, const u8 *buf, size_t len)
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buf;
 	u16 status_code = le16_to_cpu(mgmt->u.auth.status_code);
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (!wdev->conn || wdev->conn->state == CFG80211_CONN_CONNECTED)
 		return;
@@ -702,14 +689,14 @@ static bool cfg80211_is_all_idle(void)
 	 * need not issue a disconnect hint and reset any info such
 	 * as chan dfs state, etc.
 	 */
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
+		wiphy_lock(&rdev->wiphy);
 		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
-			wdev_lock(wdev);
 			if (wdev->conn || wdev->connected ||
 			    cfg80211_beaconing_iface_active(wdev))
 				is_all_idle = false;
-			wdev_unlock(wdev);
 		}
+		wiphy_unlock(&rdev->wiphy);
 	}
 
 	return is_all_idle;
@@ -761,7 +748,7 @@ void __cfg80211_connect_result(struct net_device *dev,
 	const u8 *connected_addr;
 	bool bss_not_found = false;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
 		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
@@ -1093,7 +1080,7 @@ void __cfg80211_roamed(struct wireless_dev *wdev,
 	unsigned int link;
 	const u8 *connected_addr;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
 		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
@@ -1297,7 +1284,7 @@ EXPORT_SYMBOL(cfg80211_roamed);
 void __cfg80211_port_authorized(struct wireless_dev *wdev, const u8 *bssid,
 					const u8 *td_bitmap, u8 td_bitmap_len)
 {
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
 		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
@@ -1353,7 +1340,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 	union iwreq_data wrqu;
 #endif
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
 		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
@@ -1443,7 +1430,7 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	/*
 	 * If we have an ssid_len, we're trying to connect or are
@@ -1549,7 +1536,7 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err = 0;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	kfree_sensitive(wdev->connect_keys);
 	wdev->connect_keys = NULL;
@@ -1585,19 +1572,18 @@ void cfg80211_autodisconnect_wk(struct work_struct *work)
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 
 	wiphy_lock(wdev->wiphy);
-	wdev_lock(wdev);
 
 	if (wdev->conn_owner_nlportid) {
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_ADHOC:
-			__cfg80211_leave_ibss(rdev, wdev->netdev, false);
+			cfg80211_leave_ibss(rdev, wdev->netdev, false);
 			break;
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_P2P_GO:
-			__cfg80211_stop_ap(rdev, wdev->netdev, -1, false);
+			cfg80211_stop_ap(rdev, wdev->netdev, -1, false);
 			break;
 		case NL80211_IFTYPE_MESH_POINT:
-			__cfg80211_leave_mesh(rdev, wdev->netdev);
+			cfg80211_leave_mesh(rdev, wdev->netdev);
 			break;
 		case NL80211_IFTYPE_STATION:
 		case NL80211_IFTYPE_P2P_CLIENT:
@@ -1622,6 +1608,5 @@ void cfg80211_autodisconnect_wk(struct work_struct *work)
 		}
 	}
 
-	wdev_unlock(wdev);
 	wiphy_unlock(wdev->wiphy);
 }

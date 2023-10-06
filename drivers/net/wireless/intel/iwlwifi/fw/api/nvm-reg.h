@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -480,18 +480,20 @@ union iwl_tas_config_cmd {
 	struct iwl_tas_config_cmd_v4 v4;
 };
 /**
- * enum iwl_lari_configs - bit masks for the various LARI config operations
+ * enum iwl_lari_config_masks - bit masks for the various LARI config operations
  * @LARI_CONFIG_DISABLE_11AC_UKRAINE_MSK: disable 11ac in ukraine
  * @LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK: ETSI 5.8GHz SRD passive scan
  * @LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK: ETSI 5.8GHz SRD disabled
  * @LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK: enable 5.15/5.35GHz bands in
  * 	Indonesia
+ * @LARI_CONFIG_ENABLE_CHINA_22_REG_SUPPORT_MSK: enable 2022 china regulatory
  */
 enum iwl_lari_config_masks {
 	LARI_CONFIG_DISABLE_11AC_UKRAINE_MSK		= BIT(0),
 	LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK		= BIT(1),
 	LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK		= BIT(2),
 	LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK		= BIT(3),
+	LARI_CONFIG_ENABLE_CHINA_22_REG_SUPPORT_MSK	= BIT(7),
 };
 
 #define IWL_11AX_UKRAINE_MASK 3

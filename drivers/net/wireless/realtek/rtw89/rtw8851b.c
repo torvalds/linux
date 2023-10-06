@@ -1704,10 +1704,11 @@ static void rtw8851b_set_tx_shape(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan,
 				  enum rtw89_phy_idx phy_idx)
 {
+	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
 	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
-	u8 tx_shape_cck = rtw89_8851b_tx_shape[band][RTW89_RS_CCK][regd];
-	u8 tx_shape_ofdm = rtw89_8851b_tx_shape[band][RTW89_RS_OFDM][regd];
+	u8 tx_shape_cck = (*rfe_parms->tx_shape.lmt)[band][RTW89_RS_CCK][regd];
+	u8 tx_shape_ofdm = (*rfe_parms->tx_shape.lmt)[band][RTW89_RS_OFDM][regd];
 
 	if (band == RTW89_BAND_2G)
 		rtw8851b_bb_set_tx_shape_dfir(rtwdev, chan, tx_shape_cck, phy_idx);
@@ -2280,6 +2281,7 @@ static int rtw8851b_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.enable_bb_rf		= rtw8851b_mac_enable_bb_rf,
 	.disable_bb_rf		= rtw8851b_mac_disable_bb_rf,
+	.bb_preinit		= NULL,
 	.bb_reset		= rtw8851b_bb_reset,
 	.bb_sethw		= rtw8851b_bb_sethw,
 	.read_rf		= rtw89_phy_read_rf_v1,
@@ -2345,6 +2347,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.fw_basename		= RTW8851B_FW_BASENAME,
 	.fw_format_max		= RTW8851B_FW_FORMAT_MAX,
 	.try_ce_fw		= true,
+	.bbmcu_nr		= 0,
 	.needed_fw_elms		= 0,
 	.fifo_size		= 196608,
 	.small_fifo_size	= true,
@@ -2364,7 +2367,6 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.rf_table		= {&rtw89_8851b_phy_radioa_table,},
 	.nctl_table		= &rtw89_8851b_phy_nctl_table,
 	.nctl_post_table	= &rtw8851b_nctl_post_defs_tbl,
-	.byr_table		= &rtw89_8851b_byr_table,
 	.dflt_parms		= &rtw89_8851b_dflt_parms,
 	.rfe_parms_conf		= rtw89_8851b_rfe_parms_conf,
 	.txpwr_factor_rf	= 2,
@@ -2377,7 +2379,8 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 				  BIT(NL80211_BAND_5GHZ),
 	.support_bw160		= false,
 	.support_unii4		= true,
-	.support_ul_tb_ctrl	= true,
+	.ul_tb_waveform_ctrl	= true,
+	.ul_tb_pwr_diff		= false,
 	.hw_sec_hdr		= false,
 	.rf_path_num		= 1,
 	.tx_nss			= 1,
@@ -2419,6 +2422,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.hci_func_en_addr	= R_AX_HCI_FUNC_EN,
 	.h2c_desc_size		= sizeof(struct rtw89_txwd_body),
 	.txwd_body_size		= sizeof(struct rtw89_txwd_body),
+	.txwd_info_size		= sizeof(struct rtw89_txwd_info),
 	.h2c_ctrl_reg		= R_AX_H2CREG_CTRL,
 	.h2c_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_H2C_DEQ_CNT_MASK >> 8},
 	.h2c_regs		= rtw8851b_h2c_regs,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -144,6 +144,8 @@ struct iwl_powertable_cmd {
  *	receiver and transmitter. '0' - does not allow.
  * @DEVICE_POWER_FLAGS_ALLOW_MEM_RETENTION_MSK:
  *	Device Retention indication, '1' indicate retention is enabled.
+ * @DEVICE_POWER_FLAGS_NO_SLEEP_TILL_D3_MSK:
+ *	Prevent power save until entering d3 is completed.
  * @DEVICE_POWER_FLAGS_32K_CLK_VALID_MSK:
  *	32Khz external slow clock valid indication, '1' indicate cloack is
  *	valid.
@@ -151,6 +153,7 @@ struct iwl_powertable_cmd {
 enum iwl_device_power_flags {
 	DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK		= BIT(0),
 	DEVICE_POWER_FLAGS_ALLOW_MEM_RETENTION_MSK	= BIT(1),
+	DEVICE_POWER_FLAGS_NO_SLEEP_TILL_D3_MSK		= BIT(7),
 	DEVICE_POWER_FLAGS_32K_CLK_VALID_MSK		= BIT(12),
 };
 
@@ -162,7 +165,7 @@ enum iwl_device_power_flags {
  * @reserved: reserved (padding)
  */
 struct iwl_device_power_cmd {
-	/* PM_POWER_TABLE_CMD_API_S_VER_6 */
+	/* PM_POWER_TABLE_CMD_API_S_VER_7 */
 	__le16 flags;
 	__le16 reserved;
 } __packed;

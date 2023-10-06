@@ -557,7 +557,7 @@ static int ieee80211_fill_rx_status(struct ieee80211_rx_status *stat,
 	if (ieee80211_fill_rate_info(hw, stat, band, ri))
 		return 0;
 
-	if (rate->idx < 0 || !rate->count)
+	if (!ieee80211_rate_valid(rate))
 		return -1;
 
 	if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
@@ -632,7 +632,7 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *conf;
-	int rateidx, shift = 0;
+	int rateidx;
 	bool cck, short_pream;
 	u32 basic_rates;
 	u8 band = 0;
@@ -641,10 +641,8 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 	len += 38; /* Ethernet header length */
 
 	conf = rcu_dereference(vif->bss_conf.chanctx_conf);
-	if (conf) {
+	if (conf)
 		band = conf->def.chan->band;
-		shift = ieee80211_chandef_get_shift(&conf->def);
-	}
 
 	if (pubsta) {
 		struct sta_info *sta = container_of(pubsta, struct sta_info,
@@ -704,7 +702,7 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 	short_pream = vif->bss_conf.use_short_preamble;
 
 	rateidx = basic_rates ? ffs(basic_rates) - 1 : 0;
-	rate = sband->bitrates[rateidx].bitrate << shift;
+	rate = sband->bitrates[rateidx].bitrate;
 	cck = sband->bitrates[rateidx].flags & IEEE80211_RATE_MANDATORY_B;
 
 	return ieee80211_calc_legacy_rate_duration(rate, short_pream, cck, len);

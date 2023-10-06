@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2022  Realtek Corporation
  */
 
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "fw.h"
@@ -1776,6 +1777,7 @@ static void rtw8852c_rfk_init(struct rtw89_dev *rtwdev)
 	rtwdev->is_tssi_mode[RF_PATH_B] = false;
 	memset(rfk_mcc, 0, sizeof(*rfk_mcc));
 	rtw8852c_lck_init(rtwdev);
+	rtw8852c_dpk_init(rtwdev);
 
 	rtw8852c_rck(rtwdev);
 	rtw8852c_dack(rtwdev);
@@ -1964,10 +1966,11 @@ static void rtw8852c_set_tx_shape(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan,
 				  enum rtw89_phy_idx phy_idx)
 {
+	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
 	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
-	u8 tx_shape_cck = rtw89_8852c_tx_shape[band][RTW89_RS_CCK][regd];
-	u8 tx_shape_ofdm = rtw89_8852c_tx_shape[band][RTW89_RS_OFDM][regd];
+	u8 tx_shape_cck = (*rfe_parms->tx_shape.lmt)[band][RTW89_RS_CCK][regd];
+	u8 tx_shape_ofdm = (*rfe_parms->tx_shape.lmt)[band][RTW89_RS_OFDM][regd];
 
 	if (band == RTW89_BAND_2G)
 		rtw8852c_bb_set_tx_shape_dfir(rtwdev, chan, tx_shape_cck, phy_idx);
@@ -1975,6 +1978,11 @@ static void rtw8852c_set_tx_shape(struct rtw89_dev *rtwdev,
 	rtw89_phy_tssi_ctrl_set_bandedge_cfg(rtwdev,
 					     (enum rtw89_mac_idx)phy_idx,
 					     tx_shape_ofdm);
+
+	rtw89_phy_write32_set(rtwdev, R_P0_DAC_COMP_POST_DPD_EN,
+			      B_P0_DAC_COMP_POST_DPD_EN);
+	rtw89_phy_write32_set(rtwdev, R_P1_DAC_COMP_POST_DPD_EN,
+			      B_P1_DAC_COMP_POST_DPD_EN);
 }
 
 static void rtw8852c_set_txpwr(struct rtw89_dev *rtwdev,
@@ -2743,6 +2751,10 @@ static int rtw8852c_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static const struct rtw89_chanctx_listener rtw8852c_chanctx_listener = {
+	.callbacks[RTW89_CHANCTX_CALLBACK_RFK] = rtw8852c_rfk_chanctx_cb,
+};
+
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support rtw_wowlan_stub_8852c = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
@@ -2755,6 +2767,7 @@ static const struct wiphy_wowlan_support rtw_wowlan_stub_8852c = {
 static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.enable_bb_rf		= rtw8852c_mac_enable_bb_rf,
 	.disable_bb_rf		= rtw8852c_mac_disable_bb_rf,
+	.bb_preinit		= NULL,
 	.bb_reset		= rtw8852c_bb_reset,
 	.bb_sethw		= rtw8852c_bb_sethw,
 	.read_rf		= rtw89_phy_read_rf_v1,
@@ -2811,6 +2824,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.fw_basename		= RTW8852C_FW_BASENAME,
 	.fw_format_max		= RTW8852C_FW_FORMAT_MAX,
 	.try_ce_fw		= false,
+	.bbmcu_nr		= 0,
 	.needed_fw_elms		= 0,
 	.fifo_size		= 458752,
 	.small_fifo_size	= false,
@@ -2831,21 +2845,22 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 				   &rtw89_8852c_phy_radioa_table,},
 	.nctl_table		= &rtw89_8852c_phy_nctl_table,
 	.nctl_post_table	= NULL,
-	.byr_table		= &rtw89_8852c_byr_table,
 	.dflt_parms		= &rtw89_8852c_dflt_parms,
 	.rfe_parms_conf		= NULL,
+	.chanctx_listener	= &rtw8852c_chanctx_listener,
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
 	.dig_table		= NULL,
 	.dig_regs		= &rtw8852c_dig_regs,
 	.tssi_dbw_table		= &rtw89_8852c_tssi_dbw_table,
-	.support_chanctx_num	= 1,
+	.support_chanctx_num	= 2,
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |
 				  BIT(NL80211_BAND_5GHZ) |
 				  BIT(NL80211_BAND_6GHZ),
 	.support_bw160		= true,
 	.support_unii4		= true,
-	.support_ul_tb_ctrl     = false,
+	.ul_tb_waveform_ctrl	= false,
+	.ul_tb_pwr_diff		= true,
 	.hw_sec_hdr		= true,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
@@ -2889,6 +2904,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.hci_func_en_addr	= R_AX_HCI_FUNC_EN_V1,
 	.h2c_desc_size		= sizeof(struct rtw89_rxdesc_short),
 	.txwd_body_size		= sizeof(struct rtw89_txwd_body_v1),
+	.txwd_info_size		= sizeof(struct rtw89_txwd_info),
 	.h2c_ctrl_reg		= R_AX_H2CREG_CTRL_V1,
 	.h2c_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_H2C_DEQ_CNT_MASK >> 8},
 	.h2c_regs		= rtw8852c_h2c_regs,

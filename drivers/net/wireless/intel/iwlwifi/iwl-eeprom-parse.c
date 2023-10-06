@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021, 2023 Intel Corporation
  * Copyright (C) 2015 Intel Mobile Communications GmbH
  */
 #include <linux/types.h>
@@ -721,6 +721,9 @@ void iwl_init_ht_hw_capab(struct iwl_trans *trans,
 	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_4;
 
 	ht_info->mcs.rx_mask[0] = 0xFF;
+	ht_info->mcs.rx_mask[1] = 0x00;
+	ht_info->mcs.rx_mask[2] = 0x00;
+
 	if (rx_chains >= 2)
 		ht_info->mcs.rx_mask[1] = 0xFF;
 	if (rx_chains >= 3)

@@ -184,8 +184,6 @@ static void ieee80211_check_pending_bar(struct sta_info *sta, u8 *addr, u8 tid)
 static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt = (void *) skb->data;
-	struct ieee80211_local *local = sta->local;
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
 	if (ieee80211_is_data_qos(mgmt->frame_control)) {
 		struct ieee80211_hdr *hdr = (void *) skb->data;
@@ -193,39 +191,6 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 		u16 tid = qc[0] & 0xf;
 
 		ieee80211_check_pending_bar(sta, hdr->addr1, tid);
-	}
-
-	if (ieee80211_is_action(mgmt->frame_control) &&
-	    !ieee80211_has_protected(mgmt->frame_control) &&
-	    mgmt->u.action.category == WLAN_CATEGORY_HT &&
-	    mgmt->u.action.u.ht_smps.action == WLAN_HT_ACTION_SMPS &&
-	    ieee80211_sdata_running(sdata)) {
-		enum ieee80211_smps_mode smps_mode;
-
-		switch (mgmt->u.action.u.ht_smps.smps_control) {
-		case WLAN_HT_SMPS_CONTROL_DYNAMIC:
-			smps_mode = IEEE80211_SMPS_DYNAMIC;
-			break;
-		case WLAN_HT_SMPS_CONTROL_STATIC:
-			smps_mode = IEEE80211_SMPS_STATIC;
-			break;
-		case WLAN_HT_SMPS_CONTROL_DISABLED:
-		default: /* shouldn't happen since we don't send that */
-			smps_mode = IEEE80211_SMPS_OFF;
-			break;
-		}
-
-		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			/*
-			 * This update looks racy, but isn't -- if we come
-			 * here we've definitely got a station that we're
-			 * talking to, and on a managed interface that can
-			 * only be the AP. And the only other place updating
-			 * this variable in managed mode is before association.
-			 */
-			sdata->deflink.smps_mode = smps_mode;
-			ieee80211_queue_work(&local->hw, &sdata->recalc_smps);
-		}
 	}
 }
 
@@ -291,7 +256,7 @@ static int ieee80211_tx_radiotap_len(struct ieee80211_tx_info *info,
 static void
 ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 				 struct sk_buff *skb, int retry_count,
-				 int rtap_len, int shift,
+				 int rtap_len,
 				 struct ieee80211_tx_status *status)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -342,7 +307,7 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 
 	if (legacy_rate) {
 		rthdr->it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_RATE));
-		*pos = DIV_ROUND_UP(legacy_rate, 5 * (1 << shift));
+		*pos = DIV_ROUND_UP(legacy_rate, 5);
 		/* padding for tx flags */
 		pos += 2;
 	}
@@ -633,7 +598,7 @@ static void ieee80211_report_ack_skb(struct ieee80211_local *local,
 	unsigned long flags;
 
 	spin_lock_irqsave(&local->ack_status_lock, flags);
-	skb = idr_remove(&local->ack_status_frames, info->ack_frame_id);
+	skb = idr_remove(&local->ack_status_frames, info->status_data);
 	spin_unlock_irqrestore(&local->ack_status_lock, flags);
 
 	if (!skb)
@@ -693,6 +658,42 @@ static void ieee80211_report_ack_skb(struct ieee80211_local *local,
 		/* consumes skb */
 		skb_complete_wifi_ack(skb, acked);
 	}
+}
+
+static void ieee80211_handle_smps_status(struct ieee80211_sub_if_data *sdata,
+					 bool acked, u16 status_data)
+{
+	u16 sub_data = u16_get_bits(status_data, IEEE80211_STATUS_SUBDATA_MASK);
+	enum ieee80211_smps_mode smps_mode = sub_data & 3;
+	int link_id = (sub_data >> 2);
+	struct ieee80211_link_data *link;
+
+	if (!sdata || !ieee80211_sdata_running(sdata))
+		return;
+
+	if (!acked)
+		return;
+
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (WARN(link_id >= ARRAY_SIZE(sdata->link),
+		 "bad SMPS status link: %d\n", link_id))
+		return;
+
+	link = rcu_dereference(sdata->link[link_id]);
+	if (!link)
+		return;
+
+	/*
+	 * This update looks racy, but isn't, the only other place
+	 * updating this variable is in managed mode before assoc,
+	 * and we have to be associated to have a status from the
+	 * action frame TX, since we cannot send it while we're not
+	 * associated yet.
+	 */
+	link->smps_mode = smps_mode;
+	wiphy_work_queue(sdata->local->hw.wiphy, &link->u.mgd.recalc_smps);
 }
 
 static void ieee80211_report_used_skb(struct ieee80211_local *local,
@@ -759,9 +760,24 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 		}
 
 		rcu_read_unlock();
-	} else if (info->ack_frame_id) {
+	} else if (info->status_data_idr) {
 		ieee80211_report_ack_skb(local, skb, acked, dropped,
 					 ack_hwtstamp);
+	} else if (info->status_data) {
+		struct ieee80211_sub_if_data *sdata;
+
+		rcu_read_lock();
+
+		sdata = ieee80211_sdata_from_skb(local, skb);
+
+		switch (u16_get_bits(info->status_data,
+				     IEEE80211_STATUS_TYPE_MASK)) {
+		case IEEE80211_STATUS_TYPE_SMPS:
+			ieee80211_handle_smps_status(sdata, acked,
+						     info->status_data);
+			break;
+		}
+		rcu_read_unlock();
 	}
 
 	if (!dropped && skb->destructor) {
@@ -862,7 +878,7 @@ static int ieee80211_tx_get_rates(struct ieee80211_hw *hw,
 }
 
 void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
-			  int retry_count, int shift, bool send_to_cooked,
+			  int retry_count, bool send_to_cooked,
 			  struct ieee80211_tx_status *status)
 {
 	struct sk_buff *skb2;
@@ -879,7 +895,7 @@ void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
 		return;
 	}
 	ieee80211_add_tx_radiotap_header(local, skb, retry_count,
-					 rtap_len, shift, status);
+					 rtap_len, status);
 
 	/* XXX: is this sufficient for BPF? */
 	skb_reset_mac_header(skb);
@@ -932,14 +948,12 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	bool acked;
 	bool noack_success;
 	struct ieee80211_bar *bar;
-	int shift = 0;
 	int tid = IEEE80211_NUM_TIDS;
 
 	fc = hdr->frame_control;
 
 	if (status->sta) {
 		sta = container_of(status->sta, struct sta_info, sta);
-		shift = ieee80211_vif_get_shift(&sta->sdata->vif);
 
 		if (info->flags & IEEE80211_TX_STATUS_EOSP)
 			clear_sta_flag(sta, WLAN_STA_SP);
@@ -1077,7 +1091,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	}
 
 	/* send to monitor interfaces */
-	ieee80211_tx_monitor(local, skb, retry_count, shift,
+	ieee80211_tx_monitor(local, skb, retry_count,
 			     send_to_cooked, status);
 }
 

@@ -376,8 +376,10 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	 */
 	if (phy_info & IWL_RX_MPDU_PHY_AMPDU &&
 	    (status & IWL_RX_MPDU_STATUS_SEC_MASK) ==
-	    IWL_RX_MPDU_STATUS_SEC_UNKNOWN && !mvm->monitor_on)
+	    IWL_RX_MPDU_STATUS_SEC_UNKNOWN && !mvm->monitor_on) {
+		IWL_DEBUG_DROP(mvm, "Dropping packets, bad enc status\n");
 		return -1;
+	}
 
 	if (unlikely(ieee80211_is_mgmt(hdr->frame_control) &&
 		     !ieee80211_has_protected(hdr->frame_control)))
@@ -1507,7 +1509,7 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 #define IWL_RX_RU_DATA_A1			2
 #define IWL_RX_RU_DATA_A2			2
 #define IWL_RX_RU_DATA_B1			2
-#define IWL_RX_RU_DATA_B2			3
+#define IWL_RX_RU_DATA_B2			4
 #define IWL_RX_RU_DATA_C1			3
 #define IWL_RX_RU_DATA_C2			3
 #define IWL_RX_RU_DATA_D1			4
@@ -2562,6 +2564,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			iwl_mvm_rx_csum(mvm, sta, skb, pkt);
 
 		if (iwl_mvm_is_dup(sta, queue, rx_status, hdr, desc)) {
+			IWL_DEBUG_DROP(mvm, "Dropping duplicate packet 0x%x\n",
+				       le16_to_cpu(hdr->seq_ctrl));
 			kfree_skb(skb);
 			goto out;
 		}
@@ -2798,6 +2802,9 @@ void iwl_mvm_rx_bar_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 		 baid, baid_data->sta_mask, baid_data->tid, sta_id,
 		 tid))
 		goto out;
+
+	IWL_DEBUG_DROP(mvm, "Received a BAR, expect packet loss: nssn %d\n",
+		       nssn);
 
 	iwl_mvm_release_frames_from_notif(mvm, napi, baid, nssn, queue, 0);
 out:

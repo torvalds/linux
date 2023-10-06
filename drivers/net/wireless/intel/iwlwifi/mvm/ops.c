@@ -751,7 +751,10 @@ static int iwl_mvm_start_get_nvm(struct iwl_mvm *mvm)
 			 */
 			mvm->nvm_data =
 				iwl_parse_mei_nvm_data(trans, trans->cfg,
-						       mvm->mei_nvm_data, mvm->fw);
+						       mvm->mei_nvm_data,
+						       mvm->fw,
+						       mvm->set_tx_ant,
+						       mvm->set_rx_ant);
 			return 0;
 		}
 
@@ -789,6 +792,9 @@ get_nvm_from_fw:
 
 	if (ret)
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
+
+	/* no longer need this regardless of failure or not */
+	mvm->pldr_sync = false;
 
 	return ret;
 }
@@ -1136,7 +1142,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		return NULL;
 
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-		max_agg = IEEE80211_MAX_AMPDU_BUF_EHT;
+		max_agg = 512;
 	else
 		max_agg = IEEE80211_MAX_AMPDU_BUF_HE;
 

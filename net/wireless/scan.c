@@ -1642,8 +1642,6 @@ static bool cfg80211_combine_bsses(struct cfg80211_registered_device *rdev,
 			continue;
 		if (bss->pub.channel != new->pub.channel)
 			continue;
-		if (bss->pub.scan_width != new->pub.scan_width)
-			continue;
 		if (rcu_access_pointer(bss->pub.beacon_ies))
 			continue;
 		ies = rcu_access_pointer(bss->pub.ies);
@@ -1940,8 +1938,7 @@ EXPORT_SYMBOL(cfg80211_get_ies_channel_number);
  */
 static struct ieee80211_channel *
 cfg80211_get_bss_channel(struct wiphy *wiphy, const u8 *ie, size_t ielen,
-			 struct ieee80211_channel *channel,
-			 enum nl80211_bss_scan_width scan_width)
+			 struct ieee80211_channel *channel)
 {
 	u32 freq;
 	int channel_number;
@@ -1978,16 +1975,6 @@ cfg80211_get_bss_channel(struct wiphy *wiphy, const u8 *ie, size_t ielen,
 		}
 
 		/* No match for the payload channel number - ignore it */
-		return channel;
-	}
-
-	if (scan_width == NL80211_BSS_CHAN_WIDTH_10 ||
-	    scan_width == NL80211_BSS_CHAN_WIDTH_5) {
-		/*
-		 * Ignore channel number in 5 and 10 MHz channels where there
-		 * may not be an n:1 or 1:n mapping between frequencies and
-		 * channel numbers.
-		 */
 		return channel;
 	}
 
@@ -2050,14 +2037,12 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 	channel = data->channel;
 	if (!channel)
 		channel = cfg80211_get_bss_channel(wiphy, data->ie, data->ielen,
-						   drv_data->chan,
-						   drv_data->scan_width);
+						   drv_data->chan);
 	if (!channel)
 		return NULL;
 
 	memcpy(tmp.pub.bssid, data->bssid, ETH_ALEN);
 	tmp.pub.channel = channel;
-	tmp.pub.scan_width = drv_data->scan_width;
 	if (data->bss_source != BSS_SOURCE_STA_PROFILE)
 		tmp.pub.signal = drv_data->signal;
 	else
@@ -2358,8 +2343,8 @@ ssize_t cfg80211_defragment_element(const struct element *elem, const u8 *ies,
 
 	/* elem might be invalid after the memmove */
 	next = (void *)(elem->data + elem->datalen);
-
 	elem_datalen = elem->datalen;
+
 	if (elem->id == WLAN_EID_EXTENSION) {
 		copied = elem->datalen - 1;
 		if (copied > data_len)
@@ -2380,7 +2365,7 @@ ssize_t cfg80211_defragment_element(const struct element *elem, const u8 *ies,
 
 	for (elem = next;
 	     elem->data < ies + ieslen &&
-		elem->data + elem->datalen < ies + ieslen;
+		elem->data + elem->datalen <= ies + ieslen;
 	     elem = next) {
 		/* elem might be invalid after the memmove */
 		next = (void *)(elem->data + elem->datalen);
@@ -2818,8 +2803,7 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 			variable = ext->u.s1g_beacon.variable;
 	}
 
-	channel = cfg80211_get_bss_channel(wiphy, variable,
-					   ielen, data->chan, data->scan_width);
+	channel = cfg80211_get_bss_channel(wiphy, variable, ielen, data->chan);
 	if (!channel)
 		return NULL;
 
@@ -2872,7 +2856,6 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 	tmp.pub.beacon_interval = beacon_int;
 	tmp.pub.capability = capability;
 	tmp.pub.channel = channel;
-	tmp.pub.scan_width = data->scan_width;
 	tmp.pub.signal = data->signal;
 	tmp.ts_boottime = data->boottime_ns;
 	tmp.parent_tsf = data->parent_tsf;
@@ -3426,59 +3409,63 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 			cfg = (u8 *)ie + 2;
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVCUSTOM;
-			sprintf(buf, "Mesh Network Path Selection Protocol ID: "
-				"0x%02X", cfg[0]);
-			iwe.u.data.length = strlen(buf);
+			iwe.u.data.length = sprintf(buf,
+						    "Mesh Network Path Selection Protocol ID: 0x%02X",
+						    cfg[0]);
 			current_ev = iwe_stream_add_point_check(info,
 								current_ev,
 								end_buf,
 								&iwe, buf);
 			if (IS_ERR(current_ev))
 				goto unlock;
-			sprintf(buf, "Path Selection Metric ID: 0x%02X",
-				cfg[1]);
-			iwe.u.data.length = strlen(buf);
+			iwe.u.data.length = sprintf(buf,
+						    "Path Selection Metric ID: 0x%02X",
+						    cfg[1]);
 			current_ev = iwe_stream_add_point_check(info,
 								current_ev,
 								end_buf,
 								&iwe, buf);
 			if (IS_ERR(current_ev))
 				goto unlock;
-			sprintf(buf, "Congestion Control Mode ID: 0x%02X",
-				cfg[2]);
-			iwe.u.data.length = strlen(buf);
+			iwe.u.data.length = sprintf(buf,
+						    "Congestion Control Mode ID: 0x%02X",
+						    cfg[2]);
 			current_ev = iwe_stream_add_point_check(info,
 								current_ev,
 								end_buf,
 								&iwe, buf);
 			if (IS_ERR(current_ev))
 				goto unlock;
-			sprintf(buf, "Synchronization ID: 0x%02X", cfg[3]);
-			iwe.u.data.length = strlen(buf);
+			iwe.u.data.length = sprintf(buf,
+						    "Synchronization ID: 0x%02X",
+						    cfg[3]);
 			current_ev = iwe_stream_add_point_check(info,
 								current_ev,
 								end_buf,
 								&iwe, buf);
 			if (IS_ERR(current_ev))
 				goto unlock;
-			sprintf(buf, "Authentication ID: 0x%02X", cfg[4]);
-			iwe.u.data.length = strlen(buf);
+			iwe.u.data.length = sprintf(buf,
+						    "Authentication ID: 0x%02X",
+						    cfg[4]);
 			current_ev = iwe_stream_add_point_check(info,
 								current_ev,
 								end_buf,
 								&iwe, buf);
 			if (IS_ERR(current_ev))
 				goto unlock;
-			sprintf(buf, "Formation Info: 0x%02X", cfg[5]);
-			iwe.u.data.length = strlen(buf);
+			iwe.u.data.length = sprintf(buf,
+						    "Formation Info: 0x%02X",
+						    cfg[5]);
 			current_ev = iwe_stream_add_point_check(info,
 								current_ev,
 								end_buf,
 								&iwe, buf);
 			if (IS_ERR(current_ev))
 				goto unlock;
-			sprintf(buf, "Capabilities: 0x%02X", cfg[6]);
-			iwe.u.data.length = strlen(buf);
+			iwe.u.data.length = sprintf(buf,
+						    "Capabilities: 0x%02X",
+						    cfg[6]);
 			current_ev = iwe_stream_add_point_check(info,
 								current_ev,
 								end_buf,
@@ -3534,17 +3521,16 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = IWEVCUSTOM;
-	sprintf(buf, "tsf=%016llx", (unsigned long long)(ies->tsf));
-	iwe.u.data.length = strlen(buf);
+	iwe.u.data.length = sprintf(buf, "tsf=%016llx",
+				    (unsigned long long)(ies->tsf));
 	current_ev = iwe_stream_add_point_check(info, current_ev, end_buf,
 						&iwe, buf);
 	if (IS_ERR(current_ev))
 		goto unlock;
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = IWEVCUSTOM;
-	sprintf(buf, " Last beacon: %ums ago",
-		elapsed_jiffies_msecs(bss->ts));
-	iwe.u.data.length = strlen(buf);
+	iwe.u.data.length = sprintf(buf, " Last beacon: %ums ago",
+				    elapsed_jiffies_msecs(bss->ts));
 	current_ev = iwe_stream_add_point_check(info, current_ev,
 						end_buf, &iwe, buf);
 	if (IS_ERR(current_ev))

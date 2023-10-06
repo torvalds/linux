@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2008, Intel Corporation
  * Copyright 2008, Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2018, 2020, 2022 Intel Corporation
+ * Copyright (C) 2018, 2020, 2022-2023 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -33,12 +33,14 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_chan_def new_vht_chandef = {};
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
 	const struct ieee80211_wide_bw_chansw_ie *wide_bw_chansw_ie;
+	const struct ieee80211_bandwidth_indication *bwi;
 	int secondary_channel_offset = -1;
 
 	memset(csa_ie, 0, sizeof(*csa_ie));
 
 	sec_chan_offs = elems->sec_chan_offs;
 	wide_bw_chansw_ie = elems->wide_bw_chansw_ie;
+	bwi = elems->bandwidth_indication;
 
 	if (conn_flags & (IEEE80211_CONN_DISABLE_HT |
 			  IEEE80211_CONN_DISABLE_40MHZ)) {
@@ -132,7 +134,14 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
-	if (wide_bw_chansw_ie) {
+	if (bwi) {
+		/* start with the CSA one */
+		new_vht_chandef = csa_ie->chandef;
+		/* and update the width accordingly */
+		/* FIXME: support 160/320 */
+		ieee80211_chandef_eht_oper(&bwi->info, true, true,
+					   &new_vht_chandef);
+	} else if (wide_bw_chansw_ie) {
 		u8 new_seg1 = wide_bw_chansw_ie->new_center_freq_seg1;
 		struct ieee80211_vht_operation vht_oper = {
 			.chan_width =

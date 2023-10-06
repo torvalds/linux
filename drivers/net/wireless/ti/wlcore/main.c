@@ -2043,7 +2043,7 @@ static void wlcore_channel_switch_work(struct work_struct *work)
 		goto out;
 
 	vif = wl12xx_wlvif_to_vif(wlvif);
-	ieee80211_chswitch_done(vif, false);
+	ieee80211_chswitch_done(vif, false, 0);
 
 	ret = pm_runtime_resume_and_get(wl->dev);
 	if (ret < 0)
@@ -3030,7 +3030,7 @@ static int wlcore_unset_assoc(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 
 		wl12xx_cmd_stop_channel_switch(wl, wlvif);
-		ieee80211_chswitch_done(vif, false);
+		ieee80211_chswitch_done(vif, false, 0);
 		cancel_delayed_work(&wlvif->channel_switch_work);
 	}
 
@@ -5451,7 +5451,7 @@ static void wl12xx_op_channel_switch(struct ieee80211_hw *hw,
 
 	if (unlikely(wl->state == WLCORE_STATE_OFF)) {
 		if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
-			ieee80211_chswitch_done(vif, false);
+			ieee80211_chswitch_done(vif, false, 0);
 		goto out;
 	} else if (unlikely(wl->state != WLCORE_STATE_ON)) {
 		goto out;
@@ -6737,7 +6737,7 @@ int wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(wlcore_probe);
 
-int wlcore_remove(struct platform_device *pdev)
+void wlcore_remove(struct platform_device *pdev)
 {
 	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&pdev->dev);
 	struct wl1271 *wl = platform_get_drvdata(pdev);
@@ -6752,7 +6752,7 @@ int wlcore_remove(struct platform_device *pdev)
 	if (pdev_data->family && pdev_data->family->nvs_name)
 		wait_for_completion(&wl->nvs_loading_complete);
 	if (!wl->initialized)
-		return 0;
+		return;
 
 	if (wl->wakeirq >= 0) {
 		dev_pm_clear_wake_irq(wl->dev);
@@ -6772,8 +6772,6 @@ int wlcore_remove(struct platform_device *pdev)
 
 	free_irq(wl->irq, wl);
 	wlcore_free_hw(wl);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(wlcore_remove);
 

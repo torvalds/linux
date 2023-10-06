@@ -2525,7 +2525,7 @@ static void ath12k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON) {
 		param_id = WMI_PDEV_PARAM_BEACON_TX_MODE;
-		param_value = WMI_BEACON_STAGGERED_MODE;
+		param_value = WMI_BEACON_BURST_MODE;
 		ret = ath12k_wmi_pdev_set_param(ar, param_id,
 						param_value, ar->pdev->pdev_id);
 		if (ret)
@@ -2533,7 +2533,7 @@ static void ath12k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 				    arvif->vdev_id);
 		else
 			ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
-				   "Set staggered beacon mode for VDEV: %d\n",
+				   "Set burst beacon mode for VDEV: %d\n",
 				   arvif->vdev_id);
 
 		ret = ath12k_mac_setup_bcn_tmpl(arvif);
@@ -2761,9 +2761,7 @@ static void ath12k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (changed & BSS_CHANGED_FILS_DISCOVERY ||
-	    changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP)
-		ath12k_mac_fils_discovery(arvif, info);
+	ath12k_mac_fils_discovery(arvif, info);
 
 	if (changed & BSS_CHANGED_EHT_PUNCTURING)
 		arvif->punct_bitmap = info->eht_puncturing;
@@ -2780,18 +2778,21 @@ void __ath12k_mac_scan_finish(struct ath12k *ar)
 		break;
 	case ATH12K_SCAN_RUNNING:
 	case ATH12K_SCAN_ABORTING:
+		if (ar->scan.is_roc && ar->scan.roc_notify)
+			ieee80211_remain_on_channel_expired(ar->hw);
+		fallthrough;
+	case ATH12K_SCAN_STARTING:
 		if (!ar->scan.is_roc) {
 			struct cfg80211_scan_info info = {
-				.aborted = (ar->scan.state ==
-					    ATH12K_SCAN_ABORTING),
+				.aborted = ((ar->scan.state ==
+					    ATH12K_SCAN_ABORTING) ||
+					    (ar->scan.state ==
+					    ATH12K_SCAN_STARTING)),
 			};
 
 			ieee80211_scan_completed(ar->hw, &info);
-		} else if (ar->scan.roc_notify) {
-			ieee80211_remain_on_channel_expired(ar->hw);
 		}
-		fallthrough;
-	case ATH12K_SCAN_STARTING:
+
 		ar->scan.state = ATH12K_SCAN_IDLE;
 		ar->scan_channel = NULL;
 		ar->scan.roc_freq = 0;
@@ -4647,8 +4648,8 @@ static void ath12k_mac_setup_sband_iftype_data(struct ath12k *ar,
 							  ar->mac.iftype[band],
 							  band);
 		sband = &ar->mac.sbands[band];
-		sband->iftype_data = ar->mac.iftype[band];
-		sband->n_iftype_data = count;
+		_ieee80211_set_sband_iftype_data(sband, ar->mac.iftype[band],
+						 count);
 	}
 
 	if (cap->supported_bands & WMI_HOST_WLAN_5G_CAP) {
@@ -4657,8 +4658,8 @@ static void ath12k_mac_setup_sband_iftype_data(struct ath12k *ar,
 							  ar->mac.iftype[band],
 							  band);
 		sband = &ar->mac.sbands[band];
-		sband->iftype_data = ar->mac.iftype[band];
-		sband->n_iftype_data = count;
+		_ieee80211_set_sband_iftype_data(sband, ar->mac.iftype[band],
+						 count);
 	}
 
 	if (cap->supported_bands & WMI_HOST_WLAN_5G_CAP &&
@@ -4668,8 +4669,8 @@ static void ath12k_mac_setup_sband_iftype_data(struct ath12k *ar,
 							  ar->mac.iftype[band],
 							  band);
 		sband = &ar->mac.sbands[band];
-		sband->iftype_data = ar->mac.iftype[band];
-		sband->n_iftype_data = count;
+		_ieee80211_set_sband_iftype_data(sband, ar->mac.iftype[band],
+						 count);
 	}
 }
 
@@ -5108,6 +5109,63 @@ err:
 	return ret;
 }
 
+int ath12k_mac_rfkill_config(struct ath12k *ar)
+{
+	struct ath12k_base *ab = ar->ab;
+	u32 param;
+	int ret;
+
+	if (ab->hw_params->rfkill_pin == 0)
+		return -EOPNOTSUPP;
+
+	ath12k_dbg(ab, ATH12K_DBG_MAC,
+		   "mac rfkill_pin %d rfkill_cfg %d rfkill_on_level %d",
+		   ab->hw_params->rfkill_pin, ab->hw_params->rfkill_cfg,
+		   ab->hw_params->rfkill_on_level);
+
+	param = u32_encode_bits(ab->hw_params->rfkill_on_level,
+				WMI_RFKILL_CFG_RADIO_LEVEL) |
+		u32_encode_bits(ab->hw_params->rfkill_pin,
+				WMI_RFKILL_CFG_GPIO_PIN_NUM) |
+		u32_encode_bits(ab->hw_params->rfkill_cfg,
+				WMI_RFKILL_CFG_PIN_AS_GPIO);
+
+	ret = ath12k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_HW_RFKILL_CONFIG,
+					param, ar->pdev->pdev_id);
+	if (ret) {
+		ath12k_warn(ab,
+			    "failed to set rfkill config 0x%x: %d\n",
+			    param, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+int ath12k_mac_rfkill_enable_radio(struct ath12k *ar, bool enable)
+{
+	enum wmi_rfkill_enable_radio param;
+	int ret;
+
+	if (enable)
+		param = WMI_RFKILL_ENABLE_RADIO_ON;
+	else
+		param = WMI_RFKILL_ENABLE_RADIO_OFF;
+
+	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac %d rfkill enable %d",
+		   ar->pdev_idx, param);
+
+	ret = ath12k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_RFKILL_ENABLE,
+					param, ar->pdev->pdev_id);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to set rfkill enable param %d: %d\n",
+			    param, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void ath12k_mac_op_stop(struct ieee80211_hw *hw)
 {
 	struct ath12k *ar = hw->priv;
@@ -5128,6 +5186,7 @@ static void ath12k_mac_op_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&ar->scan.timeout);
 	cancel_work_sync(&ar->regd_update_work);
+	cancel_work_sync(&ar->ab->rfkill_work);
 
 	spin_lock_bh(&ar->data_lock);
 	list_for_each_entry_safe(ppdu_stats, tmp, &ar->ppdu_stats_info, list) {
@@ -5790,12 +5849,13 @@ static void ath12k_mac_op_remove_chanctx(struct ieee80211_hw *hw,
 
 static int
 ath12k_mac_vdev_start_restart(struct ath12k_vif *arvif,
-			      const struct cfg80211_chan_def *chandef,
+			      struct ieee80211_chanctx_conf *ctx,
 			      bool restart)
 {
 	struct ath12k *ar = arvif->ar;
 	struct ath12k_base *ab = ar->ab;
 	struct wmi_vdev_start_req_arg arg = {};
+	const struct cfg80211_chan_def *chandef = &ctx->def;
 	int he_support = arvif->vif->bss_conf.he_support;
 	int ret;
 
@@ -5828,6 +5888,8 @@ ath12k_mac_vdev_start_restart(struct ath12k_vif *arvif,
 
 		/* For now allow DFS for AP mode */
 		arg.chan_radar = !!(chandef->chan->flags & IEEE80211_CHAN_RADAR);
+
+		arg.freq2_radar = ctx->radar_enabled;
 
 		arg.passive = arg.chan_radar;
 
@@ -5936,15 +5998,15 @@ err:
 }
 
 static int ath12k_mac_vdev_start(struct ath12k_vif *arvif,
-				 const struct cfg80211_chan_def *chandef)
+				 struct ieee80211_chanctx_conf *ctx)
 {
-	return ath12k_mac_vdev_start_restart(arvif, chandef, false);
+	return ath12k_mac_vdev_start_restart(arvif, ctx, false);
 }
 
 static int ath12k_mac_vdev_restart(struct ath12k_vif *arvif,
-				   const struct cfg80211_chan_def *chandef)
+				   struct ieee80211_chanctx_conf *ctx)
 {
-	return ath12k_mac_vdev_start_restart(arvif, chandef, true);
+	return ath12k_mac_vdev_start_restart(arvif, ctx, true);
 }
 
 struct ath12k_mac_change_chanctx_arg {
@@ -6039,13 +6101,28 @@ ath12k_mac_update_vif_chan(struct ath12k *ar,
 		if (WARN_ON(!arvif->is_started))
 			continue;
 
-		if (WARN_ON(!arvif->is_up))
-			continue;
+		/* Firmware expect vdev_restart only if vdev is up.
+		 * If vdev is down then it expect vdev_stop->vdev_start.
+		 */
+		if (arvif->is_up) {
+			ret = ath12k_mac_vdev_restart(arvif, vifs[i].new_ctx);
+			if (ret) {
+				ath12k_warn(ab, "failed to restart vdev %d: %d\n",
+					    arvif->vdev_id, ret);
+				continue;
+			}
+		} else {
+			ret = ath12k_mac_vdev_stop(arvif);
+			if (ret) {
+				ath12k_warn(ab, "failed to stop vdev %d: %d\n",
+					    arvif->vdev_id, ret);
+				continue;
+			}
 
-		ret = ath12k_mac_vdev_restart(arvif, &vifs[i].new_ctx->def);
-		if (ret) {
-			ath12k_warn(ab, "failed to restart vdev %d: %d\n",
-				    arvif->vdev_id, ret);
+			ret = ath12k_mac_vdev_start(arvif, vifs[i].new_ctx);
+			if (ret)
+				ath12k_warn(ab, "failed to start vdev %d: %d\n",
+					    arvif->vdev_id, ret);
 			continue;
 		}
 
@@ -6118,7 +6195,8 @@ static void ath12k_mac_op_change_chanctx(struct ieee80211_hw *hw,
 	if (WARN_ON(changed & IEEE80211_CHANCTX_CHANGE_CHANNEL))
 		goto unlock;
 
-	if (changed & IEEE80211_CHANCTX_CHANGE_WIDTH)
+	if (changed & IEEE80211_CHANCTX_CHANGE_WIDTH ||
+	    changed & IEEE80211_CHANCTX_CHANGE_RADAR)
 		ath12k_mac_update_active_vif_chan(ar, ctx);
 
 	/* TODO: Recalc radar detection */
@@ -6138,7 +6216,7 @@ static int ath12k_start_vdev_delay(struct ieee80211_hw *hw,
 	if (WARN_ON(arvif->is_started))
 		return -EBUSY;
 
-	ret = ath12k_mac_vdev_start(arvif, &arvif->chanctx.def);
+	ret = ath12k_mac_vdev_start(arvif, &arvif->chanctx);
 	if (ret) {
 		ath12k_warn(ab, "failed to start vdev %i addr %pM on freq %d: %d\n",
 			    arvif->vdev_id, vif->addr,
@@ -6218,7 +6296,7 @@ ath12k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	ret = ath12k_mac_vdev_start(arvif, &ctx->def);
+	ret = ath12k_mac_vdev_start(arvif, ctx);
 	if (ret) {
 		ath12k_warn(ab, "failed to start vdev %i addr %pM on freq %d: %d\n",
 			    arvif->vdev_id, vif->addr,
@@ -7230,6 +7308,11 @@ static int __ath12k_mac_register(struct ath12k *ar)
 	ar->hw->wiphy->available_antennas_tx = cap->tx_chain_mask;
 
 	ar->hw->wiphy->interface_modes = ab->hw_params->interface_modes;
+
+	if (ar->hw->wiphy->bands[NL80211_BAND_2GHZ] &&
+	    ar->hw->wiphy->bands[NL80211_BAND_5GHZ] &&
+	    ar->hw->wiphy->bands[NL80211_BAND_6GHZ])
+		ieee80211_hw_set(ar->hw, SINGLE_SCAN_ON_ALL_BANDS);
 
 	ieee80211_hw_set(ar->hw, SIGNAL_DBM);
 	ieee80211_hw_set(ar->hw, SUPPORTS_PS);

@@ -341,6 +341,7 @@ struct ieee80211_vif_chanctx_switch {
  * @BSS_CHANGED_UNSOL_BCAST_PROBE_RESP: Unsolicited broadcast probe response
  *	status changed.
  * @BSS_CHANGED_EHT_PUNCTURING: The channel puncturing bitmap changed.
+ * @BSS_CHANGED_MLD_VALID_LINKS: MLD valid links status changed.
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -376,6 +377,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_FILS_DISCOVERY      = 1<<30,
 	BSS_CHANGED_UNSOL_BCAST_PROBE_RESP = 1<<31,
 	BSS_CHANGED_EHT_PUNCTURING	= BIT_ULL(32),
+	BSS_CHANGED_MLD_VALID_LINKS	= BIT_ULL(33),
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -643,9 +645,7 @@ struct ieee80211_fils_discovery {
  * @pwr_reduction: power constraint of BSS.
  * @eht_support: does this BSS support EHT
  * @eht_puncturing: bitmap to indicate which channels are punctured in this BSS
- * @csa_active: marks whether a channel switch is going on. Internally it is
- *	write-protected by sdata_lock and local->mtx so holding either is fine
- *	for read access.
+ * @csa_active: marks whether a channel switch is going on.
  * @csa_punct_bitmap: new puncturing bitmap for channel switch
  * @mu_mimo_owner: indicates interface owns MU-MIMO capability
  * @chanctx_conf: The channel context this interface is assigned to, or %NULL
@@ -653,9 +653,7 @@ struct ieee80211_fils_discovery {
  *	path needing to access it; even though the netdev carrier will always
  *	be off when it is %NULL there can still be races and packets could be
  *	processed after it switches back to %NULL.
- * @color_change_active: marks whether a color change is ongoing. Internally it is
- *	write-protected by sdata_lock and local->mtx so holding either is fine
- *	for read access.
+ * @color_change_active: marks whether a color change is ongoing.
  * @color_change_color: the bss color that will be used after the change.
  * @ht_ldpc: in AP mode, indicates interface has HT LDPC capability.
  * @vht_ldpc: in AP mode, indicates interface has VHT LDPC capability.
@@ -1082,6 +1080,11 @@ struct ieee80211_tx_rate {
 
 #define IEEE80211_MAX_TX_RETRY		31
 
+static inline bool ieee80211_rate_valid(struct ieee80211_tx_rate *rate)
+{
+	return rate->idx >= 0 && rate->count > 0;
+}
+
 static inline void ieee80211_rate_set_vht(struct ieee80211_tx_rate *rate,
 					  u8 mcs, u8 nss)
 {
@@ -1115,7 +1118,9 @@ ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *rate)
  *	not valid if the interface is an MLD since we won't know which
  *	link the frame will be transmitted on
  * @hw_queue: HW queue to put the frame on, skb_get_queue_mapping() gives the AC
- * @ack_frame_id: internal frame ID for TX status, used internally
+ * @status_data: internal data for TX status handling, assigned privately,
+ *	see also &enum ieee80211_status_data for the internal documentation
+ * @status_data_idr: indicates status data is IDR allocated ID for ack frame
  * @tx_time_est: TX time estimate in units of 4us, used internally
  * @control: union part for control data
  * @control.rates: TX rates array to try
@@ -1155,10 +1160,11 @@ struct ieee80211_tx_info {
 	/* common information */
 	u32 flags;
 	u32 band:3,
-	    ack_frame_id:13,
+	    status_data_idr:1,
+	    status_data:13,
 	    hw_queue:4,
 	    tx_time_est:10;
-	/* 2 free bits */
+	/* 1 free bit */
 
 	union {
 		struct {
@@ -1172,7 +1178,11 @@ struct ieee80211_tx_info {
 					u8 use_cts_prot:1;
 					u8 short_preamble:1;
 					u8 skip_table:1;
-					/* 2 bytes free */
+
+					/* for injection only (bitmap) */
+					u8 antennas:2;
+
+					/* 14 bits free */
 				};
 				/* only needed before rate control */
 				unsigned long jiffies;
@@ -1938,7 +1948,7 @@ static inline bool ieee80211_vif_is_mld(const struct ieee80211_vif *vif)
 	for (link_id = 0; link_id < ARRAY_SIZE((vif)->link_conf); link_id++)	\
 		if ((!(vif)->active_links ||					\
 		     (vif)->active_links & BIT(link_id)) &&			\
-		    (link = rcu_dereference((vif)->link_conf[link_id])))
+		    (link = link_conf_dereference_check(vif, link_id)))
 
 static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 {
@@ -1971,22 +1981,18 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
  */
 struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif);
 
-/**
- * lockdep_vif_mutex_held - for lockdep checks on link poiners
- * @vif: the interface to check
- */
-static inline bool lockdep_vif_mutex_held(struct ieee80211_vif *vif)
+static inline bool lockdep_vif_wiphy_mutex_held(struct ieee80211_vif *vif)
 {
-	return lockdep_is_held(&ieee80211_vif_to_wdev(vif)->mtx);
+	return lockdep_is_held(&ieee80211_vif_to_wdev(vif)->wiphy->mtx);
 }
 
 #define link_conf_dereference_protected(vif, link_id)		\
 	rcu_dereference_protected((vif)->link_conf[link_id],	\
-				  lockdep_vif_mutex_held(vif))
+				  lockdep_vif_wiphy_mutex_held(vif))
 
 #define link_conf_dereference_check(vif, link_id)		\
 	rcu_dereference_check((vif)->link_conf[link_id],	\
-			      lockdep_vif_mutex_held(vif))
+			      lockdep_vif_wiphy_mutex_held(vif))
 
 /**
  * enum ieee80211_key_flags - key flags
@@ -2393,7 +2399,7 @@ static inline bool lockdep_sta_mutex_held(struct ieee80211_sta *pubsta)
 	for (link_id = 0; link_id < ARRAY_SIZE((sta)->link); link_id++)		\
 		if ((!(vif)->active_links ||					\
 		     (vif)->active_links & BIT(link_id)) &&			\
-		    ((link_sta) = link_sta_dereference_protected(sta, link_id)))
+		    ((link_sta) = link_sta_dereference_check(sta, link_id)))
 
 /**
  * enum sta_notify_cmd - sta notify command
@@ -4067,11 +4073,15 @@ struct ieee80211_prep_tx_info {
  *	This callback must be atomic.
  *
  * @get_et_sset_count:  Ethtool API to get string-set count.
+ *	Note that the wiphy mutex is not held for this callback since it's
+ *	expected to return a static value.
  *
  * @get_et_stats:  Ethtool API to get a set of u64 stats.
  *
  * @get_et_strings:  Ethtool API to get a set of strings to describe stats
  *	and perhaps other supported types of ethtool data-sets.
+ *	Note that the wiphy mutex is not held for this callback since it's
+ *	expected to return a static value.
  *
  * @mgd_prepare_tx: Prepare for transmitting a management frame for association
  *	before associated. In multi-channel scenarios, a virtual interface is
@@ -4544,7 +4554,8 @@ struct ieee80211_ops {
 				  struct ieee80211_channel_switch *ch_switch);
 
 	int (*post_channel_switch)(struct ieee80211_hw *hw,
-				   struct ieee80211_vif *vif);
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_bss_conf *link_conf);
 	void (*abort_channel_switch)(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif);
 	void (*channel_switch_rx_beacon)(struct ieee80211_hw *hw,
@@ -6542,11 +6553,14 @@ void ieee80211_radar_detected(struct ieee80211_hw *hw);
  * ieee80211_chswitch_done - Complete channel switch process
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @success: make the channel switch successful or not
+ * @link_id: the link_id on which the switch was done. Ignored if success is
+ *	false.
  *
  * Complete the channel switch post-process: set the new operational channel
  * and wake up the suspended queues.
  */
-void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success);
+void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success,
+			     unsigned int link_id);
 
 /**
  * ieee80211_channel_switch_disconnect - disconnect due to channel switch error

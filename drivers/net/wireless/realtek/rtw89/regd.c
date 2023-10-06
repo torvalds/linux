@@ -115,7 +115,7 @@ static const struct rtw89_regd rtw89_regd_map[] = {
 	COUNTRY_REGD("SG", RTW89_ETSI, RTW89_ETSI, RTW89_NA),
 	COUNTRY_REGD("LK", RTW89_ETSI, RTW89_ETSI, RTW89_NA),
 	COUNTRY_REGD("TW", RTW89_FCC, RTW89_FCC, RTW89_NA),
-	COUNTRY_REGD("TH", RTW89_WW, RTW89_WW, RTW89_WW),
+	COUNTRY_REGD("TH", RTW89_ETSI, RTW89_ETSI, RTW89_THAILAND),
 	COUNTRY_REGD("VN", RTW89_ETSI, RTW89_ETSI, RTW89_NA),
 	COUNTRY_REGD("AU", RTW89_ACMA, RTW89_ACMA, RTW89_ACMA),
 	COUNTRY_REGD("NZ", RTW89_ACMA, RTW89_ACMA, RTW89_ACMA),
@@ -377,7 +377,7 @@ bottom:
 		return;
 
 	wiphy->bands[NL80211_BAND_6GHZ] = NULL;
-	kfree(sband->iftype_data);
+	kfree((__force void *)sband->iftype_data);
 	kfree(sband);
 }
 

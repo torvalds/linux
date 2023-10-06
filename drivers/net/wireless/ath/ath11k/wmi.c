@@ -2281,7 +2281,7 @@ int ath11k_wmi_send_scan_start_cmd(struct ath11k *ar,
 	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_UINT32) |
 		      FIELD_PREP(WMI_TLV_LEN, len);
 	ptr += TLV_HDR_SIZE;
-	tmp_ptr = (u32 *)ptr;
+	tmp_ptr = ptr;
 
 	for (i = 0; i < params->num_chan; ++i)
 		tmp_ptr[i] = params->chan_list[i];
@@ -4148,7 +4148,7 @@ static int ath11k_init_cmd_send(struct ath11k_pdev_wmi *wmi,
 	ptr += TLV_HDR_SIZE + len;
 
 	if (param->hw_mode_id != WMI_HOST_HW_MODE_MAX) {
-		hw_mode = (struct wmi_pdev_set_hw_mode_cmd_param *)ptr;
+		hw_mode = ptr;
 		hw_mode->tlv_header = FIELD_PREP(WMI_TLV_TAG,
 						 WMI_TAG_PDEV_SET_HW_MODE_CMD) |
 				      FIELD_PREP(WMI_TLV_LEN,
@@ -4168,7 +4168,7 @@ static int ath11k_init_cmd_send(struct ath11k_pdev_wmi *wmi,
 		len = sizeof(*band_to_mac);
 
 		for (idx = 0; idx < param->num_band_to_mac; idx++) {
-			band_to_mac = (void *)ptr;
+			band_to_mac = ptr;
 
 			band_to_mac->tlv_header = FIELD_PREP(WMI_TLV_TAG,
 							     WMI_TAG_PDEV_BAND_TO_MAC) |
@@ -7222,14 +7222,12 @@ static int ath11k_wmi_tlv_rdy_parse(struct ath11k_base *ab, u16 tag, u16 len,
 		memset(&fixed_param, 0, sizeof(fixed_param));
 		memcpy(&fixed_param, (struct wmi_ready_event *)ptr,
 		       min_t(u16, sizeof(fixed_param), len));
-		ab->wlan_init_status = fixed_param.ready_event_min.status;
 		rdy_parse->num_extra_mac_addr =
 			fixed_param.ready_event_min.num_extra_mac_addr;
 
 		ether_addr_copy(ab->mac_addr,
 				fixed_param.ready_event_min.mac_addr.addr);
 		ab->pktlog_defs_checksum = fixed_param.pktlog_defs_checksum;
-		ab->wmi_ready = true;
 		break;
 	case WMI_TAG_ARRAY_FIXED_STRUCT:
 		addr_list = (struct wmi_mac_addr *)ptr;
