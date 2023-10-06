@@ -23,9 +23,9 @@
  * Authors: AMD
  */
 
-#include "dcn303_init.h"
+#include "dcn303/dcn303_init.h"
 #include "dcn303_resource.h"
-#include "dcn303_dccg.h"
+#include "dcn303/dcn303_dccg.h"
 #include "irq/dcn303/irq_service_dcn303.h"
 
 #include "dcn30/dcn30_dio_link_encoder.h"

@@ -23,9 +23,9 @@
  *
  */
 
-#include "dcn302_init.h"
+#include "dcn302/dcn302_init.h"
 #include "dcn302_resource.h"
-#include "dcn302_dccg.h"
+#include "dcn302/dcn302_dccg.h"
 #include "irq/dcn302/irq_service_dcn302.h"
 
 #include "dcn30/dcn30_dio_link_encoder.h"

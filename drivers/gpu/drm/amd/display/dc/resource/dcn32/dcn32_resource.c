@@ -27,7 +27,7 @@
 #include "dm_services.h"
 #include "dc.h"
 
-#include "dcn32_init.h"
+#include "dcn32/dcn32_init.h"
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
@@ -41,7 +41,7 @@
 #include "dcn31/dcn31_hubbub.h"
 #include "dcn32/dcn32_hubbub.h"
 #include "dcn32/dcn32_mpc.h"
-#include "dcn32_hubp.h"
+#include "dcn32/dcn32_hubp.h"
 #include "irq/dcn32/irq_service_dcn32.h"
 #include "dcn32/dcn32_dpp.h"
 #include "dcn32/dcn32_optc.h"

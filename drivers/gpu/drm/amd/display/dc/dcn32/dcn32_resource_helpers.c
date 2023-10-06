@@ -24,7 +24,7 @@
  */
 
 // header file of functions being implemented
-#include "dcn32_resource.h"
+#include "dcn32/dcn32_resource.h"
 #include "dcn20/dcn20_resource.h"
 #include "dml/dcn32/display_mode_vba_util_32.h"
 #include "dml/dcn32/dcn32_fpu.h"

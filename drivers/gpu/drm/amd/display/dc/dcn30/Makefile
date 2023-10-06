@@ -38,7 +38,6 @@ DCN30 := \
 	dcn30_dwb_cm.o \
 	dcn30_cm_common.o \
 	dcn30_mmhubbub.o \
-	dcn30_resource.o \
 	dcn30_dio_link_encoder.o
 
 

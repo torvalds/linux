@@ -27,7 +27,7 @@
 #include "dm_services.h"
 #include "dc.h"
 
-#include "dcn301_init.h"
+#include "dcn301/dcn301_init.h"
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
@@ -61,7 +61,7 @@
 #include "dcn10/dcn10_resource.h"
 #include "dcn30/dcn30_dio_stream_encoder.h"
 #include "dcn301/dcn301_dio_link_encoder.h"
-#include "dcn301_panel_cntl.h"
+#include "dcn301/dcn301_panel_cntl.h"
 
 #include "vangogh_ip_offset.h"
 

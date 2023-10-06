@@ -36,7 +36,7 @@
 
 #include "dce110/dce110_resource.h"
 #include "virtual/virtual_stream_encoder.h"
-#include "dce120_timing_generator.h"
+#include "dce120/dce120_timing_generator.h"
 #include "irq/dce120/irq_service_dce120.h"
 #include "dce/dce_opp.h"
 #include "dce/dce_clock_source.h"

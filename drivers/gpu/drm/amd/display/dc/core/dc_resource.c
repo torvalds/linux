@@ -69,8 +69,8 @@
 #include "dcn314/dcn314_resource.h"
 #include "dcn315/dcn315_resource.h"
 #include "dcn316/dcn316_resource.h"
-#include "../dcn32/dcn32_resource.h"
-#include "../dcn321/dcn321_resource.h"
+#include "dcn32/dcn32_resource.h"
+#include "dcn321/dcn321_resource.h"
 #include "dcn35/dcn35_resource.h"
 
 #define VISUAL_CONFIRM_BASE_DEFAULT 3

@@ -78,7 +78,7 @@
 #include "dcn10/dcn10_resource.h"
 #include "dcn31/dcn31_panel_cntl.h"
 #include "dcn35/dcn35_hwseq.h"
-#include "dcn35_dio_link_encoder.h"
+#include "dcn35/dcn35_dio_link_encoder.h"
 #include "dml/dcn31/dcn31_fpu.h" /*todo*/
 #include "dml/dcn35/dcn35_fpu.h"
 #include "dcn35/dcn35_dwb.h"

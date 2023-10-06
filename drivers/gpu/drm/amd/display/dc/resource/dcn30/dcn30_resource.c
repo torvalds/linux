@@ -27,7 +27,7 @@
 #include "dm_services.h"
 #include "dc.h"
 
-#include "dcn30_init.h"
+#include "dcn30/dcn30_init.h"
 
 #include "resource.h"
 #include "include/irq_service_interface.h"

@@ -70,7 +70,7 @@
 #include "dml/dcn31/dcn31_fpu.h"
 #include "dcn31/dcn31_dccg.h"
 #include "dcn10/dcn10_resource.h"
-#include "dcn31_panel_cntl.h"
+#include "dcn31/dcn31_panel_cntl.h"
 
 #include "dcn30/dcn30_dwb.h"
 #include "dcn30/dcn30_mmhubbub.h"

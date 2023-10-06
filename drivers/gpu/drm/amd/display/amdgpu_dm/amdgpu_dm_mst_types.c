@@ -44,7 +44,7 @@
 #include "amdgpu_dm_debugfs.h"
 #endif
 
-#include "dc/dcn20/dcn20_resource.h"
+#include "dc/resource/dcn20/dcn20_resource.h"
 
 #define PEAK_FACTOR_X1000 1006
 

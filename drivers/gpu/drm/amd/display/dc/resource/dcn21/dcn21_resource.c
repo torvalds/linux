@@ -29,7 +29,7 @@
 #include "dm_services.h"
 #include "dc.h"
 
-#include "dcn21_init.h"
+#include "dcn21/dcn21_init.h"
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
@@ -44,7 +44,7 @@
 #include "dcn20/dcn20_hubbub.h"
 #include "dcn20/dcn20_mpc.h"
 #include "dcn20/dcn20_hubp.h"
-#include "dcn21_hubp.h"
+#include "dcn21/dcn21_hubp.h"
 #include "irq/dcn21/irq_service_dcn21.h"
 #include "dcn20/dcn20_dpp.h"
 #include "dcn20/dcn20_optc.h"
@@ -61,7 +61,7 @@
 #include "dml/display_mode_vba.h"
 #include "dcn20/dcn20_dccg.h"
 #include "dcn21/dcn21_dccg.h"
-#include "dcn21_hubbub.h"
+#include "dcn21/dcn21_hubbub.h"
 #include "dcn10/dcn10_resource.h"
 #include "dce/dce_panel_cntl.h"
 

@@ -10,7 +10,7 @@
 #
 # Makefile for dcn30.
 
-DCN301 = dcn301_init.o dcn301_resource.o dcn301_dccg.o \
+DCN301 = dcn301_init.o dcn301_dccg.o \
 		dcn301_dio_link_encoder.o dcn301_panel_cntl.o dcn301_hubbub.o \
 		dcn301_optc.o
 
