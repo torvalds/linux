@@ -4180,7 +4180,7 @@ static int amdgpu_device_evict_resources(struct amdgpu_device *adev)
 int amdgpu_device_prepare(struct drm_device *dev)
 {
 	struct amdgpu_device *adev = drm_to_adev(dev);
-	int r;
+	int i, r;
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
@@ -4189,6 +4189,16 @@ int amdgpu_device_prepare(struct drm_device *dev)
 	r = amdgpu_device_evict_resources(adev);
 	if (r)
 		return r;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		if (!adev->ip_blocks[i].version->funcs->prepare_suspend)
+			continue;
+		r = adev->ip_blocks[i].version->funcs->prepare_suspend((void *)adev);
+		if (r)
+			return r;
+	}
 
 	return 0;
 }
