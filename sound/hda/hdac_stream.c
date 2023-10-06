@@ -308,7 +308,7 @@ int snd_hdac_stream_setup(struct hdac_stream *azx_dev)
 	if (ret)
 		dev_dbg(bus->dev, "polling SD_FIFOSIZE 0x%04x failed: %d\n",
 			AZX_REG_SD_FIFOSIZE, ret);
-	azx_dev->fifo_size = snd_hdac_stream_readw(azx_dev, SD_FIFOSIZE) + 1;
+	azx_dev->fifo_size = snd_hdac_stream_readw(azx_dev, SD_FIFOSIZE);
 
 	/* when LPIB delay correction gives a small negative value,
 	 * we ignore it; currently set the threshold statically to
