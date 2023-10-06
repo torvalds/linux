@@ -16,7 +16,10 @@
 #include <linux/kernel.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/soc/ti/ti-msgmgr.h>
@@ -3293,7 +3296,6 @@ MODULE_DEVICE_TABLE(of, ti_sci_of_match);
 static int ti_sci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	const struct ti_sci_desc *desc;
 	struct ti_sci_xfer *xfer;
 	struct ti_sci_info *info = NULL;
@@ -3304,12 +3306,7 @@ static int ti_sci_probe(struct platform_device *pdev)
 	int reboot = 0;
 	u32 h_id;
 
-	of_id = of_match_device(ti_sci_of_match, dev);
-	if (!of_id) {
-		dev_err(dev, "OF data missing\n");
-		return -EINVAL;
-	}
-	desc = of_id->data;
+	desc = device_get_match_data(dev);
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
