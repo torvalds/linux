@@ -75,7 +75,7 @@ Memory hotunplug consists of two phases:
 (1) Offlining memory blocks
 (2) Removing the memory from Linux
 
-In the fist phase, memory is "hidden" from the page allocator again, for
+In the first phase, memory is "hidden" from the page allocator again, for
 example, by migrating busy memory to other memory locations and removing all
 relevant free pages from the page allocator After this phase, the memory is no
 longer visible in memory statistics of the system.
