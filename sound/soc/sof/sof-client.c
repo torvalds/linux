@@ -305,7 +305,8 @@ EXPORT_SYMBOL_NS_GPL(sof_client_ipc_tx_message, SND_SOC_SOF_CLIENT);
 
 int sof_client_ipc_rx_message(struct sof_client_dev *cdev, void *ipc_msg, void *msg_buf)
 {
-	if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
+	if (IS_ENABLED(CONFIG_SND_SOC_SOF_IPC3) &&
+	    cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		struct sof_ipc_cmd_hdr *hdr = ipc_msg;
 
 		if (hdr->size < sizeof(hdr)) {
