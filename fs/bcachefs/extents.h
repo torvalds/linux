@@ -642,9 +642,11 @@ static inline void bch2_bkey_append_ptr(struct bkey_i *k, struct bch_extent_ptr 
 
 		ptr.type = 1 << BCH_EXTENT_ENTRY_ptr;
 
-		memcpy((void *) &k->v + bkey_val_bytes(&k->k),
-		       &ptr,
-		       sizeof(ptr));
+		unsafe_memcpy((void *) &k->v + bkey_val_bytes(&k->k),
+			      &ptr,
+			      sizeof(ptr),
+			      "Our memcpy target is relative to a zero size array ,"
+			      "compiler bounds checking doesn't work here");
 		k->k.u64s++;
 		break;
 	default:
