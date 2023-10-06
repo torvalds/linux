@@ -10,10 +10,8 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 enum ccf_version {
 	CCF1,
@@ -172,13 +170,8 @@ out:
 static int ccf_probe(struct platform_device *pdev)
 {
 	struct ccf_private *ccf;
-	const struct of_device_id *match;
 	u32 errinten;
 	int ret, irq;
-
-	match = of_match_device(ccf_matches, &pdev->dev);
-	if (WARN_ON(!match))
-		return -ENODEV;
 
 	ccf = devm_kzalloc(&pdev->dev, sizeof(*ccf), GFP_KERNEL);
 	if (!ccf)
@@ -189,7 +182,7 @@ static int ccf_probe(struct platform_device *pdev)
 		return PTR_ERR(ccf->regs);
 
 	ccf->dev = &pdev->dev;
-	ccf->info = match->data;
+	ccf->info = device_get_match_data(&pdev->dev);
 	ccf->err_regs = ccf->regs + ccf->info->err_reg_offs;
 
 	if (ccf->info->has_brr) {
