@@ -34,6 +34,15 @@ enum amdgpu_reg_state {
 	AMDGPU_REG_STATE_TYPE_USR_1	= 5
 };
 
+enum amdgpu_sysfs_reg_offset {
+	AMDGPU_SYS_REG_STATE_XGMI	= 0x0000,
+	AMDGPU_SYS_REG_STATE_WAFL	= 0x1000,
+	AMDGPU_SYS_REG_STATE_PCIE	= 0x2000,
+	AMDGPU_SYS_REG_STATE_USR	= 0x3000,
+	AMDGPU_SYS_REG_STATE_USR_1	= 0x4000,
+	AMDGPU_SYS_REG_STATE_END	= 0x5000,
+};
+
 struct amdgpu_reg_state_header {
 	uint16_t		structure_size;
 	uint8_t			format_revision;
@@ -136,5 +145,9 @@ static inline size_t amdgpu_reginst_size(uint16_t num_inst, size_t inst_size,
 		 (adev)->asic_funcs->get_reg_state((adev), (state), (buf), \
 						   (size)) :               \
 		 0)
+
+
+int amdgpu_reg_state_sysfs_init(struct amdgpu_device *adev);
+void amdgpu_reg_state_sysfs_fini(struct amdgpu_device *adev);
 
 #endif
