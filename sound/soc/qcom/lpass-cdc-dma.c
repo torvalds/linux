@@ -37,7 +37,7 @@ static void __lpass_get_dmactl_handle(struct snd_pcm_substream *substream, struc
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
 	struct snd_pcm_runtime *rt = substream->runtime;
 	struct lpass_pcm_data *pcm_data = rt->private_data;
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	unsigned int dai_id = cpu_dai->driver->id;
 
 	switch (dai_id) {

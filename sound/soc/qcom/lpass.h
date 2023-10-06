@@ -139,7 +139,7 @@ struct lpass_data {
 	int vaif_irq;
 
 	/* SOC specific variations in the LPASS IP integration */
-	struct lpass_variant *variant;
+	const struct lpass_variant *variant;
 
 	/* bit map to keep track of static channel allocations */
 	unsigned long dma_ch_bit_map;
