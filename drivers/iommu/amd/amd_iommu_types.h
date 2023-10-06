@@ -786,6 +786,14 @@ struct devid_map {
 	bool cmd_line;
 };
 
+#define AMD_IOMMU_DEVICE_FLAG_ATS_SUP     0x1    /* ATS feature supported */
+#define AMD_IOMMU_DEVICE_FLAG_PRI_SUP     0x2    /* PRI feature supported */
+#define AMD_IOMMU_DEVICE_FLAG_PASID_SUP   0x4    /* PASID context supported */
+/* Device may request execution on memory pages */
+#define AMD_IOMMU_DEVICE_FLAG_EXEC_SUP    0x8
+/* Device may request super-user privileges */
+#define AMD_IOMMU_DEVICE_FLAG_PRIV_SUP   0x10
+
 /*
  * This struct contains device specific data for the IOMMU
  */
