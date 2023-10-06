@@ -9,9 +9,12 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 
@@ -94,16 +97,12 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	struct reset_control *rst;
 	int ret;
 
-	if (!dev->of_node)
-		return -ENODEV;
-
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, &priv->common);
 
-	cfg = (const struct stm32_dac_cfg *)
-		of_match_device(dev->driver->of_match_table, dev)->data;
+	cfg = device_get_match_data(dev);
 
 	mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mmio))
