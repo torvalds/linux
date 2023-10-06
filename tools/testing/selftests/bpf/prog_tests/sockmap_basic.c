@@ -359,7 +359,7 @@ out:
 static void test_sockmap_skb_verdict_shutdown(void)
 {
 	struct epoll_event ev, events[MAX_EVENTS];
-	int n, err, map, verdict, s, c1, p1;
+	int n, err, map, verdict, s, c1 = -1, p1 = -1;
 	struct test_sockmap_pass_prog *skel;
 	int epollfd;
 	int zero = 0;
@@ -414,9 +414,9 @@ out:
 static void test_sockmap_skb_verdict_fionread(bool pass_prog)
 {
 	int expected, zero = 0, sent, recvd, avail;
-	int err, map, verdict, s, c0, c1, p0, p1;
-	struct test_sockmap_pass_prog *pass;
-	struct test_sockmap_drop_prog *drop;
+	int err, map, verdict, s, c0 = -1, c1 = -1, p0 = -1, p1 = -1;
+	struct test_sockmap_pass_prog *pass = NULL;
+	struct test_sockmap_drop_prog *drop = NULL;
 	char buf[256] = "0123456789";
 
 	if (pass_prog) {

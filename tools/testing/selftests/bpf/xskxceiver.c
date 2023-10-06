@@ -1049,7 +1049,7 @@ static int __receive_pkts(struct test_spec *test, struct xsk_socket_info *xsk)
 	struct xsk_umem_info *umem = xsk->umem;
 	struct pollfd fds = { };
 	struct pkt *pkt;
-	u64 first_addr;
+	u64 first_addr = 0;
 	int ret;
 
 	fds.fd = xsk_socket__fd(xsk->xsk);

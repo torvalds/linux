@@ -268,7 +268,7 @@ end:
 
 static void list_and_rb_node_same_struct(bool refcount_field)
 {
-	int bpf_rb_node_btf_id, bpf_refcount_btf_id, foo_btf_id;
+	int bpf_rb_node_btf_id, bpf_refcount_btf_id = 0, foo_btf_id;
 	struct btf *btf;
 	int id, err;
 

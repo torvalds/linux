@@ -378,7 +378,7 @@ static inline int enable_reuseport(int s, int progfd)
 static inline int socket_loopback_reuseport(int family, int sotype, int progfd)
 {
 	struct sockaddr_storage addr;
-	socklen_t len;
+	socklen_t len = 0;
 	int err, s;
 
 	init_addr_loopback(family, &addr, &len);

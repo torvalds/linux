@@ -73,7 +73,7 @@ static void test_insert_bound(struct test_sockmap_listen *skel __always_unused,
 			      int family, int sotype, int mapfd)
 {
 	struct sockaddr_storage addr;
-	socklen_t len;
+	socklen_t len = 0;
 	u32 key = 0;
 	u64 value;
 	int err, s;
@@ -871,7 +871,7 @@ static void test_msg_redir_to_listening(struct test_sockmap_listen *skel,
 
 static void redir_partial(int family, int sotype, int sock_map, int parser_map)
 {
-	int s, c0, c1, p0, p1;
+	int s, c0 = -1, c1 = -1, p0 = -1, p1 = -1;
 	int err, n, key, value;
 	char buf[] = "abc";
 
