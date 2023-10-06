@@ -635,7 +635,7 @@ cleanup_detach:
 	if (!ASSERT_OK(err, "prog_detach"))
 		goto cleanup;
 
-	__assert_mprog_count(target, 0, chain_tc_old, loopback);
+	assert_mprog_count(target, 0);
 cleanup:
 	if (tc_attached) {
 		tc_opts.flags = tc_opts.prog_fd = tc_opts.prog_id = 0;
@@ -2250,7 +2250,7 @@ static void test_tc_opts_delete_empty(int target, bool chain_tc_old)
 				       BPF_TC_INGRESS : BPF_TC_EGRESS;
 		err = bpf_tc_hook_create(&tc_hook);
 		ASSERT_OK(err, "bpf_tc_hook_create");
-		__assert_mprog_count(target, 0, true, loopback);
+		assert_mprog_count(target, 0);
 	}
 	err = bpf_prog_detach_opts(0, loopback, target, &optd);
 	ASSERT_EQ(err, -ENOENT, "prog_detach");
@@ -2352,7 +2352,7 @@ static void test_tc_chain_mixed(int target)
 cleanup_opts:
 	err = bpf_prog_detach_opts(detach_fd, loopback, target, &optd);
 	ASSERT_OK(err, "prog_detach");
-	__assert_mprog_count(target, 0, true, loopback);
+	assert_mprog_count(target, 0);
 
 	ASSERT_OK(system(ping_cmd), ping_cmd);
 

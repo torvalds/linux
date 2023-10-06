@@ -1667,7 +1667,7 @@ static void test_tc_chain_mixed(int target)
 	if (!ASSERT_OK(err, "prog_detach"))
 		goto cleanup;
 
-	__assert_mprog_count(target, 0, true, loopback);
+	assert_mprog_count(target, 0);
 
 	ASSERT_OK(system(ping_cmd), ping_cmd);
 
