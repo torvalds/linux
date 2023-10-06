@@ -148,7 +148,7 @@ int skl_pcm_host_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 	if (err < 0)
 		return err;
 
-	err = snd_hdac_ext_host_stream_setup(stream);
+	err = snd_hdac_ext_host_stream_setup(stream, false);
 	if (err < 0)
 		return err;
 

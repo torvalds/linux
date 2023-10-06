@@ -806,7 +806,7 @@ static unsigned int azx_via_get_position(struct azx *chip,
 	mod_dma_pos = le32_to_cpu(*azx_dev->core.posbuf);
 	mod_dma_pos %= azx_dev->core.period_bytes;
 
-	fifo_size = azx_stream(azx_dev)->fifo_size - 1;
+	fifo_size = azx_stream(azx_dev)->fifo_size;
 
 	if (azx_dev->insufficient) {
 		/* Link position never gather than FIFO size */
