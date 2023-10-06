@@ -3099,6 +3099,21 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
 	count_vm_event(PGREUSE);
 }
 
+/*
+ * We could add a bitflag somewhere, but for now, we know that all
+ * vm_ops that have a ->map_pages have been audited and don't need
+ * the mmap_lock to be held.
+ */
+static inline vm_fault_t vmf_can_call_fault(const struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+
+	if (vma->vm_ops->map_pages || !(vmf->flags & FAULT_FLAG_VMA_LOCK))
+		return 0;
+	vma_end_read(vma);
+	return VM_FAULT_RETRY;
+}
+
 static vm_fault_t vmf_anon_prepare(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -4701,10 +4716,9 @@ static vm_fault_t do_shared_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	vm_fault_t ret, tmp;
 
-	if (vmf->flags & FAULT_FLAG_VMA_LOCK) {
-		vma_end_read(vma);
-		return VM_FAULT_RETRY;
-	}
+	ret = vmf_can_call_fault(vmf);
+	if (ret)
+		return ret;
 
 	ret = __do_fault(vmf);
 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
