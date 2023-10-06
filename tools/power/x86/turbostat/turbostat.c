@@ -926,12 +926,11 @@ struct thread_data {
 	unsigned int x2apic_id;
 	unsigned int flags;
 	bool is_atom;
-#define CPU_IS_FIRST_THREAD_IN_CORE	0x2
-#define CPU_IS_FIRST_CORE_IN_PACKAGE	0x4
 	unsigned long long counter[MAX_ADDED_THREAD_COUNTERS];
 } *thread_even, *thread_odd;
 
 struct core_data {
+	int base_cpu;
 	unsigned long long c3;
 	unsigned long long c6;
 	unsigned long long c7;
@@ -944,6 +943,7 @@ struct core_data {
 } *core_even, *core_odd;
 
 struct pkg_data {
+	int base_cpu;
 	unsigned long long pc2;
 	unsigned long long pc3;
 	unsigned long long pc6;
@@ -1200,26 +1200,21 @@ int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pk
 
 int is_cpu_first_thread_in_core(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
-	UNUSED(c);
 	UNUSED(p);
 
-	return (t->flags & CPU_IS_FIRST_THREAD_IN_CORE);
+	return ((int)t->cpu_id == c->base_cpu || c->base_cpu < 0);
 }
 
 int is_cpu_first_core_in_package(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	UNUSED(c);
-	UNUSED(p);
 
-	return (t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE);
+	return ((int)t->cpu_id == p->base_cpu || p->base_cpu < 0);
 }
 
 int is_cpu_first_thread_in_package(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
-	UNUSED(c);
-	UNUSED(p);
-
-	return (t->flags & CPU_IS_FIRST_THREAD_IN_CORE) && (t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE);
+	return is_cpu_first_thread_in_core(t, c, p) && is_cpu_first_core_in_package(t, c, p);
 }
 
 int cpu_migrate(int cpu)
@@ -2262,9 +2257,6 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	t->irq_count = 0;
 	t->smi_count = 0;
-
-	/* tells format_counters to dump all fields from this set */
-	t->flags = CPU_IS_FIRST_THREAD_IN_CORE | CPU_IS_FIRST_CORE_IN_PACKAGE;
 
 	c->c3 = 0;
 	c->c6 = 0;
@@ -5872,15 +5864,19 @@ void allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_
 	if (*c == NULL)
 		goto error;
 
-	for (i = 0; i < num_cores; i++)
+	for (i = 0; i < num_cores; i++) {
 		(*c)[i].core_id = -1;
+		(*c)[i].base_cpu = -1;
+	}
 
 	*p = calloc(topo.num_packages, sizeof(struct pkg_data));
 	if (*p == NULL)
 		goto error;
 
-	for (i = 0; i < topo.num_packages; i++)
+	for (i = 0; i < topo.num_packages; i++) {
 		(*p)[i].package_id = i;
+		(*p)[i].base_cpu = -1;
+	}
 
 	return;
 error:
@@ -5913,10 +5909,11 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base, 
 	p = GET_PKG(pkg_base, pkg_id);
 
 	t->cpu_id = cpu_id;
-	if (thread_id == 0) {
-		t->flags |= CPU_IS_FIRST_THREAD_IN_CORE;
-		if (cpu_is_first_core_in_package(cpu_id))
-			t->flags |= CPU_IS_FIRST_CORE_IN_PACKAGE;
+	if (!cpu_is_not_allowed(cpu_id)) {
+		if (c->base_cpu < 0)
+			c->base_cpu = t->cpu_id;
+		if (p->base_cpu < 0)
+			p->base_cpu = t->cpu_id;
 	}
 
 	c->core_id = core_id;
