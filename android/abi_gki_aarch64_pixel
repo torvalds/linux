@@ -58,8 +58,13 @@
   bdev_nr_zones
   bdev_start_io_acct
   bin2hex
+  bio_add_page
+  bio_alloc_bioset
+  bio_chain
   bio_endio
   bio_end_io_acct_remapped
+  bio_init
+  bio_put
   bio_start_io_acct
   __bitmap_and
   __bitmap_andnot
@@ -80,6 +85,9 @@
   bitmap_zalloc
   blk_abort_request
   __blk_alloc_disk
+  blk_check_plugged
+  blkdev_get_by_dev
+  blkdev_put
   blk_execute_rq_nowait
   __blk_mq_alloc_disk
   blk_mq_alloc_tag_set
@@ -828,6 +836,9 @@
   __fdget
   fd_install
   fget
+  file_path
+  filp_close
+  filp_open_block
   find_extend_vma
   _find_first_and_bit
   _find_first_bit
@@ -866,6 +877,7 @@
   freq_qos_add_request
   freq_qos_remove_request
   freq_qos_update_request
+  fs_bio_set
   fsnotify
   __fsnotify_parent
   full_name_hash
@@ -2045,6 +2057,8 @@
   strsep
   strspn
   strstr
+  submit_bio
+  submit_bio_wait
   subsys_system_register
   suspend_set_ops
   __sw_hweight16
@@ -2576,3 +2590,13 @@
   xhci_resume
   xhci_run
   xhci_suspend
+  zs_compact
+  zs_create_pool
+  zs_destroy_pool
+  zs_free
+  zs_get_total_pages
+  zs_huge_class_size
+  zs_malloc
+  zs_map_object
+  zs_pool_stats
+  zs_unmap_object
