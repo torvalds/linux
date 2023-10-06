@@ -24,6 +24,7 @@
 #include "soc15.h"
 
 #include "soc15_common.h"
+#include "amdgpu_reg_state.h"
 #include "amdgpu_xcp.h"
 #include "gfx_v9_4_3.h"
 #include "gfxhub_v1_2.h"
@@ -655,4 +656,118 @@ int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev)
 	aqua_vanjaram_ip_map_init(adev);
 
 	return 0;
+}
+
+static void aqua_read_smn(struct amdgpu_device *adev,
+			  struct amdgpu_smn_reg_data *regdata,
+			  uint64_t smn_addr)
+{
+	regdata->addr = smn_addr;
+	regdata->value = RREG32_PCIE(smn_addr);
+}
+
+struct aqua_reg_list {
+	uint64_t start_addr;
+	uint32_t num_regs;
+	uint32_t incrx;
+};
+
+#define DW_ADDR_INCR	4
+
+#define smnreg_0x1A340218	0x1A340218
+#define smnreg_0x1A3402E4	0x1A3402E4
+#define smnreg_0x1A340294	0x1A340294
+#define smreg_0x1A380088	0x1A380088
+
+#define NUM_PCIE_SMN_REGS	14
+
+static struct aqua_reg_list pcie_reg_addrs[] = {
+	{ smnreg_0x1A340218, 1, 0 },
+	{ smnreg_0x1A3402E4, 1, 0 },
+	{ smnreg_0x1A340294, 6, DW_ADDR_INCR },
+	{ smreg_0x1A380088, 6, DW_ADDR_INCR },
+};
+
+static ssize_t aqua_vanjaram_read_pcie_state(struct amdgpu_device *adev,
+					     void *buf, size_t max_size)
+{
+	struct amdgpu_reg_state_pcie_v1_0 *pcie_reg_state;
+	uint32_t start_addr, incrx, num_regs, szbuf;
+	struct amdgpu_regs_pcie_v1_0 *pcie_regs;
+	struct amdgpu_smn_reg_data *reg_data;
+	struct pci_dev *us_pdev, *ds_pdev;
+	int aer_cap, r, n;
+
+	if (!buf || !max_size)
+		return -EINVAL;
+
+	pcie_reg_state = (struct amdgpu_reg_state_pcie_v1_0 *)buf;
+
+	szbuf = sizeof(*pcie_reg_state) +
+		amdgpu_reginst_size(1, sizeof(*pcie_regs), NUM_PCIE_SMN_REGS);
+	/* Only one instance of pcie regs */
+	if (max_size < szbuf)
+		return -EOVERFLOW;
+
+	pcie_regs = (struct amdgpu_regs_pcie_v1_0 *)((uint8_t *)buf +
+						     sizeof(*pcie_reg_state));
+	pcie_regs->inst_header.instance = 0;
+	pcie_regs->inst_header.state = AMDGPU_INST_S_OK;
+	pcie_regs->inst_header.num_smn_regs = NUM_PCIE_SMN_REGS;
+
+	reg_data = pcie_regs->smn_reg_values;
+
+	for (r = 0; r < ARRAY_SIZE(pcie_reg_addrs); r++) {
+		start_addr = pcie_reg_addrs[r].start_addr;
+		incrx = pcie_reg_addrs[r].incrx;
+		num_regs = pcie_reg_addrs[r].num_regs;
+		for (n = 0; n < num_regs; n++) {
+			aqua_read_smn(adev, reg_data, start_addr + n * incrx);
+			++reg_data;
+		}
+	}
+
+	ds_pdev = pci_upstream_bridge(adev->pdev);
+	us_pdev = pci_upstream_bridge(ds_pdev);
+
+	pcie_capability_read_word(us_pdev, PCI_EXP_DEVSTA,
+				  &pcie_regs->device_status);
+	pcie_capability_read_word(us_pdev, PCI_EXP_LNKSTA,
+				  &pcie_regs->link_status);
+
+	aer_cap = pci_find_ext_capability(us_pdev, PCI_EXT_CAP_ID_ERR);
+	if (aer_cap) {
+		pci_read_config_dword(us_pdev, aer_cap + PCI_ERR_COR_STATUS,
+				      &pcie_regs->pcie_corr_err_status);
+		pci_read_config_dword(us_pdev, aer_cap + PCI_ERR_UNCOR_STATUS,
+				      &pcie_regs->pcie_uncorr_err_status);
+	}
+
+	pci_read_config_dword(us_pdev, PCI_PRIMARY_BUS,
+			      &pcie_regs->sub_bus_number_latency);
+
+	pcie_reg_state->common_header.structure_size = szbuf;
+	pcie_reg_state->common_header.format_revision = 1;
+	pcie_reg_state->common_header.content_revision = 0;
+	pcie_reg_state->common_header.state_type = AMDGPU_REG_STATE_TYPE_PCIE;
+	pcie_reg_state->common_header.num_instances = 1;
+
+	return pcie_reg_state->common_header.structure_size;
+}
+
+ssize_t aqua_vanjaram_get_reg_state(struct amdgpu_device *adev,
+				    enum amdgpu_reg_state reg_state, void *buf,
+				    size_t max_size)
+{
+	ssize_t size;
+
+	switch (reg_state) {
+	case AMDGPU_REG_STATE_TYPE_PCIE:
+		size = aqua_vanjaram_read_pcie_state(adev, buf, max_size);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return size;
 }
