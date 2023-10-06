@@ -2789,7 +2789,7 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	ret = mxc_jpeg_attach_pm_domains(jpeg);
 	if (ret < 0) {
 		dev_err(dev, "failed to attach power domains %d\n", ret);
-		return ret;
+		goto err_clk;
 	}
 
 	/* v4l2 */
