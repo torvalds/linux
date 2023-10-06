@@ -16,9 +16,12 @@ def define_niobe():
         "drivers/iommu/arm/arm-smmu/arm_smmu.ko",
         "drivers/iommu/msm_dma_iommu_mapping.ko",
         "drivers/iommu/qcom_iommu_util.ko",
+        "drivers/irqchip/qcom-pdc.ko",
         "drivers/regulator/stub-regulator.ko",
+        "drivers/soc/qcom/cmd-db.ko",
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
+        "drivers/soc/qcom/qcom_rpmh.ko",
     ]
 
     _niobe_consolidate_in_tree_modules = _niobe_in_tree_modules + [

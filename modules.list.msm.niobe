@@ -2,6 +2,9 @@
 # Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
 qcom-scm.ko
 mem_buf.ko
+cmd-db.ko
+qcom-pdc.ko
+qcom_rpmh.ko
 mem_buf_dev.ko
 msm_dma_iommu_mapping.ko
 qcom_dma_heaps.ko
