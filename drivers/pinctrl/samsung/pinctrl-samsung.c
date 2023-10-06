@@ -904,11 +904,11 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	drvdata->pctl_dev = devm_pinctrl_register(&pdev->dev, ctrldesc,
-						  drvdata);
-	if (IS_ERR(drvdata->pctl_dev)) {
+	ret = devm_pinctrl_register_and_init(&pdev->dev, ctrldesc, drvdata,
+					     &drvdata->pctl_dev);
+	if (ret) {
 		dev_err(&pdev->dev, "could not register pinctrl driver\n");
-		return PTR_ERR(drvdata->pctl_dev);
+		return ret;
 	}
 
 	for (bank = 0; bank < drvdata->nr_banks; ++bank) {
@@ -1173,6 +1173,10 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 		ctrl->eint_wkup_init(drvdata);
 
 	ret = samsung_gpiolib_register(pdev, drvdata);
+	if (ret)
+		goto err_unregister;
+
+	ret = pinctrl_enable(drvdata->pctl_dev);
 	if (ret)
 		goto err_unregister;
 
