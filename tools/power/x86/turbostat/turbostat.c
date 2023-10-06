@@ -1134,6 +1134,9 @@ struct topo_params {
 	int num_die;
 	int num_cpus;
 	int num_cores;
+	int allowed_packages;
+	int allowed_cpus;
+	int allowed_cores;
 	int max_cpu_num;
 	int max_node_num;
 	int nodes_per_pkg;
@@ -1179,7 +1182,6 @@ int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pk
 					struct thread_data *t;
 					struct core_data *c;
 					struct pkg_data *p;
-
 					t = GET_THREAD(thread_base, thread_no, core_no, node_no, pkg_no);
 
 					if (cpu_is_not_allowed(t->cpu_id))
@@ -2426,40 +2428,40 @@ void compute_average(struct thread_data *t, struct core_data *c, struct pkg_data
 	/* Use the global time delta for the average. */
 	average.threads.tv_delta = tv_delta;
 
-	average.threads.tsc /= topo.num_cpus;
-	average.threads.aperf /= topo.num_cpus;
-	average.threads.mperf /= topo.num_cpus;
-	average.threads.instr_count /= topo.num_cpus;
-	average.threads.c1 /= topo.num_cpus;
+	average.threads.tsc /= topo.allowed_cpus;
+	average.threads.aperf /= topo.allowed_cpus;
+	average.threads.mperf /= topo.allowed_cpus;
+	average.threads.instr_count /= topo.allowed_cpus;
+	average.threads.c1 /= topo.allowed_cpus;
 
 	if (average.threads.irq_count > 9999999)
 		sums_need_wide_columns = 1;
 
-	average.cores.c3 /= topo.num_cores;
-	average.cores.c6 /= topo.num_cores;
-	average.cores.c7 /= topo.num_cores;
-	average.cores.mc6_us /= topo.num_cores;
+	average.cores.c3 /= topo.allowed_cores;
+	average.cores.c6 /= topo.allowed_cores;
+	average.cores.c7 /= topo.allowed_cores;
+	average.cores.mc6_us /= topo.allowed_cores;
 
 	if (DO_BIC(BIC_Totl_c0))
-		average.packages.pkg_wtd_core_c0 /= topo.num_packages;
+		average.packages.pkg_wtd_core_c0 /= topo.allowed_packages;
 	if (DO_BIC(BIC_Any_c0))
-		average.packages.pkg_any_core_c0 /= topo.num_packages;
+		average.packages.pkg_any_core_c0 /= topo.allowed_packages;
 	if (DO_BIC(BIC_GFX_c0))
-		average.packages.pkg_any_gfxe_c0 /= topo.num_packages;
+		average.packages.pkg_any_gfxe_c0 /= topo.allowed_packages;
 	if (DO_BIC(BIC_CPUGFX))
-		average.packages.pkg_both_core_gfxe_c0 /= topo.num_packages;
+		average.packages.pkg_both_core_gfxe_c0 /= topo.allowed_packages;
 
-	average.packages.pc2 /= topo.num_packages;
+	average.packages.pc2 /= topo.allowed_packages;
 	if (DO_BIC(BIC_Pkgpc3))
-		average.packages.pc3 /= topo.num_packages;
+		average.packages.pc3 /= topo.allowed_packages;
 	if (DO_BIC(BIC_Pkgpc6))
-		average.packages.pc6 /= topo.num_packages;
+		average.packages.pc6 /= topo.allowed_packages;
 	if (DO_BIC(BIC_Pkgpc7))
-		average.packages.pc7 /= topo.num_packages;
+		average.packages.pc7 /= topo.allowed_packages;
 
-	average.packages.pc8 /= topo.num_packages;
-	average.packages.pc9 /= topo.num_packages;
-	average.packages.pc10 /= topo.num_packages;
+	average.packages.pc8 /= topo.allowed_packages;
+	average.packages.pc9 /= topo.allowed_packages;
+	average.packages.pc10 /= topo.allowed_packages;
 
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
@@ -2469,7 +2471,7 @@ void compute_average(struct thread_data *t, struct core_data *c, struct pkg_data
 				sums_need_wide_columns = 1;
 			continue;
 		}
-		average.threads.counter[i] /= topo.num_cpus;
+		average.threads.counter[i] /= topo.allowed_cpus;
 	}
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
@@ -2478,7 +2480,7 @@ void compute_average(struct thread_data *t, struct core_data *c, struct pkg_data
 			if (average.cores.counter[i] > 9999999)
 				sums_need_wide_columns = 1;
 		}
-		average.cores.counter[i] /= topo.num_cores;
+		average.cores.counter[i] /= topo.allowed_cores;
 	}
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
@@ -2487,7 +2489,7 @@ void compute_average(struct thread_data *t, struct core_data *c, struct pkg_data
 			if (average.packages.counter[i] > 9999999)
 				sums_need_wide_columns = 1;
 		}
-		average.packages.counter[i] /= topo.num_packages;
+		average.packages.counter[i] /= topo.allowed_packages;
 	}
 }
 
@@ -3690,7 +3692,7 @@ void re_initialize(void)
 {
 	free_all_buffers();
 	setup_all_buffers();
-	fprintf(outf, "turbostat: re-initialized with num_cpus %d\n", topo.num_cpus);
+	fprintf(outf, "turbostat: re-initialized with num_cpus %d, allowed_cpus %d\n", topo.num_cpus, topo.allowed_cpus);
 }
 
 void set_max_cpu_num(void)
@@ -5953,6 +5955,24 @@ void allocate_irq_buffers(void)
 		err(-1, "calloc %d", topo.max_cpu_num + 1);
 }
 
+int update_topo(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+{
+	topo.allowed_cpus++;
+	if ((int)t->cpu_id == c->base_cpu)
+		topo.allowed_cores++;
+	if ((int)t->cpu_id == p->base_cpu)
+		topo.allowed_packages++;
+
+	return 0;
+}
+
+void topology_update(void)
+{
+	topo.allowed_cpus = 0;
+	topo.allowed_cores = 0;
+	topo.allowed_packages = 0;
+	for_all_cpus(update_topo, ODD_COUNTERS);
+}
 void setup_all_buffers(void)
 {
 	topology_probe();
@@ -5962,6 +5982,7 @@ void setup_all_buffers(void)
 	allocate_counters(&thread_odd, &core_odd, &package_odd);
 	allocate_output_buffer();
 	for_all_proc_cpus(initialize_counters);
+	topology_update();
 }
 
 void set_base_cpu(void)
