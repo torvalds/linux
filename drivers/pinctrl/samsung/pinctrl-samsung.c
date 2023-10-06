@@ -45,8 +45,6 @@ static struct pin_config {
 	{ "samsung,pin-val", PINCFG_TYPE_DAT },
 };
 
-static unsigned int pin_base;
-
 static int samsung_get_group_count(struct pinctrl_dev *pctldev)
 {
 	struct samsung_pinctrl_drv_data *pmx = pinctrl_dev_get_drvdata(pctldev);
@@ -389,8 +387,7 @@ static void samsung_pinmux_setup(struct pinctrl_dev *pctldev, unsigned selector,
 	func = &drvdata->pmx_functions[selector];
 	grp = &drvdata->pin_groups[group];
 
-	pin_to_reg_bank(drvdata, grp->pins[0] - drvdata->pin_base,
-			&reg, &pin_offset, &bank);
+	pin_to_reg_bank(drvdata, grp->pins[0], &reg, &pin_offset, &bank);
 	type = bank->type;
 	mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
 	shift = pin_offset * type->fld_width[PINCFG_TYPE_FUNC];
@@ -441,8 +438,7 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 	unsigned long flags;
 
 	drvdata = pinctrl_dev_get_drvdata(pctldev);
-	pin_to_reg_bank(drvdata, pin - drvdata->pin_base, &reg_base,
-					&pin_offset, &bank);
+	pin_to_reg_bank(drvdata, pin, &reg_base, &pin_offset, &bank);
 	type = bank->type;
 
 	if (cfg_type >= PINCFG_TYPE_NUM || !type->fld_width[cfg_type])
@@ -671,7 +667,7 @@ static int samsung_add_pin_ranges(struct gpio_chip *gc)
 
 	bank->grange.name = bank->name;
 	bank->grange.id = bank->id;
-	bank->grange.pin_base = bank->drvdata->pin_base + bank->pin_base;
+	bank->grange.pin_base = bank->pin_base;
 	bank->grange.base = gc->base;
 	bank->grange.npins = bank->nr_pins;
 	bank->grange.gc = &bank->gpio_chip;
@@ -891,7 +887,7 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 
 	/* dynamically populate the pin number and pin name for pindesc */
 	for (pin = 0, pdesc = pindesc; pin < ctrldesc->npins; pin++, pdesc++)
-		pdesc->number = pin + drvdata->pin_base;
+		pdesc->number = pin;
 
 	/*
 	 * allocate space for storing the dynamically generated names for all
@@ -1128,9 +1124,6 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 	d->virt_base = virt_base[0];
 
 	samsung_banks_node_get(&pdev->dev, d);
-
-	d->pin_base = pin_base;
-	pin_base += d->nr_pins;
 
 	return ctrl;
 }
