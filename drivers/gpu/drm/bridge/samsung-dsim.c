@@ -1721,7 +1721,10 @@ of_find_panel_or_bridge:
 		return ret;
 	}
 
-	DRM_DEV_INFO(dev, "Attached %s device\n", device->name);
+	DRM_DEV_INFO(dev, "Attached %s device (lanes:%d bpp:%d mode-flags:0x%lx)\n",
+		     device->name, device->lanes,
+		     mipi_dsi_pixel_format_to_bpp(device->format),
+		     device->mode_flags);
 
 	drm_bridge_add(&dsi->bridge);
 
