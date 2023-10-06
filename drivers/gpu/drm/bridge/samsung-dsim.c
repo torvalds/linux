@@ -989,9 +989,9 @@ static void samsung_dsim_set_display_mode(struct samsung_dsim *dsi)
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		int byte_clk_khz = dsi->hs_clock / 1000 / 8;
-		int hfp = (m->hsync_start - m->hdisplay) * byte_clk_khz / m->clock;
-		int hbp = (m->htotal - m->hsync_end) * byte_clk_khz / m->clock;
-		int hsa = (m->hsync_end - m->hsync_start) * byte_clk_khz / m->clock;
+		int hfp = DIV_ROUND_UP((m->hsync_start - m->hdisplay) * byte_clk_khz, m->clock);
+		int hbp = DIV_ROUND_UP((m->htotal - m->hsync_end) * byte_clk_khz, m->clock);
+		int hsa = DIV_ROUND_UP((m->hsync_end - m->hsync_start) * byte_clk_khz, m->clock);
 
 		/* remove packet overhead when possible */
 		hfp = max(hfp - 6, 0);
