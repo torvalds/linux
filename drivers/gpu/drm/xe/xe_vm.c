@@ -1242,6 +1242,9 @@ static u64 pte_encode_cache(struct xe_device *xe, enum xe_cache_level cache)
 	if (pat_index & BIT(3))
 		pte |= XELPG_PPGTT_PTE_PAT3;
 
+	if (pat_index & (BIT(4)))
+		pte |= XE2_PPGTT_PTE_PAT4;
+
 	return pte;
 }
 
