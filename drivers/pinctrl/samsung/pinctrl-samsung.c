@@ -968,7 +968,7 @@ static int samsung_gpiolib_register(struct platform_device *pdev,
 		bank->gpio_chip = samsung_gpiolib_chip;
 
 		gc = &bank->gpio_chip;
-		gc->base = drvdata->pin_base + bank->pin_base;
+		gc->base = -1; /* Dynamic allocation */
 		gc->ngpio = bank->nr_pins;
 		gc->parent = &pdev->dev;
 		gc->fwnode = bank->fwnode;
