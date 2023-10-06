@@ -312,50 +312,6 @@ static int ad2s1210_reinit_excitation_frequency(struct ad2s1210_state *st,
 	return regmap_write(st->regmap, AD2S1210_REG_SOFT_RESET, 0);
 }
 
-/* read the fault register since last sample */
-static ssize_t ad2s1210_show_fault(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
-	unsigned int value;
-	int ret;
-
-	mutex_lock(&st->lock);
-	ret = regmap_read(st->regmap, AD2S1210_REG_FAULT, &value);
-	mutex_unlock(&st->lock);
-
-	return ret < 0 ? ret : sprintf(buf, "0x%02x\n", value);
-}
-
-static ssize_t ad2s1210_clear_fault(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf,
-				    size_t len)
-{
-	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
-	unsigned int value;
-	int ret;
-
-	mutex_lock(&st->lock);
-
-	gpiod_set_value(st->sample_gpio, 1);
-	/* delay (2 * tck + 20) nano seconds */
-	udelay(1);
-	gpiod_set_value(st->sample_gpio, 0);
-
-	ret = regmap_read(st->regmap, AD2S1210_REG_FAULT, &value);
-	if (ret < 0)
-		goto error_ret;
-
-	gpiod_set_value(st->sample_gpio, 1);
-	gpiod_set_value(st->sample_gpio, 0);
-
-error_ret:
-	mutex_unlock(&st->lock);
-
-	return ret < 0 ? ret : len;
-}
-
 static void ad2s1210_push_events(struct iio_dev *indio_dev,
 				 u8 flags, s64 timestamp)
 {
@@ -868,9 +824,6 @@ static int ad2s1210_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static IIO_DEVICE_ATTR(fault, 0644,
-		       ad2s1210_show_fault, ad2s1210_clear_fault, 0);
-
 static const struct iio_event_spec ad2s1210_position_event_spec[] = {
 	{
 		/* Tracking error exceeds LOT threshold fault. */
@@ -1018,15 +971,6 @@ static const struct iio_chan_spec ad2s1210_channels[] = {
 		.event_spec = ad2s1210_sin_cos_event_spec,
 		.num_event_specs = ARRAY_SIZE(ad2s1210_sin_cos_event_spec),
 	},
-};
-
-static struct attribute *ad2s1210_attributes[] = {
-	&iio_dev_attr_fault.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ad2s1210_attribute_group = {
-	.attrs = ad2s1210_attributes,
 };
 
 static ssize_t event_attr_voltage_reg_show(struct device *dev,
@@ -1367,7 +1311,6 @@ static const struct iio_info ad2s1210_info = {
 	.read_avail = ad2s1210_read_avail,
 	.write_raw = ad2s1210_write_raw,
 	.read_label = ad2s1210_read_label,
-	.attrs = &ad2s1210_attribute_group,
 	.read_event_value = ad2s1210_read_event_value,
 	.write_event_value = ad2s1210_write_event_value,
 	.read_event_label = ad2s1210_read_event_label,
