@@ -50,6 +50,7 @@ static struct xe_pt *xe_pt_entry(struct xe_pt_dir *pt_dir, unsigned int index)
 static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
 			     unsigned int level)
 {
+	u16 pat_index = tile_to_xe(tile)->pat.idx[XE_CACHE_WB];
 	u8 id = tile->id;
 
 	if (!vm->scratch_bo[id])
@@ -57,9 +58,9 @@ static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
 
 	if (level > 0)
 		return vm->pt_ops->pde_encode_bo(vm->scratch_pt[id][level - 1]->bo,
-						 0, XE_CACHE_WB);
+						 0, pat_index);
 
-	return vm->pt_ops->pte_encode_bo(vm->scratch_bo[id], 0, XE_CACHE_WB, 0);
+	return vm->pt_ops->pte_encode_bo(vm->scratch_bo[id], 0, pat_index, 0);
 }
 
 /**
@@ -510,6 +511,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 {
 	struct xe_pt_stage_bind_walk *xe_walk =
 		container_of(walk, typeof(*xe_walk), base);
+	u16 pat_index = tile_to_xe(xe_walk->tile)->pat.idx[xe_walk->cache];
 	struct xe_pt *xe_parent = container_of(parent, typeof(*xe_parent), base);
 	struct xe_vm *vm = xe_walk->vm;
 	struct xe_pt *xe_child;
@@ -526,7 +528,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 
 		pte = vm->pt_ops->pte_encode_vma(is_null ? 0 :
 						 xe_res_dma(curs) + xe_walk->dma_offset,
-						 xe_walk->vma, xe_walk->cache, level);
+						 xe_walk->vma, pat_index, level);
 		pte |= xe_walk->default_pte;
 
 		/*
@@ -591,8 +593,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 			xe_child->is_compact = true;
 		}
 
-		pte = vm->pt_ops->pde_encode_bo(xe_child->bo, 0,
-						xe_walk->cache) | flags;
+		pte = vm->pt_ops->pde_encode_bo(xe_child->bo, 0, pat_index) | flags;
 		ret = xe_pt_insert_entry(xe_walk, xe_parent, offset, xe_child,
 					 pte);
 	}

@@ -27,7 +27,7 @@
 #define GUC_GGTT_TOP	0xFEE00000
 
 static u64 xelp_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
-				   enum xe_cache_level cache)
+				   u16 pat_index)
 {
 	u64 pte;
 
@@ -41,13 +41,12 @@ static u64 xelp_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
 }
 
 static u64 xelpg_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
-				    enum xe_cache_level cache)
+				    u16 pat_index)
 {
 	struct xe_device *xe = xe_bo_device(bo);
-	u32 pat_index = xe->pat.idx[cache];
 	u64 pte;
 
-	pte = xelp_ggtt_pte_encode_bo(bo, bo_offset, cache);
+	pte = xelp_ggtt_pte_encode_bo(bo, bo_offset, pat_index);
 
 	xe_assert(xe, pat_index <= 3);
 
@@ -79,6 +78,7 @@ void xe_ggtt_set_pte(struct xe_ggtt *ggtt, u64 addr, u64 pte)
 
 static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
 {
+	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[XE_CACHE_WB];
 	u64 end = start + size - 1;
 	u64 scratch_pte;
 
@@ -86,7 +86,7 @@ static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
 
 	if (ggtt->scratch)
 		scratch_pte = ggtt->pt_ops->pte_encode_bo(ggtt->scratch, 0,
-							  XE_CACHE_WB);
+							  pat_index);
 	else
 		scratch_pte = 0;
 
@@ -285,9 +285,10 @@ void xe_ggtt_invalidate(struct xe_ggtt *ggtt)
 
 void xe_ggtt_printk(struct xe_ggtt *ggtt, const char *prefix)
 {
+	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[XE_CACHE_WB];
 	u64 addr, scratch_pte;
 
-	scratch_pte = ggtt->pt_ops->pte_encode_bo(ggtt->scratch, 0, XE_CACHE_WB);
+	scratch_pte = ggtt->pt_ops->pte_encode_bo(ggtt->scratch, 0, pat_index);
 
 	printk("%sGlobal GTT:", prefix);
 	for (addr = 0; addr < ggtt->size; addr += XE_PAGE_SIZE) {
@@ -324,11 +325,12 @@ int xe_ggtt_insert_special_node(struct xe_ggtt *ggtt, struct drm_mm_node *node,
 
 void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
+	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[XE_CACHE_WB];
 	u64 start = bo->ggtt_node.start;
 	u64 offset, pte;
 
 	for (offset = 0; offset < bo->size; offset += XE_PAGE_SIZE) {
-		pte = ggtt->pt_ops->pte_encode_bo(bo, offset, XE_CACHE_WB);
+		pte = ggtt->pt_ops->pte_encode_bo(bo, offset, pat_index);
 		xe_ggtt_set_pte(ggtt, start + offset, pte);
 	}
 

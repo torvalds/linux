@@ -14,8 +14,7 @@ struct xe_bo;
 struct xe_gt;
 
 struct xe_ggtt_pt_ops {
-	u64 (*pte_encode_bo)(struct xe_bo *bo, u64 bo_offset,
-			     enum xe_cache_level cache);
+	u64 (*pte_encode_bo)(struct xe_bo *bo, u64 bo_offset, u16 pat_index);
 };
 
 struct xe_ggtt {

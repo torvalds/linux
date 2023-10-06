@@ -1211,9 +1211,8 @@ static struct drm_gpuvm_ops gpuvm_ops = {
 	.vm_free = xe_vm_free,
 };
 
-static u64 pde_encode_cache(struct xe_device *xe, enum xe_cache_level cache)
+static u64 pde_encode_pat_index(struct xe_device *xe, u16 pat_index)
 {
-	u32 pat_index = xe->pat.idx[cache];
 	u64 pte = 0;
 
 	if (pat_index & BIT(0))
@@ -1225,9 +1224,8 @@ static u64 pde_encode_cache(struct xe_device *xe, enum xe_cache_level cache)
 	return pte;
 }
 
-static u64 pte_encode_cache(struct xe_device *xe, enum xe_cache_level cache)
+static u64 pte_encode_pat_index(struct xe_device *xe, u16 pat_index)
 {
-	u32 pat_index = xe->pat.idx[cache];
 	u64 pte = 0;
 
 	if (pat_index & BIT(0))
@@ -1261,27 +1259,27 @@ static u64 pte_encode_ps(u32 pt_level)
 }
 
 static u64 xelp_pde_encode_bo(struct xe_bo *bo, u64 bo_offset,
-			      const enum xe_cache_level cache)
+			      const u16 pat_index)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	u64 pde;
 
 	pde = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
 	pde |= XE_PAGE_PRESENT | XE_PAGE_RW;
-	pde |= pde_encode_cache(xe, cache);
+	pde |= pde_encode_pat_index(xe, pat_index);
 
 	return pde;
 }
 
 static u64 xelp_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
-			      enum xe_cache_level cache, u32 pt_level)
+			      u16 pat_index, u32 pt_level)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	u64 pte;
 
 	pte = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
 	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
-	pte |= pte_encode_cache(xe, cache);
+	pte |= pte_encode_pat_index(xe, pat_index);
 	pte |= pte_encode_ps(pt_level);
 
 	if (xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo))
@@ -1291,7 +1289,7 @@ static u64 xelp_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
 }
 
 static u64 xelp_pte_encode_vma(u64 pte, struct xe_vma *vma,
-			       enum xe_cache_level cache, u32 pt_level)
+			       u16 pat_index, u32 pt_level)
 {
 	struct xe_device *xe = xe_vma_vm(vma)->xe;
 
@@ -1300,7 +1298,7 @@ static u64 xelp_pte_encode_vma(u64 pte, struct xe_vma *vma,
 	if (likely(!xe_vma_read_only(vma)))
 		pte |= XE_PAGE_RW;
 
-	pte |= pte_encode_cache(xe, cache);
+	pte |= pte_encode_pat_index(xe, pat_index);
 	pte |= pte_encode_ps(pt_level);
 
 	if (unlikely(xe_vma_is_null(vma)))
@@ -1310,7 +1308,7 @@ static u64 xelp_pte_encode_vma(u64 pte, struct xe_vma *vma,
 }
 
 static u64 xelp_pte_encode_addr(struct xe_device *xe, u64 addr,
-				enum xe_cache_level cache,
+				u16 pat_index,
 				u32 pt_level, bool devmem, u64 flags)
 {
 	u64 pte;
@@ -1320,7 +1318,7 @@ static u64 xelp_pte_encode_addr(struct xe_device *xe, u64 addr,
 
 	pte = addr;
 	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
-	pte |= pte_encode_cache(xe, cache);
+	pte |= pte_encode_pat_index(xe, pat_index);
 	pte |= pte_encode_ps(pt_level);
 
 	if (devmem)
@@ -1707,7 +1705,7 @@ struct xe_vm *xe_vm_lookup(struct xe_file *xef, u32 id)
 u64 xe_vm_pdp4_descriptor(struct xe_vm *vm, struct xe_tile *tile)
 {
 	return vm->pt_ops->pde_encode_bo(vm->pt_root[tile->id]->bo, 0,
-					 XE_CACHE_WB);
+					 tile_to_xe(tile)->pat.idx[XE_CACHE_WB]);
 }
 
 static struct dma_fence *

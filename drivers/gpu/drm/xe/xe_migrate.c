@@ -163,6 +163,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 				 struct xe_vm *vm)
 {
 	struct xe_device *xe = tile_to_xe(tile);
+	u16 pat_index = xe->pat.idx[XE_CACHE_WB];
 	u8 id = tile->id;
 	u32 num_entries = NUM_PT_SLOTS, num_level = vm->pt_root[id]->level;
 	u32 map_ofs, level, i;
@@ -194,7 +195,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		return ret;
 	}
 
-	entry = vm->pt_ops->pde_encode_bo(bo, bo->size - XE_PAGE_SIZE, XE_CACHE_WB);
+	entry = vm->pt_ops->pde_encode_bo(bo, bo->size - XE_PAGE_SIZE, pat_index);
 	xe_pt_write(xe, &vm->pt_root[id]->bo->vmap, 0, entry);
 
 	map_ofs = (num_entries - num_level) * XE_PAGE_SIZE;
@@ -202,7 +203,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	/* Map the entire BO in our level 0 pt */
 	for (i = 0, level = 0; i < num_entries; level++) {
 		entry = vm->pt_ops->pte_encode_bo(bo, i * XE_PAGE_SIZE,
-						  XE_CACHE_WB, 0);
+						  pat_index, 0);
 
 		xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64, entry);
 
@@ -221,7 +222,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		     i += vm->flags & XE_VM_FLAG_64K ? XE_64K_PAGE_SIZE :
 		     XE_PAGE_SIZE) {
 			entry = vm->pt_ops->pte_encode_bo(batch, i,
-							  XE_CACHE_WB, 0);
+							  pat_index, 0);
 
 			xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64,
 				  entry);
@@ -246,7 +247,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 			flags = XE_PDE_64K;
 
 		entry = vm->pt_ops->pde_encode_bo(bo, map_ofs + (level - 1) *
-						  XE_PAGE_SIZE, XE_CACHE_WB);
+						  XE_PAGE_SIZE, pat_index);
 		xe_map_wr(xe, &bo->vmap, map_ofs + XE_PAGE_SIZE * level, u64,
 			  entry | flags);
 	}
@@ -254,7 +255,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	/* Write PDE's that point to our BO. */
 	for (i = 0; i < num_entries - num_level; i++) {
 		entry = vm->pt_ops->pde_encode_bo(bo, i * XE_PAGE_SIZE,
-						  XE_CACHE_WB);
+						  pat_index);
 
 		xe_map_wr(xe, &bo->vmap, map_ofs + XE_PAGE_SIZE +
 			  (i + 1) * 8, u64, entry);
@@ -266,7 +267,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 
 		level = 2;
 		ofs = map_ofs + XE_PAGE_SIZE * level + 256 * 8;
-		flags = vm->pt_ops->pte_encode_addr(xe, 0, XE_CACHE_WB, level,
+		flags = vm->pt_ops->pte_encode_addr(xe, 0, pat_index, level,
 						    true, 0);
 
 		/*
@@ -464,6 +465,7 @@ static void emit_pte(struct xe_migrate *m,
 		     struct xe_res_cursor *cur,
 		     u32 size, struct xe_bo *bo)
 {
+	u16 pat_index = tile_to_xe(m->tile)->pat.idx[XE_CACHE_WB];
 	u32 ptes;
 	u64 ofs = at_pt * XE_PAGE_SIZE;
 	u64 cur_ofs;
@@ -507,7 +509,7 @@ static void emit_pte(struct xe_migrate *m,
 			}
 
 			addr = m->q->vm->pt_ops->pte_encode_addr(m->tile->xe,
-								 addr, XE_CACHE_WB,
+								 addr, pat_index,
 								 0, devmem, flags);
 			bb->cs[bb->len++] = lower_32_bits(addr);
 			bb->cs[bb->len++] = upper_32_bits(addr);
@@ -1226,6 +1228,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	bool first_munmap_rebind = vma &&
 		vma->gpuva.flags & XE_VMA_FIRST_REBIND;
 	struct xe_exec_queue *q_override = !q ? m->q : q;
+	u16 pat_index = xe->pat.idx[XE_CACHE_WB];
 
 	/* Use the CPU if no in syncs and engine is idle */
 	if (no_in_syncs(syncs, num_syncs) && xe_exec_queue_is_idle(q_override)) {
@@ -1297,7 +1300,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 
 			xe_tile_assert(tile, pt_bo->size == SZ_4K);
 
-			addr = vm->pt_ops->pte_encode_bo(pt_bo, 0, XE_CACHE_WB, 0);
+			addr = vm->pt_ops->pte_encode_bo(pt_bo, 0, pat_index, 0);
 			bb->cs[bb->len++] = lower_32_bits(addr);
 			bb->cs[bb->len++] = upper_32_bits(addr);
 		}
