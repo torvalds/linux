@@ -633,8 +633,7 @@ void folio_migrate_flags(struct folio *newfolio, struct folio *folio)
 
 	folio_copy_owner(newfolio, folio);
 
-	if (!folio_test_hugetlb(folio))
-		mem_cgroup_migrate(folio, newfolio);
+	mem_cgroup_migrate(folio, newfolio);
 }
 EXPORT_SYMBOL(folio_migrate_flags);
 
