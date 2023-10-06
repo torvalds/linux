@@ -823,11 +823,11 @@ u16 intel_dp_dsc_get_max_compressed_bpp(struct drm_i915_private *i915,
 	return bits_per_pixel;
 }
 
-u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp,
+u8 intel_dp_dsc_get_slice_count(const struct intel_connector *connector,
 				int mode_clock, int mode_hdisplay,
 				bool bigjoiner)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	u8 min_slice_count, i;
 	int max_slice_width;
 
@@ -845,7 +845,7 @@ u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp,
 	if (mode_clock >= ((i915->display.cdclk.max_cdclk_freq * 85) / 100))
 		min_slice_count = max_t(u8, min_slice_count, 2);
 
-	max_slice_width = drm_dp_dsc_sink_max_slice_width(intel_dp->dsc_dpcd);
+	max_slice_width = drm_dp_dsc_sink_max_slice_width(connector->dp.dsc_dpcd);
 	if (max_slice_width < DP_DSC_MIN_SLICE_WIDTH_VALUE) {
 		drm_dbg_kms(&i915->drm,
 			    "Unsupported slice width %d by DP DSC Sink device\n",
@@ -862,7 +862,7 @@ u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp,
 		u8 test_slice_count = valid_dsc_slicecount[i] << bigjoiner;
 
 		if (test_slice_count >
-		    drm_dp_dsc_sink_max_slice_count(intel_dp->dsc_dpcd, false))
+		    drm_dp_dsc_sink_max_slice_count(connector->dp.dsc_dpcd, false))
 			break;
 
 		/* big joiner needs small joiner to be enabled */
@@ -1238,7 +1238,7 @@ intel_dp_mode_valid(struct drm_connector *_connector,
 								    output_format,
 								    pipe_bpp, 64);
 			dsc_slice_count =
-				intel_dp_dsc_get_slice_count(intel_dp,
+				intel_dp_dsc_get_slice_count(connector,
 							     target_clock,
 							     mode->hdisplay,
 							     bigjoiner);
@@ -2161,7 +2161,7 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		u8 dsc_dp_slice_count;
 
 		dsc_dp_slice_count =
-			intel_dp_dsc_get_slice_count(intel_dp,
+			intel_dp_dsc_get_slice_count(connector,
 						     adjusted_mode->crtc_clock,
 						     adjusted_mode->crtc_hdisplay,
 						     pipe_config->bigjoiner_pipes);
