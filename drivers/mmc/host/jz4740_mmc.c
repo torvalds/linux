@@ -18,9 +18,10 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/scatterlist.h>
 
@@ -1040,7 +1041,6 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 	int ret;
 	struct mmc_host *mmc;
 	struct jz4740_mmc_host *host;
-	const struct of_device_id *match;
 
 	mmc = mmc_alloc_host(sizeof(struct jz4740_mmc_host), &pdev->dev);
 	if (!mmc) {
@@ -1050,13 +1050,8 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 
 	host = mmc_priv(mmc);
 
-	match = of_match_device(jz4740_mmc_of_match, &pdev->dev);
-	if (match) {
-		host->version = (enum jz4740_mmc_version)match->data;
-	} else {
-		/* JZ4740 should be the only one using legacy probe */
-		host->version = JZ_MMC_JZ4740;
-	}
+	/* Default if no match is JZ4740 */
+	host->version = (enum jz4740_mmc_version)device_get_match_data(&pdev->dev);
 
 	ret = mmc_of_parse(mmc);
 	if (ret) {
@@ -1200,7 +1195,7 @@ static struct platform_driver jz4740_mmc_driver = {
 	.driver = {
 		.name = "jz4740-mmc",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table = of_match_ptr(jz4740_mmc_of_match),
+		.of_match_table = jz4740_mmc_of_match,
 		.pm = pm_sleep_ptr(&jz4740_mmc_pm_ops),
 	},
 };
