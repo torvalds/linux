@@ -54,6 +54,7 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 	struct gpio_poweroff *gpio_poweroff;
 	bool input = false;
 	enum gpiod_flags flags;
+	int priority = SYS_OFF_PRIO_DEFAULT;
 	int ret;
 
 	gpio_poweroff = devm_kzalloc(&pdev->dev, sizeof(*gpio_poweroff), GFP_KERNEL);
@@ -75,14 +76,18 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 	device_property_read_u32(&pdev->dev, "inactive-delay-ms",
 				 &gpio_poweroff->inactive_delay_ms);
 	device_property_read_u32(&pdev->dev, "timeout-ms", &gpio_poweroff->timeout_ms);
+	device_property_read_u32(&pdev->dev, "priority", &priority);
+	if (priority > 255) {
+		dev_err(&pdev->dev, "Invalid priority property: %u\n", priority);
+		return -EINVAL;
+	}
 
 	gpio_poweroff->reset_gpio = devm_gpiod_get(&pdev->dev, NULL, flags);
 	if (IS_ERR(gpio_poweroff->reset_gpio))
 		return PTR_ERR(gpio_poweroff->reset_gpio);
 
 	ret = devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_POWER_OFF,
-					    SYS_OFF_PRIO_DEFAULT, gpio_poweroff_do_poweroff,
-					    gpio_poweroff);
+					    priority, gpio_poweroff_do_poweroff, gpio_poweroff);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "Cannot register poweroff handler\n");
 
