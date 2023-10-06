@@ -185,8 +185,6 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 						struct drm_connector_state *conn_state,
 						struct link_config_limits *limits)
 {
-	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
-	struct intel_dp *intel_dp = &intel_mst->primary->dp;
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
@@ -209,7 +207,7 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 	max_bpp = min_t(u8, dsc_max_bpc * 3, limits->pipe.max_bpp);
 	min_bpp = limits->pipe.min_bpp;
 
-	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(intel_dp->dsc_dpcd,
+	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(connector->dp.dsc_dpcd,
 						       dsc_bpc);
 
 	drm_dbg_kms(&i915->drm, "DSC Source supported min bpp %d max bpp %d\n",

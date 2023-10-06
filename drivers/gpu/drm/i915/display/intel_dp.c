@@ -2037,7 +2037,7 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	 * Get the maximum DSC bpc that will be supported by any valid
 	 * link configuration and compressed bpp.
 	 */
-	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(intel_dp->dsc_dpcd, dsc_bpc);
+	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(connector->dp.dsc_dpcd, dsc_bpc);
 	for (i = 0; i < num_bpc; i++) {
 		pipe_bpp = dsc_bpc[i] * 3;
 		if (pipe_bpp < dsc_min_bpp)
