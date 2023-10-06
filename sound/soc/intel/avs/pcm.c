@@ -625,7 +625,7 @@ static int avs_dai_fe_prepare(struct snd_pcm_substream *substream, struct snd_so
 	if (ret < 0)
 		return ret;
 
-	ret = snd_hdac_stream_setup(hdac_stream(host_stream));
+	ret = snd_hdac_ext_host_stream_setup(host_stream);
 	if (ret < 0)
 		return ret;
 

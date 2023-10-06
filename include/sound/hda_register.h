@@ -91,6 +91,8 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_REG_SD_BDLPL		0x18
 #define AZX_REG_SD_BDLPU		0x1c
 
+#define AZX_SD_FIFOSIZE_MASK		GENMASK(15, 0)
+
 /* GTS registers */
 #define AZX_REG_LLCH			0x14
 

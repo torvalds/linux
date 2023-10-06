@@ -8,7 +8,6 @@
 #define __SND_AOA_CODEC_ONYX_H
 #include <linux/i2c.h>
 #include <asm/pmac_low_i2c.h>
-#include <asm/prom.h>
 
 /* PCM3052 register definitions */
 

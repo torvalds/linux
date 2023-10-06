@@ -124,7 +124,6 @@ static void skl_set_suspend_active(struct snd_pcm_substream *substream,
 int skl_pcm_host_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 {
 	struct hdac_bus *bus = dev_get_drvdata(dev);
-	struct skl_dev *skl = bus_to_skl(bus);
 	unsigned int format_val;
 	struct hdac_stream *hstream;
 	struct hdac_ext_stream *stream;
@@ -149,18 +148,7 @@ int skl_pcm_host_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 	if (err < 0)
 		return err;
 
-	/*
-	 * The recommended SDxFMT programming sequence for BXT
-	 * platforms is to couple the stream before writing the format
-	 */
-	if (HDA_CONTROLLER_IS_APL(skl->pci)) {
-		snd_hdac_ext_stream_decouple(bus, stream, false);
-		err = snd_hdac_stream_setup(hdac_stream(stream));
-		snd_hdac_ext_stream_decouple(bus, stream, true);
-	} else {
-		err = snd_hdac_stream_setup(hdac_stream(stream));
-	}
-
+	err = snd_hdac_ext_host_stream_setup(stream);
 	if (err < 0)
 		return err;
 
