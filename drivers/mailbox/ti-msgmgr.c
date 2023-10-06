@@ -15,10 +15,10 @@
 #include <linux/kernel.h>
 #include <linux/mailbox_controller.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/soc/ti/ti-msgmgr.h>
 
 #define Q_DATA_OFFSET(proxy, queue, reg)	\
@@ -810,7 +810,6 @@ MODULE_DEVICE_TABLE(of, ti_msgmgr_of_match);
 static int ti_msgmgr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	struct device_node *np;
 	const struct ti_msgmgr_desc *desc;
 	struct ti_msgmgr_inst *inst;
@@ -828,19 +827,12 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 	}
 	np = dev->of_node;
 
-	of_id = of_match_device(ti_msgmgr_of_match, dev);
-	if (!of_id) {
-		dev_err(dev, "OF data missing\n");
-		return -EINVAL;
-	}
-	desc = of_id->data;
-
 	inst = devm_kzalloc(dev, sizeof(*inst), GFP_KERNEL);
 	if (!inst)
 		return -ENOMEM;
 
 	inst->dev = dev;
-	inst->desc = desc;
+	inst->desc = desc = device_get_match_data(dev);
 
 	inst->queue_proxy_region =
 		devm_platform_ioremap_resource_byname(pdev, desc->data_region_name);
