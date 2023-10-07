@@ -57,6 +57,7 @@ properties:
     patternProperties:
       "^port@[01]$":
         $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
         description:
           Camera A and camera B inputs.
 
