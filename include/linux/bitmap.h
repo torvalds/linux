@@ -10,6 +10,7 @@
 #include <linux/limits.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/bitmap-str.h>
 
 struct device;
 
@@ -200,14 +201,6 @@ bitmap_find_next_zero_area(unsigned long *map,
 					      align_mask, 0);
 }
 
-int bitmap_parse(const char *buf, unsigned int buflen,
-			unsigned long *dst, int nbits);
-int bitmap_parse_user(const char __user *ubuf, unsigned int ulen,
-			unsigned long *dst, int nbits);
-int bitmap_parselist(const char *buf, unsigned long *maskp,
-			int nmaskbits);
-int bitmap_parselist_user(const char __user *ubuf, unsigned int ulen,
-			unsigned long *dst, int nbits);
 void bitmap_remap(unsigned long *dst, const unsigned long *src,
 		const unsigned long *old, const unsigned long *new, unsigned int nbits);
 int bitmap_bitremap(int oldbit,
@@ -219,15 +212,6 @@ void bitmap_fold(unsigned long *dst, const unsigned long *orig,
 int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order);
 void bitmap_release_region(unsigned long *bitmap, unsigned int pos, int order);
 int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order);
-
-int bitmap_print_to_pagebuf(bool list, char *buf,
-				   const unsigned long *maskp, int nmaskbits);
-
-extern int bitmap_print_bitmask_to_buf(char *buf, const unsigned long *maskp,
-				      int nmaskbits, loff_t off, size_t count);
-
-extern int bitmap_print_list_to_buf(char *buf, const unsigned long *maskp,
-				      int nmaskbits, loff_t off, size_t count);
 
 #define BITMAP_FIRST_WORD_MASK(start) (~0UL << ((start) & (BITS_PER_LONG - 1)))
 #define BITMAP_LAST_WORD_MASK(nbits) (~0UL >> (-(nbits) & (BITS_PER_LONG - 1)))
