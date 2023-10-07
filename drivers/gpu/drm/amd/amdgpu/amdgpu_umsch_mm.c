@@ -76,17 +76,6 @@ struct umsch_mm_test {
 	uint32_t		num_queues;
 };
 
-int umsch_mm_psp_update_sram(struct amdgpu_device *adev, u32 ucode_size)
-{
-	struct amdgpu_firmware_info ucode = {
-		.ucode_id = AMDGPU_UCODE_ID_UMSCH_MM_CMD_BUFFER,
-		.mc_addr = adev->umsch_mm.cmd_buf_gpu_addr,
-		.ucode_size = ucode_size,
-	};
-
-	return psp_execute_ip_fw_load(&adev->psp, &ucode);
-}
-
 static int map_ring_data(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			  struct amdgpu_bo *bo, struct amdgpu_bo_va **bo_va,
 			  uint64_t addr, uint32_t size)
@@ -693,15 +682,17 @@ int amdgpu_umsch_mm_allocate_ucode_data_buffer(struct amdgpu_umsch_mm *umsch)
 	return 0;
 }
 
-void* amdgpu_umsch_mm_add_cmd(struct amdgpu_umsch_mm *umsch,
-			      void* cmd_ptr, uint32_t reg_offset, uint32_t reg_data)
+int amdgpu_umsch_mm_psp_execute_cmd_buf(struct amdgpu_umsch_mm *umsch)
 {
-	uint32_t* ptr = (uint32_t *)cmd_ptr;
+	struct amdgpu_device *adev = umsch->ring.adev;
+	struct amdgpu_firmware_info ucode = {
+		.ucode_id = AMDGPU_UCODE_ID_UMSCH_MM_CMD_BUFFER,
+		.mc_addr = adev->umsch_mm.cmd_buf_gpu_addr,
+		.ucode_size = ((uintptr_t)adev->umsch_mm.cmd_buf_curr_ptr -
+			      (uintptr_t)adev->umsch_mm.cmd_buf_ptr),
+	};
 
-	*ptr++ = (reg_offset << 2);
-	*ptr++ = reg_data;
-
-	return ptr;
+	return psp_execute_ip_fw_load(&adev->psp, &ucode);
 }
 
 static void umsch_mm_agdb_index_init(struct amdgpu_device *adev)
@@ -823,11 +814,9 @@ static int umsch_mm_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
-		r = umsch_mm_load_microcode(&adev->umsch_mm);
-		if (r)
-			return r;
-	}
+	r = umsch_mm_load_microcode(&adev->umsch_mm);
+	if (r)
+		return r;
 
 	umsch_mm_ring_start(&adev->umsch_mm);
 

@@ -150,6 +150,7 @@ struct amdgpu_umsch_mm {
 	struct amdgpu_bo		*cmd_buf_obj;
 	uint64_t			cmd_buf_gpu_addr;
 	uint32_t			*cmd_buf_ptr;
+	uint32_t			*cmd_buf_curr_ptr;
 
 	uint32_t			wb_index;
 	uint64_t			sch_ctx_gpu_addr;
@@ -167,18 +168,27 @@ struct amdgpu_umsch_mm {
 	struct mutex			mutex_hidden;
 };
 
-int umsch_mm_psp_update_sram(struct amdgpu_device *adev, u32 ucode_size);
-
 int amdgpu_umsch_mm_submit_pkt(struct amdgpu_umsch_mm *umsch, void *pkt, int ndws);
 int amdgpu_umsch_mm_query_fence(struct amdgpu_umsch_mm *umsch);
 
 int amdgpu_umsch_mm_init_microcode(struct amdgpu_umsch_mm *umsch);
 int amdgpu_umsch_mm_allocate_ucode_buffer(struct amdgpu_umsch_mm *umsch);
 int amdgpu_umsch_mm_allocate_ucode_data_buffer(struct amdgpu_umsch_mm *umsch);
-void* amdgpu_umsch_mm_add_cmd(struct amdgpu_umsch_mm *umsch,
-			      void* cmd_ptr, uint32_t reg_offset, uint32_t reg_data);
+
+int amdgpu_umsch_mm_psp_execute_cmd_buf(struct amdgpu_umsch_mm *umsch);
 
 int amdgpu_umsch_mm_ring_init(struct amdgpu_umsch_mm *umsch);
+
+#define WREG32_SOC15_UMSCH(reg, value)								\
+	do {											\
+		uint32_t reg_offset = adev->reg_offset[VCN_HWIP][0][reg##_BASE_IDX] + reg;	\
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {				\
+			*adev->umsch_mm.cmd_buf_curr_ptr++ = (reg_offset << 2);			\
+			*adev->umsch_mm.cmd_buf_curr_ptr++ = value;				\
+		} else	{									\
+			WREG32(reg_offset, value);						\
+		}										\
+	} while (0)
 
 #define umsch_mm_set_hw_resources(umsch) \
 	((umsch)->funcs->set_hw_resources ? (umsch)->funcs->set_hw_resources((umsch)) : 0)

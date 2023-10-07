@@ -34,23 +34,10 @@
 #include "umsch_mm_4_0_api_def.h"
 #include "umsch_mm_v4_0.h"
 
-#define WREG32_SOC15_UMSCH(ptr, reg, value) \
-({	void *ret = ptr; 										\
-	do { 												\
-		uint32_t reg_offset = adev->reg_offset[VCN_HWIP][0][reg##_BASE_IDX] + reg; 		\
-		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)					\
-			ret = amdgpu_umsch_mm_add_cmd((&adev->umsch_mm), (ptr), (reg_offset), (value)); \
-		else											\
-			WREG32(reg_offset, value);							\
-	} while (0);											\
-	ret;												\
-})
-
 static int umsch_mm_v4_0_load_microcode(struct amdgpu_umsch_mm *umsch)
 {
 	struct amdgpu_device *adev = umsch->ring.adev;
-	void* ptr = umsch->cmd_buf_ptr;
-	uint32_t data;
+	uint64_t data;
 	int r;
 
 	r = amdgpu_umsch_mm_allocate_ucode_buffer(umsch);
@@ -61,97 +48,95 @@ static int umsch_mm_v4_0_load_microcode(struct amdgpu_umsch_mm *umsch)
 	if (r)
 		goto err_free_ucode_bo;
 
+	umsch->cmd_buf_curr_ptr = umsch->cmd_buf_ptr;
+
 	data = RREG32_SOC15(VCN, 0, regUMSCH_MES_RESET_CTRL);
 	data = REG_SET_FIELD(data, UMSCH_MES_RESET_CTRL, MES_CORE_SOFT_RESET, 0);
-	ptr = WREG32_SOC15_UMSCH(ptr, regUMSCH_MES_RESET_CTRL, data);
+	WREG32_SOC15_UMSCH(regUMSCH_MES_RESET_CTRL, data);
 
 	data = RREG32_SOC15(VCN, 0, regVCN_MES_CNTL);
 	data = REG_SET_FIELD(data, VCN_MES_CNTL, MES_INVALIDATE_ICACHE, 1);
 	data = REG_SET_FIELD(data, VCN_MES_CNTL, MES_PIPE0_RESET, 1);
 	data = REG_SET_FIELD(data, VCN_MES_CNTL, MES_PIPE0_ACTIVE, 0);
 	data = REG_SET_FIELD(data, VCN_MES_CNTL, MES_HALT, 1);
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_CNTL, data);
+	WREG32_SOC15_UMSCH(regVCN_MES_CNTL, data);
 
 	data = RREG32_SOC15(VCN, 0, regVCN_MES_IC_BASE_CNTL);
 	data = REG_SET_FIELD(data, VCN_MES_IC_BASE_CNTL, VMID, 0);
 	data = REG_SET_FIELD(data, VCN_MES_IC_BASE_CNTL, EXE_DISABLE, 0);
 	data = REG_SET_FIELD(data, VCN_MES_IC_BASE_CNTL, CACHE_POLICY, 0);
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_IC_BASE_CNTL, data);
+	WREG32_SOC15_UMSCH(regVCN_MES_IC_BASE_CNTL, data);
 
+	WREG32_SOC15_UMSCH(regVCN_MES_INTR_ROUTINE_START,
+		lower_32_bits(adev->umsch_mm.irq_start_addr >> 2));
+	WREG32_SOC15_UMSCH(regVCN_MES_INTR_ROUTINE_START_HI,
+		upper_32_bits(adev->umsch_mm.irq_start_addr >> 2));
 
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_INTR_ROUTINE_START,
-				 lower_32_bits(adev->umsch_mm.irq_start_addr >> 2));
+	WREG32_SOC15_UMSCH(regVCN_MES_PRGRM_CNTR_START,
+		lower_32_bits(adev->umsch_mm.uc_start_addr >> 2));
+	WREG32_SOC15_UMSCH(regVCN_MES_PRGRM_CNTR_START_HI,
+		upper_32_bits(adev->umsch_mm.uc_start_addr >> 2));
 
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_INTR_ROUTINE_START_HI,
-				 upper_32_bits(adev->umsch_mm.irq_start_addr >> 2));
-
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_PRGRM_CNTR_START,
-				 lower_32_bits(adev->umsch_mm.uc_start_addr >> 2));
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_PRGRM_CNTR_START_HI,
-				 upper_32_bits(adev->umsch_mm.uc_start_addr >> 2));
-
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_LOCAL_INSTR_BASE_LO, 0);
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_LOCAL_INSTR_BASE_HI, 0);
+	WREG32_SOC15_UMSCH(regVCN_MES_LOCAL_INSTR_BASE_LO, 0);
+	WREG32_SOC15_UMSCH(regVCN_MES_LOCAL_INSTR_BASE_HI, 0);
 
 	data = adev->umsch_mm.uc_start_addr + adev->umsch_mm.ucode_size - 1;
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_LOCAL_INSTR_MASK_LO, lower_32_bits(data));
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_LOCAL_INSTR_MASK_HI, upper_32_bits(data));
+	WREG32_SOC15_UMSCH(regVCN_MES_LOCAL_INSTR_MASK_LO, lower_32_bits(data));
+	WREG32_SOC15_UMSCH(regVCN_MES_LOCAL_INSTR_MASK_HI, upper_32_bits(data));
 
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_IC_BASE_LO,
-				 lower_32_bits(adev->umsch_mm.ucode_fw_gpu_addr));
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_IC_BASE_HI,
-				 upper_32_bits(adev->umsch_mm.ucode_fw_gpu_addr));
+	data = adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ?
+	       0 : adev->umsch_mm.ucode_fw_gpu_addr;
+	WREG32_SOC15_UMSCH(regVCN_MES_IC_BASE_LO, lower_32_bits(data));
+	WREG32_SOC15_UMSCH(regVCN_MES_IC_BASE_HI, upper_32_bits(data));
 
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_MIBOUND_LO, 0x1FFFFF);
+	WREG32_SOC15_UMSCH(regVCN_MES_MIBOUND_LO, 0x1FFFFF);
 
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_LOCAL_BASE0_LO,
-				 lower_32_bits(adev->umsch_mm.data_start_addr));
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_LOCAL_BASE0_HI,
-				 upper_32_bits(adev->umsch_mm.data_start_addr));
+	WREG32_SOC15_UMSCH(regVCN_MES_LOCAL_BASE0_LO,
+		lower_32_bits(adev->umsch_mm.data_start_addr));
+	WREG32_SOC15_UMSCH(regVCN_MES_LOCAL_BASE0_HI,
+		upper_32_bits(adev->umsch_mm.data_start_addr));
 
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_LOCAL_MASK0_LO,
-				 lower_32_bits(adev->umsch_mm.data_size - 1));
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_LOCAL_MASK0_HI,
-				 upper_32_bits(adev->umsch_mm.data_size - 1));
+	WREG32_SOC15_UMSCH(regVCN_MES_LOCAL_MASK0_LO,
+		lower_32_bits(adev->umsch_mm.data_size - 1));
+	WREG32_SOC15_UMSCH(regVCN_MES_LOCAL_MASK0_HI,
+		upper_32_bits(adev->umsch_mm.data_size - 1));
 
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_DC_BASE_LO,
-				 lower_32_bits(adev->umsch_mm.data_fw_gpu_addr));
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_DC_BASE_HI,
-				 upper_32_bits(adev->umsch_mm.data_fw_gpu_addr));
+	data = adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ?
+	       0 : adev->umsch_mm.data_fw_gpu_addr;
+	WREG32_SOC15_UMSCH(regVCN_MES_DC_BASE_LO, lower_32_bits(data));
+	WREG32_SOC15_UMSCH(regVCN_MES_DC_BASE_HI, upper_32_bits(data));
 
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_MDBOUND_LO, 0x3FFFF);
+	WREG32_SOC15_UMSCH(regVCN_MES_MDBOUND_LO, 0x3FFFF);
 
 	data = RREG32_SOC15(VCN, 0, regUVD_UMSCH_FORCE);
 	data = REG_SET_FIELD(data, UVD_UMSCH_FORCE, IC_FORCE_GPUVM, 1);
 	data = REG_SET_FIELD(data, UVD_UMSCH_FORCE, DC_FORCE_GPUVM, 1);
-	ptr = WREG32_SOC15_UMSCH(ptr, regUVD_UMSCH_FORCE, data);
+	WREG32_SOC15_UMSCH(regUVD_UMSCH_FORCE, data);
 
 	data = RREG32_SOC15(VCN, 0, regVCN_MES_IC_OP_CNTL);
 	data = REG_SET_FIELD(data, VCN_MES_IC_OP_CNTL, PRIME_ICACHE, 0);
 	data = REG_SET_FIELD(data, VCN_MES_IC_OP_CNTL, INVALIDATE_CACHE, 1);
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_IC_OP_CNTL, data);
+	WREG32_SOC15_UMSCH(regVCN_MES_IC_OP_CNTL, data);
 
 	data = RREG32_SOC15(VCN, 0, regVCN_MES_IC_OP_CNTL);
 	data = REG_SET_FIELD(data, VCN_MES_IC_OP_CNTL, PRIME_ICACHE, 1);
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_IC_OP_CNTL, data);
+	WREG32_SOC15_UMSCH(regVCN_MES_IC_OP_CNTL, data);
 
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_GP0_LO, 0);
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_GP0_HI, 0);
+	WREG32_SOC15_UMSCH(regVCN_MES_GP0_LO, 0);
+	WREG32_SOC15_UMSCH(regVCN_MES_GP0_HI, 0);
 
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_GP1_LO, 0);
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_GP1_HI, 0);
+	WREG32_SOC15_UMSCH(regVCN_MES_GP1_LO, 0);
+	WREG32_SOC15_UMSCH(regVCN_MES_GP1_HI, 0);
 
 	data = RREG32_SOC15(VCN, 0, regVCN_MES_CNTL);
 	data = REG_SET_FIELD(data, VCN_MES_CNTL, MES_INVALIDATE_ICACHE, 0);
 	data = REG_SET_FIELD(data, VCN_MES_CNTL, MES_PIPE0_RESET, 0);
 	data = REG_SET_FIELD(data, VCN_MES_CNTL, MES_HALT, 0);
 	data = REG_SET_FIELD(data, VCN_MES_CNTL, MES_PIPE0_ACTIVE, 1);
-	ptr = WREG32_SOC15_UMSCH(ptr, regVCN_MES_CNTL, data);
+	WREG32_SOC15_UMSCH(regVCN_MES_CNTL, data);
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-		umsch_mm_psp_update_sram(adev,
-					 (u32)((uintptr_t)ptr - (uintptr_t)umsch->cmd_buf_ptr));
-	}
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)
+		amdgpu_umsch_mm_psp_execute_cmd_buf(umsch);
 
 	r = SOC15_WAIT_ON_RREG(VCN, 0, regVCN_MES_MSTATUS_LO, 0xAAAAAAAA, 0xFFFFFFFF);
 	if (r) {
