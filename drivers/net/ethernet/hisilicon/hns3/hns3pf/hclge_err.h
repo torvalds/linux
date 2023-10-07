@@ -196,6 +196,7 @@ struct hclge_hw_module_id {
 struct hclge_hw_type_id {
 	enum hclge_err_type_list type_id;
 	const char *msg;
+	bool cause_by_vf; /* indicate the error may from vf exception */
 };
 
 struct hclge_sum_err_info {
@@ -228,4 +229,5 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 			       unsigned long *reset_requests);
 int hclge_handle_error_info_log(struct hnae3_ae_dev *ae_dev);
 int hclge_handle_mac_tnl(struct hclge_dev *hdev);
+int hclge_handle_vf_queue_err_ras(struct hclge_dev *hdev);
 #endif
