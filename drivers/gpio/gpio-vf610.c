@@ -287,7 +287,10 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 
 	dual_base = port->sdata->have_dual_base;
 
-	/* support old compatible strings */
+	/*
+	 * Handle legacy compatible combinations which used two reg values
+	 * for the i.MX8ULP and i.MX93.
+	 */
 	if (device_is_compatible(dev, "fsl,imx7ulp-gpio") &&
 	    (device_is_compatible(dev, "fsl,imx93-gpio") ||
 	    (device_is_compatible(dev, "fsl,imx8ulp-gpio"))))
