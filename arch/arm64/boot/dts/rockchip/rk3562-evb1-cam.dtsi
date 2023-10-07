@@ -59,6 +59,7 @@
 		compatible = "dongwoon,dw9714";
 		status = "okay";
 		reg = <0x0c>;
+		avdd-supply = <&vcc2v8_dvp>;
 		rockchip,vcm-start-current = <10>;
 		rockchip,vcm-rated-current = <85>;
 		rockchip,vcm-step-mode = <5>;
