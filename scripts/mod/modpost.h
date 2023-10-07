@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <byteswap.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,21 +52,19 @@
 #define ELF_R_TYPE  ELF64_R_TYPE
 #endif
 
+#define bswap(x) \
+({ \
+	_Static_assert(sizeof(x) == 1 || sizeof(x) == 2 || \
+		       sizeof(x) == 4 || sizeof(x) == 8, "bug"); \
+	(typeof(x))(sizeof(x) == 2 ? bswap_16(x) : \
+		    sizeof(x) == 4 ? bswap_32(x) : \
+		    sizeof(x) == 8 ? bswap_64(x) : \
+		    x); \
+})
+
 #if KERNEL_ELFDATA != HOST_ELFDATA
 
-static inline void __endian(const void *src, void *dest, unsigned int size)
-{
-	unsigned int i;
-	for (i = 0; i < size; i++)
-		((unsigned char*)dest)[i] = ((unsigned char*)src)[size - i-1];
-}
-
-#define TO_NATIVE(x)						\
-({								\
-	typeof(x) __x;						\
-	__endian(&(x), &(__x), sizeof(__x));			\
-	__x;							\
-})
+#define TO_NATIVE(x) (bswap(x))
 
 #else /* endianness matches */
 

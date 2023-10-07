@@ -1410,15 +1410,10 @@ static void get_rel_type_and_sym(struct elf_info *elf, uint64_t r_info,
 		return;
 	}
 
-	if (is_64bit) {
-		Elf64_Xword r_info64 = r_info;
-
-		r_info = TO_NATIVE(r_info64);
-	} else {
-		Elf32_Word r_info32 = r_info;
-
-		r_info = TO_NATIVE(r_info32);
-	}
+	if (is_64bit)
+		r_info = TO_NATIVE((Elf64_Xword)r_info);
+	else
+		r_info = TO_NATIVE((Elf32_Word)r_info);
 
 	*r_type = ELF_R_TYPE(r_info);
 	*r_sym = ELF_R_SYM(r_info);
