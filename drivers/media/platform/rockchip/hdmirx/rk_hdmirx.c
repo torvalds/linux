@@ -35,6 +35,7 @@
 #include <media/cec.h>
 #include <media/cec-notifier.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-controls_rockchip.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-dv-timings.h>
@@ -188,6 +189,8 @@ struct rk_hdmirx_dev {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler hdl;
 	struct v4l2_ctrl *detect_tx_5v_ctrl;
+	struct v4l2_ctrl *audio_sampling_rate_ctrl;
+	struct v4l2_ctrl *audio_present_ctrl;
 	struct v4l2_dv_timings timings;
 	struct gpio_desc *hdmirx_det_gpio;
 	struct work_struct work_wdt_config;
@@ -4187,6 +4190,50 @@ static void hdmirx_cancel_cpu_limit_freq(struct rk_hdmirx_dev *hdmirx_dev)
 		dev_err(hdmirx_dev->dev, "%s freq qos nod add\n", __func__);
 }
 
+static int hdmirx_get_custom_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = container_of(ctrl->handler, struct rk_hdmirx_dev, hdl);
+	int ret = 0;
+
+	if (ctrl->id == RK_V4L2_CID_AUDIO_SAMPLING_RATE) {
+		*ctrl->p_new.p_s32 = hdmirx_dev->audio_state.fs_audio;
+	} else if (ctrl->id == RK_V4L2_CID_AUDIO_PRESENT) {
+		*ctrl->p_new.p_s32 = tx_5v_power_present(hdmirx_dev) ?
+					hdmirx_dev->audio_present : 0;
+	} else {
+		ret = -EINVAL;
+	}
+	return ret;
+}
+
+static const struct v4l2_ctrl_ops hdmirx_custom_ctrl_ops = {
+	.g_volatile_ctrl = hdmirx_get_custom_ctrl,
+};
+
+static const struct v4l2_ctrl_config hdmirx_ctrl_audio_sampling_rate = {
+	.ops = &hdmirx_custom_ctrl_ops,
+	.id = RK_V4L2_CID_AUDIO_SAMPLING_RATE,
+	.name = "Audio sampling rate",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 768000,
+	.step = 1,
+	.def = 0,
+	.flags = V4L2_CTRL_FLAG_READ_ONLY,
+};
+
+static const struct v4l2_ctrl_config hdmirx_ctrl_audio_present = {
+	.ops = &hdmirx_custom_ctrl_ops,
+	.id = RK_V4L2_CID_AUDIO_PRESENT,
+	.name = "Audio present",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.min = 0,
+	.max = 1,
+	.step = 1,
+	.def = 0,
+	.flags = V4L2_CTRL_FLAG_READ_ONLY,
+};
+
 static int hdmirx_probe(struct platform_device *pdev)
 {
 	const struct v4l2_dv_timings timings_def = HDMIRX_DEFAULT_TIMING;
@@ -4300,10 +4347,19 @@ static int hdmirx_probe(struct platform_device *pdev)
 	strscpy(v4l2_dev->name, dev_name(dev), sizeof(v4l2_dev->name));
 
 	hdl = &hdmirx_dev->hdl;
-	v4l2_ctrl_handler_init(hdl, 1);
+	v4l2_ctrl_handler_init(hdl, 3);
 	hdmirx_dev->detect_tx_5v_ctrl = v4l2_ctrl_new_std(hdl,
 			NULL, V4L2_CID_DV_RX_POWER_PRESENT,
 			0, 1, 0, 0);
+	/* custom controls */
+	hdmirx_dev->audio_sampling_rate_ctrl = v4l2_ctrl_new_custom(hdl,
+			&hdmirx_ctrl_audio_sampling_rate, NULL);
+	if (hdmirx_dev->audio_sampling_rate_ctrl)
+		hdmirx_dev->audio_sampling_rate_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
+	hdmirx_dev->audio_present_ctrl = v4l2_ctrl_new_custom(hdl,
+			&hdmirx_ctrl_audio_present, NULL);
+	if (hdmirx_dev->audio_present_ctrl)
+		hdmirx_dev->audio_present_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 	if (hdl->error) {
 		dev_err(dev, "v4l2 ctrl handler init failed!\n");
 		ret = hdl->error;
