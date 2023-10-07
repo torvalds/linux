@@ -91,7 +91,8 @@ struct pxad_desc_sw {
 	bool			cyclic;
 	struct dma_pool		*desc_pool;	/* Channel's used allocator */
 
-	struct pxad_desc_hw	*hw_desc[];	/* DMA coherent descriptors */
+	struct pxad_desc_hw	*hw_desc[] __counted_by(nb_desc);
+						/* DMA coherent descriptors */
 };
 
 struct pxad_phy {
@@ -739,6 +740,7 @@ pxad_alloc_desc(struct pxad_chan *chan, unsigned int nb_hw_desc)
 {
 	struct pxad_desc_sw *sw_desc;
 	dma_addr_t dma;
+	void *desc;
 	int i;
 
 	sw_desc = kzalloc(struct_size(sw_desc, hw_desc, nb_hw_desc),
@@ -748,20 +750,21 @@ pxad_alloc_desc(struct pxad_chan *chan, unsigned int nb_hw_desc)
 	sw_desc->desc_pool = chan->desc_pool;
 
 	for (i = 0; i < nb_hw_desc; i++) {
-		sw_desc->hw_desc[i] = dma_pool_alloc(sw_desc->desc_pool,
-						     GFP_NOWAIT, &dma);
-		if (!sw_desc->hw_desc[i]) {
+		desc = dma_pool_alloc(sw_desc->desc_pool, GFP_NOWAIT, &dma);
+		if (!desc) {
 			dev_err(&chan->vc.chan.dev->device,
 				"%s(): Couldn't allocate the %dth hw_desc from dma_pool %p\n",
 				__func__, i, sw_desc->desc_pool);
 			goto err;
 		}
 
+		sw_desc->nb_desc++;
+		sw_desc->hw_desc[i] = desc;
+
 		if (i == 0)
 			sw_desc->first = dma;
 		else
 			sw_desc->hw_desc[i - 1]->ddadr = dma;
-		sw_desc->nb_desc++;
 	}
 
 	return sw_desc;
