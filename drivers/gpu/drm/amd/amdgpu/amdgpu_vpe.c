@@ -240,11 +240,12 @@ static void vpe_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 {
 	int i;
 
-	amdgpu_ring_write(ring, ring->funcs->nop |
+	for (i = 0; i < count; i++)
+		if (i == 0)
+			amdgpu_ring_write(ring, ring->funcs->nop |
 				VPE_CMD_NOP_HEADER_COUNT(count - 1));
-
-	for (i = 0; i < count - 1; i++)
-		amdgpu_ring_write(ring, 0);
+		else
+			amdgpu_ring_write(ring, ring->funcs->nop);
 }
 
 static uint64_t vpe_get_csa_mc_addr(struct amdgpu_ring *ring, uint32_t vmid)
