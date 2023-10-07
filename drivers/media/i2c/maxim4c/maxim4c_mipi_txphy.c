@@ -182,6 +182,11 @@ int maxim4c_dphy_dpll_predef_set(maxim4c_t *maxim4c, s64 link_freq_hz)
 				reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
 				0xf4);
 
+		reg_addr = 0x1C03 + 0x100 * phy_idx;
+		ret |= maxim4c_i2c_update_byte(client, reg_addr,
+					       MAXIM4C_I2C_REG_ADDR_16BITS,
+					       0x07, phy_cfg->ssc_ratio);
+
 		// Set dpll data rate
 		reg_addr = 0x0415 + 0x03 * phy_idx;
 		ret |= maxim4c_i2c_update_byte(client,
@@ -347,6 +352,12 @@ static int maxim4c_mipi_txphy_config_parse_dt(struct device *dev,
 			if (ret == 0) {
 				dev_info(dev, "clock-mode property: %d", value);
 				phy_cfg->clock_mode = value;
+			}
+
+			ret = of_property_read_u32(node, "ssc-ratio", &value);
+			if (ret == 0) {
+				dev_info(dev, "ssc-ratio property: %d", value);
+				phy_cfg->ssc_ratio = value;
 			}
 
 			sub_idx++;
@@ -541,6 +552,7 @@ void maxim4c_mipi_txphy_data_init(maxim4c_t *maxim4c)
 		phy_cfg->vc_ext_en = 0;
 		phy_cfg->clock_master = 0;
 		phy_cfg->clock_mode = MAXIM4C_TXPHY_DPLL_PREDEF;
+		phy_cfg->ssc_ratio = 0;
 	}
 }
 EXPORT_SYMBOL(maxim4c_mipi_txphy_data_init);

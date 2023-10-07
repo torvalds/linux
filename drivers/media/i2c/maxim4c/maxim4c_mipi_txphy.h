@@ -53,6 +53,7 @@ struct maxim4c_txphy_cfg {
 	u8 vc_ext_en;
 	u8 clock_master;
 	u8 clock_mode;
+	u8 ssc_ratio;
 };
 
 typedef struct maxim4c_mipi_txphy {

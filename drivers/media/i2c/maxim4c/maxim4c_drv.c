@@ -29,8 +29,9 @@
  * V2.03.00
  *     1. remote device add the maxim4c prefix to driver name.
  *
- * V2.04.00
+ * V2.04.01
  *     1. Add regulator supplier dependencies.
+ *     2. Add config ssc-ratio property
  *
  */
 #include <linux/clk.h>
@@ -61,7 +62,7 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(2, 0x04, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(2, 0x04, 0x01)
 
 #define MAXIM4C_XVCLK_FREQ		25000000
 
