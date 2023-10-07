@@ -12,7 +12,7 @@ int jent_read_random_block(void *hash_state, char *dst, unsigned int dst_len);
 
 struct rand_data;
 extern int jent_entropy_init(unsigned int osr, unsigned int flags,
-			     void *hash_state);
+			     void *hash_state, struct rand_data *p_ec);
 extern int jent_read_entropy(struct rand_data *ec, unsigned char *data,
 			     unsigned int len);
 
