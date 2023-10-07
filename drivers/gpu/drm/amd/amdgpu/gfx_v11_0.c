@@ -6368,7 +6368,7 @@ static int gfx_v11_0_get_cu_info(struct amdgpu_device *adev,
 			 *    SE6: {SH0,SH1} --> {bitmap[2][2], bitmap[2][3]}
 			 *    SE7: {SH0,SH1} --> {bitmap[3][2], bitmap[3][3]}
 			 */
-			cu_info->bitmap[i % 4][j + (i / 4) * 2] = bitmap;
+			cu_info->bitmap[0][i % 4][j + (i / 4) * 2] = bitmap;
 
 			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k++) {
 				if (bitmap & mask)

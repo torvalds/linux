@@ -162,7 +162,7 @@ static int pds_vfio_init_device(struct vfio_device *vdev)
 	pci_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
 	dev_dbg(&pdev->dev,
 		"%s: PF %#04x VF %#04x vf_id %d domain %d pds_vfio %p\n",
-		__func__, pci_dev_id(pdev->physfn), pci_id, vf_id,
+		__func__, pci_dev_id(pci_physfn(pdev)), pci_id, vf_id,
 		pci_domain_nr(pdev->bus), pds_vfio);
 
 	return 0;

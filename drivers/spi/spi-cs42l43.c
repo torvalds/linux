@@ -256,7 +256,6 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 
 	ret = devm_spi_register_controller(priv->dev, priv->ctlr);
 	if (ret) {
-		pm_runtime_disable(priv->dev);
 		dev_err(priv->dev, "Failed to register SPI controller: %d\n", ret);
 	}
 

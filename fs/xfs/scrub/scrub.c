@@ -588,6 +588,8 @@ out_nofix:
 out_teardown:
 	error = xchk_teardown(sc, error);
 out_sc:
+	if (error != -ENOENT)
+		xchk_stats_merge(mp, sm, &run);
 	kfree(sc);
 out:
 	trace_xchk_done(XFS_I(file_inode(file)), sm, error);
@@ -595,8 +597,6 @@ out:
 		sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 		error = 0;
 	}
-	if (error != -ENOENT)
-		xchk_stats_merge(mp, sm, &run);
 	return error;
 need_drain:
 	error = xchk_teardown(sc, 0);

@@ -108,10 +108,8 @@ struct vkms_output {
 	struct workqueue_struct *composer_workq;
 	/* protects concurrent access to composer */
 	spinlock_t lock;
-	/* guarantees that if the composer is enabled, a job will be queued */
-	struct mutex enabled_lock;
 
-	/* protected by @enabled_lock */
+	/* protected by @lock */
 	bool composer_enabled;
 	struct vkms_crtc_state *composer_state;
 

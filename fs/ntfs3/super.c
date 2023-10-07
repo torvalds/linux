@@ -1562,6 +1562,7 @@ load_root:
 put_inode_out:
 	iput(inode);
 out:
+	ntfs3_put_sbi(sbi);
 	kfree(boot2);
 	return err;
 }
