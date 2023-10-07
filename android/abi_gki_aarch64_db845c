@@ -523,6 +523,7 @@
   param_ops_uint
   pci_clear_master
   pci_disable_device
+  pcie_capability_clear_and_set_word
   pcie_capability_read_word
   pcie_capability_write_word
   pci_enable_device
