@@ -5293,6 +5293,42 @@ static ssize_t bus_vote_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(bus_vote);
 
+static ssize_t enable_l1_suspend_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
+	struct dwc3	 *dwc = platform_get_drvdata(mdwc->dwc3);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", dwc->gadget->lpm_capable);
+
+}
+
+static ssize_t enable_l1_suspend_store(struct device *dev,
+		struct device_attribute *attr, const char *buf,
+		size_t count)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
+	struct dwc3	 *dwc = platform_get_drvdata(mdwc->dwc3);
+	bool		 enable_l1;
+	int		 ret;
+
+	ret = kstrtobool(buf, &enable_l1);
+	if (ret < 0) {
+		dev_err(dwc->dev, "%s: can't get entered value: %d\n",
+							__func__, ret);
+		return ret;
+	}
+
+	dwc->gadget->lpm_capable = enable_l1;
+	dwc->usb2_gadget_lpm_disable = !enable_l1;
+
+	pr_info("dwc3 gadget lpm : %s. Perform a plugout/plugin\n",
+				enable_l1 ? "enabled" : "disabled");
+
+	return count;
+}
+static DEVICE_ATTR_RW(enable_l1_suspend);
+
 static ssize_t xhci_test_store(struct device *dev,
 		struct device_attribute *attr, const char *buf,
 		size_t count)
@@ -5375,6 +5411,7 @@ static struct attribute *dwc3_msm_attrs[] = {
 	&dev_attr_mode.attr,
 	&dev_attr_speed.attr,
 	&dev_attr_bus_vote.attr,
+	&dev_attr_enable_l1_suspend.attr,
 	&dev_attr_xhci_test.attr,
 	&dev_attr_dynamic_disable.attr,
 	NULL
