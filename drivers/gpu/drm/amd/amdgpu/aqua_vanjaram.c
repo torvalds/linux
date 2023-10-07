@@ -921,6 +921,125 @@ static ssize_t aqua_vanjaram_read_wafl_state(struct amdgpu_device *adev,
 	return wafl_reg_state->common_header.structure_size;
 }
 
+#define smnreg_0x1B311060 0x1B311060
+#define smnreg_0x1B411060 0x1B411060
+#define smnreg_0x1B511060 0x1B511060
+#define smnreg_0x1B611060 0x1B611060
+
+#define smnreg_0x1C307120 0x1C307120
+#define smnreg_0x1C317120 0x1C317120
+
+#define smnreg_0x1C320830 0x1C320830
+#define smnreg_0x1C380830 0x1C380830
+#define smnreg_0x1C3D0830 0x1C3D0830
+#define smnreg_0x1C420830 0x1C420830
+
+#define smnreg_0x1C320100 0x1C320100
+#define smnreg_0x1C380100 0x1C380100
+#define smnreg_0x1C3D0100 0x1C3D0100
+#define smnreg_0x1C420100 0x1C420100
+
+#define smnreg_0x1B310500 0x1B310500
+#define smnreg_0x1C300400 0x1C300400
+
+#define USR_CAKE_INCR 0x11000
+#define USR_LINK_INCR 0x100000
+#define USR_CP_INCR 0x10000
+
+#define NUM_USR_SMN_REGS	20
+
+struct aqua_reg_list usr_reg_addrs[] = {
+	{ smnreg_0x1B311060, 4, DW_ADDR_INCR },
+	{ smnreg_0x1B411060, 4, DW_ADDR_INCR },
+	{ smnreg_0x1B511060, 4, DW_ADDR_INCR },
+	{ smnreg_0x1B611060, 4, DW_ADDR_INCR },
+	{ smnreg_0x1C307120, 2, DW_ADDR_INCR },
+	{ smnreg_0x1C317120, 2, DW_ADDR_INCR },
+};
+
+#define NUM_USR1_SMN_REGS	46
+struct aqua_reg_list usr1_reg_addrs[] = {
+	{ smnreg_0x1C320830, 6, USR_CAKE_INCR },
+	{ smnreg_0x1C380830, 5, USR_CAKE_INCR },
+	{ smnreg_0x1C3D0830, 5, USR_CAKE_INCR },
+	{ smnreg_0x1C420830, 4, USR_CAKE_INCR },
+	{ smnreg_0x1C320100, 6, USR_CAKE_INCR },
+	{ smnreg_0x1C380100, 5, USR_CAKE_INCR },
+	{ smnreg_0x1C3D0100, 5, USR_CAKE_INCR },
+	{ smnreg_0x1C420100, 4, USR_CAKE_INCR },
+	{ smnreg_0x1B310500, 4, USR_LINK_INCR },
+	{ smnreg_0x1C300400, 2, USR_CP_INCR },
+};
+
+static ssize_t aqua_vanjaram_read_usr_state(struct amdgpu_device *adev,
+					    void *buf, size_t max_size,
+					    int reg_state)
+{
+	uint32_t start_addr, incrx, num_regs, szbuf, num_smn;
+	struct amdgpu_reg_state_usr_v1_0 *usr_reg_state;
+	struct amdgpu_regs_usr_v1_0 *usr_regs;
+	struct amdgpu_smn_reg_data *reg_data;
+	const int max_usr_instances = 4;
+	struct aqua_reg_list *reg_addrs;
+	int inst = 0, i, n, r, arr_size;
+	void *p;
+
+	if (!buf || !max_size)
+		return -EINVAL;
+
+	switch (reg_state) {
+	case AMDGPU_REG_STATE_TYPE_USR:
+		arr_size = ARRAY_SIZE(usr_reg_addrs);
+		reg_addrs = usr_reg_addrs;
+		num_smn = NUM_USR_SMN_REGS;
+		break;
+	case AMDGPU_REG_STATE_TYPE_USR_1:
+		arr_size = ARRAY_SIZE(usr1_reg_addrs);
+		reg_addrs = usr1_reg_addrs;
+		num_smn = NUM_USR1_SMN_REGS;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	usr_reg_state = (struct amdgpu_reg_state_usr_v1_0 *)buf;
+
+	szbuf = sizeof(*usr_reg_state) + amdgpu_reginst_size(max_usr_instances,
+							     sizeof(*usr_regs),
+							     num_smn);
+	if (max_size < szbuf)
+		return -EOVERFLOW;
+
+	p = &usr_reg_state->usr_state_regs[0];
+	for_each_inst(i, adev->aid_mask) {
+		usr_regs = (struct amdgpu_regs_usr_v1_0 *)p;
+		usr_regs->inst_header.instance = inst++;
+		usr_regs->inst_header.state = AMDGPU_INST_S_OK;
+		usr_regs->inst_header.num_smn_regs = num_smn;
+		reg_data = usr_regs->smn_reg_values;
+
+		for (r = 0; r < arr_size; r++) {
+			start_addr = reg_addrs[r].start_addr;
+			incrx = reg_addrs[r].incrx;
+			num_regs = reg_addrs[r].num_regs;
+			for (n = 0; n < num_regs; n++) {
+				aqua_read_smn_ext(adev, reg_data,
+						  start_addr + n * incrx, i);
+				reg_data++;
+			}
+		}
+		p = reg_data;
+	}
+
+	usr_reg_state->common_header.structure_size = szbuf;
+	usr_reg_state->common_header.format_revision = 1;
+	usr_reg_state->common_header.content_revision = 0;
+	usr_reg_state->common_header.state_type = AMDGPU_REG_STATE_TYPE_USR;
+	usr_reg_state->common_header.num_instances = max_usr_instances;
+
+	return usr_reg_state->common_header.structure_size;
+}
+
 ssize_t aqua_vanjaram_get_reg_state(struct amdgpu_device *adev,
 				    enum amdgpu_reg_state reg_state, void *buf,
 				    size_t max_size)
@@ -936,6 +1055,14 @@ ssize_t aqua_vanjaram_get_reg_state(struct amdgpu_device *adev,
 		break;
 	case AMDGPU_REG_STATE_TYPE_WAFL:
 		size = aqua_vanjaram_read_wafl_state(adev, buf, max_size);
+		break;
+	case AMDGPU_REG_STATE_TYPE_USR:
+		size = aqua_vanjaram_read_usr_state(adev, buf, max_size,
+						    AMDGPU_REG_STATE_TYPE_USR);
+		break;
+	case AMDGPU_REG_STATE_TYPE_USR_1:
+		size = aqua_vanjaram_read_usr_state(
+			adev, buf, max_size, AMDGPU_REG_STATE_TYPE_USR_1);
 		break;
 	default:
 		return -EINVAL;
