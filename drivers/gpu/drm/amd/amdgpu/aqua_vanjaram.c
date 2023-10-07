@@ -848,6 +848,79 @@ static ssize_t aqua_vanjaram_read_xgmi_state(struct amdgpu_device *adev,
 	return xgmi_reg_state->common_header.structure_size;
 }
 
+#define smnreg_0x11C00070	0x11C00070
+#define smnreg_0x11C00210	0x11C00210
+
+static struct aqua_reg_list wafl_reg_addrs[] = {
+	{ smnreg_0x11C00070, 4, DW_ADDR_INCR },
+	{ smnreg_0x11C00210, 1, 0 },
+};
+
+#define WAFL_LINK_REG(smnreg, l) ((smnreg) | (l << 20))
+
+#define NUM_WAFL_SMN_REGS 5
+
+static ssize_t aqua_vanjaram_read_wafl_state(struct amdgpu_device *adev,
+					     void *buf, size_t max_size)
+{
+	struct amdgpu_reg_state_wafl_v1_0 *wafl_reg_state;
+	uint32_t start_addr, incrx, num_regs, szbuf;
+	struct amdgpu_regs_wafl_v1_0 *wafl_regs;
+	struct amdgpu_smn_reg_data *reg_data;
+	const int max_wafl_instances = 8;
+	int inst = 0, i, j, r, n;
+	const int wafl_inst = 2;
+	void *p;
+
+	if (!buf || !max_size)
+		return -EINVAL;
+
+	wafl_reg_state = (struct amdgpu_reg_state_wafl_v1_0 *)buf;
+
+	szbuf = sizeof(*wafl_reg_state) +
+		amdgpu_reginst_size(max_wafl_instances, sizeof(*wafl_regs),
+				    NUM_WAFL_SMN_REGS);
+
+	if (max_size < szbuf)
+		return -EOVERFLOW;
+
+	p = &wafl_reg_state->wafl_state_regs[0];
+	for_each_inst(i, adev->aid_mask) {
+		for (j = 0; j < wafl_inst; ++j) {
+			wafl_regs = (struct amdgpu_regs_wafl_v1_0 *)p;
+			wafl_regs->inst_header.instance = inst++;
+
+			wafl_regs->inst_header.state = AMDGPU_INST_S_OK;
+			wafl_regs->inst_header.num_smn_regs = NUM_WAFL_SMN_REGS;
+
+			reg_data = wafl_regs->smn_reg_values;
+
+			for (r = 0; r < ARRAY_SIZE(wafl_reg_addrs); r++) {
+				start_addr = wafl_reg_addrs[r].start_addr;
+				incrx = wafl_reg_addrs[r].incrx;
+				num_regs = wafl_reg_addrs[r].num_regs;
+				for (n = 0; n < num_regs; n++) {
+					aqua_read_smn_ext(
+						adev, reg_data,
+						WAFL_LINK_REG(start_addr, j) +
+							n * incrx,
+						i);
+					++reg_data;
+				}
+			}
+			p = reg_data;
+		}
+	}
+
+	wafl_reg_state->common_header.structure_size = szbuf;
+	wafl_reg_state->common_header.format_revision = 1;
+	wafl_reg_state->common_header.content_revision = 0;
+	wafl_reg_state->common_header.state_type = AMDGPU_REG_STATE_TYPE_WAFL;
+	wafl_reg_state->common_header.num_instances = max_wafl_instances;
+
+	return wafl_reg_state->common_header.structure_size;
+}
+
 ssize_t aqua_vanjaram_get_reg_state(struct amdgpu_device *adev,
 				    enum amdgpu_reg_state reg_state, void *buf,
 				    size_t max_size)
@@ -860,6 +933,9 @@ ssize_t aqua_vanjaram_get_reg_state(struct amdgpu_device *adev,
 		break;
 	case AMDGPU_REG_STATE_TYPE_XGMI:
 		size = aqua_vanjaram_read_xgmi_state(adev, buf, max_size);
+		break;
+	case AMDGPU_REG_STATE_TYPE_WAFL:
+		size = aqua_vanjaram_read_wafl_state(adev, buf, max_size);
 		break;
 	default:
 		return -EINVAL;
