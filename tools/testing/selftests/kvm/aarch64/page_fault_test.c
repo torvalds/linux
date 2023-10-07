@@ -135,8 +135,8 @@ static void guest_at(void)
 	uint64_t par;
 
 	asm volatile("at s1e1r, %0" :: "r" (guest_test_memory));
-	par = read_sysreg(par_el1);
 	isb();
+	par = read_sysreg(par_el1);
 
 	/* Bit 1 indicates whether the AT was successful */
 	GUEST_ASSERT_EQ(par & 1, 0);
