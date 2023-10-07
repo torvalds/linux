@@ -253,7 +253,7 @@ static uint64_t vpe_get_csa_mc_addr(struct amdgpu_ring *ring, uint32_t vmid)
 	uint32_t index = 0;
 	uint64_t csa_mc_addr;
 
-	if (amdgpu_sriov_vf(adev) || vmid == 0 || !amdgpu_mcbp)
+	if (amdgpu_sriov_vf(adev) || vmid == 0 || !adev->gfx.mcbp)
 		return 0;
 
 	csa_mc_addr = amdgpu_csa_vaddr(adev) + AMDGPU_CSA_VPE_OFFSET +
