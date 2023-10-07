@@ -471,6 +471,7 @@ static int hdmirx_subscribe_event(struct v4l2_fh *fh,
 	case V4L2_EVENT_CTRL:
 		return v4l2_ctrl_subscribe_event(fh, sub);
 	case RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST:
+	case RK_HDMIRX_V4L2_EVENT_AUDIOINFO:
 		return v4l2_event_subscribe(fh, sub, 0, NULL);
 
 	default:
@@ -2353,6 +2354,15 @@ static int hdmirx_register_stream_vdev(struct hdmirx_stream *stream)
 	return 0;
 }
 
+static void process_audio_change(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	struct hdmirx_stream *stream = &hdmirx_dev->stream;
+	const struct v4l2_event evt_audio_info = {
+		.type = RK_HDMIRX_V4L2_EVENT_AUDIOINFO,
+	};
+	v4l2_event_queue(&stream->vdev, &evt_audio_info);
+}
+
 static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	struct hdmirx_stream *stream = &hdmirx_dev->stream;
@@ -3248,6 +3258,7 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 		if (!hdmirx_dev->audio_present) {
 			dev_info(hdmirx_dev->dev, "audio on");
 			hdmirx_audio_handle_plugged_change(hdmirx_dev, 1);
+			process_audio_change(hdmirx_dev);
 			hdmirx_dev->audio_present = true;
 		}
 		if (cur_state - init_state > 16 && cur_state - pre_state > 0)
@@ -3258,6 +3269,7 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 		if (hdmirx_dev->audio_present) {
 			dev_info(hdmirx_dev->dev, "audio off");
 			hdmirx_audio_handle_plugged_change(hdmirx_dev, 0);
+			process_audio_change(hdmirx_dev);
 			hdmirx_dev->audio_present = false;
 		}
 	}
