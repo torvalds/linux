@@ -441,7 +441,7 @@
 		>;
 	};
 
-	wl12xx_gpio: pinmux-wl12xx-gpio {
+	wl12xx_gpio: pinmux-wl12xx-gpio-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x1c8, PIN_OUTPUT | MUX_MODE3)  /* gpio_24 / WLAN_EN */
 		>;
