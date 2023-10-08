@@ -1976,7 +1976,7 @@ void f2fs_destroy_compress_inode(struct f2fs_sb_info *sbi)
 int f2fs_init_page_array_cache(struct f2fs_sb_info *sbi)
 {
 	dev_t dev = sbi->sb->s_bdev->bd_dev;
-	char slab_name[32];
+	char slab_name[35];
 
 	if (!f2fs_sb_has_compression(sbi))
 		return 0;
