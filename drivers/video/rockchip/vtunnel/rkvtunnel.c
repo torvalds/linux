@@ -731,7 +731,7 @@ rkvt_reset_proc(struct rkvt_ctrl_data *data, struct rkvt_session *session)
 {
 	struct rkvt_dev *vt_dev = session->vt_dev;
 	struct rkvt_instance *inst;
-	long read_buf_id;
+	long long read_buf_id;
 
 	inst = rkvt_inst_get_by_tid(vt_dev, data->vt_id);
 	if (!inst)
@@ -1191,7 +1191,7 @@ rkvt_release_buf(struct rkvt_buf_data *data, struct rkvt_session *session)
 	struct rkvt_buffer *buffer = NULL;
 	int i;
 	int ret = 0;
-	long read_buf_id;
+	long long read_buf_id;
 
 	inst = rkvt_inst_get_by_tid(vt_dev, data->vt_id);
 	if (!inst)
