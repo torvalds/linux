@@ -62,7 +62,7 @@ struct physmap_flash_info {
 	unsigned int		win_order;
 };
 
-static int physmap_flash_remove(struct platform_device *dev)
+static void physmap_flash_remove(struct platform_device *dev)
 {
 	struct physmap_flash_info *info;
 	struct physmap_flash_data *physmap_data;
@@ -88,7 +88,6 @@ static int physmap_flash_remove(struct platform_device *dev)
 
 	pm_runtime_put(&dev->dev);
 	pm_runtime_disable(&dev->dev);
-	return 0;
 }
 
 static void physmap_set_vpp(struct map_info *map, int state)
@@ -615,7 +614,7 @@ static void physmap_flash_shutdown(struct platform_device *dev)
 
 static struct platform_driver physmap_flash_driver = {
 	.probe		= physmap_flash_probe,
-	.remove		= physmap_flash_remove,
+	.remove_new	= physmap_flash_remove,
 	.shutdown	= physmap_flash_shutdown,
 	.driver		= {
 		.name	= "physmap-flash",
