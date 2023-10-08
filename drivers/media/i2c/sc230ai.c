@@ -173,6 +173,7 @@ struct sc230ai {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	enum rkmodule_sync_mode	sync_mode;
 	u32			cur_vts;
 	bool			has_init_exp;
 	bool			is_thunderboot;
@@ -534,6 +535,28 @@ static const struct regval sc230ai_linear_10_1920x1080_regs[] = {
 	{REG_NULL, 0x00},
 };
 
+static __maybe_unused const struct regval sc230ai_interal_sync_master_start_regs[] = {
+	{0x300a, 0x24}, //sync as output PAD
+	{0x3032, 0xa0},
+	{0x3222, 0x00}, //master mode
+	{REG_NULL, 0x00},
+};
+
+static __maybe_unused const struct regval sc230ai_interal_sync_master_stop_regs[] = {
+	{REG_NULL, 0x00},
+};
+
+static __maybe_unused const struct regval sc230ai_interal_sync_slaver_start_regs[] = {
+	{0x300a, 0x20}, //sync as input PAD
+	{0x3222, 0x01}, //slave mode
+	{0x3224, 0x92}, //fsync trigger
+	{0x3614, 0x01},
+	{REG_NULL, 0x00},
+};
+
+static __maybe_unused const struct regval sc230ai_interal_sync_slaver_stop_regs[] = {
+	{REG_NULL, 0x00},
+};
 
 static const struct sc230ai_mode supported_modes[] = {
 	{
@@ -930,6 +953,7 @@ static long sc230ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u32 i, h, w;
 	long ret = 0;
 	u32 stream = 0;
+	u32 *sync_mode = NULL;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -980,6 +1004,14 @@ static long sc230ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			ret = sc230ai_write_reg(sc230ai->client, SC230AI_REG_CTRL_MODE,
 				 SC230AI_REG_VALUE_08BIT, SC230AI_MODE_SW_STANDBY);
 		break;
+	case RKMODULE_GET_SYNC_MODE:
+		sync_mode = (u32 *)arg;
+		*sync_mode = sc230ai->sync_mode;
+		break;
+	case RKMODULE_SET_SYNC_MODE:
+		sync_mode = (u32 *)arg;
+		sc230ai->sync_mode = *sync_mode;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -998,6 +1030,7 @@ static long sc230ai_compat_ioctl32(struct v4l2_subdev *sd,
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
 	u32 stream = 0;
+	u32 sync_mode;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1066,6 +1099,21 @@ static long sc230ai_compat_ioctl32(struct v4l2_subdev *sd,
 
 		ret = sc230ai_ioctl(sd, cmd, &stream);
 		break;
+	case RKMODULE_GET_SYNC_MODE:
+		ret = sc230ai_ioctl(sd, cmd, &sync_mode);
+		if (!ret) {
+			ret = copy_to_user(up, &sync_mode, sizeof(u32));
+			if (ret)
+				ret = -EFAULT;
+		}
+		break;
+	case RKMODULE_SET_SYNC_MODE:
+		ret = copy_from_user(&sync_mode, up, sizeof(u32));
+		if (!ret)
+			ret = sc230ai_ioctl(sd, cmd, &sync_mode);
+		else
+			ret = -EFAULT;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1077,7 +1125,7 @@ static long sc230ai_compat_ioctl32(struct v4l2_subdev *sd,
 
 static int __sc230ai_start_stream(struct sc230ai *sc230ai)
 {
-	int ret;
+	int ret = 0;
 
 	if (!sc230ai->is_thunderboot) {
 		ret = sc230ai_write_array(sc230ai->client, sc230ai->cur_mode->reg_list);
@@ -1096,20 +1144,36 @@ static int __sc230ai_start_stream(struct sc230ai *sc230ai)
 				return ret;
 			}
 		}
+		if (sc230ai->sync_mode == INTERNAL_MASTER_MODE)
+			ret |= sc230ai_write_array(sc230ai->client,
+				sc230ai_interal_sync_master_start_regs);
+		else if (sc230ai->sync_mode == SLAVE_MODE)
+			ret |= sc230ai_write_array(sc230ai->client,
+				sc230ai_interal_sync_slaver_start_regs);
 	}
-	return sc230ai_write_reg(sc230ai->client, SC230AI_REG_CTRL_MODE,
+	ret |= sc230ai_write_reg(sc230ai->client, SC230AI_REG_CTRL_MODE,
 				 SC230AI_REG_VALUE_08BIT, SC230AI_MODE_STREAMING);
+	return ret;
 }
 
 static int __sc230ai_stop_stream(struct sc230ai *sc230ai)
 {
+	int ret = 0;
 	sc230ai->has_init_exp = false;
 	if (sc230ai->is_thunderboot) {
 		sc230ai->is_first_streamoff = true;
 		pm_runtime_put(&sc230ai->client->dev);
+	} else {
+		if (sc230ai->sync_mode == INTERNAL_MASTER_MODE)
+			ret |= sc230ai_write_array(sc230ai->client,
+				sc230ai_interal_sync_master_stop_regs);
+		else if (sc230ai->sync_mode == SLAVE_MODE)
+			ret |= sc230ai_write_array(sc230ai->client,
+				sc230ai_interal_sync_slaver_stop_regs);
 	}
-	return sc230ai_write_reg(sc230ai->client, SC230AI_REG_CTRL_MODE,
+	ret |= sc230ai_write_reg(sc230ai->client, SC230AI_REG_CTRL_MODE,
 				 SC230AI_REG_VALUE_08BIT, SC230AI_MODE_SW_STANDBY);
+	return ret;
 }
 
 static int __sc230ai_power_on(struct sc230ai *sc230ai);
@@ -1625,6 +1689,7 @@ static int sc230ai_probe(struct i2c_client *client,
 	char facing[2];
 	int ret;
 	u32 i, hdr_mode = 0;
+	const char *sync_mode_name = NULL;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		 DRIVER_VERSION >> 16,
@@ -1648,6 +1713,25 @@ static int sc230ai_probe(struct i2c_client *client,
 		dev_err(dev, "could not get module information!\n");
 		return -EINVAL;
 	}
+
+	ret = of_property_read_string(node, RKMODULE_CAMERA_SYNC_MODE,
+				      &sync_mode_name);
+	if (ret) {
+		sc230ai->sync_mode = NO_SYNC_MODE;
+		dev_err(dev, "could not get sync mode!\n");
+	} else {
+		if (strcmp(sync_mode_name, RKMODULE_EXTERNAL_MASTER_MODE) == 0) {
+			sc230ai->sync_mode = EXTERNAL_MASTER_MODE;
+			dev_info(dev, "external master mode\n");
+		} else if (strcmp(sync_mode_name, RKMODULE_INTERNAL_MASTER_MODE) == 0) {
+			sc230ai->sync_mode = INTERNAL_MASTER_MODE;
+			dev_info(dev, "internal master mode\n");
+		} else if (strcmp(sync_mode_name, RKMODULE_SLAVE_MODE) == 0) {
+			sc230ai->sync_mode = SLAVE_MODE;
+			dev_info(dev, "slave mode\n");
+		}
+	}
+
 	sc230ai->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
 	sc230ai->client = client;
 	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
