@@ -3453,7 +3453,7 @@ static int virtnet_get_per_queue_coalesce(struct net_device *dev,
 	} else {
 		ec->rx_max_coalesced_frames = 1;
 
-		if (vi->sq[0].napi.weight)
+		if (vi->sq[queue].napi.weight)
 			ec->tx_max_coalesced_frames = 1;
 	}
 
