@@ -231,4 +231,7 @@
 /* Sunplus UART */
 #define PORT_SUNPLUS	123
 
+/* Generic type identifier for ports which type is not important to userspace. */
+#define PORT_GENERIC	(-1)
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */
