@@ -816,6 +816,15 @@ static int rkisp_get_reserved_mem(struct rkisp_device *isp_dev)
 					      DMA_BIDIRECTIONAL);
 	ret = dma_mapping_error(dev, isp_dev->resmem_addr);
 	isp_dev->is_thunderboot = true;
+	isp_dev->is_rtt_suspend = false;
+	isp_dev->is_rtt_first = true;
+	if (device_property_read_bool(dev, "rtt-suspend")) {
+		isp_dev->is_rtt_suspend = true;
+		if (!isp_dev->hw_dev->is_thunderboot) {
+			isp_dev->is_thunderboot = false;
+			isp_dev->is_rtt_first = false;
+		}
+	}
 	dev_info(dev, "Allocated reserved memory, paddr: 0x%x\n", (u32)isp_dev->resmem_pa);
 	return ret;
 }
@@ -1065,7 +1074,7 @@ static void rkisp_pm_complete(struct device *dev)
 	struct rkisp_hw_dev *hw = isp_dev->hw_dev;
 	struct rkisp_pipeline *p = &isp_dev->pipe;
 	struct rkisp_stream *stream;
-	int i, on = 1;
+	int i, on = 1, rd_mode = isp_dev->rd_mode;
 
 	if (isp_dev->isp_state & ISP_STOP) {
 		if (pm_runtime_active(dev) &&
@@ -1077,6 +1086,63 @@ static void rkisp_pm_complete(struct device *dev)
 				v4l2_subdev_call(mipi_sensor, core, s_power, 1);
 		}
 		return;
+	}
+
+	if (isp_dev->is_rtt_suspend) {
+		rkisp_save_tb_info(isp_dev);
+		v4l2_info(&isp_dev->v4l2_dev,
+			  "tb info en:%d comp:%d cnt:%d w:%d h:%d cam:%d idx:%d mode:%d\n",
+			  isp_dev->tb_head.enable, isp_dev->tb_head.complete,
+			  isp_dev->tb_head.frm_total, isp_dev->tb_head.width,
+			  isp_dev->tb_head.height, isp_dev->tb_head.camera_num,
+			  isp_dev->tb_head.camera_index, isp_dev->tb_head.rtt_mode);
+		isp_dev->is_first_double = false;
+		switch (isp_dev->tb_head.rtt_mode) {
+		case RKISP_RTT_MODE_ONE_FRAME:
+			isp_dev->is_first_double = true;
+			/* switch to readback mode */
+			switch (rd_mode) {
+			case HDR_LINEX3_DDR:
+				isp_dev->rd_mode = HDR_RDBK_FRAME3;
+				break;
+			case HDR_LINEX2_DDR:
+				isp_dev->rd_mode = HDR_RDBK_FRAME2;
+				break;
+			default:
+				isp_dev->rd_mode = HDR_RDBK_FRAME1;
+			}
+			break;
+		case RKISP_RTT_MODE_MULTI_FRAME:
+		default:
+			if (isp_dev->tb_head.rtt_mode != RKISP_RTT_MODE_MULTI_FRAME)
+				v4l2_warn(&isp_dev->v4l2_dev,
+					  "invalid rtt mode:%d, change to mode:%d\n",
+					  isp_dev->tb_head.rtt_mode, RKISP_RTT_MODE_MULTI_FRAME);
+			if (!hw->is_single)
+				break;
+			/* switch to online mode for single sensor */
+			switch (rd_mode) {
+			case HDR_RDBK_FRAME3:
+				isp_dev->rd_mode = HDR_LINEX3_DDR;
+				break;
+			case HDR_RDBK_FRAME2:
+				isp_dev->rd_mode = HDR_LINEX2_DDR;
+				break;
+			default:
+				isp_dev->rd_mode = HDR_NORMAL;
+			}
+		}
+		isp_dev->hdr.op_mode = isp_dev->rd_mode;
+		if (rd_mode != isp_dev->rd_mode && hw->cur_dev_id == isp_dev->dev_id) {
+			rkisp_unite_write(isp_dev, CSI2RX_CTRL0,
+					  SW_IBUF_OP_MODE(isp_dev->rd_mode), true);
+			if (IS_HDR_RDBK(isp_dev->rd_mode))
+				rkisp_unite_set_bits(isp_dev, CTRL_SWS_CFG, 0,
+						     SW_MPIP_DROP_FRM_DIS, true);
+			else
+				rkisp_unite_clear_bits(isp_dev, CTRL_SWS_CFG,
+						       SW_MPIP_DROP_FRM_DIS, true);
+		}
 	}
 
 	isp_dev->is_suspend = false;

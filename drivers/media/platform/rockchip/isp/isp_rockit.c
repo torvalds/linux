@@ -240,6 +240,11 @@ int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd)
 		rockit_cfg->frame.u64PTS = stream->curr_buf->vb.vb2_buf.timestamp;
 
 		rockit_cfg->frame.u32TimeRef = stream->curr_buf->vb.sequence;
+		v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
+			 "%s stream:%d seq:%d buf:0x%x done\n",
+			 __func__, stream->id,
+			 stream->curr_buf->vb.sequence,
+			 stream->curr_buf->buff_addr[0]);
 	} else {
 		if (stream->ispdev->cap_dev.wrap_line &&
 		    stream->id == RKISP_STREAM_MP) {

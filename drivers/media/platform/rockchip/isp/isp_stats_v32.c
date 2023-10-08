@@ -628,6 +628,9 @@ rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev,
 		ops->get_vsm_stats(stats_vdev, cur_stat_buf);
 	}
 
+	if (cur_stat_buf && stats_vdev->dev->is_first_double)
+		cur_stat_buf->meas_type |= ISP32_STAT_RTT_FST;
+
 	if (is_dummy) {
 		spin_lock_irqsave(&stats_vdev->rd_lock, flags);
 		if (!list_empty(&stats_vdev->stat)) {

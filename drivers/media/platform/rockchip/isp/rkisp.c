@@ -873,6 +873,9 @@ static void rkisp_fast_switch_rx_buf(struct rkisp_device *dev, bool is_current)
 	struct rkisp_buffer *buf;
 	u32 i, val;
 
+	if (!dev->is_rtt_first)
+		return;
+
 	for (i = RKISP_STREAM_RAWRD0; i < RKISP_MAX_DMARX_STREAM; i++) {
 		stream = &dev->dmarx_dev.stream[i];
 		if (!stream->ops)
@@ -956,7 +959,7 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 	}
 
 	/* wait 2 frame to start isp for fast */
-	if (dev->is_pre_on && max == 1 && !atomic_read(&dev->isp_sdev.frm_sync_seq))
+	if (dev->is_rtt_first && max == 1 && !atomic_read(&dev->isp_sdev.frm_sync_seq))
 		goto end;
 
 	if (max) {
@@ -1002,7 +1005,7 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 		/* first frame handle twice for thunderboot
 		 * first output stats to AIQ and wait new params to run second
 		 */
-		if (isp->is_pre_on && t.frame_id == 0) {
+		if (isp->is_rtt_first && t.frame_id == 0) {
 			isp->is_first_double = true;
 			isp->skip_frame = 1;
 			if (hw->unite != ISP_UNITE_ONE) {
@@ -1010,6 +1013,8 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 				isp->is_frame_double = false;
 			}
 			rkisp_fast_switch_rx_buf(isp, false);
+		} else {
+			isp->is_rtt_first = false;
 		}
 		isp->params_vdev.rdbk_times = isp->sw_rd_cnt + 1;
 	}
@@ -1088,6 +1093,7 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 
 	if (dev->is_first_double) {
 		rkisp_fast_switch_rx_buf(dev, true);
+		dev->is_rtt_first = false;
 		dev->skip_frame = 0;
 		dev->irq_ends = 0;
 		return;
@@ -3024,7 +3030,8 @@ static int rkisp_rx_buf_pool_init(struct rkisp_device *dev,
 
 	pool->dbufs = dbufs;
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-		 "%s type:0x%x dbufs[%d]:%p", __func__, dbufs->type, i, dbufs);
+		 "%s type:0x%x first:%d dbufs[%d]:%p", __func__,
+		 dbufs->type, dbufs->is_first, i, dbufs);
 
 	if (dbufs->is_resmem) {
 		dma = dbufs->dma;
@@ -3415,7 +3422,7 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		rkisp_get_info(isp_dev, arg);
 		break;
 	case RKISP_CMD_GET_TB_HEAD_V32:
-		if (isp_dev->tb_head.complete != RKISP_TB_OK || !isp_dev->is_pre_on) {
+		if (isp_dev->tb_head.complete != RKISP_TB_OK) {
 			ret = -EINVAL;
 			break;
 		}
@@ -3775,8 +3782,7 @@ void rkisp_unregister_isp_subdev(struct rkisp_device *isp_dev)
 	(cond) ? 0 : -ETIMEDOUT; \
 })
 
-#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
-static void rkisp_save_tb_info(struct rkisp_device *isp_dev)
+void rkisp_save_tb_info(struct rkisp_device *isp_dev)
 {
 	struct rkisp_isp_params_vdev *params_vdev = &isp_dev->params_vdev;
 	void *resmem_va = phys_to_virt(isp_dev->resmem_pa);
@@ -3796,7 +3802,8 @@ static void rkisp_save_tb_info(struct rkisp_device *isp_dev)
 	if (size && size < isp_dev->resmem_size) {
 		dma_sync_single_for_cpu(isp_dev->dev, isp_dev->resmem_addr + offset,
 					size, DMA_FROM_DEVICE);
-		params_vdev->is_first_cfg = true;
+		if (isp_dev->is_rtt_first)
+			params_vdev->is_first_cfg = true;
 		if (isp_dev->isp_ver == ISP_V32) {
 			struct rkisp32_thunderboot_resmem_head *tmp = resmem_va + offset;
 
@@ -3808,7 +3815,7 @@ static void rkisp_save_tb_info(struct rkisp_device *isp_dev)
 				  tmp->cfg.module_ens,
 				  tmp->cfg.module_cfg_update);
 		}
-		if (param)
+		if (param && (isp_dev->isp_state & ISP_STOP))
 			params_vdev->ops->save_first_param(params_vdev, param);
 	} else if (size > isp_dev->resmem_size) {
 		v4l2_err(&isp_dev->v4l2_dev,
@@ -3819,6 +3826,7 @@ static void rkisp_save_tb_info(struct rkisp_device *isp_dev)
 	memcpy(&isp_dev->tb_head, head, sizeof(*head));
 }
 
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
 void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 {
 	struct rkisp_isp_params_vdev *params_vdev = &isp_dev->params_vdev;
@@ -3866,11 +3874,10 @@ void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 end:
 	head = &isp_dev->tb_head;
 	v4l2_info(&isp_dev->v4l2_dev,
-		  "thunderboot info: %d, %d, %d, %d, %d, %d | %d %d\n",
+		  "tb info en:%d comp:%d cnt:%d w:%d h:%d cam:%d idx:%d\n",
 		  head->enable,
 		  head->complete,
 		  head->frm_total,
-		  head->hdr_mode,
 		  head->width,
 		  head->height,
 		  head->camera_num,

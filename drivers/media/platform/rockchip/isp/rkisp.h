@@ -153,6 +153,8 @@ void rkisp_chk_tb_over(struct rkisp_device *isp_dev);
 static inline void rkisp_chk_tb_over(struct rkisp_device *isp_dev) {}
 #endif
 
+void rkisp_save_tb_info(struct rkisp_device *isp_dev);
+
 void rkisp_mipi_isr(unsigned int mipi_mis, struct rkisp_device *dev);
 
 void rkisp_mipi_v13_isr(unsigned int err1, unsigned int err2,

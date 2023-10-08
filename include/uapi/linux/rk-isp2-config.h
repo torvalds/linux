@@ -1968,6 +1968,12 @@ struct rkisp_isp2x_luma_buffer {
 	struct rkisp_mipi_luma luma[ISP2X_MIPI_RAW_MAX];
 } __attribute__ ((packed));
 
+enum {
+	RKISP_RTT_MODE_NORMAL = 0,
+	RKISP_RTT_MODE_MULTI_FRAME,
+	RKISP_RTT_MODE_ONE_FRAME,
+};
+
 /**
  * struct rkisp_thunderboot_resmem_head
  */
@@ -1976,10 +1982,12 @@ struct rkisp_thunderboot_resmem_head {
 	__u16 complete;
 	__u16 frm_total;
 	__u16 hdr_mode;
+	__u16 rtt_mode;
 	__u16 width;
 	__u16 height;
 	__u16 camera_num;
 	__u16 camera_index;
+	__u16 md_flag;
 
 	__u32 exp_time[3];
 	__u32 exp_gain[3];

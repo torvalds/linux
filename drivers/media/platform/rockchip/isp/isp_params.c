@@ -185,6 +185,28 @@ static void rkisp_params_vb2_buf_queue(struct vb2_buffer *vb)
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	list_add_tail(&params_buf->queue, &params_vdev->params);
 	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
+
+	if (params_vdev->dev->is_first_double) {
+		struct isp32_isp_params_cfg *params = params_buf->vaddr[0];
+		struct rkisp_buffer *buf;
+
+		if (!(params->module_cfg_update & ISP32_MODULE_RTT_FST))
+			return;
+		spin_lock_irqsave(&params_vdev->config_lock, flags);
+		while (!list_empty(&params_vdev->params)) {
+			buf = list_first_entry(&params_vdev->params,
+					       struct rkisp_buffer, queue);
+			if (buf == params_buf)
+				break;
+			list_del(&buf->queue);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		}
+		spin_unlock_irqrestore(&params_vdev->config_lock, flags);
+		dev_info(params_vdev->dev->dev,
+			 "first params:%d for rtt resume\n", params->frame_id);
+		params_vdev->dev->is_first_double = false;
+		rkisp_trigger_read_back(params_vdev->dev, false, false, false);
+	}
 }
 
 static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)

@@ -235,6 +235,10 @@ struct rkisp_device {
 	size_t resmem_size;
 	struct rkisp_thunderboot_resmem_head tb_head;
 	bool is_thunderboot;
+	/* first frame for rtt */
+	bool is_rtt_first;
+	/* suspend/resume with rtt */
+	bool is_rtt_suspend;
 	struct rkisp_tb_stream_info tb_stream_info;
 	unsigned int tb_addr_idx;
 
