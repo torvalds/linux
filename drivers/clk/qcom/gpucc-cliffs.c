@@ -47,12 +47,12 @@ static const struct pll_vco lucid_ole_vco[] = {
 	{ 249600000, 2300000000, 0 },
 };
 
-/* 520MHz Configuration */
+/* 510MHz Configuration */
 static const struct alpha_pll_config gpu_cc_pll0_config = {
-	.l = 0x1b,
+	.l = 0x1a,
 	.cal_l = 0x44,
 	.cal_l_ringosc = 0x44,
-	.alpha = 0x1555,
+	.alpha = 0x9000,
 	.config_ctl_val = 0x20485699,
 	.config_ctl_hi_val = 0x00182261,
 	.config_ctl_hi1_val = 0x82aa299c,
@@ -202,7 +202,6 @@ static struct clk_rcg2 gpu_cc_ff_clk_src = {
 		.name = "gpu_cc_ff_clk_src",
 		.parent_data = gpu_cc_parent_data_0,
 		.num_parents = ARRAY_SIZE(gpu_cc_parent_data_0),
-		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
@@ -257,7 +256,6 @@ static struct clk_rcg2 gpu_cc_hub_clk_src = {
 		.name = "gpu_cc_hub_clk_src",
 		.parent_data = gpu_cc_parent_data_2,
 		.num_parents = ARRAY_SIZE(gpu_cc_parent_data_2),
-		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
@@ -285,7 +283,6 @@ static struct clk_rcg2 gpu_cc_xo_clk_src = {
 		.name = "gpu_cc_xo_clk_src",
 		.parent_data = gpu_cc_parent_data_3_ao,
 		.num_parents = ARRAY_SIZE(gpu_cc_parent_data_3_ao),
-		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 };
