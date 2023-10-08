@@ -246,6 +246,8 @@ struct rkisp_device {
 	struct rkisp_ispp_buf *cur_fbcgain;
 	struct rkisp_buffer *cur_spbuf;
 
+	struct completion pm_cmpl;
+
 	struct work_struct rdbk_work;
 	struct kfifo rdbk_kfifo;
 	spinlock_t rdbk_lock;
@@ -269,6 +271,8 @@ struct rkisp_device {
 	bool is_first_double;
 	bool is_probe_end;
 	bool is_frame_double;
+	bool is_suspend;
+	bool suspend_sync;
 
 	struct rkisp_vicap_input vicap_in;
 

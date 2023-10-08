@@ -460,10 +460,9 @@ isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 {
 	int i, j;
 	unsigned int sram_addr;
-	unsigned int data;
+	unsigned int data = rkisp_ioread32(params_vdev, ISP_LSC_CTRL);
 
-	if (is_check &&
-	    !(rkisp_ioread32(params_vdev, ISP_LSC_CTRL) & ISP_LSC_EN))
+	if (is_check && (data & ISP_LSC_LUT_EN || !(data & ISP_LSC_EN)))
 		return;
 
 	/* CIF_ISP_LSC_TABLE_ADDRESS_153 = ( 17 * 18 ) >> 1 */
@@ -603,12 +602,13 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	 * readback mode lsc lut AHB config to sram, once for single device,
 	 * need record to switch for multi-device.
 	 */
-	if (!IS_HDR_RDBK(dev->rd_mode))
+	if (!IS_HDR_RDBK(dev->rd_mode)) {
 		isp_lsc_matrix_cfg_ddr(params_vdev, arg);
-	else if (dev->hw_dev->is_single)
-		isp_lsc_matrix_cfg_sram(params_vdev, arg, false);
-	else
+	} else {
+		if (dev->hw_dev->is_single)
+			isp_lsc_matrix_cfg_sram(params_vdev, arg, false);
 		params_rec->others.lsc_cfg = *arg;
+	}
 
 	for (i = 0; i < 4; i++) {
 		/* program x size tables */
@@ -1327,8 +1327,8 @@ isp_rawawb_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 1] & 0x3f) << 6 |
 		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 2] & 0x3f) << 12 |
 		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 3] & 0x3f) << 18 |
-		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 4] & 0x3f) << 24,
-		rkisp_iowrite32(params_vdev, val, ISP21_RAWAWB_WRAM_DATA_BASE);
+		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 4] & 0x3f) << 24;
+		rkisp_write(params_vdev->dev, ISP21_RAWAWB_WRAM_DATA_BASE, val, true);
 	}
 }
 
@@ -2143,10 +2143,9 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (params_vdev->dev->hw_dev->is_single)
 		isp_rawawb_cfg_sram(params_vdev, arg, false);
-	else
-		memcpy(arg_rec->sw_rawawb_wp_blk_wei_w,
-		       arg->sw_rawawb_wp_blk_wei_w,
-		       ISP21_RAWAWB_WEIGHT_NUM);
+	memcpy(arg_rec->sw_rawawb_wp_blk_wei_w,
+	       arg->sw_rawawb_wp_blk_wei_w,
+	       ISP21_RAWAWB_WEIGHT_NUM);
 
 	/* avoid to override the old enable value */
 	value = rkisp_ioread32(params_vdev, ISP21_RAWAWB_CTRL);
@@ -2370,8 +2369,7 @@ isp_rawhstbig_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (dev->hw_dev->is_single)
 		isp_rawhstbig_cfg_sram(params_vdev, arg, blk_no, false);
-	else
-		*arg_rec = *arg;
+	*arg_rec = *arg;
 }
 
 static void

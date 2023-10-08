@@ -368,15 +368,16 @@ void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id)
 		params_vdev->ops->param_cfg(params_vdev, frame_id, RKISP_PARAMS_IMD);
 }
 
-void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev)
+void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev, bool is_check)
 {
-	if (params_vdev->dev->procfs.mode & RKISP_PROCFS_FIL_SW)
-		return;
+	if (is_check) {
+		if (params_vdev->dev->procfs.mode & RKISP_PROCFS_FIL_SW)
+			return;
 
-	/* multi device to switch sram config */
-	if (params_vdev->dev->hw_dev->is_single)
-		return;
-
+		/* multi device to switch sram config */
+		if (params_vdev->dev->hw_dev->is_single)
+			return;
+	}
 	if (params_vdev->ops->param_cfgsram)
 		params_vdev->ops->param_cfgsram(params_vdev);
 }

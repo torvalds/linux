@@ -35,6 +35,12 @@
  *                     rkisp_hw
  */
 
+struct backup_reg {
+	const u32 base;
+	const u32 shd;
+	u32 val;
+};
+
 struct isp_irqs_data {
 	const char *name;
 	irqreturn_t (*irq_hdl)(int irq, void *ctx);
@@ -346,6 +352,191 @@ int rkisp_register_irq(struct rkisp_hw_dev *hw_dev)
 	}
 
 	return 0;
+}
+
+void rkisp_hw_reg_save(struct rkisp_hw_dev *dev)
+{
+	void *buf = dev->sw_reg;
+
+	memcpy_fromio(buf, dev->base_addr, RKISP_ISP_SW_REG_SIZE);
+	if (dev->unite == ISP_UNITE_TWO) {
+		buf += RKISP_ISP_SW_REG_SIZE;
+		memcpy_fromio(buf, dev->base_next_addr, RKISP_ISP_SW_REG_SIZE);
+	}
+}
+
+void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
+{
+	struct rkisp_device *isp = dev->isp[dev->cur_dev_id];
+	void __iomem *base = dev->base_addr;
+	void *reg_buf = dev->sw_reg;
+	u32 val, *reg, *reg1, i, j;
+	u32 self_upd_reg[] = {
+		ISP21_BAY3D_BASE, ISP21_DRC_BASE, ISP3X_BAY3D_CTRL,
+		ISP_DHAZ_CTRL, ISP3X_3DLUT_BASE, ISP_RAWAE_LITE_BASE,
+		RAWAE_BIG1_BASE, RAWAE_BIG2_BASE, RAWAE_BIG3_BASE,
+		ISP_RAWHIST_LITE_BASE, ISP_RAWHIST_BIG1_BASE,
+		ISP_RAWHIST_BIG2_BASE, ISP_RAWHIST_BIG3_BASE,
+		ISP_RAWAF_BASE, ISP_RAWAWB_BASE,
+	};
+	struct backup_reg backup[] = {
+		{
+			.base = MI_MP_WR_Y_BASE,
+			.shd = MI_MP_WR_Y_BASE_SHD,
+		}, {
+			.base = MI_MP_WR_CB_BASE,
+			.shd = MI_MP_WR_CB_BASE_SHD,
+		}, {
+			.base = MI_MP_WR_CR_BASE,
+			.shd = MI_MP_WR_CR_BASE_SHD,
+		}, {
+			.base = MI_SP_WR_Y_BASE,
+			.shd = MI_SP_WR_Y_BASE_SHD,
+		}, {
+			.base = MI_SP_WR_CB_BASE,
+			.shd = MI_SP_WR_CB_BASE_AD_SHD,
+		}, {
+			.base = MI_SP_WR_CR_BASE,
+			.shd = MI_SP_WR_CR_BASE_AD_SHD,
+		}, {
+			.base = ISP3X_MI_BP_WR_Y_BASE,
+			.shd = ISP3X_MI_BP_WR_Y_BASE_SHD,
+		}, {
+			.base = ISP3X_MI_BP_WR_CB_BASE,
+			.shd = ISP3X_MI_BP_WR_CB_BASE_SHD,
+		}, {
+			.base = ISP32_MI_MPDS_WR_Y_BASE,
+			.shd = ISP32_MI_MPDS_WR_Y_BASE_SHD,
+		}, {
+			.base = ISP32_MI_MPDS_WR_CB_BASE,
+			.shd = ISP32_MI_MPDS_WR_CB_BASE_SHD,
+		}, {
+			.base = ISP32_MI_BPDS_WR_Y_BASE,
+			.shd = ISP32_MI_BPDS_WR_Y_BASE_SHD,
+		}, {
+			.base = ISP32_MI_BPDS_WR_CB_BASE,
+			.shd = ISP32_MI_BPDS_WR_CB_BASE_SHD,
+		}, {
+			.base = MI_RAW0_WR_BASE,
+			.shd = MI_RAW0_WR_BASE_SHD,
+		}, {
+			.base = MI_RAW1_WR_BASE,
+			.shd = MI_RAW1_WR_BASE_SHD,
+		}, {
+			.base = MI_RAW2_WR_BASE,
+			.shd = MI_RAW2_WR_BASE_SHD,
+		}, {
+			.base = MI_RAW3_WR_BASE,
+			.shd = MI_RAW3_WR_BASE_SHD,
+		}, {
+			.base = MI_RAW0_RD_BASE,
+			.shd = MI_RAW0_RD_BASE_SHD,
+		}, {
+			.base = MI_RAW1_RD_BASE,
+			.shd = MI_RAW1_RD_BASE_SHD,
+		}, {
+			.base = MI_RAW2_RD_BASE,
+			.shd = MI_RAW2_RD_BASE_SHD,
+		}, {
+			.base = MI_GAIN_WR_BASE,
+			.shd = MI_GAIN_WR_BASE_SHD,
+		}
+	};
+
+	for (i = 0; i <= !!dev->unite; i++) {
+		if (dev->unite != ISP_UNITE_TWO && i)
+			break;
+
+		if (i) {
+			reg_buf += RKISP_ISP_SW_REG_SIZE;
+			base = dev->base_next_addr;
+		}
+
+		/* process special reg */
+		for (j = 0; j < ARRAY_SIZE(self_upd_reg); j++) {
+			reg = reg_buf + self_upd_reg[j];
+			*reg &= ~ISP21_SELF_FORCE_UPD;
+			if (self_upd_reg[j] == ISP3X_3DLUT_BASE && *reg & ISP_3DLUT_EN) {
+				reg = reg_buf + ISP3X_3DLUT_UPDATE;
+				*reg = 1;
+			}
+		}
+		reg = reg_buf + ISP_CTRL;
+		*reg &= ~(CIF_ISP_CTRL_ISP_ENABLE |
+			  CIF_ISP_CTRL_ISP_INFORM_ENABLE |
+			  CIF_ISP_CTRL_ISP_CFG_UPD);
+		reg = reg_buf + MI_WR_INIT;
+		*reg = 0;
+		reg = reg_buf + CSI2RX_CTRL0;
+		*reg &= ~SW_CSI2RX_EN;
+		for (j = 0; j < RKISP_ISP_SW_REG_SIZE; j += 4) {
+			/* skip table RAM */
+			if ((j > ISP3X_LSC_CTRL && j < ISP3X_LSC_XGRAD_01) ||
+			    (j > ISP32_CAC_OFFSET && j < ISP3X_CAC_RO_CNT) ||
+			    (j > ISP3X_3DLUT_UPDATE && j < ISP3X_GAIN_BASE) ||
+			    (j == 0x4840 || j == 0x4a80 || j == 0x4b40 || j == 0x5660))
+				continue;
+			/* skip mmu range */
+			if (dev->isp_ver < ISP_V30 &&
+			    j > ISP21_MI_BAY3D_RD_BASE_SHD && j < CSI2RX_CTRL0)
+				continue;
+			/* reg value of read diff to write */
+			if (j == ISP_MPFBC_CTRL ||
+			    j == ISP32_ISP_AWB1_GAIN_G || j == ISP32_ISP_AWB1_GAIN_RB)
+				reg = isp->sw_base_addr + j;
+			else
+				reg = reg_buf + j;
+			writel(*reg, base + j);
+		}
+
+		/* config shd_reg to base_reg */
+		for (j = 0; j < ARRAY_SIZE(backup); j++) {
+			reg = reg_buf + backup[j].base;
+			reg1 = reg_buf + backup[j].shd;
+			backup[j].val = *reg;
+			writel(*reg1, base + backup[j].base);
+		}
+
+		/* update module */
+		reg = reg_buf + DUAL_CROP_CTRL;
+		if (*reg & 0xf)
+			writel(*reg | CIF_DUAL_CROP_CFG_UPD, base + DUAL_CROP_CTRL);
+		reg = reg_buf + SELF_RESIZE_CTRL;
+		if (*reg & 0xf) {
+			if (dev->isp_ver == ISP_V32_L)
+				writel(*reg | ISP32_SCALE_FORCE_UPD, base + ISP32_SELF_SCALE_UPDATE);
+			else
+				writel(*reg | CIF_RSZ_CTRL_CFG_UPD, base + SELF_RESIZE_CTRL);
+		}
+		reg = reg_buf + MAIN_RESIZE_CTRL;
+		if (*reg & 0xf)
+			writel(*reg | CIF_RSZ_CTRL_CFG_UPD, base + MAIN_RESIZE_CTRL);
+		reg = reg_buf + ISP32_BP_RESIZE_CTRL;
+		if (*reg & 0xf)
+			writel(*reg | CIF_RSZ_CTRL_CFG_UPD, base + ISP32_BP_RESIZE_CTRL);
+
+		/* update mi and isp, base_reg will update to shd_reg */
+		writel(CIF_MI_INIT_SOFT_UPD, base + MI_WR_INIT);
+
+		/* config base_reg */
+		for (j = 0; j < ARRAY_SIZE(backup); j++)
+			writel(backup[j].val, base + backup[j].base);
+		/* base_reg = shd_reg, write is base but read is shd */
+		val = rkisp_read_reg_cache(isp, ISP_MPFBC_HEAD_PTR);
+		writel(val, base + ISP_MPFBC_HEAD_PTR);
+		val = rkisp_read_reg_cache(isp, MI_SWS_3A_WR_BASE);
+		writel(val, base + MI_SWS_3A_WR_BASE);
+	}
+
+	rkisp_params_cfgsram(&isp->params_vdev, false);
+
+	reg = reg_buf + ISP_CTRL;
+	*reg |= CIF_ISP_CTRL_ISP_ENABLE |
+		CIF_ISP_CTRL_ISP_CFG_UPD |
+		CIF_ISP_CTRL_ISP_INFORM_ENABLE;
+	writel(*reg, dev->base_addr + ISP_CTRL);
+	if (dev->unite == ISP_UNITE_TWO)
+		writel(*reg, dev->base_next_addr + ISP_CTRL);
 }
 
 static const char * const rk3562_isp_clks[] = {
@@ -779,7 +970,6 @@ static void disable_sys_clk(struct rkisp_hw_dev *dev)
 static int enable_sys_clk(struct rkisp_hw_dev *dev)
 {
 	int i, ret = -EINVAL;
-	unsigned long rate;
 
 	for (i = 0; i < dev->num_clks; i++) {
 		if (!IS_ERR(dev->clks[i])) {
@@ -789,12 +979,6 @@ static int enable_sys_clk(struct rkisp_hw_dev *dev)
 		}
 	}
 
-	if (!dev->is_assigned_clk) {
-		rate = dev->clk_rate_tbl[0].clk_rate * 1000000UL;
-		rkisp_set_clk_rate(dev->clks[0], rate);
-		if (dev->unite == ISP_UNITE_TWO)
-			rkisp_set_clk_rate(dev->clks[5], rate);
-	}
 	rkisp_soft_reset(dev, false);
 	isp_config_clk(dev, true);
 	return 0;
@@ -851,19 +1035,24 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rkisp_hw_dev *hw_dev;
 	struct resource *res;
-	int i, ret;
+	int i, ret, mult = 1;
 	bool is_mem_reserved = true;
 	u32 clk_rate = 0;
 
 	match = of_match_node(rkisp_hw_of_match, node);
 	if (IS_ERR(match))
 		return PTR_ERR(match);
+	match_data = match->data;
 
 	hw_dev = devm_kzalloc(dev, sizeof(*hw_dev), GFP_KERNEL);
 	if (!hw_dev)
 		return -ENOMEM;
 
-	match_data = match->data;
+	if (match_data->unite)
+		mult = 2;
+	hw_dev->sw_reg = devm_kzalloc(dev, RKISP_ISP_SW_REG_SIZE * mult, GFP_KERNEL);
+	if (!hw_dev->sw_reg)
+		return -ENOMEM;
 	dev_set_drvdata(dev, hw_dev);
 	hw_dev->dev = dev;
 	hw_dev->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
@@ -1041,11 +1230,23 @@ static void rkisp_hw_shutdown(struct platform_device *pdev)
 static int __maybe_unused rkisp_runtime_suspend(struct device *dev)
 {
 	struct rkisp_hw_dev *hw_dev = dev_get_drvdata(dev);
+	int i;
 
-	hw_dev->dev_link_num = 0;
-	hw_dev->is_single = true;
-	hw_dev->is_multi_overflow = false;
-	hw_dev->is_frm_buf = false;
+	hw_dev->is_idle = true;
+	if (dev->power.runtime_status) {
+		hw_dev->dev_link_num = 0;
+		hw_dev->is_single = true;
+		hw_dev->is_multi_overflow = false;
+		hw_dev->is_frm_buf = false;
+	} else {
+		/* system suspend */
+		for (i = 0; i < hw_dev->dev_num; i++) {
+			if (hw_dev->isp_size[i].is_on) {
+				rkisp_hw_reg_save(hw_dev);
+				break;
+			}
+		}
+	}
 	disable_sys_clk(hw_dev);
 	return pinctrl_pm_select_sleep_state(dev);
 }
@@ -1108,28 +1309,45 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 		return ret;
 
 	enable_sys_clk(hw_dev);
-	for (i = 0; i < hw_dev->dev_num; i++) {
-		isp = hw_dev->isp[i];
-		if (!isp || !isp->sw_base_addr)
-			continue;
-		buf = isp->sw_base_addr;
-		memset(buf, 0, RKISP_ISP_SW_MAX_SIZE * mult);
-		memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
-		if (hw_dev->unite) {
-			buf += RKISP_ISP_SW_MAX_SIZE;
-			base = hw_dev->base_next_addr;
-			memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
+	if (dev->power.runtime_status) {
+		if (!hw_dev->is_assigned_clk) {
+			unsigned long rate = hw_dev->clk_rate_tbl[0].clk_rate * 1000000UL;
+
+			rkisp_set_clk_rate(hw_dev->clks[0], rate);
+			if (hw_dev->unite == ISP_UNITE_TWO)
+				rkisp_set_clk_rate(hw_dev->clks[5], rate);
 		}
-		default_sw_reg_flag(hw_dev->isp[i]);
+		for (i = 0; i < hw_dev->dev_num; i++) {
+			isp = hw_dev->isp[i];
+			if (!isp || !isp->sw_base_addr)
+				continue;
+			buf = isp->sw_base_addr;
+			memset(buf, 0, RKISP_ISP_SW_MAX_SIZE * mult);
+			memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
+			if (hw_dev->unite) {
+				buf += RKISP_ISP_SW_MAX_SIZE;
+				base = hw_dev->base_next_addr;
+				memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
+			}
+			default_sw_reg_flag(hw_dev->isp[i]);
+		}
+		rkisp_hw_enum_isp_size(hw_dev);
+		hw_dev->monitor.is_en = rkisp_monitor;
+	} else {
+		/* system resume */
+		for (i = 0; i < hw_dev->dev_num; i++) {
+			if (hw_dev->isp_size[i].is_on) {
+				rkisp_hw_reg_restore(hw_dev);
+				break;
+			}
+		}
 	}
-	rkisp_hw_enum_isp_size(hw_dev);
-	hw_dev->monitor.is_en = rkisp_monitor;
 	return 0;
 }
 
 static const struct dev_pm_ops rkisp_hw_pm_ops = {
-	SET_RUNTIME_PM_OPS(rkisp_runtime_suspend,
-			   rkisp_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(rkisp_runtime_suspend, rkisp_runtime_resume, NULL)
 };
 
 static struct platform_driver rkisp_hw_drv = {

@@ -555,11 +555,11 @@ isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 			bool is_check, u32 id)
 {
 	struct rkisp_device *dev = params_vdev->dev;
-	u32 sram_addr, data, table;
+	u32 data = isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id);
+	u32 sram_addr, table;
 	int i, j;
 
-	if (is_check &&
-	    !(isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id) & ISP_LSC_EN))
+	if (is_check && (data & ISP3X_LSC_LUT_EN || !(data & ISP_LSC_EN)))
 		return;
 
 	table = isp3_param_read_direct(params_vdev, ISP3X_LSC_STATUS);
@@ -643,12 +643,13 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 		 * readback mode lsc lut AHB config to sram, once for single device,
 		 * need record to switch for multi-device.
 		 */
-		if (!IS_HDR_RDBK(dev->rd_mode))
+		if (!IS_HDR_RDBK(dev->rd_mode)) {
 			isp_lsc_matrix_cfg_ddr(params_vdev, arg);
-		else if (dev->hw_dev->is_single)
-			isp_lsc_matrix_cfg_sram(params_vdev, arg, false, id);
-		else
+		} else {
+			if (dev->hw_dev->is_single)
+				isp_lsc_matrix_cfg_sram(params_vdev, arg, false, id);
 			params_rec->others.lsc_cfg = *arg;
+		}
 	} else {
 		/* two lsc sram table */
 		params_rec->others.lsc_cfg = *arg;
@@ -1576,20 +1577,19 @@ static void
 isp_rawawb_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 		    const struct isp32_rawawb_meas_cfg *arg, bool is_check, u32 id)
 {
-	u32 i, val = ISP32_MODULE_EN;
+	u32 i, val = isp3_param_read(params_vdev, ISP3X_RAWAWB_CTRL, id);
 
-	if (params_vdev->dev->isp_ver == ISP_V32 && is_check &&
-	    !(isp3_param_read(params_vdev, ISP3X_RAWAWB_CTRL, id) & val))
+	if (params_vdev->dev->isp_ver != ISP_V32 ||
+	    (is_check && !(val & ISP32_MODULE_EN)))
 		return;
 
 	for (i = 0; i < ISP32_RAWAWB_WEIGHT_NUM / 5; i++) {
-		isp3_param_write_direct(params_vdev,
-					(arg->wp_blk_wei_w[5 * i] & 0x3f) |
-					(arg->wp_blk_wei_w[5 * i + 1] & 0x3f) << 6 |
-					(arg->wp_blk_wei_w[5 * i + 2] & 0x3f) << 12 |
-					(arg->wp_blk_wei_w[5 * i + 3] & 0x3f) << 18 |
-					(arg->wp_blk_wei_w[5 * i + 4] & 0x3f) << 24,
-					ISP3X_RAWAWB_WRAM_DATA_BASE);
+		val = (arg->wp_blk_wei_w[5 * i] & 0x3f) |
+		      (arg->wp_blk_wei_w[5 * i + 1] & 0x3f) << 6 |
+		      (arg->wp_blk_wei_w[5 * i + 2] & 0x3f) << 12 |
+		      (arg->wp_blk_wei_w[5 * i + 3] & 0x3f) << 18 |
+		      (arg->wp_blk_wei_w[5 * i + 4] & 0x3f) << 24;
+		isp3_param_write_direct(params_vdev, val, ISP3X_RAWAWB_WRAM_DATA_BASE);
 	}
 }
 
@@ -2255,9 +2255,7 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 	if (params_vdev->dev->isp_ver == ISP_V32) {
 		if (params_vdev->dev->hw_dev->is_single)
 			isp_rawawb_cfg_sram(params_vdev, arg, false, id);
-		else
-			memcpy(arg_rec->wp_blk_wei_w, arg->wp_blk_wei_w,
-			       ISP32_RAWAWB_WEIGHT_NUM);
+		memcpy(arg_rec->wp_blk_wei_w, arg->wp_blk_wei_w, ISP32_RAWAWB_WEIGHT_NUM);
 	} else {
 		for (i = 0; i < ISP32L_RAWAWB_WEIGHT_NUM; i++)
 			isp3_param_write(params_vdev, arg->win_weight[i],
@@ -2503,8 +2501,7 @@ isp_rawhstbig_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (dev->hw_dev->is_single)
 		isp_rawhstbig_cfg_sram(params_vdev, arg, blk_no, false, id);
-	else
-		*arg_rec = *arg;
+	*arg_rec = *arg;
 }
 
 static void

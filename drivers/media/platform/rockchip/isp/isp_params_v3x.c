@@ -1430,13 +1430,12 @@ isp_rawawb_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 		return;
 
 	for (i = 0; i < ISP3X_RAWAWB_WEIGHT_NUM / 5; i++) {
-		isp3_param_write(params_vdev,
-				 (arg->sw_rawawb_wp_blk_wei_w[5 * i] & 0x3f) << 0 |
-				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 1] & 0x3f) << 6 |
-				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 2] & 0x3f) << 12 |
-				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 3] & 0x3f) << 18 |
-				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 4] & 0x3f) << 24,
-				 ISP3X_RAWAWB_WRAM_DATA_BASE, id);
+		val = (arg->sw_rawawb_wp_blk_wei_w[5 * i] & 0x3f) << 0 |
+		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 1] & 0x3f) << 6 |
+		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 2] & 0x3f) << 12 |
+		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 3] & 0x3f) << 18 |
+		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 4] & 0x3f) << 24;
+		isp3_param_write_direct(params_vdev, val, ISP3X_RAWAWB_WRAM_DATA_BASE, id);
 	}
 }
 
@@ -2288,10 +2287,9 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (params_vdev->dev->hw_dev->is_single)
 		isp_rawawb_cfg_sram(params_vdev, arg, false, id);
-	else
-		memcpy(arg_rec->sw_rawawb_wp_blk_wei_w,
-		       arg->sw_rawawb_wp_blk_wei_w,
-		       ISP3X_RAWAWB_WEIGHT_NUM);
+	memcpy(arg_rec->sw_rawawb_wp_blk_wei_w,
+	       arg->sw_rawawb_wp_blk_wei_w,
+	       ISP3X_RAWAWB_WEIGHT_NUM);
 
 	/* avoid to override the old enable value */
 	value = isp3_param_read(params_vdev, ISP3X_RAWAWB_CTRL, id);
@@ -2502,8 +2500,7 @@ isp_rawhstbig_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (dev->hw_dev->is_single)
 		isp_rawhstbig_cfg_sram(params_vdev, arg, blk_no, false, id);
-	else
-		*arg_rec = *arg;
+	*arg_rec = *arg;
 }
 
 static void

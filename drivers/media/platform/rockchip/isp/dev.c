@@ -1006,9 +1006,78 @@ static int __init rkisp_clr_unready_dev(void)
 late_initcall_sync(rkisp_clr_unready_dev);
 #endif
 
+static int rkisp_pm_prepare(struct device *dev)
+{
+	struct rkisp_device *isp_dev = dev_get_drvdata(dev);
+	struct rkisp_hw_dev *hw = isp_dev->hw_dev;
+	struct rkisp_pipeline *p = &isp_dev->pipe;
+	unsigned long lock_flags = 0;
+	int i, on = 0, time = 100;
+
+	if (isp_dev->isp_state & ISP_STOP)
+		return 0;
+
+	isp_dev->suspend_sync = false;
+	isp_dev->is_suspend = true;
+	if (isp_dev->isp_inp & INP_CSI ||
+	    isp_dev->isp_inp & INP_DVP || isp_dev->isp_inp & INP_LVDS) {
+		for (i = p->num_subdevs - 1; i >= 0; i--)
+			v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
+	} else if (isp_dev->isp_inp & INP_CIF && !(IS_HDR_RDBK(isp_dev->rd_mode))) {
+		v4l2_subdev_call(p->subdevs[0], core, ioctl, RKISP_VICAP_CMD_QUICK_STREAM, &on);
+	}
+	if (IS_HDR_RDBK(isp_dev->rd_mode)) {
+		spin_lock_irqsave(&hw->rdbk_lock, lock_flags);
+		if (!hw->is_idle && hw->cur_dev_id == isp_dev->dev_id)
+			isp_dev->suspend_sync = true;
+		spin_unlock_irqrestore(&hw->rdbk_lock, lock_flags);
+	} else {
+		/* wait one frame for online */
+		isp_dev->suspend_sync = true;
+		if (hw->isp_size[isp_dev->dev_id].fps)
+			time = 1000 / hw->isp_size[isp_dev->dev_id].fps;
+	}
+
+	if (isp_dev->suspend_sync) {
+		wait_for_completion_timeout(&isp_dev->pm_cmpl, msecs_to_jiffies(time));
+		isp_dev->suspend_sync = false;
+	}
+	return 0;
+}
+
+static void rkisp_pm_complete(struct device *dev)
+{
+	struct rkisp_device *isp_dev = dev_get_drvdata(dev);
+	struct rkisp_hw_dev *hw = isp_dev->hw_dev;
+	struct rkisp_pipeline *p = &isp_dev->pipe;
+	struct rkisp_stream *stream;
+	int i, on = 1;
+
+	if (isp_dev->isp_state & ISP_STOP)
+		return;
+
+	isp_dev->is_suspend = false;
+	isp_dev->isp_state = ISP_START | ISP_FRAME_END;
+	for (i = 0; i < RKISP_MAX_STREAM; i++) {
+		stream = &isp_dev->cap_dev.stream[i];
+		if (i == RKISP_STREAM_VIR || !stream->streaming)
+			continue;
+		stream->skip_frame = 1;
+	}
+	if (hw->cur_dev_id == isp_dev->dev_id)
+		rkisp_rdbk_trigger_event(isp_dev, T_CMD_QUEUE, NULL);
+	if (isp_dev->isp_inp & INP_CSI ||
+	    isp_dev->isp_inp & INP_DVP || isp_dev->isp_inp & INP_LVDS) {
+		for (i = 0; i < p->num_subdevs; i++)
+			v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
+	} else if (isp_dev->isp_inp & INP_CIF && !(IS_HDR_RDBK(isp_dev->rd_mode))) {
+		v4l2_subdev_call(p->subdevs[0], core, ioctl, RKISP_VICAP_CMD_QUICK_STREAM, &on);
+	}
+}
+
 static const struct dev_pm_ops rkisp_plat_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	.prepare = rkisp_pm_prepare,
+	.complete = rkisp_pm_complete,
 	SET_RUNTIME_PM_OPS(rkisp_runtime_suspend, rkisp_runtime_resume, NULL)
 };
 

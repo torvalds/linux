@@ -140,7 +140,7 @@ void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis);
 
 void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id);
 
-void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev);
+void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev, bool is_check);
 void rkisp_params_get_meshbuf_inf(struct rkisp_isp_params_vdev *params_vdev, void *meshbuf);
 int rkisp_params_set_meshbuf_size(struct rkisp_isp_params_vdev *params_vdev, void *meshsize);
 void rkisp_params_meshbuf_free(struct rkisp_isp_params_vdev *params_vdev, u64 id);
