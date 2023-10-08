@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106g-evb1-v11.dts"
+
+/ {
+	model = "Rockchip RV1106G EVB1 V11 Board For RV1106G3 4K Unite";
+	compatible = "rockchip,rv1106g-evb1-v11-4k", "rockchip,rv1106";
+};
+
+&rkisp {
+	rockchip,unite-en;
+};
