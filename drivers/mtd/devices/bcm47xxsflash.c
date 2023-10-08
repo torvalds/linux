@@ -357,19 +357,17 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int bcm47xxsflash_bcma_remove(struct platform_device *pdev)
+static void bcm47xxsflash_bcma_remove(struct platform_device *pdev)
 {
 	struct bcm47xxsflash *b47s = platform_get_drvdata(pdev);
 
 	mtd_device_unregister(&b47s->mtd);
 	iounmap(b47s->window);
-
-	return 0;
 }
 
 static struct platform_driver bcma_sflash_driver = {
 	.probe	= bcm47xxsflash_bcma_probe,
-	.remove = bcm47xxsflash_bcma_remove,
+	.remove_new = bcm47xxsflash_bcma_remove,
 	.driver = {
 		.name = "bcma_sflash",
 	},
