@@ -2820,7 +2820,7 @@ void clk_stromer_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 }
 EXPORT_SYMBOL_GPL(clk_stromer_pll_configure);
 
-static int clk_alpha_pll_stromer_determine_rate(struct clk_hw *hw,
+static int __maybe_unused clk_alpha_pll_stromer_determine_rate(struct clk_hw *hw,
 						struct clk_rate_request *req)
 {
 	u32 l;
@@ -2875,7 +2875,7 @@ const struct clk_ops clk_alpha_pll_stromer_ops = {
 	.disable = clk_alpha_pll_disable,
 	.is_enabled = clk_alpha_pll_is_enabled,
 	.recalc_rate = clk_alpha_pll_recalc_rate,
-	.determine_rate = clk_alpha_pll_stromer_determine_rate,
+	.round_rate = clk_alpha_pll_round_rate,
 	.set_rate = clk_alpha_pll_stromer_set_rate,
 };
 EXPORT_SYMBOL_GPL(clk_alpha_pll_stromer_ops);
