@@ -307,6 +307,13 @@ static bool rk3x_i2c_auto_stop(struct rk3x_i2c *i2c)
 	if (len > 32)
 		goto out;
 
+	/* For tx mode, one byte of the device address also needs to be counted,
+	 * if the data length is equal to 32, which is actually 33 bytes, it would
+	 * need to be divided into two parts, and needs to jump out of autostop.
+	 */
+	if (i2c->msg->len == 32 && i2c->mode == REG_CON_MOD_TX && !i2c->processed)
+		goto out;
+
 	i2c->state = STATE_STOP;
 
 	con1 |= REG_CON1_TRANSFER_AUTO_STOP | REG_CON1_AUTO_STOP;
