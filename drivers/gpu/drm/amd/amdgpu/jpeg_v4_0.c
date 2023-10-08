@@ -518,8 +518,11 @@ static int jpeg_v4_0_start_sriov(struct amdgpu_device *adev)
 			return -EBUSY;
 		}
 	}
-	if (resp != expected && resp != MMSCH_VF_MAILBOX_RESP__INCOMPLETE && init_status != MMSCH_VF_ENGINE_STATUS__PASS)
+	if (resp != expected && resp != MMSCH_VF_MAILBOX_RESP__INCOMPLETE
+			&& init_status != MMSCH_VF_ENGINE_STATUS__PASS) {
 		DRM_ERROR("MMSCH init status is incorrect! readback=0x%08x, header init status for jpeg: %x\n", resp, init_status);
+		return -EINVAL;
+	}
 
 	return 0;
 
