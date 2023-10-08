@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106g-evb2-v10-dual-camera.dts"
+
+/ {
+	model = "Rockchip RV1106G EVB2 V12 Board With Dual Camera AVS Blend Mode";
+	compatible = "rockchip,rv1106g-evb2-v12-dual-camera-avs", "rockchip,rv1106";
+};
+
+/delete-node/ &sc230ai;
+/delete-node/ &sc301iot;
+
+&csi2_dphy1 {
+	ports {
+		port@0 {
+			csi_dphy_input0: endpoint@0 {
+				remote-endpoint = <&sc230ai_30_out>;
+			};
+		};
+	};
+};
+
+&csi2_dphy2 {
+	ports {
+		port@0 {
+			csi_dphy_input1: endpoint@0 {
+				remote-endpoint = <&sc230ai_32_out>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	sc230ai_32: sc230ai_32@32 {
+		compatible = "smartsens,sc230ai";
+		status = "okay";
+		reg = <0x32>;
+		clocks = <&cru MCLK_REF_MIPI1>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out1>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2350-PC1";
+		rockchip,camera-module-lens-name = "65IRC-F16";
+		rockchip,camera-module-sync-mode = "slave";
+		port {
+			sc230ai_32_out: endpoint {
+				remote-endpoint = <&csi_dphy_input1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	sc230ai_30: sc230ai_30@30 {
+		compatible = "smartsens,sc230ai";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru MCLK_REF_MIPI0>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2350-PC1";
+		rockchip,camera-module-lens-name = "65IRC-F16";
+		rockchip,camera-module-sync-mode = "internal_master";
+		port {
+			sc230ai_30_out: endpoint {
+				remote-endpoint = <&csi_dphy_input0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&rkisp_thunderboot {
+	/* reg's offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
+	 * e.g. 1920x1080: 0xa8c000
+	 * 0x008b0000 = (meta's reg offset) + (meta's reg size)
+	 *            = 0x00800000 + 0xb0000
+	 */
+	reg = <0x008b0000 0xa8c000>;
+};
+
+&ramdisk_r {
+	/*
+	 * 0x133c000 = (rkisp_thunderboot's reg offset)
+	 *             + (rkisp_thunderboot's reg size)
+	 *           =  0x008b0000 + 0xa8c000
+	 */
+	reg = <0x133c000 (15 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	/*
+	 * 0x223c000 = (ramdisk_r's reg offset)
+	 *             + (ramdisk_r's reg size)
+	 *           =  0x133c000 + (15 * 0x00100000)
+	 */
+	reg = <0x223c000 (6 * 0x00100000)>;
+};
+
+&rkisp1_thunderboot {
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
+	 * e.g. 1920x1080: 0xa8c0000
+	 * 0x283c000  = (ramdisk_c's reg offset) + (ramdisk_c's reg size)
+	 *            = 0x223c000 + (6 * 0x00100000)
+	 */
+	reg = <0x283c000 0xa8c000>;
+};
