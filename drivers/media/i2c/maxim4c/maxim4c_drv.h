@@ -108,6 +108,8 @@ typedef struct maxim4c {
 
 	struct mfd_cell remote_mfd_devs[MAXIM4C_LINK_ID_MAX];
 	maxim4c_remote_t *remote_device[MAXIM4C_LINK_ID_MAX];
+
+	struct dentry *dbgfs_root;
 } maxim4c_t;
 
 #endif /* __MAXIM4C_DRV_H__ */

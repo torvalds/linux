@@ -98,4 +98,7 @@ int maxim4c_pattern_support_mode_init(maxim4c_t *maxim4c);
 int maxim4c_pattern_data_init(maxim4c_t *maxim4c);
 int maxim4c_pattern_enable(maxim4c_t *maxim4c, bool enable);
 
+int maxim4c_dbgfs_init(maxim4c_t *maxim4c);
+void maxim4c_dbgfs_deinit(maxim4c_t *maxim4c);
+
 #endif /* __MAXIM4C_API_H__ */

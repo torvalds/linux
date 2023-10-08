@@ -56,11 +56,45 @@ struct maxim4c_txphy_cfg {
 	u8 ssc_ratio;
 };
 
+struct maxim4c_txphy_timing {
+	/* 0x8A1 */
+	u8 t_hs_przero;
+	u8 t_hs_prep;
+	u8 t_clk_trail;
+	u8 t_clk_przero;
+
+	/* 0x8A2 */
+	u8 t_lpx;
+	u8 t_hs_trail;
+
+	/* 0x8A5 */
+	u8 t_clk_prep;
+
+	/* 0x8A8 */
+	u8 t_lpxesc;
+
+	/* 0x8AE */
+	u8 t_t3_post;
+	u8 t_t3_prep;
+
+	/* 0x905 */
+	u8 csi2_t_pre;
+	/* 0x906 */
+	u8 csi2_t_post;
+	/* 0x907 */
+	u8 csi2_tx_gap;
+	/* 0x908,0x909,0x90A */
+	u32 csi2_twakeup;
+};
+
 typedef struct maxim4c_mipi_txphy {
 	u8 phy_mode; /* mipi txphy mode */
 	u8 force_clock_out_en; /* Force all MIPI clocks running */
 	u8 force_clk0_en; /* DPHY0 enabled as clock */
 	u8 force_clk3_en; /* DPHY3 enabled as clock */
+
+	u8 timing_override_en;
+	struct maxim4c_txphy_timing timing;
 
 	struct maxim4c_txphy_cfg phy_cfg[MAXIM4C_TXPHY_ID_MAX];
 } maxim4c_mipi_txphy_t;

@@ -11,6 +11,82 @@
 
 #include "maxim4c_api.h"
 
+static int maxim4c_txphy_init_timing(maxim4c_t *maxim4c)
+{
+	struct i2c_client *client = maxim4c->client;
+	int ret = 0;
+	u16 reg_addr = 0;
+	u8 reg_mask;
+	u8 timing;
+	u8 phy_idx = 0;
+
+	if (!maxim4c->mipi_txphy.timing_override_en)
+		return 0;
+
+	timing = ((maxim4c->mipi_txphy.timing.t_hs_przero & 0x3) << 6 |
+		  (maxim4c->mipi_txphy.timing.t_hs_prep & 0x3) << 4 |
+		  (maxim4c->mipi_txphy.timing.t_clk_trail & 0x3) << 2 |
+		  (maxim4c->mipi_txphy.timing.t_clk_przero & 0x3) << 0);
+
+	ret |= maxim4c_i2c_write_byte(client, 0x08A1,
+				      MAXIM4C_I2C_REG_ADDR_16BITS, timing);
+
+	reg_mask = 0x0F;
+	timing = ((maxim4c->mipi_txphy.timing.t_lpx & 0x3) << 2 |
+		  (maxim4c->mipi_txphy.timing.t_hs_trail & 0x3) << 0);
+
+	ret |= maxim4c_i2c_update_byte(
+		client, 0x08A2, MAXIM4C_I2C_REG_ADDR_16BITS, reg_mask, timing);
+
+	reg_mask = (0x3 << 6);
+	timing = (maxim4c->mipi_txphy.timing.t_lpxesc & 0x3) << 6;
+	ret |= maxim4c_i2c_update_byte(
+		client, 0x08A5, MAXIM4C_I2C_REG_ADDR_16BITS, reg_mask, timing);
+
+	reg_mask = (0x7 << 5);
+	timing = (maxim4c->mipi_txphy.timing.t_lpxesc & 0x7) << 5;
+	ret |= maxim4c_i2c_update_byte(
+		client, 0x08A8, MAXIM4C_I2C_REG_ADDR_16BITS, reg_mask, timing);
+
+	for (phy_idx = 0; phy_idx < MAXIM4C_TXPHY_ID_MAX; phy_idx++) {
+		reg_mask = 0xFF;
+		reg_addr = 0x0905 + 0x40 * phy_idx;
+		timing = maxim4c->mipi_txphy.timing.csi2_t_pre;
+		ret |= maxim4c_i2c_update_byte(client, reg_addr,
+					       MAXIM4C_I2C_REG_ADDR_16BITS,
+					       reg_mask, timing);
+
+		reg_addr = 0x0906 + 0x40 * phy_idx;
+		timing = maxim4c->mipi_txphy.timing.csi2_t_post;
+		ret |= maxim4c_i2c_update_byte(client, reg_addr,
+					       MAXIM4C_I2C_REG_ADDR_16BITS,
+					       reg_mask, timing);
+
+		reg_addr = 0x0907 + 0x40 * phy_idx;
+		timing = maxim4c->mipi_txphy.timing.csi2_tx_gap;
+		ret |= maxim4c_i2c_update_byte(client, reg_addr,
+					       MAXIM4C_I2C_REG_ADDR_16BITS,
+					       reg_mask, timing);
+
+		reg_addr = 0x0908 + 0x40 * phy_idx;
+		timing = maxim4c->mipi_txphy.timing.csi2_twakeup & 0xFF;
+		ret |= maxim4c_i2c_update_byte(client, reg_addr,
+					       MAXIM4C_I2C_REG_ADDR_16BITS,
+					       reg_mask, timing);
+		timing = (maxim4c->mipi_txphy.timing.csi2_twakeup >> 8) & 0xFF;
+		ret |= maxim4c_i2c_update_byte(client, reg_addr + 1,
+					       MAXIM4C_I2C_REG_ADDR_16BITS,
+					       reg_mask, timing);
+		reg_mask = 0x7;
+		timing = (maxim4c->mipi_txphy.timing.csi2_twakeup >> 16) & 0x7;
+		ret |= maxim4c_i2c_update_byte(client, reg_addr + 2,
+					       MAXIM4C_I2C_REG_ADDR_16BITS,
+					       reg_mask, timing);
+	}
+
+	return ret;
+}
+
 static int maxim4c_txphy_auto_init_deskew(maxim4c_t *maxim4c)
 {
 	struct i2c_client *client = maxim4c->client;
@@ -521,6 +597,9 @@ int maxim4c_mipi_txphy_hw_init(maxim4c_t *maxim4c)
 	// mipi txphy auto init deskew
 	ret |= maxim4c_txphy_auto_init_deskew(maxim4c);
 
+	// mipi txphy timing init
+	ret |= maxim4c_txphy_init_timing(maxim4c);
+
 	if (ret) {
 		dev_err(dev, "%s: txphy hw init error\n", __func__);
 		return ret;
@@ -540,6 +619,11 @@ void maxim4c_mipi_txphy_data_init(maxim4c_t *maxim4c)
 	mipi_txphy->force_clock_out_en = 1;
 	mipi_txphy->force_clk0_en = 0;
 	mipi_txphy->force_clk3_en = 0;
+	mipi_txphy->timing.t_lpx = 1;
+	mipi_txphy->timing.csi2_t_pre = 0x71;
+	mipi_txphy->timing.csi2_t_post = 0x19;
+	mipi_txphy->timing.csi2_tx_gap = 0x1C;
+	mipi_txphy->timing.csi2_twakeup = 0x100;
 
 	for (i = 0; i < MAXIM4C_TXPHY_ID_MAX; i++) {
 		phy_cfg = &mipi_txphy->phy_cfg[i];

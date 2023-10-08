@@ -29,9 +29,10 @@
  * V2.03.00
  *     1. remote device add the maxim4c prefix to driver name.
  *
- * V2.04.01
+ * V2.04.02
  *     1. Add regulator supplier dependencies.
  *     2. Add config ssc-ratio property
+ *     3. Add debugfs entry to change MIPI timing
  *
  */
 #include <linux/clk.h>
@@ -62,7 +63,7 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(2, 0x04, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(2, 0x04, 0x02)
 
 #define MAXIM4C_XVCLK_FREQ		25000000
 
@@ -713,15 +714,19 @@ static int maxim4c_probe(struct i2c_client *client,
 	maxim4c_module_data_init(maxim4c);
 	maxim4c_module_parse_dt(maxim4c);
 
+	ret = maxim4c_dbgfs_init(maxim4c);
+	if (ret)
+		goto err_subdev_deinit;
+
 #if (MAXIM4C_LOCAL_DES_ON_OFF_EN == 0)
 	ret = maxim4c_module_hw_init(maxim4c);
 	if (ret)
-		goto err_subdev_deinit;
+		goto err_dbgfs_deinit;
 #endif /* MAXIM4C_LOCAL_DES_ON_OFF_EN */
 
 	ret = maxim4c_remote_mfd_add_devices(maxim4c);
 	if (ret)
-		goto err_subdev_deinit;
+		goto err_dbgfs_deinit;
 
 	maxim4c_lock_irq_init(maxim4c);
 	maxim4c_lock_state_work_init(maxim4c);
@@ -732,6 +737,8 @@ static int maxim4c_probe(struct i2c_client *client,
 
 	return 0;
 
+err_dbgfs_deinit:
+	maxim4c_dbgfs_deinit(maxim4c);
 err_subdev_deinit:
 	maxim4c_v4l2_subdev_deinit(maxim4c);
 err_power_off:
@@ -747,6 +754,8 @@ static int maxim4c_remove(struct i2c_client *client)
 	maxim4c_t *maxim4c = i2c_get_clientdata(client);
 
 	maxim4c_lock_state_work_deinit(maxim4c);
+
+	maxim4c_dbgfs_deinit(maxim4c);
 
 	maxim4c_v4l2_subdev_deinit(maxim4c);
 
