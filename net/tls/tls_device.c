@@ -1057,21 +1057,21 @@ static struct tls_offload_context_tx *alloc_offload_ctx_tx(struct tls_context *c
 	return offload_ctx;
 }
 
-int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
+int tls_set_device_offload(struct sock *sk)
 {
-	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_prot_info *prot = &tls_ctx->prot_info;
-	const struct tls_cipher_desc *cipher_desc;
 	struct tls_record_info *start_marker_record;
 	struct tls_offload_context_tx *offload_ctx;
+	const struct tls_cipher_desc *cipher_desc;
 	struct tls_crypto_info *crypto_info;
+	struct tls_prot_info *prot;
 	struct net_device *netdev;
-	char *iv, *rec_seq;
+	struct tls_context *ctx;
 	struct sk_buff *skb;
+	char *iv, *rec_seq;
 	int rc;
 
-	if (!ctx)
-		return -EINVAL;
+	ctx = tls_get_ctx(sk);
+	prot = &ctx->prot_info;
 
 	if (ctx->priv_ctx_tx)
 		return -EEXIST;
