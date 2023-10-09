@@ -1233,7 +1233,7 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 	context->resync_nh_reset = 1;
 
 	ctx->priv_ctx_rx = context;
-	rc = tls_set_sw_offload(sk, ctx, 0);
+	rc = tls_set_sw_offload(sk, 0);
 	if (rc)
 		goto release_ctx;
 

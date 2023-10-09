@@ -2657,24 +2657,22 @@ int init_prot_info(struct tls_prot_info *prot,
 	return 0;
 }
 
-int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
+int tls_set_sw_offload(struct sock *sk, int tx)
 {
-	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_prot_info *prot = &tls_ctx->prot_info;
-	struct tls_crypto_info *crypto_info;
 	struct tls_sw_context_tx *sw_ctx_tx = NULL;
 	struct tls_sw_context_rx *sw_ctx_rx = NULL;
-	struct cipher_context *cctx;
-	struct crypto_aead **aead;
-	struct crypto_tfm *tfm;
-	char *iv, *rec_seq, *key, *salt;
 	const struct tls_cipher_desc *cipher_desc;
+	struct tls_crypto_info *crypto_info;
+	char *iv, *rec_seq, *key, *salt;
+	struct cipher_context *cctx;
+	struct tls_prot_info *prot;
+	struct crypto_aead **aead;
+	struct tls_context *ctx;
+	struct crypto_tfm *tfm;
 	int rc = 0;
 
-	if (!ctx) {
-		rc = -EINVAL;
-		goto out;
-	}
+	ctx = tls_get_ctx(sk);
+	prot = &ctx->prot_info;
 
 	if (tx) {
 		ctx->priv_ctx_tx = init_ctx_tx(ctx, sk);
