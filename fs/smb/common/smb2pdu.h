@@ -34,6 +34,7 @@
 #define SMB2_QUERY_INFO_HE	0x0010
 #define SMB2_SET_INFO_HE	0x0011
 #define SMB2_OPLOCK_BREAK_HE	0x0012
+#define SMB2_SERVER_TO_CLIENT_NOTIFICATION 0x0013
 
 /* The same list in little endian */
 #define SMB2_NEGOTIATE		cpu_to_le16(SMB2_NEGOTIATE_HE)
@@ -411,6 +412,7 @@ struct smb2_tree_disconnect_rsp {
 #define SMB2_GLOBAL_CAP_PERSISTENT_HANDLES 0x00000010 /* New to SMB3 */
 #define SMB2_GLOBAL_CAP_DIRECTORY_LEASING  0x00000020 /* New to SMB3 */
 #define SMB2_GLOBAL_CAP_ENCRYPTION	0x00000040 /* New to SMB3 */
+#define SMB2_GLOBAL_CAP_NOTIFICATIONS	0x00000080 /* New to SMB3.1.1 */
 /* Internal types */
 #define SMB2_NT_FIND			0x00100000
 #define SMB2_LARGE_FILES		0x00200000
@@ -981,6 +983,19 @@ struct smb2_change_notify_rsp {
 	__u8	Buffer[]; /* array of file notify structs */
 } __packed;
 
+/*
+ * SMB2_SERVER_TO_CLIENT_NOTIFICATION: See MS-SMB2 section 2.2.44
+ */
+
+#define SMB2_NOTIFY_SESSION_CLOSED	0x0000
+
+struct smb2_server_client_notification {
+	struct smb2_hdr hdr;
+	__le16	StructureSize;
+	__u16	Reserved; /* MBZ */
+	__le32	NotificationType;
+	__u8	NotificationBuffer[4]; /* MBZ */
+} __packed;
 
 /*
  * SMB2_CREATE  See MS-SMB2 section 2.2.13
