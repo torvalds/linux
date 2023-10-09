@@ -38,6 +38,14 @@ static inline void sof_ops_free(struct snd_sof_dev *sdev)
 /* Mandatory operations are verified during probing */
 
 /* init */
+static inline int snd_sof_probe_early(struct snd_sof_dev *sdev)
+{
+	if (sof_ops(sdev)->probe_early)
+		return sof_ops(sdev)->probe_early(sdev);
+
+	return 0;
+}
+
 static inline int snd_sof_probe(struct snd_sof_dev *sdev)
 {
 	return sof_ops(sdev)->probe(sdev);
@@ -47,6 +55,14 @@ static inline int snd_sof_remove(struct snd_sof_dev *sdev)
 {
 	if (sof_ops(sdev)->remove)
 		return sof_ops(sdev)->remove(sdev);
+
+	return 0;
+}
+
+static inline int snd_sof_remove_late(struct snd_sof_dev *sdev)
+{
+	if (sof_ops(sdev)->remove_late)
+		return sof_ops(sdev)->remove_late(sdev);
 
 	return 0;
 }
