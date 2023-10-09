@@ -63,6 +63,7 @@ struct rapl_mmio_regs {
 #define PROC_THERMAL_FEATURE_WT_REQ	0x08
 #define PROC_THERMAL_FEATURE_DLVR	0x10
 #define PROC_THERMAL_FEATURE_WT_HINT	0x20
+#define PROC_THERMAL_FEATURE_POWER_FLOOR	0x40
 
 #if IS_ENABLED(CONFIG_PROC_THERMAL_MMIO_RAPL)
 int proc_thermal_rapl_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
@@ -93,6 +94,13 @@ void proc_thermal_wt_req_remove(struct pci_dev *pdev);
 
 #define SOC_WT_RES_INT_STATUS_OFFSET	0x5B18
 #define SOC_WT_RES_INT_STATUS_MASK	GENMASK_ULL(3, 2)
+
+int proc_thermal_read_power_floor_status(struct proc_thermal_device *proc_priv);
+int proc_thermal_power_floor_set_state(struct proc_thermal_device *proc_priv, bool enable);
+bool proc_thermal_power_floor_get_state(struct proc_thermal_device *proc_priv);
+void proc_thermal_power_floor_intr_callback(struct pci_dev *pdev,
+					    struct proc_thermal_device *proc_priv);
+bool proc_thermal_check_power_floor_intr(struct proc_thermal_device *proc_priv);
 
 int processor_thermal_send_mbox_read_cmd(struct pci_dev *pdev, u16 id, u64 *resp);
 int processor_thermal_send_mbox_write_cmd(struct pci_dev *pdev, u16 id, u32 data);

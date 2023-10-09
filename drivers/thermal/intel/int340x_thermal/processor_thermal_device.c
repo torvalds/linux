@@ -26,6 +26,48 @@ static ssize_t power_limit_##index##_##suffix##_show(struct device *dev, \
 	(unsigned long)proc_dev->power_limits[index].suffix * 1000); \
 }
 
+static ssize_t power_floor_status_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct proc_thermal_device *proc_dev = dev_get_drvdata(dev);
+	int ret;
+
+	ret = proc_thermal_read_power_floor_status(proc_dev);
+
+	return sysfs_emit(buf, "%d\n", ret);
+}
+
+static ssize_t power_floor_enable_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct proc_thermal_device *proc_dev = dev_get_drvdata(dev);
+	bool ret;
+
+	ret = proc_thermal_power_floor_get_state(proc_dev);
+
+	return sysfs_emit(buf, "%d\n", ret);
+}
+
+static ssize_t power_floor_enable_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct proc_thermal_device *proc_dev = dev_get_drvdata(dev);
+	u8 state;
+	int ret;
+
+	if (kstrtou8(buf, 0, &state))
+		return -EINVAL;
+
+	ret = proc_thermal_power_floor_set_state(proc_dev, !!state);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
 POWER_LIMIT_SHOW(0, min_uw)
 POWER_LIMIT_SHOW(0, max_uw)
 POWER_LIMIT_SHOW(0, step_uw)
@@ -50,6 +92,9 @@ static DEVICE_ATTR_RO(power_limit_1_step_uw);
 static DEVICE_ATTR_RO(power_limit_1_tmin_us);
 static DEVICE_ATTR_RO(power_limit_1_tmax_us);
 
+static DEVICE_ATTR_RO(power_floor_status);
+static DEVICE_ATTR_RW(power_floor_enable);
+
 static struct attribute *power_limit_attrs[] = {
 	&dev_attr_power_limit_0_min_uw.attr,
 	&dev_attr_power_limit_1_min_uw.attr,
@@ -61,12 +106,30 @@ static struct attribute *power_limit_attrs[] = {
 	&dev_attr_power_limit_1_tmin_us.attr,
 	&dev_attr_power_limit_0_tmax_us.attr,
 	&dev_attr_power_limit_1_tmax_us.attr,
+	&dev_attr_power_floor_status.attr,
+	&dev_attr_power_floor_enable.attr,
 	NULL
 };
 
+static umode_t power_limit_attr_visible(struct kobject *kobj, struct attribute *attr, int unused)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct proc_thermal_device *proc_dev;
+
+	if (attr != &dev_attr_power_floor_status.attr && attr != &dev_attr_power_floor_enable.attr)
+		return attr->mode;
+
+	proc_dev = dev_get_drvdata(dev);
+	if (!proc_dev || !(proc_dev->mmio_feature_mask & PROC_THERMAL_FEATURE_POWER_FLOOR))
+		return 0;
+
+	return attr->mode;
+}
+
 static const struct attribute_group power_limit_attribute_group = {
 	.attrs = power_limit_attrs,
-	.name = "power_limits"
+	.name = "power_limits",
+	.is_visible = power_limit_attr_visible,
 };
 
 static ssize_t tcc_offset_degree_celsius_show(struct device *dev,
@@ -379,6 +442,9 @@ void proc_thermal_mmio_remove(struct pci_dev *pdev, struct proc_thermal_device *
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_FIVR ||
 	    proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DVFS)
 		proc_thermal_rfim_remove(pdev);
+
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_POWER_FLOOR)
+		proc_thermal_power_floor_set_state(proc_priv, false);
 
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_WT_REQ)
 		proc_thermal_wt_req_remove(pdev);

@@ -164,6 +164,16 @@ ABI.
 ``power_limit_1_tmax_us`` (RO)
 	Maximum powercap sysfs constraint_1_time_window_us for Intel RAPL
 
+``power_floor_status`` (RO)
+	When set to 1, the power floor of the system in the current
+	configuration has been reached.  It needs to be reconfigured to allow
+	power to be reduced any further.
+
+``power_floor_enable`` (RW)
+	When set to 1, enable reading and notification of the power floor
+	status. Notifications are triggered for the power_floor_status
+	attribute value changes.
+
 :file:`/sys/bus/pci/devices/0000\:00\:04.0/`
 
 ``tcc_offset_degree_celsius`` (RW)
