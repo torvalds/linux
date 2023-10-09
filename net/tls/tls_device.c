@@ -1033,6 +1033,30 @@ static void tls_device_attach(struct tls_context *ctx, struct sock *sk,
 	}
 }
 
+static struct tls_offload_context_tx *alloc_offload_ctx_tx(struct tls_context *ctx)
+{
+	struct tls_offload_context_tx *offload_ctx;
+	__be64 rcd_sn;
+
+	offload_ctx = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_TX, GFP_KERNEL);
+	if (!offload_ctx)
+		return NULL;
+
+	INIT_WORK(&offload_ctx->destruct_work, tls_device_tx_del_task);
+	INIT_LIST_HEAD(&offload_ctx->records_list);
+	spin_lock_init(&offload_ctx->lock);
+	sg_init_table(offload_ctx->sg_tx_data,
+		      ARRAY_SIZE(offload_ctx->sg_tx_data));
+
+	/* start at rec_seq - 1 to account for the start marker record */
+	memcpy(&rcd_sn, ctx->tx.rec_seq, sizeof(rcd_sn));
+	offload_ctx->unacked_record_sn = be64_to_cpu(rcd_sn) - 1;
+
+	offload_ctx->ctx = ctx;
+
+	return offload_ctx;
+}
+
 int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
@@ -1044,7 +1068,6 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	struct net_device *netdev;
 	char *iv, *rec_seq;
 	struct sk_buff *skb;
-	__be64 rcd_sn;
 	int rc;
 
 	if (!ctx)
@@ -1092,7 +1115,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		goto release_netdev;
 	}
 
-	offload_ctx = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_TX, GFP_KERNEL);
+	offload_ctx = alloc_offload_ctx_tx(ctx);
 	if (!offload_ctx) {
 		rc = -ENOMEM;
 		goto free_marker_record;
@@ -1102,22 +1125,10 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	if (rc)
 		goto free_offload_ctx;
 
-	/* start at rec_seq - 1 to account for the start marker record */
-	memcpy(&rcd_sn, ctx->tx.rec_seq, sizeof(rcd_sn));
-	offload_ctx->unacked_record_sn = be64_to_cpu(rcd_sn) - 1;
-
 	start_marker_record->end_seq = tcp_sk(sk)->write_seq;
 	start_marker_record->len = 0;
 	start_marker_record->num_frags = 0;
-
-	INIT_WORK(&offload_ctx->destruct_work, tls_device_tx_del_task);
-	offload_ctx->ctx = ctx;
-
-	INIT_LIST_HEAD(&offload_ctx->records_list);
 	list_add_tail(&start_marker_record->list, &offload_ctx->records_list);
-	spin_lock_init(&offload_ctx->lock);
-	sg_init_table(offload_ctx->sg_tx_data,
-		      ARRAY_SIZE(offload_ctx->sg_tx_data));
 
 	clean_acked_data_enable(inet_csk(sk), &tls_icsk_clean_acked);
 	ctx->push_pending_record = tls_device_push_pending_record;
