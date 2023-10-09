@@ -1038,7 +1038,7 @@ static struct tls_offload_context_tx *alloc_offload_ctx_tx(struct tls_context *c
 	struct tls_offload_context_tx *offload_ctx;
 	__be64 rcd_sn;
 
-	offload_ctx = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_TX, GFP_KERNEL);
+	offload_ctx = kzalloc(sizeof(*offload_ctx), GFP_KERNEL);
 	if (!offload_ctx)
 		return NULL;
 
@@ -1225,7 +1225,7 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 		goto release_lock;
 	}
 
-	context = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_RX, GFP_KERNEL);
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context) {
 		rc = -ENOMEM;
 		goto release_lock;
