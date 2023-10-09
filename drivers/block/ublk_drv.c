@@ -1420,9 +1420,6 @@ static void ublk_abort_queue(struct ublk_device *ub, struct ublk_queue *ubq)
 {
 	int i;
 
-	if (!ublk_get_device(ub))
-		return;
-
 	for (i = 0; i < ubq->q_depth; i++) {
 		struct ublk_io *io = &ubq->ios[i];
 
@@ -1438,7 +1435,6 @@ static void ublk_abort_queue(struct ublk_device *ub, struct ublk_queue *ubq)
 				__ublk_fail_req(ubq, io, rq);
 		}
 	}
-	ublk_put_device(ub);
 }
 
 static void ublk_daemon_monitor_work(struct work_struct *work)
