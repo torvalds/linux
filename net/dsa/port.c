@@ -1554,20 +1554,6 @@ static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 	return phydev;
 }
 
-static void dsa_port_phylink_validate(struct phylink_config *config,
-				      unsigned long *supported,
-				      struct phylink_link_state *state)
-{
-	/* Skip call for drivers which don't yet set mac_capabilities,
-	 * since validating in that case would mean their PHY will advertise
-	 * nothing. In turn, skipping validation makes them advertise
-	 * everything that the PHY supports, so those drivers should be
-	 * converted ASAP.
-	 */
-	if (config->mac_capabilities)
-		phylink_generic_validate(config, supported, state);
-}
-
 static struct phylink_pcs *
 dsa_port_phylink_mac_select_pcs(struct phylink_config *config,
 				phy_interface_t interface)
@@ -1666,7 +1652,6 @@ static void dsa_port_phylink_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
-	.validate = dsa_port_phylink_validate,
 	.mac_select_pcs = dsa_port_phylink_mac_select_pcs,
 	.mac_prepare = dsa_port_phylink_mac_prepare,
 	.mac_config = dsa_port_phylink_mac_config,
