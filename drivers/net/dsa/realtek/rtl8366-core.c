@@ -395,17 +395,13 @@ void rtl8366_get_strings(struct dsa_switch *ds, int port, u32 stringset,
 			 uint8_t *data)
 {
 	struct realtek_priv *priv = ds->priv;
-	struct rtl8366_mib_counter *mib;
 	int i;
 
 	if (port >= priv->num_ports)
 		return;
 
-	for (i = 0; i < priv->num_mib_counters; i++) {
-		mib = &priv->mib_counters[i];
-		strncpy(data + i * ETH_GSTRING_LEN,
-			mib->name, ETH_GSTRING_LEN);
-	}
+	for (i = 0; i < priv->num_mib_counters; i++)
+		ethtool_sprintf(&data, "%s", priv->mib_counters[i].name);
 }
 EXPORT_SYMBOL_GPL(rtl8366_get_strings);
 
