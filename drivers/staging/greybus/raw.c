@@ -29,7 +29,7 @@ struct gb_raw {
 struct raw_data {
 	struct list_head entry;
 	u32 len;
-	u8 data[];
+	u8 data[] __counted_by(len);
 };
 
 static const struct class raw_class = {
@@ -73,7 +73,7 @@ static int receive_data(struct gb_raw *raw, u32 len, u8 *data)
 		goto exit;
 	}
 
-	raw_data = kmalloc(sizeof(*raw_data) + len, GFP_KERNEL);
+	raw_data = kmalloc(struct_size(raw_data, data, len), GFP_KERNEL);
 	if (!raw_data) {
 		retval = -ENOMEM;
 		goto exit;
