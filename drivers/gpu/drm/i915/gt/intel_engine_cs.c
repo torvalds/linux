@@ -316,10 +316,9 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 			 * out in the wash.
 			 */
 			cxt_size = intel_uncore_read(uncore, CXT_SIZE) + 1;
-			drm_dbg(&gt->i915->drm,
-				"graphics_ver = %d CXT_SIZE = %d bytes [0x%08x]\n",
-				GRAPHICS_VER(gt->i915), cxt_size * 64,
-				cxt_size - 1);
+			gt_dbg(gt, "graphics_ver = %d CXT_SIZE = %d bytes [0x%08x]\n",
+			       GRAPHICS_VER(gt->i915), cxt_size * 64,
+			       cxt_size - 1);
 			return round_up(cxt_size * 64, PAGE_SIZE);
 		case 3:
 		case 2:
@@ -788,7 +787,7 @@ static void engine_mask_apply_media_fuses(struct intel_gt *gt)
 
 		if (!(BIT(i) & vdbox_mask)) {
 			gt->info.engine_mask &= ~BIT(_VCS(i));
-			drm_dbg(&i915->drm, "vcs%u fused off\n", i);
+			gt_dbg(gt, "vcs%u fused off\n", i);
 			continue;
 		}
 
@@ -796,8 +795,7 @@ static void engine_mask_apply_media_fuses(struct intel_gt *gt)
 			gt->info.vdbox_sfc_access |= BIT(i);
 		logical_vdbox++;
 	}
-	drm_dbg(&i915->drm, "vdbox enable: %04x, instances: %04lx\n",
-		vdbox_mask, VDBOX_MASK(gt));
+	gt_dbg(gt, "vdbox enable: %04x, instances: %04lx\n", vdbox_mask, VDBOX_MASK(gt));
 	GEM_BUG_ON(vdbox_mask != VDBOX_MASK(gt));
 
 	for (i = 0; i < I915_MAX_VECS; i++) {
@@ -808,11 +806,10 @@ static void engine_mask_apply_media_fuses(struct intel_gt *gt)
 
 		if (!(BIT(i) & vebox_mask)) {
 			gt->info.engine_mask &= ~BIT(_VECS(i));
-			drm_dbg(&i915->drm, "vecs%u fused off\n", i);
+			gt_dbg(gt, "vecs%u fused off\n", i);
 		}
 	}
-	drm_dbg(&i915->drm, "vebox enable: %04x, instances: %04lx\n",
-		vebox_mask, VEBOX_MASK(gt));
+	gt_dbg(gt, "vebox enable: %04x, instances: %04lx\n", vebox_mask, VEBOX_MASK(gt));
 	GEM_BUG_ON(vebox_mask != VEBOX_MASK(gt));
 }
 
@@ -838,7 +835,7 @@ static void engine_mask_apply_compute_fuses(struct intel_gt *gt)
 	 */
 	for_each_clear_bit(i, &ccs_mask, I915_MAX_CCS) {
 		info->engine_mask &= ~BIT(_CCS(i));
-		drm_dbg(&i915->drm, "ccs%u fused off\n", i);
+		gt_dbg(gt, "ccs%u fused off\n", i);
 	}
 }
 
@@ -866,8 +863,8 @@ static void engine_mask_apply_copy_fuses(struct intel_gt *gt)
 						   _BCS(instance));
 
 		if (mask & info->engine_mask) {
-			drm_dbg(&i915->drm, "bcs%u fused off\n", instance);
-			drm_dbg(&i915->drm, "bcs%u fused off\n", instance + 1);
+			gt_dbg(gt, "bcs%u fused off\n", instance);
+			gt_dbg(gt, "bcs%u fused off\n", instance + 1);
 
 			info->engine_mask &= ~mask;
 		}
@@ -907,8 +904,7 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 	 *    submission, which will wake up the GSC power well.
 	 */
 	if (__HAS_ENGINE(info->engine_mask, GSC0) && !intel_uc_wants_gsc_uc(&gt->uc)) {
-		drm_notice(&gt->i915->drm,
-			   "No GSC FW selected, disabling GSC CS and media C6\n");
+		gt_notice(gt, "No GSC FW selected, disabling GSC CS and media C6\n");
 		info->engine_mask &= ~BIT(GSC0);
 	}
 
@@ -1097,8 +1093,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 	 */
 	obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
-		drm_err(&engine->i915->drm,
-			"Failed to allocate status page\n");
+		gt_err(engine->gt, "Failed to allocate status page\n");
 		return PTR_ERR(obj);
 	}
 
