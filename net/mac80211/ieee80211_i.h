@@ -1746,7 +1746,7 @@ struct ieee802_11_elems {
 	 */
 	size_t scratch_len;
 	u8 *scratch_pos;
-	u8 scratch[];
+	u8 scratch[] __counted_by(scratch_len);
 };
 
 static inline struct ieee80211_local *hw_to_local(

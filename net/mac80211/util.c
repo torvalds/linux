@@ -1625,7 +1625,7 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	int nontransmitted_profile_len = 0;
 	size_t scratch_len = 3 * params->len;
 
-	elems = kzalloc(sizeof(*elems) + scratch_len, GFP_ATOMIC);
+	elems = kzalloc(struct_size(elems, scratch, scratch_len), GFP_ATOMIC);
 	if (!elems)
 		return NULL;
 	elems->ie_start = params->start;
