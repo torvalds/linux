@@ -920,13 +920,11 @@ err_clk:
 	return ret;
 }
 
-static int rzn1_pinctrl_remove(struct platform_device *pdev)
+static void rzn1_pinctrl_remove(struct platform_device *pdev)
 {
 	struct rzn1_pinctrl *ipctl = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(ipctl->clk);
-
-	return 0;
 }
 
 static const struct of_device_id rzn1_pinctrl_match[] = {
@@ -937,7 +935,7 @@ MODULE_DEVICE_TABLE(of, rzn1_pinctrl_match);
 
 static struct platform_driver rzn1_pinctrl_driver = {
 	.probe	= rzn1_pinctrl_probe,
-	.remove = rzn1_pinctrl_remove,
+	.remove_new = rzn1_pinctrl_remove,
 	.driver	= {
 		.name		= "rzn1-pinctrl",
 		.of_match_table	= rzn1_pinctrl_match,
