@@ -3023,14 +3023,25 @@ static int vxlan_open(struct net_device *dev)
 }
 
 struct vxlan_fdb_flush_desc {
+	bool				ignore_default_entry;
 	unsigned long                   state;
 	unsigned long			state_mask;
 };
 
+static bool vxlan_fdb_is_default_entry(const struct vxlan_fdb *f,
+				       const struct vxlan_dev *vxlan)
+{
+	return is_zero_ether_addr(f->eth_addr) && f->vni == vxlan->cfg.vni;
+}
+
 static bool vxlan_fdb_flush_matches(const struct vxlan_fdb *f,
+				    const struct vxlan_dev *vxlan,
 				    const struct vxlan_fdb_flush_desc *desc)
 {
 	if (desc->state_mask && (f->state & desc->state_mask) != desc->state)
+		return false;
+
+	if (desc->ignore_default_entry && vxlan_fdb_is_default_entry(f, vxlan))
 		return false;
 
 	return true;
@@ -3050,13 +3061,9 @@ static void vxlan_flush(struct vxlan_dev *vxlan,
 			struct vxlan_fdb *f
 				= container_of(p, struct vxlan_fdb, hlist);
 
-			if (!vxlan_fdb_flush_matches(f, desc))
+			if (!vxlan_fdb_flush_matches(f, vxlan, desc))
 				continue;
 
-			/* the all_zeros_mac entry is deleted at vxlan_uninit */
-			if (is_zero_ether_addr(f->eth_addr) &&
-			    f->vni == vxlan->cfg.vni)
-				continue;
 			vxlan_fdb_destroy(vxlan, f, true, true);
 		}
 		spin_unlock_bh(&vxlan->hash_lock[h]);
@@ -3068,6 +3075,8 @@ static int vxlan_stop(struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_fdb_flush_desc desc = {
+		/* Default entry is deleted at vxlan_uninit. */
+		.ignore_default_entry = true,
 		.state = 0,
 		.state_mask = NUD_PERMANENT | NUD_NOARP,
 	};
@@ -4315,7 +4324,10 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	struct vxlan_fdb_flush_desc desc = {};
+	struct vxlan_fdb_flush_desc desc = {
+		/* Default entry is deleted at vxlan_uninit. */
+		.ignore_default_entry = true,
+	};
 
 	vxlan_flush(vxlan, &desc);
 
