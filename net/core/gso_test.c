@@ -27,6 +27,10 @@ enum gso_test_nr {
 	GSO_TEST_FRAGS,
 	GSO_TEST_FRAGS_PURE,
 	GSO_TEST_GSO_PARTIAL,
+	GSO_TEST_FRAG_LIST,
+	GSO_TEST_FRAG_LIST_PURE,
+	GSO_TEST_FRAG_LIST_NON_UNIFORM,
+	GSO_TEST_GSO_BY_FRAGS,
 };
 
 struct gso_test_case {
@@ -37,6 +41,8 @@ struct gso_test_case {
 	unsigned int linear_len;
 	unsigned int nr_frags;
 	const unsigned int *frags;
+	unsigned int nr_frag_skbs;
+	const unsigned int *frag_skbs;
 
 	/* output as expected */
 	unsigned int nr_segs;
@@ -83,6 +89,48 @@ static struct gso_test_case cases[] = {
 		.frags = (const unsigned int[]) { gso_size, 3 },
 		.nr_segs = 2,
 		.segs = (const unsigned int[]) { 2 * gso_size, 3 },
+	},
+	{
+		/* commit 89319d3801d1: frag_list on mss boundaries */
+		.id = GSO_TEST_FRAG_LIST,
+		.name = "frag_list",
+		.linear_len = gso_size,
+		.nr_frag_skbs = 2,
+		.frag_skbs = (const unsigned int[]) { gso_size, gso_size },
+		.nr_segs = 3,
+		.segs = (const unsigned int[]) { gso_size, gso_size, gso_size },
+	},
+	{
+		.id = GSO_TEST_FRAG_LIST_PURE,
+		.name = "frag_list_pure",
+		.nr_frag_skbs = 2,
+		.frag_skbs = (const unsigned int[]) { gso_size, gso_size },
+		.nr_segs = 2,
+		.segs = (const unsigned int[]) { gso_size, gso_size },
+	},
+	{
+		/* commit 43170c4e0ba7: GRO of frag_list trains */
+		.id = GSO_TEST_FRAG_LIST_NON_UNIFORM,
+		.name = "frag_list_non_uniform",
+		.linear_len = gso_size,
+		.nr_frag_skbs = 4,
+		.frag_skbs = (const unsigned int[]) { gso_size, 1, gso_size, 2 },
+		.nr_segs = 4,
+		.segs = (const unsigned int[]) { gso_size, gso_size, gso_size, 3 },
+	},
+	{
+		/* commit 3953c46c3ac7 ("sk_buff: allow segmenting based on frag sizes") and
+		 * commit 90017accff61 ("sctp: Add GSO support")
+		 *
+		 * "there will be a cover skb with protocol headers and
+		 *  children ones containing the actual segments"
+		 */
+		.id = GSO_TEST_GSO_BY_FRAGS,
+		.name = "gso_by_frags",
+		.nr_frag_skbs = 4,
+		.frag_skbs = (const unsigned int[]) { 100, 200, 300, 400 },
+		.nr_segs = 4,
+		.segs = (const unsigned int[]) { 100, 200, 300, 400 },
 	},
 };
 
@@ -131,9 +179,53 @@ static void gso_test_func(struct kunit *test)
 		skb->truesize += skb->data_len;
 	}
 
+	if (tcase->frag_skbs) {
+		unsigned int total_size = 0, total_true_size = 0, alloc_size = 0;
+		struct sk_buff *frag_skb, *prev = NULL;
+
+		page = alloc_page(GFP_KERNEL);
+		KUNIT_ASSERT_NOT_NULL(test, page);
+		page_ref_add(page, tcase->nr_frag_skbs - 1);
+
+		for (i = 0; i < tcase->nr_frag_skbs; i++) {
+			unsigned int frag_size;
+
+			frag_size = tcase->frag_skbs[i];
+			frag_skb = build_skb(page_address(page) + alloc_size,
+					     frag_size + shinfo_size);
+			KUNIT_ASSERT_NOT_NULL(test, frag_skb);
+			__skb_put(frag_skb, frag_size);
+
+			if (prev)
+				prev->next = frag_skb;
+			else
+				skb_shinfo(skb)->frag_list = frag_skb;
+			prev = frag_skb;
+
+			total_size += frag_size;
+			total_true_size += frag_skb->truesize;
+			alloc_size += frag_size + shinfo_size;
+		}
+
+		KUNIT_ASSERT_LE(test, alloc_size, PAGE_SIZE);
+
+		skb->len += total_size;
+		skb->data_len += total_size;
+		skb->truesize += total_true_size;
+
+		if (tcase->id == GSO_TEST_GSO_BY_FRAGS)
+			skb_shinfo(skb)->gso_size = GSO_BY_FRAGS;
+	}
+
 	features = NETIF_F_SG | NETIF_F_HW_CSUM;
 	if (tcase->id == GSO_TEST_GSO_PARTIAL)
 		features |= NETIF_F_GSO_PARTIAL;
+
+	/* TODO: this should also work with SG,
+	 * rather than hit BUG_ON(i >= nfrags)
+	 */
+	if (tcase->id == GSO_TEST_FRAG_LIST_NON_UNIFORM)
+		features &= ~NETIF_F_SG;
 
 	segs = skb_segment(skb, features);
 	if (IS_ERR(segs)) {
