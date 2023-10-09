@@ -1076,20 +1076,14 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		goto release_netdev;
 	}
 
+	rc = init_prot_info(prot, crypto_info, cipher_desc, TLS_HW);
+	if (rc)
+		goto release_netdev;
+
 	iv = crypto_info_iv(crypto_info, cipher_desc);
 	rec_seq = crypto_info_rec_seq(crypto_info, cipher_desc);
 
-	prot->version = crypto_info->version;
-	prot->cipher_type = crypto_info->cipher_type;
-	prot->prepend_size = TLS_HEADER_SIZE + cipher_desc->iv;
-	prot->tag_size = cipher_desc->tag;
-	prot->overhead_size = prot->prepend_size + prot->tag_size;
-	prot->iv_size = cipher_desc->iv;
-	prot->salt_size = cipher_desc->salt;
-
 	memcpy(ctx->tx.iv + cipher_desc->salt, iv, cipher_desc->iv);
-
-	prot->rec_seq_size = cipher_desc->rec_seq;
 	memcpy(ctx->tx.rec_seq, rec_seq, cipher_desc->rec_seq);
 
 	start_marker_record = kmalloc(sizeof(*start_marker_record), GFP_KERNEL);

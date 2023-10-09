@@ -142,6 +142,10 @@ void update_sk_prot(struct sock *sk, struct tls_context *ctx);
 int wait_on_pending_writer(struct sock *sk, long *timeo);
 void tls_err_abort(struct sock *sk, int err);
 
+int init_prot_info(struct tls_prot_info *prot,
+		   const struct tls_crypto_info *crypto_info,
+		   const struct tls_cipher_desc *cipher_desc,
+		   int mode);
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx);
 void tls_update_rx_zc_capable(struct tls_context *tls_ctx);
 void tls_sw_strparser_arm(struct sock *sk, struct tls_context *ctx);
