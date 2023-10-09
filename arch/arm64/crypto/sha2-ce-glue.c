@@ -116,6 +116,13 @@ static int sha256_ce_final(struct shash_desc *desc, u8 *out)
 	return sha256_base_finish(desc, out);
 }
 
+static int sha256_ce_digest(struct shash_desc *desc, const u8 *data,
+			    unsigned int len, u8 *out)
+{
+	sha256_base_init(desc);
+	return sha256_ce_finup(desc, data, len, out);
+}
+
 static int sha256_ce_export(struct shash_desc *desc, void *out)
 {
 	struct sha256_ce_state *sctx = shash_desc_ctx(desc);
@@ -155,6 +162,7 @@ static struct shash_alg algs[] = { {
 	.update			= sha256_ce_update,
 	.final			= sha256_ce_final,
 	.finup			= sha256_ce_finup,
+	.digest			= sha256_ce_digest,
 	.export			= sha256_ce_export,
 	.import			= sha256_ce_import,
 	.descsize		= sizeof(struct sha256_ce_state),
