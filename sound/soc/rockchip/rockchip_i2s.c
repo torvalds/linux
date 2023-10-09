@@ -938,7 +938,7 @@ static int rockchip_i2s_init_dai(struct rk_i2s_dev *i2s, struct resource *res,
 		i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		i2s->playback_dma_data.maxburst = 8;
 
-		if (!of_property_read_u32(node, "rockchip,playback-channels", &val)) {
+		if (!device_property_read_u32(i2s->dev, "rockchip,playback-channels", &val)) {
 			if (val >= 2 && val <= 8)
 				dai->playback.channels_max = val;
 		}
@@ -960,14 +960,14 @@ static int rockchip_i2s_init_dai(struct rk_i2s_dev *i2s, struct resource *res,
 		i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		i2s->capture_dma_data.maxburst = 8;
 
-		if (!of_property_read_u32(node, "rockchip,capture-channels", &val)) {
+		if (!device_property_read_u32(i2s->dev, "rockchip,capture-channels", &val)) {
 			if (val >= 2 && val <= 8)
 				dai->capture.channels_max = val;
 		}
 	}
 
 	i2s->clk_trcm = I2S_CKR_TRCM_TXRX;
-	if (!of_property_read_u32(node, "rockchip,clk-trcm", &val)) {
+	if (!device_property_read_u32(i2s->dev, "rockchip,clk-trcm", &val)) {
 		if (val >= 0 && val <= 2) {
 			i2s->clk_trcm = val << I2S_CKR_TRCM_SHIFT;
 			if (i2s->clk_trcm)
@@ -1067,7 +1067,7 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, i2s);
 
 	i2s->mclk_calibrate =
-		of_property_read_bool(node, "rockchip,mclk-calibrate");
+		device_property_read_bool(&pdev->dev, "rockchip,mclk-calibrate");
 	if (i2s->mclk_calibrate) {
 		i2s->mclk_root = devm_clk_get(&pdev->dev, "i2s_clk_root");
 		if (IS_ERR(i2s->mclk_root))
@@ -1136,7 +1136,7 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		goto err_suspend;
 	}
 
-	if (of_property_read_bool(node, "rockchip,no-dmaengine")) {
+	if (device_property_read_bool(&pdev->dev, "rockchip,no-dmaengine")) {
 		dev_info(&pdev->dev, "Used for Multi-DAI\n");
 		return 0;
 	}
