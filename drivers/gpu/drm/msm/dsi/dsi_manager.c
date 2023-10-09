@@ -466,9 +466,9 @@ static const struct drm_bridge_funcs dsi_mgr_bridge_funcs = {
 };
 
 /* initialize bridge */
-int msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi)
+struct drm_bridge *msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi)
 {
-	struct drm_bridge *bridge = NULL;
+	struct drm_bridge *bridge;
 	struct dsi_bridge *dsi_bridge;
 	struct drm_encoder *encoder;
 	int ret;
@@ -476,7 +476,7 @@ int msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi)
 	dsi_bridge = devm_kzalloc(msm_dsi->dev->dev,
 				sizeof(*dsi_bridge), GFP_KERNEL);
 	if (!dsi_bridge)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	dsi_bridge->id = msm_dsi->id;
 
@@ -487,26 +487,23 @@ int msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi)
 
 	ret = devm_drm_bridge_add(msm_dsi->dev->dev, bridge);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
-	msm_dsi->bridge = bridge;
-
-	return 0;
+	return bridge;
 }
 
-int msm_dsi_manager_ext_bridge_init(u8 id)
+int msm_dsi_manager_ext_bridge_init(u8 id, struct drm_bridge *int_bridge)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_device *dev = msm_dsi->dev;
 	struct drm_encoder *encoder;
-	struct drm_bridge *int_bridge, *ext_bridge;
+	struct drm_bridge *ext_bridge;
 	int ret;
 
-	int_bridge = msm_dsi->bridge;
 	ext_bridge = devm_drm_of_get_bridge(&msm_dsi->pdev->dev,
 					    msm_dsi->pdev->dev.of_node, 1, 0);
 	if (IS_ERR(ext_bridge))
