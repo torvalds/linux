@@ -30,7 +30,7 @@ that purpose, selection target ``V4L2_SEL_TGT_COMPOSE`` is supported on the
 sink pad (0).
 
 Additionally, if a device has no scaler or digital crop functionality, the
-source pad (1) expses another digital crop selection rectangle that can only
+source pad (1) exposes another digital crop selection rectangle that can only
 crop at the end of the lines and frames.
 
 Scaler
