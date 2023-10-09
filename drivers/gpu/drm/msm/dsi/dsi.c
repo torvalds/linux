@@ -236,9 +236,7 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 		return 0;
 	}
 
-	msm_dsi->encoder = encoder;
-
-	bridge = msm_dsi_manager_bridge_init(msm_dsi);
+	bridge = msm_dsi_manager_bridge_init(msm_dsi, encoder);
 	if (IS_ERR(bridge)) {
 		ret = PTR_ERR(bridge);
 		DRM_DEV_ERROR(dev->dev, "failed to create dsi bridge: %d\n", ret);

@@ -431,11 +431,11 @@ static const struct drm_bridge_funcs dsi_mgr_bridge_funcs = {
 };
 
 /* initialize bridge */
-struct drm_bridge *msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi)
+struct drm_bridge *msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi,
+					       struct drm_encoder *encoder)
 {
 	struct drm_bridge *bridge;
 	struct dsi_bridge *dsi_bridge;
-	struct drm_encoder *encoder;
 	int ret;
 
 	dsi_bridge = devm_kzalloc(msm_dsi->dev->dev,
@@ -444,8 +444,6 @@ struct drm_bridge *msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi)
 		return ERR_PTR(-ENOMEM);
 
 	dsi_bridge->id = msm_dsi->id;
-
-	encoder = msm_dsi->encoder;
 
 	bridge = &dsi_bridge->base;
 	bridge->funcs = &dsi_mgr_bridge_funcs;
@@ -474,7 +472,7 @@ int msm_dsi_manager_ext_bridge_init(u8 id, struct drm_bridge *int_bridge)
 	if (IS_ERR(ext_bridge))
 		return PTR_ERR(ext_bridge);
 
-	encoder = msm_dsi->encoder;
+	encoder = int_bridge->encoder;
 
 	/*
 	 * Try first to create the bridge without it creating its own
