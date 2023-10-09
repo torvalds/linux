@@ -305,8 +305,6 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	int ret;
 
 	DBG("id=%d", id);
-	if (!msm_dsi_device_connected(msm_dsi))
-		return;
 
 	/* Do nothing with the host if it is slave-DSI in case of bonded DSI */
 	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id))
@@ -363,9 +361,6 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 	int ret;
 
 	DBG("id=%d", id);
-
-	if (!msm_dsi_device_connected(msm_dsi))
-		return;
 
 	/*
 	 * Do nothing with the host if it is slave-DSI in case of bonded DSI.
