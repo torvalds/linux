@@ -808,7 +808,8 @@ static void ssd132x_clear_screen(struct ssd130x_device *ssd130x, u8 *data_array)
 static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb,
 				const struct iosys_map *vmap,
 				struct drm_rect *rect,
-				u8 *buf, u8 *data_array)
+				u8 *buf, u8 *data_array,
+				struct drm_format_conv_state *fmtcnv_state)
 {
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(fb->dev);
 	struct iosys_map dst;
@@ -826,7 +827,7 @@ static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb,
 		return ret;
 
 	iosys_map_set_vaddr(&dst, buf);
-	drm_fb_xrgb8888_to_mono(&dst, &dst_pitch, vmap, fb, rect);
+	drm_fb_xrgb8888_to_mono(&dst, &dst_pitch, vmap, fb, rect, fmtcnv_state);
 
 	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 
@@ -838,7 +839,8 @@ static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb,
 static int ssd132x_fb_blit_rect(struct drm_framebuffer *fb,
 				const struct iosys_map *vmap,
 				struct drm_rect *rect, u8 *buf,
-				u8 *data_array)
+				u8 *data_array,
+				struct drm_format_conv_state *fmtcnv_state)
 {
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(fb->dev);
 	unsigned int dst_pitch = drm_rect_width(rect);
@@ -855,7 +857,7 @@ static int ssd132x_fb_blit_rect(struct drm_framebuffer *fb,
 		return ret;
 
 	iosys_map_set_vaddr(&dst, buf);
-	drm_fb_xrgb8888_to_gray8(&dst, &dst_pitch, vmap, fb, rect);
+	drm_fb_xrgb8888_to_gray8(&dst, &dst_pitch, vmap, fb, rect, fmtcnv_state);
 
 	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 
@@ -968,7 +970,8 @@ static void ssd130x_primary_plane_atomic_update(struct drm_plane *plane,
 
 		ssd130x_fb_blit_rect(fb, &shadow_plane_state->data[0], &dst_clip,
 				     ssd130x_plane_state->buffer,
-				     ssd130x_crtc_state->data_array);
+				     ssd130x_crtc_state->data_array,
+				     &shadow_plane_state->fmtcnv_state);
 	}
 
 	drm_dev_exit(idx);
@@ -1002,7 +1005,8 @@ static void ssd132x_primary_plane_atomic_update(struct drm_plane *plane,
 
 		ssd132x_fb_blit_rect(fb, &shadow_plane_state->data[0], &dst_clip,
 				     ssd130x_plane_state->buffer,
-				     ssd130x_crtc_state->data_array);
+				     ssd130x_crtc_state->data_array,
+				     &shadow_plane_state->fmtcnv_state);
 	}
 
 	drm_dev_exit(idx);
