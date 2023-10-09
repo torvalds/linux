@@ -34,6 +34,8 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/sched/signal.h>
+#include <linux/workqueue.h>
+#include <linux/suspend.h>
 
 #include <linux/gunyah/gh_rm_drv.h>
 #include <linux/gunyah/gh_vm.h>
@@ -73,6 +75,9 @@ struct gh_proxy_vcpu {
 	char ws_name[32];
 	wait_queue_head_t wait_queue;
 	struct wakeup_source *ws;
+	bool workqueue_mode;
+	struct work_struct work;
+	struct notifier_block suspend_nb;
 };
 
 struct gh_proxy_vm {
@@ -86,6 +91,7 @@ struct gh_proxy_vm {
 	gh_capid_t vpmg_cap_id;
 	int susp_res_irq;
 	bool is_vpm_group_info_populated;
+	struct workqueue_struct *vcpu_wq;
 };
 
 static struct gh_proxy_vm *gh_vms;
@@ -203,14 +209,19 @@ static void gh_init_vms(void)
 static irqreturn_t gh_vcpu_irq_handler(int irq, void *data)
 {
 	struct gh_proxy_vcpu *vcpu;
+	struct gh_proxy_vm *vm;
 
 	spin_lock(&gh_vm_lock);
 	vcpu = data;
+	vm = vcpu->vm;
 	if (!vcpu || !vcpu->vm || !vcpu->vm->is_vcpu_info_populated)
 		goto unlock;
 
 	trace_gh_vcpu_irq_handler(vcpu->vm->id, vcpu->idx);
-	gh_vcpu_wake_up(vcpu);
+	if (vcpu->workqueue_mode)
+		queue_work(vm->vcpu_wq, &vcpu->work);
+	else
+		gh_vcpu_wake_up(vcpu);
 
 unlock:
 	spin_unlock(&gh_vm_lock);
@@ -500,6 +511,7 @@ out:
 static void gh_populate_all_res_info(gh_vmid_t vmid, bool res_populated)
 {
 	struct gh_proxy_vm *vm;
+	char workqueue_name[24];
 
 	if (!init_done) {
 		pr_err("%s: Driver probe failed\n", __func__);
@@ -523,6 +535,9 @@ static void gh_populate_all_res_info(gh_vmid_t vmid, bool res_populated)
 
 	if (res_populated && !vm->is_vcpu_info_populated) {
 		gh_init_wait_queues(vm);
+		snprintf(workqueue_name, sizeof(workqueue_name), "vm%d_vcpu_wq",
+			 vm->id);
+		vm->vcpu_wq = create_freezable_workqueue(workqueue_name);
 		nr_vms++;
 		vm->is_vcpu_info_populated = true;
 		vm->is_active = true;
@@ -618,6 +633,112 @@ int gh_poll_vcpu_run(gh_vmid_t vmid)
 	return ret;
 }
 EXPORT_SYMBOL(gh_poll_vcpu_run);
+
+void gh_vcpu_work_function(struct work_struct *work)
+{
+	struct gh_proxy_vcpu *vcpu =
+		container_of(work, struct gh_proxy_vcpu, work);
+	struct gh_proxy_vm *vm = vcpu->vm;
+	uint64_t resume_data_0 = 0, resume_data_1 = 0, resume_data_2 = 0;
+	struct gh_hcall_vcpu_run_resp resp;
+	ktime_t start_ts, yield_ts;
+	int ret;
+
+	vcpu->abort_sleep = false;
+	__pm_stay_awake(vcpu->ws);
+	start_ts = ktime_get();
+	preempt_disable();
+	if (vcpu->wdog_frozen) {
+		gh_hcall_wdog_manage(vm->wdog_cap_id,
+					WATCHDOG_MANAGE_OP_UNFREEZE);
+		vcpu->wdog_frozen = false;
+	}
+	ret = gh_hcall_vcpu_run(vcpu->cap_id, resume_data_0,
+				resume_data_1, resume_data_2, &resp);
+	if (ret == GH_ERROR_OK && resp.vcpu_state == GH_VCPU_STATE_READY) {
+		gh_hcall_wdog_manage(vm->wdog_cap_id,
+				     WATCHDOG_MANAGE_OP_FREEZE);
+		vcpu->wdog_frozen = true;
+	}
+	preempt_enable();
+	yield_ts = ktime_get() - start_ts;
+	trace_gh_hcall_vcpu_run(ret, vcpu->vm->id, vcpu->idx, yield_ts,
+				resp.vcpu_state,
+				resp.vcpu_suspend_state);
+	if (ret == GH_ERROR_OK) {
+		switch (resp.vcpu_state) {
+		/* VCPU is preempted by PVM interrupt. */
+		case GH_VCPU_STATE_READY:
+			queue_work(vm->vcpu_wq, &vcpu->work);
+			break;
+
+		/* VCPU in WFI or suspended/powered down. */
+		case GH_VCPU_STATE_EXPECTS_WAKEUP:
+			if (resp.vcpu_suspend_state)
+				__pm_relax(vcpu->ws);
+			if (!vcpu->abort_sleep)
+				return;
+			break;
+		case GH_VCPU_STATE_POWERED_OFF:
+			__pm_relax(vcpu->ws);
+			/* once cpu is powered off, the work is done */
+			if (!vcpu->abort_sleep)
+				return;
+			break;
+
+		/* VCPU is blocked in EL2 for an unspecified reason */
+		case GH_VCPU_STATE_BLOCKED:
+			queue_work(vm->vcpu_wq, &vcpu->work);
+			break;
+		}
+	}
+}
+
+int gh_vcpu_pm_notifier_call(struct notifier_block *nb, unsigned long action,
+			     void *data)
+{
+	struct gh_proxy_vcpu *vcpu =
+		container_of(nb, struct gh_proxy_vcpu, suspend_nb);
+	struct gh_proxy_vm *vm = vcpu->vm;
+
+	if (action == PM_SUSPEND_PREPARE) {
+		if (!vcpu->wdog_frozen) {
+			gh_hcall_wdog_manage(vm->wdog_cap_id,
+					     WATCHDOG_MANAGE_OP_FREEZE);
+			vcpu->wdog_frozen = true;
+		}
+	} else if (action == PM_POST_SUSPEND) {
+		queue_work(vm->vcpu_wq, &vcpu->work);
+	}
+
+	return NOTIFY_OK;
+}
+
+int gh_vcpu_create_wq(gh_vmid_t vmid, unsigned int vcpu_id)
+{
+	struct gh_proxy_vm *vm;
+	struct gh_proxy_vcpu *vcpu;
+
+	vm = gh_get_vm(vmid);
+	if (!vm || !vm->is_active)
+		return -EINVAL;
+	if (vm->vcpu[vcpu_id].cap_id == GH_CAPID_INVAL)
+		return -EINVAL;
+
+	vcpu = &vm->vcpu[vcpu_id];
+
+	INIT_WORK(&vcpu->work, gh_vcpu_work_function);
+	vcpu->workqueue_mode = true;
+
+	vcpu->suspend_nb.notifier_call = gh_vcpu_pm_notifier_call;
+	register_pm_notifier(&vcpu->suspend_nb);
+
+	/* schedule once incase we miss any interrupt */
+	schedule_work(&vcpu->work);
+	queue_work(vm->vcpu_wq, &vcpu->work);
+
+	return 0;
+}
 
 int gh_vcpu_run(gh_vmid_t vmid, unsigned int vcpu_id, uint64_t resume_data_0,
 		uint64_t resume_data_1, uint64_t resume_data_2, struct gh_hcall_vcpu_run_resp *resp)
