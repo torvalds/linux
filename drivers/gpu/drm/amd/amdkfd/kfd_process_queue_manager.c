@@ -377,7 +377,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		 */
 		uint32_t first_db_index = amdgpu_doorbell_index_on_bar(pdd->dev->adev,
 								       pdd->qpd.proc_doorbells,
-								       0);
+								       0,
+								       pdd->dev->kfd->device_info.doorbell_size);
 
 		*p_doorbell_offset_in_process = (q->properties.doorbell_off
 						- first_db_index) * sizeof(uint32_t);
