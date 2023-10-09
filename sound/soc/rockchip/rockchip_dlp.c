@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Rockchip DLP (Digital Loopback) Driver
  *
@@ -11,28 +11,15 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/dmaengine.h>
+#include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <linux/dma-mapping.h>
-#include <linux/of.h>
 
-#include <sound/dmaengine_pcm.h>
 #include "rockchip_dlp.h"
 
-#ifdef DLP_DBG
-#define dlp_info(args...)		pr_info(args)
-#else
-#define dlp_info(args...)		no_printk(args)
-#endif
-
-#define SND_DMAENGINE_DLP_DRV_NAME	"snd_dmaengine_dlp"
 #define PBUF_CNT			2
-
-static unsigned int prealloc_buffer_size_kbytes = 512;
-module_param(prealloc_buffer_size_kbytes, uint, 0444);
-MODULE_PARM_DESC(prealloc_buffer_size_kbytes, "Preallocate DMA buffer size (KB).");
 
 /* MUST: dlp_text should be match to enum dlp_mode */
 static const char *const dlp_text[] = {
@@ -55,74 +42,43 @@ static const char *const dlp_text[] = {
 	"16CH: 8 Mics + 8 Loopbacks",
 };
 
-enum dlp_mode {
-	DLP_MODE_DISABLED,
-	DLP_MODE_2CH_1LP_1MIC,		/* replace cap-ch-0   with play-ch-0 */
-	DLP_MODE_2CH_1MIC_1LP,		/* replace cap-ch-1   with play-ch-1 */
-	DLP_MODE_2CH_1MIC_1LP_MIX,	/* replace cap-ch-1   with play-ch-all-mix */
-	DLP_MODE_2CH_2LP,		/* replace cap-ch-0~1 with play-ch-0~1 */
-	DLP_MODE_4CH_2MIC_2LP,		/* replace cap-ch-2~3 with play-ch-0~1 */
-	DLP_MODE_4CH_2MIC_1LP_MIX,	/* replace cap-ch-3   with play-ch-all-mix */
-	DLP_MODE_4CH_4LP,		/* replace cap-ch-0~3 with play-ch-0~3 */
-	DLP_MODE_6CH_4MIC_2LP,		/* replace cap-ch-4~5 with play-ch-0~1 */
-	DLP_MODE_6CH_4MIC_1LP_MIX,	/* replace cap-ch-4   with play-ch-all-mix */
-	DLP_MODE_6CH_6LP,		/* replace cap-ch-0~5 with play-ch-0~5 */
-	DLP_MODE_8CH_6MIC_2LP,		/* replace cap-ch-6~7 with play-ch-0~1 */
-	DLP_MODE_8CH_6MIC_1LP_MIX,	/* replace cap-ch-6   with play-ch-all-mix */
-	DLP_MODE_8CH_8LP,		/* replace cap-ch-0~7 with play-ch-0~7 */
-	DLP_MODE_10CH_8MIC_2LP,		/* replace cap-ch-8~9 with play-ch-0~1 */
-	DLP_MODE_10CH_8MIC_1LP_MIX,	/* replace cap-ch-8   with play-ch-all-mix */
-	DLP_MODE_16CH_8MIC_8LP,		/* replace cap-ch-8~f with play-ch-8~f */
-};
-
-struct dmaengine_dlp_runtime_data;
-struct dmaengine_dlp {
-	struct device *dev;
-	struct dma_chan *chan[SNDRV_PCM_STREAM_LAST + 1];
-	const struct snd_dlp_config *config;
-	struct snd_soc_component component;
-	struct list_head ref_list;
-	enum dlp_mode mode;
-	struct dmaengine_dlp_runtime_data *pref;
-	spinlock_t lock;
-	spinlock_t pref_lock;
-};
-
-struct dmaengine_dlp_runtime_data {
-	struct dmaengine_dlp *parent;
-	struct dmaengine_dlp_runtime_data *ref;
-	struct dma_chan *dma_chan;
-	struct kref refcount;
-	struct list_head node;
-	dma_cookie_t cookie;
-
-	char *buf;
-	snd_pcm_uframes_t buf_sz;
-	snd_pcm_uframes_t period_sz;
-	snd_pcm_uframes_t hw_ptr;
-	snd_pcm_sframes_t hw_ptr_delta; /* play-ptr - cap-ptr */
-	unsigned long period_elapsed;
-	unsigned int frame_bytes;
-	unsigned int channels;
-	unsigned int buf_ofs;
-	int stream;
-};
-
-static inline void dlp_activate(struct dmaengine_dlp *dlp)
+static inline void drd_buf_free(struct dlp_runtime_data *drd)
 {
-	spin_lock(&dlp->lock);
-	dlp->component.active++;
-	spin_unlock(&dlp->lock);
+	if (drd && drd->buf) {
+		dev_dbg(drd->parent->dev, "%s: stream[%d]: 0x%px\n",
+			__func__, drd->stream, drd->buf);
+		kvfree(drd->buf);
+		drd->buf = NULL;
+	}
 }
 
-static inline void dlp_deactivate(struct dmaengine_dlp *dlp)
+static inline int drd_buf_alloc(struct dlp_runtime_data *drd, int size)
 {
-	spin_lock(&dlp->lock);
-	dlp->component.active--;
-	spin_unlock(&dlp->lock);
+	if (drd) {
+		if (snd_BUG_ON(drd->buf))
+			return -EINVAL;
+
+		drd->buf = kvzalloc(size, GFP_KERNEL);
+		if (!drd->buf)
+			return -ENOMEM;
+		dev_dbg(drd->parent->dev, "%s: stream[%d]: 0x%px\n",
+			__func__, drd->stream, drd->buf);
+	}
+
+	return 0;
 }
 
-static inline bool dlp_mode_channels_match(struct dmaengine_dlp *dlp,
+static inline void dlp_activate(struct dlp *dlp)
+{
+	atomic_inc(&dlp->active);
+}
+
+static inline void dlp_deactivate(struct dlp *dlp)
+{
+	atomic_dec(&dlp->active);
+}
+
+static inline bool dlp_mode_channels_match(struct dlp *dlp,
 					   int ch, int *expected)
 {
 	*expected = 0;
@@ -163,183 +119,135 @@ static inline bool dlp_mode_channels_match(struct dmaengine_dlp *dlp,
 	}
 }
 
-static inline ssize_t dlp_channels_to_bytes(struct dmaengine_dlp_runtime_data *prtd,
-					    int channels)
-{
-	return (prtd->frame_bytes / prtd->channels) * channels;
-}
-
-static inline ssize_t dlp_frames_to_bytes(struct dmaengine_dlp_runtime_data *prtd,
-					  snd_pcm_sframes_t size)
-{
-	return size * prtd->frame_bytes;
-}
-
-static inline snd_pcm_sframes_t dlp_bytes_to_frames(struct dmaengine_dlp_runtime_data *prtd,
-						    ssize_t size)
-{
-	return size / prtd->frame_bytes;
-}
-
-static inline struct dmaengine_dlp *soc_component_to_dlp(struct snd_soc_component *p)
-{
-	return container_of(p, struct dmaengine_dlp, component);
-}
-
-static inline struct dmaengine_dlp_runtime_data *substream_to_prtd(
-	const struct snd_pcm_substream *substream)
-{
-	if (!substream->runtime)
-		return NULL;
-
-	return substream->runtime->private_data;
-}
-
-static struct dma_chan *snd_dmaengine_dlp_get_chan(struct snd_pcm_substream *substream)
-{
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-
-	return prtd->dma_chan;
-}
-
-static struct device *dmaengine_dma_dev(struct dmaengine_dlp *dlp,
-	struct snd_pcm_substream *substream)
-{
-	if (!dlp->chan[substream->stream])
-		return NULL;
-
-	return dlp->chan[substream->stream]->device->dev;
-}
-
-static int dlp_get_offset_size(struct dmaengine_dlp_runtime_data *prtd,
+static int dlp_get_offset_size(struct dlp_runtime_data *drd,
 			       enum dlp_mode mode, int *ofs, int *size, bool *mix)
 {
-	bool is_playback = prtd->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	bool is_playback = drd->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	int ret = 0;
 
 	switch (mode) {
 	case DLP_MODE_2CH_1LP_1MIC:
 		*ofs = 0;
-		*size = dlp_channels_to_bytes(prtd, 1);
+		*size = dlp_channels_to_bytes(drd, 1);
 		break;
 	case DLP_MODE_2CH_1MIC_1LP:
-		*ofs = dlp_channels_to_bytes(prtd, 1);
-		*size = dlp_channels_to_bytes(prtd, 1);
+		*ofs = dlp_channels_to_bytes(drd, 1);
+		*size = dlp_channels_to_bytes(drd, 1);
 		break;
 	case DLP_MODE_2CH_1MIC_1LP_MIX:
 		if (is_playback) {
 			*ofs = 0;
-			*size = dlp_frames_to_bytes(prtd, 1);
+			*size = dlp_frames_to_bytes(drd, 1);
 			if (mix)
 				*mix = true;
 		} else {
-			*ofs = dlp_channels_to_bytes(prtd, 1);
-			*size = dlp_channels_to_bytes(prtd, 1);
+			*ofs = dlp_channels_to_bytes(drd, 1);
+			*size = dlp_channels_to_bytes(drd, 1);
 		}
 		break;
 	case DLP_MODE_2CH_2LP:
 		*ofs = 0;
-		*size = dlp_channels_to_bytes(prtd, 2);
+		*size = dlp_channels_to_bytes(drd, 2);
 		break;
 	case DLP_MODE_4CH_2MIC_2LP:
 		if (is_playback) {
 			*ofs = 0;
-			*size = dlp_channels_to_bytes(prtd, 2);
+			*size = dlp_channels_to_bytes(drd, 2);
 		} else {
-			*ofs = dlp_channels_to_bytes(prtd, 2);
-			*size = dlp_channels_to_bytes(prtd, 2);
+			*ofs = dlp_channels_to_bytes(drd, 2);
+			*size = dlp_channels_to_bytes(drd, 2);
 		}
 		break;
 	case DLP_MODE_4CH_2MIC_1LP_MIX:
 		if (is_playback) {
 			*ofs = 0;
-			*size = dlp_frames_to_bytes(prtd, 1);
+			*size = dlp_frames_to_bytes(drd, 1);
 			if (mix)
 				*mix = true;
 		} else {
-			*ofs = dlp_channels_to_bytes(prtd, 2);
-			*size = dlp_channels_to_bytes(prtd, 1);
+			*ofs = dlp_channels_to_bytes(drd, 2);
+			*size = dlp_channels_to_bytes(drd, 1);
 		}
 		break;
 	case DLP_MODE_4CH_4LP:
 		*ofs = 0;
-		*size = dlp_channels_to_bytes(prtd, 4);
+		*size = dlp_channels_to_bytes(drd, 4);
 		break;
 	case DLP_MODE_6CH_4MIC_2LP:
 		if (is_playback) {
 			*ofs = 0;
-			*size = dlp_channels_to_bytes(prtd, 2);
+			*size = dlp_channels_to_bytes(drd, 2);
 		} else {
-			*ofs = dlp_channels_to_bytes(prtd, 4);
-			*size = dlp_channels_to_bytes(prtd, 2);
+			*ofs = dlp_channels_to_bytes(drd, 4);
+			*size = dlp_channels_to_bytes(drd, 2);
 		}
 		break;
 	case DLP_MODE_6CH_4MIC_1LP_MIX:
 		if (is_playback) {
 			*ofs = 0;
-			*size = dlp_frames_to_bytes(prtd, 1);
+			*size = dlp_frames_to_bytes(drd, 1);
 			if (mix)
 				*mix = true;
 		} else {
-			*ofs = dlp_channels_to_bytes(prtd, 4);
-			*size = dlp_channels_to_bytes(prtd, 1);
+			*ofs = dlp_channels_to_bytes(drd, 4);
+			*size = dlp_channels_to_bytes(drd, 1);
 		}
 		break;
 	case DLP_MODE_6CH_6LP:
 		*ofs = 0;
-		*size = dlp_channels_to_bytes(prtd, 6);
+		*size = dlp_channels_to_bytes(drd, 6);
 		break;
 	case DLP_MODE_8CH_6MIC_2LP:
 		if (is_playback) {
 			*ofs = 0;
-			*size = dlp_channels_to_bytes(prtd, 2);
+			*size = dlp_channels_to_bytes(drd, 2);
 		} else {
-			*ofs = dlp_channels_to_bytes(prtd, 6);
-			*size = dlp_channels_to_bytes(prtd, 2);
+			*ofs = dlp_channels_to_bytes(drd, 6);
+			*size = dlp_channels_to_bytes(drd, 2);
 		}
 		break;
 	case DLP_MODE_8CH_6MIC_1LP_MIX:
 		if (is_playback) {
 			*ofs = 0;
-			*size = dlp_frames_to_bytes(prtd, 1);
+			*size = dlp_frames_to_bytes(drd, 1);
 			if (mix)
 				*mix = true;
 		} else {
-			*ofs = dlp_channels_to_bytes(prtd, 6);
-			*size = dlp_channels_to_bytes(prtd, 1);
+			*ofs = dlp_channels_to_bytes(drd, 6);
+			*size = dlp_channels_to_bytes(drd, 1);
 		}
 		break;
 	case DLP_MODE_8CH_8LP:
 		*ofs = 0;
-		*size = dlp_channels_to_bytes(prtd, 8);
+		*size = dlp_channels_to_bytes(drd, 8);
 		break;
 	case DLP_MODE_10CH_8MIC_2LP:
 		if (is_playback) {
 			*ofs = 0;
-			*size = dlp_channels_to_bytes(prtd, 2);
+			*size = dlp_channels_to_bytes(drd, 2);
 		} else {
-			*ofs = dlp_channels_to_bytes(prtd, 8);
-			*size = dlp_channels_to_bytes(prtd, 2);
+			*ofs = dlp_channels_to_bytes(drd, 8);
+			*size = dlp_channels_to_bytes(drd, 2);
 		}
 		break;
 	case DLP_MODE_10CH_8MIC_1LP_MIX:
 		if (is_playback) {
 			*ofs = 0;
-			*size = dlp_frames_to_bytes(prtd, 1);
+			*size = dlp_frames_to_bytes(drd, 1);
 			if (mix)
 				*mix = true;
 		} else {
-			*ofs = dlp_channels_to_bytes(prtd, 8);
-			*size = dlp_channels_to_bytes(prtd, 1);
+			*ofs = dlp_channels_to_bytes(drd, 8);
+			*size = dlp_channels_to_bytes(drd, 1);
 		}
 		break;
 	case DLP_MODE_16CH_8MIC_8LP:
 		if (is_playback) {
 			*ofs = 0;
-			*size = dlp_channels_to_bytes(prtd, 8);
+			*size = dlp_channels_to_bytes(drd, 8);
 		} else {
-			*ofs = dlp_channels_to_bytes(prtd, 8);
-			*size = dlp_channels_to_bytes(prtd, 8);
+			*ofs = dlp_channels_to_bytes(drd, 8);
+			*size = dlp_channels_to_bytes(drd, 8);
 		}
 		break;
 	default:
@@ -353,22 +261,22 @@ static int dlp_get_offset_size(struct dmaengine_dlp_runtime_data *prtd,
 	return ret;
 }
 
-static int dlp_mix_frame_buffer(struct dmaengine_dlp_runtime_data *prtd, void *buf)
+static int dlp_mix_frame_buffer(struct dlp_runtime_data *drd, void *buf)
 {
-	int sample_bytes = dlp_channels_to_bytes(prtd, 1);
+	int sample_bytes = dlp_channels_to_bytes(drd, 1);
 	int16_t *p16 = (int16_t *)buf, v16 = 0;
 	int32_t *p32 = (int32_t *)buf, v32 = 0;
 	int i = 0;
 
 	switch (sample_bytes) {
 	case 2:
-		for (i = 0; i < prtd->channels; i++)
-			v16 += (p16[i] / prtd->channels);
+		for (i = 0; i < drd->channels; i++)
+			v16 += (p16[i] / drd->channels);
 		p16[0] = v16;
 		break;
 	case 4:
-		for (i = 0; i < prtd->channels; i++)
-			v32 += (p32[i] / prtd->channels);
+		for (i = 0; i < drd->channels; i++)
+			v32 += (p32[i] / drd->channels);
 		p32[0] = v32;
 		break;
 	default:
@@ -378,17 +286,209 @@ static int dlp_mix_frame_buffer(struct dmaengine_dlp_runtime_data *prtd, void *b
 	return 0;
 }
 
-static int dmaengine_dlp_hw_params(struct snd_soc_component *component,
-				   struct snd_pcm_substream *substream,
-				   struct snd_pcm_hw_params *params)
+static inline int drd_init_from(struct dlp_runtime_data *drd, struct dlp_runtime_data *src)
 {
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-	struct dma_chan *chan = snd_dmaengine_dlp_get_chan(substream);
-	struct dma_slave_config slave_config;
+	memset(drd, 0x0, sizeof(*drd));
+
+	drd->parent = src->parent;
+	drd->buf_sz = src->buf_sz;
+	drd->period_sz = src->period_sz;
+	drd->frame_bytes = src->frame_bytes;
+	drd->channels = src->channels;
+	drd->stream = src->stream;
+
+	INIT_LIST_HEAD(&drd->node);
+	kref_init(&drd->refcount);
+
+	dev_dbg(drd->parent->dev, "%s: drd: 0x%px\n", __func__, drd);
+
+	return 0;
+}
+
+static void drd_avl_list_add(struct dlp *dlp, struct dlp_runtime_data *drd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dlp->lock, flags);
+	list_add(&drd->node, &dlp->drd_avl_list);
+	dlp->drd_avl_count++;
+	spin_unlock_irqrestore(&dlp->lock, flags);
+}
+
+static struct dlp_runtime_data *drd_avl_list_get(struct dlp *dlp)
+{
+	struct dlp_runtime_data *drd = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dlp->lock, flags);
+	if (!list_empty(&dlp->drd_avl_list)) {
+		drd = list_first_entry(&dlp->drd_avl_list, struct dlp_runtime_data, node);
+		list_del(&drd->node);
+		dlp->drd_avl_count--;
+	}
+	spin_unlock_irqrestore(&dlp->lock, flags);
+
+	return drd;
+}
+
+static void drd_release(struct kref *ref)
+{
+	struct dlp_runtime_data *drd =
+		container_of(ref, struct dlp_runtime_data, refcount);
+
+	dev_dbg(drd->parent->dev, "%s: drd: 0x%px\n", __func__, drd);
+
+	drd_buf_free(drd);
+	/* move to available list */
+	drd_avl_list_add(drd->parent, drd);
+}
+
+static inline struct dlp_runtime_data *drd_get(struct dlp_runtime_data *drd)
+{
+	if (!drd)
+		return NULL;
+
+	return kref_get_unless_zero(&drd->refcount) ? drd : NULL;
+}
+
+static inline void drd_put(struct dlp_runtime_data *drd)
+{
+	if (!drd)
+		return;
+
+	kref_put(&drd->refcount, drd_release);
+}
+
+static void drd_rdy_list_add(struct dlp *dlp, struct dlp_runtime_data *drd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dlp->lock, flags);
+	list_add(&drd->node, &dlp->drd_rdy_list);
+	spin_unlock_irqrestore(&dlp->lock, flags);
+}
+
+static struct dlp_runtime_data *drd_rdy_list_get(struct dlp *dlp)
+{
+	struct dlp_runtime_data *drd = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dlp->lock, flags);
+	if (!list_empty(&dlp->drd_rdy_list)) {
+		/* the newest one */
+		drd = list_first_entry(&dlp->drd_rdy_list, struct dlp_runtime_data, node);
+		list_del(&drd->node);
+	}
+	spin_unlock_irqrestore(&dlp->lock, flags);
+
+	return drd;
+}
+
+static bool drd_rdy_list_found(struct dlp *dlp, struct dlp_runtime_data *drd)
+{
+	struct dlp_runtime_data *_drd;
+	unsigned long flags;
+	bool found = false;
+
+	if (!drd)
+		return false;
+
+	spin_lock_irqsave(&dlp->lock, flags);
+	list_for_each_entry(_drd, &dlp->drd_rdy_list, node) {
+		if (_drd == drd) {
+			found = true;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&dlp->lock, flags);
+
+	return found;
+}
+
+static void drd_rdy_list_free(struct dlp *dlp)
+{
+	struct list_head drd_list;
+	struct dlp_runtime_data *drd;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dlp->lock, flags);
+	list_replace_init(&dlp->drd_rdy_list, &drd_list);
+	spin_unlock_irqrestore(&dlp->lock, flags);
+
+	while (!list_empty(&drd_list)) {
+		drd = list_first_entry(&drd_list, struct dlp_runtime_data, node);
+		list_del(&drd->node);
+		drd_put(drd);
+	}
+}
+
+static void drd_ref_list_add(struct dlp *dlp, struct dlp_runtime_data *drd)
+{
+	unsigned long flags;
+
+	/* push valid playback into ref list */
+	spin_lock_irqsave(&dlp->lock, flags);
+	list_add_tail(&drd->node, &dlp->drd_ref_list);
+	spin_unlock_irqrestore(&dlp->lock, flags);
+}
+
+static struct dlp_runtime_data *drd_ref_list_first(struct dlp *dlp)
+{
+	struct dlp_runtime_data *drd = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dlp->lock, flags);
+	if (!list_empty(&dlp->drd_ref_list))
+		drd = list_first_entry(&dlp->drd_ref_list, struct dlp_runtime_data, node);
+	spin_unlock_irqrestore(&dlp->lock, flags);
+
+	return drd;
+}
+
+static struct dlp_runtime_data *drd_ref_list_del(struct dlp *dlp,
+						 struct dlp_runtime_data *drd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dlp->lock, flags);
+	list_del(&drd->node);
+	spin_unlock_irqrestore(&dlp->lock, flags);
+
+	return drd;
+}
+
+static void drd_ref_list_free(struct dlp *dlp)
+{
+	struct list_head drd_list;
+	struct dlp_runtime_data *drd;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dlp->lock, flags);
+	list_replace_init(&dlp->drd_ref_list, &drd_list);
+	spin_unlock_irqrestore(&dlp->lock, flags);
+
+	while (!list_empty(&drd_list)) {
+		drd = list_first_entry(&drd_list, struct dlp_runtime_data, node);
+		list_del(&drd->node);
+
+		if (!atomic_read(&drd->stop))
+			drd_rdy_list_add(dlp, drd);
+		else
+			drd_put(drd);
+	}
+}
+
+int dlp_hw_params(struct snd_soc_component *component,
+		  struct snd_pcm_substream *substream,
+		  struct snd_pcm_hw_params *params)
+{
+	struct dlp *dlp = soc_component_to_dlp(component);
+	struct dlp_runtime_data *drd = substream_to_drd(substream);
 	bool is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	int ch_req = params_channels(params), ch_exp = 0;
-	int ret;
+
+	if (unlikely(!dlp || !drd))
+		return -EINVAL;
 
 	/* mode should match to channels */
 	if (!is_playback && !dlp_mode_channels_match(dlp, ch_req, &ch_exp)) {
@@ -398,292 +498,150 @@ static int dmaengine_dlp_hw_params(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	memset(&slave_config, 0, sizeof(slave_config));
-
-	ret = snd_dmaengine_pcm_prepare_slave_config(substream, params, &slave_config);
-	if (ret)
-		return ret;
-
-	ret = dmaengine_slave_config(chan, &slave_config);
-	if (ret)
-		return ret;
-
-	prtd->frame_bytes = snd_pcm_format_size(params_format(params),
-						params_channels(params));
-	prtd->period_sz = params_period_size(params);
-	prtd->buf_sz = params_buffer_size(params);
-	prtd->channels = params_channels(params);
+	drd->frame_bytes = snd_pcm_format_size(params_format(params),
+					       params_channels(params));
+	drd->period_sz = params_period_size(params);
+	drd->buf_sz = params_buffer_size(params);
+	drd->channels = params_channels(params);
 
 	if (is_playback)
-		prtd->buf_sz *= PBUF_CNT;
+		drd->buf_sz *= PBUF_CNT;
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dlp_hw_params);
 
-static int
-dmaengine_pcm_set_runtime_hwparams(struct snd_soc_component *component,
-				   struct snd_pcm_substream *substream)
+int dlp_open(struct dlp *dlp, struct dlp_runtime_data *drd,
+	     struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
-	struct device *dma_dev = dmaengine_dma_dev(dlp, substream);
-	struct dma_chan *chan = dlp->chan[substream->stream];
-	struct snd_dmaengine_dai_dma_data *dma_data;
-	struct snd_pcm_hardware hw;
-
-	if (rtd->num_cpus > 1) {
-		dev_err(rtd->dev,
-			"%s doesn't support Multi CPU yet\n", __func__);
+	if (unlikely(!dlp || !drd))
 		return -EINVAL;
-	}
 
-	dma_data = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
+	drd->parent = dlp;
+	drd->stream = substream->stream;
 
-	memset(&hw, 0, sizeof(hw));
-	hw.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
-			SNDRV_PCM_INFO_INTERLEAVED;
-	hw.periods_min = 2;
-	hw.periods_max = UINT_MAX;
-	hw.period_bytes_min = 256;
-	hw.period_bytes_max = dma_get_max_seg_size(dma_dev);
-	hw.buffer_bytes_max = SIZE_MAX;
-	hw.fifo_size = dma_data->fifo_size;
-
-	/**
-	 * FIXME: Remove the return value check to align with the code
-	 * before adding snd_dmaengine_pcm_refine_runtime_hwparams
-	 * function.
-	 */
-	snd_dmaengine_pcm_refine_runtime_hwparams(substream,
-						  dma_data,
-						  &hw,
-						  chan);
-
-	return snd_soc_set_runtime_hwparams(substream, &hw);
-}
-
-static int dmaengine_dlp_open(struct snd_soc_component *component,
-			      struct snd_pcm_substream *substream)
-{
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
-	struct dma_chan *chan = dlp->chan[substream->stream];
-	struct dmaengine_dlp_runtime_data *prtd;
-	int ret;
-
-	if (!chan)
-		return -ENXIO;
-
-	ret = dmaengine_pcm_set_runtime_hwparams(component, substream);
-	if (ret)
-		return ret;
-
-	ret = snd_pcm_hw_constraint_integer(substream->runtime,
-					    SNDRV_PCM_HW_PARAM_PERIODS);
-	if (ret < 0)
-		return ret;
-
-	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
-	if (!prtd)
-		return -ENOMEM;
-
-	dlp_info("PRTD-CREATE: 0x%px (%s)\n",
-		 prtd, substream->stream ? "C" : "P");
-
-	kref_init(&prtd->refcount);
-	prtd->parent = dlp;
-	prtd->stream = substream->stream;
-	prtd->dma_chan = chan;
-
-	substream->runtime->private_data = prtd;
+	substream->runtime->private_data = drd;
 
 	dlp_activate(dlp);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dlp_open);
 
-static void dmaengine_free_prtd(struct kref *ref)
+int dlp_close(struct dlp *dlp, struct dlp_runtime_data *drd,
+	      struct snd_pcm_substream *substream)
 {
-	struct dmaengine_dlp_runtime_data *prtd =
-		container_of(ref, struct dmaengine_dlp_runtime_data, refcount);
-
-	dlp_info("PRTD-FREE: 0x%px\n", prtd);
-
-	kfree(prtd->buf);
-	kfree(prtd);
-}
-
-static void free_ref_list(struct snd_soc_component *component)
-{
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
-	struct dmaengine_dlp_runtime_data *prtd, *_pt;
-
-	spin_lock(&dlp->lock);
-	list_for_each_entry_safe(prtd, _pt, &dlp->ref_list, node) {
-		list_del(&prtd->node);
-		kref_put(&prtd->refcount, dmaengine_free_prtd);
-	}
-	spin_unlock(&dlp->lock);
-}
-
-static int dmaengine_dlp_close(struct snd_soc_component *component,
-			       struct snd_pcm_substream *substream)
-{
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-
-	dmaengine_synchronize(prtd->dma_chan);
+	if (unlikely(!dlp || !drd))
+		return -EINVAL;
 
 	/*
-	 * kref put should be after hw_ptr updated when stop,
-	 * ops->trigger: SNDRV_PCM_TRIGGER_STOP -> ops->close
-	 * obviously, it is!
+	 * In case: open -> hw_params -> prepare -> close flow
+	 * should check and free all.
 	 */
-	kref_put(&prtd->refcount, dmaengine_free_prtd);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		drd_put(dlp->drd_pb_shadow);
+		dlp->drd_pb_shadow = NULL;
+	} else {
+		drd_buf_free(drd);
+	}
 
 	dlp_deactivate(dlp);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dlp_close);
 
-static snd_pcm_uframes_t dmaengine_dlp_pointer(
-	struct snd_soc_component *component,
-	struct snd_pcm_substream *substream)
+void dlp_dma_complete(struct dlp *dlp, struct dlp_runtime_data *drd)
 {
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-	struct dma_tx_state state;
-	unsigned int buf_size;
-	unsigned int pos = 0;
-
-	dmaengine_tx_status(prtd->dma_chan, prtd->cookie, &state);
-	buf_size = snd_pcm_lib_buffer_bytes(substream);
-	if (state.residue > 0 && state.residue <= buf_size)
-		pos = buf_size - state.residue;
-
-	return dlp_bytes_to_frames(prtd, pos);
-}
-
-static void dmaengine_dlp_dma_complete(void *arg)
-{
-	struct snd_pcm_substream *substream = arg;
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-	struct dmaengine_dlp *dlp = prtd->parent;
-
-	if (!substream->runtime)
+	if (unlikely(!dlp || !drd))
 		return;
 
-	spin_lock(&dlp->lock);
-	prtd->period_elapsed++;
-	prtd->hw_ptr = prtd->period_elapsed * prtd->period_sz;
-	spin_unlock(&dlp->lock);
-	snd_pcm_period_elapsed(substream);
+	atomic64_inc(&drd->period_elapsed);
 }
+EXPORT_SYMBOL_GPL(dlp_dma_complete);
 
-static int dmaengine_dlp_prepare_and_submit(struct snd_pcm_substream *substream)
+int dlp_start(struct snd_soc_component *component,
+	      struct snd_pcm_substream *substream,
+	      struct device *dev,
+	      dma_pointer_f dma_pointer)
 {
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-	struct dma_chan *chan = prtd->dma_chan;
-	struct dma_async_tx_descriptor *desc;
-	enum dma_transfer_direction direction;
-	unsigned long flags = DMA_CTRL_ACK;
-
-	direction = snd_pcm_substream_to_dma_direction(substream);
-
-	if (!substream->runtime->no_period_wakeup)
-		flags |= DMA_PREP_INTERRUPT;
-
-	desc = dmaengine_prep_dma_cyclic(chan,
-		substream->runtime->dma_addr,
-		snd_pcm_lib_buffer_bytes(substream),
-		snd_pcm_lib_period_bytes(substream), direction, flags);
-
-	if (!desc)
-		return -ENOMEM;
-
-	desc->callback = dmaengine_dlp_dma_complete;
-	desc->callback_param = substream;
-	prtd->cookie = dmaengine_submit(desc);
-
-	return 0;
-}
-
-static int dmaengine_dlp_setup(struct snd_soc_component *component,
-			       struct snd_pcm_substream *substream)
-{
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
+	struct dlp *dlp = soc_component_to_dlp(component);
 	int bstream = SNDRV_PCM_STREAM_LAST - substream->stream;
 	struct snd_pcm_str *bro = &substream->pcm->streams[bstream];
 	struct snd_pcm_substream *bsubstream = bro->substream;
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-	struct dmaengine_dlp_runtime_data *brtd = substream_to_prtd(bsubstream);
-	struct dmaengine_dlp_runtime_data *pref = dlp->pref;
+	struct dlp_runtime_data *adrd = substream_to_drd(substream);
+	struct dlp_runtime_data *bdrd = substream_to_drd(bsubstream);
+	struct dlp_runtime_data *drd_ref;
 	bool is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	snd_pcm_uframes_t a = 0, b = 0, fifo_a = 0, fifo_b = 0;
+	uint64_t a = 0, b = 0;
+	snd_pcm_uframes_t fifo_a = 0, fifo_b = 0;
 	snd_pcm_sframes_t delta = 0;
+
+	if (unlikely(!dlp || !adrd || !dma_pointer))
+		return -EINVAL;
 
 	if (dlp->mode == DLP_MODE_DISABLED)
 		return -EINVAL;
 
-	fifo_a = dlp->config->get_fifo_count(dlp->dev, substream->stream);
-	a = dmaengine_dlp_pointer(component, substream);
+	fifo_a = dlp->config->get_fifo_count(dev, substream);
+	a = dma_pointer(component, substream) % adrd->period_sz;
 
 	if (bsubstream->runtime && snd_pcm_running(bsubstream)) {
-		fifo_b = dlp->config->get_fifo_count(dlp->dev, bstream);
-		b = dmaengine_dlp_pointer(component, bsubstream);
+		if (unlikely(!bdrd))
+			return -EINVAL;
 
-		spin_lock(&dlp->lock);
-		if (!pref) {
-			spin_unlock(&dlp->lock);
+		fifo_b = dlp->config->get_fifo_count(dev, bsubstream);
+		b = dma_pointer(component, bsubstream) % bdrd->period_sz;
+
+		drd_ref = drd_rdy_list_get(dlp);
+		if (unlikely(!drd_ref)) {
+			dev_err(dev, "Failed to get rdy drd\n");
 			return -EINVAL;
 		}
 
-		a = (prtd->period_elapsed * prtd->period_sz) + (a % prtd->period_sz);
-		b = (brtd->period_elapsed * brtd->period_sz) + (b % brtd->period_sz);
+		a += (atomic64_read(&adrd->period_elapsed) * adrd->period_sz);
+		b += (atomic64_read(&bdrd->period_elapsed) * bdrd->period_sz);
 
-		fifo_a = dlp_bytes_to_frames(prtd, fifo_a * 4);
-		fifo_b = dlp_bytes_to_frames(brtd, fifo_b * 4);
+		fifo_a = dlp_bytes_to_frames(adrd, fifo_a * 4);
+		fifo_b = dlp_bytes_to_frames(bdrd, fifo_b * 4);
 
 		delta = is_playback ? (a - fifo_a) - (b + fifo_b) : (b - fifo_b) - (a + fifo_a);
 
-		pref->hw_ptr_delta = delta;
-		kref_get(&pref->refcount);
-		/* push valid playback into ref list */
-		list_add_tail(&pref->node, &dlp->ref_list);
+		drd_ref->hw_ptr_delta = delta;
 
-		spin_unlock(&dlp->lock);
+		drd_ref_list_add(dlp, drd_ref);
 	}
 
 	if (is_playback)
-		dlp_info("START-P: DMA-P: %lu, DMA-C: %lu, FIFO-P: %lu, FIFO-C: %lu, DELTA: %ld\n",
-			 a, b, fifo_a, fifo_b, delta);
+		dev_dbg(dev, "START-P: DMA-P: %llu, DMA-C: %llu, FIFO-P: %lu, FIFO-C: %lu, DELTA: %ld\n",
+			a, b, fifo_a, fifo_b, delta);
 	else
-		dlp_info("START-C: DMA-P: %lu, DMA-C: %lu, FIFO-P: %lu, FIFO-C: %lu, DELTA: %ld\n",
-			 b, a, fifo_b, fifo_a, delta);
+		dev_dbg(dev, "START-C: DMA-P: %llu, DMA-C: %llu, FIFO-P: %lu, FIFO-C: %lu, DELTA: %ld\n",
+			b, a, fifo_b, fifo_a, delta);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dlp_start);
 
-static void dmaengine_dlp_release(struct snd_soc_component *component,
-				  struct snd_pcm_substream *substream)
+void dlp_stop(struct snd_soc_component *component,
+	      struct snd_pcm_substream *substream,
+	      dma_pointer_f dma_pointer)
 {
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-	struct dmaengine_dlp_runtime_data *pref = dlp->pref;
+	struct dlp *dlp = soc_component_to_dlp(component);
+	struct dlp_runtime_data *drd = substream_to_drd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	snd_pcm_uframes_t appl_ptr, hw_ptr;
+	uint64_t appl_ptr, hw_ptr;
+
+	if (unlikely(!dlp || !drd || !runtime || !dma_pointer))
+		return;
 
 	if (dlp->mode == DLP_MODE_DISABLED)
 		return;
 
 	/* any data in FIFOs will be gone ,so don't care */
 	appl_ptr = READ_ONCE(runtime->control->appl_ptr);
-	hw_ptr = dmaengine_dlp_pointer(component, substream);
-	spin_lock(&dlp->lock);
-	hw_ptr = (prtd->period_elapsed * prtd->period_sz) + (hw_ptr % prtd->period_sz);
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		pref->hw_ptr = min(hw_ptr, appl_ptr);
-	prtd->period_elapsed = 0;
-	prtd->hw_ptr = 0;
-	spin_unlock(&dlp->lock);
+	hw_ptr = dma_pointer(component, substream) % drd->period_sz;
+	hw_ptr += (atomic64_read(&drd->period_elapsed) * drd->period_sz);
 
 	/*
 	 * playback:
@@ -694,187 +652,98 @@ static void dmaengine_dlp_release(struct snd_soc_component *component,
 	 * anyway, we should use the smaller one, obviously, it's hw_ptr.
 	 */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		spin_lock(&dlp->pref_lock);
-		kref_put(&pref->refcount, dmaengine_free_prtd);
-		dlp->pref = NULL;
-		spin_unlock(&dlp->pref_lock);
-		dlp_info("STOP-P: applptr: %lu, hwptr: %lu\n", appl_ptr, hw_ptr);
+		if (dlp->drd_pb_shadow) {
+			dlp->drd_pb_shadow->hw_ptr = min(hw_ptr, appl_ptr);
+			atomic_set(&dlp->drd_pb_shadow->stop, 1);
+		}
+		drd_rdy_list_free(dlp);
 	} else {
 		/* free residue playback ref list for capture when stop */
-		free_ref_list(component);
-		dlp_info("STOP-C: applptr: %lu, hwptr: %lu\n", appl_ptr, hw_ptr);
-	}
-}
-
-static int dmaengine_dlp_trigger(struct snd_soc_component *component,
-				 struct snd_pcm_substream *substream, int cmd)
-{
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	int ret;
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-		ret = dmaengine_dlp_prepare_and_submit(substream);
-		if (ret)
-			return ret;
-		dma_async_issue_pending(prtd->dma_chan);
-		dmaengine_dlp_setup(component, substream);
-		break;
-	case SNDRV_PCM_TRIGGER_RESUME:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		dmaengine_resume(prtd->dma_chan);
-		break;
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-		if (runtime->info & SNDRV_PCM_INFO_PAUSE) {
-			dmaengine_pause(prtd->dma_chan);
-		} else {
-			dmaengine_dlp_release(component, substream);
-			dmaengine_terminate_async(prtd->dma_chan);
-		}
-		break;
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		dmaengine_pause(prtd->dma_chan);
-		break;
-	case SNDRV_PCM_TRIGGER_STOP:
-		dmaengine_dlp_release(component, substream);
-		dmaengine_terminate_async(prtd->dma_chan);
-		break;
-	default:
-		return -EINVAL;
+		drd_ref_list_free(dlp);
 	}
 
-	return 0;
+	atomic64_set(&drd->period_elapsed, 0);
+
+	dev_dbg(dlp->dev, "STOP-%s: applptr: %llu, hwptr: %llu\n",
+		substream->stream ? "C" : "P", appl_ptr, hw_ptr);
 }
-
-static int dmaengine_dlp_new(struct snd_soc_component *component,
-			     struct snd_soc_pcm_runtime *rtd)
-{
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
-	struct snd_pcm_substream *substream;
-	size_t prealloc_buffer_size;
-	size_t max_buffer_size;
-	unsigned int i;
-
-	prealloc_buffer_size = prealloc_buffer_size_kbytes * 1024;
-	max_buffer_size = SIZE_MAX;
-
-	for_each_pcm_streams(i) {
-		substream = rtd->pcm->streams[i].substream;
-		if (!substream)
-			continue;
-
-		if (!dlp->chan[i]) {
-			dev_err(component->dev,
-				"Missing dma channel for stream: %d\n", i);
-			return -EINVAL;
-		}
-
-		snd_pcm_set_managed_buffer(substream,
-				SNDRV_DMA_TYPE_DEV_IRAM,
-				dmaengine_dma_dev(dlp, substream),
-				prealloc_buffer_size,
-				max_buffer_size);
-
-		if (rtd->pcm->streams[i].pcm->name[0] == '\0') {
-			strscpy_pad(rtd->pcm->streams[i].pcm->name,
-				    rtd->pcm->streams[i].pcm->id,
-				    sizeof(rtd->pcm->streams[i].pcm->name));
-		}
-	}
-
-	return 0;
-}
-
-static struct dmaengine_dlp_runtime_data *get_ref(struct snd_soc_component *component)
-{
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
-	struct dmaengine_dlp_runtime_data *pref = NULL;
-
-	spin_lock(&dlp->lock);
-	if (!list_empty(&dlp->ref_list)) {
-		pref = list_first_entry(&dlp->ref_list, struct dmaengine_dlp_runtime_data, node);
-		list_del(&pref->node);
-	}
-	spin_unlock(&dlp->lock);
-
-	return pref;
-}
+EXPORT_SYMBOL_GPL(dlp_stop);
 
 static int process_capture(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream,
 			   unsigned long hwoff,
 			   void __user *buf, unsigned long bytes)
 {
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
+	struct dlp *dlp = soc_component_to_dlp(component);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-	struct dmaengine_dlp_runtime_data *pref = NULL;
-	void *dma_ptr = runtime->dma_area + hwoff;
-	snd_pcm_sframes_t frames = dlp_bytes_to_frames(prtd, bytes);
+	struct dlp_runtime_data *drd = substream_to_drd(substream);
+	struct dlp_runtime_data *drd_ref = NULL;
+	snd_pcm_sframes_t frames = 0;
 	snd_pcm_sframes_t frames_consumed = 0, frames_residue = 0, frames_tmp = 0;
 	snd_pcm_sframes_t ofs = 0;
 	snd_pcm_uframes_t appl_ptr;
-	char *cbuf = prtd->buf, *pbuf = NULL;
 	int ofs_cap, ofs_play, size_cap, size_play;
 	int i = 0, j = 0, ret = 0;
 	bool free_ref = false, mix = false;
+	char *cbuf = NULL, *pbuf = NULL;
+	void *dma_ptr;
+
+	if (unlikely(!drd || !runtime || !buf))
+		return -EINVAL;
+
+	frames = dlp_bytes_to_frames(drd, bytes);
+	dma_ptr = runtime->dma_area + hwoff;
+	cbuf = drd->buf;
 
 	appl_ptr = READ_ONCE(runtime->control->appl_ptr);
 
 	memcpy(cbuf, dma_ptr, bytes);
 #ifdef DLP_DBG
 	/* DBG: mark STUB in ch-REC for trace each read */
-	memset(cbuf, 0x22, dlp_channels_to_bytes(prtd, 1));
+	memset(cbuf, 0x22, dlp_channels_to_bytes(drd, 1));
 #endif
-	ret = dlp_get_offset_size(prtd, dlp->mode, &ofs_cap, &size_cap, NULL);
+	ret = dlp_get_offset_size(drd, dlp->mode, &ofs_cap, &size_cap, NULL);
 	if (ret) {
-		dlp_info("fail to get dlp cap offset\n");
+		dev_err(dlp->dev, "Failed to get dlp cap offset\n");
 		return -EINVAL;
 	}
 
 	/* clear channel-LP_CHN */
 	for (i = 0; i < frames; i++) {
-		cbuf = prtd->buf + dlp_frames_to_bytes(prtd, i) + ofs_cap;
+		cbuf = drd->buf + dlp_frames_to_bytes(drd, i) + ofs_cap;
 		memset(cbuf, 0x0, size_cap);
 	}
 
 start:
-	if (!prtd->ref)
-		prtd->ref = get_ref(component);
-	pref = prtd->ref;
-
-	/* do nothing if play stop */
-	if (!pref)
+	drd_ref = drd_get(drd_ref_list_first(dlp));
+	if (!drd_ref)
 		return 0;
 
-	ret = dlp_get_offset_size(pref, dlp->mode, &ofs_play, &size_play, &mix);
+	ret = dlp_get_offset_size(drd_ref, dlp->mode, &ofs_play, &size_play, &mix);
 	if (ret) {
-		dlp_info("fail to get dlp play offset\n");
-		return 0;
+		dev_err(dlp->dev, "Failed to get dlp play offset\n");
+		goto _drd_put;
 	}
 
-	ofs = appl_ptr + pref->hw_ptr_delta;
+	ofs = appl_ptr + drd_ref->hw_ptr_delta;
 
 	/*
-	 * if playback stop, kref_put ref, and we can check this to
-	 * know if playback stopped, then free prtd->ref if data consumed.
-	 *
+	 * if playback stop, process the data tail and then
+	 * free drd_ref if data consumed.
 	 */
-	if (kref_read(&pref->refcount) == 1) {
-		if (ofs >= pref->hw_ptr) {
-			kref_put(&pref->refcount, dmaengine_free_prtd);
-			prtd->ref = NULL;
-			return 0;
-		} else if ((ofs + frames) > pref->hw_ptr) {
-			dlp_info("applptr: %8lu, ofs': %7ld, refhwptr: %lu, frames: %lu (*)\n",
-				 appl_ptr, ofs, pref->hw_ptr, frames);
+	if (atomic_read(&drd_ref->stop)) {
+		if (ofs >= drd_ref->hw_ptr) {
+			drd_put(drd_ref_list_del(dlp, drd_ref));
+			goto _drd_put;
+		} else if ((ofs + frames) > drd_ref->hw_ptr) {
+			dev_dbg(dlp->dev, "applptr: %8lu, ofs': %7ld, refhwptr: %lld, frames: %ld (*)\n",
+				appl_ptr, ofs, drd_ref->hw_ptr, frames);
 			/*
 			 * should ignore the data that after play stop
 			 * and care about if the next ref start in the
 			 * same window
 			 */
-			frames_tmp = pref->hw_ptr - ofs;
+			frames_tmp = drd_ref->hw_ptr - ofs;
 			frames_residue = frames - frames_tmp;
 			frames = frames_tmp;
 			free_ref = true;
@@ -891,27 +760,29 @@ start:
 	 *
 	 */
 	if ((ofs + frames) <= 0)
-		return 0;
+		goto _drd_put;
 
 	/* skip if ofs < 0 and fixup ofs */
 	j = 0;
 	if (ofs < 0) {
-		dlp_info("applptr: %8lu, ofs: %8ld, frames: %lu (*)\n",
-			 appl_ptr, ofs, frames);
+		dev_dbg(dlp->dev, "applptr: %8lu, ofs: %8ld, frames: %ld (*)\n",
+			appl_ptr, ofs, frames);
 		j = -ofs;
 		frames += ofs;
 		ofs = 0;
+		appl_ptr += j;
 	}
 
-	ofs %= pref->buf_sz;
+	ofs %= drd_ref->buf_sz;
 
-	dlp_info("applptr: %8lu, ofs: %8ld, frames: %lu\n", appl_ptr, ofs, frames);
+	dev_dbg(dlp->dev, "applptr: %8lu, ofs: %8ld, frames: %5ld, refc: %u\n",
+		appl_ptr, ofs, frames, kref_read(&drd_ref->refcount));
 
 	for (i = 0; i < frames; i++, j++) {
-		cbuf = prtd->buf + dlp_frames_to_bytes(prtd, j + frames_consumed) + ofs_cap;
-		pbuf = pref->buf + dlp_frames_to_bytes(pref, ((i + ofs) % pref->buf_sz)) + ofs_play;
+		cbuf = drd->buf + dlp_frames_to_bytes(drd, j + frames_consumed) + ofs_cap;
+		pbuf = drd_ref->buf + dlp_frames_to_bytes(drd_ref, ((i + ofs) % drd_ref->buf_sz)) + ofs_play;
 		if (mix)
-			dlp_mix_frame_buffer(pref, pbuf);
+			dlp_mix_frame_buffer(drd_ref, pbuf);
 		memcpy(cbuf, pbuf, size_cap);
 	}
 
@@ -919,8 +790,9 @@ start:
 	frames_consumed += frames;
 
 	if (free_ref) {
-		kref_put(&pref->refcount, dmaengine_free_prtd);
-		prtd->ref = NULL;
+		drd_put(drd_ref_list_del(dlp, drd_ref));
+		drd_put(drd_ref);
+		drd_ref = NULL;
 		free_ref = false;
 		if (frames_residue) {
 			frames = frames_residue;
@@ -928,6 +800,10 @@ start:
 			goto start;
 		}
 	}
+
+_drd_put:
+	drd_put(drd_ref);
+	drd_ref = NULL;
 
 	return 0;
 }
@@ -937,40 +813,37 @@ static int process_playback(struct snd_soc_component *component,
 			    unsigned long hwoff,
 			    void __user *buf, unsigned long bytes)
 {
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
-	struct dmaengine_dlp_runtime_data *pref;
+	struct dlp *dlp = soc_component_to_dlp(component);
+	struct dlp_runtime_data *drd;
 	char *pbuf;
 	int ret = 0;
 
-	spin_lock(&dlp->pref_lock);
-	pref = dlp->pref;
-	if (!pref) {
-		ret = -EFAULT;
-		goto err_unlock;
-	}
+	drd = drd_get(dlp->drd_pb_shadow);
+	if (!drd)
+		return 0;
 
-	pbuf = pref->buf + pref->buf_ofs;
+	pbuf = drd->buf + drd->buf_ofs;
 
 	if (copy_from_user(pbuf, buf, bytes)) {
 		ret = -EFAULT;
-		goto err_unlock;
+		goto err_put;
 	}
 
-	pref->buf_ofs += bytes;
-	pref->buf_ofs %= dlp_frames_to_bytes(pref, pref->buf_sz);
+	drd->buf_ofs += bytes;
+	drd->buf_ofs %= dlp_frames_to_bytes(drd, drd->buf_sz);
 
-err_unlock:
-	spin_unlock(&dlp->pref_lock);
+err_put:
+	drd_put(drd);
 
 	return ret;
 }
 
-static int dmaengine_dlp_process(struct snd_soc_component *component,
-				 struct snd_pcm_substream *substream,
-				 unsigned long hwoff,
-				 void __user *buf, unsigned long bytes)
+static int dlp_process(struct snd_soc_component *component,
+		       struct snd_pcm_substream *substream,
+		       unsigned long hwoff,
+		       void __user *buf, unsigned long bytes)
 {
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
+	struct dlp *dlp = soc_component_to_dlp(component);
 	int ret = 0;
 
 	if (dlp->mode == DLP_MODE_DISABLED)
@@ -984,25 +857,30 @@ static int dmaengine_dlp_process(struct snd_soc_component *component,
 	return ret;
 }
 
-static int dmaengine_dlp_copy_user(struct snd_soc_component *component,
-				   struct snd_pcm_substream *substream,
-				   int channel, unsigned long hwoff,
-				   void __user *buf, unsigned long bytes)
+int dlp_copy_user(struct snd_soc_component *component,
+		  struct snd_pcm_substream *substream,
+		  int channel, unsigned long hwoff,
+		  void __user *buf, unsigned long bytes)
 {
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
+	struct dlp_runtime_data *drd = substream_to_drd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	bool is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	void *dma_ptr = runtime->dma_area + hwoff +
-			channel * (runtime->dma_bytes / runtime->channels);
+	void *dma_ptr;
 	int ret;
+
+	if (unlikely(!drd || !runtime || !buf))
+		return -EINVAL;
+
+	dma_ptr = runtime->dma_area + hwoff +
+		  channel * (runtime->dma_bytes / runtime->channels);
 
 	if (is_playback)
 		if (copy_from_user(dma_ptr, buf, bytes))
 			return -EFAULT;
 
-	ret = dmaengine_dlp_process(component, substream, hwoff, buf, bytes);
+	ret = dlp_process(component, substream, hwoff, buf, bytes);
 	if (!ret)
-		dma_ptr = prtd->buf;
+		dma_ptr = drd->buf;
 
 	if (!is_playback)
 		if (copy_to_user(buf, dma_ptr, bytes))
@@ -1010,30 +888,33 @@ static int dmaengine_dlp_copy_user(struct snd_soc_component *component,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dlp_copy_user);
 
 static SOC_ENUM_SINGLE_EXT_DECL(dlp_mode, dlp_text);
 
-static int dmaengine_dlp_mode_get(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
+static int dlp_mode_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
+	struct dlp *dlp = soc_component_to_dlp(component);
 
 	ucontrol->value.enumerated.item[0] = dlp->mode;
 
 	return 0;
 }
 
-static int dmaengine_dlp_mode_put(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
+static int dlp_mode_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
+	struct dlp *dlp = soc_component_to_dlp(component);
 	unsigned int mode = ucontrol->value.enumerated.item[0];
 
 	/* MUST: do not update mode while stream is running */
-	if (snd_soc_component_active(component))
+	if (atomic_read(&dlp->active)) {
+		dev_err(dlp->dev, "Should set this mode before pcm open\n");
 		return -EPERM;
+	}
 
 	if (mode == dlp->mode)
 		return 0;
@@ -1043,207 +924,141 @@ static int dmaengine_dlp_mode_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static const struct snd_kcontrol_new dmaengine_dlp_controls[] = {
+static const struct snd_kcontrol_new dlp_controls[] = {
 	SOC_ENUM_EXT("Software Digital Loopback Mode", dlp_mode,
-		     dmaengine_dlp_mode_get,
-		     dmaengine_dlp_mode_put),
+		     dlp_mode_get, dlp_mode_put),
 };
 
-static int dmaengine_dlp_prepare(struct snd_soc_component *component,
-				  struct snd_pcm_substream *substream)
+int dlp_prepare(struct snd_soc_component *component,
+		struct snd_pcm_substream *substream)
 {
-	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-	struct dmaengine_dlp_runtime_data *pref = NULL;
-	int buf_bytes = dlp_frames_to_bytes(prtd, prtd->buf_sz);
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		pref = kmemdup(prtd, sizeof(*prtd), GFP_KERNEL);
-		if (!pref)
-			return -ENOMEM;
-
-		kref_init(&pref->refcount);
-		pref->buf_ofs = 0;
-		pref->buf = kzalloc(buf_bytes, GFP_KERNEL);
-		if (!pref->buf) {
-			kfree(pref);
-			return -ENOMEM;
-		}
-
-		spin_lock(&dlp->pref_lock);
-		dlp->pref = pref;
-		spin_unlock(&dlp->pref_lock);
-		dlp_info("PREF-CREATE: 0x%px\n", pref);
-	} else {
-		prtd->buf = kzalloc(buf_bytes, GFP_KERNEL);
-		if (!prtd->buf)
-			return -ENOMEM;
-	}
-
-	return 0;
-}
-static const struct snd_soc_component_driver dmaengine_dlp_component = {
-	.name		= SND_DMAENGINE_DLP_DRV_NAME,
-	.probe_order	= SND_SOC_COMP_ORDER_LATE,
-	.open		= dmaengine_dlp_open,
-	.close		= dmaengine_dlp_close,
-	.hw_params	= dmaengine_dlp_hw_params,
-	.prepare	= dmaengine_dlp_prepare,
-	.trigger	= dmaengine_dlp_trigger,
-	.pointer	= dmaengine_dlp_pointer,
-	.copy_user	= dmaengine_dlp_copy_user,
-	.pcm_construct	= dmaengine_dlp_new,
-	.controls	= dmaengine_dlp_controls,
-	.num_controls	= ARRAY_SIZE(dmaengine_dlp_controls),
-};
-
-static const char * const dmaengine_pcm_dma_channel_names[] = {
-	[SNDRV_PCM_STREAM_PLAYBACK] = "tx",
-	[SNDRV_PCM_STREAM_CAPTURE] = "rx",
-};
-
-static int dmaengine_pcm_request_chan_of(struct dmaengine_dlp *dlp,
-	struct device *dev, const struct snd_dmaengine_pcm_config *config)
-{
-	unsigned int i;
-	const char *name;
-	struct dma_chan *chan;
-
-	for_each_pcm_streams(i) {
-		name = dmaengine_pcm_dma_channel_names[i];
-		chan = dma_request_chan(dev, name);
-		if (IS_ERR(chan)) {
-			/*
-			 * Only report probe deferral errors, channels
-			 * might not be present for devices that
-			 * support only TX or only RX.
-			 */
-			if (PTR_ERR(chan) == -EPROBE_DEFER)
-				return -EPROBE_DEFER;
-			dlp->chan[i] = NULL;
-		} else {
-			dlp->chan[i] = chan;
-		}
-	}
-
-	return 0;
-}
-
-static void dmaengine_pcm_release_chan(struct dmaengine_dlp *dlp)
-{
-	unsigned int i;
-
-	for_each_pcm_streams(i) {
-		if (!dlp->chan[i])
-			continue;
-		dma_release_channel(dlp->chan[i]);
-	}
-}
-
-/**
- * snd_dmaengine_dlp_register - Register a dmaengine based DLP device
- * @dev: The parent device for the DLP device
- * @config: Platform specific DLP configuration
- */
-static int snd_dmaengine_dlp_register(struct device *dev,
-	const struct snd_dlp_config *config)
-{
-	const struct snd_soc_component_driver *driver;
-	struct dmaengine_dlp *dlp;
+	struct dlp *dlp = soc_component_to_dlp(component);
+	struct dlp_runtime_data *drd = substream_to_drd(substream);
+	struct dlp_runtime_data *drd_new = NULL;
+	int buf_bytes, last_buf_bytes;
 	int ret;
 
-	dlp = kzalloc(sizeof(*dlp), GFP_KERNEL);
-	if (!dlp)
-		return -ENOMEM;
+	if (unlikely(!dlp || !drd))
+		return -EINVAL;
+
+	if (dlp->mode == DLP_MODE_DISABLED)
+		return 0;
+
+	buf_bytes = dlp_frames_to_bytes(drd, drd->buf_sz);
+	last_buf_bytes = dlp_frames_to_bytes(drd, drd->last_buf_sz);
+
+	if (substream->runtime->status->state == SNDRV_PCM_STATE_XRUN)
+		dev_dbg(dlp->dev, "stream[%d]: prepare from XRUN\n",
+			substream->stream);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		dev_dbg(dlp->dev, "avl count: %d\n", dlp->drd_avl_count);
+		if (snd_BUG_ON(!dlp->drd_avl_count))
+			return -EINVAL;
+
+		/*
+		 * There might be multiple calls hw_params -> prepare
+		 * before start stream, so, should check buf size status
+		 * to determine whether to re-create buf or do nothing.
+		 */
+		if (drd_rdy_list_found(dlp, dlp->drd_pb_shadow)) {
+			if (buf_bytes == last_buf_bytes)
+				return 0;
+
+			drd_rdy_list_free(dlp);
+		}
+
+		/* release the old one, re-create for new params */
+		drd_put(dlp->drd_pb_shadow);
+		dlp->drd_pb_shadow = NULL;
+
+		drd_new = drd_avl_list_get(dlp);
+		if (!drd_new)
+			return -ENOMEM;
+
+		drd_init_from(drd_new, drd);
+
+		ret = drd_buf_alloc(drd_new, buf_bytes);
+		if (ret)
+			return -ENOMEM;
+
+		if (snd_BUG_ON(!drd_get(drd_new)))
+			return -EINVAL;
+
+		drd_rdy_list_add(dlp, drd_new);
+
+		dlp->drd_pb_shadow = drd_new;
+	} else {
+		/*
+		 * There might be multiple calls hw_params -> prepare
+		 * before start stream, so, should check buf size status
+		 * to determine whether to re-create buf or do nothing.
+		 */
+		if (drd->buf && buf_bytes == last_buf_bytes)
+			return 0;
+
+		drd_buf_free(drd);
+
+		ret = drd_buf_alloc(drd, buf_bytes);
+		if (ret)
+			return ret;
+	}
+
+	/* update last after all done success */
+	drd->last_buf_sz = drd->buf_sz;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dlp_prepare);
+
+int dlp_probe(struct snd_soc_component *component)
+{
+	snd_soc_add_component_controls(component, dlp_controls,
+				       ARRAY_SIZE(dlp_controls));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dlp_probe);
+
+int dlp_register(struct dlp *dlp, struct device *dev,
+		 const struct snd_soc_component_driver *driver,
+		 const struct snd_dlp_config *config)
+{
+	struct dlp_runtime_data *drd;
+	int ret = 0, i = 0;
+
+	if (unlikely(!dlp || !dev || !driver || !config))
+		return -EINVAL;
 
 	dlp->dev = dev;
 	dlp->config = config;
 
-	INIT_LIST_HEAD(&dlp->ref_list);
-	spin_lock_init(&dlp->lock);
-	spin_lock_init(&dlp->pref_lock);
-
 #ifdef CONFIG_DEBUG_FS
 	dlp->component.debugfs_prefix = "dma";
 #endif
-	ret = dmaengine_pcm_request_chan_of(dlp, dev, NULL);
-	if (ret)
-		goto err_free_dma;
+	INIT_LIST_HEAD(&dlp->drd_avl_list);
+	INIT_LIST_HEAD(&dlp->drd_rdy_list);
+	INIT_LIST_HEAD(&dlp->drd_ref_list);
 
-	driver = &dmaengine_dlp_component;
+	dlp->drd_avl_count = ARRAY_SIZE(dlp->drds);
+
+	for (i = 0; i < dlp->drd_avl_count; i++) {
+		drd = &dlp->drds[i];
+		list_add_tail(&drd->node, &dlp->drd_avl_list);
+	}
+
+	spin_lock_init(&dlp->lock);
+	atomic_set(&dlp->active, 0);
 
 	ret = snd_soc_component_initialize(&dlp->component, driver, dev);
 	if (ret)
-		goto err_free_dma;
+		return ret;
 
 	ret = snd_soc_add_component(&dlp->component, NULL, 0);
-	if (ret)
-		goto err_free_dma;
-
-	return 0;
-
-err_free_dma:
-	dmaengine_pcm_release_chan(dlp);
-	kfree(dlp);
-	return ret;
-}
-
-/**
- * snd_dmaengine_dlp_unregister - Removes a dmaengine based DLP device
- * @dev: Parent device the DLP was register with
- *
- * Removes a dmaengine based DLP device previously registered with
- * snd_dmaengine_dlp_register.
- */
-static void snd_dmaengine_dlp_unregister(struct device *dev)
-{
-	struct snd_soc_component *component;
-	struct dmaengine_dlp *dlp;
-
-	component = snd_soc_lookup_component(dev, SND_DMAENGINE_DLP_DRV_NAME);
-	if (!component)
-		return;
-
-	dlp = soc_component_to_dlp(component);
-
-	snd_soc_unregister_component_by_driver(dev, component->driver);
-	dmaengine_pcm_release_chan(dlp);
-	kfree(dlp);
-}
-
-static void devm_dmaengine_dlp_release(struct device *dev, void *res)
-{
-	snd_dmaengine_dlp_unregister(*(struct device **)res);
-}
-
-/**
- * devm_snd_dmaengine_dlp_register - resource managed dmaengine DLP registration
- * @dev: The parent device for the DLP device
- * @config: Platform specific DLP configuration
- *
- * Register a dmaengine based DLP device with automatic unregistration when the
- * device is unregistered.
- */
-int devm_snd_dmaengine_dlp_register(struct device *dev,
-	const struct snd_dlp_config *config)
-{
-	struct device **ptr;
-	int ret;
-
-	ptr = devres_alloc(devm_dmaengine_dlp_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
-	ret = snd_dmaengine_dlp_register(dev, config);
-	if (ret == 0) {
-		*ptr = dev;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(devm_snd_dmaengine_dlp_register);
+EXPORT_SYMBOL_GPL(dlp_register);
 
+MODULE_DESCRIPTION("Rockchip Digital Loopback Core Driver");
+MODULE_AUTHOR("Sugar Zhang <sugar.zhang@rock-chips.com>");
 MODULE_LICENSE("GPL");

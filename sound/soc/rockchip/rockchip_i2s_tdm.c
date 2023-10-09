@@ -28,7 +28,7 @@
 #include <sound/dmaengine_pcm.h>
 
 #include "rockchip_i2s_tdm.h"
-#include "rockchip_dlp.h"
+#include "rockchip_dlp_pcm.h"
 
 #define DRV_NAME "rockchip-i2s-tdm"
 
@@ -2548,12 +2548,13 @@ static int rockchip_i2s_tdm_rx_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
 	return rockchip_i2s_tdm_path_prepare(i2s_tdm, np, 1);
 }
 
-static int rockchip_i2s_tdm_get_fifo_count(struct device *dev, int stream)
+static int rockchip_i2s_tdm_get_fifo_count(struct device *dev,
+					   struct snd_pcm_substream *substream)
 {
 	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
 	int val = 0;
 
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		regmap_read(i2s_tdm->regmap, I2S_TXFIFOLR, &val);
 	else
 		regmap_read(i2s_tdm->regmap, I2S_RXFIFOLR, &val);
