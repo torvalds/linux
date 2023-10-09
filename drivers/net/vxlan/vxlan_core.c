@@ -3028,6 +3028,7 @@ struct vxlan_fdb_flush_desc {
 	unsigned long			state_mask;
 	unsigned long                   flags;
 	unsigned long			flags_mask;
+	__be32				src_vni;
 };
 
 static bool vxlan_fdb_is_default_entry(const struct vxlan_fdb *f,
@@ -3047,6 +3048,9 @@ static bool vxlan_fdb_flush_matches(const struct vxlan_fdb *f,
 		return false;
 
 	if (desc->ignore_default_entry && vxlan_fdb_is_default_entry(f, vxlan))
+		return false;
+
+	if (desc->src_vni && f->vni != desc->src_vni)
 		return false;
 
 	return true;
@@ -3076,6 +3080,7 @@ static void vxlan_flush(struct vxlan_dev *vxlan,
 }
 
 static const struct nla_policy vxlan_del_bulk_policy[NDA_MAX + 1] = {
+	[NDA_SRC_VNI]   = { .type = NLA_U32 },
 	[NDA_NDM_STATE_MASK]	= { .type = NLA_U16 },
 	[NDA_NDM_FLAGS_MASK]	= { .type = NLA_U8 },
 };
@@ -3119,6 +3124,9 @@ static int vxlan_fdb_delete_bulk(struct nlmsghdr *nlh, struct net_device *dev,
 
 	if (tb[NDA_NDM_FLAGS_MASK])
 		desc.flags_mask = nla_get_u8(tb[NDA_NDM_FLAGS_MASK]);
+
+	if (tb[NDA_SRC_VNI])
+		desc.src_vni = cpu_to_be32(nla_get_u32(tb[NDA_SRC_VNI]));
 
 	vxlan_flush(vxlan, &desc);
 
