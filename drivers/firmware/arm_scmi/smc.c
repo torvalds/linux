@@ -60,9 +60,9 @@ struct scmi_smc {
 	struct mutex shmem_lock;
 #define INFLIGHT_NONE	MSG_TOKEN_MAX
 	atomic_t inflight;
-	u32 func_id;
-	u32 param_page;
-	u32 param_offset;
+	unsigned long func_id;
+	unsigned long param_page;
+	unsigned long param_offset;
 };
 
 static irqreturn_t smc_msg_done_isr(int irq, void *data)
@@ -211,8 +211,6 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 {
 	struct scmi_smc *scmi_info = cinfo->transport_info;
 	struct arm_smccc_res res;
-	unsigned long page = scmi_info->param_page;
-	unsigned long offset = scmi_info->param_offset;
 
 	/*
 	 * Channel will be released only once response has been
@@ -222,8 +220,8 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 
 	shmem_tx_prepare(scmi_info->shmem, xfer, cinfo);
 
-	arm_smccc_1_1_invoke(scmi_info->func_id, page, offset, 0, 0, 0, 0, 0,
-			     &res);
+	arm_smccc_1_1_invoke(scmi_info->func_id, scmi_info->param_page,
+			     scmi_info->param_offset, 0, 0, 0, 0, 0, &res);
 
 	/* Only SMCCC_RET_NOT_SUPPORTED is valid error code */
 	if (res.a0) {
