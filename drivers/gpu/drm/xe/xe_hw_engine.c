@@ -16,6 +16,7 @@
 #include "xe_execlist.h"
 #include "xe_force_wake.h"
 #include "xe_gt.h"
+#include "xe_gt_ccs_mode.h"
 #include "xe_gt_topology.h"
 #include "xe_hw_fence.h"
 #include "xe_irq.h"
@@ -282,6 +283,13 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
 	hw_engine_mmio_read32(hwe, RING_MI_MODE(0));
 }
 
+static bool xe_hw_engine_match_fixed_cslice_mode(const struct xe_gt *gt,
+						 const struct xe_hw_engine *hwe)
+{
+	return xe_gt_ccs_mode_enabled(gt) &&
+	       xe_rtp_match_first_render_or_compute(gt, hwe);
+}
+
 void
 xe_hw_engine_setup_default_lrc_state(struct xe_hw_engine *hwe)
 {
@@ -305,6 +313,12 @@ xe_hw_engine_setup_default_lrc_state(struct xe_hw_engine *hwe)
 				 BLIT_CCTL_SRC_MOCS_MASK,
 				 blit_cctl_val,
 				 XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+		},
+		/* Use Fixed slice CCS mode */
+		{ XE_RTP_NAME("RCU_MODE_FIXED_SLICE_CCS_MODE"),
+		  XE_RTP_RULES(FUNC(xe_hw_engine_match_fixed_cslice_mode)),
+		  XE_RTP_ACTIONS(FIELD_SET(RCU_MODE, RCU_MODE_FIXED_SLICE_CCS_MODE,
+					   RCU_MODE_FIXED_SLICE_CCS_MODE))
 		},
 		{}
 	};
@@ -857,6 +871,12 @@ bool xe_hw_engine_is_reserved(struct xe_hw_engine *hwe)
 	struct xe_device *xe = gt_to_xe(gt);
 
 	if (hwe->class == XE_ENGINE_CLASS_OTHER)
+		return true;
+
+	/* Check for engines disabled by ccs_mode setting */
+	if (xe_gt_ccs_mode_enabled(gt) &&
+	    hwe->class == XE_ENGINE_CLASS_COMPUTE &&
+	    hwe->logical_instance >= gt->ccs_mode)
 		return true;
 
 	return xe->info.supports_usm && hwe->class == XE_ENGINE_CLASS_COPY &&

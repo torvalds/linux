@@ -70,6 +70,7 @@ xe-y += xe_bb.o \
 	xe_gsc.o \
 	xe_gsc_submit.o \
 	xe_gt.o \
+	xe_gt_ccs_mode.o \
 	xe_gt_clock.o \
 	xe_gt_debugfs.o \
 	xe_gt_idle.o \

@@ -22,6 +22,7 @@
 #include "xe_force_wake.h"
 #include "xe_ggtt.h"
 #include "xe_gsc.h"
+#include "xe_gt_ccs_mode.h"
 #include "xe_gt_clock.h"
 #include "xe_gt_idle.h"
 #include "xe_gt_mcr.h"
@@ -450,6 +451,12 @@ static int all_fw_domain_init(struct xe_gt *gt)
 	if (err)
 		goto err_force_wake;
 
+	/* Configure default CCS mode of 1 engine with all resources */
+	if (xe_gt_ccs_mode_enabled(gt)) {
+		gt->ccs_mode = 1;
+		xe_gt_apply_ccs_mode(gt);
+	}
+
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	XE_WARN_ON(err);
 	xe_device_mem_access_put(gt_to_xe(gt));
@@ -559,6 +566,9 @@ static int do_gt_restart(struct xe_gt *gt)
 		xe_reg_sr_apply_mmio(&hwe->reg_sr, gt);
 		xe_reg_sr_apply_whitelist(hwe);
 	}
+
+	/* Get CCS mode in sync between sw/hw */
+	xe_gt_apply_ccs_mode(gt);
 
 	return 0;
 }

@@ -185,6 +185,14 @@ struct xe_gt {
 		spinlock_t lock;
 	} tlb_invalidation;
 
+	/**
+	 * @ccs_mode: Number of compute engines enabled.
+	 * Allows fixed mapping of available compute slices to compute engines.
+	 * By default only the first available compute engine is enabled and all
+	 * available compute slices are allocated to it.
+	 */
+	u32 ccs_mode;
+
 	/** @usm: unified shared memory state */
 	struct {
 		/**
