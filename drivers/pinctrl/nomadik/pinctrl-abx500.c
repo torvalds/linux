@@ -1079,12 +1079,11 @@ out_rem_chip:
  * abx500_gpio_remove() - remove Ab8500-gpio driver
  * @pdev:	Platform device registered
  */
-static int abx500_gpio_remove(struct platform_device *pdev)
+static void abx500_gpio_remove(struct platform_device *pdev)
 {
 	struct abx500_pinctrl *pct = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&pct->chip);
-	return 0;
 }
 
 static struct platform_driver abx500_gpio_driver = {
@@ -1093,7 +1092,7 @@ static struct platform_driver abx500_gpio_driver = {
 		.of_match_table = abx500_gpio_match,
 	},
 	.probe = abx500_gpio_probe,
-	.remove = abx500_gpio_remove,
+	.remove_new = abx500_gpio_remove,
 };
 
 static int __init abx500_gpio_init(void)
