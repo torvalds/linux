@@ -1693,7 +1693,7 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int chv_pinctrl_remove(struct platform_device *pdev)
+static void chv_pinctrl_remove(struct platform_device *pdev)
 {
 	struct intel_pinctrl *pctrl = platform_get_drvdata(pdev);
 	const struct intel_community *community = &pctrl->communities[0];
@@ -1701,8 +1701,6 @@ static int chv_pinctrl_remove(struct platform_device *pdev)
 	acpi_remove_address_space_handler(ACPI_HANDLE(&pdev->dev),
 					  community->acpi_space_id,
 					  chv_pinctrl_mmio_access_handler);
-
-	return 0;
 }
 
 static int chv_pinctrl_suspend_noirq(struct device *dev)
@@ -1794,7 +1792,7 @@ MODULE_DEVICE_TABLE(acpi, chv_pinctrl_acpi_match);
 
 static struct platform_driver chv_pinctrl_driver = {
 	.probe = chv_pinctrl_probe,
-	.remove = chv_pinctrl_remove,
+	.remove_new = chv_pinctrl_remove,
 	.driver = {
 		.name = "cherryview-pinctrl",
 		.pm = pm_sleep_ptr(&chv_pinctrl_pm_ops),
