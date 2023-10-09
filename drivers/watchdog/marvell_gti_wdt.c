@@ -299,6 +299,7 @@ static int gti_wdt_probe(struct platform_device *pdev)
 
 	/* Maximum timeout is 3 times the pretimeout */
 	wdog_dev->max_timeout = max_pretimeout * 3;
+	wdog_dev->max_hw_heartbeat_ms = max_pretimeout * 1000;
 	/* Minimum first timeout (pretimeout) is 1, so min_timeout as 3 */
 	wdog_dev->min_timeout = 3;
 	wdog_dev->timeout = wdog_dev->pretimeout;
