@@ -2478,6 +2478,7 @@ static int parse_call_stack(const struct option *opt __maybe_unused, const char 
 		entry = malloc(sizeof(*entry) + strlen(tok) + 1);
 		if (entry == NULL) {
 			pr_err("Memory allocation failure\n");
+			free(s);
 			return -1;
 		}
 
