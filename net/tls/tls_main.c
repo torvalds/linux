@@ -580,6 +580,31 @@ static int tls_getsockopt(struct sock *sk, int level, int optname,
 	return do_tls_getsockopt(sk, optname, optval, optlen);
 }
 
+static int validate_crypto_info(const struct tls_crypto_info *crypto_info,
+				const struct tls_crypto_info *alt_crypto_info)
+{
+	if (crypto_info->version != TLS_1_2_VERSION &&
+	    crypto_info->version != TLS_1_3_VERSION)
+		return -EINVAL;
+
+	switch (crypto_info->cipher_type) {
+	case TLS_CIPHER_ARIA_GCM_128:
+	case TLS_CIPHER_ARIA_GCM_256:
+		if (crypto_info->version != TLS_1_2_VERSION)
+			return -EINVAL;
+		break;
+	}
+
+	/* Ensure that TLS version and ciphers are same in both directions */
+	if (TLS_CRYPTO_INFO_READY(alt_crypto_info)) {
+		if (alt_crypto_info->version != crypto_info->version ||
+		    alt_crypto_info->cipher_type != crypto_info->cipher_type)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 				  unsigned int optlen, int tx)
 {
@@ -611,36 +636,14 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 		goto err_crypto_info;
 	}
 
-	/* check version */
-	if (crypto_info->version != TLS_1_2_VERSION &&
-	    crypto_info->version != TLS_1_3_VERSION) {
-		rc = -EINVAL;
+	rc = validate_crypto_info(crypto_info, alt_crypto_info);
+	if (rc)
 		goto err_crypto_info;
-	}
-
-	/* Ensure that TLS version and ciphers are same in both directions */
-	if (TLS_CRYPTO_INFO_READY(alt_crypto_info)) {
-		if (alt_crypto_info->version != crypto_info->version ||
-		    alt_crypto_info->cipher_type != crypto_info->cipher_type) {
-			rc = -EINVAL;
-			goto err_crypto_info;
-		}
-	}
 
 	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
 	if (!cipher_desc) {
 		rc = -EINVAL;
 		goto err_crypto_info;
-	}
-
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_ARIA_GCM_128:
-	case TLS_CIPHER_ARIA_GCM_256:
-		if (crypto_info->version != TLS_1_2_VERSION) {
-			rc = -EINVAL;
-			goto err_crypto_info;
-		}
-		break;
 	}
 
 	if (optlen != cipher_desc->crypto_info) {
