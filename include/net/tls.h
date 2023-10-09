@@ -194,7 +194,7 @@ enum tls_context_flags {
 
 struct cipher_context {
 	char *iv;
-	char *rec_seq;
+	char rec_seq[TLS_MAX_REC_SEQ_SIZE];
 };
 
 union tls_crypto_context {

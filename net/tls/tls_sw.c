@@ -2467,7 +2467,6 @@ void tls_sw_release_resources_rx(struct sock *sk)
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 
-	kfree(tls_ctx->rx.rec_seq);
 	kfree(tls_ctx->rx.iv);
 
 	if (ctx->aead_recv) {
@@ -2692,19 +2691,14 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 	prot->rec_seq_size = cipher_desc->rec_seq;
 	memcpy(cctx->iv, salt, cipher_desc->salt);
 	memcpy(cctx->iv + cipher_desc->salt, iv, cipher_desc->iv);
-
-	cctx->rec_seq = kmemdup(rec_seq, cipher_desc->rec_seq, GFP_KERNEL);
-	if (!cctx->rec_seq) {
-		rc = -ENOMEM;
-		goto free_iv;
-	}
+	memcpy(cctx->rec_seq, rec_seq, cipher_desc->rec_seq);
 
 	if (!*aead) {
 		*aead = crypto_alloc_aead(cipher_desc->cipher_name, 0, 0);
 		if (IS_ERR(*aead)) {
 			rc = PTR_ERR(*aead);
 			*aead = NULL;
-			goto free_rec_seq;
+			goto free_iv;
 		}
 	}
 
@@ -2736,9 +2730,6 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 free_aead:
 	crypto_free_aead(*aead);
 	*aead = NULL;
-free_rec_seq:
-	kfree(cctx->rec_seq);
-	cctx->rec_seq = NULL;
 free_iv:
 	kfree(cctx->iv);
 	cctx->iv = NULL;

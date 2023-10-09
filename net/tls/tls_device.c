@@ -58,7 +58,6 @@ static void tls_device_free_ctx(struct tls_context *ctx)
 {
 	if (ctx->tx_conf == TLS_HW) {
 		kfree(tls_offload_ctx_tx(ctx));
-		kfree(ctx->tx.rec_seq);
 		kfree(ctx->tx.iv);
 	}
 
@@ -1098,16 +1097,12 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	memcpy(ctx->tx.iv + cipher_desc->salt, iv, cipher_desc->iv);
 
 	prot->rec_seq_size = cipher_desc->rec_seq;
-	ctx->tx.rec_seq = kmemdup(rec_seq, cipher_desc->rec_seq, GFP_KERNEL);
-	if (!ctx->tx.rec_seq) {
-		rc = -ENOMEM;
-		goto free_iv;
-	}
+	memcpy(ctx->tx.rec_seq, rec_seq, cipher_desc->rec_seq);
 
 	start_marker_record = kmalloc(sizeof(*start_marker_record), GFP_KERNEL);
 	if (!start_marker_record) {
 		rc = -ENOMEM;
-		goto free_rec_seq;
+		goto free_iv;
 	}
 
 	offload_ctx = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_TX, GFP_KERNEL);
@@ -1192,8 +1187,6 @@ free_offload_ctx:
 	ctx->priv_ctx_tx = NULL;
 free_marker_record:
 	kfree(start_marker_record);
-free_rec_seq:
-	kfree(ctx->tx.rec_seq);
 free_iv:
 	kfree(ctx->tx.iv);
 release_netdev:
