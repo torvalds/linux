@@ -5189,14 +5189,15 @@ nfsd4_encode_offload_status(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_offload_status *os = &u->offload_status;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 8 + 4);
-	if (!p)
+	/* osr_count */
+	nfserr = nfsd4_encode_length4(xdr, os->count);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* osr_complete<1> */
+	if (xdr_stream_encode_u32(xdr, 0) != XDR_UNIT)
 		return nfserr_resource;
-	p = xdr_encode_hyper(p, os->count);
-	*p++ = cpu_to_be32(0);
-	return nfserr;
+	return nfs_ok;
 }
 
 static __be32
