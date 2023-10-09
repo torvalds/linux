@@ -122,11 +122,24 @@ static void pkg_thermal_schedule_work(struct delayed_work *work)
 	schedule_delayed_work(work, ms);
 }
 
+static void proc_thermal_clear_soc_int_status(struct proc_thermal_device *proc_priv)
+{
+	u64 status;
+
+	if (!(proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_WT_HINT))
+		return;
+
+	status = readq(proc_priv->mmio_base + SOC_WT_RES_INT_STATUS_OFFSET);
+	writeq(status & ~SOC_WT_RES_INT_STATUS_MASK,
+	       proc_priv->mmio_base + SOC_WT_RES_INT_STATUS_OFFSET);
+}
+
 static irqreturn_t proc_thermal_irq_thread_handler(int irq, void *devid)
 {
 	struct proc_thermal_pci *pci_info = devid;
 
 	proc_thermal_wt_intr_callback(pci_info->pdev, pci_info->proc_priv);
+	proc_thermal_clear_soc_int_status(pci_info->proc_priv);
 
 	return IRQ_HANDLED;
 }
