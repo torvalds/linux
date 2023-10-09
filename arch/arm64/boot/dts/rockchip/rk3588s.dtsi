@@ -2965,6 +2965,8 @@
 		interrupts = <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c0m0_xfer>;
+		resets = <&cru SRST_I2C0>, <&cru SRST_P_I2C0>;
+		reset-names = "i2c", "apb";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -5950,6 +5952,8 @@
 		interrupts = <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c1m0_xfer>;
+		resets = <&cru SRST_I2C1>, <&cru SRST_P_I2C1>;
+		reset-names = "i2c", "apb";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -5963,6 +5967,8 @@
 		interrupts = <GIC_SPI 319 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c2m0_xfer>;
+		resets = <&cru SRST_I2C2>, <&cru SRST_P_I2C2>;
+		reset-names = "i2c", "apb";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -5976,6 +5982,8 @@
 		interrupts = <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c3m0_xfer>;
+		resets = <&cru SRST_I2C3>, <&cru SRST_P_I2C3>;
+		reset-names = "i2c", "apb";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -5989,6 +5997,8 @@
 		interrupts = <GIC_SPI 321 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c4m0_xfer>;
+		resets = <&cru SRST_I2C4>, <&cru SRST_P_I2C4>;
+		reset-names = "i2c", "apb";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -6002,6 +6012,8 @@
 		interrupts = <GIC_SPI 322 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c5m0_xfer>;
+		resets = <&cru SRST_I2C5>, <&cru SRST_P_I2C5>;
+		reset-names = "i2c", "apb";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -6429,6 +6441,8 @@
 		interrupts = <GIC_SPI 323 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c6m0_xfer>;
+		resets = <&cru SRST_I2C6>, <&cru SRST_P_I2C6>;
+		reset-names = "i2c", "apb";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -6442,6 +6456,8 @@
 		interrupts = <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c7m0_xfer>;
+		resets = <&cru SRST_I2C7>, <&cru SRST_P_I2C7>;
+		reset-names = "i2c", "apb";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -6455,6 +6471,8 @@
 		interrupts = <GIC_SPI 325 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c8m0_xfer>;
+		resets = <&cru SRST_I2C8>, <&cru SRST_P_I2C8>;
+		reset-names = "i2c", "apb";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
