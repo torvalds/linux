@@ -1441,6 +1441,37 @@ static void ublk_abort_queue(struct ublk_device *ub, struct ublk_queue *ubq)
 	}
 }
 
+static bool ublk_abort_requests(struct ublk_device *ub)
+{
+	struct gendisk *disk;
+	int i;
+
+	spin_lock(&ub->lock);
+	disk = ub->ub_disk;
+	if (disk)
+		get_device(disk_to_dev(disk));
+	spin_unlock(&ub->lock);
+
+	/* Our disk has been dead */
+	if (!disk)
+		return false;
+
+	/* Now we are serialized with ublk_queue_rq() */
+	blk_mq_quiesce_queue(disk->queue);
+	for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {
+		struct ublk_queue *ubq = ublk_get_queue(ub, i);
+
+		if (ubq_daemon_is_dying(ubq)) {
+			/* abort queue is for making forward progress */
+			ublk_abort_queue(ub, ubq);
+		}
+	}
+	blk_mq_unquiesce_queue(disk->queue);
+	put_device(disk_to_dev(disk));
+
+	return true;
+}
+
 static void ublk_daemon_monitor_work(struct work_struct *work)
 {
 	struct ublk_device *ub =
@@ -1450,16 +1481,19 @@ static void ublk_daemon_monitor_work(struct work_struct *work)
 	for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {
 		struct ublk_queue *ubq = ublk_get_queue(ub, i);
 
-		if (ubq_daemon_is_dying(ubq)) {
-			if (ublk_queue_can_use_recovery(ubq))
-				schedule_work(&ub->quiesce_work);
-			else
-				schedule_work(&ub->stop_work);
-
-			/* abort queue is for making forward progress */
-			ublk_abort_queue(ub, ubq);
-		}
+		if (ubq_daemon_is_dying(ubq))
+			goto found;
 	}
+	return;
+
+found:
+	if (!ublk_abort_requests(ub))
+		return;
+
+	if (ublk_can_use_recovery(ub))
+		schedule_work(&ub->quiesce_work);
+	else
+		schedule_work(&ub->stop_work);
 
 	/*
 	 * We can't schedule monitor work after ub's state is not UBLK_S_DEV_LIVE.
@@ -1594,6 +1628,8 @@ static void ublk_unquiesce_dev(struct ublk_device *ub)
 
 static void ublk_stop_dev(struct ublk_device *ub)
 {
+	struct gendisk *disk;
+
 	mutex_lock(&ub->mutex);
 	if (ub->dev_info.state == UBLK_S_DEV_DEAD)
 		goto unlock;
@@ -1603,10 +1639,15 @@ static void ublk_stop_dev(struct ublk_device *ub)
 		ublk_unquiesce_dev(ub);
 	}
 	del_gendisk(ub->ub_disk);
+
+	/* Sync with ublk_abort_queue() by holding the lock */
+	spin_lock(&ub->lock);
+	disk = ub->ub_disk;
 	ub->dev_info.state = UBLK_S_DEV_DEAD;
 	ub->dev_info.ublksrv_pid = -1;
-	put_disk(ub->ub_disk);
 	ub->ub_disk = NULL;
+	spin_unlock(&ub->lock);
+	put_disk(disk);
  unlock:
 	mutex_unlock(&ub->mutex);
 	ublk_cancel_dev(ub);
