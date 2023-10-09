@@ -62,14 +62,8 @@ static int tls_enc_record(struct aead_request *aead_req,
 	u16 len;
 	int rc;
 
-	switch (prot->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128:
-	case TLS_CIPHER_AES_GCM_256:
-		break;
-	default:
-		return -EINVAL;
-	}
 	cipher_desc = get_cipher_desc(prot->cipher_type);
+	DEBUG_NET_WARN_ON_ONCE(!cipher_desc || !cipher_desc->offloadable);
 
 	buf_size = TLS_HEADER_SIZE + cipher_desc->iv;
 	len = min_t(int, *in_len, buf_size);
@@ -338,14 +332,9 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 	if (!aead_req)
 		return NULL;
 
-	switch (tls_ctx->crypto_send.info.cipher_type) {
-	case TLS_CIPHER_AES_GCM_128:
-	case TLS_CIPHER_AES_GCM_256:
-		break;
-	default:
-		goto free_req;
-	}
 	cipher_desc = get_cipher_desc(tls_ctx->crypto_send.info.cipher_type);
+	DEBUG_NET_WARN_ON_ONCE(!cipher_desc || !cipher_desc->offloadable);
+
 	buf_len = cipher_desc->salt + cipher_desc->iv + TLS_AAD_SPACE_SIZE +
 		  sync_size + cipher_desc->tag;
 	buf = kmalloc(buf_len, GFP_ATOMIC);

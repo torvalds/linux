@@ -891,14 +891,8 @@ tls_device_reencrypt(struct sock *sk, struct tls_context *tls_ctx)
 	struct strp_msg *rxm;
 	char *orig_buf, *buf;
 
-	switch (tls_ctx->crypto_recv.info.cipher_type) {
-	case TLS_CIPHER_AES_GCM_128:
-	case TLS_CIPHER_AES_GCM_256:
-		break;
-	default:
-		return -EINVAL;
-	}
 	cipher_desc = get_cipher_desc(tls_ctx->crypto_recv.info.cipher_type);
+	DEBUG_NET_WARN_ON_ONCE(!cipher_desc || !cipher_desc->offloadable);
 
 	rxm = strp_msg(tls_strp_msg(sw_ctx));
 	orig_buf = kmalloc(rxm->full_len + TLS_HEADER_SIZE + cipher_desc->iv,
