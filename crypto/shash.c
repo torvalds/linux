@@ -225,14 +225,6 @@ int crypto_shash_finup(struct shash_desc *desc, const u8 *data,
 }
 EXPORT_SYMBOL_GPL(crypto_shash_finup);
 
-static int shash_digest_unaligned(struct shash_desc *desc, const u8 *data,
-				  unsigned int len, u8 *out)
-{
-	return crypto_shash_init(desc) ?:
-	       shash_update_unaligned(desc, data, len) ?:
-	       shash_final_unaligned(desc, out);
-}
-
 static int shash_default_digest(struct shash_desc *desc, const u8 *data,
 				unsigned int len, u8 *out)
 {
@@ -260,7 +252,8 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		err = -ENOKEY;
 	else if (((unsigned long)data | (unsigned long)out) & alignmask)
-		err = shash_digest_unaligned(desc, data, len, out);
+		err = shash->init(desc) ?:
+		      shash_finup_unaligned(desc, data, len, out);
 	else
 		err = shash->digest(desc, data, len, out);
 
