@@ -32,6 +32,7 @@
 #include <soc/rockchip/rockchip_ipa.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
+#include <soc/rockchip/rockchip_iommu.h>
 
 #include "mpp_debug.h"
 #include "mpp_iommu.h"
@@ -44,6 +45,8 @@
 #define RKVENC_MAX_DCHS_ID			4
 #define RKVENC_MAX_SLICE_FIFO_LEN		256
 #define RKVENC_SCLR_DONE_STA			BIT(2)
+#define RKVENC_WDG				0x38
+#define TIMEOUT_MS				100
 
 #define to_rkvenc_info(info)		\
 		container_of(info, struct rkvenc_hw_info, hw)
@@ -1194,6 +1197,7 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	struct rkvenc_task *task = to_rkvenc_task(mpp_task);
 	struct rkvenc_hw_info *hw = enc->hw_info;
 	u32 timing_en = mpp->srv->timing_en;
+	u32 timeout_thd;
 
 	mpp_debug_enter();
 
@@ -1247,6 +1251,13 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	/* Flush the register before the start the device */
 	wmb();
 
+	/*
+	 * reconfig timeout threshold.
+	 * bit0-bit23,x1024 core clk cycles
+	 */
+	timeout_thd = mpp_read(mpp, RKVENC_WDG) & 0xff000000;
+	timeout_thd |= TIMEOUT_MS * clk_get_rate(enc->core_clk_info.clk) / 1024000;
+	mpp_write(mpp, RKVENC_WDG, timeout_thd);
 	mpp_write(mpp, enc->hw_info->enc_start_base, start_val);
 
 	mpp_task_run_end(mpp_task, timing_en);
@@ -1880,7 +1891,7 @@ static int rkvenc_soft_reset(struct mpp_dev *mpp)
 
 	/* safe reset */
 	mpp_write(mpp, hw->int_mask_base, 0x3FF);
-	mpp_write(mpp, hw->enc_clr_base, 0x1);
+	mpp_write(mpp, hw->enc_clr_base, 0x3);
 	ret = readl_relaxed_poll_timeout(mpp->reg_base + hw->int_sta_base,
 					 rst_status,
 					 rst_status & RKVENC_SCLR_DONE_STA,
@@ -2404,13 +2415,32 @@ static int rkvenc2_iommu_fault_handle(struct iommu_domain *iommu,
 {
 	struct mpp_dev *mpp = (struct mpp_dev *)arg;
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
-	struct mpp_task *mpp_task = mpp->cur_task;
+	struct mpp_task *mpp_task;
+	struct rkvenc_ccu *ccu = enc->ccu;
 
+	if (ccu) {
+		struct rkvenc_dev *core = NULL, *n;
+
+		list_for_each_entry_safe(core, n, &ccu->core_list, core_link) {
+			if (core->mpp.iommu_info &&
+			    (&core->mpp.iommu_info->pdev->dev == iommu_dev)) {
+				mpp = &core->mpp;
+				break;
+			}
+		}
+	}
+	mpp_task = mpp->cur_task;
 	dev_info(mpp->dev, "core %d page fault found dchs %08x\n",
 		 mpp->core_id, mpp_read_relaxed(&enc->mpp, DCHS_REG_OFFSET));
 
 	if (mpp_task)
 		mpp_task_dump_mem_region(mpp, mpp_task);
+
+	/*
+	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
+	 * Until the pagefault task finish by hw timeout.
+	 */
+	rockchip_iommu_mask_irq(mpp->dev);
 
 	return 0;
 }
