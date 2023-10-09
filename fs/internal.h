@@ -96,13 +96,20 @@ struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred);
 struct file *alloc_empty_backing_file(int flags, const struct cred *cred);
 void release_empty_file(struct file *f);
 
+static inline void file_put_write_access(struct file *file)
+{
+	put_write_access(file->f_inode);
+	mnt_put_write_access(file->f_path.mnt);
+	if (unlikely(file->f_mode & FMODE_BACKING))
+		mnt_put_write_access(backing_file_real_path(file)->mnt);
+}
+
 static inline void put_file_access(struct file *file)
 {
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
 		i_readcount_dec(file->f_inode);
 	} else if (file->f_mode & FMODE_WRITER) {
-		put_write_access(file->f_inode);
-		mnt_put_write_access(file->f_path.mnt);
+		file_put_write_access(file);
 	}
 }
 
