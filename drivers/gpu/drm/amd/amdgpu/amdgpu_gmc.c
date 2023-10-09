@@ -264,6 +264,7 @@ void amdgpu_gmc_sysvm_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc
  *
  * @adev: amdgpu device structure holding all necessary information
  * @mc: memory controller structure holding memory information
+ * @gart_placement: GART placement policy with respect to VRAM
  *
  * Function will place try to place GART before or after VRAM.
  * If GART size is bigger than space left then we ajust GART size.
