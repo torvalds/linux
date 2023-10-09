@@ -5279,13 +5279,14 @@ nfsd4_encode_seek(struct nfsd4_compoundres *resp, __be32 nfserr,
 		  union nfsd4_op_u *u)
 {
 	struct nfsd4_seek *seek = &u->seek;
-	__be32 *p;
+	struct xdr_stream *xdr = resp->xdr;
 
-	p = xdr_reserve_space(resp->xdr, 4 + 8);
-	*p++ = cpu_to_be32(seek->seek_eof);
-	p = xdr_encode_hyper(p, seek->seek_pos);
-
-	return 0;
+	/* sr_eof */
+	nfserr = nfsd4_encode_bool(xdr, seek->seek_eof);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* sr_offset */
+	return nfsd4_encode_offset4(xdr, seek->seek_pos);
 }
 
 static __be32
