@@ -469,8 +469,8 @@ static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format,
 		return true;
 
 	if (!rockchip_afbc(plane, modifier)) {
-		drm_err(vop2->drm, "Unsupported format modifier 0x%llx\n",
-			modifier);
+		drm_dbg_kms(vop2->drm, "Unsupported format modifier 0x%llx\n",
+			    modifier);
 
 		return false;
 	}
