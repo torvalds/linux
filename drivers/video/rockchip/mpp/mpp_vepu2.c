@@ -22,6 +22,7 @@
 #include <linux/proc_fs.h>
 #include <linux/nospec.h>
 #include <soc/rockchip/pm_domains.h>
+#include <soc/rockchip/rockchip_iommu.h>
 
 #include "mpp_debug.h"
 #include "mpp_common.h"
@@ -882,6 +883,48 @@ static int vepu_reset(struct mpp_dev *mpp)
 	return 0;
 }
 
+static int vepu2_iommu_fault_handle(struct iommu_domain *iommu, struct device *iommu_dev,
+				    unsigned long iova, int status, void *arg)
+{
+	struct mpp_dev *mpp = (struct mpp_dev *)arg;
+	struct mpp_task *mpp_task;
+	struct vepu_dev *enc = to_vepu_dev(mpp);
+	struct vepu_ccu *ccu = enc->ccu;
+
+	dev_err(iommu_dev, "fault addr 0x%08lx status %x arg %p\n",
+		iova, status, arg);
+
+	if (ccu) {
+		int i;
+		struct mpp_dev *core;
+
+		for (i = 0; i < ccu->core_num; i++) {
+			core = ccu->cores[i];
+			if (core->iommu_info && (&core->iommu_info->pdev->dev == iommu_dev)) {
+				mpp = core;
+				break;
+			}
+		}
+	}
+
+	if (!mpp) {
+		dev_err(iommu_dev, "pagefault without device to handle\n");
+		return 0;
+	}
+	mpp_task = mpp->cur_task;
+	if (mpp_task)
+		mpp_task_dump_mem_region(mpp, mpp_task);
+
+	mpp_task_dump_hw_reg(mpp);
+	/*
+	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
+	 * Until the pagefault task finish by hw timeout.
+	 */
+	rockchip_iommu_mask_irq(mpp->dev);
+
+	return 0;
+}
+
 static struct mpp_hw_ops vepu_v2_hw_ops = {
 	.init = vepu_init,
 	.clk_on = vepu_clk_on,
@@ -1100,6 +1143,7 @@ static int vepu_core_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	mpp->fault_handler = vepu2_iommu_fault_handle;
 	mpp->session_max_buffers = VEPU2_SESSION_MAX_BUFFERS;
 	vepu_procfs_init(mpp);
 	vepu_procfs_ccu_init(mpp);
@@ -1149,6 +1193,7 @@ static int vepu_probe_default(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	mpp->fault_handler = vepu2_iommu_fault_handle;
 	mpp->session_max_buffers = VEPU2_SESSION_MAX_BUFFERS;
 	vepu_procfs_init(mpp);
 	/* register current device to mpp service */
