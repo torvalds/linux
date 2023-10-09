@@ -191,6 +191,15 @@ static int shash_finup_unaligned(struct shash_desc *desc, const u8 *data,
 	       shash_final_unaligned(desc, out);
 }
 
+static int shash_default_finup(struct shash_desc *desc, const u8 *data,
+			       unsigned int len, u8 *out)
+{
+	struct shash_alg *shash = crypto_shash_alg(desc->tfm);
+
+	return shash->update(desc, data, len) ?:
+	       shash->final(desc, out);
+}
+
 int crypto_shash_finup(struct shash_desc *desc, const u8 *data,
 		       unsigned int len, u8 *out)
 {
@@ -222,6 +231,15 @@ static int shash_digest_unaligned(struct shash_desc *desc, const u8 *data,
 	return crypto_shash_init(desc) ?:
 	       shash_update_unaligned(desc, data, len) ?:
 	       shash_final_unaligned(desc, out);
+}
+
+static int shash_default_digest(struct shash_desc *desc, const u8 *data,
+				unsigned int len, u8 *out)
+{
+	struct shash_alg *shash = crypto_shash_alg(desc->tfm);
+
+	return shash->init(desc) ?:
+	       shash->finup(desc, data, len, out);
 }
 
 int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
@@ -656,9 +674,9 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	base->cra_flags |= CRYPTO_ALG_TYPE_SHASH;
 
 	if (!alg->finup)
-		alg->finup = shash_finup_unaligned;
+		alg->finup = shash_default_finup;
 	if (!alg->digest)
-		alg->digest = shash_digest_unaligned;
+		alg->digest = shash_default_digest;
 	if (!alg->export) {
 		alg->export = shash_default_export;
 		alg->import = shash_default_import;
