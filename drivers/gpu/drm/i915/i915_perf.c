@@ -206,6 +206,7 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_clock_utils.h"
 #include "gt/intel_gt_mcr.h"
+#include "gt/intel_gt_print.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc.h"
 #include "gt/intel_lrc_reg.h"
@@ -1659,9 +1660,8 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	free_noa_wait(stream);
 
 	if (perf->spurious_report_rs.missed) {
-		drm_notice(&gt->i915->drm,
-			   "%d spurious OA report notices suppressed due to ratelimiting\n",
-			   perf->spurious_report_rs.missed);
+		gt_notice(gt, "%d spurious OA report notices suppressed due to ratelimiting\n",
+			  perf->spurious_report_rs.missed);
 	}
 }
 
@@ -1852,7 +1852,7 @@ static int alloc_oa_buffer(struct i915_perf_stream *stream)
 	 */
 	ret = i915_vma_pin(vma, 0, SZ_16M, PIN_GLOBAL | PIN_HIGH);
 	if (ret) {
-		drm_err(&gt->i915->drm, "Failed to pin OA buffer %d\n", ret);
+		gt_err(gt, "Failed to pin OA buffer %d\n", ret);
 		goto err_unref;
 	}
 

@@ -71,6 +71,7 @@
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_gt_print.h"
 #include "gt/intel_rc6.h"
 
 #include "pxp/intel_pxp.h"
@@ -425,7 +426,7 @@ static int i915_pcode_init(struct drm_i915_private *i915)
 	for_each_gt(gt, i915, id) {
 		ret = intel_pcode_init(gt->uncore);
 		if (ret) {
-			drm_err(&gt->i915->drm, "gt%d: intel_pcode_init failed %d\n", id, ret);
+			gt_err(gt, "intel_pcode_init failed %d\n", ret);
 			return ret;
 		}
 	}
