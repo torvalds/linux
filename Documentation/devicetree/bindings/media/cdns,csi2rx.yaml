@@ -18,6 +18,7 @@ properties:
     items:
       - enum:
           - starfive,jh7110-csi2rx
+          - ti,j721e-csi2rx
       - const: cdns,csi2rx
 
   reg:
