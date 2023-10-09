@@ -2620,6 +2620,37 @@ static struct tls_sw_context_rx *init_ctx_rx(struct tls_context *ctx)
 	return sw_ctx_rx;
 }
 
+static int init_prot_info(struct tls_prot_info *prot,
+			  const struct tls_crypto_info *crypto_info,
+			  const struct tls_cipher_desc *cipher_desc)
+{
+	u16 nonce_size = cipher_desc->nonce;
+
+	if (crypto_info->version == TLS_1_3_VERSION) {
+		nonce_size = 0;
+		prot->aad_size = TLS_HEADER_SIZE;
+		prot->tail_size = 1;
+	} else {
+		prot->aad_size = TLS_AAD_SPACE_SIZE;
+		prot->tail_size = 0;
+	}
+
+	/* Sanity-check the sizes for stack allocations. */
+	if (nonce_size > TLS_MAX_IV_SIZE || prot->aad_size > TLS_MAX_AAD_SIZE)
+		return -EINVAL;
+
+	prot->version = crypto_info->version;
+	prot->cipher_type = crypto_info->cipher_type;
+	prot->prepend_size = TLS_HEADER_SIZE + nonce_size;
+	prot->tag_size = cipher_desc->tag;
+	prot->overhead_size = prot->prepend_size + prot->tag_size + prot->tail_size;
+	prot->iv_size = cipher_desc->iv;
+	prot->salt_size = cipher_desc->salt;
+	prot->rec_seq_size = cipher_desc->rec_seq;
+
+	return 0;
+}
+
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
@@ -2632,7 +2663,6 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 	struct crypto_tfm *tfm;
 	char *iv, *rec_seq, *key, *salt;
 	const struct tls_cipher_desc *cipher_desc;
-	u16 nonce_size;
 	int rc = 0;
 
 	if (!ctx) {
@@ -2666,39 +2696,15 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		goto free_priv;
 	}
 
-	nonce_size = cipher_desc->nonce;
+	rc = init_prot_info(prot, crypto_info, cipher_desc);
+	if (rc)
+		goto free_priv;
 
 	iv = crypto_info_iv(crypto_info, cipher_desc);
 	key = crypto_info_key(crypto_info, cipher_desc);
 	salt = crypto_info_salt(crypto_info, cipher_desc);
 	rec_seq = crypto_info_rec_seq(crypto_info, cipher_desc);
 
-	if (crypto_info->version == TLS_1_3_VERSION) {
-		nonce_size = 0;
-		prot->aad_size = TLS_HEADER_SIZE;
-		prot->tail_size = 1;
-	} else {
-		prot->aad_size = TLS_AAD_SPACE_SIZE;
-		prot->tail_size = 0;
-	}
-
-	/* Sanity-check the sizes for stack allocations. */
-	if (nonce_size > TLS_MAX_IV_SIZE || prot->aad_size > TLS_MAX_AAD_SIZE) {
-		rc = -EINVAL;
-		goto free_priv;
-	}
-
-	prot->version = crypto_info->version;
-	prot->cipher_type = crypto_info->cipher_type;
-	prot->prepend_size = TLS_HEADER_SIZE + nonce_size;
-	prot->tag_size = cipher_desc->tag;
-	prot->overhead_size = prot->prepend_size +
-			      prot->tag_size + prot->tail_size;
-	prot->iv_size = cipher_desc->iv;
-	prot->salt_size = cipher_desc->salt;
-
-	/* Note: 128 & 256 bit salt are the same size */
-	prot->rec_seq_size = cipher_desc->rec_seq;
 	memcpy(cctx->iv, salt, cipher_desc->salt);
 	memcpy(cctx->iv + cipher_desc->salt, iv, cipher_desc->iv);
 	memcpy(cctx->rec_seq, rec_seq, cipher_desc->rec_seq);
