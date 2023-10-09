@@ -2955,7 +2955,9 @@ static void ccs_cleanup(struct ccs_sensor *sensor)
 
 static int ccs_init_subdev(struct ccs_sensor *sensor,
 			   struct ccs_subdev *ssd, const char *name,
-			   unsigned short num_pads, u32 function)
+			   unsigned short num_pads, u32 function,
+			   const char *lock_name,
+			   struct lock_class_key *lock_key)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	int rval;
@@ -2993,7 +2995,7 @@ static int ccs_init_subdev(struct ccs_sensor *sensor,
 		return rval;
 	}
 
-	rval = v4l2_subdev_init_finalize(&ssd->sd);
+	rval = __v4l2_subdev_init_finalize(&ssd->sd, lock_name, lock_key);
 	if (rval) {
 		media_entity_cleanup(&ssd->sd.entity);
 		return rval;
@@ -3206,6 +3208,8 @@ static int ccs_firmware_name(struct i2c_client *client,
 
 static int ccs_probe(struct i2c_client *client)
 {
+	static struct lock_class_key pixel_array_lock_key, binner_lock_key,
+		scaler_lock_key;
 	const struct ccs_device *ccsdev = device_get_match_data(&client->dev);
 	struct ccs_sensor *sensor;
 	const struct firmware *fw;
@@ -3489,15 +3493,18 @@ static int ccs_probe(struct i2c_client *client)
 	}
 
 	rval = ccs_init_subdev(sensor, sensor->scaler, " scaler", 2,
-			       MEDIA_ENT_F_PROC_VIDEO_SCALER);
+			       MEDIA_ENT_F_PROC_VIDEO_SCALER,
+			       "ccs scaler mutex", &scaler_lock_key);
 	if (rval)
 		goto out_cleanup;
 	rval = ccs_init_subdev(sensor, sensor->binner, " binner", 2,
-			       MEDIA_ENT_F_PROC_VIDEO_SCALER);
+			       MEDIA_ENT_F_PROC_VIDEO_SCALER,
+			       "ccs binner mutex", &binner_lock_key);
 	if (rval)
 		goto out_cleanup;
 	rval = ccs_init_subdev(sensor, sensor->pixel_array, " pixel_array", 1,
-			       MEDIA_ENT_F_CAM_SENSOR);
+			       MEDIA_ENT_F_CAM_SENSOR, "ccs pixel array mutex",
+			       &pixel_array_lock_key);
 	if (rval)
 		goto out_cleanup;
 
