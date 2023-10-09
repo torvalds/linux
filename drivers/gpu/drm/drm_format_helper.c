@@ -20,6 +20,97 @@
 #include <drm/drm_print.h>
 #include <drm/drm_rect.h>
 
+/**
+ * drm_format_conv_state_init - Initialize format-conversion state
+ * @state: The state to initialize
+ *
+ * Clears all fields in struct drm_format_conv_state. The state will
+ * be empty with no preallocated resources.
+ */
+void drm_format_conv_state_init(struct drm_format_conv_state *state)
+{
+	state->tmp.mem = NULL;
+	state->tmp.size = 0;
+	state->tmp.preallocated = false;
+}
+EXPORT_SYMBOL(drm_format_conv_state_init);
+
+/**
+ * drm_format_conv_state_copy - Copy format-conversion state
+ * @state: Destination state
+ * @old_state: Source state
+ *
+ * Copies format-conversion state from @old_state to @state; except for
+ * temporary storage.
+ */
+void drm_format_conv_state_copy(struct drm_format_conv_state *state,
+				const struct drm_format_conv_state *old_state)
+{
+	/*
+	 * So far, there's only temporary storage here, which we don't
+	 * duplicate. Just clear the fields.
+	 */
+	state->tmp.mem = NULL;
+	state->tmp.size = 0;
+	state->tmp.preallocated = false;
+}
+EXPORT_SYMBOL(drm_format_conv_state_copy);
+
+/**
+ * drm_format_conv_state_reserve - Allocates storage for format conversion
+ * @state: The format-conversion state
+ * @new_size: The minimum allocation size
+ * @flags: Flags for kmalloc()
+ *
+ * Allocates at least @new_size bytes and returns a pointer to the memory
+ * range. After calling this function, previously returned memory blocks
+ * are invalid. It's best to collect all memory requirements of a format
+ * conversion and call this function once to allocate the range.
+ *
+ * Returns:
+ * A pointer to the allocated memory range, or NULL otherwise.
+ */
+void *drm_format_conv_state_reserve(struct drm_format_conv_state *state,
+				    size_t new_size, gfp_t flags)
+{
+	void *mem;
+
+	if (new_size <= state->tmp.size)
+		goto out;
+	else if (state->tmp.preallocated)
+		return NULL;
+
+	mem = krealloc(state->tmp.mem, new_size, flags);
+	if (!mem)
+		return NULL;
+
+	state->tmp.mem = mem;
+	state->tmp.size = new_size;
+
+out:
+	return state->tmp.mem;
+}
+EXPORT_SYMBOL(drm_format_conv_state_reserve);
+
+/**
+ * drm_format_conv_state_release - Releases an format-conversion storage
+ * @state: The format-conversion state
+ *
+ * Releases the memory range references by the format-conversion state.
+ * After this call, all pointers to the memory are invalid. Prefer
+ * drm_format_conv_state_init() for cleaning up and unloading a driver.
+ */
+void drm_format_conv_state_release(struct drm_format_conv_state *state)
+{
+	if (state->tmp.preallocated)
+		return;
+
+	kfree(state->tmp.mem);
+	state->tmp.mem = NULL;
+	state->tmp.size = 0;
+}
+EXPORT_SYMBOL(drm_format_conv_state_release);
+
 static unsigned int clip_offset(const struct drm_rect *clip, unsigned int pitch, unsigned int cpp)
 {
 	return clip->y1 * pitch + clip->x1 * cpp;
@@ -45,6 +136,7 @@ EXPORT_SYMBOL(drm_fb_clip_offset);
 static int __drm_fb_xfrm(void *dst, unsigned long dst_pitch, unsigned long dst_pixsize,
 			 const void *vaddr, const struct drm_framebuffer *fb,
 			 const struct drm_rect *clip, bool vaddr_cached_hint,
+			 struct drm_format_conv_state *state,
 			 void (*xfrm_line)(void *dbuf, const void *sbuf, unsigned int npixels))
 {
 	unsigned long linepixels = drm_rect_width(clip);
@@ -60,7 +152,7 @@ static int __drm_fb_xfrm(void *dst, unsigned long dst_pitch, unsigned long dst_p
 	 * one line at a time.
 	 */
 	if (!vaddr_cached_hint) {
-		stmp = kmalloc(sbuf_len, GFP_KERNEL);
+		stmp = drm_format_conv_state_reserve(state, sbuf_len, GFP_KERNEL);
 		if (!stmp)
 			return -ENOMEM;
 	}
@@ -79,8 +171,6 @@ static int __drm_fb_xfrm(void *dst, unsigned long dst_pitch, unsigned long dst_p
 		dst += dst_pitch;
 	}
 
-	kfree(stmp);
-
 	return 0;
 }
 
@@ -88,6 +178,7 @@ static int __drm_fb_xfrm(void *dst, unsigned long dst_pitch, unsigned long dst_p
 static int __drm_fb_xfrm_toio(void __iomem *dst, unsigned long dst_pitch, unsigned long dst_pixsize,
 			      const void *vaddr, const struct drm_framebuffer *fb,
 			      const struct drm_rect *clip, bool vaddr_cached_hint,
+			      struct drm_format_conv_state *state,
 			      void (*xfrm_line)(void *dbuf, const void *sbuf, unsigned int npixels))
 {
 	unsigned long linepixels = drm_rect_width(clip);
@@ -101,9 +192,9 @@ static int __drm_fb_xfrm_toio(void __iomem *dst, unsigned long dst_pitch, unsign
 	void *dbuf;
 
 	if (vaddr_cached_hint) {
-		dbuf = kmalloc(dbuf_len, GFP_KERNEL);
+		dbuf = drm_format_conv_state_reserve(state, dbuf_len, GFP_KERNEL);
 	} else {
-		dbuf = kmalloc(stmp_off + sbuf_len, GFP_KERNEL);
+		dbuf = drm_format_conv_state_reserve(state, stmp_off + sbuf_len, GFP_KERNEL);
 		stmp = dbuf + stmp_off;
 	}
 	if (!dbuf)
@@ -124,8 +215,6 @@ static int __drm_fb_xfrm_toio(void __iomem *dst, unsigned long dst_pitch, unsign
 		dst += dst_pitch;
 	}
 
-	kfree(dbuf);
-
 	return 0;
 }
 
@@ -139,17 +228,24 @@ static int drm_fb_xfrm(struct iosys_map *dst,
 	static const unsigned int default_dst_pitch[DRM_FORMAT_MAX_PLANES] = {
 		0, 0, 0, 0
 	};
+	struct drm_format_conv_state fmtcnv_state = DRM_FORMAT_CONV_STATE_INIT;
+	int ret;
 
 	if (!dst_pitch)
 		dst_pitch = default_dst_pitch;
 
 	/* TODO: handle src in I/O memory here */
 	if (dst[0].is_iomem)
-		return __drm_fb_xfrm_toio(dst[0].vaddr_iomem, dst_pitch[0], dst_pixsize[0],
-					  src[0].vaddr, fb, clip, vaddr_cached_hint, xfrm_line);
+		ret = __drm_fb_xfrm_toio(dst[0].vaddr_iomem, dst_pitch[0], dst_pixsize[0],
+					 src[0].vaddr, fb, clip, vaddr_cached_hint, &fmtcnv_state,
+					 xfrm_line);
 	else
-		return __drm_fb_xfrm(dst[0].vaddr, dst_pitch[0], dst_pixsize[0],
-				     src[0].vaddr, fb, clip, vaddr_cached_hint, xfrm_line);
+		ret = __drm_fb_xfrm(dst[0].vaddr, dst_pitch[0], dst_pixsize[0],
+				    src[0].vaddr, fb, clip, vaddr_cached_hint, &fmtcnv_state,
+				    xfrm_line);
+	drm_format_conv_state_release(&fmtcnv_state);
+
+	return ret;
 }
 
 /**
