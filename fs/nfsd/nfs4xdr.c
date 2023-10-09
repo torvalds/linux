@@ -4932,20 +4932,18 @@ nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, __be32 nfserr,
 			  union nfsd4_op_u *u)
 {
 	struct nfsd4_test_stateid *test_stateid = &u->test_stateid;
-	struct xdr_stream *xdr = resp->xdr;
 	struct nfsd4_test_stateid_id *stateid, *next;
-	__be32 *p;
+	struct xdr_stream *xdr = resp->xdr;
 
-	p = xdr_reserve_space(xdr, 4 + (4 * test_stateid->ts_num_ids));
-	if (!p)
+	/* tsr_status_codes<> */
+	if (xdr_stream_encode_u32(xdr, test_stateid->ts_num_ids) != XDR_UNIT)
 		return nfserr_resource;
-	*p++ = htonl(test_stateid->ts_num_ids);
-
-	list_for_each_entry_safe(stateid, next, &test_stateid->ts_stateid_list, ts_id_list) {
-		*p++ = stateid->ts_id_status;
+	list_for_each_entry_safe(stateid, next,
+				 &test_stateid->ts_stateid_list, ts_id_list) {
+		if (xdr_stream_encode_be32(xdr, stateid->ts_id_status) != XDR_UNIT)
+			return nfserr_resource;
 	}
-
-	return 0;
+	return nfs_ok;
 }
 
 #ifdef CONFIG_NFSD_PNFS
