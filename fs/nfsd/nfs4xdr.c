@@ -3908,14 +3908,14 @@ nfsd4_encode_access(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_access *access = &u->access;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
+	__be32 status;
 
-	p = xdr_reserve_space(xdr, 8);
-	if (!p)
-		return nfserr_resource;
-	*p++ = cpu_to_be32(access->ac_supported);
-	*p++ = cpu_to_be32(access->ac_resp_access);
-	return 0;
+	/* supported */
+	status = nfsd4_encode_uint32_t(xdr, access->ac_supported);
+	if (status != nfs_ok)
+		return status;
+	/* access */
+	return nfsd4_encode_uint32_t(xdr, access->ac_resp_access);
 }
 
 static __be32 nfsd4_encode_bind_conn_to_session(struct nfsd4_compoundres *resp, __be32 nfserr,
