@@ -1099,7 +1099,7 @@ int ath11k_dp_rx_ampdu_start(struct ath11k *ar,
 			     struct ieee80211_ampdu_params *params)
 {
 	struct ath11k_base *ab = ar->ab;
-	struct ath11k_sta *arsta = (void *)params->sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(params->sta);
 	int vdev_id = arsta->arvif->vdev_id;
 	int ret;
 
@@ -1117,7 +1117,7 @@ int ath11k_dp_rx_ampdu_stop(struct ath11k *ar,
 {
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_peer *peer;
-	struct ath11k_sta *arsta = (void *)params->sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(params->sta);
 	int vdev_id = arsta->arvif->vdev_id;
 	dma_addr_t paddr;
 	bool active;
@@ -1456,7 +1456,7 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	}
 
 	sta = peer->sta;
-	arsta = (struct ath11k_sta *)sta->drv_priv;
+	arsta = ath11k_sta_to_arsta(sta);
 
 	memset(&arsta->txrate, 0, sizeof(arsta->txrate));
 
@@ -5242,7 +5242,7 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 			goto next_skb;
 		}
 
-		arsta = (struct ath11k_sta *)peer->sta->drv_priv;
+		arsta = ath11k_sta_to_arsta(peer->sta);
 		ath11k_dp_rx_update_peer_stats(arsta, ppdu_info);
 
 		if (ath11k_debugfs_is_pktlog_peer_valid(ar, peer->addr))
