@@ -44,10 +44,10 @@ static struct kmem_cache *filp_cachep __read_mostly;
 
 static struct percpu_counter nr_files __cacheline_aligned_in_smp;
 
-/* Container for backing file with optional real path */
+/* Container for backing file with optional user path */
 struct backing_file {
 	struct file file;
-	struct path real_path;
+	struct path user_path;
 };
 
 static inline struct backing_file *backing_file(struct file *f)
@@ -55,11 +55,11 @@ static inline struct backing_file *backing_file(struct file *f)
 	return container_of(f, struct backing_file, file);
 }
 
-struct path *backing_file_real_path(struct file *f)
+struct path *backing_file_user_path(struct file *f)
 {
-	return &backing_file(f)->real_path;
+	return &backing_file(f)->user_path;
 }
-EXPORT_SYMBOL_GPL(backing_file_real_path);
+EXPORT_SYMBOL_GPL(backing_file_user_path);
 
 static inline void file_free(struct file *f)
 {
@@ -68,7 +68,7 @@ static inline void file_free(struct file *f)
 		percpu_counter_dec(&nr_files);
 	put_cred(f->f_cred);
 	if (unlikely(f->f_mode & FMODE_BACKING)) {
-		path_put(backing_file_real_path(f));
+		path_put(backing_file_user_path(f));
 		kfree(backing_file(f));
 	} else {
 		kmem_cache_free(filp_cachep, f);

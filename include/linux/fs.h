@@ -2492,26 +2492,10 @@ struct file *dentry_open(const struct path *path, int flags,
 			 const struct cred *creds);
 struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 			   const struct cred *cred);
-struct file *backing_file_open(const struct path *path, int flags,
+struct file *backing_file_open(const struct path *user_path, int flags,
 			       const struct path *real_path,
 			       const struct cred *cred);
-struct path *backing_file_real_path(struct file *f);
-
-/*
- * file_real_path - get the path corresponding to f_inode
- *
- * When opening a backing file for a stackable filesystem (e.g.,
- * overlayfs) f_path may be on the stackable filesystem and f_inode on
- * the underlying filesystem.  When the path associated with f_inode is
- * needed, this helper should be used instead of accessing f_path
- * directly.
-*/
-static inline const struct path *file_real_path(struct file *f)
-{
-	if (unlikely(f->f_mode & FMODE_BACKING))
-		return backing_file_real_path(f);
-	return &f->f_path;
-}
+struct path *backing_file_user_path(struct file *f);
 
 /*
  * file_user_path - get the path to display for memory mapped file
@@ -2524,6 +2508,8 @@ static inline const struct path *file_real_path(struct file *f)
  */
 static inline const struct path *file_user_path(struct file *f)
 {
+	if (unlikely(f->f_mode & FMODE_BACKING))
+		return backing_file_user_path(f);
 	return &f->f_path;
 }
 
