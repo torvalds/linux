@@ -331,14 +331,15 @@ int do_core_test(int cpu, struct device *dev)
 	switch (test->test_num) {
 	case IFS_TYPE_SAF:
 		if (!ifsd->loaded)
-			return -EPERM;
-		ifs_test_core(cpu, dev);
+			ret = -EPERM;
+		else
+			ifs_test_core(cpu, dev);
 		break;
 	case IFS_TYPE_ARRAY_BIST:
 		ifs_array_test_core(cpu, dev);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 out:
 	cpus_read_unlock();

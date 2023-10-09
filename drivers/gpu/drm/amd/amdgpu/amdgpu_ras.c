@@ -801,6 +801,7 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 				enable ? "enable":"disable",
 				get_ras_block_str(head),
 				amdgpu_ras_is_poison_mode_supported(adev), ret);
+			kfree(info);
 			return ret;
 		}
 

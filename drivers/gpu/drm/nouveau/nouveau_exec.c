@@ -213,7 +213,7 @@ nouveau_exec_job_timeout(struct nouveau_job *job)
 
 	nouveau_sched_entity_fini(job->entity);
 
-	return DRM_GPU_SCHED_STAT_ENODEV;
+	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
 static struct nouveau_job_ops nouveau_exec_job_ops = {
@@ -379,7 +379,7 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	struct nouveau_channel *chan = NULL;
 	struct nouveau_exec_job_args args = {};
 	struct drm_nouveau_exec *req = data;
-	int ret = 0;
+	int push_max, ret = 0;
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
@@ -404,9 +404,10 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	if (!chan->dma.ib_max)
 		return nouveau_abi16_put(abi16, -ENOSYS);
 
-	if (unlikely(req->push_count > NOUVEAU_GEM_MAX_PUSH)) {
+	push_max = nouveau_exec_push_max_from_ib_max(chan->dma.ib_max);
+	if (unlikely(req->push_count > push_max)) {
 		NV_PRINTK(err, cli, "pushbuf push count exceeds limit: %d max %d\n",
-			 req->push_count, NOUVEAU_GEM_MAX_PUSH);
+			  req->push_count, push_max);
 		return nouveau_abi16_put(abi16, -EINVAL);
 	}
 

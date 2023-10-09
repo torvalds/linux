@@ -188,7 +188,7 @@ static int ovl_check_encode_origin(struct dentry *dentry)
 
 	/* Lower file handle for non-upper non-decodable */
 	if (!ovl_dentry_upper(dentry) && !decodable)
-		return 0;
+		return 1;
 
 	/* Upper file handle for pure upper */
 	if (!ovl_dentry_lower(dentry))

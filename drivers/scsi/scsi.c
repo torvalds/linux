@@ -613,6 +613,17 @@ void scsi_cdl_check(struct scsi_device *sdev)
 	bool cdl_supported;
 	unsigned char *buf;
 
+	/*
+	 * Support for CDL was defined in SPC-5. Ignore devices reporting an
+	 * lower SPC version. This also avoids problems with old drives choking
+	 * on MAINTENANCE_IN / MI_REPORT_SUPPORTED_OPERATION_CODES with a
+	 * service action specified, as done in scsi_cdl_check_cmd().
+	 */
+	if (sdev->scsi_level < SCSI_SPC_5) {
+		sdev->cdl_supported = 0;
+		return;
+	}
+
 	buf = kmalloc(SCSI_CDL_CHECK_BUF_LEN, GFP_KERNEL);
 	if (!buf) {
 		sdev->cdl_supported = 0;

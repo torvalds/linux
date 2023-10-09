@@ -1468,8 +1468,10 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 	}
 
 	wm8960->regmap = devm_regmap_init_i2c(i2c, &wm8960_regmap);
-	if (IS_ERR(wm8960->regmap))
-		return PTR_ERR(wm8960->regmap);
+	if (IS_ERR(wm8960->regmap)) {
+		ret = PTR_ERR(wm8960->regmap);
+		goto bulk_disable;
+	}
 
 	if (pdata)
 		memcpy(&wm8960->pdata, pdata, sizeof(struct wm8960_data));
@@ -1479,13 +1481,14 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 	ret = i2c_master_recv(i2c, &val, sizeof(val));
 	if (ret >= 0) {
 		dev_err(&i2c->dev, "Not wm8960, wm8960 reg can not read by i2c\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto bulk_disable;
 	}
 
 	ret = wm8960_reset(wm8960->regmap);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to issue reset\n");
-		return ret;
+		goto bulk_disable;
 	}
 
 	if (wm8960->pdata.shared_lrclk) {
@@ -1494,7 +1497,7 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 		if (ret != 0) {
 			dev_err(&i2c->dev, "Failed to enable LRCM: %d\n",
 				ret);
-			return ret;
+			goto bulk_disable;
 		}
 	}
 
@@ -1528,7 +1531,13 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 
 	ret = devm_snd_soc_register_component(&i2c->dev,
 			&soc_component_dev_wm8960, &wm8960_dai, 1);
+	if (ret)
+		goto bulk_disable;
 
+	return 0;
+
+bulk_disable:
+	regulator_bulk_disable(ARRAY_SIZE(wm8960->supplies), wm8960->supplies);
 	return ret;
 }
 

@@ -37,6 +37,7 @@
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 #include <asm/elf.h>
+#include <asm/exec.h>
 #include <asm/fpu.h>
 #include <asm/lbt.h>
 #include <asm/io.h>

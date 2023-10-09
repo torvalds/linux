@@ -84,6 +84,8 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 	spin_lock_init(&conn->llist_lock);
 	INIT_LIST_HEAD(&conn->lock_list);
 
+	init_rwsem(&conn->session_lock);
+
 	down_write(&conn_list_lock);
 	list_add(&conn->conns_list, &conn_list);
 	up_write(&conn_list_lock);
@@ -196,6 +198,9 @@ int ksmbd_conn_write(struct ksmbd_work *work)
 
 	if (work->send_no_response)
 		return 0;
+
+	if (!work->iov_idx)
+		return -EINVAL;
 
 	ksmbd_conn_lock(conn);
 	sent = conn->transport->ops->writev(conn->transport, work->iov,

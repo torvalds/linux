@@ -5941,6 +5941,7 @@ void wiphy_delayed_work_cancel(struct wiphy *wiphy,
  * @event_lock: (private) lock for event list
  * @owner_nlportid: (private) owner socket port ID
  * @nl_owner_dead: (private) owner socket went away
+ * @cqm_rssi_work: (private) CQM RSSI reporting work
  * @cqm_config: (private) nl80211 RSSI monitor state
  * @pmsr_list: (private) peer measurement requests
  * @pmsr_lock: (private) peer measurements requests/results lock
@@ -6013,7 +6014,8 @@ struct wireless_dev {
 	} wext;
 #endif
 
-	struct cfg80211_cqm_config *cqm_config;
+	struct wiphy_work cqm_rssi_work;
+	struct cfg80211_cqm_config __rcu *cqm_config;
 
 	struct list_head pmsr_list;
 	spinlock_t pmsr_lock;
@@ -7231,7 +7233,7 @@ struct cfg80211_rx_assoc_resp {
 	int uapsd_queues;
 	const u8 *ap_mld_addr;
 	struct {
-		const u8 *addr;
+		u8 addr[ETH_ALEN] __aligned(2);
 		struct cfg80211_bss *bss;
 		u16 status;
 	} links[IEEE80211_MLD_MAX_NUM_LINKS];
