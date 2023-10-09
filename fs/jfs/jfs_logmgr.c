@@ -2110,10 +2110,14 @@ static void lbmStartIO(struct lbuf * bp)
 {
 	struct bio *bio;
 	struct jfs_log *log = bp->l_log;
+	struct block_device *bdev = NULL;
 
 	jfs_info("lbmStartIO");
 
-	bio = bio_alloc(log->bdev_handle->bdev, 1, REQ_OP_WRITE | REQ_SYNC,
+	if (!log->no_integrity)
+		bdev = log->bdev_handle->bdev;
+
+	bio = bio_alloc(bdev, 1, REQ_OP_WRITE | REQ_SYNC,
 			GFP_NOFS);
 	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
 	__bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
