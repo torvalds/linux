@@ -13,7 +13,6 @@
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -1360,23 +1359,22 @@ MODULE_DEVICE_TABLE(of, omap_mcbsp_of_match);
 static int asoc_mcbsp_probe(struct platform_device *pdev)
 {
 	struct omap_mcbsp_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	const struct omap_mcbsp_platform_data *match_pdata =
+		device_get_match_data(&pdev->dev);
 	struct omap_mcbsp *mcbsp;
-	const struct of_device_id *match;
 	int ret;
 
-	match = of_match_device(omap_mcbsp_of_match, &pdev->dev);
-	if (match) {
+	if (match_pdata) {
 		struct device_node *node = pdev->dev.of_node;
 		struct omap_mcbsp_platform_data *pdata_quirk = pdata;
 		int buffer_size;
 
-		pdata = devm_kzalloc(&pdev->dev,
+		pdata = devm_kmemdup(&pdev->dev, match_pdata,
 				     sizeof(struct omap_mcbsp_platform_data),
 				     GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
 
-		memcpy(pdata, match->data, sizeof(*pdata));
 		if (!of_property_read_u32(node, "ti,buffer-size", &buffer_size))
 			pdata->buffer_size = buffer_size;
 		if (pdata_quirk)

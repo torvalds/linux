@@ -17,6 +17,8 @@
  */
 
 #include <sound/simple_card_utils.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/delay.h>
 #include "rsnd.h"
 #define RSND_SSI_NAME_SIZE 16

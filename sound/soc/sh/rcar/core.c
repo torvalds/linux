@@ -91,6 +91,7 @@
  */
 
 #include <linux/pm_runtime.h>
+#include <linux/of_graph.h>
 #include "rsnd.h"
 
 #define RSND_RATES SNDRV_PCM_RATE_8000_192000

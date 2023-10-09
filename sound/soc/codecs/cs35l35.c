@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <sound/core.h>
@@ -29,7 +29,6 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <sound/cs35l35.h>
-#include <linux/of_irq.h>
 #include <linux/completion.h>
 
 #include "cs35l35.h"

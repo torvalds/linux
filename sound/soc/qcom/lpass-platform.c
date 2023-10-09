@@ -101,7 +101,7 @@ static int lpass_platform_alloc_rxtx_dmactl_fields(struct device *dev,
 					 struct regmap *map)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	struct lpaif_dmactl *rd_dmactl, *wr_dmactl;
 	int rval;
 
@@ -129,7 +129,7 @@ static int lpass_platform_alloc_va_dmactl_fields(struct device *dev,
 					 struct regmap *map)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	struct lpaif_dmactl *wr_dmactl;
 
 	wr_dmactl = devm_kzalloc(dev, sizeof(*wr_dmactl), GFP_KERNEL);
@@ -146,7 +146,7 @@ static int lpass_platform_alloc_dmactl_fields(struct device *dev,
 					 struct regmap *map)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	struct lpaif_dmactl *rd_dmactl, *wr_dmactl;
 	int rval;
 
@@ -176,7 +176,7 @@ static int lpass_platform_alloc_hdmidmactl_fields(struct device *dev,
 					 struct regmap *map)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	struct lpaif_dmactl *rd_dmactl;
 
 	rd_dmactl = devm_kzalloc(dev, sizeof(struct lpaif_dmactl), GFP_KERNEL);
@@ -196,7 +196,7 @@ static int lpass_platform_pcmops_open(struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *soc_runtime = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(soc_runtime, 0);
 	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int ret, dma_ch, dir = substream->stream;
 	struct lpass_pcm_data *data;
 	struct regmap *map;
@@ -288,7 +288,7 @@ static int lpass_platform_pcmops_close(struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *soc_runtime = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(soc_runtime, 0);
 	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	struct lpass_pcm_data *data;
 	unsigned int dai_id = cpu_dai->driver->id;
 
@@ -359,7 +359,7 @@ static int __lpass_get_id(const struct snd_pcm_substream *substream,
 	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
 	struct snd_pcm_runtime *rt = substream->runtime;
 	struct lpass_pcm_data *pcm_data = rt->private_data;
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int id;
 
 	switch (cpu_dai->driver->id) {
@@ -422,7 +422,7 @@ static int lpass_platform_pcmops_hw_params(struct snd_soc_component *component,
 	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
 	struct snd_pcm_runtime *rt = substream->runtime;
 	struct lpass_pcm_data *pcm_data = rt->private_data;
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	snd_pcm_format_t format = params_format(params);
 	unsigned int channels = params_channels(params);
 	unsigned int regval;
@@ -575,7 +575,7 @@ static int lpass_platform_pcmops_hw_free(struct snd_soc_component *component,
 	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
 	struct snd_pcm_runtime *rt = substream->runtime;
 	struct lpass_pcm_data *pcm_data = rt->private_data;
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	unsigned int reg;
 	int ret;
 	struct regmap *map;
@@ -603,7 +603,7 @@ static int lpass_platform_pcmops_prepare(struct snd_soc_component *component,
 	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
 	struct snd_pcm_runtime *rt = substream->runtime;
 	struct lpass_pcm_data *pcm_data = rt->private_data;
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	struct lpaif_dmactl *dmactl;
 	struct regmap *map;
 	int ret, id, ch, dir = substream->stream;
@@ -666,7 +666,7 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
 	struct snd_pcm_runtime *rt = substream->runtime;
 	struct lpass_pcm_data *pcm_data = rt->private_data;
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	struct lpaif_dmactl *dmactl;
 	struct regmap *map;
 	int ret, ch, id;
@@ -865,7 +865,7 @@ static snd_pcm_uframes_t lpass_platform_pcmops_pointer(
 	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
 	struct snd_pcm_runtime *rt = substream->runtime;
 	struct lpass_pcm_data *pcm_data = rt->private_data;
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	unsigned int base_addr, curr_addr;
 	int ret, ch, dir = substream->stream;
 	struct regmap *map;
@@ -929,7 +929,7 @@ static irqreturn_t lpass_dma_interrupt_handler(
 {
 	struct snd_soc_pcm_runtime *soc_runtime = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(soc_runtime, 0);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	irqreturn_t ret = IRQ_NONE;
 	int rv;
 	unsigned int reg, val, mask;
@@ -1021,7 +1021,7 @@ static irqreturn_t lpass_dma_interrupt_handler(
 static irqreturn_t lpass_platform_lpaif_irq(int irq, void *data)
 {
 	struct lpass_data *drvdata = data;
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	unsigned int irqs;
 	int rv, chan;
 
@@ -1049,7 +1049,7 @@ static irqreturn_t lpass_platform_lpaif_irq(int irq, void *data)
 static irqreturn_t lpass_platform_hdmiif_irq(int irq, void *data)
 {
 	struct lpass_data *drvdata = data;
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	unsigned int irqs;
 	int rv, chan;
 
@@ -1079,7 +1079,7 @@ static irqreturn_t lpass_platform_hdmiif_irq(int irq, void *data)
 static irqreturn_t lpass_platform_rxtxif_irq(int irq, void *data)
 {
 	struct lpass_data *drvdata = data;
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	unsigned int irqs;
 	irqreturn_t rv;
 	int chan;
@@ -1104,7 +1104,7 @@ static irqreturn_t lpass_platform_rxtxif_irq(int irq, void *data)
 static irqreturn_t lpass_platform_vaif_irq(int irq, void *data)
 {
 	struct lpass_data *drvdata = data;
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	unsigned int irqs;
 	irqreturn_t rv;
 	int chan;
@@ -1269,7 +1269,7 @@ static const struct snd_soc_component_driver lpass_component_driver = {
 int asoc_qcom_lpass_platform_register(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata = platform_get_drvdata(pdev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int ret;
 
 	drvdata->lpaif_irq = platform_get_irq_byname(pdev, "lpass-irq-lpaif");
