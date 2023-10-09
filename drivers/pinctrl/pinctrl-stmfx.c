@@ -737,11 +737,17 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 static int stmfx_pinctrl_remove(struct platform_device *pdev)
 {
 	struct stmfx *stmfx = dev_get_drvdata(pdev->dev.parent);
+	int ret;
 
-	return stmfx_function_disable(stmfx,
-				      STMFX_FUNC_GPIO |
-				      STMFX_FUNC_ALTGPIO_LOW |
-				      STMFX_FUNC_ALTGPIO_HIGH);
+	ret = stmfx_function_disable(stmfx,
+				     STMFX_FUNC_GPIO |
+				     STMFX_FUNC_ALTGPIO_LOW |
+				     STMFX_FUNC_ALTGPIO_HIGH);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to disable pins (%pe)\n",
+			ERR_PTR(ret));
+
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
