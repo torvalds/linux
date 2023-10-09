@@ -4733,77 +4733,96 @@ nfsd4_encode_write(struct nfsd4_compoundres *resp, __be32 nfserr,
 }
 
 static __be32
-nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
-			 union nfsd4_op_u *u)
+nfsd4_encode_state_protect_ops4(struct xdr_stream *xdr,
+				struct nfsd4_exchange_id *exid)
 {
-	struct nfsd4_exchange_id *exid = &u->exchange_id;
-	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
-	char *major_id;
-	char *server_scope;
-	int major_id_sz;
-	int server_scope_sz;
-	uint64_t minor_id = 0;
-	struct nfsd_net *nn = net_generic(SVC_NET(resp->rqstp), nfsd_net_id);
+	__be32 status;
 
-	major_id = nn->nfsd_name;
-	major_id_sz = strlen(nn->nfsd_name);
-	server_scope = nn->nfsd_name;
-	server_scope_sz = strlen(nn->nfsd_name);
+	/* spo_must_enforce */
+	status = nfsd4_encode_bitmap4(xdr, exid->spo_must_enforce[0],
+				      exid->spo_must_enforce[1],
+				      exid->spo_must_enforce[2]);
+	if (status != nfs_ok)
+		return status;
+	/* spo_must_allow */
+	return nfsd4_encode_bitmap4(xdr, exid->spo_must_allow[0],
+				    exid->spo_must_allow[1],
+				    exid->spo_must_allow[2]);
+}
 
-	if (nfsd4_encode_clientid4(xdr, &exid->clientid) != nfs_ok)
-		return nfserr_resource;
-	if (xdr_stream_encode_u32(xdr, exid->seqid) < 0)
-		return nfserr_resource;
-	if (xdr_stream_encode_u32(xdr, exid->flags) < 0)
-		return nfserr_resource;
+static __be32
+nfsd4_encode_state_protect4_r(struct xdr_stream *xdr, struct nfsd4_exchange_id *exid)
+{
+	__be32 status;
 
-	if (xdr_stream_encode_u32(xdr, exid->spa_how) < 0)
+	if (xdr_stream_encode_u32(xdr, exid->spa_how) != XDR_UNIT)
 		return nfserr_resource;
 	switch (exid->spa_how) {
 	case SP4_NONE:
+		status = nfs_ok;
 		break;
 	case SP4_MACH_CRED:
-		/* spo_must_enforce bitmap: */
-		nfserr = nfsd4_encode_bitmap4(xdr,
-					exid->spo_must_enforce[0],
-					exid->spo_must_enforce[1],
-					exid->spo_must_enforce[2]);
-		if (nfserr)
-			return nfserr;
-		/* spo_must_allow bitmap: */
-		nfserr = nfsd4_encode_bitmap4(xdr,
-					exid->spo_must_allow[0],
-					exid->spo_must_allow[1],
-					exid->spo_must_allow[2]);
-		if (nfserr)
-			return nfserr;
+		/* spr_mach_ops */
+		status = nfsd4_encode_state_protect_ops4(xdr, exid);
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		status = nfserr_serverfault;
 	}
+	return status;
+}
 
-	p = xdr_reserve_space(xdr,
-		8 /* so_minor_id */ +
-		4 /* so_major_id.len */ +
-		(XDR_QUADLEN(major_id_sz) * 4) +
-		4 /* eir_server_scope.len */ +
-		(XDR_QUADLEN(server_scope_sz) * 4) +
-		4 /* eir_server_impl_id.count (0) */);
-	if (!p)
+static __be32
+nfsd4_encode_server_owner4(struct xdr_stream *xdr, struct svc_rqst *rqstp)
+{
+	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
+	__be32 status;
+
+	/* so_minor_id */
+	status = nfsd4_encode_uint64_t(xdr, 0);
+	if (status != nfs_ok)
+		return status;
+	/* so_major_id */
+	return nfsd4_encode_opaque(xdr, nn->nfsd_name, strlen(nn->nfsd_name));
+}
+
+static __be32
+nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
+			 union nfsd4_op_u *u)
+{
+	struct nfsd_net *nn = net_generic(SVC_NET(resp->rqstp), nfsd_net_id);
+	struct nfsd4_exchange_id *exid = &u->exchange_id;
+	struct xdr_stream *xdr = resp->xdr;
+
+	/* eir_clientid */
+	nfserr = nfsd4_encode_clientid4(xdr, &exid->clientid);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* eir_sequenceid */
+	nfserr = nfsd4_encode_sequenceid4(xdr, exid->seqid);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* eir_flags */
+	nfserr = nfsd4_encode_uint32_t(xdr, exid->flags);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* eir_state_protect */
+	nfserr = nfsd4_encode_state_protect4_r(xdr, exid);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* eir_server_owner */
+	nfserr = nfsd4_encode_server_owner4(xdr, resp->rqstp);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* eir_server_scope */
+	nfserr = nfsd4_encode_opaque(xdr, nn->nfsd_name,
+				     strlen(nn->nfsd_name));
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* eir_server_impl_id<1> */
+	if (xdr_stream_encode_u32(xdr, 0) != XDR_UNIT)
 		return nfserr_resource;
 
-	/* The server_owner struct */
-	p = xdr_encode_hyper(p, minor_id);      /* Minor id */
-	/* major id */
-	p = xdr_encode_opaque(p, major_id, major_id_sz);
-
-	/* Server scope */
-	p = xdr_encode_opaque(p, server_scope, server_scope_sz);
-
-	/* Implementation id */
-	*p++ = cpu_to_be32(0);	/* zero length nfs_impl_id4 array */
-	return 0;
+	return nfs_ok;
 }
 
 static __be32
