@@ -91,6 +91,8 @@ void proc_thermal_wt_req_remove(struct pci_dev *pdev);
 #define MBOX_DATA_BIT_AC_DC		30
 #define MBOX_DATA_BIT_VALID		31
 
+#define SOC_WT_RES_INT_STATUS_OFFSET	0x5B18
+
 int processor_thermal_send_mbox_read_cmd(struct pci_dev *pdev, u16 id, u64 *resp);
 int processor_thermal_send_mbox_write_cmd(struct pci_dev *pdev, u16 id, u32 data);
 int processor_thermal_mbox_interrupt_config(struct pci_dev *pdev, bool enable, int enable_bit,

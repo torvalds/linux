@@ -32,7 +32,6 @@
 #include <linux/pci.h>
 #include "processor_thermal_device.h"
 
-#define SOC_WT_RES_INT_STATUS_OFFSET	0x5B18
 #define SOC_WT				GENMASK_ULL(47, 40)
 
 #define SOC_WT_PREDICTION_INT_ENABLE_BIT	23
