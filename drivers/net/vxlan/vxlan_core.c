@@ -3030,6 +3030,7 @@ struct vxlan_fdb_flush_desc {
 	unsigned long			flags_mask;
 	__be32				src_vni;
 	u32				nhid;
+	__be32				vni;
 };
 
 static bool vxlan_fdb_is_default_entry(const struct vxlan_fdb *f,
@@ -3067,10 +3068,46 @@ static bool vxlan_fdb_flush_matches(const struct vxlan_fdb *f,
 	return true;
 }
 
+static bool
+vxlan_fdb_flush_should_match_remotes(const struct vxlan_fdb_flush_desc *desc)
+{
+	return !!desc->vni;
+}
+
+static bool
+vxlan_fdb_flush_remote_matches(const struct vxlan_fdb_flush_desc *desc,
+			       const struct vxlan_rdst *rd)
+{
+	if (desc->vni && rd->remote_vni != desc->vni)
+		return false;
+
+	return true;
+}
+
+static void
+vxlan_fdb_flush_match_remotes(struct vxlan_fdb *f, struct vxlan_dev *vxlan,
+			      const struct vxlan_fdb_flush_desc *desc,
+			      bool *p_destroy_fdb)
+{
+	bool remotes_flushed = false;
+	struct vxlan_rdst *rd, *tmp;
+
+	list_for_each_entry_safe(rd, tmp, &f->remotes, list) {
+		if (!vxlan_fdb_flush_remote_matches(desc, rd))
+			continue;
+
+		vxlan_fdb_dst_destroy(vxlan, f, rd, true);
+		remotes_flushed = true;
+	}
+
+	*p_destroy_fdb = remotes_flushed && list_empty(&f->remotes);
+}
+
 /* Purge the forwarding table */
 static void vxlan_flush(struct vxlan_dev *vxlan,
 			const struct vxlan_fdb_flush_desc *desc)
 {
+	bool match_remotes = vxlan_fdb_flush_should_match_remotes(desc);
 	unsigned int h;
 
 	for (h = 0; h < FDB_HASH_SIZE; ++h) {
@@ -3084,6 +3121,16 @@ static void vxlan_flush(struct vxlan_dev *vxlan,
 			if (!vxlan_fdb_flush_matches(f, vxlan, desc))
 				continue;
 
+			if (match_remotes) {
+				bool destroy_fdb = false;
+
+				vxlan_fdb_flush_match_remotes(f, vxlan, desc,
+							      &destroy_fdb);
+
+				if (!destroy_fdb)
+					continue;
+			}
+
 			vxlan_fdb_destroy(vxlan, f, true, true);
 		}
 		spin_unlock_bh(&vxlan->hash_lock[h]);
@@ -3093,6 +3140,7 @@ static void vxlan_flush(struct vxlan_dev *vxlan,
 static const struct nla_policy vxlan_del_bulk_policy[NDA_MAX + 1] = {
 	[NDA_SRC_VNI]   = { .type = NLA_U32 },
 	[NDA_NH_ID]	= { .type = NLA_U32 },
+	[NDA_VNI]	= { .type = NLA_U32 },
 	[NDA_NDM_STATE_MASK]	= { .type = NLA_U16 },
 	[NDA_NDM_FLAGS_MASK]	= { .type = NLA_U8 },
 };
@@ -3142,6 +3190,9 @@ static int vxlan_fdb_delete_bulk(struct nlmsghdr *nlh, struct net_device *dev,
 
 	if (tb[NDA_NH_ID])
 		desc.nhid = nla_get_u32(tb[NDA_NH_ID]);
+
+	if (tb[NDA_VNI])
+		desc.vni = cpu_to_be32(nla_get_u32(tb[NDA_VNI]));
 
 	vxlan_flush(vxlan, &desc);
 
