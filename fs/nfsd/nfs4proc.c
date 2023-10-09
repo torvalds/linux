@@ -1939,8 +1939,8 @@ nfsd4_copy_notify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (status)
 		return status;
 
-	cn->cpn_sec = nn->nfsd4_lease;
-	cn->cpn_nsec = 0;
+	cn->cpn_lease_time.tv_sec = nn->nfsd4_lease;
+	cn->cpn_lease_time.tv_nsec = 0;
 
 	status = nfserrno(-ENOMEM);
 	cps = nfs4_alloc_init_cpntf_state(nn, stid);

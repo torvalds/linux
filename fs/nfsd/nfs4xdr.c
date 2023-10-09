@@ -2575,6 +2575,19 @@ nfsd4_encode_change_info4(struct xdr_stream *xdr, const struct nfsd4_change_info
 	return nfsd4_encode_changeid4(xdr, c->after_change);
 }
 
+static __be32 nfsd4_encode_netaddr4(struct xdr_stream *xdr,
+				    const struct nfs42_netaddr *addr)
+{
+	__be32 status;
+
+	/* na_r_netid */
+	status = nfsd4_encode_opaque(xdr, addr->netid, addr->netid_len);
+	if (status != nfs_ok)
+		return status;
+	/* na_r_addr */
+	return nfsd4_encode_opaque(xdr, addr->addr, addr->addr_len);
+}
+
 /* Encode as an array of strings the string given with components
  * separated @sep, escaped with esc_enter and esc_exit.
  */
@@ -5132,43 +5145,42 @@ nfsd4_encode_copy(struct nfsd4_compoundres *resp, __be32 nfserr,
 }
 
 static __be32
-nfsd42_encode_nl4_server(struct nfsd4_compoundres *resp, struct nl4_server *ns)
+nfsd4_encode_netloc4(struct xdr_stream *xdr, const struct nl4_server *ns)
 {
-	struct xdr_stream *xdr = resp->xdr;
-	struct nfs42_netaddr *addr;
-	__be32 *p;
+	__be32 status;
 
-	p = xdr_reserve_space(xdr, 4);
-	*p++ = cpu_to_be32(ns->nl4_type);
-
+	if (xdr_stream_encode_u32(xdr, ns->nl4_type) != XDR_UNIT)
+		return nfserr_resource;
 	switch (ns->nl4_type) {
 	case NL4_NETADDR:
-		addr = &ns->u.nl4_addr;
-
-		/* netid_len, netid, uaddr_len, uaddr (port included
-		 * in RPCBIND_MAXUADDRLEN)
-		 */
-		p = xdr_reserve_space(xdr,
-			4 /* netid len */ +
-			(XDR_QUADLEN(addr->netid_len) * 4) +
-			4 /* uaddr len */ +
-			(XDR_QUADLEN(addr->addr_len) * 4));
-		if (!p)
-			return nfserr_resource;
-
-		*p++ = cpu_to_be32(addr->netid_len);
-		p = xdr_encode_opaque_fixed(p, addr->netid,
-					    addr->netid_len);
-		*p++ = cpu_to_be32(addr->addr_len);
-		p = xdr_encode_opaque_fixed(p, addr->addr,
-					addr->addr_len);
+		/* nl_addr */
+		status = nfsd4_encode_netaddr4(xdr, &ns->u.nl4_addr);
 		break;
 	default:
-		WARN_ON_ONCE(ns->nl4_type != NL4_NETADDR);
-		return nfserr_inval;
+		status = nfserr_serverfault;
 	}
+	return status;
+}
 
-	return 0;
+static __be32
+nfsd4_encode_copy_notify(struct nfsd4_compoundres *resp, __be32 nfserr,
+			 union nfsd4_op_u *u)
+{
+	struct nfsd4_copy_notify *cn = &u->copy_notify;
+	struct xdr_stream *xdr = resp->xdr;
+
+	/* cnr_lease_time */
+	nfserr = nfsd4_encode_nfstime4(xdr, &cn->cpn_lease_time);
+	if (nfserr)
+		return nfserr;
+	/* cnr_stateid */
+	nfserr = nfsd4_encode_stateid4(xdr, &cn->cpn_cnr_stateid);
+	if (nfserr)
+		return nfserr;
+	/* cnr_source_server<> */
+	if (xdr_stream_encode_u32(xdr, 1) != XDR_UNIT)
+		return nfserr_resource;
+	return nfsd4_encode_netloc4(xdr, cn->cpn_src);
 }
 
 static __be32
@@ -5258,42 +5270,6 @@ nfsd4_encode_read_plus(struct nfsd4_compoundres *resp, __be32 nfserr,
 out:
 	p = xdr_encode_bool(p, read->rd_eof);
 	*p = cpu_to_be32(segments);
-	return nfserr;
-}
-
-static __be32
-nfsd4_encode_copy_notify(struct nfsd4_compoundres *resp, __be32 nfserr,
-			 union nfsd4_op_u *u)
-{
-	struct nfsd4_copy_notify *cn = &u->copy_notify;
-	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
-
-	if (nfserr)
-		return nfserr;
-
-	/* 8 sec, 4 nsec */
-	p = xdr_reserve_space(xdr, 12);
-	if (!p)
-		return nfserr_resource;
-
-	/* cnr_lease_time */
-	p = xdr_encode_hyper(p, cn->cpn_sec);
-	*p++ = cpu_to_be32(cn->cpn_nsec);
-
-	/* cnr_stateid */
-	nfserr = nfsd4_encode_stateid4(xdr, &cn->cpn_cnr_stateid);
-	if (nfserr)
-		return nfserr;
-
-	/* cnr_src.nl_nsvr */
-	p = xdr_reserve_space(xdr, 4);
-	if (!p)
-		return nfserr_resource;
-
-	*p++ = cpu_to_be32(1);
-
-	nfserr = nfsd42_encode_nl4_server(resp, cn->cpn_src);
 	return nfserr;
 }
 

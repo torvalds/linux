@@ -745,8 +745,7 @@ struct nfsd4_copy_notify {
 
 	/* response */
 	stateid_t		cpn_cnr_stateid;
-	u64			cpn_sec;
-	u32			cpn_nsec;
+	struct timespec64	cpn_lease_time;
 	struct nl4_server	*cpn_src;
 };
 
