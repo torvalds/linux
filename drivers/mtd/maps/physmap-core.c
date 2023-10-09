@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
@@ -37,7 +38,7 @@
 #include <linux/mtd/concat.h>
 #include <linux/mtd/cfi_endian.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/gpio/consumer.h>
 
@@ -295,14 +296,9 @@ static const char * const *of_get_part_probes(struct platform_device *dev)
 static const char *of_select_probe_type(struct platform_device *dev)
 {
 	struct device_node *dp = dev->dev.of_node;
-	const struct of_device_id *match;
 	const char *probe_type;
 
-	match = of_match_device(of_flash_match, &dev->dev);
-	if (!match)
-		return NULL;
-
-	probe_type = match->data;
+	probe_type = device_get_match_data(&dev->dev);
 	if (probe_type)
 		return probe_type;
 
