@@ -29,13 +29,13 @@
 #include <linux/mii.h>
 #include <linux/mdio/mdio-regmap.h>
 #include <linux/netdevice.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/of_platform.h>
 #include <linux/pcs-lynx.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/skbuff.h>
 #include <asm/cacheflush.h>
@@ -81,8 +81,6 @@ MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
 #define TSE_TX_THRESH(x)	(x->tx_ring_size / 4)
 
 #define TXQUEUESTOP_THRESHHOLD	2
-
-static const struct of_device_id altera_tse_ids[];
 
 static inline u32 tse_tx_avail(struct altera_tse_private *priv)
 {
@@ -1133,7 +1131,6 @@ static int request_and_map(struct platform_device *pdev, const char *name,
  */
 static int altera_tse_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id = NULL;
 	struct regmap_config pcs_regmap_cfg;
 	struct altera_tse_private *priv;
 	struct mdio_regmap_config mrc;
@@ -1159,11 +1156,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	priv->dev = ndev;
 	priv->msg_enable = netif_msg_init(debug, default_msg_level);
 
-	of_id = of_match_device(altera_tse_ids, &pdev->dev);
-
-	if (of_id)
-		priv->dmaops = (struct altera_dmaops *)of_id->data;
-
+	priv->dmaops = device_get_match_data(&pdev->dev);
 
 	if (priv->dmaops &&
 	    priv->dmaops->altera_dtype == ALTERA_DTYPE_SGDMA) {

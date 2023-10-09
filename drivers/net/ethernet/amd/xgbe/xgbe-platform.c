@@ -123,9 +123,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
-#include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/property.h>
 #include <linux/acpi.h>
@@ -135,17 +133,6 @@
 #include "xgbe-common.h"
 
 #ifdef CONFIG_ACPI
-static const struct acpi_device_id xgbe_acpi_match[];
-
-static struct xgbe_version_data *xgbe_acpi_vdata(struct xgbe_prv_data *pdata)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(xgbe_acpi_match, pdata->dev);
-
-	return id ? (struct xgbe_version_data *)id->driver_data : NULL;
-}
-
 static int xgbe_acpi_support(struct xgbe_prv_data *pdata)
 {
 	struct device *dev = pdata->dev;
@@ -173,11 +160,6 @@ static int xgbe_acpi_support(struct xgbe_prv_data *pdata)
 	return 0;
 }
 #else   /* CONFIG_ACPI */
-static struct xgbe_version_data *xgbe_acpi_vdata(struct xgbe_prv_data *pdata)
-{
-	return NULL;
-}
-
 static int xgbe_acpi_support(struct xgbe_prv_data *pdata)
 {
 	return -EINVAL;
@@ -185,17 +167,6 @@ static int xgbe_acpi_support(struct xgbe_prv_data *pdata)
 #endif  /* CONFIG_ACPI */
 
 #ifdef CONFIG_OF
-static const struct of_device_id xgbe_of_match[];
-
-static struct xgbe_version_data *xgbe_of_vdata(struct xgbe_prv_data *pdata)
-{
-	const struct of_device_id *id;
-
-	id = of_match_device(xgbe_of_match, pdata->dev);
-
-	return id ? (struct xgbe_version_data *)id->data : NULL;
-}
-
 static int xgbe_of_support(struct xgbe_prv_data *pdata)
 {
 	struct device *dev = pdata->dev;
@@ -244,11 +215,6 @@ static struct platform_device *xgbe_of_get_phy_pdev(struct xgbe_prv_data *pdata)
 	return phy_pdev;
 }
 #else   /* CONFIG_OF */
-static struct xgbe_version_data *xgbe_of_vdata(struct xgbe_prv_data *pdata)
-{
-	return NULL;
-}
-
 static int xgbe_of_support(struct xgbe_prv_data *pdata)
 {
 	return -EINVAL;
@@ -290,12 +256,6 @@ static struct platform_device *xgbe_get_phy_pdev(struct xgbe_prv_data *pdata)
 	return phy_pdev;
 }
 
-static struct xgbe_version_data *xgbe_get_vdata(struct xgbe_prv_data *pdata)
-{
-	return pdata->use_acpi ? xgbe_acpi_vdata(pdata)
-			       : xgbe_of_vdata(pdata);
-}
-
 static int xgbe_platform_probe(struct platform_device *pdev)
 {
 	struct xgbe_prv_data *pdata;
@@ -321,7 +281,7 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	pdata->use_acpi = dev->of_node ? 0 : 1;
 
 	/* Get the version data */
-	pdata->vdata = xgbe_get_vdata(pdata);
+	pdata->vdata = (struct xgbe_version_data *)device_get_match_data(dev);
 
 	phy_pdev = xgbe_get_phy_pdev(pdata);
 	if (!phy_pdev) {

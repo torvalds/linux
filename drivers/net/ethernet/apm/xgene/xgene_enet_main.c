@@ -2018,7 +2018,6 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	struct xgene_enet_pdata *pdata;
 	struct device *dev = &pdev->dev;
 	void (*link_state)(struct work_struct *);
-	const struct of_device_id *of_id;
 	int ret;
 
 	ndev = alloc_etherdev_mqs(sizeof(struct xgene_enet_pdata),
@@ -2039,19 +2038,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 			  NETIF_F_GRO |
 			  NETIF_F_SG;
 
-	of_id = of_match_device(xgene_enet_of_match, &pdev->dev);
-	if (of_id) {
-		pdata->enet_id = (uintptr_t)of_id->data;
-	}
-#ifdef CONFIG_ACPI
-	else {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(xgene_enet_acpi_match, &pdev->dev);
-		if (acpi_id)
-			pdata->enet_id = (enum xgene_enet_id) acpi_id->driver_data;
-	}
-#endif
+	pdata->enet_id = (enum xgene_enet_id)device_get_match_data(&pdev->dev);
 	if (!pdata->enet_id) {
 		ret = -ENODEV;
 		goto err;

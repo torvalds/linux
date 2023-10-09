@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/semaphore.h>
 #include <linux/phy.h>
@@ -47,10 +48,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/davinci_emac.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_mdio.h>
-#include <linux/of_irq.h>
 #include <linux/of_net.h>
 #include <linux/mfd/syscon.h>
 
@@ -1726,13 +1724,10 @@ static const struct net_device_ops emac_netdev_ops = {
 #endif
 };
 
-static const struct of_device_id davinci_emac_of_match[];
-
 static struct emac_platform_data *
 davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 {
 	struct device_node *np;
-	const struct of_device_id *match;
 	const struct emac_platform_data *auxdata;
 	struct emac_platform_data *pdata = NULL;
 
@@ -1779,9 +1774,8 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 		pdata->interrupt_disable = auxdata->interrupt_disable;
 	}
 
-	match = of_match_device(davinci_emac_of_match, &pdev->dev);
-	if (match && match->data) {
-		auxdata = match->data;
+	auxdata = device_get_match_data(&pdev->dev);
+	if (auxdata) {
 		pdata->version = auxdata->version;
 		pdata->hw_ram_addr = auxdata->hw_ram_addr;
 	}
