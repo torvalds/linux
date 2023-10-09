@@ -46,6 +46,7 @@ config SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
 config SND_SOC_ROCKCHIP_MULTI_DAIS
 	tristate "Rockchip Multi-DAIS Device Driver"
 	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
+	select SND_SOC_ROCKCHIP_DLP
 	help
 	  Say Y or M if you want to add support for Multi-dais driver for
 	  Rockchip.
