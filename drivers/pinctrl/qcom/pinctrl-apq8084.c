@@ -1207,7 +1207,7 @@ static struct platform_driver apq8084_pinctrl_driver = {
 		.of_match_table = apq8084_pinctrl_of_match,
 	},
 	.probe = apq8084_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init apq8084_pinctrl_init(void)
