@@ -2075,6 +2075,7 @@ static void ccs_propagate(struct v4l2_subdev *subdev,
 	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
 	struct ccs_subdev *ssd = to_ccs_subdev(subdev);
 	struct v4l2_rect *comp, *crops[CCS_PADS];
+	struct v4l2_mbus_framefmt *fmt;
 
 	ccs_get_crop_compose(subdev, sd_state, crops, &comp);
 
@@ -2096,6 +2097,9 @@ static void ccs_propagate(struct v4l2_subdev *subdev,
 		fallthrough;
 	case V4L2_SEL_TGT_COMPOSE:
 		*crops[CCS_PAD_SRC] = *comp;
+		fmt = v4l2_subdev_get_pad_format(subdev, sd_state, CCS_PAD_SRC);
+		fmt->width = comp->width;
+		fmt->height = comp->height;
 		if (which == V4L2_SUBDEV_FORMAT_ACTIVE && ssd == sensor->src)
 			sensor->src_src = *crops[CCS_PAD_SRC];
 		break;
@@ -3003,30 +3007,37 @@ static int ccs_init_cfg(struct v4l2_subdev *sd,
 {
 	struct ccs_subdev *ssd = to_ccs_subdev(sd);
 	struct ccs_sensor *sensor = ssd->sensor;
-	unsigned int i;
+	unsigned int pad = ssd == sensor->pixel_array ?
+		CCS_PA_PAD_SRC : CCS_PAD_SINK;
+	struct v4l2_mbus_framefmt *fmt =
+		v4l2_subdev_get_pad_format(sd, sd_state, pad);
+	struct v4l2_rect *crop =
+		v4l2_subdev_get_pad_crop(sd, sd_state, pad);
+	bool is_active = !sd->active_state || sd->active_state == sd_state;
 
 	mutex_lock(&sensor->mutex);
 
-	for (i = 0; i < ssd->npads; i++) {
-		struct v4l2_mbus_framefmt *fmt =
-			v4l2_subdev_get_pad_format(sd, sd_state, i);
-		struct v4l2_rect *crop =
-			v4l2_subdev_get_pad_crop(sd, sd_state, i);
-		struct v4l2_rect *comp;
+	ccs_get_native_size(ssd, crop);
 
-		ccs_get_native_size(ssd, crop);
+	fmt->width = crop->width;
+	fmt->height = crop->height;
+	fmt->code = sensor->internal_csi_format->code;
+	fmt->field = V4L2_FIELD_NONE;
 
-		fmt->width = crop->width;
-		fmt->height = crop->height;
-		fmt->code = sensor->internal_csi_format->code;
-		fmt->field = V4L2_FIELD_NONE;
+	if (ssd == sensor->pixel_array) {
+		if (is_active)
+			sensor->pa_src = *crop;
 
-		if (ssd == sensor->pixel_array)
-			continue;
-
-		comp = v4l2_subdev_get_pad_compose(sd, sd_state, i);
-		*comp = *crop;
+		mutex_unlock(&sensor->mutex);
+		return 0;
 	}
+
+	fmt = v4l2_subdev_get_pad_format(sd, sd_state, CCS_PAD_SRC);
+	fmt->code = ssd == sensor->src ?
+		sensor->csi_format->code : sensor->internal_csi_format->code;
+	fmt->field = V4L2_FIELD_NONE;
+
+	ccs_propagate(sd, sd_state, is_active, V4L2_SEL_TGT_CROP);
 
 	mutex_unlock(&sensor->mutex);
 
