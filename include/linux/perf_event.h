@@ -879,6 +879,7 @@ struct perf_event_pmu_context {
 	unsigned int			embedded : 1;
 
 	unsigned int			nr_events;
+	unsigned int			nr_cgroups;
 
 	atomic_t			refcount; /* event <-> epc */
 	struct rcu_head			rcu_head;
