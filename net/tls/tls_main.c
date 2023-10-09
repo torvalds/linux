@@ -59,7 +59,7 @@ enum {
 };
 
 #define CHECK_CIPHER_DESC(cipher,ci)				\
-	static_assert(cipher ## _IV_SIZE <= MAX_IV_SIZE);		\
+	static_assert(cipher ## _IV_SIZE <= TLS_MAX_IV_SIZE);		\
 	static_assert(cipher ## _REC_SEQ_SIZE <= TLS_MAX_REC_SEQ_SIZE);	\
 	static_assert(cipher ## _TAG_SIZE == TLS_TAG_SIZE);		\
 	static_assert(sizeof_field(struct ci, iv) == cipher ## _IV_SIZE);	\

@@ -61,7 +61,7 @@ struct tls_rec;
 
 #define TLS_AAD_SPACE_SIZE		13
 
-#define MAX_IV_SIZE			16
+#define TLS_MAX_IV_SIZE			16
 #define TLS_TAG_SIZE			16
 #define TLS_MAX_REC_SEQ_SIZE		8
 #define TLS_MAX_AAD_SIZE		TLS_AAD_SPACE_SIZE

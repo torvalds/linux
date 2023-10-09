@@ -127,7 +127,7 @@ struct tls_rec {
 	struct sock *sk;
 
 	char aad_space[TLS_AAD_SPACE_SIZE];
-	u8 iv_data[MAX_IV_SIZE];
+	u8 iv_data[TLS_MAX_IV_SIZE];
 	struct aead_request aead_req;
 	u8 aead_req_ctx[];
 };

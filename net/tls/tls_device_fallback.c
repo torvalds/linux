@@ -54,7 +54,7 @@ static int tls_enc_record(struct aead_request *aead_req,
 			  struct scatter_walk *out, int *in_len,
 			  struct tls_prot_info *prot)
 {
-	unsigned char buf[TLS_HEADER_SIZE + MAX_IV_SIZE];
+	unsigned char buf[TLS_HEADER_SIZE + TLS_MAX_IV_SIZE];
 	const struct tls_cipher_desc *cipher_desc;
 	struct scatterlist sg_in[3];
 	struct scatterlist sg_out[3];
