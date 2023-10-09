@@ -145,7 +145,31 @@ static void csi2rx_reset(struct csi2rx_priv *csi2rx)
 static int csi2rx_configure_ext_dphy(struct csi2rx_priv *csi2rx)
 {
 	union phy_configure_opts opts = { };
+	struct phy_configure_opts_mipi_dphy *cfg = &opts.mipi_dphy;
+	struct v4l2_subdev_format sd_fmt = {
+		.which	= V4L2_SUBDEV_FORMAT_ACTIVE,
+		.pad	= CSI2RX_PAD_SINK,
+	};
+	const struct csi2rx_fmt *fmt;
+	s64 link_freq;
 	int ret;
+
+	ret = v4l2_subdev_call_state_active(&csi2rx->subdev, pad, get_fmt,
+					    &sd_fmt);
+	if (ret < 0)
+		return ret;
+
+	fmt = csi2rx_get_fmt_by_code(sd_fmt.format.code);
+
+	link_freq = v4l2_get_link_freq(csi2rx->source_subdev->ctrl_handler,
+				       fmt->bpp, 2 * csi2rx->num_lanes);
+	if (link_freq < 0)
+		return link_freq;
+
+	ret = phy_mipi_dphy_get_default_config_for_hsclk(link_freq,
+							 csi2rx->num_lanes, cfg);
+	if (ret)
+		return ret;
 
 	ret = phy_power_on(csi2rx->dphy);
 	if (ret)
