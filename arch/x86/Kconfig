@@ -2393,7 +2393,12 @@ config CC_HAS_NAMED_AS
 
 config USE_X86_SEG_SUPPORT
 	def_bool y
-	depends on CC_HAS_NAMED_AS && SMP
+	depends on CC_HAS_NAMED_AS
+	#
+	# -fsanitize=kernel-address (KASAN) is at the moment incompatible
+	# with named address spaces - see GCC PR sanitizer/111736.
+	#
+	depends on !KASAN
 
 config CC_HAS_SLS
 	def_bool $(cc-option,-mharden-sls=all)
