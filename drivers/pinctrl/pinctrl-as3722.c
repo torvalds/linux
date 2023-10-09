@@ -587,12 +587,11 @@ fail_range_add:
 	return ret;
 }
 
-static int as3722_pinctrl_remove(struct platform_device *pdev)
+static void as3722_pinctrl_remove(struct platform_device *pdev)
 {
 	struct as3722_pctrl_info *as_pci = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&as_pci->gpio_chip);
-	return 0;
 }
 
 static const struct of_device_id as3722_pinctrl_of_match[] = {
@@ -607,7 +606,7 @@ static struct platform_driver as3722_pinctrl_driver = {
 		.of_match_table = as3722_pinctrl_of_match,
 	},
 	.probe = as3722_pinctrl_probe,
-	.remove = as3722_pinctrl_remove,
+	.remove_new = as3722_pinctrl_remove,
 };
 module_platform_driver(as3722_pinctrl_driver);
 
