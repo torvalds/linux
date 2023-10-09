@@ -14,7 +14,8 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -822,7 +823,6 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = of_node_get(dev->of_node);
-	const struct of_device_id *match;
 	struct resource *res;
 	struct ti_iodelay_device *iod;
 	int ret = 0;
@@ -833,20 +833,18 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 		goto exit_out;
 	}
 
-	match = of_match_device(ti_iodelay_of_match, dev);
-	if (!match) {
-		ret = -EINVAL;
-		dev_err(dev, "No DATA match\n");
-		goto exit_out;
-	}
-
 	iod = devm_kzalloc(dev, sizeof(*iod), GFP_KERNEL);
 	if (!iod) {
 		ret = -ENOMEM;
 		goto exit_out;
 	}
 	iod->dev = dev;
-	iod->reg_data = match->data;
+	iod->reg_data = device_get_match_data(dev);
+	if (!iod->reg_data) {
+		ret = -EINVAL;
+		dev_err(dev, "No DATA match\n");
+		goto exit_out;
+	}
 
 	/* So far We can assume there is only 1 bank of registers */
 	iod->reg_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
