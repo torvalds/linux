@@ -59,7 +59,6 @@ Contents:
    gtp
    ila
    ioam6-sysctl
-   ipddp
    ip_dynaddr
    ipsec
    ip-sysctl
