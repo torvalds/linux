@@ -3022,8 +3022,23 @@ static int vxlan_open(struct net_device *dev)
 	return ret;
 }
 
+struct vxlan_fdb_flush_desc {
+	unsigned long                   state;
+	unsigned long			state_mask;
+};
+
+static bool vxlan_fdb_flush_matches(const struct vxlan_fdb *f,
+				    const struct vxlan_fdb_flush_desc *desc)
+{
+	if (desc->state_mask && (f->state & desc->state_mask) != desc->state)
+		return false;
+
+	return true;
+}
+
 /* Purge the forwarding table */
-static void vxlan_flush(struct vxlan_dev *vxlan, bool do_all)
+static void vxlan_flush(struct vxlan_dev *vxlan,
+			const struct vxlan_fdb_flush_desc *desc)
 {
 	unsigned int h;
 
@@ -3034,8 +3049,10 @@ static void vxlan_flush(struct vxlan_dev *vxlan, bool do_all)
 		hlist_for_each_safe(p, n, &vxlan->fdb_head[h]) {
 			struct vxlan_fdb *f
 				= container_of(p, struct vxlan_fdb, hlist);
-			if (!do_all && (f->state & (NUD_PERMANENT | NUD_NOARP)))
+
+			if (!vxlan_fdb_flush_matches(f, desc))
 				continue;
+
 			/* the all_zeros_mac entry is deleted at vxlan_uninit */
 			if (is_zero_ether_addr(f->eth_addr) &&
 			    f->vni == vxlan->cfg.vni)
@@ -3050,12 +3067,16 @@ static void vxlan_flush(struct vxlan_dev *vxlan, bool do_all)
 static int vxlan_stop(struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_fdb_flush_desc desc = {
+		.state = 0,
+		.state_mask = NUD_PERMANENT | NUD_NOARP,
+	};
 
 	vxlan_multicast_leave(vxlan);
 
 	del_timer_sync(&vxlan->age_timer);
 
-	vxlan_flush(vxlan, false);
+	vxlan_flush(vxlan, &desc);
 	vxlan_sock_release(vxlan);
 
 	return 0;
@@ -4294,8 +4315,9 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_fdb_flush_desc desc = {};
 
-	vxlan_flush(vxlan, true);
+	vxlan_flush(vxlan, &desc);
 
 	list_del(&vxlan->next);
 	unregister_netdevice_queue(dev, head);
