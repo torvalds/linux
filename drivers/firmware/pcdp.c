@@ -72,7 +72,7 @@ setup_vga_console(struct pcdp_device *dev)
 		return -ENODEV;
 	}
 
-	conswitchp = &vga_con;
+	vgacon_register_screen(&screen_info);
 	printk(KERN_INFO "PCDP: VGA console\n");
 	return 0;
 #else

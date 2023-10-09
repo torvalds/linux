@@ -89,6 +89,8 @@ static int 		vga_video_font_height;
 static int 		vga_scan_lines		__read_mostly;
 static unsigned int 	vga_rolled_over; /* last vc_origin offset before wrap */
 
+static struct screen_info *vga_si;
+
 static bool vga_hardscroll_enabled;
 static bool vga_hardscroll_user_enable = true;
 
@@ -153,8 +155,9 @@ static const char *vgacon_startup(void)
 	u16 saved1, saved2;
 	volatile u16 *p;
 
-	if (screen_info.orig_video_isVGA == VIDEO_TYPE_VLFB ||
-	    screen_info.orig_video_isVGA == VIDEO_TYPE_EFI) {
+	if (!vga_si ||
+	    vga_si->orig_video_isVGA == VIDEO_TYPE_VLFB ||
+	    vga_si->orig_video_isVGA == VIDEO_TYPE_EFI) {
 	      no_vga:
 #ifdef CONFIG_DUMMY_CONSOLE
 		conswitchp = &dummy_con;
@@ -164,29 +167,29 @@ static const char *vgacon_startup(void)
 #endif
 	}
 
-	/* boot_params.screen_info reasonably initialized? */
-	if ((screen_info.orig_video_lines == 0) ||
-	    (screen_info.orig_video_cols  == 0))
+	/* vga_si reasonably initialized? */
+	if ((vga_si->orig_video_lines == 0) ||
+	    (vga_si->orig_video_cols  == 0))
 		goto no_vga;
 
 	/* VGA16 modes are not handled by VGACON */
-	if ((screen_info.orig_video_mode == 0x0D) ||	/* 320x200/4 */
-	    (screen_info.orig_video_mode == 0x0E) ||	/* 640x200/4 */
-	    (screen_info.orig_video_mode == 0x10) ||	/* 640x350/4 */
-	    (screen_info.orig_video_mode == 0x12) ||	/* 640x480/4 */
-	    (screen_info.orig_video_mode == 0x6A))	/* 800x600/4 (VESA) */
+	if ((vga_si->orig_video_mode == 0x0D) ||	/* 320x200/4 */
+	    (vga_si->orig_video_mode == 0x0E) ||	/* 640x200/4 */
+	    (vga_si->orig_video_mode == 0x10) ||	/* 640x350/4 */
+	    (vga_si->orig_video_mode == 0x12) ||	/* 640x480/4 */
+	    (vga_si->orig_video_mode == 0x6A))	/* 800x600/4 (VESA) */
 		goto no_vga;
 
-	vga_video_num_lines = screen_info.orig_video_lines;
-	vga_video_num_columns = screen_info.orig_video_cols;
+	vga_video_num_lines = vga_si->orig_video_lines;
+	vga_video_num_columns = vga_si->orig_video_cols;
 	vgastate.vgabase = NULL;
 
-	if (screen_info.orig_video_mode == 7) {
+	if (vga_si->orig_video_mode == 7) {
 		/* Monochrome display */
 		vga_vram_base = 0xb0000;
 		vga_video_port_reg = VGA_CRT_IM;
 		vga_video_port_val = VGA_CRT_DM;
-		if ((screen_info.orig_video_ega_bx & 0xff) != 0x10) {
+		if ((vga_si->orig_video_ega_bx & 0xff) != 0x10) {
 			static struct resource ega_console_resource =
 			    { .name	= "ega",
 			      .flags	= IORESOURCE_IO,
@@ -223,12 +226,12 @@ static const char *vgacon_startup(void)
 		vga_vram_base = 0xb8000;
 		vga_video_port_reg = VGA_CRT_IC;
 		vga_video_port_val = VGA_CRT_DC;
-		if ((screen_info.orig_video_ega_bx & 0xff) != 0x10) {
+		if ((vga_si->orig_video_ega_bx & 0xff) != 0x10) {
 			int i;
 
 			vga_vram_size = 0x8000;
 
-			if (!screen_info.orig_video_isVGA) {
+			if (!vga_si->orig_video_isVGA) {
 				static struct resource ega_console_resource =
 				    { .name	= "ega",
 				      .flags	= IORESOURCE_IO,
@@ -319,14 +322,14 @@ static const char *vgacon_startup(void)
 	    || vga_video_type == VIDEO_TYPE_VGAC
 	    || vga_video_type == VIDEO_TYPE_EGAM) {
 		vga_hardscroll_enabled = vga_hardscroll_user_enable;
-		vga_default_font_height = screen_info.orig_video_points;
-		vga_video_font_height = screen_info.orig_video_points;
+		vga_default_font_height = vga_si->orig_video_points;
+		vga_video_font_height = vga_si->orig_video_points;
 		/* This may be suboptimal but is a safe bet - go with it */
 		vga_scan_lines =
 		    vga_video_font_height * vga_video_num_lines;
 	}
 
-	vgacon_xres = screen_info.orig_video_cols * VGA_FONTWIDTH;
+	vgacon_xres = vga_si->orig_video_cols * VGA_FONTWIDTH;
 	vgacon_yres = vga_scan_lines;
 
 	return display_desc;
@@ -371,7 +374,7 @@ static void vgacon_init(struct vc_data *c, int init)
 	/* Only set the default if the user didn't deliberately override it */
 	if (global_cursor_default == -1)
 		global_cursor_default =
-			!(screen_info.flags & VIDEO_FLAGS_NOCURSOR);
+			!(vga_si->flags & VIDEO_FLAGS_NOCURSOR);
 }
 
 static void vgacon_deinit(struct vc_data *c)
@@ -589,7 +592,7 @@ static int vgacon_switch(struct vc_data *c)
 {
 	int x = c->vc_cols * VGA_FONTWIDTH;
 	int y = c->vc_rows * c->vc_cell_height;
-	int rows = screen_info.orig_video_lines * vga_default_font_height/
+	int rows = vga_si->orig_video_lines * vga_default_font_height/
 		c->vc_cell_height;
 	/*
 	 * We need to save screen size here as it's the only way
@@ -609,7 +612,7 @@ static int vgacon_switch(struct vc_data *c)
 
 		if ((vgacon_xres != x || vgacon_yres != y) &&
 		    (!(vga_video_num_columns % 2) &&
-		     vga_video_num_columns <= screen_info.orig_video_cols &&
+		     vga_video_num_columns <= vga_si->orig_video_cols &&
 		     vga_video_num_lines <= rows))
 			vgacon_doresize(c, c->vc_cols, c->vc_rows);
 	}
@@ -1056,13 +1059,13 @@ static int vgacon_resize(struct vc_data *c, unsigned int width,
 		 * Ho ho!  Someone (svgatextmode, eh?) may have reprogrammed
 		 * the video mode!  Set the new defaults then and go away.
 		 */
-		screen_info.orig_video_cols = width;
-		screen_info.orig_video_lines = height;
+		vga_si->orig_video_cols = width;
+		vga_si->orig_video_lines = height;
 		vga_default_font_height = c->vc_cell_height;
 		return 0;
 	}
-	if (width % 2 || width > screen_info.orig_video_cols ||
-	    height > (screen_info.orig_video_lines * vga_default_font_height)/
+	if (width % 2 || width > vga_si->orig_video_cols ||
+	    height > (vga_si->orig_video_lines * vga_default_font_height)/
 	    c->vc_cell_height)
 		return -EINVAL;
 
@@ -1092,8 +1095,8 @@ static void vgacon_save_screen(struct vc_data *c)
 		 * console initialization routines.
 		 */
 		vga_bootup_console = 1;
-		c->state.x = screen_info.orig_x;
-		c->state.y = screen_info.orig_y;
+		c->state.x = vga_si->orig_x;
+		c->state.y = vga_si->orig_y;
 	}
 
 	/* We can't copy in more than the size of the video buffer,
@@ -1185,5 +1188,14 @@ const struct consw vga_con = {
 	.con_invert_region = vgacon_invert_region,
 };
 EXPORT_SYMBOL(vga_con);
+
+void vgacon_register_screen(struct screen_info *si)
+{
+	if (!si || vga_si)
+		return;
+
+	conswitchp = &vga_con;
+	vga_si = si;
+}
 
 MODULE_LICENSE("GPL");

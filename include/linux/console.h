@@ -101,6 +101,13 @@ extern const struct consw dummy_con;	/* dummy console buffer */
 extern const struct consw vga_con;	/* VGA text console */
 extern const struct consw newport_con;	/* SGI Newport console  */
 
+struct screen_info;
+#ifdef CONFIG_VGA_CONSOLE
+void vgacon_register_screen(struct screen_info *si);
+#else
+static inline void vgacon_register_screen(struct screen_info *si) { }
+#endif
+
 int con_is_bound(const struct consw *csw);
 int do_unregister_con_driver(const struct consw *csw);
 int do_take_over_console(const struct consw *sw, int first, int last, int deflt);
