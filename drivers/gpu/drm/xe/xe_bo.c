@@ -1856,14 +1856,16 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 		if (XE_IOCTL_DBG(xe, !vm))
 			return -ENOENT;
 		err = xe_vm_lock(vm, true);
-		if (err) {
-			xe_vm_put(vm);
-			return err;
-		}
+		if (err)
+			goto out_vm;
 	}
 
 	bo = xe_bo_create(xe, NULL, vm, args->size, ttm_bo_type_device,
 			  bo_flags);
+
+	if (vm)
+		xe_vm_unlock(vm);
+
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
 		goto out_vm;
@@ -1877,15 +1879,17 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	goto out_put;
 
 out_bulk:
-	if (vm && !xe_vm_in_fault_mode(vm))
+	if (vm && !xe_vm_in_fault_mode(vm)) {
+		xe_vm_lock(vm, false);
 		__xe_bo_unset_bulk_move(bo);
+		xe_vm_unlock(vm);
+	}
 out_put:
 	xe_bo_put(bo);
 out_vm:
-	if (vm) {
-		xe_vm_unlock(vm);
+	if (vm)
 		xe_vm_put(vm);
-	}
+
 	return err;
 }
 
