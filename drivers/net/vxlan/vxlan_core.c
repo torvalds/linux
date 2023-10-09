@@ -3029,12 +3029,20 @@ struct vxlan_fdb_flush_desc {
 	unsigned long                   flags;
 	unsigned long			flags_mask;
 	__be32				src_vni;
+	u32				nhid;
 };
 
 static bool vxlan_fdb_is_default_entry(const struct vxlan_fdb *f,
 				       const struct vxlan_dev *vxlan)
 {
 	return is_zero_ether_addr(f->eth_addr) && f->vni == vxlan->cfg.vni;
+}
+
+static bool vxlan_fdb_nhid_matches(const struct vxlan_fdb *f, u32 nhid)
+{
+	struct nexthop *nh = rtnl_dereference(f->nh);
+
+	return nh && nh->id == nhid;
 }
 
 static bool vxlan_fdb_flush_matches(const struct vxlan_fdb *f,
@@ -3051,6 +3059,9 @@ static bool vxlan_fdb_flush_matches(const struct vxlan_fdb *f,
 		return false;
 
 	if (desc->src_vni && f->vni != desc->src_vni)
+		return false;
+
+	if (desc->nhid && !vxlan_fdb_nhid_matches(f, desc->nhid))
 		return false;
 
 	return true;
@@ -3081,6 +3092,7 @@ static void vxlan_flush(struct vxlan_dev *vxlan,
 
 static const struct nla_policy vxlan_del_bulk_policy[NDA_MAX + 1] = {
 	[NDA_SRC_VNI]   = { .type = NLA_U32 },
+	[NDA_NH_ID]	= { .type = NLA_U32 },
 	[NDA_NDM_STATE_MASK]	= { .type = NLA_U16 },
 	[NDA_NDM_FLAGS_MASK]	= { .type = NLA_U8 },
 };
@@ -3127,6 +3139,9 @@ static int vxlan_fdb_delete_bulk(struct nlmsghdr *nlh, struct net_device *dev,
 
 	if (tb[NDA_SRC_VNI])
 		desc.src_vni = cpu_to_be32(nla_get_u32(tb[NDA_SRC_VNI]));
+
+	if (tb[NDA_NH_ID])
+		desc.nhid = nla_get_u32(tb[NDA_NH_ID]);
 
 	vxlan_flush(vxlan, &desc);
 
