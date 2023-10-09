@@ -2467,8 +2467,6 @@ void tls_sw_release_resources_rx(struct sock *sk)
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 
-	kfree(tls_ctx->rx.iv);
-
 	if (ctx->aead_recv) {
 		__skb_queue_purge(&ctx->rx_list);
 		crypto_free_aead(ctx->aead_recv);
@@ -2682,11 +2680,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 			      prot->tag_size + prot->tail_size;
 	prot->iv_size = cipher_desc->iv;
 	prot->salt_size = cipher_desc->salt;
-	cctx->iv = kmalloc(cipher_desc->iv + cipher_desc->salt, GFP_KERNEL);
-	if (!cctx->iv) {
-		rc = -ENOMEM;
-		goto free_priv;
-	}
+
 	/* Note: 128 & 256 bit salt are the same size */
 	prot->rec_seq_size = cipher_desc->rec_seq;
 	memcpy(cctx->iv, salt, cipher_desc->salt);
@@ -2698,7 +2692,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		if (IS_ERR(*aead)) {
 			rc = PTR_ERR(*aead);
 			*aead = NULL;
-			goto free_iv;
+			goto free_priv;
 		}
 	}
 
@@ -2730,9 +2724,6 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 free_aead:
 	crypto_free_aead(*aead);
 	*aead = NULL;
-free_iv:
-	kfree(cctx->iv);
-	cctx->iv = NULL;
 free_priv:
 	if (tx) {
 		kfree(ctx->priv_ctx_tx);

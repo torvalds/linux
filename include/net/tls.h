@@ -62,6 +62,7 @@ struct tls_rec;
 #define TLS_AAD_SPACE_SIZE		13
 
 #define TLS_MAX_IV_SIZE			16
+#define TLS_MAX_SALT_SIZE		4
 #define TLS_TAG_SIZE			16
 #define TLS_MAX_REC_SEQ_SIZE		8
 #define TLS_MAX_AAD_SIZE		TLS_AAD_SPACE_SIZE
@@ -193,7 +194,7 @@ enum tls_context_flags {
 };
 
 struct cipher_context {
-	char *iv;
+	char iv[TLS_MAX_IV_SIZE + TLS_MAX_SALT_SIZE];
 	char rec_seq[TLS_MAX_REC_SEQ_SIZE];
 };
 

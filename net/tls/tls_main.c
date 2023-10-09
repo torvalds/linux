@@ -60,6 +60,7 @@ enum {
 
 #define CHECK_CIPHER_DESC(cipher,ci)				\
 	static_assert(cipher ## _IV_SIZE <= TLS_MAX_IV_SIZE);		\
+	static_assert(cipher ## _SALT_SIZE <= TLS_MAX_SALT_SIZE);		\
 	static_assert(cipher ## _REC_SEQ_SIZE <= TLS_MAX_REC_SEQ_SIZE);	\
 	static_assert(cipher ## _TAG_SIZE == TLS_TAG_SIZE);		\
 	static_assert(sizeof_field(struct ci, iv) == cipher ## _IV_SIZE);	\
@@ -344,7 +345,6 @@ static void tls_sk_proto_cleanup(struct sock *sk,
 
 	/* We need these for tls_sw_fallback handling of other packets */
 	if (ctx->tx_conf == TLS_SW) {
-		kfree(ctx->tx.iv);
 		tls_sw_release_resources_tx(sk);
 		TLS_DEC_STATS(sock_net(sk), LINUX_MIB_TLSCURRTXSW);
 	} else if (ctx->tx_conf == TLS_HW) {

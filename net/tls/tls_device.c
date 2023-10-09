@@ -56,10 +56,8 @@ static struct page *dummy_page;
 
 static void tls_device_free_ctx(struct tls_context *ctx)
 {
-	if (ctx->tx_conf == TLS_HW) {
+	if (ctx->tx_conf == TLS_HW)
 		kfree(tls_offload_ctx_tx(ctx));
-		kfree(ctx->tx.iv);
-	}
 
 	if (ctx->rx_conf == TLS_HW)
 		kfree(tls_offload_ctx_rx(ctx));
@@ -1088,11 +1086,6 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	prot->overhead_size = prot->prepend_size + prot->tag_size;
 	prot->iv_size = cipher_desc->iv;
 	prot->salt_size = cipher_desc->salt;
-	ctx->tx.iv = kmalloc(cipher_desc->iv + cipher_desc->salt, GFP_KERNEL);
-	if (!ctx->tx.iv) {
-		rc = -ENOMEM;
-		goto release_netdev;
-	}
 
 	memcpy(ctx->tx.iv + cipher_desc->salt, iv, cipher_desc->iv);
 
@@ -1102,7 +1095,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	start_marker_record = kmalloc(sizeof(*start_marker_record), GFP_KERNEL);
 	if (!start_marker_record) {
 		rc = -ENOMEM;
-		goto free_iv;
+		goto release_netdev;
 	}
 
 	offload_ctx = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_TX, GFP_KERNEL);
@@ -1187,8 +1180,6 @@ free_offload_ctx:
 	ctx->priv_ctx_tx = NULL;
 free_marker_record:
 	kfree(start_marker_record);
-free_iv:
-	kfree(ctx->tx.iv);
 release_netdev:
 	dev_put(netdev);
 	return rc;
