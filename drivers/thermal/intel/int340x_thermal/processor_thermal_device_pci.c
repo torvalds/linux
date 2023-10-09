@@ -126,7 +126,8 @@ static void proc_thermal_clear_soc_int_status(struct proc_thermal_device *proc_p
 {
 	u64 status;
 
-	if (!(proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_WT_HINT))
+	if (!(proc_priv->mmio_feature_mask &
+	    (PROC_THERMAL_FEATURE_WT_HINT | PROC_THERMAL_FEATURE_POWER_FLOOR)))
 		return;
 
 	status = readq(proc_priv->mmio_base + SOC_WT_RES_INT_STATUS_OFFSET);
@@ -139,6 +140,7 @@ static irqreturn_t proc_thermal_irq_thread_handler(int irq, void *devid)
 	struct proc_thermal_pci *pci_info = devid;
 
 	proc_thermal_wt_intr_callback(pci_info->pdev, pci_info->proc_priv);
+	proc_thermal_power_floor_intr_callback(pci_info->pdev, pci_info->proc_priv);
 	proc_thermal_clear_soc_int_status(pci_info->proc_priv);
 
 	return IRQ_HANDLED;
@@ -155,6 +157,11 @@ static irqreturn_t proc_thermal_irq_handler(int irq, void *devid)
 
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_WT_HINT) {
 		if (proc_thermal_check_wt_intr(pci_info->proc_priv))
+			ret = IRQ_WAKE_THREAD;
+	}
+
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_POWER_FLOOR) {
+		if (proc_thermal_check_power_floor_intr(pci_info->proc_priv))
 			ret = IRQ_WAKE_THREAD;
 	}
 
