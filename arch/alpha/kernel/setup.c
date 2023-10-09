@@ -138,7 +138,7 @@ static char __initdata command_line[COMMAND_LINE_SIZE];
  * code think we're on a VGA color display.
  */
 
-struct screen_info screen_info = {
+struct screen_info vgacon_screen_info = {
 	.orig_x = 0,
 	.orig_y = 25,
 	.orig_video_cols = 80,
@@ -146,8 +146,6 @@ struct screen_info screen_info = {
 	.orig_video_isVGA = 1,
 	.orig_video_points = 16
 };
-
-EXPORT_SYMBOL(screen_info);
 #endif
 
 /*
@@ -654,7 +652,7 @@ setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
-	vgacon_register_screen(&screen_info);
+	vgacon_register_screen(&vgacon_screen_info);
 #endif
 #endif
 

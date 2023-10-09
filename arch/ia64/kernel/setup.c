@@ -86,7 +86,8 @@ EXPORT_SYMBOL(local_per_cpu_offset);
 #endif
 unsigned long ia64_cycles_per_usec;
 struct ia64_boot_param *ia64_boot_param;
-#if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_EFI)
+#if defined(CONFIG_EFI)
+/* No longer used on ia64, but needed for linking */
 struct screen_info screen_info;
 #endif
 #ifdef CONFIG_VGA_CONSOLE
@@ -503,8 +504,9 @@ screen_info_setup(void)
 {
 #ifdef CONFIG_VGA_CONSOLE
 	unsigned int orig_x, orig_y, num_cols, num_rows, font_height;
+	static struct screen_info si;
 
-	memset(&screen_info, 0, sizeof(screen_info));
+	memset(&si, 0, sizeof(si));
 
 	if (!ia64_boot_param->console_info.num_rows ||
 	    !ia64_boot_param->console_info.num_cols) {
@@ -522,14 +524,26 @@ screen_info_setup(void)
 		font_height = 400 / num_rows;
 	}
 
-	screen_info.orig_x = orig_x;
-	screen_info.orig_y = orig_y;
-	screen_info.orig_video_cols  = num_cols;
-	screen_info.orig_video_lines = num_rows;
-	screen_info.orig_video_points = font_height;
-	screen_info.orig_video_mode = 3;	/* XXX fake */
-	screen_info.orig_video_isVGA = 1;	/* XXX fake */
-	screen_info.orig_video_ega_bx = 3;	/* XXX fake */
+	si.orig_x = orig_x;
+	si.orig_y = orig_y;
+	si.orig_video_cols  = num_cols;
+	si.orig_video_lines = num_rows;
+	si.orig_video_points = font_height;
+	si.orig_video_mode = 3;	/* XXX fake */
+	si.orig_video_isVGA = 1;	/* XXX fake */
+	si.orig_video_ega_bx = 3;	/* XXX fake */
+
+	if (!conswitchp) {
+		/*
+		 * Non-legacy systems may route legacy VGA MMIO range to system
+		 * memory.  vga_con probes the MMIO hole, so memory looks like
+		 * a VGA device to it.  The EFI memory map can tell us if it's
+		 * memory so we can avoid this problem.
+		 */
+		if (efi_mem_type(vga_console_membase + 0xA0000) !=
+		    EFI_CONVENTIONAL_MEMORY) {
+			vgacon_register_screen(&si);
+	}
 #endif
 }
 
@@ -608,21 +622,6 @@ setup_arch (char **cmdline_p)
 
 	cpu_init();	/* initialize the bootstrap CPU */
 	mmu_context_init();	/* initialize context_id bitmap */
-
-#ifdef CONFIG_VT
-	if (!conswitchp) {
-# if defined(CONFIG_VGA_CONSOLE)
-		/*
-		 * Non-legacy systems may route legacy VGA MMIO range to system
-		 * memory.  vga_con probes the MMIO hole, so memory looks like
-		 * a VGA device to it.  The EFI memory map can tell us if it's
-		 * memory so we can avoid this problem.
-		 */
-		if (efi_mem_type(0xA0000) != EFI_CONVENTIONAL_MEMORY)
-			vgacon_register_screen(&screen_info);
-# endif
-	}
-#endif
 
 	/* enable IA-64 Machine Check Abort Handling unless disabled */
 	if (!nomca)

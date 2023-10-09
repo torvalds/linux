@@ -928,8 +928,8 @@ static void __init request_standard_resources(const struct machine_desc *mdesc)
 		request_resource(&ioport_resource, &lp2);
 }
 
-#if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_EFI)
-struct screen_info screen_info = {
+#if defined(CONFIG_VGA_CONSOLE)
+static struct screen_info vgacon_screen_info = {
  .orig_video_lines	= 30,
  .orig_video_cols	= 80,
  .orig_video_mode	= 0,
@@ -1192,7 +1192,7 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
-	vgacon_register_screen(&screen_info);
+	vgacon_register_screen(&vgacon_screen_info);
 #endif
 #endif
 
