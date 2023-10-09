@@ -303,6 +303,95 @@ static int test_proc_pid_smaps_rollup(pid_t pid)
 	}
 }
 
+static const char *parse_u64(const char *p, const char *const end, uint64_t *rv)
+{
+	*rv = 0;
+	for (; p != end; p += 1) {
+		if ('0' <= *p && *p <= '9') {
+			assert(!__builtin_mul_overflow(*rv, 10, rv));
+			assert(!__builtin_add_overflow(*rv, *p - '0', rv));
+		} else {
+			break;
+		}
+	}
+	assert(p != end);
+	return p;
+}
+
+/*
+ * There seems to be 2 types of valid output:
+ * "0 A A B 0 0 0\n" for dynamic exeuctables,
+ * "0 0 0 B 0 0 0\n" for static executables.
+ */
+static int test_proc_pid_statm(pid_t pid)
+{
+	char buf[4096];
+	snprintf(buf, sizeof(buf), "/proc/%u/statm", pid);
+	int fd = open(buf, O_RDONLY);
+	if (fd == -1) {
+		perror("open /proc/${pid}/statm");
+		return EXIT_FAILURE;
+	}
+
+	ssize_t rv = read(fd, buf, sizeof(buf));
+	close(fd);
+
+	assert(rv >= 0);
+	assert(rv <= sizeof(buf));
+	if (0) {
+		write(1, buf, rv);
+	}
+
+	const char *p = buf;
+	const char *const end = p + rv;
+
+	/* size */
+	assert(p != end && *p++ == '0');
+	assert(p != end && *p++ == ' ');
+
+	uint64_t resident;
+	p = parse_u64(p, end, &resident);
+	assert(p != end && *p++ == ' ');
+
+	uint64_t shared;
+	p = parse_u64(p, end, &shared);
+	assert(p != end && *p++ == ' ');
+
+	uint64_t text;
+	p = parse_u64(p, end, &text);
+	assert(p != end && *p++ == ' ');
+
+	assert(p != end && *p++ == '0');
+	assert(p != end && *p++ == ' ');
+
+	/* data */
+	assert(p != end && *p++ == '0');
+	assert(p != end && *p++ == ' ');
+
+	assert(p != end && *p++ == '0');
+	assert(p != end && *p++ == '\n');
+
+	assert(p == end);
+
+	/*
+	 * "text" is "mm->end_code - mm->start_code" at execve(2) time.
+	 * munmap() doesn't change it. It can be anything (just link
+	 * statically). It can't be 0 because executing to this point
+	 * implies at least 1 page of code.
+	 */
+	assert(text > 0);
+
+	/*
+	 * These two are always equal. Always 0 for statically linked
+	 * executables and sometimes 0 for dynamically linked executables.
+	 * There is no way to tell one from another without parsing ELF
+	 * which is too much for this test.
+	 */
+	assert(resident == shared);
+
+	return EXIT_SUCCESS;
+}
+
 int main(void)
 {
 	int rv = EXIT_SUCCESS;
@@ -389,11 +478,9 @@ int main(void)
 		if (rv == EXIT_SUCCESS) {
 			rv = test_proc_pid_smaps_rollup(pid);
 		}
-		/*
-		 * TODO test /proc/${pid}/statm, task_statm()
-		 * ->start_code, ->end_code aren't updated by munmap().
-		 * Output can be "0 0 0 2 0 0 0\n" where "2" can be anything.
-		 */
+		if (rv == EXIT_SUCCESS) {
+			rv = test_proc_pid_statm(pid);
+		}
 
 		/* Cut the rope. */
 		int wstatus;
