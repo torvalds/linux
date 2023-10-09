@@ -734,7 +734,7 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int stmfx_pinctrl_remove(struct platform_device *pdev)
+static void stmfx_pinctrl_remove(struct platform_device *pdev)
 {
 	struct stmfx *stmfx = dev_get_drvdata(pdev->dev.parent);
 	int ret;
@@ -746,8 +746,6 @@ static int stmfx_pinctrl_remove(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "Failed to disable pins (%pe)\n",
 			ERR_PTR(ret));
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -856,7 +854,7 @@ static struct platform_driver stmfx_pinctrl_driver = {
 		.pm = &stmfx_pinctrl_dev_pm_ops,
 	},
 	.probe = stmfx_pinctrl_probe,
-	.remove = stmfx_pinctrl_remove,
+	.remove_new = stmfx_pinctrl_remove,
 };
 module_platform_driver(stmfx_pinctrl_driver);
 
