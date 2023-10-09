@@ -340,10 +340,7 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 
 	switch (tls_ctx->crypto_send.info.cipher_type) {
 	case TLS_CIPHER_AES_GCM_128:
-		salt = tls_ctx->crypto_send.aes_gcm_128.salt;
-		break;
 	case TLS_CIPHER_AES_GCM_256:
-		salt = tls_ctx->crypto_send.aes_gcm_256.salt;
 		break;
 	default:
 		goto free_req;
@@ -356,6 +353,7 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 		goto free_req;
 
 	iv = buf;
+	salt = crypto_info_salt(&tls_ctx->crypto_send.info, cipher_desc);
 	memcpy(iv, salt, cipher_desc->salt);
 	aad = buf + cipher_desc->salt + cipher_desc->iv;
 	dummy_buf = aad + TLS_AAD_SPACE_SIZE;
