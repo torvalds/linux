@@ -9,9 +9,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/usb/chipidea.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/ulpi.h>
@@ -51,8 +51,8 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ci_hdrc_usb2_priv *priv;
 	struct ci_hdrc_platform_data *ci_pdata = dev_get_platdata(dev);
+	const struct ci_hdrc_platform_data *data;
 	int ret;
-	const struct of_device_id *match;
 
 	if (!ci_pdata) {
 		ci_pdata = devm_kmalloc(dev, sizeof(*ci_pdata), GFP_KERNEL);
@@ -61,11 +61,10 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 		*ci_pdata = ci_default_pdata;	/* struct copy */
 	}
 
-	match = of_match_device(ci_hdrc_usb2_of_match, &pdev->dev);
-	if (match && match->data) {
+	data = device_get_match_data(&pdev->dev);
+	if (data)
 		/* struct copy */
-		*ci_pdata = *(struct ci_hdrc_platform_data *)match->data;
-	}
+		*ci_pdata = *data;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
