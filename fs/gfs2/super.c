@@ -1566,7 +1566,7 @@ static void gfs2_free_inode(struct inode *inode)
 	kmem_cache_free(gfs2_inode_cachep, GFS2_I(inode));
 }
 
-extern void free_local_statfs_inodes(struct gfs2_sbd *sdp)
+void free_local_statfs_inodes(struct gfs2_sbd *sdp)
 {
 	struct local_statfs_inode *lsi, *safe;
 
@@ -1581,8 +1581,8 @@ extern void free_local_statfs_inodes(struct gfs2_sbd *sdp)
 	}
 }
 
-extern struct inode *find_local_statfs_inode(struct gfs2_sbd *sdp,
-					     unsigned int index)
+struct inode *find_local_statfs_inode(struct gfs2_sbd *sdp,
+				      unsigned int index)
 {
 	struct local_statfs_inode *lsi;
 
