@@ -1863,7 +1863,8 @@ static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 			void *dest, int len)
 {
 	int rc;
-	unsigned long val, change_mask;
+	unsigned long val = 0;
+	unsigned long change_mask;
 	int iopl = (ctxt->eflags & X86_EFLAGS_IOPL) >> X86_EFLAGS_IOPL_BIT;
 	int cpl = ctxt->ops->cpl(ctxt);
 
@@ -1954,7 +1955,7 @@ static int em_push_sreg(struct x86_emulate_ctxt *ctxt)
 static int em_pop_sreg(struct x86_emulate_ctxt *ctxt)
 {
 	int seg = ctxt->src2.val;
-	unsigned long selector;
+	unsigned long selector = 0;
 	int rc;
 
 	rc = emulate_pop(ctxt, &selector, 2);
@@ -2000,7 +2001,7 @@ static int em_popa(struct x86_emulate_ctxt *ctxt)
 {
 	int rc = X86EMUL_CONTINUE;
 	int reg = VCPU_REGS_RDI;
-	u32 val;
+	u32 val = 0;
 
 	while (reg >= VCPU_REGS_RAX) {
 		if (reg == VCPU_REGS_RSP) {
@@ -2229,7 +2230,7 @@ static int em_cmpxchg8b(struct x86_emulate_ctxt *ctxt)
 static int em_ret(struct x86_emulate_ctxt *ctxt)
 {
 	int rc;
-	unsigned long eip;
+	unsigned long eip = 0;
 
 	rc = emulate_pop(ctxt, &eip, ctxt->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
@@ -2241,7 +2242,8 @@ static int em_ret(struct x86_emulate_ctxt *ctxt)
 static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 {
 	int rc;
-	unsigned long eip, cs;
+	unsigned long eip = 0;
+	unsigned long cs = 0;
 	int cpl = ctxt->ops->cpl(ctxt);
 	struct desc_struct new_desc;
 
@@ -3184,7 +3186,7 @@ fail:
 static int em_ret_near_imm(struct x86_emulate_ctxt *ctxt)
 {
 	int rc;
-	unsigned long eip;
+	unsigned long eip = 0;
 
 	rc = emulate_pop(ctxt, &eip, ctxt->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
