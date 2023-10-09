@@ -4367,13 +4367,6 @@ int ndo_dflt_fdb_del(struct ndmsg *ndm,
 }
 EXPORT_SYMBOL(ndo_dflt_fdb_del);
 
-static const struct nla_policy fdb_del_bulk_policy[NDA_MAX + 1] = {
-	[NDA_VLAN]	= { .type = NLA_U16 },
-	[NDA_IFINDEX]	= NLA_POLICY_MIN(NLA_S32, 1),
-	[NDA_NDM_STATE_MASK]	= { .type = NLA_U16  },
-	[NDA_NDM_FLAGS_MASK]	= { .type = NLA_U8 },
-};
-
 static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
@@ -4394,8 +4387,10 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 		err = nlmsg_parse_deprecated(nlh, sizeof(*ndm), tb, NDA_MAX,
 					     NULL, extack);
 	} else {
-		err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX,
-				  fdb_del_bulk_policy, extack);
+		/* For bulk delete, the drivers will parse the message with
+		 * policy.
+		 */
+		err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, NULL, extack);
 	}
 	if (err < 0)
 		return err;
@@ -4418,16 +4413,16 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 			return -EINVAL;
 		}
 		addr = nla_data(tb[NDA_LLADDR]);
+
+		err = fdb_vid_parse(tb[NDA_VLAN], &vid, extack);
+		if (err)
+			return err;
 	}
 
 	if (dev->type != ARPHRD_ETHER) {
 		NL_SET_ERR_MSG(extack, "FDB delete only supported for Ethernet devices");
 		return -EINVAL;
 	}
-
-	err = fdb_vid_parse(tb[NDA_VLAN], &vid, extack);
-	if (err)
-		return err;
 
 	err = -EOPNOTSUPP;
 
@@ -4442,8 +4437,7 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 				err = ops->ndo_fdb_del(ndm, tb, dev, addr, vid, extack);
 		} else {
 			if (ops->ndo_fdb_del_bulk)
-				err = ops->ndo_fdb_del_bulk(ndm, tb, dev, vid,
-							    extack);
+				err = ops->ndo_fdb_del_bulk(nlh, dev, extack);
 		}
 
 		if (err)
@@ -4464,8 +4458,7 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 			/* in case err was cleared by NTF_MASTER call */
 			err = -EOPNOTSUPP;
 			if (ops->ndo_fdb_del_bulk)
-				err = ops->ndo_fdb_del_bulk(ndm, tb, dev, vid,
-							    extack);
+				err = ops->ndo_fdb_del_bulk(nlh, dev, extack);
 		}
 
 		if (!err) {

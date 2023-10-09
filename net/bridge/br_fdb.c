@@ -661,14 +661,30 @@ static int __fdb_flush_validate_ifindex(const struct net_bridge *br,
 	return 0;
 }
 
-int br_fdb_delete_bulk(struct ndmsg *ndm, struct nlattr *tb[],
-		       struct net_device *dev, u16 vid,
+static const struct nla_policy br_fdb_del_bulk_policy[NDA_MAX + 1] = {
+	[NDA_VLAN]	= NLA_POLICY_RANGE(NLA_U16, 1, VLAN_N_VID - 2),
+	[NDA_IFINDEX]	= NLA_POLICY_MIN(NLA_S32, 1),
+	[NDA_NDM_STATE_MASK]	= { .type = NLA_U16 },
+	[NDA_NDM_FLAGS_MASK]	= { .type = NLA_U8 },
+};
+
+int br_fdb_delete_bulk(struct nlmsghdr *nlh, struct net_device *dev,
 		       struct netlink_ext_ack *extack)
 {
-	u8 ndm_flags = ndm->ndm_flags & ~FDB_FLUSH_IGNORED_NDM_FLAGS;
-	struct net_bridge_fdb_flush_desc desc = { .vlan_id = vid };
+	struct net_bridge_fdb_flush_desc desc = {};
+	struct ndmsg *ndm = nlmsg_data(nlh);
 	struct net_bridge_port *p = NULL;
+	struct nlattr *tb[NDA_MAX + 1];
 	struct net_bridge *br;
+	u8 ndm_flags;
+	int err;
+
+	ndm_flags = ndm->ndm_flags & ~FDB_FLUSH_IGNORED_NDM_FLAGS;
+
+	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX,
+			  br_fdb_del_bulk_policy, extack);
+	if (err)
+		return err;
 
 	if (netif_is_bridge_master(dev)) {
 		br = netdev_priv(dev);
@@ -680,6 +696,9 @@ int br_fdb_delete_bulk(struct ndmsg *ndm, struct nlattr *tb[],
 		}
 		br = p->br;
 	}
+
+	if (tb[NDA_VLAN])
+		desc.vlan_id = nla_get_u16(tb[NDA_VLAN]);
 
 	if (ndm_flags & ~FDB_FLUSH_ALLOWED_NDM_FLAGS) {
 		NL_SET_ERR_MSG(extack, "Unsupported fdb flush ndm flag bits set");
@@ -703,7 +722,7 @@ int br_fdb_delete_bulk(struct ndmsg *ndm, struct nlattr *tb[],
 		desc.flags_mask |= __ndm_flags_to_fdb_flags(ndm_flags_mask);
 	}
 	if (tb[NDA_IFINDEX]) {
-		int err, ifidx = nla_get_s32(tb[NDA_IFINDEX]);
+		int ifidx = nla_get_s32(tb[NDA_IFINDEX]);
 
 		err = __fdb_flush_validate_ifindex(br, ifidx, extack);
 		if (err)
