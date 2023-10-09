@@ -95,7 +95,7 @@ int sof_acpi_probe(struct platform_device *pdev, const struct sof_dev_desc *desc
 }
 EXPORT_SYMBOL_NS(sof_acpi_probe, SND_SOC_SOF_ACPI_DEV);
 
-int sof_acpi_remove(struct platform_device *pdev)
+void sof_acpi_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
@@ -104,8 +104,6 @@ int sof_acpi_remove(struct platform_device *pdev)
 
 	/* call sof helper for DSP hardware remove */
 	snd_sof_device_remove(dev);
-
-	return 0;
 }
 EXPORT_SYMBOL_NS(sof_acpi_remove, SND_SOC_SOF_ACPI_DEV);
 

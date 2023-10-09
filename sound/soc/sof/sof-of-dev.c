@@ -84,14 +84,12 @@ int sof_of_probe(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(sof_of_probe);
 
-int sof_of_remove(struct platform_device *pdev)
+void sof_of_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 
 	/* call sof helper for DSP hardware remove */
 	snd_sof_device_remove(&pdev->dev);
-
-	return 0;
 }
 EXPORT_SYMBOL(sof_of_remove);
 

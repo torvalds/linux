@@ -650,7 +650,7 @@ MODULE_DEVICE_TABLE(of, sof_of_imx8_ids);
 /* DT driver definition */
 static struct platform_driver snd_sof_of_imx8_driver = {
 	.probe = sof_of_probe,
-	.remove = sof_of_remove,
+	.remove_new = sof_of_remove,
 	.driver = {
 		.name = "sof-audio-of-imx8",
 		.pm = &sof_of_pm,
