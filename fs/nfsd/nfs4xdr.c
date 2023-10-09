@@ -4556,13 +4556,34 @@ nfsd4_encode_rename(struct nfsd4_compoundres *resp, __be32 nfserr,
 }
 
 static __be32
+nfsd4_encode_rpcsec_gss_info(struct xdr_stream *xdr,
+			     struct rpcsec_gss_info *info)
+{
+	__be32 status;
+
+	/* oid */
+	if (xdr_stream_encode_opaque(xdr, info->oid.data, info->oid.len) < 0)
+		return nfserr_resource;
+	/* qop */
+	status = nfsd4_encode_qop4(xdr, info->qop);
+	if (status != nfs_ok)
+		return status;
+	/* service */
+	if (xdr_stream_encode_u32(xdr, info->service) != XDR_UNIT)
+		return nfserr_resource;
+
+	return nfs_ok;
+}
+
+static __be32
 nfsd4_do_encode_secinfo(struct xdr_stream *xdr, struct svc_export *exp)
 {
 	u32 i, nflavs, supported;
 	struct exp_flavor_info *flavs;
 	struct exp_flavor_info def_flavs[2];
-	__be32 *p, *flavorsp;
 	static bool report = true;
+	__be32 *flavorsp;
+	__be32 status;
 
 	if (exp->ex_nflavors) {
 		flavs = exp->ex_flavors;
@@ -4585,10 +4606,9 @@ nfsd4_do_encode_secinfo(struct xdr_stream *xdr, struct svc_export *exp)
 	}
 
 	supported = 0;
-	p = xdr_reserve_space(xdr, 4);
-	if (!p)
+	flavorsp = xdr_reserve_space(xdr, XDR_UNIT);
+	if (!flavorsp)
 		return nfserr_resource;
-	flavorsp = p++;		/* to be backfilled later */
 
 	for (i = 0; i < nflavs; i++) {
 		rpc_authflavor_t pf = flavs[i].pseudoflavor;
@@ -4596,20 +4616,22 @@ nfsd4_do_encode_secinfo(struct xdr_stream *xdr, struct svc_export *exp)
 
 		if (rpcauth_get_gssinfo(pf, &info) == 0) {
 			supported++;
-			p = xdr_reserve_space(xdr, 4 + 4 +
-					      XDR_LEN(info.oid.len) + 4 + 4);
-			if (!p)
-				return nfserr_resource;
-			*p++ = cpu_to_be32(RPC_AUTH_GSS);
-			p = xdr_encode_opaque(p,  info.oid.data, info.oid.len);
-			*p++ = cpu_to_be32(info.qop);
-			*p++ = cpu_to_be32(info.service);
+
+			/* flavor */
+			status = nfsd4_encode_uint32_t(xdr, RPC_AUTH_GSS);
+			if (status != nfs_ok)
+				return status;
+			/* flavor_info */
+			status = nfsd4_encode_rpcsec_gss_info(xdr, &info);
+			if (status != nfs_ok)
+				return status;
 		} else if (pf < RPC_AUTH_MAXFLAVOR) {
 			supported++;
-			p = xdr_reserve_space(xdr, 4);
-			if (!p)
-				return nfserr_resource;
-			*p++ = cpu_to_be32(pf);
+
+			/* flavor */
+			status = nfsd4_encode_uint32_t(xdr, pf);
+			if (status != nfs_ok)
+				return status;
 		} else {
 			if (report)
 				pr_warn("NFS: SECINFO: security flavor %u "
@@ -4619,7 +4641,7 @@ nfsd4_do_encode_secinfo(struct xdr_stream *xdr, struct svc_export *exp)
 
 	if (nflavs != supported)
 		report = false;
-	*flavorsp = htonl(supported);
+	*flavorsp = cpu_to_be32(supported);
 	return 0;
 }
 
