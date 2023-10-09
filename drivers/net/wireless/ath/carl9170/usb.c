@@ -178,7 +178,7 @@ static void carl9170_usb_tx_data_complete(struct urb *urb)
 	switch (urb->status) {
 	/* everything is fine */
 	case 0:
-		carl9170_tx_callback(ar, (void *)urb->context);
+		carl9170_tx_callback(ar, urb->context);
 		break;
 
 	/* disconnect */
@@ -369,7 +369,7 @@ void carl9170_usb_handle_tx_err(struct ar9170 *ar)
 	struct urb *urb;
 
 	while ((urb = usb_get_from_anchor(&ar->tx_err))) {
-		struct sk_buff *skb = (void *)urb->context;
+		struct sk_buff *skb = urb->context;
 
 		carl9170_tx_drop(ar, skb);
 		carl9170_tx_callback(ar, skb);
@@ -397,7 +397,7 @@ static void carl9170_usb_tasklet(struct tasklet_struct *t)
 
 static void carl9170_usb_rx_complete(struct urb *urb)
 {
-	struct ar9170 *ar = (struct ar9170 *)urb->context;
+	struct ar9170 *ar = urb->context;
 	int err;
 
 	if (WARN_ON_ONCE(!ar))
@@ -559,7 +559,7 @@ static int carl9170_usb_flush(struct ar9170 *ar)
 	int ret, err = 0;
 
 	while ((urb = usb_get_from_anchor(&ar->tx_wait))) {
-		struct sk_buff *skb = (void *)urb->context;
+		struct sk_buff *skb = urb->context;
 		carl9170_tx_drop(ar, skb);
 		carl9170_tx_callback(ar, skb);
 		usb_free_urb(urb);
@@ -668,7 +668,7 @@ int carl9170_exec_cmd(struct ar9170 *ar, const enum carl9170_cmd_oids cmd,
 		memcpy(ar->cmd.data, payload, plen);
 
 	spin_lock_bh(&ar->cmd_lock);
-	ar->readbuf = (u8 *)out;
+	ar->readbuf = out;
 	ar->readlen = outlen;
 	spin_unlock_bh(&ar->cmd_lock);
 
