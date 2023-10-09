@@ -469,6 +469,11 @@ enum {
 #define MT_WF_SEC_BASE			0x21a00
 #define MT_WF_SEC(ofs)			(MT_WF_SEC_BASE + (ofs))
 
+#define MT_WF_CFG_OFF_BASE		0x21e00
+#define MT_WF_CFG_OFF(ofs)		(MT_WF_CFG_OFF_BASE + (ofs))
+#define MT_WF_CFG_OFF_WOCCR		MT_WF_CFG_OFF(0x004)
+#define MT_WF_CFG_OFF_WOCCR_TMAC_GC_DIS	BIT(4)
+
 #define MT_SEC_SCR			MT_WF_SEC(0x004)
 #define MT_SEC_SCR_MASK_ORDER		GENMASK(1, 0)
 

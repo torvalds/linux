@@ -288,7 +288,7 @@ mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
 	mvif->idx = idx;
 	mvif->group_wcid.idx = MT_VIF_WCID(idx);
 	mvif->group_wcid.hw_key_idx = -1;
-	mt76_packet_id_init(&mvif->group_wcid);
+	mt76_wcid_init(&mvif->group_wcid);
 
 	mtxq = (struct mt76_txq *)vif->txq->drv_priv;
 	rcu_assign_pointer(dev->mt76.wcid[MT_VIF_WCID(idx)], &mvif->group_wcid);
@@ -346,7 +346,7 @@ void mt76x02_remove_interface(struct ieee80211_hw *hw,
 
 	dev->mt76.vif_mask &= ~BIT_ULL(mvif->idx);
 	rcu_assign_pointer(dev->mt76.wcid[mvif->group_wcid.idx], NULL);
-	mt76_packet_id_flush(&dev->mt76, &mvif->group_wcid);
+	mt76_wcid_cleanup(&dev->mt76, &mvif->group_wcid);
 }
 EXPORT_SYMBOL_GPL(mt76x02_remove_interface);
 

@@ -153,6 +153,32 @@ struct mt7996_mcu_mib {
 	__le64 data;
 } __packed;
 
+struct mt7996_mcu_all_sta_info_event {
+	u8 rsv[4];
+	__le16 tag;
+	__le16 len;
+	u8 more;
+	u8 rsv2;
+	__le16 sta_num;
+	u8 rsv3[2];
+
+	union {
+		struct {
+			__le16 wlan_idx;
+			u8 rsv[2];
+			__le32 tx_bytes[IEEE80211_NUM_ACS];
+			__le32 rx_bytes[IEEE80211_NUM_ACS];
+		} adm_stat[0];
+
+		struct {
+			__le16 wlan_idx;
+			u8 rsv[2];
+			__le32 tx_msdu_cnt;
+			__le32 rx_msdu_cnt;
+		} msdu_cnt[0];
+	};
+} __packed;
+
 enum mt7996_chan_mib_offs {
 	UNI_MIB_OBSS_AIRTIME = 26,
 	UNI_MIB_NON_WIFI_TIME = 27,
@@ -270,8 +296,6 @@ struct bss_inband_discovery_tlv {
 	u8 enable;
 	__le16 wcid;
 	__le16 prob_rsp_len;
-#define MAX_INBAND_FRAME_SIZE 512
-	u8 pkt[MAX_INBAND_FRAME_SIZE];
 } __packed;
 
 struct bss_bcn_content_tlv {
@@ -283,8 +307,6 @@ struct bss_bcn_content_tlv {
 	u8 enable;
 	u8 type;
 	__le16 pkt_len;
-#define MAX_BEACON_SIZE 512
-	u8 pkt[MAX_BEACON_SIZE];
 } __packed;
 
 struct bss_bcn_cntdwn_tlv {
@@ -591,13 +613,14 @@ enum {
 					 sizeof(struct sta_rec_hdr_trans) +	\
 					 sizeof(struct tlv))
 
+#define MT7996_MAX_BEACON_SIZE		1342
 #define MT7996_BEACON_UPDATE_SIZE	(sizeof(struct bss_req_hdr) +		\
 					 sizeof(struct bss_bcn_content_tlv) +	\
+					 MT_TXD_SIZE +				\
 					 sizeof(struct bss_bcn_cntdwn_tlv) +	\
 					 sizeof(struct bss_bcn_mbss_tlv))
-
-#define MT7996_INBAND_FRAME_SIZE	(sizeof(struct bss_req_hdr) +		\
-					 sizeof(struct bss_inband_discovery_tlv))
+#define MT7996_MAX_BSS_OFFLOAD_SIZE	(MT7996_MAX_BEACON_SIZE +		\
+					 MT7996_BEACON_UPDATE_SIZE)
 
 enum {
 	UNI_BAND_CONFIG_RADIO_ENABLE,
