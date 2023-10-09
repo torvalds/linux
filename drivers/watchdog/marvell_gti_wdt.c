@@ -190,6 +190,13 @@ static int gti_wdt_set_pretimeout(struct watchdog_device *wdev,
 	struct gti_wdt_priv *priv = watchdog_get_drvdata(wdev);
 	struct watchdog_device *wdog_dev = &priv->wdev;
 
+	if (!timeout) {
+		/* Disable Interrupt */
+		writeq(GTI_CWD_INT_ENA_CLR_VAL(priv->wdt_timer_idx),
+		       priv->base + GTI_CWD_INT_ENA_CLR);
+		return 0;
+	}
+
 	/* pretimeout should 1/3 of max_timeout */
 	if (timeout * 3 <= wdog_dev->max_timeout)
 		return gti_wdt_settimeout(wdev, timeout * 3);
