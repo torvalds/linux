@@ -383,7 +383,15 @@ free_channel:
 
 static int rockchip_rpmsg_remove(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct rk_rpmsg_dev *rpdev = platform_get_drvdata(pdev);
+
+	int i;
+
+	for (i = 0; i < rpdev->vdev_nums; i++)
+		unregister_virtio_device(&rpdev->rpvdev[i]->vdev);
+
+	of_reserved_mem_device_release(dev);
 
 	mbox_free_channel(rpdev->mbox_rx_chan);
 	mbox_free_channel(rpdev->mbox_tx_chan);

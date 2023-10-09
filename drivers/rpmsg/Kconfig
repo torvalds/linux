@@ -58,8 +58,8 @@ config RPMSG_QCOM_SMD
 	  providing communication channels to remote processors in Qualcomm
 	  platforms.
 
-config RPMSG_ROCKCHIP
-	tristate "Rockchip Platform RPMsg Support"
+config RPMSG_ROCKCHIP_MBOX
+	tristate "Rockchip Platform RPMsg Mailbox Mode Support"
 	depends on ARCH_ROCKCHIP
 	depends on MAILBOX
 	depends on ROCKCHIP_MBOX
@@ -67,11 +67,20 @@ config RPMSG_ROCKCHIP
 	select VIRTIO
 	help
 	  Say y here to enable support for The Remote Processors Messasing
-	  in Rockchip Platform.
+	  using mailbox mode in Rockchip Platform.
+
+config RPMSG_ROCKCHIP_SOFTIRQ
+	tristate "Rockchip Platform RPMsg Soft IRQ Mode Support"
+	depends on ARCH_ROCKCHIP
+	select RPMSG
+	select VIRTIO
+	help
+	  Say y here to enable support for The Remote Processors Messasing
+	  using softirq mode in Rockchip Platform.
 
 config RPMSG_ROCKCHIP_TEST
 	tristate "Rockchip RPMsg Test"
-	depends on RPMSG_ROCKCHIP
+	depends on (RPMSG_ROCKCHIP_MBOX || RPMSG_ROCKCHIP_SOFTIRQ)
 	help
 	  Say y here to enable Rockchip RPMsg Test.
 
