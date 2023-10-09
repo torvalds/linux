@@ -32,6 +32,9 @@ TESTS="
 	$FLUSH_BY_FLAG_TESTS
 	vxlan_test_flush_by_several_args
 	vxlan_test_flush_by_remote_attributes
+	bridge_test_flush_by_dev
+	bridge_test_flush_by_vlan
+	bridge_vxlan_test_flush
 "
 
 : ${VERBOSE:=0}
@@ -647,6 +650,93 @@ vxlan_test_flush_by_remote_attributes()
 	log_test $? 0 "Check how many entries were flushed"
 }
 
+bridge_test_flush_by_dev()
+{
+	local dst_ip=192.0.2.1
+	local br0_n_ent_t0=$($BRIDGE fdb show dev br0 | wc -l)
+	local br1_n_ent_t0=$($BRIDGE fdb show dev br1 | wc -l)
+
+	fdb_add_mac_pool_1 br0 dst $dst_ip
+	fdb_add_mac_pool_2 br1 dst $dst_ip
+
+	# Each 'fdb add' command adds one extra entry in the bridge with the
+	# default vlan.
+	local exp_br0_n_ent=$(($br0_n_ent_t0 + 2 * $mac_pool_1_len))
+	local exp_br1_n_ent=$(($br1_n_ent_t0 + 2 * $mac_pool_2_len))
+
+	fdb_check_n_entries_by_dev_filter br0 $exp_br0_n_ent
+	fdb_check_n_entries_by_dev_filter br1 $exp_br1_n_ent
+
+	run_cmd "$BRIDGE fdb flush dev br0"
+	log_test $? 0 "Flush FDB by dev br0"
+
+	# The default entry should not be flushed
+	fdb_check_n_entries_by_dev_filter br0 1
+	log_test $? 0 "Flush FDB by dev br0 - test br0 entries"
+
+	fdb_check_n_entries_by_dev_filter br1 $exp_br1_n_ent
+	log_test $? 0 "Flush FDB by dev br0 - test br1 entries"
+}
+
+bridge_test_flush_by_vlan()
+{
+	local vlan_1=10
+	local vlan_2=20
+	local vlan_1_ent_t0
+	local vlan_2_ent_t0
+
+	$BRIDGE vlan add vid $vlan_1 dev br0 self
+	$BRIDGE vlan add vid $vlan_2 dev br0 self
+
+	vlan_1_ent_t0=$($BRIDGE fdb show dev br0 | grep "vlan $vlan_1" | wc -l)
+	vlan_2_ent_t0=$($BRIDGE fdb show dev br0 | grep "vlan $vlan_2" | wc -l)
+
+	fdb_add_mac_pool_1 br0 vlan $vlan_1
+	fdb_add_mac_pool_2 br0 vlan $vlan_2
+
+	local exp_vlan_1_ent=$(($vlan_1_ent_t0 + $mac_pool_1_len))
+	local exp_vlan_2_ent=$(($vlan_2_ent_t0 + $mac_pool_2_len))
+
+	fdb_check_n_entries_by_dev_filter br0 $exp_vlan_1_ent vlan $vlan_1
+	fdb_check_n_entries_by_dev_filter br0 $exp_vlan_2_ent vlan $vlan_2
+
+	run_cmd "$BRIDGE fdb flush dev br0 vlan $vlan_1"
+	log_test $? 0 "Flush FDB by dev br0 and vlan $vlan_1"
+
+	fdb_check_n_entries_by_dev_filter br0 0 vlan $vlan_1
+	log_test $? 0 "Test entries with vlan $vlan_1"
+
+	fdb_check_n_entries_by_dev_filter br0 $exp_vlan_2_ent vlan $vlan_2
+	log_test $? 0 "Test entries with vlan $vlan_2"
+}
+
+bridge_vxlan_test_flush()
+{
+	local vlan_1=10
+	local dst_ip=192.0.2.1
+
+	$IP link set dev vx10 master br0
+	$BRIDGE vlan add vid $vlan_1 dev br0 self
+	$BRIDGE vlan add vid $vlan_1 dev vx10
+
+	fdb_add_mac_pool_1 vx10 vni 3000 dst $dst_ip self master
+
+	fdb_check_n_entries_by_dev_filter vx10 $mac_pool_1_len vlan $vlan_1
+	fdb_check_n_entries_by_dev_filter vx10 $mac_pool_1_len vni 3000
+
+	# Such command should fail in VXLAN driver as vlan is not supported,
+	# but the command should flush the entries in the bridge
+	run_cmd "$BRIDGE fdb flush dev vx10 vlan $vlan_1 master self"
+	log_test $? 255 \
+		"Flush FDB by dev vx10, vlan $vlan_1, master and self"
+
+	fdb_check_n_entries_by_dev_filter vx10 0 vlan $vlan_1
+	log_test $? 0 "Test entries with vlan $vlan_1"
+
+	fdb_check_n_entries_by_dev_filter vx10 $mac_pool_1_len dst $dst_ip
+	log_test $? 0 "Test entries with dst $dst_ip"
+}
+
 setup()
 {
 	IP="ip -netns ns1"
@@ -656,10 +746,16 @@ setup()
 
 	$IP link add name vx10 type vxlan id 1000 dstport "$VXPORT"
 	$IP link add name vx20 type vxlan id 2000 dstport "$VXPORT"
+
+	$IP link add br0 type bridge vlan_filtering 1
+	$IP link add br1 type bridge vlan_filtering 1
 }
 
 cleanup()
 {
+	$IP link del dev br1
+	$IP link del dev br0
+
 	$IP link del dev vx20
 	$IP link del dev vx10
 
