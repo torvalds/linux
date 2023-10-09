@@ -5079,32 +5079,56 @@ nfsd4_encode_layoutreturn(struct nfsd4_compoundres *resp, __be32 nfserr,
 #endif /* CONFIG_NFSD_PNFS */
 
 static __be32
-nfsd42_encode_write_res(struct nfsd4_compoundres *resp,
-		struct nfsd42_write_res *write, bool sync)
+nfsd4_encode_write_response4(struct xdr_stream *xdr,
+			     const struct nfsd4_copy *copy)
 {
-	__be32 *p;
-	p = xdr_reserve_space(resp->xdr, 4);
-	if (!p)
-		return nfserr_resource;
+	const struct nfsd42_write_res *write = &copy->cp_res;
+	u32 count = nfsd4_copy_is_sync(copy) ? 0 : 1;
+	__be32 status;
 
-	if (sync)
-		*p++ = cpu_to_be32(0);
-	else {
-		__be32 nfserr;
-		*p++ = cpu_to_be32(1);
-		nfserr = nfsd4_encode_stateid4(resp->xdr, &write->cb_stateid);
-		if (nfserr)
-			return nfserr;
+	/* wr_callback_id<1> */
+	if (xdr_stream_encode_u32(xdr, count) != XDR_UNIT)
+		return nfserr_resource;
+	if (count) {
+		status = nfsd4_encode_stateid4(xdr, &write->cb_stateid);
+		if (status != nfs_ok)
+			return status;
 	}
-	p = xdr_reserve_space(resp->xdr, 8 + 4 + NFS4_VERIFIER_SIZE);
-	if (!p)
-		return nfserr_resource;
 
-	p = xdr_encode_hyper(p, write->wr_bytes_written);
-	*p++ = cpu_to_be32(write->wr_stable_how);
-	p = xdr_encode_opaque_fixed(p, write->wr_verifier.data,
-				    NFS4_VERIFIER_SIZE);
-	return nfs_ok;
+	/* wr_count */
+	status = nfsd4_encode_length4(xdr, write->wr_bytes_written);
+	if (status != nfs_ok)
+		return status;
+	/* wr_committed */
+	if (xdr_stream_encode_u32(xdr, write->wr_stable_how) != XDR_UNIT)
+		return nfserr_resource;
+	/* wr_writeverf */
+	return nfsd4_encode_verifier4(xdr, &write->wr_verifier);
+}
+
+static __be32 nfsd4_encode_copy_requirements4(struct xdr_stream *xdr,
+					      const struct nfsd4_copy *copy)
+{
+	__be32 status;
+
+	/* cr_consecutive */
+	status = nfsd4_encode_bool(xdr, true);
+	if (status != nfs_ok)
+		return status;
+	/* cr_synchronous */
+	return nfsd4_encode_bool(xdr, nfsd4_copy_is_sync(copy));
+}
+
+static __be32
+nfsd4_encode_copy(struct nfsd4_compoundres *resp, __be32 nfserr,
+		  union nfsd4_op_u *u)
+{
+	struct nfsd4_copy *copy = &u->copy;
+
+	nfserr = nfsd4_encode_write_response4(resp->xdr, copy);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	return nfsd4_encode_copy_requirements4(resp->xdr, copy);
 }
 
 static __be32
@@ -5144,24 +5168,6 @@ nfsd42_encode_nl4_server(struct nfsd4_compoundres *resp, struct nl4_server *ns)
 		return nfserr_inval;
 	}
 
-	return 0;
-}
-
-static __be32
-nfsd4_encode_copy(struct nfsd4_compoundres *resp, __be32 nfserr,
-		  union nfsd4_op_u *u)
-{
-	struct nfsd4_copy *copy = &u->copy;
-	__be32 *p;
-
-	nfserr = nfsd42_encode_write_res(resp, &copy->cp_res,
-					 nfsd4_copy_is_sync(copy));
-	if (nfserr)
-		return nfserr;
-
-	p = xdr_reserve_space(resp->xdr, 4 + 4);
-	*p++ = xdr_one; /* cr_consecutive */
-	*p = nfsd4_copy_is_sync(copy) ? xdr_one : xdr_zero;
 	return 0;
 }
 
