@@ -971,12 +971,11 @@ err_range:
 	return ret;
 }
 
-static int pmic_mpp_remove(struct platform_device *pdev)
+static void pmic_mpp_remove(struct platform_device *pdev)
 {
 	struct pmic_mpp_state *state = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&state->chip);
-	return 0;
 }
 
 static const struct of_device_id pmic_mpp_of_match[] = {
@@ -1001,7 +1000,7 @@ static struct platform_driver pmic_mpp_driver = {
 		   .of_match_table = pmic_mpp_of_match,
 	},
 	.probe	= pmic_mpp_probe,
-	.remove = pmic_mpp_remove,
+	.remove_new = pmic_mpp_remove,
 };
 
 module_platform_driver(pmic_mpp_driver);
