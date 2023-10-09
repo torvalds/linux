@@ -198,36 +198,6 @@ static int dsi_mgr_bridge_get_id(struct drm_bridge *bridge)
 	return dsi_bridge->id;
 }
 
-static void msm_dsi_manager_set_split_display(u8 id)
-{
-	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
-	struct msm_drm_private *priv = msm_dsi->dev->dev_private;
-	struct msm_kms *kms = priv->kms;
-	struct msm_dsi *master_dsi, *slave_dsi;
-
-	if (IS_BONDED_DSI() && !IS_MASTER_DSI_LINK(id)) {
-		master_dsi = other_dsi;
-		slave_dsi = msm_dsi;
-	} else {
-		master_dsi = msm_dsi;
-		slave_dsi = other_dsi;
-	}
-
-	if (!msm_dsi->external_bridge || !IS_BONDED_DSI())
-		return;
-
-	/*
-	 * Set split display info to kms once bonded DSI panel is connected to
-	 * both hosts.
-	 */
-	if (other_dsi && other_dsi->external_bridge && kms->funcs->set_split_display) {
-		kms->funcs->set_split_display(kms, master_dsi->encoder,
-					      slave_dsi->encoder,
-					      msm_dsi_is_cmd_mode(msm_dsi));
-	}
-}
-
 static int dsi_mgr_bridge_power_on(struct drm_bridge *bridge)
 {
 	int id = dsi_mgr_bridge_get_id(bridge);
@@ -504,8 +474,6 @@ int msm_dsi_manager_ext_bridge_init(u8 id, struct drm_bridge *int_bridge)
 	if (IS_ERR(ext_bridge))
 		return PTR_ERR(ext_bridge);
 
-	msm_dsi->external_bridge = ext_bridge;
-
 	encoder = msm_dsi->encoder;
 
 	/*
@@ -537,9 +505,6 @@ int msm_dsi_manager_ext_bridge_init(u8 id, struct drm_bridge *int_bridge)
 		if (ret < 0)
 			return ret;
 	}
-
-	/* The pipeline is ready, ping encoders if necessary */
-	msm_dsi_manager_set_split_display(id);
 
 	return 0;
 }
