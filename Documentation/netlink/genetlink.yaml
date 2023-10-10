@@ -26,10 +26,6 @@ properties:
     type: string
   doc:
     type: string
-  version:
-    description: Generic Netlink family version. Default is 1.
-    type: integer
-    minimum: 1
   protocol:
     description: Schema compatibility level. Default is "genetlink".
     enum: [ genetlink ]

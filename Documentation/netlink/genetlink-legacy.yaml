@@ -26,10 +26,6 @@ properties:
     type: string
   doc:
     type: string
-  version:
-    description: Generic Netlink family version. Default is 1.
-    type: integer
-    minimum: 1
   protocol:
     description: Schema compatibility level. Default is "genetlink".
     enum: [ genetlink, genetlink-c, genetlink-legacy ] # Trim
@@ -53,6 +49,10 @@ properties:
       Defines if the input policy in the kernel is global, per-operation, or split per operation type.
       Default is split.
     enum: [ split, per-op, global ]
+  version:
+    description: Generic Netlink family version. Default is 1.
+    type: integer
+    minimum: 1
   # End genetlink-legacy
 
   definitions:
