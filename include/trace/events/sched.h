@@ -670,7 +670,8 @@ DEFINE_EVENT(sched_numa_pair_template, sched_swap_numa,
 	EM( NUMAB_SKIP_SHARED_RO,		"shared_ro" )	\
 	EM( NUMAB_SKIP_INACCESSIBLE,		"inaccessible" )	\
 	EM( NUMAB_SKIP_SCAN_DELAY,		"scan_delay" )	\
-	EMe(NUMAB_SKIP_PID_INACTIVE,		"pid_inactive" )
+	EM( NUMAB_SKIP_PID_INACTIVE,		"pid_inactive" )	\
+	EMe(NUMAB_SKIP_IGNORE_PID,		"ignore_pid_inactive" )
 
 /* Redefine for export. */
 #undef EM
