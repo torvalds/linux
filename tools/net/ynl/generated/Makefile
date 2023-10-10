@@ -27,11 +27,11 @@ protos.a: $(OBJS)
 
 %-user.h: ../../../../Documentation/netlink/specs/%.yaml $(TOOL)
 	@echo -e "\tGEN $@"
-	@$(TOOL) --mode user --header --spec $< $(YNL_GEN_ARG_$*) > $@
+	@$(TOOL) --mode user --header --spec $< -o $@ $(YNL_GEN_ARG_$*)
 
 %-user.c: ../../../../Documentation/netlink/specs/%.yaml $(TOOL)
 	@echo -e "\tGEN $@"
-	@$(TOOL) --mode user --source --spec $< $(YNL_GEN_ARG_$*) > $@
+	@$(TOOL) --mode user --source --spec $< -o $@ $(YNL_GEN_ARG_$*)
 
 %-user.o: %-user.c %-user.h
 	@echo -e "\tCC $@"
