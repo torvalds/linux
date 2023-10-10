@@ -3093,3 +3093,9 @@ void ath12k_qmi_deinit_service(struct ath12k_base *ab)
 	ath12k_qmi_m3_free(ab);
 	ath12k_qmi_free_target_mem_chunk(ab);
 }
+
+void ath12k_qmi_free_resource(struct ath12k_base *ab)
+{
+	ath12k_qmi_free_target_mem_chunk(ab);
+	ath12k_qmi_m3_free(ab);
+}
