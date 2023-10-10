@@ -11,10 +11,12 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <signal.h>
 #include <unistd.h>
 #include <assert.h>
 #include <sys/epoll.h>
+#include <sys/mman.h>
 
 #include "timeout.h"
 #include "control.h"
@@ -443,4 +445,135 @@ unsigned long hash_djb2(const void *data, size_t len)
 	}
 
 	return hash;
+}
+
+size_t iovec_bytes(const struct iovec *iov, size_t iovnum)
+{
+	size_t bytes;
+	int i;
+
+	for (bytes = 0, i = 0; i < iovnum; i++)
+		bytes += iov[i].iov_len;
+
+	return bytes;
+}
+
+unsigned long iovec_hash_djb2(const struct iovec *iov, size_t iovnum)
+{
+	unsigned long hash;
+	size_t iov_bytes;
+	size_t offs;
+	void *tmp;
+	int i;
+
+	iov_bytes = iovec_bytes(iov, iovnum);
+
+	tmp = malloc(iov_bytes);
+	if (!tmp) {
+		perror("malloc");
+		exit(EXIT_FAILURE);
+	}
+
+	for (offs = 0, i = 0; i < iovnum; i++) {
+		memcpy(tmp + offs, iov[i].iov_base, iov[i].iov_len);
+		offs += iov[i].iov_len;
+	}
+
+	hash = hash_djb2(tmp, iov_bytes);
+	free(tmp);
+
+	return hash;
+}
+
+/* Allocates and returns new 'struct iovec *' according pattern
+ * in the 'test_iovec'. For each element in the 'test_iovec' it
+ * allocates new element in the resulting 'iovec'. 'iov_len'
+ * of the new element is copied from 'test_iovec'. 'iov_base' is
+ * allocated depending on the 'iov_base' of 'test_iovec':
+ *
+ * 'iov_base' == NULL -> valid buf: mmap('iov_len').
+ *
+ * 'iov_base' == MAP_FAILED -> invalid buf:
+ *               mmap('iov_len'), then munmap('iov_len').
+ *               'iov_base' still contains result of
+ *               mmap().
+ *
+ * 'iov_base' == number -> unaligned valid buf:
+ *               mmap('iov_len') + number.
+ *
+ * 'iovnum' is number of elements in 'test_iovec'.
+ *
+ * Returns new 'iovec' or calls 'exit()' on error.
+ */
+struct iovec *alloc_test_iovec(const struct iovec *test_iovec, int iovnum)
+{
+	struct iovec *iovec;
+	int i;
+
+	iovec = malloc(sizeof(*iovec) * iovnum);
+	if (!iovec) {
+		perror("malloc");
+		exit(EXIT_FAILURE);
+	}
+
+	for (i = 0; i < iovnum; i++) {
+		iovec[i].iov_len = test_iovec[i].iov_len;
+
+		iovec[i].iov_base = mmap(NULL, iovec[i].iov_len,
+					 PROT_READ | PROT_WRITE,
+					 MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE,
+					 -1, 0);
+		if (iovec[i].iov_base == MAP_FAILED) {
+			perror("mmap");
+			exit(EXIT_FAILURE);
+		}
+
+		if (test_iovec[i].iov_base != MAP_FAILED)
+			iovec[i].iov_base += (uintptr_t)test_iovec[i].iov_base;
+	}
+
+	/* Unmap "invalid" elements. */
+	for (i = 0; i < iovnum; i++) {
+		if (test_iovec[i].iov_base == MAP_FAILED) {
+			if (munmap(iovec[i].iov_base, iovec[i].iov_len)) {
+				perror("munmap");
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+
+	for (i = 0; i < iovnum; i++) {
+		int j;
+
+		if (test_iovec[i].iov_base == MAP_FAILED)
+			continue;
+
+		for (j = 0; j < iovec[i].iov_len; j++)
+			((uint8_t *)iovec[i].iov_base)[j] = rand() & 0xff;
+	}
+
+	return iovec;
+}
+
+/* Frees 'iovec *', previously allocated by 'alloc_test_iovec()'.
+ * On error calls 'exit()'.
+ */
+void free_test_iovec(const struct iovec *test_iovec,
+		     struct iovec *iovec, int iovnum)
+{
+	int i;
+
+	for (i = 0; i < iovnum; i++) {
+		if (test_iovec[i].iov_base != MAP_FAILED) {
+			if (test_iovec[i].iov_base)
+				iovec[i].iov_base -= (uintptr_t)test_iovec[i].iov_base;
+
+			if (munmap(iovec[i].iov_base, iovec[i].iov_len)) {
+				perror("munmap");
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+
+	free(iovec);
 }
