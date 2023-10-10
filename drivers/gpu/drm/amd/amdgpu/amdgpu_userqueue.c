@@ -32,6 +32,68 @@ amdgpu_userqueue_find(struct amdgpu_userq_mgr *uq_mgr, int qid)
 	return idr_find(&uq_mgr->userq_idr, qid);
 }
 
+int amdgpu_userqueue_create_object(struct amdgpu_userq_mgr *uq_mgr,
+				   struct amdgpu_userq_obj *userq_obj,
+				   int size)
+{
+	struct amdgpu_device *adev = uq_mgr->adev;
+	struct amdgpu_bo_param bp;
+	int r;
+
+	memset(&bp, 0, sizeof(bp));
+	bp.byte_align = PAGE_SIZE;
+	bp.domain = AMDGPU_GEM_DOMAIN_GTT;
+	bp.flags = AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
+		   AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+	bp.type = ttm_bo_type_kernel;
+	bp.size = size;
+	bp.resv = NULL;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
+
+	r = amdgpu_bo_create(adev, &bp, &userq_obj->obj);
+	if (r) {
+		DRM_ERROR("Failed to allocate BO for userqueue (%d)", r);
+		return r;
+	}
+
+	r = amdgpu_bo_reserve(userq_obj->obj, true);
+	if (r) {
+		DRM_ERROR("Failed to reserve BO to map (%d)", r);
+		goto free_obj;
+	}
+
+	r = amdgpu_ttm_alloc_gart(&(userq_obj->obj)->tbo);
+	if (r) {
+		DRM_ERROR("Failed to alloc GART for userqueue object (%d)", r);
+		goto unresv;
+	}
+
+	r = amdgpu_bo_kmap(userq_obj->obj, &userq_obj->cpu_ptr);
+	if (r) {
+		DRM_ERROR("Failed to map BO for userqueue (%d)", r);
+		goto unresv;
+	}
+
+	userq_obj->gpu_addr = amdgpu_bo_gpu_offset(userq_obj->obj);
+	amdgpu_bo_unreserve(userq_obj->obj);
+	memset(userq_obj->cpu_ptr, 0, size);
+	return 0;
+
+unresv:
+	amdgpu_bo_unreserve(userq_obj->obj);
+
+free_obj:
+	amdgpu_bo_unref(&userq_obj->obj);
+	return r;
+}
+
+void amdgpu_userqueue_destroy_object(struct amdgpu_userq_mgr *uq_mgr,
+				   struct amdgpu_userq_obj *userq_obj)
+{
+	amdgpu_bo_kunmap(userq_obj->obj);
+	amdgpu_bo_unref(&userq_obj->obj);
+}
+
 static int
 amdgpu_userqueue_destroy(struct drm_file *filp, int queue_id)
 {
