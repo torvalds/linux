@@ -69,12 +69,11 @@ MODULE_PARM_DESC(disable_tap_to_click,
 #define HIDPP_QUIRK_WTP_PHYSICAL_BUTTONS	BIT(22)
 #define HIDPP_QUIRK_DELAYED_INIT		BIT(23)
 #define HIDPP_QUIRK_FORCE_OUTPUT_REPORTS	BIT(24)
-#define HIDPP_QUIRK_UNIFYING			BIT(25)
-#define HIDPP_QUIRK_HIDPP_WHEELS		BIT(26)
-#define HIDPP_QUIRK_HIDPP_EXTRA_MOUSE_BTNS	BIT(27)
-#define HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS	BIT(28)
-#define HIDPP_QUIRK_HI_RES_SCROLL_1P0		BIT(29)
-#define HIDPP_QUIRK_WIRELESS_STATUS		BIT(30)
+#define HIDPP_QUIRK_HIDPP_WHEELS		BIT(25)
+#define HIDPP_QUIRK_HIDPP_EXTRA_MOUSE_BTNS	BIT(26)
+#define HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS	BIT(27)
+#define HIDPP_QUIRK_HI_RES_SCROLL_1P0		BIT(28)
+#define HIDPP_QUIRK_WIRELESS_STATUS		BIT(29)
 
 /* These are just aliases for now */
 #define HIDPP_QUIRK_KBD_SCROLL_WHEEL HIDPP_QUIRK_HIDPP_WHEELS
@@ -4405,9 +4404,6 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	}
 
-	if (id->group == HID_GROUP_LOGITECH_DJ_DEVICE)
-		hidpp->quirks |= HIDPP_QUIRK_UNIFYING;
-
 	if (id->group == HID_GROUP_LOGITECH_27MHZ_DEVICE &&
 	    hidpp_application_equals(hdev, HID_GD_MOUSE))
 		hidpp->quirks |= HIDPP_QUIRK_HIDPP_WHEELS |
@@ -4460,7 +4456,7 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	hid_device_io_start(hdev);
 
 	/* Get name + serial, store in hdev->name + hdev->uniq */
-	if (hidpp->quirks & HIDPP_QUIRK_UNIFYING)
+	if (id->group == HID_GROUP_LOGITECH_DJ_DEVICE)
 		hidpp_unifying_init(hidpp);
 	else
 		hidpp_non_unifying_init(hidpp);
