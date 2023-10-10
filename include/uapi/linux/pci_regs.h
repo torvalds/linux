@@ -932,6 +932,7 @@
 #define PCI_PASID_CAP		0x04    /* PASID feature register */
 #define  PCI_PASID_CAP_EXEC	0x0002	/* Exec permissions Supported */
 #define  PCI_PASID_CAP_PRIV	0x0004	/* Privilege Mode Supported */
+#define  PCI_PASID_CAP_WIDTH	0x1f00
 #define PCI_PASID_CTRL		0x06    /* PASID control register */
 #define  PCI_PASID_CTRL_ENABLE	0x0001	/* Enable bit */
 #define  PCI_PASID_CTRL_EXEC	0x0002	/* Exec permissions Enable */
