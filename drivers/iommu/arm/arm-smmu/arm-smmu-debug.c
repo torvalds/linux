@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -10,9 +11,213 @@
 #include "arm-smmu-debug.h"
 #include <linux/qcom_scm.h>
 
+u32 arm_smmu_debug_qtb_debugchain_load(void __iomem *debugchain_base)
+{
+	u32 shiftreglen = 0;
+
+	/* Reading the debugchain_load register will start the debugchain sequence */
+	readl_relaxed(debugchain_base + DebugChainQTB_debug_Load);
+	shiftreglen = readl_relaxed(debugchain_base + DebugChainQTB_debug_ShiftRegLen);
+	return (((shiftreglen * 2)/64 + ((shiftreglen * 2)%64 == 0 ? 0 : 1) + 1));
+}
+
+u64 arm_smmu_debug_qtb_debugchain_dump(void __iomem *debugchain_base)
+{
+	u64 dump;
+
+	dump = readl_relaxed(debugchain_base + DebugChainQTB_debug_Dump_Low);
+	dump = (dump | (readl_relaxed(debugchain_base + DebugChainQTB_debug_Dump_High) << 31));
+
+	return dump;
+}
+
+void arm_smmu_debug_qtb_transtracker_set_config(void __iomem *transactiontracker_base, u64 sel)
+{
+	u64 val = 0;
+
+	if (sel) {
+		val |= TTQTB_GlbEn | TTQTB_IgnoreCtiTrigIn0 | TTQTB_LogAsstEn;
+		writel_relaxed(val, transactiontracker_base + TransTrackerQTB_MainCtl);
+		writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base + TransTrackerQTB_LogClr);
+	} else {
+		/*By default All transactions through QTB are captured*/
+		val |= TTQTB_GlbEn | TTQTB_IgnoreCtiTrigIn0 | TTQTB_LogAll;
+		writel_relaxed(val, transactiontracker_base + TransTrackerQTB_MainCtl);
+		writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base + TransTrackerQTB_LogClr);
+	}
+}
+
+u64 arm_smmu_debug_qtb_transtracker_get_config(void __iomem *transactiontracker_base)
+{
+	return readl_relaxed(transactiontracker_base + TransTrackerQTB_MainCtl);
+}
+
+void arm_smmu_debug_qtb_transtracker_setfilter(void __iomem *transactiontracker_base,
+		u64 sel, u64 filter, int qtb_type)
+{
+	u64 val = 0;
+
+	val = TTQTB_RESET_VAL | TTQTB_Filter_DevNeEn | TTQTB_Filter_DevEEn;
+
+	if (sel == 1) {
+		if (filter == 2)
+			val |= TTQTB_Filter_NormalEn;
+		else if (filter == 3)
+			val |= TTQTB_Filter_CachedEn;
+		else if (filter == 4)
+			val |= TTQTB_Filter_SharedEn;
+		else if (filter == 5)
+			val |= TTQTB_Filter_PostedEn;
+		writel_relaxed(val, transactiontracker_base + TransTrackerQTB_Filter_TrType);
+	} else if (sel == 2) {
+		if (qtb_type == 1)
+			writeq_relaxed(filter, transactiontracker_base +
+					TransTrackerQTB_gfx_Filter_Addr_Min);
+		else if (qtb_type == 2)
+			writeq_relaxed(filter, transactiontracker_base +
+					TransTrackerQTB_Filter_Addr_Min_Low);
+	} else if (sel == 3) {
+		if (qtb_type == 1)
+			writel_relaxed(filter, transactiontracker_base +
+					TransTrackerQTB_gfx_Filter_Addr_Max);
+		else if (qtb_type == 2)
+			writeq_relaxed(filter, transactiontracker_base +
+					TransTrackerQTB_Filter_Addr_Max_Low);
+	}
+	writel_relaxed(TTQTB_Filter_OpCode_Set_Val, transactiontracker_base +
+			TransTrackerQTB_Filter_OpCode);
+	writel_relaxed(TTQTB_Filter_Alloc_Set_Val, transactiontracker_base +
+			TransTrackerQTB_Filter_Alloc);
+	writel_relaxed(TTQTB_Filter_Length_Set_Val, transactiontracker_base +
+			TransTrackerQTB_Filter_Length);
+}
+
+void arm_smmu_debug_qtb_transtracker_getfilter(void __iomem *transactiontracker_base,
+		u64 filter[3], int qtb_type)
+{
+	int i = 0;
+
+	if (qtb_type == 1) {
+		filter[i] = readl_relaxed(transactiontracker_base + TransTrackerQTB_Filter_TrType);
+		filter[i+1] = readq_relaxed(transactiontracker_base +
+				TransTrackerQTB_gfx_Filter_Addr_Min);
+		filter[i+2] = readq_relaxed(transactiontracker_base +
+				TransTrackerQTB_gfx_Filter_Addr_Max);
+	} else if (qtb_type == 2) {
+		filter[i] = readl_relaxed(transactiontracker_base + TransTrackerQTB_Filter_TrType);
+		filter[i+1] = (readl_relaxed(transactiontracker_base +
+					TransTrackerQTB_Filter_Addr_Min_Low) |
+				readl_relaxed(transactiontracker_base +
+					TransTrackerQTB_Filter_Addr_Min_High));
+		filter[i+2] = (readl_relaxed(transactiontracker_base +
+					TransTrackerQTB_Filter_Addr_Max_Low) |
+				readl_relaxed(transactiontracker_base +
+					TransTrackerQTB_Filter_Addr_Max_High));
+	}
+}
+
+void arm_smmu_debug_qtb_transtrac_collect(void __iomem *transactiontracker_base,
+		u64 gfxttlogs[TTQTB_Capture_Points][2*TTQTB_Regs_Per_Capture_Points],
+		u64 ttlogs[TTQTB_Capture_Points][4*TTQTB_Regs_Per_Capture_Points],
+		u64 ttlogs_time[2*TTQTB_Capture_Points], int qtb_type)
+{
+	int i, j, x, y;
+
+	for (i = 0, x = 0; i < TTQTB_Capture_Points && x < 2*TTQTB_Capture_Points; ++i, x += 2) {
+		ttlogs_time[x] = readl_relaxed(transactiontracker_base +
+				TransTrackerQTB_Latency(i));
+		ttlogs_time[x+1] = readl_relaxed(transactiontracker_base +
+				TransTrackerQTB_TimeStamp(i));
+		if (qtb_type == 1) {
+			for (j = 0, y = 0; j < TTQTB_Regs_Per_Capture_Points &&
+					y < 2*TTQTB_Regs_Per_Capture_Points; ++j, y += 2) {
+				gfxttlogs[i][y] = readl_relaxed(transactiontracker_base +
+						TransTrackerQTB_LogIn_Low(i, j)) |
+					readl_relaxed(transactiontracker_base +
+							TransTrackerQTB_LogIn_High(i, j));
+				gfxttlogs[i][y+1] = readl_relaxed(transactiontracker_base +
+						TransTrackerQTB_LogOut_Low(i, j)) |
+					readl_relaxed(transactiontracker_base +
+							TransTrackerQTB_LogOut_High(i, j));
+			}
+		} else if (qtb_type == 2) {
+			for (j = 0, y = 0; j < TTQTB_Regs_Per_Capture_Points &&
+					y < 4*TTQTB_Regs_Per_Capture_Points; ++j, y += 4) {
+				ttlogs[i][y] = readl_relaxed(transactiontracker_base +
+						TransTrackerQTB_LogIn_Low(i, j));
+				ttlogs[i][y+1] = readl_relaxed(transactiontracker_base +
+						TransTrackerQTB_LogIn_High(i, j));
+				ttlogs[i][y+2] = readl_relaxed(transactiontracker_base +
+						TransTrackerQTB_LogOut_Low(i, j));
+				ttlogs[i][y+3] = readl_relaxed(transactiontracker_base +
+						TransTrackerQTB_LogOut_High(i, j));
+			}
+		}
+	}
+}
+
+void arm_smmu_debug_qtb_transtrac_reset(void __iomem *transactiontracker_base)
+{
+	/* reset the transaction tracker once called after each read */
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base + TransTrackerQTB_MainCtl);
+	writel_relaxed(TTQTB_SET, transactiontracker_base + TransTrackerQTB_LogClr);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_TrType);
+	writeq_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_gfx_Filter_Addr_Min);
+	writeq_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_gfx_Filter_Addr_Max);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_OpCode);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_ReqUser_Base);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_ReqUser_Mask);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_LogUser_Base);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_LogUser_Mask);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_Alloc);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_ExtId_Base);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_ExtId_Mask);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_Length);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_Urgency);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_CacheIndex_Base);
+	writel_relaxed(TTQTB_RESET_VAL, transactiontracker_base +
+			TransTrackerQTB_Filter_CacheIndex_Mask);
+
+}
+
+void arm_smmu_debug_dump_debugchain(struct device *dev, void __iomem *debugchain_base)
+{
+	long chain_length = 0, index = 0;
+	u64 val;
+
+	chain_length = arm_smmu_debug_qtb_debugchain_load(debugchain_base);
+	dev_info(dev, "Dumping Debug chain: Length : %d\n", chain_length);
+	/* First read is to dump away the 0xDEADBEEF value */
+	arm_smmu_debug_qtb_debugchain_dump(debugchain_base);
+	do {
+		val = arm_smmu_debug_qtb_debugchain_dump(debugchain_base);
+		dev_info(dev, "Debug chain: Index :%ld, val : 0x%lx\n", index++, val);
+	} while (chain_length--);
+}
+
+void arm_smmu_debug_dump_qtb_regs(struct device *dev, void __iomem *tbu_base)
+{
+	dev_info(dev, "QSMSTATUS: 0x%lx IDLESTATUS: 0x%lx\n",
+			readl_relaxed(tbu_base + Qtb500_QtbNsDbgQsmStatus),
+			readl_relaxed(tbu_base + Qtb500_QtbNsDbgIdleStatus));
+}
 
 u32 arm_smmu_debug_tbu_testbus_select(void __iomem *tbu_base,
-				bool write, u32 val)
+		bool write, u32 val)
 {
 	if (write) {
 		writel_relaxed(val, tbu_base + DEBUG_TESTBUS_SEL_TBU);
