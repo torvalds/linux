@@ -930,6 +930,34 @@ static void sdebug_err_add(struct scsi_device *sdev, struct sdebug_err_inject *n
 	spin_unlock(&devip->list_lock);
 }
 
+static int sdebug_err_remove(struct scsi_device *sdev, const char *buf, size_t count)
+{
+	struct sdebug_dev_info *devip = (struct sdebug_dev_info *)sdev->hostdata;
+	struct sdebug_err_inject *err;
+	int type;
+	unsigned char cmd;
+
+	if (sscanf(buf, "- %d %hhx", &type, &cmd) != 2) {
+		kfree(buf);
+		return -EINVAL;
+	}
+
+	spin_lock(&devip->list_lock);
+	list_for_each_entry_rcu(err, &devip->inject_err_list, list) {
+		if (err->type == type && err->cmd == cmd) {
+			list_del_rcu(&err->list);
+			call_rcu(&err->rcu, sdebug_err_free);
+			spin_unlock(&devip->list_lock);
+			kfree(buf);
+			return count;
+		}
+	}
+	spin_unlock(&devip->list_lock);
+
+	kfree(buf);
+	return -EINVAL;
+}
+
 static int sdebug_error_show(struct seq_file *m, void *p)
 {
 	struct scsi_device *sdev = (struct scsi_device *)m->private;
@@ -986,6 +1014,9 @@ static ssize_t sdebug_error_write(struct file *file, const char __user *ubuf,
 		kfree(buf);
 		return -EFAULT;
 	}
+
+	if (buf[0] == '-')
+		return sdebug_err_remove(sdev, buf, count);
 
 	if (sscanf(buf, "%d", &inject_type) != 1) {
 		kfree(buf);
