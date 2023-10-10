@@ -799,7 +799,7 @@ extern struct cpumask __cpu_partial_halt_mask;
 static bool check_for_higher_capacity(int cpu1, int cpu2)
 {
 	if (cpu_partial_halted(cpu1) && is_min_possible_cluster_cpu(cpu2))
-		return true;
+		return false;
 
 	if (is_min_possible_cluster_cpu(cpu1) && cpu_partial_halted(cpu2))
 		return false;
