@@ -4,6 +4,7 @@
  * Copyright (c) 2016, Intel Corporation.
  */
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -53,7 +54,7 @@ void pci_ptm_init(struct pci_dev *dev)
 	pci_add_ext_cap_save_buffer(dev, PCI_EXT_CAP_ID_PTM, sizeof(u32));
 
 	pci_read_config_dword(dev, ptm + PCI_PTM_CAP, &cap);
-	dev->ptm_granularity = (cap & PCI_PTM_GRANULARITY_MASK) >> 8;
+	dev->ptm_granularity = FIELD_GET(PCI_PTM_GRANULARITY_MASK, cap);
 
 	/*
 	 * Per the spec recommendation (PCIe r6.0, sec 7.9.15.3), select the
@@ -146,7 +147,7 @@ static int __pci_enable_ptm(struct pci_dev *dev)
 
 	ctrl |= PCI_PTM_CTRL_ENABLE;
 	ctrl &= ~PCI_PTM_GRANULARITY_MASK;
-	ctrl |= dev->ptm_granularity << 8;
+	ctrl |= FIELD_PREP(PCI_PTM_GRANULARITY_MASK, dev->ptm_granularity);
 	if (dev->ptm_root)
 		ctrl |= PCI_PTM_CTRL_ROOT;
 
