@@ -183,6 +183,10 @@ static void hisi_ptt_wait_dma_reset_done(struct hisi_ptt *hisi_ptt)
 static void hisi_ptt_trace_end(struct hisi_ptt *hisi_ptt)
 {
 	writel(0, hisi_ptt->iobase + HISI_PTT_TRACE_CTRL);
+
+	/* Mask the interrupt on the end */
+	writel(HISI_PTT_TRACE_INT_MASK_ALL, hisi_ptt->iobase + HISI_PTT_TRACE_INT_MASK);
+
 	hisi_ptt->trace_ctrl.started = false;
 }
 
