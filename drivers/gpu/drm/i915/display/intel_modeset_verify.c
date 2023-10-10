@@ -214,7 +214,7 @@ verify_crtc_state(struct intel_atomic_state *state,
 	}
 
 	if (!sw_crtc_state->hw.active)
-		return;
+		goto destroy_state;
 
 	intel_pipe_config_sanity_check(hw_crtc_state);
 
@@ -224,6 +224,9 @@ verify_crtc_state(struct intel_atomic_state *state,
 		intel_crtc_state_dump(hw_crtc_state, NULL, "hw state");
 		intel_crtc_state_dump(sw_crtc_state, NULL, "sw state");
 	}
+
+destroy_state:
+	intel_crtc_destroy_state(&crtc->base, &hw_crtc_state->uapi);
 }
 
 void intel_modeset_verify_crtc(struct intel_atomic_state *state,
