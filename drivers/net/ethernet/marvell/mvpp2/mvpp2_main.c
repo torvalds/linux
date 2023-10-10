@@ -5831,7 +5831,7 @@ static int mvpp2_multi_queue_vectors_init(struct mvpp2_port *port,
 			v->type = MVPP2_QUEUE_VECTOR_SHARED;
 
 			if (port->flags & MVPP2_F_DT_COMPAT)
-				strncpy(irqname, "rx-shared", sizeof(irqname));
+				strscpy(irqname, "rx-shared", sizeof(irqname));
 		}
 
 		if (port_node)
