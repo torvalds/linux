@@ -4487,13 +4487,6 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	connected = hidpp_root_get_protocol_version(hidpp) == 0;
 	atomic_set(&hidpp->connected, connected);
-	if (!(hidpp->quirks & HIDPP_QUIRK_UNIFYING)) {
-		if (!connected) {
-			ret = -ENODEV;
-			hid_err(hdev, "Device not connected");
-			goto hid_hw_init_fail;
-		}
-	}
 
 	schedule_work(&hidpp->work);
 	flush_work(&hidpp->work);
