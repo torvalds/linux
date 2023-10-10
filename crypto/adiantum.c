@@ -245,10 +245,9 @@ static void adiantum_hash_header(struct skcipher_request *req)
 
 /* Hash the left-hand part (the "bulk") of the message using NHPoly1305 */
 static int adiantum_hash_message(struct skcipher_request *req,
-				 struct scatterlist *sgl, le128 *digest)
+				 struct scatterlist *sgl, unsigned int nents,
+				 le128 *digest)
 {
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	const struct adiantum_tfm_ctx *tctx = crypto_skcipher_ctx(tfm);
 	struct adiantum_request_ctx *rctx = skcipher_request_ctx(req);
 	const unsigned int bulk_len = req->cryptlen - BLOCKCIPHER_BLOCK_SIZE;
 	struct shash_desc *hash_desc = &rctx->u.hash_desc;
@@ -256,14 +255,11 @@ static int adiantum_hash_message(struct skcipher_request *req,
 	unsigned int i, n;
 	int err;
 
-	hash_desc->tfm = tctx->hash;
-
 	err = crypto_shash_init(hash_desc);
 	if (err)
 		return err;
 
-	sg_miter_start(&miter, sgl, sg_nents(sgl),
-		       SG_MITER_FROM_SG | SG_MITER_ATOMIC);
+	sg_miter_start(&miter, sgl, nents, SG_MITER_FROM_SG | SG_MITER_ATOMIC);
 	for (i = 0; i < bulk_len; i += n) {
 		sg_miter_next(&miter);
 		n = min_t(unsigned int, miter.length, bulk_len - i);
@@ -285,6 +281,8 @@ static int adiantum_finish(struct skcipher_request *req)
 	const struct adiantum_tfm_ctx *tctx = crypto_skcipher_ctx(tfm);
 	struct adiantum_request_ctx *rctx = skcipher_request_ctx(req);
 	const unsigned int bulk_len = req->cryptlen - BLOCKCIPHER_BLOCK_SIZE;
+	struct scatterlist *dst = req->dst;
+	const unsigned int dst_nents = sg_nents(dst);
 	le128 digest;
 	int err;
 
@@ -298,13 +296,30 @@ static int adiantum_finish(struct skcipher_request *req)
 	 *	enc: C_R = C_M - H_{K_H}(T, C_L)
 	 *	dec: P_R = P_M - H_{K_H}(T, P_L)
 	 */
-	err = adiantum_hash_message(req, req->dst, &digest);
-	if (err)
-		return err;
-	le128_add(&digest, &digest, &rctx->header_hash);
-	le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
-	scatterwalk_map_and_copy(&rctx->rbuf.bignum, req->dst,
-				 bulk_len, BLOCKCIPHER_BLOCK_SIZE, 1);
+	rctx->u.hash_desc.tfm = tctx->hash;
+	le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &rctx->header_hash);
+	if (dst_nents == 1 && dst->offset + req->cryptlen <= PAGE_SIZE) {
+		/* Fast path for single-page destination */
+		void *virt = kmap_local_page(sg_page(dst)) + dst->offset;
+
+		err = crypto_shash_digest(&rctx->u.hash_desc, virt, bulk_len,
+					  (u8 *)&digest);
+		if (err) {
+			kunmap_local(virt);
+			return err;
+		}
+		le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
+		memcpy(virt + bulk_len, &rctx->rbuf.bignum, sizeof(le128));
+		kunmap_local(virt);
+	} else {
+		/* Slow path that works for any destination scatterlist */
+		err = adiantum_hash_message(req, dst, dst_nents, &digest);
+		if (err)
+			return err;
+		le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
+		scatterwalk_map_and_copy(&rctx->rbuf.bignum, dst,
+					 bulk_len, sizeof(le128), 1);
+	}
 	return 0;
 }
 
@@ -324,6 +339,8 @@ static int adiantum_crypt(struct skcipher_request *req, bool enc)
 	const struct adiantum_tfm_ctx *tctx = crypto_skcipher_ctx(tfm);
 	struct adiantum_request_ctx *rctx = skcipher_request_ctx(req);
 	const unsigned int bulk_len = req->cryptlen - BLOCKCIPHER_BLOCK_SIZE;
+	struct scatterlist *src = req->src;
+	const unsigned int src_nents = sg_nents(src);
 	unsigned int stream_len;
 	le128 digest;
 	int err;
@@ -339,12 +356,24 @@ static int adiantum_crypt(struct skcipher_request *req, bool enc)
 	 *	dec: C_M = C_R + H_{K_H}(T, C_L)
 	 */
 	adiantum_hash_header(req);
-	err = adiantum_hash_message(req, req->src, &digest);
+	rctx->u.hash_desc.tfm = tctx->hash;
+	if (src_nents == 1 && src->offset + req->cryptlen <= PAGE_SIZE) {
+		/* Fast path for single-page source */
+		void *virt = kmap_local_page(sg_page(src)) + src->offset;
+
+		err = crypto_shash_digest(&rctx->u.hash_desc, virt, bulk_len,
+					  (u8 *)&digest);
+		memcpy(&rctx->rbuf.bignum, virt + bulk_len, sizeof(le128));
+		kunmap_local(virt);
+	} else {
+		/* Slow path that works for any source scatterlist */
+		err = adiantum_hash_message(req, src, src_nents, &digest);
+		scatterwalk_map_and_copy(&rctx->rbuf.bignum, src,
+					 bulk_len, sizeof(le128), 0);
+	}
 	if (err)
 		return err;
-	le128_add(&digest, &digest, &rctx->header_hash);
-	scatterwalk_map_and_copy(&rctx->rbuf.bignum, req->src,
-				 bulk_len, BLOCKCIPHER_BLOCK_SIZE, 0);
+	le128_add(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &rctx->header_hash);
 	le128_add(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
 
 	/* If encrypting, encrypt P_M with the block cipher to get C_M */
