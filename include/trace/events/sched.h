@@ -664,6 +664,56 @@ DEFINE_EVENT(sched_numa_pair_template, sched_swap_numa,
 	TP_ARGS(src_tsk, src_cpu, dst_tsk, dst_cpu)
 );
 
+#ifdef CONFIG_NUMA_BALANCING
+#define NUMAB_SKIP_REASON					\
+	EM( NUMAB_SKIP_UNSUITABLE,		"unsuitable" )	\
+	EM( NUMAB_SKIP_SHARED_RO,		"shared_ro" )	\
+	EM( NUMAB_SKIP_INACCESSIBLE,		"inaccessible" )	\
+	EM( NUMAB_SKIP_SCAN_DELAY,		"scan_delay" )	\
+	EMe(NUMAB_SKIP_PID_INACTIVE,		"pid_inactive" )
+
+/* Redefine for export. */
+#undef EM
+#undef EMe
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+
+NUMAB_SKIP_REASON
+
+/* Redefine for symbolic printing. */
+#undef EM
+#undef EMe
+#define EM(a, b)	{ a, b },
+#define EMe(a, b)	{ a, b }
+
+TRACE_EVENT(sched_skip_vma_numa,
+
+	TP_PROTO(struct mm_struct *mm, struct vm_area_struct *vma,
+		 enum numa_vmaskip_reason reason),
+
+	TP_ARGS(mm, vma, reason),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, numa_scan_offset)
+		__field(unsigned long, vm_start)
+		__field(unsigned long, vm_end)
+		__field(enum numa_vmaskip_reason, reason)
+	),
+
+	TP_fast_assign(
+		__entry->numa_scan_offset	= mm->numa_scan_offset;
+		__entry->vm_start		= vma->vm_start;
+		__entry->vm_end			= vma->vm_end;
+		__entry->reason			= reason;
+	),
+
+	TP_printk("numa_scan_offset=%lX vm_start=%lX vm_end=%lX reason=%s",
+		  __entry->numa_scan_offset,
+		  __entry->vm_start,
+		  __entry->vm_end,
+		  __print_symbolic(__entry->reason, NUMAB_SKIP_REASON))
+);
+#endif /* CONFIG_NUMA_BALANCING */
 
 /*
  * Tracepoint for waking a polling cpu without an IPI.
