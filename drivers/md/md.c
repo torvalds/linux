@@ -9418,7 +9418,7 @@ void md_check_recovery(struct mddev *mddev)
 		wake_up(&mddev->sb_wait);
 	}
 
-	if (is_md_suspended(mddev))
+	if (READ_ONCE(mddev->suspended))
 		return;
 
 	if (mddev->bitmap)
