@@ -2260,8 +2260,12 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	tjit->run_ctx_off = alloc_stack(tjit,
 					sizeof(struct bpf_tramp_run_ctx));
 	tjit->tccnt_off = alloc_stack(tjit, sizeof(u64));
-	/* The caller has already reserved STACK_FRAME_OVERHEAD bytes. */
-	tjit->stack_size -= STACK_FRAME_OVERHEAD;
+	/*
+	 * In accordance with the s390x ABI, the caller has allocated
+	 * STACK_FRAME_OVERHEAD bytes for us. 8 of them contain the caller's
+	 * backchain, and the rest we can use.
+	 */
+	tjit->stack_size -= STACK_FRAME_OVERHEAD - sizeof(u64);
 	tjit->orig_stack_args_off = tjit->stack_size + STACK_FRAME_OVERHEAD;
 
 	/* aghi %r15,-stack_size */
