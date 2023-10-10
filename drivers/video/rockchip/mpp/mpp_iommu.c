@@ -463,6 +463,12 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 	else
 		mpp_task_dump_hw_reg(mpp);
 
+	/*
+	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
+	 * Until the pagefault task finish by hw timeout.
+	 */
+	rockchip_iommu_mask_irq(mpp->dev);
+
 	return 0;
 }
 
