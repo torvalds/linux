@@ -559,10 +559,10 @@ struct vma_numab_state {
 	unsigned long next_scan;
 
 	/*
-	 * Time in jiffies when access_pids[] is reset to
+	 * Time in jiffies when pids_active[] is reset to
 	 * detect phase change behaviour:
 	 */
-	unsigned long next_pid_reset;
+	unsigned long pids_active_reset;
 
 	/*
 	 * Approximate tracking of PIDs that trapped a NUMA hinting
@@ -574,7 +574,7 @@ struct vma_numab_state {
 	 * Window moves after next_pid_reset has expired approximately
 	 * every VMA_PID_RESET_PERIOD jiffies:
 	 */
-	unsigned long access_pids[2];
+	unsigned long pids_active[2];
 };
 
 /*
