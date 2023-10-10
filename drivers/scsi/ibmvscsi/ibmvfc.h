@@ -892,15 +892,15 @@ struct ibmvfc_host {
 	int init_retries;
 	int discovery_threads;
 	int abort_threads;
-	int client_migrated:1;
-	int reinit:1;
-	int delay_init:1;
-	int logged_in:1;
-	int mq_enabled:1;
-	int using_channels:1;
-	int do_enquiry:1;
-	int aborting_passthru:1;
-	int scan_complete:1;
+	unsigned int client_migrated:1;
+	unsigned int reinit:1;
+	unsigned int delay_init:1;
+	unsigned int logged_in:1;
+	unsigned int mq_enabled:1;
+	unsigned int using_channels:1;
+	unsigned int do_enquiry:1;
+	unsigned int aborting_passthru:1;
+	unsigned int scan_complete:1;
 	int scan_timeout;
 	int events_to_log;
 #define IBMVFC_AE_LINKUP	0x0001
