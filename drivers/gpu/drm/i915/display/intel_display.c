@@ -3999,7 +3999,7 @@ intel_encoder_current_mode(struct intel_encoder *encoder)
 	}
 
 	if (!intel_crtc_get_pipe_config(crtc_state)) {
-		kfree(crtc_state);
+		intel_crtc_destroy_state(&crtc->base, &crtc_state->uapi);
 		kfree(mode);
 		return NULL;
 	}
@@ -4008,7 +4008,7 @@ intel_encoder_current_mode(struct intel_encoder *encoder)
 
 	intel_mode_from_crtc_timings(mode, &crtc_state->hw.adjusted_mode);
 
-	kfree(crtc_state);
+	intel_crtc_destroy_state(&crtc->base, &crtc_state->uapi);
 
 	return mode;
 }
