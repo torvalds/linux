@@ -191,6 +191,8 @@ AT24_CHIP_DATA(at24_data_24c16, 16384 / 8, 0);
 AT24_CHIP_DATA(at24_data_24cs16, 16,
 	AT24_FLAG_SERIAL | AT24_FLAG_READONLY);
 AT24_CHIP_DATA(at24_data_24c32, 32768 / 8, AT24_FLAG_ADDR16);
+/* M24C32-D Additional Write lockable page (M24C32-D order codes) */
+AT24_CHIP_DATA(at24_data_24c32d_wlp, 32, AT24_FLAG_ADDR16);
 AT24_CHIP_DATA(at24_data_24cs32, 16,
 	AT24_FLAG_ADDR16 | AT24_FLAG_SERIAL | AT24_FLAG_READONLY);
 AT24_CHIP_DATA(at24_data_24c64, 65536 / 8, AT24_FLAG_ADDR16);
@@ -222,6 +224,7 @@ static const struct i2c_device_id at24_ids[] = {
 	{ "24c16",	(kernel_ulong_t)&at24_data_24c16 },
 	{ "24cs16",	(kernel_ulong_t)&at24_data_24cs16 },
 	{ "24c32",	(kernel_ulong_t)&at24_data_24c32 },
+	{ "24c32d-wl",	(kernel_ulong_t)&at24_data_24c32d_wlp },
 	{ "24cs32",	(kernel_ulong_t)&at24_data_24cs32 },
 	{ "24c64",	(kernel_ulong_t)&at24_data_24c64 },
 	{ "24cs64",	(kernel_ulong_t)&at24_data_24cs64 },
@@ -252,6 +255,7 @@ static const struct of_device_id at24_of_match[] = {
 	{ .compatible = "atmel,24c16",		.data = &at24_data_24c16 },
 	{ .compatible = "atmel,24cs16",		.data = &at24_data_24cs16 },
 	{ .compatible = "atmel,24c32",		.data = &at24_data_24c32 },
+	{ .compatible = "atmel,24c32d-wl",	.data = &at24_data_24c32d_wlp },
 	{ .compatible = "atmel,24cs32",		.data = &at24_data_24cs32 },
 	{ .compatible = "atmel,24c64",		.data = &at24_data_24c64 },
 	{ .compatible = "atmel,24cs64",		.data = &at24_data_24cs64 },
