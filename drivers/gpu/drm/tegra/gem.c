@@ -178,6 +178,7 @@ static void *tegra_bo_mmap(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 	struct iosys_map map = { 0 };
+	void *vaddr;
 	int ret;
 
 	if (obj->vaddr)
@@ -185,10 +186,18 @@ static void *tegra_bo_mmap(struct host1x_bo *bo)
 
 	if (obj->gem.import_attach) {
 		ret = dma_buf_vmap_unlocked(obj->gem.import_attach->dmabuf, &map);
-		return ret ? NULL : map.vaddr;
+		if (ret < 0)
+			return ERR_PTR(ret);
+
+		return map.vaddr;
 	}
 
-	return vmap(obj->pages, obj->num_pages, VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+	vaddr = vmap(obj->pages, obj->num_pages, VM_MAP,
+		     pgprot_writecombine(PAGE_KERNEL));
+	if (!vaddr)
+		return ERR_PTR(-ENOMEM);
+
+	return vaddr;
 }
 
 static void tegra_bo_munmap(struct host1x_bo *bo, void *addr)
