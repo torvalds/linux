@@ -1776,12 +1776,6 @@ static int ocelot_gpio_get_direction(struct gpio_chip *chip,
 	return GPIO_LINE_DIRECTION_IN;
 }
 
-static int ocelot_gpio_direction_input(struct gpio_chip *chip,
-				       unsigned int offset)
-{
-	return pinctrl_gpio_direction_input(chip, offset);
-}
-
 static int ocelot_gpio_direction_output(struct gpio_chip *chip,
 					unsigned int offset, int value)
 {
@@ -1804,7 +1798,7 @@ static const struct gpio_chip ocelot_gpiolib_chip = {
 	.set = ocelot_gpio_set,
 	.get = ocelot_gpio_get,
 	.get_direction = ocelot_gpio_get_direction,
-	.direction_input = ocelot_gpio_direction_input,
+	.direction_input = pinctrl_gpio_direction_input,
 	.direction_output = ocelot_gpio_direction_output,
 	.owner = THIS_MODULE,
 };
