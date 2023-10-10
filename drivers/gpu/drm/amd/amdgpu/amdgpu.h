@@ -109,6 +109,7 @@
 #include "amdgpu_mca.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_xcp.h"
+#include "amdgpu_seq64.h"
 
 #define MAX_GPU_INSTANCE		64
 
@@ -468,6 +469,7 @@ struct amdgpu_fpriv {
 	struct amdgpu_vm	vm;
 	struct amdgpu_bo_va	*prt_va;
 	struct amdgpu_bo_va	*csa_va;
+	struct amdgpu_bo_va	*seq64_va;
 	struct mutex		bo_list_lock;
 	struct idr		bo_list_handles;
 	struct amdgpu_ctx_mgr	ctx_mgr;
@@ -985,6 +987,9 @@ struct amdgpu_device {
 
 	/* GDS */
 	struct amdgpu_gds		gds;
+
+	/* for userq and VM fences */
+	struct amdgpu_seq64		seq64;
 
 	/* KFD */
 	struct amdgpu_kfd_dev		kfd;
