@@ -82,7 +82,7 @@ properties:
     description:
       Current at which the headset micbias sense clamp will engage, 0 to
       disable.
-    enum: [ 0, 14, 23, 41, 50, 60, 68, 86, 95 ]
+    enum: [ 0, 14, 24, 43, 52, 61, 71, 90, 99 ]
     default: 0
 
   cirrus,bias-ramp-ms:
