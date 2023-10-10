@@ -445,68 +445,6 @@ static bool ovl_workdir_ok(struct dentry *workdir, struct dentry *upperdir)
 	return ok;
 }
 
-static int ovl_own_xattr_get(const struct xattr_handler *handler,
-			     struct dentry *dentry, struct inode *inode,
-			     const char *name, void *buffer, size_t size)
-{
-	return -EOPNOTSUPP;
-}
-
-static int ovl_own_xattr_set(const struct xattr_handler *handler,
-			     struct mnt_idmap *idmap,
-			     struct dentry *dentry, struct inode *inode,
-			     const char *name, const void *value,
-			     size_t size, int flags)
-{
-	return -EOPNOTSUPP;
-}
-
-static int ovl_other_xattr_get(const struct xattr_handler *handler,
-			       struct dentry *dentry, struct inode *inode,
-			       const char *name, void *buffer, size_t size)
-{
-	return ovl_xattr_get(dentry, inode, name, buffer, size);
-}
-
-static int ovl_other_xattr_set(const struct xattr_handler *handler,
-			       struct mnt_idmap *idmap,
-			       struct dentry *dentry, struct inode *inode,
-			       const char *name, const void *value,
-			       size_t size, int flags)
-{
-	return ovl_xattr_set(dentry, inode, name, value, size, flags);
-}
-
-static const struct xattr_handler ovl_own_trusted_xattr_handler = {
-	.prefix	= OVL_XATTR_TRUSTED_PREFIX,
-	.get = ovl_own_xattr_get,
-	.set = ovl_own_xattr_set,
-};
-
-static const struct xattr_handler ovl_own_user_xattr_handler = {
-	.prefix	= OVL_XATTR_USER_PREFIX,
-	.get = ovl_own_xattr_get,
-	.set = ovl_own_xattr_set,
-};
-
-static const struct xattr_handler ovl_other_xattr_handler = {
-	.prefix	= "", /* catch all */
-	.get = ovl_other_xattr_get,
-	.set = ovl_other_xattr_set,
-};
-
-static const struct xattr_handler * const ovl_trusted_xattr_handlers[] = {
-	&ovl_own_trusted_xattr_handler,
-	&ovl_other_xattr_handler,
-	NULL
-};
-
-static const struct xattr_handler * const ovl_user_xattr_handlers[] = {
-	&ovl_own_user_xattr_handler,
-	&ovl_other_xattr_handler,
-	NULL
-};
-
 static int ovl_setup_trap(struct super_block *sb, struct dentry *dir,
 			  struct inode **ptrap, const char *name)
 {
@@ -1501,8 +1439,7 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	cap_lower(cred->cap_effective, CAP_SYS_RESOURCE);
 
 	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
-	sb->s_xattr = ofs->config.userxattr ? ovl_user_xattr_handlers :
-		ovl_trusted_xattr_handlers;
+	sb->s_xattr = ovl_xattr_handlers(ofs);
 	sb->s_fs_info = ofs;
 #ifdef CONFIG_FS_POSIX_ACL
 	sb->s_flags |= SB_POSIXACL;

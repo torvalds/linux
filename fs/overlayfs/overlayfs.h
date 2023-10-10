@@ -699,17 +699,8 @@ int ovl_set_nlink_lower(struct dentry *dentry);
 unsigned int ovl_get_nlink(struct ovl_fs *ofs, struct dentry *lowerdentry,
 			   struct dentry *upperdentry,
 			   unsigned int fallback);
-int ovl_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
-		struct iattr *attr);
-int ovl_getattr(struct mnt_idmap *idmap, const struct path *path,
-		struct kstat *stat, u32 request_mask, unsigned int flags);
 int ovl_permission(struct mnt_idmap *idmap, struct inode *inode,
 		   int mask);
-int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
-		  const void *value, size_t size, int flags);
-int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
-		  void *value, size_t size);
-ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size);
 
 #ifdef CONFIG_FS_POSIX_ACL
 struct posix_acl *do_ovl_get_acl(struct mnt_idmap *idmap,
@@ -846,3 +837,12 @@ static inline bool ovl_force_readonly(struct ovl_fs *ofs)
 {
 	return (!ovl_upper_mnt(ofs) || !ofs->workdir);
 }
+
+/* xattr.c */
+
+const struct xattr_handler * const *ovl_xattr_handlers(struct ovl_fs *ofs);
+int ovl_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+		struct iattr *attr);
+int ovl_getattr(struct mnt_idmap *idmap, const struct path *path,
+		struct kstat *stat, u32 request_mask, unsigned int flags);
+ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size);
