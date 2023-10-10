@@ -296,7 +296,6 @@ smu_v13_0_0_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
 {
 	struct amdgpu_device *adev = smu->adev;
-	u32 smu_version;
 
 	if (num > 2)
 		return -EINVAL;
@@ -316,8 +315,7 @@ smu_v13_0_0_get_allowed_feature_mask(struct smu_context *smu,
 		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
 
 	/* PMFW 78.58 contains a critical fix for gfxoff feature */
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if ((smu_version < 0x004e3a00) ||
+	if ((smu->smc_fw_version < 0x004e3a00) ||
 	     !(adev->pm.pp_feature & PP_GFXOFF_MASK))
 		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_GFXOFF_BIT);
 
@@ -2607,15 +2605,13 @@ static int smu_v13_0_0_baco_exit(struct smu_context *smu)
 static bool smu_v13_0_0_is_mode1_reset_supported(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	u32 smu_version;
 
 	/* SRIOV does not support SMU mode1 reset */
 	if (amdgpu_sriov_vf(adev))
 		return false;
 
 	/* PMFW support is available since 78.41 */
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (smu_version < 0x004e2900)
+	if (smu->smc_fw_version < 0x004e2900)
 		return false;
 
 	return true;
@@ -2805,13 +2801,10 @@ static void smu_v13_0_0_set_mode1_reset_param(struct smu_context *smu,
 						uint32_t supported_version,
 						uint32_t *param)
 {
-	uint32_t smu_version;
 	struct amdgpu_device *adev = smu->adev;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-
-	if ((smu_version >= supported_version) &&
+	if ((smu->smc_fw_version >= supported_version) &&
 			ras && atomic_read(&ras->in_recovery))
 		/* Set RAS fatal error reset flag */
 		*param = 1 << 16;
@@ -2927,15 +2920,10 @@ static int smu_v13_0_0_send_bad_mem_channel_flag(struct smu_context *smu,
 static int smu_v13_0_0_check_ecc_table_support(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t if_version = 0xff, smu_version = 0xff;
 	int ret = 0;
 
-	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
-	if (ret)
-		return -EOPNOTSUPP;
-
 	if ((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 10)) &&
-		(smu_version >= SUPPORT_ECCTABLE_SMU_13_0_10_VERSION))
+		(smu->smc_fw_version >= SUPPORT_ECCTABLE_SMU_13_0_10_VERSION))
 		return ret;
 	else
 		return -EOPNOTSUPP;

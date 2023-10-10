@@ -907,18 +907,11 @@ static int navi1x_get_smu_metrics_data(struct smu_context *smu,
 				       uint32_t *value)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t smu_version;
 	int ret = 0;
-
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret) {
-		dev_err(adev->dev, "Failed to get smu version!\n");
-		return ret;
-	}
 
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(11, 0, 9):
-		if (smu_version > 0x00341C00)
+		if (smu->smc_fw_version > 0x00341C00)
 			ret = navi12_get_smu_metrics_data(smu, member, value);
 		else
 			ret = navi12_get_legacy_smu_metrics_data(smu, member, value);
@@ -928,10 +921,10 @@ static int navi1x_get_smu_metrics_data(struct smu_context *smu,
 	default:
 		if (((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
 		      IP_VERSION(11, 0, 5)) &&
-		     smu_version > 0x00351F00) ||
+		     smu->smc_fw_version > 0x00351F00) ||
 		    ((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
 		      IP_VERSION(11, 0, 0)) &&
-		     smu_version > 0x002A3B00))
+		     smu->smc_fw_version > 0x002A3B00))
 			ret = navi10_get_smu_metrics_data(smu, member, value);
 		else
 			ret = navi10_get_legacy_smu_metrics_data(smu, member, value);
@@ -2847,18 +2840,11 @@ static int navi10_run_umc_cdr_workaround(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	uint8_t umc_fw_greater_than_v136 = false;
 	uint8_t umc_fw_disable_cdr = false;
-	uint32_t pmfw_version;
 	uint32_t param;
 	int ret = 0;
 
 	if (!navi10_need_umc_cdr_workaround(smu))
 		return 0;
-
-	ret = smu_cmn_get_smc_version(smu, NULL, &pmfw_version);
-	if (ret) {
-		dev_err(adev->dev, "Failed to get smu version!\n");
-		return ret;
-	}
 
 	/*
 	 * The messages below are only supported by Navi10 42.53.0 and later
@@ -2868,9 +2854,9 @@ static int navi10_run_umc_cdr_workaround(struct smu_context *smu)
 	 * - PPSMC_MSG_GetUMCFWWA
 	 */
 	if (((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 0)) &&
-	     (pmfw_version >= 0x2a3500)) ||
+	     (smu->smc_fw_version >= 0x2a3500)) ||
 	    ((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 5)) &&
-	     (pmfw_version >= 0x351D00))) {
+	     (smu->smc_fw_version >= 0x351D00))) {
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 						      SMU_MSG_GET_UMC_FW_WA,
 						      0,
@@ -3355,18 +3341,11 @@ static ssize_t navi1x_get_gpu_metrics(struct smu_context *smu,
 				      void **table)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t smu_version;
 	int ret = 0;
-
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret) {
-		dev_err(adev->dev, "Failed to get smu version!\n");
-		return ret;
-	}
 
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(11, 0, 9):
-		if (smu_version > 0x00341C00)
+		if (smu->smc_fw_version > 0x00341C00)
 			ret = navi12_get_gpu_metrics(smu, table);
 		else
 			ret = navi12_get_legacy_gpu_metrics(smu, table);
@@ -3376,10 +3355,10 @@ static ssize_t navi1x_get_gpu_metrics(struct smu_context *smu,
 	default:
 		if (((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
 		      IP_VERSION(11, 0, 5)) &&
-		     smu_version > 0x00351F00) ||
+		     smu->smc_fw_version > 0x00351F00) ||
 		    ((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
 		      IP_VERSION(11, 0, 0)) &&
-		     smu_version > 0x002A3B00))
+		     smu->smc_fw_version > 0x002A3B00))
 			ret = navi10_get_gpu_metrics(smu, table);
 		else
 			ret = navi10_get_legacy_gpu_metrics(smu, table);

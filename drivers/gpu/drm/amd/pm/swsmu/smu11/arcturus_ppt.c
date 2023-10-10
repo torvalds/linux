@@ -963,17 +963,10 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	struct smu_11_0_dpm_table *single_dpm_table = NULL;
 	uint32_t soft_min_level, soft_max_level;
-	uint32_t smu_version;
 	int ret = 0;
 
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret) {
-		dev_err(smu->adev->dev, "Failed to get smu version!\n");
-		return ret;
-	}
-
-	if ((smu_version >= 0x361200) &&
-	    (smu_version <= 0x361a00)) {
+	if ((smu->smc_fw_version >= 0x361200) &&
+	    (smu->smc_fw_version <= 0x361a00)) {
 		dev_err(smu->adev->dev, "Forcing clock level is not supported with "
 		       "54.18 - 54.26(included) SMU firmwares\n");
 		return -EOPNOTSUPP;
@@ -1344,16 +1337,11 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 	uint32_t i, size = 0;
 	int16_t workload_type = 0;
 	int result = 0;
-	uint32_t smu_version;
 
 	if (!buf)
 		return -EINVAL;
 
-	result = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (result)
-		return result;
-
-	if (smu_version >= 0x360d00)
+	if (smu->smc_fw_version >= 0x360d00)
 		size += sysfs_emit_at(buf, size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
 			title[0], title[1], title[2], title[3], title[4], title[5],
 			title[6], title[7], title[8], title[9], title[10]);
@@ -1372,7 +1360,7 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 		if (workload_type < 0)
 			continue;
 
-		if (smu_version >= 0x360d00) {
+		if (smu->smc_fw_version >= 0x360d00) {
 			result = smu_cmn_update_table(smu,
 						  SMU_TABLE_ACTIVITY_MONITOR_COEFF,
 						  workload_type,
@@ -1387,7 +1375,7 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 		size += sysfs_emit_at(buf, size, "%2d %14s%s\n",
 			i, amdgpu_pp_profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
 
-		if (smu_version >= 0x360d00) {
+		if (smu->smc_fw_version >= 0x360d00) {
 			size += sysfs_emit_at(buf, size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 				" ",
 				0,
@@ -1429,19 +1417,15 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 	int workload_type = 0;
 	uint32_t profile_mode = input[size];
 	int ret = 0;
-	uint32_t smu_version;
 
 	if (profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
 		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", profile_mode);
 		return -EINVAL;
 	}
 
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret)
-		return ret;
 
 	if ((profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) &&
-	     (smu_version >= 0x360d00)) {
+	     (smu->smc_fw_version >= 0x360d00)) {
 		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF,
 				       WORKLOAD_PPLIB_CUSTOM_BIT,
@@ -1517,15 +1501,6 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 static int arcturus_set_performance_level(struct smu_context *smu,
 					  enum amd_dpm_forced_level level)
 {
-	uint32_t smu_version;
-	int ret;
-
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret) {
-		dev_err(smu->adev->dev, "Failed to get smu version!\n");
-		return ret;
-	}
-
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
 	case AMD_DPM_FORCED_LEVEL_LOW:
@@ -1533,8 +1508,8 @@ static int arcturus_set_performance_level(struct smu_context *smu,
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
-		if ((smu_version >= 0x361200) &&
-		    (smu_version <= 0x361a00)) {
+		if ((smu->smc_fw_version >= 0x361200) &&
+		    (smu->smc_fw_version <= 0x361a00)) {
 			dev_err(smu->adev->dev, "Forcing clock level is not supported with "
 			       "54.18 - 54.26(included) SMU firmwares\n");
 			return -EOPNOTSUPP;
@@ -2172,16 +2147,11 @@ static void arcturus_i2c_control_fini(struct smu_context *smu)
 static void arcturus_get_unique_id(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t top32 = 0, bottom32 = 0, smu_version;
+	uint32_t top32 = 0, bottom32 = 0;
 	uint64_t id;
 
-	if (smu_cmn_get_smc_version(smu, NULL, &smu_version)) {
-		dev_warn(adev->dev, "Failed to get smu version, cannot get unique_id or serial_number\n");
-		return;
-	}
-
 	/* PPSMC_MSG_ReadSerial* is supported by 54.23.0 and onwards */
-	if (smu_version < 0x361700) {
+	if (smu->smc_fw_version < 0x361700) {
 		dev_warn(adev->dev, "ReadSerial is only supported by PMFW 54.23.0 and onwards\n");
 		return;
 	}
@@ -2198,8 +2168,6 @@ static int arcturus_set_df_cstate(struct smu_context *smu,
 				  enum pp_df_cstate state)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t smu_version;
-	int ret;
 
 	/*
 	 * Arcturus does not need the cstate disablement
@@ -2208,14 +2176,8 @@ static int arcturus_set_df_cstate(struct smu_context *smu,
 	if (amdgpu_in_reset(adev) || adev->in_suspend)
 		return 0;
 
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret) {
-		dev_err(smu->adev->dev, "Failed to get smu version!\n");
-		return ret;
-	}
-
 	/* PPSMC_MSG_DFCstateControl is supported by 54.15.0 and onwards */
-	if (smu_version < 0x360F00) {
+	if (smu->smc_fw_version < 0x360F00) {
 		dev_err(smu->adev->dev, "DFCstateControl is only supported by PMFW 54.15.0 and onwards\n");
 		return -EINVAL;
 	}
@@ -2226,17 +2188,8 @@ static int arcturus_set_df_cstate(struct smu_context *smu,
 static int arcturus_select_xgmi_plpd_policy(struct smu_context *smu,
 					    enum pp_xgmi_plpd_mode mode)
 {
-	uint32_t smu_version;
-	int ret;
-
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret) {
-		dev_err(smu->adev->dev, "Failed to get smu version!\n");
-		return ret;
-	}
-
 	/* PPSMC_MSG_GmiPwrDnControl is supported by 54.23.0 and onwards */
-	if (smu_version < 0x00361700) {
+	if (smu->smc_fw_version < 0x00361700) {
 		dev_err(smu->adev->dev, "XGMI power down control is only supported by PMFW 54.23.0 and onwards\n");
 		return -EINVAL;
 	}

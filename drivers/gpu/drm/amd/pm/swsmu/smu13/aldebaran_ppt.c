@@ -467,18 +467,12 @@ static bool aldebaran_is_primary(struct smu_context *smu)
 
 static int aldebaran_run_board_btc(struct smu_context *smu)
 {
-	u32 smu_version;
 	int ret;
 
 	if (!aldebaran_is_primary(smu))
 		return 0;
 
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret) {
-		dev_err(smu->adev->dev, "Failed to get smu version!\n");
-		return ret;
-	}
-	if (smu_version <= 0x00441d00)
+	if (smu->smc_fw_version <= 0x00441d00)
 		return 0;
 
 	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_BoardPowerCalibration, NULL);
@@ -1769,24 +1763,15 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 static int aldebaran_check_ecc_table_support(struct smu_context *smu,
 		int *ecctable_version)
 {
-	uint32_t if_version = 0xff, smu_version = 0xff;
-	int ret = 0;
-
-	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
-	if (ret) {
-		/* return not support if failed get smu_version */
-		ret = -EOPNOTSUPP;
-	}
-
-	if (smu_version < SUPPORT_ECCTABLE_SMU_VERSION)
-		ret = -EOPNOTSUPP;
-	else if (smu_version >= SUPPORT_ECCTABLE_SMU_VERSION &&
-			smu_version < SUPPORT_ECCTABLE_V2_SMU_VERSION)
+	if (smu->smc_fw_version < SUPPORT_ECCTABLE_SMU_VERSION)
+		return -EOPNOTSUPP;
+	else if (smu->smc_fw_version >= SUPPORT_ECCTABLE_SMU_VERSION &&
+			smu->smc_fw_version < SUPPORT_ECCTABLE_V2_SMU_VERSION)
 		*ecctable_version = 1;
 	else
 		*ecctable_version = 2;
 
-	return ret;
+	return 0;
 }
 
 static ssize_t aldebaran_get_ecc_info(struct smu_context *smu,
@@ -1849,7 +1834,7 @@ static ssize_t aldebaran_get_ecc_info(struct smu_context *smu,
 
 static int aldebaran_mode1_reset(struct smu_context *smu)
 {
-	u32 smu_version, fatal_err, param;
+	u32 fatal_err, param;
 	int ret = 0;
 	struct amdgpu_device *adev = smu->adev;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
@@ -1860,13 +1845,12 @@ static int aldebaran_mode1_reset(struct smu_context *smu)
 	/*
 	* PM FW support SMU_MSG_GfxDeviceDriverReset from 68.07
 	*/
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (smu_version < 0x00440700) {
+	if (smu->smc_fw_version < 0x00440700) {
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
 	} else {
 		/* fatal error triggered by ras, PMFW supports the flag
 		   from 68.44.0 */
-		if ((smu_version >= 0x00442c00) && ras &&
+		if ((smu->smc_fw_version >= 0x00442c00) && ras &&
 		    atomic_read(&ras->in_recovery))
 			fatal_err = 1;
 
@@ -1883,18 +1867,15 @@ static int aldebaran_mode1_reset(struct smu_context *smu)
 
 static int aldebaran_mode2_reset(struct smu_context *smu)
 {
-	u32 smu_version;
 	int ret = 0, index;
 	struct amdgpu_device *adev = smu->adev;
 	int timeout = 10;
-
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
 
 	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
 						SMU_MSG_GfxDeviceDriverReset);
 
 	mutex_lock(&smu->message_lock);
-	if (smu_version >= 0x00441400) {
+	if (smu->smc_fw_version >= 0x00441400) {
 		ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, SMU_RESET_MODE_2);
 		/* This is similar to FLR, wait till max FLR timeout */
 		msleep(100);
@@ -1921,7 +1902,7 @@ static int aldebaran_mode2_reset(struct smu_context *smu)
 
 	} else {
 		dev_err(adev->dev, "smu fw 0x%x does not support MSG_GfxDeviceDriverReset MSG\n",
-				smu_version);
+				smu->smc_fw_version);
 	}
 
 	if (ret == 1)
@@ -1944,13 +1925,11 @@ static bool aldebaran_is_mode1_reset_supported(struct smu_context *smu)
 {
 #if 0
 	struct amdgpu_device *adev = smu->adev;
-	u32 smu_version;
 	uint32_t val;
 	/**
 	 * PM FW version support mode1 reset from 68.07
 	 */
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if ((smu_version < 0x00440700))
+	if ((smu->smc_fw_version < 0x00440700))
 		return false;
 	/**
 	 * mode1 reset relies on PSP, so we should check if
@@ -1995,19 +1974,10 @@ static int aldebaran_smu_send_hbm_bad_page_num(struct smu_context *smu,
 
 static int aldebaran_check_bad_channel_info_support(struct smu_context *smu)
 {
-	uint32_t if_version = 0xff, smu_version = 0xff;
-	int ret = 0;
+	if (smu->smc_fw_version < SUPPORT_BAD_CHANNEL_INFO_MSG_VERSION)
+		return -EOPNOTSUPP;
 
-	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
-	if (ret) {
-		/* return not support if failed get smu_version */
-		ret = -EOPNOTSUPP;
-	}
-
-	if (smu_version < SUPPORT_BAD_CHANNEL_INFO_MSG_VERSION)
-		ret = -EOPNOTSUPP;
-
-	return ret;
+	return 0;
 }
 
 static int aldebaran_send_hbm_bad_channel_flag(struct smu_context *smu,

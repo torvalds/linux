@@ -719,7 +719,6 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 	struct smu_table_context *smu_table = &smu->smu_table;
 	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t smu_version;
 	int ret = 0;
 	int xcc_id;
 
@@ -731,8 +730,7 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 	switch (member) {
 	case METRICS_CURR_GFXCLK:
 	case METRICS_AVERAGE_GFXCLK:
-		smu_cmn_get_smc_version(smu, NULL, &smu_version);
-		if (smu_version >= 0x552F00) {
+		if (smu->smc_fw_version >= 0x552F00) {
 			xcc_id = GET_INST(GC, 0);
 			*value = SMUQ10_ROUND(metrics->GfxclkFrequency[xcc_id]);
 		} else {
@@ -1392,10 +1390,7 @@ static int smu_v13_0_6_register_irq_handler(struct smu_context *smu)
 
 static int smu_v13_0_6_notify_unload(struct smu_context *smu)
 {
-	uint32_t smu_version;
-
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (smu_version <= 0x553500)
+	if (smu->smc_fw_version <= 0x553500)
 		return 0;
 
 	dev_dbg(smu->adev->dev, "Notify PMFW about driver unload");
@@ -1407,11 +1402,8 @@ static int smu_v13_0_6_notify_unload(struct smu_context *smu)
 
 static int smu_v13_0_6_mca_set_debug_mode(struct smu_context *smu, bool enable)
 {
-	uint32_t smu_version;
-
 	/* NOTE: this ClearMcaOnRead message is only supported for smu version 85.72.0 or higher */
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (smu_version < 0x554800)
+	if (smu->smc_fw_version < 0x554800)
 		return 0;
 
 	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ClearMcaOnRead,
@@ -1670,13 +1662,11 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 static int smu_v13_0_6_get_enabled_mask(struct smu_context *smu,
 					uint64_t *feature_mask)
 {
-	uint32_t smu_version;
 	int ret;
 
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	ret = smu_cmn_get_enabled_mask(smu, feature_mask);
 
-	if (ret == -EIO && smu_version < 0x552F00) {
+	if (ret == -EIO && smu->smc_fw_version < 0x552F00) {
 		*feature_mask = 0;
 		ret = 0;
 	}
@@ -2115,7 +2105,6 @@ static int smu_v13_0_6_get_thermal_temperature_range(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	u32 aid_temp, xcd_temp, max_temp;
-	uint32_t smu_version;
 	u32 ccd_temp = 0;
 	int ret;
 
@@ -2126,8 +2115,7 @@ static int smu_v13_0_6_get_thermal_temperature_range(struct smu_context *smu,
 		return -EINVAL;
 
 	/*Check smu version, GetCtfLimit message only supported for smu version 85.69 or higher */
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (smu_version < 0x554500)
+	if (smu->smc_fw_version < 0x554500)
 		return 0;
 
 	/* Get SOC Max operating temperature */

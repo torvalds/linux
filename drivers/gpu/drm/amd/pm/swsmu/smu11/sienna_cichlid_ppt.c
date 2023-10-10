@@ -1279,7 +1279,6 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 	uint32_t mark_index = 0;
 	uint32_t gen_speed, lane_width;
 	uint32_t min_value, max_value;
-	uint32_t smu_version;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
 
@@ -1388,10 +1387,9 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 		 * OD GFX Voltage Offset functionality is supported only by 58.41.0
 		 * and onwards SMU firmwares.
 		 */
-		smu_cmn_get_smc_version(smu, NULL, &smu_version);
 		if ((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
 		     IP_VERSION(11, 0, 7)) &&
-		    (smu_version < 0x003a2900))
+		    (smu->smc_fw_version < 0x003a2900))
 			break;
 
 		size += sysfs_emit_at(buf, size, "OD_VDDGFX_OFFSET:\n");
@@ -2148,16 +2146,14 @@ static void sienna_cichlid_dump_od_table(struct smu_context *smu,
 					 OverDriveTable_t *od_table)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t smu_version;
 
 	dev_dbg(smu->adev->dev, "OD: Gfxclk: (%d, %d)\n", od_table->GfxclkFmin,
 							  od_table->GfxclkFmax);
 	dev_dbg(smu->adev->dev, "OD: Uclk: (%d, %d)\n", od_table->UclkFmin,
 							od_table->UclkFmax);
 
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	if (!((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 7)) &&
-	      (smu_version < 0x003a2900)))
+	      (smu->smc_fw_version < 0x003a2900)))
 		dev_dbg(smu->adev->dev, "OD: VddGfxOffset: %d\n", od_table->VddGfxOffset);
 }
 
@@ -2235,7 +2231,6 @@ static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
 	enum SMU_11_0_7_ODSETTING_ID freq_setting;
 	uint16_t *freq_ptr;
 	int i, ret = 0;
-	uint32_t smu_version;
 
 	if (!smu->od_enabled) {
 		dev_warn(smu->adev->dev, "OverDrive is not enabled!\n");
@@ -2388,10 +2383,9 @@ static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
 		 * OD GFX Voltage Offset functionality is supported only by 58.41.0
 		 * and onwards SMU firmwares.
 		 */
-		smu_cmn_get_smc_version(smu, NULL, &smu_version);
 		if ((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
 		     IP_VERSION(11, 0, 7)) &&
-		    (smu_version < 0x003a2900)) {
+		    (smu->smc_fw_version < 0x003a2900)) {
 			dev_err(smu->adev->dev, "OD GFX Voltage offset functionality is supported "
 						"only by 58.41.0 and onwards SMU firmwares!\n");
 			return -EOPNOTSUPP;
@@ -2461,14 +2455,12 @@ static bool sienna_cichlid_is_mode1_reset_supported(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t val;
-	u32 smu_version;
 
 	/**
 	 * SRIOV env will not support SMU mode1 reset
 	 * PM FW support mode1 reset from 58.26
 	 */
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (amdgpu_sriov_vf(adev) || (smu_version < 0x003a1a00))
+	if (amdgpu_sriov_vf(adev) || (smu->smc_fw_version < 0x003a1a00))
 		return false;
 
 	/**
@@ -4060,14 +4052,9 @@ static ssize_t sienna_cichlid_get_gpu_metrics(struct smu_context *smu,
 
 static int sienna_cichlid_check_ecc_table_support(struct smu_context *smu)
 {
-	uint32_t if_version = 0xff, smu_version = 0xff;
 	int ret = 0;
 
-	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
-	if (ret)
-		return -EOPNOTSUPP;
-
-	if (smu_version < SUPPORT_ECCTABLE_SMU_VERSION)
+	if (smu->smc_fw_version < SUPPORT_ECCTABLE_SMU_VERSION)
 		ret = -EOPNOTSUPP;
 
 	return ret;
@@ -4133,17 +4120,13 @@ static int sienna_cichlid_enable_mgpu_fan_boost(struct smu_context *smu)
 static int sienna_cichlid_gpo_control(struct smu_context *smu,
 				      bool enablement)
 {
-	uint32_t smu_version;
 	int ret = 0;
 
 
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFX_GPO_BIT)) {
-		ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-		if (ret)
-			return ret;
 
 		if (enablement) {
-			if (smu_version < 0x003a2500) {
+			if (smu->smc_fw_version < 0x003a2500) {
 				ret = smu_cmn_send_smc_msg_with_param(smu,
 								      SMU_MSG_SetGpoFeaturePMask,
 								      GFX_GPO_PACE_MASK | GFX_GPO_DEM_MASK,
@@ -4155,7 +4138,7 @@ static int sienna_cichlid_gpo_control(struct smu_context *smu,
 								      NULL);
 			}
 		} else {
-			if (smu_version < 0x003a2500) {
+			if (smu->smc_fw_version < 0x003a2500) {
 				ret = smu_cmn_send_smc_msg_with_param(smu,
 								      SMU_MSG_SetGpoFeaturePMask,
 								      0,
@@ -4174,18 +4157,11 @@ static int sienna_cichlid_gpo_control(struct smu_context *smu,
 
 static int sienna_cichlid_notify_2nd_usb20_port(struct smu_context *smu)
 {
-	uint32_t smu_version;
-	int ret = 0;
-
-	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (ret)
-		return ret;
-
 	/*
 	 * Message SMU_MSG_Enable2ndUSB20Port is supported by 58.45
 	 * onwards PMFWs.
 	 */
-	if (smu_version < 0x003A2D00)
+	if (smu->smc_fw_version < 0x003A2D00)
 		return 0;
 
 	return smu_cmn_send_smc_msg_with_param(smu,
@@ -4332,12 +4308,9 @@ static bool sienna_cichlid_is_mode2_reset_supported(struct smu_context *smu)
 
 static int sienna_cichlid_mode2_reset(struct smu_context *smu)
 {
-	u32 smu_version;
 	int ret = 0, index;
 	struct amdgpu_device *adev = smu->adev;
 	int timeout = 100;
-
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
 
 	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
 						SMU_MSG_DriverMode2Reset);
