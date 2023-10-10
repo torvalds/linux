@@ -842,7 +842,8 @@ static int rga_mm_handle_remove(int id, void *ptr, void *data)
 
 static struct rga_internal_buffer *
 rga_mm_lookup_external(struct rga_mm *mm_session,
-		       struct rga_external_buffer *external_buffer)
+		       struct rga_external_buffer *external_buffer,
+		       struct mm_struct *current_mm)
 {
 	int id;
 	struct dma_buf *dma_buf = NULL;
@@ -875,8 +876,12 @@ rga_mm_lookup_external(struct rga_mm *mm_session,
 				continue;
 
 			if (temp_buffer->virt_addr->addr == external_buffer->memory) {
-				output_buffer = temp_buffer;
-				break;
+				if (temp_buffer->current_mm == current_mm) {
+					output_buffer = temp_buffer;
+					break;
+				}
+
+				continue;
 			}
 		}
 
@@ -2028,7 +2033,7 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 	mutex_lock(&mm->lock);
 
 	/* first, Check whether to rga_mm */
-	internal_buffer = rga_mm_lookup_external(mm, external_buffer);
+	internal_buffer = rga_mm_lookup_external(mm, external_buffer, current->mm);
 	if (!IS_ERR_OR_NULL(internal_buffer)) {
 		kref_get(&internal_buffer->refcount);
 
