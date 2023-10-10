@@ -372,7 +372,8 @@ static bool pinctrl_ready_for_gpio_range(unsigned gpio) { return true; }
 
 /**
  * pinctrl_get_device_gpio_range() - find device for GPIO range
- * @gpio: the pin to locate the pin controller for
+ * @gc: GPIO chip structure from the GPIO subsystem
+ * @offset: hardware offset of the GPIO relative to the controller
  * @outdev: the pin control device if found
  * @outrange: the GPIO range if found
  *
@@ -381,7 +382,8 @@ static bool pinctrl_ready_for_gpio_range(unsigned gpio) { return true; }
  * -EPROBE_DEFER if the GPIO range could not be found in any device since it
  * may still have not been registered.
  */
-static int pinctrl_get_device_gpio_range(unsigned gpio,
+static int pinctrl_get_device_gpio_range(struct gpio_chip *gc,
+					 unsigned int offset,
 					 struct pinctrl_dev **outdev,
 					 struct pinctrl_gpio_range **outrange)
 {
@@ -393,7 +395,7 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 	list_for_each_entry(pctldev, &pinctrldev_list, node) {
 		struct pinctrl_gpio_range *range;
 
-		range = pinctrl_match_gpio_range(pctldev, gpio);
+		range = pinctrl_match_gpio_range(pctldev, gc->base + offset);
 		if (range) {
 			*outdev = pctldev;
 			*outrange = range;
@@ -767,7 +769,7 @@ bool pinctrl_gpio_can_use_line(struct gpio_chip *gc, unsigned int offset)
 	 * we're probably dealing with GPIO driver
 	 * without a backing pin controller - bail out.
 	 */
-	if (pinctrl_get_device_gpio_range(gc->base + offset, &pctldev, &range))
+	if (pinctrl_get_device_gpio_range(gc, offset, &pctldev, &range))
 		return true;
 
 	mutex_lock(&pctldev->mutex);
@@ -798,8 +800,7 @@ int pinctrl_gpio_request(struct gpio_chip *gc, unsigned int offset)
 	struct pinctrl_dev *pctldev;
 	int ret, pin;
 
-	ret = pinctrl_get_device_gpio_range(gc->base + offset, &pctldev,
-					    &range);
+	ret = pinctrl_get_device_gpio_range(gc, offset, &pctldev, &range);
 	if (ret) {
 		if (pinctrl_ready_for_gpio_range(gc->base + offset))
 			ret = 0;
@@ -834,8 +835,7 @@ void pinctrl_gpio_free(struct gpio_chip *gc, unsigned int offset)
 	struct pinctrl_dev *pctldev;
 	int ret, pin;
 
-	ret = pinctrl_get_device_gpio_range(gc->base + offset, &pctldev,
-					    &range);
+	ret = pinctrl_get_device_gpio_range(gc, offset, &pctldev, &range);
 	if (ret)
 		return;
 
@@ -858,8 +858,7 @@ static int pinctrl_gpio_direction(struct gpio_chip *gc, unsigned int offset,
 	int ret;
 	int pin;
 
-	ret = pinctrl_get_device_gpio_range(gc->base + offset, &pctldev,
-					    &range);
+	ret = pinctrl_get_device_gpio_range(gc, offset, &pctldev, &range);
 	if (ret) {
 		return ret;
 	}
@@ -923,8 +922,7 @@ int pinctrl_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 	struct pinctrl_dev *pctldev;
 	int ret, pin;
 
-	ret = pinctrl_get_device_gpio_range(gc->base + offset, &pctldev,
-					    &range);
+	ret = pinctrl_get_device_gpio_range(gc, offset, &pctldev, &range);
 	if (ret)
 		return ret;
 
