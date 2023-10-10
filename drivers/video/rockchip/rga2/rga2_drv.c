@@ -76,7 +76,6 @@
 #define RGA2_PHY_PAGE_SIZE	(((8192 * 8192 * 4) / 4096) + 1)
 
 ktime_t rga2_start;
-ktime_t rga2_end;
 int rga2_flag;
 int first_RGA2_proc;
 static int rk3368;
@@ -1179,9 +1178,11 @@ retry:
 
 #ifdef CONFIG_ROCKCHIP_RGA2_DEBUGGER
 	if (RGA2_TEST_TIME) {
-		rga2_end = ktime_get();
-		rga2_end = ktime_sub(rga2_end, rga2_start);
-		DBG("sync one cmd end time %d\n", (int)ktime_to_us(rga2_end));
+		ktime_t rga2_cmd_end;
+
+		rga2_cmd_end = ktime_get();
+		rga2_cmd_end = ktime_sub(rga2_cmd_end, rga2_start);
+		DBG("sync one cmd end time %d us\n", (int)ktime_to_us(rga2_cmd_end));
 	}
 #endif
 	if (ret == -ETIMEDOUT && try--) {
@@ -1657,6 +1658,14 @@ static irqreturn_t rga2_irq_thread(int irq, void *dev_id)
 	if (RGA2_INT_FLAG)
 		INFO("irqthread INT[%x],STATS[%x]\n", rga2_read(RGA2_INT),
 		     rga2_read(RGA2_STATUS));
+
+	if (RGA2_TEST_TIME) {
+		ktime_t rga2_hw_end;
+
+		rga2_hw_end = ktime_get();
+		rga2_hw_end = ktime_sub(rga2_hw_end, rga2_start);
+		DBG("RGA hardware cost time %d us\n", (int)ktime_to_us(rga2_hw_end));
+	}
 #endif
 	RGA2_flush_page();
 	mutex_lock(&rga2_service.lock);
