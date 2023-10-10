@@ -10,4 +10,9 @@
 
 #define RISCV_HWPROBE_MAX_KEY 5
 
+static inline bool riscv_hwprobe_key_is_valid(__s64 key)
+{
+	return key >= 0 && key <= RISCV_HWPROBE_MAX_KEY;
+}
+
 #endif
