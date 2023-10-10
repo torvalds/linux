@@ -1117,6 +1117,17 @@ static enum resctrl_conf_type resctrl_peer_type(enum resctrl_conf_type my_type)
 	}
 }
 
+static int rdt_has_sparse_bitmasks_show(struct kernfs_open_file *of,
+					struct seq_file *seq, void *v)
+{
+	struct resctrl_schema *s = of->kn->parent->priv;
+	struct rdt_resource *r = s->res;
+
+	seq_printf(seq, "%u\n", r->cache.arch_has_sparse_bitmasks);
+
+	return 0;
+}
+
 /**
  * __rdtgroup_cbm_overlaps - Does CBM for intended closid overlap with other
  * @r: Resource to which domain instance @d belongs.
@@ -1838,6 +1849,13 @@ static struct rftype res_common_files[] = {
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= rdtgroup_size_show,
 		.fflags		= RF_CTRL_BASE,
+	},
+	{
+		.name		= "sparse_masks",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_has_sparse_bitmasks_show,
+		.fflags		= RF_CTRL_INFO | RFTYPE_RES_CACHE,
 	},
 
 };
