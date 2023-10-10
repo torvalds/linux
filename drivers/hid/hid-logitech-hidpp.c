@@ -4135,19 +4135,12 @@ static void hidpp_overwrite_name(struct hid_device *hdev)
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
 	char *name;
 
-	if (hidpp->protocol_major < 2)
-		return;
-
 	name = hidpp_get_device_name(hidpp);
-
-	if (!name) {
-		hid_err(hdev, "unable to retrieve the name of the device");
-	} else {
+	if (name) {
 		dbg_hid("HID++: Got name: %s\n", name);
 		snprintf(hdev->name, sizeof(hdev->name), "%s", name);
+		kfree(name);
 	}
-
-	kfree(name);
 }
 
 static int hidpp_input_open(struct input_dev *dev)
@@ -4483,8 +4476,12 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (hidpp->quirks & HIDPP_QUIRK_UNIFYING)
 		hidpp_unifying_init(hidpp);
-	else if (hid_is_usb(hidpp->hid_dev))
-		hidpp_serial_init(hidpp);
+	else {
+		if (hid_is_usb(hidpp->hid_dev))
+			hidpp_serial_init(hidpp);
+
+		hidpp_overwrite_name(hdev);
+	}
 
 	connected = hidpp_root_get_protocol_version(hidpp) == 0;
 	atomic_set(&hidpp->connected, connected);
@@ -4494,8 +4491,6 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			hid_err(hdev, "Device not connected");
 			goto hid_hw_init_fail;
 		}
-
-		hidpp_overwrite_name(hdev);
 	}
 
 	schedule_work(&hidpp->work);
