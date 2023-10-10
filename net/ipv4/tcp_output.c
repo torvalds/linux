@@ -2456,6 +2456,7 @@ static int tcp_mtu_probe(struct sock *sk)
 
 	/* build the payload, and be prepared to abort if this fails. */
 	if (tcp_clone_payload(sk, nskb, probe_size)) {
+		tcp_skb_tsorted_anchor_cleanup(nskb);
 		consume_skb(nskb);
 		return -1;
 	}
