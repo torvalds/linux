@@ -293,6 +293,7 @@ static int mt6577_auxadc_probe(struct platform_device *pdev)
 	mt6577_auxadc_mod_reg(adc_dev->reg_base + MT6577_AUXADC_MISC,
 			      MT6577_AUXADC_PDN_EN, 0);
 	mdelay(MT6577_AUXADC_POWER_READY_MS);
+	platform_set_drvdata(pdev, indio_dev);
 
 	ret = devm_add_action_or_reset(&pdev->dev, mt6577_power_off, adc_dev);
 	if (ret)
