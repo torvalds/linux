@@ -229,6 +229,14 @@
 	};
 };
 
+&spi2 {
+	status = "okay";
+};
+
+&tpm0 {
+	status = "okay";
+};
+
 &mdio0 {
 	status = "okay";
 	#address-cells = <1>;

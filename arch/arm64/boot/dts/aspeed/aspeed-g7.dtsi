@@ -769,6 +769,24 @@
 			};
 		};
 
+		spi2: spi@14030000 {
+			reg = <0x0 0x14030000 0x0 0x1f0>, <0x2 0x80000000 0x0 0x80000000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "aspeed,ast2700-spi-txrx";
+			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
+			resets = <&soc1_rst ASPEED_RESET_SPI2>;
+			status = "disabled";
+
+			spi-aspeed-full-duplex;
+
+			tpm0: tpmdev@0 {
+				compatible = "tcg,tpm_tis-spi";
+				spi-max-frequency = <33000000>;
+				reg = <0>;
+			};
+		};
+
 		mdio: bus@14040000 {
 			compatible = "simple-bus";
 			#address-cells = <2>;

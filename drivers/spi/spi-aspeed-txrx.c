@@ -19,6 +19,7 @@
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
+#include <linux/reset.h>
 
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -28,9 +29,13 @@
 #define SPI_CE0_CTRL		0x10
 #define SPI_DECODE_ADDR_REG	0x30
 
+#define SPI_FULL_DUPLEX_RX_REG	0x1e4
+
 #define SPI_LSB_FIRST_CTRL	BIT(5)
 #define SPI_CE_INACTIVE		BIT(2)
 #define SPI_CMD_USER_MODE	(0x3)
+
+#define SPI_FULL_DUPLEX		0x00000001
 
 struct aspeed_spi_host {
 	phys_addr_t			 ahb_base_phy;
@@ -45,7 +50,9 @@ struct aspeed_spi_host {
 	void __iomem			*chip_ahb_base[5];
 	/* lock: make sure only a user can access the controller once */
 	spinlock_t			 lock;
+	u8				 cs_change;
 	const struct aspeed_spi_info	*info;
+	u32				 flag;
 };
 
 struct aspeed_spi_info {
@@ -55,6 +62,20 @@ struct aspeed_spi_info {
 	u32 (*get_clk_div)(struct aspeed_spi_host *host, u32 hz);
 	void (*set_segment)(struct aspeed_spi_host *host);
 };
+
+static inline void spi_aspeed_dump_buf(const u8 *buf, u32 len)
+{
+	u32 i;
+
+	if (len > 10) {
+		for (i = 0; i < 10; i++)
+			pr_info("%02x ", buf[i]);
+	} else {
+		for (i = 0; i < len; i++)
+			pr_info("%02x ", buf[i]);
+	}
+	pr_info("\n");
+}
 
 #define G5_SEGMENT_ADDR_VALUE(start, end) \
 	(((((start) >> 23) & 0xFF) << 16) | ((((end) >> 23) & 0xFF) << 24))
@@ -117,7 +138,8 @@ static void aspeed_spi_set_segment_addr_ast2700(struct aspeed_spi_host *host)
 
 	for (cs = 0; cs < info->max_cs; cs++) {
 		end = start + info->min_window_sz;
-		reg_val = G7_SEGMENT_ADDR_VALUE(start, end);
+		reg_val = G7_SEGMENT_ADDR_VALUE(start - host->ahb_base_phy,
+						end - host->ahb_base_phy);
 		writel(reg_val, host->ctrl_reg + SPI_DECODE_ADDR_REG + cs * 4);
 		host->chip_ahb_base[cs] = devm_ioremap(host->dev,
 						       start,
@@ -258,7 +280,7 @@ static int aspeed_spi_setup(struct spi_device *spi)
 	struct device *dev = host->dev;
 	u32 clk_div;
 
-	dev_dbg(dev, "cs: %d, mode: %d, max_speed: %d, bits_per_word: %d.\n",
+	dev_dbg(dev, "cs: %d, mode: %d, max_speed: %d, bits_per_word: %d\n",
 		spi->chip_select, spi->mode,
 		spi->max_speed_hz, spi->bits_per_word);
 
@@ -319,6 +341,22 @@ static void aspeed_spi_stop_user(struct spi_device *spi)
 	writel(ctrl_val, ctrl_reg);
 }
 
+static void aspeed_spi_transfer_tx(struct aspeed_spi_host *host, const u8 *tx_buf,
+				   u8 *rx_buf, void *dst, u32 len,
+				   bool *full_duplex_rx)
+{
+	u32 i;
+
+	for (i = 0; i < len; i++) {
+		writeb(tx_buf[i], dst);
+
+		if (rx_buf && (host->flag & SPI_FULL_DUPLEX)) {
+			rx_buf[i] = readb(host->ctrl_reg + SPI_FULL_DUPLEX_RX_REG);
+			*full_duplex_rx = true;
+		}
+	}
+}
+
 static int aspeed_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 {
 	struct aspeed_spi_host *host =
@@ -326,17 +364,19 @@ static int aspeed_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 	struct device *dev = host->dev;
 	struct spi_transfer *xfer;
 	const u8 *tx_buf;
+	bool full_duplex_rx;
 	u8 *rx_buf;
 	u32 cs;
 	unsigned long flags;
-	u32 i = 0;
 	u32 j = 0;
 
-	spin_lock_irqsave(&host->lock, flags);
+	if (host->cs_change == 0) {
+		spin_lock_irqsave(&host->lock, flags);
+		aspeed_spi_start_user(spi);
+	}
 
 	cs = spi->chip_select;
 
-	aspeed_spi_start_user(spi);
 	dev_dbg(dev, "cs: %d\n", cs);
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
@@ -349,56 +389,41 @@ static int aspeed_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 		tx_buf = xfer->tx_buf;
 		rx_buf = xfer->rx_buf;
 
-		if (tx_buf != 0) {
+		full_duplex_rx = false;
+
+		if (tx_buf) {
 #if defined(SPI_ASPEED_TXRX_DBG)
 			pr_info("tx : ");
-			if (xfer->len > 10) {
-				for (i = 0; i < 10; i++)
-					pr_info("%x ", tx_buf[i]);
-			} else {
-				for (i = 0; i < xfer->len; i++)
-					pr_info("%x ", tx_buf[i]);
-			}
-			pr_info("\n");
+			spi_aspeed_dump_buf(tx_buf, xfer->len);
 #endif
 
-			for (i = 0; i < xfer->len; i++)
-				writeb(tx_buf[i], (void *)host->chip_ahb_base[cs]);
+			aspeed_spi_transfer_tx(host, tx_buf, rx_buf,
+					       (void *)host->chip_ahb_base[cs],
+					       xfer->len, &full_duplex_rx);
 		}
 
-		if (rx_buf != 0) {
-			for (i = 0; i < xfer->len; i++)
-				rx_buf[i] = readb((void *)host->chip_ahb_base[cs]);
+		if (rx_buf && !full_duplex_rx) {
+			ioread8_rep(host->chip_ahb_base[cs], rx_buf, xfer->len);
 
 #if defined(SPI_ASPEED_TXRX_DBG)
 			pr_info("rx : ");
-			if (xfer->len > 10) {
-				for (i = 0; i < 10; i++)
-					pr_info(" %x", rx_buf[i]);
-			} else {
-				for (i = 0; i < xfer->len; i++)
-					pr_info(" %x", rx_buf[i]);
-			}
-			pr_info("\n");
+			spi_aspeed_dump_buf(rx_buf, xfer->len);
 #endif
 		}
 
-		dev_dbg(dev, "old msg->actual_length %d , len %d\n",
-			msg->actual_length, xfer->len);
-
 		msg->actual_length += xfer->len;
-
-		dev_dbg(dev, "new msg->actual_length %d\n",
-			msg->actual_length);
+		host->cs_change = xfer->cs_change;
 		j++;
 	}
 
-	aspeed_spi_stop_user(spi);
+	if (host->cs_change == 0)
+		aspeed_spi_stop_user(spi);
 
 	msg->status = 0;
 	msg->complete(msg->context);
 
-	spin_unlock_irqrestore(&host->lock, flags);
+	if (host->cs_change == 0)
+		spin_unlock_irqrestore(&host->lock, flags);
 
 	return 0;
 }
@@ -409,6 +434,7 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	struct resource	*res;
 	struct aspeed_spi_host *host;
 	struct spi_controller *ctrl;
+	struct reset_control *rst;
 	int err = 0;
 
 	ctrl = devm_spi_alloc_master(dev, sizeof(struct aspeed_spi_host));
@@ -450,6 +476,15 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	if (!host->info)
 		return -ENODEV;
 
+	rst = devm_reset_control_get_optional(&pdev->dev, NULL);
+	if (rst) {
+		err = reset_control_deassert(rst);
+		if (err) {
+			dev_err(dev, "fail to deassert reset control\n");
+			return -EBUSY;
+		}
+	}
+
 	host->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(host->clk)) {
 		dev_err(dev, "missing clock\n");
@@ -467,6 +502,10 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 		dev_err(dev, "can not enable the clock\n");
 		return err;
 	}
+
+	host->flag = 0;
+	if (of_property_read_bool(dev->of_node, "spi-aspeed-full-duplex"))
+		host->flag |= SPI_FULL_DUPLEX;
 
 	host->ctrl->setup = aspeed_spi_setup;
 	host->ctrl->transfer = aspeed_spi_transfer;
