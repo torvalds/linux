@@ -171,6 +171,9 @@ enum {
 struct ad7192_chip_info {
 	unsigned int			chip_id;
 	const char			*name;
+	const struct iio_chan_spec	*channels;
+	u8				num_channels;
+	const struct iio_info		*info;
 };
 
 struct ad7192_state {
@@ -964,38 +967,32 @@ static const struct ad7192_chip_info ad7192_chip_info_tbl[] = {
 	[ID_AD7190] = {
 		.chip_id = CHIPID_AD7190,
 		.name = "ad7190",
+		.channels = ad7192_channels,
+		.num_channels = ARRAY_SIZE(ad7192_channels),
+		.info = &ad7192_info,
 	},
 	[ID_AD7192] = {
 		.chip_id = CHIPID_AD7192,
 		.name = "ad7192",
+		.channels = ad7192_channels,
+		.num_channels = ARRAY_SIZE(ad7192_channels),
+		.info = &ad7192_info,
 	},
 	[ID_AD7193] = {
 		.chip_id = CHIPID_AD7193,
 		.name = "ad7193",
+		.channels = ad7193_channels,
+		.num_channels = ARRAY_SIZE(ad7193_channels),
+		.info = &ad7192_info,
 	},
 	[ID_AD7195] = {
 		.chip_id = CHIPID_AD7195,
 		.name = "ad7195",
+		.channels = ad7192_channels,
+		.num_channels = ARRAY_SIZE(ad7192_channels),
+		.info = &ad7195_info,
 	},
 };
-
-static int ad7192_channels_config(struct iio_dev *indio_dev)
-{
-	struct ad7192_state *st = iio_priv(indio_dev);
-
-	switch (st->chip_info->chip_id) {
-	case CHIPID_AD7193:
-		indio_dev->channels = ad7193_channels;
-		indio_dev->num_channels = ARRAY_SIZE(ad7193_channels);
-		break;
-	default:
-		indio_dev->channels = ad7192_channels;
-		indio_dev->num_channels = ARRAY_SIZE(ad7192_channels);
-		break;
-	}
-
-	return 0;
-}
 
 static void ad7192_reg_disable(void *reg)
 {
@@ -1051,15 +1048,9 @@ static int ad7192_probe(struct spi_device *spi)
 		st->chip_info = (void *)spi_get_device_id(spi)->driver_data;
 	indio_dev->name = st->chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-
-	ret = ad7192_channels_config(indio_dev);
-	if (ret < 0)
-		return ret;
-
-	if (st->chip_info->chip_id == CHIPID_AD7195)
-		indio_dev->info = &ad7195_info;
-	else
-		indio_dev->info = &ad7192_info;
+	indio_dev->channels = st->chip_info->channels;
+	indio_dev->num_channels = st->chip_info->num_channels;
+	indio_dev->info = st->chip_info->info;
 
 	ret = ad_sd_init(&st->sd, indio_dev, spi, &ad7192_sigma_delta_info);
 	if (ret)
