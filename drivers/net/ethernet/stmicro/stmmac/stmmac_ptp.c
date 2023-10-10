@@ -81,7 +81,7 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	stmmac_adjust_systime(priv, priv->ptpaddr, sec, nsec, neg_adj, xmac);
 	write_unlock_irqrestore(&priv->ptp_lock, flags);
 
-	/* Caculate new basetime and re-configured EST after PTP time adjust. */
+	/* Calculate new basetime and re-configured EST after PTP time adjust. */
 	if (est_rst) {
 		struct timespec64 current_time, time;
 		ktime_t current_time_ns, basetime;
