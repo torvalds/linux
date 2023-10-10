@@ -1482,6 +1482,11 @@ static void rga_mm_put_buffer(struct rga_mm *mm,
 		if (rga_mm_sync_dma_sg_for_cpu(internal_buffer, job, dir))
 			pr_err("sync sgt for cpu error!\n");
 
+	if (DEBUGGER_EN(MM)) {
+		pr_info("handle[%d] put info:\n", (int)internal_buffer->handle);
+		rga_mm_dump_buffer(internal_buffer);
+	}
+
 	mutex_lock(&mm->lock);
 	kref_put(&internal_buffer->refcount, rga_mm_kref_release_buffer);
 	mutex_unlock(&mm->lock);
@@ -2028,6 +2033,12 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 		kref_get(&internal_buffer->refcount);
 
 		mutex_unlock(&mm->lock);
+
+		if (DEBUGGER_EN(MM)) {
+			pr_info("import existing buffer:\n");
+			rga_mm_dump_buffer(internal_buffer);
+		}
+
 		return internal_buffer->handle;
 	}
 
