@@ -2348,11 +2348,10 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	int rv;
 
-	rv = mddev_lock(mddev);
+	rv = mddev_suspend_and_lock(mddev);
 	if (rv)
 		return rv;
 
-	mddev_suspend(mddev);
 	if (mddev->pers) {
 		if (mddev->recovery || mddev->sync_thread) {
 			rv = -EBUSY;
@@ -2429,8 +2428,7 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 	}
 	rv = 0;
 out:
-	mddev_resume(mddev);
-	mddev_unlock(mddev);
+	mddev_unlock_and_resume(mddev);
 	if (rv)
 		return rv;
 	return len;
