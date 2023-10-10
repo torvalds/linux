@@ -382,6 +382,7 @@ struct dc_cap_funcs {
 	bool (*get_dcc_compression_cap)(const struct dc *dc,
 			const struct dc_dcc_surface_param *input,
 			struct dc_surface_dcc_cap *output);
+	bool (*get_subvp_en)(struct dc *dc, struct dc_state *context);
 };
 
 struct link_training_settings;
