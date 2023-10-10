@@ -895,8 +895,8 @@ static const struct iio_info ad7195_info = {
 	.update_scan_mode = ad7192_update_scan_mode,
 };
 
-#define __AD719x_CHANNEL(_si, _channel1, _channel2, _address, _extend_name, \
-	_type, _mask_type_av, _ext_info) \
+#define __AD719x_CHANNEL(_si, _channel1, _channel2, _address, _type, \
+	_mask_type_av, _ext_info) \
 	{ \
 		.type = (_type), \
 		.differential = ((_channel2) == -1 ? 0 : 1), \
@@ -904,7 +904,6 @@ static const struct iio_info ad7195_info = {
 		.channel = (_channel1), \
 		.channel2 = (_channel2), \
 		.address = (_address), \
-		.extend_name = (_extend_name), \
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
 			BIT(IIO_CHAN_INFO_OFFSET), \
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
@@ -922,16 +921,15 @@ static const struct iio_info ad7195_info = {
 	}
 
 #define AD719x_DIFF_CHANNEL(_si, _channel1, _channel2, _address) \
-	__AD719x_CHANNEL(_si, _channel1, _channel2, _address, NULL, \
-		IIO_VOLTAGE, BIT(IIO_CHAN_INFO_SCALE), \
-		ad7192_calibsys_ext_info)
+	__AD719x_CHANNEL(_si, _channel1, _channel2, _address, IIO_VOLTAGE, \
+		BIT(IIO_CHAN_INFO_SCALE), ad7192_calibsys_ext_info)
 
 #define AD719x_CHANNEL(_si, _channel1, _address) \
-	__AD719x_CHANNEL(_si, _channel1, -1, _address, NULL, IIO_VOLTAGE, \
+	__AD719x_CHANNEL(_si, _channel1, -1, _address, IIO_VOLTAGE, \
 		BIT(IIO_CHAN_INFO_SCALE), ad7192_calibsys_ext_info)
 
 #define AD719x_TEMP_CHANNEL(_si, _address) \
-	__AD719x_CHANNEL(_si, 0, -1, _address, NULL, IIO_TEMP, 0, NULL)
+	__AD719x_CHANNEL(_si, 0, -1, _address, IIO_TEMP, 0, NULL)
 
 static const struct iio_chan_spec ad7192_channels[] = {
 	AD719x_DIFF_CHANNEL(0, 1, 2, AD7192_CH_AIN1P_AIN2M),
