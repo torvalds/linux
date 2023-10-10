@@ -6,6 +6,7 @@
  *     Author: Alex Williamson <alex.williamson@redhat.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -201,9 +202,9 @@ static int pci_vc_do_save_buffer(struct pci_dev *dev, int pos,
 	/* Extended VC Count (not counting VC0) */
 	evcc = cap1 & PCI_VC_CAP1_EVCC;
 	/* Low Priority Extended VC Count (not counting VC0) */
-	lpevcc = (cap1 & PCI_VC_CAP1_LPEVCC) >> 4;
+	lpevcc = FIELD_GET(PCI_VC_CAP1_LPEVCC, cap1);
 	/* Port Arbitration Table Entry Size (bits) */
-	parb_size = 1 << ((cap1 & PCI_VC_CAP1_ARB_SIZE) >> 10);
+	parb_size = 1 << FIELD_GET(PCI_VC_CAP1_ARB_SIZE, cap1);
 
 	/*
 	 * Port VC Control Register contains VC Arbitration Select, which
@@ -231,7 +232,7 @@ static int pci_vc_do_save_buffer(struct pci_dev *dev, int pos,
 		int vcarb_offset;
 
 		pci_read_config_dword(dev, pos + PCI_VC_PORT_CAP2, &cap2);
-		vcarb_offset = ((cap2 & PCI_VC_CAP2_ARB_OFF) >> 24) * 16;
+		vcarb_offset = FIELD_GET(PCI_VC_CAP2_ARB_OFF, cap2) * 16;
 
 		if (vcarb_offset) {
 			int size, vcarb_phases = 0;
@@ -277,7 +278,7 @@ static int pci_vc_do_save_buffer(struct pci_dev *dev, int pos,
 
 		pci_read_config_dword(dev, pos + PCI_VC_RES_CAP +
 				      (i * PCI_CAP_VC_PER_VC_SIZEOF), &cap);
-		parb_offset = ((cap & PCI_VC_RES_CAP_ARB_OFF) >> 24) * 16;
+		parb_offset = FIELD_GET(PCI_VC_RES_CAP_ARB_OFF, cap) * 16;
 		if (parb_offset) {
 			int size, parb_phases = 0;
 
