@@ -137,11 +137,6 @@ static void tegra_gpio_disable(struct tegra_gpio_info *tgi, unsigned int gpio)
 	tegra_gpio_mask_write(tgi, GPIO_MSK_CNF(tgi, gpio), gpio, 0);
 }
 
-static int tegra_gpio_request(struct gpio_chip *chip, unsigned int offset)
-{
-	return pinctrl_gpio_request(chip, offset);
-}
-
 static void tegra_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
@@ -717,7 +712,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	}
 
 	tgi->gc.label			= "tegra-gpio";
-	tgi->gc.request			= tegra_gpio_request;
+	tgi->gc.request			= pinctrl_gpio_request;
 	tgi->gc.free			= tegra_gpio_free;
 	tgi->gc.direction_input		= tegra_gpio_direction_input;
 	tgi->gc.get			= tegra_gpio_get;
