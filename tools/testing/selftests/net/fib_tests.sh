@@ -2437,6 +2437,9 @@ ipv4_mpath_list_test()
 	run_cmd "ip -n ns2 route add 203.0.113.0/24
 		nexthop via 172.16.201.2 nexthop via 172.16.202.2"
 	run_cmd "ip netns exec ns2 sysctl -qw net.ipv4.fib_multipath_hash_policy=1"
+	run_cmd "ip netns exec ns2 sysctl -qw net.ipv4.conf.veth2.rp_filter=0"
+	run_cmd "ip netns exec ns2 sysctl -qw net.ipv4.conf.all.rp_filter=0"
+	run_cmd "ip netns exec ns2 sysctl -qw net.ipv4.conf.default.rp_filter=0"
 	set +e
 
 	local dmac=$(ip -n ns2 -j link show dev veth2 | jq -r '.[]["address"]')
