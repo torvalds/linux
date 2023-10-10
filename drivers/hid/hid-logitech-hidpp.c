@@ -4499,11 +4499,7 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		hidpp_overwrite_name(hdev);
 	}
 
-	if (connected && (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP)) {
-		ret = wtp_get_config(hidpp);
-		if (ret)
-			goto hid_hw_init_fail;
-	} else if (connected && (hidpp->quirks & HIDPP_QUIRK_CLASS_G920)) {
+	if (connected && (hidpp->quirks & HIDPP_QUIRK_CLASS_G920)) {
 		ret = g920_get_config(hidpp, &data);
 		if (ret)
 			goto hid_hw_init_fail;
