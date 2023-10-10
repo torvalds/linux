@@ -263,6 +263,12 @@ static int psp_v13_0_bootloader_load_ras_drv(struct psp_context *psp)
 	return psp_v13_0_bootloader_load_component(psp, &psp->ras_drv, PSP_BL__LOAD_RASDRV);
 }
 
+static inline void psp_v13_0_init_sos_version(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	psp->sos.fw_version = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_58);
+}
 
 static int psp_v13_0_bootloader_load_sos(struct psp_context *psp)
 {
@@ -273,8 +279,10 @@ static int psp_v13_0_bootloader_load_sos(struct psp_context *psp)
 	/* Check sOS sign of life register to confirm sys driver and sOS
 	 * are already been loaded.
 	 */
-	if (psp_v13_0_is_sos_alive(psp))
+	if (psp_v13_0_is_sos_alive(psp)) {
+		psp_v13_0_init_sos_version(psp);
 		return 0;
+	}
 
 	ret = psp_v13_0_wait_for_bootloader(psp);
 	if (ret)
@@ -297,6 +305,9 @@ static int psp_v13_0_bootloader_load_sos(struct psp_context *psp)
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_81),
 			   RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_81),
 			   0, true);
+
+	if (!ret)
+		psp_v13_0_init_sos_version(psp);
 
 	return ret;
 }
