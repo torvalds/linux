@@ -50,6 +50,11 @@
 				remote-endpoint = <&sc3338_out>;
 				data-lanes = <1 2>;
 			};
+			csi_dphy_input6: endpoint@6 {
+				reg = <6>;
+				remote-endpoint = <&imx415_out>;
+				data-lanes = <1 2 3 4>;
+			};
 		};
 
 		port@1 {
@@ -199,6 +204,28 @@
 			jx_k17_out: endpoint {
 				remote-endpoint = <&csi_dphy_input4>;
 				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	imx415: imx415@1a {
+		compatible = "sony,imx415";
+		status = "okay";
+		reg = <0x1a>;
+		clocks = <&cru MCLK_REF_MIPI0>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2022-PX1";
+		rockchip,camera-module-lens-name = "IR0147-36IRC-8M-F20";
+		port {
+			imx415_out: endpoint {
+				remote-endpoint = <&csi_dphy_input6>;
+				data-lanes = <1 2 3 4>;
 			};
 		};
 	};
