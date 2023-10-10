@@ -269,7 +269,7 @@ static int paicrypt_event_init(struct perf_event *event)
 	    a->config > PAI_CRYPTO_BASE + paicrypt_cnt)
 		return -EINVAL;
 	/* Allow only CPU wide operation, no process context for now. */
-	if (event->hw.target || event->cpu == -1)
+	if ((event->attach_state & PERF_ATTACH_TASK) || event->cpu == -1)
 		return -ENOENT;
 	/* Allow only CRYPTO_ALL for sampling. */
 	if (a->sample_period && a->config != PAI_CRYPTO_BASE)
