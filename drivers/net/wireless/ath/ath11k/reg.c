@@ -352,6 +352,16 @@ static u32 ath11k_map_fw_reg_flags(u16 reg_flags)
 	return flags;
 }
 
+static u32 ath11k_map_fw_phy_flags(u32 phy_flags)
+{
+	u32 flags = 0;
+
+	if (phy_flags & ATH11K_REG_PHY_BITMAP_NO11AX)
+		flags |= NL80211_RRF_NO_HE;
+
+	return flags;
+}
+
 static bool
 ath11k_reg_can_intersect(struct ieee80211_reg_rule *rule1,
 			 struct ieee80211_reg_rule *rule2)
@@ -685,6 +695,7 @@ ath11k_reg_build_regd(struct ath11k_base *ab,
 		}
 
 		flags |= ath11k_map_fw_reg_flags(reg_rule->flags);
+		flags |= ath11k_map_fw_phy_flags(reg_info->phybitmap);
 
 		ath11k_reg_update_rule(tmp_regd->reg_rules + i,
 				       reg_rule->start_freq,

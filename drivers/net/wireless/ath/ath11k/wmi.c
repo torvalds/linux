@@ -5440,10 +5440,11 @@ static int ath11k_pull_reg_chan_list_ext_update_ev(struct ath11k_base *ab,
 	}
 
 	ath11k_dbg(ab, ATH11K_DBG_WMI,
-		   "cc_ext %s dsf %d BW: min_2ghz %d max_2ghz %d min_5ghz %d max_5ghz %d",
+		   "cc_ext %s dfs %d BW: min_2ghz %d max_2ghz %d min_5ghz %d max_5ghz %d phy_bitmap 0x%x",
 		   reg_info->alpha2, reg_info->dfs_region,
 		   reg_info->min_bw_2ghz, reg_info->max_bw_2ghz,
-		   reg_info->min_bw_5ghz, reg_info->max_bw_5ghz);
+		   reg_info->min_bw_5ghz, reg_info->max_bw_5ghz,
+		   reg_info->phybitmap);
 
 	ath11k_dbg(ab, ATH11K_DBG_WMI,
 		   "num_2ghz_reg_rules %d num_5ghz_reg_rules %d",
