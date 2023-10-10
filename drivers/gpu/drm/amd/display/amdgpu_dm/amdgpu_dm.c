@@ -6685,20 +6685,17 @@ cleanup:
 }
 
 struct dc_stream_state *
-create_validate_stream_for_sink(struct drm_connector *connector,
+create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 				const struct drm_display_mode *drm_mode,
 				const struct dm_connector_state *dm_state,
 				const struct dc_stream_state *old_stream)
 {
-	struct amdgpu_dm_connector *aconnector = NULL;
+	struct drm_connector *connector = &aconnector->base;
 	struct amdgpu_device *adev = drm_to_adev(connector->dev);
 	struct dc_stream_state *stream;
 	const struct drm_connector_state *drm_state = dm_state ? &dm_state->base : NULL;
 	int requested_bpc = drm_state ? drm_state->max_requested_bpc : 8;
 	enum dc_status dc_result = DC_OK;
-
-	if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
-		aconnector = to_amdgpu_dm_connector(connector);
 
 	do {
 		stream = create_stream_for_sink(connector, drm_mode,
@@ -6710,14 +6707,10 @@ create_validate_stream_for_sink(struct drm_connector *connector,
 		}
 
 		dc_result = dc_validate_stream(adev->dm.dc, stream);
-
-		if (!aconnector) /* writeback connector */
-			return stream;
-
 		if (dc_result == DC_OK && stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 			dc_result = dm_dp_mst_is_port_support_mode(aconnector, stream);
 
-		if (dc_result == DC_OK && connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
+		if (dc_result == DC_OK)
 			dc_result = dm_validate_stream_and_context(adev->dm.dc, stream);
 
 		if (dc_result != DC_OK) {
@@ -6739,7 +6732,7 @@ create_validate_stream_for_sink(struct drm_connector *connector,
 		DRM_DEBUG_KMS("Retry forcing YCbCr420 encoding\n");
 
 		aconnector->force_yuv420_output = true;
-		stream = create_validate_stream_for_sink(connector, drm_mode,
+		stream = create_validate_stream_for_sink(aconnector, drm_mode,
 						dm_state, old_stream);
 		aconnector->force_yuv420_output = false;
 	}
@@ -6754,9 +6747,6 @@ enum drm_mode_status amdgpu_dm_connector_mode_valid(struct drm_connector *connec
 	struct dc_sink *dc_sink;
 	/* TODO: Unhardcode stream count */
 	struct dc_stream_state *stream;
-	/* we always have an amdgpu_dm_connector here since we got
-	 * here via the amdgpu_dm_connector_helper_funcs
-	 */
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
@@ -6781,7 +6771,7 @@ enum drm_mode_status amdgpu_dm_connector_mode_valid(struct drm_connector *connec
 
 	drm_mode_set_crtcinfo(mode, 0);
 
-	stream = create_validate_stream_for_sink(connector, mode,
+	stream = create_validate_stream_for_sink(aconnector, mode,
 						 to_dm_connector_state(connector->state),
 						 NULL);
 	if (stream) {
@@ -9641,7 +9631,7 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
 			goto skip_modeset;
 
-		new_stream = create_validate_stream_for_sink(connector,
+		new_stream = create_validate_stream_for_sink(aconnector,
 							     &new_crtc_state->mode,
 							     dm_new_conn_state,
 							     dm_old_crtc_state->stream);
