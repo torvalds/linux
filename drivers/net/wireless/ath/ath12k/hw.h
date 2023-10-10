@@ -190,6 +190,8 @@ struct ath12k_hw_params {
 	u32 rfkill_pin;
 	u32 rfkill_cfg;
 	u32 rfkill_on_level;
+
+	u32 rddm_size;
 };
 
 struct ath12k_hw_ops {
