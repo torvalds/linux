@@ -486,6 +486,11 @@ static bool virtio_transport_can_msgzerocopy(int bufs_num)
 	return res;
 }
 
+static bool virtio_transport_msgzerocopy_allow(void)
+{
+	return true;
+}
+
 static bool virtio_transport_seqpacket_allow(u32 remote_cid);
 
 static struct virtio_transport virtio_transport = {
@@ -518,6 +523,8 @@ static struct virtio_transport virtio_transport = {
 		.seqpacket_enqueue        = virtio_transport_seqpacket_enqueue,
 		.seqpacket_allow          = virtio_transport_seqpacket_allow,
 		.seqpacket_has_data       = virtio_transport_seqpacket_has_data,
+
+		.msgzerocopy_allow        = virtio_transport_msgzerocopy_allow,
 
 		.notify_poll_in           = virtio_transport_notify_poll_in,
 		.notify_poll_out          = virtio_transport_notify_poll_out,
