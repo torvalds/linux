@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
-.. include:: ../disclaimer-zh_CN.rst
+.. include:: ../../disclaimer-zh_CN.rst
 
-:Original: Documentation/riscv/vm-layout.rst
+:Original: Documentation/arch/riscv/vm-layout.rst
 
 :翻译:
 
