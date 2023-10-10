@@ -1642,6 +1642,11 @@ static unsigned long nvhe_percpu_order(void)
 	return size ? get_order(size) : 0;
 }
 
+static inline size_t pkvm_host_fp_state_order(void)
+{
+	return get_order(pkvm_host_fp_state_size());
+}
+
 /* A lookup table holding the hypervisor VA for each vector slot */
 static void *hyp_spectre_vector_selector[BP_HARDEN_EL2_SLOTS];
 
@@ -2006,6 +2011,8 @@ static void teardown_hyp_mode(void)
 	for_each_possible_cpu(cpu) {
 		free_page(per_cpu(kvm_arm_hyp_stack_page, cpu));
 		free_pages(kvm_nvhe_sym(kvm_arm_hyp_percpu_base)[cpu], nvhe_percpu_order());
+		free_pages(kvm_nvhe_sym(kvm_arm_hyp_host_fp_state)[cpu],
+					pkvm_host_fp_state_order());
 	}
 }
 
@@ -2088,6 +2095,34 @@ static int kvm_hyp_init_protection(u32 hyp_va_bits)
 		return ret;
 
 	free_hyp_pgds();
+
+	return 0;
+}
+
+static int init_pkvm_host_fp_state(void)
+{
+	int cpu;
+
+	if (!is_protected_kvm_enabled())
+		return 0;
+
+	/* Allocate pages for protected-mode host-fp state. */
+	for_each_possible_cpu(cpu) {
+		struct page *page;
+		unsigned long addr;
+
+		page = alloc_pages(GFP_KERNEL, pkvm_host_fp_state_order());
+		if (!page)
+			return -ENOMEM;
+
+		addr = (unsigned long)page_address(page);
+		kvm_nvhe_sym(kvm_arm_hyp_host_fp_state)[cpu] = addr;
+	}
+
+	/*
+	 * Don't map the pages in hyp since these are only used in protected
+	 * mode, which will (re)create its own mapping when initialized.
+	 */
 
 	return 0;
 }
@@ -2258,6 +2293,10 @@ static int init_hyp_mode(void)
 		/* Prepare the CPU initialization parameters */
 		cpu_prepare_hyp_mode(cpu);
 	}
+
+	err = init_pkvm_host_fp_state();
+	if (err)
+		goto out_err;
 
 	kvm_hyp_init_symbols();
 
