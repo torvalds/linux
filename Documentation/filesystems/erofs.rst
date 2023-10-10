@@ -199,7 +199,7 @@ may not. All metadatas can be now observed in two different spaces (views):
                                         |                  |
                                         |__________________| 64 bytes
 
-    Xattrs, extents, data inline are followed by the corresponding inode with
+    Xattrs, extents, data inline are placed after the corresponding inode with
     proper alignment, and they could be optional for different data mappings.
     _currently_ total 5 data layouts are supported:
 
