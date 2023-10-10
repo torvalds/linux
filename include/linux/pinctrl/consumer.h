@@ -26,7 +26,6 @@ struct pinctrl_state;
 #ifdef CONFIG_PINCTRL
 
 /* External interface to pin control */
-bool pinctrl_gpio_can_use_line(unsigned gpio);
 bool pinctrl_gpio_can_use_line_new(struct gpio_chip *gc, unsigned int offset);
 int pinctrl_gpio_request(unsigned gpio);
 int pinctrl_gpio_request_new(struct gpio_chip *gc, unsigned int offset);
@@ -72,11 +71,6 @@ static inline int pinctrl_pm_select_idle_state(struct device *dev)
 #endif
 
 #else /* !CONFIG_PINCTRL */
-
-static inline bool pinctrl_gpio_can_use_line(unsigned gpio)
-{
-	return true;
-}
 
 static inline bool
 pinctrl_gpio_can_use_line_new(struct gpio_chip *gc, unsigned int offset)
