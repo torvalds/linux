@@ -3560,12 +3560,6 @@ static int ingenic_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	return (int) ingenic_gpio_get_value(jzgc, offset);
 }
 
-static int ingenic_gpio_direction_input(struct gpio_chip *gc,
-		unsigned int offset)
-{
-	return pinctrl_gpio_direction_input(gc, offset);
-}
-
 static int ingenic_gpio_direction_output(struct gpio_chip *gc,
 		unsigned int offset, int value)
 {
@@ -3680,7 +3674,7 @@ static int ingenic_gpio_irq_request(struct irq_data *data)
 	irq_hw_number_t irq = irqd_to_hwirq(data);
 	int ret;
 
-	ret = ingenic_gpio_direction_input(gpio_chip, irq);
+	ret = pinctrl_gpio_direction_input(gpio_chip, irq);
 	if (ret)
 		return ret;
 
@@ -4197,7 +4191,7 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 
 	jzgc->gc.set = ingenic_gpio_set;
 	jzgc->gc.get = ingenic_gpio_get;
-	jzgc->gc.direction_input = ingenic_gpio_direction_input;
+	jzgc->gc.direction_input = pinctrl_gpio_direction_input;
 	jzgc->gc.direction_output = ingenic_gpio_direction_output;
 	jzgc->gc.get_direction = ingenic_gpio_get_direction;
 	jzgc->gc.request = gpiochip_generic_request;
