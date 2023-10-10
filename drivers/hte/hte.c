@@ -17,8 +17,6 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 
-#define HTE_TS_NAME_LEN		10
-
 /* Global list of the HTE devices */
 static DEFINE_SPINLOCK(hte_lock);
 static LIST_HEAD(hte_devices);
@@ -389,13 +387,10 @@ static int __hte_req_ts(struct hte_ts_desc *desc, hte_ts_cb_t cb,
 
 	atomic_inc(&gdev->ts_req);
 
-	ei->line_name = NULL;
-	if (!desc->attr.name) {
-		ei->line_name = kzalloc(HTE_TS_NAME_LEN, GFP_KERNEL);
-		if (ei->line_name)
-			scnprintf(ei->line_name, HTE_TS_NAME_LEN, "ts_%u",
-				  desc->attr.line_id);
-	}
+	if (desc->attr.name)
+		ei->line_name = NULL;
+	else
+		ei->line_name = kasprintf(GFP_KERNEL, "ts_%u", desc->attr.line_id);
 
 	hte_ts_dbgfs_init(desc->attr.name == NULL ?
 			  ei->line_name : desc->attr.name, ei);
