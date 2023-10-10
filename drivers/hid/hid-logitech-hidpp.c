@@ -3141,7 +3141,7 @@ static int wtp_allocate(struct hid_device *hdev, const struct hid_device_id *id)
 	return 0;
 };
 
-static int wtp_connect(struct hid_device *hdev, bool connected)
+static int wtp_connect(struct hid_device *hdev)
 {
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
 	struct wtp_data *wd = hidpp->private_data;
@@ -3203,7 +3203,7 @@ static const u8 m560_config_parameter[] = {0x00, 0xaf, 0x03};
 #define M560_SUB_ID			0x0a
 #define M560_BUTTON_MODE_REGISTER	0x35
 
-static int m560_send_config_command(struct hid_device *hdev, bool connected)
+static int m560_send_config_command(struct hid_device *hdev)
 {
 	struct hidpp_report response;
 	struct hidpp_device *hidpp_dev;
@@ -3398,7 +3398,7 @@ static int k400_allocate(struct hid_device *hdev)
 	return 0;
 };
 
-static int k400_connect(struct hid_device *hdev, bool connected)
+static int k400_connect(struct hid_device *hdev)
 {
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
 
@@ -4205,15 +4205,15 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 	}
 
 	if (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP) {
-		ret = wtp_connect(hdev, connected);
+		ret = wtp_connect(hdev);
 		if (ret)
 			return;
 	} else if (hidpp->quirks & HIDPP_QUIRK_CLASS_M560) {
-		ret = m560_send_config_command(hdev, connected);
+		ret = m560_send_config_command(hdev);
 		if (ret)
 			return;
 	} else if (hidpp->quirks & HIDPP_QUIRK_CLASS_K400) {
-		ret = k400_connect(hdev, connected);
+		ret = k400_connect(hdev);
 		if (ret)
 			return;
 	}
