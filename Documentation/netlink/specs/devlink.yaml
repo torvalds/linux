@@ -199,54 +199,44 @@ attribute-sets:
     attributes:
       -
         name: reload-stats
-        type: nest
       -
         name: remote-reload-stats
-        type: nest
   -
     name: dl-reload-stats
     subset-of: devlink
     attributes:
       -
         name: reload-action-info
-        type: nest
   -
     name: dl-reload-act-info
     subset-of: devlink
     attributes:
       -
         name: reload-action
-        type: u8
       -
         name: reload-action-stats
-        type: nest
   -
     name: dl-reload-act-stats
     subset-of: devlink
     attributes:
       -
         name: reload-stats-entry
-        type: nest
   -
     name: dl-reload-stats-entry
     subset-of: devlink
     attributes:
       -
         name: reload-stats-limit
-        type: u8
       -
         name: reload-stats-value
-        type: u32
   -
     name: dl-info-version
     subset-of: devlink
     attributes:
       -
         name: info-version-name
-        type: string
       -
         name: info-version-value
-        type: string
 
 operations:
   enum-model: directional
