@@ -506,11 +506,6 @@ static void cs42l43_gpio_set(struct gpio_chip *chip, unsigned int offset, int va
 	pm_runtime_put(priv->dev);
 }
 
-static int cs42l43_gpio_direction_in(struct gpio_chip *chip, unsigned int offset)
-{
-	return pinctrl_gpio_direction_input(chip, offset);
-}
-
 static int cs42l43_gpio_direction_out(struct gpio_chip *chip,
 				      unsigned int offset, int value)
 {
@@ -551,7 +546,7 @@ static int cs42l43_pin_probe(struct platform_device *pdev)
 
 	priv->gpio_chip.request = gpiochip_generic_request;
 	priv->gpio_chip.free = gpiochip_generic_free;
-	priv->gpio_chip.direction_input = cs42l43_gpio_direction_in;
+	priv->gpio_chip.direction_input = pinctrl_gpio_direction_input;
 	priv->gpio_chip.direction_output = cs42l43_gpio_direction_out;
 	priv->gpio_chip.add_pin_ranges = cs42l43_gpio_add_pin_ranges;
 	priv->gpio_chip.get = cs42l43_gpio_get;
