@@ -206,8 +206,7 @@ static int rdev_need_serial(struct md_rdev *rdev)
  * 1. rdev is the first device which return true from rdev_enable_serial.
  * 2. rdev is NULL, means we want to enable serialization for all rdevs.
  */
-void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
-			      bool is_suspend)
+void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev)
 {
 	int ret = 0;
 
@@ -215,15 +214,12 @@ void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 	    !test_bit(CollisionCheck, &rdev->flags))
 		return;
 
-	if (!is_suspend)
-		mddev_suspend(mddev);
-
 	if (!rdev)
 		ret = rdevs_init_serial(mddev);
 	else
 		ret = rdev_init_serial(rdev);
 	if (ret)
-		goto abort;
+		return;
 
 	if (mddev->serial_info_pool == NULL) {
 		/*
@@ -238,10 +234,6 @@ void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 			pr_err("can't alloc memory pool for serialization\n");
 		}
 	}
-
-abort:
-	if (!is_suspend)
-		mddev_resume(mddev);
 }
 
 /*
@@ -250,8 +242,7 @@ abort:
  * 2. when bitmap is destroyed while policy is not enabled.
  * 3. for disable policy, the pool is destroyed only when no rdev needs it.
  */
-void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
-			       bool is_suspend)
+void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev)
 {
 	if (rdev && !test_bit(CollisionCheck, &rdev->flags))
 		return;
@@ -260,8 +251,6 @@ void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 		struct md_rdev *temp;
 		int num = 0; /* used to track if other rdevs need the pool */
 
-		if (!is_suspend)
-			mddev_suspend(mddev);
 		rdev_for_each(temp, mddev) {
 			if (!rdev) {
 				if (!mddev->serialize_policy ||
@@ -283,8 +272,6 @@ void mddev_destroy_serial_pool(struct mddev *mddev, struct md_rdev *rdev,
 			mempool_destroy(mddev->serial_info_pool);
 			mddev->serial_info_pool = NULL;
 		}
-		if (!is_suspend)
-			mddev_resume(mddev);
 	}
 }
 
@@ -2557,7 +2544,7 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 	pr_debug("md: bind<%s>\n", b);
 
 	if (mddev->raid_disks)
-		mddev_create_serial_pool(mddev, rdev, true);
+		mddev_create_serial_pool(mddev, rdev);
 
 	if ((err = kobject_add(&rdev->kobj, &mddev->kobj, "dev-%s", b)))
 		goto fail;
@@ -2610,7 +2597,7 @@ static void md_kick_rdev_from_array(struct md_rdev *rdev)
 	bd_unlink_disk_holder(rdev->bdev, rdev->mddev->gendisk);
 	list_del_rcu(&rdev->same_set);
 	pr_debug("md: unbind<%pg>\n", rdev->bdev);
-	mddev_destroy_serial_pool(rdev->mddev, rdev, false);
+	mddev_destroy_serial_pool(rdev->mddev, rdev);
 	rdev->mddev = NULL;
 	sysfs_remove_link(&rdev->kobj, "block");
 	sysfs_put(rdev->sysfs_state);
@@ -3077,11 +3064,11 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 		}
 	} else if (cmd_match(buf, "writemostly")) {
 		set_bit(WriteMostly, &rdev->flags);
-		mddev_create_serial_pool(rdev->mddev, rdev, true);
+		mddev_create_serial_pool(rdev->mddev, rdev);
 		need_update_sb = true;
 		err = 0;
 	} else if (cmd_match(buf, "-writemostly")) {
-		mddev_destroy_serial_pool(rdev->mddev, rdev, true);
+		mddev_destroy_serial_pool(rdev->mddev, rdev);
 		clear_bit(WriteMostly, &rdev->flags);
 		need_update_sb = true;
 		err = 0;
@@ -5591,9 +5578,9 @@ serialize_policy_store(struct mddev *mddev, const char *buf, size_t len)
 	}
 
 	if (value)
-		mddev_create_serial_pool(mddev, NULL, true);
+		mddev_create_serial_pool(mddev, NULL);
 	else
-		mddev_destroy_serial_pool(mddev, NULL, true);
+		mddev_destroy_serial_pool(mddev, NULL);
 	mddev->serialize_policy = value;
 unlock:
 	mddev_unlock_and_resume(mddev);
@@ -6359,7 +6346,7 @@ static void __md_stop_writes(struct mddev *mddev)
 	}
 	/* disable policy to guarantee rdevs free resources for serialization */
 	mddev->serialize_policy = 0;
-	mddev_destroy_serial_pool(mddev, NULL, true);
+	mddev_destroy_serial_pool(mddev, NULL);
 }
 
 void md_stop_writes(struct mddev *mddev)
