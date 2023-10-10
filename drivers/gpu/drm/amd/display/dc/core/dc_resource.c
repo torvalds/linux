@@ -321,7 +321,7 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 				res_pool->ref_clocks.xtalin_clock_inKhz;
 			res_pool->ref_clocks.dchub_ref_clock_inKhz =
 				res_pool->ref_clocks.xtalin_clock_inKhz;
-			if ((res_pool->hubbub->funcs->get_dchub_ref_freq))
+			if (res_pool->hubbub && res_pool->hubbub->funcs->get_dchub_ref_freq)
 				res_pool->hubbub->funcs->get_dchub_ref_freq(res_pool->hubbub,
 					res_pool->ref_clocks.dccg_ref_clock_inKhz,
 					&res_pool->ref_clocks.dchub_ref_clock_inKhz);
