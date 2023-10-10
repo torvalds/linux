@@ -11,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/gpio/consumer.h>
+#include <linux/regulator/consumer.h>
 #include <linux/mfd/core.h>
 #include "rkx110_x120.h"
 #include "rkx110_reg.h"
@@ -988,6 +989,16 @@ static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_devic
 
 	serdes->rate = RATE_2GBPS_83M;
 
+	serdes->supply = devm_regulator_get_optional(dev, "power");
+	if (IS_ERR(serdes->supply)) {
+		ret = PTR_ERR(serdes->supply);
+
+		if (ret != -ENODEV)
+			return dev_err_probe(dev, ret, "failed to request regulator\n");
+
+		serdes->supply = NULL;
+	}
+
 	serdes->enable = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(serdes->enable)) {
 		ret = PTR_ERR(serdes->enable);
@@ -1002,12 +1013,6 @@ static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_devic
 		return ret;
 	}
 
-	gpiod_set_value(serdes->enable, 1);
-
-	gpiod_set_value(serdes->reset, 1);
-	usleep_range(10000, 11000);
-	gpiod_set_value(serdes->reset, 0);
-
 	if (of_get_child_by_name(dev->of_node, "serdes-panel")) {
 		serdes->stream_type = STREAM_DISPLAY;
 		of_node_put(dev->of_node);
@@ -1021,8 +1026,6 @@ static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_devic
 	if (ret)
 		return ret;
 
-	msleep(20);
-
 	ret = mfd_add_devices(dev, -1, rkx110_x120_devs, ARRAY_SIZE(rkx110_x120_devs),
 			      NULL, 0, NULL);
 	if (ret) {
@@ -1030,13 +1033,29 @@ static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_devic
 		return ret;
 	}
 
+	if (serdes->supply) {
+		ret = regulator_enable(serdes->supply);
+		if (ret < 0) {
+			dev_err(serdes->dev, "failed to enable supply: %d\n", ret);
+			return ret;
+		}
+	}
+
+	gpiod_set_value(serdes->enable, 1);
+
+	gpiod_set_value(serdes->reset, 1);
+	usleep_range(10000, 11000);
+	gpiod_set_value(serdes->reset, 0);
+
+	msleep(20);
+
 	rk_serdes_wait_link_ready(serdes);
 
 	rk_serdes_read_chip_id(serdes);
 
 	ret = rk_serdes_add_hwclk(serdes);
 	if (ret < 0)
-		return ret;
+		goto err;
 
 	rk_serdes_set_rate(serdes, RATE_4GBPS_83M);
 	rk_serdes_pinctrl_init(serdes);
@@ -1045,11 +1064,20 @@ out:
 	rk_serdes_debugfs_init(serdes);
 
 	return 0;
+
+err:
+	if (serdes->supply)
+		ret = regulator_disable(serdes->supply);
+
+	return ret;
 }
 
 static int rk_serdes_i2c_remove(struct i2c_client *client)
 {
 	struct rk_serdes *rk_serdes = i2c_get_clientdata(client);
+
+	if (rk_serdes->supply)
+		regulator_disable(rk_serdes->supply);
 
 	mfd_remove_devices(rk_serdes->dev);
 

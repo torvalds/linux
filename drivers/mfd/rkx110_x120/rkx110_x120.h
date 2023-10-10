@@ -259,6 +259,7 @@ struct rk_serdes_pt {
 struct rk_serdes {
 	struct device *dev;
 	struct rk_serdes_chip chip[DEVICE_MAX];
+	struct regulator *supply;
 	struct gpio_desc *reset;
 	struct gpio_desc *enable;
 
