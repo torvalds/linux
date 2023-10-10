@@ -198,10 +198,6 @@ int x509_note_sig_algo(void *context, size_t hdrlen, unsigned char tag,
 	default:
 		return -ENOPKG; /* Unsupported combination */
 
-	case OID_sha1WithRSAEncryption:
-		ctx->cert->sig->hash_algo = "sha1";
-		goto rsa_pkcs1;
-
 	case OID_sha256WithRSAEncryption:
 		ctx->cert->sig->hash_algo = "sha256";
 		goto rsa_pkcs1;
@@ -217,10 +213,6 @@ int x509_note_sig_algo(void *context, size_t hdrlen, unsigned char tag,
 	case OID_sha224WithRSAEncryption:
 		ctx->cert->sig->hash_algo = "sha224";
 		goto rsa_pkcs1;
-
-	case OID_id_ecdsa_with_sha1:
-		ctx->cert->sig->hash_algo = "sha1";
-		goto ecdsa;
 
 	case OID_id_ecdsa_with_sha224:
 		ctx->cert->sig->hash_algo = "sha224";
