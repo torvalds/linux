@@ -1964,14 +1964,16 @@ static void rswitch_deinit(struct rswitch_private *priv)
 	rswitch_gwca_hw_deinit(priv);
 	rcar_gen4_ptp_unregister(priv->ptp_priv);
 
-	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
+	rswitch_for_each_enabled_port(priv, i) {
 		struct rswitch_device *rdev = priv->rdev[i];
 
-		phy_exit(priv->rdev[i]->serdes);
-		rswitch_ether_port_deinit_one(rdev);
 		unregister_netdev(rdev->ndev);
-		rswitch_device_free(priv, i);
+		rswitch_ether_port_deinit_one(rdev);
+		phy_exit(priv->rdev[i]->serdes);
 	}
+
+	for (i = 0; i < RSWITCH_NUM_PORTS; i++)
+		rswitch_device_free(priv, i);
 
 	rswitch_gwca_ts_queue_free(priv);
 	rswitch_gwca_linkfix_free(priv);
