@@ -699,9 +699,9 @@ static void r5c_disable_writeback_async(struct work_struct *work)
 
 	log = READ_ONCE(conf->log);
 	if (log) {
-		__mddev_suspend(mddev, false);
+		mddev_suspend(mddev, false);
 		log->r5c_journal_mode = R5C_JOURNAL_MODE_WRITE_THROUGH;
-		__mddev_resume(mddev);
+		mddev_resume(mddev);
 	}
 }
 
