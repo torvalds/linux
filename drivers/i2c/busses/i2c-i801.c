@@ -287,7 +287,6 @@ struct i801_priv {
 	u8 *data;
 
 #if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
-	const struct i801_mux_config *mux_drvdata;
 	struct platform_device *mux_pdev;
 	struct gpiod_lookup_table *lookup;
 #endif
@@ -1285,7 +1284,7 @@ static void i801_probe_optional_slaves(struct i801_priv *priv)
 
 	/* Instantiate SPD EEPROMs unless the SMBus is multiplexed */
 #if IS_ENABLED(CONFIG_I2C_MUX_GPIO)
-	if (!priv->mux_drvdata)
+	if (!priv->mux_pdev)
 #endif
 		i2c_register_spd(&priv->adapter);
 }
@@ -1387,11 +1386,14 @@ static void i801_add_mux(struct i801_priv *priv)
 	const struct i801_mux_config *mux_config;
 	struct i2c_mux_gpio_platform_data gpio_data;
 	struct gpiod_lookup_table *lookup;
+	const struct dmi_system_id *id;
 	int i;
 
-	if (!priv->mux_drvdata)
+	id = dmi_first_match(mux_dmi_table);
+	if (!id)
 		return;
-	mux_config = priv->mux_drvdata;
+
+	mux_config = id->driver_data;
 
 	/* Prepare the platform data */
 	memset(&gpio_data, 0, sizeof(struct i2c_mux_gpio_platform_data));
@@ -1435,35 +1437,9 @@ static void i801_del_mux(struct i801_priv *priv)
 	platform_device_unregister(priv->mux_pdev);
 	gpiod_remove_lookup_table(priv->lookup);
 }
-
-static unsigned int i801_get_adapter_class(struct i801_priv *priv)
-{
-	const struct dmi_system_id *id;
-	const struct i801_mux_config *mux_config;
-	unsigned int class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
-	int i;
-
-	id = dmi_first_match(mux_dmi_table);
-	if (id) {
-		/* Remove branch classes from trunk */
-		mux_config = id->driver_data;
-		for (i = 0; i < mux_config->n_values; i++)
-			class &= ~mux_config->classes[i];
-
-		/* Remember for later */
-		priv->mux_drvdata = mux_config;
-	}
-
-	return class;
-}
 #else
 static inline void i801_add_mux(struct i801_priv *priv) { }
 static inline void i801_del_mux(struct i801_priv *priv) { }
-
-static inline unsigned int i801_get_adapter_class(struct i801_priv *priv)
-{
-	return I2C_CLASS_HWMON | I2C_CLASS_SPD;
-}
 #endif
 
 static struct platform_device *
@@ -1644,7 +1620,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	i2c_set_adapdata(&priv->adapter, priv);
 	priv->adapter.owner = THIS_MODULE;
-	priv->adapter.class = i801_get_adapter_class(priv);
+	priv->adapter.class = I2C_CLASS_HWMON;
 	priv->adapter.algo = &smbus_algorithm;
 	priv->adapter.dev.parent = &dev->dev;
 	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&dev->dev));
