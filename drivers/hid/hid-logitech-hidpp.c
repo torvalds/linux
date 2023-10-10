@@ -194,7 +194,6 @@ struct hidpp_device {
 
 	struct work_struct work;
 	struct kfifo delayed_work_fifo;
-	atomic_t connected;
 	struct input_dev *delayed_input;
 
 	unsigned long quirks;
@@ -3893,8 +3892,6 @@ static int hidpp_raw_hidpp_event(struct hidpp_device *hidpp, u8 *data,
 	}
 
 	if (unlikely(hidpp_report_is_connect_event(hidpp, report))) {
-		atomic_set(&hidpp->connected,
-				!(report->rap.params[0] & (1 << 6)));
 		if (schedule_work(&hidpp->work) == 0)
 			dbg_hid("%s: connect event already queued\n", __func__);
 		return 1;
@@ -4189,12 +4186,14 @@ static struct input_dev *hidpp_allocate_input(struct hid_device *hdev)
 static void hidpp_connect_event(struct hidpp_device *hidpp)
 {
 	struct hid_device *hdev = hidpp->hid_dev;
-	int ret = 0;
-	bool connected = atomic_read(&hidpp->connected);
 	struct input_dev *input;
 	char *name, *devm_name;
+	int ret;
 
-	if (!connected) {
+	/* Get device version to check if it is connected */
+	ret = hidpp_root_get_protocol_version(hidpp);
+	if (ret) {
+		hid_info(hidpp->hid_dev, "Disconnected\n");
 		if (hidpp->battery.ps) {
 			hidpp->battery.online = false;
 			hidpp->battery.status = POWER_SUPPLY_STATUS_UNKNOWN;
@@ -4234,16 +4233,6 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 		ret = hidpp10_consumer_keys_connect(hidpp);
 		if (ret)
 			return;
-	}
-
-	/* the device is already connected, we can ask for its name and
-	 * protocol */
-	if (!hidpp->protocol_major) {
-		ret = hidpp_root_get_protocol_version(hidpp);
-		if (ret) {
-			hid_err(hdev, "Can not get the protocol version.\n");
-			return;
-		}
 	}
 
 	if (hidpp->protocol_major >= 2) {
@@ -4395,7 +4384,6 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct hidpp_device *hidpp;
 	int ret;
-	bool connected;
 	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 
 	/* report_fixup needs drvdata to be set before we call hid_parse */
@@ -4484,9 +4472,6 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		hidpp_unifying_init(hidpp);
 	else
 		hidpp_non_unifying_init(hidpp);
-
-	connected = hidpp_root_get_protocol_version(hidpp) == 0;
-	atomic_set(&hidpp->connected, connected);
 
 	schedule_work(&hidpp->work);
 	flush_work(&hidpp->work);
