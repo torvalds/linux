@@ -448,6 +448,36 @@ config ARM_SMMU_QCOM_DEBUG
 	  Say Y here to enable debug for issues such as TLB sync timeouts
 	  which requires implementation defined register dumps.
 
+config ARM_SMMU_TESTBUS
+	bool "Enable ARM SMMU testbus feature "
+	depends on ARM_SMMU
+	help
+	  Enable testbus feature to help in capturing TCU/TBU state and
+	  help debug TLB Sync timeout failure.Enables option for testbus
+	  debugfs to select and read testbus output.
+	  Note to use this only on debug builds.
+
+	  If unsure, say N here.
+
+config ARM_SMMU_TESTBUS_DEBUGFS
+	bool "Expose testbus control debugfs nodes"
+	depends on ARM_SMMU && IOMMU_DEBUGFS && ARM_SMMU_TESTBUS
+	help
+	  Support for exposing debugfs nodes to set testbus select values
+	  for selecting a testbus to inspect for a particular TCU/TBU
+	  on an SMMU. This also exposes debugfs nodes to read testbus output
+	  after the output has been selected.
+
+config ARM_SMMU_CAPTUREBUS_DEBUGFS
+	bool "Expose capturebus control debugfs nodes"
+	depends on ARM_SMMU && QCOM_IOMMU_DEBUG
+	help
+	  Support for exposing debugfs nodes to configure capturebus for each
+	  tbu of an SMMU. This also exposes debugfs nodes to get the snapshot
+	  of capturebus.
+
+	  If unsure, say N here.
+
 config ARM_SMMU_V3
 	tristate "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
 	depends on ARM64
@@ -472,6 +502,25 @@ config ARM_SMMU_V3_SVA
 
 	  Say Y here if your system supports SVA extensions such as PCIe PASID
 	  and PRI.
+
+config IOMMU_TLBSYNC_DEBUG
+	bool "TLB sync timeout debug"
+	depends on ARM_SMMU
+	help
+	  Collects the SMMU system state information after the
+	  first TLB sync timeout failure by calling BUG() from
+	  a workqueue thread. Note to use this only on debug
+	  builds.
+
+config ARM_SMMU_TESTBUS_DUMP
+	bool "ARM SMMU testbus dump"
+	depends on ARM_SMMU && ARM_SMMU_TESTBUS
+	help
+	  Enables testbus dump collection on arm smmu right after TLB
+	  sync timeout failure.
+	  Note to use this only on debug builds.
+
+	  If unsure, say N here.
 
 config QCOM_LAZY_MAPPING
 	tristate "Reference counted iommu-mapping support"
