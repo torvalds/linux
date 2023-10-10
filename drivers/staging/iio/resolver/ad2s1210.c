@@ -287,6 +287,26 @@ static int ad2s1210_regmap_reg_read(void *context, unsigned int reg,
 }
 
 /*
+ * Toggles the SAMPLE line on the AD2S1210 to latch in the current position,
+ * velocity, and faults.
+ *
+ * Must be called with lock held.
+ */
+static void ad2s1210_toggle_sample_line(struct ad2s1210_state *st)
+{
+	/*
+	 * Datasheet specifies minimum hold time t16 = 2 * tck + 20 ns. So the
+	 * longest time needed is when CLKIN is 6.144 MHz, in which case t16
+	 * ~= 350 ns. The same delay is also needed before re-asserting the
+	 * SAMPLE line.
+	 */
+	gpiod_set_value(st->sample_gpio, 1);
+	ndelay(350);
+	gpiod_set_value(st->sample_gpio, 0);
+	ndelay(350);
+}
+
+/*
  * Sets the excitation frequency and performs software reset.
  *
  * Must be called with lock held.
@@ -405,10 +425,8 @@ static int ad2s1210_single_conversion(struct iio_dev *indio_dev,
 	int ret;
 
 	mutex_lock(&st->lock);
-	gpiod_set_value(st->sample_gpio, 1);
+	ad2s1210_toggle_sample_line(st);
 	timestamp = iio_get_time_ns(indio_dev);
-	/* delay (6 * tck + 20) nano seconds */
-	udelay(1);
 
 	switch (chan->type) {
 	case IIO_ANGL:
@@ -444,9 +462,6 @@ static int ad2s1210_single_conversion(struct iio_dev *indio_dev,
 	ad2s1210_push_events(indio_dev, st->sample.fault, timestamp);
 
 error_ret:
-	gpiod_set_value(st->sample_gpio, 0);
-	/* delay (2 * tck + 20) nano seconds */
-	udelay(1);
 	mutex_unlock(&st->lock);
 	return ret;
 }
@@ -1268,7 +1283,7 @@ static irqreturn_t ad2s1210_trigger_handler(int irq, void *p)
 	mutex_lock(&st->lock);
 
 	memset(&st->scan, 0, sizeof(st->scan));
-	gpiod_set_value(st->sample_gpio, 1);
+	ad2s1210_toggle_sample_line(st);
 
 	if (test_bit(0, indio_dev->active_scan_mask)) {
 		ret = ad2s1210_set_mode(st, MOD_POS);
@@ -1298,7 +1313,6 @@ static irqreturn_t ad2s1210_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan, pf->timestamp);
 
 error_ret:
-	gpiod_set_value(st->sample_gpio, 0);
 	mutex_unlock(&st->lock);
 	iio_trigger_notify_done(indio_dev->trig);
 
