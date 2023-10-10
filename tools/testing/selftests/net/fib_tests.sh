@@ -2452,7 +2452,7 @@ ipv4_mpath_list_test()
 	# words, the FIB lookup tracepoint needs to be triggered for every
 	# packet.
 	local t0_rx_pkts=$(link_stats_get ns2 veth2 rx packets)
-	run_cmd "perf stat -e fib:fib_table_lookup --filter 'err == 0' -j -o $tmp_file -- $cmd"
+	run_cmd "perf stat -a -e fib:fib_table_lookup --filter 'err == 0' -j -o $tmp_file -- $cmd"
 	local t1_rx_pkts=$(link_stats_get ns2 veth2 rx packets)
 	local diff=$(echo $t1_rx_pkts - $t0_rx_pkts | bc -l)
 	list_rcv_eval $tmp_file $diff
@@ -2497,7 +2497,7 @@ ipv6_mpath_list_test()
 	# words, the FIB lookup tracepoint needs to be triggered for every
 	# packet.
 	local t0_rx_pkts=$(link_stats_get ns2 veth2 rx packets)
-	run_cmd "perf stat -e fib6:fib6_table_lookup --filter 'err == 0' -j -o $tmp_file -- $cmd"
+	run_cmd "perf stat -a -e fib6:fib6_table_lookup --filter 'err == 0' -j -o $tmp_file -- $cmd"
 	local t1_rx_pkts=$(link_stats_get ns2 veth2 rx packets)
 	local diff=$(echo $t1_rx_pkts - $t0_rx_pkts | bc -l)
 	list_rcv_eval $tmp_file $diff
