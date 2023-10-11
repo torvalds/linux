@@ -237,7 +237,7 @@ struct rtw89_btc_btf_set_report {
 struct rtw89_btc_btf_set_slot_table {
 	u8 fver;
 	u8 tbl_num;
-	u8 buf[];
+	struct rtw89_btc_fbtc_slot tbls[] __counted_by(tbl_num);
 } __packed;
 
 struct rtw89_btc_btf_set_mon_reg {
@@ -1821,19 +1821,17 @@ static void rtw89_btc_fw_en_rpt(struct rtw89_dev *rtwdev,
 static void rtw89_btc_fw_set_slots(struct rtw89_dev *rtwdev, u8 num,
 				   struct rtw89_btc_fbtc_slot *s)
 {
-	struct rtw89_btc_btf_set_slot_table *tbl = NULL;
-	u8 *ptr = NULL;
-	u16 n = 0;
+	struct rtw89_btc_btf_set_slot_table *tbl;
+	u16 n;
 
-	n = sizeof(*s) * num + sizeof(*tbl);
+	n = struct_size(tbl, tbls, num);
 	tbl = kmalloc(n, GFP_KERNEL);
 	if (!tbl)
 		return;
 
 	tbl->fver = BTF_SET_SLOT_TABLE_VER;
 	tbl->tbl_num = num;
-	ptr = &tbl->buf[0];
-	memcpy(ptr, s, num * sizeof(*s));
+	memcpy(tbl->tbls, s, flex_array_size(tbl, tbls, num));
 
 	_send_fw_cmd(rtwdev, BTFC_SET, SET_SLOT_TABLE, tbl, n);
 
