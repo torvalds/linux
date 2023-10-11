@@ -4693,6 +4693,9 @@ int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 	}
 
+	/* Configure the PHY context */
+	cfg80211_chandef_create(&chandef, channel, NL80211_CHAN_NO_HT);
+
 	/* If the currently used PHY context is configured with a matching
 	 * channel use it
 	 */
@@ -4707,11 +4710,15 @@ int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 
 		mvmvif->deflink.phy_ctxt = phy_ctxt;
-		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->deflink.phy_ctxt);
-	}
+		ret = iwl_mvm_phy_ctxt_add(mvm, phy_ctxt, &chandef, 1, 1);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to change PHY context\n");
+			goto out_unlock;
+		}
 
-	/* Configure the PHY context */
-	cfg80211_chandef_create(&chandef, channel, NL80211_CHAN_NO_HT);
+		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->deflink.phy_ctxt);
+		goto link_and_start_p2p_roc;
+	}
 
 	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &chandef,
 				       1, 1);
@@ -4797,9 +4804,9 @@ static int __iwl_mvm_add_chanctx(struct iwl_mvm *mvm,
 		goto out;
 	}
 
-	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, def,
-				       ctx->rx_chains_static,
-				       ctx->rx_chains_dynamic);
+	ret = iwl_mvm_phy_ctxt_add(mvm, phy_ctxt, def,
+				   ctx->rx_chains_static,
+				   ctx->rx_chains_dynamic);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to add PHY context\n");
 		goto out;

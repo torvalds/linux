@@ -1535,8 +1535,6 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 int iwl_mvm_up(struct iwl_mvm *mvm)
 {
 	int ret, i;
-	struct ieee80211_channel *chan;
-	struct cfg80211_chan_def chandef;
 	struct ieee80211_supported_band *sband = NULL;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1659,21 +1657,6 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (WARN_ON_ONCE(!sband)) {
 		ret = -ENODEV;
 		goto error;
-	}
-
-	chan = &sband->channels[0];
-
-	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
-	for (i = 0; i < NUM_PHY_CTX; i++) {
-		/*
-		 * The channel used here isn't relevant as it's
-		 * going to be overwritten in the other flows.
-		 * For now use the first channel we have.
-		 */
-		ret = iwl_mvm_phy_ctxt_add(mvm, &mvm->phy_ctxts[i],
-					   &chandef, 1, 1);
-		if (ret)
-			goto error;
 	}
 
 	if (iwl_mvm_is_tt_in_fw(mvm)) {
