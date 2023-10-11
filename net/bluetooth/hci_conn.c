@@ -815,6 +815,17 @@ static int big_terminate_sync(struct hci_dev *hdev, void *data)
 	return 0;
 }
 
+static void find_bis(struct hci_conn *conn, void *data)
+{
+	struct iso_list_data *d = data;
+
+	/* Ignore if BIG doesn't match */
+	if (d->big != conn->iso_qos.bcast.big)
+		return;
+
+	d->count++;
+}
+
 static int hci_le_big_terminate(struct hci_dev *hdev, u8 big, struct hci_conn *conn)
 {
 	struct iso_list_data *d;
@@ -826,10 +837,27 @@ static int hci_le_big_terminate(struct hci_dev *hdev, u8 big, struct hci_conn *c
 	if (!d)
 		return -ENOMEM;
 
+	memset(d, 0, sizeof(*d));
 	d->big = big;
 	d->sync_handle = conn->sync_handle;
-	d->pa_sync_term = test_and_clear_bit(HCI_CONN_PA_SYNC, &conn->flags);
-	d->big_sync_term = test_and_clear_bit(HCI_CONN_BIG_SYNC, &conn->flags);
+
+	if (test_and_clear_bit(HCI_CONN_PA_SYNC, &conn->flags)) {
+		hci_conn_hash_list_flag(hdev, find_bis, ISO_LINK,
+					HCI_CONN_PA_SYNC, d);
+
+		if (!d->count)
+			d->pa_sync_term = true;
+
+		d->count = 0;
+	}
+
+	if (test_and_clear_bit(HCI_CONN_BIG_SYNC, &conn->flags)) {
+		hci_conn_hash_list_flag(hdev, find_bis, ISO_LINK,
+					HCI_CONN_BIG_SYNC, d);
+
+		if (!d->count)
+			d->big_sync_term = true;
+	}
 
 	ret = hci_cmd_sync_queue(hdev, big_terminate_sync, d,
 				 terminate_big_destroy);
@@ -865,12 +893,6 @@ static void bis_cleanup(struct hci_conn *conn)
 
 		hci_le_terminate_big(hdev, conn);
 	} else {
-		bis = hci_conn_hash_lookup_big_any_dst(hdev,
-						       conn->iso_qos.bcast.big);
-
-		if (bis)
-			return;
-
 		hci_le_big_terminate(hdev, conn->iso_qos.bcast.big,
 				     conn);
 	}

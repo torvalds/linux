@@ -1290,29 +1290,6 @@ static inline struct hci_conn *hci_conn_hash_lookup_big(struct hci_dev *hdev,
 	return NULL;
 }
 
-static inline struct hci_conn *hci_conn_hash_lookup_big_any_dst(struct hci_dev *hdev,
-							__u8 handle)
-{
-	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct hci_conn  *c;
-
-	rcu_read_lock();
-
-	list_for_each_entry_rcu(c, &h->list, list) {
-		if (c->type != ISO_LINK)
-			continue;
-
-		if (handle != BT_ISO_QOS_BIG_UNSET && handle == c->iso_qos.bcast.big) {
-			rcu_read_unlock();
-			return c;
-		}
-	}
-
-	rcu_read_unlock();
-
-	return NULL;
-}
-
 static inline struct hci_conn *
 hci_conn_hash_lookup_pa_sync_big_handle(struct hci_dev *hdev, __u8 big)
 {
@@ -1394,6 +1371,26 @@ static inline void hci_conn_hash_list_state(struct hci_dev *hdev,
 
 	list_for_each_entry_rcu(c, &h->list, list) {
 		if (c->type == type && c->state == state)
+			func(c, data);
+	}
+
+	rcu_read_unlock();
+}
+
+static inline void hci_conn_hash_list_flag(struct hci_dev *hdev,
+					    hci_conn_func_t func, __u8 type,
+					    __u8 flag, void *data)
+{
+	struct hci_conn_hash *h = &hdev->conn_hash;
+	struct hci_conn  *c;
+
+	if (!func)
+		return;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
+		if (c->type == type && test_bit(flag, &c->flags))
 			func(c, data);
 	}
 

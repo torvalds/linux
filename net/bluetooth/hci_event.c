@@ -7112,7 +7112,6 @@ static void hci_le_big_sync_established_evt(struct hci_dev *hdev, void *data,
 {
 	struct hci_evt_le_big_sync_estabilished *ev = data;
 	struct hci_conn *bis;
-	struct hci_conn *pa_sync;
 	int i;
 
 	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
@@ -7122,15 +7121,6 @@ static void hci_le_big_sync_established_evt(struct hci_dev *hdev, void *data,
 		return;
 
 	hci_dev_lock(hdev);
-
-	if (!ev->status) {
-		pa_sync = hci_conn_hash_lookup_pa_sync_big_handle(hdev, ev->handle);
-		if (pa_sync)
-			/* Also mark the BIG sync established event on the
-			 * associated PA sync hcon
-			 */
-			set_bit(HCI_CONN_BIG_SYNC, &pa_sync->flags);
-	}
 
 	for (i = 0; i < ev->num_bis; i++) {
 		u16 handle = le16_to_cpu(ev->bis[i]);
