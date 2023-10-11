@@ -19,6 +19,13 @@
 	status = "disabled";
 };
 
+/*
+ * The pins of gt1x and sii9022 are multiplexed
+ */
+&gt1x {
+	status = "disabled";
+};
+
 &i2c4 {
 	clock-frequency = <400000>;
 	status = "okay";
@@ -32,6 +39,10 @@
 		interrupts = <RK_PC0 IRQ_TYPE_LEVEL_HIGH>;
 		reset-gpio = <&gpio1 RK_PA7 GPIO_ACTIVE_LOW>;
 		enable-gpio = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
+		/*
+		 * MEDIA_BUS_FMT_UYVY8_1X16 for bt1120
+		 * MEDIA_BUS_FMT_UYVY8_2X8  for bt656
+		 */
 		bus-format = <MEDIA_BUS_FMT_UYVY8_1X16>;
 
 		ports {
@@ -60,6 +71,10 @@
 &rgb {
 	status = "okay";
 	pinctrl-names = "default";
+	/*
+	 * <&bt1120_pins> for bt1120
+	 * <&bt656_pins>  for bt656
+	 */
 	pinctrl-0 = <&bt1120_pins>;
 
 	ports {
