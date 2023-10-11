@@ -374,7 +374,7 @@ copy_mc_to_user(void __user *to, const void *from, unsigned long n)
 	if (check_copy_size(from, n, true)) {
 		if (access_ok(to, n)) {
 			allow_write_to_user(to, n);
-			n = copy_mc_generic((void *)to, from, n);
+			n = copy_mc_generic((void __force *)to, from, n);
 			prevent_write_to_user(to, n);
 		}
 	}
