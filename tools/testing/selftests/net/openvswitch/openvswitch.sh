@@ -144,6 +144,12 @@ ovs_add_flow () {
 	return 0
 }
 
+ovs_del_flows () {
+	info "Deleting all flows from DP: sbx:$1 br:$2"
+	ovs_sbx "$1" python3 $ovs_base/ovs-dpctl.py del-flows "$2"
+	return 0
+}
+
 ovs_drop_record_and_run () {
 	local sbx=$1
 	shift
@@ -199,6 +205,17 @@ test_drop_reason() {
 	# Setup server namespace
 	ip netns exec server ip addr add 172.31.110.20/24 dev s1
 	ip netns exec server ip link set s1 up
+
+	# Check if drop reasons can be sent
+	ovs_add_flow "test_drop_reason" dropreason \
+		'in_port(1),eth(),eth_type(0x0806),arp()' 'drop(10)' 2>/dev/null
+	if [ $? == 1 ]; then
+		info "no support for drop reasons - skipping"
+		ovs_exit_sig
+		return $ksft_skip
+	fi
+
+	ovs_del_flows "test_drop_reason" dropreason
 
 	# Allow ARP
 	ovs_add_flow "test_drop_reason" dropreason \

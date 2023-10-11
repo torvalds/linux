@@ -1906,6 +1906,32 @@ class OvsFlow(GenericNetlinkSocket):
             raise ne
         return reply
 
+    def del_flows(self, dpifindex):
+        """
+        Send a del message to the kernel that will drop all flows.
+
+        dpifindex should be a valid datapath obtained by calling
+        into the OvsDatapath lookup
+        """
+
+        flowmsg = OvsFlow.ovs_flow_msg()
+        flowmsg["cmd"] = OVS_FLOW_CMD_DEL
+        flowmsg["version"] = OVS_DATAPATH_VERSION
+        flowmsg["reserved"] = 0
+        flowmsg["dpifindex"] = dpifindex
+
+        try:
+            reply = self.nlm_request(
+                flowmsg,
+                msg_type=self.prid,
+                msg_flags=NLM_F_REQUEST | NLM_F_ACK,
+            )
+            reply = reply[0]
+        except NetlinkError as ne:
+            print(flowmsg)
+            raise ne
+        return reply
+
     def dump(self, dpifindex, flowspec=None):
         """
         Returns a list of messages containing flows.
@@ -2068,6 +2094,9 @@ def main(argv):
     addflcmd.add_argument("flow", help="Flow specification")
     addflcmd.add_argument("acts", help="Flow actions")
 
+    delfscmd = subparsers.add_parser("del-flows")
+    delfscmd.add_argument("flsbr", help="Datapath name")
+
     args = parser.parse_args()
 
     if args.verbose > 0:
@@ -2151,6 +2180,11 @@ def main(argv):
         flow = OvsFlow.ovs_flow_msg()
         flow.parse(args.flow, args.acts, rep["dpifindex"])
         ovsflow.add_flow(rep["dpifindex"], flow)
+    elif hasattr(args, "flsbr"):
+        rep = ovsdp.info(args.flsbr, 0)
+        if rep is None:
+            print("DP '%s' not found." % args.flsbr)
+        ovsflow.del_flows(rep["dpifindex"])
 
     return 0
 
