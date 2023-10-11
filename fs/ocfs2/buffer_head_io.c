@@ -158,7 +158,7 @@ read_failure:
 			if (new_bh && bh) {
 				/* If middle bh fails, let previous bh
 				 * finish its read and then put it to
-				 * aovoid bh leak
+				 * avoid bh leak
 				 */
 				if (!buffer_jbd(bh))
 					wait_on_buffer(bh);
