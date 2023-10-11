@@ -112,10 +112,10 @@ static void __init fanotify_sysctls_init(void)
 
 extern const struct fsnotify_ops fanotify_fsnotify_ops;
 
-struct kmem_cache *fanotify_mark_cache __read_mostly;
-struct kmem_cache *fanotify_fid_event_cachep __read_mostly;
-struct kmem_cache *fanotify_path_event_cachep __read_mostly;
-struct kmem_cache *fanotify_perm_event_cachep __read_mostly;
+struct kmem_cache *fanotify_mark_cache __ro_after_init;
+struct kmem_cache *fanotify_fid_event_cachep __ro_after_init;
+struct kmem_cache *fanotify_path_event_cachep __ro_after_init;
+struct kmem_cache *fanotify_perm_event_cachep __ro_after_init;
 
 #define FANOTIFY_EVENT_ALIGN 4
 #define FANOTIFY_FID_INFO_HDR_LEN \

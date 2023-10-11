@@ -49,7 +49,7 @@ static struct ctl_table vm_userfaultfd_table[] = {
 };
 #endif
 
-static struct kmem_cache *userfaultfd_ctx_cachep __read_mostly;
+static struct kmem_cache *userfaultfd_ctx_cachep __ro_after_init;
 
 /*
  * Start with fault_pending_wqh and fault_wqh so they're more likely

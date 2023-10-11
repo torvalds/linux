@@ -39,9 +39,9 @@ static void __init dnotify_sysctl_init(void)
 #define dnotify_sysctl_init() do { } while (0)
 #endif
 
-static struct kmem_cache *dnotify_struct_cache __read_mostly;
-static struct kmem_cache *dnotify_mark_cache __read_mostly;
-static struct fsnotify_group *dnotify_group __read_mostly;
+static struct kmem_cache *dnotify_struct_cache __ro_after_init;
+static struct kmem_cache *dnotify_mark_cache __ro_after_init;
+static struct fsnotify_group *dnotify_group __ro_after_init;
 
 /*
  * dnotify will attach one of these to each inode (i_fsnotify_marks) which

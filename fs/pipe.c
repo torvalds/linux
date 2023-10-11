@@ -854,7 +854,7 @@ void free_pipe_info(struct pipe_inode_info *pipe)
 	kfree(pipe);
 }
 
-static struct vfsmount *pipe_mnt __read_mostly;
+static struct vfsmount *pipe_mnt __ro_after_init;
 
 /*
  * pipefs_dname() is called from d_path().

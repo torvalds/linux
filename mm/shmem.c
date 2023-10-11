@@ -42,7 +42,7 @@
 #include <linux/iversion.h>
 #include "swap.h"
 
-static struct vfsmount *shm_mnt;
+static struct vfsmount *shm_mnt __ro_after_init;
 
 #ifdef CONFIG_SHMEM
 /*
@@ -4394,7 +4394,7 @@ static const struct fs_context_operations shmem_fs_context_ops = {
 #endif
 };
 
-static struct kmem_cache *shmem_inode_cachep;
+static struct kmem_cache *shmem_inode_cachep __ro_after_init;
 
 static struct inode *shmem_alloc_inode(struct super_block *sb)
 {
@@ -4426,14 +4426,14 @@ static void shmem_init_inode(void *foo)
 	inode_init_once(&info->vfs_inode);
 }
 
-static void shmem_init_inodecache(void)
+static void __init shmem_init_inodecache(void)
 {
 	shmem_inode_cachep = kmem_cache_create("shmem_inode_cache",
 				sizeof(struct shmem_inode_info),
 				0, SLAB_PANIC|SLAB_ACCOUNT, shmem_init_inode);
 }
 
-static void shmem_destroy_inodecache(void)
+static void __init shmem_destroy_inodecache(void)
 {
 	kmem_cache_destroy(shmem_inode_cachep);
 }

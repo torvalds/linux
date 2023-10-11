@@ -25,7 +25,7 @@
 
 #include "internal.h"
 
-static struct kobj_map *cdev_map;
+static struct kobj_map *cdev_map __ro_after_init;
 
 static DEFINE_MUTEX(chrdevs_lock);
 

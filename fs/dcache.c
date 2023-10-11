@@ -78,7 +78,7 @@ __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
 
 EXPORT_SYMBOL(rename_lock);
 
-static struct kmem_cache *dentry_cache __read_mostly;
+static struct kmem_cache *dentry_cache __ro_after_init;
 
 const struct qstr empty_name = QSTR_INIT("", 0);
 EXPORT_SYMBOL(empty_name);
@@ -96,9 +96,9 @@ EXPORT_SYMBOL(dotdot_name);
  * information, yet avoid using a prime hash-size or similar.
  */
 
-static unsigned int d_hash_shift __read_mostly;
+static unsigned int d_hash_shift __ro_after_init;
 
-static struct hlist_bl_head *dentry_hashtable __read_mostly;
+static struct hlist_bl_head *dentry_hashtable __ro_after_init;
 
 static inline struct hlist_bl_head *d_hash(unsigned int hash)
 {
@@ -3324,7 +3324,7 @@ static void __init dcache_init(void)
 }
 
 /* SLAB cache for __getname() consumers */
-struct kmem_cache *names_cachep __read_mostly;
+struct kmem_cache *names_cachep __ro_after_init;
 EXPORT_SYMBOL(names_cachep);
 
 void __init vfs_caches_init_early(void)

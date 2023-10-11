@@ -9903,7 +9903,7 @@ struct task_group root_task_group;
 LIST_HEAD(task_groups);
 
 /* Cacheline aligned slab cache for task_group */
-static struct kmem_cache *task_group_cache __read_mostly;
+static struct kmem_cache *task_group_cache __ro_after_init;
 #endif
 
 void __init sched_init(void)
