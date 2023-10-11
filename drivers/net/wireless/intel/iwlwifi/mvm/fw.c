@@ -23,7 +23,7 @@
 #include "iwl-nvm-parse.h"
 #include "time-sync.h"
 
-#define MVM_UCODE_ALIVE_TIMEOUT	(HZ)
+#define MVM_UCODE_ALIVE_TIMEOUT	(2 * HZ)
 #define MVM_UCODE_CALIB_TIMEOUT	(2 * HZ)
 
 #define IWL_TAS_US_MCC 0x5553
