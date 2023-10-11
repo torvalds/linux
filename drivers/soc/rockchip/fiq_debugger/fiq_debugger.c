@@ -1556,7 +1556,7 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 			pr_err("%s: could not install nmi irq handler\n", __func__);
 			irq_clear_status_flags(state->uart_irq, IRQ_NOAUTOEN);
 			ret = request_irq(state->uart_irq, fiq_debugger_uart_irq,
-					  IRQF_NO_SUSPEND, "debug", state);
+					  IRQF_NO_SUSPEND | IRQF_NOBALANCING, "debug", state);
 		} else {
 			enable_nmi(state->uart_irq);
 		}
