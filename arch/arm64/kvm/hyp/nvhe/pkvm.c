@@ -45,7 +45,11 @@ unsigned long __ro_after_init kvm_arm_hyp_host_fp_state[NR_CPUS];
 
 static void *__get_host_fpsimd_bytes(void)
 {
-	return kern_hyp_va((void *) kvm_arm_hyp_host_fp_state[hyp_smp_processor_id()]);
+	/*
+	 * The addresses in this array have been converted to hyp addresses
+	 * in finalize_init_hyp_mode().
+	 */
+	return (void *)kvm_arm_hyp_host_fp_state[hyp_smp_processor_id()];
 }
 
 struct user_fpsimd_state *get_host_fpsimd_state(struct kvm_vcpu *vcpu)
