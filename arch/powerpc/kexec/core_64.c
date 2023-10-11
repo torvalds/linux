@@ -379,8 +379,8 @@ void default_machine_kexec(struct kimage *image)
 
 #ifdef CONFIG_PPC_64S_HASH_MMU
 /* Values we need to export to the second kernel via the device tree. */
-static unsigned long htab_base;
-static unsigned long htab_size;
+static __be64 htab_base;
+static __be64 htab_size;
 
 static struct property htab_base_prop = {
 	.name = "linux,htab-base",

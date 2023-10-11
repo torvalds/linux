@@ -1338,7 +1338,7 @@ static int get_count_from_result(struct perf_event *event,
 	for (i = count = 0, element_data = res->elements + data_offset;
 	     i < num_elements;
 	     i++, element_data += data_size + data_offset)
-		count += be64_to_cpu(*((u64 *) element_data));
+		count += be64_to_cpu(*((__be64 *)element_data));
 
 	*countp = count;
 

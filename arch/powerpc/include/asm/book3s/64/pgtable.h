@@ -626,7 +626,7 @@ static inline pte_t pte_mkdevmap(pte_t pte)
  */
 static inline int pte_devmap(pte_t pte)
 {
-	u64 mask = cpu_to_be64(_PAGE_DEVMAP | _PAGE_PTE);
+	__be64 mask = cpu_to_be64(_PAGE_DEVMAP | _PAGE_PTE);
 
 	return (pte_raw(pte) & mask) == mask;
 }
