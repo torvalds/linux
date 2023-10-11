@@ -252,7 +252,6 @@ int __init reset_starfive_jh7110_generic_probe(struct platform_device *pdev,
 
 	return devm_reset_controller_register(dev, &data->rcdev);
 }
-EXPORT_SYMBOL_GPL(reset_starfive_jh7110_generic_probe);
 
 static int __init jh7110_reset_probe(struct platform_device *pdev)
 {
