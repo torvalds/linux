@@ -11,10 +11,6 @@
 	compatible = "rockchip,rk3326-863-lp3-v10-rkisp1", "rockchip,rk3326";
 };
 
-&chosen {
-	bootargs_ext = "androidboot.boot_devices=ff390000.dwmmc,ff3b0000.nandc";
-};
-
 &i2c2 {
 	status = "okay";
 
