@@ -192,7 +192,8 @@ static ssize_t ovl_parse_param_split_lowerdirs(char *str)
 
 	for (s = d = str;; s++, d++) {
 		if (*s == '\\') {
-			s++;
+			/* keep esc chars in split lowerdir */
+			*d++ = *s++;
 		} else if (*s == ':') {
 			bool next_colon = (*(s + 1) == ':');
 
@@ -267,7 +268,7 @@ static void ovl_unescape(char *s)
 	}
 }
 
-static int ovl_mount_dir(const char *name, struct path *path)
+static int ovl_mount_dir(const char *name, struct path *path, bool upper)
 {
 	int err = -ENOMEM;
 	char *tmp = kstrdup(name, GFP_KERNEL);
@@ -276,7 +277,7 @@ static int ovl_mount_dir(const char *name, struct path *path)
 		ovl_unescape(tmp);
 		err = ovl_mount_dir_noesc(tmp, path);
 
-		if (!err && path->dentry->d_flags & DCACHE_OP_REAL) {
+		if (!err && upper && path->dentry->d_flags & DCACHE_OP_REAL) {
 			pr_err("filesystem on '%s' not supported as upperdir\n",
 			       tmp);
 			path_put_init(path);
@@ -297,7 +298,7 @@ static int ovl_parse_param_upperdir(const char *name, struct fs_context *fc,
 	struct path path;
 	char *dup;
 
-	err = ovl_mount_dir(name, &path);
+	err = ovl_mount_dir(name, &path, true);
 	if (err)
 		return err;
 
@@ -500,7 +501,7 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 		l = &ctx->lower[nr];
 		memset(l, 0, sizeof(*l));
 
-		err = ovl_mount_dir_noesc(dup_iter, &l->path);
+		err = ovl_mount_dir(dup_iter, &l->path, false);
 		if (err)
 			goto out_put;
 
@@ -979,16 +980,23 @@ int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	struct super_block *sb = dentry->d_sb;
 	struct ovl_fs *ofs = OVL_FS(sb);
 	size_t nr, nr_merged_lower = ofs->numlayer - ofs->numdatalayer;
-	char **lowerdatadirs = &ofs->config.lowerdirs[nr_merged_lower];
 
-	/* lowerdirs[] starts from offset 1 */
-	seq_printf(m, ",lowerdir=%s", ofs->config.lowerdirs[1]);
-	/* dump regular lower layers */
-	for (nr = 2; nr < nr_merged_lower; nr++)
-		seq_printf(m, ":%s", ofs->config.lowerdirs[nr]);
-	/* dump data lower layers */
-	for (nr = 0; nr < ofs->numdatalayer; nr++)
-		seq_printf(m, "::%s", lowerdatadirs[nr]);
+	/*
+	 * lowerdirs[] starts from offset 1, then
+	 * >= 0 regular lower layers prefixed with : and
+	 * >= 0 data-only lower layers prefixed with ::
+	 *
+	 * we need to escase comma and space like seq_show_option() does and
+	 * we also need to escape the colon separator from lowerdir paths.
+	 */
+	seq_puts(m, ",lowerdir=");
+	for (nr = 1; nr < ofs->numlayer; nr++) {
+		if (nr > 1)
+			seq_putc(m, ':');
+		if (nr >= nr_merged_lower)
+			seq_putc(m, ':');
+		seq_escape(m, ofs->config.lowerdirs[nr], ":, \t\n\\");
+	}
 	if (ofs->config.upperdir) {
 		seq_show_option(m, "upperdir", ofs->config.upperdir);
 		seq_show_option(m, "workdir", ofs->config.workdir);
