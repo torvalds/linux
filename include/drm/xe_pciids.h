@@ -134,7 +134,6 @@
 	MACRO__(0x5693, ## __VA_ARGS__),	\
 	MACRO__(0x5694, ## __VA_ARGS__),	\
 	MACRO__(0x5695, ## __VA_ARGS__),	\
-	MACRO__(0x5698, ## __VA_ARGS__),	\
 	MACRO__(0x56A5, ## __VA_ARGS__),	\
 	MACRO__(0x56A6, ## __VA_ARGS__),	\
 	MACRO__(0x56B0, ## __VA_ARGS__),	\
