@@ -894,6 +894,7 @@ static int chv_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			return -EINVAL;
 
 		break;
+	}
 
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		if (ctrl1 & CHV_PADCTRL1_ODEN)
@@ -904,7 +905,6 @@ static int chv_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		if (!(ctrl1 & CHV_PADCTRL1_ODEN))
 			return -EINVAL;
 		break;
-	}
 
 	default:
 		return -ENOTSUPP;
