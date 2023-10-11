@@ -171,17 +171,17 @@ sysroot/$(ARCH)/include:
 	$(Q)mv sysroot/sysroot sysroot/$(ARCH)
 
 ifneq ($(NOLIBC_SYSROOT),0)
-nolibc-test: nolibc-test.c sysroot/$(ARCH)/include
+nolibc-test: nolibc-test.c nolibc-test-linkage.c sysroot/$(ARCH)/include
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
-	  -nostdlib -nostdinc -static -Isysroot/$(ARCH)/include $< -lgcc
+	  -nostdlib -nostdinc -static -Isysroot/$(ARCH)/include nolibc-test.c nolibc-test-linkage.c -lgcc
 else
-nolibc-test: nolibc-test.c
+nolibc-test: nolibc-test.c nolibc-test-linkage.c
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
-	  -nostdlib -static -include ../../../include/nolibc/nolibc.h $< -lgcc
+	  -nostdlib -static -include ../../../include/nolibc/nolibc.h nolibc-test.c nolibc-test-linkage.c -lgcc
 endif
 
-libc-test: nolibc-test.c
-	$(QUIET_CC)$(HOSTCC) -o $@ $<
+libc-test: nolibc-test.c nolibc-test-linkage.c
+	$(QUIET_CC)$(HOSTCC) -o $@ nolibc-test.c nolibc-test-linkage.c
 
 # local libc-test
 run-libc-test: libc-test
