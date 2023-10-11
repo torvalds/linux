@@ -16,10 +16,13 @@
 #include <linux/miscdevice.h>
 #include <linux/set_memory.h>
 #include <linux/fs.h>
+#include <linux/tsm.h>
 #include <crypto/aead.h>
 #include <linux/scatterlist.h>
 #include <linux/psp-sev.h>
 #include <linux/sockptr.h>
+#include <linux/cleanup.h>
+#include <linux/uuid.h>
 #include <uapi/linux/sev-guest.h>
 #include <uapi/linux/psp-sev.h>
 
@@ -768,6 +771,130 @@ static u8 *get_vmpck(int id, struct snp_secrets_page_layout *layout, u32 **seqno
 	return key;
 }
 
+struct snp_msg_report_resp_hdr {
+	u32 status;
+	u32 report_size;
+	u8 rsvd[24];
+};
+
+struct snp_msg_cert_entry {
+	guid_t guid;
+	u32 offset;
+	u32 length;
+};
+
+static int sev_report_new(struct tsm_report *report, void *data)
+{
+	struct snp_msg_cert_entry *cert_table;
+	struct tsm_desc *desc = &report->desc;
+	struct snp_guest_dev *snp_dev = data;
+	struct snp_msg_report_resp_hdr hdr;
+	const u32 report_size = SZ_4K;
+	const u32 ext_size = SEV_FW_BLOB_MAX_SIZE;
+	u32 certs_size, i, size = report_size + ext_size;
+	int ret;
+
+	if (desc->inblob_len != SNP_REPORT_USER_DATA_SIZE)
+		return -EINVAL;
+
+	void *buf __free(kvfree) = kvzalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	guard(mutex)(&snp_cmd_mutex);
+
+	/* Check if the VMPCK is not empty */
+	if (is_vmpck_empty(snp_dev)) {
+		dev_err_ratelimited(snp_dev->dev, "VMPCK is disabled\n");
+		return -ENOTTY;
+	}
+
+	cert_table = buf + report_size;
+	struct snp_ext_report_req ext_req = {
+		.data = { .vmpl = desc->privlevel },
+		.certs_address = (__u64)cert_table,
+		.certs_len = ext_size,
+	};
+	memcpy(&ext_req.data.user_data, desc->inblob, desc->inblob_len);
+
+	struct snp_guest_request_ioctl input = {
+		.msg_version = 1,
+		.req_data = (__u64)&ext_req,
+		.resp_data = (__u64)buf,
+		.exitinfo2 = 0xff,
+	};
+	struct snp_req_resp io = {
+		.req_data = KERNEL_SOCKPTR(&ext_req),
+		.resp_data = KERNEL_SOCKPTR(buf),
+	};
+
+	ret = get_ext_report(snp_dev, &input, &io);
+	if (ret)
+		return ret;
+
+	memcpy(&hdr, buf, sizeof(hdr));
+	if (hdr.status == SEV_RET_INVALID_PARAM)
+		return -EINVAL;
+	if (hdr.status == SEV_RET_INVALID_KEY)
+		return -EINVAL;
+	if (hdr.status)
+		return -ENXIO;
+	if ((hdr.report_size + sizeof(hdr)) > report_size)
+		return -ENOMEM;
+
+	void *rbuf __free(kvfree) = kvzalloc(hdr.report_size, GFP_KERNEL);
+	if (!rbuf)
+		return -ENOMEM;
+
+	memcpy(rbuf, buf + sizeof(hdr), hdr.report_size);
+	report->outblob = no_free_ptr(rbuf);
+	report->outblob_len = hdr.report_size;
+
+	certs_size = 0;
+	for (i = 0; i < ext_size / sizeof(struct snp_msg_cert_entry); i++) {
+		struct snp_msg_cert_entry *ent = &cert_table[i];
+
+		if (guid_is_null(&ent->guid) && !ent->offset && !ent->length)
+			break;
+		certs_size = max(certs_size, ent->offset + ent->length);
+	}
+
+	/* Suspicious that the response populated entries without populating size */
+	if (!certs_size && i)
+		dev_warn_ratelimited(snp_dev->dev, "certificate slots conveyed without size\n");
+
+	/* No certs to report */
+	if (!certs_size)
+		return 0;
+
+	/* Suspicious that the certificate blob size contract was violated
+	 */
+	if (certs_size > ext_size) {
+		dev_warn_ratelimited(snp_dev->dev, "certificate data truncated\n");
+		certs_size = ext_size;
+	}
+
+	void *cbuf __free(kvfree) = kvzalloc(certs_size, GFP_KERNEL);
+	if (!cbuf)
+		return -ENOMEM;
+
+	memcpy(cbuf, cert_table, certs_size);
+	report->auxblob = no_free_ptr(cbuf);
+	report->auxblob_len = certs_size;
+
+	return 0;
+}
+
+static const struct tsm_ops sev_tsm_ops = {
+	.name = KBUILD_MODNAME,
+	.report_new = sev_report_new,
+};
+
+static void unregister_sev_tsm(void *data)
+{
+	tsm_unregister(&sev_tsm_ops);
+}
+
 static int __init sev_guest_probe(struct platform_device *pdev)
 {
 	struct snp_secrets_page_layout *layout;
@@ -840,6 +967,14 @@ static int __init sev_guest_probe(struct platform_device *pdev)
 	snp_dev->input.req_gpa = __pa(snp_dev->request);
 	snp_dev->input.resp_gpa = __pa(snp_dev->response);
 	snp_dev->input.data_gpa = __pa(snp_dev->certs_data);
+
+	ret = tsm_register(&sev_tsm_ops, snp_dev, &tsm_report_extra_type);
+	if (ret)
+		goto e_free_cert_data;
+
+	ret = devm_add_action_or_reset(&pdev->dev, unregister_sev_tsm, NULL);
+	if (ret)
+		goto e_free_cert_data;
 
 	ret =  misc_register(misc);
 	if (ret)
