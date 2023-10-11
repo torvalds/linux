@@ -506,7 +506,7 @@ static void simpledrm_device_detach_genpd(void *res)
 		return;
 
 	for (i = sdev->pwr_dom_count - 1; i >= 0; i--) {
-		if (!sdev->pwr_dom_links[i])
+		if (sdev->pwr_dom_links[i])
 			device_link_del(sdev->pwr_dom_links[i]);
 		if (!IS_ERR_OR_NULL(sdev->pwr_dom_devs[i]))
 			dev_pm_domain_detach(sdev->pwr_dom_devs[i], true);
