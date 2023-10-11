@@ -1187,13 +1187,10 @@ static int bnxt_re_srqn_handler(struct bnxt_qplib_nq *nq,
 
 	ib_event.device = &srq->rdev->ibdev;
 	ib_event.element.srq = &srq->ib_srq;
-	if (event == NQ_SRQ_EVENT_EVENT_SRQ_THRESHOLD_EVENT)
-		ib_event.event = IB_EVENT_SRQ_LIMIT_REACHED;
-	else
-		ib_event.event = IB_EVENT_SRQ_ERR;
 
 	if (srq->ib_srq.event_handler) {
-		/* Lock event_handler? */
+		if (event == NQ_SRQ_EVENT_EVENT_SRQ_THRESHOLD_EVENT)
+			ib_event.event = IB_EVENT_SRQ_LIMIT_REACHED;
 		(*srq->ib_srq.event_handler)(&ib_event,
 					     srq->ib_srq.srq_context);
 	}
