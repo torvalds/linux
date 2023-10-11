@@ -1183,6 +1183,7 @@
   kmem_cache_destroy
   kmem_cache_free
   kmemdup
+  kmemdup_nul
   kobject_add
   kobject_create_and_add
   kobject_del
