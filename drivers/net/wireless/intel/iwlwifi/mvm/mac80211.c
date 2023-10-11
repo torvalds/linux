@@ -4634,6 +4634,52 @@ static int iwl_mvm_roc_station(struct iwl_mvm *mvm,
 	return ret;
 }
 
+static int iwl_mvm_p2p_find_phy_ctxt(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_channel *channel)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct cfg80211_chan_def chandef;
+	int i;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (mvmvif->deflink.phy_ctxt &&
+	    channel == mvmvif->deflink.phy_ctxt->channel)
+		return 0;
+
+	/* Try using a PHY context that is already in use */
+	for (i = 0; i < NUM_PHY_CTX; i++) {
+		struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[i];
+
+		if (!phy_ctxt->ref || mvmvif->deflink.phy_ctxt == phy_ctxt)
+			continue;
+
+		if (channel == phy_ctxt->channel) {
+			if (mvmvif->deflink.phy_ctxt)
+				iwl_mvm_phy_ctxt_unref(mvm,
+						       mvmvif->deflink.phy_ctxt);
+
+			mvmvif->deflink.phy_ctxt = phy_ctxt;
+			iwl_mvm_phy_ctxt_ref(mvm, mvmvif->deflink.phy_ctxt);
+			return 0;
+		}
+	}
+
+	/* We already have a phy_ctxt, but it's not on the right channel */
+	if (mvmvif->deflink.phy_ctxt)
+		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
+
+	mvmvif->deflink.phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
+	if (!mvmvif->deflink.phy_ctxt)
+		return -ENOSPC;
+
+	cfg80211_chandef_create(&chandef, channel, NL80211_CHAN_NO_HT);
+
+	return iwl_mvm_phy_ctxt_add(mvm, mvmvif->deflink.phy_ctxt,
+				    &chandef, 1, 1);
+}
+
 /* Execute the common part for MLD and non-MLD modes */
 int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_channel *channel, int duration,
@@ -4641,11 +4687,8 @@ int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       const struct iwl_mvm_roc_ops *ops)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct cfg80211_chan_def chandef;
-	struct iwl_mvm_phy_ctxt *phy_ctxt;
-	int ret, i;
 	u32 lmac_id;
+	int ret;
 
 	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d, %d)\n", channel->hw_value,
 			   duration, type);
@@ -4676,57 +4719,11 @@ int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		goto out_unlock;
 	}
 
-	/* Try using a PHY context that is already in use */
-	for (i = 0; i < NUM_PHY_CTX; i++) {
-		phy_ctxt = &mvm->phy_ctxts[i];
-		if (!phy_ctxt->ref || mvmvif->deflink.phy_ctxt == phy_ctxt)
-			continue;
 
-		if (channel == phy_ctxt->channel) {
-			if (mvmvif->deflink.phy_ctxt)
-				iwl_mvm_phy_ctxt_unref(mvm,
-						       mvmvif->deflink.phy_ctxt);
-
-			mvmvif->deflink.phy_ctxt = phy_ctxt;
-			iwl_mvm_phy_ctxt_ref(mvm, mvmvif->deflink.phy_ctxt);
-			goto link_and_start_p2p_roc;
-		}
-	}
-
-	/* Configure the PHY context */
-	cfg80211_chandef_create(&chandef, channel, NL80211_CHAN_NO_HT);
-
-	/* If the currently used PHY context is configured with a matching
-	 * channel use it
-	 */
-	if (mvmvif->deflink.phy_ctxt) {
-		if (channel == mvmvif->deflink.phy_ctxt->channel)
-			goto link_and_start_p2p_roc;
-	} else {
-		phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
-		if (!phy_ctxt) {
-			ret = -ENOSPC;
-			goto out_unlock;
-		}
-
-		mvmvif->deflink.phy_ctxt = phy_ctxt;
-		ret = iwl_mvm_phy_ctxt_add(mvm, phy_ctxt, &chandef, 1, 1);
-		if (ret) {
-			IWL_ERR(mvm, "Failed to change PHY context\n");
-			goto out_unlock;
-		}
-
-		goto link_and_start_p2p_roc;
-	}
-
-	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &chandef,
-				       1, 1);
-	if (ret) {
-		IWL_ERR(mvm, "Failed to change PHY context\n");
+	ret = iwl_mvm_p2p_find_phy_ctxt(mvm, vif, channel);
+	if (ret)
 		goto out_unlock;
-	}
 
-link_and_start_p2p_roc:
 	ret = ops->link(mvm, vif);
 	if (ret)
 		goto out_unlock;
