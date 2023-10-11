@@ -535,7 +535,6 @@ static int tegra210_amx_platform_probe(struct platform_device *pdev)
 	struct tegra210_amx *amx;
 	void __iomem *regs;
 	int err;
-	struct tegra210_amx_soc_data *soc_data;
 
 	amx = devm_kzalloc(dev, sizeof(*amx), GFP_KERNEL);
 	if (!amx)
@@ -550,7 +549,7 @@ static int tegra210_amx_platform_probe(struct platform_device *pdev)
 		return PTR_ERR(regs);
 
 	amx->regmap = devm_regmap_init_mmio(dev, regs,
-					    soc_data->regmap_conf);
+					    amx->soc_data->regmap_conf);
 	if (IS_ERR(amx->regmap)) {
 		dev_err(dev, "regmap init failed\n");
 		return PTR_ERR(amx->regmap);
