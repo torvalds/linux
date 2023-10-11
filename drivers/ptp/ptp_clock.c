@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
+#include <linux/debugfs.h>
 #include <uapi/linux/sched/types.h>
 
 #include "ptp_private.h"
@@ -185,6 +186,7 @@ static void ptp_clock_release(struct device *dev)
 	spin_unlock_irqrestore(&tsevq->lock, flags);
 	bitmap_free(tsevq->mask);
 	kfree(tsevq);
+	debugfs_remove(ptp->debugfs_root);
 	ida_free(&ptp_clocks_map, ptp->index);
 	kfree(ptp);
 }
@@ -218,6 +220,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	struct ptp_clock *ptp;
 	struct timestamp_event_queue *queue = NULL;
 	int err = 0, index, major = MAJOR(ptp_devt);
+	char debugfsname[8];
 	size_t size;
 
 	if (info->n_alarm > PTP_MAX_ALARMS)
@@ -338,6 +341,10 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 		pr_err("failed to create posix clock\n");
 		return ERR_PTR(err);
 	}
+
+	/* Debugfs initialization */
+	sprintf(debugfsname, "ptp%d", ptp->index);
+	ptp->debugfs_root = debugfs_create_dir(debugfsname, NULL);
 
 	return ptp;
 
