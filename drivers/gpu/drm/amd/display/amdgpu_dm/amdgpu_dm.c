@@ -2679,7 +2679,7 @@ static int dm_suspend(void *handle)
 	return 0;
 }
 
-struct drm_connector *
+struct amdgpu_dm_connector *
 amdgpu_dm_find_first_crtc_matching_connector(struct drm_atomic_state *state,
 					     struct drm_crtc *crtc)
 {
@@ -2692,7 +2692,7 @@ amdgpu_dm_find_first_crtc_matching_connector(struct drm_atomic_state *state,
 		crtc_from_state = new_con_state->crtc;
 
 		if (crtc_from_state == crtc)
-			return connector;
+			return to_amdgpu_dm_connector(connector);
 	}
 
 	return NULL;
@@ -9393,7 +9393,6 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 	 * update changed items
 	 */
 	struct amdgpu_crtc *acrtc = NULL;
-	struct drm_connector *connector = NULL;
 	struct amdgpu_dm_connector *aconnector = NULL;
 	struct drm_connector_state *drm_new_conn_state = NULL, *drm_old_conn_state = NULL;
 	struct dm_connector_state *dm_new_conn_state = NULL, *dm_old_conn_state = NULL;
@@ -9403,8 +9402,7 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 	dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 	dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 	acrtc = to_amdgpu_crtc(crtc);
-	connector = amdgpu_dm_find_first_crtc_matching_connector(state, crtc);
-	aconnector = to_amdgpu_dm_connector(connector);
+	aconnector = amdgpu_dm_find_first_crtc_matching_connector(state, crtc);
 
 	/* TODO This hack should go away */
 	if (aconnector && enable) {
