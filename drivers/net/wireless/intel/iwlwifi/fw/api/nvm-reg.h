@@ -21,8 +21,9 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	 *	&struct iwl_lari_config_change_cmd_v2,
 	 *	&struct iwl_lari_config_change_cmd_v3,
 	 *	&struct iwl_lari_config_change_cmd_v4,
-	 *	&struct iwl_lari_config_change_cmd_v5 or
-	 *	&struct iwl_lari_config_change_cmd_v6
+	 *	&struct iwl_lari_config_change_cmd_v5,
+	 *	&struct iwl_lari_config_change_cmd_v6 or
+	 *	&struct iwl_lari_config_change_cmd_v7
 	 */
 	LARI_CONFIG_CHANGE = 0x1,
 
@@ -601,6 +602,36 @@ struct iwl_lari_config_change_cmd_v6 {
 	__le32 chan_state_active_bitmap;
 	__le32 force_disable_channels_bitmap;
 } __packed; /* LARI_CHANGE_CONF_CMD_S_VER_6 */
+
+/**
+ * struct iwl_lari_config_change_cmd_v7 - change LARI configuration
+ * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
+ *     different predefined FW config operation.
+ * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
+ * @oem_11ax_allow_bitmap: Bitmap of 11ax allowed MCCs. There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate the value to use.
+ * @oem_unii4_allow_bitmap: Bitmap of unii4 allowed MCCs.There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate allow/disallow unii4 channels.
+ * @chan_state_active_bitmap: Bitmap for overriding channel state to active.
+ *     Each bit represents a country or region to activate, according to the
+ *     BIOS definitions.
+ * @force_disable_channels_bitmap: Bitmap of disabled bands/channels.
+ *     Each bit represents a set of channels in a specific band that should be
+ *     disabled
+ * @edt_bitmap: Bitmap of energy detection threshold table.
+ *	Disable/enable the EDT optimization method for different band.
+ */
+struct iwl_lari_config_change_cmd_v7 {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+	__le32 oem_11ax_allow_bitmap;
+	__le32 oem_unii4_allow_bitmap;
+	__le32 chan_state_active_bitmap;
+	__le32 force_disable_channels_bitmap;
+	__le32 edt_bitmap;
+} __packed; /* LARI_CHANGE_CONF_CMD_S_VER_7 */
 
 /**
  * struct iwl_pnvm_init_complete_ntfy - PNVM initialization complete
