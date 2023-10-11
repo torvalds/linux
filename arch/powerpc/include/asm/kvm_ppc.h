@@ -981,18 +981,18 @@ static inline u##size kvmppc_get_##reg(struct kvm_vcpu *vcpu)		\
 	if (iden)							\
 		WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, iden) < 0);	\
 	if (kvmppc_shared_big_endian(vcpu))				\
-	       return be##size##_to_cpu(vcpu->arch.shared->reg);	\
+		return be##size##_to_cpu((__be##size __force)vcpu->arch.shared->reg);	\
 	else								\
-	       return le##size##_to_cpu(vcpu->arch.shared->reg);	\
+		return le##size##_to_cpu((__le##size __force)vcpu->arch.shared->reg);	\
 }									\
 
 #define KVMPPC_VCPU_SHARED_REGS_ACCESSOR_SET(reg, size, iden)		\
 static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, u##size val)	\
 {									\
 	if (kvmppc_shared_big_endian(vcpu))				\
-	       vcpu->arch.shared->reg = cpu_to_be##size(val);		\
+		vcpu->arch.shared->reg = (u##size __force)cpu_to_be##size(val);	\
 	else								\
-	       vcpu->arch.shared->reg = cpu_to_le##size(val);		\
+		vcpu->arch.shared->reg = (u##size __force)cpu_to_le##size(val);	\
 									\
 	if (iden)							\
 		kvmhv_nestedv2_mark_dirty(vcpu, iden);			\
