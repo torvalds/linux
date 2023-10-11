@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s:%s " fmt, KBUILD_MODNAME, __func__
@@ -180,6 +180,12 @@ static int bcl_soc_probe(struct platform_device *pdev)
 		ret = -EPROBE_DEFER;
 		goto bcl_soc_probe_exit;
 	}
+
+	if (bcl_read_soc(bcl_perph->tz_dev, &ret) == -ENODATA) {
+		ret = -EPROBE_DEFER;
+		goto bcl_soc_probe_exit;
+	}
+
 	bcl_perph->tz_dev = devm_thermal_of_zone_register(&pdev->dev,
 				0, bcl_perph, &bcl_perph->ops);
 	if (IS_ERR(bcl_perph->tz_dev)) {
