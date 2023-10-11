@@ -2516,6 +2516,13 @@ static int psp_load_p2s_table(struct psp_context *psp)
 	if (adev->in_runpm && (adev->pm.rpm_mode == AMDGPU_RUNPM_BACO))
 		return 0;
 
+	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6)) {
+		uint32_t supp_vers = adev->flags & AMD_IS_APU ? 0x0036013D :
+								0x0036003C;
+		if (psp->sos.fw_version < supp_vers)
+			return 0;
+	}
+
 	if (!ucode->fw || amdgpu_sriov_vf(psp->adev))
 		return 0;
 

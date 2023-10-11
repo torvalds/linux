@@ -65,6 +65,8 @@
 #undef pr_info
 #undef pr_debug
 
+MODULE_FIRMWARE("amdgpu/smu_13_0_6.bin");
+
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
 #define SMU_13_0_6_FEA_MAP(smu_feature, smu_13_0_6_feature)                    \
@@ -122,6 +124,9 @@ struct mca_ras_info {
 	int (*get_err_count)(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
 			     enum amdgpu_mca_error_type type, int idx, uint32_t *count);
 };
+
+#define P2S_TABLE_ID_A 0x50325341
+#define P2S_TABLE_ID_X 0x50325358
 
 static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
@@ -255,6 +260,70 @@ struct smu_v13_0_6_dpm_map {
 	struct smu_13_0_dpm_table *dpm_table;
 	uint32_t *freq_table;
 };
+
+static int smu_v13_0_6_init_microcode(struct smu_context *smu)
+{
+	const struct smc_firmware_header_v2_1 *v2_1;
+	const struct common_firmware_header *hdr;
+	struct amdgpu_firmware_info *ucode = NULL;
+	struct smc_soft_pptable_entry *entries;
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t p2s_table_id = P2S_TABLE_ID_A;
+	int ret = 0, i, p2stable_count;
+	char ucode_prefix[30];
+	char fw_name[30];
+
+	/* No need to load P2S tables in IOV mode */
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	if (!(adev->flags & AMD_IS_APU))
+		p2s_table_id = P2S_TABLE_ID_X;
+
+	amdgpu_ucode_ip_version_decode(adev, MP1_HWIP, ucode_prefix,
+				       sizeof(ucode_prefix));
+
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", ucode_prefix);
+
+	ret = amdgpu_ucode_request(adev, &adev->pm.fw, fw_name);
+	if (ret)
+		goto out;
+
+	hdr = (const struct common_firmware_header *)adev->pm.fw->data;
+	amdgpu_ucode_print_smc_hdr(hdr);
+
+	/* SMU v13.0.6 binary file doesn't carry pptables, instead the entries
+	 * are used to carry p2s tables.
+	 */
+	v2_1 = (const struct smc_firmware_header_v2_1 *)adev->pm.fw->data;
+	entries = (struct smc_soft_pptable_entry
+			   *)((uint8_t *)v2_1 +
+			      le32_to_cpu(v2_1->pptable_entry_offset));
+	p2stable_count = le32_to_cpu(v2_1->pptable_count);
+	for (i = 0; i < p2stable_count; i++) {
+		if (le32_to_cpu(entries[i].id) == p2s_table_id) {
+			smu->pptable_firmware.data =
+				((uint8_t *)v2_1 +
+				 le32_to_cpu(entries[i].ppt_offset_bytes));
+			smu->pptable_firmware.size =
+				le32_to_cpu(entries[i].ppt_size_bytes);
+			break;
+		}
+	}
+
+	if (smu->pptable_firmware.data && smu->pptable_firmware.size) {
+		ucode = &adev->firmware.ucode[AMDGPU_UCODE_ID_P2S_TABLE];
+		ucode->ucode_id = AMDGPU_UCODE_ID_P2S_TABLE;
+		ucode->fw = &smu->pptable_firmware;
+		adev->firmware.fw_size += ALIGN(ucode->fw->size, PAGE_SIZE);
+	}
+
+	return 0;
+out:
+	amdgpu_ucode_release(&adev->pm.fw);
+
+	return ret;
+}
 
 static int smu_v13_0_6_tables_init(struct smu_context *smu)
 {
@@ -2775,6 +2844,8 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.get_power_limit = smu_v13_0_6_get_power_limit,
 	.is_dpm_running = smu_v13_0_6_is_dpm_running,
 	.get_unique_id = smu_v13_0_6_get_unique_id,
+	.init_microcode = smu_v13_0_6_init_microcode,
+	.fini_microcode = smu_v13_0_fini_microcode,
 	.init_smc_tables = smu_v13_0_6_init_smc_tables,
 	.fini_smc_tables = smu_v13_0_fini_smc_tables,
 	.init_power = smu_v13_0_init_power,
