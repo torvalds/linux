@@ -1057,4 +1057,72 @@ struct gpu_metrics_v2_4 {
 	uint16_t			average_soc_current;
 	uint16_t			average_gfx_current;
 };
+
+struct gpu_metrics_v3_0 {
+	struct metrics_table_header	common_header;
+
+	/* Temperature */
+	/* gfx temperature on APUs */
+	uint16_t			temperature_gfx;
+	/* soc temperature on APUs */
+	uint16_t			temperature_soc;
+	/* CPU core temperature on APUs */
+	uint16_t			temperature_core[16];
+	/* skin temperature on APUs */
+	uint16_t			temperature_skin;
+
+	/* Utilization */
+	/* time filtered GFX busy % [0-100] */
+	uint16_t			average_gfx_activity;
+	/* time filtered VCN busy % [0-100] */
+	uint16_t			average_vcn_activity;
+	/* time filtered IPU per-column busy % [0-100] */
+	uint16_t			average_ipu_activity[8];
+	/* time filtered per-core C0 residency % [0-100]*/
+	uint16_t			average_core_c0_activity[16];
+	/* time filtered DRAM read bandwidth [GB/sec] */
+	uint16_t			average_dram_reads;
+	/* time filtered DRAM write bandwidth [GB/sec] */
+	uint16_t			average_dram_writes;
+
+	/* Driver attached timestamp (in ns) */
+	uint64_t			system_clock_counter;
+
+	/* Power/Energy */
+	/* average dGPU + APU power on A + A platform */
+	uint32_t			average_socket_power;
+	/* average IPU power [W] */
+	uint16_t			average_ipu_power;
+	/* average APU power [W] */
+	uint32_t			average_apu_power;
+	/* average dGPU power [W] */
+	uint32_t			average_dgpu_power;
+	/* sum of core power across all cores in the socket [W] */
+	uint32_t			average_core_power;
+	/* calculated core power [W] */
+	uint16_t			core_power[16];
+	/* maximum IRM defined STAPM power limit [W] */
+	uint16_t			stapm_power_limit;
+	/* time filtered STAPM power limit [W] */
+	uint16_t			current_stapm_power_limit;
+
+	/* Average clocks */
+	uint16_t			average_gfxclk_frequency;
+	uint16_t			average_socclk_frequency;
+	uint16_t			average_vpeclk_frequency;
+	uint16_t			average_ipuclk_frequency;
+	uint16_t			average_fclk_frequency;
+	uint16_t			average_vclk_frequency;
+
+	/* Current clocks */
+	/* target core frequency */
+	uint16_t			current_coreclk[16];
+	/* CCLK frequency limit enforced on classic cores [MHz] */
+	uint16_t			current_core_maxfreq;
+	/* GFXCLK frequency limit enforced on GFX [MHz] */
+	uint16_t			current_gfx_maxfreq;
+
+	/* Metrics table alpha filter time constant [us] */
+	uint32_t			time_filter_alphavalue;
+};
 #endif

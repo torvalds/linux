@@ -149,23 +149,37 @@ typedef struct {
   uint32_t MaxGfxClk;
 } DpmClocks_t;
 
-
-// Throttler Status Bitmask
-#define THROTTLER_STATUS_BIT_SPL              0
-#define THROTTLER_STATUS_BIT_FPPT             1
-#define THROTTLER_STATUS_BIT_SPPT             2
-#define THROTTLER_STATUS_BIT_SPPT_APU         3
-#define THROTTLER_STATUS_BIT_THM_CORE         4
-#define THROTTLER_STATUS_BIT_THM_GFX          5
-#define THROTTLER_STATUS_BIT_THM_SOC          6
-#define THROTTLER_STATUS_BIT_TDC_VDD          7
-#define THROTTLER_STATUS_BIT_TDC_VDDCCX       8
-#define THROTTLER_STATUS_BIT_TDC_SOC          9
-#define THROTTLER_STATUS_BIT_PROCHOT_CPU      10
-#define THROTTLER_STATUS_BIT_PROCHOT_GFX      11
-#define THROTTLER_STATUS_BIT_EDC_CPU_CLASSIC  12
-#define THROTTLER_STATUS_BIT_EDC_CPU_DENSE    13
-#define THROTTLER_STATUS_BIT_EDC_GFX          14
+typedef struct {
+  uint16_t CoreFrequency[16];           //Target core frequency [MHz]
+  uint16_t CorePower[16];               //CAC calculated core power [W] [Q8.8]
+  uint16_t CoreTemperature[16];         //TSEN measured core temperature [C] [Q8.8]
+  uint16_t GfxTemperature;              //TSEN measured GFX temperature [C] [Q8.8]
+  uint16_t SocTemperature;              //TSEN measured SOC temperature [C] [Q8.8]
+  uint16_t StapmOpnLimit;               //Maximum IRM defined STAPM power limit [W] [Q8.8]
+  uint16_t StapmCurrentLimit;           //Time filtered STAPM power limit [W] [Q8.8]
+  uint16_t InfrastructureCpuMaxFreq;    //CCLK frequency limit enforced on classic cores [MHz]
+  uint16_t InfrastructureGfxMaxFreq;    //GFXCLK frequency limit enforced on GFX [MHz]
+  uint16_t SkinTemp;                    //Maximum skin temperature reported by APU and HS2 chassis sensors [C] [Q8.8]
+  uint16_t AverageGfxclkFrequency;      //Time filtered target GFXCLK frequency [MHz]
+  uint16_t AverageFclkFrequency;        //Time filtered target FCLK frequency [MHz]
+  uint16_t AverageGfxActivity;          //Time filtered GFX busy % [0-100] [Q8.8]
+  uint16_t AverageSocclkFrequency;      //Time filtered target SOCCLK frequency [MHz]
+  uint16_t AverageVclkFrequency;        //Time filtered target VCLK frequency [MHz]
+  uint16_t AverageVcnActivity;          //Time filtered VCN busy % [0-100] [Q8.8]
+  uint16_t AverageVpeclkFrequency;      //Time filtered target VPECLK frequency [MHz]
+  uint16_t AverageIpuclkFrequency;      //Time filtered target IPUCLK frequency [MHz]
+  uint16_t AverageIpuBusy[8];           //Time filtered IPU per-column busy % [0-100] [Q8.8]
+  uint16_t AverageDRAMReads;            //Time filtered DRAM read bandwidth [GB/sec] [Q8.8]
+  uint16_t AverageDRAMWrites;           //Time filtered DRAM write bandwidth [GB/sec] [Q8.8]
+  uint16_t AverageCoreC0Residency[16];  //Time filtered per-core C0 residency % [0-100] [Q8.8]
+  uint16_t IpuPower;                    //Time filtered IPU power [W] [Q8.8]
+  uint32_t ApuPower;                    //Time filtered APU power [W] [Q24.8]
+  uint32_t dGpuPower;                   //Time filtered dGPU power [W] [Q24.8]
+  uint32_t AverageSocketPower;          //Time filtered power used for PPT/STAPM [APU+dGPU] [W] [Q24.8]
+  uint32_t AverageCorePower;            //Time filtered sum of core power across all cores in the socket [W] [Q24.8]
+  uint32_t FilterAlphaValue;            //Metrics table alpha filter time constant [us]
+  uint32_t MetricsCounter;              //Counter that is incremented on every metrics table update [PM_TIMER cycles]
+} SmuMetrics_t;
 
 typedef struct {
   uint16_t GfxclkFrequency;             //[MHz]
@@ -212,7 +226,6 @@ typedef struct {
   uint16_t CurTemp;                     //[centi-Celsius]
   uint16_t FilterAlphaValue;            //[m]
 
-  //PMFW-8735
   uint16_t AverageGfxclkFrequency;
   uint16_t AverageFclkFrequency;
   uint16_t AverageGfxActivity;
@@ -224,20 +237,9 @@ typedef struct {
   uint16_t AverageSocketPower;        //Filtered value of CurrentSocketPower
   uint16_t AverageCorePower[2];       //Filtered of [sum of CorePower[8] per ccx])
   uint16_t AverageCoreC0Residency[16]; //Filtered of [average C0 residency % per core]
-  uint16_t spare3;
+  uint16_t spare1;
   uint32_t MetricsCounter;            //Counts the # of metrics table parameter reads per update to the metrics table, i.e. if the metrics table update happens every 1 second, this value could be up to 1000 if the smu collected metrics data every cycle, or as low as 0 if the smu was asleep the whole time. Reset to 0 after writing.
-} SmuMetrics_t;
-
-typedef struct {
-  uint16_t StapmMaxPlatformLimit;            //[W]
-  uint16_t StapmMinPlatformLimit;            //[W]
-  uint16_t FastPptMaxPlatformLimit;          //[W]
-  uint16_t FastPptMinPlatformLimit;          //[W]
-  uint16_t SlowPptMaxPlatformLimit;          //[W]
-  uint16_t SlowPptMinPlatformLimit;          //[W]
-  uint16_t SlowPptApuMaxPlatformLimit;       //[W]
-  uint16_t SlowPptApuMinPlatformLimit;       //[W]
-} PmfInfo_t;
+} SmuMetrics_legacy_t;
 
 //ISP tile definitions
 typedef enum {
@@ -272,10 +274,9 @@ typedef enum {
 #define TABLE_CUSTOM_DPM            2 // Called by Driver
 #define TABLE_BIOS_GPIO_CONFIG      3 // Called by BIOS
 #define TABLE_DPMCLOCKS             4 // Called by Driver and VBIOS
-#define TABLE_MOMENTARY_PM          5 // Called by Tools
+#define TABLE_SPARE0                5 // Unused
 #define TABLE_MODERN_STDBY          6 // Called by Tools for Modern Standby Log
 #define TABLE_SMU_METRICS           7 // Called by Driver and SMF/PMF
-#define TABLE_INFRASTRUCTURE_LIMITS 8 // Called by SMF/PMF
-#define TABLE_COUNT                 9
+#define TABLE_COUNT                 8
 
 #endif

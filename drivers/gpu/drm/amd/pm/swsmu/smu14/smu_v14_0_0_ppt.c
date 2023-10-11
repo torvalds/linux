@@ -67,13 +67,13 @@
 	FEATURE_MASK(FEATURE_VPE_DPM_BIT))
 
 static struct cmn2asic_msg_mapping smu_v14_0_0_message_map[SMU_MSG_MAX_COUNT] = {
-	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,			1),
-	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetPmfwVersion,		1),
+	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,				1),
+	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetPmfwVersion,			1),
 	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion,		1),
-	MSG_MAP(PowerDownVcn,                   PPSMC_MSG_PowerDownVcn,			1),
-	MSG_MAP(PowerUpVcn,                     PPSMC_MSG_PowerUpVcn,			1),
-	MSG_MAP(SetHardMinVcn,                  PPSMC_MSG_SetHardMinVcn,		1),
-	MSG_MAP(SetSoftMinGfxclk,               PPSMC_MSG_SetSoftMinGfxclk,		1),
+	MSG_MAP(PowerDownVcn,                   PPSMC_MSG_PowerDownVcn,				1),
+	MSG_MAP(PowerUpVcn,                     PPSMC_MSG_PowerUpVcn,				1),
+	MSG_MAP(SetHardMinVcn,                  PPSMC_MSG_SetHardMinVcn,			1),
+	MSG_MAP(SetSoftMinGfxclk,               PPSMC_MSG_SetSoftMinGfxclk,			1),
 	MSG_MAP(PrepareMp1ForUnload,            PPSMC_MSG_PrepareMp1ForUnload,		1),
 	MSG_MAP(SetDriverDramAddrHigh,          PPSMC_MSG_SetDriverDramAddrHigh,	1),
 	MSG_MAP(SetDriverDramAddrLow,           PPSMC_MSG_SetDriverDramAddrLow,		1),
@@ -82,32 +82,30 @@ static struct cmn2asic_msg_mapping smu_v14_0_0_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(GfxDeviceDriverReset,           PPSMC_MSG_GfxDeviceDriverReset,		1),
 	MSG_MAP(GetEnabledSmuFeatures,          PPSMC_MSG_GetEnabledSmuFeatures,	1),
 	MSG_MAP(SetHardMinSocclkByFreq,         PPSMC_MSG_SetHardMinSocclkByFreq,	1),
-	MSG_MAP(SetSoftMinFclk,              	PPSMC_MSG_SetSoftMinFclk,		1),
-	MSG_MAP(SetSoftMinVcn,                  PPSMC_MSG_SetSoftMinVcn,		1),
-	MSG_MAP(EnableGfxImu,              		PPSMC_MSG_EnableGfxImu,		1),
-	MSG_MAP(GetGfxclkFrequency,             PPSMC_MSG_GetGfxclkFrequency,		1),
-	MSG_MAP(GetFclkFrequency,               PPSMC_MSG_GetFclkFrequency,		1),
-	MSG_MAP(AllowGfxOff,                    PPSMC_MSG_AllowGfxOff,			1),
-	MSG_MAP(DisallowGfxOff,                 PPSMC_MSG_DisallowGfxOff,		1),
-	MSG_MAP(SetSoftMaxGfxClk,               PPSMC_MSG_SetSoftMaxGfxClk,		1),
-	MSG_MAP(SetHardMinGfxClk,               PPSMC_MSG_SetHardMinGfxClk,		1),
+	MSG_MAP(SetSoftMinFclk,                 PPSMC_MSG_SetSoftMinFclk,			1),
+	MSG_MAP(SetSoftMinVcn,                  PPSMC_MSG_SetSoftMinVcn,			1),
+	MSG_MAP(EnableGfxImu,                   PPSMC_MSG_EnableGfxImu,				1),
+	MSG_MAP(AllowGfxOff,                    PPSMC_MSG_AllowGfxOff,				1),
+	MSG_MAP(DisallowGfxOff,                 PPSMC_MSG_DisallowGfxOff,			1),
+	MSG_MAP(SetSoftMaxGfxClk,               PPSMC_MSG_SetSoftMaxGfxClk,			1),
+	MSG_MAP(SetHardMinGfxClk,               PPSMC_MSG_SetHardMinGfxClk,			1),
 	MSG_MAP(SetSoftMaxSocclkByFreq,         PPSMC_MSG_SetSoftMaxSocclkByFreq,	1),
 	MSG_MAP(SetSoftMaxFclkByFreq,           PPSMC_MSG_SetSoftMaxFclkByFreq,		1),
-	MSG_MAP(SetSoftMaxVcn,                  PPSMC_MSG_SetSoftMaxVcn,		1),
-	MSG_MAP(PowerDownJpeg,                  PPSMC_MSG_PowerDownJpeg,		1),
-	MSG_MAP(PowerUpJpeg,                    PPSMC_MSG_PowerUpJpeg,			1),
+	MSG_MAP(SetSoftMaxVcn,                  PPSMC_MSG_SetSoftMaxVcn,			1),
+	MSG_MAP(PowerDownJpeg,                  PPSMC_MSG_PowerDownJpeg,			1),
+	MSG_MAP(PowerUpJpeg,                    PPSMC_MSG_PowerUpJpeg,				1),
 	MSG_MAP(SetHardMinFclkByFreq,           PPSMC_MSG_SetHardMinFclkByFreq,		1),
 	MSG_MAP(SetSoftMinSocclkByFreq,         PPSMC_MSG_SetSoftMinSocclkByFreq,	1),
 	MSG_MAP(PowerDownIspByTile,             PPSMC_MSG_PowerDownIspByTile,		1),
-	MSG_MAP(PowerUpIspByTile,               PPSMC_MSG_PowerUpIspByTile,		1),
-	MSG_MAP(SetHardMinIspiclkByFreq,        PPSMC_MSG_SetHardMinIspiclkByFreq,		1),
-	MSG_MAP(SetHardMinIspxclkByFreq,        PPSMC_MSG_SetHardMinIspxclkByFreq,		1),
-	MSG_MAP(PowerUpVpe,        				PPSMC_MSG_PowerUpVpe,		1),
-	MSG_MAP(PowerDownVpe,        			PPSMC_MSG_PowerDownVpe,		1),
-	MSG_MAP(PowerUpUmsch,        			PPSMC_MSG_PowerUpUmsch,		1),
-	MSG_MAP(PowerDownUmsch,        			PPSMC_MSG_PowerDownUmsch,	1),
-	MSG_MAP(SetSoftMaxVpe,        			PPSMC_MSG_SetSoftMaxVpe,		1),
-	MSG_MAP(SetSoftMinVpe,        			PPSMC_MSG_SetSoftMinVpe,	1),
+	MSG_MAP(PowerUpIspByTile,               PPSMC_MSG_PowerUpIspByTile,			1),
+	MSG_MAP(SetHardMinIspiclkByFreq,        PPSMC_MSG_SetHardMinIspiclkByFreq,	1),
+	MSG_MAP(SetHardMinIspxclkByFreq,        PPSMC_MSG_SetHardMinIspxclkByFreq,	1),
+	MSG_MAP(PowerUpVpe,                     PPSMC_MSG_PowerUpVpe,				1),
+	MSG_MAP(PowerDownVpe,                   PPSMC_MSG_PowerDownVpe,				1),
+	MSG_MAP(PowerUpUmsch,                   PPSMC_MSG_PowerUpUmsch,				1),
+	MSG_MAP(PowerDownUmsch,                 PPSMC_MSG_PowerDownUmsch,			1),
+	MSG_MAP(SetSoftMaxVpe,                  PPSMC_MSG_SetSoftMaxVpe,			1),
+	MSG_MAP(SetSoftMinVpe,                  PPSMC_MSG_SetSoftMinVpe,			1),
 };
 
 static struct cmn2asic_mapping smu_v14_0_0_feature_mask_map[SMU_FEATURE_COUNT] = {
@@ -129,7 +127,6 @@ static struct cmn2asic_mapping smu_v14_0_0_feature_mask_map[SMU_FEATURE_COUNT] =
 	FEA_MAP(LOW_POWER_DCNCLKS),
 	FEA_MAP(DS_FCLK),
 	FEA_MAP(DS_MP1CLK),
-	FEA_MAP(GFX_DEM),
 	FEA_MAP(PSI),
 	FEA_MAP(PROCHOT),
 	FEA_MAP(CPUOFF),
@@ -159,23 +156,31 @@ static int smu_v14_0_0_init_smc_tables(struct smu_context *smu)
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_DPMCLOCKS, sizeof(DpmClocks_t),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
-		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	if (smu->smc_fw_version > 0x5d3500) {
+		SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
+			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+		smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	} else {
+		SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_legacy_t),
+			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+		smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_legacy_t), GFP_KERNEL);
+	}
+	if (!smu_table->metrics_table)
+		goto err0_out;
+	smu_table->metrics_time = 0;
 
 	smu_table->clocks_table = kzalloc(sizeof(DpmClocks_t), GFP_KERNEL);
 	if (!smu_table->clocks_table)
-		goto err0_out;
-
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
-	if (!smu_table->metrics_table)
 		goto err1_out;
-	smu_table->metrics_time = 0;
 
 	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_1);
+	if (smu->smc_fw_version > 0x5d3500)
+		smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v3_0);
+	else
+		smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_1);
 	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table)
 		goto err3_out;
@@ -185,9 +190,9 @@ static int smu_v14_0_0_init_smc_tables(struct smu_context *smu)
 err3_out:
 	kfree(smu_table->watermarks_table);
 err2_out:
-	kfree(smu_table->metrics_table);
-err1_out:
 	kfree(smu_table->clocks_table);
+err1_out:
+	kfree(smu_table->metrics_table);
 err0_out:
 	return -ENOMEM;
 }
@@ -237,6 +242,96 @@ static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 
 	switch (member) {
 	case METRICS_AVERAGE_GFXCLK:
+		*value = metrics->AverageGfxclkFrequency;
+		break;
+	case METRICS_AVERAGE_SOCCLK:
+		*value = metrics->AverageSocclkFrequency;
+		break;
+	case METRICS_AVERAGE_VCLK:
+		*value = metrics->AverageVclkFrequency;
+		break;
+	case METRICS_AVERAGE_DCLK:
+		*value = 0;
+		break;
+	case METRICS_AVERAGE_UCLK:
+		*value = 0;
+		break;
+	case METRICS_AVERAGE_FCLK:
+		*value = metrics->AverageFclkFrequency;
+		break;
+	case METRICS_AVERAGE_GFXACTIVITY:
+		*value = metrics->AverageGfxActivity >> 8;
+		break;
+	case METRICS_AVERAGE_VCNACTIVITY:
+		*value = metrics->AverageVcnActivity >> 8;
+		break;
+	case METRICS_AVERAGE_SOCKETPOWER:
+	case METRICS_CURR_SOCKETPOWER:
+		*value = (metrics->AverageSocketPower & 0xff00) +
+		((metrics->AverageSocketPower & 0xff) * 100 >> 8);
+		break;
+	case METRICS_TEMPERATURE_EDGE:
+		*value = (metrics->GfxTemperature >> 8) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_HOTSPOT:
+		*value = (metrics->SocTemperature >> 8) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_THROTTLER_STATUS:
+		*value = 0;
+		break;
+	case METRICS_VOLTAGE_VDDGFX:
+		*value = 0;
+		break;
+	case METRICS_VOLTAGE_VDDSOC:
+		*value = 0;
+		break;
+	case METRICS_SS_APU_SHARE:
+		/* return the percentage of APU power with respect to APU's power limit.
+		 * percentage is reported, this isn't boost value. Smartshift power
+		 * boost/shift is only when the percentage is more than 100.
+		 */
+		if (metrics->StapmOpnLimit > 0)
+			*value = (metrics->ApuPower * 100) / metrics->StapmOpnLimit;
+		else
+			*value = 0;
+		break;
+	case METRICS_SS_DGPU_SHARE:
+		/* return the percentage of dGPU power with respect to dGPU's power limit.
+		 * percentage is reported, this isn't boost value. Smartshift power
+		 * boost/shift is only when the percentage is more than 100.
+		 */
+		if ((metrics->dGpuPower > 0) &&
+		    (metrics->StapmCurrentLimit > metrics->StapmOpnLimit))
+			*value = (metrics->dGpuPower * 100) /
+				 (metrics->StapmCurrentLimit - metrics->StapmOpnLimit);
+		else
+			*value = 0;
+		break;
+	default:
+		*value = UINT_MAX;
+		break;
+	}
+
+	return ret;
+}
+
+static int smu_v14_0_0_legacy_get_smu_metrics_data(struct smu_context *smu,
+					    MetricsMember_t member,
+					    uint32_t *value)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+
+	SmuMetrics_legacy_t *metrics = (SmuMetrics_legacy_t *)smu_table->metrics_table;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu, NULL, false);
+	if (ret)
+		return ret;
+
+	switch (member) {
+	case METRICS_AVERAGE_GFXCLK:
 		*value = metrics->GfxclkFrequency;
 		break;
 	case METRICS_AVERAGE_SOCCLK:
@@ -253,6 +348,9 @@ static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	case METRICS_AVERAGE_GFXACTIVITY:
 		*value = metrics->GfxActivity / 100;
+		break;
+	case METRICS_AVERAGE_FCLK:
+		*value = metrics->AverageFclkFrequency;
 		break;
 	case METRICS_AVERAGE_VCNACTIVITY:
 		*value = metrics->UvdActivity;
@@ -310,6 +408,16 @@ static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_v14_0_0_common_get_smu_metrics_data(struct smu_context *smu,
+					    MetricsMember_t member,
+					    uint32_t *value)
+{
+	if (smu->smc_fw_version > 0x5d3500)
+		return smu_v14_0_0_get_smu_metrics_data(smu, member, value);
+	else
+		return smu_v14_0_0_legacy_get_smu_metrics_data(smu, member, value);
+}
+
 static int smu_v14_0_0_read_sensor(struct smu_context *smu,
 				   enum amd_pp_sensors sensor,
 				   void *data, uint32_t *size)
@@ -321,69 +429,69 @@ static int smu_v14_0_0_read_sensor(struct smu_context *smu,
 
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = smu_v14_0_0_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
 						       METRICS_AVERAGE_GFXACTIVITY,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
-		ret = smu_v14_0_0_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
 						       METRICS_AVERAGE_SOCKETPOWER,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
-		ret = smu_v14_0_0_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
 						       METRICS_CURR_SOCKETPOWER,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_EDGE_TEMP:
-		ret = smu_v14_0_0_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
 						       METRICS_TEMPERATURE_EDGE,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
-		ret = smu_v14_0_0_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
 						       METRICS_TEMPERATURE_HOTSPOT,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
-		ret = smu_v14_0_0_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
 						       METRICS_AVERAGE_UCLK,
 						       (uint32_t *)data);
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		ret = smu_v14_0_0_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
 						       METRICS_AVERAGE_GFXCLK,
 						       (uint32_t *)data);
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_VDDGFX:
-		ret = smu_v14_0_0_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
 						       METRICS_VOLTAGE_VDDGFX,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_VDDNB:
-		ret = smu_v14_0_0_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
 						       METRICS_VOLTAGE_VDDSOC,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_SS_APU_SHARE:
-		ret = smu_v14_0_0_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
 						       METRICS_SS_APU_SHARE,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_SS_DGPU_SHARE:
-		ret = smu_v14_0_0_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
 						       METRICS_SS_DGPU_SHARE,
 						       (uint32_t *)data);
 		*size = 4;
@@ -471,9 +579,72 @@ static ssize_t smu_v14_0_0_get_gpu_metrics(struct smu_context *smu,
 						void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
+	struct gpu_metrics_v3_0 *gpu_metrics =
+		(struct gpu_metrics_v3_0 *)smu_table->gpu_metrics_table;
+	SmuMetrics_t metrics;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu, &metrics, true);
+	if (ret)
+		return ret;
+
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 2, 1);
+
+	gpu_metrics->temperature_gfx = metrics.GfxTemperature;
+	gpu_metrics->temperature_soc = metrics.SocTemperature;
+	memcpy(&gpu_metrics->temperature_core[0],
+		&metrics.CoreTemperature[0],
+		sizeof(uint16_t) * 16);
+	gpu_metrics->temperature_skin = metrics.SkinTemp;
+
+	gpu_metrics->average_gfx_activity = metrics.AverageGfxActivity;
+	gpu_metrics->average_vcn_activity = metrics.AverageVcnActivity;
+	memcpy(&gpu_metrics->average_ipu_activity[0],
+		&metrics.AverageIpuBusy[0],
+		sizeof(uint16_t) * 8);
+	memcpy(&gpu_metrics->average_core_c0_activity[0],
+		&metrics.AverageCoreC0Residency[0],
+		sizeof(uint16_t) * 16);
+	gpu_metrics->average_dram_reads = metrics.AverageDRAMReads;
+	gpu_metrics->average_dram_writes = metrics.AverageDRAMWrites;
+
+	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
+	gpu_metrics->average_ipu_power = metrics.IpuPower;
+	gpu_metrics->average_apu_power = metrics.ApuPower;
+	gpu_metrics->average_dgpu_power = metrics.dGpuPower;
+	gpu_metrics->average_core_power = metrics.AverageCorePower;
+	memcpy(&gpu_metrics->core_power[0],
+		&metrics.CorePower[0],
+		sizeof(uint16_t) * 16);
+
+	gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequency;
+	gpu_metrics->average_socclk_frequency = metrics.AverageSocclkFrequency;
+	gpu_metrics->average_vpeclk_frequency = metrics.AverageVpeclkFrequency;
+	gpu_metrics->average_fclk_frequency = metrics.AverageFclkFrequency;
+	gpu_metrics->average_vclk_frequency = metrics.AverageVclkFrequency;
+	gpu_metrics->average_ipuclk_frequency = metrics.AverageIpuclkFrequency;
+
+	memcpy(&gpu_metrics->current_coreclk[0],
+		&metrics.CoreFrequency[0],
+		sizeof(uint16_t) * 16);
+	gpu_metrics->current_core_maxfreq = metrics.InfrastructureCpuMaxFreq;
+	gpu_metrics->current_gfx_maxfreq = metrics.InfrastructureGfxMaxFreq;
+
+	gpu_metrics->time_filter_alphavalue = metrics.FilterAlphaValue;
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	*table = (void *)gpu_metrics;
+
+	return sizeof(struct gpu_metrics_v3_0);
+}
+
+static ssize_t smu_v14_0_0_get_legacy_gpu_metrics(struct smu_context *smu,
+						void **table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v2_1 *gpu_metrics =
 		(struct gpu_metrics_v2_1 *)smu_table->gpu_metrics_table;
-	SmuMetrics_t metrics;
+	SmuMetrics_legacy_t metrics;
 	int ret = 0;
 
 	ret = smu_cmn_get_metrics_table(smu, &metrics, true);
@@ -517,6 +688,16 @@ static ssize_t smu_v14_0_0_get_gpu_metrics(struct smu_context *smu,
 	*table = (void *)gpu_metrics;
 
 	return sizeof(struct gpu_metrics_v2_1);
+}
+
+static ssize_t smu_v14_0_0_common_get_gpu_metrics(struct smu_context *smu,
+				      void **table)
+{
+
+	if (smu->smc_fw_version > 0x5d3500)
+		return smu_v14_0_0_get_gpu_metrics(smu, table);
+	else
+		return smu_v14_0_0_get_legacy_gpu_metrics(smu, table);
 }
 
 static int smu_v14_0_0_mode2_reset(struct smu_context *smu)
@@ -737,20 +918,17 @@ static int smu_v14_0_0_get_current_clk_freq(struct smu_context *smu,
 		member_type = METRICS_AVERAGE_UCLK;
 		break;
 	case SMU_FCLK:
-		return smu_cmn_send_smc_msg_with_param(smu,
-						       SMU_MSG_GetFclkFrequency,
-						       0, value);
+		member_type = METRICS_AVERAGE_FCLK;
+		break;
 	case SMU_GFXCLK:
 	case SMU_SCLK:
-		return smu_cmn_send_smc_msg_with_param(smu,
-						       SMU_MSG_GetGfxclkFrequency,
-						       0, value);
+		member_type = METRICS_AVERAGE_GFXCLK;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return smu_v14_0_0_get_smu_metrics_data(smu, member_type, value);
+	return smu_v14_0_0_common_get_smu_metrics_data(smu, member_type, value);
 }
 
 static int smu_v14_0_0_get_dpm_level_count(struct smu_context *smu,
@@ -1052,7 +1230,7 @@ static const struct pptable_funcs smu_v14_0_0_ppt_funcs = {
 	.read_sensor = smu_v14_0_0_read_sensor,
 	.is_dpm_running = smu_v14_0_0_is_dpm_running,
 	.set_watermarks_table = smu_v14_0_0_set_watermarks_table,
-	.get_gpu_metrics = smu_v14_0_0_get_gpu_metrics,
+	.get_gpu_metrics = smu_v14_0_0_common_get_gpu_metrics,
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_driver_table_location = smu_v14_0_set_driver_table_location,

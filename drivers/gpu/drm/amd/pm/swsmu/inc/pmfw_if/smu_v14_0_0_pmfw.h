@@ -58,22 +58,22 @@
 #define FEATURE_DS_LCLK_BIT                 23
 #define FEATURE_LOW_POWER_DCNCLKS_BIT       24  // for all DISP clks
 #define FEATURE_DS_SHUBCLK_BIT              25
-#define FEATURE_GFX_TEMP_VMIN_BIT           26
+#define FEATURE_SPARE0_BIT                  26  //SPARE
 #define FEATURE_ZSTATES_BIT                 27
 #define FEATURE_IOMMUL2_PG_BIT              28
 #define FEATURE_DS_FCLK_BIT                 29
 #define FEATURE_DS_SMNCLK_BIT               30
 #define FEATURE_DS_MP1CLK_BIT               31
-#define FEATURE_RESERVED3                   32
+#define FEATURE_WHISPER_MODE_BIT            32
 #define FEATURE_SMU_LOW_POWER_BIT           33
 #define FEATURE_SMART_L3_RINSER_BIT         34
-#define FEATURE_GFX_DEM_BIT                 35
+#define FEATURE_SPARE1_BIT                  35  //SPARE
 #define FEATURE_PSI_BIT                     36
 #define FEATURE_PROCHOT_BIT                 37
 #define FEATURE_CPUOFF_BIT                  38
 #define FEATURE_STAPM_BIT                   39
 #define FEATURE_S0I3_BIT                    40
-#define FEATURE_DF_LIGHT_CSTATE             41   // shift the order or DFCstate annd DF light Cstate
+#define FEATURE_DF_LIGHT_CSTATE             41
 #define FEATURE_PERF_LIMIT_BIT              42
 #define FEATURE_CORE_DLDO_BIT               43
 #define FEATURE_DVO_BIT                     44
@@ -81,7 +81,7 @@
 #define FEATURE_CPPC_BIT                    46
 #define FEATURE_CPPC_PREFERRED_CORES        47
 #define FEATURE_DF_CSTATES_BIT              48
-#define FEATURE_RESERVED4                   49
+#define FEATURE_SPARE2_BIT                  49  //SPARE
 #define FEATURE_ATHUB_PG_BIT                50
 #define FEATURE_VDDOFF_ECO_BIT              51
 #define FEATURE_ZSTATES_ECO_BIT             52
@@ -89,12 +89,12 @@
 #define FEATURE_DS_UMCCLK_BIT               54
 #define FEATURE_DS_ISPCLK_BIT               55
 #define FEATURE_DS_HSPCLK_BIT               56
-#define FEATURE_RESERVED5                   57
+#define FEATURE_P3T_BIT                     57
 #define FEATURE_DS_IPUCLK_BIT               58
 #define FEATURE_DS_VPECLK_BIT               59
 #define FEATURE_VPE_DPM_BIT                 60
-#define FEATURE_BABYPHASE_SVI3_BIT          61
-#define FEATURE_FP_DIDT_BIT                 62
+#define FEATURE_SPARE_61                    61
+#define FEATURE_FP_DIDT                     62
 #define NUM_FEATURES                        63
 
 // Firmware Header/Footer
@@ -123,12 +123,13 @@ typedef struct {
   uint32_t DpmHubTask           : 4;
   // MP1_EXT_SCRATCH1
   uint32_t CclkSyncStatus       : 8;
+  uint32_t Ccx0CpuOff           : 2;
+  uint32_t Ccx1CpuOff           : 2;
   uint32_t GfxOffStatus         : 2;
-  uint32_t CpuOff               : 2;
   uint32_t VddOff               : 1;
-  uint32_t spare0               : 3;
+  uint32_t InWhisperMode        : 1;
   uint32_t ZstateStatus         : 4;
-  uint32_t spare1               : 4;
+  uint32_t spare0               : 4;
   uint32_t DstateFun            : 4;
   uint32_t DstateDev            : 4;
   // MP1_EXT_SCRATCH2
@@ -140,10 +141,10 @@ typedef struct {
   uint32_t MsgPortBusy          :24;
   uint32_t RsmuPmiP1Pending     : 1;
   uint32_t DfCstateExitPending  : 1;
-  uint32_t Pc6EntryPending      : 1;
-  uint32_t Pc6ExitPending       : 1;
+  uint32_t Ccx0Pc6ExitPending   : 1;
+  uint32_t Ccx1Pc6ExitPending   : 1;
   uint32_t WarmResetPending     : 1;
-  uint32_t spare2               : 3;
+  uint32_t spare1               : 3;
   // MP1_EXT_SCRATCH5
   uint32_t IdleMask             :32;
   // MP1_EXT_SCRATCH6 = RTOS threads' status

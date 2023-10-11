@@ -422,7 +422,8 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(ATHUB_MMHUB_PG),			\
        __SMU_DUMMY_MAP(BACO_CG),			\
        __SMU_DUMMY_MAP(SOC_CG),    \
-       __SMU_DUMMY_MAP(LOW_POWER_DCNCLKS),
+       __SMU_DUMMY_MAP(LOW_POWER_DCNCLKS),       \
+       __SMU_DUMMY_MAP(WHISPER_MODE),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(feature)	SMU_FEATURE_##feature##_BIT

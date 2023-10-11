@@ -75,8 +75,8 @@
 
 #define PPSMC_MSG_EnableGfxImu                  0x16 ///< Enable GFX IMU
 
-#define PPSMC_MSG_GetGfxclkFrequency            0x17 ///< Get GFX clock frequency
-#define PPSMC_MSG_GetFclkFrequency              0x18 ///< Get FCLK frequency
+#define PPSMC_MSG_spare_0x17                    0x17
+#define PPSMC_MSG_spare_0x18                    0x18
 #define PPSMC_MSG_AllowGfxOff                   0x19 ///< Inform PMFW of allowing GFXOFF entry
 #define PPSMC_MSG_DisallowGfxOff                0x1A ///< Inform PMFW of disallowing GFXOFF entry
 #define PPSMC_MSG_SetSoftMaxGfxClk              0x1B ///< Set soft max for GFX CLK
@@ -85,6 +85,7 @@
 #define PPSMC_MSG_SetSoftMaxSocclkByFreq        0x1D ///< Set soft max for SOC CLK
 #define PPSMC_MSG_SetSoftMaxFclkByFreq          0x1E ///< Set soft max for FCLK
 #define PPSMC_MSG_SetSoftMaxVcn                 0x1F ///< Set soft max for VCN clocks (VCLK and DCLK)
+#define PPSMC_MSG_spare_0x20                    0x20
 #define PPSMC_MSG_PowerDownJpeg                 0x21 ///< Power down Jpeg
 #define PPSMC_MSG_PowerUpJpeg                   0x22 ///< Power up Jpeg; VCN is power gated by default
 
