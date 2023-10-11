@@ -3037,22 +3037,6 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_bss_conf *bss_conf,
 				     u64 changes)
 {
-	static const struct iwl_mvm_bss_info_changed_ops callbacks = {
-		.bss_info_changed_sta = iwl_mvm_bss_info_changed_station,
-		.bss_info_changed_ap_ibss = iwl_mvm_bss_info_changed_ap_ibss,
-	};
-
-	iwl_mvm_bss_info_changed_common(hw, vif, bss_conf, &callbacks,
-					changes);
-}
-
-void
-iwl_mvm_bss_info_changed_common(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				struct ieee80211_bss_conf *bss_conf,
-				const struct iwl_mvm_bss_info_changed_ops *callbacks,
-				u64 changes)
-{
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	mutex_lock(&mvm->mutex);
@@ -3062,12 +3046,11 @@ iwl_mvm_bss_info_changed_common(struct ieee80211_hw *hw,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		callbacks->bss_info_changed_sta(mvm, vif, bss_conf, changes);
+		iwl_mvm_bss_info_changed_station(mvm, vif, bss_conf, changes);
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
-		callbacks->bss_info_changed_ap_ibss(mvm, vif, bss_conf,
-						    changes);
+		iwl_mvm_bss_info_changed_ap_ibss(mvm, vif, bss_conf, changes);
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		if (changes & BSS_CHANGED_MU_GROUPS)
