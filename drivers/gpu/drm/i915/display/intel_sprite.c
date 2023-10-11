@@ -48,6 +48,11 @@
 #include "intel_frontbuffer.h"
 #include "intel_sprite.h"
 
+static char sprite_name(struct drm_i915_private *i915, enum pipe pipe, int sprite)
+{
+	return pipe * DISPLAY_RUNTIME_INFO(i915)->num_sprites[pipe] + sprite + 'A';
+}
+
 static void i9xx_plane_linear_gamma(u16 gamma[8])
 {
 	/* The points are not evenly spaced. */
@@ -1636,7 +1641,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 				       0, plane_funcs,
 				       formats, num_formats, modifiers,
 				       DRM_PLANE_TYPE_OVERLAY,
-				       "sprite %c", sprite_name(pipe, sprite));
+				       "sprite %c", sprite_name(dev_priv, pipe, sprite));
 	kfree(modifiers);
 
 	if (ret)
