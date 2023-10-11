@@ -1037,6 +1037,31 @@ static int vsc73xx_get_max_mtu(struct dsa_switch *ds, int port)
 	return 9600 - ETH_HLEN - ETH_FCS_LEN;
 }
 
+static void vsc73xx_phylink_get_caps(struct dsa_switch *dsa, int port,
+				     struct phylink_config *config)
+{
+	unsigned long *interfaces = config->supported_interfaces;
+
+	if (port == 5)
+		return;
+
+	if (port == CPU_PORT) {
+		__set_bit(PHY_INTERFACE_MODE_MII, interfaces);
+		__set_bit(PHY_INTERFACE_MODE_REVMII, interfaces);
+		__set_bit(PHY_INTERFACE_MODE_GMII, interfaces);
+		__set_bit(PHY_INTERFACE_MODE_RGMII, interfaces);
+	}
+
+	if (port <= 4) {
+		/* Internal PHYs */
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL, interfaces);
+		/* phylib default */
+		__set_bit(PHY_INTERFACE_MODE_GMII, interfaces);
+	}
+
+	config->mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100 | MAC_1000;
+}
+
 static const struct dsa_switch_ops vsc73xx_ds_ops = {
 	.get_tag_protocol = vsc73xx_get_tag_protocol,
 	.setup = vsc73xx_setup,
@@ -1050,6 +1075,7 @@ static const struct dsa_switch_ops vsc73xx_ds_ops = {
 	.port_disable = vsc73xx_port_disable,
 	.port_change_mtu = vsc73xx_change_mtu,
 	.port_max_mtu = vsc73xx_get_max_mtu,
+	.phylink_get_caps = vsc73xx_phylink_get_caps,
 };
 
 static int vsc73xx_gpio_get(struct gpio_chip *chip, unsigned int offset)
