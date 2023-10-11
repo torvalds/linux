@@ -110,10 +110,10 @@ __visible noinstr bool do_syscall_64(struct pt_regs *regs, int nr)
 	 * in kernel space.  This essentially lets the user take over
 	 * the kernel, since userspace controls RSP.
 	 *
-	 * Change top bits to match the most significant bit (47th or 56th bit
-	 * depending on paging mode) in the address.
+	 * TASK_SIZE_MAX covers all user-accessible addresses other than
+	 * the deprecated vsyscall page.
 	 */
-	if (unlikely(!__is_canonical_address(regs->ip, __VIRTUAL_MASK_SHIFT + 1)))
+	if (unlikely(regs->ip >= TASK_SIZE_MAX))
 		return false;
 
 	/*
