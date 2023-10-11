@@ -534,11 +534,9 @@ static const struct pinmux_ops intel_pinmux_ops = {
 static int intel_config_get_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 				 enum pin_config_param param, u32 *arg)
 {
-	const struct intel_community *community;
 	void __iomem *padcfg1;
 	u32 value, term;
 
-	community = intel_get_community(pctrl, pin);
 	padcfg1 = intel_get_padcfg(pctrl, pin, PADCFG1);
 
 	scoped_guard(raw_spinlock_irqsave, &pctrl->lock)
@@ -576,7 +574,9 @@ static int intel_config_get_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 
 		break;
 
-	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_PULL_DOWN: {
+		const struct intel_community *community = intel_get_community(pctrl, pin);
+
 		if (!term || value & PADCFG1_TERM_UP)
 			return -EINVAL;
 
@@ -603,6 +603,7 @@ static int intel_config_get_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 		}
 
 		break;
+	}
 
 	default:
 		return -EINVAL;
@@ -673,7 +674,6 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 {
 	unsigned int param = pinconf_to_config_param(config);
 	unsigned int arg = pinconf_to_config_argument(config);
-	const struct intel_community *community;
 	u32 term = 0, up = 0, value;
 	void __iomem *padcfg1;
 
@@ -709,8 +709,8 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 		up = PADCFG1_TERM_UP;
 		break;
 
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		community = intel_get_community(pctrl, pin);
+	case PIN_CONFIG_BIAS_PULL_DOWN: {
+		const struct intel_community *community = intel_get_community(pctrl, pin);
 
 		switch (arg) {
 		case 20000:
@@ -737,6 +737,7 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 		}
 
 		break;
+	}
 
 	default:
 		return -EINVAL;
