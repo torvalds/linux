@@ -426,6 +426,9 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		       WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION,
 		       iwl_mvm_time_sync_msmt_confirm_event, RX_HANDLER_SYNC,
 		       struct iwl_time_msmt_cfm_notify),
+	RX_HANDLER_GRP(MAC_CONF_GROUP, ROC_NOTIF,
+		       iwl_mvm_rx_roc_notif, RX_HANDLER_SYNC,
+		       struct iwl_roc_notif),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -549,6 +552,8 @@ static const struct iwl_hcmd_names iwl_mvm_mac_conf_names[] = {
 	HCMD_NAME(AUX_STA_CMD),
 	HCMD_NAME(STA_REMOVE_CMD),
 	HCMD_NAME(STA_DISABLE_TX_CMD),
+	HCMD_NAME(ROC_CMD),
+	HCMD_NAME(ROC_NOTIF),
 	HCMD_NAME(SESSION_PROTECTION_NOTIF),
 	HCMD_NAME(CHANNEL_SWITCH_START_NOTIF),
 };

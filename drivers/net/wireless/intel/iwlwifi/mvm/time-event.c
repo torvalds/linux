@@ -398,6 +398,22 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 	}
 }
 
+void iwl_mvm_rx_roc_notif(struct iwl_mvm *mvm,
+			  struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_roc_notif *notif = (void *)pkt->data;
+
+	if (le32_to_cpu(notif->success) && le32_to_cpu(notif->started) &&
+	    le32_to_cpu(notif->activity) == ROC_ACTIVITY_HOTSPOT) {
+		set_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status);
+		ieee80211_ready_on_channel(mvm->hw);
+	} else {
+		iwl_mvm_roc_finished(mvm);
+		ieee80211_remain_on_channel_expired(mvm->hw);
+	}
+}
+
 /*
  * Handle A Aux ROC time event
  */
@@ -1050,6 +1066,37 @@ void iwl_mvm_cleanup_roc_te(struct iwl_mvm *mvm)
 		__iwl_mvm_remove_time_event(mvm, te_data, &uid);
 }
 
+static void iwl_mvm_roc_rm_cmd(struct iwl_mvm *mvm, u32 activity)
+{
+	int ret;
+	struct iwl_roc_req roc_cmd = {
+		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
+		.activity = cpu_to_le32(activity),
+	};
+
+	lockdep_assert_held(&mvm->mutex);
+	ret = iwl_mvm_send_cmd_pdu(mvm,
+				   WIDE_ID(MAC_CONF_GROUP, ROC_CMD),
+				   0, sizeof(roc_cmd), &roc_cmd);
+	WARN_ON(ret);
+}
+
+static void iwl_mvm_roc_station_remove(struct iwl_mvm *mvm,
+				       struct iwl_mvm_vif *mvmvif)
+{
+	u32 cmd_id = WIDE_ID(MAC_CONF_GROUP, ROC_CMD);
+	u8 fw_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
+					  IWL_FW_CMD_VER_UNKNOWN);
+
+	if (fw_ver == IWL_FW_CMD_VER_UNKNOWN)
+		iwl_mvm_remove_aux_roc_te(mvm, mvmvif,
+					  &mvmvif->hs_time_event_data);
+	else if (fw_ver == 3)
+		iwl_mvm_roc_rm_cmd(mvm, ROC_ACTIVITY_HOTSPOT);
+	else
+		IWL_ERR(mvm, "ROC command version %d mismatch!\n", fw_ver);
+}
+
 void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif;
@@ -1064,8 +1111,7 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 							  mvmvif->time_event_data.id);
 			iwl_mvm_p2p_roc_finished(mvm);
 		} else {
-			iwl_mvm_remove_aux_roc_te(mvm, mvmvif,
-						  &mvmvif->hs_time_event_data);
+			iwl_mvm_roc_station_remove(mvm, mvmvif);
 			iwl_mvm_roc_finished(mvm);
 		}
 

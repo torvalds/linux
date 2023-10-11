@@ -101,6 +101,14 @@ void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb);
 
 /**
+ * iwl_mvm_rx_roc_notif - handles %DISCOVERY_ROC_NTF.
+ * @mvm: the mvm component
+ * @rxb: RX buffer
+ */
+void iwl_mvm_rx_roc_notif(struct iwl_mvm *mvm,
+			  struct iwl_rx_cmd_buffer *rxb);
+
+/**
  * iwl_mvm_start_p2p_roc - start remain on channel for p2p device functionality
  * @mvm: the mvm component
  * @vif: the virtual interface for which the roc is requested. It is assumed

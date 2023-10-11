@@ -4406,6 +4406,39 @@ static bool iwl_mvm_rx_aux_roc(struct iwl_notif_wait_data *notif_wait,
 #define AUX_ROC_MAX_DELAY MSEC_TO_TU(600)
 #define AUX_ROC_SAFETY_BUFFER MSEC_TO_TU(20)
 #define AUX_ROC_MIN_SAFETY_BUFFER MSEC_TO_TU(10)
+
+static void iwl_mvm_roc_duration_and_delay(struct ieee80211_vif *vif,
+					   u32 duration_ms,
+					   u32 *duration_tu,
+					   u32 *delay)
+{
+	u32 dtim_interval = vif->bss_conf.dtim_period *
+		vif->bss_conf.beacon_int;
+
+	*delay = AUX_ROC_MIN_DELAY;
+	*duration_tu = MSEC_TO_TU(duration_ms);
+
+	/*
+	 * If we are associated we want the delay time to be at least one
+	 * dtim interval so that the FW can wait until after the DTIM and
+	 * then start the time event, this will potentially allow us to
+	 * remain off-channel for the max duration.
+	 * Since we want to use almost a whole dtim interval we would also
+	 * like the delay to be for 2-3 dtim intervals, in case there are
+	 * other time events with higher priority.
+	 */
+	if (vif->cfg.assoc) {
+		*delay = min_t(u32, dtim_interval * 3, AUX_ROC_MAX_DELAY);
+		/* We cannot remain off-channel longer than the DTIM interval */
+		if (dtim_interval <= *duration_tu) {
+			*duration_tu = dtim_interval - AUX_ROC_SAFETY_BUFFER;
+			if (*duration_tu <= AUX_ROC_MIN_DURATION)
+				*duration_tu = dtim_interval -
+					AUX_ROC_MIN_SAFETY_BUFFER;
+		}
+	}
+}
+
 static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_channel *channel,
 				    struct ieee80211_vif *vif,
@@ -4416,8 +4449,6 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->hs_time_event_data;
 	static const u16 time_event_response[] = { HOT_SPOT_CMD };
 	struct iwl_notification_wait wait_time_event;
-	u32 dtim_interval = vif->bss_conf.dtim_period *
-		vif->bss_conf.beacon_int;
 	u32 req_dur, delay;
 	struct iwl_hs20_roc_req aux_roc_req = {
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
@@ -4438,29 +4469,7 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 	/* Set the time and duration */
 	tail->apply_time = cpu_to_le32(iwl_mvm_get_systime(mvm));
 
-	delay = AUX_ROC_MIN_DELAY;
-	req_dur = MSEC_TO_TU(duration);
-
-	/*
-	 * If we are associated we want the delay time to be at least one
-	 * dtim interval so that the FW can wait until after the DTIM and
-	 * then start the time event, this will potentially allow us to
-	 * remain off-channel for the max duration.
-	 * Since we want to use almost a whole dtim interval we would also
-	 * like the delay to be for 2-3 dtim intervals, in case there are
-	 * other time events with higher priority.
-	 */
-	if (vif->cfg.assoc) {
-		delay = min_t(u32, dtim_interval * 3, AUX_ROC_MAX_DELAY);
-		/* We cannot remain off-channel longer than the DTIM interval */
-		if (dtim_interval <= req_dur) {
-			req_dur = dtim_interval - AUX_ROC_SAFETY_BUFFER;
-			if (req_dur <= AUX_ROC_MIN_DURATION)
-				req_dur = dtim_interval -
-					AUX_ROC_MIN_SAFETY_BUFFER;
-		}
-	}
-
+	iwl_mvm_roc_duration_and_delay(vif, duration, &req_dur, &delay);
 	tail->duration = cpu_to_le32(req_dur);
 	tail->apply_time_max_delay = cpu_to_le32(delay);
 
@@ -4468,8 +4477,8 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 		     "ROC: Requesting to remain on channel %u for %ums\n",
 		     channel->hw_value, req_dur);
 	IWL_DEBUG_TE(mvm,
-		     "\t(requested = %ums, max_delay = %ums, dtim_interval = %ums)\n",
-		     duration, delay, dtim_interval);
+		     "\t(requested = %ums, max_delay = %ums)\n",
+		     duration, delay);
 
 	/* Set the node address */
 	memcpy(tail->node_addr, vif->addr, ETH_ALEN);
@@ -4527,6 +4536,48 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 	return res;
 }
 
+static int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
+			       struct ieee80211_channel *channel,
+			       struct ieee80211_vif *vif,
+			       int duration, u32 activity)
+{
+	int res;
+	u32 duration_tu, delay;
+	struct iwl_roc_req roc_req = {
+		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
+		.activity = cpu_to_le32(activity),
+		.sta_id = cpu_to_le32(mvm->aux_sta.sta_id),
+	};
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* Set the channel info data */
+	iwl_mvm_set_chan_info(mvm, &roc_req.channel_info,
+			      channel->hw_value,
+			      iwl_mvm_phy_band_from_nl80211(channel->band),
+			      IWL_PHY_CHANNEL_MODE20, 0);
+
+	iwl_mvm_roc_duration_and_delay(vif, duration, &duration_tu,
+				       &delay);
+	roc_req.duration = cpu_to_le32(duration_tu);
+	roc_req.max_delay = cpu_to_le32(delay);
+
+	IWL_DEBUG_TE(mvm,
+		     "\t(requested = %ums, max_delay = %ums)\n",
+		     duration, delay);
+	IWL_DEBUG_TE(mvm,
+		     "Requesting to remain on channel %u for %utu\n",
+		     channel->hw_value, duration_tu);
+
+	/* Set the node address */
+	memcpy(roc_req.node_addr, vif->addr, ETH_ALEN);
+
+	res = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(MAC_CONF_GROUP, ROC_CMD),
+				   0, sizeof(roc_req), &roc_req);
+
+	return res;
+}
+
 static int iwl_mvm_add_aux_sta_for_hs20(struct iwl_mvm *mvm, u32 lmac_id)
 {
 	int ret = 0;
@@ -4577,6 +4628,29 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 	return iwl_mvm_roc_common(hw, vif, channel, duration, type, &ops);
 }
 
+static int iwl_mvm_roc_station(struct iwl_mvm *mvm,
+			       struct ieee80211_channel *channel,
+			       struct ieee80211_vif *vif,
+			       int duration)
+{
+	int ret;
+	u32 cmd_id = WIDE_ID(MAC_CONF_GROUP, ROC_CMD);
+	u8 fw_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
+					  IWL_FW_CMD_VER_UNKNOWN);
+
+	if (fw_ver == IWL_FW_CMD_VER_UNKNOWN) {
+		ret = iwl_mvm_send_aux_roc_cmd(mvm, channel, vif, duration);
+	} else if (fw_ver == 3) {
+		ret = iwl_mvm_roc_add_cmd(mvm, channel, vif, duration,
+					  ROC_ACTIVITY_HOTSPOT);
+	} else {
+		ret = -EOPNOTSUPP;
+		IWL_ERR(mvm, "ROC command version %d mismatch!\n", fw_ver);
+	}
+
+	return ret;
+}
+
 /* Execute the common part for MLD and non-MLD modes */
 int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_channel *channel, int duration,
@@ -4608,8 +4682,7 @@ int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		/* Use aux roc framework (HS20) */
 		ret = ops->add_aux_sta_for_hs20(mvm, lmac_id);
 		if (!ret)
-			ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
-						       vif, duration);
+			ret = iwl_mvm_roc_station(mvm, channel, vif, duration);
 		goto out_unlock;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		/* handle below */

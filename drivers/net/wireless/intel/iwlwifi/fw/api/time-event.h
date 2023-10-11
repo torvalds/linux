@@ -335,6 +335,63 @@ struct iwl_hs20_roc_res {
 	__le32 status;
 } __packed; /* HOT_SPOT_RSP_API_S_VER_1 */
 
+/*
+ * Activity types for the ROC command
+ * @ROC_ACTIVITY_HOTSPOT: ROC for hs20 activity
+ * @ROC_ACTIVITY_P2P_DISC: ROC for p2p discoverability activity
+ * @ROC_ACTIVITY_P2P_TXRX: ROC for p2p action frames activity
+ */
+enum iwl_roc_activity {
+	ROC_ACTIVITY_HOTSPOT,
+	ROC_ACTIVITY_P2P_DISC,
+	ROC_ACTIVITY_P2P_TXRX,
+	ROC_NUM_ACTIVITIES
+}; /* ROC_ACTIVITY_API_E_VER_1 */
+
+/*
+ * ROC command
+ *
+ * Command requests the firmware to remain on a channel for a certain duration.
+ *
+ * ( MAC_CONF_GROUP 0x3, ROC_CMD 0xE )
+ *
+ * @action: action to perform, see &enum iwl_ctxt_action
+ * @activity: type of activity, see &enum iwl_roc_activity
+ * @sta_id: station id, resumed during "Remain On Channel" activity.
+ * @channel_info: &struct iwl_fw_channel_info
+ * @node_addr: node MAC address for Rx filtering
+ * @reserved: align to a dword
+ * @max_delay: max delay the ROC can start in TU
+ * @duration: remain on channel duration in TU
+ */
+struct iwl_roc_req {
+	__le32 action;
+	__le32 activity;
+	__le32 sta_id;
+	struct iwl_fw_channel_info channel_info;
+	u8 node_addr[ETH_ALEN];
+	__le16 reserved;
+	__le32 max_delay;
+	__le32 duration;
+} __packed; /* ROC_CMD_API_S_VER_3 */
+
+/*
+ * ROC notification
+ *
+ * Notification when ROC startes and when ROC ended.
+ *
+ * ( MAC_CONF_GROUP 0x3, ROC_NOTIF 0xf8 )
+ *
+ * @status: true if ROC succeeded to start
+ * @start_end: true if ROC started, false if ROC ended
+ * @activity: notification to which activity - &enum iwl_roc_activity
+ */
+struct iwl_roc_notif {
+	__le32 success;
+	__le32 started;
+	__le32 activity;
+} __packed; /* ROC_NOTIF_API_S_VER_1 */
+
 /**
  * enum iwl_mvm_session_prot_conf_id - session protection's configurations
  * @SESSION_PROTECT_CONF_ASSOC: Start a session protection for association.
