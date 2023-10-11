@@ -4610,8 +4610,12 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 
 enomem:
 	if (wq->cpu_pwq) {
-		for_each_possible_cpu(cpu)
-			kfree(*per_cpu_ptr(wq->cpu_pwq, cpu));
+		for_each_possible_cpu(cpu) {
+			struct pool_workqueue *pwq = *per_cpu_ptr(wq->cpu_pwq, cpu);
+
+			if (pwq)
+				kmem_cache_free(pwq_cache, pwq);
+		}
 		free_percpu(wq->cpu_pwq);
 		wq->cpu_pwq = NULL;
 	}
