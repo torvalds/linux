@@ -31,11 +31,11 @@ typedef void (*mei_cldev_cb_t)(struct mei_cl_device *cldev);
  * @rx_work: async work to execute Rx event callback
  * @rx_cb: Drivers register this callback to get asynchronous ME
  *	Rx buffer pending notifications.
- * @notif_work: async work to execute FW notif event callback
+ * @notif_work: async work to execute FW notify event callback
  * @notif_cb: Drivers register this callback to get asynchronous ME
  *	FW notification pending notifications.
  *
- * @do_match: wheather device can be matched with a driver
+ * @do_match: whether the device can be matched with a driver
  * @is_added: device is already scanned
  * @priv_data: client private data
  */

@@ -111,7 +111,7 @@ void mei_hbm_idle(struct mei_device *dev)
 }
 
 /**
- * mei_hbm_reset - reset hbm counters and book keeping data structurs
+ * mei_hbm_reset - reset hbm counters and book keeping data structures
  *
  * @dev: the device structure
  */
@@ -907,7 +907,7 @@ int mei_hbm_cl_disconnect_req(struct mei_device *dev, struct mei_cl *cl)
 }
 
 /**
- * mei_hbm_cl_disconnect_rsp - sends disconnect respose to the FW
+ * mei_hbm_cl_disconnect_rsp - sends disconnect response to the FW
  *
  * @dev: the device structure
  * @cl: a client to disconnect from

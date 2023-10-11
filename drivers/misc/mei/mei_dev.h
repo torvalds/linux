@@ -70,9 +70,9 @@ enum mei_dev_state {
 /**
  * enum mei_dev_pxp_mode - MEI PXP mode state
  *
- * @MEI_DEV_PXP_DEFAULT: PCH based device, no initailization required
+ * @MEI_DEV_PXP_DEFAULT: PCH based device, no initialization required
  * @MEI_DEV_PXP_INIT:    device requires initialization, send setup message to firmware
- * @MEI_DEV_PXP_SETUP:   device is in setup stage, waiting for firmware repsonse
+ * @MEI_DEV_PXP_SETUP:   device is in setup stage, waiting for firmware response
  * @MEI_DEV_PXP_READY:   device initialized
  */
 enum mei_dev_pxp_mode {

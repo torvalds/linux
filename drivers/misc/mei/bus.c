@@ -1385,7 +1385,7 @@ static inline void mei_cl_bus_set_name(struct mei_cl_device *cldev)
  * @bus: mei device
  * @me_cl: me client
  *
- * Return: allocated device structur or NULL on allocation failure
+ * Return: allocated device structure or NULL on allocation failure
  */
 static struct mei_cl_device *mei_cl_bus_dev_alloc(struct mei_device *bus,
 						  struct mei_me_client *me_cl)
@@ -1445,7 +1445,7 @@ static bool mei_cl_bus_dev_setup(struct mei_device *bus,
  *
  * @cldev: me client device
  *
- * Return: 0 on success; < 0 on failre
+ * Return: 0 on success; < 0 on failure
  */
 static int mei_cl_bus_dev_add(struct mei_cl_device *cldev)
 {
