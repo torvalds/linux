@@ -173,6 +173,11 @@ Glossary
 	An integrated circuit that integrates all components of a computer
 	or other electronic systems.
 
+    Stream
+	A distinct flow of data (image data or metadata) from an initial source
+	to a final sink. The initial source may be e.g. an image sensor and the
+	final sink e.g. a memory buffer.
+
     V4L2 API
 	**V4L2 userspace API**
 
