@@ -138,7 +138,11 @@
 	MACRO__(0x56A5, ## __VA_ARGS__),	\
 	MACRO__(0x56A6, ## __VA_ARGS__),	\
 	MACRO__(0x56B0, ## __VA_ARGS__),	\
-	MACRO__(0x56B1, ## __VA_ARGS__)
+	MACRO__(0x56B1, ## __VA_ARGS__),	\
+	MACRO__(0x56BA, ## __VA_ARGS__),	\
+	MACRO__(0x56BB, ## __VA_ARGS__),	\
+	MACRO__(0x56BC, ## __VA_ARGS__),	\
+	MACRO__(0x56BD, ## __VA_ARGS__)
 
 #define XE_DG2_G12_IDS(MACRO__, ...)		\
 	MACRO__(0x5696, ## __VA_ARGS__),	\
