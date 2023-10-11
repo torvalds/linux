@@ -214,6 +214,10 @@ static int r8a779f0_eth_serdes_hw_init(struct r8a779f0_eth_serdes_channel *chann
 	if (dd->initialized)
 		return 0;
 
+	reset_control_reset(dd->reset);
+
+	usleep_range(1000, 2000);
+
 	ret = r8a779f0_eth_serdes_common_init_ram(dd);
 	if (ret)
 		return ret;
@@ -355,8 +359,6 @@ static int r8a779f0_eth_serdes_probe(struct platform_device *pdev)
 	dd->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(dd->reset))
 		return PTR_ERR(dd->reset);
-
-	reset_control_reset(dd->reset);
 
 	for (i = 0; i < R8A779F0_ETH_SERDES_NUM; i++) {
 		struct r8a779f0_eth_serdes_channel *channel = &dd->channel[i];
