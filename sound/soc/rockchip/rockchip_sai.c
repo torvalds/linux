@@ -19,6 +19,7 @@
 #include <sound/tlv.h>
 
 #include "rockchip_sai.h"
+#include "rockchip_dlp_pcm.h"
 
 #define DRV_NAME		"rockchip-sai"
 
@@ -1344,6 +1345,29 @@ static int rockchip_sai_parse_quirks(struct rk_sai_dev *sai)
 	return ret;
 }
 
+static int rockchip_sai_get_fifo_count(struct device *dev,
+				       struct snd_pcm_substream *substream)
+{
+	struct rk_sai_dev *sai = dev_get_drvdata(dev);
+	int val = 0;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		regmap_read(sai->regmap, SAI_TXFIFOLR, &val);
+	else
+		regmap_read(sai->regmap, SAI_RXFIFOLR, &val);
+
+	val = ((val & SAI_FIFOLR_XFL3_MASK) >> SAI_FIFOLR_XFL3_SHIFT) +
+	      ((val & SAI_FIFOLR_XFL2_MASK) >> SAI_FIFOLR_XFL2_SHIFT) +
+	      ((val & SAI_FIFOLR_XFL1_MASK) >> SAI_FIFOLR_XFL1_SHIFT) +
+	      ((val & SAI_FIFOLR_XFL0_MASK) >> SAI_FIFOLR_XFL0_SHIFT);
+
+	return val;
+}
+
+static const struct snd_dlp_config dconfig = {
+	.get_fifo_count = rockchip_sai_get_fifo_count,
+};
+
 static int rockchip_sai_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -1438,7 +1462,11 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
+	if (device_property_read_bool(&pdev->dev, "rockchip,digital-loopback"))
+		ret = devm_snd_dmaengine_dlp_register(&pdev->dev, &dconfig);
+	else
+		ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
+
 	if (ret)
 		goto err_runtime_suspend;
 

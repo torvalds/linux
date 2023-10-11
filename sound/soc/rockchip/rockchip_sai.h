@@ -120,6 +120,16 @@
 #define SAI_XSHIFT_SEL_MASK		GENMASK(23, 0)
 #define SAI_XSHIFT_SEL(x)		(x)
 
+/* XFIFOLR: Transfer / Receive FIFO Level Register */
+#define SAI_FIFOLR_XFL3_SHIFT		18
+#define SAI_FIFOLR_XFL3_MASK		GENMASK(23, 18)
+#define SAI_FIFOLR_XFL2_SHIFT		12
+#define SAI_FIFOLR_XFL2_MASK		GENMASK(17, 12)
+#define SAI_FIFOLR_XFL1_SHIFT		6
+#define SAI_FIFOLR_XFL1_MASK		GENMASK(11, 6)
+#define SAI_FIFOLR_XFL0_SHIFT		0
+#define SAI_FIFOLR_XFL0_MASK		GENMASK(5, 0)
+
 /* SAI Registers */
 #define SAI_TXCR			(0x0000)
 #define SAI_FSCR			(0x0004)
