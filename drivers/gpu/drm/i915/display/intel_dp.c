@@ -3467,7 +3467,23 @@ bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 	return dprx & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED;
 }
 
-static void intel_dp_get_dsc_sink_cap(struct intel_dp *intel_dp)
+static void intel_dp_read_dsc_dpcd(struct drm_dp_aux *aux,
+				   u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
+{
+	if (drm_dp_dpcd_read(aux, DP_DSC_SUPPORT, dsc_dpcd,
+			     DP_DSC_RECEIVER_CAP_SIZE) < 0) {
+		drm_err(aux->drm_dev,
+			"Failed to read DPCD register 0x%x\n",
+			DP_DSC_SUPPORT);
+		return;
+	}
+
+	drm_dbg_kms(aux->drm_dev, "DSC DPCD: %*ph\n",
+		    DP_DSC_RECEIVER_CAP_SIZE,
+		    dsc_dpcd);
+}
+
+static void intel_dp_get_dsc_sink_cap(u8 dpcd_rev, struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
@@ -3480,30 +3496,27 @@ static void intel_dp_get_dsc_sink_cap(struct intel_dp *intel_dp)
 	/* Clear fec_capable to avoid using stale values */
 	intel_dp->fec_capable = 0;
 
-	/* Cache the DSC DPCD if eDP or DP rev >= 1.4 */
-	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x14 ||
-	    intel_dp->edp_dpcd[0] >= DP_EDP_14) {
-		if (drm_dp_dpcd_read(&intel_dp->aux, DP_DSC_SUPPORT,
-				     intel_dp->dsc_dpcd,
-				     sizeof(intel_dp->dsc_dpcd)) < 0)
-			drm_err(&i915->drm,
-				"Failed to read DPCD register 0x%x\n",
-				DP_DSC_SUPPORT);
+	if (dpcd_rev < DP_DPCD_REV_14)
+		return;
 
-		drm_dbg_kms(&i915->drm, "DSC DPCD: %*ph\n",
-			    (int)sizeof(intel_dp->dsc_dpcd),
-			    intel_dp->dsc_dpcd);
+	intel_dp_read_dsc_dpcd(&intel_dp->aux, intel_dp->dsc_dpcd);
 
-		/* FEC is supported only on DP 1.4 */
-		if (!intel_dp_is_edp(intel_dp) &&
-		    drm_dp_dpcd_readb(&intel_dp->aux, DP_FEC_CAPABILITY,
-				      &intel_dp->fec_capable) < 0)
-			drm_err(&i915->drm,
-				"Failed to read FEC DPCD register\n");
-
-		drm_dbg_kms(&i915->drm, "FEC CAPABILITY: %x\n",
-			    intel_dp->fec_capable);
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_FEC_CAPABILITY,
+			      &intel_dp->fec_capable) < 0) {
+		drm_err(&i915->drm, "Failed to read FEC DPCD register\n");
+		return;
 	}
+
+	drm_dbg_kms(&i915->drm, "FEC CAPABILITY: %x\n",
+		    intel_dp->fec_capable);
+}
+
+static void intel_edp_get_dsc_sink_cap(u8 edp_dpcd_rev, struct intel_dp *intel_dp)
+{
+	if (edp_dpcd_rev < DP_EDP_14)
+		return;
+
+	intel_dp_read_dsc_dpcd(&intel_dp->aux, intel_dp->dsc_dpcd);
 }
 
 static void intel_edp_mso_mode_fixup(struct intel_connector *connector,
@@ -3674,7 +3687,8 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 
 	/* Read the eDP DSC DPCD registers */
 	if (HAS_DSC(dev_priv))
-		intel_dp_get_dsc_sink_cap(intel_dp);
+		intel_edp_get_dsc_sink_cap(intel_dp->edp_dpcd[0],
+					   intel_dp);
 
 	/*
 	 * If needed, program our source OUI so we can make various Intel-specific AUX services
@@ -5342,6 +5356,23 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 					       false);
 }
 
+static void
+intel_dp_detect_dsc_caps(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
+	if (!HAS_DSC(i915))
+		return;
+
+	if (intel_dp_is_edp(intel_dp))
+		intel_edp_get_dsc_sink_cap(intel_dp->edp_dpcd[0],
+					   intel_dp);
+	else
+		intel_dp_get_dsc_sink_cap(intel_dp->dpcd[DP_DPCD_REV],
+					  intel_dp);
+}
+
 static int
 intel_dp_detect(struct drm_connector *connector,
 		struct drm_modeset_acquire_ctx *ctx,
@@ -5386,9 +5417,7 @@ intel_dp_detect(struct drm_connector *connector,
 		goto out;
 	}
 
-	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
-	if (HAS_DSC(dev_priv))
-		intel_dp_get_dsc_sink_cap(intel_dp);
+	intel_dp_detect_dsc_caps(intel_dp);
 
 	intel_dp_configure_mst(intel_dp);
 
