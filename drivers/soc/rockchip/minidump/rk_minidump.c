@@ -168,6 +168,8 @@ static void md_update_ss_toc(const struct md_region *entry)
 	shdr->sh_flags = SHF_WRITE;
 	shdr->sh_offset = minidump_elfheader.elf_offset;
 	shdr->sh_entsize = 0;
+	shdr->sh_addralign = shdr->sh_addr;	/* backup */
+	shdr->sh_entsize = entry->phys_addr;	/* backup */
 
 	if (strstr((const char *)mdr->name, "note"))
 		phdr->p_type = PT_NOTE;
@@ -178,6 +180,7 @@ static void md_update_ss_toc(const struct md_region *entry)
 	phdr->p_paddr = entry->phys_addr;
 	phdr->p_filesz = phdr->p_memsz =  mdr->region_size;
 	phdr->p_flags = PF_R | PF_W;
+	phdr->p_align = phdr->p_paddr;		/* backup */
 	minidump_elfheader.elf_offset += shdr->sh_size;
 	mdr->md_valid = MD_REGION_VALID;
 	minidump_table.md_ss_toc->ss_region_count++;
@@ -274,8 +277,11 @@ int rk_minidump_update_region(int regno, const struct md_region *entry)
 	phdr = elf_program(hdr, regno + 1);
 
 	shdr->sh_addr = (elf_addr_t)entry->virt_addr;
+	shdr->sh_addralign = shdr->sh_addr;	/* backup */
+	shdr->sh_entsize = entry->phys_addr;	/* backup */
 	phdr->p_vaddr = entry->virt_addr;
 	phdr->p_paddr = entry->phys_addr;
+	phdr->p_align = phdr->p_paddr;		/* backup */
 
 err_unlock:
 	read_unlock_irqrestore(&mdt_remove_lock, flags);
@@ -675,6 +681,8 @@ static int rk_minidump_driver_probe(struct platform_device *pdev)
 		phdr = (Elf64_Phdr *)(md_elf_mem + (ulong)ehdr->e_phoff);
 		phdr += ehdr->e_phnum - 1;
 		md_elf_size = phdr->p_memsz + phdr->p_offset;
+		if (md_elf_size > r_size)
+			md_elf_size = r_size;
 		pr_info("Create /proc/rk_md/minidump, size:0x%llx...\n", md_elf_size);
 		proc_rk_minidump = proc_create("minidump", 0400, base_dir, &rk_minidump_proc_ops);
 	} else {
