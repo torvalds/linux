@@ -2734,6 +2734,7 @@ enum rtw89_ra_mode {
 	RTW89_RA_MODE_HT = BIT(2),
 	RTW89_RA_MODE_VHT = BIT(3),
 	RTW89_RA_MODE_HE = BIT(4),
+	RTW89_RA_MODE_EHT = BIT(5),
 };
 
 enum rtw89_ra_report_mode {
