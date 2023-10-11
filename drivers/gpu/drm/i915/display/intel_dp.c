@@ -3490,10 +3490,9 @@ static void intel_dp_read_dsc_dpcd(struct drm_dp_aux *aux,
 		    dsc_dpcd);
 }
 
-void intel_dp_get_dsc_sink_cap(u8 dpcd_rev, struct intel_dp *intel_dp,
-			       struct intel_connector *connector)
+void intel_dp_get_dsc_sink_cap(u8 dpcd_rev, struct intel_connector *connector)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 
 	/*
 	 * Clear the cached register set to avoid using stale values
@@ -3518,27 +3517,14 @@ void intel_dp_get_dsc_sink_cap(u8 dpcd_rev, struct intel_dp *intel_dp,
 
 	drm_dbg_kms(&i915->drm, "FEC CAPABILITY: %x\n",
 		    connector->dp.fec_capability);
-
-	/*
-	 * TODO: remove the following intel_dp copies once all users
-	 * are converted to look up DSC DPCD/FEC capability via the
-	 * connector.
-	 */
-	memcpy(intel_dp->dsc_dpcd, connector->dp.dsc_dpcd,
-	       sizeof(intel_dp->dsc_dpcd));
-	intel_dp->fec_capable = connector->dp.fec_capability;
 }
 
-static void intel_edp_get_dsc_sink_cap(u8 edp_dpcd_rev, struct intel_dp *intel_dp,
-				       struct intel_connector *connector)
+static void intel_edp_get_dsc_sink_cap(u8 edp_dpcd_rev, struct intel_connector *connector)
 {
 	if (edp_dpcd_rev < DP_EDP_14)
 		return;
 
 	intel_dp_read_dsc_dpcd(connector->dp.dsc_decompression_aux, connector->dp.dsc_dpcd);
-
-	memcpy(intel_dp->dsc_dpcd, connector->dp.dsc_dpcd,
-	       sizeof(intel_dp->dsc_dpcd));
 }
 
 static void intel_edp_mso_mode_fixup(struct intel_connector *connector,
@@ -3710,7 +3696,6 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector
 	/* Read the eDP DSC DPCD registers */
 	if (HAS_DSC(dev_priv))
 		intel_edp_get_dsc_sink_cap(intel_dp->edp_dpcd[0],
-					   intel_dp,
 					   connector);
 
 	/*
@@ -5390,10 +5375,10 @@ intel_dp_detect_dsc_caps(struct intel_dp *intel_dp, struct intel_connector *conn
 
 	if (intel_dp_is_edp(intel_dp))
 		intel_edp_get_dsc_sink_cap(intel_dp->edp_dpcd[0],
-					   intel_dp, connector);
+					   connector);
 	else
 		intel_dp_get_dsc_sink_cap(intel_dp->dpcd[DP_DPCD_REV],
-					  intel_dp, connector);
+					  connector);
 }
 
 static int
@@ -5427,11 +5412,6 @@ intel_dp_detect(struct drm_connector *connector,
 
 	if (status == connector_status_disconnected) {
 		memset(&intel_dp->compliance, 0, sizeof(intel_dp->compliance));
-		/*
-		 * TODO: Remove clearing the DPCD in intel_dp, once all
-		 * user are converted to using the DPCD in connector.
-		 */
-		memset(intel_dp->dsc_dpcd, 0, sizeof(intel_dp->dsc_dpcd));
 		memset(intel_connector->dp.dsc_dpcd, 0, sizeof(intel_connector->dp.dsc_dpcd));
 
 		if (intel_dp->is_mst) {
