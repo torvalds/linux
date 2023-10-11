@@ -1189,6 +1189,23 @@ void gpio_device_put(struct gpio_device *gdev)
 }
 EXPORT_SYMBOL_GPL(gpio_device_put);
 
+/**
+ * gpio_device_to_device() - Retrieve the address of the underlying struct
+ *                           device.
+ * @gdev: GPIO device for which to return the address.
+ *
+ * This does not increase the reference count of the GPIO device nor the
+ * underlying struct device.
+ *
+ * Returns:
+ * Address of struct device backing this GPIO device.
+ */
+struct device *gpio_device_to_device(struct gpio_device *gdev)
+{
+	return &gdev->dev;
+}
+EXPORT_SYMBOL_GPL(gpio_device_to_device);
+
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 
 /*
