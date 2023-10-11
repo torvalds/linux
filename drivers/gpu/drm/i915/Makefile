@@ -5,22 +5,20 @@
 
 # Add a set of useful warning flags and enable -Werror for CI to prevent
 # trivial mistakes from creeping in. We have to do this piecemeal as we reject
-# any patch that isn't warning clean, so turning on -Wall -Wextra (or W=1) we
+# any patch that isn't warning clean, so turning on -Wextra (or W=1) we
 # need to filter out dubious warnings.  Still it is our interest
 # to keep running locally with W=1 C=1 until we are completely clean.
 #
-# Note the danger in using -Wall -Wextra is that when CI updates gcc we
+# Note the danger in using -Wextra is that when CI updates gcc we
 # will most likely get a sudden build breakage... Hopefully we will fix
 # new warnings before CI updates!
-subdir-ccflags-y := -Wall -Wextra
-subdir-ccflags-y += -Wno-format-security
+subdir-ccflags-y := -Wextra
 subdir-ccflags-y += -Wno-unused-parameter
 subdir-ccflags-y += -Wno-type-limits
 subdir-ccflags-y += -Wno-missing-field-initializers
 subdir-ccflags-y += -Wno-sign-compare
 subdir-ccflags-y += -Wno-shift-negative-value
 subdir-ccflags-y += $(call cc-option, -Wunused-but-set-variable)
-subdir-ccflags-y += $(call cc-disable-warning, frame-address)
 subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
 
 # Fine grained warnings disable
