@@ -3288,6 +3288,8 @@ static int __net_init tcp_sk_init(struct net *net)
 	net->ipv4.sysctl_tcp_syn_linear_timeouts = 4;
 	net->ipv4.sysctl_tcp_shrink_window = 0;
 
+	net->ipv4.sysctl_tcp_pingpong_thresh = 1;
+
 	return 0;
 }
 
