@@ -676,6 +676,8 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "UMSCH_MM_UCODE";
 	case AMDGPU_UCODE_ID_UMSCH_MM_DATA:
 		return "UMSCH_MM_DATA";
+	case AMDGPU_UCODE_ID_UMSCH_MM_CMD_BUFFER:
+		return "UMSCH_MM_CMD_BUFFER";
 	default:
 		return "UNKNOWN UCODE";
 	}
@@ -808,6 +810,7 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	sdma_hdr = (const struct sdma_firmware_header_v2_0 *)ucode->fw->data;
 	imu_hdr = (const struct imu_firmware_header_v1_0 *)ucode->fw->data;
 	vpe_hdr = (const struct vpe_firmware_header_v1_0 *)ucode->fw->data;
+	umsch_mm_hdr = (const struct umsch_mm_firmware_header_v1_0 *)ucode->fw->data;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		switch (ucode->ucode_id) {
