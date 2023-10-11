@@ -19,6 +19,7 @@ static void test_array(void)
 	bpf_program__set_autoload(skel->progs.test_array_map_3, true);
 	bpf_program__set_autoload(skel->progs.test_array_map_4, true);
 
+	skel->bss->my_pid = getpid();
 	skel->rodata->nr_cpus = libbpf_num_possible_cpus();
 
 	err = percpu_alloc_array__load(skel);
@@ -51,6 +52,7 @@ static void test_array_sleepable(void)
 
 	bpf_program__set_autoload(skel->progs.test_array_map_10, true);
 
+	skel->bss->my_pid = getpid();
 	skel->rodata->nr_cpus = libbpf_num_possible_cpus();
 
 	err = percpu_alloc_array__load(skel);
@@ -85,6 +87,7 @@ static void test_cgrp_local_storage(void)
 	if (!ASSERT_OK_PTR(skel, "percpu_alloc_cgrp_local_storage__open"))
 		goto close_fd;
 
+	skel->bss->my_pid = getpid();
 	skel->rodata->nr_cpus = libbpf_num_possible_cpus();
 
 	err = percpu_alloc_cgrp_local_storage__load(skel);
