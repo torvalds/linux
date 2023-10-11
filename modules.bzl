@@ -6,7 +6,7 @@ This module contains a full list of kernel modules
  compiled by GKI.
 """
 
-COMMON_GKI_MODULES_LIST = [
+_COMMON_GKI_MODULES_LIST = [
     # keep sorted
     "drivers/block/zram/zram.ko",
     "drivers/bluetooth/btbcm.ko",
@@ -68,3 +68,56 @@ COMMON_GKI_MODULES_LIST = [
     "net/tipc/diag.ko",
     "net/tipc/tipc.ko",
 ]
+
+# Deprecated - Use `get_gki_modules_list` function instead.
+COMMON_GKI_MODULES_LIST = _COMMON_GKI_MODULES_LIST
+
+_ARM_GKI_MODULES_LIST = [
+    # keep sorted
+]
+
+_ARM64_GKI_MODULES_LIST = [
+    # keep sorted
+    "arch/arm64/geniezone/gzvm.ko",
+]
+
+_RISCV64_GKI_MODULES_LIST = [
+    # keep sorted
+]
+
+_X86_GKI_MODULES_LIST = [
+    # keep sorted
+]
+
+_X86_64_GKI_MODULES_LIST = [
+    # keep sorted
+]
+
+# buildifier: disable=unnamed-macro
+def get_gki_modules_list(arch = None):
+    """ Provides the list of GKI modules.
+
+    Args:
+      arch: One of [arm, arm64, i386, x86_64, riscv64].
+
+    Returns:
+      The list of GKI modules for the given |arch|.
+    """
+    gki_modules_list = [] + _COMMON_GKI_MODULES_LIST
+    if arch == "arm":
+        gki_modules_list += _ARM_GKI_MODULES_LIST
+    elif arch == "arm64":
+        gki_modules_list += _ARM64_GKI_MODULES_LIST
+    elif arch == "i386":
+        gki_modules_list += _X86_GKI_MODULES_LIST
+    elif arch == "x86_64":
+        gki_modules_list += _X86_64_GKI_MODULES_LIST
+    elif arch == "riscv64":
+        gki_modules_list += _RISCV64_GKI_MODULES_LIST
+    else:
+        fail("{}: arch {} not supported. Use one of [arm, arm64, i386, x86_64, riscv64]".format(
+            str(native.package_relative_label(":x")).removesuffix(":x"),
+            arch,
+        ))
+
+    return gki_modules_list

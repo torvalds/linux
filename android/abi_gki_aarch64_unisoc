@@ -412,6 +412,7 @@
   param_ops_int
   param_ops_uint
   pcpu_nr_pages
+  percpu_counter_batch
   __per_cpu_offset
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
@@ -1912,6 +1913,8 @@
 # required by trusty-log.ko
   vm_map_ram
   vm_unmap_ram
+# required by sprd_time_sync_cp.ko
+  pvclock_gtod_register_notifier
 
 # required by trusty-pm.ko
   unregister_syscore_ops

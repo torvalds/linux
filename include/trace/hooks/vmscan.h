@@ -43,6 +43,9 @@ enum scan_balance;
 DECLARE_HOOK(android_vh_tune_scan_type,
 	TP_PROTO(enum scan_balance *scan_type),
 	TP_ARGS(scan_type));
+DECLARE_HOOK(android_vh_tune_swappiness,
+	TP_PROTO(int *swappiness),
+	TP_ARGS(swappiness));
 DECLARE_HOOK(android_vh_scan_abort_check_wmarks,
 	TP_PROTO(bool *check_wmarks),
 	TP_ARGS(check_wmarks));

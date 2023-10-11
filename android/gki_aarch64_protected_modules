@@ -1,3 +1,4 @@
+arch/arm64/geniezone/gzvm.ko
 drivers/bluetooth/btbcm.ko
 drivers/bluetooth/btqca.ko
 drivers/bluetooth/btsdio.ko
