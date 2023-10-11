@@ -1233,6 +1233,9 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 	int ret;
 	u32 value;
 	struct iwl_lari_config_change_cmd_v7 cmd = {};
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						   LARI_CONFIG_CHANGE), 1);
 
 	cmd.config_bitmap = iwl_acpi_get_lari_config_bitmap(&mvm->fwrt);
 
@@ -1250,8 +1253,11 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
 				   DSM_FUNC_ACTIVATE_CHANNEL,
 				   &iwl_guid, &value);
-	if (!ret)
+	if (!ret) {
+		if (cmd_ver < 8)
+			value &= ~ACTIVATE_5G2_IN_WW_MASK;
 		cmd.chan_state_active_bitmap = cpu_to_le32(value);
+	}
 
 	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
 				   DSM_FUNC_ENABLE_6E,
@@ -1279,11 +1285,9 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 	    cmd.force_disable_channels_bitmap ||
 	    cmd.edt_bitmap) {
 		size_t cmd_size;
-		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
-						   WIDE_ID(REGULATORY_AND_NVM_GROUP,
-							   LARI_CONFIG_CHANGE),
-						   1);
+
 		switch (cmd_ver) {
+		case 8:
 		case 7:
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v7);
 			break;
