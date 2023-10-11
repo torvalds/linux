@@ -162,6 +162,8 @@ static inline char iwl_drv_get_step(int step)
 {
 	if (step == SILICON_Z_STEP)
 		return 'z';
+	if (step == SILICON_TC_STEP)
+		return 'a';
 	return 'a' + step;
 }
 
@@ -177,6 +179,8 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 		return "unconfigured";
 
 	mac_step = iwl_drv_get_step(trans->hw_rev_step);
+
+	rf_step = iwl_drv_get_step(CSR_HW_RFID_STEP(trans->hw_rf_id));
 
 	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
 	case IWL_CFG_RF_TYPE_HR1:
@@ -196,15 +200,19 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 		rf = "fm";
 		break;
 	case IWL_CFG_RF_TYPE_WH:
-		rf = "wh";
+		if (SILICON_Z_STEP ==
+		    CSR_HW_RFID_STEP(trans->hw_rf_id)) {
+			rf = "whtc";
+			rf_step = 'a';
+		} else {
+			rf = "wh";
+		}
 		break;
 	default:
 		return "unknown-rf";
 	}
 
 	cdb = CSR_HW_RFID_IS_CDB(trans->hw_rf_id) ? "4" : "";
-
-	rf_step = iwl_drv_get_step(CSR_HW_RFID_STEP(trans->hw_rf_id));
 
 	scnprintf(buf, FW_NAME_PRE_BUFSIZE,
 		  "iwlwifi-%s-%c0-%s%s-%c0",
