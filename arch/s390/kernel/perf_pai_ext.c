@@ -326,7 +326,6 @@ static void paiext_start(struct perf_event *event, int flags)
 	event->hw.last_tag = 1;
 	sum = paiext_getall(event);		/* Get current value */
 	local64_set(&event->hw.prev_count, sum);
-	local64_set(&event->count, 0);
 }
 
 static int paiext_add(struct perf_event *event, int flags)

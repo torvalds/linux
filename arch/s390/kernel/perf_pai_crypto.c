@@ -322,7 +322,6 @@ static void paicrypt_start(struct perf_event *event, int flags)
 	if (!event->hw.last_tag) {
 		event->hw.last_tag = 1;
 		sum = paicrypt_getall(event);		/* Get current value */
-		local64_set(&event->count, 0);
 		local64_set(&event->hw.prev_count, sum);
 	}
 }
