@@ -21,6 +21,7 @@
 #define MPQ7932_N_VOLTAGES		256
 #define MPQ7932_VOUT_MAX		0xFF
 #define MPQ7932_NUM_PAGES		6
+#define MPQ2286_NUM_PAGES		1
 
 #define MPQ7932_TON_DELAY		0x60
 #define MPQ7932_VOUT_STARTUP_SLEW	0xA3
@@ -47,6 +48,11 @@ static struct regulator_desc mpq7932_regulators_desc[] = {
 			     MPQ7932_UV_STEP, MPQ7932_BUCK_UV_MIN),
 	PMBUS_REGULATOR_STEP("buck", 5, MPQ7932_N_VOLTAGES,
 			     MPQ7932_UV_STEP, MPQ7932_BUCK_UV_MIN),
+};
+
+static const struct regulator_desc mpq7932_regulators_desc_one[] = {
+	PMBUS_REGULATOR_STEP_ONE("buck", MPQ7932_N_VOLTAGES,
+				 MPQ7932_UV_STEP, MPQ7932_BUCK_UV_MIN),
 };
 #endif
 
@@ -116,7 +122,10 @@ static int mpq7932_probe(struct i2c_client *client)
 
 #if IS_ENABLED(CONFIG_SENSORS_MPQ7932_REGULATOR)
 	info->num_regulators = info->pages;
-	info->reg_desc = mpq7932_regulators_desc;
+	if (info->num_regulators == 1)
+		info->reg_desc = mpq7932_regulators_desc_one;
+	else
+		info->reg_desc = mpq7932_regulators_desc;
 #endif
 
 	info->read_word_data = mpq7932_read_word_data;
@@ -129,12 +138,14 @@ static int mpq7932_probe(struct i2c_client *client)
 }
 
 static const struct of_device_id mpq7932_of_match[] = {
+	{ .compatible = "mps,mpq2286", .data = (void *)MPQ2286_NUM_PAGES },
 	{ .compatible = "mps,mpq7932", .data = (void *)MPQ7932_NUM_PAGES },
 	{},
 };
 MODULE_DEVICE_TABLE(of, mpq7932_of_match);
 
 static const struct i2c_device_id mpq7932_id[] = {
+	{ "mpq2286", },
 	{ "mpq7932", },
 	{ },
 };
