@@ -2399,6 +2399,18 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 			ra_report->txrate.he_gi = NL80211_RATE_INFO_HE_GI_3_2;
 		mcs = ra_report->txrate.mcs;
 		break;
+	case RTW89_RA_RPT_MODE_EHT:
+		ra_report->txrate.flags |= RATE_INFO_FLAGS_EHT_MCS;
+		ra_report->txrate.mcs = u8_get_bits(rate, RTW89_RA_RATE_MASK_MCS_V1);
+		ra_report->txrate.nss = u8_get_bits(rate, RTW89_RA_RATE_MASK_NSS_V1) + 1;
+		if (giltf == RTW89_GILTF_2XHE08 || giltf == RTW89_GILTF_1XHE08)
+			ra_report->txrate.eht_gi = NL80211_RATE_INFO_EHT_GI_0_8;
+		else if (giltf == RTW89_GILTF_2XHE16 || giltf == RTW89_GILTF_1XHE16)
+			ra_report->txrate.eht_gi = NL80211_RATE_INFO_EHT_GI_1_6;
+		else
+			ra_report->txrate.eht_gi = NL80211_RATE_INFO_EHT_GI_3_2;
+		mcs = ra_report->txrate.mcs;
+		break;
 	}
 
 	ra_report->txrate.bw = rtw89_hw_to_rate_info_bw(bw);
