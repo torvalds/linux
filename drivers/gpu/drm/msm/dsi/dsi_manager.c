@@ -485,7 +485,7 @@ int msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi)
 	bridge = &dsi_bridge->base;
 	bridge->funcs = &dsi_mgr_bridge_funcs;
 
-	ret = devm_drm_bridge_add(&msm_dsi->pdev->dev, bridge);
+	ret = devm_drm_bridge_add(msm_dsi->dev->dev, bridge);
 	if (ret)
 		return ret;
 
