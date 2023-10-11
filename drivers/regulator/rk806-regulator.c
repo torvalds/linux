@@ -942,6 +942,20 @@ static const struct regulator_ops rk806_ops_ldo = {
 	.set_suspend_disable	= rk806_set_suspend_disable,
 };
 
+static const struct regulator_ops rk806_ops_ldo6 = {
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+
+	.get_voltage_sel	= rk806_get_voltage_sel_regmap,
+	.set_voltage		= rk806_set_voltage,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+
+	.set_ramp_delay		= rk806_set_ramp_delay,
+
+	.set_suspend_voltage	= rk806_set_suspend_voltage_range,
+	.resume			= rk806_regulator_resume,
+};
+
 #define RK806_REGULATOR(_name, _supply_name, _id, _ops,\
 			_n_voltages, _vr, _er, _lr, ctrl_bit)\
 [_id] = {\
@@ -1033,7 +1047,7 @@ static const struct regulator_desc rk806_regulators[] = {
 			RK806_LDO_SEL_CNT, RK806_PLDO5_ON_VSEL,
 			RK806_POWER_EN5, rk806_ldo_voltage_ranges, 1),
 
-	RK806_REGULATOR("PLDO_REG6", "vcca", RK806_ID_PLDO6, rk806_ops_ldo,
+	RK806_REGULATOR("PLDO_REG6", "vcca", RK806_ID_PLDO6, rk806_ops_ldo6,
 			RK806_LDO_SEL_CNT, RK806_PLDO6_ON_VSEL,
 			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 0),
 };
