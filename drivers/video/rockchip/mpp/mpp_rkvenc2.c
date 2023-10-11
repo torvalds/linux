@@ -1469,7 +1469,7 @@ static int rkvenc_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	if (task->bs_buf) {
 		u32 bs_size = mpp_read(mpp, 0x4064);
 
-		mpp_dma_buf_sync(task->bs_buf, 0, bs_size / 8 + task->offset_bs,
+		mpp_dma_buf_sync(task->bs_buf, 0, bs_size + task->offset_bs,
 				 DMA_FROM_DEVICE, true);
 	}
 
