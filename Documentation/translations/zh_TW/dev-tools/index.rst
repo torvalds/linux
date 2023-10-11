@@ -1,7 +1,7 @@
 .. include:: ../disclaimer-zh_TW.rst
 
 :Original: Documentation/dev-tools/index.rst
-:Translator: Min-Hua Chen <minhuadotchen@gmail.com>
+:Translator: 趙軍奎 Bernard Zhao <bernard@vivo.com>
 
 ============
 內核開發工具
@@ -12,7 +12,7 @@
 歡迎任何補丁。
 
 有關測試專用工具的簡要概述，參見
-Documentation/dev-tools/testing-overview.rst
+Documentation/translations/zh_TW/dev-tools/testing-overview.rst
 
 .. class:: toc-title
 
@@ -21,7 +21,11 @@ Documentation/dev-tools/testing-overview.rst
 .. toctree::
    :maxdepth: 2
 
+   testing-overview
    sparse
+   gcov
+   kasan
+   gdb-kernel-debugging
 
 Todolist:
 
@@ -34,7 +38,4 @@ Todolist:
  - kgdb
  - kselftest
  - kunit/index
- - testing-overview
- - gcov
- - kasan
- - gdb-kernel-debugging
+

@@ -101,9 +101,10 @@ TODOList:
 體系結構文檔
 ------------
 
-TODOList:
+.. toctree::
+   :maxdepth: 1
 
-* arch/index
+   arch/index
 
 其他文檔
 --------
