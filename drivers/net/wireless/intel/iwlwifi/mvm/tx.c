@@ -2293,24 +2293,10 @@ free_rsp:
 	return ret;
 }
 
-int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal)
+int iwl_mvm_flush_sta(struct iwl_mvm *mvm, u32 sta_id, u32 tfd_queue_mask)
 {
-	u32 sta_id, tfd_queue_msk;
-
-	if (internal) {
-		struct iwl_mvm_int_sta *int_sta = sta;
-
-		sta_id = int_sta->sta_id;
-		tfd_queue_msk = int_sta->tfd_queue_msk;
-	} else {
-		struct iwl_mvm_sta *mvm_sta = sta;
-
-		sta_id = mvm_sta->deflink.sta_id;
-		tfd_queue_msk = mvm_sta->tfd_queue_msk;
-	}
-
 	if (iwl_mvm_has_new_tx_api(mvm))
 		return iwl_mvm_flush_sta_tids(mvm, sta_id, 0xffff);
 
-	return iwl_mvm_flush_tx_path(mvm, tfd_queue_msk);
+	return iwl_mvm_flush_tx_path(mvm, tfd_queue_mask);
 }

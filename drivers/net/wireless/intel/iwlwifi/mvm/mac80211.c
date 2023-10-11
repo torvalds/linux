@@ -5579,7 +5579,8 @@ void iwl_mvm_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 
 		if (drop) {
-			if (iwl_mvm_flush_sta(mvm, mvmsta, false))
+			if (iwl_mvm_flush_sta(mvm, mvmsta->deflink.sta_id,
+					      mvmsta->tfd_queue_msk))
 				IWL_ERR(mvm, "flush request fail\n");
 		} else {
 			if (iwl_mvm_has_new_tx_api(mvm))
@@ -5616,7 +5617,8 @@ void iwl_mvm_mac_flush_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-		if (iwl_mvm_flush_sta(mvm, mvmsta, false))
+		if (iwl_mvm_flush_sta(mvm, mvmsta->deflink.sta_id,
+				      mvmsta->tfd_queue_msk))
 			IWL_ERR(mvm, "flush request fail\n");
 	}
 	mutex_unlock(&mvm->mutex);
