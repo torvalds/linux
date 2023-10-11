@@ -936,8 +936,7 @@ void rtl92ee_dm_init(struct ieee80211_hw *hw)
 static void rtl92ee_dm_common_info_self_update(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_sta_info *drv_priv;
-	u8 cnt = 0;
+	u8 cnt;
 
 	rtlpriv->dm.one_entry_only = false;
 
@@ -951,9 +950,7 @@ static void rtl92ee_dm_common_info_self_update(struct ieee80211_hw *hw)
 	    rtlpriv->mac80211.opmode == NL80211_IFTYPE_ADHOC ||
 	    rtlpriv->mac80211.opmode == NL80211_IFTYPE_MESH_POINT) {
 		spin_lock_bh(&rtlpriv->locks.entry_list_lock);
-		list_for_each_entry(drv_priv, &rtlpriv->entry_list, list) {
-			cnt++;
-		}
+		cnt = list_count_nodes(&rtlpriv->entry_list);
 		spin_unlock_bh(&rtlpriv->locks.entry_list_lock);
 
 		if (cnt == 1)
