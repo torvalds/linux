@@ -13,6 +13,7 @@
 #include <linux/usb/pd_vdo.h>
 #include <linux/usb/typec_mux.h>
 #include <linux/usb/typec_retimer.h>
+#include <linux/usb.h>
 
 #include "bus.h"
 #include "class.h"
@@ -681,6 +682,33 @@ const struct device_type typec_partner_dev_type = {
 	.release = typec_partner_release,
 };
 
+static void typec_partner_link_device(struct typec_partner *partner, struct device *dev)
+{
+	int ret;
+
+	ret = sysfs_create_link(&dev->kobj, &partner->dev.kobj, "typec");
+	if (ret)
+		return;
+
+	ret = sysfs_create_link(&partner->dev.kobj, &dev->kobj, dev_name(dev));
+	if (ret) {
+		sysfs_remove_link(&dev->kobj, "typec");
+		return;
+	}
+
+	if (partner->attach)
+		partner->attach(partner, dev);
+}
+
+static void typec_partner_unlink_device(struct typec_partner *partner, struct device *dev)
+{
+	sysfs_remove_link(&partner->dev.kobj, dev_name(dev));
+	sysfs_remove_link(&dev->kobj, "typec");
+
+	if (partner->deattach)
+		partner->deattach(partner, dev);
+}
+
 /**
  * typec_partner_set_identity - Report result from Discover Identity command
  * @partner: The partner updated identity values
@@ -865,6 +893,8 @@ struct typec_partner *typec_register_partner(struct typec_port *port,
 	partner->num_altmodes = -1;
 	partner->pd_revision = desc->pd_revision;
 	partner->svdm_version = port->cap->svdm_version;
+	partner->attach = desc->attach;
+	partner->deattach = desc->deattach;
 
 	if (desc->identity) {
 		/*
@@ -887,6 +917,11 @@ struct typec_partner *typec_register_partner(struct typec_port *port,
 		return ERR_PTR(ret);
 	}
 
+	if (port->usb2_dev)
+		typec_partner_link_device(partner, port->usb2_dev);
+	if (port->usb3_dev)
+		typec_partner_link_device(partner, port->usb3_dev);
+
 	return partner;
 }
 EXPORT_SYMBOL_GPL(typec_register_partner);
@@ -899,8 +934,19 @@ EXPORT_SYMBOL_GPL(typec_register_partner);
  */
 void typec_unregister_partner(struct typec_partner *partner)
 {
-	if (!IS_ERR_OR_NULL(partner))
-		device_unregister(&partner->dev);
+	struct typec_port *port;
+
+	if (IS_ERR_OR_NULL(partner))
+		return;
+
+	port = to_typec_port(partner->dev.parent);
+
+	if (port->usb2_dev)
+		typec_partner_unlink_device(partner, port->usb2_dev);
+	if (port->usb3_dev)
+		typec_partner_unlink_device(partner, port->usb3_dev);
+
+	device_unregister(&partner->dev);
 }
 EXPORT_SYMBOL_GPL(typec_unregister_partner);
 
@@ -1775,6 +1821,50 @@ static int partner_match(struct device *dev, void *data)
 	return is_typec_partner(dev);
 }
 
+static struct typec_partner *typec_get_partner(struct typec_port *port)
+{
+	struct device *dev;
+
+	dev = device_find_child(&port->dev, NULL, partner_match);
+	if (!dev)
+		return NULL;
+
+	return to_typec_partner(dev);
+}
+
+static void typec_partner_attach(struct typec_connector *con, struct device *dev)
+{
+	struct typec_port *port = container_of(con, struct typec_port, con);
+	struct typec_partner *partner = typec_get_partner(port);
+	struct usb_device *udev = to_usb_device(dev);
+
+	if (udev->speed < USB_SPEED_SUPER)
+		port->usb2_dev = dev;
+	else
+		port->usb3_dev = dev;
+
+	if (partner) {
+		typec_partner_link_device(partner, dev);
+		put_device(&partner->dev);
+	}
+}
+
+static void typec_partner_deattach(struct typec_connector *con, struct device *dev)
+{
+	struct typec_port *port = container_of(con, struct typec_port, con);
+	struct typec_partner *partner = typec_get_partner(port);
+
+	if (partner) {
+		typec_partner_unlink_device(partner, dev);
+		put_device(&partner->dev);
+	}
+
+	if (port->usb2_dev == dev)
+		port->usb2_dev = NULL;
+	else if (port->usb3_dev == dev)
+		port->usb3_dev = NULL;
+}
+
 /**
  * typec_set_data_role - Report data role change
  * @port: The USB Type-C Port where the role was changed
@@ -1784,7 +1874,7 @@ static int partner_match(struct device *dev, void *data)
  */
 void typec_set_data_role(struct typec_port *port, enum typec_data_role role)
 {
-	struct device *partner_dev;
+	struct typec_partner *partner;
 
 	if (port->data_role == role)
 		return;
@@ -1793,14 +1883,14 @@ void typec_set_data_role(struct typec_port *port, enum typec_data_role role)
 	sysfs_notify(&port->dev.kobj, NULL, "data_role");
 	kobject_uevent(&port->dev.kobj, KOBJ_CHANGE);
 
-	partner_dev = device_find_child(&port->dev, NULL, partner_match);
-	if (!partner_dev)
+	partner = typec_get_partner(port);
+	if (!partner)
 		return;
 
-	if (to_typec_partner(partner_dev)->identity)
-		typec_product_type_notify(partner_dev);
+	if (partner->identity)
+		typec_product_type_notify(&partner->dev);
 
-	put_device(partner_dev);
+	put_device(&partner->dev);
 }
 EXPORT_SYMBOL_GPL(typec_set_data_role);
 
@@ -2251,6 +2341,8 @@ struct typec_port *typec_register_port(struct device *parent,
 	port->ops = cap->ops;
 	port->port_type = cap->type;
 	port->prefer_role = cap->prefer_role;
+	port->con.attach = typec_partner_attach;
+	port->con.deattach = typec_partner_deattach;
 
 	device_initialize(&port->dev);
 	port->dev.class = &typec_class;
