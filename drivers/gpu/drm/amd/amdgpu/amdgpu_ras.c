@@ -1170,22 +1170,33 @@ out_fini_err_data:
 	return ret;
 }
 
-int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
+int amdgpu_ras_reset_error_count(struct amdgpu_device *adev,
 		enum amdgpu_ras_block block)
 {
 	struct amdgpu_ras_block_object *block_obj = amdgpu_ras_get_ras_block(adev, block, 0);
 
 	if (!block_obj || !block_obj->hw_ops) {
 		dev_dbg_once(adev->dev, "%s doesn't config RAS function\n",
-			     ras_block_str(block));
-		return 0;
+				ras_block_str(block));
+		return -EOPNOTSUPP;
 	}
 
 	if (!amdgpu_ras_is_supported(adev, block))
-		return 0;
+		return -EOPNOTSUPP;
 
 	if (block_obj->hw_ops->reset_ras_error_count)
 		block_obj->hw_ops->reset_ras_error_count(adev);
+
+	return 0;
+}
+
+int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
+		enum amdgpu_ras_block block)
+{
+	struct amdgpu_ras_block_object *block_obj = amdgpu_ras_get_ras_block(adev, block, 0);
+
+	if (amdgpu_ras_reset_error_count(adev, block) == -EOPNOTSUPP)
+		return 0;
 
 	if ((block == AMDGPU_RAS_BLOCK__GFX) ||
 	    (block == AMDGPU_RAS_BLOCK__MMHUB)) {
