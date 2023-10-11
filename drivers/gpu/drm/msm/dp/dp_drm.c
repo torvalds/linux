@@ -307,7 +307,7 @@ int dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,
 			DRM_BRIDGE_OP_MODES;
 	}
 
-	rc = devm_drm_bridge_add(&dp_display->pdev->dev, bridge);
+	rc = devm_drm_bridge_add(dev->dev, bridge);
 	if (rc) {
 		DRM_ERROR("failed to add bridge, rc=%d\n", rc);
 
