@@ -429,7 +429,7 @@ struct mei_bus_message {
 } __packed;
 
 /**
- * struct hbm_cl_cmd - client specific host bus command
+ * struct mei_hbm_cl_cmd - client specific host bus command
  *	CONNECT, DISCONNECT, and FlOW CONTROL
  *
  * @hbm_cmd: bus message command header
@@ -733,7 +733,7 @@ struct hbm_dma_setup_response {
 } __packed;
 
 /**
- * struct mei_dma_ring_ctrl - dma ring control block
+ * struct hbm_dma_ring_ctrl - dma ring control block
  *
  * @hbuf_wr_idx: host circular buffer write index in slots
  * @reserved1: reserved for alignment
