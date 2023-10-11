@@ -675,6 +675,27 @@ int main(int argc, char **argv)
 			break;
 	}
 
+	/* FIXME: Remouting as readonly seems to be required to make sure the filessytem is cleanly umounted. Otherwise the journal will be still dirty... */
+	char dev_str[] = { "/dev/xxxxxxxx" };
+
+	snprintf(dev_str, sizeof(dev_str), "/dev/%08x", disk_id);
+	for (;;) {
+		ret = lkl_sys_mount(dev_str, mpoint, (char *)cla.fsimg_type, LKL_MS_RDONLY|LKL_MS_REMOUNT, NULL);
+		if (ret == 0)
+			break;
+		if (ret == -EBUSY) {
+			struct lkl_timespec ts = {
+				.tv_sec = 1,
+				.tv_nsec = 0,
+			};
+			lkl_sys_nanosleep((struct __lkl__kernel_timespec *)&ts, NULL);
+			continue;
+		} else if (ret < 0) {
+			fprintf(stderr, "cannot remount mount disk read-only: %s\n", lkl_strerror(ret));
+			break;
+		}
+	}
+
 	umount_ret = lkl_umount_dev(disk_id, cla.part, 0, 1000);
 	if (ret == 0)
 		ret = umount_ret;
