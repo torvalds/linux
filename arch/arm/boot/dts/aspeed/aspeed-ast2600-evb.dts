@@ -409,11 +409,11 @@
 	bus-width = <4>;
 	max-frequency = <100000000>;
 	sdhci-drive-type = /bits/ 8 <3>;
-	sdhci-caps-mask = <0x7 0x0>;
+	sdhci-caps-mask = <0x6 0x0>;
 	sdhci,wp-inverted;
 	vmmc-supply = <&vcc_sdhci0>;
 	vqmmc-supply = <&vccq_sdhci0>;
-	clk-phase-sd-hs = <7>, <200>;
+	clk-phase-uhs-sdr50 = <0 130>, <0 238>;
 };
 
 &sdhci1 {
@@ -421,11 +421,11 @@
 	bus-width = <4>;
 	max-frequency = <100000000>;
 	sdhci-drive-type = /bits/ 8 <3>;
-	sdhci-caps-mask = <0x7 0x0>;
+	sdhci-caps-mask = <0x6 0x0>;
 	sdhci,wp-inverted;
 	vmmc-supply = <&vcc_sdhci1>;
 	vqmmc-supply = <&vccq_sdhci1>;
-	clk-phase-sd-hs = <7>, <200>;
+	clk-phase-uhs-sdr50 = <0 130>, <0 130>;
 };
 
 &vhub {
