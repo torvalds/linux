@@ -1074,10 +1074,10 @@ int iommu_tce_check_gpa(unsigned long page_shift, unsigned long gpa)
 }
 EXPORT_SYMBOL_GPL(iommu_tce_check_gpa);
 
-extern long iommu_tce_xchg_no_kill(struct mm_struct *mm,
-		struct iommu_table *tbl,
-		unsigned long entry, unsigned long *hpa,
-		enum dma_data_direction *direction)
+long iommu_tce_xchg_no_kill(struct mm_struct *mm,
+			    struct iommu_table *tbl,
+			    unsigned long entry, unsigned long *hpa,
+			    enum dma_data_direction *direction)
 {
 	long ret;
 	unsigned long size = 0;
