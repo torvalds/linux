@@ -827,9 +827,8 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 	rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
 
-void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			     u8 *pdesc8, bool firstseg,
-			     bool lastseg, struct sk_buff *skb)
+void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
+			     struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
@@ -846,8 +845,7 @@ void rtl92ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	}
 	clear_pci_tx_desc_content(pdesc, txdesc_len);
 
-	if (firstseg)
-		set_tx_desc_offset(pdesc, txdesc_len);
+	set_tx_desc_offset(pdesc, txdesc_len);
 
 	set_tx_desc_tx_rate(pdesc, DESC_RATE1M);
 

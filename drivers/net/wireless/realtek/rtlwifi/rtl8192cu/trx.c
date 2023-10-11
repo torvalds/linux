@@ -626,9 +626,8 @@ void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 *pdesc8,
 	_rtl_tx_desc_checksum(pdesc);
 }
 
-void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			     u8 *pdesc8, bool firstseg,
-			     bool lastseg, struct sk_buff *skb)
+void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
+			     struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 fw_queue = QSLT_BEACON;
@@ -637,8 +636,7 @@ void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	__le32 *pdesc = (__le32 *)pdesc8;
 
 	memset((void *)pdesc, 0, RTL_TX_HEADER_SIZE);
-	if (firstseg)
-		set_tx_desc_offset(pdesc, RTL_TX_HEADER_SIZE);
+	set_tx_desc_offset(pdesc, RTL_TX_HEADER_SIZE);
 	set_tx_desc_tx_rate(pdesc, DESC_RATE1M);
 	set_tx_desc_seq(pdesc, 0);
 	set_tx_desc_linip(pdesc, 0);
