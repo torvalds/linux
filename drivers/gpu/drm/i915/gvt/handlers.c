@@ -2576,7 +2576,6 @@ static int init_bdw_mmio_info(struct intel_gvt *gvt)
 
 static int init_skl_mmio_info(struct intel_gvt *gvt)
 {
-	struct drm_i915_private *dev_priv = gvt->gt->i915;
 	int ret;
 
 	MMIO_DH(FORCEWAKE_RENDER_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);
