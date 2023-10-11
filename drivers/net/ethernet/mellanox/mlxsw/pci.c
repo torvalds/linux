@@ -352,14 +352,15 @@ static void mlxsw_pci_wqe_frag_unmap(struct mlxsw_pci *mlxsw_pci, char *wqe,
 }
 
 static int mlxsw_pci_rdq_skb_alloc(struct mlxsw_pci *mlxsw_pci,
-				   struct mlxsw_pci_queue_elem_info *elem_info)
+				   struct mlxsw_pci_queue_elem_info *elem_info,
+				   gfp_t gfp)
 {
 	size_t buf_len = MLXSW_PORT_MAX_MTU;
 	char *wqe = elem_info->elem;
 	struct sk_buff *skb;
 	int err;
 
-	skb = netdev_alloc_skb_ip_align(NULL, buf_len);
+	skb = __netdev_alloc_skb_ip_align(NULL, buf_len, gfp);
 	if (!skb)
 		return -ENOMEM;
 
@@ -420,7 +421,7 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	for (i = 0; i < q->count; i++) {
 		elem_info = mlxsw_pci_queue_elem_info_producer_get(q);
 		BUG_ON(!elem_info);
-		err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info);
+		err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info, GFP_KERNEL);
 		if (err)
 			goto rollback;
 		/* Everything is set up, ring doorbell to pass elem to HW */
@@ -640,7 +641,7 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	if (q->consumer_counter++ != consumer_counter_limit)
 		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does not match limit in RDQ\n");
 
-	err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info);
+	err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info, GFP_ATOMIC);
 	if (err) {
 		dev_err_ratelimited(&pdev->dev, "Failed to alloc skb for RDQ\n");
 		goto out;
