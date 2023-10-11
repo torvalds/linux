@@ -103,6 +103,31 @@ int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 
 int ptp_open(struct posix_clock_context *pccontext, fmode_t fmode)
 {
+	struct ptp_clock *ptp =
+		container_of(pccontext->clk, struct ptp_clock, clock);
+	struct timestamp_event_queue *queue;
+
+	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
+	if (!queue)
+		return -EINVAL;
+	spin_lock_init(&queue->lock);
+	list_add_tail(&queue->qlist, &ptp->tsevqs);
+	pccontext->private_clkdata = queue;
+	return 0;
+}
+
+int ptp_release(struct posix_clock_context *pccontext)
+{
+	struct timestamp_event_queue *queue = pccontext->private_clkdata;
+	unsigned long flags;
+
+	if (queue) {
+		pccontext->private_clkdata = NULL;
+		spin_lock_irqsave(&queue->lock, flags);
+		list_del(&queue->qlist);
+		spin_unlock_irqrestore(&queue->lock, flags);
+		kfree(queue);
+	}
 	return 0;
 }
 
@@ -441,10 +466,11 @@ __poll_t ptp_poll(struct posix_clock_context *pccontext, struct file *fp,
 		container_of(pccontext->clk, struct ptp_clock, clock);
 	struct timestamp_event_queue *queue;
 
-	poll_wait(fp, &ptp->tsev_wq, wait);
+	queue = pccontext->private_clkdata;
+	if (!queue)
+		return EPOLLERR;
 
-	/* Extract only the first element in the queue list */
-	queue = list_first_entry(&ptp->tsevqs, struct timestamp_event_queue, qlist);
+	poll_wait(fp, &ptp->tsev_wq, wait);
 
 	return queue_cnt(queue) ? EPOLLIN : 0;
 }
@@ -462,36 +488,36 @@ ssize_t ptp_read(struct posix_clock_context *pccontext, uint rdflags,
 	size_t qcnt, i;
 	int result;
 
-	/* Extract only the first element in the queue list */
-	queue = list_first_entry(&ptp->tsevqs, struct timestamp_event_queue,
-				 qlist);
+	queue = pccontext->private_clkdata;
+	if (!queue) {
+		result = -EINVAL;
+		goto exit;
+	}
 
-	if (cnt % sizeof(struct ptp_extts_event) != 0)
-		return -EINVAL;
+	if (cnt % sizeof(struct ptp_extts_event) != 0) {
+		result = -EINVAL;
+		goto exit;
+	}
 
 	if (cnt > EXTTS_BUFSIZE)
 		cnt = EXTTS_BUFSIZE;
 
 	cnt = cnt / sizeof(struct ptp_extts_event);
 
-	if (mutex_lock_interruptible(&ptp->tsevq_mux))
-		return -ERESTARTSYS;
-
 	if (wait_event_interruptible(ptp->tsev_wq,
 				     ptp->defunct || queue_cnt(queue))) {
-		mutex_unlock(&ptp->tsevq_mux);
 		return -ERESTARTSYS;
 	}
 
 	if (ptp->defunct) {
-		mutex_unlock(&ptp->tsevq_mux);
-		return -ENODEV;
+		result = -ENODEV;
+		goto exit;
 	}
 
 	event = kmalloc(EXTTS_BUFSIZE, GFP_KERNEL);
 	if (!event) {
-		mutex_unlock(&ptp->tsevq_mux);
-		return -ENOMEM;
+		result = -ENOMEM;
+		goto exit;
 	}
 
 	spin_lock_irqsave(&queue->lock, flags);
@@ -510,12 +536,16 @@ ssize_t ptp_read(struct posix_clock_context *pccontext, uint rdflags,
 
 	cnt = cnt * sizeof(struct ptp_extts_event);
 
-	mutex_unlock(&ptp->tsevq_mux);
-
 	result = cnt;
-	if (copy_to_user(buf, event, cnt))
+	if (copy_to_user(buf, event, cnt)) {
 		result = -EFAULT;
+		goto free_event;
+	}
 
+free_event:
 	kfree(event);
+exit:
+	if (result < 0)
+		ptp_release(pccontext);
 	return result;
 }
