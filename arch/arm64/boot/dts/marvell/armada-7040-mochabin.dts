@@ -149,7 +149,7 @@
 };
 
 /* SPI-NOR */
-&cp0_spi1{
+&cp0_spi1 {
 	status = "okay";
 
 	pinctrl-names = "default";

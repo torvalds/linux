@@ -98,8 +98,10 @@ tc_act_parse_pedit(struct mlx5e_tc_act_parse_state *parse_state,
 
 	attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 
-	if (ns_type == MLX5_FLOW_NAMESPACE_FDB)
+	if (ns_type == MLX5_FLOW_NAMESPACE_FDB) {
 		esw_attr->split_count = esw_attr->out_count;
+		parse_state->if_count = 0;
+	}
 
 	return 0;
 }

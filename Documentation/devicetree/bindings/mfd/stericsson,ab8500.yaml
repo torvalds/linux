@@ -313,7 +313,7 @@ properties:
           - const: audioclk
 
       stericsson,earpeice-cmv:
-        description: Earpeice voltage
+        description: Earpiece voltage
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [ 950, 1100, 1270, 1580 ]
 
@@ -337,39 +337,39 @@ properties:
           with power.
 
       ab8500_ldo_aux1:
-        description: The voltage for the auxilary LDO regulator 1
+        description: The voltage for the auxiliary LDO regulator 1
         type: object
         $ref: ../regulator/regulator.yaml#
         unevaluatedProperties: false
 
       ab8500_ldo_aux2:
-        description: The voltage for the auxilary LDO regulator 2
+        description: The voltage for the auxiliary LDO regulator 2
         type: object
         $ref: ../regulator/regulator.yaml#
         unevaluatedProperties: false
 
       ab8500_ldo_aux3:
-        description: The voltage for the auxilary LDO regulator 3
+        description: The voltage for the auxiliary LDO regulator 3
         type: object
         $ref: ../regulator/regulator.yaml#
         unevaluatedProperties: false
 
       ab8500_ldo_aux4:
-        description: The voltage for the auxilary LDO regulator 4
+        description: The voltage for the auxiliary LDO regulator 4
           only present on AB8505
         type: object
         $ref: ../regulator/regulator.yaml#
         unevaluatedProperties: false
 
       ab8500_ldo_aux5:
-        description: The voltage for the auxilary LDO regulator 5
+        description: The voltage for the auxiliary LDO regulator 5
           only present on AB8505
         type: object
         $ref: ../regulator/regulator.yaml#
         unevaluatedProperties: false
 
       ab8500_ldo_aux6:
-        description: The voltage for the auxilary LDO regulator 6
+        description: The voltage for the auxiliary LDO regulator 6
           only present on AB8505
         type: object
         $ref: ../regulator/regulator.yaml#
@@ -378,7 +378,7 @@ properties:
       # There is never any AUX7 regulator which is confusing
 
       ab8500_ldo_aux8:
-        description: The voltage for the auxilary LDO regulator 8
+        description: The voltage for the auxiliary LDO regulator 8
           only present on AB8505
         type: object
         $ref: ../regulator/regulator.yaml#

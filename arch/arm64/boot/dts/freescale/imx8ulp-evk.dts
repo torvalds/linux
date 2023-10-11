@@ -20,6 +20,55 @@
 		reg = <0x0 0x80000000 0 0x80000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0 0x28000000>;
+			linux,cma-default;
+		};
+
+		m33_reserved: noncacheable-section@a8600000 {
+			reg = <0 0xa8600000 0 0x1000000>;
+			no-map;
+		};
+
+		rsc_table: rsc-table@1fff8000{
+			reg = <0 0x1fff8000 0 0x1000>;
+			no-map;
+		};
+
+		vdev0vring0: vdev0vring0@aff00000 {
+			reg = <0 0xaff00000 0 0x8000>;
+			no-map;
+		};
+
+		vdev0vring1: vdev0vring1@aff08000 {
+			reg = <0 0xaff08000 0 0x8000>;
+			no-map;
+		};
+
+		vdev1vring0: vdev1vring0@aff10000 {
+			reg = <0 0xaff10000 0 0x8000>;
+			no-map;
+		};
+
+		vdev1vring1: vdev1vring1@aff18000 {
+			reg = <0 0xaff18000 0 0x8000>;
+			no-map;
+		};
+
+		vdevbuffer: vdevbuffer@a8400000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0xa8400000 0 0x100000>;
+			no-map;
+		};
+	};
+
 	clock_ext_rmii: clock-ext-rmii {
 		compatible = "fixed-clock";
 		clock-frequency = <50000000>;
@@ -36,6 +85,31 @@
 	};
 };
 
+&cm33 {
+	mbox-names = "tx", "rx", "rxdb";
+	mboxes = <&mu 0 1>,
+		 <&mu 1 1>,
+		 <&mu 3 1>;
+	memory-region = <&vdevbuffer>, <&vdev0vring0>, <&vdev0vring1>,
+			<&vdev1vring0>, <&vdev1vring1>, <&rsc_table>;
+	status = "okay";
+};
+
+&flexspi2 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_flexspi2_ptd>;
+	pinctrl-1 = <&pinctrl_flexspi2_ptd>;
+	status = "okay";
+
+	mx25uw51345gxdi00: flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <200000000>;
+		spi-tx-bus-width = <8>;
+		spi-rx-bus-width = <8>;
+	};
+};
+
 &lpuart5 {
 	/* console */
 	pinctrl-names = "default", "sleep";
@@ -44,10 +118,29 @@
 	status = "okay";
 };
 
-&usdhc0 {
+&lpi2c7 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clock-frequency = <400000>;
 	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_lpi2c7>;
+	pinctrl-1 = <&pinctrl_lpi2c7>;
+	status = "okay";
+
+	pcal6408: gpio@21 {
+		compatible = "nxp,pcal9554b";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&usdhc0 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc0>;
 	pinctrl-1 = <&pinctrl_usdhc0>;
+	pinctrl-2 = <&pinctrl_usdhc0>;
+	pinctrl-3 = <&pinctrl_usdhc0>;
 	non-removable;
 	bus-width = <8>;
 	status = "okay";
@@ -79,6 +172,10 @@
 	};
 };
 
+&mu {
+	status = "okay";
+};
+
 &iomuxc1 {
 	pinctrl_enet: enetgrp {
 		fsl,pins = <
@@ -96,6 +193,23 @@
 		>;
 	};
 
+	pinctrl_flexspi2_ptd: flexspi2ptdgrp {
+		fsl,pins = <
+
+			MX8ULP_PAD_PTD12__FLEXSPI2_A_SS0_B	0x42
+			MX8ULP_PAD_PTD13__FLEXSPI2_A_SCLK	0x42
+			MX8ULP_PAD_PTD14__FLEXSPI2_A_DATA3	0x42
+			MX8ULP_PAD_PTD15__FLEXSPI2_A_DATA2	0x42
+			MX8ULP_PAD_PTD16__FLEXSPI2_A_DATA1	0x42
+			MX8ULP_PAD_PTD17__FLEXSPI2_A_DATA0	0x42
+			MX8ULP_PAD_PTD18__FLEXSPI2_A_DQS	0x42
+			MX8ULP_PAD_PTD19__FLEXSPI2_A_DATA7	0x42
+			MX8ULP_PAD_PTD20__FLEXSPI2_A_DATA6	0x42
+			MX8ULP_PAD_PTD21__FLEXSPI2_A_DATA5	0x42
+			MX8ULP_PAD_PTD22__FLEXSPI2_A_DATA4	0x42
+		>;
+	};
+
 	pinctrl_lpuart5: lpuart5grp {
 		fsl,pins = <
 			MX8ULP_PAD_PTF14__LPUART5_TX	0x3
@@ -103,19 +217,26 @@
 		>;
 	};
 
+	pinctrl_lpi2c7: lpi2c7grp {
+		fsl,pins = <
+			MX8ULP_PAD_PTE12__LPI2C7_SCL	0x20
+			MX8ULP_PAD_PTE13__LPI2C7_SDA	0x20
+		>;
+	};
+
 	pinctrl_usdhc0: usdhc0grp {
 		fsl,pins = <
-			MX8ULP_PAD_PTD1__SDHC0_CMD	0x43
-			MX8ULP_PAD_PTD2__SDHC0_CLK	0x10042
-			MX8ULP_PAD_PTD10__SDHC0_D0	0x43
-			MX8ULP_PAD_PTD9__SDHC0_D1	0x43
-			MX8ULP_PAD_PTD8__SDHC0_D2	0x43
-			MX8ULP_PAD_PTD7__SDHC0_D3	0x43
-			MX8ULP_PAD_PTD6__SDHC0_D4	0x43
-			MX8ULP_PAD_PTD5__SDHC0_D5	0x43
-			MX8ULP_PAD_PTD4__SDHC0_D6	0x43
-			MX8ULP_PAD_PTD3__SDHC0_D7	0x43
-			MX8ULP_PAD_PTD11__SDHC0_DQS	0x10042
+			MX8ULP_PAD_PTD1__SDHC0_CMD	0x3
+			MX8ULP_PAD_PTD2__SDHC0_CLK	0x10002
+			MX8ULP_PAD_PTD10__SDHC0_D0	0x3
+			MX8ULP_PAD_PTD9__SDHC0_D1	0x3
+			MX8ULP_PAD_PTD8__SDHC0_D2	0x3
+			MX8ULP_PAD_PTD7__SDHC0_D3	0x3
+			MX8ULP_PAD_PTD6__SDHC0_D4	0x3
+			MX8ULP_PAD_PTD5__SDHC0_D5	0x3
+			MX8ULP_PAD_PTD4__SDHC0_D6	0x3
+			MX8ULP_PAD_PTD3__SDHC0_D7	0x3
+			MX8ULP_PAD_PTD11__SDHC0_DQS	0x10002
 		>;
 	};
 };

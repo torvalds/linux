@@ -12,7 +12,7 @@
 #include <linux/io.h>
 #include <linux/vmalloc.h>
 #include <linux/regmap.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/spi/spi-mem.h>
 #include <linux/mfd/syscon.h>
 
@@ -287,7 +287,7 @@ static ssize_t npcm_fiu_direct_read(struct spi_mem_dirmap_desc *desc,
 				    u64 offs, size_t len, void *buf)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(desc->mem->spi->master);
+		spi_controller_get_devdata(desc->mem->spi->controller);
 	struct npcm_fiu_chip *chip = &fiu->chip[spi_get_chipselect(desc->mem->spi, 0)];
 	void __iomem *src = (void __iomem *)(chip->flash_region_mapped_ptr +
 					     offs);
@@ -314,7 +314,7 @@ static ssize_t npcm_fiu_direct_write(struct spi_mem_dirmap_desc *desc,
 				     u64 offs, size_t len, const void *buf)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(desc->mem->spi->master);
+		spi_controller_get_devdata(desc->mem->spi->controller);
 	struct npcm_fiu_chip *chip = &fiu->chip[spi_get_chipselect(desc->mem->spi, 0)];
 	void __iomem *dst = (void __iomem *)(chip->flash_region_mapped_ptr +
 					     offs);
@@ -335,7 +335,7 @@ static int npcm_fiu_uma_read(struct spi_mem *mem,
 			      bool is_address_size, u8 *data, u32 data_size)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(mem->spi->master);
+		spi_controller_get_devdata(mem->spi->controller);
 	u32 uma_cfg = BIT(10);
 	u32 data_reg[4];
 	int ret;
@@ -390,7 +390,7 @@ static int npcm_fiu_uma_write(struct spi_mem *mem,
 			      bool is_address_size, u8 *data, u32 data_size)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(mem->spi->master);
+		spi_controller_get_devdata(mem->spi->controller);
 	u32 uma_cfg = BIT(10);
 	u32 data_reg[4] = {0};
 	u32 val;
@@ -439,7 +439,7 @@ static int npcm_fiu_manualwrite(struct spi_mem *mem,
 				const struct spi_mem_op *op)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(mem->spi->master);
+		spi_controller_get_devdata(mem->spi->controller);
 	u8 *data = (u8 *)op->data.buf.out;
 	u32 num_data_chunks;
 	u32 remain_data;
@@ -544,7 +544,7 @@ static void npcm_fiux_set_direct_rd(struct npcm_fiu_spi *fiu)
 static int npcm_fiu_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(mem->spi->master);
+		spi_controller_get_devdata(mem->spi->controller);
 	struct npcm_fiu_chip *chip = &fiu->chip[spi_get_chipselect(mem->spi, 0)];
 	int ret = 0;
 	u8 *buf;
@@ -604,7 +604,7 @@ static int npcm_fiu_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 {
 	struct npcm_fiu_spi *fiu =
-		spi_controller_get_devdata(desc->mem->spi->master);
+		spi_controller_get_devdata(desc->mem->spi->controller);
 	struct npcm_fiu_chip *chip = &fiu->chip[spi_get_chipselect(desc->mem->spi, 0)];
 	struct regmap *gcr_regmap;
 
@@ -665,7 +665,7 @@ static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 static int npcm_fiu_setup(struct spi_device *spi)
 {
-	struct spi_controller *ctrl = spi->master;
+	struct spi_controller *ctrl = spi->controller;
 	struct npcm_fiu_spi *fiu = spi_controller_get_devdata(ctrl);
 	struct npcm_fiu_chip *chip;
 
@@ -701,7 +701,7 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	void __iomem *regbase;
 	int id, ret;
 
-	ctrl = devm_spi_alloc_master(dev, sizeof(*fiu));
+	ctrl = devm_spi_alloc_host(dev, sizeof(*fiu));
 	if (!ctrl)
 		return -ENOMEM;
 
@@ -755,7 +755,7 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	ctrl->num_chipselect = fiu->info->max_cs;
 	ctrl->dev.of_node = dev->of_node;
 
-	ret = devm_spi_register_master(dev, ctrl);
+	ret = devm_spi_register_controller(dev, ctrl);
 	if (ret)
 		clk_disable_unprepare(fiu->clk);
 

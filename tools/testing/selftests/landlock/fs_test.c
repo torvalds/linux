@@ -113,7 +113,7 @@ static bool supports_filesystem(const char *const filesystem)
 {
 	char str[32];
 	int len;
-	bool res;
+	bool res = true;
 	FILE *const inf = fopen("/proc/filesystems", "r");
 
 	/*
@@ -125,14 +125,16 @@ static bool supports_filesystem(const char *const filesystem)
 
 	/* filesystem can be null for bind mounts. */
 	if (!filesystem)
-		return true;
+		goto out;
 
 	len = snprintf(str, sizeof(str), "nodev\t%s\n", filesystem);
 	if (len >= sizeof(str))
 		/* Ignores too-long filesystem names. */
-		return true;
+		goto out;
 
 	res = fgrep(inf, str);
+
+out:
 	fclose(inf);
 	return res;
 }

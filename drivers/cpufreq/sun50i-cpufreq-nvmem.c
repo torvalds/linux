@@ -137,7 +137,7 @@ free_opp:
 	return ret;
 }
 
-static int sun50i_cpufreq_nvmem_remove(struct platform_device *pdev)
+static void sun50i_cpufreq_nvmem_remove(struct platform_device *pdev)
 {
 	int *opp_tokens = platform_get_drvdata(pdev);
 	unsigned int cpu;
@@ -148,13 +148,11 @@ static int sun50i_cpufreq_nvmem_remove(struct platform_device *pdev)
 		dev_pm_opp_put_prop_name(opp_tokens[cpu]);
 
 	kfree(opp_tokens);
-
-	return 0;
 }
 
 static struct platform_driver sun50i_cpufreq_driver = {
 	.probe = sun50i_cpufreq_nvmem_probe,
-	.remove = sun50i_cpufreq_nvmem_remove,
+	.remove_new = sun50i_cpufreq_nvmem_remove,
 	.driver = {
 		.name = "sun50i-cpufreq-nvmem",
 	},

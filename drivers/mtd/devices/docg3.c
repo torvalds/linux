@@ -1599,7 +1599,7 @@ static void doc_unregister_sysfs(struct platform_device *pdev,
  */
 static int flashcontrol_show(struct seq_file *s, void *p)
 {
-	struct docg3 *docg3 = (struct docg3 *)s->private;
+	struct docg3 *docg3 = s->private;
 
 	u8 fctrl;
 
@@ -1621,7 +1621,7 @@ DEFINE_SHOW_ATTRIBUTE(flashcontrol);
 
 static int asic_mode_show(struct seq_file *s, void *p)
 {
-	struct docg3 *docg3 = (struct docg3 *)s->private;
+	struct docg3 *docg3 = s->private;
 
 	int pctrl, mode;
 
@@ -1658,7 +1658,7 @@ DEFINE_SHOW_ATTRIBUTE(asic_mode);
 
 static int device_id_show(struct seq_file *s, void *p)
 {
-	struct docg3 *docg3 = (struct docg3 *)s->private;
+	struct docg3 *docg3 = s->private;
 	int id;
 
 	mutex_lock(&docg3->cascade->lock);
@@ -1672,7 +1672,7 @@ DEFINE_SHOW_ATTRIBUTE(device_id);
 
 static int protection_show(struct seq_file *s, void *p)
 {
-	struct docg3 *docg3 = (struct docg3 *)s->private;
+	struct docg3 *docg3 = s->private;
 	int protect, dps0, dps0_low, dps0_high, dps1, dps1_low, dps1_high;
 
 	mutex_lock(&docg3->cascade->lock);

@@ -14,7 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include <linux/uaccess.h>
 #include <asm/io.h>

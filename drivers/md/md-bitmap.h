@@ -201,6 +201,7 @@ struct bitmap {
 		struct file *file;		/* backing disk file */
 		struct page *sb_page;		/* cached copy of the bitmap
 						 * file superblock */
+		unsigned long sb_index;
 		struct page **filemap;		/* list of cache pages for
 						 * the file */
 		unsigned long *filemap_attr;	/* attributes associated

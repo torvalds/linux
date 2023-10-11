@@ -47,10 +47,8 @@ static int read_patterns(void)
 
 		sprintf(pf, "/sys/kernel/debug/pcmtest/fill_pattern%d", i);
 		fp = fopen(pf, "r");
-		if (!fp) {
-			fclose(fpl);
+		if (!fp)
 			return -1;
-		}
 		fread(patterns[i].buf, 1, patterns[i].len, fp);
 		fclose(fp);
 	}

@@ -63,8 +63,8 @@
 			compatible = "snps,designware-i2s";
 			reg = <0xb2400000 0x10000>;
 			interrupt-names = "play_irq";
-			interrupts = <0 98 0x4
-				      0 99 0x4>;
+			interrupts = <0 98 0x4>,
+				     <0 99 0x4>;
 			play;
 			channel = <8>;
 			status = "disabled";
@@ -74,8 +74,8 @@
 			compatible = "snps,designware-i2s";
 			reg = <0xb2000000 0x10000>;
 			interrupt-names = "record_irq";
-			interrupts = <0 100  0x4
-				      0 101 0x4>;
+			interrupts = <0 100 0x4>,
+				     <0 101 0x4>;
 			record;
 			channel = <8>;
 			status = "disabled";

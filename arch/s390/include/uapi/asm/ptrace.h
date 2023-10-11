@@ -8,6 +8,8 @@
 #ifndef _UAPI_S390_PTRACE_H
 #define _UAPI_S390_PTRACE_H
 
+#include <linux/const.h>
+
 /*
  * Offsets in the user_regs_struct. They are used for the ptrace
  * system call and in entry.S

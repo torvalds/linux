@@ -655,7 +655,7 @@ intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
 	/* Write the link configuration data */
 	link_config[0] = link_bw;
 	link_config[1] = crtc_state->lane_count;
-	if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
+	if (crtc_state->enhanced_framing)
 		link_config[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_BW_SET, link_config, 2);
 
@@ -1390,11 +1390,13 @@ void intel_dp_128b132b_sdp_crc16(struct intel_dp *intel_dp,
 	 * Default value of bit 31 is '0' hence discarding the write
 	 * TODO: Corrective actions on SDP corruption yet to be defined
 	 */
-	if (intel_dp_is_uhbr(crtc_state))
-		/* DP v2.0 SCR on SDP CRC16 for 128b/132b Link Layer */
-		drm_dp_dpcd_writeb(&intel_dp->aux,
-				   DP_SDP_ERROR_DETECTION_CONFIGURATION,
-				   DP_SDP_CRC16_128B132B_EN);
+	if (!intel_dp_is_uhbr(crtc_state))
+		return;
+
+	/* DP v2.0 SCR on SDP CRC16 for 128b/132b Link Layer */
+	drm_dp_dpcd_writeb(&intel_dp->aux,
+			   DP_SDP_ERROR_DETECTION_CONFIGURATION,
+			   DP_SDP_CRC16_128B132B_EN);
 
 	lt_dbg(intel_dp, DP_PHY_DPRX, "DP2.0 SDP CRC16 for 128b/132b enabled\n");
 }

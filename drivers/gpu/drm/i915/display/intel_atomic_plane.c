@@ -212,9 +212,7 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int width, height;
-
-	if (plane->id == PLANE_CURSOR)
-		return 0;
+	unsigned int rel_data_rate;
 
 	if (!plane_state->uapi.visible)
 		return 0;
@@ -241,7 +239,14 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 		height /= 2;
 	}
 
-	return width * height * fb->format->cpp[color_plane];
+	rel_data_rate = width * height * fb->format->cpp[color_plane];
+
+	if (plane->id == PLANE_CURSOR)
+		return rel_data_rate;
+
+	return intel_adjusted_rate(&plane_state->uapi.src,
+				   &plane_state->uapi.dst,
+				   rel_data_rate);
 }
 
 int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
@@ -976,6 +981,14 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	if (fb->format->format == DRM_FORMAT_RGB565 && rotated) {
 		hsub = 2;
 		vsub = 2;
+	} else if (DISPLAY_VER(i915) >= 20 &&
+		   intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier)) {
+		/*
+		 * This allows NV12 and P0xx formats to have odd size and/or odd
+		 * source coordinates on DISPLAY_VER(i915) >= 20
+		 */
+		hsub = 1;
+		vsub = 1;
 	} else {
 		hsub = fb->format->hsub;
 		vsub = fb->format->vsub;

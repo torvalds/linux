@@ -437,8 +437,7 @@ err_put_driver:
 }
 
 static inline int ipoctal_copy_write_buffer(struct ipoctal_channel *channel,
-					    const unsigned char *buf,
-					    int count)
+					    const u8 *buf, int count)
 {
 	unsigned long flags;
 	int i;
@@ -459,8 +458,8 @@ static inline int ipoctal_copy_write_buffer(struct ipoctal_channel *channel,
 	return i;
 }
 
-static int ipoctal_write_tty(struct tty_struct *tty,
-			     const unsigned char *buf, int count)
+static ssize_t ipoctal_write_tty(struct tty_struct *tty, const u8 *buf,
+				 size_t count)
 {
 	struct ipoctal_channel *channel = tty->driver_data;
 	unsigned int char_copied;

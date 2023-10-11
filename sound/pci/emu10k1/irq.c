@@ -3,12 +3,6 @@
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Creative Labs, Inc.
  *  Routines for IRQ control of EMU10K1 chips
- *
- *  BUGS:
- *    --
- *
- *  TODO:
- *    --
  */
 
 #include <linux/time.h>
@@ -148,6 +142,13 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 			else
 				outl(0, emu->port + INTE2);
 			status &= ~IPR_P16V;
+		}
+		if (status & IPR_A_GPIO) {
+			if (emu->gpio_interrupt)
+				emu->gpio_interrupt(emu);
+			else
+				snd_emu10k1_intr_disable(emu, INTE_A_GPIOENABLE);
+			status &= ~IPR_A_GPIO;
 		}
 
 		if (status) {

@@ -226,6 +226,14 @@ void __init fsverity_check_hash_algs(void)
 		if (!alg->name)
 			continue;
 
+		/*
+		 * 0 must never be allocated as an FS_VERITY_HASH_ALG_* value,
+		 * as it is reserved for users that use 0 to mean unspecified or
+		 * a default value.  fs/verity/ itself doesn't care and doesn't
+		 * have a default algorithm, but some users make use of this.
+		 */
+		BUG_ON(i == 0);
+
 		BUG_ON(alg->digest_size > FS_VERITY_MAX_DIGEST_SIZE);
 
 		/*

@@ -7,6 +7,8 @@
 #ifndef __OCTEP_CTRL_NET_H__
 #define __OCTEP_CTRL_NET_H__
 
+#include "octep_cp_version.h"
+
 #define OCTEP_CTRL_NET_INVALID_VFID	(-1)
 
 /* Supported commands */
@@ -39,12 +41,14 @@ enum octep_ctrl_net_h2f_cmd {
 	OCTEP_CTRL_NET_H2F_CMD_LINK_STATUS,
 	OCTEP_CTRL_NET_H2F_CMD_RX_STATE,
 	OCTEP_CTRL_NET_H2F_CMD_LINK_INFO,
+	OCTEP_CTRL_NET_H2F_CMD_MAX
 };
 
 /* Supported fw to host commands */
 enum octep_ctrl_net_f2h_cmd {
 	OCTEP_CTRL_NET_F2H_CMD_INVALID = 0,
 	OCTEP_CTRL_NET_F2H_CMD_LINK_STATUS,
+	OCTEP_CTRL_NET_F2H_CMD_MAX
 };
 
 union octep_ctrl_net_req_hdr {

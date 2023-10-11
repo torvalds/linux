@@ -715,9 +715,20 @@ void mlx5e_rep_tc_receive(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
 	uplink_priv = &uplink_rpriv->uplink_priv;
 	ct_priv = uplink_priv->ct_priv;
 
-	if (!mlx5_ipsec_is_rx_flow(cqe) &&
-	    !mlx5e_tc_update_skb(cqe, skb, mapping_ctx, reg_c0, ct_priv, zone_restore_id, tunnel_id,
-				 &tc_priv))
+#ifdef CONFIG_MLX5_EN_IPSEC
+	if (!(tunnel_id >> ESW_TUN_OPTS_BITS)) {
+		u32 mapped_id;
+		u32 metadata;
+
+		mapped_id = tunnel_id & ESW_IPSEC_RX_MAPPED_ID_MASK;
+		if (mapped_id &&
+		    !mlx5_esw_ipsec_rx_make_metadata(priv, mapped_id, &metadata))
+			mlx5e_ipsec_offload_handle_rx_skb(priv->netdev, skb, metadata);
+	}
+#endif
+
+	if (!mlx5e_tc_update_skb(cqe, skb, mapping_ctx, reg_c0, ct_priv,
+				 zone_restore_id, tunnel_id, &tc_priv))
 		goto free_skb;
 
 forward:

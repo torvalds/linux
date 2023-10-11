@@ -22,7 +22,6 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
@@ -642,7 +641,7 @@ static struct platform_driver at91_rtc_driver = {
 	.driver		= {
 		.name	= "at91_rtc",
 		.pm	= &at91_rtc_pm_ops,
-		.of_match_table = of_match_ptr(at91_rtc_dt_ids),
+		.of_match_table = at91_rtc_dt_ids,
 	},
 };
 

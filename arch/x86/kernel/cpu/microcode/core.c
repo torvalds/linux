@@ -31,14 +31,13 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 
-#include <asm/microcode_intel.h>
 #include <asm/cpu_device_id.h>
-#include <asm/microcode_amd.h>
 #include <asm/perf_event.h>
-#include <asm/microcode.h>
 #include <asm/processor.h>
 #include <asm/cmdline.h>
 #include <asm/setup.h>
+
+#include "internal.h"
 
 #define DRIVER_VERSION	"2.2"
 
@@ -54,15 +53,12 @@ LIST_HEAD(microcode_cache);
  *
  * All non cpu-hotplug-callback call sites use:
  *
- * - microcode_mutex to synchronize with each other;
  * - cpus_read_lock/unlock() to synchronize with
  *   the cpu-hotplug-callback call sites.
  *
  * We guarantee that only a single cpu is being
  * updated at any particular moment of time.
  */
-static DEFINE_MUTEX(microcode_mutex);
-
 struct ucode_cpu_info		ucode_cpu_info[NR_CPUS];
 
 struct cpu_info_ctx {
@@ -172,7 +168,7 @@ void __init load_ucode_bsp(void)
 	if (intel)
 		load_ucode_intel_bsp();
 	else
-		load_ucode_amd_bsp(cpuid_1_eax);
+		load_ucode_amd_early(cpuid_1_eax);
 }
 
 static bool check_loader_disabled_ap(void)
@@ -200,7 +196,7 @@ void load_ucode_ap(void)
 		break;
 	case X86_VENDOR_AMD:
 		if (x86_family(cpuid_1_eax) >= 0x10)
-			load_ucode_amd_ap(cpuid_1_eax);
+			load_ucode_amd_early(cpuid_1_eax);
 		break;
 	default:
 		break;
@@ -298,7 +294,7 @@ struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
 #endif
 }
 
-void reload_early_microcode(unsigned int cpu)
+static void reload_early_microcode(unsigned int cpu)
 {
 	int vendor, family;
 
@@ -488,10 +484,7 @@ static ssize_t reload_store(struct device *dev,
 	if (tmp_ret != UCODE_NEW)
 		goto put;
 
-	mutex_lock(&microcode_mutex);
 	ret = microcode_reload_late();
-	mutex_unlock(&microcode_mutex);
-
 put:
 	cpus_read_unlock();
 

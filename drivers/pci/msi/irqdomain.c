@@ -336,7 +336,7 @@ bool pci_msi_domain_supports(struct pci_dev *pdev, unsigned int feature_mask,
 	if (!irq_domain_is_msi_parent(domain)) {
 		/*
 		 * For "global" PCI/MSI interrupt domains the associated
-		 * msi_domain_info::flags is the authoritive source of
+		 * msi_domain_info::flags is the authoritative source of
 		 * information.
 		 */
 		info = domain->host_data;
@@ -344,7 +344,7 @@ bool pci_msi_domain_supports(struct pci_dev *pdev, unsigned int feature_mask,
 	} else {
 		/*
 		 * For MSI parent domains the supported feature set
-		 * is avaliable in the parent ops. This makes checks
+		 * is available in the parent ops. This makes checks
 		 * possible before actually instantiating the
 		 * per device domain because the parent is never
 		 * expanding the PCI/MSI functionality.

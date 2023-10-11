@@ -195,8 +195,6 @@ static void arc_serial_start_tx(struct uart_port *port)
 
 static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
 {
-	unsigned int ch, flg = 0;
-
 	/*
 	 * UART has 4 deep RX-FIFO. Driver's recongnition of this fact
 	 * is very subtle. Here's how ...
@@ -207,24 +205,23 @@ static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
 	 * controller, which is indeed the Rx-FIFO.
 	 */
 	do {
+		u8 ch, flg = TTY_NORMAL;
+
 		/*
 		 * This could be an Rx Intr for err (no data),
 		 * so check err and clear that Intr first
 		 */
-		if (unlikely(status & (RXOERR | RXFERR))) {
-			if (status & RXOERR) {
-				port->icount.overrun++;
-				flg = TTY_OVERRUN;
-				UART_CLR_STATUS(port, RXOERR);
-			}
+		if (status & RXOERR) {
+			port->icount.overrun++;
+			flg = TTY_OVERRUN;
+			UART_CLR_STATUS(port, RXOERR);
+		}
 
-			if (status & RXFERR) {
-				port->icount.frame++;
-				flg = TTY_FRAME;
-				UART_CLR_STATUS(port, RXFERR);
-			}
-		} else
-			flg = TTY_NORMAL;
+		if (status & RXFERR) {
+			port->icount.frame++;
+			flg = TTY_FRAME;
+			UART_CLR_STATUS(port, RXFERR);
+		}
 
 		if (status & RXEMPTY)
 			continue;

@@ -129,18 +129,18 @@ MODULE_FIRMWARE("orinoco_ezusb_fw");
 
 #define USB_AVAYA8_VENDOR_ID     0x0D98
 #define USB_AVAYAE_VENDOR_ID     0x0D9E
-#define USB_AVAYA_WIRELESS_ID    0x0300 /* Avaya Wireless USB Card */
+#define USB_AVAYA_WIRELESS_ID    0x0300 /* Avaya USB Wireless Card */
 
 #define USB_AGERE_VENDOR_ID      0x0D4E /* Agere Systems */
-#define USB_AGERE_MODEL0801_ID   0x1000 /* Wireless USB Card Model 0801 */
-#define USB_AGERE_MODEL0802_ID   0x1001 /* Wireless USB Card Model 0802 */
-#define USB_AGERE_REBRANDED_ID   0x047A /* WLAN USB Card */
+#define USB_AGERE_MODEL0801_ID   0x1000 /* USB Wireless Card Model 0801 */
+#define USB_AGERE_MODEL0802_ID   0x1001 /* USB Wireless Card Model 0802 */
+#define USB_AGERE_REBRANDED_ID   0x047A /* USB WLAN Card */
 
 #define USB_ELSA_VENDOR_ID       0x05CC
 #define USB_ELSA_AIRLANCER_ID    0x3100 /* ELSA AirLancer USB-11 */
 
 #define USB_LEGEND_VENDOR_ID     0x0E7C
-#define USB_LEGEND_JOYNET_ID     0x0300 /* Joynet WLAN USB Card */
+#define USB_LEGEND_JOYNET_ID     0x0300 /* Joynet USB WLAN Card */
 
 #define USB_SAMSUNG_VENDOR_ID    0x04E8
 #define USB_SAMSUNG_SEW2001U1_ID 0x5002 /* Samsung SEW-2001u Card */
@@ -154,7 +154,7 @@ MODULE_FIRMWARE("orinoco_ezusb_fw");
 #define USB_FUJITSU_E1100_ID     0x1002 /* connect2AIR WLAN E-1100 USB */
 
 #define USB_2WIRE_VENDOR_ID      0x1630
-#define USB_2WIRE_WIRELESS_ID    0xff81 /* 2Wire Wireless USB adapter */
+#define USB_2WIRE_WIRELESS_ID    0xff81 /* 2Wire USB Wireless adapter */
 
 
 #define EZUSB_REQUEST_FW_TRANS		0xA0

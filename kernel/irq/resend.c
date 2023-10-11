@@ -68,11 +68,16 @@ static int irq_sw_resend(struct irq_desc *desc)
 		 */
 		if (!desc->parent_irq)
 			return -EINVAL;
+
+		desc = irq_to_desc(desc->parent_irq);
+		if (!desc)
+			return -EINVAL;
 	}
 
 	/* Add to resend_list and activate the softirq: */
 	raw_spin_lock(&irq_resend_lock);
-	hlist_add_head(&desc->resend_node, &irq_resend_list);
+	if (hlist_unhashed(&desc->resend_node))
+		hlist_add_head(&desc->resend_node, &irq_resend_list);
 	raw_spin_unlock(&irq_resend_lock);
 	tasklet_schedule(&resend_tasklet);
 	return 0;

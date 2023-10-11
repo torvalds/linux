@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later or BSD-2-Clause */
+/* SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause */
 /*
  * Copyright (c) 2019-2020, Huawei Tech. Co., Ltd.
  *

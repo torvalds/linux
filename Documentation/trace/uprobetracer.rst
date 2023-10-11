@@ -55,7 +55,7 @@ Synopsis of uprobe_tracer
 
   (\*1) only for return probe.
   (\*2) this is useful for fetching a field of data structures.
-  (\*3) Unlike kprobe event, "u" prefix will just be ignored, becuse uprobe
+  (\*3) Unlike kprobe event, "u" prefix will just be ignored, because uprobe
         events can access only user-space memory.
 
 Types

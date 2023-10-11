@@ -463,8 +463,6 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	}
 	if (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		tcb_desc->bUseShortPreamble = true;
-	if (ieee->iw_mode == IW_MODE_MASTER)
-		goto NO_PROTECTION;
 	return;
 NO_PROTECTION:
 	tcb_desc->bRTSEnable	= false;
@@ -635,8 +633,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
 		skb->priority = rtllib_classify(skb, IsAmsdu);
 		crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
-		encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) &&
-			ieee->host_encrypt && crypt && crypt->ops;
+		encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) && crypt && crypt->ops;
 		if (!encrypt && ieee->ieee802_1x &&
 		    ieee->drop_unencrypted && ether_type != ETH_P_PAE) {
 			stats->tx_dropped++;

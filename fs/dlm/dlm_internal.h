@@ -598,6 +598,7 @@ struct dlm_ls {
 	struct dentry		*ls_debug_locks_dentry; /* debugfs */
 	struct dentry		*ls_debug_all_dentry; /* debugfs */
 	struct dentry		*ls_debug_toss_dentry; /* debugfs */
+	struct dentry		*ls_debug_queued_asts_dentry; /* debugfs */
 
 	wait_queue_head_t	ls_uevent_wait;	/* user part of join/leave */
 	int			ls_uevent_result;

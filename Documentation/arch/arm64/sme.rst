@@ -322,7 +322,7 @@ The regset data starts with struct user_za_header, containing:
   VL is supported.
 
 * The size and layout of the payload depends on the header fields.  The
-  SME_PT_ZA_*() macros are provided to facilitate access to the data.
+  ZA_PT_ZA*() macros are provided to facilitate access to the data.
 
 * In either case, for SETREGSET it is permissible to omit the payload, in which
   case the vector length and flags are changed and PSTATE.ZA is set to 0

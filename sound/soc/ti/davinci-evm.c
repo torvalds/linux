@@ -257,18 +257,7 @@ static struct platform_driver davinci_evm_driver = {
 	},
 };
 
-static int __init evm_init(void)
-{
-	return platform_driver_register(&davinci_evm_driver);
-}
-
-static void __exit evm_exit(void)
-{
-	platform_driver_unregister(&davinci_evm_driver);
-}
-
-module_init(evm_init);
-module_exit(evm_exit);
+module_platform_driver(davinci_evm_driver);
 
 MODULE_AUTHOR("Vladimir Barinov");
 MODULE_DESCRIPTION("TI DAVINCI EVM ASoC driver");

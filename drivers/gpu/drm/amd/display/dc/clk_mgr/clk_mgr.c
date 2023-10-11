@@ -117,6 +117,7 @@ void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_m
 				continue;
 			clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
 			dc->link_srv->edp_set_psr_allow_active(edp_link, &allow_active, false, false, NULL);
+			dc->link_srv->edp_set_replay_allow_active(edp_link, &allow_active, false, false, NULL);
 		}
 	}
 
@@ -136,6 +137,8 @@ void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 			if (!edp_link->psr_settings.psr_feature_enabled)
 				continue;
 			dc->link_srv->edp_set_psr_allow_active(edp_link,
+					&clk_mgr->psr_allow_active_cache, false, false, NULL);
+			dc->link_srv->edp_set_replay_allow_active(edp_link,
 					&clk_mgr->psr_allow_active_cache, false, false, NULL);
 		}
 	}

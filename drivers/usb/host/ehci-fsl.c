@@ -22,7 +22,7 @@
 #include <linux/usb/otg.h>
 #include <linux/platform_device.h>
 #include <linux/fsl_devices.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/io.h>
 
 #include "ehci.h"
@@ -87,8 +87,7 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err2;

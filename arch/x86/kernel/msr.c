@@ -39,7 +39,6 @@
 #include <asm/cpufeature.h>
 #include <asm/msr.h>
 
-static struct class *msr_class;
 static enum cpuhp_state cpuhp_msr_state;
 
 enum allow_write_msrs {
@@ -235,24 +234,29 @@ static const struct file_operations msr_fops = {
 	.compat_ioctl = msr_ioctl,
 };
 
+static char *msr_devnode(const struct device *dev, umode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "cpu/%u/msr", MINOR(dev->devt));
+}
+
+static const struct class msr_class = {
+	.name		= "msr",
+	.devnode	= msr_devnode,
+};
+
 static int msr_device_create(unsigned int cpu)
 {
 	struct device *dev;
 
-	dev = device_create(msr_class, NULL, MKDEV(MSR_MAJOR, cpu), NULL,
+	dev = device_create(&msr_class, NULL, MKDEV(MSR_MAJOR, cpu), NULL,
 			    "msr%d", cpu);
 	return PTR_ERR_OR_ZERO(dev);
 }
 
 static int msr_device_destroy(unsigned int cpu)
 {
-	device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
+	device_destroy(&msr_class, MKDEV(MSR_MAJOR, cpu));
 	return 0;
-}
-
-static char *msr_devnode(const struct device *dev, umode_t *mode)
-{
-	return kasprintf(GFP_KERNEL, "cpu/%u/msr", MINOR(dev->devt));
 }
 
 static int __init msr_init(void)
@@ -263,12 +267,9 @@ static int __init msr_init(void)
 		pr_err("unable to get major %d for msr\n", MSR_MAJOR);
 		return -EBUSY;
 	}
-	msr_class = class_create("msr");
-	if (IS_ERR(msr_class)) {
-		err = PTR_ERR(msr_class);
+	err = class_register(&msr_class);
+	if (err)
 		goto out_chrdev;
-	}
-	msr_class->devnode = msr_devnode;
 
 	err  = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/msr:online",
 				 msr_device_create, msr_device_destroy);
@@ -278,7 +279,7 @@ static int __init msr_init(void)
 	return 0;
 
 out_class:
-	class_destroy(msr_class);
+	class_unregister(&msr_class);
 out_chrdev:
 	__unregister_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr");
 	return err;
@@ -288,7 +289,7 @@ module_init(msr_init);
 static void __exit msr_exit(void)
 {
 	cpuhp_remove_state(cpuhp_msr_state);
-	class_destroy(msr_class);
+	class_unregister(&msr_class);
 	__unregister_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr");
 }
 module_exit(msr_exit)

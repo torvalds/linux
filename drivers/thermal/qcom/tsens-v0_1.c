@@ -23,7 +23,7 @@
 
 #define BIT_APPEND		0x3
 
-struct tsens_legacy_calibration_format tsens_8916_nvmem = {
+static struct tsens_legacy_calibration_format tsens_8916_nvmem = {
 	.base_len = 7,
 	.base_shift = 3,
 	.sp_len = 5,
@@ -39,7 +39,7 @@ struct tsens_legacy_calibration_format tsens_8916_nvmem = {
 	},
 };
 
-struct tsens_legacy_calibration_format tsens_8974_nvmem = {
+static struct tsens_legacy_calibration_format tsens_8974_nvmem = {
 	.base_len = 8,
 	.base_shift = 2,
 	.sp_len = 6,
@@ -61,7 +61,7 @@ struct tsens_legacy_calibration_format tsens_8974_nvmem = {
 	},
 };
 
-struct tsens_legacy_calibration_format tsens_8974_backup_nvmem = {
+static struct tsens_legacy_calibration_format tsens_8974_backup_nvmem = {
 	.base_len = 8,
 	.base_shift = 2,
 	.sp_len = 6,

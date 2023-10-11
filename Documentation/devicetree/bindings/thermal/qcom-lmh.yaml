@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Limits Management Hardware(LMh)
 
 maintainers:
-  - Thara Gopinath <thara.gopinath@linaro.org>
+  - Thara Gopinath <thara.gopinath@gmail.com>
 
 description:
   Limits Management Hardware(LMh) is a hardware infrastructure on some

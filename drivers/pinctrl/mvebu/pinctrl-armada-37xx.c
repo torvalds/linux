@@ -13,8 +13,6 @@
 #include <linux/gpio/driver.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
@@ -1013,7 +1011,6 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	return 0;
 }
 
-#if defined(CONFIG_PM)
 static int armada_3700_pinctrl_suspend(struct device *dev)
 {
 	struct armada_37xx_pinctrl *info = dev_get_drvdata(dev);
@@ -1107,15 +1104,8 @@ static int armada_3700_pinctrl_resume(struct device *dev)
  * Since pinctrl is an infrastructure module, its resume should be issued prior
  * to other IO drivers.
  */
-static const struct dev_pm_ops armada_3700_pinctrl_pm_ops = {
-	.suspend_noirq = armada_3700_pinctrl_suspend,
-	.resume_noirq = armada_3700_pinctrl_resume,
-};
-
-#define PINCTRL_ARMADA_37XX_DEV_PM_OPS (&armada_3700_pinctrl_pm_ops)
-#else
-#define PINCTRL_ARMADA_37XX_DEV_PM_OPS NULL
-#endif /* CONFIG_PM */
+static DEFINE_NOIRQ_DEV_PM_OPS(armada_3700_pinctrl_pm_ops,
+			       armada_3700_pinctrl_suspend, armada_3700_pinctrl_resume);
 
 static const struct of_device_id armada_37xx_pinctrl_of_match[] = {
 	{
@@ -1182,7 +1172,7 @@ static struct platform_driver armada_37xx_pinctrl_driver = {
 	.driver = {
 		.name = "armada-37xx-pinctrl",
 		.of_match_table = armada_37xx_pinctrl_of_match,
-		.pm = PINCTRL_ARMADA_37XX_DEV_PM_OPS,
+		.pm = pm_sleep_ptr(&armada_3700_pinctrl_pm_ops),
 	},
 };
 

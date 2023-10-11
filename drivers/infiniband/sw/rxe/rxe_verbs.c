@@ -798,7 +798,6 @@ static int init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 			rxe_err_qp(qp, "unsupported wr opcode %d",
 					wr->opcode);
 			return -EINVAL;
-			break;
 		}
 	}
 

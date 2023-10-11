@@ -208,7 +208,7 @@ static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 		goto err_out;
 	}
 
-	info.attrs = attrbuf;
+	info.info.attrs = attrbuf;
 
 	if (nlmsg_len(cb.nlh) > 0) {
 		err = nlmsg_parse_deprecated(cb.nlh, GENL_HDRLEN, attrbuf,
@@ -1294,7 +1294,7 @@ static int tipc_nl_compat_recv(struct sk_buff *skb, struct genl_info *info)
 	struct tipc_nl_compat_msg msg;
 	struct nlmsghdr *req_nlh;
 	struct nlmsghdr *rep_nlh;
-	struct tipc_genlmsghdr *req_userhdr = info->userhdr;
+	struct tipc_genlmsghdr *req_userhdr = genl_info_userhdr(info);
 
 	memset(&msg, 0, sizeof(msg));
 

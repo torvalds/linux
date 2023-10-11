@@ -141,7 +141,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 
 		intel_de_rmw(dev_priv, TRANS_DP_CTL(crtc->pipe),
 			     TRANS_DP_ENH_FRAMING,
-			     drm_dp_enhanced_frame_cap(intel_dp->dpcd) ?
+			     pipe_config->enhanced_framing ?
 			     TRANS_DP_ENH_FRAMING : 0);
 	} else {
 		if (IS_G4X(dev_priv) && pipe_config->limited_color_range)
@@ -153,7 +153,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 			intel_dp->DP |= DP_SYNC_VS_HIGH;
 		intel_dp->DP |= DP_LINK_TRAIN_OFF;
 
-		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
+		if (pipe_config->enhanced_framing)
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
 		if (IS_CHERRYVIEW(dev_priv))
@@ -351,6 +351,9 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 		u32 trans_dp = intel_de_read(dev_priv,
 					     TRANS_DP_CTL(crtc->pipe));
 
+		if (trans_dp & TRANS_DP_ENH_FRAMING)
+			pipe_config->enhanced_framing = true;
+
 		if (trans_dp & TRANS_DP_HSYNC_ACTIVE_HIGH)
 			flags |= DRM_MODE_FLAG_PHSYNC;
 		else
@@ -361,6 +364,9 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 		else
 			flags |= DRM_MODE_FLAG_NVSYNC;
 	} else {
+		if (tmp & DP_ENHANCED_FRAMING)
+			pipe_config->enhanced_framing = true;
+
 		if (tmp & DP_SYNC_HS_HIGH)
 			flags |= DRM_MODE_FLAG_PHSYNC;
 		else
@@ -1259,6 +1265,9 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 
+	if (!assert_port_valid(dev_priv, port))
+		return false;
+
 	devdata = intel_bios_encoder_data_lookup(dev_priv, port);
 
 	/* FIXME bail? */
@@ -1269,6 +1278,8 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
 	if (!dig_port)
 		return false;
+
+	dig_port->aux_ch = AUX_CH_NONE;
 
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
@@ -1373,6 +1384,9 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 		intel_infoframe_init(dig_port);
 
 	dig_port->aux_ch = intel_dp_aux_ch(intel_encoder);
+	if (dig_port->aux_ch == AUX_CH_NONE)
+		goto err_init_connector;
+
 	if (!intel_dp_init_connector(dig_port, intel_connector))
 		goto err_init_connector;
 

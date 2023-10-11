@@ -49,6 +49,9 @@ properties:
       Set if the output SYNCLKO clock should be disabled. Do not mix with
       microchip,synclko-125.
 
+  interrupts:
+    maxItems: 1
+
 required:
   - compatible
   - reg

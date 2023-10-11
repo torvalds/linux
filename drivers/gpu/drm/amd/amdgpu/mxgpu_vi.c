@@ -334,7 +334,7 @@ static void xgpu_vi_mailbox_send_ack(struct amdgpu_device *adev)
 			break;
 		}
 		mdelay(1);
-		timeout -=1;
+		timeout -= 1;
 
 		reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
 	}

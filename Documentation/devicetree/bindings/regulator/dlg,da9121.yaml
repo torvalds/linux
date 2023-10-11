@@ -95,11 +95,6 @@ properties:
           Properties for a single BUCK regulator
 
         properties:
-          regulator-name:
-            pattern: "^BUCK([1-2])$"
-            description: |
-              BUCK2 present in DA9122, DA9220, DA9131, DA9132 only
-
           regulator-initial-mode:
             enum: [ 0, 1, 2, 3 ]
             description: Defined in include/dt-bindings/regulator/dlg,da9121-regulator.h
@@ -121,6 +116,23 @@ required:
   - compatible
   - reg
   - regulators
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              enum:
+                - dlg,da9122
+                - dlg,da9131
+                - dlg,da9132
+                - dlg,da9220
+    then:
+      properties:
+        regulators:
+          properties:
+            buck2: false
 
 additionalProperties: false
 

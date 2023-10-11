@@ -252,7 +252,8 @@ ctl4_entries_add()
 	local IPs=$(seq -f 192.0.2.%g 1 $((n - 1)))
 	local peer=$(locus_dev_peer $locus)
 	local GRP=239.1.1.${grp}
-	$MZ $peer -c 1 -A 192.0.2.1 -B $GRP \
+	local dmac=01:00:5e:01:01:$(printf "%02x" $grp)
+	$MZ $peer -a own -b $dmac -c 1 -A 192.0.2.1 -B $GRP \
 		-t ip proto=2,p=$(igmpv3_is_in_get $GRP $IPs) -q
 	sleep 1
 
@@ -272,7 +273,8 @@ ctl4_entries_del()
 
 	local peer=$(locus_dev_peer $locus)
 	local GRP=239.1.1.${grp}
-	$MZ $peer -c 1 -A 192.0.2.1 -B 224.0.0.2 \
+	local dmac=01:00:5e:00:00:02
+	$MZ $peer -a own -b $dmac -c 1 -A 192.0.2.1 -B 224.0.0.2 \
 		-t ip proto=2,p=$(igmpv2_leave_get $GRP) -q
 	sleep 1
 	! bridge mdb show dev br0 | grep -q $GRP
@@ -289,8 +291,10 @@ ctl6_entries_add()
 	local peer=$(locus_dev_peer $locus)
 	local SIP=fe80::1
 	local GRP=ff0e::${grp}
+	local dmac=33:33:00:00:00:$(printf "%02x" $grp)
 	local p=$(mldv2_is_in_get $SIP $GRP $IPs)
-	$MZ -6 $peer -c 1 -A $SIP -B $GRP -t ip hop=1,next=0,p="$p" -q
+	$MZ -6 $peer -a own -b $dmac -c 1 -A $SIP -B $GRP \
+		-t ip hop=1,next=0,p="$p" -q
 	sleep 1
 
 	local nn=$(bridge mdb show dev br0 | grep $GRP | wc -l)
@@ -310,8 +314,10 @@ ctl6_entries_del()
 	local peer=$(locus_dev_peer $locus)
 	local SIP=fe80::1
 	local GRP=ff0e::${grp}
+	local dmac=33:33:00:00:00:$(printf "%02x" $grp)
 	local p=$(mldv1_done_get $SIP $GRP)
-	$MZ -6 $peer -c 1 -A $SIP -B $GRP -t ip hop=1,next=0,p="$p" -q
+	$MZ -6 $peer -a own -b $dmac -c 1 -A $SIP -B $GRP \
+		-t ip hop=1,next=0,p="$p" -q
 	sleep 1
 	! bridge mdb show dev br0 | grep -q $GRP
 }
@@ -1327,6 +1333,11 @@ test_8021qvs()
 
 	switch_destroy
 }
+
+if ! bridge link help 2>&1 | grep -q "mcast_max_groups"; then
+	echo "SKIP: iproute2 too old, missing bridge \"mcast_max_groups\" support"
+	exit $ksft_skip
+fi
 
 trap cleanup EXIT
 

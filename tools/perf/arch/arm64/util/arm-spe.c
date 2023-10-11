@@ -230,7 +230,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	 * inform that the resulting output's SPE samples contain physical addresses
 	 * where applicable.
 	 */
-	bit = perf_pmu__format_bits(&arm_spe_pmu->format, "pa_enable");
+	bit = perf_pmu__format_bits(arm_spe_pmu, "pa_enable");
 	if (arm_spe_evsel->core.attr.config & bit)
 		evsel__set_sample_bit(arm_spe_evsel, PHYS_ADDR);
 

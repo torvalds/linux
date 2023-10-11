@@ -41,6 +41,7 @@ properties:
           - qcom,pm660
           - qcom,pm660l
           - qcom,pm7250b
+          - qcom,pm7550ba
           - qcom,pm7325
           - qcom,pm8004
           - qcom,pm8005
@@ -70,6 +71,8 @@ properties:
           - qcom,pm8994
           - qcom,pm8998
           - qcom,pma8084
+          - qcom,pmc8180
+          - qcom,pmc8180c
           - qcom,pmd9635
           - qcom,pmi632
           - qcom,pmi8950
@@ -88,6 +91,7 @@ properties:
           - qcom,pms405
           - qcom,pmx55
           - qcom,pmx65
+          - qcom,pmx75
           - qcom,smb2351
       - const: qcom,spmi-pmic
 
@@ -127,7 +131,7 @@ patternProperties:
 
   "^audio-codec@[0-9a-f]+$":
     type: object
-    additionalProperties: true # FIXME qcom,pm8916-wcd-analog-codec binding not converted yet
+    $ref: /schemas/sound/qcom,pm8916-wcd-analog-codec.yaml#
 
   "^charger@[0-9a-f]+$":
     type: object

@@ -8,10 +8,13 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include "a1-pll.h"
 #include "clk-regmap.h"
+#include "meson-clkc-utils.h"
+
+#include <dt-bindings/clock/amlogic,a1-pll-clkc.h>
 
 static struct clk_regmap fixed_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
@@ -268,22 +271,18 @@ static struct clk_regmap fclk_div7 = {
 };
 
 /* Array of all clocks registered by this provider */
-static struct clk_hw_onecell_data a1_pll_clks = {
-	.hws = {
-		[CLKID_FIXED_PLL_DCO]	= &fixed_pll_dco.hw,
-		[CLKID_FIXED_PLL]	= &fixed_pll.hw,
-		[CLKID_FCLK_DIV2_DIV]	= &fclk_div2_div.hw,
-		[CLKID_FCLK_DIV3_DIV]	= &fclk_div3_div.hw,
-		[CLKID_FCLK_DIV5_DIV]	= &fclk_div5_div.hw,
-		[CLKID_FCLK_DIV7_DIV]	= &fclk_div7_div.hw,
-		[CLKID_FCLK_DIV2]	= &fclk_div2.hw,
-		[CLKID_FCLK_DIV3]	= &fclk_div3.hw,
-		[CLKID_FCLK_DIV5]	= &fclk_div5.hw,
-		[CLKID_FCLK_DIV7]	= &fclk_div7.hw,
-		[CLKID_HIFI_PLL]	= &hifi_pll.hw,
-		[NR_PLL_CLKS]		= NULL,
-	},
-	.num = NR_PLL_CLKS,
+static struct clk_hw *a1_pll_hw_clks[] = {
+	[CLKID_FIXED_PLL_DCO]	= &fixed_pll_dco.hw,
+	[CLKID_FIXED_PLL]	= &fixed_pll.hw,
+	[CLKID_FCLK_DIV2_DIV]	= &fclk_div2_div.hw,
+	[CLKID_FCLK_DIV3_DIV]	= &fclk_div3_div.hw,
+	[CLKID_FCLK_DIV5_DIV]	= &fclk_div5_div.hw,
+	[CLKID_FCLK_DIV7_DIV]	= &fclk_div7_div.hw,
+	[CLKID_FCLK_DIV2]	= &fclk_div2.hw,
+	[CLKID_FCLK_DIV3]	= &fclk_div3.hw,
+	[CLKID_FCLK_DIV5]	= &fclk_div5.hw,
+	[CLKID_FCLK_DIV7]	= &fclk_div7.hw,
+	[CLKID_HIFI_PLL]	= &hifi_pll.hw,
 };
 
 static struct clk_regmap *const a1_pll_regmaps[] = {
@@ -300,6 +299,11 @@ static struct regmap_config a1_pll_regmap_cfg = {
 	.reg_bits   = 32,
 	.val_bits   = 32,
 	.reg_stride = 4,
+};
+
+static struct meson_clk_hw_data a1_pll_clks = {
+	.hws = a1_pll_hw_clks,
+	.num = ARRAY_SIZE(a1_pll_hw_clks),
 };
 
 static int meson_a1_pll_probe(struct platform_device *pdev)
@@ -332,7 +336,7 @@ static int meson_a1_pll_probe(struct platform_device *pdev)
 					     clkid);
 	}
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+	return devm_of_clk_add_hw_provider(dev, meson_clk_hw_get,
 					   &a1_pll_clks);
 }
 

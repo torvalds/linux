@@ -10,61 +10,93 @@
  *
  */
 
-#include <asm/unaligned.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/gpio/consumer.h>
+#include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
+#include <media/v4l2-cci.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define OV2680_XVCLK_VALUE	24000000
+#define OV2680_CHIP_ID				0x2680
 
-#define OV2680_CHIP_ID		0x2680
+#define OV2680_REG_STREAM_CTRL			CCI_REG8(0x0100)
+#define OV2680_REG_SOFT_RESET			CCI_REG8(0x0103)
 
-#define OV2680_REG_STREAM_CTRL		0x0100
-#define OV2680_REG_SOFT_RESET		0x0103
+#define OV2680_REG_CHIP_ID			CCI_REG16(0x300a)
+#define OV2680_REG_SC_CMMN_SUB_ID		CCI_REG8(0x302a)
+#define OV2680_REG_PLL_MULTIPLIER		CCI_REG16(0x3081)
 
-#define OV2680_REG_CHIP_ID_HIGH		0x300a
-#define OV2680_REG_CHIP_ID_LOW		0x300b
+#define OV2680_REG_EXPOSURE_PK			CCI_REG24(0x3500)
+#define OV2680_REG_R_MANUAL			CCI_REG8(0x3503)
+#define OV2680_REG_GAIN_PK			CCI_REG16(0x350a)
 
-#define OV2680_REG_R_MANUAL		0x3503
-#define OV2680_REG_GAIN_PK		0x350a
-#define OV2680_REG_EXPOSURE_PK_HIGH	0x3500
-#define OV2680_REG_TIMING_HTS		0x380c
-#define OV2680_REG_TIMING_VTS		0x380e
-#define OV2680_REG_FORMAT1		0x3820
-#define OV2680_REG_FORMAT2		0x3821
+#define OV2680_REG_SENSOR_CTRL_0A		CCI_REG8(0x370a)
 
-#define OV2680_REG_ISP_CTRL00		0x5080
+#define OV2680_REG_HORIZONTAL_START		CCI_REG16(0x3800)
+#define OV2680_REG_VERTICAL_START		CCI_REG16(0x3802)
+#define OV2680_REG_HORIZONTAL_END		CCI_REG16(0x3804)
+#define OV2680_REG_VERTICAL_END			CCI_REG16(0x3806)
+#define OV2680_REG_HORIZONTAL_OUTPUT_SIZE	CCI_REG16(0x3808)
+#define OV2680_REG_VERTICAL_OUTPUT_SIZE		CCI_REG16(0x380a)
+#define OV2680_REG_TIMING_HTS			CCI_REG16(0x380c)
+#define OV2680_REG_TIMING_VTS			CCI_REG16(0x380e)
+#define OV2680_REG_ISP_X_WIN			CCI_REG16(0x3810)
+#define OV2680_REG_ISP_Y_WIN			CCI_REG16(0x3812)
+#define OV2680_REG_X_INC			CCI_REG8(0x3814)
+#define OV2680_REG_Y_INC			CCI_REG8(0x3815)
+#define OV2680_REG_FORMAT1			CCI_REG8(0x3820)
+#define OV2680_REG_FORMAT2			CCI_REG8(0x3821)
 
-#define OV2680_FRAME_RATE		30
+#define OV2680_REG_ISP_CTRL00			CCI_REG8(0x5080)
 
-#define OV2680_REG_VALUE_8BIT		1
-#define OV2680_REG_VALUE_16BIT		2
-#define OV2680_REG_VALUE_24BIT		3
+#define OV2680_REG_X_WIN			CCI_REG16(0x5704)
+#define OV2680_REG_Y_WIN			CCI_REG16(0x5706)
 
-#define OV2680_WIDTH_MAX		1600
-#define OV2680_HEIGHT_MAX		1200
+#define OV2680_FRAME_RATE			30
 
-enum ov2680_mode_id {
-	OV2680_MODE_QUXGA_800_600,
-	OV2680_MODE_720P_1280_720,
-	OV2680_MODE_UXGA_1600_1200,
-	OV2680_MODE_MAX,
-};
+#define OV2680_NATIVE_WIDTH			1616
+#define OV2680_NATIVE_HEIGHT			1216
+#define OV2680_NATIVE_START_LEFT		0
+#define OV2680_NATIVE_START_TOP			0
+#define OV2680_ACTIVE_WIDTH			1600
+#define OV2680_ACTIVE_HEIGHT			1200
+#define OV2680_ACTIVE_START_LEFT		8
+#define OV2680_ACTIVE_START_TOP			8
+#define OV2680_MIN_CROP_WIDTH			2
+#define OV2680_MIN_CROP_HEIGHT			2
 
-struct reg_value {
-	u16 reg_addr;
-	u8 val;
-};
+/* Fixed pre-div of 1/2 */
+#define OV2680_PLL_PREDIV0			2
+
+/* Pre-div configurable through reg 0x3080, left at its default of 0x02 : 1/2 */
+#define OV2680_PLL_PREDIV			2
+
+/* 66MHz pixel clock: 66MHz / 1704 * 1294 = 30fps */
+#define OV2680_PIXELS_PER_LINE			1704
+#define OV2680_LINES_PER_FRAME			1294
+
+/* If possible send 16 extra rows / lines to the ISP as padding */
+#define OV2680_END_MARGIN			16
+
+/* Max exposure time is VTS - 8 */
+#define OV2680_INTEGRATION_TIME_MARGIN		8
+
+#define OV2680_DEFAULT_WIDTH			800
+#define OV2680_DEFAULT_HEIGHT			600
+
+/* For enum_frame_size() full-size + binned-/quarter-size */
+#define OV2680_FRAME_SIZES			2
 
 static const char * const ov2680_supply_name[] = {
 	"DOVDD",
@@ -74,52 +106,74 @@ static const char * const ov2680_supply_name[] = {
 
 #define OV2680_NUM_SUPPLIES ARRAY_SIZE(ov2680_supply_name)
 
-struct ov2680_mode_info {
-	const char *name;
-	enum ov2680_mode_id id;
-	u32 width;
-	u32 height;
-	const struct reg_value *reg_data;
-	u32 reg_data_size;
+enum {
+	OV2680_19_2_MHZ,
+	OV2680_24_MHZ,
+};
+
+static const unsigned long ov2680_xvclk_freqs[] = {
+	[OV2680_19_2_MHZ] = 19200000,
+	[OV2680_24_MHZ] = 24000000,
+};
+
+static const u8 ov2680_pll_multipliers[] = {
+	[OV2680_19_2_MHZ] = 69,
+	[OV2680_24_MHZ] = 55,
 };
 
 struct ov2680_ctrls {
 	struct v4l2_ctrl_handler handler;
-	struct {
-		struct v4l2_ctrl *auto_exp;
-		struct v4l2_ctrl *exposure;
-	};
-	struct {
-		struct v4l2_ctrl *auto_gain;
-		struct v4l2_ctrl *gain;
-	};
-
+	struct v4l2_ctrl *exposure;
+	struct v4l2_ctrl *gain;
 	struct v4l2_ctrl *hflip;
 	struct v4l2_ctrl *vflip;
 	struct v4l2_ctrl *test_pattern;
+	struct v4l2_ctrl *link_freq;
+	struct v4l2_ctrl *pixel_rate;
+};
+
+struct ov2680_mode {
+	struct v4l2_rect		crop;
+	struct v4l2_mbus_framefmt	fmt;
+	struct v4l2_fract		frame_interval;
+	bool				binning;
+	u16				h_start;
+	u16				v_start;
+	u16				h_end;
+	u16				v_end;
+	u16				h_output_size;
+	u16				v_output_size;
+	u16				hts;
+	u16				vts;
 };
 
 struct ov2680_dev {
-	struct i2c_client		*i2c_client;
+	struct device			*dev;
+	struct regmap			*regmap;
 	struct v4l2_subdev		sd;
 
 	struct media_pad		pad;
 	struct clk			*xvclk;
 	u32				xvclk_freq;
+	u8				pll_mult;
+	s64				link_freq[1];
+	u64				pixel_rate;
 	struct regulator_bulk_data	supplies[OV2680_NUM_SUPPLIES];
 
-	struct gpio_desc		*reset_gpio;
+	struct gpio_desc		*pwdn_gpio;
 	struct mutex			lock; /* protect members */
 
-	bool				mode_pending_changes;
-	bool				is_enabled;
 	bool				is_streaming;
 
 	struct ov2680_ctrls		ctrls;
-	struct v4l2_mbus_framefmt	fmt;
-	struct v4l2_fract		frame_interval;
+	struct ov2680_mode		mode;
+};
 
-	const struct ov2680_mode_info	*current_mode;
+static const struct v4l2_rect ov2680_default_crop = {
+	.left = OV2680_ACTIVE_START_LEFT,
+	.top = OV2680_ACTIVE_START_TOP,
+	.width = OV2680_ACTIVE_WIDTH,
+	.height = OV2680_ACTIVE_HEIGHT,
 };
 
 static const char * const test_pattern_menu[] = {
@@ -137,55 +191,77 @@ static const int ov2680_hv_flip_bayer_order[] = {
 	MEDIA_BUS_FMT_SRGGB10_1X10,
 };
 
-static const struct reg_value ov2680_setting_30fps_QUXGA_800_600[] = {
-	{0x3086, 0x01}, {0x370a, 0x23}, {0x3808, 0x03}, {0x3809, 0x20},
-	{0x380a, 0x02}, {0x380b, 0x58}, {0x380c, 0x06}, {0x380d, 0xac},
-	{0x380e, 0x02}, {0x380f, 0x84}, {0x3811, 0x04}, {0x3813, 0x04},
-	{0x3814, 0x31}, {0x3815, 0x31}, {0x3820, 0xc0}, {0x4008, 0x00},
-	{0x4009, 0x03}, {0x4837, 0x1e}, {0x3501, 0x4e}, {0x3502, 0xe0},
-};
+static const struct reg_sequence ov2680_global_setting[] = {
+	/* MIPI PHY, 0x10 -> 0x1c enable bp_c_hs_en_lat and bp_d_hs_en_lat */
+	{0x3016, 0x1c},
 
-static const struct reg_value ov2680_setting_30fps_720P_1280_720[] = {
-	{0x3086, 0x00}, {0x3808, 0x05}, {0x3809, 0x00}, {0x380a, 0x02},
-	{0x380b, 0xd0}, {0x380c, 0x06}, {0x380d, 0xa8}, {0x380e, 0x05},
-	{0x380f, 0x0e}, {0x3811, 0x08}, {0x3813, 0x06}, {0x3814, 0x11},
-	{0x3815, 0x11}, {0x3820, 0xc0}, {0x4008, 0x00},
-};
+	/* R MANUAL set exposure and gain to manual (hw does not do auto) */
+	{0x3503, 0x03},
 
-static const struct reg_value ov2680_setting_30fps_UXGA_1600_1200[] = {
-	{0x3086, 0x00}, {0x3501, 0x4e}, {0x3502, 0xe0}, {0x3808, 0x06},
-	{0x3809, 0x40}, {0x380a, 0x04}, {0x380b, 0xb0}, {0x380c, 0x06},
-	{0x380d, 0xa8}, {0x380e, 0x05}, {0x380f, 0x0e}, {0x3811, 0x00},
-	{0x3813, 0x00}, {0x3814, 0x11}, {0x3815, 0x11}, {0x3820, 0xc0},
-	{0x4008, 0x00}, {0x4837, 0x18}
-};
+	/* Analog control register tweaks */
+	{0x3603, 0x39}, /* Reset value 0x99 */
+	{0x3604, 0x24}, /* Reset value 0x74 */
+	{0x3621, 0x37}, /* Reset value 0x44 */
 
-static const struct ov2680_mode_info ov2680_mode_init_data = {
-	"mode_quxga_800_600", OV2680_MODE_QUXGA_800_600, 800, 600,
-	ov2680_setting_30fps_QUXGA_800_600,
-	ARRAY_SIZE(ov2680_setting_30fps_QUXGA_800_600),
-};
+	/* Sensor control register tweaks */
+	{0x3701, 0x64}, /* Reset value 0x61 */
+	{0x3705, 0x3c}, /* Reset value 0x21 */
+	{0x370c, 0x50}, /* Reset value 0x10 */
+	{0x370d, 0xc0}, /* Reset value 0x00 */
+	{0x3718, 0x88}, /* Reset value 0x80 */
 
-static const struct ov2680_mode_info ov2680_mode_data[OV2680_MODE_MAX] = {
-	{"mode_quxga_800_600", OV2680_MODE_QUXGA_800_600,
-	 800, 600, ov2680_setting_30fps_QUXGA_800_600,
-	 ARRAY_SIZE(ov2680_setting_30fps_QUXGA_800_600)},
-	{"mode_720p_1280_720", OV2680_MODE_720P_1280_720,
-	 1280, 720, ov2680_setting_30fps_720P_1280_720,
-	 ARRAY_SIZE(ov2680_setting_30fps_720P_1280_720)},
-	{"mode_uxga_1600_1200", OV2680_MODE_UXGA_1600_1200,
-	 1600, 1200, ov2680_setting_30fps_UXGA_1600_1200,
-	 ARRAY_SIZE(ov2680_setting_30fps_UXGA_1600_1200)},
+	/* PSRAM tweaks */
+	{0x3781, 0x80}, /* Reset value 0x00 */
+	{0x3784, 0x0c}, /* Reset value 0x00, based on OV2680_R1A_AM10.ovt */
+	{0x3789, 0x60}, /* Reset value 0x50 */
+
+	/* BLC CTRL00 0x01 -> 0x81 set avg_weight to 8 */
+	{0x4000, 0x81},
+
+	/* Set black level compensation range to 0 - 3 (default 0 - 11) */
+	{0x4008, 0x00},
+	{0x4009, 0x03},
+
+	/* VFIFO R2 0x00 -> 0x02 set Frame reset enable */
+	{0x4602, 0x02},
+
+	/* MIPI ctrl CLK PREPARE MIN change from 0x26 (38) -> 0x36 (54) */
+	{0x481f, 0x36},
+
+	/* MIPI ctrl CLK LPX P MIN change from 0x32 (50) -> 0x36 (54) */
+	{0x4825, 0x36},
+
+	/* R ISP CTRL2 0x20 -> 0x30, set sof_sel bit */
+	{0x5002, 0x30},
+
+	/*
+	 * Window CONTROL 0x00 -> 0x01, enable manual window control,
+	 * this is necessary for full size flip and mirror support.
+	 */
+	{0x5708, 0x01},
+
+	/*
+	 * DPC CTRL0 0x14 -> 0x3e, set enable_tail, enable_3x3_cluster
+	 * and enable_general_tail bits based OV2680_R1A_AM10.ovt.
+	 */
+	{0x5780, 0x3e},
+
+	/* DPC MORE CONNECTION CASE THRE 0x0c (12) -> 0x02 (2) */
+	{0x5788, 0x02},
+
+	/* DPC GAIN LIST1 0x0f (15) -> 0x08 (8) */
+	{0x578e, 0x08},
+
+	/* DPC GAIN LIST2 0x3f (63) -> 0x0c (12) */
+	{0x578f, 0x0c},
+
+	/* DPC THRE RATIO 0x04 (4) -> 0x00 (0) */
+	{0x5792, 0x00},
 };
 
 static struct ov2680_dev *to_ov2680_dev(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct ov2680_dev, sd);
-}
-
-static struct device *ov2680_to_dev(struct ov2680_dev *sensor)
-{
-	return &sensor->i2c_client->dev;
 }
 
 static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
@@ -194,369 +270,270 @@ static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
 			     ctrls.handler)->sd;
 }
 
-static int __ov2680_write_reg(struct ov2680_dev *sensor, u16 reg,
-			      unsigned int len, u32 val)
-{
-	struct i2c_client *client = sensor->i2c_client;
-	u8 buf[6];
-	int ret;
-
-	if (len > 4)
-		return -EINVAL;
-
-	put_unaligned_be16(reg, buf);
-	put_unaligned_be32(val << (8 * (4 - len)), buf + 2);
-	ret = i2c_master_send(client, buf, len + 2);
-	if (ret != len + 2) {
-		dev_err(&client->dev, "write error: reg=0x%4x: %d\n", reg, ret);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-#define ov2680_write_reg(s, r, v) \
-	__ov2680_write_reg(s, r, OV2680_REG_VALUE_8BIT, v)
-
-#define ov2680_write_reg16(s, r, v) \
-	__ov2680_write_reg(s, r, OV2680_REG_VALUE_16BIT, v)
-
-#define ov2680_write_reg24(s, r, v) \
-	__ov2680_write_reg(s, r, OV2680_REG_VALUE_24BIT, v)
-
-static int __ov2680_read_reg(struct ov2680_dev *sensor, u16 reg,
-			     unsigned int len, u32 *val)
-{
-	struct i2c_client *client = sensor->i2c_client;
-	struct i2c_msg msgs[2];
-	u8 addr_buf[2] = { reg >> 8, reg & 0xff };
-	u8 data_buf[4] = { 0, };
-	int ret;
-
-	if (len > 4)
-		return -EINVAL;
-
-	msgs[0].addr = client->addr;
-	msgs[0].flags = 0;
-	msgs[0].len = ARRAY_SIZE(addr_buf);
-	msgs[0].buf = addr_buf;
-
-	msgs[1].addr = client->addr;
-	msgs[1].flags = I2C_M_RD;
-	msgs[1].len = len;
-	msgs[1].buf = &data_buf[4 - len];
-
-	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-	if (ret != ARRAY_SIZE(msgs)) {
-		dev_err(&client->dev, "read error: reg=0x%4x: %d\n", reg, ret);
-		return -EIO;
-	}
-
-	*val = get_unaligned_be32(data_buf);
-
-	return 0;
-}
-
-#define ov2680_read_reg(s, r, v) \
-	__ov2680_read_reg(s, r, OV2680_REG_VALUE_8BIT, v)
-
-#define ov2680_read_reg16(s, r, v) \
-	__ov2680_read_reg(s, r, OV2680_REG_VALUE_16BIT, v)
-
-#define ov2680_read_reg24(s, r, v) \
-	__ov2680_read_reg(s, r, OV2680_REG_VALUE_24BIT, v)
-
-static int ov2680_mod_reg(struct ov2680_dev *sensor, u16 reg, u8 mask, u8 val)
-{
-	u32 readval;
-	int ret;
-
-	ret = ov2680_read_reg(sensor, reg, &readval);
-	if (ret < 0)
-		return ret;
-
-	readval &= ~mask;
-	val &= mask;
-	val |= readval;
-
-	return ov2680_write_reg(sensor, reg, val);
-}
-
-static int ov2680_load_regs(struct ov2680_dev *sensor,
-			    const struct ov2680_mode_info *mode)
-{
-	const struct reg_value *regs = mode->reg_data;
-	unsigned int i;
-	int ret = 0;
-	u16 reg_addr;
-	u8 val;
-
-	for (i = 0; i < mode->reg_data_size; ++i, ++regs) {
-		reg_addr = regs->reg_addr;
-		val = regs->val;
-
-		ret = ov2680_write_reg(sensor, reg_addr, val);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-
 static void ov2680_power_up(struct ov2680_dev *sensor)
 {
-	if (!sensor->reset_gpio)
+	if (!sensor->pwdn_gpio)
 		return;
 
-	gpiod_set_value(sensor->reset_gpio, 0);
+	gpiod_set_value(sensor->pwdn_gpio, 0);
 	usleep_range(5000, 10000);
 }
 
 static void ov2680_power_down(struct ov2680_dev *sensor)
 {
-	if (!sensor->reset_gpio)
+	if (!sensor->pwdn_gpio)
 		return;
 
-	gpiod_set_value(sensor->reset_gpio, 1);
+	gpiod_set_value(sensor->pwdn_gpio, 1);
 	usleep_range(5000, 10000);
 }
 
-static int ov2680_bayer_order(struct ov2680_dev *sensor)
+static void ov2680_set_bayer_order(struct ov2680_dev *sensor,
+				   struct v4l2_mbus_framefmt *fmt)
 {
-	u32 format1;
-	u32 format2;
-	u32 hv_flip;
+	int hv_flip = 0;
+
+	if (sensor->ctrls.vflip && sensor->ctrls.vflip->val)
+		hv_flip += 1;
+
+	if (sensor->ctrls.hflip && sensor->ctrls.hflip->val)
+		hv_flip += 2;
+
+	fmt->code = ov2680_hv_flip_bayer_order[hv_flip];
+}
+
+static struct v4l2_mbus_framefmt *
+__ov2680_get_pad_format(struct ov2680_dev *sensor,
+			struct v4l2_subdev_state *state,
+			unsigned int pad,
+			enum v4l2_subdev_format_whence which)
+{
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_get_try_format(&sensor->sd, state, pad);
+
+	return &sensor->mode.fmt;
+}
+
+static struct v4l2_rect *
+__ov2680_get_pad_crop(struct ov2680_dev *sensor,
+		      struct v4l2_subdev_state *state,
+		      unsigned int pad,
+		      enum v4l2_subdev_format_whence which)
+{
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_get_try_crop(&sensor->sd, state, pad);
+
+	return &sensor->mode.crop;
+}
+
+static void ov2680_fill_format(struct ov2680_dev *sensor,
+			       struct v4l2_mbus_framefmt *fmt,
+			       unsigned int width, unsigned int height)
+{
+	memset(fmt, 0, sizeof(*fmt));
+	fmt->width = width;
+	fmt->height = height;
+	fmt->field = V4L2_FIELD_NONE;
+	fmt->colorspace = V4L2_COLORSPACE_SRGB;
+	ov2680_set_bayer_order(sensor, fmt);
+}
+
+static void ov2680_calc_mode(struct ov2680_dev *sensor)
+{
+	int width = sensor->mode.fmt.width;
+	int height = sensor->mode.fmt.height;
+	int orig_width = width;
+	int orig_height = height;
+
+	if (width  <= (sensor->mode.crop.width / 2) &&
+	    height <= (sensor->mode.crop.height / 2)) {
+		sensor->mode.binning = true;
+		width *= 2;
+		height *= 2;
+	} else {
+		sensor->mode.binning = false;
+	}
+
+	sensor->mode.h_start = (sensor->mode.crop.left +
+				(sensor->mode.crop.width - width) / 2) & ~1;
+	sensor->mode.v_start = (sensor->mode.crop.top +
+				(sensor->mode.crop.height - height) / 2) & ~1;
+	sensor->mode.h_end =
+		min(sensor->mode.h_start + width + OV2680_END_MARGIN - 1,
+		    OV2680_NATIVE_WIDTH - 1);
+	sensor->mode.v_end =
+		min(sensor->mode.v_start + height + OV2680_END_MARGIN - 1,
+		    OV2680_NATIVE_HEIGHT - 1);
+	sensor->mode.h_output_size = orig_width;
+	sensor->mode.v_output_size = orig_height;
+	sensor->mode.hts = OV2680_PIXELS_PER_LINE;
+	sensor->mode.vts = OV2680_LINES_PER_FRAME;
+}
+
+static int ov2680_set_mode(struct ov2680_dev *sensor)
+{
+	u8 sensor_ctrl_0a, inc, fmt1, fmt2;
+	int ret = 0;
+
+	if (sensor->mode.binning) {
+		sensor_ctrl_0a = 0x23;
+		inc = 0x31;
+		fmt1 = 0xc2;
+		fmt2 = 0x01;
+	} else {
+		sensor_ctrl_0a = 0x21;
+		inc = 0x11;
+		fmt1 = 0xc0;
+		fmt2 = 0x00;
+	}
+
+	cci_write(sensor->regmap, OV2680_REG_SENSOR_CTRL_0A,
+		  sensor_ctrl_0a, &ret);
+	cci_write(sensor->regmap, OV2680_REG_HORIZONTAL_START,
+		  sensor->mode.h_start, &ret);
+	cci_write(sensor->regmap, OV2680_REG_VERTICAL_START,
+		  sensor->mode.v_start, &ret);
+	cci_write(sensor->regmap, OV2680_REG_HORIZONTAL_END,
+		  sensor->mode.h_end, &ret);
+	cci_write(sensor->regmap, OV2680_REG_VERTICAL_END,
+		  sensor->mode.v_end, &ret);
+	cci_write(sensor->regmap, OV2680_REG_HORIZONTAL_OUTPUT_SIZE,
+		  sensor->mode.h_output_size, &ret);
+	cci_write(sensor->regmap, OV2680_REG_VERTICAL_OUTPUT_SIZE,
+		  sensor->mode.v_output_size, &ret);
+	cci_write(sensor->regmap, OV2680_REG_TIMING_HTS,
+		  sensor->mode.hts, &ret);
+	cci_write(sensor->regmap, OV2680_REG_TIMING_VTS,
+		  sensor->mode.vts, &ret);
+	cci_write(sensor->regmap, OV2680_REG_ISP_X_WIN, 0, &ret);
+	cci_write(sensor->regmap, OV2680_REG_ISP_Y_WIN, 0, &ret);
+	cci_write(sensor->regmap, OV2680_REG_X_INC, inc, &ret);
+	cci_write(sensor->regmap, OV2680_REG_Y_INC, inc, &ret);
+	cci_write(sensor->regmap, OV2680_REG_X_WIN,
+		  sensor->mode.h_output_size, &ret);
+	cci_write(sensor->regmap, OV2680_REG_Y_WIN,
+		  sensor->mode.v_output_size, &ret);
+	cci_write(sensor->regmap, OV2680_REG_FORMAT1, fmt1, &ret);
+	cci_write(sensor->regmap, OV2680_REG_FORMAT2, fmt2, &ret);
+
+	return ret;
+}
+
+static int ov2680_set_vflip(struct ov2680_dev *sensor, s32 val)
+{
 	int ret;
 
-	ret = ov2680_read_reg(sensor, OV2680_REG_FORMAT1, &format1);
+	if (sensor->is_streaming)
+		return -EBUSY;
+
+	ret = cci_update_bits(sensor->regmap, OV2680_REG_FORMAT1,
+			      BIT(2), val ? BIT(2) : 0, NULL);
 	if (ret < 0)
 		return ret;
 
-	ret = ov2680_read_reg(sensor, OV2680_REG_FORMAT2, &format2);
-	if (ret < 0)
-		return ret;
-
-	hv_flip = (format2 & BIT(2)  << 1) | (format1 & BIT(2));
-
-	sensor->fmt.code = ov2680_hv_flip_bayer_order[hv_flip];
-
+	ov2680_set_bayer_order(sensor, &sensor->mode.fmt);
 	return 0;
 }
 
-static int ov2680_vflip_enable(struct ov2680_dev *sensor)
+static int ov2680_set_hflip(struct ov2680_dev *sensor, s32 val)
 {
 	int ret;
 
-	ret = ov2680_mod_reg(sensor, OV2680_REG_FORMAT1, BIT(2), BIT(2));
+	if (sensor->is_streaming)
+		return -EBUSY;
+
+	ret = cci_update_bits(sensor->regmap, OV2680_REG_FORMAT2,
+			      BIT(2), val ? BIT(2) : 0, NULL);
 	if (ret < 0)
 		return ret;
 
-	return ov2680_bayer_order(sensor);
-}
-
-static int ov2680_vflip_disable(struct ov2680_dev *sensor)
-{
-	int ret;
-
-	ret = ov2680_mod_reg(sensor, OV2680_REG_FORMAT1, BIT(2), BIT(0));
-	if (ret < 0)
-		return ret;
-
-	return ov2680_bayer_order(sensor);
-}
-
-static int ov2680_hflip_enable(struct ov2680_dev *sensor)
-{
-	int ret;
-
-	ret = ov2680_mod_reg(sensor, OV2680_REG_FORMAT2, BIT(2), BIT(2));
-	if (ret < 0)
-		return ret;
-
-	return ov2680_bayer_order(sensor);
-}
-
-static int ov2680_hflip_disable(struct ov2680_dev *sensor)
-{
-	int ret;
-
-	ret = ov2680_mod_reg(sensor, OV2680_REG_FORMAT2, BIT(2), BIT(0));
-	if (ret < 0)
-		return ret;
-
-	return ov2680_bayer_order(sensor);
+	ov2680_set_bayer_order(sensor, &sensor->mode.fmt);
+	return 0;
 }
 
 static int ov2680_test_pattern_set(struct ov2680_dev *sensor, int value)
 {
-	int ret;
+	int ret = 0;
 
 	if (!value)
-		return ov2680_mod_reg(sensor, OV2680_REG_ISP_CTRL00, BIT(7), 0);
+		return cci_update_bits(sensor->regmap, OV2680_REG_ISP_CTRL00,
+				       BIT(7), 0, NULL);
 
-	ret = ov2680_mod_reg(sensor, OV2680_REG_ISP_CTRL00, 0x03, value - 1);
-	if (ret < 0)
-		return ret;
+	cci_update_bits(sensor->regmap, OV2680_REG_ISP_CTRL00,
+			0x03, value - 1, &ret);
+	cci_update_bits(sensor->regmap, OV2680_REG_ISP_CTRL00,
+			BIT(7), BIT(7), &ret);
 
-	ret = ov2680_mod_reg(sensor, OV2680_REG_ISP_CTRL00, BIT(7), BIT(7));
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
-static int ov2680_gain_set(struct ov2680_dev *sensor, bool auto_gain)
+static int ov2680_gain_set(struct ov2680_dev *sensor, u32 gain)
 {
-	struct ov2680_ctrls *ctrls = &sensor->ctrls;
-	u32 gain;
-	int ret;
-
-	ret = ov2680_mod_reg(sensor, OV2680_REG_R_MANUAL, BIT(1),
-			     auto_gain ? 0 : BIT(1));
-	if (ret < 0)
-		return ret;
-
-	if (auto_gain || !ctrls->gain->is_new)
-		return 0;
-
-	gain = ctrls->gain->val;
-
-	ret = ov2680_write_reg16(sensor, OV2680_REG_GAIN_PK, gain);
-
-	return 0;
+	return cci_write(sensor->regmap, OV2680_REG_GAIN_PK, gain, NULL);
 }
 
-static int ov2680_gain_get(struct ov2680_dev *sensor)
+static int ov2680_exposure_set(struct ov2680_dev *sensor, u32 exp)
 {
-	u32 gain;
-	int ret;
-
-	ret = ov2680_read_reg16(sensor, OV2680_REG_GAIN_PK, &gain);
-	if (ret)
-		return ret;
-
-	return gain;
-}
-
-static int ov2680_exposure_set(struct ov2680_dev *sensor, bool auto_exp)
-{
-	struct ov2680_ctrls *ctrls = &sensor->ctrls;
-	u32 exp;
-	int ret;
-
-	ret = ov2680_mod_reg(sensor, OV2680_REG_R_MANUAL, BIT(0),
-			     auto_exp ? 0 : BIT(0));
-	if (ret < 0)
-		return ret;
-
-	if (auto_exp || !ctrls->exposure->is_new)
-		return 0;
-
-	exp = (u32)ctrls->exposure->val;
-	exp <<= 4;
-
-	return ov2680_write_reg24(sensor, OV2680_REG_EXPOSURE_PK_HIGH, exp);
-}
-
-static int ov2680_exposure_get(struct ov2680_dev *sensor)
-{
-	int ret;
-	u32 exp;
-
-	ret = ov2680_read_reg24(sensor, OV2680_REG_EXPOSURE_PK_HIGH, &exp);
-	if (ret)
-		return ret;
-
-	return exp >> 4;
+	return cci_write(sensor->regmap, OV2680_REG_EXPOSURE_PK, exp << 4,
+			 NULL);
 }
 
 static int ov2680_stream_enable(struct ov2680_dev *sensor)
 {
-	return ov2680_write_reg(sensor, OV2680_REG_STREAM_CTRL, 1);
+	int ret;
+
+	ret = cci_write(sensor->regmap, OV2680_REG_PLL_MULTIPLIER,
+			sensor->pll_mult, NULL);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_multi_reg_write(sensor->regmap,
+				     ov2680_global_setting,
+				     ARRAY_SIZE(ov2680_global_setting));
+	if (ret < 0)
+		return ret;
+
+	ret = ov2680_set_mode(sensor);
+	if (ret < 0)
+		return ret;
+
+	/* Restore value of all ctrls */
+	ret = __v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
+	if (ret < 0)
+		return ret;
+
+	return cci_write(sensor->regmap, OV2680_REG_STREAM_CTRL, 1, NULL);
 }
 
 static int ov2680_stream_disable(struct ov2680_dev *sensor)
 {
-	return ov2680_write_reg(sensor, OV2680_REG_STREAM_CTRL, 0);
-}
-
-static int ov2680_mode_set(struct ov2680_dev *sensor)
-{
-	struct ov2680_ctrls *ctrls = &sensor->ctrls;
-	int ret;
-
-	ret = ov2680_gain_set(sensor, false);
-	if (ret < 0)
-		return ret;
-
-	ret = ov2680_exposure_set(sensor, false);
-	if (ret < 0)
-		return ret;
-
-	ret = ov2680_load_regs(sensor, sensor->current_mode);
-	if (ret < 0)
-		return ret;
-
-	if (ctrls->auto_gain->val) {
-		ret = ov2680_gain_set(sensor, true);
-		if (ret < 0)
-			return ret;
-	}
-
-	if (ctrls->auto_exp->val == V4L2_EXPOSURE_AUTO) {
-		ret = ov2680_exposure_set(sensor, true);
-		if (ret < 0)
-			return ret;
-	}
-
-	sensor->mode_pending_changes = false;
-
-	return 0;
-}
-
-static int ov2680_mode_restore(struct ov2680_dev *sensor)
-{
-	int ret;
-
-	ret = ov2680_load_regs(sensor, &ov2680_mode_init_data);
-	if (ret < 0)
-		return ret;
-
-	return ov2680_mode_set(sensor);
+	return cci_write(sensor->regmap, OV2680_REG_STREAM_CTRL, 0, NULL);
 }
 
 static int ov2680_power_off(struct ov2680_dev *sensor)
 {
-	if (!sensor->is_enabled)
-		return 0;
-
 	clk_disable_unprepare(sensor->xvclk);
 	ov2680_power_down(sensor);
 	regulator_bulk_disable(OV2680_NUM_SUPPLIES, sensor->supplies);
-	sensor->is_enabled = false;
-
 	return 0;
 }
 
 static int ov2680_power_on(struct ov2680_dev *sensor)
 {
-	struct device *dev = ov2680_to_dev(sensor);
 	int ret;
-
-	if (sensor->is_enabled)
-		return 0;
 
 	ret = regulator_bulk_enable(OV2680_NUM_SUPPLIES, sensor->supplies);
 	if (ret < 0) {
-		dev_err(dev, "failed to enable regulators: %d\n", ret);
+		dev_err(sensor->dev, "failed to enable regulators: %d\n", ret);
 		return ret;
 	}
 
-	if (!sensor->reset_gpio) {
-		ret = ov2680_write_reg(sensor, OV2680_REG_SOFT_RESET, 0x01);
+	if (!sensor->pwdn_gpio) {
+		ret = cci_write(sensor->regmap, OV2680_REG_SOFT_RESET, 0x01,
+				NULL);
 		if (ret != 0) {
-			dev_err(dev, "sensor soft reset failed\n");
-			return ret;
+			dev_err(sensor->dev, "sensor soft reset failed\n");
+			goto err_disable_regulators;
 		}
 		usleep_range(1000, 2000);
 	} else {
@@ -566,40 +543,12 @@ static int ov2680_power_on(struct ov2680_dev *sensor)
 
 	ret = clk_prepare_enable(sensor->xvclk);
 	if (ret < 0)
-		return ret;
-
-	sensor->is_enabled = true;
-
-	/* Set clock lane into LP-11 state */
-	ov2680_stream_enable(sensor);
-	usleep_range(1000, 2000);
-	ov2680_stream_disable(sensor);
+		goto err_disable_regulators;
 
 	return 0;
-}
 
-static int ov2680_s_power(struct v4l2_subdev *sd, int on)
-{
-	struct ov2680_dev *sensor = to_ov2680_dev(sd);
-	int ret = 0;
-
-	mutex_lock(&sensor->lock);
-
-	if (on)
-		ret = ov2680_power_on(sensor);
-	else
-		ret = ov2680_power_off(sensor);
-
-	mutex_unlock(&sensor->lock);
-
-	if (on && ret == 0) {
-		ret = v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
-		if (ret < 0)
-			return ret;
-
-		ret = ov2680_mode_restore(sensor);
-	}
-
+err_disable_regulators:
+	regulator_bulk_disable(OV2680_NUM_SUPPLIES, sensor->supplies);
 	return ret;
 }
 
@@ -609,7 +558,7 @@ static int ov2680_s_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 
 	mutex_lock(&sensor->lock);
-	fi->interval = sensor->frame_interval;
+	fi->interval = sensor->mode.frame_interval;
 	mutex_unlock(&sensor->lock);
 
 	return 0;
@@ -625,16 +574,20 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 	if (sensor->is_streaming == !!enable)
 		goto unlock;
 
-	if (enable && sensor->mode_pending_changes) {
-		ret = ov2680_mode_set(sensor);
+	if (enable) {
+		ret = pm_runtime_resume_and_get(sensor->sd.dev);
 		if (ret < 0)
 			goto unlock;
-	}
 
-	if (enable)
 		ret = ov2680_stream_enable(sensor);
-	else
+		if (ret < 0) {
+			pm_runtime_put(sensor->sd.dev);
+			goto unlock;
+		}
+	} else {
 		ret = ov2680_stream_disable(sensor);
+		pm_runtime_put(sensor->sd.dev);
+	}
 
 	sensor->is_streaming = !!enable;
 
@@ -650,10 +603,10 @@ static int ov2680_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 
-	if (code->pad != 0 || code->index != 0)
+	if (code->index != 0)
 		return -EINVAL;
 
-	code->code = sensor->fmt.code;
+	code->code = sensor->mode.fmt.code;
 
 	return 0;
 }
@@ -663,31 +616,16 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
-	struct v4l2_mbus_framefmt *fmt = NULL;
-	int ret = 0;
+	struct v4l2_mbus_framefmt *fmt;
 
-	if (format->pad != 0)
-		return -EINVAL;
+	fmt = __ov2680_get_pad_format(sensor, sd_state, format->pad,
+				      format->which);
 
 	mutex_lock(&sensor->lock);
-
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt = v4l2_subdev_get_try_format(&sensor->sd, sd_state,
-						 format->pad);
-#else
-		ret = -EINVAL;
-#endif
-	} else {
-		fmt = &sensor->fmt;
-	}
-
-	if (fmt)
-		format->format = *fmt;
-
+	format->format = *fmt;
 	mutex_unlock(&sensor->lock);
 
-	return ret;
+	return 0;
 }
 
 static int ov2680_set_fmt(struct v4l2_subdev *sd,
@@ -695,15 +633,27 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
-	struct v4l2_mbus_framefmt *fmt = &format->format;
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	struct v4l2_mbus_framefmt *try_fmt;
-#endif
-	const struct ov2680_mode_info *mode;
+	const struct v4l2_rect *crop;
+	unsigned int width, height;
 	int ret = 0;
 
-	if (format->pad != 0)
-		return -EINVAL;
+	crop = __ov2680_get_pad_crop(sensor, sd_state, format->pad,
+				     format->which);
+
+	/* Limit set_fmt max size to crop width / height */
+	width = clamp_val(ALIGN(format->format.width, 2),
+			  OV2680_MIN_CROP_WIDTH, crop->width);
+	height = clamp_val(ALIGN(format->format.height, 2),
+			   OV2680_MIN_CROP_HEIGHT, crop->height);
+
+	ov2680_fill_format(sensor, &format->format, width, height);
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		try_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		*try_fmt = format->format;
+		return 0;
+	}
 
 	mutex_lock(&sensor->lock);
 
@@ -712,30 +662,8 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 		goto unlock;
 	}
 
-	mode = v4l2_find_nearest_size(ov2680_mode_data,
-				      ARRAY_SIZE(ov2680_mode_data), width,
-				      height, fmt->width, fmt->height);
-	if (!mode) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		try_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
-		format->format = *try_fmt;
-#endif
-		goto unlock;
-	}
-
-	fmt->width = mode->width;
-	fmt->height = mode->height;
-	fmt->code = sensor->fmt.code;
-	fmt->colorspace = sensor->fmt.colorspace;
-
-	sensor->current_mode = mode;
-	sensor->fmt = format->format;
-	sensor->mode_pending_changes = true;
+	sensor->mode.fmt = format->format;
+	ov2680_calc_mode(sensor);
 
 unlock:
 	mutex_unlock(&sensor->lock);
@@ -743,81 +671,159 @@ unlock:
 	return ret;
 }
 
+static int ov2680_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *state,
+				struct v4l2_subdev_selection *sel)
+{
+	struct ov2680_dev *sensor = to_ov2680_dev(sd);
+
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+		mutex_lock(&sensor->lock);
+		sel->r = *__ov2680_get_pad_crop(sensor, state, sel->pad,
+						sel->which);
+		mutex_unlock(&sensor->lock);
+		break;
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = OV2680_NATIVE_WIDTH;
+		sel->r.height = OV2680_NATIVE_HEIGHT;
+		break;
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r = ov2680_default_crop;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ov2680_set_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *state,
+				struct v4l2_subdev_selection *sel)
+{
+	struct ov2680_dev *sensor = to_ov2680_dev(sd);
+	struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect *crop;
+	struct v4l2_rect rect;
+
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
+	/*
+	 * Clamp the boundaries of the crop rectangle to the size of the sensor
+	 * pixel array. Align to multiples of 2 to ensure Bayer pattern isn't
+	 * disrupted.
+	 */
+	rect.left = clamp_val(ALIGN(sel->r.left, 2),
+			      OV2680_NATIVE_START_LEFT, OV2680_NATIVE_WIDTH);
+	rect.top = clamp_val(ALIGN(sel->r.top, 2),
+			     OV2680_NATIVE_START_TOP, OV2680_NATIVE_HEIGHT);
+	rect.width = clamp_val(ALIGN(sel->r.width, 2),
+			       OV2680_MIN_CROP_WIDTH, OV2680_NATIVE_WIDTH);
+	rect.height = clamp_val(ALIGN(sel->r.height, 2),
+				OV2680_MIN_CROP_HEIGHT, OV2680_NATIVE_HEIGHT);
+
+	/* Make sure the crop rectangle isn't outside the bounds of the array */
+	rect.width = min_t(unsigned int, rect.width,
+			   OV2680_NATIVE_WIDTH - rect.left);
+	rect.height = min_t(unsigned int, rect.height,
+			    OV2680_NATIVE_HEIGHT - rect.top);
+
+	crop = __ov2680_get_pad_crop(sensor, state, sel->pad, sel->which);
+
+	mutex_lock(&sensor->lock);
+	if (rect.width != crop->width || rect.height != crop->height) {
+		/*
+		 * Reset the output image size if the crop rectangle size has
+		 * been modified.
+		 */
+		format = __ov2680_get_pad_format(sensor, state, sel->pad,
+						 sel->which);
+		format->width = rect.width;
+		format->height = rect.height;
+	}
+
+	*crop = rect;
+	mutex_unlock(&sensor->lock);
+
+	sel->r = rect;
+
+	return 0;
+}
+
 static int ov2680_init_cfg(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state)
 {
-	struct v4l2_subdev_format fmt = {
-		.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY
-		: V4L2_SUBDEV_FORMAT_ACTIVE,
-		.format = {
-			.width = 800,
-			.height = 600,
-		}
-	};
+	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 
-	return ov2680_set_fmt(sd, sd_state, &fmt);
+	sd_state->pads[0].try_crop = ov2680_default_crop;
+
+	ov2680_fill_format(sensor, &sd_state->pads[0].try_fmt,
+			   OV2680_DEFAULT_WIDTH, OV2680_DEFAULT_HEIGHT);
+	return 0;
 }
 
 static int ov2680_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
-	int index = fse->index;
+	struct ov2680_dev *sensor = to_ov2680_dev(sd);
+	struct v4l2_rect *crop;
 
-	if (index >= OV2680_MODE_MAX || index < 0)
+	if (fse->index >= OV2680_FRAME_SIZES)
 		return -EINVAL;
 
-	fse->min_width = ov2680_mode_data[index].width;
-	fse->min_height = ov2680_mode_data[index].height;
-	fse->max_width = ov2680_mode_data[index].width;
-	fse->max_height = ov2680_mode_data[index].height;
+	crop = __ov2680_get_pad_crop(sensor, sd_state, fse->pad, fse->which);
+	if (!crop)
+		return -EINVAL;
+
+	fse->min_width = crop->width / (fse->index + 1);
+	fse->min_height = crop->height / (fse->index + 1);
+	fse->max_width = fse->min_width;
+	fse->max_height = fse->min_height;
 
 	return 0;
+}
+
+static bool ov2680_valid_frame_size(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct v4l2_subdev_frame_size_enum fse = {
+		.pad = fie->pad,
+		.which = fie->which,
+	};
+	int i;
+
+	for (i = 0; i < OV2680_FRAME_SIZES; i++) {
+		fse.index = i;
+
+		if (ov2680_enum_frame_size(sd, sd_state, &fse))
+			return false;
+
+		if (fie->width == fse.min_width &&
+		    fie->height == fse.min_height)
+			return true;
+	}
+
+	return false;
 }
 
 static int ov2680_enum_frame_interval(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_frame_interval_enum *fie)
 {
-	struct v4l2_fract tpf;
+	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 
-	if (fie->index >= OV2680_MODE_MAX || fie->width > OV2680_WIDTH_MAX ||
-	    fie->height > OV2680_HEIGHT_MAX ||
-	    fie->which > V4L2_SUBDEV_FORMAT_ACTIVE)
+	/* Only 1 framerate */
+	if (fie->index || !ov2680_valid_frame_size(sd, sd_state, fie))
 		return -EINVAL;
 
-	tpf.denominator = OV2680_FRAME_RATE;
-	tpf.numerator = 1;
-
-	fie->interval = tpf;
-
-	return 0;
-}
-
-static int ov2680_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
-	struct ov2680_dev *sensor = to_ov2680_dev(sd);
-	struct ov2680_ctrls *ctrls = &sensor->ctrls;
-	int val;
-
-	if (!sensor->is_enabled)
-		return 0;
-
-	switch (ctrl->id) {
-	case V4L2_CID_GAIN:
-		val = ov2680_gain_get(sensor);
-		if (val < 0)
-			return val;
-		ctrls->gain->val = val;
-		break;
-	case V4L2_CID_EXPOSURE:
-		val = ov2680_exposure_get(sensor);
-		if (val < 0)
-			return val;
-		ctrls->exposure->val = val;
-		break;
-	}
+	fie->interval = sensor->mode.frame_interval;
 
 	return 0;
 }
@@ -826,50 +832,41 @@ static int ov2680_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
-	struct ov2680_ctrls *ctrls = &sensor->ctrls;
+	int ret;
 
-	if (!sensor->is_enabled)
+	/* Only apply changes to the controls if the device is powered up */
+	if (!pm_runtime_get_if_in_use(sensor->sd.dev)) {
+		ov2680_set_bayer_order(sensor, &sensor->mode.fmt);
 		return 0;
+	}
 
 	switch (ctrl->id) {
-	case V4L2_CID_AUTOGAIN:
-		return ov2680_gain_set(sensor, !!ctrl->val);
-	case V4L2_CID_GAIN:
-		return ov2680_gain_set(sensor, !!ctrls->auto_gain->val);
-	case V4L2_CID_EXPOSURE_AUTO:
-		return ov2680_exposure_set(sensor, !!ctrl->val);
+	case V4L2_CID_ANALOGUE_GAIN:
+		ret = ov2680_gain_set(sensor, ctrl->val);
+		break;
 	case V4L2_CID_EXPOSURE:
-		return ov2680_exposure_set(sensor, !!ctrls->auto_exp->val);
+		ret = ov2680_exposure_set(sensor, ctrl->val);
+		break;
 	case V4L2_CID_VFLIP:
-		if (sensor->is_streaming)
-			return -EBUSY;
-		if (ctrl->val)
-			return ov2680_vflip_enable(sensor);
-		else
-			return ov2680_vflip_disable(sensor);
+		ret = ov2680_set_vflip(sensor, ctrl->val);
+		break;
 	case V4L2_CID_HFLIP:
-		if (sensor->is_streaming)
-			return -EBUSY;
-		if (ctrl->val)
-			return ov2680_hflip_enable(sensor);
-		else
-			return ov2680_hflip_disable(sensor);
+		ret = ov2680_set_hflip(sensor, ctrl->val);
+		break;
 	case V4L2_CID_TEST_PATTERN:
-		return ov2680_test_pattern_set(sensor, ctrl->val);
+		ret = ov2680_test_pattern_set(sensor, ctrl->val);
+		break;
 	default:
+		ret = -EINVAL;
 		break;
 	}
 
-	return -EINVAL;
+	pm_runtime_put(sensor->sd.dev);
+	return ret;
 }
 
 static const struct v4l2_ctrl_ops ov2680_ctrl_ops = {
-	.g_volatile_ctrl = ov2680_g_volatile_ctrl,
 	.s_ctrl = ov2680_s_ctrl,
-};
-
-static const struct v4l2_subdev_core_ops ov2680_core_ops = {
-	.s_power = ov2680_s_power,
 };
 
 static const struct v4l2_subdev_video_ops ov2680_video_ops = {
@@ -881,54 +878,45 @@ static const struct v4l2_subdev_video_ops ov2680_video_ops = {
 static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
 	.init_cfg		= ov2680_init_cfg,
 	.enum_mbus_code		= ov2680_enum_mbus_code,
-	.get_fmt		= ov2680_get_fmt,
-	.set_fmt		= ov2680_set_fmt,
 	.enum_frame_size	= ov2680_enum_frame_size,
 	.enum_frame_interval	= ov2680_enum_frame_interval,
+	.get_fmt		= ov2680_get_fmt,
+	.set_fmt		= ov2680_set_fmt,
+	.get_selection		= ov2680_get_selection,
+	.set_selection		= ov2680_set_selection,
 };
 
 static const struct v4l2_subdev_ops ov2680_subdev_ops = {
-	.core	= &ov2680_core_ops,
 	.video	= &ov2680_video_ops,
 	.pad	= &ov2680_pad_ops,
 };
 
 static int ov2680_mode_init(struct ov2680_dev *sensor)
 {
-	const struct ov2680_mode_info *init_mode;
-
 	/* set initial mode */
-	sensor->fmt.code = MEDIA_BUS_FMT_SBGGR10_1X10;
-	sensor->fmt.width = 800;
-	sensor->fmt.height = 600;
-	sensor->fmt.field = V4L2_FIELD_NONE;
-	sensor->fmt.colorspace = V4L2_COLORSPACE_SRGB;
+	sensor->mode.crop = ov2680_default_crop;
+	ov2680_fill_format(sensor, &sensor->mode.fmt,
+			   OV2680_DEFAULT_WIDTH, OV2680_DEFAULT_HEIGHT);
+	ov2680_calc_mode(sensor);
 
-	sensor->frame_interval.denominator = OV2680_FRAME_RATE;
-	sensor->frame_interval.numerator = 1;
-
-	init_mode = &ov2680_mode_init_data;
-
-	sensor->current_mode = init_mode;
-
-	sensor->mode_pending_changes = true;
+	sensor->mode.frame_interval.denominator = OV2680_FRAME_RATE;
+	sensor->mode.frame_interval.numerator = 1;
 
 	return 0;
 }
 
 static int ov2680_v4l2_register(struct ov2680_dev *sensor)
 {
+	struct i2c_client *client = to_i2c_client(sensor->dev);
 	const struct v4l2_ctrl_ops *ops = &ov2680_ctrl_ops;
 	struct ov2680_ctrls *ctrls = &sensor->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
+	int exp_max = OV2680_LINES_PER_FRAME - OV2680_INTEGRATION_TIME_MARGIN;
 	int ret = 0;
 
-	v4l2_i2c_subdev_init(&sensor->sd, sensor->i2c_client,
-			     &ov2680_subdev_ops);
+	v4l2_i2c_subdev_init(&sensor->sd, client, &ov2680_subdev_ops);
 
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sensor->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
-#endif
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sensor->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
@@ -936,7 +924,7 @@ static int ov2680_v4l2_register(struct ov2680_dev *sensor)
 	if (ret < 0)
 		return ret;
 
-	v4l2_ctrl_handler_init(hdl, 7);
+	v4l2_ctrl_handler_init(hdl, 5);
 
 	hdl->lock = &sensor->lock;
 
@@ -948,30 +936,26 @@ static int ov2680_v4l2_register(struct ov2680_dev *sensor)
 					ARRAY_SIZE(test_pattern_menu) - 1,
 					0, 0, test_pattern_menu);
 
-	ctrls->auto_exp = v4l2_ctrl_new_std_menu(hdl, ops,
-						 V4L2_CID_EXPOSURE_AUTO,
-						 V4L2_EXPOSURE_MANUAL, 0,
-						 V4L2_EXPOSURE_AUTO);
-
 	ctrls->exposure = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE,
-					    0, 32767, 1, 0);
+					    0, exp_max, 1, exp_max);
 
-	ctrls->auto_gain = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_AUTOGAIN,
-					     0, 1, 1, 1);
-	ctrls->gain = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_GAIN, 0, 2047, 1, 0);
+	ctrls->gain = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN,
+					0, 1023, 1, 250);
+
+	ctrls->link_freq = v4l2_ctrl_new_int_menu(hdl, NULL, V4L2_CID_LINK_FREQ,
+						  0, 0, sensor->link_freq);
+	ctrls->pixel_rate = v4l2_ctrl_new_std(hdl, NULL, V4L2_CID_PIXEL_RATE,
+					      0, sensor->pixel_rate,
+					      1, sensor->pixel_rate);
 
 	if (hdl->error) {
 		ret = hdl->error;
 		goto cleanup_entity;
 	}
 
-	ctrls->gain->flags |= V4L2_CTRL_FLAG_VOLATILE;
-	ctrls->exposure->flags |= V4L2_CTRL_FLAG_VOLATILE;
 	ctrls->vflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 	ctrls->hflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
-
-	v4l2_ctrl_auto_cluster(2, &ctrls->auto_gain, 0, true);
-	v4l2_ctrl_auto_cluster(2, &ctrls->auto_exp, 1, true);
+	ctrls->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	sensor->sd.ctrl_handler = hdl;
 
@@ -995,61 +979,153 @@ static int ov2680_get_regulators(struct ov2680_dev *sensor)
 	for (i = 0; i < OV2680_NUM_SUPPLIES; i++)
 		sensor->supplies[i].supply = ov2680_supply_name[i];
 
-	return devm_regulator_bulk_get(&sensor->i2c_client->dev,
-				       OV2680_NUM_SUPPLIES,
-				       sensor->supplies);
+	return devm_regulator_bulk_get(sensor->dev,
+				       OV2680_NUM_SUPPLIES, sensor->supplies);
 }
 
 static int ov2680_check_id(struct ov2680_dev *sensor)
 {
-	struct device *dev = ov2680_to_dev(sensor);
-	u32 chip_id;
-	int ret;
+	u64 chip_id, rev;
+	int ret = 0;
 
-	ov2680_power_on(sensor);
-
-	ret = ov2680_read_reg16(sensor, OV2680_REG_CHIP_ID_HIGH, &chip_id);
+	cci_read(sensor->regmap, OV2680_REG_CHIP_ID, &chip_id, &ret);
+	cci_read(sensor->regmap, OV2680_REG_SC_CMMN_SUB_ID, &rev, &ret);
 	if (ret < 0) {
-		dev_err(dev, "failed to read chip id high\n");
-		return -ENODEV;
+		dev_err(sensor->dev, "failed to read chip id\n");
+		return ret;
 	}
 
 	if (chip_id != OV2680_CHIP_ID) {
-		dev_err(dev, "chip id: 0x%04x does not match expected 0x%04x\n",
+		dev_err(sensor->dev, "chip id: 0x%04llx does not match expected 0x%04x\n",
 			chip_id, OV2680_CHIP_ID);
 		return -ENODEV;
 	}
+
+	dev_info(sensor->dev, "sensor_revision id = 0x%llx, rev= %lld\n",
+		 chip_id, rev & 0x0f);
 
 	return 0;
 }
 
 static int ov2680_parse_dt(struct ov2680_dev *sensor)
 {
-	struct device *dev = ov2680_to_dev(sensor);
-	int ret;
+	struct v4l2_fwnode_endpoint bus_cfg = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY,
+	};
+	struct device *dev = sensor->dev;
+	struct fwnode_handle *ep_fwnode;
+	struct gpio_desc *gpio;
+	unsigned int rate = 0;
+	int i, ret;
 
-	sensor->reset_gpio = devm_gpiod_get_optional(dev, "reset",
-						     GPIOD_OUT_HIGH);
-	ret = PTR_ERR_OR_ZERO(sensor->reset_gpio);
+	/*
+	 * Sometimes the fwnode graph is initialized by the bridge driver.
+	 * Bridge drivers doing this may also add GPIO mappings, wait for this.
+	 */
+	ep_fwnode = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	if (!ep_fwnode)
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "waiting for fwnode graph endpoint\n");
+
+	ret = v4l2_fwnode_endpoint_alloc_parse(ep_fwnode, &bus_cfg);
+	fwnode_handle_put(ep_fwnode);
+	if (ret)
+		return ret;
+
+	/*
+	 * The pin we want is named XSHUTDN in the datasheet. Linux sensor
+	 * drivers have standardized on using "powerdown" as con-id name
+	 * for powerdown or shutdown pins. Older DTB files use "reset",
+	 * so fallback to that if there is no "powerdown" pin.
+	 */
+	gpio = devm_gpiod_get_optional(dev, "powerdown", GPIOD_OUT_HIGH);
+	if (!gpio)
+		gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+
+	ret = PTR_ERR_OR_ZERO(gpio);
 	if (ret < 0) {
 		dev_dbg(dev, "error while getting reset gpio: %d\n", ret);
-		return ret;
+		goto out_free_bus_cfg;
 	}
 
-	sensor->xvclk = devm_clk_get(dev, "xvclk");
+	sensor->pwdn_gpio = gpio;
+
+	sensor->xvclk = devm_clk_get_optional(dev, "xvclk");
 	if (IS_ERR(sensor->xvclk)) {
-		dev_err(dev, "xvclk clock missing or invalid\n");
-		return PTR_ERR(sensor->xvclk);
+		ret = dev_err_probe(dev, PTR_ERR(sensor->xvclk),
+				    "xvclk clock missing or invalid\n");
+		goto out_free_bus_cfg;
 	}
 
-	sensor->xvclk_freq = clk_get_rate(sensor->xvclk);
-	if (sensor->xvclk_freq != OV2680_XVCLK_VALUE) {
-		dev_err(dev, "wrong xvclk frequency %d HZ, expected: %d Hz\n",
-			sensor->xvclk_freq, OV2680_XVCLK_VALUE);
-		return -EINVAL;
+	/*
+	 * We could have either a 24MHz or 19.2MHz clock rate from either DT or
+	 * ACPI... but we also need to support the weird IPU3 case which will
+	 * have an external clock AND a clock-frequency property. Check for the
+	 * clock-frequency property and if found, set that rate if we managed
+	 * to acquire a clock. This should cover the ACPI case. If the system
+	 * uses devicetree then the configured rate should already be set, so
+	 * we can just read it.
+	 */
+	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+				       &rate);
+	if (ret && !sensor->xvclk) {
+		dev_err_probe(dev, ret, "invalid clock config\n");
+		goto out_free_bus_cfg;
 	}
 
-	return 0;
+	if (!ret && sensor->xvclk) {
+		ret = clk_set_rate(sensor->xvclk, rate);
+		if (ret) {
+			dev_err_probe(dev, ret, "failed to set clock rate\n");
+			goto out_free_bus_cfg;
+		}
+	}
+
+	sensor->xvclk_freq = rate ?: clk_get_rate(sensor->xvclk);
+
+	for (i = 0; i < ARRAY_SIZE(ov2680_xvclk_freqs); i++) {
+		if (sensor->xvclk_freq == ov2680_xvclk_freqs[i])
+			break;
+	}
+
+	if (i == ARRAY_SIZE(ov2680_xvclk_freqs)) {
+		ret = dev_err_probe(dev, -EINVAL,
+				    "unsupported xvclk frequency %d Hz\n",
+				    sensor->xvclk_freq);
+		goto out_free_bus_cfg;
+	}
+
+	sensor->pll_mult = ov2680_pll_multipliers[i];
+
+	sensor->link_freq[0] = sensor->xvclk_freq / OV2680_PLL_PREDIV0 /
+			       OV2680_PLL_PREDIV * sensor->pll_mult;
+
+	/* CSI-2 is double data rate, bus-format is 10 bpp */
+	sensor->pixel_rate = sensor->link_freq[0] * 2;
+	do_div(sensor->pixel_rate, 10);
+
+	/* Verify bus cfg */
+	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 1) {
+		ret = dev_err_probe(dev, -EINVAL,
+				    "only a 1-lane CSI2 config is supported");
+		goto out_free_bus_cfg;
+	}
+
+	for (i = 0; i < bus_cfg.nr_of_link_frequencies; i++)
+		if (bus_cfg.link_frequencies[i] == sensor->link_freq[0])
+			break;
+
+	if (bus_cfg.nr_of_link_frequencies == 0 ||
+	    bus_cfg.nr_of_link_frequencies == i) {
+		ret = dev_err_probe(dev, -EINVAL,
+				    "supported link freq %lld not found\n",
+				    sensor->link_freq[0]);
+		goto out_free_bus_cfg;
+	}
+
+out_free_bus_cfg:
+	v4l2_fwnode_endpoint_free(&bus_cfg);
+	return ret;
 }
 
 static int ov2680_probe(struct i2c_client *client)
@@ -1062,11 +1138,15 @@ static int ov2680_probe(struct i2c_client *client)
 	if (!sensor)
 		return -ENOMEM;
 
-	sensor->i2c_client = client;
+	sensor->dev = &client->dev;
+
+	sensor->regmap = devm_cci_regmap_init_i2c(client, 16);
+	if (IS_ERR(sensor->regmap))
+		return PTR_ERR(sensor->regmap);
 
 	ret = ov2680_parse_dt(sensor);
 	if (ret < 0)
-		return -EINVAL;
+		return ret;
 
 	ret = ov2680_mode_init(sensor);
 	if (ret < 0)
@@ -1080,18 +1160,37 @@ static int ov2680_probe(struct i2c_client *client)
 
 	mutex_init(&sensor->lock);
 
-	ret = ov2680_check_id(sensor);
+	/*
+	 * Power up and verify the chip now, so that if runtime pm is
+	 * disabled the chip is left on and streaming will work.
+	 */
+	ret = ov2680_power_on(sensor);
 	if (ret < 0)
 		goto lock_destroy;
+
+	ret = ov2680_check_id(sensor);
+	if (ret < 0)
+		goto err_powerdown;
+
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_enable(&client->dev);
 
 	ret = ov2680_v4l2_register(sensor);
 	if (ret < 0)
-		goto lock_destroy;
+		goto err_pm_runtime;
 
-	dev_info(dev, "ov2680 init correctly\n");
+	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
+	pm_runtime_use_autosuspend(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
 
 	return 0;
 
+err_pm_runtime:
+	pm_runtime_disable(&client->dev);
+	pm_runtime_put_noidle(&client->dev);
+err_powerdown:
+	ov2680_power_off(sensor);
 lock_destroy:
 	dev_err(dev, "ov2680 init fail: %d\n", ret);
 	mutex_destroy(&sensor->lock);
@@ -1108,9 +1207,18 @@ static void ov2680_remove(struct i2c_client *client)
 	mutex_destroy(&sensor->lock);
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
+
+	/*
+	 * Disable runtime PM. In case runtime PM is disabled in the kernel,
+	 * make sure to turn power off manually.
+	 */
+	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		ov2680_power_off(sensor);
+	pm_runtime_set_suspended(&client->dev);
 }
 
-static int __maybe_unused ov2680_suspend(struct device *dev)
+static int ov2680_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
@@ -1118,14 +1226,18 @@ static int __maybe_unused ov2680_suspend(struct device *dev)
 	if (sensor->is_streaming)
 		ov2680_stream_disable(sensor);
 
-	return 0;
+	return ov2680_power_off(sensor);
 }
 
-static int __maybe_unused ov2680_resume(struct device *dev)
+static int ov2680_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 	int ret;
+
+	ret = ov2680_power_on(sensor);
+	if (ret < 0)
+		goto stream_disable;
 
 	if (sensor->is_streaming) {
 		ret = ov2680_stream_enable(sensor);
@@ -1142,9 +1254,8 @@ stream_disable:
 	return ret;
 }
 
-static const struct dev_pm_ops ov2680_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov2680_suspend, ov2680_resume)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(ov2680_pm_ops, ov2680_suspend, ov2680_resume,
+				 NULL);
 
 static const struct of_device_id ov2680_dt_ids[] = {
 	{ .compatible = "ovti,ov2680" },
@@ -1152,11 +1263,18 @@ static const struct of_device_id ov2680_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, ov2680_dt_ids);
 
+static const struct acpi_device_id ov2680_acpi_ids[] = {
+	{ "OVTI2680" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(acpi, ov2680_acpi_ids);
+
 static struct i2c_driver ov2680_i2c_driver = {
 	.driver = {
 		.name  = "ov2680",
-		.pm = &ov2680_pm_ops,
-		.of_match_table	= of_match_ptr(ov2680_dt_ids),
+		.pm = pm_sleep_ptr(&ov2680_pm_ops),
+		.of_match_table	= ov2680_dt_ids,
+		.acpi_match_table = ov2680_acpi_ids,
 	},
 	.probe		= ov2680_probe,
 	.remove		= ov2680_remove,

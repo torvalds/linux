@@ -368,7 +368,7 @@ static int aw200xx_probe_fw(struct device *dev, struct aw200xx *chip)
 
 	if (!chip->display_rows ||
 	    chip->display_rows > chip->cdef->display_size_rows_max) {
-		return dev_err_probe(dev, ret,
+		return dev_err_probe(dev, -EINVAL,
 				     "Invalid leds display size %u\n",
 				     chip->display_rows);
 	}
@@ -583,7 +583,7 @@ static struct i2c_driver aw200xx_driver = {
 		.name = "aw200xx",
 		.of_match_table = aw200xx_match_table,
 	},
-	.probe_new = aw200xx_probe,
+	.probe = aw200xx_probe,
 	.remove = aw200xx_remove,
 	.id_table = aw200xx_id,
 };

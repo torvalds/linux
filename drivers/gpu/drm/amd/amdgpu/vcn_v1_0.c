@@ -473,7 +473,7 @@ static void vcn_v1_0_disable_clock_gating(struct amdgpu_device *adev)
 	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
 		data |= 1 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	else
-		data &= ~ UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
+		data &= ~UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
 
 	data |= 1 << UVD_CGC_CTRL__CLK_GATE_DLY_TIMER__SHIFT;
 	data |= 4 << UVD_CGC_CTRL__CLK_OFF_DELAY__SHIFT;
@@ -1772,7 +1772,7 @@ static int vcn_v1_0_set_powergating_state(void *handle,
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if(state == adev->vcn.cur_state)
+	if (state == adev->vcn.cur_state)
 		return 0;
 
 	if (state == AMD_PG_STATE_GATE)
@@ -1780,7 +1780,7 @@ static int vcn_v1_0_set_powergating_state(void *handle,
 	else
 		ret = vcn_v1_0_start(adev);
 
-	if(!ret)
+	if (!ret)
 		adev->vcn.cur_state = state;
 	return ret;
 }
@@ -2065,8 +2065,7 @@ static void vcn_v1_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->vcn.inst->irq.funcs = &vcn_v1_0_irq_funcs;
 }
 
-const struct amdgpu_ip_block_version vcn_v1_0_ip_block =
-{
+const struct amdgpu_ip_block_version vcn_v1_0_ip_block = {
 		.type = AMD_IP_BLOCK_TYPE_VCN,
 		.major = 1,
 		.minor = 0,

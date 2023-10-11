@@ -15,6 +15,7 @@
 / {
 	model = "Qualcomm Technologies, Inc. SDM845 MTP";
 	compatible = "qcom,sdm845-mtp", "qcom,sdm845";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &uart9;
@@ -533,42 +534,42 @@
 };
 
 &pm8998_adc {
-	adc-chan@4c {
+	channel@4c {
 		reg = <ADC5_XO_THERM_100K_PU>;
 		label = "xo_therm";
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
 	};
 
-	adc-chan@4d {
+	channel@4d {
 		reg = <ADC5_AMUX_THM1_100K_PU>;
 		label = "msm_therm";
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
 	};
 
-	adc-chan@4f {
+	channel@4f {
 		reg = <ADC5_AMUX_THM3_100K_PU>;
 		label = "pa_therm1";
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
 	};
 
-	adc-chan@51 {
+	channel@51 {
 		reg = <ADC5_AMUX_THM5_100K_PU>;
 		label = "quiet_therm";
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
 	};
 
-	adc-chan@83 {
+	channel@83 {
 		reg = <ADC5_VPH_PWR>;
 		label = "vph_pwr";
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
 	};
 
-	adc-chan@85 {
+	channel@85 {
 		reg = <ADC5_VCOIN>;
 		label = "vcoin";
 		qcom,ratiometric;

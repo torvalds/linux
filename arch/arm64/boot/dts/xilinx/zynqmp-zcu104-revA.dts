@@ -140,8 +140,8 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1_default>;
 	pinctrl-1 = <&pinctrl_i2c1_gpio>;
-	scl-gpios = <&gpio 16 GPIO_ACTIVE_HIGH>;
-	sda-gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio 17 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 
 	/* Another connection to this bus via PL i2c via PCA9306 - u45 */
 	i2c-mux@74 { /* u34 */

@@ -1763,8 +1763,8 @@ static int rsi_mac80211_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_channel *chan, int duration,
 			    enum ieee80211_roc_type type)
 {
-	struct rsi_hw *adapter = (struct rsi_hw *)hw->priv;
-	struct rsi_common *common = (struct rsi_common *)adapter->priv;
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
 	int status = 0;
 
 	rsi_dbg(INFO_ZONE, "***** Remain on channel *****\n");

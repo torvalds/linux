@@ -1515,7 +1515,7 @@ static int lan743x_phy_open(struct lan743x_adapter *adapter)
 							    &fphy_status, NULL);
 				if (IS_ERR(phydev)) {
 					netdev_err(netdev, "No PHY/fixed_PHY found\n");
-					return -EIO;
+					return PTR_ERR(phydev);
 				}
 			} else {
 				goto return_error;

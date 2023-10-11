@@ -276,6 +276,7 @@ int otx2vf_mcam_flow_init(struct otx2_nic *pfvf)
 
 	flow_cfg = pfvf->flow_cfg;
 	INIT_LIST_HEAD(&flow_cfg->flow_list);
+	INIT_LIST_HEAD(&flow_cfg->flow_list_tc);
 	flow_cfg->max_flows = 0;
 
 	return 0;
@@ -298,6 +299,7 @@ int otx2_mcam_flow_init(struct otx2_nic *pf)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pf->flow_cfg->flow_list);
+	INIT_LIST_HEAD(&pf->flow_cfg->flow_list_tc);
 
 	/* Allocate bare minimum number of MCAM entries needed for
 	 * unicast and ntuple filters.

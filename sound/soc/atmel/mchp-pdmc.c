@@ -386,7 +386,6 @@ static int mchp_pdmc_open(struct snd_soc_component *component,
 	for (i = 0; i < ARRAY_SIZE(mchp_pdmc_snd_controls); i++) {
 		const struct snd_kcontrol_new *control = &mchp_pdmc_snd_controls[i];
 		struct snd_ctl_elem_id id;
-		struct snd_kcontrol *kctl;
 		int err;
 
 		if (component->name_prefix)
@@ -400,17 +399,10 @@ static int mchp_pdmc_open(struct snd_soc_component *component,
 		id.device = control->device;
 		id.subdevice = control->subdevice;
 		id.index = control->index;
-		kctl = snd_ctl_find_id(component->card->snd_card, &id);
-		if (!kctl) {
-			dev_err(component->dev, "Failed to find %s\n", control->name);
-			continue;
-		}
-		err = snd_ctl_remove(component->card->snd_card, kctl);
-		if (err < 0) {
+		err = snd_ctl_remove_id(component->card->snd_card, &id);
+		if (err < 0)
 			dev_err(component->dev, "%d: Failed to remove %s\n", err,
 				control->name);
-			continue;
-		}
 	}
 
 	return 0;
@@ -706,13 +698,6 @@ static int mchp_pdmc_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops mchp_pdmc_dai_ops = {
-	.set_fmt	= mchp_pdmc_set_fmt,
-	.startup	= mchp_pdmc_startup,
-	.hw_params	= mchp_pdmc_hw_params,
-	.trigger	= mchp_pdmc_trigger,
-};
-
 static int mchp_pdmc_add_chmap_ctls(struct snd_pcm *pcm, struct mchp_pdmc *dd)
 {
 	struct mchp_pdmc_chmap *info;
@@ -765,8 +750,16 @@ static int mchp_pdmc_pcm_new(struct snd_soc_pcm_runtime *rtd,
 	return ret;
 }
 
+static const struct snd_soc_dai_ops mchp_pdmc_dai_ops = {
+	.probe		= mchp_pdmc_dai_probe,
+	.set_fmt	= mchp_pdmc_set_fmt,
+	.startup	= mchp_pdmc_startup,
+	.hw_params	= mchp_pdmc_hw_params,
+	.trigger	= mchp_pdmc_trigger,
+	.pcm_new	= &mchp_pdmc_pcm_new,
+};
+
 static struct snd_soc_dai_driver mchp_pdmc_dai = {
-	.probe	= mchp_pdmc_dai_probe,
 	.capture = {
 		.stream_name	= "Capture",
 		.channels_min	= 1,
@@ -777,7 +770,6 @@ static struct snd_soc_dai_driver mchp_pdmc_dai = {
 		.formats	= SNDRV_PCM_FMTBIT_S24_LE,
 	},
 	.ops = &mchp_pdmc_dai_ops,
-	.pcm_new = &mchp_pdmc_pcm_new,
 };
 
 /* PDMC interrupt handler */
@@ -962,7 +954,7 @@ static int mchp_pdmc_dt_init(struct mchp_pdmc *dd)
 /* used to clean the channel index found on RHR's MSB */
 static int mchp_pdmc_process(struct snd_pcm_substream *substream,
 			     int channel, unsigned long hwoff,
-			     void *buf, unsigned long bytes)
+			     unsigned long bytes)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	u8 *dma_ptr = runtime->dma_area + hwoff +

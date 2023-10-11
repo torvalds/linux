@@ -166,4 +166,11 @@
 #define SLAVE_QDSS_STM			17
 #define SLAVE_TCU			18
 
+#define MASTER_QUP_CORE_0		0
+#define MASTER_QUP_CORE_1		1
+#define MASTER_QUP_CORE_2		2
+#define SLAVE_QUP_CORE_0		3
+#define SLAVE_QUP_CORE_1		4
+#define SLAVE_QUP_CORE_2		5
+
 #endif

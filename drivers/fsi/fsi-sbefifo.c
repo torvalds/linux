@@ -22,8 +22,8 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -81,7 +81,7 @@
 
 enum sbe_state
 {
-	SBE_STATE_UNKNOWN = 0x0, // Unkown, initial state
+	SBE_STATE_UNKNOWN = 0x0, // Unknown, initial state
 	SBE_STATE_IPLING  = 0x1, // IPL'ing - autonomous mode (transient)
 	SBE_STATE_ISTEP   = 0x2, // ISTEP - Running IPL by steps (transient)
 	SBE_STATE_MPIPL   = 0x3, // MPIPL
@@ -127,6 +127,7 @@ struct sbefifo {
 	bool			dead;
 	bool			async_ffdc;
 	bool			timed_out;
+	u32			timeout_in_cmd_ms;
 	u32			timeout_start_rsp_ms;
 };
 
@@ -136,6 +137,7 @@ struct sbefifo_user {
 	void			*cmd_page;
 	void			*pending_cmd;
 	size_t			pending_len;
+	u32			cmd_timeout_ms;
 	u32			read_timeout_ms;
 };
 
@@ -508,7 +510,7 @@ static int sbefifo_send_command(struct sbefifo *sbefifo,
 		rc = sbefifo_wait(sbefifo, true, &status, timeout);
 		if (rc < 0)
 			return rc;
-		timeout = msecs_to_jiffies(SBEFIFO_TIMEOUT_IN_CMD);
+		timeout = msecs_to_jiffies(sbefifo->timeout_in_cmd_ms);
 
 		vacant = sbefifo_vacant(status);
 		len = chunk = min(vacant, remaining);
@@ -730,7 +732,7 @@ static int __sbefifo_submit(struct sbefifo *sbefifo,
  * @response: The output response buffer
  * @resp_len: In: Response buffer size, Out: Response size
  *
- * This will perform the entire operation. If the reponse buffer
+ * This will perform the entire operation. If the response buffer
  * overflows, returns -EOVERFLOW
  */
 int sbefifo_submit(struct device *dev, const __be32 *command, size_t cmd_len,
@@ -802,6 +804,7 @@ static int sbefifo_user_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 	mutex_init(&user->file_lock);
+	user->cmd_timeout_ms = SBEFIFO_TIMEOUT_IN_CMD;
 	user->read_timeout_ms = SBEFIFO_TIMEOUT_START_RSP;
 
 	return 0;
@@ -845,9 +848,11 @@ static ssize_t sbefifo_user_read(struct file *file, char __user *buf,
 	rc = mutex_lock_interruptible(&sbefifo->lock);
 	if (rc)
 		goto bail;
+	sbefifo->timeout_in_cmd_ms = user->cmd_timeout_ms;
 	sbefifo->timeout_start_rsp_ms = user->read_timeout_ms;
 	rc = __sbefifo_submit(sbefifo, user->pending_cmd, cmd_len, &resp_iter);
 	sbefifo->timeout_start_rsp_ms = SBEFIFO_TIMEOUT_START_RSP;
+	sbefifo->timeout_in_cmd_ms = SBEFIFO_TIMEOUT_IN_CMD;
 	mutex_unlock(&sbefifo->lock);
 	if (rc < 0)
 		goto bail;
@@ -937,6 +942,25 @@ static int sbefifo_user_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int sbefifo_cmd_timeout(struct sbefifo_user *user, void __user *argp)
+{
+	struct device *dev = &user->sbefifo->dev;
+	u32 timeout;
+
+	if (get_user(timeout, (__u32 __user *)argp))
+		return -EFAULT;
+
+	if (timeout == 0) {
+		user->cmd_timeout_ms = SBEFIFO_TIMEOUT_IN_CMD;
+		dev_dbg(dev, "Command timeout reset to %us\n", user->cmd_timeout_ms / 1000);
+		return 0;
+	}
+
+	user->cmd_timeout_ms = timeout * 1000; /* user timeout is in sec */
+	dev_dbg(dev, "Command timeout set to %us\n", timeout);
+	return 0;
+}
+
 static int sbefifo_read_timeout(struct sbefifo_user *user, void __user *argp)
 {
 	struct device *dev = &user->sbefifo->dev;
@@ -947,17 +971,12 @@ static int sbefifo_read_timeout(struct sbefifo_user *user, void __user *argp)
 
 	if (timeout == 0) {
 		user->read_timeout_ms = SBEFIFO_TIMEOUT_START_RSP;
-		dev_dbg(dev, "Timeout reset to %d\n", user->read_timeout_ms);
+		dev_dbg(dev, "Timeout reset to %us\n", user->read_timeout_ms / 1000);
 		return 0;
 	}
 
-	if (timeout < 10 || timeout > 120)
-		return -EINVAL;
-
 	user->read_timeout_ms = timeout * 1000; /* user timeout is in sec */
-
-	dev_dbg(dev, "Timeout set to %d\n", user->read_timeout_ms);
-
+	dev_dbg(dev, "Timeout set to %us\n", timeout);
 	return 0;
 }
 
@@ -971,6 +990,9 @@ static long sbefifo_user_ioctl(struct file *file, unsigned int cmd, unsigned lon
 
 	mutex_lock(&user->file_lock);
 	switch (cmd) {
+	case FSI_SBEFIFO_CMD_TIMEOUT_SECONDS:
+		rc = sbefifo_cmd_timeout(user, (void __user *)arg);
+		break;
 	case FSI_SBEFIFO_READ_TIMEOUT_SECONDS:
 		rc = sbefifo_read_timeout(user, (void __user *)arg);
 		break;
@@ -1025,15 +1047,8 @@ static int sbefifo_probe(struct device *dev)
 	sbefifo->fsi_dev = fsi_dev;
 	dev_set_drvdata(dev, sbefifo);
 	mutex_init(&sbefifo->lock);
+	sbefifo->timeout_in_cmd_ms = SBEFIFO_TIMEOUT_IN_CMD;
 	sbefifo->timeout_start_rsp_ms = SBEFIFO_TIMEOUT_START_RSP;
-
-	/*
-	 * Try cleaning up the FIFO. If this fails, we still register the
-	 * driver and will try cleaning things up again on the next access.
-	 */
-	rc = sbefifo_cleanup_hw(sbefifo);
-	if (rc && rc != -ESHUTDOWN)
-		dev_err(dev, "Initial HW cleanup failed, will retry later\n");
 
 	/* Create chardev for userspace access */
 	sbefifo->dev.type = &fsi_cdev_type;

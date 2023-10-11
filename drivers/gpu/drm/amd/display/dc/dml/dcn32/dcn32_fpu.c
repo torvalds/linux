@@ -37,7 +37,7 @@
 
 static const struct subvp_high_refresh_list subvp_high_refresh_list = {
 			.min_refresh = 120,
-			.max_refresh = 165,
+			.max_refresh = 175,
 			.res = {
 				{.width = 3840, .height = 2160, },
 				{.width = 3440, .height = 1440, },
@@ -756,7 +756,7 @@ static bool dcn32_enough_pipes_for_subvp(struct dc *dc, struct dc_state *context
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
 		// Find the minimum pipe split count for non SubVP pipes
-		if (pipe->stream && !pipe->top_pipe &&
+		if (resource_is_pipe_type(pipe, OPP_HEAD) &&
 		    pipe->stream->mall_stream_config.type == SUBVP_NONE) {
 			split_cnt = 0;
 			while (pipe) {
@@ -886,7 +886,8 @@ static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context)
 
 		// We check for master pipe, but it shouldn't matter since we only need
 		// the pipe for timing info (stream should be same for any pipe splits)
-		if (!pipe->stream || !pipe->plane_state || pipe->top_pipe || pipe->prev_odm_pipe)
+		if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+				!resource_is_pipe_type(pipe, DPP_PIPE))
 			continue;
 
 		// Find the SubVP pipe
@@ -899,7 +900,8 @@ static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context)
 		drr_pipe = &context->res_ctx.pipe_ctx[i];
 
 		// We check for master pipe only
-		if (!drr_pipe->stream || !drr_pipe->plane_state || drr_pipe->top_pipe || drr_pipe->prev_odm_pipe)
+		if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+				!resource_is_pipe_type(pipe, DPP_PIPE))
 			continue;
 
 		if (drr_pipe->stream->mall_stream_config.type == SUBVP_NONE && drr_pipe->stream->ignore_msa_timing_param &&
@@ -980,7 +982,8 @@ static bool subvp_vblank_schedulable(struct dc *dc, struct dc_state *context)
 
 		// We check for master pipe, but it shouldn't matter since we only need
 		// the pipe for timing info (stream should be same for any pipe splits)
-		if (!pipe->stream || !pipe->plane_state || pipe->top_pipe || pipe->prev_odm_pipe)
+		if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+				!resource_is_pipe_type(pipe, DPP_PIPE))
 			continue;
 
 		if (!found && pipe->stream->mall_stream_config.type == SUBVP_NONE) {
@@ -1040,7 +1043,7 @@ static bool subvp_subvp_admissable(struct dc *dc,
 	uint32_t i;
 	uint8_t subvp_count = 0;
 	uint32_t min_refresh = subvp_high_refresh_list.min_refresh, max_refresh = 0;
-	uint32_t refresh_rate = 0;
+	uint64_t refresh_rate = 0;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -1050,19 +1053,22 @@ static bool subvp_subvp_admissable(struct dc *dc,
 
 		if (pipe->plane_state && !pipe->top_pipe &&
 				pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
-			refresh_rate = (pipe->stream->timing.pix_clk_100hz * 100 +
-					pipe->stream->timing.v_total * pipe->stream->timing.h_total - 1)
-					/ (double)(pipe->stream->timing.v_total * pipe->stream->timing.h_total);
-			if (refresh_rate < min_refresh)
-				min_refresh = refresh_rate;
-			if (refresh_rate > max_refresh)
-				max_refresh = refresh_rate;
+			refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
+				pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+			refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
+			refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
+
+			if ((uint32_t)refresh_rate < min_refresh)
+				min_refresh = (uint32_t)refresh_rate;
+			if ((uint32_t)refresh_rate > max_refresh)
+				max_refresh = (uint32_t)refresh_rate;
 			subvp_count++;
 		}
 	}
 
 	if (subvp_count == 2 && ((min_refresh < 120 && max_refresh < 120) ||
-			(min_refresh >= 120 && max_refresh >= 120)))
+		(min_refresh >= subvp_high_refresh_list.min_refresh &&
+				max_refresh <= subvp_high_refresh_list.max_refresh)))
 		result = true;
 
 	return result;
@@ -1715,8 +1721,8 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		if (vba->ODMCombineEnabled[vba->pipe_plane[pipe_idx]] != dm_odm_combine_mode_disabled
 				&& !dc->config.enable_windowed_mpo_odm
 				&& pipe->plane_state && mpo_pipe
-				&& memcmp(&mpo_pipe->plane_res.scl_data.recout,
-						&pipe->plane_res.scl_data.recout,
+				&& memcmp(&mpo_pipe->plane_state->clip_rect,
+						&pipe->stream->src,
 						sizeof(struct rect)) != 0) {
 			ASSERT(mpo_pipe->plane_state != pipe->plane_state);
 			goto validate_fail;

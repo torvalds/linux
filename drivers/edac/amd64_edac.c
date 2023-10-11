@@ -4150,6 +4150,20 @@ static int per_family_init(struct amd64_pvt *pvt)
 		}
 		break;
 
+	case 0x1A:
+		switch (pvt->model) {
+		case 0x00 ... 0x1f:
+			pvt->ctl_name           = "F1Ah";
+			pvt->max_mcs            = 12;
+			pvt->flags.zn_regs_v2   = 1;
+			break;
+		case 0x40 ... 0x4f:
+			pvt->ctl_name           = "F1Ah_M40h";
+			pvt->flags.zn_regs_v2   = 1;
+			break;
+		}
+		break;
+
 	default:
 		amd64_err("Unsupported family!\n");
 		return -ENODEV;
@@ -4344,6 +4358,7 @@ static const struct x86_cpu_id amd64_cpuids[] = {
 	X86_MATCH_VENDOR_FAM(AMD,	0x17, NULL),
 	X86_MATCH_VENDOR_FAM(HYGON,	0x18, NULL),
 	X86_MATCH_VENDOR_FAM(AMD,	0x19, NULL),
+	X86_MATCH_VENDOR_FAM(AMD,	0x1A, NULL),
 	{ }
 };
 MODULE_DEVICE_TABLE(x86cpu, amd64_cpuids);

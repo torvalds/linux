@@ -148,6 +148,8 @@ struct rpc_create_args {
 	const struct cred	*cred;
 	unsigned int		max_connect;
 	struct xprtsec_parms	xprtsec;
+	unsigned long		connect_timeout;
+	unsigned long		reconnect_timeout;
 };
 
 struct rpc_add_xprt_test {

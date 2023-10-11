@@ -8,8 +8,14 @@
  *
  * Some ideas are from marvell-cesa.c and s5p-sss.c driver.
  */
-#include <linux/device.h>
+
+#include <crypto/engine.h>
+#include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
 #include "rk3288_crypto.h"
 
 #define RK_CRYPTO_DEC			BIT(0)
@@ -18,7 +24,7 @@ static int rk_cipher_need_fallback(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
-	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.skcipher);
+	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.skcipher.base);
 	struct scatterlist *sgs, *sgd;
 	unsigned int stodo, dtodo, len;
 	unsigned int bs = crypto_skcipher_blocksize(tfm);
@@ -65,7 +71,7 @@ static int rk_cipher_fallback(struct skcipher_request *areq)
 	struct rk_cipher_ctx *op = crypto_skcipher_ctx(tfm);
 	struct rk_cipher_rctx *rctx = skcipher_request_ctx(areq);
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
-	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.skcipher);
+	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.skcipher.base);
 	int err;
 
 	algt->stat_fb++;
@@ -305,7 +311,7 @@ static int rk_cipher_run(struct crypto_engine *engine, void *async_req)
 	unsigned int len = areq->cryptlen;
 	unsigned int todo;
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
-	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.skcipher);
+	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.skcipher.base);
 	struct rk_crypto_info *rkc = rctx->dev;
 
 	err = pm_runtime_resume_and_get(rkc->dev);
@@ -430,7 +436,7 @@ static int rk_cipher_tfm_init(struct crypto_skcipher *tfm)
 	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
 	const char *name = crypto_tfm_alg_name(&tfm->base);
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
-	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.skcipher);
+	struct rk_crypto_tmp *algt = container_of(alg, struct rk_crypto_tmp, alg.skcipher.base);
 
 	ctx->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->fallback_tfm)) {
@@ -441,8 +447,6 @@ static int rk_cipher_tfm_init(struct crypto_skcipher *tfm)
 
 	tfm->reqsize = sizeof(struct rk_cipher_rctx) +
 		crypto_skcipher_reqsize(ctx->fallback_tfm);
-
-	ctx->enginectx.op.do_one_request = rk_cipher_run;
 
 	return 0;
 }
@@ -457,7 +461,7 @@ static void rk_cipher_tfm_exit(struct crypto_skcipher *tfm)
 
 struct rk_crypto_tmp rk_ecb_aes_alg = {
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
-	.alg.skcipher = {
+	.alg.skcipher.base = {
 		.base.cra_name		= "ecb(aes)",
 		.base.cra_driver_name	= "ecb-aes-rk",
 		.base.cra_priority	= 300,
@@ -474,12 +478,15 @@ struct rk_crypto_tmp rk_ecb_aes_alg = {
 		.setkey			= rk_aes_setkey,
 		.encrypt		= rk_aes_ecb_encrypt,
 		.decrypt		= rk_aes_ecb_decrypt,
-	}
+	},
+	.alg.skcipher.op = {
+		.do_one_request = rk_cipher_run,
+	},
 };
 
 struct rk_crypto_tmp rk_cbc_aes_alg = {
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
-	.alg.skcipher = {
+	.alg.skcipher.base = {
 		.base.cra_name		= "cbc(aes)",
 		.base.cra_driver_name	= "cbc-aes-rk",
 		.base.cra_priority	= 300,
@@ -497,12 +504,15 @@ struct rk_crypto_tmp rk_cbc_aes_alg = {
 		.setkey			= rk_aes_setkey,
 		.encrypt		= rk_aes_cbc_encrypt,
 		.decrypt		= rk_aes_cbc_decrypt,
-	}
+	},
+	.alg.skcipher.op = {
+		.do_one_request = rk_cipher_run,
+	},
 };
 
 struct rk_crypto_tmp rk_ecb_des_alg = {
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
-	.alg.skcipher = {
+	.alg.skcipher.base = {
 		.base.cra_name		= "ecb(des)",
 		.base.cra_driver_name	= "ecb-des-rk",
 		.base.cra_priority	= 300,
@@ -519,12 +529,15 @@ struct rk_crypto_tmp rk_ecb_des_alg = {
 		.setkey			= rk_des_setkey,
 		.encrypt		= rk_des_ecb_encrypt,
 		.decrypt		= rk_des_ecb_decrypt,
-	}
+	},
+	.alg.skcipher.op = {
+		.do_one_request = rk_cipher_run,
+	},
 };
 
 struct rk_crypto_tmp rk_cbc_des_alg = {
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
-	.alg.skcipher = {
+	.alg.skcipher.base = {
 		.base.cra_name		= "cbc(des)",
 		.base.cra_driver_name	= "cbc-des-rk",
 		.base.cra_priority	= 300,
@@ -542,12 +555,15 @@ struct rk_crypto_tmp rk_cbc_des_alg = {
 		.setkey			= rk_des_setkey,
 		.encrypt		= rk_des_cbc_encrypt,
 		.decrypt		= rk_des_cbc_decrypt,
-	}
+	},
+	.alg.skcipher.op = {
+		.do_one_request = rk_cipher_run,
+	},
 };
 
 struct rk_crypto_tmp rk_ecb_des3_ede_alg = {
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
-	.alg.skcipher = {
+	.alg.skcipher.base = {
 		.base.cra_name		= "ecb(des3_ede)",
 		.base.cra_driver_name	= "ecb-des3-ede-rk",
 		.base.cra_priority	= 300,
@@ -564,12 +580,15 @@ struct rk_crypto_tmp rk_ecb_des3_ede_alg = {
 		.setkey			= rk_tdes_setkey,
 		.encrypt		= rk_des3_ede_ecb_encrypt,
 		.decrypt		= rk_des3_ede_ecb_decrypt,
-	}
+	},
+	.alg.skcipher.op = {
+		.do_one_request = rk_cipher_run,
+	},
 };
 
 struct rk_crypto_tmp rk_cbc_des3_ede_alg = {
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
-	.alg.skcipher = {
+	.alg.skcipher.base = {
 		.base.cra_name		= "cbc(des3_ede)",
 		.base.cra_driver_name	= "cbc-des3-ede-rk",
 		.base.cra_priority	= 300,
@@ -587,5 +606,8 @@ struct rk_crypto_tmp rk_cbc_des3_ede_alg = {
 		.setkey			= rk_tdes_setkey,
 		.encrypt		= rk_des3_ede_cbc_encrypt,
 		.decrypt		= rk_des3_ede_cbc_decrypt,
-	}
+	},
+	.alg.skcipher.op = {
+		.do_one_request = rk_cipher_run,
+	},
 };

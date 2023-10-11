@@ -11,8 +11,8 @@
 #define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 
 /* Ignore unused weak functions which will have larger offsets */
-#ifdef CONFIG_MPROFILE_KERNEL
-#define FTRACE_MCOUNT_MAX_OFFSET	12
+#if defined(CONFIG_MPROFILE_KERNEL) || defined(CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY)
+#define FTRACE_MCOUNT_MAX_OFFSET	16
 #elif defined(CONFIG_PPC32)
 #define FTRACE_MCOUNT_MAX_OFFSET	8
 #endif
@@ -22,18 +22,26 @@ extern void _mcount(void);
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
-       /* relocation of mcount call site is the same as the address */
+	if (IS_ENABLED(CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY))
+		addr += MCOUNT_INSN_SIZE;
+
        return addr;
 }
 
 unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
 				    unsigned long sp);
 
+struct module;
+struct dyn_ftrace;
 struct dyn_arch_ftrace {
 	struct module *mod;
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
+#define ftrace_need_init_nop()	(true)
+int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
+#define ftrace_init_nop ftrace_init_nop
+
 struct ftrace_regs {
 	struct pt_regs regs;
 };
@@ -124,15 +132,19 @@ static inline u8 this_cpu_get_ftrace_enabled(void)
 {
 	return get_paca()->ftrace_enabled;
 }
-
-void ftrace_free_init_tramp(void);
 #else /* CONFIG_PPC64 */
 static inline void this_cpu_disable_ftrace(void) { }
 static inline void this_cpu_enable_ftrace(void) { }
 static inline void this_cpu_set_ftrace_enabled(u8 ftrace_enabled) { }
 static inline u8 this_cpu_get_ftrace_enabled(void) { return 1; }
-static inline void ftrace_free_init_tramp(void) { }
 #endif /* CONFIG_PPC64 */
+
+#ifdef CONFIG_FUNCTION_TRACER
+extern unsigned int ftrace_tramp_text[], ftrace_tramp_init[];
+void ftrace_free_init_tramp(void);
+#else
+static inline void ftrace_free_init_tramp(void) { }
+#endif
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_FTRACE */

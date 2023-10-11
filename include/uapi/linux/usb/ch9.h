@@ -3,7 +3,7 @@
  * This file holds USB constants and structures that are needed for
  * USB device APIs.  These are used by the USB device model, which is
  * defined in chapter 9 of the USB 2.0 specification and in the
- * Wireless USB 1.0 (spread around).  Linux has several APIs in C that
+ * Wireless USB 1.0 spec (now defunct).  Linux has several APIs in C that
  * need these:
  *
  * - the master/host side Linux-USB kernel driver API;
@@ -13,9 +13,6 @@
  * USB 2.0 adds an additional "On The Go" (OTG) mode, which lets systems
  * act either as a USB master/host or as a USB slave/device.  That means
  * the master and slave side APIs benefit from working well together.
- *
- * There's also "Wireless USB", using low power short range radios for
- * peripheral interconnection but otherwise building on the USB framework.
  *
  * Note all descriptors are declared '__attribute__((packed))' so that:
  *

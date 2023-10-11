@@ -17,7 +17,7 @@
 	compatible = "xiaomi,daisy", "qcom,msm8953";
 	chassis-type = "handset";
 	qcom,msm-id = <293 0>;
-	qcom,board-id= <0x1000b 0x9>;
+	qcom,board-id = <0x1000b 0x9>;
 
 	chosen {
 		#address-cells = <2>;
@@ -125,7 +125,7 @@
 
 		vmon-slot-no = <1>;
 		imon-slot-no = <1>;
-		interleave_mode = <0>;
+		maxim,interleave-mode;
 
 		#sound-dai-cells = <0>;
 	};

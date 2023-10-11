@@ -96,6 +96,7 @@ static const struct cfg_param {
 	{"nvidia,slew-rate-falling",	TEGRA_PINCONF_PARAM_SLEW_RATE_FALLING},
 	{"nvidia,slew-rate-rising",	TEGRA_PINCONF_PARAM_SLEW_RATE_RISING},
 	{"nvidia,drive-type",		TEGRA_PINCONF_PARAM_DRIVE_TYPE},
+	{"nvidia,function",		TEGRA_PINCONF_PARAM_FUNCTION},
 };
 
 static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
@@ -470,6 +471,12 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 		*bit = g->drvtype_bit;
 		*width = 2;
 		break;
+	case TEGRA_PINCONF_PARAM_FUNCTION:
+		*bank = g->mux_bank;
+		*reg = g->mux_reg;
+		*bit = g->mux_bit;
+		*width = 2;
+		break;
 	default:
 		dev_err(pmx->dev, "Invalid config param %04x\n", param);
 		return -ENOTSUPP;
@@ -633,8 +640,16 @@ static void tegra_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 		val >>= bit;
 		val &= (1 << width) - 1;
 
-		seq_printf(s, "\n\t%s=%u",
-			   strip_prefix(cfg_params[i].property), val);
+		if (cfg_params[i].param == TEGRA_PINCONF_PARAM_FUNCTION) {
+			u8 idx = pmx->soc->groups[group].funcs[val];
+
+			seq_printf(s, "\n\t%s=%s",
+				   strip_prefix(cfg_params[i].property),
+					 pmx->functions[idx].name);
+		} else {
+			seq_printf(s, "\n\t%s=%u",
+				   strip_prefix(cfg_params[i].property), val);
+		}
 	}
 }
 
@@ -747,10 +762,7 @@ static int tegra_pinctrl_resume(struct device *dev)
 	return 0;
 }
 
-const struct dev_pm_ops tegra_pinctrl_pm = {
-	.suspend_noirq = &tegra_pinctrl_suspend,
-	.resume_noirq = &tegra_pinctrl_resume
-};
+DEFINE_NOIRQ_DEV_PM_OPS(tegra_pinctrl_pm, tegra_pinctrl_suspend, tegra_pinctrl_resume);
 
 static bool tegra_pinctrl_gpio_node_has_range(struct tegra_pmx *pmx)
 {

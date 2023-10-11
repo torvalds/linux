@@ -1191,19 +1191,6 @@ u16 hpi_adapter_set_mode_ex(u16 adapter_index, u32 adapter_mode,
 
 u16 hpi_adapter_get_mode(u16 adapter_index, u32 *padapter_mode);
 
-u16 hpi_adapter_get_assert2(u16 adapter_index, u16 *p_assert_count,
-	char *psz_assert, u32 *p_param1, u32 *p_param2,
-	u32 *p_dsp_string_addr, u16 *p_processor_id);
-
-u16 hpi_adapter_test_assert(u16 adapter_index, u16 assert_id);
-
-u16 hpi_adapter_enable_capability(u16 adapter_index, u16 capability, u32 key);
-
-u16 hpi_adapter_self_test(u16 adapter_index);
-
-u16 hpi_adapter_debug_read(u16 adapter_index, u32 dsp_address, char *p_bytes,
-	int *count_bytes);
-
 u16 hpi_adapter_set_property(u16 adapter_index, u16 property, u16 paramter1,
 	u16 paramter2);
 
@@ -1487,9 +1474,6 @@ u16 hpi_pad_get_comment(u32 h_control, char *psz_string,
 u16 hpi_pad_get_program_type(u32 h_control, u32 *ppTY);
 
 u16 hpi_pad_get_rdsPI(u32 h_control, u32 *ppI);
-
-u16 hpi_pad_get_program_type_string(u32 h_control, const u32 data_type,
-	const u32 pTY, char *psz_string, const u32 string_length);
 
 /****************************/
 /* AES/EBU Receiver control */

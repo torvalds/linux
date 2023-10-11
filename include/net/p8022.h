@@ -13,7 +13,4 @@ register_8022_client(unsigned char type,
 				 struct packet_type *pt,
 				 struct net_device *orig_dev));
 void unregister_8022_client(struct datalink_proto *proto);
-
-struct datalink_proto *make_8023_client(void);
-void destroy_8023_client(struct datalink_proto *dl);
 #endif

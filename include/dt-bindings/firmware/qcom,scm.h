@@ -2,17 +2,38 @@
 /*
  * Copyright (c) 2010-2015, 2018-2019 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_FIRMWARE_QCOM_SCM_H
 #define _DT_BINDINGS_FIRMWARE_QCOM_SCM_H
 
+#define QCOM_SCM_VMID_TZ		0x1
 #define QCOM_SCM_VMID_HLOS		0x3
 #define QCOM_SCM_VMID_SSC_Q6		0x5
 #define QCOM_SCM_VMID_ADSP_Q6		0x6
+#define QCOM_SCM_VMID_CP_TOUCH		0x8
+#define QCOM_SCM_VMID_CP_BITSTREAM	0x9
+#define QCOM_SCM_VMID_CP_PIXEL		0xA
+#define QCOM_SCM_VMID_CP_NON_PIXEL	0xB
+#define QCOM_SCM_VMID_CP_CAMERA		0xD
+#define QCOM_SCM_VMID_HLOS_FREE		0xE
 #define QCOM_SCM_VMID_MSS_MSA		0xF
+#define QCOM_SCM_VMID_MSS_NONMSA	0x10
+#define QCOM_SCM_VMID_CP_SEC_DISPLAY	0x11
+#define QCOM_SCM_VMID_CP_APP		0x12
+#define QCOM_SCM_VMID_LPASS		0x16
 #define QCOM_SCM_VMID_WLAN		0x18
 #define QCOM_SCM_VMID_WLAN_CE		0x19
+#define QCOM_SCM_VMID_CP_SPSS_SP	0x1A
+#define QCOM_SCM_VMID_CP_CAMERA_PREVIEW 0x1D
+#define QCOM_SCM_VMID_CDSP		0x1E
+#define QCOM_SCM_VMID_CP_SPSS_SP_SHARED 0x22
+#define QCOM_SCM_VMID_CP_SPSS_HLOS_SHARED 0x24
+#define QCOM_SCM_VMID_ADSP_HEAP		0x25
+#define QCOM_SCM_VMID_CP_CDSP		0x2A
 #define QCOM_SCM_VMID_NAV		0x2B
+#define QCOM_SCM_VMID_TVM		0x2D
+#define QCOM_SCM_VMID_OEMVM		0x31
 
 #endif

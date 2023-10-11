@@ -81,7 +81,7 @@
 
 #define MAX_MEM_RANGES 8
 
-static const char *gfxhub_client_ids[] = {
+static const char * const gfxhub_client_ids[] = {
 	"CB",
 	"DB",
 	"IA",
@@ -332,14 +332,12 @@ static const char *mmhub_client_ids_aldebaran[][2] = {
 	[384+0][1] = "OSS",
 };
 
-static const struct soc15_reg_golden golden_settings_mmhub_1_0_0[] =
-{
+static const struct soc15_reg_golden golden_settings_mmhub_1_0_0[] = {
 	SOC15_REG_GOLDEN_VALUE(MMHUB, 0, mmDAGB1_WRCLI2, 0x00000007, 0xfe5fe0fa),
 	SOC15_REG_GOLDEN_VALUE(MMHUB, 0, mmMMEA1_DRAM_WR_CLI2GRP_MAP0, 0x00000030, 0x55555565)
 };
 
-static const struct soc15_reg_golden golden_settings_athub_1_0_0[] =
-{
+static const struct soc15_reg_golden golden_settings_athub_1_0_0[] = {
 	SOC15_REG_GOLDEN_VALUE(ATHUB, 0, mmRPB_ARB_CNTL, 0x0000ff00, 0x00000800),
 	SOC15_REG_GOLDEN_VALUE(ATHUB, 0, mmRPB_ARB_CNTL2, 0x00ff00ff, 0x00080008)
 };
@@ -416,13 +414,14 @@ static const uint32_t ecc_umc_mcumc_ctrl_mask_addrs[] = {
 
 static int gmc_v9_0_ecc_interrupt_state(struct amdgpu_device *adev,
 		struct amdgpu_irq_src *src,
-		unsigned type,
+		unsigned int type,
 		enum amdgpu_interrupt_state state)
 {
 	u32 bits, i, tmp, reg;
 
 	/* Devices newer then VEGA10/12 shall have these programming
-	     sequences performed by PSP BL */
+	 * sequences performed by PSP BL
+	 */
 	if (adev->asic_type >= CHIP_VEGA20)
 		return 0;
 
@@ -466,7 +465,7 @@ static int gmc_v9_0_ecc_interrupt_state(struct amdgpu_device *adev,
 
 static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *src,
-					unsigned type,
+					unsigned int type,
 					enum amdgpu_interrupt_state state)
 {
 	struct amdgpu_vmhub *hub;
@@ -631,8 +630,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
 
 	dev_err(adev->dev,
-		"[%s] %s page fault (src_id:%u ring:%u vmid:%u "
-		"pasid:%u, for process %s pid %d thread %s pid %d)\n",
+		"[%s] %s page fault (src_id:%u ring:%u vmid:%u pasid:%u, for process %s pid %d thread %s pid %d)\n",
 		hub_name, retry_fault ? "retry" : "no-retry",
 		entry->src_id, entry->ring_id, entry->vmid,
 		entry->pasid, task_info.process_name, task_info.tgid,
@@ -816,7 +814,7 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 					uint32_t vmhub, uint32_t flush_type)
 {
 	bool use_semaphore = gmc_v9_0_use_invalidate_semaphore(adev, vmhub);
-	const unsigned eng = 17;
+	const unsigned int eng = 17;
 	u32 j, inv_req, inv_req2, tmp;
 	struct amdgpu_vmhub *hub;
 
@@ -1033,13 +1031,13 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 }
 
 static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
-					    unsigned vmid, uint64_t pd_addr)
+					    unsigned int vmid, uint64_t pd_addr)
 {
 	bool use_semaphore = gmc_v9_0_use_invalidate_semaphore(ring->adev, ring->vm_hub);
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_vmhub *hub = &adev->vmhub[ring->vm_hub];
 	uint32_t req = gmc_v9_0_get_invalidate_req(vmid, 0);
-	unsigned eng = ring->vm_inv_eng;
+	unsigned int eng = ring->vm_inv_eng;
 
 	/*
 	 * It may lose gpuvm invalidate acknowldege state across power-gating
@@ -1081,8 +1079,8 @@ static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 	return pd_addr;
 }
 
-static void gmc_v9_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
-					unsigned pasid)
+static void gmc_v9_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned int vmid,
+					unsigned int pasid)
 {
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t reg;
@@ -1373,10 +1371,10 @@ static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
 	}
 }
 
-static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
+static unsigned int gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 {
 	u32 d1vga_control = RREG32_SOC15(DCE, 0, mmD1VGA_CONTROL);
-	unsigned size;
+	unsigned int size;
 
 	/* TODO move to DC so GMC doesn't need to hard-code DCN registers */
 
@@ -1622,6 +1620,7 @@ static int gmc_v9_0_early_init(void *handle)
 	adev->gmc.private_aperture_start = 0x1000000000000000ULL;
 	adev->gmc.private_aperture_end =
 		adev->gmc.private_aperture_start + (4ULL << 30) - 1;
+	adev->gmc.noretry_flags = AMDGPU_VM_NORETRY_FLAGS_TF;
 
 	return 0;
 }
@@ -1999,6 +1998,19 @@ static int gmc_v9_0_init_mem_ranges(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void gmc_v9_4_3_init_vram_info(struct amdgpu_device *adev)
+{
+	static const u32 regBIF_BIOS_SCRATCH_4 = 0x50;
+	u32 vram_info;
+
+	if (!amdgpu_sriov_vf(adev)) {
+		vram_info = RREG32(regBIF_BIOS_SCRATCH_4);
+		adev->gmc.vram_vendor = vram_info & 0xF;
+	}
+	adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
+	adev->gmc.vram_width = 128 * 64;
+}
+
 static int gmc_v9_0_sw_init(void *handle)
 {
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0, dma_addr_bits;
@@ -2011,15 +2023,12 @@ static int gmc_v9_0_sw_init(void *handle)
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
-	if (!(adev->bios) || adev->gmc.is_app_apu) {
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) {
+		gmc_v9_4_3_init_vram_info(adev);
+	} else if (!adev->bios) {
 		if (adev->flags & AMD_IS_APU) {
-			if (adev->gmc.is_app_apu) {
-				adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
-				adev->gmc.vram_width = 128 * 64;
-			} else {
-				adev->gmc.vram_type = AMDGPU_VRAM_TYPE_DDR4;
-				adev->gmc.vram_width = 64 * 64;
-			}
+			adev->gmc.vram_type = AMDGPU_VRAM_TYPE_DDR4;
+			adev->gmc.vram_width = 64 * 64;
 		} else {
 			adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
 			adev->gmc.vram_width = 128 * 64;
@@ -2150,7 +2159,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	dma_addr_bits = adev->ip_versions[GC_HWIP][0] >= IP_VERSION(9, 4, 2) ? 48:44;
 	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(dma_addr_bits));
 	if (r) {
-		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
+		dev_warn(adev->dev, "amdgpu: No suitable DMA available.\n");
 		return r;
 	}
 	adev->need_swiotlb = drm_need_swiotlb(dma_addr_bits);
@@ -2304,7 +2313,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 		return r;
 
 	DRM_INFO("PCIE GART of %uM enabled.\n",
-		 (unsigned)(adev->gmc.gart_size >> 20));
+		 (unsigned int)(adev->gmc.gart_size >> 20));
 	if (adev->gmc.pdb0_bo)
 		DRM_INFO("PDB0 located at 0x%016llX\n",
 				(unsigned long long)amdgpu_bo_gpu_offset(adev->gmc.pdb0_bo));
@@ -2490,8 +2499,7 @@ const struct amd_ip_funcs gmc_v9_0_ip_funcs = {
 	.get_clockgating_state = gmc_v9_0_get_clockgating_state,
 };
 
-const struct amdgpu_ip_block_version gmc_v9_0_ip_block =
-{
+const struct amdgpu_ip_block_version gmc_v9_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_GMC,
 	.major = 9,
 	.minor = 0,

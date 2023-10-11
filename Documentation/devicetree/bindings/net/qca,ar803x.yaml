@@ -75,6 +75,7 @@ properties:
     description:
       Initial data for the VDDIO regulator. Set this to 1.5V or 1.8V.
     $ref: /schemas/regulator/regulator.yaml
+    unevaluatedProperties: false
 
   vddh-regulator:
     type: object
@@ -82,6 +83,7 @@ properties:
       Dummy subnode to model the external connection of the PHY VDDH
       regulator to VDDIO.
     $ref: /schemas/regulator/regulator.yaml
+    unevaluatedProperties: false
 
 unevaluatedProperties: false
 

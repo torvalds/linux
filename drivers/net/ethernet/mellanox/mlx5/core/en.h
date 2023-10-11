@@ -193,7 +193,7 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 {
 	return is_kdump_kernel() ?
 		MLX5E_MIN_NUM_CHANNELS :
-		min_t(int, mlx5_comp_vectors_count(mdev), MLX5E_MAX_NUM_CHANNELS);
+		min_t(int, mlx5_comp_vectors_max(mdev), MLX5E_MAX_NUM_CHANNELS);
 }
 
 /* The maximum WQE size can be retrieved by max_wqe_sz_sq in
@@ -917,7 +917,7 @@ struct mlx5e_priv {
 
 	const struct mlx5e_profile *profile;
 	void                      *ppriv;
-#ifdef CONFIG_MLX5_EN_MACSEC
+#ifdef CONFIG_MLX5_MACSEC
 	struct mlx5e_macsec       *macsec;
 #endif
 #ifdef CONFIG_MLX5_EN_IPSEC
@@ -1167,9 +1167,6 @@ int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key, u8 *hfunc);
 int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir, const u8 *key,
 		   const u8 hfunc);
-int mlx5e_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
-		    u32 *rule_locs);
-int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd);
 u32 mlx5e_ethtool_get_rxfh_key_size(struct mlx5e_priv *priv);
 u32 mlx5e_ethtool_get_rxfh_indir_size(struct mlx5e_priv *priv);
 int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,

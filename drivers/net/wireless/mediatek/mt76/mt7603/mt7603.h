@@ -64,7 +64,6 @@ struct mt7603_sta {
 
 	struct mt7603_vif *vif;
 
-	struct list_head poll_list;
 	u32 tx_airtime_ac[4];
 
 	struct sk_buff_head psq;
@@ -109,9 +108,6 @@ struct mt7603_dev {
 	const struct mt76_bus_ops *bus_ops;
 
 	u32 rxfilter;
-
-	struct list_head sta_poll_list;
-	spinlock_t sta_poll_lock;
 
 	struct mt7603_sta global_sta;
 
@@ -234,7 +230,7 @@ void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt7603_sta *sta,
 			bool enabled);
 void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt7603_sta *sta,
 			  bool enabled);
-void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort);
+void mt7603_filter_tx(struct mt7603_dev *dev, int mac_idx, int idx, bool abort);
 
 int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,

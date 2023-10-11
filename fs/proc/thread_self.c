@@ -46,7 +46,7 @@ int proc_setup_thread_self(struct super_block *s)
 		struct inode *inode = new_inode(s);
 		if (inode) {
 			inode->i_ino = thread_self_inum;
-			inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+			inode->i_mtime = inode->i_atime = inode_set_ctime_current(inode);
 			inode->i_mode = S_IFLNK | S_IRWXUGO;
 			inode->i_uid = GLOBAL_ROOT_UID;
 			inode->i_gid = GLOBAL_ROOT_GID;

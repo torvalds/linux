@@ -82,7 +82,7 @@ dr_ptrn_alloc_pattern(struct mlx5dr_ptrn_mgr *mgr,
 	u32 chunk_size;
 	u32 index;
 
-	chunk_size = ilog2(num_of_actions);
+	chunk_size = ilog2(roundup_pow_of_two(num_of_actions));
 	/* HW modify action index granularity is at least 64B */
 	chunk_size = max_t(u32, chunk_size, DR_CHUNK_SIZE_8);
 

@@ -51,11 +51,14 @@ Temporary Virtual Mappings
 The kernel contains several ways of creating temporary mappings. The following
 list shows them in order of preference of use.
 
-* kmap_local_page().  This function is used to require short term mappings.
-  It can be invoked from any context (including interrupts) but the mappings
-  can only be used in the context which acquired them.
+* kmap_local_page(), kmap_local_folio() - These functions are used to create
+  short term mappings. They can be invoked from any context (including
+  interrupts) but the mappings can only be used in the context which acquired
+  them. The only differences between them consist in the first taking a pointer
+  to a struct page and the second taking a pointer to struct folio and the byte
+  offset within the folio which identifies the page.
 
-  This function should always be used, whereas kmap_atomic() and kmap() have
+  These functions should always be used, whereas kmap_atomic() and kmap() have
   been deprecated.
 
   These mappings are thread-local and CPU-local, meaning that the mapping
@@ -72,17 +75,17 @@ list shows them in order of preference of use.
   maps of the outgoing task are saved and those of the incoming one are
   restored.
 
-  kmap_local_page() always returns a valid virtual address and it is assumed
-  that kunmap_local() will never fail.
+  kmap_local_page(), as well as kmap_local_folio() always returns valid virtual
+  kernel addresses and it is assumed that kunmap_local() will never fail.
 
-  On CONFIG_HIGHMEM=n kernels and for low memory pages this returns the
+  On CONFIG_HIGHMEM=n kernels and for low memory pages they return the
   virtual address of the direct mapping. Only real highmem pages are
   temporarily mapped. Therefore, users may call a plain page_address()
   for pages which are known to not come from ZONE_HIGHMEM. However, it is
-  always safe to use kmap_local_page() / kunmap_local().
+  always safe to use kmap_local_{page,folio}() / kunmap_local().
 
-  While it is significantly faster than kmap(), for the highmem case it
-  comes with restrictions about the pointers validity. Contrary to kmap()
+  While they are significantly faster than kmap(), for the highmem case they
+  come with restrictions about the pointers validity. Contrary to kmap()
   mappings, the local mappings are only valid in the context of the caller
   and cannot be handed to other contexts. This implies that users must
   be absolutely sure to keep the use of the return address local to the
@@ -91,7 +94,7 @@ list shows them in order of preference of use.
   Most code can be designed to use thread local mappings. User should
   therefore try to design their code to avoid the use of kmap() by mapping
   pages in the same thread the address will be used and prefer
-  kmap_local_page().
+  kmap_local_page() or kmap_local_folio().
 
   Nesting kmap_local_page() and kmap_atomic() mappings is allowed to a certain
   extent (up to KMAP_TYPE_NR) but their invocations have to be strictly ordered
@@ -206,4 +209,5 @@ Functions
 =========
 
 .. kernel-doc:: include/linux/highmem.h
+.. kernel-doc:: mm/highmem.c
 .. kernel-doc:: include/linux/highmem-internal.h

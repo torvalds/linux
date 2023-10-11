@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config NTFS_FS
 	tristate "NTFS file system support"
+	select BUFFER_HEAD
 	select NLS
 	help
 	  NTFS is the file system of Microsoft Windows NT, 2000, XP and 2003.

@@ -310,4 +310,6 @@ static struct pi_protocol on26 = {
 };
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
+MODULE_DESCRIPTION("Onspec 90c26 parallel port IDE adapter protocol driver");
 module_pata_parport_driver(on26);

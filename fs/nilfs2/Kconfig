@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config NILFS2_FS
 	tristate "NILFS2 file system support"
+	select BUFFER_HEAD
 	select CRC32
 	select LEGACY_DIRECT_IO
 	help

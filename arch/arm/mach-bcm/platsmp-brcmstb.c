@@ -10,8 +10,8 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/printk.h>
 #include <linux/regmap.h>
 #include <linux/smp.h>

@@ -2,6 +2,7 @@
 config BEFS_FS
 	tristate "BeOS file system (BeFS) support (read only)"
 	depends on BLOCK
+	select BUFFER_HEAD
 	select NLS
 	help
 	  The BeOS File System (BeFS) is the native file system of Be, Inc's

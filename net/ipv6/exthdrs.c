@@ -612,8 +612,6 @@ looped_back:
 
 	kfree(buf);
 
-	skb_dst_drop(skb);
-
 	ip6_route_input(skb);
 
 	if (skb_dst(skb)->error) {
@@ -650,7 +648,6 @@ static int ipv6_rthdr_rcv(struct sk_buff *skb)
 	struct inet6_dev *idev = __in6_dev_get(skb->dev);
 	struct inet6_skb_parm *opt = IP6CB(skb);
 	struct in6_addr *addr = NULL;
-	struct in6_addr daddr;
 	int n, i;
 	struct ipv6_rt_hdr *hdr;
 	struct rt0_hdr *rthdr;
@@ -798,9 +795,7 @@ looped_back:
 		return -1;
 	}
 
-	daddr = *addr;
-	*addr = ipv6_hdr(skb)->daddr;
-	ipv6_hdr(skb)->daddr = daddr;
+	swap(*addr, ipv6_hdr(skb)->daddr);
 
 	ip6_route_input(skb);
 	if (skb_dst(skb)->error) {

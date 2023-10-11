@@ -18,6 +18,7 @@
 #include "../libwx/wx_hw.h"
 #include "txgbe_type.h"
 #include "txgbe_phy.h"
+#include "txgbe_hw.h"
 
 static int txgbe_swnodes_register(struct txgbe *txgbe)
 {
@@ -26,7 +27,7 @@ static int txgbe_swnodes_register(struct txgbe *txgbe)
 	struct software_node *swnodes;
 	u32 id;
 
-	id = (pdev->bus->number << 8) | pdev->devfn;
+	id = pci_dev_id(pdev);
 
 	snprintf(nodes->gpio_name, sizeof(nodes->gpio_name), "txgbe_gpio-%x", id);
 	snprintf(nodes->i2c_name, sizeof(nodes->i2c_name), "txgbe_i2c-%x", id);
@@ -140,7 +141,7 @@ static int txgbe_mdio_pcs_init(struct txgbe *txgbe)
 	mii_bus->phy_mask = ~0;
 	mii_bus->priv = wx;
 	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "txgbe_pcs-%x",
-		 (pdev->bus->number << 8) | pdev->devfn);
+		 pci_dev_id(pdev));
 
 	ret = devm_mdiobus_register(&pdev->dev, mii_bus);
 	if (ret)
@@ -160,7 +161,10 @@ static struct phylink_pcs *txgbe_phylink_mac_select(struct phylink_config *confi
 {
 	struct txgbe *txgbe = netdev_to_txgbe(to_net_dev(config->dev));
 
-	return &txgbe->xpcs->pcs;
+	if (interface == PHY_INTERFACE_MODE_10GBASER)
+		return &txgbe->xpcs->pcs;
+
+	return NULL;
 }
 
 static void txgbe_mac_config(struct phylink_config *config, unsigned int mode,
@@ -210,8 +214,32 @@ static void txgbe_mac_link_up(struct phylink_config *config,
 	wr32(wx, WX_MAC_WDG_TIMEOUT, wdg);
 }
 
+static int txgbe_mac_prepare(struct phylink_config *config, unsigned int mode,
+			     phy_interface_t interface)
+{
+	struct wx *wx = netdev_priv(to_net_dev(config->dev));
+
+	wr32m(wx, WX_MAC_TX_CFG, WX_MAC_TX_CFG_TE, 0);
+	wr32m(wx, WX_MAC_RX_CFG, WX_MAC_RX_CFG_RE, 0);
+
+	return txgbe_disable_sec_tx_path(wx);
+}
+
+static int txgbe_mac_finish(struct phylink_config *config, unsigned int mode,
+			    phy_interface_t interface)
+{
+	struct wx *wx = netdev_priv(to_net_dev(config->dev));
+
+	txgbe_enable_sec_tx_path(wx);
+	wr32m(wx, WX_MAC_RX_CFG, WX_MAC_RX_CFG_RE, WX_MAC_RX_CFG_RE);
+
+	return 0;
+}
+
 static const struct phylink_mac_ops txgbe_mac_ops = {
 	.mac_select_pcs = txgbe_phylink_mac_select,
+	.mac_prepare = txgbe_mac_prepare,
+	.mac_finish = txgbe_mac_finish,
 	.mac_config = txgbe_mac_config,
 	.mac_link_down = txgbe_mac_link_down,
 	.mac_link_up = txgbe_mac_link_up,
@@ -219,8 +247,8 @@ static const struct phylink_mac_ops txgbe_mac_ops = {
 
 static int txgbe_phylink_init(struct txgbe *txgbe)
 {
+	struct fwnode_handle *fwnode = NULL;
 	struct phylink_config *config;
-	struct fwnode_handle *fwnode;
 	struct wx *wx = txgbe->wx;
 	phy_interface_t phy_mode;
 	struct phylink *phylink;
@@ -231,13 +259,33 @@ static int txgbe_phylink_init(struct txgbe *txgbe)
 
 	config->dev = &wx->netdev->dev;
 	config->type = PHYLINK_NETDEV;
-	config->mac_capabilities = MAC_10000FD | MAC_1000FD | MAC_SYM_PAUSE | MAC_ASYM_PAUSE;
-	phy_mode = PHY_INTERFACE_MODE_10GBASER;
-	__set_bit(PHY_INTERFACE_MODE_10GBASER, config->supported_interfaces);
-	fwnode = software_node_fwnode(txgbe->nodes.group[SWNODE_PHYLINK]);
+	config->mac_capabilities = MAC_10000FD | MAC_1000FD | MAC_100FD |
+				   MAC_SYM_PAUSE | MAC_ASYM_PAUSE;
+
+	if (wx->media_type == sp_media_copper) {
+		phy_mode = PHY_INTERFACE_MODE_XAUI;
+		__set_bit(PHY_INTERFACE_MODE_XAUI, config->supported_interfaces);
+	} else {
+		phy_mode = PHY_INTERFACE_MODE_10GBASER;
+		fwnode = software_node_fwnode(txgbe->nodes.group[SWNODE_PHYLINK]);
+		__set_bit(PHY_INTERFACE_MODE_10GBASER, config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_1000BASEX, config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_SGMII, config->supported_interfaces);
+	}
+
 	phylink = phylink_create(config, fwnode, phy_mode, &txgbe_mac_ops);
 	if (IS_ERR(phylink))
 		return PTR_ERR(phylink);
+
+	if (wx->phydev) {
+		int ret;
+
+		ret = phylink_connect_phy(phylink, wx->phydev);
+		if (ret) {
+			phylink_destroy(phylink);
+			return ret;
+		}
+	}
 
 	txgbe->phylink = phylink;
 
@@ -431,7 +479,8 @@ static void txgbe_irq_handler(struct irq_desc *desc)
 
 	chained_irq_exit(chip, desc);
 
-	if (eicr & (TXGBE_PX_MISC_ETH_LK | TXGBE_PX_MISC_ETH_LKDN)) {
+	if (eicr & (TXGBE_PX_MISC_ETH_LK | TXGBE_PX_MISC_ETH_LKDN |
+		    TXGBE_PX_MISC_ETH_AN)) {
 		u32 reg = rd32(wx, TXGBE_CFG_PORT_ST);
 
 		phylink_mac_change(txgbe->phylink, !!(reg & TXGBE_CFG_PORT_ST_LINK_UP));
@@ -459,7 +508,7 @@ static int txgbe_gpio_init(struct txgbe *txgbe)
 		return -ENOMEM;
 
 	gc->label = devm_kasprintf(dev, GFP_KERNEL, "txgbe_gpio-%x",
-				   (wx->pdev->bus->number << 8) | wx->pdev->devfn);
+				   pci_dev_id(wx->pdev));
 	if (!gc->label)
 		return -ENOMEM;
 
@@ -503,7 +552,7 @@ static int txgbe_clock_register(struct txgbe *txgbe)
 	struct clk *clk;
 
 	snprintf(clk_name, sizeof(clk_name), "i2c_designware.%d",
-		 (pdev->bus->number << 8) | pdev->devfn);
+		 pci_dev_id(pdev));
 
 	clk = clk_register_fixed_rate(NULL, clk_name, NULL, 0, 156250000);
 	if (IS_ERR(clk))
@@ -566,7 +615,7 @@ static int txgbe_i2c_register(struct txgbe *txgbe)
 	info.parent = &pdev->dev;
 	info.fwnode = software_node_fwnode(txgbe->nodes.group[SWNODE_I2C]);
 	info.name = "i2c_designware";
-	info.id = (pdev->bus->number << 8) | pdev->devfn;
+	info.id = pci_dev_id(pdev);
 
 	info.res = &DEFINE_RES_IRQ(pdev->irq);
 	info.num_res = 1;
@@ -588,7 +637,7 @@ static int txgbe_sfp_register(struct txgbe *txgbe)
 	info.parent = &pdev->dev;
 	info.fwnode = software_node_fwnode(txgbe->nodes.group[SWNODE_SFP]);
 	info.name = "sfp";
-	info.id = (pdev->bus->number << 8) | pdev->devfn;
+	info.id = pci_dev_id(pdev);
 	sfp_dev = platform_device_register_full(&info);
 	if (IS_ERR(sfp_dev))
 		return PTR_ERR(sfp_dev);
@@ -598,9 +647,116 @@ static int txgbe_sfp_register(struct txgbe *txgbe)
 	return 0;
 }
 
+static int txgbe_phy_read(struct mii_bus *bus, int phy_addr,
+			  int devnum, int regnum)
+{
+	struct wx *wx = bus->priv;
+	u32 val, command;
+	int ret;
+
+	/* setup and write the address cycle command */
+	command = WX_MSCA_RA(regnum) |
+		  WX_MSCA_PA(phy_addr) |
+		  WX_MSCA_DA(devnum);
+	wr32(wx, WX_MSCA, command);
+
+	command = WX_MSCC_CMD(WX_MSCA_CMD_READ) | WX_MSCC_BUSY;
+	wr32(wx, WX_MSCC, command);
+
+	/* wait to complete */
+	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
+				100000, false, wx, WX_MSCC);
+	if (ret) {
+		wx_err(wx, "Mdio read c45 command did not complete.\n");
+		return ret;
+	}
+
+	return (u16)rd32(wx, WX_MSCC);
+}
+
+static int txgbe_phy_write(struct mii_bus *bus, int phy_addr,
+			   int devnum, int regnum, u16 value)
+{
+	struct wx *wx = bus->priv;
+	int ret, command;
+	u16 val;
+
+	/* setup and write the address cycle command */
+	command = WX_MSCA_RA(regnum) |
+		  WX_MSCA_PA(phy_addr) |
+		  WX_MSCA_DA(devnum);
+	wr32(wx, WX_MSCA, command);
+
+	command = value | WX_MSCC_CMD(WX_MSCA_CMD_WRITE) | WX_MSCC_BUSY;
+	wr32(wx, WX_MSCC, command);
+
+	/* wait to complete */
+	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
+				100000, false, wx, WX_MSCC);
+	if (ret)
+		wx_err(wx, "Mdio write c45 command did not complete.\n");
+
+	return ret;
+}
+
+static int txgbe_ext_phy_init(struct txgbe *txgbe)
+{
+	struct phy_device *phydev;
+	struct mii_bus *mii_bus;
+	struct pci_dev *pdev;
+	struct wx *wx;
+	int ret = 0;
+
+	wx = txgbe->wx;
+	pdev = wx->pdev;
+
+	mii_bus = devm_mdiobus_alloc(&pdev->dev);
+	if (!mii_bus)
+		return -ENOMEM;
+
+	mii_bus->name = "txgbe_mii_bus";
+	mii_bus->read_c45 = &txgbe_phy_read;
+	mii_bus->write_c45 = &txgbe_phy_write;
+	mii_bus->parent = &pdev->dev;
+	mii_bus->phy_mask = GENMASK(31, 1);
+	mii_bus->priv = wx;
+	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "txgbe-%x",
+		 (pdev->bus->number << 8) | pdev->devfn);
+
+	ret = devm_mdiobus_register(&pdev->dev, mii_bus);
+	if (ret) {
+		wx_err(wx, "failed to register MDIO bus: %d\n", ret);
+		return ret;
+	}
+
+	phydev = phy_find_first(mii_bus);
+	if (!phydev) {
+		wx_err(wx, "no PHY found\n");
+		return -ENODEV;
+	}
+
+	phy_attached_info(phydev);
+
+	wx->link = 0;
+	wx->speed = 0;
+	wx->duplex = 0;
+	wx->phydev = phydev;
+
+	ret = txgbe_phylink_init(txgbe);
+	if (ret) {
+		wx_err(wx, "failed to init phylink: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 int txgbe_init_phy(struct txgbe *txgbe)
 {
 	int ret;
+
+	if (txgbe->wx->media_type == sp_media_copper)
+		return txgbe_ext_phy_init(txgbe);
 
 	ret = txgbe_swnodes_register(txgbe);
 	if (ret) {
@@ -663,6 +819,12 @@ err_unregister_swnode:
 
 void txgbe_remove_phy(struct txgbe *txgbe)
 {
+	if (txgbe->wx->media_type == sp_media_copper) {
+		phylink_disconnect_phy(txgbe->phylink);
+		phylink_destroy(txgbe->phylink);
+		return;
+	}
+
 	platform_device_unregister(txgbe->sfp_dev);
 	platform_device_unregister(txgbe->i2c_dev);
 	clkdev_drop(txgbe->clock);

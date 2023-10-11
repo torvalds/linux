@@ -452,7 +452,7 @@ struct gfs2_quota_data {
 	s64 qd_change_sync;
 
 	unsigned int qd_slot;
-	unsigned int qd_slot_count;
+	unsigned int qd_slot_ref;
 
 	struct buffer_head *qd_bh;
 	struct gfs2_quota_change *qd_bh_qc;
@@ -537,6 +537,7 @@ struct gfs2_statfs_change_host {
 #define GFS2_QUOTA_OFF		0
 #define GFS2_QUOTA_ACCOUNT	1
 #define GFS2_QUOTA_ON		2
+#define GFS2_QUOTA_QUIET	3 /* on but not complaining */
 
 #define GFS2_DATA_DEFAULT	GFS2_DATA_ORDERED
 #define GFS2_DATA_WRITEBACK	1
@@ -606,7 +607,7 @@ enum {
 	SDF_REMOTE_WITHDRAW	= 13, /* Performing remote recovery */
 	SDF_WITHDRAW_RECOVERY	= 14, /* Wait for journal recovery when we are
 					 withdrawing */
-	SDF_DEACTIVATING	= 15,
+	SDF_KILL		= 15,
 	SDF_EVICTING		= 16,
 	SDF_FROZEN		= 17,
 };
@@ -716,7 +717,7 @@ struct gfs2_sbd {
 	struct gfs2_glock *sd_rename_gl;
 	struct gfs2_glock *sd_freeze_gl;
 	struct work_struct sd_freeze_work;
-	wait_queue_head_t sd_glock_wait;
+	wait_queue_head_t sd_kill_wait;
 	wait_queue_head_t sd_async_glock_wait;
 	atomic_t sd_glock_disposal;
 	struct completion sd_locking_init;

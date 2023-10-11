@@ -1239,3 +1239,18 @@ int amdgpu_vcn_ras_sw_init(struct amdgpu_device *adev)
 
 	return 0;
 }
+
+int amdgpu_vcn_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
+			       enum AMDGPU_UCODE_ID ucode_id)
+{
+	struct amdgpu_firmware_info ucode = {
+		.ucode_id = (ucode_id ? ucode_id :
+			    (inst_idx ? AMDGPU_UCODE_ID_VCN1_RAM :
+					AMDGPU_UCODE_ID_VCN0_RAM)),
+		.mc_addr = adev->vcn.inst[inst_idx].dpg_sram_gpu_addr,
+		.ucode_size = ((uintptr_t)adev->vcn.inst[inst_idx].dpg_sram_curr_addr -
+			      (uintptr_t)adev->vcn.inst[inst_idx].dpg_sram_cpu_addr),
+	};
+
+	return psp_execute_ip_fw_load(&adev->psp, &ucode);
+}

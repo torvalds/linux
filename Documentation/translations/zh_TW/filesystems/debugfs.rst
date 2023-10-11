@@ -14,12 +14,12 @@ Debugfs
 	中文版維護者：羅楚成 Chucheng Luo <luochucheng@vivo.com>
 	中文版翻譯者：羅楚成 Chucheng Luo <luochucheng@vivo.com>
 	中文版校譯者: 羅楚成 Chucheng Luo <luochucheng@vivo.com>
-	繁體中文版校譯者: 胡皓文 Hu Haowen <src.res@email.cn>
+	繁體中文版校譯者: 胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 
 
 版權所有2020 羅楚成 <luochucheng@vivo.com>
-版權所有2021 胡皓文 Hu Haowen <src.res@email.cn>
+版權所有2021 胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 
 Debugfs是內核開發人員在用戶空間獲取信息的簡單方法。與/proc不同，proc只提供進程

@@ -37,3 +37,5 @@ rm -f .scmversion
 rm -rf include/ksym
 
 find . -name '*.usyms' | xargs rm -f
+
+rm -f binkernel.spec

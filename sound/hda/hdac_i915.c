@@ -11,11 +11,6 @@
 #include <sound/hda_i915.h>
 #include <sound/hda_register.h>
 
-#define IS_HSW_CONTROLLER(pci) (((pci)->device == 0x0a0c) || \
-				((pci)->device == 0x0c0c) || \
-				((pci)->device == 0x0d0c) || \
-				((pci)->device == 0x160c))
-
 /**
  * snd_hdac_i915_set_bclk - Reprogram BCLK for HSW/BDW
  * @bus: HDA core bus
@@ -39,7 +34,7 @@ void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
 
 	if (!acomp || !acomp->ops || !acomp->ops->get_cdclk_freq)
 		return; /* only for i915 binding */
-	if (!IS_HSW_CONTROLLER(pci))
+	if (!HDA_CONTROLLER_IS_HSW(pci))
 		return; /* only HSW/BDW */
 
 	cdclk_freq = acomp->ops->get_cdclk_freq(acomp->dev);
@@ -80,14 +75,20 @@ static bool connectivity_check(struct pci_dev *i915, struct pci_dev *hdac)
 	if (bus_a == bus_b)
 		return true;
 
+	bus_a = bus_a->parent;
+	bus_b = bus_b->parent;
+
+	/* connected via parent bus (may be NULL!) */
+	if (bus_a == bus_b)
+		return true;
+
+	if (!bus_a || !bus_b)
+		return false;
+
 	/*
 	 * on i915 discrete GPUs with embedded HDA audio, the two
 	 * devices are connected via 2nd level PCI bridge
 	 */
-	bus_a = bus_a->parent;
-	bus_b = bus_b->parent;
-	if (!bus_a || !bus_b)
-		return false;
 	bus_a = bus_a->parent;
 	bus_b = bus_b->parent;
 	if (bus_a && bus_a == bus_b)

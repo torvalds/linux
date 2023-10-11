@@ -57,7 +57,7 @@ struct intel_sdvo_caps {
 	u8 device_rev_id;
 	u8 sdvo_version_major;
 	u8 sdvo_version_minor;
-	unsigned int sdvo_inputs_mask:2;
+	unsigned int sdvo_num_inputs:2;
 	unsigned int smooth_scaling:1;
 	unsigned int sharp_scaling:1;
 	unsigned int up_scaling:1;

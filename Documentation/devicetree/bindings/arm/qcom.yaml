@@ -30,6 +30,7 @@ description: |
         apq8084
         apq8096
         ipq4018
+        ipq5018
         ipq5332
         ipq6018
         ipq8074
@@ -72,6 +73,7 @@ description: |
         sdx65
         sdx75
         sm4250
+        sm4450
         sm6115
         sm6115p
         sm6125
@@ -104,6 +106,7 @@ description: |
         hk10-c2
         idp
         liquid
+        rdp432-c2
         mtp
         qrd
         rb2
@@ -186,6 +189,7 @@ properties:
 
       - items:
           - enum:
+              - samsung,a7
               - sony,kanuti-tulip
               - square,apq8039-t2
           - const: qcom,msm8939
@@ -338,6 +342,11 @@ properties:
               - qcom,ipq4019-ap-dk07.1-c2
               - qcom,ipq4019-dk04.1-c1
           - const: qcom,ipq4019
+
+      - items:
+          - enum:
+              - qcom,ipq5018-rdp432-c2
+          - const: qcom,ipq5018
 
       - items:
           - enum:
@@ -901,6 +910,11 @@ properties:
               - qcom,qrb4210-rb2
           - const: qcom,qrb4210
           - const: qcom,sm4250
+
+      - items:
+          - enum:
+              - qcom,sm4450-qrd
+          - const: qcom,sm4450
 
       - items:
           - enum:

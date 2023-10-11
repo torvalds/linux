@@ -200,18 +200,7 @@ static struct miscdevice miscdev = {
 	.mode = 0600,
 };
 
-static int __init virtual_ncidev_init(void)
-{
-	return misc_register(&miscdev);
-}
-
-static void __exit virtual_ncidev_exit(void)
-{
-	misc_deregister(&miscdev);
-}
-
-module_init(virtual_ncidev_init);
-module_exit(virtual_ncidev_exit);
+module_misc_device(miscdev);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Virtual NCI device simulation driver");

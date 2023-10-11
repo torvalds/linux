@@ -47,6 +47,20 @@ static const struct config_entry config_table[] = {
 			{}
 		},
 	},
+	{
+		.flags = FLAG_AMD_SOF,
+		.device = ACP_PCI_DEV_ID,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Valve"),
+					DMI_MATCH(DMI_PRODUCT_NAME, "Galileo"),
+					DMI_MATCH(DMI_PRODUCT_FAMILY, "Sephiroth"),
+				},
+			},
+			{}
+		},
+	},
 };
 
 int snd_amd_acp_find_config(struct pci_dev *pci)
@@ -80,6 +94,11 @@ static struct snd_soc_acpi_codecs amp_rt1019 = {
 static struct snd_soc_acpi_codecs amp_max = {
 	.num_codecs = 1,
 	.codecs = {"MX98360A"}
+};
+
+static struct snd_soc_acpi_codecs amp_max98388 = {
+	.num_codecs = 1,
+	.codecs = {"ADS8388"}
 };
 
 struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[] = {
@@ -129,6 +148,20 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[] = {
 	{},
 };
 EXPORT_SYMBOL(snd_soc_acpi_amd_sof_machines);
+
+struct snd_soc_acpi_mach snd_soc_acpi_amd_vangogh_sof_machines[] = {
+	{
+		.id = "NVTN2020",
+		.drv_name = "nau8821-max",
+		.pdata = &acp_quirk_data,
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &amp_max98388,
+		.fw_filename = "sof-vangogh.ri",
+		.sof_tplg_filename = "sof-vangogh-nau8821-max.tplg",
+	},
+	{},
+};
+EXPORT_SYMBOL(snd_soc_acpi_amd_vangogh_sof_machines);
 
 struct snd_soc_acpi_mach snd_soc_acpi_amd_rmb_sof_machines[] = {
 	{

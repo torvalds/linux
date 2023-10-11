@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rockchip,rv1126-cru.h>
 #include "clk.h"
@@ -175,6 +175,7 @@ PNAME(mux_i2s2_p)			= { "mclk_i2s2_div", "mclk_i2s2_fracdiv", "i2s2_mclkin", "xi
 PNAME(mux_i2s2_out2io_p)		= { "mclk_i2s2", "xin12m" };
 PNAME(mux_gpll_cpll_xin24m_p)		= { "gpll", "cpll", "xin24m" };
 PNAME(mux_audpwm_p)			= { "sclk_audpwm_div", "sclk_audpwm_fracdiv", "xin24m" };
+PNAME(mux_dclk_vop_p)			= { "dclk_vop_div", "dclk_vop_fracdiv", "xin24m" };
 PNAME(mux_usb480m_gpll_p)		= { "usb480m", "gpll" };
 PNAME(clk_gmac_src_m0_p)		= { "clk_gmac_div", "clk_gmac_rgmii_m0" };
 PNAME(clk_gmac_src_m1_p)		= { "clk_gmac_div", "clk_gmac_rgmii_m1" };
@@ -258,6 +259,10 @@ static struct rockchip_clk_branch rv1126_i2s2_fracmux __initdata =
 static struct rockchip_clk_branch rv1126_audpwm_fracmux __initdata =
 	MUX(SCLK_AUDPWM_MUX, "mclk_audpwm_mux", mux_audpwm_p, CLK_SET_RATE_PARENT,
 			RV1126_CLKSEL_CON(36), 8, 2, MFLAGS);
+
+static struct rockchip_clk_branch rv1126_dclk_vop_fracmux __initdata =
+	MUX(DCLK_VOP_MUX, "dclk_vop_mux", mux_dclk_vop_p, CLK_SET_RATE_PARENT,
+	    RV1126_CLKSEL_CON(47), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rv1126_clk_pmu_branches[] __initdata = {
 	/*
@@ -715,6 +720,49 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 			RV1126_CLKGATE_CON(11), 1, GFLAGS),
 
 	/*
+	 * Clock-Architecture Diagram 9
+	 */
+	/* PD_VO */
+	COMPOSITE(ACLK_PDVO, "aclk_pdvo", mux_gpll_cpll_p, 0,
+		  RV1126_CLKSEL_CON(45), 7, 1, MFLAGS, 0, 5, DFLAGS,
+		  RV1126_CLKGATE_CON(14), 0, GFLAGS),
+	COMPOSITE_NOMUX(HCLK_PDVO, "hclk_pdvo", "aclk_pdvo", 0,
+			RV1126_CLKSEL_CON(45), 8, 5, DFLAGS,
+			RV1126_CLKGATE_CON(14), 1, GFLAGS),
+	COMPOSITE_NOMUX(PCLK_PDVO, "pclk_pdvo", "aclk_pdvo", 0,
+			RV1126_CLKSEL_CON(46), 8, 5, DFLAGS,
+			RV1126_CLKGATE_CON(14), 2, GFLAGS),
+	GATE(ACLK_RGA, "aclk_rga", "aclk_pdvo", 0,
+	     RV1126_CLKGATE_CON(14), 6, GFLAGS),
+	GATE(HCLK_RGA, "hclk_rga", "hclk_pdvo", 0,
+	     RV1126_CLKGATE_CON(14), 7, GFLAGS),
+	COMPOSITE(CLK_RGA_CORE, "clk_rga_core", mux_gpll_cpll_p, 0,
+		  RV1126_CLKSEL_CON(46), 7, 1, MFLAGS, 0, 5, DFLAGS,
+		  RV1126_CLKGATE_CON(14), 8, GFLAGS),
+	GATE(ACLK_VOP, "aclk_vop", "aclk_pdvo", 0,
+	     RV1126_CLKGATE_CON(14), 9, GFLAGS),
+	GATE(HCLK_VOP, "hclk_vop", "hclk_pdvo", 0,
+	     RV1126_CLKGATE_CON(14), 10, GFLAGS),
+	COMPOSITE(DCLK_VOP_DIV, "dclk_vop_div", mux_gpll_cpll_p, 0,
+		  RV1126_CLKSEL_CON(47), 8, 1, MFLAGS, 0, 8, DFLAGS,
+		  RV1126_CLKGATE_CON(14), 11, GFLAGS),
+	COMPOSITE_FRACMUX(DCLK_VOP_FRACDIV, "dclk_vop_fracdiv", "dclk_vop_div",
+			  CLK_SET_RATE_PARENT, RV1126_CLKSEL_CON(48), 0,
+			  RV1126_CLKGATE_CON(14), 12, GFLAGS,
+			  &rv1126_dclk_vop_fracmux),
+	GATE(DCLK_VOP, "dclk_vop", "dclk_vop_mux", 0,
+	     RV1126_CLKGATE_CON(14), 13, GFLAGS),
+	GATE(PCLK_DSIHOST, "pclk_dsihost", "pclk_pdvo", 0,
+	     RV1126_CLKGATE_CON(14), 14, GFLAGS),
+	GATE(ACLK_IEP, "aclk_iep", "aclk_pdvo", 0,
+	     RV1126_CLKGATE_CON(12), 7, GFLAGS),
+	GATE(HCLK_IEP, "hclk_iep", "hclk_pdvo", 0,
+	     RV1126_CLKGATE_CON(12), 8, GFLAGS),
+	COMPOSITE(CLK_IEP_CORE, "clk_iep_core", mux_gpll_cpll_p, 0,
+		  RV1126_CLKSEL_CON(54), 7, 1, MFLAGS, 0, 5, DFLAGS,
+		  RV1126_CLKGATE_CON(12), 9, GFLAGS),
+
+	/*
 	 * Clock-Architecture Diagram 12
 	 */
 	/* PD_PHP */
@@ -904,6 +952,17 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 			RV1126_CLKGATE_CON(9), 2, GFLAGS),
 	GATE(0, "pclk_pdaudio_niu", "hclk_pdaudio", CLK_IGNORE_UNUSED,
 			RV1126_CLKGATE_CON(9), 3, GFLAGS),
+
+	/*
+	 * Clock-Architecture Diagram 9
+	 */
+	/* PD_VO */
+	GATE(0, "aclk_pdvo_niu", "aclk_pdvo", CLK_IGNORE_UNUSED,
+	     RV1126_CLKGATE_CON(14), 3, GFLAGS),
+	GATE(0, "hclk_pdvo_niu", "hclk_pdvo", CLK_IGNORE_UNUSED,
+	     RV1126_CLKGATE_CON(14), 4, GFLAGS),
+	GATE(0, "pclk_pdvo_niu", "pclk_pdvo", CLK_IGNORE_UNUSED,
+	     RV1126_CLKGATE_CON(14), 5, GFLAGS),
 
 	/*
 	 * Clock-Architecture Diagram 12

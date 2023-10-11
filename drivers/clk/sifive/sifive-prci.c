@@ -7,7 +7,7 @@
 #include <linux/clkdev.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include "sifive-prci.h"
 #include "fu540-prci.h"
 #include "fu740-prci.h"

@@ -729,7 +729,7 @@ size_t perf_event__fprintf_stat_round(union perf_event *event, FILE *fp)
 
 size_t perf_event__fprintf_stat_config(union perf_event *event, FILE *fp)
 {
-	struct perf_stat_config sc;
+	struct perf_stat_config sc = {};
 	size_t ret;
 
 	perf_event__read_stat_config(&sc, &event->stat_config);

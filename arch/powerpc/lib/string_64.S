@@ -6,10 +6,10 @@
  * Author: Anton Blanchard <anton@au.ibm.com>
  */
 
+#include <linux/export.h>
 #include <asm/ppc_asm.h>
 #include <asm/linkage.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 
 /**
  * __arch_clear_user: - Zero a block of memory in user space, with less checking.

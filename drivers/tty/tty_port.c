@@ -20,47 +20,45 @@
 #include <linux/serdev.h>
 #include "tty.h"
 
-static int tty_port_default_receive_buf(struct tty_port *port,
-					const unsigned char *p,
-					const unsigned char *f, size_t count)
+static size_t tty_port_default_receive_buf(struct tty_port *port, const u8 *p,
+					   const u8 *f, size_t count)
 {
-	int ret;
 	struct tty_struct *tty;
-	struct tty_ldisc *disc;
+	struct tty_ldisc *ld;
 
 	tty = READ_ONCE(port->itty);
 	if (!tty)
 		return 0;
 
-	disc = tty_ldisc_ref(tty);
-	if (!disc)
+	ld = tty_ldisc_ref(tty);
+	if (!ld)
 		return 0;
 
-	ret = tty_ldisc_receive_buf(disc, p, (char *)f, count);
+	count = tty_ldisc_receive_buf(ld, p, f, count);
 
-	tty_ldisc_deref(disc);
+	tty_ldisc_deref(ld);
 
-	return ret;
+	return count;
 }
 
-static void tty_port_default_lookahead_buf(struct tty_port *port, const unsigned char *p,
-					   const unsigned char *f, unsigned int count)
+static void tty_port_default_lookahead_buf(struct tty_port *port, const u8 *p,
+					   const u8 *f, size_t count)
 {
 	struct tty_struct *tty;
-	struct tty_ldisc *disc;
+	struct tty_ldisc *ld;
 
 	tty = READ_ONCE(port->itty);
 	if (!tty)
 		return;
 
-	disc = tty_ldisc_ref(tty);
-	if (!disc)
+	ld = tty_ldisc_ref(tty);
+	if (!ld)
 		return;
 
-	if (disc->ops->lookahead_buf)
-		disc->ops->lookahead_buf(disc->tty, p, f, count);
+	if (ld->ops->lookahead_buf)
+		ld->ops->lookahead_buf(ld->tty, p, f, count);
 
-	tty_ldisc_deref(disc);
+	tty_ldisc_deref(ld);
 }
 
 static void tty_port_default_wakeup(struct tty_port *port)

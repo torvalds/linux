@@ -11,8 +11,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/power_supply.h>
 #include <linux/notifier.h>

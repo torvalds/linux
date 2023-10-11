@@ -22,8 +22,8 @@ static int __init load_ipl_certs(void)
 
 	if (!ipl_cert_list_addr)
 		return 0;
-	/* Copy the certificates to the system keyring */
-	ptr = (void *) ipl_cert_list_addr;
+	/* Copy the certificates to the platform keyring */
+	ptr = __va(ipl_cert_list_addr);
 	end = ptr + ipl_cert_list_size;
 	while ((void *) ptr < end) {
 		len = *(unsigned int *) ptr;

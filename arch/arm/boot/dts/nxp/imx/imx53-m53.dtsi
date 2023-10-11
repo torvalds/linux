@@ -15,28 +15,20 @@
 		      <0xb0000000 0x20000000>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	reg_3p2v: regulator-3p2v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P2V";
+		regulator-min-microvolt = <3200000>;
+		regulator-max-microvolt = <3200000>;
+		regulator-always-on;
+	};
 
-		reg_3p2v: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "3P2V";
-			regulator-min-microvolt = <3200000>;
-			regulator-max-microvolt = <3200000>;
-			regulator-always-on;
-		};
-
-		reg_backlight: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "lcd-supply";
-			regulator-min-microvolt = <3200000>;
-			regulator-max-microvolt = <3200000>;
-			regulator-always-on;
-		};
+	reg_backlight: regulator-backlight {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd-supply";
+		regulator-min-microvolt = <3200000>;
+		regulator-max-microvolt = <3200000>;
+		regulator-always-on;
 	};
 };
 

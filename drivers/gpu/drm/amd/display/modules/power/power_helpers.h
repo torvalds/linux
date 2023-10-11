@@ -53,6 +53,8 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 		struct dmcu_iram_parameters params,
 		unsigned int inst);
 
+void init_replay_config(struct dc_link *link, struct replay_config *pr_config);
+
 bool is_psr_su_specific_panel(struct dc_link *link);
 void mod_power_calc_psr_configs(struct psr_config *psr_config,
 		struct dc_link *link,

@@ -1582,7 +1582,8 @@ found:
 		if (fa->fa_dscp &&
 		    inet_dscp_to_dsfield(fa->fa_dscp) != flp->flowi4_tos)
 			continue;
-		if (fi->fib_dead)
+		/* Paired with WRITE_ONCE() in fib_release_info() */
+		if (READ_ONCE(fi->fib_dead))
 			continue;
 		if (fa->fa_info->fib_scope < flp->flowi4_scope)
 			continue;

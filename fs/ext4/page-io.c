@@ -184,7 +184,7 @@ static int ext4_end_io_end(ext4_io_end_t *io_end)
 
 	io_end->handle = NULL;	/* Following call will use up the handle */
 	ret = ext4_convert_unwritten_io_end_vec(handle, io_end);
-	if (ret < 0 && !ext4_forced_shutdown(EXT4_SB(inode->i_sb))) {
+	if (ret < 0 && !ext4_forced_shutdown(inode->i_sb)) {
 		ext4_msg(inode->i_sb, KERN_EMERG,
 			 "failed to convert unwritten extents to written "
 			 "extents -- potential data loss!  "

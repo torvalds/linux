@@ -127,17 +127,23 @@ static int mlx5_fw_reset_get_reset_state_err(struct mlx5_core_dev *dev,
 	if (mlx5_reg_mfrl_query(dev, NULL, NULL, &reset_state))
 		goto out;
 
+	if (!reset_state)
+		return 0;
+
 	switch (reset_state) {
 	case MLX5_MFRL_REG_RESET_STATE_IN_NEGOTIATION:
 	case MLX5_MFRL_REG_RESET_STATE_RESET_IN_PROGRESS:
-		NL_SET_ERR_MSG_MOD(extack, "Sync reset was already triggered");
+		NL_SET_ERR_MSG_MOD(extack, "Sync reset still in progress");
 		return -EBUSY;
-	case MLX5_MFRL_REG_RESET_STATE_TIMEOUT:
-		NL_SET_ERR_MSG_MOD(extack, "Sync reset got timeout");
+	case MLX5_MFRL_REG_RESET_STATE_NEG_TIMEOUT:
+		NL_SET_ERR_MSG_MOD(extack, "Sync reset negotiation timeout");
 		return -ETIMEDOUT;
 	case MLX5_MFRL_REG_RESET_STATE_NACK:
 		NL_SET_ERR_MSG_MOD(extack, "One of the hosts disabled reset");
 		return -EPERM;
+	case MLX5_MFRL_REG_RESET_STATE_UNLOAD_TIMEOUT:
+		NL_SET_ERR_MSG_MOD(extack, "Sync reset unload timeout");
+		return -ETIMEDOUT;
 	}
 
 out:
@@ -151,7 +157,7 @@ int mlx5_fw_reset_set_reset_sync(struct mlx5_core_dev *dev, u8 reset_type_sel,
 	struct mlx5_fw_reset *fw_reset = dev->priv.fw_reset;
 	u32 out[MLX5_ST_SZ_DW(mfrl_reg)] = {};
 	u32 in[MLX5_ST_SZ_DW(mfrl_reg)] = {};
-	int err;
+	int err, rst_res;
 
 	set_bit(MLX5_FW_RESET_FLAGS_PENDING_COMP, &fw_reset->reset_flags);
 
@@ -164,11 +170,32 @@ int mlx5_fw_reset_set_reset_sync(struct mlx5_core_dev *dev, u8 reset_type_sel,
 		return 0;
 
 	clear_bit(MLX5_FW_RESET_FLAGS_PENDING_COMP, &fw_reset->reset_flags);
-	if (err == -EREMOTEIO && MLX5_CAP_MCAM_FEATURE(dev, reset_state))
-		return mlx5_fw_reset_get_reset_state_err(dev, extack);
+	if (err == -EREMOTEIO && MLX5_CAP_MCAM_FEATURE(dev, reset_state)) {
+		rst_res = mlx5_fw_reset_get_reset_state_err(dev, extack);
+		return rst_res ? rst_res : err;
+	}
 
 	NL_SET_ERR_MSG_MOD(extack, "Sync reset command failed");
 	return mlx5_cmd_check(dev, err, in, out);
+}
+
+int mlx5_fw_reset_verify_fw_complete(struct mlx5_core_dev *dev,
+				     struct netlink_ext_ack *extack)
+{
+	u8 rst_state;
+	int err;
+
+	err = mlx5_fw_reset_get_reset_state_err(dev, extack);
+	if (err)
+		return err;
+
+	rst_state = mlx5_get_fw_rst_state(dev);
+	if (!rst_state)
+		return 0;
+
+	mlx5_core_err(dev, "Sync reset did not complete, state=%d\n", rst_state);
+	NL_SET_ERR_MSG_MOD(extack, "Sync reset did not complete successfully");
+	return rst_state;
 }
 
 int mlx5_fw_reset_set_live_patch(struct mlx5_core_dev *dev)
@@ -311,7 +338,7 @@ static int mlx5_check_dev_ids(struct mlx5_core_dev *dev, u16 dev_id)
 	list_for_each_entry(sdev, &bridge_bus->devices, bus_list) {
 		err = pci_read_config_word(sdev, PCI_DEVICE_ID, &sdev_id);
 		if (err)
-			return err;
+			return pcibios_err_to_errno(err);
 		if (sdev_id != dev_id) {
 			mlx5_core_warn(dev, "unrecognized dev_id (0x%x)\n", sdev_id);
 			return -EPERM;
@@ -371,7 +398,7 @@ static int mlx5_pci_link_toggle(struct mlx5_core_dev *dev)
 
 	err = pci_read_config_word(dev->pdev, PCI_DEVICE_ID, &dev_id);
 	if (err)
-		return err;
+		return pcibios_err_to_errno(err);
 	err = mlx5_check_dev_ids(dev, dev_id);
 	if (err)
 		return err;
@@ -384,18 +411,13 @@ static int mlx5_pci_link_toggle(struct mlx5_core_dev *dev)
 		pci_cfg_access_lock(sdev);
 	}
 	/* PCI link toggle */
-	err = pci_read_config_word(bridge, cap + PCI_EXP_LNKCTL, &reg16);
+	err = pcie_capability_set_word(bridge, PCI_EXP_LNKCTL, PCI_EXP_LNKCTL_LD);
 	if (err)
-		return err;
-	reg16 |= PCI_EXP_LNKCTL_LD;
-	err = pci_write_config_word(bridge, cap + PCI_EXP_LNKCTL, reg16);
-	if (err)
-		return err;
+		return pcibios_err_to_errno(err);
 	msleep(500);
-	reg16 &= ~PCI_EXP_LNKCTL_LD;
-	err = pci_write_config_word(bridge, cap + PCI_EXP_LNKCTL, reg16);
+	err = pcie_capability_clear_word(bridge, PCI_EXP_LNKCTL, PCI_EXP_LNKCTL_LD);
 	if (err)
-		return err;
+		return pcibios_err_to_errno(err);
 
 	/* Check link */
 	if (!bridge->link_active_reporting) {
@@ -408,7 +430,7 @@ static int mlx5_pci_link_toggle(struct mlx5_core_dev *dev)
 	do {
 		err = pci_read_config_word(bridge, cap + PCI_EXP_LNKSTA, &reg16);
 		if (err)
-			return err;
+			return pcibios_err_to_errno(err);
 		if (reg16 & PCI_EXP_LNKSTA_DLLLA)
 			break;
 		msleep(20);
@@ -426,7 +448,7 @@ static int mlx5_pci_link_toggle(struct mlx5_core_dev *dev)
 	do {
 		err = pci_read_config_word(dev->pdev, PCI_DEVICE_ID, &reg16);
 		if (err)
-			return err;
+			return pcibios_err_to_errno(err);
 		if (reg16 == dev_id)
 			break;
 		msleep(20);

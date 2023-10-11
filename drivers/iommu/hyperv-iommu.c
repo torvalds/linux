@@ -51,7 +51,7 @@ static int hyperv_ir_set_affinity(struct irq_data *data,
 	if (ret < 0 || ret == IRQ_SET_MASK_OK_DONE)
 		return ret;
 
-	send_cleanup_vector(cfg);
+	vector_schedule_cleanup(cfg);
 
 	return 0;
 }
@@ -257,7 +257,7 @@ static int hyperv_root_ir_set_affinity(struct irq_data *data,
 	if (ret < 0 || ret == IRQ_SET_MASK_OK_DONE)
 		return ret;
 
-	send_cleanup_vector(cfg);
+	vector_schedule_cleanup(cfg);
 
 	return 0;
 }

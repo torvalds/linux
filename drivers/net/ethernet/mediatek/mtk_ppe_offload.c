@@ -193,7 +193,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
 	if (mtk_flow_get_wdma_info(dev, dest_mac, &info) == 0) {
 		mtk_foe_entry_set_wdma(eth, foe, info.wdma_idx, info.queue,
 				       info.bss, info.wcid);
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+		if (mtk_is_netsys_v2_or_greater(eth)) {
 			switch (info.wdma_idx) {
 			case 0:
 				pse_port = 8;
@@ -214,9 +214,11 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
 	dsa_port = mtk_flow_get_dsa_port(&dev);
 
 	if (dev == eth->netdev[0])
-		pse_port = 1;
+		pse_port = PSE_GDM1_PORT;
 	else if (dev == eth->netdev[1])
-		pse_port = 2;
+		pse_port = PSE_GDM2_PORT;
+	else if (dev == eth->netdev[2])
+		pse_port = PSE_GDM3_PORT;
 	else
 		return -EOPNOTSUPP;
 

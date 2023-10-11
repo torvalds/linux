@@ -618,13 +618,13 @@ static int hisi_ptt_notifier_call(struct notifier_block *nb, unsigned long actio
 	if (!root_port)
 		return 0;
 
-	port_devid = PCI_DEVID(root_port->bus->number, root_port->devfn);
+	port_devid = pci_dev_id(root_port);
 	if (port_devid < hisi_ptt->lower_bdf ||
 	    port_devid > hisi_ptt->upper_bdf)
 		return 0;
 
 	info.is_port = pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT;
-	info.devid = PCI_DEVID(pdev->bus->number, pdev->devfn);
+	info.devid = pci_dev_id(pdev);
 
 	switch (action) {
 	case BUS_NOTIFY_ADD_DEVICE:
@@ -664,7 +664,7 @@ static int hisi_ptt_init_filters(struct pci_dev *pdev, void *data)
 	if (!root_port)
 		return 0;
 
-	port_devid = PCI_DEVID(root_port->bus->number, root_port->devfn);
+	port_devid = pci_dev_id(root_port);
 	if (port_devid < hisi_ptt->lower_bdf ||
 	    port_devid > hisi_ptt->upper_bdf)
 		return 0;
@@ -674,7 +674,7 @@ static int hisi_ptt_init_filters(struct pci_dev *pdev, void *data)
 	 * should be partial initialized and users would know which filter fails
 	 * through the log. Other functions of PTT device are still available.
 	 */
-	filter = hisi_ptt_alloc_add_filter(hisi_ptt, PCI_DEVID(pdev->bus->number, pdev->devfn),
+	filter = hisi_ptt_alloc_add_filter(hisi_ptt, pci_dev_id(pdev),
 					    pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT);
 	if (!filter)
 		return -ENOMEM;

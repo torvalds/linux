@@ -412,7 +412,6 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 	struct map_info *map;
 	struct mtd_info *mtd;
 	struct resource *add_range;
-	struct resource *control_regs;
 	struct pcm_int_data *pcm_data;
 
 	/* Allocate memory control_regs data structures */
@@ -452,8 +451,7 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 
 	simple_map_init(map);	/* fill with default methods */
 
-	control_regs = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	pcm_data->ctl_regs = devm_ioremap_resource(&pdev->dev, control_regs);
+	pcm_data->ctl_regs = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(pcm_data->ctl_regs))
 		return PTR_ERR(pcm_data->ctl_regs);
 

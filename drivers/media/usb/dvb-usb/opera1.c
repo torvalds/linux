@@ -439,9 +439,14 @@ MODULE_DEVICE_TABLE(usb, opera1_table);
 
 static int opera1_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 {
+	int ret;
 	u8 command[] = { READ_MAC_ADDR };
-	opera1_xilinx_rw(d->udev, 0xb1, 0xa0, command, 1, OPERA_WRITE_MSG);
-	opera1_xilinx_rw(d->udev, 0xb1, 0xa1, mac, 6, OPERA_READ_MSG);
+	ret = opera1_xilinx_rw(d->udev, 0xb1, 0xa0, command, 1, OPERA_WRITE_MSG);
+	if (ret)
+		return ret;
+	ret = opera1_xilinx_rw(d->udev, 0xb1, 0xa1, mac, 6, OPERA_READ_MSG);
+	if (ret)
+		return ret;
 	return 0;
 }
 static int opera1_xilinx_load_firmware(struct usb_device *dev,

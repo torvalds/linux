@@ -18,6 +18,7 @@
 #include <net/sock.h>
 #include <net/handshake.h>
 #include <net/genetlink.h>
+#include <net/tls_prot.h>
 
 #include <uapi/linux/keyctl.h>
 #include <uapi/linux/handshake.h>
@@ -99,6 +100,9 @@ static void tls_handshake_done(struct handshake_req *req,
 	treq->th_peerid[0] = TLS_NO_PEERID;
 	if (info)
 		tls_handshake_remote_peerids(treq, info);
+
+	if (!status)
+		set_bit(HANDSHAKE_F_REQ_SESSION, &req->hr_flags);
 
 	treq->th_consumer_done(treq->th_consumer_data, -status,
 			       treq->th_peerid[0]);
@@ -424,3 +428,22 @@ bool tls_handshake_cancel(struct sock *sk)
 	return handshake_req_cancel(sk);
 }
 EXPORT_SYMBOL(tls_handshake_cancel);
+
+/**
+ * tls_handshake_close - send a Closure alert
+ * @sock: an open socket
+ *
+ */
+void tls_handshake_close(struct socket *sock)
+{
+	struct handshake_req *req;
+
+	req = handshake_req_hash_lookup(sock->sk);
+	if (!req)
+		return;
+	if (!test_and_clear_bit(HANDSHAKE_F_REQ_SESSION, &req->hr_flags))
+		return;
+	tls_alert_send(sock, TLS_ALERT_LEVEL_WARNING,
+		       TLS_ALERT_DESC_CLOSE_NOTIFY);
+}
+EXPORT_SYMBOL(tls_handshake_close);

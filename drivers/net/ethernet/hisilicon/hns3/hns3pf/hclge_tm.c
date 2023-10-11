@@ -785,6 +785,7 @@ static void hclge_tm_tc_info_init(struct hclge_dev *hdev)
 static void hclge_tm_pg_info_init(struct hclge_dev *hdev)
 {
 #define BW_PERCENT	100
+#define DEFAULT_BW_WEIGHT	1
 
 	u8 i;
 
@@ -806,7 +807,7 @@ static void hclge_tm_pg_info_init(struct hclge_dev *hdev)
 		for (k = 0; k < hdev->tm_info.num_tc; k++)
 			hdev->tm_info.pg_info[i].tc_dwrr[k] = BW_PERCENT;
 		for (; k < HNAE3_MAX_TC; k++)
-			hdev->tm_info.pg_info[i].tc_dwrr[k] = 0;
+			hdev->tm_info.pg_info[i].tc_dwrr[k] = DEFAULT_BW_WEIGHT;
 	}
 }
 
@@ -1484,7 +1485,11 @@ int hclge_tm_schd_setup_hw(struct hclge_dev *hdev)
 		return ret;
 
 	/* Cfg schd mode for each level schd */
-	return hclge_tm_schd_mode_hw(hdev);
+	ret = hclge_tm_schd_mode_hw(hdev);
+	if (ret)
+		return ret;
+
+	return hclge_tm_flush_cfg(hdev, false);
 }
 
 static int hclge_pause_param_setup_hw(struct hclge_dev *hdev)
@@ -1548,7 +1553,7 @@ static int hclge_bp_setup_hw(struct hclge_dev *hdev, u8 tc)
 	return 0;
 }
 
-static int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
+int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
 {
 	bool tx_en, rx_en;
 
@@ -2112,4 +2117,29 @@ int hclge_tm_get_port_shaper(struct hclge_dev *hdev,
 	para->rate = le32_to_cpu(port_shap_cfg_cmd->port_rate);
 
 	return 0;
+}
+
+int hclge_tm_flush_cfg(struct hclge_dev *hdev, bool enable)
+{
+	struct hclge_desc desc;
+	int ret;
+
+	if (!hnae3_ae_dev_tm_flush_supported(hdev))
+		return 0;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_FLUSH, false);
+
+	desc.data[0] = cpu_to_le32(enable ? HCLGE_TM_FLUSH_EN_MSK : 0);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to config tm flush, ret = %d\n", ret);
+		return ret;
+	}
+
+	if (enable)
+		msleep(HCLGE_TM_FLUSH_TIME_MS);
+
+	return ret;
 }

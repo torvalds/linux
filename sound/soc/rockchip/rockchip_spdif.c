@@ -202,12 +202,12 @@ static int rk_spdif_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops rk_spdif_dai_ops = {
+	.probe = rk_spdif_dai_probe,
 	.hw_params = rk_spdif_hw_params,
 	.trigger = rk_spdif_trigger,
 };
 
 static struct snd_soc_dai_driver rk_spdif_dai = {
-	.probe = rk_spdif_dai_probe,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,

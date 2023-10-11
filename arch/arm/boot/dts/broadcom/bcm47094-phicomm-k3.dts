@@ -55,7 +55,7 @@
 			reg = <0x0080000 0x0100000>;
 		};
 
-		partition@180000{
+		partition@180000 {
 			label = "phicomm";
 			reg = <0x0180000 0x0280000>;
 			read-only;

@@ -112,9 +112,9 @@ struct amdgpu_prt_cb {
 };
 
 /**
- * struct amdgpu_vm_tlb_seq_cb - Helper to increment the TLB flush sequence
+ * struct amdgpu_vm_tlb_seq_struct - Helper to increment the TLB flush sequence
  */
-struct amdgpu_vm_tlb_seq_cb {
+struct amdgpu_vm_tlb_seq_struct {
 	/**
 	 * @vm: pointer to the amdgpu_vm structure to set the fence sequence on
 	 */
@@ -829,7 +829,7 @@ error:
 static void amdgpu_vm_tlb_seq_cb(struct dma_fence *fence,
 				 struct dma_fence_cb *cb)
 {
-	struct amdgpu_vm_tlb_seq_cb *tlb_cb;
+	struct amdgpu_vm_tlb_seq_struct *tlb_cb;
 
 	tlb_cb = container_of(cb, typeof(*tlb_cb), cb);
 	atomic64_inc(&tlb_cb->vm->tlb_seq);
@@ -867,7 +867,7 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			   struct dma_fence **fence)
 {
 	struct amdgpu_vm_update_params params;
-	struct amdgpu_vm_tlb_seq_cb *tlb_cb;
+	struct amdgpu_vm_tlb_seq_struct *tlb_cb;
 	struct amdgpu_res_cursor cursor;
 	enum amdgpu_sync_mode sync_mode;
 	int r, idx;
@@ -2117,13 +2117,14 @@ long amdgpu_vm_wait_idle(struct amdgpu_vm *vm, long timeout)
  *
  * @adev: amdgpu_device pointer
  * @vm: requested vm
+ * @xcp_id: GPU partition selection id
  *
  * Init @vm fields.
  *
  * Returns:
  * 0 for success, error for failure.
  */
-int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
+int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm, int32_t xcp_id)
 {
 	struct amdgpu_bo *root_bo;
 	struct amdgpu_bo_vm *root;
@@ -2173,7 +2174,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	vm->evicting = false;
 
 	r = amdgpu_vm_pt_create(adev, vm, adev->vm_manager.root_level,
-				false, &root);
+				false, &root, xcp_id);
 	if (r)
 		goto error_free_delayed;
 	root_bo = &root->bo;
@@ -2275,16 +2276,13 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 			goto unreserve_bo;
 
 		vm->update_funcs = &amdgpu_vm_cpu_funcs;
+		r = amdgpu_vm_pt_map_tables(adev, vm);
+		if (r)
+			goto unreserve_bo;
+
 	} else {
 		vm->update_funcs = &amdgpu_vm_sdma_funcs;
 	}
-	/*
-	 * Make sure root PD gets mapped. As vm_update_mode could be changed
-	 * when turning a GFX VM into a compute VM.
-	 */
-	r = vm->update_funcs->map_table(to_amdgpu_bo_vm(vm->root.bo));
-	if (r)
-		goto unreserve_bo;
 
 	dma_fence_put(vm->last_update);
 	vm->last_update = dma_fence_get_stub();
@@ -2600,7 +2598,7 @@ bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
 		/* Intentionally setting invalid PTE flag
 		 * combination to force a no-retry-fault
 		 */
-		flags = AMDGPU_PTE_SNOOPED | AMDGPU_PTE_PRT;
+		flags = AMDGPU_VM_NORETRY_FLAGS;
 		value = 0;
 	} else if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_NEVER) {
 		/* Redirect the access to the dummy page */

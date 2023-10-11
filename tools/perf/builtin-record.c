@@ -37,8 +37,6 @@
 #include "util/parse-branch-options.h"
 #include "util/parse-regs-options.h"
 #include "util/perf_api_probe.h"
-#include "util/llvm-utils.h"
-#include "util/bpf-loader.h"
 #include "util/trigger.h"
 #include "util/perf-hooks.h"
 #include "util/cpu-set-sched.h"
@@ -2465,16 +2463,6 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		}
 	}
 
-	err = bpf__apply_obj_config();
-	if (err) {
-		char errbuf[BUFSIZ];
-
-		bpf__strerror_apply_obj_config(err, errbuf, sizeof(errbuf));
-		pr_err("ERROR: Apply config to BPF failed: %s\n",
-			 errbuf);
-		goto out_free_threads;
-	}
-
 	/*
 	 * Normally perf_session__new would do this, but it doesn't have the
 	 * evlist.
@@ -3486,10 +3474,6 @@ static struct option __record_options[] = {
 		    "collect kernel callchains"),
 	OPT_BOOLEAN(0, "user-callchains", &record.opts.user_callchains,
 		    "collect user callchains"),
-	OPT_STRING(0, "clang-path", &llvm_param.clang_path, "clang path",
-		   "clang binary to use for compiling BPF scriptlets"),
-	OPT_STRING(0, "clang-opt", &llvm_param.clang_opt, "clang options",
-		   "options passed to clang when compiling BPF scriptlets"),
 	OPT_STRING(0, "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN(0, "buildid-all", &record.buildid_all,
@@ -3967,27 +3951,6 @@ int cmd_record(int argc, const char **argv)
 
 	setlocale(LC_ALL, "");
 
-#ifndef HAVE_LIBBPF_SUPPORT
-# define set_nobuild(s, l, c) set_option_nobuild(record_options, s, l, "NO_LIBBPF=1", c)
-	set_nobuild('\0', "clang-path", true);
-	set_nobuild('\0', "clang-opt", true);
-# undef set_nobuild
-#endif
-
-#ifndef HAVE_BPF_PROLOGUE
-# if !defined (HAVE_DWARF_SUPPORT)
-#  define REASON  "NO_DWARF=1"
-# elif !defined (HAVE_LIBBPF_SUPPORT)
-#  define REASON  "NO_LIBBPF=1"
-# else
-#  define REASON  "this architecture doesn't support BPF prologue"
-# endif
-# define set_nobuild(s, l, c) set_option_nobuild(record_options, s, l, REASON, c)
-	set_nobuild('\0', "vmlinux", true);
-# undef set_nobuild
-# undef REASON
-#endif
-
 #ifndef HAVE_BPF_SKEL
 # define set_nobuild(s, l, m, c) set_option_nobuild(record_options, s, l, m, c)
 	set_nobuild('\0', "off-cpu", "no BUILD_BPF_SKEL=1", true);
@@ -4115,14 +4078,6 @@ int cmd_record(int argc, const char **argv)
 
 	if (dry_run)
 		goto out;
-
-	err = bpf__setup_stdout(rec->evlist);
-	if (err) {
-		bpf__strerror_setup_stdout(rec->evlist, err, errbuf, sizeof(errbuf));
-		pr_err("ERROR: Setup BPF stdout failed: %s\n",
-			 errbuf);
-		goto out;
-	}
 
 	err = -ENOMEM;
 

@@ -275,6 +275,7 @@ enum rtw89_mac_dbg_port_sel {
 
 /* SRAM mem dump */
 #define R_AX_INDIR_ACCESS_ENTRY 0x40000
+#define R_BE_INDIR_ACCESS_ENTRY 0x80000
 
 #define	AXIDMA_BASE_ADDR		0x18006000
 #define	STA_SCHED_BASE_ADDR		0x18808000
@@ -297,6 +298,31 @@ enum rtw89_mac_dbg_port_sel {
 #define	TXDATA_FIFO_0_BASE_ADDR		0x18856000
 #define	TXDATA_FIFO_1_BASE_ADDR		0x188A1000
 #define	CPU_LOCAL_BASE_ADDR		0x18003000
+
+#define WD_PAGE_BASE_ADDR_BE		0x0
+#define CPU_LOCAL_BASE_ADDR_BE		0x18003000
+#define AXIDMA_BASE_ADDR_BE		0x18006000
+#define SHARED_BUF_BASE_ADDR_BE		0x18700000
+#define DMAC_TBL_BASE_ADDR_BE		0x18800000
+#define SHCUT_MACHDR_BASE_ADDR_BE	0x18800800
+#define STA_SCHED_BASE_ADDR_BE		0x18818000
+#define NAT25_CAM_BASE_ADDR_BE		0x18820000
+#define RXPLD_FLTR_CAM_BASE_ADDR_BE	0x18823000
+#define SEC_CAM_BASE_ADDR_BE		0x18824000
+#define WOW_CAM_BASE_ADDR_BE		0x18828000
+#define MLD_TBL_BASE_ADDR_BE		0x18829000
+#define RX_CLSF_CAM_BASE_ADDR_BE	0x1882A000
+#define CMAC_TBL_BASE_ADDR_BE		0x18840000
+#define ADDR_CAM_BASE_ADDR_BE		0x18850000
+#define BSSID_CAM_BASE_ADDR_BE		0x18858000
+#define BA_CAM_BASE_ADDR_BE		0x18859000
+#define BCN_IE_CAM0_BASE_ADDR_BE	0x18860000
+#define TXDATA_FIFO_0_BASE_ADDR_BE	0x18861000
+#define TXD_FIFO_0_BASE_ADDR_BE		0x18862000
+#define BCN_IE_CAM1_BASE_ADDR_BE	0x18880000
+#define TXDATA_FIFO_1_BASE_ADDR_BE	0x18881000
+#define TXD_FIFO_1_BASE_ADDR_BE		0x18881800
+#define DCPU_LOCAL_BASE_ADDR_BE		0x19C02000
 
 #define CCTL_INFO_SIZE		32
 
@@ -322,12 +348,11 @@ enum rtw89_mac_mem_sel {
 	RTW89_MAC_MEM_BSSID_CAM,
 	RTW89_MAC_MEM_TXD_FIFO_0_V1,
 	RTW89_MAC_MEM_TXD_FIFO_1_V1,
+	RTW89_MAC_MEM_WD_PAGE,
 
 	/* keep last */
 	RTW89_MAC_MEM_NUM,
 };
-
-extern const u32 rtw89_mac_mem_base_addrs[];
 
 enum rtw89_rpwm_req_pwr_state {
 	RTW89_MAC_RPWM_REQ_PWR_STATE_ACTIVE = 0,
@@ -478,6 +503,7 @@ enum rtw89_mac_bf_rrsc_rate {
 	({typeof(_addr) __addr = (_addr); \
 	  __addr >= R_AX_CMAC_REG_START && __addr <= R_AX_CMAC_REG_END; })
 #define RTW89_MAC_AX_BAND_REG_OFFSET 0x2000
+#define RTW89_MAC_BE_BAND_REG_OFFSET 0x4000
 
 #define PTCL_IDLE_POLL_CNT	10000
 #define SW_CVR_DUR_US	8
@@ -826,14 +852,29 @@ struct rtw89_mac_size_set {
 
 extern const struct rtw89_mac_size_set rtw89_mac_size;
 
-static inline u32 rtw89_mac_reg_by_idx(u32 reg_base, u8 band)
+struct rtw89_mac_gen_def {
+	u32 band1_offset;
+	u32 filter_model_addr;
+	u32 indir_access_addr;
+	const u32 *mem_base_addrs;
+	u32 rx_fltr;
+};
+
+extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;
+extern const struct rtw89_mac_gen_def rtw89_mac_gen_be;
+
+static inline
+u32 rtw89_mac_reg_by_idx(struct rtw89_dev *rtwdev, u32 reg_base, u8 band)
 {
-	return band == 0 ? reg_base : (reg_base + 0x2000);
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	return band == 0 ? reg_base : (reg_base + mac->band1_offset);
 }
 
-static inline u32 rtw89_mac_reg_by_port(u32 base, u8 port, u8 mac_idx)
+static inline
+u32 rtw89_mac_reg_by_port(struct rtw89_dev *rtwdev, u32 base, u8 port, u8 mac_idx)
 {
-	return rtw89_mac_reg_by_idx(base + port * 0x40, mac_idx);
+	return rtw89_mac_reg_by_idx(rtwdev, base + port * 0x40, mac_idx);
 }
 
 static inline u32
@@ -841,7 +882,7 @@ rtw89_read32_port(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif, u32 base)
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
 	return rtw89_read32(rtwdev, reg);
 }
 
@@ -851,7 +892,7 @@ rtw89_read32_port_mask(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
 	return rtw89_read32_mask(rtwdev, reg, mask);
 }
 
@@ -861,7 +902,7 @@ rtw89_write32_port(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif, u32 base,
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
 	rtw89_write32(rtwdev, reg, data);
 }
 
@@ -871,7 +912,7 @@ rtw89_write32_port_mask(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
 	rtw89_write32_mask(rtwdev, reg, mask, data);
 }
 
@@ -881,7 +922,7 @@ rtw89_write16_port_mask(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
 	rtw89_write16_mask(rtwdev, reg, mask, data);
 }
 
@@ -891,7 +932,7 @@ rtw89_write32_port_clr(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
 	rtw89_write32_clr(rtwdev, reg, bit);
 }
 
@@ -901,7 +942,7 @@ rtw89_write16_port_clr(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
 	rtw89_write16_clr(rtwdev, reg, bit);
 }
 
@@ -911,7 +952,7 @@ rtw89_write32_port_set(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
 	rtw89_write32_set(rtwdev, reg, bit);
 }
 

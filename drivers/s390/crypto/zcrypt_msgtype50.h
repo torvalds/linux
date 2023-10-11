@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  Copyright IBM Corp. 2001, 2012
+ *  Copyright IBM Corp. 2001, 2023
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
@@ -15,7 +15,6 @@
 #define MSGTYPE50_NAME			"zcrypt_msgtype50"
 #define MSGTYPE50_VARIANT_DEFAULT	0
 
-#define MSGTYPE50_CRB2_MAX_MSG_SIZE 0x390 /* sizeof(struct type50_crb2_msg) */
 #define MSGTYPE50_CRB3_MAX_MSG_SIZE 0x710 /* sizeof(struct type50_crb3_msg) */
 
 #define MSGTYPE_ADJUSTMENT 0x08  /* type04 extension (not needed in type50) */

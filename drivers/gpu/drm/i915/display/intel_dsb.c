@@ -7,11 +7,16 @@
 #include "gem/i915_gem_internal.h"
 
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "i915_reg.h"
+#include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsb.h"
 #include "intel_dsb_regs.h"
+#include "intel_vblank.h"
+#include "intel_vrr.h"
+#include "skl_watermark.h"
 
 struct i915_vma;
 
@@ -47,6 +52,8 @@ struct intel_dsb {
 	 * register.
 	 */
 	unsigned int ins_start_offset;
+
+	int dewake_scanline;
 };
 
 /**
@@ -70,17 +77,21 @@ struct intel_dsb {
 #define DSB_OPCODE_SHIFT		24
 #define DSB_OPCODE_NOOP			0x0
 #define DSB_OPCODE_MMIO_WRITE		0x1
+#define   DSB_BYTE_EN			0xf
+#define   DSB_BYTE_EN_SHIFT		20
+#define   DSB_REG_VALUE_MASK		0xfffff
 #define DSB_OPCODE_WAIT_USEC		0x2
-#define DSB_OPCODE_WAIT_LINES		0x3
+#define DSB_OPCODE_WAIT_SCANLINE	0x3
 #define DSB_OPCODE_WAIT_VBLANKS		0x4
 #define DSB_OPCODE_WAIT_DSL_IN		0x5
 #define DSB_OPCODE_WAIT_DSL_OUT		0x6
+#define   DSB_SCANLINE_UPPER_SHIFT	20
+#define   DSB_SCANLINE_LOWER_SHIFT	0
 #define DSB_OPCODE_INTERRUPT		0x7
 #define DSB_OPCODE_INDEXED_WRITE	0x9
+/* see DSB_REG_VALUE_MASK */
 #define DSB_OPCODE_POLL			0xA
-#define DSB_BYTE_EN			0xF
-#define DSB_BYTE_EN_SHIFT		20
-#define DSB_REG_VALUE_MASK		0xfffff
+/* see DSB_REG_VALUE_MASK */
 
 static bool assert_dsb_has_room(struct intel_dsb *dsb)
 {
@@ -93,10 +104,26 @@ static bool assert_dsb_has_room(struct intel_dsb *dsb)
 			 crtc->base.base.id, crtc->base.name, dsb->id);
 }
 
+static void intel_dsb_dump(struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	const u32 *buf = dsb->cmd_buf;
+	int i;
+
+	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] DSB %d commands {\n",
+		    crtc->base.base.id, crtc->base.name, dsb->id);
+	for (i = 0; i < ALIGN(dsb->free_pos, 64 / 4); i += 4)
+		drm_dbg_kms(&i915->drm,
+			    " 0x%08x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			    i * 4, buf[i], buf[i+1], buf[i+2], buf[i+3]);
+	drm_dbg_kms(&i915->drm, "}\n");
+}
+
 static bool is_dsb_busy(struct drm_i915_private *i915, enum pipe pipe,
 			enum dsb_id id)
 {
-	return intel_de_read(i915, DSB_CTRL(pipe, id)) & DSB_STATUS_BUSY;
+	return intel_de_read_fw(i915, DSB_CTRL(pipe, id)) & DSB_STATUS_BUSY;
 }
 
 static void intel_dsb_emit(struct intel_dsb *dsb, u32 ldw, u32 udw)
@@ -121,7 +148,15 @@ static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
 	const u32 *buf = dsb->cmd_buf;
 	u32 prev_opcode, prev_reg;
 
-	prev_opcode = buf[dsb->ins_start_offset + 1] >> DSB_OPCODE_SHIFT;
+	/*
+	 * Nothing emitted yet? Must check before looking
+	 * at the actual data since i915_gem_object_create_internal()
+	 * does *not* give you zeroed memory!
+	 */
+	if (dsb->free_pos == 0)
+		return false;
+
+	prev_opcode = buf[dsb->ins_start_offset + 1] & ~DSB_REG_VALUE_MASK;
 	prev_reg = buf[dsb->ins_start_offset + 1] & DSB_REG_VALUE_MASK;
 
 	return prev_opcode == opcode && prev_reg == i915_mmio_reg_offset(reg);
@@ -129,12 +164,18 @@ static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
 
 static bool intel_dsb_prev_ins_is_mmio_write(struct intel_dsb *dsb, i915_reg_t reg)
 {
-	return intel_dsb_prev_ins_is_write(dsb, DSB_OPCODE_MMIO_WRITE, reg);
+	/* only full byte-enables can be converted to indexed writes */
+	return intel_dsb_prev_ins_is_write(dsb,
+					   DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT |
+					   DSB_BYTE_EN << DSB_BYTE_EN_SHIFT,
+					   reg);
 }
 
 static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_t reg)
 {
-	return intel_dsb_prev_ins_is_write(dsb, DSB_OPCODE_INDEXED_WRITE, reg);
+	return intel_dsb_prev_ins_is_write(dsb,
+					   DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT,
+					   reg);
 }
 
 /**
@@ -200,6 +241,53 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 	}
 }
 
+static u32 intel_dsb_mask_to_byte_en(u32 mask)
+{
+	return (!!(mask & 0xff000000) << 3 |
+		!!(mask & 0x00ff0000) << 2 |
+		!!(mask & 0x0000ff00) << 1 |
+		!!(mask & 0x000000ff) << 0);
+}
+
+/* Note: mask implemented via byte enables! */
+void intel_dsb_reg_write_masked(struct intel_dsb *dsb,
+				i915_reg_t reg, u32 mask, u32 val)
+{
+	intel_dsb_emit(dsb, val,
+		       (DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT) |
+		       (intel_dsb_mask_to_byte_en(mask) << DSB_BYTE_EN_SHIFT) |
+		       i915_mmio_reg_offset(reg));
+}
+
+void intel_dsb_noop(struct intel_dsb *dsb, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		intel_dsb_emit(dsb, 0,
+			       DSB_OPCODE_NOOP << DSB_OPCODE_SHIFT);
+}
+
+void intel_dsb_nonpost_start(struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	enum pipe pipe = crtc->pipe;
+
+	intel_dsb_reg_write_masked(dsb, DSB_CTRL(pipe, dsb->id),
+				   DSB_NON_POSTED, DSB_NON_POSTED);
+	intel_dsb_noop(dsb, 4);
+}
+
+void intel_dsb_nonpost_end(struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	enum pipe pipe = crtc->pipe;
+
+	intel_dsb_reg_write_masked(dsb, DSB_CTRL(pipe, dsb->id),
+				   DSB_NON_POSTED, 0);
+	intel_dsb_noop(dsb, 4);
+}
+
 static void intel_dsb_align_tail(struct intel_dsb *dsb)
 {
 	u32 aligned_tail, tail;
@@ -216,17 +304,40 @@ static void intel_dsb_align_tail(struct intel_dsb *dsb)
 
 void intel_dsb_finish(struct intel_dsb *dsb)
 {
+	struct intel_crtc *crtc = dsb->crtc;
+
+	/*
+	 * DSB_FORCE_DEWAKE remains active even after DSB is
+	 * disabled, so make sure to clear it (if set during
+	 * intel_dsb_commit()).
+	 */
+	intel_dsb_reg_write_masked(dsb, DSB_PMCTRL_2(crtc->pipe, dsb->id),
+				   DSB_FORCE_DEWAKE, 0);
+
 	intel_dsb_align_tail(dsb);
 }
 
-/**
- * intel_dsb_commit() - Trigger workload execution of DSB.
- * @dsb: DSB context
- * @wait_for_vblank: wait for vblank before executing
- *
- * This function is used to do actual write to hardware using DSB.
- */
-void intel_dsb_commit(struct intel_dsb *dsb, bool wait_for_vblank)
+static int intel_dsb_dewake_scanline(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+	unsigned int latency = skl_watermark_max_latency(i915);
+	int vblank_start;
+
+	if (crtc_state->vrr.enable) {
+		vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
+	} else {
+		vblank_start = adjusted_mode->crtc_vblank_start;
+
+		if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+			vblank_start = DIV_ROUND_UP(vblank_start, 2);
+	}
+
+	return max(0, vblank_start - intel_usecs_to_scanlines(adjusted_mode, latency));
+}
+
+static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
+			      unsigned int dewake_scanline)
 {
 	struct intel_crtc *crtc = dsb->crtc;
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -243,13 +354,48 @@ void intel_dsb_commit(struct intel_dsb *dsb, bool wait_for_vblank)
 		return;
 	}
 
-	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id),
-		       (wait_for_vblank ? DSB_WAIT_FOR_VBLANK : 0) |
-		       DSB_ENABLE);
-	intel_de_write(dev_priv, DSB_HEAD(pipe, dsb->id),
-		       i915_ggtt_offset(dsb->vma));
-	intel_de_write(dev_priv, DSB_TAIL(pipe, dsb->id),
-		       i915_ggtt_offset(dsb->vma) + tail);
+	intel_de_write_fw(dev_priv, DSB_CTRL(pipe, dsb->id),
+			  ctrl | DSB_ENABLE);
+
+	intel_de_write_fw(dev_priv, DSB_HEAD(pipe, dsb->id),
+			  i915_ggtt_offset(dsb->vma));
+
+	if (dewake_scanline >= 0) {
+		int diff, hw_dewake_scanline;
+
+		hw_dewake_scanline = intel_crtc_scanline_to_hw(crtc, dewake_scanline);
+
+		intel_de_write_fw(dev_priv, DSB_PMCTRL(pipe, dsb->id),
+				  DSB_ENABLE_DEWAKE |
+				  DSB_SCANLINE_FOR_DEWAKE(hw_dewake_scanline));
+
+		/*
+		 * Force DEwake immediately if we're already past
+		 * or close to racing past the target scanline.
+		 */
+		diff = dewake_scanline - intel_get_crtc_scanline(crtc);
+		intel_de_write_fw(dev_priv, DSB_PMCTRL_2(pipe, dsb->id),
+				  (diff >= 0 && diff < 5 ? DSB_FORCE_DEWAKE : 0) |
+				  DSB_BLOCK_DEWAKE_EXTENSION);
+	}
+
+	intel_de_write_fw(dev_priv, DSB_TAIL(pipe, dsb->id),
+			  i915_ggtt_offset(dsb->vma) + tail);
+}
+
+/**
+ * intel_dsb_commit() - Trigger workload execution of DSB.
+ * @dsb: DSB context
+ * @wait_for_vblank: wait for vblank before executing
+ *
+ * This function is used to do actual write to hardware using DSB.
+ */
+void intel_dsb_commit(struct intel_dsb *dsb,
+		      bool wait_for_vblank)
+{
+	_intel_dsb_commit(dsb,
+			  wait_for_vblank ? DSB_WAIT_FOR_VBLANK : 0,
+			  wait_for_vblank ? dsb->dewake_scanline : -1);
 }
 
 void intel_dsb_wait(struct intel_dsb *dsb)
@@ -258,20 +404,31 @@ void intel_dsb_wait(struct intel_dsb *dsb)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	if (wait_for(!is_dsb_busy(dev_priv, pipe, dsb->id), 1))
+	if (wait_for(!is_dsb_busy(dev_priv, pipe, dsb->id), 1)) {
+		u32 offset = i915_ggtt_offset(dsb->vma);
+
+		intel_de_write_fw(dev_priv, DSB_CTRL(pipe, dsb->id),
+				  DSB_ENABLE | DSB_HALT);
+
 		drm_err(&dev_priv->drm,
-			"[CRTC:%d:%s] DSB %d timed out waiting for idle\n",
-			crtc->base.base.id, crtc->base.name, dsb->id);
+			"[CRTC:%d:%s] DSB %d timed out waiting for idle (current head=0x%x, head=0x%x, tail=0x%x)\n",
+			crtc->base.base.id, crtc->base.name, dsb->id,
+			intel_de_read_fw(dev_priv, DSB_CURRENT_HEAD(pipe, dsb->id)) - offset,
+			intel_de_read_fw(dev_priv, DSB_HEAD(pipe, dsb->id)) - offset,
+			intel_de_read_fw(dev_priv, DSB_TAIL(pipe, dsb->id)) - offset);
+
+		intel_dsb_dump(dsb);
+	}
 
 	/* Attempt to reset it */
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
-	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id), 0);
+	intel_de_write_fw(dev_priv, DSB_CTRL(pipe, dsb->id), 0);
 }
 
 /**
  * intel_dsb_prepare() - Allocate, pin and map the DSB command buffer.
- * @crtc: the CRTC
+ * @crtc_state: the CRTC state
  * @max_cmds: number of commands we need to fit into command buffer
  *
  * This function prepare the command buffer which is used to store dsb
@@ -280,9 +437,10 @@ void intel_dsb_wait(struct intel_dsb *dsb)
  * Returns:
  * DSB context, NULL on failure
  */
-struct intel_dsb *intel_dsb_prepare(struct intel_crtc *crtc,
+struct intel_dsb *intel_dsb_prepare(const struct intel_crtc_state *crtc_state,
 				    unsigned int max_cmds)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct drm_i915_gem_object *obj;
 	intel_wakeref_t wakeref;
@@ -328,6 +486,7 @@ struct intel_dsb *intel_dsb_prepare(struct intel_crtc *crtc,
 	dsb->size = size / 4; /* in dwords */
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
+	dsb->dewake_scanline = intel_dsb_dewake_scanline(crtc_state);
 
 	return dsb;
 

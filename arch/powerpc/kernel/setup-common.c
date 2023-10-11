@@ -31,9 +31,9 @@
 #include <linux/serial_8250.h>
 #include <linux/percpu.h>
 #include <linux/memblock.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
+#include <linux/of_irq.h>
 #include <linux/hugetlb.h>
 #include <linux/pgtable.h>
 #include <asm/io.h>
@@ -969,8 +969,12 @@ void __init setup_arch(char **cmdline_p)
 	klp_init_thread_info(&init_task);
 
 	setup_initial_init_mm(_stext, _etext, _edata, _end);
-
+	/* sched_init() does the mmgrab(&init_mm) for the primary CPU */
+	VM_WARN_ON(cpumask_test_cpu(smp_processor_id(), mm_cpumask(&init_mm)));
+	cpumask_set_cpu(smp_processor_id(), mm_cpumask(&init_mm));
+	inc_mm_active_cpus(&init_mm);
 	mm_iommu_init(&init_mm);
+
 	irqstack_early_init();
 	exc_lvl_early_init();
 	emergency_stack_init();

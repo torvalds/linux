@@ -117,8 +117,6 @@ struct cygnus_audio {
 	unsigned long vco_rate;
 };
 
-extern int cygnus_ssp_get_mode(struct snd_soc_dai *cpu_dai);
-extern int cygnus_ssp_add_pll_tweak_controls(struct snd_soc_pcm_runtime *rtd);
 extern int cygnus_ssp_set_custom_fsync_width(struct snd_soc_dai *cpu_dai,
 						int len);
 extern int cygnus_soc_platform_register(struct device *dev,

@@ -13,7 +13,7 @@
                        時奎亮 Alex Shi <alex.shi@linux.alibaba.com>
         中文版校譯者： 李陽 Li Yang <leoyang.li@nxp.com>
                        王聰 Wang Cong <xiyou.wangcong@gmail.com>
-                       胡皓文 Hu Haowen <src.res@email.cn>
+                       胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 
 如何讓你的改動進入內核

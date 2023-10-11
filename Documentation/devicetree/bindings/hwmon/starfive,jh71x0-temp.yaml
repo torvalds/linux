@@ -27,8 +27,8 @@ properties:
 
   clock-names:
     items:
-      - const: "sense"
-      - const: "bus"
+      - const: sense
+      - const: bus
 
   '#thermal-sensor-cells':
     const: 0
@@ -39,8 +39,8 @@ properties:
 
   reset-names:
     items:
-      - const: "sense"
-      - const: "bus"
+      - const: sense
+      - const: bus
 
 required:
   - compatible

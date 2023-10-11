@@ -401,15 +401,6 @@ static int omap_dmic_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 	return -EINVAL;
 }
 
-static const struct snd_soc_dai_ops omap_dmic_dai_ops = {
-	.startup	= omap_dmic_dai_startup,
-	.shutdown	= omap_dmic_dai_shutdown,
-	.hw_params	= omap_dmic_dai_hw_params,
-	.prepare	= omap_dmic_dai_prepare,
-	.trigger	= omap_dmic_dai_trigger,
-	.set_sysclk	= omap_dmic_set_dai_sysclk,
-};
-
 static int omap_dmic_probe(struct snd_soc_dai *dai)
 {
 	struct omap_dmic *dmic = snd_soc_dai_get_drvdata(dai);
@@ -438,10 +429,19 @@ static int omap_dmic_remove(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops omap_dmic_dai_ops = {
+	.probe		= omap_dmic_probe,
+	.remove		= omap_dmic_remove,
+	.startup	= omap_dmic_dai_startup,
+	.shutdown	= omap_dmic_dai_shutdown,
+	.hw_params	= omap_dmic_dai_hw_params,
+	.prepare	= omap_dmic_dai_prepare,
+	.trigger	= omap_dmic_dai_trigger,
+	.set_sysclk	= omap_dmic_set_dai_sysclk,
+};
+
 static struct snd_soc_dai_driver omap_dmic_dai = {
 	.name = "omap-dmic",
-	.probe = omap_dmic_probe,
-	.remove = omap_dmic_remove,
 	.capture = {
 		.channels_min = 2,
 		.channels_max = 6,
@@ -488,11 +488,9 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 
 	dmic->dma_data.filter_data = "up_link";
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
-	dmic->io_base = devm_ioremap_resource(&pdev->dev, res);
+	dmic->io_base = devm_platform_ioremap_resource_byname(pdev, "mpu");
 	if (IS_ERR(dmic->io_base))
 		return PTR_ERR(dmic->io_base);
-
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &omap_dmic_component,

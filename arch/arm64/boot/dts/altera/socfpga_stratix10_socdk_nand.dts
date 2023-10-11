@@ -38,10 +38,10 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		/* We expect the bootloader to fill in the reg */
-		reg = <0 0 0 0>;
+		reg = <0 0x80000000 0 0>;
 	};
 
 	ref_033v: regulator-v-ref {
@@ -103,9 +103,9 @@
 	status = "okay";
 
 	flash@0 {
+		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <0>;
 		nand-bus-width = <16>;
 
 		partition@0 {
@@ -141,7 +141,7 @@
 	status = "okay";
 	clock-frequency = <100000>;
 	i2c-sda-falling-time-ns = <890>;  /* hcnt */
-	i2c-sdl-falling-time-ns = <890>;  /* lcnt */
+	i2c-scl-falling-time-ns = <890>;  /* lcnt */
 
 	adc@14 {
 		compatible = "lltc,ltc2497";
@@ -194,7 +194,7 @@
 				reg = <0x0 0x03FE0000>;
 			};
 
-			qspi_rootfs: partition@3FE0000 {
+			qspi_rootfs: partition@3fe0000 {
 				label = "Root Filesystem - JFFS2";
 				reg = <0x03FE0000 0x0C020000>;
 			};

@@ -314,7 +314,7 @@ int ti_bandgap_adc_to_mcelsius(struct ti_bandgap *bgp, int adc_val, int *t)
  */
 static inline int ti_bandgap_validate(struct ti_bandgap *bgp, int id)
 {
-	if (!bgp || IS_ERR(bgp)) {
+	if (IS_ERR_OR_NULL(bgp)) {
 		pr_err("%s: invalid bandgap pointer\n", __func__);
 		return -EINVAL;
 	}

@@ -135,9 +135,6 @@ static int intel_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return i915_gem_fb_mmap(obj, vma);
 }
 
-__diag_push();
-__diag_ignore_all("-Woverride-init", "Allow overriding the default ops");
-
 static const struct fb_ops intelfb_ops = {
 	.owner = THIS_MODULE,
 	__FB_DEFAULT_DEFERRED_OPS_RDWR(intel_fbdev),
@@ -148,8 +145,6 @@ static const struct fb_ops intelfb_ops = {
 	__FB_DEFAULT_DEFERRED_OPS_DRAW(intel_fbdev),
 	.fb_mmap = intel_fbdev_mmap,
 };
-
-__diag_pop();
 
 static int intelfb_alloc(struct drm_fb_helper *helper,
 			 struct drm_fb_helper_surface_size *sizes)
@@ -187,8 +182,10 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 		 * If the FB is too big, just don't use it since fbdev is not very
 		 * important and we should probably use that space with FBC or other
 		 * features.
+		 *
+		 * Also skip stolen on MTL as Wa_22018444074 mitigation.
 		 */
-		if (size * 2 < dev_priv->dsm.usable_size)
+		if (!(IS_METEORLAKE(dev_priv)) && size * 2 < dev_priv->dsm.usable_size)
 			obj = i915_gem_object_create_stolen(dev_priv, size);
 		if (IS_ERR(obj))
 			obj = i915_gem_object_create_shmem(dev_priv, size);

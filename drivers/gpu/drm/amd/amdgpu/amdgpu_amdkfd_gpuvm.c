@@ -39,7 +39,6 @@
 #include "amdgpu_xgmi.h"
 #include "kfd_priv.h"
 #include "kfd_smi_events.h"
-#include <drm/ttm/ttm_tt.h>
 
 /* Userptr restore delay, just long enough to allow consecutive VM
  * changes to accumulate
@@ -1662,7 +1661,8 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 			alloc_flags |= (flags & KFD_IOC_ALLOC_MEM_FLAGS_PUBLIC) ?
 			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED : 0;
 		}
-		xcp_id = fpriv->xcp_id == ~0 ? 0 : fpriv->xcp_id;
+		xcp_id = fpriv->xcp_id == AMDGPU_XCP_NO_PARTITION ?
+					0 : fpriv->xcp_id;
 	} else if (flags & KFD_IOC_ALLOC_MEM_FLAGS_GTT) {
 		domain = alloc_domain = AMDGPU_GEM_DOMAIN_GTT;
 		alloc_flags = 0;

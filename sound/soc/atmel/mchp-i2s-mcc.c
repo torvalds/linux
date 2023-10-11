@@ -870,17 +870,6 @@ static int mchp_i2s_mcc_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops mchp_i2s_mcc_dai_ops = {
-	.set_sysclk	= mchp_i2s_mcc_set_sysclk,
-	.set_bclk_ratio = mchp_i2s_mcc_set_bclk_ratio,
-	.startup	= mchp_i2s_mcc_startup,
-	.trigger	= mchp_i2s_mcc_trigger,
-	.hw_params	= mchp_i2s_mcc_hw_params,
-	.hw_free	= mchp_i2s_mcc_hw_free,
-	.set_fmt	= mchp_i2s_mcc_set_dai_fmt,
-	.set_tdm_slot	= mchp_i2s_mcc_set_dai_tdm_slot,
-};
-
 static int mchp_i2s_mcc_dai_probe(struct snd_soc_dai *dai)
 {
 	struct mchp_i2s_mcc_dev *dev = snd_soc_dai_get_drvdata(dai);
@@ -895,6 +884,18 @@ static int mchp_i2s_mcc_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops mchp_i2s_mcc_dai_ops = {
+	.probe		= mchp_i2s_mcc_dai_probe,
+	.set_sysclk	= mchp_i2s_mcc_set_sysclk,
+	.set_bclk_ratio	= mchp_i2s_mcc_set_bclk_ratio,
+	.startup	= mchp_i2s_mcc_startup,
+	.trigger	= mchp_i2s_mcc_trigger,
+	.hw_params	= mchp_i2s_mcc_hw_params,
+	.hw_free	= mchp_i2s_mcc_hw_free,
+	.set_fmt	= mchp_i2s_mcc_set_dai_fmt,
+	.set_tdm_slot	= mchp_i2s_mcc_set_dai_tdm_slot,
+};
+
 #define MCHP_I2SMCC_RATES              SNDRV_PCM_RATE_8000_192000
 
 #define MCHP_I2SMCC_FORMATS	(SNDRV_PCM_FMTBIT_S8 |          \
@@ -906,7 +907,6 @@ static int mchp_i2s_mcc_dai_probe(struct snd_soc_dai *dai)
 				 SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_driver mchp_i2s_mcc_dai = {
-	.probe	= mchp_i2s_mcc_dai_probe,
 	.playback = {
 		.stream_name = "I2SMCC-Playback",
 		.channels_min = 1,
@@ -1098,7 +1098,7 @@ static void mchp_i2s_mcc_remove(struct platform_device *pdev)
 static struct platform_driver mchp_i2s_mcc_driver = {
 	.driver		= {
 		.name	= "mchp_i2s_mcc",
-		.of_match_table	= of_match_ptr(mchp_i2s_mcc_dt_ids),
+		.of_match_table	= mchp_i2s_mcc_dt_ids,
 	},
 	.probe		= mchp_i2s_mcc_probe,
 	.remove_new	= mchp_i2s_mcc_remove,

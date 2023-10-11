@@ -64,6 +64,7 @@ enum icrdma_device_caps_const {
 
 	ICRDMA_MAX_IRD_SIZE			= 127,
 	ICRDMA_MAX_ORD_SIZE			= 255,
+	ICRDMA_MIN_WQ_SIZE                      = 8 /* WQEs */,
 
 };
 

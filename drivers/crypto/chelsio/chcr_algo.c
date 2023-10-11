@@ -2216,7 +2216,8 @@ static int chcr_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 		memcpy(hmacctx->ipad, key, keylen);
 	}
 	memset(hmacctx->ipad + keylen, 0, bs - keylen);
-	memcpy(hmacctx->opad, hmacctx->ipad, bs);
+	unsafe_memcpy(hmacctx->opad, hmacctx->ipad, bs,
+		      "fortified memcpy causes -Wrestrict warning");
 
 	for (i = 0; i < bs / sizeof(int); i++) {
 		*((unsigned int *)(&hmacctx->ipad) + i) ^= IPAD_DATA;

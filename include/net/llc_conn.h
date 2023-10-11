@@ -111,7 +111,7 @@ void llc_conn_resend_i_pdu_as_cmd(struct sock *sk, u8 nr, u8 first_p_bit);
 void llc_conn_resend_i_pdu_as_rsp(struct sock *sk, u8 nr, u8 first_f_bit);
 int llc_conn_remove_acked_pdus(struct sock *conn, u8 nr, u16 *how_many_unacked);
 struct sock *llc_lookup_established(struct llc_sap *sap, struct llc_addr *daddr,
-				    struct llc_addr *laddr);
+				    struct llc_addr *laddr, const struct net *net);
 void llc_sap_add_socket(struct llc_sap *sap, struct sock *sk);
 void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk);
 

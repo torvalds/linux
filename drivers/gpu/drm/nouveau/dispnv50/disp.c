@@ -1888,6 +1888,8 @@ nv50_pior_destroy(struct drm_encoder *encoder)
 	nvif_outp_dtor(&nv_encoder->outp);
 
 	drm_encoder_cleanup(encoder);
+
+	mutex_destroy(&nv_encoder->dp.hpd_irq_lock);
 	kfree(encoder);
 }
 
@@ -1927,6 +1929,8 @@ nv50_pior_create(struct nouveau_encoder *nv_encoder)
 	}
 
 	nv_encoder->i2c = ddc;
+
+	mutex_init(&nv_encoder->dp.hpd_irq_lock);
 
 	encoder = to_drm_encoder(nv_encoder);
 	drm_encoder_init(connector->dev, encoder, &nv50_pior_func, type,

@@ -1804,7 +1804,6 @@ static inline int ipmr_forward_finish(struct net *net, struct sock *sk,
 	struct ip_options *opt = &(IPCB(skb)->opt);
 
 	IP_INC_STATS(net, IPSTATS_MIB_OUTFORWDATAGRAMS);
-	IP_ADD_STATS(net, IPSTATS_MIB_OUTOCTETS, skb->len);
 
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);

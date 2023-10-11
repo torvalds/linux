@@ -8,7 +8,7 @@
 
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include "common.h"
 #include "rza.h"
 

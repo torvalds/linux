@@ -1,8 +1,51 @@
 #! /bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+readonly KSFT_PASS=0
 readonly KSFT_FAIL=1
 readonly KSFT_SKIP=4
+
+# shellcheck disable=SC2155 # declare and assign separately
+readonly KSFT_TEST=$(basename "${0}" | sed 's/\.sh$//g')
+
+MPTCP_LIB_SUBTESTS=()
+
+# only if supported (or forced) and not disabled, see no-color.org
+if { [ -t 1 ] || [ "${SELFTESTS_MPTCP_LIB_COLOR_FORCE:-}" = "1" ]; } &&
+   [ "${NO_COLOR:-}" != "1" ]; then
+	readonly MPTCP_LIB_COLOR_RED="\E[1;31m"
+	readonly MPTCP_LIB_COLOR_GREEN="\E[1;32m"
+	readonly MPTCP_LIB_COLOR_YELLOW="\E[1;33m"
+	readonly MPTCP_LIB_COLOR_BLUE="\E[1;34m"
+	readonly MPTCP_LIB_COLOR_RESET="\E[0m"
+else
+	readonly MPTCP_LIB_COLOR_RED=
+	readonly MPTCP_LIB_COLOR_GREEN=
+	readonly MPTCP_LIB_COLOR_YELLOW=
+	readonly MPTCP_LIB_COLOR_BLUE=
+	readonly MPTCP_LIB_COLOR_RESET=
+fi
+
+# $1: color, $2: text
+mptcp_lib_print_color() {
+	echo -e "${MPTCP_LIB_START_PRINT:-}${*}${MPTCP_LIB_COLOR_RESET}"
+}
+
+mptcp_lib_print_ok() {
+	mptcp_lib_print_color "${MPTCP_LIB_COLOR_GREEN}${*}"
+}
+
+mptcp_lib_print_warn() {
+	mptcp_lib_print_color "${MPTCP_LIB_COLOR_YELLOW}${*}"
+}
+
+mptcp_lib_print_info() {
+	mptcp_lib_print_color "${MPTCP_LIB_COLOR_BLUE}${*}"
+}
+
+mptcp_lib_print_err() {
+	mptcp_lib_print_color "${MPTCP_LIB_COLOR_RED}${*}"
+}
 
 # SELFTESTS_MPTCP_LIB_EXPECT_ALL_FEATURES env var can be set when validating all
 # features using the last version of the kernel and the selftests to make sure
@@ -101,4 +144,66 @@ mptcp_lib_kversion_ge() {
 	fi
 
 	mptcp_lib_fail_if_expected_feature "kernel version ${1} lower than ${v}"
+}
+
+__mptcp_lib_result_add() {
+	local result="${1}"
+	shift
+
+	local id=$((${#MPTCP_LIB_SUBTESTS[@]} + 1))
+
+	MPTCP_LIB_SUBTESTS+=("${result} ${id} - ${KSFT_TEST}: ${*}")
+}
+
+# $1: test name
+mptcp_lib_result_pass() {
+	__mptcp_lib_result_add "ok" "${1}"
+}
+
+# $1: test name
+mptcp_lib_result_fail() {
+	__mptcp_lib_result_add "not ok" "${1}"
+}
+
+# $1: test name
+mptcp_lib_result_skip() {
+	__mptcp_lib_result_add "ok" "${1} # SKIP"
+}
+
+# $1: result code ; $2: test name
+mptcp_lib_result_code() {
+	local ret="${1}"
+	local name="${2}"
+
+	case "${ret}" in
+		"${KSFT_PASS}")
+			mptcp_lib_result_pass "${name}"
+			;;
+		"${KSFT_FAIL}")
+			mptcp_lib_result_fail "${name}"
+			;;
+		"${KSFT_SKIP}")
+			mptcp_lib_result_skip "${name}"
+			;;
+		*)
+			echo "ERROR: wrong result code: ${ret}"
+			exit ${KSFT_FAIL}
+			;;
+	esac
+}
+
+mptcp_lib_result_print_all_tap() {
+	local subtest
+
+	if [ ${#MPTCP_LIB_SUBTESTS[@]} -eq 0 ] ||
+	   [ "${SELFTESTS_MPTCP_LIB_NO_TAP:-}" = "1" ]; then
+		return
+	fi
+
+	printf "\nTAP version 13\n"
+	printf "1..%d\n" "${#MPTCP_LIB_SUBTESTS[@]}"
+
+	for subtest in "${MPTCP_LIB_SUBTESTS[@]}"; do
+		printf "%s\n" "${subtest}"
+	done
 }

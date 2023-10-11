@@ -9,10 +9,7 @@ ALL_TESTS="
 	num_grat_arp
 "
 
-REQUIRE_MZ=no
-NUM_NETIFS=0
 lib_dir=$(dirname "$0")
-source ${lib_dir}/net_forwarding_lib.sh
 source ${lib_dir}/bond_topo_3d1c.sh
 
 skip_prio()

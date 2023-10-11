@@ -205,6 +205,8 @@ void f2fs_abort_atomic_write(struct inode *inode, bool clean)
 		f2fs_i_size_write(inode, fi->original_i_size);
 		fi->original_i_size = 0;
 	}
+	/* avoid stale dirty inode during eviction */
+	sync_inode_metadata(inode, 0);
 }
 
 static int __replace_atomic_write_block(struct inode *inode, pgoff_t index,
@@ -433,6 +435,7 @@ void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need)
 			.err_gc_skipped = false,
 			.nr_free_secs = 1 };
 		f2fs_down_write(&sbi->gc_lock);
+		stat_inc_gc_call_count(sbi, FOREGROUND);
 		f2fs_gc(sbi, &gc_control);
 	}
 }
@@ -510,8 +513,8 @@ do_sync:
 
 		mutex_unlock(&sbi->flush_lock);
 	}
+	stat_inc_cp_call_count(sbi, BACKGROUND);
 	f2fs_sync_fs(sbi->sb, 1);
-	stat_inc_bg_cp_count(sbi->stat_info);
 }
 
 static int __submit_flush_wait(struct f2fs_sb_info *sbi,
@@ -1258,8 +1261,16 @@ static int __submit_discard_cmd(struct f2fs_sb_info *sbi,
 
 #ifdef CONFIG_BLK_DEV_ZONED
 	if (f2fs_sb_has_blkzoned(sbi) && bdev_is_zoned(bdev)) {
-		__submit_zone_reset_cmd(sbi, dc, flag, wait_list, issued);
-		return 0;
+		int devi = f2fs_bdev_index(sbi, bdev);
+
+		if (devi < 0)
+			return -EINVAL;
+
+		if (f2fs_blkz_is_seq(sbi, devi, dc->di.start)) {
+			__submit_zone_reset_cmd(sbi, dc, flag,
+						wait_list, issued);
+			return 0;
+		}
 	}
 #endif
 
@@ -1785,15 +1796,24 @@ static void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 	dc = __lookup_discard_cmd(sbi, blkaddr);
 #ifdef CONFIG_BLK_DEV_ZONED
 	if (dc && f2fs_sb_has_blkzoned(sbi) && bdev_is_zoned(dc->bdev)) {
-		/* force submit zone reset */
-		if (dc->state == D_PREP)
-			__submit_zone_reset_cmd(sbi, dc, REQ_SYNC,
-						&dcc->wait_list, NULL);
-		dc->ref++;
-		mutex_unlock(&dcc->cmd_lock);
-		/* wait zone reset */
-		__wait_one_discard_bio(sbi, dc);
-		return;
+		int devi = f2fs_bdev_index(sbi, dc->bdev);
+
+		if (devi < 0) {
+			mutex_unlock(&dcc->cmd_lock);
+			return;
+		}
+
+		if (f2fs_blkz_is_seq(sbi, devi, dc->di.start)) {
+			/* force submit zone reset */
+			if (dc->state == D_PREP)
+				__submit_zone_reset_cmd(sbi, dc, REQ_SYNC,
+							&dcc->wait_list, NULL);
+			dc->ref++;
+			mutex_unlock(&dcc->cmd_lock);
+			/* wait zone reset */
+			__wait_one_discard_bio(sbi, dc);
+			return;
+		}
 	}
 #endif
 	if (dc) {
@@ -2193,7 +2213,7 @@ find_next:
 			len = next_pos - cur_pos;
 
 			if (f2fs_sb_has_blkzoned(sbi) ||
-					!force || len < cpc->trim_minlen)
+			    (force && len < cpc->trim_minlen))
 				goto skip;
 
 			f2fs_issue_discard(sbi, entry->start_blkaddr + cur_pos,
@@ -3228,6 +3248,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 		goto out;
 
 	f2fs_down_write(&sbi->gc_lock);
+	stat_inc_cp_call_count(sbi, TOTAL_CALL);
 	err = f2fs_write_checkpoint(sbi, &cpc);
 	f2fs_up_write(&sbi->gc_lock);
 	if (err)
@@ -4846,17 +4867,17 @@ static int check_zone_write_pointer(struct f2fs_sb_info *sbi,
 {
 	unsigned int wp_segno, wp_blkoff, zone_secno, zone_segno, segno;
 	block_t zone_block, wp_block, last_valid_block;
+	unsigned int log_sectors_per_block = sbi->log_blocksize - SECTOR_SHIFT;
 	int i, s, b, ret;
 	struct seg_entry *se;
 
 	if (zone->type != BLK_ZONE_TYPE_SEQWRITE_REQ)
 		return 0;
 
-	wp_block = fdev->start_blk + (zone->wp >> sbi->log_sectors_per_block);
+	wp_block = fdev->start_blk + (zone->wp >> log_sectors_per_block);
 	wp_segno = GET_SEGNO(sbi, wp_block);
 	wp_blkoff = wp_block - START_BLOCK(sbi, wp_segno);
-	zone_block = fdev->start_blk + (zone->start >>
-						sbi->log_sectors_per_block);
+	zone_block = fdev->start_blk + (zone->start >> log_sectors_per_block);
 	zone_segno = GET_SEGNO(sbi, zone_block);
 	zone_secno = GET_SEC_FROM_SEG(sbi, zone_segno);
 
@@ -4906,7 +4927,7 @@ static int check_zone_write_pointer(struct f2fs_sb_info *sbi,
 			    "pointer. Reset the write pointer: wp[0x%x,0x%x]",
 			    wp_segno, wp_blkoff);
 		ret = __f2fs_issue_discard_zone(sbi, fdev->bdev, zone_block,
-				zone->len >> sbi->log_sectors_per_block);
+					zone->len >> log_sectors_per_block);
 		if (ret)
 			f2fs_err(sbi, "Discard zone failed: %s (errno=%d)",
 				 fdev->path, ret);
@@ -4927,12 +4948,19 @@ static int check_zone_write_pointer(struct f2fs_sb_info *sbi,
 		    GET_BLKOFF_FROM_SEG0(sbi, last_valid_block),
 		    wp_segno, wp_blkoff);
 
-	ret = blkdev_issue_zeroout(fdev->bdev, zone->wp,
-				zone->len - (zone->wp - zone->start),
-				GFP_NOFS, 0);
-	if (ret)
-		f2fs_err(sbi, "Fill up zone failed: %s (errno=%d)",
-			 fdev->path, ret);
+	ret = blkdev_zone_mgmt(fdev->bdev, REQ_OP_ZONE_FINISH,
+				zone->start, zone->len, GFP_NOFS);
+	if (ret == -EOPNOTSUPP) {
+		ret = blkdev_issue_zeroout(fdev->bdev, zone->wp,
+					zone->len - (zone->wp - zone->start),
+					GFP_NOFS, 0);
+		if (ret)
+			f2fs_err(sbi, "Fill up zone failed: %s (errno=%d)",
+					fdev->path, ret);
+	} else if (ret) {
+		f2fs_err(sbi, "Finishing zone failed: %s (errno=%d)",
+				fdev->path, ret);
+	}
 
 	return ret;
 }
@@ -4967,6 +4995,7 @@ static int fix_curseg_write_pointer(struct f2fs_sb_info *sbi, int type)
 	struct blk_zone zone;
 	unsigned int cs_section, wp_segno, wp_blkoff, wp_sector_off;
 	block_t cs_zone_block, wp_block;
+	unsigned int log_sectors_per_block = sbi->log_blocksize - SECTOR_SHIFT;
 	sector_t zone_sector;
 	int err;
 
@@ -4978,8 +5007,8 @@ static int fix_curseg_write_pointer(struct f2fs_sb_info *sbi, int type)
 		return 0;
 
 	/* report zone for the sector the curseg points to */
-	zone_sector = (sector_t)(cs_zone_block - zbd->start_blk) <<
-						sbi->log_sectors_per_block;
+	zone_sector = (sector_t)(cs_zone_block - zbd->start_blk)
+		<< log_sectors_per_block;
 	err = blkdev_report_zones(zbd->bdev, zone_sector, 1,
 				  report_one_zone_cb, &zone);
 	if (err != 1) {
@@ -4991,10 +5020,10 @@ static int fix_curseg_write_pointer(struct f2fs_sb_info *sbi, int type)
 	if (zone.type != BLK_ZONE_TYPE_SEQWRITE_REQ)
 		return 0;
 
-	wp_block = zbd->start_blk + (zone.wp >> sbi->log_sectors_per_block);
+	wp_block = zbd->start_blk + (zone.wp >> log_sectors_per_block);
 	wp_segno = GET_SEGNO(sbi, wp_block);
 	wp_blkoff = wp_block - START_BLOCK(sbi, wp_segno);
-	wp_sector_off = zone.wp & GENMASK(sbi->log_sectors_per_block - 1, 0);
+	wp_sector_off = zone.wp & GENMASK(log_sectors_per_block - 1, 0);
 
 	if (cs->segno == wp_segno && cs->next_blkoff == wp_blkoff &&
 		wp_sector_off == 0)
@@ -5021,8 +5050,8 @@ static int fix_curseg_write_pointer(struct f2fs_sb_info *sbi, int type)
 	if (!zbd)
 		return 0;
 
-	zone_sector = (sector_t)(cs_zone_block - zbd->start_blk) <<
-						sbi->log_sectors_per_block;
+	zone_sector = (sector_t)(cs_zone_block - zbd->start_blk)
+		<< log_sectors_per_block;
 	err = blkdev_report_zones(zbd->bdev, zone_sector, 1,
 				  report_one_zone_cb, &zone);
 	if (err != 1) {
@@ -5040,7 +5069,7 @@ static int fix_curseg_write_pointer(struct f2fs_sb_info *sbi, int type)
 			    "Reset the zone: curseg[0x%x,0x%x]",
 			    type, cs->segno, cs->next_blkoff);
 		err = __f2fs_issue_discard_zone(sbi, zbd->bdev,	cs_zone_block,
-					zone.len >> sbi->log_sectors_per_block);
+					zone.len >> log_sectors_per_block);
 		if (err) {
 			f2fs_err(sbi, "Discard zone failed: %s (errno=%d)",
 				 zbd->path, err);

@@ -63,7 +63,7 @@ arch_get_unmapped_area (struct file *filp, unsigned long addr, unsigned long len
 	info.low_limit = addr;
 	info.high_limit = TASK_SIZE;
 	info.align_mask = align_mask;
-	info.align_offset = 0;
+	info.align_offset = pgoff << PAGE_SHIFT;
 	return vm_unmapped_area(&info);
 }
 

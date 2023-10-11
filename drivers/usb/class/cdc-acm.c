@@ -28,6 +28,7 @@
 #include <linux/serial.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
+#include <linux/tty_ldisc.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
@@ -318,6 +319,16 @@ static void acm_process_notification(struct acm *acm, unsigned char *buf)
 		}
 
 		difference = acm->ctrlin ^ newctrl;
+
+		if ((difference & USB_CDC_SERIAL_STATE_DCD) && acm->port.tty) {
+			struct tty_ldisc *ld = tty_ldisc_ref(acm->port.tty);
+			if (ld) {
+				if (ld->ops->dcd_change)
+					ld->ops->dcd_change(acm->port.tty, newctrl & USB_CDC_SERIAL_STATE_DCD);
+				tty_ldisc_deref(ld);
+			}
+		}
+
 		spin_lock_irqsave(&acm->read_lock, flags);
 		acm->ctrlin = newctrl;
 		acm->oldcount = acm->iocount;
@@ -789,8 +800,8 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close(&acm->port, tty, filp);
 }
 
-static int acm_tty_write(struct tty_struct *tty,
-					const unsigned char *buf, int count)
+static ssize_t acm_tty_write(struct tty_struct *tty, const u8 *buf,
+			     size_t count)
 {
 	struct acm *acm = tty->driver_data;
 	int stat;
@@ -801,7 +812,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	if (!count)
 		return 0;
 
-	dev_vdbg(&acm->data->dev, "%d bytes from tty layer\n", count);
+	dev_vdbg(&acm->data->dev, "%zu bytes from tty layer\n", count);
 
 	spin_lock_irqsave(&acm->write_lock, flags);
 	wbn = acm_wb_alloc(acm);
@@ -818,7 +829,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	}
 
 	count = (count > acm->writesize) ? acm->writesize : count;
-	dev_vdbg(&acm->data->dev, "writing %d bytes\n", count);
+	dev_vdbg(&acm->data->dev, "writing %zu bytes\n", count);
 	memcpy(wb->buf, buf, count);
 	wb->len = count;
 
@@ -851,6 +862,19 @@ static unsigned int acm_tty_write_room(struct tty_struct *tty)
 	 * or it might get too enthusiastic.
 	 */
 	return acm_wb_is_avail(acm) ? acm->writesize : 0;
+}
+
+static void acm_tty_flush_buffer(struct tty_struct *tty)
+{
+	struct acm *acm = tty->driver_data;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&acm->write_lock, flags);
+	for (i = 0; i < ACM_NW; i++)
+		if (acm->wb[i].use)
+			usb_unlink_urb(acm->wb[i].urb);
+	spin_unlock_irqrestore(&acm->write_lock, flags);
 }
 
 static unsigned int acm_tty_chars_in_buffer(struct tty_struct *tty)
@@ -2016,6 +2040,7 @@ static const struct tty_operations acm_ops = {
 	.hangup =		acm_tty_hangup,
 	.write =		acm_tty_write,
 	.write_room =		acm_tty_write_room,
+	.flush_buffer =		acm_tty_flush_buffer,
 	.ioctl =		acm_tty_ioctl,
 	.throttle =		acm_tty_throttle,
 	.unthrottle =		acm_tty_unthrottle,

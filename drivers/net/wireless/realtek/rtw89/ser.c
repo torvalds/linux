@@ -529,6 +529,9 @@ static void ser_do_hci_st_hdl(struct rtw89_ser *ser, u8 evt)
 static void ser_mac_mem_dump(struct rtw89_dev *rtwdev, u8 *buf,
 			     u8 sel, u32 start_addr, u32 len)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 filter_model_addr = mac->filter_model_addr;
+	u32 indir_access_addr = mac->indir_access_addr;
 	u32 *ptr = (u32 *)buf;
 	u32 base_addr, start_page, residue;
 	u32 cnt = 0;
@@ -536,14 +539,14 @@ static void ser_mac_mem_dump(struct rtw89_dev *rtwdev, u8 *buf,
 
 	start_page = start_addr / MAC_MEM_DUMP_PAGE_SIZE;
 	residue = start_addr % MAC_MEM_DUMP_PAGE_SIZE;
-	base_addr = rtw89_mac_mem_base_addrs[sel];
+	base_addr = mac->mem_base_addrs[sel];
 	base_addr += start_page * MAC_MEM_DUMP_PAGE_SIZE;
 
 	while (cnt < len) {
-		rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, base_addr);
+		rtw89_write32(rtwdev, filter_model_addr, base_addr);
 
-		for (i = R_AX_INDIR_ACCESS_ENTRY + residue;
-		     i < R_AX_INDIR_ACCESS_ENTRY + MAC_MEM_DUMP_PAGE_SIZE;
+		for (i = indir_access_addr + residue;
+		     i < indir_access_addr + MAC_MEM_DUMP_PAGE_SIZE;
 		     i += 4, ptr++) {
 			*ptr = rtw89_read32(rtwdev, i);
 			cnt += 4;
@@ -585,6 +588,9 @@ static int rtw89_ser_fw_backtrace_dump(struct rtw89_dev *rtwdev, u8 *buf,
 				       const struct __fw_backtrace_entry *ent)
 {
 	struct __fw_backtrace_info *ptr = (struct __fw_backtrace_info *)buf;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 filter_model_addr = mac->filter_model_addr;
+	u32 indir_access_addr = mac->indir_access_addr;
 	u32 fwbt_addr = ent->wcpu_addr & RTW89_WCPU_BASE_MASK;
 	u32 fwbt_size = ent->size;
 	u32 fwbt_key = ent->key;
@@ -610,10 +616,10 @@ static int rtw89_ser_fw_backtrace_dump(struct rtw89_dev *rtwdev, u8 *buf,
 	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_SER, "dump fw backtrace start\n");
-	rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, fwbt_addr);
+	rtw89_write32(rtwdev, filter_model_addr, fwbt_addr);
 
-	for (i = R_AX_INDIR_ACCESS_ENTRY;
-	     i < R_AX_INDIR_ACCESS_ENTRY + fwbt_size;
+	for (i = indir_access_addr;
+	     i < indir_access_addr + fwbt_size;
 	     i += RTW89_FW_BACKTRACE_INFO_SIZE, ptr++) {
 		*ptr = (struct __fw_backtrace_info){
 			.ra = rtw89_read32(rtwdev, i),

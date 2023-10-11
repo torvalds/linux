@@ -986,7 +986,7 @@ bad_unwrap:
 	return -EINVAL;
 }
 
-static int
+static enum svc_auth_status
 svcauth_gss_set_client(struct svc_rqst *rqstp)
 {
 	struct gss_svc_data *svcdata = rqstp->rq_auth_data;
@@ -1634,7 +1634,7 @@ svcauth_gss_decode_credbody(struct xdr_stream *xdr,
  *
  * The rqstp->rq_auth_stat field is also set (see RFCs 2203 and 5531).
  */
-static int
+static enum svc_auth_status
 svcauth_gss_accept(struct svc_rqst *rqstp)
 {
 	struct gss_svc_data *svcdata = rqstp->rq_auth_data;
@@ -1945,9 +1945,6 @@ bad_wrap:
  *    %0: the Reply is ready to be sent
  *    %-ENOMEM: failed to allocate memory
  *    %-EINVAL: encoding error
- *
- * XXX: These return values do not match the return values documented
- *      for the auth_ops ->release method in linux/sunrpc/svcauth.h.
  */
 static int
 svcauth_gss_release(struct svc_rqst *rqstp)

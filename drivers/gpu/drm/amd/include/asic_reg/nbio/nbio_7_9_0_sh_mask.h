@@ -38896,5 +38896,13 @@
 #define RCC_DEV0_EPF0_VF7_GFXMSIX_PBA__MSIX_PENDING_BITS_0_MASK                                               0x00000001L
 #define RCC_DEV0_EPF0_VF7_GFXMSIX_PBA__MSIX_PENDING_BITS_1_MASK                                               0x00000002L
 
+//PCIE_PERF_CNTL_TXCLK3
+#define PCIE_PERF_CNTL_TXCLK3__EVENT0_SEL__SHIFT							      0x0
+#define PCIE_PERF_CNTL_TXCLK3__EVENT0_SEL_MASK								      0x000000FFL
+
+//PCIE_PERF_CNTL_TXCLK7
+#define PCIE_PERF_CNTL_TXCLK7__EVENT0_SEL__SHIFT							      0x0
+#define PCIE_PERF_CNTL_TXCLK7__EVENT0_SEL_MASK								      0x000000FFL
+
 
 #endif

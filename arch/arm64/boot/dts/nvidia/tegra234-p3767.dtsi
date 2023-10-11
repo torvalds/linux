@@ -106,12 +106,18 @@
 
 			trips {
 				tj_trip_active0: active-0 {
-					temperature = <74000>;
+					temperature = <35000>;
 					hysteresis = <4000>;
 					type = "active";
 				};
 
 				tj_trip_active1: active-1 {
+					temperature = <74000>;
+					hysteresis = <4000>;
+					type = "active";
+				};
+
+				tj_trip_active2: active-2 {
 					temperature = <95000>;
 					hysteresis = <4000>;
 					type = "active";

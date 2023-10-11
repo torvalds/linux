@@ -665,8 +665,8 @@ static int hisi_pcie_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
 	struct hisi_pcie_pmu *pcie_pmu = hlist_entry_safe(node, struct hisi_pcie_pmu, node);
 
 	if (pcie_pmu->on_cpu == -1) {
-		pcie_pmu->on_cpu = cpu;
-		WARN_ON(irq_set_affinity(pcie_pmu->irq, cpumask_of(cpu)));
+		pcie_pmu->on_cpu = cpumask_local_spread(0, dev_to_node(&pcie_pmu->pdev->dev));
+		WARN_ON(irq_set_affinity(pcie_pmu->irq, cpumask_of(pcie_pmu->on_cpu)));
 	}
 
 	return 0;
@@ -676,14 +676,23 @@ static int hisi_pcie_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 {
 	struct hisi_pcie_pmu *pcie_pmu = hlist_entry_safe(node, struct hisi_pcie_pmu, node);
 	unsigned int target;
+	cpumask_t mask;
+	int numa_node;
 
 	/* Nothing to do if this CPU doesn't own the PMU */
 	if (pcie_pmu->on_cpu != cpu)
 		return 0;
 
 	pcie_pmu->on_cpu = -1;
-	/* Choose a new CPU from all online cpus. */
-	target = cpumask_any_but(cpu_online_mask, cpu);
+
+	/* Choose a local CPU from all online cpus. */
+	numa_node = dev_to_node(&pcie_pmu->pdev->dev);
+	if (cpumask_and(&mask, cpumask_of_node(numa_node), cpu_online_mask) &&
+	    cpumask_andnot(&mask, &mask, cpumask_of(cpu)))
+		target = cpumask_any(&mask);
+	else
+		target = cpumask_any_but(cpu_online_mask, cpu);
+
 	if (target >= nr_cpu_ids) {
 		pci_err(pcie_pmu->pdev, "There is no CPU to set\n");
 		return 0;

@@ -23,6 +23,7 @@
 
 #include <linux/types.h>
 #include <linux/sched/task.h>
+#include <linux/dynamic_debug.h>
 #include <drm/ttm/ttm_tt.h>
 #include <drm/drm_exec.h>
 
@@ -48,6 +49,13 @@
  * page table is updated.
  */
 #define AMDGPU_SVM_RANGE_RETRY_FAULT_PENDING	(2UL * NSEC_PER_MSEC)
+#if IS_ENABLED(CONFIG_DYNAMIC_DEBUG)
+#define dynamic_svm_range_dump(svms) \
+	_dynamic_func_call_no_desc("svm_range_dump", svm_range_debug_dump, svms)
+#else
+#define dynamic_svm_range_dump(svms) \
+	do { if (0) svm_range_debug_dump(svms); } while (0)
+#endif
 
 /* Giant svm range split into smaller ranges based on this, it is decided using
  * minimum of all dGPU/APU 1/32 VRAM size, between 2MB to 1GB and alignment to
@@ -241,7 +249,7 @@ void svm_range_dma_unmap(struct device *dev, dma_addr_t *dma_addr,
 	}
 }
 
-void svm_range_free_dma_mappings(struct svm_range *prange)
+void svm_range_free_dma_mappings(struct svm_range *prange, bool unmap_dma)
 {
 	struct kfd_process_device *pdd;
 	dma_addr_t *dma_addr;
@@ -262,13 +270,14 @@ void svm_range_free_dma_mappings(struct svm_range *prange)
 			continue;
 		}
 		dev = &pdd->dev->adev->pdev->dev;
-		svm_range_dma_unmap(dev, dma_addr, 0, prange->npages);
+		if (unmap_dma)
+			svm_range_dma_unmap(dev, dma_addr, 0, prange->npages);
 		kvfree(dma_addr);
 		prange->dma_addr[gpuidx] = NULL;
 	}
 }
 
-static void svm_range_free(struct svm_range *prange, bool update_mem_usage)
+static void svm_range_free(struct svm_range *prange, bool do_unmap)
 {
 	uint64_t size = (prange->last - prange->start + 1) << PAGE_SHIFT;
 	struct kfd_process *p = container_of(prange->svms, struct kfd_process, svms);
@@ -277,9 +286,9 @@ static void svm_range_free(struct svm_range *prange, bool update_mem_usage)
 		 prange->start, prange->last);
 
 	svm_range_vram_node_free(prange);
-	svm_range_free_dma_mappings(prange);
+	svm_range_free_dma_mappings(prange, do_unmap);
 
-	if (update_mem_usage && !p->xnack_enabled) {
+	if (do_unmap && !p->xnack_enabled) {
 		pr_debug("unreserve prange 0x%p size: 0x%llx\n", prange, size);
 		amdgpu_amdkfd_unreserve_mem_limit(NULL, size,
 					KFD_IOC_ALLOC_MEM_FLAGS_USERPTR, 0);
@@ -851,6 +860,37 @@ static void svm_range_debug_dump(struct svm_range_list *svms)
 	}
 }
 
+static void *
+svm_range_copy_array(void *psrc, size_t size, uint64_t num_elements,
+		     uint64_t offset)
+{
+	unsigned char *dst;
+
+	dst = kvmalloc_array(num_elements, size, GFP_KERNEL);
+	if (!dst)
+		return NULL;
+	memcpy(dst, (unsigned char *)psrc + offset, num_elements * size);
+
+	return (void *)dst;
+}
+
+static int
+svm_range_copy_dma_addrs(struct svm_range *dst, struct svm_range *src)
+{
+	int i;
+
+	for (i = 0; i < MAX_GPU_INSTANCE; i++) {
+		if (!src->dma_addr[i])
+			continue;
+		dst->dma_addr[i] = svm_range_copy_array(src->dma_addr[i],
+					sizeof(*src->dma_addr[i]), src->npages, 0);
+		if (!dst->dma_addr[i])
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int
 svm_range_split_array(void *ppnew, void *ppold, size_t size,
 		      uint64_t old_start, uint64_t old_n,
@@ -865,22 +905,16 @@ svm_range_split_array(void *ppnew, void *ppold, size_t size,
 	if (!pold)
 		return 0;
 
-	new = kvmalloc_array(new_n, size, GFP_KERNEL);
+	d = (new_start - old_start) * size;
+	new = svm_range_copy_array(pold, size, new_n, d);
 	if (!new)
 		return -ENOMEM;
-
-	d = (new_start - old_start) * size;
-	memcpy(new, pold + d, new_n * size);
-
-	old = kvmalloc_array(old_n, size, GFP_KERNEL);
+	d = (new_start == old_start) ? new_n * size : 0;
+	old = svm_range_copy_array(pold, size, old_n, d);
 	if (!old) {
 		kvfree(new);
 		return -ENOMEM;
 	}
-
-	d = (new_start == old_start) ? new_n * size : 0;
-	memcpy(old, pold + d, old_n * size);
-
 	kvfree(pold);
 	*(void **)ppold = old;
 	*(void **)ppnew = new;
@@ -1521,6 +1555,8 @@ static void *kfd_svm_page_owner(struct kfd_process *p, int32_t gpuidx)
 	struct kfd_process_device *pdd;
 
 	pdd = kfd_process_device_from_gpuidx(p, gpuidx);
+	if (!pdd)
+		return NULL;
 
 	return SVM_ADEV_PGMAP_OWNER(pdd->dev->adev);
 }
@@ -1595,12 +1631,12 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 	}
 
 	if (bitmap_empty(ctx->bitmap, MAX_GPU_INSTANCE)) {
-		if (!prange->mapped_to_gpu) {
+		bitmap_copy(ctx->bitmap, prange->bitmap_access, MAX_GPU_INSTANCE);
+		if (!prange->mapped_to_gpu ||
+		    bitmap_empty(ctx->bitmap, MAX_GPU_INSTANCE)) {
 			r = 0;
 			goto free_ctx;
 		}
-
-		bitmap_copy(ctx->bitmap, prange->bitmap_access, MAX_GPU_INSTANCE);
 	}
 
 	if (prange->actual_loc && !prange->ttm_res) {
@@ -1650,6 +1686,8 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		WRITE_ONCE(p->svms.faulting_task, NULL);
 		if (r) {
 			pr_debug("failed %d to get svm range pages\n", r);
+			if (r == -EBUSY)
+				r = -EAGAIN;
 			goto unreserve_out;
 		}
 
@@ -1924,7 +1962,10 @@ static struct svm_range *svm_range_clone(struct svm_range *old)
 	new = svm_range_new(old->svms, old->start, old->last, false);
 	if (!new)
 		return NULL;
-
+	if (svm_range_copy_dma_addrs(new, old)) {
+		svm_range_free(new, false);
+		return NULL;
+	}
 	if (old->svm_bo) {
 		new->ttm_res = old->ttm_res;
 		new->offset = old->offset;
@@ -2620,10 +2661,7 @@ svm_range_get_range_boundaries(struct kfd_process *p, int64_t addr,
 		return -EFAULT;
 	}
 
-	*is_heap_stack = (vma->vm_start <= vma->vm_mm->brk &&
-			  vma->vm_end >= vma->vm_mm->start_brk) ||
-			 (vma->vm_start <= vma->vm_mm->start_stack &&
-			  vma->vm_end >= vma->vm_mm->start_stack);
+	*is_heap_stack = vma_is_initial_heap(vma) || vma_is_initial_stack(vma);
 
 	start_limit = max(vma->vm_start >> PAGE_SHIFT,
 		      (unsigned long)ALIGN_DOWN(addr, 2UL << 8));
@@ -3560,7 +3598,7 @@ out_unlock_range:
 			break;
 	}
 
-	svm_range_debug_dump(svms);
+	dynamic_svm_range_dump(svms);
 
 	mutex_unlock(&svms->lock);
 	mmap_read_unlock(mm);

@@ -56,8 +56,8 @@ properties:
       String corresponding to an identifier from atmel,adc-res-names property.
       If not specified, the highest resolution will be used.
     enum:
-      - "lowres"
-      - "highres"
+      - lowres
+      - highres
 
   atmel,adc-sleep-mode:
     $ref: /schemas/types.yaml#/definitions/flag

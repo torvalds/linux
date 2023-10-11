@@ -435,25 +435,11 @@ static union acpi_object *hp_wmi_get_wobj(const char *guid, u8 instance)
 /* hp_wmi_wobj_instance_count - find count of WMI object instances */
 static u8 hp_wmi_wobj_instance_count(const char *guid)
 {
-	u8 hi = HP_WMI_MAX_INSTANCES;
-	union acpi_object *wobj;
-	u8 lo = 0;
-	u8 mid;
+	int count;
 
-	while (lo < hi) {
-		mid = (lo + hi) / 2;
+	count = wmi_instance_count(guid);
 
-		wobj = hp_wmi_get_wobj(guid, mid);
-		if (!wobj) {
-			hi = mid;
-			continue;
-		}
-
-		lo = mid + 1;
-		kfree(wobj);
-	}
-
-	return lo;
+	return clamp(count, 0, (int)HP_WMI_MAX_INSTANCES);
 }
 
 static int check_wobj(const union acpi_object *wobj,
@@ -1927,7 +1913,7 @@ static bool add_event_handler(struct hp_wmi_sensors *state)
 static int hp_wmi_sensors_init(struct hp_wmi_sensors *state)
 {
 	struct hp_wmi_info *connected[HP_WMI_MAX_INSTANCES];
-	struct hp_wmi_platform_events *pevents;
+	struct hp_wmi_platform_events *pevents = NULL;
 	struct device *dev = &state->wdev->dev;
 	struct hp_wmi_info *info;
 	struct device *hwdev;

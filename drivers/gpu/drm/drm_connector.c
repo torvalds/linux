@@ -631,6 +631,10 @@ int drm_connector_register(struct drm_connector *connector)
 			goto err_debugfs;
 	}
 
+	ret = drm_sysfs_connector_add_late(connector);
+	if (ret)
+		goto err_late_register;
+
 	drm_mode_object_register(connector->dev, &connector->base);
 
 	connector->registration_state = DRM_CONNECTOR_REGISTERED;
@@ -647,6 +651,9 @@ int drm_connector_register(struct drm_connector *connector)
 	mutex_unlock(&connector_list_lock);
 	goto unlock;
 
+err_late_register:
+	if (connector->funcs->early_unregister)
+		connector->funcs->early_unregister(connector);
 err_debugfs:
 	drm_debugfs_connector_remove(connector);
 	drm_sysfs_connector_remove(connector);
@@ -681,11 +688,13 @@ void drm_connector_unregister(struct drm_connector *connector)
 					connector->privacy_screen,
 					&connector->privacy_screen_notifier);
 
+	drm_sysfs_connector_remove_early(connector);
+
 	if (connector->funcs->early_unregister)
 		connector->funcs->early_unregister(connector);
 
-	drm_sysfs_connector_remove(connector);
 	drm_debugfs_connector_remove(connector);
+	drm_sysfs_connector_remove(connector);
 
 	connector->registration_state = DRM_CONNECTOR_UNREGISTERED;
 	mutex_unlock(&connector->mutex);
@@ -2203,6 +2212,7 @@ static int drm_mode_create_colorspace_property(struct drm_connector *connector,
 /**
  * drm_mode_create_hdmi_colorspace_property - create hdmi colorspace property
  * @connector: connector to create the Colorspace property on.
+ * @supported_colorspaces: bitmap of supported color spaces
  *
  * Called by a driver the first time it's needed, must be attached to desired
  * HDMI connectors.
@@ -2227,6 +2237,7 @@ EXPORT_SYMBOL(drm_mode_create_hdmi_colorspace_property);
 /**
  * drm_mode_create_dp_colorspace_property - create dp colorspace property
  * @connector: connector to create the Colorspace property on.
+ * @supported_colorspaces: bitmap of supported color spaces
  *
  * Called by a driver the first time it's needed, must be attached to desired
  * DP connectors.

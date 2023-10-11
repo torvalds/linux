@@ -1,0 +1,362 @@
+[
+    {
+	"MetricExpr": "BR_MIS_PRED / BR_PRED",
+	"BriefDescription": "Branch predictor misprediction rate. May not count branches that are never resolved because they are in the misprediction shadow of an earlier branch",
+	"MetricGroup": "Branch Prediction",
+	"MetricName": "Misprediction"
+    },
+    {
+	"MetricExpr": "BR_MIS_PRED_RETIRED / BR_RETIRED",
+	"BriefDescription": "Branch predictor misprediction rate",
+	"MetricGroup": "Branch Prediction",
+	"MetricName": "Misprediction (retired)"
+    },
+    {
+	"MetricExpr": "BUS_ACCESS / ( BUS_CYCLES * 1)",
+	"BriefDescription": "Core-to-uncore bus utilization",
+	"MetricGroup": "Bus",
+	"MetricName": "Bus utilization"
+    },
+    {
+	"MetricExpr": "L1D_CACHE_REFILL / L1D_CACHE",
+	"BriefDescription": "L1D cache miss rate",
+	"MetricGroup": "Cache",
+	"MetricName": "L1D cache miss"
+    },
+    {
+	"MetricExpr": "L1D_CACHE_LMISS_RD / L1D_CACHE_RD",
+	"BriefDescription": "L1D cache read miss rate",
+	"MetricGroup": "Cache",
+	"MetricName": "L1D cache read miss"
+    },
+    {
+	"MetricExpr": "L1I_CACHE_REFILL / L1I_CACHE",
+	"BriefDescription": "L1I cache miss rate",
+	"MetricGroup": "Cache",
+	"MetricName": "L1I cache miss"
+    },
+    {
+	"MetricExpr": "L2D_CACHE_REFILL / L2D_CACHE",
+	"BriefDescription": "L2 cache miss rate",
+	"MetricGroup": "Cache",
+	"MetricName": "L2 cache miss"
+    },
+    {
+	"MetricExpr": "L1I_CACHE_LMISS / L1I_CACHE",
+	"BriefDescription": "L1I cache read miss rate",
+	"MetricGroup": "Cache",
+	"MetricName": "L1I cache read miss"
+    },
+    {
+	"MetricExpr": "L2D_CACHE_LMISS_RD / L2D_CACHE_RD",
+	"BriefDescription": "L2 cache read miss rate",
+	"MetricGroup": "Cache",
+	"MetricName": "L2 cache read miss"
+    },
+    {
+	"MetricExpr": "(L1D_CACHE_LMISS_RD * 1000) / INST_RETIRED",
+	"BriefDescription": "Misses per thousand instructions (data)",
+	"MetricGroup": "Cache",
+	"MetricName": "MPKI data"
+    },
+    {
+	"MetricExpr": "(L1I_CACHE_LMISS * 1000) / INST_RETIRED",
+	"BriefDescription": "Misses per thousand instructions (instruction)",
+	"MetricGroup": "Cache",
+	"MetricName": "MPKI instruction"
+    },
+    {
+	"MetricExpr": "ASE_SPEC / OP_SPEC",
+	"BriefDescription": "Proportion of advanced SIMD data processing operations (excluding DP_SPEC/LD_SPEC) operations",
+	"MetricGroup": "Instruction",
+	"MetricName": "ASE mix"
+    },
+    {
+	"MetricExpr": "CRYPTO_SPEC / OP_SPEC",
+	"BriefDescription": "Proportion of crypto data processing operations",
+	"MetricGroup": "Instruction",
+	"MetricName": "Crypto mix"
+    },
+    {
+	"MetricExpr": "VFP_SPEC / (duration_time *1000000000)",
+	"BriefDescription": "Giga-floating point operations per second",
+	"MetricGroup": "Instruction",
+	"MetricName": "GFLOPS_ISSUED"
+    },
+    {
+	"MetricExpr": "DP_SPEC / OP_SPEC",
+	"BriefDescription": "Proportion of integer data processing operations",
+	"MetricGroup": "Instruction",
+	"MetricName": "Integer mix"
+    },
+    {
+	"MetricExpr": "INST_RETIRED / CPU_CYCLES",
+	"BriefDescription": "Instructions per cycle",
+	"MetricGroup": "Instruction",
+	"MetricName": "IPC"
+    },
+    {
+	"MetricExpr": "LD_SPEC / OP_SPEC",
+	"BriefDescription": "Proportion of load operations",
+	"MetricGroup": "Instruction",
+	"MetricName": "Load mix"
+    },
+    {
+	"MetricExpr": "LDST_SPEC/ OP_SPEC",
+	"BriefDescription": "Proportion of load & store operations",
+	"MetricGroup": "Instruction",
+	"MetricName": "Load-store mix"
+    },
+    {
+	"MetricExpr": "INST_RETIRED / (duration_time * 1000000)",
+	"BriefDescription": "Millions of instructions per second",
+	"MetricGroup": "Instruction",
+	"MetricName": "MIPS_RETIRED"
+    },
+    {
+	"MetricExpr": "INST_SPEC / (duration_time * 1000000)",
+	"BriefDescription": "Millions of instructions per second",
+	"MetricGroup": "Instruction",
+	"MetricName": "MIPS_UTILIZATION"
+    },
+    {
+	"MetricExpr": "PC_WRITE_SPEC / OP_SPEC",
+	"BriefDescription": "Proportion of software change of PC operations",
+	"MetricGroup": "Instruction",
+	"MetricName": "PC write mix"
+    },
+    {
+	"MetricExpr": "ST_SPEC / OP_SPEC",
+	"BriefDescription": "Proportion of store operations",
+	"MetricGroup": "Instruction",
+	"MetricName": "Store mix"
+    },
+    {
+	"MetricExpr": "VFP_SPEC / OP_SPEC",
+	"BriefDescription": "Proportion of FP operations",
+	"MetricGroup": "Instruction",
+	"MetricName": "VFP mix"
+    },
+    {
+	"MetricExpr": "1 - (OP_RETIRED/ (CPU_CYCLES * 4))",
+	"BriefDescription": "Proportion of slots lost",
+	"MetricGroup": "Speculation / TDA",
+	"MetricName": "CPU lost"
+    },
+    {
+	"MetricExpr": "OP_RETIRED/ (CPU_CYCLES * 4)",
+	"BriefDescription": "Proportion of slots retiring",
+	"MetricGroup": "Speculation / TDA",
+	"MetricName": "CPU utilization"
+    },
+    {
+	"MetricExpr": "OP_RETIRED - OP_SPEC",
+	"BriefDescription": "Operations lost due to misspeculation",
+	"MetricGroup": "Speculation / TDA",
+	"MetricName": "Operations lost"
+    },
+    {
+	"MetricExpr": "1 - (OP_RETIRED / OP_SPEC)",
+	"BriefDescription": "Proportion of operations lost",
+	"MetricGroup": "Speculation / TDA",
+	"MetricName": "Operations lost (ratio)"
+    },
+    {
+	"MetricExpr": "OP_RETIRED / OP_SPEC",
+	"BriefDescription": "Proportion of operations retired",
+	"MetricGroup": "Speculation / TDA",
+	"MetricName": "Operations retired"
+    },
+    {
+	"MetricExpr": "STALL_BACKEND_CACHE / CPU_CYCLES",
+	"BriefDescription": "Proportion of cycles stalled and no operations issued to backend and cache miss",
+	"MetricGroup": "Stall",
+	"MetricName": "Stall backend cache cycles"
+    },
+    {
+	"MetricExpr": "STALL_BACKEND_RESOURCE / CPU_CYCLES",
+	"BriefDescription": "Proportion of cycles stalled and no operations issued to backend and resource full",
+	"MetricGroup": "Stall",
+	"MetricName": "Stall backend resource cycles"
+    },
+    {
+	"MetricExpr": "STALL_BACKEND_TLB / CPU_CYCLES",
+	"BriefDescription": "Proportion of cycles stalled and no operations issued to backend and TLB miss",
+	"MetricGroup": "Stall",
+	"MetricName": "Stall backend tlb cycles"
+    },
+    {
+	"MetricExpr": "STALL_FRONTEND_CACHE / CPU_CYCLES",
+	"BriefDescription": "Proportion of cycles stalled and no ops delivered from frontend and cache miss",
+	"MetricGroup": "Stall",
+	"MetricName": "Stall frontend cache cycles"
+    },
+    {
+	"MetricExpr": "STALL_FRONTEND_TLB / CPU_CYCLES",
+	"BriefDescription": "Proportion of cycles stalled and no ops delivered from frontend and TLB miss",
+	"MetricGroup": "Stall",
+	"MetricName": "Stall frontend tlb cycles"
+    },
+    {
+	"MetricExpr": "DTLB_WALK / L1D_TLB",
+	"BriefDescription": "D-side walk per d-side translation request",
+	"MetricGroup": "TLB",
+	"MetricName": "DTLB walks"
+    },
+    {
+	"MetricExpr": "ITLB_WALK / L1I_TLB",
+	"BriefDescription": "I-side walk per i-side translation request",
+	"MetricGroup": "TLB",
+	"MetricName": "ITLB walks"
+    },
+    {
+        "MetricExpr": "STALL_SLOT_BACKEND / (CPU_CYCLES * 4)",
+        "BriefDescription": "Fraction of slots backend bound",
+        "MetricGroup": "TopDownL1",
+        "MetricName": "backend"
+    },
+    {
+        "MetricExpr": "1 - (retiring + lost + backend)",
+        "BriefDescription": "Fraction of slots frontend bound",
+        "MetricGroup": "TopDownL1",
+        "MetricName": "frontend"
+    },
+    {
+        "MetricExpr": "((OP_SPEC - OP_RETIRED) / (CPU_CYCLES * 4))",
+        "BriefDescription": "Fraction of slots lost due to misspeculation",
+        "MetricGroup": "TopDownL1",
+        "MetricName": "lost"
+    },
+    {
+        "MetricExpr": "(OP_RETIRED / (CPU_CYCLES * 4))",
+        "BriefDescription": "Fraction of slots retiring, useful work",
+        "MetricGroup": "TopDownL1",
+        "MetricName": "retiring"
+    },
+    {
+        "MetricExpr": "backend - backend_memory",
+        "BriefDescription": "Fraction of slots the CPU was stalled due to backend non-memory subsystem issues",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "backend_core"
+    },
+    {
+        "MetricExpr": "(STALL_BACKEND_TLB + STALL_BACKEND_CACHE + STALL_BACKEND_MEM) / CPU_CYCLES ",
+        "BriefDescription": "Fraction of slots the CPU was stalled due to backend memory subsystem issues (cache/tlb miss)",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "backend_memory"
+    },
+    {
+        "MetricExpr": " (BR_MIS_PRED_RETIRED / GPC_FLUSH) * lost",
+        "BriefDescription": "Fraction of slots lost due to branch misprediciton",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "branch_mispredict"
+    },
+    {
+        "MetricExpr": "frontend - frontend_latency",
+        "BriefDescription": "Fraction of slots the CPU did not dispatch at full bandwidth - able to dispatch partial slots only (1, 2, or 3 uops)",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "frontend_bandwidth"
+    },
+    {
+        "MetricExpr": "(STALL_FRONTEND - ((STALL_SLOT_FRONTEND - (frontend * CPU_CYCLES * 4)) / 4)) / CPU_CYCLES",
+        "BriefDescription": "Fraction of slots the CPU was stalled due to frontend latency issues (cache/tlb miss); nothing to dispatch",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "frontend_latency"
+    },
+    {
+        "MetricExpr": "lost - branch_mispredict",
+        "BriefDescription": "Fraction of slots lost due to other/non-branch misprediction misspeculation",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "other_clears"
+    },
+    {
+        "MetricExpr": "(IXU_NUM_UOPS_ISSUED + FSU_ISSUED) / (CPU_CYCLES * 6)",
+        "BriefDescription": "Fraction of execute slots utilized",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "pipe_utilization"
+    },
+    {
+        "MetricExpr": "STALL_BACKEND_MEM / CPU_CYCLES",
+        "BriefDescription": "Fraction of cycles the CPU was stalled due to data L2 cache miss",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "d_cache_l2_miss"
+    },
+    {
+        "MetricExpr": "STALL_BACKEND_CACHE / CPU_CYCLES",
+        "BriefDescription": "Fraction of cycles the CPU was stalled due to data cache miss",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "d_cache_miss"
+    },
+    {
+        "MetricExpr": "STALL_BACKEND_TLB / CPU_CYCLES",
+        "BriefDescription": "Fraction of cycles the CPU was stalled due to data TLB miss",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "d_tlb_miss"
+    },
+    {
+        "MetricExpr": "FSU_ISSUED / (CPU_CYCLES * 2)",
+        "BriefDescription": "Fraction of FSU execute slots utilized",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "fsu_pipe_utilization"
+    },
+    {
+        "MetricExpr": "STALL_FRONTEND_CACHE / CPU_CYCLES",
+        "BriefDescription": "Fraction of cycles the CPU was stalled due to instruction cache miss",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "i_cache_miss"
+    },
+    {
+        "MetricExpr": " STALL_FRONTEND_TLB / CPU_CYCLES ",
+        "BriefDescription": "Fraction of cycles the CPU was stalled due to instruction TLB miss",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "i_tlb_miss"
+    },
+    {
+        "MetricExpr": "IXU_NUM_UOPS_ISSUED / (CPU_CYCLES / 4)",
+        "BriefDescription": "Fraction of IXU execute slots utilized",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "ixu_pipe_utilization"
+    },
+    {
+        "MetricExpr": "IDR_STALL_FLUSH / CPU_CYCLES",
+        "BriefDescription": "Fraction of cycles the CPU was stalled due to flush recovery",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "recovery"
+    },
+    {
+        "MetricExpr": "STALL_BACKEND_RESOURCE / CPU_CYCLES",
+        "BriefDescription": "Fraction of cycles the CPU was stalled due to core resource shortage",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "resource"
+    },
+    {
+        "MetricExpr": "IDR_STALL_FSU_SCHED / CPU_CYCLES ",
+        "BriefDescription": "Fraction of cycles the CPU was stalled and FSU was full",
+        "MetricGroup": "TopDownL4",
+        "MetricName": "stall_fsu_sched"
+    },
+    {
+        "MetricExpr": "IDR_STALL_IXU_SCHED / CPU_CYCLES ",
+        "BriefDescription": "Fraction of cycles the CPU was stalled and IXU was full",
+        "MetricGroup": "TopDownL4",
+        "MetricName": "stall_ixu_sched"
+    },
+    {
+        "MetricExpr": "IDR_STALL_LOB_ID / CPU_CYCLES ",
+        "BriefDescription": "Fraction of cycles the CPU was stalled and LOB was full",
+        "MetricGroup": "TopDownL4",
+        "MetricName": "stall_lob_id"
+    },
+    {
+        "MetricExpr": "IDR_STALL_ROB_ID / CPU_CYCLES",
+        "BriefDescription": "Fraction of cycles the CPU was stalled and ROB was full",
+        "MetricGroup": "TopDownL4",
+        "MetricName": "stall_rob_id"
+    },
+    {
+        "MetricExpr": "IDR_STALL_SOB_ID / CPU_CYCLES ",
+        "BriefDescription": "Fraction of cycles the CPU was stalled and SOB was full",
+        "MetricGroup": "TopDownL4",
+        "MetricName": "stall_sob_id"
+    }
+]

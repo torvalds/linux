@@ -364,6 +364,32 @@ TRACE_EVENT(kvm_inject_nested_exception,
 		  __entry->hcr_el2)
 );
 
+TRACE_EVENT(kvm_forward_sysreg_trap,
+	    TP_PROTO(struct kvm_vcpu *vcpu, u32 sysreg, bool is_read),
+	    TP_ARGS(vcpu, sysreg, is_read),
+
+	    TP_STRUCT__entry(
+		__field(u64,	pc)
+		__field(u32,	sysreg)
+		__field(bool,	is_read)
+	    ),
+
+	    TP_fast_assign(
+		__entry->pc = *vcpu_pc(vcpu);
+		__entry->sysreg = sysreg;
+		__entry->is_read = is_read;
+	    ),
+
+	    TP_printk("%llx %c (%d,%d,%d,%d,%d)",
+		      __entry->pc,
+		      __entry->is_read ? 'R' : 'W',
+		      sys_reg_Op0(__entry->sysreg),
+		      sys_reg_Op1(__entry->sysreg),
+		      sys_reg_CRn(__entry->sysreg),
+		      sys_reg_CRm(__entry->sysreg),
+		      sys_reg_Op2(__entry->sysreg))
+);
+
 #endif /* _TRACE_ARM_ARM64_KVM_H */
 
 #undef TRACE_INCLUDE_PATH

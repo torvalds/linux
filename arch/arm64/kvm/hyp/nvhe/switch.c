@@ -63,7 +63,7 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 		__activate_traps_fpsimd32(vcpu);
 	}
 
-	write_sysreg(val, cptr_el2);
+	kvm_write_cptr_el2(val);
 	write_sysreg(__this_cpu_read(kvm_hyp_vector), vbar_el2);
 
 	if (cpus_have_final_cap(ARM64_WORKAROUND_SPECULATIVE_AT)) {
@@ -236,7 +236,7 @@ static void early_exit_filter(struct kvm_vcpu *vcpu, u64 *exit_code)
 		 * KVM_ARM_VCPU_INIT, however, this is likely not possible for
 		 * protected VMs.
 		 */
-		vcpu->arch.target = -1;
+		vcpu_clear_flag(vcpu, VCPU_INITIALIZED);
 		*exit_code &= BIT(ARM_EXIT_WITH_SERROR_BIT);
 		*exit_code |= ARM_EXCEPTION_IL;
 	}

@@ -243,7 +243,7 @@ properties:
               description: Kernel attribute validation flags.
               type: array
               items:
-                enum: [ strict, dump ]
+                enum: [ strict, dump, dump-strict ]
             do: &subop-type
               description: Main command handler.
               type: object

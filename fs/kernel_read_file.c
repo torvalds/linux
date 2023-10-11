@@ -8,16 +8,16 @@
 /**
  * kernel_read_file() - read file contents into a kernel buffer
  *
- * @file	file to read from
- * @offset	where to start reading from (see below).
- * @buf		pointer to a "void *" buffer for reading into (if
+ * @file:	file to read from
+ * @offset:	where to start reading from (see below).
+ * @buf:	pointer to a "void *" buffer for reading into (if
  *		*@buf is NULL, a buffer will be allocated, and
  *		@buf_size will be ignored)
- * @buf_size	size of buf, if already allocated. If @buf not
+ * @buf_size:	size of buf, if already allocated. If @buf not
  *		allocated, this is the largest size to allocate.
- * @file_size	if non-NULL, the full size of @file will be
+ * @file_size:	if non-NULL, the full size of @file will be
  *		written here.
- * @id		the kernel_read_file_id identifying the type of
+ * @id:		the kernel_read_file_id identifying the type of
  *		file contents being read (for LSMs to examine)
  *
  * @offset must be 0 unless both @buf and @file_size are non-NULL

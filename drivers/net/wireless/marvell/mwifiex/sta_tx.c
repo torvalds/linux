@@ -29,8 +29,8 @@
  *      - Priority specific Tx control
  *      - Flags
  */
-void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
-				struct sk_buff *skb)
+void mwifiex_process_sta_txpd(struct mwifiex_private *priv,
+			      struct sk_buff *skb)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct txpd *local_tx_pd;
@@ -38,15 +38,6 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 	unsigned int pad;
 	u16 pkt_type, pkt_offset;
 	int hroom = adapter->intf_hdr_len;
-
-	if (!skb->len) {
-		mwifiex_dbg(adapter, ERROR,
-			    "Tx: bad packet length: %d\n", skb->len);
-		tx_info->status_code = -1;
-		return skb->data;
-	}
-
-	BUG_ON(skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN);
 
 	pkt_type = mwifiex_is_skb_mgmt_frame(skb) ? PKT_TYPE_MGMT : 0;
 
@@ -109,8 +100,6 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 	if (!local_tx_pd->tx_control)
 		/* TxCtrl set by user or default */
 		local_tx_pd->tx_control = cpu_to_le32(priv->pkt_tx_ctrl);
-
-	return skb->data;
 }
 
 /*

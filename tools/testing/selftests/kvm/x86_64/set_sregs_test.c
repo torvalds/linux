@@ -22,26 +22,25 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-static void test_cr4_feature_bit(struct kvm_vcpu *vcpu, struct kvm_sregs *orig,
-				 uint64_t feature_bit)
-{
-	struct kvm_sregs sregs;
-	int rc;
-
-	/* Skip the sub-test, the feature is supported. */
-	if (orig->cr4 & feature_bit)
-		return;
-
-	memcpy(&sregs, orig, sizeof(sregs));
-	sregs.cr4 |= feature_bit;
-
-	rc = _vcpu_sregs_set(vcpu, &sregs);
-	TEST_ASSERT(rc, "KVM allowed unsupported CR4 bit (0x%lx)", feature_bit);
-
-	/* Sanity check that KVM didn't change anything. */
-	vcpu_sregs_get(vcpu, &sregs);
-	TEST_ASSERT(!memcmp(&sregs, orig, sizeof(sregs)), "KVM modified sregs");
-}
+#define TEST_INVALID_CR_BIT(vcpu, cr, orig, bit)				\
+do {										\
+	struct kvm_sregs new;							\
+	int rc;									\
+										\
+	/* Skip the sub-test, the feature/bit is supported. */			\
+	if (orig.cr & bit)							\
+		break;								\
+										\
+	memcpy(&new, &orig, sizeof(sregs));					\
+	new.cr |= bit;								\
+										\
+	rc = _vcpu_sregs_set(vcpu, &new);					\
+	TEST_ASSERT(rc, "KVM allowed invalid " #cr " bit (0x%lx)", bit);	\
+										\
+	/* Sanity check that KVM didn't change anything. */			\
+	vcpu_sregs_get(vcpu, &new);						\
+	TEST_ASSERT(!memcmp(&new, &orig, sizeof(new)), "KVM modified sregs");	\
+} while (0)
 
 static uint64_t calc_supported_cr4_feature_bits(void)
 {
@@ -80,7 +79,7 @@ int main(int argc, char *argv[])
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	uint64_t cr4;
-	int rc;
+	int rc, i;
 
 	/*
 	 * Create a dummy VM, specifically to avoid doing KVM_SET_CPUID2, and
@@ -92,6 +91,7 @@ int main(int argc, char *argv[])
 
 	vcpu_sregs_get(vcpu, &sregs);
 
+	sregs.cr0 = 0;
 	sregs.cr4 |= calc_supported_cr4_feature_bits();
 	cr4 = sregs.cr4;
 
@@ -103,16 +103,24 @@ int main(int argc, char *argv[])
 		    sregs.cr4, cr4);
 
 	/* Verify all unsupported features are rejected by KVM. */
-	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_UMIP);
-	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_LA57);
-	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_VMXE);
-	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_SMXE);
-	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_FSGSBASE);
-	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_PCIDE);
-	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_OSXSAVE);
-	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_SMEP);
-	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_SMAP);
-	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_PKE);
+	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_UMIP);
+	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_LA57);
+	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_VMXE);
+	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_SMXE);
+	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_FSGSBASE);
+	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_PCIDE);
+	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_OSXSAVE);
+	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_SMEP);
+	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_SMAP);
+	TEST_INVALID_CR_BIT(vcpu, cr4, sregs, X86_CR4_PKE);
+
+	for (i = 32; i < 64; i++)
+		TEST_INVALID_CR_BIT(vcpu, cr0, sregs, BIT(i));
+
+	/* NW without CD is illegal, as is PG without PE. */
+	TEST_INVALID_CR_BIT(vcpu, cr0, sregs, X86_CR0_NW);
+	TEST_INVALID_CR_BIT(vcpu, cr0, sregs, X86_CR0_PG);
+
 	kvm_vm_free(vm);
 
 	/* Create a "real" VM and verify APIC_BASE can be set. */

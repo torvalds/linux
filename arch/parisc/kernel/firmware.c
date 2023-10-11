@@ -74,8 +74,8 @@
 static DEFINE_SPINLOCK(pdc_lock);
 #endif
 
-unsigned long pdc_result[NUM_PDC_RESULT]  __aligned(8);
-unsigned long pdc_result2[NUM_PDC_RESULT] __aligned(8);
+static unsigned long pdc_result[NUM_PDC_RESULT]  __aligned(8);
+static unsigned long pdc_result2[NUM_PDC_RESULT] __aligned(8);
 
 #ifdef CONFIG_64BIT
 #define WIDE_FIRMWARE 0x1
@@ -334,7 +334,7 @@ int __pdc_cpu_rendezvous(void)
 /**
  * pdc_cpu_rendezvous_lock - Lock PDC while transitioning to rendezvous state
  */
-void pdc_cpu_rendezvous_lock(void)
+void pdc_cpu_rendezvous_lock(void) __acquires(&pdc_lock)
 {
 	spin_lock(&pdc_lock);
 }
@@ -342,7 +342,7 @@ void pdc_cpu_rendezvous_lock(void)
 /**
  * pdc_cpu_rendezvous_unlock - Unlock PDC after reaching rendezvous state
  */
-void pdc_cpu_rendezvous_unlock(void)
+void pdc_cpu_rendezvous_unlock(void) __releases(&pdc_lock)
 {
 	spin_unlock(&pdc_lock);
 }
@@ -687,7 +687,6 @@ int pdc_spaceid_bits(unsigned long *space_bits)
 	return retval;
 }
 
-#ifndef CONFIG_PA20
 /**
  * pdc_btlb_info - Return block TLB information.
  * @btlb: The return buffer.
@@ -696,18 +695,51 @@ int pdc_spaceid_bits(unsigned long *space_bits)
  */
 int pdc_btlb_info(struct pdc_btlb_info *btlb) 
 {
-        int retval;
+	int retval;
 	unsigned long flags;
 
-        spin_lock_irqsave(&pdc_lock, flags);
-        retval = mem_pdc_call(PDC_BLOCK_TLB, PDC_BTLB_INFO, __pa(pdc_result), 0);
-        memcpy(btlb, pdc_result, sizeof(*btlb));
-        spin_unlock_irqrestore(&pdc_lock, flags);
+	if (IS_ENABLED(CONFIG_PA20))
+		return PDC_BAD_PROC;
 
-        if(retval < 0) {
-                btlb->max_size = 0;
-        }
-        return retval;
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_BLOCK_TLB, PDC_BTLB_INFO, __pa(pdc_result), 0);
+	memcpy(btlb, pdc_result, sizeof(*btlb));
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	if(retval < 0) {
+		btlb->max_size = 0;
+	}
+	return retval;
+}
+
+int pdc_btlb_insert(unsigned long long vpage, unsigned long physpage, unsigned long len,
+		    unsigned long entry_info, unsigned long slot)
+{
+	int retval;
+	unsigned long flags;
+
+	if (IS_ENABLED(CONFIG_PA20))
+		return PDC_BAD_PROC;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_BLOCK_TLB, PDC_BTLB_INSERT, (unsigned long) (vpage >> 32),
+			      (unsigned long) vpage, physpage, len, entry_info, slot);
+	spin_unlock_irqrestore(&pdc_lock, flags);
+	return retval;
+}
+
+int pdc_btlb_purge_all(void)
+{
+	int retval;
+	unsigned long flags;
+
+	if (IS_ENABLED(CONFIG_PA20))
+		return PDC_BAD_PROC;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_BLOCK_TLB, PDC_BTLB_PURGE_ALL);
+	spin_unlock_irqrestore(&pdc_lock, flags);
+	return retval;
 }
 
 /**
@@ -728,6 +760,9 @@ int pdc_mem_map_hpa(struct pdc_memory_map *address,
         int retval;
 	unsigned long flags;
 
+	if (IS_ENABLED(CONFIG_PA20))
+		return PDC_BAD_PROC;
+
         spin_lock_irqsave(&pdc_lock, flags);
         memcpy(pdc_result2, mod_path, sizeof(*mod_path));
         retval = mem_pdc_call(PDC_MEM_MAP, PDC_MEM_MAP_HPA, __pa(pdc_result),
@@ -737,7 +772,6 @@ int pdc_mem_map_hpa(struct pdc_memory_map *address,
 
         return retval;
 }
-#endif	/* !CONFIG_PA20 */
 
 /**
  * pdc_lan_station_id - Get the LAN address.

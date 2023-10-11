@@ -77,7 +77,7 @@ patternProperties:
     description:
       The AOSS side channel also provides the controls for three cooling devices,
       these are expressed as subnodes of the QMP node. The name of the node is
-      used to identify the resource and must therefor be "cx", "mx" or "ebi".
+      used to identify the resource and must therefore be "cx", "mx" or "ebi".
 
     properties:
       "#cooling-cells":

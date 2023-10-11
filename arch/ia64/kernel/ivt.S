@@ -47,7 +47,7 @@
  * Table is based upon EAS2.6 (Oct 1999)
  */
 
-
+#include <linux/export.h>
 #include <linux/pgtable.h>
 #include <asm/asmmacro.h>
 #include <asm/break.h>
@@ -58,7 +58,6 @@
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
 #include <asm/errno.h>
-#include <asm/export.h>
 
 #if 0
 # define PSR_DEFAULT_BITS	psr.ac

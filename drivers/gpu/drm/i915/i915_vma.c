@@ -29,11 +29,13 @@
 #include "display/intel_display.h"
 #include "display/intel_frontbuffer.h"
 #include "gem/i915_gem_lmem.h"
+#include "gem/i915_gem_object_frontbuffer.h"
 #include "gem/i915_gem_tiling.h"
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"
+#include "gt/intel_tlb.h"
 
 #include "i915_drv.h"
 #include "i915_gem_evict.h"
@@ -74,14 +76,14 @@ static void vma_print_allocator(struct i915_vma *vma, const char *reason)
 	char buf[512];
 
 	if (!vma->node.stack) {
-		drm_dbg(&to_i915(vma->obj->base.dev)->drm,
+		drm_dbg(vma->obj->base.dev,
 			"vma.node [%08llx + %08llx] %s: unknown owner\n",
 			vma->node.start, vma->node.size, reason);
 		return;
 	}
 
 	stack_depot_snprint(vma->node.stack, buf, sizeof(buf), 0);
-	drm_dbg(&to_i915(vma->obj->base.dev)->drm,
+	drm_dbg(vma->obj->base.dev,
 		"vma.node [%08llx + %08llx] %s: inserted at %s\n",
 		vma->node.start, vma->node.size, reason, buf);
 }
@@ -805,7 +807,7 @@ i915_vma_insert(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 	 * attempt to find space.
 	 */
 	if (size > end - 2 * guard) {
-		drm_dbg(&to_i915(vma->obj->base.dev)->drm,
+		drm_dbg(vma->obj->base.dev,
 			"Attempting to bind an object larger than the aperture: request=%llu > %s aperture=%llu\n",
 			size, flags & PIN_MAPPABLE ? "mappable" : "total", end);
 		return -ENOSPC;
@@ -1339,6 +1341,12 @@ err_unpin:
 
 void vma_invalidate_tlb(struct i915_address_space *vm, u32 *tlb)
 {
+	struct intel_gt *gt;
+	int id;
+
+	if (!tlb)
+		return;
+
 	/*
 	 * Before we release the pages that were bound by this vma, we
 	 * must invalidate all the TLBs that may still have a reference
@@ -1347,7 +1355,9 @@ void vma_invalidate_tlb(struct i915_address_space *vm, u32 *tlb)
 	 * the most recent TLB invalidation seqno, and if we have not yet
 	 * flushed the TLBs upon release, perform a full invalidation.
 	 */
-	WRITE_ONCE(*tlb, intel_gt_next_invalidate_tlb_full(vm->gt));
+	for_each_gt(gt, vm->i915, id)
+		WRITE_ONCE(tlb[id],
+			   intel_gt_next_invalidate_tlb_full(gt));
 }
 
 static void __vma_put_pages(struct i915_vma *vma, unsigned int count)
@@ -1629,6 +1639,26 @@ int i915_ggtt_pin(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 	return err;
 }
 
+/**
+ * i915_ggtt_clear_scanout - Clear scanout flag for all objects ggtt vmas
+ * @obj: i915 GEM object
+ * This function clears scanout flags for objects ggtt vmas. These flags are set
+ * when object is pinned for display use and this function to clear them all is
+ * targeted to be called by frontbuffer tracking code when the frontbuffer is
+ * about to be released.
+ */
+void i915_ggtt_clear_scanout(struct drm_i915_gem_object *obj)
+{
+	struct i915_vma *vma;
+
+	spin_lock(&obj->vma.lock);
+	for_each_ggtt_vma(vma, obj) {
+		i915_vma_clear_scanout(vma);
+		vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
+	}
+	spin_unlock(&obj->vma.lock);
+}
+
 static void __vma_close(struct i915_vma *vma, struct intel_gt *gt)
 {
 	/*
@@ -1908,7 +1938,7 @@ int _i915_vma_move_to_active(struct i915_vma *vma,
 	if (flags & EXEC_OBJECT_WRITE) {
 		struct intel_frontbuffer *front;
 
-		front = __intel_frontbuffer_get(obj);
+		front = i915_gem_object_get_frontbuffer(obj);
 		if (unlikely(front)) {
 			if (intel_frontbuffer_invalidate(front, ORIGIN_CS))
 				i915_active_add_request(&front->write, rq);
@@ -1994,7 +2024,7 @@ struct dma_fence *__i915_vma_evict(struct i915_vma *vma, bool async)
 
 	if (async)
 		unbind_fence = i915_vma_resource_unbind(vma_res,
-							&vma->obj->mm.tlb);
+							vma->obj->mm.tlb);
 	else
 		unbind_fence = i915_vma_resource_unbind(vma_res, NULL);
 
@@ -2011,7 +2041,7 @@ struct dma_fence *__i915_vma_evict(struct i915_vma *vma, bool async)
 			dma_fence_put(unbind_fence);
 			unbind_fence = NULL;
 		}
-		vma_invalidate_tlb(vma->vm, &vma->obj->mm.tlb);
+		vma_invalidate_tlb(vma->vm, vma->obj->mm.tlb);
 	}
 
 	/*

@@ -142,6 +142,9 @@ int mei_reset(struct mei_device *dev)
 
 	mei_hbm_reset(dev);
 
+	/* clean stale FW version */
+	dev->fw_ver_received = 0;
+
 	memset(dev->rd_msg_hdr, 0, sizeof(dev->rd_msg_hdr));
 
 	if (ret) {
@@ -157,7 +160,10 @@ int mei_reset(struct mei_device *dev)
 
 	ret = mei_hw_start(dev);
 	if (ret) {
-		dev_err(dev->dev, "hw_start failed ret = %d\n", ret);
+		char fw_sts_str[MEI_FW_STATUS_STR_SZ];
+
+		mei_fw_status_str(dev, fw_sts_str, MEI_FW_STATUS_STR_SZ);
+		dev_err(dev->dev, "hw_start failed ret = %d fw status = %s\n", ret, fw_sts_str);
 		return ret;
 	}
 

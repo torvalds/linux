@@ -27,10 +27,11 @@ void __init kmap_coherent_init(void)
 
 void *kmap_coherent(struct page *page, unsigned long addr)
 {
+	struct folio *folio = page_folio(page);
 	enum fixed_addresses idx;
 	unsigned long vaddr;
 
-	BUG_ON(!test_bit(PG_dcache_clean, &page->flags));
+	BUG_ON(!test_bit(PG_dcache_clean, &folio->flags));
 
 	preempt_disable();
 	pagefault_disable();

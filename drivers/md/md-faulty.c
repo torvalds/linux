@@ -204,6 +204,8 @@ static bool faulty_make_request(struct mddev *mddev, struct bio *bio)
 			failit = 1;
 		}
 	}
+
+	md_account_bio(mddev, &bio);
 	if (failit) {
 		struct bio *b = bio_alloc_clone(conf->rdev->bdev, bio, GFP_NOIO,
 						&mddev->bio_set);

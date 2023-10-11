@@ -10,12 +10,12 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
 #include <linux/hte.h>
 #include <linux/delay.h>
 #include <linux/debugfs.h>
+#include <linux/device.h>
 
 #define HTE_TS_NAME_LEN		10
 

@@ -11,6 +11,7 @@
 #include <linux/signal.h>
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
+#include <linux/sysctl.h>
 #include <asm/unaligned.h>
 #include <asm/hardirq.h>
 #include <asm/traps.h>
@@ -337,25 +338,24 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 	: "r19", "r20", "r21", "r22", "r1" );
 #else
     {
-	unsigned long valh=(val>>32),vall=(val&0xffffffffl);
 	__asm__ __volatile__ (
-"	mtsp	%4, %%sr1\n"
-"	zdep	%2, 29, 2, %%r19\n"
-"	dep	%%r0, 31, 2, %3\n"
+"	mtsp	%3, %%sr1\n"
+"	zdep	%R1, 29, 2, %%r19\n"
+"	dep	%%r0, 31, 2, %2\n"
 "	mtsar	%%r19\n"
 "	zvdepi	-2, 32, %%r19\n"
-"1:	ldw	0(%%sr1,%3),%%r20\n"
-"2:	ldw	8(%%sr1,%3),%%r21\n"
-"	vshd	%1, %2, %%r1\n"
+"1:	ldw	0(%%sr1,%2),%%r20\n"
+"2:	ldw	8(%%sr1,%2),%%r21\n"
+"	vshd	%1, %R1, %%r1\n"
 "	vshd	%%r0, %1, %1\n"
-"	vshd	%2, %%r0, %2\n"
+"	vshd	%R1, %%r0, %R1\n"
 "	and	%%r20, %%r19, %%r20\n"
 "	andcm	%%r21, %%r19, %%r21\n"
 "	or	%1, %%r20, %1\n"
-"	or	%2, %%r21, %2\n"
-"3:	stw	%1,0(%%sr1,%3)\n"
-"4:	stw	%%r1,4(%%sr1,%3)\n"
-"5:	stw	%2,8(%%sr1,%3)\n"
+"	or	%R1, %%r21, %R1\n"
+"3:	stw	%1,0(%%sr1,%2)\n"
+"4:	stw	%%r1,4(%%sr1,%2)\n"
+"5:	stw	%R1,8(%%sr1,%2)\n"
 "6:	\n"
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 6b)
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 6b)
@@ -363,7 +363,7 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(4b, 6b)
 	ASM_EXCEPTIONTABLE_ENTRY_EFAULT(5b, 6b)
 	: "+r" (ret)
-	: "r" (valh), "r" (vall), "r" (regs->ior), "r" (regs->isr)
+	: "r" (val), "r" (regs->ior), "r" (regs->isr)
 	: "r19", "r20", "r21", "r1" );
     }
 #endif
@@ -473,7 +473,7 @@ void handle_unaligned(struct pt_regs *regs)
 	case OPCODE_LDWA_I:
 	case OPCODE_LDW_S:
 	case OPCODE_LDWA_S:
-		ret = emulate_ldw(regs, R3(regs->iir),0);
+		ret = emulate_ldw(regs, R3(regs->iir), 0);
 		break;
 
 	case OPCODE_STH:
@@ -482,7 +482,7 @@ void handle_unaligned(struct pt_regs *regs)
 
 	case OPCODE_STW:
 	case OPCODE_STWA:
-		ret = emulate_stw(regs, R2(regs->iir),0);
+		ret = emulate_stw(regs, R2(regs->iir), 0);
 		break;
 
 #ifdef CONFIG_64BIT
@@ -490,12 +490,12 @@ void handle_unaligned(struct pt_regs *regs)
 	case OPCODE_LDDA_I:
 	case OPCODE_LDD_S:
 	case OPCODE_LDDA_S:
-		ret = emulate_ldd(regs, R3(regs->iir),0);
+		ret = emulate_ldd(regs, R3(regs->iir), 0);
 		break;
 
 	case OPCODE_STD:
 	case OPCODE_STDA:
-		ret = emulate_std(regs, R2(regs->iir),0);
+		ret = emulate_std(regs, R2(regs->iir), 0);
 		break;
 #endif
 
@@ -503,24 +503,24 @@ void handle_unaligned(struct pt_regs *regs)
 	case OPCODE_FLDWS:
 	case OPCODE_FLDWXR:
 	case OPCODE_FLDWSR:
-		ret = emulate_ldw(regs,FR3(regs->iir),1);
+		ret = emulate_ldw(regs, FR3(regs->iir), 1);
 		break;
 
 	case OPCODE_FLDDX:
 	case OPCODE_FLDDS:
-		ret = emulate_ldd(regs,R3(regs->iir),1);
+		ret = emulate_ldd(regs, R3(regs->iir), 1);
 		break;
 
 	case OPCODE_FSTWX:
 	case OPCODE_FSTWS:
 	case OPCODE_FSTWXR:
 	case OPCODE_FSTWSR:
-		ret = emulate_stw(regs,FR3(regs->iir),1);
+		ret = emulate_stw(regs, FR3(regs->iir), 1);
 		break;
 
 	case OPCODE_FSTDX:
 	case OPCODE_FSTDS:
-		ret = emulate_std(regs,R3(regs->iir),1);
+		ret = emulate_std(regs, R3(regs->iir), 1);
 		break;
 
 	case OPCODE_LDCD_I:

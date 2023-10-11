@@ -35,7 +35,7 @@
 
 /* Colibri UART_A */
 &lpuart3 {
-	status= "okay";
+	status = "okay";
 };
 
 /* Colibri SDCard */

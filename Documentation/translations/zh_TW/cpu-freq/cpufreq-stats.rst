@@ -4,7 +4,7 @@
 
 :Original: :doc:`../../../cpu-freq/cpufreq-stats`
 :Translator: Yanteng Si <siyanteng@loongson.cn>
-             Hu Haowen <src.res@email.cn>
+             Hu Haowen <src.res.211@gmail.com>
 
 .. _tw_cpufreq-stats.rst:
 

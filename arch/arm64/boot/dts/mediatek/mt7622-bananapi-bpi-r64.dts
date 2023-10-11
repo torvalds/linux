@@ -585,11 +585,11 @@
 };
 
 &sata {
-	status = "disable";
+	status = "disabled";
 };
 
 &sata_phy {
-	status = "disable";
+	status = "disabled";
 };
 
 &spi0 {

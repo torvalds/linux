@@ -53,7 +53,7 @@ Optional properties:
 - dr_mode:      One of "host", "peripheral" or "otg". Defaults to "otg"
 
 - switch-gpio:  A phandle + gpio-specifier pair. Some boards are using Dual
-                SPDT USB Switch, witch is cotrolled by GPIO to de/multiplex
+                SPDT USB Switch, witch is controlled by GPIO to de/multiplex
                 D+/D- USB lines between connectors.
 
 - qcom,phy-init-sequence: PHY configuration sequence values. This is related to Device

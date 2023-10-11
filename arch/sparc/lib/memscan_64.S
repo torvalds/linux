@@ -6,7 +6,7 @@
  * Copyright (C) 1998 David S. Miller (davem@redhat.com)
  */
 
-	#include <asm/export.h>
+#include <linux/export.h>
 
 #define HI_MAGIC	0x8080808080808080
 #define LO_MAGIC	0x0101010101010101

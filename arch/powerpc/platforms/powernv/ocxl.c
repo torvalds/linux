@@ -449,7 +449,7 @@ int pnv_ocxl_spa_setup(struct pci_dev *dev, void *spa_mem, int PE_mask,
 	if (!data)
 		return -ENOMEM;
 
-	bdfn = (dev->bus->number << 8) | dev->devfn;
+	bdfn = pci_dev_id(dev);
 	rc = opal_npu_spa_setup(phb->opal_id, bdfn, virt_to_phys(spa_mem),
 				PE_mask);
 	if (rc) {

@@ -80,21 +80,6 @@ static inline struct f_ncm *func_to_ncm(struct usb_function *f)
 	return container_of(f, struct f_ncm, port.func);
 }
 
-/* peak (theoretical) bulk transfer rate in bits-per-second */
-static inline unsigned ncm_bitrate(struct usb_gadget *g)
-{
-	if (!g)
-		return 0;
-	else if (gadget_is_superspeed(g) && g->speed >= USB_SPEED_SUPER_PLUS)
-		return 4250000000U;
-	else if (gadget_is_superspeed(g) && g->speed == USB_SPEED_SUPER)
-		return 3750000000U;
-	else if (gadget_is_dualspeed(g) && g->speed == USB_SPEED_HIGH)
-		return 13 * 512 * 8 * 1000 * 8;
-	else
-		return 19 *  64 * 1 * 1000 * 8;
-}
-
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -576,10 +561,10 @@ static void ncm_do_notify(struct f_ncm *ncm)
 
 		/* SPEED_CHANGE data is up/down speeds in bits/sec */
 		data = req->buf + sizeof *event;
-		data[0] = cpu_to_le32(ncm_bitrate(cdev->gadget));
+		data[0] = cpu_to_le32(gether_bitrate(cdev->gadget));
 		data[1] = data[0];
 
-		DBG(cdev, "notify speed %u\n", ncm_bitrate(cdev->gadget));
+		DBG(cdev, "notify speed %u\n", gether_bitrate(cdev->gadget));
 		ncm->notify_state = NCM_NOTIFY_CONNECT;
 		break;
 	}
@@ -1544,9 +1529,7 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 	hrtimer_init(&ncm->task_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_SOFT);
 	ncm->task_timer.function = ncm_tx_timeout;
 
-	DBG(cdev, "CDC Network: %s speed IN/%s OUT/%s NOTIFY/%s\n",
-			gadget_is_superspeed(c->cdev->gadget) ? "super" :
-			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
+	DBG(cdev, "CDC Network: IN/%s OUT/%s NOTIFY/%s\n",
 			ncm->port.in_ep->name, ncm->port.out_ep->name,
 			ncm->notify->name);
 	return 0;

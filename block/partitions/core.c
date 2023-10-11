@@ -281,10 +281,7 @@ static void delete_partition(struct block_device *part)
 	 * looked up any more even when openers still hold references.
 	 */
 	remove_inode_hash(part->bd_inode);
-
-	fsync_bdev(part);
-	__invalidate_device(part, true);
-
+	bdev_mark_dead(part, false);
 	drop_partition(part);
 }
 

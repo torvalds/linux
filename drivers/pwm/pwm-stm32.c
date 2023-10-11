@@ -637,24 +637,13 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	priv->chip.ops = &stm32pwm_ops;
 	priv->chip.npwm = stm32_pwm_detect_channels(priv);
 
-	ret = pwmchip_add(&priv->chip);
+	ret = devm_pwmchip_add(dev, &priv->chip);
 	if (ret < 0)
 		return ret;
 
 	platform_set_drvdata(pdev, priv);
 
 	return 0;
-}
-
-static void stm32_pwm_remove(struct platform_device *pdev)
-{
-	struct stm32_pwm *priv = platform_get_drvdata(pdev);
-	unsigned int i;
-
-	for (i = 0; i < priv->chip.npwm; i++)
-		pwm_disable(&priv->chip.pwms[i]);
-
-	pwmchip_remove(&priv->chip);
 }
 
 static int __maybe_unused stm32_pwm_suspend(struct device *dev)
@@ -701,7 +690,6 @@ MODULE_DEVICE_TABLE(of, stm32_pwm_of_match);
 
 static struct platform_driver stm32_pwm_driver = {
 	.probe	= stm32_pwm_probe,
-	.remove_new = stm32_pwm_remove,
 	.driver	= {
 		.name = "stm32-pwm",
 		.of_match_table = stm32_pwm_of_match,

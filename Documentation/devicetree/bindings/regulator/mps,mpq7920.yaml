@@ -21,7 +21,6 @@ properties:
 
   regulators:
     type: object
-    $ref: regulator.yaml#
 
     description: |
       list of regulators provided by this controller, must be named
@@ -39,11 +38,13 @@ properties:
       ldortc:
         type: object
         $ref: regulator.yaml#
+        unevaluatedProperties: false
 
     patternProperties:
       "^ldo[1-4]$":
         type: object
         $ref: regulator.yaml#
+        unevaluatedProperties: false
 
       "^buck[1-4]$":
         type: object

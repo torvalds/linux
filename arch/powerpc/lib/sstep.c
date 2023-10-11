@@ -485,7 +485,7 @@ write_mem_aligned(unsigned long val, unsigned long ea, int nb, struct pt_regs *r
  * Copy from a buffer to userspace, using the largest possible
  * aligned accesses, up to sizeof(long).
  */
-static nokprobe_inline int __copy_mem_out(u8 *dest, unsigned long ea, int nb, struct pt_regs *regs)
+static __always_inline int __copy_mem_out(u8 *dest, unsigned long ea, int nb, struct pt_regs *regs)
 {
 	int c;
 
@@ -1043,7 +1043,7 @@ static nokprobe_inline int do_vsx_store(struct instruction_op *op,
 }
 #endif /* CONFIG_VSX */
 
-static int __emulate_dcbz(unsigned long ea)
+static __always_inline int __emulate_dcbz(unsigned long ea)
 {
 	unsigned long i;
 	unsigned long size = l1_dcache_bytes();

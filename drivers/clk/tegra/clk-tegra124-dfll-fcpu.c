@@ -12,7 +12,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <soc/tegra/fuse.h>

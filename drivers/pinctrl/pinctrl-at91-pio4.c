@@ -939,10 +939,9 @@ static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
 	if (!atmel_pioctrl->pins[pin_id]->device)
 		return;
 
-	if (atmel_pioctrl->pins[pin_id])
-		seq_printf(s, " (%s, ioset %u) ",
-			   atmel_pioctrl->pins[pin_id]->device,
-			   atmel_pioctrl->pins[pin_id]->ioset);
+	seq_printf(s, " (%s, ioset %u) ",
+		   atmel_pioctrl->pins[pin_id]->device,
+		   atmel_pioctrl->pins[pin_id]->ioset);
 
 	conf = atmel_pin_config_read(pctldev, pin_id);
 	if (conf & ATMEL_PIO_PUEN_MASK)

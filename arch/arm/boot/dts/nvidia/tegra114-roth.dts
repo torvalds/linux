@@ -779,6 +779,8 @@
 
 	/* Usable on reworked devices only */
 	serial@70006300 {
+		/delete-property/ dmas;
+		/delete-property/ dma-names;
 		status = "okay";
 	};
 

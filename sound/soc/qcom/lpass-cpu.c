@@ -404,18 +404,7 @@ static int lpass_cpu_daiops_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-const struct snd_soc_dai_ops asoc_qcom_lpass_cpu_dai_ops = {
-	.set_sysclk	= lpass_cpu_daiops_set_sysclk,
-	.startup	= lpass_cpu_daiops_startup,
-	.shutdown	= lpass_cpu_daiops_shutdown,
-	.hw_params	= lpass_cpu_daiops_hw_params,
-	.trigger	= lpass_cpu_daiops_trigger,
-	.prepare	= lpass_cpu_daiops_prepare,
-};
-EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_dai_ops);
-
-int lpass_cpu_pcm_new(struct snd_soc_pcm_runtime *rtd,
-				struct snd_soc_dai *dai)
+static int lpass_cpu_daiops_pcm_new(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	int ret;
 	struct snd_soc_dai_driver *drv = dai->driver;
@@ -431,9 +420,8 @@ int lpass_cpu_pcm_new(struct snd_soc_pcm_runtime *rtd,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(lpass_cpu_pcm_new);
 
-int asoc_qcom_lpass_cpu_dai_probe(struct snd_soc_dai *dai)
+static int lpass_cpu_daiops_probe(struct snd_soc_dai *dai)
 {
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
 	int ret;
@@ -446,7 +434,29 @@ int asoc_qcom_lpass_cpu_dai_probe(struct snd_soc_dai *dai)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_dai_probe);
+
+const struct snd_soc_dai_ops asoc_qcom_lpass_cpu_dai_ops = {
+	.probe		= lpass_cpu_daiops_probe,
+	.set_sysclk	= lpass_cpu_daiops_set_sysclk,
+	.startup	= lpass_cpu_daiops_startup,
+	.shutdown	= lpass_cpu_daiops_shutdown,
+	.hw_params	= lpass_cpu_daiops_hw_params,
+	.trigger	= lpass_cpu_daiops_trigger,
+	.prepare	= lpass_cpu_daiops_prepare,
+};
+EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_dai_ops);
+
+const struct snd_soc_dai_ops asoc_qcom_lpass_cpu_dai_ops2 = {
+	.pcm_new	= lpass_cpu_daiops_pcm_new,
+	.probe		= lpass_cpu_daiops_probe,
+	.set_sysclk	= lpass_cpu_daiops_set_sysclk,
+	.startup	= lpass_cpu_daiops_startup,
+	.shutdown	= lpass_cpu_daiops_shutdown,
+	.hw_params	= lpass_cpu_daiops_hw_params,
+	.trigger	= lpass_cpu_daiops_trigger,
+	.prepare	= lpass_cpu_daiops_prepare,
+};
+EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_dai_ops2);
 
 static int asoc_qcom_of_xlate_dai_name(struct snd_soc_component *component,
 				   const struct of_phandle_args *args,

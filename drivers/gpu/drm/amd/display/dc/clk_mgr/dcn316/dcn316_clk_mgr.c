@@ -45,23 +45,13 @@
 #define MAX_INSTANCE                                        7
 #define MAX_SEGMENT                                         6
 
-struct IP_BASE_INSTANCE
-{
+struct IP_BASE_INSTANCE {
     unsigned int segment[MAX_SEGMENT];
 };
 
-struct IP_BASE
-{
+struct IP_BASE {
     struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
 };
-
-static const struct IP_BASE CLK_BASE = { { { { 0x00016C00, 0x02401800, 0, 0, 0, 0 } },
-                                        { { 0x00016E00, 0x02401C00, 0, 0, 0, 0 } },
-                                        { { 0x00017000, 0x02402000, 0, 0, 0, 0 } },
-                                        { { 0x00017200, 0x02402400, 0, 0, 0, 0 } },
-                                        { { 0x0001B000, 0x0242D800, 0, 0, 0, 0 } },
-                                        { { 0x0001B200, 0x0242DC00, 0, 0, 0, 0 } },
-                                        { { 0x0001B400, 0x0242E000, 0, 0, 0, 0 } } } };
 
 #define regCLK1_CLK_PLL_REQ						0x0237
 #define regCLK1_CLK_PLL_REQ_BASE_IDX			0
@@ -72,9 +62,6 @@ static const struct IP_BASE CLK_BASE = { { { { 0x00016C00, 0x02401800, 0, 0, 0, 
 #define CLK1_CLK_PLL_REQ__FbMult_int_MASK		0x000001FFL
 #define CLK1_CLK_PLL_REQ__PllSpineDiv_MASK		0x0000F000L
 #define CLK1_CLK_PLL_REQ__FbMult_frac_MASK		0xFFFF0000L
-
-#define REG(reg_name) \
-	(CLK_BASE.instance[0].segment[reg ## reg_name ## _BASE_IDX] + reg ## reg_name)
 
 #define TO_CLK_MGR_DCN316(clk_mgr)\
 	container_of(clk_mgr, struct clk_mgr_dcn316, base)
@@ -577,36 +564,6 @@ static struct clk_mgr_funcs dcn316_funcs = {
 };
 extern struct clk_mgr_funcs dcn3_fpga_funcs;
 
-static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
-{
-	/* get FbMult value */
-	struct fixed31_32 pll_req;
-	unsigned int fbmult_frac_val = 0;
-	unsigned int fbmult_int_val = 0;
-
-	/*
-	 * Register value of fbmult is in 8.16 format, we are converting to 31.32
-	 * to leverage the fix point operations available in driver
-	 */
-
-	REG_GET(CLK1_CLK_PLL_REQ, FbMult_frac, &fbmult_frac_val); /* 16 bit fractional part*/
-	REG_GET(CLK1_CLK_PLL_REQ, FbMult_int, &fbmult_int_val); /* 8 bit integer part */
-
-	pll_req = dc_fixpt_from_int(fbmult_int_val);
-
-	/*
-	 * since fractional part is only 16 bit in register definition but is 32 bit
-	 * in our fix point definiton, need to shift left by 16 to obtain correct value
-	 */
-	pll_req.value |= fbmult_frac_val << 16;
-
-	/* multiply by REFCLK period */
-	pll_req = dc_fixpt_mul_int(pll_req, clk_mgr->dfs_ref_freq_khz);
-
-	/* integer part is now VCO frequency in kHz */
-	return dc_fixpt_floor(pll_req);
-}
-
 void dcn316_clk_mgr_construct(
 		struct dc_context *ctx,
 		struct clk_mgr_dcn316 *clk_mgr,
@@ -660,7 +617,8 @@ void dcn316_clk_mgr_construct(
 		clk_mgr->base.smu_present = true;
 
 	// Skip this for now as it did not work on DCN315, renable during bring up
-	clk_mgr->base.base.dentist_vco_freq_khz = get_vco_frequency_from_reg(&clk_mgr->base);
+	//clk_mgr->base.base.dentist_vco_freq_khz = get_vco_frequency_from_reg(&clk_mgr->base);
+	clk_mgr->base.base.dentist_vco_freq_khz = 2500000;
 
 	/* in case we don't get a value from the register, use default */
 	if (clk_mgr->base.base.dentist_vco_freq_khz == 0)

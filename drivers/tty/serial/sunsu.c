@@ -37,11 +37,11 @@
 #include <linux/serial_reg.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include <linux/io.h>
 #include <asm/irq.h>
-#include <asm/prom.h>
 #include <asm/setup.h>
 
 #include <linux/serial_core.h>

@@ -349,41 +349,6 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *i915,
 	intel_uncore_write(&i915->uncore, GEN7_MISCCPCTL, misccpctl);
 }
 
-static void icl_init_clock_gating(struct drm_i915_private *i915)
-{
-	/* Wa_1409120013:icl,ehl */
-	intel_uncore_write(&i915->uncore, ILK_DPFC_CHICKEN(INTEL_FBC_A),
-			   DPFC_CHICKEN_COMP_DUMMY_PIXEL);
-
-	/*Wa_14010594013:icl, ehl */
-	intel_uncore_rmw(&i915->uncore, GEN8_CHICKEN_DCPR_1,
-			 0, ICL_DELAY_PMRSP);
-}
-
-static void gen12lp_init_clock_gating(struct drm_i915_private *i915)
-{
-	/* Wa_1409120013 */
-	if (DISPLAY_VER(i915) == 12)
-		intel_uncore_write(&i915->uncore, ILK_DPFC_CHICKEN(INTEL_FBC_A),
-				   DPFC_CHICKEN_COMP_DUMMY_PIXEL);
-
-	/* Wa_14013723622:tgl,rkl,dg1,adl-s */
-	if (DISPLAY_VER(i915) == 12)
-		intel_uncore_rmw(&i915->uncore, CLKREQ_POLICY,
-				 CLKREQ_POLICY_MEM_UP_OVRD, 0);
-}
-
-static void adlp_init_clock_gating(struct drm_i915_private *i915)
-{
-	gen12lp_init_clock_gating(i915);
-
-	/* Wa_22011091694:adlp */
-	intel_de_rmw(i915, GEN9_CLKGATE_DIS_5, 0, DPCE_GATING_DIS);
-
-	/* Bspec/49189 Initialize Sequence */
-	intel_de_rmw(i915, GEN8_CHICKEN_DCPR_1, DDI_CLOCK_REG_ACCESS, 0);
-}
-
 static void xehpsdv_init_clock_gating(struct drm_i915_private *i915)
 {
 	/* Wa_22010146351:xehpsdv */
@@ -396,14 +361,6 @@ static void dg2_init_clock_gating(struct drm_i915_private *i915)
 	/* Wa_22010954014:dg2 */
 	intel_uncore_rmw(&i915->uncore, XEHP_CLOCK_GATE_DIS, 0,
 			 SGSI_SIDECLK_DIS);
-
-	/*
-	 * Wa_14010733611:dg2_g10
-	 * Wa_22010146351:dg2_g10
-	 */
-	if (IS_DG2_GRAPHICS_STEP(i915, G10, STEP_A0, STEP_B0))
-		intel_uncore_rmw(&i915->uncore, XEHP_CLOCK_GATE_DIS, 0,
-				 SGR_DIS | SGGI_DIS);
 }
 
 static void pvc_init_clock_gating(struct drm_i915_private *i915)
@@ -456,12 +413,12 @@ static void kbl_init_clock_gating(struct drm_i915_private *i915)
 	intel_uncore_rmw(&i915->uncore, FBC_LLC_READ_CTRL, 0, FBC_LLC_FULLY_OPEN);
 
 	/* WaDisableSDEUnitClockGating:kbl */
-	if (IS_KBL_GRAPHICS_STEP(i915, 0, STEP_C0))
+	if (IS_KABYLAKE(i915) && IS_GRAPHICS_STEP(i915, 0, STEP_C0))
 		intel_uncore_rmw(&i915->uncore, GEN8_UCGCTL6,
 				 0, GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaDisableGamClockGating:kbl */
-	if (IS_KBL_GRAPHICS_STEP(i915, 0, STEP_C0))
+	if (IS_KABYLAKE(i915) && IS_GRAPHICS_STEP(i915, 0, STEP_C0))
 		intel_uncore_rmw(&i915->uncore, GEN6_UCGCTL1,
 				 0, GEN6_GAMUNIT_CLOCK_GATE_DISABLE);
 
@@ -559,8 +516,19 @@ static void bdw_init_clock_gating(struct drm_i915_private *i915)
 
 static void hsw_init_clock_gating(struct drm_i915_private *i915)
 {
+	enum pipe pipe;
+
 	/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
 	intel_uncore_rmw(&i915->uncore, CHICKEN_PIPESL_1(PIPE_A), 0, HSW_FBCQ_DIS);
+
+	/* WaPsrDPAMaskVBlankInSRD:hsw */
+	intel_uncore_rmw(&i915->uncore, CHICKEN_PAR1_1, 0, HSW_MASK_VBL_TO_PIPE_IN_SRD);
+
+	for_each_pipe(i915, pipe) {
+		/* WaPsrDPRSUnmaskVBlankInSRD:hsw */
+		intel_uncore_rmw(&i915->uncore, CHICKEN_PIPESL_1(pipe),
+				 0, HSW_UNMASK_VBL_TO_REGS_IN_SRD);
+	}
 
 	/* This is required by WaCatErrorRejectionIssue:hsw */
 	intel_uncore_rmw(&i915->uncore, GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
@@ -797,9 +765,6 @@ static const struct drm_i915_clock_gating_funcs platform##_clock_gating_funcs = 
 CG_FUNCS(pvc);
 CG_FUNCS(dg2);
 CG_FUNCS(xehpsdv);
-CG_FUNCS(adlp);
-CG_FUNCS(gen12lp);
-CG_FUNCS(icl);
 CG_FUNCS(cfl);
 CG_FUNCS(skl);
 CG_FUNCS(kbl);
@@ -832,20 +797,12 @@ CG_FUNCS(nop);
  */
 void intel_clock_gating_hooks_init(struct drm_i915_private *i915)
 {
-	if (IS_METEORLAKE(i915))
-		i915->clock_gating_funcs = &nop_clock_gating_funcs;
-	else if (IS_PONTEVECCHIO(i915))
+	if (IS_PONTEVECCHIO(i915))
 		i915->clock_gating_funcs = &pvc_clock_gating_funcs;
 	else if (IS_DG2(i915))
 		i915->clock_gating_funcs = &dg2_clock_gating_funcs;
 	else if (IS_XEHPSDV(i915))
 		i915->clock_gating_funcs = &xehpsdv_clock_gating_funcs;
-	else if (IS_ALDERLAKE_P(i915))
-		i915->clock_gating_funcs = &adlp_clock_gating_funcs;
-	else if (GRAPHICS_VER(i915) == 12)
-		i915->clock_gating_funcs = &gen12lp_clock_gating_funcs;
-	else if (GRAPHICS_VER(i915) == 11)
-		i915->clock_gating_funcs = &icl_clock_gating_funcs;
 	else if (IS_COFFEELAKE(i915) || IS_COMETLAKE(i915))
 		i915->clock_gating_funcs = &cfl_clock_gating_funcs;
 	else if (IS_SKYLAKE(i915))
@@ -882,8 +839,6 @@ void intel_clock_gating_hooks_init(struct drm_i915_private *i915)
 		i915->clock_gating_funcs = &i85x_clock_gating_funcs;
 	else if (GRAPHICS_VER(i915) == 2)
 		i915->clock_gating_funcs = &i830_clock_gating_funcs;
-	else {
-		MISSING_CASE(INTEL_DEVID(i915));
+	else
 		i915->clock_gating_funcs = &nop_clock_gating_funcs;
-	}
 }

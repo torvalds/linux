@@ -178,7 +178,7 @@ class CObject(Base_CObject):
         if len(arglist[0].split(" ")) > 1:
             return False
 
-        # This is a function-like macro, it's arguments are typeless!
+        # This is a function-like macro, its arguments are typeless!
         signode  += addnodes.desc_name(fullname, fullname)
         paramlist = addnodes.desc_parameterlist()
         signode  += paramlist

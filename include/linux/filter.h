@@ -69,6 +69,9 @@ struct ctl_table_header;
 /* unused opcode to mark special load instruction. Same as BPF_ABS */
 #define BPF_PROBE_MEM	0x20
 
+/* unused opcode to mark special ldsx instruction. Same as BPF_IND */
+#define BPF_PROBE_MEMSX	0x40
+
 /* unused opcode to mark call to interpreter with arguments */
 #define BPF_CALL_ARGS	0xe0
 
@@ -90,21 +93,27 @@ struct ctl_table_header;
 
 /* ALU ops on registers, bpf_add|sub|...: dst_reg += src_reg */
 
-#define BPF_ALU64_REG(OP, DST, SRC)				\
+#define BPF_ALU64_REG_OFF(OP, DST, SRC, OFF)			\
 	((struct bpf_insn) {					\
 		.code  = BPF_ALU64 | BPF_OP(OP) | BPF_X,	\
 		.dst_reg = DST,					\
 		.src_reg = SRC,					\
-		.off   = 0,					\
+		.off   = OFF,					\
 		.imm   = 0 })
 
-#define BPF_ALU32_REG(OP, DST, SRC)				\
+#define BPF_ALU64_REG(OP, DST, SRC)				\
+	BPF_ALU64_REG_OFF(OP, DST, SRC, 0)
+
+#define BPF_ALU32_REG_OFF(OP, DST, SRC, OFF)			\
 	((struct bpf_insn) {					\
 		.code  = BPF_ALU | BPF_OP(OP) | BPF_X,		\
 		.dst_reg = DST,					\
 		.src_reg = SRC,					\
-		.off   = 0,					\
+		.off   = OFF,					\
 		.imm   = 0 })
+
+#define BPF_ALU32_REG(OP, DST, SRC)				\
+	BPF_ALU32_REG_OFF(OP, DST, SRC, 0)
 
 /* ALU ops on immediates, bpf_add|sub|...: dst_reg += imm32 */
 
@@ -764,23 +773,6 @@ DECLARE_BPF_DISPATCHER(xdp)
 DECLARE_STATIC_KEY_FALSE(bpf_master_redirect_enabled_key);
 
 u32 xdp_master_redirect(struct xdp_buff *xdp);
-
-static __always_inline u32 bpf_prog_run_xdp(const struct bpf_prog *prog,
-					    struct xdp_buff *xdp)
-{
-	/* Driver XDP hooks are invoked within a single NAPI poll cycle and thus
-	 * under local_bh_disable(), which provides the needed RCU protection
-	 * for accessing map entries.
-	 */
-	u32 act = __bpf_prog_run(prog, xdp, BPF_DISPATCHER_FUNC(xdp));
-
-	if (static_branch_unlikely(&bpf_master_redirect_enabled_key)) {
-		if (act == XDP_TX && netif_is_bond_slave(xdp->rxq->dev))
-			act = xdp_master_redirect(xdp);
-	}
-
-	return act;
-}
 
 void bpf_prog_change_xdp(struct bpf_prog *prev_prog, struct bpf_prog *prog);
 
@@ -1580,10 +1572,9 @@ static inline void *bpf_xdp_pointer(struct xdp_buff *xdp, u32 offset, u32 len)
 	return NULL;
 }
 
-static inline void *bpf_xdp_copy_buf(struct xdp_buff *xdp, unsigned long off, void *buf,
-				     unsigned long len, bool flush)
+static inline void bpf_xdp_copy_buf(struct xdp_buff *xdp, unsigned long off, void *buf,
+				    unsigned long len, bool flush)
 {
-	return NULL;
 }
 #endif /* CONFIG_NET */
 

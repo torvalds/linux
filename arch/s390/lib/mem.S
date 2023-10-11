@@ -5,8 +5,8 @@
  * Copyright IBM Corp. 2012
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
-#include <asm/export.h>
 #include <asm/nospec-insn.h>
 
 	GEN_BR_THUNK %r14

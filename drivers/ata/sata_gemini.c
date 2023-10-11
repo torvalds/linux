@@ -12,8 +12,7 @@
 #include <linux/regmap.h>
 #include <linux/delay.h>
 #include <linux/reset.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/pinctrl/consumer.h>
@@ -400,7 +399,7 @@ out_unprep_clk:
 	return ret;
 }
 
-static int gemini_sata_remove(struct platform_device *pdev)
+static void gemini_sata_remove(struct platform_device *pdev)
 {
 	struct sata_gemini *sg = platform_get_drvdata(pdev);
 
@@ -409,8 +408,6 @@ static int gemini_sata_remove(struct platform_device *pdev)
 		clk_unprepare(sg->sata0_pclk);
 	}
 	sg_singleton = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id gemini_sata_of_match[] = {
@@ -424,10 +421,11 @@ static struct platform_driver gemini_sata_driver = {
 		.of_match_table = gemini_sata_of_match,
 	},
 	.probe = gemini_sata_probe,
-	.remove = gemini_sata_remove,
+	.remove_new = gemini_sata_remove,
 };
 module_platform_driver(gemini_sata_driver);
 
+MODULE_DESCRIPTION("low level driver for Cortina Systems Gemini SATA bridge");
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

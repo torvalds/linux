@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/sections.h>
