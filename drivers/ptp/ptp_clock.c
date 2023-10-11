@@ -183,6 +183,7 @@ static void ptp_clock_release(struct device *dev)
 	spin_lock_irqsave(&tsevq->lock, flags);
 	list_del(&tsevq->qlist);
 	spin_unlock_irqrestore(&tsevq->lock, flags);
+	bitmap_free(tsevq->mask);
 	kfree(tsevq);
 	ida_free(&ptp_clocks_map, ptp->index);
 	kfree(ptp);
@@ -243,6 +244,10 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	if (!queue)
 		goto no_memory_queue;
 	list_add_tail(&queue->qlist, &ptp->tsevqs);
+	queue->mask = bitmap_alloc(PTP_MAX_CHANNELS, GFP_KERNEL);
+	if (!queue->mask)
+		goto no_memory_bitmap;
+	bitmap_set(queue->mask, 0, PTP_MAX_CHANNELS);
 	spin_lock_init(&queue->lock);
 	mutex_init(&ptp->pincfg_mux);
 	mutex_init(&ptp->n_vclocks_mux);
@@ -346,6 +351,8 @@ no_mem_for_vclocks:
 kworker_err:
 	mutex_destroy(&ptp->pincfg_mux);
 	mutex_destroy(&ptp->n_vclocks_mux);
+	bitmap_free(queue->mask);
+no_memory_bitmap:
 	list_del(&queue->qlist);
 	kfree(queue);
 no_memory_queue:
@@ -400,9 +407,10 @@ void ptp_clock_event(struct ptp_clock *ptp, struct ptp_clock_event *event)
 		break;
 
 	case PTP_CLOCK_EXTTS:
-		/* Enqueue timestamp on all queues */
+		/* Enqueue timestamp on selected queues */
 		list_for_each_entry(tsevq, &ptp->tsevqs, qlist) {
-			enqueue_external_timestamp(tsevq, event);
+			if (test_bit((unsigned int)event->index, tsevq->mask))
+				enqueue_external_timestamp(tsevq, event);
 		}
 		wake_up_interruptible(&ptp->tsev_wq);
 		break;

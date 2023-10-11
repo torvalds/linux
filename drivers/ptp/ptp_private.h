@@ -16,10 +16,12 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/time.h>
 #include <linux/list.h>
+#include <linux/bitmap.h>
 
 #define PTP_MAX_TIMESTAMPS 128
 #define PTP_BUF_TIMESTAMPS 30
 #define PTP_DEFAULT_MAX_VCLOCKS 20
+#define PTP_MAX_CHANNELS 2048
 
 struct timestamp_event_queue {
 	struct ptp_extts_event buf[PTP_MAX_TIMESTAMPS];
@@ -27,6 +29,7 @@ struct timestamp_event_queue {
 	int tail;
 	spinlock_t lock;
 	struct list_head qlist;
+	unsigned long *mask;
 };
 
 struct ptp_clock {
