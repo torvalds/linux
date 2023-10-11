@@ -30,7 +30,6 @@
 #include <drm/drm_writeback.h>
 
 int amdgpu_dm_wb_connector_init(struct amdgpu_display_manager *dm,
-				struct amdgpu_dm_wb_connector *dm_wbcon,
-				uint32_t link_index);
+				struct drm_writeback_connector *wbcon);
 
 #endif

@@ -30,7 +30,6 @@
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_wb.h"
 #include "amdgpu_display.h"
-#include "dc.h"
 
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
@@ -184,18 +183,13 @@ static const struct drm_connector_helper_funcs amdgpu_dm_wb_conn_helper_funcs = 
 };
 
 int amdgpu_dm_wb_connector_init(struct amdgpu_display_manager *dm,
-				struct amdgpu_dm_wb_connector *wbcon,
-				uint32_t link_index)
+				struct drm_writeback_connector *wbcon)
 {
-	struct dc *dc = dm->dc;
-	struct dc_link *link = dc_get_link_at_index(dc, link_index);
 	int res = 0;
 
-	wbcon->link = link;
+	drm_connector_helper_add(&wbcon->base, &amdgpu_dm_wb_conn_helper_funcs);
 
-	drm_connector_helper_add(&wbcon->base.base, &amdgpu_dm_wb_conn_helper_funcs);
-
-	res = drm_writeback_connector_init(&dm->adev->ddev, &wbcon->base,
+	res = drm_writeback_connector_init(&dm->adev->ddev, wbcon,
 					    &amdgpu_dm_wb_connector_funcs,
 					    &amdgpu_dm_wb_encoder_helper_funcs,
 					    amdgpu_dm_wb_formats,
@@ -208,8 +202,8 @@ int amdgpu_dm_wb_connector_init(struct amdgpu_display_manager *dm,
 	 * Some of the properties below require access to state, like bpc.
 	 * Allocate some default initial connector state with our reset helper.
 	 */
-	if (wbcon->base.base.funcs->reset)
-		wbcon->base.base.funcs->reset(&wbcon->base.base);
+	if (wbcon->base.funcs->reset)
+		wbcon->base.funcs->reset(&wbcon->base);
 
 	return 0;
 }
