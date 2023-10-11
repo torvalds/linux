@@ -1637,11 +1637,6 @@ out:
 
 	goto out_unlock;
 
-	if (mvm->bf_allowed_vif == mvmvif) {
-		mvm->bf_allowed_vif = NULL;
-		vif->driver_flags &= ~(IEEE80211_VIF_BEACON_FILTER |
-				       IEEE80211_VIF_SUPPORTS_CQM_RSSI);
-	}
  out_remove_mac:
 	mvmvif->deflink.phy_ctxt = NULL;
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
