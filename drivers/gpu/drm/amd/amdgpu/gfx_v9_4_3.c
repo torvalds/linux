@@ -623,7 +623,7 @@ static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 						int num_xccs_per_xcp)
 {
 	int ret, i, num_xcc;
-	u32 tmp = 0, regval;
+	u32 tmp = 0;
 
 	if (adev->psp.funcs) {
 		ret = psp_spatial_partition(&adev->psp,
@@ -631,24 +631,23 @@ static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 						    num_xccs_per_xcp);
 		if (ret)
 			return ret;
-	}
+	} else {
+		num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-
-	for (i = 0; i < num_xcc; i++) {
-		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, NUM_XCC_IN_XCP,
-				    num_xccs_per_xcp);
-		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, VIRTUAL_XCC_ID,
-				    i % num_xccs_per_xcp);
-		regval = RREG32_SOC15(GC, GET_INST(GC, i), regCP_HYP_XCP_CTL);
-		if (regval != tmp)
+		for (i = 0; i < num_xcc; i++) {
+			tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, NUM_XCC_IN_XCP,
+					    num_xccs_per_xcp);
+			tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, VIRTUAL_XCC_ID,
+					    i % num_xccs_per_xcp);
 			WREG32_SOC15(GC, GET_INST(GC, i), regCP_HYP_XCP_CTL,
 				     tmp);
+		}
+		ret = 0;
 	}
 
 	adev->gfx.num_xcc_per_xcp = num_xccs_per_xcp;
 
-	return 0;
+	return ret;
 }
 
 static int gfx_v9_4_3_ih_to_xcc_inst(struct amdgpu_device *adev, int ih_node)
