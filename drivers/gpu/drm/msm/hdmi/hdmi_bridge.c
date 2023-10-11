@@ -331,7 +331,7 @@ int msm_hdmi_bridge_init(struct hdmi *hdmi)
 		DRM_BRIDGE_OP_DETECT |
 		DRM_BRIDGE_OP_EDID;
 
-	ret = devm_drm_bridge_add(&hdmi->pdev->dev, bridge);
+	ret = devm_drm_bridge_add(hdmi->dev->dev, bridge);
 	if (ret)
 		return ret;
 
