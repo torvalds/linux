@@ -2412,6 +2412,9 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_UMSCH_MM_CMD_BUFFER:
 		*type = GFX_FW_TYPE_UMSCH_CMD_BUFFER;
 		break;
+	case AMDGPU_UCODE_ID_P2S_TABLE:
+		*type = GFX_FW_TYPE_P2S_TABLE;
+		break;
 	case AMDGPU_UCODE_ID_MAXIMUM:
 	default:
 		return -EINVAL;
@@ -2503,6 +2506,24 @@ int psp_execute_ip_fw_load(struct psp_context *psp,
 	return ret;
 }
 
+static int psp_load_p2s_table(struct psp_context *psp)
+{
+	int ret;
+	struct amdgpu_device *adev = psp->adev;
+	struct amdgpu_firmware_info *ucode =
+		&adev->firmware.ucode[AMDGPU_UCODE_ID_P2S_TABLE];
+
+	if (adev->in_runpm && (adev->pm.rpm_mode == AMDGPU_RUNPM_BACO))
+		return 0;
+
+	if (!ucode->fw || amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	ret = psp_execute_ip_fw_load(psp, ucode);
+
+	return ret;
+}
+
 static int psp_load_smu_fw(struct psp_context *psp)
 {
 	int ret;
@@ -2541,6 +2562,9 @@ static bool fw_load_skip_check(struct psp_context *psp,
 			       struct amdgpu_firmware_info *ucode)
 {
 	if (!ucode->fw || !ucode->ucode_size)
+		return true;
+
+	if (ucode->ucode_id == AMDGPU_UCODE_ID_P2S_TABLE)
 		return true;
 
 	if (ucode->ucode_id == AMDGPU_UCODE_ID_SMC &&
@@ -2590,6 +2614,9 @@ static int psp_load_non_psp_fw(struct psp_context *psp)
 		if (ret)
 			return ret;
 	}
+
+	/* Load P2S table first if it's available */
+	psp_load_p2s_table(psp);
 
 	for (i = 0; i < adev->firmware.max_ucodes; i++) {
 		ucode = &adev->firmware.ucode[i];

@@ -642,6 +642,8 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "SMC";
 	case AMDGPU_UCODE_ID_PPTABLE:
 		return "PPTABLE";
+	case AMDGPU_UCODE_ID_P2S_TABLE:
+		return "P2STABLE";
 	case AMDGPU_UCODE_ID_UVD:
 		return "UVD";
 	case AMDGPU_UCODE_ID_UVD1:
@@ -919,6 +921,10 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 				le32_to_cpu(header->ucode_array_offset_bytes);
 			break;
 		case AMDGPU_UCODE_ID_PPTABLE:
+			ucode->ucode_size = ucode->fw->size;
+			ucode_addr = (u8 *)ucode->fw->data;
+			break;
+		case AMDGPU_UCODE_ID_P2S_TABLE:
 			ucode->ucode_size = ucode->fw->size;
 			ucode_addr = (u8 *)ucode->fw->data;
 			break;
