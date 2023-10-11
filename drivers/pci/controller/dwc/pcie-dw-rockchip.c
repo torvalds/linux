@@ -702,24 +702,6 @@ static inline void rk_pcie_enable_ltssm(struct rk_pcie *rk_pcie)
 	rk_pcie_writel_apb(rk_pcie, 0x0, 0xC000C);
 }
 
-static int rk_pcie_link_up(struct dw_pcie *pci)
-{
-	struct rk_pcie *rk_pcie = to_rk_pcie(pci);
-	u32 val;
-
-	if (rk_pcie->is_rk1808) {
-		val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_GENERAL_DEBUG);
-		if ((val & (PCIE_PHY_LINKUP | PCIE_DATA_LINKUP)) == 0x3)
-			return 1;
-	} else {
-		val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS);
-		if ((val & (RDLH_LINKUP | SMLH_LINKUP)) == 0x30000)
-			return 1;
-	}
-
-	return 0;
-}
-
 static void rk_pcie_enable_debug(struct rk_pcie *rk_pcie)
 {
 	if (!IS_ENABLED(CONFIG_DEBUG_FS))
@@ -1601,7 +1583,6 @@ MODULE_DEVICE_TABLE(of, rk_pcie_of_match);
 
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.start_link = rk_pcie_establish_link,
-	.link_up = rk_pcie_link_up,
 };
 
 static int rk1808_pcie_fixup(struct rk_pcie *rk_pcie, struct device_node *np)
