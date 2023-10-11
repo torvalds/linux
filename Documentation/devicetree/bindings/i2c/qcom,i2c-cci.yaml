@@ -26,7 +26,6 @@ properties:
       - items:
           - enum:
               - qcom,sc7280-cci
-              - qcom,sc8280xp-cci
               - qcom,sdm845-cci
               - qcom,sm6350-cci
               - qcom,sm8250-cci
@@ -162,7 +161,6 @@ allOf:
           contains:
             enum:
               - qcom,sc7280-cci
-              - qcom,sc8280xp-cci
               - qcom,sm8250-cci
               - qcom,sm8450-cci
     then:
