@@ -3424,7 +3424,7 @@ static int hclge_get_status(struct hnae3_handle *handle)
 	return hdev->hw.mac.link;
 }
 
-static struct hclge_vport *hclge_get_vf_vport(struct hclge_dev *hdev, int vf)
+struct hclge_vport *hclge_get_vf_vport(struct hclge_dev *hdev, int vf)
 {
 	if (!pci_num_vf(hdev->pdev)) {
 		dev_err(&hdev->pdev->dev,
@@ -4468,6 +4468,7 @@ static void hclge_handle_err_recovery(struct hclge_dev *hdev)
 	if (hclge_find_error_source(hdev)) {
 		hclge_handle_error_info_log(ae_dev);
 		hclge_handle_mac_tnl(hdev);
+		hclge_handle_vf_queue_err_ras(hdev);
 	}
 
 	hclge_handle_err_reset_request(hdev);
