@@ -1379,6 +1379,8 @@ EXPORT_SYMBOL_GPL(mei_me_irq_thread_handler);
 /**
  * mei_me_polling_thread - interrupt register polling thread
  *
+ * @_dev: mei device
+ *
  * The thread monitors the interrupt source register and calls
  * mei_me_irq_thread_handler() to handle the firmware
  * input.
@@ -1387,8 +1389,6 @@ EXPORT_SYMBOL_GPL(mei_me_irq_thread_handler);
  * in case there was an event, in idle case the polling
  * time increases yet again by MEI_POLLING_TIMEOUT_ACTIVE
  * up to MEI_POLLING_TIMEOUT_IDLE.
- *
- * @_dev: mei device
  *
  * Return: always 0
  */
@@ -1468,11 +1468,11 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 /**
  * mei_me_fw_type_nm() - check for nm sku
  *
+ * @pdev: pci device
+ *
  * Read ME FW Status register to check for the Node Manager (NM) Firmware.
  * The NM FW is only signaled in PCI function 0.
  * __Note__: Deprecated by PCH8 and newer.
- *
- * @pdev: pci device
  *
  * Return: true in case of NM firmware
  */
@@ -1494,11 +1494,11 @@ static bool mei_me_fw_type_nm(const struct pci_dev *pdev)
 /**
  * mei_me_fw_type_sps_4() - check for sps 4.0 sku
  *
+ * @pdev: pci device
+ *
  * Read ME FW Status register to check for SPS Firmware.
  * The SPS FW is only signaled in the PCI function 0.
  * __Note__: Deprecated by SPS 5.0 and newer.
- *
- * @pdev: pci device
  *
  * Return: true in case of SPS firmware
  */
@@ -1519,10 +1519,10 @@ static bool mei_me_fw_type_sps_4(const struct pci_dev *pdev)
 /**
  * mei_me_fw_type_sps_ign() - check for sps or ign sku
  *
+ * @pdev: pci device
+ *
  * Read ME FW Status register to check for SPS or IGN Firmware.
  * The SPS/IGN FW is only signaled in pci function 0
- *
- * @pdev: pci device
  *
  * Return: true in case of SPS/IGN firmware
  */
