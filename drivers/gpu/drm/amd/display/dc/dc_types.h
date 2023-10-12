@@ -1039,6 +1039,7 @@ struct replay_config {
 	uint32_t debug_flags;                           // Replay debug flags
 	bool replay_timing_sync_supported; // Replay desync is supported
 	bool force_disable_desync_error_check;             // Replay desync is supported
+	bool received_desync_error_hpd; //Replay Received Desync Error HPD.
 	union replay_error_status replay_error_status; // Replay error status
 };
 

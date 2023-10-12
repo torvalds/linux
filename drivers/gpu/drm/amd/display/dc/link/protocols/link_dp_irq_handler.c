@@ -210,6 +210,9 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 		&replay_error_status.raw,
 		sizeof(replay_error_status.raw));
 
+	if (replay_configuration.bits.DESYNC_ERROR_STATUS)
+		link->replay_settings.config.received_desync_error_hpd = 1;
+
 	link->replay_settings.config.replay_error_status.bits.LINK_CRC_ERROR =
 		replay_error_status.bits.LINK_CRC_ERROR;
 	link->replay_settings.config.replay_error_status.bits.DESYNC_ERROR =
