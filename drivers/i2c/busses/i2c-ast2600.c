@@ -310,54 +310,34 @@ struct ast2600_i2c_bus {
 
 static u32 ast2600_select_i2c_clock(struct ast2600_i2c_bus *i2c_bus)
 {
-	unsigned long base_clk1;
-	unsigned long base_clk2;
-	unsigned long base_clk3;
-	unsigned long base_clk4;
+	unsigned long base_clk[16];
 	int baseclk_idx;
 	u32 clk_div_reg;
 	u32 scl_low;
 	u32 scl_high;
-	int divisor;
-	int inc = 0;
+	int divisor = 0;
 	u32 data;
 
 	regmap_read(i2c_bus->global_regs, AST2600_I2CG_CLK_DIV_CTRL, &clk_div_reg);
-	base_clk1 = (i2c_bus->apb_clk * 10) / ((((clk_div_reg & 0xff) + 2) * 10) / 2);
-	base_clk2 = (i2c_bus->apb_clk * 10) /
-			(((((clk_div_reg >> 8) & 0xff) + 2) * 10) / 2);
-	base_clk3 = (i2c_bus->apb_clk * 10) /
-			(((((clk_div_reg >> 16) & 0xff) + 2) * 10) / 2);
-	base_clk4 = (i2c_bus->apb_clk * 10) /
-			(((((clk_div_reg >> 24) & 0xff) + 2) * 10) / 2);
 
-	if ((i2c_bus->apb_clk / i2c_bus->timing_info.bus_freq_hz) <= 32) {
-		baseclk_idx = 0;
-		divisor = DIV_ROUND_UP(i2c_bus->apb_clk, i2c_bus->timing_info.bus_freq_hz);
-	} else if ((base_clk1 / i2c_bus->timing_info.bus_freq_hz) <= 32) {
-		baseclk_idx = 1;
-		divisor = DIV_ROUND_UP(base_clk1, i2c_bus->timing_info.bus_freq_hz);
-	} else if ((base_clk2 / i2c_bus->timing_info.bus_freq_hz) <= 32) {
-		baseclk_idx = 2;
-		divisor = DIV_ROUND_UP(base_clk2, i2c_bus->timing_info.bus_freq_hz);
-	} else if ((base_clk3 / i2c_bus->timing_info.bus_freq_hz) <= 32) {
-		baseclk_idx = 3;
-		divisor = DIV_ROUND_UP(base_clk3, i2c_bus->timing_info.bus_freq_hz);
-	} else {
-		baseclk_idx = 4;
-		divisor = DIV_ROUND_UP(base_clk4, i2c_bus->timing_info.bus_freq_hz);
-		inc = 0;
-		while ((divisor + inc) > 32) {
-			inc |= divisor & 0x1;
-			divisor >>= 1;
-			baseclk_idx++;
+	for (int i = 0; i < 16; i++) {
+		if (i == 0)
+			base_clk[i] = i2c_bus->apb_clk;
+		else if ((i > 0) || (i < 5))
+			base_clk[i] = (i2c_bus->apb_clk * 2) /
+				(((clk_div_reg >> ((i - 1) * 8)) & GENMASK(7, 0)) + 2);
+		else
+			base_clk[i] = base_clk[4] / (1 << (i - 5));
+
+		if ((base_clk[i] / i2c_bus->timing_info.bus_freq_hz) <= 32) {
+			baseclk_idx = i;
+			divisor = DIV_ROUND_UP(base_clk[i], i2c_bus->timing_info.bus_freq_hz);
+			break;
 		}
-		divisor += inc;
 	}
+	baseclk_idx = min(baseclk_idx, 15);
 	divisor = min(divisor, 32);
-	baseclk_idx &= GENMASK(3, 0);
-	scl_low = ((divisor * 9) / 16) - 1;
-	scl_low = min_t(u32, scl_low, 0xf);
+	scl_low = min(divisor * 9 / 16 - 1, 15);
 	scl_high = (divisor - scl_low - 2) & GENMASK(3, 0);
 	data = (scl_high - 1) << 20 | scl_high << 16 | scl_low << 12 | baseclk_idx;
 	if (i2c_bus->timeout) {
