@@ -666,6 +666,10 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 	sof_ipc4_log_header(sdev->dev, "ipc rx done ", ipc4_msg, true);
 
 	if (data_size) {
+		if (sof_debug_check_flag(SOF_DBG_DUMP_IPC_MESSAGE_PAYLOAD))
+			sof_ipc4_dump_payload(sdev, ipc4_msg->data_ptr,
+					      ipc4_msg->data_size);
+
 		kfree(ipc4_msg->data_ptr);
 		ipc4_msg->data_ptr = NULL;
 		ipc4_msg->data_size = 0;
