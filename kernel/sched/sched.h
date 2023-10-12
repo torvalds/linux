@@ -1061,6 +1061,15 @@ struct rq {
 
 	unsigned long		cpu_capacity;
 	unsigned long		cpu_capacity_orig;
+	/*
+	 * ANDROID ONLY:
+	 * cpu_capacity_inverted is preserved here to keep the same ABI,
+	 * but it is NOT a field that is used anymore.  Be aware of this
+	 * if when attempting to access it in out-of-tree code.  It was
+	 * removed in commit 8517d739923e ("sched/fair: Remove capacity
+	 * inversion detection") in the 6.1.47 upstream release.
+	 */
+	unsigned long		cpu_capacity_inverted;
 
 	struct balance_callback *balance_callback;
 
