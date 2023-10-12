@@ -954,12 +954,6 @@ void pmu_add_sys_aliases(struct perf_pmu *pmu)
 	pmu_for_each_sys_event(pmu_add_sys_aliases_iter_fn, pmu);
 }
 
-struct perf_event_attr * __weak
-perf_pmu__get_default_config(struct perf_pmu *pmu __maybe_unused)
-{
-	return NULL;
-}
-
 static char *pmu_find_alias_name(struct perf_pmu *pmu, int dirfd)
 {
 	FILE *file = perf_pmu__open_file_at(pmu, dirfd, "alias");
@@ -989,6 +983,11 @@ static int pmu_max_precise(int dirfd, struct perf_pmu *pmu)
 
 	perf_pmu__scan_file_at(pmu, dirfd, "caps/max_precise", "%d", &max_precise);
 	return max_precise;
+}
+
+void __weak
+perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
+{
 }
 
 struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char *name)
@@ -1037,7 +1036,7 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 	pmu_add_sys_aliases(pmu);
 	list_add_tail(&pmu->list, pmus);
 
-	pmu->default_config = perf_pmu__get_default_config(pmu);
+	perf_pmu__arch_init(pmu);
 
 	return pmu;
 err:
