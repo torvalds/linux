@@ -10378,7 +10378,6 @@ static void ipw_ethtool_get_drvinfo(struct net_device *dev,
 {
 	struct ipw_priv *p = libipw_priv(dev);
 	char vers[64];
-	char date[32];
 	u32 len;
 
 	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
@@ -10386,11 +10385,8 @@ static void ipw_ethtool_get_drvinfo(struct net_device *dev,
 
 	len = sizeof(vers);
 	ipw_get_ordinal(p, IPW_ORD_STAT_FW_VERSION, vers, &len);
-	len = sizeof(date);
-	ipw_get_ordinal(p, IPW_ORD_STAT_FW_DATE, date, &len);
 
-	snprintf(info->fw_version, sizeof(info->fw_version), "%s (%s)",
-		 vers, date);
+	strscpy(info->fw_version, vers, sizeof(info->fw_version));
 	strscpy(info->bus_info, pci_name(p->pci_dev),
 		sizeof(info->bus_info));
 }
