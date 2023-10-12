@@ -1088,9 +1088,11 @@ static int _opp_set_required_opps_generic(struct device *dev,
 static int _opp_set_required_opps_genpd(struct device *dev,
 	struct opp_table *opp_table, struct dev_pm_opp *opp, bool scaling_down)
 {
-	struct device **genpd_virt_devs =
-		opp_table->genpd_virt_devs ? opp_table->genpd_virt_devs : &dev;
+	struct device **genpd_virt_devs = opp_table->genpd_virt_devs;
 	int index, target, delta, ret;
+
+	if (!genpd_virt_devs)
+		return 0;
 
 	/* Scaling up? Set required OPPs in normal order, else reverse */
 	if (!scaling_down) {

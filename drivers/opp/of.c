@@ -296,7 +296,7 @@ void _of_clear_opp(struct opp_table *opp_table, struct dev_pm_opp *opp)
 	of_node_put(opp->np);
 }
 
-static int _link_required_opps(struct dev_pm_opp *opp,
+static int _link_required_opps(struct dev_pm_opp *opp, struct opp_table *opp_table,
 			       struct opp_table *required_table, int index)
 {
 	struct device_node *np;
@@ -312,6 +312,31 @@ static int _link_required_opps(struct dev_pm_opp *opp,
 		pr_err("%s: Unable to find required OPP node: %pOF (%d)\n",
 		       __func__, opp->np, index);
 		return -ENODEV;
+	}
+
+	/*
+	 * There are two genpd (as required-opp) cases that we need to handle,
+	 * devices with a single genpd and ones with multiple genpds.
+	 *
+	 * The single genpd case requires special handling as we need to use the
+	 * same `dev` structure (instead of a virtual one provided by genpd
+	 * core) for setting the performance state.
+	 *
+	 * It doesn't make sense for a device's DT entry to have both
+	 * "opp-level" and single "required-opps" entry pointing to a genpd's
+	 * OPP, as that would make the OPP core call
+	 * dev_pm_domain_set_performance_state() for two different values for
+	 * the same device structure. Lets treat single genpd configuration as a
+	 * case where the OPP's level is directly available without required-opp
+	 * link in the DT.
+	 *
+	 * Just update the `level` with the right value, which
+	 * dev_pm_opp_set_opp() will take care of in the normal path itself.
+	 */
+	if (required_table->is_genpd && opp_table->required_opp_count == 1 &&
+	    !opp_table->genpd_virt_devs) {
+		if (!WARN_ON(opp->level != OPP_LEVEL_UNSET))
+			opp->level = opp->required_opps[0]->level;
 	}
 
 	return 0;
@@ -338,7 +363,7 @@ static int _of_opp_alloc_required_opps(struct opp_table *opp_table,
 		if (IS_ERR_OR_NULL(required_table))
 			continue;
 
-		ret = _link_required_opps(opp, required_table, i);
+		ret = _link_required_opps(opp, opp_table, required_table, i);
 		if (ret)
 			goto free_required_opps;
 	}
@@ -359,7 +384,7 @@ static int lazy_link_required_opps(struct opp_table *opp_table,
 	int ret;
 
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
-		ret = _link_required_opps(opp, new_table, index);
+		ret = _link_required_opps(opp, opp_table, new_table, index);
 		if (ret)
 			return ret;
 	}
