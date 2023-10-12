@@ -11893,12 +11893,6 @@ F:	drivers/leds/
 F:	include/dt-bindings/leds/
 F:	include/linux/leds.h
 
-LEGACY EEPROM DRIVER
-M:	Jean Delvare <jdelvare@suse.com>
-S:	Maintained
-F:	Documentation/misc-devices/eeprom.rst
-F:	drivers/misc/eeprom/eeprom.c
-
 LEGO MINDSTORMS EV3
 R:	David Lechner <david@lechnology.com>
 S:	Maintained
