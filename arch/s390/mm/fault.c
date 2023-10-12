@@ -257,20 +257,6 @@ static void do_no_context(struct pt_regs *regs, vm_fault_t fault)
 	die(regs, "Oops");
 }
 
-static void do_low_address(struct pt_regs *regs)
-{
-	/*
-	 * Low-address protection hit in kernel mode means
-	 * NULL pointer write access in kernel mode.
-	 */
-	if (regs->psw.mask & PSW_MASK_PSTATE) {
-		/* Low-address protection hit in user mode: 'cannot happen' */
-		die(regs, "Low-address protection");
-	}
-
-	do_no_context(regs, VM_FAULT_BADACCESS);
-}
-
 static void do_sigbus(struct pt_regs *regs)
 {
 	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)get_fault_address(regs));
@@ -504,8 +490,15 @@ void do_protection_exception(struct pt_regs *regs)
 	 * field is not guaranteed to contain valid data in this case.
 	 */
 	if (unlikely(!teid.b61)) {
-		do_low_address(regs);
-		return;
+		if (user_mode(regs)) {
+			/* Low-address protection in user mode: cannot happen */
+			die(regs, "Low-address protection");
+		}
+		/*
+		 * Low-address protection in kernel mode means
+		 * NULL pointer write access in kernel mode.
+		 */
+		return do_no_context(regs, VM_FAULT_BADACCESS);
 	}
 	if (unlikely(MACHINE_HAS_NX && teid.b56)) {
 		regs->int_parm_long = (teid.addr * PAGE_SIZE) | (regs->psw.addr & PAGE_MASK);
