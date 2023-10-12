@@ -15,6 +15,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
+#include <linux/jump_label.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -60,12 +61,12 @@ enum fault_type {
 	GMAP_FAULT,
 };
 
-static unsigned long store_indication __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(have_store_indication);
 
 static int __init fault_init(void)
 {
 	if (test_facility(75))
-		store_indication = 0xc00;
+		static_branch_enable(&have_store_indication);
 	return 0;
 }
 early_initcall(fault_init);
@@ -104,11 +105,13 @@ static unsigned long get_fault_address(struct pt_regs *regs)
 	return trans_exc_code & __FAIL_ADDR_MASK;
 }
 
-static bool fault_is_write(struct pt_regs *regs)
+static __always_inline bool fault_is_write(struct pt_regs *regs)
 {
 	unsigned long trans_exc_code = regs->int_parm_long;
 
-	return (trans_exc_code & store_indication) == 0x400;
+	if (static_branch_likely(&have_store_indication))
+		return (trans_exc_code & 0xc00) == 0x400;
+	return false;
 }
 
 static int bad_address(void *p)
