@@ -108,8 +108,7 @@ static void mlx5_vhca_state_work_handler(struct work_struct *_work)
 	kfree(work);
 }
 
-static void
-mlx5_vhca_events_work_enqueue(struct mlx5_core_dev *dev, int idx, struct work_struct *work)
+void mlx5_vhca_events_work_enqueue(struct mlx5_core_dev *dev, int idx, struct work_struct *work)
 {
 	queue_work(dev->priv.vhca_events->handler[idx].wq, work);
 }
@@ -189,6 +188,19 @@ err_create_wq:
 		destroy_workqueue(events->handler[i].wq);
 	kfree(events);
 	return err;
+}
+
+void mlx5_vhca_event_work_queues_flush(struct mlx5_core_dev *dev)
+{
+	struct mlx5_vhca_events *vhca_events;
+	int i;
+
+	if (!mlx5_vhca_event_supported(dev))
+		return;
+
+	vhca_events = dev->priv.vhca_events;
+	for (i = 0; i < MLX5_DEV_MAX_WQS; i++)
+		flush_workqueue(vhca_events->handler[i].wq);
 }
 
 void mlx5_vhca_event_cleanup(struct mlx5_core_dev *dev)
