@@ -36,14 +36,14 @@
 #include <linux/kfence.h>
 #include <asm/asm-extable.h>
 #include <asm/asm-offsets.h>
+#include <asm/ptrace.h>
+#include <asm/fault.h>
 #include <asm/diag.h>
 #include <asm/gmap.h>
 #include <asm/irq.h>
 #include <asm/facility.h>
 #include <asm/uv.h>
 #include "../kernel/entry.h"
-
-#define __FAIL_ADDR_MASK -4096L
 
 /*
  * Allocate private vm_fault_reason from top.
@@ -76,11 +76,9 @@ early_initcall(fault_init);
  */
 static enum fault_type get_fault_type(struct pt_regs *regs)
 {
-	unsigned long trans_exc_code;
+	union teid teid = { .val = regs->int_parm_long };
 
-	trans_exc_code = regs->int_parm_long & 3;
-	/* Primary address space */
-	if (likely(trans_exc_code == 0)) {
+	if (likely(teid.as == PSW_BITS_AS_PRIMARY)) {
 		if (user_mode(regs))
 			return USER_FAULT;
 		if (!IS_ENABLED(CONFIG_PGSTE))
@@ -89,10 +87,10 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 			return GMAP_FAULT;
 		return KERNEL_FAULT;
 	}
-	if (trans_exc_code == 2)
+	if (teid.as == PSW_BITS_AS_SECONDARY)
 		return USER_FAULT;
 	/* Access register mode, not used in the kernel */
-	if (trans_exc_code == 1)
+	if (teid.as == PSW_BITS_AS_ACCREG)
 		return USER_FAULT;
 	/* Home space -> access via kernel ASCE */
 	return KERNEL_FAULT;
@@ -100,17 +98,17 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 
 static unsigned long get_fault_address(struct pt_regs *regs)
 {
-	unsigned long trans_exc_code = regs->int_parm_long;
+	union teid teid = { .val = regs->int_parm_long };
 
-	return trans_exc_code & __FAIL_ADDR_MASK;
+	return teid.addr * PAGE_SIZE;
 }
 
 static __always_inline bool fault_is_write(struct pt_regs *regs)
 {
-	unsigned long trans_exc_code = regs->int_parm_long;
+	union teid teid = { .val = regs->int_parm_long };
 
 	if (static_branch_likely(&have_store_indication))
-		return (trans_exc_code & 0xc00) == 0x400;
+		return teid.fsi == TEID_FSI_STORE;
 	return false;
 }
 
@@ -176,22 +174,23 @@ bad:
 
 static void dump_fault_info(struct pt_regs *regs)
 {
+	union teid teid = { .val = regs->int_parm_long };
 	unsigned long asce;
 
 	pr_alert("Failing address: %016lx TEID: %016lx\n",
-		 get_fault_address(regs), regs->int_parm_long);
+		 get_fault_address(regs), teid.val);
 	pr_alert("Fault in ");
-	switch (regs->int_parm_long & 3) {
-	case 3:
+	switch (teid.as) {
+	case PSW_BITS_AS_HOME:
 		pr_cont("home space ");
 		break;
-	case 2:
+	case PSW_BITS_AS_SECONDARY:
 		pr_cont("secondary space ");
 		break;
-	case 1:
+	case PSW_BITS_AS_ACCREG:
 		pr_cont("access register ");
 		break;
-	case 0:
+	case PSW_BITS_AS_PRIMARY:
 		pr_cont("primary space ");
 		break;
 	}
@@ -497,11 +496,10 @@ out:
 
 void do_protection_exception(struct pt_regs *regs)
 {
-	unsigned long trans_exc_code;
+	union teid teid = { .val = regs->int_parm_long };
 	vm_fault_t fault;
 	int access;
 
-	trans_exc_code = regs->int_parm_long;
 	/*
 	 * Protection exceptions are suppressing, decrement psw address.
 	 * The exception to this rule are aborted transactions, for these
@@ -514,13 +512,12 @@ void do_protection_exception(struct pt_regs *regs)
 	 * as a special case because the translation exception code
 	 * field is not guaranteed to contain valid data in this case.
 	 */
-	if (unlikely(!(trans_exc_code & 4))) {
+	if (unlikely(!teid.b61)) {
 		do_low_address(regs);
 		return;
 	}
-	if (unlikely(MACHINE_HAS_NX && (trans_exc_code & 0x80))) {
-		regs->int_parm_long = (trans_exc_code & ~PAGE_MASK) |
-					(regs->psw.addr & PAGE_MASK);
+	if (unlikely(MACHINE_HAS_NX && teid.b56)) {
+		regs->int_parm_long = (teid.addr * PAGE_SIZE) | (regs->psw.addr & PAGE_MASK);
 		access = VM_EXEC;
 		fault = VM_FAULT_BADACCESS;
 	} else {
@@ -548,6 +545,7 @@ NOKPROBE_SYMBOL(do_dat_exception);
 
 void do_secure_storage_access(struct pt_regs *regs)
 {
+	union teid teid = { .val = regs->int_parm_long };
 	unsigned long addr = get_fault_address(regs);
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
@@ -561,8 +559,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 	 * process. Bit 61 is not reliable without the misc UV feature,
 	 * therefore this needs to be checked too.
 	 */
-	if (uv_has_feature(BIT_UV_FEAT_MISC) &&
-	    !test_bit_inv(61, &regs->int_parm_long)) {
+	if (uv_has_feature(BIT_UV_FEAT_MISC) && !teid.b61) {
 		/*
 		 * When this happens, userspace did something that it
 		 * was not supposed to do, e.g. branching into secure
