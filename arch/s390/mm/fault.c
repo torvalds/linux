@@ -91,9 +91,8 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 	if (trans_exc_code == 2)
 		return USER_FAULT;
 	/* Access register mode, not used in the kernel */
-	if (trans_exc_code == 1) {
+	if (trans_exc_code == 1)
 		return USER_FAULT;
-	}
 	/* Home space -> access via kernel ASCE */
 	return KERNEL_FAULT;
 }
@@ -200,7 +199,7 @@ static void dump_fault_info(struct pt_regs *regs)
 		pr_cont("user ");
 		break;
 	case GMAP_FAULT:
-		asce = ((struct gmap *) S390_lowcore.gmap)->asce;
+		asce = ((struct gmap *)S390_lowcore.gmap)->asce;
 		pr_cont("gmap ");
 		break;
 	case KERNEL_FAULT:
@@ -273,7 +272,7 @@ static noinline void do_low_address(struct pt_regs *regs)
 	 */
 	if (regs->psw.mask & PSW_MASK_PSTATE) {
 		/* Low-address protection hit in user mode: 'cannot happen' */
-		die (regs, "Low-address protection");
+		die(regs, "Low-address protection");
 	}
 
 	do_no_context(regs, VM_FAULT_BADACCESS);
@@ -327,8 +326,9 @@ static noinline void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
 				do_no_context(regs, fault);
 			else
 				do_sigbus(regs);
-		} else
+		} else {
 			BUG();
+		}
 		break;
 	}
 }
@@ -414,7 +414,7 @@ lock_mmap:
 	mmap_read_lock(mm);
 	gmap = NULL;
 	if (IS_ENABLED(CONFIG_PGSTE) && type == GMAP_FAULT) {
-		gmap = (struct gmap *) S390_lowcore.gmap;
+		gmap = (struct gmap *)S390_lowcore.gmap;
 		current->thread.gmap_addr = address;
 		current->thread.gmap_write_flag = !!(flags & FAULT_FLAG_WRITE);
 		current->thread.gmap_int_code = regs->int_code & 0xffff;
