@@ -354,8 +354,10 @@ static int st_rproc_probe(struct platform_device *pdev)
 	rproc->has_iommu = false;
 	ddata = rproc->priv;
 	ddata->config = (struct st_rproc_config *)device_get_match_data(dev);
-	if (!ddata->config)
+	if (!ddata->config) {
+		ret = -ENODEV;
 		goto free_rproc;
+	}
 
 	platform_set_drvdata(pdev, rproc);
 
