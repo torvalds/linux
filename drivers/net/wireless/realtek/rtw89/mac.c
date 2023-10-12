@@ -5210,12 +5210,12 @@ static void rtw89_mac_bfee_standby_timer(struct rtw89_dev *rtwdev, u8 mac_idx,
 
 static void rtw89_mac_bfee_ctrl(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 reg;
-	u32 mask = B_AX_BFMEE_HT_NDPA_EN | B_AX_BFMEE_VHT_NDPA_EN |
-		   B_AX_BFMEE_HE_NDPA_EN;
+	u32 mask = mac->bfee_ctrl.mask;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BF, "set bfee ndpa_en to %d\n", en);
-	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_BFMEE_RESP_OPTION, mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, mac->bfee_ctrl.addr, mac_idx);
 	if (en) {
 		set_bit(RTW89_FLAG_BFEE_EN, rtwdev->flags);
 		rtw89_write32_set(rtwdev, reg, mask);
@@ -5758,6 +5758,11 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.muedca_ctrl = {
 		.addr = R_AX_MUEDCA_EN,
 		.mask = B_AX_MUEDCA_EN_0 | B_AX_SET_MUEDCATIMER_TF_0,
+	},
+	.bfee_ctrl = {
+		.addr = R_AX_BFMEE_RESP_OPTION,
+		.mask = B_AX_BFMEE_HT_NDPA_EN | B_AX_BFMEE_VHT_NDPA_EN |
+			B_AX_BFMEE_HE_NDPA_EN,
 	},
 
 	.disable_cpu = rtw89_mac_disable_cpu_ax,

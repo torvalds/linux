@@ -256,6 +256,11 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 		.addr = R_BE_MUEDCA_EN,
 		.mask = B_BE_MUEDCA_EN_0 | B_BE_SET_MUEDCATIMER_TF_0,
 	},
+	.bfee_ctrl = {
+		.addr = R_BE_BFMEE_RESP_OPTION,
+		.mask = B_BE_BFMEE_HT_NDPA_EN | B_BE_BFMEE_VHT_NDPA_EN |
+			B_BE_BFMEE_HE_NDPA_EN | B_BE_BFMEE_EHT_NDPA_EN,
+	},
 
 	.disable_cpu = rtw89_mac_disable_cpu_be,
 	.fwdl_enable_wcpu = rtw89_mac_fwdl_enable_wcpu_be,
