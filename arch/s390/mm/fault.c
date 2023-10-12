@@ -176,7 +176,7 @@ static void dump_fault_info(struct pt_regs *regs)
 	unsigned long asce;
 
 	pr_alert("Failing address: %016lx TEID: %016lx\n",
-		 regs->int_parm_long & __FAIL_ADDR_MASK, regs->int_parm_long);
+		 get_fault_address(regs), regs->int_parm_long);
 	pr_alert("Fault in ");
 	switch (regs->int_parm_long & 3) {
 	case 3:
@@ -210,7 +210,7 @@ static void dump_fault_info(struct pt_regs *regs)
 		unreachable();
 	}
 	pr_cont("ASCE.\n");
-	dump_pagetable(asce, regs->int_parm_long & __FAIL_ADDR_MASK);
+	dump_pagetable(asce, get_fault_address(regs));
 }
 
 int show_unhandled_signals = 1;
@@ -237,8 +237,7 @@ void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault)
 static void do_sigsegv(struct pt_regs *regs, int si_code)
 {
 	report_user_fault(regs, SIGSEGV, 1);
-	force_sig_fault(SIGSEGV, si_code,
-			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK));
+	force_sig_fault(SIGSEGV, si_code, (void __user *)get_fault_address(regs));
 }
 
 static void do_no_context(struct pt_regs *regs, vm_fault_t fault)
@@ -280,8 +279,7 @@ static void do_low_address(struct pt_regs *regs)
 
 static void do_sigbus(struct pt_regs *regs)
 {
-	force_sig_fault(SIGBUS, BUS_ADRERR,
-			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK));
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)get_fault_address(regs));
 }
 
 static void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
@@ -547,7 +545,7 @@ NOKPROBE_SYMBOL(do_dat_exception);
 
 void do_secure_storage_access(struct pt_regs *regs)
 {
-	unsigned long addr = regs->int_parm_long & __FAIL_ADDR_MASK;
+	unsigned long addr = get_fault_address(regs);
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 	struct page *page;
@@ -625,8 +623,8 @@ NOKPROBE_SYMBOL(do_secure_storage_access);
 
 void do_non_secure_storage_access(struct pt_regs *regs)
 {
-	unsigned long gaddr = regs->int_parm_long & __FAIL_ADDR_MASK;
 	struct gmap *gmap = (struct gmap *)S390_lowcore.gmap;
+	unsigned long gaddr = get_fault_address(regs);
 
 	if (get_fault_type(regs) != GMAP_FAULT) {
 		do_fault_error(regs, VM_FAULT_BADMAP);
@@ -640,8 +638,8 @@ NOKPROBE_SYMBOL(do_non_secure_storage_access);
 
 void do_secure_storage_violation(struct pt_regs *regs)
 {
-	unsigned long gaddr = regs->int_parm_long & __FAIL_ADDR_MASK;
 	struct gmap *gmap = (struct gmap *)S390_lowcore.gmap;
+	unsigned long gaddr = get_fault_address(regs);
 
 	/*
 	 * If the VM has been rebooted, its address space might still contain
