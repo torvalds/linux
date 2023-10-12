@@ -629,6 +629,23 @@ static const struct config_item_type netconsole_target_type = {
 	.ct_owner		= THIS_MODULE,
 };
 
+static struct netconsole_target *find_cmdline_target(const char *name)
+{
+	struct netconsole_target *nt, *ret = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&target_list_lock, flags);
+	list_for_each_entry(nt, &target_list, list) {
+		if (!strcmp(nt->item.ci_name, name)) {
+			ret = nt;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&target_list_lock, flags);
+
+	return ret;
+}
+
 /*
  * Group operations and type for netconsole_subsys.
  */
@@ -638,6 +655,17 @@ static struct config_item *make_netconsole_target(struct config_group *group,
 {
 	struct netconsole_target *nt;
 	unsigned long flags;
+
+	/* Checking if a target by this name was created at boot time.  If so,
+	 * attach a configfs entry to that target.  This enables dynamic
+	 * control.
+	 */
+	if (!strncmp(name, NETCONSOLE_PARAM_TARGET_PREFIX,
+		     strlen(NETCONSOLE_PARAM_TARGET_PREFIX))) {
+		nt = find_cmdline_target(name);
+		if (nt)
+			return &nt->item;
+	}
 
 	nt = alloc_and_init();
 	if (!nt)
