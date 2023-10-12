@@ -18,7 +18,7 @@ struct mlx5e_rx_res {
 
 	struct mlx5e_rss *rss[MLX5E_MAX_NUM_RSS];
 	bool rss_active;
-	u32 rss_rqns[MLX5E_INDIR_RQT_SIZE];
+	u32 *rss_rqns;
 	unsigned int rss_nch;
 
 	struct {
@@ -34,6 +34,16 @@ struct mlx5e_rx_res {
 
 /* API for rx_res_rss_* */
 
+void mlx5e_rx_res_rss_update_num_channels(struct mlx5e_rx_res *res, u32 nch)
+{
+	int i;
+
+	for (i = 0; i < MLX5E_MAX_NUM_RSS; i++) {
+		if (res->rss[i])
+			mlx5e_rss_params_indir_modify_actual_size(res->rss[i], nch);
+	}
+}
+
 static int mlx5e_rx_res_rss_init_def(struct mlx5e_rx_res *res,
 				     unsigned int init_nch)
 {
@@ -44,7 +54,7 @@ static int mlx5e_rx_res_rss_init_def(struct mlx5e_rx_res *res,
 		return -EINVAL;
 
 	rss = mlx5e_rss_init(res->mdev, inner_ft_support, res->drop_rqn,
-			     &res->pkt_merge_param, MLX5E_RSS_INIT_TIRS);
+			     &res->pkt_merge_param, MLX5E_RSS_INIT_TIRS, init_nch, res->max_nch);
 	if (IS_ERR(rss))
 		return PTR_ERR(rss);
 
@@ -69,7 +79,8 @@ int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 *rss_idx, unsigned int i
 		return -ENOSPC;
 
 	rss = mlx5e_rss_init(res->mdev, inner_ft_support, res->drop_rqn,
-			     &res->pkt_merge_param, MLX5E_RSS_INIT_NO_TIRS);
+			     &res->pkt_merge_param, MLX5E_RSS_INIT_NO_TIRS, init_nch,
+			     res->max_nch);
 	if (IS_ERR(rss))
 		return PTR_ERR(rss);
 
@@ -269,12 +280,25 @@ struct mlx5e_rss *mlx5e_rx_res_rss_get(struct mlx5e_rx_res *res, u32 rss_idx)
 
 static void mlx5e_rx_res_free(struct mlx5e_rx_res *res)
 {
+	kvfree(res->rss_rqns);
 	kvfree(res);
 }
 
-static struct mlx5e_rx_res *mlx5e_rx_res_alloc(void)
+static struct mlx5e_rx_res *mlx5e_rx_res_alloc(struct mlx5_core_dev *mdev, unsigned int max_nch)
 {
-	return kvzalloc(sizeof(struct mlx5e_rx_res), GFP_KERNEL);
+	struct mlx5e_rx_res *rx_res;
+
+	rx_res = kvzalloc(sizeof(*rx_res), GFP_KERNEL);
+	if (!rx_res)
+		return NULL;
+
+	rx_res->rss_rqns = kvcalloc(max_nch, sizeof(*rx_res->rss_rqns), GFP_KERNEL);
+	if (!rx_res->rss_rqns) {
+		kvfree(rx_res);
+		return NULL;
+	}
+
+	return rx_res;
 }
 
 static int mlx5e_rx_res_channels_init(struct mlx5e_rx_res *res)
@@ -296,7 +320,8 @@ static int mlx5e_rx_res_channels_init(struct mlx5e_rx_res *res)
 
 	for (ix = 0; ix < res->max_nch; ix++) {
 		err = mlx5e_rqt_init_direct(&res->channels[ix].direct_rqt,
-					    res->mdev, false, res->drop_rqn);
+					    res->mdev, false, res->drop_rqn,
+					    mlx5e_rqt_size(res->mdev, res->max_nch));
 		if (err) {
 			mlx5_core_warn(res->mdev, "Failed to create a direct RQT: err = %d, ix = %u\n",
 				       err, ix);
@@ -350,7 +375,8 @@ static int mlx5e_rx_res_ptp_init(struct mlx5e_rx_res *res)
 	if (!builder)
 		return -ENOMEM;
 
-	err = mlx5e_rqt_init_direct(&res->ptp.rqt, res->mdev, false, res->drop_rqn);
+	err = mlx5e_rqt_init_direct(&res->ptp.rqt, res->mdev, false, res->drop_rqn,
+				    mlx5e_rqt_size(res->mdev, res->max_nch));
 	if (err)
 		goto out;
 
@@ -401,7 +427,7 @@ mlx5e_rx_res_create(struct mlx5_core_dev *mdev, enum mlx5e_rx_res_features featu
 	struct mlx5e_rx_res *res;
 	int err;
 
-	res = mlx5e_rx_res_alloc();
+	res = mlx5e_rx_res_alloc(mdev, max_nch);
 	if (!res)
 		return ERR_PTR(-ENOMEM);
 

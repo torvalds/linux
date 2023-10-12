@@ -81,14 +81,75 @@ struct mlx5e_rss {
 	refcount_t refcnt;
 };
 
-static struct mlx5e_rss *mlx5e_rss_alloc(void)
+void mlx5e_rss_params_indir_modify_actual_size(struct mlx5e_rss *rss, u32 num_channels)
 {
-	return kvzalloc(sizeof(struct mlx5e_rss), GFP_KERNEL);
+	rss->indir.actual_table_size = mlx5e_rqt_size(rss->mdev, num_channels);
 }
 
-static void mlx5e_rss_free(struct mlx5e_rss *rss)
+int mlx5e_rss_params_indir_init(struct mlx5e_rss_params_indir *indir, struct mlx5_core_dev *mdev,
+				u32 actual_table_size, u32 max_table_size)
 {
+	indir->table = kvmalloc_array(max_table_size, sizeof(*indir->table), GFP_KERNEL);
+	if (!indir->table)
+		return -ENOMEM;
+
+	indir->max_table_size = max_table_size;
+	indir->actual_table_size = actual_table_size;
+
+	return 0;
+}
+
+void mlx5e_rss_params_indir_cleanup(struct mlx5e_rss_params_indir *indir)
+{
+	kvfree(indir->table);
+}
+
+static int mlx5e_rss_copy(struct mlx5e_rss *to, const struct mlx5e_rss *from)
+{
+	u32 *dst_indir_table;
+
+	if (to->indir.actual_table_size != from->indir.actual_table_size ||
+	    to->indir.max_table_size != from->indir.max_table_size) {
+		mlx5e_rss_warn(to->mdev,
+			       "Failed to copy RSS due to size mismatch, src (actual %u, max %u) != dst (actual %u, max %u)\n",
+			       from->indir.actual_table_size, from->indir.max_table_size,
+			       to->indir.actual_table_size, to->indir.max_table_size);
+		return -EINVAL;
+	}
+
+	dst_indir_table = to->indir.table;
+	*to = *from;
+	to->indir.table = dst_indir_table;
+	memcpy(to->indir.table, from->indir.table,
+	       from->indir.actual_table_size * sizeof(*from->indir.table));
+	return 0;
+}
+
+static struct mlx5e_rss *mlx5e_rss_init_copy(const struct mlx5e_rss *from)
+{
+	struct mlx5e_rss *rss;
+	int err;
+
+	rss = kvzalloc(sizeof(*rss), GFP_KERNEL);
+	if (!rss)
+		return ERR_PTR(-ENOMEM);
+
+	err = mlx5e_rss_params_indir_init(&rss->indir, from->mdev, from->indir.actual_table_size,
+					  from->indir.max_table_size);
+	if (err)
+		goto err_free_rss;
+
+	err = mlx5e_rss_copy(rss, from);
+	if (err)
+		goto err_free_indir;
+
+	return rss;
+
+err_free_indir:
+	mlx5e_rss_params_indir_cleanup(&rss->indir);
+err_free_rss:
 	kvfree(rss);
+	return ERR_PTR(err);
 }
 
 static void mlx5e_rss_params_init(struct mlx5e_rss *rss)
@@ -287,19 +348,27 @@ static int mlx5e_rss_init_no_tirs(struct mlx5e_rss *rss)
 	mlx5e_rss_params_init(rss);
 	refcount_set(&rss->refcnt, 1);
 
-	return mlx5e_rqt_init_direct(&rss->rqt, rss->mdev, true, rss->drop_rqn);
+	return mlx5e_rqt_init_direct(&rss->rqt, rss->mdev, true,
+				     rss->drop_rqn, rss->indir.max_table_size);
 }
 
 struct mlx5e_rss *mlx5e_rss_init(struct mlx5_core_dev *mdev, bool inner_ft_support, u32 drop_rqn,
 				 const struct mlx5e_packet_merge_param *init_pkt_merge_param,
-				 enum mlx5e_rss_init_type type)
+				 enum mlx5e_rss_init_type type, unsigned int nch,
+				 unsigned int max_nch)
 {
 	struct mlx5e_rss *rss;
 	int err;
 
-	rss = mlx5e_rss_alloc();
+	rss = kvzalloc(sizeof(*rss), GFP_KERNEL);
 	if (!rss)
 		return ERR_PTR(-ENOMEM);
+
+	err = mlx5e_rss_params_indir_init(&rss->indir, mdev,
+					  mlx5e_rqt_size(mdev, nch),
+					  mlx5e_rqt_size(mdev, max_nch));
+	if (err)
+		goto err_free_rss;
 
 	rss->mdev = mdev;
 	rss->inner_ft_support = inner_ft_support;
@@ -307,7 +376,7 @@ struct mlx5e_rss *mlx5e_rss_init(struct mlx5_core_dev *mdev, bool inner_ft_suppo
 
 	err = mlx5e_rss_init_no_tirs(rss);
 	if (err)
-		goto err_free_rss;
+		goto err_free_indir;
 
 	if (type == MLX5E_RSS_INIT_NO_TIRS)
 		goto out;
@@ -329,8 +398,10 @@ err_destroy_tirs:
 	mlx5e_rss_destroy_tirs(rss, false);
 err_destroy_rqt:
 	mlx5e_rqt_destroy(&rss->rqt);
+err_free_indir:
+	mlx5e_rss_params_indir_cleanup(&rss->indir);
 err_free_rss:
-	mlx5e_rss_free(rss);
+	kvfree(rss);
 	return ERR_PTR(err);
 }
 
@@ -345,7 +416,8 @@ int mlx5e_rss_cleanup(struct mlx5e_rss *rss)
 		mlx5e_rss_destroy_tirs(rss, true);
 
 	mlx5e_rqt_destroy(&rss->rqt);
-	mlx5e_rss_free(rss);
+	mlx5e_rss_params_indir_cleanup(&rss->indir);
+	kvfree(rss);
 
 	return 0;
 }
@@ -482,7 +554,7 @@ int mlx5e_rss_get_rxfh(struct mlx5e_rss *rss, u32 *indir, u8 *key, u8 *hfunc)
 {
 	if (indir)
 		memcpy(indir, rss->indir.table,
-		       MLX5E_INDIR_RQT_SIZE * sizeof(*rss->indir.table));
+		       rss->indir.actual_table_size * sizeof(*rss->indir.table));
 
 	if (key)
 		memcpy(key, rss->hash.toeplitz_hash_key,
@@ -503,11 +575,9 @@ int mlx5e_rss_set_rxfh(struct mlx5e_rss *rss, const u32 *indir,
 	struct mlx5e_rss *old_rss;
 	int err = 0;
 
-	old_rss = mlx5e_rss_alloc();
-	if (!old_rss)
-		return -ENOMEM;
-
-	*old_rss = *rss;
+	old_rss = mlx5e_rss_init_copy(rss);
+	if (IS_ERR(old_rss))
+		return PTR_ERR(old_rss);
 
 	if (hfunc && *hfunc != rss->hash.hfunc) {
 		switch (*hfunc) {
@@ -534,13 +604,13 @@ int mlx5e_rss_set_rxfh(struct mlx5e_rss *rss, const u32 *indir,
 		changed_indir = true;
 
 		memcpy(rss->indir.table, indir,
-		       MLX5E_INDIR_RQT_SIZE * sizeof(*rss->indir.table));
+		       rss->indir.actual_table_size * sizeof(*rss->indir.table));
 	}
 
 	if (changed_indir && rss->enabled) {
 		err = mlx5e_rss_apply(rss, rqns, num_rqns);
 		if (err) {
-			*rss = *old_rss;
+			mlx5e_rss_copy(rss, old_rss);
 			goto out;
 		}
 	}
@@ -549,7 +619,9 @@ int mlx5e_rss_set_rxfh(struct mlx5e_rss *rss, const u32 *indir,
 		mlx5e_rss_update_tirs(rss);
 
 out:
-	mlx5e_rss_free(old_rss);
+	mlx5e_rss_params_indir_cleanup(&old_rss->indir);
+	kvfree(old_rss);
+
 	return err;
 }
 
