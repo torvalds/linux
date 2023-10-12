@@ -88,7 +88,7 @@ run_gitsource()
 	BACKUP_DIR=$(pwd)
 	pushd $BACKUP_DIR > /dev/null 2>&1
 	cd $SCRIPTDIR/$git_name
-	perf stat -a --per-socket -I 1000 -e power/energy-pkg/ /usr/bin/time -o $BACKUP_DIR/$OUTFILE_GIT.time-gitsource-$1-$2.log make test -j$MAKE_CPUS > $BACKUP_DIR/$OUTFILE_GIT-perf-$1-$2.log 2>&1
+	$PERF stat -a --per-socket -I 1000 -e power/energy-pkg/ /usr/bin/time -o $BACKUP_DIR/$OUTFILE_GIT.time-gitsource-$1-$2.log make test -j$MAKE_CPUS > $BACKUP_DIR/$OUTFILE_GIT-perf-$1-$2.log 2>&1
 	popd > /dev/null 2>&1
 
 	for job in `jobs -p`
