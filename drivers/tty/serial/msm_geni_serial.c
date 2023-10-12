@@ -2004,7 +2004,10 @@ static void msm_geni_uart_gsi_cancel_tx(struct work_struct *work)
 			struct msm_geni_serial_port,
 			tx_cancel_work);
 
-	dmaengine_terminate_all(msm_port->gsi->tx_c);
+	if (msm_port->gsi->tx_c && dmaengine_terminate_all(msm_port->gsi->tx_c))
+		IPC_LOG_MSG(msm_port->ipc_log_misc,
+			    "%s: dmaengine_terminate_all failed for Tx ch\n",
+			    __func__);
 }
 
 static void msm_geni_uart_gsi_cancel_rx(struct work_struct *work)
@@ -2021,8 +2024,10 @@ static void msm_geni_uart_gsi_cancel_rx(struct work_struct *work)
 		atomic_set(&msm_port->stop_rx_inprogress, 0);
 		return;
 	}
-	if (msm_port->gsi->rx_c)
-		dmaengine_terminate_all(msm_port->gsi->rx_c);
+	if (msm_port->gsi->rx_c && dmaengine_terminate_all(msm_port->gsi->rx_c))
+		IPC_LOG_MSG(msm_port->ipc_log_misc,
+			    "%s: dmaengine_terminate_all failed for Rx ch\n",
+			    __func__);
 	complete(&msm_port->xfer);
 	msm_port->gsi_rx_done = false;
 	atomic_set(&msm_port->stop_rx_inprogress, 0);
