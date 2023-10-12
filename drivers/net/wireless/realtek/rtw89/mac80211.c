@@ -328,11 +328,14 @@ static void ____rtw89_conf_tx_edca(struct rtw89_dev *rtwdev,
 	rtw89_fw_h2c_set_edca(rtwdev, rtwvif, ac_to_fw_idx[ac], val);
 }
 
-static const u32 ac_to_mu_edca_param[IEEE80211_NUM_ACS] = {
-	[IEEE80211_AC_VO] = R_AX_MUEDCA_VO_PARAM_0,
-	[IEEE80211_AC_VI] = R_AX_MUEDCA_VI_PARAM_0,
-	[IEEE80211_AC_BE] = R_AX_MUEDCA_BE_PARAM_0,
-	[IEEE80211_AC_BK] = R_AX_MUEDCA_BK_PARAM_0,
+#define R_MUEDCA_ACS_PARAM(acs) {R_AX_MUEDCA_ ## acs ## _PARAM_0, \
+				 R_BE_MUEDCA_ ## acs ## _PARAM_0}
+
+static const u32 ac_to_mu_edca_param[IEEE80211_NUM_ACS][RTW89_CHIP_GEN_NUM] = {
+	[IEEE80211_AC_VO] = R_MUEDCA_ACS_PARAM(VO),
+	[IEEE80211_AC_VI] = R_MUEDCA_ACS_PARAM(VI),
+	[IEEE80211_AC_BE] = R_MUEDCA_ACS_PARAM(BE),
+	[IEEE80211_AC_BK] = R_MUEDCA_ACS_PARAM(BK),
 };
 
 static void ____rtw89_conf_tx_mu_edca(struct rtw89_dev *rtwdev,
@@ -340,6 +343,7 @@ static void ____rtw89_conf_tx_mu_edca(struct rtw89_dev *rtwdev,
 {
 	struct ieee80211_tx_queue_params *params = &rtwvif->tx_params[ac];
 	struct ieee80211_he_mu_edca_param_ac_rec *mu_edca;
+	int gen = rtwdev->chip->chip_gen;
 	u8 aifs, aifsn;
 	u16 timer_32us;
 	u32 reg;
@@ -356,7 +360,7 @@ static void ____rtw89_conf_tx_mu_edca(struct rtw89_dev *rtwdev,
 	val = FIELD_PREP(B_AX_MUEDCA_BE_PARAM_0_TIMER_MASK, timer_32us) |
 	      FIELD_PREP(B_AX_MUEDCA_BE_PARAM_0_CW_MASK, mu_edca->ecw_min_max) |
 	      FIELD_PREP(B_AX_MUEDCA_BE_PARAM_0_AIFS_MASK, aifs);
-	reg = rtw89_mac_reg_by_idx(rtwdev, ac_to_mu_edca_param[ac], rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, ac_to_mu_edca_param[ac][gen], rtwvif->mac_idx);
 	rtw89_write32(rtwdev, reg, val);
 
 	rtw89_mac_set_hw_muedca_ctrl(rtwdev, rtwvif, true);
