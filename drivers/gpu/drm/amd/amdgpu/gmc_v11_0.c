@@ -314,7 +314,7 @@ static void gmc_v11_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 
 		valid = gmc_v11_0_get_vmid_pasid_mapping_info(adev, vmid,
 							      &queried);
-		if (!valid || queried == pasid)
+		if (!valid || queried != pasid)
 			continue;
 
 		if (all_hub) {
