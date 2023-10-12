@@ -699,6 +699,13 @@
 		};
 	};
 
+	lbsc: lbsc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0x1c000000>;
+	};
+
 	prr: chipid@ff000044 {
 		compatible = "renesas,prr";
 		reg = <0xff000044 4>;

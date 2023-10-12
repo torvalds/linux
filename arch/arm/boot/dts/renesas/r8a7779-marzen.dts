@@ -52,21 +52,6 @@
 		states = <3300000 1>, <1800000 0>;
 	};
 
-	ethernet@18000000 {
-		compatible = "smsc,lan89218", "smsc,lan9115";
-		reg = <0x18000000 0x100>;
-		pinctrl-0 = <&ethernet_pins>;
-		pinctrl-names = "default";
-
-		phy-mode = "mii";
-		interrupt-parent = <&irqpin0>;
-		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
-		smsc,irq-push-pull;
-		reg-io-width = <4>;
-		vddvario-supply = <&fixedregulator3v3>;
-		vdd33a-supply = <&fixedregulator3v3>;
-	};
-
 	keyboard-irq {
 		compatible = "gpio-keys";
 
@@ -227,6 +212,23 @@
 
 &extal_clk {
 	clock-frequency = <31250000>;
+};
+
+&lbsc {
+	ethernet@18000000 {
+		compatible = "smsc,lan89218", "smsc,lan9115";
+		reg = <0x18000000 0x100>;
+		pinctrl-0 = <&ethernet_pins>;
+		pinctrl-names = "default";
+
+		phy-mode = "mii";
+		interrupt-parent = <&irqpin0>;
+		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+		smsc,irq-push-pull;
+		reg-io-width = <4>;
+		vddvario-supply = <&fixedregulator3v3>;
+		vdd33a-supply = <&fixedregulator3v3>;
+	};
 };
 
 &tmu0 {
