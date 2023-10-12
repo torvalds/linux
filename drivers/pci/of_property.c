@@ -186,8 +186,8 @@ static int of_pci_prop_interrupts(struct pci_dev *pdev,
 static int of_pci_prop_intr_map(struct pci_dev *pdev, struct of_changeset *ocs,
 				struct device_node *np)
 {
+	u32 i, addr_sz[OF_PCI_MAX_INT_PIN] = { 0 }, map_sz = 0;
 	struct of_phandle_args out_irq[OF_PCI_MAX_INT_PIN];
-	u32 i, addr_sz[OF_PCI_MAX_INT_PIN], map_sz = 0;
 	__be32 laddr[OF_PCI_ADDRESS_CELLS] = { 0 };
 	u32 int_map_mask[] = { 0xffff00, 0, 0, 7 };
 	struct device_node *pnode;
@@ -213,33 +213,44 @@ static int of_pci_prop_intr_map(struct pci_dev *pdev, struct of_changeset *ocs,
 		out_irq[i].args[0] = pin;
 		ret = of_irq_parse_raw(laddr, &out_irq[i]);
 		if (ret) {
-			pci_err(pdev, "parse irq %d failed, ret %d", pin, ret);
+			out_irq[i].np = NULL;
+			pci_dbg(pdev, "parse irq %d failed, ret %d", pin, ret);
 			continue;
 		}
-		ret = of_property_read_u32(out_irq[i].np, "#address-cells",
-					   &addr_sz[i]);
-		if (ret)
-			addr_sz[i] = 0;
+		of_property_read_u32(out_irq[i].np, "#address-cells",
+				     &addr_sz[i]);
 	}
 
 	list_for_each_entry(child, &pdev->subordinate->devices, bus_list) {
 		for (pin = 1; pin <= OF_PCI_MAX_INT_PIN; pin++) {
 			i = pci_swizzle_interrupt_pin(child, pin) - 1;
+			if (!out_irq[i].np)
+				continue;
 			map_sz += 5 + addr_sz[i] + out_irq[i].args_count;
 		}
 	}
+
+	/*
+	 * Parsing interrupt failed for all pins. In this case, it does not
+	 * need to generate interrupt-map property.
+	 */
+	if (!map_sz)
+		return 0;
 
 	int_map = kcalloc(map_sz, sizeof(u32), GFP_KERNEL);
 	mapp = int_map;
 
 	list_for_each_entry(child, &pdev->subordinate->devices, bus_list) {
 		for (pin = 1; pin <= OF_PCI_MAX_INT_PIN; pin++) {
+			i = pci_swizzle_interrupt_pin(child, pin) - 1;
+			if (!out_irq[i].np)
+				continue;
+
 			*mapp = (child->bus->number << 16) |
 				(child->devfn << 8);
 			mapp += OF_PCI_ADDRESS_CELLS;
 			*mapp = pin;
 			mapp++;
-			i = pci_swizzle_interrupt_pin(child, pin) - 1;
 			*mapp = out_irq[i].np->phandle;
 			mapp++;
 			if (addr_sz[i]) {
