@@ -516,8 +516,5 @@ struct perf_event_attr
 		attr->sample_period = 4096;
 	}
 
-	arm_spe_pmu->selectable = true;
-	arm_spe_pmu->is_uncore = false;
-
 	return attr;
 }
