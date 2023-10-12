@@ -4840,6 +4840,7 @@ void rtw89_mac_update_rts_threshold(struct rtw89_dev *rtwdev, u8 mac_idx)
 #define MAC_AX_LEN_TH_MAX  255
 #define MAC_AX_TIME_TH_DEF 88
 #define MAC_AX_LEN_TH_DEF  4080
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct ieee80211_hw *hw = rtwdev->hw;
 	u32 rts_threshold = hw->wiphy->rts_threshold;
 	u32 time_th, len_th;
@@ -4856,7 +4857,7 @@ void rtw89_mac_update_rts_threshold(struct rtw89_dev *rtwdev, u8 mac_idx)
 	time_th = min_t(u32, time_th >> MAC_AX_TIME_TH_SH, MAC_AX_TIME_TH_MAX);
 	len_th = min_t(u32, len_th >> MAC_AX_LEN_TH_SH, MAC_AX_LEN_TH_MAX);
 
-	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_AGG_LEN_HT_0, mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, mac->agg_len_ht, mac_idx);
 	rtw89_write16_mask(rtwdev, reg, B_AX_RTS_TXTIME_TH_MASK, time_th);
 	rtw89_write16_mask(rtwdev, reg, B_AX_RTS_LEN_TH_MASK, len_th);
 }
@@ -5751,6 +5752,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.mem_base_addrs = rtw89_mac_mem_base_addrs_ax,
 	.rx_fltr = R_AX_RX_FLTR_OPT,
 	.port_base = &rtw89_port_base_ax,
+	.agg_len_ht = R_AX_AGG_LEN_HT_0,
 
 	.disable_cpu = rtw89_mac_disable_cpu_ax,
 	.fwdl_enable_wcpu = rtw89_mac_enable_cpu_ax,

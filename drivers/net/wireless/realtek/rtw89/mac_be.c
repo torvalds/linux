@@ -250,6 +250,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.mem_base_addrs = rtw89_mac_mem_base_addrs_be,
 	.rx_fltr = R_BE_RX_FLTR_OPT,
 	.port_base = &rtw89_port_base_be,
+	.agg_len_ht = R_BE_AGG_LEN_HT_0,
 
 	.disable_cpu = rtw89_mac_disable_cpu_be,
 	.fwdl_enable_wcpu = rtw89_mac_fwdl_enable_wcpu_be,
