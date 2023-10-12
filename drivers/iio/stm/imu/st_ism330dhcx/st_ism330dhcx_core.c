@@ -18,6 +18,33 @@
 #include <linux/platform_data/st_sensors_pdata.h>
 
 #include "st_ism330dhcx.h"
+static int __maybe_unused st_ism330dhcx_restore_regs(struct st_ism330dhcx_hw *hw);
+static int __maybe_unused st_ism330dhcx_bk_regs(struct st_ism330dhcx_hw *hw);
+static int st_ism330dhcx_get_int_reg(struct st_ism330dhcx_hw *hw, u8 *drdy_reg,
+				  u8 *ef_irq_reg);
+
+static struct st_ism330dhcx_selftest_table {
+	char *string_mode;
+	u8 accel_value;
+	u8 gyro_value;
+	u8 gyro_mask;
+} st_ism330dhcx_selftest_table[] = {
+	[0] = {
+		.string_mode = "disabled",
+		.accel_value = ST_ISM330DHCX_SELF_TEST_DISABLED_VAL,
+		.gyro_value = ST_ISM330DHCX_SELF_TEST_DISABLED_VAL,
+	},
+	[1] = {
+		.string_mode = "positive-sign",
+		.accel_value = ST_ISM330DHCX_SELF_TEST_POS_SIGN_VAL,
+		.gyro_value = ST_ISM330DHCX_SELF_TEST_POS_SIGN_VAL
+	},
+	[2] = {
+		.string_mode = "negative-sign",
+		.accel_value = ST_ISM330DHCX_SELF_TEST_NEG_ACCEL_SIGN_VAL,
+		.gyro_value = ST_ISM330DHCX_SELF_TEST_NEG_GYRO_SIGN_VAL
+	},
+};
 
 static struct st_ism330dhcx_suspend_resume_entry
 	st_ism330dhcx_suspend_resume[ST_ISM330DHCX_SUSPEND_RESUME_REGS] = {
@@ -1055,6 +1082,375 @@ ssize_t st_ism330dhcx_get_module_id(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%u\n", hw->module_id);
 }
 
+static int
+st_ism330dhcx_set_selftest(struct st_ism330dhcx_sensor *sensor,
+			    int index)
+{
+	u8 mode, mask;
+
+	switch (sensor->id) {
+	case ST_ISM330DHCX_ID_ACC:
+		mask = ST_ISM330DHCX_REG_ST_XL_MASK;
+		mode = st_ism330dhcx_selftest_table[index].accel_value;
+		break;
+	case ST_ISM330DHCX_ID_GYRO:
+		mask = ST_ISM330DHCX_REG_ST_G_MASK;
+		mode = st_ism330dhcx_selftest_table[index].gyro_value;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return st_ism330dhcx_update_bits_locked(sensor->hw,
+					 ST_ISM330DHCX_REG_CTRL5_C_ADDR,
+					 mask, mode);
+}
+
+static ssize_t
+st_ism330dhcx_sysfs_get_selftest_available(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	return sprintf(buf, "%s, %s\n",
+		       st_ism330dhcx_selftest_table[1].string_mode,
+		       st_ism330dhcx_selftest_table[2].string_mode);
+}
+
+static ssize_t
+st_ism330dhcx_sysfs_get_selftest_status(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	int8_t result;
+	char *message = NULL;
+	struct st_ism330dhcx_sensor *sensor =
+					  iio_priv(dev_to_iio_dev(dev));
+	enum st_ism330dhcx_sensor_id id = sensor->id;
+
+	if (id != ST_ISM330DHCX_ID_ACC &&
+	    id != ST_ISM330DHCX_ID_GYRO)
+		return -EINVAL;
+
+	result = sensor->selftest_status;
+	if (result == 0)
+		message = "na";
+	else if (result < 0)
+		message = "fail";
+	else if (result > 0)
+		message = "pass";
+
+	return sprintf(buf, "%s\n", message);
+}
+
+static int
+st_ism330dhcx_selftest_sensor(struct st_ism330dhcx_sensor *sensor,
+			      int test)
+{
+	int x_selftest = 0, y_selftest = 0, z_selftest = 0;
+	int x = 0, y = 0, z = 0, try_count = 0;
+	u8 i, status, n = 0;
+	u8 reg, bitmask;
+	int ret, delay, data_delay = 100000;
+	u8 raw_data[6];
+
+	switch (sensor->id) {
+	case ST_ISM330DHCX_ID_ACC:
+		reg = ST_ISM330DHCX_REG_OUTX_L_A_ADDR;
+		bitmask = ST_ISM330DHCX_REG_STATUS_XLDA;
+		data_delay = 50000;
+		break;
+	case ST_ISM330DHCX_ID_GYRO:
+		reg = ST_ISM330DHCX_REG_OUTX_L_G_ADDR;
+		bitmask = ST_ISM330DHCX_REG_STATUS_GDA;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* reset selftest_status */
+	sensor->selftest_status = -1;
+
+	/* set selftest normal mode */
+	ret = st_ism330dhcx_set_selftest(sensor, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = st_ism330dhcx_sensor_set_enable(sensor, true);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * wait at least one ODRs plus 10 % to be sure to fetch new
+	 * sample data
+	 */
+	delay = 1000000 / sensor->odr;
+
+	/* power up, wait for stable output */
+	usleep_range(data_delay, data_delay + data_delay / 100);
+
+	/* after enabled the sensor trash first sample */
+	while (try_count < 3) {
+		usleep_range(delay, delay + delay/10);
+		ret = st_ism330dhcx_read_atomic(sensor->hw,
+					  ST_ISM330DHCX_REG_STATUS_ADDR,
+					  sizeof(status), &status);
+		if (ret < 0)
+			goto selftest_failure;
+
+		if (status & bitmask) {
+			st_ism330dhcx_read_atomic(sensor->hw, reg,
+						  sizeof(raw_data),
+						  raw_data);
+			break;
+		}
+
+		try_count++;
+	}
+
+	if (try_count == 3)
+		goto selftest_failure;
+
+	/*
+	 * for 5 times, after checking status bit, read the output
+	 * registers
+	 */
+	for (i = 0; i < 5; i++) {
+		try_count = 0;
+		while (try_count < 3) {
+			usleep_range(delay, delay + delay/10);
+			ret = st_ism330dhcx_read_atomic(sensor->hw,
+					  ST_ISM330DHCX_REG_STATUS_ADDR,
+					  sizeof(status), &status);
+			if (ret < 0)
+				goto selftest_failure;
+
+			if (status & bitmask) {
+				ret = st_ism330dhcx_read_atomic(sensor->hw,
+						       reg,
+						       sizeof(raw_data),
+						       raw_data);
+				if (ret < 0)
+					goto selftest_failure;
+
+				/*
+				 * for 5 times, after checking status
+				 * bit, read the output registers
+				 */
+				x += ((s16)*(u16 *)&raw_data[0]) / 5;
+				y += ((s16)*(u16 *)&raw_data[2]) / 5;
+				z += ((s16)*(u16 *)&raw_data[4]) / 5;
+				n++;
+
+				break;
+			}
+
+			try_count++;
+		}
+	}
+
+	if (i != n) {
+		dev_err(sensor->hw->dev,
+			"some acc samples missing (expected %d, read %d)\n",
+			i, n);
+		ret = -1;
+
+		goto selftest_failure;
+	}
+
+	n = 0;
+
+	/* set selftest mode */
+	st_ism330dhcx_set_selftest(sensor, test);
+
+	/* wait for stable output */
+	usleep_range(data_delay, data_delay + data_delay / 100);
+
+	try_count = 0;
+
+	/* after enabled the sensor trash first sample */
+	while (try_count < 3) {
+		usleep_range(delay, delay + delay/10);
+		ret = st_ism330dhcx_read_atomic(sensor->hw,
+					  ST_ISM330DHCX_REG_STATUS_ADDR,
+					  sizeof(status), &status);
+		if (ret < 0)
+			goto selftest_failure;
+
+		if (status & bitmask) {
+			st_ism330dhcx_read_atomic(sensor->hw, reg,
+						  sizeof(raw_data),
+						  raw_data);
+			break;
+		}
+
+		try_count++;
+	}
+
+	if (try_count == 3)
+		goto selftest_failure;
+
+	/*
+	 * for 5 times, after checking status bit, read the output
+	 * registers
+	 */
+	for (i = 0; i < 5; i++) {
+		try_count = 0;
+		while (try_count < 3) {
+			usleep_range(delay, delay + delay/10);
+			ret = st_ism330dhcx_read_atomic(sensor->hw,
+					  ST_ISM330DHCX_REG_STATUS_ADDR,
+					  sizeof(status), &status);
+			if (ret < 0)
+				goto selftest_failure;
+
+			if (status & bitmask) {
+				ret = st_ism330dhcx_read_atomic(sensor->hw,
+						  reg, sizeof(raw_data),
+						  raw_data);
+				if (ret < 0)
+					goto selftest_failure;
+
+				x_selftest += ((s16)*(u16 *)&raw_data[0]) / 5;
+				y_selftest += ((s16)*(u16 *)&raw_data[2]) / 5;
+				z_selftest += ((s16)*(u16 *)&raw_data[4]) / 5;
+				n++;
+
+				break;
+			}
+
+			try_count++;
+		}
+	}
+
+	if (i != n) {
+		dev_err(sensor->hw->dev,
+			"some samples missing (expected %d, read %d)\n",
+			i, n);
+		ret = -1;
+
+		goto selftest_failure;
+	}
+
+	if ((abs(x_selftest - x) < sensor->min_st) ||
+	    (abs(x_selftest - x) > sensor->max_st)) {
+		sensor->selftest_status = -1;
+		dev_info(sensor->hw->dev, "st: failure on x: non-st(%d), st(%d)\n",
+			 x, x_selftest);
+		goto selftest_failure;
+	}
+
+	if ((abs(y_selftest - y) < sensor->min_st) ||
+	    (abs(y_selftest - y) > sensor->max_st)) {
+		sensor->selftest_status = -1;
+		dev_info(sensor->hw->dev, "st: failure on y: non-st(%d), st(%d)\n",
+			 y, y_selftest);
+		goto selftest_failure;
+	}
+
+	if ((abs(z_selftest - z) < sensor->min_st) ||
+	    (abs(z_selftest - z) > sensor->max_st)) {
+		sensor->selftest_status = -1;
+		dev_info(sensor->hw->dev, "st: failure on z: non-st(%d), st(%d)\n",
+			 z, z_selftest);
+		goto selftest_failure;
+	}
+
+	sensor->selftest_status = 1;
+
+selftest_failure:
+	/* restore selftest to normal mode */
+	st_ism330dhcx_set_selftest(sensor, 0);
+
+	return st_ism330dhcx_sensor_set_enable(sensor, false);
+}
+
+static ssize_t
+st_ism330dhcx_sysfs_start_selftest(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_ism330dhcx_sensor *sensor = iio_priv(iio_dev);
+	enum st_ism330dhcx_sensor_id id = sensor->id;
+	struct st_ism330dhcx_hw *hw = sensor->hw;
+	int ret, test;
+	u8 drdy_reg, ef_irq_reg;
+	u32 gain;
+
+	if (id != ST_ISM330DHCX_ID_ACC &&
+	    id != ST_ISM330DHCX_ID_GYRO)
+		return -EINVAL;
+
+	for (test = 0; test < ARRAY_SIZE(st_ism330dhcx_selftest_table);
+	     test++) {
+		if (strncmp(buf, st_ism330dhcx_selftest_table[test].string_mode,
+			strlen(st_ism330dhcx_selftest_table[test].string_mode)) == 0)
+			break;
+	}
+
+	if (test == ARRAY_SIZE(st_ism330dhcx_selftest_table))
+		return -EINVAL;
+
+	ret = iio_device_claim_direct_mode(iio_dev);
+	if (ret)
+		return ret;
+
+	/* self test mode unavailable if sensor enabled */
+	if (hw->enable_mask & BIT_ULL(id)) {
+		ret = -EBUSY;
+
+		goto out_claim;
+	}
+
+	st_ism330dhcx_bk_regs(hw);
+
+	/* disable FIFO watermak interrupt */
+	ret = st_ism330dhcx_get_int_reg(hw, &drdy_reg, &ef_irq_reg);
+	if (ret < 0)
+		goto restore_regs;
+
+	ret = st_ism330dhcx_update_bits_locked(hw, drdy_reg,
+				     ST_ISM330DHCX_REG_INT_FIFO_TH_MASK,
+				     0);
+	if (ret < 0)
+		goto restore_regs;
+
+	gain = sensor->gain;
+	if (id == ST_ISM330DHCX_ID_ACC) {
+		/* set BDU = 1, FS = 4 g, ODR = 52 Hz */
+		st_ism330dhcx_set_full_scale(sensor,
+					  ST_ISM330DHCX_ACC_FS_4G_GAIN);
+		st_ism330dhcx_set_odr(sensor, 52, 0);
+		st_ism330dhcx_selftest_sensor(sensor, test);
+
+		/* restore full scale after test */
+		st_ism330dhcx_set_full_scale(sensor, gain);
+	} else {
+		/* set BDU = 1, ODR = 208 Hz, FS = 2000 dps */
+		st_ism330dhcx_set_full_scale(sensor,
+				       ST_ISM330DHCX_GYRO_FS_2000_GAIN);
+		/*
+		 * before enable gyro add 150 ms delay when gyro
+		 * self-test
+		 */
+		usleep_range(150000, 151000);
+
+		st_ism330dhcx_set_odr(sensor, 208, 0);
+		st_ism330dhcx_selftest_sensor(sensor, test);
+
+		/* restore full scale after test */
+		st_ism330dhcx_set_full_scale(sensor, gain);
+	}
+
+restore_regs:
+	st_ism330dhcx_restore_regs(hw);
+
+out_claim:
+	iio_device_release_direct_mode(iio_dev);
+
+	return size;
+}
+
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_ism330dhcx_sysfs_sampling_frequency_avail);
 static IIO_DEVICE_ATTR(in_accel_scale_available, 0444,
 		       st_ism330dhcx_sysfs_scale_avail, NULL, 0);
@@ -1070,6 +1466,12 @@ static IIO_DEVICE_ATTR(hwfifo_watermark, 0644, st_ism330dhcx_get_watermark,
 static IIO_DEVICE_ATTR(reset_counter, 0200, NULL,
 		       st_ism330dhcx_sysfs_reset_step_counter, 0);
 static IIO_DEVICE_ATTR(module_id, 0444, st_ism330dhcx_get_module_id, NULL, 0);
+static IIO_DEVICE_ATTR(selftest_available, 0444,
+		       st_ism330dhcx_sysfs_get_selftest_available,
+		       NULL, 0);
+static IIO_DEVICE_ATTR(selftest, 0644,
+		       st_ism330dhcx_sysfs_get_selftest_status,
+		       st_ism330dhcx_sysfs_start_selftest, 0);
 
 static struct attribute *st_ism330dhcx_acc_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
@@ -1077,6 +1479,8 @@ static struct attribute *st_ism330dhcx_acc_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_selftest_available.dev_attr.attr,
+	&iio_dev_attr_selftest.dev_attr.attr,
 	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
@@ -1102,6 +1506,8 @@ static struct attribute *st_ism330dhcx_gyro_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_selftest_available.dev_attr.attr,
+	&iio_dev_attr_selftest.dev_attr.attr,
 	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
@@ -1481,6 +1887,8 @@ static struct iio_dev *st_ism330dhcx_alloc_iiodev(struct st_ism330dhcx_hw *hw,
 		sensor->max_watermark = ST_ISM330DHCX_MAX_FIFO_DEPTH;
 		sensor->odr = st_ism330dhcx_odr_table[id].odr_avl[1].hz;
 		sensor->uodr = st_ism330dhcx_odr_table[id].odr_avl[1].uhz;
+		sensor->min_st = ST_ISM330DHCX_SELFTEST_ACCEL_MIN;
+		sensor->max_st = ST_ISM330DHCX_SELFTEST_ACCEL_MAX;
 		st_ism330dhcx_set_full_scale(sensor,
 				st_ism330dhcx_fs_table[id].fs_avl[1].gain);
 		break;
@@ -1496,6 +1904,8 @@ static struct iio_dev *st_ism330dhcx_alloc_iiodev(struct st_ism330dhcx_hw *hw,
 		sensor->max_watermark = ST_ISM330DHCX_MAX_FIFO_DEPTH;
 		sensor->odr = st_ism330dhcx_odr_table[id].odr_avl[1].hz;
 		sensor->uodr = st_ism330dhcx_odr_table[id].odr_avl[1].uhz;
+		sensor->min_st = ST_ISM330DHCX_SELFTEST_GYRO_MIN;
+		sensor->max_st = ST_ISM330DHCX_SELFTEST_GYRO_MAX;
 		st_ism330dhcx_set_full_scale(sensor,
 				st_ism330dhcx_fs_table[id].fs_avl[2].gain);
 		break;

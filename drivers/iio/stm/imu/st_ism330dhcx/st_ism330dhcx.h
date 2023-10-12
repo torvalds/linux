@@ -62,12 +62,29 @@
 
 #define ST_ISM330DHCX_REG_CTRL5_C_ADDR		0x14
 #define ST_ISM330DHCX_REG_ROUNDING_MASK		GENMASK(6, 5)
+#define ST_ISM330DHCX_REG_ST_G_MASK		GENMASK(3, 2)
+#define ST_ISM330DHCX_REG_ST_XL_MASK		GENMASK(1, 0)
+
+#define ST_ISM330DHCX_SELFTEST_ACCEL_MIN	737
+#define ST_ISM330DHCX_SELFTEST_ACCEL_MAX	13934
+#define ST_ISM330DHCX_SELFTEST_GYRO_MIN		2142
+#define ST_ISM330DHCX_SELFTEST_GYRO_MAX		10000
+
+#define ST_ISM330DHCX_SELF_TEST_DISABLED_VAL	0
+#define ST_ISM330DHCX_SELF_TEST_POS_SIGN_VAL	1
+#define ST_ISM330DHCX_SELF_TEST_NEG_ACCEL_SIGN_VAL	2
+#define ST_ISM330DHCX_SELF_TEST_NEG_GYRO_SIGN_VAL	3
 
 #define ST_ISM330DHCX_REG_CTRL9_XL_ADDR		0x18
 #define ST_ISM330DHCX_REG_I3C_DISABLE_MASK		BIT(1)
 
 #define ST_ISM330DHCX_REG_CTRL10_C_ADDR		0x19
 #define ST_ISM330DHCX_REG_TIMESTAMP_EN_MASK	BIT(5)
+
+#define ST_ISM330DHCX_REG_STATUS_ADDR		0x1e
+#define ST_ISM330DHCX_REG_STATUS_XLDA		BIT(0)
+#define ST_ISM330DHCX_REG_STATUS_GDA		BIT(1)
+#define ST_ISM330DHCX_REG_STATUS_TDA		BIT(2)
 
 #define ST_ISM330DHCX_REG_OUT_TEMP_L_ADDR		0x20
 
@@ -381,6 +398,8 @@ enum st_ism330dhcx_fifo_status {
  * watermark: Sensor watermark level
  * batch_reg: Sensor reg/mask for FIFO batching register
  * last_fifo_timestamp: Store last sample timestamp in FIFO, used by flush
+ * selftest_status: Last status of self test output
+ * min_st, max_st: Min/Max acc/gyro data values during self test procedure
  */
 struct st_ism330dhcx_sensor {
 	enum st_ism330dhcx_sensor_id id;
@@ -403,6 +422,11 @@ struct st_ism330dhcx_sensor {
 
 	struct st_ism330dhcx_reg batch_reg;
 	s64 last_fifo_timestamp;
+
+	/* self test */
+	int8_t selftest_status;
+	int min_st;
+	int max_st;
 };
 
 /**
@@ -480,8 +504,8 @@ struct st_ism330dhcx_hw {
  */
 extern const struct dev_pm_ops st_ism330dhcx_pm_ops;
 
-static inline int st_ism330dhcx_read_atomic(struct st_ism330dhcx_hw *hw, u8 addr,
-					 int len, u8 *data)
+static inline int st_ism330dhcx_read_atomic(struct st_ism330dhcx_hw *hw,
+					    u8 addr, int len, u8 *data)
 {
 	int err;
 
@@ -508,6 +532,19 @@ int __st_ism330dhcx_write_with_mask(struct st_ism330dhcx_hw *hw, u8 addr, u8 mas
 				 u8 val);
 static inline int st_ism330dhcx_write_with_mask(struct st_ism330dhcx_hw *hw, u8 addr,
 					     u8 mask, u8 val)
+{
+	int err;
+
+	mutex_lock(&hw->page_lock);
+	err = __st_ism330dhcx_write_with_mask(hw, addr, mask, val);
+	mutex_unlock(&hw->page_lock);
+
+	return err;
+}
+
+static inline int
+st_ism330dhcx_update_bits_locked(struct st_ism330dhcx_hw *hw, unsigned int addr,
+			     unsigned int mask, unsigned int val)
 {
 	int err;
 
