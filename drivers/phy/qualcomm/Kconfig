@@ -103,10 +103,35 @@ config PHY_QCOM_UFS_QRBTC_SDM845
 	  No low power mode support is present.
 	  Doesn't restrict number of lanes.
 
-config PHY_QCOM_UFS_V4_SM6375
+
+config PHY_QCOM_UFS_V4_KALAMA
+        tristate "Qualcomm Technologies, Inc. UFS Kalama Phy Driver"
+        help
+          Support for UFS phy present on QCOM kalama chipsets.
+	  This is required to enable UFS on Kalama chipset.
+          To compile this driver as a module, choose M here.
+
+config PHY_QCOM_UFS_V4_PINEAPPLE
+        tristate "Qualcomm Technologies, Inc. UFS Pineapple Phy Driver"
+        help
+          Support for UFS phy present on QCOM Pineapple chipsets.
+          This is required to enable UFS on Pineapple chipset.
+          To compile this driver as a module, choose M here.
+
+config PHY_QCOM_UFS_V4_WAIPIO
+        tristate "Qualcomm Technologies, Inc. UFS Waipio Phy Driver"
+        help
+          Support for UFS phy present on QCOM Waipio chipsets.
+          This is required to enable UFS on Waipio chipset.
+          To compile this driver as a module, choose M here.
+
+
+config PHY_QCOM_UFS_V4_BLAIR
 	tristate "Qualcomm Technologies, Inc. UFS Blair Phy Driver"
 	help
 	  Support for UFS phy present on QCOM Blair chipsets.
+	  This is required to enable UFS on Blair chipset.
+          To compile this driver as a module, choose M here.
 
 endif
 
