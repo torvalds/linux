@@ -27,13 +27,11 @@
 struct hdmi_pcm {
 	struct list_head head;
 	struct snd_soc_dai *codec_dai;
-	int device;
 };
 
 struct card_private {
 	struct snd_soc_jack headset_jack;
 	struct list_head hdmi_pcm_list;
-	struct snd_soc_jack hdmi[3];
 	enum sof_ssp_codec codec_type;
 	enum sof_ssp_codec amp_type;
 
@@ -238,7 +236,6 @@ static int hdmi_init(struct snd_soc_pcm_runtime *rtd)
 	if (!pcm)
 		return -ENOMEM;
 
-	pcm->device = dai->id;
 	pcm->codec_dai = dai;
 
 	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
@@ -249,17 +246,10 @@ static int hdmi_init(struct snd_soc_pcm_runtime *rtd)
 static int card_late_probe(struct snd_soc_card *card)
 {
 	struct card_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_acpi_mach *mach = (card->dev)->platform_data;
 	struct hdmi_pcm *pcm;
 
-	if (mach->mach_params.common_hdmi_codec_drv) {
-		pcm = list_first_entry(&ctx->hdmi_pcm_list, struct hdmi_pcm,
-				       head);
-		return hda_dsp_hdmi_build_controls(card,
-						   pcm->codec_dai->component);
-	}
-
-	return -EINVAL;
+	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct hdmi_pcm, head);
+	return hda_dsp_hdmi_build_controls(card, pcm->codec_dai->component);
 }
 
 SND_SOC_DAILINK_DEF(ssp0_pin,
