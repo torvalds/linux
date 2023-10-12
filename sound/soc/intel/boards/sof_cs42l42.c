@@ -21,6 +21,7 @@
 #include <dt-bindings/sound/cs42l42.h>
 #include "../common/soc-intel-quirks.h"
 #include "hda_dsp_common.h"
+#include "sof_hdmi_common.h"
 #include "sof_maxim_common.h"
 #include "sof_ssp_common.h"
 
@@ -67,14 +68,9 @@ static struct snd_soc_jack_pin jack_pins[] = {
 /* Default: SSP2 */
 static unsigned long sof_cs42l42_quirk = SOF_CS42L42_SSP_CODEC(2);
 
-struct sof_hdmi_pcm {
-	struct list_head head;
-	struct snd_soc_dai *codec_dai;
-};
-
 struct sof_card_private {
 	struct snd_soc_jack headset_jack;
-	struct list_head hdmi_pcm_list;
+	struct sof_hdmi_private hdmi;
 	enum sof_ssp_codec codec_type;
 	enum sof_ssp_codec amp_type;
 };
@@ -83,15 +79,8 @@ static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
-	struct sof_hdmi_pcm *pcm;
 
-	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
-	if (!pcm)
-		return -ENOMEM;
-
-	pcm->codec_dai = dai;
-
-	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
+	ctx->hdmi.hdmi_comp = dai->component;
 
 	return 0;
 }
@@ -177,15 +166,14 @@ static struct snd_soc_dai_link_component platform_component[] = {
 static int sof_card_late_probe(struct snd_soc_card *card)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_component *component = NULL;
-	struct sof_hdmi_pcm *pcm;
 
-	if (list_empty(&ctx->hdmi_pcm_list))
+	if (!ctx->hdmi.idisp_codec)
+		return 0;
+
+	if (!ctx->hdmi.hdmi_comp)
 		return -EINVAL;
 
-	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct sof_hdmi_pcm, head);
-	component = pcm->codec_dai->component;
-	return hda_dsp_hdmi_build_controls(card, component);
+	return hda_dsp_hdmi_build_controls(card, ctx->hdmi.hdmi_comp);
 }
 
 static const struct snd_kcontrol_new sof_controls[] = {
@@ -608,6 +596,9 @@ static int sof_audio_probe(struct platform_device *pdev)
 			hdmi_num = 3;
 	}
 
+	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
+		ctx->hdmi.idisp_codec = true;
+
 	dev_dbg(&pdev->dev, "sof_cs42l42_quirk = %lx\n", sof_cs42l42_quirk);
 
 	ssp_bt = (sof_cs42l42_quirk & SOF_CS42L42_SSP_BT_MASK) >>
@@ -633,8 +624,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	sof_audio_card_cs42l42.dai_link = dai_links;
-
-	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	sof_audio_card_cs42l42.dev = &pdev->dev;
 
