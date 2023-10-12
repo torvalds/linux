@@ -66,19 +66,19 @@ static void nbio_v7_11_sdma_doorbell_range(struct amdgpu_device *adev, int insta
 					  bool use_doorbell, int doorbell_index,
 					  int doorbell_size)
 {
-	u32 reg = SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_SDMA0_DOORBELL_RANGE);
+	u32 reg = SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_CSDMA_DOORBELL_RANGE);
 	u32 doorbell_range = RREG32_PCIE_PORT(reg);
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range,
-					       GDC0_BIF_SDMA0_DOORBELL_RANGE,
+					       GDC0_BIF_CSDMA_DOORBELL_RANGE,
 					       OFFSET, doorbell_index);
 		doorbell_range = REG_SET_FIELD(doorbell_range,
-					       GDC0_BIF_SDMA0_DOORBELL_RANGE,
+					       GDC0_BIF_CSDMA_DOORBELL_RANGE,
 					       SIZE, doorbell_size);
 	} else {
 		doorbell_range = REG_SET_FIELD(doorbell_range,
-					       GDC0_BIF_SDMA0_DOORBELL_RANGE,
+					       GDC0_BIF_CSDMA_DOORBELL_RANGE,
 					       SIZE, 0);
 	}
 
@@ -145,27 +145,25 @@ static void nbio_v7_11_enable_doorbell_aperture(struct amdgpu_device *adev,
 static void nbio_v7_11_enable_doorbell_selfring_aperture(struct amdgpu_device *adev,
 							bool enable)
 {
-/*	u32 tmp = 0;
+	u32 tmp = 0;
 
 	if (enable) {
-		tmp = REG_SET_FIELD(tmp, BIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_CNTL,
+		tmp = REG_SET_FIELD(tmp, BIF_BX_PF1_DOORBELL_SELFRING_GPA_APER_CNTL,
 				DOORBELL_SELFRING_GPA_APER_EN, 1) |
-			REG_SET_FIELD(tmp, BIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_CNTL,
+		      REG_SET_FIELD(tmp, BIF_BX_PF1_DOORBELL_SELFRING_GPA_APER_CNTL,
 				DOORBELL_SELFRING_GPA_APER_MODE, 1) |
-			REG_SET_FIELD(tmp, BIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_CNTL,
+		      REG_SET_FIELD(tmp, BIF_BX_PF1_DOORBELL_SELFRING_GPA_APER_CNTL,
 				DOORBELL_SELFRING_GPA_APER_SIZE, 0);
 
 		WREG32_SOC15(NBIO, 0,
-			regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_LOW,
+			regBIF_BX_PF1_DOORBELL_SELFRING_GPA_APER_BASE_LOW,
 			lower_32_bits(adev->doorbell.base));
 		WREG32_SOC15(NBIO, 0,
-			regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_BASE_HIGH,
+			regBIF_BX_PF1_DOORBELL_SELFRING_GPA_APER_BASE_HIGH,
 			upper_32_bits(adev->doorbell.base));
 	}
 
-	WREG32_SOC15(NBIO, 0, regBIF_BX_PF0_DOORBELL_SELFRING_GPA_APER_CNTL,
-		tmp);
-*/
+	WREG32_SOC15(NBIO, 0, regBIF_BX_PF1_DOORBELL_SELFRING_GPA_APER_CNTL, tmp);
 }
 
 
@@ -216,12 +214,12 @@ static void nbio_v7_11_ih_control(struct amdgpu_device *adev)
 
 static u32 nbio_v7_11_get_hdp_flush_req_offset(struct amdgpu_device *adev)
 {
-	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_REQ);
+	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF1_GPU_HDP_FLUSH_REQ);
 }
 
 static u32 nbio_v7_11_get_hdp_flush_done_offset(struct amdgpu_device *adev)
 {
-	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_GPU_HDP_FLUSH_DONE);
+	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF1_GPU_HDP_FLUSH_DONE);
 }
 
 static u32 nbio_v7_11_get_pcie_index_offset(struct amdgpu_device *adev)
@@ -236,27 +234,27 @@ static u32 nbio_v7_11_get_pcie_data_offset(struct amdgpu_device *adev)
 
 static u32 nbio_v7_11_get_pcie_port_index_offset(struct amdgpu_device *adev)
 {
-	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_RSMU_INDEX);
+	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF1_RSMU_INDEX);
 }
 
 static u32 nbio_v7_11_get_pcie_port_data_offset(struct amdgpu_device *adev)
 {
-	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF0_RSMU_DATA);
+	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX_PF1_RSMU_DATA);
 }
 
 const struct nbio_hdp_flush_reg nbio_v7_11_hdp_flush_reg = {
-	.ref_and_mask_cp0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP0_MASK,
-	.ref_and_mask_cp1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP1_MASK,
-	.ref_and_mask_cp2 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP2_MASK,
-	.ref_and_mask_cp3 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP3_MASK,
-	.ref_and_mask_cp4 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP4_MASK,
-	.ref_and_mask_cp5 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP5_MASK,
-	.ref_and_mask_cp6 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP6_MASK,
-	.ref_and_mask_cp7 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP7_MASK,
-	.ref_and_mask_cp8 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP8_MASK,
-	.ref_and_mask_cp9 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP9_MASK,
-	.ref_and_mask_sdma0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__SDMA0_MASK,
-	.ref_and_mask_sdma1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__SDMA1_MASK,
+	.ref_and_mask_cp0 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__CP0_MASK,
+	.ref_and_mask_cp1 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__CP1_MASK,
+	.ref_and_mask_cp2 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__CP2_MASK,
+	.ref_and_mask_cp3 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__CP3_MASK,
+	.ref_and_mask_cp4 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__CP4_MASK,
+	.ref_and_mask_cp5 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__CP5_MASK,
+	.ref_and_mask_cp6 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__CP6_MASK,
+	.ref_and_mask_cp7 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__CP7_MASK,
+	.ref_and_mask_cp8 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__CP8_MASK,
+	.ref_and_mask_cp9 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__CP9_MASK,
+	.ref_and_mask_sdma0 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__SDMA0_MASK,
+	.ref_and_mask_sdma1 = BIF_BX_PF1_GPU_HDP_FLUSH_DONE__SDMA1_MASK,
 };
 
 static void nbio_v7_11_init_registers(struct amdgpu_device *adev)
