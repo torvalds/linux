@@ -26,8 +26,6 @@
 #include "sof_nuvoton_common.h"
 #include "sof_ssp_common.h"
 
-#define NAME_SIZE 32
-
 #define SOF_NAU8825_SSP_CODEC(quirk)		((quirk) & GENMASK(2, 0))
 #define SOF_NAU8825_SSP_CODEC_MASK		(GENMASK(2, 0))
 #define SOF_NAU8825_SSP_AMP_SHIFT		4
@@ -51,7 +49,6 @@ static unsigned long sof_nau8825_quirk = SOF_NAU8825_SSP_CODEC(0);
 struct sof_hdmi_pcm {
 	struct list_head head;
 	struct snd_soc_dai *codec_dai;
-	int device;
 };
 
 struct sof_card_private {
@@ -72,8 +69,6 @@ static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 	if (!pcm)
 		return -ENOMEM;
 
-	/* dai_link id is 1:1 mapped to the PCM device */
-	pcm->device = rtd->dai_link->id;
 	pcm->codec_dai = dai;
 
 	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
@@ -398,7 +393,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 		links[id].num_codecs = 1;
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
-		links[id].init = sof_hdmi_init;
+		links[id].init = (i == 1) ? sof_hdmi_init : NULL;
 		links[id].dpcm_playback = 1;
 		links[id].no_pcm = 1;
 		id++;
@@ -485,8 +480,8 @@ devm_err:
 
 static int sof_audio_probe(struct platform_device *pdev)
 {
+	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
-	struct snd_soc_acpi_mach *mach;
 	struct sof_card_private *ctx;
 	int dmic_be_num, hdmi_num;
 	int ret, ssp_amp, ssp_codec;
@@ -497,8 +492,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_nau8825_quirk = (unsigned long)pdev->id_entry->driver_data;
-
-	mach = pdev->dev.platform_data;
 
 	ctx->codec_type = sof_ssp_detect_codec_type(&pdev->dev);
 	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
