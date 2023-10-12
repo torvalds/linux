@@ -258,6 +258,10 @@ void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	drm_WARN_ON(&i915->drm, pll->on);
 
 	drm_dbg_kms(&i915->drm, "enabling %s\n", pll->info->name);
+
+	if (pll->info->power_domain)
+		pll->wakeref = intel_display_power_get(i915, pll->info->power_domain);
+
 	pll->info->funcs->enable(i915, pll);
 	pll->on = true;
 
@@ -306,6 +310,9 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	drm_dbg_kms(&i915->drm, "disabling %s\n", pll->info->name);
 	pll->info->funcs->disable(i915, pll);
 	pll->on = false;
+
+	if (pll->info->power_domain)
+		intel_display_power_put(i915, pll->info->power_domain, pll->wakeref);
 
 out:
 	mutex_unlock(&i915->display.dpll.lock);
@@ -3838,9 +3845,6 @@ static void combo_pll_enable(struct drm_i915_private *i915,
 {
 	i915_reg_t enable_reg = intel_combo_pll_enable_reg(i915, pll);
 
-	if (pll->info->power_domain)
-		pll->wakeref = intel_display_power_get(i915, pll->info->power_domain);
-
 	icl_pll_power_enable(i915, pll, enable_reg);
 
 	icl_dpll_write(i915, pll);
@@ -3936,9 +3940,6 @@ static void combo_pll_disable(struct drm_i915_private *i915,
 	i915_reg_t enable_reg = intel_combo_pll_enable_reg(i915, pll);
 
 	icl_pll_disable(i915, pll, enable_reg);
-
-	if (pll->info->power_domain)
-		intel_display_power_put(i915, pll->info->power_domain, pll->wakeref);
 }
 
 static void tbt_pll_disable(struct drm_i915_private *i915,
@@ -4409,6 +4410,9 @@ static void sanitize_dpll_state(struct drm_i915_private *i915,
 
 	pll->info->funcs->disable(i915, pll);
 	pll->on = false;
+
+	if (pll->info->power_domain)
+		intel_display_power_put(i915, pll->info->power_domain, pll->wakeref);
 }
 
 void intel_dpll_sanitize_state(struct drm_i915_private *i915)
