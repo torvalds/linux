@@ -162,8 +162,6 @@ static bool kasan_pmd_populate_zero_shadow(pmd_t *pmd, unsigned long addr,
 
 static bool kasan_pte_populate_zero_shadow(pte_t *pte, enum populate_mode mode)
 {
-	pte_t entry;
-
 	if (mode == POPULATE_KASAN_ZERO_SHADOW) {
 		set_pte(pte, pte_z);
 		return true;
