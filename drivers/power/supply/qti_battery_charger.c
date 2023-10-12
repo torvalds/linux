@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"BATTERY_CHG: %s: " fmt, __func__
@@ -1213,6 +1213,21 @@ static int battery_psy_set_charge_start_threshold(struct battery_chg_dev *bcdev,
 	return rc;
 }
 
+static int get_charge_control_en(struct battery_chg_dev *bcdev)
+{
+	int rc;
+
+	rc = read_property_id(bcdev, &bcdev->psy_list[PSY_TYPE_BATTERY],
+				BATT_CHG_CTRL_EN);
+	if (rc < 0)
+		pr_err("Failed to read the CHG_CTRL_EN, rc = %d\n", rc);
+	else
+		bcdev->chg_ctrl_en =
+			bcdev->psy_list[PSY_TYPE_BATTERY].prop[BATT_CHG_CTRL_EN];
+
+	return rc;
+}
+
 static int __battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
 					u32 fcc_ua)
 {
@@ -1789,6 +1804,11 @@ static ssize_t charge_control_en_show(struct class *c,
 {
 	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
 						battery_class);
+	int rc;
+
+	rc = get_charge_control_en(bcdev);
+	if (rc < 0)
+		return rc;
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", bcdev->chg_ctrl_en);
 }
@@ -2408,6 +2428,10 @@ static int battery_chg_probe(struct platform_device *pdev)
 	battery_chg_notify_enable(bcdev);
 	device_init_wakeup(bcdev->dev, true);
 	schedule_work(&bcdev->usb_type_work);
+
+	rc = get_charge_control_en(bcdev);
+	if (rc < 0)
+		pr_debug("Failed to read charge_control_en, rc = %d\n", rc);
 
 	return 0;
 error:
