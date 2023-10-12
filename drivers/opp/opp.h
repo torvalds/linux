@@ -160,7 +160,6 @@ enum opp_table_access {
  * @rate_clk_single: Currently configured frequency for single clk.
  * @current_opp: Currently configured OPP for the table.
  * @suspend_opp: Pointer to OPP to be used during device suspend.
- * @genpd_virt_dev_lock: Mutex protecting the genpd virtual device pointers.
  * @genpd_virt_devs: List of virtual devices for multiple genpd support.
  * @required_opp_tables: List of device OPP tables that are required by OPPs in
  *		this table.
@@ -212,7 +211,6 @@ struct opp_table {
 	struct dev_pm_opp *current_opp;
 	struct dev_pm_opp *suspend_opp;
 
-	struct mutex genpd_virt_dev_lock;
 	struct device **genpd_virt_devs;
 	struct opp_table **required_opp_tables;
 	unsigned int required_opp_count;
