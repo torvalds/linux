@@ -470,6 +470,7 @@ static DEFINE_MUTEX(ublk_ctl_mutex);
  * It can be extended to one per-user limit in future or even controlled
  * by cgroup.
  */
+#define UBLK_MAX_UBLKS UBLK_MINORS
 static unsigned int ublks_max = 64;
 static unsigned int ublks_added;	/* protected by ublk_ctl_mutex */
 
@@ -2026,7 +2027,8 @@ static int ublk_alloc_dev_number(struct ublk_device *ub, int idx)
 		if (err == -ENOSPC)
 			err = -EEXIST;
 	} else {
-		err = idr_alloc(&ublk_index_idr, ub, 0, 0, GFP_NOWAIT);
+		err = idr_alloc(&ublk_index_idr, ub, 0, UBLK_MAX_UBLKS,
+				GFP_NOWAIT);
 	}
 	spin_unlock(&ublk_idr_lock);
 
@@ -2302,6 +2304,12 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 	if (header->dev_id != info.dev_id) {
 		pr_warn("%s: dev id not match %u %u\n",
 			__func__, header->dev_id, info.dev_id);
+		return -EINVAL;
+	}
+
+	if (header->dev_id != U32_MAX && header->dev_id >= UBLK_MAX_UBLKS) {
+		pr_warn("%s: dev id is too large. Max supported is %d\n",
+			__func__, UBLK_MAX_UBLKS - 1);
 		return -EINVAL;
 	}
 
