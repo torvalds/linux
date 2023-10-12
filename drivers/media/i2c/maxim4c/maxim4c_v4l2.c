@@ -786,21 +786,9 @@ static int maxim4c_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 
 	val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	val |= (1 << (data_lanes - 1));
-	switch (data_lanes) {
-	case 4:
-		val |= V4L2_MBUS_CSI2_CHANNEL_3;
-		fallthrough;
-	case 3:
-		val |= V4L2_MBUS_CSI2_CHANNEL_2;
-		fallthrough;
-	case 2:
-		val |= V4L2_MBUS_CSI2_CHANNEL_1;
-		fallthrough;
-	case 1:
-	default:
-		val |= V4L2_MBUS_CSI2_CHANNEL_0;
-		break;
-	}
+
+	val |= V4L2_MBUS_CSI2_CHANNEL_3 | V4L2_MBUS_CSI2_CHANNEL_2 |
+	       V4L2_MBUS_CSI2_CHANNEL_1 | V4L2_MBUS_CSI2_CHANNEL_0;
 
 	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;

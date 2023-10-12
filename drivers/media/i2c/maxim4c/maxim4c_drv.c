@@ -29,12 +29,13 @@
  * V2.03.00
  *     1. remote device add the maxim4c prefix to driver name.
  *
- * V2.04.03
+ * V2.04.04
  *     1. Add regulator supplier dependencies.
  *     2. Add config ssc-ratio property
  *     3. Add debugfs entry to change MIPI timing
  *     4. Use PM runtime autosuspend feature
  *     5. Fix unbalanced disabling for PoC regulator
+ *     6. MIPI VC count does not affected by data lane count
  *
  */
 #include <linux/clk.h>
@@ -65,7 +66,7 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(2, 0x04, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(2, 0x04, 0x04)
 
 #define MAXIM4C_XVCLK_FREQ		25000000
 
