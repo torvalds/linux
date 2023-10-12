@@ -45,13 +45,6 @@
 #include <asm/uv.h>
 #include "../kernel/entry.h"
 
-/*
- * Allocate private vm_fault_reason from top.
- * Please make sure it won't collide with vm_fault_reason.
- */
-#define VM_FAULT_BADMAP		((__force vm_fault_t)0x40000000)
-#define VM_FAULT_BADACCESS	((__force vm_fault_t)0x20000000)
-
 enum fault_type {
 	KERNEL_FAULT,
 	USER_FAULT,
@@ -232,12 +225,17 @@ static void do_sigsegv(struct pt_regs *regs, int si_code)
 	force_sig_fault(SIGSEGV, si_code, (void __user *)get_fault_address(regs));
 }
 
-static void do_no_context(struct pt_regs *regs)
+static void do_no_context(struct pt_regs *regs, int si_code)
 {
 	enum fault_type fault_type;
 	unsigned long address;
 	bool is_write;
 
+	if (user_mode(regs)) {
+		if (WARN_ON_ONCE(!si_code))
+			si_code = SEGV_MAPERR;
+		return do_sigsegv(regs, si_code);
+	}
 	if (fixup_exception(regs))
 		return;
 	fault_type = get_fault_type(regs);
@@ -255,17 +253,17 @@ static void do_no_context(struct pt_regs *regs)
 	die(regs, "Oops");
 }
 
-static inline void handle_fault_error_nolock(struct pt_regs *regs)
+static inline void handle_fault_error_nolock(struct pt_regs *regs, int si_code)
 {
-	do_no_context(regs);
+	do_no_context(regs, si_code);
 }
 
-static void handle_fault_error(struct pt_regs *regs)
+static void handle_fault_error(struct pt_regs *regs, int si_code)
 {
 	struct mm_struct *mm = current->mm;
 
 	mmap_read_unlock(mm);
-	handle_fault_error_nolock(regs);
+	handle_fault_error_nolock(regs, si_code);
 }
 
 static void do_sigbus(struct pt_regs *regs)
@@ -275,43 +273,26 @@ static void do_sigbus(struct pt_regs *regs)
 
 static void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
 {
-	int si_code;
-
-	switch (fault) {
-	case VM_FAULT_BADACCESS:
-	case VM_FAULT_BADMAP:
-		/* Bad memory access. Check if it is kernel or user space. */
-		if (user_mode(regs)) {
-			/* User mode accesses just cause a SIGSEGV */
-			si_code = (fault == VM_FAULT_BADMAP) ?
-				SEGV_MAPERR : SEGV_ACCERR;
-			do_sigsegv(regs, si_code);
-			break;
-		}
-		do_no_context(regs);
-		break;
-	default: /* fault & VM_FAULT_ERROR */
-		if (fault & VM_FAULT_OOM) {
-			if (!user_mode(regs))
-				do_no_context(regs);
-			else
-				pagefault_out_of_memory();
-		} else if (fault & VM_FAULT_SIGSEGV) {
-			/* Kernel mode? Handle exceptions or die */
-			if (!user_mode(regs))
-				do_no_context(regs);
-			else
-				do_sigsegv(regs, SEGV_MAPERR);
-		} else if (fault & VM_FAULT_SIGBUS) {
-			/* Kernel mode? Handle exceptions or die */
-			if (!user_mode(regs))
-				do_no_context(regs);
-			else
-				do_sigbus(regs);
-		} else {
-			BUG();
-		}
-		break;
+	/* fault & VM_FAULT_ERROR */
+	if (fault & VM_FAULT_OOM) {
+		if (!user_mode(regs))
+			do_no_context(regs, 0);
+		else
+			pagefault_out_of_memory();
+	} else if (fault & VM_FAULT_SIGSEGV) {
+		/* Kernel mode? Handle exceptions or die */
+		if (!user_mode(regs))
+			do_no_context(regs, 0);
+		else
+			do_sigsegv(regs, SEGV_MAPERR);
+	} else if (fault & VM_FAULT_SIGBUS) {
+		/* Kernel mode? Handle exceptions or die */
+		if (!user_mode(regs))
+			do_no_context(regs, 0);
+		else
+			do_sigbus(regs);
+	} else {
+		BUG();
 	}
 }
 
@@ -352,11 +333,11 @@ static void do_exception(struct pt_regs *regs, int access)
 	type = get_fault_type(regs);
 	switch (type) {
 	case KERNEL_FAULT:
-		return handle_fault_error_nolock(regs);
+		return handle_fault_error_nolock(regs, 0);
 	case USER_FAULT:
 	case GMAP_FAULT:
 		if (faulthandler_disabled() || !mm)
-			return handle_fault_error_nolock(regs);
+			return handle_fault_error_nolock(regs, 0);
 		break;
 	}
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
@@ -389,7 +370,7 @@ static void do_exception(struct pt_regs *regs, int access)
 	/* Quick path to respond to signals */
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
-			handle_fault_error_nolock(regs);
+			handle_fault_error_nolock(regs, 0);
 		return;
 	}
 lock_mmap:
@@ -401,34 +382,30 @@ lock_mmap:
 		current->thread.gmap_write_flag = !!(flags & FAULT_FLAG_WRITE);
 		current->thread.gmap_int_code = regs->int_code & 0xffff;
 		address = __gmap_translate(gmap, address);
-		if (address == -EFAULT) {
-			fault = VM_FAULT_BADMAP;
-			goto out_up;
-		}
+		if (address == -EFAULT)
+			return handle_fault_error(regs, SEGV_MAPERR);
 		if (gmap->pfault_enabled)
 			flags |= FAULT_FLAG_RETRY_NOWAIT;
 	}
 retry:
-	fault = VM_FAULT_BADMAP;
 	vma = find_vma(mm, address);
 	if (!vma)
-		goto out_up;
+		return handle_fault_error(regs, SEGV_MAPERR);
 	if (unlikely(vma->vm_start > address)) {
 		if (!(vma->vm_flags & VM_GROWSDOWN))
-			goto out_up;
+			return handle_fault_error(regs, SEGV_MAPERR);
 		vma = expand_stack(mm, address);
 		if (!vma)
-			goto out;
+			return handle_fault_error_nolock(regs, SEGV_MAPERR);
 	}
-	fault = VM_FAULT_BADACCESS;
 	if (unlikely(!(vma->vm_flags & access)))
-		goto out_up;
+		return handle_fault_error(regs, SEGV_ACCERR);
 	fault = handle_mm_fault(vma, address, flags, regs);
 	if (fault_signal_pending(fault, regs)) {
 		if (flags & FAULT_FLAG_RETRY_NOWAIT)
 			mmap_read_unlock(mm);
 		if (!user_mode(regs))
-			handle_fault_error_nolock(regs);
+			handle_fault_error_nolock(regs, 0);
 		return;
 	}
 	/* The fault is fully completed (including releasing mmap lock) */
@@ -449,7 +426,7 @@ retry:
 			 * mmap_lock has not been released
 			 */
 			current->thread.gmap_pfault = 1;
-			return handle_fault_error(regs);
+			return handle_fault_error(regs, 0);
 		}
 		flags &= ~FAULT_FLAG_RETRY_NOWAIT;
 		flags |= FAULT_FLAG_TRIED;
@@ -460,10 +437,8 @@ out_gmap:
 	if (IS_ENABLED(CONFIG_PGSTE) && gmap) {
 		address =  __gmap_link(gmap, current->thread.gmap_addr,
 				       address);
-		if (address == -EFAULT) {
-			fault = VM_FAULT_BADMAP;
-			goto out_up;
-		}
+		if (address == -EFAULT)
+			return handle_fault_error(regs, SEGV_MAPERR);
 		if (address == -ENOMEM) {
 			fault = VM_FAULT_OOM;
 			goto out_up;
@@ -502,12 +477,11 @@ void do_protection_exception(struct pt_regs *regs)
 		 * Low-address protection in kernel mode means
 		 * NULL pointer write access in kernel mode.
 		 */
-		return do_no_context(regs);
+		return do_no_context(regs, 0);
 	}
 	if (unlikely(MACHINE_HAS_NX && teid.b56)) {
 		regs->int_parm_long = (teid.addr * PAGE_SIZE) | (regs->psw.addr & PAGE_MASK);
-		do_fault_error(regs, VM_FAULT_BADACCESS);
-		return;
+		return handle_fault_error_nolock(regs, SEGV_ACCERR);
 	}
 	do_exception(regs, VM_WRITE);
 }
@@ -560,20 +534,15 @@ void do_secure_storage_access(struct pt_regs *regs)
 		mmap_read_lock(mm);
 		addr = __gmap_translate(gmap, addr);
 		mmap_read_unlock(mm);
-		if (IS_ERR_VALUE(addr)) {
-			do_fault_error(regs, VM_FAULT_BADMAP);
-			break;
-		}
+		if (IS_ERR_VALUE(addr))
+			return handle_fault_error_nolock(regs, SEGV_MAPERR);
 		fallthrough;
 	case USER_FAULT:
 		mm = current->mm;
 		mmap_read_lock(mm);
 		vma = find_vma(mm, addr);
-		if (!vma) {
-			mmap_read_unlock(mm);
-			do_fault_error(regs, VM_FAULT_BADMAP);
-			break;
-		}
+		if (!vma)
+			return handle_fault_error(regs, SEGV_MAPERR);
 		page = follow_page(vma, addr, FOLL_WRITE | FOLL_GET);
 		if (IS_ERR_OR_NULL(page)) {
 			mmap_read_unlock(mm);
@@ -604,11 +573,8 @@ void do_non_secure_storage_access(struct pt_regs *regs)
 	struct gmap *gmap = (struct gmap *)S390_lowcore.gmap;
 	unsigned long gaddr = get_fault_address(regs);
 
-	if (get_fault_type(regs) != GMAP_FAULT) {
-		do_fault_error(regs, VM_FAULT_BADMAP);
-		WARN_ON_ONCE(1);
-		return;
-	}
+	if (WARN_ON_ONCE(get_fault_type(regs) != GMAP_FAULT))
+		return handle_fault_error_nolock(regs, SEGV_MAPERR);
 	if (gmap_convert_to_secure(gmap, gaddr) == -EINVAL)
 		send_sig(SIGSEGV, current, 0);
 }
