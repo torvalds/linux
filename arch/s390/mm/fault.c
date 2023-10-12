@@ -225,7 +225,7 @@ static void do_sigsegv(struct pt_regs *regs, int si_code)
 	force_sig_fault(SIGSEGV, si_code, (void __user *)get_fault_address(regs));
 }
 
-static void do_no_context(struct pt_regs *regs, int si_code)
+static void handle_fault_error_nolock(struct pt_regs *regs, int si_code)
 {
 	enum fault_type fault_type;
 	unsigned long address;
@@ -253,11 +253,6 @@ static void do_no_context(struct pt_regs *regs, int si_code)
 	die(regs, "Oops");
 }
 
-static inline void handle_fault_error_nolock(struct pt_regs *regs, int si_code)
-{
-	do_no_context(regs, si_code);
-}
-
 static void handle_fault_error(struct pt_regs *regs, int si_code)
 {
 	struct mm_struct *mm = current->mm;
@@ -269,31 +264,6 @@ static void handle_fault_error(struct pt_regs *regs, int si_code)
 static void do_sigbus(struct pt_regs *regs)
 {
 	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)get_fault_address(regs));
-}
-
-static void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
-{
-	/* fault & VM_FAULT_ERROR */
-	if (fault & VM_FAULT_OOM) {
-		if (!user_mode(regs))
-			do_no_context(regs, 0);
-		else
-			pagefault_out_of_memory();
-	} else if (fault & VM_FAULT_SIGSEGV) {
-		/* Kernel mode? Handle exceptions or die */
-		if (!user_mode(regs))
-			do_no_context(regs, 0);
-		else
-			do_sigsegv(regs, SEGV_MAPERR);
-	} else if (fault & VM_FAULT_SIGBUS) {
-		/* Kernel mode? Handle exceptions or die */
-		if (!user_mode(regs))
-			do_no_context(regs, 0);
-		else
-			do_sigbus(regs);
-	} else {
-		BUG();
-	}
 }
 
 /*
@@ -362,9 +332,9 @@ static void do_exception(struct pt_regs *regs, int access)
 		vma_end_read(vma);
 	if (!(fault & VM_FAULT_RETRY)) {
 		count_vm_vma_lock_event(VMA_LOCK_SUCCESS);
-		if (likely(!(fault & VM_FAULT_ERROR)))
-			fault = 0;
-		goto out;
+		if (unlikely(fault & VM_FAULT_ERROR))
+			goto error;
+		return;
 	}
 	count_vm_vma_lock_event(VMA_LOCK_RETRY);
 	/* Quick path to respond to signals */
@@ -412,13 +382,14 @@ retry:
 	if (fault & VM_FAULT_COMPLETED) {
 		if (gmap) {
 			mmap_read_lock(mm);
-			goto out_gmap;
+			goto gmap;
 		}
-		fault = 0;
-		goto out;
+		return;
 	}
-	if (unlikely(fault & VM_FAULT_ERROR))
-		goto out_up;
+	if (unlikely(fault & VM_FAULT_ERROR)) {
+		mmap_read_unlock(mm);
+		goto error;
+	}
 	if (fault & VM_FAULT_RETRY) {
 		if (IS_ENABLED(CONFIG_PGSTE) && gmap &&	(flags & FAULT_FLAG_RETRY_NOWAIT)) {
 			/*
@@ -433,7 +404,7 @@ retry:
 		mmap_read_lock(mm);
 		goto retry;
 	}
-out_gmap:
+gmap:
 	if (IS_ENABLED(CONFIG_PGSTE) && gmap) {
 		address =  __gmap_link(gmap, current->thread.gmap_addr,
 				       address);
@@ -441,15 +412,31 @@ out_gmap:
 			return handle_fault_error(regs, SEGV_MAPERR);
 		if (address == -ENOMEM) {
 			fault = VM_FAULT_OOM;
-			goto out_up;
+			mmap_read_unlock(mm);
+			goto error;
 		}
 	}
-	fault = 0;
-out_up:
 	mmap_read_unlock(mm);
-out:
-	if (unlikely(fault))
-		do_fault_error(regs, fault);
+	return;
+error:
+	if (fault & VM_FAULT_OOM) {
+		if (!user_mode(regs))
+			handle_fault_error_nolock(regs, 0);
+		else
+			pagefault_out_of_memory();
+	} else if (fault & VM_FAULT_SIGSEGV) {
+		if (!user_mode(regs))
+			handle_fault_error_nolock(regs, 0);
+		else
+			do_sigsegv(regs, SEGV_MAPERR);
+	} else if (fault & VM_FAULT_SIGBUS) {
+		if (!user_mode(regs))
+			handle_fault_error_nolock(regs, 0);
+		else
+			do_sigbus(regs);
+	} else {
+		BUG();
+	}
 }
 
 void do_protection_exception(struct pt_regs *regs)
@@ -477,7 +464,7 @@ void do_protection_exception(struct pt_regs *regs)
 		 * Low-address protection in kernel mode means
 		 * NULL pointer write access in kernel mode.
 		 */
-		return do_no_context(regs, 0);
+		return handle_fault_error_nolock(regs, 0);
 	}
 	if (unlikely(MACHINE_HAS_NX && teid.b56)) {
 		regs->int_parm_long = (teid.addr * PAGE_SIZE) | (regs->psw.addr & PAGE_MASK);
