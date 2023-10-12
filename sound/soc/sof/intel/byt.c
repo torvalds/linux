@@ -100,11 +100,9 @@ static int byt_resume(struct snd_sof_dev *sdev)
 	return 0;
 }
 
-static int byt_remove(struct snd_sof_dev *sdev)
+static void byt_remove(struct snd_sof_dev *sdev)
 {
 	byt_reset_dsp_disable_int(sdev);
-
-	return 0;
 }
 
 static int byt_acpi_probe(struct snd_sof_dev *sdev)

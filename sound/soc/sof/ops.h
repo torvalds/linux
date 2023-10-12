@@ -43,12 +43,10 @@ static inline int snd_sof_probe(struct snd_sof_dev *sdev)
 	return sof_ops(sdev)->probe(sdev);
 }
 
-static inline int snd_sof_remove(struct snd_sof_dev *sdev)
+static inline void snd_sof_remove(struct snd_sof_dev *sdev)
 {
 	if (sof_ops(sdev)->remove)
-		return sof_ops(sdev)->remove(sdev);
-
-	return 0;
+		sof_ops(sdev)->remove(sdev);
 }
 
 static inline int snd_sof_shutdown(struct snd_sof_dev *sdev)

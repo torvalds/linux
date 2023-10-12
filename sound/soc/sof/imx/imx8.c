@@ -338,7 +338,7 @@ exit_unroll_pm:
 	return ret;
 }
 
-static int imx8_remove(struct snd_sof_dev *sdev)
+static void imx8_remove(struct snd_sof_dev *sdev)
 {
 	struct imx8_priv *priv = sdev->pdata->hw_pdata;
 	int i;
@@ -350,8 +350,6 @@ static int imx8_remove(struct snd_sof_dev *sdev)
 		device_link_del(priv->link[i]);
 		dev_pm_domain_detach(priv->pd_dev[i], false);
 	}
-
-	return 0;
 }
 
 /* on i.MX8 there is 1 to 1 match between type and BAR idx */
