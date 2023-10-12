@@ -17,8 +17,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/sof.h>
-#include "hda_dsp_common.h"
-#include "sof_hdmi_common.h"
+#include "sof_board_helpers.h"
 #include "sof_realtek_common.h"
 #include "sof_cirrus_common.h"
 #include "sof_ssp_common.h"
@@ -61,11 +60,6 @@
 /* Default: SSP2  */
 static unsigned long sof_ssp_amp_quirk = SOF_AMPLIFIER_SSP(2);
 
-struct sof_card_private {
-	struct sof_hdmi_private hdmi;
-	enum sof_ssp_codec amp_type;
-};
-
 static const struct dmi_system_id chromebook_platforms[] = {
 	{
 		.ident = "Google Chromebooks",
@@ -87,18 +81,7 @@ static const struct snd_soc_dapm_route sof_ssp_amp_dapm_routes[] = {
 
 static int sof_card_late_probe(struct snd_soc_card *card)
 {
-	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
-
-	if (!(sof_ssp_amp_quirk & SOF_HDMI_PLAYBACK_PRESENT))
-		return 0;
-
-	if (!ctx->hdmi.idisp_codec)
-		return 0;
-
-	if (!ctx->hdmi.hdmi_comp)
-		return -EINVAL;
-
-	return hda_dsp_hdmi_build_controls(card, ctx->hdmi.hdmi_comp);
+	return sof_intel_board_card_late_probe(card);
 }
 
 static struct snd_soc_card sof_ssp_amp_card = {
@@ -126,16 +109,6 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 	}
 };
 
-static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
-
-	ctx->hdmi.hdmi_comp = dai->component;
-
-	return 0;
-}
-
 /* BE ID defined in sof-tgl-rt1308-hdmi-ssp.m4 */
 #define HDMI_IN_BE_ID		0
 #define SPK_BE_ID		2
@@ -147,11 +120,13 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			  int ssp_codec, int dmic_be_num, int hdmi_num,
 			  bool idisp_codec)
 {
-	struct snd_soc_dai_link_component *idisp_components;
 	struct snd_soc_dai_link_component *cpus;
 	struct snd_soc_dai_link *links;
-	int i, id = 0;
+	int i;
+	int id = 0;
+	int ret;
 	bool fixed_be = false;
+	int be_id;
 
 	links = devm_kcalloc(dev, sof_ssp_amp_card.num_links,
 					sizeof(struct snd_soc_dai_link), GFP_KERNEL);
@@ -258,51 +233,14 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 	}
 
 	/* HDMI playback */
-	if (sof_ssp_amp_quirk & SOF_HDMI_PLAYBACK_PRESENT) {
-		/* HDMI */
-		if (hdmi_num > 0) {
-			idisp_components = devm_kcalloc(dev,
-					   hdmi_num,
-					   sizeof(struct snd_soc_dai_link_component),
-					   GFP_KERNEL);
-			if (!idisp_components)
-				goto devm_err;
-		}
-		for (i = 1; i <= hdmi_num; i++) {
-			links[id].name = devm_kasprintf(dev, GFP_KERNEL,
-							"iDisp%d", i);
-			if (!links[id].name)
-				goto devm_err;
+	for (i = 1; i <= hdmi_num; i++) {
+		be_id = fixed_be ? (INTEL_HDMI_BE_ID + i - 1) : id;
+		ret = sof_intel_board_set_intel_hdmi_link(dev, &links[id], be_id,
+							  i, idisp_codec);
+		if (ret)
+			return NULL;
 
-			links[id].id = fixed_be ? (INTEL_HDMI_BE_ID + i - 1) : id;
-			links[id].cpus = &cpus[id];
-			links[id].num_cpus = 1;
-			links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
-								  "iDisp%d Pin", i);
-			if (!links[id].cpus->dai_name)
-				goto devm_err;
-
-			if (idisp_codec) {
-				idisp_components[i - 1].name = "ehdaudio0D2";
-				idisp_components[i - 1].dai_name = devm_kasprintf(dev,
-										  GFP_KERNEL,
-										  "intel-hdmi-hifi%d",
-										  i);
-				if (!idisp_components[i - 1].dai_name)
-					goto devm_err;
-			} else {
-				idisp_components[i - 1] = snd_soc_dummy_dlc;
-			}
-
-			links[id].codecs = &idisp_components[i - 1];
-			links[id].num_codecs = 1;
-			links[id].platforms = platform_component;
-			links[id].num_platforms = ARRAY_SIZE(platform_component);
-			links[id].init = (i == 1) ? sof_hdmi_init : NULL;
-			links[id].dpcm_playback = 1;
-			links[id].no_pcm = 1;
-			id++;
-		}
+		id++;
 	}
 
 	/* BT audio offload */
@@ -340,7 +278,7 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
 	struct sof_card_private *ctx;
-	int dmic_be_num = 0, hdmi_num = 0;
+	int dmic_be_num = 0;
 	int ret, ssp_codec;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
@@ -368,23 +306,26 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 				SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT;
 
 	if (sof_ssp_amp_quirk & SOF_HDMI_PLAYBACK_PRESENT) {
-		hdmi_num = (sof_ssp_amp_quirk & SOF_NO_OF_HDMI_PLAYBACK_MASK) >>
+		ctx->hdmi_num = (sof_ssp_amp_quirk & SOF_NO_OF_HDMI_PLAYBACK_MASK) >>
 				SOF_NO_OF_HDMI_PLAYBACK_SHIFT;
 		/* default number of HDMI DAI's */
-		if (!hdmi_num)
-			hdmi_num = 3;
+		if (!ctx->hdmi_num)
+			ctx->hdmi_num = 3;
 
 		if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
 			ctx->hdmi.idisp_codec = true;
 
-		sof_ssp_amp_card.num_links += hdmi_num;
+		sof_ssp_amp_card.num_links += ctx->hdmi_num;
+	} else {
+		ctx->hdmi_num = 0;
 	}
 
 	if (sof_ssp_amp_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
 		sof_ssp_amp_card.num_links++;
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
-					      ssp_codec, dmic_be_num, hdmi_num,
+					      ssp_codec, dmic_be_num,
+					      ctx->hdmi_num,
 					      ctx->hdmi.idisp_codec);
 	if (!dai_links)
 		return -ENOMEM;
@@ -483,7 +424,7 @@ MODULE_DESCRIPTION("ASoC Intel(R) SOF Amplifier Machine driver");
 MODULE_AUTHOR("Balamurugan C <balamurugan.c@intel.com>");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_REALTEK_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_CIRRUS_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);
