@@ -42,8 +42,9 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 
 	/* The i2c access is blocked on VF
 	 * TODO: Need other way to get the info
+	 * Also, FRU not valid for APU devices.
 	 */
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev) || (adev->flags & AMD_IS_APU))
 		return false;
 
 	/* The default I2C EEPROM address of the FRU.
