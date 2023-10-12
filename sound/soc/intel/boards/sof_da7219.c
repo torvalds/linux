@@ -16,6 +16,7 @@
 #include <sound/sof.h>
 #include "../../codecs/da7219.h"
 #include "hda_dsp_common.h"
+#include "sof_hdmi_common.h"
 #include "sof_maxim_common.h"
 #include "sof_ssp_common.h"
 
@@ -24,14 +25,9 @@
 
 #define DIALOG_CODEC_DAI	"da7219-hifi"
 
-struct hdmi_pcm {
-	struct list_head head;
-	struct snd_soc_dai *codec_dai;
-};
-
 struct card_private {
 	struct snd_soc_jack headset_jack;
-	struct list_head hdmi_pcm_list;
+	struct sof_hdmi_private hdmi;
 	enum sof_ssp_codec codec_type;
 	enum sof_ssp_codec amp_type;
 
@@ -230,15 +226,8 @@ static int hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
-	struct hdmi_pcm *pcm;
 
-	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
-	if (!pcm)
-		return -ENOMEM;
-
-	pcm->codec_dai = dai;
-
-	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
+	ctx->hdmi.hdmi_comp = dai->component;
 
 	return 0;
 }
@@ -246,10 +235,14 @@ static int hdmi_init(struct snd_soc_pcm_runtime *rtd)
 static int card_late_probe(struct snd_soc_card *card)
 {
 	struct card_private *ctx = snd_soc_card_get_drvdata(card);
-	struct hdmi_pcm *pcm;
 
-	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct hdmi_pcm, head);
-	return hda_dsp_hdmi_build_controls(card, pcm->codec_dai->component);
+	if (!ctx->hdmi.idisp_codec)
+		return 0;
+
+	if (!ctx->hdmi.hdmi_comp)
+		return -EINVAL;
+
+	return hda_dsp_hdmi_build_controls(card, ctx->hdmi.hdmi_comp);
 }
 
 SND_SOC_DAILINK_DEF(ssp0_pin,
@@ -469,6 +462,9 @@ static int audio_probe(struct platform_device *pdev)
 	ctx->codec_type = sof_ssp_detect_codec_type(&pdev->dev);
 	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
 
+	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
+		ctx->hdmi.idisp_codec = true;
+
 	if (board_quirk & SOF_DA7219_JSL_BOARD) {
 		/* backward-compatible with existing devices */
 		switch (ctx->amp_type) {
@@ -523,8 +519,6 @@ static int audio_probe(struct platform_device *pdev)
 	}
 
 	card_da7219.dai_link = dai_links;
-
-	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	card_da7219.dev = &pdev->dev;
 
