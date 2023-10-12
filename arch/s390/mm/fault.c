@@ -460,8 +460,7 @@ retry:
 	if (unlikely(fault & VM_FAULT_ERROR))
 		goto out_up;
 	if (fault & VM_FAULT_RETRY) {
-		if (IS_ENABLED(CONFIG_PGSTE) && gmap &&
-			(flags & FAULT_FLAG_RETRY_NOWAIT)) {
+		if (IS_ENABLED(CONFIG_PGSTE) && gmap &&	(flags & FAULT_FLAG_RETRY_NOWAIT)) {
 			/*
 			 * FAULT_FLAG_RETRY_NOWAIT has been set,
 			 * mmap_lock has not been released
