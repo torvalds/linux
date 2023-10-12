@@ -1238,7 +1238,11 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 	int i, j;
 
 	ssp_count = adev->hw_cfg.i2s_caps.ctrl_count;
-	cpu_count = hweight_long(port_mask);
+
+	cpu_count = 0;
+	for_each_set_bit(i, &port_mask, ssp_count)
+		if (!tdms || test_bit(0, &tdms[i]))
+			cpu_count++;
 	if (tdms)
 		for_each_set_bit(i, &port_mask, ssp_count)
 			cpu_count += hweight_long(tdms[i]);
@@ -1249,18 +1253,20 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 
 	dai = cpus;
 	for_each_set_bit(i, &port_mask, ssp_count) {
-		memcpy(dai, &i2s_dai_template, sizeof(*dai));
+		if (!tdms || test_bit(0, &tdms[i])) {
+			memcpy(dai, &i2s_dai_template, sizeof(*dai));
 
-		dai->name =
-			devm_kasprintf(adev->dev, GFP_KERNEL, "SSP%d Pin", i);
-		dai->playback.stream_name =
-			devm_kasprintf(adev->dev, GFP_KERNEL, "ssp%d Tx", i);
-		dai->capture.stream_name =
-			devm_kasprintf(adev->dev, GFP_KERNEL, "ssp%d Rx", i);
+			dai->name =
+				devm_kasprintf(adev->dev, GFP_KERNEL, "SSP%d Pin", i);
+			dai->playback.stream_name =
+				devm_kasprintf(adev->dev, GFP_KERNEL, "ssp%d Tx", i);
+			dai->capture.stream_name =
+				devm_kasprintf(adev->dev, GFP_KERNEL, "ssp%d Rx", i);
 
-		if (!dai->name || !dai->playback.stream_name || !dai->capture.stream_name)
-			return -ENOMEM;
-		dai++;
+			if (!dai->name || !dai->playback.stream_name || !dai->capture.stream_name)
+				return -ENOMEM;
+			dai++;
+		}
 	}
 
 	if (!tdms)
