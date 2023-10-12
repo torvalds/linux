@@ -7269,7 +7269,7 @@ void cfg80211_rx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len);
 void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
 
 /**
- * struct cfg80211_rx_assoc_resp - association response data
+ * struct cfg80211_rx_assoc_resp_data - association response data
  * @bss: the BSS that association was requested with, ownership of the pointer
  *	moves to cfg80211 in the call to cfg80211_rx_assoc_resp()
  * @buf: (Re)Association Response frame (header + body)
@@ -7284,7 +7284,7 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
  * @links.status: Set this (along with a BSS pointer) for links that
  *	were rejected by the AP.
  */
-struct cfg80211_rx_assoc_resp {
+struct cfg80211_rx_assoc_resp_data {
 	const u8 *buf;
 	size_t len;
 	const u8 *req_ies;
@@ -7301,7 +7301,7 @@ struct cfg80211_rx_assoc_resp {
 /**
  * cfg80211_rx_assoc_resp - notification of processed association response
  * @dev: network device
- * @data: association response data, &struct cfg80211_rx_assoc_resp
+ * @data: association response data, &struct cfg80211_rx_assoc_resp_data
  *
  * After being asked to associate via cfg80211_ops::assoc() the driver must
  * call either this function or cfg80211_auth_timeout().
@@ -7309,7 +7309,7 @@ struct cfg80211_rx_assoc_resp {
  * This function may sleep. The caller must hold the corresponding wdev's mutex.
  */
 void cfg80211_rx_assoc_resp(struct net_device *dev,
-			    struct cfg80211_rx_assoc_resp *data);
+			    struct cfg80211_rx_assoc_resp_data *data);
 
 /**
  * struct cfg80211_assoc_failure - association failure data

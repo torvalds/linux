@@ -2928,7 +2928,7 @@ DEFINE_EVENT(netdev_evt_only, cfg80211_send_rx_auth,
 
 TRACE_EVENT(cfg80211_send_rx_assoc,
 	TP_PROTO(struct net_device *netdev,
-		 struct cfg80211_rx_assoc_resp *data),
+		 struct cfg80211_rx_assoc_resp_data *data),
 	TP_ARGS(netdev, data),
 	TP_STRUCT__entry(
 		NETDEV_ENTRY

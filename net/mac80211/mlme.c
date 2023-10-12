@@ -5281,7 +5281,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		.u.mlme.data = ASSOC_EVENT,
 	};
 	struct ieee80211_prep_tx_info info = {};
-	struct cfg80211_rx_assoc_resp resp = {
+	struct cfg80211_rx_assoc_resp_data resp = {
 		.uapsd_queues = -1,
 	};
 	u8 ap_mld_addr[ETH_ALEN] __aligned(2);

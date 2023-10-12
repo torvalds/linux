@@ -17799,7 +17799,7 @@ void nl80211_send_rx_auth(struct cfg80211_registered_device *rdev,
 
 void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *netdev,
-			   struct cfg80211_rx_assoc_resp *data)
+			   struct cfg80211_rx_assoc_resp_data *data)
 {
 	nl80211_send_mlme_event(rdev, netdev, data->buf, data->len,
 				NL80211_CMD_ASSOCIATE, GFP_KERNEL,
