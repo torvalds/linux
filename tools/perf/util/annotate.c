@@ -85,6 +85,8 @@ struct arch {
 	struct		{
 		char comment_char;
 		char skip_functions_char;
+		char register_char;
+		char memory_ref_char;
 	} objdump;
 };
 
@@ -188,6 +190,8 @@ static struct arch architectures[] = {
 		.insn_suffix = "bwlq",
 		.objdump =  {
 			.comment_char = '#',
+			.register_char = '%',
+			.memory_ref_char = '(',
 		},
 	},
 	{
@@ -566,6 +570,34 @@ static struct ins_ops lock_ops = {
 	.scnprintf = lock__scnprintf,
 };
 
+/*
+ * Check if the operand has more than one registers like x86 SIB addressing:
+ *   0x1234(%rax, %rbx, 8)
+ *
+ * But it doesn't care segment selectors like %gs:0x5678(%rcx), so just check
+ * the input string after 'memory_ref_char' if exists.
+ */
+static bool check_multi_regs(struct arch *arch, const char *op)
+{
+	int count = 0;
+
+	if (arch->objdump.register_char == 0)
+		return false;
+
+	if (arch->objdump.memory_ref_char) {
+		op = strchr(op, arch->objdump.memory_ref_char);
+		if (op == NULL)
+			return false;
+	}
+
+	while ((op = strchr(op, arch->objdump.register_char)) != NULL) {
+		count++;
+		op++;
+	}
+
+	return count > 1;
+}
+
 static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms __maybe_unused)
 {
 	char *s = strchr(ops->raw, ','), *target, *comment, prev;
@@ -593,6 +625,8 @@ static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map_sy
 	if (ops->source.raw == NULL)
 		return -1;
 
+	ops->source.multi_regs = check_multi_regs(arch, ops->source.raw);
+
 	target = skip_spaces(++s);
 	comment = strchr(s, arch->objdump.comment_char);
 
@@ -612,6 +646,8 @@ static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map_sy
 
 	if (ops->target.raw == NULL)
 		goto out_free_source;
+
+	ops->target.multi_regs = check_multi_regs(arch, ops->target.raw);
 
 	if (comment == NULL)
 		return 0;

@@ -39,12 +39,14 @@ struct ins_operands {
 		s64	offset;
 		bool	offset_avail;
 		bool	outside;
+		bool	multi_regs;
 	} target;
 	union {
 		struct {
 			char	*raw;
 			char	*name;
 			u64	addr;
+			bool	multi_regs;
 		} source;
 		struct {
 			struct ins	    ins;
