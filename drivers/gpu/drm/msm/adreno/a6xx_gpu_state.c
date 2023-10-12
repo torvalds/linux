@@ -882,12 +882,13 @@ static void a6xx_snapshot_gmu_hfi_history(struct msm_gpu *gpu,
 	}
 }
 
+#define A6XX_REGLIST_SIZE        1
 #define A6XX_GBIF_REGLIST_SIZE   1
 static void a6xx_get_registers(struct msm_gpu *gpu,
 		struct a6xx_gpu_state *a6xx_state,
 		struct a6xx_crashdumper *dumper)
 {
-	int i, count = ARRAY_SIZE(a6xx_ahb_reglist) +
+	int i, count = A6XX_REGLIST_SIZE +
 		ARRAY_SIZE(a6xx_reglist) +
 		ARRAY_SIZE(a6xx_hlsq_reglist) + A6XX_GBIF_REGLIST_SIZE;
 	int index = 0;
@@ -901,12 +902,20 @@ static void a6xx_get_registers(struct msm_gpu *gpu,
 
 	a6xx_state->nr_registers = count;
 
-	for (i = 0; i < ARRAY_SIZE(a6xx_ahb_reglist); i++)
+	if (adreno_is_a7xx(adreno_gpu))
 		a6xx_get_ahb_gpu_registers(gpu,
-			a6xx_state, &a6xx_ahb_reglist[i],
+			a6xx_state, &a7xx_ahb_reglist,
+			&a6xx_state->registers[index++]);
+	else
+		a6xx_get_ahb_gpu_registers(gpu,
+			a6xx_state, &a6xx_ahb_reglist,
 			&a6xx_state->registers[index++]);
 
-	if (a6xx_has_gbif(adreno_gpu))
+	if (adreno_is_a7xx(adreno_gpu))
+		a6xx_get_ahb_gpu_registers(gpu,
+				a6xx_state, &a7xx_gbif_reglist,
+				&a6xx_state->registers[index++]);
+	else if (a6xx_has_gbif(adreno_gpu))
 		a6xx_get_ahb_gpu_registers(gpu,
 				a6xx_state, &a6xx_gbif_reglist,
 				&a6xx_state->registers[index++]);

@@ -328,9 +328,8 @@ static const u32 a6xx_gbif_registers[] = {
 	0x3C00, 0X3C0B, 0X3C40, 0X3C47, 0X3CC0, 0X3CD1, 0xE3A, 0xE3A,
 };
 
-static const struct a6xx_registers a6xx_ahb_reglist[] = {
-	REGS(a6xx_ahb_registers, 0, 0),
-};
+static const struct a6xx_registers a6xx_ahb_reglist =
+	REGS(a6xx_ahb_registers, 0, 0);
 
 static const struct a6xx_registers a6xx_vbif_reglist =
 			REGS(a6xx_vbif_registers, 0, 0);
@@ -353,9 +352,8 @@ static const u32 a7xx_gbif_registers[] = {
 	0x3cc0, 0x3cd1,
 };
 
-static const struct a6xx_registers a7xx_ahb_reglist[] = {
-	REGS(a7xx_ahb_registers, 0, 0),
-};
+static const struct a6xx_registers a7xx_ahb_reglist=
+	REGS(a7xx_ahb_registers, 0, 0);
 
 static const struct a6xx_registers a7xx_gbif_reglist =
 	REGS(a7xx_gbif_registers, 0, 0);
