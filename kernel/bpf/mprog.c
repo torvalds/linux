@@ -401,14 +401,16 @@ int bpf_mprog_query(const union bpf_attr *attr, union bpf_attr __user *uattr,
 	struct bpf_mprog_cp *cp;
 	struct bpf_prog *prog;
 	const u32 flags = 0;
+	u32 id, count = 0;
+	u64 revision = 1;
 	int i, ret = 0;
-	u32 id, count;
-	u64 revision;
 
 	if (attr->query.query_flags || attr->query.attach_flags)
 		return -EINVAL;
-	revision = bpf_mprog_revision(entry);
-	count = bpf_mprog_total(entry);
+	if (entry) {
+		revision = bpf_mprog_revision(entry);
+		count = bpf_mprog_total(entry);
+	}
 	if (copy_to_user(&uattr->query.attach_flags, &flags, sizeof(flags)))
 		return -EFAULT;
 	if (copy_to_user(&uattr->query.revision, &revision, sizeof(revision)))
