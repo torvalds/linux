@@ -200,9 +200,9 @@ typedef struct seqcount_##lockname {					\
 } seqcount_##lockname##_t;						\
 									\
 static __always_inline seqcount_t *					\
-__seqprop_##lockname##_ptr(seqcount_##lockname##_t *s)			\
+__seqprop_##lockname##_ptr(const seqcount_##lockname##_t *s)		\
 {									\
-	return &s->seqcount;						\
+	return (void *)&s->seqcount; /* drop const */			\
 }									\
 									\
 static __always_inline unsigned						\
@@ -247,9 +247,9 @@ __seqprop_##lockname##_assert(const seqcount_##lockname##_t *s)		\
  * __seqprop() for seqcount_t
  */
 
-static inline seqcount_t *__seqprop_ptr(seqcount_t *s)
+static inline seqcount_t *__seqprop_ptr(const seqcount_t *s)
 {
-	return s;
+	return (void *)s; /* drop const */
 }
 
 static inline unsigned __seqprop_sequence(const seqcount_t *s)
@@ -292,19 +292,19 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
 #define SEQCNT_WW_MUTEX_ZERO(name, lock) 	SEQCOUNT_LOCKNAME_ZERO(name, lock)
 
 #define __seqprop_case(s, lockname, prop)				\
-	seqcount_##lockname##_t: __seqprop_##lockname##_##prop((void *)(s))
+	seqcount_##lockname##_t: __seqprop_##lockname##_##prop
 
 #define __seqprop(s, prop) _Generic(*(s),				\
-	seqcount_t:		__seqprop_##prop((void *)(s)),		\
+	seqcount_t:		__seqprop_##prop,			\
 	__seqprop_case((s),	raw_spinlock,	prop),			\
 	__seqprop_case((s),	spinlock,	prop),			\
 	__seqprop_case((s),	rwlock,		prop),			\
 	__seqprop_case((s),	mutex,		prop))
 
-#define seqprop_ptr(s)			__seqprop(s, ptr)
-#define seqprop_sequence(s)		__seqprop(s, sequence)
-#define seqprop_preemptible(s)		__seqprop(s, preemptible)
-#define seqprop_assert(s)		__seqprop(s, assert)
+#define seqprop_ptr(s)			__seqprop(s, ptr)(s)
+#define seqprop_sequence(s)		__seqprop(s, sequence)(s)
+#define seqprop_preemptible(s)		__seqprop(s, preemptible)(s)
+#define seqprop_assert(s)		__seqprop(s, assert)(s)
 
 /**
  * __read_seqcount_begin() - begin a seqcount_t read section w/o barrier
