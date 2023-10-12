@@ -10,6 +10,7 @@
  */
 
 #include <linux/kernel_stat.h>
+#include <linux/mmu_context.h>
 #include <linux/perf_event.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -37,7 +38,6 @@
 #include <asm/diag.h>
 #include <asm/gmap.h>
 #include <asm/irq.h>
-#include <asm/mmu_context.h>
 #include <asm/facility.h>
 #include <asm/uv.h>
 #include "../kernel/entry.h"
