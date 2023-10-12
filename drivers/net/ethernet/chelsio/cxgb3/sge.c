@@ -2674,12 +2674,7 @@ static int rspq_check_napi(struct sge_qset *qs)
 {
 	struct sge_rspq *q = &qs->rspq;
 
-	if (!napi_is_scheduled(&qs->napi) &&
-	    is_new_response(&q->desc[q->cidx], q)) {
-		napi_schedule(&qs->napi);
-		return 1;
-	}
-	return 0;
+	return is_new_response(&q->desc[q->cidx], q) && napi_schedule(&qs->napi);
 }
 
 /*
