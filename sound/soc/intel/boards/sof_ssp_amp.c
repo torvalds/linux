@@ -18,6 +18,7 @@
 #include <sound/pcm_params.h>
 #include <sound/sof.h>
 #include "hda_dsp_common.h"
+#include "sof_hdmi_common.h"
 #include "sof_realtek_common.h"
 #include "sof_cirrus_common.h"
 #include "sof_ssp_common.h"
@@ -60,14 +61,8 @@
 /* Default: SSP2  */
 static unsigned long sof_ssp_amp_quirk = SOF_AMPLIFIER_SSP(2);
 
-struct sof_hdmi_pcm {
-	struct list_head head;
-	struct snd_soc_dai *codec_dai;
-};
-
 struct sof_card_private {
-	struct list_head hdmi_pcm_list;
-	bool idisp_codec;
+	struct sof_hdmi_private hdmi;
 	enum sof_ssp_codec amp_type;
 };
 
@@ -93,22 +88,17 @@ static const struct snd_soc_dapm_route sof_ssp_amp_dapm_routes[] = {
 static int sof_card_late_probe(struct snd_soc_card *card)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_component *component = NULL;
-	struct sof_hdmi_pcm *pcm;
 
 	if (!(sof_ssp_amp_quirk & SOF_HDMI_PLAYBACK_PRESENT))
 		return 0;
 
-	/* HDMI is not supported by SOF on Baytrail/CherryTrail */
-	if (!ctx->idisp_codec)
+	if (!ctx->hdmi.idisp_codec)
 		return 0;
 
-	if (list_empty(&ctx->hdmi_pcm_list))
+	if (!ctx->hdmi.hdmi_comp)
 		return -EINVAL;
 
-	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct sof_hdmi_pcm, head);
-	component = pcm->codec_dai->component;
-	return hda_dsp_hdmi_build_controls(card, component);
+	return hda_dsp_hdmi_build_controls(card, ctx->hdmi.hdmi_comp);
 }
 
 static struct snd_soc_card sof_ssp_amp_card = {
@@ -140,20 +130,11 @@ static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
-	struct sof_hdmi_pcm *pcm;
 
-	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
-	if (!pcm)
-		return -ENOMEM;
-
-	pcm->codec_dai = dai;
-
-	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
+	ctx->hdmi.hdmi_comp = dai->component;
 
 	return 0;
 }
-
-#define IDISP_CODEC_MASK	0x4
 
 /* BE ID defined in sof-tgl-rt1308-hdmi-ssp.m4 */
 #define HDMI_IN_BE_ID		0
@@ -394,7 +375,7 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 			hdmi_num = 3;
 
 		if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
-			ctx->idisp_codec = true;
+			ctx->hdmi.idisp_codec = true;
 
 		sof_ssp_amp_card.num_links += hdmi_num;
 	}
@@ -404,7 +385,7 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
 					      ssp_codec, dmic_be_num, hdmi_num,
-					      ctx->idisp_codec);
+					      ctx->hdmi.idisp_codec);
 	if (!dai_links)
 		return -ENOMEM;
 
@@ -423,8 +404,6 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "invalid amp type %d\n", ctx->amp_type);
 		return -EINVAL;
 	}
-
-	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	sof_ssp_amp_card.dev = &pdev->dev;
 
