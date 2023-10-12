@@ -22,6 +22,7 @@
 #include "../common/soc-intel-quirks.h"
 #include "hda_dsp_common.h"
 #include "sof_realtek_common.h"
+#include "sof_hdmi_common.h"
 #include "sof_maxim_common.h"
 #include "sof_nuvoton_common.h"
 #include "sof_ssp_common.h"
@@ -46,15 +47,10 @@
 
 static unsigned long sof_nau8825_quirk = SOF_NAU8825_SSP_CODEC(0);
 
-struct sof_hdmi_pcm {
-	struct list_head head;
-	struct snd_soc_dai *codec_dai;
-};
-
 struct sof_card_private {
 	struct clk *mclk;
 	struct snd_soc_jack sof_headset;
-	struct list_head hdmi_pcm_list;
+	struct sof_hdmi_private hdmi;
 	enum sof_ssp_codec codec_type;
 	enum sof_ssp_codec amp_type;
 };
@@ -63,15 +59,8 @@ static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
-	struct sof_hdmi_pcm *pcm;
 
-	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
-	if (!pcm)
-		return -ENOMEM;
-
-	pcm->codec_dai = dai;
-
-	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
+	ctx->hdmi.hdmi_comp = dai->component;
 
 	return 0;
 }
@@ -182,7 +171,6 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dapm_context *dapm = &card->dapm;
-	struct sof_hdmi_pcm *pcm;
 	int err;
 
 	if (ctx->amp_type == CODEC_MAX98373) {
@@ -194,12 +182,13 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 			return err;
 	}
 
-	if (list_empty(&ctx->hdmi_pcm_list))
+	if (!ctx->hdmi.idisp_codec)
+		return 0;
+
+	if (!ctx->hdmi.hdmi_comp)
 		return -EINVAL;
 
-	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct sof_hdmi_pcm, head);
-
-	return hda_dsp_hdmi_build_controls(card, pcm->codec_dai->component);
+	return hda_dsp_hdmi_build_controls(card, ctx->hdmi.hdmi_comp);
 }
 
 static const struct snd_kcontrol_new sof_controls[] = {
@@ -506,6 +495,9 @@ static int sof_audio_probe(struct platform_device *pdev)
 	if (!hdmi_num)
 		hdmi_num = 3;
 
+	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
+		ctx->hdmi.idisp_codec = true;
+
 	ssp_amp = (sof_nau8825_quirk & SOF_NAU8825_SSP_AMP_MASK) >>
 			SOF_NAU8825_SSP_AMP_SHIFT;
 
@@ -546,8 +538,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "invalid amp type %d\n", ctx->amp_type);
 		return -EINVAL;
 	}
-
-	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	sof_audio_card_nau8825.dev = &pdev->dev;
 
