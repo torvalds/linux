@@ -618,8 +618,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 			BUG();
 		break;
 	default:
-		do_fault_error(regs, VM_FAULT_BADMAP);
-		WARN_ON_ONCE(1);
+		unreachable();
 	}
 }
 NOKPROBE_SYMBOL(do_secure_storage_access);
