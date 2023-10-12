@@ -615,6 +615,7 @@ struct mlx5_priv {
 	int			adev_idx;
 	int			sw_vhca_id;
 	struct mlx5_events      *events;
+	struct mlx5_vhca_events *vhca_events;
 
 	struct mlx5_flow_steering *steering;
 	struct mlx5_mpfs        *mpfs;

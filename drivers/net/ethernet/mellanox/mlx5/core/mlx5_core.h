@@ -159,6 +159,8 @@ enum mlx5_semaphore_space_address {
 
 #define MLX5_DEFAULT_PROF       2
 #define MLX5_SF_PROF		3
+#define MLX5_NUM_FW_CMD_THREADS 8
+#define MLX5_DEV_MAX_WQS	MLX5_NUM_FW_CMD_THREADS
 
 static inline int mlx5_flexible_inlen(struct mlx5_core_dev *dev, size_t fixed,
 				      size_t item_size, size_t num_items,
@@ -347,7 +349,6 @@ int mlx5_vport_set_other_func_cap(struct mlx5_core_dev *dev, const void *hca_cap
 #define mlx5_vport_get_other_func_general_cap(dev, vport, out)		\
 	mlx5_vport_get_other_func_cap(dev, vport, out, MLX5_CAP_GENERAL)
 
-void mlx5_events_work_enqueue(struct mlx5_core_dev *dev, struct work_struct *work);
 static inline u32 mlx5_sriov_get_vf_total_msix(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev = pci_get_drvdata(pdev);
