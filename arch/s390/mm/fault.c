@@ -218,11 +218,13 @@ int show_unhandled_signals = 1;
 
 void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault)
 {
+	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL, DEFAULT_RATELIMIT_BURST);
+
 	if ((task_pid_nr(current) > 1) && !show_unhandled_signals)
 		return;
 	if (!unhandled_signal(current, signr))
 		return;
-	if (!printk_ratelimit())
+	if (!__ratelimit(&rs))
 		return;
 	printk(KERN_ALERT "User process fault: interruption code %04x ilc:%d ",
 	       regs->int_code & 0xffff, regs->int_code >> 17);
