@@ -3838,17 +3838,8 @@ static void combo_pll_enable(struct drm_i915_private *i915,
 {
 	i915_reg_t enable_reg = intel_combo_pll_enable_reg(i915, pll);
 
-	if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) &&
-	    pll->info->id == DPLL_ID_EHL_DPLL4) {
-
-		/*
-		 * We need to disable DC states when this DPLL is enabled.
-		 * This can be done by taking a reference on DPLL4 power
-		 * domain.
-		 */
-		pll->wakeref = intel_display_power_get(i915,
-						       POWER_DOMAIN_DC_OFF);
-	}
+	if (pll->info->power_domain)
+		pll->wakeref = intel_display_power_get(i915, pll->info->power_domain);
 
 	icl_pll_power_enable(i915, pll, enable_reg);
 
@@ -3946,10 +3937,8 @@ static void combo_pll_disable(struct drm_i915_private *i915,
 
 	icl_pll_disable(i915, pll, enable_reg);
 
-	if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) &&
-	    pll->info->id == DPLL_ID_EHL_DPLL4)
-		intel_display_power_put(i915, POWER_DOMAIN_DC_OFF,
-					pll->wakeref);
+	if (pll->info->power_domain)
+		intel_display_power_put(i915, pll->info->power_domain, pll->wakeref);
 }
 
 static void tbt_pll_disable(struct drm_i915_private *i915,
@@ -4041,7 +4030,8 @@ static const struct intel_dpll_mgr icl_pll_mgr = {
 static const struct dpll_info ehl_plls[] = {
 	{ .name = "DPLL 0", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL0, },
 	{ .name = "DPLL 1", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL1, },
-	{ .name = "DPLL 4", .funcs = &combo_pll_funcs, .id = DPLL_ID_EHL_DPLL4, },
+	{ .name = "DPLL 4", .funcs = &combo_pll_funcs, .id = DPLL_ID_EHL_DPLL4,
+	  .power_domain = POWER_DOMAIN_DC_OFF, },
 	{}
 };
 
@@ -4369,12 +4359,8 @@ static void readout_dpll_hw_state(struct drm_i915_private *i915,
 
 	pll->on = intel_dpll_get_hw_state(i915, pll, &pll->state.hw_state);
 
-	if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) &&
-	    pll->on &&
-	    pll->info->id == DPLL_ID_EHL_DPLL4) {
-		pll->wakeref = intel_display_power_get(i915,
-						       POWER_DOMAIN_DC_OFF);
-	}
+	if (pll->on && pll->info->power_domain)
+		pll->wakeref = intel_display_power_get(i915, pll->info->power_domain);
 
 	pll->state.pipe_mask = 0;
 	for_each_intel_crtc(&i915->drm, crtc) {
