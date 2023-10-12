@@ -56,8 +56,15 @@ static u32 nbio_v7_9_get_rev_id(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
+	tmp = IP_VERSION_SUBREV(amdgpu_ip_version_full(adev, NBIO_HWIP, 0));
+	/* If it is VF or subrevision holds a non-zero value, that should be used */
+	if (tmp || amdgpu_sriov_vf(adev))
+		return tmp;
+
+	/* If discovery subrev is not updated, use register version */
 	tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0);
-	tmp = REG_GET_FIELD(tmp, RCC_STRAP0_RCC_DEV0_EPF0_STRAP0, STRAP_ATI_REV_ID_DEV0_F0);
+	tmp = REG_GET_FIELD(tmp, RCC_STRAP0_RCC_DEV0_EPF0_STRAP0,
+			    STRAP_ATI_REV_ID_DEV0_F0);
 
 	return tmp;
 }
