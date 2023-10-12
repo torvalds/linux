@@ -609,6 +609,7 @@
 					nvmem-cells = <&tempmon_calib>,	<&fuse_grade>;
 					nvmem-cell-names = "calib", "temp_grade";
 					clocks = <&clks IMX7D_PLL_SYS_MAIN_CLK>;
+					#thermal-sensor-cells = <0>;
 				};
 			};
 
