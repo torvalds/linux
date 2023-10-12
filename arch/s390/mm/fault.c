@@ -49,7 +49,6 @@
  * Allocate private vm_fault_reason from top.
  * Please make sure it won't collide with vm_fault_reason.
  */
-#define VM_FAULT_BADCONTEXT	((__force vm_fault_t)0x80000000)
 #define VM_FAULT_BADMAP		((__force vm_fault_t)0x40000000)
 #define VM_FAULT_BADACCESS	((__force vm_fault_t)0x20000000)
 #define VM_FAULT_SIGNAL		((__force vm_fault_t)0x10000000)
@@ -257,6 +256,19 @@ static void do_no_context(struct pt_regs *regs)
 	die(regs, "Oops");
 }
 
+static inline void handle_fault_error_nolock(struct pt_regs *regs)
+{
+	do_no_context(regs);
+}
+
+static void handle_fault_error(struct pt_regs *regs)
+{
+	struct mm_struct *mm = current->mm;
+
+	mmap_read_unlock(mm);
+	handle_fault_error_nolock(regs);
+}
+
 static void do_sigbus(struct pt_regs *regs)
 {
 	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)get_fault_address(regs));
@@ -277,8 +289,6 @@ static void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
 			do_sigsegv(regs, si_code);
 			break;
 		}
-		fallthrough;
-	case VM_FAULT_BADCONTEXT:
 		do_no_context(regs);
 		break;
 	case VM_FAULT_SIGNAL:
@@ -344,15 +354,14 @@ static void do_exception(struct pt_regs *regs, int access)
 	mm = tsk->mm;
 	address = get_fault_address(regs);
 	is_write = fault_is_write(regs);
-	fault = VM_FAULT_BADCONTEXT;
 	type = get_fault_type(regs);
 	switch (type) {
 	case KERNEL_FAULT:
-		goto out;
+		return handle_fault_error_nolock(regs);
 	case USER_FAULT:
 	case GMAP_FAULT:
 		if (faulthandler_disabled() || !mm)
-			goto out;
+			return handle_fault_error_nolock(regs);
 		break;
 	}
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
@@ -443,8 +452,7 @@ retry:
 			 * mmap_lock has not been released
 			 */
 			current->thread.gmap_pfault = 1;
-			fault = VM_FAULT_BADCONTEXT;
-			goto out_up;
+			return handle_fault_error(regs);
 		}
 		flags &= ~FAULT_FLAG_RETRY_NOWAIT;
 		flags |= FAULT_FLAG_TRIED;
