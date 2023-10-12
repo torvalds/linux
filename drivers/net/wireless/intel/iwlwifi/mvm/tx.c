@@ -1724,7 +1724,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			RS_DRV_DATA_PACK(lq_color, tx_resp->reduced_tpc);
 
 		if (likely(!iwl_mvm_time_sync_frame(mvm, skb, hdr->addr1)))
-			ieee80211_tx_status(mvm->hw, skb);
+			ieee80211_tx_status_skb(mvm->hw, skb);
 	}
 
 	/* This is an aggregation queue or might become one, so we use
@@ -2080,7 +2080,7 @@ out:
 
 	while (!skb_queue_empty(&reclaimed_skbs)) {
 		skb = __skb_dequeue(&reclaimed_skbs);
-		ieee80211_tx_status(mvm->hw, skb);
+		ieee80211_tx_status_skb(mvm->hw, skb);
 	}
 }
 

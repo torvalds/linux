@@ -1092,7 +1092,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 			     send_to_cooked, status);
 }
 
-void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+void ieee80211_tx_status_skb(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -1111,7 +1111,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	ieee80211_tx_status_ext(hw, &status);
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(ieee80211_tx_status);
+EXPORT_SYMBOL(ieee80211_tx_status_skb);
 
 void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 			     struct ieee80211_tx_status *status)
