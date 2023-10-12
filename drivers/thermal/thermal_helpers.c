@@ -22,9 +22,8 @@
 #include "thermal_core.h"
 #include "thermal_trace.h"
 
-int get_tz_trend(struct thermal_zone_device *tz, int trip_index)
+int get_tz_trend(struct thermal_zone_device *tz, const struct thermal_trip *trip)
 {
-	struct thermal_trip *trip = tz->trips ? &tz->trips[trip_index] : NULL;
 	enum thermal_trend trend;
 
 	if (tz->emul_temperature || !tz->ops->get_trend ||

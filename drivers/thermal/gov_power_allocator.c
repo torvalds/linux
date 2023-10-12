@@ -676,10 +676,10 @@ static void power_allocator_unbind(struct thermal_zone_device *tz)
 	tz->governor_data = NULL;
 }
 
-static int power_allocator_throttle(struct thermal_zone_device *tz, int trip_index)
+static int power_allocator_throttle(struct thermal_zone_device *tz,
+				    const struct thermal_trip *trip)
 {
 	struct power_allocator_params *params = tz->governor_data;
-	const struct thermal_trip *trip = &tz->trips[trip_index];
 	bool update;
 
 	lockdep_assert_held(&tz->lock);

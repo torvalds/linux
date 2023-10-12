@@ -68,15 +68,16 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 	return next_target;
 }
 
-static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip_id)
+static void thermal_zone_trip_update(struct thermal_zone_device *tz,
+				     const struct thermal_trip *trip)
 {
-	const struct thermal_trip *trip = &tz->trips[trip_id];
+	int trip_id = thermal_zone_trip_id(tz, trip);
 	enum thermal_trend trend;
 	struct thermal_instance *instance;
 	bool throttle = false;
 	int old_target;
 
-	trend = get_tz_trend(tz, trip_id);
+	trend = get_tz_trend(tz, trip);
 
 	if (tz->temperature >= trip->temperature) {
 		throttle = true;
@@ -120,7 +121,7 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip_id
 /**
  * step_wise_throttle - throttles devices associated with the given zone
  * @tz: thermal_zone_device
- * @trip: trip point index
+ * @trip: trip point
  *
  * Throttling Logic: This uses the trend of the thermal zone to throttle.
  * If the thermal zone is 'heating up' this throttles all the cooling
@@ -128,7 +129,8 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip_id
  * step. If the zone is 'cooling down' it brings back the performance of
  * the devices by one step.
  */
-static int step_wise_throttle(struct thermal_zone_device *tz, int trip)
+static int step_wise_throttle(struct thermal_zone_device *tz,
+			      const struct thermal_trip *trip)
 {
 	struct thermal_instance *instance;
 
