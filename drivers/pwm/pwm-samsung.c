@@ -77,6 +77,7 @@ struct samsung_pwm_channel {
  * @base_clk:		base clock used to drive the timers
  * @tclk0:		external clock 0 (can be ERR_PTR if not present)
  * @tclk1:		external clock 1 (can be ERR_PTR if not present)
+ * @channel:		per channel driver data
  */
 struct samsung_pwm_chip {
 	struct pwm_chip chip;
