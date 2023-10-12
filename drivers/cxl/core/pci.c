@@ -595,6 +595,16 @@ static int cxl_cdat_read_table(struct device *dev,
 	return 0;
 }
 
+static unsigned char cdat_checksum(void *buf, size_t size)
+{
+	unsigned char sum, *data = buf;
+	size_t i;
+
+	for (sum = 0, i = 0; i < size; i++)
+		sum += data[i];
+	return sum;
+}
+
 /**
  * read_cdat_data - Read the CDAT data on this port
  * @port: Port to read data from
@@ -634,15 +644,21 @@ void read_cdat_data(struct cxl_port *port)
 		return;
 
 	rc = cxl_cdat_read_table(dev, cdat_doe, cdat_table, &cdat_length);
-	if (rc) {
-		/* Don't leave table data allocated on error */
-		devm_kfree(dev, cdat_table);
-		dev_err(dev, "CDAT data read error\n");
-		return;
-	}
+	if (rc)
+		goto err;
 
-	port->cdat.table = cdat_table + sizeof(__le32);
+	cdat_table = cdat_table + sizeof(__le32);
+	if (cdat_checksum(cdat_table, cdat_length))
+		goto err;
+
+	port->cdat.table = cdat_table;
 	port->cdat.length = cdat_length;
+	return;
+
+err:
+	/* Don't leave table data allocated on error */
+	devm_kfree(dev, cdat_table);
+	dev_err(dev, "Failed to read/validate CDAT.\n");
 }
 EXPORT_SYMBOL_NS_GPL(read_cdat_data, CXL);
 
