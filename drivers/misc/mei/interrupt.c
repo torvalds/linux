@@ -626,9 +626,9 @@ static void mei_connect_timeout(struct mei_cl *cl)
 /**
  * mei_schedule_stall_timer - re-arm stall_timer work
  *
- * Schedule stall timer
- *
  * @dev: the device structure
+ *
+ * Schedule stall timer
  */
 void mei_schedule_stall_timer(struct mei_device *dev)
 {
