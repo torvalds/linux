@@ -3051,15 +3051,6 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 		if (ehc->i.flags & ATA_EHI_DID_RESET)
 			readid_flags |= ATA_READID_POSTRESET;
 
-		/*
-		 * When resuming, before executing any command, make sure to
-		 * transition the device to the active power mode.
-		 */
-		if ((action & ATA_EH_SET_ACTIVE) && ata_dev_enabled(dev)) {
-			ata_dev_power_set_active(dev);
-			ata_eh_done(link, dev, ATA_EH_SET_ACTIVE);
-		}
-
 		if ((action & ATA_EH_REVALIDATE) && ata_dev_enabled(dev)) {
 			WARN_ON(dev->class == ATA_DEV_PMP);
 
@@ -3853,6 +3844,17 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 					goto rest_fail;
 				if (zpodd_dev_enabled(dev))
 					zpodd_post_poweron(dev);
+			}
+		}
+
+		/*
+		 * Make sure to transition devices to the active power mode
+		 * if needed (e.g. if we were scheduled on system resume).
+		 */
+		ata_for_each_dev(dev, link, ENABLED) {
+			if (ehc->i.dev_action[dev->devno] & ATA_EH_SET_ACTIVE) {
+				ata_dev_power_set_active(dev);
+				ata_eh_done(link, dev, ATA_EH_SET_ACTIVE);
 			}
 		}
 
