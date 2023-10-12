@@ -219,6 +219,26 @@ intel_tc_pll_enable_reg(struct drm_i915_private *i915,
 	return MG_PLL_ENABLE(tc_port);
 }
 
+static void _intel_enable_shared_dpll(struct drm_i915_private *i915,
+				      struct intel_shared_dpll *pll)
+{
+	if (pll->info->power_domain)
+		pll->wakeref = intel_display_power_get(i915, pll->info->power_domain);
+
+	pll->info->funcs->enable(i915, pll);
+	pll->on = true;
+}
+
+static void _intel_disable_shared_dpll(struct drm_i915_private *i915,
+				       struct intel_shared_dpll *pll)
+{
+	pll->info->funcs->disable(i915, pll);
+	pll->on = false;
+
+	if (pll->info->power_domain)
+		intel_display_power_put(i915, pll->info->power_domain, pll->wakeref);
+}
+
 /**
  * intel_enable_shared_dpll - enable a CRTC's shared DPLL
  * @crtc_state: CRTC, and its state, which has a shared DPLL
@@ -259,11 +279,7 @@ void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 
 	drm_dbg_kms(&i915->drm, "enabling %s\n", pll->info->name);
 
-	if (pll->info->power_domain)
-		pll->wakeref = intel_display_power_get(i915, pll->info->power_domain);
-
-	pll->info->funcs->enable(i915, pll);
-	pll->on = true;
+	_intel_enable_shared_dpll(i915, pll);
 
 out:
 	mutex_unlock(&i915->display.dpll.lock);
@@ -308,11 +324,8 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 		goto out;
 
 	drm_dbg_kms(&i915->drm, "disabling %s\n", pll->info->name);
-	pll->info->funcs->disable(i915, pll);
-	pll->on = false;
 
-	if (pll->info->power_domain)
-		intel_display_power_put(i915, pll->info->power_domain, pll->wakeref);
+	_intel_disable_shared_dpll(i915, pll);
 
 out:
 	mutex_unlock(&i915->display.dpll.lock);
@@ -4408,11 +4421,7 @@ static void sanitize_dpll_state(struct drm_i915_private *i915,
 		    "%s enabled but not in use, disabling\n",
 		    pll->info->name);
 
-	pll->info->funcs->disable(i915, pll);
-	pll->on = false;
-
-	if (pll->info->power_domain)
-		intel_display_power_put(i915, pll->info->power_domain, pll->wakeref);
+	_intel_disable_shared_dpll(i915, pll);
 }
 
 void intel_dpll_sanitize_state(struct drm_i915_private *i915)
