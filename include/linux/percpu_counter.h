@@ -198,14 +198,21 @@ static inline bool
 percpu_counter_limited_add(struct percpu_counter *fbc, s64 limit, s64 amount)
 {
 	unsigned long flags;
+	bool good = false;
 	s64 count;
+
+	if (amount == 0)
+		return true;
 
 	local_irq_save(flags);
 	count = fbc->count + amount;
-	if (count <= limit)
+	if ((amount > 0 && count <= limit) ||
+	    (amount < 0 && count >= limit)) {
 		fbc->count = count;
+		good = true;
+	}
 	local_irq_restore(flags);
-	return count <= limit;
+	return good;
 }
 
 /* non-SMP percpu_counter_add_local is the same with percpu_counter_add */
