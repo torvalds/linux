@@ -5275,11 +5275,51 @@ static unsigned long get_nr_to_reclaim(struct scan_control *sc)
 	return max(sc->nr_to_reclaim, compact_gap(sc->order));
 }
 
+static bool should_abort_scan(struct lruvec *lruvec, struct scan_control *sc)
+{
+	unsigned long nr_to_reclaim = get_nr_to_reclaim(sc);
+	bool check_wmarks = false;
+	int i;
+
+	if (sc->nr_reclaimed >= nr_to_reclaim)
+		return true;
+
+	trace_android_vh_scan_abort_check_wmarks(&check_wmarks);
+
+	if (!check_wmarks)
+		return false;
+
+	if (!current_is_kswapd())
+		return false;
+
+	for (i = 0; i <= sc->reclaim_idx; i++) {
+		unsigned long wmark;
+		struct zone *zone = lruvec_pgdat(lruvec)->node_zones + i;
+
+		if (!managed_zone(zone))
+			continue;
+
+		if (sysctl_numa_balancing_mode & NUMA_BALANCING_MEMORY_TIERING)
+			wmark = wmark_pages(zone, WMARK_PROMO);
+		else
+			wmark = high_wmark_pages(zone);
+
+		/*
+		 * Abort scan once the target number of order zero pages are met.
+		 * Reclaim MIN_LRU_BATCH << 2 to facilitate immediate kswapd sleep.
+		 */
+		wmark += MIN_LRU_BATCH << 2;
+		if (!zone_watermark_ok_safe(zone, 0, wmark, sc->reclaim_idx))
+			return false;
+	}
+
+	return true;
+}
+
 static bool try_to_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 {
 	long nr_to_scan;
 	unsigned long scanned = 0;
-	unsigned long nr_to_reclaim = get_nr_to_reclaim(sc);
 	int swappiness = get_swappiness(lruvec, sc);
 
 	/* clean file folios are more likely to exist */
@@ -5301,7 +5341,7 @@ static bool try_to_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 		if (scanned >= nr_to_scan)
 			break;
 
-		if (sc->nr_reclaimed >= nr_to_reclaim)
+		if (should_abort_scan(lruvec, sc))
 			break;
 
 		cond_resched();
@@ -5360,10 +5400,9 @@ static void shrink_many(struct pglist_data *pgdat, struct scan_control *sc)
 	int bin;
 	int first_bin;
 	struct lruvec *lruvec;
-	struct lru_gen_folio *lrugen;
+	struct lru_gen_folio *lrugen = NULL;
 	struct mem_cgroup *memcg;
 	const struct hlist_nulls_node *pos;
-	unsigned long nr_to_reclaim = get_nr_to_reclaim(sc);
 
 	bin = first_bin = get_random_u32_below(MEMCG_NR_BINS);
 restart:
@@ -5394,7 +5433,7 @@ restart:
 
 		rcu_read_lock();
 
-		if (sc->nr_reclaimed >= nr_to_reclaim)
+		if (should_abort_scan(lruvec, sc))
 			break;
 	}
 
@@ -5405,7 +5444,7 @@ restart:
 
 	mem_cgroup_put(memcg);
 
-	if (sc->nr_reclaimed >= nr_to_reclaim)
+	if (lruvec && should_abort_scan(lruvec, sc))
 		return;
 
 	/* restart if raced with lru_gen_rotate_memcg() */
