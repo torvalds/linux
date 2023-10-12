@@ -35,6 +35,13 @@ struct mtk_disp_aal_data {
 	bool has_gamma;
 };
 
+ /**
+  * struct mtk_disp_aal - Display Adaptive Ambient Light driver structure
+  * @clk:      clock for DISP_AAL controller
+  * @regs:     MMIO registers base
+  * @cmdq_reg: CMDQ Client register
+  * @data:     platform specific data for DISP_AAL
+  */
 struct mtk_disp_aal {
 	struct clk *clk;
 	void __iomem *regs;
