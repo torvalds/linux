@@ -3009,7 +3009,7 @@ void intel_c10pll_state_verify(struct intel_atomic_state *state,
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_c10pll_state mpllb_hw_state = { 0 };
+	struct intel_c10pll_state mpllb_hw_state = {};
 	const struct intel_c10pll_state *mpllb_sw_state = &new_crtc_state->cx0pll_state.c10;
 	struct intel_encoder *encoder;
 	enum phy phy;

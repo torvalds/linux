@@ -192,7 +192,7 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 		&crtc_state->hw.adjusted_mode;
 	int slots = -EINVAL;
 	int i, num_bpc;
-	u8 dsc_bpc[3] = {0};
+	u8 dsc_bpc[3] = {};
 	int min_bpp, max_bpp, sink_min_bpp, sink_max_bpp;
 	u8 dsc_max_bpc;
 	bool need_timeslot_recalc = false;

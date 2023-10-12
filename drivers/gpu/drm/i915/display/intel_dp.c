@@ -1583,7 +1583,7 @@ int intel_dp_dsc_compute_max_bpp(const struct intel_connector *connector,
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	int i, num_bpc;
-	u8 dsc_bpc[3] = {0};
+	u8 dsc_bpc[3] = {};
 	u8 dsc_max_bpc;
 
 	dsc_max_bpc = intel_dp_dsc_max_src_input_bpc(i915);
@@ -2006,7 +2006,7 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	u8 max_req_bpc = conn_state->max_requested_bpc;
 	u8 dsc_max_bpc, dsc_max_bpp;
 	u8 dsc_min_bpc, dsc_min_bpp;
-	u8 dsc_bpc[3] = {0};
+	u8 dsc_bpc[3] = {};
 	int forced_bpp, pipe_bpp;
 	int num_bpc, i, ret;
 
@@ -2940,7 +2940,7 @@ intel_edp_init_source_oui(struct intel_dp *intel_dp, bool careful)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 oui[] = { 0x00, 0xaa, 0x01 };
-	u8 buf[3] = { 0 };
+	u8 buf[3] = {};
 
 	/*
 	 * During driver init, we want to be careful and avoid changing the source OUI if it's
