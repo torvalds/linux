@@ -1068,6 +1068,9 @@ int rtw89_mac_set_macid_pause(struct rtw89_dev *rtwdev, u8 macid, bool pause);
 
 static inline void rtw89_mac_bf_monitor_track(struct rtw89_dev *rtwdev)
 {
+	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX)
+		return;
+
 	if (!test_bit(RTW89_FLAG_BFEE_MON, rtwdev->flags))
 		return;
 
