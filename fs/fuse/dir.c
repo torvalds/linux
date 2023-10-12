@@ -192,7 +192,7 @@ static bool backing_data_changed(struct fuse_inode *fi, struct dentry *entry,
 	int err;
 	bool ret = true;
 
-	if (!entry) {
+	if (!entry || !fi->backing_inode) {
 		ret = false;
 		goto put_backing_file;
 	}
