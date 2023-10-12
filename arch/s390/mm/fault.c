@@ -3,7 +3,7 @@
  *  S390 version
  *    Copyright IBM Corp. 1999
  *    Author(s): Hartmut Penner (hp@de.ibm.com)
- *               Ulrich Weigand (uweigand@de.ibm.com)
+ *		 Ulrich Weigand (uweigand@de.ibm.com)
  *
  *  Derived from "arch/i386/mm/fault.c"
  *    Copyright (C) 1995  Linus Torvalds
@@ -45,8 +45,8 @@
 #define __FAIL_ADDR_MASK -4096L
 
 /*
- * Allocate private vm_fault_reason from top.  Please make sure it won't
- * collide with vm_fault_reason.
+ * Allocate private vm_fault_reason from top.
+ * Please make sure it won't collide with vm_fault_reason.
  */
 #define VM_FAULT_BADCONTEXT	((__force vm_fault_t)0x80000000)
 #define VM_FAULT_BADMAP		((__force vm_fault_t)0x40000000)
@@ -78,8 +78,8 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 	unsigned long trans_exc_code;
 
 	trans_exc_code = regs->int_parm_long & 3;
+	/* Primary address space */
 	if (likely(trans_exc_code == 0)) {
-		/* primary space exception */
 		if (user_mode(regs))
 			return USER_FAULT;
 		if (!IS_ENABLED(CONFIG_PGSTE))
@@ -90,11 +90,11 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 	}
 	if (trans_exc_code == 2)
 		return USER_FAULT;
+	/* Access register mode, not used in the kernel */
 	if (trans_exc_code == 1) {
-		/* access register mode, not used in the kernel */
 		return USER_FAULT;
 	}
-	/* home space exception -> access via kernel ASCE */
+	/* Home space -> access via kernel ASCE */
 	return KERNEL_FAULT;
 }
 
@@ -233,10 +233,6 @@ void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault)
 	show_regs(regs);
 }
 
-/*
- * Send SIGSEGV to task.  This is an external routine
- * to keep the stack usage of do_page_fault small.
- */
 static noinline void do_sigsegv(struct pt_regs *regs, int si_code)
 {
 	report_user_fault(regs, SIGSEGV, 1);
@@ -259,10 +255,6 @@ static noinline void do_no_context(struct pt_regs *regs, vm_fault_t fault)
 		if (kfence_handle_page_fault(address, is_write, regs))
 			return;
 	}
-	/*
-	 * Oops. The kernel tried to access some bad page. We'll have to
-	 * terminate things with extreme prejudice.
-	 */
 	if (fault_type == KERNEL_FAULT)
 		printk(KERN_ALERT "Unable to handle kernel pointer dereference"
 		       " in virtual kernel address space\n");
@@ -275,10 +267,12 @@ static noinline void do_no_context(struct pt_regs *regs, vm_fault_t fault)
 
 static noinline void do_low_address(struct pt_regs *regs)
 {
-	/* Low-address protection hit in kernel mode means
-	   NULL pointer write access in kernel mode.  */
+	/*
+	 * Low-address protection hit in kernel mode means
+	 * NULL pointer write access in kernel mode.
+	 */
 	if (regs->psw.mask & PSW_MASK_PSTATE) {
-		/* Low-address protection hit in user mode 'cannot happen'. */
+		/* Low-address protection hit in user mode: 'cannot happen' */
 		die (regs, "Low-address protection");
 	}
 
@@ -287,10 +281,6 @@ static noinline void do_low_address(struct pt_regs *regs)
 
 static noinline void do_sigbus(struct pt_regs *regs)
 {
-	/*
-	 * Send a sigbus, regardless of whether we were in kernel
-	 * or user mode.
-	 */
 	force_sig_fault(SIGBUS, BUS_ADRERR,
 			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK));
 }
@@ -349,10 +339,10 @@ static noinline void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
  * routines.
  *
  * interruption code (int_code):
- *   04       Protection           ->  Write-Protection  (suppression)
- *   10       Segment translation  ->  Not present       (nullification)
- *   11       Page translation     ->  Not present       (nullification)
- *   3b       Region third trans.  ->  Not present       (nullification)
+ *   04       Protection	   ->  Write-Protection  (suppression)
+ *   10       Segment translation  ->  Not present	 (nullification)
+ *   11       Page translation	   ->  Not present	 (nullification)
+ *   3b       Region third trans.  ->  Not present	 (nullification)
  */
 static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 {
@@ -372,19 +362,11 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 	 * been nullified. Don't signal single step via SIGTRAP.
 	 */
 	clear_thread_flag(TIF_PER_TRAP);
-
 	if (kprobe_page_fault(regs, 14))
 		return 0;
-
 	mm = tsk->mm;
 	address = get_fault_address(regs);
 	is_write = fault_is_write(regs);
-
-	/*
-	 * Verify that the fault happened in user space, that
-	 * we are not in an interrupt and that there is a 
-	 * user context.
-	 */
 	fault = VM_FAULT_BADCONTEXT;
 	type = get_fault_type(regs);
 	switch (type) {
@@ -396,7 +378,6 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 			goto out;
 		break;
 	}
-
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 	flags = FAULT_FLAG_DEFAULT;
 	if (user_mode(regs))
@@ -431,7 +412,6 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 	}
 lock_mmap:
 	mmap_read_lock(mm);
-
 	gmap = NULL;
 	if (IS_ENABLED(CONFIG_PGSTE) && type == GMAP_FAULT) {
 		gmap = (struct gmap *) S390_lowcore.gmap;
@@ -446,13 +426,11 @@ lock_mmap:
 		if (gmap->pfault_enabled)
 			flags |= FAULT_FLAG_RETRY_NOWAIT;
 	}
-
 retry:
 	fault = VM_FAULT_BADMAP;
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto out_up;
-
 	if (unlikely(vma->vm_start > address)) {
 		if (!(vma->vm_flags & VM_GROWSDOWN))
 			goto out_up;
@@ -460,20 +438,9 @@ retry:
 		if (!vma)
 			goto out;
 	}
-
-	/*
-	 * Ok, we have a good vm_area for this memory access, so
-	 * we can handle it..
-	 */
 	fault = VM_FAULT_BADACCESS;
 	if (unlikely(!(vma->vm_flags & access)))
 		goto out_up;
-
-	/*
-	 * If for any reason at all we couldn't handle the fault,
-	 * make sure we exit gracefully rather than endlessly redo
-	 * the fault.
-	 */
 	fault = handle_mm_fault(vma, address, flags, regs);
 	if (fault_signal_pending(fault, regs)) {
 		fault = VM_FAULT_SIGNAL;
@@ -481,7 +448,6 @@ retry:
 			goto out_up;
 		goto out;
 	}
-
 	/* The fault is fully completed (including releasing mmap lock) */
 	if (fault & VM_FAULT_COMPLETED) {
 		if (gmap) {
@@ -491,16 +457,14 @@ retry:
 		fault = 0;
 		goto out;
 	}
-
 	if (unlikely(fault & VM_FAULT_ERROR))
 		goto out_up;
-
 	if (fault & VM_FAULT_RETRY) {
 		if (IS_ENABLED(CONFIG_PGSTE) && gmap &&
 			(flags & FAULT_FLAG_RETRY_NOWAIT)) {
 			/*
-			 * FAULT_FLAG_RETRY_NOWAIT has been set, mmap_lock has
-			 * not been released
+			 * FAULT_FLAG_RETRY_NOWAIT has been set,
+			 * mmap_lock has not been released
 			 */
 			current->thread.gmap_pfault = 1;
 			fault = VM_FAULT_PFAULT;
@@ -592,11 +556,10 @@ void do_secure_storage_access(struct pt_regs *regs)
 	int rc;
 
 	/*
-	 * bit 61 tells us if the address is valid, if it's not we
-	 * have a major problem and should stop the kernel or send a
-	 * SIGSEGV to the process. Unfortunately bit 61 is not
-	 * reliable without the misc UV feature so we need to check
-	 * for that as well.
+	 * Bit 61 indicates if the address is valid, if it is not the
+	 * kernel should be stopped or SIGSEGV should be sent to the
+	 * process. Bit 61 is not reliable without the misc UV feature,
+	 * therefore this needs to be checked too.
 	 */
 	if (uv_has_feature(BIT_UV_FEAT_MISC) &&
 	    !test_bit_inv(61, &regs->int_parm_long)) {
@@ -609,14 +572,12 @@ void do_secure_storage_access(struct pt_regs *regs)
 			send_sig(SIGSEGV, current, 0);
 			return;
 		}
-
 		/*
-		 * The kernel should never run into this case and we
-		 * have no way out of this situation.
+		 * The kernel should never run into this case and
+		 * there is no way out of this situation.
 		 */
 		panic("Unexpected PGM 0x3d with TEID bit 61=0");
 	}
-
 	switch (get_fault_type(regs)) {
 	case GMAP_FAULT:
 		mm = current->mm;
@@ -674,7 +635,6 @@ void do_non_secure_storage_access(struct pt_regs *regs)
 		WARN_ON_ONCE(1);
 		return;
 	}
-
 	if (gmap_convert_to_secure(gmap, gaddr) == -EINVAL)
 		send_sig(SIGSEGV, current, 0);
 }
