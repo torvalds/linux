@@ -108,13 +108,6 @@ static inline struct rtsx_dev *host_to_rtsx(struct Scsi_Host *host)
 	return (struct rtsx_dev *)host->hostdata;
 }
 
-/*
- * The scsi_lock() and scsi_unlock() macros protect the sm_state and the
- * single queue element srb for write access
- */
-#define scsi_unlock(host)	spin_unlock_irq(host->host_lock)
-#define scsi_lock(host)		spin_lock_irq(host->host_lock)
-
 #define lock_state(chip)	spin_lock_irq(&((chip)->rtsx->reg_lock))
 #define unlock_state(chip)	spin_unlock_irq(&((chip)->rtsx->reg_lock))
 
