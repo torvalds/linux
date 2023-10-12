@@ -234,7 +234,7 @@ static void do_sigsegv(struct pt_regs *regs, int si_code)
 	force_sig_fault(SIGSEGV, si_code, (void __user *)get_fault_address(regs));
 }
 
-static void do_no_context(struct pt_regs *regs, vm_fault_t fault)
+static void do_no_context(struct pt_regs *regs)
 {
 	enum fault_type fault_type;
 	unsigned long address;
@@ -243,7 +243,7 @@ static void do_no_context(struct pt_regs *regs, vm_fault_t fault)
 	if (fixup_exception(regs))
 		return;
 	fault_type = get_fault_type(regs);
-	if ((fault_type == KERNEL_FAULT) && (fault == VM_FAULT_BADCONTEXT)) {
+	if (fault_type == KERNEL_FAULT) {
 		address = get_fault_address(regs);
 		is_write = fault_is_write(regs);
 		if (kfence_handle_page_fault(address, is_write, regs))
@@ -279,28 +279,28 @@ static void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
 		}
 		fallthrough;
 	case VM_FAULT_BADCONTEXT:
-		do_no_context(regs, fault);
+		do_no_context(regs);
 		break;
 	case VM_FAULT_SIGNAL:
 		if (!user_mode(regs))
-			do_no_context(regs, fault);
+			do_no_context(regs);
 		break;
 	default: /* fault & VM_FAULT_ERROR */
 		if (fault & VM_FAULT_OOM) {
 			if (!user_mode(regs))
-				do_no_context(regs, fault);
+				do_no_context(regs);
 			else
 				pagefault_out_of_memory();
 		} else if (fault & VM_FAULT_SIGSEGV) {
 			/* Kernel mode? Handle exceptions or die */
 			if (!user_mode(regs))
-				do_no_context(regs, fault);
+				do_no_context(regs);
 			else
 				do_sigsegv(regs, SEGV_MAPERR);
 		} else if (fault & VM_FAULT_SIGBUS) {
 			/* Kernel mode? Handle exceptions or die */
 			if (!user_mode(regs))
-				do_no_context(regs, fault);
+				do_no_context(regs);
 			else
 				do_sigbus(regs);
 		} else {
@@ -497,7 +497,7 @@ void do_protection_exception(struct pt_regs *regs)
 		 * Low-address protection in kernel mode means
 		 * NULL pointer write access in kernel mode.
 		 */
-		return do_no_context(regs, VM_FAULT_BADACCESS);
+		return do_no_context(regs);
 	}
 	if (unlikely(MACHINE_HAS_NX && teid.b56)) {
 		regs->int_parm_long = (teid.addr * PAGE_SIZE) | (regs->psw.addr & PAGE_MASK);
