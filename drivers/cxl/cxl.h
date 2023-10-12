@@ -321,6 +321,7 @@ enum cxl_decoder_type {
  */
 #define CXL_DECODER_MAX_INTERLEAVE 16
 
+#define CXL_QOS_CLASS_INVALID -1
 
 /**
  * struct cxl_decoder - Common CXL HDM Decoder Attributes
@@ -432,6 +433,7 @@ typedef struct cxl_dport *(*cxl_calc_hb_fn)(struct cxl_root_decoder *cxlrd,
  * @calc_hb: which host bridge covers the n'th position by granularity
  * @platform_data: platform specific configuration data
  * @range_lock: sync region autodiscovery by address range
+ * @qos_class: QoS performance class cookie
  * @cxlsd: base cxl switch decoder
  */
 struct cxl_root_decoder {
@@ -440,6 +442,7 @@ struct cxl_root_decoder {
 	cxl_calc_hb_fn calc_hb;
 	void *platform_data;
 	struct mutex range_lock;
+	int qos_class;
 	struct cxl_switch_decoder cxlsd;
 };
 
