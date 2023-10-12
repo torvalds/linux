@@ -1119,6 +1119,13 @@ static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
 	return adev->ip_versions[ip][inst] & ~0xFFU;
 }
 
+static inline uint32_t amdgpu_ip_version_full(const struct amdgpu_device *adev,
+					      uint8_t ip, uint8_t inst)
+{
+	/* This returns full version - major/minor/rev/variant/subrevision */
+	return adev->ip_versions[ip][inst];
+}
+
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
 {
 	return container_of(ddev, struct amdgpu_device, ddev);
