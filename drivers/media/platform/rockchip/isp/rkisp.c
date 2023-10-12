@@ -753,6 +753,16 @@ run_next:
 			writel(val, hw->base_addr + ISP3X_DRC_EXPLRATIO);
 			if (hw->unite == ISP_UNITE_TWO)
 				writel(val, hw->base_next_addr + ISP3X_DRC_EXPLRATIO);
+			val = rkisp_read_reg_cache(dev, ISP3X_YNR_GLOBAL_CTRL);
+			writel(val, hw->base_addr + ISP3X_YNR_GLOBAL_CTRL);
+			if (hw->unite == ISP_UNITE_TWO)
+				writel(val, hw->base_next_addr + ISP3X_YNR_GLOBAL_CTRL);
+			if (dev->isp_ver == ISP_V21 || dev->isp_ver == ISP_V30) {
+				val = rkisp_read_reg_cache(dev, ISP3X_CNR_CTRL);
+				writel(val, hw->base_addr + ISP3X_CNR_CTRL);
+				if (hw->unite == ISP_UNITE_TWO)
+					writel(val, hw->base_next_addr + ISP3X_CNR_CTRL);
+			}
 		} else {
 			/* the frame first running to off mi to save bandwidth */
 			rkisp_multi_overflow_hdl(dev, false);
