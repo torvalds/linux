@@ -27,7 +27,8 @@ int vgic_check_iorange(struct kvm *kvm, phys_addr_t ioaddr,
 	if (addr + size < addr)
 		return -EINVAL;
 
-	if (addr & ~kvm_phys_mask(kvm) || addr + size > kvm_phys_size(kvm))
+	if (addr & ~kvm_phys_mask(&kvm->arch.mmu) ||
+	    (addr + size) > kvm_phys_size(&kvm->arch.mmu))
 		return -E2BIG;
 
 	return 0;

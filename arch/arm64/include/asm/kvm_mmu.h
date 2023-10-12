@@ -150,9 +150,9 @@ static __always_inline unsigned long __kern_hyp_va(unsigned long v)
  */
 #define KVM_PHYS_SHIFT	(40)
 
-#define kvm_phys_shift(kvm)		VTCR_EL2_IPA(kvm->arch.vtcr)
-#define kvm_phys_size(kvm)		(_AC(1, ULL) << kvm_phys_shift(kvm))
-#define kvm_phys_mask(kvm)		(kvm_phys_size(kvm) - _AC(1, ULL))
+#define kvm_phys_shift(mmu)		VTCR_EL2_IPA((mmu)->vtcr)
+#define kvm_phys_size(mmu)		(_AC(1, ULL) << kvm_phys_shift(mmu))
+#define kvm_phys_mask(mmu)		(kvm_phys_size(mmu) - _AC(1, ULL))
 
 #include <asm/kvm_pgtable.h>
 #include <asm/stage2_pgtable.h>
@@ -299,7 +299,7 @@ static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
 static __always_inline void __load_stage2(struct kvm_s2_mmu *mmu,
 					  struct kvm_arch *arch)
 {
-	write_sysreg(arch->vtcr, vtcr_el2);
+	write_sysreg(mmu->vtcr, vtcr_el2);
 	write_sysreg(kvm_get_vttbr(mmu), vttbr_el2);
 
 	/*
