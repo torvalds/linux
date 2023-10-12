@@ -144,8 +144,8 @@ KUNIT_ARRAY_PARAM(gso_test, cases, gso_test_case_to_desc);
 static void gso_test_func(struct kunit *test)
 {
 	const int shinfo_size = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	struct sk_buff *skb, *segs, *cur, *next, *last;
 	const struct gso_test_case *tcase;
-	struct sk_buff *skb, *segs, *cur;
 	netdev_features_t features;
 	struct page *page;
 	int i;
@@ -236,7 +236,10 @@ static void gso_test_func(struct kunit *test)
 		goto free_gso_skb;
 	}
 
-	for (cur = segs, i = 0; cur; cur = cur->next, i++) {
+	last = segs->prev;
+	for (cur = segs, i = 0; cur; cur = next, i++) {
+		next = cur->next;
+
 		KUNIT_ASSERT_EQ(test, cur->len, sizeof(hdr) + tcase->segs[i]);
 
 		/* segs have skb->data pointing to the mac header */
@@ -247,13 +250,14 @@ static void gso_test_func(struct kunit *test)
 		KUNIT_ASSERT_EQ(test, memcmp(skb_mac_header(cur), hdr, sizeof(hdr)), 0);
 
 		/* last seg can be found through segs->prev pointer */
-		if (!cur->next)
-			KUNIT_ASSERT_PTR_EQ(test, cur, segs->prev);
+		if (!next)
+			KUNIT_ASSERT_PTR_EQ(test, cur, last);
+
+		consume_skb(cur);
 	}
 
 	KUNIT_ASSERT_EQ(test, i, tcase->nr_segs);
 
-	consume_skb(segs);
 free_gso_skb:
 	consume_skb(skb);
 }
