@@ -18,6 +18,7 @@
 #define DISP_AAL_EN				0x0000
 #define AAL_EN						BIT(0)
 #define DISP_AAL_CFG				0x0020
+#define AAL_RELAY_MODE					BIT(0)
 #define AAL_GAMMA_LUT_EN				BIT(1)
 #define DISP_AAL_SIZE				0x0030
 #define DISP_AAL_SIZE_HSIZE				GENMASK(28, 16)
@@ -118,6 +119,9 @@ void mtk_aal_gamma_set(struct device *dev, struct drm_crtc_state *state)
 
 	/* Enable the gamma table */
 	cfg_val |= FIELD_PREP(AAL_GAMMA_LUT_EN, 1);
+
+	/* Disable RELAY mode to pass the processed image */
+	cfg_val &= ~AAL_RELAY_MODE;
 
 	writel(cfg_val, aal->regs + DISP_AAL_CFG);
 }
