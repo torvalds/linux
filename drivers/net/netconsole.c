@@ -192,58 +192,6 @@ static struct netconsole_target *alloc_and_init(void)
 	return nt;
 }
 
-/* Allocate new target (from boot/module param) and setup netpoll for it */
-static struct netconsole_target *alloc_param_target(char *target_config)
-{
-	struct netconsole_target *nt;
-	int err;
-
-	nt = alloc_and_init();
-	if (!nt) {
-		err = -ENOMEM;
-		goto fail;
-	}
-
-	if (*target_config == '+') {
-		nt->extended = true;
-		target_config++;
-	}
-
-	if (*target_config == 'r') {
-		if (!nt->extended) {
-			pr_err("Netconsole configuration error. Release feature requires extended log message");
-			err = -EINVAL;
-			goto fail;
-		}
-		nt->release = true;
-		target_config++;
-	}
-
-	/* Parse parameters and setup netpoll */
-	err = netpoll_parse_options(&nt->np, target_config);
-	if (err)
-		goto fail;
-
-	err = netpoll_setup(&nt->np);
-	if (err)
-		goto fail;
-
-	nt->enabled = true;
-
-	return nt;
-
-fail:
-	kfree(nt);
-	return ERR_PTR(err);
-}
-
-/* Cleanup netpoll for given target (from boot/module param) and free it */
-static void free_param_target(struct netconsole_target *nt)
-{
-	netpoll_cleanup(&nt->np);
-	kfree(nt);
-}
-
 #ifdef	CONFIG_NETCONSOLE_DYNAMIC
 
 /*
@@ -936,6 +884,58 @@ static void write_msg(struct console *con, const char *msg, unsigned int len)
 		}
 	}
 	spin_unlock_irqrestore(&target_list_lock, flags);
+}
+
+/* Allocate new target (from boot/module param) and setup netpoll for it */
+static struct netconsole_target *alloc_param_target(char *target_config)
+{
+	struct netconsole_target *nt;
+	int err;
+
+	nt = alloc_and_init();
+	if (!nt) {
+		err = -ENOMEM;
+		goto fail;
+	}
+
+	if (*target_config == '+') {
+		nt->extended = true;
+		target_config++;
+	}
+
+	if (*target_config == 'r') {
+		if (!nt->extended) {
+			pr_err("Netconsole configuration error. Release feature requires extended log message");
+			err = -EINVAL;
+			goto fail;
+		}
+		nt->release = true;
+		target_config++;
+	}
+
+	/* Parse parameters and setup netpoll */
+	err = netpoll_parse_options(&nt->np, target_config);
+	if (err)
+		goto fail;
+
+	err = netpoll_setup(&nt->np);
+	if (err)
+		goto fail;
+
+	nt->enabled = true;
+
+	return nt;
+
+fail:
+	kfree(nt);
+	return ERR_PTR(err);
+}
+
+/* Cleanup netpoll for given target (from boot/module param) and free it */
+static void free_param_target(struct netconsole_target *nt)
+{
+	netpoll_cleanup(&nt->np);
+	kfree(nt);
 }
 
 static struct console netconsole_ext = {
