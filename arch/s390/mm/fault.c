@@ -53,7 +53,6 @@
 #define VM_FAULT_BADMAP		((__force vm_fault_t)0x40000000)
 #define VM_FAULT_BADACCESS	((__force vm_fault_t)0x20000000)
 #define VM_FAULT_SIGNAL		((__force vm_fault_t)0x10000000)
-#define VM_FAULT_PFAULT		((__force vm_fault_t)0x8000000)
 
 enum fault_type {
 	KERNEL_FAULT,
@@ -294,7 +293,6 @@ static void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
 		}
 		fallthrough;
 	case VM_FAULT_BADCONTEXT:
-	case VM_FAULT_PFAULT:
 		do_no_context(regs, fault);
 		break;
 	case VM_FAULT_SIGNAL:
@@ -459,7 +457,7 @@ retry:
 			 * mmap_lock has not been released
 			 */
 			current->thread.gmap_pfault = 1;
-			fault = VM_FAULT_PFAULT;
+			fault = VM_FAULT_BADCONTEXT;
 			goto out_up;
 		}
 		flags &= ~FAULT_FLAG_RETRY_NOWAIT;
