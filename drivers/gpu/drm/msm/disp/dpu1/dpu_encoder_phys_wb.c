@@ -34,6 +34,23 @@ static bool dpu_encoder_phys_wb_is_master(struct dpu_encoder_phys *phys_enc)
 	return true;
 }
 
+static bool _dpu_encoder_phys_wb_clk_force_ctrl(struct dpu_hw_wb *wb,
+						struct dpu_hw_mdp *mdp,
+						bool enable, bool *forced_on)
+{
+	if (wb->ops.setup_clk_force_ctrl) {
+		*forced_on = wb->ops.setup_clk_force_ctrl(wb, enable);
+		return true;
+	}
+
+	if (mdp->ops.setup_clk_force_ctrl) {
+		*forced_on = mdp->ops.setup_clk_force_ctrl(mdp, wb->caps->clk_ctrl, enable);
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * dpu_encoder_phys_wb_set_ot_limit - set OT limit for writeback interface
  * @phys_enc:	Pointer to physical encoder
@@ -43,6 +60,7 @@ static void dpu_encoder_phys_wb_set_ot_limit(
 {
 	struct dpu_hw_wb *hw_wb = phys_enc->hw_wb;
 	struct dpu_vbif_set_ot_params ot_params;
+	bool forced_on = false;
 
 	memset(&ot_params, 0, sizeof(ot_params));
 	ot_params.xin_id = hw_wb->caps->xin_id;
@@ -52,10 +70,17 @@ static void dpu_encoder_phys_wb_set_ot_limit(
 	ot_params.is_wfd = true;
 	ot_params.frame_rate = drm_mode_vrefresh(&phys_enc->cached_mode);
 	ot_params.vbif_idx = hw_wb->caps->vbif_idx;
-	ot_params.clk_ctrl = hw_wb->caps->clk_ctrl;
 	ot_params.rd = false;
 
+	if (!_dpu_encoder_phys_wb_clk_force_ctrl(hw_wb, phys_enc->dpu_kms->hw_mdp,
+						 true, &forced_on))
+		return;
+
 	dpu_vbif_set_ot_limit(phys_enc->dpu_kms, &ot_params);
+
+	if (forced_on)
+		_dpu_encoder_phys_wb_clk_force_ctrl(hw_wb, phys_enc->dpu_kms->hw_mdp,
+						    false, &forced_on);
 }
 
 /**
@@ -67,6 +92,7 @@ static void dpu_encoder_phys_wb_set_qos_remap(
 {
 	struct dpu_hw_wb *hw_wb;
 	struct dpu_vbif_set_qos_params qos_params;
+	bool forced_on = false;
 
 	if (!phys_enc || !phys_enc->parent || !phys_enc->parent->crtc) {
 		DPU_ERROR("invalid arguments\n");
@@ -83,7 +109,6 @@ static void dpu_encoder_phys_wb_set_qos_remap(
 	memset(&qos_params, 0, sizeof(qos_params));
 	qos_params.vbif_idx = hw_wb->caps->vbif_idx;
 	qos_params.xin_id = hw_wb->caps->xin_id;
-	qos_params.clk_ctrl = hw_wb->caps->clk_ctrl;
 	qos_params.num = hw_wb->idx - WB_0;
 	qos_params.is_rt = false;
 
@@ -92,7 +117,15 @@ static void dpu_encoder_phys_wb_set_qos_remap(
 			qos_params.vbif_idx,
 			qos_params.xin_id, qos_params.is_rt);
 
+	if (!_dpu_encoder_phys_wb_clk_force_ctrl(hw_wb, phys_enc->dpu_kms->hw_mdp,
+						 true, &forced_on))
+		return;
+
 	dpu_vbif_set_qos_remap(phys_enc->dpu_kms, &qos_params);
+
+	if (forced_on)
+		_dpu_encoder_phys_wb_clk_force_ctrl(hw_wb, phys_enc->dpu_kms->hw_mdp,
+						    false, &forced_on);
 }
 
 /**
