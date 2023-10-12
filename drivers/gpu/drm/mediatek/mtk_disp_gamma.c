@@ -23,8 +23,6 @@
 #define DISP_GAMMA_SIZE				0x0030
 #define DISP_GAMMA_LUT				0x0700
 
-#define LUT_10BIT_MASK				0x03ff
-
 struct mtk_disp_gamma_data {
 	bool has_dither;
 	bool lut_diff;
@@ -73,7 +71,6 @@ void mtk_gamma_set_common(struct device *dev, void __iomem *regs, struct drm_crt
 	bool lut_diff;
 	u16 lut_size;
 	u32 word;
-	u32 diff[3] = {0};
 
 	/* If there's no gamma lut there's nothing to do here. */
 	if (!state->gamma_lut)
@@ -96,20 +93,31 @@ void mtk_gamma_set_common(struct device *dev, void __iomem *regs, struct drm_crt
 	lut_base = regs + DISP_GAMMA_LUT;
 	lut = (struct drm_color_lut *)state->gamma_lut->data;
 	for (i = 0; i < lut_size; i++) {
-		if (!lut_diff || (i % 2 == 0)) {
-			word = (((lut[i].red >> 6) & LUT_10BIT_MASK) << 20) +
-				(((lut[i].green >> 6) & LUT_10BIT_MASK) << 10) +
-				((lut[i].blue >> 6) & LUT_10BIT_MASK);
-		} else {
-			diff[0] = (lut[i].red >> 6) - (lut[i - 1].red >> 6);
-			diff[1] = (lut[i].green >> 6) - (lut[i - 1].green >> 6);
-			diff[2] = (lut[i].blue >> 6) - (lut[i - 1].blue >> 6);
+		struct drm_color_lut diff, hwlut;
 
-			word = ((diff[0] & LUT_10BIT_MASK) << 20) +
-				((diff[1] & LUT_10BIT_MASK) << 10) +
-				(diff[2] & LUT_10BIT_MASK);
+		hwlut.red = drm_color_lut_extract(lut[i].red, 10);
+		hwlut.green = drm_color_lut_extract(lut[i].green, 10);
+		hwlut.blue = drm_color_lut_extract(lut[i].blue, 10);
+
+		if (!lut_diff || (i % 2 == 0)) {
+			word = (hwlut.red << 20) +
+			       (hwlut.green << 10) +
+			       hwlut.red;
+		} else {
+			diff.red = lut[i].red - lut[i - 1].red;
+			diff.red = drm_color_lut_extract(diff.red, 10);
+
+			diff.green = lut[i].green - lut[i - 1].green;
+			diff.green = drm_color_lut_extract(diff.green, 10);
+
+			diff.blue = lut[i].blue - lut[i - 1].blue;
+			diff.blue = drm_color_lut_extract(diff.blue, 10);
+
+			word = (diff.blue << 20) +
+			       (diff.green << 10) +
+			       diff.red;
 		}
-		writel(word, (lut_base + i * 4));
+		writel(word, lut_base + i * 4);
 	}
 }
 
