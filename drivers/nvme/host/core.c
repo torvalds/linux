@@ -421,7 +421,7 @@ void nvme_complete_rq(struct request *req)
 		nvme_failover_req(req);
 		return;
 	case AUTHENTICATE:
-#ifdef CONFIG_NVME_AUTH
+#ifdef CONFIG_NVME_HOST_AUTH
 		queue_work(nvme_wq, &ctrl->dhchap_auth_work);
 		nvme_retry_req(req);
 #else
