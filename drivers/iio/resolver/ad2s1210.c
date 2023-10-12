@@ -54,7 +54,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
@@ -1508,7 +1507,7 @@ MODULE_DEVICE_TABLE(spi, ad2s1210_id);
 static struct spi_driver ad2s1210_driver = {
 	.driver = {
 		.name = "ad2s1210",
-		.of_match_table = of_match_ptr(ad2s1210_of_match),
+		.of_match_table = ad2s1210_of_match,
 	},
 	.probe = ad2s1210_probe,
 	.id_table = ad2s1210_id,
