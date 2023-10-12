@@ -226,10 +226,10 @@ void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault)
 		return;
 	if (!__ratelimit(&rs))
 		return;
-	printk(KERN_ALERT "User process fault: interruption code %04x ilc:%d ",
-	       regs->int_code & 0xffff, regs->int_code >> 17);
+	pr_alert("User process fault: interruption code %04x ilc:%d ",
+		 regs->int_code & 0xffff, regs->int_code >> 17);
 	print_vma_addr(KERN_CONT "in ", regs->psw.addr);
-	printk(KERN_CONT "\n");
+	pr_cont("\n");
 	if (is_mm_fault)
 		dump_fault_info(regs);
 	show_regs(regs);
@@ -258,11 +258,9 @@ static noinline void do_no_context(struct pt_regs *regs, vm_fault_t fault)
 			return;
 	}
 	if (fault_type == KERNEL_FAULT)
-		printk(KERN_ALERT "Unable to handle kernel pointer dereference"
-		       " in virtual kernel address space\n");
+		pr_alert("Unable to handle kernel pointer dereference in virtual kernel address space\n");
 	else
-		printk(KERN_ALERT "Unable to handle kernel paging request"
-		       " in virtual user address space\n");
+		pr_alert("Unable to handle kernel paging request in virtual user address space\n");
 	dump_fault_info(regs);
 	die(regs, "Oops");
 }
