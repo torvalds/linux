@@ -1885,8 +1885,7 @@ static void tcpm_handle_vdm_request(struct tcpm_port *port,
 			}
 			break;
 		case ADEV_ATTENTION:
-			if (typec_altmode_attention(adev, p[1]))
-				tcpm_log(port, "typec_altmode_attention no port partner altmode");
+			typec_altmode_attention(adev, p[1]);
 			break;
 		}
 	}
