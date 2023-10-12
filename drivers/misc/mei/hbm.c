@@ -91,6 +91,8 @@ static int mei_cl_conn_status_to_errno(enum mei_cl_connect_status status)
  * @dev: mei device
  * @hdr: mei header
  * @data: payload
+ *
+ * Return: >=0 on success, <0 on error
  */
 static inline int mei_hbm_write_message(struct mei_device *dev,
 					struct mei_msg_hdr *hdr,
