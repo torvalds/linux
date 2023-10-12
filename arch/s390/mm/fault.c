@@ -51,7 +51,6 @@
  */
 #define VM_FAULT_BADMAP		((__force vm_fault_t)0x40000000)
 #define VM_FAULT_BADACCESS	((__force vm_fault_t)0x20000000)
-#define VM_FAULT_SIGNAL		((__force vm_fault_t)0x10000000)
 
 enum fault_type {
 	KERNEL_FAULT,
@@ -291,10 +290,6 @@ static void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
 		}
 		do_no_context(regs);
 		break;
-	case VM_FAULT_SIGNAL:
-		if (!user_mode(regs))
-			do_no_context(regs);
-		break;
 	default: /* fault & VM_FAULT_ERROR */
 		if (fault & VM_FAULT_OOM) {
 			if (!user_mode(regs))
@@ -393,8 +388,9 @@ static void do_exception(struct pt_regs *regs, int access)
 	count_vm_vma_lock_event(VMA_LOCK_RETRY);
 	/* Quick path to respond to signals */
 	if (fault_signal_pending(fault, regs)) {
-		fault = VM_FAULT_SIGNAL;
-		goto out;
+		if (!user_mode(regs))
+			handle_fault_error_nolock(regs);
+		return;
 	}
 lock_mmap:
 	mmap_read_lock(mm);
@@ -429,10 +425,11 @@ retry:
 		goto out_up;
 	fault = handle_mm_fault(vma, address, flags, regs);
 	if (fault_signal_pending(fault, regs)) {
-		fault = VM_FAULT_SIGNAL;
 		if (flags & FAULT_FLAG_RETRY_NOWAIT)
-			goto out_up;
-		goto out;
+			mmap_read_unlock(mm);
+		if (!user_mode(regs))
+			handle_fault_error_nolock(regs);
+		return;
 	}
 	/* The fault is fully completed (including releasing mmap lock) */
 	if (fault & VM_FAULT_COMPLETED) {
