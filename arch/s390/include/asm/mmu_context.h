@@ -22,7 +22,6 @@ static inline int init_new_context(struct task_struct *tsk,
 	unsigned long asce_type, init_entry;
 
 	spin_lock_init(&mm->context.lock);
-	INIT_LIST_HEAD(&mm->context.pgtable_list);
 	INIT_LIST_HEAD(&mm->context.gmap_list);
 	cpumask_clear(&mm->context.cpu_attach_mask);
 	atomic_set(&mm->context.flush_count, 0);
