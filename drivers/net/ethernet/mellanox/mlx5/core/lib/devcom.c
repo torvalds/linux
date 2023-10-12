@@ -401,3 +401,10 @@ void mlx5_devcom_comp_unlock(struct mlx5_devcom_comp_dev *devcom)
 		return;
 	up_write(&devcom->comp->sem);
 }
+
+int mlx5_devcom_comp_trylock(struct mlx5_devcom_comp_dev *devcom)
+{
+	if (IS_ERR_OR_NULL(devcom))
+		return 0;
+	return down_write_trylock(&devcom->comp->sem);
+}

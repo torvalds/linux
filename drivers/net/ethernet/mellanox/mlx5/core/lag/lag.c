@@ -943,6 +943,26 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 	}
 }
 
+/* The last mdev to unregister will destroy the workqueue before removing the
+ * devcom component, and as all the mdevs use the same devcom component we are
+ * guaranteed that the devcom is valid while the calling work is running.
+ */
+struct mlx5_devcom_comp_dev *mlx5_lag_get_devcom_comp(struct mlx5_lag *ldev)
+{
+	struct mlx5_devcom_comp_dev *devcom = NULL;
+	int i;
+
+	mutex_lock(&ldev->lock);
+	for (i = 0; i < ldev->ports; i++) {
+		if (ldev->pf[i].dev) {
+			devcom = ldev->pf[i].dev->priv.hca_devcom_comp;
+			break;
+		}
+	}
+	mutex_unlock(&ldev->lock);
+	return devcom;
+}
+
 static void mlx5_queue_bond_work(struct mlx5_lag *ldev, unsigned long delay)
 {
 	queue_delayed_work(ldev->wq, &ldev->bond_work, delay);
@@ -953,9 +973,14 @@ static void mlx5_do_bond_work(struct work_struct *work)
 	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct mlx5_lag *ldev = container_of(delayed_work, struct mlx5_lag,
 					     bond_work);
+	struct mlx5_devcom_comp_dev *devcom;
 	int status;
 
-	status = mlx5_dev_list_trylock();
+	devcom = mlx5_lag_get_devcom_comp(ldev);
+	if (!devcom)
+		return;
+
+	status = mlx5_devcom_comp_trylock(devcom);
 	if (!status) {
 		mlx5_queue_bond_work(ldev, HZ);
 		return;
@@ -964,14 +989,14 @@ static void mlx5_do_bond_work(struct work_struct *work)
 	mutex_lock(&ldev->lock);
 	if (ldev->mode_changes_in_progress) {
 		mutex_unlock(&ldev->lock);
-		mlx5_dev_list_unlock();
+		mlx5_devcom_comp_unlock(devcom);
 		mlx5_queue_bond_work(ldev, HZ);
 		return;
 	}
 
 	mlx5_do_bond(ldev);
 	mutex_unlock(&ldev->lock);
-	mlx5_dev_list_unlock();
+	mlx5_devcom_comp_unlock(devcom);
 }
 
 static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
@@ -1435,7 +1460,7 @@ void mlx5_lag_disable_change(struct mlx5_core_dev *dev)
 	if (!ldev)
 		return;
 
-	mlx5_dev_list_lock();
+	mlx5_devcom_comp_lock(dev->priv.hca_devcom_comp);
 	mutex_lock(&ldev->lock);
 
 	ldev->mode_changes_in_progress++;
@@ -1443,7 +1468,7 @@ void mlx5_lag_disable_change(struct mlx5_core_dev *dev)
 		mlx5_disable_lag(ldev);
 
 	mutex_unlock(&ldev->lock);
-	mlx5_dev_list_unlock();
+	mlx5_devcom_comp_unlock(dev->priv.hca_devcom_comp);
 }
 
 void mlx5_lag_enable_change(struct mlx5_core_dev *dev)

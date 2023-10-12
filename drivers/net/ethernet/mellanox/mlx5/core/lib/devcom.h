@@ -55,5 +55,6 @@ void *mlx5_devcom_get_next_peer_data_rcu(struct mlx5_devcom_comp_dev *devcom,
 
 void mlx5_devcom_comp_lock(struct mlx5_devcom_comp_dev *devcom);
 void mlx5_devcom_comp_unlock(struct mlx5_devcom_comp_dev *devcom);
+int mlx5_devcom_comp_trylock(struct mlx5_devcom_comp_dev *devcom);
 
 #endif /* __LIB_MLX5_DEVCOM_H__ */
