@@ -923,7 +923,7 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_DG2_IDS(&dg2_info),
 	INTEL_ATS_M_IDS(&ats_m_info),
 	INTEL_MTL_IDS(&mtl_info),
-	{0, 0, 0}
+	{}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
