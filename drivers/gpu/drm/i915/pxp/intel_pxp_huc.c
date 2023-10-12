@@ -18,8 +18,8 @@ int intel_pxp_huc_load_and_auth(struct intel_pxp *pxp)
 {
 	struct intel_gt *gt;
 	struct intel_huc *huc;
-	struct pxp43_start_huc_auth_in huc_in = {0};
-	struct pxp43_huc_auth_out huc_out = {0};
+	struct pxp43_start_huc_auth_in huc_in = {};
+	struct pxp43_huc_auth_out huc_out = {};
 	dma_addr_t huc_phys_addr;
 	u8 client_id = 0;
 	u8 fence_id = 0;
