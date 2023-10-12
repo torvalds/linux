@@ -255,7 +255,7 @@ static void hisi_gpio_get_pdata(struct device *dev,
 		hisi_gpio->irq = platform_get_irq(pdev, idx);
 
 		dev_info(dev,
-			 "get hisi_gpio[%d] with %d lines\n", idx,
+			 "get hisi_gpio[%d] with %u lines\n", idx,
 			 hisi_gpio->line_num);
 
 		idx++;
