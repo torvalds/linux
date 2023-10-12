@@ -2314,7 +2314,8 @@ static u32 vangogh_get_gfxoff_status(struct smu_context *smu)
 static int vangogh_get_power_limit(struct smu_context *smu,
 				   uint32_t *current_power_limit,
 				   uint32_t *default_power_limit,
-				   uint32_t *max_power_limit)
+				   uint32_t *max_power_limit,
+				   uint32_t *min_power_limit)
 {
 	struct smu_11_5_power_context *power_context =
 								smu->smu_power.power_context;
@@ -2336,6 +2337,8 @@ static int vangogh_get_power_limit(struct smu_context *smu,
 		*default_power_limit = ppt_limit / 1000;
 	if (max_power_limit)
 		*max_power_limit = 29;
+	if (min_power_limit)
+		*min_power_limit = 0;
 
 	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetFastPPTLimit, &ppt_limit);
 	if (ret) {

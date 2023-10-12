@@ -1309,9 +1309,10 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 }
 
 static int smu_v13_0_6_get_power_limit(struct smu_context *smu,
-				       uint32_t *current_power_limit,
-				       uint32_t *default_power_limit,
-				       uint32_t *max_power_limit)
+						uint32_t *current_power_limit,
+						uint32_t *default_power_limit,
+						uint32_t *max_power_limit,
+						uint32_t *min_power_limit)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct PPTable_t *pptable =
@@ -1335,6 +1336,8 @@ static int smu_v13_0_6_get_power_limit(struct smu_context *smu,
 		*max_power_limit = pptable->MaxSocketPowerLimit;
 	}
 
+	if (min_power_limit)
+		*min_power_limit = 0;
 	return 0;
 }
 

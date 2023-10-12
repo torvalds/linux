@@ -500,6 +500,7 @@ struct smu_context {
 	uint32_t current_power_limit;
 	uint32_t default_power_limit;
 	uint32_t max_power_limit;
+	uint32_t min_power_limit;
 
 	/* soft pptable */
 	uint32_t ppt_offset_bytes;
@@ -821,9 +822,10 @@ struct pptable_funcs {
 	 * @get_power_limit: Get the device's power limits.
 	 */
 	int (*get_power_limit)(struct smu_context *smu,
-			       uint32_t *current_power_limit,
-			       uint32_t *default_power_limit,
-			       uint32_t *max_power_limit);
+					uint32_t *current_power_limit,
+					uint32_t *default_power_limit,
+					uint32_t *max_power_limit,
+					uint32_t *min_power_limit);
 
 	/**
 	 * @get_ppt_limit: Get the device's ppt limits.
