@@ -864,6 +864,9 @@ struct rtw89_mac_gen_def {
 	struct rtw89_reg_def muedca_ctrl;
 	struct rtw89_reg_def bfee_ctrl;
 
+	void (*bf_assoc)(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta);
+
 	void (*disable_cpu)(struct rtw89_dev *rtwdev);
 	int (*fwdl_enable_wcpu)(struct rtw89_dev *rtwdev, u8 boot_reason,
 				bool dlfw, bool include_bb);
@@ -1038,8 +1041,17 @@ int rtw89_mac_cfg_ctrl_path(struct rtw89_dev *rtwdev, bool wl);
 int rtw89_mac_cfg_ctrl_path_v1(struct rtw89_dev *rtwdev, bool wl);
 void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter);
 void rtw89_mac_notify_wake(struct rtw89_dev *rtwdev);
+
+static inline
 void rtw89_mac_bf_assoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
-			struct ieee80211_sta *sta);
+			struct ieee80211_sta *sta)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (mac->bf_assoc)
+		mac->bf_assoc(rtwdev, vif, sta);
+}
+
 void rtw89_mac_bf_disassoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
 void rtw89_mac_bf_set_gid_table(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
@@ -1047,6 +1059,7 @@ void rtw89_mac_bf_set_gid_table(struct rtw89_dev *rtwdev, struct ieee80211_vif *
 void rtw89_mac_bf_monitor_calc(struct rtw89_dev *rtwdev,
 			       struct ieee80211_sta *sta, bool disconnect);
 void _rtw89_mac_bf_monitor_track(struct rtw89_dev *rtwdev);
+void rtw89_mac_bfee_ctrl(struct rtw89_dev *rtwdev, u8 mac_idx, bool en);
 int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_mac_vif_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_mac_set_hw_muedca_ctrl(struct rtw89_dev *rtwdev,

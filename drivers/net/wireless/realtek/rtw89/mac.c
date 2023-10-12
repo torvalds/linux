@@ -5208,7 +5208,7 @@ static void rtw89_mac_bfee_standby_timer(struct rtw89_dev *rtwdev, u8 mac_idx,
 	}
 }
 
-static void rtw89_mac_bfee_ctrl(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
+void rtw89_mac_bfee_ctrl(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 reg;
@@ -5225,7 +5225,7 @@ static void rtw89_mac_bfee_ctrl(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
 	}
 }
 
-static int rtw89_mac_init_bfee(struct rtw89_dev *rtwdev, u8 mac_idx)
+static int rtw89_mac_init_bfee_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
 	u32 reg;
 	u32 val32;
@@ -5267,9 +5267,9 @@ static int rtw89_mac_init_bfee(struct rtw89_dev *rtwdev, u8 mac_idx)
 	return 0;
 }
 
-static int rtw89_mac_set_csi_para_reg(struct rtw89_dev *rtwdev,
-				      struct ieee80211_vif *vif,
-				      struct ieee80211_sta *sta)
+static int rtw89_mac_set_csi_para_reg_ax(struct rtw89_dev *rtwdev,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_sta *sta)
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	u8 mac_idx = rtwvif->mac_idx;
@@ -5325,9 +5325,9 @@ static int rtw89_mac_set_csi_para_reg(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-static int rtw89_mac_csi_rrsc(struct rtw89_dev *rtwdev,
-			      struct ieee80211_vif *vif,
-			      struct ieee80211_sta *sta)
+static int rtw89_mac_csi_rrsc_ax(struct rtw89_dev *rtwdev,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta)
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	u32 rrsc = BIT(RTW89_MAC_BF_RRSC_6M) | BIT(RTW89_MAC_BF_RRSC_24M);
@@ -5364,17 +5364,18 @@ static int rtw89_mac_csi_rrsc(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-void rtw89_mac_bf_assoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
-			struct ieee80211_sta *sta)
+static void rtw89_mac_bf_assoc_ax(struct rtw89_dev *rtwdev,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_sta *sta)
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 
 	if (rtw89_sta_has_beamformer_cap(sta)) {
 		rtw89_debug(rtwdev, RTW89_DBG_BF,
 			    "initialize bfee for new association\n");
-		rtw89_mac_init_bfee(rtwdev, rtwvif->mac_idx);
-		rtw89_mac_set_csi_para_reg(rtwdev, vif, sta);
-		rtw89_mac_csi_rrsc(rtwdev, vif, sta);
+		rtw89_mac_init_bfee_ax(rtwdev, rtwvif->mac_idx);
+		rtw89_mac_set_csi_para_reg_ax(rtwdev, vif, sta);
+		rtw89_mac_csi_rrsc_ax(rtwdev, vif, sta);
 	}
 }
 
@@ -5764,6 +5765,8 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 		.mask = B_AX_BFMEE_HT_NDPA_EN | B_AX_BFMEE_VHT_NDPA_EN |
 			B_AX_BFMEE_HE_NDPA_EN,
 	},
+
+	.bf_assoc = rtw89_mac_bf_assoc_ax,
 
 	.disable_cpu = rtw89_mac_disable_cpu_ax,
 	.fwdl_enable_wcpu = rtw89_mac_enable_cpu_ax,
