@@ -604,7 +604,15 @@ static int adis16475_write_raw(struct iio_dev *indio_dev,
 	ADIS16475_MOD_CHAN_DELTA(IIO_DELTA_VELOCITY, IIO_MOD_ ## _mod, \
 			   ADIS16475_REG_ ## _mod ## _DELTVEL_L, ADIS16475_SCAN_DELTVEL_ ## _mod, 32, 32)
 
-static const struct iio_chan_spec adis16475_channels[] = {
+#define ADIS16475_DELTANG_CHAN_NO_SCAN(_mod) \
+	ADIS16475_MOD_CHAN_DELTA(IIO_DELTA_ANGL, IIO_MOD_ ## _mod, \
+			   ADIS16475_REG_ ## _mod ## _DELTANG_L, -1, 32, 32)
+
+#define ADIS16475_DELTVEL_CHAN_NO_SCAN(_mod) \
+	ADIS16475_MOD_CHAN_DELTA(IIO_DELTA_VELOCITY, IIO_MOD_ ## _mod, \
+			   ADIS16475_REG_ ## _mod ## _DELTVEL_L, -1, 32, 32)
+
+static const struct iio_chan_spec adis16477_channels[] = {
 	ADIS16475_GYRO_CHANNEL(X),
 	ADIS16475_GYRO_CHANNEL(Y),
 	ADIS16475_GYRO_CHANNEL(Z),
@@ -619,6 +627,23 @@ static const struct iio_chan_spec adis16475_channels[] = {
 	ADIS16475_DELTVEL_CHAN(Y),
 	ADIS16475_DELTVEL_CHAN(Z),
 	IIO_CHAN_SOFT_TIMESTAMP(13)
+};
+
+static const struct iio_chan_spec adis16475_channels[] = {
+	ADIS16475_GYRO_CHANNEL(X),
+	ADIS16475_GYRO_CHANNEL(Y),
+	ADIS16475_GYRO_CHANNEL(Z),
+	ADIS16475_ACCEL_CHANNEL(X),
+	ADIS16475_ACCEL_CHANNEL(Y),
+	ADIS16475_ACCEL_CHANNEL(Z),
+	ADIS16475_TEMP_CHANNEL(),
+	ADIS16475_DELTANG_CHAN_NO_SCAN(X),
+	ADIS16475_DELTANG_CHAN_NO_SCAN(Y),
+	ADIS16475_DELTANG_CHAN_NO_SCAN(Z),
+	ADIS16475_DELTVEL_CHAN_NO_SCAN(X),
+	ADIS16475_DELTVEL_CHAN_NO_SCAN(Y),
+	ADIS16475_DELTVEL_CHAN_NO_SCAN(Z),
+	IIO_CHAN_SOFT_TIMESTAMP(7)
 };
 
 enum adis16475_variant {
@@ -782,8 +807,8 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 	},
 	[ADIS16477_1] = {
 		.name = "adis16477-1",
-		.num_channels = ARRAY_SIZE(adis16475_channels),
-		.channels = adis16475_channels,
+		.num_channels = ARRAY_SIZE(adis16477_channels),
+		.channels = adis16477_channels,
 		.gyro_max_val = 1,
 		.gyro_max_scale = IIO_RAD_TO_DEGREE(160 << 16),
 		.accel_max_val = 1,
@@ -800,8 +825,8 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 	},
 	[ADIS16477_2] = {
 		.name = "adis16477-2",
-		.num_channels = ARRAY_SIZE(adis16475_channels),
-		.channels = adis16475_channels,
+		.num_channels = ARRAY_SIZE(adis16477_channels),
+		.channels = adis16477_channels,
 		.gyro_max_val = 1,
 		.gyro_max_scale = IIO_RAD_TO_DEGREE(40 << 16),
 		.accel_max_val = 1,
@@ -818,8 +843,8 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 	},
 	[ADIS16477_3] = {
 		.name = "adis16477-3",
-		.num_channels = ARRAY_SIZE(adis16475_channels),
-		.channels = adis16475_channels,
+		.num_channels = ARRAY_SIZE(adis16477_channels),
+		.channels = adis16477_channels,
 		.gyro_max_val = 1,
 		.gyro_max_scale = IIO_RAD_TO_DEGREE(10 << 16),
 		.accel_max_val = 1,
@@ -938,8 +963,8 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 	},
 	[ADIS16500] = {
 		.name = "adis16500",
-		.num_channels = ARRAY_SIZE(adis16475_channels),
-		.channels = adis16475_channels,
+		.num_channels = ARRAY_SIZE(adis16477_channels),
+		.channels = adis16477_channels,
 		.gyro_max_val = 1,
 		.gyro_max_scale = IIO_RAD_TO_DEGREE(10 << 16),
 		.accel_max_val = 392,
@@ -957,8 +982,8 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 	},
 	[ADIS16505_1] = {
 		.name = "adis16505-1",
-		.num_channels = ARRAY_SIZE(adis16475_channels),
-		.channels = adis16475_channels,
+		.num_channels = ARRAY_SIZE(adis16477_channels),
+		.channels = adis16477_channels,
 		.gyro_max_val = 1,
 		.gyro_max_scale = IIO_RAD_TO_DEGREE(160 << 16),
 		.accel_max_val = 78,
@@ -976,8 +1001,8 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 	},
 	[ADIS16505_2] = {
 		.name = "adis16505-2",
-		.num_channels = ARRAY_SIZE(adis16475_channels),
-		.channels = adis16475_channels,
+		.num_channels = ARRAY_SIZE(adis16477_channels),
+		.channels = adis16477_channels,
 		.gyro_max_val = 1,
 		.gyro_max_scale = IIO_RAD_TO_DEGREE(40 << 16),
 		.accel_max_val = 78,
@@ -995,8 +1020,8 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 	},
 	[ADIS16505_3] = {
 		.name = "adis16505-3",
-		.num_channels = ARRAY_SIZE(adis16475_channels),
-		.channels = adis16475_channels,
+		.num_channels = ARRAY_SIZE(adis16477_channels),
+		.channels = adis16477_channels,
 		.gyro_max_val = 1,
 		.gyro_max_scale = IIO_RAD_TO_DEGREE(10 << 16),
 		.accel_max_val = 78,
@@ -1014,8 +1039,8 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 	},
 	[ADIS16507_1] = {
 		.name = "adis16507-1",
-		.num_channels = ARRAY_SIZE(adis16475_channels),
-		.channels = adis16475_channels,
+		.num_channels = ARRAY_SIZE(adis16477_channels),
+		.channels = adis16477_channels,
 		.gyro_max_val = 1,
 		.gyro_max_scale = IIO_RAD_TO_DEGREE(160 << 16),
 		.accel_max_val = 392,
@@ -1033,8 +1058,8 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 	},
 	[ADIS16507_2] = {
 		.name = "adis16507-2",
-		.num_channels = ARRAY_SIZE(adis16475_channels),
-		.channels = adis16475_channels,
+		.num_channels = ARRAY_SIZE(adis16477_channels),
+		.channels = adis16477_channels,
 		.gyro_max_val = 1,
 		.gyro_max_scale = IIO_RAD_TO_DEGREE(40 << 16),
 		.accel_max_val = 392,
@@ -1052,8 +1077,8 @@ static const struct adis16475_chip_info adis16475_chip_info[] = {
 	},
 	[ADIS16507_3] = {
 		.name = "adis16507-3",
-		.num_channels = ARRAY_SIZE(adis16475_channels),
-		.channels = adis16475_channels,
+		.num_channels = ARRAY_SIZE(adis16477_channels),
+		.channels = adis16477_channels,
 		.gyro_max_val = 1,
 		.gyro_max_scale = IIO_RAD_TO_DEGREE(10 << 16),
 		.accel_max_val = 392,
