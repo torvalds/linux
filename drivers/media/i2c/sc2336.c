@@ -7,7 +7,7 @@
  * V0.0X01.0X01 first version
  */
 
-//#define DEBUG
+// #define DEBUG
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -192,10 +192,10 @@ static const struct regval sc2336_linear_10_1920x1080_30fps_regs[] = {
 	{0x3301, 0x09},
 	{0x3302, 0xff},
 	{0x3303, 0x10},
-	{0x3306, 0x60},
+	{0x3306, 0x68},
 	{0x3307, 0x02},
 	{0x330a, 0x01},
-	{0x330b, 0x10},
+	{0x330b, 0x18},
 	{0x330c, 0x16},
 	{0x330d, 0xff},
 	{0x3318, 0x02},
@@ -219,8 +219,8 @@ static const struct regval sc2336_linear_10_1920x1080_30fps_regs[] = {
 	{0x33b1, 0x80},
 	{0x33b2, 0x68},
 	{0x33b3, 0x42},
-	{0x33f9, 0x70},
-	{0x33fb, 0xd0},
+	{0x33f9, 0x78},
+	{0x33fb, 0xe0},
 	{0x33fc, 0x0f},
 	{0x33fd, 0x1f},
 	{0x349f, 0x03},
@@ -229,9 +229,9 @@ static const struct regval sc2336_linear_10_1920x1080_30fps_regs[] = {
 	{0x34a8, 0x42},
 	{0x34a9, 0x06},
 	{0x34aa, 0x01},
-	{0x34ab, 0x23},
+	{0x34ab, 0x28},
 	{0x34ac, 0x01},
-	{0x34ad, 0x84},
+	{0x34ad, 0x90},
 	{0x3630, 0xf4},
 	{0x3633, 0x22},
 	{0x3639, 0xf4},
@@ -242,9 +242,9 @@ static const struct regval sc2336_linear_10_1920x1080_30fps_regs[] = {
 	{0x3676, 0xed},
 	{0x367c, 0x09},
 	{0x367d, 0x0f},
-	{0x3690, 0x33},
-	{0x3691, 0x33},
-	{0x3692, 0x43},
+	{0x3690, 0x22},
+	{0x3691, 0x22},
+	{0x3692, 0x22},
 	{0x3698, 0x89},
 	{0x3699, 0x96},
 	{0x369a, 0xd0},
@@ -452,15 +452,15 @@ static int sc2336_set_gain_reg(struct sc2336 *sc2336, u32 gain)
 		coarse_dgain = 0x00;
 		fine_dgain = gain_factor * 128 / 1000;
 	} else if (gain_factor < 1000 * 4) {			/*2x ~ 4x gain*/
-		coarse_again = 0x01;
+		coarse_again = 0x08;
 		coarse_dgain = 0x00;
 		fine_dgain = gain_factor * 128 / 1000 / 2;
 	} else if (gain_factor < 1000 * 8) {			/*4x ~ 8x gain*/
-		coarse_again = 0x03;
+		coarse_again = 0x09;
 		coarse_dgain = 0x00;
 		fine_dgain = gain_factor * 128 / 1000 / 4;
 	} else if (gain_factor < 1000 * 16) {			/*8x ~ 16x gain*/
-		coarse_again = 0x07;
+		coarse_again = 0x0b;
 		coarse_dgain = 0x00;
 		fine_dgain = gain_factor * 128 / 1000 / 8;
 	} else if (gain_factor < 1000 * 32) {			/*16x ~ 32x gain*/
@@ -481,6 +481,7 @@ static int sc2336_set_gain_reg(struct sc2336 *sc2336, u32 gain)
 		coarse_dgain = 0x03;
 		fine_dgain = 0x80;
 	}
+	fine_dgain = fine_dgain / 4 * 4;
 	dev_dbg(&sc2336->client->dev,
 		"total_gain: 0x%x, d_gain: 0x%x, d_fine_gain: 0x%x, c_gain: 0x%x\n",
 		gain, coarse_dgain, fine_dgain, coarse_again);
@@ -1159,7 +1160,7 @@ static int sc2336_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = sc2336->cur_mode->height + ctrl->val - 8;
+		max = sc2336->cur_mode->height + ctrl->val - 6;
 		__v4l2_ctrl_modify_range(sc2336->exposure,
 					 sc2336->exposure->minimum, max,
 					 sc2336->exposure->step,
@@ -1282,7 +1283,7 @@ static int sc2336_initialize_controls(struct sc2336 *sc2336)
 					    V4L2_CID_VBLANK, vblank_def,
 					    SC2336_VTS_MAX - mode->height,
 					    1, vblank_def);
-	exposure_max = mode->vts_def - 8;
+	exposure_max = mode->vts_def - 6;
 	sc2336->exposure = v4l2_ctrl_new_std(handler, &sc2336_ctrl_ops,
 					      V4L2_CID_EXPOSURE, SC2336_EXPOSURE_MIN,
 					      exposure_max, SC2336_EXPOSURE_STEP,
