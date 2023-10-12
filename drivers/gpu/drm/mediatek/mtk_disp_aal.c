@@ -19,7 +19,7 @@
 #define AAL_EN						BIT(0)
 #define DISP_AAL_SIZE				0x0030
 #define DISP_AAL_OUTPUT_SIZE			0x04d8
-
+#define DISP_AAL_LUT_SIZE			512
 
 struct mtk_disp_aal_data {
 	bool has_gamma;
@@ -54,6 +54,21 @@ void mtk_aal_config(struct device *dev, unsigned int w,
 
 	mtk_ddp_write(cmdq_pkt, w << 16 | h, &aal->cmdq_reg, aal->regs, DISP_AAL_SIZE);
 	mtk_ddp_write(cmdq_pkt, w << 16 | h, &aal->cmdq_reg, aal->regs, DISP_AAL_OUTPUT_SIZE);
+}
+
+/**
+ * mtk_aal_gamma_get_lut_size() - Get gamma LUT size for AAL
+ * @dev: Pointer to struct device
+ *
+ * Return: 0 if gamma control not supported in AAL or gamma LUT size
+ */
+unsigned int mtk_aal_gamma_get_lut_size(struct device *dev)
+{
+	struct mtk_disp_aal *aal = dev_get_drvdata(dev);
+
+	if (aal->data && aal->data->has_gamma)
+		return DISP_AAL_LUT_SIZE;
+	return 0;
 }
 
 void mtk_aal_gamma_set(struct device *dev, struct drm_crtc_state *state)

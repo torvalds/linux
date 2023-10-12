@@ -1002,8 +1002,12 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 		mtk_crtc->ddp_comp[i] = comp;
 
 		if (comp->funcs) {
-			if (comp->funcs->gamma_set)
-				gamma_lut_size = MTK_LUT_SIZE;
+			if (comp->funcs->gamma_set && comp->funcs->gamma_get_lut_size) {
+				unsigned int lut_sz = mtk_ddp_gamma_get_lut_size(comp);
+
+				if (lut_sz)
+					gamma_lut_size = lut_sz;
+			}
 
 			if (comp->funcs->ctm_set)
 				has_ctm = true;
