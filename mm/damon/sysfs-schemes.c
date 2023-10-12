@@ -1904,6 +1904,22 @@ int damon_sysfs_schemes_update_regions_start(
 	return 0;
 }
 
+bool damos_sysfs_regions_upd_done(void)
+{
+	struct damon_sysfs_schemes *sysfs_schemes =
+		damon_sysfs_schemes_for_damos_callback;
+	struct damon_sysfs_scheme_regions *sysfs_regions;
+	int i;
+
+	for (i = 0; i < sysfs_schemes->nr; i++) {
+		sysfs_regions = sysfs_schemes->schemes_arr[i]->tried_regions;
+		if (sysfs_regions->upd_status !=
+				DAMOS_TRIED_REGIONS_UPD_FINISHED)
+			return false;
+	}
+	return true;
+}
+
 /*
  * Called from damon_sysfs_cmd_request_callback under damon_sysfs_lock.  Caller
  * should unlock damon_sysfs_lock which held before
