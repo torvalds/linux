@@ -19,13 +19,10 @@
 #include <sound/sof.h>
 #include <sound/soc-acpi.h>
 #include <dt-bindings/sound/cs42l42.h>
-#include "../../codecs/hdac_hdmi.h"
 #include "../common/soc-intel-quirks.h"
 #include "hda_dsp_common.h"
 #include "sof_maxim_common.h"
 #include "sof_ssp_common.h"
-
-#define NAME_SIZE 32
 
 #define SOF_CS42L42_SSP_CODEC(quirk)		((quirk) & GENMASK(2, 0))
 #define SOF_CS42L42_SSP_CODEC_MASK		(GENMASK(2, 0))
@@ -73,14 +70,11 @@ static unsigned long sof_cs42l42_quirk = SOF_CS42L42_SSP_CODEC(2);
 struct sof_hdmi_pcm {
 	struct list_head head;
 	struct snd_soc_dai *codec_dai;
-	struct snd_soc_jack hdmi_jack;
-	int device;
 };
 
 struct sof_card_private {
 	struct snd_soc_jack headset_jack;
 	struct list_head hdmi_pcm_list;
-	bool common_hdmi_codec_drv;
 	enum sof_ssp_codec codec_type;
 	enum sof_ssp_codec amp_type;
 };
@@ -95,8 +89,6 @@ static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 	if (!pcm)
 		return -ENOMEM;
 
-	/* dai_link id is 1:1 mapped to the PCM device */
-	pcm->device = rtd->dai_link->id;
 	pcm->codec_dai = dai;
 
 	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
@@ -186,37 +178,14 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_component *component = NULL;
-	char jack_name[NAME_SIZE];
 	struct sof_hdmi_pcm *pcm;
-	int err;
 
 	if (list_empty(&ctx->hdmi_pcm_list))
 		return -EINVAL;
 
-	if (ctx->common_hdmi_codec_drv) {
-		pcm = list_first_entry(&ctx->hdmi_pcm_list, struct sof_hdmi_pcm,
-				       head);
-		component = pcm->codec_dai->component;
-		return hda_dsp_hdmi_build_controls(card, component);
-	}
-
-	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
-		component = pcm->codec_dai->component;
-		snprintf(jack_name, sizeof(jack_name),
-			 "HDMI/DP, pcm=%d Jack", pcm->device);
-		err = snd_soc_card_jack_new(card, jack_name,
-					    SND_JACK_AVOUT, &pcm->hdmi_jack);
-
-		if (err)
-			return err;
-
-		err = hdac_hdmi_jack_init(pcm->codec_dai, pcm->device,
-					  &pcm->hdmi_jack);
-		if (err < 0)
-			return err;
-	}
-
-	return hdac_hdmi_jack_port_init(component, &card->dapm);
+	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct sof_hdmi_pcm, head);
+	component = pcm->codec_dai->component;
+	return hda_dsp_hdmi_build_controls(card, component);
 }
 
 static const struct snd_kcontrol_new sof_controls[] = {
@@ -478,7 +447,7 @@ static int create_hdmi_dai_links(struct device *dev,
 		links[*id].num_codecs = 1;
 		links[*id].platforms = platform_component;
 		links[*id].num_platforms = ARRAY_SIZE(platform_component);
-		links[*id].init = sof_hdmi_init;
+		links[*id].init = (i == 1) ? sof_hdmi_init : NULL;
 		links[*id].dpcm_playback = 1;
 		links[*id].no_pcm = 1;
 
@@ -611,8 +580,8 @@ devm_err:
 
 static int sof_audio_probe(struct platform_device *pdev)
 {
+	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
-	struct snd_soc_acpi_mach *mach;
 	struct sof_card_private *ctx;
 	int dmic_be_num, hdmi_num;
 	int ret, ssp_bt, ssp_amp, ssp_codec;
@@ -623,8 +592,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_cs42l42_quirk = (unsigned long)pdev->id_entry->driver_data;
-
-	mach = pdev->dev.platform_data;
 
 	ctx->codec_type = sof_ssp_detect_codec_type(&pdev->dev);
 	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
@@ -676,8 +643,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 						    mach->mach_params.platform);
 	if (ret)
 		return ret;
-
-	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
 
 	snd_soc_card_set_drvdata(&sof_audio_card_cs42l42, ctx);
 
