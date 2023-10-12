@@ -23,7 +23,7 @@
 
 #define DRV_NAME		"rockchip-sai"
 
-#define CLK_SHIFT_RATE_HZ_MAX	1 /* 1 Hz */
+#define CLK_SHIFT_RATE_HZ_MAX	5
 #define FW_RATIO_MAX		8
 #define FW_RATIO_MIN		1
 #define MAXBURST_PER_FIFO	8
@@ -423,7 +423,7 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
 	struct snd_dmaengine_dai_dma_data *dma_data;
-	unsigned int mclk_rate, bclk_rate, div_bclk;
+	unsigned int mclk_rate, mclk_req_rate, bclk_rate, div_bclk;
 	unsigned int ch_per_lane, lanes, slot_width;
 	unsigned int val, fscr, reg;
 
@@ -498,14 +498,15 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 		if (sai->is_clk_auto)
 			clk_set_rate(sai->mclk, bclk_rate);
 		mclk_rate = clk_get_rate(sai->mclk);
-		if (mclk_rate < bclk_rate - CLK_SHIFT_RATE_HZ_MAX ||
-		    mclk_rate > bclk_rate + CLK_SHIFT_RATE_HZ_MAX) {
+		div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
+		mclk_req_rate = bclk_rate * div_bclk;
+
+		if (mclk_rate < mclk_req_rate - CLK_SHIFT_RATE_HZ_MAX ||
+		    mclk_rate > mclk_req_rate + CLK_SHIFT_RATE_HZ_MAX) {
 			dev_err(sai->dev, "Mismatch mclk: %u, expected %u (+/- %dHz)\n",
-				mclk_rate, bclk_rate, CLK_SHIFT_RATE_HZ_MAX);
+				mclk_rate, mclk_req_rate, CLK_SHIFT_RATE_HZ_MAX);
 			return -EINVAL;
 		}
-
-		div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
 
 		regmap_update_bits(sai->regmap, SAI_CKR, SAI_CKR_MDIV_MASK,
 				   SAI_CKR_MDIV(div_bclk));
