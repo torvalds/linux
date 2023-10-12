@@ -661,9 +661,8 @@ void do_secure_storage_violation(struct pt_regs *regs)
 	 * This exception is only triggered when a guest 2 is running
 	 * and can therefore never occur in kernel context.
 	 */
-	printk_ratelimited(KERN_WARNING
-			   "Secure storage violation in task: %s, pid %d\n",
-			   current->comm, current->pid);
+	pr_warn_ratelimited("Secure storage violation in task: %s, pid %d\n",
+			    current->comm, current->pid);
 	send_sig(SIGSEGV, current, 0);
 }
 
