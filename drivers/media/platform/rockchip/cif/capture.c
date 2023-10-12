@@ -515,6 +515,10 @@ static const struct cif_input_fmt in_fmts[] = {
 		.csi_fmt_val	= CSI_WRDDR_TYPE_RGB888,
 		.field		= V4L2_FIELD_NONE,
 	}, {
+		.mbus_code	= MEDIA_BUS_FMT_GBR888_1X24,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RGB888,
+		.field		= V4L2_FIELD_NONE,
+	}, {
 		.mbus_code	= MEDIA_BUS_FMT_RGB565_1X16,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_RGB565,
 		.field		= V4L2_FIELD_NONE,
@@ -611,6 +615,7 @@ static int rkcif_output_fmt_check(struct rkcif_stream *stream,
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
 	case MEDIA_BUS_FMT_BGR888_1X24:
+	case MEDIA_BUS_FMT_GBR888_1X24:
 		if (output_fmt->fourcc == V4L2_PIX_FMT_RGB24 ||
 		    output_fmt->fourcc == V4L2_PIX_FMT_BGR24)
 			ret = 0;
@@ -801,6 +806,7 @@ static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en, u8 dsi_input
 		return 0x1e;
 	case MEDIA_BUS_FMT_RGB888_1X24:
 	case MEDIA_BUS_FMT_BGR888_1X24:
+	case MEDIA_BUS_FMT_GBR888_1X24:
 		if (dsi_input) {
 			if (cmd_mode_en) /* dsi command mode*/
 				return 0x39;
@@ -4735,7 +4741,9 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 						       pad, enum_frame_interval,
 						       NULL, &fie);
 				if (!ret) {
-					if (fie.code == MEDIA_BUS_FMT_RGB888_1X24)
+					if (fie.code == MEDIA_BUS_FMT_RGB888_1X24 ||
+					    fie.code == MEDIA_BUS_FMT_BGR888_1X24 ||
+					    fie.code == MEDIA_BUS_FMT_GBR888_1X24)
 						size = fie.width * fie.height * 3;
 					else
 						size = fie.width * fie.height * 2;
@@ -4758,7 +4766,9 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 		ret = v4l2_subdev_call(dev->terminal_sensor.sd,
 				       pad, get_fmt, NULL, &fmt);
 		if (!ret) {
-			if (fmt.format.code == MEDIA_BUS_FMT_RGB888_1X24)
+			if (fmt.format.code == MEDIA_BUS_FMT_RGB888_1X24 ||
+			    fmt.format.code == MEDIA_BUS_FMT_BGR888_1X24 ||
+			    fmt.format.code == MEDIA_BUS_FMT_GBR888_1X24)
 				size = fmt.format.width  * fmt.format.height * 3;
 			else
 				size = fmt.format.width * fmt.format.height * 2;
