@@ -1623,6 +1623,13 @@ INSTALL_MOD_STRIP
   INSTALL_MOD_STRIP value will be used as the option(s) to the strip
   command.
 
+INSTALL_DTBS_PATH
+  This variable specifies a prefix for relocations required by build
+  roots. It defines a place for installing the device tree blobs. Like
+  INSTALL_MOD_PATH, it isn't defined in the Makefile, but can be passed
+  by the user if desired. Otherwise it defaults to the kernel install
+  path.
+
 Makefile language
 =================
 
