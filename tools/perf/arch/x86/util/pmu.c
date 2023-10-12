@@ -23,7 +23,7 @@ void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
 	if (!strcmp(pmu->name, INTEL_PT_PMU_NAME)) {
 		pmu->auxtrace = true;
 		pmu->selectable = true;
-		pmu->default_config = intel_pt_pmu_default_config(pmu);
+		pmu->perf_event_attr_init_default = intel_pt_pmu_default_config;
 	}
 	if (!strcmp(pmu->name, INTEL_BTS_PMU_NAME)) {
 		pmu->auxtrace = true;

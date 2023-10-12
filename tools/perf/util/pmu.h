@@ -92,10 +92,11 @@ struct perf_pmu {
 	 */
 	int max_precise;
 	/**
-	 * @default_config: Optional default perf_event_attr determined in
-	 * architecture specific code.
+	 * @perf_event_attr_init_default: Optional function to default
+	 * initialize PMU specific parts of the perf_event_attr.
 	 */
-	struct perf_event_attr *default_config;
+	void (*perf_event_attr_init_default)(const struct perf_pmu *pmu,
+					     struct perf_event_attr *attr);
 	/**
 	 * @cpus: Empty or the contents of either of:
 	 * <sysfs>/bus/event_source/devices/<name>/cpumask.

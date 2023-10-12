@@ -1402,7 +1402,7 @@ int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 		     struct parse_events_terms *head_terms,
 		     struct parse_events_error *err)
 {
-	bool zero = !!pmu->default_config;
+	bool zero = !!pmu->perf_event_attr_init_default;
 
 	return perf_pmu__config_terms(pmu, attr, head_terms, zero, err);
 }
@@ -2064,7 +2064,6 @@ void perf_pmu__delete(struct perf_pmu *pmu)
 
 	perf_cpu_map__put(pmu->cpus);
 
-	zfree(&pmu->default_config);
 	zfree(&pmu->name);
 	zfree(&pmu->alias_name);
 	zfree(&pmu->id);

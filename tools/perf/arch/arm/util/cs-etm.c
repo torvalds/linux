@@ -917,16 +917,9 @@ out:
  * (CFG_CHG and evsel__set_config_if_unset()). If no default is set then user
  * changes aren't tracked.
  */
-struct perf_event_attr *
-cs_etm_get_default_config(struct perf_pmu *pmu __maybe_unused)
+void
+cs_etm_get_default_config(const struct perf_pmu *pmu __maybe_unused,
+			  struct perf_event_attr *attr)
 {
-	struct perf_event_attr *attr;
-
-	attr = zalloc(sizeof(struct perf_event_attr));
-	if (!attr)
-		return NULL;
-
 	attr->sample_period = 1;
-
-	return attr;
 }

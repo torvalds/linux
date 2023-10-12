@@ -1418,11 +1418,10 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	}
 	fix_raw(&parsed_terms, pmu);
 
-	if (pmu->default_config) {
-		memcpy(&attr, pmu->default_config, sizeof(struct perf_event_attr));
-	} else {
-		memset(&attr, 0, sizeof(attr));
-	}
+	memset(&attr, 0, sizeof(attr));
+	if (pmu->perf_event_attr_init_default)
+		pmu->perf_event_attr_init_default(pmu, &attr);
+
 	attr.type = pmu->type;
 
 	if (list_empty(&parsed_terms.terms)) {
@@ -1466,7 +1465,8 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	 * When using default config, record which bits of attr->config were
 	 * changed by the user.
 	 */
-	if (pmu->default_config && get_config_chgs(pmu, &parsed_terms, &config_terms)) {
+	if (pmu->perf_event_attr_init_default &&
+	    get_config_chgs(pmu, &parsed_terms, &config_terms)) {
 		parse_events_terms__exit(&parsed_terms);
 		return -ENOMEM;
 	}
