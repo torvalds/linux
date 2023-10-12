@@ -2221,21 +2221,28 @@ F:	arch/arm/boot/dts/ti/omap/omap3-igep*
 ARM/INTEL IXP4XX ARM ARCHITECTURE
 M:	Linus Walleij <linusw@kernel.org>
 M:	Imre Kaloz <kaloz@openwrt.org>
-M:	Krzysztof Halasa <khalasa@piap.pl>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/devicetree/bindings/arm/intel-ixp4xx.yaml
 F:	Documentation/devicetree/bindings/gpio/intel,ixp4xx-gpio.txt
 F:	Documentation/devicetree/bindings/interrupt-controller/intel,ixp4xx-interrupt.yaml
 F:	Documentation/devicetree/bindings/memory-controllers/intel,ixp4xx-expansion*
+F:	Documentation/devicetree/bindings/rng/intel,ixp46x-rng.yaml
 F:	Documentation/devicetree/bindings/timer/intel,ixp4xx-timer.yaml
 F:	arch/arm/boot/dts/intel/ixp/
 F:	arch/arm/mach-ixp4xx/
 F:	drivers/bus/intel-ixp4xx-eb.c
+F:	drivers/char/hw_random/ixp4xx-rng.c
 F:	drivers/clocksource/timer-ixp4xx.c
 F:	drivers/crypto/intel/ixp4xx/ixp4xx_crypto.c
 F:	drivers/gpio/gpio-ixp4xx.c
 F:	drivers/irqchip/irq-ixp4xx.c
+F:	drivers/net/ethernet/xscale/ixp4xx_eth.c
+F:	drivers/net/wan/ixp4xx_hss.c
+F:	drivers/soc/ixp4xx/ixp4xx-npe.c
+F:	drivers/soc/ixp4xx/ixp4xx-qmgr.c
+F:	include/linux/soc/ixp4xx/npe.h
+F:	include/linux/soc/ixp4xx/qmgr.h
 
 ARM/INTEL KEEMBAY ARCHITECTURE
 M:	Paul J. Murphy <paul.j.murphy@intel.com>
@@ -2337,7 +2344,7 @@ F:	drivers/rtc/rtc-mt7622.c
 
 ARM/Mediatek SoC support
 M:	Matthias Brugger <matthias.bgg@gmail.com>
-R:	AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+M:	AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
 L:	linux-kernel@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
@@ -10629,22 +10636,6 @@ M:	Corentin Labbe <clabbe@baylibre.com>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	drivers/crypto/intel/ixp4xx/ixp4xx_crypto.c
-
-INTEL IXP4XX QMGR, NPE, ETHERNET and HSS SUPPORT
-M:	Krzysztof Halasa <khalasa@piap.pl>
-S:	Maintained
-F:	drivers/net/ethernet/xscale/ixp4xx_eth.c
-F:	drivers/net/wan/ixp4xx_hss.c
-F:	drivers/soc/ixp4xx/ixp4xx-npe.c
-F:	drivers/soc/ixp4xx/ixp4xx-qmgr.c
-F:	include/linux/soc/ixp4xx/npe.h
-F:	include/linux/soc/ixp4xx/qmgr.h
-
-INTEL IXP4XX RANDOM NUMBER GENERATOR SUPPORT
-M:	Deepak Saxena <dsaxena@plexity.net>
-S:	Maintained
-F:	Documentation/devicetree/bindings/rng/intel,ixp46x-rng.yaml
-F:	drivers/char/hw_random/ixp4xx-rng.c
 
 INTEL KEEM BAY DRM DRIVER
 M:	Anitha Chrisanthus <anitha.chrisanthus@intel.com>
