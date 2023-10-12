@@ -418,12 +418,6 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 		return -ENOMEM;
 	}
 
-	priv->rx_res = mlx5e_rx_res_alloc();
-	if (!priv->rx_res) {
-		err = -ENOMEM;
-		goto err_free_fs;
-	}
-
 	mlx5e_create_q_counters(priv);
 
 	err = mlx5e_open_drop_rq(priv, &priv->drop_rq);
@@ -432,12 +426,13 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 		goto err_destroy_q_counters;
 	}
 
-	err = mlx5e_rx_res_init(priv->rx_res, priv->mdev, 0,
-				priv->max_nch, priv->drop_rq.rqn,
-				&priv->channels.params.packet_merge,
-				priv->channels.params.num_channels);
-	if (err)
+	priv->rx_res = mlx5e_rx_res_create(priv->mdev, 0, priv->max_nch, priv->drop_rq.rqn,
+					   &priv->channels.params.packet_merge,
+					   priv->channels.params.num_channels);
+	if (IS_ERR(priv->rx_res)) {
+		err = PTR_ERR(priv->rx_res);
 		goto err_close_drop_rq;
+	}
 
 	err = mlx5i_create_flow_steering(priv);
 	if (err)
@@ -447,13 +442,11 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 
 err_destroy_rx_res:
 	mlx5e_rx_res_destroy(priv->rx_res);
+	priv->rx_res = ERR_PTR(-EINVAL);
 err_close_drop_rq:
 	mlx5e_close_drop_rq(&priv->drop_rq);
 err_destroy_q_counters:
 	mlx5e_destroy_q_counters(priv);
-	mlx5e_rx_res_free(priv->rx_res);
-	priv->rx_res = NULL;
-err_free_fs:
 	mlx5e_fs_cleanup(priv->fs);
 	return err;
 }
@@ -462,10 +455,9 @@ static void mlx5i_cleanup_rx(struct mlx5e_priv *priv)
 {
 	mlx5i_destroy_flow_steering(priv);
 	mlx5e_rx_res_destroy(priv->rx_res);
+	priv->rx_res = ERR_PTR(-EINVAL);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_destroy_q_counters(priv);
-	mlx5e_rx_res_free(priv->rx_res);
-	priv->rx_res = NULL;
 	mlx5e_fs_cleanup(priv->fs);
 }
 

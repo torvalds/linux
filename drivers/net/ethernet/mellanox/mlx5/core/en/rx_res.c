@@ -284,7 +284,12 @@ struct mlx5e_rss *mlx5e_rx_res_rss_get(struct mlx5e_rx_res *res, u32 rss_idx)
 
 /* End of API rx_res_rss_* */
 
-struct mlx5e_rx_res *mlx5e_rx_res_alloc(void)
+static void mlx5e_rx_res_free(struct mlx5e_rx_res *res)
+{
+	kvfree(res);
+}
+
+static struct mlx5e_rx_res *mlx5e_rx_res_alloc(void)
 {
 	return kvzalloc(sizeof(struct mlx5e_rx_res), GFP_KERNEL);
 }
@@ -404,12 +409,18 @@ static void mlx5e_rx_res_ptp_destroy(struct mlx5e_rx_res *res)
 	mlx5e_rqt_destroy(&res->ptp.rqt);
 }
 
-int mlx5e_rx_res_init(struct mlx5e_rx_res *res, struct mlx5_core_dev *mdev,
-		      enum mlx5e_rx_res_features features, unsigned int max_nch,
-		      u32 drop_rqn, const struct mlx5e_packet_merge_param *init_pkt_merge_param,
-		      unsigned int init_nch)
+struct mlx5e_rx_res *
+mlx5e_rx_res_create(struct mlx5_core_dev *mdev, enum mlx5e_rx_res_features features,
+		    unsigned int max_nch, u32 drop_rqn,
+		    const struct mlx5e_packet_merge_param *init_pkt_merge_param,
+		    unsigned int init_nch)
 {
+	struct mlx5e_rx_res *res;
 	int err;
+
+	res = mlx5e_rx_res_alloc();
+	if (!res)
+		return ERR_PTR(-ENOMEM);
 
 	res->mdev = mdev;
 	res->features = features;
@@ -421,7 +432,7 @@ int mlx5e_rx_res_init(struct mlx5e_rx_res *res, struct mlx5_core_dev *mdev,
 
 	err = mlx5e_rx_res_rss_init_def(res, init_nch);
 	if (err)
-		goto err_out;
+		goto err_rx_res_free;
 
 	err = mlx5e_rx_res_channels_init(res);
 	if (err)
@@ -431,14 +442,15 @@ int mlx5e_rx_res_init(struct mlx5e_rx_res *res, struct mlx5_core_dev *mdev,
 	if (err)
 		goto err_channels_destroy;
 
-	return 0;
+	return res;
 
 err_channels_destroy:
 	mlx5e_rx_res_channels_destroy(res);
 err_rss_destroy:
 	__mlx5e_rx_res_rss_destroy(res, 0);
-err_out:
-	return err;
+err_rx_res_free:
+	mlx5e_rx_res_free(res);
+	return ERR_PTR(err);
 }
 
 void mlx5e_rx_res_destroy(struct mlx5e_rx_res *res)
@@ -446,11 +458,7 @@ void mlx5e_rx_res_destroy(struct mlx5e_rx_res *res)
 	mlx5e_rx_res_ptp_destroy(res);
 	mlx5e_rx_res_channels_destroy(res);
 	mlx5e_rx_res_rss_destroy_all(res);
-}
-
-void mlx5e_rx_res_free(struct mlx5e_rx_res *res)
-{
-	kvfree(res);
+	mlx5e_rx_res_free(res);
 }
 
 u32 mlx5e_rx_res_get_tirn_direct(struct mlx5e_rx_res *res, unsigned int ix)

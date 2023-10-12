@@ -21,13 +21,12 @@ enum mlx5e_rx_res_features {
 };
 
 /* Setup */
-struct mlx5e_rx_res *mlx5e_rx_res_alloc(void);
-int mlx5e_rx_res_init(struct mlx5e_rx_res *res, struct mlx5_core_dev *mdev,
-		      enum mlx5e_rx_res_features features, unsigned int max_nch,
-		      u32 drop_rqn, const struct mlx5e_packet_merge_param *init_pkt_merge_param,
-		      unsigned int init_nch);
+struct mlx5e_rx_res *
+mlx5e_rx_res_create(struct mlx5_core_dev *mdev, enum mlx5e_rx_res_features features,
+		    unsigned int max_nch, u32 drop_rqn,
+		    const struct mlx5e_packet_merge_param *init_pkt_merge_param,
+		    unsigned int init_nch);
 void mlx5e_rx_res_destroy(struct mlx5e_rx_res *res);
-void mlx5e_rx_res_free(struct mlx5e_rx_res *res);
 
 /* TIRN getters for flow steering */
 u32 mlx5e_rx_res_get_tirn_direct(struct mlx5e_rx_res *res, unsigned int ix);
