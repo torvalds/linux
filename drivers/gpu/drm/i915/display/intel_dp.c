@@ -6231,16 +6231,6 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 				    "HDCP init failed, skipping.\n");
 	}
 
-	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
-	 * 0xd.  Failure to do so will result in spurious interrupts being
-	 * generated on the port when a cable is not attached.
-	 */
-	if (IS_G45(dev_priv)) {
-		u32 temp = intel_de_read(dev_priv, PEG_BAND_GAP_DATA);
-		intel_de_write(dev_priv, PEG_BAND_GAP_DATA,
-			       (temp & ~0xf) | 0xd);
-	}
-
 	intel_dp->frl.is_trained = false;
 	intel_dp->frl.trained_rate_gbps = 0;
 
