@@ -81,12 +81,12 @@ struct mlx5e_rss {
 	refcount_t refcnt;
 };
 
-struct mlx5e_rss *mlx5e_rss_alloc(void)
+static struct mlx5e_rss *mlx5e_rss_alloc(void)
 {
 	return kvzalloc(sizeof(struct mlx5e_rss), GFP_KERNEL);
 }
 
-void mlx5e_rss_free(struct mlx5e_rss *rss)
+static void mlx5e_rss_free(struct mlx5e_rss *rss)
 {
 	kvfree(rss);
 }
@@ -282,28 +282,35 @@ static int mlx5e_rss_update_tirs(struct mlx5e_rss *rss)
 	return retval;
 }
 
-int mlx5e_rss_init_no_tirs(struct mlx5e_rss *rss, struct mlx5_core_dev *mdev,
-			   bool inner_ft_support, u32 drop_rqn)
+static int mlx5e_rss_init_no_tirs(struct mlx5e_rss *rss)
 {
+	mlx5e_rss_params_init(rss);
+	refcount_set(&rss->refcnt, 1);
+
+	return mlx5e_rqt_init_direct(&rss->rqt, rss->mdev, true, rss->drop_rqn);
+}
+
+struct mlx5e_rss *mlx5e_rss_init(struct mlx5_core_dev *mdev, bool inner_ft_support, u32 drop_rqn,
+				 const struct mlx5e_packet_merge_param *init_pkt_merge_param,
+				 enum mlx5e_rss_init_type type)
+{
+	struct mlx5e_rss *rss;
+	int err;
+
+	rss = mlx5e_rss_alloc();
+	if (!rss)
+		return ERR_PTR(-ENOMEM);
+
 	rss->mdev = mdev;
 	rss->inner_ft_support = inner_ft_support;
 	rss->drop_rqn = drop_rqn;
 
-	mlx5e_rss_params_init(rss);
-	refcount_set(&rss->refcnt, 1);
-
-	return mlx5e_rqt_init_direct(&rss->rqt, mdev, true, drop_rqn);
-}
-
-int mlx5e_rss_init(struct mlx5e_rss *rss, struct mlx5_core_dev *mdev,
-		   bool inner_ft_support, u32 drop_rqn,
-		   const struct mlx5e_packet_merge_param *init_pkt_merge_param)
-{
-	int err;
-
-	err = mlx5e_rss_init_no_tirs(rss, mdev, inner_ft_support, drop_rqn);
+	err = mlx5e_rss_init_no_tirs(rss);
 	if (err)
-		goto err_out;
+		goto err_free_rss;
+
+	if (type == MLX5E_RSS_INIT_NO_TIRS)
+		goto out;
 
 	err = mlx5e_rss_create_tirs(rss, init_pkt_merge_param, false);
 	if (err)
@@ -315,14 +322,16 @@ int mlx5e_rss_init(struct mlx5e_rss *rss, struct mlx5_core_dev *mdev,
 			goto err_destroy_tirs;
 	}
 
-	return 0;
+out:
+	return rss;
 
 err_destroy_tirs:
 	mlx5e_rss_destroy_tirs(rss, false);
 err_destroy_rqt:
 	mlx5e_rqt_destroy(&rss->rqt);
-err_out:
-	return err;
+err_free_rss:
+	mlx5e_rss_free(rss);
+	return ERR_PTR(err);
 }
 
 int mlx5e_rss_cleanup(struct mlx5e_rss *rss)
@@ -336,6 +345,7 @@ int mlx5e_rss_cleanup(struct mlx5e_rss *rss)
 		mlx5e_rss_destroy_tirs(rss, true);
 
 	mlx5e_rqt_destroy(&rss->rqt);
+	mlx5e_rss_free(rss);
 
 	return 0;
 }

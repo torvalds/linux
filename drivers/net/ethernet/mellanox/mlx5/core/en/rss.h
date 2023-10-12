@@ -8,18 +8,19 @@
 #include "tir.h"
 #include "fs.h"
 
+enum mlx5e_rss_init_type {
+	MLX5E_RSS_INIT_NO_TIRS = 0,
+	MLX5E_RSS_INIT_TIRS
+};
+
 struct mlx5e_rss_params_traffic_type
 mlx5e_rss_get_default_tt_config(enum mlx5_traffic_types tt);
 
 struct mlx5e_rss;
 
-struct mlx5e_rss *mlx5e_rss_alloc(void);
-void mlx5e_rss_free(struct mlx5e_rss *rss);
-int mlx5e_rss_init(struct mlx5e_rss *rss, struct mlx5_core_dev *mdev,
-		   bool inner_ft_support, u32 drop_rqn,
-		   const struct mlx5e_packet_merge_param *init_pkt_merge_param);
-int mlx5e_rss_init_no_tirs(struct mlx5e_rss *rss, struct mlx5_core_dev *mdev,
-			   bool inner_ft_support, u32 drop_rqn);
+struct mlx5e_rss *mlx5e_rss_init(struct mlx5_core_dev *mdev, bool inner_ft_support, u32 drop_rqn,
+				 const struct mlx5e_packet_merge_param *init_pkt_merge_param,
+				 enum mlx5e_rss_init_type type);
 int mlx5e_rss_cleanup(struct mlx5e_rss *rss);
 
 void mlx5e_rss_refcnt_inc(struct mlx5e_rss *rss);

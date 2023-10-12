@@ -39,36 +39,27 @@ static int mlx5e_rx_res_rss_init_def(struct mlx5e_rx_res *res,
 {
 	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
 	struct mlx5e_rss *rss;
-	int err;
 
 	if (WARN_ON(res->rss[0]))
 		return -EINVAL;
 
-	rss = mlx5e_rss_alloc();
-	if (!rss)
-		return -ENOMEM;
-
-	err = mlx5e_rss_init(rss, res->mdev, inner_ft_support, res->drop_rqn,
-			     &res->pkt_merge_param);
-	if (err)
-		goto err_rss_free;
+	rss = mlx5e_rss_init(res->mdev, inner_ft_support, res->drop_rqn,
+			     &res->pkt_merge_param, MLX5E_RSS_INIT_TIRS);
+	if (IS_ERR(rss))
+		return PTR_ERR(rss);
 
 	mlx5e_rss_set_indir_uniform(rss, init_nch);
 
 	res->rss[0] = rss;
 
 	return 0;
-
-err_rss_free:
-	mlx5e_rss_free(rss);
-	return err;
 }
 
 int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 *rss_idx, unsigned int init_nch)
 {
 	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
 	struct mlx5e_rss *rss;
-	int err, i;
+	int i;
 
 	for (i = 1; i < MLX5E_MAX_NUM_RSS; i++)
 		if (!res->rss[i])
@@ -77,13 +68,10 @@ int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 *rss_idx, unsigned int i
 	if (i == MLX5E_MAX_NUM_RSS)
 		return -ENOSPC;
 
-	rss = mlx5e_rss_alloc();
-	if (!rss)
-		return -ENOMEM;
-
-	err = mlx5e_rss_init_no_tirs(rss, res->mdev, inner_ft_support, res->drop_rqn);
-	if (err)
-		goto err_rss_free;
+	rss = mlx5e_rss_init(res->mdev, inner_ft_support, res->drop_rqn,
+			     &res->pkt_merge_param, MLX5E_RSS_INIT_NO_TIRS);
+	if (IS_ERR(rss))
+		return PTR_ERR(rss);
 
 	mlx5e_rss_set_indir_uniform(rss, init_nch);
 	if (res->rss_active)
@@ -93,10 +81,6 @@ int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 *rss_idx, unsigned int i
 	*rss_idx = i;
 
 	return 0;
-
-err_rss_free:
-	mlx5e_rss_free(rss);
-	return err;
 }
 
 static int __mlx5e_rx_res_rss_destroy(struct mlx5e_rx_res *res, u32 rss_idx)
@@ -108,7 +92,6 @@ static int __mlx5e_rx_res_rss_destroy(struct mlx5e_rx_res *res, u32 rss_idx)
 	if (err)
 		return err;
 
-	mlx5e_rss_free(rss);
 	res->rss[rss_idx] = NULL;
 
 	return 0;
