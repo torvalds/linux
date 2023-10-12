@@ -470,11 +470,9 @@ inner_tir:
 
 int mlx5e_rss_get_rxfh(struct mlx5e_rss *rss, u32 *indir, u8 *key, u8 *hfunc)
 {
-	unsigned int i;
-
 	if (indir)
-		for (i = 0; i < MLX5E_INDIR_RQT_SIZE; i++)
-			indir[i] = rss->indir.table[i];
+		memcpy(indir, rss->indir.table,
+		       MLX5E_INDIR_RQT_SIZE * sizeof(*rss->indir.table));
 
 	if (key)
 		memcpy(key, rss->hash.toeplitz_hash_key,
@@ -523,12 +521,10 @@ int mlx5e_rss_set_rxfh(struct mlx5e_rss *rss, const u32 *indir,
 	}
 
 	if (indir) {
-		unsigned int i;
-
 		changed_indir = true;
 
-		for (i = 0; i < MLX5E_INDIR_RQT_SIZE; i++)
-			rss->indir.table[i] = indir[i];
+		memcpy(rss->indir.table, indir,
+		       MLX5E_INDIR_RQT_SIZE * sizeof(*rss->indir.table));
 	}
 
 	if (changed_indir && rss->enabled) {
