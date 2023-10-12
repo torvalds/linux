@@ -321,7 +321,7 @@ static void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
  *   11       Page translation	   ->  Not present	 (nullification)
  *   3b       Region third trans.  ->  Not present	 (nullification)
  */
-static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
+static void do_exception(struct pt_regs *regs, int access)
 {
 	struct vm_area_struct *vma;
 	struct task_struct *tsk;
@@ -340,7 +340,7 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 	 */
 	clear_thread_flag(TIF_PER_TRAP);
 	if (kprobe_page_fault(regs, 14))
-		return 0;
+		return;
 	mm = tsk->mm;
 	address = get_fault_address(regs);
 	is_write = fault_is_write(regs);
@@ -468,14 +468,13 @@ out_gmap:
 out_up:
 	mmap_read_unlock(mm);
 out:
-	return fault;
+	if (unlikely(fault))
+		do_fault_error(regs, fault);
 }
 
 void do_protection_exception(struct pt_regs *regs)
 {
 	union teid teid = { .val = regs->int_parm_long };
-	vm_fault_t fault;
-	int access;
 
 	/*
 	 * Protection exceptions are suppressing, decrement psw address.
@@ -502,26 +501,16 @@ void do_protection_exception(struct pt_regs *regs)
 	}
 	if (unlikely(MACHINE_HAS_NX && teid.b56)) {
 		regs->int_parm_long = (teid.addr * PAGE_SIZE) | (regs->psw.addr & PAGE_MASK);
-		access = VM_EXEC;
-		fault = VM_FAULT_BADACCESS;
-	} else {
-		access = VM_WRITE;
-		fault = do_exception(regs, access);
+		do_fault_error(regs, VM_FAULT_BADACCESS);
+		return;
 	}
-	if (unlikely(fault))
-		do_fault_error(regs, fault);
+	do_exception(regs, VM_WRITE);
 }
 NOKPROBE_SYMBOL(do_protection_exception);
 
 void do_dat_exception(struct pt_regs *regs)
 {
-	vm_fault_t fault;
-	int access;
-
-	access = VM_ACCESS_FLAGS;
-	fault = do_exception(regs, access);
-	if (unlikely(fault))
-		do_fault_error(regs, fault);
+	do_exception(regs, VM_ACCESS_FLAGS);
 }
 NOKPROBE_SYMBOL(do_dat_exception);
 
