@@ -234,14 +234,14 @@ void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault)
 	show_regs(regs);
 }
 
-static noinline void do_sigsegv(struct pt_regs *regs, int si_code)
+static void do_sigsegv(struct pt_regs *regs, int si_code)
 {
 	report_user_fault(regs, SIGSEGV, 1);
 	force_sig_fault(SIGSEGV, si_code,
 			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK));
 }
 
-static noinline void do_no_context(struct pt_regs *regs, vm_fault_t fault)
+static void do_no_context(struct pt_regs *regs, vm_fault_t fault)
 {
 	enum fault_type fault_type;
 	unsigned long address;
@@ -264,7 +264,7 @@ static noinline void do_no_context(struct pt_regs *regs, vm_fault_t fault)
 	die(regs, "Oops");
 }
 
-static noinline void do_low_address(struct pt_regs *regs)
+static void do_low_address(struct pt_regs *regs)
 {
 	/*
 	 * Low-address protection hit in kernel mode means
@@ -278,13 +278,13 @@ static noinline void do_low_address(struct pt_regs *regs)
 	do_no_context(regs, VM_FAULT_BADACCESS);
 }
 
-static noinline void do_sigbus(struct pt_regs *regs)
+static void do_sigbus(struct pt_regs *regs)
 {
 	force_sig_fault(SIGBUS, BUS_ADRERR,
 			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK));
 }
 
-static noinline void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
+static void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
 {
 	int si_code;
 
