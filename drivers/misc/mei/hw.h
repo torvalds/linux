@@ -806,8 +806,8 @@ struct hbm_client_dma_map_request {
 } __packed;
 
 /**
- * struct hbm_client_dma_unmap_request
- *    client dma unmap request from the host to the firmware
+ * struct hbm_client_dma_unmap_request - client dma unmap request
+ *        from the host to the firmware
  *
  * @hbm_cmd: bus message command header
  * @status: unmap status
@@ -822,8 +822,8 @@ struct hbm_client_dma_unmap_request {
 } __packed;
 
 /**
- * struct hbm_client_dma_response
- *   client dma unmap response from the firmware to the host
+ * struct hbm_client_dma_response - client dma unmap response
+ *        from the firmware to the host
  *
  * @hbm_cmd: bus message command header
  * @status: command status
