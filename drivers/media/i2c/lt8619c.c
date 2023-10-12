@@ -1727,6 +1727,8 @@ static int lt8619c_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
+	struct v4l2_dv_timings default_timing =
+				V4L2_DV_BT_CEA_640X480P59_94;
 	struct lt8619c *lt8619c;
 	struct v4l2_subdev *sd;
 	char facing[2];
@@ -1743,6 +1745,7 @@ static int lt8619c_probe(struct i2c_client *client,
 
 	sd = &lt8619c->sd;
 	lt8619c->i2c_client = client;
+	lt8619c->timings = default_timing;
 	lt8619c->cur_mode = &supported_modes[0];
 	lt8619c->mbus_fmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
 
