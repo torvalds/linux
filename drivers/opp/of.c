@@ -208,9 +208,9 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 		mutex_lock(&opp_table_lock);
 		list_add(&opp_table->lazy, &lazy_opp_tables);
 		mutex_unlock(&opp_table_lock);
-	}
-	else
+	} else {
 		_update_set_required_opps(opp_table);
+	}
 
 	goto put_np;
 
