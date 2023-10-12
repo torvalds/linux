@@ -146,7 +146,8 @@ static int mtk_ccifreq_target(struct device *dev, unsigned long *freq,
 	opp = devfreq_recommended_opp(dev, &opp_rate, 1);
 	if (IS_ERR(opp)) {
 		dev_err(dev, "failed to find opp for freq: %ld\n", opp_rate);
-		return PTR_ERR(opp);
+		ret = PTR_ERR(opp);
+		goto out_unlock;
 	}
 
 	voltage = dev_pm_opp_get_voltage(opp);
