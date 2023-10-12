@@ -4,7 +4,7 @@
 #include <linux/skbuff.h>
 
 static const char hdr[] = "abcdefgh";
-static const int gso_size = 1000;
+#define GSO_TEST_SIZE 1000
 
 static void __init_skb(struct sk_buff *skb)
 {
@@ -18,7 +18,7 @@ static void __init_skb(struct sk_buff *skb)
 
 	/* proto is arbitrary, as long as not ETH_P_TEB or vlan */
 	skb->protocol = htons(ETH_P_ATALK);
-	skb_shinfo(skb)->gso_size = gso_size;
+	skb_shinfo(skb)->gso_size = GSO_TEST_SIZE;
 }
 
 enum gso_test_nr {
@@ -53,70 +53,70 @@ static struct gso_test_case cases[] = {
 	{
 		.id = GSO_TEST_NO_GSO,
 		.name = "no_gso",
-		.linear_len = gso_size,
+		.linear_len = GSO_TEST_SIZE,
 		.nr_segs = 1,
-		.segs = (const unsigned int[]) { gso_size },
+		.segs = (const unsigned int[]) { GSO_TEST_SIZE },
 	},
 	{
 		.id = GSO_TEST_LINEAR,
 		.name = "linear",
-		.linear_len = gso_size + gso_size + 1,
+		.linear_len = GSO_TEST_SIZE + GSO_TEST_SIZE + 1,
 		.nr_segs = 3,
-		.segs = (const unsigned int[]) { gso_size, gso_size, 1 },
+		.segs = (const unsigned int[]) { GSO_TEST_SIZE, GSO_TEST_SIZE, 1 },
 	},
 	{
 		.id = GSO_TEST_FRAGS,
 		.name = "frags",
-		.linear_len = gso_size,
+		.linear_len = GSO_TEST_SIZE,
 		.nr_frags = 2,
-		.frags = (const unsigned int[]) { gso_size, 1 },
+		.frags = (const unsigned int[]) { GSO_TEST_SIZE, 1 },
 		.nr_segs = 3,
-		.segs = (const unsigned int[]) { gso_size, gso_size, 1 },
+		.segs = (const unsigned int[]) { GSO_TEST_SIZE, GSO_TEST_SIZE, 1 },
 	},
 	{
 		.id = GSO_TEST_FRAGS_PURE,
 		.name = "frags_pure",
 		.nr_frags = 3,
-		.frags = (const unsigned int[]) { gso_size, gso_size, 2 },
+		.frags = (const unsigned int[]) { GSO_TEST_SIZE, GSO_TEST_SIZE, 2 },
 		.nr_segs = 3,
-		.segs = (const unsigned int[]) { gso_size, gso_size, 2 },
+		.segs = (const unsigned int[]) { GSO_TEST_SIZE, GSO_TEST_SIZE, 2 },
 	},
 	{
 		.id = GSO_TEST_GSO_PARTIAL,
 		.name = "gso_partial",
-		.linear_len = gso_size,
+		.linear_len = GSO_TEST_SIZE,
 		.nr_frags = 2,
-		.frags = (const unsigned int[]) { gso_size, 3 },
+		.frags = (const unsigned int[]) { GSO_TEST_SIZE, 3 },
 		.nr_segs = 2,
-		.segs = (const unsigned int[]) { 2 * gso_size, 3 },
+		.segs = (const unsigned int[]) { 2 * GSO_TEST_SIZE, 3 },
 	},
 	{
 		/* commit 89319d3801d1: frag_list on mss boundaries */
 		.id = GSO_TEST_FRAG_LIST,
 		.name = "frag_list",
-		.linear_len = gso_size,
+		.linear_len = GSO_TEST_SIZE,
 		.nr_frag_skbs = 2,
-		.frag_skbs = (const unsigned int[]) { gso_size, gso_size },
+		.frag_skbs = (const unsigned int[]) { GSO_TEST_SIZE, GSO_TEST_SIZE },
 		.nr_segs = 3,
-		.segs = (const unsigned int[]) { gso_size, gso_size, gso_size },
+		.segs = (const unsigned int[]) { GSO_TEST_SIZE, GSO_TEST_SIZE, GSO_TEST_SIZE },
 	},
 	{
 		.id = GSO_TEST_FRAG_LIST_PURE,
 		.name = "frag_list_pure",
 		.nr_frag_skbs = 2,
-		.frag_skbs = (const unsigned int[]) { gso_size, gso_size },
+		.frag_skbs = (const unsigned int[]) { GSO_TEST_SIZE, GSO_TEST_SIZE },
 		.nr_segs = 2,
-		.segs = (const unsigned int[]) { gso_size, gso_size },
+		.segs = (const unsigned int[]) { GSO_TEST_SIZE, GSO_TEST_SIZE },
 	},
 	{
 		/* commit 43170c4e0ba7: GRO of frag_list trains */
 		.id = GSO_TEST_FRAG_LIST_NON_UNIFORM,
 		.name = "frag_list_non_uniform",
-		.linear_len = gso_size,
+		.linear_len = GSO_TEST_SIZE,
 		.nr_frag_skbs = 4,
-		.frag_skbs = (const unsigned int[]) { gso_size, 1, gso_size, 2 },
+		.frag_skbs = (const unsigned int[]) { GSO_TEST_SIZE, 1, GSO_TEST_SIZE, 2 },
 		.nr_segs = 4,
-		.segs = (const unsigned int[]) { gso_size, gso_size, gso_size, 3 },
+		.segs = (const unsigned int[]) { GSO_TEST_SIZE, GSO_TEST_SIZE, GSO_TEST_SIZE, 3 },
 	},
 	{
 		/* commit 3953c46c3ac7 ("sk_buff: allow segmenting based on frag sizes") and
