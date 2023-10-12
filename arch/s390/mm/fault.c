@@ -346,13 +346,13 @@ static noinline void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
  */
 static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 {
-	struct gmap *gmap;
-	struct task_struct *tsk;
-	struct mm_struct *mm;
 	struct vm_area_struct *vma;
-	enum fault_type type;
+	struct task_struct *tsk;
 	unsigned long address;
+	struct mm_struct *mm;
+	enum fault_type type;
 	unsigned int flags;
+	struct gmap *gmap;
 	vm_fault_t fault;
 	bool is_write;
 
@@ -498,8 +498,8 @@ out:
 void do_protection_exception(struct pt_regs *regs)
 {
 	unsigned long trans_exc_code;
-	int access;
 	vm_fault_t fault;
+	int access;
 
 	trans_exc_code = regs->int_parm_long;
 	/*
@@ -534,8 +534,8 @@ NOKPROBE_SYMBOL(do_protection_exception);
 
 void do_dat_exception(struct pt_regs *regs)
 {
-	int access;
 	vm_fault_t fault;
+	int access;
 
 	access = VM_ACCESS_FLAGS;
 	fault = do_exception(regs, access);
