@@ -387,3 +387,17 @@ void *mlx5_devcom_get_next_peer_data_rcu(struct mlx5_devcom_comp_dev *devcom,
 	*pos = tmp;
 	return data;
 }
+
+void mlx5_devcom_comp_lock(struct mlx5_devcom_comp_dev *devcom)
+{
+	if (IS_ERR_OR_NULL(devcom))
+		return;
+	down_write(&devcom->comp->sem);
+}
+
+void mlx5_devcom_comp_unlock(struct mlx5_devcom_comp_dev *devcom)
+{
+	if (IS_ERR_OR_NULL(devcom))
+		return;
+	up_write(&devcom->comp->sem);
+}

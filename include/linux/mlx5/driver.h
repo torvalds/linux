@@ -624,6 +624,7 @@ struct mlx5_priv {
 	struct mlx5_lag		*lag;
 	u32			flags;
 	struct mlx5_devcom_dev	*devc;
+	struct mlx5_devcom_comp_dev *hca_devcom_comp;
 	struct mlx5_fw_reset	*fw_reset;
 	struct mlx5_core_roce	roce;
 	struct mlx5_fc_stats		fc_stats;
