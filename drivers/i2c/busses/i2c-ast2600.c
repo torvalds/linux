@@ -1332,6 +1332,9 @@ static int ast2600_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg
 			}
 #endif
 		}
+		if (i2c_bus->multi_master && (i2c_status & AST2600_I2CC_BUS_BUSY_STS))
+			ast2600_i2c_recover_bus(i2c_bus);
+
 		ret = -ETIMEDOUT;
 	} else {
 		ret = i2c_bus->cmd_err;
