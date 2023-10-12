@@ -20,6 +20,8 @@
 
 #define I2S_TXFIFOLR			0xc
 #define I2S_RXFIFOLR			0x2c
+#define SAI_TXFIFOLR			0x1c
+#define SAI_RXFIFOLR			0x20
 
 /* XFL4 is compatible for old version */
 #define I2S_FIFOLR_XFL4(v)		(((v) & GENMASK(29, 24)) >> 24)
@@ -27,6 +29,12 @@
 #define I2S_FIFOLR_XFL2(v)		(((v) & GENMASK(17, 12)) >> 12)
 #define I2S_FIFOLR_XFL1(v)		(((v) & GENMASK(11, 6)) >> 6)
 #define I2S_FIFOLR_XFL0(v)		(((v) & GENMASK(5, 0)) >> 0)
+
+/* XFIFOLR: Transfer / Receive FIFO Level Register */
+#define SAI_FIFOLR_XFL3(v)		(((v) & GENMASK(23, 18)) >> 18)
+#define SAI_FIFOLR_XFL2(v)		(((v) & GENMASK(17, 12)) >> 12)
+#define SAI_FIFOLR_XFL1(v)		(((v) & GENMASK(11, 6)) >> 6)
+#define SAI_FIFOLR_XFL0(v)		(((v) & GENMASK(5, 0)) >> 0)
 
 #define MAX_FIFO_SIZE			32 /* max fifo size in frames */
 #define SND_DMAENGINE_MPCM_DRV_NAME	"snd_dmaengine_mpcm"
@@ -864,7 +872,7 @@ static int dmaengine_mpcm_get_fifo_count(struct device *dev,
 	struct rk_mdais_dev *mdais = dev_get_drvdata(dev);
 	struct dmaengine_mpcm_runtime_data *prtd = substream_to_prtd(substream);
 	struct snd_soc_component *component;
-	unsigned int tx, rx;
+	unsigned int tx, rx, reg;
 	int val = 0;
 
 	if (unlikely(!prtd))
@@ -891,6 +899,13 @@ static int dmaengine_mpcm_get_fifo_count(struct device *dev,
 			      I2S_FIFOLR_XFL2(rx) +
 			      I2S_FIFOLR_XFL1(rx) +
 			      I2S_FIFOLR_XFL0(rx);
+	} else if (strstr(dev_driver_string(component->dev), "sai")) {
+		reg = substream->stream ? SAI_RXFIFOLR : SAI_TXFIFOLR;
+
+		val = SAI_FIFOLR_XFL3(reg) +
+		      SAI_FIFOLR_XFL2(reg) +
+		      SAI_FIFOLR_XFL1(reg) +
+		      SAI_FIFOLR_XFL0(reg);
 	}
 
 	return val;
