@@ -116,6 +116,9 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 				  enum thermal_notify_event event);
 
 /* Helpers */
+#define for_each_trip(__tz, __trip)	\
+	for (__trip = __tz->trips; __trip - __tz->trips < __tz->num_trips; __trip++)
+
 void __thermal_zone_set_trips(struct thermal_zone_device *tz);
 int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 			    struct thermal_trip *trip);

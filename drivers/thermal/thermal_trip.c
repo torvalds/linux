@@ -13,10 +13,11 @@ int for_each_thermal_trip(struct thermal_zone_device *tz,
 			  int (*cb)(struct thermal_trip *, void *),
 			  void *data)
 {
-	int i, ret;
+	struct thermal_trip *trip;
+	int ret;
 
-	for (i = 0; i < tz->num_trips; i++) {
-		ret = cb(&tz->trips[i], data);
+	for_each_trip(tz, trip) {
+		ret = cb(trip, data);
 		if (ret)
 			return ret;
 	}
