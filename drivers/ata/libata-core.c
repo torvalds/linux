@@ -2042,6 +2042,33 @@ void ata_dev_power_set_standby(struct ata_device *dev)
 			    err_mask);
 }
 
+static bool ata_dev_power_is_active(struct ata_device *dev)
+{
+	struct ata_taskfile tf;
+	unsigned int err_mask;
+
+	ata_tf_init(dev, &tf);
+	tf.flags |= ATA_TFLAG_DEVICE | ATA_TFLAG_ISADDR;
+	tf.protocol = ATA_PROT_NODATA;
+	tf.command = ATA_CMD_CHK_POWER;
+
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
+	if (err_mask) {
+		ata_dev_err(dev, "Check power mode failed (err_mask=0x%x)\n",
+			    err_mask);
+		/*
+		 * Assume we are in standby mode so that we always force a
+		 * spinup in ata_dev_power_set_active().
+		 */
+		return false;
+	}
+
+	ata_dev_dbg(dev, "Power mode: 0x%02x\n", tf.nsect);
+
+	/* Active or idle */
+	return tf.nsect == 0xff;
+}
+
 /**
  *	ata_dev_power_set_active -  Set a device power mode to active
  *	@dev: target device
@@ -2063,6 +2090,13 @@ void ata_dev_power_set_active(struct ata_device *dev)
 	 * if supported by the device.
 	 */
 	if (!ata_dev_power_init_tf(dev, &tf, true))
+		return;
+
+	/*
+	 * Check the device power state & condition and force a spinup with
+	 * VERIFY command only if the drive is not already ACTIVE or IDLE.
+	 */
+	if (ata_dev_power_is_active(dev))
 		return;
 
 	ata_dev_notice(dev, "Entering active power mode\n");
