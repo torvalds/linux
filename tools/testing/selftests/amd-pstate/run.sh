@@ -8,9 +8,12 @@ else
 	FILE_MAIN=DONE
 fi
 
-source basic.sh
-source tbench.sh
-source gitsource.sh
+SCRIPTDIR=`dirname "$0"`
+TRACER=$SCRIPTDIR/../../../power/x86/amd_pstate_tracer/amd_pstate_trace.py
+
+source $SCRIPTDIR/basic.sh
+source $SCRIPTDIR/tbench.sh
+source $SCRIPTDIR/gitsource.sh
 
 # amd-pstate-ut only run on x86/x86_64 AMD systems.
 ARCH=$(uname -m 2>/dev/null | sed -e 's/i.86/x86/' -e 's/x86_64/x86/')
