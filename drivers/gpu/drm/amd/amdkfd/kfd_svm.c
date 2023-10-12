@@ -1282,7 +1282,7 @@ svm_range_get_pte_flags(struct kfd_node *node,
 			if (num_possible_nodes() <= 1)
 				mapping_flags |= mtype_local;
 			else
-				mapping_flags |= AMDGPU_VM_MTYPE_NC;
+				mapping_flags |= ext_coherent ? AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
 		/* system memory accessed by the dGPU */
 		} else {
 			mapping_flags |= AMDGPU_VM_MTYPE_UC;
@@ -1317,7 +1317,7 @@ svm_range_unmap_from_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	pr_debug("[0x%llx 0x%llx]\n", start, last);
 
-	return amdgpu_vm_update_range(adev, vm, false, true, true, NULL, start,
+	return amdgpu_vm_update_range(adev, vm, false, true, true, false, NULL, start,
 				      last, init_pte_value, 0, 0, NULL, NULL,
 				      fence);
 }
@@ -1424,8 +1424,8 @@ svm_range_map_to_gpu(struct kfd_process_device *pdd, struct svm_range *prange,
 		 * different memory partition based on fpfn/lpfn, we should use
 		 * same vm_manager.vram_base_offset regardless memory partition.
 		 */
-		r = amdgpu_vm_update_range(adev, vm, false, false, flush_tlb, NULL,
-					   last_start, prange->start + i,
+		r = amdgpu_vm_update_range(adev, vm, false, false, flush_tlb, true,
+					   NULL, last_start, prange->start + i,
 					   pte_flags,
 					   (last_start - prange->start) << PAGE_SHIFT,
 					   bo_adev ? bo_adev->vm_manager.vram_base_offset : 0,

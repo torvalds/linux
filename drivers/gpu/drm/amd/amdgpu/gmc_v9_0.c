@@ -1251,12 +1251,15 @@ static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
 		return;
 	}
 
-	/* Only override mappings with MTYPE_NC, which is the safe default for
-	 * cacheable memory.
+	/* MTYPE_NC is the same default and can be overridden.
+	 * MTYPE_UC will be present if the memory is extended-coherent
+	 * and can also be overridden.
 	 */
 	if ((*flags & AMDGPU_PTE_MTYPE_VG10_MASK) !=
-	    AMDGPU_PTE_MTYPE_VG10(MTYPE_NC)) {
-		dev_dbg_ratelimited(adev->dev, "MTYPE is not NC\n");
+	    AMDGPU_PTE_MTYPE_VG10(MTYPE_NC) &&
+	    (*flags & AMDGPU_PTE_MTYPE_VG10_MASK) !=
+	    AMDGPU_PTE_MTYPE_VG10(MTYPE_UC)) {
+		dev_dbg_ratelimited(adev->dev, "MTYPE is not NC or UC\n");
 		return;
 	}
 
@@ -1283,15 +1286,23 @@ static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
 			    vm->mem_id, local_node, nid);
 	if (nid == local_node) {
 		uint64_t old_flags = *flags;
-		unsigned int mtype_local = MTYPE_RW;
+		if ((*flags & AMDGPU_PTE_MTYPE_VG10_MASK) ==
+			AMDGPU_PTE_MTYPE_VG10(MTYPE_NC)) {
+			unsigned int mtype_local = MTYPE_RW;
 
-		if (amdgpu_mtype_local == 1)
-			mtype_local = MTYPE_NC;
-		else if (amdgpu_mtype_local == 2)
-			mtype_local = MTYPE_CC;
+			if (amdgpu_mtype_local == 1)
+				mtype_local = MTYPE_NC;
+			else if (amdgpu_mtype_local == 2)
+				mtype_local = MTYPE_CC;
 
-		*flags = (*flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
-			 AMDGPU_PTE_MTYPE_VG10(mtype_local);
+			*flags = (*flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
+				 AMDGPU_PTE_MTYPE_VG10(mtype_local);
+		} else {
+			/* MTYPE_UC case */
+			*flags = (*flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
+				 AMDGPU_PTE_MTYPE_VG10(MTYPE_CC);
+		}
+
 		dev_dbg_ratelimited(adev->dev, "flags updated from %llx to %llx\n",
 				    old_flags, *flags);
 	}
