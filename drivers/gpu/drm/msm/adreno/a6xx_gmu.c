@@ -1558,6 +1558,9 @@ void a6xx_gmu_remove(struct a6xx_gpu *a6xx_gpu)
 		dev_pm_domain_detach(gmu->gxpd, false);
 	}
 
+	if (!IS_ERR_OR_NULL(gmu->qmp))
+		qmp_put(gmu->qmp);
+
 	iounmap(gmu->mmio);
 	if (platform_get_resource_byname(pdev, IORESOURCE_MEM, "rscc"))
 		iounmap(gmu->rscc);
@@ -1654,6 +1657,7 @@ int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	struct platform_device *pdev = of_find_device_by_node(node);
+	struct device_link *link;
 	int ret;
 
 	if (!pdev)
@@ -1777,15 +1781,17 @@ int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 		goto err_mmio;
 	}
 
-	if (!device_link_add(gmu->dev, gmu->cxpd,
-					DL_FLAG_PM_RUNTIME)) {
+	link = device_link_add(gmu->dev, gmu->cxpd, DL_FLAG_PM_RUNTIME);
+	if (!link) {
 		ret = -ENODEV;
 		goto detach_cxpd;
 	}
 
 	gmu->qmp = qmp_get(gmu->dev);
-	if (IS_ERR(gmu->qmp) && adreno_is_a7xx(adreno_gpu))
-		return PTR_ERR(gmu->qmp);
+	if (IS_ERR(gmu->qmp) && adreno_is_a7xx(adreno_gpu)) {
+		ret = PTR_ERR(gmu->qmp);
+		goto remove_device_link;
+	}
 
 	init_completion(&gmu->pd_gate);
 	complete_all(&gmu->pd_gate);
@@ -1810,8 +1816,8 @@ int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 
 	return 0;
 
-	if (!IS_ERR_OR_NULL(gmu->qmp))
-		qmp_put(gmu->qmp);
+remove_device_link:
+	device_link_del(link);
 
 detach_cxpd:
 	dev_pm_domain_detach(gmu->cxpd, false);
