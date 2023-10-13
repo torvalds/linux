@@ -68,6 +68,12 @@ patternProperties:
           6:  MSM8996SG, speedbin 2
           7-31:  unused
 
+          Bitmap for IPQ806x SoC:
+          0:  IPQ8062
+          1:  IPQ8064/IPQ8066/IPQ8068
+          2:  IPQ8065/IPQ8069
+          3-31:  unused
+
           Other platforms use bits directly corresponding to speedbin index.
 
       clock-latency-ns: true
@@ -259,6 +265,22 @@ examples:
                 opp-supported-hw = <0x1>;
                 clock-latency-ns = <200000>;
                 required-opps = <&cpr_opp6>;
+            };
+        };
+
+        /* Dummy opp table to give example for named opp-microvolt */
+        opp-table-2 {
+            compatible = "operating-points-v2-krait-cpu";
+            nvmem-cells = <&speedbin_efuse>;
+
+            opp-384000000 {
+                opp-hz = /bits/ 64 <384000000>;
+                opp-microvolt-speed0-pvs0 = <1000000 950000 1050000>;
+                opp-microvolt-speed0-pvs1 = <925000 878750 971250>;
+                opp-microvolt-speed0-pvs2 = <875000 831250 918750>;
+                opp-microvolt-speed0-pvs3 = <800000 760000 840000>;
+                opp-supported-hw = <0x7>;
+                clock-latency-ns = <100000>;
             };
         };
 
