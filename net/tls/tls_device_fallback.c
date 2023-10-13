@@ -54,7 +54,7 @@ static int tls_enc_record(struct aead_request *aead_req,
 			  struct scatter_walk *out, int *in_len,
 			  struct tls_prot_info *prot)
 {
-	unsigned char buf[TLS_HEADER_SIZE + MAX_IV_SIZE];
+	unsigned char buf[TLS_HEADER_SIZE + TLS_MAX_IV_SIZE];
 	const struct tls_cipher_desc *cipher_desc;
 	struct scatterlist sg_in[3];
 	struct scatterlist sg_out[3];
@@ -62,14 +62,8 @@ static int tls_enc_record(struct aead_request *aead_req,
 	u16 len;
 	int rc;
 
-	switch (prot->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128:
-	case TLS_CIPHER_AES_GCM_256:
-		break;
-	default:
-		return -EINVAL;
-	}
 	cipher_desc = get_cipher_desc(prot->cipher_type);
+	DEBUG_NET_WARN_ON_ONCE(!cipher_desc || !cipher_desc->offloadable);
 
 	buf_size = TLS_HEADER_SIZE + cipher_desc->iv;
 	len = min_t(int, *in_len, buf_size);
@@ -338,17 +332,9 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 	if (!aead_req)
 		return NULL;
 
-	switch (tls_ctx->crypto_send.info.cipher_type) {
-	case TLS_CIPHER_AES_GCM_128:
-		salt = tls_ctx->crypto_send.aes_gcm_128.salt;
-		break;
-	case TLS_CIPHER_AES_GCM_256:
-		salt = tls_ctx->crypto_send.aes_gcm_256.salt;
-		break;
-	default:
-		goto free_req;
-	}
 	cipher_desc = get_cipher_desc(tls_ctx->crypto_send.info.cipher_type);
+	DEBUG_NET_WARN_ON_ONCE(!cipher_desc || !cipher_desc->offloadable);
+
 	buf_len = cipher_desc->salt + cipher_desc->iv + TLS_AAD_SPACE_SIZE +
 		  sync_size + cipher_desc->tag;
 	buf = kmalloc(buf_len, GFP_ATOMIC);
@@ -356,6 +342,7 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 		goto free_req;
 
 	iv = buf;
+	salt = crypto_info_salt(&tls_ctx->crypto_send.info, cipher_desc);
 	memcpy(iv, salt, cipher_desc->salt);
 	aad = buf + cipher_desc->salt + cipher_desc->iv;
 	dummy_buf = aad + TLS_AAD_SPACE_SIZE;

@@ -127,7 +127,7 @@ struct tls_rec {
 	struct sock *sk;
 
 	char aad_space[TLS_AAD_SPACE_SIZE];
-	u8 iv_data[MAX_IV_SIZE];
+	u8 iv_data[TLS_MAX_IV_SIZE];
 	struct aead_request aead_req;
 	u8 aead_req_ctx[];
 };
@@ -142,7 +142,11 @@ void update_sk_prot(struct sock *sk, struct tls_context *ctx);
 int wait_on_pending_writer(struct sock *sk, long *timeo);
 void tls_err_abort(struct sock *sk, int err);
 
-int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx);
+int init_prot_info(struct tls_prot_info *prot,
+		   const struct tls_crypto_info *crypto_info,
+		   const struct tls_cipher_desc *cipher_desc,
+		   int mode);
+int tls_set_sw_offload(struct sock *sk, int tx);
 void tls_update_rx_zc_capable(struct tls_context *tls_ctx);
 void tls_sw_strparser_arm(struct sock *sk, struct tls_context *ctx);
 void tls_sw_strparser_done(struct tls_context *tls_ctx);
@@ -223,7 +227,7 @@ static inline bool tls_strp_msg_mixed_decrypted(struct tls_sw_context_rx *ctx)
 #ifdef CONFIG_TLS_DEVICE
 int tls_device_init(void);
 void tls_device_cleanup(void);
-int tls_set_device_offload(struct sock *sk, struct tls_context *ctx);
+int tls_set_device_offload(struct sock *sk);
 void tls_device_free_resources_tx(struct sock *sk);
 int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx);
 void tls_device_offload_cleanup_rx(struct sock *sk);
@@ -234,7 +238,7 @@ static inline int tls_device_init(void) { return 0; }
 static inline void tls_device_cleanup(void) {}
 
 static inline int
-tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
+tls_set_device_offload(struct sock *sk)
 {
 	return -EOPNOTSUPP;
 }
