@@ -82,6 +82,10 @@
 #define	MM_EXT_1 1501
 #define	MM_EXT_END 1502
 
-#define	MM_ID_MAX	1503
+#define	MM_GPCE_START 1600
+#define	MM_GPCE_1 1601
+#define	MM_GPCE_END 1602
+
+#define	MM_ID_MAX 1603
 
 #endif /* HABMMID_H */
