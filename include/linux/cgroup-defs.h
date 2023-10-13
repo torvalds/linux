@@ -238,7 +238,7 @@ struct css_set {
 	 * Lists running through all tasks using this cgroup group.
 	 * mg_tasks lists tasks which belong to this cset but are in the
 	 * process of being migrated out or in.  Protected by
-	 * css_set_rwsem, but, during migration, once tasks are moved to
+	 * css_set_lock, but, during migration, once tasks are moved to
 	 * mg_tasks, it can be read safely while holding cgroup_mutex.
 	 */
 	struct list_head tasks;
