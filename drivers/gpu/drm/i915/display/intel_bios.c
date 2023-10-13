@@ -2473,6 +2473,27 @@ static void sanitize_device_type(struct intel_bios_encoder_data *devdata,
 	devdata->child.device_type |= DEVICE_TYPE_NOT_HDMI_OUTPUT;
 }
 
+static void sanitize_hdmi_level_shift(struct intel_bios_encoder_data *devdata,
+				      enum port port)
+{
+	struct drm_i915_private *i915 = devdata->i915;
+
+	if (!intel_bios_encoder_supports_dvi(devdata))
+		return;
+
+	/*
+	 * Some BDW machines (eg. HP Pavilion 15-ab) shipped
+	 * with a HSW VBT where the level shifter value goes
+	 * up to 11, whereas the BDW max is 9.
+	 */
+	if (IS_BROADWELL(i915) && devdata->child.hdmi_level_shifter_value > 9) {
+		drm_dbg_kms(&i915->drm, "Bogus port %c VBT HDMI level shift %d, adjusting to %d\n",
+			    port_name(port), devdata->child.hdmi_level_shifter_value, 9);
+
+		devdata->child.hdmi_level_shifter_value = 9;
+	}
+}
+
 static bool
 intel_bios_encoder_supports_crt(const struct intel_bios_encoder_data *devdata)
 {
@@ -2652,6 +2673,7 @@ static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
 	}
 
 	sanitize_device_type(devdata, port);
+	sanitize_hdmi_level_shift(devdata, port);
 }
 
 static bool has_ddi_port_info(struct drm_i915_private *i915)
