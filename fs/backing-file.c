@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/backing-file.h>
 #include <linux/splice.h>
+#include <linux/mm.h>
 
 #include "internal.h"
 
@@ -295,6 +296,32 @@ ssize_t backing_file_splice_write(struct pipe_inode_info *pipe,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(backing_file_splice_write);
+
+int backing_file_mmap(struct file *file, struct vm_area_struct *vma,
+		      struct backing_file_ctx *ctx)
+{
+	const struct cred *old_cred;
+	int ret;
+
+	if (WARN_ON_ONCE(!(file->f_mode & FMODE_BACKING)) ||
+	    WARN_ON_ONCE(ctx->user_file != vma->vm_file))
+		return -EIO;
+
+	if (!file->f_op->mmap)
+		return -ENODEV;
+
+	vma_set_file(vma, file);
+
+	old_cred = override_creds(ctx->cred);
+	ret = call_mmap(vma->vm_file, vma);
+	revert_creds(old_cred);
+
+	if (ctx->accessed)
+		ctx->accessed(ctx->user_file);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(backing_file_mmap);
 
 static int __init backing_aio_init(void)
 {
