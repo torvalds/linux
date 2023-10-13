@@ -130,7 +130,7 @@ MODULE_DEVICE_TABLE(of, gx_card_of_match);
 
 static struct platform_driver gx_card_pdrv = {
 	.probe = meson_card_probe,
-	.remove = meson_card_remove,
+	.remove_new = meson_card_remove,
 	.driver = {
 		.name = "gx-sound-card",
 		.of_match_table = gx_card_of_match,
