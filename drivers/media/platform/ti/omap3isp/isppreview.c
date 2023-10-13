@@ -1684,8 +1684,7 @@ __preview_get_format(struct isp_prev_device *prev,
 		     unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&prev->subdev, sd_state,
-						  pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &prev->formats[pad];
 }
@@ -1696,8 +1695,7 @@ __preview_get_crop(struct isp_prev_device *prev,
 		   enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&prev->subdev, sd_state,
-						PREV_PAD_SINK);
+		return v4l2_subdev_state_get_crop(sd_state, PREV_PAD_SINK);
 	else
 		return &prev->crop;
 }

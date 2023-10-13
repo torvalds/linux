@@ -1148,7 +1148,7 @@ __csi_get_fmt(struct csi_priv *priv, struct v4l2_subdev_state *sd_state,
 	      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&priv->sd, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &priv->format_mbus[pad];
 }
@@ -1158,8 +1158,7 @@ __csi_get_crop(struct csi_priv *priv, struct v4l2_subdev_state *sd_state,
 	       enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&priv->sd, sd_state,
-						CSI_SINK_PAD);
+		return v4l2_subdev_state_get_crop(sd_state, CSI_SINK_PAD);
 	else
 		return &priv->crop;
 }
@@ -1169,8 +1168,7 @@ __csi_get_compose(struct csi_priv *priv, struct v4l2_subdev_state *sd_state,
 		  enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_compose(&priv->sd, sd_state,
-						   CSI_SINK_PAD);
+		return v4l2_subdev_state_get_compose(sd_state, CSI_SINK_PAD);
 	else
 		return &priv->compose;
 }

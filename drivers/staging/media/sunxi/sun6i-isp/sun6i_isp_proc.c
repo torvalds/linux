@@ -262,7 +262,7 @@ static int sun6i_isp_proc_init_cfg(struct v4l2_subdev *subdev,
 	struct sun6i_isp_device *isp_dev = v4l2_get_subdevdata(subdev);
 	unsigned int pad = SUN6I_ISP_PROC_PAD_SINK_CSI;
 	struct v4l2_mbus_framefmt *mbus_format =
-		v4l2_subdev_get_try_format(subdev, state, pad);
+		v4l2_subdev_state_get_format(state, pad);
 	struct mutex *lock = &isp_dev->proc.lock;
 
 	mutex_lock(lock);
@@ -302,8 +302,8 @@ static int sun6i_isp_proc_get_fmt(struct v4l2_subdev *subdev,
 	mutex_lock(lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*mbus_format = *v4l2_subdev_get_try_format(subdev, state,
-							   format->pad);
+		*mbus_format = *v4l2_subdev_state_get_format(state,
+							     format->pad);
 	else
 		*mbus_format = isp_dev->proc.mbus_format;
 
@@ -325,7 +325,7 @@ static int sun6i_isp_proc_set_fmt(struct v4l2_subdev *subdev,
 	sun6i_isp_proc_mbus_format_prepare(mbus_format);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*v4l2_subdev_get_try_format(subdev, state, format->pad) =
+		*v4l2_subdev_state_get_format(state, format->pad) =
 			*mbus_format;
 	else
 		isp_dev->proc.mbus_format = *mbus_format;

@@ -142,7 +142,7 @@ vsp1_entity_get_pad_format(struct vsp1_entity *entity,
 			   struct v4l2_subdev_state *sd_state,
 			   unsigned int pad)
 {
-	return v4l2_subdev_get_try_format(&entity->subdev, sd_state, pad);
+	return v4l2_subdev_state_get_format(sd_state, pad);
 }
 
 /**
@@ -163,11 +163,9 @@ vsp1_entity_get_pad_selection(struct vsp1_entity *entity,
 {
 	switch (target) {
 	case V4L2_SEL_TGT_COMPOSE:
-		return v4l2_subdev_get_try_compose(&entity->subdev, sd_state,
-						   pad);
+		return v4l2_subdev_state_get_compose(sd_state, pad);
 	case V4L2_SEL_TGT_CROP:
-		return v4l2_subdev_get_try_crop(&entity->subdev, sd_state,
-						pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 	default:
 		return NULL;
 	}

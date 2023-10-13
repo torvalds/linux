@@ -780,8 +780,7 @@ static int vgxy61_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sensor->lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_get_try_format(&sensor->sd, sd_state,
-						 format->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 	else
 		fmt = &sensor->fmt;
 
@@ -1289,7 +1288,7 @@ static int vgxy61_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		fmt = v4l2_subdev_state_get_format(sd_state, 0);
 		*fmt = format->format;
 	} else if (sensor->current_mode != new_mode ||
 		   sensor->fmt.code != format->format.code) {

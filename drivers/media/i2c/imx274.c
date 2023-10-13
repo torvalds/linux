@@ -1018,8 +1018,8 @@ static int __imx274_change_compose(struct stimx274 *imx274,
 	int best_goodness = INT_MIN;
 
 	if (which == V4L2_SUBDEV_FORMAT_TRY) {
-		cur_crop = v4l2_subdev_get_pad_crop(&imx274->sd, sd_state, 0);
-		tgt_fmt = v4l2_subdev_get_pad_format(&imx274->sd, sd_state, 0);
+		cur_crop = v4l2_subdev_state_get_crop(sd_state, 0);
+		tgt_fmt = v4l2_subdev_state_get_format(sd_state, 0);
 	} else {
 		cur_crop = &imx274->crop;
 		tgt_fmt = &imx274->format;
@@ -1112,7 +1112,7 @@ static int imx274_set_fmt(struct v4l2_subdev *sd,
 	 */
 	fmt->field = V4L2_FIELD_NONE;
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*v4l2_subdev_get_pad_format(sd, sd_state, 0) = *fmt;
+		*v4l2_subdev_state_get_format(sd_state, 0) = *fmt;
 	else
 		imx274->format = *fmt;
 
@@ -1143,8 +1143,8 @@ static int imx274_get_selection(struct v4l2_subdev *sd,
 	}
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
-		src_crop = v4l2_subdev_get_pad_crop(sd, sd_state, 0);
-		src_fmt = v4l2_subdev_get_pad_format(sd, sd_state, 0);
+		src_crop = v4l2_subdev_state_get_crop(sd_state, 0);
+		src_fmt = v4l2_subdev_state_get_format(sd_state, 0);
 	} else {
 		src_crop = &imx274->crop;
 		src_fmt = &imx274->format;
@@ -1215,7 +1215,7 @@ static int imx274_set_selection_crop(struct stimx274 *imx274,
 	sel->r = new_crop;
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY)
-		tgt_crop = v4l2_subdev_get_pad_crop(&imx274->sd, sd_state, 0);
+		tgt_crop = v4l2_subdev_state_get_crop(sd_state, 0);
 	else
 		tgt_crop = &imx274->crop;
 

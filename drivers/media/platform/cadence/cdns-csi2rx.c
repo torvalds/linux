@@ -406,12 +406,12 @@ static int csi2rx_set_fmt(struct v4l2_subdev *subdev,
 	format->format.field = V4L2_FIELD_NONE;
 
 	/* Set sink format */
-	fmt = v4l2_subdev_get_pad_format(subdev, state, format->pad);
+	fmt = v4l2_subdev_state_get_format(state, format->pad);
 	*fmt = format->format;
 
 	/* Propagate to source formats */
 	for (i = CSI2RX_PAD_SOURCE_STREAM0; i < CSI2RX_PAD_MAX; i++) {
-		fmt = v4l2_subdev_get_pad_format(subdev, state, i);
+		fmt = v4l2_subdev_state_get_format(state, i);
 		*fmt = format->format;
 	}
 

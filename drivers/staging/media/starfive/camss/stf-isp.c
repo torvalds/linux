@@ -66,8 +66,8 @@ static int isp_set_stream(struct v4l2_subdev *sd, int enable)
 	struct v4l2_rect *crop;
 
 	sd_state = v4l2_subdev_lock_and_get_active_state(sd);
-	fmt = v4l2_subdev_get_pad_format(sd, sd_state, STF_ISP_PAD_SINK);
-	crop = v4l2_subdev_get_pad_crop(sd, sd_state, STF_ISP_PAD_SRC);
+	fmt = v4l2_subdev_state_get_format(sd_state, STF_ISP_PAD_SINK);
+	crop = v4l2_subdev_state_get_crop(sd_state, STF_ISP_PAD_SRC);
 
 	if (enable) {
 		stf_isp_reset(isp_dev);
@@ -131,8 +131,8 @@ static int isp_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index > ARRAY_SIZE(isp_formats_source))
 			return -EINVAL;
 
-		sink_fmt = v4l2_subdev_get_pad_format(sd, state,
-						      STF_ISP_PAD_SRC);
+		sink_fmt = v4l2_subdev_state_get_format(state,
+							STF_ISP_PAD_SRC);
 
 		code->code = sink_fmt->code;
 		if (!code->code)
@@ -150,7 +150,7 @@ static int isp_set_format(struct v4l2_subdev *sd,
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_pad_format(sd, state, fmt->pad);
+	format = v4l2_subdev_state_get_format(state, fmt->pad);
 	if (!format)
 		return -EINVAL;
 
@@ -188,8 +188,7 @@ static void isp_try_crop(struct stf_isp_dev *isp_dev,
 			 struct v4l2_rect *crop)
 {
 	struct v4l2_mbus_framefmt *fmt =
-		v4l2_subdev_get_pad_format(&isp_dev->subdev, state,
-					   STF_ISP_PAD_SINK);
+		v4l2_subdev_state_get_format(state, STF_ISP_PAD_SINK);
 
 	const struct v4l2_rect bounds = {
 		.width = fmt->width,
@@ -212,20 +211,20 @@ static int isp_get_selection(struct v4l2_subdev *sd,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		if (sel->pad == STF_ISP_PAD_SINK) {
-			fmt.format = *v4l2_subdev_get_pad_format(sd, state,
-								 sel->pad);
+			fmt.format = *v4l2_subdev_state_get_format(state,
+								   sel->pad);
 			sel->r.left = 0;
 			sel->r.top = 0;
 			sel->r.width = fmt.format.width;
 			sel->r.height = fmt.format.height;
 		} else if (sel->pad == STF_ISP_PAD_SRC) {
-			rect = v4l2_subdev_get_pad_crop(sd, state, sel->pad);
+			rect = v4l2_subdev_state_get_crop(state, sel->pad);
 			sel->r = *rect;
 		}
 		break;
 
 	case V4L2_SEL_TGT_CROP:
-		rect = v4l2_subdev_get_pad_crop(sd, state, sel->pad);
+		rect = v4l2_subdev_state_get_crop(state, sel->pad);
 		if (!rect)
 			return -EINVAL;
 
@@ -253,7 +252,7 @@ static int isp_set_selection(struct v4l2_subdev *sd,
 	    sel->pad == STF_ISP_PAD_SINK) {
 		struct v4l2_subdev_selection crop = { 0 };
 
-		rect = v4l2_subdev_get_pad_crop(sd, state, sel->pad);
+		rect = v4l2_subdev_state_get_crop(state, sel->pad);
 		if (!rect)
 			return -EINVAL;
 
@@ -270,7 +269,7 @@ static int isp_set_selection(struct v4l2_subdev *sd,
 		   sel->pad == STF_ISP_PAD_SRC) {
 		struct v4l2_subdev_format fmt = { 0 };
 
-		rect = v4l2_subdev_get_pad_crop(sd, state, sel->pad);
+		rect = v4l2_subdev_state_get_crop(state, sel->pad);
 		if (!rect)
 			return -EINVAL;
 

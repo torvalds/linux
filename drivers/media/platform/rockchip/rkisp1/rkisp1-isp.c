@@ -66,8 +66,8 @@ static void rkisp1_config_ism(struct rkisp1_isp *isp,
 			      struct v4l2_subdev_state *sd_state)
 {
 	const struct v4l2_rect *src_crop =
-		v4l2_subdev_get_pad_crop(&isp->sd, sd_state,
-					 RKISP1_ISP_PAD_SOURCE_VIDEO);
+		v4l2_subdev_state_get_crop(sd_state,
+					   RKISP1_ISP_PAD_SOURCE_VIDEO);
 	struct rkisp1_device *rkisp1 = isp->rkisp1;
 	u32 val;
 
@@ -102,12 +102,12 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
 	const struct v4l2_mbus_framefmt *sink_frm;
 	const struct v4l2_rect *sink_crop;
 
-	sink_frm = v4l2_subdev_get_pad_format(&isp->sd, sd_state,
-					      RKISP1_ISP_PAD_SINK_VIDEO);
-	sink_crop = v4l2_subdev_get_pad_crop(&isp->sd, sd_state,
-					     RKISP1_ISP_PAD_SINK_VIDEO);
-	src_frm = v4l2_subdev_get_pad_format(&isp->sd, sd_state,
-					     RKISP1_ISP_PAD_SOURCE_VIDEO);
+	sink_frm = v4l2_subdev_state_get_format(sd_state,
+						RKISP1_ISP_PAD_SINK_VIDEO);
+	sink_crop = v4l2_subdev_state_get_crop(sd_state,
+					       RKISP1_ISP_PAD_SINK_VIDEO);
+	src_frm = v4l2_subdev_state_get_format(sd_state,
+					       RKISP1_ISP_PAD_SOURCE_VIDEO);
 
 	sink_fmt = rkisp1_mbus_info_get_by_code(sink_frm->code);
 	src_fmt = rkisp1_mbus_info_get_by_code(src_frm->code);
@@ -201,8 +201,8 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
 	} else {
 		struct v4l2_mbus_framefmt *src_frm;
 
-		src_frm = v4l2_subdev_get_pad_format(&isp->sd, sd_state,
-						     RKISP1_ISP_PAD_SOURCE_VIDEO);
+		src_frm = v4l2_subdev_state_get_format(sd_state,
+						       RKISP1_ISP_PAD_SOURCE_VIDEO);
 		rkisp1_params_pre_configure(&rkisp1->params, sink_fmt->bayer_pat,
 					    src_frm->quantization,
 					    src_frm->ycbcr_enc);
@@ -318,8 +318,8 @@ static void rkisp1_isp_start(struct rkisp1_isp *isp,
 	       RKISP1_CIF_ISP_CTRL_ISP_INFORM_ENABLE;
 	rkisp1_write(rkisp1, RKISP1_CIF_ISP_CTRL, val);
 
-	src_fmt = v4l2_subdev_get_pad_format(&isp->sd, sd_state,
-					     RKISP1_ISP_PAD_SOURCE_VIDEO);
+	src_fmt = v4l2_subdev_state_get_format(sd_state,
+					       RKISP1_ISP_PAD_SOURCE_VIDEO);
 	src_info = rkisp1_mbus_info_get_by_code(src_fmt->code);
 
 	if (src_info->pixel_enc != V4L2_PIXEL_ENC_BAYER)
@@ -416,8 +416,8 @@ static int rkisp1_isp_init_config(struct v4l2_subdev *sd,
 	struct v4l2_rect *sink_crop, *src_crop;
 
 	/* Video. */
-	sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state,
-					      RKISP1_ISP_PAD_SINK_VIDEO);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state,
+						RKISP1_ISP_PAD_SINK_VIDEO);
 	sink_fmt->width = RKISP1_DEFAULT_WIDTH;
 	sink_fmt->height = RKISP1_DEFAULT_HEIGHT;
 	sink_fmt->field = V4L2_FIELD_NONE;
@@ -427,15 +427,15 @@ static int rkisp1_isp_init_config(struct v4l2_subdev *sd,
 	sink_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
 	sink_fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
 
-	sink_crop = v4l2_subdev_get_pad_crop(sd, sd_state,
-					     RKISP1_ISP_PAD_SINK_VIDEO);
+	sink_crop = v4l2_subdev_state_get_crop(sd_state,
+					       RKISP1_ISP_PAD_SINK_VIDEO);
 	sink_crop->width = RKISP1_DEFAULT_WIDTH;
 	sink_crop->height = RKISP1_DEFAULT_HEIGHT;
 	sink_crop->left = 0;
 	sink_crop->top = 0;
 
-	src_fmt = v4l2_subdev_get_pad_format(sd, sd_state,
-					     RKISP1_ISP_PAD_SOURCE_VIDEO);
+	src_fmt = v4l2_subdev_state_get_format(sd_state,
+					       RKISP1_ISP_PAD_SOURCE_VIDEO);
 	*src_fmt = *sink_fmt;
 	src_fmt->code = RKISP1_DEF_SRC_PAD_FMT;
 	src_fmt->colorspace = V4L2_COLORSPACE_SRGB;
@@ -443,15 +443,15 @@ static int rkisp1_isp_init_config(struct v4l2_subdev *sd,
 	src_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
 	src_fmt->quantization = V4L2_QUANTIZATION_LIM_RANGE;
 
-	src_crop = v4l2_subdev_get_pad_crop(sd, sd_state,
-					    RKISP1_ISP_PAD_SOURCE_VIDEO);
+	src_crop = v4l2_subdev_state_get_crop(sd_state,
+					      RKISP1_ISP_PAD_SOURCE_VIDEO);
 	*src_crop = *sink_crop;
 
 	/* Parameters and statistics. */
-	sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state,
-					      RKISP1_ISP_PAD_SINK_PARAMS);
-	src_fmt = v4l2_subdev_get_pad_format(sd, sd_state,
-					     RKISP1_ISP_PAD_SOURCE_STATS);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state,
+						RKISP1_ISP_PAD_SINK_PARAMS);
+	src_fmt = v4l2_subdev_state_get_format(sd_state,
+					       RKISP1_ISP_PAD_SOURCE_STATS);
 	sink_fmt->width = 0;
 	sink_fmt->height = 0;
 	sink_fmt->field = V4L2_FIELD_NONE;
@@ -472,12 +472,12 @@ static void rkisp1_isp_set_src_fmt(struct rkisp1_isp *isp,
 	const struct v4l2_rect *src_crop;
 	bool set_csc;
 
-	sink_fmt = v4l2_subdev_get_pad_format(&isp->sd, sd_state,
-					      RKISP1_ISP_PAD_SINK_VIDEO);
-	src_fmt = v4l2_subdev_get_pad_format(&isp->sd, sd_state,
-					     RKISP1_ISP_PAD_SOURCE_VIDEO);
-	src_crop = v4l2_subdev_get_pad_crop(&isp->sd, sd_state,
-					    RKISP1_ISP_PAD_SOURCE_VIDEO);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state,
+						RKISP1_ISP_PAD_SINK_VIDEO);
+	src_fmt = v4l2_subdev_state_get_format(sd_state,
+					       RKISP1_ISP_PAD_SOURCE_VIDEO);
+	src_crop = v4l2_subdev_state_get_crop(sd_state,
+					      RKISP1_ISP_PAD_SOURCE_VIDEO);
 
 	/*
 	 * Media bus code. The ISP can operate in pass-through mode (Bayer in,
@@ -570,10 +570,10 @@ static void rkisp1_isp_set_src_crop(struct rkisp1_isp *isp,
 	const struct v4l2_rect *sink_crop;
 	struct v4l2_rect *src_crop;
 
-	src_crop = v4l2_subdev_get_pad_crop(&isp->sd, sd_state,
-					    RKISP1_ISP_PAD_SOURCE_VIDEO);
-	sink_crop = v4l2_subdev_get_pad_crop(&isp->sd, sd_state,
-					     RKISP1_ISP_PAD_SINK_VIDEO);
+	src_crop = v4l2_subdev_state_get_crop(sd_state,
+					      RKISP1_ISP_PAD_SOURCE_VIDEO);
+	sink_crop = v4l2_subdev_state_get_crop(sd_state,
+					       RKISP1_ISP_PAD_SINK_VIDEO);
 
 	src_crop->left = ALIGN(r->left, 2);
 	src_crop->width = ALIGN(r->width, 2);
@@ -584,8 +584,8 @@ static void rkisp1_isp_set_src_crop(struct rkisp1_isp *isp,
 	*r = *src_crop;
 
 	/* Propagate to out format */
-	src_fmt = v4l2_subdev_get_pad_format(&isp->sd, sd_state,
-					     RKISP1_ISP_PAD_SOURCE_VIDEO);
+	src_fmt = v4l2_subdev_state_get_format(sd_state,
+					       RKISP1_ISP_PAD_SOURCE_VIDEO);
 	rkisp1_isp_set_src_fmt(isp, sd_state, src_fmt);
 }
 
@@ -596,10 +596,10 @@ static void rkisp1_isp_set_sink_crop(struct rkisp1_isp *isp,
 	struct v4l2_rect *sink_crop, *src_crop;
 	const struct v4l2_mbus_framefmt *sink_fmt;
 
-	sink_crop = v4l2_subdev_get_pad_crop(&isp->sd, sd_state,
-					     RKISP1_ISP_PAD_SINK_VIDEO);
-	sink_fmt = v4l2_subdev_get_pad_format(&isp->sd, sd_state,
-					      RKISP1_ISP_PAD_SINK_VIDEO);
+	sink_crop = v4l2_subdev_state_get_crop(sd_state,
+					       RKISP1_ISP_PAD_SINK_VIDEO);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state,
+						RKISP1_ISP_PAD_SINK_VIDEO);
 
 	sink_crop->left = ALIGN(r->left, 2);
 	sink_crop->width = ALIGN(r->width, 2);
@@ -610,8 +610,8 @@ static void rkisp1_isp_set_sink_crop(struct rkisp1_isp *isp,
 	*r = *sink_crop;
 
 	/* Propagate to out crop */
-	src_crop = v4l2_subdev_get_pad_crop(&isp->sd, sd_state,
-					    RKISP1_ISP_PAD_SOURCE_VIDEO);
+	src_crop = v4l2_subdev_state_get_crop(sd_state,
+					      RKISP1_ISP_PAD_SOURCE_VIDEO);
 	rkisp1_isp_set_src_crop(isp, sd_state, src_crop);
 }
 
@@ -624,8 +624,8 @@ static void rkisp1_isp_set_sink_fmt(struct rkisp1_isp *isp,
 	struct v4l2_rect *sink_crop;
 	bool is_yuv;
 
-	sink_fmt = v4l2_subdev_get_pad_format(&isp->sd, sd_state,
-					      RKISP1_ISP_PAD_SINK_VIDEO);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state,
+						RKISP1_ISP_PAD_SINK_VIDEO);
 	sink_fmt->code = format->code;
 	mbus_info = rkisp1_mbus_info_get_by_code(sink_fmt->code);
 	if (!mbus_info || !(mbus_info->direction & RKISP1_ISP_SD_SINK)) {
@@ -673,8 +673,8 @@ static void rkisp1_isp_set_sink_fmt(struct rkisp1_isp *isp,
 	*format = *sink_fmt;
 
 	/* Propagate to in crop */
-	sink_crop = v4l2_subdev_get_pad_crop(&isp->sd, sd_state,
-					     RKISP1_ISP_PAD_SINK_VIDEO);
+	sink_crop = v4l2_subdev_state_get_crop(sd_state,
+					       RKISP1_ISP_PAD_SINK_VIDEO);
 	rkisp1_isp_set_sink_crop(isp, sd_state, sink_crop);
 }
 
@@ -689,7 +689,8 @@ static int rkisp1_isp_set_fmt(struct v4l2_subdev *sd,
 	else if (fmt->pad == RKISP1_ISP_PAD_SOURCE_VIDEO)
 		rkisp1_isp_set_src_fmt(isp, sd_state, &fmt->format);
 	else
-		fmt->format = *v4l2_subdev_get_pad_format(sd, sd_state, fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 
 	return 0;
 }
@@ -709,19 +710,19 @@ static int rkisp1_isp_get_selection(struct v4l2_subdev *sd,
 		if (sel->pad == RKISP1_ISP_PAD_SINK_VIDEO) {
 			struct v4l2_mbus_framefmt *fmt;
 
-			fmt = v4l2_subdev_get_pad_format(sd, sd_state, sel->pad);
+			fmt = v4l2_subdev_state_get_format(sd_state, sel->pad);
 			sel->r.height = fmt->height;
 			sel->r.width = fmt->width;
 			sel->r.left = 0;
 			sel->r.top = 0;
 		} else {
-			sel->r = *v4l2_subdev_get_pad_crop(sd, sd_state,
-							   RKISP1_ISP_PAD_SINK_VIDEO);
+			sel->r = *v4l2_subdev_state_get_crop(sd_state,
+							     RKISP1_ISP_PAD_SINK_VIDEO);
 		}
 		break;
 
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *v4l2_subdev_get_pad_crop(sd, sd_state, sel->pad);
+		sel->r = *v4l2_subdev_state_get_crop(sd_state, sel->pad);
 		break;
 
 	default:

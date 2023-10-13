@@ -315,7 +315,7 @@ static int ov02a10_set_fmt(struct v4l2_subdev *sd,
 	ov02a10_fill_fmt(ov02a10->cur_mode, mbus_fmt);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		frame_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		frame_fmt = v4l2_subdev_state_get_format(sd_state, 0);
 	else
 		frame_fmt = &ov02a10->fmt;
 
@@ -336,8 +336,8 @@ static int ov02a10_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&ov02a10->mutex);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	} else {
 		fmt->format = ov02a10->fmt;
 		mbus_fmt->code = ov02a10->fmt.code;

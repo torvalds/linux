@@ -427,7 +427,7 @@ static int tc358746_apply_misc_config(struct tc358746 *tc358746)
 
 	sink_state = v4l2_subdev_lock_and_get_active_state(sd);
 
-	mbusfmt = v4l2_subdev_get_pad_format(sd, sink_state, TC358746_SINK);
+	mbusfmt = v4l2_subdev_state_get_format(sink_state, TC358746_SINK);
 	fmt = tc358746_get_format_by_code(TC358746_SINK, mbusfmt->code);
 
 	/* Self defined CSI user data type id's are not supported yet */
@@ -745,10 +745,10 @@ static int tc358746_init_cfg(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *fmt;
 
-	fmt = v4l2_subdev_get_pad_format(sd, state, TC358746_SINK);
+	fmt = v4l2_subdev_state_get_format(state, TC358746_SINK);
 	*fmt = tc358746_def_fmt;
 
-	fmt = v4l2_subdev_get_pad_format(sd, state, TC358746_SOURCE);
+	fmt = v4l2_subdev_state_get_format(state, TC358746_SOURCE);
 	*fmt = tc358746_def_fmt;
 	fmt->code = tc358746_src_mbus_code(tc358746_def_fmt.code);
 
@@ -781,7 +781,7 @@ static int tc358746_set_fmt(struct v4l2_subdev *sd,
 	if (format->pad == TC358746_SOURCE)
 		return v4l2_subdev_get_fmt(sd, sd_state, format);
 
-	sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state, TC358746_SINK);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state, TC358746_SINK);
 
 	fmt = tc358746_get_format_by_code(format->pad, format->format.code);
 	if (IS_ERR(fmt)) {
@@ -800,7 +800,7 @@ static int tc358746_set_fmt(struct v4l2_subdev *sd,
 
 	*sink_fmt = format->format;
 
-	src_fmt = v4l2_subdev_get_pad_format(sd, sd_state, TC358746_SOURCE);
+	src_fmt = v4l2_subdev_state_get_format(sd_state, TC358746_SOURCE);
 	*src_fmt = *sink_fmt;
 	src_fmt->code = tc358746_src_mbus_code(sink_fmt->code);
 
@@ -905,7 +905,7 @@ tc358746_link_validate(struct v4l2_subdev *sd, struct media_link *link,
 		return err;
 
 	sink_state = v4l2_subdev_lock_and_get_active_state(sd);
-	mbusfmt = v4l2_subdev_get_pad_format(sd, sink_state, TC358746_SINK);
+	mbusfmt = v4l2_subdev_state_get_format(sink_state, TC358746_SINK);
 
 	/* Check the FIFO settings */
 	fmt = tc358746_get_format_by_code(TC358746_SINK, mbusfmt->code);

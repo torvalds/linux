@@ -361,7 +361,7 @@ gc0310_get_pad_format(struct gc0310_device *dev,
 		      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&dev->sd, state, pad);
+		return v4l2_subdev_state_get_format(state, pad);
 
 	return &dev->mode.fmt;
 }

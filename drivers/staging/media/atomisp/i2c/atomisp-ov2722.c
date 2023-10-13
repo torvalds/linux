@@ -671,7 +671,7 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_pad_format(sd, sd_state, 0) = *fmt;
+		*v4l2_subdev_state_get_format(sd_state, 0) = *fmt;
 		return 0;
 	}
 

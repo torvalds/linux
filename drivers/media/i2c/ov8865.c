@@ -2710,8 +2710,8 @@ static int ov8865_get_fmt(struct v4l2_subdev *subdev,
 	mutex_lock(&sensor->mutex);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*mbus_format = *v4l2_subdev_get_try_format(subdev, sd_state,
-							   format->pad);
+		*mbus_format = *v4l2_subdev_state_get_format(sd_state,
+							     format->pad);
 	else
 		ov8865_mbus_format_fill(mbus_format, sensor->state.mbus_code,
 					sensor->state.mode);
@@ -2765,7 +2765,7 @@ static int ov8865_set_fmt(struct v4l2_subdev *subdev,
 	ov8865_mbus_format_fill(mbus_format, mbus_code, mode);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*v4l2_subdev_get_try_format(subdev, sd_state, format->pad) =
+		*v4l2_subdev_state_get_format(sd_state, format->pad) =
 			*mbus_format;
 	else if (sensor->state.mode != mode ||
 		 sensor->state.mbus_code != mbus_code)
@@ -2818,7 +2818,7 @@ __ov8865_get_pad_crop(struct ov8865_sensor *sensor,
 
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		*r = *v4l2_subdev_get_try_crop(&sensor->subdev, state, pad);
+		*r = *v4l2_subdev_state_get_crop(state, pad);
 		break;
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		r->height = mode->output_size_y;

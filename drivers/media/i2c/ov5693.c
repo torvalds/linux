@@ -775,7 +775,7 @@ __ov5693_get_pad_format(struct ov5693_device *ov5693,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&ov5693->sd, state, pad);
+		return v4l2_subdev_state_get_format(state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &ov5693->mode.format;
 	default:
@@ -790,7 +790,7 @@ __ov5693_get_pad_crop(struct ov5693_device *ov5693,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&ov5693->sd, state, pad);
+		return v4l2_subdev_state_get_crop(state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &ov5693->mode.crop;
 	}

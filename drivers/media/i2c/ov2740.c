@@ -826,7 +826,7 @@ static int ov2740_set_format(struct v4l2_subdev *sd,
 				      fmt->format.height);
 
 	ov2740_update_pad_format(mode, &fmt->format);
-	*v4l2_subdev_get_pad_format(sd, sd_state, fmt->pad) = fmt->format;
+	*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
@@ -883,7 +883,7 @@ static int ov2740_init_cfg(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state)
 {
 	ov2740_update_pad_format(&supported_modes[0],
-				 v4l2_subdev_get_pad_format(sd, sd_state, 0));
+				 v4l2_subdev_state_get_format(sd_state, 0));
 
 	return 0;
 }

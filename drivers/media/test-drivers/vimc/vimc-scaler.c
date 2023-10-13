@@ -78,11 +78,11 @@ static int vimc_scaler_init_cfg(struct v4l2_subdev *sd,
 	unsigned int i;
 
 	for (i = 0; i < sd->entity.num_pads; i++) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, i);
+		mf = v4l2_subdev_state_get_format(sd_state, i);
 		*mf = fmt_default;
 	}
 
-	r = v4l2_subdev_get_try_crop(sd, sd_state, VIMC_SCALER_SINK);
+	r = v4l2_subdev_state_get_crop(sd_state, VIMC_SCALER_SINK);
 	*r = crop_rect_default;
 
 	return 0;
@@ -138,7 +138,7 @@ vimc_scaler_pad_format(struct vimc_scaler_device *vscaler,
 		    enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&vscaler->sd, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &vscaler->fmt[pad];
 }
@@ -149,8 +149,7 @@ vimc_scaler_pad_crop(struct vimc_scaler_device *vscaler,
 		  enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&vscaler->sd, sd_state,
-						VIMC_SCALER_SINK);
+		return v4l2_subdev_state_get_crop(sd_state, VIMC_SCALER_SINK);
 	else
 		return &vscaler->crop_rect;
 }

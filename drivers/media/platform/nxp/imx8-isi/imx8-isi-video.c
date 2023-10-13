@@ -713,7 +713,7 @@ static int mxc_isi_video_validate_format(struct mxc_isi_video *video)
 
 	info = mxc_isi_format_by_fourcc(video->pix.pixelformat,
 					MXC_ISI_VIDEO_CAP);
-	format = v4l2_subdev_get_try_format(sd, state, MXC_ISI_PIPE_PAD_SOURCE);
+	format = v4l2_subdev_state_get_format(state, MXC_ISI_PIPE_PAD_SOURCE);
 
 	if (format->code != info->mbus_code ||
 	    format->width != video->pix.width ||

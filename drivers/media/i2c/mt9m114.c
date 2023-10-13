@@ -796,13 +796,13 @@ static int mt9m114_configure(struct mt9m114 *sensor,
 	u64 read_mode;
 	int ret = 0;
 
-	pa_format = v4l2_subdev_get_pad_format(&sensor->pa.sd, pa_state, 0);
-	pa_crop = v4l2_subdev_get_pad_crop(&sensor->pa.sd, pa_state, 0);
+	pa_format = v4l2_subdev_state_get_format(pa_state, 0);
+	pa_crop = v4l2_subdev_state_get_crop(pa_state, 0);
 
-	ifp_format = v4l2_subdev_get_pad_format(&sensor->ifp.sd, ifp_state, 1);
+	ifp_format = v4l2_subdev_state_get_format(ifp_state, 1);
 	ifp_info = mt9m114_format_info(sensor, 1, ifp_format->code);
-	ifp_crop = v4l2_subdev_get_pad_crop(&sensor->ifp.sd, ifp_state, 0);
-	ifp_compose = v4l2_subdev_get_pad_compose(&sensor->ifp.sd, ifp_state, 0);
+	ifp_crop = v4l2_subdev_state_get_crop(ifp_state, 0);
+	ifp_compose = v4l2_subdev_state_get_compose(ifp_state, 0);
 
 	ret = cci_read(sensor->regmap, MT9M114_CAM_SENSOR_CONTROL_READ_MODE,
 		       &read_mode, NULL);
@@ -1045,7 +1045,7 @@ static int mt9m114_pa_s_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 
 	state = v4l2_subdev_get_locked_active_state(&sensor->pa.sd);
-	format = v4l2_subdev_get_pad_format(&sensor->pa.sd, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 
 	switch (ctrl->id) {
 	case V4L2_CID_HBLANK:
@@ -1158,14 +1158,14 @@ static int mt9m114_pa_init_cfg(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
-	crop = v4l2_subdev_get_pad_crop(sd, state, 0);
+	crop = v4l2_subdev_state_get_crop(state, 0);
 
 	crop->left = 0;
 	crop->top = 0;
 	crop->width = MT9M114_PIXEL_ARRAY_WIDTH;
 	crop->height = MT9M114_PIXEL_ARRAY_HEIGHT;
 
-	format = v4l2_subdev_get_pad_format(sd, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 
 	format->width = MT9M114_PIXEL_ARRAY_WIDTH;
 	format->height = MT9M114_PIXEL_ARRAY_HEIGHT;
@@ -1220,8 +1220,8 @@ static int mt9m114_pa_set_fmt(struct v4l2_subdev *sd,
 	unsigned int hscale;
 	unsigned int vscale;
 
-	crop = v4l2_subdev_get_pad_crop(sd, state, fmt->pad);
-	format = v4l2_subdev_get_pad_format(sd, state, fmt->pad);
+	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
+	format = v4l2_subdev_state_get_format(state, fmt->pad);
 
 	/* The sensor can bin horizontally and vertically. */
 	hscale = DIV_ROUND_CLOSEST(crop->width, fmt->format.width ? : 1);
@@ -1243,7 +1243,7 @@ static int mt9m114_pa_get_selection(struct v4l2_subdev *sd,
 {
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *v4l2_subdev_get_pad_crop(sd, state, sel->pad);
+		sel->r = *v4l2_subdev_state_get_crop(state, sel->pad);
 		return 0;
 
 	case V4L2_SEL_TGT_CROP_DEFAULT:
@@ -1271,8 +1271,8 @@ static int mt9m114_pa_set_selection(struct v4l2_subdev *sd,
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	crop = v4l2_subdev_get_pad_crop(sd, state, sel->pad);
-	format = v4l2_subdev_get_pad_format(sd, state, sel->pad);
+	crop = v4l2_subdev_state_get_crop(state, sel->pad);
+	format = v4l2_subdev_state_get_format(state, sel->pad);
 
 	/*
 	 * Clamp the crop rectangle. The vertical coordinates must be even, and
@@ -1402,7 +1402,7 @@ static int mt9m114_pa_init(struct mt9m114 *sensor)
 
 	/* Update the range of the blanking controls based on the format. */
 	state = v4l2_subdev_lock_and_get_active_state(sd);
-	format = v4l2_subdev_get_pad_format(sd, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 	mt9m114_pa_ctrl_update_blanking(sensor, format);
 	v4l2_subdev_unlock_state(state);
 
@@ -1632,7 +1632,7 @@ static int mt9m114_ifp_init_cfg(struct v4l2_subdev *sd,
 	struct v4l2_rect *crop;
 	struct v4l2_rect *compose;
 
-	format = v4l2_subdev_get_pad_format(sd, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 
 	format->width = MT9M114_PIXEL_ARRAY_WIDTH;
 	format->height = MT9M114_PIXEL_ARRAY_HEIGHT;
@@ -1643,21 +1643,21 @@ static int mt9m114_ifp_init_cfg(struct v4l2_subdev *sd,
 	format->quantization = V4L2_QUANTIZATION_FULL_RANGE;
 	format->xfer_func = V4L2_XFER_FUNC_NONE;
 
-	crop = v4l2_subdev_get_pad_crop(sd, state, 0);
+	crop = v4l2_subdev_state_get_crop(state, 0);
 
 	crop->left = 4;
 	crop->top = 4;
 	crop->width = format->width - 8;
 	crop->height = format->height - 8;
 
-	compose = v4l2_subdev_get_pad_compose(sd, state, 0);
+	compose = v4l2_subdev_state_get_compose(state, 0);
 
 	compose->left = 0;
 	compose->top = 0;
 	compose->width = crop->width;
 	compose->height = crop->height;
 
-	format = v4l2_subdev_get_pad_format(sd, state, 1);
+	format = v4l2_subdev_state_get_format(state, 1);
 
 	format->width = compose->width;
 	format->height = compose->height;
@@ -1738,7 +1738,7 @@ static int mt9m114_ifp_enum_framesizes(struct v4l2_subdev *sd,
 	} else {
 		const struct v4l2_rect *crop;
 
-		crop = v4l2_subdev_get_pad_crop(sd, state, 0);
+		crop = v4l2_subdev_state_get_crop(state, 0);
 
 		fse->max_width = crop->width;
 		fse->max_height = crop->height;
@@ -1777,7 +1777,7 @@ static int mt9m114_ifp_set_fmt(struct v4l2_subdev *sd,
 	struct mt9m114 *sensor = ifp_to_mt9m114(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_pad_format(sd, state, fmt->pad);
+	format = v4l2_subdev_state_get_format(state, fmt->pad);
 
 	if (fmt->pad == 0) {
 		/* Only the size can be changed on the sink pad. */
@@ -1797,7 +1797,7 @@ static int mt9m114_ifp_set_fmt(struct v4l2_subdev *sd,
 
 		/* If the output format is RAW10, bypass the scaler. */
 		if (format->code == MEDIA_BUS_FMT_SGRBG10_1X10)
-			*format = *v4l2_subdev_get_pad_format(sd, state, 0);
+			*format = *v4l2_subdev_state_get_format(state, 0);
 	}
 
 	fmt->format = *format;
@@ -1819,7 +1819,7 @@ static int mt9m114_ifp_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *v4l2_subdev_get_pad_crop(sd, state, 0);
+		sel->r = *v4l2_subdev_state_get_crop(state, 0);
 		break;
 
 	case V4L2_SEL_TGT_CROP_DEFAULT:
@@ -1828,7 +1828,7 @@ static int mt9m114_ifp_get_selection(struct v4l2_subdev *sd,
 		 * The crop default and bounds are equal to the sink
 		 * format size minus 4 pixels on each side for demosaicing.
 		 */
-		format = v4l2_subdev_get_pad_format(sd, state, 0);
+		format = v4l2_subdev_state_get_format(state, 0);
 
 		sel->r.left = 4;
 		sel->r.top = 4;
@@ -1837,7 +1837,7 @@ static int mt9m114_ifp_get_selection(struct v4l2_subdev *sd,
 		break;
 
 	case V4L2_SEL_TGT_COMPOSE:
-		sel->r = *v4l2_subdev_get_pad_compose(sd, state, 0);
+		sel->r = *v4l2_subdev_state_get_compose(state, 0);
 		break;
 
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
@@ -1846,7 +1846,7 @@ static int mt9m114_ifp_get_selection(struct v4l2_subdev *sd,
 		 * The compose default and bounds sizes are equal to the sink
 		 * crop rectangle size.
 		 */
-		crop = v4l2_subdev_get_pad_crop(sd, state, 0);
+		crop = v4l2_subdev_state_get_crop(state, 0);
 		sel->r.left = 0;
 		sel->r.top = 0;
 		sel->r.width = crop->width;
@@ -1877,9 +1877,9 @@ static int mt9m114_ifp_set_selection(struct v4l2_subdev *sd,
 	if (sel->pad != 0)
 		return -EINVAL;
 
-	format = v4l2_subdev_get_pad_format(sd, state, 0);
-	crop = v4l2_subdev_get_pad_crop(sd, state, 0);
-	compose = v4l2_subdev_get_pad_compose(sd, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
+	crop = v4l2_subdev_state_get_crop(state, 0);
+	compose = v4l2_subdev_state_get_compose(state, 0);
 
 	if (sel->target == V4L2_SEL_TGT_CROP) {
 		/*
@@ -1921,7 +1921,7 @@ static int mt9m114_ifp_set_selection(struct v4l2_subdev *sd,
 	}
 
 	/* Propagate the compose rectangle to the source format. */
-	format = v4l2_subdev_get_pad_format(sd, state, 1);
+	format = v4l2_subdev_state_get_format(state, 1);
 	format->width = compose->width;
 	format->height = compose->height;
 

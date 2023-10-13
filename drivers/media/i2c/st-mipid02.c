@@ -724,8 +724,7 @@ static int mipid02_get_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_get_try_format(&bridge->sd, sd_state,
-						 format->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 	else
 		fmt = &bridge->fmt;
 
@@ -751,8 +750,8 @@ static void mipid02_set_fmt_source(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		format->format = bridge->fmt;
 	else
-		format->format = *v4l2_subdev_get_try_format(sd, sd_state,
-							     MIPID02_SINK_0);
+		format->format = *v4l2_subdev_state_get_format(sd_state,
+							       MIPID02_SINK_0);
 
 	/* but code may need to be converted */
 	format->format.code = serial_to_parallel_code(format->format.code);
@@ -761,7 +760,7 @@ static void mipid02_set_fmt_source(struct v4l2_subdev *sd,
 	if (format->which != V4L2_SUBDEV_FORMAT_TRY)
 		return;
 
-	*v4l2_subdev_get_try_format(sd, sd_state, MIPID02_SOURCE) =
+	*v4l2_subdev_state_get_format(sd_state, MIPID02_SOURCE) =
 		format->format;
 }
 
@@ -775,7 +774,7 @@ static void mipid02_set_fmt_sink(struct v4l2_subdev *sd,
 	format->format.code = get_fmt_code(format->format.code);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 	else
 		fmt = &bridge->fmt;
 

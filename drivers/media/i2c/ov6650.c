@@ -476,7 +476,7 @@ static int ov6650_get_selection(struct v4l2_subdev *sd,
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
 		/* pre-select try crop rectangle */
-		rect = v4l2_subdev_get_pad_crop(sd, sd_state, 0);
+		rect = v4l2_subdev_state_get_crop(sd_state, 0);
 
 	} else {
 		/* pre-select active crop rectangle */
@@ -532,9 +532,9 @@ static int ov6650_set_selection(struct v4l2_subdev *sd,
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_rect *crop =
-			v4l2_subdev_get_pad_crop(sd, sd_state, 0);
+			v4l2_subdev_state_get_crop(sd_state, 0);
 		struct v4l2_mbus_framefmt *mf =
-			v4l2_subdev_get_pad_format(sd, sd_state, 0);
+			v4l2_subdev_state_get_format(sd_state, 0);
 		/* detect current pad config scaling factor */
 		bool half_scale = !is_unscaled_ok(mf->width, mf->height, crop);
 
@@ -591,7 +591,7 @@ static int ov6650_get_fmt(struct v4l2_subdev *sd,
 	/* update media bus format code and frame size */
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *try_fmt =
-			v4l2_subdev_get_pad_format(sd, sd_state, 0);
+			v4l2_subdev_state_get_format(sd_state, 0);
 
 		mf->width = try_fmt->width;
 		mf->height = try_fmt->height;
@@ -722,7 +722,7 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		crop = v4l2_subdev_get_pad_crop(sd, sd_state, 0);
+		crop = v4l2_subdev_state_get_crop(sd_state, 0);
 	else
 		crop = &priv->rect;
 
@@ -730,7 +730,7 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *try_fmt =
-			v4l2_subdev_get_pad_format(sd, sd_state, 0);
+			v4l2_subdev_state_get_format(sd_state, 0);
 
 		/* store new mbus frame format code and size in pad config */
 		try_fmt->width = crop->width >> half_scale;

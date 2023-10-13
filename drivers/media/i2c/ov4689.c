@@ -570,7 +570,7 @@ static int ov4689_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&ov4689->mutex);
 
-	try_fmt = v4l2_subdev_get_try_format(sd, fh->state, 0);
+	try_fmt = v4l2_subdev_state_get_format(fh->state, 0);
 	/* Initialize try_fmt */
 	ov4689_fill_fmt(&supported_modes[OV4689_MODE_2688_1520], try_fmt);
 

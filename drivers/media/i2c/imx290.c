@@ -758,7 +758,7 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 
 	state = v4l2_subdev_get_locked_active_state(&imx290->sd);
-	format = v4l2_subdev_get_pad_format(&imx290->sd, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 
 	switch (ctrl->id) {
 	case V4L2_CID_ANALOGUE_GAIN:
@@ -994,7 +994,7 @@ static int imx290_start_streaming(struct imx290 *imx290,
 	}
 
 	/* Apply the register values related to current frame format */
-	format = v4l2_subdev_get_pad_format(&imx290->sd, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 	ret = imx290_setup_format(imx290, format);
 	if (ret < 0) {
 		dev_err(imx290->dev, "Could not set frame format - %d\n", ret);
@@ -1132,7 +1132,7 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.quantization = V4L2_QUANTIZATION_FULL_RANGE;
 	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
 
-	format = v4l2_subdev_get_pad_format(sd, sd_state, 0);
+	format = v4l2_subdev_state_get_format(sd_state, 0);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		imx290->current_mode = mode;
@@ -1155,7 +1155,7 @@ static int imx290_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP: {
-		format = v4l2_subdev_get_pad_format(sd, sd_state, 0);
+		format = v4l2_subdev_state_get_format(sd_state, 0);
 
 		/*
 		 * The sensor moves the readout by 1 pixel based on flips to

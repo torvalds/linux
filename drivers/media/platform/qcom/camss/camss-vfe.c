@@ -828,8 +828,7 @@ __vfe_get_format(struct vfe_line *line,
 		 enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&line->subdev, sd_state,
-						  pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 
 	return &line->fmt[pad];
 }
@@ -848,8 +847,8 @@ __vfe_get_compose(struct vfe_line *line,
 		  enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_compose(&line->subdev, sd_state,
-						   MSM_VFE_PAD_SINK);
+		return v4l2_subdev_state_get_compose(sd_state,
+						     MSM_VFE_PAD_SINK);
 
 	return &line->compose;
 }
@@ -868,8 +867,7 @@ __vfe_get_crop(struct vfe_line *line,
 	       enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&line->subdev, sd_state,
-						MSM_VFE_PAD_SRC);
+		return v4l2_subdev_state_get_crop(sd_state, MSM_VFE_PAD_SRC);
 
 	return &line->crop;
 }

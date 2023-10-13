@@ -1333,7 +1333,7 @@ static int ov8858_start_stream(struct ov8858 *ov8858,
 	if (ret)
 		return ret;
 
-	format = v4l2_subdev_get_pad_format(&ov8858->subdev, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 	mode = v4l2_find_nearest_size(ov8858_modes, ARRAY_SIZE(ov8858_modes),
 				      width, height, format->width,
 				      format->height);
@@ -1428,7 +1428,7 @@ static int ov8858_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 
 	/* Store the format in the current subdev state. */
-	*v4l2_subdev_get_pad_format(sd, state, 0) =  fmt->format;
+	*v4l2_subdev_state_get_format(state, 0) =  fmt->format;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
@@ -1547,7 +1547,7 @@ static int ov8858_set_ctrl(struct v4l2_ctrl *ctrl)
 	 * - by the driver when s_ctrl is called in the s_stream(1) call path
 	 */
 	state = v4l2_subdev_get_locked_active_state(&ov8858->subdev);
-	format = v4l2_subdev_get_pad_format(&ov8858->subdev, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {

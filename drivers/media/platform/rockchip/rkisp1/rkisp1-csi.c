@@ -242,8 +242,8 @@ static int rkisp1_csi_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index)
 			return -EINVAL;
 
-		sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state,
-						      RKISP1_CSI_PAD_SINK);
+		sink_fmt = v4l2_subdev_state_get_format(sd_state,
+							RKISP1_CSI_PAD_SINK);
 		code->code = sink_fmt->code;
 
 		return 0;
@@ -275,10 +275,8 @@ static int rkisp1_csi_init_config(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *sink_fmt, *src_fmt;
 
-	sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state,
-					      RKISP1_CSI_PAD_SINK);
-	src_fmt = v4l2_subdev_get_pad_format(sd, sd_state,
-					     RKISP1_CSI_PAD_SRC);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_CSI_PAD_SINK);
+	src_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_CSI_PAD_SRC);
 
 	sink_fmt->width = RKISP1_DEFAULT_WIDTH;
 	sink_fmt->height = RKISP1_DEFAULT_HEIGHT;
@@ -301,7 +299,7 @@ static int rkisp1_csi_set_fmt(struct v4l2_subdev *sd,
 	if (fmt->pad == RKISP1_CSI_PAD_SRC)
 		return v4l2_subdev_get_fmt(sd, sd_state, fmt);
 
-	sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state, RKISP1_CSI_PAD_SINK);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_CSI_PAD_SINK);
 
 	sink_fmt->code = fmt->format.code;
 
@@ -321,7 +319,7 @@ static int rkisp1_csi_set_fmt(struct v4l2_subdev *sd,
 	fmt->format = *sink_fmt;
 
 	/* Propagate the format to the source pad. */
-	src_fmt = v4l2_subdev_get_pad_format(sd, sd_state, RKISP1_CSI_PAD_SRC);
+	src_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_CSI_PAD_SRC);
 	*src_fmt = *sink_fmt;
 
 	return 0;
@@ -374,7 +372,7 @@ static int rkisp1_csi_s_stream(struct v4l2_subdev *sd, int enable)
 		return -EINVAL;
 
 	sd_state = v4l2_subdev_lock_and_get_active_state(sd);
-	sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state, RKISP1_CSI_PAD_SINK);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_CSI_PAD_SINK);
 	format = rkisp1_mbus_info_get_by_code(sink_fmt->code);
 	v4l2_subdev_unlock_state(sd_state);
 

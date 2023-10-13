@@ -525,7 +525,7 @@ static int mt9m111_get_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
+		mf = v4l2_subdev_state_get_format(sd_state, format->pad);
 		format->format = *mf;
 		return 0;
 	}
@@ -671,7 +671,7 @@ static int mt9m111_set_fmt(struct v4l2_subdev *sd,
 	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_pad_format(sd, sd_state, 0) = *mf;
+		*v4l2_subdev_state_get_format(sd_state, 0) = *mf;
 		return 0;
 	}
 
@@ -1115,7 +1115,7 @@ static int mt9m111_init_cfg(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *format =
-		v4l2_subdev_get_try_format(sd, sd_state, 0);
+		v4l2_subdev_state_get_format(sd_state, 0);
 
 	format->width	= MT9M111_MAX_WIDTH;
 	format->height	= MT9M111_MAX_HEIGHT;

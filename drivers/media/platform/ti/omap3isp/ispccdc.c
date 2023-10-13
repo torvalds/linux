@@ -1948,8 +1948,7 @@ __ccdc_get_format(struct isp_ccdc_device *ccdc,
 		  unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&ccdc->subdev, sd_state,
-						  pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &ccdc->formats[pad];
 }
@@ -1960,8 +1959,8 @@ __ccdc_get_crop(struct isp_ccdc_device *ccdc,
 		enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&ccdc->subdev, sd_state,
-						CCDC_PAD_SOURCE_OF);
+		return v4l2_subdev_state_get_crop(sd_state,
+						  CCDC_PAD_SOURCE_OF);
 	else
 		return &ccdc->crop;
 }

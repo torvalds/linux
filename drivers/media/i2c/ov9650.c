@@ -1172,7 +1172,7 @@ static int ov965x_get_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		mf = v4l2_subdev_state_get_format(sd_state, 0);
 		fmt->format = *mf;
 		return 0;
 	}
@@ -1233,8 +1233,7 @@ static int ov965x_set_fmt(struct v4l2_subdev *sd,
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		if (sd_state) {
-			mf = v4l2_subdev_get_try_format(sd, sd_state,
-							fmt->pad);
+			mf = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 			*mf = fmt->format;
 		}
 	} else {
@@ -1363,7 +1362,7 @@ static int ov965x_s_stream(struct v4l2_subdev *sd, int on)
 static int ov965x_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *mf =
-		v4l2_subdev_get_try_format(sd, fh->state, 0);
+		v4l2_subdev_state_get_format(fh->state, 0);
 
 	ov965x_get_default_format(mf);
 	return 0;

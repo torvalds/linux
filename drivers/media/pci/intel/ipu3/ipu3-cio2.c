@@ -1205,11 +1205,11 @@ static int cio2_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	};
 
 	/* Initialize try_fmt */
-	format = v4l2_subdev_get_try_format(sd, fh->state, CIO2_PAD_SINK);
+	format = v4l2_subdev_state_get_format(fh->state, CIO2_PAD_SINK);
 	*format = fmt_default;
 
 	/* same as sink */
-	format = v4l2_subdev_get_try_format(sd, fh->state, CIO2_PAD_SOURCE);
+	format = v4l2_subdev_state_get_format(fh->state, CIO2_PAD_SOURCE);
 	*format = fmt_default;
 
 	return 0;
@@ -1224,8 +1224,8 @@ static int cio2_subdev_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&q->subdev_lock);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		fmt->format = q->subdev_fmt;
 
@@ -1251,7 +1251,7 @@ static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 		return cio2_subdev_get_fmt(sd, sd_state, fmt);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		mbus = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		mbus = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 	else
 		mbus = &q->subdev_fmt;
 

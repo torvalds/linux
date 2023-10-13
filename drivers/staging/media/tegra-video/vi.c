@@ -474,7 +474,7 @@ static int __tegra_channel_try_format(struct tegra_vi_channel *chan,
 	 * Attempt to obtain the format size from subdev.
 	 * If not available, try to get crop boundary from subdev.
 	 */
-	try_crop = v4l2_subdev_get_pad_crop(subdev, sd_state, 0);
+	try_crop = v4l2_subdev_state_get_crop(sd_state, 0);
 	fse.code = fmtinfo->code;
 	ret = v4l2_subdev_call(subdev, pad, enum_frame_size, sd_state, &fse);
 	if (ret) {

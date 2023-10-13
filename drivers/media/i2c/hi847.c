@@ -2655,7 +2655,7 @@ static int hi847_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&hi847->mutex);
 	hi847_assign_pad_format(mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) =
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) =
 			fmt->format;
 	} else {
 		hi847->cur_mode = mode;
@@ -2690,9 +2690,8 @@ static int hi847_get_format(struct v4l2_subdev *sd,
 
 	mutex_lock(&hi847->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&hi847->sd,
-							  sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		hi847_assign_pad_format(hi847->cur_mode, &fmt->format);
 
@@ -2737,7 +2736,7 @@ static int hi847_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&hi847->mutex);
 	hi847_assign_pad_format(&supported_modes[0],
-				v4l2_subdev_get_try_format(sd, fh->state, 0));
+				v4l2_subdev_state_get_format(fh->state, 0));
 	mutex_unlock(&hi847->mutex);
 
 	return 0;

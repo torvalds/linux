@@ -1035,7 +1035,7 @@ tvp5150_get_pad_crop(struct tvp5150 *decoder,
 		return &decoder->rect;
 	case V4L2_SUBDEV_FORMAT_TRY:
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-		return v4l2_subdev_get_try_crop(&decoder->sd, sd_state, pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 #else
 		return ERR_PTR(-EINVAL);
 #endif

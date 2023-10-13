@@ -723,7 +723,7 @@ static int ov01a10_set_format(struct v4l2_subdev *sd,
 					 h_blank);
 	}
 
-	format = v4l2_subdev_get_pad_format(sd, sd_state, fmt->stream);
+	format = v4l2_subdev_state_get_format(sd_state, fmt->stream);
 	*format = fmt->format;
 
 	return 0;

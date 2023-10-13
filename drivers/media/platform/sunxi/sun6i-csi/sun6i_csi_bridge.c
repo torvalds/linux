@@ -507,7 +507,7 @@ static int sun6i_csi_bridge_init_cfg(struct v4l2_subdev *subdev,
 	struct sun6i_csi_device *csi_dev = v4l2_get_subdevdata(subdev);
 	unsigned int pad = SUN6I_CSI_BRIDGE_PAD_SINK;
 	struct v4l2_mbus_framefmt *mbus_format =
-		v4l2_subdev_get_try_format(subdev, state, pad);
+		v4l2_subdev_state_get_format(state, pad);
 	struct mutex *lock = &csi_dev->bridge.lock;
 
 	mutex_lock(lock);
@@ -547,8 +547,8 @@ static int sun6i_csi_bridge_get_fmt(struct v4l2_subdev *subdev,
 	mutex_lock(lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*mbus_format = *v4l2_subdev_get_try_format(subdev, state,
-							   format->pad);
+		*mbus_format = *v4l2_subdev_state_get_format(state,
+							     format->pad);
 	else
 		*mbus_format = csi_dev->bridge.mbus_format;
 
@@ -570,7 +570,7 @@ static int sun6i_csi_bridge_set_fmt(struct v4l2_subdev *subdev,
 	sun6i_csi_bridge_mbus_format_prepare(mbus_format);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*v4l2_subdev_get_try_format(subdev, state, format->pad) =
+		*v4l2_subdev_state_get_format(state, format->pad) =
 			*mbus_format;
 	else
 		csi_dev->bridge.mbus_format = *mbus_format;

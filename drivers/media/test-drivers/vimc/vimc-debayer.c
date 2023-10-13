@@ -157,11 +157,11 @@ static int vimc_debayer_init_cfg(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf;
 	unsigned int i;
 
-	mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
+	mf = v4l2_subdev_state_get_format(sd_state, 0);
 	*mf = sink_fmt_default;
 
 	for (i = 1; i < sd->entity.num_pads; i++) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, i);
+		mf = v4l2_subdev_state_get_format(sd_state, i);
 		*mf = sink_fmt_default;
 		mf->code = vdebayer->src_code;
 	}
@@ -221,7 +221,7 @@ static int vimc_debayer_get_fmt(struct v4l2_subdev *sd,
 
 	/* Get the current sink format */
 	fmt->format = fmt->which == V4L2_SUBDEV_FORMAT_TRY ?
-		      *v4l2_subdev_get_try_format(sd, sd_state, 0) :
+		      *v4l2_subdev_state_get_format(sd_state, 0) :
 		      vdebayer->sink_fmt;
 
 	/* Set the right code for the source pad */
@@ -267,8 +267,8 @@ static int vimc_debayer_set_fmt(struct v4l2_subdev *sd,
 		sink_fmt = &vdebayer->sink_fmt;
 		src_code = &vdebayer->src_code;
 	} else {
-		sink_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
-		src_code = &v4l2_subdev_get_try_format(sd, sd_state, 1)->code;
+		sink_fmt = v4l2_subdev_state_get_format(sd_state, 0);
+		src_code = &v4l2_subdev_state_get_format(sd_state, 1)->code;
 	}
 
 	/*

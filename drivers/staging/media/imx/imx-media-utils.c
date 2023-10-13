@@ -445,7 +445,7 @@ int imx_media_init_cfg(struct v4l2_subdev *sd,
 		if (ret)
 			continue;
 
-		mf_try = v4l2_subdev_get_try_format(sd, sd_state, pad);
+		mf_try = v4l2_subdev_state_get_format(sd_state, pad);
 		*mf_try = format.format;
 	}
 

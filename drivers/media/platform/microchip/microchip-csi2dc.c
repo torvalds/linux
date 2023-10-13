@@ -232,8 +232,8 @@ static int csi2dc_get_fmt(struct v4l2_subdev *csi2dc_sd,
 	struct v4l2_mbus_framefmt *v4l2_try_fmt;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		v4l2_try_fmt = v4l2_subdev_get_try_format(csi2dc_sd, sd_state,
-							  format->pad);
+		v4l2_try_fmt = v4l2_subdev_state_get_format(sd_state,
+							    format->pad);
 		format->format = *v4l2_try_fmt;
 
 		return 0;
@@ -281,13 +281,12 @@ static int csi2dc_set_fmt(struct v4l2_subdev *csi2dc_sd,
 	req_fmt->format.field = V4L2_FIELD_NONE;
 
 	if (req_fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		v4l2_try_fmt = v4l2_subdev_get_try_format(csi2dc_sd, sd_state,
-							  req_fmt->pad);
+		v4l2_try_fmt = v4l2_subdev_state_get_format(sd_state,
+							    req_fmt->pad);
 		*v4l2_try_fmt = req_fmt->format;
 		/* Trying on the sink pad makes the source pad change too */
-		v4l2_try_fmt = v4l2_subdev_get_try_format(csi2dc_sd,
-							  sd_state,
-							  CSI2DC_PAD_SOURCE);
+		v4l2_try_fmt = v4l2_subdev_state_get_format(sd_state,
+							    CSI2DC_PAD_SOURCE);
 		*v4l2_try_fmt = req_fmt->format;
 
 		/* if we are just trying, we are done */
@@ -440,7 +439,7 @@ static int csi2dc_init_cfg(struct v4l2_subdev *csi2dc_sd,
 			   struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *v4l2_try_fmt =
-		v4l2_subdev_get_try_format(csi2dc_sd, sd_state, 0);
+		v4l2_subdev_state_get_format(sd_state, 0);
 
 	v4l2_try_fmt->height = 480;
 	v4l2_try_fmt->width = 640;

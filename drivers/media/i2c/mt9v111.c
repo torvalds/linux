@@ -795,7 +795,7 @@ static struct v4l2_mbus_framefmt *__mt9v111_get_pad_format(
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&mt9v111->sd, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9v111->fmt;
 	default:
@@ -951,7 +951,7 @@ done:
 static int mt9v111_init_cfg(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_state *sd_state)
 {
-	*v4l2_subdev_get_pad_format(subdev, sd_state, 0) = mt9v111_def_fmt;
+	*v4l2_subdev_state_get_format(sd_state, 0) = mt9v111_def_fmt;
 
 	return 0;
 }

@@ -1705,7 +1705,7 @@ static int hi846_set_format(struct v4l2_subdev *sd,
 	}
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, format->pad) = *mf;
+		*v4l2_subdev_state_get_format(sd_state, format->pad) = *mf;
 		return 0;
 	}
 
@@ -1783,9 +1783,8 @@ static int hi846_get_format(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		format->format = *v4l2_subdev_get_try_format(&hi846->sd,
-							sd_state,
-							format->pad);
+		format->format = *v4l2_subdev_state_get_format(sd_state,
+							       format->pad);
 		return 0;
 	}
 
@@ -1852,7 +1851,7 @@ static int hi846_get_selection(struct v4l2_subdev *sd,
 		mutex_lock(&hi846->mutex);
 		switch (sel->which) {
 		case V4L2_SUBDEV_FORMAT_TRY:
-			v4l2_subdev_get_try_crop(sd, sd_state, sel->pad);
+			v4l2_subdev_state_get_crop(sd_state, sel->pad);
 			break;
 		case V4L2_SUBDEV_FORMAT_ACTIVE:
 			sel->r = hi846->cur_mode->crop;
@@ -1878,7 +1877,7 @@ static int hi846_init_cfg(struct v4l2_subdev *sd,
 	struct hi846 *hi846 = to_hi846(sd);
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
+	mf = v4l2_subdev_state_get_format(sd_state, 0);
 
 	mutex_lock(&hi846->mutex);
 	mf->code        = HI846_MEDIA_BUS_FORMAT;

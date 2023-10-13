@@ -829,7 +829,7 @@ static int tw9910_set_fmt(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return tw9910_s_fmt(sd, mf);
 
-	*v4l2_subdev_get_pad_format(sd, sd_state, 0) = *mf;
+	*v4l2_subdev_state_get_format(sd_state, 0) = *mf;
 
 	return 0;
 }

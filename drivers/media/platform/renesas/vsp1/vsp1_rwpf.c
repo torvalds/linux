@@ -19,8 +19,7 @@
 struct v4l2_rect *vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf,
 				     struct v4l2_subdev_state *sd_state)
 {
-	return v4l2_subdev_get_try_crop(&rwpf->entity.subdev, sd_state,
-					RWPF_PAD_SINK);
+	return v4l2_subdev_state_get_crop(sd_state, RWPF_PAD_SINK);
 }
 
 /* -----------------------------------------------------------------------------

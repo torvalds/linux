@@ -625,8 +625,7 @@ __ccp2_get_format(struct isp_ccp2_device *ccp2,
 		  unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&ccp2->subdev, sd_state,
-						  pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &ccp2->formats[pad];
 }

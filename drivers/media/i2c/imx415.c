@@ -546,7 +546,7 @@ static int imx415_s_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 
 	state = v4l2_subdev_get_locked_active_state(&sensor->subdev);
-	format = v4l2_subdev_get_pad_format(&sensor->subdev, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
@@ -828,7 +828,7 @@ static int imx415_enum_frame_size(struct v4l2_subdev *sd,
 {
 	const struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_pad_format(sd, state, fse->pad);
+	format = v4l2_subdev_state_get_format(state, fse->pad);
 
 	if (fse->index > 0 || fse->code != format->code)
 		return -EINVAL;
@@ -846,7 +846,7 @@ static int imx415_set_format(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_pad_format(sd, state, fmt->pad);
+	format = v4l2_subdev_state_get_format(state, fmt->pad);
 
 	format->width = fmt->format.width;
 	format->height = fmt->format.height;

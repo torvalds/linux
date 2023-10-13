@@ -325,8 +325,7 @@ __csiphy_get_format(struct csiphy_device *csiphy,
 		    enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&csiphy->subdev, sd_state,
-						  pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 
 	return &csiphy->fmt[pad];
 }

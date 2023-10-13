@@ -2032,7 +2032,7 @@ static int __ccs_get_format(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
-	fmt->format = *v4l2_subdev_get_pad_format(subdev, sd_state, fmt->pad);
+	fmt->format = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 	fmt->format.code = __ccs_get_mbus_code(subdev, fmt->pad);
 
 	return 0;
@@ -2063,10 +2063,10 @@ static void ccs_get_crop_compose(struct v4l2_subdev *subdev,
 	if (crops)
 		for (i = 0; i < subdev->entity.num_pads; i++)
 			crops[i] =
-				v4l2_subdev_get_pad_crop(subdev, sd_state, i);
+				v4l2_subdev_state_get_crop(sd_state, i);
 	if (comps)
-		*comps = v4l2_subdev_get_pad_compose(subdev, sd_state,
-						     ssd->sink_pad);
+		*comps = v4l2_subdev_state_get_compose(sd_state,
+						       ssd->sink_pad);
 }
 
 /* Changes require propagation only on sink pad. */
@@ -2099,7 +2099,7 @@ static void ccs_propagate(struct v4l2_subdev *subdev,
 		fallthrough;
 	case V4L2_SEL_TGT_COMPOSE:
 		*crops[CCS_PAD_SRC] = *comp;
-		fmt = v4l2_subdev_get_pad_format(subdev, sd_state, CCS_PAD_SRC);
+		fmt = v4l2_subdev_state_get_format(sd_state, CCS_PAD_SRC);
 		fmt->width = comp->width;
 		fmt->height = comp->height;
 		if (which == V4L2_SUBDEV_FORMAT_ACTIVE && ssd == sensor->src)
@@ -2509,7 +2509,7 @@ static int ccs_set_crop(struct v4l2_subdev *subdev,
 
 	if (sel->pad == ssd->sink_pad) {
 		struct v4l2_mbus_framefmt *mfmt =
-			v4l2_subdev_get_pad_format(subdev, sd_state, sel->pad);
+			v4l2_subdev_state_get_format(sd_state, sel->pad);
 
 		src_size.width = mfmt->width;
 		src_size.height = mfmt->height;
@@ -2569,8 +2569,8 @@ static int ccs_get_selection(struct v4l2_subdev *subdev,
 			ccs_get_native_size(ssd, &sel->r);
 		} else if (sel->pad == ssd->sink_pad) {
 			struct v4l2_mbus_framefmt *sink_fmt =
-				v4l2_subdev_get_pad_format(subdev, sd_state,
-							   ssd->sink_pad);
+				v4l2_subdev_state_get_format(sd_state,
+							     ssd->sink_pad);
 			sel->r.top = sel->r.left = 0;
 			sel->r.width = sink_fmt->width;
 			sel->r.height = sink_fmt->height;
@@ -3014,9 +3014,9 @@ static int ccs_init_cfg(struct v4l2_subdev *sd,
 	unsigned int pad = ssd == sensor->pixel_array ?
 		CCS_PA_PAD_SRC : CCS_PAD_SINK;
 	struct v4l2_mbus_framefmt *fmt =
-		v4l2_subdev_get_pad_format(sd, sd_state, pad);
+		v4l2_subdev_state_get_format(sd_state, pad);
 	struct v4l2_rect *crop =
-		v4l2_subdev_get_pad_crop(sd, sd_state, pad);
+		v4l2_subdev_state_get_crop(sd_state, pad);
 	bool is_active = !sd->active_state || sd->active_state == sd_state;
 
 	mutex_lock(&sensor->mutex);
@@ -3036,7 +3036,7 @@ static int ccs_init_cfg(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	fmt = v4l2_subdev_get_pad_format(sd, sd_state, CCS_PAD_SRC);
+	fmt = v4l2_subdev_state_get_format(sd_state, CCS_PAD_SRC);
 	fmt->code = ssd == sensor->src ?
 		sensor->csi_format->code : sensor->internal_csi_format->code;
 	fmt->field = V4L2_FIELD_NONE;

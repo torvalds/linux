@@ -119,7 +119,7 @@ __resizer_get_format(struct isp_res_device *res,
 		     unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&res->subdev, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &res->formats[pad];
 }
@@ -136,8 +136,7 @@ __resizer_get_crop(struct isp_res_device *res,
 		   enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&res->subdev, sd_state,
-						RESZ_PAD_SINK);
+		return v4l2_subdev_state_get_crop(sd_state, RESZ_PAD_SINK);
 	else
 		return &res->crop.request;
 }

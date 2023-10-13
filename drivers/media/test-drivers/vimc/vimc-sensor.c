@@ -49,7 +49,7 @@ static int vimc_sensor_init_cfg(struct v4l2_subdev *sd,
 	for (i = 0; i < sd->entity.num_pads; i++) {
 		struct v4l2_mbus_framefmt *mf;
 
-		mf = v4l2_subdev_get_try_format(sd, sd_state, i);
+		mf = v4l2_subdev_state_get_format(sd_state, i);
 		*mf = fmt_default;
 	}
 
@@ -100,7 +100,7 @@ static int vimc_sensor_get_fmt(struct v4l2_subdev *sd,
 				container_of(sd, struct vimc_sensor_device, sd);
 
 	fmt->format = fmt->which == V4L2_SUBDEV_FORMAT_TRY ?
-		      *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) :
+		      *v4l2_subdev_state_get_format(sd_state, fmt->pad) :
 		      vsensor->mbus_format;
 
 	return 0;
@@ -159,7 +159,7 @@ static int vimc_sensor_set_fmt(struct v4l2_subdev *sd,
 
 		mf = &vsensor->mbus_format;
 	} else {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		mf = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 	}
 
 	/* Set the new format */

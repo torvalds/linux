@@ -935,7 +935,7 @@ __hi556_get_pad_crop(struct hi556 *hi556,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&hi556->sd, sd_state, pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &hi556->cur_mode->crop;
 	}
@@ -1075,7 +1075,7 @@ static int hi556_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&hi556->mutex);
 	hi556_assign_pad_format(mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 	} else {
 		hi556->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(hi556->link_freq, mode->link_freq_index);
@@ -1109,9 +1109,8 @@ static int hi556_get_format(struct v4l2_subdev *sd,
 
 	mutex_lock(&hi556->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&hi556->sd,
-							  sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		hi556_assign_pad_format(hi556->cur_mode, &fmt->format);
 
@@ -1157,10 +1156,10 @@ static int hi556_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&hi556->mutex);
 	hi556_assign_pad_format(&supported_modes[0],
-				v4l2_subdev_get_try_format(sd, fh->state, 0));
+				v4l2_subdev_state_get_format(fh->state, 0));
 
 	/* Initialize try_crop rectangle. */
-	try_crop = v4l2_subdev_get_try_crop(sd, fh->state, 0);
+	try_crop = v4l2_subdev_state_get_crop(fh->state, 0);
 	try_crop->top = HI556_PIXEL_ARRAY_TOP;
 	try_crop->left = HI556_PIXEL_ARRAY_LEFT;
 	try_crop->width = HI556_PIXEL_ARRAY_WIDTH;

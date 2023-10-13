@@ -698,7 +698,7 @@ static int cal_video_check_format(struct cal_ctx *ctx)
 
 	state = v4l2_subdev_lock_and_get_active_state(&ctx->phy->subdev);
 
-	format = v4l2_subdev_get_pad_format(&ctx->phy->subdev, state, remote_pad->index);
+	format = v4l2_subdev_state_get_format(state, remote_pad->index);
 	if (!format) {
 		ret = -EINVAL;
 		goto out;
