@@ -74,12 +74,6 @@ struct dig_t {
 	long		rssi_val;
 };
 
-enum dm_dig_sta {
-	DM_STA_DIG_OFF = 0,
-	DM_STA_DIG_ON,
-	DM_STA_DIG_MAX
-};
-
 enum dm_ratr_sta {
 	DM_RATR_STA_HIGH = 0,
 	DM_RATR_STA_MIDDLE = 1,
@@ -87,22 +81,9 @@ enum dm_ratr_sta {
 	DM_RATR_STA_MAX
 };
 
-enum dm_dig_alg {
-	DIG_ALGO_BY_FALSE_ALARM = 0,
-	DIG_ALGO_BY_RSSI	= 1,
-	DIG_ALGO_BEFORE_CONNECT_BY_RSSI_AND_ALARM = 2,
-	DIG_ALGO_BY_TOW_PORT = 3,
-	DIG_ALGO_MAX
-};
-
 enum dm_dig_connect {
 	DIG_STA_DISCONNECT = 0,
 	DIG_STA_CONNECT = 1,
-	DIG_STA_BEFORE_CONNECT = 2,
-	DIG_AP_DISCONNECT = 3,
-	DIG_AP_CONNECT = 4,
-	DIG_AP_ADD_STATION = 5,
-	DIG_CONNECT_MAX
 };
 
 enum dm_dig_pd_th {
