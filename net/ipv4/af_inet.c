@@ -814,7 +814,7 @@ int inet_getname(struct socket *sock, struct sockaddr *uaddr,
 	}
 	release_sock(sk);
 	memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-	return sizeof(*sin);
+	return sin_addr_len;
 }
 EXPORT_SYMBOL(inet_getname);
 
