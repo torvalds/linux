@@ -482,15 +482,10 @@ static int vidioc_try_fmt(struct file *file, void *prv, struct v4l2_format *f)
 
 	f->fmt.pix.field = V4L2_FIELD_NONE;
 
-	if (f->fmt.pix.width > MAX_WIDTH)
-		f->fmt.pix.width = MAX_WIDTH;
-	if (f->fmt.pix.height > MAX_HEIGHT)
-		f->fmt.pix.height = MAX_HEIGHT;
-
-	if (f->fmt.pix.width < MIN_WIDTH)
-		f->fmt.pix.width = MIN_WIDTH;
-	if (f->fmt.pix.height < MIN_HEIGHT)
-		f->fmt.pix.height = MIN_HEIGHT;
+	f->fmt.pix.width = clamp(f->fmt.pix.width,
+				 (u32)MIN_WIDTH, (u32)MAX_WIDTH);
+	f->fmt.pix.height = clamp(f->fmt.pix.height,
+				  (u32)MIN_HEIGHT, (u32)MAX_HEIGHT);
 
 	if (fmt->hw_format >= RGA_COLOR_FMT_YUV422SP)
 		f->fmt.pix.bytesperline = f->fmt.pix.width;
