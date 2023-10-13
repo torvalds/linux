@@ -2221,13 +2221,14 @@ MODULE_DEVICE_TABLE(of, ast2600_i2c_bus_of_table);
 
 static int ast2600_i2c_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct ast2600_i2c_bus *i2c_bus;
 	const struct of_device_id *match;
 	struct resource *res;
 	u32 global_ctrl;
 	int ret;
 
-	i2c_bus = devm_kzalloc(&pdev->dev, sizeof(*i2c_bus), GFP_KERNEL);
+	i2c_bus = devm_kzalloc(dev, sizeof(*i2c_bus), GFP_KERNEL);
 	if (!i2c_bus)
 		return -ENOMEM;
 
@@ -2253,6 +2254,7 @@ static int ast2600_i2c_probe(struct platform_device *pdev)
 
 	i2c_bus->mode = DMA_MODE;
 	i2c_bus->slave_operate = 0;
+	i2c_bus->dev = dev;
 
 	if (of_property_read_bool(pdev->dev.of_node, "byte-mode"))
 		i2c_bus->mode = BYTE_MODE;
@@ -2275,7 +2277,6 @@ static int ast2600_i2c_probe(struct platform_device *pdev)
 	if (of_property_read_bool(pdev->dev.of_node, "timeout"))
 		i2c_bus->timeout_enable = 1;
 
-	i2c_bus->dev = &pdev->dev;
 	init_completion(&i2c_bus->cmd_complete);
 
 	i2c_bus->reg_base = devm_platform_ioremap_resource(pdev, 0);
@@ -2326,32 +2327,32 @@ static int ast2600_i2c_probe(struct platform_device *pdev)
 
 	ast2600_i2c_init(i2c_bus);
 
-	ret = devm_request_irq(&pdev->dev, i2c_bus->irq, ast2600_i2c_bus_irq, 0,
-			       dev_name(&pdev->dev), i2c_bus);
+	ret = devm_request_irq(dev, i2c_bus->irq, ast2600_i2c_bus_irq, 0,
+			       dev_name(dev), i2c_bus);
 	if (ret < 0)
 		goto unmap;
 
-	if (of_property_read_bool(pdev->dev.of_node, "smbus-alert")) {
-		i2c_bus->alert_enable = 1;
+	i2c_bus->alert_enable = device_property_read_bool(dev, "smbus-alert");
+	if (i2c_bus->alert_enable) {
 		i2c_bus->ara = i2c_new_smbus_alert_device(&i2c_bus->adap, &i2c_bus->alert_data);
 		if (!i2c_bus->ara)
-			dev_warn(i2c_bus->dev, "Failed to register ARA client\n");
+			dev_warn(dev, "Failed to register ARA client\n");
 
 		writel(AST2600_I2CM_PKT_DONE | AST2600_I2CM_BUS_RECOVER | AST2600_I2CM_SMBUS_ALT,
 		       i2c_bus->reg_base + AST2600_I2CM_IER);
 	} else {
-		i2c_bus->alert_enable = 0;
+		i2c_bus->alert_enable = false;
 		/* Set interrupt generation of I2C master controller */
 		writel(AST2600_I2CM_PKT_DONE | AST2600_I2CM_BUS_RECOVER,
-				i2c_bus->reg_base + AST2600_I2CM_IER);
+		       i2c_bus->reg_base + AST2600_I2CM_IER);
 	}
 
 	ret = i2c_add_adapter(&i2c_bus->adap);
 	if (ret < 0)
 		goto unmap;
 
-	dev_info(i2c_bus->dev, "%s [%d]: adapter [%d khz] mode [%d]\n",
-		 pdev->dev.of_node->name, i2c_bus->adap.nr, i2c_bus->bus_frequency / 1000,
+	dev_info(dev, "%s [%d]: adapter [%d khz] mode [%d]\n",
+		 dev->of_node->name, i2c_bus->adap.nr, i2c_bus->bus_frequency / 1000,
 		 i2c_bus->mode);
 
 	return 0;
