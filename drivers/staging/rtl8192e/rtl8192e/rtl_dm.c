@@ -163,9 +163,7 @@ static	void	_rtl92e_dm_check_tx_power_tracking(struct net_device *dev);
 
 static void _rtl92e_dm_dig_init(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev);
-static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev);
-static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev);
 static void _rtl92e_dm_initial_gain(struct net_device *dev);
 static void _rtl92e_dm_pd_th(struct net_device *dev);
 static void _rtl92e_dm_cs_ratio(struct net_device *dev);
@@ -985,119 +983,6 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 	if (dm_digtable.dig_algorithm_switch)
 		dm_digtable.dig_algorithm_switch = 0;
 	dm_digtable.pre_sta_connect_state = dm_digtable.cur_sta_connect_state;
-}
-
-static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u8 i;
-
-	if (dm_digtable.dig_algorithm_switch) {
-		dm_digtable.dig_state = DM_STA_DIG_MAX;
-		for (i = 0; i < 3; i++)
-			rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x1);
-		dm_digtable.dig_algorithm_switch = 0;
-	}
-
-	if (priv->rtllib->link_state != MAC80211_LINKED)
-		return;
-
-	if ((priv->undecorated_smoothed_pwdb > dm_digtable.rssi_low_thresh) &&
-		(priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_thresh))
-		return;
-	if (priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh) {
-		if (dm_digtable.dig_state == DM_STA_DIG_OFF)
-			return;
-
-		dm_digtable.dig_highpwr_state = DM_STA_DIG_MAX;
-		dm_digtable.dig_state = DM_STA_DIG_OFF;
-
-		rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x8);
-
-		rtl92e_writeb(dev, rOFDM0_XAAGCCore1, 0x17);
-		rtl92e_writeb(dev, rOFDM0_XBAGCCore1, 0x17);
-		rtl92e_writeb(dev, rOFDM0_XCAGCCore1, 0x17);
-		rtl92e_writeb(dev, rOFDM0_XDAGCCore1, 0x17);
-
-		if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
-			rtl92e_writeb(dev, (rOFDM0_XATxAFE + 3), 0x00);
-		else
-			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x42);
-
-		rtl92e_writeb(dev, 0xa0a, 0x08);
-
-		return;
-	}
-
-	if (priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) {
-		u8 reset_flag = 0;
-
-		if (dm_digtable.dig_state == DM_STA_DIG_ON) {
-			_rtl92e_dm_ctrl_initgain_byrssi_highpwr(dev);
-			return;
-		}
-
-		dm_digtable.dig_state = DM_STA_DIG_ON;
-
-		if (reset_flag == 1) {
-			rtl92e_writeb(dev, rOFDM0_XAAGCCore1, 0x2c);
-			rtl92e_writeb(dev, rOFDM0_XBAGCCore1, 0x2c);
-			rtl92e_writeb(dev, rOFDM0_XCAGCCore1, 0x2c);
-			rtl92e_writeb(dev, rOFDM0_XDAGCCore1, 0x2c);
-		} else {
-			rtl92e_writeb(dev, rOFDM0_XAAGCCore1, 0x20);
-			rtl92e_writeb(dev, rOFDM0_XBAGCCore1, 0x20);
-			rtl92e_writeb(dev, rOFDM0_XCAGCCore1, 0x20);
-			rtl92e_writeb(dev, rOFDM0_XDAGCCore1, 0x20);
-		}
-
-		if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
-			rtl92e_writeb(dev, (rOFDM0_XATxAFE + 3), 0x20);
-		else
-			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
-
-		rtl92e_writeb(dev, 0xa0a, 0xcd);
-
-		rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x1);
-	}
-	_rtl92e_dm_ctrl_initgain_byrssi_highpwr(dev);
-}
-
-static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	if ((priv->undecorated_smoothed_pwdb >
-	     dm_digtable.rssi_high_power_lowthresh) &&
-	    (priv->undecorated_smoothed_pwdb <
-	     dm_digtable.rssi_high_power_highthresh))
-		return;
-
-	if (priv->undecorated_smoothed_pwdb >=
-	    dm_digtable.rssi_high_power_highthresh) {
-		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_ON)
-			return;
-		dm_digtable.dig_highpwr_state = DM_STA_DIG_ON;
-
-		if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
-			rtl92e_writeb(dev, (rOFDM0_XATxAFE + 3), 0x10);
-		else
-			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x43);
-	} else {
-		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_OFF)
-			return;
-		dm_digtable.dig_highpwr_state = DM_STA_DIG_OFF;
-
-		if ((priv->undecorated_smoothed_pwdb <
-		     dm_digtable.rssi_high_power_lowthresh) &&
-		    (priv->undecorated_smoothed_pwdb >=
-		    dm_digtable.rssi_high_thresh)) {
-			if (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20)
-				rtl92e_writeb(dev, (rOFDM0_XATxAFE + 3), 0x20);
-			else
-				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
-		}
-	}
 }
 
 static void _rtl92e_dm_initial_gain(struct net_device *dev)
