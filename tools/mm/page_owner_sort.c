@@ -66,6 +66,16 @@ enum SORT_ORDER {
 	SORT_ASC = 1,
 	SORT_DESC = -1,
 };
+enum COMP_FLAG {
+	COMP_NO_FLAG = 0,
+	COMP_ALLOC = 1<<0,
+	COMP_PAGE_NUM = 1<<1,
+	COMP_PID = 1<<2,
+	COMP_STACK = 1<<3,
+	COMP_NUM = 1<<4,
+	COMP_TGID = 1<<5,
+	COMP_COMM = 1<<6
+};
 struct filter_condition {
 	pid_t *pids;
 	pid_t *tgids;
@@ -644,7 +654,7 @@ int main(int argc, char **argv)
 {
 	FILE *fin, *fout;
 	char *buf, *ext_buf;
-	int i, count;
+	int i, count, compare_flag;
 	struct stat st;
 	int opt;
 	struct option longopts[] = {
@@ -656,31 +666,33 @@ int main(int argc, char **argv)
 		{ 0, 0, 0, 0},
 	};
 
+	compare_flag = COMP_NO_FLAG;
+
 	while ((opt = getopt_long(argc, argv, "admnpstP", longopts, NULL)) != -1)
 		switch (opt) {
 		case 'a':
-			set_single_cmp(compare_ts, SORT_ASC);
+			compare_flag |= COMP_ALLOC;
 			break;
 		case 'd':
 			debug_on = true;
 			break;
 		case 'm':
-			set_single_cmp(compare_page_num, SORT_DESC);
+			compare_flag |= COMP_PAGE_NUM;
 			break;
 		case 'p':
-			set_single_cmp(compare_pid, SORT_ASC);
+			compare_flag |= COMP_PID;
 			break;
 		case 's':
-			set_single_cmp(compare_stacktrace, SORT_ASC);
+			compare_flag |= COMP_STACK;
 			break;
 		case 't':
-			set_single_cmp(compare_num, SORT_DESC);
+			compare_flag |= COMP_NUM;
 			break;
 		case 'P':
-			set_single_cmp(compare_tgid, SORT_ASC);
+			compare_flag |= COMP_TGID;
 			break;
 		case 'n':
-			set_single_cmp(compare_comm, SORT_ASC);
+			compare_flag |= COMP_COMM;
 			break;
 		case 1:
 			filter = filter | FILTER_PID;
@@ -724,6 +736,39 @@ int main(int argc, char **argv)
 		}
 
 	if (optind >= (argc - 1)) {
+		usage();
+		exit(1);
+	}
+
+	/* Only one compare option is allowed, yet we also want handle the
+	 * default case were no option is provided, but we still want to
+	 * match the behavior of the -t option (compare by number of times
+	 * a record is seen
+	 */
+	switch (compare_flag) {
+	case COMP_ALLOC:
+		set_single_cmp(compare_ts, SORT_ASC);
+		break;
+	case COMP_PAGE_NUM:
+		set_single_cmp(compare_page_num, SORT_DESC);
+		break;
+	case COMP_PID:
+		set_single_cmp(compare_pid, SORT_ASC);
+		break;
+	case COMP_STACK:
+		set_single_cmp(compare_stacktrace, SORT_ASC);
+		break;
+	case COMP_NO_FLAG:
+	case COMP_NUM:
+		set_single_cmp(compare_num, SORT_DESC);
+		break;
+	case COMP_TGID:
+		set_single_cmp(compare_tgid, SORT_ASC);
+		break;
+	case COMP_COMM:
+		set_single_cmp(compare_comm, SORT_ASC);
+		break;
+	default:
 		usage();
 		exit(1);
 	}
