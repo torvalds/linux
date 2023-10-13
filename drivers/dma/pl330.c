@@ -2924,7 +2924,7 @@ static struct dma_async_tx_descriptor *pl330_prep_interleaved_dma(
 	struct dma_pl330_desc *desc = NULL;
 	struct dma_pl330_chan *pch = to_pchan(chan);
 	dma_addr_t dst = 0, src = 0;
-	size_t size, src_icg, dst_icg, period_bytes, buffer_bytes;
+	size_t size, src_icg, dst_icg, period_bytes, buffer_bytes, full_buffer_bytes;
 	size_t nump = 0, numf = 0;
 
 	if (!xt->numf || !xt->sgl[0].size || xt->frame_size != 1)
@@ -2960,17 +2960,19 @@ static struct dma_async_tx_descriptor *pl330_prep_interleaved_dma(
 		desc->rqcfg.dst_inc = 0;
 		src = xt->src_start;
 		dst = pch->fifo_dma;
+		full_buffer_bytes = (size + src_icg) * numf;
 	} else {
 		desc->rqcfg.src_inc = 0;
 		desc->rqcfg.dst_inc = 1;
 		src = pch->fifo_dma;
 		dst = xt->dst_start;
+		full_buffer_bytes = (size + dst_icg) * numf;
 	}
 
 	desc->rqtype = xt->dir;
 	desc->rqcfg.brst_size = pch->burst_sz;
 	desc->rqcfg.brst_len = pch->burst_len;
-	desc->bytes_requested = buffer_bytes;
+	desc->bytes_requested = full_buffer_bytes;
 	desc->sgl.size = size;
 	desc->sgl.src_icg = src_icg;
 	desc->sgl.dst_icg = dst_icg;
