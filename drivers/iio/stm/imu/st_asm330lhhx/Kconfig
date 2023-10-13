@@ -9,8 +9,8 @@ config IIO_ST_ASM330LHHX
 	select IIO_ST_ASM330LHHX_I2C if (I2C)
 	select IIO_ST_ASM330LHHX_SPI if (SPI_MASTER)
 	help
-	  Say yes here to build support for STMicroelectronics ASM330LHH/ASM330LHHX imu
-	  sensors.
+	  Say yes here to build support for STMicroelectronics ASM330LHH,
+	  ASM330LHHX, ASM330LHHXG1 imu sensors.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called st_asm330lhhx.

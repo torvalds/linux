@@ -31,6 +31,7 @@
 
 #define ST_ASM330LHH_DEV_NAME			"asm330lhh"
 #define ST_ASM330LHHX_DEV_NAME			"asm330lhhx"
+#define ST_ASM330LHHXG1_DEV_NAME			"asm330lhhxg1"
 
 #define ST_ASM330LHHX_DEFAULT_XL_FS_INDEX	2
 #define ST_ASM330LHHX_DEFAULT_XL_ODR_INDEX	1
@@ -555,6 +556,7 @@ struct st_asm330lhhx_ext_dev_info {
 enum st_asm330lhhx_hw_id {
 	ST_ASM330LHH_ID,
 	ST_ASM330LHHX_ID,
+	ST_ASM330LHHXG1_ID,
 	ST_ASM330LHHX_MAX_ID,
 };
 

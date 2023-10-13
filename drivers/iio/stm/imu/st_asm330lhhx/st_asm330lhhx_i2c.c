@@ -48,6 +48,10 @@ static const struct of_device_id st_asm330lhhx_i2c_of_match[] = {
 		.compatible = "st,asm330lhh",
 		.data = (void *)ST_ASM330LHH_ID,
 	},
+	{
+		.compatible = "st,asm330lhhxg1",
+		.data = (void *)ST_ASM330LHHXG1_ID,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_asm330lhhx_i2c_of_match);
@@ -55,6 +59,7 @@ MODULE_DEVICE_TABLE(of, st_asm330lhhx_i2c_of_match);
 static const struct i2c_device_id st_asm330lhhx_i2c_id_table[] = {
 	{ ST_ASM330LHHX_DEV_NAME, ST_ASM330LHHX_ID },
 	{ ST_ASM330LHH_DEV_NAME , ST_ASM330LHH_ID },
+	{ ST_ASM330LHHXG1_DEV_NAME, ST_ASM330LHHXG1_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_asm330lhhx_i2c_id_table);

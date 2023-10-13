@@ -4,6 +4,7 @@ Required properties for all bus drivers:
 - compatible: must be one of:
               "st,asm330lhh"
               "st,asm330lhhx"
+              "st,asm330lhhxg1"
 
 Required properties for the i2c bindings:
 - reg: i2c slave address
