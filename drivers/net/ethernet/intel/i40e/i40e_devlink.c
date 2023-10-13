@@ -5,7 +5,97 @@
 #include "i40e.h"
 #include "i40e_devlink.h"
 
+static void i40e_info_get_dsn(struct i40e_pf *pf, char *buf, size_t len)
+{
+	u8 dsn[8];
+
+	put_unaligned_be64(pci_get_dsn(pf->pdev), dsn);
+
+	snprintf(buf, len, "%8phD", dsn);
+}
+
+static void i40e_info_fw_mgmt(struct i40e_hw *hw, char *buf, size_t len)
+{
+	struct i40e_adminq_info *aq = &hw->aq;
+
+	snprintf(buf, len, "%u.%u.%05d",
+		 aq->fw_maj_ver, aq->fw_min_ver, aq->fw_build);
+}
+
+static void i40e_info_fw_api(struct i40e_hw *hw, char *buf, size_t len)
+{
+	struct i40e_adminq_info *aq = &hw->aq;
+
+	snprintf(buf, len, "%u.%u", aq->api_maj_ver, aq->api_min_ver);
+}
+
+enum i40e_devlink_version_type {
+	I40E_DL_VERSION_RUNNING,
+};
+
+static int i40e_devlink_info_put(struct devlink_info_req *req,
+				 enum i40e_devlink_version_type type,
+				 const char *key, const char *value)
+{
+	if (!strlen(value))
+		return 0;
+
+	switch (type) {
+	case I40E_DL_VERSION_RUNNING:
+		return devlink_info_version_running_put(req, key, value);
+	}
+	return 0;
+}
+
+static int i40e_devlink_info_get(struct devlink *dl,
+				 struct devlink_info_req *req,
+				 struct netlink_ext_ack *extack)
+{
+	struct i40e_pf *pf = devlink_priv(dl);
+	struct i40e_hw *hw = &pf->hw;
+	char buf[32];
+	int err;
+
+	i40e_info_get_dsn(pf, buf, sizeof(buf));
+	err = devlink_info_serial_number_put(req, buf);
+	if (err)
+		return err;
+
+	i40e_info_fw_mgmt(hw, buf, sizeof(buf));
+	err = i40e_devlink_info_put(req, I40E_DL_VERSION_RUNNING,
+				    DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, buf);
+	if (err)
+		return err;
+
+	i40e_info_fw_api(hw, buf, sizeof(buf));
+	err = i40e_devlink_info_put(req, I40E_DL_VERSION_RUNNING,
+				    DEVLINK_INFO_VERSION_GENERIC_FW_MGMT_API,
+				    buf);
+	if (err)
+		return err;
+
+	i40e_info_nvm_ver(hw, buf, sizeof(buf));
+	err = i40e_devlink_info_put(req, I40E_DL_VERSION_RUNNING,
+				    DEVLINK_INFO_VERSION_GENERIC_FW_PSID, buf);
+	if (err)
+		return err;
+
+	i40e_info_eetrack(hw, buf, sizeof(buf));
+	err = i40e_devlink_info_put(req, I40E_DL_VERSION_RUNNING,
+				    DEVLINK_INFO_VERSION_GENERIC_FW_BUNDLE_ID,
+				    buf);
+	if (err)
+		return err;
+
+	i40e_info_civd_ver(hw, buf, sizeof(buf));
+	err = i40e_devlink_info_put(req, I40E_DL_VERSION_RUNNING,
+				    DEVLINK_INFO_VERSION_GENERIC_FW_UNDI, buf);
+
+	return err;
+}
+
 static const struct devlink_ops i40e_devlink_ops = {
+	.info_get = i40e_devlink_info_get,
 };
 
 /**
