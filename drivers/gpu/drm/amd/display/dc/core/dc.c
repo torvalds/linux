@@ -2582,6 +2582,9 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	if (u->gamut_remap_matrix)
 		update_flags->bits.gamut_remap_change = 1;
 
+	if (u->blend_tf)
+		update_flags->bits.gamma_change = 1;
+
 	if (u->gamma) {
 		enum surface_pixel_format format = SURFACE_PIXEL_FORMAT_GRPH_BEGIN;
 
