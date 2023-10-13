@@ -60,6 +60,12 @@ struct pinctrl_pin_desc;
 		.nfuncs = 5,				\
 	}
 
+/*
+ * Slew rate control is done in the same register as rest of the
+ * pin configuration.
+ */
+#define LPI_FLAG_SLEW_RATE_SAME_REG			BIT(0)
+
 struct lpi_pingroup {
 	struct group_desc group;
 	unsigned int pin;
@@ -82,6 +88,7 @@ struct lpi_pinctrl_variant_data {
 	int ngroups;
 	const struct lpi_function *functions;
 	int nfunctions;
+	unsigned int flags;
 };
 
 int lpi_pinctrl_probe(struct platform_device *pdev);

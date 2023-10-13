@@ -191,6 +191,7 @@ static int lpi_config_set_slew_rate(struct lpi_pinctrl *pctrl,
 				    unsigned int group, unsigned int slew)
 {
 	unsigned long sval;
+	void __iomem *reg;
 	int slew_offset;
 
 	if (slew > LPI_SLEW_RATE_MAX) {
@@ -203,12 +204,17 @@ static int lpi_config_set_slew_rate(struct lpi_pinctrl *pctrl,
 	if (slew_offset == LPI_NO_SLEW)
 		return 0;
 
+	if (pctrl->data->flags & LPI_FLAG_SLEW_RATE_SAME_REG)
+		reg = pctrl->tlmm_base + LPI_TLMM_REG_OFFSET * group + LPI_GPIO_CFG_REG;
+	else
+		reg = pctrl->slew_base + LPI_SLEW_RATE_CTL_REG;
+
 	mutex_lock(&pctrl->lock);
 
-	sval = ioread32(pctrl->slew_base + LPI_SLEW_RATE_CTL_REG);
+	sval = ioread32(reg);
 	sval &= ~(LPI_SLEW_RATE_MASK << slew_offset);
 	sval |= slew << slew_offset;
-	iowrite32(sval, pctrl->slew_base + LPI_SLEW_RATE_CTL_REG);
+	iowrite32(sval, reg);
 
 	mutex_unlock(&pctrl->lock);
 
@@ -452,10 +458,12 @@ int lpi_pinctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(pctrl->tlmm_base),
 				     "TLMM resource not provided\n");
 
-	pctrl->slew_base = devm_platform_ioremap_resource(pdev, 1);
-	if (IS_ERR(pctrl->slew_base))
-		return dev_err_probe(dev, PTR_ERR(pctrl->slew_base),
-				     "Slew resource not provided\n");
+	if (!(data->flags & LPI_FLAG_SLEW_RATE_SAME_REG)) {
+		pctrl->slew_base = devm_platform_ioremap_resource(pdev, 1);
+		if (IS_ERR(pctrl->slew_base))
+			return dev_err_probe(dev, PTR_ERR(pctrl->slew_base),
+					     "Slew resource not provided\n");
+	}
 
 	ret = devm_clk_bulk_get_optional(dev, MAX_LPI_NUM_CLKS, pctrl->clks);
 	if (ret)
