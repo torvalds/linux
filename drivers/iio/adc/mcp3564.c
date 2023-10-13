@@ -1102,7 +1102,7 @@ static void mcp3564_fill_scale_tbls(struct mcp3564_state *adc)
 
 	for (i = 0; i < MCP3564_MAX_PGA; i++) {
 		ref = adc->vref_mv;
-		tmp1 = shift_right((u64)ref * NANO, pow);
+		tmp1 = ((u64)ref * NANO) >> pow;
 		div_u64_rem(tmp1, NANO, &tmp0);
 
 		tmp1 = tmp1 * mcp3564_hwgain_frac[(2 * i) + 1];
