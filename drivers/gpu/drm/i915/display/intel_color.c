@@ -785,14 +785,12 @@ static void chv_assign_csc(struct intel_crtc_state *crtc_state)
 /* convert hw value with given bit_precision to lut property val */
 static u32 intel_color_lut_pack(u32 val, int bit_precision)
 {
-	u32 max = 0xffff >> (16 - bit_precision);
-
-	val = clamp_val(val, 0, max);
-
-	if (bit_precision < 16)
-		val <<= 16 - bit_precision;
-
-	return val;
+	if (bit_precision > 16)
+		return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(val, (1 << 16) - 1),
+					     (1 << bit_precision) - 1);
+	else
+		return DIV_ROUND_CLOSEST(val * ((1 << 16) - 1),
+					 (1 << bit_precision) - 1);
 }
 
 static u32 i9xx_lut_8(const struct drm_color_lut *color)
