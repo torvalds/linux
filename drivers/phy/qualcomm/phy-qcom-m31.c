@@ -126,7 +126,7 @@ static const struct m31_phy_regs m31_ipq5018_regs[] = {
 	},
 };
 
-struct m31_phy_regs m31_ipq5332_regs[] = {
+static struct m31_phy_regs m31_ipq5332_regs[] = {
 	{
 		USB_PHY_CFG0,
 		UTMI_PHY_OVERRIDE_EN,
@@ -216,8 +216,7 @@ static int m31usb_phy_init(struct phy *phy)
 
 	ret = clk_prepare_enable(qphy->clk);
 	if (ret) {
-		if (qphy->vreg)
-			regulator_disable(qphy->vreg);
+		regulator_disable(qphy->vreg);
 		dev_err(&phy->dev, "failed to enable cfg ahb clock, %d\n", ret);
 		return ret;
 	}
