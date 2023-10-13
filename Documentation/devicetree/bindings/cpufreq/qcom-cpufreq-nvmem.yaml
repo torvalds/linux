@@ -47,7 +47,9 @@ patternProperties:
       - if:
           properties:
             compatible:
-              const: operating-points-v2-kryo-cpu
+              enum:
+                - operating-points-v2-krait-cpu
+                - operating-points-v2-kryo-cpu
         then:
           $ref: /schemas/opp/opp-v2-kryo-cpu.yaml#
 
