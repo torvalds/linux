@@ -159,6 +159,14 @@ extern void *bpf_percpu_obj_new_impl(__u64 local_type_id, void *meta) __ksym;
  */
 extern void bpf_percpu_obj_drop_impl(void *kptr, void *meta) __ksym;
 
+struct bpf_iter_task_vma;
+
+extern int bpf_iter_task_vma_new(struct bpf_iter_task_vma *it,
+				 struct task_struct *task,
+				 unsigned long addr) __ksym;
+extern struct vm_area_struct *bpf_iter_task_vma_next(struct bpf_iter_task_vma *it) __ksym;
+extern void bpf_iter_task_vma_destroy(struct bpf_iter_task_vma *it) __ksym;
+
 /* Convenience macro to wrap over bpf_obj_drop_impl */
 #define bpf_percpu_obj_drop(kptr) bpf_percpu_obj_drop_impl(kptr, NULL)
 
