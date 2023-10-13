@@ -855,13 +855,47 @@ static void qm_poll_req_cb(struct hisi_qp *qp)
 	qm_db(qm, qp->qp_id, QM_DOORBELL_CMD_CQ, qp->qp_status.cq_head, 1);
 }
 
-static int qm_get_complete_eqe_num(struct hisi_qm_poll_data *poll_data)
+static void qm_work_process(struct work_struct *work)
 {
+	struct hisi_qm_poll_data *poll_data =
+		container_of(work, struct hisi_qm_poll_data, work);
 	struct hisi_qm *qm = poll_data->qm;
+	u16 eqe_num = poll_data->eqe_num;
+	struct hisi_qp *qp;
+	int i;
+
+	for (i = eqe_num - 1; i >= 0; i--) {
+		qp = &qm->qp_array[poll_data->qp_finish_id[i]];
+		if (unlikely(atomic_read(&qp->qp_status.flags) == QP_STOP))
+			continue;
+
+		if (qp->event_cb) {
+			qp->event_cb(qp);
+			continue;
+		}
+
+		if (likely(qp->req_cb))
+			qm_poll_req_cb(qp);
+	}
+}
+
+static void qm_get_complete_eqe_num(struct hisi_qm *qm)
+{
 	struct qm_eqe *eqe = qm->eqe + qm->status.eq_head;
+	struct hisi_qm_poll_data *poll_data = NULL;
 	u16 eq_depth = qm->eq_depth;
-	int eqe_num = 0;
-	u16 cqn;
+	u16 cqn, eqe_num = 0;
+
+	if (QM_EQE_PHASE(eqe) != qm->status.eqc_phase) {
+		atomic64_inc(&qm->debug.dfx.err_irq_cnt);
+		qm_db(qm, 0, QM_DOORBELL_CMD_EQ, qm->status.eq_head, 0);
+		return;
+	}
+
+	cqn = le32_to_cpu(eqe->dw0) & QM_EQE_CQN_MASK;
+	if (unlikely(cqn >= qm->qp_num))
+		return;
+	poll_data = &qm->poll_data[cqn];
 
 	while (QM_EQE_PHASE(eqe) == qm->status.eqc_phase) {
 		cqn = le32_to_cpu(eqe->dw0) & QM_EQE_CQN_MASK;
@@ -881,69 +915,19 @@ static int qm_get_complete_eqe_num(struct hisi_qm_poll_data *poll_data)
 			break;
 	}
 
+	poll_data->eqe_num = eqe_num;
+	queue_work(qm->wq, &poll_data->work);
 	qm_db(qm, 0, QM_DOORBELL_CMD_EQ, qm->status.eq_head, 0);
-
-	return eqe_num;
-}
-
-static void qm_work_process(struct work_struct *work)
-{
-	struct hisi_qm_poll_data *poll_data =
-		container_of(work, struct hisi_qm_poll_data, work);
-	struct hisi_qm *qm = poll_data->qm;
-	struct hisi_qp *qp;
-	int eqe_num, i;
-
-	/* Get qp id of completed tasks and re-enable the interrupt. */
-	eqe_num = qm_get_complete_eqe_num(poll_data);
-	for (i = eqe_num - 1; i >= 0; i--) {
-		qp = &qm->qp_array[poll_data->qp_finish_id[i]];
-		if (unlikely(atomic_read(&qp->qp_status.flags) == QP_STOP))
-			continue;
-
-		if (qp->event_cb) {
-			qp->event_cb(qp);
-			continue;
-		}
-
-		if (likely(qp->req_cb))
-			qm_poll_req_cb(qp);
-	}
-}
-
-static bool do_qm_eq_irq(struct hisi_qm *qm)
-{
-	struct qm_eqe *eqe = qm->eqe + qm->status.eq_head;
-	struct hisi_qm_poll_data *poll_data;
-	u16 cqn;
-
-	if (!readl(qm->io_base + QM_VF_EQ_INT_SOURCE))
-		return false;
-
-	if (QM_EQE_PHASE(eqe) == qm->status.eqc_phase) {
-		cqn = le32_to_cpu(eqe->dw0) & QM_EQE_CQN_MASK;
-		poll_data = &qm->poll_data[cqn];
-		queue_work(qm->wq, &poll_data->work);
-
-		return true;
-	}
-
-	return false;
 }
 
 static irqreturn_t qm_eq_irq(int irq, void *data)
 {
 	struct hisi_qm *qm = data;
-	bool ret;
 
-	ret = do_qm_eq_irq(qm);
-	if (ret)
-		return IRQ_HANDLED;
+	/* Get qp id of completed tasks and re-enable the interrupt */
+	qm_get_complete_eqe_num(qm);
 
-	atomic64_inc(&qm->debug.dfx.err_irq_cnt);
-	qm_db(qm, 0, QM_DOORBELL_CMD_EQ, qm->status.eq_head, 0);
-
-	return IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t qm_mb_cmd_irq(int irq, void *data)
@@ -1025,6 +1009,8 @@ static irqreturn_t qm_aeq_thread(int irq, void *data)
 	u16 aeq_depth = qm->aeq_depth;
 	u32 type, qp_id;
 
+	atomic64_inc(&qm->debug.dfx.aeq_irq_cnt);
+
 	while (QM_AEQE_PHASE(aeqe) == qm->status.aeqc_phase) {
 		type = le32_to_cpu(aeqe->dw0) >> QM_AEQE_TYPE_SHIFT;
 		qp_id = le32_to_cpu(aeqe->dw0) & QM_AEQE_CQN_MASK;
@@ -1060,17 +1046,6 @@ static irqreturn_t qm_aeq_thread(int irq, void *data)
 	qm_db(qm, 0, QM_DOORBELL_CMD_AEQ, qm->status.aeq_head, 0);
 
 	return IRQ_HANDLED;
-}
-
-static irqreturn_t qm_aeq_irq(int irq, void *data)
-{
-	struct hisi_qm *qm = data;
-
-	atomic64_inc(&qm->debug.dfx.aeq_irq_cnt);
-	if (!readl(qm->io_base + QM_VF_AEQ_INT_SOURCE))
-		return IRQ_NONE;
-
-	return IRQ_WAKE_THREAD;
 }
 
 static void qm_init_qp_status(struct hisi_qp *qp)
@@ -5012,8 +4987,8 @@ static int qm_register_aeq_irq(struct hisi_qm *qm)
 		return 0;
 
 	irq_vector = val & QM_IRQ_VECTOR_MASK;
-	ret = request_threaded_irq(pci_irq_vector(pdev, irq_vector), qm_aeq_irq,
-						   qm_aeq_thread, 0, qm->dev_name, qm);
+	ret = request_threaded_irq(pci_irq_vector(pdev, irq_vector), NULL,
+						   qm_aeq_thread, IRQF_ONESHOT, qm->dev_name, qm);
 	if (ret)
 		dev_err(&pdev->dev, "failed to request eq irq, ret = %d", ret);
 
