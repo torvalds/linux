@@ -34,6 +34,7 @@ struct rga_frame {
 
 	/* Image format */
 	struct rga_fmt *fmt;
+	struct v4l2_pix_format_mplane pix;
 
 	/* Variables that can calculated once and reused */
 	u32 stride;

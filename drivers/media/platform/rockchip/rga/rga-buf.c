@@ -7,6 +7,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
 
+#include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mem2mem.h>
@@ -16,7 +17,8 @@
 #include "rga-hw.h"
 #include "rga.h"
 
-static size_t fill_descriptors(struct rga_dma_desc *desc, struct sg_table *sgt)
+static ssize_t fill_descriptors(struct rga_dma_desc *desc, size_t max_desc,
+				struct sg_table *sgt)
 {
 	struct sg_dma_page_iter iter;
 	struct rga_dma_desc *tmp = desc;
@@ -24,6 +26,8 @@ static size_t fill_descriptors(struct rga_dma_desc *desc, struct sg_table *sgt)
 	dma_addr_t addr;
 
 	for_each_sgtable_dma_page(sgt, &iter, 0) {
+		if (n_desc > max_desc)
+			return -EINVAL;
 		addr = sg_page_iter_dma_address(&iter);
 		tmp->addr = lower_32_bits(addr);
 		tmp++;
@@ -40,15 +44,29 @@ rga_queue_setup(struct vb2_queue *vq,
 {
 	struct rga_ctx *ctx = vb2_get_drv_priv(vq);
 	struct rga_frame *f = rga_get_frame(ctx, vq->type);
+	const struct v4l2_pix_format_mplane *pix_fmt;
+	int i;
 
 	if (IS_ERR(f))
 		return PTR_ERR(f);
 
-	if (*nplanes)
-		return sizes[0] < f->size ? -EINVAL : 0;
+	pix_fmt = &f->pix;
 
-	sizes[0] = f->size;
-	*nplanes = 1;
+	if (*nplanes) {
+		if (*nplanes != pix_fmt->num_planes)
+			return -EINVAL;
+
+		for (i = 0; i < pix_fmt->num_planes; i++)
+			if (sizes[i] < pix_fmt->plane_fmt[i].sizeimage)
+				return -EINVAL;
+
+		return 0;
+	}
+
+	*nplanes = pix_fmt->num_planes;
+
+	for (i = 0; i < pix_fmt->num_planes; i++)
+		sizes[i] = pix_fmt->plane_fmt[i].sizeimage;
 
 	return 0;
 }
@@ -92,18 +110,39 @@ static int rga_buf_prepare(struct vb2_buffer *vb)
 	struct rga_vb_buffer *rbuf = vb_to_rga(vbuf);
 	struct rga_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct rga_frame *f = rga_get_frame(ctx, vb->vb2_queue->type);
+	ssize_t n_desc = 0;
+	size_t curr_desc = 0;
+	int i;
+	const struct v4l2_format_info *info;
+	unsigned int offsets[VIDEO_MAX_PLANES];
 
 	if (IS_ERR(f))
 		return PTR_ERR(f);
 
-	vb2_set_plane_payload(vb, 0, f->size);
+	for (i = 0; i < vb->num_planes; i++) {
+		vb2_set_plane_payload(vb, i, f->pix.plane_fmt[i].sizeimage);
 
-	/* Create local MMU table for RGA */
-	fill_descriptors(rbuf->dma_desc, vb2_dma_sg_plane_desc(vb, 0));
+		/* Create local MMU table for RGA */
+		n_desc = fill_descriptors(&rbuf->dma_desc[curr_desc],
+					  rbuf->n_desc - curr_desc,
+					  vb2_dma_sg_plane_desc(vb, i));
+		if (n_desc < 0) {
+			v4l2_err(&ctx->rga->v4l2_dev,
+				 "Failed to map video buffer to RGA\n");
+			return n_desc;
+		}
+		offsets[i] = curr_desc << PAGE_SHIFT;
+		curr_desc += n_desc;
+	}
 
-	rbuf->offset.y_off = get_plane_offset(f, 0);
-	rbuf->offset.u_off = get_plane_offset(f, 1);
-	rbuf->offset.v_off = get_plane_offset(f, 2);
+	/* Fill the remaining planes */
+	info = v4l2_format_info(f->fmt->fourcc);
+	for (i = info->mem_planes; i < info->comp_planes; i++)
+		offsets[i] = get_plane_offset(f, i);
+
+	rbuf->offset.y_off = offsets[0];
+	rbuf->offset.u_off = offsets[1];
+	rbuf->offset.v_off = offsets[2];
 
 	return 0;
 }

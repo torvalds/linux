@@ -365,6 +365,11 @@ static int rga_open(struct file *file)
 	ctx->in = def_frame;
 	ctx->out = def_frame;
 
+	v4l2_fill_pixfmt_mp(&ctx->in.pix,
+			    ctx->in.fmt->fourcc, ctx->out.width, ctx->out.height);
+	v4l2_fill_pixfmt_mp(&ctx->out.pix,
+			    ctx->out.fmt->fourcc, ctx->out.width, ctx->out.height);
+
 	if (mutex_lock_interruptible(&rga->mutex)) {
 		kfree(ctx);
 		return -ERESTARTSYS;
@@ -523,6 +528,8 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	frm->crop.top = 0;
 	frm->crop.width = frm->width;
 	frm->crop.height = frm->height;
+
+	frm->pix = *pix_fmt;
 
 	v4l2_dbg(debug, 1, &rga->v4l2_dev,
 		 "[%s] fmt - %p4cc %dx%d (stride %d, sizeimage %d)\n",
