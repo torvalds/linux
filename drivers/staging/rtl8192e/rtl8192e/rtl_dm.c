@@ -913,8 +913,6 @@ static void _rtl92e_dm_dig_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	dm_digtable.dig_enable_flag	= true;
-
 	dm_digtable.dig_algorithm = DIG_ALGO_BY_RSSI;
 
 	dm_digtable.dig_algorithm_switch = 0;
@@ -941,9 +939,6 @@ static void _rtl92e_dm_dig_init(struct net_device *dev)
 
 static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev)
 {
-	if (!dm_digtable.dig_enable_flag)
-		return;
-
 	if (dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)
 		_rtl92e_dm_ctrl_initgain_byrssi_false_alarm(dev);
 	else if (dm_digtable.dig_algorithm == DIG_ALGO_BY_RSSI)
@@ -976,9 +971,6 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 	u8 i;
 	static u8	fw_dig;
 
-	if (!dm_digtable.dig_enable_flag)
-		return;
-
 	if (dm_digtable.dig_algorithm_switch)
 		fw_dig = 0;
 	if (fw_dig <= 3) {
@@ -1006,9 +998,6 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 i;
-
-	if (!dm_digtable.dig_enable_flag)
-		return;
 
 	if (dm_digtable.dig_algorithm_switch) {
 		dm_digtable.dig_state = DM_STA_DIG_MAX;

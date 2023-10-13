@@ -50,7 +50,6 @@
 
 /*------------------------------Define structure----------------------------*/
 struct dig_t {
-	u8		dig_enable_flag;
 	u8		dig_algorithm;
 	u8		dig_algorithm_switch;
 
