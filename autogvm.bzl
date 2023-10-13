@@ -66,6 +66,7 @@ def define_autogvm():
         "drivers/soc/qcom/memory_dump_v2.ko",
         "drivers/soc/qcom/memshare/heap_mem_ext_v01.ko",
         "drivers/soc/qcom/memshare/msm_memshare.ko",
+        "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_soc_wdt.ko",
         "drivers/soc/qcom/qcom_wdt_core.ko",
         "drivers/soc/qcom/qmi_helpers.ko",
