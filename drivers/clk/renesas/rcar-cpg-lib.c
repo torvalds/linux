@@ -70,8 +70,21 @@ void cpg_simple_notifier_register(struct raw_notifier_head *notifiers,
 #define STPnHCK	BIT(9 - SDnSRCFC_SHIFT)
 
 static const struct clk_div_table cpg_sdh_div_table[] = {
+	/*
+	 * These values are recommended by the datasheet.  Because they come
+	 * first, Linux will only use these.
+	 */
 	{ 0, 1 }, { 1, 2 }, { STPnHCK | 2, 4 }, { STPnHCK | 3, 8 },
-	{ STPnHCK | 4, 16 }, { 0, 0 },
+	{ STPnHCK | 4, 16 },
+	/*
+	 * These values are not recommended because STPnHCK is wrong.  But they
+	 * have been seen because of broken firmware.  So, we support reading
+	 * them but Linux will sanitize them when initializing through
+	 * recalc_rate.
+	 */
+	{ STPnHCK | 0, 1 }, { STPnHCK | 1, 2 },  { 2, 4 }, { 3, 8 }, { 4, 16 },
+	/* Sentinel */
+	{ 0, 0 }
 };
 
 struct clk * __init cpg_sdh_clk_register(const char *name,
