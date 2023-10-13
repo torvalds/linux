@@ -4554,6 +4554,48 @@ static void ath12k_mac_copy_eht_ppe_thresh(struct ath12k_wmi_ppe_threshold_arg *
 	}
 }
 
+static void
+ath12k_mac_filter_eht_cap_mesh(struct ieee80211_eht_cap_elem_fixed
+			       *eht_cap_elem)
+{
+	u8 m;
+
+	m = IEEE80211_EHT_MAC_CAP0_EPCS_PRIO_ACCESS;
+	eht_cap_elem->mac_cap_info[0] &= ~m;
+
+	m = IEEE80211_EHT_PHY_CAP0_PARTIAL_BW_UL_MU_MIMO;
+	eht_cap_elem->phy_cap_info[0] &= ~m;
+
+	m = IEEE80211_EHT_PHY_CAP3_NG_16_MU_FEEDBACK |
+	    IEEE80211_EHT_PHY_CAP3_CODEBOOK_7_5_MU_FDBK |
+	    IEEE80211_EHT_PHY_CAP3_TRIG_MU_BF_PART_BW_FDBK |
+	    IEEE80211_EHT_PHY_CAP3_TRIG_CQI_FDBK;
+	eht_cap_elem->phy_cap_info[3] &= ~m;
+
+	m = IEEE80211_EHT_PHY_CAP4_PART_BW_DL_MU_MIMO |
+	    IEEE80211_EHT_PHY_CAP4_PSR_SR_SUPP |
+	    IEEE80211_EHT_PHY_CAP4_POWER_BOOST_FACT_SUPP |
+	    IEEE80211_EHT_PHY_CAP4_EHT_MU_PPDU_4_EHT_LTF_08_GI;
+	eht_cap_elem->phy_cap_info[4] &= ~m;
+
+	m = IEEE80211_EHT_PHY_CAP5_NON_TRIG_CQI_FEEDBACK |
+	    IEEE80211_EHT_PHY_CAP5_TX_LESS_242_TONE_RU_SUPP |
+	    IEEE80211_EHT_PHY_CAP5_RX_LESS_242_TONE_RU_SUPP |
+	    IEEE80211_EHT_PHY_CAP5_MAX_NUM_SUPP_EHT_LTF_MASK;
+	eht_cap_elem->phy_cap_info[5] &= ~m;
+
+	m = IEEE80211_EHT_PHY_CAP6_MAX_NUM_SUPP_EHT_LTF_MASK;
+	eht_cap_elem->phy_cap_info[6] &= ~m;
+
+	m = IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_80MHZ |
+	    IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_160MHZ |
+	    IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_320MHZ |
+	    IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_80MHZ |
+	    IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_160MHZ |
+	    IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_320MHZ;
+	eht_cap_elem->phy_cap_info[7] &= ~m;
+}
+
 static void ath12k_mac_copy_eht_cap(struct ath12k *ar,
 				    struct ath12k_band_cap *band_cap,
 				    struct ieee80211_he_cap_elem *he_cap_elem,
@@ -4591,6 +4633,9 @@ static void ath12k_mac_copy_eht_cap(struct ath12k *ar,
 			~(IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_80MHZ |
 			  IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_160MHZ |
 			  IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_320MHZ);
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		ath12k_mac_filter_eht_cap_mesh(eht_cap_elem);
 		break;
 	default:
 		break;
