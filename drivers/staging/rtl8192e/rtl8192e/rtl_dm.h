@@ -56,8 +56,6 @@ struct dig_t {
 	long		rssi_high_power_lowthresh;
 	long		rssi_high_power_highthresh;
 
-	u8		dig_state;
-	u8		dig_highpwr_state;
 	u8		cur_sta_connect_state;
 	u8		pre_sta_connect_state;
 

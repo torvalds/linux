@@ -911,8 +911,6 @@ static void _rtl92e_dm_dig_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	dm_digtable.dig_state		= DM_STA_DIG_MAX;
-	dm_digtable.dig_highpwr_state	= DM_STA_DIG_MAX;
 	dm_digtable.cur_sta_connect_state = DIG_STA_DISCONNECT;
 	dm_digtable.pre_sta_connect_state = DIG_STA_DISCONNECT;
 
@@ -964,7 +962,6 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 		for (i = 0; i < 3; i++)
 			rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x8);
 		fw_dig++;
-		dm_digtable.dig_state = DM_STA_DIG_OFF;
 	}
 
 	if (priv->rtllib->link_state == MAC80211_LINKED)
