@@ -138,6 +138,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3567-evb2-lp4x-v10-dual-lvds.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb1-ddr4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb1-ddr4-v10-dual-camera.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb1-ddr4-v10-dual-lvds.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb1-ddr4-v10-dual-lvds-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb1-ddr4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb1-ddr4-v10-linux-amp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb1-ddr4-v10-linux-spi-nor.dtb

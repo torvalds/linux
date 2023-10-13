@@ -5,10 +5,19 @@
 
 /dts-v1/;
 
+#include <dt-bindings/display/rockchip_vop.h>
 #include "rk3568-evb1-ddr4-v10-dual-lvds.dtsi"
-#include "rk3568-android.dtsi"
+#include "rk3568-linux.dtsi"
 
 / {
 	model = "Rockchip RK3568 EVB1 V10 Board with Dual LVDS";
 	compatible = "rockchip,rk3568-evb1-ddr4-v10-dual-lvds", "rockchip,rk3568";
+};
+
+&vp0 {
+	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER0>;
+};
+
+&vp1 {
+	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER1>;
 };

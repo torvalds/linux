@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/display/media-bus-format.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include "rk3568-evb1-ddr4-v10.dtsi"
+
+/ {
+	panel {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_lcd0_n>;
+		enable-delay-ms = <20>;
+		prepare-delay-ms = <20>;
+		unprepare-delay-ms = <20>;
+		disable-delay-ms = <20>;
+		bus-format = <MEDIA_BUS_FMT_RGB666_1X7X3_SPWG>;
+		width-mm = <217>;
+		height-mm = <136>;
+
+		display-timings {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
+				clock-frequency = <134000000>;
+				hactive = <1600>;
+				vactive = <1280>;
+				hback-porch = <60>;
+				hfront-porch = <60>;
+				vback-porch = <4>;
+				vfront-porch = <2>;
+				hsync-len = <8>;
+				vsync-len = <2>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/**
+			 *  Panel <----> LVDS0
+			 *  Panel <----> LVDS1
+			 */
+			port@0 {
+				reg = <0>;
+				dual-lvds-left-pixels;
+				panel_in_lvds0: endpoint {
+					remote-endpoint = <&lvds0_out_panel>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				dual-lvds-right-pixels;
+				panel_in_lvds1: endpoint {
+					remote-endpoint = <&lvds1_out_panel>;
+				};
+			};
+		};
+	};
+};
+
+&backlight1 {
+	status = "okay";
+};
+
+&backlight {
+	status = "okay";
+};
+
+&dsi0 {
+	status = "disabled";
+};
+
+&dsi0_in_vp0 {
+	status = "disabled";
+};
+
+&dsi0_in_vp1 {
+	status = "disabled";
+};
+
+&dsi1_in_vp1 {
+	status = "disabled";
+};
+
+&edp_in_vp1 {
+	status = "disabled";
+};
+
+&hdmi_in_vp1 {
+	status = "okay";
+};
+
+&lvds {
+	status = "okay";
+	dual-channel;
+
+	ports {
+		port@1 {
+			reg = <1>;
+			lvds0_out_panel: endpoint {
+				remote-endpoint = <&panel_in_lvds0>;
+			};
+		};
+	};
+};
+
+&lvds1 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+			lvds1_out_panel: endpoint {
+				remote-endpoint = <&panel_in_lvds1>;
+			};
+		};
+	};
+};
+
+&lvds_in_vp1 {
+	status = "okay";
+};
+
+&lvds1_in_vp1 {
+	status = "disabled";
+};
+
+&lvds1_in_vp2 {
+	status = "okay";
+};
+
+&rgb_in_vp2 {
+	status = "disabled";
+};
+
+&video_phy0 {
+	status = "okay";
+};
+
+&video_phy1 {
+	status = "okay";
+};
+
+&vcc3v3_lcd0_n {
+	gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+
+&vcc3v3_lcd1_n {
+	gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
