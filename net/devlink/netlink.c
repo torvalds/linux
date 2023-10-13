@@ -86,18 +86,24 @@ int devlink_nl_put_nested_handle(struct sk_buff *msg, struct net *net,
 				 struct devlink *devlink, int attrtype)
 {
 	struct nlattr *nested_attr;
+	struct net *devl_net;
 
 	nested_attr = nla_nest_start(msg, attrtype);
 	if (!nested_attr)
 		return -EMSGSIZE;
 	if (devlink_nl_put_handle(msg, devlink))
 		goto nla_put_failure;
-	if (!net_eq(net, devlink_net(devlink))) {
-		int id = peernet2id_alloc(net, devlink_net(devlink),
-					  GFP_KERNEL);
 
+	rcu_read_lock();
+	devl_net = read_pnet_rcu(&devlink->_net);
+	if (!net_eq(net, devl_net)) {
+		int id = peernet2id_alloc(net, devl_net, GFP_ATOMIC);
+
+		rcu_read_unlock();
 		if (nla_put_s32(msg, DEVLINK_ATTR_NETNS_ID, id))
 			return -EMSGSIZE;
+	} else {
+		rcu_read_unlock();
 	}
 
 	nla_nest_end(msg, nested_attr);
