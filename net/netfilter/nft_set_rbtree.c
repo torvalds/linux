@@ -221,14 +221,15 @@ static void *nft_rbtree_get(const struct net *net, const struct nft_set *set,
 	return rbe;
 }
 
-static void nft_rbtree_gc_remove(struct net *net, struct nft_set *set,
-				 struct nft_rbtree *priv,
-				 struct nft_rbtree_elem *rbe)
+static void nft_rbtree_gc_elem_remove(struct net *net, struct nft_set *set,
+				      struct nft_rbtree *priv,
+				      struct nft_rbtree_elem *rbe)
 {
 	struct nft_set_elem elem = {
 		.priv	= rbe,
 	};
 
+	lockdep_assert_held_write(&priv->lock);
 	nft_setelem_data_deactivate(net, set, &elem);
 	rb_erase(&rbe->node, &priv->root);
 }
@@ -263,7 +264,7 @@ nft_rbtree_gc_elem(const struct nft_set *__set, struct nft_rbtree *priv,
 	rbe_prev = NULL;
 	if (prev) {
 		rbe_prev = rb_entry(prev, struct nft_rbtree_elem, node);
-		nft_rbtree_gc_remove(net, set, priv, rbe_prev);
+		nft_rbtree_gc_elem_remove(net, set, priv, rbe_prev);
 
 		/* There is always room in this trans gc for this element,
 		 * memory allocation never actually happens, hence, the warning
@@ -277,7 +278,7 @@ nft_rbtree_gc_elem(const struct nft_set *__set, struct nft_rbtree *priv,
 		nft_trans_gc_elem_add(gc, rbe_prev);
 	}
 
-	nft_rbtree_gc_remove(net, set, priv, rbe);
+	nft_rbtree_gc_elem_remove(net, set, priv, rbe);
 	gc = nft_trans_gc_queue_sync(gc, GFP_ATOMIC);
 	if (WARN_ON_ONCE(!gc))
 		return ERR_PTR(-ENOMEM);
