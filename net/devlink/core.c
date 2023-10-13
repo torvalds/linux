@@ -183,9 +183,8 @@ static struct devlink_rel *devlink_rel_find(unsigned long rel_index)
 		       DEVLINK_REL_IN_USE);
 }
 
-static struct devlink *devlink_rel_devlink_get_lock(u32 rel_index)
+static struct devlink *devlink_rel_devlink_get(u32 rel_index)
 {
-	struct devlink *devlink;
 	struct devlink_rel *rel;
 	u32 devlink_index;
 
@@ -198,16 +197,7 @@ static struct devlink *devlink_rel_devlink_get_lock(u32 rel_index)
 	xa_unlock(&devlink_rels);
 	if (!rel)
 		return NULL;
-	devlink = devlinks_xa_get(devlink_index);
-	if (!devlink)
-		return NULL;
-	devl_lock(devlink);
-	if (!devl_is_registered(devlink)) {
-		devl_unlock(devlink);
-		devlink_put(devlink);
-		return NULL;
-	}
-	return devlink;
+	return devlinks_xa_get(devlink_index);
 }
 
 int devlink_rel_devlink_handle_put(struct sk_buff *msg, struct devlink *devlink,
@@ -218,11 +208,10 @@ int devlink_rel_devlink_handle_put(struct sk_buff *msg, struct devlink *devlink,
 	struct devlink *rel_devlink;
 	int err;
 
-	rel_devlink = devlink_rel_devlink_get_lock(rel_index);
+	rel_devlink = devlink_rel_devlink_get(rel_index);
 	if (!rel_devlink)
 		return 0;
 	err = devlink_nl_put_nested_handle(msg, net, rel_devlink, attrtype);
-	devl_unlock(rel_devlink);
 	devlink_put(rel_devlink);
 	if (!err && msg_updated)
 		*msg_updated = true;
