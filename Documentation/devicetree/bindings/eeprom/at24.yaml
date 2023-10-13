@@ -74,6 +74,8 @@ properties:
               - items:
                   pattern: c64$
               - items:
+                  pattern: c64d-wl$
+              - items:
                   pattern: cs64$
               - items:
                   pattern: c128$
