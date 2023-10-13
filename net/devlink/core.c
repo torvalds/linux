@@ -168,6 +168,20 @@ int devlink_rel_nested_in_add(u32 *rel_index, u32 devlink_index,
 	return 0;
 }
 
+/**
+ * devlink_rel_nested_in_notify - Notify the object this devlink
+ *				  instance is nested in.
+ * @devlink: devlink
+ *
+ * This is called upon network namespace change of devlink instance.
+ * In case this devlink instance is nested in another devlink object,
+ * a notification of a change of this object should be sent
+ * over netlink. The parent devlink instance lock needs to be
+ * taken during the notification preparation.
+ * However, since the devlink lock of nested instance is held here,
+ * we would end with wrong devlink instance lock ordering and
+ * deadlock. Therefore the work is utilized to avoid that.
+ */
 void devlink_rel_nested_in_notify(struct devlink *devlink)
 {
 	struct devlink_rel *rel = devlink->rel;
