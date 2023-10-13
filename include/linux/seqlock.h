@@ -200,9 +200,15 @@ typedef struct seqcount_##lockname {					\
 } seqcount_##lockname##_t;						\
 									\
 static __always_inline seqcount_t *					\
-__seqprop_##lockname##_ptr(const seqcount_##lockname##_t *s)		\
+__seqprop_##lockname##_ptr(seqcount_##lockname##_t *s)			\
 {									\
-	return (void *)&s->seqcount; /* drop const */			\
+	return &s->seqcount;						\
+}									\
+									\
+static __always_inline const seqcount_t *				\
+__seqprop_##lockname##_const_ptr(const seqcount_##lockname##_t *s)	\
+{									\
+	return &s->seqcount;						\
 }									\
 									\
 static __always_inline unsigned						\
@@ -247,9 +253,14 @@ __seqprop_##lockname##_assert(const seqcount_##lockname##_t *s)		\
  * __seqprop() for seqcount_t
  */
 
-static inline seqcount_t *__seqprop_ptr(const seqcount_t *s)
+static inline seqcount_t *__seqprop_ptr(seqcount_t *s)
 {
-	return (void *)s; /* drop const */
+	return s;
+}
+
+static inline const seqcount_t *__seqprop_const_ptr(const seqcount_t *s)
+{
+	return s;
 }
 
 static inline unsigned __seqprop_sequence(const seqcount_t *s)
@@ -302,6 +313,7 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
 	__seqprop_case((s),	mutex,		prop))
 
 #define seqprop_ptr(s)			__seqprop(s, ptr)(s)
+#define seqprop_const_ptr(s)		__seqprop(s, const_ptr)(s)
 #define seqprop_sequence(s)		__seqprop(s, sequence)(s)
 #define seqprop_preemptible(s)		__seqprop(s, preemptible)(s)
 #define seqprop_assert(s)		__seqprop(s, assert)(s)
@@ -353,7 +365,7 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
  */
 #define read_seqcount_begin(s)						\
 ({									\
-	seqcount_lockdep_reader_access(seqprop_ptr(s));			\
+	seqcount_lockdep_reader_access(seqprop_const_ptr(s));		\
 	raw_read_seqcount_begin(s);					\
 })
 
@@ -419,7 +431,7 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
  * Return: true if a read section retry is required, else false
  */
 #define __read_seqcount_retry(s, start)					\
-	do___read_seqcount_retry(seqprop_ptr(s), start)
+	do___read_seqcount_retry(seqprop_const_ptr(s), start)
 
 static inline int do___read_seqcount_retry(const seqcount_t *s, unsigned start)
 {
@@ -439,7 +451,7 @@ static inline int do___read_seqcount_retry(const seqcount_t *s, unsigned start)
  * Return: true if a read section retry is required, else false
  */
 #define read_seqcount_retry(s, start)					\
-	do_read_seqcount_retry(seqprop_ptr(s), start)
+	do_read_seqcount_retry(seqprop_const_ptr(s), start)
 
 static inline int do_read_seqcount_retry(const seqcount_t *s, unsigned start)
 {
