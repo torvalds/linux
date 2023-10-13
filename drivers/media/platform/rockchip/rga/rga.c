@@ -873,13 +873,13 @@ static int rga_probe(struct platform_device *pdev)
 	}
 
 	rga->src_mmu_pages =
-		(unsigned int *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 3);
+		(struct rga_dma_desc *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 3);
 	if (!rga->src_mmu_pages) {
 		ret = -ENOMEM;
 		goto free_dma;
 	}
 	rga->dst_mmu_pages =
-		(unsigned int *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 3);
+		(struct rga_dma_desc *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 3);
 	if (!rga->dst_mmu_pages) {
 		ret = -ENOMEM;
 		goto free_src_pages;

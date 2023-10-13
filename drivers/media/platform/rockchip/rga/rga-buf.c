@@ -5,6 +5,7 @@
  */
 
 #include <linux/pm_runtime.h>
+#include <linux/scatterlist.h>
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -14,6 +15,23 @@
 
 #include "rga-hw.h"
 #include "rga.h"
+
+static size_t fill_descriptors(struct rga_dma_desc *desc, struct sg_table *sgt)
+{
+	struct sg_dma_page_iter iter;
+	struct rga_dma_desc *tmp = desc;
+	size_t n_desc = 0;
+	dma_addr_t addr;
+
+	for_each_sgtable_dma_page(sgt, &iter, 0) {
+		addr = sg_page_iter_dma_address(&iter);
+		tmp->addr = lower_32_bits(addr);
+		tmp++;
+		n_desc++;
+	}
+
+	return n_desc;
+}
 
 static int
 rga_queue_setup(struct vb2_queue *vq,
@@ -114,11 +132,8 @@ void rga_buf_map(struct vb2_buffer *vb)
 {
 	struct rga_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct rockchip_rga *rga = ctx->rga;
-	struct sg_table *sgt;
-	struct scatterlist *sgl;
-	unsigned int *pages;
-	unsigned int address, len, i, p;
-	unsigned int mapped_size = 0;
+	struct rga_dma_desc *pages;
+	size_t n_desc = 0;
 
 	if (vb->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		pages = rga->src_mmu_pages;
@@ -126,23 +141,9 @@ void rga_buf_map(struct vb2_buffer *vb)
 		pages = rga->dst_mmu_pages;
 
 	/* Create local MMU table for RGA */
-	sgt = vb2_plane_cookie(vb, 0);
-
-	for_each_sg(sgt->sgl, sgl, sgt->nents, i) {
-		len = sg_dma_len(sgl) >> PAGE_SHIFT;
-		address = sg_phys(sgl);
-
-		for (p = 0; p < len; p++) {
-			dma_addr_t phys = address +
-					  ((dma_addr_t)p << PAGE_SHIFT);
-
-			pages[mapped_size + p] = phys;
-		}
-
-		mapped_size += len;
-	}
+	n_desc = fill_descriptors(pages, vb2_dma_sg_plane_desc(vb, 0));
 
 	/* sync local MMU table for RGA */
 	dma_sync_single_for_device(rga->dev, virt_to_phys(pages),
-				   8 * PAGE_SIZE, DMA_BIDIRECTIONAL);
+				   n_desc * sizeof(*pages), DMA_BIDIRECTIONAL);
 }

@@ -40,6 +40,10 @@ struct rga_frame {
 	u32 size;
 };
 
+struct rga_dma_desc {
+	u32 addr;
+};
+
 struct rockchip_rga_version {
 	u32 major;
 	u32 minor;
@@ -81,8 +85,8 @@ struct rockchip_rga {
 	struct rga_ctx *curr;
 	dma_addr_t cmdbuf_phy;
 	void *cmdbuf_virt;
-	unsigned int *src_mmu_pages;
-	unsigned int *dst_mmu_pages;
+	struct rga_dma_desc *src_mmu_pages;
+	struct rga_dma_desc *dst_mmu_pages;
 };
 
 struct rga_frame *rga_get_frame(struct rga_ctx *ctx, enum v4l2_buf_type type);
