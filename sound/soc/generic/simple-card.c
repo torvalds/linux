@@ -827,7 +827,7 @@ static struct platform_driver simple_card = {
 		.of_match_table = simple_of_match,
 	},
 	.probe = simple_probe,
-	.remove = simple_util_remove,
+	.remove_new = simple_util_remove,
 };
 
 module_platform_driver(simple_card);

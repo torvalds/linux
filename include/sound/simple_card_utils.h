@@ -188,7 +188,7 @@ int simple_util_init_aux_jacks(struct simple_util_priv *priv,
 				char *prefix);
 int simple_util_init_priv(struct simple_util_priv *priv,
 			       struct link_info *li);
-int simple_util_remove(struct platform_device *pdev);
+void simple_util_remove(struct platform_device *pdev);
 
 int graph_util_card_probe(struct snd_soc_card *card);
 int graph_util_is_ports0(struct device_node *port);
