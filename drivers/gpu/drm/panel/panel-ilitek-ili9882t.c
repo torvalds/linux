@@ -463,6 +463,24 @@ static int ili9882t_init_dcs_cmd(struct ili9882t *ili)
 	return 0;
 }
 
+static int ili9882t_switch_page(struct mipi_dsi_device *dsi, u8 page)
+{
+	int ret;
+	const struct panel_init_cmd cmd = _INIT_SWITCH_PAGE_CMD(page);
+
+	ret = mipi_dsi_dcs_write(dsi, cmd.data[0],
+				 cmd.len <= 1 ? NULL :
+				 &cmd.data[1],
+				 cmd.len - 1);
+	if (ret) {
+		dev_err(&dsi->dev,
+			"error switching panel controller page (%d)\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int ili9882t_enter_sleep_mode(struct ili9882t *ili)
 {
 	struct mipi_dsi_device *dsi = ili->dsi;
@@ -484,8 +502,10 @@ static int ili9882t_enter_sleep_mode(struct ili9882t *ili)
 static int ili9882t_disable(struct drm_panel *panel)
 {
 	struct ili9882t *ili = to_ili9882t(panel);
+	struct mipi_dsi_device *dsi = ili->dsi;
 	int ret;
 
+	ili9882t_switch_page(dsi, 0x00);
 	ret = ili9882t_enter_sleep_mode(ili);
 	if (ret < 0) {
 		dev_err(panel->dev, "failed to set panel off: %d\n", ret);
@@ -546,7 +566,7 @@ static int ili9882t_prepare(struct drm_panel *panel)
 	gpiod_set_value(ili->enable_gpio, 1);
 	usleep_range(1000, 2000);
 	gpiod_set_value(ili->enable_gpio, 0);
-	usleep_range(1000, 2000);
+	msleep(50);
 	gpiod_set_value(ili->enable_gpio, 1);
 	usleep_range(6000, 10000);
 
