@@ -674,6 +674,11 @@ properties:
           - const: pine64,soquartz
           - const: rockchip,rk3566
 
+      - description: Powkiddy RGB30
+        items:
+          - const: powkiddy,rgb30
+          - const: rockchip,rk3566
+
       - description: Radxa Compute Module 3(CM3)
         items:
           - enum:
