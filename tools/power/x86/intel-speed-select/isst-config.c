@@ -28,7 +28,7 @@ static FILE *outf;
 static int cpu_model;
 static int cpu_stepping;
 
-#define MAX_CPUS_IN_ONE_REQ 256
+#define MAX_CPUS_IN_ONE_REQ 512
 static short max_target_cpus;
 static unsigned short target_cpus[MAX_CPUS_IN_ONE_REQ];
 
