@@ -493,6 +493,9 @@ struct i40e_hw {
 	struct i40e_nvm_info nvm;
 	struct i40e_fc_info fc;
 
+	/* PBA ID */
+	const char *pba_id;
+
 	/* pci info */
 	u16 device_id;
 	u16 vendor_id;
