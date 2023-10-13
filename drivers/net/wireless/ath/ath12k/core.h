@@ -737,7 +737,6 @@ struct ath12k_base {
 	struct ath12k_wmi_target_cap_arg target_caps;
 	u32 ext_service_bitmap[WMI_SERVICE_EXT_BM_SIZE];
 	bool pdevs_macaddr_valid;
-	int bd_api;
 
 	const struct ath12k_hw_params *hw_params;
 
