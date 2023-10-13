@@ -203,6 +203,21 @@ static int compare_sort_condition(const void *p1, const void *p2)
 	return cmp;
 }
 
+static int remove_pattern(regex_t *pattern, char *buf, int len)
+{
+	regmatch_t pmatch[2];
+	int err;
+
+	err = regexec(pattern, buf, 2, pmatch, REG_NOTBOL);
+	if (err != 0 || pmatch[1].rm_so == -1)
+		return len;
+
+	memcpy(buf + pmatch[1].rm_so,
+		buf + pmatch[1].rm_eo, len - pmatch[1].rm_eo);
+
+	return len - (pmatch[1].rm_eo - pmatch[1].rm_so);
+}
+
 static int search_pattern(regex_t *pattern, char *pattern_str, char *buf)
 {
 	int err, val_len;
@@ -443,13 +458,6 @@ static bool is_need(char *buf)
 
 static bool add_list(char *buf, int len, char *ext_buf)
 {
-	if (list_size != 0 &&
-		len == list[list_size-1].len &&
-		memcmp(buf, list[list_size-1].txt, len) == 0) {
-		list[list_size-1].num++;
-		list[list_size-1].page_num += get_page_num(buf);
-		return true;
-	}
 	if (list_size == max_size) {
 		fprintf(stderr, "max_size too small??\n");
 		return false;
@@ -465,6 +473,9 @@ static bool add_list(char *buf, int len, char *ext_buf)
 		return false;
 	}
 	memcpy(list[list_size].txt, buf, len);
+	if (sc.cmps[0] != compare_ts) {
+		len = remove_pattern(&ts_nsec_pattern, list[list_size].txt, len);
+	}
 	list[list_size].txt[len] = 0;
 	list[list_size].len = len;
 	list[list_size].num = 1;
