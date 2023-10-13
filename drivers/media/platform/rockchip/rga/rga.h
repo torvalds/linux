@@ -85,15 +85,27 @@ struct rockchip_rga {
 	struct rga_ctx *curr;
 	dma_addr_t cmdbuf_phy;
 	void *cmdbuf_virt;
-	struct rga_dma_desc *src_mmu_pages;
-	struct rga_dma_desc *dst_mmu_pages;
 };
+
+struct rga_vb_buffer {
+	struct vb2_v4l2_buffer vb_buf;
+	struct list_head queue;
+
+	/* RGA MMU mapping for this buffer */
+	struct rga_dma_desc *dma_desc;
+	dma_addr_t dma_desc_pa;
+	size_t n_desc;
+};
+
+static inline struct rga_vb_buffer *vb_to_rga(struct vb2_v4l2_buffer *vb)
+{
+	return container_of(vb, struct rga_vb_buffer, vb_buf);
+}
 
 struct rga_frame *rga_get_frame(struct rga_ctx *ctx, enum v4l2_buf_type type);
 
 /* RGA Buffers Manage */
 extern const struct vb2_ops rga_qops;
-void rga_buf_map(struct vb2_buffer *vb);
 
 /* RGA Hardware */
 static inline void rga_write(struct rockchip_rga *rga, u32 reg, u32 value)
@@ -114,6 +126,7 @@ static inline void rga_mod(struct rockchip_rga *rga, u32 reg, u32 val, u32 mask)
 	rga_write(rga, reg, temp);
 };
 
-void rga_hw_start(struct rockchip_rga *rga);
+void rga_hw_start(struct rockchip_rga *rga,
+		  struct rga_vb_buffer *src, struct rga_vb_buffer *dst);
 
 #endif

@@ -119,40 +119,40 @@ static struct rga_addr_offset *rga_lookup_draw_pos(struct
 	return NULL;
 }
 
-static void rga_cmd_set_src_addr(struct rga_ctx *ctx, void *mmu_pages)
+static void rga_cmd_set_src_addr(struct rga_ctx *ctx, dma_addr_t dma_addr)
 {
 	struct rockchip_rga *rga = ctx->rga;
 	u32 *dest = rga->cmdbuf_virt;
 	unsigned int reg;
 
 	reg = RGA_MMU_SRC_BASE - RGA_MODE_BASE_REG;
-	dest[reg >> 2] = virt_to_phys(mmu_pages) >> 4;
+	dest[reg >> 2] = dma_addr >> 4;
 
 	reg = RGA_MMU_CTRL1 - RGA_MODE_BASE_REG;
 	dest[reg >> 2] |= 0x7;
 }
 
-static void rga_cmd_set_src1_addr(struct rga_ctx *ctx, void *mmu_pages)
+static void rga_cmd_set_src1_addr(struct rga_ctx *ctx, dma_addr_t dma_addr)
 {
 	struct rockchip_rga *rga = ctx->rga;
 	u32 *dest = rga->cmdbuf_virt;
 	unsigned int reg;
 
 	reg = RGA_MMU_SRC1_BASE - RGA_MODE_BASE_REG;
-	dest[reg >> 2] = virt_to_phys(mmu_pages) >> 4;
+	dest[reg >> 2] = dma_addr >> 4;
 
 	reg = RGA_MMU_CTRL1 - RGA_MODE_BASE_REG;
 	dest[reg >> 2] |= 0x7 << 4;
 }
 
-static void rga_cmd_set_dst_addr(struct rga_ctx *ctx, void *mmu_pages)
+static void rga_cmd_set_dst_addr(struct rga_ctx *ctx, dma_addr_t dma_addr)
 {
 	struct rockchip_rga *rga = ctx->rga;
 	u32 *dest = rga->cmdbuf_virt;
 	unsigned int reg;
 
 	reg = RGA_MMU_DST_BASE - RGA_MODE_BASE_REG;
-	dest[reg >> 2] = virt_to_phys(mmu_pages) >> 4;
+	dest[reg >> 2] = dma_addr >> 4;
 
 	reg = RGA_MMU_CTRL1 - RGA_MODE_BASE_REG;
 	dest[reg >> 2] |= 0x7 << 8;
@@ -375,20 +375,21 @@ static void rga_cmd_set_mode(struct rga_ctx *ctx)
 	dest[(RGA_MODE_CTRL - RGA_MODE_BASE_REG) >> 2] = mode.val;
 }
 
-static void rga_cmd_set(struct rga_ctx *ctx)
+static void rga_cmd_set(struct rga_ctx *ctx,
+			struct rga_vb_buffer *src, struct rga_vb_buffer *dst)
 {
 	struct rockchip_rga *rga = ctx->rga;
 
 	memset(rga->cmdbuf_virt, 0, RGA_CMDBUF_SIZE * 4);
 
-	rga_cmd_set_src_addr(ctx, rga->src_mmu_pages);
+	rga_cmd_set_src_addr(ctx, src->dma_desc_pa);
 	/*
 	 * Due to hardware bug,
 	 * src1 mmu also should be configured when using alpha blending.
 	 */
-	rga_cmd_set_src1_addr(ctx, rga->dst_mmu_pages);
+	rga_cmd_set_src1_addr(ctx, dst->dma_desc_pa);
 
-	rga_cmd_set_dst_addr(ctx, rga->dst_mmu_pages);
+	rga_cmd_set_dst_addr(ctx, dst->dma_desc_pa);
 	rga_cmd_set_mode(ctx);
 
 	rga_cmd_set_trans_info(ctx);
@@ -400,11 +401,12 @@ static void rga_cmd_set(struct rga_ctx *ctx)
 		PAGE_SIZE, DMA_BIDIRECTIONAL);
 }
 
-void rga_hw_start(struct rockchip_rga *rga)
+void rga_hw_start(struct rockchip_rga *rga,
+		  struct rga_vb_buffer *src, struct rga_vb_buffer *dst)
 {
 	struct rga_ctx *ctx = rga->curr;
 
-	rga_cmd_set(ctx);
+	rga_cmd_set(ctx, src, dst);
 
 	rga_write(rga, RGA_SYS_CTRL, 0x00);
 

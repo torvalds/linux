@@ -53,8 +53,31 @@ rga_queue_setup(struct vb2_queue *vq,
 	return 0;
 }
 
+static int rga_buf_init(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct rga_vb_buffer *rbuf = vb_to_rga(vbuf);
+	struct rga_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	struct rockchip_rga *rga = ctx->rga;
+	struct rga_frame *f = rga_get_frame(ctx, vb->vb2_queue->type);
+	size_t n_desc = 0;
+
+	n_desc = DIV_ROUND_UP(f->size, PAGE_SIZE);
+
+	rbuf->n_desc = n_desc;
+	rbuf->dma_desc = dma_alloc_coherent(rga->dev,
+					    rbuf->n_desc * sizeof(*rbuf->dma_desc),
+					    &rbuf->dma_desc_pa, GFP_KERNEL);
+	if (!rbuf->dma_desc)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int rga_buf_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct rga_vb_buffer *rbuf = vb_to_rga(vbuf);
 	struct rga_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct rga_frame *f = rga_get_frame(ctx, vb->vb2_queue->type);
 
@@ -62,6 +85,9 @@ static int rga_buf_prepare(struct vb2_buffer *vb)
 		return PTR_ERR(f);
 
 	vb2_set_plane_payload(vb, 0, f->size);
+
+	/* Create local MMU table for RGA */
+	fill_descriptors(rbuf->dma_desc, vb2_dma_sg_plane_desc(vb, 0));
 
 	return 0;
 }
@@ -72,6 +98,17 @@ static void rga_buf_queue(struct vb2_buffer *vb)
 	struct rga_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 
 	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
+}
+
+static void rga_buf_cleanup(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct rga_vb_buffer *rbuf = vb_to_rga(vbuf);
+	struct rga_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	struct rockchip_rga *rga = ctx->rga;
+
+	dma_free_coherent(rga->dev, rbuf->n_desc * sizeof(*rbuf->dma_desc),
+			  rbuf->dma_desc, rbuf->dma_desc_pa);
 }
 
 static void rga_buf_return_buffers(struct vb2_queue *q,
@@ -117,33 +154,12 @@ static void rga_buf_stop_streaming(struct vb2_queue *q)
 
 const struct vb2_ops rga_qops = {
 	.queue_setup = rga_queue_setup,
+	.buf_init = rga_buf_init,
 	.buf_prepare = rga_buf_prepare,
 	.buf_queue = rga_buf_queue,
+	.buf_cleanup = rga_buf_cleanup,
 	.wait_prepare = vb2_ops_wait_prepare,
 	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = rga_buf_start_streaming,
 	.stop_streaming = rga_buf_stop_streaming,
 };
-
-/* RGA MMU is a 1-Level MMU, so it can't be used through the IOMMU API.
- * We use it more like a scatter-gather list.
- */
-void rga_buf_map(struct vb2_buffer *vb)
-{
-	struct rga_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
-	struct rockchip_rga *rga = ctx->rga;
-	struct rga_dma_desc *pages;
-	size_t n_desc = 0;
-
-	if (vb->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
-		pages = rga->src_mmu_pages;
-	else
-		pages = rga->dst_mmu_pages;
-
-	/* Create local MMU table for RGA */
-	n_desc = fill_descriptors(pages, vb2_dma_sg_plane_desc(vb, 0));
-
-	/* sync local MMU table for RGA */
-	dma_sync_single_for_device(rga->dev, virt_to_phys(pages),
-				   n_desc * sizeof(*pages), DMA_BIDIRECTIONAL);
-}

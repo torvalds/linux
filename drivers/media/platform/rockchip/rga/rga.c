@@ -45,10 +45,7 @@ static void device_run(void *prv)
 	src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	dst = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 
-	rga_buf_map(&src->vb2_buf);
-	rga_buf_map(&dst->vb2_buf);
-
-	rga_hw_start(rga);
+	rga_hw_start(rga, vb_to_rga(src), vb_to_rga(dst));
 
 	spin_unlock_irqrestore(&rga->ctrl_lock, flags);
 }
@@ -101,7 +98,7 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 	src_vq->drv_priv = ctx;
 	src_vq->ops = &rga_qops;
 	src_vq->mem_ops = &vb2_dma_sg_memops;
-	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
+	src_vq->buf_struct_size = sizeof(struct rga_vb_buffer);
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &ctx->rga->mutex;
 	src_vq->dev = ctx->rga->v4l2_dev.dev;
@@ -115,7 +112,7 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 	dst_vq->drv_priv = ctx;
 	dst_vq->ops = &rga_qops;
 	dst_vq->mem_ops = &vb2_dma_sg_memops;
-	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
+	dst_vq->buf_struct_size = sizeof(struct rga_vb_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = &ctx->rga->mutex;
 	dst_vq->dev = ctx->rga->v4l2_dev.dev;
@@ -872,26 +869,13 @@ static int rga_probe(struct platform_device *pdev)
 		goto rel_m2m;
 	}
 
-	rga->src_mmu_pages =
-		(struct rga_dma_desc *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 3);
-	if (!rga->src_mmu_pages) {
-		ret = -ENOMEM;
-		goto free_dma;
-	}
-	rga->dst_mmu_pages =
-		(struct rga_dma_desc *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 3);
-	if (!rga->dst_mmu_pages) {
-		ret = -ENOMEM;
-		goto free_src_pages;
-	}
-
 	def_frame.stride = (def_frame.width * def_frame.fmt->depth) >> 3;
 	def_frame.size = def_frame.stride * def_frame.height;
 
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(&rga->v4l2_dev, "Failed to register video device\n");
-		goto free_dst_pages;
+		goto free_dma;
 	}
 
 	v4l2_info(&rga->v4l2_dev, "Registered %s as /dev/%s\n",
@@ -899,10 +883,6 @@ static int rga_probe(struct platform_device *pdev)
 
 	return 0;
 
-free_dst_pages:
-	free_pages((unsigned long)rga->dst_mmu_pages, 3);
-free_src_pages:
-	free_pages((unsigned long)rga->src_mmu_pages, 3);
 free_dma:
 	dma_free_attrs(rga->dev, RGA_CMDBUF_SIZE, rga->cmdbuf_virt,
 		       rga->cmdbuf_phy, DMA_ATTR_WRITE_COMBINE);
@@ -924,9 +904,6 @@ static void rga_remove(struct platform_device *pdev)
 
 	dma_free_attrs(rga->dev, RGA_CMDBUF_SIZE, rga->cmdbuf_virt,
 		       rga->cmdbuf_phy, DMA_ATTR_WRITE_COMBINE);
-
-	free_pages((unsigned long)rga->src_mmu_pages, 3);
-	free_pages((unsigned long)rga->dst_mmu_pages, 3);
 
 	v4l2_info(&rga->v4l2_dev, "Removing\n");
 
