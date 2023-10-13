@@ -61,6 +61,12 @@ properties:
       The bus context byte value stated in:
       https://www.mipi.org/MIPI_I3C_bus_context_byte_values_public.html
 
+  mctp-controller:
+    type: boolean
+    description: |
+      Indicates that the system is accessible via this bus as an endpoint for
+      MCTP over I3C transport.
+
 required:
   - "#address-cells"
   - "#size-cells"
