@@ -332,6 +332,8 @@ static void ngbe_disable_device(struct wx *wx)
 
 		wr32(wx, WX_PX_TR_CFG(reg_idx), WX_PX_TR_CFG_SWFLSH);
 	}
+
+	wx_update_stats(wx);
 }
 
 static void ngbe_down(struct wx *wx)

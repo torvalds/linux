@@ -39,6 +39,11 @@ static const struct ethtool_ops txgbe_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_link_ksettings	= txgbe_get_link_ksettings,
 	.set_link_ksettings	= txgbe_set_link_ksettings,
+	.get_sset_count		= wx_get_sset_count,
+	.get_strings		= wx_get_strings,
+	.get_ethtool_stats	= wx_get_ethtool_stats,
+	.get_eth_mac_stats	= wx_get_mac_stats,
+	.get_pause_stats	= wx_get_pause_stats,
 };
 
 void txgbe_set_ethtool_ops(struct net_device *netdev)
