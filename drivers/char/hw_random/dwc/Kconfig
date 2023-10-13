@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# DWC Hardware Random Number Generator (RNG) configuration
+#
+
+config HW_RANDOM_DWC
+	tristate "DesignWare Cores HW Random Number Generator support"
+	depends on HW_RANDOM
+	depends on MACH_ASPEED_G7 || COMPILE_TEST
+	help
+	  This driver provides kernel-side support for the DWC
+	  Random Number Generator hardware found on Aspeed SoCs.
+
+	  To compile this driver as a module, choose M here. the
+	  module will be called dwc-rng.
+
+	  If unsure, say Y.
+

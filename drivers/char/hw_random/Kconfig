@@ -573,6 +573,8 @@ config HW_RANDOM_JH7110
 	  To compile this driver as a module, choose M here.
 	  The module will be called jh7110-trng.
 
+source "drivers/char/hw_random/dwc/Kconfig"
+
 endif # HW_RANDOM
 
 config UML_RANDOM
