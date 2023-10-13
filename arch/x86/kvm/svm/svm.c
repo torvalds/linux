@@ -199,7 +199,7 @@ module_param_named(npt, npt_enabled, bool, 0444);
 
 /* allow nested virtualization in KVM/SVM */
 static int nested = true;
-module_param(nested, int, S_IRUGO);
+module_param(nested, int, 0444);
 
 /* enable/disable Next RIP Save */
 int nrips = true;

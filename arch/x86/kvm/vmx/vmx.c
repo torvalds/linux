@@ -82,28 +82,28 @@ bool __read_mostly enable_vpid = 1;
 module_param_named(vpid, enable_vpid, bool, 0444);
 
 static bool __read_mostly enable_vnmi = 1;
-module_param_named(vnmi, enable_vnmi, bool, S_IRUGO);
+module_param_named(vnmi, enable_vnmi, bool, 0444);
 
 bool __read_mostly flexpriority_enabled = 1;
-module_param_named(flexpriority, flexpriority_enabled, bool, S_IRUGO);
+module_param_named(flexpriority, flexpriority_enabled, bool, 0444);
 
 bool __read_mostly enable_ept = 1;
-module_param_named(ept, enable_ept, bool, S_IRUGO);
+module_param_named(ept, enable_ept, bool, 0444);
 
 bool __read_mostly enable_unrestricted_guest = 1;
 module_param_named(unrestricted_guest,
-			enable_unrestricted_guest, bool, S_IRUGO);
+			enable_unrestricted_guest, bool, 0444);
 
 bool __read_mostly enable_ept_ad_bits = 1;
-module_param_named(eptad, enable_ept_ad_bits, bool, S_IRUGO);
+module_param_named(eptad, enable_ept_ad_bits, bool, 0444);
 
 static bool __read_mostly emulate_invalid_guest_state = true;
-module_param(emulate_invalid_guest_state, bool, S_IRUGO);
+module_param(emulate_invalid_guest_state, bool, 0444);
 
 static bool __read_mostly fasteoi = 1;
-module_param(fasteoi, bool, S_IRUGO);
+module_param(fasteoi, bool, 0444);
 
-module_param(enable_apicv, bool, S_IRUGO);
+module_param(enable_apicv, bool, 0444);
 
 bool __read_mostly enable_ipiv = true;
 module_param(enable_ipiv, bool, 0444);
@@ -114,10 +114,10 @@ module_param(enable_ipiv, bool, 0444);
  * use VMX instructions.
  */
 static bool __read_mostly nested = 1;
-module_param(nested, bool, S_IRUGO);
+module_param(nested, bool, 0444);
 
 bool __read_mostly enable_pml = 1;
-module_param_named(pml, enable_pml, bool, S_IRUGO);
+module_param_named(pml, enable_pml, bool, 0444);
 
 static bool __read_mostly error_on_inconsistent_vmcs_config = true;
 module_param(error_on_inconsistent_vmcs_config, bool, 0444);

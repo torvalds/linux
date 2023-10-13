@@ -145,21 +145,21 @@ EXPORT_STATIC_CALL_GPL(kvm_x86_get_cs_db_l_bits);
 EXPORT_STATIC_CALL_GPL(kvm_x86_cache_reg);
 
 static bool __read_mostly ignore_msrs = 0;
-module_param(ignore_msrs, bool, S_IRUGO | S_IWUSR);
+module_param(ignore_msrs, bool, 0644);
 
 bool __read_mostly report_ignored_msrs = true;
-module_param(report_ignored_msrs, bool, S_IRUGO | S_IWUSR);
+module_param(report_ignored_msrs, bool, 0644);
 EXPORT_SYMBOL_GPL(report_ignored_msrs);
 
 unsigned int min_timer_period_us = 200;
-module_param(min_timer_period_us, uint, S_IRUGO | S_IWUSR);
+module_param(min_timer_period_us, uint, 0644);
 
 static bool __read_mostly kvmclock_periodic_sync = true;
-module_param(kvmclock_periodic_sync, bool, S_IRUGO);
+module_param(kvmclock_periodic_sync, bool, 0444);
 
 /* tsc tolerance in parts per million - default to 1/2 of the NTP threshold */
 static u32 __read_mostly tsc_tolerance_ppm = 250;
-module_param(tsc_tolerance_ppm, uint, S_IRUGO | S_IWUSR);
+module_param(tsc_tolerance_ppm, uint, 0644);
 
 /*
  * lapic timer advance (tscdeadline mode only) in nanoseconds.  '-1' enables
@@ -168,13 +168,13 @@ module_param(tsc_tolerance_ppm, uint, S_IRUGO | S_IWUSR);
  * tuning, i.e. allows privileged userspace to set an exact advancement time.
  */
 static int __read_mostly lapic_timer_advance_ns = -1;
-module_param(lapic_timer_advance_ns, int, S_IRUGO | S_IWUSR);
+module_param(lapic_timer_advance_ns, int, 0644);
 
 static bool __read_mostly vector_hashing = true;
-module_param(vector_hashing, bool, S_IRUGO);
+module_param(vector_hashing, bool, 0444);
 
 bool __read_mostly enable_vmware_backdoor = false;
-module_param(enable_vmware_backdoor, bool, S_IRUGO);
+module_param(enable_vmware_backdoor, bool, 0444);
 EXPORT_SYMBOL_GPL(enable_vmware_backdoor);
 
 /*
@@ -186,7 +186,7 @@ static int __read_mostly force_emulation_prefix;
 module_param(force_emulation_prefix, int, 0644);
 
 int __read_mostly pi_inject_timer = -1;
-module_param(pi_inject_timer, bint, S_IRUGO | S_IWUSR);
+module_param(pi_inject_timer, bint, 0644);
 
 /* Enable/disable PMU virtualization */
 bool __read_mostly enable_pmu = true;
