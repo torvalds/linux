@@ -1310,6 +1310,15 @@ config SXR_CAMCC_NIOBE
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
 
+config SXR_DISPCC_NIOBE
+	tristate "NIOBE Display Clock Controller"
+	depends on SXR_GCC_NIOBE
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  NIOBE devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 endif
 
 config VIRTIO_CLK
