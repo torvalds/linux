@@ -320,12 +320,12 @@ static struct rga_fmt formats[] = {
 
 #define NUM_FORMATS ARRAY_SIZE(formats)
 
-static struct rga_fmt *rga_fmt_find(struct v4l2_format *f)
+static struct rga_fmt *rga_fmt_find(u32 pixelformat)
 {
 	unsigned int i;
 
 	for (i = 0; i < NUM_FORMATS; i++) {
-		if (formats[i].fourcc == f->fmt.pix.pixelformat)
+		if (formats[i].fourcc == pixelformat)
 			return &formats[i];
 	}
 	return NULL;
@@ -474,11 +474,11 @@ static int vidioc_try_fmt(struct file *file, void *prv, struct v4l2_format *f)
 {
 	struct rga_fmt *fmt;
 
-	fmt = rga_fmt_find(f);
-	if (!fmt) {
+	fmt = rga_fmt_find(f->fmt.pix.pixelformat);
+	if (!fmt)
 		fmt = &formats[0];
-		f->fmt.pix.pixelformat = fmt->fourcc;
-	}
+
+	f->fmt.pix.pixelformat = fmt->fourcc;
 
 	f->fmt.pix.field = V4L2_FIELD_NONE;
 
@@ -504,7 +504,6 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	struct rockchip_rga *rga = ctx->rga;
 	struct vb2_queue *vq;
 	struct rga_frame *frm;
-	struct rga_fmt *fmt;
 	int ret = 0;
 
 	/* Adjust all values accordingly to the hardware capabilities
@@ -521,13 +520,10 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	frm = rga_get_frame(ctx, f->type);
 	if (IS_ERR(frm))
 		return PTR_ERR(frm);
-	fmt = rga_fmt_find(f);
-	if (!fmt)
-		return -EINVAL;
 	frm->width = f->fmt.pix.width;
 	frm->height = f->fmt.pix.height;
 	frm->size = f->fmt.pix.sizeimage;
-	frm->fmt = fmt;
+	frm->fmt = rga_fmt_find(f->fmt.pix.pixelformat);
 	frm->stride = f->fmt.pix.bytesperline;
 	frm->colorspace = f->fmt.pix.colorspace;
 
