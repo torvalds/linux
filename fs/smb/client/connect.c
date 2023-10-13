@@ -132,6 +132,9 @@ static void smb2_query_server_interfaces(struct work_struct *work)
 	free_xid(xid);
 
 	if (rc) {
+		if (rc == -EOPNOTSUPP)
+			return;
+
 		cifs_dbg(FYI, "%s: failed to query server interfaces: %d\n",
 				__func__, rc);
 	}
