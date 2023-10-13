@@ -9,10 +9,12 @@
 #include <linux/types.h>
 #include <linux/avf/virtchnl.h>
 #include <linux/net/intel/i40e_client.h>
+#include <net/devlink.h>
 #include <net/pkt_cls.h>
 #include <net/udp_tunnel.h>
 #include "i40e_dcb.h"
 #include "i40e_debug.h"
+#include "i40e_devlink.h"
 #include "i40e_io.h"
 #include "i40e_prototype.h"
 #include "i40e_register.h"
@@ -411,6 +413,7 @@ static inline const u8 *i40e_channel_mac(struct i40e_channel *ch)
 /* struct that defines the Ethernet device */
 struct i40e_pf {
 	struct pci_dev *pdev;
+	struct devlink_port devlink_port;
 	struct i40e_hw hw;
 	DECLARE_BITMAP(state, __I40E_STATE_SIZE__);
 	struct msix_entry *msix_entries;
