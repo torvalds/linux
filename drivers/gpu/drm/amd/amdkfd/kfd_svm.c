@@ -302,7 +302,7 @@ static void svm_range_free(struct svm_range *prange, bool do_unmap)
 	for (gpuidx = 0; gpuidx < MAX_GPU_INSTANCE; gpuidx++) {
 		if (prange->dma_addr[gpuidx]) {
 			kvfree(prange->dma_addr[gpuidx]);
-				prange->dma_addr[gpuidx] = NULL;
+			prange->dma_addr[gpuidx] = NULL;
 		}
 	}
 
