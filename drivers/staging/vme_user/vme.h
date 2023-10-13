@@ -87,7 +87,7 @@ extern struct bus_type vme_bus_type;
 #define VME_NUM_STATUSID	256
 
 /* VME_MAX_BRIDGES comes from the type of vme_bus_numbers */
-#define VME_MAX_BRIDGES		(sizeof(unsigned int)*8)
+#define VME_MAX_BRIDGES		(sizeof(unsigned int) * 8)
 #define VME_MAX_SLOTS		32
 
 #define VME_SLOT_CURRENT	-1
