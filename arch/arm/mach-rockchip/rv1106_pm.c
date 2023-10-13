@@ -59,6 +59,7 @@ static struct rv1106_sleep_ddr_data ddr_data;
 
 static void __iomem *pmucru_base;
 static void __iomem *cru_base;
+static void __iomem *pvtpllcru_base;
 static void __iomem *pericru_base;
 static void __iomem *vicru_base;
 static void __iomem *npucru_base;
@@ -104,6 +105,10 @@ static struct reg_region vd_core_reg_rgns[] = {
 	/* core_cru */
 	{ REG_REGION(0x300, 0x310, 4, &corecru_base, WMSK_VAL)},
 	{ REG_REGION(0x800, 0x804, 4, &corecru_base, WMSK_VAL)},
+
+	/* pvtpll_cru */
+	{ REG_REGION(0x00, 0x24, 4, &pvtpllcru_base, WMSK_VAL)},
+	{ REG_REGION(0x30, 0x54, 4, &pvtpllcru_base, WMSK_VAL)},
 
 	/* core_sgrf */
 	{ REG_REGION(0x004, 0x014, 4, &coresgrf_base, 0)},
@@ -1165,6 +1170,7 @@ static int __init rv1106_suspend_init(struct device_node *np)
 
 	pmucru_base = dev_reg_base + RV1106_PMUCRU_OFFSET;
 	cru_base = dev_reg_base + RV1106_CRU_OFFSET;
+	pvtpllcru_base = dev_reg_base + RV1106_PVTPLLCRU_OFFSET;
 	pericru_base = dev_reg_base + RV1106_PERICRU_OFFSET;
 	vicru_base = dev_reg_base + RV1106_VICRU_OFFSET;
 	npucru_base = dev_reg_base + RV1106_NPUCRU_OFFSET;
