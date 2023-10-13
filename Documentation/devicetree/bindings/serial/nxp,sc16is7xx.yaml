@@ -70,15 +70,15 @@ properties:
       minimum: 0
       maximum: 1
 
-allOf:
-  - $ref: /schemas/spi/spi-peripheral-props.yaml#
-  - $ref: /schemas/serial/serial.yaml#
-  - $ref: /schemas/serial/rs485.yaml#
-
 required:
   - compatible
   - reg
   - interrupts
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - $ref: /schemas/serial/serial.yaml#
+  - $ref: /schemas/serial/rs485.yaml#
 
 oneOf:
   - required:
