@@ -621,7 +621,13 @@ int crypto_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	int err;
 
 	if (cipher->co.base.cra_type != &crypto_skcipher_type) {
-		err = crypto_lskcipher_setkey_sg(tfm, key, keylen);
+		struct crypto_lskcipher **ctx = crypto_skcipher_ctx(tfm);
+
+		crypto_lskcipher_clear_flags(*ctx, CRYPTO_TFM_REQ_MASK);
+		crypto_lskcipher_set_flags(*ctx,
+					   crypto_skcipher_get_flags(tfm) &
+					   CRYPTO_TFM_REQ_MASK);
+		err = crypto_lskcipher_setkey(*ctx, key, keylen);
 		goto out;
 	}
 

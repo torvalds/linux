@@ -20,8 +20,6 @@ static inline struct crypto_istat_cipher *skcipher_get_stat_common(
 #endif
 }
 
-int crypto_lskcipher_setkey_sg(struct crypto_skcipher *tfm, const u8 *key,
-			       unsigned int keylen);
 int crypto_lskcipher_encrypt_sg(struct skcipher_request *req);
 int crypto_lskcipher_decrypt_sg(struct skcipher_request *req);
 int crypto_init_lskcipher_ops_sg(struct crypto_tfm *tfm);
