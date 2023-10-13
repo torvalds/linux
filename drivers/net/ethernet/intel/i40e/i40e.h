@@ -49,23 +49,19 @@
 #define I40E_QUEUE_WAIT_RETRY_LIMIT	10
 #define I40E_INT_NAME_STR_LEN		(IFNAMSIZ + 16)
 
-#define I40E_NVM_VERSION_LO_SHIFT	0
-#define I40E_NVM_VERSION_LO_MASK	(0xff << I40E_NVM_VERSION_LO_SHIFT)
-#define I40E_NVM_VERSION_HI_SHIFT	12
-#define I40E_NVM_VERSION_HI_MASK	(0xf << I40E_NVM_VERSION_HI_SHIFT)
-#define I40E_OEM_VER_BUILD_MASK		0xffff
-#define I40E_OEM_VER_PATCH_MASK		0xff
-#define I40E_OEM_VER_BUILD_SHIFT	8
-#define I40E_OEM_VER_SHIFT		24
 #define I40E_PHY_DEBUG_ALL \
 	(I40E_AQ_PHY_DEBUG_DISABLE_LINK_FW | \
 	I40E_AQ_PHY_DEBUG_DISABLE_ALL_LINK_FW)
 
 #define I40E_OEM_EETRACK_ID		0xffffffff
-#define I40E_OEM_GEN_SHIFT		24
-#define I40E_OEM_SNAP_MASK		0x00ff0000
-#define I40E_OEM_SNAP_SHIFT		16
-#define I40E_OEM_RELEASE_MASK		0x0000ffff
+#define I40E_NVM_VERSION_LO_MASK	GENMASK(7, 0)
+#define I40E_NVM_VERSION_HI_MASK	GENMASK(15, 12)
+#define I40E_OEM_VER_BUILD_MASK		GENMASK(23, 8)
+#define I40E_OEM_VER_PATCH_MASK		GENMASK(7, 0)
+#define I40E_OEM_VER_MASK		GENMASK(31, 24)
+#define I40E_OEM_GEN_MASK		GENMASK(31, 24)
+#define I40E_OEM_SNAP_MASK		GENMASK(23, 16)
+#define I40E_OEM_RELEASE_MASK		GENMASK(15, 0)
 
 #define I40E_RX_DESC(R, i)	\
 	(&(((union i40e_rx_desc *)((R)->desc))[i]))
@@ -954,43 +950,104 @@ struct i40e_device {
 };
 
 /**
- * i40e_nvm_version_str - format the NVM version strings
+ * i40e_info_nvm_ver - format the NVM version string
  * @hw: ptr to the hardware info
+ * @buf: string buffer to store
+ * @len: buffer size
+ *
+ * Formats NVM version string as:
+ * <gen>.<snap>.<release> when eetrackid == I40E_OEM_EETRACK_ID
+ * <nvm_major>.<nvm_minor> otherwise
  **/
-static inline char *i40e_nvm_version_str(struct i40e_hw *hw)
+static inline void i40e_info_nvm_ver(struct i40e_hw *hw, char *buf, size_t len)
 {
-	static char buf[32];
-	u32 full_ver;
+	struct i40e_nvm_info *nvm = &hw->nvm;
 
-	full_ver = hw->nvm.oem_ver;
-
-	if (hw->nvm.eetrack == I40E_OEM_EETRACK_ID) {
+	if (nvm->eetrack == I40E_OEM_EETRACK_ID) {
+		u32 full_ver = nvm->oem_ver;
 		u8 gen, snap;
 		u16 release;
 
-		gen = (u8)(full_ver >> I40E_OEM_GEN_SHIFT);
-		snap = (u8)((full_ver & I40E_OEM_SNAP_MASK) >>
-			I40E_OEM_SNAP_SHIFT);
-		release = (u16)(full_ver & I40E_OEM_RELEASE_MASK);
-
-		snprintf(buf, sizeof(buf), "%x.%x.%x", gen, snap, release);
+		gen = FIELD_GET(I40E_OEM_GEN_MASK, full_ver);
+		snap = FIELD_GET(I40E_OEM_SNAP_MASK, full_ver);
+		release = FIELD_GET(I40E_OEM_RELEASE_MASK, full_ver);
+		snprintf(buf, len, "%x.%x.%x", gen, snap, release);
 	} else {
-		u8 ver, patch;
+		u8 major, minor;
+
+		major = FIELD_GET(I40E_NVM_VERSION_HI_MASK, nvm->version);
+		minor = FIELD_GET(I40E_NVM_VERSION_LO_MASK, nvm->version);
+		snprintf(buf, len, "%x.%02x", major, minor);
+	}
+}
+
+/**
+ * i40e_info_eetrack - format the EETrackID string
+ * @hw: ptr to the hardware info
+ * @buf: string buffer to store
+ * @len: buffer size
+ *
+ * Returns hexadecimally formated EETrackID if it is
+ * different from I40E_OEM_EETRACK_ID or empty string.
+ **/
+static inline void i40e_info_eetrack(struct i40e_hw *hw, char *buf, size_t len)
+{
+	struct i40e_nvm_info *nvm = &hw->nvm;
+
+	buf[0] = '\0';
+	if (nvm->eetrack != I40E_OEM_EETRACK_ID)
+		snprintf(buf, len, "0x%08x", nvm->eetrack);
+}
+
+/**
+ * i40e_info_civd_ver - format the NVM version strings
+ * @hw: ptr to the hardware info
+ * @buf: string buffer to store
+ * @len: buffer size
+ *
+ * Returns formated combo image version if adapter's EETrackID is
+ * different from I40E_OEM_EETRACK_ID or empty string.
+ **/
+static inline void i40e_info_civd_ver(struct i40e_hw *hw, char *buf, size_t len)
+{
+	struct i40e_nvm_info *nvm = &hw->nvm;
+
+	buf[0] = '\0';
+	if (nvm->eetrack != I40E_OEM_EETRACK_ID) {
+		u32 full_ver = nvm->oem_ver;
+		u8 major, minor;
 		u16 build;
 
-		ver = (u8)(full_ver >> I40E_OEM_VER_SHIFT);
-		build = (u16)((full_ver >> I40E_OEM_VER_BUILD_SHIFT) &
-			 I40E_OEM_VER_BUILD_MASK);
-		patch = (u8)(full_ver & I40E_OEM_VER_PATCH_MASK);
-
-		snprintf(buf, sizeof(buf),
-			 "%x.%02x 0x%x %d.%d.%d",
-			 (hw->nvm.version & I40E_NVM_VERSION_HI_MASK) >>
-				I40E_NVM_VERSION_HI_SHIFT,
-			 (hw->nvm.version & I40E_NVM_VERSION_LO_MASK) >>
-				I40E_NVM_VERSION_LO_SHIFT,
-			 hw->nvm.eetrack, ver, build, patch);
+		major = FIELD_GET(I40E_OEM_VER_MASK, full_ver);
+		build = FIELD_GET(I40E_OEM_VER_BUILD_MASK, full_ver);
+		minor = FIELD_GET(I40E_OEM_VER_PATCH_MASK, full_ver);
+		snprintf(buf, len, "%d.%d.%d", major, build, minor);
 	}
+}
+
+/**
+ * i40e_nvm_version_str - format the NVM version strings
+ * @hw: ptr to the hardware info
+ * @buf: string buffer to store
+ * @len: buffer size
+ **/
+static inline char *i40e_nvm_version_str(struct i40e_hw *hw, char *buf,
+					 size_t len)
+{
+	char ver[16] = " ";
+
+	/* Get NVM version */
+	i40e_info_nvm_ver(hw, buf, len);
+
+	/* Append EETrackID if provided */
+	i40e_info_eetrack(hw, &ver[1], sizeof(ver) - 1);
+	if (strlen(ver) > 1)
+		strlcat(buf, ver, len);
+
+	/* Append combo image version if provided */
+	i40e_info_civd_ver(hw, &ver[1], sizeof(ver) - 1);
+	if (strlen(ver) > 1)
+		strlcat(buf, ver, len);
 
 	return buf;
 }
