@@ -1076,7 +1076,18 @@ static int _opp_set_required_opps_genpd(struct device *dev,
 {
 	struct device **genpd_virt_devs =
 		opp_table->genpd_virt_devs ? opp_table->genpd_virt_devs : &dev;
-	int i, ret = 0;
+	int index, target, delta, ret = 0;
+
+	/* Scaling up? Set required OPPs in normal order, else reverse */
+	if (!scaling_down) {
+		index = 0;
+		target = opp_table->required_opp_count;
+		delta = 1;
+	} else {
+		index = opp_table->required_opp_count - 1;
+		target = -1;
+		delta = -1;
+	}
 
 	/*
 	 * Acquire genpd_virt_dev_lock to make sure we don't use a genpd_dev
@@ -1084,19 +1095,12 @@ static int _opp_set_required_opps_genpd(struct device *dev,
 	 */
 	mutex_lock(&opp_table->genpd_virt_dev_lock);
 
-	/* Scaling up? Set required OPPs in normal order, else reverse */
-	if (!scaling_down) {
-		for (i = 0; i < opp_table->required_opp_count; i++) {
-			ret = _set_performance_state(dev, genpd_virt_devs[i], opp, i);
-			if (ret)
-				break;
-		}
-	} else {
-		for (i = opp_table->required_opp_count - 1; i >= 0; i--) {
-			ret = _set_performance_state(dev, genpd_virt_devs[i], opp, i);
-			if (ret)
-				break;
-		}
+	while (index != target) {
+		ret = _set_performance_state(dev, genpd_virt_devs[index], opp, index);
+		if (ret)
+			break;
+
+		index += delta;
 	}
 
 	mutex_unlock(&opp_table->genpd_virt_dev_lock);
