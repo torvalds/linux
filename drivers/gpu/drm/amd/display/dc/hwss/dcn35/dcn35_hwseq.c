@@ -311,6 +311,9 @@ void dcn35_init_hw(struct dc *dc)
 	if (dc->res_pool->pg_cntl) {
 		if (dc->res_pool->pg_cntl->funcs->init_pg_status)
 			dc->res_pool->pg_cntl->funcs->init_pg_status(dc->res_pool->pg_cntl);
+
+		if (dc->res_pool->pg_cntl->funcs->set_force_poweron_domain22)
+			dc->res_pool->pg_cntl->funcs->set_force_poweron_domain22(dc->res_pool->pg_cntl, false);
 	}
 }
 
