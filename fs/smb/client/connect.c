@@ -219,6 +219,14 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry_safe(ses, nses, &pserver->smb_ses_list, smb_ses_list) {
+		/*
+		 * if channel has been marked for termination, nothing to do
+		 * for the channel. in fact, we cannot find the channel for the
+		 * server. So safe to exit here
+		 */
+		if (server->terminate)
+			break;
+
 		/* check if iface is still active */
 		if (!cifs_chan_is_iface_active(ses, server))
 			cifs_chan_update_iface(ses, server);
@@ -253,6 +261,8 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 			spin_lock(&tcon->tc_lock);
 			tcon->status = TID_NEED_RECON;
 			spin_unlock(&tcon->tc_lock);
+
+			cancel_delayed_work(&tcon->query_interfaces);
 		}
 		if (ses->tcon_ipc) {
 			ses->tcon_ipc->need_reconnect = true;
