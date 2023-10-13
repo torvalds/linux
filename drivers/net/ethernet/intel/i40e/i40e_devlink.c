@@ -29,7 +29,15 @@ static void i40e_info_fw_api(struct i40e_hw *hw, char *buf, size_t len)
 	snprintf(buf, len, "%u.%u", aq->api_maj_ver, aq->api_min_ver);
 }
 
+static void i40e_info_pba(struct i40e_hw *hw, char *buf, size_t len)
+{
+	buf[0] = '\0';
+	if (hw->pba_id)
+		strscpy(buf, hw->pba_id, len);
+}
+
 enum i40e_devlink_version_type {
+	I40E_DL_VERSION_FIXED,
 	I40E_DL_VERSION_RUNNING,
 };
 
@@ -41,6 +49,8 @@ static int i40e_devlink_info_put(struct devlink_info_req *req,
 		return 0;
 
 	switch (type) {
+	case I40E_DL_VERSION_FIXED:
+		return devlink_info_version_fixed_put(req, key, value);
 	case I40E_DL_VERSION_RUNNING:
 		return devlink_info_version_running_put(req, key, value);
 	}
@@ -90,6 +100,12 @@ static int i40e_devlink_info_get(struct devlink *dl,
 	i40e_info_civd_ver(hw, buf, sizeof(buf));
 	err = i40e_devlink_info_put(req, I40E_DL_VERSION_RUNNING,
 				    DEVLINK_INFO_VERSION_GENERIC_FW_UNDI, buf);
+	if (err)
+		return err;
+
+	i40e_info_pba(hw, buf, sizeof(buf));
+	err = i40e_devlink_info_put(req, I40E_DL_VERSION_FIXED,
+				    DEVLINK_INFO_VERSION_GENERIC_BOARD_ID, buf);
 
 	return err;
 }
