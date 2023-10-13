@@ -448,6 +448,7 @@ static int vidioc_enum_fmt(struct file *file, void *prv, struct v4l2_fmtdesc *f)
 
 static int vidioc_g_fmt(struct file *file, void *prv, struct v4l2_format *f)
 {
+	struct v4l2_pix_format *pix_fmt = &f->fmt.pix;
 	struct rga_ctx *ctx = prv;
 	struct vb2_queue *vq;
 	struct rga_frame *frm;
@@ -459,47 +460,49 @@ static int vidioc_g_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	if (IS_ERR(frm))
 		return PTR_ERR(frm);
 
-	f->fmt.pix.width = frm->width;
-	f->fmt.pix.height = frm->height;
-	f->fmt.pix.field = V4L2_FIELD_NONE;
-	f->fmt.pix.pixelformat = frm->fmt->fourcc;
-	f->fmt.pix.bytesperline = frm->stride;
-	f->fmt.pix.sizeimage = frm->size;
-	f->fmt.pix.colorspace = frm->colorspace;
+	pix_fmt->width = frm->width;
+	pix_fmt->height = frm->height;
+	pix_fmt->field = V4L2_FIELD_NONE;
+	pix_fmt->pixelformat = frm->fmt->fourcc;
+	pix_fmt->bytesperline = frm->stride;
+	pix_fmt->sizeimage = frm->size;
+	pix_fmt->colorspace = frm->colorspace;
 
 	return 0;
 }
 
 static int vidioc_try_fmt(struct file *file, void *prv, struct v4l2_format *f)
 {
+	struct v4l2_pix_format *pix_fmt = &f->fmt.pix;
 	struct rga_fmt *fmt;
 
 	fmt = rga_fmt_find(f->fmt.pix.pixelformat);
 	if (!fmt)
 		fmt = &formats[0];
 
-	f->fmt.pix.pixelformat = fmt->fourcc;
+	pix_fmt->pixelformat = fmt->fourcc;
 
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	pix_fmt->field = V4L2_FIELD_NONE;
 
-	f->fmt.pix.width = clamp(f->fmt.pix.width,
-				 (u32)MIN_WIDTH, (u32)MAX_WIDTH);
-	f->fmt.pix.height = clamp(f->fmt.pix.height,
-				  (u32)MIN_HEIGHT, (u32)MAX_HEIGHT);
+	pix_fmt->width = clamp(pix_fmt->width,
+			       (u32)MIN_WIDTH, (u32)MAX_WIDTH);
+	pix_fmt->height = clamp(pix_fmt->height,
+				(u32)MIN_HEIGHT, (u32)MAX_HEIGHT);
 
 	if (fmt->hw_format >= RGA_COLOR_FMT_YUV422SP)
-		f->fmt.pix.bytesperline = f->fmt.pix.width;
+		pix_fmt->bytesperline = pix_fmt->width;
 	else
-		f->fmt.pix.bytesperline = (f->fmt.pix.width * fmt->depth) >> 3;
+		pix_fmt->bytesperline = (pix_fmt->width * fmt->depth) >> 3;
 
-	f->fmt.pix.sizeimage =
-		f->fmt.pix.height * (f->fmt.pix.width * fmt->depth) >> 3;
+	pix_fmt->sizeimage =
+		pix_fmt->height * (pix_fmt->width * fmt->depth) >> 3;
 
 	return 0;
 }
 
 static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 {
+	struct v4l2_pix_format *pix_fmt = &f->fmt.pix;
 	struct rga_ctx *ctx = prv;
 	struct rockchip_rga *rga = ctx->rga;
 	struct vb2_queue *vq;
@@ -520,18 +523,24 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	frm = rga_get_frame(ctx, f->type);
 	if (IS_ERR(frm))
 		return PTR_ERR(frm);
-	frm->width = f->fmt.pix.width;
-	frm->height = f->fmt.pix.height;
-	frm->size = f->fmt.pix.sizeimage;
-	frm->fmt = rga_fmt_find(f->fmt.pix.pixelformat);
-	frm->stride = f->fmt.pix.bytesperline;
-	frm->colorspace = f->fmt.pix.colorspace;
+	frm->width = pix_fmt->width;
+	frm->height = pix_fmt->height;
+	frm->size = pix_fmt->sizeimage;
+	frm->fmt = rga_fmt_find(pix_fmt->pixelformat);
+	frm->stride = pix_fmt->bytesperline;
+	frm->colorspace = pix_fmt->colorspace;
 
 	/* Reset crop settings */
 	frm->crop.left = 0;
 	frm->crop.top = 0;
 	frm->crop.width = frm->width;
 	frm->crop.height = frm->height;
+
+	v4l2_dbg(debug, 1, &rga->v4l2_dev,
+		 "[%s] fmt - %p4cc %dx%d (stride %d, sizeimage %d)\n",
+		  V4L2_TYPE_IS_OUTPUT(f->type) ? "OUTPUT" : "CAPTURE",
+		  &frm->fmt->fourcc, frm->width, frm->height,
+		  frm->stride, frm->size);
 
 	return 0;
 }
