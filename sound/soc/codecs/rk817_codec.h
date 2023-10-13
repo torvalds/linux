@@ -81,7 +81,7 @@
 #define ADC_DIG_CLK_MASK		(0xf << 4)
 #define ADC_DIG_CLK_SFT			4
 #define ADC_DIG_CLK_DIS			(0x0 << 4)
-#define ADC_DIG_CLK_EN			(0xf << 4)
+#define ADC_DIG_CLK_EN			(0xe << 4)
 
 #define I2STX_CKE_EN			(0x1 << 6)
 #define I2STX_CKE_DIS			(0x0 << 6)
@@ -89,7 +89,15 @@
 #define DAC_DIG_CLK_MASK		(0xf << 0)
 #define DAC_DIG_CLK_SFT			0
 #define DAC_DIG_CLK_DIS			(0x0 << 0)
-#define DAC_DIG_CLK_EN			(0xf << 0)
+#define DAC_DIG_CLK_EN			(0xe << 0)
+
+#define I2STX_EN_MASK			BIT(4)
+#define I2STX_EN			BIT(4)
+#define I2STX_DIS			0
+
+#define I2SRX_EN_MASK			BIT(0)
+#define I2SRX_EN			BIT(0)
+#define I2SRX_DIS			0
 
 /* RK817_CODEC_APLL_CFG5 */
 #define PLL_PW_DOWN			(0x01 << 0)
