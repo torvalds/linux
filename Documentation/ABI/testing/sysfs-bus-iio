@@ -2254,3 +2254,21 @@ Description:
 		If a label is defined for this event add that to the event
 		specific attributes. This is useful for userspace to be able to
 		better identify an individual event.
+
+What:		/sys/.../events/in_accel_gesture_tap_wait_timeout
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Enable tap gesture confirmation with timeout.
+
+What:		/sys/.../events/in_accel_gesture_tap_wait_dur
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Timeout value in seconds for tap gesture confirmation.
+
+What:		/sys/.../events/in_accel_gesture_tap_wait_dur_available
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		List of available timeout value for tap gesture confirmation.
