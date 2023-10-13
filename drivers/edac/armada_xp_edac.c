@@ -5,7 +5,9 @@
 
 #include <linux/kernel.h>
 #include <linux/edac.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/cache-aurora-l2.h>
