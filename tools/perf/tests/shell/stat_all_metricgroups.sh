@@ -4,7 +4,7 @@
 
 set -e
 
-function ParanoidAndNotRoot()
+ParanoidAndNotRoot()
 {
   [ "$(id -u)" != 0 ] && [ "$(cat /proc/sys/kernel/perf_event_paranoid)" -gt $1 ]
 }
