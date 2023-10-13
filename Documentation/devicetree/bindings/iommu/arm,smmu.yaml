@@ -110,6 +110,7 @@ properties:
               - qcom,sdm630-smmu-v2
               - qcom,sdm845-smmu-v2
               - qcom,sm6350-smmu-v2
+              - qcom,sm7150-smmu-v2
           - const: qcom,adreno-smmu
           - const: qcom,smmu-v2
       - description: Qcom Adreno GPUs on Google Cheza platform
@@ -409,6 +410,7 @@ allOf:
           contains:
             enum:
               - qcom,sm6350-smmu-v2
+              - qcom,sm7150-smmu-v2
               - qcom,sm8150-smmu-500
               - qcom,sm8250-smmu-500
     then:
