@@ -3022,9 +3022,101 @@ static int vxlan_open(struct net_device *dev)
 	return ret;
 }
 
-/* Purge the forwarding table */
-static void vxlan_flush(struct vxlan_dev *vxlan, bool do_all)
+struct vxlan_fdb_flush_desc {
+	bool				ignore_default_entry;
+	unsigned long                   state;
+	unsigned long			state_mask;
+	unsigned long                   flags;
+	unsigned long			flags_mask;
+	__be32				src_vni;
+	u32				nhid;
+	__be32				vni;
+	__be16				port;
+	union vxlan_addr		dst_ip;
+};
+
+static bool vxlan_fdb_is_default_entry(const struct vxlan_fdb *f,
+				       const struct vxlan_dev *vxlan)
 {
+	return is_zero_ether_addr(f->eth_addr) && f->vni == vxlan->cfg.vni;
+}
+
+static bool vxlan_fdb_nhid_matches(const struct vxlan_fdb *f, u32 nhid)
+{
+	struct nexthop *nh = rtnl_dereference(f->nh);
+
+	return nh && nh->id == nhid;
+}
+
+static bool vxlan_fdb_flush_matches(const struct vxlan_fdb *f,
+				    const struct vxlan_dev *vxlan,
+				    const struct vxlan_fdb_flush_desc *desc)
+{
+	if (desc->state_mask && (f->state & desc->state_mask) != desc->state)
+		return false;
+
+	if (desc->flags_mask && (f->flags & desc->flags_mask) != desc->flags)
+		return false;
+
+	if (desc->ignore_default_entry && vxlan_fdb_is_default_entry(f, vxlan))
+		return false;
+
+	if (desc->src_vni && f->vni != desc->src_vni)
+		return false;
+
+	if (desc->nhid && !vxlan_fdb_nhid_matches(f, desc->nhid))
+		return false;
+
+	return true;
+}
+
+static bool
+vxlan_fdb_flush_should_match_remotes(const struct vxlan_fdb_flush_desc *desc)
+{
+	return desc->vni || desc->port || desc->dst_ip.sa.sa_family;
+}
+
+static bool
+vxlan_fdb_flush_remote_matches(const struct vxlan_fdb_flush_desc *desc,
+			       const struct vxlan_rdst *rd)
+{
+	if (desc->vni && rd->remote_vni != desc->vni)
+		return false;
+
+	if (desc->port && rd->remote_port != desc->port)
+		return false;
+
+	if (desc->dst_ip.sa.sa_family &&
+	    !vxlan_addr_equal(&rd->remote_ip, &desc->dst_ip))
+		return false;
+
+	return true;
+}
+
+static void
+vxlan_fdb_flush_match_remotes(struct vxlan_fdb *f, struct vxlan_dev *vxlan,
+			      const struct vxlan_fdb_flush_desc *desc,
+			      bool *p_destroy_fdb)
+{
+	bool remotes_flushed = false;
+	struct vxlan_rdst *rd, *tmp;
+
+	list_for_each_entry_safe(rd, tmp, &f->remotes, list) {
+		if (!vxlan_fdb_flush_remote_matches(desc, rd))
+			continue;
+
+		vxlan_fdb_dst_destroy(vxlan, f, rd, true);
+		remotes_flushed = true;
+	}
+
+	*p_destroy_fdb = remotes_flushed && list_empty(&f->remotes);
+}
+
+/* Purge the forwarding table */
+static void vxlan_flush(struct vxlan_dev *vxlan,
+			const struct vxlan_fdb_flush_desc *desc)
+{
+	bool match_remotes = vxlan_fdb_flush_should_match_remotes(desc);
 	unsigned int h;
 
 	for (h = 0; h < FDB_HASH_SIZE; ++h) {
@@ -3034,28 +3126,122 @@ static void vxlan_flush(struct vxlan_dev *vxlan, bool do_all)
 		hlist_for_each_safe(p, n, &vxlan->fdb_head[h]) {
 			struct vxlan_fdb *f
 				= container_of(p, struct vxlan_fdb, hlist);
-			if (!do_all && (f->state & (NUD_PERMANENT | NUD_NOARP)))
+
+			if (!vxlan_fdb_flush_matches(f, vxlan, desc))
 				continue;
-			/* the all_zeros_mac entry is deleted at vxlan_uninit */
-			if (is_zero_ether_addr(f->eth_addr) &&
-			    f->vni == vxlan->cfg.vni)
-				continue;
+
+			if (match_remotes) {
+				bool destroy_fdb = false;
+
+				vxlan_fdb_flush_match_remotes(f, vxlan, desc,
+							      &destroy_fdb);
+
+				if (!destroy_fdb)
+					continue;
+			}
+
 			vxlan_fdb_destroy(vxlan, f, true, true);
 		}
 		spin_unlock_bh(&vxlan->hash_lock[h]);
 	}
 }
 
+static const struct nla_policy vxlan_del_bulk_policy[NDA_MAX + 1] = {
+	[NDA_SRC_VNI]   = { .type = NLA_U32 },
+	[NDA_NH_ID]	= { .type = NLA_U32 },
+	[NDA_VNI]	= { .type = NLA_U32 },
+	[NDA_PORT]	= { .type = NLA_U16 },
+	[NDA_DST]	= NLA_POLICY_RANGE(NLA_BINARY, sizeof(struct in_addr),
+					   sizeof(struct in6_addr)),
+	[NDA_NDM_STATE_MASK]	= { .type = NLA_U16 },
+	[NDA_NDM_FLAGS_MASK]	= { .type = NLA_U8 },
+};
+
+#define VXLAN_FDB_FLUSH_IGNORED_NDM_FLAGS (NTF_MASTER | NTF_SELF)
+#define VXLAN_FDB_FLUSH_ALLOWED_NDM_STATES (NUD_PERMANENT | NUD_NOARP)
+#define VXLAN_FDB_FLUSH_ALLOWED_NDM_FLAGS (NTF_EXT_LEARNED | NTF_OFFLOADED | \
+					   NTF_ROUTER)
+
+static int vxlan_fdb_delete_bulk(struct nlmsghdr *nlh, struct net_device *dev,
+				 struct netlink_ext_ack *extack)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_fdb_flush_desc desc = {};
+	struct ndmsg *ndm = nlmsg_data(nlh);
+	struct nlattr *tb[NDA_MAX + 1];
+	u8 ndm_flags;
+	int err;
+
+	ndm_flags = ndm->ndm_flags & ~VXLAN_FDB_FLUSH_IGNORED_NDM_FLAGS;
+
+	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, vxlan_del_bulk_policy,
+			  extack);
+	if (err)
+		return err;
+
+	if (ndm_flags & ~VXLAN_FDB_FLUSH_ALLOWED_NDM_FLAGS) {
+		NL_SET_ERR_MSG(extack, "Unsupported fdb flush ndm flag bits set");
+		return -EINVAL;
+	}
+	if (ndm->ndm_state & ~VXLAN_FDB_FLUSH_ALLOWED_NDM_STATES) {
+		NL_SET_ERR_MSG(extack, "Unsupported fdb flush ndm state bits set");
+		return -EINVAL;
+	}
+
+	desc.state = ndm->ndm_state;
+	desc.flags = ndm_flags;
+
+	if (tb[NDA_NDM_STATE_MASK])
+		desc.state_mask = nla_get_u16(tb[NDA_NDM_STATE_MASK]);
+
+	if (tb[NDA_NDM_FLAGS_MASK])
+		desc.flags_mask = nla_get_u8(tb[NDA_NDM_FLAGS_MASK]);
+
+	if (tb[NDA_SRC_VNI])
+		desc.src_vni = cpu_to_be32(nla_get_u32(tb[NDA_SRC_VNI]));
+
+	if (tb[NDA_NH_ID])
+		desc.nhid = nla_get_u32(tb[NDA_NH_ID]);
+
+	if (tb[NDA_VNI])
+		desc.vni = cpu_to_be32(nla_get_u32(tb[NDA_VNI]));
+
+	if (tb[NDA_PORT])
+		desc.port = nla_get_be16(tb[NDA_PORT]);
+
+	if (tb[NDA_DST]) {
+		union vxlan_addr ip;
+
+		err = vxlan_nla_get_addr(&ip, tb[NDA_DST]);
+		if (err) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[NDA_DST],
+					    "Unsupported address family");
+			return err;
+		}
+		desc.dst_ip = ip;
+	}
+
+	vxlan_flush(vxlan, &desc);
+
+	return 0;
+}
+
 /* Cleanup timer and forwarding table on shutdown */
 static int vxlan_stop(struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_fdb_flush_desc desc = {
+		/* Default entry is deleted at vxlan_uninit. */
+		.ignore_default_entry = true,
+		.state = 0,
+		.state_mask = NUD_PERMANENT | NUD_NOARP,
+	};
 
 	vxlan_multicast_leave(vxlan);
 
 	del_timer_sync(&vxlan->age_timer);
 
-	vxlan_flush(vxlan, false);
+	vxlan_flush(vxlan, &desc);
 	vxlan_sock_release(vxlan);
 
 	return 0;
@@ -3142,6 +3328,7 @@ static const struct net_device_ops vxlan_netdev_ether_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_fdb_add		= vxlan_fdb_add,
 	.ndo_fdb_del		= vxlan_fdb_delete,
+	.ndo_fdb_del_bulk	= vxlan_fdb_delete_bulk,
 	.ndo_fdb_dump		= vxlan_fdb_dump,
 	.ndo_fdb_get		= vxlan_fdb_get,
 	.ndo_mdb_add		= vxlan_mdb_add,
@@ -4294,8 +4481,12 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_fdb_flush_desc desc = {
+		/* Default entry is deleted at vxlan_uninit. */
+		.ignore_default_entry = true,
+	};
 
-	vxlan_flush(vxlan, true);
+	vxlan_flush(vxlan, &desc);
 
 	list_del(&vxlan->next);
 	unregister_netdevice_queue(dev, head);
