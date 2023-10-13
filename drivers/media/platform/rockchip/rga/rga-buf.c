@@ -74,6 +74,18 @@ static int rga_buf_init(struct vb2_buffer *vb)
 	return 0;
 }
 
+static int get_plane_offset(struct rga_frame *f, int plane)
+{
+	if (plane == 0)
+		return 0;
+	if (plane == 1)
+		return f->width * f->height;
+	if (plane == 2)
+		return f->width * f->height + (f->width * f->height / f->fmt->uv_factor);
+
+	return -EINVAL;
+}
+
 static int rga_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
@@ -88,6 +100,10 @@ static int rga_buf_prepare(struct vb2_buffer *vb)
 
 	/* Create local MMU table for RGA */
 	fill_descriptors(rbuf->dma_desc, vb2_dma_sg_plane_desc(vb, 0));
+
+	rbuf->offset.y_off = get_plane_offset(f, 0);
+	rbuf->offset.u_off = get_plane_offset(f, 1);
+	rbuf->offset.v_off = get_plane_offset(f, 2);
 
 	return 0;
 }

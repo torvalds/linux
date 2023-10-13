@@ -87,6 +87,12 @@ struct rockchip_rga {
 	void *cmdbuf_virt;
 };
 
+struct rga_addr_offset {
+	unsigned int y_off;
+	unsigned int u_off;
+	unsigned int v_off;
+};
+
 struct rga_vb_buffer {
 	struct vb2_v4l2_buffer vb_buf;
 	struct list_head queue;
@@ -95,6 +101,9 @@ struct rga_vb_buffer {
 	struct rga_dma_desc *dma_desc;
 	dma_addr_t dma_desc_pa;
 	size_t n_desc;
+
+	/* Plane offsets of this buffer into the mapping */
+	struct rga_addr_offset offset;
 };
 
 static inline struct rga_vb_buffer *vb_to_rga(struct vb2_v4l2_buffer *vb)
