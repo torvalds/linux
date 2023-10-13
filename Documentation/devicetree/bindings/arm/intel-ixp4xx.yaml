@@ -16,12 +16,28 @@ properties:
     oneOf:
       - items:
           - enum:
+              - adieng,coyote
+              - arcom,vulcan
+              - dlink,dsm-g600-a
+              - freecom,fsg-3
+              - gateway,7001
+              - gateworks,gw2348
+              - goramo,multilink-router
+              - intel,ixdp425
+              - intel,ixdpg425
+              - iom,nas-100d
               - linksys,nslu2
+              - netgear,wg302v1
+              - netgear,wg302v2
+              - usr,8200
               - welltech,epbx100
+              - linksys,wrv54g
+              - gemtek,gtwx5715
           - const: intel,ixp42x
       - items:
           - enum:
               - gateworks,gw2358
+              - intel,kixrp435
           - const: intel,ixp43x
 
 additionalProperties: true
