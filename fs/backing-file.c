@@ -10,6 +10,7 @@
 
 #include <linux/fs.h>
 #include <linux/backing-file.h>
+#include <linux/splice.h>
 
 #include "internal.h"
 
@@ -244,6 +245,56 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(backing_file_write_iter);
+
+ssize_t backing_file_splice_read(struct file *in, loff_t *ppos,
+				 struct pipe_inode_info *pipe, size_t len,
+				 unsigned int flags,
+				 struct backing_file_ctx *ctx)
+{
+	const struct cred *old_cred;
+	ssize_t ret;
+
+	if (WARN_ON_ONCE(!(in->f_mode & FMODE_BACKING)))
+		return -EIO;
+
+	old_cred = override_creds(ctx->cred);
+	ret = vfs_splice_read(in, ppos, pipe, len, flags);
+	revert_creds(old_cred);
+
+	if (ctx->accessed)
+		ctx->accessed(ctx->user_file);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(backing_file_splice_read);
+
+ssize_t backing_file_splice_write(struct pipe_inode_info *pipe,
+				  struct file *out, loff_t *ppos, size_t len,
+				  unsigned int flags,
+				  struct backing_file_ctx *ctx)
+{
+	const struct cred *old_cred;
+	ssize_t ret;
+
+	if (WARN_ON_ONCE(!(out->f_mode & FMODE_BACKING)))
+		return -EIO;
+
+	ret = file_remove_privs(ctx->user_file);
+	if (ret)
+		return ret;
+
+	old_cred = override_creds(ctx->cred);
+	file_start_write(out);
+	ret = iter_file_splice_write(pipe, out, ppos, len, flags);
+	file_end_write(out);
+	revert_creds(old_cred);
+
+	if (ctx->end_write)
+		ctx->end_write(ctx->user_file);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(backing_file_splice_write);
 
 static int __init backing_aio_init(void)
 {

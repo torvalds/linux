@@ -9,7 +9,6 @@
 #include <linux/xattr.h>
 #include <linux/uio.h>
 #include <linux/uaccess.h>
-#include <linux/splice.h>
 #include <linux/security.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -332,20 +331,21 @@ static ssize_t ovl_splice_read(struct file *in, loff_t *ppos,
 			       struct pipe_inode_info *pipe, size_t len,
 			       unsigned int flags)
 {
-	const struct cred *old_cred;
 	struct fd real;
 	ssize_t ret;
+	struct backing_file_ctx ctx = {
+		.cred = ovl_creds(file_inode(in)->i_sb),
+		.user_file = in,
+		.accessed = ovl_file_accessed,
+	};
 
 	ret = ovl_real_fdget(in, &real);
 	if (ret)
 		return ret;
 
-	old_cred = ovl_override_creds(file_inode(in)->i_sb);
-	ret = vfs_splice_read(real.file, ppos, pipe, len, flags);
-	revert_creds(old_cred);
-	ovl_file_accessed(in);
-
+	ret = backing_file_splice_read(real.file, ppos, pipe, len, flags, &ctx);
 	fdput(real);
+
 	return ret;
 }
 
@@ -361,30 +361,23 @@ static ssize_t ovl_splice_write(struct pipe_inode_info *pipe, struct file *out,
 				loff_t *ppos, size_t len, unsigned int flags)
 {
 	struct fd real;
-	const struct cred *old_cred;
 	struct inode *inode = file_inode(out);
 	ssize_t ret;
+	struct backing_file_ctx ctx = {
+		.cred = ovl_creds(inode->i_sb),
+		.user_file = out,
+		.end_write = ovl_file_modified,
+	};
 
 	inode_lock(inode);
 	/* Update mode */
 	ovl_copyattr(inode);
-	ret = file_remove_privs(out);
-	if (ret)
-		goto out_unlock;
 
 	ret = ovl_real_fdget(out, &real);
 	if (ret)
 		goto out_unlock;
 
-	old_cred = ovl_override_creds(inode->i_sb);
-	file_start_write(real.file);
-
-	ret = iter_file_splice_write(pipe, real.file, ppos, len, flags);
-
-	file_end_write(real.file);
-	/* Update size */
-	ovl_file_modified(out);
-	revert_creds(old_cred);
+	ret = backing_file_splice_write(pipe, real.file, ppos, len, flags, &ctx);
 	fdput(real);
 
 out_unlock:

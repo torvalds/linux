@@ -28,5 +28,13 @@ ssize_t backing_file_read_iter(struct file *file, struct iov_iter *iter,
 ssize_t backing_file_write_iter(struct file *file, struct iov_iter *iter,
 				struct kiocb *iocb, int flags,
 				struct backing_file_ctx *ctx);
+ssize_t backing_file_splice_read(struct file *in, loff_t *ppos,
+				 struct pipe_inode_info *pipe, size_t len,
+				 unsigned int flags,
+				 struct backing_file_ctx *ctx);
+ssize_t backing_file_splice_write(struct pipe_inode_info *pipe,
+				  struct file *out, loff_t *ppos, size_t len,
+				  unsigned int flags,
+				  struct backing_file_ctx *ctx);
 
 #endif /* _LINUX_BACKING_FILE_H */
