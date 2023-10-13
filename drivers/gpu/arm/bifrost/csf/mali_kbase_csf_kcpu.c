@@ -1604,6 +1604,10 @@ static int kbasep_kcpu_fence_signal_init(struct kbase_kcpu_command_queue *kcpu_q
 	if (!kcpu_fence)
 		return -ENOMEM;
 
+	/* Set reference to KCPU metadata and increment refcount */
+	kcpu_fence->metadata = kcpu_queue->metadata;
+	WARN_ON(!kbase_refcount_inc_not_zero(&kcpu_fence->metadata->refcount));
+
 #if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 	fence_out = (struct fence *)kcpu_fence;
 #else
@@ -1624,10 +1628,6 @@ static int kbasep_kcpu_fence_signal_init(struct kbase_kcpu_command_queue *kcpu_q
 	 */
 	dma_fence_get(fence_out);
 #endif
-
-	/* Set reference to KCPU metadata and increment refcount */
-	kcpu_fence->metadata = kcpu_queue->metadata;
-	WARN_ON(!kbase_refcount_inc_not_zero(&kcpu_fence->metadata->refcount));
 
 	/* create a sync_file fd representing the fence */
 	*sync_file = sync_file_create(fence_out);
