@@ -2430,14 +2430,6 @@ static int _opp_attach_genpd(struct opp_table *opp_table, struct device *dev,
 	if (opp_table->genpd_virt_devs)
 		return 0;
 
-	/*
-	 * If the genpd's OPP table isn't already initialized, parsing of the
-	 * required-opps fail for dev. We should retry this after genpd's OPP
-	 * table is added.
-	 */
-	if (!opp_table->required_opp_count)
-		return -EPROBE_DEFER;
-
 	opp_table->genpd_virt_devs = kcalloc(opp_table->required_opp_count,
 					     sizeof(*opp_table->genpd_virt_devs),
 					     GFP_KERNEL);
