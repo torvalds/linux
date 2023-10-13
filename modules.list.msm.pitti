@@ -21,3 +21,4 @@ mem_buf_dev.ko
 mem_buf.ko
 qcom_dma_heaps.ko
 msm_dma_iommu_mapping.ko
+gcc-pitti.ko
