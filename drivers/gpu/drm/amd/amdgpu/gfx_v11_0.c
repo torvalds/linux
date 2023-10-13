@@ -4373,6 +4373,10 @@ static int gfx_v11_0_hw_init(void *handle)
 	if (r)
 		return r;
 
+	/* get IMU version from HW if it's not set */
+	if (!adev->gfx.imu_fw_version)
+		adev->gfx.imu_fw_version = RREG32_SOC15(GC, 0, regGFX_IMU_SCRATCH_0);
+
 	return r;
 }
 
