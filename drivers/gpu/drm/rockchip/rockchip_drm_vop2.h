@@ -134,16 +134,13 @@ struct vop2_video_port_data {
 	u16 cubic_lut_len;
 	struct vop_rect max_output;
 	const u8 pre_scan_max_dly[4];
-	const struct vop2_video_port_regs *regs;
 	unsigned int offset;
 };
 
 struct vop2_data {
 	u8 nr_vps;
-	const struct vop2_ctrl *ctrl;
 	const struct vop2_win_data *win;
 	const struct vop2_video_port_data *vp;
-	const struct vop_csc_table *csc_table;
 	struct vop_rect max_input;
 	struct vop_rect max_output;
 
