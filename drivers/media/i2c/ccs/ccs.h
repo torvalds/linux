@@ -236,6 +236,7 @@ struct ccs_sensor {
 
 	bool streaming;
 	bool dev_init_done;
+	bool handler_setup_needed;
 	u8 compressed_min_bpp;
 
 	struct ccs_module_info minfo;

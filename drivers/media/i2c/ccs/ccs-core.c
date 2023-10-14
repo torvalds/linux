@@ -1878,8 +1878,10 @@ static int ccs_pm_get_init(struct ccs_sensor *sensor)
 		goto error;
 
 	/* Device was already active, so don't set controls */
-	if (rval == 1)
+	if (rval == 1 && !sensor->handler_setup_needed)
 		return 0;
+
+	sensor->handler_setup_needed = false;
 
 	/* Restore V4L2 controls to the previously suspended device */
 	rval = v4l2_ctrl_handler_setup(&sensor->pixel_array->ctrl_handler);
@@ -3532,6 +3534,7 @@ static int ccs_probe(struct i2c_client *client)
 
 	sensor->streaming = false;
 	sensor->dev_init_done = true;
+	sensor->handler_setup_needed = true;
 
 	rval = ccs_write_msr_regs(sensor);
 	if (rval)
