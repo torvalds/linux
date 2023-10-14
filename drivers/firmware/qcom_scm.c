@@ -71,6 +71,9 @@ struct qcom_scm {
 	u64 dload_mode_addr;
 };
 
+DEFINE_SEMAPHORE(qcom_scm_sem_lock);
+
+
 #define QCOM_SCM_FLAG_COLDBOOT_CPU0	0x00
 #define QCOM_SCM_FLAG_COLDBOOT_CPU1	0x01
 #define QCOM_SCM_FLAG_COLDBOOT_CPU2	0x08
@@ -83,6 +86,7 @@ struct qcom_scm {
 
 #define QCOM_SMC_WAITQ_FLAG_WAKE_ONE	BIT(0)
 #define QCOM_SMC_WAITQ_FLAG_WAKE_ALL	BIT(1)
+#define QCOM_SCM_WAITQ_FLAG_WAKE_NONE   0x0
 
 struct qcom_scm_wb_entry {
 	int flag;
@@ -2836,6 +2840,10 @@ static void scm_irq_work(struct work_struct *work)
 			return;
 		}
 
+		/* This happens if two wakeups occur in close succession */
+		if (flags == QCOM_SCM_WAITQ_FLAG_WAKE_NONE)
+			return;
+
 		wq_to_wake = qcom_scm_lookup_wq(scm, wq_ctx);
 		if (IS_ERR_OR_NULL(wq_to_wake)) {
 			pr_err("No waitqueue found for wq_ctx %d: %d\n",
@@ -2872,15 +2880,19 @@ static int __qcom_multi_smc_init(struct qcom_scm *__scm,
 			return irq;
 		}
 
-		ret = devm_request_threaded_irq(__scm->dev, irq, NULL,
-			qcom_scm_irq_handler, IRQF_ONESHOT, "qcom-scm", __scm);
+		ret = devm_request_irq(__scm->dev, irq,
+				qcom_scm_irq_handler,
+				IRQF_ONESHOT, "qcom-scm", __scm);
 		if (ret < 0) {
 			dev_err(__scm->dev, "Failed to request qcom-scm irq: %d\n", ret);
 			return ret;
 		}
 
 		/* Detect Multi SMC support present or not */
-		qcom_scm_query_wq_queue_info(__scm);
+		ret = qcom_scm_query_wq_queue_info(__scm);
+		if (!ret)
+			sema_init(&qcom_scm_sem_lock,
+					(int)__scm->waitq.call_ctx_cnt);
 	}
 
 	return ret;
