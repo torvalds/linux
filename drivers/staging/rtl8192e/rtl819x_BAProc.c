@@ -125,7 +125,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *dst,
 
 static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 				    struct ba_record *ba,
-				    enum tr_select TxRxSelect, u16 ReasonCode)
+				    enum tr_select TxRxSelect, u16 reason_code)
 {
 	union delba_param_set DelbaParamSet;
 	struct sk_buff *skb = NULL;
@@ -134,8 +134,8 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	u16 len = 6 + ieee->tx_headroom;
 
 	if (net_ratelimit())
-		netdev_dbg(ieee->dev, "%s(): ReasonCode(%d) sentd to: %pM\n",
-			   __func__, ReasonCode, dst);
+		netdev_dbg(ieee->dev, "%s(): reason_code(%d) sentd to: %pM\n",
+			   __func__, reason_code, dst);
 
 	memset(&DelbaParamSet, 0, 2);
 
@@ -163,7 +163,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	put_unaligned_le16(DelbaParamSet.short_data, tag);
 	tag += 2;
 
-	put_unaligned_le16(ReasonCode, tag);
+	put_unaligned_le16(reason_code, tag);
 	tag += 2;
 
 #ifdef VERBOSE_DEBUG
@@ -200,11 +200,11 @@ static void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
 
 static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
 			      struct ba_record *ba, enum tr_select TxRxSelect,
-			      u16 ReasonCode)
+			      u16 reason_code)
 {
 	struct sk_buff *skb;
 
-	skb = rtllib_DELBA(ieee, dst, ba, TxRxSelect, ReasonCode);
+	skb = rtllib_DELBA(ieee, dst, ba, TxRxSelect, reason_code);
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
@@ -308,7 +308,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
 	u16 *status_code = NULL, *pBaTimeoutVal = NULL;
 	union ba_param_set *pBaParamSet = NULL;
-	u16			ReasonCode;
+	u16			reason_code;
 
 	if (skb->len < sizeof(struct ieee80211_hdr_3addr) + 9) {
 		netdev_warn(ieee->dev, "Invalid skb len in BARSP(%d / %d)\n",
@@ -333,14 +333,14 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 			    ieee->current_network.qos_data.active,
 			    ieee->ht_info->current_ht_support,
 			    ieee->ht_info->bCurrentAMPDUEnable);
-		ReasonCode = DELBA_REASON_UNKNOWN_BA;
+		reason_code = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	}
 
 	if (!rtllib_get_ts(ieee, (struct ts_common_info **)&pTS, dst,
 		   (u8)(pBaParamSet->field.tid), TX_DIR, false)) {
 		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
-		ReasonCode = DELBA_REASON_UNKNOWN_BA;
+		reason_code = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	}
 
@@ -357,7 +357,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		netdev_warn(ieee->dev,
 			    "%s(): ADDBA Rsp. BA invalid, DELBA!\n",
 			    __func__);
-		ReasonCode = DELBA_REASON_UNKNOWN_BA;
+		reason_code = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	} else {
 		netdev_dbg(ieee->dev,
@@ -370,7 +370,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		if (pBaParamSet->field.ba_policy == BA_POLICY_DELAYED) {
 			pTS->bAddBaReqDelayed = true;
 			deactivate_ba_entry(ieee, pAdmittedBA);
-			ReasonCode = DELBA_REASON_END_BA;
+			reason_code = DELBA_REASON_END_BA;
 			goto OnADDBARsp_Reject;
 		}
 
@@ -383,7 +383,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	} else {
 		pTS->bAddBaReqDelayed = true;
 		pTS->bDisable_AddBa = true;
-		ReasonCode = DELBA_REASON_END_BA;
+		reason_code = DELBA_REASON_END_BA;
 		goto OnADDBARsp_Reject;
 	}
 
@@ -394,7 +394,7 @@ OnADDBARsp_Reject:
 		struct ba_record BA;
 
 		BA.ba_param_set = *pBaParamSet;
-		rtllib_send_DELBA(ieee, dst, &BA, TX_DIR, ReasonCode);
+		rtllib_send_DELBA(ieee, dst, &BA, TX_DIR, reason_code);
 		return 0;
 	}
 }
