@@ -205,8 +205,17 @@ static int cs_etm_validate_config(struct auxtrace_record *itr,
 	for (i = 0; i < cpu__max_cpu().cpu; i++) {
 		struct perf_cpu cpu = { .cpu = i, };
 
-		if (!perf_cpu_map__has(event_cpus, cpu) ||
-		    !perf_cpu_map__has(online_cpus, cpu))
+		/*
+		 * In per-cpu case, do the validation for CPUs to work with.
+		 * In per-thread case, the CPU map is empty.  Since the traced
+		 * program can run on any CPUs in this case, thus don't skip
+		 * validation.
+		 */
+		if (!perf_cpu_map__empty(event_cpus) &&
+		    !perf_cpu_map__has(event_cpus, cpu))
+			continue;
+
+		if (!perf_cpu_map__has(online_cpus, cpu))
 			continue;
 
 		err = cs_etm_validate_context_id(itr, evsel, i);
