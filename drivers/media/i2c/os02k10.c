@@ -47,7 +47,7 @@
 
 #define OS02K10_XVCLK_FREQ		24000000
 
-#define CHIP_ID				0x530243
+#define CHIP_ID				0x005302
 #define OS02K10_REG_CHIP_ID		0x300a
 
 #define OS02K10_REG_CTRL_MODE		0x0100
@@ -2095,11 +2095,11 @@ static int os02k10_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	os02k10->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
+	os02k10->reset_gpio = devm_gpiod_get(dev, "reset", os02k10->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
 	if (IS_ERR(os02k10->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	os02k10->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
+	os02k10->pwdn_gpio = devm_gpiod_get(dev, "pwdn", os02k10->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
 	if (IS_ERR(os02k10->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
