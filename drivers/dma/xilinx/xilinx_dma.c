@@ -3242,8 +3242,6 @@ disable_clks:
 /**
  * xilinx_dma_remove - Driver remove function
  * @pdev: Pointer to the platform_device structure
- *
- * Return: Always '0'
  */
 static void xilinx_dma_remove(struct platform_device *pdev)
 {
