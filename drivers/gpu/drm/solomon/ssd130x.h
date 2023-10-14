@@ -24,7 +24,12 @@
 #define SSD130X_DATA				0x40
 #define SSD130X_COMMAND				0x80
 
+enum ssd130x_family_ids {
+	SSD130X_FAMILY
+};
+
 enum ssd130x_variants {
+	/* ssd130x family */
 	SH1106_ID,
 	SSD1305_ID,
 	SSD1306_ID,
@@ -42,6 +47,8 @@ struct ssd130x_deviceinfo {
 	bool need_pwm;
 	bool need_chargepump;
 	bool page_mode_only;
+
+	enum ssd130x_family_ids family_id;
 };
 
 struct ssd130x_device {
