@@ -43,11 +43,11 @@ static u8 tx_ts_delete_ba(struct rtllib_device *ieee, struct tx_ts_record *pTxTs
 
 static u8 rx_ts_delete_ba(struct rtllib_device *ieee, struct rx_ts_record *ts)
 {
-	struct ba_record *pBa = &ts->rx_admitted_ba_record;
+	struct ba_record *ba = &ts->rx_admitted_ba_record;
 	u8			bSendDELBA = false;
 
-	if (pBa->b_valid) {
-		deactivate_ba_entry(ieee, pBa);
+	if (ba->b_valid) {
+		deactivate_ba_entry(ieee, ba);
 		bSendDELBA = true;
 	}
 
