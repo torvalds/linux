@@ -1237,13 +1237,14 @@ void rt2800_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2800_txdone_nostatus);
 
-static int rt2800_check_hung(struct data_queue *queue)
+static bool rt2800_check_hung(struct data_queue *queue)
 {
 	unsigned int cur_idx = rt2800_drv_get_dma_done(queue);
 
-	if (queue->wd_idx != cur_idx)
+	if (queue->wd_idx != cur_idx) {
+		queue->wd_idx = cur_idx;
 		queue->wd_count = 0;
-	else
+	} else
 		queue->wd_count++;
 
 	return queue->wd_count > 16;
@@ -1280,7 +1281,7 @@ void rt2800_watchdog(struct rt2x00_dev *rt2x00dev)
 		case QID_MGMT:
 			if (rt2x00queue_empty(queue))
 				continue;
-			hung_tx = rt2800_check_hung(queue);
+			hung_tx = hung_tx || rt2800_check_hung(queue);
 			break;
 		case QID_RX:
 			/* For station mode we should reactive at least
@@ -1289,7 +1290,7 @@ void rt2800_watchdog(struct rt2x00_dev *rt2x00dev)
 			 */
 			if (rt2x00dev->intf_sta_count == 0)
 				continue;
-			hung_rx = rt2800_check_hung(queue);
+			hung_rx = hung_rx || rt2800_check_hung(queue);
 			break;
 		default:
 			break;
@@ -1302,8 +1303,12 @@ void rt2800_watchdog(struct rt2x00_dev *rt2x00dev)
 	if (hung_rx)
 		rt2x00_warn(rt2x00dev, "Watchdog RX hung detected\n");
 
-	if (hung_tx || hung_rx)
+	if (hung_tx || hung_rx) {
+		queue_for_each(rt2x00dev, queue)
+			queue->wd_count = 0;
+
 		ieee80211_restart_hw(rt2x00dev->hw);
+	}
 }
 EXPORT_SYMBOL_GPL(rt2800_watchdog);
 
