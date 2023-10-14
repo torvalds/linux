@@ -190,31 +190,4 @@ GCOV_PROFILE := n
 quiet_cmd_vdso_and_check = VDSO    $@
       cmd_vdso_and_check = $(cmd_vdso); $(cmd_vdso_check)
 
-#
-# Install the unstripped copies of vdso*.so.  If our toolchain supports
-# build-id, install .build-id links as well.
-#
-quiet_cmd_vdso_install = INSTALL $(@:install_%=%)
-define cmd_vdso_install
-	cp $< "$(MODLIB)/vdso/$(@:install_%=%)"; \
-	if readelf -n $< |grep -q 'Build ID'; then \
-	  buildid=`readelf -n $< |grep 'Build ID' |sed -e 's/^.*Build ID: \(.*\)$$/\1/'`; \
-	  first=`echo $$buildid | cut -b-2`; \
-	  last=`echo $$buildid | cut -b3-`; \
-	  mkdir -p "$(MODLIB)/vdso/.build-id/$$first"; \
-	  ln -sf "../../$(@:install_%=%)" "$(MODLIB)/vdso/.build-id/$$first/$$last.debug"; \
-	fi
-endef
-
-vdso_img_insttargets := $(vdso_img_sodbg:%.dbg=install_%)
-
-$(MODLIB)/vdso: FORCE
-	@mkdir -p $(MODLIB)/vdso
-
-$(vdso_img_insttargets): install_%: $(obj)/%.dbg $(MODLIB)/vdso
-	$(call cmd,vdso_install)
-
-PHONY += vdso_install $(vdso_img_insttargets)
-vdso_install: $(vdso_img_insttargets)
-
 clean-files := vdso32.so vdso32.so.dbg vdso64* vdso-image-*.c vdsox32.so*

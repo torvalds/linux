@@ -1318,6 +1318,14 @@ quiet_cmd_install = INSTALL $(INSTALL_PATH)
       cmd_install = unset sub_make_done; $(srctree)/scripts/install.sh
 
 # ---------------------------------------------------------------------------
+# vDSO install
+
+PHONY += vdso_install
+vdso_install: export INSTALL_FILES = $(vdso-install-y)
+vdso_install:
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.vdsoinst
+
+# ---------------------------------------------------------------------------
 # Tools
 
 ifdef CONFIG_OBJTOOL
@@ -1560,6 +1568,7 @@ help:
 	@echo  '* vmlinux	  - Build the bare kernel'
 	@echo  '* modules	  - Build all modules'
 	@echo  '  modules_install - Install all modules to INSTALL_MOD_PATH (default: /)'
+	@echo  '  vdso_install    - Install unstripped vdso to INSTALL_MOD_PATH (default: /)'
 	@echo  '  dir/            - Build all files in dir and below'
 	@echo  '  dir/file.[ois]  - Build specified target only'
 	@echo  '  dir/file.ll     - Build the LLVM assembly file'
