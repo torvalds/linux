@@ -292,18 +292,18 @@ err_pull:
 int ath11k_wmi_cmd_send(struct ath11k_pdev_wmi *wmi, struct sk_buff *skb,
 			u32 cmd_id)
 {
-	struct ath11k_wmi_base *wmi_sc = wmi->wmi_ab;
+	struct ath11k_wmi_base *wmi_ab = wmi->wmi_ab;
 	int ret = -EOPNOTSUPP;
-	struct ath11k_base *ab = wmi_sc->ab;
+	struct ath11k_base *ab = wmi_ab->ab;
 
 	might_sleep();
 
 	if (ab->hw_params.credit_flow) {
-		wait_event_timeout(wmi_sc->tx_credits_wq, ({
+		wait_event_timeout(wmi_ab->tx_credits_wq, ({
 			ret = ath11k_wmi_cmd_send_nowait(wmi, skb, cmd_id);
 
 			if (ret && test_bit(ATH11K_FLAG_CRASH_FLUSH,
-					    &wmi_sc->ab->dev_flags))
+					    &wmi_ab->ab->dev_flags))
 				ret = -ESHUTDOWN;
 
 			(ret != -EAGAIN);
@@ -313,7 +313,7 @@ int ath11k_wmi_cmd_send(struct ath11k_pdev_wmi *wmi, struct sk_buff *skb,
 			ret = ath11k_wmi_cmd_send_nowait(wmi, skb, cmd_id);
 
 			if (ret && test_bit(ATH11K_FLAG_CRASH_FLUSH,
-					    &wmi_sc->ab->dev_flags))
+					    &wmi_ab->ab->dev_flags))
 				ret = -ESHUTDOWN;
 
 			(ret != -ENOBUFS);
@@ -321,10 +321,10 @@ int ath11k_wmi_cmd_send(struct ath11k_pdev_wmi *wmi, struct sk_buff *skb,
 	}
 
 	if (ret == -EAGAIN)
-		ath11k_warn(wmi_sc->ab, "wmi command %d timeout\n", cmd_id);
+		ath11k_warn(wmi_ab->ab, "wmi command %d timeout\n", cmd_id);
 
 	if (ret == -ENOBUFS)
-		ath11k_warn(wmi_sc->ab, "ce desc not available for wmi command %d\n",
+		ath11k_warn(wmi_ab->ab, "ce desc not available for wmi command %d\n",
 			    cmd_id);
 
 	return ret;
@@ -611,10 +611,10 @@ static int ath11k_service_ready_event(struct ath11k_base *ab, struct sk_buff *sk
 	return 0;
 }
 
-struct sk_buff *ath11k_wmi_alloc_skb(struct ath11k_wmi_base *wmi_sc, u32 len)
+struct sk_buff *ath11k_wmi_alloc_skb(struct ath11k_wmi_base *wmi_ab, u32 len)
 {
 	struct sk_buff *skb;
-	struct ath11k_base *ab = wmi_sc->ab;
+	struct ath11k_base *ab = wmi_ab->ab;
 	u32 round_len = roundup(len, 4);
 
 	skb = ath11k_htc_alloc_skb(ab, WMI_SKB_HEADROOM + round_len);
@@ -4291,7 +4291,7 @@ int ath11k_wmi_set_hw_mode(struct ath11k_base *ab,
 
 int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 {
-	struct ath11k_wmi_base *wmi_sc = &ab->wmi_ab;
+	struct ath11k_wmi_base *wmi_ab = &ab->wmi_ab;
 	struct wmi_init_cmd_param init_param;
 	struct target_resource_config  config;
 
@@ -4304,12 +4304,12 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 		     ab->wmi_ab.svc_map))
 		config.is_reg_cc_ext_event_supported = 1;
 
-	memcpy(&wmi_sc->wlan_resource_config, &config, sizeof(config));
+	memcpy(&wmi_ab->wlan_resource_config, &config, sizeof(config));
 
-	init_param.res_cfg = &wmi_sc->wlan_resource_config;
-	init_param.num_mem_chunks = wmi_sc->num_mem_chunks;
-	init_param.hw_mode_id = wmi_sc->preferred_hw_mode;
-	init_param.mem_chunks = wmi_sc->mem_chunks;
+	init_param.res_cfg = &wmi_ab->wlan_resource_config;
+	init_param.num_mem_chunks = wmi_ab->num_mem_chunks;
+	init_param.hw_mode_id = wmi_ab->preferred_hw_mode;
+	init_param.mem_chunks = wmi_ab->mem_chunks;
 
 	if (ab->hw_params.single_pdev_only)
 		init_param.hw_mode_id = WMI_HOST_HW_MODE_MAX;
@@ -4317,7 +4317,7 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 	init_param.num_band_to_mac = ab->num_radios;
 	ath11k_fill_band_to_mac_param(ab, init_param.band_to_mac);
 
-	return ath11k_init_cmd_send(&wmi_sc->wmi[0], &init_param);
+	return ath11k_init_cmd_send(&wmi_ab->wmi[0], &init_param);
 }
 
 int ath11k_wmi_vdev_spectral_conf(struct ath11k *ar,
