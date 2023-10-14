@@ -1638,6 +1638,9 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 		case 'Z':
 			synth_opts->timeless_decoding = true;
 			break;
+		case 'T':
+			synth_opts->use_timestamp = true;
+			break;
 		case ' ':
 		case ',':
 			break;
