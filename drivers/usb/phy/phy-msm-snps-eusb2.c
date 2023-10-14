@@ -848,7 +848,7 @@ static int msm_eusb2_phy_notify_disconnect(struct usb_phy *uphy,
 {
 	struct msm_eusb2_phy *phy = container_of(uphy, struct msm_eusb2_phy, phy);
 
-	if (is_eud_debug_mode_active(phy)) {
+	if (is_eud_debug_mode_active(phy) && !(phy->phy.flags & EUD_SPOOF_DISCONNECT)) {
 		msm_eusb2_phy_update_eud_detect(phy, false);
 		/* Ensure that EUD disable occurs before re-enabling */
 		mb();
