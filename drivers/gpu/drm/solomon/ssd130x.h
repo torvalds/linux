@@ -21,8 +21,8 @@
 
 #include <linux/regmap.h>
 
-#define SSD130X_DATA				0x40
-#define SSD130X_COMMAND				0x80
+#define SSD13XX_DATA				0x40
+#define SSD13XX_COMMAND				0x80
 
 enum ssd130x_family_ids {
 	SSD130X_FAMILY
