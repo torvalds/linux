@@ -442,6 +442,15 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 					   "contextid", 1);
 	}
 
+	/*
+	 * When the option '--timestamp' or '-T' is enabled, the PERF_SAMPLE_TIME
+	 * bit is set for all events.  In this case, always enable Arm CoreSight
+	 * timestamp tracing.
+	 */
+	if (opts->sample_time_set)
+		evsel__set_config_if_unset(cs_etm_pmu, cs_etm_evsel,
+					   "timestamp", 1);
+
 	/* Add dummy event to keep tracking */
 	err = parse_event(evlist, "dummy:u");
 	if (err)
