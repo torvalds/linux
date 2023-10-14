@@ -201,8 +201,8 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 			continue;
 		list_for_each_entry(pRet, psearch_list, List) {
 			if (memcmp(pRet->addr, addr, 6) == 0 &&
-			    pRet->TSpec.f.TSInfo.field.ucTSID == TID &&
-			    pRet->TSpec.f.TSInfo.field.ucDirection == dir)
+			    pRet->TSpec.f.ts_info.field.ucTSID == TID &&
+			    pRet->TSpec.f.ts_info.field.ucDirection == dir)
 				break;
 		}
 		if (&pRet->List  != psearch_list)
@@ -242,7 +242,7 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 {
 	u8	UP = 0;
 	union tspec_body TSpec;
-	union qos_tsinfo *ts_info = &TSpec.f.TSInfo;
+	union qos_tsinfo *ts_info = &TSpec.f.ts_info;
 	struct list_head *pUnusedList;
 	struct list_head *pAddmitList;
 	enum direction_value Dir;

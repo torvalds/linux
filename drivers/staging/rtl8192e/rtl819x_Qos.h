@@ -60,7 +60,7 @@ union tspec_body {
 	u8		charData[55];
 
 	struct {
-		union qos_tsinfo TSInfo;
+		union qos_tsinfo ts_info;
 		u16	NominalMSDUsize;
 		u16	MaxMSDUsize;
 		u32	MinServiceItv;
