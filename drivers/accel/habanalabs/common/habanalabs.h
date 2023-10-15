@@ -3594,6 +3594,14 @@ static inline bool hl_is_fw_sw_ver_below(struct hl_device *hdev, u32 fw_sw_major
 	return false;
 }
 
+static inline bool hl_is_fw_sw_ver_equal_or_greater(struct hl_device *hdev, u32 fw_sw_major,
+							u32 fw_sw_minor)
+{
+	return (hdev->fw_sw_major_ver > fw_sw_major ||
+			(hdev->fw_sw_major_ver == fw_sw_major &&
+					hdev->fw_sw_minor_ver >= fw_sw_minor));
+}
+
 /*
  * Kernel module functions that can be accessed by entire module
  */
