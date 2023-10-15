@@ -48,6 +48,7 @@ struct efx_tc_encap_action; /* see tc_encap_actions.h */
  * @vlan_push: the number of vlan headers to push
  * @vlan_pop: the number of vlan headers to pop
  * @decap: used to indicate a tunnel header decapsulation should take place
+ * @do_nat: perform NAT/NPT with values returned by conntrack match
  * @do_ttl_dec: used to indicate IP TTL / Hop Limit should be decremented
  * @deliver: used to indicate a deliver action should take place
  * @vlan_tci: tci fields for vlan push actions
@@ -68,6 +69,7 @@ struct efx_tc_action_set {
 	u16 vlan_push:2;
 	u16 vlan_pop:2;
 	u16 decap:1;
+	u16 do_nat:1;
 	u16 do_ttl_dec:1;
 	u16 deliver:1;
 	__be16 vlan_tci[2];

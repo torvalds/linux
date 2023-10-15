@@ -2457,6 +2457,14 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			NL_SET_ERR_MSG_MOD(extack, "Cannot offload tunnel decap action without tunnel device");
 			rc = -EOPNOTSUPP;
 			goto release;
+		case FLOW_ACTION_CT:
+			if (fa->ct.action != TCA_CT_ACT_NAT) {
+				rc = -EOPNOTSUPP;
+				NL_SET_ERR_MSG_FMT_MOD(extack, "Can only offload CT 'nat' action in RHS rules, not %d", fa->ct.action);
+				goto release;
+			}
+			act->do_nat = 1;
+			break;
 		default:
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u",
 					       fa->id);
