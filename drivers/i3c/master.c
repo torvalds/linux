@@ -2592,7 +2592,7 @@ static void i3c_master_unregister_i3c_devs(struct i3c_master_controller *master)
 void i3c_master_queue_ibi(struct i3c_dev_desc *dev, struct i3c_ibi_slot *slot)
 {
 	atomic_inc(&dev->ibi->pending_ibis);
-	queue_work(dev->common.master->wq, &slot->work);
+	queue_work(dev->ibi->wq, &slot->work);
 }
 EXPORT_SYMBOL_GPL(i3c_master_queue_ibi);
 
@@ -3335,6 +3335,12 @@ int i3c_dev_request_ibi_locked(struct i3c_dev_desc *dev,
 	if (!ibi)
 		return -ENOMEM;
 
+	ibi->wq = alloc_ordered_workqueue(dev_name(i3cdev_to_dev(dev->dev)), WQ_MEM_RECLAIM);
+	if (!ibi->wq) {
+		kfree(ibi);
+		return -ENOMEM;
+	}
+
 	atomic_set(&ibi->pending_ibis, 0);
 	init_completion(&ibi->all_ibis_handled);
 	ibi->handler = req->handler;
@@ -3362,6 +3368,12 @@ void i3c_dev_free_ibi_locked(struct i3c_dev_desc *dev)
 		WARN_ON(i3c_dev_disable_ibi_locked(dev));
 
 	master->ops->free_ibi(dev);
+
+	if (dev->ibi->wq) {
+		destroy_workqueue(dev->ibi->wq);
+		dev->ibi->wq = NULL;
+	}
+
 	kfree(dev->ibi);
 	dev->ibi = NULL;
 }
