@@ -97,10 +97,12 @@
 #define SAI_DMACR_RDE(x)		((x) << 24)
 #define SAI_DMACR_RDL_MASK		GENMASK(20, 16)
 #define SAI_DMACR_RDL(x)		((x - 1) << 16)
+#define SAI_DMACR_RDL_V(v)		((((v) & SAI_DMACR_RDL_MASK) >> 16) + 1)
 #define SAI_DMACR_TDE_MASK		BIT(8)
 #define SAI_DMACR_TDE(x)		((x) << 8)
 #define SAI_DMACR_TDL_MASK		GENMASK(4, 0)
 #define SAI_DMACR_TDL(x)		((x) << 0)
+#define SAI_DMACR_TDL_V(v)		(((v) & SAI_DMACR_TDL_MASK) >> 0)
 
 /* INTCR Interrupt Ctrl Register */
 #define SAI_INTCR_RXOIC			BIT(18)

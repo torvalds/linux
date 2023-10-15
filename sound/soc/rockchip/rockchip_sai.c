@@ -20,6 +20,7 @@
 
 #include "rockchip_sai.h"
 #include "rockchip_dlp_pcm.h"
+#include "rockchip_utils.h"
 
 #define DRV_NAME		"rockchip-sai"
 
@@ -425,21 +426,25 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	unsigned int mclk_rate, mclk_req_rate, bclk_rate, div_bclk;
 	unsigned int ch_per_lane, lanes, slot_width;
-	unsigned int val, fscr, reg;
+	unsigned int val, fscr, reg, fifo;
 
 	dma_data = snd_soc_dai_get_dma_data(dai, substream);
 	dma_data->maxburst = MAXBURST_PER_FIFO * params_channels(params) / 2;
 
 	lanes = rockchip_sai_lanes_auto(params, dai);
 
+	regmap_read(sai->regmap, SAI_DMACR, &val);
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		reg = SAI_TXCR;
 		if (sai->tx_lanes)
 			lanes = sai->tx_lanes;
+		fifo = SAI_DMACR_TDL_V(val) * lanes;
 	} else {
 		reg = SAI_RXCR;
 		if (sai->rx_lanes)
 			lanes = sai->rx_lanes;
+		fifo = SAI_DMACR_TDL_V(val) * lanes;
 	}
 
 	switch (params_format(params)) {
@@ -511,6 +516,16 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits(sai->regmap, SAI_CKR, SAI_CKR_MDIV_MASK,
 				   SAI_CKR_MDIV(div_bclk));
 	}
+
+	rockchip_utils_get_performance(substream, params, dai, fifo);
+
+	return 0;
+}
+
+static int rockchip_sai_hw_free(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	rockchip_utils_put_performance(substream, dai);
 
 	return 0;
 }
@@ -641,6 +656,7 @@ static const struct snd_soc_dai_ops rockchip_sai_dai_ops = {
 	.startup = rockchip_sai_startup,
 	.shutdown = rockchip_sai_shutdown,
 	.hw_params = rockchip_sai_hw_params,
+	.hw_free = rockchip_sai_hw_free,
 	.set_sysclk = rockchip_sai_set_sysclk,
 	.set_fmt = rockchip_sai_set_fmt,
 	.prepare = rockchip_sai_prepare,
