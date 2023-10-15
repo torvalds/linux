@@ -80,6 +80,10 @@
 	};
 };
 
+&lpass {
+	status = "okay";
+};
+
 &pm8953_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
