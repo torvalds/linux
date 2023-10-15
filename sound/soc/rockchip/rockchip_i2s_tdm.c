@@ -1817,8 +1817,8 @@ static int rockchip_i2s_tdm_clk_compensation_info(struct snd_kcontrol *kcontrol,
 static int rockchip_i2s_tdm_clk_compensation_get(struct snd_kcontrol *kcontrol,
 						 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = i2s_tdm->clk_ppm;
 
@@ -1828,8 +1828,8 @@ static int rockchip_i2s_tdm_clk_compensation_get(struct snd_kcontrol *kcontrol,
 static int rockchip_i2s_tdm_clk_compensation_put(struct snd_kcontrol *kcontrol,
 						 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_component_get_drvdata(component);
 	int ret = 0, ppm = 0;
 
 	if ((ucontrol->value.integer.value[0] < CLK_PPM_MIN) ||
