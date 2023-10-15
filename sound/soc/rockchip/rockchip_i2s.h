@@ -18,8 +18,9 @@
 #define I2S_TXCR_RCNT_SHIFT	17
 #define I2S_TXCR_RCNT_MASK	(0x3f << I2S_TXCR_RCNT_SHIFT)
 #define I2S_TXCR_CSR_SHIFT	15
-#define I2S_TXCR_CSR(x)		(x << I2S_TXCR_CSR_SHIFT)
 #define I2S_TXCR_CSR_MASK	(3 << I2S_TXCR_CSR_SHIFT)
+#define I2S_TXCR_CSR(x)		(x << I2S_TXCR_CSR_SHIFT)
+#define I2S_TXCR_CSR_V(v)	((((v) & I2S_TXCR_CSR_MASK) >> 15) + 1)
 #define I2S_TXCR_HWT		BIT(14)
 #define I2S_TXCR_SJM_SHIFT	12
 #define I2S_TXCR_SJM_R		(0 << I2S_TXCR_SJM_SHIFT)
@@ -48,8 +49,9 @@
  * receive operation control register
 */
 #define I2S_RXCR_CSR_SHIFT	15
-#define I2S_RXCR_CSR(x)		(x << I2S_RXCR_CSR_SHIFT)
 #define I2S_RXCR_CSR_MASK	(3 << I2S_RXCR_CSR_SHIFT)
+#define I2S_RXCR_CSR(x)		(x << I2S_RXCR_CSR_SHIFT)
+#define I2S_RXCR_CSR_V(v)	((((v) & I2S_RXCR_CSR_MASK) >> 15) + 1)
 #define I2S_RXCR_HWT		BIT(14)
 #define I2S_RXCR_SJM_SHIFT	12
 #define I2S_RXCR_SJM_R		(0 << I2S_RXCR_SJM_SHIFT)
@@ -132,14 +134,16 @@
 #define I2S_DMACR_RDE_DISABLE	(0 << I2S_DMACR_RDE_SHIFT)
 #define I2S_DMACR_RDE_ENABLE	(1 << I2S_DMACR_RDE_SHIFT)
 #define I2S_DMACR_RDL_SHIFT	16
-#define I2S_DMACR_RDL(x)	((x - 1) << I2S_DMACR_RDL_SHIFT)
 #define I2S_DMACR_RDL_MASK	(0x1f << I2S_DMACR_RDL_SHIFT)
+#define I2S_DMACR_RDL(x)	((x - 1) << I2S_DMACR_RDL_SHIFT)
+#define I2S_DMACR_RDL_V(v)	((((v) & I2S_DMACR_RDL_MASK) >> 16) + 1)
 #define I2S_DMACR_TDE_SHIFT	8
 #define I2S_DMACR_TDE_DISABLE	(0 << I2S_DMACR_TDE_SHIFT)
 #define I2S_DMACR_TDE_ENABLE	(1 << I2S_DMACR_TDE_SHIFT)
 #define I2S_DMACR_TDL_SHIFT	0
-#define I2S_DMACR_TDL(x)	((x) << I2S_DMACR_TDL_SHIFT)
 #define I2S_DMACR_TDL_MASK	(0x1f << I2S_DMACR_TDL_SHIFT)
+#define I2S_DMACR_TDL(x)	((x) << I2S_DMACR_TDL_SHIFT)
+#define I2S_DMACR_TDL_V(v)	(((v) & I2S_DMACR_TDL_MASK) >> 0)
 
 /*
  * INTCR

@@ -22,6 +22,7 @@
 
 #include "rockchip_i2s.h"
 #include "rockchip_dlp_pcm.h"
+#include "rockchip_utils.h"
 
 #define DRV_NAME "rockchip-i2s"
 
@@ -334,6 +335,25 @@ err_pm_put:
 	return ret;
 }
 
+static void rockchip_i2s_get_performance(struct snd_pcm_substream *substream,
+					 struct snd_pcm_hw_params *params,
+					 struct snd_soc_dai *dai,
+					 unsigned int csr)
+{
+	struct rk_i2s_dev *i2s = to_info(dai);
+	unsigned int tdl;
+	int fifo;
+
+	regmap_read(i2s->regmap, I2S_DMACR, &tdl);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		fifo = I2S_DMACR_TDL_V(tdl) * I2S_TXCR_CSR_V(csr);
+	else
+		fifo = I2S_DMACR_RDL_V(tdl) * I2S_RXCR_CSR_V(csr);
+
+	rockchip_utils_get_performance(substream, params, dai, fifo);
+}
+
 static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
@@ -401,6 +421,8 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	rockchip_i2s_get_performance(substream, params, dai, val);
+
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		regmap_update_bits(i2s->regmap, I2S_RXCR,
 				   I2S_RXCR_VDW_MASK | I2S_RXCR_CSR_MASK,
@@ -438,6 +460,14 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 			   I2S_DMACR_TDL(16));
 	regmap_update_bits(i2s->regmap, I2S_DMACR, I2S_DMACR_RDL_MASK,
 			   I2S_DMACR_RDL(16));
+
+	return 0;
+}
+
+static int rockchip_i2s_hw_free(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	rockchip_utils_put_performance(substream, dai);
 
 	return 0;
 }
@@ -647,6 +677,7 @@ static const struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
 	.startup = rockchip_i2s_startup,
 	.shutdown = rockchip_i2s_shutdown,
 	.hw_params = rockchip_i2s_hw_params,
+	.hw_free = rockchip_i2s_hw_free,
 	.set_bclk_ratio	= rockchip_i2s_set_bclk_ratio,
 	.set_sysclk = rockchip_i2s_set_sysclk,
 	.set_fmt = rockchip_i2s_set_fmt,
