@@ -2034,6 +2034,11 @@
 			};
 		};
 
+		rng: rng@10d3000 {
+			compatible = "qcom,sc7280-trng", "qcom,trng";
+			reg = <0 0x010d3000 0 0x1000>;
+		};
+
 		cnoc2: interconnect@1500000 {
 			reg = <0 0x01500000 0 0x1000>;
 			compatible = "qcom,sc7280-cnoc2";
