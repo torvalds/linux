@@ -49,6 +49,21 @@
 #define __force_percpu_prefix	"%%"__stringify(__percpu_seg)":"
 #define __my_cpu_offset		this_cpu_read(this_cpu_off)
 
+#ifdef CONFIG_USE_X86_SEG_SUPPORT
+/*
+ * Efficient implementation for cases in which the compiler supports
+ * named address spaces.  Allows the compiler to perform additional
+ * optimizations that can save more instructions.
+ */
+#define arch_raw_cpu_ptr(ptr)					\
+({								\
+	unsigned long tcp_ptr__;				\
+	tcp_ptr__ = __raw_cpu_read(, this_cpu_off);		\
+								\
+	tcp_ptr__ += (unsigned long)(ptr);			\
+	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;		\
+})
+#else /* CONFIG_USE_X86_SEG_SUPPORT */
 /*
  * Compared to the generic __my_cpu_offset version, the following
  * saves one instruction and avoids clobbering a temp register.
@@ -63,6 +78,8 @@
 	tcp_ptr__ += (unsigned long)(ptr);			\
 	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;		\
 })
+#endif /* CONFIG_USE_X86_SEG_SUPPORT */
+
 #else /* CONFIG_SMP */
 #define __percpu_seg_override
 #define __percpu_prefix		""
