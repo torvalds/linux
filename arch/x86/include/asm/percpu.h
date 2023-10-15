@@ -56,9 +56,11 @@
 #define arch_raw_cpu_ptr(ptr)					\
 ({								\
 	unsigned long tcp_ptr__;				\
-	asm ("add " __percpu_arg(1) ", %0"			\
+	asm ("mov " __percpu_arg(1) ", %0"			\
 	     : "=r" (tcp_ptr__)					\
-	     : "m" (__my_cpu_var(this_cpu_off)), "0" (ptr));	\
+	     : "m" (__my_cpu_var(this_cpu_off)));		\
+								\
+	tcp_ptr__ += (unsigned long)(ptr);			\
 	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;		\
 })
 #else /* CONFIG_SMP */
