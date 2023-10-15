@@ -577,11 +577,22 @@ static SOC_ENUM_SINGLE_DECL(rpath2_enum, PDM_CLK_CTRL, 12, rpaths_text);
 static SOC_ENUM_SINGLE_DECL(rpath1_enum, PDM_CLK_CTRL, 10, rpaths_text);
 static SOC_ENUM_SINGLE_DECL(rpath0_enum, PDM_CLK_CTRL, 8, rpaths_text);
 
+static const char * const hpf_cutoff_text[] = {
+	"3.79Hz", "60Hz", "243Hz", "493Hz",
+};
+
+static SOC_ENUM_SINGLE_DECL(hpf_cutoff_enum, PDM_HPF_CTRL,
+			    0, hpf_cutoff_text);
+
 static const struct snd_kcontrol_new rockchip_pdm_controls[] = {
 	SOC_ENUM("Receive PATH3 Source Select", rpath3_enum),
 	SOC_ENUM("Receive PATH2 Source Select", rpath2_enum),
 	SOC_ENUM("Receive PATH1 Source Select", rpath1_enum),
 	SOC_ENUM("Receive PATH0 Source Select", rpath0_enum),
+
+	SOC_ENUM("HPF Cutoff", hpf_cutoff_enum),
+	SOC_SINGLE("HPFL Switch", PDM_HPF_CTRL, 3, 1, 0),
+	SOC_SINGLE("HPFR Switch", PDM_HPF_CTRL, 2, 1, 0),
 
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
