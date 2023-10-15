@@ -486,8 +486,8 @@ static int setup_file_encryption_key(struct fscrypt_inode_info *ci,
 	}
 	down_read(&mk->mk_sem);
 
-	/* Has the secret been removed (via FS_IOC_REMOVE_ENCRYPTION_KEY)? */
-	if (!is_master_key_secret_present(&mk->mk_secret)) {
+	if (!mk->mk_present) {
+		/* FS_IOC_REMOVE_ENCRYPTION_KEY has been executed on this key */
 		err = -ENOKEY;
 		goto out_release_key;
 	}
@@ -539,8 +539,8 @@ static void put_crypt_info(struct fscrypt_inode_info *ci)
 		/*
 		 * Remove this inode from the list of inodes that were unlocked
 		 * with the master key.  In addition, if we're removing the last
-		 * inode from a master key struct that already had its secret
-		 * removed, then complete the full removal of the struct.
+		 * inode from an incompletely removed key, then complete the
+		 * full removal of the key.
 		 */
 		spin_lock(&mk->mk_decrypted_inodes_lock);
 		list_del(&ci->ci_master_key_link);
@@ -801,13 +801,14 @@ int fscrypt_drop_inode(struct inode *inode)
 		return 0;
 
 	/*
-	 * Note: since we aren't holding the key semaphore, the result here can
+	 * We can't take ->mk_sem here, since this runs in atomic context.
+	 * Therefore, ->mk_present can change concurrently, and our result may
 	 * immediately become outdated.  But there's no correctness problem with
 	 * unnecessarily evicting.  Nor is there a correctness problem with not
 	 * evicting while iput() is racing with the key being removed, since
 	 * then the thread removing the key will either evict the inode itself
 	 * or will correctly detect that it wasn't evicted due to the race.
 	 */
-	return !is_master_key_secret_present(&ci->ci_master_key->mk_secret);
+	return !READ_ONCE(ci->ci_master_key->mk_present);
 }
 EXPORT_SYMBOL_GPL(fscrypt_drop_inode);

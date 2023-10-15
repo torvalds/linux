@@ -1134,8 +1134,8 @@ The caller must zero all input fields, then fill in ``key_spec``:
 On success, 0 is returned and the kernel fills in the output fields:
 
 - ``status`` indicates whether the key is absent, present, or
-  incompletely removed.  Incompletely removed means that the master
-  secret has been removed, but some files are still in use; i.e.,
+  incompletely removed.  Incompletely removed means that removal has
+  been initiated, but some files are still in use; i.e.,
   `FS_IOC_REMOVE_ENCRYPTION_KEY`_ returned 0 but set the informational
   status flag FSCRYPT_KEY_REMOVAL_STATUS_FLAG_FILES_BUSY.
 
