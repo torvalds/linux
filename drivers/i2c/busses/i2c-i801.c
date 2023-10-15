@@ -1623,7 +1623,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	priv->adapter.class = I2C_CLASS_HWMON;
 	priv->adapter.algo = &smbus_algorithm;
 	priv->adapter.dev.parent = &dev->dev;
-	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&dev->dev));
+	acpi_use_parent_companion(&priv->adapter.dev);
 	priv->adapter.retries = 3;
 
 	priv->pci_dev = dev;
