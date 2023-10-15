@@ -1487,6 +1487,11 @@
 			};
 		};
 
+		rng: rng@10d2000 {
+			compatible = "qcom,sa8775p-trng", "qcom,trng";
+			reg = <0 0x010d2000 0 0x1000>;
+		};
+
 		ufs_mem_hc: ufs@1d84000 {
 			compatible = "qcom,sa8775p-ufshc", "qcom,ufshc", "jedec,ufs-2.0";
 			reg = <0x0 0x01d84000 0x0 0x3000>;
