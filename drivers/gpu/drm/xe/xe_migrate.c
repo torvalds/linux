@@ -482,8 +482,7 @@ static void emit_pte(struct xe_migrate *m,
 	while (ptes) {
 		u32 chunk = min(0x1ffU, ptes);
 
-		bb->cs[bb->len++] = MI_STORE_DATA_IMM | BIT(21) |
-			(chunk * 2 + 1);
+		bb->cs[bb->len++] = MI_STORE_DATA_IMM | MI_SDI_NUM_QW(chunk);
 		bb->cs[bb->len++] = ofs;
 		bb->cs[bb->len++] = 0;
 
@@ -1083,8 +1082,7 @@ static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 		if (!(bb->len & 1))
 			bb->cs[bb->len++] = MI_NOOP;
 
-		bb->cs[bb->len++] = MI_STORE_DATA_IMM | BIT(21) |
-			(chunk * 2 + 1);
+		bb->cs[bb->len++] = MI_STORE_DATA_IMM | MI_SDI_NUM_QW(chunk);
 		bb->cs[bb->len++] = lower_32_bits(addr);
 		bb->cs[bb->len++] = upper_32_bits(addr);
 		ops->populate(pt_update, tile, NULL, bb->cs + bb->len, ofs, chunk,
@@ -1290,8 +1288,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		emit_arb_clear(bb);
 
 		/* Map our PT's to gtt */
-		bb->cs[bb->len++] = MI_STORE_DATA_IMM | BIT(21) |
-			(num_updates * 2 + 1);
+		bb->cs[bb->len++] = MI_STORE_DATA_IMM | MI_SDI_NUM_QW(num_updates);
 		bb->cs[bb->len++] = ppgtt_ofs * XE_PAGE_SIZE + page_ofs;
 		bb->cs[bb->len++] = 0; /* upper_32_bits */
 

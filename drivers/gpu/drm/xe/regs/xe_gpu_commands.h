@@ -24,6 +24,9 @@
 
 #define MI_BATCH_BUFFER_END	MI_INSTR(0x0a, 0)
 #define MI_STORE_DATA_IMM	MI_INSTR(0x20, 0)
+#define   MI_SDI_GGTT		REG_BIT(22)
+#define   MI_SDI_NUM_DW(x)	((x) + 1)
+#define   MI_SDI_NUM_QW(x)	(REG_BIT(21) | (2 * (x) + 1))
 
 #define MI_LOAD_REGISTER_IMM	MI_INSTR(0x22, 0)
 #define   MI_LRI_LRM_CS_MMIO		REG_BIT(19)
