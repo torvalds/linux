@@ -2190,6 +2190,17 @@ static void cpu_enable_mte(struct arm64_cpu_capabilities const *cap)
 }
 #endif /* CONFIG_ARM64_MTE */
 
+static void user_feature_fixup(void)
+{
+	if (cpus_have_cap(ARM64_WORKAROUND_2658417)) {
+		struct arm64_ftr_reg *regp;
+
+		regp = get_arm64_ftr_reg(SYS_ID_AA64ISAR1_EL1);
+		if (regp)
+			regp->user_mask &= ~ID_AA64ISAR1_EL1_BF16_MASK;
+	}
+}
+
 static void elf_hwcap_fixup(void)
 {
 #ifdef CONFIG_ARM64_ERRATUM_1742098
@@ -3357,6 +3368,8 @@ void __init setup_system_features(void)
 
 void __init setup_user_features(void)
 {
+	user_feature_fixup();
+
 	setup_elf_hwcaps(arm64_elf_hwcaps);
 
 	if (system_supports_32bit_el0()) {
