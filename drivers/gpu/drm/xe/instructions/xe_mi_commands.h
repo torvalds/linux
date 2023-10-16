@@ -30,6 +30,9 @@
 #define   MI_ARB_DISABLE		0x0
 
 #define MI_BATCH_BUFFER_END		__MI_INSTR(0xA)
+#define MI_TOPOLOGY_FILTER		__MI_INSTR(0xD)
+#define MI_FORCE_WAKEUP			__MI_INSTR(0x1D)
+
 #define MI_STORE_DATA_IMM		__MI_INSTR(0x20)
 #define   MI_SDI_GGTT			REG_BIT(22)
 #define   MI_SDI_LEN_DW			GENMASK(9, 0)

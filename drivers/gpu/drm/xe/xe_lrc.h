@@ -7,6 +7,7 @@
 
 #include "xe_lrc_types.h"
 
+struct drm_printer;
 struct xe_device;
 struct xe_exec_queue;
 enum xe_engine_class;
@@ -46,5 +47,9 @@ u32 xe_lrc_parallel_ggtt_addr(struct xe_lrc *lrc);
 struct iosys_map xe_lrc_parallel_map(struct xe_lrc *lrc);
 
 size_t xe_lrc_skip_size(struct xe_device *xe);
+
+void xe_lrc_dump_default(struct drm_printer *p,
+			 struct xe_gt *gt,
+			 enum xe_engine_class);
 
 #endif

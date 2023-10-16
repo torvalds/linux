@@ -15,6 +15,7 @@
 #include "xe_gt_mcr.h"
 #include "xe_gt_topology.h"
 #include "xe_hw_engine.h"
+#include "xe_lrc.h"
 #include "xe_macros.h"
 #include "xe_pat.h"
 #include "xe_reg_sr.h"
@@ -149,6 +150,46 @@ static int pat(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int rcs_default_lrc(struct seq_file *m, void *data)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	xe_lrc_dump_default(&p, node_to_gt(m->private), XE_ENGINE_CLASS_RENDER);
+	return 0;
+}
+
+static int ccs_default_lrc(struct seq_file *m, void *data)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	xe_lrc_dump_default(&p, node_to_gt(m->private), XE_ENGINE_CLASS_COMPUTE);
+	return 0;
+}
+
+static int bcs_default_lrc(struct seq_file *m, void *data)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	xe_lrc_dump_default(&p, node_to_gt(m->private), XE_ENGINE_CLASS_COPY);
+	return 0;
+}
+
+static int vcs_default_lrc(struct seq_file *m, void *data)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	xe_lrc_dump_default(&p, node_to_gt(m->private), XE_ENGINE_CLASS_VIDEO_DECODE);
+	return 0;
+}
+
+static int vecs_default_lrc(struct seq_file *m, void *data)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	xe_lrc_dump_default(&p, node_to_gt(m->private), XE_ENGINE_CLASS_VIDEO_ENHANCE);
+	return 0;
+}
+
 static const struct drm_info_list debugfs_list[] = {
 	{"hw_engines", hw_engines, 0},
 	{"force_reset", force_reset, 0},
@@ -159,6 +200,11 @@ static const struct drm_info_list debugfs_list[] = {
 	{"register-save-restore", register_save_restore, 0},
 	{"workarounds", workarounds, 0},
 	{"pat", pat, 0},
+	{"default_lrc_rcs", rcs_default_lrc},
+	{"default_lrc_ccs", ccs_default_lrc},
+	{"default_lrc_bcs", bcs_default_lrc},
+	{"default_lrc_vcs", vcs_default_lrc},
+	{"default_lrc_vecs", vecs_default_lrc},
 };
 
 void xe_gt_debugfs_register(struct xe_gt *gt)

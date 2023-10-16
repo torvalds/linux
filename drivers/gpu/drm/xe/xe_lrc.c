@@ -16,6 +16,7 @@
 #include "xe_drm_client.h"
 #include "xe_exec_queue_types.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_hw_fence.h"
 #include "xe_map.h"
 #include "xe_vm.h"
@@ -902,4 +903,100 @@ u32 xe_lrc_parallel_ggtt_addr(struct xe_lrc *lrc)
 struct iosys_map xe_lrc_parallel_map(struct xe_lrc *lrc)
 {
 	return __xe_lrc_parallel_map(lrc);
+}
+
+static int instr_dw(u32 cmd_header)
+{
+	/* Most instructions have the # of dwords (minus 2) in 7:0 */
+	return REG_FIELD_GET(XE_INSTR_LEN_MASK, cmd_header) + 2;
+}
+
+static int dump_mi_command(struct drm_printer *p,
+			   struct xe_gt *gt,
+			   u32 *dw,
+			   int remaining_dw)
+{
+	u32 inst_header = *dw;
+	u32 numdw = instr_dw(inst_header);
+	u32 opcode = REG_FIELD_GET(MI_OPCODE, inst_header);
+	int num_noop;
+
+	/* First check for commands that don't have/use a '# DW' field */
+	switch (inst_header & MI_OPCODE) {
+	case MI_NOOP:
+		num_noop = 1;
+		while (num_noop < remaining_dw &&
+		       (*(++dw) & REG_GENMASK(31, 23)) == MI_NOOP)
+			num_noop++;
+		drm_printf(p, "[%#010x] MI_NOOP (%d dwords)\n", inst_header, num_noop);
+		return num_noop;
+
+	case MI_TOPOLOGY_FILTER:
+		drm_printf(p, "[%#010x] MI_TOPOLOGY_FILTER\n", inst_header);
+		return 1;
+
+	case MI_BATCH_BUFFER_END:
+		drm_printf(p, "[%#010x] MI_BATCH_BUFFER_END\n", inst_header);
+		/* Return 'remaining_dw' to consume the rest of the LRC */
+		return remaining_dw;
+	}
+
+	/*
+	 * Any remaining commands include a # of dwords.  We should make sure
+	 * it doesn't exceed the remaining size of the LRC.
+	 */
+	if (xe_gt_WARN_ON(gt, numdw > remaining_dw))
+		numdw = remaining_dw;
+
+	switch (inst_header & MI_OPCODE) {
+	case MI_LOAD_REGISTER_IMM:
+		drm_printf(p, "[%#010x] MI_LOAD_REGISTER_IMM: %d regs\n",
+			   inst_header, (numdw - 1) / 2);
+		for (int i = 1; i < numdw; i += 2)
+			drm_printf(p, " - %#6x = %#010x\n", dw[i], dw[i + 1]);
+		return numdw;
+
+	case MI_FORCE_WAKEUP:
+		drm_printf(p, "[%#010x] MI_FORCE_WAKEUP\n", inst_header);
+		return numdw;
+
+	default:
+		drm_printf(p, "[%#010x] unknown MI opcode %#x, likely %d dwords\n",
+			   inst_header, opcode, numdw);
+		return numdw;
+	}
+}
+
+void xe_lrc_dump_default(struct drm_printer *p,
+			 struct xe_gt *gt,
+			 enum xe_engine_class hwe_class)
+{
+	u32 *dw;
+	int remaining_dw, num_dw;
+
+	if (!gt->default_lrc[hwe_class]) {
+		drm_printf(p, "No default LRC for class %d\n", hwe_class);
+		return;
+	}
+
+	/*
+	 * Skip the beginning of the LRC since it contains the per-process
+	 * hardware status page.
+	 */
+	dw = gt->default_lrc[hwe_class] + LRC_PPHWSP_SIZE;
+	remaining_dw = (xe_lrc_size(gt_to_xe(gt), hwe_class) - LRC_PPHWSP_SIZE) / 4;
+
+	while (remaining_dw > 0) {
+		if ((*dw & XE_INSTR_CMD_TYPE) == XE_INSTR_MI) {
+			num_dw = dump_mi_command(p, gt, dw, remaining_dw);
+		} else {
+			num_dw = min(instr_dw(*dw), remaining_dw);
+			drm_printf(p, "[%#10x] Unknown instruction of type %#x, likely %d dwords\n",
+				   *dw, REG_FIELD_GET(XE_INSTR_CMD_TYPE, *dw),
+				   num_dw);
+		}
+
+		dw += num_dw;
+		remaining_dw -= num_dw;
+	}
 }
