@@ -848,7 +848,7 @@ static inline bool system_supports_bti_kernel(void)
 
 static inline bool system_supports_tlb_range(void)
 {
-	return cpus_have_const_cap(ARM64_HAS_TLB_RANGE);
+	return alternative_has_cap_unlikely(ARM64_HAS_TLB_RANGE);
 }
 
 int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);
