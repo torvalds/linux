@@ -2148,7 +2148,6 @@ static struct protection_domain *protection_domain_alloc(unsigned int type)
 	case IOMMU_DOMAIN_IDENTITY:
 		return domain;
 	case IOMMU_DOMAIN_DMA:
-	case IOMMU_DOMAIN_DMA_FQ:
 		pgtable = amd_iommu_pgtable;
 		break;
 	/*
