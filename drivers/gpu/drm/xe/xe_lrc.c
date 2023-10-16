@@ -111,7 +111,7 @@ static void set_offsets(u32 *regs,
 		flags = *data >> 6;
 		data++;
 
-		*regs = MI_LOAD_REGISTER_IMM(count);
+		*regs = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(count);
 		if (flags & POSTED)
 			*regs |= MI_LRI_FORCE_POSTED;
 		*regs |= MI_LRI_LRM_CS_MMIO;

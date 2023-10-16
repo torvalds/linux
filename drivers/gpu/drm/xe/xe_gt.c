@@ -145,7 +145,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	if (count) {
 		xe_gt_dbg(gt, "LRC WA %s save-restore batch\n", sr->name);
 
-		bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM(count);
+		bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(count);
 
 		xa_for_each(&sr->xa, idx, entry) {
 			struct xe_reg reg = entry->reg;

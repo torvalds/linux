@@ -50,7 +50,7 @@ static u32 preparser_disable(bool state)
 static int emit_aux_table_inv(struct xe_gt *gt, struct xe_reg reg,
 			      u32 *dw, int i)
 {
-	dw[i++] = MI_LOAD_REGISTER_IMM(1) | MI_LRI_MMIO_REMAP_EN;
+	dw[i++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(1) | MI_LRI_MMIO_REMAP_EN;
 	dw[i++] = reg.addr + gt->mmio.adj_offset;
 	dw[i++] = AUX_INV;
 	dw[i++] = MI_NOOP;
