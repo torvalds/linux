@@ -1310,23 +1310,21 @@ void sme_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
 	isb();
 }
 
-/*
- * This must be called after sme_kernel_enable(), we rely on the
- * feature table being sorted to ensure this.
- */
 void sme2_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
 {
+	/* This must be enabled after SME */
+	BUILD_BUG_ON(ARM64_SME2 <= ARM64_SME);
+
 	/* Allow use of ZT0 */
 	write_sysreg_s(read_sysreg_s(SYS_SMCR_EL1) | SMCR_ELx_EZT0_MASK,
 		       SYS_SMCR_EL1);
 }
 
-/*
- * This must be called after sme_kernel_enable(), we rely on the
- * feature table being sorted to ensure this.
- */
 void fa64_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
 {
+	/* This must be enabled after SME */
+	BUILD_BUG_ON(ARM64_SME_FA64 <= ARM64_SME);
+
 	/* Allow use of FA64 */
 	write_sysreg_s(read_sysreg_s(SYS_SMCR_EL1) | SMCR_ELx_FA64_MASK,
 		       SYS_SMCR_EL1);
