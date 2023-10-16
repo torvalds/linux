@@ -450,6 +450,8 @@ static __always_inline bool system_capabilities_finalized(void)
  */
 static __always_inline bool cpus_have_cap(unsigned int num)
 {
+	if (__builtin_constant_p(num) && !cpucap_is_possible(num))
+		return false;
 	if (num >= ARM64_NCAPS)
 		return false;
 	return arch_test_bit(num, system_cpucaps);
@@ -465,8 +467,6 @@ static __always_inline bool cpus_have_cap(unsigned int num)
  */
 static __always_inline bool __cpus_have_const_cap(int num)
 {
-	if (num >= ARM64_NCAPS)
-		return false;
 	return alternative_has_cap_unlikely(num);
 }
 
@@ -740,8 +740,7 @@ static __always_inline bool system_supports_fpsimd(void)
 
 static inline bool system_uses_hw_pan(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_PAN) &&
-		cpus_have_const_cap(ARM64_HAS_PAN);
+	return cpus_have_const_cap(ARM64_HAS_PAN);
 }
 
 static inline bool system_uses_ttbr0_pan(void)
@@ -752,26 +751,22 @@ static inline bool system_uses_ttbr0_pan(void)
 
 static __always_inline bool system_supports_sve(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_SVE) &&
-		cpus_have_const_cap(ARM64_SVE);
+	return cpus_have_const_cap(ARM64_SVE);
 }
 
 static __always_inline bool system_supports_sme(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_SME) &&
-		cpus_have_const_cap(ARM64_SME);
+	return cpus_have_const_cap(ARM64_SME);
 }
 
 static __always_inline bool system_supports_sme2(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_SME) &&
-		cpus_have_const_cap(ARM64_SME2);
+	return cpus_have_const_cap(ARM64_SME2);
 }
 
 static __always_inline bool system_supports_fa64(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_SME) &&
-		cpus_have_const_cap(ARM64_SME_FA64);
+	return cpus_have_const_cap(ARM64_SME_FA64);
 }
 
 static __always_inline bool system_supports_tpidr2(void)
@@ -781,20 +776,17 @@ static __always_inline bool system_supports_tpidr2(void)
 
 static __always_inline bool system_supports_cnp(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_CNP) &&
-		cpus_have_const_cap(ARM64_HAS_CNP);
+	return cpus_have_const_cap(ARM64_HAS_CNP);
 }
 
 static inline bool system_supports_address_auth(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_PTR_AUTH) &&
-		cpus_have_const_cap(ARM64_HAS_ADDRESS_AUTH);
+	return cpus_have_const_cap(ARM64_HAS_ADDRESS_AUTH);
 }
 
 static inline bool system_supports_generic_auth(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_PTR_AUTH) &&
-		cpus_have_const_cap(ARM64_HAS_GENERIC_AUTH);
+	return cpus_have_const_cap(ARM64_HAS_GENERIC_AUTH);
 }
 
 static inline bool system_has_full_ptr_auth(void)
@@ -804,14 +796,12 @@ static inline bool system_has_full_ptr_auth(void)
 
 static __always_inline bool system_uses_irq_prio_masking(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) &&
-	       cpus_have_const_cap(ARM64_HAS_GIC_PRIO_MASKING);
+	return cpus_have_const_cap(ARM64_HAS_GIC_PRIO_MASKING);
 }
 
 static inline bool system_supports_mte(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_MTE) &&
-		cpus_have_const_cap(ARM64_MTE);
+	return cpus_have_const_cap(ARM64_MTE);
 }
 
 static inline bool system_has_prio_mask_debugging(void)
@@ -822,13 +812,12 @@ static inline bool system_has_prio_mask_debugging(void)
 
 static inline bool system_supports_bti(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_BTI) && cpus_have_const_cap(ARM64_BTI);
+	return cpus_have_const_cap(ARM64_BTI);
 }
 
 static inline bool system_supports_tlb_range(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_TLB_RANGE) &&
-		cpus_have_const_cap(ARM64_HAS_TLB_RANGE);
+	return cpus_have_const_cap(ARM64_HAS_TLB_RANGE);
 }
 
 int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);
