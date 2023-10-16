@@ -901,25 +901,26 @@ static int __updated_type_c_parameter_by_efuse(struct type_c_data *type_c)
 		int value_mask = (BIT(value_size) - 1);
 
 		buf = nvmem_cell_read(cell, &buf_size);
+		if (!IS_ERR(buf)) {
+			cc1_0p2v = get_value((buf[0] >> value_size * 0) & value_mask);
+			cc1_0p8v = get_value((buf[0] >> value_size * 1) & value_mask);
+			cc1_2p6v = get_value((buf[1] >> value_size * 0) & value_mask);
+			cc1_0p66v = get_value((buf[1] >> value_size * 1) & value_mask);
+			cc1_1p23v = get_value((buf[2] >> value_size * 0) & value_mask);
 
-		cc1_0p2v = get_value((buf[0] >> value_size * 0) & value_mask);
-		cc1_0p8v = get_value((buf[0] >> value_size * 1) & value_mask);
-		cc1_2p6v = get_value((buf[1] >> value_size * 0) & value_mask);
-		cc1_0p66v = get_value((buf[1] >> value_size * 1) & value_mask);
-		cc1_1p23v = get_value((buf[2] >> value_size * 0) & value_mask);
+			cc2_0p2v = get_value((buf[3] >> value_size * 0) & value_mask);
+			cc2_0p8v = get_value((buf[3] >> value_size * 1) & value_mask);
+			cc2_2p6v = get_value((buf[4] >> value_size * 0) & value_mask);
+			cc2_0p66v = get_value((buf[4] >> value_size * 1) & value_mask);
+			cc2_1p23v = get_value((buf[5] >> value_size * 0) & value_mask);
 
-		cc2_0p2v = get_value((buf[3] >> value_size * 0) & value_mask);
-		cc2_0p8v = get_value((buf[3] >> value_size * 1) & value_mask);
-		cc2_2p6v = get_value((buf[4] >> value_size * 0) & value_mask);
-		cc2_0p66v = get_value((buf[4] >> value_size * 1) & value_mask);
-		cc2_1p23v = get_value((buf[5] >> value_size * 0) & value_mask);
+			cc1_4p7k = get_value((buf[6] >> value_size * 0) & value_mask);
+			cc1_12k = get_value((buf[6] >> value_size * 1) & value_mask);
+			cc2_4p7k = get_value((buf[7] >> value_size * 0) & value_mask);
+			cc2_12k = get_value((buf[7] >> value_size * 1) & value_mask);
 
-		cc1_4p7k = get_value((buf[6] >> value_size * 0) & value_mask);
-		cc1_12k = get_value((buf[6] >> value_size * 1) & value_mask);
-		cc2_4p7k = get_value((buf[7] >> value_size * 0) & value_mask);
-		cc2_12k = get_value((buf[7] >> value_size * 1) & value_mask);
-
-		kfree(buf);
+			kfree(buf);
+		}
 		nvmem_cell_put(cell);
 	}
 
@@ -984,29 +985,30 @@ static int __updated_type_c_parameter_by_efuse_v2(struct type_c_data *type_c)
 		int value_mask = (BIT(value_size) - 1);
 
 		buf = nvmem_cell_read(cell, &buf_size);
+		if (!IS_ERR(buf)) {
+			value_size = 5;
+			value_mask = (BIT(value_size) - 1);
+			cc1_4p7k = buf[0] & value_mask;
+			cc1_12k = buf[1] & value_mask;
+			cc2_4p7k = buf[2] & value_mask;
+			cc2_12k = buf[3] & value_mask;
 
-		value_size = 5;
-		value_mask = (BIT(value_size) - 1);
-		cc1_4p7k = buf[0] & value_mask;
-		cc1_12k = buf[1] & value_mask;
-		cc2_4p7k = buf[2] & value_mask;
-		cc2_12k = buf[3] & value_mask;
+			value_size = 4;
+			value_mask = (BIT(value_size) - 1);
+			cc1_0p2v = (buf[4] >> value_size * 0) & value_mask;
+			cc1_0p66v = (buf[4] >> value_size * 1) & value_mask;
+			cc1_0p8v = (buf[5] >> value_size * 0) & value_mask;
+			cc1_1p23v = (buf[5] >> value_size * 1) & value_mask;
+			cc1_2p6v = (buf[6] >> value_size * 0) & value_mask;
 
-		value_size = 4;
-		value_mask = (BIT(value_size) - 1);
-		cc1_0p2v = (buf[4] >> value_size * 0) & value_mask;
-		cc1_0p66v = (buf[4] >> value_size * 1) & value_mask;
-		cc1_0p8v = (buf[5] >> value_size * 0) & value_mask;
-		cc1_1p23v = (buf[5] >> value_size * 1) & value_mask;
-		cc1_2p6v = (buf[6] >> value_size * 0) & value_mask;
+			cc2_0p2v = (buf[6] >> value_size * 1) & value_mask;
+			cc2_0p66v = (buf[7] >> value_size * 0) & value_mask;
+			cc2_0p8v = (buf[7] >> value_size * 1) & value_mask;
+			cc2_1p23v = (buf[8] >> value_size * 0) & value_mask;
+			cc2_2p6v = (buf[8] >> value_size * 1) & value_mask;
 
-		cc2_0p2v = (buf[6] >> value_size * 1) & value_mask;
-		cc2_0p66v = (buf[7] >> value_size * 0) & value_mask;
-		cc2_0p8v = (buf[7] >> value_size * 1) & value_mask;
-		cc2_1p23v = (buf[8] >> value_size * 0) & value_mask;
-		cc2_2p6v = (buf[8] >> value_size * 1) & value_mask;
-
-		kfree(buf);
+			kfree(buf);
+		}
 		nvmem_cell_put(cell);
 	}
 
