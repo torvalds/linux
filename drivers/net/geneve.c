@@ -784,6 +784,22 @@ free_dst:
 	return err;
 }
 
+static u8 geneve_get_dsfield(struct sk_buff *skb, struct net_device *dev,
+			     const struct ip_tunnel_info *info,
+			     bool *use_cache)
+{
+	struct geneve_dev *geneve = netdev_priv(dev);
+	u8 dsfield;
+
+	dsfield = info->key.tos;
+	if (dsfield == 1 && !geneve->cfg.collect_md) {
+		dsfield = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
+		*use_cache = false;
+	}
+
+	return dsfield;
+}
+
 static struct rtable *geneve_get_v4_rt(struct sk_buff *skb,
 				       struct net_device *dev,
 				       struct geneve_sock *gs4,
@@ -810,11 +826,7 @@ static struct rtable *geneve_get_v4_rt(struct sk_buff *skb,
 	fl4->fl4_sport = sport;
 	fl4->flowi4_flags = info->key.flow_flags;
 
-	tos = info->key.tos;
-	if ((tos == 1) && !geneve->cfg.collect_md) {
-		tos = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
-		use_cache = false;
-	}
+	tos = geneve_get_dsfield(skb, dev, info, &use_cache);
 	fl4->flowi4_tos = RT_TOS(tos);
 	if (full_tos)
 		*full_tos = tos;
@@ -865,12 +877,7 @@ static struct dst_entry *geneve_get_v6_dst(struct sk_buff *skb,
 	fl6->fl6_dport = dport;
 	fl6->fl6_sport = sport;
 
-	prio = info->key.tos;
-	if ((prio == 1) && !geneve->cfg.collect_md) {
-		prio = ip_tunnel_get_dsfield(ip_hdr(skb), skb);
-		use_cache = false;
-	}
-
+	prio = geneve_get_dsfield(skb, dev, info, &use_cache);
 	fl6->flowlabel = ip6_make_flowinfo(prio, info->key.label);
 	dst_cache = (struct dst_cache *)&info->dst_cache;
 	if (use_cache) {
