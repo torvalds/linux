@@ -2634,6 +2634,10 @@ static void rtw89_phy_cfo_crystal_cap_adjust(struct rtw89_dev *rtwdev,
 	s32 cfo_abs = abs(curr_cfo);
 	int sign;
 
+	if (curr_cfo == 0) {
+		rtw89_debug(rtwdev, RTW89_DBG_CFO, "curr_cfo=0\n");
+		return;
+	}
 	if (!cfo->is_adjust) {
 		if (cfo_abs > CFO_TRK_ENABLE_TH)
 			cfo->is_adjust = true;
@@ -2830,10 +2834,6 @@ static void rtw89_phy_cfo_dm(struct rtw89_dev *rtwdev)
 		new_cfo = rtw89_phy_average_cfo_calc(rtwdev);
 	else
 		new_cfo = rtw89_phy_multi_sta_cfo_calc(rtwdev);
-	if (new_cfo == 0) {
-		rtw89_debug(rtwdev, RTW89_DBG_CFO, "curr_cfo=0\n");
-		return;
-	}
 	if (cfo->divergence_lock_en) {
 		cfo->lock_cnt++;
 		if (cfo->lock_cnt > CFO_PERIOD_CNT) {
