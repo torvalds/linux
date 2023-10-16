@@ -760,7 +760,7 @@ static inline bool system_supports_mixed_endian(void)
 
 static __always_inline bool system_supports_fpsimd(void)
 {
-	return !cpus_have_const_cap(ARM64_HAS_NO_FPSIMD);
+	return alternative_has_cap_likely(ARM64_HAS_FPSIMD);
 }
 
 static inline bool system_uses_hw_pan(void)

@@ -1580,14 +1580,6 @@ static bool has_no_hw_prefetch(const struct arm64_cpu_capabilities *entry, int _
 		MIDR_CPU_VAR_REV(1, MIDR_REVISION_MASK));
 }
 
-static bool has_no_fpsimd(const struct arm64_cpu_capabilities *entry, int __unused)
-{
-	u64 pfr0 = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
-
-	return cpuid_feature_extract_signed_field(pfr0,
-					ID_AA64PFR0_EL1_FP_SHIFT) < 0;
-}
-
 static bool has_cache_idc(const struct arm64_cpu_capabilities *entry,
 			  int scope)
 {
@@ -2398,11 +2390,11 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, CSV3, IMP)
 	},
 	{
-		/* FP/SIMD is not implemented */
-		.capability = ARM64_HAS_NO_FPSIMD,
-		.type = ARM64_CPUCAP_BOOT_RESTRICTED_CPU_LOCAL_FEATURE,
-		.min_field_value = 0,
-		.matches = has_no_fpsimd,
+		.capability = ARM64_HAS_FPSIMD,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_cpuid_feature,
+		.cpu_enable = cpu_enable_fpsimd,
+		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, FP, IMP)
 	},
 #ifdef CONFIG_ARM64_PMEM
 	{

@@ -1520,8 +1520,17 @@ void do_sme_acc(unsigned long esr, struct pt_regs *regs)
  */
 void do_fpsimd_acc(unsigned long esr, struct pt_regs *regs)
 {
-	/* TODO: implement lazy context saving/restoring */
-	WARN_ON(1);
+	/* Even if we chose not to use FPSIMD, the hardware could still trap: */
+	if (!system_supports_fpsimd()) {
+		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
+		return;
+	}
+
+	/*
+	 * When FPSIMD is enabled, we should never take a trap unless something
+	 * has gone very wrong.
+	 */
+	BUG();
 }
 
 /*
@@ -1762,13 +1771,23 @@ void fpsimd_bind_state_to_cpu(struct cpu_fp_state *state)
 void fpsimd_restore_current_state(void)
 {
 	/*
-	 * For the tasks that were created before we detected the absence of
-	 * FP/SIMD, the TIF_FOREIGN_FPSTATE could be set via fpsimd_thread_switch(),
-	 * e.g, init. This could be then inherited by the children processes.
-	 * If we later detect that the system doesn't support FP/SIMD,
-	 * we must clear the flag for  all the tasks to indicate that the
-	 * FPSTATE is clean (as we can't have one) to avoid looping for ever in
-	 * do_notify_resume().
+	 * TIF_FOREIGN_FPSTATE is set on the init task and copied by
+	 * arch_dup_task_struct() regardless of whether FP/SIMD is detected.
+	 * Thus user threads can have this set even when FP/SIMD hasn't been
+	 * detected.
+	 *
+	 * When FP/SIMD is detected, begin_new_exec() will set
+	 * TIF_FOREIGN_FPSTATE via flush_thread() -> fpsimd_flush_thread(),
+	 * and fpsimd_thread_switch() will set TIF_FOREIGN_FPSTATE when
+	 * switching tasks. We detect FP/SIMD before we exec the first user
+	 * process, ensuring this has TIF_FOREIGN_FPSTATE set and
+	 * do_notify_resume() will call fpsimd_restore_current_state() to
+	 * install the user FP/SIMD context.
+	 *
+	 * When FP/SIMD is not detected, nothing else will clear or set
+	 * TIF_FOREIGN_FPSTATE prior to the first return to userspace, and
+	 * we must clear TIF_FOREIGN_FPSTATE to avoid do_notify_resume()
+	 * looping forever calling fpsimd_restore_current_state().
 	 */
 	if (!system_supports_fpsimd()) {
 		clear_thread_flag(TIF_FOREIGN_FPSTATE);
@@ -2100,6 +2119,13 @@ static inline void fpsimd_hotplug_init(void)
 #else
 static inline void fpsimd_hotplug_init(void) { }
 #endif
+
+void cpu_enable_fpsimd(const struct arm64_cpu_capabilities *__always_unused p)
+{
+	unsigned long enable = CPACR_EL1_FPEN_EL1EN | CPACR_EL1_FPEN_EL0EN;
+	write_sysreg(read_sysreg(CPACR_EL1) | enable, CPACR_EL1);
+	isb();
+}
 
 /*
  * FP/SIMD support code initialisation.
