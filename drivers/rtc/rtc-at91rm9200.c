@@ -558,7 +558,7 @@ err_clk:
 /*
  * Disable and remove the RTC driver
  */
-static void at91_rtc_remove(struct platform_device *pdev)
+static void __exit at91_rtc_remove(struct platform_device *pdev)
 {
 	/* Disable all interrupts */
 	at91_rtc_write_idr(AT91_RTC_ACKUPD | AT91_RTC_ALARM |
