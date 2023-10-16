@@ -438,6 +438,11 @@ unsigned long cpu_get_elf_hwcap2(void);
 #define cpu_set_named_feature(name) cpu_set_feature(cpu_feature(name))
 #define cpu_have_named_feature(name) cpu_have_feature(cpu_feature(name))
 
+static __always_inline bool boot_capabilities_finalized(void)
+{
+	return alternative_has_cap_likely(ARM64_ALWAYS_BOOT);
+}
+
 static __always_inline bool system_capabilities_finalized(void)
 {
 	return alternative_has_cap_likely(ARM64_ALWAYS_SYSTEM);
@@ -473,8 +478,26 @@ static __always_inline bool __cpus_have_const_cap(int num)
 /*
  * Test for a capability without a runtime check.
  *
- * Before capabilities are finalized, this will BUG().
- * After capabilities are finalized, this is patched to avoid a runtime check.
+ * Before boot capabilities are finalized, this will BUG().
+ * After boot capabilities are finalized, this is patched to avoid a runtime
+ * check.
+ *
+ * @num must be a compile-time constant.
+ */
+static __always_inline bool cpus_have_final_boot_cap(int num)
+{
+	if (boot_capabilities_finalized())
+		return __cpus_have_const_cap(num);
+	else
+		BUG();
+}
+
+/*
+ * Test for a capability without a runtime check.
+ *
+ * Before system capabilities are finalized, this will BUG().
+ * After system capabilities are finalized, this is patched to avoid a runtime
+ * check.
  *
  * @num must be a compile-time constant.
  */
