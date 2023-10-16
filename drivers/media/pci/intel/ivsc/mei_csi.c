@@ -672,16 +672,20 @@ static int mei_csi_parse_firmware(struct mei_csi *csi)
 
 	asd = v4l2_async_nf_add_fwnode(&csi->notifier, fwnode,
 				       struct v4l2_async_connection);
-	if (IS_ERR(asd)) {
-		fwnode_handle_put(fwnode);
-		return PTR_ERR(asd);
-	}
-
 	fwnode_handle_put(fwnode);
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
+		goto out_nf_cleanup;
+	}
 
 	ret = v4l2_async_nf_register(&csi->notifier);
 	if (ret)
-		v4l2_async_nf_cleanup(&csi->notifier);
+		goto out_nf_cleanup;
+
+	return 0;
+
+out_nf_cleanup:
+	v4l2_async_nf_cleanup(&csi->notifier);
 
 	return ret;
 }
