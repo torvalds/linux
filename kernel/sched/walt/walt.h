@@ -176,6 +176,7 @@ struct walt_sched_cluster {
 
 extern struct walt_sched_cluster *sched_cluster[WALT_NR_CPUS];
 extern cpumask_t part_haltable_cpus;
+extern cpumask_t cpus_paused_by_us;
 /*END SCHED.H PORT*/
 
 extern int num_sched_clusters;

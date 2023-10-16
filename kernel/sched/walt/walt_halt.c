@@ -524,6 +524,19 @@ static void android_rvh_get_nohz_timer_target(void *unused, int *cpu, bool *done
 		default_cpu = *cpu;
 	}
 
+	/*
+	 * find first cpu halted by core control and try to avoid
+	 * affecting externally halted cpus.
+	 */
+	if (!cpumask_andnot(&unhalted, cpu_active_mask, cpu_halt_mask)) {
+		if (cpumask_weight(&cpus_paused_by_us))
+			*cpu = cpumask_first(&cpus_paused_by_us);
+		else
+			*cpu = cpumask_first(cpu_halt_mask);
+
+		return;
+	}
+
 	rcu_read_lock();
 	for_each_domain(*cpu, sd) {
 		for_each_cpu_and(i, sched_domain_span(sd),
