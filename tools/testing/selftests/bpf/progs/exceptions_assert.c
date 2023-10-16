@@ -31,35 +31,35 @@ check_assert(s64, eq, llong_max, LLONG_MAX);
 
 __msg(": R0_w=scalar(smax=2147483646) R10=fp0")
 check_assert(s64, lt, pos, INT_MAX);
-__msg(": R0_w=scalar(umin=9223372036854775808,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
+__msg(": R0_w=scalar(smax=-1,umin=9223372036854775808,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
 check_assert(s64, lt, zero, 0);
-__msg(": R0_w=scalar(umin=9223372036854775808,umax=18446744071562067967,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
+__msg(": R0_w=scalar(smax=-2147483649,umin=9223372036854775808,umax=18446744071562067967,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
 check_assert(s64, lt, neg, INT_MIN);
 
 __msg(": R0_w=scalar(smax=2147483647) R10=fp0")
 check_assert(s64, le, pos, INT_MAX);
 __msg(": R0_w=scalar(smax=0) R10=fp0")
 check_assert(s64, le, zero, 0);
-__msg(": R0_w=scalar(umin=9223372036854775808,umax=18446744071562067968,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
+__msg(": R0_w=scalar(smax=-2147483648,umin=9223372036854775808,umax=18446744071562067968,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
 check_assert(s64, le, neg, INT_MIN);
 
-__msg(": R0_w=scalar(umin=2147483648,umax=9223372036854775807,var_off=(0x0; 0x7fffffffffffffff))")
+__msg(": R0_w=scalar(smin=umin=2147483648,umax=9223372036854775807,var_off=(0x0; 0x7fffffffffffffff))")
 check_assert(s64, gt, pos, INT_MAX);
-__msg(": R0_w=scalar(umin=1,umax=9223372036854775807,var_off=(0x0; 0x7fffffffffffffff))")
+__msg(": R0_w=scalar(smin=umin=1,umax=9223372036854775807,var_off=(0x0; 0x7fffffffffffffff))")
 check_assert(s64, gt, zero, 0);
 __msg(": R0_w=scalar(smin=-2147483647) R10=fp0")
 check_assert(s64, gt, neg, INT_MIN);
 
-__msg(": R0_w=scalar(umin=2147483647,umax=9223372036854775807,var_off=(0x0; 0x7fffffffffffffff))")
+__msg(": R0_w=scalar(smin=umin=2147483647,umax=9223372036854775807,var_off=(0x0; 0x7fffffffffffffff))")
 check_assert(s64, ge, pos, INT_MAX);
-__msg(": R0_w=scalar(umax=9223372036854775807,var_off=(0x0; 0x7fffffffffffffff)) R10=fp0")
+__msg(": R0_w=scalar(smin=0,umax=9223372036854775807,var_off=(0x0; 0x7fffffffffffffff)) R10=fp0")
 check_assert(s64, ge, zero, 0);
 __msg(": R0_w=scalar(smin=-2147483648) R10=fp0")
 check_assert(s64, ge, neg, INT_MIN);
 
 SEC("?tc")
 __log_level(2) __failure
-__msg(": R0=0 R1=ctx(off=0,imm=0) R2=scalar(smin=-2147483646,smax=2147483645) R10=fp0")
+__msg(": R0=0 R1=ctx(off=0,imm=0) R2=scalar(smin=smin32=-2147483646,smax=smax32=2147483645) R10=fp0")
 int check_assert_range_s64(struct __sk_buff *ctx)
 {
 	struct bpf_sock *sk = ctx->sk;
@@ -75,7 +75,7 @@ int check_assert_range_s64(struct __sk_buff *ctx)
 
 SEC("?tc")
 __log_level(2) __failure
-__msg(": R1=ctx(off=0,imm=0) R2=scalar(umin=4096,umax=8192,var_off=(0x0; 0x3fff))")
+__msg(": R1=ctx(off=0,imm=0) R2=scalar(smin=umin=smin32=umin32=4096,smax=umax=smax32=umax32=8192,var_off=(0x0; 0x3fff))")
 int check_assert_range_u64(struct __sk_buff *ctx)
 {
 	u64 num = ctx->len;
