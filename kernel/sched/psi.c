@@ -596,7 +596,7 @@ static void init_rtpoll_triggers(struct psi_group *group, u64 now)
 	group->rtpoll_next_update = now + group->rtpoll_min_period;
 }
 
-/* Schedule polling if it's not already scheduled or forced. */
+/* Schedule rtpolling if it's not already scheduled or forced. */
 static void psi_schedule_rtpoll_work(struct psi_group *group, unsigned long delay,
 				   bool force)
 {
@@ -636,37 +636,37 @@ static void psi_rtpoll_work(struct psi_group *group)
 
 	if (now > group->rtpoll_until) {
 		/*
-		 * We are either about to start or might stop polling if no
-		 * state change was recorded. Resetting poll_scheduled leaves
+		 * We are either about to start or might stop rtpolling if no
+		 * state change was recorded. Resetting rtpoll_scheduled leaves
 		 * a small window for psi_group_change to sneak in and schedule
-		 * an immediate poll_work before we get to rescheduling. One
-		 * potential extra wakeup at the end of the polling window
-		 * should be negligible and polling_next_update still keeps
+		 * an immediate rtpoll_work before we get to rescheduling. One
+		 * potential extra wakeup at the end of the rtpolling window
+		 * should be negligible and rtpoll_next_update still keeps
 		 * updates correctly on schedule.
 		 */
 		atomic_set(&group->rtpoll_scheduled, 0);
 		/*
-		 * A task change can race with the poll worker that is supposed to
+		 * A task change can race with the rtpoll worker that is supposed to
 		 * report on it. To avoid missing events, ensure ordering between
-		 * poll_scheduled and the task state accesses, such that if the poll
-		 * worker misses the state update, the task change is guaranteed to
-		 * reschedule the poll worker:
+		 * rtpoll_scheduled and the task state accesses, such that if the
+		 * rtpoll worker misses the state update, the task change is
+		 * guaranteed to reschedule the rtpoll worker:
 		 *
-		 * poll worker:
-		 *   atomic_set(poll_scheduled, 0)
+		 * rtpoll worker:
+		 *   atomic_set(rtpoll_scheduled, 0)
 		 *   smp_mb()
 		 *   LOAD states
 		 *
 		 * task change:
 		 *   STORE states
-		 *   if atomic_xchg(poll_scheduled, 1) == 0:
-		 *     schedule poll worker
+		 *   if atomic_xchg(rtpoll_scheduled, 1) == 0:
+		 *     schedule rtpoll worker
 		 *
 		 * The atomic_xchg() implies a full barrier.
 		 */
 		smp_mb();
 	} else {
-		/* Polling window is not over, keep rescheduling */
+		/* The rtpolling window is not over, keep rescheduling */
 		force_reschedule = true;
 	}
 
@@ -674,7 +674,7 @@ static void psi_rtpoll_work(struct psi_group *group)
 	collect_percpu_times(group, PSI_POLL, &changed_states);
 
 	if (changed_states & group->rtpoll_states) {
-		/* Initialize trigger windows when entering polling mode */
+		/* Initialize trigger windows when entering rtpolling mode */
 		if (now > group->rtpoll_until)
 			init_rtpoll_triggers(group, now);
 
