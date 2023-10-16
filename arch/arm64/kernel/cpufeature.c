@@ -3328,23 +3328,35 @@ unsigned long cpu_get_elf_hwcap2(void)
 	return elf_hwcap[1];
 }
 
-static void __init setup_system_capabilities(void)
+void __init setup_system_features(void)
 {
 	/*
-	 * We have finalised the system-wide safe feature
-	 * registers, finalise the capabilities that depend
-	 * on it. Also enable all the available capabilities,
-	 * that are not enabled already.
+	 * The system-wide safe feature feature register values have been
+	 * finalized. Finalize and log the available system capabilities.
 	 */
 	update_cpu_capabilities(SCOPE_SYSTEM);
+	if (system_uses_ttbr0_pan())
+		pr_info("emulated: Privileged Access Never (PAN) using TTBR0_EL1 switching\n");
+
+	/*
+	 * Enable all the available capabilities which have not been enabled
+	 * already.
+	 */
 	enable_cpu_capabilities(SCOPE_ALL & ~SCOPE_BOOT_CPU);
+
+	sve_setup();
+	sme_setup();
+
+	/*
+	 * Check for sane CTR_EL0.CWG value.
+	 */
+	if (!cache_type_cwg())
+		pr_warn("No Cache Writeback Granule information, assuming %d\n",
+			ARCH_DMA_MINALIGN);
 }
 
-void __init setup_cpu_features(void)
+void __init setup_user_features(void)
 {
-	u32 cwg;
-
-	setup_system_capabilities();
 	setup_elf_hwcaps(arm64_elf_hwcaps);
 
 	if (system_supports_32bit_el0()) {
@@ -3352,20 +3364,7 @@ void __init setup_cpu_features(void)
 		elf_hwcap_fixup();
 	}
 
-	if (system_uses_ttbr0_pan())
-		pr_info("emulated: Privileged Access Never (PAN) using TTBR0_EL1 switching\n");
-
-	sve_setup();
-	sme_setup();
 	minsigstksz_setup();
-
-	/*
-	 * Check for sane CTR_EL0.CWG value.
-	 */
-	cwg = cache_type_cwg();
-	if (!cwg)
-		pr_warn("No Cache Writeback Granule information, assuming %d\n",
-			ARCH_DMA_MINALIGN);
 }
 
 static int enable_mismatched_32bit_el0(unsigned int cpu)

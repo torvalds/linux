@@ -649,7 +649,9 @@ static inline bool id_aa64pfr1_mte(u64 pfr1)
 	return val >= ID_AA64PFR1_EL1_MTE_MTE2;
 }
 
-void __init setup_cpu_features(void);
+void __init setup_system_features(void);
+void __init setup_user_features(void);
+
 void check_local_cpu_capabilities(void);
 
 u64 read_sanitised_ftr_reg(u32 id);
