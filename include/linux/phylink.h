@@ -227,7 +227,6 @@ void phylink_limit_mac_speed(struct phylink_config *config, u32 max_speed);
 
 /**
  * struct phylink_mac_ops - MAC operations structure.
- * @validate: Validate and update the link configuration.
  * @mac_get_caps: Get MAC capabilities for interface mode.
  * @mac_select_pcs: Select a PCS for the interface mode.
  * @mac_prepare: prepare for a major reconfiguration of the interface.
@@ -239,9 +238,6 @@ void phylink_limit_mac_speed(struct phylink_config *config, u32 max_speed);
  * The individual methods are described more fully below.
  */
 struct phylink_mac_ops {
-	void (*validate)(struct phylink_config *config,
-			 unsigned long *supported,
-			 struct phylink_link_state *state);
 	unsigned long (*mac_get_caps)(struct phylink_config *config,
 				      phy_interface_t interface);
 	struct phylink_pcs *(*mac_select_pcs)(struct phylink_config *config,
@@ -261,40 +257,6 @@ struct phylink_mac_ops {
 };
 
 #if 0 /* For kernel-doc purposes only. */
-/**
- * validate - Validate and update the link configuration
- * @config: a pointer to a &struct phylink_config.
- * @supported: ethtool bitmask for supported link modes.
- * @state: a pointer to a &struct phylink_link_state.
- *
- * Clear bits in the @supported and @state->advertising masks that
- * are not supportable by the MAC.
- *
- * Note that the PHY may be able to transform from one connection
- * technology to another, so, eg, don't clear 1000BaseX just
- * because the MAC is unable to BaseX mode. This is more about
- * clearing unsupported speeds and duplex settings. The port modes
- * should not be cleared; phylink_set_port_modes() will help with this.
- *
- * When @config->supported_interfaces has been set, phylink will iterate
- * over the supported interfaces to determine the full capability of the
- * MAC. The validation function must not print errors if @state->interface
- * is set to an unexpected value.
- *
- * When @config->supported_interfaces is empty, phylink will call this
- * function with @state->interface set to %PHY_INTERFACE_MODE_NA, and
- * expects the MAC driver to return all supported link modes.
- *
- * If the @state->interface mode is not supported, then the @supported
- * mask must be cleared.
- *
- * This member is optional; if not set, the generic validator will be
- * used making use of @config->mac_capabilities and
- * @config->supported_interfaces to determine which link modes are
- * supported.
- */
-void validate(struct phylink_config *config, unsigned long *supported,
-	      struct phylink_link_state *state);
 /**
  * mac_get_caps: Get MAC capabilities for interface mode.
  * @config: a pointer to a &struct phylink_config.

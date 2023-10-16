@@ -207,11 +207,6 @@ this documentation.
    capabilities for ``interface`` to determine the allowable ethtool link
    modes.
 
-   The :c:func:`validate` method should mask the supplied supported mask,
-   and ``state->advertising`` with the supported ethtool link modes.
-   These are the new ethtool link modes, so bitmask operations must be
-   used. For an example, see ``drivers/net/ethernet/marvell/mvneta.c``.
-
    The :c:func:`mac_link_state` method is used to read the link state
    from the MAC, and report back the settings that the MAC is currently
    using. This is particularly important for in-band negotiation

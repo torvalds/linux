@@ -697,17 +697,13 @@ static int phylink_validate_mac_and_pcs(struct phylink *pl,
 	}
 
 	/* Then validate the link parameters with the MAC */
-	if (pl->mac_ops->validate) {
-		pl->mac_ops->validate(pl->config, supported, state);
-	} else {
-		if (pl->mac_ops->mac_get_caps)
-			capabilities = pl->mac_ops->mac_get_caps(pl->config,
-							state->interface);
-		else
-			capabilities = pl->config->mac_capabilities;
+	if (pl->mac_ops->mac_get_caps)
+		capabilities = pl->mac_ops->mac_get_caps(pl->config,
+							 state->interface);
+	else
+		capabilities = pl->config->mac_capabilities;
 
-		phylink_validate_mask_caps(supported, state, capabilities);
-	}
+	phylink_validate_mask_caps(supported, state, capabilities);
 
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
 }
