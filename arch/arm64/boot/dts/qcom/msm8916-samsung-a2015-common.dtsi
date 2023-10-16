@@ -239,6 +239,10 @@
 	status = "okay";
 };
 
+&gpu {
+	status = "okay";
+};
+
 &mdss {
 	status = "okay";
 };
@@ -282,6 +286,14 @@
 
 &usb_hs_phy {
 	extcon = <&muic>;
+};
+
+&venus {
+	status = "okay";
+};
+
+&venus_mem {
+	status = "okay";
 };
 
 &tlmm {

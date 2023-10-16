@@ -13,11 +13,15 @@ description: |
   Qualcomm camera clock control module provides the clocks, resets and power
   domains on SM8450.
 
-  See also:: include/dt-bindings/clock/qcom,sm8450-camcc.h
+  See also::
+    include/dt-bindings/clock/qcom,sm8450-camcc.h
+    include/dt-bindings/clock/qcom,sm8550-camcc.h
 
 properties:
   compatible:
-    const: qcom,sm8450-camcc
+    enum:
+      - qcom,sm8450-camcc
+      - qcom,sm8550-camcc
 
   clocks:
     items:

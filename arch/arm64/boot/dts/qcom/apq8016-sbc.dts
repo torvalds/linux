@@ -172,6 +172,9 @@
 		pd-gpios = <&tlmm 32 GPIO_ACTIVE_HIGH>;
 
 		avdd-supply = <&pm8916_l6>;
+		a2vdd-supply = <&pm8916_l6>;
+		dvdd-supply = <&pm8916_l6>;
+		pvdd-supply = <&pm8916_l6>;
 		v1p2-supply = <&pm8916_l6>;
 		v3p3-supply = <&pm8916_l17>;
 
@@ -230,11 +233,19 @@
 	status = "okay";
 };
 
+&gpu {
+	status = "okay";
+};
+
 &lpass {
 	status = "okay";
 };
 
 &lpass_codec {
+	status = "okay";
+};
+
+&mba_mem {
 	status = "okay";
 };
 
@@ -253,10 +264,13 @@
 	firmware-name = "qcom/apq8016/mba.mbn", "qcom/apq8016/modem.mbn";
 };
 
+&mpss_mem {
+	status = "okay";
+	reg = <0x0 0x86800000 0x0 0x2b00000>;
+};
+
 &pm8916_codec {
 	status = "okay";
-	clocks = <&gcc GCC_CODEC_DIGCODEC_CLK>;
-	clock-names = "mclk";
 	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
 	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
 };
@@ -364,6 +378,14 @@
 	extcon = <&usb_id>;
 };
 
+&venus {
+	status = "okay";
+};
+
+&venus_mem {
+	status = "okay";
+};
+
 &wcnss {
 	status = "okay";
 	firmware-name = "qcom/apq8016/wcnss.mbn";
@@ -375,6 +397,10 @@
 
 &wcnss_iris {
 	compatible = "qcom,wcn3620";
+};
+
+&wcnss_mem {
+	status = "okay";
 };
 
 /* Enable CoreSight */

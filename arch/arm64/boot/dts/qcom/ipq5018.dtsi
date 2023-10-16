@@ -57,6 +57,7 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-ipq5018", "qcom,scm";
+			qcom,sdi-enabled;
 		};
 	};
 
@@ -179,6 +180,13 @@
 				reg = <0x00001000 0xff8>;
 				msi-controller;
 			};
+		};
+
+		watchdog: watchdog@b017000 {
+			compatible = "qcom,apss-wdt-ipq5018", "qcom,kpss-wdt";
+			reg = <0x0b017000 0x40>;
+			interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&sleep_clk>;
 		};
 
 		timer@b120000 {

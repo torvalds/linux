@@ -158,12 +158,24 @@
 	extcon = <&pm8916_usbin>;
 };
 
+&venus {
+	status = "okay";
+};
+
+&venus_mem {
+	status = "okay";
+};
+
 &wcnss {
 	status = "okay";
 };
 
 &wcnss_iris {
 	compatible = "qcom,wcn3660b";
+};
+
+&wcnss_mem {
+	status = "okay";
 };
 
 &tlmm {
