@@ -88,7 +88,21 @@ config SECONDARY_TRUSTED_KEYRING
 	help
 	  If set, provide a keyring to which extra keys may be added, provided
 	  those keys are not blacklisted and are vouched for by a key built
-	  into the kernel or already in the secondary trusted keyring.
+	  into the kernel, machine keyring (if configured), or already in the
+	  secondary trusted keyring.
+
+config SECONDARY_TRUSTED_KEYRING_SIGNED_BY_BUILTIN
+	bool "Only allow additional certs signed by keys on the builtin trusted keyring"
+	depends on SECONDARY_TRUSTED_KEYRING
+	help
+	  If set, only certificates signed by keys on the builtin trusted
+	  keyring may be loaded onto the secondary trusted keyring.
+
+	  Note: The machine keyring, if configured, will be linked to the
+	  secondary keyring.  When enabling this option, it is recommended
+	  to also configure INTEGRITY_CA_MACHINE_KEYRING_MAX to prevent
+	  linking code signing keys with imputed trust to the secondary
+	  trusted keyring.
 
 config SYSTEM_BLACKLIST_KEYRING
 	bool "Provide system-wide ring of blacklisted keys"
