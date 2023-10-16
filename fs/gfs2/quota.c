@@ -763,7 +763,7 @@ static int gfs2_write_buf_to_page(struct gfs2_sbd *sdp, unsigned long index,
 		return PTR_ERR(folio);
 	bh = folio_buffers(folio);
 	if (!bh)
-		bh = folio_create_empty_buffers(folio, bsize, 0);
+		bh = create_empty_buffers(folio, bsize, 0);
 
 	for (;;) {
 		/* Find the beginning block within the folio */

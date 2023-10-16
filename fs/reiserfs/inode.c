@@ -2539,7 +2539,7 @@ static int reiserfs_write_full_folio(struct folio *folio,
 	 */
 	head = folio_buffers(folio);
 	if (!head)
-		head = folio_create_empty_buffers(folio, s->s_blocksize,
+		head = create_empty_buffers(folio, s->s_blocksize,
 				     (1 << BH_Dirty) | (1 << BH_Uptodate));
 
 	/*

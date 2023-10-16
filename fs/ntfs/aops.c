@@ -189,7 +189,7 @@ static int ntfs_read_block(struct folio *folio)
 
 	head = folio_buffers(folio);
 	if (!head)
-		head = folio_create_empty_buffers(folio, blocksize, 0);
+		head = create_empty_buffers(folio, blocksize, 0);
 	bh = head;
 
 	/*
@@ -555,7 +555,7 @@ static int ntfs_write_block(struct folio *folio, struct writeback_control *wbc)
 	head = folio_buffers(folio);
 	if (!head) {
 		BUG_ON(!folio_test_uptodate(folio));
-		head = folio_create_empty_buffers(folio, blocksize,
+		head = create_empty_buffers(folio, blocksize,
 				(1 << BH_Uptodate) | (1 << BH_Dirty));
 	}
 	bh = head;

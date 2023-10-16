@@ -34,7 +34,7 @@ static struct buffer_head *__nilfs_get_folio_block(struct folio *folio,
 	struct buffer_head *bh = folio_buffers(folio);
 
 	if (!bh)
-		bh = folio_create_empty_buffers(folio, 1 << blkbits, b_state);
+		bh = create_empty_buffers(folio, 1 << blkbits, b_state);
 
 	first_block = (unsigned long)index << (PAGE_SHIFT - blkbits);
 	bh = get_nth_bh(bh, block - first_block);
@@ -204,7 +204,7 @@ static void nilfs_copy_folio(struct folio *dst, struct folio *src,
 	sbh = folio_buffers(src);
 	dbh = folio_buffers(dst);
 	if (!dbh)
-		dbh = folio_create_empty_buffers(dst, sbh->b_size, 0);
+		dbh = create_empty_buffers(dst, sbh->b_size, 0);
 
 	if (copy_dirty)
 		mask |= BIT(BH_Dirty);

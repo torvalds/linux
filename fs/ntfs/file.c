@@ -625,7 +625,7 @@ do_next_folio:
 		 * create_empty_buffers() will create uptodate/dirty
 		 * buffers if the folio is uptodate/dirty.
 		 */
-		head = folio_create_empty_buffers(folio, blocksize, 0);
+		head = create_empty_buffers(folio, blocksize, 0);
 	bh = head;
 	do {
 		VCN cdelta;

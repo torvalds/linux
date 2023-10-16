@@ -264,6 +264,6 @@ struct folio *ufs_get_locked_folio(struct address_space *mapping,
 		}
 	}
 	if (!folio_buffers(folio))
-		folio_create_empty_buffers(folio, 1 << inode->i_blkbits, 0);
+		create_empty_buffers(folio, 1 << inode->i_blkbits, 0);
 	return folio;
 }

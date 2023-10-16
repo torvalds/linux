@@ -71,7 +71,7 @@ static int gfs2_unstuffer_folio(struct gfs2_inode *ip, struct buffer_head *dibh,
 		struct buffer_head *bh = folio_buffers(folio);
 
 		if (!bh)
-			bh = folio_create_empty_buffers(folio,
+			bh = create_empty_buffers(folio,
 				BIT(inode->i_blkbits), BIT(BH_Uptodate));
 
 		if (!buffer_mapped(bh))

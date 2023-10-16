@@ -184,7 +184,7 @@ mext_page_mkuptodate(struct folio *folio, unsigned from, unsigned to)
 	blocksize = i_blocksize(inode);
 	head = folio_buffers(folio);
 	if (!head)
-		head = folio_create_empty_buffers(folio, blocksize, 0);
+		head = create_empty_buffers(folio, blocksize, 0);
 
 	block = (sector_t)folio->index << (PAGE_SHIFT - inode->i_blkbits);
 	for (bh = head, block_start = 0; bh != head || !block_start;
@@ -380,7 +380,7 @@ data_copy:
 	 * but keeping in mind that i_size will not change */
 	bh = folio_buffers(folio[0]);
 	if (!bh)
-		bh = folio_create_empty_buffers(folio[0],
+		bh = create_empty_buffers(folio[0],
 				1 << orig_inode->i_blkbits, 0);
 	for (i = 0; i < data_offset_in_page; i++)
 		bh = bh->b_this_page;

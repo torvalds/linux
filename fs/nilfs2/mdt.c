@@ -568,7 +568,7 @@ int nilfs_mdt_freeze_buffer(struct inode *inode, struct buffer_head *bh)
 
 	bh_frozen = folio_buffers(folio);
 	if (!bh_frozen)
-		bh_frozen = folio_create_empty_buffers(folio, 1 << blkbits, 0);
+		bh_frozen = create_empty_buffers(folio, 1 << blkbits, 0);
 
 	bh_frozen = get_nth_bh(bh_frozen, bh_offset(bh) >> blkbits);
 

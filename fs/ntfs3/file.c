@@ -203,7 +203,7 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 
 		head = folio_buffers(folio);
 		if (!head)
-			head = folio_create_empty_buffers(folio, blocksize, 0);
+			head = create_empty_buffers(folio, blocksize, 0);
 
 		bh = head;
 		bh_off = 0;
