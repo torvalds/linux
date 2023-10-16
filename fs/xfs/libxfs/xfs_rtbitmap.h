@@ -9,6 +9,12 @@
 struct xfs_rtalloc_args {
 	struct xfs_mount	*mp;
 	struct xfs_trans	*tp;
+
+	struct xfs_buf		*rbmbp;	/* bitmap block buffer */
+	struct xfs_buf		*sumbp;	/* summary block buffer */
+
+	xfs_fileoff_t		rbmoff;	/* bitmap block number */
+	xfs_fileoff_t		sumoff;	/* summary block number */
 };
 
 static inline xfs_rtblock_t
@@ -286,6 +292,8 @@ typedef int (*xfs_rtalloc_query_range_fn)(
 	void				*priv);
 
 #ifdef CONFIG_XFS_RT
+void xfs_rtbuf_cache_relse(struct xfs_rtalloc_args *args);
+
 int xfs_rtbuf_get(struct xfs_rtalloc_args *args, xfs_fileoff_t block,
 		int issum, struct xfs_buf **bpp);
 int xfs_rtcheck_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
@@ -297,13 +305,11 @@ int xfs_rtfind_forw(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
 int xfs_rtmodify_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
 		xfs_rtxlen_t len, int val);
 int xfs_rtmodify_summary_int(struct xfs_rtalloc_args *args, int log,
-		xfs_fileoff_t bbno, int delta, struct xfs_buf **rbpp,
-		xfs_fileoff_t *rsb, xfs_suminfo_t *sum);
+		xfs_fileoff_t bbno, int delta, xfs_suminfo_t *sum);
 int xfs_rtmodify_summary(struct xfs_rtalloc_args *args, int log,
-		xfs_fileoff_t bbno, int delta, struct xfs_buf **rbpp,
-		xfs_fileoff_t *rsb);
+		xfs_fileoff_t bbno, int delta);
 int xfs_rtfree_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
-		xfs_rtxlen_t len, struct xfs_buf **rbpp, xfs_fileoff_t *rsb);
+		xfs_rtxlen_t len);
 int xfs_rtalloc_query_range(struct xfs_mount *mp, struct xfs_trans *tp,
 		const struct xfs_rtalloc_rec *low_rec,
 		const struct xfs_rtalloc_rec *high_rec,
@@ -343,6 +349,7 @@ unsigned long long xfs_rtsummary_wordcount(struct xfs_mount *mp,
 # define xfs_rtalloc_query_range(m,t,l,h,f,p)		(-ENOSYS)
 # define xfs_rtalloc_query_all(m,t,f,p)			(-ENOSYS)
 # define xfs_rtbuf_get(m,t,b,i,p)			(-ENOSYS)
+# define xfs_rtbuf_cache_relse(a)			(0)
 # define xfs_rtalloc_extent_is_free(m,t,s,l,i)		(-ENOSYS)
 static inline xfs_filblks_t
 xfs_rtbitmap_blockcount(struct xfs_mount *mp, xfs_rtbxlen_t rtextents)

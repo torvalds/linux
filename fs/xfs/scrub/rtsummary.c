@@ -228,7 +228,7 @@ xchk_rtsum_compare(
 		/* Read a block's worth of computed rtsummary file. */
 		error = xfsum_copyout(sc, sumoff, sc->buf, mp->m_blockwsize);
 		if (error) {
-			xfs_trans_brelse(sc->tp, bp);
+			xfs_rtbuf_cache_relse(&args);
 			return error;
 		}
 
@@ -237,7 +237,7 @@ xchk_rtsum_compare(
 					mp->m_blockwsize << XFS_WORDLOG) != 0)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, off);
 
-		xfs_trans_brelse(sc->tp, bp);
+		xfs_rtbuf_cache_relse(&args);
 		sumoff += mp->m_blockwsize;
 	}
 
