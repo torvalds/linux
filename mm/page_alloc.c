@@ -2370,7 +2370,7 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
 {
 	int high;
 	int pindex;
-	bool free_high;
+	bool free_high = false;
 
 	__count_vm_events(PGFREE, 1 << order);
 	pindex = order_to_pindex(migratetype, order);
@@ -2383,8 +2383,13 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
 	 * freeing without allocation. The remainder after bulk freeing
 	 * stops will be drained from vmstat refresh context.
 	 */
-	free_high = (pcp->free_factor && order && order <= PAGE_ALLOC_COSTLY_ORDER);
-
+	if (order && order <= PAGE_ALLOC_COSTLY_ORDER) {
+		free_high = (pcp->free_factor &&
+			     (pcp->flags & PCPF_PREV_FREE_HIGH_ORDER));
+		pcp->flags |= PCPF_PREV_FREE_HIGH_ORDER;
+	} else if (pcp->flags & PCPF_PREV_FREE_HIGH_ORDER) {
+		pcp->flags &= ~PCPF_PREV_FREE_HIGH_ORDER;
+	}
 	high = nr_pcp_high(pcp, zone, free_high);
 	if (pcp->count >= high) {
 		free_pcppages_bulk(zone, nr_pcp_free(pcp, high, free_high), pcp, pindex);
