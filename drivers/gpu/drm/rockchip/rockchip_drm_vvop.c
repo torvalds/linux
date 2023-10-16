@@ -101,11 +101,14 @@ static enum hrtimer_restart vvop_vblank_simulate(struct hrtimer *timer)
 	struct drm_crtc *crtc = &vcrtc->crtc;
 	bool ret;
 
-	ret = drm_crtc_handle_vblank(crtc);
-	if (!ret)
-		DRM_ERROR("vvop failure on handling vblank");
-
 	hrtimer_forward_now(&vcrtc->vblank_hrtimer, vcrtc->period_ns);
+
+	ret = drm_crtc_handle_vblank(crtc);
+	/* Don't queue timer again when vblank is disabled. */
+	if (!ret) {
+		drm_dbg(crtc->dev, "vblank is already disabled\n");
+		return HRTIMER_NORESTART;
+	}
 
 	return HRTIMER_RESTART;
 }
@@ -119,8 +122,6 @@ static int vvop_enable_vblank(struct drm_crtc *crtc)
 
 	drm_calc_timestamping_constants(crtc, &crtc->mode);
 
-	hrtimer_init(&vcrtc->vblank_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	vcrtc->vblank_hrtimer.function = &vvop_vblank_simulate;
 	vcrtc->period_ns = ktime_set(0, vblank->framedur_ns);
 	hrtimer_start(&vcrtc->vblank_hrtimer, vcrtc->period_ns, HRTIMER_MODE_REL);
 
@@ -131,7 +132,7 @@ static void vvop_disable_vblank(struct drm_crtc *crtc)
 {
 	struct vvop_crtc *vcrtc = drm_crtc_to_vvop_crtc(crtc);
 
-	hrtimer_cancel(&vcrtc->vblank_hrtimer);
+	hrtimer_try_to_cancel(&vcrtc->vblank_hrtimer);
 }
 
 static void vvop_connector_destroy(struct drm_connector *connector)
@@ -460,6 +461,14 @@ static u64 vvop_get_soc_id(void)
 		return 0;
 }
 
+static int vvop_crtc_deinit(struct drm_crtc *vcrtc)
+{
+	struct vvop_crtc *vcrtc = drm_crtc_to_vvop_crtc(crtc);
+
+	hrtimer_cancel(&vcrtc->vblank_hrtimer);
+	drm_crtc_cleanup(crtc);
+}
+
 static int vvop_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 			  struct drm_plane *primary, struct drm_plane *cursor)
 {
@@ -486,6 +495,9 @@ static int vvop_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 							DRM_MODE_PROP_IMMUTABLE,
 							"SOC_ID", DRM_MODE_OBJECT_CRTC);
 	drm_object_attach_property(&crtc->base, vcrtc->soc_id_prop, vvop_get_soc_id());
+
+	hrtimer_init(&vcrtc->vblank_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	vcrtc->vblank_hrtimer.function = &vvop_vblank_simulate;
 
 	return ret;
 }
@@ -549,7 +561,7 @@ err_encoder:
 err_connector_register:
 	drm_connector_cleanup(connector);
 err_connector:
-	drm_crtc_cleanup(crtc);
+	vvop_crtc_deinit(crtc);
 err_crtc:
 	drm_plane_cleanup(primary);
 
@@ -609,7 +621,7 @@ static void vvop_unbind(struct device *dev, struct device *master, void *data)
 			drm_connector_cleanup(&vcrtc->connector);
 			drm_plane_cleanup(&vcrtc->plane);
 			vvop->crtc_mask &= ~(drm_crtc_mask(crtc));
-			drm_crtc_cleanup(crtc);
+			vvop_crtc_deinit(crtc);
 		}
 	}
 }
