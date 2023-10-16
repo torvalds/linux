@@ -765,7 +765,7 @@ static __always_inline bool system_supports_fpsimd(void)
 
 static inline bool system_uses_hw_pan(void)
 {
-	return cpus_have_const_cap(ARM64_HAS_PAN);
+	return alternative_has_cap_unlikely(ARM64_HAS_PAN);
 }
 
 static inline bool system_uses_ttbr0_pan(void)

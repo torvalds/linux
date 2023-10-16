@@ -3368,7 +3368,8 @@ void __init setup_system_features(void)
 	 * finalized. Finalize and log the available system capabilities.
 	 */
 	update_cpu_capabilities(SCOPE_SYSTEM);
-	if (system_uses_ttbr0_pan())
+	if (IS_ENABLED(CONFIG_ARM64_SW_TTBR0_PAN) &&
+	    !cpus_have_cap(ARM64_HAS_PAN))
 		pr_info("emulated: Privileged Access Never (PAN) using TTBR0_EL1 switching\n");
 
 	/*
