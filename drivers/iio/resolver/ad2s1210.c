@@ -1426,6 +1426,7 @@ static int ad2s1210_setup_gpios(struct ad2s1210_state *st)
 {
 	struct device *dev = &st->sdev->dev;
 	struct gpio_descs *resolution_gpios;
+	struct gpio_desc *reset_gpio;
 	DECLARE_BITMAP(bitmap, 2);
 	int ret;
 
@@ -1479,6 +1480,17 @@ static int ad2s1210_setup_gpios(struct ad2s1210_state *st)
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
 					     "failed to set resolution gpios\n");
+	}
+
+	/* If the optional reset GPIO is present, toggle it to do a hard reset. */
+	reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(reset_gpio),
+				     "failed to request reset GPIO\n");
+
+	if (reset_gpio) {
+		udelay(10);
+		gpiod_set_value(reset_gpio, 0);
 	}
 
 	return 0;
