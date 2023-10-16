@@ -530,4 +530,26 @@ int createremovebpf_test(struct fuse_bpf_args *fa)
 	}
 }
 
+SEC("test_mkdir_remove")
+int mkdirremovebpf_test(struct fuse_bpf_args *fa)
+{
+	switch (fa->opcode) {
+	case FUSE_LOOKUP | FUSE_PREFILTER: {
+		return FUSE_BPF_BACKING | FUSE_BPF_POST_FILTER;
+	}
 
+	case FUSE_LOOKUP | FUSE_POSTFILTER: {
+		struct fuse_entry_bpf_out *febo = fa->out_args[1].value;
+
+		febo->bpf_action = FUSE_ACTION_REMOVE;
+		return 0;
+	}
+
+	case FUSE_OPENDIR | FUSE_PREFILTER: {
+		return -EIO;
+	}
+
+	default:
+		return FUSE_BPF_BACKING;
+	}
+}

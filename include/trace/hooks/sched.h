@@ -321,6 +321,11 @@ DECLARE_HOOK(android_vh_setscheduler_uclamp,
 	TP_PROTO(struct task_struct *tsk, int clamp_id, unsigned int value),
 	TP_ARGS(tsk, clamp_id, value));
 
+DECLARE_HOOK(android_vh_uclamp_validate,
+	TP_PROTO(struct task_struct *p, const struct sched_attr *attr,
+		 bool user, int *ret, bool *done),
+	TP_ARGS(p, attr, user, ret, done));
+
 DECLARE_HOOK(android_vh_update_topology_flags_workfn,
 	TP_PROTO(void *unused),
 	TP_ARGS(unused));
@@ -389,7 +394,37 @@ DECLARE_HOOK(android_vh_mmput,
 	TP_PROTO(struct mm_struct *mm),
 	TP_ARGS(mm));
 
-/* macro versions of hooks are no longer required */
+struct sched_attr;
+DECLARE_HOOK(android_vh_set_sugov_sched_attr,
+	TP_PROTO(struct sched_attr *attr),
+	TP_ARGS(attr));
+DECLARE_RESTRICTED_HOOK(android_rvh_set_iowait,
+	TP_PROTO(struct task_struct *p, struct rq *rq, int *should_iowait_boost),
+	TP_ARGS(p, rq, should_iowait_boost), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_attach_entity_load_avg,
+	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se),
+	TP_ARGS(cfs_rq, se), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_detach_entity_load_avg,
+	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se),
+	TP_ARGS(cfs_rq, se), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_update_load_avg,
+	TP_PROTO(u64 now, struct cfs_rq *cfs_rq, struct sched_entity *se),
+	TP_ARGS(now, cfs_rq, se), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_remove_entity_load_avg,
+	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se),
+	TP_ARGS(cfs_rq, se), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_update_blocked_fair,
+	TP_PROTO(struct rq *rq),
+	TP_ARGS(rq), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_update_rt_rq_load_avg,
+	TP_PROTO(u64 now, struct rq *rq, struct task_struct *tsk, int running),
+	TP_ARGS(now, rq, tsk, running), 1);
 
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */

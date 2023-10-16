@@ -1039,10 +1039,13 @@ static int nfc_genl_llc_get_params(struct sk_buff *skb, struct genl_info *info)
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
 		rc = -ENOMEM;
-		goto exit;
+		goto put_local;
 	}
 
 	rc = nfc_genl_send_params(msg, local, info->snd_portid, info->snd_seq);
+
+put_local:
+	nfc_llcp_local_put(local);
 
 exit:
 	device_unlock(&dev->dev);
@@ -1105,7 +1108,7 @@ static int nfc_genl_llc_set_params(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NFC_ATTR_LLC_PARAM_LTO]) {
 		if (dev->dep_link_up) {
 			rc = -EINPROGRESS;
-			goto exit;
+			goto put_local;
 		}
 
 		local->lto = nla_get_u8(info->attrs[NFC_ATTR_LLC_PARAM_LTO]);
@@ -1116,6 +1119,9 @@ static int nfc_genl_llc_set_params(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NFC_ATTR_LLC_PARAM_MIUX])
 		local->miux = cpu_to_be16(miux);
+
+put_local:
+	nfc_llcp_local_put(local);
 
 exit:
 	device_unlock(&dev->dev);
@@ -1172,7 +1178,7 @@ static int nfc_genl_llc_sdreq(struct sk_buff *skb, struct genl_info *info)
 
 		if (rc != 0) {
 			rc = -EINVAL;
-			goto exit;
+			goto put_local;
 		}
 
 		if (!sdp_attrs[NFC_SDP_ATTR_URI])
@@ -1191,7 +1197,7 @@ static int nfc_genl_llc_sdreq(struct sk_buff *skb, struct genl_info *info)
 		sdreq = nfc_llcp_build_sdreq_tlv(tid, uri, uri_len);
 		if (sdreq == NULL) {
 			rc = -ENOMEM;
-			goto exit;
+			goto put_local;
 		}
 
 		tlvs_len += sdreq->tlv_len;
@@ -1201,10 +1207,14 @@ static int nfc_genl_llc_sdreq(struct sk_buff *skb, struct genl_info *info)
 
 	if (hlist_empty(&sdreq_list)) {
 		rc = -EINVAL;
-		goto exit;
+		goto put_local;
 	}
 
 	rc = nfc_llcp_send_snl_sdreq(local, &sdreq_list, tlvs_len);
+
+put_local:
+	nfc_llcp_local_put(local);
+
 exit:
 	device_unlock(&dev->dev);
 

@@ -18,6 +18,10 @@ arch/arm64/crypto/sha256-glue.c
 arch/arm64/crypto/sha512-ce-core.S
 arch/arm64/crypto/sha512-ce-glue.c
 arch/arm64/crypto/sha512-glue.c
+arch/arm64/geniezone/gzvm_arch_common.h
+arch/arm64/geniezone/vcpu.c
+arch/arm64/geniezone/vgic.c
+arch/arm64/geniezone/vm.c
 arch/arm64/gunyah/gunyah_hypercall.c
 arch/arm64/include/asm/acpi.h
 arch/arm64/include/asm/alternative-macros.h
@@ -206,6 +210,7 @@ arch/arm64/include/uapi/asm/bitsperlong.h
 arch/arm64/include/uapi/asm/bpf_perf_event.h
 arch/arm64/include/uapi/asm/byteorder.h
 arch/arm64/include/uapi/asm/fcntl.h
+arch/arm64/include/uapi/asm/gzvm_arch.h
 arch/arm64/include/uapi/asm/hwcap.h
 arch/arm64/include/uapi/asm/kvm.h
 arch/arm64/include/uapi/asm/mman.h
@@ -1874,6 +1879,12 @@ drivers/video/hdmi.c
 drivers/video/of_display_timing.c
 drivers/video/of_videomode.c
 drivers/video/videomode.c
+drivers/virt/geniezone/gzvm_common.h
+drivers/virt/geniezone/gzvm_ioeventfd.c
+drivers/virt/geniezone/gzvm_irqfd.c
+drivers/virt/geniezone/gzvm_main.c
+drivers/virt/geniezone/gzvm_vcpu.c
+drivers/virt/geniezone/gzvm_vm.c
 drivers/virt/gunyah/gunyah_ioeventfd.c
 drivers/virt/gunyah/gunyah_irqfd.c
 drivers/virt/gunyah/gunyah_platform_hooks.c
@@ -2902,6 +2913,7 @@ include/linux/gpio_keys.h
 include/linux/gunyah.h
 include/linux/gunyah_rsc_mgr.h
 include/linux/gunyah_vm_mgr.h
+include/linux/gzvm_drv.h
 include/linux/hardirq.h
 include/linux/hash.h
 include/linux/hashtable.h
@@ -4391,6 +4403,7 @@ include/uapi/linux/gen_stats.h
 include/uapi/linux/genetlink.h
 include/uapi/linux/gpio.h
 include/uapi/linux/gunyah.h
+include/uapi/linux/gzvm.h
 include/uapi/linux/hash_info.h
 include/uapi/linux/hdlc/ioctl.h
 include/uapi/linux/hdreg.h

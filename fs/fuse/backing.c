@@ -1446,32 +1446,34 @@ int fuse_mkdir_initialize(
 
 int fuse_mkdir_backing(
 		struct fuse_bpf_args *fa,
-		struct inode *dir, struct dentry *entry, umode_t mode)
+		struct inode *dir_inode, struct dentry *entry, umode_t mode)
 {
 	int err = 0;
 	const struct fuse_mkdir_in *fmi = fa->in_args[0].value;
-	struct fuse_inode *fuse_inode = get_fuse_inode(dir);
-	struct inode *backing_inode = fuse_inode->backing_inode;
+	struct fuse_inode *dir_fuse_inode = get_fuse_inode(dir_inode);
+	struct inode *dir_backing_inode = dir_fuse_inode->backing_inode;
 	struct path backing_path = {};
 	struct inode *inode = NULL;
-	struct dentry *d;
 
 	//TODO Actually deal with changing the backing entry in mkdir
 	get_fuse_backing_path(entry, &backing_path);
 	if (!backing_path.dentry)
 		return -EBADF;
 
-	inode_lock_nested(backing_inode, I_MUTEX_PARENT);
+	inode_lock_nested(dir_backing_inode, I_MUTEX_PARENT);
 	mode = fmi->mode;
-	if (!IS_POSIXACL(backing_inode))
+	if (!IS_POSIXACL(dir_backing_inode))
 		mode &= ~fmi->umask;
-	err = vfs_mkdir(&init_user_ns, backing_inode, backing_path.dentry, mode);
+	err = vfs_mkdir(&init_user_ns, dir_backing_inode, backing_path.dentry,
+			mode);
 	if (err)
 		goto out;
 	if (d_really_is_negative(backing_path.dentry) ||
 		unlikely(d_unhashed(backing_path.dentry))) {
-		d = lookup_one_len(entry->d_name.name, backing_path.dentry->d_parent,
-				entry->d_name.len);
+		struct dentry *d = lookup_one_len(entry->d_name.name,
+					backing_path.dentry->d_parent,
+					entry->d_name.len);
+
 		if (IS_ERR(d)) {
 			err = PTR_ERR(d);
 			goto out;
@@ -1479,14 +1481,19 @@ int fuse_mkdir_backing(
 		dput(backing_path.dentry);
 		backing_path.dentry = d;
 	}
-	inode = fuse_iget_backing(dir->i_sb, fuse_inode->nodeid, backing_inode);
+	inode = fuse_iget_backing(dir_inode->i_sb, 0,
+				  backing_path.dentry->d_inode);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out;
 	}
 	d_instantiate(entry, inode);
+	if (get_fuse_inode(inode)->bpf)
+		bpf_prog_put(get_fuse_inode(inode)->bpf);
+	get_fuse_inode(inode)->bpf = get_fuse_dentry(entry)->bpf;
+	get_fuse_dentry(entry)->bpf = NULL;
 out:
-	inode_unlock(backing_inode);
+	inode_unlock(dir_backing_inode);
 	path_put(&backing_path);
 	return err;
 }

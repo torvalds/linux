@@ -314,4 +314,12 @@ extern s64 cpuidle_governor_latency_req(unsigned int cpu);
 #define CPU_PM_CPU_IDLE_ENTER_RETENTION_PARAM(low_level_idle_enter, idx, state)	\
 	__CPU_PM_CPU_IDLE_ENTER(low_level_idle_enter, idx, state, 1)
 
+#ifdef CONFIG_CPU_IDLE_GOV_TEO
+unsigned long teo_cpu_get_util_threshold(int cpu);
+void teo_cpu_set_util_threshold(int cpu, unsigned long util);
+#else
+static inline unsigned long teo_cpu_get_util_threshold(int cpu) {return -1;}
+static inline void teo_cpu_set_util_threshold(int cpu, unsigned long util) {}
+#endif
+
 #endif /* _LINUX_CPUIDLE_H */

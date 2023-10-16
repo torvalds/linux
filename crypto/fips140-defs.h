@@ -17,9 +17,9 @@
  * related macros to be expanded as they would be for built-in code; e.g.,
  * module_init() adds the function to the .initcalls section of the binary.
  *
- * The .c file that contains the real module_init() for fips140.ko is then
- * responsible for redefining MODULE, and the real module_init() is responsible
- * for executing all the initcalls that were collected into .initcalls.
+ * The .c files that contain the real module_init, module license, and module
+ * parameters for fips140.ko are then responsible for redefining MODULE.  The
+ * real module_init executes all initcalls that were collected into .initcalls.
  */
 #undef MODULE
 

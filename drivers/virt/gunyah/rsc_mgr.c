@@ -300,7 +300,7 @@ struct gh_resource *gh_rm_alloc_resource(struct gh_rm *rm, struct gh_rm_hyp_reso
 	ghrsc->capid = le64_to_cpu(hyp_resource->cap_id);
 	ghrsc->irq = IRQ_NOTCONNECTED;
 	ghrsc->rm_label = le32_to_cpu(hyp_resource->resource_label);
-	if (hyp_resource->virq) {
+	if (hyp_resource->virq && hyp_resource->virq != GH_RM_RESOURCE_NO_VIRQ) {
 		struct gh_irq_chip_data irq_data = {
 			.gh_virq = le32_to_cpu(hyp_resource->virq),
 		};

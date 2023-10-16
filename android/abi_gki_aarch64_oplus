@@ -32,12 +32,15 @@
   iio_channel_get
   iio_channel_release
   iio_get_channel_type
+  ip_local_deliver
   ip6_local_out
   ip6_route_me_harder
   ip_route_me_harder
   ipv6_find_hdr
+  iov_iter_advance
   is_ashmem_file
   jiffies_64_to_clock_t
+  kick_process
   ktime_get_coarse_real_ts64
   memory_cgrp_subsys
   memory_cgrp_subsys_enabled_key
@@ -46,8 +49,11 @@
   mmc_wait_for_cmd
   nf_ct_attach
   nf_ct_delete
+  nf_register_net_hook
   nf_register_net_hooks
+  nf_unregister_net_hook
   nf_unregister_net_hooks
+  nr_running
   of_css
   __page_file_index
   __page_mapcount
@@ -65,6 +71,7 @@
   remove_proc_subtree
   rtc_read_alarm
   rtc_set_alarm
+  __rtnl_link_unregister
   sdio_memcpy_fromio
   sdio_memcpy_toio
   sdio_set_block_size
@@ -90,6 +97,9 @@
   __traceiter_android_vh_account_process_tick_gran
   __traceiter_android_vh_account_task_time
   __traceiter_android_vh_do_futex
+  __traceiter_android_vh_exit_check
+  __traceiter_android_vh_exit_signal_whether_wake
+  __traceiter_android_vh_freeze_whether_wake
   __traceiter_android_vh_futex_sleep_start
   __traceiter_android_vh_futex_wait_end
   __traceiter_android_vh_futex_wait_start
@@ -120,6 +130,7 @@
   __traceiter_android_vh_check_folio_look_around_ref
   __traceiter_android_vh_dup_task_struct
   __traceiter_android_vh_exit_signal
+  __traceiter_android_vh_killed_process
   __traceiter_android_vh_look_around
   __traceiter_android_vh_look_around_migrate_folio
   __traceiter_android_vh_mem_cgroup_id_remove
@@ -150,6 +161,10 @@
   __traceiter_block_rq_issue
   __traceiter_block_rq_merge
   __traceiter_block_rq_requeue
+  __traceiter_net_dev_queue
+  __traceiter_net_dev_xmit
+  __traceiter_netif_receive_skb
+  __traceiter_netif_rx
   __traceiter_sched_stat_blocked
   __traceiter_sched_stat_iowait
   __traceiter_sched_stat_runtime
@@ -158,6 +173,7 @@
   __traceiter_sched_waking
   __traceiter_task_rename
   __traceiter_android_vh_test_clear_look_around_ref
+  __traceiter_android_vh_tune_swappiness
   __tracepoint_android_rvh_post_init_entity_util_avg
   __tracepoint_android_rvh_rtmutex_force_update
   __tracepoint_android_vh_account_process_tick_gran
@@ -182,12 +198,16 @@
   __tracepoint_android_vh_check_folio_look_around_ref
   __tracepoint_android_vh_do_futex
   __tracepoint_android_vh_dup_task_struct
+  __tracepoint_android_vh_exit_check
   __tracepoint_android_vh_exit_signal
+  __tracepoint_android_vh_killed_process
+  __tracepoint_android_vh_exit_signal_whether_wake
   __tracepoint_android_vh_mem_cgroup_id_remove
   __tracepoint_android_vh_mem_cgroup_css_offline
   __tracepoint_android_vh_mem_cgroup_css_online
   __tracepoint_android_vh_mem_cgroup_free
   __tracepoint_android_vh_mem_cgroup_alloc
+  __tracepoint_android_vh_freeze_whether_wake
   __tracepoint_android_vh_futex_sleep_start
   __tracepoint_android_vh_futex_wait_end
   __tracepoint_android_vh_futex_wait_start
@@ -218,12 +238,17 @@
   __tracepoint_android_vh_sync_txn_recvd
   __tracepoint_android_vh_task_blocks_on_rtmutex
   __tracepoint_android_vh_test_clear_look_around_ref
+  __tracepoint_android_vh_tune_swappiness
   __tracepoint_block_bio_queue
   __tracepoint_block_getrq
   __tracepoint_block_rq_complete
   __tracepoint_block_rq_issue
   __tracepoint_block_rq_merge
   __tracepoint_block_rq_requeue
+  __tracepoint_net_dev_queue
+  __tracepoint_net_dev_xmit
+  __tracepoint_netif_receive_skb
+  __tracepoint_netif_rx
   __tracepoint_sched_stat_blocked
   __tracepoint_sched_stat_iowait
   __tracepoint_sched_stat_runtime
@@ -240,5 +265,6 @@
   wait_for_completion_io_timeout
   wait_for_completion_killable_timeout
   wakeup_source_remove
+  wake_up_state
   wq_worker_comm
   zero_pfn
