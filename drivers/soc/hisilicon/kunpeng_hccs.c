@@ -1244,14 +1244,12 @@ unregister_pcc_chan:
 	return rc;
 }
 
-static int hccs_remove(struct platform_device *pdev)
+static void hccs_remove(struct platform_device *pdev)
 {
 	struct hccs_dev *hdev = platform_get_drvdata(pdev);
 
 	hccs_remove_topo_dirs(hdev);
 	hccs_unregister_pcc_channel(hdev);
-
-	return 0;
 }
 
 static const struct acpi_device_id hccs_acpi_match[] = {
@@ -1262,7 +1260,7 @@ MODULE_DEVICE_TABLE(acpi, hccs_acpi_match);
 
 static struct platform_driver hccs_driver = {
 	.probe = hccs_probe,
-	.remove = hccs_remove,
+	.remove_new = hccs_remove,
 	.driver = {
 		.name = "kunpeng_hccs",
 		.acpi_match_table = hccs_acpi_match,
