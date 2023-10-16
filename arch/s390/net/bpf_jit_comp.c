@@ -2066,6 +2066,7 @@ struct bpf_tramp_jit {
 				 * func_addr's original caller
 				 */
 	int stack_size;		/* Trampoline stack size */
+	int backchain_off;	/* Offset of backchain */
 	int stack_args_off;	/* Offset of stack arguments for calling
 				 * func_addr, has to be at the top
 				 */
@@ -2086,9 +2087,10 @@ struct bpf_tramp_jit {
 				 * for __bpf_prog_enter() return value and
 				 * func_addr respectively
 				 */
-	int r14_off;		/* Offset of saved %r14 */
 	int run_ctx_off;	/* Offset of struct bpf_tramp_run_ctx */
 	int tccnt_off;		/* Offset of saved tailcall counter */
+	int r14_off;		/* Offset of saved %r14, has to be at the
+				 * bottom */
 	int do_fexit;		/* do_fexit: label */
 };
 
@@ -2247,8 +2249,12 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	 * Calculate the stack layout.
 	 */
 
-	/* Reserve STACK_FRAME_OVERHEAD bytes for the callees. */
+	/*
+	 * Allocate STACK_FRAME_OVERHEAD bytes for the callees. As the s390x
+	 * ABI requires, put our backchain at the end of the allocated memory.
+	 */
 	tjit->stack_size = STACK_FRAME_OVERHEAD;
+	tjit->backchain_off = tjit->stack_size - sizeof(u64);
 	tjit->stack_args_off = alloc_stack(tjit, nr_stack_args * sizeof(u64));
 	tjit->reg_args_off = alloc_stack(tjit, nr_reg_args * sizeof(u64));
 	tjit->ip_off = alloc_stack(tjit, sizeof(u64));
@@ -2256,16 +2262,25 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	tjit->bpf_args_off = alloc_stack(tjit, nr_bpf_args * sizeof(u64));
 	tjit->retval_off = alloc_stack(tjit, sizeof(u64));
 	tjit->r7_r8_off = alloc_stack(tjit, 2 * sizeof(u64));
-	tjit->r14_off = alloc_stack(tjit, sizeof(u64));
 	tjit->run_ctx_off = alloc_stack(tjit,
 					sizeof(struct bpf_tramp_run_ctx));
 	tjit->tccnt_off = alloc_stack(tjit, sizeof(u64));
-	/* The caller has already reserved STACK_FRAME_OVERHEAD bytes. */
-	tjit->stack_size -= STACK_FRAME_OVERHEAD;
+	tjit->r14_off = alloc_stack(tjit, sizeof(u64) * 2);
+	/*
+	 * In accordance with the s390x ABI, the caller has allocated
+	 * STACK_FRAME_OVERHEAD bytes for us. 8 of them contain the caller's
+	 * backchain, and the rest we can use.
+	 */
+	tjit->stack_size -= STACK_FRAME_OVERHEAD - sizeof(u64);
 	tjit->orig_stack_args_off = tjit->stack_size + STACK_FRAME_OVERHEAD;
 
+	/* lgr %r1,%r15 */
+	EMIT4(0xb9040000, REG_1, REG_15);
 	/* aghi %r15,-stack_size */
 	EMIT4_IMM(0xa70b0000, REG_15, -tjit->stack_size);
+	/* stg %r1,backchain_off(%r15) */
+	EMIT6_DISP_LH(0xe3000000, 0x0024, REG_1, REG_0, REG_15,
+		      tjit->backchain_off);
 	/* mvc tccnt_off(4,%r15),stack_size+STK_OFF_TCCNT(%r15) */
 	_EMIT6(0xd203f000 | tjit->tccnt_off,
 	       0xf000 | (tjit->stack_size + STK_OFF_TCCNT));
@@ -2513,7 +2528,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 			return -E2BIG;
 	}
 
-	return ret;
+	return tjit.common.prg;
 }
 
 bool bpf_jit_supports_subprog_tailcalls(void)
