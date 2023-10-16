@@ -221,7 +221,7 @@ of the defined channels, and their uses.
 +----------------+---------+----------+----------------------------------------+
 | QAIC_DEBUG     | 18 & 19 | AMSS     | Not used.                              |
 +----------------+---------+----------+----------------------------------------+
-| QAIC_TIMESYNC  | 20 & 21 | SBL/AMSS | Used to synchronize timestamps in the  |
+| QAIC_TIMESYNC  | 20 & 21 | SBL      | Used to synchronize timestamps in the  |
 |                |         |          | device side logs with the host time    |
 |                |         |          | source.                                |
 +----------------+---------+----------+----------------------------------------+

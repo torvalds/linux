@@ -22,7 +22,8 @@ module_param(timesync_delay_ms, uint, 0600);
 MODULE_PARM_DESC(timesync_delay_ms, "Delay in ms between two consecutive timesync operations");
 
 enum qts_msg_type {
-	QAIC_TS_SYNC_REQ = 1,
+	QAIC_TS_CMD_TO_HOST,
+	QAIC_TS_SYNC_REQ,
 	QAIC_TS_ACK_TO_HOST,
 	QAIC_TS_MSG_TYPE_MAX
 };
@@ -81,6 +82,16 @@ struct mqts_dev {
 	atomic_t buff_in_use;
 	struct device *dev;
 	struct qts_host_time_sync_msg_data *sync_msg;
+};
+
+struct qts_resp_msg {
+	struct qts_hdr	hdr;
+} __packed;
+
+struct qts_resp {
+	struct qts_resp_msg	data;
+	struct work_struct	work;
+	struct qaic_device	*qdev;
 };
 
 #ifdef readq
@@ -234,12 +245,151 @@ static struct mhi_driver qaic_timesync_driver = {
 	},
 };
 
+static void qaic_boot_timesync_worker(struct work_struct *work)
+{
+	struct qts_resp *resp = container_of(work, struct qts_resp, work);
+	struct qts_host_time_sync_msg_data *req;
+	struct qts_resp_msg data = resp->data;
+	struct qaic_device *qdev = resp->qdev;
+	struct mhi_device *mhi_dev;
+	struct timespec64 ts;
+	int ret;
+
+	mhi_dev = qdev->qts_ch;
+	/* Queue the response message beforehand to avoid race conditions */
+	ret = mhi_queue_buf(mhi_dev, DMA_FROM_DEVICE, &resp->data, sizeof(resp->data), MHI_EOT);
+	if (ret) {
+		kfree(resp);
+		dev_warn(&mhi_dev->dev, "Failed to re-queue response buffer %d\n", ret);
+		return;
+	}
+
+	switch (data.hdr.msg_type) {
+	case QAIC_TS_CMD_TO_HOST:
+		req = kzalloc(sizeof(*req), GFP_KERNEL);
+		if (!req)
+			break;
+
+		req->header = data.hdr;
+		req->header.msg_type = QAIC_TS_SYNC_REQ;
+		ktime_get_real_ts64(&ts);
+		req->data.tv_sec = cpu_to_le64(ts.tv_sec);
+		req->data.tv_usec = cpu_to_le64(div_u64(ts.tv_nsec, NSEC_PER_USEC));
+
+		ret = mhi_queue_buf(mhi_dev, DMA_TO_DEVICE, req, sizeof(*req), MHI_EOT);
+		if (ret) {
+			kfree(req);
+			dev_dbg(&mhi_dev->dev, "Failed to send request message. Error %d\n", ret);
+		}
+		break;
+	case QAIC_TS_ACK_TO_HOST:
+		dev_dbg(&mhi_dev->dev, "ACK received from device\n");
+		break;
+	default:
+		dev_err(&mhi_dev->dev, "Invalid message type %u.\n", data.hdr.msg_type);
+	}
+}
+
+static int qaic_boot_timesync_queue_resp(struct mhi_device *mhi_dev, struct qaic_device *qdev)
+{
+	struct qts_resp *resp;
+	int ret;
+
+	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
+
+	resp->qdev = qdev;
+	INIT_WORK(&resp->work, qaic_boot_timesync_worker);
+
+	ret = mhi_queue_buf(mhi_dev, DMA_FROM_DEVICE, &resp->data, sizeof(resp->data), MHI_EOT);
+	if (ret) {
+		kfree(resp);
+		dev_warn(&mhi_dev->dev, "Failed to queue response buffer %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void qaic_boot_timesync_remove(struct mhi_device *mhi_dev)
+{
+	struct qaic_device *qdev;
+
+	qdev = dev_get_drvdata(&mhi_dev->dev);
+	mhi_unprepare_from_transfer(qdev->qts_ch);
+	qdev->qts_ch = NULL;
+}
+
+static int qaic_boot_timesync_probe(struct mhi_device *mhi_dev, const struct mhi_device_id *id)
+{
+	struct qaic_device *qdev = pci_get_drvdata(to_pci_dev(mhi_dev->mhi_cntrl->cntrl_dev));
+	int ret;
+
+	ret = mhi_prepare_for_transfer(mhi_dev);
+	if (ret)
+		return ret;
+
+	qdev->qts_ch = mhi_dev;
+	dev_set_drvdata(&mhi_dev->dev, qdev);
+
+	ret = qaic_boot_timesync_queue_resp(mhi_dev, qdev);
+	if (ret) {
+		dev_set_drvdata(&mhi_dev->dev, NULL);
+		qdev->qts_ch = NULL;
+		mhi_unprepare_from_transfer(mhi_dev);
+	}
+
+	return ret;
+}
+
+static void qaic_boot_timesync_ul_xfer_cb(struct mhi_device *mhi_dev, struct mhi_result *mhi_result)
+{
+	kfree(mhi_result->buf_addr);
+}
+
+static void qaic_boot_timesync_dl_xfer_cb(struct mhi_device *mhi_dev, struct mhi_result *mhi_result)
+{
+	struct qts_resp *resp = container_of(mhi_result->buf_addr, struct qts_resp, data);
+
+	if (mhi_result->transaction_status || mhi_result->bytes_xferd != sizeof(resp->data)) {
+		kfree(resp);
+		return;
+	}
+
+	queue_work(resp->qdev->qts_wq, &resp->work);
+}
+
+static const struct mhi_device_id qaic_boot_timesync_match_table[] = {
+	{ .chan = "QAIC_TIMESYNC"},
+	{},
+};
+
+static struct mhi_driver qaic_boot_timesync_driver = {
+	.id_table = qaic_boot_timesync_match_table,
+	.remove = qaic_boot_timesync_remove,
+	.probe = qaic_boot_timesync_probe,
+	.ul_xfer_cb = qaic_boot_timesync_ul_xfer_cb,
+	.dl_xfer_cb = qaic_boot_timesync_dl_xfer_cb,
+	.driver = {
+		.name = "qaic_timesync",
+	},
+};
+
 int qaic_timesync_init(void)
 {
-	return mhi_driver_register(&qaic_timesync_driver);
+	int ret;
+
+	ret = mhi_driver_register(&qaic_timesync_driver);
+	if (ret)
+		return ret;
+	ret = mhi_driver_register(&qaic_boot_timesync_driver);
+
+	return ret;
 }
 
 void qaic_timesync_deinit(void)
 {
+	mhi_driver_unregister(&qaic_boot_timesync_driver);
 	mhi_driver_unregister(&qaic_timesync_driver);
 }

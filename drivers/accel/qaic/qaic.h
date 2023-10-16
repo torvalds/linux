@@ -139,6 +139,10 @@ struct qaic_device {
 	u32 (*gen_crc)(void *msg);
 	/* Validate the CRC of a control message */
 	bool (*valid_crc)(void *msg);
+	/* MHI "QAIC_TIMESYNC" channel device */
+	struct mhi_device	*qts_ch;
+	/* Work queue for tasks related to MHI "QAIC_TIMESYNC" channel */
+	struct workqueue_struct	*qts_wq;
 };
 
 struct qaic_drm_device {

@@ -325,6 +325,7 @@ static void cleanup_qdev(struct qaic_device *qdev)
 	cleanup_srcu_struct(&qdev->dev_lock);
 	pci_set_drvdata(qdev->pdev, NULL);
 	destroy_workqueue(qdev->cntl_wq);
+	destroy_workqueue(qdev->qts_wq);
 }
 
 static struct qaic_device *create_qdev(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -347,6 +348,12 @@ static struct qaic_device *create_qdev(struct pci_dev *pdev, const struct pci_de
 	qdev->cntl_wq = alloc_workqueue("qaic_cntl", WQ_UNBOUND, 0);
 	if (!qdev->cntl_wq)
 		return NULL;
+
+	qdev->qts_wq = alloc_workqueue("qaic_ts", WQ_UNBOUND, 0);
+	if (!qdev->qts_wq) {
+		destroy_workqueue(qdev->cntl_wq);
+		return NULL;
+	}
 
 	pci_set_drvdata(pdev, qdev);
 	qdev->pdev = pdev;
