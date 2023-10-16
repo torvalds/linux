@@ -86,8 +86,6 @@ required:
   - interrupts
   - reg
 
-unevaluatedProperties: false
-
 allOf:
   - $ref: serial.yaml#
 
@@ -127,6 +125,8 @@ allOf:
           items:
             - const: uart
             - const: clk_uart_baud0
+
+unevaluatedProperties: false
 
 examples:
   - |
