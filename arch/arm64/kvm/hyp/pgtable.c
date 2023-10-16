@@ -401,7 +401,7 @@ static int hyp_set_prot_attr(enum kvm_pgtable_prot prot, kvm_pte_t *ptep)
 		if (device)
 			return -EINVAL;
 
-		if (IS_ENABLED(CONFIG_ARM64_BTI_KERNEL) && system_supports_bti())
+		if (system_supports_bti_kernel())
 			attr |= KVM_PTE_LEAF_ATTR_HI_S1_GP;
 	} else {
 		attr |= KVM_PTE_LEAF_ATTR_HI_S1_XN;

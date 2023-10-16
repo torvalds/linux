@@ -837,7 +837,13 @@ static inline bool system_has_prio_mask_debugging(void)
 
 static inline bool system_supports_bti(void)
 {
-	return cpus_have_const_cap(ARM64_BTI);
+	return cpus_have_final_cap(ARM64_BTI);
+}
+
+static inline bool system_supports_bti_kernel(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_BTI_KERNEL) &&
+		cpus_have_final_boot_cap(ARM64_BTI);
 }
 
 static inline bool system_supports_tlb_range(void)
