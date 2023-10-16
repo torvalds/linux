@@ -24,7 +24,7 @@ allOf:
         compatible:
           const: mscc,vsc7514-switch
     then:
-      $ref: ethernet-switch.yaml#
+      $ref: ethernet-switch.yaml#/$defs/ethernet-ports
       required:
         - interrupts
         - interrupt-names
@@ -33,28 +33,18 @@ allOf:
           minItems: 21
         reg-names:
           minItems: 21
-        ethernet-ports:
-          patternProperties:
-            "^port@[0-9a-f]+$":
-              $ref: ethernet-switch-port.yaml#
-              unevaluatedProperties: false
 
   - if:
       properties:
         compatible:
           const: mscc,vsc7512-switch
     then:
-      $ref: /schemas/net/dsa/dsa.yaml#
+      $ref: /schemas/net/dsa/dsa.yaml#/$defs/ethernet-ports
       properties:
         reg:
           maxItems: 20
         reg-names:
           maxItems: 20
-        ethernet-ports:
-          patternProperties:
-            "^port@[0-9a-f]+$":
-              $ref: /schemas/net/dsa/dsa-port.yaml#
-              unevaluatedProperties: false
 
 properties:
   compatible:
