@@ -650,10 +650,13 @@ int vfio_platform_init_common(struct vfio_platform_device *vdev)
 	mutex_init(&vdev->igate);
 
 	ret = vfio_platform_get_reset(vdev);
-	if (ret && vdev->reset_required)
+	if (ret && vdev->reset_required) {
 		dev_err(dev, "No reset function found for device %s\n",
 			vdev->name);
-	return ret;
+		return ret;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(vfio_platform_init_common);
 
