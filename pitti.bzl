@@ -8,6 +8,7 @@ def define_pitti():
     _pitti_in_tree_modules = [
         # keep sorted
         # TODO: Need to add GKI modules
+        "drivers/char/rdbg.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
         "drivers/clk/qcom/gcc-pitti.ko",
@@ -20,6 +21,7 @@ def define_pitti():
         "drivers/iommu/msm_dma_iommu_mapping.ko",
         "drivers/iommu/qcom_iommu_util.ko",
         "drivers/irqchip/qcom-mpm.ko",
+        "drivers/mailbox/msm_qmp.ko",
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
@@ -30,10 +32,14 @@ def define_pitti():
         "drivers/pinctrl/qcom/pinctrl-pitti.ko",
         "drivers/regulator/stub-regulator.ko",
         "drivers/rpmsg/rpm-smd.ko",
+        "drivers/slimbus/slimbus.ko",
         "drivers/soc/qcom/mem-hooks.ko",
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
+        "drivers/soc/qcom/pdr_interface.ko",
+        "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_stats.ko",
+        "drivers/soc/qcom/qmi_helpers.ko",
         "drivers/soc/qcom/rpm_master_stat.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/socinfo.ko",
