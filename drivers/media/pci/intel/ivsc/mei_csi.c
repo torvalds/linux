@@ -645,27 +645,49 @@ static int mei_csi_parse_firmware(struct mei_csi *csi)
 	};
 	struct device *dev = &csi->cldev->dev;
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *ep;
+	struct fwnode_handle *sink_ep, *source_ep;
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0, 0);
-	if (!ep) {
-		dev_err(dev, "not connected to subdevice\n");
+	sink_ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0, 0);
+	if (!sink_ep) {
+		dev_err(dev, "can't obtain sink endpoint\n");
 		return -EINVAL;
 	}
 
 	v4l2_async_subdev_nf_init(&csi->notifier, &csi->subdev);
 	csi->notifier.ops = &mei_csi_notify_ops;
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
+	ret = v4l2_fwnode_endpoint_parse(sink_ep, &v4l2_ep);
 	if (ret) {
-		dev_err(dev, "could not parse v4l2 endpoint\n");
+		dev_err(dev, "could not parse v4l2 sink endpoint\n");
 		goto out_nf_cleanup;
 	}
 
 	csi->nr_of_lanes = v4l2_ep.bus.mipi_csi2.num_data_lanes;
 
-	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
+	source_ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 1, 0, 0);
+	if (!source_ep) {
+		ret = -ENOTCONN;
+		dev_err(dev, "can't obtain source endpoint\n");
+		goto out_nf_cleanup;
+	}
+
+	ret = v4l2_fwnode_endpoint_parse(source_ep, &v4l2_ep);
+	fwnode_handle_put(source_ep);
+	if (ret) {
+		dev_err(dev, "could not parse v4l2 source endpoint\n");
+		goto out_nf_cleanup;
+	}
+
+	if (csi->nr_of_lanes != v4l2_ep.bus.mipi_csi2.num_data_lanes) {
+		ret = -EINVAL;
+		dev_err(dev,
+			"the number of lanes does not match (%u vs. %u)\n",
+			csi->nr_of_lanes, v4l2_ep.bus.mipi_csi2.num_data_lanes);
+		goto out_nf_cleanup;
+	}
+
+	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, sink_ep,
 					      struct v4l2_async_connection);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
@@ -676,13 +698,13 @@ static int mei_csi_parse_firmware(struct mei_csi *csi)
 	if (ret)
 		goto out_nf_cleanup;
 
-	fwnode_handle_put(ep);
+	fwnode_handle_put(sink_ep);
 
 	return 0;
 
 out_nf_cleanup:
 	v4l2_async_nf_cleanup(&csi->notifier);
-	fwnode_handle_put(ep);
+	fwnode_handle_put(sink_ep);
 
 	return ret;
 }
