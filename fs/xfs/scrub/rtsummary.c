@@ -130,7 +130,7 @@ xchk_rtsum_record_free(
 		return error;
 
 	/* Compute the relevant location in the rtsum file. */
-	rbmoff = XFS_BITTOBLOCK(mp, rec->ar_startext);
+	rbmoff = xfs_rtx_to_rbmblock(mp, rec->ar_startext);
 	lenlog = XFS_RTBLOCKLOG(rec->ar_extcount);
 	offs = XFS_SUMOFFS(mp, lenlog, rbmoff);
 
