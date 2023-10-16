@@ -10,6 +10,9 @@ accelerator products.
 Interrupts
 ==========
 
+IRQ Storm Mitigation
+--------------------
+
 While the AIC100 DMA Bridge hardware implements an IRQ storm mitigation
 mechanism, it is still possible for an IRQ storm to occur. A storm can happen
 if the workload is particularly quick, and the host is responsive. If the host
@@ -34,6 +37,26 @@ This mitigation in QAIC is very effective. The same lprnet usecase that
 generates 100k IRQs per second (per /proc/interrupts) is reduced to roughly 64
 IRQs over 5 minutes while keeping the host system stable, and having the same
 workload throughput performance (within run to run noise variation).
+
+Single MSI Mode
+---------------
+
+MultiMSI is not well supported on all systems; virtualized ones even less so
+(circa 2023). Between hypervisors masking the PCIe MSI capability structure to
+large memory requirements for vIOMMUs (required for supporting MultiMSI), it is
+useful to be able to fall back to a single MSI when needed.
+
+To support this fallback, we allow the case where only one MSI is able to be
+allocated, and share that one MSI between MHI and the DBCs. The device detects
+when only one MSI has been configured and directs the interrupts for the DBCs
+to the interrupt normally used for MHI. Unfortunately this means that the
+interrupt handlers for every DBC and MHI wake up for every interrupt that
+arrives; however, the DBC threaded irq handlers only are started when work to be
+done is detected (MHI will always start its threaded handler).
+
+If the DBC is configured to force MSI interrupts, this can circumvent the
+software IRQ storm mitigation mentioned above. Since the MSI is shared it is
+never disabled, allowing each new entry to the FIFO to trigger a new interrupt.
 
 
 Neural Network Control (NNC) Protocol

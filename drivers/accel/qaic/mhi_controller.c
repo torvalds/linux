@@ -468,7 +468,7 @@ static int mhi_reset_and_async_power_up(struct mhi_controller *mhi_cntrl)
 }
 
 struct mhi_controller *qaic_mhi_register_controller(struct pci_dev *pci_dev, void __iomem *mhi_bar,
-						    int mhi_irq)
+						    int mhi_irq, bool shared_msi)
 {
 	struct mhi_controller *mhi_cntrl;
 	int ret;
@@ -500,6 +500,10 @@ struct mhi_controller *qaic_mhi_register_controller(struct pci_dev *pci_dev, voi
 		return ERR_PTR(-ENOMEM);
 
 	mhi_cntrl->irq[0] = mhi_irq;
+
+	if (shared_msi) /* MSI shared with data path, no IRQF_NO_SUSPEND */
+		mhi_cntrl->irq_flags = IRQF_SHARED;
+
 	mhi_cntrl->fw_image = "qcom/aic100/sbl.bin";
 
 	/* use latest configured timeout */

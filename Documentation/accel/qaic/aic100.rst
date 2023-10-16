@@ -36,8 +36,9 @@ AIC100 DID (0xa100).
 
 AIC100 does not implement FLR (function level reset).
 
-AIC100 implements MSI but does not implement MSI-X. AIC100 requires 17 MSIs to
-operate (1 for MHI, 16 for the DMA Bridge).
+AIC100 implements MSI but does not implement MSI-X. AIC100 prefers 17 MSIs to
+operate (1 for MHI, 16 for the DMA Bridge). Falling back to 1 MSI is possible in
+scenarios where reserving 32 MSIs isn't feasible.
 
 As a PCIe device, AIC100 utilizes BARs to provide host interfaces to the device
 hardware. AIC100 provides 3, 64-bit BARs.

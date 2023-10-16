@@ -123,6 +123,8 @@ struct qaic_device {
 	struct srcu_struct	dev_lock;
 	/* true: Device under reset; false: Device not under reset */
 	bool			in_reset;
+	/* true: single MSI is used to operate device */
+	bool			single_msi;
 	/*
 	 * true: A tx MHI transaction has failed and a rx buffer is still queued
 	 * in control device. Such a buffer is considered lost rx buffer
