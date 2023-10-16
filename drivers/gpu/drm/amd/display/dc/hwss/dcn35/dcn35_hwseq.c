@@ -138,16 +138,17 @@ void dcn35_init_hw(struct dc *dc)
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
 
-	REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-	REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0x3F000000);
-	REG_WRITE(DCCG_GATE_DISABLE_CNTL5, 0x1f7c3fcf);
-
 	//dcn35_set_dmu_fgcg(hws, dc->debug.enable_fine_grain_clock_gating.bits.dmu);
 
 	if (!dcb->funcs->is_accelerated_mode(dcb)) {
 		/*this calls into dmubfw to do the init*/
 		hws->funcs.bios_golden_init(dc);
 	}
+
+	REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
+	REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0x3F000000);
+	REG_WRITE(DCCG_GATE_DISABLE_CNTL5, 0x1f7c3fcf);
+
 	// Initialize the dccg
 	if (res_pool->dccg->funcs->dccg_init)
 		res_pool->dccg->funcs->dccg_init(res_pool->dccg);
