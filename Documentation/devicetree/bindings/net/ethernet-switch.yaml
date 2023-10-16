@@ -53,7 +53,7 @@ oneOf:
 additionalProperties: true
 
 $defs:
-  base:
+  ethernet-ports:
     description: An ethernet switch without any extra port properties
     $ref: '#'
 
