@@ -160,12 +160,11 @@ xchk_rtsum_compute(
 	struct xfs_scrub	*sc)
 {
 	struct xfs_mount	*mp = sc->mp;
-	unsigned long long	rtbmp_bytes;
+	unsigned long long	rtbmp_blocks;
 
 	/* If the bitmap size doesn't match the computed size, bail. */
-	rtbmp_bytes = howmany_64(mp->m_sb.sb_rextents, NBBY);
-	if (roundup_64(rtbmp_bytes, mp->m_sb.sb_blocksize) !=
-			mp->m_rbmip->i_disk_size)
+	rtbmp_blocks = xfs_rtbitmap_blockcount(mp, mp->m_sb.sb_rextents);
+	if (XFS_FSB_TO_B(mp, rtbmp_blocks) != mp->m_rbmip->i_disk_size)
 		return -EFSCORRUPTED;
 
 	return xfs_rtalloc_query_all(sc->mp, sc->tp, xchk_rtsum_record_free,
