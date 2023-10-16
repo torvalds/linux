@@ -274,6 +274,6 @@ struct platform_driver vop2_platform_driver = {
 	.remove_new = vop2_remove,
 	.driver = {
 		.name = "rockchip-vop2",
-		.of_match_table = of_match_ptr(vop2_dt_match),
+		.of_match_table = vop2_dt_match,
 	},
 };

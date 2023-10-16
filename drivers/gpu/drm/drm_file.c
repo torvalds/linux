@@ -964,6 +964,8 @@ void drm_show_memory_stats(struct drm_printer *p, struct drm_file *file)
 	spin_lock(&file->table_lock);
 	idr_for_each_entry (&file->object_idr, obj, id) {
 		enum drm_gem_object_status s = 0;
+		size_t add_size = (obj->funcs && obj->funcs->rss) ?
+			obj->funcs->rss(obj) : obj->size;
 
 		if (obj->funcs && obj->funcs->status) {
 			s = obj->funcs->status(obj);
@@ -978,7 +980,7 @@ void drm_show_memory_stats(struct drm_printer *p, struct drm_file *file)
 		}
 
 		if (s & DRM_GEM_OBJECT_RESIDENT) {
-			status.resident += obj->size;
+			status.resident += add_size;
 		} else {
 			/* If already purged or not yet backed by pages, don't
 			 * count it as purgeable:
@@ -987,14 +989,14 @@ void drm_show_memory_stats(struct drm_printer *p, struct drm_file *file)
 		}
 
 		if (!dma_resv_test_signaled(obj->resv, dma_resv_usage_rw(true))) {
-			status.active += obj->size;
+			status.active += add_size;
 
 			/* If still active, don't count as purgeable: */
 			s &= ~DRM_GEM_OBJECT_PURGEABLE;
 		}
 
 		if (s & DRM_GEM_OBJECT_PURGEABLE)
-			status.purgeable += obj->size;
+			status.purgeable += add_size;
 	}
 	spin_unlock(&file->table_lock);
 

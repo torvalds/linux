@@ -655,7 +655,7 @@ struct ip_hw_instance {
 	u8  harvest;
 
 	int num_base_addresses;
-	u32 base_addr[];
+	u32 base_addr[] __counted_by(num_base_addresses);
 };
 
 struct ip_hw_id {

@@ -6,8 +6,12 @@
 #ifndef __IVPU_DEBUGFS_H__
 #define __IVPU_DEBUGFS_H__
 
-struct drm_minor;
+struct ivpu_device;
 
-void ivpu_debugfs_init(struct drm_minor *minor);
+#if defined(CONFIG_DEBUG_FS)
+void ivpu_debugfs_init(struct ivpu_device *vdev);
+#else
+static inline void ivpu_debugfs_init(struct ivpu_device *vdev) { }
+#endif
 
 #endif /* __IVPU_DEBUGFS_H__ */
