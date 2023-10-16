@@ -405,6 +405,13 @@ struct rtw89_physts_regs {
 	u32 dis_trigger_brk_mask;
 };
 
+struct rtw89_cfo_regs {
+	u32 comp;
+	u32 weighting_mask;
+	u32 comp_seg0;
+	u32 valid_0_mask;
+};
+
 enum rtw89_bandwidth_section_num_ax {
 	RTW89_BW20_SEC_NUM_AX = 8,
 	RTW89_BW40_SEC_NUM_AX = 4,
@@ -475,6 +482,7 @@ struct rtw89_phy_gen_def {
 	u32 cr_base;
 	const struct rtw89_ccx_regs *ccx;
 	const struct rtw89_physts_regs *physts;
+	const struct rtw89_cfo_regs *cfo;
 
 	void (*set_txpwr_byrate)(struct rtw89_dev *rtwdev,
 				 const struct rtw89_chan *chan,
