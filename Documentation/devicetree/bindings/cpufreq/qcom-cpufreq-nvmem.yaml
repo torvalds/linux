@@ -28,6 +28,7 @@ select:
           - qcom,apq8064
           - qcom,apq8096
           - qcom,ipq5332
+          - qcom,ipq6018
           - qcom,ipq8064
           - qcom,ipq8074
           - qcom,ipq9574
