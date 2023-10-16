@@ -188,6 +188,10 @@ STATIC int
 xchk_rtsum_compare(
 	struct xfs_scrub	*sc)
 {
+	struct xfs_rtalloc_args args = {
+		.mp		= sc->mp,
+		.tp		= sc->tp,
+	};
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_buf		*bp;
 	struct xfs_bmbt_irec	map;
@@ -217,7 +221,7 @@ xchk_rtsum_compare(
 		}
 
 		/* Read a block's worth of ondisk rtsummary file. */
-		error = xfs_rtbuf_get(mp, sc->tp, off, 1, &bp);
+		error = xfs_rtbuf_get(&args, off, 1, &bp);
 		if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, off, &error))
 			return error;
 

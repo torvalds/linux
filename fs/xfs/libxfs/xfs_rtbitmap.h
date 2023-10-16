@@ -6,6 +6,11 @@
 #ifndef __XFS_RTBITMAP_H__
 #define	__XFS_RTBITMAP_H__
 
+struct xfs_rtalloc_args {
+	struct xfs_mount	*mp;
+	struct xfs_trans	*tp;
+};
+
 static inline xfs_rtblock_t
 xfs_rtx_to_rtb(
 	struct xfs_mount	*mp,
@@ -281,29 +286,24 @@ typedef int (*xfs_rtalloc_query_range_fn)(
 	void				*priv);
 
 #ifdef CONFIG_XFS_RT
-int xfs_rtbuf_get(struct xfs_mount *mp, struct xfs_trans *tp,
-		  xfs_fileoff_t block, int issum, struct xfs_buf **bpp);
-int xfs_rtcheck_range(struct xfs_mount *mp, struct xfs_trans *tp,
-		      xfs_rtxnum_t start, xfs_rtxlen_t len, int val,
-		      xfs_rtxnum_t *new, int *stat);
-int xfs_rtfind_back(struct xfs_mount *mp, struct xfs_trans *tp,
-		    xfs_rtxnum_t start, xfs_rtxnum_t limit,
-		    xfs_rtxnum_t *rtblock);
-int xfs_rtfind_forw(struct xfs_mount *mp, struct xfs_trans *tp,
-		    xfs_rtxnum_t start, xfs_rtxnum_t limit,
-		    xfs_rtxnum_t *rtblock);
-int xfs_rtmodify_range(struct xfs_mount *mp, struct xfs_trans *tp,
-		       xfs_rtxnum_t start, xfs_rtxlen_t len, int val);
-int xfs_rtmodify_summary_int(struct xfs_mount *mp, struct xfs_trans *tp,
-			     int log, xfs_fileoff_t bbno, int delta,
-			     struct xfs_buf **rbpp, xfs_fileoff_t *rsb,
-			     xfs_suminfo_t *sum);
-int xfs_rtmodify_summary(struct xfs_mount *mp, struct xfs_trans *tp, int log,
-			 xfs_fileoff_t bbno, int delta, struct xfs_buf **rbpp,
-			 xfs_fileoff_t *rsb);
-int xfs_rtfree_range(struct xfs_mount *mp, struct xfs_trans *tp,
-		     xfs_rtxnum_t start, xfs_rtxlen_t len,
-		     struct xfs_buf **rbpp, xfs_fileoff_t *rsb);
+int xfs_rtbuf_get(struct xfs_rtalloc_args *args, xfs_fileoff_t block,
+		int issum, struct xfs_buf **bpp);
+int xfs_rtcheck_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
+		xfs_rtxlen_t len, int val, xfs_rtxnum_t *new, int *stat);
+int xfs_rtfind_back(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
+		xfs_rtxnum_t limit, xfs_rtxnum_t *rtblock);
+int xfs_rtfind_forw(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
+		xfs_rtxnum_t limit, xfs_rtxnum_t *rtblock);
+int xfs_rtmodify_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
+		xfs_rtxlen_t len, int val);
+int xfs_rtmodify_summary_int(struct xfs_rtalloc_args *args, int log,
+		xfs_fileoff_t bbno, int delta, struct xfs_buf **rbpp,
+		xfs_fileoff_t *rsb, xfs_suminfo_t *sum);
+int xfs_rtmodify_summary(struct xfs_rtalloc_args *args, int log,
+		xfs_fileoff_t bbno, int delta, struct xfs_buf **rbpp,
+		xfs_fileoff_t *rsb);
+int xfs_rtfree_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
+		xfs_rtxlen_t len, struct xfs_buf **rbpp, xfs_fileoff_t *rsb);
 int xfs_rtalloc_query_range(struct xfs_mount *mp, struct xfs_trans *tp,
 		const struct xfs_rtalloc_rec *low_rec,
 		const struct xfs_rtalloc_rec *high_rec,
