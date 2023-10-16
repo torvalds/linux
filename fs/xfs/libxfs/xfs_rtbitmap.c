@@ -451,7 +451,6 @@ xfs_rtmodify_summary_int(
 	int		error;		/* error value */
 	xfs_fileoff_t	sb;		/* summary fsblock */
 	xfs_rtsumoff_t	so;		/* index into the summary file */
-	xfs_suminfo_t	*sp;		/* pointer to returned data */
 	unsigned int	infoword;
 
 	/*
@@ -490,19 +489,21 @@ xfs_rtmodify_summary_int(
 	 * Point to the summary information, modify/log it, and/or copy it out.
 	 */
 	infoword = xfs_rtsumoffs_to_infoword(mp, so);
-	sp = xfs_rsumblock_infoptr(bp, infoword);
 	if (delta) {
-		*sp += delta;
+		xfs_suminfo_t	val = xfs_suminfo_add(bp, infoword, delta);
+
 		if (mp->m_rsum_cache) {
-			if (*sp == 0 && log == mp->m_rsum_cache[bbno])
+			if (val == 0 && log == mp->m_rsum_cache[bbno])
 				mp->m_rsum_cache[bbno]++;
-			if (*sp != 0 && log < mp->m_rsum_cache[bbno])
+			if (val != 0 && log < mp->m_rsum_cache[bbno])
 				mp->m_rsum_cache[bbno] = log;
 		}
 		xfs_trans_log_rtsummary(tp, bp, infoword);
+		if (sum)
+			*sum = val;
+	} else if (sum) {
+		*sum = xfs_suminfo_get(bp, infoword);
 	}
-	if (sum)
-		*sum = *sp;
 	return 0;
 }
 

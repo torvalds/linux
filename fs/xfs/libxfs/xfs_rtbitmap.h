@@ -232,14 +232,38 @@ xfs_rtsumoffs_to_infoword(
 }
 
 /* Return a pointer to a summary info word within a rt summary block. */
-static inline xfs_suminfo_t *
+static inline union xfs_suminfo_raw *
 xfs_rsumblock_infoptr(
 	struct xfs_buf		*bp,
 	unsigned int		index)
 {
-	xfs_suminfo_t		*info = bp->b_addr;
+	union xfs_suminfo_raw	*info = bp->b_addr;
 
 	return info + index;
+}
+
+/* Get the current value of a summary counter. */
+static inline xfs_suminfo_t
+xfs_suminfo_get(
+	struct xfs_buf		*bp,
+	unsigned int		index)
+{
+	union xfs_suminfo_raw	*info = xfs_rsumblock_infoptr(bp, index);
+
+	return info->old;
+}
+
+/* Add to the current value of a summary counter and return the new value. */
+static inline xfs_suminfo_t
+xfs_suminfo_add(
+	struct xfs_buf		*bp,
+	unsigned int		index,
+	int			delta)
+{
+	union xfs_suminfo_raw	*info = xfs_rsumblock_infoptr(bp, index);
+
+	info->old += delta;
+	return info->old;
 }
 
 /*
