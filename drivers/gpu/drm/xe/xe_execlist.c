@@ -7,6 +7,7 @@
 
 #include <drm/drm_managed.h>
 
+#include "instructions/xe_mi_commands.h"
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"

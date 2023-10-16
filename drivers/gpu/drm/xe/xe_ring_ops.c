@@ -6,6 +6,7 @@
 #include "xe_ring_ops.h"
 
 #include "generated/xe_wa_oob.h"
+#include "instructions/xe_mi_commands.h"
 #include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
@@ -91,7 +92,7 @@ static int emit_flush_imm_ggtt(u32 addr, u32 value, bool invalidate_tlb,
 
 static int emit_bb_start(u64 batch_addr, u32 ppgtt_flag, u32 *dw, int i)
 {
-	dw[i++] = MI_BATCH_BUFFER_START | ppgtt_flag;
+	dw[i++] = MI_BATCH_BUFFER_START | ppgtt_flag | XE_INSTR_NUM_DW(3);
 	dw[i++] = lower_32_bits(batch_addr);
 	dw[i++] = upper_32_bits(batch_addr);
 
