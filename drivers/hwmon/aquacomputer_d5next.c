@@ -953,7 +953,10 @@ static int aqc_legacy_read(struct aqc_data *priv)
 	for (i = 0; i < priv->num_temp_sensors; i++) {
 		sensor_value = get_unaligned_le16(priv->buffer + priv->temp_sensor_start_offset +
 						  i * AQC_SENSOR_SIZE);
-		priv->temp_input[i] = sensor_value * 10;
+		if (sensor_value == AQC_SENSOR_NA)
+			priv->temp_input[i] = -ENODATA;
+		else
+			priv->temp_input[i] = sensor_value * 10;
 	}
 
 	/* Special-case sensor readings */
