@@ -660,7 +660,6 @@ static int mei_csi_parse_firmware(struct mei_csi *csi)
 	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
 	if (ret) {
 		dev_err(dev, "could not parse v4l2 endpoint\n");
-		ret = -EINVAL;
 		goto out_nf_cleanup;
 	}
 
