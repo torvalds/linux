@@ -247,22 +247,18 @@ static __always_inline void seen_sleepy_lock(void)
 		this_cpu_write(sleepy_lock_seen_clock, sched_clock());
 }
 
-static __always_inline void seen_sleepy_node(struct qspinlock *lock, u32 val)
+static __always_inline void seen_sleepy_node(void)
 {
 	if (pv_sleepy_lock) {
 		if (pv_sleepy_lock_interval_ns)
 			this_cpu_write(sleepy_lock_seen_clock, sched_clock());
-		if (val & _Q_LOCKED_VAL) {
-			if (!(val & _Q_SLEEPY_VAL))
-				try_set_sleepy(lock, val);
-		}
+		/* Don't set sleepy because we likely have a stale val */
 	}
 }
 
-static struct qnode *get_tail_qnode(struct qspinlock *lock, u32 val)
+static struct qnode *get_tail_qnode(struct qspinlock *lock, int prev_cpu)
 {
-	int cpu = decode_tail_cpu(val);
-	struct qnodes *qnodesp = per_cpu_ptr(&qnodes, cpu);
+	struct qnodes *qnodesp = per_cpu_ptr(&qnodes, prev_cpu);
 	int idx;
 
 	/*
@@ -381,9 +377,8 @@ static __always_inline void propagate_yield_cpu(struct qnode *node, u32 val, int
 }
 
 /* Called inside spin_begin() */
-static __always_inline bool yield_to_prev(struct qspinlock *lock, struct qnode *node, u32 val, bool paravirt)
+static __always_inline bool yield_to_prev(struct qspinlock *lock, struct qnode *node, int prev_cpu, bool paravirt)
 {
-	int prev_cpu = decode_tail_cpu(val);
 	u32 yield_count;
 	int yield_cpu;
 	bool preempted = false;
@@ -412,7 +407,7 @@ static __always_inline bool yield_to_prev(struct qspinlock *lock, struct qnode *
 	spin_end();
 
 	preempted = true;
-	seen_sleepy_node(lock, val);
+	seen_sleepy_node();
 
 	smp_rmb();
 
@@ -436,7 +431,7 @@ yield_prev:
 	spin_end();
 
 	preempted = true;
-	seen_sleepy_node(lock, val);
+	seen_sleepy_node();
 
 	smp_rmb(); /* See __yield_to_locked_owner comment */
 
@@ -587,7 +582,8 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 	 * head of the waitqueue.
 	 */
 	if (old & _Q_TAIL_CPU_MASK) {
-		struct qnode *prev = get_tail_qnode(lock, old);
+		int prev_cpu = decode_tail_cpu(old);
+		struct qnode *prev = get_tail_qnode(lock, prev_cpu);
 
 		/* Link @node into the waitqueue. */
 		WRITE_ONCE(prev->next, node);
@@ -597,7 +593,7 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 		while (!READ_ONCE(node->locked)) {
 			spec_barrier();
 
-			if (yield_to_prev(lock, node, old, paravirt))
+			if (yield_to_prev(lock, node, prev_cpu, paravirt))
 				seen_preempted = true;
 		}
 		spec_barrier();
