@@ -245,9 +245,13 @@ static const struct pinctrl_pin_desc pitti_pins[] = {
 	PINCTRL_PIN(120, "GPIO_120"),
 	PINCTRL_PIN(121, "GPIO_121"),
 	PINCTRL_PIN(122, "UFS_RESET"),
-	PINCTRL_PIN(123, "SDC2_CLK"),
-	PINCTRL_PIN(124, "SDC2_CMD"),
-	PINCTRL_PIN(125, "SDC2_DATA"),
+	PINCTRL_PIN(123, "SDC1_RCLK"),
+	PINCTRL_PIN(124, "SDC1_CLK"),
+	PINCTRL_PIN(125, "SDC1_CMD"),
+	PINCTRL_PIN(126, "SDC1_DATA"),
+	PINCTRL_PIN(127, "SDC2_CLK"),
+	PINCTRL_PIN(128, "SDC2_CMD"),
+	PINCTRL_PIN(129, "SDC2_DATA"),
 };
 
 #define DECLARE_MSM_GPIO_PINS(pin) \
@@ -376,9 +380,13 @@ DECLARE_MSM_GPIO_PINS(120);
 DECLARE_MSM_GPIO_PINS(121);
 
 static const unsigned int ufs_reset_pins[] = { 122 };
-static const unsigned int sdc2_clk_pins[] = { 123 };
-static const unsigned int sdc2_cmd_pins[] = { 124 };
-static const unsigned int sdc2_data_pins[] = { 125 };
+static const unsigned int sdc1_rclk_pins[] = { 123 };
+static const unsigned int sdc1_clk_pins[] = { 124 };
+static const unsigned int sdc1_cmd_pins[] = { 125 };
+static const unsigned int sdc1_data_pins[] = { 126 };
+static const unsigned int sdc2_clk_pins[] = { 127 };
+static const unsigned int sdc2_cmd_pins[] = { 128 };
+static const unsigned int sdc2_data_pins[] = { 129 };
 
 enum pitti_functions {
 	msm_mux_gpio,
@@ -1777,9 +1785,13 @@ static const struct msm_pingroup pitti_groups[] = {
 	[121] = PINGROUP(121, NA, NA, phase_flag8, NA, qdss_gpio1, NA, NA, NA,
 			 NA, NA, egpio, 0x7A014, 13),
 	[122] = UFS_RESET(ufs_reset, 0x18A000),
-	[123] = SDC_QDSD_PINGROUP(sdc2_clk, 0x181000, 14, 6),
-	[124] = SDC_QDSD_PINGROUP(sdc2_cmd, 0x181000, 11, 3),
-	[125] = SDC_QDSD_PINGROUP(sdc2_data, 0x181000, 9, 0),
+	[123] = SDC_QDSD_PINGROUP(sdc1_rclk, 0x17E004, 0, 0),
+	[124] = SDC_QDSD_PINGROUP(sdc1_clk, 0x17E000, 13, 6),
+	[125] = SDC_QDSD_PINGROUP(sdc1_cmd, 0x17E000, 11, 3),
+	[126] = SDC_QDSD_PINGROUP(sdc1_data, 0x17E000, 9, 0),
+	[127] = SDC_QDSD_PINGROUP(sdc2_clk, 0x181000, 14, 6),
+	[128] = SDC_QDSD_PINGROUP(sdc2_cmd, 0x181000, 11, 3),
+	[129] = SDC_QDSD_PINGROUP(sdc2_data, 0x181000, 9, 0),
 };
 
 static struct pinctrl_qup pitti_qup_regs[] = {};
