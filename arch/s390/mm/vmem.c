@@ -499,6 +499,8 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	return ret;
 }
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+
 void vmemmap_free(unsigned long start, unsigned long end,
 		  struct vmem_altmap *altmap)
 {
@@ -506,6 +508,8 @@ void vmemmap_free(unsigned long start, unsigned long end,
 	remove_pagetable(start, end, false);
 	mutex_unlock(&vmem_mutex);
 }
+
+#endif
 
 void vmem_remove_mapping(unsigned long start, unsigned long size)
 {
