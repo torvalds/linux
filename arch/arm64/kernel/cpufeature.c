@@ -1754,16 +1754,15 @@ void create_kpti_ng_temp_pgd(pgd_t *pgdir, phys_addr_t phys, unsigned long virt,
 			     phys_addr_t size, pgprot_t prot,
 			     phys_addr_t (*pgtable_alloc)(int), int flags);
 
-static phys_addr_t kpti_ng_temp_alloc;
+static phys_addr_t __initdata kpti_ng_temp_alloc;
 
-static phys_addr_t kpti_ng_pgd_alloc(int shift)
+static phys_addr_t __init kpti_ng_pgd_alloc(int shift)
 {
 	kpti_ng_temp_alloc -= PAGE_SIZE;
 	return kpti_ng_temp_alloc;
 }
 
-static void
-kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
+static int __init __kpti_install_ng_mappings(void *__unused)
 {
 	typedef void (kpti_remap_fn)(int, int, phys_addr_t, unsigned long);
 	extern kpti_remap_fn idmap_kpti_install_ng_mappings;
@@ -1775,20 +1774,6 @@ kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 	u64 kpti_ng_temp_pgd_pa = 0;
 	pgd_t *kpti_ng_temp_pgd;
 	u64 alloc = 0;
-
-	if (__this_cpu_read(this_cpu_vector) == vectors) {
-		const char *v = arm64_get_bp_hardening_vector(EL1_VECTOR_KPTI);
-
-		__this_cpu_write(this_cpu_vector, v);
-	}
-
-	/*
-	 * We don't need to rewrite the page-tables if either we've done
-	 * it already or we have KASLR enabled and therefore have not
-	 * created any global mappings at all.
-	 */
-	if (arm64_use_ng_mappings)
-		return;
 
 	remap_fn = (void *)__pa_symbol(idmap_kpti_install_ng_mappings);
 
@@ -1826,13 +1811,38 @@ kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 		free_pages(alloc, order);
 		arm64_use_ng_mappings = true;
 	}
+
+	return 0;
 }
+
+static void __init kpti_install_ng_mappings(void)
+{
+	/*
+	 * We don't need to rewrite the page-tables if either we've done
+	 * it already or we have KASLR enabled and therefore have not
+	 * created any global mappings at all.
+	 */
+	if (arm64_use_ng_mappings)
+		return;
+
+	stop_machine(__kpti_install_ng_mappings, NULL, cpu_online_mask);
+}
+
 #else
-static void
-kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
+static inline void kpti_install_ng_mappings(void)
 {
 }
 #endif	/* CONFIG_UNMAP_KERNEL_AT_EL0 */
+
+static void cpu_enable_kpti(struct arm64_cpu_capabilities const *cap)
+{
+	if (__this_cpu_read(this_cpu_vector) == vectors) {
+		const char *v = arm64_get_bp_hardening_vector(EL1_VECTOR_KPTI);
+
+		__this_cpu_write(this_cpu_vector, v);
+	}
+
+}
 
 static int __init parse_kpti(char *str)
 {
@@ -2362,7 +2372,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.desc = "Kernel page table isolation (KPTI)",
 		.capability = ARM64_UNMAP_KERNEL_AT_EL0,
 		.type = ARM64_CPUCAP_BOOT_RESTRICTED_CPU_LOCAL_FEATURE,
-		.cpu_enable = kpti_install_ng_mappings,
+		.cpu_enable = cpu_enable_kpti,
 		.matches = unmap_kernel_at_el0,
 		/*
 		 * The ID feature fields below are used to indicate that
@@ -3354,6 +3364,8 @@ void __init setup_system_features(void)
 	 * already.
 	 */
 	enable_cpu_capabilities(SCOPE_ALL & ~SCOPE_BOOT_CPU);
+
+	kpti_install_ng_mappings();
 
 	sve_setup();
 	sme_setup();
