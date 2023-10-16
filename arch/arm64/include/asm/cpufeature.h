@@ -776,22 +776,22 @@ static inline bool system_uses_ttbr0_pan(void)
 
 static __always_inline bool system_supports_sve(void)
 {
-	return cpus_have_const_cap(ARM64_SVE);
+	return alternative_has_cap_unlikely(ARM64_SVE);
 }
 
 static __always_inline bool system_supports_sme(void)
 {
-	return cpus_have_const_cap(ARM64_SME);
+	return alternative_has_cap_unlikely(ARM64_SME);
 }
 
 static __always_inline bool system_supports_sme2(void)
 {
-	return cpus_have_const_cap(ARM64_SME2);
+	return alternative_has_cap_unlikely(ARM64_SME2);
 }
 
 static __always_inline bool system_supports_fa64(void)
 {
-	return cpus_have_const_cap(ARM64_SME_FA64);
+	return alternative_has_cap_unlikely(ARM64_SME_FA64);
 }
 
 static __always_inline bool system_supports_tpidr2(void)
