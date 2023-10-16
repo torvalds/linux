@@ -469,9 +469,11 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	/* Search for the lowest free parport number. */
 
 	spin_lock(&full_list_lock);
-	for (l = all_ports.next, num = 0; l != &all_ports; l = l->next, num++) {
+	num = 0;
+	list_for_each(l, &all_ports) {
 		struct parport *p = list_entry(l, struct parport, full_list);
-		if (p->number != num)
+
+		if (p->number != num++)
 			break;
 	}
 	tmp->portnum = tmp->number = num;
