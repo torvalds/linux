@@ -806,12 +806,12 @@ static __always_inline bool system_supports_cnp(void)
 
 static inline bool system_supports_address_auth(void)
 {
-	return cpus_have_const_cap(ARM64_HAS_ADDRESS_AUTH);
+	return cpus_have_final_boot_cap(ARM64_HAS_ADDRESS_AUTH);
 }
 
 static inline bool system_supports_generic_auth(void)
 {
-	return cpus_have_const_cap(ARM64_HAS_GENERIC_AUTH);
+	return alternative_has_cap_unlikely(ARM64_HAS_GENERIC_AUTH);
 }
 
 static inline bool system_has_full_ptr_auth(void)
