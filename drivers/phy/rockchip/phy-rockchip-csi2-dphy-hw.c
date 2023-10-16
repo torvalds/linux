@@ -54,6 +54,7 @@
 #define CSI2_DPHY_DUAL_CAL_EN		(0x80)
 #define CSI2_DPHY_CLK_INV		(0X84)
 
+#define CSI2_DPHY_CLK_CONTINUE_MODE	(0x128)
 #define CSI2_DPHY_CLK_WR_THS_SETTLE	(0x160)
 #define CSI2_DPHY_CLK_CALIB_EN		(0x168)
 #define CSI2_DPHY_LANE0_WR_THS_SETTLE	(0x1e0)
@@ -64,6 +65,7 @@
 #define CSI2_DPHY_LANE2_CALIB_EN	(0x2e8)
 #define CSI2_DPHY_LANE3_WR_THS_SETTLE	(0x360)
 #define CSI2_DPHY_LANE3_CALIB_EN	(0x368)
+#define CSI2_DPHY_CLK1_CONTINUE_MODE	(0x3a8)
 #define CSI2_DPHY_CLK1_WR_THS_SETTLE	(0x3e0)
 #define CSI2_DPHY_CLK1_CALIB_EN		(0x3e8)
 
@@ -213,6 +215,8 @@ enum csi2dphy_reg_id {
 	CSI2PHY_PATH1_MODEL,
 	CSI2PHY_PATH1_LVDS_MODEL,
 	CSI2PHY_CLK_INV,
+	CSI2PHY_CLK_CONTINUE_MODE,
+	CSI2PHY_CLK1_CONTINUE_MODE,
 };
 
 #define HIWORD_UPDATE(val, mask, shift) \
@@ -397,6 +401,8 @@ static const struct csi2dphy_reg rk3588_csi2dphy_regs[] = {
 	[CSI2PHY_CLK1_THS_SETTLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_WR_THS_SETTLE),
 	[CSI2PHY_CLK1_CALIB_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CALIB_EN),
 	[CSI2PHY_CLK1_LANE_ENABLE] = CSI2PHY_REG(CSI2_DPHY_CLK1_LANE_EN),
+	[CSI2PHY_CLK_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK_CONTINUE_MODE),
+	[CSI2PHY_CLK1_CONTINUE_MODE] = CSI2PHY_REG(CSI2_DPHY_CLK1_CONTINUE_MODE),
 };
 
 static const struct grf_reg rv1106_grf_dphy_regs[] = {
@@ -709,19 +715,30 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 		val |= (GENMASK(sensor->lanes - 1, 0) <<
 			CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT) |
 			(0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
+		if (sensor->mbus.flags & V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)
+			write_csi2_dphy_reg(hw, CSI2PHY_CLK_CONTINUE_MODE, 0x30);
 	} else {
 		if (!(pre_val & (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT)))
 			val |= (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
 
-		if (dphy->phy_index % 3 == DPHY1)
+		if (dphy->phy_index % 3 == DPHY1) {
 			val |= (GENMASK(sensor->lanes - 1, 0) <<
 				CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT);
+			if (sensor->mbus.flags &
+			    V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)
+				write_csi2_dphy_reg(
+					hw, CSI2PHY_CLK_CONTINUE_MODE, 0x30);
+		}
 
 		if (dphy->phy_index % 3 == DPHY2) {
 			val |= (GENMASK(sensor->lanes - 1, 0) <<
 				CSI2_DPHY_CTRL_DATALANE_SPLIT_LANE2_3_OFFSET_BIT);
 			if (hw->drv_data->chip_id >= CHIP_ID_RK3588)
 				write_csi2_dphy_reg(hw, CSI2PHY_CLK1_LANE_ENABLE, BIT(6));
+			if (sensor->mbus.flags &
+			    V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)
+				write_csi2_dphy_reg(
+					hw, CSI2PHY_CLK1_CONTINUE_MODE, 0x30);
 		}
 	}
 	val |= pre_val;
