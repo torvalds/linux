@@ -550,9 +550,11 @@ u16 rtl92ee_get_available_desc(struct ieee80211_hw *hw, u8 q_idx)
 	return point_diff;
 }
 
-void rtl92ee_pre_fill_tx_bd_desc(struct ieee80211_hw *hw,
-				 u8 *tx_bd_desc8, u8 *desc8, u8 queue_index,
-				 struct sk_buff *skb, dma_addr_t addr)
+static void rtl92ee_pre_fill_tx_bd_desc(struct ieee80211_hw *hw,
+					u8 *tx_bd_desc8, u8 *desc8,
+					u8 queue_index,
+					struct sk_buff *skb,
+					dma_addr_t addr)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
