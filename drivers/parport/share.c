@@ -449,13 +449,9 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	tmp->irq = irq;
 	tmp->dma = dma;
 	tmp->muxport = tmp->daisy = tmp->muxsel = -1;
-	tmp->modes = 0;
 	INIT_LIST_HEAD(&tmp->list);
-	tmp->devices = tmp->cad = NULL;
-	tmp->flags = 0;
 	tmp->ops = ops;
 	tmp->physport = tmp;
-	memset(tmp->probe_info, 0, 5 * sizeof(struct parport_device_info));
 	rwlock_init(&tmp->cad_lock);
 	spin_lock_init(&tmp->waitlist_lock);
 	spin_lock_init(&tmp->pardevice_lock);
