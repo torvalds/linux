@@ -1174,7 +1174,7 @@ void sve_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
  * Read the pseudo-ZCR used by cpufeatures to identify the supported SVE
  * vector length.
  *
- * Use only if SVE is present.
+ * Use only if SVE is present and enabled.
  * This function clobbers the SVE vector length.
  */
 u64 read_zcr_features(void)
@@ -1183,7 +1183,6 @@ u64 read_zcr_features(void)
 	 * Set the maximum possible VL, and write zeroes to all other
 	 * bits to see if they stick.
 	 */
-	sve_kernel_enable(NULL);
 	write_sysreg_s(ZCR_ELx_LEN_MASK, SYS_ZCR_EL1);
 
 	/* Return LEN value that would be written to get the maximum VL */
@@ -1337,13 +1336,11 @@ void fa64_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
  * Read the pseudo-SMCR used by cpufeatures to identify the supported
  * vector length.
  *
- * Use only if SME is present.
+ * Use only if SME is present and enabled.
  * This function clobbers the SME vector length.
  */
 u64 read_smcr_features(void)
 {
-	sme_kernel_enable(NULL);
-
 	/*
 	 * Set the maximum possible VL.
 	 */
