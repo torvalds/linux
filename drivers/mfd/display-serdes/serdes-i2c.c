@@ -223,6 +223,14 @@ static int serdes_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
+static void serdes_i2c_shutdown(struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
+	struct serdes *serdes = dev_get_drvdata(dev);
+
+	serdes_device_shutdown(serdes);
+}
+
 static int serdes_i2c_prepare(struct device *dev)
 {
 	return 0;
@@ -264,7 +272,7 @@ static int serdes_i2c_poweroff(struct device *dev)
 {
 	struct serdes *serdes = dev_get_drvdata(dev);
 
-	serdes_device_shutdown(serdes);
+	serdes_device_poweroff(serdes);
 
 	return 0;
 }
@@ -315,6 +323,7 @@ static struct i2c_driver serdes_i2c_driver = {
 		.of_match_table = of_match_ptr(serdes_of_match),
 	},
 	.probe = serdes_i2c_probe,
+	.shutdown = serdes_i2c_shutdown,
 };
 
 static int __init serdes_i2c_init(void)

@@ -376,7 +376,7 @@ int serdes_device_resume(struct serdes *serdes)
 }
 EXPORT_SYMBOL_GPL(serdes_device_resume);
 
-void serdes_device_shutdown(struct serdes *serdes)
+void serdes_device_poweroff(struct serdes *serdes)
 {
 	int ret = 0;
 
@@ -385,6 +385,29 @@ void serdes_device_shutdown(struct serdes *serdes)
 		if (ret)
 			dev_err(serdes->dev, "could not set sleep pins\n");
 	}
+
+	if (!IS_ERR(serdes->vpower)) {
+		ret = regulator_disable(serdes->vpower);
+		if (ret)
+			dev_err(serdes->dev, "fail to disable vpower regulator\n");
+	}
+
+}
+EXPORT_SYMBOL_GPL(serdes_device_poweroff);
+
+int serdes_device_shutdown(struct serdes *serdes)
+{
+	int ret = 0;
+
+	if (!IS_ERR(serdes->vpower)) {
+		ret = regulator_disable(serdes->vpower);
+		if (ret) {
+			dev_err(serdes->dev, "fail to disable vpower regulator\n");
+			return ret;
+		}
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(serdes_device_shutdown);
 
