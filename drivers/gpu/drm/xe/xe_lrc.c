@@ -6,6 +6,7 @@
 #include "xe_lrc.h"
 
 #include "instructions/xe_mi_commands.h"
+#include "instructions/xe_gfxpipe_commands.h"
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
@@ -907,6 +908,15 @@ struct iosys_map xe_lrc_parallel_map(struct xe_lrc *lrc)
 
 static int instr_dw(u32 cmd_header)
 {
+	/* GFXPIPE "SINGLE_DW" opcodes are a single dword */
+	if ((cmd_header & (XE_INSTR_CMD_TYPE | GFXPIPE_PIPELINE)) ==
+	    GFXPIPE_SINGLE_DW_CMD(0, 0))
+		return 1;
+
+	/* 3DSTATE_SO_DECL_LIST has a 9-bit dword length rather than 8 */
+	if ((cmd_header & GFXPIPE_MATCH_MASK) == CMD_3DSTATE_SO_DECL_LIST)
+		return REG_FIELD_GET(CMD_3DSTATE_SO_DECL_LIST_DW_LEN, cmd_header) + 2;
+
 	/* Most instructions have the # of dwords (minus 2) in 7:0 */
 	return REG_FIELD_GET(XE_INSTR_LEN_MASK, cmd_header) + 2;
 }
@@ -967,6 +977,102 @@ static int dump_mi_command(struct drm_printer *p,
 	}
 }
 
+static int dump_gfxpipe_command(struct drm_printer *p,
+				struct xe_gt *gt,
+				u32 *dw,
+				int remaining_dw)
+{
+	u32 numdw = instr_dw(*dw);
+	u32 pipeline = REG_FIELD_GET(GFXPIPE_PIPELINE, *dw);
+	u32 opcode = REG_FIELD_GET(GFXPIPE_OPCODE, *dw);
+	u32 subopcode = REG_FIELD_GET(GFXPIPE_SUBOPCODE, *dw);
+
+	/*
+	 * Make sure we haven't mis-parsed a number of dwords that exceeds the
+	 * remaining size of the LRC.
+	 */
+	if (xe_gt_WARN_ON(gt, numdw > remaining_dw))
+		numdw = remaining_dw;
+
+	switch (*dw & GFXPIPE_MATCH_MASK) {
+#define MATCH(cmd) \
+	case cmd: \
+		drm_printf(p, "[%#010x] " #cmd " (%d dwords)\n", *dw, numdw); \
+		return numdw
+#define MATCH3D(cmd) \
+	case CMD_##cmd: \
+		drm_printf(p, "[%#010x] " #cmd " (%d dwords)\n", *dw, numdw); \
+		return numdw
+
+	MATCH(STATE_BASE_ADDRESS);
+	MATCH(STATE_SIP);
+	MATCH(GPGPU_CSR_BASE_ADDRESS);
+	MATCH(STATE_COMPUTE_MODE);
+	MATCH3D(3DSTATE_BTD);
+
+	MATCH3D(3DSTATE_VF_STATISTICS);
+
+	MATCH(PIPELINE_SELECT);
+
+	MATCH3D(3DSTATE_CLEAR_PARAMS);
+	MATCH3D(3DSTATE_DEPTH_BUFFER);
+	MATCH3D(3DSTATE_STENCIL_BUFFER);
+	MATCH3D(3DSTATE_HIER_DEPTH_BUFFER);
+	MATCH3D(3DSTATE_VERTEX_BUFFERS);
+	MATCH3D(3DSTATE_INDEX_BUFFER);
+	MATCH3D(3DSTATE_VF);
+	MATCH3D(3DSTATE_CC_STATE_POINTERS);
+	MATCH3D(3DSTATE_WM);
+	MATCH3D(3DSTATE_SAMPLE_MASK);
+	MATCH3D(3DSTATE_SBE);
+	MATCH3D(3DSTATE_PS);
+	MATCH3D(3DSTATE_CPS_POINTERS);
+	MATCH3D(3DSTATE_VIEWPORT_STATE_POINTERS_CC);
+	MATCH3D(3DSTATE_BLEND_STATE_POINTERS);
+	MATCH3D(3DSTATE_BINDING_TABLE_POINTERS_PS);
+	MATCH3D(3DSTATE_SAMPLER_STATE_POINTERS_PS);
+	MATCH3D(3DSTATE_VF_INSTANCING);
+	MATCH3D(3DSTATE_VF_TOPOLOGY);
+	MATCH3D(3DSTATE_WM_CHROMAKEY);
+	MATCH3D(3DSTATE_PS_BLEND);
+	MATCH3D(3DSTATE_WM_DEPTH_STENCIL);
+	MATCH3D(3DSTATE_PS_EXTRA);
+	MATCH3D(3DSTATE_SBE_SWIZ);
+	MATCH3D(3DSTATE_VFG);
+	MATCH3D(3DSTATE_AMFS);
+	MATCH3D(3DSTATE_DEPTH_BOUNDS);
+	MATCH3D(3DSTATE_AMFS_TEXTURE_POINTERS);
+	MATCH3D(3DSTATE_CONSTANT_TS_POINTER);
+	MATCH3D(3DSTATE_MESH_DISTRIB);
+	MATCH3D(3DSTATE_SBE_MESH);
+	MATCH3D(3DSTATE_CPSIZE_CONTROL_BUFFER);
+
+	MATCH3D(3DSTATE_CHROMA_KEY);
+	MATCH3D(3DSTATE_POLY_STIPPLE_OFFSET);
+	MATCH3D(3DSTATE_POLY_STIPPLE_PATTERN);
+	MATCH3D(3DSTATE_LINE_STIPPLE);
+	MATCH3D(3DSTATE_AA_LINE_PARAMETERS);
+	MATCH3D(3DSTATE_MONOFILTER_SIZE);
+	MATCH3D(3DSTATE_PUSH_CONSTANT_ALLOC_VS);
+	MATCH3D(3DSTATE_PUSH_CONSTANT_ALLOC_HS);
+	MATCH3D(3DSTATE_PUSH_CONSTANT_ALLOC_DS);
+	MATCH3D(3DSTATE_PUSH_CONSTANT_ALLOC_GS);
+	MATCH3D(3DSTATE_PUSH_CONSTANT_ALLOC_PS);
+	MATCH3D(3DSTATE_SO_DECL_LIST);
+	MATCH3D(3DSTATE_BINDING_TABLE_POOL_ALLOC);
+	MATCH3D(3DSTATE_SAMPLE_PATTERN);
+	MATCH3D(3DSTATE_3D_MODE);
+	MATCH3D(3DSTATE_SUBSLICE_HASH_TABLE);
+	MATCH3D(3DSTATE_SLICE_TABLE_STATE_POINTERS);
+	MATCH3D(3DSTATE_PTBR_TILE_PASS_INFO);
+
+	default:
+		drm_printf(p, "[%#010x] unknown GFXPIPE command (pipeline=%#x, opcode=%#x, subopcode=%#x), likely %d dwords\n",
+			   *dw, pipeline, opcode, subopcode, numdw);
+		return numdw;
+	}
+}
+
 void xe_lrc_dump_default(struct drm_printer *p,
 			 struct xe_gt *gt,
 			 enum xe_engine_class hwe_class)
@@ -989,6 +1095,8 @@ void xe_lrc_dump_default(struct drm_printer *p,
 	while (remaining_dw > 0) {
 		if ((*dw & XE_INSTR_CMD_TYPE) == XE_INSTR_MI) {
 			num_dw = dump_mi_command(p, gt, dw, remaining_dw);
+		} else if ((*dw & XE_INSTR_CMD_TYPE) == XE_INSTR_GFXPIPE) {
+			num_dw = dump_gfxpipe_command(p, gt, dw, remaining_dw);
 		} else {
 			num_dw = min(instr_dw(*dw), remaining_dw);
 			drm_printf(p, "[%#10x] Unknown instruction of type %#x, likely %d dwords\n",
