@@ -105,7 +105,7 @@ static inline unsigned long get_trans_granule(void)
 #define __tlbi_level(op, addr, level) do {				\
 	u64 arg = addr;							\
 									\
-	if (cpus_have_const_cap(ARM64_HAS_ARMv8_4_TTL) &&		\
+	if (alternative_has_cap_unlikely(ARM64_HAS_ARMv8_4_TTL) &&	\
 	    level) {							\
 		u64 ttl = level & 3;					\
 		ttl |= get_trans_granule() << 2;			\
