@@ -75,7 +75,7 @@ xfs_bmap_rtalloc(
 {
 	struct xfs_mount	*mp = ap->ip->i_mount;
 	xfs_fileoff_t		orig_offset = ap->offset;
-	xfs_rtblock_t		rtb;
+	xfs_rtxnum_t		rtx;
 	xfs_rtxlen_t		prod = 0;  /* product factor for allocators */
 	xfs_extlen_t		mod = 0;   /* product factor for allocators */
 	xfs_rtxlen_t		ralen = 0; /* realtime allocation length */
@@ -144,8 +144,6 @@ retry:
 	 * pick an extent that will space things out in the rt area.
 	 */
 	if (ap->eof && ap->offset == 0) {
-		xfs_rtblock_t rtx; /* realtime extent no */
-
 		error = xfs_rtpick_extent(mp, ap->tp, ralen, &rtx);
 		if (error)
 			return error;
@@ -163,16 +161,16 @@ retry:
 		ap->blkno = 0;
 	else
 		do_div(ap->blkno, mp->m_sb.sb_rextsize);
-	rtb = ap->blkno;
+	rtx = ap->blkno;
 	ap->length = ralen;
 	raminlen = max_t(xfs_extlen_t, 1, minlen / mp->m_sb.sb_rextsize);
 	error = xfs_rtallocate_extent(ap->tp, ap->blkno, raminlen, ap->length,
-			&ralen, ap->wasdel, prod, &rtb);
+			&ralen, ap->wasdel, prod, &rtx);
 	if (error)
 		return error;
 
-	if (rtb != NULLRTBLOCK) {
-		ap->blkno = rtb * mp->m_sb.sb_rextsize;
+	if (rtx != NULLRTEXTNO) {
+		ap->blkno = rtx * mp->m_sb.sb_rextsize;
 		ap->length = ralen * mp->m_sb.sb_rextsize;
 		ap->ip->i_nblocks += ap->length;
 		xfs_trans_log_inode(ap->tp, ap->ip, XFS_ILOG_CORE);

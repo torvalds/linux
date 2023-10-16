@@ -24,13 +24,13 @@ struct xfs_trans;
 int					/* error */
 xfs_rtallocate_extent(
 	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_rtblock_t		bno,	/* starting block number to allocate */
+	xfs_rtxnum_t		start,	/* starting rtext number to allocate */
 	xfs_rtxlen_t		minlen,	/* minimum length to allocate */
 	xfs_rtxlen_t		maxlen,	/* maximum length to allocate */
 	xfs_rtxlen_t		*len,	/* out: actual length allocated */
 	int			wasdel,	/* was a delayed allocation extent */
 	xfs_rtxlen_t		prod,	/* extent product factor */
-	xfs_rtblock_t		*rtblock); /* out: start block allocated */
+	xfs_rtxnum_t		*rtblock); /* out: start rtext allocated */
 
 
 /*
@@ -63,7 +63,7 @@ xfs_rtpick_extent(
 	struct xfs_mount	*mp,	/* file system mount point */
 	struct xfs_trans	*tp,	/* transaction pointer */
 	xfs_rtxlen_t		len,	/* allocation length (rtextents) */
-	xfs_rtblock_t		*pick);	/* result rt extent */
+	xfs_rtxnum_t		*pick);	/* result rt extent */
 
 /*
  * Grow the realtime area of the filesystem.
