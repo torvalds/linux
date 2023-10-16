@@ -178,6 +178,21 @@ Description:
 		hardware decoder target list.
 
 
+What:		/sys/bus/cxl/devices/portX/decoders_committed
+Date:		October, 2023
+KernelVersion:	v6.7
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) A memory device is considered active when any of its
+		decoders are in the "committed" state (See CXL 3.0 8.2.4.19.7
+		CXL HDM Decoder n Control Register). Hotplug and destructive
+		operations like "sanitize" are blocked while device is actively
+		decoding a Host Physical Address range. Note that this number
+		may be elevated without any regionX objects active or even
+		enumerated, as this may be due to decoders established by
+		platform firwmare or a previous kernel (kexec).
+
+
 What:		/sys/bus/cxl/devices/decoderX.Y
 Date:		June, 2021
 KernelVersion:	v5.14
