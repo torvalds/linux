@@ -477,6 +477,7 @@ xfs_rtallocate_extent_near(
 	}
 	bbno = xfs_rtx_to_rbmblock(mp, start);
 	i = 0;
+	j = -1;
 	ASSERT(minlen != 0);
 	log2len = xfs_highbit32(minlen);
 	/*
@@ -527,33 +528,13 @@ xfs_rtallocate_extent_near(
 			 */
 			else {		/* i < 0 */
 				/*
-				 * Loop backwards through the bitmap blocks from
-				 * the starting point-1 up to where we are now.
-				 * There should be an extent which ends in this
-				 * bitmap block and is long enough.
+				 * Loop backwards through the bitmap blocks
+				 * from where we last checked down to where we
+				 * are now.  There should be an extent which
+				 * ends in this bitmap block and is long
+				 * enough.
 				 */
-				for (j = -1; j > i; j--) {
-					/*
-					 * Grab the summary information for
-					 * this bitmap block.
-					 */
-					error = xfs_rtany_summary(args,
-							log2len,
-							mp->m_rsumlevels - 1,
-							bbno + j, &maxlog);
-					if (error) {
-						return error;
-					}
-					/*
-					 * If there's no extent given in the
-					 * summary that means the extent we
-					 * found must carry over from an
-					 * earlier block.  If there is an
-					 * extent given, we've already tried
-					 * that allocation, don't do it again.
-					 */
-					if (maxlog >= 0)
-						continue;
+				for (; j >= i; j--) {
 					error = xfs_rtallocate_extent_block(args,
 							bbno + j, minlen,
 							maxavail, len, &n, prod,
@@ -568,27 +549,6 @@ xfs_rtallocate_extent_near(
 						*rtx = r;
 						return 0;
 					}
-				}
-				/*
-				 * There weren't intervening bitmap blocks
-				 * with a long enough extent, or the
-				 * allocation didn't work for some reason
-				 * (i.e. it's a little * too short).
-				 * Try to allocate from the summary block
-				 * that we found.
-				 */
-				error = xfs_rtallocate_extent_block(args,
-						bbno + i, minlen, maxavail, len,
-						&n, prod, &r);
-				if (error) {
-					return error;
-				}
-				/*
-				 * If it works, return the extent.
-				 */
-				if (r != NULLRTEXTNO) {
-					*rtx = r;
-					return 0;
 				}
 			}
 		}
