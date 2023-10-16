@@ -159,14 +159,37 @@ xfs_rbmblock_to_rtx(
 }
 
 /* Return a pointer to a bitmap word within a rt bitmap block. */
-static inline xfs_rtword_t *
+static inline union xfs_rtword_raw *
 xfs_rbmblock_wordptr(
 	struct xfs_buf		*bp,
 	unsigned int		index)
 {
-	xfs_rtword_t		*words = bp->b_addr;
+	union xfs_rtword_raw	*words = bp->b_addr;
 
 	return words + index;
+}
+
+/* Convert an ondisk bitmap word to its incore representation. */
+static inline xfs_rtword_t
+xfs_rtbitmap_getword(
+	struct xfs_buf		*bp,
+	unsigned int		index)
+{
+	union xfs_rtword_raw	*word = xfs_rbmblock_wordptr(bp, index);
+
+	return word->old;
+}
+
+/* Set an ondisk bitmap word from an incore representation. */
+static inline void
+xfs_rtbitmap_setword(
+	struct xfs_buf		*bp,
+	unsigned int		index,
+	xfs_rtword_t		value)
+{
+	union xfs_rtword_raw	*word = xfs_rbmblock_wordptr(bp, index);
+
+	word->old = value;
 }
 
 /*
