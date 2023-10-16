@@ -63,7 +63,7 @@ static __always_inline bool __cpu_has_rng(void)
 {
 	if (unlikely(!system_capabilities_finalized() && !preemptible()))
 		return this_cpu_has_cap(ARM64_HAS_RNG);
-	return cpus_have_const_cap(ARM64_HAS_RNG);
+	return alternative_has_cap_unlikely(ARM64_HAS_RNG);
 }
 
 static inline size_t __must_check arch_get_random_longs(unsigned long *v, size_t max_longs)
