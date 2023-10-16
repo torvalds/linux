@@ -78,6 +78,7 @@ properties:
 
   ports:
     type: object
+    additionalProperties: true
 
     patternProperties:
       '^port@[0-9a-f]$':
