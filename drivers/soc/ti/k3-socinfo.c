@@ -60,7 +60,7 @@ k3_chipinfo_partno_to_names(unsigned int partno,
 			return 0;
 		}
 
-	return -EINVAL;
+	return -ENODEV;
 }
 
 static int k3_chipinfo_probe(struct platform_device *pdev)
@@ -111,8 +111,7 @@ static int k3_chipinfo_probe(struct platform_device *pdev)
 
 	ret = k3_chipinfo_partno_to_names(partno_id, soc_dev_attr);
 	if (ret) {
-		dev_err(dev, "Unknown SoC JTAGID[0x%08X]\n", jtag_id);
-		ret = -ENODEV;
+		dev_err(dev, "Unknown SoC JTAGID[0x%08X]: %d\n", jtag_id, ret);
 		goto err_free_rev;
 	}
 
