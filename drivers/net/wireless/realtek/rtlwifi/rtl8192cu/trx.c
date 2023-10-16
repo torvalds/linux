@@ -600,32 +600,6 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE, "==>\n");
 }
 
-void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 *pdesc8,
-			      u32 buffer_len, bool is_pspoll)
-{
-	__le32 *pdesc = (__le32 *)pdesc8;
-
-	/* Clear all status */
-	memset(pdesc, 0, RTL_TX_HEADER_SIZE);
-	set_tx_desc_first_seg(pdesc, 1); /* bFirstSeg; */
-	set_tx_desc_last_seg(pdesc, 1); /* bLastSeg; */
-	set_tx_desc_offset(pdesc, RTL_TX_HEADER_SIZE); /* Offset = 32 */
-	set_tx_desc_pkt_size(pdesc, buffer_len); /* Buffer size + command hdr */
-	set_tx_desc_queue_sel(pdesc, QSLT_MGNT); /* Fixed queue of Mgnt queue */
-	/* Set NAVUSEHDR to prevent Ps-poll AId filed to be changed to error
-	 * vlaue by Hw. */
-	if (is_pspoll) {
-		set_tx_desc_nav_use_hdr(pdesc, 1);
-	} else {
-		set_tx_desc_hwseq_en(pdesc, 1); /* Hw set sequence number */
-		set_tx_desc_pkt_id(pdesc, BIT(3)); /* set bit3 to 1. */
-	}
-	set_tx_desc_use_rate(pdesc, 1); /* use data rate which is set by Sw */
-	set_tx_desc_own(pdesc, 1);
-	set_tx_desc_tx_rate(pdesc, DESC_RATE1M);
-	_rtl_tx_desc_checksum(pdesc);
-}
-
 void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
 			     struct sk_buff *skb)
 {
