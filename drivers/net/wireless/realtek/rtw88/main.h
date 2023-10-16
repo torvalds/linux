@@ -524,6 +524,12 @@ struct rtw_hw_reg {
 	u32 mask;
 };
 
+struct rtw_hw_reg_desc {
+	u32 addr;
+	u32 mask;
+	const char *desc;
+};
+
 struct rtw_ltecoex_addr {
 	u32 ctrl;
 	u32 wdata;

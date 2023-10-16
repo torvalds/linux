@@ -104,6 +104,7 @@ void rtw_power_mode_change(struct rtw_dev *rtwdev, bool enter)
 		 */
 		WARN(1, "firmware failed to ack driver for %s Deep Power mode\n",
 		     enter ? "entering" : "leaving");
+		rtw_fw_dump_dbg_info(rtwdev);
 	}
 }
 EXPORT_SYMBOL(rtw_power_mode_change);
@@ -164,6 +165,7 @@ static void rtw_fw_leave_lps_check(struct rtw_dev *rtwdev)
 	if (ret) {
 		rtw_write32_clr(rtwdev, REG_TCR, BIT_PWRMGT_HWDATA_EN);
 		rtw_warn(rtwdev, "firmware failed to leave lps state\n");
+		rtw_fw_dump_dbg_info(rtwdev);
 	}
 }
 
