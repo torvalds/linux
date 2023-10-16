@@ -384,7 +384,11 @@ static __always_inline bool yield_to_prev(struct qspinlock *lock, struct qnode *
 	if (!pv_yield_propagate_owner)
 		goto yield_prev;
 
-	if (node->sleepy) {
+	/*
+	 * If the previous waiter was preempted it might not be able to
+	 * propagate sleepy to us, so check the lock in that case too.
+	 */
+	if (node->sleepy || vcpu_is_preempted(prev_cpu)) {
 		u32 val = READ_ONCE(lock->val);
 
 		if (val & _Q_LOCKED_VAL) {
