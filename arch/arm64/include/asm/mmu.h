@@ -57,7 +57,7 @@ typedef struct {
 
 static inline bool arm64_kernel_unmapped_at_el0(void)
 {
-	return cpus_have_const_cap(ARM64_UNMAP_KERNEL_AT_EL0);
+	return alternative_has_cap_unlikely(ARM64_UNMAP_KERNEL_AT_EL0);
 }
 
 extern void arm64_memblock_init(void);
