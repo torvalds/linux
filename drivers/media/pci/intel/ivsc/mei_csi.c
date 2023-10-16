@@ -662,6 +662,8 @@ static int mei_csi_parse_firmware(struct mei_csi *csi)
 		return -EINVAL;
 	}
 
+	csi->nr_of_lanes = v4l2_ep.bus.mipi_csi2.num_data_lanes;
+
 	fwnode = fwnode_graph_get_remote_endpoint(ep);
 	fwnode_handle_put(ep);
 
@@ -675,17 +677,11 @@ static int mei_csi_parse_firmware(struct mei_csi *csi)
 		return PTR_ERR(asd);
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(fwnode, &v4l2_ep);
 	fwnode_handle_put(fwnode);
-	if (ret)
-		return ret;
-	csi->nr_of_lanes = v4l2_ep.bus.mipi_csi2.num_data_lanes;
 
 	ret = v4l2_async_nf_register(&csi->notifier);
 	if (ret)
 		v4l2_async_nf_cleanup(&csi->notifier);
-
-	v4l2_fwnode_endpoint_free(&v4l2_ep);
 
 	return ret;
 }
