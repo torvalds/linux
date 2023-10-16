@@ -71,6 +71,20 @@ xfs_rtb_to_rtxrem(
 }
 
 /*
+ * Convert an rt block number into an rt extent number, rounding up to the next
+ * rt extent if the rt block is not aligned to an rt extent boundary.
+ */
+static inline xfs_rtxnum_t
+xfs_rtb_to_rtxup(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno)
+{
+	if (do_div(rtbno, mp->m_sb.sb_rextsize))
+		rtbno++;
+	return rtbno;
+}
+
+/*
  * Functions for walking free space rtextents in the realtime bitmap.
  */
 struct xfs_rtalloc_rec {
