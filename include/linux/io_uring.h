@@ -23,6 +23,7 @@ enum io_uring_cmd_flags {
 
 	/* set when uring wants to cancel a previously issued command */
 	IO_URING_F_CANCEL		= (1 << 11),
+	IO_URING_F_COMPAT		= (1 << 12),
 };
 
 /* only top 8 bits of sqe->uring_cmd_flags for kernel internal use */
