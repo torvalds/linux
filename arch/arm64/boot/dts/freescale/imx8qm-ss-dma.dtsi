@@ -44,6 +44,58 @@
 	};
 };
 
+&edma2 {
+	reg = <0x5a1f0000 0x170000>;
+	#dma-cells = <3>;
+	dma-channels = <22>;
+	dma-channel-mask = <0xf00>;
+	interrupts = <GIC_SPI 416 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 417 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 418 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 419 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 420 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>, /* unused */
+		     <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>, /* unused */
+		     <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>, /* unused */
+		     <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>, /* unused */
+		     <GIC_SPI 434 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 435 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 436 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 437 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 438 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 439 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 440 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 441 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 442 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 443 IRQ_TYPE_LEVEL_HIGH>;
+	power-domains = <&pd IMX_SC_R_DMA_0_CH0>,
+			<&pd IMX_SC_R_DMA_0_CH1>,
+			<&pd IMX_SC_R_DMA_0_CH2>,
+			<&pd IMX_SC_R_DMA_0_CH3>,
+			<&pd IMX_SC_R_DMA_0_CH4>,
+			<&pd IMX_SC_R_DMA_0_CH5>,
+			<&pd IMX_SC_R_DMA_0_CH6>,
+			<&pd IMX_SC_R_DMA_0_CH7>,
+			<&pd IMX_SC_R_DMA_0_CH8>,
+			<&pd IMX_SC_R_DMA_0_CH9>,
+			<&pd IMX_SC_R_DMA_0_CH10>,
+			<&pd IMX_SC_R_DMA_0_CH11>,
+			<&pd IMX_SC_R_DMA_0_CH12>,
+			<&pd IMX_SC_R_DMA_0_CH13>,
+			<&pd IMX_SC_R_DMA_0_CH14>,
+			<&pd IMX_SC_R_DMA_0_CH15>,
+			<&pd IMX_SC_R_DMA_0_CH16>,
+			<&pd IMX_SC_R_DMA_0_CH17>,
+			<&pd IMX_SC_R_DMA_0_CH18>,
+			<&pd IMX_SC_R_DMA_0_CH19>,
+			<&pd IMX_SC_R_DMA_0_CH20>,
+			<&pd IMX_SC_R_DMA_0_CH21>;
+	status = "okay";
+};
+
 &flexcan1 {
 	fsl,clk-source = /bits/ 8 <1>;
 };
@@ -64,18 +116,22 @@
 
 &lpuart0 {
 	compatible = "fsl,imx8qm-lpuart", "fsl,imx8qxp-lpuart";
+	dmas = <&edma2 13 0 0>, <&edma2 12 0 1>;
 };
 
 &lpuart1 {
 	compatible = "fsl,imx8qm-lpuart", "fsl,imx8qxp-lpuart";
+	dmas = <&edma2 15 0 0>, <&edma2 14 0 1>;
 };
 
 &lpuart2 {
 	compatible = "fsl,imx8qm-lpuart", "fsl,imx8qxp-lpuart";
+	dmas = <&edma2 17 0 0>, <&edma2 16 0 1>;
 };
 
 &lpuart3 {
 	compatible = "fsl,imx8qm-lpuart", "fsl,imx8qxp-lpuart";
+	dmas = <&edma2 19 0 0>, <&edma2 18 0 1>;
 };
 
 &i2c0 {

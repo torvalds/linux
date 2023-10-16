@@ -122,10 +122,8 @@
 			  &lsio_mu1 3 3>;
 
 		pd: power-controller {
-			compatible = "fsl,scu-pd";
+			compatible = "fsl,imx8dl-scu-pd", "fsl,scu-pd";
 			#power-domain-cells = <1>;
-			wakeup-irq = <160 163 235 236 237 228 229 230 231 238
-				     239 240 166 169>;
 		};
 
 		clk: clock-controller {
@@ -168,12 +166,12 @@
 		};
 
 		watchdog {
-			compatible = "fsl,imx-sc-wdt";
+			compatible = "fsl,imx8dxl-sc-wdt", "fsl,imx-sc-wdt";
 			timeout-sec = <60>;
 		};
 
 		tsens: thermal-sensor {
-			compatible = "fsl,imx-sc-thermal";
+			compatible = "fsl,imx8dxl-sc-thermal", "fsl,imx-sc-thermal";
 			#thermal-sensor-cells = <1>;
 		};
 	};
