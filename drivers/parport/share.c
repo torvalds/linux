@@ -438,7 +438,6 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	struct parport *tmp;
 	int num;
 	int device;
-	char *name;
 	int ret;
 
 	tmp = kzalloc(sizeof(struct parport), GFP_KERNEL);
@@ -467,11 +466,6 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	atomic_set(&tmp->ref_count, 1);
 	INIT_LIST_HEAD(&tmp->full_list);
 
-	name = kmalloc(PARPORT_NAME_MAX_LEN, GFP_KERNEL);
-	if (!name) {
-		kfree(tmp);
-		return NULL;
-	}
 	/* Search for the lowest free parport number. */
 
 	spin_lock(&full_list_lock);
@@ -487,11 +481,14 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	/*
 	 * Now that the portnum is known finish doing the Init.
 	 */
-	sprintf(name, "parport%d", tmp->portnum = tmp->number);
-	tmp->name = name;
+	tmp->name = kasprintf(GFP_KERNEL, "parport%d", tmp->portnum);
+	if (!tmp->name) {
+		kfree(tmp);
+		return NULL;
+	}
+	dev_set_name(&tmp->bus_dev, tmp->name);
 	tmp->bus_dev.bus = &parport_bus_type;
 	tmp->bus_dev.release = free_port;
-	dev_set_name(&tmp->bus_dev, name);
 	tmp->bus_dev.type = &parport_device_type;
 
 	for (device = 0; device < 5; device++)

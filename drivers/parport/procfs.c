@@ -32,13 +32,6 @@
 #define PARPORT_MAX_TIMESLICE_VALUE ((unsigned long) HZ)
 #define PARPORT_MIN_SPINTIME_VALUE 1
 #define PARPORT_MAX_SPINTIME_VALUE 1000
-/*
- * PARPORT_BASE_* is the size of the known parts of the sysctl path
- * in dev/partport/%s/devices/%s. "dev/parport/"(12), "/devices/"(9
- * and null char(1).
- */
-#define PARPORT_BASE_PATH_SIZE 13
-#define PARPORT_BASE_DEVICES_PATH_SIZE 22
 
 static int do_active_device(struct ctl_table *table, int write,
 		      void *result, size_t *lenp, loff_t *ppos)
@@ -431,8 +424,7 @@ int parport_proc_register(struct parport *port)
 {
 	struct parport_sysctl_table *t;
 	char *tmp_dir_path;
-	size_t tmp_path_len, port_name_len;
-	int bytes_written, i, err = 0;
+	int i, err = 0;
 
 	t = kmemdup(&parport_sysctl_template, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
@@ -446,35 +438,23 @@ int parport_proc_register(struct parport *port)
 		t->vars[5 + i].extra2 = &port->probe_info[i];
 	}
 
-	port_name_len = strnlen(port->name, PARPORT_NAME_MAX_LEN);
-	/*
-	 * Allocate a buffer for two paths: dev/parport/PORT and dev/parport/PORT/devices.
-	 * We calculate for the second as that will give us enough for the first.
-	 */
-	tmp_path_len = PARPORT_BASE_DEVICES_PATH_SIZE + port_name_len;
-	tmp_dir_path = kzalloc(tmp_path_len, GFP_KERNEL);
+	tmp_dir_path = kasprintf(GFP_KERNEL, "dev/parport/%s/devices", port->name);
 	if (!tmp_dir_path) {
 		err = -ENOMEM;
 		goto exit_free_t;
 	}
 
-	bytes_written = snprintf(tmp_dir_path, tmp_path_len,
-				 "dev/parport/%s/devices", port->name);
-	if (tmp_path_len <= bytes_written) {
-		err = -ENOENT;
-		goto exit_free_tmp_dir_path;
-	}
 	t->devices_header = register_sysctl(tmp_dir_path, t->device_dir);
 	if (t->devices_header == NULL) {
 		err = -ENOENT;
 		goto  exit_free_tmp_dir_path;
 	}
 
-	tmp_path_len = PARPORT_BASE_PATH_SIZE + port_name_len;
-	bytes_written = snprintf(tmp_dir_path, tmp_path_len,
-				 "dev/parport/%s", port->name);
-	if (tmp_path_len <= bytes_written) {
-		err = -ENOENT;
+	kfree(tmp_dir_path);
+
+	tmp_dir_path = kasprintf(GFP_KERNEL, "dev/parport/%s", port->name);
+	if (!tmp_dir_path) {
+		err = -ENOMEM;
 		goto unregister_devices_h;
 	}
 
@@ -514,32 +494,20 @@ int parport_proc_unregister(struct parport *port)
 
 int parport_device_proc_register(struct pardevice *device)
 {
-	int bytes_written, err = 0;
 	struct parport_device_sysctl_table *t;
 	struct parport * port = device->port;
-	size_t port_name_len, device_name_len, tmp_dir_path_len;
 	char *tmp_dir_path;
+	int err = 0;
 	
 	t = kmemdup(&parport_device_sysctl_template, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
 		return -ENOMEM;
 
-	port_name_len = strnlen(port->name, PARPORT_NAME_MAX_LEN);
-	device_name_len = strnlen(device->name, PATH_MAX);
-
 	/* Allocate a buffer for two paths: dev/parport/PORT/devices/DEVICE. */
-	tmp_dir_path_len = PARPORT_BASE_DEVICES_PATH_SIZE + port_name_len + device_name_len;
-	tmp_dir_path = kzalloc(tmp_dir_path_len, GFP_KERNEL);
+	tmp_dir_path = kasprintf(GFP_KERNEL, "dev/parport/%s/devices/%s", port->name, device->name);
 	if (!tmp_dir_path) {
 		err = -ENOMEM;
 		goto exit_free_t;
-	}
-
-	bytes_written = snprintf(tmp_dir_path, tmp_dir_path_len, "dev/parport/%s/devices/%s",
-				 port->name, device->name);
-	if (tmp_dir_path_len <= bytes_written) {
-		err = -ENOENT;
-		goto exit_free_path;
 	}
 
 	t->vars[0].data = &device->timeslice;
@@ -553,9 +521,6 @@ int parport_device_proc_register(struct pardevice *device)
 
 	kfree(tmp_dir_path);
 	return 0;
-
-exit_free_path:
-	kfree(tmp_dir_path);
 
 exit_free_t:
 	kfree(t);
