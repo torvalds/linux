@@ -15,6 +15,7 @@ DECLARE_RESTRICTED_HOOK(android_rvh_iommu_setup_dma_ops,
 
 struct iova_domain;
 struct iova;
+struct iommu_device;
 
 DECLARE_RESTRICTED_HOOK(android_rvh_iommu_alloc_insert_iova,
 	TP_PROTO(struct iova_domain *iovad, unsigned long size,
@@ -39,6 +40,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_iommu_limit_align_shift,
 	TP_PROTO(struct iova_domain *iovad, unsigned long size,
 		unsigned long *shift),
 	TP_ARGS(iovad, size, shift), 1);
+
+DECLARE_HOOK(android_vh_bus_iommu_probe,
+	TP_PROTO(struct iommu_device *iommu, struct bus_type *bus, bool *skip),
+	TP_ARGS(iommu, bus, skip));
 
 #endif /* _TRACE_HOOK_IOMMU_H */
 
