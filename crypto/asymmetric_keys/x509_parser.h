@@ -41,15 +41,6 @@ struct x509_certificate {
 };
 
 /*
- * selftest.c
- */
-#ifdef CONFIG_FIPS_SIGNATURE_SELFTEST
-extern int __init fips_signature_selftest(void);
-#else
-static inline int fips_signature_selftest(void) { return 0; }
-#endif
-
-/*
  * x509_cert_parser.c
  */
 extern void x509_free_certificate(struct x509_certificate *cert);
