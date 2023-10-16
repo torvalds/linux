@@ -1054,6 +1054,7 @@ xfs_growfs_rt(
 		 * Calculate new sb and mount fields for this round.
 		 */
 		nsbp->sb_rextsize = in->extsize;
+		nmp->m_rtxblklog = -1; /* don't use shift or masking */
 		nsbp->sb_rbmblocks = bmbno + 1;
 		nrblocks_step = (bmbno + 1) * NBBY * nsbp->sb_blocksize *
 				nsbp->sb_rextsize;

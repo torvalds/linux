@@ -656,6 +656,10 @@ xfs_trans_unreserve_and_mod_sb(
 	mp->m_sb.sb_agcount += tp->t_agcount_delta;
 	mp->m_sb.sb_imax_pct += tp->t_imaxpct_delta;
 	mp->m_sb.sb_rextsize += tp->t_rextsize_delta;
+	if (tp->t_rextsize_delta) {
+		mp->m_rtxblklog = log2_if_power2(mp->m_sb.sb_rextsize);
+		mp->m_rtxblkmask = mask64_if_power2(mp->m_sb.sb_rextsize);
+	}
 	mp->m_sb.sb_rbmblocks += tp->t_rbmblocks_delta;
 	mp->m_sb.sb_rblocks += tp->t_rblocks_delta;
 	mp->m_sb.sb_rextents += tp->t_rextents_delta;
