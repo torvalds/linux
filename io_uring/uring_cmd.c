@@ -214,6 +214,32 @@ int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_import_fixed);
 
+static inline int io_uring_cmd_getsockopt(struct socket *sock,
+					  struct io_uring_cmd *cmd,
+					  unsigned int issue_flags)
+{
+	bool compat = !!(issue_flags & IO_URING_F_COMPAT);
+	int optlen, optname, level, err;
+	void __user *optval;
+
+	level = READ_ONCE(cmd->sqe->level);
+	if (level != SOL_SOCKET)
+		return -EOPNOTSUPP;
+
+	optval = u64_to_user_ptr(READ_ONCE(cmd->sqe->optval));
+	optname = READ_ONCE(cmd->sqe->optname);
+	optlen = READ_ONCE(cmd->sqe->optlen);
+
+	err = do_sock_getsockopt(sock, compat, level, optname,
+				 USER_SOCKPTR(optval),
+				 KERNEL_SOCKPTR(&optlen));
+	if (err)
+		return err;
+
+	/* On success, return optlen */
+	return optlen;
+}
+
 #if defined(CONFIG_NET)
 int io_uring_cmd_sock(struct io_uring_cmd *cmd, unsigned int issue_flags)
 {
@@ -236,6 +262,8 @@ int io_uring_cmd_sock(struct io_uring_cmd *cmd, unsigned int issue_flags)
 		if (ret)
 			return ret;
 		return arg;
+	case SOCKET_URING_OP_GETSOCKOPT:
+		return io_uring_cmd_getsockopt(sock, cmd, issue_flags);
 	default:
 		return -EOPNOTSUPP;
 	}
