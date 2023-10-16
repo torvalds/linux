@@ -39,6 +39,37 @@ xfs_extlen_to_rtxlen(
 	return len / mp->m_sb.sb_rextsize;
 }
 
+/* Convert an rt block number into an rt extent number. */
+static inline xfs_rtxnum_t
+xfs_rtb_to_rtx(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno)
+{
+	return div_u64(rtbno, mp->m_sb.sb_rextsize);
+}
+
+/* Return the offset of an rt block number within an rt extent. */
+static inline xfs_extlen_t
+xfs_rtb_to_rtxoff(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno)
+{
+	return do_div(rtbno, mp->m_sb.sb_rextsize);
+}
+
+/*
+ * Crack an rt block number into an rt extent number and an offset within that
+ * rt extent.  Returns the rt extent number directly and the offset in @off.
+ */
+static inline xfs_rtxnum_t
+xfs_rtb_to_rtxrem(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno,
+	xfs_extlen_t		*off)
+{
+	return div_u64_rem(rtbno, mp->m_sb.sb_rextsize, off);
+}
+
 /*
  * Functions for walking free space rtextents in the realtime bitmap.
  */
