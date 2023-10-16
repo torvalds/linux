@@ -775,6 +775,12 @@
 #define regPCIE_USB4_ERR_CNTL5_BASE_IDX                                                                 5
 #define regPCIE_USB4_LC_CNTL1                                                                           0x420179
 #define regPCIE_USB4_LC_CNTL1_BASE_IDX                                                                  5
+#define regBIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL                                                      0x420118
+#define regBIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL_BASE_IDX                                             5
+#define regBIF_BIF256_CI256_RC3X4_USB4_PCIE_CNTL2                                                       0x42001c
+#define regBIF_BIF256_CI256_RC3X4_USB4_PCIE_CNTL2_BASE_IDX                                              5
+#define regBIF_BIF256_CI256_RC3X4_USB4_PCIE_TX_POWER_CTRL_1                                             0x420187
+#define regBIF_BIF256_CI256_RC3X4_USB4_PCIE_TX_POWER_CTRL_1_BASE_IDX                                    5
 
 
 // addressBlock: nbio_nbif0_bif_cfg_dev0_rc_bifcfgdecp
