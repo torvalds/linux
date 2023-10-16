@@ -86,11 +86,6 @@ name
 Name of the family. Name identifies the family in a unique way, since
 the Family IDs are allocated dynamically.
 
-version
-~~~~~~~
-
-Generic Netlink family version, default is 1.
-
 protocol
 ~~~~~~~~
 

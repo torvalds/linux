@@ -11,6 +11,20 @@ the ``genetlink-legacy`` protocol level.
 Specification
 =============
 
+Globals
+-------
+
+Attributes listed directly at the root level of the spec file.
+
+version
+~~~~~~~
+
+Generic Netlink family version, default is 1.
+
+``version`` has historically been used to introduce family changes
+which may break backwards compatibility. Since compatibility breaking changes
+are generally not allowed ``version`` is very rarely used.
+
 Attribute type nests
 --------------------
 
