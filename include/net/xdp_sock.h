@@ -109,4 +109,13 @@ static inline void __xsk_map_flush(void)
 
 #endif /* CONFIG_XDP_SOCKETS */
 
+#if defined(CONFIG_XDP_SOCKETS) && defined(CONFIG_DEBUG_NET)
+bool xsk_map_check_flush(void);
+#else
+static inline bool xsk_map_check_flush(void)
+{
+	return false;
+}
+#endif
+
 #endif /* _LINUX_XDP_SOCK_H */

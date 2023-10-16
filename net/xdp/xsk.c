@@ -391,6 +391,16 @@ void __xsk_map_flush(void)
 	}
 }
 
+#ifdef CONFIG_DEBUG_NET
+bool xsk_map_check_flush(void)
+{
+	if (list_empty(this_cpu_ptr(&xskmap_flush_list)))
+		return false;
+	__xsk_map_flush();
+	return true;
+}
+#endif
+
 void xsk_tx_completed(struct xsk_buff_pool *pool, u32 nb_entries)
 {
 	xskq_prod_submit_n(pool->cq, nb_entries);

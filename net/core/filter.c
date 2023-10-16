@@ -83,6 +83,8 @@
 #include <net/netfilter/nf_conntrack_bpf.h>
 #include <linux/un.h>
 
+#include "dev.h"
+
 static const struct bpf_func_proto *
 bpf_sk_base_func_proto(enum bpf_func_id func_id);
 
@@ -4207,6 +4209,20 @@ void xdp_do_flush(void)
 	__xsk_map_flush();
 }
 EXPORT_SYMBOL_GPL(xdp_do_flush);
+
+#if defined(CONFIG_DEBUG_NET) && defined(CONFIG_BPF_SYSCALL)
+void xdp_do_check_flushed(struct napi_struct *napi)
+{
+	bool ret;
+
+	ret = dev_check_flush();
+	ret |= cpu_map_check_flush();
+	ret |= xsk_map_check_flush();
+
+	WARN_ONCE(ret, "Missing xdp_do_flush() invocation after NAPI by %ps\n",
+		  napi->poll);
+}
+#endif
 
 void bpf_clear_redirect_map(struct bpf_map *map)
 {
