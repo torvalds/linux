@@ -926,7 +926,7 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	else
 		info = probe_display(i915);
 
-	i915->display.info.__device_info = info;
+	DISPLAY_INFO(i915) = info;
 
 	memcpy(DISPLAY_RUNTIME_INFO(i915),
 	       &DISPLAY_INFO(i915)->__runtime_defaults,
@@ -939,7 +939,7 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	}
 }
 
-void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
+static void __intel_display_device_info_runtime_init(struct drm_i915_private *i915)
 {
 	struct intel_display_runtime_info *display_runtime = DISPLAY_RUNTIME_INFO(i915);
 	enum pipe pipe;
@@ -947,6 +947,13 @@ void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
 	BUILD_BUG_ON(BITS_PER_TYPE(display_runtime->pipe_mask) < I915_MAX_PIPES);
 	BUILD_BUG_ON(BITS_PER_TYPE(display_runtime->cpu_transcoder_mask) < I915_MAX_TRANSCODERS);
 	BUILD_BUG_ON(BITS_PER_TYPE(display_runtime->port_mask) < I915_MAX_PORTS);
+
+	/* This covers both ULT and ULX */
+	if (IS_HASWELL_ULT(i915) || IS_BROADWELL_ULT(i915))
+		display_runtime->port_mask &= ~BIT(PORT_D);
+
+	if (IS_ICL_WITH_PORT_F(i915))
+		display_runtime->port_mask |= BIT(PORT_F);
 
 	/* Wa_14011765242: adl-s A0,A1 */
 	if (IS_ALDERLAKE_S(i915) && IS_DISPLAY_STEP(i915, STEP_A0, STEP_A2))
@@ -1065,10 +1072,42 @@ void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
 			display_runtime->has_dsc = 0;
 	}
 
+	if (DISPLAY_VER(i915) >= 20) {
+		u32 cap = intel_de_read(i915, XE2LPD_DE_CAP);
+
+		if (REG_FIELD_GET(XE2LPD_DE_CAP_DSC_MASK, cap) ==
+		    XE2LPD_DE_CAP_DSC_REMOVED)
+			display_runtime->has_dsc = 0;
+
+		if (REG_FIELD_GET(XE2LPD_DE_CAP_SCALER_MASK, cap) ==
+		    XE2LPD_DE_CAP_SCALER_SINGLE) {
+			for_each_pipe(i915, pipe)
+				if (display_runtime->num_scalers[pipe])
+					display_runtime->num_scalers[pipe] = 1;
+		}
+	}
+
 	return;
 
 display_fused_off:
 	memset(display_runtime, 0, sizeof(*display_runtime));
+}
+
+void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
+{
+	if (HAS_DISPLAY(i915))
+		__intel_display_device_info_runtime_init(i915);
+
+	/* Display may have been disabled by runtime init */
+	if (!HAS_DISPLAY(i915)) {
+		i915->drm.driver_features &= ~(DRIVER_MODESET | DRIVER_ATOMIC);
+		i915->display.info.__device_info = &no_display;
+	}
+
+	/* Disable nuclear pageflip by default on pre-g4x */
+	if (!i915->params.nuclear_pageflip &&
+	    DISPLAY_VER(i915) < 5 && !IS_G4X(i915))
+		i915->drm.driver_features &= ~DRIVER_ATOMIC;
 }
 
 void intel_display_device_info_print(const struct intel_display_device_info *info,
@@ -1090,4 +1129,21 @@ void intel_display_device_info_print(const struct intel_display_device_info *inf
 	drm_printf(p, "has_hdcp: %s\n", str_yes_no(runtime->has_hdcp));
 	drm_printf(p, "has_dmc: %s\n", str_yes_no(runtime->has_dmc));
 	drm_printf(p, "has_dsc: %s\n", str_yes_no(runtime->has_dsc));
+}
+
+/*
+ * Assuming the device has display hardware, should it be enabled?
+ *
+ * It's an error to call this function if the device does not have display
+ * hardware.
+ *
+ * Disabling display means taking over the display hardware, putting it to
+ * sleep, and preventing connectors from being connected via any means.
+ */
+bool intel_display_device_enabled(struct drm_i915_private *i915)
+{
+	/* Only valid when HAS_DISPLAY() is true */
+	drm_WARN_ON(&i915->drm, !HAS_DISPLAY(i915));
+
+	return !i915->params.disable_display && !intel_opregion_headless_sku(i915);
 }

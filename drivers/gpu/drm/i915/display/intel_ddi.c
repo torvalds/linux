@@ -4333,7 +4333,7 @@ static int intel_hdmi_reset_link(struct intel_encoder *encoder,
 	u8 config;
 	int ret;
 
-	if (!connector || connector->base.status != connector_status_connected)
+	if (connector->base.status != connector_status_connected)
 		return 0;
 
 	ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,

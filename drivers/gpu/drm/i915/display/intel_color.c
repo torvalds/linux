@@ -3702,6 +3702,7 @@ static const struct intel_color_funcs vlv_color_funcs = {
 	.read_luts = i965_read_luts,
 	.lut_equal = i965_lut_equal,
 	.read_csc = vlv_read_csc,
+	.get_config = i9xx_get_config,
 };
 
 static const struct intel_color_funcs i965_color_funcs = {

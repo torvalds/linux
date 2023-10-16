@@ -16,6 +16,7 @@ struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_c10pll_state;
 struct intel_c20pll_state;
+struct intel_crtc;
 struct intel_crtc_state;
 struct intel_encoder;
 struct intel_hdmi;
@@ -34,7 +35,7 @@ void intel_c10pll_dump_hw_state(struct drm_i915_private *dev_priv,
 int intel_c10pll_calc_port_clock(struct intel_encoder *encoder,
 				 const struct intel_c10pll_state *pll_state);
 void intel_c10pll_state_verify(struct intel_atomic_state *state,
-			       struct intel_crtc_state *new_crtc_state);
+			       struct intel_crtc *crtc);
 void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
 				   struct intel_c20pll_state *pll_state);
 void intel_c20pll_dump_hw_state(struct drm_i915_private *i915,
