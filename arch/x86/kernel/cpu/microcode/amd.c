@@ -501,7 +501,7 @@ static bool get_builtin_microcode(struct cpio_data *cp, unsigned int family)
 
 	if (family >= 0x15)
 		snprintf(fw_name, sizeof(fw_name),
-			 "amd-ucode/microcode_amd_fam%.2xh.bin", family);
+			 "amd-ucode/microcode_amd_fam%02hhxh.bin", family);
 
 	if (firmware_request_builtin(&fw, fw_name)) {
 		cp->size = fw.size;
