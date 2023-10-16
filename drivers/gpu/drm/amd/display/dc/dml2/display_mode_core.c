@@ -6208,6 +6208,58 @@ static dml_uint_t CalculateMaxVStartup(
 	return max_vstartup_lines;
 }
 
+static void set_calculate_prefetch_schedule_params(struct display_mode_lib_st *mode_lib,
+						   struct CalculatePrefetchSchedule_params_st *CalculatePrefetchSchedule_params,
+						   dml_uint_t j,
+						   dml_uint_t k)
+{
+				CalculatePrefetchSchedule_params->DSCDelay = mode_lib->ms.DSCDelayPerState[k];
+				CalculatePrefetchSchedule_params->EnhancedPrefetchScheduleAccelerationFinal = mode_lib->ms.policy.EnhancedPrefetchScheduleAccelerationFinal;
+				CalculatePrefetchSchedule_params->DPPCLKDelaySubtotalPlusCNVCFormater = mode_lib->ms.ip.dppclk_delay_subtotal + mode_lib->ms.ip.dppclk_delay_cnvc_formatter;
+				CalculatePrefetchSchedule_params->DPPCLKDelaySCL = mode_lib->ms.ip.dppclk_delay_scl;
+				CalculatePrefetchSchedule_params->DPPCLKDelaySCLLBOnly = mode_lib->ms.ip.dppclk_delay_scl_lb_only;
+				CalculatePrefetchSchedule_params->DPPCLKDelayCNVCCursor = mode_lib->ms.ip.dppclk_delay_cnvc_cursor;
+				CalculatePrefetchSchedule_params->DISPCLKDelaySubtotal = mode_lib->ms.ip.dispclk_delay_subtotal;
+				CalculatePrefetchSchedule_params->DPP_RECOUT_WIDTH = (dml_uint_t)(mode_lib->ms.SwathWidthYThisState[k] / mode_lib->ms.cache_display_cfg.plane.HRatio[k]);
+				CalculatePrefetchSchedule_params->OutputFormat = mode_lib->ms.cache_display_cfg.output.OutputFormat[k];
+				CalculatePrefetchSchedule_params->MaxInterDCNTileRepeaters = mode_lib->ms.ip.max_inter_dcn_tile_repeaters;
+				CalculatePrefetchSchedule_params->GPUVMPageTableLevels = mode_lib->ms.cache_display_cfg.plane.GPUVMMaxPageTableLevels;
+				CalculatePrefetchSchedule_params->GPUVMEnable = mode_lib->ms.cache_display_cfg.plane.GPUVMEnable;
+				CalculatePrefetchSchedule_params->HostVMEnable = mode_lib->ms.cache_display_cfg.plane.HostVMEnable;
+				CalculatePrefetchSchedule_params->HostVMMaxNonCachedPageTableLevels = mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels;
+				CalculatePrefetchSchedule_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes;
+				CalculatePrefetchSchedule_params->DynamicMetadataEnable = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataEnable[k];
+				CalculatePrefetchSchedule_params->DynamicMetadataVMEnabled = mode_lib->ms.ip.dynamic_metadata_vm_enabled;
+				CalculatePrefetchSchedule_params->DynamicMetadataLinesBeforeActiveRequired = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataLinesBeforeActiveRequired[k];
+				CalculatePrefetchSchedule_params->DynamicMetadataTransmittedBytes = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataTransmittedBytes[k];
+				CalculatePrefetchSchedule_params->UrgentLatency = mode_lib->ms.UrgLatency;
+				CalculatePrefetchSchedule_params->UrgentExtraLatency = mode_lib->ms.ExtraLatency;
+				CalculatePrefetchSchedule_params->TCalc = mode_lib->ms.TimeCalc;
+				CalculatePrefetchSchedule_params->PDEAndMetaPTEBytesFrame = mode_lib->ms.PDEAndMetaPTEBytesPerFrame[j][k];
+				CalculatePrefetchSchedule_params->MetaRowByte = mode_lib->ms.MetaRowBytes[j][k];
+				CalculatePrefetchSchedule_params->PixelPTEBytesPerRow = mode_lib->ms.DPTEBytesPerRow[j][k];
+				CalculatePrefetchSchedule_params->PrefetchSourceLinesY = mode_lib->ms.PrefetchLinesY[j][k];
+				CalculatePrefetchSchedule_params->VInitPreFillY = mode_lib->ms.PrefillY[k];
+				CalculatePrefetchSchedule_params->MaxNumSwathY = mode_lib->ms.MaxNumSwY[k];
+				CalculatePrefetchSchedule_params->PrefetchSourceLinesC = mode_lib->ms.PrefetchLinesC[j][k];
+				CalculatePrefetchSchedule_params->VInitPreFillC = mode_lib->ms.PrefillC[k];
+				CalculatePrefetchSchedule_params->MaxNumSwathC = mode_lib->ms.MaxNumSwC[k];
+				CalculatePrefetchSchedule_params->swath_width_luma_ub = mode_lib->ms.swath_width_luma_ub_this_state[k];
+				CalculatePrefetchSchedule_params->swath_width_chroma_ub = mode_lib->ms.swath_width_chroma_ub_this_state[k];
+				CalculatePrefetchSchedule_params->SwathHeightY = mode_lib->ms.SwathHeightYThisState[k];
+				CalculatePrefetchSchedule_params->SwathHeightC = mode_lib->ms.SwathHeightCThisState[k];
+				CalculatePrefetchSchedule_params->TWait = mode_lib->ms.TWait;
+				CalculatePrefetchSchedule_params->DestinationLinesForPrefetch = &mode_lib->ms.LineTimesForPrefetch[k];
+				CalculatePrefetchSchedule_params->DestinationLinesToRequestVMInVBlank = &mode_lib->ms.LinesForMetaPTE[k];
+				CalculatePrefetchSchedule_params->DestinationLinesToRequestRowInVBlank = &mode_lib->ms.LinesForMetaAndDPTERow[k];
+				CalculatePrefetchSchedule_params->VRatioPrefetchY = &mode_lib->ms.VRatioPreY[j][k];
+				CalculatePrefetchSchedule_params->VRatioPrefetchC = &mode_lib->ms.VRatioPreC[j][k];
+				CalculatePrefetchSchedule_params->RequiredPrefetchPixDataBWLuma = &mode_lib->ms.RequiredPrefetchPixelDataBWLuma[k];
+				CalculatePrefetchSchedule_params->RequiredPrefetchPixDataBWChroma = &mode_lib->ms.RequiredPrefetchPixelDataBWChroma[k];
+				CalculatePrefetchSchedule_params->NotEnoughTimeForDynamicMetadata = &mode_lib->ms.support.NoTimeForDynamicMetadata[j][k];
+				CalculatePrefetchSchedule_params->Tno_bw = &mode_lib->ms.Tno_bw[k];
+}
+
 static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 {
 	struct dml_core_mode_support_locals_st *s = &mode_lib->scratch.dml_core_mode_support_locals;
@@ -6335,57 +6387,12 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 				dml_print("DML::%s: PrefetchMode = %u\n", __func__, mode_lib->ms.PrefetchMode[k]);
 #endif
 
-				CalculatePrefetchSchedule_params->EnhancedPrefetchScheduleAccelerationFinal = mode_lib->ms.policy.EnhancedPrefetchScheduleAccelerationFinal;
 				CalculatePrefetchSchedule_params->HostVMInefficiencyFactor = s->HostVMInefficiencyFactor;
 				CalculatePrefetchSchedule_params->myPipe = myPipe;
-				CalculatePrefetchSchedule_params->DSCDelay = mode_lib->ms.DSCDelayPerState[k];
-				CalculatePrefetchSchedule_params->DPPCLKDelaySubtotalPlusCNVCFormater = mode_lib->ms.ip.dppclk_delay_subtotal + mode_lib->ms.ip.dppclk_delay_cnvc_formatter;
-				CalculatePrefetchSchedule_params->DPPCLKDelaySCL = mode_lib->ms.ip.dppclk_delay_scl;
-				CalculatePrefetchSchedule_params->DPPCLKDelaySCLLBOnly = mode_lib->ms.ip.dppclk_delay_scl_lb_only;
-				CalculatePrefetchSchedule_params->DPPCLKDelayCNVCCursor = mode_lib->ms.ip.dppclk_delay_cnvc_cursor;
-				CalculatePrefetchSchedule_params->DISPCLKDelaySubtotal = mode_lib->ms.ip.dispclk_delay_subtotal;
-				CalculatePrefetchSchedule_params->DPP_RECOUT_WIDTH = (dml_uint_t)(mode_lib->ms.SwathWidthYThisState[k] / mode_lib->ms.cache_display_cfg.plane.HRatio[k]);
-				CalculatePrefetchSchedule_params->OutputFormat = mode_lib->ms.cache_display_cfg.output.OutputFormat[k];
-				CalculatePrefetchSchedule_params->MaxInterDCNTileRepeaters = mode_lib->ms.ip.max_inter_dcn_tile_repeaters;
 				CalculatePrefetchSchedule_params->VStartup = (dml_uint_t)(dml_min(s->MaxVStartup, s->MaximumVStartup[j][k]));
 				CalculatePrefetchSchedule_params->MaxVStartup = s->MaximumVStartup[j][k];
-				CalculatePrefetchSchedule_params->GPUVMPageTableLevels = mode_lib->ms.cache_display_cfg.plane.GPUVMMaxPageTableLevels;
-				CalculatePrefetchSchedule_params->GPUVMEnable = mode_lib->ms.cache_display_cfg.plane.GPUVMEnable;
-				CalculatePrefetchSchedule_params->HostVMEnable = mode_lib->ms.cache_display_cfg.plane.HostVMEnable;
-				CalculatePrefetchSchedule_params->HostVMMaxNonCachedPageTableLevels = mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels;
-				CalculatePrefetchSchedule_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes;
-				CalculatePrefetchSchedule_params->DynamicMetadataEnable = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataEnable[k];
-				CalculatePrefetchSchedule_params->DynamicMetadataVMEnabled = mode_lib->ms.ip.dynamic_metadata_vm_enabled;
-				CalculatePrefetchSchedule_params->DynamicMetadataLinesBeforeActiveRequired = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataLinesBeforeActiveRequired[k];
-				CalculatePrefetchSchedule_params->DynamicMetadataTransmittedBytes = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataTransmittedBytes[k];
-				CalculatePrefetchSchedule_params->UrgentLatency = mode_lib->ms.UrgLatency;
-				CalculatePrefetchSchedule_params->UrgentExtraLatency = mode_lib->ms.ExtraLatency;
-				CalculatePrefetchSchedule_params->TCalc = mode_lib->ms.TimeCalc;
-				CalculatePrefetchSchedule_params->PDEAndMetaPTEBytesFrame = mode_lib->ms.PDEAndMetaPTEBytesPerFrame[j][k];
-				CalculatePrefetchSchedule_params->MetaRowByte = mode_lib->ms.MetaRowBytes[j][k];
-				CalculatePrefetchSchedule_params->PixelPTEBytesPerRow = mode_lib->ms.DPTEBytesPerRow[j][k];
-				CalculatePrefetchSchedule_params->PrefetchSourceLinesY = mode_lib->ms.PrefetchLinesY[j][k];
-				CalculatePrefetchSchedule_params->VInitPreFillY = mode_lib->ms.PrefillY[k];
-				CalculatePrefetchSchedule_params->MaxNumSwathY = mode_lib->ms.MaxNumSwY[k];
-				CalculatePrefetchSchedule_params->PrefetchSourceLinesC = mode_lib->ms.PrefetchLinesC[j][k];
-				CalculatePrefetchSchedule_params->VInitPreFillC = mode_lib->ms.PrefillC[k];
-				CalculatePrefetchSchedule_params->MaxNumSwathC = mode_lib->ms.MaxNumSwC[k];
-				CalculatePrefetchSchedule_params->swath_width_luma_ub = mode_lib->ms.swath_width_luma_ub_this_state[k];
-				CalculatePrefetchSchedule_params->swath_width_chroma_ub = mode_lib->ms.swath_width_chroma_ub_this_state[k];
-				CalculatePrefetchSchedule_params->SwathHeightY = mode_lib->ms.SwathHeightYThisState[k];
-				CalculatePrefetchSchedule_params->SwathHeightC = mode_lib->ms.SwathHeightCThisState[k];
-				CalculatePrefetchSchedule_params->TWait = mode_lib->ms.TWait;
 				CalculatePrefetchSchedule_params->DSTXAfterScaler = &s->DSTXAfterScaler[k];
 				CalculatePrefetchSchedule_params->DSTYAfterScaler = &s->DSTYAfterScaler[k];
-				CalculatePrefetchSchedule_params->DestinationLinesForPrefetch = &mode_lib->ms.LineTimesForPrefetch[k];
-				CalculatePrefetchSchedule_params->DestinationLinesToRequestVMInVBlank = &mode_lib->ms.LinesForMetaPTE[k];
-				CalculatePrefetchSchedule_params->DestinationLinesToRequestRowInVBlank = &mode_lib->ms.LinesForMetaAndDPTERow[k];
-				CalculatePrefetchSchedule_params->VRatioPrefetchY = &mode_lib->ms.VRatioPreY[j][k];
-				CalculatePrefetchSchedule_params->VRatioPrefetchC = &mode_lib->ms.VRatioPreC[j][k];
-				CalculatePrefetchSchedule_params->RequiredPrefetchPixDataBWLuma = &mode_lib->ms.RequiredPrefetchPixelDataBWLuma[k];
-				CalculatePrefetchSchedule_params->RequiredPrefetchPixDataBWChroma = &mode_lib->ms.RequiredPrefetchPixelDataBWChroma[k];
-				CalculatePrefetchSchedule_params->NotEnoughTimeForDynamicMetadata = &mode_lib->ms.support.NoTimeForDynamicMetadata[j][k];
-				CalculatePrefetchSchedule_params->Tno_bw = &mode_lib->ms.Tno_bw[k];
 				CalculatePrefetchSchedule_params->prefetch_vmrow_bw = &mode_lib->ms.prefetch_vmrow_bw[k];
 				CalculatePrefetchSchedule_params->Tdmdl_vm = &s->dummy_single[0];
 				CalculatePrefetchSchedule_params->Tdmdl = &s->dummy_single[1];
@@ -6393,6 +6400,8 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 				CalculatePrefetchSchedule_params->VUpdateOffsetPix = &s->dummy_integer[0];
 				CalculatePrefetchSchedule_params->VUpdateWidthPix = &s->dummy_integer[1];
 				CalculatePrefetchSchedule_params->VReadyOffsetPix = &s->dummy_integer[2];
+
+				set_calculate_prefetch_schedule_params(mode_lib, CalculatePrefetchSchedule_params, j, k);
 
 				mode_lib->ms.support.NoTimeForPrefetch[j][k] =
 								CalculatePrefetchSchedule(&mode_lib->scratch,
