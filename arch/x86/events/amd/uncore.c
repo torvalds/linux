@@ -1040,20 +1040,25 @@ static int __init amd_uncore_init(void)
 	/*
 	 * Install callbacks. Core will call them for each online cpu.
 	 */
-	if (cpuhp_setup_state(CPUHP_PERF_X86_AMD_UNCORE_PREP,
-			      "perf/x86/amd/uncore:prepare",
-			      NULL, amd_uncore_cpu_dead))
+	ret = cpuhp_setup_state(CPUHP_PERF_X86_AMD_UNCORE_PREP,
+				"perf/x86/amd/uncore:prepare",
+				NULL, amd_uncore_cpu_dead);
+	if (ret)
 		goto fail;
 
-	if (cpuhp_setup_state(CPUHP_AP_PERF_X86_AMD_UNCORE_STARTING,
-			      "perf/x86/amd/uncore:starting",
-			      amd_uncore_cpu_starting, NULL))
+	ret = cpuhp_setup_state(CPUHP_AP_PERF_X86_AMD_UNCORE_STARTING,
+				"perf/x86/amd/uncore:starting",
+				amd_uncore_cpu_starting, NULL);
+	if (ret)
 		goto fail_prep;
-	if (cpuhp_setup_state(CPUHP_AP_PERF_X86_AMD_UNCORE_ONLINE,
-			      "perf/x86/amd/uncore:online",
-			      amd_uncore_cpu_online,
-			      amd_uncore_cpu_down_prepare))
+
+	ret = cpuhp_setup_state(CPUHP_AP_PERF_X86_AMD_UNCORE_ONLINE,
+				"perf/x86/amd/uncore:online",
+				amd_uncore_cpu_online,
+				amd_uncore_cpu_down_prepare);
+	if (ret)
 		goto fail_start;
+
 	return 0;
 
 fail_start:
