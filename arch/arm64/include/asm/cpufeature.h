@@ -465,19 +465,6 @@ static __always_inline bool cpus_have_cap(unsigned int num)
 /*
  * Test for a capability without a runtime check.
  *
- * Before capabilities are finalized, this returns false.
- * After capabilities are finalized, this is patched to avoid a runtime check.
- *
- * @num must be a compile-time constant.
- */
-static __always_inline bool __cpus_have_const_cap(int num)
-{
-	return alternative_has_cap_unlikely(num);
-}
-
-/*
- * Test for a capability without a runtime check.
- *
  * Before boot capabilities are finalized, this will BUG().
  * After boot capabilities are finalized, this is patched to avoid a runtime
  * check.
@@ -487,7 +474,7 @@ static __always_inline bool __cpus_have_const_cap(int num)
 static __always_inline bool cpus_have_final_boot_cap(int num)
 {
 	if (boot_capabilities_finalized())
-		return __cpus_have_const_cap(num);
+		return alternative_has_cap_unlikely(num);
 	else
 		BUG();
 }
@@ -504,30 +491,9 @@ static __always_inline bool cpus_have_final_boot_cap(int num)
 static __always_inline bool cpus_have_final_cap(int num)
 {
 	if (system_capabilities_finalized())
-		return __cpus_have_const_cap(num);
+		return alternative_has_cap_unlikely(num);
 	else
 		BUG();
-}
-
-/*
- * Test for a capability, possibly with a runtime check for non-hyp code.
- *
- * For hyp code, this behaves the same as cpus_have_final_cap().
- *
- * For non-hyp code:
- * Before capabilities are finalized, this behaves as cpus_have_cap().
- * After capabilities are finalized, this is patched to avoid a runtime check.
- *
- * @num must be a compile-time constant.
- */
-static __always_inline bool cpus_have_const_cap(int num)
-{
-	if (is_hyp_code())
-		return cpus_have_final_cap(num);
-	else if (system_capabilities_finalized())
-		return __cpus_have_const_cap(num);
-	else
-		return cpus_have_cap(num);
 }
 
 static inline int __attribute_const__

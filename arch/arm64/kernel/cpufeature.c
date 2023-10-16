@@ -3322,7 +3322,6 @@ EXPORT_SYMBOL_GPL(this_cpu_has_cap);
  * This helper function is used in a narrow window when,
  * - The system wide safe registers are set with all the SMP CPUs and,
  * - The SYSTEM_FEATURE system_cpucaps may not have been set.
- * In all other cases cpus_have_{const_}cap() should be used.
  */
 static bool __maybe_unused __system_matches_cap(unsigned int n)
 {
