@@ -16,7 +16,8 @@ struct qnode {
 	struct qnode	*next;
 	struct qspinlock *lock;
 	int		cpu;
-	int		yield_cpu;
+	u8		sleepy; /* 1 if the previous vCPU was preempted or
+				 * if the previous node was sleepy */
 	u8		locked; /* 1 if lock acquired */
 };
 
@@ -349,7 +350,7 @@ static __always_inline bool yield_head_to_locked_owner(struct qspinlock *lock, u
 	return __yield_to_locked_owner(lock, val, paravirt, mustq);
 }
 
-static __always_inline void propagate_yield_cpu(struct qnode *node, u32 val, int *set_yield_cpu, bool paravirt)
+static __always_inline void propagate_sleepy(struct qnode *node, u32 val, bool *set_sleepy, bool paravirt)
 {
 	struct qnode *next;
 	int owner;
@@ -358,21 +359,17 @@ static __always_inline void propagate_yield_cpu(struct qnode *node, u32 val, int
 		return;
 	if (!pv_yield_propagate_owner)
 		return;
-
-	owner = get_owner_cpu(val);
-	if (*set_yield_cpu == owner)
+	if (*set_sleepy)
 		return;
 
 	next = READ_ONCE(node->next);
 	if (!next)
 		return;
 
+	owner = get_owner_cpu(val);
 	if (vcpu_is_preempted(owner)) {
-		next->yield_cpu = owner;
-		*set_yield_cpu = owner;
-	} else if (*set_yield_cpu != -1) {
-		next->yield_cpu = owner;
-		*set_yield_cpu = owner;
+		next->sleepy = 1;
+		*set_sleepy = true;
 	}
 }
 
@@ -380,7 +377,6 @@ static __always_inline void propagate_yield_cpu(struct qnode *node, u32 val, int
 static __always_inline bool yield_to_prev(struct qspinlock *lock, struct qnode *node, int prev_cpu, bool paravirt)
 {
 	u32 yield_count;
-	int yield_cpu;
 	bool preempted = false;
 
 	if (!paravirt)
@@ -389,36 +385,32 @@ static __always_inline bool yield_to_prev(struct qspinlock *lock, struct qnode *
 	if (!pv_yield_propagate_owner)
 		goto yield_prev;
 
-	yield_cpu = READ_ONCE(node->yield_cpu);
-	if (yield_cpu == -1) {
-		/* Propagate back the -1 CPU */
-		if (node->next && node->next->yield_cpu != -1)
-			node->next->yield_cpu = yield_cpu;
+	if (!READ_ONCE(node->sleepy)) {
+		/* Propagate back sleepy==false */
+		if (node->next && node->next->sleepy)
+			node->next->sleepy = 0;
 		goto yield_prev;
+	} else {
+		u32 val = READ_ONCE(lock->val);
+
+		if (val & _Q_LOCKED_VAL) {
+			if (node->next && !node->next->sleepy) {
+				/*
+				 * Propagate sleepy to next waiter. Only if
+				 * owner is preempted, which allows the queue
+				 * to become "non-sleepy" if vCPU preemption
+				 * ceases to occur, even if the lock remains
+				 * highly contended.
+				 */
+				if (vcpu_is_preempted(get_owner_cpu(val)))
+					node->next->sleepy = 1;
+			}
+
+			preempted = yield_to_locked_owner(lock, val, paravirt);
+			if (preempted)
+				return preempted;
+		}
 	}
-
-	yield_count = yield_count_of(yield_cpu);
-	if ((yield_count & 1) == 0)
-		goto yield_prev; /* owner vcpu is running */
-
-	if (get_owner_cpu(READ_ONCE(lock->val)) != yield_cpu)
-		goto yield_prev; /* re-sample lock owner */
-
-	spin_end();
-
-	preempted = true;
-	seen_sleepy_node();
-
-	smp_rmb();
-
-	if (yield_cpu == node->yield_cpu) {
-		if (node->next && node->next->yield_cpu != yield_cpu)
-			node->next->yield_cpu = yield_cpu;
-		yield_to_preempted(yield_cpu, yield_count);
-		spin_begin();
-		return preempted;
-	}
-	spin_begin();
 
 yield_prev:
 	if (!pv_yield_prev)
@@ -541,7 +533,7 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 	bool sleepy = false;
 	bool mustq = false;
 	int idx;
-	int set_yield_cpu = -1;
+	bool set_sleepy = false;
 	int iters = 0;
 
 	BUILD_BUG_ON(CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS));
@@ -565,7 +557,7 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 	node->next = NULL;
 	node->lock = lock;
 	node->cpu = smp_processor_id();
-	node->yield_cpu = -1;
+	node->sleepy = 0;
 	node->locked = 0;
 
 	tail = encode_tail_cpu(node->cpu);
@@ -599,9 +591,9 @@ static __always_inline void queued_spin_lock_mcs_queue(struct qspinlock *lock, b
 		spec_barrier();
 		spin_end();
 
-		/* Clear out stale propagated yield_cpu */
-		if (paravirt && pv_yield_propagate_owner && node->yield_cpu != -1)
-			node->yield_cpu = -1;
+		/* Clear out stale propagated sleepy */
+		if (paravirt && pv_yield_propagate_owner && node->sleepy)
+			node->sleepy = 0;
 
 		smp_rmb(); /* acquire barrier for the mcs lock */
 
@@ -644,7 +636,7 @@ again:
 			}
 		}
 
-		propagate_yield_cpu(node, val, &set_yield_cpu, paravirt);
+		propagate_sleepy(node, val, &set_sleepy, paravirt);
 		preempted = yield_head_to_locked_owner(lock, val, paravirt);
 		if (!maybe_stealers)
 			continue;
