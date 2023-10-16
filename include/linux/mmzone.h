@@ -680,8 +680,14 @@ enum zone_watermarks {
  * PCPF_PREV_FREE_HIGH_ORDER: a high-order page is freed in the
  * previous page freeing.  To avoid to drain PCP for an accident
  * high-order page freeing.
+ *
+ * PCPF_FREE_HIGH_BATCH: preserve "pcp->batch" pages in PCP before
+ * draining PCP for consecutive high-order pages freeing without
+ * allocation if data cache slice of CPU is large enough.  To reduce
+ * zone lock contention and keep cache-hot pages reusing.
  */
 #define	PCPF_PREV_FREE_HIGH_ORDER	BIT(0)
+#define	PCPF_FREE_HIGH_BATCH		BIT(1)
 
 struct per_cpu_pages {
 	spinlock_t lock;	/* Protects lists field */
