@@ -36,6 +36,7 @@ struct ms_hyperv_info {
 	u32 nested_features;
 	u32 max_vp_index;
 	u32 max_lp_index;
+	u8 vtl;
 	union {
 		u32 isolation_config_a;
 		struct {
@@ -54,7 +55,6 @@ struct ms_hyperv_info {
 		};
 	};
 	u64 shared_gpa_boundary;
-	u8 vtl;
 };
 extern struct ms_hyperv_info ms_hyperv;
 extern bool hv_nested;

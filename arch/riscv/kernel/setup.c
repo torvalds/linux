@@ -173,19 +173,6 @@ static void __init init_resources(void)
 	if (ret < 0)
 		goto error;
 
-#ifdef CONFIG_KEXEC_CORE
-	if (crashk_res.start != crashk_res.end) {
-		ret = add_resource(&iomem_resource, &crashk_res);
-		if (ret < 0)
-			goto error;
-	}
-	if (crashk_low_res.start != crashk_low_res.end) {
-		ret = add_resource(&iomem_resource, &crashk_low_res);
-		if (ret < 0)
-			goto error;
-	}
-#endif
-
 #ifdef CONFIG_CRASH_DUMP
 	if (elfcorehdr_size > 0) {
 		elfcorehdr_res.start = elfcorehdr_addr;

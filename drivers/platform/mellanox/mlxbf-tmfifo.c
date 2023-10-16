@@ -53,7 +53,7 @@
 struct mlxbf_tmfifo;
 
 /**
- * mlxbf_tmfifo_vring - Structure of the TmFifo virtual ring
+ * struct mlxbf_tmfifo_vring - Structure of the TmFifo virtual ring
  * @va: virtual address of the ring
  * @dma: dma address of the ring
  * @vq: pointer to the virtio virtqueue
@@ -113,12 +113,13 @@ enum {
 };
 
 /**
- * mlxbf_tmfifo_vdev - Structure of the TmFifo virtual device
+ * struct mlxbf_tmfifo_vdev - Structure of the TmFifo virtual device
  * @vdev: virtio device, in which the vdev.id.device field has the
  *        VIRTIO_ID_xxx id to distinguish the virtual device.
  * @status: status of the device
  * @features: supported features of the device
  * @vrings: array of tmfifo vrings of this device
+ * @config: non-anonymous union for cons and net
  * @config.cons: virtual console config -
  *               select if vdev.id.device is VIRTIO_ID_CONSOLE
  * @config.net: virtual network config -
@@ -138,7 +139,7 @@ struct mlxbf_tmfifo_vdev {
 };
 
 /**
- * mlxbf_tmfifo_irq_info - Structure of the interrupt information
+ * struct mlxbf_tmfifo_irq_info - Structure of the interrupt information
  * @fifo: pointer to the tmfifo structure
  * @irq: interrupt number
  * @index: index into the interrupt array
@@ -150,7 +151,7 @@ struct mlxbf_tmfifo_irq_info {
 };
 
 /**
- * mlxbf_tmfifo_io - Structure of the TmFifo IO resource (for both rx & tx)
+ * struct mlxbf_tmfifo_io - Structure of the TmFifo IO resource (for both rx & tx)
  * @ctl: control register offset (TMFIFO_RX_CTL / TMFIFO_TX_CTL)
  * @sts: status register offset (TMFIFO_RX_STS / TMFIFO_TX_STS)
  * @data: data register offset (TMFIFO_RX_DATA / TMFIFO_TX_DATA)
@@ -162,7 +163,7 @@ struct mlxbf_tmfifo_io {
 };
 
 /**
- * mlxbf_tmfifo - Structure of the TmFifo
+ * struct mlxbf_tmfifo - Structure of the TmFifo
  * @vdev: array of the virtual devices running over the TmFifo
  * @lock: lock to protect the TmFifo access
  * @res0: mapped resource block 0
@@ -198,7 +199,7 @@ struct mlxbf_tmfifo {
 };
 
 /**
- * mlxbf_tmfifo_msg_hdr - Structure of the TmFifo message header
+ * struct mlxbf_tmfifo_msg_hdr - Structure of the TmFifo message header
  * @type: message type
  * @len: payload length in network byte order. Messages sent into the FIFO
  *       will be read by the other side as data stream in the same byte order.
@@ -208,6 +209,7 @@ struct mlxbf_tmfifo {
 struct mlxbf_tmfifo_msg_hdr {
 	u8 type;
 	__be16 len;
+	/* private: */
 	u8 unused[5];
 } __packed __aligned(sizeof(u64));
 

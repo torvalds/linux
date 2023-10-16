@@ -2166,7 +2166,7 @@ static struct worker *create_worker(struct worker_pool *pool)
 {
 	struct worker *worker;
 	int id;
-	char id_buf[16];
+	char id_buf[23];
 
 	/* ID is needed to determine kthread name */
 	id = ida_alloc(&pool->worker_ida, GFP_KERNEL);
@@ -4600,12 +4600,22 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 	}
 	cpus_read_unlock();
 
+	/* for unbound pwq, flush the pwq_release_worker ensures that the
+	 * pwq_release_workfn() completes before calling kfree(wq).
+	 */
+	if (ret)
+		kthread_flush_worker(pwq_release_worker);
+
 	return ret;
 
 enomem:
 	if (wq->cpu_pwq) {
-		for_each_possible_cpu(cpu)
-			kfree(*per_cpu_ptr(wq->cpu_pwq, cpu));
+		for_each_possible_cpu(cpu) {
+			struct pool_workqueue *pwq = *per_cpu_ptr(wq->cpu_pwq, cpu);
+
+			if (pwq)
+				kmem_cache_free(pwq_cache, pwq);
+		}
 		free_percpu(wq->cpu_pwq);
 		wq->cpu_pwq = NULL;
 	}
@@ -5782,9 +5792,13 @@ static int workqueue_apply_unbound_cpumask(const cpumask_var_t unbound_cpumask)
 	list_for_each_entry(wq, &workqueues, list) {
 		if (!(wq->flags & WQ_UNBOUND))
 			continue;
+
 		/* creating multiple pwqs breaks ordering guarantee */
-		if (wq->flags & __WQ_ORDERED)
-			continue;
+		if (!list_empty(&wq->pwqs)) {
+			if (wq->flags & __WQ_ORDERED_EXPLICIT)
+				continue;
+			wq->flags &= ~__WQ_ORDERED;
+		}
 
 		ctx = apply_wqattrs_prepare(wq, wq->unbound_attrs, unbound_cpumask);
 		if (IS_ERR(ctx)) {

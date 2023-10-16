@@ -95,7 +95,7 @@ struct btrfs_delayed_item {
 	bool logged;
 	/* The maximum leaf size is 64K, so u16 is more than enough. */
 	u16 data_len;
-	char data[];
+	char data[] __counted_by(data_len);
 };
 
 static inline void btrfs_init_delayed_root(

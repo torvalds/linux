@@ -232,7 +232,7 @@ properties:
             # MEMSIC magnetometer
           - memsic,mmc35240
             # MEMSIC 3-axis accelerometer
-          - memsic,mx4005
+          - memsic,mxc4005
             # MEMSIC 2-axis 8-bit digital accelerometer
           - memsic,mxc6225
             # MEMSIC 2-axis 8-bit digital accelerometer

@@ -138,7 +138,8 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 	vpu->ctx->vpu_inst = vpu;
 
 	status = mtk_vcodec_fw_ipi_register(vpu->ctx->dev->fw_handler, vpu->id,
-					    vpu_enc_ipi_handler, "venc", NULL);
+					    vpu_enc_ipi_handler, "venc",
+					    vpu->ctx->dev);
 
 	if (status) {
 		mtk_venc_err(vpu->ctx, "vpu_ipi_register fail %d", status);
