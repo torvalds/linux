@@ -129,9 +129,9 @@ static int tls_validate(struct rpc_task *task, struct xdr_stream *xdr)
 	if (*p != rpc_auth_null)
 		return -EIO;
 	if (xdr_stream_decode_opaque_inline(xdr, &str, starttls_len) != starttls_len)
-		return -EIO;
+		return -EPROTONOSUPPORT;
 	if (memcmp(str, starttls_token, starttls_len))
-		return -EIO;
+		return -EPROTONOSUPPORT;
 	return 0;
 }
 

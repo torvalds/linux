@@ -799,6 +799,8 @@ config HID_NVIDIA_SHIELD
 	tristate "NVIDIA SHIELD devices"
 	depends on USB_HID
 	depends on BT_HIDP
+	depends on LEDS_CLASS
+	select POWER_SUPPLY
 	help
 	  Support for NVIDIA SHIELD accessories.
 
