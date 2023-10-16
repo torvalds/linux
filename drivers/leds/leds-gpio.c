@@ -125,16 +125,13 @@ static int create_gpio_led(const struct gpio_led *template,
 		return ret;
 
 	pinctrl = devm_pinctrl_get_select_default(led_dat->cdev.dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		if (ret != -ENODEV) {
-			dev_warn(led_dat->cdev.dev,
-				 "Failed to select %pfw pinctrl: %d\n",
-				 fwnode, ret);
-		} else {
-			/* pinctrl-%d not present, not an error */
-			ret = 0;
-		}
+	ret = PTR_ERR_OR_ZERO(pinctrl);
+	/* pinctrl-%d not present, not an error */
+	if (ret == -ENODEV)
+		ret = 0;
+	if (ret) {
+		dev_warn(led_dat->cdev.dev, "Failed to select %pfw pinctrl: %d\n",
+			 fwnode, ret);
 	}
 
 	return ret;
