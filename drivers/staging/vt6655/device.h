@@ -253,7 +253,7 @@ struct vnt_private {
 	unsigned char bbvga[BB_VGA_LEVEL];
 	long                    dbm_threshold[BB_VGA_LEVEL];
 
-	unsigned char byBBPreEDRSSI;
+	unsigned char bb_pre_edrssi;
 	unsigned char byBBPreEDIndex;
 
 	unsigned long dwDiagRefCount;
