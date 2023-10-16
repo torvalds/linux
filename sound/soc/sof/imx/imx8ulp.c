@@ -278,14 +278,12 @@ exit_pdev_unregister:
 	return ret;
 }
 
-static int imx8ulp_remove(struct snd_sof_dev *sdev)
+static void imx8ulp_remove(struct snd_sof_dev *sdev)
 {
 	struct imx8ulp_priv *priv = sdev->pdata->hw_pdata;
 
 	imx8_disable_clocks(sdev, priv->clks);
 	platform_device_unregister(priv->ipc_dev);
-
-	return 0;
 }
 
 /* on i.MX8 there is 1 to 1 match between type and BAR idx */

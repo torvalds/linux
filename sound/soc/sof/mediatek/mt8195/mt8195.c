@@ -388,7 +388,7 @@ static int mt8195_dsp_shutdown(struct snd_sof_dev *sdev)
 	return snd_sof_suspend(sdev->dev);
 }
 
-static int mt8195_dsp_remove(struct snd_sof_dev *sdev)
+static void mt8195_dsp_remove(struct snd_sof_dev *sdev)
 {
 	struct platform_device *pdev = container_of(sdev->dev, struct platform_device, dev);
 	struct adsp_priv *priv = sdev->pdata->hw_pdata;
@@ -396,8 +396,6 @@ static int mt8195_dsp_remove(struct snd_sof_dev *sdev)
 	platform_device_unregister(priv->ipc_dev);
 	adsp_sram_power_on(&pdev->dev, false);
 	adsp_clock_off(sdev);
-
-	return 0;
 }
 
 static int mt8195_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)

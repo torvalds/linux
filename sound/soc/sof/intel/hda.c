@@ -1317,7 +1317,7 @@ err:
 	return ret;
 }
 
-int hda_dsp_remove(struct snd_sof_dev *sdev)
+void hda_dsp_remove(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -1377,8 +1377,6 @@ skip_disable_dsp:
 	sof_hda_bus_exit(sdev);
 
 	hda_codec_i915_exit(sdev);
-
-	return 0;
 }
 
 int hda_power_down_dsp(struct snd_sof_dev *sdev)
