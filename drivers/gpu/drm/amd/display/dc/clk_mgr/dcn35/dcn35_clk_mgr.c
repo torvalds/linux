@@ -814,7 +814,8 @@ static void dcn35_set_idle_state(struct clk_mgr *clk_mgr_base, bool allow_idle)
 	struct dc *dc = clk_mgr_base->ctx->dc;
 	uint32_t val = dcn35_smu_read_ips_scratch(clk_mgr);
 
-	if (dc->config.disable_ips == 0) {
+	if (dc->config.disable_ips == DMUB_IPS_ENABLE ||
+		dc->config.disable_ips == DMUB_IPS_DISABLE_DYNAMIC) {
 		val |= DMUB_IPS1_ALLOW_MASK;
 		val |= DMUB_IPS2_ALLOW_MASK;
 	} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS1) {
@@ -1114,7 +1115,7 @@ void dcn35_clk_mgr_construct(
 		dm_helpers_free_gpu_mem(clk_mgr->base.base.ctx, DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
 				smu_dpm_clks.dpm_clks);
 
-	if (ctx->dc->config.disable_ips == 0) {
+	if (ctx->dc->config.disable_ips != DMUB_IPS_DISABLE_ALL) {
 		bool ips_support = false;
 
 		/*avoid call pmfw at init*/
@@ -1127,7 +1128,7 @@ void dcn35_clk_mgr_construct(
 			ctx->dc->debug.disable_hpo_power_gate = false;
 		} else {
 			/*let's reset the config control flag*/
-			ctx->dc->config.disable_ips = 1; /*pmfw not support it, disable it all*/
+			ctx->dc->config.disable_ips = DMUB_IPS_DISABLE_ALL; /*pmfw not support it, disable it all*/
 		}
 	}
 }

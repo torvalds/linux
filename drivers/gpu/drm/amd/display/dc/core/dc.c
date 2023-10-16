@@ -4887,7 +4887,7 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 	if (dc->debug.disable_idle_power_optimizations)
 		return;
 
-	if (dc->caps.ips_support && dc->config.disable_ips)
+	if (dc->caps.ips_support && (dc->config.disable_ips == DMUB_IPS_DISABLE_ALL))
 		return;
 
 	if (dc->clk_mgr != NULL && dc->clk_mgr->funcs->is_smu_present)
@@ -4908,7 +4908,7 @@ bool dc_dmub_is_ips_idle_state(struct dc *dc)
 	if (dc->debug.disable_idle_power_optimizations)
 		return false;
 
-	if (!dc->caps.ips_support || dc->config.disable_ips)
+	if (!dc->caps.ips_support || (dc->config.disable_ips == DMUB_IPS_DISABLE_ALL))
 		return false;
 
 	if (dc->hwss.get_idle_state)
