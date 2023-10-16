@@ -4425,6 +4425,8 @@ static struct iommu_device *intel_iommu_probe_device(struct device *dev)
 		}
 	}
 
+	intel_iommu_debugfs_create_dev(info);
+
 	return &iommu->iommu;
 }
 
@@ -4434,6 +4436,7 @@ static void intel_iommu_release_device(struct device *dev)
 
 	dmar_remove_one_dev_info(dev);
 	intel_pasid_free_table(dev);
+	intel_iommu_debugfs_remove_dev(info);
 	dev_iommu_priv_set(dev, NULL);
 	kfree(info);
 	set_dma_ops(dev, NULL);
@@ -4726,6 +4729,7 @@ static void intel_iommu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 	spin_unlock_irqrestore(&dmar_domain->lock, flags);
 
 	domain_detach_iommu(dmar_domain, iommu);
+	intel_iommu_debugfs_remove_dev_pasid(dev_pasid);
 	kfree(dev_pasid);
 out_tear_down:
 	intel_pasid_tear_down_entry(iommu, dev, pasid, false);
@@ -4777,6 +4781,9 @@ static int intel_iommu_set_dev_pasid(struct iommu_domain *domain,
 	spin_lock_irqsave(&dmar_domain->lock, flags);
 	list_add(&dev_pasid->link_domain, &dmar_domain->dev_pasids);
 	spin_unlock_irqrestore(&dmar_domain->lock, flags);
+
+	if (domain->type & __IOMMU_DOMAIN_PAGING)
+		intel_iommu_debugfs_create_dev_pasid(dev_pasid);
 
 	return 0;
 out_detach_iommu:

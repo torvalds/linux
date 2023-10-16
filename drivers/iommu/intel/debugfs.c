@@ -111,6 +111,8 @@ static const struct iommu_regset iommu_regs_64[] = {
 	IOMMU_REGSET_ENTRY(VCRSP),
 };
 
+static struct dentry *intel_iommu_debug;
+
 static int iommu_regset_show(struct seq_file *m, void *unused)
 {
 	struct dmar_drhd_unit *drhd;
@@ -671,16 +673,12 @@ static const struct file_operations dmar_perf_latency_fops = {
 
 void __init intel_iommu_debugfs_init(void)
 {
-	struct dentry *intel_iommu_debug = debugfs_create_dir("intel",
-						iommu_debugfs_dir);
+	intel_iommu_debug = debugfs_create_dir("intel", iommu_debugfs_dir);
 
 	debugfs_create_file("iommu_regset", 0444, intel_iommu_debug, NULL,
 			    &iommu_regset_fops);
 	debugfs_create_file("dmar_translation_struct", 0444, intel_iommu_debug,
 			    NULL, &dmar_translation_struct_fops);
-	debugfs_create_file("domain_translation_struct", 0444,
-			    intel_iommu_debug, NULL,
-			    &domain_translation_struct_fops);
 	debugfs_create_file("invalidation_queue", 0444, intel_iommu_debug,
 			    NULL, &invalidation_queue_fops);
 #ifdef CONFIG_IRQ_REMAP
@@ -689,4 +687,49 @@ void __init intel_iommu_debugfs_init(void)
 #endif
 	debugfs_create_file("dmar_perf_latency", 0644, intel_iommu_debug,
 			    NULL, &dmar_perf_latency_fops);
+}
+
+/*
+ * Create a debugfs directory for each device, and then create a
+ * debugfs file in this directory for users to dump the page table
+ * of the default domain. e.g.
+ * /sys/kernel/debug/iommu/intel/0000:00:01.0/domain_translation_struct
+ */
+void intel_iommu_debugfs_create_dev(struct device_domain_info *info)
+{
+	info->debugfs_dentry = debugfs_create_dir(dev_name(info->dev), intel_iommu_debug);
+
+	debugfs_create_file("domain_translation_struct", 0444, info->debugfs_dentry,
+			    NULL, &domain_translation_struct_fops);
+}
+
+/* Remove the device debugfs directory. */
+void intel_iommu_debugfs_remove_dev(struct device_domain_info *info)
+{
+	debugfs_remove_recursive(info->debugfs_dentry);
+}
+
+/*
+ * Create a debugfs directory per pair of {device, pasid}, then create the
+ * corresponding debugfs file in this directory for users to dump its page
+ * table. e.g.
+ * /sys/kernel/debug/iommu/intel/0000:00:01.0/1/domain_translation_struct
+ *
+ * The debugfs only dumps the page tables whose mappings are created and
+ * destroyed by the iommu_map/unmap() interfaces. Check the mapping type
+ * of the domain before creating debugfs directory.
+ */
+void intel_iommu_debugfs_create_dev_pasid(struct dev_pasid_info *dev_pasid)
+{
+	struct device_domain_info *info = dev_iommu_priv_get(dev_pasid->dev);
+	char dir_name[10];
+
+	sprintf(dir_name, "%x", dev_pasid->pasid);
+	dev_pasid->debugfs_dentry = debugfs_create_dir(dir_name, info->debugfs_dentry);
+}
+
+/* Remove the device pasid debugfs directory. */
+void intel_iommu_debugfs_remove_dev_pasid(struct dev_pasid_info *dev_pasid)
+{
+	debugfs_remove_recursive(dev_pasid->debugfs_dentry);
 }
