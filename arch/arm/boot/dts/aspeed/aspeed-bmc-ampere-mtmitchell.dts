@@ -14,6 +14,42 @@
 	aliases {
 		serial7 = &uart8;
 		serial8 = &uart9;
+
+		/*
+		 *  I2C NVMe alias port
+		 */
+		i2c100 = &backplane_0;
+		i2c48 = &nvmeslot_0;
+		i2c49 = &nvmeslot_1;
+		i2c50 = &nvmeslot_2;
+		i2c51 = &nvmeslot_3;
+		i2c52 = &nvmeslot_4;
+		i2c53 = &nvmeslot_5;
+		i2c54 = &nvmeslot_6;
+		i2c55 = &nvmeslot_7;
+
+		i2c101 = &backplane_1;
+		i2c56 = &nvmeslot_8;
+		i2c57 = &nvmeslot_9;
+		i2c58 = &nvmeslot_10;
+		i2c59 = &nvmeslot_11;
+		i2c60 = &nvmeslot_12;
+		i2c61 = &nvmeslot_13;
+		i2c62 = &nvmeslot_14;
+		i2c63 = &nvmeslot_15;
+
+		i2c102 = &backplane_2;
+		i2c64 = &nvmeslot_16;
+		i2c65 = &nvmeslot_17;
+		i2c66 = &nvmeslot_18;
+		i2c67 = &nvmeslot_19;
+		i2c68 = &nvmeslot_20;
+		i2c69 = &nvmeslot_21;
+		i2c70 = &nvmeslot_22;
+		i2c71 = &nvmeslot_23;
+
+		i2c80 = &nvme_m2_0;
+		i2c81 = &nvme_m2_1;
 	};
 
 	chosen {
@@ -497,6 +533,11 @@
 &i2c8 {
 	status = "okay";
 
+	temperature-sensor@48 {
+		compatible = "ti,tmp112";
+		reg = <0x48>;
+	};
+
 	gpio@77 {
 		compatible = "nxp,pca9539";
 		reg = <0x77>;
@@ -516,6 +557,237 @@
 
 &i2c9 {
 	status = "okay";
+	i2c-mux@70 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x70>;
+		i2c-mux-idle-disconnect;
+
+		backplane_1: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+				pagesize = <32>;
+			};
+
+			i2c-mux@71 {
+				compatible = "nxp,pca9548";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x71>;
+				i2c-mux-idle-disconnect;
+
+				nvmeslot_8: i2c@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x0>;
+				};
+				nvmeslot_9: i2c@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x1>;
+				};
+				nvmeslot_10: i2c@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x2>;
+				};
+				nvmeslot_11: i2c@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x3>;
+				};
+				nvmeslot_12: i2c@4 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x4>;
+				};
+				nvmeslot_13: i2c@5 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x5>;
+				};
+				nvmeslot_14: i2c@6 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x6>;
+				};
+				nvmeslot_15: i2c@7 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x7>;
+				};
+			};
+
+			tmp432@4c {
+				compatible = "ti,tmp75";
+				reg = <0x4c>;
+			};
+		};
+
+		backplane_2: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+				pagesize = <32>;
+			};
+
+			i2c-mux@71 {
+				compatible = "nxp,pca9548";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x71>;
+				i2c-mux-idle-disconnect;
+
+				nvmeslot_16: i2c@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x0>;
+				};
+				nvmeslot_17: i2c@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x1>;
+				};
+				nvmeslot_18: i2c@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x2>;
+				};
+				nvmeslot_19: i2c@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x3>;
+				};
+				nvmeslot_20: i2c@4 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x4>;
+				};
+				nvmeslot_21: i2c@5 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x5>;
+				};
+				nvmeslot_22: i2c@6 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x6>;
+				};
+				nvmeslot_23: i2c@7 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x7>;
+				};
+			};
+
+			tmp432@4c {
+				compatible = "ti,tmp75";
+				reg = <0x4c>;
+			};
+		};
+
+		backplane_0: i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x4>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+				pagesize = <32>;
+			};
+
+			i2c-mux@71 {
+				compatible = "nxp,pca9548";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x71>;
+				i2c-mux-idle-disconnect;
+
+				nvmeslot_0: i2c@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x0>;
+				};
+				nvmeslot_1: i2c@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x1>;
+				};
+				nvmeslot_2: i2c@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x2>;
+				};
+				nvmeslot_3: i2c@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x3>;
+				};
+				nvmeslot_4: i2c@4 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x4>;
+				};
+				nvmeslot_5: i2c@5 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x5>;
+				};
+				nvmeslot_6: i2c@6 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x6>;
+				};
+				nvmeslot_7: i2c@7 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x7>;
+				};
+			};
+
+			tmp432@4c {
+				compatible = "ti,tmp75";
+				reg = <0x4c>;
+			};
+		};
+
+		i2c@7 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x7>;
+
+			i2c-mux@71 {
+				compatible = "nxp,pca9546";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x71>;
+				i2c-mux-idle-disconnect;
+
+				nvme_m2_0: i2c@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x0>;
+				};
+
+				nvme_m2_1: i2c@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x1>;
+				};
+			};
+		};
+	};
 };
 
 &i2c11 {
@@ -546,20 +818,7 @@
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
-		&pinctrl_adc2_default &pinctrl_adc3_default
-		&pinctrl_adc4_default &pinctrl_adc5_default
-		&pinctrl_adc6_default &pinctrl_adc7_default>;
-};
-
-&adc1 {
-	ref_voltage = <2500>;
-	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_adc8_default &pinctrl_adc9_default
-		&pinctrl_adc10_default &pinctrl_adc11_default
-		&pinctrl_adc12_default &pinctrl_adc13_default
-		&pinctrl_adc14_default &pinctrl_adc15_default>;
+		&pinctrl_adc2_default>;
 };
 
 &vhub {
@@ -575,16 +834,17 @@
 	gpio-line-names =
 	/*A0-A7*/	"","","","","","i2c2-reset-n","i2c6-reset-n","i2c4-reset-n",
 	/*B0-B7*/	"","","","","host0-sysreset-n","host0-pmin-n","","",
-	/*C0-C7*/	"s0-vrd-fault-n","s1-vrd-fault-n","","",
+	/*C0-C7*/	"s0-vrd-fault-n","s1-vrd-fault-n","bmc-debug-mode","",
 			"irq-n","","vrd-sel","spd-sel",
 	/*D0-D7*/	"presence-ps0","presence-ps1","hsc-12vmain-alt2-n","ext-high-temp-n",
 			"","bmc-ncsi-txen","","",
-	/*E0-E7*/	"","","clk50m-bmc-ncsi","","","","","",
+	/*E0-E7*/	"","eth-phy-int-n","clk50m-bmc-ncsi","","","","","",
 	/*F0-F7*/	"s0-pcp-oc-warn-n","s1-pcp-oc-warn-n","power-chassis-control",
 			"cpu-bios-recover","s0-heartbeat","hs-csout-prochot",
 			"s0-vr-hot-n","s1-vr-hot-n",
 	/*G0-G7*/	"","","hsc-12vmain-alt1-n","","","","","",
-	/*H0-H7*/	"","","wd-disable-n","power-chassis-good","","","","",
+	/*H0-H7*/	"jtag-program-sel","fpga-program-b","wd-disable-n",
+			"power-chassis-good","","","","",
 	/*I0-I7*/	"","","","","","adc-sw","power-button","rtc-battery-voltage-read-enable",
 	/*J0-J7*/	"","","","","","","","",
 	/*K0-K7*/	"","","","","","","","",
@@ -599,17 +859,17 @@
 	/*Q0-Q7*/	"","","","","","","","",
 	/*R0-R7*/	"","","","","","","","",
 	/*S0-S7*/	"","","identify-button","led-identify",
-			"s1-ddr-save","spi-nor-access","sys-pgood","presence-cpu1",
+			"s1-ddr-save","spi-nor-access","host0-ready","presence-cpu1",
 	/*T0-T7*/	"","","","","","","","",
 	/*U0-U7*/	"","","","","","","","",
 	/*V0-V7*/	"s0-hightemp-n","s0-fault-alert","s0-sys-auth-failure-n",
-			"host0-reboot-ack-n","host0-ready","host0-shd-req-n",
+			"host0-reboot-ack-n","s0-fw-boot-ok","host0-shd-req-n",
 			"host0-shd-ack-n","s0-overtemp-n",
-	/*W0-W7*/	"","ocp-main-pwren","ocp-pgood","",
+	/*W0-W7*/	"ocp-aux-pwren","ocp-main-pwren","ocp-pgood","s1-pcp-pgood",
 			"bmc-ok","bmc-ready","spi0-program-sel","spi0-backup-sel",
 	/*X0-X7*/	"i2c-backup-sel","s1-fault-alert","s1-fw-boot-ok",
 			"s1-hightemp-n","s0-spi-auth-fail-n","s1-sys-auth-failure-n",
-			"s1-overtemp-n","s1-spi-auth-fail-n",
+			"s1-overtemp-n","cpld-s1-spi-auth-fail-n",
 	/*Y0-Y7*/	"","","","","","","","host0-special-boot",
 	/*Z0-Z7*/	"reset-button","ps0-pgood","ps1-pgood","","","","","";
 
