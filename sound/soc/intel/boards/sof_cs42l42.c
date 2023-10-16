@@ -19,13 +19,10 @@
 #include <sound/sof.h>
 #include <sound/soc-acpi.h>
 #include <dt-bindings/sound/cs42l42.h>
-#include "../../codecs/hdac_hdmi.h"
 #include "../common/soc-intel-quirks.h"
-#include "hda_dsp_common.h"
+#include "sof_board_helpers.h"
 #include "sof_maxim_common.h"
 #include "sof_ssp_common.h"
-
-#define NAME_SIZE 32
 
 #define SOF_CS42L42_SSP_CODEC(quirk)		((quirk) & GENMASK(2, 0))
 #define SOF_CS42L42_SSP_CODEC_MASK		(GENMASK(2, 0))
@@ -69,40 +66,6 @@ static struct snd_soc_jack_pin jack_pins[] = {
 
 /* Default: SSP2 */
 static unsigned long sof_cs42l42_quirk = SOF_CS42L42_SSP_CODEC(2);
-
-struct sof_hdmi_pcm {
-	struct list_head head;
-	struct snd_soc_dai *codec_dai;
-	struct snd_soc_jack hdmi_jack;
-	int device;
-};
-
-struct sof_card_private {
-	struct snd_soc_jack headset_jack;
-	struct list_head hdmi_pcm_list;
-	bool common_hdmi_codec_drv;
-	enum sof_ssp_codec codec_type;
-	enum sof_ssp_codec amp_type;
-};
-
-static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
-	struct sof_hdmi_pcm *pcm;
-
-	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
-	if (!pcm)
-		return -ENOMEM;
-
-	/* dai_link id is 1:1 mapped to the PCM device */
-	pcm->device = rtd->dai_link->id;
-	pcm->codec_dai = dai;
-
-	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
-
-	return 0;
-}
 
 static int sof_cs42l42_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -184,39 +147,7 @@ static struct snd_soc_dai_link_component platform_component[] = {
 
 static int sof_card_late_probe(struct snd_soc_card *card)
 {
-	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_component *component = NULL;
-	char jack_name[NAME_SIZE];
-	struct sof_hdmi_pcm *pcm;
-	int err;
-
-	if (list_empty(&ctx->hdmi_pcm_list))
-		return -EINVAL;
-
-	if (ctx->common_hdmi_codec_drv) {
-		pcm = list_first_entry(&ctx->hdmi_pcm_list, struct sof_hdmi_pcm,
-				       head);
-		component = pcm->codec_dai->component;
-		return hda_dsp_hdmi_build_controls(card, component);
-	}
-
-	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
-		component = pcm->codec_dai->component;
-		snprintf(jack_name, sizeof(jack_name),
-			 "HDMI/DP, pcm=%d Jack", pcm->device);
-		err = snd_soc_card_jack_new(card, jack_name,
-					    SND_JACK_AVOUT, &pcm->hdmi_jack);
-
-		if (err)
-			return err;
-
-		err = hdac_hdmi_jack_init(pcm->codec_dai, pcm->device,
-					  &pcm->hdmi_jack);
-		if (err < 0)
-			return err;
-	}
-
-	return hdac_hdmi_jack_port_init(component, &card->dapm);
+	return sof_intel_board_card_late_probe(card);
 }
 
 static const struct snd_kcontrol_new sof_controls[] = {
@@ -432,65 +363,6 @@ static int create_dmic_dai_links(struct device *dev,
 	return 0;
 }
 
-static int create_hdmi_dai_links(struct device *dev,
-				 struct snd_soc_dai_link *links,
-				 struct snd_soc_dai_link_component *cpus,
-				 int *id, int hdmi_num)
-{
-	struct snd_soc_dai_link_component *idisp_components;
-	int i;
-
-	/* HDMI */
-	if (hdmi_num <= 0)
-		return 0;
-
-	idisp_components = devm_kcalloc(dev,
-					hdmi_num,
-					sizeof(struct snd_soc_dai_link_component), GFP_KERNEL);
-	if (!idisp_components)
-		goto devm_err;
-
-	for (i = 1; i <= hdmi_num; i++) {
-		links[*id].name = devm_kasprintf(dev, GFP_KERNEL,
-						 "iDisp%d", i);
-		if (!links[*id].name)
-			goto devm_err;
-
-		links[*id].id = *id;
-		links[*id].cpus = &cpus[*id];
-		links[*id].num_cpus = 1;
-		links[*id].cpus->dai_name = devm_kasprintf(dev,
-							   GFP_KERNEL,
-							   "iDisp%d Pin",
-							   i);
-		if (!links[*id].cpus->dai_name)
-			goto devm_err;
-
-		idisp_components[i - 1].name = "ehdaudio0D2";
-		idisp_components[i - 1].dai_name = devm_kasprintf(dev,
-								  GFP_KERNEL,
-								  "intel-hdmi-hifi%d",
-								  i);
-		if (!idisp_components[i - 1].dai_name)
-			goto devm_err;
-
-		links[*id].codecs = &idisp_components[i - 1];
-		links[*id].num_codecs = 1;
-		links[*id].platforms = platform_component;
-		links[*id].num_platforms = ARRAY_SIZE(platform_component);
-		links[*id].init = sof_hdmi_init;
-		links[*id].dpcm_playback = 1;
-		links[*id].no_pcm = 1;
-
-		(*id)++;
-	}
-
-	return 0;
-
-devm_err:
-	return -ENOMEM;
-}
-
 static int create_bt_offload_dai_links(struct device *dev,
 				       struct snd_soc_dai_link *links,
 				       struct snd_soc_dai_link_component *cpus,
@@ -534,11 +406,14 @@ devm_err:
 static struct snd_soc_dai_link *
 sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			  int ssp_codec, int ssp_amp, int ssp_bt,
-			  int dmic_be_num, int hdmi_num)
+			  int dmic_be_num, int hdmi_num, bool idisp_codec)
 {
 	struct snd_soc_dai_link_component *cpus;
 	struct snd_soc_dai_link *links;
-	int ret, id = 0, link_seq;
+	int ret;
+	int id = 0;
+	int link_seq;
+	int i;
 
 	links = devm_kcalloc(dev, sof_audio_card_cs42l42.num_links,
 			    sizeof(struct snd_soc_dai_link), GFP_KERNEL);
@@ -579,11 +454,18 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			}
 			break;
 		case LINK_HDMI:
-			ret = create_hdmi_dai_links(dev, links, cpus, &id, hdmi_num);
-			if (ret < 0) {
-				dev_err(dev, "fail to create hdmi dai links, ret %d\n",
-					ret);
-				goto devm_err;
+			for (i = 1; i <= hdmi_num; i++) {
+				ret = sof_intel_board_set_intel_hdmi_link(dev,
+									  &links[id],
+									  id, i,
+									  idisp_codec);
+				if (ret) {
+					dev_err(dev, "fail to create hdmi link, ret %d\n",
+						ret);
+					goto devm_err;
+				}
+
+				id++;
 			}
 			break;
 		case LINK_BT:
@@ -611,10 +493,10 @@ devm_err:
 
 static int sof_audio_probe(struct platform_device *pdev)
 {
+	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
-	struct snd_soc_acpi_mach *mach;
 	struct sof_card_private *ctx;
-	int dmic_be_num, hdmi_num;
+	int dmic_be_num;
 	int ret, ssp_bt, ssp_amp, ssp_codec;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
@@ -624,22 +506,23 @@ static int sof_audio_probe(struct platform_device *pdev)
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_cs42l42_quirk = (unsigned long)pdev->id_entry->driver_data;
 
-	mach = pdev->dev.platform_data;
-
 	ctx->codec_type = sof_ssp_detect_codec_type(&pdev->dev);
 	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
 
 	if (soc_intel_is_glk()) {
 		dmic_be_num = 1;
-		hdmi_num = 3;
+		ctx->hdmi_num = 3;
 	} else {
 		dmic_be_num = 2;
-		hdmi_num = (sof_cs42l42_quirk & SOF_CS42L42_NUM_HDMIDEV_MASK) >>
+		ctx->hdmi_num = (sof_cs42l42_quirk & SOF_CS42L42_NUM_HDMIDEV_MASK) >>
 			 SOF_CS42L42_NUM_HDMIDEV_SHIFT;
 		/* default number of HDMI DAI's */
-		if (!hdmi_num)
-			hdmi_num = 3;
+		if (!ctx->hdmi_num)
+			ctx->hdmi_num = 3;
 	}
+
+	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
+		ctx->hdmi.idisp_codec = true;
 
 	dev_dbg(&pdev->dev, "sof_cs42l42_quirk = %lx\n", sof_cs42l42_quirk);
 
@@ -652,7 +535,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	ssp_codec = sof_cs42l42_quirk & SOF_CS42L42_SSP_CODEC_MASK;
 
 	/* compute number of dai links */
-	sof_audio_card_cs42l42.num_links = 1 + dmic_be_num + hdmi_num;
+	sof_audio_card_cs42l42.num_links = 1 + dmic_be_num + ctx->hdmi_num;
 
 	if (ctx->amp_type != CODEC_NONE)
 		sof_audio_card_cs42l42.num_links++;
@@ -661,13 +544,12 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
 					      ssp_codec, ssp_amp, ssp_bt,
-					      dmic_be_num, hdmi_num);
+					      dmic_be_num, ctx->hdmi_num,
+					      ctx->hdmi.idisp_codec);
 	if (!dai_links)
 		return -ENOMEM;
 
 	sof_audio_card_cs42l42.dai_link = dai_links;
-
-	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	sof_audio_card_cs42l42.dev = &pdev->dev;
 
@@ -676,8 +558,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 						    mach->mach_params.platform);
 	if (ret)
 		return ret;
-
-	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
 
 	snd_soc_card_set_drvdata(&sof_audio_card_cs42l42, ctx);
 
@@ -725,6 +605,6 @@ module_platform_driver(sof_audio)
 MODULE_DESCRIPTION("SOF Audio Machine driver for CS42L42");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_MAXIM_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);
