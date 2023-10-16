@@ -228,6 +228,7 @@ void phylink_limit_mac_speed(struct phylink_config *config, u32 max_speed);
 /**
  * struct phylink_mac_ops - MAC operations structure.
  * @validate: Validate and update the link configuration.
+ * @mac_get_caps: Get MAC capabilities for interface mode.
  * @mac_select_pcs: Select a PCS for the interface mode.
  * @mac_prepare: prepare for a major reconfiguration of the interface.
  * @mac_config: configure the MAC for the selected mode and state.
@@ -241,6 +242,8 @@ struct phylink_mac_ops {
 	void (*validate)(struct phylink_config *config,
 			 unsigned long *supported,
 			 struct phylink_link_state *state);
+	unsigned long (*mac_get_caps)(struct phylink_config *config,
+				      phy_interface_t interface);
 	struct phylink_pcs *(*mac_select_pcs)(struct phylink_config *config,
 					      phy_interface_t interface);
 	int (*mac_prepare)(struct phylink_config *config, unsigned int mode,
@@ -292,6 +295,18 @@ struct phylink_mac_ops {
  */
 void validate(struct phylink_config *config, unsigned long *supported,
 	      struct phylink_link_state *state);
+/**
+ * mac_get_caps: Get MAC capabilities for interface mode.
+ * @config: a pointer to a &struct phylink_config.
+ * @interface: PHY interface mode.
+ *
+ * Optional method. When not provided, config->mac_capabilities will be used.
+ * When implemented, this returns the MAC capabilities for the specified
+ * interface mode where there is some special handling required by the MAC
+ * driver (e.g. not supporting half-duplex in certain interface modes.)
+ */
+unsigned long mac_get_caps(struct phylink_config *config,
+			   phy_interface_t interface);
 /**
  * mac_select_pcs: Select a PCS for the interface mode.
  * @config: a pointer to a &struct phylink_config.
