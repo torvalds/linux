@@ -816,9 +816,7 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 
 	for_each_populated_zone(zone) {
 		struct per_cpu_zonestat __percpu *pzstats = zone->per_cpu_zonestats;
-#ifdef CONFIG_NUMA
 		struct per_cpu_pages __percpu *pcp = zone->per_cpu_pageset;
-#endif
 
 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++) {
 			int v;
@@ -834,10 +832,12 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 #endif
 			}
 		}
-#ifdef CONFIG_NUMA
 
 		if (do_pagesets) {
 			cond_resched();
+
+			changes += decay_pcp_high(zone, this_cpu_ptr(pcp));
+#ifdef CONFIG_NUMA
 			/*
 			 * Deal with draining the remote pageset of this
 			 * processor
@@ -866,8 +866,8 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 				drain_zone_pages(zone, this_cpu_ptr(pcp));
 				changes++;
 			}
-		}
 #endif
+		}
 	}
 
 	for_each_online_pgdat(pgdat) {
