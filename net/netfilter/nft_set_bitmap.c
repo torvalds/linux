@@ -146,11 +146,10 @@ static int nft_bitmap_insert(const struct net *net, const struct nft_set *set,
 	return 0;
 }
 
-static void nft_bitmap_remove(const struct net *net,
-			      const struct nft_set *set,
-			      const struct nft_set_elem *elem)
+static void nft_bitmap_remove(const struct net *net, const struct nft_set *set,
+			      struct nft_elem_priv *elem_priv)
 {
-	struct nft_bitmap_elem *be = nft_elem_priv_cast(elem->priv);
+	struct nft_bitmap_elem *be = nft_elem_priv_cast(elem_priv);
 	struct nft_bitmap *priv = nft_set_priv(set);
 	u8 genmask = nft_genmask_next(net);
 	u32 idx, off;
@@ -163,9 +162,9 @@ static void nft_bitmap_remove(const struct net *net,
 
 static void nft_bitmap_activate(const struct net *net,
 				const struct nft_set *set,
-				const struct nft_set_elem *elem)
+				struct nft_elem_priv *elem_priv)
 {
-	struct nft_bitmap_elem *be = nft_elem_priv_cast(elem->priv);
+	struct nft_bitmap_elem *be = nft_elem_priv_cast(elem_priv);
 	struct nft_bitmap *priv = nft_set_priv(set);
 	u8 genmask = nft_genmask_next(net);
 	u32 idx, off;
@@ -219,7 +218,6 @@ static void nft_bitmap_walk(const struct nft_ctx *ctx,
 {
 	const struct nft_bitmap *priv = nft_set_priv(set);
 	struct nft_bitmap_elem *be;
-	struct nft_set_elem elem;
 
 	list_for_each_entry_rcu(be, &priv->list, head) {
 		if (iter->count < iter->skip)
@@ -227,9 +225,7 @@ static void nft_bitmap_walk(const struct nft_ctx *ctx,
 		if (!nft_set_elem_active(&be->ext, iter->genmask))
 			goto cont;
 
-		elem.priv = &be->priv;
-
-		iter->err = iter->fn(ctx, set, iter, &elem);
+		iter->err = iter->fn(ctx, set, iter, &be->priv);
 
 		if (iter->err < 0)
 			return;
