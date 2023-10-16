@@ -12,12 +12,12 @@
  */
 #define pr_fmt(fmt) "pinmux core: " fmt
 
+#include <linux/array_size.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/radix-tree.h>
