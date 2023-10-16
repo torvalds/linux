@@ -15,7 +15,7 @@
 		reg = <0x10000000 0xF0000000>;
 	};
 
-	reg_1p8v: regulator@0 {
+	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "1P8V";
 		regulator-min-microvolt = <1800000>;
