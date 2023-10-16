@@ -62,7 +62,7 @@ static int bnxt_hwrm_remote_dev_reset_set(struct bnxt *bp, bool remote_reset)
 	if (~bp->fw_cap & BNXT_FW_CAP_HOT_RESET_IF)
 		return -EOPNOTSUPP;
 
-	rc = hwrm_req_init(bp, req, HWRM_FUNC_CFG);
+	rc = bnxt_hwrm_func_cfg_short_req_init(bp, &req);
 	if (rc)
 		return rc;
 
