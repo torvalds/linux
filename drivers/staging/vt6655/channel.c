@@ -82,7 +82,7 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 {
 	bool ret = true;
 
-	if (priv->byCurrentCh == ch->hw_value)
+	if (priv->current_ch == ch->hw_value)
 		return ret;
 
 	/* Set VGA to max sensitivity */
@@ -100,7 +100,7 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 	 * it is for better TX throughput
 	 */
 
-	priv->byCurrentCh = ch->hw_value;
+	priv->current_ch = ch->hw_value;
 	ret &= RFbSelectChannel(priv, priv->rf_type,
 				ch->hw_value);
 
@@ -117,9 +117,9 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 
 		/* set HW default power register */
 		VT6655_MAC_SELECT_PAGE1(priv->port_offset);
-		RFbSetPower(priv, RATE_1M, priv->byCurrentCh);
+		RFbSetPower(priv, RATE_1M, priv->current_ch);
 		iowrite8(priv->byCurPwr, priv->port_offset + MAC_REG_PWRCCK);
-		RFbSetPower(priv, RATE_6M, priv->byCurrentCh);
+		RFbSetPower(priv, RATE_6M, priv->current_ch);
 		iowrite8(priv->byCurPwr, priv->port_offset + MAC_REG_PWROFDM);
 		VT6655_MAC_SELECT_PAGE0(priv->port_offset);
 
@@ -127,9 +127,9 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 	}
 
 	if (priv->byBBType == BB_TYPE_11B)
-		RFbSetPower(priv, RATE_1M, priv->byCurrentCh);
+		RFbSetPower(priv, RATE_1M, priv->current_ch);
 	else
-		RFbSetPower(priv, RATE_6M, priv->byCurrentCh);
+		RFbSetPower(priv, RATE_6M, priv->current_ch);
 
 	return ret;
 }
