@@ -27,6 +27,7 @@
 
 #include "mhi_controller.h"
 #include "qaic.h"
+#include "qaic_timesync.h"
 
 MODULE_IMPORT_NS(DMA_BUF);
 
@@ -599,6 +600,10 @@ static int __init qaic_init(void)
 		goto free_pci;
 	}
 
+	ret = qaic_timesync_init();
+	if (ret)
+		pr_debug("qaic: qaic_timesync_init failed %d\n", ret);
+
 	return 0;
 
 free_pci:
@@ -624,6 +629,7 @@ static void __exit qaic_exit(void)
 	 * reinitializing the link_up state after the cleanup is done.
 	 */
 	link_up = true;
+	qaic_timesync_deinit();
 	mhi_driver_unregister(&qaic_mhi_driver);
 	pci_unregister_driver(&qaic_pci_driver);
 }

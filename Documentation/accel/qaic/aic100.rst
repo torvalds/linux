@@ -225,6 +225,10 @@ of the defined channels, and their uses.
 |                |         |          | device side logs with the host time    |
 |                |         |          | source.                                |
 +----------------+---------+----------+----------------------------------------+
+| QAIC_TIMESYNC  | 22 & 23 | AMSS     | Used to periodically synchronize       |
+| _PERIODIC      |         |          | timestamps in the device side logs with|
+|                |         |          | the host time source.                  |
++----------------+---------+----------+----------------------------------------+
 
 DMA Bridge
 ==========

@@ -201,3 +201,8 @@ overrides this for that call. Default is 5000 (5 seconds).
 
 Sets the polling interval in microseconds (us) when datapath polling is active.
 Takes effect at the next polling interval. Default is 100 (100 us).
+
+**timesync_delay_ms (unsigned int)**
+
+Sets the time interval in milliseconds (ms) between two consecutive timesync
+operations. Default is 1000 (1000 ms).
