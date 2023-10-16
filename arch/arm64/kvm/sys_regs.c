@@ -207,7 +207,7 @@ static bool access_dcsw(struct kvm_vcpu *vcpu,
 	 * CPU left in the system, and certainly not from non-secure
 	 * software).
 	 */
-	if (!cpus_have_const_cap(ARM64_HAS_STAGE2_FWB))
+	if (!cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
 		kvm_set_way_flush(vcpu);
 
 	return true;

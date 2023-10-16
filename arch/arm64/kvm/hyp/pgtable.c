@@ -664,7 +664,7 @@ u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift)
 
 static bool stage2_has_fwb(struct kvm_pgtable *pgt)
 {
-	if (!cpus_have_const_cap(ARM64_HAS_STAGE2_FWB))
+	if (!cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
 		return false;
 
 	return !(pgt->flags & KVM_PGTABLE_S2_NOFWB);
