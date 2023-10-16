@@ -6196,8 +6196,8 @@ xfs_bmap_validate_extent(
 		return __this_address;
 
 	if (XFS_IS_REALTIME_INODE(ip) && whichfork == XFS_DATA_FORK) {
-		if (!xfs_verify_rtext(mp, irec->br_startblock,
-					  irec->br_blockcount))
+		if (!xfs_verify_rtbext(mp, irec->br_startblock,
+					   irec->br_blockcount))
 			return __this_address;
 	} else {
 		if (!xfs_verify_fsbext(mp, irec->br_startblock,

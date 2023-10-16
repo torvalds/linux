@@ -48,12 +48,12 @@ xchk_rtbitmap_rec(
 {
 	struct xfs_scrub	*sc = priv;
 	xfs_rtblock_t		startblock;
-	xfs_rtblock_t		blockcount;
+	xfs_filblks_t		blockcount;
 
 	startblock = rec->ar_startext * mp->m_sb.sb_rextsize;
 	blockcount = rec->ar_extcount * mp->m_sb.sb_rextsize;
 
-	if (!xfs_verify_rtext(mp, startblock, blockcount))
+	if (!xfs_verify_rtbext(mp, startblock, blockcount))
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 	return 0;
 }

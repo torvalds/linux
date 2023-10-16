@@ -137,7 +137,7 @@ xchk_rtsum_record_free(
 	rtbno = rec->ar_startext * mp->m_sb.sb_rextsize;
 	rtlen = rec->ar_extcount * mp->m_sb.sb_rextsize;
 
-	if (!xfs_verify_rtext(mp, rtbno, rtlen)) {
+	if (!xfs_verify_rtbext(mp, rtbno, rtlen)) {
 		xchk_ino_xref_set_corrupt(sc, mp->m_rbmip->i_ino);
 		return -EFSCORRUPTED;
 	}
