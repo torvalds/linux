@@ -51,7 +51,6 @@ required:
   - compatible
   - enable-gpios
   - select-gpios
-  - mode-switch
   - orientation-switch
   - port
 
