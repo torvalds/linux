@@ -218,13 +218,13 @@ static struct gpio_desc *gpio_led_get_gpiod(struct device *dev, int idx,
 	 * device, this will hit the board file, if any and get
 	 * the GPIO from there.
 	 */
-	gpiod = devm_gpiod_get_index(dev, NULL, idx, GPIOD_OUT_LOW);
-	if (!IS_ERR(gpiod)) {
+	gpiod = devm_gpiod_get_index_optional(dev, NULL, idx, GPIOD_OUT_LOW);
+	if (IS_ERR(gpiod))
+		return gpiod;
+	if (gpiod) {
 		gpiod_set_consumer_name(gpiod, template->name);
 		return gpiod;
 	}
-	if (PTR_ERR(gpiod) != -ENOENT)
-		return gpiod;
 
 	/*
 	 * This is the legacy code path for platform code that
