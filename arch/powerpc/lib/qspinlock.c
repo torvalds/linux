@@ -44,7 +44,7 @@ static bool pv_sleepy_lock_sticky __read_mostly = false;
 static u64 pv_sleepy_lock_interval_ns __read_mostly = 0;
 static int pv_sleepy_lock_factor __read_mostly = 256;
 static bool pv_yield_prev __read_mostly = true;
-static bool pv_yield_propagate_owner __read_mostly = true;
+static bool pv_yield_sleepy_owner __read_mostly = true;
 static bool pv_prod_head __read_mostly = false;
 
 static DEFINE_PER_CPU_ALIGNED(struct qnodes, qnodes);
@@ -357,7 +357,7 @@ static __always_inline void propagate_sleepy(struct qnode *node, u32 val, bool p
 
 	if (!paravirt)
 		return;
-	if (!pv_yield_propagate_owner)
+	if (!pv_yield_sleepy_owner)
 		return;
 
 	next = READ_ONCE(node->next);
@@ -381,7 +381,7 @@ static __always_inline bool yield_to_prev(struct qspinlock *lock, struct qnode *
 	if (!paravirt)
 		goto relax;
 
-	if (!pv_yield_propagate_owner)
+	if (!pv_yield_sleepy_owner)
 		goto yield_prev;
 
 	/*
@@ -934,21 +934,21 @@ static int pv_yield_prev_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_pv_yield_prev, pv_yield_prev_get, pv_yield_prev_set, "%llu\n");
 
-static int pv_yield_propagate_owner_set(void *data, u64 val)
+static int pv_yield_sleepy_owner_set(void *data, u64 val)
 {
-	pv_yield_propagate_owner = !!val;
+	pv_yield_sleepy_owner = !!val;
 
 	return 0;
 }
 
-static int pv_yield_propagate_owner_get(void *data, u64 *val)
+static int pv_yield_sleepy_owner_get(void *data, u64 *val)
 {
-	*val = pv_yield_propagate_owner;
+	*val = pv_yield_sleepy_owner;
 
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_pv_yield_propagate_owner, pv_yield_propagate_owner_get, pv_yield_propagate_owner_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(fops_pv_yield_sleepy_owner, pv_yield_sleepy_owner_get, pv_yield_sleepy_owner_set, "%llu\n");
 
 static int pv_prod_head_set(void *data, u64 val)
 {
@@ -980,7 +980,7 @@ static __init int spinlock_debugfs_init(void)
 		debugfs_create_file("qspl_pv_sleepy_lock_interval_ns", 0600, arch_debugfs_dir, NULL, &fops_pv_sleepy_lock_interval_ns);
 		debugfs_create_file("qspl_pv_sleepy_lock_factor", 0600, arch_debugfs_dir, NULL, &fops_pv_sleepy_lock_factor);
 		debugfs_create_file("qspl_pv_yield_prev", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_prev);
-		debugfs_create_file("qspl_pv_yield_propagate_owner", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_propagate_owner);
+		debugfs_create_file("qspl_pv_yield_sleepy_owner", 0600, arch_debugfs_dir, NULL, &fops_pv_yield_sleepy_owner);
 		debugfs_create_file("qspl_pv_prod_head", 0600, arch_debugfs_dir, NULL, &fops_pv_prod_head);
 	}
 
