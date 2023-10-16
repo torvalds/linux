@@ -20,7 +20,7 @@
  *  31-28 VARIANT	Device variant
  *  27-12 PARTNO	Part number
  *  11-1  MFG		Indicates TI as manufacturer (0x17)
- *  1			Always 1
+ *  0			Always 1
  */
 #define CTRLMMR_WKUP_JTAGID_VARIANT_SHIFT	(28)
 #define CTRLMMR_WKUP_JTAGID_VARIANT_MASK	GENMASK(31, 28)
