@@ -336,15 +336,6 @@ static inline void pasid_set_fault_enable(struct pasid_entry *pe)
 }
 
 /*
- * Setup the WPE(Write Protect Enable) field (Bit 132) of a
- * scalable mode PASID entry.
- */
-static inline void pasid_set_wpe(struct pasid_entry *pe)
-{
-	pasid_set_bits(&pe->val[2], 1 << 4, 1 << 4);
-}
-
-/*
  * Setup the P(Present) field (Bit 0) of a scalable mode PASID
  * entry.
  */
