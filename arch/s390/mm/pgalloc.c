@@ -488,11 +488,10 @@ static unsigned long *base_crst_alloc(unsigned long val)
 	unsigned long *table;
 	struct ptdesc *ptdesc;
 
-	ptdesc = pagetable_alloc(GFP_KERNEL & ~__GFP_HIGHMEM, CRST_ALLOC_ORDER);
+	ptdesc = pagetable_alloc(GFP_KERNEL, CRST_ALLOC_ORDER);
 	if (!ptdesc)
 		return NULL;
 	table = ptdesc_address(ptdesc);
-
 	crst_table_init(table, val);
 	return table;
 }
