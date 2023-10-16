@@ -1922,7 +1922,6 @@ static void acer_rfkill_exit(void)
 		rfkill_unregister(threeg_rfkill);
 		rfkill_destroy(threeg_rfkill);
 	}
-	return;
 }
 
 static void acer_wmi_notify(u32 value, void *context)
@@ -2517,7 +2516,6 @@ static void __exit acer_wmi_exit(void)
 	platform_driver_unregister(&acer_platform_driver);
 
 	pr_info("Acer Laptop WMI Extras unloaded\n");
-	return;
 }
 
 module_init(acer_wmi_init);
