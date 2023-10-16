@@ -801,7 +801,7 @@ static __always_inline bool system_supports_tpidr2(void)
 
 static __always_inline bool system_supports_cnp(void)
 {
-	return cpus_have_const_cap(ARM64_HAS_CNP);
+	return alternative_has_cap_unlikely(ARM64_HAS_CNP);
 }
 
 static inline bool system_supports_address_auth(void)

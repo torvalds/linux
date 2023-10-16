@@ -55,7 +55,7 @@ void notrace __cpu_suspend_exit(void)
 
 	/* Restore CnP bit in TTBR1_EL1 */
 	if (system_supports_cnp())
-		cpu_replace_ttbr1(lm_alias(swapper_pg_dir), idmap_pg_dir);
+		cpu_enable_swapper_cnp();
 
 	/*
 	 * PSTATE was not saved over suspend/resume, re-enable any detected
