@@ -660,7 +660,7 @@ static bool is_dcc_enabled(struct dcc_drvdata *drvdata)
 	bool dcc_enable = false;
 	int list;
 
-	for (list = 0; list < DCC_MAX_LINK_LIST; list++) {
+	for (list = 0; list < drvdata->nr_link_list; list++) {
 		if (drvdata->enable[list]) {
 			dcc_enable = true;
 			break;
