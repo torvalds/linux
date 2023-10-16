@@ -255,7 +255,7 @@ static int gpio_led_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct gpio_led_platform_data *pdata = dev_get_platdata(dev);
 	struct gpio_leds_priv *priv;
-	int i, ret = 0;
+	int i, ret;
 
 	if (pdata && pdata->num_leds) {
 		priv = devm_kzalloc(dev, struct_size(priv, leds, pdata->num_leds), GFP_KERNEL);
