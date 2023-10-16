@@ -2588,12 +2588,14 @@ static void rtw89_dcfo_comp_init(struct rtw89_dev *rtwdev)
 	rtw89_phy_set_phy_regs(rtwdev, cfo->comp, cfo->weighting_mask, 8);
 
 	if (chip->chip_gen == RTW89_CHIP_AX) {
-		if (chip->cfo_hw_comp)
+		if (chip->cfo_hw_comp) {
 			rtw89_write32_mask(rtwdev, R_AX_PWR_UL_CTRL2,
 					   B_AX_PWR_UL_CFO_MASK, 0x6);
-		else
+		} else {
+			rtw89_phy_set_phy_regs(rtwdev, R_DCFO, B_DCFO, 1);
 			rtw89_write32_clr(rtwdev, R_AX_PWR_UL_CTRL2,
 					  B_AX_PWR_UL_CFO_MASK);
+		}
 	}
 }
 
@@ -2617,7 +2619,6 @@ static void rtw89_phy_cfo_init(struct rtw89_dev *rtwdev)
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "Default xcap=%0x\n",
 		    cfo->crystal_cap_default);
 	rtw89_phy_cfo_set_crystal_cap(rtwdev, cfo->crystal_cap_default, true);
-	rtw89_phy_set_phy_regs(rtwdev, R_DCFO, B_DCFO, 1);
 	rtw89_dcfo_comp_init(rtwdev);
 	cfo->cfo_timer_ms = 2000;
 	cfo->cfo_trig_by_timer_en = false;
