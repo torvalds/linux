@@ -158,6 +158,17 @@ xfs_rbmblock_to_rtx(
 	return rbmoff << mp->m_blkbit_log;
 }
 
+/* Return a pointer to a bitmap word within a rt bitmap block. */
+static inline xfs_rtword_t *
+xfs_rbmblock_wordptr(
+	struct xfs_buf		*bp,
+	unsigned int		index)
+{
+	xfs_rtword_t		*words = bp->b_addr;
+
+	return words + index;
+}
+
 /*
  * Functions for walking free space rtextents in the realtime bitmap.
  */
