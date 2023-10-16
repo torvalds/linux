@@ -474,7 +474,7 @@ class YnlFamily(SpecFamily):
 
     def _decode_enum(self, raw, attr_spec):
         enum = self.consts[attr_spec['enum']]
-        if 'enum-as-flags' in attr_spec and attr_spec['enum-as-flags']:
+        if enum.type == 'flags' or attr_spec.get('enum-as-flags', False):
             i = 0
             value = set()
             while raw:
