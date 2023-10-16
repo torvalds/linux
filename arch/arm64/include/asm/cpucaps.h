@@ -21,6 +21,8 @@ cpucap_is_possible(const unsigned int cap)
 	switch (cap) {
 	case ARM64_HAS_PAN:
 		return IS_ENABLED(CONFIG_ARM64_PAN);
+	case ARM64_HAS_EPAN:
+		return IS_ENABLED(CONFIG_ARM64_EPAN);
 	case ARM64_SVE:
 		return IS_ENABLED(CONFIG_ARM64_SVE);
 	case ARM64_SME:
