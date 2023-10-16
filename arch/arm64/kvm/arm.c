@@ -50,7 +50,7 @@ static enum kvm_mode kvm_mode = KVM_MODE_DEFAULT;
 
 DECLARE_KVM_HYP_PER_CPU(unsigned long, kvm_hyp_vector);
 
-DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
+DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_base);
 DECLARE_KVM_NVHE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 DECLARE_KVM_NVHE_PER_CPU(int, hyp_cpu_number);
 
@@ -2009,7 +2009,7 @@ static void teardown_hyp_mode(void)
 
 	free_hyp_pgds();
 	for_each_possible_cpu(cpu) {
-		free_page(per_cpu(kvm_arm_hyp_stack_page, cpu));
+		free_pages(per_cpu(kvm_arm_hyp_stack_base, cpu), NVHE_STACK_SHIFT - PAGE_SHIFT);
 		free_pages(kvm_nvhe_sym(kvm_arm_hyp_percpu_base)[cpu], nvhe_percpu_order());
 		free_pages(kvm_nvhe_sym(kvm_arm_hyp_host_fp_state)[cpu],
 					pkvm_host_fp_state_order());
@@ -2168,15 +2168,15 @@ static int init_hyp_mode(void)
 	 * Allocate stack pages for Hypervisor-mode
 	 */
 	for_each_possible_cpu(cpu) {
-		unsigned long stack_page;
+		unsigned long stack_base;
 
-		stack_page = __get_free_page(GFP_KERNEL);
-		if (!stack_page) {
+		stack_base = __get_free_pages(GFP_KERNEL, NVHE_STACK_SHIFT - PAGE_SHIFT);
+		if (!stack_base) {
 			err = -ENOMEM;
 			goto out_err;
 		}
 
-		per_cpu(kvm_arm_hyp_stack_page, cpu) = stack_page;
+		per_cpu(kvm_arm_hyp_stack_base, cpu) = stack_base;
 	}
 
 	/*
@@ -2252,7 +2252,7 @@ static int init_hyp_mode(void)
 	 */
 	for_each_possible_cpu(cpu) {
 		struct kvm_nvhe_init_params *params = per_cpu_ptr_nvhe_sym(kvm_init_params, cpu);
-		char *stack_page = (char *)per_cpu(kvm_arm_hyp_stack_page, cpu);
+		char *stack_base = (char *)per_cpu(kvm_arm_hyp_stack_base, cpu);
 		unsigned long hyp_addr;
 
 		/*
@@ -2260,7 +2260,7 @@ static int init_hyp_mode(void)
 		 * and guard page. The allocation is also aligned based on
 		 * the order of its size.
 		 */
-		err = hyp_alloc_private_va_range(PAGE_SIZE * 2, &hyp_addr);
+		err = hyp_alloc_private_va_range(NVHE_STACK_SIZE * 2, &hyp_addr);
 		if (err) {
 			kvm_err("Cannot allocate hyp stack guard page\n");
 			goto out_err;
@@ -2271,12 +2271,12 @@ static int init_hyp_mode(void)
 		 * at the higher address and leave the lower guard page
 		 * unbacked.
 		 *
-		 * Any valid stack address now has the PAGE_SHIFT bit as 1
+		 * Any valid stack address now has the NVHE_STACK_SHIFT bit as 1
 		 * and addresses corresponding to the guard page have the
-		 * PAGE_SHIFT bit as 0 - this is used for overflow detection.
+		 * NVHE_STACK_SHIFT bit as 0 - this is used for overflow detection.
 		 */
-		err = __create_hyp_mappings(hyp_addr + PAGE_SIZE, PAGE_SIZE,
-					    __pa(stack_page), PAGE_HYP);
+		err = __create_hyp_mappings(hyp_addr + NVHE_STACK_SIZE, NVHE_STACK_SIZE,
+					    __pa(stack_base), PAGE_HYP);
 		if (err) {
 			kvm_err("Cannot map hyp stack\n");
 			goto out_err;
@@ -2288,9 +2288,9 @@ static int init_hyp_mode(void)
 		 * __hyp_pa() won't do the right thing there, since the stack
 		 * has been mapped in the flexible private VA space.
 		 */
-		params->stack_pa = __pa(stack_page);
+		params->stack_pa = __pa(stack_base);
 
-		params->stack_hyp_va = hyp_addr + (2 * PAGE_SIZE);
+		params->stack_hyp_va = hyp_addr + (2 * NVHE_STACK_SIZE);
 	}
 
 	for_each_possible_cpu(cpu) {
