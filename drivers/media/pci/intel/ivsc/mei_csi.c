@@ -654,21 +654,20 @@ static int mei_csi_parse_firmware(struct mei_csi *csi)
 		return -EINVAL;
 	}
 
+	v4l2_async_subdev_nf_init(&csi->notifier, &csi->subdev);
+	csi->notifier.ops = &mei_csi_notify_ops;
+
 	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
 	if (ret) {
 		dev_err(dev, "could not parse v4l2 endpoint\n");
-		fwnode_handle_put(ep);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_nf_cleanup;
 	}
 
 	csi->nr_of_lanes = v4l2_ep.bus.mipi_csi2.num_data_lanes;
 
-	v4l2_async_subdev_nf_init(&csi->notifier, &csi->subdev);
-	csi->notifier.ops = &mei_csi_notify_ops;
-
 	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
 					      struct v4l2_async_connection);
-	fwnode_handle_put(ep);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out_nf_cleanup;
@@ -678,10 +677,13 @@ static int mei_csi_parse_firmware(struct mei_csi *csi)
 	if (ret)
 		goto out_nf_cleanup;
 
+	fwnode_handle_put(ep);
+
 	return 0;
 
 out_nf_cleanup:
 	v4l2_async_nf_cleanup(&csi->notifier);
+	fwnode_handle_put(ep);
 
 	return ret;
 }
