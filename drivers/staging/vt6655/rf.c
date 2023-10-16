@@ -438,12 +438,12 @@ bool RFbSetPower(struct vnt_private *priv, unsigned int rate, u16 uCH)
 		break;
 	}
 
-	if (priv->byCurPwr == byPwr)
+	if (priv->cur_pwr == byPwr)
 		return true;
 
 	ret = RFbRawSetPower(priv, byPwr, rate);
 	if (ret)
-		priv->byCurPwr = byPwr;
+		priv->cur_pwr = byPwr;
 
 	return ret;
 }
