@@ -149,10 +149,10 @@ extern void sme_save_state(void *state, int zt);
 extern void sme_load_state(void const *state, int zt);
 
 struct arm64_cpu_capabilities;
-extern void sve_kernel_enable(const struct arm64_cpu_capabilities *__unused);
-extern void sme_kernel_enable(const struct arm64_cpu_capabilities *__unused);
-extern void sme2_kernel_enable(const struct arm64_cpu_capabilities *__unused);
-extern void fa64_kernel_enable(const struct arm64_cpu_capabilities *__unused);
+extern void cpu_enable_sve(const struct arm64_cpu_capabilities *__unused);
+extern void cpu_enable_sme(const struct arm64_cpu_capabilities *__unused);
+extern void cpu_enable_sme2(const struct arm64_cpu_capabilities *__unused);
+extern void cpu_enable_fa64(const struct arm64_cpu_capabilities *__unused);
 
 extern u64 read_zcr_features(void);
 extern u64 read_smcr_features(void);

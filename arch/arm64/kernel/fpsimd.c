@@ -1160,11 +1160,7 @@ fail:
 	panic("Cannot allocate percpu memory for EFI SVE save/restore");
 }
 
-/*
- * Enable SVE for EL1.
- * Intended for use by the cpufeatures code during CPU boot.
- */
-void sve_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
+void cpu_enable_sve(const struct arm64_cpu_capabilities *__always_unused p)
 {
 	write_sysreg(read_sysreg(CPACR_EL1) | CPACR_EL1_ZEN_EL1EN, CPACR_EL1);
 	isb();
@@ -1295,7 +1291,7 @@ static void sme_free(struct task_struct *task)
 	task->thread.sme_state = NULL;
 }
 
-void sme_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
+void cpu_enable_sme(const struct arm64_cpu_capabilities *__always_unused p)
 {
 	/* Set priority for all PEs to architecturally defined minimum */
 	write_sysreg_s(read_sysreg_s(SYS_SMPRI_EL1) & ~SMPRI_EL1_PRIORITY_MASK,
@@ -1310,7 +1306,7 @@ void sme_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
 	isb();
 }
 
-void sme2_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
+void cpu_enable_sme2(const struct arm64_cpu_capabilities *__always_unused p)
 {
 	/* This must be enabled after SME */
 	BUILD_BUG_ON(ARM64_SME2 <= ARM64_SME);
@@ -1320,7 +1316,7 @@ void sme2_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
 		       SYS_SMCR_EL1);
 }
 
-void fa64_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
+void cpu_enable_fa64(const struct arm64_cpu_capabilities *__always_unused p)
 {
 	/* This must be enabled after SME */
 	BUILD_BUG_ON(ARM64_SME_FA64 <= ARM64_SME);
