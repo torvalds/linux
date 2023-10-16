@@ -2057,11 +2057,11 @@ static int sc200ai_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	sc200ai->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
+	sc200ai->reset_gpio = devm_gpiod_get(dev, "reset", sc200ai->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
 	if (IS_ERR(sc200ai->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	sc200ai->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
+	sc200ai->pwdn_gpio = devm_gpiod_get(dev, "pwdn", sc200ai->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
 	if (IS_ERR(sc200ai->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
