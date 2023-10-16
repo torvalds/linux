@@ -11,8 +11,8 @@
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -129,8 +129,8 @@ static int create_gpio_led(const struct gpio_led *template,
 		ret = PTR_ERR(pinctrl);
 		if (ret != -ENODEV) {
 			dev_warn(led_dat->cdev.dev,
-				 "Failed to select %pOF pinctrl: %d\n",
-				 to_of_node(fwnode), ret);
+				 "Failed to select %pfw pinctrl: %d\n",
+				 fwnode, ret);
 		} else {
 			/* pinctrl-%d not present, not an error */
 			ret = 0;
