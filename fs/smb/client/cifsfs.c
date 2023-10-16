@@ -1186,6 +1186,7 @@ const char *cifs_get_link(struct dentry *dentry, struct inode *inode,
 
 const struct inode_operations cifs_symlink_inode_ops = {
 	.get_link = cifs_get_link,
+	.setattr = cifs_setattr,
 	.permission = cifs_permission,
 	.listxattr = cifs_listxattr,
 };
