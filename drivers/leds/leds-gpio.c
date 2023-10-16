@@ -142,9 +142,8 @@ struct gpio_leds_priv {
 	struct gpio_led_data leds[] __counted_by(num_leds);
 };
 
-static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
+static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 {
-	struct device *dev = &pdev->dev;
 	struct fwnode_handle *child;
 	struct gpio_leds_priv *priv;
 	int count, ret;
@@ -253,13 +252,13 @@ static struct gpio_desc *gpio_led_get_gpiod(struct device *dev, int idx,
 
 static int gpio_led_probe(struct platform_device *pdev)
 {
-	struct gpio_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device *dev = &pdev->dev;
+	struct gpio_led_platform_data *pdata = dev_get_platdata(dev);
 	struct gpio_leds_priv *priv;
 	int i, ret = 0;
 
 	if (pdata && pdata->num_leds) {
-		priv = devm_kzalloc(&pdev->dev, struct_size(priv, leds, pdata->num_leds),
-				    GFP_KERNEL);
+		priv = devm_kzalloc(dev, struct_size(priv, leds, pdata->num_leds), GFP_KERNEL);
 		if (!priv)
 			return -ENOMEM;
 
@@ -272,22 +271,20 @@ static int gpio_led_probe(struct platform_device *pdev)
 				led_dat->gpiod = template->gpiod;
 			else
 				led_dat->gpiod =
-					gpio_led_get_gpiod(&pdev->dev,
-							   i, template);
+					gpio_led_get_gpiod(dev, i, template);
 			if (IS_ERR(led_dat->gpiod)) {
-				dev_info(&pdev->dev, "Skipping unavailable LED gpio %d (%s)\n",
+				dev_info(dev, "Skipping unavailable LED gpio %d (%s)\n",
 					 template->gpio, template->name);
 				continue;
 			}
 
-			ret = create_gpio_led(template, led_dat,
-					      &pdev->dev, NULL,
+			ret = create_gpio_led(template, led_dat, dev, NULL,
 					      pdata->gpio_blink_set);
 			if (ret < 0)
 				return ret;
 		}
 	} else {
-		priv = gpio_leds_create(pdev);
+		priv = gpio_leds_create(dev);
 		if (IS_ERR(priv))
 			return PTR_ERR(priv);
 	}
