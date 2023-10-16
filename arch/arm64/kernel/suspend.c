@@ -61,7 +61,7 @@ void notrace __cpu_suspend_exit(void)
 	 * PSTATE was not saved over suspend/resume, re-enable any detected
 	 * features that might not have been set correctly.
 	 */
-	if (cpus_have_const_cap(ARM64_HAS_DIT))
+	if (alternative_has_cap_unlikely(ARM64_HAS_DIT))
 		set_pstate_dit(1);
 	__uaccess_enable_hw_pan();
 
@@ -97,6 +97,15 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	unsigned long flags;
 	struct sleep_stack_data state;
 	struct arm_cpuidle_irq_context context;
+
+	/*
+	 * Some portions of CPU state (e.g. PSTATE.{PAN,DIT}) are initialized
+	 * before alternatives are patched, but are only restored by
+	 * __cpu_suspend_exit() after alternatives are patched. To avoid
+	 * accidentally losing these bits we must not attempt to suspend until
+	 * after alternatives have been patched.
+	 */
+	WARN_ON(!system_capabilities_finalized());
 
 	/* Report any MTE async fault before going to suspend */
 	mte_suspend_enter();
