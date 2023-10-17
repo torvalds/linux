@@ -42,6 +42,7 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 	te_data->uid = 0;
 	te_data->id = TE_MAX;
 	te_data->vif = NULL;
+	te_data->link_id = -1;
 }
 
 void iwl_mvm_roc_done_wk(struct work_struct *wk)
@@ -951,6 +952,9 @@ iwl_mvm_start_p2p_roc_session_protection(struct iwl_mvm *mvm,
 	/* The time_event_data.id field is reused to save session
 	 * protection's configuration.
 	 */
+
+	mvmvif->time_event_data.link_id = 0;
+
 	switch (type) {
 	case IEEE80211_ROC_TYPE_NORMAL:
 		mvmvif->time_event_data.id =
@@ -1231,7 +1235,8 @@ static bool iwl_mvm_session_prot_notif(struct iwl_notif_wait_data *notif_wait,
 void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif,
 					 u32 duration, u32 min_duration,
-					 bool wait_for_notif)
+					 bool wait_for_notif,
+					 unsigned int link_id)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
@@ -1249,7 +1254,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	spin_lock_bh(&mvm->time_event_lock);
-	if (te_data->running &&
+	if (te_data->running && te_data->link_id == link_id &&
 	    time_after(te_data->end_jiffies, TU_TO_EXP_TIME(min_duration))) {
 		IWL_DEBUG_TE(mvm, "We have enough time in the current TE: %u\n",
 			     jiffies_to_msecs(te_data->end_jiffies - jiffies));
@@ -1266,6 +1271,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 	te_data->id = le32_to_cpu(cmd.conf_id);
 	te_data->duration = le32_to_cpu(cmd.duration_tu);
 	te_data->vif = vif;
+	te_data->link_id = link_id;
 	spin_unlock_bh(&mvm->time_event_lock);
 
 	IWL_DEBUG_TE(mvm, "Add new session protection, duration %d TU\n",

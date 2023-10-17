@@ -155,7 +155,7 @@ void iwl_mvm_mac_mgd_protect_tdls_discover(struct ieee80211_hw *hw,
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD))
 		iwl_mvm_schedule_session_protection(mvm, vif, duration,
-						    duration, true);
+						    duration, true, link_id);
 	else
 		iwl_mvm_protect_session(mvm, vif, duration,
 					duration, 100, true);

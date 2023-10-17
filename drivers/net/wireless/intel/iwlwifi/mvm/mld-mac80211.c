@@ -851,6 +851,12 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 
 			if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
 			    protect) {
+				/* We are in assoc so only one link is active-
+				 * The association link
+				 */
+				unsigned int link_id =
+					ffs(vif->active_links) - 1;
+
 				/* If we're not restarting and still haven't
 				 * heard a beacon (dtim period unknown) then
 				 * make sure we still have enough minimum time
@@ -860,7 +866,7 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 				 * time could be small without us having heard
 				 * a beacon yet.
 				 */
-				iwl_mvm_protect_assoc(mvm, vif, 0);
+				iwl_mvm_protect_assoc(mvm, vif, 0, link_id);
 			}
 
 			iwl_mvm_sf_update(mvm, vif, false);
