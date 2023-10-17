@@ -50,7 +50,7 @@ static void ast_enable_vga(struct drm_device *dev)
 	struct ast_device *ast = to_ast_device(dev);
 
 	ast_io_write8(ast, AST_IO_VGA_ENABLE_PORT, 0x01);
-	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x01);
+	ast_io_write8(ast, AST_IO_VGAMR_W, 0x01);
 }
 
 /*

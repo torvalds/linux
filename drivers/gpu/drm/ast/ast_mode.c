@@ -298,7 +298,7 @@ static void ast_set_std_reg(struct ast_device *ast,
 	stdtable = vbios_mode->std_table;
 
 	jreg = stdtable->misc;
-	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, jreg);
+	ast_io_write8(ast, AST_IO_VGAMR_W, jreg);
 
 	/* Set SEQ; except Screen Disable field */
 	ast_set_index_reg(ast, AST_IO_SEQ_PORT, 0x00, 0x03);
@@ -537,7 +537,7 @@ static void ast_set_sync_reg(struct ast_device *ast,
 		jreg |= 0x80;
 	if (vbios_mode->enh_table->flags & NHSync)
 		jreg |= 0x40;
-	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, jreg);
+	ast_io_write8(ast, AST_IO_VGAMR_W, jreg);
 }
 
 static void ast_set_start_address_crt1(struct ast_device *ast,
