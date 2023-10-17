@@ -45,10 +45,10 @@ What:		/sys/bus/cdx/devices/.../reset
 Date:		March 2023
 Contact:	nipun.gupta@amd.com
 Description:
-		Writing y/1/on to this file resets the CDX device.
-		On resetting the device, the corresponding driver is notified
-		twice, once before the device is being reset, and again after
-		the reset has been complete.
+		Writing y/1/on to this file resets the CDX device or all devices
+		on the bus. On resetting the device, the corresponding driver is
+		notified twice, once before the device is being reset, and again
+		after the reset has been complete.
 
 		For example::
 

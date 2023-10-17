@@ -111,6 +111,20 @@ int cdx_dev_reset(struct device *dev)
 EXPORT_SYMBOL_GPL(cdx_dev_reset);
 
 /**
+ * reset_cdx_device - Reset a CDX device
+ * @dev: CDX device
+ * @data: This is always passed as NULL, and is not used in this API,
+ *    but is required here as the device_for_each_child() API expects
+ *    the passed function to have this as an argument.
+ *
+ * Return: -errno on failure, 0 on success.
+ */
+static int reset_cdx_device(struct device *dev, void *data)
+{
+	return cdx_dev_reset(dev);
+}
+
+/**
  * cdx_unregister_device - Unregister a CDX device
  * @dev: CDX device
  * @data: This is always passed as NULL, and is not used in this API,
@@ -343,6 +357,7 @@ static DEVICE_ATTR_WO(remove);
 static ssize_t reset_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
+	struct cdx_device *cdx_dev = to_cdx_device(dev);
 	bool val;
 	int ret;
 
@@ -352,11 +367,13 @@ static ssize_t reset_store(struct device *dev, struct device_attribute *attr,
 	if (!val)
 		return -EINVAL;
 
-	ret = cdx_dev_reset(dev);
-	if (ret)
-		return ret;
+	if (cdx_dev->is_bus)
+		/* Reset all the devices attached to cdx bus */
+		ret = device_for_each_child(dev, NULL, reset_cdx_device);
+	else
+		ret = cdx_dev_reset(dev);
 
-	return count;
+	return ret < 0 ? ret : count;
 }
 static DEVICE_ATTR_WO(reset);
 
@@ -461,6 +478,7 @@ static const struct attribute_group cdx_dev_group = {
 
 static struct attribute *cdx_bus_dev_attrs[] = {
 	&dev_attr_enable.attr,
+	&dev_attr_reset.attr,
 	NULL,
 };
 
