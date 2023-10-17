@@ -3380,6 +3380,7 @@
   __traceiter_android_rvh_update_thermal_stats
   __traceiter_android_rvh_util_est_update
   __traceiter_android_rvh_wake_up_new_task
+  __traceiter_android_vh_alter_mutex_list_add
   __traceiter_android_vh_audio_usb_offload_connect
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
@@ -3526,6 +3527,7 @@
   __tracepoint_android_rvh_update_thermal_stats
   __tracepoint_android_rvh_util_est_update
   __tracepoint_android_rvh_wake_up_new_task
+  __tracepoint_android_vh_alter_mutex_list_add
   __tracepoint_android_vh_audio_usb_offload_connect
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
