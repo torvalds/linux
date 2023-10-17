@@ -898,17 +898,40 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm_session_prot_notif *notif = (void *)pkt->data;
+	unsigned int ver =
+		iwl_fw_lookup_cmd_ver(mvm->fw,
+				      WIDE_ID(MAC_CONF_GROUP,
+					      SESSION_PROTECTION_CMD), 2);
+	int id = le32_to_cpu(notif->mac_link_id);
 	struct ieee80211_vif *vif;
 	struct iwl_mvm_vif *mvmvif;
+	unsigned int notif_link_id;
 
 	rcu_read_lock();
-	vif = iwl_mvm_rcu_dereference_vif_id(mvm, le32_to_cpu(notif->mac_id),
-					     true);
+
+	if (ver <= 2) {
+		vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
+	} else {
+		struct ieee80211_bss_conf *link_conf =
+			iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, id, true);
+
+		if (!link_conf)
+			goto out_unlock;
+
+		notif_link_id = link_conf->link_id;
+		vif = link_conf->vif;
+	}
 
 	if (!vif)
 		goto out_unlock;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (WARN(ver > 2 && mvmvif->time_event_data.link_id >= 0 &&
+		 mvmvif->time_event_data.link_id != notif_link_id,
+		 "SESION_PROTECTION_NOTIF was received for link %u, while the current time event is on link %u\n",
+		 notif_link_id, mvmvif->time_event_data.link_id))
+		goto out_unlock;
 
 	/* The vif is not a P2P_DEVICE, maintain its time_event_data */
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE) {
