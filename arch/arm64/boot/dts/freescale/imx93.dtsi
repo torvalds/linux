@@ -963,7 +963,7 @@
 					 <&clk IMX93_CLK_USDHC1_GATE>;
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <8>;
-				fsl,tuning-start-tap = <20>;
+				fsl,tuning-start-tap = <1>;
 				fsl,tuning-step = <2>;
 				status = "disabled";
 			};
@@ -977,7 +977,7 @@
 					 <&clk IMX93_CLK_USDHC2_GATE>;
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
-				fsl,tuning-start-tap = <20>;
+				fsl,tuning-start-tap = <1>;
 				fsl,tuning-step = <2>;
 				status = "disabled";
 			};
@@ -1040,7 +1040,7 @@
 					 <&clk IMX93_CLK_USDHC3_GATE>;
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
-				fsl,tuning-start-tap = <20>;
+				fsl,tuning-start-tap = <1>;
 				fsl,tuning-step = <2>;
 				status = "disabled";
 			};
