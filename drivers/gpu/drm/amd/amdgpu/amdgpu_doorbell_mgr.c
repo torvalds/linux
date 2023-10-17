@@ -142,6 +142,10 @@ int amdgpu_doorbell_create_kernel_doorbells(struct amdgpu_device *adev)
 	int r;
 	int size;
 
+	/* SI HW does not have doorbells, skip allocation */
+	if (adev->doorbell.num_kernel_doorbells == 0)
+		return 0;
+
 	/* Reserve first num_kernel_doorbells (page-aligned) for kernel ops */
 	size = ALIGN(adev->doorbell.num_kernel_doorbells * sizeof(u32), PAGE_SIZE);
 

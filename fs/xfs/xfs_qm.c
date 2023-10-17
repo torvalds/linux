@@ -1160,9 +1160,18 @@ xfs_qm_dqusage_adjust(
 	if (error)
 		return error;
 
-	error = xfs_inode_reload_unlinked(ip);
-	if (error)
-		goto error0;
+	/*
+	 * Reload the incore unlinked list to avoid failure in inodegc.
+	 * Use an unlocked check here because unrecovered unlinked inodes
+	 * should be somewhat rare.
+	 */
+	if (xfs_inode_unlinked_incomplete(ip)) {
+		error = xfs_inode_reload_unlinked(ip);
+		if (error) {
+			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+			goto error0;
+		}
+	}
 
 	ASSERT(ip->i_delayed_blks == 0);
 

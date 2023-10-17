@@ -759,14 +759,14 @@ static irqreturn_t irsd200_trigger_handler(int irq, void *pollf)
 {
 	struct iio_dev *indio_dev = ((struct iio_poll_func *)pollf)->indio_dev;
 	struct irsd200_data *data = iio_priv(indio_dev);
-	s16 buf = 0;
+	s64 buf[2] = {};
 	int ret;
 
-	ret = irsd200_read_data(data, &buf);
+	ret = irsd200_read_data(data, (s16 *)buf);
 	if (ret)
 		goto end;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &buf,
+	iio_push_to_buffers_with_timestamp(indio_dev, buf,
 					   iio_get_time_ns(indio_dev));
 
 end:

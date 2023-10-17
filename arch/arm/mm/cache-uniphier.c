@@ -58,11 +58,13 @@
 		((op & UNIPHIER_SSCOQM_S_MASK) == UNIPHIER_SSCOQM_S_RANGE)
 
 /**
- * uniphier_cache_data - UniPhier outer cache specific data
+ * struct uniphier_cache_data - UniPhier outer cache specific data
  *
  * @ctrl_base: virtual base address of control registers
  * @rev_base: virtual base address of revision registers
  * @op_base: virtual base address of operation registers
+ * @way_ctrl_base: virtual address of the way control registers for this
+ *	SoC revision
  * @way_mask: each bit specifies if the way is present
  * @nsets: number of associativity sets
  * @line_size: line size in bytes

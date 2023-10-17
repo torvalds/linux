@@ -1080,6 +1080,8 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 	if (!pinfo)
 		return -ENOMEM;
 
+	pinfo->version = version;
+
 	ret = scmi_perf_attributes_get(ph, pinfo);
 	if (ret)
 		return ret;
@@ -1103,8 +1105,6 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 	ret = devm_add_action_or_reset(ph->dev, scmi_perf_xa_destroy, pinfo);
 	if (ret)
 		return ret;
-
-	pinfo->version = version;
 
 	return ph->set_priv(ph, pinfo);
 }

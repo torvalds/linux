@@ -1049,7 +1049,7 @@ static int iomap_write_delalloc_punch(struct inode *inode, struct folio *folio,
 
 /*
  * Scan the data range passed to us for dirty page cache folios. If we find a
- * dirty folio, punch out the preceeding range and update the offset from which
+ * dirty folio, punch out the preceding range and update the offset from which
  * the next punch will start from.
  *
  * We can punch out storage reservations under clean pages because they either

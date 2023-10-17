@@ -290,7 +290,6 @@ EXPORT_SYMBOL(disk_check_media_change);
 /**
  * disk_force_media_change - force a media change event
  * @disk: the disk which will raise the event
- * @events: the events to raise
  *
  * Should be called when the media changes for @disk.  Generates a uevent
  * and attempts to free all dentries and inodes and invalidates all block

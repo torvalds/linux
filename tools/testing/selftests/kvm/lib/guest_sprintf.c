@@ -200,6 +200,13 @@ repeat:
 			++fmt;
 		}
 
+		/*
+		 * Play nice with %llu, %llx, etc.  KVM selftests only support
+		 * 64-bit builds, so just treat %ll* the same as %l*.
+		 */
+		if (qualifier == 'l' && *fmt == 'l')
+			++fmt;
+
 		/* default base */
 		base = 10;
 

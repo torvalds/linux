@@ -111,7 +111,7 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 			pte_t entry = pfn_pte(pfn, prot);
 
 			entry = arch_make_huge_pte(entry, ilog2(size), 0);
-			set_huge_pte_at(&init_mm, addr, pte, entry);
+			set_huge_pte_at(&init_mm, addr, pte, entry, size);
 			pfn += PFN_DOWN(size);
 			continue;
 		}

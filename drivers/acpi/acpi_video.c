@@ -2057,7 +2057,9 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	    !auto_detect)
 		acpi_video_bus_register_backlight(video);
 
-	acpi_video_bus_add_notify_handler(video);
+	error = acpi_video_bus_add_notify_handler(video);
+	if (error)
+		goto err_del;
 
 	error = acpi_dev_install_notify_handler(device, ACPI_DEVICE_NOTIFY,
 						acpi_video_bus_notify);
@@ -2067,10 +2069,11 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	return 0;
 
 err_remove:
+	acpi_video_bus_remove_notify_handler(video);
+err_del:
 	mutex_lock(&video_list_lock);
 	list_del(&video->entry);
 	mutex_unlock(&video_list_lock);
-	acpi_video_bus_remove_notify_handler(video);
 	acpi_video_bus_unregister_backlight(video);
 err_put_video:
 	acpi_video_bus_put_devices(video);

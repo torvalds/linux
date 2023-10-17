@@ -2093,3 +2093,35 @@ lag_rebuild_out:
 	}
 	mutex_unlock(&pf->lag_mutex);
 }
+
+/**
+ * ice_lag_is_switchdev_running
+ * @pf: pointer to PF structure
+ *
+ * Check if switchdev is running on any of the interfaces connected to lag.
+ */
+bool ice_lag_is_switchdev_running(struct ice_pf *pf)
+{
+	struct ice_lag *lag = pf->lag;
+	struct net_device *tmp_nd;
+
+	if (!ice_is_feature_supported(pf, ICE_F_SRIOV_LAG) || !lag)
+		return false;
+
+	rcu_read_lock();
+	for_each_netdev_in_bond_rcu(lag->upper_netdev, tmp_nd) {
+		struct ice_netdev_priv *priv = netdev_priv(tmp_nd);
+
+		if (!netif_is_ice(tmp_nd) || !priv || !priv->vsi ||
+		    !priv->vsi->back)
+			continue;
+
+		if (ice_is_switchdev_running(priv->vsi->back)) {
+			rcu_read_unlock();
+			return true;
+		}
+	}
+	rcu_read_unlock();
+
+	return false;
+}

@@ -107,8 +107,10 @@ static struct acpi_device *ipu_bridge_get_ivsc_acpi_dev(struct acpi_device *adev
 		for_each_acpi_dev_match(ivsc_adev, acpi_id->id, NULL, -1)
 			/* camera sensor depends on IVSC in DSDT if exist */
 			for_each_acpi_consumer_dev(ivsc_adev, consumer)
-				if (consumer->handle == handle)
+				if (consumer->handle == handle) {
+					acpi_dev_put(consumer);
 					return ivsc_adev;
+				}
 	}
 
 	return NULL;

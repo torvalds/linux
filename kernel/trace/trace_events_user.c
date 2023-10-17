@@ -127,8 +127,13 @@ struct user_event_enabler {
 /* Bit 7 is for freeing status of enablement */
 #define ENABLE_VAL_FREEING_BIT 7
 
-/* Only duplicate the bit value */
-#define ENABLE_VAL_DUP_MASK ENABLE_VAL_BIT_MASK
+/* Bit 8 is for marking 32-bit on 64-bit */
+#define ENABLE_VAL_32_ON_64_BIT 8
+
+#define ENABLE_VAL_COMPAT_MASK (1 << ENABLE_VAL_32_ON_64_BIT)
+
+/* Only duplicate the bit and compat values */
+#define ENABLE_VAL_DUP_MASK (ENABLE_VAL_BIT_MASK | ENABLE_VAL_COMPAT_MASK)
 
 #define ENABLE_BITOPS(e) (&(e)->values)
 
@@ -173,6 +178,30 @@ struct user_event_validator {
 	int			offset;
 	int			flags;
 };
+
+static inline void align_addr_bit(unsigned long *addr, int *bit,
+				  unsigned long *flags)
+{
+	if (IS_ALIGNED(*addr, sizeof(long))) {
+#ifdef __BIG_ENDIAN
+		/* 32 bit on BE 64 bit requires a 32 bit offset when aligned. */
+		if (test_bit(ENABLE_VAL_32_ON_64_BIT, flags))
+			*bit += 32;
+#endif
+		return;
+	}
+
+	*addr = ALIGN_DOWN(*addr, sizeof(long));
+
+	/*
+	 * We only support 32 and 64 bit values. The only time we need
+	 * to align is a 32 bit value on a 64 bit kernel, which on LE
+	 * is always 32 bits, and on BE requires no change when unaligned.
+	 */
+#ifdef __LITTLE_ENDIAN
+	*bit += 32;
+#endif
+}
 
 typedef void (*user_event_func_t) (struct user_event *user, struct iov_iter *i,
 				   void *tpdata, bool *faulted);
@@ -482,6 +511,7 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 	unsigned long *ptr;
 	struct page *page;
 	void *kaddr;
+	int bit = ENABLE_BIT(enabler);
 	int ret;
 
 	lockdep_assert_held(&event_mutex);
@@ -496,6 +526,8 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 	if (unlikely(test_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler)) ||
 		     test_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(enabler))))
 		return -EBUSY;
+
+	align_addr_bit(&uaddr, &bit, ENABLE_BITOPS(enabler));
 
 	ret = pin_user_pages_remote(mm->mm, uaddr, 1, FOLL_WRITE | FOLL_NOFAULT,
 				    &page, NULL);
@@ -515,9 +547,9 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 
 	/* Update bit atomically, user tracers must be atomic as well */
 	if (enabler->event && enabler->event->status)
-		set_bit(ENABLE_BIT(enabler), ptr);
+		set_bit(bit, ptr);
 	else
-		clear_bit(ENABLE_BIT(enabler), ptr);
+		clear_bit(bit, ptr);
 
 	kunmap_local(kaddr);
 	unpin_user_pages_dirty_lock(&page, 1, true);
@@ -849,6 +881,12 @@ static struct user_event_enabler
 	enabler->event = user;
 	enabler->addr = uaddr;
 	enabler->values = reg->enable_bit;
+
+#if BITS_PER_LONG >= 64
+	if (reg->enable_size == 4)
+		set_bit(ENABLE_VAL_32_ON_64_BIT, ENABLE_BITOPS(enabler));
+#endif
+
 retry:
 	/* Prevents state changes from racing with new enablers */
 	mutex_lock(&event_mutex);
@@ -2377,7 +2415,8 @@ static long user_unreg_get(struct user_unreg __user *ureg,
 }
 
 static int user_event_mm_clear_bit(struct user_event_mm *user_mm,
-				   unsigned long uaddr, unsigned char bit)
+				   unsigned long uaddr, unsigned char bit,
+				   unsigned long flags)
 {
 	struct user_event_enabler enabler;
 	int result;
@@ -2385,7 +2424,7 @@ static int user_event_mm_clear_bit(struct user_event_mm *user_mm,
 
 	memset(&enabler, 0, sizeof(enabler));
 	enabler.addr = uaddr;
-	enabler.values = bit;
+	enabler.values = bit | flags;
 retry:
 	/* Prevents state changes from racing with new enablers */
 	mutex_lock(&event_mutex);
@@ -2415,6 +2454,7 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 	struct user_event_mm *mm = current->user_event_mm;
 	struct user_event_enabler *enabler, *next;
 	struct user_unreg reg;
+	unsigned long flags;
 	long ret;
 
 	ret = user_unreg_get(ureg, &reg);
@@ -2425,6 +2465,7 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 	if (!mm)
 		return -ENOENT;
 
+	flags = 0;
 	ret = -ENOENT;
 
 	/*
@@ -2441,6 +2482,9 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 		    ENABLE_BIT(enabler) == reg.disable_bit) {
 			set_bit(ENABLE_VAL_FREEING_BIT, ENABLE_BITOPS(enabler));
 
+			/* We must keep compat flags for the clear */
+			flags |= enabler->values & ENABLE_VAL_COMPAT_MASK;
+
 			if (!test_bit(ENABLE_VAL_FAULTING_BIT, ENABLE_BITOPS(enabler)))
 				user_event_enabler_destroy(enabler, true);
 
@@ -2454,7 +2498,7 @@ static long user_events_ioctl_unreg(unsigned long uarg)
 	/* Ensure bit is now cleared for user, regardless of event status */
 	if (!ret)
 		ret = user_event_mm_clear_bit(mm, reg.disable_addr,
-					      reg.disable_bit);
+					      reg.disable_bit, flags);
 
 	return ret;
 }
