@@ -1081,20 +1081,13 @@ static void arm_smmu_master_free_smes(struct arm_smmu_master_cfg *cfg,
 	mutex_unlock(&smmu->stream_map_mutex);
 }
 
-static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
-				      struct arm_smmu_master_cfg *cfg,
-				      struct iommu_fwspec *fwspec)
+static void arm_smmu_master_install_s2crs(struct arm_smmu_master_cfg *cfg,
+					  enum arm_smmu_s2cr_type type,
+					  u8 cbndx, struct iommu_fwspec *fwspec)
 {
-	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	struct arm_smmu_device *smmu = cfg->smmu;
 	struct arm_smmu_s2cr *s2cr = smmu->s2crs;
-	u8 cbndx = smmu_domain->cfg.cbndx;
-	enum arm_smmu_s2cr_type type;
 	int i, idx;
-
-	if (smmu_domain->stage == ARM_SMMU_DOMAIN_BYPASS)
-		type = S2CR_TYPE_BYPASS;
-	else
-		type = S2CR_TYPE_TRANS;
 
 	for_each_cfg_sme(cfg, fwspec, i, idx) {
 		if (type == s2cr[idx].type && cbndx == s2cr[idx].cbndx)
@@ -1105,7 +1098,6 @@ static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
 		s2cr[idx].cbndx = cbndx;
 		arm_smmu_write_s2cr(smmu, idx);
 	}
-	return 0;
 }
 
 static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
@@ -1153,7 +1145,12 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	}
 
 	/* Looks ok, so add the device to the domain */
-	ret = arm_smmu_domain_add_master(smmu_domain, cfg, fwspec);
+	arm_smmu_master_install_s2crs(cfg,
+				      smmu_domain->stage ==
+						      ARM_SMMU_DOMAIN_BYPASS ?
+					      S2CR_TYPE_BYPASS :
+					      S2CR_TYPE_TRANS,
+				      smmu_domain->cfg.cbndx, fwspec);
 
 	/*
 	 * Setup an autosuspend delay to avoid bouncing runpm state.
