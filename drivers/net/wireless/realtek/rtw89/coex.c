@@ -237,13 +237,13 @@ struct rtw89_btc_btf_set_report {
 struct rtw89_btc_btf_set_slot_table {
 	u8 fver;
 	u8 tbl_num;
-	u8 buf[];
+	struct rtw89_btc_fbtc_slot tbls[] __counted_by(tbl_num);
 } __packed;
 
 struct rtw89_btc_btf_set_mon_reg {
 	u8 fver;
 	u8 reg_num;
-	u8 buf[];
+	struct rtw89_btc_fbtc_mreg regs[] __counted_by(reg_num);
 } __packed;
 
 enum btc_btf_set_cx_policy {
@@ -1821,19 +1821,17 @@ static void rtw89_btc_fw_en_rpt(struct rtw89_dev *rtwdev,
 static void rtw89_btc_fw_set_slots(struct rtw89_dev *rtwdev, u8 num,
 				   struct rtw89_btc_fbtc_slot *s)
 {
-	struct rtw89_btc_btf_set_slot_table *tbl = NULL;
-	u8 *ptr = NULL;
-	u16 n = 0;
+	struct rtw89_btc_btf_set_slot_table *tbl;
+	u16 n;
 
-	n = sizeof(*s) * num + sizeof(*tbl);
+	n = struct_size(tbl, tbls, num);
 	tbl = kmalloc(n, GFP_KERNEL);
 	if (!tbl)
 		return;
 
 	tbl->fver = BTF_SET_SLOT_TABLE_VER;
 	tbl->tbl_num = num;
-	ptr = &tbl->buf[0];
-	memcpy(ptr, s, num * sizeof(*s));
+	memcpy(tbl->tbls, s, flex_array_size(tbl, tbls, num));
 
 	_send_fw_cmd(rtwdev, BTFC_SET, SET_SLOT_TABLE, tbl, n);
 
@@ -1845,7 +1843,7 @@ static void btc_fw_set_monreg(struct rtw89_dev *rtwdev)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_btc_ver *ver = rtwdev->btc.ver;
 	struct rtw89_btc_btf_set_mon_reg *monreg = NULL;
-	u8 n, *ptr = NULL, ulen, cxmreg_max;
+	u8 n, ulen, cxmreg_max;
 	u16 sz = 0;
 
 	n = chip->mon_reg_num;
@@ -1866,16 +1864,15 @@ static void btc_fw_set_monreg(struct rtw89_dev *rtwdev)
 		return;
 	}
 
-	ulen = sizeof(struct rtw89_btc_fbtc_mreg);
-	sz = (ulen * n) + sizeof(*monreg);
+	ulen = sizeof(monreg->regs[0]);
+	sz = struct_size(monreg, regs, n);
 	monreg = kmalloc(sz, GFP_KERNEL);
 	if (!monreg)
 		return;
 
 	monreg->fver = ver->fcxmreg;
 	monreg->reg_num = n;
-	ptr = &monreg->buf[0];
-	memcpy(ptr, chip->mon_reg, n * ulen);
+	memcpy(monreg->regs, chip->mon_reg, flex_array_size(monreg, regs, n));
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): sz=%d ulen=%d n=%d\n",
 		    __func__, sz, ulen, n);

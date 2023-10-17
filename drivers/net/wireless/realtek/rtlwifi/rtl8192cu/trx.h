@@ -396,8 +396,7 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 			  struct rtl_tcb_desc *tcb_desc);
 void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 *pdesc,
 			       u32 buffer_len, bool ispspoll);
-void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			     u8 *pdesc, bool b_firstseg,
-			     bool b_lastseg, struct sk_buff *skb);
+void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
+			     struct sk_buff *skb);
 
 #endif

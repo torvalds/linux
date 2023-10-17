@@ -3467,6 +3467,11 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 		[NL80211_RATE_INFO_HE_GI_1_6] = "1.6",
 		[NL80211_RATE_INFO_HE_GI_3_2] = "3.2",
 	};
+	static const char * const eht_gi_str[] = {
+		[NL80211_RATE_INFO_EHT_GI_0_8] = "0.8",
+		[NL80211_RATE_INFO_EHT_GI_1_6] = "1.6",
+		[NL80211_RATE_INFO_EHT_GI_3_2] = "3.2",
+	};
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct rate_info *rate = &rtwsta->ra_report.txrate;
 	struct ieee80211_rx_status *status = &rtwsta->rx_status;
@@ -3492,6 +3497,10 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 		seq_printf(m, "HE %dSS MCS-%d GI:%s", rate->nss, rate->mcs,
 			   rate->he_gi <= NL80211_RATE_INFO_HE_GI_3_2 ?
 			   he_gi_str[rate->he_gi] : "N/A");
+	else if (rate->flags & RATE_INFO_FLAGS_EHT_MCS)
+		seq_printf(m, "EHT %dSS MCS-%d GI:%s", rate->nss, rate->mcs,
+			   rate->eht_gi < ARRAY_SIZE(eht_gi_str) ?
+			   eht_gi_str[rate->eht_gi] : "N/A");
 	else
 		seq_printf(m, "Legacy %d", rate->legacy);
 	seq_printf(m, "%s", rtwsta->ra_report.might_fallback_legacy ? " FB_G" : "");
@@ -3519,6 +3528,11 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 		seq_printf(m, "HE %dSS MCS-%d GI:%s", status->nss, status->rate_idx,
 			   status->he_gi <= NL80211_RATE_INFO_HE_GI_3_2 ?
 			   he_gi_str[rate->he_gi] : "N/A");
+		break;
+	case RX_ENC_EHT:
+		seq_printf(m, "EHT %dSS MCS-%d GI:%s", status->nss, status->rate_idx,
+			   status->eht.gi < ARRAY_SIZE(eht_gi_str) ?
+			   eht_gi_str[status->eht.gi] : "N/A");
 		break;
 	}
 	seq_printf(m, " BW:%u", rtw89_rate_info_bw_to_mhz(status->bw));

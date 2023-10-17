@@ -519,9 +519,8 @@ void rtl8723e_tx_fill_desc(struct ieee80211_hw *hw,
 	rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
 
-void rtl8723e_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			      u8 *pdesc8, bool firstseg,
-			      bool lastseg, struct sk_buff *skb)
+void rtl8723e_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
+			      struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
@@ -541,8 +540,7 @@ void rtl8723e_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	}
 	clear_pci_tx_desc_content(pdesc, TX_DESC_SIZE);
 
-	if (firstseg)
-		set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
+	set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
 
 	set_tx_desc_tx_rate(pdesc, DESC92C_RATE1M);
 

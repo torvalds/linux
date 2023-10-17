@@ -243,6 +243,167 @@ static bool rtw89_mac_get_txpwr_cr_be(struct rtw89_dev *rtwdev,
 	return true;
 }
 
+static int rtw89_mac_init_bfee_be(struct rtw89_dev *rtwdev, u8 mac_idx)
+{
+	u32 reg;
+	u32 val;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
+	if (ret)
+		return ret;
+
+	rtw89_mac_bfee_ctrl(rtwdev, mac_idx, true);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_CTRL_0, mac_idx);
+	rtw89_write32_set(rtwdev, reg, B_BE_BFMEE_BFPARAM_SEL |
+				       B_BE_BFMEE_USE_NSTS |
+				       B_BE_BFMEE_CSI_GID_SEL |
+				       B_BE_BFMEE_CSI_FORCE_RETE_EN);
+	rtw89_write32_mask(rtwdev, reg, B_BE_BFMEE_CSI_RSC_MASK, CSI_RX_BW_CFG);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CSIRPT_OPTION, mac_idx);
+	rtw89_write32_set(rtwdev, reg, B_BE_CSIPRT_VHTSU_AID_EN |
+				       B_BE_CSIPRT_HESU_AID_EN |
+				       B_BE_CSIPRT_EHTSU_AID_EN);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_RRSC, mac_idx);
+	rtw89_write32(rtwdev, reg, CSI_RRSC_BMAP_BE);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_CTRL_1, mac_idx);
+	rtw89_write32_mask(rtwdev, reg, B_BE_BFMEE_BE_CSI_RRSC_BITMAP_MASK,
+			   CSI_RRSC_BITMAP_CFG);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_RATE, mac_idx);
+	val = u32_encode_bits(CSI_INIT_RATE_HT, B_BE_BFMEE_HT_CSI_RATE_MASK) |
+	      u32_encode_bits(CSI_INIT_RATE_VHT, B_BE_BFMEE_VHT_CSI_RATE_MASK) |
+	      u32_encode_bits(CSI_INIT_RATE_HE, B_BE_BFMEE_HE_CSI_RATE_MASK) |
+	      u32_encode_bits(CSI_INIT_RATE_EHT, B_BE_BFMEE_EHT_CSI_RATE_MASK);
+
+	rtw89_write32(rtwdev, reg, val);
+
+	return 0;
+}
+
+static int rtw89_mac_set_csi_para_reg_be(struct rtw89_dev *rtwdev,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_sta *sta)
+{
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	u8 nc = 1, nr = 3, ng = 0, cb = 1, cs = 1, ldpc_en = 1, stbc_en = 1;
+	u8 mac_idx = rtwvif->mac_idx;
+	u8 port_sel = rtwvif->port;
+	u8 sound_dim = 3, t;
+	u8 *phy_cap;
+	u32 reg;
+	u16 val;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
+	if (ret)
+		return ret;
+
+	phy_cap = sta->deflink.he_cap.he_cap_elem.phy_cap_info;
+
+	if ((phy_cap[3] & IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER) ||
+	    (phy_cap[4] & IEEE80211_HE_PHY_CAP4_MU_BEAMFORMER)) {
+		ldpc_en &= !!(phy_cap[1] & IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD);
+		stbc_en &= !!(phy_cap[2] & IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ);
+		t = u8_get_bits(phy_cap[5],
+				IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_MASK);
+		sound_dim = min(sound_dim, t);
+	}
+
+	if ((sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE) ||
+	    (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE)) {
+		ldpc_en &= !!(sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC);
+		stbc_en &= !!(sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK);
+		t = u32_get_bits(sta->deflink.vht_cap.cap,
+				 IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK);
+		sound_dim = min(sound_dim, t);
+	}
+
+	nc = min(nc, sound_dim);
+	nr = min(nr, sound_dim);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_CTRL_0, mac_idx);
+	rtw89_write32_set(rtwdev, reg, B_BE_BFMEE_BFPARAM_SEL);
+
+	val = u16_encode_bits(nc, B_BE_BFMEE_CSIINFO0_NC_MASK) |
+	      u16_encode_bits(nr, B_BE_BFMEE_CSIINFO0_NR_MASK) |
+	      u16_encode_bits(ng, B_BE_BFMEE_CSIINFO0_NG_MASK) |
+	      u16_encode_bits(cb, B_BE_BFMEE_CSIINFO0_CB_MASK) |
+	      u16_encode_bits(cs, B_BE_BFMEE_CSIINFO0_CS_MASK) |
+	      u16_encode_bits(ldpc_en, B_BE_BFMEE_CSIINFO0_LDPC_EN) |
+	      u16_encode_bits(stbc_en, B_BE_BFMEE_CSIINFO0_STBC_EN);
+
+	if (port_sel == 0)
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_CTRL_0,
+					   mac_idx);
+	else
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_CTRL_1,
+					   mac_idx);
+
+	rtw89_write16(rtwdev, reg, val);
+
+	return 0;
+}
+
+static int rtw89_mac_csi_rrsc_be(struct rtw89_dev *rtwdev,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta)
+{
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	u32 rrsc = BIT(RTW89_MAC_BF_RRSC_6M) | BIT(RTW89_MAC_BF_RRSC_24M);
+	u8 mac_idx = rtwvif->mac_idx;
+	int ret;
+	u32 reg;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
+	if (ret)
+		return ret;
+
+	if (sta->deflink.he_cap.has_he) {
+		rrsc |= (BIT(RTW89_MAC_BF_RRSC_HE_MSC0) |
+			 BIT(RTW89_MAC_BF_RRSC_HE_MSC3) |
+			 BIT(RTW89_MAC_BF_RRSC_HE_MSC5));
+	}
+	if (sta->deflink.vht_cap.vht_supported) {
+		rrsc |= (BIT(RTW89_MAC_BF_RRSC_VHT_MSC0) |
+			 BIT(RTW89_MAC_BF_RRSC_VHT_MSC3) |
+			 BIT(RTW89_MAC_BF_RRSC_VHT_MSC5));
+	}
+	if (sta->deflink.ht_cap.ht_supported) {
+		rrsc |= (BIT(RTW89_MAC_BF_RRSC_HT_MSC0) |
+			 BIT(RTW89_MAC_BF_RRSC_HT_MSC3) |
+			 BIT(RTW89_MAC_BF_RRSC_HT_MSC5));
+	}
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_CTRL_0, mac_idx);
+	rtw89_write32_set(rtwdev, reg, B_BE_BFMEE_BFPARAM_SEL);
+	rtw89_write32_clr(rtwdev, reg, B_BE_BFMEE_CSI_FORCE_RETE_EN);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_RRSC, mac_idx);
+	rtw89_write32(rtwdev, reg, rrsc);
+
+	return 0;
+}
+
+static void rtw89_mac_bf_assoc_be(struct rtw89_dev *rtwdev,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_sta *sta)
+{
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+
+	if (rtw89_sta_has_beamformer_cap(sta)) {
+		rtw89_debug(rtwdev, RTW89_DBG_BF,
+			    "initialize bfee for new association\n");
+		rtw89_mac_init_bfee_be(rtwdev, rtwvif->mac_idx);
+		rtw89_mac_set_csi_para_reg_be(rtwdev, vif, sta);
+		rtw89_mac_csi_rrsc_be(rtwdev, vif, sta);
+	}
+}
+
 const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.band1_offset = RTW89_MAC_BE_BAND_REG_OFFSET,
 	.filter_model_addr = R_BE_FILTER_MODEL_ADDR,
@@ -250,6 +411,19 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.mem_base_addrs = rtw89_mac_mem_base_addrs_be,
 	.rx_fltr = R_BE_RX_FLTR_OPT,
 	.port_base = &rtw89_port_base_be,
+	.agg_len_ht = R_BE_AGG_LEN_HT_0,
+
+	.muedca_ctrl = {
+		.addr = R_BE_MUEDCA_EN,
+		.mask = B_BE_MUEDCA_EN_0 | B_BE_SET_MUEDCATIMER_TF_0,
+	},
+	.bfee_ctrl = {
+		.addr = R_BE_BFMEE_RESP_OPTION,
+		.mask = B_BE_BFMEE_HT_NDPA_EN | B_BE_BFMEE_VHT_NDPA_EN |
+			B_BE_BFMEE_HE_NDPA_EN | B_BE_BFMEE_EHT_NDPA_EN,
+	},
+
+	.bf_assoc = rtw89_mac_bf_assoc_be,
 
 	.disable_cpu = rtw89_mac_disable_cpu_be,
 	.fwdl_enable_wcpu = rtw89_mac_fwdl_enable_wcpu_be,

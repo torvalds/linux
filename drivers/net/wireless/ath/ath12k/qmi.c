@@ -2213,6 +2213,7 @@ static int ath12k_qmi_request_target_cap(struct ath12k_base *ab)
 	struct qmi_txn txn = {};
 	unsigned int board_id = ATH12K_BOARD_ID_DEFAULT;
 	int ret = 0;
+	int r;
 	int i;
 
 	memset(&req, 0, sizeof(req));
@@ -2296,6 +2297,10 @@ static int ath12k_qmi_request_target_cap(struct ath12k_base *ab)
 		    ab->qmi.target.fw_version,
 		    ab->qmi.target.fw_build_timestamp,
 		    ab->qmi.target.fw_build_id);
+
+	r = ath12k_core_check_smbios(ab);
+	if (r)
+		ath12k_dbg(ab, ATH12K_DBG_QMI, "SMBIOS bdf variant name not set.\n");
 
 out:
 	return ret;
