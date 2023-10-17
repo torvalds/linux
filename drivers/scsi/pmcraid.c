@@ -2679,7 +2679,7 @@ static int pmcraid_error_handler(struct pmcraid_cmd *cmd)
 /**
  * pmcraid_reset_device - device reset handler functions
  *
- * @scsi_cmd: scsi command struct
+ * @scsi_dev: scsi device struct
  * @timeout: command timeout
  * @modifier: reset modifier indicating the reset sequence to be performed
  *
