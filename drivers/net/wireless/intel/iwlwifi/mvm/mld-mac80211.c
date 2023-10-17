@@ -1266,8 +1266,6 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 
 	.tx_last_beacon = iwl_mvm_tx_last_beacon,
 
-	.set_tim = iwl_mvm_set_tim,
-
 	.channel_switch = iwl_mvm_channel_switch,
 	.pre_channel_switch = iwl_mvm_pre_channel_switch,
 	.post_channel_switch = iwl_mvm_post_channel_switch,

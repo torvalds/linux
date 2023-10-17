@@ -2688,8 +2688,6 @@ void iwl_mvm_remove_chanctx(struct ieee80211_hw *hw,
 void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 			    struct ieee80211_chanctx_conf *ctx, u32 changed);
 int iwl_mvm_tx_last_beacon(struct ieee80211_hw *hw);
-int iwl_mvm_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
-		    bool set);
 void iwl_mvm_channel_switch(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_channel_switch *chsw);
 int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,

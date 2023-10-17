@@ -5273,8 +5273,8 @@ int iwl_mvm_tx_last_beacon(struct ieee80211_hw *hw)
 	return mvm->ibss_manager;
 }
 
-int iwl_mvm_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
-		    bool set)
+static int iwl_mvm_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+			   bool set)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
