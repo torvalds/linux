@@ -485,7 +485,18 @@ int bdev_del_partition(struct gendisk *disk, int partno)
 	if (atomic_read(&part->bd_openers))
 		goto out_unlock;
 
-	delete_partition(part);
+	/*
+	 * We verified that @part->bd_openers is zero above and so
+	 * @part->bd_holder{_ops} can't be set. And since we hold
+	 * @disk->open_mutex the device can't be claimed by anyone.
+	 *
+	 * So no need to call @part->bd_holder_ops->mark_dead() here.
+	 * Just delete the partition and invalidate it.
+	 */
+
+	remove_inode_hash(part->bd_inode);
+	invalidate_bdev(part);
+	drop_partition(part);
 	ret = 0;
 out_unlock:
 	mutex_unlock(&disk->open_mutex);
