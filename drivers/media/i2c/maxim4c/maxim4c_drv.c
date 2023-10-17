@@ -29,10 +29,12 @@
  * V2.03.00
  *     1. remote device add the maxim4c prefix to driver name.
  *
- * V2.04.02
+ * V2.04.03
  *     1. Add regulator supplier dependencies.
  *     2. Add config ssc-ratio property
  *     3. Add debugfs entry to change MIPI timing
+ *     4. Use PM runtime autosuspend feature
+ *     5. Fix unbalanced disabling for PoC regulator
  *
  */
 #include <linux/clk.h>
@@ -63,7 +65,7 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(2, 0x04, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(2, 0x04, 0x03)
 
 #define MAXIM4C_XVCLK_FREQ		25000000
 
@@ -681,6 +683,14 @@ static int maxim4c_probe(struct i2c_client *client,
 	if (ret)
 		goto err_destroy_mutex;
 
+	ret = maxim4c_remote_device_power_on(maxim4c);
+	if (ret)
+		dev_warn(dev, "Power on PoC regulator failed\n");
+
+	pm_runtime_set_active(dev);
+	pm_runtime_get_noresume(dev);
+	pm_runtime_enable(dev);
+
 	ret = maxim4c_check_local_chipid(maxim4c);
 	if (ret)
 		goto err_power_off;
@@ -704,9 +714,10 @@ static int maxim4c_probe(struct i2c_client *client,
 		goto err_power_off;
 #endif /* MAXIM4C_LOCAL_DES_ON_OFF_EN */
 
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	pm_runtime_set_autosuspend_delay(dev, 1000);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 #endif /* MAXIM4C_TEST_PATTERN */
@@ -731,9 +742,10 @@ static int maxim4c_probe(struct i2c_client *client,
 	maxim4c_lock_irq_init(maxim4c);
 	maxim4c_lock_state_work_init(maxim4c);
 
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	pm_runtime_set_autosuspend_delay(dev, 1000);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 
@@ -742,6 +754,9 @@ err_dbgfs_deinit:
 err_subdev_deinit:
 	maxim4c_v4l2_subdev_deinit(maxim4c);
 err_power_off:
+	pm_runtime_disable(dev);
+	pm_runtime_put_noidle(dev);
+	maxim4c_remote_device_power_off(maxim4c);
 	maxim4c_local_device_power_off(maxim4c);
 err_destroy_mutex:
 	mutex_destroy(&maxim4c->mutex);
