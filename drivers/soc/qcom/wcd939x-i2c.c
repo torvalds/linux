@@ -845,10 +845,10 @@ static void wcd_usbss_update_reg_init(struct regmap *regmap)
 						WCD_USBSS_DP_DN_MISC1, 0x09, 0x09);
 	/* Enable dynamic boosting for MG1 OVP */
 	regmap_update_bits(wcd_usbss_ctxt_->regmap,
-						WCD_USBSS_MG1_MISC, 0x20, 0x20);
+						WCD_USBSS_MG1_MISC, 0x24, 0x24);
 	/* Enable dynamic boosting for MG2 OVP */
 	regmap_update_bits(wcd_usbss_ctxt_->regmap,
-						WCD_USBSS_MG2_MISC, 0x20, 0x20);
+						WCD_USBSS_MG2_MISC, 0x24, 0x24);
 
 	/* Disable Equalizer */
 	regmap_update_bits(regmap, WCD_USBSS_EQUALIZER1,
