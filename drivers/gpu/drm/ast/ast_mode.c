@@ -321,14 +321,14 @@ static void ast_set_std_reg(struct ast_device *ast,
 	jreg = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
 	for (i = 0; i < 20; i++) {
 		jreg = stdtable->ar[i];
-		ast_io_write8(ast, AST_IO_AR_PORT_WRITE, (u8)i);
-		ast_io_write8(ast, AST_IO_AR_PORT_WRITE, jreg);
+		ast_io_write8(ast, AST_IO_VGAARI_W, (u8)i);
+		ast_io_write8(ast, AST_IO_VGAARI_W, jreg);
 	}
-	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x14);
-	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x00);
+	ast_io_write8(ast, AST_IO_VGAARI_W, 0x14);
+	ast_io_write8(ast, AST_IO_VGAARI_W, 0x00);
 
 	jreg = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
-	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x20);
+	ast_io_write8(ast, AST_IO_VGAARI_W, 0x20);
 
 	/* Set GR */
 	for (i = 0; i < 9; i++)
