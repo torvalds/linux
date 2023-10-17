@@ -536,7 +536,7 @@ static int i3c_mctp_probe(struct i3c_device *i3cdev)
 		goto error;
 	}
 
-	ret = i3c_device_control_pec(i3cdev, true);
+	ret = i3c_device_control_pec(i3cdev, false);
 	if (ret)
 		goto error;
 
