@@ -8,10 +8,12 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/spmi.h>
 #include <linux/types.h>
 #include <linux/regmap.h>
-#include <linux/of_platform.h>
 #include <soc/qcom/qcom-spmi-pmic.h>
 
 #define PMIC_REV2		0x101
@@ -264,7 +266,7 @@ static int pmic_spmi_probe(struct spmi_device *sdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->num_usids = (uintptr_t)of_device_get_match_data(&sdev->dev);
+	ctx->num_usids = (uintptr_t)device_get_match_data(&sdev->dev);
 
 	/* Only the first slave id for a PMIC contains this information */
 	if (sdev->usid % ctx->num_usids == 0) {

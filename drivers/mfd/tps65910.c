@@ -19,7 +19,7 @@
 #include <linux/regmap.h>
 #include <linux/mfd/tps65910.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 
 static const struct resource rtc_resources[] = {
 	{
@@ -374,16 +374,9 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 	struct device_node *np = client->dev.of_node;
 	struct tps65910_board *board_info;
 	unsigned int prop;
-	const struct of_device_id *match;
 	int ret;
 
-	match = of_match_device(tps65910_of_match, &client->dev);
-	if (!match) {
-		dev_err(&client->dev, "Failed to find matching dt id\n");
-		return NULL;
-	}
-
-	*chip_id  = (unsigned long)match->data;
+	*chip_id  = (unsigned long)device_get_match_data(&client->dev);
 
 	board_info = devm_kzalloc(&client->dev, sizeof(*board_info),
 			GFP_KERNEL);
