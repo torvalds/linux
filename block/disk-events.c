@@ -266,11 +266,8 @@ static unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
  * disk_check_media_change - check if a removable media has been changed
  * @disk: gendisk to check
  *
- * Check whether a removable media has been changed, and attempt to free all
- * dentries and inodes and invalidates all block device page cache entries in
- * that case.
- *
- * Returns %true if the media has changed, or %false if not.
+ * Returns %true and marks the disk for a partition rescan whether a removable
+ * media has been changed, and %false if the media did not change.
  */
 bool disk_check_media_change(struct gendisk *disk)
 {
@@ -278,12 +275,11 @@ bool disk_check_media_change(struct gendisk *disk)
 
 	events = disk_clear_events(disk, DISK_EVENT_MEDIA_CHANGE |
 				   DISK_EVENT_EJECT_REQUEST);
-	if (!(events & DISK_EVENT_MEDIA_CHANGE))
-		return false;
-
-	bdev_mark_dead(disk->part0, true);
-	set_bit(GD_NEED_PART_SCAN, &disk->state);
-	return true;
+	if (events & DISK_EVENT_MEDIA_CHANGE) {
+		set_bit(GD_NEED_PART_SCAN, &disk->state);
+		return true;
+	}
+	return false;
 }
 EXPORT_SYMBOL(disk_check_media_change);
 
