@@ -432,6 +432,21 @@ xfs_rtfind_forw(
 	return 0;
 }
 
+/* Log rtsummary counter at @infoword. */
+static inline void
+xfs_trans_log_rtsummary(
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp,
+	unsigned int		infoword)
+{
+	size_t			first, last;
+
+	first = (void *)xfs_rsumblock_infoptr(bp, infoword) - bp->b_addr;
+	last = first + sizeof(xfs_suminfo_t) - 1;
+
+	xfs_trans_log_buf(tp, bp, first, last);
+}
+
 /*
  * Read and/or modify the summary information for a given extent size,
  * bitmap block combination.
@@ -497,8 +512,6 @@ xfs_rtmodify_summary_int(
 	infoword = xfs_rtsumoffs_to_infoword(mp, so);
 	sp = xfs_rsumblock_infoptr(bp, infoword);
 	if (delta) {
-		uint first = (uint)((char *)sp - (char *)bp->b_addr);
-
 		*sp += delta;
 		if (mp->m_rsum_cache) {
 			if (*sp == 0 && log == mp->m_rsum_cache[bbno])
@@ -506,7 +519,7 @@ xfs_rtmodify_summary_int(
 			if (*sp != 0 && log < mp->m_rsum_cache[bbno])
 				mp->m_rsum_cache[bbno] = log;
 		}
-		xfs_trans_log_buf(tp, bp, first, first + sizeof(*sp) - 1);
+		xfs_trans_log_rtsummary(tp, bp, infoword);
 	}
 	if (sum)
 		*sum = *sp;
@@ -525,6 +538,22 @@ xfs_rtmodify_summary(
 {
 	return xfs_rtmodify_summary_int(mp, tp, log, bbno,
 					delta, rbpp, rsb, NULL);
+}
+
+/* Log rtbitmap block from the word @from to the byte before @next. */
+static inline void
+xfs_trans_log_rtbitmap(
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp,
+	unsigned int		from,
+	unsigned int		next)
+{
+	size_t			first, last;
+
+	first = (void *)xfs_rbmblock_wordptr(bp, from) - bp->b_addr;
+	last = ((void *)xfs_rbmblock_wordptr(bp, next) - 1) - bp->b_addr;
+
+	xfs_trans_log_buf(tp, bp, first, last);
 }
 
 /*
@@ -548,6 +577,7 @@ xfs_rtmodify_range(
 	int		i;		/* current bit number rel. to start */
 	int		lastbit;	/* last useful bit in word */
 	xfs_rtword_t	mask;		/* mask o frelevant bits for value */
+	unsigned int	firstword;	/* first word used in the buffer */
 	unsigned int	word;		/* word number in the buffer */
 
 	/*
@@ -565,7 +595,7 @@ xfs_rtmodify_range(
 	/*
 	 * Compute the starting word's address, and starting bit.
 	 */
-	word = xfs_rtx_to_rbmword(mp, start);
+	firstword = word = xfs_rtx_to_rbmword(mp, start);
 	first = b = xfs_rbmblock_wordptr(bp, word);
 	bit = (int)(start & (XFS_NBWORD - 1));
 	/*
@@ -599,15 +629,13 @@ xfs_rtmodify_range(
 			 * Log the changed part of this block.
 			 * Get the next one.
 			 */
-			xfs_trans_log_buf(tp, bp,
-				(uint)((char *)first - (char *)bp->b_addr),
-				(uint)((char *)b - (char *)bp->b_addr));
+			xfs_trans_log_rtbitmap(tp, bp, firstword, word);
 			error = xfs_rtbuf_get(mp, tp, ++block, 0, &bp);
 			if (error) {
 				return error;
 			}
 
-			word = 0;
+			firstword = word = 0;
 			first = b = xfs_rbmblock_wordptr(bp, word);
 		} else {
 			/*
@@ -640,15 +668,13 @@ xfs_rtmodify_range(
 			 * Log the changed part of this block.
 			 * Get the next one.
 			 */
-			xfs_trans_log_buf(tp, bp,
-				(uint)((char *)first - (char *)bp->b_addr),
-				(uint)((char *)b - (char *)bp->b_addr));
+			xfs_trans_log_rtbitmap(tp, bp, firstword, word);
 			error = xfs_rtbuf_get(mp, tp, ++block, 0, &bp);
 			if (error) {
 				return error;
 			}
 
-			word = 0;
+			firstword = word = 0;
 			first = b = xfs_rbmblock_wordptr(bp, word);
 		} else {
 			/*
@@ -673,15 +699,14 @@ xfs_rtmodify_range(
 			*b |= mask;
 		else
 			*b &= ~mask;
+		word++;
 		b++;
 	}
 	/*
 	 * Log any remaining changed bytes.
 	 */
 	if (b > first)
-		xfs_trans_log_buf(tp, bp,
-			(uint)((char *)first - (char *)bp->b_addr),
-			(uint)((char *)b - (char *)bp->b_addr - 1));
+		xfs_trans_log_rtbitmap(tp, bp, firstword, word);
 	return 0;
 }
 
