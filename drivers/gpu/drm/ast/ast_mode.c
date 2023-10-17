@@ -332,7 +332,7 @@ static void ast_set_std_reg(struct ast_device *ast,
 
 	/* Set GR */
 	for (i = 0; i < 9; i++)
-		ast_set_index_reg(ast, AST_IO_GR_PORT, i, stdtable->gr[i]);
+		ast_set_index_reg(ast, AST_IO_VGAGRI, i, stdtable->gr[i]);
 }
 
 static void ast_set_crtc_reg(struct ast_device *ast,
