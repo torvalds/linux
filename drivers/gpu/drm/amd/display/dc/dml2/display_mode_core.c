@@ -1507,7 +1507,7 @@ static dml_bool_t CalculatePrefetchSchedule(struct display_mode_lib_scratch_st *
 		dml_print("DML: Tvm: %fus - time to fetch page tables for meta surface\n", s->TimeForFetchingMetaPTE);
 		dml_print("DML: Tr0: %fus - time to fetch first row of data pagetables and first row of meta data (done in parallel)\n", s->TimeForFetchingRowInVBlank);
 		dml_print("DML: Tsw: %fus = time to fetch enough pixel data and cursor data to feed the scalers init position and detile\n", (dml_float_t)s->LinesToRequestPrefetchPixelData * s->LineTime);
-		dml_print("DML: To: %fus - time for propogation from scaler to optc\n", (*p->DSTYAfterScaler + ((dml_float_t) (*p->DSTXAfterScaler) / (dml_float_t)p->myPipe->HTotal)) * s->LineTime);
+		dml_print("DML: To: %fus - time for propagation from scaler to optc\n", (*p->DSTYAfterScaler + ((dml_float_t) (*p->DSTXAfterScaler) / (dml_float_t)p->myPipe->HTotal)) * s->LineTime);
 		dml_print("DML: Tvstartup - TSetup - Tcalc - Twait - Tpre - To > 0\n");
 		dml_print("DML: Tslack(pre): %fus - time left over in schedule\n", p->VStartup * s->LineTime - s->TimeForFetchingMetaPTE - 2 * s->TimeForFetchingRowInVBlank - (*p->DSTYAfterScaler + ((dml_float_t) (*p->DSTXAfterScaler) / (dml_float_t)p->myPipe->HTotal)) * s->LineTime - p->TWait - p->TCalc - *p->TSetup);
 		dml_print("DML: row_bytes = dpte_row_bytes (per_pipe) = PixelPTEBytesPerRow = : %u\n", p->PixelPTEBytesPerRow);
@@ -9306,7 +9306,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 				if (mode_lib->ms.policy.ImmediateFlipRequirement[k] != dml_immediate_flip_not_required && locals->ImmediateFlipSupportedForPipe[k] == false) {
 					locals->ImmediateFlipSupported = false;
 #ifdef __DML_VBA_DEBUG__
-					dml_print("DML::%s: Pipe %0d not supporing iflip\n", __func__, k);
+					dml_print("DML::%s: Pipe %0d not supporting iflip\n", __func__, k);
 #endif
 				}
 			}
@@ -9359,7 +9359,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 	if (locals->PrefetchAndImmediateFlipSupported) {
 		dml_print("DML::%s: Good, Prefetch and flip scheduling solution found at VStartupLines=%u (MaxVStartupAllPlanes=%u)\n", __func__, s->VStartupLines-1, s->MaxVStartupAllPlanes);
 	} else {
-		dml_print("DML::%s: Bad, Prefetch and flip scheduling soluation NOT found solution! (MaxVStartupAllPlanes=%u)\n", __func__, s->MaxVStartupAllPlanes);
+		dml_print("DML::%s: Bad, Prefetch and flip scheduling solution did NOT find solution! (MaxVStartupAllPlanes=%u)\n", __func__, s->MaxVStartupAllPlanes);
 	}
 
 	//Watermarks and NB P-State/DRAM Clock Change Support
