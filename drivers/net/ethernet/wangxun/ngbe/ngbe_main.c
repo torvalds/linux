@@ -679,11 +679,6 @@ static int ngbe_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, wx);
 
-	netif_info(wx, probe, netdev,
-		   "PHY: %s, PBA No: Wang Xun GbE Family Controller\n",
-		   wx->mac_type == em_mac_type_mdi ? "Internal" : "External");
-	netif_info(wx, probe, netdev, "%pM\n", netdev->dev_addr);
-
 	return 0;
 
 err_register:
