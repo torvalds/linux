@@ -149,11 +149,10 @@
 		};
 	};
 
-	camera1_vcc12v_buck: camera1_vcc12v-buck {
+	dcphy0_vcc12v_buck: dcphy0_vcc12v-buck {
 		compatible = "regulator-fixed";
-		regulator-name = "camera1_vcc12v_buck";
+		regulator-name = "dcphy0_vcc12v_buck";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
@@ -167,11 +166,10 @@
 		};
 	};
 
-	camera2_vcc12v_buck: camera2_vcc12v-buck {
+	dcphy1_vcc12v_buck: dcphy1_vcc12v-buck {
 		compatible = "regulator-fixed";
-		regulator-name = "camera2_vcc12v_buck";
+		regulator-name = "dcphy1_vcc12v_buck";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
@@ -185,11 +183,10 @@
 		};
 	};
 
-	camera3_vcc12v_buck: camera3_vcc12v-buck {
+	dphy0_vcc12v_buck: dphy0_vcc12v-buck {
 		compatible = "regulator-fixed";
-		regulator-name = "camera3_vcc12v_buck";
+		regulator-name = "dphy0_vcc12v_buck";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
@@ -203,11 +200,10 @@
 		};
 	};
 
-	camera4_vcc12v_buck: camera4_vcc12v-buck {
+	dphy3_vcc12v_buck: dphy3_vcc12v-buck {
 		compatible = "regulator-fixed";
-		regulator-name = "camera4_vcc12v_buck";
+		regulator-name = "dphy3_vcc12v_buck";
 		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
@@ -348,7 +344,7 @@
 };
 
 &max96712_dphy3_poc {
-	vin-supply = <&camera1_vcc12v_buck>;
+	vin-supply = <&dphy3_vcc12v_buck>;
 };
 
 &avdd1v8_ddr_pll_s0 {
