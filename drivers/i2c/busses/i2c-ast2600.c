@@ -210,16 +210,7 @@
 #define MASTER_TRIGGER_LAST_STOP	(AST2600_I2CM_RX_CMD_LAST | AST2600_I2CM_STOP_CMD)
 #define SLAVE_TRIGGER_CMD	(AST2600_I2CS_ACTIVE_ALL | AST2600_I2CS_PKT_MODE_EN)
 
-/* i2c timeout counter: use base clk4 1Mhz
- * 1/(1000/4096) = 4.096ms * 8 = 32.768ms
- */
 #define AST_I2C_TIMEOUT_CLK		0x2
-#define AST_I2C_TIMEOUT_COUNT	0x8
-
-struct ast2600_i2c_timing_table {
-	u32 divisor;
-	u32 timing;
-};
 
 enum xfer_mode {
 	BYTE_MODE,
@@ -241,7 +232,7 @@ struct ast2600_i2c_bus {
 	u32					apb_clk;
 	u32					bus_frequency;
 	int					slave_operate;
-	int					timeout_enable;
+	u32					timeout;
 	/* smbus alert */
 	int					alert_enable;
 	struct i2c_smbus_alert_setup alert_data;
@@ -309,9 +300,9 @@ static u32 ast2600_select_i2c_clock(struct ast2600_i2c_bus *i2c_bus)
 	scl_low = min(divisor * 9 / 16 - 1, 15);
 	scl_high = (divisor - scl_low - 2) & GENMASK(3, 0);
 	data = (scl_high - 1) << 20 | scl_high << 16 | scl_low << 12 | baseclk_idx;
-	if (i2c_bus->timeout_enable) {
+	if (i2c_bus->timeout) {
 		data |= AST2600_I2CC_TOUTBASECLK(AST_I2C_TIMEOUT_CLK);
-		data |= AST2600_I2CC_TTIMEOUT(AST_I2C_TIMEOUT_COUNT);
+		data |= AST2600_I2CC_TTIMEOUT(i2c_bus->timeout);
 	}
 
 	return data;
@@ -592,7 +583,6 @@ static void ast2600_i2c_slave_packet_buff_irq(struct ast2600_i2c_bus *i2c_bus, u
 		writel(AST2600_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size),
 						i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL);
 		break;
-
 	case AST2600_I2CS_SLAVE_PENDING | AST2600_I2CS_RX_DONE | AST2600_I2CS_STOP:   /////#3 pre isr 1010004 -> 20010014
 		cmd = SLAVE_TRIGGER_CMD;
 		slave_rx_len = AST2600_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
@@ -606,7 +596,6 @@ static void ast2600_i2c_slave_packet_buff_irq(struct ast2600_i2c_bus *i2c_bus, u
 		writel(BIT(0), i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL);
 		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
 		break;
-
 	case AST2600_I2CS_RX_DONE | AST2600_I2CS_STOP:   /////#3 1010014
 		cmd = SLAVE_TRIGGER_CMD;
 		slave_rx_len = AST2600_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
@@ -2274,8 +2263,13 @@ static int ast2600_i2c_probe(struct platform_device *pdev)
 	if (i2c_bus->mode != BYTE_MODE)
 		i2c_ast2600_algorithm.smbus_xfer = ast2600_i2c_smbus_xfer;
 
-	if (of_property_read_bool(pdev->dev.of_node, "timeout"))
-		i2c_bus->timeout_enable = 1;
+	/*
+	 * i2c timeout counter: use base clk4 1Mhz,
+	 * per unit: 1/(1000/4096) = 4096us
+	 */
+	ret = device_property_read_u32(dev, "i2c-scl-clk-low-timeout-us", &i2c_bus->timeout);
+	if (!ret)
+		i2c_bus->timeout /= 4096;
 
 	init_completion(&i2c_bus->cmd_complete);
 
