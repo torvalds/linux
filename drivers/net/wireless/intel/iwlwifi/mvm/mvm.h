@@ -2241,7 +2241,7 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 						  bool *changed);
 struct ieee80211_regdomain *iwl_mvm_get_current_regdomain(struct iwl_mvm *mvm,
 							  bool *changed);
-int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm);
+int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm, bool force_regd_sync);
 void iwl_mvm_update_changed_regdom(struct iwl_mvm *mvm);
 
 /* smart fifo */

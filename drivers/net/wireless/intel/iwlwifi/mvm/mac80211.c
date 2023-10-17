@@ -186,7 +186,7 @@ struct ieee80211_regdomain *iwl_mvm_get_current_regdomain(struct iwl_mvm *mvm,
 				     MCC_SOURCE_OLD_FW, changed);
 }
 
-int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
+int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm, bool force_regd_sync)
 {
 	enum iwl_mcc_source used_src;
 	struct ieee80211_regdomain *regd;
@@ -213,8 +213,10 @@ int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
 	if (IS_ERR_OR_NULL(regd))
 		return -EIO;
 
-	/* update cfg80211 if the regdomain was changed */
-	if (changed)
+	/* update cfg80211 if the regdomain was changed or the caller explicitly
+	 * asked to update regdomain
+	 */
+	if (changed || force_regd_sync)
 		ret = regulatory_set_wiphy_regd_sync(mvm->hw->wiphy, regd);
 	else
 		ret = 0;
