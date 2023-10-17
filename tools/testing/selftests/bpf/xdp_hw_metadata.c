@@ -26,6 +26,7 @@
 #include <linux/sockios.h>
 #include <sys/mman.h>
 #include <net/if.h>
+#include <ctype.h>
 #include <poll.h>
 #include <time.h>
 
@@ -47,6 +48,7 @@ struct xsk {
 };
 
 struct xdp_hw_metadata *bpf_obj;
+__u16 bind_flags = XDP_COPY;
 struct xsk *rx_xsk;
 const char *ifname;
 int ifindex;
@@ -60,7 +62,7 @@ static int open_xsk(int ifindex, struct xsk *xsk, __u32 queue_id)
 	const struct xsk_socket_config socket_config = {
 		.rx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
 		.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
-		.bind_flags = XDP_COPY,
+		.bind_flags = bind_flags,
 	};
 	const struct xsk_umem_config umem_config = {
 		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
@@ -263,11 +265,14 @@ static int verify_metadata(struct xsk *rx_xsk, int rxq, int server_fd, clockid_t
 			verify_skb_metadata(server_fd);
 
 		for (i = 0; i < rxq; i++) {
+			bool first_seg = true;
+			bool is_eop = true;
+
 			if (fds[i].revents == 0)
 				continue;
 
 			struct xsk *xsk = &rx_xsk[i];
-
+peek:
 			ret = xsk_ring_cons__peek(&xsk->rx, 1, &idx);
 			printf("xsk_ring_cons__peek: %d\n", ret);
 			if (ret != 1)
@@ -276,12 +281,19 @@ static int verify_metadata(struct xsk *rx_xsk, int rxq, int server_fd, clockid_t
 			rx_desc = xsk_ring_cons__rx_desc(&xsk->rx, idx);
 			comp_addr = xsk_umem__extract_addr(rx_desc->addr);
 			addr = xsk_umem__add_offset_to_addr(rx_desc->addr);
-			printf("%p: rx_desc[%u]->addr=%llx addr=%llx comp_addr=%llx\n",
-			       xsk, idx, rx_desc->addr, addr, comp_addr);
-			verify_xdp_metadata(xsk_umem__get_data(xsk->umem_area, addr),
-					    clock_id);
+			is_eop = !(rx_desc->options & XDP_PKT_CONTD);
+			printf("%p: rx_desc[%u]->addr=%llx addr=%llx comp_addr=%llx%s\n",
+			       xsk, idx, rx_desc->addr, addr, comp_addr, is_eop ? " EoP" : "");
+			if (first_seg) {
+				verify_xdp_metadata(xsk_umem__get_data(xsk->umem_area, addr),
+						    clock_id);
+				first_seg = false;
+			}
+
 			xsk_ring_cons__release(&xsk->rx, 1);
 			refill_rx(xsk, comp_addr);
+			if (!is_eop)
+				goto peek;
 		}
 	}
 
@@ -404,6 +416,53 @@ static void timestamping_enable(int fd, int val)
 		error(1, errno, "setsockopt(SO_TIMESTAMPING)");
 }
 
+static void print_usage(void)
+{
+	const char *usage =
+		"Usage: xdp_hw_metadata [OPTIONS] [IFNAME]\n"
+		"  -m    Enable multi-buffer XDP for larger MTU\n"
+		"  -h    Display this help and exit\n\n"
+		"Generate test packets on the other machine with:\n"
+		"  echo -n xdp | nc -u -q1 <dst_ip> 9091\n";
+
+	printf("%s", usage);
+}
+
+static void read_args(int argc, char *argv[])
+{
+	char opt;
+
+	while ((opt = getopt(argc, argv, "mh")) != -1) {
+		switch (opt) {
+		case 'm':
+			bind_flags |= XDP_USE_SG;
+			break;
+		case 'h':
+			print_usage();
+			exit(0);
+		case '?':
+			if (isprint(optopt))
+				fprintf(stderr, "Unknown option: -%c\n", optopt);
+			fallthrough;
+		default:
+			print_usage();
+			error(-1, opterr, "Command line options error");
+		}
+	}
+
+	if (optind >= argc) {
+		fprintf(stderr, "No device name provided\n");
+		print_usage();
+		exit(-1);
+	}
+
+	ifname = argv[optind];
+	ifindex = if_nametoindex(ifname);
+
+	if (!ifname)
+		error(-1, errno, "Invalid interface name");
+}
+
 int main(int argc, char *argv[])
 {
 	clockid_t clock_id = CLOCK_TAI;
@@ -413,13 +472,8 @@ int main(int argc, char *argv[])
 
 	struct bpf_program *prog;
 
-	if (argc != 2) {
-		fprintf(stderr, "pass device name\n");
-		return -1;
-	}
+	read_args(argc, argv);
 
-	ifname = argv[1];
-	ifindex = if_nametoindex(ifname);
 	rxq = rxq_num(ifname);
 
 	printf("rxq: %d\n", rxq);
