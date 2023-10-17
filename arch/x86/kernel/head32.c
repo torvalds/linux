@@ -69,41 +69,43 @@ asmlinkage __visible void __init __noreturn i386_start_kernel(void)
  * to the first kernel PMD. Note the upper half of each PMD or PTE are
  * always zero at this stage.
  */
-void __init mk_early_pgtbl_32(void);
+#ifdef CONFIG_X86_PAE
+typedef pmd_t			pl2_t;
+#define pl2_base		initial_pg_pmd
+#define SET_PL2(val)		{ .pmd = (val), }
+#else
+typedef pgd_t			pl2_t;
+#define pl2_base		initial_page_table
+#define SET_PL2(val)		{ .pgd = (val), }
+#endif
 
 void __init __no_stack_protector mk_early_pgtbl_32(void)
 {
-	pte_t pte, *ptep;
-	int i;
-	unsigned long *ptr;
 	/* Enough space to fit pagetables for the low memory linear map */
 	const unsigned long limit = __pa_nodebug(_end) +
 		(PAGE_TABLE_SIZE(LOWMEM_PAGES) << PAGE_SHIFT);
-#ifdef CONFIG_X86_PAE
-	pmd_t pl2, *pl2p = (pmd_t *)__pa_nodebug(initial_pg_pmd);
-#define SET_PL2(pl2, val)    { (pl2).pmd = (val); }
-#else
-	pgd_t pl2, *pl2p = (pgd_t *)__pa_nodebug(initial_page_table);
-#define SET_PL2(pl2, val)   { (pl2).pgd = (val); }
-#endif
+	pte_t pte, *ptep = (pte_t *)__pa_nodebug(__brk_base);
+	pl2_t *pl2p = (pl2_t *)__pa_nodebug(pl2_base);
+	unsigned long *ptr;
+	int i;
 
-	ptep = (pte_t *)__pa_nodebug(__brk_base);
 	pte.pte = PTE_IDENT_ATTR;
 
 	while ((pte.pte & PTE_PFN_MASK) < limit) {
+		pl2_t pl2 = SET_PL2((unsigned long)ptep | PDE_IDENT_ATTR);
 
-		SET_PL2(pl2, (unsigned long)ptep | PDE_IDENT_ATTR);
 		*pl2p = pl2;
-#ifndef CONFIG_X86_PAE
-		/* Kernel PDE entry */
-		*(pl2p +  ((PAGE_OFFSET >> PGDIR_SHIFT))) = pl2;
-#endif
+
+		if (!IS_ENABLED(CONFIG_X86_PAE)) {
+			/* Kernel PDE entry */
+			*(pl2p +  ((PAGE_OFFSET >> PGDIR_SHIFT))) = pl2;
+		}
+
 		for (i = 0; i < PTRS_PER_PTE; i++) {
 			*ptep = pte;
 			pte.pte += PAGE_SIZE;
 			ptep++;
 		}
-
 		pl2p++;
 	}
 
