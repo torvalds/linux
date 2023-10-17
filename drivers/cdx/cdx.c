@@ -125,8 +125,13 @@ static int cdx_unregister_device(struct device *dev,
 {
 	struct cdx_device *cdx_dev = to_cdx_device(dev);
 
-	kfree(cdx_dev->driver_override);
-	cdx_dev->driver_override = NULL;
+	if (cdx_dev->is_bus) {
+		device_for_each_child(dev, NULL, cdx_unregister_device);
+	} else {
+		kfree(cdx_dev->driver_override);
+		cdx_dev->driver_override = NULL;
+	}
+
 	/*
 	 * Do not free cdx_dev here as it would be freed in
 	 * cdx_device_release() called from within put_device().
@@ -201,6 +206,9 @@ static int cdx_bus_match(struct device *dev, struct device_driver *drv)
 	const struct cdx_device_id *found_id = NULL;
 	const struct cdx_device_id *ids;
 
+	if (cdx_dev->is_bus)
+		return false;
+
 	ids = cdx_drv->match_id_table;
 
 	/* When driver_override is set, only bind to the matching driver */
@@ -265,10 +273,11 @@ static int cdx_dma_configure(struct device *dev)
 {
 	struct cdx_driver *cdx_drv = to_cdx_driver(dev->driver);
 	struct cdx_device *cdx_dev = to_cdx_device(dev);
+	struct cdx_controller *cdx = cdx_dev->cdx;
 	u32 input_id = cdx_dev->req_id;
 	int ret;
 
-	ret = of_dma_configure_id(dev, dev->parent->of_node, 0, &input_id);
+	ret = of_dma_configure_id(dev, cdx->dev->of_node, 0, &input_id);
 	if (ret && ret != -EPROBE_DEFER) {
 		dev_err(dev, "of_dma_configure_id() failed\n");
 		return ret;
@@ -374,6 +383,18 @@ static ssize_t driver_override_show(struct device *dev,
 }
 static DEVICE_ATTR_RW(driver_override);
 
+static umode_t cdx_dev_attrs_are_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct cdx_device *cdx_dev;
+
+	cdx_dev = to_cdx_device(dev);
+	if (!cdx_dev->is_bus)
+		return a->mode;
+
+	return 0;
+}
+
 static struct attribute *cdx_dev_attrs[] = {
 	&dev_attr_remove.attr,
 	&dev_attr_reset.attr,
@@ -382,7 +403,16 @@ static struct attribute *cdx_dev_attrs[] = {
 	&dev_attr_driver_override.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(cdx_dev);
+
+static const struct attribute_group cdx_dev_group = {
+	.attrs = cdx_dev_attrs,
+	.is_visible = cdx_dev_attrs_are_visible,
+};
+
+static const struct attribute_group *cdx_dev_groups[] = {
+	&cdx_dev_group,
+	NULL,
+};
 
 static ssize_t rescan_store(const struct bus_type *bus,
 			    const char *buf, size_t count)
@@ -479,7 +509,6 @@ static void cdx_device_release(struct device *dev)
 int cdx_device_add(struct cdx_dev_params *dev_params)
 {
 	struct cdx_controller *cdx = dev_params->cdx;
-	struct device *parent = cdx->dev;
 	struct cdx_device *cdx_dev;
 	int ret;
 
@@ -503,7 +532,7 @@ int cdx_device_add(struct cdx_dev_params *dev_params)
 
 	/* Initialize generic device */
 	device_initialize(&cdx_dev->dev);
-	cdx_dev->dev.parent = parent;
+	cdx_dev->dev.parent = dev_params->parent;
 	cdx_dev->dev.bus = &cdx_bus_type;
 	cdx_dev->dev.dma_mask = &cdx_dev->dma_mask;
 	cdx_dev->dev.release = cdx_device_release;
@@ -531,6 +560,42 @@ fail:
 	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(cdx_device_add, CDX_BUS_CONTROLLER);
+
+struct device *cdx_bus_add(struct cdx_controller *cdx, u8 bus_num)
+{
+	struct cdx_device *cdx_dev;
+	int ret;
+
+	cdx_dev = kzalloc(sizeof(*cdx_dev), GFP_KERNEL);
+	if (!cdx_dev)
+		return NULL;
+
+	device_initialize(&cdx_dev->dev);
+	cdx_dev->cdx = cdx;
+
+	cdx_dev->dev.parent = cdx->dev;
+	cdx_dev->dev.bus = &cdx_bus_type;
+	cdx_dev->dev.release = cdx_device_release;
+	cdx_dev->is_bus = true;
+	cdx_dev->bus_num = bus_num;
+
+	dev_set_name(&cdx_dev->dev, "cdx-%02x",
+		     ((cdx->id << CDX_CONTROLLER_ID_SHIFT) | (bus_num & CDX_BUS_NUM_MASK)));
+
+	ret = device_add(&cdx_dev->dev);
+	if (ret) {
+		dev_err(&cdx_dev->dev, "cdx bus device add failed: %d\n", ret);
+		goto device_add_fail;
+	}
+
+	return &cdx_dev->dev;
+
+device_add_fail:
+	put_device(&cdx_dev->dev);
+
+	return NULL;
+}
+EXPORT_SYMBOL_NS_GPL(cdx_bus_add, CDX_BUS_CONTROLLER);
 
 int cdx_register_controller(struct cdx_controller *cdx)
 {

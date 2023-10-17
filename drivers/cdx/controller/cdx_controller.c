@@ -79,7 +79,13 @@ static int cdx_scan_devices(struct cdx_controller *cdx)
 	num_cdx_bus = (u8)ret;
 
 	for (bus_num = 0; bus_num < num_cdx_bus; bus_num++) {
+		struct device *bus_dev;
 		u8 num_cdx_dev;
+
+		/* Add the bus on cdx subsystem */
+		bus_dev = cdx_bus_add(cdx, bus_num);
+		if (!bus_dev)
+			continue;
 
 		/* MCDI FW Read: Fetch the number of devices present */
 		ret = cdx_mcdi_get_num_devs(cdx_mcdi, bus_num);
@@ -103,6 +109,7 @@ static int cdx_scan_devices(struct cdx_controller *cdx)
 				continue;
 			}
 			dev_params.cdx = cdx;
+			dev_params.parent = bus_dev;
 
 			/* Add the device to the cdx bus */
 			ret = cdx_device_add(&dev_params);
