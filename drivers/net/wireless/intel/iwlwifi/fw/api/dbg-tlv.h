@@ -159,6 +159,7 @@ struct iwl_fw_ini_region_internal_buffer {
  *	&IWL_FW_INI_REGION_PAGING, &IWL_FW_INI_REGION_CSR,
  *	&IWL_FW_INI_REGION_DRAM_IMR and &IWL_FW_INI_REGION_PCI_IOSF_CONFIG
  *	&IWL_FW_INI_REGION_DBGI_SRAM, &FW_TLV_DEBUG_REGION_TYPE_DBGI_SRAM,
+ *	&IWL_FW_INI_REGION_PERIPHERY_SNPS_DPHYIP,
  * @dev_addr_range: device address range configuration. Used by
  *	&IWL_FW_INI_REGION_PERIPHERY_MAC_RANGE and
  *	&IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE
@@ -392,6 +393,7 @@ enum iwl_fw_ini_buffer_location {
  * @IWL_FW_INI_REGION_DBGI_SRAM: periphery registers of DBGI SRAM
  * @IWL_FW_INI_REGION_PERIPHERY_MAC_RANGE: a range of periphery registers of MAC
  * @IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE: a range of periphery registers of PHY
+ * @IWL_FW_INI_REGION_PERIPHERY_SNPS_DPHYIP: periphery registers of SNPS DPHYIP
  * @IWL_FW_INI_REGION_NUM: number of region types
  */
 enum iwl_fw_ini_region_type {
@@ -416,6 +418,7 @@ enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_DBGI_SRAM,
 	IWL_FW_INI_REGION_PERIPHERY_MAC_RANGE,
 	IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE,
+	IWL_FW_INI_REGION_PERIPHERY_SNPS_DPHYIP,
 	IWL_FW_INI_REGION_NUM
 }; /* FW_TLV_DEBUG_REGION_TYPE_API_E */
 

@@ -516,4 +516,8 @@ enum {
 #define WFPM_LMAC2_PD_NOTIFICATION 0xA033CC
 #define WFPM_LMAC2_PD_RE_READ BIT(31)
 
+#define DPHYIP_INDIRECT			0xA2D800
+#define DPHYIP_INDIRECT_RD_MSK		0xFF000000
+#define DPHYIP_INDIRECT_RD_SHIFT	24
+
 #endif				/* __iwl_prph_h__ */

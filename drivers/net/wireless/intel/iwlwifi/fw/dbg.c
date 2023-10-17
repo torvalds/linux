@@ -1416,6 +1416,53 @@ out:
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
 
+static int
+iwl_dump_ini_prph_snps_dphyip_iter(struct iwl_fw_runtime *fwrt,
+				   struct iwl_dump_ini_region_data *reg_data,
+				   void *range_ptr, u32 range_len, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	__le32 *val = range->data;
+	__le32 offset = reg->dev_addr.offset;
+	u32 indirect_rd_wr_addr = DPHYIP_INDIRECT;
+	u32 addr = le32_to_cpu(reg->addrs[idx]);
+	u32 dphy_state, dphy_addr, prph_val;
+	int i;
+
+	range->internal_base_addr = cpu_to_le32(addr);
+	range->range_data_size = reg->dev_addr.size;
+
+	if (!iwl_trans_grab_nic_access(fwrt->trans))
+		return -EBUSY;
+
+	indirect_rd_wr_addr += le32_to_cpu(offset);
+
+	dphy_addr = offset ? WFPM_LMAC2_PS_CTL_RW : WFPM_LMAC1_PS_CTL_RW;
+	dphy_state = iwl_read_umac_prph_no_grab(fwrt->trans, dphy_addr);
+
+	for (i = 0; i < le32_to_cpu(reg->dev_addr.size); i += 4) {
+		if (dphy_state == HBUS_TIMEOUT ||
+		    (dphy_state & WFPM_PS_CTL_RW_PHYRF_PD_FSM_CURSTATE_MSK) !=
+		    WFPM_PHYRF_STATE_ON) {
+			*val++ = cpu_to_le32(WFPM_DPHY_OFF);
+			continue;
+		}
+
+		iwl_write_prph_no_grab(fwrt->trans, indirect_rd_wr_addr,
+				       addr + i);
+		/* wait a bit for value to be ready in register */
+		udelay(1);
+		prph_val = iwl_read_prph_no_grab(fwrt->trans,
+						 indirect_rd_wr_addr);
+		*val++ = cpu_to_le32((prph_val & DPHYIP_INDIRECT_RD_MSK) >>
+				     DPHYIP_INDIRECT_RD_SHIFT);
+	}
+
+	iwl_trans_release_nic_access(fwrt->trans);
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
 struct iwl_ini_rxf_data {
 	u32 fifo_num;
 	u32 size;
@@ -2537,6 +2584,12 @@ static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 		.fill_mem_hdr = iwl_dump_ini_mon_dbgi_fill_header,
 		.fill_range = iwl_dump_ini_dbgi_sram_iter,
 	},
+	[IWL_FW_INI_REGION_PERIPHERY_SNPS_DPHYIP] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
+		.get_size = iwl_dump_ini_mem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_prph_snps_dphyip_iter,
+	},
 };
 
 static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
@@ -2580,7 +2633,8 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 			continue;
 
 		if ((reg_type == IWL_FW_INI_REGION_PERIPHERY_PHY ||
-		     reg_type == IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE) &&
+		     reg_type == IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE ||
+		     reg_type == IWL_FW_INI_REGION_PERIPHERY_SNPS_DPHYIP) &&
 		    tp_id != IWL_FW_INI_TIME_POINT_FW_ASSERT) {
 			IWL_WARN(fwrt,
 				 "WRT: trying to collect phy prph at time point: %d, skipping\n",
