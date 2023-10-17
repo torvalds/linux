@@ -319,15 +319,8 @@ static void save_microcode_patch(struct ucode_cpu_info *uci, void *data, unsigne
 	if (!intel_find_matching_signature(p->data, uci->cpu_sig.sig, uci->cpu_sig.pf))
 		return;
 
-	/*
-	 * Save for early loading. On 32-bit, that needs to be a physical
-	 * address as the APs are running from physical addresses, before
-	 * paging has been enabled.
-	 */
-	if (IS_ENABLED(CONFIG_X86_32))
-		intel_ucode_patch = (struct microcode_intel *)__pa_nodebug(p->data);
-	else
-		intel_ucode_patch = p->data;
+	/* Save for early loading */
+	intel_ucode_patch = p->data;
 }
 
 /*
@@ -420,66 +413,10 @@ static bool load_builtin_intel_microcode(struct cpio_data *cp)
 	return false;
 }
 
-static void print_ucode_info(int old_rev, int new_rev, unsigned int date)
-{
-	pr_info_once("updated early: 0x%x -> 0x%x, date = %04x-%02x-%02x\n",
-		     old_rev,
-		     new_rev,
-		     date & 0xffff,
-		     date >> 24,
-		     (date >> 16) & 0xff);
-}
-
-#ifdef CONFIG_X86_32
-
-static int delay_ucode_info;
-static int current_mc_date;
-static int early_old_rev;
-
-/*
- * Print early updated ucode info after printk works. This is delayed info dump.
- */
-void show_ucode_info_early(void)
-{
-	struct ucode_cpu_info uci;
-
-	if (delay_ucode_info) {
-		intel_cpu_collect_info(&uci);
-		print_ucode_info(early_old_rev, uci.cpu_sig.rev, current_mc_date);
-		delay_ucode_info = 0;
-	}
-}
-
-/*
- * At this point, we can not call printk() yet. Delay printing microcode info in
- * show_ucode_info_early() until printk() works.
- */
-static void print_ucode(int old_rev, int new_rev, int date)
-{
-	int *delay_ucode_info_p;
-	int *current_mc_date_p;
-	int *early_old_rev_p;
-
-	delay_ucode_info_p = (int *)__pa_nodebug(&delay_ucode_info);
-	current_mc_date_p = (int *)__pa_nodebug(&current_mc_date);
-	early_old_rev_p = (int *)__pa_nodebug(&early_old_rev);
-
-	*delay_ucode_info_p = 1;
-	*current_mc_date_p = date;
-	*early_old_rev_p = old_rev;
-}
-#else
-
-static inline void print_ucode(int old_rev, int new_rev, int date)
-{
-	print_ucode_info(old_rev, new_rev, date);
-}
-#endif
-
-static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
+static int apply_microcode_early(struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc;
-	u32 rev, old_rev;
+	u32 rev, old_rev, date;
 
 	mc = uci->mc;
 	if (!mc)
@@ -513,11 +450,9 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 
 	uci->cpu_sig.rev = rev;
 
-	if (early)
-		print_ucode(old_rev, uci->cpu_sig.rev, mc->hdr.date);
-	else
-		print_ucode_info(old_rev, uci->cpu_sig.rev, mc->hdr.date);
-
+	date = mc->hdr.date;
+	pr_info_once("updated early: 0x%x -> 0x%x, date = %04x-%02x-%02x\n",
+		     old_rev, rev, date & 0xffff, date >> 24, (date >> 16) & 0xff);
 	return 0;
 }
 
@@ -535,7 +470,7 @@ int __init save_microcode_in_initrd_intel(void)
 	intel_ucode_patch = NULL;
 
 	if (!load_builtin_intel_microcode(&cp))
-		cp = find_microcode_in_initrd(ucode_path, false);
+		cp = find_microcode_in_initrd(ucode_path);
 
 	if (!(cp.data && cp.size))
 		return 0;
@@ -551,21 +486,11 @@ int __init save_microcode_in_initrd_intel(void)
  */
 static struct microcode_intel *__load_ucode_intel(struct ucode_cpu_info *uci)
 {
-	static const char *path;
 	struct cpio_data cp;
-	bool use_pa;
-
-	if (IS_ENABLED(CONFIG_X86_32)) {
-		path	  = (const char *)__pa_nodebug(ucode_path);
-		use_pa	  = true;
-	} else {
-		path	  = ucode_path;
-		use_pa	  = false;
-	}
 
 	/* try built-in microcode first */
 	if (!load_builtin_intel_microcode(&cp))
-		cp = find_microcode_in_initrd(path, use_pa);
+		cp = find_microcode_in_initrd(ucode_path);
 
 	if (!(cp.data && cp.size))
 		return NULL;
@@ -586,30 +511,21 @@ void __init load_ucode_intel_bsp(void)
 
 	uci.mc = patch;
 
-	apply_microcode_early(&uci, true);
+	apply_microcode_early(&uci);
 }
 
 void load_ucode_intel_ap(void)
 {
-	struct microcode_intel *patch, **iup;
 	struct ucode_cpu_info uci;
 
-	if (IS_ENABLED(CONFIG_X86_32))
-		iup = (struct microcode_intel **) __pa_nodebug(&intel_ucode_patch);
-	else
-		iup = &intel_ucode_patch;
-
-	if (!*iup) {
-		patch = __load_ucode_intel(&uci);
-		if (!patch)
+	if (!intel_ucode_patch) {
+		intel_ucode_patch = __load_ucode_intel(&uci);
+		if (!intel_ucode_patch)
 			return;
-
-		*iup = patch;
 	}
 
-	uci.mc = *iup;
-
-	apply_microcode_early(&uci, true);
+	uci.mc = intel_ucode_patch;
+	apply_microcode_early(&uci);
 }
 
 static struct microcode_intel *find_patch(struct ucode_cpu_info *uci)
@@ -647,7 +563,7 @@ void reload_ucode_intel(void)
 
 	uci.mc = p;
 
-	apply_microcode_early(&uci, false);
+	apply_microcode_early(&uci);
 }
 
 static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)

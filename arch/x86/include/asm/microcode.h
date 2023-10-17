@@ -70,11 +70,6 @@ static inline u32 intel_get_microcode_revision(void)
 
 	return rev;
 }
-
-void show_ucode_info_early(void);
-
-#else /* CONFIG_CPU_SUP_INTEL */
-static inline void show_ucode_info_early(void) { }
 #endif /* !CONFIG_CPU_SUP_INTEL */
 
 #endif /* _ASM_X86_MICROCODE_H */

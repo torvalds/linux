@@ -90,10 +90,7 @@ static bool amd_check_current_patch_level(void)
 
 	native_rdmsr(MSR_AMD64_PATCH_LEVEL, lvl, dummy);
 
-	if (IS_ENABLED(CONFIG_X86_32))
-		levels = (u32 *)__pa_nodebug(&final_levels);
-	else
-		levels = final_levels;
+	levels = final_levels;
 
 	for (i = 0; levels[i]; i++) {
 		if (lvl == levels[i])
@@ -105,17 +102,8 @@ static bool amd_check_current_patch_level(void)
 static bool __init check_loader_disabled_bsp(void)
 {
 	static const char *__dis_opt_str = "dis_ucode_ldr";
-
-#ifdef CONFIG_X86_32
-	const char *cmdline = (const char *)__pa_nodebug(boot_command_line);
-	const char *option  = (const char *)__pa_nodebug(__dis_opt_str);
-	bool *res = (bool *)__pa_nodebug(&dis_ucode_ldr);
-
-#else /* CONFIG_X86_64 */
 	const char *cmdline = boot_command_line;
 	const char *option  = __dis_opt_str;
-	bool *res = &dis_ucode_ldr;
-#endif
 
 	/*
 	 * CPUID(1).ECX[31]: reserved for hypervisor use. This is still not
@@ -123,17 +111,17 @@ static bool __init check_loader_disabled_bsp(void)
 	 * that's good enough as they don't land on the BSP path anyway.
 	 */
 	if (native_cpuid_ecx(1) & BIT(31))
-		return *res;
+		return true;
 
 	if (x86_cpuid_vendor() == X86_VENDOR_AMD) {
 		if (amd_check_current_patch_level())
-			return *res;
+			return true;
 	}
 
 	if (cmdline_find_option_bool(cmdline, option) <= 0)
-		*res = false;
+		dis_ucode_ldr = false;
 
-	return *res;
+	return dis_ucode_ldr;
 }
 
 void __init load_ucode_bsp(void)
@@ -171,20 +159,11 @@ void __init load_ucode_bsp(void)
 		load_ucode_amd_early(cpuid_1_eax);
 }
 
-static bool check_loader_disabled_ap(void)
-{
-#ifdef CONFIG_X86_32
-	return *((bool *)__pa_nodebug(&dis_ucode_ldr));
-#else
-	return dis_ucode_ldr;
-#endif
-}
-
 void load_ucode_ap(void)
 {
 	unsigned int cpuid_1_eax;
 
-	if (check_loader_disabled_ap())
+	if (dis_ucode_ldr)
 		return;
 
 	cpuid_1_eax = native_cpuid_eax(1);
@@ -226,40 +205,28 @@ static int __init save_microcode_in_initrd(void)
 	return ret;
 }
 
-struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
+struct cpio_data find_microcode_in_initrd(const char *path)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
 	unsigned long start = 0;
 	size_t size;
 
 #ifdef CONFIG_X86_32
-	struct boot_params *params;
-
-	if (use_pa)
-		params = (struct boot_params *)__pa_nodebug(&boot_params);
-	else
-		params = &boot_params;
-
-	size = params->hdr.ramdisk_size;
-
-	/*
-	 * Set start only if we have an initrd image. We cannot use initrd_start
-	 * because it is not set that early yet.
-	 */
+	size = boot_params.hdr.ramdisk_size;
+	/* Early load on BSP has a temporary mapping. */
 	if (size)
-		start = params->hdr.ramdisk_image;
+		start = initrd_start_early;
 
-# else /* CONFIG_X86_64 */
+#else /* CONFIG_X86_64 */
 	size  = (unsigned long)boot_params.ext_ramdisk_size << 32;
 	size |= boot_params.hdr.ramdisk_size;
 
 	if (size) {
 		start  = (unsigned long)boot_params.ext_ramdisk_image << 32;
 		start |= boot_params.hdr.ramdisk_image;
-
 		start += PAGE_OFFSET;
 	}
-# endif
+#endif
 
 	/*
 	 * Fixup the start address: after reserve_initrd() runs, initrd_start
@@ -270,23 +237,10 @@ struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
 	 * initrd_gone is for the hotplug case where we've thrown out initrd
 	 * already.
 	 */
-	if (!use_pa) {
-		if (initrd_gone)
-			return (struct cpio_data){ NULL, 0, "" };
-		if (initrd_start)
-			start = initrd_start;
-	} else {
-		/*
-		 * The picture with physical addresses is a bit different: we
-		 * need to get the *physical* address to which the ramdisk was
-		 * relocated, i.e., relocated_ramdisk (not initrd_start) and
-		 * since we're running from physical addresses, we need to access
-		 * relocated_ramdisk through its *physical* address too.
-		 */
-		u64 *rr = (u64 *)__pa_nodebug(&relocated_ramdisk);
-		if (*rr)
-			start = *rr;
-	}
+	if (initrd_gone)
+		return (struct cpio_data){ NULL, 0, "" };
+	if (initrd_start)
+		start = initrd_start;
 
 	return find_cpio_data(path, (void *)start, size, NULL);
 #else /* !CONFIG_BLK_DEV_INITRD */
