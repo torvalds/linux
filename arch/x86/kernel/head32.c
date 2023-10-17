@@ -73,25 +73,21 @@ void __init mk_early_pgtbl_32(void);
 
 void __init __no_stack_protector mk_early_pgtbl_32(void)
 {
-#ifdef __pa
-#undef __pa
-#endif
-#define __pa(x)  ((unsigned long)(x) - PAGE_OFFSET)
 	pte_t pte, *ptep;
 	int i;
 	unsigned long *ptr;
 	/* Enough space to fit pagetables for the low memory linear map */
-	const unsigned long limit = __pa(_end) +
+	const unsigned long limit = __pa_nodebug(_end) +
 		(PAGE_TABLE_SIZE(LOWMEM_PAGES) << PAGE_SHIFT);
 #ifdef CONFIG_X86_PAE
-	pmd_t pl2, *pl2p = (pmd_t *)__pa(initial_pg_pmd);
+	pmd_t pl2, *pl2p = (pmd_t *)__pa_nodebug(initial_pg_pmd);
 #define SET_PL2(pl2, val)    { (pl2).pmd = (val); }
 #else
-	pgd_t pl2, *pl2p = (pgd_t *)__pa(initial_page_table);
+	pgd_t pl2, *pl2p = (pgd_t *)__pa_nodebug(initial_page_table);
 #define SET_PL2(pl2, val)   { (pl2).pgd = (val); }
 #endif
 
-	ptep = (pte_t *)__pa(__brk_base);
+	ptep = (pte_t *)__pa_nodebug(__brk_base);
 	pte.pte = PTE_IDENT_ATTR;
 
 	while ((pte.pte & PTE_PFN_MASK) < limit) {
@@ -111,11 +107,11 @@ void __init __no_stack_protector mk_early_pgtbl_32(void)
 		pl2p++;
 	}
 
-	ptr = (unsigned long *)__pa(&max_pfn_mapped);
+	ptr = (unsigned long *)__pa_nodebug(&max_pfn_mapped);
 	/* Can't use pte_pfn() since it's a call with CONFIG_PARAVIRT */
 	*ptr = (pte.pte & PTE_PFN_MASK) >> PAGE_SHIFT;
 
-	ptr = (unsigned long *)__pa(&_brk_end);
+	ptr = (unsigned long *)__pa_nodebug(&_brk_end);
 	*ptr = (unsigned long)ptep + PAGE_OFFSET;
 }
 
