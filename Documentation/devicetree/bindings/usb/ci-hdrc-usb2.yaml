@@ -16,6 +16,7 @@ properties:
       - enum:
           - chipidea,usb2
           - lsi,zevio-usb
+          - nuvoton,npcm750-udc
           - nvidia,tegra20-ehci
           - nvidia,tegra20-udc
           - nvidia,tegra30-ehci
@@ -66,6 +67,10 @@ properties:
       - items:
           - const: xlnx,zynq-usb-2.20a
           - const: chipidea,usb2
+      - items:
+          - enum:
+              - nuvoton,npcm845-udc
+          - const: nuvoton,npcm750-udc
 
   reg:
     minItems: 1
@@ -388,6 +393,7 @@ allOf:
             enum:
               - chipidea,usb2
               - lsi,zevio-usb
+              - nuvoton,npcm750-udc
               - nvidia,tegra20-udc
               - nvidia,tegra30-udc
               - nvidia,tegra114-udc
