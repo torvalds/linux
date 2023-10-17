@@ -167,8 +167,17 @@ smb2_set_credits(struct TCP_Server_Info *server, const int val)
 
 	spin_lock(&server->req_lock);
 	server->credits = val;
-	if (val == 1)
+	if (val == 1) {
 		server->reconnect_instance++;
+		/*
+		 * ChannelSequence updated for all channels in primary channel so that consistent
+		 * across SMB3 requests sent on any channel. See MS-SMB2 3.2.4.1 and 3.2.7.1
+		 */
+		if (CIFS_SERVER_IS_CHAN(server))
+			server->primary_server->channel_sequence_num++;
+		else
+			server->channel_sequence_num++;
+	}
 	scredits = server->credits;
 	in_flight = server->in_flight;
 	spin_unlock(&server->req_lock);

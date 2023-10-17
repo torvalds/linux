@@ -2985,9 +2985,6 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 		if (!page)
 			return -ENOMEM;
 	}
-	ret = set_page_extent_mapped(page);
-	if (ret < 0)
-		goto release_page;
 
 	if (PageReadahead(page))
 		page_cache_async_readahead(inode->i_mapping, ra, NULL,
@@ -3002,6 +2999,15 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 			goto release_page;
 		}
 	}
+
+	/*
+	 * We could have lost page private when we dropped the lock to read the
+	 * page above, make sure we set_page_extent_mapped here so we have any
+	 * of the subpage blocksize stuff we need in place.
+	 */
+	ret = set_page_extent_mapped(page);
+	if (ret < 0)
+		goto release_page;
 
 	page_start = page_offset(page);
 	page_end = page_start + PAGE_SIZE - 1;
