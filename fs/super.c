@@ -1433,6 +1433,7 @@ static struct super_block *bdev_super_lock_shared(struct block_device *bdev)
 
 	lockdep_assert_held(&bdev->bd_holder_lock);
 	lockdep_assert_not_held(&sb->s_umount);
+	lockdep_assert_not_held(&bdev->bd_disk->open_mutex);
 
 	/* Make sure sb doesn't go away from under us */
 	spin_lock(&sb_lock);
