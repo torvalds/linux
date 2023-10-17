@@ -242,9 +242,10 @@ int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_link_config_cmd cmd = {};
 	int ret;
 
+	/* mac80211 thought we have the link, but it was never configured */
 	if (WARN_ON(!link_info ||
 		    link_info->fw_link_id >= ARRAY_SIZE(mvm->link_id_to_link_conf)))
-		return -EINVAL;
+		return 0;
 
 	RCU_INIT_POINTER(mvm->link_id_to_link_conf[link_info->fw_link_id],
 			 NULL);
