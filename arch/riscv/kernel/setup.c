@@ -15,7 +15,6 @@
 #include <linux/memblock.h>
 #include <linux/sched.h>
 #include <linux/console.h>
-#include <linux/screen_info.h>
 #include <linux/of_fdt.h>
 #include <linux/sched/task.h>
 #include <linux/smp.h>
@@ -39,10 +38,6 @@
 #include <asm/efi.h>
 
 #include "head.h"
-
-#if defined(CONFIG_EFI)
-struct screen_info screen_info __section(".data");
-#endif
 
 /*
  * The lucky hart to first increment this variable will boot the other cores.
