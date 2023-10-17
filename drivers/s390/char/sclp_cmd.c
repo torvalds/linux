@@ -392,10 +392,6 @@ static void __init add_memory_merged(u16 rn)
 		goto skip_add;
 	start = rn2addr(first_rn);
 	size = (unsigned long long) num * sclp.rzm;
-	if (start >= VMEM_MAX_PHYS)
-		goto skip_add;
-	if (start + size > VMEM_MAX_PHYS)
-		size = VMEM_MAX_PHYS - start;
 	if (start >= ident_map_size)
 		goto skip_add;
 	if (start + size > ident_map_size)

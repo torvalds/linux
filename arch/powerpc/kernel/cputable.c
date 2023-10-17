@@ -75,6 +75,10 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
 		t->cpu_features |= old.cpu_features & CPU_FTR_PMAO_BUG;
 	}
 
+	/* Set kuap ON at startup, will be disabled later if cmdline has 'nosmap' */
+	if (IS_ENABLED(CONFIG_PPC_KUAP) && IS_ENABLED(CONFIG_PPC32))
+		t->mmu_features |= MMU_FTR_KUAP;
+
 	*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
 
 	/*

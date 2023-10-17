@@ -9,7 +9,7 @@
 #define MN88472_PRIV_H
 
 #include <media/dvb_frontend.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include "mn88472.h"
 #include <linux/firmware.h>
 #include <linux/regmap.h>

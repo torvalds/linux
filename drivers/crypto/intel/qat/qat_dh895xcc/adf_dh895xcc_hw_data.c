@@ -7,6 +7,7 @@
 #include <adf_gen2_hw_data.h>
 #include <adf_gen2_pfvf.h>
 #include "adf_dh895xcc_hw_data.h"
+#include "adf_heartbeat.h"
 #include "icp_qat_hw.h"
 
 #define ADF_DH895XCC_VF_MSK	0xFFFFFFFF
@@ -42,6 +43,14 @@ static u32 get_ae_mask(struct adf_hw_device_data *self)
 static u32 get_misc_bar_id(struct adf_hw_device_data *self)
 {
 	return ADF_DH895XCC_PMISC_BAR;
+}
+
+static u32 get_ts_clock(struct adf_hw_device_data *self)
+{
+	/*
+	 * Timestamp update interval is 16 AE clock ticks for dh895xcc.
+	 */
+	return self->clock_frequency / 16;
 }
 
 static u32 get_etr_bar_id(struct adf_hw_device_data *self)
@@ -237,6 +246,10 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->reset_device = adf_reset_sbr;
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->dev_config = adf_gen2_dev_config;
+	hw_data->clock_frequency = ADF_DH895X_AE_FREQ;
+	hw_data->get_hb_clock = get_ts_clock;
+	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
+	hw_data->check_hb_ctrs = adf_heartbeat_check_ctrs;
 
 	adf_gen2_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	hw_data->pfvf_ops.enable_vf2pf_interrupts = enable_vf2pf_interrupts;

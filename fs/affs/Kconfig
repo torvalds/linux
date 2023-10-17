@@ -2,6 +2,7 @@
 config AFFS_FS
 	tristate "Amiga FFS file system support"
 	depends on BLOCK
+	select BUFFER_HEAD
 	select LEGACY_DIRECT_IO
 	help
 	  The Fast File System (FFS) is the common file system used on hard

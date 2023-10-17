@@ -534,66 +534,6 @@
         "BriefDescription": "L2D OTB allocate"
     },
     {
-        "PublicDescription": "DTLB Translation cache hit on S1L2 walk cache entry",
-        "EventCode": "0xD801",
-        "EventName": "MMU_D_TRANS_CACHE_HIT_S1L2_WALK",
-        "BriefDescription": "DTLB Translation cache hit on S1L2 walk cache entry"
-    },
-    {
-        "PublicDescription": "DTLB Translation cache hit on S1L1 walk cache entry",
-        "EventCode": "0xD802",
-        "EventName": "MMU_D_TRANS_CACHE_HIT_S1L1_WALK",
-        "BriefDescription": "DTLB Translation cache hit on S1L1 walk cache entry"
-    },
-    {
-        "PublicDescription": "DTLB Translation cache hit on S1L0 walk cache entry",
-        "EventCode": "0xD803",
-        "EventName": "MMU_D_TRANS_CACHE_HIT_S1L0_WALK",
-        "BriefDescription": "DTLB Translation cache hit on S1L0 walk cache entry"
-    },
-    {
-        "PublicDescription": "DTLB Translation cache hit on S2L2 walk cache entry",
-        "EventCode": "0xD804",
-        "EventName": "MMU_D_TRANS_CACHE_HIT_S2L2_WALK",
-        "BriefDescription": "DTLB Translation cache hit on S2L2 walk cache entry"
-    },
-    {
-        "PublicDescription": "DTLB Translation cache hit on S2L1 walk cache entry",
-        "EventCode": "0xD805",
-        "EventName": "MMU_D_TRANS_CACHE_HIT_S2L1_WALK",
-        "BriefDescription": "DTLB Translation cache hit on S2L1 walk cache entry"
-    },
-    {
-        "PublicDescription": "DTLB Translation cache hit on S2L0 walk cache entry",
-        "EventCode": "0xD806",
-        "EventName": "MMU_D_TRANS_CACHE_HIT_S2L0_WALK",
-        "BriefDescription": "DTLB Translation cache hit on S2L0 walk cache entry"
-    },
-    {
-        "PublicDescription": "D-side S1 Page walk cache lookup",
-        "EventCode": "0xD807",
-        "EventName": "MMU_D_S1_WALK_CACHE_LOOKUP",
-        "BriefDescription": "D-side S1 Page walk cache lookup"
-    },
-    {
-        "PublicDescription": "D-side S1 Page walk cache refill",
-        "EventCode": "0xD808",
-        "EventName": "MMU_D_S1_WALK_CACHE_REFILL",
-        "BriefDescription": "D-side S1 Page walk cache refill"
-    },
-    {
-        "PublicDescription": "D-side S2 Page walk cache lookup",
-        "EventCode": "0xD809",
-        "EventName": "MMU_D_S2_WALK_CACHE_LOOKUP",
-        "BriefDescription": "D-side S2 Page walk cache lookup"
-    },
-    {
-        "PublicDescription": "D-side S2 Page walk cache refill",
-        "EventCode": "0xD80A",
-        "EventName": "MMU_D_S2_WALK_CACHE_REFILL",
-        "BriefDescription": "D-side S2 Page walk cache refill"
-    },
-    {
         "PublicDescription": "D-side Stage1 tablewalk fault",
         "EventCode": "0xD80B",
         "EventName": "MMU_D_S1_WALK_FAULT",
@@ -616,66 +556,6 @@
         "EventCode": "0xD900",
         "EventName": "MMU_I_OTB_ALLOC",
         "BriefDescription": "L2I OTB allocate"
-    },
-    {
-        "PublicDescription": "ITLB Translation cache hit on S1L2 walk cache entry",
-        "EventCode": "0xD901",
-        "EventName": "MMU_I_TRANS_CACHE_HIT_S1L2_WALK",
-        "BriefDescription": "ITLB Translation cache hit on S1L2 walk cache entry"
-    },
-    {
-        "PublicDescription": "ITLB Translation cache hit on S1L1 walk cache entry",
-        "EventCode": "0xD902",
-        "EventName": "MMU_I_TRANS_CACHE_HIT_S1L1_WALK",
-        "BriefDescription": "ITLB Translation cache hit on S1L1 walk cache entry"
-    },
-    {
-        "PublicDescription": "ITLB Translation cache hit on S1L0 walk cache entry",
-        "EventCode": "0xD903",
-        "EventName": "MMU_I_TRANS_CACHE_HIT_S1L0_WALK",
-        "BriefDescription": "ITLB Translation cache hit on S1L0 walk cache entry"
-    },
-    {
-        "PublicDescription": "ITLB Translation cache hit on S2L2 walk cache entry",
-        "EventCode": "0xD904",
-        "EventName": "MMU_I_TRANS_CACHE_HIT_S2L2_WALK",
-        "BriefDescription": "ITLB Translation cache hit on S2L2 walk cache entry"
-    },
-    {
-        "PublicDescription": "ITLB Translation cache hit on S2L1 walk cache entry",
-        "EventCode": "0xD905",
-        "EventName": "MMU_I_TRANS_CACHE_HIT_S2L1_WALK",
-        "BriefDescription": "ITLB Translation cache hit on S2L1 walk cache entry"
-    },
-    {
-        "PublicDescription": "ITLB Translation cache hit on S2L0 walk cache entry",
-        "EventCode": "0xD906",
-        "EventName": "MMU_I_TRANS_CACHE_HIT_S2L0_WALK",
-        "BriefDescription": "ITLB Translation cache hit on S2L0 walk cache entry"
-    },
-    {
-        "PublicDescription": "I-side S1 Page walk cache lookup",
-        "EventCode": "0xD907",
-        "EventName": "MMU_I_S1_WALK_CACHE_LOOKUP",
-        "BriefDescription": "I-side S1 Page walk cache lookup"
-    },
-    {
-        "PublicDescription": "I-side S1 Page walk cache refill",
-        "EventCode": "0xD908",
-        "EventName": "MMU_I_S1_WALK_CACHE_REFILL",
-        "BriefDescription": "I-side S1 Page walk cache refill"
-    },
-    {
-        "PublicDescription": "I-side S2 Page walk cache lookup",
-        "EventCode": "0xD909",
-        "EventName": "MMU_I_S2_WALK_CACHE_LOOKUP",
-        "BriefDescription": "I-side S2 Page walk cache lookup"
-    },
-    {
-        "PublicDescription": "I-side S2 Page walk cache refill",
-        "EventCode": "0xD90A",
-        "EventName": "MMU_I_S2_WALK_CACHE_REFILL",
-        "BriefDescription": "I-side S2 Page walk cache refill"
     },
     {
         "PublicDescription": "I-side Stage1 tablewalk fault",

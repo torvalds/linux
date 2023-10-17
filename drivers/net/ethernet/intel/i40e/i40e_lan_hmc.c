@@ -111,7 +111,7 @@ int i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
 
 	/* validate values requested by driver don't exceed HMC capacity */
 	if (txq_num > obj->max_cnt) {
-		ret_code = I40E_ERR_INVALID_HMC_OBJ_COUNT;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_init_lan_hmc: Tx context: asks for 0x%x but max allowed is 0x%x, returns error %d\n",
 			  txq_num, obj->max_cnt, ret_code);
 		goto init_lan_hmc_out;
@@ -134,7 +134,7 @@ int i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
 
 	/* validate values requested by driver don't exceed HMC capacity */
 	if (rxq_num > obj->max_cnt) {
-		ret_code = I40E_ERR_INVALID_HMC_OBJ_COUNT;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_init_lan_hmc: Rx context: asks for 0x%x but max allowed is 0x%x, returns error %d\n",
 			  rxq_num, obj->max_cnt, ret_code);
 		goto init_lan_hmc_out;
@@ -157,7 +157,7 @@ int i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
 
 	/* validate values requested by driver don't exceed HMC capacity */
 	if (fcoe_cntx_num > obj->max_cnt) {
-		ret_code = I40E_ERR_INVALID_HMC_OBJ_COUNT;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_init_lan_hmc: FCoE context: asks for 0x%x but max allowed is 0x%x, returns error %d\n",
 			  fcoe_cntx_num, obj->max_cnt, ret_code);
 		goto init_lan_hmc_out;
@@ -180,7 +180,7 @@ int i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
 
 	/* validate values requested by driver don't exceed HMC capacity */
 	if (fcoe_filt_num > obj->max_cnt) {
-		ret_code = I40E_ERR_INVALID_HMC_OBJ_COUNT;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_init_lan_hmc: FCoE filter: asks for 0x%x but max allowed is 0x%x, returns error %d\n",
 			  fcoe_filt_num, obj->max_cnt, ret_code);
 		goto init_lan_hmc_out;
@@ -289,30 +289,30 @@ static int i40e_create_lan_hmc_object(struct i40e_hw *hw,
 	u32 i, j;
 
 	if (NULL == info) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_create_lan_hmc_object: bad info ptr\n");
 		goto exit;
 	}
 	if (NULL == info->hmc_info) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_create_lan_hmc_object: bad hmc_info ptr\n");
 		goto exit;
 	}
 	if (I40E_HMC_INFO_SIGNATURE != info->hmc_info->signature) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_create_lan_hmc_object: bad signature\n");
 		goto exit;
 	}
 
 	if (info->start_idx >= info->hmc_info->hmc_obj[info->rsrc_type].cnt) {
-		ret_code = I40E_ERR_INVALID_HMC_OBJ_INDEX;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_create_lan_hmc_object: returns error %d\n",
 			  ret_code);
 		goto exit;
 	}
 	if ((info->start_idx + info->count) >
 	    info->hmc_info->hmc_obj[info->rsrc_type].cnt) {
-		ret_code = I40E_ERR_INVALID_HMC_OBJ_COUNT;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_create_lan_hmc_object: returns error %d\n",
 			  ret_code);
 		goto exit;
@@ -324,8 +324,8 @@ static int i40e_create_lan_hmc_object(struct i40e_hw *hw,
 				 &sd_idx, &sd_lmt);
 	if (sd_idx >= info->hmc_info->sd_table.sd_cnt ||
 	    sd_lmt > info->hmc_info->sd_table.sd_cnt) {
-			ret_code = I40E_ERR_INVALID_SD_INDEX;
-			goto exit;
+		ret_code = -EINVAL;
+		goto exit;
 	}
 	/* find pd index */
 	I40E_FIND_PD_INDEX_LIMIT(info->hmc_info, info->rsrc_type,
@@ -393,7 +393,7 @@ static int i40e_create_lan_hmc_object(struct i40e_hw *hw,
 						     j, sd_entry->entry_type);
 				break;
 			default:
-				ret_code = I40E_ERR_INVALID_SD_TYPE;
+				ret_code = -EINVAL;
 				goto exit;
 			}
 		}
@@ -417,7 +417,7 @@ exit_sd_error:
 			i40e_remove_sd_bp(hw, info->hmc_info, (j - 1));
 			break;
 		default:
-			ret_code = I40E_ERR_INVALID_SD_TYPE;
+			ret_code = -EINVAL;
 			break;
 		}
 		j--;
@@ -474,7 +474,7 @@ try_type_paged:
 		break;
 	default:
 		/* unsupported type */
-		ret_code = I40E_ERR_INVALID_SD_TYPE;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_configure_lan_hmc: Unknown SD type: %d\n",
 			  ret_code);
 		goto configure_lan_hmc_out;
@@ -530,34 +530,34 @@ static int i40e_delete_lan_hmc_object(struct i40e_hw *hw,
 	u32 i, j;
 
 	if (NULL == info) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_delete_hmc_object: bad info ptr\n");
 		goto exit;
 	}
 	if (NULL == info->hmc_info) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_delete_hmc_object: bad info->hmc_info ptr\n");
 		goto exit;
 	}
 	if (I40E_HMC_INFO_SIGNATURE != info->hmc_info->signature) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_delete_hmc_object: bad hmc_info->signature\n");
 		goto exit;
 	}
 
 	if (NULL == info->hmc_info->sd_table.sd_entry) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_delete_hmc_object: bad sd_entry\n");
 		goto exit;
 	}
 
 	if (NULL == info->hmc_info->hmc_obj) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_delete_hmc_object: bad hmc_info->hmc_obj\n");
 		goto exit;
 	}
 	if (info->start_idx >= info->hmc_info->hmc_obj[info->rsrc_type].cnt) {
-		ret_code = I40E_ERR_INVALID_HMC_OBJ_INDEX;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_delete_hmc_object: returns error %d\n",
 			  ret_code);
 		goto exit;
@@ -565,7 +565,7 @@ static int i40e_delete_lan_hmc_object(struct i40e_hw *hw,
 
 	if ((info->start_idx + info->count) >
 	    info->hmc_info->hmc_obj[info->rsrc_type].cnt) {
-		ret_code = I40E_ERR_INVALID_HMC_OBJ_COUNT;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_delete_hmc_object: returns error %d\n",
 			  ret_code);
 		goto exit;
@@ -599,7 +599,7 @@ static int i40e_delete_lan_hmc_object(struct i40e_hw *hw,
 				 &sd_idx, &sd_lmt);
 	if (sd_idx >= info->hmc_info->sd_table.sd_cnt ||
 	    sd_lmt > info->hmc_info->sd_table.sd_cnt) {
-		ret_code = I40E_ERR_INVALID_SD_INDEX;
+		ret_code = -EINVAL;
 		goto exit;
 	}
 
@@ -987,29 +987,29 @@ int i40e_hmc_get_object_va(struct i40e_hw *hw, u8 **object_base,
 	int ret_code = 0;
 
 	if (NULL == hmc_info) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_hmc_get_object_va: bad hmc_info ptr\n");
 		goto exit;
 	}
 	if (NULL == hmc_info->hmc_obj) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_hmc_get_object_va: bad hmc_info->hmc_obj ptr\n");
 		goto exit;
 	}
 	if (NULL == object_base) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_hmc_get_object_va: bad object_base ptr\n");
 		goto exit;
 	}
 	if (I40E_HMC_INFO_SIGNATURE != hmc_info->signature) {
-		ret_code = I40E_ERR_BAD_PTR;
+		ret_code = -EINVAL;
 		hw_dbg(hw, "i40e_hmc_get_object_va: bad hmc_info->signature\n");
 		goto exit;
 	}
 	if (obj_idx >= hmc_info->hmc_obj[rsrc_type].cnt) {
 		hw_dbg(hw, "i40e_hmc_get_object_va: returns error %d\n",
 			  ret_code);
-		ret_code = I40E_ERR_INVALID_HMC_OBJ_INDEX;
+		ret_code = -EINVAL;
 		goto exit;
 	}
 	/* find sd index and limit */

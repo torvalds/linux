@@ -1013,17 +1013,15 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 		}
 	}
 
-	if (ieee->iw_mode != IW_MODE_MESH) {
-		/* packets from our adapter are dropped (echo) */
-		if (!memcmp(src, ieee->dev->dev_addr, ETH_ALEN))
-			return -1;
+	/* packets from our adapter are dropped (echo) */
+	if (!memcmp(src, ieee->dev->dev_addr, ETH_ALEN))
+		return -1;
 
-		/* {broad,multi}cast packets to our BSS go through */
-		if (is_multicast_ether_addr(dst)) {
-			if (memcmp(bssid, ieee->current_network.bssid,
-				   ETH_ALEN))
-				return -1;
-		}
+	/* {broad,multi}cast packets to our BSS go through */
+	if (is_multicast_ether_addr(dst)) {
+		if (memcmp(bssid, ieee->current_network.bssid,
+			   ETH_ALEN))
+			return -1;
 	}
 	return 0;
 }
@@ -1035,29 +1033,27 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	u16 fc = le16_to_cpu(hdr->frame_ctl);
 	int idx = 0;
 
-	if (ieee->host_decrypt) {
-		if (skb->len >= hdrlen + 3)
-			idx = skb->data[hdrlen + 3] >> 6;
+	if (skb->len >= hdrlen + 3)
+		idx = skb->data[hdrlen + 3] >> 6;
 
-		*crypt = ieee->crypt_info.crypt[idx];
-		/* allow NULL decrypt to indicate an station specific override
-		 * for default encryption
+	*crypt = ieee->crypt_info.crypt[idx];
+	/* allow NULL decrypt to indicate an station specific override
+	 * for default encryption
+	 */
+	if (*crypt && ((*crypt)->ops == NULL ||
+		      (*crypt)->ops->decrypt_mpdu == NULL))
+		*crypt = NULL;
+
+	if (!*crypt && (fc & RTLLIB_FCTL_WEP)) {
+		/* This seems to be triggered by some (multicast?)
+		 * frames from other than current BSS, so just drop the
+		 * frames silently instead of filling system log with
+		 * these reports.
 		 */
-		if (*crypt && ((*crypt)->ops == NULL ||
-			      (*crypt)->ops->decrypt_mpdu == NULL))
-			*crypt = NULL;
-
-		if (!*crypt && (fc & RTLLIB_FCTL_WEP)) {
-			/* This seems to be triggered by some (multicast?)
-			 * frames from other than current BSS, so just drop the
-			 * frames silently instead of filling system log with
-			 * these reports.
-			 */
-			netdev_dbg(ieee->dev,
-				   "Decryption failed (not set) (SA= %pM)\n",
-				   hdr->addr2);
-			return -1;
-		}
+		netdev_dbg(ieee->dev,
+			   "Decryption failed (not set) (SA= %pM)\n",
+			   hdr->addr2);
+		return -1;
 	}
 
 	return 0;
@@ -1083,7 +1079,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		ieee->need_sw_enc = 0;
 
 	keyidx = rtllib_rx_frame_decrypt(ieee, skb, crypt);
-	if (ieee->host_decrypt && (fc & RTLLIB_FCTL_WEP) && (keyidx < 0)) {
+	if ((fc & RTLLIB_FCTL_WEP) && (keyidx < 0)) {
 		netdev_info(ieee->dev, "%s: decrypt frame error\n", __func__);
 		return -1;
 	}
@@ -1147,7 +1143,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possible reassembled) full MSDU payload; possibly still
 	 * encrypted/authenticated
 	 */
-	if (ieee->host_decrypt && (fc & RTLLIB_FCTL_WEP) &&
+	if ((fc & RTLLIB_FCTL_WEP) &&
 		rtllib_rx_frame_decrypt_msdu(ieee, skb, keyidx, crypt)) {
 		netdev_info(ieee->dev, "%s: ==>decrypt msdu error\n", __func__);
 		return -1;
@@ -1447,12 +1443,6 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-static int rtllib_rx_Master(struct rtllib_device *ieee, struct sk_buff *skb,
-		 struct rtllib_rx_stats *rx_stats)
-{
-	return 0;
-}
-
 static int rtllib_rx_Monitor(struct rtllib_device *ieee, struct sk_buff *skb,
 		 struct rtllib_rx_stats *rx_stats)
 {
@@ -1481,12 +1471,6 @@ static int rtllib_rx_Monitor(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 1;
 }
 
-static int rtllib_rx_Mesh(struct rtllib_device *ieee, struct sk_buff *skb,
-		 struct rtllib_rx_stats *rx_stats)
-{
-	return 0;
-}
-
 /* All received frames are sent to this function. @skb contains the frame in
  * IEEE 802.11 format, i.e., in the format it was sent over air.
  * This function is called only as a tasklet (software IRQ).
@@ -1510,15 +1494,8 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 	case IW_MODE_INFRA:
 		ret = rtllib_rx_InfraAdhoc(ieee, skb, rx_stats);
 		break;
-	case IW_MODE_MASTER:
-	case IW_MODE_REPEAT:
-		ret = rtllib_rx_Master(ieee, skb, rx_stats);
-		break;
 	case IW_MODE_MONITOR:
 		ret = rtllib_rx_Monitor(ieee, skb, rx_stats);
-		break;
-	case IW_MODE_MESH:
-		ret = rtllib_rx_Mesh(ieee, skb, rx_stats);
 		break;
 	default:
 		netdev_info(ieee->dev, "%s: ERR iw mode!!!\n", __func__);
@@ -2698,8 +2675,7 @@ static void rtllib_rx_mgt(struct rtllib_device *ieee,
 		netdev_dbg(ieee->dev, "received PROBE REQUEST (%d)\n",
 			   WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		if ((ieee->softmac_features & IEEE_SOFTMAC_PROBERS) &&
-		    ((ieee->iw_mode == IW_MODE_ADHOC ||
-		    ieee->iw_mode == IW_MODE_MASTER) &&
+		    (ieee->iw_mode == IW_MODE_ADHOC &&
 		    ieee->link_state == MAC80211_LINKED))
 			rtllib_rx_probe_rq(ieee, skb);
 		break;

@@ -1940,7 +1940,6 @@ static struct platform_driver bcm63xx_enet_driver = {
 	.remove	= bcm_enet_remove,
 	.driver	= {
 		.name	= "bcm63xx_enet",
-		.owner  = THIS_MODULE,
 	},
 };
 
@@ -2761,7 +2760,6 @@ static struct platform_driver bcm63xx_enetsw_driver = {
 	.remove	= bcm_enetsw_remove,
 	.driver	= {
 		.name	= "bcm63xx_enetsw",
-		.owner  = THIS_MODULE,
 	},
 };
 
@@ -2791,7 +2789,6 @@ struct platform_driver bcm63xx_enet_shared_driver = {
 	.probe	= bcm_enet_shared_probe,
 	.driver	= {
 		.name	= "bcm63xx_enet_shared",
-		.owner  = THIS_MODULE,
 	},
 };
 

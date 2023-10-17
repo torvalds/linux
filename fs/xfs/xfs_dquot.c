@@ -1386,7 +1386,7 @@ xfs_qm_dqiterate(
 			return error;
 
 		error = iter_fn(dq, type, priv);
-		id = dq->q_id;
+		id = dq->q_id + 1;
 		xfs_qm_dqput(dq);
 	} while (error == 0 && id != 0);
 

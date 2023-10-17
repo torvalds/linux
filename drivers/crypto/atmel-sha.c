@@ -28,7 +28,7 @@
 #include <linux/irq.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/crypto.h>
 #include <crypto/scatterwalk.h>
@@ -1770,7 +1770,8 @@ static int atmel_sha_hmac_compute_ipad_hash(struct atmel_sha_dev *dd)
 	size_t bs = ctx->block_size;
 	size_t i, num_words = bs / sizeof(u32);
 
-	memcpy(hmac->opad, hmac->ipad, bs);
+	unsafe_memcpy(hmac->opad, hmac->ipad, bs,
+		      "fortified memcpy causes -Wrestrict warning");
 	for (i = 0; i < num_words; ++i) {
 		hmac->ipad[i] ^= 0x36363636;
 		hmac->opad[i] ^= 0x5c5c5c5c;
@@ -2499,8 +2500,8 @@ static int atmel_sha_dma_init(struct atmel_sha_dev *dd)
 {
 	dd->dma_lch_in.chan = dma_request_chan(dd->dev, "tx");
 	if (IS_ERR(dd->dma_lch_in.chan)) {
-		dev_err(dd->dev, "DMA channel is not available\n");
-		return PTR_ERR(dd->dma_lch_in.chan);
+		return dev_err_probe(dd->dev, PTR_ERR(dd->dma_lch_in.chan),
+			"DMA channel is not available\n");
 	}
 
 	dd->dma_lch_in.dma_conf.dst_addr = dd->phys_base +
@@ -2570,14 +2571,12 @@ static void atmel_sha_get_cap(struct atmel_sha_dev *dd)
 	}
 }
 
-#if defined(CONFIG_OF)
 static const struct of_device_id atmel_sha_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9g46-sha" },
 	{ /* sentinel */ }
 };
 
 MODULE_DEVICE_TABLE(of, atmel_sha_dt_ids);
-#endif
 
 static int atmel_sha_probe(struct platform_device *pdev)
 {
@@ -2604,11 +2603,9 @@ static int atmel_sha_probe(struct platform_device *pdev)
 
 	crypto_init_queue(&sha_dd->queue, ATMEL_SHA_QUEUE_LENGTH);
 
-	/* Get the base address */
-	sha_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!sha_res) {
-		dev_err(dev, "no MEM resource info\n");
-		err = -ENODEV;
+	sha_dd->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &sha_res);
+	if (IS_ERR(sha_dd->io_base)) {
+		err = PTR_ERR(sha_dd->io_base);
 		goto err_tasklet_kill;
 	}
 	sha_dd->phys_base = sha_res->start;
@@ -2632,13 +2629,6 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	if (IS_ERR(sha_dd->iclk)) {
 		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(sha_dd->iclk);
-		goto err_tasklet_kill;
-	}
-
-	sha_dd->io_base = devm_ioremap_resource(&pdev->dev, sha_res);
-	if (IS_ERR(sha_dd->io_base)) {
-		dev_err(dev, "can't ioremap\n");
-		err = PTR_ERR(sha_dd->io_base);
 		goto err_tasklet_kill;
 	}
 
@@ -2716,7 +2706,7 @@ static struct platform_driver atmel_sha_driver = {
 	.remove		= atmel_sha_remove,
 	.driver		= {
 		.name	= "atmel_sha",
-		.of_match_table	= of_match_ptr(atmel_sha_dt_ids),
+		.of_match_table	= atmel_sha_dt_ids,
 	},
 };
 

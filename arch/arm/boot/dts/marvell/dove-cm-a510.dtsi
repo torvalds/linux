@@ -108,18 +108,12 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		wifi_power: regulator@1 {
-			compatible = "regulator-fixed";
-			regulator-name = "WiFi Power";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio2 7 GPIO_ACTIVE_HIGH>;
-		};
+	wifi_power: regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "WiFi Power";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio2 7 GPIO_ACTIVE_HIGH>;
 	};
 };
 

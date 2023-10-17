@@ -11,7 +11,6 @@
 #include <linux/i2c.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include <linux/mfd/da9055/core.h>
 

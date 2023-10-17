@@ -37,11 +37,9 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/mpc8260.h>
 #include <asm/page.h>
 #include <asm/cpm2.h>
 #include <asm/rheap.h>
-#include <asm/fs_pd.h>
 
 #include <sysdev/fsl_soc.h>
 
@@ -119,9 +117,9 @@ void __cpm2_setbrg(uint brg, uint rate, uint clk, int div16, int src)
 	/* This is good enough to get SMCs running.....
 	*/
 	if (brg < 4) {
-		bp = cpm2_map_size(im_brgc1, 16);
+		bp = &cpm2_immr->im_brgc1;
 	} else {
-		bp = cpm2_map_size(im_brgc5, 16);
+		bp = &cpm2_immr->im_brgc5;
 		brg -= 4;
 	}
 	bp += brg;
@@ -131,7 +129,6 @@ void __cpm2_setbrg(uint brg, uint rate, uint clk, int div16, int src)
 		val |= CPM_BRG_DIV16;
 
 	out_be32(bp, val);
-	cpm2_unmap(bp);
 }
 EXPORT_SYMBOL(__cpm2_setbrg);
 
@@ -140,7 +137,6 @@ int __init cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 	int ret = 0;
 	int shift;
 	int i, bits = 0;
-	cpmux_t __iomem *im_cpmux;
 	u32 __iomem *reg;
 	u32 mask = 7;
 
@@ -203,35 +199,33 @@ int __init cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 		{CPM_CLK_SCC4, CPM_CLK8, 7},
 	};
 
-	im_cpmux = cpm2_map(im_cpmux);
-
 	switch (target) {
 	case CPM_CLK_SCC1:
-		reg = &im_cpmux->cmx_scr;
+		reg = &cpm2_immr->im_cpmux.cmx_scr;
 		shift = 24;
 		break;
 	case CPM_CLK_SCC2:
-		reg = &im_cpmux->cmx_scr;
+		reg = &cpm2_immr->im_cpmux.cmx_scr;
 		shift = 16;
 		break;
 	case CPM_CLK_SCC3:
-		reg = &im_cpmux->cmx_scr;
+		reg = &cpm2_immr->im_cpmux.cmx_scr;
 		shift = 8;
 		break;
 	case CPM_CLK_SCC4:
-		reg = &im_cpmux->cmx_scr;
+		reg = &cpm2_immr->im_cpmux.cmx_scr;
 		shift = 0;
 		break;
 	case CPM_CLK_FCC1:
-		reg = &im_cpmux->cmx_fcr;
+		reg = &cpm2_immr->im_cpmux.cmx_fcr;
 		shift = 24;
 		break;
 	case CPM_CLK_FCC2:
-		reg = &im_cpmux->cmx_fcr;
+		reg = &cpm2_immr->im_cpmux.cmx_fcr;
 		shift = 16;
 		break;
 	case CPM_CLK_FCC3:
-		reg = &im_cpmux->cmx_fcr;
+		reg = &cpm2_immr->im_cpmux.cmx_fcr;
 		shift = 8;
 		break;
 	default:
@@ -261,7 +255,6 @@ int __init cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 
 	out_be32(reg, (in_be32(reg) & ~mask) | bits);
 
-	cpm2_unmap(im_cpmux);
 	return ret;
 }
 
@@ -270,7 +263,6 @@ int __init cpm2_smc_clk_setup(enum cpm_clk_target target, int clock)
 	int ret = 0;
 	int shift;
 	int i, bits = 0;
-	cpmux_t __iomem *im_cpmux;
 	u8 __iomem *reg;
 	u8 mask = 3;
 
@@ -285,16 +277,14 @@ int __init cpm2_smc_clk_setup(enum cpm_clk_target target, int clock)
 		{CPM_CLK_SMC2, CPM_CLK15, 3},
 	};
 
-	im_cpmux = cpm2_map(im_cpmux);
-
 	switch (target) {
 	case CPM_CLK_SMC1:
-		reg = &im_cpmux->cmx_smr;
+		reg = &cpm2_immr->im_cpmux.cmx_smr;
 		mask = 3;
 		shift = 4;
 		break;
 	case CPM_CLK_SMC2:
-		reg = &im_cpmux->cmx_smr;
+		reg = &cpm2_immr->im_cpmux.cmx_smr;
 		mask = 3;
 		shift = 0;
 		break;
@@ -317,7 +307,6 @@ int __init cpm2_smc_clk_setup(enum cpm_clk_target target, int clock)
 
 	out_8(reg, (in_8(reg) & ~mask) | bits);
 
-	cpm2_unmap(im_cpmux);
 	return ret;
 }
 

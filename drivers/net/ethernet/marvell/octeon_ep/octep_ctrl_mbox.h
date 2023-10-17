@@ -121,6 +121,8 @@ struct octep_ctrl_mbox_q {
 };
 
 struct octep_ctrl_mbox {
+	/* control plane version */
+	u64 version;
 	/* size of bar memory */
 	u32 barmem_sz;
 	/* pointer to BAR memory */
@@ -133,6 +135,10 @@ struct octep_ctrl_mbox {
 	struct mutex h2fq_lock;
 	/* lock for f2hq */
 	struct mutex f2hq_lock;
+	/* Min control plane version supported by firmware */
+	u32 min_fw_version;
+	/* Max control plane version supported by firmware */
+	u32 max_fw_version;
 };
 
 /* Initialize control mbox.

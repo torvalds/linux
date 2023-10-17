@@ -84,6 +84,8 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 	spin_lock_init(&conn->llist_lock);
 	INIT_LIST_HEAD(&conn->lock_list);
 
+	init_rwsem(&conn->session_lock);
+
 	down_write(&conn_list_lock);
 	list_add(&conn->conns_list, &conn_list);
 	up_write(&conn_list_lock);
@@ -123,28 +125,22 @@ void ksmbd_conn_enqueue_request(struct ksmbd_work *work)
 	}
 }
 
-int ksmbd_conn_try_dequeue_request(struct ksmbd_work *work)
+void ksmbd_conn_try_dequeue_request(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
-	int ret = 1;
 
 	if (list_empty(&work->request_entry) &&
 	    list_empty(&work->async_request_entry))
-		return 0;
+		return;
 
-	if (!work->multiRsp)
-		atomic_dec(&conn->req_running);
-	if (!work->multiRsp) {
-		spin_lock(&conn->request_lock);
-		list_del_init(&work->request_entry);
-		spin_unlock(&conn->request_lock);
-		if (work->asynchronous)
-			release_async_work(work);
-		ret = 0;
-	}
+	atomic_dec(&conn->req_running);
+	spin_lock(&conn->request_lock);
+	list_del_init(&work->request_entry);
+	spin_unlock(&conn->request_lock);
+	if (work->asynchronous)
+		release_async_work(work);
 
 	wake_up_all(&conn->req_running_q);
-	return ret;
 }
 
 void ksmbd_conn_lock(struct ksmbd_conn *conn)
@@ -193,41 +189,25 @@ void ksmbd_conn_wait_idle(struct ksmbd_conn *conn, u64 sess_id)
 int ksmbd_conn_write(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
-	size_t len = 0;
 	int sent;
-	struct kvec iov[3];
-	int iov_idx = 0;
 
 	if (!work->response_buf) {
 		pr_err("NULL response header\n");
 		return -EINVAL;
 	}
 
-	if (work->tr_buf) {
-		iov[iov_idx] = (struct kvec) { work->tr_buf,
-				sizeof(struct smb2_transform_hdr) + 4 };
-		len += iov[iov_idx++].iov_len;
-	}
+	if (work->send_no_response)
+		return 0;
 
-	if (work->aux_payload_sz) {
-		iov[iov_idx] = (struct kvec) { work->response_buf, work->resp_hdr_sz };
-		len += iov[iov_idx++].iov_len;
-		iov[iov_idx] = (struct kvec) { work->aux_payload_buf, work->aux_payload_sz };
-		len += iov[iov_idx++].iov_len;
-	} else {
-		if (work->tr_buf)
-			iov[iov_idx].iov_len = work->resp_hdr_sz;
-		else
-			iov[iov_idx].iov_len = get_rfc1002_len(work->response_buf) + 4;
-		iov[iov_idx].iov_base = work->response_buf;
-		len += iov[iov_idx++].iov_len;
-	}
+	if (!work->iov_idx)
+		return -EINVAL;
 
 	ksmbd_conn_lock(conn);
-	sent = conn->transport->ops->writev(conn->transport, &iov[0],
-					iov_idx, len,
-					work->need_invalidate_rkey,
-					work->remote_key);
+	sent = conn->transport->ops->writev(conn->transport, work->iov,
+			work->iov_cnt,
+			get_rfc1002_len(work->iov[0].iov_base) + 4,
+			work->need_invalidate_rkey,
+			work->remote_key);
 	ksmbd_conn_unlock(conn);
 
 	if (sent < 0) {

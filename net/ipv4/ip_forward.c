@@ -67,7 +67,6 @@ static int ip_forward_finish(struct net *net, struct sock *sk, struct sk_buff *s
 	struct ip_options *opt	= &(IPCB(skb)->opt);
 
 	__IP_INC_STATS(net, IPSTATS_MIB_OUTFORWDATAGRAMS);
-	__IP_ADD_STATS(net, IPSTATS_MIB_OUTOCTETS, skb->len);
 
 #ifdef CONFIG_NET_SWITCHDEV
 	if (skb->offload_l3_fwd_mark) {

@@ -13,6 +13,7 @@
 
 #define EROFS_FEATURE_COMPAT_SB_CHKSUM          0x00000001
 #define EROFS_FEATURE_COMPAT_MTIME              0x00000002
+#define EROFS_FEATURE_COMPAT_XATTR_FILTER	0x00000004
 
 /*
  * Any bits that aren't in EROFS_ALL_FEATURE_INCOMPAT should
@@ -81,7 +82,8 @@ struct erofs_super_block {
 	__u8 xattr_prefix_count;	/* # of long xattr name prefixes */
 	__le32 xattr_prefix_start;	/* start of long xattr prefixes */
 	__le64 packed_nid;	/* nid of the special packed inode */
-	__u8 reserved2[24];
+	__u8 xattr_filter_reserved; /* reserved for xattr name filter */
+	__u8 reserved2[23];
 };
 
 /*
@@ -200,7 +202,7 @@ struct erofs_inode_extended {
  * for read-only fs, no need to introduce h_refcount
  */
 struct erofs_xattr_ibody_header {
-	__le32 h_reserved;
+	__le32 h_name_filter;		/* bit value 1 indicates not-present */
 	__u8   h_shared_count;
 	__u8   h_reserved2[7];
 	__le32 h_shared_xattrs[];       /* shared xattr id array */
@@ -220,6 +222,10 @@ struct erofs_xattr_ibody_header {
  */
 #define EROFS_XATTR_LONG_PREFIX		0x80
 #define EROFS_XATTR_LONG_PREFIX_MASK	0x7f
+
+#define EROFS_XATTR_FILTER_BITS		32
+#define EROFS_XATTR_FILTER_DEFAULT	UINT32_MAX
+#define EROFS_XATTR_FILTER_SEED		0x25BBE08F
 
 /* xattr entry (for both inline & shared xattrs) */
 struct erofs_xattr_entry {
@@ -289,6 +295,7 @@ struct erofs_dirent {
 enum {
 	Z_EROFS_COMPRESSION_LZ4		= 0,
 	Z_EROFS_COMPRESSION_LZMA	= 1,
+	Z_EROFS_COMPRESSION_DEFLATE	= 2,
 	Z_EROFS_COMPRESSION_MAX
 };
 #define Z_EROFS_ALL_COMPR_ALGS		((1 << Z_EROFS_COMPRESSION_MAX) - 1)
@@ -308,6 +315,12 @@ struct z_erofs_lzma_cfgs {
 } __packed;
 
 #define Z_EROFS_LZMA_MAX_DICT_SIZE	(8 * Z_EROFS_PCLUSTER_MAX_SIZE)
+
+/* 6 bytes (+ length field = 8 bytes) */
+struct z_erofs_deflate_cfgs {
+	u8 windowbits;			/* 8..15 for DEFLATE */
+	u8 reserved[5];
+} __packed;
 
 /*
  * bit 0 : COMPACTED_2B indexes (0 - off; 1 - on)

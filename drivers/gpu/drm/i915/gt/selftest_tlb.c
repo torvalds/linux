@@ -6,6 +6,7 @@
 #include "i915_selftest.h"
 
 #include "gem/i915_gem_internal.h"
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 
 #include "gen8_engine_cs.h"
@@ -354,7 +355,7 @@ out_a:
 
 static void tlbinv_full(struct i915_address_space *vm, u64 addr, u64 length)
 {
-	intel_gt_invalidate_tlb(vm->gt, intel_gt_tlb_seqno(vm->gt) | 1);
+	intel_gt_invalidate_tlb_full(vm->gt, intel_gt_tlb_seqno(vm->gt) | 1);
 }
 
 static int invalidate_full(void *arg)

@@ -22,6 +22,7 @@
 #include <linux/timecounter.h>
 #include <dt-bindings/firmware/imx/rsrc.h>
 #include <linux/firmware/imx/sci.h>
+#include <net/xdp.h>
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARM) || \
@@ -547,13 +548,11 @@ enum {
 enum fec_txbuf_type {
 	FEC_TXBUF_T_SKB,
 	FEC_TXBUF_T_XDP_NDO,
+	FEC_TXBUF_T_XDP_TX,
 };
 
 struct fec_tx_buffer {
-	union {
-		struct sk_buff *skb;
-		struct xdp_frame *xdp;
-	};
+	void *buf_p;
 	enum fec_txbuf_type type;
 };
 
@@ -651,12 +650,9 @@ struct fec_enet_private {
 
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
-	unsigned long last_overflow_check;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
-	int rx_hwtstamp_filter;
-	u32 base_incval;
 	u32 cycle_speed;
 	int hwts_rx_en;
 	int hwts_tx_en;
@@ -678,8 +674,6 @@ struct fec_enet_private {
 	/* tx lpi eee mode */
 	struct ethtool_eee eee;
 	unsigned int clk_ref_rate;
-
-	u32 rx_copybreak;
 
 	/* ptp clock period in ns*/
 	unsigned int ptp_inc;
@@ -703,9 +697,9 @@ struct fec_enet_private {
 void fec_ptp_init(struct platform_device *pdev, int irq_idx);
 void fec_ptp_stop(struct platform_device *pdev);
 void fec_ptp_start_cyclecounter(struct net_device *ndev);
-void fec_ptp_disable_hwts(struct net_device *ndev);
-int fec_ptp_set(struct net_device *ndev, struct ifreq *ifr);
-int fec_ptp_get(struct net_device *ndev, struct ifreq *ifr);
+int fec_ptp_set(struct net_device *ndev, struct kernel_hwtstamp_config *config,
+		struct netlink_ext_ack *extack);
+void fec_ptp_get(struct net_device *ndev, struct kernel_hwtstamp_config *config);
 
 /****************************************************************************/
 #endif /* FEC_H */

@@ -18,6 +18,7 @@
 #include <linux/vdpa.h>
 #include <linux/vhost_iotlb.h>
 #include <uapi/linux/vdpa.h>
+#include <uapi/linux/vhost_types.h>
 
 #include "vdpa_sim.h"
 
@@ -410,6 +411,11 @@ static u64 vdpasim_get_device_features(struct vdpa_device *vdpa)
 	return vdpasim->dev_attr.supported_features;
 }
 
+static u64 vdpasim_get_backend_features(const struct vdpa_device *vdpa)
+{
+	return BIT_ULL(VHOST_BACKEND_F_ENABLE_AFTER_DRIVER_OK);
+}
+
 static int vdpasim_set_driver_features(struct vdpa_device *vdpa, u64 features)
 {
 	struct vdpasim *vdpasim = vdpa_to_sim(vdpa);
@@ -733,6 +739,7 @@ static const struct vdpa_config_ops vdpasim_config_ops = {
 	.get_vq_align           = vdpasim_get_vq_align,
 	.get_vq_group           = vdpasim_get_vq_group,
 	.get_device_features    = vdpasim_get_device_features,
+	.get_backend_features   = vdpasim_get_backend_features,
 	.set_driver_features    = vdpasim_set_driver_features,
 	.get_driver_features    = vdpasim_get_driver_features,
 	.set_config_cb          = vdpasim_set_config_cb,
@@ -770,6 +777,7 @@ static const struct vdpa_config_ops vdpasim_batch_config_ops = {
 	.get_vq_align           = vdpasim_get_vq_align,
 	.get_vq_group           = vdpasim_get_vq_group,
 	.get_device_features    = vdpasim_get_device_features,
+	.get_backend_features   = vdpasim_get_backend_features,
 	.set_driver_features    = vdpasim_set_driver_features,
 	.get_driver_features    = vdpasim_get_driver_features,
 	.set_config_cb          = vdpasim_set_config_cb,

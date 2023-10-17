@@ -8,7 +8,7 @@
 #define __ASM_SPARC_FLOPPY_H
 
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/pgtable.h>
 
 #include <asm/idprom.h>

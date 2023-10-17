@@ -12,6 +12,7 @@
  * - When APPLE_PWM_CTRL is set to 0, the output is constant low
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>

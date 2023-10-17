@@ -30,7 +30,7 @@ Description:
 				  Indicating that contents of the
 				  NVDIMM have been scrubbed.
 		* "locked"
-				  Indicating that NVDIMM contents cant
+				  Indicating that NVDIMM contents can't
 				  be modified until next power cycle.
 
 What:		/sys/bus/nd/devices/nmemX/papr/perf_stats

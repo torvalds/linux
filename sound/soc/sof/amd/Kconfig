@@ -2,7 +2,7 @@
 # This file is provided under a dual BSD/GPLv2 license. When using or
 # redistributing this file, you may do so under either license.
 #
-# Copyright(c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright(c) 2021, 2023 Advanced Micro Devices, Inc. All rights reserved.
 
 config SND_SOC_SOF_AMD_TOPLEVEL
 	tristate "SOF support for AMD audio DSPs"
@@ -21,6 +21,7 @@ config SND_SOC_SOF_AMD_COMMON
 	select SND_SOC_SOF_PCI_DEV
 	select SND_AMD_ACP_CONFIG
 	select SND_SOC_SOF_XTENSA
+	select SND_SOC_SOF_ACP_PROBES
 	select SND_SOC_ACPI if ACPI
 	help
 	  This option is not user-selectable but automatically handled by
@@ -33,6 +34,16 @@ config SND_SOC_SOF_AMD_RENOIR
 	help
 	  Select this option for SOF support on AMD Renoir platform
 
+config SND_SOC_SOF_AMD_VANGOGH
+	tristate "SOF support for VANGOGH"
+	depends on SND_SOC_SOF_PCI
+	select SND_SOC_SOF_AMD_COMMON
+	help
+	  Select this option for SOF support
+	  on AMD Vangogh platform.
+	  Say Y if you want to enable SOF on Vangogh.
+	  If unsure select "N".
+
 config SND_SOC_SOF_AMD_REMBRANDT
 	tristate "SOF support for REMBRANDT"
 	depends on SND_SOC_SOF_PCI
@@ -41,5 +52,12 @@ config SND_SOC_SOF_AMD_REMBRANDT
 	  Select this option for SOF support on AMD Rembrandt platform
 	  Say Y if you want to enable SOF on Rembrandt.
 	  If unsure select "N".
+
+config SND_SOC_SOF_ACP_PROBES
+	tristate
+	select SND_SOC_SOF_DEBUG_PROBES
+	help
+	  This option is not user-selectable but automatically handled by
+	  'select' statements at a higher level
 
 endif

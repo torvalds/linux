@@ -121,8 +121,6 @@
 #define ISI_DATAWIDTH_8				0x01
 #define ISI_DATAWIDTH_10			0x02
 
-struct v4l2_async_subdev;
-
 struct isi_platform_data {
 	u8 has_emb_sync;
 	u8 hsync_act_low;

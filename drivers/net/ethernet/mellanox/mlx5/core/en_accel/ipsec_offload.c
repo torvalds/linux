@@ -45,8 +45,9 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 		    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, decap))
 			caps |= MLX5_IPSEC_CAP_PACKET_OFFLOAD;
 
-		if (MLX5_CAP_FLOWTABLE_NIC_TX(mdev, ignore_flow_level) &&
-		    MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ignore_flow_level))
+		if ((MLX5_CAP_FLOWTABLE_NIC_TX(mdev, ignore_flow_level) &&
+		     MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ignore_flow_level)) ||
+		    MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, ignore_flow_level))
 			caps |= MLX5_IPSEC_CAP_PRIO;
 
 		if (MLX5_CAP_FLOWTABLE_NIC_TX(mdev,
@@ -54,6 +55,12 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 		    MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
 					      reformat_l3_esp_tunnel_to_l2))
 			caps |= MLX5_IPSEC_CAP_TUNNEL;
+
+		if (MLX5_CAP_FLOWTABLE_NIC_TX(mdev,
+					      reformat_add_esp_transport_over_udp) &&
+		    MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
+					      reformat_del_esp_transport_over_udp))
+			caps |= MLX5_IPSEC_CAP_ESPINUDP;
 	}
 
 	if (mlx5_get_roce_state(mdev) &&

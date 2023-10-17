@@ -167,7 +167,7 @@ TRACE_EVENT(spi_message_done,
 );
 
 /*
- * consider a buffer valid if non-NULL and if it doesn't match the dummy buffer
+ * Consider a buffer valid if non-NULL and if it doesn't match the dummy buffer
  * that only exist to work with controllers that have SPI_CONTROLLER_MUST_TX or
  * SPI_CONTROLLER_MUST_RX.
  */

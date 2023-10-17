@@ -14,10 +14,12 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include "meson-aoclk.h"
-#include "axg-aoclk.h"
 
 #include "clk-regmap.h"
 #include "clk-dualdiv.h"
+
+#include <dt-bindings/clock/axg-aoclkc.h>
+#include <dt-bindings/reset/axg-aoclkc.h>
 
 /*
  * AO Configuration Clock registers offsets
@@ -288,27 +290,24 @@ static struct clk_regmap *axg_aoclk_regmap[] = {
 	&axg_aoclk_saradc_gate,
 };
 
-static const struct clk_hw_onecell_data axg_aoclk_onecell_data = {
-	.hws = {
-		[CLKID_AO_REMOTE]	= &axg_aoclk_remote.hw,
-		[CLKID_AO_I2C_MASTER]	= &axg_aoclk_i2c_master.hw,
-		[CLKID_AO_I2C_SLAVE]	= &axg_aoclk_i2c_slave.hw,
-		[CLKID_AO_UART1]	= &axg_aoclk_uart1.hw,
-		[CLKID_AO_UART2]	= &axg_aoclk_uart2.hw,
-		[CLKID_AO_IR_BLASTER]	= &axg_aoclk_ir_blaster.hw,
-		[CLKID_AO_SAR_ADC]	= &axg_aoclk_saradc.hw,
-		[CLKID_AO_CLK81]	= &axg_aoclk_clk81.hw,
-		[CLKID_AO_SAR_ADC_SEL]	= &axg_aoclk_saradc_mux.hw,
-		[CLKID_AO_SAR_ADC_DIV]	= &axg_aoclk_saradc_div.hw,
-		[CLKID_AO_SAR_ADC_CLK]	= &axg_aoclk_saradc_gate.hw,
-		[CLKID_AO_CTS_OSCIN]	= &axg_aoclk_cts_oscin.hw,
-		[CLKID_AO_32K_PRE]	= &axg_aoclk_32k_pre.hw,
-		[CLKID_AO_32K_DIV]	= &axg_aoclk_32k_div.hw,
-		[CLKID_AO_32K_SEL]	= &axg_aoclk_32k_sel.hw,
-		[CLKID_AO_32K]		= &axg_aoclk_32k.hw,
-		[CLKID_AO_CTS_RTC_OSCIN] = &axg_aoclk_cts_rtc_oscin.hw,
-	},
-	.num = NR_CLKS,
+static struct clk_hw *axg_aoclk_hw_clks[] = {
+	[CLKID_AO_REMOTE]	= &axg_aoclk_remote.hw,
+	[CLKID_AO_I2C_MASTER]	= &axg_aoclk_i2c_master.hw,
+	[CLKID_AO_I2C_SLAVE]	= &axg_aoclk_i2c_slave.hw,
+	[CLKID_AO_UART1]	= &axg_aoclk_uart1.hw,
+	[CLKID_AO_UART2]	= &axg_aoclk_uart2.hw,
+	[CLKID_AO_IR_BLASTER]	= &axg_aoclk_ir_blaster.hw,
+	[CLKID_AO_SAR_ADC]	= &axg_aoclk_saradc.hw,
+	[CLKID_AO_CLK81]	= &axg_aoclk_clk81.hw,
+	[CLKID_AO_SAR_ADC_SEL]	= &axg_aoclk_saradc_mux.hw,
+	[CLKID_AO_SAR_ADC_DIV]	= &axg_aoclk_saradc_div.hw,
+	[CLKID_AO_SAR_ADC_CLK]	= &axg_aoclk_saradc_gate.hw,
+	[CLKID_AO_CTS_OSCIN]	= &axg_aoclk_cts_oscin.hw,
+	[CLKID_AO_32K_PRE]	= &axg_aoclk_32k_pre.hw,
+	[CLKID_AO_32K_DIV]	= &axg_aoclk_32k_div.hw,
+	[CLKID_AO_32K_SEL]	= &axg_aoclk_32k_sel.hw,
+	[CLKID_AO_32K]		= &axg_aoclk_32k.hw,
+	[CLKID_AO_CTS_RTC_OSCIN] = &axg_aoclk_cts_rtc_oscin.hw,
 };
 
 static const struct meson_aoclk_data axg_aoclkc_data = {
@@ -317,7 +316,10 @@ static const struct meson_aoclk_data axg_aoclkc_data = {
 	.reset		= axg_aoclk_reset,
 	.num_clks	= ARRAY_SIZE(axg_aoclk_regmap),
 	.clks		= axg_aoclk_regmap,
-	.hw_data	= &axg_aoclk_onecell_data,
+	.hw_clks	= {
+		.hws	= axg_aoclk_hw_clks,
+		.num	= ARRAY_SIZE(axg_aoclk_hw_clks),
+	},
 };
 
 static const struct of_device_id axg_aoclkc_match_table[] = {

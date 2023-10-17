@@ -33,7 +33,6 @@ struct drm_device;
 #define ATOM_ATI_MAGIC_PTR	0x30
 #define ATOM_ATI_MAGIC		" 761295520"
 #define ATOM_ROM_TABLE_PTR	0x48
-#define ATOM_ROM_PART_NUMBER_PTR	0x6E
 
 #define ATOM_ROM_MAGIC		"ATOM"
 #define ATOM_ROM_MAGIC_PTR	4
@@ -118,12 +117,15 @@ struct drm_device;
 
 struct card_info {
 	struct drm_device *dev;
-	void (* reg_write)(struct card_info *, uint32_t, uint32_t);   /*  filled by driver */
-	uint32_t (* reg_read)(struct card_info *, uint32_t);          /*  filled by driver */
-	void (* mc_write)(struct card_info *, uint32_t, uint32_t);   /*  filled by driver */
-	uint32_t (* mc_read)(struct card_info *, uint32_t);          /*  filled by driver */
-	void (* pll_write)(struct card_info *, uint32_t, uint32_t);   /*  filled by driver */
-	uint32_t (* pll_read)(struct card_info *, uint32_t);          /*  filled by driver */
+	void (*reg_write)(struct card_info *info,
+			  u32 reg, uint32_t val);   /*  filled by driver */
+	uint32_t (*reg_read)(struct card_info *info, uint32_t reg);          /*  filled by driver */
+	void (*mc_write)(struct card_info *info,
+			 u32 reg, uint32_t val);   /*  filled by driver */
+	uint32_t (*mc_read)(struct card_info *info, uint32_t reg);          /*  filled by driver */
+	void (*pll_write)(struct card_info *info,
+			  u32 reg, uint32_t val);   /*  filled by driver */
+	uint32_t (*pll_read)(struct card_info *info, uint32_t reg);          /*  filled by driver */
 };
 
 struct atom_context {
@@ -143,7 +145,6 @@ struct atom_context {
 	int io_mode;
 	uint32_t *scratch;
 	int scratch_size_bytes;
-	char vbios_version[20];
 
 	uint8_t name[STRLEN_LONG];
 	uint8_t vbios_pn[STRLEN_LONG];
@@ -154,10 +155,10 @@ struct atom_context {
 
 extern int amdgpu_atom_debug;
 
-struct atom_context *amdgpu_atom_parse(struct card_info *, void *);
-int amdgpu_atom_execute_table(struct atom_context *, int, uint32_t *);
-int amdgpu_atom_asic_init(struct atom_context *);
-void amdgpu_atom_destroy(struct atom_context *);
+struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios);
+int amdgpu_atom_execute_table(struct atom_context *ctx, int index, uint32_t *params);
+int amdgpu_atom_asic_init(struct atom_context *ctx);
+void amdgpu_atom_destroy(struct atom_context *ctx);
 bool amdgpu_atom_parse_data_header(struct atom_context *ctx, int index, uint16_t *size,
 			    uint8_t *frev, uint8_t *crev, uint16_t *data_start);
 bool amdgpu_atom_parse_cmd_header(struct atom_context *ctx, int index,

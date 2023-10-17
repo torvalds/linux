@@ -19,8 +19,8 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #define IMX21LCDC_LSSAR         0x0000 /* LCDC Screen Start Address Register */

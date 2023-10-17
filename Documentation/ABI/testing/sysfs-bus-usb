@@ -28,40 +28,6 @@ Description:
 		drivers, non-authorized one are not.  By default, wired
 		USB devices are authorized.
 
-		Certified Wireless USB devices are not authorized
-		initially and should be (by writing 1) after the
-		device has been authenticated.
-
-What:		/sys/bus/usb/device/.../wusb_cdid
-Date:		July 2008
-KernelVersion:	2.6.27
-Contact:	David Vrabel <david.vrabel@csr.com>
-Description:
-		For Certified Wireless USB devices only.
-
-		A devices's CDID, as 16 space-separated hex octets.
-
-What:		/sys/bus/usb/device/.../wusb_ck
-Date:		July 2008
-KernelVersion:	2.6.27
-Contact:	David Vrabel <david.vrabel@csr.com>
-Description:
-		For Certified Wireless USB devices only.
-
-		Write the device's connection key (CK) to start the
-		authentication of the device.  The CK is 16
-		space-separated hex octets.
-
-What:		/sys/bus/usb/device/.../wusb_disconnect
-Date:		July 2008
-KernelVersion:	2.6.27
-Contact:	David Vrabel <david.vrabel@csr.com>
-Description:
-		For Certified Wireless USB devices only.
-
-		Write a 1 to force the device to disconnect
-		(equivalent to unplugging a wired USB device).
-
 What:		/sys/bus/usb/drivers/.../new_id
 Date:		October 2011
 Contact:	linux-usb@vger.kernel.org

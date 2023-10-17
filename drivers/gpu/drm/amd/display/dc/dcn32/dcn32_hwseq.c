@@ -47,11 +47,9 @@
 #include "clk_mgr.h"
 #include "dsc.h"
 #include "dcn20/dcn20_optc.h"
-#include "dmub_subvp_state.h"
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dcn32_resource.h"
 #include "link.h"
-#include "dmub/inc/dmub_subvp_state.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -569,7 +567,7 @@ bool dcn32_set_output_transfer_func(struct dc *dc,
 	bool ret = false;
 
 	/* program OGAM or 3DLUT only for the top pipe*/
-	if (pipe_ctx->top_pipe == NULL) {
+	if (resource_is_pipe_type(pipe_ctx, OPP_HEAD)) {
 		/*program shaper and 3dlut in MPC*/
 		ret = dcn32_set_mpc_shaper_3dlut(pipe_ctx, stream);
 		if (ret == false && mpc->funcs->set_output_gamma && stream->out_transfer_func) {
@@ -1204,10 +1202,10 @@ void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
-		if (pipe->top_pipe || pipe->prev_odm_pipe)
+		if (!resource_is_pipe_type(pipe, OTG_MASTER))
 			continue;
 
-		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal))
+		if ((pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal))
 			&& pipe->stream->mall_stream_config.type != SUBVP_PHANTOM) {
 			pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
 			reset_sync_context_for_pipe(dc, context, i);
@@ -1301,7 +1299,7 @@ static void apply_symclk_on_tx_off_wa(struct dc_link *link)
 	if (link->phy_state.symclk_ref_cnts.otg > 0) {
 		for (i = 0; i < MAX_PIPES; i++) {
 			pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-			if (pipe_ctx->stream && pipe_ctx->stream->link == link && pipe_ctx->top_pipe == NULL) {
+			if (resource_is_pipe_type(pipe_ctx, OPP_HEAD) && pipe_ctx->stream->link == link) {
 				pipe_ctx->clock_source->funcs->program_pix_clk(
 						pipe_ctx->clock_source,
 						&pipe_ctx->stream_res.pix_clk_params,
@@ -1384,7 +1382,7 @@ void dcn32_apply_update_flags_for_phantom(struct pipe_ctx *phantom_pipe)
 {
 	phantom_pipe->update_flags.raw = 0;
 	if (phantom_pipe->stream && phantom_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-		if (phantom_pipe->stream && phantom_pipe->plane_state) {
+		if (resource_is_pipe_type(phantom_pipe, DPP_PIPE)) {
 			phantom_pipe->update_flags.bits.enable = 1;
 			phantom_pipe->update_flags.bits.mpcc = 1;
 			phantom_pipe->update_flags.bits.dppclk = 1;
@@ -1394,7 +1392,7 @@ void dcn32_apply_update_flags_for_phantom(struct pipe_ctx *phantom_pipe)
 			phantom_pipe->update_flags.bits.scaler = 1;
 			phantom_pipe->update_flags.bits.viewport = 1;
 			phantom_pipe->update_flags.bits.det_size = 1;
-			if (!phantom_pipe->top_pipe && !phantom_pipe->prev_odm_pipe) {
+			if (resource_is_pipe_type(phantom_pipe, OTG_MASTER)) {
 				phantom_pipe->update_flags.bits.odm = 1;
 				phantom_pipe->update_flags.bits.global_sync = 1;
 			}

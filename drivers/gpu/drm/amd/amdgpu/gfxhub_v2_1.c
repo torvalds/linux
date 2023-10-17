@@ -34,7 +34,7 @@
 #define mmGCUTCL2_HARVEST_BYPASS_GROUPS_YELLOW_CARP				0x16f8
 #define mmGCUTCL2_HARVEST_BYPASS_GROUPS_YELLOW_CARP_BASE_IDX	0
 
-static const char *gfxhub_client_ids[] = {
+static const char * const gfxhub_client_ids[] = {
 	"CB/DB",
 	"Reserved",
 	"GE1",
@@ -341,7 +341,7 @@ static void gfxhub_v2_1_setup_vmid_config(struct amdgpu_device *adev)
 static void gfxhub_v2_1_program_invalidation(struct amdgpu_device *adev)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0 ; i < 18; ++i) {
 		WREG32_SOC15_OFFSET(GC, 0, mmGCVM_INVALIDATE_ENG0_ADDR_RANGE_LO32,
@@ -582,6 +582,7 @@ static void gfxhub_v2_1_utcl2_harvest(struct amdgpu_device *adev)
 static void gfxhub_v2_1_save_regs(struct amdgpu_device *adev)
 {
 	int i;
+
 	adev->gmc.VM_L2_CNTL = RREG32_SOC15(GC, 0, mmGCVM_L2_CNTL);
 	adev->gmc.VM_L2_CNTL2 = RREG32_SOC15(GC, 0, mmGCVM_L2_CNTL2);
 	adev->gmc.VM_DUMMY_PAGE_FAULT_CNTL = RREG32_SOC15(GC, 0, mmGCVM_DUMMY_PAGE_FAULT_CNTL);
@@ -616,6 +617,7 @@ static void gfxhub_v2_1_save_regs(struct amdgpu_device *adev)
 static void gfxhub_v2_1_restore_regs(struct amdgpu_device *adev)
 {
 	int i;
+
 	WREG32_SOC15(GC, 0, mmGCVM_L2_CNTL, adev->gmc.VM_L2_CNTL);
 	WREG32_SOC15(GC, 0, mmGCVM_L2_CNTL2, adev->gmc.VM_L2_CNTL2);
 	WREG32_SOC15(GC, 0, mmGCVM_DUMMY_PAGE_FAULT_CNTL, adev->gmc.VM_DUMMY_PAGE_FAULT_CNTL);
@@ -679,9 +681,8 @@ static void gfxhub_v2_1_halt(struct amdgpu_device *adev)
 		tmp = RREG32_SOC15(GC, 0, mmGRBM_STATUS2);
 	}
 
-	if (!time) {
+	if (!time)
 		DRM_WARN("failed to wait for GRBM(EA) idle\n");
-	}
 }
 
 const struct amdgpu_gfxhub_funcs gfxhub_v2_1_funcs = {

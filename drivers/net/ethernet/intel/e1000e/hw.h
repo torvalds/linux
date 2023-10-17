@@ -122,6 +122,8 @@ struct e1000_hw;
 #define E1000_DEV_ID_PCH_PTP_I219_V26		0x57B6
 #define E1000_DEV_ID_PCH_PTP_I219_LM27		0x57B7
 #define E1000_DEV_ID_PCH_PTP_I219_V27		0x57B8
+#define E1000_DEV_ID_PCH_NVL_I219_LM29		0x57B9
+#define E1000_DEV_ID_PCH_NVL_I219_V29		0x57BA
 
 #define E1000_REVISION_4	4
 
@@ -150,6 +152,7 @@ enum e1000_mac_type {
 	e1000_pch_mtp,
 	e1000_pch_lnp,
 	e1000_pch_ptp,
+	e1000_pch_nvp,
 };
 
 enum e1000_media_type {

@@ -38,8 +38,10 @@
 #include <net/netevent.h>
 
 #include "en.h"
+#include "eswitch.h"
 #include "ipsec.h"
 #include "ipsec_rxtx.h"
+#include "en_rep.h"
 
 #define MLX5_IPSEC_RESCHED msecs_to_jiffies(1000)
 #define MLX5E_IPSEC_TUNNEL_SA XA_MARK_1
@@ -354,6 +356,12 @@ void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 
 	mlx5e_ipsec_init_limits(sa_entry, attrs);
 	mlx5e_ipsec_init_macs(sa_entry, attrs);
+
+	if (x->encap) {
+		attrs->encap = true;
+		attrs->sport = x->encap->encap_sport;
+		attrs->dport = x->encap->encap_dport;
+	}
 }
 
 static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
@@ -387,8 +395,25 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 		return -EINVAL;
 	}
 	if (x->encap) {
-		NL_SET_ERR_MSG_MOD(extack, "Encapsulated xfrm state may not be offloaded");
-		return -EINVAL;
+		if (!(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_ESPINUDP)) {
+			NL_SET_ERR_MSG_MOD(extack, "Encapsulation is not supported");
+			return -EINVAL;
+		}
+
+		if (x->encap->encap_type != UDP_ENCAP_ESPINUDP) {
+			NL_SET_ERR_MSG_MOD(extack, "Encapsulation other than UDP is not supported");
+			return -EINVAL;
+		}
+
+		if (x->xso.type != XFRM_DEV_OFFLOAD_PACKET) {
+			NL_SET_ERR_MSG_MOD(extack, "Encapsulation is supported in packet offload mode only");
+			return -EINVAL;
+		}
+
+		if (x->props.mode != XFRM_MODE_TRANSPORT) {
+			NL_SET_ERR_MSG_MOD(extack, "Encapsulation is supported in transport mode only");
+			return -EINVAL;
+		}
 	}
 	if (!x->aead) {
 		NL_SET_ERR_MSG_MOD(extack, "Cannot offload xfrm states without aead");
@@ -416,9 +441,9 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 		return -EINVAL;
 	}
 
-	if (x->sel.proto != IPPROTO_IP &&
-	    (x->sel.proto != IPPROTO_UDP || x->xso.dir != XFRM_DEV_OFFLOAD_OUT)) {
-		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than UDP, and only Tx direction");
+	if (x->sel.proto != IPPROTO_IP && x->sel.proto != IPPROTO_UDP &&
+	    x->sel.proto != IPPROTO_TCP) {
+		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than TCP/UDP");
 		return -EINVAL;
 	}
 
@@ -646,6 +671,11 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 	if (err)
 		goto err_xfrm;
 
+	if (!mlx5_eswitch_block_ipsec(priv->mdev)) {
+		err = -EBUSY;
+		goto err_xfrm;
+	}
+
 	/* check esn */
 	if (x->props.flags & XFRM_STATE_ESN)
 		mlx5e_ipsec_update_esn_state(sa_entry);
@@ -654,7 +684,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 
 	err = mlx5_ipsec_create_work(sa_entry);
 	if (err)
-		goto err_xfrm;
+		goto unblock_ipsec;
 
 	err = mlx5e_ipsec_create_dwork(sa_entry);
 	if (err)
@@ -711,6 +741,8 @@ release_work:
 	if (sa_entry->work)
 		kfree(sa_entry->work->data);
 	kfree(sa_entry->work);
+unblock_ipsec:
+	mlx5_eswitch_unblock_ipsec(priv->mdev);
 err_xfrm:
 	kfree(sa_entry);
 	NL_SET_ERR_MSG_WEAK_MOD(extack, "Device failed to offload this state");
@@ -740,6 +772,7 @@ static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
+	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
 
 	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
 		goto sa_entry_free;
@@ -756,6 +789,7 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 	if (sa_entry->work)
 		kfree(sa_entry->work->data);
 	kfree(sa_entry->work);
+	mlx5_eswitch_unblock_ipsec(ipsec->mdev);
 sa_entry_free:
 	kfree(sa_entry);
 }
@@ -835,6 +869,7 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 			goto clear_aso;
 	}
 
+	ipsec->is_uplink_rep = mlx5e_is_uplink_rep(priv);
 	ret = mlx5e_accel_ipsec_fs_init(ipsec);
 	if (ret)
 		goto err_fs_init;
@@ -958,9 +993,10 @@ static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
 		return -EINVAL;
 	}
 
-	if (sel->proto != IPPROTO_IP &&
-	    (sel->proto != IPPROTO_UDP || x->xdo.dir != XFRM_DEV_OFFLOAD_OUT)) {
-		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than UDP, and only Tx direction");
+	if (x->selector.proto != IPPROTO_IP &&
+	    x->selector.proto != IPPROTO_UDP &&
+	    x->selector.proto != IPPROTO_TCP) {
+		NL_SET_ERR_MSG_MOD(extack, "Device does not support upper protocol other than TCP/UDP");
 		return -EINVAL;
 	}
 
@@ -1029,6 +1065,11 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 	pol_entry->x = x;
 	pol_entry->ipsec = priv->ipsec;
 
+	if (!mlx5_eswitch_block_ipsec(priv->mdev)) {
+		err = -EBUSY;
+		goto ipsec_busy;
+	}
+
 	mlx5e_ipsec_build_accel_pol_attrs(pol_entry, &pol_entry->attrs);
 	err = mlx5e_accel_ipsec_fs_add_pol(pol_entry);
 	if (err)
@@ -1038,6 +1079,8 @@ static int mlx5e_xfrm_add_policy(struct xfrm_policy *x,
 	return 0;
 
 err_fs:
+	mlx5_eswitch_unblock_ipsec(priv->mdev);
+ipsec_busy:
 	kfree(pol_entry);
 	NL_SET_ERR_MSG_MOD(extack, "Device failed to offload this policy");
 	return err;
@@ -1048,6 +1091,7 @@ static void mlx5e_xfrm_del_policy(struct xfrm_policy *x)
 	struct mlx5e_ipsec_pol_entry *pol_entry = to_ipsec_pol_entry(x);
 
 	mlx5e_accel_ipsec_fs_del_pol(pol_entry);
+	mlx5_eswitch_unblock_ipsec(pol_entry->ipsec->mdev);
 }
 
 static void mlx5e_xfrm_free_policy(struct xfrm_policy *x)

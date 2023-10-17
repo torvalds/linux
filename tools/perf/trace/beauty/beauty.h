@@ -67,15 +67,14 @@ extern struct strarray strarray__socket_level;
 /**
  * augmented_arg: extra payload for syscall pointer arguments
  
- * If perf_sample->raw_size is more than what a syscall sys_enter_FOO puts,
- * then its the arguments contents, so that we can show more than just a
+ * If perf_sample->raw_size is more than what a syscall sys_enter_FOO puts, then
+ * its the arguments contents, so that we can show more than just a
  * pointer. This will be done initially with eBPF, the start of that is at the
- * tools/perf/examples/bpf/augmented_syscalls.c example for the openat, but
- * will eventually be done automagically caching the running kernel tracefs
- * events data into an eBPF C script, that then gets compiled and its .o file
- * cached for subsequent use. For char pointers like the ones for 'open' like
- * syscalls its easy, for the rest we should use DWARF or better, BTF, much
- * more compact.
+ * tools/perf/util/bpf_skel/augmented_syscalls.bpf.c that will eventually be
+ * done automagically caching the running kernel tracefs events data into an
+ * eBPF C script, that then gets compiled and its .o file cached for subsequent
+ * use. For char pointers like the ones for 'open' like syscalls its easy, for
+ * the rest we should use DWARF or better, BTF, much more compact.
  *
  * @size: 8 if all we need is an integer, otherwise all of the augmented arg.
  * @int_arg: will be used for integer like pointer contents, like 'accept's 'upeer_addrlen'

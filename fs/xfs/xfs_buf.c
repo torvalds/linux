@@ -481,7 +481,8 @@ _xfs_buf_obj_cmp(
 		 * reallocating a busy extent. Skip this buffer and
 		 * continue searching for an exact match.
 		 */
-		ASSERT(bp->b_flags & XBF_STALE);
+		if (!(map->bm_flags & XBM_LIVESCAN))
+			ASSERT(bp->b_flags & XBF_STALE);
 		return 1;
 	}
 	return 0;
@@ -559,6 +560,10 @@ xfs_buf_find_lock(
 	 * intact here.
 	 */
 	if (bp->b_flags & XBF_STALE) {
+		if (flags & XBF_LIVESCAN) {
+			xfs_buf_unlock(bp);
+			return -ENOENT;
+		}
 		ASSERT((bp->b_flags & _XBF_DELWRI_Q) == 0);
 		bp->b_flags &= _XBF_KMEM | _XBF_PAGES;
 		bp->b_ops = NULL;
@@ -682,6 +687,8 @@ xfs_buf_get_map(
 	int			error;
 	int			i;
 
+	if (flags & XBF_LIVESCAN)
+		cmap.bm_flags |= XBM_LIVESCAN;
 	for (i = 0; i < nmaps; i++)
 		cmap.bm_len += map[i].bm_len;
 
@@ -1938,14 +1945,17 @@ void
 xfs_free_buftarg(
 	struct xfs_buftarg	*btp)
 {
+	struct block_device	*bdev = btp->bt_bdev;
+
 	unregister_shrinker(&btp->bt_shrinker);
 	ASSERT(percpu_counter_sum(&btp->bt_io_count) == 0);
 	percpu_counter_destroy(&btp->bt_io_count);
 	list_lru_destroy(&btp->bt_lru);
 
-	blkdev_issue_flush(btp->bt_bdev);
-	invalidate_bdev(btp->bt_bdev);
 	fs_put_dax(btp->bt_daxdev, btp->bt_mount);
+	/* the main block device is closed by kill_block_super */
+	if (bdev != btp->bt_mount->m_super->s_bdev)
+		blkdev_put(bdev, btp->bt_mount->m_super);
 
 	kmem_free(btp);
 }

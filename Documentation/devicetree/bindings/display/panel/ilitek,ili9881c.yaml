@@ -18,6 +18,7 @@ properties:
       - enum:
           - bananapi,lhr050h41
           - feixin,k101-im2byl02
+          - tdo,tl050hdv35
           - wanchanglong,w552946aba
       - const: ilitek,ili9881c
 

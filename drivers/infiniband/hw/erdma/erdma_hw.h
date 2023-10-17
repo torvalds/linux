@@ -228,7 +228,7 @@ struct erdma_cmdq_ext_db_req {
 
 /* create_cq cfg1 */
 #define ERDMA_CMD_CREATE_CQ_MTT_CNT_MASK GENMASK(31, 16)
-#define ERDMA_CMD_CREATE_CQ_MTT_TYPE_MASK BIT(15)
+#define ERDMA_CMD_CREATE_CQ_MTT_LEVEL_MASK BIT(15)
 #define ERDMA_CMD_CREATE_CQ_MTT_DB_CFG_MASK BIT(11)
 #define ERDMA_CMD_CREATE_CQ_EQN_MASK GENMASK(9, 0)
 
@@ -248,6 +248,7 @@ struct erdma_cmdq_create_cq_req {
 
 /* regmr/deregmr cfg0 */
 #define ERDMA_CMD_MR_VALID_MASK BIT(31)
+#define ERDMA_CMD_MR_VERSION_MASK GENMASK(30, 28)
 #define ERDMA_CMD_MR_KEY_MASK GENMASK(27, 20)
 #define ERDMA_CMD_MR_MPT_IDX_MASK GENMASK(19, 0)
 
@@ -258,7 +259,8 @@ struct erdma_cmdq_create_cq_req {
 
 /* regmr cfg2 */
 #define ERDMA_CMD_REGMR_PAGESIZE_MASK GENMASK(31, 27)
-#define ERDMA_CMD_REGMR_MTT_TYPE_MASK GENMASK(21, 20)
+#define ERDMA_CMD_REGMR_MTT_PAGESIZE_MASK GENMASK(26, 24)
+#define ERDMA_CMD_REGMR_MTT_LEVEL_MASK GENMASK(21, 20)
 #define ERDMA_CMD_REGMR_MTT_CNT_MASK GENMASK(19, 0)
 
 struct erdma_cmdq_reg_mr_req {
@@ -268,7 +270,14 @@ struct erdma_cmdq_reg_mr_req {
 	u64 start_va;
 	u32 size;
 	u32 cfg2;
-	u64 phy_addr[4];
+	union {
+		u64 phy_addr[4];
+		struct {
+			u64 rsvd;
+			u32 size_h;
+			u32 mtt_cnt_h;
+		};
+	};
 };
 
 struct erdma_cmdq_dereg_mr_req {
@@ -309,7 +318,7 @@ struct erdma_cmdq_modify_qp_req {
 /* create qp mtt_cfg */
 #define ERDMA_CMD_CREATE_QP_PAGE_OFFSET_MASK GENMASK(31, 12)
 #define ERDMA_CMD_CREATE_QP_MTT_CNT_MASK GENMASK(11, 1)
-#define ERDMA_CMD_CREATE_QP_MTT_TYPE_MASK BIT(0)
+#define ERDMA_CMD_CREATE_QP_MTT_LEVEL_MASK BIT(0)
 
 /* create qp db cfg */
 #define ERDMA_CMD_CREATE_QP_SQDB_CFG_MASK GENMASK(31, 16)
@@ -364,6 +373,7 @@ struct erdma_cmdq_reflush_req {
 
 enum {
 	ERDMA_DEV_CAP_FLAGS_ATOMIC = 1 << 7,
+	ERDMA_DEV_CAP_FLAGS_MTT_VA = 1 << 5,
 	ERDMA_DEV_CAP_FLAGS_EXTEND_DB = 1 << 3,
 };
 

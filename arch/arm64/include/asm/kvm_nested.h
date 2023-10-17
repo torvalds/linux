@@ -11,6 +11,8 @@ static inline bool vcpu_has_nv(const struct kvm_vcpu *vcpu)
 		test_bit(KVM_ARM_VCPU_HAS_EL2, vcpu->arch.features));
 }
 
+extern bool __check_nv_sr_forward(struct kvm_vcpu *vcpu);
+
 struct sys_reg_params;
 struct sys_reg_desc;
 

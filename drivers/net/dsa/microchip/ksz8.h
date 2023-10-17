@@ -48,13 +48,11 @@ int ksz8_port_mirror_add(struct ksz_device *dev, int port,
 			 bool ingress, struct netlink_ext_ack *extack);
 void ksz8_port_mirror_del(struct ksz_device *dev, int port,
 			  struct dsa_mall_mirror_tc_entry *mirror);
-int ksz8_get_stp_reg(void);
 void ksz8_get_caps(struct ksz_device *dev, int port,
 		   struct phylink_config *config);
 void ksz8_config_cpu_port(struct dsa_switch *ds);
 int ksz8_enable_stp_addr(struct ksz_device *dev);
 int ksz8_reset_switch(struct ksz_device *dev);
-int ksz8_switch_detect(struct ksz_device *dev);
 int ksz8_switch_init(struct ksz_device *dev);
 void ksz8_switch_exit(struct ksz_device *dev);
 int ksz8_change_mtu(struct ksz_device *dev, int port, int mtu);

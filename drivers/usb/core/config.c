@@ -1051,9 +1051,6 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 		}
 
 		switch (cap_type) {
-		case USB_CAP_TYPE_WIRELESS_USB:
-			/* Wireless USB cap descriptor is handled by wusb */
-			break;
 		case USB_CAP_TYPE_EXT:
 			dev->bos->ext_cap =
 				(struct usb_ext_cap_descriptor *)buffer;

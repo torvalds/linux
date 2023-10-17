@@ -5,6 +5,8 @@ import argparse
 import collections
 import os
 import re
+import shutil
+import tempfile
 import yaml
 
 from lib import SpecFamily, SpecAttrSet, SpecAttr, SpecOperation, SpecEnumSet, SpecEnumEntry
@@ -426,6 +428,7 @@ class TypeBinary(Type):
 
     def _setter_lines(self, ri, member, presence):
         return [f"free({member});",
+                f"{presence}_len = len;",
                 f"{member} = malloc({presence}_len);",
                 f'memcpy({member}, {self.c_name}, {presence}_len);']
 
@@ -612,7 +615,7 @@ class Struct:
 
         self.attr_list = []
         self.attrs = dict()
-        if type_list:
+        if type_list is not None:
             for t in type_list:
                 self.attr_list.append((t, self.attr_set[t]),)
         else:
@@ -975,7 +978,9 @@ class Family(SpecFamily):
 
             for op_mode in ['do', 'dump']:
                 if op_mode in op:
-                    global_set.update(op[op_mode].get('request', []))
+                    req = op[op_mode].get('request')
+                    if req:
+                        global_set.update(req.get('attributes', []))
 
         self.global_policy = []
         self.global_policy_set = attr_set_name
@@ -1040,14 +1045,30 @@ class RenderInfo:
 
 
 class CodeWriter:
-    def __init__(self, nlib, out_file):
+    def __init__(self, nlib, out_file=None):
         self.nlib = nlib
 
         self._nl = False
         self._block_end = False
         self._silent_block = False
         self._ind = 0
-        self._out = out_file
+        if out_file is None:
+            self._out = os.sys.stdout
+        else:
+            self._out = tempfile.TemporaryFile('w+')
+            self._out_file = out_file
+
+    def __del__(self):
+        self.close_out_file()
+
+    def close_out_file(self):
+        if self._out == os.sys.stdout:
+            return
+        with open(self._out_file, 'w+') as out_file:
+            self._out.seek(0)
+            shutil.copyfileobj(self._out, out_file)
+            self._out.close()
+        self._out = os.sys.stdout
 
     @classmethod
     def _is_cond(cls, line):
@@ -1538,7 +1559,14 @@ def parse_rsp_msg(ri, deref=False):
 
     ri.cw.write_func_prot('int', f'{op_prefix(ri, "reply", deref=deref)}_parse', func_args)
 
-    _multi_parse(ri, ri.struct["reply"], init_lines, local_vars)
+    if ri.struct["reply"].member_list():
+        _multi_parse(ri, ri.struct["reply"], init_lines, local_vars)
+    else:
+        # Empty reply
+        ri.cw.block_start()
+        ri.cw.p('return MNL_CB_OK;')
+        ri.cw.block_end()
+        ri.cw.nl()
 
 
 def print_req(ri):
@@ -1843,13 +1871,13 @@ def print_ntf_type_free(ri):
 
 
 def print_req_policy_fwd(cw, struct, ri=None, terminate=True):
-    if terminate and ri and kernel_can_gen_family_struct(struct.family):
+    if terminate and ri and policy_should_be_static(struct.family):
         return
 
     if terminate:
         prefix = 'extern '
     else:
-        if kernel_can_gen_family_struct(struct.family) and ri:
+        if ri and policy_should_be_static(struct.family):
             prefix = 'static '
         else:
             prefix = ''
@@ -1871,10 +1899,15 @@ def print_req_policy(cw, struct, ri=None):
     for _, arg in struct.member_list():
         arg.attr_policy(cw)
     cw.p("};")
+    cw.nl()
 
 
 def kernel_can_gen_family_struct(family):
     return family.proto == 'genetlink'
+
+
+def policy_should_be_static(family):
+    return family.kernel_policy == 'split' or kernel_can_gen_family_struct(family)
 
 
 def print_kernel_op_table_fwd(family, cw, terminate):
@@ -1988,9 +2021,18 @@ def print_kernel_op_table(family, cw):
                 cw.block_start()
                 members = [('cmd', op.enum_name)]
                 if 'dont-validate' in op:
-                    members.append(('validate',
-                                    ' | '.join([c_upper('genl-dont-validate-' + x)
-                                                for x in op['dont-validate']])), )
+                    dont_validate = []
+                    for x in op['dont-validate']:
+                        if op_mode == 'do' and x in ['dump', 'dump-strict']:
+                            continue
+                        if op_mode == "dump" and x == 'strict':
+                            continue
+                        dont_validate.append(x)
+
+                    if dont_validate:
+                        members.append(('validate',
+                                        ' | '.join([c_upper('genl-dont-validate-' + x)
+                                                    for x in dont_validate])), )
                 name = c_lower(f"{family.name}-nl-{op_name}-{op_mode}it")
                 if 'pre' in op[op_mode]:
                     members.append((cb_names[op_mode]['pre'], c_lower(op[op_mode]['pre'])))
@@ -2125,6 +2167,7 @@ def render_uapi(family, cw):
 
             if const.get('render-max', False):
                 cw.nl()
+                cw.p('/* private: */')
                 if const['type'] == 'flags':
                     max_name = c_upper(name_pfx + 'mask')
                     max_val = f' = {enum.get_mask()},'
@@ -2286,10 +2329,8 @@ def main():
     parser.add_argument('--source', dest='header', action='store_false')
     parser.add_argument('--user-header', nargs='+', default=[])
     parser.add_argument('--exclude-op', action='append', default=[])
-    parser.add_argument('-o', dest='out_file', type=str)
+    parser.add_argument('-o', dest='out_file', type=str, default=None)
     args = parser.parse_args()
-
-    out_file = open(args.out_file, 'w+') if args.out_file else os.sys.stdout
 
     if args.header is None:
         parser.error("--header or --source is required")
@@ -2308,13 +2349,13 @@ def main():
         return
 
     supported_models = ['unified']
-    if args.mode == 'user':
+    if args.mode in ['user', 'kernel']:
         supported_models += ['directional']
     if parsed.msg_id_model not in supported_models:
         print(f'Message enum-model {parsed.msg_id_model} not supported for {args.mode} generation')
         os.sys.exit(1)
 
-    cw = CodeWriter(BaseNlLib(), out_file)
+    cw = CodeWriter(BaseNlLib(), args.out_file)
 
     _, spec_kernel = find_kernel_root(args.spec)
     if args.mode == 'uapi' or args.header:

@@ -239,6 +239,8 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 int xsk_umem__delete(struct xsk_umem *umem);
 void xsk_socket__delete(struct xsk_socket *xsk);
 
+int xsk_set_mtu(int ifindex, int mtu);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

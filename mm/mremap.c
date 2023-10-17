@@ -349,7 +349,7 @@ static inline bool move_normal_pud(struct vm_area_struct *vma,
 }
 #endif
 
-#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && defined(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)
 static bool move_huge_pud(struct vm_area_struct *vma, unsigned long old_addr,
 			  unsigned long new_addr, pud_t *old_pud, pud_t *new_pud)
 {
@@ -715,7 +715,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	}
 
 	vma_iter_init(&vmi, mm, old_addr);
-	if (!do_vmi_munmap(&vmi, mm, old_addr, old_len, uf_unmap, false)) {
+	if (do_vmi_munmap(&vmi, mm, old_addr, old_len, uf_unmap, false) < 0) {
 		/* OOM: unable to split vma, just get accounts right */
 		if (vm_flags & VM_ACCOUNT && !(flags & MREMAP_DONTUNMAP))
 			vm_acct_memory(old_len >> PAGE_SHIFT);

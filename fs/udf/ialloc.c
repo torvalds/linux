@@ -100,7 +100,7 @@ struct inode *udf_new_inode(struct inode *dir, umode_t mode)
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_SHORT;
 	else
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_LONG;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	inode->i_mtime = inode->i_atime = inode_set_ctime_current(inode);
 	iinfo->i_crtime = inode->i_mtime;
 	if (unlikely(insert_inode_locked(inode) < 0)) {
 		make_bad_inode(inode);

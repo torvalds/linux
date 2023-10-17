@@ -9,6 +9,7 @@
 
 #include <linux/gpio/driver.h>
 #include <linux/mfd/altera-a10sr.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
 
@@ -104,7 +105,7 @@ static struct platform_driver altr_a10sr_gpio_driver = {
 	.probe = altr_a10sr_gpio_probe,
 	.driver = {
 		.name	= "altr_a10sr_gpio",
-		.of_match_table = of_match_ptr(altr_a10sr_gpio_of_match),
+		.of_match_table = altr_a10sr_gpio_of_match,
 	},
 };
 module_platform_driver(altr_a10sr_gpio_driver);

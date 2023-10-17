@@ -69,16 +69,19 @@ READ_GET(struct nouveau_channel *chan, uint64_t *prev_get, int *timeout)
 }
 
 void
-nv50_dma_push(struct nouveau_channel *chan, u64 offset, int length)
+nv50_dma_push(struct nouveau_channel *chan, u64 offset, u32 length,
+	      bool no_prefetch)
 {
 	struct nvif_user *user = &chan->drm->client.device.user;
 	struct nouveau_bo *pb = chan->push.buffer;
 	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
 
 	BUG_ON(chan->dma.ib_free < 1);
+	WARN_ON(length > NV50_DMA_PUSH_MAX_LENGTH);
 
 	nouveau_bo_wr32(pb, ip++, lower_32_bits(offset));
-	nouveau_bo_wr32(pb, ip++, upper_32_bits(offset) | length << 8);
+	nouveau_bo_wr32(pb, ip++, upper_32_bits(offset) | length << 8 |
+			(no_prefetch ? (1 << 31) : 0));
 
 	chan->dma.ib_put = (chan->dma.ib_put + 1) & chan->dma.ib_max;
 

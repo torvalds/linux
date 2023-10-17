@@ -62,11 +62,16 @@ static void stmmac_xgmac2_c45_format(struct stmmac_priv *priv, int phyaddr,
 static void stmmac_xgmac2_c22_format(struct stmmac_priv *priv, int phyaddr,
 				     int phyreg, u32 *hw_addr)
 {
-	u32 tmp;
+	u32 tmp = 0;
 
+	if (priv->synopsys_id < DWXGMAC_CORE_2_20) {
+		/* Until ver 2.20 XGMAC does not support C22 addr >= 4. Those
+		 * bits above bit 3 of XGMAC_MDIO_C22P register are reserved.
+		 */
+		tmp = readl(priv->ioaddr + XGMAC_MDIO_C22P);
+		tmp &= ~MII_XGMAC_C22P_MASK;
+	}
 	/* Set port as Clause 22 */
-	tmp = readl(priv->ioaddr + XGMAC_MDIO_C22P);
-	tmp &= ~MII_XGMAC_C22P_MASK;
 	tmp |= BIT(phyaddr);
 	writel(tmp, priv->ioaddr + XGMAC_MDIO_C22P);
 
@@ -132,8 +137,9 @@ static int stmmac_xgmac2_mdio_read_c22(struct mii_bus *bus, int phyaddr,
 
 	priv = netdev_priv(ndev);
 
-	/* HW does not support C22 addr >= 4 */
-	if (phyaddr > MII_XGMAC_MAX_C22ADDR)
+	/* Until ver 2.20 XGMAC does not support C22 addr >= 4 */
+	if (priv->synopsys_id < DWXGMAC_CORE_2_20 &&
+	    phyaddr > MII_XGMAC_MAX_C22ADDR)
 		return -ENODEV;
 
 	stmmac_xgmac2_c22_format(priv, phyaddr, phyreg, &addr);
@@ -209,8 +215,9 @@ static int stmmac_xgmac2_mdio_write_c22(struct mii_bus *bus, int phyaddr,
 
 	priv = netdev_priv(ndev);
 
-	/* HW does not support C22 addr >= 4 */
-	if (phyaddr > MII_XGMAC_MAX_C22ADDR)
+	/* Until ver 2.20 XGMAC does not support C22 addr >= 4 */
+	if (priv->synopsys_id < DWXGMAC_CORE_2_20 &&
+	    phyaddr > MII_XGMAC_MAX_C22ADDR)
 		return -ENODEV;
 
 	stmmac_xgmac2_c22_format(priv, phyaddr, phyreg, &addr);
@@ -526,11 +533,11 @@ int stmmac_mdio_register(struct net_device *ndev)
 	int err = 0;
 	struct mii_bus *new_bus;
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct fwnode_handle *fwnode = of_fwnode_handle(priv->plat->phylink_node);
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
 	struct device_node *mdio_node = priv->plat->mdio_node;
 	struct device *dev = ndev->dev.parent;
 	struct fwnode_handle *fixed_node;
+	struct fwnode_handle *fwnode;
 	int addr, found, max_addr;
 
 	if (!mdio_bus_data)
@@ -551,13 +558,18 @@ int stmmac_mdio_register(struct net_device *ndev)
 		new_bus->read_c45 = &stmmac_xgmac2_mdio_read_c45;
 		new_bus->write_c45 = &stmmac_xgmac2_mdio_write_c45;
 
-		/* Right now only C22 phys are supported */
-		max_addr = MII_XGMAC_MAX_C22ADDR + 1;
+		if (priv->synopsys_id < DWXGMAC_CORE_2_20) {
+			/* Right now only C22 phys are supported */
+			max_addr = MII_XGMAC_MAX_C22ADDR + 1;
 
-		/* Check if DT specified an unsupported phy addr */
-		if (priv->plat->phy_addr > MII_XGMAC_MAX_C22ADDR)
-			dev_err(dev, "Unsupported phy_addr (max=%d)\n",
+			/* Check if DT specified an unsupported phy addr */
+			if (priv->plat->phy_addr > MII_XGMAC_MAX_C22ADDR)
+				dev_err(dev, "Unsupported phy_addr (max=%d)\n",
 					MII_XGMAC_MAX_C22ADDR);
+		} else {
+			/* XGMAC version 2.20 onwards support 32 phy addr */
+			max_addr = PHY_MAX_ADDR;
+		}
 	} else {
 		new_bus->read = &stmmac_mdio_read_c22;
 		new_bus->write = &stmmac_mdio_write_c22;
@@ -589,6 +601,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		stmmac_xgmac2_mdio_read_c45(new_bus, 0, 0, 0);
 
 	/* If fixed-link is set, skip PHY scanning */
+	fwnode = priv->plat->port_node;
 	if (!fwnode)
 		fwnode = dev_fwnode(priv->device);
 

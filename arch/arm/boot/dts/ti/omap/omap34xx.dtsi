@@ -25,7 +25,7 @@
 		compatible = "operating-points-v2-ti-cpu";
 		syscon = <&scm_conf>;
 
-		opp1-125000000 {
+		opp-125000000 {
 			opp-hz = /bits/ 64 <125000000>;
 			/*
 			 * we currently only select the max voltage from table
@@ -40,32 +40,32 @@
 			opp-supported-hw = <0xffffffff 3>;
 		};
 
-		opp2-250000000 {
+		opp-250000000 {
 			opp-hz = /bits/ 64 <250000000>;
 			opp-microvolt = <1075000 1075000 1075000>;
 			opp-supported-hw = <0xffffffff 3>;
 			opp-suspend;
 		};
 
-		opp3-500000000 {
+		opp-500000000 {
 			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <1200000 1200000 1200000>;
 			opp-supported-hw = <0xffffffff 3>;
 		};
 
-		opp4-550000000 {
+		opp-550000000 {
 			opp-hz = /bits/ 64 <550000000>;
 			opp-microvolt = <1275000 1275000 1275000>;
 			opp-supported-hw = <0xffffffff 3>;
 		};
 
-		opp5-600000000 {
+		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <1350000 1350000 1350000>;
 			opp-supported-hw = <0xffffffff 3>;
 		};
 
-		opp6-720000000 {
+		opp-720000000 {
 			opp-hz = /bits/ 64 <720000000>;
 			opp-microvolt = <1350000 1350000 1350000>;
 			/* only high-speed grade omap3530 devices */

@@ -123,7 +123,7 @@ typedef enum {
   VOLTAGE_GUARDBAND_COUNT
 } GFX_GUARDBAND_e;
 
-#define SMU_METRICS_TABLE_VERSION 0x5
+#define SMU_METRICS_TABLE_VERSION 0x7
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
@@ -198,7 +198,7 @@ typedef struct __attribute__((packed, aligned(4))) {
   uint32_t SocketThmResidencyAcc;
   uint32_t VrThmResidencyAcc;
   uint32_t HbmThmResidencyAcc;
-  uint32_t spare;
+  uint32_t GfxLockXCDMak;
 
   // New Items at end to maintain driver compatibility
   uint32_t GfxclkFrequency[8];

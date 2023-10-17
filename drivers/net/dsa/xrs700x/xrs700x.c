@@ -7,7 +7,7 @@
 #include <net/dsa.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/netdev_features.h>
 #include <linux/if_hsr.h>
 #include "xrs700x.h"

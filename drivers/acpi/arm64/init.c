@@ -10,4 +10,6 @@ void __init acpi_arm_init(void)
 		acpi_apmt_init();
 	if (IS_ENABLED(CONFIG_ACPI_IORT))
 		acpi_iort_init();
+	if (IS_ENABLED(CONFIG_ARM_AMBA))
+		acpi_amba_init();
 }

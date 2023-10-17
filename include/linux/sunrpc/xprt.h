@@ -351,6 +351,8 @@ struct xprt_create {
 	struct rpc_xprt_switch	*bc_xps;
 	unsigned int		flags;
 	struct xprtsec_parms	xprtsec;
+	unsigned long		connect_timeout;
+	unsigned long		reconnect_timeout;
 };
 
 struct xprt_class {

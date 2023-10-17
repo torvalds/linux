@@ -104,7 +104,7 @@
 enum qm_stop_reason {
 	QM_NORMAL,
 	QM_SOFT_RESET,
-	QM_FLR,
+	QM_DOWN,
 };
 
 enum qm_state {

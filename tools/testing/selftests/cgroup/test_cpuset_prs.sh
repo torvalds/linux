@@ -10,7 +10,7 @@
 skip_test() {
 	echo "$1"
 	echo "Test SKIPPED"
-	exit 0
+	exit 4 # ksft_skip
 }
 
 [[ $(id -u) -eq 0 ]] || skip_test "Test must be run as root!"

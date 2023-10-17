@@ -178,6 +178,14 @@ config REGULATOR_ATC260X
 	  ATC260x PMICs. This will enable support for all the software
 	  controllable DCDC/LDO regulators.
 
+config REGULATOR_AW37503
+	tristate "Awinic AW37503 Dual Output Power regulators"
+	depends on I2C && GPIOLIB
+	select REGMAP_I2C
+	help
+	  This driver supports AW37503 single inductor - dual output
+	  power supply specifically designed for display panels.
+
 config REGULATOR_AXP20X
 	tristate "X-POWERS AXP20X PMIC Regulators"
 	depends on MFD_AXP20X
@@ -546,11 +554,11 @@ config REGULATOR_MAX1586
 	  regulator via I2C bus. The provided regulator is suitable
 	  for PXA27x chips to control VCC_CORE and VCC_USIM voltages.
 
-config REGULATOR_MAX597X
-	tristate "Maxim 597x power switch and monitor"
+config REGULATOR_MAX5970
+	tristate "Maxim 5970/5978 power switch and monitor"
 	depends on I2C
 	depends on OF
-	depends on MFD_MAX597X
+	depends on MFD_MAX5970
 	help
 	  This driver controls a Maxim 5970/5978 switch via I2C bus.
 	  The MAX5970/5978 is a smart switch with no output regulation, but
@@ -583,6 +591,16 @@ config REGULATOR_MAX77650
 	  Regulator driver for MAX77650/77651 PMIC from Maxim
 	  Semiconductor. This device has a SIMO with three independent
 	  power rails and an LDO.
+
+config REGULATOR_MAX77857
+	tristate "ADI MAX77857/MAX77831 regulator support"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver controls a ADI MAX77857 and MAX77831 regulators.
+	  via I2C bus. MAX77857 and MAX77831 are high efficiency buck-boost
+	  converters with input voltage range (2.5V to 16V). Say Y here to
+	  enable the regulator driver
 
 config REGULATOR_MAX8649
 	tristate "Maxim 8649 voltage regulator"
@@ -989,6 +1007,18 @@ config REGULATOR_PWM
 	  This driver supports PWM controlled voltage regulators. PWM
 	  duty cycle can increase or decrease the voltage.
 
+config REGULATOR_QCOM_REFGEN
+	tristate "Qualcomm REFGEN regulator driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on REGMAP
+	help
+	  This driver supports the MMIO-mapped reference voltage regulator,
+	  used internally by some PHYs on many Qualcomm SoCs.
+
+	  Say M here if you want to include support for this regulator as
+	  a module. The module will be named "qcom-refgen-regulator".
+
 config REGULATOR_QCOM_RPM
 	tristate "Qualcomm RPM regulator driver"
 	depends on MFD_QCOM_RPM
@@ -1050,7 +1080,11 @@ config REGULATOR_RAA215300
 	depends on COMMON_CLK
 	depends on I2C
 	help
-	  Support for the Renesas RAA215300 PMIC.
+	  If you say yes to this option, support will be included for the
+	  Renesas RAA215300 PMIC.
+
+	  Say M here if you want to include support for Renesas RAA215300 PMIC
+	  as a module. The module will be named "raa215300".
 
 config REGULATOR_RASPBERRYPI_TOUCHSCREEN_ATTINY
 	tristate "Raspberry Pi 7-inch touchscreen panel ATTINY regulator"
@@ -1231,6 +1265,17 @@ config REGULATOR_RTQ6752
 	  This driver adds support for Richtek RTQ6752. RTQ6752 includes two
 	  synchronous boost converters for PAVDD, and one synchronous NAVDD
 	  buck-boost. This device is suitable for automotive TFT-LCD panel.
+
+config REGULATOR_RTQ2208
+	tristate "Richtek RTQ2208 SubPMIC Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver adds support for RTQ2208 SubPMIC regulators.
+	  The RTQ2208 is a multi-phase, programmable power management IC that
+	  integrate with dual multi-configurable, synchronous buck converters
+	  and two ldos. It features wide output voltage range from 0.4V to 2.05V
+	  and the capability to configure the corresponding power stages.
 
 config REGULATOR_S2MPA01
 	tristate "Samsung S2MPA01 voltage regulator"

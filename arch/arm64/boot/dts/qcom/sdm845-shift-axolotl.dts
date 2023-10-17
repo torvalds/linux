@@ -440,7 +440,7 @@
 		reg = <0x38>;
 		wakeup-source;
 		interrupt-parent = <&tlmm>;
-		interrupts = <125 0x2>;
+		interrupts = <125 IRQ_TYPE_EDGE_FALLING>;
 		vdd-supply = <&vreg_l28a_3p0>;
 		vcc-i2c-supply = <&vreg_l14a_1p88>;
 

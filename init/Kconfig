@@ -629,6 +629,7 @@ config TASK_IO_ACCOUNTING
 
 config PSI
 	bool "Pressure stall information tracking"
+	select KERNFS
 	help
 	  Collect metrics that indicate how overcommitted the CPU, memory,
 	  and IO capacity are in the system.
@@ -1790,14 +1791,6 @@ config DEBUG_RSEQ
 
 	  If unsure, say N.
 
-config EMBEDDED
-	bool "Embedded system"
-	select EXPERT
-	help
-	  This option should be enabled if compiling the kernel for
-	  an embedded system so certain expert options are available
-	  for configuration.
-
 config HAVE_PERF_EVENTS
 	bool
 	help
@@ -1926,6 +1919,8 @@ config BINDGEN_VERSION_TEXT
 #
 config TRACEPOINTS
 	bool
+
+source "kernel/Kconfig.kexec"
 
 endmenu		# General setup
 

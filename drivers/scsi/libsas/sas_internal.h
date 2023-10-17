@@ -41,13 +41,7 @@ struct sas_phy_data {
 
 void sas_scsi_recover_host(struct Scsi_Host *shost);
 
-int sas_show_class(enum sas_class class, char *buf);
-int sas_show_proto(enum sas_protocol proto, char *buf);
-int sas_show_linkrate(enum sas_linkrate linkrate, char *buf);
-int sas_show_oob_mode(enum sas_oob_mode oob_mode, char *buf);
-
 int  sas_register_phys(struct sas_ha_struct *sas_ha);
-void sas_unregister_phys(struct sas_ha_struct *sas_ha);
 
 struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy, gfp_t gfp_flags);
 void sas_free_event(struct asd_sas_event *event);
@@ -91,7 +85,6 @@ int sas_get_report_phy_sata(struct domain_device *dev, int phy_id,
 int sas_get_phy_attached_dev(struct domain_device *dev, int phy_id,
 			     u8 *sas_addr, enum sas_device_type *type);
 int sas_try_ata_reset(struct asd_sas_phy *phy);
-void sas_hae_reset(struct work_struct *work);
 
 void sas_free_device(struct kref *kref);
 void sas_destruct_devices(struct asd_sas_port *port);

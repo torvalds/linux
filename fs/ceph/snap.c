@@ -660,7 +660,7 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 	capsnap->size = i_size_read(inode);
 	capsnap->mtime = inode->i_mtime;
 	capsnap->atime = inode->i_atime;
-	capsnap->ctime = inode->i_ctime;
+	capsnap->ctime = inode_get_ctime(inode);
 	capsnap->btime = ci->i_btime;
 	capsnap->change_attr = inode_peek_iversion_raw(inode);
 	capsnap->time_warp_seq = ci->i_time_warp_seq;
@@ -1015,6 +1015,9 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 	int locked_rwsem = 0;
 	bool close_sessions = false;
 
+	if (!ceph_inc_mds_stopping_blocker(mdsc, session))
+		return;
+
 	/* decode */
 	if (msg->front.iov_len < sizeof(*h))
 		goto bad;
@@ -1029,10 +1032,6 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 
 	dout("%s from mds%d op %s split %llx tracelen %d\n", __func__,
 	     mds, ceph_snap_op_name(op), split, trace_len);
-
-	mutex_lock(&session->s_mutex);
-	inc_session_sequence(session);
-	mutex_unlock(&session->s_mutex);
 
 	down_write(&mdsc->snap_rwsem);
 	locked_rwsem = 1;
@@ -1151,6 +1150,7 @@ skip_inode:
 	up_write(&mdsc->snap_rwsem);
 
 	flush_snaps(mdsc);
+	ceph_dec_mds_stopping_blocker(mdsc);
 	return;
 
 bad:
@@ -1159,6 +1159,8 @@ bad:
 out:
 	if (locked_rwsem)
 		up_write(&mdsc->snap_rwsem);
+
+	ceph_dec_mds_stopping_blocker(mdsc);
 
 	if (close_sessions)
 		ceph_mdsc_close_sessions(mdsc);

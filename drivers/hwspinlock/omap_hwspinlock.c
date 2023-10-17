@@ -145,7 +145,7 @@ runtime_err:
 	return ret;
 }
 
-static int omap_hwspinlock_remove(struct platform_device *pdev)
+static void omap_hwspinlock_remove(struct platform_device *pdev)
 {
 	struct hwspinlock_device *bank = platform_get_drvdata(pdev);
 	int ret;
@@ -153,12 +153,10 @@ static int omap_hwspinlock_remove(struct platform_device *pdev)
 	ret = hwspin_lock_unregister(bank);
 	if (ret) {
 		dev_err(&pdev->dev, "%s failed: %d\n", __func__, ret);
-		return ret;
+		return;
 	}
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id omap_hwspinlock_of_match[] = {
@@ -171,7 +169,7 @@ MODULE_DEVICE_TABLE(of, omap_hwspinlock_of_match);
 
 static struct platform_driver omap_hwspinlock_driver = {
 	.probe		= omap_hwspinlock_probe,
-	.remove		= omap_hwspinlock_remove,
+	.remove_new	= omap_hwspinlock_remove,
 	.driver		= {
 		.name	= "omap_hwspinlock",
 		.of_match_table = omap_hwspinlock_of_match,

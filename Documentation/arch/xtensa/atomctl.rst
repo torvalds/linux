@@ -23,7 +23,7 @@ doing a Cached (WB) transaction and use the Memory RCW for un-cached
 operations.
 
 For systems without an coherent cache controller, non-MX, we always
-use the memory controllers RCW, thought non-MX controlers likely
+use the memory controllers RCW, though non-MX controllers likely
 support the Internal Operation.
 
 CUSTOMER-WARNING:

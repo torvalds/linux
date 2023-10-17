@@ -335,3 +335,9 @@ SYSCALL_DEFINE5(riscv_hwprobe, struct riscv_hwprobe __user *, pairs,
 	return do_riscv_hwprobe(pairs, pair_count, cpu_count,
 				cpus, flags);
 }
+
+/* Not defined using SYSCALL_DEFINE0 to avoid error injection */
+asmlinkage long __riscv_sys_ni_syscall(const struct pt_regs *__unused)
+{
+	return -ENOSYS;
+}

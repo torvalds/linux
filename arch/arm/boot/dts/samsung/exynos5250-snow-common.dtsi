@@ -60,12 +60,9 @@
 
 	i2c-arbitrator {
 		compatible = "i2c-arb-gpio-challenge";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		i2c-parent = <&i2c_4>;
 
-		our-claim-gpio = <&gpf0 3 GPIO_ACTIVE_LOW>;
+		our-claim-gpios = <&gpf0 3 GPIO_ACTIVE_LOW>;
 		their-claim-gpios = <&gpe0 4 GPIO_ACTIVE_LOW>;
 		slew-delay-us = <10>;
 		wait-retry-us = <3000>;
@@ -75,8 +72,7 @@
 		pinctrl-0 = <&arb_our_claim &arb_their_claim>;
 
 		/* Use ID 104 as a hint that we're on physical bus 4 */
-		i2c_104: i2c@0 {
-			reg = <0>;
+		i2c_104: i2c-arb {
 			#address-cells = <1>;
 			#size-cells = <0>;
 

@@ -38,6 +38,8 @@ static void netdev_print_device(struct netdev_dev_get_rsp *d, unsigned int op)
 			printf(" %s", netdev_xdp_act_str(1 << i));
 	}
 
+	printf(" xdp-zc-max-segs=%u", d->xdp_zc_max_segs);
+
 	name = netdev_op_str(op);
 	if (name)
 		printf(" (ntf: %s)", name);

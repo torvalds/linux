@@ -143,7 +143,9 @@ properties:
       - description: Octavo OSD32MP15x System-in-Package based boards
         items:
           - enum:
-              - lxa,stm32mp157c-mc1 # Linux Automation MC-1
+              - lxa,stm32mp157c-mc1      # Linux Automation MC-1
+              - lxa,stm32mp157c-tac-gen1 # Linux Automation TAC (Generation 1)
+              - lxa,stm32mp157c-tac-gen2 # Linux Automation TAC (Generation 2)
           - const: oct,stm32mp15xx-osd32
           - enum:
               - st,stm32mp157

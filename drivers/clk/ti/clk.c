@@ -16,6 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/list.h>
 #include <linux/regmap.h>
+#include <linux/string_helpers.h>
 #include <linux/memblock.h>
 #include <linux/device.h>
 
@@ -123,10 +124,9 @@ static struct device_node *ti_find_clock_provider(struct device_node *from,
 	const char *n;
 	char *tmp;
 
-	tmp = kstrdup(name, GFP_KERNEL);
+	tmp = kstrdup_and_replace(name, '-', '_', GFP_KERNEL);
 	if (!tmp)
 		return NULL;
-	strreplace(tmp, '-', '_');
 
 	/* Node named "clock" with "clock-output-names" */
 	for_each_of_allnodes_from(from, np) {

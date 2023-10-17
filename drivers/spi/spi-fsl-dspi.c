@@ -13,7 +13,8 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
@@ -22,7 +23,7 @@
 #define DRIVER_NAME			"fsl-dspi"
 
 #define SPI_MCR				0x00
-#define SPI_MCR_MASTER			BIT(31)
+#define SPI_MCR_HOST			BIT(31)
 #define SPI_MCR_PCSIS(x)		((x) << 16)
 #define SPI_MCR_CLR_TXF			BIT(11)
 #define SPI_MCR_CLR_RXF			BIT(10)
@@ -339,7 +340,7 @@ static u32 dspi_pop_tx_pushr(struct fsl_dspi *dspi)
 {
 	u16 cmd = dspi->tx_cmd, data = dspi_pop_tx(dspi);
 
-	if (spi_controller_is_slave(dspi->ctlr))
+	if (spi_controller_is_target(dspi->ctlr))
 		return data;
 
 	if (dspi->len > 0)
@@ -429,7 +430,7 @@ static int dspi_next_xfer_dma_submit(struct fsl_dspi *dspi)
 	dma_async_issue_pending(dma->chan_rx);
 	dma_async_issue_pending(dma->chan_tx);
 
-	if (spi_controller_is_slave(dspi->ctlr)) {
+	if (spi_controller_is_target(dspi->ctlr)) {
 		wait_for_completion_interruptible(&dspi->dma->cmd_rx_complete);
 		return 0;
 	}
@@ -502,15 +503,14 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 
 	dma->chan_rx = dma_request_chan(dev, "rx");
 	if (IS_ERR(dma->chan_rx)) {
-		dev_err(dev, "rx dma channel not available\n");
-		ret = PTR_ERR(dma->chan_rx);
-		return ret;
+		return dev_err_probe(dev, PTR_ERR(dma->chan_rx),
+			"rx dma channel not available\n");
 	}
 
 	dma->chan_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->chan_tx)) {
-		dev_err(dev, "tx dma channel not available\n");
 		ret = PTR_ERR(dma->chan_tx);
+		dev_err_probe(dev, ret, "tx dma channel not available\n");
 		goto err_tx_channel;
 	}
 
@@ -1061,7 +1061,7 @@ static int dspi_setup(struct spi_device *spi)
 	if (spi->mode & SPI_CPHA)
 		chip->ctar_val |= SPI_CTAR_CPHA;
 
-	if (!spi_controller_is_slave(dspi->ctlr)) {
+	if (!spi_controller_is_target(dspi->ctlr)) {
 		chip->ctar_val |= SPI_CTAR_PCSSCK(pcssck) |
 				  SPI_CTAR_CSSCK(cssck) |
 				  SPI_CTAR_PASC(pasc) |
@@ -1216,8 +1216,8 @@ static int dspi_init(struct fsl_dspi *dspi)
 
 	if (dspi->devtype_data->trans_mode == DSPI_XSPI_MODE)
 		mcr |= SPI_MCR_XSPI;
-	if (!spi_controller_is_slave(dspi->ctlr))
-		mcr |= SPI_MCR_MASTER;
+	if (!spi_controller_is_target(dspi->ctlr))
+		mcr |= SPI_MCR_HOST;
 
 	regmap_write(dspi->regmap, SPI_MCR, mcr);
 	regmap_write(dspi->regmap, SPI_SR, SPI_SR_CLEAR);
@@ -1240,13 +1240,13 @@ static int dspi_init(struct fsl_dspi *dspi)
 	return 0;
 }
 
-static int dspi_slave_abort(struct spi_master *master)
+static int dspi_target_abort(struct spi_controller *host)
 {
-	struct fsl_dspi *dspi = spi_master_get_devdata(master);
+	struct fsl_dspi *dspi = spi_controller_get_devdata(host);
 
 	/*
 	 * Terminate all pending DMA transactions for the SPI working
-	 * in SLAVE mode.
+	 * in TARGET mode.
 	 */
 	if (dspi->devtype_data->trans_mode == DSPI_DMA_MODE) {
 		dmaengine_terminate_sync(dspi->dma->chan_rx);
@@ -1277,7 +1277,7 @@ static int dspi_probe(struct platform_device *pdev)
 	if (!dspi)
 		return -ENOMEM;
 
-	ctlr = spi_alloc_master(&pdev->dev, 0);
+	ctlr = spi_alloc_host(&pdev->dev, 0);
 	if (!ctlr)
 		return -ENOMEM;
 
@@ -1292,7 +1292,7 @@ static int dspi_probe(struct platform_device *pdev)
 	ctlr->dev.of_node = pdev->dev.of_node;
 
 	ctlr->cleanup = dspi_cleanup;
-	ctlr->slave_abort = dspi_slave_abort;
+	ctlr->target_abort = dspi_target_abort;
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
 	ctlr->use_gpio_descriptors = true;
 
@@ -1317,7 +1317,7 @@ static int dspi_probe(struct platform_device *pdev)
 		ctlr->bus_num = bus_num;
 
 		if (of_property_read_bool(np, "spi-slave"))
-			ctlr->slave = true;
+			ctlr->target = true;
 
 		dspi->devtype_data = of_device_get_match_data(&pdev->dev);
 		if (!dspi->devtype_data) {

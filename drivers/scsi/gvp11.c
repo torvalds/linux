@@ -50,11 +50,6 @@ static irqreturn_t gvp11_intr(int irq, void *data)
 
 static int gvp11_xfer_mask = 0;
 
-void gvp11_setup(char *str, int *ints)
-{
-	gvp11_xfer_mask = ints[1];
-}
-
 static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
 	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(cmd);

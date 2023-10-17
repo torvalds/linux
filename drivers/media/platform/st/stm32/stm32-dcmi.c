@@ -134,6 +134,7 @@ struct stm32_dcmi {
 	struct video_device		*vdev;
 	struct v4l2_async_notifier	notifier;
 	struct v4l2_subdev		*source;
+	struct v4l2_subdev		*s_subdev;
 	struct v4l2_format		fmt;
 	struct v4l2_rect		crop;
 	bool				do_crop;
@@ -692,51 +693,6 @@ static int dcmi_pipeline_s_fmt(struct stm32_dcmi *dcmi,
 	return 0;
 }
 
-static int dcmi_pipeline_s_stream(struct stm32_dcmi *dcmi, int state)
-{
-	struct media_entity *entity = &dcmi->vdev->entity;
-	struct v4l2_subdev *subdev;
-	struct media_pad *pad;
-	int ret;
-
-	/* Start/stop all entities within pipeline */
-	while (1) {
-		pad = &entity->pads[0];
-		if (!(pad->flags & MEDIA_PAD_FL_SINK))
-			break;
-
-		pad = media_pad_remote_pad_first(pad);
-		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
-			break;
-
-		entity = pad->entity;
-		subdev = media_entity_to_v4l2_subdev(entity);
-
-		ret = v4l2_subdev_call(subdev, video, s_stream, state);
-		if (ret < 0 && ret != -ENOIOCTLCMD) {
-			dev_err(dcmi->dev, "%s: \"%s\" failed to %s streaming (%d)\n",
-				__func__, subdev->name,
-				state ? "start" : "stop", ret);
-			return ret;
-		}
-
-		dev_dbg(dcmi->dev, "\"%s\" is %s\n",
-			subdev->name, state ? "started" : "stopped");
-	}
-
-	return 0;
-}
-
-static int dcmi_pipeline_start(struct stm32_dcmi *dcmi)
-{
-	return dcmi_pipeline_s_stream(dcmi, 1);
-}
-
-static void dcmi_pipeline_stop(struct stm32_dcmi *dcmi)
-{
-	dcmi_pipeline_s_stream(dcmi, 0);
-}
-
 static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct stm32_dcmi *dcmi = vb2_get_drv_priv(vq);
@@ -758,9 +714,12 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto err_pm_put;
 	}
 
-	ret = dcmi_pipeline_start(dcmi);
-	if (ret)
+	ret = v4l2_subdev_call(dcmi->s_subdev, video, s_stream, 1);
+	if (ret < 0) {
+		dev_err(dcmi->dev, "%s: Failed to start source subdev, error (%d)\n",
+			__func__, ret);
 		goto err_media_pipeline_stop;
+	}
 
 	spin_lock_irq(&dcmi->irqlock);
 
@@ -862,7 +821,7 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 
 err_pipeline_stop:
-	dcmi_pipeline_stop(dcmi);
+	v4l2_subdev_call(dcmi->s_subdev, video, s_stream, 0);
 
 err_media_pipeline_stop:
 	video_device_pipeline_stop(dcmi->vdev);
@@ -889,8 +848,12 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 {
 	struct stm32_dcmi *dcmi = vb2_get_drv_priv(vq);
 	struct dcmi_buf *buf, *node;
+	int ret;
 
-	dcmi_pipeline_stop(dcmi);
+	ret = v4l2_subdev_call(dcmi->s_subdev, video, s_stream, 0);
+	if (ret < 0)
+		dev_err(dcmi->dev, "%s: Failed to stop source subdev, error (%d)\n",
+			__func__, ret);
 
 	video_device_pipeline_stop(dcmi->vdev);
 
@@ -1837,7 +1800,7 @@ static int dcmi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 
 static void dcmi_graph_notify_unbind(struct v4l2_async_notifier *notifier,
 				     struct v4l2_subdev *sd,
-				     struct v4l2_async_subdev *asd)
+				     struct v4l2_async_connection *asd)
 {
 	struct stm32_dcmi *dcmi = notifier_to_dcmi(notifier);
 
@@ -1849,7 +1812,7 @@ static void dcmi_graph_notify_unbind(struct v4l2_async_notifier *notifier,
 
 static int dcmi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+				   struct v4l2_async_connection *asd)
 {
 	struct stm32_dcmi *dcmi = notifier_to_dcmi(notifier);
 	unsigned int ret;
@@ -1876,6 +1839,8 @@ static int dcmi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 		dev_dbg(dcmi->dev, "DCMI is now linked to \"%s\"\n",
 			subdev->name);
 
+	dcmi->s_subdev = subdev;
+
 	return ret;
 }
 
@@ -1887,7 +1852,7 @@ static const struct v4l2_async_notifier_operations dcmi_graph_notify_ops = {
 
 static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct device_node *ep;
 	int ret;
 
@@ -1897,11 +1862,11 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 		return -EINVAL;
 	}
 
-	v4l2_async_nf_init(&dcmi->notifier);
+	v4l2_async_nf_init(&dcmi->notifier, &dcmi->v4l2_dev);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&dcmi->notifier,
 					      of_fwnode_handle(ep),
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 
 	of_node_put(ep);
 
@@ -1912,7 +1877,7 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 
 	dcmi->notifier.ops = &dcmi_graph_notify_ops;
 
-	ret = v4l2_async_nf_register(&dcmi->v4l2_dev, &dcmi->notifier);
+	ret = v4l2_async_nf_register(&dcmi->notifier);
 	if (ret < 0) {
 		dev_err(dcmi->dev, "Failed to register notifier\n");
 		v4l2_async_nf_cleanup(&dcmi->notifier);
@@ -1932,7 +1897,6 @@ static int dcmi_probe(struct platform_device *pdev)
 	struct dma_chan *chan;
 	struct dma_slave_caps caps;
 	struct clk *mclk;
-	int irq;
 	int ret = 0;
 
 	match = of_match_device(of_match_ptr(stm32_dcmi_of_match), &pdev->dev);
@@ -1981,19 +1945,11 @@ static int dcmi_probe(struct platform_device *pdev)
 	dcmi->bus.data_shift = ep.bus.parallel.data_shift;
 	dcmi->bus_type = ep.bus_type;
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
-		return irq ? irq : -ENXIO;
+	dcmi->irq = platform_get_irq(pdev, 0);
+	if (dcmi->irq < 0)
+		return dcmi->irq;
 
-	dcmi->irq = irq;
-
-	dcmi->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!dcmi->res) {
-		dev_err(&pdev->dev, "Could not get resource\n");
-		return -ENODEV;
-	}
-
-	dcmi->regs = devm_ioremap_resource(&pdev->dev, dcmi->res);
+	dcmi->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &dcmi->res);
 	if (IS_ERR(dcmi->regs))
 		return PTR_ERR(dcmi->regs);
 

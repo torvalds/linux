@@ -208,6 +208,9 @@ struct vdpa_map_file {
  *				@vdev: vdpa device
  *				Returns the virtio features support by the
  *				device
+ * @get_backend_features:	Get parent-specific backend features (optional)
+ *				Returns the vdpa features supported by the
+ *				device.
  * @set_driver_features:	Set virtio features supported by the driver
  *				@vdev: vdpa device
  *				@features: feature support by the driver
@@ -358,6 +361,7 @@ struct vdpa_config_ops {
 	u32 (*get_vq_align)(struct vdpa_device *vdev);
 	u32 (*get_vq_group)(struct vdpa_device *vdev, u16 idx);
 	u64 (*get_device_features)(struct vdpa_device *vdev);
+	u64 (*get_backend_features)(const struct vdpa_device *vdev);
 	int (*set_driver_features)(struct vdpa_device *vdev, u64 features);
 	u64 (*get_driver_features)(struct vdpa_device *vdev);
 	void (*set_config_cb)(struct vdpa_device *vdev,

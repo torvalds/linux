@@ -19,10 +19,8 @@
 #include <trace/events/erofs.h>
 
 static struct kmem_cache *erofs_inode_cachep __read_mostly;
-struct file_system_type erofs_fs_type;
 
-void _erofs_err(struct super_block *sb, const char *function,
-		const char *fmt, ...)
+void _erofs_err(struct super_block *sb, const char *func, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -32,12 +30,11 @@ void _erofs_err(struct super_block *sb, const char *function,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	pr_err("(device %s): %s: %pV", sb->s_id, function, &vaf);
+	pr_err("(device %s): %s: %pV", sb->s_id, func, &vaf);
 	va_end(args);
 }
 
-void _erofs_info(struct super_block *sb, const char *function,
-		 const char *fmt, ...)
+void _erofs_info(struct super_block *sb, const char *func, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -102,11 +99,9 @@ static void erofs_free_inode(struct inode *inode)
 {
 	struct erofs_inode *vi = EROFS_I(inode);
 
-	/* be careful of RCU symlink path */
 	if (inode->i_op == &erofs_fast_symlink_iops)
 		kfree(inode->i_link);
 	kfree(vi->xattr_shared_xattrs);
-
 	kmem_cache_free(erofs_inode_cachep, vi);
 }
 
@@ -119,8 +114,7 @@ static bool check_layout_compatibility(struct super_block *sb,
 
 	/* check if current kernel meets all mandatory requirements */
 	if (feature & (~EROFS_ALL_FEATURE_INCOMPAT)) {
-		erofs_err(sb,
-			  "unidentified incompatible feature %x, please upgrade kernel version",
+		erofs_err(sb, "unidentified incompatible feature %x, please upgrade kernel",
 			   feature & ~EROFS_ALL_FEATURE_INCOMPAT);
 		return false;
 	}
@@ -201,6 +195,9 @@ static int erofs_load_compr_cfgs(struct super_block *sb,
 		case Z_EROFS_COMPRESSION_LZMA:
 			ret = z_erofs_load_lzma_config(sb, dsb, data, size);
 			break;
+		case Z_EROFS_COMPRESSION_DEFLATE:
+			ret = z_erofs_load_deflate_config(sb, dsb, data, size);
+			break;
 		default:
 			DBG_BUGON(1);
 			ret = -EFAULT;
@@ -238,7 +235,7 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 		return PTR_ERR(ptr);
 	dis = ptr + erofs_blkoff(sb, *pos);
 
-	if (!dif->path) {
+	if (!sbi->devs->flatdev && !dif->path) {
 		if (!dis->tag[0]) {
 			erofs_err(sb, "empty device tag @ pos %llu", *pos);
 			return -EINVAL;
@@ -388,6 +385,7 @@ static int erofs_read_superblock(struct super_block *sb)
 	sbi->xattr_blkaddr = le32_to_cpu(dsb->xattr_blkaddr);
 	sbi->xattr_prefix_start = le32_to_cpu(dsb->xattr_prefix_start);
 	sbi->xattr_prefix_count = dsb->xattr_prefix_count;
+	sbi->xattr_filter_reserved = dsb->xattr_filter_reserved;
 #endif
 	sbi->islotbits = ilog2(sizeof(struct erofs_inode_compact));
 	sbi->root_nid = le16_to_cpu(dsb->root_nid);
@@ -420,16 +418,11 @@ static int erofs_read_superblock(struct super_block *sb)
 
 	if (erofs_is_fscache_mode(sb))
 		erofs_info(sb, "EXPERIMENTAL fscache-based on-demand read feature in use. Use at your own risk!");
-	if (erofs_sb_has_fragments(sbi))
-		erofs_info(sb, "EXPERIMENTAL compressed fragments feature in use. Use at your own risk!");
-	if (erofs_sb_has_dedupe(sbi))
-		erofs_info(sb, "EXPERIMENTAL global deduplication feature in use. Use at your own risk!");
 out:
 	erofs_put_metabuf(&buf);
 	return ret;
 }
 
-/* set up default EROFS parameters */
 static void erofs_default_options(struct erofs_fs_context *ctx)
 {
 #ifdef CONFIG_EROFS_FS_ZIP
@@ -731,7 +724,6 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 	xa_init(&sbi->managed_pslots);
 #endif
 
-	/* get the root inode */
 	inode = erofs_iget(sb, ROOT_NID(sbi));
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
@@ -748,7 +740,6 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 		return -ENOMEM;
 
 	erofs_shrinker_register(sb);
-	/* sb->s_umount is already locked, SB_ACTIVE and SB_BORN are not set */
 	if (erofs_sb_has_fragments(sbi) && sbi->packed_nid) {
 		sbi->packed_inode = erofs_iget(sb, sbi->packed_nid);
 		if (IS_ERR(sbi->packed_inode)) {
@@ -881,15 +872,9 @@ static int erofs_init_fs_context(struct fs_context *fc)
 	return 0;
 }
 
-/*
- * could be triggered after deactivate_locked_super()
- * is called, thus including umount and failed to initialize.
- */
 static void erofs_kill_sb(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi;
-
-	WARN_ON(sb->s_magic != EROFS_SUPER_MAGIC);
 
 	/* pseudo mount for anon inodes */
 	if (sb->s_flags & SB_KERNMOUNT) {
@@ -915,7 +900,6 @@ static void erofs_kill_sb(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
-/* called when ->s_root is non-NULL */
 static void erofs_put_super(struct super_block *sb)
 {
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
@@ -952,9 +936,9 @@ static int __init erofs_module_init(void)
 	erofs_check_ondisk_layout_definitions();
 
 	erofs_inode_cachep = kmem_cache_create("erofs_inode",
-					       sizeof(struct erofs_inode), 0,
-					       SLAB_RECLAIM_ACCOUNT,
-					       erofs_inode_init_once);
+			sizeof(struct erofs_inode), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD | SLAB_ACCOUNT,
+			erofs_inode_init_once);
 	if (!erofs_inode_cachep)
 		return -ENOMEM;
 
@@ -965,6 +949,10 @@ static int __init erofs_module_init(void)
 	err = z_erofs_lzma_init();
 	if (err)
 		goto lzma_err;
+
+	err = z_erofs_deflate_init();
+	if (err)
+		goto deflate_err;
 
 	erofs_pcpubuf_init();
 	err = z_erofs_init_zip_subsystem();
@@ -986,6 +974,8 @@ fs_err:
 sysfs_err:
 	z_erofs_exit_zip_subsystem();
 zip_err:
+	z_erofs_deflate_exit();
+deflate_err:
 	z_erofs_lzma_exit();
 lzma_err:
 	erofs_exit_shrinker();
@@ -1003,13 +993,13 @@ static void __exit erofs_module_exit(void)
 
 	erofs_exit_sysfs();
 	z_erofs_exit_zip_subsystem();
+	z_erofs_deflate_exit();
 	z_erofs_lzma_exit();
 	erofs_exit_shrinker();
 	kmem_cache_destroy(erofs_inode_cachep);
 	erofs_pcpubuf_exit();
 }
 
-/* get filesystem statistics */
 static int erofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;

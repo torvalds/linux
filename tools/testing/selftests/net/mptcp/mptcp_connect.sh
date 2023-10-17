@@ -7,6 +7,7 @@ time_start=$(date +%s)
 
 optstring="S:R:d:e:l:r:h4cm:f:tC"
 ret=0
+final_ret=0
 sin=""
 sout=""
 cin_disconnect=""
@@ -128,6 +129,7 @@ ns3="ns3-$rndh"
 ns4="ns4-$rndh"
 
 TEST_COUNT=0
+TEST_GROUP=""
 
 cleanup()
 {
@@ -285,6 +287,7 @@ check_mptcp_disabled()
 	# net.mptcp.enabled should be enabled by default
 	if [ "$(ip netns exec ${disabled_ns} sysctl net.mptcp.enabled | awk '{ print $3 }')" -ne 1 ]; then
 		echo -e "net.mptcp.enabled sysctl is not 1 by default\t\t[ FAIL ]"
+		mptcp_lib_result_fail "net.mptcp.enabled sysctl is not 1 by default"
 		ret=1
 		return 1
 	fi
@@ -297,11 +300,13 @@ check_mptcp_disabled()
 
 	if [ ${err} -eq 0 ]; then
 		echo -e "New MPTCP socket cannot be blocked via sysctl\t\t[ FAIL ]"
+		mptcp_lib_result_fail "New MPTCP socket cannot be blocked via sysctl"
 		ret=1
 		return 1
 	fi
 
 	echo -e "New MPTCP socket can be blocked via sysctl\t\t[ OK ]"
+	mptcp_lib_result_pass "New MPTCP socket can be blocked via sysctl"
 	return 0
 }
 
@@ -317,14 +322,16 @@ do_ping()
 	local connector_ns="$2"
 	local connect_addr="$3"
 	local ping_args="-q -c 1"
+	local rc=0
 
 	if is_v6 "${connect_addr}"; then
 		$ipv6 || return 0
 		ping_args="${ping_args} -6"
 	fi
 
-	ip netns exec ${connector_ns} ping ${ping_args} $connect_addr >/dev/null
-	if [ $? -ne 0 ] ; then
+	ip netns exec ${connector_ns} ping ${ping_args} $connect_addr >/dev/null || rc=1
+
+	if [ $rc -ne 0 ] ; then
 		echo "$listener_ns -> $connect_addr connectivity [ FAIL ]" 1>&2
 		ret=1
 
@@ -403,7 +410,9 @@ do_transfer()
 
 	local addr_port
 	addr_port=$(printf "%s:%d" ${connect_addr} ${port})
-	printf "%.3s %-5s -> %.3s (%-20s) %-5s\t" ${connector_ns} ${cl_proto} ${listener_ns} ${addr_port} ${srv_proto}
+	local result_msg
+	result_msg="$(printf "%.3s %-5s -> %.3s (%-20s) %-5s" ${connector_ns} ${cl_proto} ${listener_ns} ${addr_port} ${srv_proto})"
+	printf "%s\t" "${result_msg}"
 
 	if $capture; then
 		local capuser
@@ -478,6 +487,7 @@ do_transfer()
 
 	local duration
 	duration=$((stop-start))
+	result_msg+=" # time=${duration}ms"
 	printf "(duration %05sms) " "${duration}"
 	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ]; then
 		echo "[ FAIL ] client exit code $retc, server $rets" 1>&2
@@ -490,6 +500,7 @@ do_transfer()
 
 		echo
 		cat "$capout"
+		mptcp_lib_result_fail "${TEST_GROUP}: ${result_msg}"
 		return 1
 	fi
 
@@ -549,6 +560,9 @@ do_transfer()
 
 	if [ $retc -eq 0 ] && [ $rets -eq 0 ]; then
 		printf "[ OK ]"
+		mptcp_lib_result_pass "${TEST_GROUP}: ${result_msg}"
+	else
+		mptcp_lib_result_fail "${TEST_GROUP}: ${result_msg}"
 	fi
 
 	if [ $cookies -eq 2 ];then
@@ -691,6 +705,8 @@ run_test_transparent()
 	local lret=0
 	local r6flag=""
 
+	TEST_GROUP="${msg}"
+
 	# skip if we don't want v6
 	if ! $ipv6 && is_v6 "${connect_addr}"; then
 		return 0
@@ -702,6 +718,7 @@ run_test_transparent()
 	# checking for a specific kernel version.
 	if ! mptcp_lib_kallsyms_has "T __ip_sock_set_tos$"; then
 		echo "INFO: ${msg} not supported by the kernel: SKIP"
+		mptcp_lib_result_skip "${TEST_GROUP}"
 		return
 	fi
 
@@ -719,6 +736,7 @@ EOF
 	if [ $? -ne 0 ]; then
 		echo "SKIP: $msg, could not load nft ruleset"
 		mptcp_lib_fail_if_expected_feature "nft rules"
+		mptcp_lib_result_skip "${TEST_GROUP}"
 		return
 	fi
 
@@ -735,6 +753,7 @@ EOF
 		ip netns exec "$listener_ns" nft flush ruleset
 		echo "SKIP: $msg, ip $r6flag rule failed"
 		mptcp_lib_fail_if_expected_feature "ip rule"
+		mptcp_lib_result_skip "${TEST_GROUP}"
 		return
 	fi
 
@@ -744,6 +763,7 @@ EOF
 		ip -net "$listener_ns" $r6flag rule del fwmark 1 lookup 100
 		echo "SKIP: $msg, ip route add local $local_addr failed"
 		mptcp_lib_fail_if_expected_feature "ip route"
+		mptcp_lib_result_skip "${TEST_GROUP}"
 		return
 	fi
 
@@ -773,6 +793,7 @@ run_tests_peekmode()
 {
 	local peekmode="$1"
 
+	TEST_GROUP="peek mode: ${peekmode}"
 	echo "INFO: with peek mode: ${peekmode}"
 	run_tests_lo "$ns1" "$ns1" 10.0.1.1 1 "-P ${peekmode}"
 	run_tests_lo "$ns1" "$ns1" dead:beef:1::1 1 "-P ${peekmode}"
@@ -780,8 +801,11 @@ run_tests_peekmode()
 
 run_tests_mptfo()
 {
+	TEST_GROUP="MPTFO"
+
 	if ! mptcp_lib_kallsyms_has "mptcp_fastopen_"; then
 		echo "INFO: TFO not supported by the kernel: SKIP"
+		mptcp_lib_result_skip "${TEST_GROUP}"
 		return
 	fi
 
@@ -805,8 +829,11 @@ run_tests_disconnect()
 	local old_cin=$cin
 	local old_sin=$sin
 
+	TEST_GROUP="full disconnect"
+
 	if ! mptcp_lib_kallsyms_has "mptcp_pm_data_reset$"; then
 		echo "INFO: Full disconnect not supported: SKIP"
+		mptcp_lib_result_skip "${TEST_GROUP}"
 		return
 	fi
 
@@ -837,14 +864,26 @@ display_time()
 	echo "Time: ${time_run} seconds"
 }
 
-stop_if_error()
+log_if_error()
 {
 	local msg="$1"
 
 	if [ ${ret} -ne 0 ]; then
 		echo "FAIL: ${msg}" 1>&2
+
+		final_ret=${ret}
+		ret=0
+
+		return ${final_ret}
+	fi
+}
+
+stop_if_error()
+{
+	if ! log_if_error "${@}"; then
 		display_time
-		exit ${ret}
+		mptcp_lib_result_print_all_tap
+		exit ${final_ret}
 	fi
 }
 
@@ -873,6 +912,8 @@ for sender in "$ns1" "$ns2" "$ns3" "$ns4";do
 	do_ping "$ns4" $sender 10.0.3.1
 	do_ping "$ns4" $sender dead:beef:3::1
 done
+
+mptcp_lib_result_code "${ret}" "ping tests"
 
 stop_if_error "Could not even run ping tests"
 
@@ -903,12 +944,15 @@ echo "on ns3eth4"
 
 tc -net "$ns3" qdisc add dev ns3eth4 root netem delay ${reorder_delay}ms $tc_reorder
 
+TEST_GROUP="loopback v4"
 run_tests_lo "$ns1" "$ns1" 10.0.1.1 1
 stop_if_error "Could not even run loopback test"
 
+TEST_GROUP="loopback v6"
 run_tests_lo "$ns1" "$ns1" dead:beef:1::1 1
 stop_if_error "Could not even run loopback v6 test"
 
+TEST_GROUP="multihosts"
 for sender in $ns1 $ns2 $ns3 $ns4;do
 	# ns1<->ns2 is not subject to reordering/tc delays. Use it to test
 	# mptcp syncookie support.
@@ -934,23 +978,25 @@ for sender in $ns1 $ns2 $ns3 $ns4;do
 	run_tests "$ns4" $sender 10.0.3.1
 	run_tests "$ns4" $sender dead:beef:3::1
 
-	stop_if_error "Tests with $sender as a sender have failed"
+	log_if_error "Tests with $sender as a sender have failed"
 done
 
 run_tests_peekmode "saveWithPeek"
 run_tests_peekmode "saveAfterPeek"
-stop_if_error "Tests with peek mode have failed"
+log_if_error "Tests with peek mode have failed"
 
 # MPTFO (MultiPath TCP Fatopen tests)
 run_tests_mptfo
-stop_if_error "Tests with MPTFO have failed"
+log_if_error "Tests with MPTFO have failed"
 
 # connect to ns4 ip address, ns2 should intercept/proxy
 run_test_transparent 10.0.3.1 "tproxy ipv4"
 run_test_transparent dead:beef:3::1 "tproxy ipv6"
-stop_if_error "Tests with tproxy have failed"
+log_if_error "Tests with tproxy have failed"
 
 run_tests_disconnect
+log_if_error "Tests of the full disconnection have failed"
 
 display_time
-exit $ret
+mptcp_lib_result_print_all_tap
+exit ${final_ret}

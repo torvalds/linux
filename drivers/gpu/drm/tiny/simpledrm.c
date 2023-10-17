@@ -745,7 +745,7 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 
 		ret = devm_aperture_acquire_from_firmware(dev, res->start, resource_size(res));
 		if (ret) {
-			drm_err(dev, "could not acquire memory range %pr: %d\n", &res, ret);
+			drm_err(dev, "could not acquire memory range %pr: %d\n", res, ret);
 			return ERR_PTR(ret);
 		}
 
@@ -888,14 +888,12 @@ static int simpledrm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int simpledrm_remove(struct platform_device *pdev)
+static void simpledrm_remove(struct platform_device *pdev)
 {
 	struct simpledrm_device *sdev = platform_get_drvdata(pdev);
 	struct drm_device *dev = &sdev->dev;
 
 	drm_dev_unplug(dev);
-
-	return 0;
 }
 
 static const struct of_device_id simpledrm_of_match_table[] = {
@@ -910,7 +908,7 @@ static struct platform_driver simpledrm_platform_driver = {
 		.of_match_table = simpledrm_of_match_table,
 	},
 	.probe = simpledrm_probe,
-	.remove = simpledrm_remove,
+	.remove_new = simpledrm_remove,
 };
 
 module_platform_driver(simpledrm_platform_driver);

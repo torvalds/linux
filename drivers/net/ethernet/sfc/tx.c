@@ -517,13 +517,8 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 	unsigned index, type;
 
 	EFX_WARN_ON_PARANOID(!netif_device_present(net_dev));
-
 	index = skb_get_queue_mapping(skb);
 	type = efx_tx_csum_type_skb(skb);
-	if (index >= efx->n_tx_channels) {
-		index -= efx->n_tx_channels;
-		type |= EFX_TXQ_TYPE_HIGHPRI;
-	}
 
 	/* PTP "event" packet */
 	if (unlikely(efx_xmit_with_hwtstamp(skb)) &&
@@ -603,43 +598,5 @@ void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 	/* Must be inverse of queue lookup in efx_hard_start_xmit() */
 	tx_queue->core_txq =
 		netdev_get_tx_queue(efx->net_dev,
-				    tx_queue->channel->channel +
-				    ((tx_queue->type & EFX_TXQ_TYPE_HIGHPRI) ?
-				     efx->n_tx_channels : 0));
-}
-
-int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
-		 void *type_data)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-	struct tc_mqprio_qopt *mqprio = type_data;
-	unsigned tc, num_tc;
-
-	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
-
-	/* Only Siena supported highpri queues */
-	if (efx_nic_rev(efx) > EFX_REV_SIENA_A0)
-		return -EOPNOTSUPP;
-
-	num_tc = mqprio->num_tc;
-
-	if (num_tc > EFX_MAX_TX_TC)
-		return -EINVAL;
-
-	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
-
-	if (num_tc == net_dev->num_tc)
-		return 0;
-
-	for (tc = 0; tc < num_tc; tc++) {
-		net_dev->tc_to_txq[tc].offset = tc * efx->n_tx_channels;
-		net_dev->tc_to_txq[tc].count = efx->n_tx_channels;
-	}
-
-	net_dev->num_tc = num_tc;
-
-	return netif_set_real_num_tx_queues(net_dev,
-					    max_t(int, num_tc, 1) *
-					    efx->n_tx_channels);
+				    tx_queue->channel->channel);
 }

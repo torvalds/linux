@@ -200,7 +200,7 @@ static void *vcpu_worker(void *data)
 		if (READ_ONCE(host_quit))
 			return NULL;
 
-		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+		clock_gettime(CLOCK_MONOTONIC, &start);
 		ret = _vcpu_run(vcpu);
 		ts_diff = timespec_elapsed(start);
 
@@ -367,7 +367,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	/* Test the stage of KVM creating mappings */
 	*current_stage = KVM_CREATE_MAPPINGS;
 
-	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+	clock_gettime(CLOCK_MONOTONIC, &start);
 	vcpus_complete_new_stage(*current_stage);
 	ts_diff = timespec_elapsed(start);
 
@@ -380,7 +380,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	*current_stage = KVM_UPDATE_MAPPINGS;
 
-	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+	clock_gettime(CLOCK_MONOTONIC, &start);
 	vcpus_complete_new_stage(*current_stage);
 	ts_diff = timespec_elapsed(start);
 
@@ -392,7 +392,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	*current_stage = KVM_ADJUST_MAPPINGS;
 
-	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+	clock_gettime(CLOCK_MONOTONIC, &start);
 	vcpus_complete_new_stage(*current_stage);
 	ts_diff = timespec_elapsed(start);
 

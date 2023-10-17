@@ -406,15 +406,15 @@ static ssize_t interval_store(struct device *dev,
 
 static DEVICE_ATTR_RW(interval);
 
-static ssize_t hw_control_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t offloaded_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
 
 	return sprintf(buf, "%d\n", trigger_data->hw_control);
 }
 
-static DEVICE_ATTR_RO(hw_control);
+static DEVICE_ATTR_RO(offloaded);
 
 static struct attribute *netdev_trig_attrs[] = {
 	&dev_attr_device_name.attr,
@@ -427,7 +427,7 @@ static struct attribute *netdev_trig_attrs[] = {
 	&dev_attr_rx.attr,
 	&dev_attr_tx.attr,
 	&dev_attr_interval.attr,
-	&dev_attr_hw_control.attr,
+	&dev_attr_offloaded.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(netdev_trig);
@@ -564,15 +564,17 @@ static int netdev_trig_activate(struct led_classdev *led_cdev)
 	/* Check if hw control is active by default on the LED.
 	 * Init already enabled mode in hw control.
 	 */
-	if (supports_hw_control(led_cdev) &&
-	    !led_cdev->hw_control_get(led_cdev, &mode)) {
+	if (supports_hw_control(led_cdev)) {
 		dev = led_cdev->hw_control_get_device(led_cdev);
 		if (dev) {
 			const char *name = dev_name(dev);
 
 			set_device_name(trigger_data, name, strlen(name));
 			trigger_data->hw_control = true;
-			trigger_data->mode = mode;
+
+			rc = led_cdev->hw_control_get(led_cdev, &mode);
+			if (!rc)
+				trigger_data->mode = mode;
 		}
 	}
 
@@ -593,6 +595,8 @@ static void netdev_trig_deactivate(struct led_classdev *led_cdev)
 
 	cancel_delayed_work_sync(&trigger_data->work);
 
+	led_set_brightness(led_cdev, LED_OFF);
+
 	dev_put(trigger_data->net_dev);
 
 	kfree(trigger_data);
@@ -605,18 +609,7 @@ static struct led_trigger netdev_led_trigger = {
 	.groups = netdev_trig_groups,
 };
 
-static int __init netdev_trig_init(void)
-{
-	return led_trigger_register(&netdev_led_trigger);
-}
-
-static void __exit netdev_trig_exit(void)
-{
-	led_trigger_unregister(&netdev_led_trigger);
-}
-
-module_init(netdev_trig_init);
-module_exit(netdev_trig_exit);
+module_led_trigger(netdev_led_trigger);
 
 MODULE_AUTHOR("Ben Whitten <ben.whitten@gmail.com>");
 MODULE_AUTHOR("Oliver Jowett <oliver@opencloud.com>");

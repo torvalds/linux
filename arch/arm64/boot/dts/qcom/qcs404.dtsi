@@ -166,6 +166,84 @@
 		method = "smc";
 	};
 
+	rpm: remoteproc {
+		compatible = "qcom,qcs404-rpm-proc", "qcom,rpm-proc";
+
+		glink-edge {
+			compatible = "qcom,glink-rpm";
+
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			qcom,rpm-msg-ram = <&rpm_msg_ram>;
+			mboxes = <&apcs_glb 0>;
+
+			rpm_requests: rpm-requests {
+				compatible = "qcom,rpm-qcs404";
+				qcom,glink-channels = "rpm_requests";
+
+				rpmcc: clock-controller {
+					compatible = "qcom,rpmcc-qcs404", "qcom,rpmcc";
+					#clock-cells = <1>;
+					clocks = <&xo_board>;
+					clock-names = "xo";
+				};
+
+				rpmpd: power-controller {
+					compatible = "qcom,qcs404-rpmpd";
+					#power-domain-cells = <1>;
+					operating-points-v2 = <&rpmpd_opp_table>;
+
+					rpmpd_opp_table: opp-table {
+						compatible = "operating-points-v2";
+
+						rpmpd_opp_ret: opp1 {
+							opp-level = <16>;
+						};
+
+						rpmpd_opp_ret_plus: opp2 {
+							opp-level = <32>;
+						};
+
+						rpmpd_opp_min_svs: opp3 {
+							opp-level = <48>;
+						};
+
+						rpmpd_opp_low_svs: opp4 {
+							opp-level = <64>;
+						};
+
+						rpmpd_opp_svs: opp5 {
+							opp-level = <128>;
+						};
+
+						rpmpd_opp_svs_plus: opp6 {
+							opp-level = <192>;
+						};
+
+						rpmpd_opp_nom: opp7 {
+							opp-level = <256>;
+						};
+
+						rpmpd_opp_nom_plus: opp8 {
+							opp-level = <320>;
+						};
+
+						rpmpd_opp_turbo: opp9 {
+							opp-level = <384>;
+						};
+
+						rpmpd_opp_turbo_no_cpr: opp10 {
+							opp-level = <416>;
+						};
+
+						rpmpd_opp_turbo_plus: opp11 {
+							opp-level = <512>;
+						};
+					};
+				};
+			};
+		};
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -214,80 +292,6 @@
 		uefi_mem: memory@9f800000 {
 			reg = <0 0x9f800000 0 0x800000>;
 			no-map;
-		};
-	};
-
-	rpm-glink {
-		compatible = "qcom,glink-rpm";
-
-		interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
-		qcom,rpm-msg-ram = <&rpm_msg_ram>;
-		mboxes = <&apcs_glb 0>;
-
-		rpm_requests: rpm-requests {
-			compatible = "qcom,rpm-qcs404";
-			qcom,glink-channels = "rpm_requests";
-
-			rpmcc: clock-controller {
-				compatible = "qcom,rpmcc-qcs404", "qcom,rpmcc";
-				#clock-cells = <1>;
-				clocks = <&xo_board>;
-				clock-names = "xo";
-			};
-
-			rpmpd: power-controller {
-				compatible = "qcom,qcs404-rpmpd";
-				#power-domain-cells = <1>;
-				operating-points-v2 = <&rpmpd_opp_table>;
-
-				rpmpd_opp_table: opp-table {
-					compatible = "operating-points-v2";
-
-					rpmpd_opp_ret: opp1 {
-						opp-level = <16>;
-					};
-
-					rpmpd_opp_ret_plus: opp2 {
-						opp-level = <32>;
-					};
-
-					rpmpd_opp_min_svs: opp3 {
-						opp-level = <48>;
-					};
-
-					rpmpd_opp_low_svs: opp4 {
-						opp-level = <64>;
-					};
-
-					rpmpd_opp_svs: opp5 {
-						opp-level = <128>;
-					};
-
-					rpmpd_opp_svs_plus: opp6 {
-						opp-level = <192>;
-					};
-
-					rpmpd_opp_nom: opp7 {
-						opp-level = <256>;
-					};
-
-					rpmpd_opp_nom_plus: opp8 {
-						opp-level = <320>;
-					};
-
-					rpmpd_opp_turbo: opp9 {
-						opp-level = <384>;
-					};
-
-					rpmpd_opp_turbo_no_cpr: opp10 {
-						opp-level = <416>;
-					};
-
-					rpmpd_opp_turbo_plus: opp11 {
-						opp-level = <512>;
-					};
-				};
-			};
 		};
 	};
 
@@ -1459,10 +1463,10 @@
 
 		pcie: pci@10000000 {
 			compatible = "qcom,pcie-qcs404";
-			reg =  <0x10000000 0xf1d>,
-			       <0x10000f20 0xa8>,
-			       <0x07780000 0x2000>,
-			       <0x10001000 0x2000>;
+			reg = <0x10000000 0xf1d>,
+			      <0x10000f20 0xa8>,
+			      <0x07780000 0x2000>,
+			      <0x10001000 0x2000>;
 			reg-names = "dbi", "elbi", "parf", "config";
 			device_type = "pci";
 			linux,pci-domain = <0>;

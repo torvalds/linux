@@ -278,14 +278,12 @@ static int seiko_panel_probe(struct device *dev,
 	return 0;
 }
 
-static int seiko_panel_remove(struct platform_device *pdev)
+static void seiko_panel_remove(struct platform_device *pdev)
 {
 	struct seiko_panel *panel = platform_get_drvdata(pdev);
 
 	drm_panel_remove(&panel->base);
 	drm_panel_disable(&panel->base);
-
-	return 0;
 }
 
 static void seiko_panel_shutdown(struct platform_device *pdev)
@@ -347,7 +345,7 @@ static struct platform_driver seiko_panel_platform_driver = {
 		.of_match_table = platform_of_match,
 	},
 	.probe = seiko_panel_platform_probe,
-	.remove = seiko_panel_remove,
+	.remove_new = seiko_panel_remove,
 	.shutdown = seiko_panel_shutdown,
 };
 module_platform_driver(seiko_panel_platform_driver);

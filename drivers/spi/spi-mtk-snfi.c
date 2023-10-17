@@ -76,7 +76,8 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/iopoll.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/mtd/nand-ecc-mtk.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>

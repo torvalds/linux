@@ -9,10 +9,8 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
-#include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 

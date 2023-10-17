@@ -183,6 +183,7 @@ struct cec_pin {
 	u16				la_mask;
 	bool				monitor_all;
 	bool				rx_eom;
+	bool				enabled_irq;
 	bool				enable_irq_failed;
 	enum cec_pin_state		state;
 	struct cec_msg			tx_msg;

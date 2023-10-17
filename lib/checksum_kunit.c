@@ -10,7 +10,8 @@
 #define MAX_ALIGN 64
 #define TEST_BUFLEN (MAX_LEN + MAX_ALIGN)
 
-static const __wsum random_init_sum = 0x2847aab;
+/* Values for a little endian CPU. Byte swap each half on big endian CPU. */
+static const u32 random_init_sum = 0x2847aab;
 static const u8 random_buf[] = {
 	0xac, 0xd7, 0x76, 0x69, 0x6e, 0xf2, 0x93, 0x2c, 0x1f, 0xe0, 0xde, 0x86,
 	0x8f, 0x54, 0x33, 0x90, 0x95, 0xbf, 0xff, 0xb9, 0xea, 0x62, 0x6e, 0xb5,
@@ -56,7 +57,9 @@ static const u8 random_buf[] = {
 	0xe1, 0xdf, 0x4b, 0xe1, 0x81, 0xe2, 0x17, 0x02, 0x7b, 0x58, 0x8b, 0x92,
 	0x1a, 0xac, 0x46, 0xdd, 0x2e, 0xce, 0x40, 0x09
 };
-static const __sum16 expected_results[] = {
+
+/* Values for a little endian CPU. Byte swap on big endian CPU. */
+static const u16 expected_results[] = {
 	0x82d0, 0x8224, 0xab23, 0xaaad, 0x41ad, 0x413f, 0x4f3e, 0x4eab, 0x22ab,
 	0x228c, 0x428b, 0x41ad, 0xbbac, 0xbb1d, 0x671d, 0x66ea, 0xd6e9, 0xd654,
 	0x1754, 0x1655, 0x5d54, 0x5c6a, 0xfa69, 0xf9fb, 0x44fb, 0x4428, 0xf527,
@@ -115,7 +118,9 @@ static const __sum16 expected_results[] = {
 	0x1d47, 0x3c46, 0x3bc5, 0x59c4, 0x59ad, 0x57ad, 0x5732, 0xff31, 0xfea6,
 	0x6ca6, 0x6c8c, 0xc08b, 0xc045, 0xe344, 0xe316, 0x1516, 0x14d6,
 };
-static const __wsum init_sums_no_overflow[] = {
+
+/* Values for a little endian CPU. Byte swap each half on big endian CPU. */
+static const u32 init_sums_no_overflow[] = {
 	0xffffffff, 0xfffffffb, 0xfffffbfb, 0xfffffbf7, 0xfffff7f7, 0xfffff7f3,
 	0xfffff3f3, 0xfffff3ef, 0xffffefef, 0xffffefeb, 0xffffebeb, 0xffffebe7,
 	0xffffe7e7, 0xffffe7e3, 0xffffe3e3, 0xffffe3df, 0xffffdfdf, 0xffffdfdb,
@@ -208,7 +213,21 @@ static u8 tmp_buf[TEST_BUFLEN];
 
 #define full_csum(buff, len, sum) csum_fold(csum_partial(buff, len, sum))
 
-#define CHECK_EQ(lhs, rhs) KUNIT_ASSERT_EQ(test, lhs, rhs)
+#define CHECK_EQ(lhs, rhs) KUNIT_ASSERT_EQ(test, (__force u64)lhs, (__force u64)rhs)
+
+static __sum16 to_sum16(u16 x)
+{
+	return (__force __sum16)le16_to_cpu((__force __le16)x);
+}
+
+/* This function swaps the bytes inside each half of a __wsum */
+static __wsum to_wsum(u32 x)
+{
+	u16 hi = le16_to_cpu((__force __le16)(x >> 16));
+	u16 lo = le16_to_cpu((__force __le16)x);
+
+	return (__force __wsum)((hi << 16) | lo);
+}
 
 static void assert_setup_correct(struct kunit *test)
 {
@@ -226,7 +245,8 @@ static void assert_setup_correct(struct kunit *test)
 static void test_csum_fixed_random_inputs(struct kunit *test)
 {
 	int len, align;
-	__wsum result, expec, sum;
+	__wsum sum;
+	__sum16 result, expec;
 
 	assert_setup_correct(test);
 	for (align = 0; align < TEST_BUFLEN; ++align) {
@@ -237,9 +257,9 @@ static void test_csum_fixed_random_inputs(struct kunit *test)
 			/*
 			 * Test the precomputed random input.
 			 */
-			sum = random_init_sum;
+			sum = to_wsum(random_init_sum);
 			result = full_csum(&tmp_buf[align], len, sum);
-			expec = expected_results[len];
+			expec = to_sum16(expected_results[len]);
 			CHECK_EQ(result, expec);
 		}
 	}
@@ -251,7 +271,8 @@ static void test_csum_fixed_random_inputs(struct kunit *test)
 static void test_csum_all_carry_inputs(struct kunit *test)
 {
 	int len, align;
-	__wsum result, expec, sum;
+	__wsum sum;
+	__sum16 result, expec;
 
 	assert_setup_correct(test);
 	memset(tmp_buf, 0xff, TEST_BUFLEN);
@@ -261,9 +282,9 @@ static void test_csum_all_carry_inputs(struct kunit *test)
 			/*
 			 * All carries from input and initial sum.
 			 */
-			sum = 0xffffffff;
+			sum = to_wsum(0xffffffff);
 			result = full_csum(&tmp_buf[align], len, sum);
-			expec = (len & 1) ? 0xff00 : 0;
+			expec = to_sum16((len & 1) ? 0xff00 : 0);
 			CHECK_EQ(result, expec);
 
 			/*
@@ -272,11 +293,11 @@ static void test_csum_all_carry_inputs(struct kunit *test)
 			sum = 0;
 			result = full_csum(&tmp_buf[align], len, sum);
 			if (len & 1)
-				expec = 0xff00;
+				expec = to_sum16(0xff00);
 			else if (len)
 				expec = 0;
 			else
-				expec = 0xffff;
+				expec = to_sum16(0xffff);
 			CHECK_EQ(result, expec);
 		}
 	}
@@ -290,7 +311,8 @@ static void test_csum_all_carry_inputs(struct kunit *test)
 static void test_csum_no_carry_inputs(struct kunit *test)
 {
 	int len, align;
-	__wsum result, expec, sum;
+	__wsum sum;
+	__sum16 result, expec;
 
 	assert_setup_correct(test);
 	memset(tmp_buf, 0x4, TEST_BUFLEN);
@@ -300,7 +322,7 @@ static void test_csum_no_carry_inputs(struct kunit *test)
 			/*
 			 * Expect no carries.
 			 */
-			sum = init_sums_no_overflow[len];
+			sum = to_wsum(init_sums_no_overflow[len]);
 			result = full_csum(&tmp_buf[align], len, sum);
 			expec = 0;
 			CHECK_EQ(result, expec);
@@ -308,9 +330,9 @@ static void test_csum_no_carry_inputs(struct kunit *test)
 			/*
 			 * Expect one carry.
 			 */
-			sum = init_sums_no_overflow[len] + 1;
+			sum = to_wsum(init_sums_no_overflow[len] + 1);
 			result = full_csum(&tmp_buf[align], len, sum);
-			expec = len ? 0xfffe : 0xffff;
+			expec = to_sum16(len ? 0xfffe : 0xffff);
 			CHECK_EQ(result, expec);
 		}
 	}

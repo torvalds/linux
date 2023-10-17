@@ -11,7 +11,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/nvmem-provider.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -47,7 +47,7 @@ struct u_boot_env_image_broadcom {
 	__le32 magic;
 	__le32 len;
 	__le32 crc32;
-	uint8_t data[0];
+	DECLARE_FLEX_ARRAY(uint8_t, data);
 } __packed;
 
 static int u_boot_env_read(void *context, unsigned int offset, void *val,

@@ -24,12 +24,37 @@ static bool ec_trigger __read_mostly;
 module_param(ec_trigger, bool, 0444);
 MODULE_PARM_DESC(ec_trigger, "Enable EC triggering work-around to force emitting tablet mode events");
 
+static bool force;
+module_param(force, bool, 0444);
+MODULE_PARM_DESC(force, "Force loading on boards without a convertible DMI chassis-type");
+
 static const struct dmi_system_id ec_trigger_quirk_dmi_table[] = {
 	{
 		/* Lenovo Yoga 7 14ARB7 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82QF"),
+		},
+	},
+	{
+		/* Lenovo Yoga 7 14ACN6 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "82N7"),
+		},
+	},
+	{ }
+};
+
+static const struct dmi_system_id allowed_chasis_types_dmi_table[] = {
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_CHASSIS_TYPE, "31" /* Convertible */),
+		},
+	},
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_CHASSIS_TYPE, "32" /* Detachable */),
 		},
 	},
 	{ }
@@ -110,6 +135,13 @@ static int lenovo_ymc_probe(struct wmi_device *wdev, const void *ctx)
 	struct lenovo_ymc_private *priv;
 	struct input_dev *input_dev;
 	int err;
+
+	if (!dmi_check_system(allowed_chasis_types_dmi_table)) {
+		if (force)
+			dev_info(&wdev->dev, "Force loading Lenovo YMC support\n");
+		else
+			return -ENODEV;
+	}
 
 	ec_trigger |= dmi_check_system(ec_trigger_quirk_dmi_table);
 

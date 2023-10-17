@@ -1035,7 +1035,7 @@ static bool sysrq_rcu;
 module_param(sysrq_rcu, bool, 0444);
 
 /* Dump grace-period-request information due to commandeered sysrq. */
-static void sysrq_show_rcu(int key)
+static void sysrq_show_rcu(u8 key)
 {
 	show_rcu_gp_kthreads();
 }

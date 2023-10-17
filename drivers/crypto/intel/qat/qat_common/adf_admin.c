@@ -8,6 +8,7 @@
 #include <linux/dma-mapping.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
+#include "adf_heartbeat.h"
 #include "icp_qat_fw_init_admin.h"
 
 #define ADF_ADMIN_MAILBOX_STRIDE 0x1000
@@ -15,6 +16,7 @@
 #define ADF_CONST_TABLE_SIZE 1024
 #define ADF_ADMIN_POLL_DELAY_US 20
 #define ADF_ADMIN_POLL_TIMEOUT_US (5 * USEC_PER_SEC)
+#define ADF_ONE_AE 1
 
 static const u8 const_tab[1024] __aligned(1024) = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -194,6 +196,22 @@ static int adf_set_fw_constants(struct adf_accel_dev *accel_dev)
 	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
 }
 
+int adf_get_fw_timestamp(struct adf_accel_dev *accel_dev, u64 *timestamp)
+{
+	struct icp_qat_fw_init_admin_req req = { };
+	struct icp_qat_fw_init_admin_resp resp;
+	unsigned int ae_mask = ADF_ONE_AE;
+	int ret;
+
+	req.cmd_id = ICP_QAT_FW_TIMER_GET;
+	ret = adf_send_admin(accel_dev, &req, &resp, ae_mask);
+	if (ret)
+		return ret;
+
+	*timestamp = resp.timestamp;
+	return 0;
+}
+
 static int adf_get_dc_capabilities(struct adf_accel_dev *accel_dev,
 				   u32 *capabilities)
 {
@@ -221,6 +239,49 @@ static int adf_get_dc_capabilities(struct adf_accel_dev *accel_dev,
 	}
 
 	return 0;
+}
+
+int adf_get_ae_fw_counters(struct adf_accel_dev *accel_dev, u16 ae, u64 *reqs, u64 *resps)
+{
+	struct icp_qat_fw_init_admin_resp resp = { };
+	struct icp_qat_fw_init_admin_req req = { };
+	int ret;
+
+	req.cmd_id = ICP_QAT_FW_COUNTERS_GET;
+
+	ret = adf_put_admin_msg_sync(accel_dev, ae, &req, &resp);
+	if (ret || resp.status)
+		return -EFAULT;
+
+	*reqs = resp.req_rec_count;
+	*resps = resp.resp_sent_count;
+
+	return 0;
+}
+
+int adf_send_admin_tim_sync(struct adf_accel_dev *accel_dev, u32 cnt)
+{
+	u32 ae_mask = accel_dev->hw_device->ae_mask;
+	struct icp_qat_fw_init_admin_req req = { };
+	struct icp_qat_fw_init_admin_resp resp = { };
+
+	req.cmd_id = ICP_QAT_FW_SYNC;
+	req.int_timer_ticks = cnt;
+
+	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
+}
+
+int adf_send_admin_hb_timer(struct adf_accel_dev *accel_dev, uint32_t ticks)
+{
+	u32 ae_mask = accel_dev->hw_device->ae_mask;
+	struct icp_qat_fw_init_admin_req req = { };
+	struct icp_qat_fw_init_admin_resp resp;
+
+	req.cmd_id = ICP_QAT_FW_HEARTBEAT_TIMER_SET;
+	req.init_cfg_ptr = accel_dev->heartbeat->dma.phy_addr;
+	req.heartbeat_ticks = ticks;
+
+	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
 }
 
 /**

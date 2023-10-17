@@ -25,6 +25,15 @@ select:
 allOf:
   - $ref: /schemas/pci/pci-bus.yaml#
   - $ref: /schemas/pci/snps,dw-pcie-common.yaml#
+  - if:
+      not:
+        required:
+          - msi-map
+    then:
+      properties:
+        interrupt-names:
+          contains:
+            const: msi
 
 properties:
   reg:
@@ -188,14 +197,15 @@ properties:
             Link Control register).
           const: bw_mg
         - description:
+            Combined Legacy A/B/C/D interrupt signal. See "^int(a|b|c|d)$" for
+            details.
+          const: legacy
+        - description:
             Vendor-specific IRQ names. Consider using the generic names above
             for new bindings.
           oneOf:
             - description: See native "app" IRQ for details
-              enum: [ intr ]
-    allOf:
-      - contains:
-          const: msi
+              enum: [ intr, sys, pmc, msg, err ]
 
 additionalProperties: true
 

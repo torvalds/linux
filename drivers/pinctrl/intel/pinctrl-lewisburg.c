@@ -317,9 +317,9 @@ static struct platform_driver lbg_pinctrl_driver = {
 		.pm = &lbg_pinctrl_pm_ops,
 	},
 };
-
 module_platform_driver(lbg_pinctrl_driver);
 
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
 MODULE_DESCRIPTION("Intel Lewisburg pinctrl/GPIO driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(PINCTRL_INTEL);

@@ -760,9 +760,6 @@ extern void fsnotify_init_mark(struct fsnotify_mark *mark,
 /* Find mark belonging to given group in the list of marks */
 extern struct fsnotify_mark *fsnotify_find_mark(fsnotify_connp_t *connp,
 						struct fsnotify_group *group);
-/* Get cached fsid of filesystem containing object */
-extern int fsnotify_get_conn_fsid(const struct fsnotify_mark_connector *conn,
-				  __kernel_fsid_t *fsid);
 /* attach the mark to the object */
 extern int fsnotify_add_mark(struct fsnotify_mark *mark,
 			     fsnotify_connp_t *connp, unsigned int obj_type,

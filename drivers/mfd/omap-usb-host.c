@@ -534,7 +534,6 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 	struct device			*dev =  &pdev->dev;
 	struct usbhs_omap_platform_data	*pdata = dev_get_platdata(dev);
 	struct usbhs_hcd_omap		*omap;
-	struct resource			*res;
 	int				ret = 0;
 	int				i;
 	bool				need_logic_fck;
@@ -569,8 +568,7 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	omap->uhh_base = devm_ioremap_resource(dev, res);
+	omap->uhh_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(omap->uhh_base))
 		return PTR_ERR(omap->uhh_base);
 

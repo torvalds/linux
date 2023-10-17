@@ -15,4 +15,6 @@ struct corgi_lcd_platform_data {
 	void (*kick_battery)(void);
 };
 
+void corgi_lcd_limit_intensity(int limit);
+
 #endif /* __LINUX_SPI_CORGI_LCD_H */

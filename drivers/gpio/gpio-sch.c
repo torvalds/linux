@@ -380,8 +380,6 @@ static int sch_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	platform_set_drvdata(pdev, sch);
-
 	girq = &sch->chip.irq;
 	gpio_irq_chip_set_chip(girq, &sch_irqchip);
 	girq->num_parents = 0;

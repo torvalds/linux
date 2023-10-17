@@ -441,8 +441,25 @@ err_release_lock:
 
 void __i2c_dw_disable(struct dw_i2c_dev *dev)
 {
+	unsigned int raw_intr_stats;
+	unsigned int enable;
 	int timeout = 100;
+	bool abort_needed;
 	unsigned int status;
+	int ret;
+
+	regmap_read(dev->map, DW_IC_RAW_INTR_STAT, &raw_intr_stats);
+	regmap_read(dev->map, DW_IC_ENABLE, &enable);
+
+	abort_needed = raw_intr_stats & DW_IC_INTR_MST_ON_HOLD;
+	if (abort_needed) {
+		regmap_write(dev->map, DW_IC_ENABLE, enable | DW_IC_ENABLE_ABORT);
+		ret = regmap_read_poll_timeout(dev->map, DW_IC_ENABLE, enable,
+					       !(enable & DW_IC_ENABLE_ABORT), 10,
+					       100);
+		if (ret)
+			dev_err(dev->dev, "timeout while trying to abort current transfer\n");
+	}
 
 	do {
 		__i2c_dw_disable_nowait(dev);

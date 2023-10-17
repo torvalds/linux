@@ -80,64 +80,74 @@
 		 * because the can not be enabled simultaneously on a
 		 * single SoC.
 		 */
-		opp50-300000000 {
+		opp-50-300000000{
+			/* OPP50 */
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <950000 931000 969000>;
 			opp-supported-hw = <0x06 0x0010>;
 			opp-suspend;
 		};
 
-		opp100-275000000 {
+		opp-100-275000000{
+			/* OPP100-1 */
 			opp-hz = /bits/ 64 <275000000>;
 			opp-microvolt = <1100000 1078000 1122000>;
 			opp-supported-hw = <0x01 0x00FF>;
 			opp-suspend;
 		};
 
-		opp100-300000000 {
+		opp-100-300000000{
+			/* OPP100-2 */
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <1100000 1078000 1122000>;
 			opp-supported-hw = <0x06 0x0020>;
 			opp-suspend;
 		};
 
-		opp100-500000000 {
+		opp-100-500000000{
+			/* OPP100-3 */
 			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <1100000 1078000 1122000>;
 			opp-supported-hw = <0x01 0xFFFF>;
 		};
 
-		opp100-600000000 {
+		opp-100-600000000 {
+			/* OPP100-4 */
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <1100000 1078000 1122000>;
 			opp-supported-hw = <0x06 0x0040>;
 		};
 
-		opp120-600000000 {
+		opp-120-600000000 {
+			/* OPP120-1 */
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <1200000 1176000 1224000>;
 			opp-supported-hw = <0x01 0xFFFF>;
 		};
 
-		opp120-720000000 {
+		opp-120-720000000 {
+			/* OPP120-2 */
 			opp-hz = /bits/ 64 <720000000>;
 			opp-microvolt = <1200000 1176000 1224000>;
 			opp-supported-hw = <0x06 0x0080>;
 		};
 
-		oppturbo-720000000 {
+		opp-720000000 {
+			/* OPP Turbo-1 */
 			opp-hz = /bits/ 64 <720000000>;
 			opp-microvolt = <1260000 1234800 1285200>;
 			opp-supported-hw = <0x01 0xFFFF>;
 		};
 
-		oppturbo-800000000 {
+		opp-800000000 {
+			/* OPP Turbo-2 */
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <1260000 1234800 1285200>;
 			opp-supported-hw = <0x06 0x0100>;
 		};
 
-		oppnitro-1000000000 {
+		opp-1000000000 {
+			/* OPP Nitro */
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <1325000 1298500 1351500>;
 			opp-supported-hw = <0x04 0x0200>;

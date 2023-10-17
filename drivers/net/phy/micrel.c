@@ -1800,9 +1800,6 @@ static const struct ksz9477_errata_write ksz9477_errata_writes[] = {
 	/* Transmit waveform amplitude can be improved (1000BASE-T, 100BASE-TX, 10BASE-Te) */
 	{0x1c, 0x04, 0x00d0},
 
-	/* Energy Efficient Ethernet (EEE) feature select must be manually disabled */
-	{0x07, 0x3c, 0x0000},
-
 	/* Register settings are required to meet data sheet supply current specifications */
 	{0x1c, 0x13, 0x6eff},
 	{0x1c, 0x14, 0xe6ff},
@@ -1846,6 +1843,12 @@ static int ksz9477_config_init(struct phy_device *phydev)
 		if (err)
 			return err;
 	}
+
+	/* According to KSZ9477 Errata DS80000754C (Module 4) all EEE modes
+	 * in this switch shall be regarded as broken.
+	 */
+	if (phydev->dev_flags & MICREL_NO_EEE)
+		phydev->eee_broken_modes = -1;
 
 	err = genphy_restart_aneg(phydev);
 	if (err)

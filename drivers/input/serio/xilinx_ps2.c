@@ -14,10 +14,10 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/io.h>
+#include <linux/mod_devicetable.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #define DRIVER_NAME		"xilinx_ps2"
 

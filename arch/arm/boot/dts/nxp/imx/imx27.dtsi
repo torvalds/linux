@@ -534,7 +534,7 @@
 				clock-names = "ipg", "ahb";
 			};
 
-			clks: ccm@10027000{
+			clks: ccm@10027000 {
 				compatible = "fsl,imx27-ccm";
 				reg = <0x10027000 0x1000>;
 				#clock-cells = <1>;

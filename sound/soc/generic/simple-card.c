@@ -52,11 +52,13 @@ static int asoc_simple_parse_platform(struct device_node *node,
 	return 0;
 }
 
-static int asoc_simple_parse_dai(struct device_node *node,
+static int asoc_simple_parse_dai(struct device *dev,
+				 struct device_node *node,
 				 struct snd_soc_dai_link_component *dlc,
 				 int *is_single_link)
 {
 	struct of_phandle_args args;
+	struct snd_soc_dai *dai;
 	int ret;
 
 	if (!node)
@@ -69,6 +71,19 @@ static int asoc_simple_parse_dai(struct device_node *node,
 	ret = of_parse_phandle_with_args(node, DAI, CELL, 0, &args);
 	if (ret)
 		return ret;
+
+	/*
+	 * Try to find from DAI args
+	 */
+	dai = snd_soc_get_dai_via_args(&args);
+	if (dai) {
+		dlc->dai_name = snd_soc_dai_name_get(dai);
+		dlc->dai_args = snd_soc_copy_dai_args(dev, &args);
+		if (!dlc->dai_args)
+			return -ENOMEM;
+
+		goto parse_dai_end;
+	}
 
 	/*
 	 * FIXME
@@ -93,6 +108,7 @@ static int asoc_simple_parse_dai(struct device_node *node,
 	if (ret < 0)
 		return ret;
 
+parse_dai_end:
 	if (is_single_link)
 		*is_single_link = !args.args_count;
 
@@ -156,7 +172,7 @@ static int simple_parse_node(struct asoc_simple_priv *priv,
 
 	simple_parse_mclk_fs(top, np, dai_props, prefix);
 
-	ret = asoc_simple_parse_dai(np, dlc, cpu);
+	ret = asoc_simple_parse_dai(dev, np, dlc, cpu);
 	if (ret)
 		return ret;
 
@@ -346,6 +362,7 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *top = dev->of_node;
 	struct device_node *node;
+	struct device_node *add_devs;
 	uintptr_t dpcm_selectable = (uintptr_t)of_device_get_match_data(dev);
 	bool is_top = 0;
 	int ret = 0;
@@ -357,6 +374,8 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 		is_top = 1;
 	}
 
+	add_devs = of_get_child_by_name(top, PREFIX "additional-devs");
+
 	/* loop for all dai-link */
 	do {
 		struct asoc_simple_data adata;
@@ -364,6 +383,12 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 		struct device_node *plat;
 		struct device_node *np;
 		int num = of_get_child_count(node);
+
+		/* Skip additional-devs node */
+		if (node == add_devs) {
+			node = of_get_next_child(top, node);
+			continue;
+		}
 
 		/* get codec */
 		codec = of_get_child_by_name(node, is_top ?
@@ -378,12 +403,15 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 
 		/* get convert-xxx property */
 		memset(&adata, 0, sizeof(adata));
-		for_each_child_of_node(node, np)
+		for_each_child_of_node(node, np) {
+			if (np == add_devs)
+				continue;
 			simple_parse_convert(dev, np, &adata);
+		}
 
 		/* loop for all CPU/Codec node */
 		for_each_child_of_node(node, np) {
-			if (plat == np)
+			if (plat == np || add_devs == np)
 				continue;
 			/*
 			 * It is DPCM
@@ -426,6 +454,7 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 	} while (!is_top && node);
 
  error:
+	of_node_put(add_devs);
 	of_node_put(node);
 	return ret;
 }
@@ -463,6 +492,31 @@ static int simple_for_each_link(struct asoc_simple_priv *priv,
 	return ret;
 }
 
+static void simple_depopulate_aux(void *data)
+{
+	struct asoc_simple_priv *priv = data;
+
+	of_platform_depopulate(simple_priv_to_dev(priv));
+}
+
+static int simple_populate_aux(struct asoc_simple_priv *priv)
+{
+	struct device *dev = simple_priv_to_dev(priv);
+	struct device_node *node;
+	int ret;
+
+	node = of_get_child_by_name(dev->of_node, PREFIX "additional-devs");
+	if (!node)
+		return 0;
+
+	ret = of_platform_populate(node, NULL, NULL, dev);
+	of_node_put(node);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, simple_depopulate_aux, priv);
+}
+
 static int simple_parse_of(struct asoc_simple_priv *priv, struct link_info *li)
 {
 	struct snd_soc_card *card = simple_priv_to_card(priv);
@@ -489,6 +543,10 @@ static int simple_parse_of(struct asoc_simple_priv *priv, struct link_info *li)
 		return ret;
 
 	ret = asoc_simple_parse_card_name(card, PREFIX);
+	if (ret < 0)
+		return ret;
+
+	ret = simple_populate_aux(priv);
 	if (ret < 0)
 		return ret;
 
@@ -701,10 +759,12 @@ static int asoc_simple_probe(struct platform_device *pdev)
 		struct snd_soc_dai_link *dai_link = priv->dai_link;
 		struct simple_dai_props *dai_props = priv->dai_props;
 
+		ret = -EINVAL;
+
 		cinfo = dev->platform_data;
 		if (!cinfo) {
 			dev_err(dev, "no info for asoc-simple-card\n");
-			return -EINVAL;
+			goto err;
 		}
 
 		if (!cinfo->name ||
@@ -713,7 +773,7 @@ static int asoc_simple_probe(struct platform_device *pdev)
 		    !cinfo->platform ||
 		    !cinfo->cpu_dai.name) {
 			dev_err(dev, "insufficient asoc_simple_card_info settings\n");
-			return -EINVAL;
+			goto err;
 		}
 
 		cpus			= dai_link->cpus;

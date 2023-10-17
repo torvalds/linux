@@ -180,7 +180,8 @@ static void sa1100_enable_ms(struct uart_port *port)
 static void
 sa1100_rx_chars(struct sa1100_port *sport)
 {
-	unsigned int status, ch, flg;
+	unsigned int status;
+	u8 ch, flg;
 
 	status = UTSR1_TO_SM(UART_GET_UTSR1(sport)) |
 		 UTSR0_TO_SM(UART_GET_UTSR0(sport));

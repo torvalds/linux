@@ -8,7 +8,7 @@ title: Ingenic SoCs Timer/Counter Unit (TCU)
 
 description: |
   For a description of the TCU hardware and drivers, have a look at
-  Documentation/mips/ingenic-tcu.rst.
+  Documentation/arch/mips/ingenic-tcu.rst.
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>

@@ -13,6 +13,7 @@
 #include <linux/percpu.h>
 #include <linux/perf_event.h>
 #include <asm/core.h>
+#include <asm/hw_breakpoint.h>
 
 /* Breakpoint currently in use for each IBREAKA. */
 static DEFINE_PER_CPU(struct perf_event *, bp_on_reg[XCHAL_NUM_IBREAK]);

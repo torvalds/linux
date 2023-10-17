@@ -123,6 +123,11 @@ struct dccg_funcs {
 			struct dccg *dccg,
 			int hpo_le_inst);
 
+	void (*set_symclk32_le_root_clock_gating)(
+			struct dccg *dccg,
+			int hpo_le_inst,
+			bool enable);
+
 	void (*set_physymclk)(
 			struct dccg *dccg,
 			int phy_inst,
@@ -167,6 +172,16 @@ struct dccg_funcs {
 			struct dccg *dccg,
 			unsigned int dpp_inst,
 			bool clock_on);
+
+	void (*enable_symclk_se)(
+			struct dccg *dccg,
+			uint32_t stream_enc_inst,
+			uint32_t link_enc_inst);
+
+	void (*disable_symclk_se)(
+			struct dccg *dccg,
+			uint32_t stream_enc_inst,
+			uint32_t link_enc_inst);
 };
 
 #endif //__DAL_DCCG_H__

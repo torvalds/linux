@@ -7,9 +7,10 @@
  */
 
 #include <linux/list.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/export.h>

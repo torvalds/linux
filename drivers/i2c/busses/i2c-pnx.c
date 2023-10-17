@@ -613,7 +613,6 @@ static const struct i2c_algorithm pnx_algorithm = {
 	.functionality = i2c_pnx_func,
 };
 
-#ifdef CONFIG_PM_SLEEP
 static int i2c_pnx_controller_suspend(struct device *dev)
 {
 	struct i2c_pnx_algo_data *alg_data = dev_get_drvdata(dev);
@@ -630,12 +629,9 @@ static int i2c_pnx_controller_resume(struct device *dev)
 	return clk_prepare_enable(alg_data->clk);
 }
 
-static SIMPLE_DEV_PM_OPS(i2c_pnx_pm,
-			 i2c_pnx_controller_suspend, i2c_pnx_controller_resume);
-#define PNX_I2C_PM	(&i2c_pnx_pm)
-#else
-#define PNX_I2C_PM	NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(i2c_pnx_pm,
+				i2c_pnx_controller_suspend,
+				i2c_pnx_controller_resume);
 
 static int i2c_pnx_probe(struct platform_device *pdev)
 {
@@ -683,8 +679,7 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 		 "%s", pdev->name);
 
 	/* Register I/O resource */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	alg_data->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	alg_data->ioaddr = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(alg_data->ioaddr))
 		return PTR_ERR(alg_data->ioaddr);
 
@@ -763,7 +758,7 @@ static struct platform_driver i2c_pnx_driver = {
 	.driver = {
 		.name = "pnx-i2c",
 		.of_match_table = of_match_ptr(i2c_pnx_of_match),
-		.pm = PNX_I2C_PM,
+		.pm = pm_sleep_ptr(&i2c_pnx_pm),
 	},
 	.probe = i2c_pnx_probe,
 	.remove_new = i2c_pnx_remove,

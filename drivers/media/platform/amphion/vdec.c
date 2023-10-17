@@ -299,7 +299,8 @@ static int vdec_update_state(struct vpu_inst *inst, enum vpu_codec_state state, 
 		vdec->state = VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE;
 
 	if (inst->state != pre_state)
-		vpu_trace(inst->dev, "[%d] %d -> %d\n", inst->id, pre_state, inst->state);
+		vpu_trace(inst->dev, "[%d] %s -> %s\n", inst->id,
+			  vpu_codec_state_name(pre_state), vpu_codec_state_name(inst->state));
 
 	if (inst->state == VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE)
 		vdec_handle_resolution_change(inst);
@@ -741,6 +742,21 @@ static int vdec_frame_decoded(struct vpu_inst *inst, void *arg)
 		dev_info(inst->dev, "[%d] buf[%d] has been decoded\n", inst->id, info->id);
 	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_DECODED);
 	vdec->decoded_frame_count++;
+	if (vdec->params.display_delay_enable) {
+		struct vpu_format *cur_fmt;
+
+		cur_fmt = vpu_get_format(inst, inst->cap_format.type);
+		vpu_set_buffer_state(vbuf, VPU_BUF_STATE_READY);
+		for (int i = 0; i < vbuf->vb2_buf.num_planes; i++)
+			vb2_set_plane_payload(&vbuf->vb2_buf,
+					      i, vpu_get_fmt_plane_size(cur_fmt, i));
+		vbuf->field = cur_fmt->field;
+		vbuf->sequence = vdec->sequence++;
+		dev_dbg(inst->dev, "[%d][OUTPUT TS]%32lld\n", inst->id, vbuf->vb2_buf.timestamp);
+
+		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
+		vdec->display_frame_count++;
+	}
 exit:
 	vpu_inst_unlock(inst);
 
@@ -768,14 +784,14 @@ static void vdec_buf_done(struct vpu_inst *inst, struct vpu_frame_info *frame)
 	struct vpu_format *cur_fmt;
 	struct vpu_vb2_buffer *vpu_buf;
 	struct vb2_v4l2_buffer *vbuf;
-	u32 sequence;
 	int i;
 
 	if (!frame)
 		return;
 
 	vpu_inst_lock(inst);
-	sequence = vdec->sequence++;
+	if (!vdec->params.display_delay_enable)
+		vdec->sequence++;
 	vpu_buf = vdec_find_buffer(inst, frame->luma);
 	vpu_inst_unlock(inst);
 	if (!vpu_buf) {
@@ -794,13 +810,17 @@ static void vdec_buf_done(struct vpu_inst *inst, struct vpu_frame_info *frame)
 		dev_err(inst->dev, "[%d] buffer id(%d, %d) dismatch\n",
 			inst->id, vbuf->vb2_buf.index, frame->id);
 
+	if (vpu_get_buffer_state(vbuf) == VPU_BUF_STATE_READY && vdec->params.display_delay_enable)
+		return;
+
 	if (vpu_get_buffer_state(vbuf) != VPU_BUF_STATE_DECODED)
 		dev_err(inst->dev, "[%d] buffer(%d) ready without decoded\n", inst->id, frame->id);
+
 	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_READY);
 	for (i = 0; i < vbuf->vb2_buf.num_planes; i++)
 		vb2_set_plane_payload(&vbuf->vb2_buf, i, vpu_get_fmt_plane_size(cur_fmt, i));
 	vbuf->field = cur_fmt->field;
-	vbuf->sequence = sequence;
+	vbuf->sequence = vdec->sequence;
 	dev_dbg(inst->dev, "[%d][OUTPUT TS]%32lld\n", inst->id, vbuf->vb2_buf.timestamp);
 
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
@@ -999,6 +1019,7 @@ static int vdec_response_frame_abnormal(struct vpu_inst *inst)
 {
 	struct vdec_t *vdec = inst->priv;
 	struct vpu_fs_info info;
+	int ret;
 
 	if (!vdec->req_frame_count)
 		return 0;
@@ -1006,7 +1027,9 @@ static int vdec_response_frame_abnormal(struct vpu_inst *inst)
 	memset(&info, 0, sizeof(info));
 	info.type = MEM_RES_FRAME;
 	info.tag = vdec->seq_tag + 0xf0;
-	vpu_session_alloc_fs(inst, &info);
+	ret = vpu_session_alloc_fs(inst, &info);
+	if (ret)
+		return ret;
 	vdec->req_frame_count--;
 
 	return 0;
@@ -1037,8 +1060,8 @@ static int vdec_response_frame(struct vpu_inst *inst, struct vb2_v4l2_buffer *vb
 		return -EINVAL;
 	}
 
-	dev_dbg(inst->dev, "[%d] state = %d, alloc fs %d, tag = 0x%x\n",
-		inst->id, inst->state, vbuf->vb2_buf.index, vdec->seq_tag);
+	dev_dbg(inst->dev, "[%d] state = %s, alloc fs %d, tag = 0x%x\n",
+		inst->id, vpu_codec_state_name(inst->state), vbuf->vb2_buf.index, vdec->seq_tag);
 	vpu_buf = to_vpu_vb2_buffer(vbuf);
 
 	memset(&info, 0, sizeof(info));
@@ -1400,7 +1423,7 @@ static void vdec_abort(struct vpu_inst *inst)
 	struct vpu_rpc_buffer_desc desc;
 	int ret;
 
-	vpu_trace(inst->dev, "[%d] state = %d\n", inst->id, inst->state);
+	vpu_trace(inst->dev, "[%d] state = %s\n", inst->id, vpu_codec_state_name(inst->state));
 
 	vdec->aborting = true;
 	vpu_iface_add_scode(inst, SCODE_PADDING_ABORT);
@@ -1453,9 +1476,7 @@ static void vdec_release(struct vpu_inst *inst)
 {
 	if (inst->id != VPU_INST_NULL_ID)
 		vpu_trace(inst->dev, "[%d]\n", inst->id);
-	vpu_inst_lock(inst);
 	vdec_stop(inst, true);
-	vpu_inst_unlock(inst);
 }
 
 static void vdec_cleanup(struct vpu_inst *inst)

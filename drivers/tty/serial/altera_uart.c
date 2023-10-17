@@ -201,8 +201,8 @@ static void altera_uart_set_termios(struct uart_port *port,
 
 static void altera_uart_rx_chars(struct uart_port *port)
 {
-	unsigned char ch, flag;
 	unsigned short status;
+	u8 ch, flag;
 
 	while ((status = altera_uart_readl(port, ALTERA_UART_STATUS_REG)) &
 	       ALTERA_UART_STATUS_RRDY_MSK) {

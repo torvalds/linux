@@ -248,8 +248,8 @@ static void ip22zilog_maybe_update_regs(struct uart_ip22zilog_port *up,
 static bool ip22zilog_receive_chars(struct uart_ip22zilog_port *up,
 						  struct zilog_channel *channel)
 {
-	unsigned char ch, flag;
 	unsigned int r1;
+	u8 ch, flag;
 	bool push = up->port.state != NULL;
 
 	for (;;) {

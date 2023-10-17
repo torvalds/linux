@@ -237,8 +237,8 @@ static void test_get_cmma_basic(void)
 
 	/* GET_CMMA_BITS without CMMA enabled should fail */
 	rc = vm_get_cmma_bits(vm, 0, &errno_out);
-	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_out, ENXIO);
+	TEST_ASSERT_EQ(rc, -1);
+	TEST_ASSERT_EQ(errno_out, ENXIO);
 
 	enable_cmma(vm);
 	vcpu = vm_vcpu_add(vm, 1, guest_do_one_essa);
@@ -247,31 +247,31 @@ static void test_get_cmma_basic(void)
 
 	/* GET_CMMA_BITS without migration mode and without peeking should fail */
 	rc = vm_get_cmma_bits(vm, 0, &errno_out);
-	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_out, EINVAL);
+	TEST_ASSERT_EQ(rc, -1);
+	TEST_ASSERT_EQ(errno_out, EINVAL);
 
 	/* GET_CMMA_BITS without migration mode and with peeking should work */
 	rc = vm_get_cmma_bits(vm, KVM_S390_CMMA_PEEK, &errno_out);
-	ASSERT_EQ(rc, 0);
-	ASSERT_EQ(errno_out, 0);
+	TEST_ASSERT_EQ(rc, 0);
+	TEST_ASSERT_EQ(errno_out, 0);
 
 	enable_dirty_tracking(vm);
 	enable_migration_mode(vm);
 
 	/* GET_CMMA_BITS with invalid flags */
 	rc = vm_get_cmma_bits(vm, 0xfeedc0fe, &errno_out);
-	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_out, EINVAL);
+	TEST_ASSERT_EQ(rc, -1);
+	TEST_ASSERT_EQ(errno_out, EINVAL);
 
 	kvm_vm_free(vm);
 }
 
 static void assert_exit_was_hypercall(struct kvm_vcpu *vcpu)
 {
-	ASSERT_EQ(vcpu->run->exit_reason, 13);
-	ASSERT_EQ(vcpu->run->s390_sieic.icptcode, 4);
-	ASSERT_EQ(vcpu->run->s390_sieic.ipa, 0x8300);
-	ASSERT_EQ(vcpu->run->s390_sieic.ipb, 0x5010000);
+	TEST_ASSERT_EQ(vcpu->run->exit_reason, 13);
+	TEST_ASSERT_EQ(vcpu->run->s390_sieic.icptcode, 4);
+	TEST_ASSERT_EQ(vcpu->run->s390_sieic.ipa, 0x8300);
+	TEST_ASSERT_EQ(vcpu->run->s390_sieic.ipb, 0x5010000);
 }
 
 static void test_migration_mode(void)
@@ -283,8 +283,8 @@ static void test_migration_mode(void)
 
 	/* enabling migration mode on a VM without memory should fail */
 	rc = __enable_migration_mode(vm);
-	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno, EINVAL);
+	TEST_ASSERT_EQ(rc, -1);
+	TEST_ASSERT_EQ(errno, EINVAL);
 	TEST_ASSERT(!is_migration_mode_on(vm), "migration mode should still be off");
 	errno = 0;
 
@@ -304,8 +304,8 @@ static void test_migration_mode(void)
 
 	/* migration mode when memslots have dirty tracking off should fail */
 	rc = __enable_migration_mode(vm);
-	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno, EINVAL);
+	TEST_ASSERT_EQ(rc, -1);
+	TEST_ASSERT_EQ(errno, EINVAL);
 	TEST_ASSERT(!is_migration_mode_on(vm), "migration mode should still be off");
 	errno = 0;
 
@@ -314,7 +314,7 @@ static void test_migration_mode(void)
 
 	/* enabling migration mode should work now */
 	rc = __enable_migration_mode(vm);
-	ASSERT_EQ(rc, 0);
+	TEST_ASSERT_EQ(rc, 0);
 	TEST_ASSERT(is_migration_mode_on(vm), "migration mode should be on");
 	errno = 0;
 
@@ -350,7 +350,7 @@ static void test_migration_mode(void)
 	 */
 	vm_mem_region_set_flags(vm, TEST_DATA_TWO_MEMSLOT, KVM_MEM_LOG_DIRTY_PAGES);
 	rc = __enable_migration_mode(vm);
-	ASSERT_EQ(rc, 0);
+	TEST_ASSERT_EQ(rc, 0);
 	TEST_ASSERT(is_migration_mode_on(vm), "migration mode should be on");
 	errno = 0;
 
@@ -394,9 +394,9 @@ static void assert_all_slots_cmma_dirty(struct kvm_vm *vm)
 	};
 	memset(cmma_value_buf, 0xff, sizeof(cmma_value_buf));
 	vm_ioctl(vm, KVM_S390_GET_CMMA_BITS, &args);
-	ASSERT_EQ(args.count, MAIN_PAGE_COUNT);
-	ASSERT_EQ(args.remaining, TEST_DATA_PAGE_COUNT);
-	ASSERT_EQ(args.start_gfn, 0);
+	TEST_ASSERT_EQ(args.count, MAIN_PAGE_COUNT);
+	TEST_ASSERT_EQ(args.remaining, TEST_DATA_PAGE_COUNT);
+	TEST_ASSERT_EQ(args.start_gfn, 0);
 
 	/* ...and then - after a hole - the TEST_DATA memslot should follow */
 	args = (struct kvm_s390_cmma_log){
@@ -407,9 +407,9 @@ static void assert_all_slots_cmma_dirty(struct kvm_vm *vm)
 	};
 	memset(cmma_value_buf, 0xff, sizeof(cmma_value_buf));
 	vm_ioctl(vm, KVM_S390_GET_CMMA_BITS, &args);
-	ASSERT_EQ(args.count, TEST_DATA_PAGE_COUNT);
-	ASSERT_EQ(args.start_gfn, TEST_DATA_START_GFN);
-	ASSERT_EQ(args.remaining, 0);
+	TEST_ASSERT_EQ(args.count, TEST_DATA_PAGE_COUNT);
+	TEST_ASSERT_EQ(args.start_gfn, TEST_DATA_START_GFN);
+	TEST_ASSERT_EQ(args.remaining, 0);
 
 	/* ...and nothing else should be there */
 	args = (struct kvm_s390_cmma_log){
@@ -420,9 +420,9 @@ static void assert_all_slots_cmma_dirty(struct kvm_vm *vm)
 	};
 	memset(cmma_value_buf, 0xff, sizeof(cmma_value_buf));
 	vm_ioctl(vm, KVM_S390_GET_CMMA_BITS, &args);
-	ASSERT_EQ(args.count, 0);
-	ASSERT_EQ(args.start_gfn, 0);
-	ASSERT_EQ(args.remaining, 0);
+	TEST_ASSERT_EQ(args.count, 0);
+	TEST_ASSERT_EQ(args.start_gfn, 0);
+	TEST_ASSERT_EQ(args.remaining, 0);
 }
 
 /**
@@ -498,11 +498,11 @@ static void assert_cmma_dirty(u64 first_dirty_gfn,
 			      u64 dirty_gfn_count,
 			      const struct kvm_s390_cmma_log *res)
 {
-	ASSERT_EQ(res->start_gfn, first_dirty_gfn);
-	ASSERT_EQ(res->count, dirty_gfn_count);
+	TEST_ASSERT_EQ(res->start_gfn, first_dirty_gfn);
+	TEST_ASSERT_EQ(res->count, dirty_gfn_count);
 	for (size_t i = 0; i < dirty_gfn_count; i++)
-		ASSERT_EQ(cmma_value_buf[0], 0x0); /* stable state */
-	ASSERT_EQ(cmma_value_buf[dirty_gfn_count], 0xff); /* not touched */
+		TEST_ASSERT_EQ(cmma_value_buf[0], 0x0); /* stable state */
+	TEST_ASSERT_EQ(cmma_value_buf[dirty_gfn_count], 0xff); /* not touched */
 }
 
 static void test_get_skip_holes(void)

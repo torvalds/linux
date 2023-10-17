@@ -211,7 +211,7 @@ intel_hpd_irq_storm_switch_to_polling(struct drm_i915_private *dev_priv)
 
 	/* Enable polling and queue hotplug re-enabling. */
 	if (hpd_disabled) {
-		drm_kms_helper_poll_enable(&dev_priv->drm);
+		drm_kms_helper_poll_reschedule(&dev_priv->drm);
 		mod_delayed_work(dev_priv->unordered_wq,
 				 &dev_priv->display.hotplug.reenable_work,
 				 msecs_to_jiffies(HPD_STORM_REENABLE_DELAY));
@@ -376,6 +376,8 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	u32 changed = 0, retry = 0;
 	u32 hpd_event_bits;
 	u32 hpd_retry_bits;
+	struct drm_connector *first_changed_connector = NULL;
+	int changed_connectors = 0;
 
 	mutex_lock(&dev_priv->drm.mode_config.mutex);
 	drm_dbg_kms(&dev_priv->drm, "running encoder hotplug functions\n");
@@ -428,6 +430,11 @@ static void i915_hotplug_work_func(struct work_struct *work)
 				break;
 			case INTEL_HOTPLUG_CHANGED:
 				changed |= hpd_bit;
+				changed_connectors++;
+				if (!first_changed_connector) {
+					drm_connector_get(&connector->base);
+					first_changed_connector = &connector->base;
+				}
 				break;
 			case INTEL_HOTPLUG_RETRY:
 				retry |= hpd_bit;
@@ -438,8 +445,13 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	drm_connector_list_iter_end(&conn_iter);
 	mutex_unlock(&dev_priv->drm.mode_config.mutex);
 
-	if (changed)
+	if (changed_connectors == 1)
+		drm_kms_helper_connector_hotplug_event(first_changed_connector);
+	else if (changed_connectors > 0)
 		drm_kms_helper_hotplug_event(&dev_priv->drm);
+
+	if (first_changed_connector)
+		drm_connector_put(first_changed_connector);
 
 	/* Remove shared HPD pins that have changed */
 	retry &= ~changed;
@@ -649,7 +661,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 	drm_connector_list_iter_end(&conn_iter);
 
 	if (enabled)
-		drm_kms_helper_poll_enable(&dev_priv->drm);
+		drm_kms_helper_poll_reschedule(&dev_priv->drm);
 
 	mutex_unlock(&dev_priv->drm.mode_config.mutex);
 

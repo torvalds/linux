@@ -14,7 +14,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		rtc@6000 {
+		pmm8540a_rtc: rtc@6000 {
 			compatible = "qcom,pm8941-rtc";
 			reg = <0x6000>, <0x6100>;
 			reg-names = "rtc", "alarm";
@@ -38,6 +38,15 @@
 		reg = <0x4 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		pmm8540c_sdam_2: nvram@b110 {
+			compatible = "qcom,spmi-sdam";
+			reg = <0xb110>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xb110 0xb0>;
+			status = "disabled";
+		};
 
 		pmm8540c_gpios: gpio@c000 {
 			compatible = "qcom,pm8150-gpio", "qcom,spmi-gpio";

@@ -31,7 +31,6 @@
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_mdio.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -557,7 +556,7 @@ MODULE_DEVICE_TABLE(of, realtek_smi_of_match);
 static struct platform_driver realtek_smi_driver = {
 	.driver = {
 		.name = "realtek-smi",
-		.of_match_table = of_match_ptr(realtek_smi_of_match),
+		.of_match_table = realtek_smi_of_match,
 	},
 	.probe  = realtek_smi_probe,
 	.remove = realtek_smi_remove,

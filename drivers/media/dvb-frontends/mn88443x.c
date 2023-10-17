@@ -8,9 +8,9 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 
 #include "mn88443x.h"
 

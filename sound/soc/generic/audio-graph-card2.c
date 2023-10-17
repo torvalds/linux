@@ -47,6 +47,18 @@
  see
 	graph_parse_daifmt().
 
+ "format" property is no longer needed on DT if both CPU/Codec drivers are
+ supporting snd_soc_dai_ops :: .auto_selectable_formats.
+ see
+	snd_soc_runtime_get_dai_fmt()
+
+	sample driver
+		linux/sound/soc/sh/rcar/core.c
+		linux/sound/soc/codecs/ak4613.c
+		linux/sound/soc/codecs/pcm3168a.c
+		linux/sound/soc/soc-utils.c
+		linux/sound/soc/generic/test-component.c
+
  ************************************
 	Normal Audio-Graph
  ************************************
@@ -407,7 +419,7 @@ static int __graph_parse_node(struct asoc_simple_priv *priv,
 
 	graph_parse_mclk_fs(ep, dai_props);
 
-	ret = asoc_graph_parse_dai(ep, dlc, &is_single_links);
+	ret = asoc_graph_parse_dai(dev, ep, dlc, &is_single_links);
 	if (ret < 0)
 		return ret;
 

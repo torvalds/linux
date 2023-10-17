@@ -32,7 +32,7 @@ typedef uint16_t u16;
 typedef uint8_t u8;
 
 void test_harness_set_timeout(uint64_t time);
-int test_harness(int (test_function)(void), char *name);
+int test_harness(int (test_function)(void), const char *name);
 
 int read_auxv(char *buf, ssize_t buf_size);
 void *find_auxv_entry(int type, char *auxv);

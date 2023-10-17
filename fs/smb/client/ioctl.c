@@ -478,6 +478,11 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			}
 			cifs_sb = CIFS_SB(inode->i_sb);
 			tlink = cifs_sb_tlink(cifs_sb);
+			if (IS_ERR(tlink)) {
+				rc = PTR_ERR(tlink);
+				break;
+			}
+
 			tcon = tlink_tcon(tlink);
 			rc = cifs_dump_full_key(tcon, (void __user *)arg);
 			cifs_put_tlink(tlink);

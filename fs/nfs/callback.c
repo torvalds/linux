@@ -74,23 +74,12 @@ out_err:
 static int
 nfs4_callback_svc(void *vrqstp)
 {
-	int err;
 	struct svc_rqst *rqstp = vrqstp;
 
 	set_freezable();
 
-	while (!kthread_freezable_should_stop(NULL)) {
-
-		if (signal_pending(current))
-			flush_signals(current);
-		/*
-		 * Listen for a request on the socket
-		 */
-		err = svc_recv(rqstp, MAX_SCHEDULE_TIMEOUT);
-		if (err == -EAGAIN || err == -EINTR)
-			continue;
-		svc_process(rqstp);
-	}
+	while (!kthread_freezable_should_stop(NULL))
+		svc_recv(rqstp);
 
 	svc_exit_thread(rqstp);
 	return 0;
@@ -112,11 +101,7 @@ nfs41_callback_svc(void *vrqstp)
 	set_freezable();
 
 	while (!kthread_freezable_should_stop(NULL)) {
-
-		if (signal_pending(current))
-			flush_signals(current);
-
-		prepare_to_wait(&serv->sv_cb_waitq, &wq, TASK_INTERRUPTIBLE);
+		prepare_to_wait(&serv->sv_cb_waitq, &wq, TASK_IDLE);
 		spin_lock_bh(&serv->sv_cb_lock);
 		if (!list_empty(&serv->sv_cb_list)) {
 			req = list_first_entry(&serv->sv_cb_list,
@@ -387,7 +372,7 @@ check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
  * All other checking done after NFS decoding where the nfs_client can be
  * found in nfs4_callback_compound
  */
-static int nfs_callback_authenticate(struct svc_rqst *rqstp)
+static enum svc_auth_status nfs_callback_authenticate(struct svc_rqst *rqstp)
 {
 	rqstp->rq_auth_stat = rpc_autherr_badcred;
 

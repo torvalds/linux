@@ -1319,7 +1319,7 @@ __store_reg_to_mem(struct i915_request *rq, i915_reg_t reg, u32 ggtt_offset)
 	u32 *cs, cmd;
 
 	cmd = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
-	if (GRAPHICS_VER(rq->engine->i915) >= 8)
+	if (GRAPHICS_VER(rq->i915) >= 8)
 		cmd++;
 
 	cs = intel_ring_begin(rq, 4);

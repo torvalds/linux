@@ -35,6 +35,18 @@
 /* comment the #define statement to disable SCIF1 (SER0) on PMOD1 (CN7) */
 #define PMOD1_SER0	1
 
+/*
+ * To enable MTU3a PWM on PMOD0,
+ *  - Set DIP-Switch SW1-4 to Off position.
+ *  - Set SW_RSPI_CAN macro to 0.
+ *  - Set PMOD_MTU3 macro to 1.
+ */
+#define PMOD_MTU3	0
+
+#if (PMOD_MTU3 && SW_RSPI_CAN)
+#error "Cannot set as both PMOD_MTU3 and SW_RSPI_CAN are mutually exclusive"
+#endif
+
 #include "r9a07g044c2.dtsi"
 #include "rzg2lc-smarc-som.dtsi"
 #include "rzg2lc-smarc.dtsi"

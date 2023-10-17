@@ -769,6 +769,7 @@ config BATTERY_RT5033
 config CHARGER_RT5033
 	tristate "RT5033 battery charger support"
 	depends on MFD_RT5033
+	depends on EXTCON || !EXTCON
 	help
 	  This adds support for battery charger in Richtek RT5033 PMIC.
 	  The device supports pre-charge mode, fast charge mode and

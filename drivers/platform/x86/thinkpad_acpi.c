@@ -50,6 +50,7 @@
 #include <linux/kthread.h>
 #include <linux/leds.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/nvram.h>
@@ -907,16 +908,9 @@ static ssize_t dispatch_proc_write(struct file *file,
 	if (count > PAGE_SIZE - 1)
 		return -EINVAL;
 
-	kernbuf = kmalloc(count + 1, GFP_KERNEL);
-	if (!kernbuf)
-		return -ENOMEM;
-
-	if (copy_from_user(kernbuf, userbuf, count)) {
-		kfree(kernbuf);
-		return -EFAULT;
-	}
-
-	kernbuf[count] = 0;
+	kernbuf = memdup_user_nul(userbuf, count);
+	if (IS_ERR(kernbuf))
+		return PTR_ERR(kernbuf);
 	ret = ibm->write(kernbuf);
 	if (ret == 0)
 		ret = count;
@@ -2066,11 +2060,11 @@ static int hotkey_get_tablet_mode(int *status)
  * hotkey_acpi_mask accordingly.  Also resets any bits
  * from hotkey_user_mask that are unavailable to be
  * delivered (shadow requirement of the userspace ABI).
- *
- * Call with hotkey_mutex held
  */
 static int hotkey_mask_get(void)
 {
+	lockdep_assert_held(&hotkey_mutex);
+
 	if (tp_features.hotkey_mask) {
 		u32 m = 0;
 
@@ -2106,8 +2100,6 @@ static void hotkey_mask_warn_incomplete_mask(void)
  * Also calls hotkey_mask_get to update hotkey_acpi_mask.
  *
  * NOTE: does not set bits in hotkey_user_mask, but may reset them.
- *
- * Call with hotkey_mutex held
  */
 static int hotkey_mask_set(u32 mask)
 {
@@ -2115,6 +2107,8 @@ static int hotkey_mask_set(u32 mask)
 	int rc = 0;
 
 	const u32 fwmask = mask & ~hotkey_source_mask;
+
+	lockdep_assert_held(&hotkey_mutex);
 
 	if (tp_features.hotkey_mask) {
 		for (i = 0; i < 32; i++) {
@@ -2147,12 +2141,12 @@ static int hotkey_mask_set(u32 mask)
 
 /*
  * Sets hotkey_user_mask and tries to set the firmware mask
- *
- * Call with hotkey_mutex held
  */
 static int hotkey_user_mask_set(const u32 mask)
 {
 	int rc;
+
+	lockdep_assert_held(&hotkey_mutex);
 
 	/* Give people a chance to notice they are doing something that
 	 * is bound to go boom on their users sooner or later */
@@ -2514,20 +2508,22 @@ exit:
 	return 0;
 }
 
-/* call with hotkey_mutex held */
 static void hotkey_poll_stop_sync(void)
 {
+	lockdep_assert_held(&hotkey_mutex);
+
 	if (tpacpi_hotkey_task) {
 		kthread_stop(tpacpi_hotkey_task);
 		tpacpi_hotkey_task = NULL;
 	}
 }
 
-/* call with hotkey_mutex held */
 static void hotkey_poll_setup(const bool may_warn)
 {
 	const u32 poll_driver_mask = hotkey_driver_mask & hotkey_source_mask;
 	const u32 poll_user_mask = hotkey_user_mask & hotkey_source_mask;
+
+	lockdep_assert_held(&hotkey_mutex);
 
 	if (hotkey_poll_freq > 0 &&
 	    (poll_driver_mask ||
@@ -2557,9 +2553,10 @@ static void hotkey_poll_setup_safe(const bool may_warn)
 	mutex_unlock(&hotkey_mutex);
 }
 
-/* call with hotkey_mutex held */
 static void hotkey_poll_set_freq(unsigned int freq)
 {
+	lockdep_assert_held(&hotkey_mutex);
+
 	if (!freq)
 		hotkey_poll_stop_sync();
 
@@ -3473,7 +3470,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	if (tp_features.hotkey_mask) {
 		/* hotkey_source_mask *must* be zero for
 		 * the first hotkey_mask_get to return hotkey_orig_mask */
+		mutex_lock(&hotkey_mutex);
 		res = hotkey_mask_get();
+		mutex_unlock(&hotkey_mutex);
 		if (res)
 			return res;
 
@@ -3572,9 +3571,11 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		hotkey_exit();
 		return res;
 	}
+	mutex_lock(&hotkey_mutex);
 	res = hotkey_mask_set(((hotkey_all_mask & ~hotkey_reserved_mask)
 			       | hotkey_driver_mask)
 			      & ~hotkey_source_mask);
+	mutex_unlock(&hotkey_mutex);
 	if (res < 0 && res != -ENXIO) {
 		hotkey_exit();
 		return res;
@@ -4115,9 +4116,11 @@ static void hotkey_resume(void)
 {
 	tpacpi_disable_brightness_delay();
 
+	mutex_lock(&hotkey_mutex);
 	if (hotkey_status_set(true) < 0 ||
 	    hotkey_mask_set(hotkey_acpi_mask) < 0)
 		pr_err("error while attempting to reset the event firmware interface\n");
+	mutex_unlock(&hotkey_mutex);
 
 	tpacpi_send_radiosw_update();
 	tpacpi_input_send_tabletsw();
@@ -6528,11 +6531,12 @@ static unsigned int brightness_enable = 2; /* 2 = auto, 0 = no, 1 = yes */
 
 static struct mutex brightness_mutex;
 
-/* NVRAM brightness access,
- * call with brightness_mutex held! */
+/* NVRAM brightness access */
 static unsigned int tpacpi_brightness_nvram_get(void)
 {
 	u8 lnvram;
+
+	lockdep_assert_held(&brightness_mutex);
 
 	lnvram = (nvram_read_byte(TP_NVRAM_ADDR_BRIGHTNESS)
 		  & TP_NVRAM_MASK_LEVEL_BRIGHTNESS)
@@ -6581,10 +6585,11 @@ unlock:
 }
 
 
-/* call with brightness_mutex held! */
 static int tpacpi_brightness_get_raw(int *status)
 {
 	u8 lec = 0;
+
+	lockdep_assert_held(&brightness_mutex);
 
 	switch (brightness_mode) {
 	case TPACPI_BRGHT_MODE_UCMS_STEP:
@@ -6601,11 +6606,12 @@ static int tpacpi_brightness_get_raw(int *status)
 	}
 }
 
-/* call with brightness_mutex held! */
 /* do NOT call with illegal backlight level value */
 static int tpacpi_brightness_set_ec(unsigned int value)
 {
 	u8 lec = 0;
+
+	lockdep_assert_held(&brightness_mutex);
 
 	if (unlikely(!acpi_ec_read(TP_EC_BACKLIGHT, &lec)))
 		return -EIO;
@@ -6618,11 +6624,12 @@ static int tpacpi_brightness_set_ec(unsigned int value)
 	return 0;
 }
 
-/* call with brightness_mutex held! */
 static int tpacpi_brightness_set_ucmsstep(unsigned int value)
 {
 	int cmos_cmd, inc;
 	unsigned int current_value, i;
+
+	lockdep_assert_held(&brightness_mutex);
 
 	current_value = tpacpi_brightness_nvram_get();
 
@@ -8072,11 +8079,10 @@ static bool fan_select_fan2(void)
 	return true;
 }
 
-/*
- * Call with fan_mutex held
- */
 static void fan_update_desired_level(u8 status)
 {
+	lockdep_assert_held(&fan_mutex);
+
 	if ((status &
 	     (TP_EC_FAN_AUTO | TP_EC_FAN_FULLSPEED)) == 0) {
 		if (status > 7)

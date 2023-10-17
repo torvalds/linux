@@ -84,6 +84,9 @@ struct komeda_crtc {
 
 	/** @disable_done: this flip_done is for tracing the disable */
 	struct completion *disable_done;
+
+	/** @encoder: encoder at the end of the pipeline */
+	struct drm_encoder encoder;
 };
 
 /**

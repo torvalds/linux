@@ -14,14 +14,15 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <net/llc_sap.h>
+#include <net/llc.h>
+#include <net/llc_c_ac.h>
+#include <net/llc_c_ev.h>
+#include <net/llc_c_st.h>
 #include <net/llc_conn.h>
+#include <net/llc_pdu.h>
+#include <net/llc_sap.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
-#include <net/llc_c_ev.h>
-#include <net/llc_c_ac.h>
-#include <net/llc_c_st.h>
-#include <net/llc_pdu.h>
 
 #if 0
 #define dprintk(args...) printk(KERN_DEBUG args)

@@ -6,6 +6,14 @@
 #ifndef _DT_BINDINGS_MUX_TI_SERDES
 #define _DT_BINDINGS_MUX_TI_SERDES
 
+/*
+ * These bindings are deprecated, because they do not match the actual
+ * concept of bindings but rather contain pure constants values used only
+ * in DTS board files.
+ * Instead include the header in the DTS source directory.
+ */
+#warning "These bindings are deprecated. Instead, use the header in the DTS source directory."
+
 /* J721E */
 
 #define J721E_SERDES0_LANE0_QSGMII_LANE1	0x0

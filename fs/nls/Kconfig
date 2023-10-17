@@ -617,4 +617,7 @@ config NLS_UTF8
 	  input/output character sets. Say Y here for the UTF-8 encoding of
 	  the Unicode/ISO9646 universal character set.
 
+config NLS_UCS2_UTILS
+	tristate
+
 endif # NLS

@@ -38,11 +38,10 @@ struct ivpu_addr_range {
 struct ivpu_hw_info {
 	const struct ivpu_hw_ops *ops;
 	struct {
-		struct ivpu_addr_range global_low;
-		struct ivpu_addr_range global_high;
-		struct ivpu_addr_range user_low;
-		struct ivpu_addr_range user_high;
-		struct ivpu_addr_range global_aliased_pio;
+		struct ivpu_addr_range global;
+		struct ivpu_addr_range user;
+		struct ivpu_addr_range shave;
+		struct ivpu_addr_range dma;
 	} ranges;
 	struct {
 		u8 min_ratio;
@@ -57,9 +56,11 @@ struct ivpu_hw_info {
 	u32 tile_fuse;
 	u32 sku;
 	u16 config;
+	int dma_bits;
 };
 
-extern const struct ivpu_hw_ops ivpu_hw_mtl_ops;
+extern const struct ivpu_hw_ops ivpu_hw_37xx_ops;
+extern const struct ivpu_hw_ops ivpu_hw_40xx_ops;
 
 static inline int ivpu_hw_info_init(struct ivpu_device *vdev)
 {

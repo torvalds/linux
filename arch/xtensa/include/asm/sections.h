@@ -34,6 +34,10 @@ extern char _SecondaryResetVector_text_start[];
 extern char _SecondaryResetVector_text_end[];
 #endif
 #ifdef CONFIG_XIP_KERNEL
+#ifdef CONFIG_VECTORS_ADDR
+extern char _xip_text_start[];
+extern char _xip_text_end[];
+#endif
 extern char _xip_start[];
 extern char _xip_end[];
 #endif

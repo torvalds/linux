@@ -304,10 +304,10 @@ reads of following commands. Actions issued between different contexts
 and the only way to synchronize across contexts (even from the same
 file descriptor) is through the use of fences. At least as far back as
 Gen4, also have that a context carries with it a GPU HW context;
-the HW context is essentially (most of atleast) the state of a GPU.
+the HW context is essentially (most of at least) the state of a GPU.
 In addition to the ordering guarantees, the kernel will restore GPU
 state via HW context when commands are issued to a context, this saves
-user space the need to restore (most of atleast) the GPU state at the
+user space the need to restore (most of at least) the GPU state at the
 start of each batchbuffer. The non-deprecated ioctls to submit batchbuffer
 work can pass that ID (in the lower bits of drm_i915_gem_execbuffer2::rsvd1)
 to identify what context to use with the command.

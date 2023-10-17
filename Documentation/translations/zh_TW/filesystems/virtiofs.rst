@@ -11,7 +11,7 @@
 	中文版翻譯者： 王文虎 Wang Wenhu <wenhu.wang@vivo.com>
 	中文版校譯者： 王文虎 Wang Wenhu <wenhu.wang@vivo.com>
 	中文版校譯者： 王文虎 Wang Wenhu <wenhu.wang@vivo.com>
-	繁體中文版校譯者：胡皓文 Hu Haowen <src.res@email.cn>
+	繁體中文版校譯者：胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 ===========================================
 virtiofs: virtio-fs 主機<->客機共享文件系統

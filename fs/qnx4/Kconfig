@@ -2,6 +2,7 @@
 config QNX4FS_FS
 	tristate "QNX4 file system support (read only)"
 	depends on BLOCK
+	select BUFFER_HEAD
 	help
 	  This is the file system used by the real-time operating systems
 	  QNX 4 and QNX 6 (the latter is also called QNX RTP).

@@ -27,6 +27,7 @@ provided by gadgets.
    18. UVC function
    19. PRINTER function
    20. UAC1 function (new API)
+   21. MIDI2 function
 
 
 1. ACM function
@@ -965,3 +966,156 @@ e.g.::
 
 	$ arecord -f dat -t wav -D hw:CARD=UAC1Gadget,DEV=0 | \
 	  aplay -D default:CARD=OdroidU3
+
+
+21. MIDI2 function
+==================
+
+The function is provided by usb_f_midi2.ko module.
+It will create a virtual ALSA card containing a UMP rawmidi device
+where the UMP packet is looped back. In addition, a legacy rawmidi
+device is created. The UMP rawmidi is bound with ALSA sequencer
+clients, too.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "midi2".
+The midi2 function provides these attributes in its function directory
+as the card top-level information:
+
+	=============	=================================================
+	process_ump	Bool flag to process UMP Stream messages (0 or 1)
+	static_block	Bool flag for static blocks (0 or 1)
+	iface_name	Optional interface name string
+	=============	=================================================
+
+The directory contains a subdirectory "ep.0", and this provides the
+attributes for a UMP Endpoint (which is a pair of USB MIDI Endpoints):
+
+	=============	=================================================
+	protocol_caps	MIDI protocol capabilities;
+			1: MIDI 1.0, 2: MIDI 2.0, or 3: both protocols
+	protocol	Default MIDI protocol (either 1 or 2)
+	ep_name		UMP Endpoint name string
+	product_id	Product ID string
+	manufacturer	Manufacture ID number (24 bit)
+	family		Device family ID number (16 bit)
+	model		Device model ID number (16 bit)
+	sw_revision	Software revision (32 bit)
+	=============	=================================================
+
+Each Endpoint subdirectory contains a subdirectory "block.0", which
+represents the Function Block for Block 0 information.
+Its attributes are:
+
+	=================	===============================================
+	name			Function Block name string
+	direction		Direction of this FB
+				1: input, 2: output, or 3: bidirectional
+	first_group		The first UMP Group number (0-15)
+	num_groups		The number of groups in this FB (1-16)
+	midi1_first_group	The first UMP Group number for MIDI 1.0 (0-15)
+	midi1_num_groups	The number of groups for MIDI 1.0 (0-16)
+	ui_hint			UI-hint of this FB
+				0: unknown, 1: receiver, 2: sender, 3: both
+	midi_ci_verison		Supported MIDI-CI version number (8 bit)
+	is_midi1		Legacy MIDI 1.0 device (0-2)
+				0: MIDI 2.0 device,
+				1: MIDI 1.0 without restriction, or
+				2: MIDI 1.0 with low speed
+	sysex8_streams		Max number of SysEx8 streams (8 bit)
+	active			Bool flag for FB activity (0 or 1)
+	=================	===============================================
+
+If multiple Function Blocks are required, you can add more Function
+Blocks by creating subdirectories "block.<num>" with the corresponding
+Function Block number (1, 2, ....). The FB subdirectories can be
+dynamically removed, too. Note that the Function Block numbers must be
+continuous.
+
+Similarly, if you multiple UMP Endpoints are required, you can add
+more Endpoints by creating subdirectories "ep.<num>". The number must
+be continuous.
+
+For emulating the old MIDI 2.0 device without UMP v1.1 support, pass 0
+to `process_ump` flag. Then the whole UMP v1.1 requests are ignored.
+
+Testing the MIDI2 function
+--------------------------
+
+On the device: run the gadget, and running::
+
+  $ cat /proc/asound/cards
+
+will show a new sound card containing a MIDI2 device.
+
+OTOH, on the host::
+
+  $ cat /proc/asound/cards
+
+will show a new sound card containing either MIDI1 or MIDI2 device,
+depending on the USB audio driver configuration.
+
+On both, when ALSA sequencer is enabled on the host, you can find the
+UMP MIDI client such as "MIDI 2.0 Gadget".
+
+As the driver simply loops back the data, there is no need for a real
+device just for testing.
+
+For testing a MIDI input from the gadget to the host (e.g. emulating a
+MIDI keyboard), you can send a MIDI stream like the following.
+
+On the gadget::
+
+  $ aconnect -o
+  ....
+  client 20: 'MIDI 2.0 Gadget' [type=kernel,card=1]
+      0 'MIDI 2.0        '
+      1 'Group 1 (MIDI 2.0 Gadget I/O)'
+  $ aplaymidi -p 20:1 to_host.mid
+
+On the host::
+
+  $ aconnect -i
+  ....
+  client 24: 'MIDI 2.0 Gadget' [type=kernel,card=2]
+      0 'MIDI 2.0        '
+      1 'Group 1 (MIDI 2.0 Gadget I/O)'
+  $ arecordmidi -p 24:1 from_gadget.mid
+
+If you have a UMP-capable application, you can use the UMP port to
+send/receive the raw UMP packets, too. For example, aseqdump program
+with UMP support can receive from UMP port. On the host::
+
+  $ aseqdump -u 2 -p 24:1
+  Waiting for data. Press Ctrl+C to end.
+  Source  Group    Event                  Ch  Data
+   24:1   Group  0, Program change          0, program 0, Bank select 0:0
+   24:1   Group  0, Channel pressure        0, value 0x80000000
+
+For testing a MIDI output to the gadget to the host (e.g. emulating a
+MIDI synth), it'll be just other way round.
+
+On the gadget::
+
+  $ arecordmidi -p 20:1 from_host.mid
+
+On the host::
+
+  $ aplaymidi -p 24:1 to_gadget.mid
+
+The access to MIDI 1.0 on altset 0 on the host is supported, and it's
+translated from/to UMP packets on the gadget. It's bound to only
+Function Block 0.
+
+The current operation mode can be observed in ALSA control element
+"Operation Mode" for SND_CTL_IFACE_RAWMIDI.  For example::
+
+  $ amixer -c1 contents
+  numid=1,iface=RAWMIDI,name='Operation Mode'
+    ; type=INTEGER,access=r--v----,values=1,min=0,max=2,step=0
+    : values=2
+
+where 0 = unused, 1 = MIDI 1.0 (altset 0), 2 = MIDI 2.0 (altset 1).
+The example above shows it's running in 2, i.e. MIDI 2.0.

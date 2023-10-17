@@ -98,3 +98,91 @@ Description:
 		Enable an LCD response-time boost to reduce or remove ghosting:
 			* 0 - Disable,
 			* 1 - Enable
+
+What:		/sys/devices/platform/<platform>/charge_mode
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Get the current charging mode being used:
+			* 1 - Barrel connected charger,
+			* 2 - USB-C charging
+			* 3 - Both connected, barrel used for charging
+
+What:		/sys/devices/platform/<platform>/egpu_connected
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Show if the egpu (XG Mobile) is correctly connected:
+			* 0 - False,
+			* 1 - True
+
+What:		/sys/devices/platform/<platform>/mini_led_mode
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Change the mini-LED mode:
+			* 0 - Single-zone,
+			* 1 - Multi-zone
+
+What:		/sys/devices/platform/<platform>/ppt_pl1_spl
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Set the Package Power Target total of CPU: PL1 on Intel, SPL on AMD.
+		Shown on Intel+Nvidia or AMD+Nvidia based systems:
+
+			* min=5, max=250
+
+What:		/sys/devices/platform/<platform>/ppt_pl2_sppt
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Set the Slow Package Power Tracking Limit of CPU: PL2 on Intel, SPPT,
+		on AMD. Shown on Intel+Nvidia or AMD+Nvidia based systems:
+
+			* min=5, max=250
+
+What:		/sys/devices/platform/<platform>/ppt_fppt
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Set the Fast Package Power Tracking Limit of CPU. AMD+Nvidia only:
+			* min=5, max=250
+
+What:		/sys/devices/platform/<platform>/ppt_apu_sppt
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Set the APU SPPT limit. Shown on full AMD systems only:
+			* min=5, max=130
+
+What:		/sys/devices/platform/<platform>/ppt_platform_sppt
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Set the platform SPPT limit. Shown on full AMD systems only:
+			* min=5, max=130
+
+What:		/sys/devices/platform/<platform>/nv_dynamic_boost
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Set the dynamic boost limit of the Nvidia dGPU:
+			* min=5, max=25
+
+What:		/sys/devices/platform/<platform>/nv_temp_target
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Set the target temperature limit of the Nvidia dGPU:
+			* min=75, max=87

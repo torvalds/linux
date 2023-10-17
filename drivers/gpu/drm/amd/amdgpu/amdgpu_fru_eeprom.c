@@ -60,10 +60,10 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
 		/* D161 and D163 are the VG20 server SKUs */
-		if (strnstr(atom_ctx->vbios_version, "D161",
-			    sizeof(atom_ctx->vbios_version)) ||
-		    strnstr(atom_ctx->vbios_version, "D163",
-			    sizeof(atom_ctx->vbios_version))) {
+		if (strnstr(atom_ctx->vbios_pn, "D161",
+			    sizeof(atom_ctx->vbios_pn)) ||
+		    strnstr(atom_ctx->vbios_pn, "D163",
+			    sizeof(atom_ctx->vbios_pn))) {
 			if (fru_addr)
 				*fru_addr = FRU_EEPROM_MADDR_6;
 			return true;
@@ -72,22 +72,23 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 		}
 	case CHIP_ALDEBARAN:
 		/* All Aldebaran SKUs have an FRU */
-		if (!strnstr(atom_ctx->vbios_version, "D673",
-			     sizeof(atom_ctx->vbios_version)))
+		if (!strnstr(atom_ctx->vbios_pn, "D673",
+			     sizeof(atom_ctx->vbios_pn)))
 			if (fru_addr)
 				*fru_addr = FRU_EEPROM_MADDR_6;
 		return true;
 	case CHIP_SIENNA_CICHLID:
-		if (strnstr(atom_ctx->vbios_version, "D603",
-			    sizeof(atom_ctx->vbios_version))) {
-			if (strnstr(atom_ctx->vbios_version, "D603GLXE",
-				    sizeof(atom_ctx->vbios_version))) {
+		if (strnstr(atom_ctx->vbios_pn, "D603",
+			    sizeof(atom_ctx->vbios_pn))) {
+			if (strnstr(atom_ctx->vbios_pn, "D603GLXE",
+				    sizeof(atom_ctx->vbios_pn))) {
 				return false;
-			} else {
-				if (fru_addr)
-					*fru_addr = FRU_EEPROM_MADDR_6;
-				return true;
 			}
+
+			if (fru_addr)
+				*fru_addr = FRU_EEPROM_MADDR_6;
+			return true;
+
 		} else {
 			return false;
 		}
@@ -169,6 +170,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 		csum += pia[size - 1];
 	if (csum) {
 		DRM_ERROR("Bad Product Info Area checksum: 0x%02x", csum);
+		kfree(pia);
 		return -EIO;
 	}
 
@@ -210,4 +212,93 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 Out:
 	kfree(pia);
 	return 0;
+}
+
+/**
+ * DOC: product_name
+ *
+ * The amdgpu driver provides a sysfs API for reporting the product name
+ * for the device
+ * The file product_name is used for this and returns the product name
+ * as returned from the FRU.
+ * NOTE: This is only available for certain server cards
+ */
+
+static ssize_t amdgpu_fru_product_name_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	return sysfs_emit(buf, "%s\n", adev->product_name);
+}
+
+static DEVICE_ATTR(product_name, 0444, amdgpu_fru_product_name_show, NULL);
+
+/**
+ * DOC: product_number
+ *
+ * The amdgpu driver provides a sysfs API for reporting the part number
+ * for the device
+ * The file product_number is used for this and returns the part number
+ * as returned from the FRU.
+ * NOTE: This is only available for certain server cards
+ */
+
+static ssize_t amdgpu_fru_product_number_show(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	return sysfs_emit(buf, "%s\n", adev->product_number);
+}
+
+static DEVICE_ATTR(product_number, 0444, amdgpu_fru_product_number_show, NULL);
+
+/**
+ * DOC: serial_number
+ *
+ * The amdgpu driver provides a sysfs API for reporting the serial number
+ * for the device
+ * The file serial_number is used for this and returns the serial number
+ * as returned from the FRU.
+ * NOTE: This is only available for certain server cards
+ */
+
+static ssize_t amdgpu_fru_serial_number_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	return sysfs_emit(buf, "%s\n", adev->serial);
+}
+
+static DEVICE_ATTR(serial_number, 0444, amdgpu_fru_serial_number_show, NULL);
+
+static const struct attribute *amdgpu_fru_attributes[] = {
+	&dev_attr_product_name.attr,
+	&dev_attr_product_number.attr,
+	&dev_attr_serial_number.attr,
+	NULL
+};
+
+int amdgpu_fru_sysfs_init(struct amdgpu_device *adev)
+{
+	if (!is_fru_eeprom_supported(adev, NULL))
+		return 0;
+
+	return sysfs_create_files(&adev->dev->kobj, amdgpu_fru_attributes);
+}
+
+void amdgpu_fru_sysfs_fini(struct amdgpu_device *adev)
+{
+	if (!is_fru_eeprom_supported(adev, NULL))
+		return;
+
+	sysfs_remove_files(&adev->dev->kobj, amdgpu_fru_attributes);
 }

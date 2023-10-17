@@ -105,10 +105,10 @@ union gve_rx_data_slot {
 	__be64 addr;
 };
 
-/* GVE Recive Packet Descriptor Seq No */
+/* GVE Receive Packet Descriptor Seq No */
 #define GVE_SEQNO(x) (be16_to_cpu(x) & 0x7)
 
-/* GVE Recive Packet Descriptor Flags */
+/* GVE Receive Packet Descriptor Flags */
 #define GVE_RXFLG(x)	cpu_to_be16(1 << (3 + (x)))
 #define	GVE_RXF_FRAG		GVE_RXFLG(3)	/* IP Fragment			*/
 #define	GVE_RXF_IPV4		GVE_RXFLG(4)	/* IPv4				*/

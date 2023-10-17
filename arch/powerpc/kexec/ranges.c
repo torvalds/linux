@@ -18,7 +18,7 @@
 
 #include <linux/sort.h>
 #include <linux/kexec.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <asm/sections.h>
 #include <asm/kexec_ranges.h>

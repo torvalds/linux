@@ -186,8 +186,8 @@ static void ipw_write_packet_sent_callback(void *callback_data,
 	tty->tx_bytes_queued -= packet_length;
 }
 
-static int ipw_write(struct tty_struct *linux_tty,
-		     const unsigned char *buf, int count)
+static ssize_t ipw_write(struct tty_struct *linux_tty, const u8 *buf,
+			 size_t count)
 {
 	struct ipw_tty *tty = linux_tty->driver_data;
 	int room, ret;

@@ -13,6 +13,9 @@ struct node_acquire {
 	struct bpf_refcount refcount;
 };
 
+extern void bpf_rcu_read_lock(void) __ksym;
+extern void bpf_rcu_read_unlock(void) __ksym;
+
 #define private(name) SEC(".data." #name) __hidden __attribute__((aligned(8)))
 private(A) struct bpf_spin_lock glock;
 private(A) struct bpf_rb_root groot __contains(node_acquire, node);
@@ -67,6 +70,31 @@ long rbtree_refcounted_node_ref_escapes_owning_input(void *ctx)
 	bpf_spin_lock(&glock);
 	bpf_rbtree_add(&groot, &n->node, less);
 	bpf_spin_unlock(&glock);
+
+	return 0;
+}
+
+SEC("?fentry.s/bpf_testmod_test_read")
+__failure __msg("function calls are not allowed while holding a lock")
+int BPF_PROG(rbtree_fail_sleepable_lock_across_rcu,
+	     struct file *file, struct kobject *kobj,
+	     struct bin_attribute *bin_attr, char *buf, loff_t off, size_t len)
+{
+	struct node_acquire *n;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n)
+		return 0;
+
+	/* spin_{lock,unlock} are in different RCU CS */
+	bpf_rcu_read_lock();
+	bpf_spin_lock(&glock);
+	bpf_rbtree_add(&groot, &n->node, less);
+	bpf_rcu_read_unlock();
+
+	bpf_rcu_read_lock();
+	bpf_spin_unlock(&glock);
+	bpf_rcu_read_unlock();
 
 	return 0;
 }

@@ -963,15 +963,12 @@ int fb_mode_is_equal(const struct fb_videomode *mode1,
 const struct fb_videomode *fb_find_best_mode(const struct fb_var_screeninfo *var,
 					     struct list_head *head)
 {
-	struct list_head *pos;
 	struct fb_modelist *modelist;
 	struct fb_videomode *mode, *best = NULL;
 	u32 diff = -1;
 
-	list_for_each(pos, head) {
+	list_for_each_entry(modelist, head, list) {
 		u32 d;
-
-		modelist = list_entry(pos, struct fb_modelist, list);
 		mode = &modelist->mode;
 
 		if (mode->xres >= var->xres && mode->yres >= var->yres) {
@@ -1001,15 +998,12 @@ const struct fb_videomode *fb_find_best_mode(const struct fb_var_screeninfo *var
 const struct fb_videomode *fb_find_nearest_mode(const struct fb_videomode *mode,
 					        struct list_head *head)
 {
-	struct list_head *pos;
 	struct fb_modelist *modelist;
 	struct fb_videomode *cmode, *best = NULL;
 	u32 diff = -1, diff_refresh = -1;
 
-	list_for_each(pos, head) {
+	list_for_each_entry(modelist, head, list) {
 		u32 d;
-
-		modelist = list_entry(pos, struct fb_modelist, list);
 		cmode = &modelist->mode;
 
 		d = abs(cmode->xres - mode->xres) +
@@ -1041,13 +1035,11 @@ const struct fb_videomode *fb_find_nearest_mode(const struct fb_videomode *mode,
 const struct fb_videomode *fb_match_mode(const struct fb_var_screeninfo *var,
 					 struct list_head *head)
 {
-	struct list_head *pos;
 	struct fb_modelist *modelist;
 	struct fb_videomode *m, mode;
 
 	fb_var_to_videomode(&mode, var);
-	list_for_each(pos, head) {
-		modelist = list_entry(pos, struct fb_modelist, list);
+	list_for_each_entry(modelist, head, list) {
 		m = &modelist->mode;
 		if (fb_mode_is_equal(m, &mode))
 			return m;
@@ -1065,13 +1057,11 @@ const struct fb_videomode *fb_match_mode(const struct fb_var_screeninfo *var,
  */
 int fb_add_videomode(const struct fb_videomode *mode, struct list_head *head)
 {
-	struct list_head *pos;
 	struct fb_modelist *modelist;
 	struct fb_videomode *m;
 	int found = 0;
 
-	list_for_each(pos, head) {
-		modelist = list_entry(pos, struct fb_modelist, list);
+	list_for_each_entry(modelist, head, list) {
 		m = &modelist->mode;
 		if (fb_mode_is_equal(m, mode)) {
 			found = 1;
@@ -1152,7 +1142,6 @@ void fb_videomode_to_modelist(const struct fb_videomode *modedb, int num,
 const struct fb_videomode *fb_find_best_display(const struct fb_monspecs *specs,
 					        struct list_head *head)
 {
-	struct list_head *pos;
 	struct fb_modelist *modelist;
 	const struct fb_videomode *m, *m1 = NULL, *md = NULL, *best = NULL;
 	int first = 0;
@@ -1161,8 +1150,7 @@ const struct fb_videomode *fb_find_best_display(const struct fb_monspecs *specs,
 		goto finished;
 
 	/* get the first detailed mode and the very first mode */
-	list_for_each(pos, head) {
-		modelist = list_entry(pos, struct fb_modelist, list);
+	list_for_each_entry(modelist, head, list) {
 		m = &modelist->mode;
 
 		if (!first) {

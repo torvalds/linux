@@ -1223,7 +1223,7 @@ static struct i2c_driver ov2740_i2c_driver = {
 module_i2c_driver(ov2740_i2c_driver);
 
 MODULE_AUTHOR("Qiu, Tianshu <tian.shu.qiu@intel.com>");
-MODULE_AUTHOR("Shawn Tu <shawnx.tu@intel.com>");
+MODULE_AUTHOR("Shawn Tu");
 MODULE_AUTHOR("Bingbu Cao <bingbu.cao@intel.com>");
 MODULE_DESCRIPTION("OmniVision OV2740 sensor driver");
 MODULE_LICENSE("GPL v2");

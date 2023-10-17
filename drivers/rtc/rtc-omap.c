@@ -747,12 +747,12 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	}
 
 	rtc->irq_timer = platform_get_irq(pdev, 0);
-	if (rtc->irq_timer <= 0)
-		return -ENOENT;
+	if (rtc->irq_timer < 0)
+		return rtc->irq_timer;
 
 	rtc->irq_alarm = platform_get_irq(pdev, 1);
-	if (rtc->irq_alarm <= 0)
-		return -ENOENT;
+	if (rtc->irq_alarm < 0)
+		return rtc->irq_alarm;
 
 	rtc->clk = devm_clk_get(&pdev->dev, "ext-clk");
 	if (!IS_ERR(rtc->clk))

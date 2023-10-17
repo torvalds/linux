@@ -200,9 +200,6 @@ static inline int check_format(struct v4l2_subdev *sd,
 	if (!format)
 		return -EINVAL;
 
-	if (!(sd->flags & V4L2_SUBDEV_FL_STREAMS))
-		format->stream = 0;
-
 	return check_which(format->which) ? : check_pad(sd, format->pad) ? :
 	       check_state(sd, state, format->which, format->pad, format->stream);
 }
@@ -230,9 +227,6 @@ static int call_enum_mbus_code(struct v4l2_subdev *sd,
 	if (!code)
 		return -EINVAL;
 
-	if (!(sd->flags & V4L2_SUBDEV_FL_STREAMS))
-		code->stream = 0;
-
 	return check_which(code->which) ? : check_pad(sd, code->pad) ? :
 	       check_state(sd, state, code->which, code->pad, code->stream) ? :
 	       sd->ops->pad->enum_mbus_code(sd, state, code);
@@ -244,9 +238,6 @@ static int call_enum_frame_size(struct v4l2_subdev *sd,
 {
 	if (!fse)
 		return -EINVAL;
-
-	if (!(sd->flags & V4L2_SUBDEV_FL_STREAMS))
-		fse->stream = 0;
 
 	return check_which(fse->which) ? : check_pad(sd, fse->pad) ? :
 	       check_state(sd, state, fse->which, fse->pad, fse->stream) ? :
@@ -283,9 +274,6 @@ static int call_enum_frame_interval(struct v4l2_subdev *sd,
 	if (!fie)
 		return -EINVAL;
 
-	if (!(sd->flags & V4L2_SUBDEV_FL_STREAMS))
-		fie->stream = 0;
-
 	return check_which(fie->which) ? : check_pad(sd, fie->pad) ? :
 	       check_state(sd, state, fie->which, fie->pad, fie->stream) ? :
 	       sd->ops->pad->enum_frame_interval(sd, state, fie);
@@ -297,9 +285,6 @@ static inline int check_selection(struct v4l2_subdev *sd,
 {
 	if (!sel)
 		return -EINVAL;
-
-	if (!(sd->flags & V4L2_SUBDEV_FL_STREAMS))
-		sel->stream = 0;
 
 	return check_which(sel->which) ? : check_pad(sd, sel->pad) ? :
 	       check_state(sd, state, sel->which, sel->pad, sel->stream);
@@ -516,6 +501,13 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 	bool client_supports_streams = subdev_fh->client_caps &
 				       V4L2_SUBDEV_CLIENT_CAP_STREAMS;
 	int rval;
+
+	/*
+	 * If the streams API is not enabled, remove V4L2_SUBDEV_CAP_STREAMS.
+	 * Remove this when the API is no longer experimental.
+	 */
+	if (!v4l2_subdev_enable_streams_api)
+		streams_subdev = false;
 
 	switch (cmd) {
 	case VIDIOC_SUBDEV_QUERYCAP: {
@@ -1467,8 +1459,20 @@ EXPORT_SYMBOL_GPL(__v4l2_subdev_init_finalize);
 
 void v4l2_subdev_cleanup(struct v4l2_subdev *sd)
 {
+	struct v4l2_async_subdev_endpoint *ase, *ase_tmp;
+
 	__v4l2_subdev_state_free(sd->active_state);
 	sd->active_state = NULL;
+
+	if (list_empty(&sd->async_subdev_endpoint_list))
+		return;
+
+	list_for_each_entry_safe(ase, ase_tmp, &sd->async_subdev_endpoint_list,
+				 async_subdev_endpoint_entry) {
+		list_del(&ase->async_subdev_endpoint_entry);
+
+		kfree(ase);
+	}
 }
 EXPORT_SYMBOL_GPL(v4l2_subdev_cleanup);
 
@@ -1605,7 +1609,7 @@ EXPORT_SYMBOL_GPL(__v4l2_subdev_next_active_route);
 
 int v4l2_subdev_set_routing_with_fmt(struct v4l2_subdev *sd,
 				     struct v4l2_subdev_state *state,
-				     struct v4l2_subdev_krouting *routing,
+				     const struct v4l2_subdev_krouting *routing,
 				     const struct v4l2_mbus_framefmt *fmt)
 {
 	struct v4l2_subdev_stream_configs *stream_configs;
@@ -1992,11 +1996,16 @@ int v4l2_subdev_enable_streams(struct v4l2_subdev *sd, u32 pad,
 		goto done;
 	}
 
+	dev_dbg(dev, "enable streams %u:%#llx\n", pad, streams_mask);
+
 	/* Call the .enable_streams() operation. */
 	ret = v4l2_subdev_call(sd, pad, enable_streams, state, pad,
 			       streams_mask);
-	if (ret)
+	if (ret) {
+		dev_dbg(dev, "enable streams %u:%#llx failed: %d\n", pad,
+			streams_mask, ret);
 		goto done;
+	}
 
 	/* Mark the streams as enabled. */
 	for (i = 0; i < state->stream_configs.num_configs; ++i) {
@@ -2104,11 +2113,16 @@ int v4l2_subdev_disable_streams(struct v4l2_subdev *sd, u32 pad,
 		goto done;
 	}
 
+	dev_dbg(dev, "disable streams %u:%#llx\n", pad, streams_mask);
+
 	/* Call the .disable_streams() operation. */
 	ret = v4l2_subdev_call(sd, pad, disable_streams, state, pad,
 			       streams_mask);
-	if (ret)
+	if (ret) {
+		dev_dbg(dev, "disable streams %u:%#llx failed: %d\n", pad,
+			streams_mask, ret);
 		goto done;
+	}
 
 	/* Mark the streams as disabled. */
 	for (i = 0; i < state->stream_configs.num_configs; ++i) {
@@ -2182,6 +2196,7 @@ void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 	sd->dev_priv = NULL;
 	sd->host_priv = NULL;
 	sd->privacy_led = NULL;
+	INIT_LIST_HEAD(&sd->async_subdev_endpoint_list);
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	sd->entity.name = sd->name;
 	sd->entity.obj_type = MEDIA_ENTITY_TYPE_V4L2_SUBDEV;

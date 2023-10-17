@@ -231,9 +231,7 @@ struct irq_chip i8259A_chip = {
 };
 
 static char irq_trigger[2];
-/**
- * ELCR registers (0x4d0, 0x4d1) control edge/level of IRQ
- */
+/* ELCR registers (0x4d0, 0x4d1) control edge/level of IRQ */
 static void restore_ELCR(char *trigger)
 {
 	outb(trigger[0], PIC_ELCR1);

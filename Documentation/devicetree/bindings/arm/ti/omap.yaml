@@ -1,0 +1,176 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/ti/omap.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments OMAP SoC architecture
+
+maintainers:
+  - Tony Lindgren <tony@atomide.com>
+
+description: Platforms based on Texas Instruments OMAP SoC architecture.
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+
+      - description: TI OMAP2420 SoC based platforms
+        items:
+          - enum:
+              - nokia,n800
+              - nokia,n810
+              - nokia,n810-wimax
+              - ti,omap2420-h4
+          - const: ti,omap2420
+          - const: ti,omap2
+
+      - description: TI OMAP2430 SoC based platforms
+        items:
+          - enum:
+              - ti,omap2430-sdp # TI OMAP2430 SDP
+          - const: ti,omap2430
+          - const: ti,omap2
+
+      - description: TI OMAP3430 SoC based platforms
+        items:
+          - enum:
+              - compulab,omap3-cm-t3530
+              - logicpd,dm3730-som-lv-devkit  # LogicPD Zoom OMAP35xx SOM-LV Development Kit
+              - logicpd,dm3730-torpedo-devkit # LogicPD Zoom OMAP35xx Torpedo Development Kit
+              - nokia,omap3-n900
+              - openpandora,omap3-pandora-600mhz
+              - ti,omap3430-sdp
+              - ti,omap3-beagle
+              - ti,omap3-evm                  # TI OMAP35XX EVM (TMDSEVM3530)
+              - ti,omap3-ldp                  # TI OMAP3430 LDP (Zoom1 Labrador)
+              - timll,omap3-devkit8000
+          - const: ti,omap3430
+          - const: ti,omap3
+
+      - description: Early BeagleBoard revisions A to B4 with a timer quirk
+        items:
+          - const: ti,omap3-beagle-ab4
+          - const: ti,omap3-beagle
+          - const: ti,omap3430
+          - const: ti,omap3
+
+      - description: Gumstix Overo TI OMAP 3430/3630 boards + expansion boards
+        items:
+          - enum:
+              - gumstix,omap3-overo-alto35
+              - gumstix,omap3-overo-chestnut43
+              - gumstix,omap3-overo-gallop43
+              - gumstix,omap3-overo-palo35
+              - gumstix,omap3-overo-palo43
+              - gumstix,omap3-overo-summit
+              - gumstix,omap3-overo-tobi
+              - gumstix,omap3-overo-tobiduo
+          - const: gumstix,omap3-overo
+          - enum:
+              - ti,omap3430
+              - ti,omap3630
+
+      - description: TI OMAP3630 SoC based platforms
+        items:
+          - enum:
+              - amazon,omap3-echo             # Amazon Echo (first generation)
+              - compulab,omap3-cm-t3730
+              - goldelico,gta04
+              - lg,omap3-sniper               # LG Optimus Black
+              - logicpd,dm3730-som-lv-devkit  # LogicPD Zoom DM3730 SOM-LV Development Kit
+              - logicpd,dm3730-torpedo-devkit # LogicPD Zoom DM3730 Torpedo + Wireless Development Kit
+              - nokia,omap3-n9
+              - nokia,omap3-n950
+              - openpandora,omap3-pandora-1ghz
+              - ti,omap3-beagle-xm
+              - ti,omap3-evm-37xx             # TI OMAP37XX EVM (TMDSEVM3730)
+              - ti,omap3-zoom3
+          - const: ti,omap3630
+          - const: ti,omap3
+
+      - description: TI AM35 SoC based platforms
+        items:
+          - enum:
+              - compulab,omap3-sbc-t3517 # CompuLab SBC-T3517 with CM-T3517
+              - teejet,mt_ventoux
+              - ti,am3517-craneboard     # TI AM3517 CraneBoard (TMDSEVM3517)
+              - ti,am3517-evm            # TI AM3517 EVM (AM3517/05 TMDSEVM3517)
+          - const: ti,am3517
+          - const: ti,omap3
+
+      - description: TI AM33 based platform
+        items:
+          - enum:
+              - compulab,cm-t335
+              - moxa,uc-8100-me-t
+              - novatech,am335x-lxm
+              - ti,am335x-bone
+              - ti,am335x-evm
+              - ti,am3359-icev2
+          - const: ti,am33xx
+
+      - description: Compulab board variants based on TI AM33
+        items:
+          - enum:
+              - compulab,sbc-t335
+          - const: compulab,cm-t335
+          - const: ti,am33xx
+
+      - description: Phytec boards based on TI AM33
+        items:
+          - enum:
+              - phytec,am335x-wega
+              - phytec,am335x-pcm-953
+              - phytec,am335x-regor
+          - const: phytec,am335x-phycore-som
+          - const: ti,am33xx
+
+      - description: TI OMAP4430 SoC based platforms
+        items:
+          - enum:
+              - amazon,omap4-kc1        # Amazon Kindle Fire (first generation)
+              - motorola,droid4         # Motorola Droid 4 XT894
+              - motorola,droid-bionic   # Motorola Droid Bionic XT875
+              - ti,omap4-panda
+              - ti,omap4-sdp
+          - const: ti,omap4430
+          - const: ti,omap4
+
+      - description: OMAP4 DuoVero with Parlor expansion board/daughter board
+        items:
+          - const: gumstix,omap4-duovero-parlor
+          - const: gumstix,omap4-duovero
+          - const: ti,omap4430
+          - const: ti,omap4
+
+      - description: TI OMAP4460 SoC based platforms
+        items:
+          - enum:
+              - epson,embt2ws    # Epson Moverio BT-200
+              - ti,omap4-panda-es
+          - const: ti,omap4460
+          - const: ti,omap4
+
+      - description: VAR-OM44 boards
+        items:
+          - enum:
+              - variscite,var-dvk-om44
+              - variscite,var-stk-om44
+          - const: variscite,var-som-om44
+          - const: ti,omap4460
+          - const: ti,omap4
+
+      - description: TI OMAP5 SoC based platforms
+        items:
+          - enum:
+              - compulab,omap5-cm-t54
+              - isee,omap5-igep0050
+              - ti,omap5-uevm
+          - const: ti,omap5
+
+additionalProperties: true
+
+...

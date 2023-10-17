@@ -201,16 +201,12 @@ struct sun8i_cipher_req_ctx {
 
 /*
  * struct sun8i_cipher_tfm_ctx - context for a skcipher TFM
- * @enginectx:		crypto_engine used by this TFM
  * @key:		pointer to key data
  * @keylen:		len of the key
  * @ss:			pointer to the private data of driver handling this TFM
  * @fallback_tfm:	pointer to the fallback TFM
- *
- * enginectx must be the first element
  */
 struct sun8i_cipher_tfm_ctx {
-	struct crypto_engine_ctx enginectx;
 	u32 *key;
 	u32 keylen;
 	struct sun8i_ss_dev *ss;
@@ -229,14 +225,10 @@ struct sun8i_ss_rng_tfm_ctx {
 
 /*
  * struct sun8i_ss_hash_tfm_ctx - context for an ahash TFM
- * @enginectx:		crypto_engine used by this TFM
  * @fallback_tfm:	pointer to the fallback TFM
  * @ss:			pointer to the private data of driver handling this TFM
- *
- * enginectx must be the first element
  */
 struct sun8i_ss_hash_tfm_ctx {
-	struct crypto_engine_ctx enginectx;
 	struct crypto_ahash *fallback_tfm;
 	struct sun8i_ss_dev *ss;
 	u8 *ipad;
@@ -279,9 +271,9 @@ struct sun8i_ss_alg_template {
 	u32 ss_blockmode;
 	struct sun8i_ss_dev *ss;
 	union {
-		struct skcipher_alg skcipher;
+		struct skcipher_engine_alg skcipher;
 		struct rng_alg rng;
-		struct ahash_alg hash;
+		struct ahash_engine_alg hash;
 	} alg;
 	unsigned long stat_req;
 	unsigned long stat_fb;
@@ -293,14 +285,13 @@ struct sun8i_ss_alg_template {
 	char fbname[CRYPTO_MAX_ALG_NAME];
 };
 
-int sun8i_ss_enqueue(struct crypto_async_request *areq, u32 type);
-
 int sun8i_ss_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			unsigned int keylen);
 int sun8i_ss_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			 unsigned int keylen);
 int sun8i_ss_cipher_init(struct crypto_tfm *tfm);
 void sun8i_ss_cipher_exit(struct crypto_tfm *tfm);
+int sun8i_ss_handle_cipher_request(struct crypto_engine *engine, void *areq);
 int sun8i_ss_skdecrypt(struct skcipher_request *areq);
 int sun8i_ss_skencrypt(struct skcipher_request *areq);
 
@@ -313,8 +304,8 @@ int sun8i_ss_prng_seed(struct crypto_rng *tfm, const u8 *seed, unsigned int slen
 int sun8i_ss_prng_init(struct crypto_tfm *tfm);
 void sun8i_ss_prng_exit(struct crypto_tfm *tfm);
 
-int sun8i_ss_hash_crainit(struct crypto_tfm *tfm);
-void sun8i_ss_hash_craexit(struct crypto_tfm *tfm);
+int sun8i_ss_hash_init_tfm(struct crypto_ahash *tfm);
+void sun8i_ss_hash_exit_tfm(struct crypto_ahash *tfm);
 int sun8i_ss_hash_init(struct ahash_request *areq);
 int sun8i_ss_hash_export(struct ahash_request *areq, void *out);
 int sun8i_ss_hash_import(struct ahash_request *areq, const void *in);

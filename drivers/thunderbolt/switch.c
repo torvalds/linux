@@ -2188,46 +2188,47 @@ struct device_type tb_switch_type = {
 
 static int tb_switch_get_generation(struct tb_switch *sw)
 {
-	switch (sw->config.device_id) {
-	case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
-	case PCI_DEVICE_ID_INTEL_EAGLE_RIDGE:
-	case PCI_DEVICE_ID_INTEL_LIGHT_PEAK:
-	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_2C:
-	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
-	case PCI_DEVICE_ID_INTEL_PORT_RIDGE:
-	case PCI_DEVICE_ID_INTEL_REDWOOD_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_REDWOOD_RIDGE_4C_BRIDGE:
-		return 1;
+	if (tb_switch_is_usb4(sw))
+		return 4;
 
-	case PCI_DEVICE_ID_INTEL_WIN_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE:
-		return 2;
+	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
+		switch (sw->config.device_id) {
+		case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
+		case PCI_DEVICE_ID_INTEL_EAGLE_RIDGE:
+		case PCI_DEVICE_ID_INTEL_LIGHT_PEAK:
+		case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_2C:
+		case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
+		case PCI_DEVICE_ID_INTEL_PORT_RIDGE:
+		case PCI_DEVICE_ID_INTEL_REDWOOD_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_REDWOOD_RIDGE_4C_BRIDGE:
+			return 1;
 
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_4C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ICL_NHI0:
-	case PCI_DEVICE_ID_INTEL_ICL_NHI1:
-		return 3;
+		case PCI_DEVICE_ID_INTEL_WIN_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE:
+			return 2;
 
-	default:
-		if (tb_switch_is_usb4(sw))
-			return 4;
-
-		/*
-		 * For unknown switches assume generation to be 1 to be
-		 * on the safe side.
-		 */
-		tb_sw_warn(sw, "unsupported switch device id %#x\n",
-			   sw->config.device_id);
-		return 1;
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_4C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ICL_NHI0:
+		case PCI_DEVICE_ID_INTEL_ICL_NHI1:
+			return 3;
+		}
 	}
+
+	/*
+	 * For unknown switches assume generation to be 1 to be on the
+	 * safe side.
+	 */
+	tb_sw_warn(sw, "unsupported switch device id %#x\n",
+		   sw->config.device_id);
+	return 1;
 }
 
 static bool tb_switch_exceeds_max_depth(const struct tb_switch *sw, int depth)
@@ -2723,6 +2724,13 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 	if (!tb_port_is_width_supported(up, TB_LINK_WIDTH_DUAL) ||
 	    !tb_port_is_width_supported(down, TB_LINK_WIDTH_DUAL))
 		return 0;
+
+	/*
+	 * Both lanes need to be in CL0. Here we assume lane 0 already be in
+	 * CL0 and check just for lane 1.
+	 */
+	if (tb_wait_for_port(down->dual_link_port, false) <= 0)
+		return -ENOTCONN;
 
 	ret = tb_port_lane_bonding_enable(up);
 	if (ret) {

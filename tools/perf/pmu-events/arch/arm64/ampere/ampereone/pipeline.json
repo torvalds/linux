@@ -1,18 +1,24 @@
 [
     {
-        "ArchStdEvent": "STALL_FRONTEND"
+        "ArchStdEvent": "STALL_FRONTEND",
+        "Errata": "Errata AC03_CPU_29",
+        "BriefDescription": "Impacted by errata, use metrics instead -"
     },
     {
         "ArchStdEvent": "STALL_BACKEND"
     },
     {
-        "ArchStdEvent": "STALL"
+        "ArchStdEvent": "STALL",
+        "Errata": "Errata AC03_CPU_29",
+        "BriefDescription": "Impacted by errata, use metrics instead -"
     },
     {
         "ArchStdEvent": "STALL_SLOT_BACKEND"
     },
     {
-        "ArchStdEvent": "STALL_SLOT_FRONTEND"
+        "ArchStdEvent": "STALL_SLOT_FRONTEND",
+        "Errata": "Errata AC03_CPU_29",
+        "BriefDescription": "Impacted by errata, use metrics instead -"
     },
     {
         "ArchStdEvent": "STALL_SLOT"

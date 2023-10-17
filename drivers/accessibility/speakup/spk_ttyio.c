@@ -71,15 +71,14 @@ static void spk_ttyio_ldisc_close(struct tty_struct *tty)
 	kfree(tty->disc_data);
 }
 
-static int spk_ttyio_receive_buf2(struct tty_struct *tty,
-				  const unsigned char *cp,
-				  const char *fp, int count)
+static size_t spk_ttyio_receive_buf2(struct tty_struct *tty, const u8 *cp,
+				     const u8 *fp, size_t count)
 {
 	struct spk_ldisc_data *ldisc_data = tty->disc_data;
 	struct spk_synth *synth = ldisc_data->synth;
 
 	if (synth->read_buff_add) {
-		int i;
+		unsigned int i;
 
 		for (i = 0; i < count; i++)
 			synth->read_buff_add(cp[i]);

@@ -578,7 +578,7 @@ This is an asynchronous vcpu ioctl and can be invoked from any thread.
 RISC-V:
 ^^^^^^^
 
-Queues an external interrupt to be injected into the virutal CPU. This ioctl
+Queues an external interrupt to be injected into the virtual CPU. This ioctl
 is overloaded with 2 different irq values:
 
 a) KVM_INTERRUPT_SET
@@ -2259,6 +2259,8 @@ Errors:
   EINVAL   invalid register ID, or no such register or used with VMs in
            protected virtualization mode on s390
   EPERM    (arm64) register access not allowed before vcpu finalization
+  EBUSY    (riscv) changing register value not allowed after the vcpu
+           has run at least once
   ======   ============================================================
 
 (These error codes are indicative only: do not rely on a specific error
@@ -2722,7 +2724,7 @@ The isa config register can be read anytime but can only be written before
 a Guest VCPU runs. It will have ISA feature bits matching underlying host
 set by default.
 
-RISC-V core registers represent the general excution state of a Guest VCPU
+RISC-V core registers represent the general execution state of a Guest VCPU
 and it has the following id bit patterns::
 
   0x8020 0000 02 <index into the kvm_riscv_core struct:24> (32bit Host)
@@ -3499,7 +3501,7 @@ VCPU matching underlying host.
 ---------------------
 
 :Capability: basic
-:Architectures: arm64, mips
+:Architectures: arm64, mips, riscv
 :Type: vcpu ioctl
 :Parameters: struct kvm_reg_list (in/out)
 :Returns: 0 on success; -1 on error
@@ -5232,7 +5234,7 @@ KVM_PV_DISABLE
   Deregister the VM from the Ultravisor and reclaim the memory that had
   been donated to the Ultravisor, making it usable by the kernel again.
   All registered VCPUs are converted back to non-protected ones. If a
-  previous protected VM had been prepared for asynchonous teardown with
+  previous protected VM had been prepared for asynchronous teardown with
   KVM_PV_ASYNC_CLEANUP_PREPARE and not subsequently torn down with
   KVM_PV_ASYNC_CLEANUP_PERFORM, it will be torn down in this call
   together with the current protected VM.
@@ -5692,7 +5694,7 @@ flags values for ``kvm_sregs2``:
 
 ``KVM_SREGS2_FLAGS_PDPTRS_VALID``
 
-  Indicates thats the struct contain valid PDPTR values.
+  Indicates that the struct contains valid PDPTR values.
 
 
 4.132 KVM_SET_SREGS2
@@ -6263,7 +6265,7 @@ to the byte array.
 
 It is strongly recommended that userspace use ``KVM_EXIT_IO`` (x86) or
 ``KVM_EXIT_MMIO`` (all except s390) to implement functionality that
-requires a guest to interact with host userpace.
+requires a guest to interact with host userspace.
 
 .. note:: KVM_EXIT_IO is significantly faster than KVM_EXIT_MMIO.
 
@@ -6336,7 +6338,7 @@ s390 specific.
 		} s390_ucontrol;
 
 s390 specific. A page fault has occurred for a user controlled virtual
-machine (KVM_VM_S390_UNCONTROL) on it's host page table that cannot be
+machine (KVM_VM_S390_UNCONTROL) on its host page table that cannot be
 resolved by the kernel.
 The program code and the translation exception code that were placed
 in the cpu's lowcore are presented here as defined by the z Architecture
@@ -7510,7 +7512,7 @@ APIC/MSRs/etc).
           attribute is not supported by KVM.
 
 KVM_CAP_SGX_ATTRIBUTE enables a userspace VMM to grant a VM access to one or
-more priveleged enclave attributes.  args[0] must hold a file handle to a valid
+more privileged enclave attributes.  args[0] must hold a file handle to a valid
 SGX attribute file corresponding to an attribute that is supported/restricted
 by KVM (currently only PROVISIONKEY).
 
@@ -7928,7 +7930,7 @@ writing to the respective MSRs.
 
 This capability indicates that userspace can load HV_X64_MSR_VP_INDEX msr.  Its
 value is used to denote the target vcpu for a SynIC interrupt.  For
-compatibilty, KVM initializes this msr to KVM's internal vcpu index.  When this
+compatibility, KVM initializes this msr to KVM's internal vcpu index.  When this
 capability is absent, userspace can still query this msr's value.
 
 8.13 KVM_CAP_S390_AIS_MIGRATION
@@ -8118,10 +8120,10 @@ regardless of what has actually been exposed through the CPUID leaf.
 :Parameters: args[0] - size of the dirty log ring
 
 KVM is capable of tracking dirty memory using ring buffers that are
-mmaped into userspace; there is one dirty ring per vcpu.
+mmapped into userspace; there is one dirty ring per vcpu.
 
 The dirty ring is available to userspace as an array of
-``struct kvm_dirty_gfn``.  Each dirty entry it's defined as::
+``struct kvm_dirty_gfn``.  Each dirty entry is defined as::
 
   struct kvm_dirty_gfn {
           __u32 flags;
@@ -8160,7 +8162,7 @@ state machine for the entry is as follows::
       |                                          |
       +------------------------------------------+
 
-To harvest the dirty pages, userspace accesses the mmaped ring buffer
+To harvest the dirty pages, userspace accesses the mmapped ring buffer
 to read the dirty GFNs.  If the flags has the DIRTY bit set (at this stage
 the RESET bit must be cleared), then it means this GFN is a dirty GFN.
 The userspace should harvest this GFN and mark the flags from state
@@ -8286,7 +8288,7 @@ the KVM_XEN_ATTR_TYPE_RUNSTATE_UPDATE_FLAG attribute in the KVM_XEN_SET_ATTR
 and KVM_XEN_GET_ATTR ioctls. This controls whether KVM will set the
 XEN_RUNSTATE_UPDATE flag in guest memory mapped vcpu_runstate_info during
 updates of the runstate information. Note that versions of KVM which support
-the RUNSTATE feature above, but not thie RUNSTATE_UPDATE_FLAG feature, will
+the RUNSTATE feature above, but not the RUNSTATE_UPDATE_FLAG feature, will
 always set the XEN_RUNSTATE_UPDATE flag when updating the guest structure,
 which is perhaps counterintuitive. When this flag is advertised, KVM will
 behave more correctly, not using the XEN_RUNSTATE_UPDATE flag until/unless
@@ -8335,7 +8337,7 @@ Architectures: x86
 
 When enabled, KVM will disable emulated Hyper-V features provided to the
 guest according to the bits Hyper-V CPUID feature leaves. Otherwise, all
-currently implmented Hyper-V features are provided unconditionally when
+currently implemented Hyper-V features are provided unconditionally when
 Hyper-V identification is set in the HYPERV_CPUID_INTERFACE (0x40000001)
 leaf.
 

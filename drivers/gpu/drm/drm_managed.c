@@ -196,7 +196,7 @@ void *drmm_kmalloc(struct drm_device *dev, size_t size, gfp_t gfp)
 			       size, gfp);
 		return NULL;
 	}
-	dr->node.name = kstrdup_const("kmalloc", GFP_KERNEL);
+	dr->node.name = kstrdup_const("kmalloc", gfp);
 
 	add_dr(dev, dr);
 

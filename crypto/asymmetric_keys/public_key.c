@@ -42,7 +42,7 @@ static void public_key_describe(const struct key *asymmetric_key,
 void public_key_free(struct public_key *key)
 {
 	if (key) {
-		kfree(key->key);
+		kfree_sensitive(key->key);
 		kfree(key->params);
 		kfree(key);
 	}
@@ -263,7 +263,7 @@ error_free_tfm:
 	else
 		crypto_free_akcipher(tfm);
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
@@ -369,7 +369,7 @@ error_free_tfm:
 	else
 		crypto_free_akcipher(tfm);
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
@@ -441,7 +441,7 @@ int public_key_verify_signature(const struct public_key *pkey,
 				sig->digest, sig->digest_size);
 
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 error_free_tfm:
 	crypto_free_sig(tfm);
 	pr_devel("<==%s() = %d\n", __func__, ret);

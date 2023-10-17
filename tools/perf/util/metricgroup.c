@@ -527,7 +527,7 @@ void metricgroup__print(const struct print_callbacks *print_cb, void *print_stat
 	groups.node_delete = mep_delete;
 	table = pmu_metrics_table__find();
 	if (table) {
-		pmu_metrics_table_for_each_metric(table,
+		pmu_metrics_table__for_each_metric(table,
 						 metricgroup__add_to_mep_groups_callback,
 						 &groups);
 	}
@@ -1069,7 +1069,7 @@ static bool metricgroup__find_metric(const char *pmu,
 		.pm = pm,
 	};
 
-	return pmu_metrics_table_for_each_metric(table, metricgroup__find_metric_callback, &data)
+	return pmu_metrics_table__for_each_metric(table, metricgroup__find_metric_callback, &data)
 		? true : false;
 }
 
@@ -1255,7 +1255,7 @@ static int metricgroup__add_metric(const char *pmu, const char *metric_name, con
 		 * Iterate over all metrics seeing if metric matches either the
 		 * name or group. When it does add the metric to the list.
 		 */
-		ret = pmu_metrics_table_for_each_metric(table, metricgroup__add_metric_callback,
+		ret = pmu_metrics_table__for_each_metric(table, metricgroup__add_metric_callback,
 						       &data);
 		if (ret)
 			goto out;
@@ -1740,7 +1740,7 @@ bool metricgroup__has_metric(const char *pmu, const char *metric)
 	if (!table)
 		return false;
 
-	return pmu_metrics_table_for_each_metric(table, metricgroup__has_metric_callback, &data)
+	return pmu_metrics_table__for_each_metric(table, metricgroup__has_metric_callback, &data)
 		? true : false;
 }
 
@@ -1770,7 +1770,7 @@ unsigned int metricgroups__topdown_max_level(void)
 	if (!table)
 		return false;
 
-	pmu_metrics_table_for_each_metric(table, metricgroup__topdown_max_level_callback,
+	pmu_metrics_table__for_each_metric(table, metricgroup__topdown_max_level_callback,
 					  &max_level);
 	return max_level;
 }

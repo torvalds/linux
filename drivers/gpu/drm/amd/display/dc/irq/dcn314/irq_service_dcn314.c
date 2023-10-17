@@ -38,10 +38,9 @@
 
 #define DCN_BASE__INST0_SEG2                       0x000034C0
 
-static enum dc_irq_source to_dal_irq_source_dcn314(
-		struct irq_service *irq_service,
-		uint32_t src_id,
-		uint32_t ext_id)
+static enum dc_irq_source to_dal_irq_source_dcn314(struct irq_service *irq_service,
+						   uint32_t src_id,
+						   uint32_t ext_id)
 {
 	switch (src_id) {
 	case DCN_1_0__SRCID__DC_D1_OTG_VSTARTUP:

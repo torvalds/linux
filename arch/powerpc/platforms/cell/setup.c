@@ -27,6 +27,7 @@
 #include <linux/mutex.h>
 #include <linux/memory_hotplug.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>

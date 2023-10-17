@@ -6,27 +6,26 @@
  * Author(s): Lionel DEBIEVE <lionel.debieve@st.com> for STMicroelectronics.
  */
 
+#include <crypto/engine.h>
+#include <crypto/internal/hash.h>
+#include <crypto/md5.h>
+#include <crypto/scatterwalk.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
+#include <crypto/sha3.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
-#include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
-
-#include <crypto/engine.h>
-#include <crypto/hash.h>
-#include <crypto/md5.h>
-#include <crypto/scatterwalk.h>
-#include <crypto/sha1.h>
-#include <crypto/sha2.h>
-#include <crypto/internal/hash.h>
+#include <linux/string.h>
 
 #define HASH_CR				0x00
 #define HASH_DIN			0x04
@@ -45,18 +44,10 @@
 #define HASH_CR_DMAE			BIT(3)
 #define HASH_CR_DATATYPE_POS		4
 #define HASH_CR_MODE			BIT(6)
+#define HASH_CR_ALGO_POS		7
 #define HASH_CR_MDMAT			BIT(13)
 #define HASH_CR_DMAA			BIT(14)
 #define HASH_CR_LKEY			BIT(16)
-
-#define HASH_CR_ALGO_SHA1		0x0
-#define HASH_CR_ALGO_MD5		0x80
-#define HASH_CR_ALGO_SHA224		0x40000
-#define HASH_CR_ALGO_SHA256		0x40080
-
-#define HASH_CR_UX500_EMPTYMSG		BIT(20)
-#define HASH_CR_UX500_ALGO_SHA1		BIT(7)
-#define HASH_CR_UX500_ALGO_SHA256	0x0
 
 /* Interrupt */
 #define HASH_DINIE			BIT(0)
@@ -65,9 +56,6 @@
 /* Interrupt Mask */
 #define HASH_MASK_CALC_COMPLETION	BIT(0)
 #define HASH_MASK_DATA_INPUT		BIT(1)
-
-/* Context swap register */
-#define HASH_CSR_REGISTER_NUMBER	54
 
 /* Status Flags */
 #define HASH_SR_DATA_INPUT_READY	BIT(0)
@@ -79,27 +67,38 @@
 #define HASH_STR_NBLW_MASK		GENMASK(4, 0)
 #define HASH_STR_DCAL			BIT(8)
 
+/* HWCFGR Register */
+#define HASH_HWCFG_DMA_MASK		GENMASK(3, 0)
+
+/* Context swap register */
+#define HASH_CSR_NB_SHA256_HMAC		54
+#define HASH_CSR_NB_SHA256		38
+#define HASH_CSR_NB_SHA512_HMAC		103
+#define HASH_CSR_NB_SHA512		91
+#define HASH_CSR_NB_SHA3_HMAC		88
+#define HASH_CSR_NB_SHA3		72
+#define HASH_CSR_NB_MAX			HASH_CSR_NB_SHA512_HMAC
+
 #define HASH_FLAGS_INIT			BIT(0)
 #define HASH_FLAGS_OUTPUT_READY		BIT(1)
 #define HASH_FLAGS_CPU			BIT(2)
-#define HASH_FLAGS_DMA_READY		BIT(3)
-#define HASH_FLAGS_DMA_ACTIVE		BIT(4)
-#define HASH_FLAGS_HMAC_INIT		BIT(5)
-#define HASH_FLAGS_HMAC_FINAL		BIT(6)
-#define HASH_FLAGS_HMAC_KEY		BIT(7)
-
+#define HASH_FLAGS_DMA_ACTIVE		BIT(3)
+#define HASH_FLAGS_HMAC_INIT		BIT(4)
+#define HASH_FLAGS_HMAC_FINAL		BIT(5)
+#define HASH_FLAGS_HMAC_KEY		BIT(6)
+#define HASH_FLAGS_SHA3_MODE		BIT(7)
 #define HASH_FLAGS_FINAL		BIT(15)
 #define HASH_FLAGS_FINUP		BIT(16)
-#define HASH_FLAGS_ALGO_MASK		GENMASK(21, 18)
-#define HASH_FLAGS_MD5			BIT(18)
-#define HASH_FLAGS_SHA1			BIT(19)
-#define HASH_FLAGS_SHA224		BIT(20)
-#define HASH_FLAGS_SHA256		BIT(21)
+#define HASH_FLAGS_ALGO_MASK		GENMASK(20, 17)
+#define HASH_FLAGS_ALGO_SHIFT		17
+#define HASH_FLAGS_ERRORS		BIT(21)
 #define HASH_FLAGS_EMPTY		BIT(22)
 #define HASH_FLAGS_HMAC			BIT(23)
 
 #define HASH_OP_UPDATE			1
 #define HASH_OP_FINAL			2
+
+#define HASH_BURST_LEVEL		4
 
 enum stm32_hash_data_format {
 	HASH_DATA_32_BITS		= 0x0,
@@ -108,16 +107,30 @@ enum stm32_hash_data_format {
 	HASH_DATA_1_BIT			= 0x3
 };
 
-#define HASH_BUFLEN			256
-#define HASH_LONG_KEY			64
-#define HASH_MAX_KEY_SIZE		(SHA256_BLOCK_SIZE * 8)
-#define HASH_QUEUE_LENGTH		16
-#define HASH_DMA_THRESHOLD		50
+#define HASH_BUFLEN			(SHA3_224_BLOCK_SIZE + 4)
+#define HASH_MAX_KEY_SIZE		(SHA512_BLOCK_SIZE * 8)
+
+enum stm32_hash_algo {
+	HASH_SHA1			= 0,
+	HASH_MD5			= 1,
+	HASH_SHA224			= 2,
+	HASH_SHA256			= 3,
+	HASH_SHA3_224			= 4,
+	HASH_SHA3_256			= 5,
+	HASH_SHA3_384			= 6,
+	HASH_SHA3_512			= 7,
+	HASH_SHA384			= 12,
+	HASH_SHA512			= 15,
+};
+
+enum ux500_hash_algo {
+	HASH_SHA256_UX500		= 0,
+	HASH_SHA1_UX500			= 1,
+};
 
 #define HASH_AUTOSUSPEND_DELAY		50
 
 struct stm32_hash_ctx {
-	struct crypto_engine_ctx enginectx;
 	struct stm32_hash_dev	*hdev;
 	struct crypto_shash	*xtfm;
 	unsigned long		flags;
@@ -130,19 +143,19 @@ struct stm32_hash_state {
 	u32			flags;
 
 	u16			bufcnt;
-	u16			buflen;
+	u16			blocklen;
 
 	u8 buffer[HASH_BUFLEN] __aligned(4);
 
 	/* hash state */
-	u32			hw_context[3 + HASH_CSR_REGISTER_NUMBER];
+	u32			hw_context[3 + HASH_CSR_NB_MAX];
 };
 
 struct stm32_hash_request_ctx {
 	struct stm32_hash_dev	*hdev;
 	unsigned long		op;
 
-	u8 digest[SHA256_DIGEST_SIZE] __aligned(sizeof(u32));
+	u8 digest[SHA512_DIGEST_SIZE] __aligned(sizeof(u32));
 	size_t			digcnt;
 
 	/* DMA */
@@ -161,17 +174,18 @@ struct stm32_hash_request_ctx {
 };
 
 struct stm32_hash_algs_info {
-	struct ahash_alg	*algs_list;
+	struct ahash_engine_alg	*algs_list;
 	size_t			size;
 };
 
 struct stm32_hash_pdata {
-	struct stm32_hash_algs_info	*algs_info;
-	size_t				algs_info_size;
-	bool				has_sr;
-	bool				has_mdmat;
-	bool				broken_emptymsg;
-	bool				ux500;
+	const int				alg_shift;
+	const struct stm32_hash_algs_info	*algs_info;
+	size_t					algs_info_size;
+	bool					has_sr;
+	bool					has_mdmat;
+	bool					broken_emptymsg;
+	bool					ux500;
 };
 
 struct stm32_hash_dev {
@@ -182,7 +196,6 @@ struct stm32_hash_dev {
 	void __iomem		*io_base;
 	phys_addr_t		phys_base;
 	u32			dma_mode;
-	u32			dma_maxburst;
 	bool			polled;
 
 	struct ahash_request	*req;
@@ -269,37 +282,25 @@ static int stm32_hash_write_key(struct stm32_hash_dev *hdev)
 	return 0;
 }
 
-static void stm32_hash_write_ctrl(struct stm32_hash_dev *hdev, int bufcnt)
+static void stm32_hash_write_ctrl(struct stm32_hash_dev *hdev)
 {
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(hdev->req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(hdev->req);
 	struct stm32_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct stm32_hash_state *state = &rctx->state;
+	u32 alg = (state->flags & HASH_FLAGS_ALGO_MASK) >> HASH_FLAGS_ALGO_SHIFT;
 
 	u32 reg = HASH_CR_INIT;
 
 	if (!(hdev->flags & HASH_FLAGS_INIT)) {
-		switch (state->flags & HASH_FLAGS_ALGO_MASK) {
-		case HASH_FLAGS_MD5:
-			reg |= HASH_CR_ALGO_MD5;
-			break;
-		case HASH_FLAGS_SHA1:
-			if (hdev->pdata->ux500)
-				reg |= HASH_CR_UX500_ALGO_SHA1;
+		if (hdev->pdata->ux500) {
+			reg |= ((alg & BIT(0)) << HASH_CR_ALGO_POS);
+		} else {
+			if (hdev->pdata->alg_shift == HASH_CR_ALGO_POS)
+				reg |= ((alg & BIT(1)) << 17) |
+				       ((alg & BIT(0)) << HASH_CR_ALGO_POS);
 			else
-				reg |= HASH_CR_ALGO_SHA1;
-			break;
-		case HASH_FLAGS_SHA224:
-			reg |= HASH_CR_ALGO_SHA224;
-			break;
-		case HASH_FLAGS_SHA256:
-			if (hdev->pdata->ux500)
-				reg |= HASH_CR_UX500_ALGO_SHA256;
-			else
-				reg |= HASH_CR_ALGO_SHA256;
-			break;
-		default:
-			reg |= HASH_CR_ALGO_MD5;
+				reg |= alg << hdev->pdata->alg_shift;
 		}
 
 		reg |= (rctx->data_type << HASH_CR_DATATYPE_POS);
@@ -307,7 +308,7 @@ static void stm32_hash_write_ctrl(struct stm32_hash_dev *hdev, int bufcnt)
 		if (state->flags & HASH_FLAGS_HMAC) {
 			hdev->flags |= HASH_FLAGS_HMAC;
 			reg |= HASH_CR_MODE;
-			if (ctx->keylen > HASH_LONG_KEY)
+			if (ctx->keylen > crypto_ahash_blocksize(tfm))
 				reg |= HASH_CR_LKEY;
 		}
 
@@ -318,6 +319,12 @@ static void stm32_hash_write_ctrl(struct stm32_hash_dev *hdev, int bufcnt)
 
 		hdev->flags |= HASH_FLAGS_INIT;
 
+		/*
+		 * After first block + 1 words are fill up,
+		 * we only need to fill 1 block to start partial computation
+		 */
+		rctx->state.blocklen -= sizeof(u32);
+
 		dev_dbg(hdev->dev, "Write Control %x\n", reg);
 	}
 }
@@ -327,9 +334,9 @@ static void stm32_hash_append_sg(struct stm32_hash_request_ctx *rctx)
 	struct stm32_hash_state *state = &rctx->state;
 	size_t count;
 
-	while ((state->bufcnt < state->buflen) && rctx->total) {
+	while ((state->bufcnt < state->blocklen) && rctx->total) {
 		count = min(rctx->sg->length - rctx->offset, rctx->total);
-		count = min_t(size_t, count, state->buflen - state->bufcnt);
+		count = min_t(size_t, count, state->blocklen - state->bufcnt);
 
 		if (count <= 0) {
 			if ((rctx->sg->length == 0) && !sg_is_last(rctx->sg)) {
@@ -384,7 +391,7 @@ static int stm32_hash_xmit_cpu(struct stm32_hash_dev *hdev,
 
 	hdev->flags |= HASH_FLAGS_CPU;
 
-	stm32_hash_write_ctrl(hdev, length);
+	stm32_hash_write_ctrl(hdev);
 
 	if (stm32_hash_wait_busy(hdev))
 		return -ETIMEDOUT;
@@ -419,20 +426,59 @@ static int stm32_hash_xmit_cpu(struct stm32_hash_dev *hdev,
 	return 0;
 }
 
+static int hash_swap_reg(struct stm32_hash_request_ctx *rctx)
+{
+	struct stm32_hash_state *state = &rctx->state;
+
+	switch ((state->flags & HASH_FLAGS_ALGO_MASK) >>
+		HASH_FLAGS_ALGO_SHIFT) {
+	case HASH_MD5:
+	case HASH_SHA1:
+	case HASH_SHA224:
+	case HASH_SHA256:
+		if (state->flags & HASH_FLAGS_HMAC)
+			return HASH_CSR_NB_SHA256_HMAC;
+		else
+			return HASH_CSR_NB_SHA256;
+		break;
+
+	case HASH_SHA384:
+	case HASH_SHA512:
+		if (state->flags & HASH_FLAGS_HMAC)
+			return HASH_CSR_NB_SHA512_HMAC;
+		else
+			return HASH_CSR_NB_SHA512;
+		break;
+
+	case HASH_SHA3_224:
+	case HASH_SHA3_256:
+	case HASH_SHA3_384:
+	case HASH_SHA3_512:
+		if (state->flags & HASH_FLAGS_HMAC)
+			return HASH_CSR_NB_SHA3_HMAC;
+		else
+			return HASH_CSR_NB_SHA3;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+}
+
 static int stm32_hash_update_cpu(struct stm32_hash_dev *hdev)
 {
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(hdev->req);
 	struct stm32_hash_state *state = &rctx->state;
 	u32 *preg = state->hw_context;
 	int bufcnt, err = 0, final;
-	int i;
+	int i, swap_reg;
 
 	dev_dbg(hdev->dev, "%s flags %x\n", __func__, state->flags);
 
 	final = state->flags & HASH_FLAGS_FINAL;
 
-	while ((rctx->total >= state->buflen) ||
-	       (state->bufcnt + rctx->total >= state->buflen)) {
+	while ((rctx->total >= state->blocklen) ||
+	       (state->bufcnt + rctx->total >= state->blocklen)) {
 		stm32_hash_append_sg(rctx);
 		bufcnt = state->bufcnt;
 		state->bufcnt = 0;
@@ -455,11 +501,13 @@ static int stm32_hash_update_cpu(struct stm32_hash_dev *hdev)
 	if (stm32_hash_wait_busy(hdev))
 		return -ETIMEDOUT;
 
+	swap_reg = hash_swap_reg(rctx);
+
 	if (!hdev->pdata->ux500)
 		*preg++ = stm32_hash_read(hdev, HASH_IMR);
 	*preg++ = stm32_hash_read(hdev, HASH_STR);
 	*preg++ = stm32_hash_read(hdev, HASH_CR);
-	for (i = 0; i < HASH_CSR_REGISTER_NUMBER; i++)
+	for (i = 0; i < swap_reg; i++)
 		*preg++ = stm32_hash_read(hdev, HASH_CSR(i));
 
 	state->flags |= HASH_FLAGS_INIT;
@@ -492,7 +540,7 @@ static int stm32_hash_xmit_dma(struct stm32_hash_dev *hdev,
 
 	reg = stm32_hash_read(hdev, HASH_CR);
 
-	if (!hdev->pdata->has_mdmat) {
+	if (hdev->pdata->has_mdmat) {
 		if (mdma)
 			reg |= HASH_CR_MDMAT;
 		else
@@ -533,8 +581,6 @@ static void stm32_hash_dma_callback(void *param)
 	struct stm32_hash_dev *hdev = param;
 
 	complete(&hdev->dma_completion);
-
-	hdev->flags |= HASH_FLAGS_DMA_READY;
 }
 
 static int stm32_hash_hmac_dma_send(struct stm32_hash_dev *hdev)
@@ -544,7 +590,7 @@ static int stm32_hash_hmac_dma_send(struct stm32_hash_dev *hdev)
 	struct stm32_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	int err;
 
-	if (ctx->keylen < HASH_DMA_THRESHOLD || (hdev->dma_mode == 1)) {
+	if (ctx->keylen < rctx->state.blocklen || hdev->dma_mode == 1) {
 		err = stm32_hash_write_key(hdev);
 		if (stm32_hash_wait_busy(hdev))
 			return -ETIMEDOUT;
@@ -579,8 +625,8 @@ static int stm32_hash_dma_init(struct stm32_hash_dev *hdev)
 	dma_conf.direction = DMA_MEM_TO_DEV;
 	dma_conf.dst_addr = hdev->phys_base + HASH_DIN;
 	dma_conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	dma_conf.src_maxburst = hdev->dma_maxburst;
-	dma_conf.dst_maxburst = hdev->dma_maxburst;
+	dma_conf.src_maxburst = HASH_BURST_LEVEL;
+	dma_conf.dst_maxburst = HASH_BURST_LEVEL;
 	dma_conf.device_fc = false;
 
 	chan = dma_request_chan(hdev->dev, "in");
@@ -607,18 +653,18 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(hdev->req);
 	u32 *buffer = (void *)rctx->state.buffer;
 	struct scatterlist sg[1], *tsg;
-	int err = 0, len = 0, reg, ncp = 0;
-	unsigned int i;
+	int err = 0, reg, ncp = 0;
+	unsigned int i, len = 0, bufcnt = 0;
+	bool is_last = false;
 
 	rctx->sg = hdev->req->src;
 	rctx->total = hdev->req->nbytes;
 
 	rctx->nents = sg_nents(rctx->sg);
-
 	if (rctx->nents < 0)
 		return -EINVAL;
 
-	stm32_hash_write_ctrl(hdev, rctx->total);
+	stm32_hash_write_ctrl(hdev);
 
 	if (hdev->flags & HASH_FLAGS_HMAC) {
 		err = stm32_hash_hmac_dma_send(hdev);
@@ -627,10 +673,12 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 	}
 
 	for_each_sg(rctx->sg, tsg, rctx->nents, i) {
+		sg[0] = *tsg;
 		len = sg->length;
 
-		sg[0] = *tsg;
-		if (sg_is_last(sg)) {
+		if (sg_is_last(sg) || (bufcnt + sg[0].length) >= rctx->total) {
+			sg->length = rctx->total - bufcnt;
+			is_last = true;
 			if (hdev->dma_mode == 1) {
 				len = (ALIGN(sg->length, 16) - 16);
 
@@ -656,13 +704,15 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 			return -ENOMEM;
 		}
 
-		err = stm32_hash_xmit_dma(hdev, sg, len,
-					  !sg_is_last(sg));
+		err = stm32_hash_xmit_dma(hdev, sg, len, !is_last);
 
+		bufcnt += sg[0].length;
 		dma_unmap_sg(hdev->dev, sg, 1, DMA_TO_DEVICE);
 
 		if (err == -ENOMEM)
 			return err;
+		if (is_last)
+			break;
 	}
 
 	if (hdev->dma_mode == 1) {
@@ -718,11 +768,12 @@ static struct stm32_hash_dev *stm32_hash_find_dev(struct stm32_hash_ctx *ctx)
 static bool stm32_hash_dma_aligned_data(struct ahash_request *req)
 {
 	struct scatterlist *sg;
+	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
 	struct stm32_hash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(req));
 	struct stm32_hash_dev *hdev = stm32_hash_find_dev(ctx);
 	int i;
 
-	if (req->nbytes <= HASH_DMA_THRESHOLD)
+	if (!hdev->dma_lch || req->nbytes <= rctx->state.blocklen)
 		return false;
 
 	if (sg_nents(req->src) > 1) {
@@ -748,31 +799,64 @@ static int stm32_hash_init(struct ahash_request *req)
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
 	struct stm32_hash_dev *hdev = stm32_hash_find_dev(ctx);
 	struct stm32_hash_state *state = &rctx->state;
+	bool sha3_mode = ctx->flags & HASH_FLAGS_SHA3_MODE;
 
 	rctx->hdev = hdev;
 
 	state->flags = HASH_FLAGS_CPU;
 
+	if (sha3_mode)
+		state->flags |= HASH_FLAGS_SHA3_MODE;
+
 	rctx->digcnt = crypto_ahash_digestsize(tfm);
 	switch (rctx->digcnt) {
 	case MD5_DIGEST_SIZE:
-		state->flags |= HASH_FLAGS_MD5;
+		state->flags |= HASH_MD5 << HASH_FLAGS_ALGO_SHIFT;
 		break;
 	case SHA1_DIGEST_SIZE:
-		state->flags |= HASH_FLAGS_SHA1;
+		if (hdev->pdata->ux500)
+			state->flags |= HASH_SHA1_UX500 << HASH_FLAGS_ALGO_SHIFT;
+		else
+			state->flags |= HASH_SHA1 << HASH_FLAGS_ALGO_SHIFT;
 		break;
 	case SHA224_DIGEST_SIZE:
-		state->flags |= HASH_FLAGS_SHA224;
+		if (sha3_mode)
+			state->flags |= HASH_SHA3_224 << HASH_FLAGS_ALGO_SHIFT;
+		else
+			state->flags |= HASH_SHA224 << HASH_FLAGS_ALGO_SHIFT;
 		break;
 	case SHA256_DIGEST_SIZE:
-		state->flags |= HASH_FLAGS_SHA256;
+		if (sha3_mode) {
+			state->flags |= HASH_SHA3_256 << HASH_FLAGS_ALGO_SHIFT;
+		} else {
+			if (hdev->pdata->ux500)
+				state->flags |= HASH_SHA256_UX500 << HASH_FLAGS_ALGO_SHIFT;
+			else
+				state->flags |= HASH_SHA256 << HASH_FLAGS_ALGO_SHIFT;
+		}
+		break;
+	case SHA384_DIGEST_SIZE:
+		if (sha3_mode)
+			state->flags |= HASH_SHA3_384 << HASH_FLAGS_ALGO_SHIFT;
+		else
+			state->flags |= HASH_SHA384 << HASH_FLAGS_ALGO_SHIFT;
+		break;
+	case SHA512_DIGEST_SIZE:
+		if (sha3_mode)
+			state->flags |= HASH_SHA3_512 << HASH_FLAGS_ALGO_SHIFT;
+		else
+			state->flags |= HASH_SHA512 << HASH_FLAGS_ALGO_SHIFT;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	rctx->state.bufcnt = 0;
-	rctx->state.buflen = HASH_BUFLEN;
+	rctx->state.blocklen = crypto_ahash_blocksize(tfm) + sizeof(u32);
+	if (rctx->state.blocklen > HASH_BUFLEN) {
+		dev_err(hdev->dev, "Error, block too large");
+		return -EINVAL;
+	}
 	rctx->total = 0;
 	rctx->offset = 0;
 	rctx->data_type = HASH_DATA_8_BITS;
@@ -842,6 +926,7 @@ static void stm32_hash_emptymsg_fallback(struct ahash_request *req)
 
 static void stm32_hash_copy_hash(struct ahash_request *req)
 {
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
 	struct stm32_hash_state *state = &rctx->state;
 	struct stm32_hash_dev *hdev = rctx->hdev;
@@ -851,22 +936,7 @@ static void stm32_hash_copy_hash(struct ahash_request *req)
 	if (hdev->pdata->broken_emptymsg && (state->flags & HASH_FLAGS_EMPTY))
 		return stm32_hash_emptymsg_fallback(req);
 
-	switch (state->flags & HASH_FLAGS_ALGO_MASK) {
-	case HASH_FLAGS_MD5:
-		hashsize = MD5_DIGEST_SIZE;
-		break;
-	case HASH_FLAGS_SHA1:
-		hashsize = SHA1_DIGEST_SIZE;
-		break;
-	case HASH_FLAGS_SHA224:
-		hashsize = SHA224_DIGEST_SIZE;
-		break;
-	case HASH_FLAGS_SHA256:
-		hashsize = SHA256_DIGEST_SIZE;
-		break;
-	default:
-		return;
-	}
+	hashsize = crypto_ahash_digestsize(tfm);
 
 	for (i = 0; i < hashsize / sizeof(u32); i++) {
 		if (hdev->pdata->ux500)
@@ -881,6 +951,11 @@ static void stm32_hash_copy_hash(struct ahash_request *req)
 static int stm32_hash_finish(struct ahash_request *req)
 {
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
+	u32 reg;
+
+	reg = stm32_hash_read(rctx->hdev, HASH_SR);
+	reg &= ~HASH_SR_OUTPUT_READY;
+	stm32_hash_write(rctx->hdev, HASH_SR, reg);
 
 	if (!req->result)
 		return -EINVAL;
@@ -920,6 +995,7 @@ static int stm32_hash_one_request(struct crypto_engine *engine, void *areq)
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
 	struct stm32_hash_dev *hdev = stm32_hash_find_dev(ctx);
 	struct stm32_hash_state *state = &rctx->state;
+	int swap_reg;
 	int err = 0;
 
 	if (!hdev)
@@ -932,6 +1008,7 @@ static int stm32_hash_one_request(struct crypto_engine *engine, void *areq)
 
 	hdev->req = req;
 	hdev->flags = 0;
+	swap_reg = hash_swap_reg(rctx);
 
 	if (state->flags & HASH_FLAGS_INIT) {
 		u32 *preg = rctx->state.hw_context;
@@ -945,7 +1022,7 @@ static int stm32_hash_one_request(struct crypto_engine *engine, void *areq)
 		reg = *preg++ | HASH_CR_INIT;
 		stm32_hash_write(hdev, HASH_CR, reg);
 
-		for (i = 0; i < HASH_CSR_REGISTER_NUMBER; i++)
+		for (i = 0; i < swap_reg; i++)
 			stm32_hash_write(hdev, HASH_CSR(i), *preg++);
 
 		hdev->flags |= HASH_FLAGS_INIT;
@@ -1000,7 +1077,7 @@ static int stm32_hash_update(struct ahash_request *req)
 	rctx->sg = req->src;
 	rctx->offset = 0;
 
-	if ((state->bufcnt + rctx->total < state->buflen)) {
+	if ((state->bufcnt + rctx->total < state->blocklen)) {
 		stm32_hash_append_sg(rctx);
 		return 0;
 	}
@@ -1102,8 +1179,7 @@ static int stm32_hash_init_fallback(struct crypto_tfm *tfm)
 	return 0;
 }
 
-static int stm32_hash_cra_init_algs(struct crypto_tfm *tfm,
-				    const char *algs_hmac_name)
+static int stm32_hash_cra_init_algs(struct crypto_tfm *tfm, u32 algs_flags)
 {
 	struct stm32_hash_ctx *ctx = crypto_tfm_ctx(tfm);
 
@@ -1112,38 +1188,33 @@ static int stm32_hash_cra_init_algs(struct crypto_tfm *tfm,
 
 	ctx->keylen = 0;
 
-	if (algs_hmac_name)
-		ctx->flags |= HASH_FLAGS_HMAC;
-
-	ctx->enginectx.op.do_one_request = stm32_hash_one_request;
+	if (algs_flags)
+		ctx->flags |= algs_flags;
 
 	return stm32_hash_init_fallback(tfm);
 }
 
 static int stm32_hash_cra_init(struct crypto_tfm *tfm)
 {
-	return stm32_hash_cra_init_algs(tfm, NULL);
+	return stm32_hash_cra_init_algs(tfm, 0);
 }
 
-static int stm32_hash_cra_md5_init(struct crypto_tfm *tfm)
+static int stm32_hash_cra_hmac_init(struct crypto_tfm *tfm)
 {
-	return stm32_hash_cra_init_algs(tfm, "md5");
+	return stm32_hash_cra_init_algs(tfm, HASH_FLAGS_HMAC);
 }
 
-static int stm32_hash_cra_sha1_init(struct crypto_tfm *tfm)
+static int stm32_hash_cra_sha3_init(struct crypto_tfm *tfm)
 {
-	return stm32_hash_cra_init_algs(tfm, "sha1");
+	return stm32_hash_cra_init_algs(tfm, HASH_FLAGS_SHA3_MODE);
 }
 
-static int stm32_hash_cra_sha224_init(struct crypto_tfm *tfm)
+static int stm32_hash_cra_sha3_hmac_init(struct crypto_tfm *tfm)
 {
-	return stm32_hash_cra_init_algs(tfm, "sha224");
+	return stm32_hash_cra_init_algs(tfm, HASH_FLAGS_SHA3_MODE |
+					HASH_FLAGS_HMAC);
 }
 
-static int stm32_hash_cra_sha256_init(struct crypto_tfm *tfm)
-{
-	return stm32_hash_cra_init_algs(tfm, "sha256");
-}
 
 static void stm32_hash_cra_exit(struct crypto_tfm *tfm)
 {
@@ -1162,11 +1233,9 @@ static irqreturn_t stm32_hash_irq_thread(int irq, void *dev_id)
 			hdev->flags &= ~HASH_FLAGS_OUTPUT_READY;
 			goto finish;
 		}
-	} else if (HASH_FLAGS_DMA_READY & hdev->flags) {
-		if (HASH_FLAGS_DMA_ACTIVE & hdev->flags) {
-			hdev->flags &= ~HASH_FLAGS_DMA_ACTIVE;
-				goto finish;
-		}
+	} else if (HASH_FLAGS_DMA_ACTIVE & hdev->flags) {
+		hdev->flags &= ~HASH_FLAGS_DMA_ACTIVE;
+			goto finish;
 	}
 
 	return IRQ_HANDLED;
@@ -1185,8 +1254,6 @@ static irqreturn_t stm32_hash_irq_handler(int irq, void *dev_id)
 
 	reg = stm32_hash_read(hdev, HASH_SR);
 	if (reg & HASH_SR_OUTPUT_READY) {
-		reg &= ~HASH_SR_OUTPUT_READY;
-		stm32_hash_write(hdev, HASH_SR, reg);
 		hdev->flags |= HASH_FLAGS_OUTPUT_READY;
 		/* Disable IT*/
 		stm32_hash_write(hdev, HASH_IMR, 0);
@@ -1196,16 +1263,16 @@ static irqreturn_t stm32_hash_irq_handler(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-static struct ahash_alg algs_md5[] = {
+static struct ahash_engine_alg algs_md5[] = {
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = MD5_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1221,18 +1288,21 @@ static struct ahash_alg algs_md5[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.setkey = stm32_hash_setkey,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
 			.digestsize = MD5_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1244,24 +1314,27 @@ static struct ahash_alg algs_md5[] = {
 				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
 				.cra_alignmask = 3,
-				.cra_init = stm32_hash_cra_md5_init,
+				.cra_init = stm32_hash_cra_hmac_init,
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
-	},
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	}
 };
 
-static struct ahash_alg algs_sha1[] = {
+static struct ahash_engine_alg algs_sha1[] = {
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA1_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1277,18 +1350,21 @@ static struct ahash_alg algs_sha1[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.setkey = stm32_hash_setkey,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
 			.digestsize = SHA1_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1300,24 +1376,27 @@ static struct ahash_alg algs_sha1[] = {
 				.cra_blocksize = SHA1_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
 				.cra_alignmask = 3,
-				.cra_init = stm32_hash_cra_sha1_init,
+				.cra_init = stm32_hash_cra_hmac_init,
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 };
 
-static struct ahash_alg algs_sha224[] = {
+static struct ahash_engine_alg algs_sha224[] = {
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA224_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1333,18 +1412,21 @@ static struct ahash_alg algs_sha224[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.setkey = stm32_hash_setkey,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.setkey = stm32_hash_setkey,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA224_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1356,24 +1438,27 @@ static struct ahash_alg algs_sha224[] = {
 				.cra_blocksize = SHA224_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
 				.cra_alignmask = 3,
-				.cra_init = stm32_hash_cra_sha224_init,
+				.cra_init = stm32_hash_cra_hmac_init,
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 };
 
-static struct ahash_alg algs_sha256[] = {
+static struct ahash_engine_alg algs_sha256[] = {
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
 			.digestsize = SHA256_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1389,18 +1474,21 @@ static struct ahash_alg algs_sha256[] = {
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
 	{
-		.init = stm32_hash_init,
-		.update = stm32_hash_update,
-		.final = stm32_hash_final,
-		.finup = stm32_hash_finup,
-		.digest = stm32_hash_digest,
-		.export = stm32_hash_export,
-		.import = stm32_hash_import,
-		.setkey = stm32_hash_setkey,
-		.halg = {
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
 			.digestsize = SHA256_DIGEST_SIZE,
 			.statesize = sizeof(struct stm32_hash_state),
 			.base = {
@@ -1412,12 +1500,375 @@ static struct ahash_alg algs_sha256[] = {
 				.cra_blocksize = SHA256_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
 				.cra_alignmask = 3,
-				.cra_init = stm32_hash_cra_sha256_init,
+				.cra_init = stm32_hash_cra_hmac_init,
 				.cra_exit = stm32_hash_cra_exit,
 				.cra_module = THIS_MODULE,
 			}
-		}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
 	},
+};
+
+static struct ahash_engine_alg algs_sha384_sha512[] = {
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
+			.digestsize = SHA384_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "sha384",
+				.cra_driver_name = "stm32-sha384",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA384_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	},
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.setkey = stm32_hash_setkey,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
+			.digestsize = SHA384_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "hmac(sha384)",
+				.cra_driver_name = "stm32-hmac-sha384",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA384_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_hmac_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	},
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
+			.digestsize = SHA512_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "sha512",
+				.cra_driver_name = "stm32-sha512",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA512_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	},
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
+			.digestsize = SHA512_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "hmac(sha512)",
+				.cra_driver_name = "stm32-hmac-sha512",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA512_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_hmac_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	},
+};
+
+static struct ahash_engine_alg algs_sha3[] = {
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
+			.digestsize = SHA3_224_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "sha3-224",
+				.cra_driver_name = "stm32-sha3-224",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA3_224_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_sha3_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	},
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
+			.digestsize = SHA3_224_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "hmac(sha3-224)",
+				.cra_driver_name = "stm32-hmac-sha3-224",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA3_224_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_sha3_hmac_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	},
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
+			.digestsize = SHA3_256_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "sha3-256",
+				.cra_driver_name = "stm32-sha3-256",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA3_256_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_sha3_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	},
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
+			.digestsize = SHA3_256_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "hmac(sha3-256)",
+				.cra_driver_name = "stm32-hmac-sha3-256",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA3_256_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_sha3_hmac_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	},
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
+			.digestsize = SHA3_384_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "sha3-384",
+				.cra_driver_name = "stm32-sha3-384",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA3_384_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_sha3_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	},
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
+			.digestsize = SHA3_384_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "hmac(sha3-384)",
+				.cra_driver_name = "stm32-hmac-sha3-384",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA3_384_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_sha3_hmac_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	},
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.halg = {
+			.digestsize = SHA3_512_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "sha3-512",
+				.cra_driver_name = "stm32-sha3-512",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA3_512_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_sha3_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	},
+	{
+		.base.init = stm32_hash_init,
+		.base.update = stm32_hash_update,
+		.base.final = stm32_hash_final,
+		.base.finup = stm32_hash_finup,
+		.base.digest = stm32_hash_digest,
+		.base.export = stm32_hash_export,
+		.base.import = stm32_hash_import,
+		.base.setkey = stm32_hash_setkey,
+		.base.halg = {
+			.digestsize = SHA3_512_DIGEST_SIZE,
+			.statesize = sizeof(struct stm32_hash_state),
+			.base = {
+				.cra_name = "hmac(sha3-512)",
+				.cra_driver_name = "stm32-hmac-sha3-512",
+				.cra_priority = 200,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA3_512_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
+				.cra_alignmask = 3,
+				.cra_init = stm32_hash_cra_sha3_hmac_init,
+				.cra_exit = stm32_hash_cra_exit,
+				.cra_module = THIS_MODULE,
+			}
+		},
+		.op = {
+			.do_one_request = stm32_hash_one_request,
+		},
+	}
 };
 
 static int stm32_hash_register_algs(struct stm32_hash_dev *hdev)
@@ -1427,7 +1878,7 @@ static int stm32_hash_register_algs(struct stm32_hash_dev *hdev)
 
 	for (i = 0; i < hdev->pdata->algs_info_size; i++) {
 		for (j = 0; j < hdev->pdata->algs_info[i].size; j++) {
-			err = crypto_register_ahash(
+			err = crypto_engine_register_ahash(
 				&hdev->pdata->algs_info[i].algs_list[j]);
 			if (err)
 				goto err_algs;
@@ -1439,7 +1890,7 @@ err_algs:
 	dev_err(hdev->dev, "Algo %d : %d failed\n", i, j);
 	for (; i--; ) {
 		for (; j--;)
-			crypto_unregister_ahash(
+			crypto_engine_unregister_ahash(
 				&hdev->pdata->algs_info[i].algs_list[j]);
 	}
 
@@ -1452,7 +1903,7 @@ static int stm32_hash_unregister_algs(struct stm32_hash_dev *hdev)
 
 	for (i = 0; i < hdev->pdata->algs_info_size; i++) {
 		for (j = 0; j < hdev->pdata->algs_info[i].size; j++)
-			crypto_unregister_ahash(
+			crypto_engine_unregister_ahash(
 				&hdev->pdata->algs_info[i].algs_list[j]);
 	}
 
@@ -1471,6 +1922,7 @@ static struct stm32_hash_algs_info stm32_hash_algs_info_ux500[] = {
 };
 
 static const struct stm32_hash_pdata stm32_hash_pdata_ux500 = {
+	.alg_shift	= 7,
 	.algs_info	= stm32_hash_algs_info_ux500,
 	.algs_info_size	= ARRAY_SIZE(stm32_hash_algs_info_ux500),
 	.broken_emptymsg = true,
@@ -1489,6 +1941,7 @@ static struct stm32_hash_algs_info stm32_hash_algs_info_stm32f4[] = {
 };
 
 static const struct stm32_hash_pdata stm32_hash_pdata_stm32f4 = {
+	.alg_shift	= 7,
 	.algs_info	= stm32_hash_algs_info_stm32f4,
 	.algs_info_size	= ARRAY_SIZE(stm32_hash_algs_info_stm32f4),
 	.has_sr		= true,
@@ -1515,25 +1968,49 @@ static struct stm32_hash_algs_info stm32_hash_algs_info_stm32f7[] = {
 };
 
 static const struct stm32_hash_pdata stm32_hash_pdata_stm32f7 = {
+	.alg_shift	= 7,
 	.algs_info	= stm32_hash_algs_info_stm32f7,
 	.algs_info_size	= ARRAY_SIZE(stm32_hash_algs_info_stm32f7),
 	.has_sr		= true,
 	.has_mdmat	= true,
 };
 
+static struct stm32_hash_algs_info stm32_hash_algs_info_stm32mp13[] = {
+	{
+		.algs_list	= algs_sha1,
+		.size		= ARRAY_SIZE(algs_sha1),
+	},
+	{
+		.algs_list	= algs_sha224,
+		.size		= ARRAY_SIZE(algs_sha224),
+	},
+	{
+		.algs_list	= algs_sha256,
+		.size		= ARRAY_SIZE(algs_sha256),
+	},
+	{
+		.algs_list	= algs_sha384_sha512,
+		.size		= ARRAY_SIZE(algs_sha384_sha512),
+	},
+	{
+		.algs_list	= algs_sha3,
+		.size		= ARRAY_SIZE(algs_sha3),
+	},
+};
+
+static const struct stm32_hash_pdata stm32_hash_pdata_stm32mp13 = {
+	.alg_shift	= 17,
+	.algs_info	= stm32_hash_algs_info_stm32mp13,
+	.algs_info_size	= ARRAY_SIZE(stm32_hash_algs_info_stm32mp13),
+	.has_sr		= true,
+	.has_mdmat	= true,
+};
+
 static const struct of_device_id stm32_hash_of_match[] = {
-	{
-		.compatible = "stericsson,ux500-hash",
-		.data = &stm32_hash_pdata_ux500,
-	},
-	{
-		.compatible = "st,stm32f456-hash",
-		.data = &stm32_hash_pdata_stm32f4,
-	},
-	{
-		.compatible = "st,stm32f756-hash",
-		.data = &stm32_hash_pdata_stm32f7,
-	},
+	{ .compatible = "stericsson,ux500-hash", .data = &stm32_hash_pdata_ux500 },
+	{ .compatible = "st,stm32f456-hash", .data = &stm32_hash_pdata_stm32f4 },
+	{ .compatible = "st,stm32f756-hash", .data = &stm32_hash_pdata_stm32f7 },
+	{ .compatible = "st,stm32mp13-hash", .data = &stm32_hash_pdata_stm32mp13 },
 	{},
 };
 
@@ -1546,12 +2023,6 @@ static int stm32_hash_get_of_match(struct stm32_hash_dev *hdev,
 	if (!hdev->pdata) {
 		dev_err(dev, "no compatible OF match\n");
 		return -EINVAL;
-	}
-
-	if (of_property_read_u32(dev->of_node, "dma-maxburst",
-				 &hdev->dma_maxburst)) {
-		dev_info(dev, "dma-maxburst not specified, using 0\n");
-		hdev->dma_maxburst = 0;
 	}
 
 	return 0;
@@ -1663,7 +2134,7 @@ static int stm32_hash_probe(struct platform_device *pdev)
 		/* FIXME: implement DMA mode for Ux500 */
 		hdev->dma_mode = 0;
 	else
-		hdev->dma_mode = stm32_hash_read(hdev, HASH_HWCFGR);
+		hdev->dma_mode = stm32_hash_read(hdev, HASH_HWCFGR) & HASH_HWCFG_DMA_MASK;
 
 	/* Register algos */
 	ret = stm32_hash_register_algs(hdev);
@@ -1696,18 +2167,12 @@ err_reset:
 	return ret;
 }
 
-static int stm32_hash_remove(struct platform_device *pdev)
+static void stm32_hash_remove(struct platform_device *pdev)
 {
-	struct stm32_hash_dev *hdev;
+	struct stm32_hash_dev *hdev = platform_get_drvdata(pdev);
 	int ret;
 
-	hdev = platform_get_drvdata(pdev);
-	if (!hdev)
-		return -ENODEV;
-
-	ret = pm_runtime_resume_and_get(hdev->dev);
-	if (ret < 0)
-		return ret;
+	ret = pm_runtime_get_sync(hdev->dev);
 
 	stm32_hash_unregister_algs(hdev);
 
@@ -1723,9 +2188,8 @@ static int stm32_hash_remove(struct platform_device *pdev)
 	pm_runtime_disable(hdev->dev);
 	pm_runtime_put_noidle(hdev->dev);
 
-	clk_disable_unprepare(hdev->clk);
-
-	return 0;
+	if (ret >= 0)
+		clk_disable_unprepare(hdev->clk);
 }
 
 #ifdef CONFIG_PM
@@ -1762,7 +2226,7 @@ static const struct dev_pm_ops stm32_hash_pm_ops = {
 
 static struct platform_driver stm32_hash_driver = {
 	.probe		= stm32_hash_probe,
-	.remove		= stm32_hash_remove,
+	.remove_new	= stm32_hash_remove,
 	.driver		= {
 		.name	= "stm32-hash",
 		.pm = &stm32_hash_pm_ops,
@@ -1772,6 +2236,6 @@ static struct platform_driver stm32_hash_driver = {
 
 module_platform_driver(stm32_hash_driver);
 
-MODULE_DESCRIPTION("STM32 SHA1/224/256 & MD5 (HMAC) hw accelerator driver");
+MODULE_DESCRIPTION("STM32 SHA1/SHA2/SHA3 & MD5 (HMAC) hw accelerator driver");
 MODULE_AUTHOR("Lionel Debieve <lionel.debieve@st.com>");
 MODULE_LICENSE("GPL v2");

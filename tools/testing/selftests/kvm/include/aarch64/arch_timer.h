@@ -41,7 +41,7 @@ static inline uint64_t timer_get_cntct(enum arch_timer timer)
 	case PHYSICAL:
 		return read_sysreg(cntpct_el0);
 	default:
-		GUEST_ASSERT_1(0, timer);
+		GUEST_FAIL("Unexpected timer type = %u", timer);
 	}
 
 	/* We should not reach here */
@@ -58,7 +58,7 @@ static inline void timer_set_cval(enum arch_timer timer, uint64_t cval)
 		write_sysreg(cval, cntp_cval_el0);
 		break;
 	default:
-		GUEST_ASSERT_1(0, timer);
+		GUEST_FAIL("Unexpected timer type = %u", timer);
 	}
 
 	isb();
@@ -72,7 +72,7 @@ static inline uint64_t timer_get_cval(enum arch_timer timer)
 	case PHYSICAL:
 		return read_sysreg(cntp_cval_el0);
 	default:
-		GUEST_ASSERT_1(0, timer);
+		GUEST_FAIL("Unexpected timer type = %u", timer);
 	}
 
 	/* We should not reach here */
@@ -89,7 +89,7 @@ static inline void timer_set_tval(enum arch_timer timer, uint32_t tval)
 		write_sysreg(tval, cntp_tval_el0);
 		break;
 	default:
-		GUEST_ASSERT_1(0, timer);
+		GUEST_FAIL("Unexpected timer type = %u", timer);
 	}
 
 	isb();
@@ -105,7 +105,7 @@ static inline void timer_set_ctl(enum arch_timer timer, uint32_t ctl)
 		write_sysreg(ctl, cntp_ctl_el0);
 		break;
 	default:
-		GUEST_ASSERT_1(0, timer);
+		GUEST_FAIL("Unexpected timer type = %u", timer);
 	}
 
 	isb();
@@ -119,7 +119,7 @@ static inline uint32_t timer_get_ctl(enum arch_timer timer)
 	case PHYSICAL:
 		return read_sysreg(cntp_ctl_el0);
 	default:
-		GUEST_ASSERT_1(0, timer);
+		GUEST_FAIL("Unexpected timer type = %u", timer);
 	}
 
 	/* We should not reach here */

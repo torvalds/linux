@@ -16,7 +16,7 @@
                    鍾宇  TripleX Chung <xxx.phy@gmail.com>
                    陳琦  Maggie Chen <chenqi@beyondsoft.com>
                    王聰  Wang Cong <xiyou.wangcong@gmail.com>
-                   胡皓文 Hu Haowen <src.res@email.cn>
+                   胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 如何參與Linux內核開發
 =====================

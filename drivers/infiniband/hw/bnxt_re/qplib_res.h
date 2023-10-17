@@ -48,6 +48,7 @@ extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 struct bnxt_qplib_drv_modes {
 	u8	wqe_mode;
 	bool db_push;
+	bool dbr_pacing;
 };
 
 struct bnxt_qplib_chip_ctx {
@@ -58,6 +59,17 @@ struct bnxt_qplib_chip_ctx {
 	u16	hwrm_cmd_max_timeout;
 	struct bnxt_qplib_drv_modes modes;
 	u64	hwrm_intf_ver;
+	u32     dbr_stat_db_fifo;
+};
+
+struct bnxt_qplib_db_pacing_data {
+	u32 do_pacing;
+	u32 pacing_th;
+	u32 alarm_th;
+	u32 fifo_max_depth;
+	u32 fifo_room_mask;
+	u32 fifo_room_shift;
+	u32 grc_reg_offset;
 };
 
 #define BNXT_QPLIB_DBR_PF_DB_OFFSET     0x10000
@@ -265,12 +277,15 @@ struct bnxt_qplib_res {
 	struct net_device		*netdev;
 	struct bnxt_qplib_rcfw		*rcfw;
 	struct bnxt_qplib_pd_tbl	pd_tbl;
+	/* To protect the pd table bit map */
+	struct mutex			pd_tbl_lock;
 	struct bnxt_qplib_sgid_tbl	sgid_tbl;
 	struct bnxt_qplib_dpi_tbl	dpi_tbl;
 	/* To protect the dpi table bit map */
 	struct mutex                    dpi_tbl_lock;
 	bool				prio;
 	bool                            is_vf;
+	struct bnxt_qplib_db_pacing_data *pacing_data;
 };
 
 static inline bool bnxt_qplib_is_chip_gen_p5(struct bnxt_qplib_chip_ctx *cctx)
@@ -355,7 +370,7 @@ void bnxt_qplib_free_hwq(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_hwq *hwq);
 int bnxt_qplib_alloc_init_hwq(struct bnxt_qplib_hwq *hwq,
 			      struct bnxt_qplib_hwq_attr *hwq_attr);
-int bnxt_qplib_alloc_pd(struct bnxt_qplib_pd_tbl *pd_tbl,
+int bnxt_qplib_alloc_pd(struct bnxt_qplib_res *res,
 			struct bnxt_qplib_pd *pd);
 int bnxt_qplib_dealloc_pd(struct bnxt_qplib_res *res,
 			  struct bnxt_qplib_pd_tbl *pd_tbl,
@@ -467,4 +482,10 @@ static inline bool _is_ext_stats_supported(u16 dev_cap_flags)
 	return dev_cap_flags &
 		CREQ_QUERY_FUNC_RESP_SB_EXT_STATS;
 }
+
+static inline u8 bnxt_qplib_dbr_pacing_en(struct bnxt_qplib_chip_ctx *cctx)
+{
+	return cctx->modes.dbr_pacing;
+}
+
 #endif /* __BNXT_QPLIB_RES_H__ */

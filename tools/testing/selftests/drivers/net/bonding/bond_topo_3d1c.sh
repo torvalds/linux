@@ -25,121 +25,19 @@
 #  |                eth0                 |  2001:db8::10/24
 #  +-------------------------------------+
 
-s_ns="s-$(mktemp -u XXXXXX)"
-c_ns="c-$(mktemp -u XXXXXX)"
-g_ns="g-$(mktemp -u XXXXXX)"
-s_ip4="192.0.2.1"
-c_ip4="192.0.2.10"
-g_ip4="192.0.2.254"
-s_ip6="2001:db8::1"
-c_ip6="2001:db8::10"
-g_ip6="2001:db8::254"
-
-gateway_create()
-{
-	ip netns add ${g_ns}
-	ip -n ${g_ns} link add br0 type bridge
-	ip -n ${g_ns} link set br0 up
-	ip -n ${g_ns} addr add ${g_ip4}/24 dev br0
-	ip -n ${g_ns} addr add ${g_ip6}/24 dev br0
-}
-
-gateway_destroy()
-{
-	ip -n ${g_ns} link del br0
-	ip netns del ${g_ns}
-}
-
-server_create()
-{
-	ip netns add ${s_ns}
-	ip -n ${s_ns} link add bond0 type bond mode active-backup miimon 100
-
-	for i in $(seq 0 2); do
-		ip -n ${s_ns} link add eth${i} type veth peer name s${i} netns ${g_ns}
-
-		ip -n ${g_ns} link set s${i} up
-		ip -n ${g_ns} link set s${i} master br0
-		ip -n ${s_ns} link set eth${i} master bond0
-
-		tc -n ${g_ns} qdisc add dev s${i} clsact
-	done
-
-	ip -n ${s_ns} link set bond0 up
-	ip -n ${s_ns} addr add ${s_ip4}/24 dev bond0
-	ip -n ${s_ns} addr add ${s_ip6}/24 dev bond0
-	sleep 2
-}
-
-# Reset bond with new mode and options
-bond_reset()
-{
-	local param="$1"
-
-	ip -n ${s_ns} link set bond0 down
-	ip -n ${s_ns} link del bond0
-
-	ip -n ${s_ns} link add bond0 type bond $param
-	for i in $(seq 0 2); do
-		ip -n ${s_ns} link set eth$i master bond0
-	done
-
-	ip -n ${s_ns} link set bond0 up
-	ip -n ${s_ns} addr add ${s_ip4}/24 dev bond0
-	ip -n ${s_ns} addr add ${s_ip6}/24 dev bond0
-	sleep 2
-}
-
-server_destroy()
-{
-	for i in $(seq 0 2); do
-		ip -n ${s_ns} link del eth${i}
-	done
-	ip netns del ${s_ns}
-}
-
-client_create()
-{
-	ip netns add ${c_ns}
-	ip -n ${c_ns} link add eth0 type veth peer name c0 netns ${g_ns}
-
-	ip -n ${g_ns} link set c0 up
-	ip -n ${g_ns} link set c0 master br0
-
-	ip -n ${c_ns} link set eth0 up
-	ip -n ${c_ns} addr add ${c_ip4}/24 dev eth0
-	ip -n ${c_ns} addr add ${c_ip6}/24 dev eth0
-}
-
-client_destroy()
-{
-	ip -n ${c_ns} link del eth0
-	ip netns del ${c_ns}
-}
+source bond_topo_2d1c.sh
 
 setup_prepare()
 {
 	gateway_create
 	server_create
 	client_create
-}
 
-cleanup()
-{
-	pre_cleanup
-
-	client_destroy
-	server_destroy
-	gateway_destroy
-}
-
-bond_check_connection()
-{
-	local msg=${1:-"check connection"}
-
-	sleep 2
-	ip netns exec ${s_ns} ping ${c_ip4} -c5 -i 0.1 &>/dev/null
-	check_err $? "${msg}: ping failed"
-	ip netns exec ${s_ns} ping6 ${c_ip6} -c5 -i 0.1 &>/dev/null
-	check_err $? "${msg}: ping6 failed"
+	# Add the extra device as we use 3 down links for bond0
+	local i=2
+	ip -n ${s_ns} link add eth${i} type veth peer name s${i} netns ${g_ns}
+	ip -n ${g_ns} link set s${i} up
+	ip -n ${g_ns} link set s${i} master br0
+	ip -n ${s_ns} link set eth${i} master bond0
+	tc -n ${g_ns} qdisc add dev s${i} clsact
 }

@@ -5,12 +5,10 @@
 
 #include <linux/irqchip.h>
 #include <linux/of_platform.h>
-#include <linux/phy.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
 
 #include "common.h"
 #include "cpuidle.h"

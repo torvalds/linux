@@ -49,7 +49,7 @@ properties:
 
       The 2nd cell contains the interrupt number for the interrupt type.
       SPI interrupts are in the range [0-987]. PPI interrupts are in the
-      range [0-15]. Extented SPI interrupts are in the range [0-1023].
+      range [0-15]. Extended SPI interrupts are in the range [0-1023].
       Extended PPI interrupts are in the range [0-127].
 
       The 3rd cell is the flags, encoded as follows:
@@ -105,6 +105,12 @@ properties:
       redistributors. Required if more than one such region is present.
     $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 4096
+
+  dma-noncoherent:
+    description:
+      Present if the GIC redistributors permit programming shareability
+      and cacheability attributes but are connected to a non-coherent
+      downstream interconnect.
 
   msi-controller:
     description:
@@ -192,6 +198,12 @@ patternProperties:
     properties:
       compatible:
         const: arm,gic-v3-its
+
+      dma-noncoherent:
+        description:
+          Present if the GIC ITS permits programming shareability and
+          cacheability attributes but is connected to a non-coherent
+          downstream interconnect.
 
       msi-controller: true
 

@@ -9,7 +9,7 @@
 #define RTL2830_PRIV_H
 
 #include <media/dvb_frontend.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include "rtl2830.h"
 #include <linux/i2c-mux.h>
 #include <linux/math64.h>

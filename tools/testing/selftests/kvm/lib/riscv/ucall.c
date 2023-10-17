@@ -10,10 +10,6 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-void ucall_arch_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa)
-{
-}
-
 struct sbiret sbi_ecall(int ext, int fid, unsigned long arg0,
 			unsigned long arg1, unsigned long arg2,
 			unsigned long arg3, unsigned long arg4,
@@ -38,13 +34,6 @@ struct sbiret sbi_ecall(int ext, int fid, unsigned long arg0,
 	ret.value = a1;
 
 	return ret;
-}
-
-void ucall_arch_do_ucall(vm_vaddr_t uc)
-{
-	sbi_ecall(KVM_RISCV_SELFTESTS_SBI_EXT,
-		  KVM_RISCV_SELFTESTS_SBI_UCALL,
-		  uc, 0, 0, 0, 0, 0);
 }
 
 void *ucall_arch_get_ucall(struct kvm_vcpu *vcpu)

@@ -2725,7 +2725,7 @@ It is default disabled.
 
 The return value of each traced function can be displayed after
 an equal sign "=". When encountering system call failures, it
-can be verfy helpful to quickly locate the function that first
+can be very helpful to quickly locate the function that first
 returns an error code.
 
 	- hide: echo nofuncgraph-retval > trace_options

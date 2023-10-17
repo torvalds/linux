@@ -12,7 +12,6 @@
 #include <linux/dmapool.h>
 #include <linux/dsa/ocelot.h>
 #include <linux/netdevice.h>
-#include <linux/of_platform.h>
 #include <linux/skbuff.h>
 
 #include "ocelot_fdma.h"

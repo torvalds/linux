@@ -127,7 +127,8 @@ void coda_vattr_to_iattr(struct inode *inode, struct coda_vattr *attr)
 	if (attr->va_mtime.tv_sec != -1)
 		inode->i_mtime = coda_to_timespec64(attr->va_mtime);
         if (attr->va_ctime.tv_sec != -1)
-		inode->i_ctime = coda_to_timespec64(attr->va_ctime);
+		inode_set_ctime_to_ts(inode,
+				      coda_to_timespec64(attr->va_ctime));
 }
 
 

@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 generic-y += dma-contiguous.h
-generic-y += export.h
 generic-y += mcs_spinlock.h
 generic-y += parport.h
 generic-y += early_ioremap.h

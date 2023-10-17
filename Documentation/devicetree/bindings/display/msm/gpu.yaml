@@ -15,6 +15,12 @@ properties:
     oneOf:
       - description: |
           The driver is parsing the compat string for Adreno to
+          figure out the chip-id.
+        items:
+          - pattern: '^qcom,adreno-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]$'
+          - const: qcom,adreno
+      - description: |
+          The driver is parsing the compat string for Adreno to
           figure out the gpu-id and patch level.
         items:
           - pattern: '^qcom,adreno-[3-6][0-9][0-9]\.[0-9]$'

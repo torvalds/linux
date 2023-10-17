@@ -77,7 +77,7 @@
 
 /* Colibri UART_A */
 &lpuart3 {
-	status= "okay";
+	status = "okay";
 };
 
 &lsio_gpio3 {

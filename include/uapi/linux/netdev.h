@@ -11,7 +11,7 @@
 
 /**
  * enum netdev_xdp_act
- * @NETDEV_XDP_ACT_BASIC: XDP feautues set supported by all drivers
+ * @NETDEV_XDP_ACT_BASIC: XDP features set supported by all drivers
  *   (XDP_ABORTED, XDP_DROP, XDP_PASS, XDP_TX)
  * @NETDEV_XDP_ACT_REDIRECT: The netdev supports XDP_REDIRECT
  * @NETDEV_XDP_ACT_NDO_XMIT: This feature informs if netdev implements
@@ -34,6 +34,7 @@ enum netdev_xdp_act {
 	NETDEV_XDP_ACT_RX_SG = 32,
 	NETDEV_XDP_ACT_NDO_XMIT_SG = 64,
 
+	/* private: */
 	NETDEV_XDP_ACT_MASK = 127,
 };
 
@@ -41,6 +42,7 @@ enum {
 	NETDEV_A_DEV_IFINDEX = 1,
 	NETDEV_A_DEV_PAD,
 	NETDEV_A_DEV_XDP_FEATURES,
+	NETDEV_A_DEV_XDP_ZC_MAX_SEGS,
 
 	__NETDEV_A_DEV_MAX,
 	NETDEV_A_DEV_MAX = (__NETDEV_A_DEV_MAX - 1)

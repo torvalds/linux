@@ -1163,16 +1163,14 @@ static int vop_probe(struct platform_device *pdev)
 	return component_add(dev, &vop_component_ops);
 }
 
-static int vop_remove(struct platform_device *pdev)
+static void vop_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &vop_component_ops);
-
-	return 0;
 }
 
 struct platform_driver vop_platform_driver = {
 	.probe = vop_probe,
-	.remove = vop_remove,
+	.remove_new = vop_remove,
 	.driver = {
 		.name = "rockchip-vop",
 		.of_match_table = vop_driver_dt_match,

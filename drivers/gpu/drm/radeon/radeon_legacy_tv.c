@@ -724,12 +724,14 @@ void radeon_legacy_tv_mode_set(struct drm_encoder *encoder,
 	}
 
 	for (i = 0; i < MAX_H_CODE_TIMING_LEN; i++) {
-		if ((tv_dac->tv.h_code_timing[i] = hor_timing[i]) == 0)
+		tv_dac->tv.h_code_timing[i] = hor_timing[i];
+		if (tv_dac->tv.h_code_timing[i] == 0)
 			break;
 	}
 
 	for (i = 0; i < MAX_V_CODE_TIMING_LEN; i++) {
-		if ((tv_dac->tv.v_code_timing[i] = vert_timing[i]) == 0)
+		tv_dac->tv.v_code_timing[i] = vert_timing[i];
+		if (tv_dac->tv.v_code_timing[i] == 0)
 			break;
 	}
 

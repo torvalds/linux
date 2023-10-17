@@ -59,7 +59,8 @@
 
 	ast-adc-hwmon {
 		compatible = "iio-hwmon";
-		io-channels = <&adc 0>, <&adc 1>, <&adc 2>, <&adc 3>, <&adc 4>;
+		io-channels = <&adc 0>, <&adc 1>, <&adc 2>, <&adc 3>, <&adc 4>,
+			      <&adc 5>, <&adc 6>, <&adc 7>, <&adc 8>;
 	};
 
 	/*
@@ -138,7 +139,7 @@
 &i2c2 {
 	status = "okay";
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -218,7 +219,7 @@
 &i2c8 {
 	status = "okay";
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -287,7 +288,7 @@
 &i2c11 {
 	status = "okay";
 
-	i2c-switch@76 {
+	i2c-mux@76 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -366,6 +367,7 @@
 };
 
 &sdhci1 {
+	max-frequency = <25000000>;
 	/*
 	 * DMA mode needs to be disabled to avoid conflicts with UHCI
 	 * Controller in AST2500 SoC.

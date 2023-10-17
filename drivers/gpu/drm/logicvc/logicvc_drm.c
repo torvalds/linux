@@ -10,8 +10,8 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
 
@@ -466,7 +466,7 @@ error_early:
 	return ret;
 }
 
-static int logicvc_drm_remove(struct platform_device *pdev)
+static void logicvc_drm_remove(struct platform_device *pdev)
 {
 	struct logicvc_drm *logicvc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -480,8 +480,6 @@ static int logicvc_drm_remove(struct platform_device *pdev)
 	logicvc_clocks_unprepare(logicvc);
 
 	of_reserved_mem_device_release(dev);
-
-	return 0;
 }
 
 static const struct of_device_id logicvc_drm_of_table[] = {
@@ -493,7 +491,7 @@ MODULE_DEVICE_TABLE(of, logicvc_drm_of_table);
 
 static struct platform_driver logicvc_drm_platform_driver = {
 	.probe		= logicvc_drm_probe,
-	.remove		= logicvc_drm_remove,
+	.remove_new	= logicvc_drm_remove,
 	.driver		= {
 		.name		= "logicvc-drm",
 		.of_match_table	= logicvc_drm_of_table,

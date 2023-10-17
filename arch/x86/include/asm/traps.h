@@ -18,7 +18,8 @@ void __init trap_init(void);
 asmlinkage __visible noinstr struct pt_regs *vc_switch_off_ist(struct pt_regs *eregs);
 #endif
 
-extern bool ibt_selftest(void);
+extern int ibt_selftest(void);
+extern int ibt_selftest_noendbr(void);
 
 #ifdef CONFIG_X86_F00F_BUG
 /* For handling the FOOF bug */
@@ -46,5 +47,17 @@ void __noreturn handle_stack_overflow(struct pt_regs *regs,
 				      unsigned long fault_address,
 				      struct stack_info *info);
 #endif
+
+static inline void cond_local_irq_enable(struct pt_regs *regs)
+{
+	if (regs->flags & X86_EFLAGS_IF)
+		local_irq_enable();
+}
+
+static inline void cond_local_irq_disable(struct pt_regs *regs)
+{
+	if (regs->flags & X86_EFLAGS_IF)
+		local_irq_disable();
+}
 
 #endif /* _ASM_X86_TRAPS_H */

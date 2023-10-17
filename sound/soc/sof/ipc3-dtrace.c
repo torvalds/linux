@@ -196,15 +196,9 @@ static ssize_t dfsentry_trace_filter_write(struct file *file, const char __user 
 		return -EINVAL;
 	}
 
-	string = kmalloc(count + 1, GFP_KERNEL);
-	if (!string)
-		return -ENOMEM;
-
-	if (copy_from_user(string, from, count)) {
-		ret = -EFAULT;
-		goto error;
-	}
-	string[count] = '\0';
+	string = memdup_user_nul(from, count);
+	if (IS_ERR(string))
+		return PTR_ERR(string);
 
 	ret = trace_filter_parse(sdev, string, &num_elems, &elems);
 	if (ret < 0)

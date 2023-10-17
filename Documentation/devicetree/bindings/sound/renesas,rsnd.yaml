@@ -9,6 +9,20 @@ title: Renesas R-Car Sound Driver
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
+definitions:
+  port-def:
+    $ref: audio-graph-port.yaml#/definitions/port-base
+    unevaluatedProperties: false
+    patternProperties:
+      "^endpoint(@[0-9a-f]+)?":
+        $ref: audio-graph-port.yaml#/definitions/endpoint-base
+        properties:
+          playback:
+            $ref: /schemas/types.yaml#/definitions/phandle-array
+          capture:
+            $ref: /schemas/types.yaml#/definitions/phandle-array
+        unevaluatedProperties: false
+
 properties:
 
   compatible:
@@ -77,6 +91,12 @@ properties:
       it must be 1 if your system has audio_clkout0/1/2/3
     enum: [0, 1]
 
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
   clock-frequency:
     description: for audio_clkout0/1/2/3
 
@@ -103,35 +123,9 @@ properties:
     description: List of necessary clock names.
     # details are defined below
 
-  ports:
-    $ref: audio-graph-port.yaml#/definitions/port-base
-    unevaluatedProperties: false
-    patternProperties:
-      '^port(@[0-9a-f]+)?$':
-        $ref: audio-graph-port.yaml#/definitions/port-base
-        unevaluatedProperties: false
-        patternProperties:
-          "^endpoint(@[0-9a-f]+)?":
-            $ref: audio-graph-port.yaml#/definitions/endpoint-base
-            properties:
-              playback:
-                $ref: /schemas/types.yaml#/definitions/phandle-array
-              capture:
-                $ref: /schemas/types.yaml#/definitions/phandle-array
-            unevaluatedProperties: false
-
+  # ports is below
   port:
-    $ref: audio-graph-port.yaml#/definitions/port-base
-    unevaluatedProperties: false
-    patternProperties:
-      "^endpoint(@[0-9a-f]+)?":
-        $ref: audio-graph-port.yaml#/definitions/endpoint-base
-        properties:
-          playback:
-            $ref: /schemas/types.yaml#/definitions/phandle-array
-          capture:
-            $ref: /schemas/types.yaml#/definitions/phandle-array
-        unevaluatedProperties: false
+    $ref: "#/definitions/port-def"
 
   rcar_sound,dvc:
     description: DVC subnode.
@@ -248,8 +242,9 @@ properties:
           - interrupts
     additionalProperties: false
 
+patternProperties:
   # For DAI base
-  rcar_sound,dai:
+  'rcar_sound,dai(@[0-9a-f]+)?$':
     description: DAI subnode.
     type: object
     patternProperties:
@@ -268,6 +263,13 @@ properties:
           - required:
               - capture
     additionalProperties: false
+
+  'ports(@[0-9a-f]+)?$':
+    $ref: audio-graph-port.yaml#/definitions/port-base
+    unevaluatedProperties: false
+    patternProperties:
+      '^port(@[0-9a-f]+)?$':
+        $ref: "#/definitions/port-def"
 
 required:
   - compatible

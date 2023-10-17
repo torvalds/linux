@@ -90,21 +90,9 @@ static inline void efi_fpu_end(void)
 }
 
 #ifdef CONFIG_X86_32
-#define arch_efi_call_virt_setup()					\
-({									\
-	efi_fpu_begin();						\
-	firmware_restrict_branch_speculation_start();			\
-})
-
-#define arch_efi_call_virt_teardown()					\
-({									\
-	firmware_restrict_branch_speculation_end();			\
-	efi_fpu_end();							\
-})
-
+#define EFI_X86_KERNEL_ALLOC_LIMIT		(SZ_512M - 1)
 #else /* !CONFIG_X86_32 */
-
-#define EFI_LOADER_SIGNATURE	"EL64"
+#define EFI_X86_KERNEL_ALLOC_LIMIT		EFI_ALLOC_LIMIT
 
 extern asmlinkage u64 __efi_call(void *fp, ...);
 
@@ -115,27 +103,12 @@ extern bool efi_disable_ibt_for_runtime;
 	__efi_call(__VA_ARGS__);					\
 })
 
-#define arch_efi_call_virt_setup()					\
-({									\
-	efi_sync_low_kernel_mappings();					\
-	efi_fpu_begin();						\
-	firmware_restrict_branch_speculation_start();			\
-	efi_enter_mm();							\
-})
-
 #undef arch_efi_call_virt
 #define arch_efi_call_virt(p, f, args...) ({				\
 	u64 ret, ibt = ibt_save(efi_disable_ibt_for_runtime);		\
 	ret = efi_call((void *)p->f, args);				\
 	ibt_restore(ibt);						\
 	ret;								\
-})
-
-#define arch_efi_call_virt_teardown()					\
-({									\
-	efi_leave_mm();							\
-	firmware_restrict_branch_speculation_end();			\
-	efi_fpu_end();							\
 })
 
 #ifdef CONFIG_KASAN
@@ -167,8 +140,8 @@ extern void efi_delete_dummy_variable(void);
 extern void efi_crash_gracefully_on_page_fault(unsigned long phys_addr);
 extern void efi_free_boot_services(void);
 
-void efi_enter_mm(void);
-void efi_leave_mm(void);
+void arch_efi_call_virt_setup(void);
+void arch_efi_call_virt_teardown(void);
 
 /* kexec external ABI */
 struct efi_setup_data {
@@ -217,6 +190,8 @@ efi_status_t efi_set_virtual_address_map(unsigned long memory_map_size,
 /* arch specific definitions used by the stub code */
 
 #ifdef CONFIG_EFI_MIXED
+
+#define EFI_ALLOC_LIMIT		(efi_is_64bit() ? ULONG_MAX : U32_MAX)
 
 #define ARCH_HAS_EFISTUB_WRAPPERS
 

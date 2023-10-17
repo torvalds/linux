@@ -9,9 +9,11 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/math.h>
 #include <linux/mfd/syscon.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
@@ -1074,6 +1076,7 @@ static int imx7_csi_video_enum_framesizes(struct file *file, void *fh,
 					  struct v4l2_frmsizeenum *fsize)
 {
 	const struct imx7_csi_pixfmt *cc;
+	u32 walign;
 
 	if (fsize->index > 0)
 		return -EINVAL;
@@ -1083,16 +1086,17 @@ static int imx7_csi_video_enum_framesizes(struct file *file, void *fh,
 		return -EINVAL;
 
 	/*
-	 * TODO: The constraints are hardware-specific and may depend on the
-	 * pixel format. This should come from the driver using
-	 * imx_media_capture.
+	 * The width alignment is 8 bytes as indicated by the
+	 * CSI_IMAG_PARA.IMAGE_WIDTH documentation. Convert it to pixels.
 	 */
+	walign = 8 * 8 / cc->bpp;
+
 	fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
-	fsize->stepwise.min_width = 1;
-	fsize->stepwise.max_width = 65535;
+	fsize->stepwise.min_width = walign;
+	fsize->stepwise.max_width = round_down(65535U, walign);
 	fsize->stepwise.min_height = 1;
 	fsize->stepwise.max_height = 65535;
-	fsize->stepwise.step_width = 1;
+	fsize->stepwise.step_width = walign;
 	fsize->stepwise.step_height = 1;
 
 	return 0;
@@ -1137,8 +1141,9 @@ __imx7_csi_video_try_fmt(struct v4l2_pix_format *pixfmt,
 	 * TODO: Implement configurable stride support.
 	 */
 	walign = 8 * 8 / cc->bpp;
-	v4l_bound_align_image(&pixfmt->width, 1, 0xffff, walign,
-			      &pixfmt->height, 1, 0xffff, 1, 0);
+	pixfmt->width = clamp(round_up(pixfmt->width, walign), walign,
+			      round_down(65535U, walign));
+	pixfmt->height = clamp(pixfmt->height, 1U, 65535U);
 
 	pixfmt->bytesperline = pixfmt->width * cc->bpp / 8;
 	pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height;
@@ -2032,7 +2037,7 @@ static const struct media_entity_operations imx7_csi_entity_ops = {
 
 static int imx7_csi_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *sd,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asd)
 {
 	struct imx7_csi *csi = imx7_csi_notifier_to_dev(notifier);
 	struct media_pad *sink = &csi->sd.entity.pads[IMX7_CSI_PAD_SINK];
@@ -2057,11 +2062,11 @@ static const struct v4l2_async_notifier_operations imx7_csi_notify_ops = {
 
 static int imx7_csi_async_register(struct imx7_csi *csi)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *ep;
 	int ret;
 
-	v4l2_async_nf_init(&csi->notifier);
+	v4l2_async_nf_init(&csi->notifier, &csi->v4l2_dev);
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
@@ -2072,7 +2077,7 @@ static int imx7_csi_async_register(struct imx7_csi *csi)
 	}
 
 	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 
 	fwnode_handle_put(ep);
 
@@ -2084,7 +2089,7 @@ static int imx7_csi_async_register(struct imx7_csi *csi)
 
 	csi->notifier.ops = &imx7_csi_notify_ops;
 
-	ret = v4l2_async_nf_register(&csi->v4l2_dev, &csi->notifier);
+	ret = v4l2_async_nf_register(&csi->notifier);
 	if (ret)
 		goto error;
 

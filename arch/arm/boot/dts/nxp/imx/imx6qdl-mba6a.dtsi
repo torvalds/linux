@@ -15,6 +15,7 @@
 	lm75: temperature-sensor@49 {
 		compatible = "national,lm75";
 		reg = <0x49>;
+		vs-supply = <&reg_mba6_3p3v>;
 	};
 
 	m24c64_57: eeprom@57 {
@@ -23,6 +24,7 @@
 		pagesize = <32>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+		vcc-supply = <&reg_mba6_3p3v>;
 
 		mba_mac_address: mac-address@20 {
 			reg = <0x20 0x6>;

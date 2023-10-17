@@ -802,7 +802,7 @@ static ssize_t ipmi_read(struct file *file,
 
 		init_waitqueue_entry(&wait, current);
 		add_wait_queue(&read_q, &wait);
-		while (!data_to_read) {
+		while (!data_to_read && !signal_pending(current)) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_irq(&ipmi_read_lock);
 			schedule();

@@ -193,4 +193,13 @@ static inline u8 rtw89_btc_path_phymap(struct rtw89_dev *rtwdev,
 	return rtw89_btc_phymap(rtwdev, phy_idx, BIT(path));
 }
 
+/* return bt req len in TU */
+static inline u16 rtw89_coex_query_bt_req_len(struct rtw89_dev *rtwdev,
+					      enum rtw89_phy_idx phy_idx)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+
+	return btc->bt_req_len;
+}
+
 #endif

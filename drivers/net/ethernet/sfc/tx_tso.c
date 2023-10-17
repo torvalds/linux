@@ -85,7 +85,7 @@ static inline void prefetch_ptr(struct efx_tx_queue *tx_queue)
 	prefetch(ptr);
 	prefetch(ptr + 0x80);
 
-	ptr = (char *) (((efx_qword_t *)tx_queue->txd.buf.addr) + insert_ptr);
+	ptr = (char *)(((efx_qword_t *)tx_queue->txd.addr) + insert_ptr);
 	prefetch(ptr);
 	prefetch(ptr + 0x80);
 }

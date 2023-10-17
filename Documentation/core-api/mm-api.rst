@@ -115,3 +115,28 @@ More Memory Management Functions
 .. kernel-doc:: include/linux/mmzone.h
 .. kernel-doc:: mm/util.c
    :functions: folio_mapping
+
+.. kernel-doc:: mm/rmap.c
+.. kernel-doc:: mm/migrate.c
+.. kernel-doc:: mm/mmap.c
+.. kernel-doc:: mm/kmemleak.c
+.. #kernel-doc:: mm/hmm.c (build warnings)
+.. kernel-doc:: mm/memremap.c
+.. kernel-doc:: mm/hugetlb.c
+.. kernel-doc:: mm/swap.c
+.. kernel-doc:: mm/zpool.c
+.. kernel-doc:: mm/memcontrol.c
+.. #kernel-doc:: mm/memory-tiers.c (build warnings)
+.. kernel-doc:: mm/shmem.c
+.. kernel-doc:: mm/migrate_device.c
+.. #kernel-doc:: mm/nommu.c (duplicates kernel-doc from other files)
+.. kernel-doc:: mm/mapping_dirty_helpers.c
+.. #kernel-doc:: mm/memory-failure.c (build warnings)
+.. kernel-doc:: mm/percpu.c
+.. kernel-doc:: mm/maccess.c
+.. kernel-doc:: mm/vmscan.c
+.. kernel-doc:: mm/memory_hotplug.c
+.. kernel-doc:: mm/mmu_notifier.c
+.. kernel-doc:: mm/balloon_compaction.c
+.. kernel-doc:: mm/huge_memory.c
+.. kernel-doc:: mm/io-mapping.c

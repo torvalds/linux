@@ -487,17 +487,17 @@ void drm_sysfs_connector_hotplug_event(struct drm_connector *connector)
 EXPORT_SYMBOL(drm_sysfs_connector_hotplug_event);
 
 /**
- * drm_sysfs_connector_status_event - generate a DRM uevent for connector
- * property status change
- * @connector: connector on which property status changed
- * @property: connector property whose status changed.
+ * drm_sysfs_connector_property_event - generate a DRM uevent for connector
+ * property change
+ * @connector: connector on which property changed
+ * @property: connector property which has changed.
  *
- * Send a uevent for the DRM device specified by @dev.  Currently we
+ * Send a uevent for the specified DRM connector and property.  Currently we
  * set HOTPLUG=1 and connector id along with the attached property id
- * related to the status change.
+ * related to the change.
  */
-void drm_sysfs_connector_status_event(struct drm_connector *connector,
-				      struct drm_property *property)
+void drm_sysfs_connector_property_event(struct drm_connector *connector,
+					struct drm_property *property)
 {
 	struct drm_device *dev = connector->dev;
 	char hotplug_str[] = "HOTPLUG=1", conn_id[21], prop_id[21];
@@ -511,11 +511,14 @@ void drm_sysfs_connector_status_event(struct drm_connector *connector,
 	snprintf(prop_id, ARRAY_SIZE(prop_id),
 		 "PROPERTY=%u", property->base.id);
 
-	DRM_DEBUG("generating connector status event\n");
+	drm_dbg_kms(connector->dev,
+		    "[CONNECTOR:%d:%s] generating connector property event for [PROP:%d:%s]\n",
+		    connector->base.id, connector->name,
+		    property->base.id, property->name);
 
 	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
 }
-EXPORT_SYMBOL(drm_sysfs_connector_status_event);
+EXPORT_SYMBOL(drm_sysfs_connector_property_event);
 
 struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 {

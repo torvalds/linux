@@ -182,10 +182,10 @@ enum pgtable_bits {
 #if defined(CONFIG_CPU_R3K_TLB)
 # define _CACHE_UNCACHED	(1 << _CACHE_UNCACHED_SHIFT)
 # define _CACHE_MASK		_CACHE_UNCACHED
-# define _PFN_SHIFT		PAGE_SHIFT
+# define PFN_PTE_SHIFT		PAGE_SHIFT
 #else
 # define _CACHE_MASK		(7 << _CACHE_SHIFT)
-# define _PFN_SHIFT		(PAGE_SHIFT - 12 + _CACHE_SHIFT + 3)
+# define PFN_PTE_SHIFT		(PAGE_SHIFT - 12 + _CACHE_SHIFT + 3)
 #endif
 
 #ifndef _PAGE_NO_EXEC
@@ -195,7 +195,7 @@ enum pgtable_bits {
 #define _PAGE_SILENT_READ	_PAGE_VALID
 #define _PAGE_SILENT_WRITE	_PAGE_DIRTY
 
-#define _PFN_MASK		(~((1 << (_PFN_SHIFT)) - 1))
+#define _PFN_MASK		(~((1 << (PFN_PTE_SHIFT)) - 1))
 
 /*
  * The final layouts of the PTE bits are:

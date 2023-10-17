@@ -8,12 +8,11 @@
 #include <linux/mm.h>
 #include <linux/mman.h>
 
-unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
-EXPORT_SYMBOL(shm_align_mask);
+#define SHM_ALIGN_MASK	(SHMLBA - 1)
 
-#define COLOUR_ALIGN(addr, pgoff)				\
-	((((addr) + shm_align_mask) & ~shm_align_mask) +	\
-	 (((pgoff) << PAGE_SHIFT) & shm_align_mask))
+#define COLOUR_ALIGN(addr, pgoff)			\
+	((((addr) + SHM_ALIGN_MASK) & ~SHM_ALIGN_MASK)	\
+	 + (((pgoff) << PAGE_SHIFT) & SHM_ALIGN_MASK))
 
 enum mmap_allocation_direction {UP, DOWN};
 
@@ -40,7 +39,7 @@ static unsigned long arch_get_unmapped_area_common(struct file *filp,
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
-		    ((addr - (pgoff << PAGE_SHIFT)) & shm_align_mask))
+		    ((addr - (pgoff << PAGE_SHIFT)) & SHM_ALIGN_MASK))
 			return -EINVAL;
 		return addr;
 	}
@@ -63,7 +62,7 @@ static unsigned long arch_get_unmapped_area_common(struct file *filp,
 	}
 
 	info.length = len;
-	info.align_mask = do_color_align ? (PAGE_MASK & shm_align_mask) : 0;
+	info.align_mask = do_color_align ? (PAGE_MASK & SHM_ALIGN_MASK) : 0;
 	info.align_offset = pgoff << PAGE_SHIFT;
 
 	if (dir == DOWN) {

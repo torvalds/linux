@@ -11,7 +11,8 @@
 #ifndef _UFSHCI_H
 #define _UFSHCI_H
 
-#include <scsi/scsi_host.h>
+#include <linux/types.h>
+#include <ufs/ufs.h>
 
 enum {
 	TASK_REQ_UPIU_SIZE_DWORDS	= 8,
@@ -126,7 +127,6 @@ enum {
 };
 
 #define SQ_ICU_ERR_CODE_MASK		GENMASK(7, 4)
-#define UPIU_COMMAND_TYPE_MASK		GENMASK(31, 28)
 #define UFS_MASK(mask, offset)		((mask) << (offset))
 
 /* UFS Version 08h */
@@ -438,15 +438,13 @@ enum {
 	UTP_SCSI_COMMAND		= 0x00000000,
 	UTP_NATIVE_UFS_COMMAND		= 0x10000000,
 	UTP_DEVICE_MANAGEMENT_FUNCTION	= 0x20000000,
-	UTP_REQ_DESC_INT_CMD		= 0x01000000,
-	UTP_REQ_DESC_CRYPTO_ENABLE_CMD	= 0x00800000,
 };
 
 /* UTP Transfer Request Data Direction (DD) */
-enum {
-	UTP_NO_DATA_TRANSFER	= 0x00000000,
-	UTP_HOST_TO_DEVICE	= 0x02000000,
-	UTP_DEVICE_TO_HOST	= 0x04000000,
+enum utp_data_direction {
+	UTP_NO_DATA_TRANSFER	= 0,
+	UTP_HOST_TO_DEVICE	= 1,
+	UTP_DEVICE_TO_HOST	= 2,
 };
 
 /* Overall command status values */
@@ -505,17 +503,38 @@ struct utp_transfer_cmd_desc {
 
 /**
  * struct request_desc_header - Descriptor Header common to both UTRD and UTMRD
- * @dword0: Descriptor Header DW0
- * @dword1: Descriptor Header DW1
- * @dword2: Descriptor Header DW2
- * @dword3: Descriptor Header DW3
  */
 struct request_desc_header {
-	__le32 dword_0;
-	__le32 dword_1;
-	__le32 dword_2;
-	__le32 dword_3;
+	u8 cci;
+	u8 ehs_length;
+#if defined(__BIG_ENDIAN)
+	u8 enable_crypto:1;
+	u8 reserved2:7;
+
+	u8 command_type:4;
+	u8 reserved1:1;
+	u8 data_direction:2;
+	u8 interrupt:1;
+#elif defined(__LITTLE_ENDIAN)
+	u8 reserved2:7;
+	u8 enable_crypto:1;
+
+	u8 interrupt:1;
+	u8 data_direction:2;
+	u8 reserved1:1;
+	u8 command_type:4;
+#else
+#error
+#endif
+
+	__le32 dunl;
+	u8 ocs;
+	u8 cds;
+	__le16 ldbc;
+	__le32 dunu;
 };
+
+static_assert(sizeof(struct request_desc_header) == 16);
 
 /**
  * struct utp_transfer_req_desc - UTP Transfer Request Descriptor (UTRD)

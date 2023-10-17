@@ -66,6 +66,7 @@ properties:
       - description: BCM47094 based boards
         items:
           - enum:
+              - asus,rt-ac3100
               - asus,rt-ac88u
               - dlink,dir-885l
               - dlink,dir-890l

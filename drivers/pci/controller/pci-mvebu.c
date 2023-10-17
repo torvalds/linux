@@ -87,7 +87,6 @@ struct mvebu_pcie {
 	struct resource io;
 	struct resource realio;
 	struct resource mem;
-	struct resource busn;
 	int nports;
 };
 

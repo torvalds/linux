@@ -161,9 +161,6 @@ static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 	case USB_SPEED_HIGH:
 		speed = "480";
 		break;
-	case USB_SPEED_WIRELESS:
-		speed = "480";
-		break;
 	case USB_SPEED_SUPER:
 		speed = "5000";
 		break;

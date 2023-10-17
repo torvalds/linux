@@ -131,8 +131,8 @@ static const struct regulator_ops hi6421_buck345_ops;
 	[HI6421_##_id] = {						\
 		.desc = {						\
 			.name		= #_id,				\
-			.of_match        = of_match_ptr(#_match),	\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.of_match        = #_match,			\
+			.regulators_node = "regulators",		\
 			.ops		= &hi6421_ldo_ops,		\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -170,8 +170,8 @@ static const struct regulator_ops hi6421_buck345_ops;
 	[HI6421_##_id] = {						\
 		.desc = {						\
 			.name		= #_id,				\
-			.of_match        = of_match_ptr(#_match),	\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.of_match        = #_match,			\
+			.regulators_node = "regulators",		\
 			.ops		= &hi6421_ldo_linear_ops,	\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -210,8 +210,8 @@ static const struct regulator_ops hi6421_buck345_ops;
 	[HI6421_##_id] = {						\
 		.desc = {						\
 			.name		= #_id,				\
-			.of_match        = of_match_ptr(#_match),	\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.of_match        = #_match,			\
+			.regulators_node = "regulators",		\
 			.ops		= &hi6421_ldo_linear_range_ops,	\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -247,8 +247,8 @@ static const struct regulator_ops hi6421_buck345_ops;
 	[HI6421_##_id] = {						\
 		.desc = {						\
 			.name		= #_id,				\
-			.of_match        = of_match_ptr(#_match),	\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.of_match        = #_match,			\
+			.regulators_node = "regulators",		\
 			.ops		= &hi6421_buck012_ops,		\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\
@@ -284,8 +284,8 @@ static const struct regulator_ops hi6421_buck345_ops;
 	[HI6421_##_id] = {						\
 		.desc = {						\
 			.name		= #_id,				\
-			.of_match        = of_match_ptr(#_match),	\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.of_match        = #_match,			\
+			.regulators_node = "regulators",		\
 			.ops		= &hi6421_buck345_ops,		\
 			.type		= REGULATOR_VOLTAGE,		\
 			.id		= HI6421_##_id,			\

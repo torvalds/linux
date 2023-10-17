@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2019-2023 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <djwong@kernel.org>
@@ -8,6 +8,8 @@
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
+#include "xfs_log_format.h"
+#include "xfs_trans.h"
 #include "xfs_mount.h"
 #include "xfs_alloc.h"
 #include "xfs_ialloc.h"
@@ -16,6 +18,7 @@
 #include "xfs_ag.h"
 #include "xfs_rtalloc.h"
 #include "xfs_inode.h"
+#include "xfs_icache.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -53,6 +56,7 @@ struct xchk_fscounters {
 	uint64_t		frextents;
 	unsigned long long	icount_min;
 	unsigned long long	icount_max;
+	bool			frozen;
 };
 
 /*
@@ -123,6 +127,82 @@ xchk_fscount_warmup(
 	return error;
 }
 
+static inline int
+xchk_fsfreeze(
+	struct xfs_scrub	*sc)
+{
+	int			error;
+
+	error = freeze_super(sc->mp->m_super, FREEZE_HOLDER_KERNEL);
+	trace_xchk_fsfreeze(sc, error);
+	return error;
+}
+
+static inline int
+xchk_fsthaw(
+	struct xfs_scrub	*sc)
+{
+	int			error;
+
+	/* This should always succeed, we have a kernel freeze */
+	error = thaw_super(sc->mp->m_super, FREEZE_HOLDER_KERNEL);
+	trace_xchk_fsthaw(sc, error);
+	return error;
+}
+
+/*
+ * We couldn't stabilize the filesystem long enough to sample all the variables
+ * that comprise the summary counters and compare them to the percpu counters.
+ * We need to disable all writer threads, which means taking the first two
+ * freeze levels to put userspace to sleep, and the third freeze level to
+ * prevent background threads from starting new transactions.  Take one level
+ * more to prevent other callers from unfreezing the filesystem while we run.
+ */
+STATIC int
+xchk_fscounters_freeze(
+	struct xfs_scrub	*sc)
+{
+	struct xchk_fscounters	*fsc = sc->buf;
+	int			error = 0;
+
+	if (sc->flags & XCHK_HAVE_FREEZE_PROT) {
+		sc->flags &= ~XCHK_HAVE_FREEZE_PROT;
+		mnt_drop_write_file(sc->file);
+	}
+
+	/* Try to grab a kernel freeze. */
+	while ((error = xchk_fsfreeze(sc)) == -EBUSY) {
+		if (xchk_should_terminate(sc, &error))
+			return error;
+
+		delay(HZ / 10);
+	}
+	if (error)
+		return error;
+
+	fsc->frozen = true;
+	return 0;
+}
+
+/* Thaw the filesystem after checking or repairing fscounters. */
+STATIC void
+xchk_fscounters_cleanup(
+	void			*buf)
+{
+	struct xchk_fscounters	*fsc = buf;
+	struct xfs_scrub	*sc = fsc->sc;
+	int			error;
+
+	if (!fsc->frozen)
+		return;
+
+	error = xchk_fsthaw(sc);
+	if (error)
+		xfs_emerg(sc->mp, "still frozen after scrub, err=%d", error);
+	else
+		fsc->frozen = false;
+}
+
 int
 xchk_setup_fscounters(
 	struct xfs_scrub	*sc)
@@ -140,6 +220,7 @@ xchk_setup_fscounters(
 	sc->buf = kzalloc(sizeof(struct xchk_fscounters), XCHK_GFP_FLAGS);
 	if (!sc->buf)
 		return -ENOMEM;
+	sc->buf_cleanup = xchk_fscounters_cleanup;
 	fsc = sc->buf;
 	fsc->sc = sc;
 
@@ -150,7 +231,18 @@ xchk_setup_fscounters(
 	if (error)
 		return error;
 
-	return xchk_trans_alloc(sc, 0);
+	/*
+	 * Pause all writer activity in the filesystem while we're scrubbing to
+	 * reduce the likelihood of background perturbations to the counters
+	 * throwing off our calculations.
+	 */
+	if (sc->flags & XCHK_TRY_HARDER) {
+		error = xchk_fscounters_freeze(sc);
+		if (error)
+			return error;
+	}
+
+	return xfs_trans_alloc_empty(sc->mp, &sc->tp);
 }
 
 /*
@@ -290,8 +382,7 @@ retry:
 	if (fsc->ifree > fsc->icount) {
 		if (tries--)
 			goto retry;
-		xchk_set_incomplete(sc);
-		return 0;
+		return -EDEADLOCK;
 	}
 
 	return 0;
@@ -367,6 +458,8 @@ xchk_fscount_count_frextents(
  * Otherwise, we /might/ have a problem.  If the change in the summations is
  * more than we want to tolerate, the filesystem is probably busy and we should
  * just send back INCOMPLETE and see if userspace will try again.
+ *
+ * If we're repairing then we require an exact match.
  */
 static inline bool
 xchk_fscount_within_range(
@@ -396,21 +489,7 @@ xchk_fscount_within_range(
 	if (expected >= min_value && expected <= max_value)
 		return true;
 
-	/*
-	 * If the difference between the two summations is too large, the fs
-	 * might just be busy and so we'll mark the scrub incomplete.  Return
-	 * true here so that we don't mark the counter corrupt.
-	 *
-	 * XXX: In the future when userspace can grant scrub permission to
-	 * quiesce the filesystem to solve the outsized variance problem, this
-	 * check should be moved up and the return code changed to signal to
-	 * userspace that we need quiesce permission.
-	 */
-	if (max_value - min_value >= XCHK_FSCOUNT_MIN_VARIANCE) {
-		xchk_set_incomplete(sc);
-		return true;
-	}
-
+	/* Everything else is bad. */
 	return false;
 }
 
@@ -422,6 +501,7 @@ xchk_fscounters(
 	struct xfs_mount	*mp = sc->mp;
 	struct xchk_fscounters	*fsc = sc->buf;
 	int64_t			icount, ifree, fdblocks, frextents;
+	bool			try_again = false;
 	int			error;
 
 	/* Snapshot the percpu counters. */
@@ -431,8 +511,25 @@ xchk_fscounters(
 	frextents = percpu_counter_sum(&mp->m_frextents);
 
 	/* No negative values, please! */
-	if (icount < 0 || ifree < 0 || fdblocks < 0 || frextents < 0)
+	if (icount < 0 || ifree < 0)
 		xchk_set_corrupt(sc);
+
+	/*
+	 * If the filesystem is not frozen, the counter summation calls above
+	 * can race with xfs_mod_freecounter, which subtracts a requested space
+	 * reservation from the counter and undoes the subtraction if that made
+	 * the counter go negative.  Therefore, it's possible to see negative
+	 * values here, and we should only flag that as a corruption if we
+	 * froze the fs.  This is much more likely to happen with frextents
+	 * since there are no reserved pools.
+	 */
+	if (fdblocks < 0 || frextents < 0) {
+		if (!fsc->frozen)
+			return -EDEADLOCK;
+
+		xchk_set_corrupt(sc);
+		return 0;
+	}
 
 	/* See if icount is obviously wrong. */
 	if (icount < fsc->icount_min || icount > fsc->icount_max)
@@ -447,12 +544,6 @@ xchk_fscounters(
 		xchk_set_corrupt(sc);
 
 	/*
-	 * XXX: We can't quiesce percpu counter updates, so exit early.
-	 * This can be re-enabled when we gain exclusive freeze functionality.
-	 */
-	return 0;
-
-	/*
 	 * If ifree exceeds icount by more than the minimum variance then
 	 * something's probably wrong with the counters.
 	 */
@@ -463,8 +554,6 @@ xchk_fscounters(
 	error = xchk_fscount_aggregate_agcounts(sc, fsc);
 	if (!xchk_process_error(sc, 0, XFS_SB_BLOCK(mp), &error))
 		return error;
-	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_INCOMPLETE)
-		return 0;
 
 	/* Count the free extents counter for rt volumes. */
 	error = xchk_fscount_count_frextents(sc, fsc);
@@ -473,20 +562,45 @@ xchk_fscounters(
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_INCOMPLETE)
 		return 0;
 
-	/* Compare the in-core counters with whatever we counted. */
-	if (!xchk_fscount_within_range(sc, icount, &mp->m_icount, fsc->icount))
-		xchk_set_corrupt(sc);
+	/*
+	 * Compare the in-core counters with whatever we counted.  If the fs is
+	 * frozen, we treat the discrepancy as a corruption because the freeze
+	 * should have stabilized the counter values.  Otherwise, we need
+	 * userspace to call us back having granted us freeze permission.
+	 */
+	if (!xchk_fscount_within_range(sc, icount, &mp->m_icount,
+				fsc->icount)) {
+		if (fsc->frozen)
+			xchk_set_corrupt(sc);
+		else
+			try_again = true;
+	}
 
-	if (!xchk_fscount_within_range(sc, ifree, &mp->m_ifree, fsc->ifree))
-		xchk_set_corrupt(sc);
+	if (!xchk_fscount_within_range(sc, ifree, &mp->m_ifree, fsc->ifree)) {
+		if (fsc->frozen)
+			xchk_set_corrupt(sc);
+		else
+			try_again = true;
+	}
 
 	if (!xchk_fscount_within_range(sc, fdblocks, &mp->m_fdblocks,
-			fsc->fdblocks))
-		xchk_set_corrupt(sc);
+			fsc->fdblocks)) {
+		if (fsc->frozen)
+			xchk_set_corrupt(sc);
+		else
+			try_again = true;
+	}
 
 	if (!xchk_fscount_within_range(sc, frextents, &mp->m_frextents,
-			fsc->frextents))
-		xchk_set_corrupt(sc);
+			fsc->frextents)) {
+		if (fsc->frozen)
+			xchk_set_corrupt(sc);
+		else
+			try_again = true;
+	}
+
+	if (try_again)
+		return -EDEADLOCK;
 
 	return 0;
 }

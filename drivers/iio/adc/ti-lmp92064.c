@@ -16,7 +16,10 @@
 #include <linux/spi/spi.h>
 
 #include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/driver.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
 
 #define TI_LMP92064_REG_CONFIG_A 0x0000
 #define TI_LMP92064_REG_CONFIG_B 0x0001
@@ -91,6 +94,12 @@ static const struct iio_chan_spec lmp92064_adc_channels[] = {
 		.address = TI_LMP92064_CHAN_INC,
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.scan_index = TI_LMP92064_CHAN_INC,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+		},
 		.datasheet_name = "INC",
 	},
 	{
@@ -98,8 +107,20 @@ static const struct iio_chan_spec lmp92064_adc_channels[] = {
 		.address = TI_LMP92064_CHAN_INV,
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.scan_index = TI_LMP92064_CHAN_INV,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+		},
 		.datasheet_name = "INV",
 	},
+	IIO_CHAN_SOFT_TIMESTAMP(2),
+};
+
+static const unsigned long lmp92064_scan_masks[] = {
+	BIT(TI_LMP92064_CHAN_INC) | BIT(TI_LMP92064_CHAN_INV),
+	0
 };
 
 static int lmp92064_read_meas(struct lmp92064_adc_priv *priv, u16 *res)
@@ -169,6 +190,32 @@ static int lmp92064_read_raw(struct iio_dev *indio_dev,
 	default:
 		return -EINVAL;
 	}
+}
+
+static irqreturn_t lmp92064_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct lmp92064_adc_priv *priv = iio_priv(indio_dev);
+	struct {
+		u16 values[2];
+		int64_t timestamp __aligned(8);
+	} data;
+	int ret;
+
+	memset(&data, 0, sizeof(data));
+
+	ret = lmp92064_read_meas(priv, data.values);
+	if (ret)
+		goto err;
+
+	iio_push_to_buffers_with_timestamp(indio_dev, &data,
+					   iio_get_time_ns(indio_dev));
+
+err:
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
 }
 
 static int lmp92064_reset(struct lmp92064_adc_priv *priv,
@@ -301,6 +348,12 @@ static int lmp92064_adc_probe(struct spi_device *spi)
 	indio_dev->channels = lmp92064_adc_channels;
 	indio_dev->num_channels = ARRAY_SIZE(lmp92064_adc_channels);
 	indio_dev->info = &lmp92064_adc_info;
+	indio_dev->available_scan_masks = lmp92064_scan_masks;
+
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
+					      lmp92064_trigger_handler, NULL);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to setup buffered read\n");
 
 	return devm_iio_device_register(dev, indio_dev);
 }

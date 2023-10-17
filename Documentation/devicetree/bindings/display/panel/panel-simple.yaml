@@ -103,8 +103,6 @@ properties:
       - cdtech,s070wv95-ct16
         # Chefree CH101OLHLWH-002 10.1" (1280x800) color TFT LCD panel
       - chefree,ch101olhlwh-002
-        # Chunghwa Picture Tubes Ltd. 7" WXGA TFT LCD panel
-      - chunghwa,claa070wp03xg
         # Chunghwa Picture Tubes Ltd. 10.1" WXGA TFT LCD panel
       - chunghwa,claa101wa01a
         # Chunghwa Picture Tubes Ltd. 10.1" WXGA TFT LCD panel
@@ -168,8 +166,6 @@ properties:
       - hannstar,hsd070pww1
         # HannStar Display Corp. HSD100PXN1 10.1" XGA LVDS panel
       - hannstar,hsd100pxn1
-        # HannStar Display Corp. HSD101PWW2 10.1" WXGA (1280x800) LVDS panel
-      - hannstar,hsd101pww2
         # Hitachi Ltd. Corporation 9" WVGA (800x480) TFT LCD panel
       - hit,tx23d38vm0caa
         # InfoVision Optoelectronics M133NWF4 R0 13.3" FHD (1920x1080) TFT LCD panel
@@ -196,6 +192,8 @@ properties:
       - innolux,n116bge
         # InnoLux 13.3" FHD (1920x1080) eDP TFT LCD panel
       - innolux,n125hce-gn1
+        # InnoLux 15.6" FHD (1920x1080) TFT LCD panel
+      - innolux,g156hce-l01
         # InnoLux 15.6" WXGA TFT LCD panel
       - innolux,n156bge-l21
         # Innolux P120ZDG-BF1 12.02 inch eDP 2K display panel

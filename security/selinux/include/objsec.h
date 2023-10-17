@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  NSA Security-Enhanced Linux (SELinux) security module
+ *  Security-Enhanced Linux (SELinux) security module
  *
  *  This file contains the SELinux security data structures for kernel objects.
  *
- *  Author(s):  Stephen Smalley, <sds@tycho.nsa.gov>
+ *  Author(s):  Stephen Smalley, <stephen.smalley.work@gmail.com>
  *		Chris Vance, <cvance@nai.com>
  *		Wayne Salamon, <wsalamon@nai.com>
  *		James Morris <jmorris@redhat.com>

@@ -49,15 +49,15 @@ properties:
 
   solomon,height:
     $ref: /schemas/types.yaml#/definitions/uint32
-    default: 16
     description:
-      Height in pixel of the screen driven by the controller
+      Height in pixel of the screen driven by the controller.
+      The default value is controller-dependent.
 
   solomon,width:
     $ref: /schemas/types.yaml#/definitions/uint32
-    default: 96
     description:
-      Width in pixel of the screen driven by the controller
+      Width in pixel of the screen driven by the controller.
+      The default value is controller-dependent.
 
   solomon,page-offset:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -157,6 +157,10 @@ allOf:
             const: sinowealth,sh1106
     then:
       properties:
+        width:
+          default: 132
+        height:
+          default: 64
         solomon,dclk-div:
           default: 1
         solomon,dclk-frq:
@@ -171,6 +175,10 @@ allOf:
               - solomon,ssd1305
     then:
       properties:
+        width:
+          default: 132
+        height:
+          default: 64
         solomon,dclk-div:
           default: 1
         solomon,dclk-frq:
@@ -185,6 +193,10 @@ allOf:
               - solomon,ssd1306
     then:
       properties:
+        width:
+          default: 128
+        height:
+          default: 64
         solomon,dclk-div:
           default: 1
         solomon,dclk-frq:
@@ -199,6 +211,10 @@ allOf:
               - solomon,ssd1307
     then:
       properties:
+        width:
+          default: 128
+        height:
+          default: 39
         solomon,dclk-div:
           default: 2
         solomon,dclk-frq:
@@ -215,6 +231,10 @@ allOf:
               - solomon,ssd1309
     then:
       properties:
+        width:
+          default: 128
+        height:
+          default: 64
         solomon,dclk-div:
           default: 1
         solomon,dclk-frq:

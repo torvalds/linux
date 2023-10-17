@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig SOUND
 	tristate "Sound card support"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM || UML
 	help
 	  If you have a sound card in your computer, i.e. if it can say more
 	  than an occasional beep, say Y.
@@ -38,8 +38,6 @@ config SOUND_OSS_CORE_PRECLAIM
 	  If unsure, say Y.
 
 source "sound/oss/dmasound/Kconfig"
-
-if !UML
 
 menuconfig SND
 	tristate "Advanced Linux Sound Architecture"
@@ -102,8 +100,6 @@ source "sound/xen/Kconfig"
 source "sound/virtio/Kconfig"
 
 endif # SND
-
-endif # !UML
 
 endif # SOUND
 

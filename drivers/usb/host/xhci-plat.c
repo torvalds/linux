@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/usb/phy.h>
 #include <linux/slab.h>

@@ -16,6 +16,8 @@ enum icp_qat_fw_init_admin_cmd_id {
 	ICP_QAT_FW_HEARTBEAT_SYNC = 7,
 	ICP_QAT_FW_HEARTBEAT_GET = 8,
 	ICP_QAT_FW_COMP_CAPABILITY_GET = 9,
+	ICP_QAT_FW_HEARTBEAT_TIMER_SET = 13,
+	ICP_QAT_FW_TIMER_GET = 19,
 	ICP_QAT_FW_PM_STATE_CONFIG = 128,
 };
 
@@ -36,6 +38,12 @@ struct icp_qat_fw_init_admin_req {
 		struct {
 			__u16 ibuf_size_in_kb;
 			__u16 resrvd3;
+		};
+		struct {
+			__u32 int_timer_ticks;
+		};
+		struct {
+			__u32 heartbeat_ticks;
 		};
 		__u32 idle_filter;
 	};
@@ -97,19 +105,6 @@ struct icp_qat_fw_init_admin_resp {
 	};
 } __packed;
 
-#define ICP_QAT_FW_COMN_HEARTBEAT_OK 0
-#define ICP_QAT_FW_COMN_HEARTBEAT_BLOCKED 1
-#define ICP_QAT_FW_COMN_HEARTBEAT_FLAG_BITPOS 0
-#define ICP_QAT_FW_COMN_HEARTBEAT_FLAG_MASK 0x1
-#define ICP_QAT_FW_COMN_STATUS_RESRVD_FLD_MASK 0xFE
-#define ICP_QAT_FW_COMN_HEARTBEAT_HDR_FLAG_GET(hdr_t) \
-	ICP_QAT_FW_COMN_HEARTBEAT_FLAG_GET(hdr_t.flags)
+#define ICP_QAT_FW_SYNC ICP_QAT_FW_HEARTBEAT_SYNC
 
-#define ICP_QAT_FW_COMN_HEARTBEAT_HDR_FLAG_SET(hdr_t, val) \
-	ICP_QAT_FW_COMN_HEARTBEAT_FLAG_SET(hdr_t, val)
-
-#define ICP_QAT_FW_COMN_HEARTBEAT_FLAG_GET(flags) \
-	QAT_FIELD_GET(flags, \
-		 ICP_QAT_FW_COMN_HEARTBEAT_FLAG_BITPOS, \
-		 ICP_QAT_FW_COMN_HEARTBEAT_FLAG_MASK)
 #endif

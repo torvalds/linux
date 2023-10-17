@@ -5,10 +5,10 @@
  * Copyright (c) 2004 Eugene Surovegin <ebs@ebshome.net>
  */
 
+#include <linux/export.h>
 #include <asm/ppc_asm.h>
 #include <asm/processor.h>
 #include <asm/bug.h>
-#include <asm/export.h>
 
 #define DCR_ACCESS_PROLOG(table) \
 	cmplwi	cr0,r3,1024;	 \

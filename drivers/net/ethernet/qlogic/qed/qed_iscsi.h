@@ -39,11 +39,14 @@ void qed_iscsi_free(struct qed_hwfn *p_hwfn);
  *
  * @cdev: Qed dev pointer.
  * @stats: Points to struct that will be filled with statistics.
+ * @is_atomic: Hint from the caller - if the func can sleep or not.
  *
+ * Context: The function should not sleep in case is_atomic == true.
  * Return: Void.
  */
 void qed_get_protocol_stats_iscsi(struct qed_dev *cdev,
-				  struct qed_mcp_iscsi_stats *stats);
+				  struct qed_mcp_iscsi_stats *stats,
+				  bool is_atomic);
 #else /* IS_ENABLED(CONFIG_QED_ISCSI) */
 static inline int qed_iscsi_alloc(struct qed_hwfn *p_hwfn)
 {
@@ -56,7 +59,8 @@ static inline void qed_iscsi_free(struct qed_hwfn *p_hwfn) {}
 
 static inline void
 qed_get_protocol_stats_iscsi(struct qed_dev *cdev,
-			     struct qed_mcp_iscsi_stats *stats) {}
+			     struct qed_mcp_iscsi_stats *stats,
+			     bool is_atomic) {}
 #endif /* IS_ENABLED(CONFIG_QED_ISCSI) */
 
 #endif

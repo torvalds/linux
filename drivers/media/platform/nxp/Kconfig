@@ -17,6 +17,17 @@ config VIDEO_IMX7_CSI
 	  Driver for the NXP Camera Sensor Interface (CSI) Bridge. This device
 	  is found in the i.MX6UL/L, i.MX7 and i.MX8M[MQ] SoCs.
 
+config VIDEO_IMX8MQ_MIPI_CSI2
+	tristate "NXP i.MX8MQ MIPI CSI-2 receiver"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Video4Linux2 driver for the MIPI CSI-2 receiver found on the i.MX8MQ
+	  SoC.
+
 config VIDEO_IMX_MIPI_CSIS
 	tristate "NXP MIPI CSI-2 CSIS receiver found on i.MX7 and i.MX8 models"
 	depends on ARCH_MXC || COMPILE_TEST

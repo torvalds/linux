@@ -6,7 +6,7 @@
  * table is used to represent the type enforcement
  * tables.
  *
- *  Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ *  Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
 
 /* Updated: Frank Mayer <mayerf@tresys.com> and Karl MacMillan <kmacmillan@tresys.com>
@@ -90,9 +90,15 @@ struct avtab {
 void avtab_init(struct avtab *h);
 int avtab_alloc(struct avtab *, u32);
 int avtab_alloc_dup(struct avtab *new, const struct avtab *orig);
-struct avtab_datum *avtab_search(struct avtab *h, const struct avtab_key *k);
 void avtab_destroy(struct avtab *h);
+
+#ifdef CONFIG_SECURITY_SELINUX_DEBUG
 void avtab_hash_eval(struct avtab *h, const char *tag);
+#else
+static inline void avtab_hash_eval(struct avtab *h, const char *tag)
+{
+}
+#endif
 
 struct policydb;
 int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
@@ -111,7 +117,7 @@ struct avtab_node *avtab_insert_nonunique(struct avtab *h,
 struct avtab_node *avtab_search_node(struct avtab *h,
 				     const struct avtab_key *key);
 
-struct avtab_node *avtab_search_node_next(struct avtab_node *node, int specified);
+struct avtab_node *avtab_search_node_next(struct avtab_node *node, u16 specified);
 
 #define MAX_AVTAB_HASH_BITS 16
 #define MAX_AVTAB_HASH_BUCKETS (1 << MAX_AVTAB_HASH_BITS)

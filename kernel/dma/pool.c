@@ -135,9 +135,9 @@ encrypt_mapping:
 remove_mapping:
 #ifdef CONFIG_DMA_DIRECT_REMAP
 	dma_common_free_remap(addr, pool_size);
-#endif
-free_page: __maybe_unused
+free_page:
 	__free_pages(page, order);
+#endif
 out:
 	return ret;
 }

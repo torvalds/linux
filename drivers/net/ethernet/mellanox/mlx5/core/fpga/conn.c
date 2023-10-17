@@ -445,7 +445,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 		goto err_cqwq;
 	}
 
-	err = mlx5_vector2eqn(mdev, smp_processor_id(), &eqn);
+	err = mlx5_comp_eqn_get(mdev, smp_processor_id(), &eqn);
 	if (err) {
 		kvfree(in);
 		goto err_cqwq;

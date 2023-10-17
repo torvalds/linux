@@ -206,6 +206,9 @@ struct ufs_qcom_host {
 	struct clk *tx_l1_sync_clk;
 	bool is_lane_clks_enabled;
 
+	struct icc_path *icc_ddr;
+	struct icc_path *icc_cpu;
+
 #ifdef CONFIG_SCSI_UFS_CRYPTO
 	struct qcom_ice *ice;
 #endif
@@ -226,7 +229,6 @@ struct ufs_qcom_host {
 
 	u32 hs_gear;
 
-	int esi_base;
 	bool esi_enabled;
 };
 

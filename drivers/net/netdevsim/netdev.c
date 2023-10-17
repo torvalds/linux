@@ -209,6 +209,31 @@ static int nsim_set_vf_link_state(struct net_device *dev, int vf, int state)
 	return 0;
 }
 
+static void nsim_taprio_stats(struct tc_taprio_qopt_stats *stats)
+{
+	stats->window_drops = 0;
+	stats->tx_overruns = 0;
+}
+
+static int nsim_setup_tc_taprio(struct net_device *dev,
+				struct tc_taprio_qopt_offload *offload)
+{
+	int err = 0;
+
+	switch (offload->cmd) {
+	case TAPRIO_CMD_REPLACE:
+	case TAPRIO_CMD_DESTROY:
+		break;
+	case TAPRIO_CMD_STATS:
+		nsim_taprio_stats(&offload->stats);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
 static LIST_HEAD(nsim_block_cb_list);
 
 static int
@@ -217,6 +242,8 @@ nsim_setup_tc(struct net_device *dev, enum tc_setup_type type, void *type_data)
 	struct netdevsim *ns = netdev_priv(dev);
 
 	switch (type) {
+	case TC_SETUP_QDISC_TAPRIO:
+		return nsim_setup_tc_taprio(dev, type_data);
 	case TC_SETUP_BLOCK:
 		return flow_block_cb_setup_simple(type_data,
 						  &nsim_block_cb_list,
@@ -291,19 +318,26 @@ static void nsim_setup(struct net_device *dev)
 
 static int nsim_init_netdevsim(struct netdevsim *ns)
 {
+	struct mock_phc *phc;
 	int err;
 
+	phc = mock_phc_create(&ns->nsim_bus_dev->dev);
+	if (IS_ERR(phc))
+		return PTR_ERR(phc);
+
+	ns->phc = phc;
 	ns->netdev->netdev_ops = &nsim_netdev_ops;
 
 	err = nsim_udp_tunnels_info_create(ns->nsim_dev, ns->netdev);
 	if (err)
-		return err;
+		goto err_phc_destroy;
 
 	rtnl_lock();
 	err = nsim_bpf_init(ns);
 	if (err)
 		goto err_utn_destroy;
 
+	nsim_macsec_init(ns);
 	nsim_ipsec_init(ns);
 
 	err = register_netdevice(ns->netdev);
@@ -314,10 +348,13 @@ static int nsim_init_netdevsim(struct netdevsim *ns)
 
 err_ipsec_teardown:
 	nsim_ipsec_teardown(ns);
+	nsim_macsec_teardown(ns);
 	nsim_bpf_uninit(ns);
 err_utn_destroy:
 	rtnl_unlock();
 	nsim_udp_tunnels_info_destroy(ns->netdev);
+err_phc_destroy:
+	mock_phc_destroy(ns->phc);
 	return err;
 }
 
@@ -374,12 +411,14 @@ void nsim_destroy(struct netdevsim *ns)
 	rtnl_lock();
 	unregister_netdevice(dev);
 	if (nsim_dev_port_is_pf(ns->nsim_dev_port)) {
+		nsim_macsec_teardown(ns);
 		nsim_ipsec_teardown(ns);
 		nsim_bpf_uninit(ns);
 	}
 	rtnl_unlock();
 	if (nsim_dev_port_is_pf(ns->nsim_dev_port))
 		nsim_udp_tunnels_info_destroy(dev);
+	mock_phc_destroy(ns->phc);
 	free_netdev(dev);
 }
 

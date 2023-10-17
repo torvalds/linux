@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/display/msm/dsi-phy-14nm.yaml#
@@ -19,6 +19,7 @@ properties:
       - qcom,dsi-phy-14nm-2290
       - qcom,dsi-phy-14nm-660
       - qcom,dsi-phy-14nm-8953
+      - qcom,sm6125-dsi-phy-14nm
 
   reg:
     items:
@@ -34,6 +35,16 @@ properties:
 
   vcca-supply:
     description: Phandle to vcca regulator device node.
+
+  power-domains:
+    description:
+      A phandle and PM domain specifier for an optional power domain.
+    maxItems: 1
+
+  required-opps:
+    description:
+      A phandle to an OPP node describing the power domain's performance point.
+    maxItems: 1
 
 required:
   - compatible

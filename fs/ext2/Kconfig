@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config EXT2_FS
 	tristate "Second extended fs support"
+	select BUFFER_HEAD
 	select FS_IOMAP
 	select LEGACY_DIRECT_IO
 	help

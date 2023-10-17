@@ -20,7 +20,7 @@
 
 #include "mgag200_drv.h"
 
-int mgag200_modeset = -1;
+static int mgag200_modeset = -1;
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, mgag200_modeset, int, 0400);
 

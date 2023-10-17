@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * SPI master driver using generic bitbanged GPIO
+ * SPI host driver using generic bitbanged GPIO
  *
  * Copyright (C) 2006,2008 David Brownell
  * Copyright (C) 2017 Linus Walleij
@@ -10,7 +10,6 @@
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -18,7 +17,7 @@
 
 
 /*
- * This bitbanging SPI master driver should help make systems usable
+ * This bitbanging SPI host driver should help make systems usable
  * when a native hardware SPI engine is not available, perhaps because
  * its driver isn't yet working or because the I/O pins it requires
  * are used for other purposes.
@@ -27,7 +26,7 @@
  *
  * spi->controller_state ... reserved for bitbang framework code
  *
- * spi->master->dev.driver_data ... points to spi_gpio->bitbang
+ * spi->controller->dev.driver_data ... points to spi_gpio->bitbang
  */
 
 struct spi_gpio {
@@ -78,7 +77,7 @@ spi_to_spi_gpio(const struct spi_device *spi)
 	const struct spi_bitbang	*bang;
 	struct spi_gpio			*spi_gpio;
 
-	bang = spi_master_get_devdata(spi->master);
+	bang = spi_controller_get_devdata(spi->controller);
 	spi_gpio = container_of(bang, struct spi_gpio, bitbang);
 	return spi_gpio;
 }
@@ -170,7 +169,7 @@ static u32 spi_gpio_txrx_word_mode3(struct spi_device *spi,
 
 /*
  * These functions do not call setmosi or getmiso if respective flag
- * (SPI_MASTER_NO_RX or SPI_MASTER_NO_TX) is set, so they are safe to
+ * (SPI_CONTROLLER_NO_RX or SPI_CONTROLLER_NO_TX) is set, so they are safe to
  * call when such pin is not present or defined in the controller.
  * A separate set of callbacks is defined to get highest possible
  * speed in the generic case (when both MISO and MOSI lines are
@@ -181,7 +180,7 @@ static u32 spi_gpio_txrx_word_mode3(struct spi_device *spi,
 static u32 spi_gpio_spec_txrx_word_mode0(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
-	flags = spi->master->flags;
+	flags = spi->controller->flags;
 	if (unlikely(spi->mode & SPI_LSB_FIRST))
 		return bitbang_txrx_le_cpha0(spi, nsecs, 0, flags, word, bits);
 	else
@@ -191,7 +190,7 @@ static u32 spi_gpio_spec_txrx_word_mode0(struct spi_device *spi,
 static u32 spi_gpio_spec_txrx_word_mode1(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
-	flags = spi->master->flags;
+	flags = spi->controller->flags;
 	if (unlikely(spi->mode & SPI_LSB_FIRST))
 		return bitbang_txrx_le_cpha1(spi, nsecs, 0, flags, word, bits);
 	else
@@ -201,7 +200,7 @@ static u32 spi_gpio_spec_txrx_word_mode1(struct spi_device *spi,
 static u32 spi_gpio_spec_txrx_word_mode2(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
-	flags = spi->master->flags;
+	flags = spi->controller->flags;
 	if (unlikely(spi->mode & SPI_LSB_FIRST))
 		return bitbang_txrx_le_cpha0(spi, nsecs, 1, flags, word, bits);
 	else
@@ -211,7 +210,7 @@ static u32 spi_gpio_spec_txrx_word_mode2(struct spi_device *spi,
 static u32 spi_gpio_spec_txrx_word_mode3(struct spi_device *spi,
 		unsigned nsecs, u32 word, u8 bits, unsigned flags)
 {
-	flags = spi->master->flags;
+	flags = spi->controller->flags;
 	if (unlikely(spi->mode & SPI_LSB_FIRST))
 		return bitbang_txrx_le_cpha1(spi, nsecs, 1, flags, word, bits);
 	else
@@ -311,7 +310,7 @@ static void spi_gpio_cleanup(struct spi_device *spi)
  * On platforms which can do so, configure MISO with a weak pullup unless
  * there's an external pullup on that signal.  That saves power by avoiding
  * floating signals.  (A weak pulldown would save power too, but many
- * drivers expect to see all-ones data as the no slave "response".)
+ * drivers expect to see all-ones data as the no target "response".)
  */
 static int spi_gpio_request(struct device *dev, struct spi_gpio *spi_gpio)
 {
@@ -335,27 +334,27 @@ static const struct of_device_id spi_gpio_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, spi_gpio_dt_ids);
 
 static int spi_gpio_probe_dt(struct platform_device *pdev,
-			     struct spi_master *master)
+			     struct spi_controller *host)
 {
-	master->dev.of_node = pdev->dev.of_node;
-	master->use_gpio_descriptors = true;
+	host->dev.of_node = pdev->dev.of_node;
+	host->use_gpio_descriptors = true;
 
 	return 0;
 }
 #else
 static inline int spi_gpio_probe_dt(struct platform_device *pdev,
-				    struct spi_master *master)
+				    struct spi_controller *host)
 {
 	return 0;
 }
 #endif
 
 static int spi_gpio_probe_pdata(struct platform_device *pdev,
-				struct spi_master *master)
+				struct spi_controller *host)
 {
 	struct device *dev = &pdev->dev;
 	struct spi_gpio_platform_data *pdata = dev_get_platdata(dev);
-	struct spi_gpio *spi_gpio = spi_master_get_devdata(master);
+	struct spi_gpio *spi_gpio = spi_controller_get_devdata(host);
 	int i;
 
 #ifdef GENERIC_BITBANG
@@ -363,18 +362,18 @@ static int spi_gpio_probe_pdata(struct platform_device *pdev,
 		return -ENODEV;
 #endif
 	/*
-	 * The master needs to think there is a chipselect even if not
+	 * The host needs to think there is a chipselect even if not
 	 * connected
 	 */
-	master->num_chipselect = pdata->num_chipselect ?: 1;
+	host->num_chipselect = pdata->num_chipselect ?: 1;
 
-	spi_gpio->cs_gpios = devm_kcalloc(dev, master->num_chipselect,
+	spi_gpio->cs_gpios = devm_kcalloc(dev, host->num_chipselect,
 					  sizeof(*spi_gpio->cs_gpios),
 					  GFP_KERNEL);
 	if (!spi_gpio->cs_gpios)
 		return -ENOMEM;
 
-	for (i = 0; i < master->num_chipselect; i++) {
+	for (i = 0; i < host->num_chipselect; i++) {
 		spi_gpio->cs_gpios[i] = devm_gpiod_get_index(dev, "cs", i,
 							     GPIOD_OUT_HIGH);
 		if (IS_ERR(spi_gpio->cs_gpios[i]))
@@ -387,58 +386,58 @@ static int spi_gpio_probe_pdata(struct platform_device *pdev,
 static int spi_gpio_probe(struct platform_device *pdev)
 {
 	int				status;
-	struct spi_master		*master;
+	struct spi_controller		*host;
 	struct spi_gpio			*spi_gpio;
 	struct device			*dev = &pdev->dev;
 	struct spi_bitbang		*bb;
 
-	master = devm_spi_alloc_master(dev, sizeof(*spi_gpio));
-	if (!master)
+	host = devm_spi_alloc_host(dev, sizeof(*spi_gpio));
+	if (!host)
 		return -ENOMEM;
 
 	if (pdev->dev.of_node)
-		status = spi_gpio_probe_dt(pdev, master);
+		status = spi_gpio_probe_dt(pdev, host);
 	else
-		status = spi_gpio_probe_pdata(pdev, master);
+		status = spi_gpio_probe_pdata(pdev, host);
 
 	if (status)
 		return status;
 
-	spi_gpio = spi_master_get_devdata(master);
+	spi_gpio = spi_controller_get_devdata(host);
 
 	status = spi_gpio_request(dev, spi_gpio);
 	if (status)
 		return status;
 
-	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
-	master->mode_bits = SPI_3WIRE | SPI_3WIRE_HIZ | SPI_CPHA | SPI_CPOL |
+	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
+	host->mode_bits = SPI_3WIRE | SPI_3WIRE_HIZ | SPI_CPHA | SPI_CPOL |
 			    SPI_CS_HIGH | SPI_LSB_FIRST;
 	if (!spi_gpio->mosi) {
 		/* HW configuration without MOSI pin
 		 *
-		 * No setting SPI_MASTER_NO_RX here - if there is only
+		 * No setting SPI_CONTROLLER_NO_RX here - if there is only
 		 * a MOSI pin connected the host can still do RX by
 		 * changing the direction of the line.
 		 */
-		master->flags = SPI_MASTER_NO_TX;
+		host->flags = SPI_CONTROLLER_NO_TX;
 	}
 
-	master->bus_num = pdev->id;
-	master->setup = spi_gpio_setup;
-	master->cleanup = spi_gpio_cleanup;
+	host->bus_num = pdev->id;
+	host->setup = spi_gpio_setup;
+	host->cleanup = spi_gpio_cleanup;
 
 	bb = &spi_gpio->bitbang;
-	bb->master = master;
+	bb->master = host;
 	/*
 	 * There is some additional business, apart from driving the CS GPIO
 	 * line, that we need to do on selection. This makes the local
 	 * callback for chipselect always get called.
 	 */
-	master->flags |= SPI_MASTER_GPIO_SS;
+	host->flags |= SPI_CONTROLLER_GPIO_SS;
 	bb->chipselect = spi_gpio_chipselect;
 	bb->set_line_direction = spi_gpio_set_direction;
 
-	if (master->flags & SPI_MASTER_NO_TX) {
+	if (host->flags & SPI_CONTROLLER_NO_TX) {
 		bb->txrx_word[SPI_MODE_0] = spi_gpio_spec_txrx_word_mode0;
 		bb->txrx_word[SPI_MODE_1] = spi_gpio_spec_txrx_word_mode1;
 		bb->txrx_word[SPI_MODE_2] = spi_gpio_spec_txrx_word_mode2;
@@ -455,7 +454,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	if (status)
 		return status;
 
-	return devm_spi_register_master(&pdev->dev, master);
+	return devm_spi_register_controller(&pdev->dev, host);
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
@@ -469,6 +468,6 @@ static struct platform_driver spi_gpio_driver = {
 };
 module_platform_driver(spi_gpio_driver);
 
-MODULE_DESCRIPTION("SPI master driver using generic bitbanged GPIO ");
+MODULE_DESCRIPTION("SPI host driver using generic bitbanged GPIO ");
 MODULE_AUTHOR("David Brownell");
 MODULE_LICENSE("GPL");

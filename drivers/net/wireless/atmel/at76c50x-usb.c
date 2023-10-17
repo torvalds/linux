@@ -10,7 +10,7 @@
  * Copyright (c) 2007 Kalle Valo <kalle.valo@iki.fi>
  * Copyright (c) 2010 Sebastian Smolorz <sesmo@gmx.net>
  *
- * This file is part of the Berlios driver for WLAN USB devices based on the
+ * This file is part of the Berlios driver for USB WLAN devices based on the
  * Atmel AT76C503A/505/505A.
  *
  * Some iw_handler code was taken from airo.c, (C) 1999 Benjamin Reed
@@ -143,7 +143,7 @@ static const struct usb_device_id dev_table[] = {
 	{ USB_DEVICE(0x0cde, 0x0001), USB_DEVICE_DATA(BOARD_503_ISL3861) },
 	/* Dynalink/Askey WLL013 (intersil) */
 	{ USB_DEVICE(0x069a, 0x0320), USB_DEVICE_DATA(BOARD_503_ISL3861) },
-	/* EZ connect 11Mpbs Wireless USB Adapter SMC2662W v1 */
+	/* EZ connect 11Mpbs USB Wireless Adapter SMC2662W v1 */
 	{ USB_DEVICE(0x0d5c, 0xa001), USB_DEVICE_DATA(BOARD_503_ISL3861) },
 	/* BenQ AWL300 */
 	{ USB_DEVICE(0x04a5, 0x9000), USB_DEVICE_DATA(BOARD_503_ISL3861) },
@@ -195,7 +195,7 @@ static const struct usb_device_id dev_table[] = {
 	{ USB_DEVICE(0x04a5, 0x9001), USB_DEVICE_DATA(BOARD_503) },
 	/* 3Com 3CRSHEW696 */
 	{ USB_DEVICE(0x0506, 0x0a01), USB_DEVICE_DATA(BOARD_503) },
-	/* Siemens Santis ADSL WLAN USB adapter WLL 013 */
+	/* Siemens Santis ADSL USB WLAN adapter WLL 013 */
 	{ USB_DEVICE(0x0681, 0x001b), USB_DEVICE_DATA(BOARD_503) },
 	/* Belkin F5D6050, version 2 */
 	{ USB_DEVICE(0x050d, 0x0050), USB_DEVICE_DATA(BOARD_503) },
@@ -238,7 +238,7 @@ static const struct usb_device_id dev_table[] = {
 	{ USB_DEVICE(0x1915, 0x2233), USB_DEVICE_DATA(BOARD_505_2958) },
 	/* Xterasys XN-2122B, IBlitzz BWU613B/BWU613SB */
 	{ USB_DEVICE(0x12fd, 0x1001), USB_DEVICE_DATA(BOARD_505_2958) },
-	/* Corega WLAN USB Stick 11 */
+	/* Corega USB WLAN Stick 11 */
 	{ USB_DEVICE(0x07aa, 0x7613), USB_DEVICE_DATA(BOARD_505_2958) },
 	/* Microstar MSI Box MS6978 */
 	{ USB_DEVICE(0x0db0, 0x1020), USB_DEVICE_DATA(BOARD_505_2958) },

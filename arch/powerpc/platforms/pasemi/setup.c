@@ -16,7 +16,9 @@
 #include <linux/console.h>
 #include <linux/export.h>
 #include <linux/pci.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/gfp.h>
 #include <linux/irqdomain.h>
 

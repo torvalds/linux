@@ -58,7 +58,7 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_sdhi0>;
 
-		enable-gpio = <&pfc 74 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&pfc 74 GPIO_ACTIVE_HIGH>;
 		gpios = <&pfc 17 GPIO_ACTIVE_HIGH>;
 		states = <3300000 0>, <1800000 1>;
 

@@ -9,6 +9,7 @@
 
 #include <linux/efi.h>
 #include <linux/init.h>
+#include <linux/screen_info.h>
 
 #include <asm/efi.h>
 #include <asm/stacktrace.h>
@@ -158,7 +159,21 @@ asmlinkage efi_status_t efi_handle_corrupted_x18(efi_status_t s, const char *f)
 	return s;
 }
 
-DEFINE_RAW_SPINLOCK(efi_rt_lock);
+static DEFINE_RAW_SPINLOCK(efi_rt_lock);
+
+void arch_efi_call_virt_setup(void)
+{
+	efi_virtmap_load();
+	__efi_fpsimd_begin();
+	raw_spin_lock(&efi_rt_lock);
+}
+
+void arch_efi_call_virt_teardown(void)
+{
+	raw_spin_unlock(&efi_rt_lock);
+	__efi_fpsimd_end();
+	efi_virtmap_unload();
+}
 
 asmlinkage u64 *efi_rt_stack_top __ro_after_init;
 

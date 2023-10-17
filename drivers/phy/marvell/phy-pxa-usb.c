@@ -296,7 +296,7 @@ static int pxa_usb_phy_probe(struct platform_device *pdev)
 
 	of_id = of_match_node(pxa_usb_phy_of_match, dev->of_node);
 	if (of_id)
-		pxa_usb_phy->version = (enum pxa_usb_phy_version)of_id->data;
+		pxa_usb_phy->version = (uintptr_t)of_id->data;
 	else
 		pxa_usb_phy->version = PXA_USB_PHY_MMP2;
 

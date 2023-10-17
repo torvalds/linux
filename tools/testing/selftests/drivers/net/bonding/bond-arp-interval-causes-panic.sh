@@ -11,7 +11,6 @@ finish()
 {
 	ip netns delete server || true
 	ip netns delete client || true
-	ip link del link1_1 || true
 }
 
 trap finish EXIT
@@ -23,14 +22,12 @@ server_ip4=192.168.1.254
 echo 180 >/proc/sys/kernel/panic
 
 # build namespaces
-ip link add dev link1_1 type veth peer name link1_2
-
 ip netns add "server"
-ip link set dev link1_2 netns server up name eth0
+ip netns add "client"
+ip -n client link add eth0 type veth peer name eth0 netns server
+ip netns exec server ip link set dev eth0 up
 ip netns exec server ip addr add ${server_ip4}/24 dev eth0
 
-ip netns add "client"
-ip link set dev link1_1 netns client down name eth0
 ip netns exec client ip link add dev bond0 down type bond mode 1 \
 	miimon 100 all_slaves_active 1
 ip netns exec client ip link set dev eth0 down master bond0

@@ -1770,7 +1770,7 @@ int via_fb_pci_probe(struct viafb_dev *vdev)
 	viafbinfo->fix.mmio_len = vdev->engine_len;
 	viafbinfo->node = 0;
 	viafbinfo->fbops = &viafb_ops;
-	viafbinfo->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	viafbinfo->flags = FBINFO_HWACCEL_YPAN;
 
 	viafbinfo->pseudo_palette = pseudo_pal;
 	if (viafb_accel && !viafb_setup_engine(viafbinfo)) {

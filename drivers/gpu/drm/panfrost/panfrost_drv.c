@@ -4,8 +4,9 @@
 /* Copyright 2019 Collabora ltd. */
 
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/pagemap.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <drm/panfrost_drm.h>
 #include <drm/drm_drv.h>
@@ -407,6 +408,10 @@ static int panfrost_ioctl_madvise(struct drm_device *dev, void *data,
 
 	bo = to_panfrost_bo(gem_obj);
 
+	ret = dma_resv_lock_interruptible(bo->base.base.resv, NULL);
+	if (ret)
+		goto out_put_object;
+
 	mutex_lock(&pfdev->shrinker_lock);
 	mutex_lock(&bo->mappings.lock);
 	if (args->madv == PANFROST_MADV_DONTNEED) {
@@ -444,7 +449,8 @@ static int panfrost_ioctl_madvise(struct drm_device *dev, void *data,
 out_unlock_mappings:
 	mutex_unlock(&bo->mappings.lock);
 	mutex_unlock(&pfdev->shrinker_lock);
-
+	dma_resv_unlock(bo->base.base.resv);
+out_put_object:
 	drm_gem_object_put(gem_obj);
 	return ret;
 }
@@ -539,10 +545,7 @@ static const struct drm_driver panfrost_drm_driver = {
 	.minor			= 2,
 
 	.gem_create_object	= panfrost_gem_create_object,
-	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = panfrost_gem_prime_import_sg_table,
-	.gem_prime_mmap		= drm_gem_prime_mmap,
 };
 
 static int panfrost_probe(struct platform_device *pdev)
@@ -611,7 +614,7 @@ err_out0:
 	return err;
 }
 
-static int panfrost_remove(struct platform_device *pdev)
+static void panfrost_remove(struct platform_device *pdev)
 {
 	struct panfrost_device *pfdev = platform_get_drvdata(pdev);
 	struct drm_device *ddev = pfdev->ddev;
@@ -625,7 +628,6 @@ static int panfrost_remove(struct platform_device *pdev)
 	pm_runtime_set_suspended(pfdev->dev);
 
 	drm_dev_put(ddev);
-	return 0;
 }
 
 /*
@@ -717,7 +719,7 @@ MODULE_DEVICE_TABLE(of, dt_match);
 
 static struct platform_driver panfrost_driver = {
 	.probe		= panfrost_probe,
-	.remove		= panfrost_remove,
+	.remove_new	= panfrost_remove,
 	.driver		= {
 		.name	= "panfrost",
 		.pm	= pm_ptr(&panfrost_pm_ops),

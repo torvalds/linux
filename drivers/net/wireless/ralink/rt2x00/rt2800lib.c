@@ -3865,28 +3865,51 @@ static void rt2800_config_channel_rf7620(struct rt2x00_dev *rt2x00dev,
 	}
 }
 
-static void rt2800_config_alc(struct rt2x00_dev *rt2x00dev,
-			      struct ieee80211_channel *chan,
-			      int power_level) {
-	u16 eeprom, target_power, max_power;
+static void rt2800_config_alc_rt6352(struct rt2x00_dev *rt2x00dev,
+				     struct ieee80211_channel *chan,
+				     int power_level)
+{
+	int cur_channel = rt2x00dev->rf_channel;
+	u16 eeprom, chan_power, rate_power, target_power;
+	u16 tx_power[2];
+	s8 *power_group[2];
 	u32 mac_sys_ctrl;
-	u32 reg;
+	u32 cnt, reg;
 	u8 bbp;
 
-	/* hardware unit is 0.5dBm, limited to 23.5dBm */
-	power_level *= 2;
-	if (power_level > 0x2f)
-		power_level = 0x2f;
+	if (WARN_ON(cur_channel < 1 || cur_channel > 14))
+		return;
 
-	max_power = chan->max_power * 2;
-	if (max_power > 0x2f)
-		max_power = 0x2f;
+	/* get per chain power, 2 chains in total, unit is 0.5dBm */
+	power_level = (power_level - 3) * 2;
+
+	/* We can't get the accurate TX power. Based on some tests, the real
+	 * TX power is approximately equal to channel_power + (max)rate_power.
+	 * Usually max rate_power is the gain of the OFDM 6M rate. The antenna
+	 * gain and externel PA gain are not included as we are unable to
+	 * obtain these values.
+	 */
+	rate_power = rt2800_eeprom_read_from_array(rt2x00dev,
+						   EEPROM_TXPOWER_BYRATE, 1);
+	rate_power &= 0x3f;
+	power_level -= rate_power;
+	if (power_level < 1)
+		power_level = 1;
+
+	power_group[0] = rt2800_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_BG1);
+	power_group[1] = rt2800_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_BG2);
+	for (cnt = 0; cnt < 2; cnt++) {
+		chan_power = power_group[cnt][cur_channel - 1];
+		if (chan_power >= 0x20 || chan_power == 0)
+			chan_power = 0x10;
+		tx_power[cnt] = power_level < chan_power ? power_level : chan_power;
+	}
 
 	reg = rt2800_register_read(rt2x00dev, TX_ALC_CFG_0);
-	rt2x00_set_field32(&reg, TX_ALC_CFG_0_CH_INIT_0, power_level);
-	rt2x00_set_field32(&reg, TX_ALC_CFG_0_CH_INIT_1, power_level);
-	rt2x00_set_field32(&reg, TX_ALC_CFG_0_LIMIT_0, max_power);
-	rt2x00_set_field32(&reg, TX_ALC_CFG_0_LIMIT_1, max_power);
+	rt2x00_set_field32(&reg, TX_ALC_CFG_0_CH_INIT_0, tx_power[0]);
+	rt2x00_set_field32(&reg, TX_ALC_CFG_0_CH_INIT_1, tx_power[1]);
+	rt2x00_set_field32(&reg, TX_ALC_CFG_0_LIMIT_0, 0x2f);
+	rt2x00_set_field32(&reg, TX_ALC_CFG_0_LIMIT_1, 0x2f);
 
 	eeprom = rt2800_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1);
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_INTERNAL_TX_ALC)) {
@@ -5268,7 +5291,7 @@ static void rt2800_config_txpower_rt6352(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&pwreg, TX_PWR_CFG_9B_STBC_MCS7, t);
 	rt2800_register_write(rt2x00dev, TX_PWR_CFG_9, pwreg);
 
-	rt2800_config_alc(rt2x00dev, chan, power_level);
+	rt2800_config_alc_rt6352(rt2x00dev, chan, power_level);
 
 	/* TODO: temperature compensation code! */
 }
@@ -8561,7 +8584,7 @@ static void rt2800_r_calibration(struct rt2x00_dev *rt2x00dev)
 		rt2x00_warn(rt2x00dev, "Wait MAC Tx Status to MAX !!!\n");
 
 	maccfg = rt2800_register_read(rt2x00dev, MAC_SYS_CTRL);
-	maccfg &= (~0x04);
+	maccfg &= (~0x08);
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, maccfg);
 
 	if (unlikely(rt2800_wait_bbp_rf_ready(rt2x00dev, MAC_STATUS_CFG_BBP_RF_BUSY_RX)))

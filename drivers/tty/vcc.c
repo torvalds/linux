@@ -36,7 +36,7 @@ struct vcc_port {
 	 * and guarantee that any characters that the driver accepts will
 	 * be eventually sent, either immediately or later.
 	 */
-	int chars_in_buffer;
+	size_t chars_in_buffer;
 	struct vio_vcc buffer;
 
 	struct timer_list rx_timer;
@@ -385,7 +385,7 @@ static void vcc_tx_timer(struct timer_list *t)
 	struct vcc_port *port = from_timer(port, t, tx_timer);
 	struct vio_vcc *pkt;
 	unsigned long flags;
-	int tosend = 0;
+	size_t tosend = 0;
 	int rv;
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -804,14 +804,13 @@ static void vcc_hangup(struct tty_struct *tty)
 	tty_port_hangup(tty->port);
 }
 
-static int vcc_write(struct tty_struct *tty, const unsigned char *buf,
-		     int count)
+static ssize_t vcc_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	struct vcc_port *port;
 	struct vio_vcc *pkt;
 	unsigned long flags;
-	int total_sent = 0;
-	int tosend = 0;
+	size_t total_sent = 0;
+	size_t tosend = 0;
 	int rv = -EINVAL;
 
 	port = vcc_get_ne(tty->index);
@@ -827,7 +826,8 @@ static int vcc_write(struct tty_struct *tty, const unsigned char *buf,
 
 	while (count > 0) {
 		/* Minimum of data to write and space available */
-		tosend = min(count, (VCC_BUFF_LEN - port->chars_in_buffer));
+		tosend = min_t(size_t, count,
+			       (VCC_BUFF_LEN - port->chars_in_buffer));
 
 		if (!tosend)
 			break;
@@ -847,7 +847,7 @@ static int vcc_write(struct tty_struct *tty, const unsigned char *buf,
 		 * hypervisor actually took it because we have it buffered.
 		 */
 		rv = ldc_write(port->vio.lp, pkt, (VIO_TAG_SIZE + tosend));
-		vccdbg("VCC: write: ldc_write(%d)=%d\n",
+		vccdbg("VCC: write: ldc_write(%zu)=%d\n",
 		       (VIO_TAG_SIZE + tosend), rv);
 
 		total_sent += tosend;
@@ -864,7 +864,7 @@ static int vcc_write(struct tty_struct *tty, const unsigned char *buf,
 
 	vcc_put(port, false);
 
-	vccdbg("VCC: write: total=%d rv=%d", total_sent, rv);
+	vccdbg("VCC: write: total=%zu rv=%d", total_sent, rv);
 
 	return total_sent ? total_sent : rv;
 }

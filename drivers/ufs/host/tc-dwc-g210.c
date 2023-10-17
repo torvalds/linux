@@ -17,11 +17,10 @@
 #include "tc-dwc-g210.h"
 
 /**
- * tc_dwc_g210_setup_40bit_rmmi()
- * This function configures Synopsys TC specific atributes (40-bit RMMI)
+ * tc_dwc_g210_setup_40bit_rmmi() - configure 40-bit RMMI.
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success or non-zero value on failure
+ * Return: 0 on success or non-zero value on failure.
  */
 static int tc_dwc_g210_setup_40bit_rmmi(struct ufs_hba *hba)
 {
@@ -81,11 +80,10 @@ static int tc_dwc_g210_setup_40bit_rmmi(struct ufs_hba *hba)
 }
 
 /**
- * tc_dwc_g210_setup_20bit_rmmi_lane0()
- * This function configures Synopsys TC 20-bit RMMI Lane 0
+ * tc_dwc_g210_setup_20bit_rmmi_lane0() - configure 20-bit RMMI Lane 0.
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success or non-zero value on failure
+ * Return: 0 on success or non-zero value on failure.
  */
 static int tc_dwc_g210_setup_20bit_rmmi_lane0(struct ufs_hba *hba)
 {
@@ -134,11 +132,10 @@ static int tc_dwc_g210_setup_20bit_rmmi_lane0(struct ufs_hba *hba)
 }
 
 /**
- * tc_dwc_g210_setup_20bit_rmmi_lane1()
- * This function configures Synopsys TC 20-bit RMMI Lane 1
+ * tc_dwc_g210_setup_20bit_rmmi_lane1() - configure 20-bit RMMI Lane 1.
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success or non-zero value on failure
+ * Return: 0 on success or non-zero value on failure.
  */
 static int tc_dwc_g210_setup_20bit_rmmi_lane1(struct ufs_hba *hba)
 {
@@ -211,11 +208,10 @@ out:
 }
 
 /**
- * tc_dwc_g210_setup_20bit_rmmi()
- * This function configures Synopsys TC specific atributes (20-bit RMMI)
+ * tc_dwc_g210_setup_20bit_rmmi() - configure 20-bit RMMI.
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success or non-zero value on failure
+ * Return: 0 on success or non-zero value on failure.
  */
 static int tc_dwc_g210_setup_20bit_rmmi(struct ufs_hba *hba)
 {
@@ -251,12 +247,10 @@ out:
 }
 
 /**
- * tc_dwc_g210_config_40_bit()
- * This function configures Local (host) Synopsys 40-bit TC specific attributes
- *
+ * tc_dwc_g210_config_40_bit() - configure 40-bit TC specific attributes.
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success non-zero value on failure
+ * Return: 0 on success non-zero value on failure.
  */
 int tc_dwc_g210_config_40_bit(struct ufs_hba *hba)
 {
@@ -283,12 +277,10 @@ out:
 EXPORT_SYMBOL(tc_dwc_g210_config_40_bit);
 
 /**
- * tc_dwc_g210_config_20_bit()
- * This function configures Local (host) Synopsys 20-bit TC specific attributes
- *
+ * tc_dwc_g210_config_20_bit() - configure 20-bit TC specific attributes.
  * @hba: Pointer to drivers structure
  *
- * Returns 0 on success non-zero value on failure
+ * Return: 0 on success non-zero value on failure.
  */
 int tc_dwc_g210_config_20_bit(struct ufs_hba *hba)
 {

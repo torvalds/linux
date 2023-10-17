@@ -1,0 +1,65 @@
+.container:
+  variables:
+    CI_REPOSITORY_URL: ${DRM_CI_PROJECT_URL}.git # So ci-templates clones drm-ci instead of the repo to test
+    CI_COMMIT_SHA: ${DRM_CI_COMMIT_SHA}
+
+debian/x86_64_build-base:
+  variables:
+    EXTRA_LOCAL_PACKAGES: "libcairo-dev libdw-dev libjson-c-dev libkmod2 libkmod-dev libpciaccess-dev libproc2-dev libudev-dev libunwind-dev python3-docutils bc python3-ply libssl-dev bc"
+
+debian/x86_64_test-gl:
+  variables:
+    EXTRA_LOCAL_PACKAGES: "jq libasound2 libcairo2 libdw1 libglib2.0-0 libjson-c5 libkmod-dev libkmod2 libgles2 libproc2-dev"
+
+debian/arm64_build:
+  variables:
+    EXTRA_LOCAL_PACKAGES: "libcairo-dev libdw-dev libjson-c-dev libproc2-dev libkmod2 libkmod-dev libpciaccess-dev libudev-dev libunwind-dev python3-docutils libssl-dev crossbuild-essential-armhf libkmod-dev:armhf libproc2-dev:armhf libunwind-dev:armhf libdw-dev:armhf libpixman-1-dev:armhf libcairo-dev:armhf libudev-dev:armhf libjson-c-dev:armhf"
+
+.kernel+rootfs:
+  variables:
+    EXTRA_LOCAL_PACKAGES: "jq libasound2 libcairo2 libdw1 libglib2.0-0 libjson-c5"
+
+# Disable container jobs that we won't use
+alpine/x86_64_build:
+  rules:
+    - when: never
+
+debian/x86_64_test-vk:
+  rules:
+    - when: never
+
+fedora/x86_64_build:
+  rules:
+    - when: never
+
+debian/android_build:
+  rules:
+    - when: never
+
+debian/x86_64_test-android:
+  rules:
+    - when: never
+
+windows_build_vs2019:
+  rules:
+    - when: never
+
+windows_test_vs2019:
+  rules:
+    - when: never
+
+.debian/x86_64_build-mingw:
+   rules:
+    - when: never
+
+rustfmt:
+   rules:
+    - when: never
+
+windows_vs2019:
+   rules:
+    - when: never
+
+clang-format:
+   rules:
+    - when: never

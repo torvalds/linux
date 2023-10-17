@@ -106,6 +106,7 @@ typedef struct page *pgtable_t;
 struct kernel_mapping {
 	unsigned long page_offset;
 	unsigned long virt_addr;
+	unsigned long virt_offset;
 	uintptr_t phys_addr;
 	uintptr_t size;
 	/* Offset between linear mapping virtual address and kernel load address */
@@ -184,6 +185,8 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #define phys_to_page(paddr)	(pfn_to_page(phys_to_pfn(paddr)))
 
 #define sym_to_pfn(x)           __phys_to_pfn(__pa_symbol(x))
+
+unsigned long kaslr_offset(void);
 
 #endif /* __ASSEMBLY__ */
 

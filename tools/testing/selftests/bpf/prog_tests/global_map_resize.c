@@ -22,7 +22,7 @@ static void global_map_resize_bss_subtest(void)
 	struct test_global_map_resize *skel;
 	struct bpf_map *map;
 	const __u32 desired_sz = sizeof(skel->bss->sum) + sysconf(_SC_PAGE_SIZE) * 2;
-	size_t array_len, actual_sz;
+	size_t array_len, actual_sz, new_sz;
 
 	skel = test_global_map_resize__open();
 	if (!ASSERT_OK_PTR(skel, "test_global_map_resize__open"))
@@ -41,6 +41,10 @@ static void global_map_resize_bss_subtest(void)
 		goto teardown;
 	if (!ASSERT_EQ(bpf_map__value_size(map), desired_sz, "resize"))
 		goto teardown;
+
+	new_sz = sizeof(skel->data_percpu_arr->percpu_arr[0]) * libbpf_num_possible_cpus();
+	err = bpf_map__set_value_size(skel->maps.data_percpu_arr, new_sz);
+	ASSERT_OK(err, "percpu_arr_resize");
 
 	/* set the expected number of elements based on the resized array */
 	array_len = (desired_sz - sizeof(skel->bss->sum)) / sizeof(skel->bss->array[0]);
@@ -84,11 +88,11 @@ teardown:
 
 static void global_map_resize_data_subtest(void)
 {
-	int err;
 	struct test_global_map_resize *skel;
 	struct bpf_map *map;
 	const __u32 desired_sz = sysconf(_SC_PAGE_SIZE) * 2;
-	size_t array_len, actual_sz;
+	size_t array_len, actual_sz, new_sz;
+	int err;
 
 	skel = test_global_map_resize__open();
 	if (!ASSERT_OK_PTR(skel, "test_global_map_resize__open"))
@@ -107,6 +111,10 @@ static void global_map_resize_data_subtest(void)
 		goto teardown;
 	if (!ASSERT_EQ(bpf_map__value_size(map), desired_sz, "resize"))
 		goto teardown;
+
+	new_sz = sizeof(skel->data_percpu_arr->percpu_arr[0]) * libbpf_num_possible_cpus();
+	err = bpf_map__set_value_size(skel->maps.data_percpu_arr, new_sz);
+	ASSERT_OK(err, "percpu_arr_resize");
 
 	/* set the expected number of elements based on the resized array */
 	array_len = (desired_sz - sizeof(skel->bss->sum)) / sizeof(skel->data_custom->my_array[0]);

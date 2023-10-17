@@ -272,7 +272,7 @@ static int cond_insertf(struct avtab *a, const struct avtab_key *k,
 	 * cond_te_avtab.
 	 */
 	if (k->specified & AVTAB_TYPE) {
-		if (avtab_search(&p->te_avtab, k)) {
+		if (avtab_search_node(&p->te_avtab, k)) {
 			pr_err("SELinux: type rule already exists outside of a conditional.\n");
 			return -EINVAL;
 		}
@@ -304,7 +304,7 @@ static int cond_insertf(struct avtab *a, const struct avtab_key *k,
 				}
 			}
 		} else {
-			if (avtab_search(&p->te_cond_avtab, k)) {
+			if (avtab_search_node(&p->te_cond_avtab, k)) {
 				pr_err("SELinux: conflicting type rules when adding type rule for true.\n");
 				return -EINVAL;
 			}

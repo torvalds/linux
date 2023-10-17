@@ -54,3 +54,4 @@ obj-$(CONFIG_NLS_MAC_INUIT)     += mac-inuit.o
 obj-$(CONFIG_NLS_MAC_ROMANIAN)  += mac-romanian.o
 obj-$(CONFIG_NLS_MAC_ROMAN)     += mac-roman.o
 obj-$(CONFIG_NLS_MAC_TURKISH)   += mac-turkish.o
+obj-$(CONFIG_NLS_UCS2_UTILS)		+= nls_ucs2_utils.o

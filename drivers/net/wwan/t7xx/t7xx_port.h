@@ -36,9 +36,13 @@
 /* Channel ID and Message ID definitions.
  * The channel number consists of peer_id(15:12) , channel_id(11:0)
  * peer_id:
- * 0:reserved, 1: to sAP, 2: to MD
+ * 0:reserved, 1: to AP, 2: to MD
  */
 enum port_ch {
+	/* to AP */
+	PORT_CH_AP_CONTROL_RX = 0x1000,
+	PORT_CH_AP_CONTROL_TX = 0x1001,
+
 	/* to MD */
 	PORT_CH_CONTROL_RX = 0x2000,
 	PORT_CH_CONTROL_TX = 0x2001,

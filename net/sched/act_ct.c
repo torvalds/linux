@@ -1238,7 +1238,8 @@ static int tcf_ct_fill_params(struct net *net,
 		}
 	}
 
-	__set_bit(IPS_CONFIRMED_BIT, &tmpl->status);
+	if (p->ct_action & TCA_CT_ACT_COMMIT)
+		__set_bit(IPS_CONFIRMED_BIT, &tmpl->status);
 	return 0;
 err:
 	nf_ct_put(p->tmpl);

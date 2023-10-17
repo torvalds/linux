@@ -355,6 +355,35 @@ static bool cortex_a76_erratum_1463225_debug_handler(struct pt_regs *regs)
 }
 #endif /* CONFIG_ARM64_ERRATUM_1463225 */
 
+/*
+ * As per the ABI exit SME streaming mode and clear the SVE state not
+ * shared with FPSIMD on syscall entry.
+ */
+static inline void fp_user_discard(void)
+{
+	/*
+	 * If SME is active then exit streaming mode.  If ZA is active
+	 * then flush the SVE registers but leave userspace access to
+	 * both SVE and SME enabled, otherwise disable SME for the
+	 * task and fall through to disabling SVE too.  This means
+	 * that after a syscall we never have any streaming mode
+	 * register state to track, if this changes the KVM code will
+	 * need updating.
+	 */
+	if (system_supports_sme())
+		sme_smstop_sm();
+
+	if (!system_supports_sve())
+		return;
+
+	if (test_thread_flag(TIF_SVE)) {
+		unsigned int sve_vq_minus_one;
+
+		sve_vq_minus_one = sve_vq_from_vl(task_get_sve_vl(current)) - 1;
+		sve_flush_live(true, sve_vq_minus_one);
+	}
+}
+
 UNHANDLED(el1t, 64, sync)
 UNHANDLED(el1t, 64, irq)
 UNHANDLED(el1t, 64, fiq)
@@ -644,6 +673,8 @@ static void noinstr el0_svc(struct pt_regs *regs)
 {
 	enter_from_user_mode(regs);
 	cortex_a76_erratum_1463225_svc_handler();
+	fp_user_discard();
+	local_daif_restore(DAIF_PROCCTX);
 	do_el0_svc(regs);
 	exit_to_user_mode(regs);
 }
@@ -783,6 +814,7 @@ static void noinstr el0_svc_compat(struct pt_regs *regs)
 {
 	enter_from_user_mode(regs);
 	cortex_a76_erratum_1463225_svc_handler();
+	local_daif_restore(DAIF_PROCCTX);
 	do_el0_svc_compat(regs);
 	exit_to_user_mode(regs);
 }

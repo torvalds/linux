@@ -16,6 +16,7 @@
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
 #include <linux/bitfield.h>
+#include <net/page_pool/types.h>
 
 #include "otx2_reg.h"
 #include "otx2_common.h"
@@ -1942,6 +1943,10 @@ int otx2_stop(struct net_device *netdev)
 
 	netif_tx_disable(netdev);
 
+	for (wrk = 0; wrk < pf->qset.cq_cnt; wrk++)
+		cancel_delayed_work_sync(&pf->refill_wrk[wrk].pool_refill_work);
+	devm_kfree(pf->dev, pf->refill_wrk);
+
 	otx2_free_hw_resources(pf);
 	otx2_free_cints(pf, pf->hw.cint_cnt);
 	otx2_disable_napi(pf);
@@ -1949,9 +1954,6 @@ int otx2_stop(struct net_device *netdev)
 	for (qidx = 0; qidx < netdev->num_tx_queues; qidx++)
 		netdev_tx_reset_queue(netdev_get_tx_queue(netdev, qidx));
 
-	for (wrk = 0; wrk < pf->qset.cq_cnt; wrk++)
-		cancel_delayed_work_sync(&pf->refill_wrk[wrk].pool_refill_work);
-	devm_kfree(pf->dev, pf->refill_wrk);
 
 	kfree(qset->sq);
 	kfree(qset->cq);
@@ -2027,7 +2029,7 @@ u16 otx2_select_queue(struct net_device *netdev, struct sk_buff *skb,
 #endif
 	int txq;
 
-	qos_enabled = (netdev->real_num_tx_queues > pf->hw.tx_queues) ? true : false;
+	qos_enabled = netdev->real_num_tx_queues > pf->hw.tx_queues;
 	if (unlikely(qos_enabled)) {
 		/* This smp_load_acquire() pairs with smp_store_release() in
 		 * otx2_qos_root_add() called from htb offload root creation

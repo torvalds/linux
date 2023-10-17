@@ -36,6 +36,7 @@ enum diag_stat_enum {
 	DIAG_STAT_X304,
 	DIAG_STAT_X308,
 	DIAG_STAT_X318,
+	DIAG_STAT_X320,
 	DIAG_STAT_X500,
 	NR_DIAG_STAT
 };
@@ -107,6 +108,8 @@ enum diag204_sc {
 	DIAG204_SUBC_STIB6 = 6,
 	DIAG204_SUBC_STIB7 = 7
 };
+
+#define DIAG204_SUBCODE_MASK 0xffff
 
 /* The two available diag 204 data formats */
 enum diag204_format {

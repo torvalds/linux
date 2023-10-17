@@ -93,7 +93,7 @@ or perf record -e user_events:[name] when attaching/recording.
 
 **NOTE:** The event subsystem name by default is "user_events". Callers should
 not assume it will always be "user_events". Operators reserve the right in the
-future to change the subsystem name per-process to accomodate event isolation.
+future to change the subsystem name per-process to accommodate event isolation.
 
 Command Format
 ^^^^^^^^^^^^^^

@@ -92,8 +92,13 @@ Brief summary of control files.
  memory.oom_control		     set/show oom controls.
  memory.numa_stat		     show the number of memory usage per numa
 				     node
- memory.kmem.limit_in_bytes          This knob is deprecated and writing to
-                                     it will return -ENOTSUPP.
+ memory.kmem.limit_in_bytes          Deprecated knob to set and read the kernel
+                                     memory hard limit. Kernel hard limit is not
+                                     supported since 5.16. Writing any value to
+                                     do file will not have any effect same as if
+                                     nokmem kernel parameter was specified.
+                                     Kernel memory is still charged and reported
+                                     by memory.kmem.usage_in_bytes.
  memory.kmem.usage_in_bytes          show current kernel memory allocation
  memory.kmem.failcnt                 show the number of kernel memory usage
 				     hits limits
@@ -197,11 +202,11 @@ are not accounted. We just account pages under usual VM management.
 
 RSS pages are accounted at page_fault unless they've already been accounted
 for earlier. A file page will be accounted for as Page Cache when it's
-inserted into inode (radix-tree). While it's mapped into the page tables of
+inserted into inode (xarray). While it's mapped into the page tables of
 processes, duplicate accounting is carefully avoided.
 
 An RSS page is unaccounted when it's fully unmapped. A PageCache page is
-unaccounted when it's removed from radix-tree. Even if RSS pages are fully
+unaccounted when it's removed from xarray. Even if RSS pages are fully
 unmapped (by kswapd), they may exist as SwapCache in the system until they
 are really freed. Such SwapCaches are also accounted.
 A swapped-in page is accounted after adding into swapcache.
@@ -909,7 +914,7 @@ experiences some pressure. In this situation, only group C will receive the
 notification, i.e. groups A and B will not receive it. This is done to avoid
 excessive "broadcasting" of messages, which disturbs the system and which is
 especially bad if we are low on memory or thrashing. Group B, will receive
-notification only if there are no event listers for group C.
+notification only if there are no event listeners for group C.
 
 There are three optional modes that specify different propagation behavior:
 

@@ -55,7 +55,7 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 		return;
 
 	mqd_symmetrically_map_cu_mask(mm,
-		minfo->cu_mask.ptr, minfo->cu_mask.count, se_mask);
+		minfo->cu_mask.ptr, minfo->cu_mask.count, se_mask, 0);
 
 	m = get_mqd(mqd);
 	m->compute_static_thread_mgmt_se0 = se_mask[0];
@@ -237,14 +237,6 @@ static void __update_mqd(struct mqd_manager *mm, void *mqd,
 	q->is_active = QUEUE_IS_ACTIVE(*q);
 }
 
-
-static void update_mqd(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q,
-			struct mqd_update_info *minfo)
-{
-	__update_mqd(mm, mqd, q, minfo, MTYPE_CC, 1);
-}
-
 static uint32_t read_doorbell_id(void *mqd)
 {
 	struct vi_mqd *m = (struct vi_mqd *)mqd;
@@ -252,9 +244,9 @@ static uint32_t read_doorbell_id(void *mqd)
 	return m->queue_doorbell_id0;
 }
 
-static void update_mqd_tonga(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q,
-			struct mqd_update_info *minfo)
+static void update_mqd(struct mqd_manager *mm, void *mqd,
+		       struct queue_properties *q,
+		       struct mqd_update_info *minfo)
 {
 	__update_mqd(mm, mqd, q, minfo, MTYPE_UC, 0);
 }
@@ -527,18 +519,5 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 		return NULL;
 	}
 
-	return mqd;
-}
-
-struct mqd_manager *mqd_manager_init_vi_tonga(enum KFD_MQD_TYPE type,
-			struct kfd_node *dev)
-{
-	struct mqd_manager *mqd;
-
-	mqd = mqd_manager_init_vi(type, dev);
-	if (!mqd)
-		return NULL;
-	if (type == KFD_MQD_TYPE_CP)
-		mqd->update_mqd = update_mqd_tonga;
 	return mqd;
 }

@@ -994,14 +994,12 @@ static const struct fb_ops i740fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= i740fb_open,
 	.fb_release	= i740fb_release,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_check_var	= i740fb_check_var,
 	.fb_set_par	= i740fb_set_par,
 	.fb_setcolreg	= i740fb_setcolreg,
 	.fb_blank	= i740fb_blank,
 	.fb_pan_display	= i740fb_pan_display,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -1077,7 +1075,7 @@ static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	info->fix.mmio_len = pci_resource_len(dev, 1);
 	info->fix.smem_start = pci_resource_start(dev, 0);
 	info->fix.smem_len = info->screen_size;
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	info->flags = FBINFO_HWACCEL_YPAN;
 
 	if (i740fb_setup_ddc_bus(info) == 0) {
 		par->ddc_registered = true;

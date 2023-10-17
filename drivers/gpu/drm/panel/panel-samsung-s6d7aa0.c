@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include <video/mipi_display.h>
 #include <drm/drm_mipi_dsi.h>
@@ -66,7 +65,6 @@ static void s6d7aa0_reset(struct s6d7aa0 *ctx)
 static int s6d7aa0_lock(struct s6d7aa0 *ctx, bool lock)
 {
 	struct mipi_dsi_device *dsi = ctx->dsi;
-	int ret = 0;
 
 	if (lock) {
 		mipi_dsi_dcs_write_seq(dsi, MCS_PASSWD1, 0xa5, 0xa5);
@@ -80,7 +78,7 @@ static int s6d7aa0_lock(struct s6d7aa0 *ctx, bool lock)
 			mipi_dsi_dcs_write_seq(dsi, MCS_PASSWD3, 0xa5, 0xa5);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int s6d7aa0_on(struct s6d7aa0 *ctx)
@@ -569,6 +567,7 @@ static const struct of_device_id s6d7aa0_of_match[] = {
 	},
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, s6d7aa0_of_match);
 
 static struct mipi_dsi_driver s6d7aa0_driver = {
 	.probe = s6d7aa0_probe,

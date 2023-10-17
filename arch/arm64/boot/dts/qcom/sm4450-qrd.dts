@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "sm4450.dtsi"
+/ {
+	model = "Qualcomm Technologies, Inc. SM4450 QRD";
+	compatible = "qcom,sm4450-qrd", "qcom,sm4450";
+
+	aliases { };
+
+	chosen {
+		bootargs = "console=hvc0";
+	};
+};

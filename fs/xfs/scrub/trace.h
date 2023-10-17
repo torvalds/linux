@@ -16,6 +16,10 @@
 #include <linux/tracepoint.h>
 #include "xfs_bit.h"
 
+struct xfile;
+struct xfarray;
+struct xfarray_sortinfo;
+
 /*
  * ftrace's __print_symbolic requires that all enum values be wrapped in the
  * TRACE_DEFINE_ENUM macro so that the enum value can be encoded in the ftrace
@@ -94,10 +98,12 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_FSCOUNTERS);
 	{ XFS_SCRUB_OFLAG_XCORRUPT,		"xcorrupt" }, \
 	{ XFS_SCRUB_OFLAG_INCOMPLETE,		"incomplete" }, \
 	{ XFS_SCRUB_OFLAG_WARNING,		"warning" }, \
-	{ XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED,	"norepair" }
+	{ XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED,	"norepair" }, \
+	{ XFS_SCRUB_IFLAG_FORCE_REBUILD,	"rebuild" }
 
 #define XFS_SCRUB_STATE_STRINGS \
 	{ XCHK_TRY_HARDER,			"try_harder" }, \
+	{ XCHK_HAVE_FREEZE_PROT,		"nofreeze" }, \
 	{ XCHK_FSGATES_DRAIN,			"fsgates_drain" }, \
 	{ XCHK_NEED_DRAIN,			"need_drain" }, \
 	{ XREP_ALREADY_FIXED,			"already_fixed" }
@@ -635,6 +641,28 @@ TRACE_EVENT(xchk_iallocbt_check_cluster,
 		  __entry->cluster_ino)
 )
 
+TRACE_EVENT(xchk_inode_is_allocated,
+	TP_PROTO(struct xfs_inode *ip),
+	TP_ARGS(ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(unsigned long, iflags)
+		__field(umode_t, mode)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(ip)->i_sb->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->iflags = ip->i_flags;
+		__entry->mode = VFS_I(ip)->i_mode;
+	),
+	TP_printk("dev %d:%d ino 0x%llx iflags 0x%lx mode 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->iflags,
+		  __entry->mode)
+);
+
 TRACE_EVENT(xchk_fscounters_calc,
 	TP_PROTO(struct xfs_mount *mp, uint64_t icount, uint64_t ifree,
 		 uint64_t fdblocks, uint64_t delalloc),
@@ -693,6 +721,31 @@ TRACE_EVENT(xchk_fscounters_within_range,
 		  __entry->old_value)
 )
 
+DECLARE_EVENT_CLASS(xchk_fsfreeze_class,
+	TP_PROTO(struct xfs_scrub *sc, int error),
+	TP_ARGS(sc, error),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, type)
+		__field(int, error)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->type = sc->sm->sm_type;
+		__entry->error = error;
+	),
+	TP_printk("dev %d:%d type %s error %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
+		  __entry->error)
+);
+#define DEFINE_XCHK_FSFREEZE_EVENT(name) \
+DEFINE_EVENT(xchk_fsfreeze_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, int error), \
+	TP_ARGS(sc, error))
+DEFINE_XCHK_FSFREEZE_EVENT(xchk_fsfreeze);
+DEFINE_XCHK_FSFREEZE_EVENT(xchk_fsthaw);
+
 TRACE_EVENT(xchk_refcount_incorrect,
 	TP_PROTO(struct xfs_perag *pag, const struct xfs_refcount_irec *irec,
 		 xfs_nlink_t seen),
@@ -725,13 +778,302 @@ TRACE_EVENT(xchk_refcount_incorrect,
 		  __entry->seen)
 )
 
+TRACE_EVENT(xfile_create,
+	TP_PROTO(struct xfile *xf),
+	TP_ARGS(xf),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned long, ino)
+		__array(char, pathname, 256)
+	),
+	TP_fast_assign(
+		char		pathname[257];
+		char		*path;
+
+		__entry->ino = file_inode(xf->file)->i_ino;
+		memset(pathname, 0, sizeof(pathname));
+		path = file_path(xf->file, pathname, sizeof(pathname) - 1);
+		if (IS_ERR(path))
+			path = "(unknown)";
+		strncpy(__entry->pathname, path, sizeof(__entry->pathname));
+	),
+	TP_printk("xfino 0x%lx path '%s'",
+		  __entry->ino,
+		  __entry->pathname)
+);
+
+TRACE_EVENT(xfile_destroy,
+	TP_PROTO(struct xfile *xf),
+	TP_ARGS(xf),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(unsigned long long, bytes)
+		__field(loff_t, size)
+	),
+	TP_fast_assign(
+		struct xfile_stat	statbuf;
+		int			ret;
+
+		ret = xfile_stat(xf, &statbuf);
+		if (!ret) {
+			__entry->bytes = statbuf.bytes;
+			__entry->size = statbuf.size;
+		} else {
+			__entry->bytes = -1;
+			__entry->size = -1;
+		}
+		__entry->ino = file_inode(xf->file)->i_ino;
+	),
+	TP_printk("xfino 0x%lx mem_bytes 0x%llx isize 0x%llx",
+		  __entry->ino,
+		  __entry->bytes,
+		  __entry->size)
+);
+
+DECLARE_EVENT_CLASS(xfile_class,
+	TP_PROTO(struct xfile *xf, loff_t pos, unsigned long long bytecount),
+	TP_ARGS(xf, pos, bytecount),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(unsigned long long, bytes_used)
+		__field(loff_t, pos)
+		__field(loff_t, size)
+		__field(unsigned long long, bytecount)
+	),
+	TP_fast_assign(
+		struct xfile_stat	statbuf;
+		int			ret;
+
+		ret = xfile_stat(xf, &statbuf);
+		if (!ret) {
+			__entry->bytes_used = statbuf.bytes;
+			__entry->size = statbuf.size;
+		} else {
+			__entry->bytes_used = -1;
+			__entry->size = -1;
+		}
+		__entry->ino = file_inode(xf->file)->i_ino;
+		__entry->pos = pos;
+		__entry->bytecount = bytecount;
+	),
+	TP_printk("xfino 0x%lx mem_bytes 0x%llx pos 0x%llx bytecount 0x%llx isize 0x%llx",
+		  __entry->ino,
+		  __entry->bytes_used,
+		  __entry->pos,
+		  __entry->bytecount,
+		  __entry->size)
+);
+#define DEFINE_XFILE_EVENT(name) \
+DEFINE_EVENT(xfile_class, name, \
+	TP_PROTO(struct xfile *xf, loff_t pos, unsigned long long bytecount), \
+	TP_ARGS(xf, pos, bytecount))
+DEFINE_XFILE_EVENT(xfile_pread);
+DEFINE_XFILE_EVENT(xfile_pwrite);
+DEFINE_XFILE_EVENT(xfile_seek_data);
+DEFINE_XFILE_EVENT(xfile_get_page);
+DEFINE_XFILE_EVENT(xfile_put_page);
+
+TRACE_EVENT(xfarray_create,
+	TP_PROTO(struct xfarray *xfa, unsigned long long required_capacity),
+	TP_ARGS(xfa, required_capacity),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(uint64_t, max_nr)
+		__field(size_t, obj_size)
+		__field(int, obj_size_log)
+		__field(unsigned long long, required_capacity)
+	),
+	TP_fast_assign(
+		__entry->max_nr = xfa->max_nr;
+		__entry->obj_size = xfa->obj_size;
+		__entry->obj_size_log = xfa->obj_size_log;
+		__entry->ino = file_inode(xfa->xfile->file)->i_ino;
+		__entry->required_capacity = required_capacity;
+	),
+	TP_printk("xfino 0x%lx max_nr %llu reqd_nr %llu objsz %zu objszlog %d",
+		  __entry->ino,
+		  __entry->max_nr,
+		  __entry->required_capacity,
+		  __entry->obj_size,
+		  __entry->obj_size_log)
+);
+
+TRACE_EVENT(xfarray_isort,
+	TP_PROTO(struct xfarray_sortinfo *si, uint64_t lo, uint64_t hi),
+	TP_ARGS(si, lo, hi),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(unsigned long long, lo)
+		__field(unsigned long long, hi)
+	),
+	TP_fast_assign(
+		__entry->ino = file_inode(si->array->xfile->file)->i_ino;
+		__entry->lo = lo;
+		__entry->hi = hi;
+	),
+	TP_printk("xfino 0x%lx lo %llu hi %llu elts %llu",
+		  __entry->ino,
+		  __entry->lo,
+		  __entry->hi,
+		  __entry->hi - __entry->lo)
+);
+
+TRACE_EVENT(xfarray_pagesort,
+	TP_PROTO(struct xfarray_sortinfo *si, uint64_t lo, uint64_t hi),
+	TP_ARGS(si, lo, hi),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(unsigned long long, lo)
+		__field(unsigned long long, hi)
+	),
+	TP_fast_assign(
+		__entry->ino = file_inode(si->array->xfile->file)->i_ino;
+		__entry->lo = lo;
+		__entry->hi = hi;
+	),
+	TP_printk("xfino 0x%lx lo %llu hi %llu elts %llu",
+		  __entry->ino,
+		  __entry->lo,
+		  __entry->hi,
+		  __entry->hi - __entry->lo)
+);
+
+TRACE_EVENT(xfarray_qsort,
+	TP_PROTO(struct xfarray_sortinfo *si, uint64_t lo, uint64_t hi),
+	TP_ARGS(si, lo, hi),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(unsigned long long, lo)
+		__field(unsigned long long, hi)
+		__field(int, stack_depth)
+		__field(int, max_stack_depth)
+	),
+	TP_fast_assign(
+		__entry->ino = file_inode(si->array->xfile->file)->i_ino;
+		__entry->lo = lo;
+		__entry->hi = hi;
+		__entry->stack_depth = si->stack_depth;
+		__entry->max_stack_depth = si->max_stack_depth;
+	),
+	TP_printk("xfino 0x%lx lo %llu hi %llu elts %llu stack %d/%d",
+		  __entry->ino,
+		  __entry->lo,
+		  __entry->hi,
+		  __entry->hi - __entry->lo,
+		  __entry->stack_depth,
+		  __entry->max_stack_depth)
+);
+
+TRACE_EVENT(xfarray_sort,
+	TP_PROTO(struct xfarray_sortinfo *si, size_t bytes),
+	TP_ARGS(si, bytes),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(unsigned long long, nr)
+		__field(size_t, obj_size)
+		__field(size_t, bytes)
+		__field(unsigned int, max_stack_depth)
+	),
+	TP_fast_assign(
+		__entry->nr = si->array->nr;
+		__entry->obj_size = si->array->obj_size;
+		__entry->ino = file_inode(si->array->xfile->file)->i_ino;
+		__entry->bytes = bytes;
+		__entry->max_stack_depth = si->max_stack_depth;
+	),
+	TP_printk("xfino 0x%lx nr %llu objsz %zu stack %u bytes %zu",
+		  __entry->ino,
+		  __entry->nr,
+		  __entry->obj_size,
+		  __entry->max_stack_depth,
+		  __entry->bytes)
+);
+
+TRACE_EVENT(xfarray_sort_stats,
+	TP_PROTO(struct xfarray_sortinfo *si, int error),
+	TP_ARGS(si, error),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+#ifdef DEBUG
+		__field(unsigned long long, loads)
+		__field(unsigned long long, stores)
+		__field(unsigned long long, compares)
+		__field(unsigned long long, heapsorts)
+#endif
+		__field(unsigned int, max_stack_depth)
+		__field(unsigned int, max_stack_used)
+		__field(int, error)
+	),
+	TP_fast_assign(
+		__entry->ino = file_inode(si->array->xfile->file)->i_ino;
+#ifdef DEBUG
+		__entry->loads = si->loads;
+		__entry->stores = si->stores;
+		__entry->compares = si->compares;
+		__entry->heapsorts = si->heapsorts;
+#endif
+		__entry->max_stack_depth = si->max_stack_depth;
+		__entry->max_stack_used = si->max_stack_used;
+		__entry->error = error;
+	),
+	TP_printk(
+#ifdef DEBUG
+		  "xfino 0x%lx loads %llu stores %llu compares %llu heapsorts %llu stack_depth %u/%u error %d",
+#else
+		  "xfino 0x%lx stack_depth %u/%u error %d",
+#endif
+		  __entry->ino,
+#ifdef DEBUG
+		  __entry->loads,
+		  __entry->stores,
+		  __entry->compares,
+		  __entry->heapsorts,
+#endif
+		  __entry->max_stack_used,
+		  __entry->max_stack_depth,
+		  __entry->error)
+);
+
+#ifdef CONFIG_XFS_RT
+TRACE_EVENT(xchk_rtsum_record_free,
+	TP_PROTO(struct xfs_mount *mp, xfs_rtblock_t start,
+		 uint64_t len, unsigned int log, loff_t pos, xfs_suminfo_t v),
+	TP_ARGS(mp, start, len, log, pos, v),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(xfs_rtblock_t, start)
+		__field(unsigned long long, len)
+		__field(unsigned int, log)
+		__field(loff_t, pos)
+		__field(xfs_suminfo_t, v)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rtdev = mp->m_rtdev_targp->bt_dev;
+		__entry->start = start;
+		__entry->len = len;
+		__entry->log = log;
+		__entry->pos = pos;
+		__entry->v = v;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d rtx 0x%llx rtxcount 0x%llx log %u rsumpos 0x%llx sumcount %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->start,
+		  __entry->len,
+		  __entry->log,
+		  __entry->pos,
+		  __entry->v)
+);
+#endif /* CONFIG_XFS_RT */
+
 /* repair tracepoints */
 #if IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR)
 
 DECLARE_EVENT_CLASS(xrep_extent_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agblock_t agbno, xfs_extlen_t len),
-	TP_ARGS(mp, agno, agbno, len),
+	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len),
+	TP_ARGS(pag, agbno, len),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -739,8 +1081,8 @@ DECLARE_EVENT_CLASS(xrep_extent_class,
 		__field(xfs_extlen_t, len)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->agbno = agbno;
 		__entry->len = len;
 	),
@@ -752,11 +1094,44 @@ DECLARE_EVENT_CLASS(xrep_extent_class,
 );
 #define DEFINE_REPAIR_EXTENT_EVENT(name) \
 DEFINE_EVENT(xrep_extent_class, name, \
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
-		 xfs_agblock_t agbno, xfs_extlen_t len), \
-	TP_ARGS(mp, agno, agbno, len))
-DEFINE_REPAIR_EXTENT_EVENT(xrep_dispose_btree_extent);
+	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len), \
+	TP_ARGS(pag, agbno, len))
+DEFINE_REPAIR_EXTENT_EVENT(xreap_dispose_unmap_extent);
+DEFINE_REPAIR_EXTENT_EVENT(xreap_dispose_free_extent);
+DEFINE_REPAIR_EXTENT_EVENT(xreap_agextent_binval);
 DEFINE_REPAIR_EXTENT_EVENT(xrep_agfl_insert);
+
+DECLARE_EVENT_CLASS(xrep_reap_find_class,
+	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len,
+		bool crosslinked),
+	TP_ARGS(pag, agbno, len, crosslinked),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(xfs_extlen_t, len)
+		__field(bool, crosslinked)
+	),
+	TP_fast_assign(
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
+		__entry->agbno = agbno;
+		__entry->len = len;
+		__entry->crosslinked = crosslinked;
+	),
+	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%x crosslinked %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agbno,
+		  __entry->len,
+		  __entry->crosslinked ? 1 : 0)
+);
+#define DEFINE_REPAIR_REAP_FIND_EVENT(name) \
+DEFINE_EVENT(xrep_reap_find_class, name, \
+	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len, \
+		 bool crosslinked), \
+	TP_ARGS(pag, agbno, len, crosslinked))
+DEFINE_REPAIR_REAP_FIND_EVENT(xreap_agextent_select);
 
 DECLARE_EVENT_CLASS(xrep_rmap_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
@@ -827,28 +1202,6 @@ TRACE_EVENT(xrep_refcount_extent_fn,
 		  __entry->refcount)
 )
 
-TRACE_EVENT(xrep_init_btblock,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agblock_t agbno,
-		 xfs_btnum_t btnum),
-	TP_ARGS(mp, agno, agbno, btnum),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(xfs_agnumber_t, agno)
-		__field(xfs_agblock_t, agbno)
-		__field(uint32_t, btnum)
-	),
-	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
-		__entry->agbno = agbno;
-		__entry->btnum = btnum;
-	),
-	TP_printk("dev %d:%d agno 0x%x agbno 0x%x btree %s",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->agno,
-		  __entry->agbno,
-		  __print_symbolic(__entry->btnum, XFS_BTNUM_STRINGS))
-)
 TRACE_EVENT(xrep_findroot_block,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agblock_t agbno,
 		 uint32_t magic, uint16_t level),

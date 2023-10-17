@@ -437,7 +437,7 @@ MODULE_DEVICE_TABLE(of, ssm3515_of_match);
 static struct i2c_driver ssm3515_i2c_driver = {
 	.driver = {
 		.name = "ssm3515",
-		.of_match_table = of_match_ptr(ssm3515_of_match),
+		.of_match_table = ssm3515_of_match,
 	},
 	.probe = ssm3515_i2c_probe,
 };

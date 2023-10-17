@@ -2539,7 +2539,7 @@ static void ath12k_dp_rx_process_received_packets(struct ath12k_base *ab,
 	struct ath12k_skb_rxcb *rxcb;
 	struct sk_buff *msdu;
 	struct ath12k *ar;
-	u8 mac_id;
+	u8 mac_id, pdev_id;
 	int ret;
 
 	if (skb_queue_empty(msdu_list))
@@ -2550,8 +2550,9 @@ static void ath12k_dp_rx_process_received_packets(struct ath12k_base *ab,
 	while ((msdu = __skb_dequeue(msdu_list))) {
 		rxcb = ATH12K_SKB_RXCB(msdu);
 		mac_id = rxcb->mac_id;
-		ar = ab->pdevs[mac_id].ar;
-		if (!rcu_dereference(ab->pdevs_active[mac_id])) {
+		pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
+		ar = ab->pdevs[pdev_id].ar;
+		if (!rcu_dereference(ab->pdevs_active[pdev_id])) {
 			dev_kfree_skb_any(msdu);
 			continue;
 		}
@@ -3026,7 +3027,7 @@ static int ath12k_dp_rx_h_defrag_reo_reinject(struct ath12k *ar,
 					desc_info->cookie,
 					HAL_RX_BUF_RBM_SW3_BM);
 
-	/* Fill mpdu details into reo entrace ring */
+	/* Fill mpdu details into reo entrance ring */
 	srng = &ab->hal.srng_list[dp->reo_reinject_ring.ring_id];
 
 	spin_lock_bh(&srng->lock);
@@ -3385,6 +3386,7 @@ int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 	dma_addr_t paddr;
 	bool is_frag;
 	bool drop = false;
+	int pdev_id;
 
 	tot_n_bufs_reaped = 0;
 	quota = budget;
@@ -3440,7 +3442,8 @@ int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 			mac_id = le32_get_bits(reo_desc->info0,
 					       HAL_REO_DEST_RING_INFO0_SRC_LINK_ID);
 
-			ar = ab->pdevs[mac_id].ar;
+			pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
+			ar = ab->pdevs[pdev_id].ar;
 
 			if (!ath12k_dp_process_rx_err_buf(ar, reo_desc, drop,
 							  msdu_cookies[i]))

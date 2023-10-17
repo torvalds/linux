@@ -38,6 +38,8 @@
 #define MAX_TEARDOWN_ITER 10
 #define PKT_HDR_SIZE (sizeof(struct ethhdr) + 2) /* Just to align the data in the packet */
 #define MIN_PKT_SIZE 64
+#define MAX_ETH_PKT_SIZE 1518
+#define MAX_ETH_JUMBO_SIZE 9000
 #define USLEEP_MAX 10000
 #define SOCK_RECONF_CTR 10
 #define BATCH_SIZE 64
@@ -47,7 +49,11 @@
 #define DEFAULT_UMEM_BUFFERS (DEFAULT_PKT_CNT / 4)
 #define RX_FULL_RXQSIZE 32
 #define UMEM_HEADROOM_TEST_SIZE 128
-#define XSK_UMEM__INVALID_FRAME_SIZE (XSK_UMEM__DEFAULT_FRAME_SIZE + 1)
+#define XSK_UMEM__INVALID_FRAME_SIZE (MAX_ETH_JUMBO_SIZE + 1)
+#define XSK_UMEM__LARGE_FRAME_SIZE (3 * 1024)
+#define XSK_UMEM__MAX_FRAME_SIZE (4 * 1024)
+#define XSK_DESC__INVALID_OPTION (0xffff)
+#define XSK_DESC__MAX_SKB_FRAGS 18
 #define HUGEPAGE_SIZE (2 * 1024 * 1024)
 #define PKT_DUMP_NB_TO_PRINT 16
 
@@ -83,6 +89,12 @@ enum test_type {
 	TEST_TYPE_BPF_RES,
 	TEST_TYPE_XDP_DROP_HALF,
 	TEST_TYPE_XDP_METADATA_COUNT,
+	TEST_TYPE_XDP_METADATA_COUNT_MB,
+	TEST_TYPE_RUN_TO_COMPLETION_MB,
+	TEST_TYPE_UNALIGNED_MB,
+	TEST_TYPE_ALIGNED_INV_DESC_MB,
+	TEST_TYPE_UNALIGNED_INV_DESC_MB,
+	TEST_TYPE_TOO_MANY_FRAGS,
 	TEST_TYPE_MAX
 };
 
@@ -115,6 +127,7 @@ struct pkt {
 	u32 len;
 	u32 pkt_nb;
 	bool valid;
+	u16 options;
 };
 
 struct pkt_stream {
@@ -122,6 +135,7 @@ struct pkt_stream {
 	u32 current_pkt_nb;
 	struct pkt *pkts;
 	u32 max_pkt_len;
+	bool verbatim;
 };
 
 struct ifobject;
@@ -141,7 +155,9 @@ struct ifobject {
 	struct bpf_program *xdp_prog;
 	enum test_mode mode;
 	int ifindex;
+	int mtu;
 	u32 bind_flags;
+	u32 xdp_zc_max_segs;
 	bool tx_on;
 	bool rx_on;
 	bool use_poll;
@@ -151,6 +167,8 @@ struct ifobject {
 	bool shared_umem;
 	bool use_metadata;
 	bool unaligned_supp;
+	bool multi_buff_supp;
+	bool multi_buff_zc_supp;
 	u8 dst_mac[ETH_ALEN];
 	u8 src_mac[ETH_ALEN];
 };
@@ -164,6 +182,7 @@ struct test_spec {
 	struct bpf_program *xdp_prog_tx;
 	struct bpf_map *xskmap_rx;
 	struct bpf_map *xskmap_tx;
+	int mtu;
 	u16 total_steps;
 	u16 current_step;
 	u16 nb_sockets;

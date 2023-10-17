@@ -43,7 +43,7 @@ struct perf_file_section {
 
 Flags section:
 
-For each of the optional features a perf_file_section it placed after the data
+For each of the optional features a perf_file_section is placed after the data
 section if the feature bit is set in the perf_header flags bitset. The
 respective perf_file_section points to the data of the additional header and
 defines its size.

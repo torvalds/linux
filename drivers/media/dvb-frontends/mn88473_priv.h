@@ -9,7 +9,7 @@
 #define MN88473_PRIV_H
 
 #include <media/dvb_frontend.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include "mn88473.h"
 #include <linux/math64.h>
 #include <linux/firmware.h>

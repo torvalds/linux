@@ -364,7 +364,7 @@ can be used to query the contents of cpumasks.
 ----
 
 Some example usages of these querying kfuncs were shown above. We will not
-replicate those exmaples here. Note, however, that all of the aforementioned
+replicate those examples here. Note, however, that all of the aforementioned
 kfuncs are tested in `tools/testing/selftests/bpf/progs/cpumask_success.c`_, so
 please take a look there if you're looking for more examples of how they can be
 used.

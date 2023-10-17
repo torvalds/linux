@@ -216,7 +216,6 @@ properties:
     description: Whether to enable burnout current for EXT1.
 
   adi,ext1-burnout-current-nanoamp:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Burnout current in nanoamps to be applied to EXT1.
     enum: [0, 50, 500, 1000, 10000]
@@ -233,7 +232,6 @@ properties:
     description: Whether to enable burnout current for EXT2.
 
   adi,ext2-burnout-current-nanoamp:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: Burnout current in nanoamps to be applied to EXT2.
     enum: [0, 50, 500, 1000, 10000]
     default: 0
@@ -249,7 +247,6 @@ properties:
     description: Whether to enable burnout current for VIOUT.
 
   adi,viout-burnout-current-nanoamp:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: Burnout current in nanoamps to be applied to VIOUT.
     enum: [0, 1000, 10000]
     default: 0

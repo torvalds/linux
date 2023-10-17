@@ -25,13 +25,13 @@ static int cs35l56_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	spi_set_drvdata(spi, cs35l56);
-	cs35l56->regmap = devm_regmap_init_spi(spi, regmap_config);
-	if (IS_ERR(cs35l56->regmap)) {
-		ret = PTR_ERR(cs35l56->regmap);
+	cs35l56->base.regmap = devm_regmap_init_spi(spi, regmap_config);
+	if (IS_ERR(cs35l56->base.regmap)) {
+		ret = PTR_ERR(cs35l56->base.regmap);
 		return dev_err_probe(&spi->dev, ret, "Failed to allocate register map\n");
 	}
 
-	cs35l56->dev = &spi->dev;
+	cs35l56->base.dev = &spi->dev;
 
 	ret = cs35l56_common_probe(cs35l56);
 	if (ret != 0)
@@ -39,7 +39,7 @@ static int cs35l56_spi_probe(struct spi_device *spi)
 
 	ret = cs35l56_init(cs35l56);
 	if (ret == 0)
-		ret = cs35l56_irq_request(cs35l56, spi->irq);
+		ret = cs35l56_irq_request(&cs35l56->base, spi->irq);
 	if (ret < 0)
 		cs35l56_remove(cs35l56);
 
@@ -59,10 +59,19 @@ static const struct spi_device_id cs35l56_id_spi[] = {
 };
 MODULE_DEVICE_TABLE(spi, cs35l56_id_spi);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id cs35l56_asoc_acpi_match[] = {
+	{ "CSC355C", 0 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, cs35l56_asoc_acpi_match);
+#endif
+
 static struct spi_driver cs35l56_spi_driver = {
 	.driver = {
 		.name		= "cs35l56",
 		.pm = &cs35l56_pm_ops_i2c_spi,
+		.acpi_match_table = ACPI_PTR(cs35l56_asoc_acpi_match),
 	},
 	.id_table	= cs35l56_id_spi,
 	.probe		= cs35l56_spi_probe,

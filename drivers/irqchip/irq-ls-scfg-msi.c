@@ -349,8 +349,7 @@ static int ls_scfg_msi_probe(struct platform_device *pdev)
 
 	msi_data->cfg = (struct ls_scfg_msi_cfg *) match->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	msi_data->regs = devm_ioremap_resource(&pdev->dev, res);
+	msi_data->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(msi_data->regs)) {
 		dev_err(&pdev->dev, "failed to initialize 'regs'\n");
 		return PTR_ERR(msi_data->regs);

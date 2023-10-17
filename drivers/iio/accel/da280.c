@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * IIO driver for the MiraMEMS DA280 3-axis accelerometer and
+ * IIO driver for the MiraMEMS DA217 and DA280 3-axis accelerometer and
  * IIO driver for the MiraMEMS DA226 2-axis accelerometer
  *
  * Copyright (c) 2016 Hans de Goede <hdegoede@redhat.com>
@@ -23,7 +23,7 @@
 #define DA280_MODE_ENABLE		0x1e
 #define DA280_MODE_DISABLE		0x9e
 
-enum da280_chipset { da226, da280 };
+enum da280_chipset { da217, da226, da280 };
 
 /*
  * a value of + or -4096 corresponds to + or - 1G
@@ -134,7 +134,10 @@ static int da280_probe(struct i2c_client *client)
 		chip = id->driver_data;
 	}
 
-	if (chip == da226) {
+	if (chip == da217) {
+		indio_dev->name = "da217";
+		indio_dev->num_channels = 3;
+	} else if (chip == da226) {
 		indio_dev->name = "da226";
 		indio_dev->num_channels = 2;
 	} else {
@@ -166,12 +169,14 @@ static int da280_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(da280_pm_ops, da280_suspend, da280_resume);
 
 static const struct acpi_device_id da280_acpi_match[] = {
+	{"NSA2513", da217},
 	{"MIRAACC", da280},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, da280_acpi_match);
 
 static const struct i2c_device_id da280_i2c_id[] = {
+	{ "da217", da217 },
 	{ "da226", da226 },
 	{ "da280", da280 },
 	{}

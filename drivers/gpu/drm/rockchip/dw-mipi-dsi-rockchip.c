@@ -12,7 +12,9 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/phy/phy.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
@@ -1463,13 +1465,11 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dw_mipi_dsi_rockchip_remove(struct platform_device *pdev)
+static void dw_mipi_dsi_rockchip_remove(struct platform_device *pdev)
 {
 	struct dw_mipi_dsi_rockchip *dsi = platform_get_drvdata(pdev);
 
 	dw_mipi_dsi_remove(dsi->dmd);
-
-	return 0;
 }
 
 static const struct rockchip_dw_dsi_chip_data px30_chip_data[] = {
@@ -1671,7 +1671,7 @@ MODULE_DEVICE_TABLE(of, dw_mipi_dsi_rockchip_dt_ids);
 
 struct platform_driver dw_mipi_dsi_rockchip_driver = {
 	.probe		= dw_mipi_dsi_rockchip_probe,
-	.remove		= dw_mipi_dsi_rockchip_remove,
+	.remove_new	= dw_mipi_dsi_rockchip_remove,
 	.driver		= {
 		.of_match_table = dw_mipi_dsi_rockchip_dt_ids,
 		.pm	= &dw_mipi_dsi_rockchip_pm_ops,

@@ -8,6 +8,7 @@
  * Copyright (C) 1997 Anton Blanchard (anton@progsoc.uts.edu.au)
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <linux/errno.h>
 #include <linux/pgtable.h>
@@ -30,7 +31,6 @@
 #include <asm/unistd.h>
 
 #include <asm/asmmacro.h>
-#include <asm/export.h>
 
 #define curptr      g6
 

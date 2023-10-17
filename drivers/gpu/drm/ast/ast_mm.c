@@ -38,8 +38,6 @@ static u32 ast_get_vram_size(struct ast_device *ast)
 	u8 jreg;
 	u32 vram_size;
 
-	ast_open_key(ast);
-
 	vram_size = AST_VIDMEM_DEFAULT_SIZE;
 	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xaa, 0xff);
 	switch (jreg & 3) {

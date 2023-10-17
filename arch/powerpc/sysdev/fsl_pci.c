@@ -519,7 +519,7 @@ void fsl_pcibios_fixup_bus(struct pci_bus *bus)
 	}
 }
 
-int fsl_add_bridge(struct platform_device *pdev, int is_primary)
+static int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 {
 	int len;
 	struct pci_controller *hose;
@@ -767,7 +767,7 @@ static int __init mpc83xx_pcie_setup(struct pci_controller *hose,
 	u32 cfg_bar;
 	int ret = -ENOMEM;
 
-	pcie = zalloc_maybe_bootmem(sizeof(*pcie), GFP_KERNEL);
+	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return ret;
 

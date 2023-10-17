@@ -123,9 +123,8 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 	secure_display_ctx = container_of(work, struct secure_display_context, notify_ta_work);
 	crtc = secure_display_ctx->crtc;
 
-	if (!crtc) {
+	if (!crtc)
 		return;
-	}
 
 	psp = &drm_to_adev(crtc->dev)->psp;
 
@@ -151,9 +150,8 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 	ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
 
 	if (!ret) {
-		if (securedisplay_cmd->status != TA_SECUREDISPLAY_STATUS__SUCCESS) {
+		if (securedisplay_cmd->status != TA_SECUREDISPLAY_STATUS__SUCCESS)
 			psp_securedisplay_parse_resp_status(psp, securedisplay_cmd->status);
-		}
 	}
 
 	mutex_unlock(&psp->securedisplay_context.mutex);

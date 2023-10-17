@@ -34,30 +34,6 @@
 		stdout-path = "serial0";
 	};
 
-	camera_vdddo_1v8: camera-vdddo-1v8 {
-		compatible = "regulator-fixed";
-		regulator-name = "camera_vdddo";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-always-on;
-	};
-
-	camera_vdda_2v8: camera-vdda-2v8 {
-		compatible = "regulator-fixed";
-		regulator-name = "camera_vdda";
-		regulator-min-microvolt = <2800000>;
-		regulator-max-microvolt = <2800000>;
-		regulator-always-on;
-	};
-
-	camera_vddd_1v5: camera-vddd-1v5 {
-		compatible = "regulator-fixed";
-		regulator-name = "camera_vddd";
-		regulator-min-microvolt = <1500000>;
-		regulator-max-microvolt = <1500000>;
-		regulator-always-on;
-	};
-
 	reserved-memory {
 		ramoops@bff00000 {
 			compatible = "ramoops";
@@ -77,7 +53,7 @@
 
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&tlmm 121 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&tlmm 121 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
 	};
@@ -172,15 +148,13 @@
 };
 
 &blsp_i2c2 {
-	/* On Low speed expansion */
+	/* On Low speed expansion: LS-I2C0 */
 	status = "okay";
-	label = "LS-I2C0";
 };
 
 &blsp_i2c4 {
-	/* On High speed expansion */
+	/* On High speed expansion: HS-I2C2 */
 	status = "okay";
-	label = "HS-I2C2";
 
 	adv_bridge: bridge@39 {
 		status = "okay";
@@ -228,21 +202,18 @@
 };
 
 &blsp_i2c6 {
-	/* On Low speed expansion */
+	/* On Low speed expansion: LS-I2C1 */
 	status = "okay";
-	label = "LS-I2C1";
 };
 
 &blsp_spi3 {
-	/* On High speed expansion */
+	/* On High speed expansion: HS-SPI1 */
 	status = "okay";
-	label = "HS-SPI1";
 };
 
 &blsp_spi5 {
-	/* On Low speed expansion */
+	/* On Low speed expansion: LS-SPI0 */
 	status = "okay";
-	label = "LS-SPI0";
 };
 
 &blsp_uart1 {
@@ -257,50 +228,6 @@
 
 &camss {
 	status = "okay";
-	ports {
-		port@0 {
-			reg = <0>;
-			csiphy0_ep: endpoint {
-				data-lanes = <0 2>;
-				remote-endpoint = <&ov5640_ep>;
-				status = "okay";
-			};
-		};
-	};
-};
-
-&cci {
-	status = "okay";
-};
-
-&cci_i2c0 {
-	camera_rear@3b {
-		compatible = "ovti,ov5640";
-		reg = <0x3b>;
-
-		enable-gpios = <&tlmm 34 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&camera_rear_default>;
-
-		clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
-		clock-names = "xclk";
-		clock-frequency = <23880000>;
-
-		vdddo-supply = <&camera_vdddo_1v8>;
-		vdda-supply = <&camera_vdda_2v8>;
-		vddd-supply = <&camera_vddd_1v5>;
-
-		/* No camera mezzanine by default */
-		status = "disabled";
-
-		port {
-			ov5640_ep: endpoint {
-				data-lanes = <0 2>;
-				remote-endpoint = <&csiphy0_ep>;
-			};
-		};
-	};
 };
 
 &lpass {

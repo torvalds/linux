@@ -2,13 +2,15 @@
 #ifndef __STARFIVE_STR_H__
 #define __STARFIVE_STR_H__
 
+#include <crypto/aes.h>
+#include <crypto/hash.h>
+#include <crypto/scatterwalk.h>
+#include <crypto/sha2.h>
+#include <crypto/sm3.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-
-#include <crypto/engine.h>
-#include <crypto/sha2.h>
-#include <crypto/sm3.h>
+#include <linux/interrupt.h>
 
 #define STARFIVE_ALG_CR_OFFSET			0x0
 #define STARFIVE_ALG_FIFO_OFFSET		0x4
@@ -17,13 +19,56 @@
 #define STARFIVE_DMA_IN_LEN_OFFSET		0x10
 #define STARFIVE_DMA_OUT_LEN_OFFSET		0x14
 
+#define STARFIVE_IE_MASK_AES_DONE		0x1
 #define STARFIVE_IE_MASK_HASH_DONE		0x4
 #define STARFIVE_IE_MASK_PKA_DONE		0x8
+#define STARFIVE_IE_FLAG_AES_DONE		0x1
 #define STARFIVE_IE_FLAG_HASH_DONE		0x4
 #define STARFIVE_IE_FLAG_PKA_DONE		0x8
 
 #define STARFIVE_MSG_BUFFER_SIZE		SZ_16K
 #define MAX_KEY_SIZE				SHA512_BLOCK_SIZE
+#define STARFIVE_AES_IV_LEN			AES_BLOCK_SIZE
+#define STARFIVE_AES_CTR_LEN			AES_BLOCK_SIZE
+
+union starfive_aes_csr {
+	u32 v;
+	struct {
+		u32 cmode			:1;
+#define STARFIVE_AES_KEYMODE_128		0x0
+#define STARFIVE_AES_KEYMODE_192		0x1
+#define STARFIVE_AES_KEYMODE_256		0x2
+		u32 keymode			:2;
+#define STARFIVE_AES_BUSY			BIT(3)
+		u32 busy			:1;
+		u32 done			:1;
+#define STARFIVE_AES_KEY_DONE			BIT(5)
+		u32 krdy			:1;
+		u32 aesrst			:1;
+		u32 ie				:1;
+#define STARFIVE_AES_CCM_START			BIT(8)
+		u32 ccm_start			:1;
+#define STARFIVE_AES_MODE_ECB			0x0
+#define STARFIVE_AES_MODE_CBC			0x1
+#define STARFIVE_AES_MODE_CFB			0x2
+#define STARFIVE_AES_MODE_OFB			0x3
+#define STARFIVE_AES_MODE_CTR			0x4
+#define STARFIVE_AES_MODE_CCM			0x5
+#define STARFIVE_AES_MODE_GCM			0x6
+		u32 mode			:3;
+#define STARFIVE_AES_GCM_START			BIT(12)
+		u32 gcm_start			:1;
+#define STARFIVE_AES_GCM_DONE			BIT(13)
+		u32 gcm_done			:1;
+		u32 delay_aes			:1;
+		u32 vaes_start			:1;
+		u32 rsvd_0			:8;
+#define STARFIVE_AES_MODE_XFB_1			0x0
+#define STARFIVE_AES_MODE_XFB_128		0x5
+		u32 stmode			:3;
+		u32 rsvd_1			:5;
+	};
+};
 
 union starfive_hash_csr {
 	u32 v;
@@ -105,7 +150,6 @@ union starfive_alg_cr {
 };
 
 struct starfive_cryp_ctx {
-	struct crypto_engine_ctx		enginectx;
 	struct starfive_cryp_dev		*cryp;
 	struct starfive_cryp_request_ctx	*rctx;
 
@@ -116,6 +160,7 @@ struct starfive_cryp_ctx {
 	struct starfive_rsa_key			rsa_key;
 	struct crypto_akcipher			*akcipher_fbk;
 	struct crypto_ahash			*ahash_fbk;
+	struct crypto_aead			*aead_fbk;
 };
 
 struct starfive_cryp_dev {
@@ -133,13 +178,26 @@ struct starfive_cryp_dev {
 	struct dma_chan				*rx;
 	struct dma_slave_config			cfg_in;
 	struct dma_slave_config			cfg_out;
+	struct scatter_walk			in_walk;
+	struct scatter_walk			out_walk;
 	struct crypto_engine			*engine;
+	struct tasklet_struct			aes_done;
 	struct tasklet_struct			hash_done;
 	struct completion			pka_done;
+	size_t					assoclen;
+	size_t					total_in;
+	size_t					total_out;
+	u32					tag_in[4];
+	u32					tag_out[4];
+	unsigned int				authsize;
+	unsigned long				flags;
 	int					err;
+	bool					side_chan;
 	union starfive_alg_cr			alg_cr;
 	union {
 		struct ahash_request		*hreq;
+		struct aead_request		*areq;
+		struct skcipher_request		*sreq;
 	} req;
 };
 
@@ -147,6 +205,7 @@ struct starfive_cryp_request_ctx {
 	union {
 		union starfive_hash_csr		hash;
 		union starfive_pka_cacr		pka;
+		union starfive_aes_csr		aes;
 	} csr;
 
 	struct scatterlist			*in_sg;
@@ -157,6 +216,7 @@ struct starfive_cryp_request_ctx {
 	unsigned int				blksize;
 	unsigned int				digsize;
 	unsigned long				in_sg_len;
+	unsigned char				*adata;
 	u8 rsa_data[] __aligned(sizeof(u32));
 };
 
@@ -168,5 +228,9 @@ void starfive_hash_unregister_algs(void);
 int starfive_rsa_register_algs(void);
 void starfive_rsa_unregister_algs(void);
 
+int starfive_aes_register_algs(void);
+void starfive_aes_unregister_algs(void);
+
 void starfive_hash_done_task(unsigned long param);
+void starfive_aes_done_task(unsigned long param);
 #endif

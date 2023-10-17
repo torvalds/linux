@@ -55,7 +55,7 @@ int reiserfs_fileattr_set(struct mnt_idmap *idmap,
 	}
 	sd_attrs_to_i_attrs(flags, inode);
 	REISERFS_I(inode)->i_attrs = flags;
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	mark_inode_dirty(inode);
 	err = 0;
 unlock:
@@ -107,7 +107,7 @@ long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			err = -EFAULT;
 			goto setversion_out;
 		}
-		inode->i_ctime = current_time(inode);
+		inode_set_ctime_current(inode);
 		mark_inode_dirty(inode);
 setversion_out:
 		mnt_drop_write_file(filp);

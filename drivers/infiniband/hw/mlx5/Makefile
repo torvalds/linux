@@ -28,3 +28,4 @@ mlx5_ib-$(CONFIG_INFINIBAND_USER_ACCESS) += devx.o \
 					    fs.o \
 					    qos.o \
 					    std_types.o
+mlx5_ib-$(CONFIG_MLX5_MACSEC) += macsec.o

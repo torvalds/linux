@@ -11,7 +11,8 @@
 #include <dt-bindings/net/ti-dp83867.h>
 #include <dt-bindings/phy/phy-cadence.h>
 #include <dt-bindings/phy/phy.h>
-#include <dt-bindings/mux/ti-serdes.h>
+
+#include "k3-serdes.h"
 
 / {
 	compatible = "ti,am68-sk", "ti,j721s2";
@@ -121,6 +122,52 @@
 		#phy-cells = <0>;
 		max-bitrate = <5000000>;
 	};
+
+	connector-hdmi {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+		type = "a";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmi_hpd_pins_default>;
+		ddc-i2c-bus = <&mcu_i2c1>;
+		/* HDMI_HPD */
+		hpd-gpios = <&main_gpio0 0 GPIO_ACTIVE_HIGH>;
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tfp410_out>;
+			};
+		};
+	};
+
+	bridge-dvi {
+		compatible = "ti,tfp410";
+		/* HDMI_PDn */
+		powerdown-gpios = <&exp2 0 GPIO_ACTIVE_LOW>;
+		ti,deskew = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tfp410_in: endpoint {
+					remote-endpoint = <&dpi_out0>;
+					pclk-sample = <1>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tfp410_out: endpoint {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
+	};
 };
 
 &main_pmx0 {
@@ -201,6 +248,45 @@
 			J721S2_IOPAD(0x08c, PIN_INPUT, 7) /* (T25) MCASP0_AXR7.GPIO0_35 */
 		>;
 	};
+
+	dss_vout0_pins_default: dss-vout0-default-pins {
+		pinctrl-single,pins = <
+			J721S2_IOPAD(0x074, PIN_OUTPUT, 2) /* (R28) MCAN2_TX.VOUT0_DATA0 */
+			J721S2_IOPAD(0x070, PIN_OUTPUT, 2) /* (R27) MCAN1_RX.VOUT0_DATA1 */
+			J721S2_IOPAD(0x04c, PIN_OUTPUT, 2) /* (V27) MCASP1_AXR1.VOUT0_DATA10 */
+			J721S2_IOPAD(0x048, PIN_OUTPUT, 2) /* (AB27) MCASP0_AXR2.VOUT0_DATA11 */
+			J721S2_IOPAD(0x044, PIN_OUTPUT, 2) /* (Y26) MCASP0_AXR1.VOUT0_DATA12 */
+			J721S2_IOPAD(0x040, PIN_OUTPUT, 2) /* (AC28) MCASP0_AXR0.VOUT0_DATA13 */
+			J721S2_IOPAD(0x03c, PIN_OUTPUT, 2) /* (U27) MCASP0_AFSX.VOUT0_DATA14 */
+			J721S2_IOPAD(0x038, PIN_OUTPUT, 2) /* (AB28) MCASP0_ACLKX.VOUT0_DATA15 */
+			J721S2_IOPAD(0x0c8, PIN_OUTPUT, 2) /* (AD28) EXT_REFCLK1.VOUT0_DATA16 */
+			J721S2_IOPAD(0x030, PIN_OUTPUT, 2) /* (T26) GPIO0_12.VOUT0_DATA17 */
+			J721S2_IOPAD(0x02c, PIN_OUTPUT, 2) /* (V23) GPIO0_11.VOUT0_DATA18 */
+			J721S2_IOPAD(0x028, PIN_OUTPUT, 2) /* (AB24) MCAN16_RX.VOUT0_DATA19 */
+			J721S2_IOPAD(0x07c, PIN_OUTPUT, 2) /* (T27) MCASP0_AXR3.VOUT0_DATA2 */
+			J721S2_IOPAD(0x024, PIN_OUTPUT, 2) /* (Y28) MCAN16_TX.VOUT0_DATA20 */
+			J721S2_IOPAD(0x020, PIN_OUTPUT, 2) /* (AA23) MCAN15_RX.VOUT0_DATA21 */
+			J721S2_IOPAD(0x01c, PIN_OUTPUT, 2) /* (Y24) MCAN15_TX.VOUT0_DATA22 */
+			J721S2_IOPAD(0x018, PIN_OUTPUT, 2) /* (W23) MCAN14_RX.VOUT0_DATA23 */
+			J721S2_IOPAD(0x068, PIN_OUTPUT, 2) /* (U28) MCAN0_RX.VOUT0_DATA3 */
+			J721S2_IOPAD(0x064, PIN_OUTPUT, 2) /* (W28) MCAN0_TX.VOUT0_DATA4 */
+			J721S2_IOPAD(0x060, PIN_OUTPUT, 2) /* (AC27) MCASP2_AXR1.VOUT0_DATA5 */
+			J721S2_IOPAD(0x05c, PIN_OUTPUT, 2) /* (AA26) MCASP2_AXR0.VOUT0_DATA6 */
+			J721S2_IOPAD(0x058, PIN_OUTPUT, 2) /* (AA27) MCASP2_AFSX.VOUT0_DATA7 */
+			J721S2_IOPAD(0x054, PIN_OUTPUT, 2) /* (Y27) MCASP2_ACLKX.VOUT0_DATA8 */
+			J721S2_IOPAD(0x050, PIN_OUTPUT, 2) /* (W27) MCASP1_AXR2.VOUT0_DATA9 */
+			J721S2_IOPAD(0x084, PIN_OUTPUT, 2) /* (AA28) MCASP0_AXR5.VOUT0_DE */
+			J721S2_IOPAD(0x080, PIN_OUTPUT, 2) /* (U26) MCASP0_AXR4.VOUT0_HSYNC */
+			J721S2_IOPAD(0x078, PIN_OUTPUT, 2) /* (Y25) MCAN2_RX.VOUT0_PCLK */
+			J721S2_IOPAD(0x088, PIN_OUTPUT, 2) /* (AD27) MCASP0_AXR6.VOUT0_VP0_VSYNC */
+		>;
+	};
+
+	hdmi_hpd_pins_default: hdmi-hpd-default-pins {
+		pinctrl-single,pins = <
+			J721S2_IOPAD(0x000, PIN_INPUT, 7) /* (AG24) EXTINTN.GPIO0_0  */
+		>;
+	};
 };
 
 &wkup_pmx2 {
@@ -272,7 +358,7 @@
 		>;
 	};
 
-	mcu_rpi_header_gpio0_pins0_default: mcu-rpi-header-gpio0-pins0-default {
+	mcu_rpi_header_gpio0_pins0_default: mcu-rpi-header-gpio0-default-pins-0 {
 		pinctrl-single,pins = <
 			J721S2_WKUP_IOPAD(0x118, PIN_INPUT, 7) /* (G25) WKUP_GPIO0_66 */
 			J721S2_WKUP_IOPAD(0x05C, PIN_INPUT, 7) /* (E24) MCU_SPI1_D0.WKUP_GPIO0_1 */
@@ -288,7 +374,7 @@
 };
 
 &wkup_pmx3 {
-	mcu_rpi_header_gpio0_pins1_default: mcu-rpi-header-gpio0-pins1-default {
+	mcu_rpi_header_gpio0_pins1_default: mcu-rpi-header-gpio0-default-pins-1 {
 		pinctrl-single,pins = <
 			J721S2_WKUP_IOPAD(0x000, PIN_INPUT, 7) /* (K26) WKUP_GPIO0_49 */
 		>;
@@ -296,29 +382,15 @@
 };
 
 &main_gpio0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&rpi_header_gpio0_pins_default>;
 };
 
-&main_gpio2 {
-	status = "disabled";
-};
-
-&main_gpio4 {
-	status = "disabled";
-};
-
-&main_gpio6 {
-	status = "disabled";
-};
-
 &wkup_gpio0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_rpi_header_gpio0_pins0_default>, <&mcu_rpi_header_gpio0_pins1_default>;
-};
-
-&wkup_gpio1 {
-	status = "disabled";
 };
 
 &wkup_uart0 {
@@ -372,13 +444,26 @@
 	clock-frequency = <400000>;
 };
 
-&main_sdhci0 {
-	/* Unused */
-	status = "disabled";
+&mcu_i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcu_i2c1_pins_default>;
+	/* i2c1 is used for DVI DDC, so we need to use 100kHz */
+	clock-frequency = <100000>;
+
+	exp2: gpio@20 {
+		compatible = "ti,tca6408";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "HDMI_PDn","HDMI_LS_OE",
+				  "DP0_3V3_EN","eDP_ENABLE";
+	};
 };
 
 &main_sdhci1 {
 	/* SD card */
+	status = "okay";
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	pinctrl-names = "default";
 	disable-wp;
@@ -431,4 +516,40 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mcan7_pins_default>;
 	phys = <&transceiver4>;
+};
+
+&dss {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_vout0_pins_default>;
+	/*
+	 * These clock assignments are chosen to enable the following outputs:
+	 *
+	 * VP0 - DisplayPort SST
+	 * VP1 - DPI0
+	 * VP2 - DSI
+	 * VP3 - DPI1
+	 */
+	assigned-clocks = <&k3_clks 158 2>,
+			  <&k3_clks 158 5>,
+			  <&k3_clks 158 14>,
+			  <&k3_clks 158 18>;
+	assigned-clock-parents = <&k3_clks 158 3>,
+				 <&k3_clks 158 7>,
+				 <&k3_clks 158 16>,
+				 <&k3_clks 158 22>;
+};
+
+&dss_ports {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* HDMI */
+	port@1 {
+		reg = <1>;
+
+		dpi_out0: endpoint {
+			remote-endpoint = <&tfp410_in>;
+		};
+	};
 };

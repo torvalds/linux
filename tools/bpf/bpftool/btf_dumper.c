@@ -835,7 +835,7 @@ static void dotlabel_puts(const char *s)
 		case '|':
 		case ' ':
 			putchar('\\');
-			/* fallthrough */
+			fallthrough;
 		default:
 			putchar(*s);
 		}

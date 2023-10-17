@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license. When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright(c) 2021, 2023 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Authors: Vijendar Mukunda <Vijendar.Mukunda@amd.com>
 //	    Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
@@ -20,6 +20,26 @@
 #include "acp.h"
 #include "acp-dsp-offset.h"
 
+#define SECURED_FIRMWARE 1
+
+static bool enable_fw_debug;
+module_param(enable_fw_debug, bool, 0444);
+MODULE_PARM_DESC(enable_fw_debug, "Enable Firmware debug");
+
+const struct dmi_system_id acp_sof_quirk_table[] = {
+	{
+		/* Valve Jupiter device */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Valve"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Galileo"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Sephiroth"),
+		},
+		.driver_data = (void *)SECURED_FIRMWARE,
+	},
+	{}
+};
+EXPORT_SYMBOL_GPL(acp_sof_quirk_table);
+
 static int smn_write(struct pci_dev *dev, u32 smn_addr, u32 data)
 {
 	pci_write_config_dword(dev, 0x60, smn_addr);
@@ -28,12 +48,14 @@ static int smn_write(struct pci_dev *dev, u32 smn_addr, u32 data)
 	return 0;
 }
 
-static int smn_read(struct pci_dev *dev, u32 smn_addr, u32 *data)
+static int smn_read(struct pci_dev *dev, u32 smn_addr)
 {
-	pci_write_config_dword(dev, 0x60, smn_addr);
-	pci_read_config_dword(dev, 0x64, data);
+	u32 data = 0;
 
-	return 0;
+	pci_write_config_dword(dev, 0x60, smn_addr);
+	pci_read_config_dword(dev, 0x64, &data);
+
+	return data;
 }
 
 static void init_dma_descriptor(struct acp_dev_data *adata)
@@ -150,15 +172,13 @@ int configure_and_run_dma(struct acp_dev_data *adata, unsigned int src_addr,
 static int psp_mbox_ready(struct acp_dev_data *adata, bool ack)
 {
 	struct snd_sof_dev *sdev = adata->dev;
-	int timeout;
+	int ret;
 	u32 data;
 
-	for (timeout = ACP_PSP_TIMEOUT_COUNTER; timeout > 0; timeout--) {
-		msleep(20);
-		smn_read(adata->smn_dev, MP0_C2PMSG_114_REG, &data);
-		if (data & MBOX_READY_MASK)
-			return 0;
-	}
+	ret = read_poll_timeout(smn_read, data, data & MBOX_READY_MASK, MBOX_DELAY_US,
+				ACP_PSP_TIMEOUT_US, false, adata->smn_dev, MP0_C2PMSG_114_REG);
+	if (!ret)
+		return 0;
 
 	dev_err(sdev->dev, "PSP error status %x\n", data & MBOX_STATUS_MASK);
 
@@ -177,23 +197,19 @@ static int psp_mbox_ready(struct acp_dev_data *adata, bool ack)
 static int psp_send_cmd(struct acp_dev_data *adata, int cmd)
 {
 	struct snd_sof_dev *sdev = adata->dev;
-	int ret, timeout;
+	int ret;
 	u32 data;
 
 	if (!cmd)
 		return -EINVAL;
 
 	/* Get a non-zero Doorbell value from PSP */
-	for (timeout = ACP_PSP_TIMEOUT_COUNTER; timeout > 0; timeout--) {
-		msleep(MBOX_DELAY);
-		smn_read(adata->smn_dev, MP0_C2PMSG_73_REG, &data);
-		if (data)
-			break;
-	}
+	ret = read_poll_timeout(smn_read, data, data, MBOX_DELAY_US, ACP_PSP_TIMEOUT_US, false,
+				adata->smn_dev, MP0_C2PMSG_73_REG);
 
-	if (!timeout) {
+	if (ret) {
 		dev_err(sdev->dev, "Failed to get Doorbell from MBOX %x\n", MP0_C2PMSG_73_REG);
-		return -EINVAL;
+		return ret;
 	}
 
 	/* Check if PSP is ready for new command */
@@ -238,6 +254,9 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 			return ret;
 		}
 	}
+
+	if (adata->signed_fw_image)
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_INCLUDE_HDR, ACP_SHA_HEADER);
 
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_STRT_ADDR, start_addr);
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_DESTINATION_ADDR, dest_addr);
@@ -322,14 +341,7 @@ static irqreturn_t acp_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
-	unsigned int val, count = ACP_HW_SEM_RETRY_COUNT;
-
-	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->ext_intr_stat);
-	if (val & ACP_SHA_STAT) {
-		/* Clear SHA interrupt raised by PSP */
-		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat, val);
-		return IRQ_HANDLED;
-	}
+	unsigned int count = ACP_HW_SEM_RETRY_COUNT;
 
 	while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset)) {
 		/* Wait until acquired HW Semaphore lock or timeout */
@@ -355,9 +367,9 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 	unsigned int val;
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, base + DSP_SW_INTR_STAT_OFFSET);
-	if (val) {
-		val |= ACP_DSP_TO_HOST_IRQ;
-		snd_sof_dsp_write(sdev, ACP_DSP_BAR, base + DSP_SW_INTR_STAT_OFFSET, val);
+	if (val & ACP_DSP_TO_HOST_IRQ) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, base + DSP_SW_INTR_STAT_OFFSET,
+				  ACP_DSP_TO_HOST_IRQ);
 		return IRQ_WAKE_THREAD;
 	}
 
@@ -411,7 +423,12 @@ static int acp_reset(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		dev_err(sdev->dev, "timeout in releasing reset\n");
 
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->acp_clkmux_sel, ACP_CLOCK_ACLK);
+	if (desc->acp_clkmux_sel)
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->acp_clkmux_sel, ACP_CLOCK_ACLK);
+
+	if (desc->ext_intr_enb)
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_enb, 0x01);
+
 	return ret;
 }
 
@@ -449,7 +466,6 @@ EXPORT_SYMBOL_NS(amd_sof_acp_suspend, SND_SOC_SOF_AMD_COMMON);
 
 int amd_sof_acp_resume(struct snd_sof_dev *sdev)
 {
-	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	int ret;
 
 	ret = acp_init(sdev);
@@ -457,20 +473,17 @@ int amd_sof_acp_resume(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "ACP Init failed\n");
 		return ret;
 	}
-
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->acp_clkmux_sel, ACP_CLOCK_ACLK);
-
-	ret = acp_memory_init(sdev);
-
-	return ret;
+	return acp_memory_init(sdev);
 }
 EXPORT_SYMBOL_NS(amd_sof_acp_resume, SND_SOC_SOF_AMD_COMMON);
 
 int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 {
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
+	struct snd_sof_pdata *plat_data = sdev->pdata;
 	struct acp_dev_data *adata;
 	const struct sof_amd_acp_desc *chip;
+	const struct dmi_system_id *dmi_id;
 	unsigned int addr;
 	int ret;
 
@@ -531,6 +544,21 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 	sdev->debug_box.offset = sdev->host_box.offset + sdev->host_box.size;
 	sdev->debug_box.size = BOX_SIZE_1024;
 
+	adata->signed_fw_image = false;
+	dmi_id = dmi_first_match(acp_sof_quirk_table);
+	if (dmi_id && dmi_id->driver_data) {
+		adata->fw_code_bin = kasprintf(GFP_KERNEL, "%s/sof-%s-code.bin",
+					       plat_data->fw_filename_prefix,
+					       chip->name);
+		adata->fw_data_bin = kasprintf(GFP_KERNEL, "%s/sof-%s-data.bin",
+					       plat_data->fw_filename_prefix,
+					       chip->name);
+		adata->signed_fw_image = dmi_id->driver_data;
+
+		dev_dbg(sdev->dev, "fw_code_bin:%s, fw_data_bin:%s\n", adata->fw_code_bin,
+			adata->fw_data_bin);
+	}
+	adata->enable_fw_debug = enable_fw_debug;
 	acp_memory_init(sdev);
 
 	acp_dsp_stream_init(sdev);

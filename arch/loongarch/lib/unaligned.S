@@ -9,7 +9,6 @@
 #include <asm/asmmacro.h>
 #include <asm/asm-extable.h>
 #include <asm/errno.h>
-#include <asm/export.h>
 #include <asm/regdef.h>
 
 .L_fixup_handle_unaligned:

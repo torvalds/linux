@@ -70,6 +70,7 @@ struct secondary_data {
 extern struct secondary_data cpuboot_data;
 
 extern asmlinkage void smpboot_entry(void);
+extern asmlinkage void start_secondary(void);
 
 extern void calculate_cpu_foreign_map(void);
 
@@ -98,8 +99,6 @@ static inline void __cpu_die(unsigned int cpu)
 {
 	loongson_cpu_die(cpu);
 }
-
-extern void __noreturn play_dead(void);
 #endif
 
 #endif /* __ASM_SMP_H */

@@ -265,7 +265,8 @@ EXPORT_SYMBOL(sg_free_table);
  * @table:	The sg table header to use
  * @nents:	Number of entries in sg list
  * @max_ents:	The maximum number of entries the allocator returns per call
- * @nents_first_chunk: Number of entries int the (preallocated) first
+ * @first_chunk: first SGL if preallocated (may be %NULL)
+ * @nents_first_chunk: Number of entries in the (preallocated) first
  * 	scatterlist chunk, 0 means no such preallocated chunk provided by user
  * @gfp_mask:	GFP allocation mask
  * @alloc_fn:	Allocator to use
@@ -788,6 +789,7 @@ EXPORT_SYMBOL(__sg_page_iter_dma_next);
  * @miter: sg mapping iter to be started
  * @sgl: sg list to iterate over
  * @nents: number of sg entries
+ * @flags: sg iterator flags
  *
  * Description:
  *   Starts mapping iterator @miter.
@@ -1148,7 +1150,7 @@ static ssize_t extract_user_to_sg(struct iov_iter *iter,
 
 failed:
 	while (sgtable->nents > sgtable->orig_nents)
-		put_page(sg_page(&sgtable->sgl[--sgtable->nents]));
+		unpin_user_page(sg_page(&sgtable->sgl[--sgtable->nents]));
 	return res;
 }
 

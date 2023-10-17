@@ -46,6 +46,17 @@ xfs_attr_grab_log_assist(
 	if (xfs_sb_version_haslogxattrs(&mp->m_sb))
 		return 0;
 
+	/*
+	 * Check if the filesystem featureset is new enough to set this log
+	 * incompat feature bit.  Strictly speaking, the minimum requirement is
+	 * a V5 filesystem for the superblock field, but we'll require rmap
+	 * or reflink to avoid having to deal with really old kernels.
+	 */
+	if (!xfs_has_reflink(mp) && !xfs_has_rmapbt(mp)) {
+		error = -EOPNOTSUPP;
+		goto drop_incompat;
+	}
+
 	/* Enable log-assisted xattrs. */
 	error = xfs_add_incompat_log_feature(mp,
 			XFS_SB_FEAT_INCOMPAT_LOG_XATTRS);

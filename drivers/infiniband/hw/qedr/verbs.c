@@ -1358,7 +1358,7 @@ static void qedr_set_common_qp_params(struct qedr_dev *dev,
 
 	qp->prev_wqe_size = 0;
 
-	qp->signaled = (attrs->sq_sig_type == IB_SIGNAL_ALL_WR) ? true : false;
+	qp->signaled = attrs->sq_sig_type == IB_SIGNAL_ALL_WR;
 	qp->dev = dev;
 	if (qedr_qp_has_sq(qp)) {
 		qedr_reset_qp_hwq_info(&qp->sq);

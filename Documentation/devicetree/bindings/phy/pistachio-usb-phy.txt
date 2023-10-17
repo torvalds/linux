@@ -8,7 +8,7 @@ Required properties:
  - clocks: Must contain an entry for each entry in clock-names.
    See ../clock/clock-bindings.txt for details.
  - clock-names: Must include "usb_phy".
- - img,cr-top: Must constain a phandle to the CR_TOP syscon node.
+ - img,cr-top: Must contain a phandle to the CR_TOP syscon node.
  - img,refclk: Indicates the reference clock source for the USB PHY.
    See <dt-bindings/phy/phy-pistachio-usb.h> for a list of valid values.
 

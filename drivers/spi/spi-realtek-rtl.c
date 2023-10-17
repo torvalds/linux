@@ -153,7 +153,7 @@ static int realtek_rtl_spi_probe(struct platform_device *pdev)
 	struct rtspi *rtspi;
 	int err;
 
-	ctrl = devm_spi_alloc_master(&pdev->dev, sizeof(*rtspi));
+	ctrl = devm_spi_alloc_host(&pdev->dev, sizeof(*rtspi));
 	if (!ctrl) {
 		dev_err(&pdev->dev, "Error allocating SPI controller\n");
 		return -ENOMEM;

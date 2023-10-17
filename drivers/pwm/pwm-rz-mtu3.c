@@ -40,7 +40,7 @@
  * struct rz_mtu3_channel_io_map - MTU3 pwm channel map
  *
  * @base_pwm_number: First PWM of a channel
- * @num: number of IOs on the HW channel.
+ * @num_channel_ios: number of IOs on the HW channel.
  */
 struct rz_mtu3_channel_io_map {
 	u8 base_pwm_number;

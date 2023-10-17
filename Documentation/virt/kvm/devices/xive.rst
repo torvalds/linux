@@ -50,7 +50,7 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
 
   When a device is passed-through into the guest, the source
   interrupts are from a different HW controller (PHB4) and the ESB
-  pages exposed to the guest should accommadate this change.
+  pages exposed to the guest should accommodate this change.
 
   The passthru_irq helpers, kvmppc_xive_set_mapped() and
   kvmppc_xive_clr_mapped() are called when the device HW irqs are

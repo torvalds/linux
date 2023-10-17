@@ -10,6 +10,7 @@
 
 #include <linux/acpi.h>
 #include <linux/backlight.h>
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/debugfs.h>
@@ -85,6 +86,31 @@ enum {
 	SALS_FNLOCK_OFF       = 0xf,
 };
 
+/*
+ * These correspond to the number of supported states - 1
+ * Future keyboard types may need a new system, if there's a collision
+ * KBD_BL_TRISTATE_AUTO has no way to report or set the auto state
+ * so it effectively has 3 states, but needs to handle 4
+ */
+enum {
+	KBD_BL_STANDARD      = 1,
+	KBD_BL_TRISTATE      = 2,
+	KBD_BL_TRISTATE_AUTO = 3,
+};
+
+#define KBD_BL_QUERY_TYPE		0x1
+#define KBD_BL_TRISTATE_TYPE		0x5
+#define KBD_BL_TRISTATE_AUTO_TYPE	0x7
+
+#define KBD_BL_COMMAND_GET		0x2
+#define KBD_BL_COMMAND_SET		0x3
+#define KBD_BL_COMMAND_TYPE		GENMASK(7, 4)
+
+#define KBD_BL_GET_BRIGHTNESS		GENMASK(15, 1)
+#define KBD_BL_SET_BRIGHTNESS		GENMASK(19, 16)
+
+#define KBD_BL_KBLC_CHANGED_EVENT	12
+
 struct ideapad_dytc_priv {
 	enum platform_profile_option current_profile;
 	struct platform_profile_handler pprof;
@@ -122,6 +148,7 @@ struct ideapad_private {
 	} features;
 	struct {
 		bool initialized;
+		int type;
 		struct led_classdev led;
 		unsigned int last_brightness;
 	} kbd_bl;
@@ -240,6 +267,16 @@ static int eval_hals(acpi_handle handle, unsigned long *res)
 static int exec_sals(acpi_handle handle, unsigned long arg)
 {
 	return exec_simple_method(handle, "SALS", arg);
+}
+
+static int exec_kblc(acpi_handle handle, unsigned long arg)
+{
+	return exec_simple_method(handle, "KBLC", arg);
+}
+
+static int eval_kblc(acpi_handle handle, unsigned long cmd, unsigned long *res)
+{
+	return eval_int_with_arg(handle, "KBLC", cmd, res);
 }
 
 static int eval_dytc(acpi_handle handle, unsigned long cmd, unsigned long *res)
@@ -1049,6 +1086,11 @@ static const struct key_entry ideapad_keymap[] = {
 	{ KE_IGNORE,	0x03 | IDEAPAD_WMI_KEY },
 	/* Customizable Lenovo Hotkey ("star" with 'S' inside) */
 	{ KE_KEY,	0x01 | IDEAPAD_WMI_KEY, { KEY_FAVORITES } },
+	{ KE_KEY,	0x04 | IDEAPAD_WMI_KEY, { KEY_SELECTIVE_SCREENSHOT } },
+	/* Lenovo Support */
+	{ KE_KEY,	0x07 | IDEAPAD_WMI_KEY, { KEY_HELP } },
+	{ KE_KEY,	0x0e | IDEAPAD_WMI_KEY, { KEY_PICKUP_PHONE } },
+	{ KE_KEY,	0x0f | IDEAPAD_WMI_KEY, { KEY_HANGUP_PHONE } },
 	/* Dark mode toggle */
 	{ KE_KEY,	0x13 | IDEAPAD_WMI_KEY, { KEY_PROG1 } },
 	/* Sound profile switch */
@@ -1270,16 +1312,47 @@ static void ideapad_backlight_notify_brightness(struct ideapad_private *priv)
 /*
  * keyboard backlight
  */
+static int ideapad_kbd_bl_check_tristate(int type)
+{
+	return (type == KBD_BL_TRISTATE) || (type == KBD_BL_TRISTATE_AUTO);
+}
+
 static int ideapad_kbd_bl_brightness_get(struct ideapad_private *priv)
 {
-	unsigned long hals;
+	unsigned long value;
 	int err;
 
-	err = eval_hals(priv->adev->handle, &hals);
+	if (ideapad_kbd_bl_check_tristate(priv->kbd_bl.type)) {
+		err = eval_kblc(priv->adev->handle,
+				FIELD_PREP(KBD_BL_COMMAND_TYPE, priv->kbd_bl.type) |
+				KBD_BL_COMMAND_GET,
+				&value);
+
+		if (err)
+			return err;
+
+		/* Convert returned value to brightness level */
+		value = FIELD_GET(KBD_BL_GET_BRIGHTNESS, value);
+
+		/* Off, low or high */
+		if (value <= priv->kbd_bl.led.max_brightness)
+			return value;
+
+		/* Auto, report as off */
+		if (value == priv->kbd_bl.led.max_brightness + 1)
+			return 0;
+
+		/* Unknown value */
+		dev_warn(&priv->platform_device->dev,
+			 "Unknown keyboard backlight value: %lu", value);
+		return -EINVAL;
+	}
+
+	err = eval_hals(priv->adev->handle, &value);
 	if (err)
 		return err;
 
-	return !!test_bit(HALS_KBD_BL_STATE_BIT, &hals);
+	return !!test_bit(HALS_KBD_BL_STATE_BIT, &value);
 }
 
 static enum led_brightness ideapad_kbd_bl_led_cdev_brightness_get(struct led_classdev *led_cdev)
@@ -1291,7 +1364,21 @@ static enum led_brightness ideapad_kbd_bl_led_cdev_brightness_get(struct led_cla
 
 static int ideapad_kbd_bl_brightness_set(struct ideapad_private *priv, unsigned int brightness)
 {
-	int err = exec_sals(priv->adev->handle, brightness ? SALS_KBD_BL_ON : SALS_KBD_BL_OFF);
+	int err;
+	unsigned long value;
+	int type = priv->kbd_bl.type;
+
+	if (ideapad_kbd_bl_check_tristate(type)) {
+		if (brightness > priv->kbd_bl.led.max_brightness)
+			return -EINVAL;
+
+		value = FIELD_PREP(KBD_BL_SET_BRIGHTNESS, brightness) |
+			FIELD_PREP(KBD_BL_COMMAND_TYPE, type) |
+			KBD_BL_COMMAND_SET;
+		err = exec_kblc(priv->adev->handle, value);
+	} else {
+		err = exec_sals(priv->adev->handle, brightness ? SALS_KBD_BL_ON : SALS_KBD_BL_OFF);
+	}
 
 	if (err)
 		return err;
@@ -1344,8 +1431,13 @@ static int ideapad_kbd_bl_init(struct ideapad_private *priv)
 
 	priv->kbd_bl.last_brightness = brightness;
 
+	if (ideapad_kbd_bl_check_tristate(priv->kbd_bl.type)) {
+		priv->kbd_bl.led.max_brightness = 2;
+	} else {
+		priv->kbd_bl.led.max_brightness = 1;
+	}
+
 	priv->kbd_bl.led.name                    = "platform::" LED_FUNCTION_KBD_BACKLIGHT;
-	priv->kbd_bl.led.max_brightness          = 1;
 	priv->kbd_bl.led.brightness_get          = ideapad_kbd_bl_led_cdev_brightness_get;
 	priv->kbd_bl.led.brightness_set_blocking = ideapad_kbd_bl_led_cdev_brightness_set;
 	priv->kbd_bl.led.flags                   = LED_BRIGHT_HW_CHANGED;
@@ -1456,6 +1548,7 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 		case 2:
 			ideapad_backlight_notify_power(priv);
 			break;
+		case KBD_BL_KBLC_CHANGED_EVENT:
 		case 1:
 			/*
 			 * Some IdeaPads report event 1 every ~20
@@ -1557,11 +1650,29 @@ static void ideapad_check_features(struct ideapad_private *priv)
 			if (test_bit(HALS_FNLOCK_SUPPORT_BIT, &val))
 				priv->features.fn_lock = true;
 
-			if (test_bit(HALS_KBD_BL_SUPPORT_BIT, &val))
+			if (test_bit(HALS_KBD_BL_SUPPORT_BIT, &val)) {
 				priv->features.kbd_bl = true;
+				priv->kbd_bl.type = KBD_BL_STANDARD;
+			}
 
 			if (test_bit(HALS_USB_CHARGING_SUPPORT_BIT, &val))
 				priv->features.usb_charging = true;
+		}
+	}
+
+	if (acpi_has_method(handle, "KBLC")) {
+		if (!eval_kblc(priv->adev->handle, KBD_BL_QUERY_TYPE, &val)) {
+			if (val == KBD_BL_TRISTATE_TYPE) {
+				priv->features.kbd_bl = true;
+				priv->kbd_bl.type = KBD_BL_TRISTATE;
+			} else if (val == KBD_BL_TRISTATE_AUTO_TYPE) {
+				priv->features.kbd_bl = true;
+				priv->kbd_bl.type = KBD_BL_TRISTATE_AUTO;
+			} else {
+				dev_warn(&priv->platform_device->dev,
+					 "Unknown keyboard type: %lu",
+					 val);
+			}
 		}
 	}
 }

@@ -38,6 +38,7 @@ static inline int _soc_pcm_ret(struct snd_soc_pcm_runtime *rtd,
 	switch (ret) {
 	case -EPROBE_DEFER:
 	case -ENOTSUPP:
+	case -EINVAL:
 		break;
 	default:
 		dev_err(rtd->dev,
@@ -984,6 +985,7 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_soc_dai *cpu_dai;
 	struct snd_soc_dai *codec_dai;
+	struct snd_pcm_hw_params tmp_params;
 	int i, ret = 0;
 
 	snd_soc_dpcm_mutex_assert_held(rtd);
@@ -997,7 +999,6 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 		goto out;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		struct snd_pcm_hw_params codec_params;
 		unsigned int tdm_mask = snd_soc_dai_tdm_mask_get(codec_dai, substream->stream);
 
 		/*
@@ -1018,23 +1019,22 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 			continue;
 
 		/* copy params for each codec */
-		codec_params = *params;
+		tmp_params = *params;
 
 		/* fixup params based on TDM slot masks */
 		if (tdm_mask)
-			soc_pcm_codec_params_fixup(&codec_params, tdm_mask);
+			soc_pcm_codec_params_fixup(&tmp_params, tdm_mask);
 
 		ret = snd_soc_dai_hw_params(codec_dai, substream,
-					    &codec_params);
+					    &tmp_params);
 		if(ret < 0)
 			goto out;
 
-		soc_pcm_set_dai_params(codec_dai, &codec_params);
-		snd_soc_dapm_update_dai(substream, &codec_params, codec_dai);
+		soc_pcm_set_dai_params(codec_dai, &tmp_params);
+		snd_soc_dapm_update_dai(substream, &tmp_params, codec_dai);
 	}
 
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
-		struct snd_pcm_hw_params cpu_params;
 		unsigned int ch_mask = 0;
 		int j;
 
@@ -1046,7 +1046,7 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 			continue;
 
 		/* copy params for each cpu */
-		cpu_params = *params;
+		tmp_params = *params;
 
 		if (!rtd->dai_link->codec_ch_maps)
 			goto hw_params;
@@ -1061,16 +1061,16 @@ static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
 
 		/* fixup cpu channel number */
 		if (ch_mask)
-			soc_pcm_codec_params_fixup(&cpu_params, ch_mask);
+			soc_pcm_codec_params_fixup(&tmp_params, ch_mask);
 
 hw_params:
-		ret = snd_soc_dai_hw_params(cpu_dai, substream, &cpu_params);
+		ret = snd_soc_dai_hw_params(cpu_dai, substream, &tmp_params);
 		if (ret < 0)
 			goto out;
 
 		/* store the parameters for each DAI */
-		soc_pcm_set_dai_params(cpu_dai, &cpu_params);
-		snd_soc_dapm_update_dai(substream, &cpu_params, cpu_dai);
+		soc_pcm_set_dai_params(cpu_dai, &tmp_params);
+		snd_soc_dapm_update_dai(substream, &tmp_params, cpu_dai);
 	}
 
 	ret = snd_soc_pcm_component_hw_params(substream, params);
@@ -2466,8 +2466,11 @@ static int dpcm_fe_dai_prepare(struct snd_pcm_substream *substream)
 
 	/* there is no point preparing this FE if there are no BEs */
 	if (list_empty(&fe->dpcm[stream].be_clients)) {
-		dev_err(fe->dev, "ASoC: no backend DAIs enabled for %s\n",
-				fe->dai_link->name);
+		/* dev_err_once() for visibility, dev_dbg() for debugging UCM profiles */
+		dev_err_once(fe->dev, "ASoC: no backend DAIs enabled for %s, possibly missing ALSA mixer-based routing or UCM profile\n",
+			     fe->dai_link->name);
+		dev_dbg(fe->dev, "ASoC: no backend DAIs enabled for %s\n",
+			fe->dai_link->name);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2973,8 +2976,8 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 			rtd->ops.ioctl		= snd_soc_pcm_component_ioctl;
 		if (drv->sync_stop)
 			rtd->ops.sync_stop	= snd_soc_pcm_component_sync_stop;
-		if (drv->copy_user)
-			rtd->ops.copy_user	= snd_soc_pcm_component_copy_user;
+		if (drv->copy)
+			rtd->ops.copy		= snd_soc_pcm_component_copy;
 		if (drv->page)
 			rtd->ops.page		= snd_soc_pcm_component_page;
 		if (drv->mmap)

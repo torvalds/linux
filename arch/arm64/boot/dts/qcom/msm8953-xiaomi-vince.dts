@@ -20,7 +20,7 @@
 	compatible = "xiaomi,vince", "qcom,msm8953";
 	chassis-type = "handset";
 	qcom,msm-id = <293 0>;
-	qcom,board-id= <0x1000b 0x08>;
+	qcom,board-id = <0x1000b 0x08>;
 
 	gpio-keys {
 		compatible = "gpio-keys";
@@ -132,7 +132,6 @@
 	touchscreen@20 {
 		reg = <0x20>;
 		compatible = "syna,rmi4-i2c";
-		interrupts-parent = <&tlmm>;
 		interrupts-extended = <&tlmm 65 IRQ_TYPE_EDGE_FALLING>;
 
 		#address-cells = <1>;

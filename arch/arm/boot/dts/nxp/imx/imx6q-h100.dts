@@ -179,6 +179,7 @@
 	sgtl5000: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
+		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_h100_sgtl5000>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;

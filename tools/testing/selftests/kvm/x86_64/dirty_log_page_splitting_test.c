@@ -72,7 +72,7 @@ static void vcpu_worker(struct memstress_vcpu_args *vcpu_args)
 
 		vcpu_run(vcpu);
 
-		ASSERT_EQ(get_ucall(vcpu, NULL), UCALL_SYNC);
+		TEST_ASSERT_EQ(get_ucall(vcpu, NULL), UCALL_SYNC);
 
 		vcpu_last_completed_iteration[vcpu_idx] = current_iteration;
 
@@ -179,12 +179,12 @@ static void run_test(enum vm_guest_mode mode, void *unused)
 	 * with that capability.
 	 */
 	if (dirty_log_manual_caps) {
-		ASSERT_EQ(stats_clear_pass[0].hugepages, 0);
-		ASSERT_EQ(stats_clear_pass[0].pages_4k, total_4k_pages);
-		ASSERT_EQ(stats_dirty_logging_enabled.hugepages, stats_populated.hugepages);
+		TEST_ASSERT_EQ(stats_clear_pass[0].hugepages, 0);
+		TEST_ASSERT_EQ(stats_clear_pass[0].pages_4k, total_4k_pages);
+		TEST_ASSERT_EQ(stats_dirty_logging_enabled.hugepages, stats_populated.hugepages);
 	} else {
-		ASSERT_EQ(stats_dirty_logging_enabled.hugepages, 0);
-		ASSERT_EQ(stats_dirty_logging_enabled.pages_4k, total_4k_pages);
+		TEST_ASSERT_EQ(stats_dirty_logging_enabled.hugepages, 0);
+		TEST_ASSERT_EQ(stats_dirty_logging_enabled.pages_4k, total_4k_pages);
 	}
 
 	/*
@@ -192,9 +192,9 @@ static void run_test(enum vm_guest_mode mode, void *unused)
 	 * memory again, the page counts should be the same as they were
 	 * right after initial population of memory.
 	 */
-	ASSERT_EQ(stats_populated.pages_4k, stats_repopulated.pages_4k);
-	ASSERT_EQ(stats_populated.pages_2m, stats_repopulated.pages_2m);
-	ASSERT_EQ(stats_populated.pages_1g, stats_repopulated.pages_1g);
+	TEST_ASSERT_EQ(stats_populated.pages_4k, stats_repopulated.pages_4k);
+	TEST_ASSERT_EQ(stats_populated.pages_2m, stats_repopulated.pages_2m);
+	TEST_ASSERT_EQ(stats_populated.pages_1g, stats_repopulated.pages_1g);
 }
 
 static void help(char *name)

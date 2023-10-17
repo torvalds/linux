@@ -97,6 +97,7 @@
 #define HNS_ROCE_CQ_BANK_NUM 4
 
 #define CQ_BANKID_SHIFT 2
+#define CQ_BANKID_MASK GENMASK(1, 0)
 
 enum {
 	SERV_TYPE_RC,
@@ -714,7 +715,6 @@ struct hns_roce_caps {
 	u32		max_rq_sg;
 	u32		rsv0;
 	u32		num_qps;
-	u32		num_pi_qps;
 	u32		reserved_qps;
 	u32		num_srqs;
 	u32		max_wqes;
@@ -840,6 +840,32 @@ enum hns_roce_device_state {
 	HNS_ROCE_DEVICE_STATE_UNINIT,
 };
 
+enum hns_roce_hw_pkt_stat_index {
+	HNS_ROCE_HW_RX_RC_PKT_CNT,
+	HNS_ROCE_HW_RX_UC_PKT_CNT,
+	HNS_ROCE_HW_RX_UD_PKT_CNT,
+	HNS_ROCE_HW_RX_XRC_PKT_CNT,
+	HNS_ROCE_HW_RX_PKT_CNT,
+	HNS_ROCE_HW_RX_ERR_PKT_CNT,
+	HNS_ROCE_HW_RX_CNP_PKT_CNT,
+	HNS_ROCE_HW_TX_RC_PKT_CNT,
+	HNS_ROCE_HW_TX_UC_PKT_CNT,
+	HNS_ROCE_HW_TX_UD_PKT_CNT,
+	HNS_ROCE_HW_TX_XRC_PKT_CNT,
+	HNS_ROCE_HW_TX_PKT_CNT,
+	HNS_ROCE_HW_TX_ERR_PKT_CNT,
+	HNS_ROCE_HW_TX_CNP_PKT_CNT,
+	HNS_ROCE_HW_TRP_GET_MPT_ERR_PKT_CNT,
+	HNS_ROCE_HW_TRP_GET_IRRL_ERR_PKT_CNT,
+	HNS_ROCE_HW_ECN_DB_CNT,
+	HNS_ROCE_HW_RX_BUF_CNT,
+	HNS_ROCE_HW_TRP_RX_SOF_CNT,
+	HNS_ROCE_HW_CQ_CQE_CNT,
+	HNS_ROCE_HW_CQ_POE_CNT,
+	HNS_ROCE_HW_CQ_NOTIFY_CNT,
+	HNS_ROCE_HW_CNT_TOTAL
+};
+
 struct hns_roce_hw {
 	int (*cmq_init)(struct hns_roce_dev *hr_dev);
 	void (*cmq_exit)(struct hns_roce_dev *hr_dev);
@@ -882,6 +908,8 @@ struct hns_roce_hw {
 	int (*query_cqc)(struct hns_roce_dev *hr_dev, u32 cqn, void *buffer);
 	int (*query_qpc)(struct hns_roce_dev *hr_dev, u32 qpn, void *buffer);
 	int (*query_mpt)(struct hns_roce_dev *hr_dev, u32 key, void *buffer);
+	int (*query_hw_counter)(struct hns_roce_dev *hr_dev,
+				u64 *stats, u32 port, int *hw_counters);
 	const struct ib_device_ops *hns_roce_dev_ops;
 	const struct ib_device_ops *hns_roce_dev_srq_ops;
 };
@@ -1112,7 +1140,6 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev);
 void hns_roce_init_srq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_init_xrcd_table(struct hns_roce_dev *hr_dev);
 
-void hns_roce_cleanup_eq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_cq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_qp_table(struct hns_roce_dev *hr_dev);
 
@@ -1161,9 +1188,6 @@ int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 int hns_roce_create_srq(struct ib_srq *srq,
 			struct ib_srq_init_attr *srq_init_attr,
 			struct ib_udata *udata);
-int hns_roce_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
-			enum ib_srq_attr_mask srq_attr_mask,
-			struct ib_udata *udata);
 int hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 
 int hns_roce_alloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata);
@@ -1206,7 +1230,6 @@ void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);
 void flush_cqe(struct hns_roce_dev *dev, struct hns_roce_qp *qp);
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type);
 void hns_roce_srq_event(struct hns_roce_dev *hr_dev, u32 srqn, int event_type);
-u8 hns_get_gid_index(struct hns_roce_dev *hr_dev, u32 port, int gid_index);
 void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev);
 int hns_roce_init(struct hns_roce_dev *hr_dev);
 void hns_roce_exit(struct hns_roce_dev *hr_dev);

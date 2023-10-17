@@ -285,7 +285,15 @@ SYM_FUNC_END(__switch_to_asm)
  */
 .pushsection .text, "ax"
 SYM_CODE_START(ret_from_fork_asm)
-	UNWIND_HINT_REGS
+	/*
+	 * This is the start of the kernel stack; even through there's a
+	 * register set at the top, the regset isn't necessarily coherent
+	 * (consider kthreads) and one cannot unwind further.
+	 *
+	 * This ensures stack unwinds of kernel threads terminate in a known
+	 * good state.
+	 */
+	UNWIND_HINT_END_OF_STACK
 	ANNOTATE_NOENDBR // copy_thread
 	CALL_DEPTH_ACCOUNT
 
@@ -295,6 +303,12 @@ SYM_CODE_START(ret_from_fork_asm)
 	movq	%r12, %rcx		/* fn_arg */
 	call	ret_from_fork
 
+	/*
+	 * Set the stack state to what is expected for the target function
+	 * -- at this point the register set should be a valid user set
+	 * and unwind should work normally.
+	 */
+	UNWIND_HINT_REGS
 	jmp	swapgs_restore_regs_and_return_to_usermode
 SYM_CODE_END(ret_from_fork_asm)
 .popsection

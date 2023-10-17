@@ -239,6 +239,8 @@ void dmub_dcn31_skip_dmub_panel_power_sequence(struct dmub_srv *dmub, bool skip)
 
 union dmub_fw_boot_status dmub_dcn31_get_fw_boot_status(struct dmub_srv *dmub);
 
+union dmub_fw_boot_options dmub_dcn31_get_fw_boot_option(struct dmub_srv *dmub);
+
 void dmub_dcn31_setup_outbox0(struct dmub_srv *dmub,
 			      const struct dmub_region *outbox0);
 

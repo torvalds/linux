@@ -173,7 +173,7 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 	int err;
 
 	down_read(&card->controls_rwsem);
-	kctl = snd_ctl_find_id(card, id);
+	kctl = snd_ctl_find_id_locked(card, id);
 	if (! kctl) {
 		up_read(&card->controls_rwsem);
 		return -ENOENT;

@@ -15,10 +15,12 @@
 static struct cached_fid *init_cached_dir(const char *path);
 static void free_cached_dir(struct cached_fid *cfid);
 static void smb2_close_cached_fid(struct kref *ref);
+static void cfids_laundromat_worker(struct work_struct *work);
 
 static struct cached_fid *find_or_create_cached_dir(struct cached_fids *cfids,
 						    const char *path,
-						    bool lookup_only)
+						    bool lookup_only,
+						    __u32 max_cached_dirs)
 {
 	struct cached_fid *cfid;
 
@@ -43,7 +45,7 @@ static struct cached_fid *find_or_create_cached_dir(struct cached_fids *cfids,
 		spin_unlock(&cfids->cfid_list_lock);
 		return NULL;
 	}
-	if (cfids->num_entries >= MAX_CACHED_FIDS) {
+	if (cfids->num_entries >= max_cached_dirs) {
 		spin_unlock(&cfids->cfid_list_lock);
 		return NULL;
 	}
@@ -145,7 +147,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	const char *npath;
 
 	if (tcon == NULL || tcon->cfids == NULL || tcon->nohandlecache ||
-	    is_smb1_server(tcon->ses->server))
+	    is_smb1_server(tcon->ses->server) || (dir_cache_timeout == 0))
 		return -EOPNOTSUPP;
 
 	ses = tcon->ses;
@@ -162,21 +164,24 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	if (!utf16_path)
 		return -ENOMEM;
 
-	cfid = find_or_create_cached_dir(cfids, path, lookup_only);
+	cfid = find_or_create_cached_dir(cfids, path, lookup_only, tcon->max_cached_dirs);
 	if (cfid == NULL) {
 		kfree(utf16_path);
 		return -ENOENT;
 	}
 	/*
-	 * At this point we either have a lease already and we can just
-	 * return it. If not we are guaranteed to be the only thread accessing
-	 * this cfid.
+	 * Return cached fid if it has a lease.  Otherwise, it is either a new
+	 * entry or laundromat worker removed it from @cfids->entries.  Caller
+	 * will put last reference if the latter.
 	 */
+	spin_lock(&cfids->cfid_list_lock);
 	if (cfid->has_lease) {
+		spin_unlock(&cfids->cfid_list_lock);
 		*ret_cfid = cfid;
 		kfree(utf16_path);
 		return 0;
 	}
+	spin_unlock(&cfids->cfid_list_lock);
 
 	/*
 	 * Skip any prefix paths in @path as lookup_positive_unlocked() ends up
@@ -218,7 +223,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		.tcon = tcon,
 		.path = path,
 		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_FILE),
-		.desired_access = FILE_READ_ATTRIBUTES,
+		.desired_access =  FILE_READ_DATA | FILE_READ_ATTRIBUTES,
 		.disposition = FILE_OPEN,
 		.fid = pfid,
 	};
@@ -293,9 +298,11 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 			goto oshr_free;
 		}
 	}
+	spin_lock(&cfids->cfid_list_lock);
 	cfid->dentry = dentry;
 	cfid->time = jiffies;
 	cfid->has_lease = true;
+	spin_unlock(&cfids->cfid_list_lock);
 
 oshr_free:
 	kfree(utf16_path);
@@ -304,24 +311,28 @@ oshr_free:
 	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
 	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
 	spin_lock(&cfids->cfid_list_lock);
-	if (rc && !cfid->has_lease) {
-		if (cfid->on_list) {
-			list_del(&cfid->entry);
-			cfid->on_list = false;
-			cfids->num_entries--;
+	if (!cfid->has_lease) {
+		if (rc) {
+			if (cfid->on_list) {
+				list_del(&cfid->entry);
+				cfid->on_list = false;
+				cfids->num_entries--;
+			}
+			rc = -ENOENT;
+		} else {
+			/*
+			 * We are guaranteed to have two references at this
+			 * point. One for the caller and one for a potential
+			 * lease. Release the Lease-ref so that the directory
+			 * will be closed when the caller closes the cached
+			 * handle.
+			 */
+			spin_unlock(&cfids->cfid_list_lock);
+			kref_put(&cfid->refcount, smb2_close_cached_fid);
+			goto out;
 		}
-		rc = -ENOENT;
 	}
 	spin_unlock(&cfids->cfid_list_lock);
-	if (!rc && !cfid->has_lease) {
-		/*
-		 * We are guaranteed to have two references at this point.
-		 * One for the caller and one for a potential lease.
-		 * Release the Lease-ref so that the directory will be closed
-		 * when the caller closes the cached handle.
-		 */
-		kref_put(&cfid->refcount, smb2_close_cached_fid);
-	}
 	if (rc) {
 		if (cfid->is_open)
 			SMB2_close(0, cfid->tcon, cfid->fid.persistent_fid,
@@ -329,7 +340,7 @@ oshr_free:
 		free_cached_dir(cfid);
 		cfid = NULL;
 	}
-
+out:
 	if (rc == 0) {
 		*ret_cfid = cfid;
 		atomic_inc(&tcon->num_remote_opens);
@@ -451,6 +462,9 @@ void invalidate_all_cached_dirs(struct cifs_tcon *tcon)
 	struct cached_fid *cfid, *q;
 	LIST_HEAD(entry);
 
+	if (cfids == NULL)
+		return;
+
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {
 		list_move(&cfid->entry, &entry);
@@ -568,52 +582,50 @@ static void free_cached_dir(struct cached_fid *cfid)
 	kfree(cfid);
 }
 
-static int
-cifs_cfids_laundromat_thread(void *p)
+static void cfids_laundromat_worker(struct work_struct *work)
 {
-	struct cached_fids *cfids = p;
+	struct cached_fids *cfids;
 	struct cached_fid *cfid, *q;
-	struct list_head entry;
+	LIST_HEAD(entry);
 
-	while (!kthread_should_stop()) {
-		ssleep(1);
-		INIT_LIST_HEAD(&entry);
-		if (kthread_should_stop())
-			return 0;
-		spin_lock(&cfids->cfid_list_lock);
-		list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {
-			if (time_after(jiffies, cfid->time + HZ * 30)) {
-				list_del(&cfid->entry);
-				list_add(&cfid->entry, &entry);
-				cfids->num_entries--;
-			}
-		}
-		spin_unlock(&cfids->cfid_list_lock);
+	cfids = container_of(work, struct cached_fids, laundromat_work.work);
 
-		list_for_each_entry_safe(cfid, q, &entry, entry) {
+	spin_lock(&cfids->cfid_list_lock);
+	list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {
+		if (cfid->time &&
+		    time_after(jiffies, cfid->time + HZ * dir_cache_timeout)) {
 			cfid->on_list = false;
-			list_del(&cfid->entry);
-			/*
-			 * Cancel, and wait for the work to finish in
-			 * case we are racing with it.
-			 */
-			cancel_work_sync(&cfid->lease_break);
-			if (cfid->has_lease) {
-				/*
-				 * We lease has not yet been cancelled from
-				 * the server so we need to drop the reference.
-				 */
-				spin_lock(&cfids->cfid_list_lock);
-				cfid->has_lease = false;
-				spin_unlock(&cfids->cfid_list_lock);
-				kref_put(&cfid->refcount, smb2_close_cached_fid);
-			}
+			list_move(&cfid->entry, &entry);
+			cfids->num_entries--;
+			/* To prevent race with smb2_cached_lease_break() */
+			kref_get(&cfid->refcount);
 		}
 	}
+	spin_unlock(&cfids->cfid_list_lock);
 
-	return 0;
+	list_for_each_entry_safe(cfid, q, &entry, entry) {
+		list_del(&cfid->entry);
+		/*
+		 * Cancel and wait for the work to finish in case we are racing
+		 * with it.
+		 */
+		cancel_work_sync(&cfid->lease_break);
+		if (cfid->has_lease) {
+			/*
+			 * Our lease has not yet been cancelled from the server
+			 * so we need to drop the reference.
+			 */
+			spin_lock(&cfids->cfid_list_lock);
+			cfid->has_lease = false;
+			spin_unlock(&cfids->cfid_list_lock);
+			kref_put(&cfid->refcount, smb2_close_cached_fid);
+		}
+		/* Drop the extra reference opened above */
+		kref_put(&cfid->refcount, smb2_close_cached_fid);
+	}
+	queue_delayed_work(cifsiod_wq, &cfids->laundromat_work,
+			   dir_cache_timeout * HZ);
 }
-
 
 struct cached_fids *init_cached_dirs(void)
 {
@@ -625,19 +637,10 @@ struct cached_fids *init_cached_dirs(void)
 	spin_lock_init(&cfids->cfid_list_lock);
 	INIT_LIST_HEAD(&cfids->entries);
 
-	/*
-	 * since we're in a cifs function already, we know that
-	 * this will succeed. No need for try_module_get().
-	 */
-	__module_get(THIS_MODULE);
-	cfids->laundromat = kthread_run(cifs_cfids_laundromat_thread,
-				  cfids, "cifsd-cfid-laundromat");
-	if (IS_ERR(cfids->laundromat)) {
-		cifs_dbg(VFS, "Failed to start cfids laundromat thread.\n");
-		kfree(cfids);
-		module_put(THIS_MODULE);
-		return NULL;
-	}
+	INIT_DELAYED_WORK(&cfids->laundromat_work, cfids_laundromat_worker);
+	queue_delayed_work(cifsiod_wq, &cfids->laundromat_work,
+			   dir_cache_timeout * HZ);
+
 	return cfids;
 }
 
@@ -650,11 +653,10 @@ void free_cached_dirs(struct cached_fids *cfids)
 	struct cached_fid *cfid, *q;
 	LIST_HEAD(entry);
 
-	if (cfids->laundromat) {
-		kthread_stop(cfids->laundromat);
-		cfids->laundromat = NULL;
-		module_put(THIS_MODULE);
-	}
+	if (cfids == NULL)
+		return;
+
+	cancel_delayed_work_sync(&cfids->laundromat_work);
 
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {

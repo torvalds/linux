@@ -4,6 +4,7 @@
 obj-$(CONFIG_PINCTRL_BAYTRAIL)		+= pinctrl-baytrail.o
 obj-$(CONFIG_PINCTRL_CHERRYVIEW)	+= pinctrl-cherryview.o
 obj-$(CONFIG_PINCTRL_LYNXPOINT)		+= pinctrl-lynxpoint.o
+obj-$(CONFIG_PINCTRL_TANGIER)		+= pinctrl-tangier.o
 obj-$(CONFIG_PINCTRL_MERRIFIELD)	+= pinctrl-merrifield.o
 obj-$(CONFIG_PINCTRL_MOOREFIELD)	+= pinctrl-moorefield.o
 obj-$(CONFIG_PINCTRL_INTEL)		+= pinctrl-intel.o

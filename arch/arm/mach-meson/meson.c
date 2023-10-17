@@ -3,7 +3,6 @@
  * Copyright (C) 2014 Carlo Caione <carlo@caione.org>
  */
 
-#include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 
 static const char * const meson_common_board_compat[] = {

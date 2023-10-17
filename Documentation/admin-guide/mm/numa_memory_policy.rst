@@ -109,7 +109,7 @@ VMA Policy
 	* A task may install a new VMA policy on a sub-range of a
 	  previously mmap()ed region.  When this happens, Linux splits
 	  the existing virtual memory area into 2 or 3 VMAs, each with
-	  it's own policy.
+	  its own policy.
 
 	* By default, VMA policy applies only to pages allocated after
 	  the policy is installed.  Any pages already faulted into the

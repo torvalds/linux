@@ -796,6 +796,28 @@ static int avs_component_probe(struct snd_soc_component *component)
 
 	ret = avs_load_topology(component, filename);
 	kfree(filename);
+	if (ret == -ENOENT && !strncmp(mach->tplg_filename, "hda-", 4)) {
+		unsigned int vendor_id;
+
+		if (sscanf(mach->tplg_filename, "hda-%08x-tplg.bin", &vendor_id) != 1)
+			return ret;
+
+		if (((vendor_id >> 16) & 0xFFFF) == 0x8086)
+			mach->tplg_filename = devm_kasprintf(adev->dev, GFP_KERNEL,
+							     "hda-8086-generic-tplg.bin");
+		else
+			mach->tplg_filename = devm_kasprintf(adev->dev, GFP_KERNEL,
+							     "hda-generic-tplg.bin");
+
+		filename = kasprintf(GFP_KERNEL, "%s/%s", component->driver->topology_name_prefix,
+				     mach->tplg_filename);
+		if (!filename)
+			return -ENOMEM;
+
+		dev_info(card->dev, "trying to load fallback topology %s\n", mach->tplg_filename);
+		ret = avs_load_topology(component, filename);
+		kfree(filename);
+	}
 	if (ret < 0)
 		return ret;
 

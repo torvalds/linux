@@ -59,10 +59,6 @@ static void _rtl92e_update_msr(struct net_device *dev)
 		if (priv->rtllib->link_state == MAC80211_LINKED)
 			msr |= MSR_LINK_ADHOC;
 		break;
-	case IW_MODE_MASTER:
-		if (priv->rtllib->link_state == MAC80211_LINKED)
-			msr |= MSR_LINK_MASTER;
-		break;
 	default:
 		break;
 	}
@@ -419,10 +415,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 
 	rtl92e_init_adaptive_rate(dev);
 
-	if (priv->reg_chnl_plan == 0xf)
-		priv->chnl_plan = priv->eeprom_chnl_plan;
-	else
-		priv->chnl_plan = priv->reg_chnl_plan;
+	priv->chnl_plan = priv->eeprom_chnl_plan;
 
 	switch (priv->eeprom_customer_id) {
 	case EEPROM_CID_NetCore:
@@ -1915,7 +1908,7 @@ void rtl92e_enable_tx(struct net_device *dev)
 		rtl92e_writel(dev, TX_DESC_BASE[i], priv->tx_ring[i].dma);
 }
 
-void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta, u32 *p_intb)
+void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta)
 {
 	*p_inta = rtl92e_readl(dev, ISR);
 	rtl92e_writel(dev, ISR, *p_inta);

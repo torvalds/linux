@@ -353,8 +353,8 @@
 			compatible = "arm,gic-v3";
 			#interrupt-cells = <3>;
 			interrupt-controller;
-			reg =	<0x0 0x10400000 0x0 0x10000>, /* GICD */
-				<0x0 0x10600000 0x0 0x200000>; /* GICR_RD+GICR_SGI */
+			reg = <0x0 0x10400000 0x0 0x10000>, /* GICD */
+			      <0x0 0x10600000 0x0 0x200000>; /* GICR_RD+GICR_SGI */
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		};
 

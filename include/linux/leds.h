@@ -100,6 +100,7 @@ struct led_classdev {
 	const char		*name;
 	unsigned int brightness;
 	unsigned int max_brightness;
+	unsigned int color;
 	int			 flags;
 
 	/* Lower 16 bits reflect status */
@@ -312,6 +313,8 @@ struct led_classdev *__must_check devm_led_get(struct device *dev, char *con_id)
 extern struct led_classdev *of_led_get(struct device_node *np, int index);
 extern void led_put(struct led_classdev *led_cdev);
 struct led_classdev *__must_check devm_of_led_get(struct device *dev,
+						  int index);
+struct led_classdev *__must_check devm_of_led_get_optional(struct device *dev,
 						  int index);
 
 /**

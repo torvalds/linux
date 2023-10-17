@@ -1,0 +1,15 @@
+kms_3d,Fail
+kms_addfb_basic@addfb25-bad-modifier,Fail
+kms_cursor_legacy@all-pipes-forked-bo,Fail
+kms_cursor_legacy@all-pipes-forked-move,Fail
+kms_cursor_legacy@all-pipes-single-bo,Fail
+kms_cursor_legacy@all-pipes-single-move,Fail
+kms_cursor_legacy@all-pipes-torture-bo,Fail
+kms_cursor_legacy@all-pipes-torture-move,Fail
+kms_cursor_legacy@pipe-A-forked-bo,Fail
+kms_cursor_legacy@pipe-A-forked-move,Fail
+kms_cursor_legacy@pipe-A-single-bo,Fail
+kms_cursor_legacy@pipe-A-single-move,Fail
+kms_cursor_legacy@pipe-A-torture-bo,Fail
+kms_cursor_legacy@pipe-A-torture-move,Fail
+kms_hdmi_inject@inject-4k,Fail

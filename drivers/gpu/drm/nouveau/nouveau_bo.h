@@ -26,6 +26,7 @@ struct nouveau_bo {
 	struct list_head entry;
 	int pbbo_index;
 	bool validate_mapped;
+	bool no_share;
 
 	/* GPU address space is independent of CPU word size */
 	uint64_t offset;
@@ -73,7 +74,7 @@ extern struct ttm_device_funcs nouveau_bo_driver;
 
 void nouveau_bo_move_init(struct nouveau_drm *);
 struct nouveau_bo *nouveau_bo_alloc(struct nouveau_cli *, u64 *size, int *align,
-				    u32 domain, u32 tile_mode, u32 tile_flags);
+				    u32 domain, u32 tile_mode, u32 tile_flags, bool internal);
 int  nouveau_bo_init(struct nouveau_bo *, u64 size, int align, u32 domain,
 		     struct sg_table *sg, struct dma_resv *robj);
 int  nouveau_bo_new(struct nouveau_cli *, u64 size, int align, u32 domain,

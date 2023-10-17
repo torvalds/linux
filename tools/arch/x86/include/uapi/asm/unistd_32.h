@@ -26,3 +26,6 @@
 #ifndef __NR_setns
 #define __NR_setns 346
 #endif
+#ifdef __NR_seccomp
+#define __NR_seccomp 354
+#endif

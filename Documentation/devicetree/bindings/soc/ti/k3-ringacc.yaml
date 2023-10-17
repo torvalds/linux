@@ -2,8 +2,8 @@
 # Copyright (C) 2020 Texas Instruments Incorporated - http://www.ti.com/
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/soc/ti/k3-ringacc.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/soc/ti/k3-ringacc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Texas Instruments K3 NavigatorSS Ring Accelerator
 
@@ -34,18 +34,22 @@ properties:
       - const: ti,am654-navss-ringacc
 
   reg:
+    minItems: 4
     items:
       - description: real time registers regions
       - description: fifos registers regions
       - description: proxy gcfg registers regions
       - description: proxy target registers regions
+      - description: configuration registers region
 
   reg-names:
+    minItems: 4
     items:
       - const: rt
       - const: fifos
       - const: proxy_gcfg
       - const: proxy_target
+      - const: cfg
 
   msi-parent: true
 
@@ -80,8 +84,9 @@ examples:
             reg = <0x0 0x3c000000 0x0 0x400000>,
                   <0x0 0x38000000 0x0 0x400000>,
                   <0x0 0x31120000 0x0 0x100>,
-                  <0x0 0x33000000 0x0 0x40000>;
-            reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target";
+                  <0x0 0x33000000 0x0 0x40000>,
+                  <0x0 0x31080000 0x0 0x40000>;
+                  reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target", "cfg";
             ti,num-rings = <818>;
             ti,sci-rm-range-gp-rings = <0x2>; /* GP ring range */
             ti,sci = <&dmsc>;

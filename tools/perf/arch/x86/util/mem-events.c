@@ -52,7 +52,7 @@ bool is_mem_loads_aux_event(struct evsel *leader)
 	return leader->core.attr.config == MEM_LOADS_AUX;
 }
 
-char *perf_mem_events__name(int i, char *pmu_name)
+const char *perf_mem_events__name(int i, const char *pmu_name)
 {
 	struct perf_mem_event *e = perf_mem_events__ptr(i);
 
@@ -65,7 +65,7 @@ char *perf_mem_events__name(int i, char *pmu_name)
 
 		if (!pmu_name) {
 			mem_loads_name__init = true;
-			pmu_name = (char *)"cpu";
+			pmu_name = "cpu";
 		}
 
 		if (perf_pmus__have_event(pmu_name, "mem-loads-aux")) {
@@ -82,12 +82,12 @@ char *perf_mem_events__name(int i, char *pmu_name)
 
 	if (i == PERF_MEM_EVENTS__STORE) {
 		if (!pmu_name)
-			pmu_name = (char *)"cpu";
+			pmu_name = "cpu";
 
 		scnprintf(mem_stores_name, sizeof(mem_stores_name),
 			  e->name, pmu_name);
 		return mem_stores_name;
 	}
 
-	return (char *)e->name;
+	return e->name;
 }

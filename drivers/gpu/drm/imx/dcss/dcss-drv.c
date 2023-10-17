@@ -66,6 +66,7 @@ static int dcss_drv_platform_probe(struct platform_device *pdev)
 	mdrv->kms = dcss_kms_attach(mdrv->dcss);
 	if (IS_ERR(mdrv->kms)) {
 		err = PTR_ERR(mdrv->kms);
+		dev_err_probe(dev, err, "Failed to initialize KMS\n");
 		goto dcss_shutoff;
 	}
 

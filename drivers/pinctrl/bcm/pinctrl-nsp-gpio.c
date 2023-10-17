@@ -15,12 +15,11 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #include "../pinctrl-utils.h"
@@ -686,10 +685,8 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_gpiochip_add_data(dev, gc, chip);
-	if (ret < 0) {
-		dev_err(dev, "unable to add GPIO chip\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "unable to add GPIO chip\n");
 
 	ret = nsp_gpio_register_pinconf(chip);
 	if (ret) {

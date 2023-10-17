@@ -20,6 +20,7 @@
 #include <linux/suspend.h>
 #include <linux/time.h>
 #include <linux/greybus.h>
+#include <linux/of.h>
 #include "arche_platform.h"
 
 #if IS_ENABLED(CONFIG_USB_HSIC_USB3613)

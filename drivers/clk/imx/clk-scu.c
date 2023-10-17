@@ -9,7 +9,7 @@
 #include <linux/bsearch.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>

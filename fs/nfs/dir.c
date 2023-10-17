@@ -1089,6 +1089,17 @@ static void nfs_do_filldir(struct nfs_readdir_descriptor *desc,
 	for (i = desc->cache_entry_index; i < array->size; i++) {
 		struct nfs_cache_array_entry *ent;
 
+		/*
+		 * nfs_readdir_handle_cache_misses return force clear at
+		 * (cache_misses > NFS_READDIR_CACHE_MISS_THRESHOLD) for
+		 * readdir heuristic, NFS_READDIR_CACHE_MISS_THRESHOLD + 1
+		 * entries need be emitted here.
+		 */
+		if (first_emit && i > NFS_READDIR_CACHE_MISS_THRESHOLD + 2) {
+			desc->eob = true;
+			break;
+		}
+
 		ent = &array->array[i];
 		if (!dir_emit(desc->ctx, ent->name, ent->name_len,
 		    nfs_compat_user_ino64(ent->ino), ent->d_type)) {
@@ -1107,10 +1118,6 @@ static void nfs_do_filldir(struct nfs_readdir_descriptor *desc,
 			desc->ctx->pos = desc->dir_cookie;
 		else
 			desc->ctx->pos++;
-		if (first_emit && i > NFS_READDIR_CACHE_MISS_THRESHOLD + 1) {
-			desc->eob = true;
-			break;
-		}
 	}
 	if (array->folio_is_eof)
 		desc->eof = !desc->eob;

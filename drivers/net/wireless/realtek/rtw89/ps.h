@@ -16,6 +16,10 @@ void rtw89_leave_ips(struct rtw89_dev *rtwdev);
 void rtw89_set_coex_ctrl_lps(struct rtw89_dev *rtwdev, bool btc_ctrl);
 void rtw89_process_p2p_ps(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
 void rtw89_recalc_lps(struct rtw89_dev *rtwdev);
+void rtw89_p2p_noa_renew(struct rtw89_vif *rtwvif);
+void rtw89_p2p_noa_append(struct rtw89_vif *rtwvif,
+			  const struct ieee80211_p2p_noa_desc *desc);
+u8 rtw89_p2p_noa_fetch(struct rtw89_vif *rtwvif, void **data);
 
 static inline void rtw89_leave_ips_by_hwflags(struct rtw89_dev *rtwdev)
 {

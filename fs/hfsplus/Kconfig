@@ -2,6 +2,7 @@
 config HFSPLUS_FS
 	tristate "Apple Extended HFS file system support"
 	depends on BLOCK
+	select BUFFER_HEAD
 	select NLS
 	select NLS_UTF8
 	select LEGACY_DIRECT_IO

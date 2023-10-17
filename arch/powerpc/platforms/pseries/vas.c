@@ -17,6 +17,7 @@
 #include <asm/hvcall.h>
 #include <asm/plpar_wrappers.h>
 #include <asm/firmware.h>
+#include <asm/vphn.h>
 #include <asm/vas.h>
 #include "vas.h"
 

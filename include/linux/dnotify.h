@@ -30,7 +30,7 @@ struct dnotify_struct {
 			    FS_MOVED_FROM | FS_MOVED_TO)
 
 extern void dnotify_flush(struct file *, fl_owner_t);
-extern int fcntl_dirnotify(int, struct file *, unsigned long);
+extern int fcntl_dirnotify(int, struct file *, unsigned int);
 
 #else
 
@@ -38,7 +38,7 @@ static inline void dnotify_flush(struct file *filp, fl_owner_t id)
 {
 }
 
-static inline int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
+static inline int fcntl_dirnotify(int fd, struct file *filp, unsigned int arg)
 {
 	return -EINVAL;
 }

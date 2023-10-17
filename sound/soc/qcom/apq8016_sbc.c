@@ -44,6 +44,17 @@ struct apq8016_sbc_data {
 #define DEFAULT_MCLK_RATE		9600000
 #define MI2S_BCLK_RATE			1536000
 
+static struct snd_soc_jack_pin apq8016_sbc_jack_pins[] = {
+	{
+		.pin = "Mic Jack",
+		.mask = SND_JACK_MICROPHONE,
+	},
+	{
+		.pin = "Headphone Jack",
+		.mask = SND_JACK_HEADPHONE,
+	},
+};
+
 static int apq8016_dai_init(struct snd_soc_pcm_runtime *rtd, int mi2s)
 {
 	struct snd_soc_dai *codec_dai;
@@ -90,13 +101,15 @@ static int apq8016_dai_init(struct snd_soc_pcm_runtime *rtd, int mi2s)
 	if (!pdata->jack_setup) {
 		struct snd_jack *jack;
 
-		rval = snd_soc_card_jack_new(card, "Headset Jack",
-					     SND_JACK_HEADSET |
-					     SND_JACK_HEADPHONE |
-					     SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-					     SND_JACK_BTN_2 | SND_JACK_BTN_3 |
-					     SND_JACK_BTN_4,
-					     &pdata->jack);
+		rval = snd_soc_card_jack_new_pins(card, "Headset Jack",
+						  SND_JACK_HEADSET |
+						  SND_JACK_HEADPHONE |
+						  SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+						  SND_JACK_BTN_2 | SND_JACK_BTN_3 |
+						  SND_JACK_BTN_4,
+						  &pdata->jack,
+						  apq8016_sbc_jack_pins,
+						  ARRAY_SIZE(apq8016_sbc_jack_pins));
 
 		if (rval < 0) {
 			dev_err(card->dev, "Unable to add Headphone Jack\n");
@@ -255,8 +268,14 @@ static void msm8916_qdsp6_add_ops(struct snd_soc_card *card)
 	}
 }
 
-static const struct snd_soc_dapm_widget apq8016_sbc_dapm_widgets[] = {
+static const struct snd_kcontrol_new apq8016_sbc_snd_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
+	SOC_DAPM_PIN_SWITCH("Mic Jack"),
+};
 
+static const struct snd_soc_dapm_widget apq8016_sbc_dapm_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("Handset Mic", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Secondary Mic", NULL),
@@ -285,6 +304,8 @@ static int apq8016_sbc_platform_probe(struct platform_device *pdev)
 	card->owner = THIS_MODULE;
 	card->dapm_widgets = apq8016_sbc_dapm_widgets;
 	card->num_dapm_widgets = ARRAY_SIZE(apq8016_sbc_dapm_widgets);
+	card->controls = apq8016_sbc_snd_controls;
+	card->num_controls = ARRAY_SIZE(apq8016_sbc_snd_controls);
 
 	ret = qcom_snd_parse_of(card);
 	if (ret)

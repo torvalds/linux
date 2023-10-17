@@ -82,7 +82,7 @@ int __init efi_memmap_alloc(unsigned int num_entries,
 
 /**
  * efi_memmap_install - Install a new EFI memory map in efi.memmap
- * @ctx: map allocation parameters (address, size, flags)
+ * @data: efi memmap installation parameters
  *
  * Unlike efi_memmap_init_*(), this function does not allow the caller
  * to switch from early to late mappings. It simply uses the existing

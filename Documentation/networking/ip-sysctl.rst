@@ -321,6 +321,7 @@ tcp_abort_on_overflow - BOOLEAN
 	option can harm clients of your server.
 
 tcp_adv_win_scale - INTEGER
+	Obsolete since linux-6.6
 	Count buffering overhead as bytes/2^tcp_adv_win_scale
 	(if tcp_adv_win_scale > 0) or bytes-bytes/2^(-tcp_adv_win_scale),
 	if it is <= 0.
@@ -2286,6 +2287,14 @@ accept_ra_min_hop_limit - INTEGER
 	variable shall be ignored.
 
 	Default: 1
+
+accept_ra_min_lft - INTEGER
+	Minimum acceptable lifetime value in Router Advertisement.
+
+	RA sections with a lifetime less than this value shall be
+	ignored. Zero lifetimes stay unaffected.
+
+	Default: 0
 
 accept_ra_pinfo - BOOLEAN
 	Learn Prefix Information in Router Advertisement.

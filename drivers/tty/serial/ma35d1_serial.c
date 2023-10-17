@@ -8,7 +8,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/iopoll.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
@@ -788,7 +788,6 @@ static struct platform_driver ma35d1serial_driver = {
 	.resume     = ma35d1serial_resume,
 	.driver     = {
 		.name   = "ma35d1-uart",
-		.owner  = THIS_MODULE,
 		.of_match_table = of_match_ptr(ma35d1_serial_of_match),
 	},
 };

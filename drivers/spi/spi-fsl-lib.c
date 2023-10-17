@@ -18,7 +18,8 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #ifdef CONFIG_FSL_SOC
 #include <sysdev/fsl_soc.h>

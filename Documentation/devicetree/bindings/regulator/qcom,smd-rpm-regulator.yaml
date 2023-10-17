@@ -110,6 +110,7 @@ patternProperties:
   "^((s|l|lvs|5vs)[0-9]*)|(boost-bypass)|(bob)$":
     description: List of regulators and its properties
     $ref: regulator.yaml#
+    unevaluatedProperties: false
 
 additionalProperties: false
 

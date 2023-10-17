@@ -8,7 +8,6 @@
 #include <linux/randomize_kstack.h>
 #include <linux/syscalls.h>
 
-#include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/exception.h>
 #include <asm/fpsimd.h>
@@ -101,8 +100,6 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 	 * (Similarly for HVC and SMC elsewhere.)
 	 */
 
-	local_daif_restore(DAIF_PROCCTX);
-
 	if (flags & _TIF_MTE_ASYNC_FAULT) {
 		/*
 		 * Process the asynchronous tag check fault before the actual
@@ -153,38 +150,8 @@ trace_exit:
 	syscall_trace_exit(regs);
 }
 
-/*
- * As per the ABI exit SME streaming mode and clear the SVE state not
- * shared with FPSIMD on syscall entry.
- */
-static inline void fp_user_discard(void)
-{
-	/*
-	 * If SME is active then exit streaming mode.  If ZA is active
-	 * then flush the SVE registers but leave userspace access to
-	 * both SVE and SME enabled, otherwise disable SME for the
-	 * task and fall through to disabling SVE too.  This means
-	 * that after a syscall we never have any streaming mode
-	 * register state to track, if this changes the KVM code will
-	 * need updating.
-	 */
-	if (system_supports_sme())
-		sme_smstop_sm();
-
-	if (!system_supports_sve())
-		return;
-
-	if (test_thread_flag(TIF_SVE)) {
-		unsigned int sve_vq_minus_one;
-
-		sve_vq_minus_one = sve_vq_from_vl(task_get_sve_vl(current)) - 1;
-		sve_flush_live(true, sve_vq_minus_one);
-	}
-}
-
 void do_el0_svc(struct pt_regs *regs)
 {
-	fp_user_discard();
 	el0_svc_common(regs, regs->regs[8], __NR_syscalls, sys_call_table);
 }
 

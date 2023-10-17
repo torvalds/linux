@@ -938,7 +938,7 @@ static bool wsa883x_volatile_register(struct device *dev, unsigned int reg)
 static struct regmap_config wsa883x_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wsa883x_defaults,
 	.max_register = WSA883X_MAX_REGISTER,
 	.num_reg_defaults = ARRAY_SIZE(wsa883x_defaults),

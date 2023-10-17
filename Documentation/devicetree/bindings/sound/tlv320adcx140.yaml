@@ -32,7 +32,7 @@ properties:
   reg:
     maxItems: 1
     description: |
-      I2C addresss of the device can be one of these 0x4c, 0x4d, 0x4e or 0x4f
+      I2C address of the device can be one of these 0x4c, 0x4d, 0x4e or 0x4f
 
   reset-gpios:
     maxItems: 1

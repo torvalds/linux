@@ -44,6 +44,27 @@ static int __pkvm_create_mappings(unsigned long start, unsigned long size,
 	return err;
 }
 
+static int __pkvm_alloc_private_va_range(unsigned long start, size_t size)
+{
+	unsigned long cur;
+
+	hyp_assert_lock_held(&pkvm_pgd_lock);
+
+	if (!start || start < __io_map_base)
+		return -EINVAL;
+
+	/* The allocated size is always a multiple of PAGE_SIZE */
+	cur = start + PAGE_ALIGN(size);
+
+	/* Are we overflowing on the vmemmap ? */
+	if (cur > __hyp_vmemmap)
+		return -ENOMEM;
+
+	__io_map_base = cur;
+
+	return 0;
+}
+
 /**
  * pkvm_alloc_private_va_range - Allocates a private VA range.
  * @size:	The size of the VA range to reserve.
@@ -56,26 +77,15 @@ static int __pkvm_create_mappings(unsigned long start, unsigned long size,
  */
 int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 {
-	unsigned long base, addr;
-	int ret = 0;
+	unsigned long addr;
+	int ret;
 
 	hyp_spin_lock(&pkvm_pgd_lock);
-
-	/* Align the allocation based on the order of its size */
-	addr = ALIGN(__io_map_base, PAGE_SIZE << get_order(size));
-
-	/* The allocated size is always a multiple of PAGE_SIZE */
-	base = addr + PAGE_ALIGN(size);
-
-	/* Are we overflowing on the vmemmap ? */
-	if (!addr || base > __hyp_vmemmap)
-		ret = -ENOMEM;
-	else {
-		__io_map_base = base;
-		*haddr = addr;
-	}
-
+	addr = __io_map_base;
+	ret = __pkvm_alloc_private_va_range(addr, size);
 	hyp_spin_unlock(&pkvm_pgd_lock);
+
+	*haddr = addr;
 
 	return ret;
 }
@@ -338,6 +348,45 @@ int hyp_create_idmap(u32 hyp_va_bits)
 	__hyp_vmemmap = __io_map_base | BIT(hyp_va_bits - 3);
 
 	return __pkvm_create_mappings(start, end - start, start, PAGE_HYP_EXEC);
+}
+
+int pkvm_create_stack(phys_addr_t phys, unsigned long *haddr)
+{
+	unsigned long addr, prev_base;
+	size_t size;
+	int ret;
+
+	hyp_spin_lock(&pkvm_pgd_lock);
+
+	prev_base = __io_map_base;
+	/*
+	 * Efficient stack verification using the PAGE_SHIFT bit implies
+	 * an alignment of our allocation on the order of the size.
+	 */
+	size = PAGE_SIZE * 2;
+	addr = ALIGN(__io_map_base, size);
+
+	ret = __pkvm_alloc_private_va_range(addr, size);
+	if (!ret) {
+		/*
+		 * Since the stack grows downwards, map the stack to the page
+		 * at the higher address and leave the lower guard page
+		 * unbacked.
+		 *
+		 * Any valid stack address now has the PAGE_SHIFT bit as 1
+		 * and addresses corresponding to the guard page have the
+		 * PAGE_SHIFT bit as 0 - this is used for overflow detection.
+		 */
+		ret = kvm_pgtable_hyp_map(&pkvm_pgtable, addr + PAGE_SIZE,
+					  PAGE_SIZE, phys, PAGE_HYP);
+		if (ret)
+			__io_map_base = prev_base;
+	}
+	hyp_spin_unlock(&pkvm_pgd_lock);
+
+	*haddr = addr + size;
+
+	return ret;
 }
 
 static void *admit_host_page(void *arg)

@@ -147,6 +147,7 @@ struct gf100_gr_func_zbc {
 };
 
 struct gf100_gr_func {
+	int (*nonstall)(struct gf100_gr *);
 	struct nvkm_intr *(*oneinit_intr)(struct gf100_gr *, enum nvkm_intr_type *);
 	void (*oneinit_tiles)(struct gf100_gr *);
 	int (*oneinit_sm_id)(struct gf100_gr *);

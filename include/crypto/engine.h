@@ -7,91 +7,47 @@
 #ifndef _CRYPTO_ENGINE_H
 #define _CRYPTO_ENGINE_H
 
-#include <linux/crypto.h>
-#include <linux/list.h>
-#include <linux/kthread.h>
-#include <linux/spinlock.h>
-#include <linux/types.h>
-
-#include <crypto/algapi.h>
 #include <crypto/aead.h>
 #include <crypto/akcipher.h>
 #include <crypto/hash.h>
-#include <crypto/skcipher.h>
 #include <crypto/kpp.h>
+#include <crypto/skcipher.h>
+#include <linux/types.h>
 
+struct crypto_engine;
 struct device;
-
-#define ENGINE_NAME_LEN	30
-/*
- * struct crypto_engine - crypto hardware engine
- * @name: the engine name
- * @idling: the engine is entering idle state
- * @busy: request pump is busy
- * @running: the engine is on working
- * @retry_support: indication that the hardware allows re-execution
- * of a failed backlog request
- * crypto-engine, in head position to keep order
- * @list: link with the global crypto engine list
- * @queue_lock: spinlock to synchronise access to request queue
- * @queue: the crypto queue of the engine
- * @rt: whether this queue is set to run as a realtime task
- * @prepare_crypt_hardware: a request will soon arrive from the queue
- * so the subsystem requests the driver to prepare the hardware
- * by issuing this call
- * @unprepare_crypt_hardware: there are currently no more requests on the
- * queue so the subsystem notifies the driver that it may relax the
- * hardware by issuing this call
- * @do_batch_requests: execute a batch of requests. Depends on multiple
- * requests support.
- * @kworker: kthread worker struct for request pump
- * @pump_requests: work struct for scheduling work to the request pump
- * @priv_data: the engine private data
- * @cur_req: the current request which is on processing
- */
-struct crypto_engine {
-	char			name[ENGINE_NAME_LEN];
-	bool			idling;
-	bool			busy;
-	bool			running;
-
-	bool			retry_support;
-
-	struct list_head	list;
-	spinlock_t		queue_lock;
-	struct crypto_queue	queue;
-	struct device		*dev;
-
-	bool			rt;
-
-	int (*prepare_crypt_hardware)(struct crypto_engine *engine);
-	int (*unprepare_crypt_hardware)(struct crypto_engine *engine);
-	int (*do_batch_requests)(struct crypto_engine *engine);
-
-
-	struct kthread_worker           *kworker;
-	struct kthread_work             pump_requests;
-
-	void				*priv_data;
-	struct crypto_async_request	*cur_req;
-};
 
 /*
  * struct crypto_engine_op - crypto hardware engine operations
- * @prepare_request: do some preparation if needed before handling the current request
- * @unprepare_request: undo any work done by prepare_request()
  * @do_one_request: do encryption for current request
  */
 struct crypto_engine_op {
-	int (*prepare_request)(struct crypto_engine *engine,
-			       void *areq);
-	int (*unprepare_request)(struct crypto_engine *engine,
-				 void *areq);
 	int (*do_one_request)(struct crypto_engine *engine,
 			      void *areq);
 };
 
-struct crypto_engine_ctx {
+struct aead_engine_alg {
+	struct aead_alg base;
+	struct crypto_engine_op op;
+};
+
+struct ahash_engine_alg {
+	struct ahash_alg base;
+	struct crypto_engine_op op;
+};
+
+struct akcipher_engine_alg {
+	struct akcipher_alg base;
+	struct crypto_engine_op op;
+};
+
+struct kpp_engine_alg {
+	struct kpp_alg base;
+	struct crypto_engine_op op;
+};
+
+struct skcipher_engine_alg {
+	struct skcipher_alg base;
 	struct crypto_engine_op op;
 };
 
@@ -123,5 +79,29 @@ struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
 						       int (*cbk_do_batch)(struct crypto_engine *engine),
 						       bool rt, int qlen);
 int crypto_engine_exit(struct crypto_engine *engine);
+
+int crypto_engine_register_aead(struct aead_engine_alg *alg);
+void crypto_engine_unregister_aead(struct aead_engine_alg *alg);
+int crypto_engine_register_aeads(struct aead_engine_alg *algs, int count);
+void crypto_engine_unregister_aeads(struct aead_engine_alg *algs, int count);
+
+int crypto_engine_register_ahash(struct ahash_engine_alg *alg);
+void crypto_engine_unregister_ahash(struct ahash_engine_alg *alg);
+int crypto_engine_register_ahashes(struct ahash_engine_alg *algs, int count);
+void crypto_engine_unregister_ahashes(struct ahash_engine_alg *algs,
+				      int count);
+
+int crypto_engine_register_akcipher(struct akcipher_engine_alg *alg);
+void crypto_engine_unregister_akcipher(struct akcipher_engine_alg *alg);
+
+int crypto_engine_register_kpp(struct kpp_engine_alg *alg);
+void crypto_engine_unregister_kpp(struct kpp_engine_alg *alg);
+
+int crypto_engine_register_skcipher(struct skcipher_engine_alg *alg);
+void crypto_engine_unregister_skcipher(struct skcipher_engine_alg *alg);
+int crypto_engine_register_skciphers(struct skcipher_engine_alg *algs,
+				     int count);
+void crypto_engine_unregister_skciphers(struct skcipher_engine_alg *algs,
+					int count);
 
 #endif /* _CRYPTO_ENGINE_H */

@@ -577,7 +577,7 @@
 			#size-cells = <0>;
 		};
 
-		hsspi: spi@1000{
+		hsspi: spi@1000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "brcm,bcm4908-hsspi", "brcm,bcmbca-hsspi-v1.0";

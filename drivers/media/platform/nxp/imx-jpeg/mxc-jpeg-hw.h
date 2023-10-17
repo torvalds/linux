@@ -58,7 +58,6 @@
 #define CAST_OFBSIZE_LO			CAST_STATUS18
 #define CAST_OFBSIZE_HI			CAST_STATUS19
 
-#define MXC_MAX_SLOTS	1 /* TODO use all 4 slots*/
 /* JPEG-Decoder Wrapper Slot Registers 0..3 */
 #define SLOT_BASE			0x10000
 #define SLOT_STATUS			0x0

@@ -317,6 +317,13 @@ config SENSORS_MP2975
 	  This driver can also be built as a module. If so, the module will
 	  be called mp2975.
 
+config SENSORS_MP2975_REGULATOR
+	depends on SENSORS_MP2975 && REGULATOR
+	bool "Regulator support for MPS MP2975"
+	help
+	  If you say yes here you get regulator support for MPS MP2975
+	  Dual Loop Digital Multi-Phase Controller.
+
 config SENSORS_MP5023
 	tristate "MPS MP5023"
 	help

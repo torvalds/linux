@@ -123,7 +123,7 @@ int radeon_sa_bo_new(struct radeon_sa_manager *sa_manager,
 		     unsigned int size, unsigned int align)
 {
 	struct drm_suballoc *sa = drm_suballoc_new(&sa_manager->base, size,
-						   GFP_KERNEL, true, align);
+						   GFP_KERNEL, false, align);
 
 	if (IS_ERR(sa)) {
 		*sa_bo = NULL;

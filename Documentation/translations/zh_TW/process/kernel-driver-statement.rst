@@ -6,7 +6,7 @@
 
 :Original: :ref:`Documentation/process/kernel-driver-statement.rst <process_statement_driver>`
 :Translator: Alex Shi <alex.shi@linux.alibaba.com>
-             Hu Haowen <src.res@email.cn>
+             Hu Haowen <src.res.211@gmail.com>
 
 內核驅動聲明
 ------------

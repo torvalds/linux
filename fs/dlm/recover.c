@@ -93,7 +93,7 @@ void dlm_set_recover_status(struct dlm_ls *ls, uint32_t status)
 }
 
 static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status,
-			   int save_slots)
+			   int save_slots, uint64_t seq)
 {
 	struct dlm_rcom *rc = ls->ls_recover_buf;
 	struct dlm_member *memb;
@@ -107,7 +107,7 @@ static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status,
 				goto out;
 			}
 
-			error = dlm_rcom_status(ls, memb->nodeid, 0);
+			error = dlm_rcom_status(ls, memb->nodeid, 0, seq);
 			if (error)
 				goto out;
 
@@ -126,7 +126,7 @@ static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status,
 }
 
 static int wait_status_low(struct dlm_ls *ls, uint32_t wait_status,
-			   uint32_t status_flags)
+			   uint32_t status_flags, uint64_t seq)
 {
 	struct dlm_rcom *rc = ls->ls_recover_buf;
 	int error = 0, delay = 0, nodeid = ls->ls_low_nodeid;
@@ -137,7 +137,7 @@ static int wait_status_low(struct dlm_ls *ls, uint32_t wait_status,
 			goto out;
 		}
 
-		error = dlm_rcom_status(ls, nodeid, status_flags);
+		error = dlm_rcom_status(ls, nodeid, status_flags, seq);
 		if (error)
 			break;
 
@@ -151,22 +151,22 @@ static int wait_status_low(struct dlm_ls *ls, uint32_t wait_status,
 	return error;
 }
 
-static int wait_status(struct dlm_ls *ls, uint32_t status)
+static int wait_status(struct dlm_ls *ls, uint32_t status, uint64_t seq)
 {
 	uint32_t status_all = status << 1;
 	int error;
 
 	if (ls->ls_low_nodeid == dlm_our_nodeid()) {
-		error = wait_status_all(ls, status, 0);
+		error = wait_status_all(ls, status, 0, seq);
 		if (!error)
 			dlm_set_recover_status(ls, status_all);
 	} else
-		error = wait_status_low(ls, status_all, 0);
+		error = wait_status_low(ls, status_all, 0, seq);
 
 	return error;
 }
 
-int dlm_recover_members_wait(struct dlm_ls *ls)
+int dlm_recover_members_wait(struct dlm_ls *ls, uint64_t seq)
 {
 	struct dlm_member *memb;
 	struct dlm_slot *slots;
@@ -180,7 +180,7 @@ int dlm_recover_members_wait(struct dlm_ls *ls)
 	}
 
 	if (ls->ls_low_nodeid == dlm_our_nodeid()) {
-		error = wait_status_all(ls, DLM_RS_NODES, 1);
+		error = wait_status_all(ls, DLM_RS_NODES, 1, seq);
 		if (error)
 			goto out;
 
@@ -199,7 +199,8 @@ int dlm_recover_members_wait(struct dlm_ls *ls)
 			dlm_set_recover_status(ls, DLM_RS_NODES_ALL);
 		}
 	} else {
-		error = wait_status_low(ls, DLM_RS_NODES_ALL, DLM_RSF_NEED_SLOTS);
+		error = wait_status_low(ls, DLM_RS_NODES_ALL,
+					DLM_RSF_NEED_SLOTS, seq);
 		if (error)
 			goto out;
 
@@ -209,19 +210,19 @@ int dlm_recover_members_wait(struct dlm_ls *ls)
 	return error;
 }
 
-int dlm_recover_directory_wait(struct dlm_ls *ls)
+int dlm_recover_directory_wait(struct dlm_ls *ls, uint64_t seq)
 {
-	return wait_status(ls, DLM_RS_DIR);
+	return wait_status(ls, DLM_RS_DIR, seq);
 }
 
-int dlm_recover_locks_wait(struct dlm_ls *ls)
+int dlm_recover_locks_wait(struct dlm_ls *ls, uint64_t seq)
 {
-	return wait_status(ls, DLM_RS_LOCKS);
+	return wait_status(ls, DLM_RS_LOCKS, seq);
 }
 
-int dlm_recover_done_wait(struct dlm_ls *ls)
+int dlm_recover_done_wait(struct dlm_ls *ls, uint64_t seq)
 {
-	return wait_status(ls, DLM_RS_DONE);
+	return wait_status(ls, DLM_RS_DONE, seq);
 }
 
 /*
@@ -441,7 +442,7 @@ static void set_new_master(struct dlm_rsb *r)
  * equals our_nodeid below).
  */
 
-static int recover_master(struct dlm_rsb *r, unsigned int *count)
+static int recover_master(struct dlm_rsb *r, unsigned int *count, uint64_t seq)
 {
 	struct dlm_ls *ls = r->res_ls;
 	int our_nodeid, dir_nodeid;
@@ -472,7 +473,7 @@ static int recover_master(struct dlm_rsb *r, unsigned int *count)
 		error = 0;
 	} else {
 		recover_idr_add(r);
-		error = dlm_send_rcom_lookup(r, dir_nodeid);
+		error = dlm_send_rcom_lookup(r, dir_nodeid, seq);
 	}
 
 	(*count)++;
@@ -520,7 +521,7 @@ static int recover_master_static(struct dlm_rsb *r, unsigned int *count)
  * the correct dir node.
  */
 
-int dlm_recover_masters(struct dlm_ls *ls)
+int dlm_recover_masters(struct dlm_ls *ls, uint64_t seq)
 {
 	struct dlm_rsb *r;
 	unsigned int total = 0;
@@ -542,7 +543,7 @@ int dlm_recover_masters(struct dlm_ls *ls)
 		if (nodir)
 			error = recover_master_static(r, &count);
 		else
-			error = recover_master(r, &count);
+			error = recover_master(r, &count, seq);
 		unlock_rsb(r);
 		cond_resched();
 		total++;
@@ -563,7 +564,7 @@ int dlm_recover_masters(struct dlm_ls *ls)
 	return error;
 }
 
-int dlm_recover_master_reply(struct dlm_ls *ls, struct dlm_rcom *rc)
+int dlm_recover_master_reply(struct dlm_ls *ls, const struct dlm_rcom *rc)
 {
 	struct dlm_rsb *r;
 	int ret_nodeid, new_master;
@@ -614,13 +615,14 @@ int dlm_recover_master_reply(struct dlm_ls *ls, struct dlm_rcom *rc)
  * an equal number of replies then recovery for the rsb is done
  */
 
-static int recover_locks_queue(struct dlm_rsb *r, struct list_head *head)
+static int recover_locks_queue(struct dlm_rsb *r, struct list_head *head,
+			       uint64_t seq)
 {
 	struct dlm_lkb *lkb;
 	int error = 0;
 
 	list_for_each_entry(lkb, head, lkb_statequeue) {
-	   	error = dlm_send_rcom_lock(r, lkb);
+		error = dlm_send_rcom_lock(r, lkb, seq);
 		if (error)
 			break;
 		r->res_recover_locks_count++;
@@ -629,7 +631,7 @@ static int recover_locks_queue(struct dlm_rsb *r, struct list_head *head)
 	return error;
 }
 
-static int recover_locks(struct dlm_rsb *r)
+static int recover_locks(struct dlm_rsb *r, uint64_t seq)
 {
 	int error = 0;
 
@@ -637,13 +639,13 @@ static int recover_locks(struct dlm_rsb *r)
 
 	DLM_ASSERT(!r->res_recover_locks_count, dlm_dump_rsb(r););
 
-	error = recover_locks_queue(r, &r->res_grantqueue);
+	error = recover_locks_queue(r, &r->res_grantqueue, seq);
 	if (error)
 		goto out;
-	error = recover_locks_queue(r, &r->res_convertqueue);
+	error = recover_locks_queue(r, &r->res_convertqueue, seq);
 	if (error)
 		goto out;
-	error = recover_locks_queue(r, &r->res_waitqueue);
+	error = recover_locks_queue(r, &r->res_waitqueue, seq);
 	if (error)
 		goto out;
 
@@ -656,7 +658,7 @@ static int recover_locks(struct dlm_rsb *r)
 	return error;
 }
 
-int dlm_recover_locks(struct dlm_ls *ls)
+int dlm_recover_locks(struct dlm_ls *ls, uint64_t seq)
 {
 	struct dlm_rsb *r;
 	int error, count = 0;
@@ -677,7 +679,7 @@ int dlm_recover_locks(struct dlm_ls *ls)
 			goto out;
 		}
 
-		error = recover_locks(r);
+		error = recover_locks(r, seq);
 		if (error) {
 			up_read(&ls->ls_root_sem);
 			goto out;

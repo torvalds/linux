@@ -18,17 +18,19 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 	struct pt_regs dummyregs;
 	struct unwind_state state;
 
-	regs = &dummyregs;
+	if (!regs) {
+		regs = &dummyregs;
 
-	if (task == current) {
-		regs->regs[3] = (unsigned long)__builtin_frame_address(0);
-		regs->csr_era = (unsigned long)__builtin_return_address(0);
-	} else {
-		regs->regs[3] = thread_saved_fp(task);
-		regs->csr_era = thread_saved_ra(task);
+		if (task == current) {
+			regs->regs[3] = (unsigned long)__builtin_frame_address(0);
+			regs->csr_era = (unsigned long)__builtin_return_address(0);
+		} else {
+			regs->regs[3] = thread_saved_fp(task);
+			regs->csr_era = thread_saved_ra(task);
+		}
+		regs->regs[1] = 0;
 	}
 
-	regs->regs[1] = 0;
 	for (unwind_start(&state, task, regs);
 	     !unwind_done(&state) && !unwind_error(&state); unwind_next_frame(&state)) {
 		addr = unwind_get_return_address(&state);

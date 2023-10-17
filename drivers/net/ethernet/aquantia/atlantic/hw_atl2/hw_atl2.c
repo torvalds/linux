@@ -93,7 +93,7 @@ static u32 hw_atl2_sem_act_rslvr_get(struct aq_hw_s *self)
 
 static int hw_atl2_hw_reset(struct aq_hw_s *self)
 {
-	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	struct hw_atl2_priv *priv = self->priv;
 	int err;
 
 	err = hw_atl2_utils_soft_reset(self);
@@ -378,8 +378,8 @@ static int hw_atl2_hw_init_tx_path(struct aq_hw_s *self)
 
 static void hw_atl2_hw_init_new_rx_filters(struct aq_hw_s *self)
 {
-	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
 	u8 *prio_tc_map = self->aq_nic_cfg->prio_tc_map;
+	struct hw_atl2_priv *priv = self->priv;
 	u16 action;
 	u8 index;
 	int i;
@@ -433,7 +433,7 @@ static void hw_atl2_hw_new_rx_filter_vlan_promisc(struct aq_hw_s *self,
 	u16 off_action = (!promisc &&
 			  !hw_atl_rpfl2promiscuous_mode_en_get(self)) ?
 				HW_ATL2_ACTION_DROP : HW_ATL2_ACTION_DISABLE;
-	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	struct hw_atl2_priv *priv = self->priv;
 	u8 index;
 
 	index = priv->art_base_index + HW_ATL2_RPF_VLAN_PROMISC_OFF_INDEX;
@@ -445,7 +445,7 @@ static void hw_atl2_hw_new_rx_filter_vlan_promisc(struct aq_hw_s *self,
 static void hw_atl2_hw_new_rx_filter_promisc(struct aq_hw_s *self, bool promisc)
 {
 	u16 off_action = promisc ? HW_ATL2_ACTION_DISABLE : HW_ATL2_ACTION_DROP;
-	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	struct hw_atl2_priv *priv = self->priv;
 	bool vlan_promisc_enable;
 	u8 index;
 
@@ -539,8 +539,8 @@ static int hw_atl2_hw_init(struct aq_hw_s *self, const u8 *mac_addr)
 		[AQ_HW_IRQ_MSIX]    = { 0x20000022U, 0x20000026U },
 	};
 
-	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
 	struct aq_nic_cfg_s *aq_nic_cfg = self->aq_nic_cfg;
+	struct hw_atl2_priv *priv = self->priv;
 	u8 base_index, count;
 	int err;
 
@@ -770,7 +770,7 @@ static struct aq_stats_s *hw_atl2_utils_get_hw_stats(struct aq_hw_s *self)
 static int hw_atl2_hw_vlan_set(struct aq_hw_s *self,
 			       struct aq_rx_filter_vlan *aq_vlans)
 {
-	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	struct hw_atl2_priv *priv = self->priv;
 	u32 queue;
 	u8 index;
 	int i;

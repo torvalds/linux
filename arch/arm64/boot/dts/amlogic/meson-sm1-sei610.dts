@@ -53,7 +53,7 @@
 			linux,code = <BTN_0>;
 			gpios = <&gpio GPIOH_6 GPIO_ACTIVE_LOW>;
 			interrupt-parent = <&gpio_intc>;
-			interrupts = <34 IRQ_TYPE_EDGE_BOTH>;
+			interrupts = <IRQID_GPIOH_6 IRQ_TYPE_EDGE_BOTH>;
 		};
 
 		key-2 {
@@ -61,7 +61,7 @@
 			linux,code = <BTN_1>;
 			gpios = <&gpio GPIOH_7 GPIO_ACTIVE_LOW>;
 			interrupt-parent = <&gpio_intc>;
-			interrupts = <35 IRQ_TYPE_EDGE_BOTH>;
+			interrupts = <IRQID_GPIOH_7 IRQ_TYPE_EDGE_BOTH>;
 		};
 
 		key-3 {
@@ -69,7 +69,7 @@
 			linux,code = <BTN_2>;
 			gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
 			interrupt-parent = <&gpio_intc>;
-			interrupts = <2 IRQ_TYPE_EDGE_BOTH>;
+			interrupts = <IRQID_GPIOAO_2 IRQ_TYPE_EDGE_BOTH>;
 		};
 
 		key-mic-mute {
@@ -78,7 +78,7 @@
 			linux,input-type = <EV_SW>;
 			gpios = <&gpio_ao GPIOE_2 GPIO_ACTIVE_LOW>;
 			interrupt-parent = <&gpio_intc>;
-			interrupts = <99 IRQ_TYPE_EDGE_BOTH>;
+			interrupts = <IRQID_GPIOE_2 IRQ_TYPE_EDGE_BOTH>;
 		};
 
 		key-power {
@@ -86,7 +86,7 @@
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_LOW>;
 			interrupt-parent = <&gpio_intc>;
-			interrupts = <3 IRQ_TYPE_EDGE_BOTH>;
+			interrupts = <IRQID_GPIOAO_3 IRQ_TYPE_EDGE_BOTH>;
 		};
 	};
 
@@ -247,7 +247,6 @@
 		assigned-clock-rates = <294912000>,
 				       <270950400>,
 				       <393216000>;
-		status = "okay";
 
 		dai-link-0 {
 			sound-dai = <&frddr_a>;
@@ -583,7 +582,7 @@
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
 		interrupt-parent = <&gpio_intc>;
-		interrupts = <95 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <IRQID_GPIOX_18 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "host-wakeup";
 		shutdown-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
 		max-speed = <2000000>;

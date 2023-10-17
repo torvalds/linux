@@ -13,7 +13,7 @@ order to support the use of the RISC-V Vector Extension.
 Two new prctl() calls are added to allow programs to manage the enablement
 status for the use of Vector in userspace. The intended usage guideline for
 these interfaces is to give init systems a way to modify the availability of V
-for processes running under its domain. Calling thess interfaces is not
+for processes running under its domain. Calling these interfaces is not
 recommended in libraries routines because libraries should not override policies
 configured from the parant process. Also, users must noted that these interfaces
 are not portable to non-Linux, nor non-RISC-V environments, so it is discourage

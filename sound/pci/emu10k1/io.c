@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
+ *                   Lee Revell <rlrevell@joe-job.com>
+ *                   James Courtier-Dutton <James@superbug.co.uk>
+ *                   Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
  *                   Creative Labs, Inc.
+ *
  *  Routines for control of EMU10K1 chips
- *
- *  BUGS:
- *    --
- *
- *  TODO:
- *    --
  */
 
 #include <linux/time.h>
@@ -302,6 +300,8 @@ static void snd_emu1010_fpga_read_locked(struct snd_emu10k1 *emu, u32 reg, u32 *
 {
 	// The higest input pin is used as the designated interrupt trigger,
 	// so it needs to be masked out.
+	// But note that any other input pin change will also cause an IRQ,
+	// so using this function often causes an IRQ as a side effect.
 	u32 mask = emu->card_capabilities->ca0108_chip ? 0x1f : 0x7f;
 	if (snd_BUG_ON(reg > 0x3f))
 		return;

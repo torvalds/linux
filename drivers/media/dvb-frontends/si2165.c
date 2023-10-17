@@ -19,7 +19,7 @@
 #include <linux/regmap.h>
 
 #include <media/dvb_frontend.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include "si2165_priv.h"
 #include "si2165.h"
 

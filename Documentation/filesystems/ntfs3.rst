@@ -112,7 +112,7 @@ this table marked with no it means default is without **no**.
 Todo list
 =========
 - Full journaling support over JBD. Currently journal replaying is supported
-  which is not necessarily as effectice as JBD would be.
+  which is not necessarily as effective as JBD would be.
 
 References
 ==========

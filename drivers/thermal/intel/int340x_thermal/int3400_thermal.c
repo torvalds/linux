@@ -15,6 +15,7 @@
 #define INT3400_THERMAL_TABLE_CHANGED 0x83
 #define INT3400_ODVP_CHANGED 0x88
 #define INT3400_KEEP_ALIVE 0xA0
+#define INT3400_FAKE_TEMP (20 * 1000) /* faked temp sensor with 20C */
 
 enum int3400_thermal_uuid {
 	INT3400_THERMAL_ACTIVE = 0,
@@ -453,6 +454,7 @@ static void int3400_notify(acpi_handle handle,
 			void *data)
 {
 	struct int3400_thermal_priv *priv = data;
+	struct device *dev;
 	char *thermal_prop[5];
 	int therm_event;
 
@@ -475,12 +477,14 @@ static void int3400_notify(acpi_handle handle,
 		return;
 	}
 
-	thermal_prop[0] = kasprintf(GFP_KERNEL, "NAME=%s", priv->thermal->type);
-	thermal_prop[1] = kasprintf(GFP_KERNEL, "TEMP=%d", priv->thermal->temperature);
+	dev = thermal_zone_device(priv->thermal);
+
+	thermal_prop[0] = kasprintf(GFP_KERNEL, "NAME=%s", thermal_zone_device_type(priv->thermal));
+	thermal_prop[1] = kasprintf(GFP_KERNEL, "TEMP=%d", INT3400_FAKE_TEMP);
 	thermal_prop[2] = kasprintf(GFP_KERNEL, "TRIP=");
 	thermal_prop[3] = kasprintf(GFP_KERNEL, "EVENT=%d", therm_event);
 	thermal_prop[4] = NULL;
-	kobject_uevent_env(&priv->thermal->device.kobj, KOBJ_CHANGE, thermal_prop);
+	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, thermal_prop);
 	kfree(thermal_prop[0]);
 	kfree(thermal_prop[1]);
 	kfree(thermal_prop[2]);
@@ -490,7 +494,7 @@ static void int3400_notify(acpi_handle handle,
 static int int3400_thermal_get_temp(struct thermal_zone_device *thermal,
 			int *temp)
 {
-	*temp = 20 * 1000; /* faked temp sensor with 20C */
+	*temp = INT3400_FAKE_TEMP;
 	return 0;
 }
 
@@ -499,32 +503,28 @@ static int int3400_thermal_change_mode(struct thermal_zone_device *thermal,
 {
 	struct int3400_thermal_priv *priv = thermal_zone_device_priv(thermal);
 	int result = 0;
+	int enabled;
 
 	if (!priv)
 		return -EINVAL;
 
-	if (mode != thermal->mode) {
-		int enabled;
+	enabled = mode == THERMAL_DEVICE_ENABLED;
 
-		enabled = mode == THERMAL_DEVICE_ENABLED;
-
-		if (priv->os_uuid_mask) {
-			if (!enabled) {
-				priv->os_uuid_mask = 0;
-				result = set_os_uuid_mask(priv, priv->os_uuid_mask);
-			}
-			goto eval_odvp;
+	if (priv->os_uuid_mask) {
+		if (!enabled) {
+			priv->os_uuid_mask = 0;
+			result = set_os_uuid_mask(priv, priv->os_uuid_mask);
 		}
-
-		if (priv->current_uuid_index < 0 ||
-		    priv->current_uuid_index >= INT3400_THERMAL_MAXIMUM_UUID)
-			return -EINVAL;
-
-		result = int3400_thermal_run_osc(priv->adev->handle,
-						 int3400_thermal_uuids[priv->current_uuid_index],
-						 &enabled);
+		goto eval_odvp;
 	}
 
+	if (priv->current_uuid_index < 0 ||
+	    priv->current_uuid_index >= INT3400_THERMAL_MAXIMUM_UUID)
+		return -EINVAL;
+
+	result = int3400_thermal_run_osc(priv->adev->handle,
+					 int3400_thermal_uuids[priv->current_uuid_index],
+					 &enabled);
 eval_odvp:
 	evaluate_odvp(priv);
 
@@ -609,9 +609,9 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 
 	evaluate_odvp(priv);
 
-	priv->thermal = thermal_zone_device_register("INT3400 Thermal", 0, 0,
-						priv, &int3400_thermal_ops,
-						&int3400_thermal_params, 0, 0);
+	priv->thermal = thermal_tripless_zone_device_register("INT3400 Thermal", priv,
+							      &int3400_thermal_ops,
+							      &int3400_thermal_params);
 	if (IS_ERR(priv->thermal)) {
 		result = PTR_ERR(priv->thermal);
 		goto free_art_trt;

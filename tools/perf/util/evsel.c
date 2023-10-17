@@ -845,6 +845,7 @@ static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *o
 {
 	bool function = evsel__is_function_event(evsel);
 	struct perf_event_attr *attr = &evsel->core.attr;
+	const char *arch = perf_env__arch(evsel__env(evsel));
 
 	evsel__set_sample_bit(evsel, CALLCHAIN);
 
@@ -877,8 +878,9 @@ static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *o
 		if (!function) {
 			evsel__set_sample_bit(evsel, REGS_USER);
 			evsel__set_sample_bit(evsel, STACK_USER);
-			if (opts->sample_user_regs && DWARF_MINIMAL_REGS != PERF_REGS_MASK) {
-				attr->sample_regs_user |= DWARF_MINIMAL_REGS;
+			if (opts->sample_user_regs &&
+			    DWARF_MINIMAL_REGS(arch) != arch__user_reg_mask()) {
+				attr->sample_regs_user |= DWARF_MINIMAL_REGS(arch);
 				pr_warning("WARNING: The use of --call-graph=dwarf may require all the user registers, "
 					   "specifying a subset with --user-regs may render DWARF unwinding unreliable, "
 					   "so the minimal registers set (IP, SP) is explicitly forced.\n");
@@ -1474,6 +1476,7 @@ void evsel__exit(struct evsel *evsel)
 	perf_thread_map__put(evsel->core.threads);
 	zfree(&evsel->group_name);
 	zfree(&evsel->name);
+	zfree(&evsel->filter);
 	zfree(&evsel->pmu_name);
 	zfree(&evsel->group_pmu_name);
 	zfree(&evsel->unit);
@@ -2825,9 +2828,6 @@ u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sam
 u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *name)
 {
 	struct tep_format_field *field = evsel__field(evsel, name);
-
-	if (!field)
-		return 0;
 
 	return field ? format_field__intval(field, sample, evsel->needs_swap) : 0;
 }
