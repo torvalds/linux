@@ -222,30 +222,17 @@ static struct platform_device_id fec_devtype[] = {
 };
 MODULE_DEVICE_TABLE(platform, fec_devtype);
 
-enum imx_fec_type {
-	IMX25_FEC = 1,	/* runs on i.mx25/50/53 */
-	IMX27_FEC,	/* runs on i.mx27/35/51 */
-	IMX28_FEC,
-	IMX6Q_FEC,
-	MVF600_FEC,
-	IMX6SX_FEC,
-	IMX6UL_FEC,
-	IMX8MQ_FEC,
-	IMX8QM_FEC,
-	S32V234_FEC,
-};
-
 static const struct of_device_id fec_dt_ids[] = {
-	{ .compatible = "fsl,imx25-fec", .data = &fec_devtype[IMX25_FEC], },
-	{ .compatible = "fsl,imx27-fec", .data = &fec_devtype[IMX27_FEC], },
-	{ .compatible = "fsl,imx28-fec", .data = &fec_devtype[IMX28_FEC], },
-	{ .compatible = "fsl,imx6q-fec", .data = &fec_devtype[IMX6Q_FEC], },
-	{ .compatible = "fsl,mvf600-fec", .data = &fec_devtype[MVF600_FEC], },
-	{ .compatible = "fsl,imx6sx-fec", .data = &fec_devtype[IMX6SX_FEC], },
-	{ .compatible = "fsl,imx6ul-fec", .data = &fec_devtype[IMX6UL_FEC], },
-	{ .compatible = "fsl,imx8mq-fec", .data = &fec_devtype[IMX8MQ_FEC], },
-	{ .compatible = "fsl,imx8qm-fec", .data = &fec_devtype[IMX8QM_FEC], },
-	{ .compatible = "fsl,s32v234-fec", .data = &fec_devtype[S32V234_FEC], },
+	{ .compatible = "fsl,imx25-fec", .data = &fec_imx25_info, },
+	{ .compatible = "fsl,imx27-fec", .data = &fec_imx27_info, },
+	{ .compatible = "fsl,imx28-fec", .data = &fec_imx28_info, },
+	{ .compatible = "fsl,imx6q-fec", .data = &fec_imx6q_info, },
+	{ .compatible = "fsl,mvf600-fec", .data = &fec_mvf600_info, },
+	{ .compatible = "fsl,imx6sx-fec", .data = &fec_imx6x_info, },
+	{ .compatible = "fsl,imx6ul-fec", .data = &fec_imx6ul_info, },
+	{ .compatible = "fsl,imx8mq-fec", .data = &fec_imx8mq_info, },
+	{ .compatible = "fsl,imx8qm-fec", .data = &fec_imx8qm_info, },
+	{ .compatible = "fsl,s32v234-fec", .data = &fec_s32v234_info, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fec_dt_ids);
