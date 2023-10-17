@@ -16,9 +16,13 @@ inline char *int2fpstr(int number, int decimal_places)
 	int count_decimal_place = 0;
 	int point_include = 0;
 
-	for (; number && buf_index; --buf_index, number /= 10) {
+	for (; number && buf_index; 
+		--buf_index, number /= 10) 
+	{
 		count_decimal_place++;
-		if (!point_include && count_decimal_place > decimal_places) {
+		if (!point_include 
+			&& count_decimal_place > decimal_places) 
+		{
 			buffer[buf_index] = '.';
 			buf_index--;
 			point_include = 1;
