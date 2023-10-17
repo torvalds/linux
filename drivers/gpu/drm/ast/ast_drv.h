@@ -267,7 +267,7 @@ static inline bool __ast_gen_is_eq(struct ast_device *ast, unsigned long gen)
 #define AST_IO_VGADWR			(0x48)
 #define AST_IO_VGAPDR		        (0x49)
 #define AST_IO_VGAGRI			(0x4E)
-#define AST_IO_CRTC_PORT		(0x54)
+#define AST_IO_VGACRI			(0x54)
 #define AST_IO_INPUT_STATUS1_READ	(0x5A)
 #define AST_IO_MISC_PORT_READ		(0x4C)
 
