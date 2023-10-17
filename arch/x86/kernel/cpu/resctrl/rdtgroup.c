@@ -59,6 +59,8 @@ static void rdtgroup_destroy_root(void);
 
 struct dentry *debugfs_resctrl;
 
+static bool resctrl_debug;
+
 void rdt_last_cmd_clear(void)
 {
 	lockdep_assert_held(&rdtgroup_mutex);
@@ -1892,6 +1894,9 @@ static int rdtgroup_add_files(struct kernfs_node *kn, unsigned long fflags)
 
 	lockdep_assert_held(&rdtgroup_mutex);
 
+	if (resctrl_debug)
+		fflags |= RFTYPE_DEBUG;
+
 	for (rft = rfts; rft < rfts + len; rft++) {
 		if (rft->fflags && ((fflags & rft->fflags) == rft->fflags)) {
 			ret = rdtgroup_add_file(kn, rft);
@@ -2395,6 +2400,8 @@ static void rdt_disable_ctx(void)
 	resctrl_arch_set_cdp_enabled(RDT_RESOURCE_L3, false);
 	resctrl_arch_set_cdp_enabled(RDT_RESOURCE_L2, false);
 	set_mba_sc(false);
+
+	resctrl_debug = false;
 }
 
 static int rdt_enable_ctx(struct rdt_fs_context *ctx)
@@ -2418,6 +2425,9 @@ static int rdt_enable_ctx(struct rdt_fs_context *ctx)
 		if (ret)
 			goto out_cdpl3;
 	}
+
+	if (ctx->enable_debug)
+		resctrl_debug = true;
 
 	return 0;
 
@@ -2623,6 +2633,7 @@ enum rdt_param {
 	Opt_cdp,
 	Opt_cdpl2,
 	Opt_mba_mbps,
+	Opt_debug,
 	nr__rdt_params
 };
 
@@ -2630,6 +2641,7 @@ static const struct fs_parameter_spec rdt_fs_parameters[] = {
 	fsparam_flag("cdp",		Opt_cdp),
 	fsparam_flag("cdpl2",		Opt_cdpl2),
 	fsparam_flag("mba_MBps",	Opt_mba_mbps),
+	fsparam_flag("debug",		Opt_debug),
 	{}
 };
 
@@ -2654,6 +2666,9 @@ static int rdt_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		if (!supports_mba_mbps())
 			return -EINVAL;
 		ctx->enable_mba_mbps = true;
+		return 0;
+	case Opt_debug:
+		ctx->enable_debug = true;
 		return 0;
 	}
 
@@ -3722,6 +3737,9 @@ static int rdtgroup_show_options(struct seq_file *seq, struct kernfs_root *kf)
 
 	if (is_mba_sc(&rdt_resources_all[RDT_RESOURCE_MBA].r_resctrl))
 		seq_puts(seq, ",mba_MBps");
+
+	if (resctrl_debug)
+		seq_puts(seq, ",debug");
 
 	return 0;
 }
