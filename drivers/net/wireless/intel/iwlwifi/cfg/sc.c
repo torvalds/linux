@@ -151,7 +151,7 @@ const struct iwl_cfg iwl_cfg_sc = {
 	.fw_name_mac = "sc",
 	.uhb_supported = true,
 	IWL_DEVICE_SC,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
+	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
 	.num_rbds = IWL_NUM_RBDS_SC_EHT,
 };
 
