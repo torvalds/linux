@@ -531,7 +531,7 @@ static void ast_set_sync_reg(struct ast_device *ast,
 {
 	u8 jreg;
 
-	jreg  = ast_io_read8(ast, AST_IO_MISC_PORT_READ);
+	jreg  = ast_io_read8(ast, AST_IO_VGAMR_R);
 	jreg &= ~0xC0;
 	if (vbios_mode->enh_table->flags & NVSync)
 		jreg |= 0x80;
