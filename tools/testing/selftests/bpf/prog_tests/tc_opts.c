@@ -2471,7 +2471,7 @@ static void test_tc_opts_query_target(int target)
 	__u32 fd1, fd2, fd3, fd4, id1, id2, id3, id4;
 	struct test_tc_link *skel;
 	union bpf_attr attr;
-	__u32 prog_ids[5];
+	__u32 prog_ids[10];
 	int err;
 
 	skel = test_tc_link__open_and_load();
@@ -2598,6 +2598,135 @@ static void test_tc_opts_query_target(int target)
 	ASSERT_EQ(attr.query.prog_attach_flags, 0, "prog_attach_flags");
 	ASSERT_EQ(attr.query.link_ids, 0, "link_ids");
 	ASSERT_EQ(attr.query.link_attach_flags, 0, "link_attach_flags");
+
+	/* Test 3: Query with smaller prog_ids array */
+	memset(&attr, 0, attr_size);
+	attr.query.target_ifindex = loopback;
+	attr.query.attach_type = target;
+
+	memset(prog_ids, 0, sizeof(prog_ids));
+	attr.query.prog_ids = ptr_to_u64(prog_ids);
+	attr.query.count = 2;
+
+	err = syscall(__NR_bpf, BPF_PROG_QUERY, &attr, attr_size);
+	ASSERT_EQ(err, -1, "prog_query_should_fail");
+	ASSERT_EQ(errno, ENOSPC, "prog_query_should_fail");
+
+	ASSERT_EQ(attr.query.count, 4, "count");
+	ASSERT_EQ(attr.query.revision, 5, "revision");
+	ASSERT_EQ(attr.query.query_flags, 0, "query_flags");
+	ASSERT_EQ(attr.query.attach_flags, 0, "attach_flags");
+	ASSERT_EQ(attr.query.target_ifindex, loopback, "target_ifindex");
+	ASSERT_EQ(attr.query.attach_type, target, "attach_type");
+	ASSERT_EQ(attr.query.prog_ids, ptr_to_u64(prog_ids), "prog_ids");
+	ASSERT_EQ(prog_ids[0], id1, "prog_ids[0]");
+	ASSERT_EQ(prog_ids[1], id2, "prog_ids[1]");
+	ASSERT_EQ(prog_ids[2], 0, "prog_ids[2]");
+	ASSERT_EQ(prog_ids[3], 0, "prog_ids[3]");
+	ASSERT_EQ(prog_ids[4], 0, "prog_ids[4]");
+	ASSERT_EQ(attr.query.prog_attach_flags, 0, "prog_attach_flags");
+	ASSERT_EQ(attr.query.link_ids, 0, "link_ids");
+	ASSERT_EQ(attr.query.link_attach_flags, 0, "link_attach_flags");
+
+	/* Test 4: Query with larger prog_ids array */
+	memset(&attr, 0, attr_size);
+	attr.query.target_ifindex = loopback;
+	attr.query.attach_type = target;
+
+	memset(prog_ids, 0, sizeof(prog_ids));
+	attr.query.prog_ids = ptr_to_u64(prog_ids);
+	attr.query.count = 10;
+
+	err = syscall(__NR_bpf, BPF_PROG_QUERY, &attr, attr_size);
+	if (!ASSERT_OK(err, "prog_query"))
+		goto cleanup4;
+
+	ASSERT_EQ(attr.query.count, 4, "count");
+	ASSERT_EQ(attr.query.revision, 5, "revision");
+	ASSERT_EQ(attr.query.query_flags, 0, "query_flags");
+	ASSERT_EQ(attr.query.attach_flags, 0, "attach_flags");
+	ASSERT_EQ(attr.query.target_ifindex, loopback, "target_ifindex");
+	ASSERT_EQ(attr.query.attach_type, target, "attach_type");
+	ASSERT_EQ(attr.query.prog_ids, ptr_to_u64(prog_ids), "prog_ids");
+	ASSERT_EQ(prog_ids[0], id1, "prog_ids[0]");
+	ASSERT_EQ(prog_ids[1], id2, "prog_ids[1]");
+	ASSERT_EQ(prog_ids[2], id3, "prog_ids[2]");
+	ASSERT_EQ(prog_ids[3], id4, "prog_ids[3]");
+	ASSERT_EQ(prog_ids[4], 0, "prog_ids[4]");
+	ASSERT_EQ(attr.query.prog_attach_flags, 0, "prog_attach_flags");
+	ASSERT_EQ(attr.query.link_ids, 0, "link_ids");
+	ASSERT_EQ(attr.query.link_attach_flags, 0, "link_attach_flags");
+
+	/* Test 5: Query with NULL prog_ids array but with count > 0 */
+	memset(&attr, 0, attr_size);
+	attr.query.target_ifindex = loopback;
+	attr.query.attach_type = target;
+
+	memset(prog_ids, 0, sizeof(prog_ids));
+	attr.query.count = sizeof(prog_ids);
+
+	err = syscall(__NR_bpf, BPF_PROG_QUERY, &attr, attr_size);
+	if (!ASSERT_OK(err, "prog_query"))
+		goto cleanup4;
+
+	ASSERT_EQ(attr.query.count, 4, "count");
+	ASSERT_EQ(attr.query.revision, 5, "revision");
+	ASSERT_EQ(attr.query.query_flags, 0, "query_flags");
+	ASSERT_EQ(attr.query.attach_flags, 0, "attach_flags");
+	ASSERT_EQ(attr.query.target_ifindex, loopback, "target_ifindex");
+	ASSERT_EQ(attr.query.attach_type, target, "attach_type");
+	ASSERT_EQ(prog_ids[0], 0, "prog_ids[0]");
+	ASSERT_EQ(prog_ids[1], 0, "prog_ids[1]");
+	ASSERT_EQ(prog_ids[2], 0, "prog_ids[2]");
+	ASSERT_EQ(prog_ids[3], 0, "prog_ids[3]");
+	ASSERT_EQ(prog_ids[4], 0, "prog_ids[4]");
+	ASSERT_EQ(attr.query.prog_ids, 0, "prog_ids");
+	ASSERT_EQ(attr.query.prog_attach_flags, 0, "prog_attach_flags");
+	ASSERT_EQ(attr.query.link_ids, 0, "link_ids");
+	ASSERT_EQ(attr.query.link_attach_flags, 0, "link_attach_flags");
+
+	/* Test 6: Query with non-NULL prog_ids array but with count == 0 */
+	memset(&attr, 0, attr_size);
+	attr.query.target_ifindex = loopback;
+	attr.query.attach_type = target;
+
+	memset(prog_ids, 0, sizeof(prog_ids));
+	attr.query.prog_ids = ptr_to_u64(prog_ids);
+
+	err = syscall(__NR_bpf, BPF_PROG_QUERY, &attr, attr_size);
+	if (!ASSERT_OK(err, "prog_query"))
+		goto cleanup4;
+
+	ASSERT_EQ(attr.query.count, 4, "count");
+	ASSERT_EQ(attr.query.revision, 5, "revision");
+	ASSERT_EQ(attr.query.query_flags, 0, "query_flags");
+	ASSERT_EQ(attr.query.attach_flags, 0, "attach_flags");
+	ASSERT_EQ(attr.query.target_ifindex, loopback, "target_ifindex");
+	ASSERT_EQ(attr.query.attach_type, target, "attach_type");
+	ASSERT_EQ(prog_ids[0], 0, "prog_ids[0]");
+	ASSERT_EQ(prog_ids[1], 0, "prog_ids[1]");
+	ASSERT_EQ(prog_ids[2], 0, "prog_ids[2]");
+	ASSERT_EQ(prog_ids[3], 0, "prog_ids[3]");
+	ASSERT_EQ(prog_ids[4], 0, "prog_ids[4]");
+	ASSERT_EQ(attr.query.prog_ids, ptr_to_u64(prog_ids), "prog_ids");
+	ASSERT_EQ(attr.query.prog_attach_flags, 0, "prog_attach_flags");
+	ASSERT_EQ(attr.query.link_ids, 0, "link_ids");
+	ASSERT_EQ(attr.query.link_attach_flags, 0, "link_attach_flags");
+
+	/* Test 7: Query with invalid flags */
+	attr.query.attach_flags = 0;
+	attr.query.query_flags = 1;
+
+	err = syscall(__NR_bpf, BPF_PROG_QUERY, &attr, attr_size);
+	ASSERT_EQ(err, -1, "prog_query_should_fail");
+	ASSERT_EQ(errno, EINVAL, "prog_query_should_fail");
+
+	attr.query.attach_flags = 1;
+	attr.query.query_flags = 0;
+
+	err = syscall(__NR_bpf, BPF_PROG_QUERY, &attr, attr_size);
+	ASSERT_EQ(err, -1, "prog_query_should_fail");
+	ASSERT_EQ(errno, EINVAL, "prog_query_should_fail");
 
 cleanup4:
 	err = bpf_prog_detach_opts(fd4, loopback, target, &optd);
