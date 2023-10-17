@@ -648,15 +648,19 @@ static void video_cc_pineapple_fixup_cliffs(struct regmap *regmap)
 	video_cc_mvs0_shift_clk.halt_reg = 0x8144;
 	video_cc_mvs0_shift_clk.hwcg_reg = 0x8144;
 	video_cc_mvs0_shift_clk.clkr.enable_reg = 0x8144;
-	video_cc_mvs0c_shift_clk.halt_reg = 0x8148;
+
 	video_cc_mvs0c_shift_clk.halt_reg = 0x8148;
 	video_cc_mvs0c_shift_clk.hwcg_reg = 0x8148;
-	video_cc_mvs1_shift_clk.clkr.enable_reg = 0x814c;
+	video_cc_mvs0c_shift_clk.clkr.enable_reg = 0x8148;
+
+	video_cc_mvs1_shift_clk.halt_reg = 0x814c;
 	video_cc_mvs1_shift_clk.hwcg_reg = 0x814c;
 	video_cc_mvs1_shift_clk.clkr.enable_reg = 0x814c;
+
 	video_cc_mvs1c_shift_clk.halt_reg = 0x8150;
 	video_cc_mvs1c_shift_clk.hwcg_reg = 0x8150;
 	video_cc_mvs1c_shift_clk.clkr.enable_reg = 0x8150;
+
 	video_cc_sleep_clk_src.cmd_rcgr = 0x8128;
 }
 
