@@ -61,6 +61,10 @@ config ACPI_CCA_REQUIRED
 config ACPI_TABLE_LIB
 	bool
 
+config ACPI_THERMAL_LIB
+       depends on THERMAL
+       bool
+
 config ACPI_DEBUGGER
 	bool "AML debugger interface"
 	select ACPI_DEBUG
@@ -327,6 +331,7 @@ config ACPI_THERMAL
 	tristate "Thermal Zone"
 	depends on ACPI_PROCESSOR
 	select THERMAL
+	select ACPI_THERMAL_LIB
 	default y
 	help
 	  This driver supports ACPI thermal zones.  Most mobile and
