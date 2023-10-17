@@ -553,10 +553,6 @@ static struct rdma_hw_stats *hns_roce_alloc_hw_port_stats(
 		return NULL;
 	}
 
-	if (hr_dev->pci_dev->revision <= PCI_REVISION_ID_HIP08 ||
-	    hr_dev->is_vf)
-		return NULL;
-
 	return rdma_alloc_hw_stats_struct(hns_roce_port_stats_descs,
 					  ARRAY_SIZE(hns_roce_port_stats_descs),
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
@@ -575,10 +571,6 @@ static int hns_roce_get_hw_stats(struct ib_device *device,
 
 	if (port > hr_dev->caps.num_ports)
 		return -EINVAL;
-
-	if (hr_dev->pci_dev->revision <= PCI_REVISION_ID_HIP08 ||
-	    hr_dev->is_vf)
-		return -EOPNOTSUPP;
 
 	ret = hr_dev->hw->query_hw_counter(hr_dev, stats->value, port,
 					   &num_counters);
@@ -633,14 +625,17 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.query_pkey = hns_roce_query_pkey,
 	.query_port = hns_roce_query_port,
 	.reg_user_mr = hns_roce_reg_user_mr,
-	.alloc_hw_port_stats = hns_roce_alloc_hw_port_stats,
-	.get_hw_stats = hns_roce_get_hw_stats,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, hns_roce_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, hns_roce_cq, ib_cq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, hns_roce_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_qp, hns_roce_qp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, hns_roce_ucontext, ibucontext),
+};
+
+static const struct ib_device_ops hns_roce_dev_hw_stats_ops = {
+	.alloc_hw_port_stats = hns_roce_alloc_hw_port_stats,
+	.get_hw_stats = hns_roce_get_hw_stats,
 };
 
 static const struct ib_device_ops hns_roce_dev_mr_ops = {
@@ -720,6 +715,10 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
 		ib_set_device_ops(ib_dev, &hns_roce_dev_xrcd_ops);
+
+	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09 &&
+	    !hr_dev->is_vf)
+		ib_set_device_ops(ib_dev, &hns_roce_dev_hw_stats_ops);
 
 	ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_ops);
 	ib_set_device_ops(ib_dev, &hns_roce_dev_ops);
