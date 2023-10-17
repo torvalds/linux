@@ -559,6 +559,13 @@ static void blk_report_disk_dead(struct gendisk *disk, bool surprise)
 	struct block_device *bdev;
 	unsigned long idx;
 
+	/*
+	 * On surprise disk removal, bdev_mark_dead() may call into file
+	 * systems below. Make it clear that we're expecting to not hold
+	 * disk->open_mutex.
+	 */
+	lockdep_assert_not_held(&disk->open_mutex);
+
 	rcu_read_lock();
 	xa_for_each(&disk->part_tbl, idx, bdev) {
 		if (!kobject_get_unless_zero(&bdev->bd_device.kobj))
