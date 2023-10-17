@@ -160,7 +160,7 @@ static void pmic_glink_altmode_enable_dp(struct pmic_glink_altmode *altmode,
 
 	ret = typec_mux_set(port->typec_mux, &port->state);
 	if (ret)
-		dev_err(altmode->dev, "failed to switch mux to DP\n");
+		dev_err(altmode->dev, "failed to switch mux to DP: %d\n", ret);
 
 	port->retimer_state.alt = &port->dp_alt;
 	port->retimer_state.data = &dp_data;
@@ -168,7 +168,7 @@ static void pmic_glink_altmode_enable_dp(struct pmic_glink_altmode *altmode,
 
 	ret = typec_retimer_set(port->typec_retimer, &port->retimer_state);
 	if (ret)
-		dev_err(altmode->dev, "failed to setup retimer to DP\n");
+		dev_err(altmode->dev, "failed to setup retimer to DP: %d\n", ret);
 }
 
 static void pmic_glink_altmode_enable_usb(struct pmic_glink_altmode *altmode,
@@ -182,7 +182,7 @@ static void pmic_glink_altmode_enable_usb(struct pmic_glink_altmode *altmode,
 
 	ret = typec_mux_set(port->typec_mux, &port->state);
 	if (ret)
-		dev_err(altmode->dev, "failed to switch mux to USB\n");
+		dev_err(altmode->dev, "failed to switch mux to USB: %d\n", ret);
 
 	port->retimer_state.alt = NULL;
 	port->retimer_state.data = NULL;
@@ -190,7 +190,7 @@ static void pmic_glink_altmode_enable_usb(struct pmic_glink_altmode *altmode,
 
 	ret = typec_retimer_set(port->typec_retimer, &port->retimer_state);
 	if (ret)
-		dev_err(altmode->dev, "failed to setup retimer to USB\n");
+		dev_err(altmode->dev, "failed to setup retimer to USB: %d\n", ret);
 }
 
 static void pmic_glink_altmode_safe(struct pmic_glink_altmode *altmode,
@@ -204,7 +204,7 @@ static void pmic_glink_altmode_safe(struct pmic_glink_altmode *altmode,
 
 	ret = typec_mux_set(port->typec_mux, &port->state);
 	if (ret)
-		dev_err(altmode->dev, "failed to switch mux to safe mode\n");
+		dev_err(altmode->dev, "failed to switch mux to safe mode: %d\n", ret);
 
 	port->retimer_state.alt = NULL;
 	port->retimer_state.data = NULL;
@@ -212,7 +212,7 @@ static void pmic_glink_altmode_safe(struct pmic_glink_altmode *altmode,
 
 	ret = typec_retimer_set(port->typec_retimer, &port->retimer_state);
 	if (ret)
-		dev_err(altmode->dev, "failed to setup retimer to USB\n");
+		dev_err(altmode->dev, "failed to setup retimer to USB: %d\n", ret);
 }
 
 static void pmic_glink_altmode_worker(struct work_struct *work)
@@ -397,7 +397,7 @@ static void pmic_glink_altmode_enable_worker(struct work_struct *work)
 
 	ret = pmic_glink_altmode_request(altmode, ALTMODE_PAN_EN, 0);
 	if (ret)
-		dev_err(altmode->dev, "failed to request altmode notifications\n");
+		dev_err(altmode->dev, "failed to request altmode notifications: %d\n", ret);
 }
 
 static void pmic_glink_altmode_pdr_notify(void *priv, int state)
