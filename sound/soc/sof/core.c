@@ -461,9 +461,8 @@ int snd_sof_device_remove(struct device *dev)
 		snd_sof_ipc_free(sdev);
 		snd_sof_free_debug(sdev);
 		snd_sof_remove(sdev);
+		sof_ops_free(sdev);
 	}
-
-	sof_ops_free(sdev);
 
 	/* release firmware */
 	snd_sof_fw_unload(sdev);
