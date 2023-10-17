@@ -86,7 +86,6 @@ static inline unsigned int x86_cpuid_family(void)
 }
 
 extern bool dis_ucode_ldr;
-extern bool initrd_gone;
 
 #ifdef CONFIG_CPU_SUP_AMD
 void load_ucode_amd_bsp(unsigned int family);
