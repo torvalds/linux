@@ -462,7 +462,7 @@ static u8 even_parity(u8 p)
 	return (0x9669 >> p) & 1;
 }
 
-#define I3CG_REG1(x)			((x * 0x10) + 0x14)
+#define I3CG_REG1(x)			(((x) * 0x10) + 0x14)
 #define SDA_OUT_SW_MODE_EN		BIT(31)
 #define SCL_OUT_SW_MODE_EN		BIT(30)
 #define SDA_IN_SW_MODE_EN		BIT(29)
