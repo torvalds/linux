@@ -647,18 +647,9 @@ struct iwl_mvm_tcm {
  * @queue: queue of this reorder buffer
  * @last_amsdu: track last ASMDU SN for duplication detection
  * @last_sub_index: track ASMDU sub frame index for duplication detection
- * @reorder_timer: timer for frames are in the reorder buffer. For AMSDU
- *	it is the time of last received sub-frame
- * @removed: prevent timer re-arming
  * @valid: reordering is valid for this queue
  * @lock: protect reorder buffer internal state
  * @mvm: mvm pointer, needed for frame timer context
- * @consec_oldsn_drops: consecutive drops due to old SN
- * @consec_oldsn_ampdu_gp2: A-MPDU GP2 timestamp to track
- *	when to apply old SN consecutive drop workaround
- * @consec_oldsn_prev_drop: track whether or not an MPDU
- *	that was single/part of the previous A-MPDU was
- *	dropped due to old SN
  */
 struct iwl_mvm_reorder_buffer {
 	u16 head_sn;
@@ -667,33 +658,21 @@ struct iwl_mvm_reorder_buffer {
 	int queue;
 	u16 last_amsdu;
 	u8 last_sub_index;
-	struct timer_list reorder_timer;
-	bool removed;
 	bool valid;
 	spinlock_t lock;
 	struct iwl_mvm *mvm;
-	unsigned int consec_oldsn_drops;
-	u32 consec_oldsn_ampdu_gp2;
-	unsigned int consec_oldsn_prev_drop:1;
 } ____cacheline_aligned_in_smp;
 
 /**
- * struct _iwl_mvm_reorder_buf_entry - reorder buffer entry per-queue/per-seqno
+ * struct iwl_mvm_reorder_buf_entry - reorder buffer entry per-queue/per-seqno
  * @frames: list of skbs stored
- * @reorder_time: time the packet was stored in the reorder buffer
  */
-struct _iwl_mvm_reorder_buf_entry {
-	struct sk_buff_head frames;
-	unsigned long reorder_time;
-};
-
-/* make this indirection to get the aligned thing */
 struct iwl_mvm_reorder_buf_entry {
-	struct _iwl_mvm_reorder_buf_entry e;
+	struct sk_buff_head frames;
 }
 #ifndef __CHECKER__
 /* sparse doesn't like this construct: "bad integer constant expression" */
-__aligned(roundup_pow_of_two(sizeof(struct _iwl_mvm_reorder_buf_entry)))
+__aligned(roundup_pow_of_two(sizeof(struct sk_buff_head)))
 #endif
 ;
 
@@ -2335,7 +2314,6 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 				     enum iwl_mvm_rxq_notif_type type,
 				     bool sync,
 				     const void *data, u32 size);
-void iwl_mvm_reorder_timer_expired(struct timer_list *t);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
 struct ieee80211_vif *iwl_mvm_get_vif_by_macid(struct iwl_mvm *mvm, u32 macid);
 bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm);

@@ -286,12 +286,10 @@ struct iwl_mvm_key_pn {
  *
  * @IWL_MVM_RXQ_EMPTY: empty sync notification
  * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
- * @IWL_MVM_RXQ_NSSN_SYNC: notify all the RSS queues with the new NSSN
  */
 enum iwl_mvm_rxq_notif_type {
 	IWL_MVM_RXQ_EMPTY,
 	IWL_MVM_RXQ_NOTIF_DEL_BA,
-	IWL_MVM_RXQ_NSSN_SYNC,
 };
 
 /**
@@ -313,11 +311,6 @@ struct iwl_mvm_internal_rxq_notif {
 
 struct iwl_mvm_delba_data {
 	u32 baid;
-} __packed;
-
-struct iwl_mvm_nssn_sync_data {
-	u32 baid;
-	u32 nssn;
 } __packed;
 
 /**

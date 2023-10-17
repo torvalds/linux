@@ -2719,18 +2719,9 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 		WARN_ON(1);
 
 		for (j = 0; j < reorder_buf->buf_size; j++)
-			__skb_queue_purge(&entries[j].e.frames);
-		/*
-		 * Prevent timer re-arm. This prevents a very far fetched case
-		 * where we timed out on the notification. There may be prior
-		 * RX frames pending in the RX queue before the notification
-		 * that might get processed between now and the actual deletion
-		 * and we would re-arm the timer although we are deleting the
-		 * reorder buffer.
-		 */
-		reorder_buf->removed = true;
+			__skb_queue_purge(&entries[j].frames);
+
 		spin_unlock_bh(&reorder_buf->lock);
-		del_timer_sync(&reorder_buf->reorder_timer);
 	}
 }
 
@@ -2750,15 +2741,12 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 		reorder_buf->num_stored = 0;
 		reorder_buf->head_sn = ssn;
 		reorder_buf->buf_size = buf_size;
-		/* rx reorder timer */
-		timer_setup(&reorder_buf->reorder_timer,
-			    iwl_mvm_reorder_timer_expired, 0);
 		spin_lock_init(&reorder_buf->lock);
 		reorder_buf->mvm = mvm;
 		reorder_buf->queue = i;
 		reorder_buf->valid = false;
 		for (j = 0; j < reorder_buf->buf_size; j++)
-			__skb_queue_head_init(&entries[j].e.frames);
+			__skb_queue_head_init(&entries[j].frames);
 	}
 }
 
