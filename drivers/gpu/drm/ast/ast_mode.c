@@ -56,13 +56,13 @@ static inline void ast_load_palette_index(struct ast_device *ast,
 				     u8 blue)
 {
 	ast_io_write8(ast, AST_IO_DAC_INDEX_WRITE, index);
-	ast_io_read8(ast, AST_IO_SEQ_PORT);
+	ast_io_read8(ast, AST_IO_VGASRI);
 	ast_io_write8(ast, AST_IO_DAC_DATA, red);
-	ast_io_read8(ast, AST_IO_SEQ_PORT);
+	ast_io_read8(ast, AST_IO_VGASRI);
 	ast_io_write8(ast, AST_IO_DAC_DATA, green);
-	ast_io_read8(ast, AST_IO_SEQ_PORT);
+	ast_io_read8(ast, AST_IO_VGASRI);
 	ast_io_write8(ast, AST_IO_DAC_DATA, blue);
-	ast_io_read8(ast, AST_IO_SEQ_PORT);
+	ast_io_read8(ast, AST_IO_VGASRI);
 }
 
 static void ast_crtc_set_gamma_linear(struct ast_device *ast,
@@ -301,11 +301,11 @@ static void ast_set_std_reg(struct ast_device *ast,
 	ast_io_write8(ast, AST_IO_VGAMR_W, jreg);
 
 	/* Set SEQ; except Screen Disable field */
-	ast_set_index_reg(ast, AST_IO_SEQ_PORT, 0x00, 0x03);
-	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x01, 0xdf, stdtable->seq[0]);
+	ast_set_index_reg(ast, AST_IO_VGASRI, 0x00, 0x03);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, stdtable->seq[0]);
 	for (i = 1; i < 4; i++) {
 		jreg = stdtable->seq[i];
-		ast_set_index_reg(ast, AST_IO_SEQ_PORT, (i + 1), jreg);
+		ast_set_index_reg(ast, AST_IO_VGASRI, (i + 1), jreg);
 	}
 
 	/* Set CRTC; except base address and offset */
@@ -689,7 +689,7 @@ static void ast_primary_plane_helper_atomic_enable(struct drm_plane *plane,
 	 * Therefore only reprogram the address after enabling the plane.
 	 */
 	ast_set_start_address_crt1(ast, (u32)ast_plane->offset);
-	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x00);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x1, 0xdf, 0x00);
 }
 
 static void ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
@@ -697,7 +697,7 @@ static void ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
 {
 	struct ast_device *ast = to_ast_device(plane->dev);
 
-	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x20);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x1, 0xdf, 0x20);
 }
 
 static const struct drm_plane_helper_funcs ast_primary_plane_helper_funcs = {
@@ -1014,7 +1014,7 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	 */
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT,  0x01, 0xdf, 0);
+		ast_set_index_reg_mask(ast, AST_IO_VGASRI,  0x01, 0xdf, 0);
 		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, 0);
 		if (ast->tx_chip_types & AST_TX_DP501_BIT)
 			ast_set_dp501_video_output(crtc->dev, 1);
@@ -1051,7 +1051,7 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_OFF);
 		}
 
-		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT,  0x01, 0xdf, 0x20);
+		ast_set_index_reg_mask(ast, AST_IO_VGASRI,  0x01, 0xdf, 0x20);
 		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, ch);
 		break;
 	}
