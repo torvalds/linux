@@ -98,7 +98,7 @@ static int q6hdmi_hw_params(struct snd_pcm_substream *substream,
 {
 	struct q6apm_lpass_dai_data *dai_data = dev_get_drvdata(dai->dev);
 	struct audioreach_module_config *cfg = &dai_data->module_config[dai->id];
-	int channels = params_channels(params);
+	int channels = hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_CHANNELS)->max;
 	int ret;
 
 	cfg->bit_width = params_width(params);
@@ -131,7 +131,7 @@ static int q6dma_hw_params(struct snd_pcm_substream *substream,
 
 	cfg->bit_width = params_width(params);
 	cfg->sample_rate = params_rate(params);
-	cfg->num_channels = params_channels(params);
+	cfg->num_channels = hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_CHANNELS)->max;
 
 	return 0;
 }
