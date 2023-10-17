@@ -870,6 +870,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&wifi_debug_uart_pins_default>;
 	status = "okay";
+
+	mcu {
+		compatible = "ti,cc1352p7";
+		reset-gpios = <&main_gpio0 72 GPIO_ACTIVE_LOW>;
+		vdds-supply = <&vdd_3v3>;
+	};
 };
 
 &dss {
