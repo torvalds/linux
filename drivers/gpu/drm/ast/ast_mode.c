@@ -318,7 +318,7 @@ static void ast_set_std_reg(struct ast_device *ast,
 		ast_set_index_reg(ast, AST_IO_VGACRI, i, stdtable->crtc[i]);
 
 	/* set AR */
-	jreg = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
+	jreg = ast_io_read8(ast, AST_IO_VGAIR1_R);
 	for (i = 0; i < 20; i++) {
 		jreg = stdtable->ar[i];
 		ast_io_write8(ast, AST_IO_VGAARI_W, (u8)i);
@@ -327,7 +327,7 @@ static void ast_set_std_reg(struct ast_device *ast,
 	ast_io_write8(ast, AST_IO_VGAARI_W, 0x14);
 	ast_io_write8(ast, AST_IO_VGAARI_W, 0x00);
 
-	jreg = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
+	jreg = ast_io_read8(ast, AST_IO_VGAIR1_R);
 	ast_io_write8(ast, AST_IO_VGAARI_W, 0x20);
 
 	/* Set GR */
@@ -558,7 +558,7 @@ static void ast_wait_for_vretrace(struct ast_device *ast)
 	u8 vgair1;
 
 	do {
-		vgair1 = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
+		vgair1 = ast_io_read8(ast, AST_IO_VGAIR1_R);
 	} while (!(vgair1 & AST_IO_VGAIR1_VREFRESH) && time_before(jiffies, timeout));
 }
 
