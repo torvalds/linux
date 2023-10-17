@@ -957,6 +957,9 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	baid = (reorder & IWL_RX_MPDU_REORDER_BAID_MASK) >>
 		IWL_RX_MPDU_REORDER_BAID_SHIFT;
 
+	if (mvm->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_9000)
+		return false;
+
 	/*
 	 * This also covers the case of receiving a Block Ack Request
 	 * outside a BA session; we'll pass it to mac80211 and that
@@ -2617,9 +2620,15 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc) &&
 	    likely(!iwl_mvm_time_sync_frame(mvm, skb, hdr->addr2)) &&
-	    likely(!iwl_mvm_mei_filter_scan(mvm, skb)))
+	    likely(!iwl_mvm_mei_filter_scan(mvm, skb))) {
+		if (mvm->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
+		    (desc->mac_flags2 & IWL_RX_MPDU_MFLG2_AMSDU) &&
+		    !(desc->amsdu_info & IWL_RX_MPDU_AMSDU_LAST_SUBFRAME))
+			rx_status->flag |= RX_FLAG_AMSDU_MORE;
+
 		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta,
 						link_sta);
+	}
 out:
 	rcu_read_unlock();
 }
