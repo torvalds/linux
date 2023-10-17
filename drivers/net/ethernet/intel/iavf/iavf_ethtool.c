@@ -396,8 +396,8 @@ static void iavf_get_priv_flag_strings(struct net_device *netdev, u8 *data)
 	unsigned int i;
 
 	for (i = 0; i < IAVF_PRIV_FLAGS_STR_LEN; i++) {
-		snprintf(data, ETH_GSTRING_LEN, "%s",
-			 iavf_gstrings_priv_flags[i].flag_string);
+		strscpy(data, iavf_gstrings_priv_flags[i].flag_string,
+			ETH_GSTRING_LEN);
 		data += ETH_GSTRING_LEN;
 	}
 }
