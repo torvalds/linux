@@ -52,6 +52,7 @@ enum techpoint_chips {
 	CHIP_TP2815,
 	CHIP_TP9930,
 	CHIP_TP9950,
+	CHIP_TP9951,
 };
 
 enum techpoint_input_type {

@@ -12,6 +12,7 @@
 #include "techpoint_tp9950.h"
 #include "techpoint_tp2855.h"
 #include "techpoint_tp2815.h"
+#include "techpoint_tp9951.h"
 
 static DEFINE_MUTEX(reg_sem);
 
@@ -99,31 +100,38 @@ static int check_chip_id(struct techpoint *techpoint)
 	techpoint_read_reg(client, CHIP_ID_L_REG, &chip_id_l);
 	dev_err(dev, "chip_id_h:0x%2x chip_id_l:0x%2x\n", chip_id_h, chip_id_l);
 	if (chip_id_h == TP9930_CHIP_ID_H_VALUE &&
-	    chip_id_l == TP9930_CHIP_ID_L_VALUE) {
+	    chip_id_l == TP9930_CHIP_ID_L_VALUE) {		//tp2832
 		dev_info(&client->dev,
 			 "techpoint check chip id CHIP_TP9930 !\n");
 		techpoint->chip_id = CHIP_TP9930;
 		techpoint->input_type = TECHPOINT_DVP_BT1120;
 		return 0;
 	} else if (chip_id_h == TP2855_CHIP_ID_H_VALUE &&
-		   chip_id_l == TP2855_CHIP_ID_L_VALUE) {
+		   chip_id_l == TP2855_CHIP_ID_L_VALUE) {	//tp2855
 		dev_info(&client->dev,
 			 "techpoint check chip id CHIP_TP2855 !\n");
 		techpoint->chip_id = CHIP_TP2855;
 		techpoint->input_type = TECHPOINT_MIPI;
 		return 0;
 	} else if (chip_id_h == TP2815_CHIP_ID_H_VALUE &&
-		   chip_id_l == TP2815_CHIP_ID_L_VALUE) {
+		   chip_id_l == TP2815_CHIP_ID_L_VALUE) {	//tp2815
 		dev_info(&client->dev,
 			 "techpoint check chip id CHIP_TP2815 !\n");
 		techpoint->chip_id = CHIP_TP2855;
 		techpoint->input_type = TECHPOINT_MIPI;
 		return 0;
 	} else if (chip_id_h == TP9950_CHIP_ID_H_VALUE &&
-		   chip_id_l == TP9950_CHIP_ID_L_VALUE) {
+		   chip_id_l == TP9950_CHIP_ID_L_VALUE) {	//tp2850
 		dev_info(&client->dev,
 			 "techpoint check chip id CHIP_TP9950 !\n");
 		techpoint->chip_id = CHIP_TP9950;
+		techpoint->input_type = TECHPOINT_MIPI;
+		return 0;
+	} else if (chip_id_h == TP9951_CHIP_ID_H_VALUE &&
+		   chip_id_l == TP9951_CHIP_ID_L_VALUE) {	//tp2860
+		dev_info(&client->dev,
+			 "techpoint check chip id CHIP_TP9951 !\n");
+		techpoint->chip_id = CHIP_TP9951;
 		techpoint->input_type = TECHPOINT_MIPI;
 		return 0;
 	}
@@ -143,6 +151,8 @@ int techpoint_initialize_devices(struct techpoint *techpoint)
 		tp2855_initialize(techpoint);
 	else if (techpoint->chip_id == CHIP_TP9950)
 		tp9950_initialize(techpoint);
+	else if (techpoint->chip_id == CHIP_TP9951)
+		tp9951_initialize(techpoint);
 
 	return 0;
 }
@@ -185,6 +195,10 @@ static int detect_thread_function(void *data)
 					detect_status =
 					    tp2855_get_channel_input_status
 					    (techpoint, i);
+				else if (techpoint->chip_id == CHIP_TP9951)
+					detect_status =
+					    tp9951_get_channel_input_status
+					    (techpoint, i);
 
 				if (techpoint->detect_status[i] !=
 				    detect_status) {
@@ -202,8 +216,7 @@ static int detect_thread_function(void *data)
 					else if (techpoint->chip_id == CHIP_TP2855)
 						tp2855_set_decoder_mode(client, i, detect_status);
 
-					techpoint->detect_status[i] =
-					    detect_status;
+					techpoint->detect_status[i] = detect_status;
 					need_reset_wait = 5;
 				}
 			}
@@ -271,6 +284,11 @@ static __maybe_unused int auto_detect_channel_fmt(struct techpoint *techpoint)
 	if (techpoint->chip_id == CHIP_TP9950) {
 		reso = tp9950_get_channel_reso(client, 0);
 		tp9950_set_channel_reso(client, 0, reso);
+	}
+
+	if (techpoint->chip_id == CHIP_TP9951) {
+		reso = tp9951_get_channel_reso(client, 0);
+		tp9951_set_channel_reso(client, 0, reso);
 	}
 
 	mutex_unlock(&reg_sem);
