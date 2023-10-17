@@ -1757,7 +1757,7 @@ static int fw_parse_header(struct tasdevice_priv *tas_priv,
 {
 	struct tasdevice_dspfw_hdr *fw_hdr = &(tas_fmw->fw_hdr);
 	struct tasdevice_fw_fixed_hdr *fw_fixed_hdr = &(fw_hdr->fixed_hdr);
-	const unsigned char magic_number[] = { 0x35, 0x35, 0x35, 0x32 };
+	static const unsigned char magic_number[] = { 0x35, 0x35, 0x35, 0x32 };
 	const unsigned char *buf = (unsigned char *)fmw->data;
 
 	if (offset + 92 > fmw->size) {
