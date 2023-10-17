@@ -1921,7 +1921,7 @@ static void target_queue_submission(struct se_cmd *se_cmd)
 
 /**
  * target_submit - perform final initialization and submit cmd to LIO core
- * @cmd: command descriptor to submit
+ * @se_cmd: command descriptor to submit
  *
  * target_submit_prep or something similar must have been called on the cmd,
  * and this must be called from process context.
