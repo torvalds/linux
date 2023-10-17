@@ -55,7 +55,7 @@ static inline void ast_load_palette_index(struct ast_device *ast,
 				     u8 index, u8 red, u8 green,
 				     u8 blue)
 {
-	ast_io_write8(ast, AST_IO_DAC_INDEX_WRITE, index);
+	ast_io_write8(ast, AST_IO_VGADWR, index);
 	ast_io_read8(ast, AST_IO_VGASRI);
 	ast_io_write8(ast, AST_IO_DAC_DATA, red);
 	ast_io_read8(ast, AST_IO_VGASRI);
