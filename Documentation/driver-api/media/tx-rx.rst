@@ -6,8 +6,8 @@ Pixel data transmitter and receiver drivers
 ===========================================
 
 V4L2 supports various devices that transmit and receive pixel data. Examples of
-these devices include a camera sensor, a TV tuner and a parallel or a CSI-2
-receiver in an SoC.
+these devices include a camera sensor, a TV tuner and a parallel, a BT.656 or a
+CSI-2 receiver in an SoC.
 
 Bus types
 ---------
@@ -22,12 +22,13 @@ the host SoC. It is defined by the `MIPI alliance`_.
 
 .. _`MIPI alliance`: https://www.mipi.org/
 
-Parallel
-^^^^^^^^
+Parallel and BT.656
+^^^^^^^^^^^^^^^^^^^
 
-`BT.601`_ and `BT.656`_ are the most common parallel busses.
+The parallel and `BT.656`_ buses transport one bit of data on each clock cycle
+per data line. The parallel bus uses synchronisation and other additional
+signals whereas BT.656 embeds synchronisation.
 
-.. _`BT.601`: https://en.wikipedia.org/wiki/Rec._601
 .. _`BT.656`: https://en.wikipedia.org/wiki/ITU-R_BT.656
 
 Transmitter drivers

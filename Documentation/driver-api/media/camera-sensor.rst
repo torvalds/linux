@@ -9,8 +9,8 @@ This document covers the in-kernel APIs only. For the best practices on
 userspace API implementation in camera sensor drivers, please see
 :ref:`media_using_camera_sensor_drivers`.
 
-CSI-2 and parallel (BT.601 and BT.656) busses
----------------------------------------------
+CSI-2, parallel and BT.656 buses
+--------------------------------
 
 Please see :ref:`transmitter-receiver`.
 
