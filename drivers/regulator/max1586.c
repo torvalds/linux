@@ -11,7 +11,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/slab.h>
 #include <linux/regulator/max1586.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regulator/of_regulator.h>
 
 #define MAX1586_V3_MAX_VSEL 31
@@ -213,16 +213,9 @@ static int max1586_pmic_probe(struct i2c_client *client)
 	struct regulator_config config = { };
 	struct max1586_data *max1586;
 	int i, id, ret;
-	const struct of_device_id *match;
 
 	pdata = dev_get_platdata(&client->dev);
 	if (client->dev.of_node && !pdata) {
-		match = of_match_device(of_match_ptr(max1586_of_match),
-					&client->dev);
-		if (!match) {
-			dev_err(&client->dev, "Error: No device match found\n");
-			return -ENODEV;
-		}
 		ret = of_get_max1586_platform_data(&client->dev, &pdata_of);
 		if (ret < 0)
 			return ret;
