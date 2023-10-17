@@ -361,10 +361,11 @@ out:
 	return rc;
 }
 
-int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
+int hl_cb_ioctl(struct drm_device *ddev, void *data, struct drm_file *file_priv)
 {
-	union hl_cb_args *args = data;
+	struct hl_fpriv *hpriv = file_priv->driver_priv;
 	struct hl_device *hdev = hpriv->hdev;
+	union hl_cb_args *args = data;
 	u64 handle = 0, device_va = 0;
 	enum hl_device_status status;
 	u32 usage_cnt = 0;

@@ -394,6 +394,8 @@ enum cpu_boot_status {
 	CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT = 16,
 	/* Internal Security has been initialized, device can be accessed */
 	CPU_BOOT_STATUS_SECURITY_READY = 17,
+	/* FW component is preparing to shutdown and communication with host is not available */
+	CPU_BOOT_STATUS_FW_SHUTDOWN_PREP = 18,
 };
 
 enum kmd_msg {
@@ -570,6 +572,8 @@ struct lkd_fw_comms_desc {
 	__le64 img_addr;	/* address for next FW component load */
 	struct lkd_fw_binning_info binning_info;
 	struct lkd_fw_ascii_msg ascii_msg[LKD_FW_ASCII_MSG_MAX];
+	__le32 rsvd_mem_size_mb; /* reserved memory size [MB] for FW/SVE */
+	char reserved1[4];
 };
 
 enum comms_reset_cause {
@@ -596,6 +600,9 @@ struct lkd_fw_comms_msg {
 			__le64 img_addr;
 			struct lkd_fw_binning_info binning_info;
 			struct lkd_fw_ascii_msg ascii_msg[LKD_FW_ASCII_MSG_MAX];
+			/* reserved memory size [MB] for FW/SVE */
+			__le32 rsvd_mem_size_mb;
+			char reserved1[4];
 		};
 		struct {
 			__u8 reset_cause;
