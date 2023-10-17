@@ -31,7 +31,7 @@ menuconfig JTAG_ASPEED
 	  be called jtag-aspeed.
 
 menuconfig JTAG_ASPEED_INTERNAL
-	tristate "Aspeed SoC JTAG controller support internal"
+	tristate "Aspeed SoC JTAG controller support internal (deprecated)"
 	depends on JTAG && HAS_IOMEM
 	depends on ARCH_ASPEED || COMPILE_TEST
 	help
