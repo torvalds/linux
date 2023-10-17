@@ -1848,6 +1848,8 @@ static int __init parse_kpti(char *str)
 early_param("kpti", parse_kpti);
 
 #ifdef CONFIG_ARM64_HW_AFDBM
+static struct cpumask dbm_cpus __read_mostly;
+
 static inline void __cpu_enable_hw_dbm(void)
 {
 	u64 tcr = read_sysreg(tcr_el1) | TCR_HD;
@@ -1883,35 +1885,22 @@ static bool cpu_can_use_dbm(const struct arm64_cpu_capabilities *cap)
 
 static void cpu_enable_hw_dbm(struct arm64_cpu_capabilities const *cap)
 {
-	if (cpu_can_use_dbm(cap))
+	if (cpu_can_use_dbm(cap)) {
 		__cpu_enable_hw_dbm();
+		cpumask_set_cpu(smp_processor_id(), &dbm_cpus);
+	}
 }
 
 static bool has_hw_dbm(const struct arm64_cpu_capabilities *cap,
 		       int __unused)
 {
-	static bool detected = false;
 	/*
 	 * DBM is a non-conflicting feature. i.e, the kernel can safely
 	 * run a mix of CPUs with and without the feature. So, we
 	 * unconditionally enable the capability to allow any late CPU
 	 * to use the feature. We only enable the control bits on the
-	 * CPU, if it actually supports.
-	 *
-	 * We have to make sure we print the "feature" detection only
-	 * when at least one CPU actually uses it. So check if this CPU
-	 * can actually use it and print the message exactly once.
-	 *
-	 * This is safe as all CPUs (including secondary CPUs - due to the
-	 * LOCAL_CPU scope - and the hotplugged CPUs - via verification)
-	 * goes through the "matches" check exactly once. Also if a CPU
-	 * matches the criteria, it is guaranteed that the CPU will turn
-	 * the DBM on, as the capability is unconditionally enabled.
+	 * CPU, if it is supported.
 	 */
-	if (!detected && cpu_can_use_dbm(cap)) {
-		detected = true;
-		pr_info("detected: Hardware dirty bit management\n");
-	}
 
 	return true;
 }
@@ -2448,18 +2437,12 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 	},
 #ifdef CONFIG_ARM64_HW_AFDBM
 	{
-		/*
-		 * Since we turn this on always, we don't want the user to
-		 * think that the feature is available when it may not be.
-		 * So hide the description.
-		 *
-		 * .desc = "Hardware pagetable Dirty Bit Management",
-		 *
-		 */
+		.desc = "Hardware dirty bit management",
 		.type = ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE,
 		.capability = ARM64_HW_DBM,
 		.matches = has_hw_dbm,
 		.cpu_enable = cpu_enable_hw_dbm,
+		.cpus = &dbm_cpus,
 		ARM64_CPUID_FIELDS(ID_AA64MMFR1_EL1, HAFDBS, DBM)
 	},
 #endif
