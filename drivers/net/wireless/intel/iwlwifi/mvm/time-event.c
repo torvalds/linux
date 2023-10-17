@@ -689,18 +689,45 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 	}
 }
 
-static void iwl_mvm_cancel_session_protection(struct iwl_mvm *mvm,
-					      struct iwl_mvm_vif *mvmvif,
-					      u32 id)
+/* Determine whether mac or link id should be used, and validate the link id */
+static int iwl_mvm_get_session_prot_id(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif,
+				       u32 link_id)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+					WIDE_ID(MAC_CONF_GROUP,
+						SESSION_PROTECTION_CMD), 1);
+
+	if (ver < 2)
+		return mvmvif->id;
+
+	if (WARN(link_id < 0 || !mvmvif->link[link_id],
+		 "Invalid link ID for session protection: %u\n", link_id))
+		return -EINVAL;
+
+	if (WARN(ieee80211_vif_is_mld(vif) &&
+		 !(vif->active_links & BIT(link_id)),
+		 "Session Protection on an inactive link: %u\n", link_id))
+		return -EINVAL;
+
+	return mvmvif->link[link_id]->fw_link_id;
+}
+
+static void iwl_mvm_cancel_session_protection(struct iwl_mvm *mvm,
+					      struct ieee80211_vif *vif,
+					      u32 id, u32 link_id)
+{
+	int mac_link_id = iwl_mvm_get_session_prot_id(mvm, vif, link_id);
 	struct iwl_mvm_session_prot_cmd cmd = {
-		.id_and_color =
-			cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
-							mvmvif->color)),
+		.id_and_color = cpu_to_le32(mac_link_id),
 		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
 		.conf_id = cpu_to_le32(id),
 	};
 	int ret;
+
+	if (mac_link_id < 0)
+		return;
 
 	ret = iwl_mvm_send_cmd_pdu(mvm,
 				   WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
@@ -715,10 +742,12 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 					u32 *uid)
 {
 	u32 id;
+	struct ieee80211_vif *vif = te_data->vif;
 	struct iwl_mvm_vif *mvmvif;
 	enum nl80211_iftype iftype;
+	unsigned int link_id;
 
-	if (!te_data->vif)
+	if (!vif)
 		return false;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
@@ -733,6 +762,7 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 	/* Save time event uid before clearing its data */
 	*uid = te_data->uid;
 	id = te_data->id;
+	link_id = te_data->link_id;
 
 	/*
 	 * The clear_data function handles time events that were already removed
@@ -750,7 +780,8 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 	    id != HOT_SPOT_CMD) {
 		if (mvmvif && id < SESSION_PROTECT_CONF_MAX_ID) {
 			/* Session protection is still ongoing. Cancel it */
-			iwl_mvm_cancel_session_protection(mvm, mvmvif, id);
+			iwl_mvm_cancel_session_protection(mvm, vif, id,
+							  link_id);
 			if (iftype == NL80211_IFTYPE_P2P_DEVICE) {
 				iwl_mvm_p2p_roc_finished(mvm);
 			}
@@ -941,8 +972,7 @@ iwl_mvm_start_p2p_roc_session_protection(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_session_prot_cmd cmd = {
 		.id_and_color =
-			cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
-							mvmvif->color)),
+			cpu_to_le32(iwl_mvm_get_session_prot_id(mvm, vif, 0)),
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
 		.duration_tu = cpu_to_le32(MSEC_TO_TU(duration)),
 	};
@@ -1112,8 +1142,9 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 		if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
-			iwl_mvm_cancel_session_protection(mvm, mvmvif,
-							  mvmvif->time_event_data.id);
+			iwl_mvm_cancel_session_protection(mvm, vif,
+							  mvmvif->time_event_data.id,
+							  mvmvif->time_event_data.link_id);
 			iwl_mvm_p2p_roc_finished(mvm);
 		} else {
 			iwl_mvm_roc_station_remove(mvm, mvmvif);
@@ -1242,14 +1273,16 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
 	const u16 notif[] = { WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_NOTIF) };
 	struct iwl_notification_wait wait_notif;
+	int mac_link_id = iwl_mvm_get_session_prot_id(mvm, vif, link_id);
 	struct iwl_mvm_session_prot_cmd cmd = {
-		.id_and_color =
-			cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
-							mvmvif->color)),
+		.id_and_color = cpu_to_le32(mac_link_id),
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
 		.conf_id = cpu_to_le32(SESSION_PROTECT_CONF_ASSOC),
 		.duration_tu = cpu_to_le32(MSEC_TO_TU(duration)),
 	};
+
+	if (mac_link_id < 0)
+		return;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1281,11 +1314,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 		if (iwl_mvm_send_cmd_pdu(mvm,
 					 WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 					 0, sizeof(cmd), &cmd)) {
-			IWL_ERR(mvm,
-				"Couldn't send the SESSION_PROTECTION_CMD\n");
-			spin_lock_bh(&mvm->time_event_lock);
-			iwl_mvm_te_clear_data(mvm, te_data);
-			spin_unlock_bh(&mvm->time_event_lock);
+			goto send_cmd_err;
 		}
 
 		return;
@@ -1298,12 +1327,19 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 	if (iwl_mvm_send_cmd_pdu(mvm,
 				 WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 				 0, sizeof(cmd), &cmd)) {
-		IWL_ERR(mvm,
-			"Couldn't send the SESSION_PROTECTION_CMD\n");
 		iwl_remove_notification(&mvm->notif_wait, &wait_notif);
+		goto send_cmd_err;
 	} else if (iwl_wait_notification(&mvm->notif_wait, &wait_notif,
 					 TU_TO_JIFFIES(100))) {
 		IWL_ERR(mvm,
 			"Failed to protect session until session protection\n");
 	}
+	return;
+
+send_cmd_err:
+	IWL_ERR(mvm,
+		"Couldn't send the SESSION_PROTECTION_CMD\n");
+	spin_lock_bh(&mvm->time_event_lock);
+	iwl_mvm_te_clear_data(mvm, te_data);
+	spin_unlock_bh(&mvm->time_event_lock);
 }
