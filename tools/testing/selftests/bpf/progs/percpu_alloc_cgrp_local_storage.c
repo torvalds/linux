@@ -70,6 +70,7 @@ int BPF_PROG(test_cgrp_local_storage_2)
 }
 
 int cpu0_field_d, sum_field_c;
+int my_pid;
 
 /* Summarize percpu data collection */
 SEC("fentry/bpf_fentry_test3")
@@ -80,6 +81,9 @@ int BPF_PROG(test_cgrp_local_storage_3)
 	struct val_t *v;
 	struct elem *e;
 	int i;
+
+	if ((bpf_get_current_pid_tgid() >> 32) != my_pid)
+		return 0;
 
 	task = bpf_get_current_task_btf();
 	e = bpf_cgrp_storage_get(&cgrp, task->cgroups->dfl_cgrp, 0, 0);

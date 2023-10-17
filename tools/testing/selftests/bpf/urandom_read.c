@@ -11,6 +11,9 @@
 #define _SDT_HAS_SEMAPHORES 1
 #include "sdt.h"
 
+#define SHARED 1
+#include "bpf/libbpf_internal.h"
+
 #define SEC(name) __attribute__((section(name), used))
 
 #define BUF_SIZE 256
@@ -21,10 +24,14 @@ void urand_read_without_sema(int iter_num, int iter_cnt, int read_sz);
 void urandlib_read_with_sema(int iter_num, int iter_cnt, int read_sz);
 void urandlib_read_without_sema(int iter_num, int iter_cnt, int read_sz);
 
+int urandlib_api(void);
+COMPAT_VERSION(urandlib_api_old, urandlib_api, LIBURANDOM_READ_1.0.0)
+int urandlib_api_old(void);
+int urandlib_api_sameoffset(void);
+
 unsigned short urand_read_with_sema_semaphore SEC(".probes");
 
-static __attribute__((noinline))
-void urandom_read(int fd, int count)
+static noinline void urandom_read(int fd, int count)
 {
 	char buf[BUF_SIZE];
 	int i;
@@ -82,6 +89,10 @@ int main(int argc, char *argv[])
 	}
 
 	urandom_read(fd, count);
+
+	urandlib_api();
+	urandlib_api_old();
+	urandlib_api_sameoffset();
 
 	close(fd);
 	return 0;

@@ -226,7 +226,7 @@ static int verify_xsk_metadata(struct xsk *xsk)
 	__u64 comp_addr;
 	void *data;
 	__u64 addr;
-	__u32 idx;
+	__u32 idx = 0;
 	int ret;
 
 	ret = recvfrom(xsk_socket__fd(xsk->socket), NULL, 0, MSG_DONTWAIT, NULL, NULL);

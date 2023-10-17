@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <libelf.h>
 #include <gelf.h>
 #include <fcntl.h>
@@ -9,6 +12,17 @@
 #include "str_error.h"
 
 #define STRERR_BUFSIZE  128
+
+/* A SHT_GNU_versym section holds 16-bit words. This bit is set if
+ * the symbol is hidden and can only be seen when referenced using an
+ * explicit version number. This is a GNU extension.
+ */
+#define VERSYM_HIDDEN	0x8000
+
+/* This is the mask for the rest of the data in a word read from a
+ * SHT_GNU_versym section.
+ */
+#define VERSYM_VERSION	0x7fff
 
 int elf_open(const char *binary_path, struct elf_fd *elf_fd)
 {
@@ -64,13 +78,18 @@ struct elf_sym {
 	const char *name;
 	GElf_Sym sym;
 	GElf_Shdr sh;
+	int ver;
+	bool hidden;
 };
 
 struct elf_sym_iter {
 	Elf *elf;
 	Elf_Data *syms;
+	Elf_Data *versyms;
+	Elf_Data *verdefs;
 	size_t nr_syms;
 	size_t strtabidx;
+	size_t verdef_strtabidx;
 	size_t next_sym_idx;
 	struct elf_sym sym;
 	int st_type;
@@ -111,6 +130,26 @@ static int elf_sym_iter_new(struct elf_sym_iter *iter,
 	iter->nr_syms = iter->syms->d_size / sh.sh_entsize;
 	iter->elf = elf;
 	iter->st_type = st_type;
+
+	/* Version symbol table is meaningful to dynsym only */
+	if (sh_type != SHT_DYNSYM)
+		return 0;
+
+	scn = elf_find_next_scn_by_type(elf, SHT_GNU_versym, NULL);
+	if (!scn)
+		return 0;
+	iter->versyms = elf_getdata(scn, 0);
+
+	scn = elf_find_next_scn_by_type(elf, SHT_GNU_verdef, NULL);
+	if (!scn) {
+		pr_debug("elf: failed to find verdef ELF sections in '%s'\n", binary_path);
+		return -ENOENT;
+	}
+	if (!gelf_getshdr(scn, &sh))
+		return -EINVAL;
+	iter->verdef_strtabidx = sh.sh_link;
+	iter->verdefs = elf_getdata(scn, 0);
+
 	return 0;
 }
 
@@ -119,6 +158,7 @@ static struct elf_sym *elf_sym_iter_next(struct elf_sym_iter *iter)
 	struct elf_sym *ret = &iter->sym;
 	GElf_Sym *sym = &ret->sym;
 	const char *name = NULL;
+	GElf_Versym versym;
 	Elf_Scn *sym_scn;
 	size_t idx;
 
@@ -138,12 +178,80 @@ static struct elf_sym *elf_sym_iter_next(struct elf_sym_iter *iter)
 
 		iter->next_sym_idx = idx + 1;
 		ret->name = name;
+		ret->ver = 0;
+		ret->hidden = false;
+
+		if (iter->versyms) {
+			if (!gelf_getversym(iter->versyms, idx, &versym))
+				continue;
+			ret->ver = versym & VERSYM_VERSION;
+			ret->hidden = versym & VERSYM_HIDDEN;
+		}
 		return ret;
 	}
 
 	return NULL;
 }
 
+static const char *elf_get_vername(struct elf_sym_iter *iter, int ver)
+{
+	GElf_Verdaux verdaux;
+	GElf_Verdef verdef;
+	int offset;
+
+	offset = 0;
+	while (gelf_getverdef(iter->verdefs, offset, &verdef)) {
+		if (verdef.vd_ndx != ver) {
+			if (!verdef.vd_next)
+				break;
+
+			offset += verdef.vd_next;
+			continue;
+		}
+
+		if (!gelf_getverdaux(iter->verdefs, offset + verdef.vd_aux, &verdaux))
+			break;
+
+		return elf_strptr(iter->elf, iter->verdef_strtabidx, verdaux.vda_name);
+
+	}
+	return NULL;
+}
+
+static bool symbol_match(struct elf_sym_iter *iter, int sh_type, struct elf_sym *sym,
+			 const char *name, size_t name_len, const char *lib_ver)
+{
+	const char *ver_name;
+
+	/* Symbols are in forms of func, func@LIB_VER or func@@LIB_VER
+	 * make sure the func part matches the user specified name
+	 */
+	if (strncmp(sym->name, name, name_len) != 0)
+		return false;
+
+	/* ...but we don't want a search for "foo" to match 'foo2" also, so any
+	 * additional characters in sname should be of the form "@@LIB".
+	 */
+	if (sym->name[name_len] != '\0' && sym->name[name_len] != '@')
+		return false;
+
+	/* If user does not specify symbol version, then we got a match */
+	if (!lib_ver)
+		return true;
+
+	/* If user specifies symbol version, for dynamic symbols,
+	 * get version name from ELF verdef section for comparison.
+	 */
+	if (sh_type == SHT_DYNSYM) {
+		ver_name = elf_get_vername(iter, sym->ver);
+		if (!ver_name)
+			return false;
+		return strcmp(ver_name, lib_ver) == 0;
+	}
+
+	/* For normal symbols, it is already in form of func@LIB_VER */
+	return strcmp(sym->name, name) == 0;
+}
 
 /* Transform symbol's virtual address (absolute for binaries and relative
  * for shared libs) into file offset, which is what kernel is expecting
@@ -166,7 +274,8 @@ static unsigned long elf_sym_offset(struct elf_sym *sym)
 long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 {
 	int i, sh_types[2] = { SHT_DYNSYM, SHT_SYMTAB };
-	bool is_shared_lib, is_name_qualified;
+	const char *at_symbol, *lib_ver;
+	bool is_shared_lib;
 	long ret = -ENOENT;
 	size_t name_len;
 	GElf_Ehdr ehdr;
@@ -179,9 +288,18 @@ long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 	/* for shared lib case, we do not need to calculate relative offset */
 	is_shared_lib = ehdr.e_type == ET_DYN;
 
-	name_len = strlen(name);
-	/* Does name specify "@@LIB"? */
-	is_name_qualified = strstr(name, "@@") != NULL;
+	/* Does name specify "@@LIB_VER" or "@LIB_VER" ? */
+	at_symbol = strchr(name, '@');
+	if (at_symbol) {
+		name_len = at_symbol - name;
+		/* skip second @ if it's @@LIB_VER case */
+		if (at_symbol[1] == '@')
+			at_symbol++;
+		lib_ver = at_symbol + 1;
+	} else {
+		name_len = strlen(name);
+		lib_ver = NULL;
+	}
 
 	/* Search SHT_DYNSYM, SHT_SYMTAB for symbol. This search order is used because if
 	 * a binary is stripped, it may only have SHT_DYNSYM, and a fully-statically
@@ -201,20 +319,17 @@ long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 			goto out;
 
 		while ((sym = elf_sym_iter_next(&iter))) {
-			/* User can specify func, func@@LIB or func@@LIB_VERSION. */
-			if (strncmp(sym->name, name, name_len) != 0)
-				continue;
-			/* ...but we don't want a search for "foo" to match 'foo2" also, so any
-			 * additional characters in sname should be of the form "@@LIB".
-			 */
-			if (!is_name_qualified && sym->name[name_len] != '\0' && sym->name[name_len] != '@')
+			if (!symbol_match(&iter, sh_types[i], sym, name, name_len, lib_ver))
 				continue;
 
 			cur_bind = GELF_ST_BIND(sym->sym.st_info);
 
 			if (ret > 0) {
 				/* handle multiple matches */
-				if (last_bind != STB_WEAK && cur_bind != STB_WEAK) {
+				if (elf_sym_offset(sym) == ret) {
+					/* same offset, no problem */
+					continue;
+				} else if (last_bind != STB_WEAK && cur_bind != STB_WEAK) {
 					/* Only accept one non-weak bind. */
 					pr_warn("elf: ambiguous match for '%s', '%s' in '%s'\n",
 						sym->name, name, binary_path);

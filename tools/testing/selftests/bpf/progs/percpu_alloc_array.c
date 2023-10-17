@@ -71,6 +71,7 @@ int BPF_PROG(test_array_map_2)
 }
 
 int cpu0_field_d, sum_field_c;
+int my_pid;
 
 /* Summarize percpu data */
 SEC("?fentry/bpf_fentry_test3")
@@ -80,6 +81,9 @@ int BPF_PROG(test_array_map_3)
 	int i, index = 0;
 	struct val_t *v;
 	struct elem *e;
+
+	if ((bpf_get_current_pid_tgid() >> 32) != my_pid)
+		return 0;
 
 	e = bpf_map_lookup_elem(&array, &index);
 	if (!e)
@@ -129,6 +133,9 @@ int BPF_PROG(test_array_map_10)
 	int i, index = 0;
 	struct val_t *v;
 	struct elem *e;
+
+	if ((bpf_get_current_pid_tgid() >> 32) != my_pid)
+		return 0;
 
 	e = bpf_map_lookup_elem(&array, &index);
 	if (!e)
