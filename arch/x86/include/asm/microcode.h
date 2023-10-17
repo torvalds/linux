@@ -23,6 +23,8 @@ static inline void load_ucode_ap(void) { }
 static inline void microcode_bsp_resume(void) { }
 #endif
 
+extern unsigned long initrd_start_early;
+
 #ifdef CONFIG_CPU_SUP_INTEL
 /* Intel specific microcode defines. Public for IFS */
 struct microcode_header_intel {

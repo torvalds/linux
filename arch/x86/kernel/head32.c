@@ -29,10 +29,32 @@ static void __init i386_default_early_setup(void)
 	x86_init.mpparse.setup_ioapic_ids = setup_ioapic_ids_from_mpc;
 }
 
+#ifdef CONFIG_MICROCODE_INITRD32
+unsigned long __initdata initrd_start_early;
+static pte_t __initdata *initrd_pl2p_start, *initrd_pl2p_end;
+
+static void zap_early_initrd_mapping(void)
+{
+	pte_t *pl2p = initrd_pl2p_start;
+
+	for (; pl2p < initrd_pl2p_end; pl2p++) {
+		*pl2p = (pte_t){ .pte = 0 };
+
+		if (!IS_ENABLED(CONFIG_X86_PAE))
+			*(pl2p + ((PAGE_OFFSET >> PGDIR_SHIFT))) = (pte_t) {.pte = 0};
+	}
+}
+#else
+static inline void zap_early_initrd_mapping(void) { }
+#endif
+
 asmlinkage __visible void __init __noreturn i386_start_kernel(void)
 {
 	/* Make sure IDT is set up before any exception happens */
 	idt_setup_early_handler();
+
+	/* load_ucode_bsp() */
+	zap_early_initrd_mapping();
 
 	cr4_init_shadow();
 
@@ -105,9 +127,9 @@ static __init __no_stack_protector pte_t init_map(pte_t pte, pte_t **ptep, pl2_t
 void __init __no_stack_protector mk_early_pgtbl_32(void)
 {
 	/* Enough space to fit pagetables for the low memory linear map */
-	const unsigned long limit = __pa_nodebug(_end) +
-		(PAGE_TABLE_SIZE(LOWMEM_PAGES) << PAGE_SHIFT);
+	unsigned long limit = __pa_nodebug(_end) + (PAGE_TABLE_SIZE(LOWMEM_PAGES) << PAGE_SHIFT);
 	pte_t pte, *ptep = (pte_t *)__pa_nodebug(__brk_base);
+	struct boot_params __maybe_unused *params;
 	pl2_t *pl2p = (pl2_t *)__pa_nodebug(pl2_base);
 	unsigned long *ptr;
 
@@ -120,4 +142,32 @@ void __init __no_stack_protector mk_early_pgtbl_32(void)
 
 	ptr = (unsigned long *)__pa_nodebug(&_brk_end);
 	*ptr = (unsigned long)ptep + PAGE_OFFSET;
+
+#ifdef CONFIG_MICROCODE_INITRD32
+	/* Running on a hypervisor? */
+	if (native_cpuid_ecx(1) & BIT(31))
+		return;
+
+	params = (struct boot_params *)__pa_nodebug(&boot_params);
+	if (!params->hdr.ramdisk_size || !params->hdr.ramdisk_image)
+		return;
+
+	/* Save the virtual start address */
+	ptr = (unsigned long *)__pa_nodebug(&initrd_start_early);
+	*ptr = (pte.pte & PTE_PFN_MASK) + PAGE_OFFSET;
+	*ptr += ((unsigned long)params->hdr.ramdisk_image) & ~PAGE_MASK;
+
+	/* Save PLP2 for cleanup */
+	ptr = (unsigned long *)__pa_nodebug(&initrd_pl2p_start);
+	*ptr = (unsigned long)pl2p + PAGE_OFFSET;
+
+	limit = (unsigned long)params->hdr.ramdisk_image;
+	pte.pte = PTE_IDENT_ATTR | PFN_ALIGN(limit);
+	limit = (unsigned long)params->hdr.ramdisk_image + params->hdr.ramdisk_size;
+
+	init_map(pte, &ptep, &pl2p, limit);
+
+	ptr = (unsigned long *)__pa_nodebug(&initrd_pl2p_end);
+	*ptr = (unsigned long)pl2p + PAGE_OFFSET;
+#endif
 }
