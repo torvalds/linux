@@ -1106,26 +1106,32 @@ svm_range_split(struct svm_range *prange, uint64_t start, uint64_t last,
 }
 
 static int
-svm_range_split_tail(struct svm_range *prange,
-		     uint64_t new_last, struct list_head *insert_list)
+svm_range_split_tail(struct svm_range *prange, uint64_t new_last,
+		     struct list_head *insert_list, struct list_head *remap_list)
 {
 	struct svm_range *tail;
 	int r = svm_range_split(prange, prange->start, new_last, &tail);
 
-	if (!r)
+	if (!r) {
 		list_add(&tail->list, insert_list);
+		if (!IS_ALIGNED(new_last + 1, 1UL << prange->granularity))
+			list_add(&tail->update_list, remap_list);
+	}
 	return r;
 }
 
 static int
-svm_range_split_head(struct svm_range *prange,
-		     uint64_t new_start, struct list_head *insert_list)
+svm_range_split_head(struct svm_range *prange, uint64_t new_start,
+		     struct list_head *insert_list, struct list_head *remap_list)
 {
 	struct svm_range *head;
 	int r = svm_range_split(prange, new_start, prange->last, &head);
 
-	if (!r)
+	if (!r) {
 		list_add(&head->list, insert_list);
+		if (!IS_ALIGNED(new_start, 1UL << prange->granularity))
+			list_add(&head->update_list, remap_list);
+	}
 	return r;
 }
 
@@ -2052,7 +2058,7 @@ static int
 svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 	      uint32_t nattr, struct kfd_ioctl_svm_attribute *attrs,
 	      struct list_head *update_list, struct list_head *insert_list,
-	      struct list_head *remove_list)
+	      struct list_head *remove_list, struct list_head *remap_list)
 {
 	unsigned long last = start + size - 1UL;
 	struct svm_range_list *svms = &p->svms;
@@ -2068,6 +2074,7 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 	INIT_LIST_HEAD(insert_list);
 	INIT_LIST_HEAD(remove_list);
 	INIT_LIST_HEAD(&new_list);
+	INIT_LIST_HEAD(remap_list);
 
 	node = interval_tree_iter_first(&svms->objects, start, last);
 	while (node) {
@@ -2104,14 +2111,14 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 			if (node->start < start) {
 				pr_debug("change old range start\n");
 				r = svm_range_split_head(prange, start,
-							 insert_list);
+							 insert_list, remap_list);
 				if (r)
 					goto out;
 			}
 			if (node->last > last) {
 				pr_debug("change old range last\n");
 				r = svm_range_split_tail(prange, last,
-							 insert_list);
+							 insert_list, remap_list);
 				if (r)
 					goto out;
 			}
@@ -3501,6 +3508,7 @@ svm_range_set_attr(struct kfd_process *p, struct mm_struct *mm,
 	struct list_head update_list;
 	struct list_head insert_list;
 	struct list_head remove_list;
+	struct list_head remap_list;
 	struct svm_range_list *svms;
 	struct svm_range *prange;
 	struct svm_range *next;
@@ -3532,7 +3540,7 @@ svm_range_set_attr(struct kfd_process *p, struct mm_struct *mm,
 
 	/* Add new range and split existing ranges as needed */
 	r = svm_range_add(p, start, size, nattr, attrs, &update_list,
-			  &insert_list, &remove_list);
+			  &insert_list, &remove_list, &remap_list);
 	if (r) {
 		mutex_unlock(&svms->lock);
 		mmap_write_unlock(mm);
@@ -3592,6 +3600,19 @@ svm_range_set_attr(struct kfd_process *p, struct mm_struct *mm,
 			pr_debug("failed %d to map svm range\n", r);
 
 out_unlock_range:
+		mutex_unlock(&prange->migrate_mutex);
+		if (r)
+			ret = r;
+	}
+
+	list_for_each_entry(prange, &remap_list, update_list) {
+		pr_debug("Remapping prange 0x%p [0x%lx 0x%lx]\n",
+			 prange, prange->start, prange->last);
+		mutex_lock(&prange->migrate_mutex);
+		r = svm_range_validate_and_map(mm, prange, MAX_GPU_INSTANCE,
+					       true, true, prange->mapped_to_gpu);
+		if (r)
+			pr_debug("failed %d on remap svm range\n", r);
 		mutex_unlock(&prange->migrate_mutex);
 		if (r)
 			ret = r;
