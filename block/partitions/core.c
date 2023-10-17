@@ -274,17 +274,6 @@ void drop_partition(struct block_device *part)
 	put_device(&part->bd_device);
 }
 
-static void delete_partition(struct block_device *part)
-{
-	/*
-	 * Remove the block device from the inode hash, so that it cannot be
-	 * looked up any more even when openers still hold references.
-	 */
-	remove_inode_hash(part->bd_inode);
-	bdev_mark_dead(part, false);
-	drop_partition(part);
-}
-
 static ssize_t whole_disk_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -674,8 +663,23 @@ rescan:
 	sync_blockdev(disk->part0);
 	invalidate_bdev(disk->part0);
 
-	xa_for_each_start(&disk->part_tbl, idx, part, 1)
-		delete_partition(part);
+	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
+		/*
+		 * Remove the block device from the inode hash, so that
+		 * it cannot be looked up any more even when openers
+		 * still hold references.
+		 */
+		remove_inode_hash(part->bd_inode);
+
+		/*
+		 * If @disk->open_partitions isn't elevated but there's
+		 * still an active holder of that block device things
+		 * are broken.
+		 */
+		WARN_ON_ONCE(atomic_read(&part->bd_openers));
+		invalidate_bdev(part);
+		drop_partition(part);
+	}
 	clear_bit(GD_NEED_PART_SCAN, &disk->state);
 
 	/*
