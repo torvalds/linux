@@ -547,9 +547,8 @@ static struct rdma_hw_stats *hns_roce_alloc_hw_port_stats(
 				struct ib_device *device, u32 port_num)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(device);
-	u32 port = port_num - 1;
 
-	if (port > hr_dev->caps.num_ports) {
+	if (port_num > hr_dev->caps.num_ports) {
 		ibdev_err(device, "invalid port num.\n");
 		return NULL;
 	}
