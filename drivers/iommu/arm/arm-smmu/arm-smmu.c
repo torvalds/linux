@@ -1164,8 +1164,8 @@ rpm_put:
 	return ret;
 }
 
-static int arm_smmu_attach_dev_identity(struct iommu_domain *domain,
-					struct device *dev)
+static int arm_smmu_attach_dev_type(struct device *dev,
+				    enum arm_smmu_s2cr_type type)
 {
 	struct arm_smmu_master_cfg *cfg = dev_iommu_priv_get(dev);
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
@@ -1180,10 +1180,16 @@ static int arm_smmu_attach_dev_identity(struct iommu_domain *domain,
 	if (ret < 0)
 		return ret;
 
-	arm_smmu_master_install_s2crs(cfg, S2CR_TYPE_BYPASS, 0, fwspec);
+	arm_smmu_master_install_s2crs(cfg, type, 0, fwspec);
 	arm_smmu_rpm_use_autosuspend(smmu);
 	arm_smmu_rpm_put(smmu);
 	return 0;
+}
+
+static int arm_smmu_attach_dev_identity(struct iommu_domain *domain,
+					struct device *dev)
+{
+	return arm_smmu_attach_dev_type(dev, S2CR_TYPE_BYPASS);
 }
 
 static const struct iommu_domain_ops arm_smmu_identity_ops = {
@@ -1193,6 +1199,21 @@ static const struct iommu_domain_ops arm_smmu_identity_ops = {
 static struct iommu_domain arm_smmu_identity_domain = {
 	.type = IOMMU_DOMAIN_IDENTITY,
 	.ops = &arm_smmu_identity_ops,
+};
+
+static int arm_smmu_attach_dev_blocked(struct iommu_domain *domain,
+				       struct device *dev)
+{
+	return arm_smmu_attach_dev_type(dev, S2CR_TYPE_FAULT);
+}
+
+static const struct iommu_domain_ops arm_smmu_blocked_ops = {
+	.attach_dev = arm_smmu_attach_dev_blocked,
+};
+
+static struct iommu_domain arm_smmu_blocked_domain = {
+	.type = IOMMU_DOMAIN_BLOCKED,
+	.ops = &arm_smmu_blocked_ops,
 };
 
 static int arm_smmu_map_pages(struct iommu_domain *domain, unsigned long iova,
@@ -1582,6 +1603,7 @@ static int arm_smmu_def_domain_type(struct device *dev)
 
 static struct iommu_ops arm_smmu_ops = {
 	.identity_domain	= &arm_smmu_identity_domain,
+	.blocked_domain		= &arm_smmu_blocked_domain,
 	.capable		= arm_smmu_capable,
 	.domain_alloc		= arm_smmu_domain_alloc,
 	.probe_device		= arm_smmu_probe_device,
