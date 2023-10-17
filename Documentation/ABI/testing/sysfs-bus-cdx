@@ -28,6 +28,19 @@ Description:
 		of a device manufacturer.
 		Combination of Vendor ID and Device ID identifies a device.
 
+What:		/sys/bus/cdx/devices/.../enable
+Date:		October 2023
+Contact:	abhijit.gangurde@amd.com
+Description:
+		CDX bus should be disabled before updating the devices in FPGA.
+		Writing n/0/off will attempt to disable the CDX bus and.
+		writing y/1/on will attempt to enable the CDX bus. Reading this file
+		gives the current state of the bus, 1 for enabled and 0 for disabled.
+
+		For example::
+
+		  # echo 1 > /sys/bus/cdx/.../enable
+
 What:		/sys/bus/cdx/devices/.../reset
 Date:		March 2023
 Contact:	nipun.gupta@amd.com

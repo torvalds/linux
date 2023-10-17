@@ -124,9 +124,12 @@ static int cdx_unregister_device(struct device *dev,
 				 void *data)
 {
 	struct cdx_device *cdx_dev = to_cdx_device(dev);
+	struct cdx_controller *cdx = cdx_dev->cdx;
 
 	if (cdx_dev->is_bus) {
 		device_for_each_child(dev, NULL, cdx_unregister_device);
+		if (cdx_dev->enabled && cdx->ops->bus_disable)
+			cdx->ops->bus_disable(cdx, cdx_dev->bus_num);
 	} else {
 		kfree(cdx_dev->driver_override);
 		cdx_dev->driver_override = NULL;
@@ -383,6 +386,41 @@ static ssize_t driver_override_show(struct device *dev,
 }
 static DEVICE_ATTR_RW(driver_override);
 
+static ssize_t enable_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct cdx_device *cdx_dev = to_cdx_device(dev);
+	struct cdx_controller *cdx = cdx_dev->cdx;
+	bool enable;
+	int ret;
+
+	if (kstrtobool(buf, &enable) < 0)
+		return -EINVAL;
+
+	if (enable == cdx_dev->enabled)
+		return count;
+
+	if (enable && cdx->ops->bus_enable)
+		ret = cdx->ops->bus_enable(cdx, cdx_dev->bus_num);
+	else if (!enable && cdx->ops->bus_disable)
+		ret = cdx->ops->bus_disable(cdx, cdx_dev->bus_num);
+	else
+		ret = -EOPNOTSUPP;
+
+	if (!ret)
+		cdx_dev->enabled = enable;
+
+	return ret < 0 ? ret : count;
+}
+
+static ssize_t enable_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cdx_device *cdx_dev = to_cdx_device(dev);
+
+	return sysfs_emit(buf, "%u\n", cdx_dev->enabled);
+}
+static DEVICE_ATTR_RW(enable);
+
 static umode_t cdx_dev_attrs_are_visible(struct kobject *kobj, struct attribute *a, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -390,6 +428,18 @@ static umode_t cdx_dev_attrs_are_visible(struct kobject *kobj, struct attribute 
 
 	cdx_dev = to_cdx_device(dev);
 	if (!cdx_dev->is_bus)
+		return a->mode;
+
+	return 0;
+}
+
+static umode_t cdx_bus_attrs_are_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct cdx_device *cdx_dev;
+
+	cdx_dev = to_cdx_device(dev);
+	if (cdx_dev->is_bus)
 		return a->mode;
 
 	return 0;
@@ -409,8 +459,19 @@ static const struct attribute_group cdx_dev_group = {
 	.is_visible = cdx_dev_attrs_are_visible,
 };
 
+static struct attribute *cdx_bus_dev_attrs[] = {
+	&dev_attr_enable.attr,
+	NULL,
+};
+
+static const struct attribute_group cdx_bus_dev_group = {
+	.attrs = cdx_bus_dev_attrs,
+	.is_visible = cdx_bus_attrs_are_visible,
+};
+
 static const struct attribute_group *cdx_dev_groups[] = {
 	&cdx_dev_group,
+	&cdx_bus_dev_group,
 	NULL,
 };
 
@@ -588,8 +649,19 @@ struct device *cdx_bus_add(struct cdx_controller *cdx, u8 bus_num)
 		goto device_add_fail;
 	}
 
+	if (cdx->ops->bus_enable) {
+		ret = cdx->ops->bus_enable(cdx, bus_num);
+		if (ret && ret != -EALREADY) {
+			dev_err(cdx->dev, "cdx bus enable failed: %d\n", ret);
+			goto bus_enable_fail;
+		}
+	}
+
+	cdx_dev->enabled = true;
 	return &cdx_dev->dev;
 
+bus_enable_fail:
+	device_del(&cdx_dev->dev);
 device_add_fail:
 	put_device(&cdx_dev->dev);
 
