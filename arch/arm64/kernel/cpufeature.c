@@ -1944,8 +1944,6 @@ int get_cpu_with_amu_feat(void)
 static void cpu_amu_enable(struct arm64_cpu_capabilities const *cap)
 {
 	if (has_cpuid_feature(cap, SCOPE_LOCAL_CPU)) {
-		pr_info("detected CPU%d: Activity Monitors Unit (AMU)\n",
-			smp_processor_id());
 		cpumask_set_cpu(smp_processor_id(), &amu_cpus);
 
 		/* 0 reference values signal broken/disabled counters */
@@ -2405,16 +2403,12 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 #endif /* CONFIG_ARM64_RAS_EXTN */
 #ifdef CONFIG_ARM64_AMU_EXTN
 	{
-		/*
-		 * The feature is enabled by default if CONFIG_ARM64_AMU_EXTN=y.
-		 * Therefore, don't provide .desc as we don't want the detection
-		 * message to be shown until at least one CPU is detected to
-		 * support the feature.
-		 */
+		.desc = "Activity Monitors Unit (AMU)",
 		.capability = ARM64_HAS_AMU_EXTN,
 		.type = ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE,
 		.matches = has_amu,
 		.cpu_enable = cpu_amu_enable,
+		.cpus = &amu_cpus,
 		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, AMU, IMP)
 	},
 #endif /* CONFIG_ARM64_AMU_EXTN */
@@ -2981,7 +2975,7 @@ static void update_cpu_capabilities(u16 scope_mask)
 		    !caps->matches(caps, cpucap_default_scope(caps)))
 			continue;
 
-		if (caps->desc)
+		if (caps->desc && !caps->cpus)
 			pr_info("detected: %s\n", caps->desc);
 
 		__set_bit(caps->capability, system_cpucaps);
@@ -3330,6 +3324,7 @@ unsigned long cpu_get_elf_hwcap2(void)
 
 static void __init setup_system_capabilities(void)
 {
+	int i;
 	/*
 	 * We have finalised the system-wide safe feature
 	 * registers, finalise the capabilities that depend
@@ -3338,6 +3333,15 @@ static void __init setup_system_capabilities(void)
 	 */
 	update_cpu_capabilities(SCOPE_SYSTEM);
 	enable_cpu_capabilities(SCOPE_ALL & ~SCOPE_BOOT_CPU);
+
+	for (i = 0; i < ARM64_NCAPS; i++) {
+		const struct arm64_cpu_capabilities *caps = cpucap_ptrs[i];
+
+		if (caps && caps->cpus && caps->desc &&
+			cpumask_any(caps->cpus) < nr_cpu_ids)
+			pr_info("detected: %s on CPU%*pbl\n",
+				caps->desc, cpumask_pr_args(caps->cpus));
+	}
 }
 
 void __init setup_cpu_features(void)
