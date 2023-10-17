@@ -85,7 +85,7 @@ static int jpeg_v5_0_0_sw_init(void *handle)
 		return r;
 
 	ring = adev->jpeg.inst->ring_dec;
-	ring->use_doorbell = false;
+	ring->use_doorbell = true;
 	ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 1;
 	ring->vm_hub = AMDGPU_MMHUB0(0);
 
@@ -133,6 +133,13 @@ static int jpeg_v5_0_0_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = adev->jpeg.inst->ring_dec;
 	int r;
+
+	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
+			(adev->doorbell_index.vcn.vcn_ring0_1 << 1), 0);
+
+	WREG32_SOC15(VCN, 0, regVCN_JPEG_DB_CTRL,
+			ring->doorbell_index << VCN_JPEG_DB_CTRL__OFFSET__SHIFT |
+			VCN_JPEG_DB_CTRL__EN_MASK);
 
 	r = amdgpu_ring_test_helper(ring);
 	if (r)
