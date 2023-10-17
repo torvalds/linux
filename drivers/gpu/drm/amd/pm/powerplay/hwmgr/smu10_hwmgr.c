@@ -375,6 +375,17 @@ static int smu10_enable_gfx_off(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static void smu10_populate_umdpstate_clocks(struct pp_hwmgr *hwmgr)
+{
+	hwmgr->pstate_sclk = SMU10_UMD_PSTATE_GFXCLK;
+	hwmgr->pstate_mclk = SMU10_UMD_PSTATE_FCLK;
+
+	smum_send_msg_to_smc(hwmgr,
+			     PPSMC_MSG_GetMaxGfxclkFrequency,
+			     &hwmgr->pstate_sclk_peak);
+	hwmgr->pstate_mclk_peak = SMU10_UMD_PSTATE_PEAK_FCLK;
+}
+
 static int smu10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -397,6 +408,8 @@ static int smu10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 		if (ret)
 			return ret;
 	}
+
+	smu10_populate_umdpstate_clocks(hwmgr);
 
 	return 0;
 }
@@ -573,9 +586,6 @@ static int smu10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	hwmgr->platform_descriptor.clockStep.memoryClock = 500;
 
 	hwmgr->platform_descriptor.minimumClocksReductionPercentage = 50;
-
-	hwmgr->pstate_sclk = SMU10_UMD_PSTATE_GFXCLK * 100;
-	hwmgr->pstate_mclk = SMU10_UMD_PSTATE_FCLK * 100;
 
 	/* enable the pp_od_clk_voltage sysfs file */
 	hwmgr->od_enabled = 1;

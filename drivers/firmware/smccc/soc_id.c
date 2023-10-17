@@ -55,26 +55,7 @@ static int __init smccc_soc_init(void)
 		return 0;
 	}
 
-	if ((int)res.a0 < 0) {
-		pr_info("ARCH_FEATURES(ARCH_SOC_ID) returned error: %lx\n",
-			res.a0);
-		return -EINVAL;
-	}
-
-	arm_smccc_1_1_invoke(ARM_SMCCC_ARCH_SOC_ID, 0, &res);
-	if ((int)res.a0 < 0) {
-		pr_err("ARCH_SOC_ID(0) returned error: %lx\n", res.a0);
-		return -EINVAL;
-	}
-
-	soc_id_version = res.a0;
-
-	arm_smccc_1_1_invoke(ARM_SMCCC_ARCH_SOC_ID, 1, &res);
-	if ((int)res.a0 < 0) {
-		pr_err("ARCH_SOC_ID(1) returned error: %lx\n", res.a0);
-		return -EINVAL;
-	}
-
+	soc_id_version = arm_smccc_get_version();
 	soc_id_rev = res.a0;
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);

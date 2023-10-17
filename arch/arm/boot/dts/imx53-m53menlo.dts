@@ -34,19 +34,19 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_led>;
 
-		user1 {
+		led-user1 {
 			label = "TestLed601";
 			gpios = <&gpio6 1 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
 		};
 
-		user2 {
+		led-user2 {
 			label = "TestLed602";
 			gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		eth {
+		led-eth {
 			label = "EthLedYe";
 			gpios = <&gpio2 11 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "netdev";

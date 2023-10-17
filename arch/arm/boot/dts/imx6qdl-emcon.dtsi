@@ -46,14 +46,14 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_som_leds>;
 
-		green {
+		led-green {
 			label = "som:green";
 			gpios = <&gpio3 0 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			default-state = "on";
 		};
 
-		red {
+		led-red {
 			label = "som:red";
 			gpios = <&gpio3 1 GPIO_ACTIVE_LOW>;
 			default-state = "keep";

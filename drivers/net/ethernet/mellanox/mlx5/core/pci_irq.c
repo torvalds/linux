@@ -591,6 +591,24 @@ static void irq_pools_destroy(struct mlx5_irq_table *table)
 	irq_pool_free(table->pf_pool);
 }
 
+static void mlx5_irq_pool_free_irqs(struct mlx5_irq_pool *pool)
+{
+	struct mlx5_irq *irq;
+	unsigned long index;
+
+	xa_for_each(&pool->irqs, index, irq)
+		free_irq(irq->irqn, &irq->nh);
+}
+
+static void mlx5_irq_pools_free_irqs(struct mlx5_irq_table *table)
+{
+	if (table->sf_ctrl_pool) {
+		mlx5_irq_pool_free_irqs(table->sf_comp_pool);
+		mlx5_irq_pool_free_irqs(table->sf_ctrl_pool);
+	}
+	mlx5_irq_pool_free_irqs(table->pf_pool);
+}
+
 /* irq_table API */
 
 int mlx5_irq_table_init(struct mlx5_core_dev *dev)
@@ -667,6 +685,17 @@ void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
 	 * to here. Hence, making sure all the irqs are released.
 	 */
 	irq_pools_destroy(table);
+	pci_free_irq_vectors(dev->pdev);
+}
+
+void mlx5_irq_table_free_irqs(struct mlx5_core_dev *dev)
+{
+	struct mlx5_irq_table *table = dev->priv.irq_table;
+
+	if (mlx5_core_is_sf(dev))
+		return;
+
+	mlx5_irq_pools_free_irqs(table);
 	pci_free_irq_vectors(dev->pdev);
 }
 

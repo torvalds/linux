@@ -211,17 +211,17 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_q7_gpio1 &pinctrl_q7_gpio3 &pinctrl_q7_gpio5>;
 
-		alarm1 {
+		led-alarm1 {
 			label = "alarm:red";
 			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		};
 
-		alarm2 {
+		led-alarm2 {
 			label = "alarm:yellow";
 			gpios = <&gpio4 27 GPIO_ACTIVE_HIGH>;
 		};
 
-		alarm3 {
+		led-alarm3 {
 			label = "alarm:blue";
 			gpios = <&gpio4 15 GPIO_ACTIVE_HIGH>;
 		};
