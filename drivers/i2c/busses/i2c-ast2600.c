@@ -1298,45 +1298,45 @@ static int ast2600_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg
 		goto master_out;
 	timeout = wait_for_completion_timeout(&i2c_bus->cmd_complete, i2c_bus->adap.timeout);
 	if (timeout == 0) {
-		u32 isr = readl(i2c_bus->reg_base + AST2600_I2CM_ISR);
-		u32 i2c_status = readl(i2c_bus->reg_base + AST2600_I2CC_STS_AND_BUFF);
+		u32 ctrl = readl(i2c_bus->reg_base + AST2600_I2CC_FUN_CTRL);
 
-		dev_dbg(i2c_bus->dev, "timeout isr[%x], sts[%x]\n", isr, i2c_status);
-		if (isr || (i2c_status & AST2600_I2CC_TX_DIR_MASK)) {
-			u32 ctrl = readl(i2c_bus->reg_base + AST2600_I2CC_FUN_CTRL);
-
-			writel(0, i2c_bus->reg_base + AST2600_I2CC_FUN_CTRL);
-			writel(ctrl, i2c_bus->reg_base + AST2600_I2CC_FUN_CTRL);
+		dev_dbg(i2c_bus->dev, "timeout isr[%x], sts[%x]\n",
+			readl(i2c_bus->reg_base + AST2600_I2CM_ISR),
+			readl(i2c_bus->reg_base + AST2600_I2CC_STS_AND_BUFF));
+		writel(0, i2c_bus->reg_base + AST2600_I2CC_FUN_CTRL);
+		writel(ctrl, i2c_bus->reg_base + AST2600_I2CC_FUN_CTRL);
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
-			if (ctrl & AST2600_I2CC_SLAVE_EN) {
-				u32 cmd = SLAVE_TRIGGER_CMD;
+		if (ctrl & AST2600_I2CC_SLAVE_EN) {
+			u32 cmd = SLAVE_TRIGGER_CMD;
 
-				if (i2c_bus->mode == DMA_MODE) {
-					cmd |= AST2600_I2CS_RX_DMA_EN;
-					writel(lower_32_bits(i2c_bus->slave_dma_addr),
-					       i2c_bus->reg_base + AST2600_I2CS_RX_DMA);
+			if (i2c_bus->mode == DMA_MODE) {
+				cmd |= AST2600_I2CS_RX_DMA_EN;
+				writel(lower_32_bits(i2c_bus->slave_dma_addr),
+				       i2c_bus->reg_base + AST2600_I2CS_RX_DMA);
 #ifdef CONFIG_64BIT
-					writel(upper_32_bits(i2c_bus->slave_dma_addr),
-					       i2c_bus->reg_base + AST2600_I2CS_RX_DMA_H);
+				writel(upper_32_bits(i2c_bus->slave_dma_addr),
+				       i2c_bus->reg_base + AST2600_I2CS_RX_DMA_H);
 #endif
-					writel(lower_32_bits(i2c_bus->slave_dma_addr),
-					       i2c_bus->reg_base + AST2600_I2CS_TX_DMA);
+				writel(lower_32_bits(i2c_bus->slave_dma_addr),
+				       i2c_bus->reg_base + AST2600_I2CS_TX_DMA);
 #ifdef CONFIG_64BIT
-					writel(upper_32_bits(i2c_bus->slave_dma_addr),
-					       i2c_bus->reg_base + AST2600_I2CS_TX_DMA_H);
+				writel(upper_32_bits(i2c_bus->slave_dma_addr),
+				       i2c_bus->reg_base + AST2600_I2CS_TX_DMA_H);
 #endif
-					writel(AST2600_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
-					       i2c_bus->reg_base + AST2600_I2CS_DMA_LEN);
-				} else if (i2c_bus->mode == BUFF_MODE) {
-					cmd = SLAVE_TRIGGER_CMD;
-				} else {
-					cmd &= ~AST2600_I2CS_PKT_MODE_EN;
-				}
-				writel(cmd, i2c_bus->reg_base + AST2600_I2CS_CMD_STS);
+				writel(AST2600_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
+				       i2c_bus->reg_base + AST2600_I2CS_DMA_LEN);
+			} else if (i2c_bus->mode == BUFF_MODE) {
+				cmd = SLAVE_TRIGGER_CMD;
+			} else {
+				cmd &= ~AST2600_I2CS_PKT_MODE_EN;
 			}
-#endif
+			writel(cmd, i2c_bus->reg_base + AST2600_I2CS_CMD_STS);
 		}
-		if (i2c_bus->multi_master && (i2c_status & AST2600_I2CC_BUS_BUSY_STS))
+#endif
+
+		if (i2c_bus->multi_master &&
+		    (readl(i2c_bus->reg_base + AST2600_I2CC_STS_AND_BUFF) &
+		    AST2600_I2CC_BUS_BUSY_STS))
 			ast2600_i2c_recover_bus(i2c_bus);
 
 		ret = -ETIMEDOUT;
