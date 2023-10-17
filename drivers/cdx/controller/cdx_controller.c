@@ -229,3 +229,4 @@ module_exit(cdx_controller_exit);
 MODULE_AUTHOR("AMD Inc.");
 MODULE_DESCRIPTION("CDX controller for AMD devices");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(CDX_BUS_CONTROLLER);
