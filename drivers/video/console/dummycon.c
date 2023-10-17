@@ -19,8 +19,9 @@
  */
 
 #if defined(CONFIG_ARCH_FOOTBRIDGE) && defined(CONFIG_VGA_CONSOLE)
-#define DUMMY_COLUMNS	screen_info.orig_video_cols
-#define DUMMY_ROWS	screen_info.orig_video_lines
+#include <asm/vga.h>
+#define DUMMY_COLUMNS	vgacon_screen_info.orig_video_cols
+#define DUMMY_ROWS	vgacon_screen_info.orig_video_lines
 #else
 /* set by Kconfig. Use 80x25 for 640x480 and 160x64 for 1280x1024 */
 #define DUMMY_COLUMNS	CONFIG_DUMMY_CONSOLE_COLUMNS

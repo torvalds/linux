@@ -929,7 +929,7 @@ static void __init request_standard_resources(const struct machine_desc *mdesc)
 }
 
 #if defined(CONFIG_VGA_CONSOLE)
-static struct screen_info vgacon_screen_info = {
+struct screen_info vgacon_screen_info = {
  .orig_video_lines	= 30,
  .orig_video_cols	= 80,
  .orig_video_mode	= 0,
