@@ -1749,30 +1749,6 @@ void prism2sta_ev_info(struct wlandevice *wlandev,
 }
 
 /*
- * prism2sta_ev_txexc
- *
- * Handles the TxExc event.  A Transmit Exception event indicates
- * that the MAC's TX process was unsuccessful - so the packet did
- * not get transmitted.
- *
- * Arguments:
- *	wlandev		wlan device structure
- *	status		tx frame status word
- *
- * Returns:
- *	nothing
- *
- * Side effects:
- *
- * Call context:
- *	interrupt
- */
-void prism2sta_ev_txexc(struct wlandevice *wlandev, u16 status)
-{
-	netdev_dbg(wlandev->netdev, "TxExc status=0x%x.\n", status);
-}
-
-/*
  * prism2sta_ev_tx
  *
  * Handles the Tx event.

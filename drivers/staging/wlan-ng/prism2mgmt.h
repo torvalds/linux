@@ -45,9 +45,7 @@ extern int prism2_reset_settletime;
 
 u32 prism2sta_ifstate(struct wlandevice *wlandev, u32 ifstate);
 
-void prism2sta_ev_info(struct wlandevice *wlandev,
-		       struct hfa384x_inf_frame *inf);
-void prism2sta_ev_txexc(struct wlandevice *wlandev, u16 status);
+void prism2sta_ev_info(struct wlandevice *wlandev, struct hfa384x_inf_frame *inf);
 void prism2sta_ev_tx(struct wlandevice *wlandev, u16 status);
 void prism2sta_ev_alloc(struct wlandevice *wlandev);
 
