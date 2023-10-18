@@ -1194,9 +1194,11 @@ static void i2c_adapter_dev_release(struct device *dev)
 unsigned int i2c_adapter_depth(struct i2c_adapter *adapter)
 {
 	unsigned int depth = 0;
+	struct device *parent;
 
-	while ((adapter = i2c_parent_is_i2c_adapter(adapter)))
-		depth++;
+	for (parent = adapter->dev.parent; parent; parent = parent->parent)
+		if (parent->type == &i2c_adapter_type)
+			depth++;
 
 	WARN_ONCE(depth >= MAX_LOCKDEP_SUBCLASSES,
 		  "adapter depth exceeds lockdep subclass limit\n");
