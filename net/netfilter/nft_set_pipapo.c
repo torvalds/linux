@@ -1809,14 +1809,12 @@ static void *nft_pipapo_deactivate(const struct net *net,
  *
  * Return: true if element was found and deactivated.
  */
-static bool nft_pipapo_flush(const struct net *net, const struct nft_set *set,
+static void nft_pipapo_flush(const struct net *net, const struct nft_set *set,
 			     void *elem)
 {
 	struct nft_pipapo_elem *e = elem;
 
 	nft_set_elem_change_active(net, set, &e->ext);
-
-	return true;
 }
 
 /**

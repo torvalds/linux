@@ -174,7 +174,7 @@ static void nft_bitmap_activate(const struct net *net,
 	nft_set_elem_change_active(net, set, &be->ext);
 }
 
-static bool nft_bitmap_flush(const struct net *net,
+static void nft_bitmap_flush(const struct net *net,
 			     const struct nft_set *set, void *_be)
 {
 	struct nft_bitmap *priv = nft_set_priv(set);
@@ -186,8 +186,6 @@ static bool nft_bitmap_flush(const struct net *net,
 	/* Enter 10 state, similar to deactivation. */
 	priv->bitmap[idx] &= ~(genmask << off);
 	nft_set_elem_change_active(net, set, &be->ext);
-
-	return true;
 }
 
 static void *nft_bitmap_deactivate(const struct net *net,

@@ -449,7 +449,7 @@ struct nft_set_ops {
 	void *				(*deactivate)(const struct net *net,
 						      const struct nft_set *set,
 						      const struct nft_set_elem *elem);
-	bool				(*flush)(const struct net *net,
+	void				(*flush)(const struct net *net,
 						 const struct nft_set *set,
 						 void *priv);
 	void				(*remove)(const struct net *net,

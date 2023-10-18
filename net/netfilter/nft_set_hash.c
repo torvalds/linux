@@ -192,14 +192,12 @@ static void nft_rhash_activate(const struct net *net, const struct nft_set *set,
 	nft_set_elem_change_active(net, set, &he->ext);
 }
 
-static bool nft_rhash_flush(const struct net *net,
+static void nft_rhash_flush(const struct net *net,
 			    const struct nft_set *set, void *priv)
 {
 	struct nft_rhash_elem *he = priv;
 
 	nft_set_elem_change_active(net, set, &he->ext);
-
-	return true;
 }
 
 static void *nft_rhash_deactivate(const struct net *net,
@@ -590,13 +588,12 @@ static void nft_hash_activate(const struct net *net, const struct nft_set *set,
 	nft_set_elem_change_active(net, set, &he->ext);
 }
 
-static bool nft_hash_flush(const struct net *net,
+static void nft_hash_flush(const struct net *net,
 			   const struct nft_set *set, void *priv)
 {
 	struct nft_hash_elem *he = priv;
 
 	nft_set_elem_change_active(net, set, &he->ext);
-	return true;
 }
 
 static void *nft_hash_deactivate(const struct net *net,
