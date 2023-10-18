@@ -257,7 +257,8 @@ static int phylink_interface_max_speed(phy_interface_t interface)
  * Set all possible pause, speed and duplex linkmodes in @linkmodes that are
  * supported by the @caps. @linkmodes must have been initialised previously.
  */
-void phylink_caps_to_linkmodes(unsigned long *linkmodes, unsigned long caps)
+static void phylink_caps_to_linkmodes(unsigned long *linkmodes,
+				      unsigned long caps)
 {
 	if (caps & MAC_SYM_PAUSE)
 		__set_bit(ETHTOOL_LINK_MODE_Pause_BIT, linkmodes);
@@ -400,7 +401,6 @@ void phylink_caps_to_linkmodes(unsigned long *linkmodes, unsigned long caps)
 		__set_bit(ETHTOOL_LINK_MODE_400000baseCR4_Full_BIT, linkmodes);
 	}
 }
-EXPORT_SYMBOL_GPL(phylink_caps_to_linkmodes);
 
 static struct {
 	unsigned long mask;
@@ -477,9 +477,9 @@ static unsigned long phylink_cap_from_speed_duplex(int speed,
  * Get the MAC capabilities that are supported by the @interface mode and
  * @mac_capabilities.
  */
-unsigned long phylink_get_capabilities(phy_interface_t interface,
-				       unsigned long mac_capabilities,
-				       int rate_matching)
+static unsigned long phylink_get_capabilities(phy_interface_t interface,
+					      unsigned long mac_capabilities,
+					      int rate_matching)
 {
 	int max_speed = phylink_interface_max_speed(interface);
 	unsigned long caps = MAC_SYM_PAUSE | MAC_ASYM_PAUSE;
@@ -606,7 +606,6 @@ unsigned long phylink_get_capabilities(phy_interface_t interface,
 
 	return (caps & mac_capabilities) | matched_caps;
 }
-EXPORT_SYMBOL_GPL(phylink_get_capabilities);
 
 /**
  * phylink_validate_mask_caps() - Restrict link modes based on caps
@@ -618,9 +617,9 @@ EXPORT_SYMBOL_GPL(phylink_get_capabilities);
  * @supported and @state based on that. Use this function if your capabiliies
  * aren't constant, such as if they vary depending on the interface.
  */
-void phylink_validate_mask_caps(unsigned long *supported,
-				struct phylink_link_state *state,
-				unsigned long mac_capabilities)
+static void phylink_validate_mask_caps(unsigned long *supported,
+				       struct phylink_link_state *state,
+				       unsigned long mac_capabilities)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	unsigned long caps;
@@ -634,29 +633,12 @@ void phylink_validate_mask_caps(unsigned long *supported,
 	linkmode_and(supported, supported, mask);
 	linkmode_and(state->advertising, state->advertising, mask);
 }
-EXPORT_SYMBOL_GPL(phylink_validate_mask_caps);
-
-/**
- * phylink_generic_validate() - generic validate() callback implementation
- * @config: a pointer to a &struct phylink_config.
- * @supported: ethtool bitmask for supported link modes.
- * @state: a pointer to a &struct phylink_link_state.
- *
- * Generic implementation of the validate() callback that MAC drivers can
- * use when they pass the range of supported interfaces and MAC capabilities.
- */
-void phylink_generic_validate(struct phylink_config *config,
-			      unsigned long *supported,
-			      struct phylink_link_state *state)
-{
-	phylink_validate_mask_caps(supported, state, config->mac_capabilities);
-}
-EXPORT_SYMBOL_GPL(phylink_generic_validate);
 
 static int phylink_validate_mac_and_pcs(struct phylink *pl,
 					unsigned long *supported,
 					struct phylink_link_state *state)
 {
+	unsigned long capabilities;
 	struct phylink_pcs *pcs;
 	int ret;
 
@@ -696,10 +678,13 @@ static int phylink_validate_mac_and_pcs(struct phylink *pl,
 	}
 
 	/* Then validate the link parameters with the MAC */
-	if (pl->mac_ops->validate)
-		pl->mac_ops->validate(pl->config, supported, state);
+	if (pl->mac_ops->mac_get_caps)
+		capabilities = pl->mac_ops->mac_get_caps(pl->config,
+							 state->interface);
 	else
-		phylink_generic_validate(pl->config, supported, state);
+		capabilities = pl->config->mac_capabilities;
+
+	phylink_validate_mask_caps(supported, state, capabilities);
 
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
 }
