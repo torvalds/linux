@@ -88,6 +88,10 @@
 	};
 };
 
+&pwm11 {
+	status = "okay";
+};
+
 &sdmmc {
 	bus-width = <4>;
 	cap-mmc-highspeed;
