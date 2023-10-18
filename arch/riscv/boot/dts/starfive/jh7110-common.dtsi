@@ -752,3 +752,36 @@
 	memory-region = <&hifi4_reserved>;
 	status = "disabled";
 };
+
+&qspi {
+    nor_flash: nor-flash@0 {
+    compatible = "jedec,spi-nor";
+    reg=<0>;
+    cdns,read-delay = <5>;
+    spi-max-frequency = <100000000>;
+    cdns,tshsl-ns = <1>;
+    cdns,tsd2d-ns = <1>;
+    cdns,tchsh-ns = <1>;
+    cdns,tslch-ns = <1>;
+    status = "okay";
+
+        partitions {
+            compatible = "fixed-partitions";
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            spl@0 {
+                reg = <0x0 0x40000>;
+            };
+            uboot-env@100000 {
+                reg = <0xf0000 0x10000>;
+            };
+            uboot@100000 {
+                reg = <0x100000 0x300000>;
+            };
+            data@f00000 {
+                reg = <0xf00000 0x100000>;
+            };
+        };
+    };
+};
