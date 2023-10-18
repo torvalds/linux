@@ -1734,15 +1734,15 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < adc->num_sdams; i++) {
-		ret = devm_request_irq(dev, adc->base[i].irq, adc5_gen3_isr,
+		ret = request_irq(adc->base[i].irq, adc5_gen3_isr,
 					0, adc->base[i].irq_name, adc);
 		if (ret < 0)
-			goto fail;
+			goto irq_fail;
 	}
 
 	ret = adc_tm_register_tzd(adc);
 	if (ret < 0)
-		goto fail;
+		goto irq_fail;
 
 	adc->adc_md = thermal_minidump_register("adc5_gen3");
 
@@ -1759,8 +1759,13 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 	list_add_tail(&adc->list, &adc_tm_device_list);
 	adc->device_list = &adc_tm_device_list;
 
-	return devm_iio_device_register(dev, indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
+	if (!ret)
+		return 0;
 
+irq_fail:
+	for (i = 0; i < adc->num_sdams; i++)
+		free_irq(adc->base[i].irq, adc);
 fail:
 	i = 0;
 	while (i < adc->nchannels) {
@@ -1771,11 +1776,17 @@ fail:
 	return ret;
 }
 
-static int adc5_gen3_exit(struct platform_device *pdev)
+static int adc5_gen3_remove(struct platform_device *pdev)
 {
 	struct adc5_chip *adc = platform_get_drvdata(pdev);
 	u8 data = 0;
 	int i, sdam_index;
+
+	if (adc->n_tm_channels)
+		cancel_work_sync(&adc->tm_handler_work);
+
+	for (i = 0; i < adc->num_sdams; i++)
+		free_irq(adc->base[i].irq, adc);
 
 	mutex_lock(&adc->lock);
 	for (i = 0; i < adc->nchannels; i++) {
@@ -1787,6 +1798,9 @@ static int adc5_gen3_exit(struct platform_device *pdev)
 	/* Disable all available channels */
 	for (i = 0; i < adc->num_sdams * 8; i++) {
 		sdam_index = i / 8;
+
+		adc5_gen3_poll_wait_hs(adc, sdam_index);
+
 		data = MEAS_INT_DISABLE;
 		adc5_write(adc, sdam_index, ADC5_GEN3_TIMER_SEL, &data, 1);
 
@@ -1799,9 +1813,6 @@ static int adc5_gen3_exit(struct platform_device *pdev)
 	}
 
 	mutex_unlock(&adc->lock);
-
-	if (adc->n_tm_channels)
-		cancel_work_sync(&adc->tm_handler_work);
 
 	mutex_destroy(&adc->lock);
 
@@ -1820,7 +1831,7 @@ static int adc5_gen3_freeze(struct device *dev)
 	mutex_lock(&adc->lock);
 
 	for (i = 0; i < adc->num_sdams; i++)
-		devm_free_irq(dev, adc->base[i].irq, adc);
+		free_irq(adc->base[i].irq, adc);
 
 	mutex_unlock(&adc->lock);
 
@@ -1834,7 +1845,7 @@ static int adc5_gen3_restore(struct device *dev)
 	int ret = 0;
 
 	for (i = 0; i < adc->num_sdams; i++) {
-		ret = devm_request_irq(dev, adc->base[i].irq, adc5_gen3_isr,
+		ret = request_irq(adc->base[i].irq, adc5_gen3_isr,
 				0, adc->base[i].irq_name, adc);
 		if (ret < 0)
 			return ret;
@@ -1855,7 +1866,7 @@ static struct platform_driver adc5_gen3_driver = {
 		.pm = &adc5_gen3_pm_ops,
 	},
 	.probe = adc5_gen3_probe,
-	.remove = adc5_gen3_exit,
+	.remove = adc5_gen3_remove,
 };
 module_platform_driver(adc5_gen3_driver);
 
