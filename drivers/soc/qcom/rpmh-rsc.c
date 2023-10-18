@@ -1194,6 +1194,13 @@ int rpmh_rsc_is_tcs_completed(struct rsc_drv *drv, int ch)
 			sts &= CH1_WAKE_TCS_STATUS;
 
 		retry--;
+		/*
+		 * Wait till all the WAKE votes of the new channel are
+		 * applied during channel switch.
+		 * Maximum delay of 100 usec.
+		 */
+		if (!sts)
+			udelay(10);
 	} while (!sts && retry);
 
 	if (!retry) {
