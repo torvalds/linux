@@ -47,6 +47,7 @@ class Type(SpecAttr):
 
         if 'len' in attr:
             self.len = attr['len']
+
         if 'nested-attributes' in attr:
             self.nested_attrs = attr['nested-attributes']
             if self.nested_attrs == family.name:
@@ -262,6 +263,27 @@ class TypeScalar(Type):
         if 'byte-order' in attr:
             self.byte_order_comment = f" /* {attr['byte-order']} */"
 
+        if 'enum' in self.attr:
+            enum = self.family.consts[self.attr['enum']]
+            low, high = enum.value_range()
+            if 'min' not in self.checks:
+                if low != 0 or self.type[0] == 's':
+                    self.checks['min'] = low
+            if 'max' not in self.checks:
+                self.checks['max'] = high
+
+        if 'min' in self.checks and 'max' in self.checks:
+            if self.checks['min'] > self.checks['max']:
+                raise Exception(f'Invalid limit for "{self.name}" min: {self.checks["min"]} max: {self.checks["max"]}')
+            self.checks['range'] = True
+
+        low = min(self.checks.get('min', 0), self.checks.get('max', 0))
+        high = max(self.checks.get('min', 0), self.checks.get('max', 0))
+        if low < 0 and self.type[0] == 'u':
+            raise Exception(f'Invalid limit for "{self.name}" negative limit for unsigned type')
+        if low < -32768 or high > 32767:
+            self.checks['full-range'] = True
+
         # Added by resolve():
         self.is_bitfield = None
         delattr(self, "is_bitfield")
@@ -301,14 +323,14 @@ class TypeScalar(Type):
                 flag_cnt = len(flags['entries'])
                 mask = (1 << flag_cnt) - 1
             return f"NLA_POLICY_MASK({policy}, 0x{mask:x})"
+        elif 'full-range' in self.checks:
+            return f"NLA_POLICY_FULL_RANGE({policy}, &{c_lower(self.enum_name)}_range)"
+        elif 'range' in self.checks:
+            return f"NLA_POLICY_RANGE({policy}, {self.checks['min']}, {self.checks['max']})"
         elif 'min' in self.checks:
             return f"NLA_POLICY_MIN({policy}, {self.checks['min']})"
-        elif 'enum' in self.attr:
-            enum = self.family.consts[self.attr['enum']]
-            low, high = enum.value_range()
-            if low == 0:
-                return f"NLA_POLICY_MAX({policy}, {high})"
-            return f"NLA_POLICY_RANGE({policy}, {low}, {high})"
+        elif 'max' in self.checks:
+            return f"NLA_POLICY_MAX({policy}, {self.checks['max']})"
         return super()._attr_policy(policy)
 
     def _attr_typol(self):
@@ -1241,7 +1263,7 @@ class CodeWriter:
         for one in members:
             line = '.' + one[0]
             line += '\t' * ((longest - len(one[0]) - 1 + 7) // 8)
-            line += '= ' + one[1] + ','
+            line += '= ' + str(one[1]) + ','
             self.p(line)
 
 
@@ -1940,6 +1962,34 @@ def policy_should_be_static(family):
     return family.kernel_policy == 'split' or kernel_can_gen_family_struct(family)
 
 
+def print_kernel_policy_ranges(family, cw):
+    first = True
+    for _, attr_set in family.attr_sets.items():
+        if attr_set.subset_of:
+            continue
+
+        for _, attr in attr_set.items():
+            if not attr.request:
+                continue
+            if 'full-range' not in attr.checks:
+                continue
+
+            if first:
+                cw.p('/* Integer value ranges */')
+                first = False
+
+            sign = '' if attr.type[0] == 'u' else '_signed'
+            cw.block_start(line=f'struct netlink_range_validation{sign} {c_lower(attr.enum_name)}_range =')
+            members = []
+            if 'min' in attr.checks:
+                members.append(('min', attr.checks['min']))
+            if 'max' in attr.checks:
+                members.append(('max', attr.checks['max']))
+            cw.write_struct_init(members)
+            cw.block_end(line=';')
+            cw.nl()
+
+
 def print_kernel_op_table_fwd(family, cw, terminate):
     exported = not kernel_can_gen_family_struct(family)
 
@@ -2479,6 +2529,8 @@ def main():
             print_kernel_mcgrp_hdr(parsed, cw)
             print_kernel_family_struct_hdr(parsed, cw)
         else:
+            print_kernel_policy_ranges(parsed, cw)
+
             for _, struct in sorted(parsed.pure_nested_structs.items()):
                 if struct.request:
                     cw.p('/* Common nested types */')

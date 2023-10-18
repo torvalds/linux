@@ -157,6 +157,9 @@ properties:
                   min:
                     description: Min value for an integer attribute.
                     type: integer
+                  max:
+                    description: Max value for an integer attribute.
+                    type: integer
                   min-len:
                     description: Min length for a binary attribute.
                     $ref: '#/$defs/len-or-define'
