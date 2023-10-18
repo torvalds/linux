@@ -34,6 +34,7 @@ def define_pitti():
         "drivers/regulator/stub-regulator.ko",
         "drivers/rpmsg/rpm-smd.ko",
         "drivers/slimbus/slimbus.ko",
+        "drivers/soc/qcom/core_hang_detect.ko",
         "drivers/soc/qcom/mem-hooks.ko",
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
