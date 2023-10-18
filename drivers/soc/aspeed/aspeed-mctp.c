@@ -397,7 +397,6 @@ static u16 _get_bdf(struct aspeed_mctp *priv)
 		regmap_read(priv->pcie.map, ASPEED_G7_PCIE_LINK, &reg);
 		if (!(reg & PCIE_G7_LINK_STS))
 			return 0;
-		dev_info(priv->dev, "Link Up\n");
 		regmap_read(priv->map, ASPEED_G7_MCTP_PCIE_BDF, &reg);
 		bdf = PCI_DEVID(PCI_BUS_NUM(reg), reg & 0xff);
 	} else {
