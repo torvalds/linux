@@ -1797,6 +1797,11 @@ static inline void vma_set_access_pid_bit(struct vm_area_struct *vma)
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
+static inline int folio_xchg_last_cpupid(struct folio *folio, int cpupid)
+{
+	return page_cpupid_xchg_last(&folio->page, cpupid);
+}
+
 #if defined(CONFIG_KASAN_SW_TAGS) || defined(CONFIG_KASAN_HW_TAGS)
 
 /*
