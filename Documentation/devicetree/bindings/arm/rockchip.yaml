@@ -660,6 +660,11 @@ properties:
               - pine64,quartz64-b
           - const: rockchip,rk3566
 
+      - description: Pine64 QuartzPro64
+        items:
+          - const: pine64,quartzpro64
+          - const: rockchip,rk3588
+
       - description: Pine64 SoQuartz SoM
         items:
           - enum:
@@ -667,6 +672,11 @@ properties:
               - pine64,soquartz-cm4io
               - pine64,soquartz-model-a
           - const: pine64,soquartz
+          - const: rockchip,rk3566
+
+      - description: Powkiddy RGB30
+        items:
+          - const: powkiddy,rgb30
           - const: rockchip,rk3566
 
       - description: Radxa Compute Module 3(CM3)
@@ -870,12 +880,22 @@ properties:
           - const: tronsmart,orion-r68-meta
           - const: rockchip,rk3368
 
+      - description: Xunlong Orange Pi 5 Plus
+        items:
+          - const: xunlong,orangepi-5-plus
+          - const: rockchip,rk3588
+
       - description: Xunlong Orange Pi R1 Plus / LTS
         items:
           - enum:
               - xunlong,orangepi-r1-plus
               - xunlong,orangepi-r1-plus-lts
           - const: rockchip,rk3328
+
+      - description: Xunlong Orange Pi 5
+        items:
+          - const: xunlong,orangepi-5
+          - const: rockchip,rk3588s
 
       - description: Zkmagic A95X Z2
         items:
