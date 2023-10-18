@@ -952,10 +952,7 @@ int crypto_shash_tfm_digest(struct crypto_shash *tfm, const u8 *data,
  * Context: Any context.
  * Return: 0 if the export creation was successful; < 0 if an error occurred
  */
-static inline int crypto_shash_export(struct shash_desc *desc, void *out)
-{
-	return crypto_shash_alg(desc->tfm)->export(desc, out);
-}
+int crypto_shash_export(struct shash_desc *desc, void *out);
 
 /**
  * crypto_shash_import() - import operational state
@@ -969,15 +966,7 @@ static inline int crypto_shash_export(struct shash_desc *desc, void *out)
  * Context: Any context.
  * Return: 0 if the import was successful; < 0 if an error occurred
  */
-static inline int crypto_shash_import(struct shash_desc *desc, const void *in)
-{
-	struct crypto_shash *tfm = desc->tfm;
-
-	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
-
-	return crypto_shash_alg(tfm)->import(desc, in);
-}
+int crypto_shash_import(struct shash_desc *desc, const void *in);
 
 /**
  * crypto_shash_init() - (re)initialize message digest

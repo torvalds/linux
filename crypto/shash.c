@@ -277,17 +277,34 @@ int crypto_shash_tfm_digest(struct crypto_shash *tfm, const u8 *data,
 }
 EXPORT_SYMBOL_GPL(crypto_shash_tfm_digest);
 
-static int shash_default_export(struct shash_desc *desc, void *out)
+int crypto_shash_export(struct shash_desc *desc, void *out)
 {
-	memcpy(out, shash_desc_ctx(desc), crypto_shash_descsize(desc->tfm));
-	return 0;
-}
+	struct crypto_shash *tfm = desc->tfm;
+	struct shash_alg *shash = crypto_shash_alg(tfm);
 
-static int shash_default_import(struct shash_desc *desc, const void *in)
-{
-	memcpy(shash_desc_ctx(desc), in, crypto_shash_descsize(desc->tfm));
+	if (shash->export)
+		return shash->export(desc, out);
+
+	memcpy(out, shash_desc_ctx(desc), crypto_shash_descsize(tfm));
 	return 0;
 }
+EXPORT_SYMBOL_GPL(crypto_shash_export);
+
+int crypto_shash_import(struct shash_desc *desc, const void *in)
+{
+	struct crypto_shash *tfm = desc->tfm;
+	struct shash_alg *shash = crypto_shash_alg(tfm);
+
+	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
+		return -ENOKEY;
+
+	if (shash->import)
+		return shash->import(desc, in);
+
+	memcpy(shash_desc_ctx(desc), in, crypto_shash_descsize(tfm));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_shash_import);
 
 static int shash_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 			      unsigned int keylen)
@@ -666,15 +683,23 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	base->cra_type = &crypto_shash_type;
 	base->cra_flags |= CRYPTO_ALG_TYPE_SHASH;
 
+	/*
+	 * Handle missing optional functions.  For each one we can either
+	 * install a default here, or we can leave the pointer as NULL and check
+	 * the pointer for NULL in crypto_shash_*(), avoiding an indirect call
+	 * when the default behavior is desired.  For ->finup and ->digest we
+	 * install defaults, since for optimal performance algorithms should
+	 * implement these anyway.  On the other hand, for ->import and
+	 * ->export the common case and best performance comes from the simple
+	 * memcpy of the shash_desc_ctx, so when those pointers are NULL we
+	 * leave them NULL and provide the memcpy with no indirect call.
+	 */
 	if (!alg->finup)
 		alg->finup = shash_default_finup;
 	if (!alg->digest)
 		alg->digest = shash_default_digest;
-	if (!alg->export) {
-		alg->export = shash_default_export;
-		alg->import = shash_default_import;
+	if (!alg->export)
 		alg->halg.statesize = alg->descsize;
-	}
 	if (!alg->setkey)
 		alg->setkey = shash_no_setkey;
 
