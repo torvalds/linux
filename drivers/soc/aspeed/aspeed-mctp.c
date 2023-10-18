@@ -1051,8 +1051,13 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 		 * stepping then add chip revision detection and turn on this
 		 * workaround only when needed
 		 */
-		priv->rx_runaway_wa.enable =
-			(chip_version(priv->dev) == ASPEED_MCTP_2600) ? true : false;
+		if (priv->match_data->dma_need_64bits_width)
+			priv->rx_runaway_wa.enable = false;
+		else
+			priv->rx_runaway_wa.enable =
+				(chip_version(priv->dev) == ASPEED_MCTP_2600) ?
+					true :
+					false;
 
 		/*
 		 * Hardware does not wrap around ASPEED_MCTP_RX_BUF_SIZE
