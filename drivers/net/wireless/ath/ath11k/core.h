@@ -15,6 +15,8 @@
 #include <linux/ctype.h>
 #include <linux/rhashtable.h>
 #include <linux/average.h>
+#include <linux/firmware.h>
+
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -29,6 +31,7 @@
 #include "dbring.h"
 #include "spectral.h"
 #include "wow.h"
+#include "fw.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -980,6 +983,18 @@ struct ath11k_base {
 
 		const struct ath11k_pci_ops *ops;
 	} pci;
+
+	struct {
+		u32 api_version;
+
+		const struct firmware *fw;
+		const u8 *amss_data;
+		size_t amss_len;
+		const u8 *m3_data;
+		size_t m3_len;
+
+		DECLARE_BITMAP(fw_features, ATH11K_FW_FEATURE_COUNT);
+	} fw;
 
 #ifdef CONFIG_NL80211_TESTMODE
 	struct {

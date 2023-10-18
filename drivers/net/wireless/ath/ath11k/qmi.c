@@ -2502,25 +2502,39 @@ out:
 static int ath11k_qmi_m3_load(struct ath11k_base *ab)
 {
 	struct m3_mem_region *m3_mem = &ab->qmi.m3_mem;
-	const struct firmware *fw;
+	const struct firmware *fw = NULL;
+	const void *m3_data;
 	char path[100];
+	size_t m3_len;
 	int ret;
 
 	if (m3_mem->vaddr)
 		/* m3 firmware buffer is already available in the DMA buffer */
 		return 0;
 
-	fw = ath11k_core_firmware_request(ab, ATH11K_M3_FILE);
-	if (IS_ERR(fw)) {
-		ret = PTR_ERR(fw);
-		ath11k_core_create_firmware_path(ab, ATH11K_M3_FILE,
-						 path, sizeof(path));
-		ath11k_err(ab, "failed to load %s: %d\n", path, ret);
-		return ret;
+	if (ab->fw.m3_data && ab->fw.m3_len > 0) {
+		/* firmware-N.bin had a m3 firmware file so use that */
+		m3_data = ab->fw.m3_data;
+		m3_len = ab->fw.m3_len;
+	} else {
+		/* No m3 file in firmware-N.bin so try to request old
+		 * separate m3.bin.
+		 */
+		fw = ath11k_core_firmware_request(ab, ATH11K_M3_FILE);
+		if (IS_ERR(fw)) {
+			ret = PTR_ERR(fw);
+			ath11k_core_create_firmware_path(ab, ATH11K_M3_FILE,
+							 path, sizeof(path));
+			ath11k_err(ab, "failed to load %s: %d\n", path, ret);
+			return ret;
+		}
+
+		m3_data = fw->data;
+		m3_len = fw->size;
 	}
 
 	m3_mem->vaddr = dma_alloc_coherent(ab->dev,
-					   fw->size, &m3_mem->paddr,
+					   m3_len, &m3_mem->paddr,
 					   GFP_KERNEL);
 	if (!m3_mem->vaddr) {
 		ath11k_err(ab, "failed to allocate memory for M3 with size %zu\n",
@@ -2529,8 +2543,8 @@ static int ath11k_qmi_m3_load(struct ath11k_base *ab)
 		goto out;
 	}
 
-	memcpy(m3_mem->vaddr, fw->data, fw->size);
-	m3_mem->size = fw->size;
+	memcpy(m3_mem->vaddr, m3_data, m3_len);
+	m3_mem->size = m3_len;
 
 	ret = 0;
 
