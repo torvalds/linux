@@ -107,7 +107,8 @@ out_put_node:
 }
 EXPORT_SYMBOL_GPL(mt76_get_of_data_from_mtd);
 
-static int mt76_get_of_eeprom_from_nvmem(struct mt76_dev *dev, void *eep, int len)
+int mt76_get_of_data_from_nvmem(struct mt76_dev *dev, void *eep,
+				const char *cell_name, int len)
 {
 	struct device_node *np = dev->dev->of_node;
 	struct nvmem_cell *cell;
@@ -115,7 +116,7 @@ static int mt76_get_of_eeprom_from_nvmem(struct mt76_dev *dev, void *eep, int le
 	size_t retlen;
 	int ret = 0;
 
-	cell = of_nvmem_cell_get(np, "eeprom");
+	cell = of_nvmem_cell_get(np, cell_name);
 	if (IS_ERR(cell))
 		return PTR_ERR(cell);
 
@@ -137,6 +138,7 @@ exit:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt76_get_of_data_from_nvmem);
 
 static int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int len)
 {
@@ -154,7 +156,7 @@ static int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int len)
 	if (!ret)
 		return 0;
 
-	return mt76_get_of_eeprom_from_nvmem(dev, eep, len);
+	return mt76_get_of_data_from_nvmem(dev, eep, "eeprom", len);
 }
 
 void
