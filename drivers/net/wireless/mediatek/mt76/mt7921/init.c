@@ -88,6 +88,9 @@ mt7921_regd_channel_update(struct wiphy *wiphy, struct mt792x_dev *dev)
 	}
 
 	sband = wiphy->bands[NL80211_BAND_6GHZ];
+	if (!sband)
+		return;
+
 	band_np = np ? of_get_child_by_name(np, "txpower-6g") : NULL;
 	for (i = 0; i < sband->n_channels; i++) {
 		ch = &sband->channels[i];
