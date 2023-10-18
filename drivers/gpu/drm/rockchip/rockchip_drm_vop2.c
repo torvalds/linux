@@ -342,10 +342,6 @@ static enum vop2_afbc_format vop2_convert_afbc_format(u32 format)
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_BGR565:
 		return VOP2_AFBC_FMT_RGB565;
-	case DRM_FORMAT_NV12:
-		return VOP2_AFBC_FMT_YUV420;
-	case DRM_FORMAT_NV16:
-		return VOP2_AFBC_FMT_YUV422;
 	default:
 		return VOP2_AFBC_FMT_INVALID;
 	}
@@ -366,25 +362,9 @@ static bool vop2_win_rb_swap(u32 format)
 	}
 }
 
-static bool vop2_afbc_rb_swap(u32 format)
-{
-	switch (format) {
-	case DRM_FORMAT_NV24:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static bool vop2_afbc_uv_swap(u32 format)
 {
-	switch (format) {
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV16:
-		return true;
-	default:
-		return false;
-	}
+	return false;
 }
 
 static bool vop2_win_uv_swap(u32 format)
@@ -1232,7 +1212,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 			drm_err(vop2->drm, "vp%d %s stride[%d] not 64 pixel aligned\n",
 				vp->id, win->data->name, stride);
 
-		rb_swap = vop2_afbc_rb_swap(fb->format->format);
 		uv_swap = vop2_afbc_uv_swap(fb->format->format);
 		/*
 		 * This is a workaround for crazy IC design, Cluster
@@ -1249,7 +1228,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 		if (vop2_cluster_window(win))
 			vop2_win_write(win, VOP2_WIN_AFBC_ENABLE, 1);
 		vop2_win_write(win, VOP2_WIN_AFBC_FORMAT, afbc_format);
-		vop2_win_write(win, VOP2_WIN_AFBC_RB_SWAP, rb_swap);
 		vop2_win_write(win, VOP2_WIN_AFBC_UV_SWAP, uv_swap);
 		vop2_win_write(win, VOP2_WIN_AFBC_AUTO_GATING_EN, 0);
 		vop2_win_write(win, VOP2_WIN_AFBC_BLOCK_SPLIT_EN, 0);
