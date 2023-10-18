@@ -1109,8 +1109,8 @@ static inline bool kvm_set_pmuserenr(u64 val)
 }
 #endif
 
-void kvm_vcpu_load_sysregs_vhe(struct kvm_vcpu *vcpu);
-void kvm_vcpu_put_sysregs_vhe(struct kvm_vcpu *vcpu);
+void kvm_vcpu_load_vhe(struct kvm_vcpu *vcpu);
+void kvm_vcpu_put_vhe(struct kvm_vcpu *vcpu);
 
 int __init kvm_set_ipa_limit(void);
 

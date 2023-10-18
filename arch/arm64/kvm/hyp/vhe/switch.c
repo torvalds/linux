@@ -93,12 +93,12 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 NOKPROBE_SYMBOL(__deactivate_traps);
 
 /*
- * Disable IRQs in {activate,deactivate}_traps_vhe_{load,put}() to
+ * Disable IRQs in __vcpu_{load,put}_{activate,deactivate}_traps() to
  * prevent a race condition between context switching of PMUSERENR_EL0
  * in __{activate,deactivate}_traps_common() and IPIs that attempts to
  * update PMUSERENR_EL0. See also kvm_set_pmuserenr().
  */
-void activate_traps_vhe_load(struct kvm_vcpu *vcpu)
+static void __vcpu_load_activate_traps(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
 
@@ -107,13 +107,25 @@ void activate_traps_vhe_load(struct kvm_vcpu *vcpu)
 	local_irq_restore(flags);
 }
 
-void deactivate_traps_vhe_put(struct kvm_vcpu *vcpu)
+static void __vcpu_put_deactivate_traps(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
 	__deactivate_traps_common(vcpu);
 	local_irq_restore(flags);
+}
+
+void kvm_vcpu_load_vhe(struct kvm_vcpu *vcpu)
+{
+	__vcpu_load_switch_sysregs(vcpu);
+	__vcpu_load_activate_traps(vcpu);
+}
+
+void kvm_vcpu_put_vhe(struct kvm_vcpu *vcpu)
+{
+	__vcpu_put_deactivate_traps(vcpu);
+	__vcpu_put_switch_sysregs(vcpu);
 }
 
 static const exit_handler_fn hyp_exit_handlers[] = {
