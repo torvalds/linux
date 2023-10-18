@@ -654,7 +654,7 @@ static void ast2600_espi_perif_reset(struct ast2600_espi *espi)
 	writel(0xffffffff, espi->regs + ESPI_MMBI_INT_STS);
 
 	reg = readl(espi->regs + ESPI_CTRL2);
-	reg |= (ESPI_CTRL2_MCYC_RD_DIS | ESPI_CTRL2_MCYC_WR_DIS);
+	reg &= ~(ESPI_CTRL2_MCYC_RD_DIS_WDT | ESPI_CTRL2_MCYC_WR_DIS_WDT);
 	writel(reg, espi->regs + ESPI_CTRL2);
 
 	reg = readl(espi->regs + ESPI_CTRL);
