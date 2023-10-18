@@ -386,10 +386,9 @@ int cxl_count_regblock(struct pci_dev *pdev, enum cxl_regloc_type type)
 }
 EXPORT_SYMBOL_NS_GPL(cxl_count_regblock, CXL);
 
-int cxl_map_pmu_regs(struct pci_dev *pdev, struct cxl_pmu_regs *regs,
-		     struct cxl_register_map *map)
+int cxl_map_pmu_regs(struct cxl_register_map *map, struct cxl_pmu_regs *regs)
 {
-	struct device *dev = &pdev->dev;
+	struct device *dev = map->host;
 	resource_size_t phys_addr;
 
 	phys_addr = map->resource;

@@ -898,7 +898,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			break;
 		}
 
-		rc = cxl_map_pmu_regs(pdev, &pmu_regs, &map);
+		rc = cxl_map_pmu_regs(&map, &pmu_regs);
 		if (rc) {
 			dev_dbg(&pdev->dev, "Could not map PMU regs\n");
 			break;
