@@ -203,4 +203,10 @@ struct dccg *dccg314_create(
 	const struct dccg_shift *dccg_shift,
 	const struct dccg_mask *dccg_mask);
 
+void dccg314_set_dpstreamclk(
+		struct dccg *dccg,
+		enum streamclk_source src,
+		int otg_inst,
+		int dp_hpo_inst);
+
 #endif //__DCN314_DCCG_H__

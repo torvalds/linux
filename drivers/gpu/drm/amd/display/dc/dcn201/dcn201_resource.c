@@ -43,8 +43,8 @@
 #include "dcn201/dcn201_hubbub.h"
 #include "dcn201_dccg.h"
 #include "dcn201_optc.h"
-#include "dcn201_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dcn201/dcn201_hwseq.h"
+#include "dce110/dce110_hwseq.h"
 #include "dcn201_opp.h"
 #include "dcn201/dcn201_link_encoder.h"
 #include "dcn20/dcn20_stream_encoder.h"
@@ -1069,6 +1069,7 @@ static struct resource_funcs dcn201_res_pool_funcs = {
 	.add_dsc_to_stream_resource = NULL,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
 	.acquire_free_pipe_as_secondary_dpp_pipe = dcn201_acquire_free_pipe_for_layer,
+	.release_pipe = dcn20_release_pipe,
 	.populate_dml_writeback_from_context = dcn201_populate_dml_writeback_from_context,
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,

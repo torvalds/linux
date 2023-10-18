@@ -344,7 +344,7 @@ static void mmhub_v1_8_setup_vmid_config(struct amdgpu_device *adev)
 		hub = &adev->vmhub[AMDGPU_MMHUB0(j)];
 		for (i = 0; i <= 14; i++) {
 			tmp = RREG32_SOC15_OFFSET(MMHUB, j, regVM_CONTEXT1_CNTL,
-						  i);
+						  i * hub->ctx_distance);
 			tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
 					    ENABLE_CONTEXT, 1);
 			tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
@@ -626,6 +626,14 @@ static void mmhub_v1_8_inst_query_ras_error_count(struct amdgpu_device *adev,
 						  void *ras_err_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_err_status;
+	unsigned long ue_count = 0, ce_count = 0;
+
+	/* NOTE: mmhub is converted by aid_mask and the range is 0-3,
+	 * which can be used as die ID directly */
+	struct amdgpu_smuio_mcm_config_info mcm_info = {
+		.socket_id = adev->smuio.funcs->get_socket_id(adev),
+		.die_id = mmhub_inst,
+	};
 
 	amdgpu_ras_inst_query_ras_error_count(adev,
 					mmhub_v1_8_ce_reg_list,
@@ -634,7 +642,7 @@ static void mmhub_v1_8_inst_query_ras_error_count(struct amdgpu_device *adev,
 					ARRAY_SIZE(mmhub_v1_8_ras_memory_list),
 					mmhub_inst,
 					AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE,
-					&err_data->ce_count);
+					&ce_count);
 	amdgpu_ras_inst_query_ras_error_count(adev,
 					mmhub_v1_8_ue_reg_list,
 					ARRAY_SIZE(mmhub_v1_8_ue_reg_list),
@@ -642,7 +650,10 @@ static void mmhub_v1_8_inst_query_ras_error_count(struct amdgpu_device *adev,
 					ARRAY_SIZE(mmhub_v1_8_ras_memory_list),
 					mmhub_inst,
 					AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
-					&err_data->ue_count);
+					&ue_count);
+
+	amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, ce_count);
+	amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, ue_count);
 }
 
 static void mmhub_v1_8_query_ras_error_count(struct amdgpu_device *adev,

@@ -343,53 +343,78 @@ union dmub_psr_debug_flags {
 union replay_debug_flags {
 	struct {
 		/**
+		 * 0x1 (bit 0)
 		 * Enable visual confirm in FW.
 		 */
 		uint32_t visual_confirm : 1;
 
 		/**
+		 * 0x2 (bit 1)
 		 * @skip_crc: Set if need to skip CRC.
 		 */
 		uint32_t skip_crc : 1;
 
 		/**
+		 * 0x4 (bit 2)
 		 * @force_link_power_on: Force disable ALPM control
 		 */
 		uint32_t force_link_power_on : 1;
 
 		/**
+		 * 0x8 (bit 3)
 		 * @force_phy_power_on: Force phy power on
 		 */
 		uint32_t force_phy_power_on : 1;
 
 		/**
+		 * 0x10 (bit 4)
 		 * @timing_resync_disabled: Disabled Replay normal sleep mode timing resync
 		 */
 		uint32_t timing_resync_disabled : 1;
 
 		/**
+		 * 0x20 (bit 5)
 		 * @skip_crtc_disabled: CRTC disable skipped
 		 */
 		uint32_t skip_crtc_disabled : 1;
 
 		/**
+		 * 0x40 (bit 6)
 		 * @force_defer_one_frame_update: Force defer one frame update in ultra sleep mode
 		 */
 		uint32_t force_defer_one_frame_update : 1;
+
 		/**
+		 * 0x80 (bit 7)
 		 * @disable_delay_alpm_on: Force disable delay alpm on
 		 */
 		uint32_t disable_delay_alpm_on : 1;
+
 		/**
+		 * 0x100 (bit 8)
 		 * @disable_desync_error_check: Force disable desync error check
 		 */
 		uint32_t disable_desync_error_check : 1;
-		/**
-		 * @disable_desync_error_check: Force disable desync error check
-		 */
-		uint32_t disable_dmub_save_restore : 1;
 
-		uint32_t reserved : 22;
+		/**
+		 * 0x200 (bit 9)
+		 * @force_self_update_when_abm_non_steady: Force self update if abm is not steady
+		 */
+		uint32_t force_self_update_when_abm_non_steady : 1;
+
+		/**
+		 * 0x400 (bit 10)
+		 * @force_disable_ips1: Force disable IPS1 state
+		 */
+		uint32_t force_disable_ips1 : 1;
+
+		/**
+		 * 0x800 (bit 11)
+		 * @force_disable_ips2: Force disable IPS2 state
+		 */
+		uint32_t force_disable_ips2 : 1;
+
+		uint32_t reserved : 20;
 	} bitfields;
 
 	uint32_t u32All;
@@ -421,11 +446,6 @@ union replay_hw_flags {
 		uint32_t smu_optimizations_en : 1;
 
 		/**
-		 * @otg_powered_down: Flag to keep track of OTG power state.
-		 */
-		uint32_t otg_powered_down : 1;
-
-		/**
 		 * @phy_power_state: Indicates current phy power state
 		 */
 		uint32_t phy_power_state : 1;
@@ -444,7 +464,8 @@ union replay_hw_flags {
 };
 
 /**
- * DMUB visual confirm color
+ * DMUB feature capabilities.
+ * After DMUB init, driver will query FW capabilities prior to enabling certain features.
  */
 struct dmub_feature_caps {
 	/**
@@ -455,6 +476,8 @@ struct dmub_feature_caps {
 	uint8_t reserved[4];
 	uint8_t subvp_psr_support;
 	uint8_t gecc_enable;
+	uint8_t replay_supported;
+	uint8_t replay_reserved[3];
 };
 
 struct dmub_visual_confirm_color {
@@ -599,6 +622,11 @@ enum dmub_ips_disable_type {
 	DMUB_IPS_DISABLE_IPS2_Z10 = 3,
 };
 
+#define DMUB_IPS1_ALLOW_MASK 0x00000001
+#define DMUB_IPS2_ALLOW_MASK 0x00000002
+#define DMUB_IPS1_COMMIT_MASK 0x00000004
+#define DMUB_IPS2_COMMIT_MASK 0x00000008
+
 /**
  * union dmub_fw_boot_options - Boot option definitions for SCRATCH14
  */
@@ -614,7 +642,7 @@ union dmub_fw_boot_options {
 		uint32_t enable_dpia: 1; /**< 1 if DPIA should be enabled */
 		uint32_t invalid_vbios_data: 1; /**< 1 if VBIOS data table is invalid */
 		uint32_t dpia_supported: 1; /**< 1 if DPIA is supported on this platform */
-		uint32_t sel_mux_phy_c_d_phy_f_g: 1; /**< 1 if PHYF/PHYG should be enabled */
+		uint32_t sel_mux_phy_c_d_phy_f_g: 1; /**< 1 if PHYF/PHYG should be enabled on DCN31 */
 		/**< 1 if all root clock gating is enabled and low power memory is enabled*/
 		uint32_t power_optimization: 1;
 		uint32_t diag_env: 1; /* 1 if diagnostic environment */
@@ -761,6 +789,11 @@ enum dmub_gpint_command {
 	DMUB_GPINT__PSR_RESIDENCY = 9,
 
 	/**
+	 * DESC: Notifies DMCUB detection is done so detection required can be cleared.
+	 */
+	DMUB_GPINT__NOTIFY_DETECTION_DONE = 12,
+
+	/**
 	 * DESC: Get REPLAY state from FW.
 	 * RETURN: REPLAY state enum. This enum may need to be converted to the legacy REPLAY state value.
 	 */
@@ -774,11 +807,6 @@ enum dmub_gpint_command {
 	 */
 	DMUB_GPINT__REPLAY_RESIDENCY = 14,
 
-
-	/**
-	 * DESC: Notifies DMCUB detection is done so detection required can be cleared.
-	 */
-	DMUB_GPINT__NOTIFY_DETECTION_DONE = 12,
 	/**
 	 * DESC: Updates the trace buffer lower 32-bit mask.
 	 * ARGS: The new mask
@@ -964,8 +992,9 @@ enum dmub_cmd_type {
 	 * Command type used for all panel control commands.
 	 */
 	DMUB_CMD__PANEL_CNTL = 74,
+
 	/**
-	 * Command type used for <TODO:description>
+	 * Command type used for all CAB commands.
 	 */
 	DMUB_CMD__CAB_FOR_SS = 75,
 
@@ -990,7 +1019,6 @@ enum dmub_cmd_type {
 	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
-
 	/**
 	 * Command type used for all REPLAY commands.
 	 */
@@ -1211,6 +1239,28 @@ struct dmub_cmd_PLAT_54186_wa {
 struct dmub_rb_cmd_PLAT_54186_wa {
 	struct dmub_cmd_header header; /**< Command header */
 	struct dmub_cmd_PLAT_54186_wa flip; /**< Flip data */
+};
+
+/**
+ * enum dmub_cmd_mall_type - MALL commands
+ */
+enum dmub_cmd_mall_type {
+	/**
+	 * Allows display refresh from MALL.
+	 */
+	DMUB_CMD__MALL_ACTION_ALLOW = 0,
+	/**
+	 * Disallows display refresh from MALL.
+	 */
+	DMUB_CMD__MALL_ACTION_DISALLOW = 1,
+	/**
+	 * Cursor copy for MALL.
+	 */
+	DMUB_CMD__MALL_ACTION_COPY_CURSOR = 2,
+	/**
+	 * Controls DF requests.
+	 */
+	DMUB_CMD__MALL_ACTION_NO_DF_REQ = 3,
 };
 
 /**
@@ -2052,28 +2102,6 @@ enum psr_version {
 };
 
 /**
- * enum dmub_cmd_mall_type - MALL commands
- */
-enum dmub_cmd_mall_type {
-	/**
-	 * Allows display refresh from MALL.
-	 */
-	DMUB_CMD__MALL_ACTION_ALLOW = 0,
-	/**
-	 * Disallows display refresh from MALL.
-	 */
-	DMUB_CMD__MALL_ACTION_DISALLOW = 1,
-	/**
-	 * Cursor copy for MALL.
-	 */
-	DMUB_CMD__MALL_ACTION_COPY_CURSOR = 2,
-	/**
-	 * Controls DF requests.
-	 */
-	DMUB_CMD__MALL_ACTION_NO_DF_REQ = 3,
-};
-
-/**
  * PHY Link rate for DP.
  */
 enum phy_link_rate {
@@ -2278,7 +2306,7 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint8_t relock_delay_frame_cnt;
 	/**
-	 * Explicit padding to 2 byte boundary.
+	 * Explicit padding to 4 byte boundary.
 	 */
 	uint8_t pad3;
 	/**
@@ -2286,9 +2314,9 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint16_t dsc_slice_height;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * Some panels request main link off before xth vertical line
 	 */
-	uint16_t pad;
+	uint16_t poweroff_before_vertical_line;
 };
 
 /**
@@ -2733,6 +2761,20 @@ struct dmub_cmd_psr_set_power_opt_data {
 	uint32_t power_opt;
 };
 
+/**
+ * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
+ */
+struct dmub_rb_cmd_psr_set_power_opt {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
+	 */
+	struct dmub_cmd_psr_set_power_opt_data psr_set_power_opt_data;
+};
+
 #define REPLAY_RESIDENCY_MODE_SHIFT            (0)
 #define REPLAY_RESIDENCY_ENABLE_SHIFT          (1)
 
@@ -2789,6 +2831,10 @@ enum dmub_cmd_replay_type {
 	 * Set coasting vtotal.
 	 */
 	DMUB_CMD__REPLAY_SET_COASTING_VTOTAL	= 3,
+	/**
+	 * Set power opt and coasting vtotal.
+	 */
+	DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL	= 4,
 };
 
 /**
@@ -3000,17 +3046,21 @@ struct dmub_rb_cmd_replay_set_coasting_vtotal {
 };
 
 /**
- * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
+ * Definition of a DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL command.
  */
-struct dmub_rb_cmd_psr_set_power_opt {
+struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal {
 	/**
 	 * Command header.
 	 */
 	struct dmub_cmd_header header;
 	/**
-	 * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
+	 * Definition of a DMUB_CMD__SET_REPLAY_POWER_OPT command.
 	 */
-	struct dmub_cmd_psr_set_power_opt_data psr_set_power_opt_data;
+	struct dmub_cmd_replay_set_power_opt_data replay_set_power_opt_data;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_SET_COASTING_VTOTAL command.
+	 */
+	struct dmub_cmd_replay_set_coasting_vtotal_data replay_set_coasting_vtotal_data;
 };
 
 /**
@@ -3089,6 +3139,7 @@ enum hw_lock_client {
 	 * PSR SU is the client of HW Lock Manager.
 	 */
 	HW_LOCK_CLIENT_PSR_SU		= 1,
+	HW_LOCK_CLIENT_SUBVP = 3,
 	/**
 	 * Replay is the client of HW Lock Manager.
 	 */
@@ -3645,17 +3696,16 @@ struct dmub_rb_cmd_query_feature_caps {
  */
 struct dmub_cmd_visual_confirm_color_data {
 	/**
-	 * DMUB feature capabilities.
-	 * After DMUB init, driver will query FW capabilities prior to enabling certain features.
+	 * DMUB visual confirm color
 	 */
-struct dmub_visual_confirm_color visual_confirm_color;
+	struct dmub_visual_confirm_color visual_confirm_color;
 };
 
 /**
  * Definition of a DMUB_CMD__GET_VISUAL_CONFIRM_COLOR command.
  */
 struct dmub_rb_cmd_get_visual_confirm_color {
- /**
+	/**
 	 * Command header.
 	 */
 	struct dmub_cmd_header header;
@@ -3663,38 +3713,6 @@ struct dmub_rb_cmd_get_visual_confirm_color {
 	 * Data passed from driver to FW in a DMUB_CMD__GET_VISUAL_CONFIRM_COLOR command.
 	 */
 	struct dmub_cmd_visual_confirm_color_data visual_confirm_color_data;
-};
-
-struct dmub_optc_state {
-	uint32_t v_total_max;
-	uint32_t v_total_min;
-	uint32_t tg_inst;
-};
-
-struct dmub_rb_cmd_drr_update {
-		struct dmub_cmd_header header;
-		struct dmub_optc_state dmub_optc_state_req;
-};
-
-struct dmub_cmd_fw_assisted_mclk_switch_pipe_data {
-	uint32_t pix_clk_100hz;
-	uint8_t max_ramp_step;
-	uint8_t pipes;
-	uint8_t min_refresh_in_hz;
-	uint8_t pipe_count;
-	uint8_t pipe_index[4];
-};
-
-struct dmub_cmd_fw_assisted_mclk_switch_config {
-	uint8_t fams_enabled;
-	uint8_t visual_confirm_enabled;
-	uint16_t vactive_stretch_margin_us; // Extra vblank stretch required when doing FPO + Vactive
-	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data pipe_data[DMUB_MAX_FPO_STREAMS];
-};
-
-struct dmub_rb_cmd_fw_assisted_mclk_switch {
-	struct dmub_cmd_header header;
-	struct dmub_cmd_fw_assisted_mclk_switch_config config_data;
 };
 
 /**
@@ -3733,6 +3751,38 @@ struct dmub_cmd_panel_cntl_data {
 struct dmub_rb_cmd_panel_cntl {
 	struct dmub_cmd_header header; /**< header */
 	struct dmub_cmd_panel_cntl_data data; /**< payload */
+};
+
+struct dmub_optc_state {
+	uint32_t v_total_max;
+	uint32_t v_total_min;
+	uint32_t tg_inst;
+};
+
+struct dmub_rb_cmd_drr_update {
+	struct dmub_cmd_header header;
+	struct dmub_optc_state dmub_optc_state_req;
+};
+
+struct dmub_cmd_fw_assisted_mclk_switch_pipe_data {
+	uint32_t pix_clk_100hz;
+	uint8_t max_ramp_step;
+	uint8_t pipes;
+	uint8_t min_refresh_in_hz;
+	uint8_t pipe_count;
+	uint8_t pipe_index[4];
+};
+
+struct dmub_cmd_fw_assisted_mclk_switch_config {
+	uint8_t fams_enabled;
+	uint8_t visual_confirm_enabled;
+	uint16_t vactive_stretch_margin_us; // Extra vblank stretch required when doing FPO + Vactive
+	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data pipe_data[DMUB_MAX_FPO_STREAMS];
+};
+
+struct dmub_rb_cmd_fw_assisted_mclk_switch {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_fw_assisted_mclk_switch_config config_data;
 };
 
 /**
@@ -4141,6 +4191,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__REPLAY_SET_COASTING_VTOTAL command.
 	 */
 	struct dmub_rb_cmd_replay_set_coasting_vtotal replay_set_coasting_vtotal;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL command.
+	 */
+	struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal replay_set_power_opt_and_coasting_vtotal;
 };
 
 /**

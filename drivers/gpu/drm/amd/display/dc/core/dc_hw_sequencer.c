@@ -29,6 +29,8 @@
 #include "hw_sequencer.h"
 #include "hw_sequencer_private.h"
 #include "basics/dc_common.h"
+#include "resource.h"
+#include "dc_dmub_srv.h"
 
 #define NUM_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -526,6 +528,15 @@ void hwss_build_fast_sequence(struct dc *dc,
 				(*num_steps)++;
 			}
 			if (dc->hwss.update_plane_addr && current_mpc_pipe->plane_state->update_flags.bits.addr_update) {
+				if (resource_is_pipe_type(current_mpc_pipe, OTG_MASTER) &&
+						current_mpc_pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+					block_sequence[*num_steps].params.subvp_save_surf_addr.dc_dmub_srv = dc->ctx->dmub_srv;
+					block_sequence[*num_steps].params.subvp_save_surf_addr.addr = &current_mpc_pipe->plane_state->address;
+					block_sequence[*num_steps].params.subvp_save_surf_addr.subvp_index = current_mpc_pipe->subvp_index;
+					block_sequence[*num_steps].func = DMUB_SUBVP_SAVE_SURF_ADDR;
+					(*num_steps)++;
+				}
+
 				block_sequence[*num_steps].params.update_plane_addr_params.dc = dc;
 				block_sequence[*num_steps].params.update_plane_addr_params.pipe_ctx = current_mpc_pipe;
 				block_sequence[*num_steps].func = HUBP_UPDATE_PLANE_ADDR;
@@ -697,6 +708,9 @@ void hwss_execute_sequence(struct dc *dc,
 		case DMUB_SEND_DMCUB_CMD:
 			hwss_send_dmcub_cmd(params);
 			break;
+		case DMUB_SUBVP_SAVE_SURF_ADDR:
+			hwss_subvp_save_surf_addr(params);
+			break;
 		default:
 			ASSERT(false);
 			break;
@@ -787,6 +801,15 @@ void hwss_set_ocsc_default(union block_sequence_params *params)
 				opp_id,
 				colorspace,
 				ocsc_mode);
+}
+
+void hwss_subvp_save_surf_addr(union block_sequence_params *params)
+{
+	struct dc_dmub_srv *dc_dmub_srv = params->subvp_save_surf_addr.dc_dmub_srv;
+	const struct dc_plane_address *addr = params->subvp_save_surf_addr.addr;
+	uint8_t subvp_index = params->subvp_save_surf_addr.subvp_index;
+
+	dc_dmub_srv_subvp_save_surf_addr(dc_dmub_srv, addr, subvp_index);
 }
 
 void get_mclk_switch_visual_confirm_color(

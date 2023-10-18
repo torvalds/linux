@@ -295,6 +295,7 @@ struct link_service {
 	bool (*edp_receiver_ready_T9)(struct dc_link *link);
 	bool (*edp_receiver_ready_T7)(struct dc_link *link);
 	bool (*edp_power_alpm_dpcd_enable)(struct dc_link *link, bool enable);
+	void (*edp_set_panel_power)(struct dc_link *link, bool powerOn);
 
 
 	/*************************** DP CTS ************************************/

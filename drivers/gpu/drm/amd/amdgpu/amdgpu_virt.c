@@ -837,7 +837,7 @@ enum amdgpu_sriov_vf_mode amdgpu_virt_get_sriov_vf_mode(struct amdgpu_device *ad
 
 void amdgpu_virt_post_reset(struct amdgpu_device *adev)
 {
-	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 3)) {
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 0, 3)) {
 		/* force set to GFXOFF state after reset,
 		 * to avoid some invalid operation before GC enable
 		 */
@@ -847,7 +847,7 @@ void amdgpu_virt_post_reset(struct amdgpu_device *adev)
 
 bool amdgpu_virt_fw_load_skip_check(struct amdgpu_device *adev, uint32_t ucode_id)
 {
-	switch (adev->ip_versions[MP0_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
 	case IP_VERSION(13, 0, 0):
 		/* no vf autoload, white list */
 		if (ucode_id == AMDGPU_UCODE_ID_VCN1 ||

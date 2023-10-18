@@ -193,6 +193,7 @@ struct hubbub_funcs {
 	void (*force_usr_retraining_allow)(struct hubbub *hubbub, bool allow);
 	void (*set_request_limit)(struct hubbub *hubbub, int memory_channel_count, int words_per_channel);
 	void (*dchubbub_init)(struct hubbub *hubbub);
+	void (*get_mall_en)(struct hubbub *hubbub, unsigned int *mall_in_use);
 };
 
 struct hubbub {

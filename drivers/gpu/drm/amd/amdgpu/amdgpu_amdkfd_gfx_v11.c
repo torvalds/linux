@@ -658,7 +658,7 @@ static int kgd_gfx_v11_validate_trap_override_request(struct amdgpu_device *adev
 				KFD_DBG_TRAP_MASK_DBG_ADDRESS_WATCH |
 				KFD_DBG_TRAP_MASK_DBG_MEMORY_VIOLATION;
 
-	if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(11, 0, 4))
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 4))
 		*trap_mask_supported |= KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_START |
 					KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_END;
 

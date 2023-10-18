@@ -35,10 +35,12 @@
 #include "grph_object_ctrl_defs.h"
 #include <inc/hw/opp.h>
 
-#include "inc/hw_sequencer.h"
+#include "hwss/hw_sequencer.h"
 #include "inc/compressor.h"
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
+
+#include "dml2/dml2_wrapper.h"
 
 struct abm_save_restore;
 
@@ -47,7 +49,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.247"
+#define DC_VER "3.2.255"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -231,6 +233,11 @@ struct dc_caps {
 	uint32_t dmdata_alloc_size;
 	unsigned int max_cursor_size;
 	unsigned int max_video_width;
+	/*
+	 * max video plane width that can be safely assumed to be always
+	 * supported by single DPP pipe.
+	 */
+	unsigned int max_optimizable_video_width;
 	unsigned int min_horizontal_blanking_period;
 	int linear_pitch_alignment;
 	bool dcc_const_color;
@@ -244,6 +251,7 @@ struct dc_caps {
 	bool extended_aux_timeout_support;
 	bool dmcub_support;
 	bool zstate_support;
+	bool ips_support;
 	uint32_t num_of_internal_disp;
 	enum dp_protocol_version max_dp_protocol_version;
 	unsigned int mall_size_per_mem_channel;
@@ -269,6 +277,7 @@ struct dc_caps {
 	uint16_t subvp_vertical_int_margin_us;
 	bool seamless_odm;
 	uint32_t max_v_total;
+	uint32_t max_disp_clock_khz_at_vmin;
 	uint8_t subvp_drr_vblank_start_margin_us;
 };
 
@@ -419,6 +428,9 @@ struct dc_config {
 	int sdpif_request_limit_words_per_umc;
 	bool use_old_fixed_vs_sequence;
 	bool dc_mode_clk_limit_support;
+	bool EnableMinDispClkODM;
+	bool enable_auto_dpm_test_logs;
+	unsigned int disable_ips;
 };
 
 enum visual_confirm {
@@ -643,6 +655,53 @@ union root_clock_optimization_options {
 	uint32_t u32All;
 };
 
+union fine_grain_clock_gating_enable_options {
+	struct {
+		bool dccg_global_fgcg_rep : 1; /* Global fine grain clock gating of repeaters */
+		bool dchub : 1;	   /* Display controller hub */
+		bool dchubbub : 1;
+		bool dpp : 1;	   /* Display pipes and planes */
+		bool opp : 1;	   /* Output pixel processing */
+		bool optc : 1;	   /* Output pipe timing combiner */
+		bool dio : 1;	   /* Display output */
+		bool dwb : 1;	   /* Display writeback */
+		bool mmhubbub : 1; /* Multimedia hub */
+		bool dmu : 1;	   /* Display core management unit */
+		bool az : 1;	   /* Azalia */
+		bool dchvm : 1;
+		bool dsc : 1;	   /* Display stream compression */
+
+		uint32_t reserved : 19;
+	} bits;
+	uint32_t u32All;
+};
+
+enum pg_hw_pipe_resources {
+	PG_HUBP = 0,
+	PG_DPP,
+	PG_DSC,
+	PG_MPCC,
+	PG_OPP,
+	PG_OPTC,
+	PG_HW_PIPE_RESOURCES_NUM_ELEMENT
+};
+
+enum pg_hw_resources {
+	PG_DCCG = 0,
+	PG_DCIO,
+	PG_DIO,
+	PG_DCHUBBUB,
+	PG_DCHVM,
+	PG_DWB,
+	PG_HPO,
+	PG_HW_RESOURCES_NUM_ELEMENT
+};
+
+struct pg_block_update {
+	bool pg_pipe_res_update[PG_HW_PIPE_RESOURCES_NUM_ELEMENT][MAX_PIPES];
+	bool pg_res_update[PG_HW_RESOURCES_NUM_ELEMENT];
+};
+
 union dpia_debug_options {
 	struct {
 		uint32_t disable_dpia:1; /* bit 0 */
@@ -772,6 +831,8 @@ struct dc_debug_options {
 	bool disable_dpp_power_gate;
 	bool disable_hubp_power_gate;
 	bool disable_dsc_power_gate;
+	bool disable_optc_power_gate;
+	bool disable_hpo_power_gate;
 	int dsc_min_slice_height_override;
 	int dsc_bpp_increment_div;
 	bool disable_pplib_wm_range;
@@ -847,6 +908,7 @@ struct dc_debug_options {
 	bool ignore_cable_id;
 	union mem_low_power_enable_options enable_mem_low_power;
 	union root_clock_optimization_options root_clock_optimization;
+	union fine_grain_clock_gating_enable_options enable_fine_grain_clock_gating;
 	bool hpo_optimization;
 	bool force_vblank_alignment;
 
@@ -883,6 +945,7 @@ struct dc_debug_options {
 	bool dml_disallow_alternate_prefetch_modes;
 	bool use_legacy_soc_bb_mechanism;
 	bool exit_idle_opt_for_cursor_updates;
+	bool using_dml2;
 	bool enable_single_display_2to1_odm_policy;
 	bool enable_double_buffered_dsc_pg_support;
 	bool enable_dp_dig_pixel_rate_div_policy;
@@ -893,6 +956,8 @@ struct dc_debug_options {
 	bool dig_fifo_off_in_blank;
 	bool temp_mst_deallocation_sequence;
 	bool override_dispclk_programming;
+	bool otg_crc_db;
+	bool disallow_dispclk_dppclk_ds;
 	bool disable_fpo_optimizations;
 	bool support_eDP1_5;
 	uint32_t fpo_vactive_margin_us;
@@ -904,9 +969,14 @@ struct dc_debug_options {
 	bool disable_dp_plus_plus_wa;
 	uint32_t fpo_vactive_min_active_margin_us;
 	uint32_t fpo_vactive_max_blank_us;
+	bool enable_hpo_pg_support;
 	bool enable_legacy_fast_update;
 	bool disable_dc_mode_overwrite;
 	bool replay_skip_crtc_disabled;
+	bool ignore_pg;/*do nothing, let pmfw control it*/
+	bool psp_disabled_wa;
+	unsigned int ips2_eval_delay_us;
+	unsigned int ips2_entry_delay_us;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -971,6 +1041,7 @@ struct dc {
 
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
+	uint32_t *clk_reg_offsets;
 
 	/* Scratch memory */
 	struct {
@@ -982,6 +1053,8 @@ struct dc {
 			struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
 		} update_bw_bounding_box;
 	} scratch;
+
+	struct dml2_configuration_options dml2_options;
 };
 
 enum frame_buffer_mode {
@@ -1030,6 +1103,7 @@ struct dc_init_data {
 	 */
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
+	uint32_t *clk_reg_offsets;
 };
 
 struct dc_callback_init {
@@ -1573,6 +1647,7 @@ struct dc_link {
 	struct phy_state phy_state;
 	// BW ALLOCATON USB4 ONLY
 	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
+	bool skip_implict_edp_power_control;
 };
 
 /* Return an enumerated dc_link.
@@ -1591,6 +1666,9 @@ bool dc_get_edp_link_panel_inst(const struct dc *dc,
 void dc_get_edp_links(const struct dc *dc,
 		struct dc_link **edp_links,
 		int *edp_num);
+
+void dc_set_edp_power(const struct dc *dc, struct dc_link *edp_link,
+				 bool powerOn);
 
 /* The function initiates detection handshake over the given link. It first
  * determines if there are display connections over the link. If so it initiates
@@ -2293,6 +2371,12 @@ void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 void dc_print_dmub_diagnostic_data(const struct dc *dc);
 
 void dc_query_current_properties(struct dc *dc, struct dc_current_properties *properties);
+
+struct dc_power_profile {
+	int power_level; /* Lower is better */
+};
+
+struct dc_power_profile dc_get_power_profile_for_dc_state(const struct dc_state *context);
 
 /* DSC Interfaces */
 #include "dc_dsc.h"

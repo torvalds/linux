@@ -44,7 +44,7 @@
 #include "dce/dce_clock_source.h"
 
 #include "dce/dce_hwseq.h"
-#include "dce112/dce112_hw_sequencer.h"
+#include "dce112/dce112_hwseq.h"
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"

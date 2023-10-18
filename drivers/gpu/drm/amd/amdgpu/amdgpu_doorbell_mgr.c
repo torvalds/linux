@@ -113,20 +113,25 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v)
  *
  * @adev: amdgpu_device pointer
  * @db_bo: doorbell object's bo
- * @db_index: doorbell relative index in this doorbell object
+ * @doorbell_index: doorbell relative index in this doorbell object
+ * @db_size: doorbell size is in byte
  *
  * returns doorbell's absolute index in BAR
  */
 uint32_t amdgpu_doorbell_index_on_bar(struct amdgpu_device *adev,
-				       struct amdgpu_bo *db_bo,
-				       uint32_t doorbell_index)
+				      struct amdgpu_bo *db_bo,
+				      uint32_t doorbell_index,
+				      uint32_t db_size)
 {
 	int db_bo_offset;
 
 	db_bo_offset = amdgpu_bo_gpu_offset_no_check(db_bo);
 
-	/* doorbell index is 32 bit but doorbell's size is 64-bit, so *2 */
-	return db_bo_offset / sizeof(u32) + doorbell_index * 2;
+	/* doorbell index is 32 bit but doorbell's size can be 32 bit
+	 * or 64 bit, so *db_size(in byte)/4 for alignment.
+	 */
+	return db_bo_offset / sizeof(u32) + doorbell_index *
+	       DIV_ROUND_UP(db_size, 4);
 }
 
 /**
@@ -141,6 +146,10 @@ int amdgpu_doorbell_create_kernel_doorbells(struct amdgpu_device *adev)
 {
 	int r;
 	int size;
+
+	/* SI HW does not have doorbells, skip allocation */
+	if (adev->doorbell.num_kernel_doorbells == 0)
+		return 0;
 
 	/* Reserve first num_kernel_doorbells (page-aligned) for kernel ops */
 	size = ALIGN(adev->doorbell.num_kernel_doorbells * sizeof(u32), PAGE_SIZE);

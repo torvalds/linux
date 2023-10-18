@@ -374,6 +374,8 @@ struct smu_power_gate {
 	bool vce_gated;
 	atomic_t vcn_gated;
 	atomic_t jpeg_gated;
+	atomic_t vpe_gated;
+	atomic_t umsch_mm_gated;
 };
 
 struct smu_power_context {
@@ -563,6 +565,8 @@ struct smu_context {
 	u32 debug_resp_reg;
 
 	struct delayed_work		swctf_delayed_work;
+
+	enum pp_xgmi_plpd_mode plpd_mode;
 };
 
 struct i2c_adapter;
@@ -833,10 +837,10 @@ struct pptable_funcs {
 	int (*set_df_cstate)(struct smu_context *smu, enum pp_df_cstate state);
 
 	/**
-	 * @allow_xgmi_power_down: Enable/disable external global memory
-	 *                         interconnect power down.
+	 * @select_xgmi_plpd_policy: Select xgmi per-link power down policy.
 	 */
-	int (*allow_xgmi_power_down)(struct smu_context *smu, bool en);
+	int (*select_xgmi_plpd_policy)(struct smu_context *smu,
+				       enum pp_xgmi_plpd_mode mode);
 
 	/**
 	 * @update_pcie_parameters: Update and upload the system's PCIe
@@ -844,7 +848,7 @@ struct pptable_funcs {
 	 * &pcie_gen_cap: Maximum allowed PCIe generation.
 	 * &pcie_width_cap: Maximum allowed PCIe width.
 	 */
-	int (*update_pcie_parameters)(struct smu_context *smu, uint32_t pcie_gen_cap, uint32_t pcie_width_cap);
+	int (*update_pcie_parameters)(struct smu_context *smu, uint8_t pcie_gen_cap, uint8_t pcie_width_cap);
 
 	/**
 	 * @i2c_init: Initialize i2c.
@@ -1341,6 +1345,18 @@ struct pptable_funcs {
 	 * @init_pptable_microcode: Prepare the pptable microcode to upload via PSP
 	 */
 	int (*init_pptable_microcode)(struct smu_context *smu);
+
+	/**
+	 * @dpm_set_vpe_enable: Enable/disable VPE engine dynamic power
+	 *                       management.
+	 */
+	int (*dpm_set_vpe_enable)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @dpm_set_umsch_mm_enable: Enable/disable UMSCH engine dynamic power
+	 *                       management.
+	 */
+	int (*dpm_set_umsch_mm_enable)(struct smu_context *smu, bool enable);
 };
 
 typedef enum {
@@ -1483,7 +1499,8 @@ int smu_set_gfx_power_up_by_imu(struct smu_context *smu);
 
 int smu_set_ac_dc(struct smu_context *smu);
 
-int smu_allow_xgmi_power_down(struct smu_context *smu, bool en);
+int smu_set_xgmi_plpd_mode(struct smu_context *smu,
+			   enum pp_xgmi_plpd_mode mode);
 
 int smu_get_entrycount_gfxoff(struct smu_context *smu, u64 *value);
 

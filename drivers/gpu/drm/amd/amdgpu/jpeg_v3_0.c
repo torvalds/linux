@@ -52,7 +52,7 @@ static int jpeg_v3_0_early_init(void *handle)
 
 	u32 harvest;
 
-	switch (adev->ip_versions[UVD_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, UVD_HWIP, 0)) {
 	case IP_VERSION(3, 1, 1):
 	case IP_VERSION(3, 1, 2):
 		break;

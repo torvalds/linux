@@ -38,6 +38,8 @@
 #include "dm_helpers.h"
 #include "atomfirmware.h"
 
+#define DC_LOGGER \
+	ddc_service->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 static const uint8_t DP_VGA_DONGLE_BRANCH_DEV_NAME[] = "DpVga";

@@ -49,7 +49,7 @@
 #define CTX \
 	enc1->base.ctx
 
-static void enc314_reset_fifo(struct stream_encoder *enc, bool reset)
+void enc314_reset_fifo(struct stream_encoder *enc, bool reset)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 	uint32_t reset_val = reset ? 1 : 0;
@@ -64,7 +64,7 @@ static void enc314_reset_fifo(struct stream_encoder *enc, bool reset)
 		udelay(10);
 }
 
-static void enc314_enable_fifo(struct stream_encoder *enc)
+void enc314_enable_fifo(struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
@@ -76,14 +76,14 @@ static void enc314_enable_fifo(struct stream_encoder *enc)
 	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 1);
 }
 
-static void enc314_disable_fifo(struct stream_encoder *enc)
+void enc314_disable_fifo(struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
 	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 0);
 }
 
-static void enc314_dp_set_odm_combine(
+void enc314_dp_set_odm_combine(
 	struct stream_encoder *enc,
 	bool odm_combine)
 {
@@ -93,7 +93,7 @@ static void enc314_dp_set_odm_combine(
 }
 
 /* setup stream encoder in dvi mode */
-static void enc314_stream_encoder_dvi_set_stream_attribute(
+void enc314_stream_encoder_dvi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	bool is_dual_link)
@@ -133,7 +133,7 @@ static void enc314_stream_encoder_dvi_set_stream_attribute(
 }
 
 /* setup stream encoder in hdmi mode */
-static void enc314_stream_encoder_hdmi_set_stream_attribute(
+void enc314_stream_encoder_hdmi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	int actual_pix_clk_khz,
@@ -274,7 +274,7 @@ static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 	return two_pix;
 }
 
-static void enc314_stream_encoder_dp_blank(
+void enc314_stream_encoder_dp_blank(
 	struct dc_link *link,
 	struct stream_encoder *enc)
 {
@@ -285,7 +285,7 @@ static void enc314_stream_encoder_dp_blank(
 		enc314_disable_fifo(enc);
 }
 
-static void enc314_stream_encoder_dp_unblank(
+void enc314_stream_encoder_dp_unblank(
 		struct dc_link *link,
 		struct stream_encoder *enc,
 		const struct encoder_unblank_param *param)
@@ -380,7 +380,7 @@ static void enc314_stream_encoder_dp_unblank(
  *   sc_bytes_per_pixel: DP_DSC_BYTES_PER_PIXEL removed in DCN32
  *   dsc_slice_width: DP_DSC_SLICE_WIDTH removed in DCN32
  */
-static void enc314_dp_set_dsc_config(struct stream_encoder *enc,
+void enc314_dp_set_dsc_config(struct stream_encoder *enc,
 					enum optc_dsc_mode dsc_mode,
 					uint32_t dsc_bytes_per_pixel,
 					uint32_t dsc_slice_width)
@@ -393,7 +393,7 @@ static void enc314_dp_set_dsc_config(struct stream_encoder *enc,
 /* this function read dsc related register fields to be logged later in dcn10_log_hw_state
  * into a dcn_dsc_state struct.
  */
-static void enc314_read_state(struct stream_encoder *enc, struct enc_state *s)
+void enc314_read_state(struct stream_encoder *enc, struct enc_state *s)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
@@ -410,7 +410,7 @@ static void enc314_read_state(struct stream_encoder *enc, struct enc_state *s)
 	}
 }
 
-static void enc314_set_dig_input_mode(struct stream_encoder *enc, unsigned int pix_per_container)
+void enc314_set_dig_input_mode(struct stream_encoder *enc, unsigned int pix_per_container)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 

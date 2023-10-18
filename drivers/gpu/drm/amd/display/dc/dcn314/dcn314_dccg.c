@@ -245,7 +245,7 @@ static void dccg314_set_dtbclk_dto(
 	}
 }
 
-static void dccg314_set_dpstreamclk(
+void dccg314_set_dpstreamclk(
 		struct dccg *dccg,
 		enum streamclk_source src,
 		int otg_inst,
@@ -375,6 +375,7 @@ static const struct dccg_funcs dccg314_funcs = {
 	.set_pixel_rate_div = dccg314_set_pixel_rate_div,
 	.trigger_dio_fifo_resync = dccg314_trigger_dio_fifo_resync,
 	.set_valid_pixel_rate = dccg314_set_valid_pixel_rate,
+	.set_dtbclk_p_src = dccg314_set_dtbclk_p_src
 };
 
 struct dccg *dccg314_create(

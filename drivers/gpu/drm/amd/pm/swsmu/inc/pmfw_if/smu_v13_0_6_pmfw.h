@@ -123,7 +123,7 @@ typedef enum {
   VOLTAGE_GUARDBAND_COUNT
 } GFX_GUARDBAND_e;
 
-#define SMU_METRICS_TABLE_VERSION 0x7
+#define SMU_METRICS_TABLE_VERSION 0x8
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
@@ -207,6 +207,10 @@ typedef struct __attribute__((packed, aligned(4))) {
   uint64_t PublicSerialNumber_AID[4];
   uint64_t PublicSerialNumber_XCD[8];
   uint64_t PublicSerialNumber_CCD[12];
+
+  //XGMI Data tranfser size
+  uint64_t XgmiReadDataSizeAcc[8];//in KByte
+  uint64_t XgmiWriteDataSizeAcc[8];//in KByte
 } MetricsTable_t;
 
 #define SMU_VF_METRICS_TABLE_VERSION 0x3

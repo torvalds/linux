@@ -27,6 +27,8 @@
 #include "link_hwss_dio.h"
 #include "link_enc_cfg.h"
 
+#define DC_LOGGER \
+	link->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 static void update_dpia_stream_allocation_table(struct dc_link *link,

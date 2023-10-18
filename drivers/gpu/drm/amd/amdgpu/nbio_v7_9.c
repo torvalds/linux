@@ -173,8 +173,6 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 	default:
 		break;
 	}
-
-	return;
 }
 
 static void nbio_v7_9_vcn_doorbell_range(struct amdgpu_device *adev, bool use_doorbell,
@@ -556,15 +554,17 @@ const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 static void nbio_v7_9_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
-	return;
 }
 
 static void nbio_v7_9_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)
 {
 	uint32_t bif_doorbell_intr_cntl;
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, adev->nbio.ras_if);
-	struct ras_err_data err_data = {0, 0, 0, NULL};
+	struct ras_err_data err_data;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	if (amdgpu_ras_error_data_init(&err_data))
+		return;
 
 	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_DOORBELL_INT_CNTL);
 
@@ -610,6 +610,8 @@ static void nbio_v7_9_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 		 */
 		amdgpu_ras_reset_gpu(adev);
 	}
+
+	amdgpu_ras_error_data_fini(&err_data);
 }
 
 static void nbio_v7_9_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_device *adev)
