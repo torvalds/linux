@@ -5076,6 +5076,13 @@ static __init void svm_set_cpu_caps(void)
 		kvm_cpu_cap_set(X86_FEATURE_SVM);
 		kvm_cpu_cap_set(X86_FEATURE_VMCBCLEAN);
 
+		/*
+		 * KVM currently flushes TLBs on *every* nested SVM transition,
+		 * and so for all intents and purposes KVM supports flushing by
+		 * ASID, i.e. KVM is guaranteed to honor every L1 ASID flush.
+		 */
+		kvm_cpu_cap_set(X86_FEATURE_FLUSHBYASID);
+
 		if (nrips)
 			kvm_cpu_cap_set(X86_FEATURE_NRIPS);
 
