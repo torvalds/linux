@@ -712,7 +712,7 @@ static int cxl_port_setup_regs(struct cxl_port *port,
 {
 	if (dev_is_platform(port->uport_dev))
 		return 0;
-	return cxl_setup_comp_regs(&port->dev, &port->comp_map,
+	return cxl_setup_comp_regs(&port->dev, &port->reg_map,
 				   component_reg_phys);
 }
 
@@ -729,9 +729,9 @@ static int cxl_dport_setup_regs(struct device *host, struct cxl_dport *dport,
 	 * register probing, and fixup @host after the fact, since @host may be
 	 * NULL.
 	 */
-	rc = cxl_setup_comp_regs(dport->dport_dev, &dport->comp_map,
+	rc = cxl_setup_comp_regs(dport->dport_dev, &dport->reg_map,
 				 component_reg_phys);
-	dport->comp_map.host = host;
+	dport->reg_map.host = host;
 	return rc;
 }
 
