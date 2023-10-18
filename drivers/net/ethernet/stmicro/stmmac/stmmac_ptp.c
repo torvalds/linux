@@ -201,12 +201,11 @@ static int stmmac_enable(struct ptp_clock_info *ptp,
 		acr_value &= ~PTP_ACR_MASK;
 		if (on) {
 			/* Enable External snapshot trigger */
-			acr_value |= priv->plat->ext_snapshot_num;
+			acr_value |= PTP_ACR_ATSEN(rq->extts.index);
 			acr_value |= PTP_ACR_ATSFC;
 		}
 		netdev_dbg(priv->dev, "Auxiliary Snapshot %d %s.\n",
-			   priv->plat->ext_snapshot_num >> PTP_ACR_ATSEN_SHIFT,
-			   on ? "enabled" : "disabled");
+			   rq->extts.index, on ? "enabled" : "disabled");
 		writel(acr_value, ptpaddr + PTP_ACR);
 		mutex_unlock(&priv->aux_ts_lock);
 		/* wait for auxts fifo clear to finish */
