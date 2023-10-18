@@ -42,6 +42,9 @@ class Type(SpecAttr):
         self.type = attr['type']
         self.checks = attr.get('checks', {})
 
+        self.request = False
+        self.reply = False
+
         if 'len' in attr:
             self.len = attr['len']
         if 'nested-attributes' in attr:
@@ -846,6 +849,7 @@ class Family(SpecFamily):
 
         self._load_root_sets()
         self._load_nested_sets()
+        self._load_attr_use()
         self._load_hooks()
 
         self.kernel_policy = self.yaml.get('kernel-policy', 'split')
@@ -965,6 +969,22 @@ class Family(SpecFamily):
                     if child:
                         child.request |= struct.request
                         child.reply |= struct.reply
+
+    def _load_attr_use(self):
+        for _, struct in self.pure_nested_structs.items():
+            if struct.request:
+                for _, arg in struct.member_list():
+                    arg.request = True
+            if struct.reply:
+                for _, arg in struct.member_list():
+                    arg.reply = True
+
+        for root_set, rs_members in self.root_sets.items():
+            for attr, spec in self.attr_sets[root_set].items():
+                if attr in rs_members['request']:
+                    spec.request = True
+                if attr in rs_members['reply']:
+                    spec.reply = True
 
     def _load_global_policy(self):
         global_set = set()
