@@ -2948,8 +2948,12 @@ static int mlx5e_num_channels_changed(struct mlx5e_priv *priv)
 	mlx5e_set_default_xps_cpumasks(priv, &priv->channels.params);
 
 	/* This function may be called on attach, before priv->rx_res is created. */
-	if (!netif_is_rxfh_configured(priv->netdev) && priv->rx_res)
-		mlx5e_rx_res_rss_set_indir_uniform(priv->rx_res, count);
+	if (priv->rx_res) {
+		mlx5e_rx_res_rss_update_num_channels(priv->rx_res, count);
+
+		if (!netif_is_rxfh_configured(priv->netdev))
+			mlx5e_rx_res_rss_set_indir_uniform(priv->rx_res, count);
+	}
 
 	return 0;
 }
@@ -5389,10 +5393,6 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	enum mlx5e_rx_res_features features;
 	int err;
 
-	priv->rx_res = mlx5e_rx_res_alloc();
-	if (!priv->rx_res)
-		return -ENOMEM;
-
 	mlx5e_create_q_counters(priv);
 
 	err = mlx5e_open_drop_rq(priv, &priv->drop_rq);
@@ -5404,12 +5404,16 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	features = MLX5E_RX_RES_FEATURE_PTP;
 	if (mlx5_tunnel_inner_ft_supported(mdev))
 		features |= MLX5E_RX_RES_FEATURE_INNER_FT;
-	err = mlx5e_rx_res_init(priv->rx_res, priv->mdev, features,
-				priv->max_nch, priv->drop_rq.rqn,
-				&priv->channels.params.packet_merge,
-				priv->channels.params.num_channels);
-	if (err)
+
+	priv->rx_res = mlx5e_rx_res_create(priv->mdev, features, priv->max_nch, priv->drop_rq.rqn,
+					   &priv->channels.params.packet_merge,
+					   priv->channels.params.num_channels);
+	if (IS_ERR(priv->rx_res)) {
+		err = PTR_ERR(priv->rx_res);
+		priv->rx_res = NULL;
+		mlx5_core_err(mdev, "create rx resources failed, %d\n", err);
 		goto err_close_drop_rq;
+	}
 
 	err = mlx5e_create_flow_steering(priv->fs, priv->rx_res, priv->profile,
 					 priv->netdev);
@@ -5439,12 +5443,11 @@ err_destroy_flow_steering:
 				    priv->profile);
 err_destroy_rx_res:
 	mlx5e_rx_res_destroy(priv->rx_res);
+	priv->rx_res = NULL;
 err_close_drop_rq:
 	mlx5e_close_drop_rq(&priv->drop_rq);
 err_destroy_q_counters:
 	mlx5e_destroy_q_counters(priv);
-	mlx5e_rx_res_free(priv->rx_res);
-	priv->rx_res = NULL;
 	return err;
 }
 
@@ -5455,10 +5458,9 @@ static void mlx5e_cleanup_nic_rx(struct mlx5e_priv *priv)
 	mlx5e_destroy_flow_steering(priv->fs, !!(priv->netdev->hw_features & NETIF_F_NTUPLE),
 				    priv->profile);
 	mlx5e_rx_res_destroy(priv->rx_res);
+	priv->rx_res = NULL;
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_destroy_q_counters(priv);
-	mlx5e_rx_res_free(priv->rx_res);
-	priv->rx_res = NULL;
 }
 
 static void mlx5e_set_mqprio_rl(struct mlx5e_priv *priv)

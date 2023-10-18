@@ -1326,15 +1326,17 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	setup_fte_no_frags(spec);
 	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
-	if (rx != ipsec->rx_esw)
-		err = setup_modify_header(ipsec, attrs->type,
-					  sa_entry->ipsec_obj_id | BIT(31),
-					  XFRM_DEV_OFFLOAD_IN, &flow_act);
-	else
-		err = mlx5_esw_ipsec_rx_setup_modify_header(sa_entry, &flow_act);
+	if (!attrs->drop) {
+		if (rx != ipsec->rx_esw)
+			err = setup_modify_header(ipsec, attrs->type,
+						  sa_entry->ipsec_obj_id | BIT(31),
+						  XFRM_DEV_OFFLOAD_IN, &flow_act);
+		else
+			err = mlx5_esw_ipsec_rx_setup_modify_header(sa_entry, &flow_act);
 
-	if (err)
-		goto err_mod_header;
+		if (err)
+			goto err_mod_header;
+	}
 
 	switch (attrs->type) {
 	case XFRM_DEV_OFFLOAD_PACKET:
@@ -1384,7 +1386,8 @@ err_add_cnt:
 	if (flow_act.pkt_reformat)
 		mlx5_packet_reformat_dealloc(mdev, flow_act.pkt_reformat);
 err_pkt_reformat:
-	mlx5_modify_header_dealloc(mdev, flow_act.modify_hdr);
+	if (flow_act.modify_hdr)
+		mlx5_modify_header_dealloc(mdev, flow_act.modify_hdr);
 err_mod_header:
 	kvfree(spec);
 err_alloc:
@@ -1882,7 +1885,8 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 		return;
 	}
 
-	mlx5_modify_header_dealloc(mdev, ipsec_rule->modify_hdr);
+	if (ipsec_rule->modify_hdr)
+		mlx5_modify_header_dealloc(mdev, ipsec_rule->modify_hdr);
 	mlx5_esw_ipsec_rx_id_mapping_remove(sa_entry);
 	rx_ft_put(sa_entry->ipsec, sa_entry->attrs.family, sa_entry->attrs.type);
 }

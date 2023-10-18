@@ -31,6 +31,7 @@ struct mlx5_devcom_comp {
 	struct kref ref;
 	bool ready;
 	struct rw_semaphore sem;
+	struct lock_class_key lock_key;
 };
 
 struct mlx5_devcom_comp_dev {
@@ -119,6 +120,8 @@ mlx5_devcom_comp_alloc(u64 id, u64 key, mlx5_devcom_event_handler_t handler)
 	comp->key = key;
 	comp->handler = handler;
 	init_rwsem(&comp->sem);
+	lockdep_register_key(&comp->lock_key);
+	lockdep_set_class(&comp->sem, &comp->lock_key);
 	kref_init(&comp->ref);
 	INIT_LIST_HEAD(&comp->comp_dev_list_head);
 
@@ -133,6 +136,7 @@ mlx5_devcom_comp_release(struct kref *ref)
 	mutex_lock(&comp_list_lock);
 	list_del(&comp->comp_list);
 	mutex_unlock(&comp_list_lock);
+	lockdep_unregister_key(&comp->lock_key);
 	kfree(comp);
 }
 
@@ -382,4 +386,25 @@ void *mlx5_devcom_get_next_peer_data_rcu(struct mlx5_devcom_comp_dev *devcom,
 
 	*pos = tmp;
 	return data;
+}
+
+void mlx5_devcom_comp_lock(struct mlx5_devcom_comp_dev *devcom)
+{
+	if (IS_ERR_OR_NULL(devcom))
+		return;
+	down_write(&devcom->comp->sem);
+}
+
+void mlx5_devcom_comp_unlock(struct mlx5_devcom_comp_dev *devcom)
+{
+	if (IS_ERR_OR_NULL(devcom))
+		return;
+	up_write(&devcom->comp->sem);
+}
+
+int mlx5_devcom_comp_trylock(struct mlx5_devcom_comp_dev *devcom)
+{
+	if (IS_ERR_OR_NULL(devcom))
+		return 0;
+	return down_write_trylock(&devcom->comp->sem);
 }
