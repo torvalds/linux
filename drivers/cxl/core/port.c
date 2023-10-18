@@ -694,15 +694,17 @@ err:
 static int cxl_setup_comp_regs(struct device *host, struct cxl_register_map *map,
 			       resource_size_t component_reg_phys)
 {
+	*map = (struct cxl_register_map) {
+		.host = host,
+		.reg_type = CXL_REGLOC_RBI_EMPTY,
+		.resource = component_reg_phys,
+	};
+
 	if (component_reg_phys == CXL_RESOURCE_NONE)
 		return 0;
 
-	*map = (struct cxl_register_map) {
-		.host = host,
-		.reg_type = CXL_REGLOC_RBI_COMPONENT,
-		.resource = component_reg_phys,
-		.max_size = CXL_COMPONENT_REG_BLOCK_SIZE,
-	};
+	map->reg_type = CXL_REGLOC_RBI_COMPONENT;
+	map->max_size = CXL_COMPONENT_REG_BLOCK_SIZE;
 
 	return cxl_setup_regs(map);
 }
