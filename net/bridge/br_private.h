@@ -274,6 +274,7 @@ enum {
 	BR_FDB_NOTIFY,
 	BR_FDB_NOTIFY_INACTIVE,
 	BR_FDB_LOCKED,
+	BR_FDB_DYNAMIC_LEARNED,
 };
 
 struct net_bridge_fdb_key {
@@ -554,6 +555,9 @@ struct net_bridge {
 	struct delayed_work		gc_work;
 	struct kobject			*ifobj;
 	u32				auto_cnt;
+
+	atomic_t			fdb_n_learned;
+	u32				fdb_max_learned;
 
 #ifdef CONFIG_NET_SWITCHDEV
 	/* Counter used to make sure that hardware domains get unique
