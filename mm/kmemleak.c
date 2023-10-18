@@ -583,6 +583,19 @@ static void __remove_object(struct kmemleak_object *object)
 	object->del_state |= DELSTATE_REMOVED;
 }
 
+static struct kmemleak_object *__find_and_remove_object(unsigned long ptr,
+							int alias,
+							bool is_phys)
+{
+	struct kmemleak_object *object;
+
+	object = __lookup_object(ptr, alias, is_phys);
+	if (object)
+		__remove_object(object);
+
+	return object;
+}
+
 /*
  * Look up an object in the object search tree and remove it from both
  * object_tree_root (or object_phys_tree_root) and object_list. The
@@ -596,9 +609,7 @@ static struct kmemleak_object *find_and_remove_object(unsigned long ptr, int ali
 	struct kmemleak_object *object;
 
 	raw_spin_lock_irqsave(&kmemleak_lock, flags);
-	object = __lookup_object(ptr, alias, is_phys);
-	if (object)
-		__remove_object(object);
+	object = __find_and_remove_object(ptr, alias, is_phys);
 	raw_spin_unlock_irqrestore(&kmemleak_lock, flags);
 
 	return object;
