@@ -1864,8 +1864,8 @@ static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 	return -EINVAL;
 }
 
-void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
-				   struct intel_c10pll_state *pll_state)
+static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
+					  struct intel_c10pll_state *pll_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	u8 lane = INTEL_CX0_LANE0;
@@ -2117,8 +2117,8 @@ static bool intel_c20_use_mplla(u32 clock)
 	return false;
 }
 
-void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
-				   struct intel_c20pll_state *pll_state)
+static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
+					  struct intel_c20pll_state *pll_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	bool cntx;
@@ -3066,4 +3066,16 @@ void intel_c10pll_state_verify(struct intel_atomic_state *state,
 			"[CRTC:%d:%s] mismatch in C10MPLLB: Register CMN0 (expected 0x%02x, found 0x%02x)",
 			crtc->base.base.id, crtc->base.name,
 			mpllb_sw_state->cmn, mpllb_hw_state.cmn);
+}
+
+void intel_cx0pll_readout_hw_state(struct intel_encoder *encoder,
+				   struct intel_cx0pll_state *pll_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	if (intel_is_c10phy(i915, phy))
+		intel_c10pll_readout_hw_state(encoder, &pll_state->c10);
+	else
+		intel_c20pll_readout_hw_state(encoder, &pll_state->c20);
 }
