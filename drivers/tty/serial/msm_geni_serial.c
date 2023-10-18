@@ -4119,7 +4119,8 @@ static void msm_geni_serial_set_termios(struct uart_port *uport,
 	}
 
 	/* baud rate */
-	baud = uart_get_baud_rate(uport, termios, old, 300, 4000000);
+	baud = uart_get_baud_rate(uport, termios, old,
+				  MIN_SUPPORTED_BAUD_RATE, MAX_SUPPORTED_BAUD_RATE);
 	port->cur_baud = baud;
 	if (msm_geni_serial_config_baud_rate(uport, termios, baud))
 		goto exit_set_termios;
