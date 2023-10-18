@@ -959,6 +959,7 @@ static int rk_serdes_pinctrl_init(struct rk_serdes *serdes)
 static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
+	struct device_node *disp_np;
 	struct rk_serdes *serdes;
 	int ret;
 
@@ -1013,9 +1014,10 @@ static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_devic
 		return ret;
 	}
 
-	if (of_get_child_by_name(dev->of_node, "serdes-panel")) {
+	disp_np = of_get_child_by_name(dev->of_node, "serdes-panel");
+	if (disp_np) {
 		serdes->stream_type = STREAM_DISPLAY;
-		of_node_put(dev->of_node);
+		of_node_put(disp_np);
 		dev_info(dev, "serdes display stream");
 	} else {
 		serdes->stream_type = STREAM_CAMERA;
