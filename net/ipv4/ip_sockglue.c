@@ -585,9 +585,9 @@ out:
 	return err;
 }
 
-void ip_sock_set_tos(struct sock *sk, int val)
+void __ip_sock_set_tos(struct sock *sk, int val)
 {
-	u8 old_tos = READ_ONCE(inet_sk(sk)->tos);
+	u8 old_tos = inet_sk(sk)->tos;
 
 	if (sk->sk_type == SOCK_STREAM) {
 		val &= ~INET_ECN_MASK;
@@ -598,6 +598,13 @@ void ip_sock_set_tos(struct sock *sk, int val)
 		WRITE_ONCE(sk->sk_priority, rt_tos2priority(val));
 		sk_dst_reset(sk);
 	}
+}
+
+void ip_sock_set_tos(struct sock *sk, int val)
+{
+	lock_sock(sk);
+	__ip_sock_set_tos(sk, val);
+	release_sock(sk);
 }
 EXPORT_SYMBOL(ip_sock_set_tos);
 
