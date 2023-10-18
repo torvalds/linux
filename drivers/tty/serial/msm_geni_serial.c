@@ -2018,6 +2018,7 @@ static void msm_geni_uart_gsi_cancel_rx(struct work_struct *work)
 	if (!msm_port->gsi_rx_done) {
 		UART_LOG_DBG(msm_port->ipc_log_misc, msm_port->uport.dev,
 			     "%s: gsi_rx not yet done\n", __func__);
+		atomic_set(&msm_port->stop_rx_inprogress, 0);
 		return;
 	}
 	if (msm_port->gsi->rx_c)
