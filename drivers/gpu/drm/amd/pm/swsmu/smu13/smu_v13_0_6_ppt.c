@@ -2303,7 +2303,7 @@ static int smu_v13_0_6_post_init(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	if (!amdgpu_sriov_vf(adev) && amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC))
+	if (!amdgpu_sriov_vf(adev) && adev->ras_enabled)
 		return smu_v13_0_6_mca_set_debug_mode(smu, true);
 
 	return 0;
