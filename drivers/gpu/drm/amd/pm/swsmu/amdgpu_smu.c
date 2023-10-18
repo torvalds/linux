@@ -2435,7 +2435,6 @@ int smu_get_power_limit(void *handle,
 		break;
 	default:
 		return -EOPNOTSUPP;
-		break;
 	}
 
 	switch (pp_limit_level) {
@@ -2453,7 +2452,6 @@ int smu_get_power_limit(void *handle,
 		break;
 	default:
 		return -EOPNOTSUPP;
-		break;
 	}
 
 	if (limit_type != SMU_DEFAULT_PPT_LIMIT) {
@@ -2487,7 +2485,7 @@ int smu_get_power_limit(void *handle,
 			*limit = smu->min_power_limit;
 			break;
 		default:
-			break;
+			return -EINVAL;
 		}
 	}
 
