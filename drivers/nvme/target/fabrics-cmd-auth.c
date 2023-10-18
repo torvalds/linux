@@ -333,19 +333,21 @@ done:
 			 __func__, ctrl->cntlid, req->sq->qid,
 			 status, req->error_loc);
 	req->cqe->result.u64 = 0;
-	nvmet_req_complete(req, status);
 	if (req->sq->dhchap_step != NVME_AUTH_DHCHAP_MESSAGE_SUCCESS2 &&
 	    req->sq->dhchap_step != NVME_AUTH_DHCHAP_MESSAGE_FAILURE2) {
 		unsigned long auth_expire_secs = ctrl->kato ? ctrl->kato : 120;
 
 		mod_delayed_work(system_wq, &req->sq->auth_expired_work,
 				 auth_expire_secs * HZ);
-		return;
+		goto complete;
 	}
 	/* Final states, clear up variables */
 	nvmet_auth_sq_free(req->sq);
 	if (req->sq->dhchap_step == NVME_AUTH_DHCHAP_MESSAGE_FAILURE2)
 		nvmet_ctrl_fatal_error(ctrl);
+
+complete:
+	nvmet_req_complete(req, status);
 }
 
 static int nvmet_auth_challenge(struct nvmet_req *req, void *d, int al)
@@ -514,11 +516,12 @@ void nvmet_execute_auth_receive(struct nvmet_req *req)
 	kfree(d);
 done:
 	req->cqe->result.u64 = 0;
-	nvmet_req_complete(req, status);
+
 	if (req->sq->dhchap_step == NVME_AUTH_DHCHAP_MESSAGE_SUCCESS2)
 		nvmet_auth_sq_free(req->sq);
 	else if (req->sq->dhchap_step == NVME_AUTH_DHCHAP_MESSAGE_FAILURE1) {
 		nvmet_auth_sq_free(req->sq);
 		nvmet_ctrl_fatal_error(ctrl);
 	}
+	nvmet_req_complete(req, status);
 }
