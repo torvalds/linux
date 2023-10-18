@@ -1229,7 +1229,8 @@ static u64 pde_encode_pat_index(struct xe_device *xe, u16 pat_index)
 	return pte;
 }
 
-static u64 pte_encode_pat_index(struct xe_device *xe, u16 pat_index)
+static u64 pte_encode_pat_index(struct xe_device *xe, u16 pat_index,
+				u32 pt_level)
 {
 	u64 pte = 0;
 
@@ -1239,8 +1240,12 @@ static u64 pte_encode_pat_index(struct xe_device *xe, u16 pat_index)
 	if (pat_index & BIT(1))
 		pte |= XE_PPGTT_PTE_PAT1;
 
-	if (pat_index & BIT(2))
-		pte |= XE_PPGTT_PTE_PAT2;
+	if (pat_index & BIT(2)) {
+		if (pt_level)
+			pte |= XE_PPGTT_PDE_PDPE_PAT2;
+		else
+			pte |= XE_PPGTT_PTE_PAT2;
+	}
 
 	if (pat_index & BIT(3))
 		pte |= XELPG_PPGTT_PTE_PAT3;
@@ -1284,7 +1289,7 @@ static u64 xelp_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
 
 	pte = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
 	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
-	pte |= pte_encode_pat_index(xe, pat_index);
+	pte |= pte_encode_pat_index(xe, pat_index, pt_level);
 	pte |= pte_encode_ps(pt_level);
 
 	if (xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo))
@@ -1303,7 +1308,7 @@ static u64 xelp_pte_encode_vma(u64 pte, struct xe_vma *vma,
 	if (likely(!xe_vma_read_only(vma)))
 		pte |= XE_PAGE_RW;
 
-	pte |= pte_encode_pat_index(xe, pat_index);
+	pte |= pte_encode_pat_index(xe, pat_index, pt_level);
 	pte |= pte_encode_ps(pt_level);
 
 	if (unlikely(xe_vma_is_null(vma)))
@@ -1323,7 +1328,7 @@ static u64 xelp_pte_encode_addr(struct xe_device *xe, u64 addr,
 
 	pte = addr;
 	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
-	pte |= pte_encode_pat_index(xe, pat_index);
+	pte |= pte_encode_pat_index(xe, pat_index, pt_level);
 	pte |= pte_encode_ps(pt_level);
 
 	if (devmem)
