@@ -337,33 +337,14 @@ static ssize_t idlecpus_show(struct device *dev,
 
 static DEVICE_ATTR_RW(idlecpus);
 
-static int acpi_pad_add_sysfs(struct acpi_device *device)
-{
-	int result;
+static struct attribute *acpi_pad_attrs[] = {
+	&dev_attr_idlecpus.attr,
+	&dev_attr_idlepct.attr,
+	&dev_attr_rrtime.attr,
+	NULL
+};
 
-	result = device_create_file(&device->dev, &dev_attr_idlecpus);
-	if (result)
-		return -ENODEV;
-	result = device_create_file(&device->dev, &dev_attr_idlepct);
-	if (result) {
-		device_remove_file(&device->dev, &dev_attr_idlecpus);
-		return -ENODEV;
-	}
-	result = device_create_file(&device->dev, &dev_attr_rrtime);
-	if (result) {
-		device_remove_file(&device->dev, &dev_attr_idlecpus);
-		device_remove_file(&device->dev, &dev_attr_idlepct);
-		return -ENODEV;
-	}
-	return 0;
-}
-
-static void acpi_pad_remove_sysfs(struct acpi_device *device)
-{
-	device_remove_file(&device->dev, &dev_attr_idlecpus);
-	device_remove_file(&device->dev, &dev_attr_idlepct);
-	device_remove_file(&device->dev, &dev_attr_rrtime);
-}
+ATTRIBUTE_GROUPS(acpi_pad);
 
 /*
  * Query firmware how many CPUs should be idle
@@ -439,15 +420,10 @@ static int acpi_pad_probe(struct platform_device *pdev)
 	strcpy(acpi_device_name(device), ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PROCESSOR_AGGREGATOR_CLASS);
 
-	if (acpi_pad_add_sysfs(device))
-		return -ENODEV;
-
 	status = acpi_install_notify_handler(device->handle,
 		ACPI_DEVICE_NOTIFY, acpi_pad_notify, device);
-	if (ACPI_FAILURE(status)) {
-		acpi_pad_remove_sysfs(device);
+	if (ACPI_FAILURE(status))
 		return -ENODEV;
-	}
 
 	return 0;
 }
@@ -462,7 +438,6 @@ static void acpi_pad_remove(struct platform_device *pdev)
 
 	acpi_remove_notify_handler(device->handle,
 		ACPI_DEVICE_NOTIFY, acpi_pad_notify);
-	acpi_pad_remove_sysfs(device);
 }
 
 static const struct acpi_device_id pad_device_ids[] = {
@@ -475,6 +450,7 @@ static struct platform_driver acpi_pad_driver = {
 	.probe = acpi_pad_probe,
 	.remove_new = acpi_pad_remove,
 	.driver = {
+		.dev_groups = acpi_pad_groups,
 		.name = "processor_aggregator",
 		.acpi_match_table = pad_device_ids,
 	},
