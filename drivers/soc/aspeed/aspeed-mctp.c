@@ -454,7 +454,8 @@ static int pcie_vdm_enable(struct device *dev)
 		return PTR_ERR(scu);
 	}
 	ret = regmap_update_bits(scu, ASPEED_G7_SCU_PCIE_CTRL_OFFSET,
-				 ASPEED_G7_SCU_PCIE_CTRL_VDM_EN, 1);
+				 ASPEED_G7_SCU_PCIE_CTRL_VDM_EN,
+				 ASPEED_G7_SCU_PCIE_CTRL_VDM_EN);
 	return ret;
 }
 
