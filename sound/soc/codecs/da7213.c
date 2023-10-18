@@ -55,6 +55,7 @@ static const DECLARE_TLV_DB_SCALE(hp_vol_tlv, -5700, 100, 0);
 static const DECLARE_TLV_DB_SCALE(lineout_vol_tlv, -4800, 100, 0);
 static const DECLARE_TLV_DB_SCALE(alc_threshold_tlv, -9450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(alc_gain_tlv, 0, 600, 0);
+static const DECLARE_TLV_DB_SCALE(da7213_tonegen_gain_tlv, -4500, 300, 0);
 
 /* ADC and DAC voice mode (8kHz) high pass cutoff value */
 static const char * const da7213_voice_hpf_corner_txt[] = {
@@ -85,6 +86,23 @@ static SOC_ENUM_SINGLE_DECL(da7213_adc_audio_hpf_corner,
 			    DA7213_ADC_FILTERS1,
 			    DA7213_AUDIO_HPF_CORNER_SHIFT,
 			    da7213_audio_hpf_corner_txt);
+
+static const char * const da7213_tonegen_dtmf_key_txt[] = {
+	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D",
+	"*", "#"
+};
+
+static const struct soc_enum da7213_tonegen_dtmf_key =
+	SOC_ENUM_SINGLE(DA7213_TONE_GEN_CFG1, DA7213_DTMF_REG_SHIFT,
+			DA7213_DTMF_REG_MAX, da7213_tonegen_dtmf_key_txt);
+
+static const char * const da7213_tonegen_swg_sel_txt[] = {
+	"Sum", "SWG1", "SWG2", "Sum"
+};
+
+static const struct soc_enum da7213_tonegen_swg_sel =
+	SOC_ENUM_SINGLE(DA7213_TONE_GEN_CFG2, DA7213_SWG_SEL_SHIFT,
+			DA7213_SWG_SEL_MAX, da7213_tonegen_swg_sel_txt);
 
 /* Gain ramping rate value */
 static const char * const da7213_gain_ramp_rate_txt[] = {
@@ -191,6 +209,64 @@ static SOC_ENUM_SINGLE_DECL(da7213_alc_integ_release_rate,
  * Control Functions
  */
 
+/* Locked Kcontrol calls */
+static int da7213_volsw_locked_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = snd_soc_get_volsw(kcontrol, ucontrol);
+	mutex_unlock(&da7213->ctrl_lock);
+
+	return ret;
+}
+
+static int da7213_volsw_locked_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+	mutex_unlock(&da7213->ctrl_lock);
+
+	return ret;
+}
+
+static int da7213_enum_locked_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = snd_soc_get_enum_double(kcontrol, ucontrol);
+	mutex_unlock(&da7213->ctrl_lock);
+
+	return ret;
+}
+
+static int da7213_enum_locked_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = snd_soc_put_enum_double(kcontrol, ucontrol);
+	mutex_unlock(&da7213->ctrl_lock);
+
+	return ret;
+}
+
+/* ALC */
 static int da7213_get_alc_data(struct snd_soc_component *component, u8 reg_val)
 {
 	int mid_data, top_data;
@@ -376,6 +452,64 @@ static int da7213_put_alc_sw(struct snd_kcontrol *kcontrol,
 	return snd_soc_put_volsw(kcontrol, ucontrol);
 }
 
+/* ToneGen */
+static int da7213_tonegen_freq_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	struct soc_mixer_control *mixer_ctrl =
+		(struct soc_mixer_control *) kcontrol->private_value;
+	unsigned int reg = mixer_ctrl->reg;
+	__le16 val;
+	int ret;
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = regmap_raw_read(da7213->regmap, reg, &val, sizeof(val));
+	mutex_unlock(&da7213->ctrl_lock);
+
+	if (ret)
+		return ret;
+
+	/*
+	 * Frequency value spans two 8-bit registers, lower then upper byte.
+	 * Therefore we need to convert to host endianness here.
+	 */
+	ucontrol->value.integer.value[0] = le16_to_cpu(val);
+
+	return 0;
+}
+
+static int da7213_tonegen_freq_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct da7213_priv *da7213 = snd_soc_component_get_drvdata(component);
+	struct soc_mixer_control *mixer_ctrl =
+		(struct soc_mixer_control *) kcontrol->private_value;
+	unsigned int reg = mixer_ctrl->reg;
+	__le16 val_new, val_old;
+	int ret;
+
+	/*
+	 * Frequency value spans two 8-bit registers, lower then upper byte.
+	 * Therefore we need to convert to little endian here to align with
+	 * HW registers.
+	 */
+	val_new = cpu_to_le16(ucontrol->value.integer.value[0]);
+
+	mutex_lock(&da7213->ctrl_lock);
+	ret = regmap_raw_read(da7213->regmap, reg, &val_old, sizeof(val_old));
+	if (ret == 0 && (val_old != val_new))
+		ret = regmap_raw_write(da7213->regmap, reg,
+				&val_new, sizeof(val_new));
+	mutex_unlock(&da7213->ctrl_lock);
+
+	if (ret < 0)
+		return ret;
+
+	return val_old != val_new;
+}
 
 /*
  * KControls
@@ -476,6 +610,37 @@ static const struct snd_kcontrol_new da7213_snd_controls[] = {
 		     DA7213_NO_INVERT),
 	SOC_DOUBLE_R("Headphone ZC Switch", DA7213_HP_L_CTRL, DA7213_HP_R_CTRL,
 		     DA7213_ZC_EN_SHIFT, DA7213_ZC_EN_MAX, DA7213_NO_INVERT),
+
+	/* Tone Generator */
+	SOC_SINGLE_EXT_TLV("ToneGen Volume", DA7213_TONE_GEN_CFG2,
+			   DA7213_TONE_GEN_GAIN_SHIFT, DA7213_TONE_GEN_GAIN_MAX,
+			   DA7213_NO_INVERT, da7213_volsw_locked_get,
+			   da7213_volsw_locked_put, da7213_tonegen_gain_tlv),
+	SOC_ENUM_EXT("ToneGen DTMF Key", da7213_tonegen_dtmf_key,
+		     da7213_enum_locked_get, da7213_enum_locked_put),
+	SOC_SINGLE_EXT("ToneGen DTMF Switch", DA7213_TONE_GEN_CFG1,
+		       DA7213_DTMF_EN_SHIFT, DA7213_SWITCH_EN_MAX,
+		       DA7213_NO_INVERT, da7213_volsw_locked_get,
+		       da7213_volsw_locked_put),
+	SOC_SINGLE_EXT("ToneGen Start", DA7213_TONE_GEN_CFG1,
+		       DA7213_START_STOPN_SHIFT, DA7213_SWITCH_EN_MAX,
+		       DA7213_NO_INVERT, da7213_volsw_locked_get,
+		       da7213_volsw_locked_put),
+	SOC_ENUM_EXT("ToneGen Sinewave Gen Type", da7213_tonegen_swg_sel,
+		     da7213_enum_locked_get, da7213_enum_locked_put),
+	SOC_SINGLE_EXT("ToneGen Sinewave1 Freq", DA7213_TONE_GEN_FREQ1_L,
+		       DA7213_FREQ1_L_SHIFT, DA7213_FREQ_MAX, DA7213_NO_INVERT,
+		       da7213_tonegen_freq_get, da7213_tonegen_freq_put),
+	SOC_SINGLE_EXT("ToneGen Sinewave2 Freq", DA7213_TONE_GEN_FREQ2_L,
+		       DA7213_FREQ2_L_SHIFT, DA7213_FREQ_MAX, DA7213_NO_INVERT,
+		       da7213_tonegen_freq_get, da7213_tonegen_freq_put),
+	SOC_SINGLE_EXT("ToneGen On Time", DA7213_TONE_GEN_ON_PER,
+		       DA7213_BEEP_ON_PER_SHIFT, DA7213_BEEP_ON_OFF_MAX,
+		       DA7213_NO_INVERT, da7213_volsw_locked_get,
+		       da7213_volsw_locked_put),
+	SOC_SINGLE("ToneGen Off Time", DA7213_TONE_GEN_OFF_PER,
+		   DA7213_BEEP_OFF_PER_SHIFT, DA7213_BEEP_ON_OFF_MAX,
+		   DA7213_NO_INVERT),
 
 	/* Gain Ramping controls */
 	SOC_DOUBLE_R("Aux Gain Ramping Switch", DA7213_AUX_L_CTRL,
@@ -765,7 +930,7 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 		/* Check SRM has locked */
 		do {
 			pll_status = snd_soc_component_read(component, DA7213_PLL_STATUS);
-			if (pll_status & DA7219_PLL_SRM_LOCK) {
+			if (pll_status & DA7213_PLL_SRM_LOCK) {
 				srm_lock = true;
 			} else {
 				++i;
@@ -1949,6 +2114,9 @@ static int da7213_probe(struct snd_soc_component *component)
 		da7213->fixed_clk_auto_pll = true;
 	}
 
+	/* Default infinite tone gen, start/stop by Kcontrol */
+	snd_soc_component_write(component, DA7213_TONE_GEN_CYCLES, DA7213_BEEP_CYCLES_MASK);
+
 	return 0;
 }
 
@@ -2096,4 +2264,5 @@ module_i2c_driver(da7213_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC DA7213 Codec driver");
 MODULE_AUTHOR("Adam Thomson <Adam.Thomson.Opensource@diasemi.com>");
+MODULE_AUTHOR("David Rau <David.Rau.opensource@dm.renesas.com>");
 MODULE_LICENSE("GPL");
