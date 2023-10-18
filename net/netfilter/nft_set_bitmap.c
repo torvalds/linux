@@ -125,7 +125,7 @@ nft_bitmap_get(const struct net *net, const struct nft_set *set,
 
 static int nft_bitmap_insert(const struct net *net, const struct nft_set *set,
 			     const struct nft_set_elem *elem,
-			     struct nft_set_ext **ext)
+			     struct nft_elem_priv **elem_priv)
 {
 	struct nft_bitmap_elem *new = nft_elem_priv_cast(elem->priv), *be;
 	struct nft_bitmap *priv = nft_set_priv(set);
@@ -134,7 +134,7 @@ static int nft_bitmap_insert(const struct net *net, const struct nft_set *set,
 
 	be = nft_bitmap_elem_find(set, new, genmask);
 	if (be) {
-		*ext = &be->ext;
+		*elem_priv = &be->priv;
 		return -EEXIST;
 	}
 

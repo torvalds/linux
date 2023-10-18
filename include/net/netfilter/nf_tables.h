@@ -451,7 +451,7 @@ struct nft_set_ops {
 	int				(*insert)(const struct net *net,
 						  const struct nft_set *set,
 						  const struct nft_set_elem *elem,
-						  struct nft_set_ext **ext);
+						  struct nft_elem_priv **priv);
 	void				(*activate)(const struct net *net,
 						    const struct nft_set *set,
 						    struct nft_elem_priv *elem_priv);
