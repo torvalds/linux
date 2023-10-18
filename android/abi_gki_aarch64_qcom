@@ -3386,6 +3386,7 @@
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_wakeup_ilocked
   __traceiter_android_vh_build_sched_domains
+  __traceiter_android_vh_bus_iommu_probe
   __traceiter_android_vh_check_hibernation_swap
   __traceiter_android_vh_check_uninterrupt_tasks
   __traceiter_android_vh_check_uninterrupt_tasks_done
@@ -3533,6 +3534,7 @@
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_wakeup_ilocked
   __tracepoint_android_vh_build_sched_domains
+  __tracepoint_android_vh_bus_iommu_probe
   __tracepoint_android_vh_check_hibernation_swap
   __tracepoint_android_vh_check_uninterrupt_tasks
   __tracepoint_android_vh_check_uninterrupt_tasks_done
