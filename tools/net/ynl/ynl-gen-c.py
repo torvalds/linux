@@ -159,6 +159,15 @@ class Type(SpecAttr):
         spec = self._attr_policy(policy)
         cw.p(f"\t[{self.enum_name}] = {spec},")
 
+    def _mnl_type(self):
+        # mnl does not have helpers for signed integer types
+        # turn signed type into unsigned
+        # this only makes sense for scalar types
+        t = self.type
+        if t[0] == 's':
+            t = 'u' + t[1:]
+        return t
+
     def _attr_typol(self):
         raise Exception(f"Type policy not implemented for class type {self.type}")
 
@@ -329,12 +338,8 @@ class TypeScalar(Type):
         else:
             self.type_name = '__' + self.type
 
-    def _mnl_type(self):
-        t = self.type
-        # mnl does not have a helper for signed types
-        if t[0] == 's':
-            t = 'u' + t[1:]
-        return t
+    def mnl_type(self):
+        return self._mnl_type()
 
     def _attr_policy(self, policy):
         if 'flags-mask' in self.checks or self.is_bitfield:
@@ -363,10 +368,10 @@ class TypeScalar(Type):
         return [f'{self.type_name} {self.c_name}{self.byte_order_comment}']
 
     def attr_put(self, ri, var):
-        self._attr_put_simple(ri, var, self._mnl_type())
+        self._attr_put_simple(ri, var, self.mnl_type())
 
     def _attr_get(self, ri, var):
-        return f"{var}->{self.c_name} = mnl_attr_get_{self._mnl_type()}(attr);", None, None
+        return f"{var}->{self.c_name} = mnl_attr_get_{self.mnl_type()}(attr);", None, None
 
     def _setter_lines(self, ri, member, presence):
         return [f"{member} = {self.c_name};"]
@@ -524,12 +529,8 @@ class TypeMultiAttr(Type):
     def presence_type(self):
         return 'count'
 
-    def _mnl_type(self):
-        t = self.type
-        # mnl does not have a helper for signed types
-        if t[0] == 's':
-            t = 'u' + t[1:]
-        return t
+    def mnl_type(self):
+        return self._mnl_type()
 
     def _complex_member_type(self, ri):
         if 'type' not in self.attr or self.attr['type'] == 'nest':
@@ -564,7 +565,7 @@ class TypeMultiAttr(Type):
 
     def attr_put(self, ri, var):
         if self.attr['type'] in scalars:
-            put_type = self._mnl_type()
+            put_type = self.mnl_type()
             ri.cw.p(f"for (unsigned int i = 0; i < {var}->n_{self.c_name}; i++)")
             ri.cw.p(f"mnl_attr_put_{put_type}(nlh, {self.enum_name}, {var}->{self.c_name}[i]);")
         elif 'type' not in self.attr or self.attr['type'] == 'nest':
@@ -1580,11 +1581,8 @@ def _multi_parse(ri, struct, init_lines, local_vars):
             ri.cw.p(f"parg.data = &dst->{aspec.c_name}[i];")
             ri.cw.p(f"if ({aspec.nested_render_name}_parse(&parg, attr))")
             ri.cw.p('return MNL_CB_ERROR;')
-        elif aspec['type'] in scalars:
-            t = aspec['type']
-            if t[0] == 's':
-                t = 'u' + t[1:]
-            ri.cw.p(f"dst->{aspec.c_name}[i] = mnl_attr_get_{t}(attr);")
+        elif aspec.type in scalars:
+            ri.cw.p(f"dst->{aspec.c_name}[i] = mnl_attr_get_{aspec.mnl_type()}(attr);")
         else:
             raise Exception('Nest parsing type not supported yet')
         ri.cw.p('i++;')
