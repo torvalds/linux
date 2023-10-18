@@ -287,6 +287,7 @@ extern int _parisc_requires_coherency;
 #endif
 
 extern int running_on_qemu;
+extern int parisc_narrow_firmware;
 
 extern void __noreturn toc_intr(struct pt_regs *regs);
 extern void toc_handler(void);
