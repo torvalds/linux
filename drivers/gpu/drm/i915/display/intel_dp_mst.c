@@ -791,8 +791,6 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
 
-	clear_act_sent(encoder, pipe_config);
-
 	if (intel_dp_is_uhbr(pipe_config)) {
 		const struct drm_display_mode *adjusted_mode =
 			&pipe_config->hw.adjusted_mode;
@@ -805,6 +803,8 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	}
 
 	intel_ddi_enable_transcoder_func(encoder, pipe_config);
+
+	clear_act_sent(encoder, pipe_config);
 
 	intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(trans), 0,
 		     TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
