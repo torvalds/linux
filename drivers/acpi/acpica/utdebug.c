@@ -42,7 +42,6 @@ void acpi_ut_init_stack_ptr_trace(void)
 #pragma GCC diagnostic ignored "-Wdangling-pointer="
 #endif
 	acpi_gbl_entry_stack_pointer = &current_sp;
-#pragma GCC diagnostic pop
 }
 
 /*******************************************************************************
@@ -63,6 +62,7 @@ void acpi_ut_track_stack_ptr(void)
 
 	if (&current_sp < acpi_gbl_lowest_stack_pointer) {
 		acpi_gbl_lowest_stack_pointer = &current_sp;
+#pragma GCC diagnostic pop
 	}
 
 	if (acpi_gbl_nesting_level > acpi_gbl_deepest_nesting) {
