@@ -1419,32 +1419,47 @@ EXPORT_SYMBOL(sget_dev);
 
 #ifdef CONFIG_BLOCK
 /*
- * Lock a super block that the callers holds a reference to.
+ * Lock the superblock that is holder of the bdev. Returns the superblock
+ * pointer if we successfully locked the superblock and it is alive. Otherwise
+ * we return NULL and just unlock bdev->bd_holder_lock.
  *
- * The caller needs to ensure that the super_block isn't being freed while
- * calling this function, e.g. by holding a lock over the call to this function
- * and the place that clears the pointer to the superblock used by this function
- * before freeing the superblock.
+ * The function must be called with bdev->bd_holder_lock and releases it.
  */
-static bool super_lock_shared_active(struct super_block *sb)
+static struct super_block *bdev_super_lock_shared(struct block_device *bdev)
+	__releases(&bdev->bd_holder_lock)
 {
-	bool born = super_lock_shared(sb);
+	struct super_block *sb = bdev->bd_holder;
+	bool born;
 
+	lockdep_assert_held(&bdev->bd_holder_lock);
+	lockdep_assert_not_held(&sb->s_umount);
+
+	/* Make sure sb doesn't go away from under us */
+	spin_lock(&sb_lock);
+	sb->s_count++;
+	spin_unlock(&sb_lock);
+	mutex_unlock(&bdev->bd_holder_lock);
+
+	born = super_lock_shared(sb);
 	if (!born || !sb->s_root || !(sb->s_flags & SB_ACTIVE)) {
 		super_unlock_shared(sb);
-		return false;
+		put_super(sb);
+		return NULL;
 	}
-	return true;
+	/*
+	 * The superblock is active and we hold s_umount, we can drop our
+	 * temporary reference now.
+	 */
+	put_super(sb);
+	return sb;
 }
 
 static void fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 {
-	struct super_block *sb = bdev->bd_holder;
+	struct super_block *sb;
 
-	/* bd_holder_lock ensures that the sb isn't freed */
-	lockdep_assert_held(&bdev->bd_holder_lock);
-
-	if (!super_lock_shared_active(sb))
+	sb = bdev_super_lock_shared(bdev);
+	if (!sb)
 		return;
 
 	if (!surprise)
@@ -1459,11 +1474,10 @@ static void fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 
 static void fs_bdev_sync(struct block_device *bdev)
 {
-	struct super_block *sb = bdev->bd_holder;
+	struct super_block *sb;
 
-	lockdep_assert_held(&bdev->bd_holder_lock);
-
-	if (!super_lock_shared_active(sb))
+	sb = bdev_super_lock_shared(bdev);
+	if (!sb)
 		return;
 	sync_filesystem(sb);
 	super_unlock_shared(sb);
