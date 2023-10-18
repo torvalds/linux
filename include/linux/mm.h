@@ -1796,6 +1796,11 @@ static inline void vma_set_access_pid_bit(struct vm_area_struct *vma)
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
+static inline int folio_xchg_access_time(struct folio *folio, int time)
+{
+	return xchg_page_access_time(&folio->page, time);
+}
+
 #if defined(CONFIG_KASAN_SW_TAGS) || defined(CONFIG_KASAN_HW_TAGS)
 
 /*
