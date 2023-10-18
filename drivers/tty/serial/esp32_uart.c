@@ -67,6 +67,26 @@
 #define ESP32S3_UART_TXFIFO_EMPTY_THRHD_SHIFT	10
 #define ESP32_UART_RX_FLOW_EN			BIT(23)
 #define ESP32S3_UART_RX_FLOW_EN			BIT(22)
+#define ESP32S3_UART_CLK_CONF_REG	0x78
+#define ESP32S3_UART_SCLK_DIV_B			GENMASK(5, 0)
+#define ESP32S3_UART_SCLK_DIV_A			GENMASK(11, 6)
+#define ESP32S3_UART_SCLK_DIV_NUM		GENMASK(19, 12)
+#define ESP32S3_UART_SCLK_SEL			GENMASK(21, 20)
+#define APB_CLK					1
+#define RC_FAST_CLK				2
+#define XTAL_CLK				3
+#define ESP32S3_UART_SCLK_EN			BIT(22)
+#define ESP32S3_UART_RST_CORE			BIT(23)
+#define ESP32S3_UART_TX_SCLK_EN			BIT(24)
+#define ESP32S3_UART_RX_SCLK_EN			BIT(25)
+#define ESP32S3_UART_TX_RST_CORE		BIT(26)
+#define ESP32S3_UART_RX_RST_CORE		BIT(27)
+
+#define ESP32S3_UART_CLK_CONF_DEFAULT \
+	(ESP32S3_UART_RX_SCLK_EN | \
+	 ESP32S3_UART_TX_SCLK_EN | \
+	 ESP32S3_UART_SCLK_EN | \
+	 FIELD_PREP(ESP32S3_UART_SCLK_SEL, XTAL_CLK))
 
 struct esp32_port {
 	struct uart_port port;
@@ -80,6 +100,7 @@ struct esp32_uart_variant {
 	u32 txfifo_empty_thrhd_shift;
 	u32 rx_flow_en;
 	const char *type;
+	bool has_clkconf;
 };
 
 static const struct esp32_uart_variant esp32_variant = {
@@ -98,6 +119,7 @@ static const struct esp32_uart_variant esp32s3_variant = {
 	.txfifo_empty_thrhd_shift = ESP32S3_UART_TXFIFO_EMPTY_THRHD_SHIFT,
 	.rx_flow_en = ESP32S3_UART_RX_FLOW_EN,
 	.type = "ESP32S3 UART",
+	.has_clkconf = true,
 };
 
 static const struct of_device_id esp32_uart_dt_ids[] = {
@@ -314,6 +336,9 @@ static int esp32_uart_startup(struct uart_port *port)
 	}
 
 	spin_lock_irqsave(&port->lock, flags);
+	if (port_variant(port)->has_clkconf)
+		esp32_uart_write(port, ESP32S3_UART_CLK_CONF_REG,
+				 ESP32S3_UART_CLK_CONF_DEFAULT);
 	esp32_uart_write(port, UART_CONF1_REG,
 			 (1 << UART_RXFIFO_FULL_THRHD_SHIFT) |
 			 (1 << port_variant(port)->txfifo_empty_thrhd_shift));
@@ -335,10 +360,24 @@ static void esp32_uart_shutdown(struct uart_port *port)
 
 static bool esp32_uart_set_baud(struct uart_port *port, u32 baud)
 {
-	u32 div = port->uartclk / baud;
-	u32 frag = (port->uartclk * 16) / baud - div * 16;
+	u32 sclk = port->uartclk;
+	u32 div = sclk / baud;
+
+	if (port_variant(port)->has_clkconf) {
+		u32 sclk_div = div / port_variant(port)->clkdiv_mask;
+
+		if (div > port_variant(port)->clkdiv_mask) {
+			sclk /= (sclk_div + 1);
+			div = sclk / baud;
+		}
+		esp32_uart_write(port, ESP32S3_UART_CLK_CONF_REG,
+				 FIELD_PREP(ESP32S3_UART_SCLK_DIV_NUM, sclk_div) |
+				 ESP32S3_UART_CLK_CONF_DEFAULT);
+	}
 
 	if (div <= port_variant(port)->clkdiv_mask) {
+		u32 frag = (sclk * 16) / baud - div * 16;
+
 		esp32_uart_write(port, UART_CLKDIV_REG,
 				 div | FIELD_PREP(UART_CLKDIV_FRAG, frag));
 		return true;
@@ -355,11 +394,15 @@ static void esp32_uart_set_termios(struct uart_port *port,
 	u32 conf0, conf1;
 	u32 baud;
 	const u32 rx_flow_en = port_variant(port)->rx_flow_en;
+	u32 max_div = port_variant(port)->clkdiv_mask;
 
 	termios->c_cflag &= ~CMSPAR;
 
+	if (port_variant(port)->has_clkconf)
+		max_div *= FIELD_MAX(ESP32S3_UART_SCLK_DIV_NUM);
+
 	baud = uart_get_baud_rate(port, termios, old,
-				  port->uartclk / port_variant(port)->clkdiv_mask,
+				  port->uartclk / max_div,
 				  port->uartclk / 16);
 
 	spin_lock_irqsave(&port->lock, flags);
