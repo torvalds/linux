@@ -3578,9 +3578,7 @@ static void amdgpu_device_xgmi_reset_func(struct work_struct *__work)
 		if (adev->asic_reset_res)
 			goto fail;
 
-		if (adev->mmhub.ras && adev->mmhub.ras->ras_block.hw_ops &&
-		    adev->mmhub.ras->ras_block.hw_ops->reset_ras_error_count)
-			adev->mmhub.ras->ras_block.hw_ops->reset_ras_error_count(adev);
+		amdgpu_ras_reset_error_count(adev, AMDGPU_RAS_BLOCK__MMHUB);
 	} else {
 
 		task_barrier_full(&hive->tb);
@@ -5201,9 +5199,7 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 
 	if (!r && amdgpu_ras_intr_triggered()) {
 		list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
-			if (tmp_adev->mmhub.ras && tmp_adev->mmhub.ras->ras_block.hw_ops &&
-			    tmp_adev->mmhub.ras->ras_block.hw_ops->reset_ras_error_count)
-				tmp_adev->mmhub.ras->ras_block.hw_ops->reset_ras_error_count(tmp_adev);
+			amdgpu_ras_reset_error_count(tmp_adev, AMDGPU_RAS_BLOCK__MMHUB);
 		}
 
 		amdgpu_ras_intr_cleared();
