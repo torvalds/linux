@@ -590,11 +590,19 @@ int mlx5_vdpa_update_cvq_iotlb(struct mlx5_vdpa_dev *mvdev,
 				struct vhost_iotlb *iotlb,
 				unsigned int asid)
 {
+	int err;
+
 	if (mvdev->group2asid[MLX5_VDPA_CVQ_GROUP] != asid)
 		return 0;
 
+	spin_lock(&mvdev->cvq.iommu_lock);
+
 	prune_iotlb(mvdev);
-	return dup_iotlb(mvdev, iotlb);
+	err = dup_iotlb(mvdev, iotlb);
+
+	spin_unlock(&mvdev->cvq.iommu_lock);
+
+	return err;
 }
 
 int mlx5_vdpa_create_dma_mr(struct mlx5_vdpa_dev *mvdev)
