@@ -668,8 +668,8 @@ static struct kmemleak_object *__alloc_object(gfp_t gfp)
 	return object;
 }
 
-static void __link_object(struct kmemleak_object *object, unsigned long ptr,
-			  size_t size, int min_count, bool is_phys)
+static int __link_object(struct kmemleak_object *object, unsigned long ptr,
+			 size_t size, int min_count, bool is_phys)
 {
 
 	struct kmemleak_object *parent;
@@ -711,14 +711,15 @@ static void __link_object(struct kmemleak_object *object, unsigned long ptr,
 			 * be freed while the kmemleak_lock is held.
 			 */
 			dump_object_info(parent);
-			kmem_cache_free(object_cache, object);
-			return;
+			return -EEXIST;
 		}
 	}
 	rb_link_node(&object->rb_node, rb_parent, link);
 	rb_insert_color(&object->rb_node, is_phys ? &object_phys_tree_root :
 					  &object_tree_root);
 	list_add_tail_rcu(&object->object_list, &object_list);
+
+	return 0;
 }
 
 /*
@@ -731,14 +732,17 @@ static void __create_object(unsigned long ptr, size_t size,
 {
 	struct kmemleak_object *object;
 	unsigned long flags;
+	int ret;
 
 	object = __alloc_object(gfp);
 	if (!object)
 		return;
 
 	raw_spin_lock_irqsave(&kmemleak_lock, flags);
-	__link_object(object, ptr, size, min_count, is_phys);
+	ret = __link_object(object, ptr, size, min_count, is_phys);
 	raw_spin_unlock_irqrestore(&kmemleak_lock, flags);
+	if (ret)
+		mem_pool_free(object);
 }
 
 /* Create kmemleak object which allocated with virtual address. */
