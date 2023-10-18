@@ -144,4 +144,27 @@ config COMMON_CLK_G12A
 	help
 	  Support for the clock controller on Amlogic S905D2, S905X2 and S905Y2
 	  devices, aka g12a. Say Y if you want peripherals to work.
+
+config COMMON_CLK_S4_PLL
+	tristate "S4 SoC PLL clock controllers support"
+	depends on ARM64
+	default y
+	select COMMON_CLK_MESON_MPLL
+	select COMMON_CLK_MESON_PLL
+	select COMMON_CLK_MESON_REGMAP
+	help
+	  Support for the PLL clock controller on Amlogic S805X2 and S905Y4 devices,
+	  AKA S4. Say Y if you want the board to work, because PLLs are the parent of
+	  most peripherals.
+
+config COMMON_CLK_S4_PERIPHERALS
+	tristate "S4 SoC peripherals clock controllers support"
+	depends on ARM64
+	default y
+	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_DUALDIV
+	select COMMON_CLK_MESON_VID_PLL_DIV
+	help
+	  Support for the peripherals clock controller on Amlogic S805X2 and S905Y4
+	  devices, AKA S4. Say Y if you want S4 peripherals clock controller to work.
 endmenu
