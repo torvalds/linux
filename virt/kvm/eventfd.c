@@ -28,7 +28,7 @@
 
 #include <kvm/iodev.h>
 
-#ifdef CONFIG_HAVE_KVM_IRQFD
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
 
 static struct workqueue_struct *irqfd_cleanup_wq;
 
@@ -531,7 +531,7 @@ void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 void
 kvm_eventfd_init(struct kvm *kvm)
 {
-#ifdef CONFIG_HAVE_KVM_IRQFD
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
 	spin_lock_init(&kvm->irqfds.lock);
 	INIT_LIST_HEAD(&kvm->irqfds.items);
 	INIT_LIST_HEAD(&kvm->irqfds.resampler_list);
@@ -540,7 +540,7 @@ kvm_eventfd_init(struct kvm *kvm)
 	INIT_LIST_HEAD(&kvm->ioeventfds);
 }
 
-#ifdef CONFIG_HAVE_KVM_IRQFD
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
 /*
  * shutdown any irqfd's that match fd+gsi
  */

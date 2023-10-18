@@ -805,8 +805,7 @@ struct kvm {
 	 * Update side is protected by irq_lock.
 	 */
 	struct kvm_irq_routing_table __rcu *irq_routing;
-#endif
-#ifdef CONFIG_HAVE_KVM_IRQFD
+
 	struct hlist_head irq_ack_notifier_list;
 #endif
 
@@ -996,7 +995,7 @@ static inline void kvm_arch_post_irq_routing_update(struct kvm *kvm)
 }
 #endif
 
-#ifdef CONFIG_HAVE_KVM_IRQFD
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
 int kvm_irqfd_init(void);
 void kvm_irqfd_exit(void);
 #else
@@ -2057,7 +2056,7 @@ int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
 void kvm_eventfd_init(struct kvm *kvm);
 int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
 
-#ifdef CONFIG_HAVE_KVM_IRQFD
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
 int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args);
 void kvm_irqfd_release(struct kvm *kvm);
 bool kvm_notify_irqfd_resampler(struct kvm *kvm,
@@ -2078,7 +2077,7 @@ static inline bool kvm_notify_irqfd_resampler(struct kvm *kvm,
 {
 	return false;
 }
-#endif /* CONFIG_HAVE_KVM_IRQFD */
+#endif /* CONFIG_HAVE_KVM_IRQCHIP */
 
 void kvm_arch_irq_routing_update(struct kvm *kvm);
 

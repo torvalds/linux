@@ -11,9 +11,6 @@ config HAVE_KVM_PFNCACHE
 config HAVE_KVM_IRQCHIP
        bool
 
-config HAVE_KVM_IRQFD
-       bool
-
 config HAVE_KVM_IRQ_ROUTING
        bool
 

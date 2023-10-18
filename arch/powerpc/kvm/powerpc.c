@@ -578,7 +578,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 #endif
 
-#ifdef CONFIG_HAVE_KVM_IRQFD
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
 	case KVM_CAP_IRQFD_RESAMPLE:
 		r = !xive_enabled();
 		break;
