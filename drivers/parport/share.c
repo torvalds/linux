@@ -361,7 +361,6 @@ static void free_port(struct device *dev)
 		kfree(port->probe_info[d].description);
 	}
 
-	kfree(port->name);
 	kfree(port);
 }
 
@@ -479,15 +478,12 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	/*
 	 * Now that the portnum is known finish doing the Init.
 	 */
-	tmp->name = kasprintf(GFP_KERNEL, "parport%d", tmp->portnum);
-	if (!tmp->name) {
-		kfree(tmp);
-		return NULL;
-	}
-	dev_set_name(&tmp->bus_dev, tmp->name);
+	dev_set_name(&tmp->bus_dev, "parport%d", tmp->portnum);
 	tmp->bus_dev.bus = &parport_bus_type;
 	tmp->bus_dev.release = free_port;
 	tmp->bus_dev.type = &parport_device_type;
+
+	tmp->name = dev_name(&tmp->bus_dev);
 
 	for (device = 0; device < 5; device++)
 		/* assume the worst */
