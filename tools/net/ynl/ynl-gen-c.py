@@ -20,6 +20,21 @@ def c_lower(name):
     return name.lower().replace('-', '_')
 
 
+def limit_to_number(name):
+    """
+    Turn a string limit like u32-max or s64-min into its numerical value
+    """
+    if name[0] == 'u' and name.endswith('-min'):
+        return 0
+    width = int(name[1:-4])
+    if name[0] == 's':
+        width -= 1
+    value = (1 << width) - 1
+    if name[0] == 's' and name.endswith('-min'):
+        value = -value - 1
+    return value
+
+
 class BaseNlLib:
     def get_family_id(self):
         return 'ys->family_id'
@@ -67,6 +82,14 @@ class Type(SpecAttr):
         # Added by resolve():
         self.enum_name = None
         delattr(self, "enum_name")
+
+    def get_limit(self, limit, default=None):
+        value = self.checks.get(limit, default)
+        if value is None:
+            return value
+        if not isinstance(value, int):
+            value = limit_to_number(value)
+        return value
 
     def resolve(self):
         if 'name-prefix' in self.attr:
@@ -273,12 +296,12 @@ class TypeScalar(Type):
                 self.checks['max'] = high
 
         if 'min' in self.checks and 'max' in self.checks:
-            if self.checks['min'] > self.checks['max']:
-                raise Exception(f'Invalid limit for "{self.name}" min: {self.checks["min"]} max: {self.checks["max"]}')
+            if self.get_limit('min') > self.get_limit('max'):
+                raise Exception(f'Invalid limit for "{self.name}" min: {self.get_limit("min")} max: {self.get_limit("max")}')
             self.checks['range'] = True
 
-        low = min(self.checks.get('min', 0), self.checks.get('max', 0))
-        high = max(self.checks.get('min', 0), self.checks.get('max', 0))
+        low = min(self.get_limit('min', 0), self.get_limit('max', 0))
+        high = max(self.get_limit('min', 0), self.get_limit('max', 0))
         if low < 0 and self.type[0] == 'u':
             raise Exception(f'Invalid limit for "{self.name}" negative limit for unsigned type')
         if low < -32768 or high > 32767:
@@ -326,11 +349,11 @@ class TypeScalar(Type):
         elif 'full-range' in self.checks:
             return f"NLA_POLICY_FULL_RANGE({policy}, &{c_lower(self.enum_name)}_range)"
         elif 'range' in self.checks:
-            return f"NLA_POLICY_RANGE({policy}, {self.checks['min']}, {self.checks['max']})"
+            return f"NLA_POLICY_RANGE({policy}, {self.get_limit('min')}, {self.get_limit('max')})"
         elif 'min' in self.checks:
-            return f"NLA_POLICY_MIN({policy}, {self.checks['min']})"
+            return f"NLA_POLICY_MIN({policy}, {self.get_limit('min')})"
         elif 'max' in self.checks:
-            return f"NLA_POLICY_MAX({policy}, {self.checks['max']})"
+            return f"NLA_POLICY_MAX({policy}, {self.get_limit('max')})"
         return super()._attr_policy(policy)
 
     def _attr_typol(self):
@@ -382,7 +405,7 @@ class TypeString(Type):
     def _attr_policy(self, policy):
         mem = '{ .type = ' + policy
         if 'max-len' in self.checks:
-            mem += ', .len = ' + str(self.checks['max-len'])
+            mem += ', .len = ' + str(self.get_limit('max-len'))
         mem += ', }'
         return mem
 
@@ -431,7 +454,7 @@ class TypeBinary(Type):
     def _attr_policy(self, policy):
         mem = '{ '
         if len(self.checks) == 1 and 'min-len' in self.checks:
-            mem += '.len = ' + str(self.checks['min-len'])
+            mem += '.len = ' + str(self.get_limit('min-len'))
         elif len(self.checks) == 0:
             mem += '.type = NLA_BINARY'
         else:
@@ -1982,9 +2005,9 @@ def print_kernel_policy_ranges(family, cw):
             cw.block_start(line=f'struct netlink_range_validation{sign} {c_lower(attr.enum_name)}_range =')
             members = []
             if 'min' in attr.checks:
-                members.append(('min', attr.checks['min']))
+                members.append(('min', attr.get_limit('min')))
             if 'max' in attr.checks:
-                members.append(('max', attr.checks['max']))
+                members.append(('max', attr.get_limit('max')))
             cw.write_struct_init(members)
             cw.block_end(line=';')
             cw.nl()
