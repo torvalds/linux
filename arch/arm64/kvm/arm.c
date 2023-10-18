@@ -950,7 +950,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		 * making a thread's VMID inactive. So we need to call
 		 * kvm_arm_vmid_update() in non-premptible context.
 		 */
-		kvm_arm_vmid_update(&vcpu->arch.hw_mmu->vmid);
+		if (kvm_arm_vmid_update(&vcpu->arch.hw_mmu->vmid) &&
+		    has_vhe())
+			__load_stage2(vcpu->arch.hw_mmu,
+				      vcpu->arch.hw_mmu->arch);
 
 		kvm_pmu_flush_hwstate(vcpu);
 
