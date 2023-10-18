@@ -2514,7 +2514,7 @@ static void __split_huge_page_tail(struct folio *folio, int tail,
 	if (page_is_idle(head))
 		set_page_idle(page_tail);
 
-	page_cpupid_xchg_last(page_tail, page_cpupid_last(head));
+	page_cpupid_xchg_last(page_tail, folio_last_cpupid(folio));
 
 	/*
 	 * always add to the tail because some iterators expect new
