@@ -816,16 +816,25 @@ static void delete_object_full(unsigned long ptr)
  */
 static void delete_object_part(unsigned long ptr, size_t size, bool is_phys)
 {
-	struct kmemleak_object *object;
-	unsigned long start, end;
+	struct kmemleak_object *object, *object_l, *object_r;
+	unsigned long start, end, flags;
 
-	object = find_and_remove_object(ptr, 1, is_phys);
+	object_l = __alloc_object(GFP_KERNEL);
+	if (!object_l)
+		return;
+
+	object_r = __alloc_object(GFP_KERNEL);
+	if (!object_r)
+		goto out;
+
+	raw_spin_lock_irqsave(&kmemleak_lock, flags);
+	object = __find_and_remove_object(ptr, 1, is_phys);
 	if (!object) {
 #ifdef DEBUG
 		kmemleak_warn("Partially freeing unknown object at 0x%08lx (size %zu)\n",
 			      ptr, size);
 #endif
-		return;
+		goto unlock;
 	}
 
 	/*
@@ -835,14 +844,25 @@ static void delete_object_part(unsigned long ptr, size_t size, bool is_phys)
 	 */
 	start = object->pointer;
 	end = object->pointer + object->size;
-	if (ptr > start)
-		__create_object(start, ptr - start, object->min_count,
-			      GFP_KERNEL, is_phys);
-	if (ptr + size < end)
-		__create_object(ptr + size, end - ptr - size, object->min_count,
-			      GFP_KERNEL, is_phys);
+	if ((ptr > start) &&
+	    !__link_object(object_l, start, ptr - start,
+			   object->min_count, is_phys))
+		object_l = NULL;
+	if ((ptr + size < end) &&
+	    !__link_object(object_r, ptr + size, end - ptr - size,
+			   object->min_count, is_phys))
+		object_r = NULL;
 
-	__delete_object(object);
+unlock:
+	raw_spin_unlock_irqrestore(&kmemleak_lock, flags);
+	if (object)
+		__delete_object(object);
+
+out:
+	if (object_l)
+		mem_pool_free(object_l);
+	if (object_r)
+		mem_pool_free(object_r);
 }
 
 static void __paint_it(struct kmemleak_object *object, int color)
