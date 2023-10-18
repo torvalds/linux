@@ -488,7 +488,7 @@ iterate_address:
 
 	_debug("address [%u] %u/%u %pISp",
 	       op->index, op->ac.index, op->ac.alist->nr_addrs,
-	       &op->ac.alist->addrs[op->ac.index].transport);
+	       &op->ac.alist->addrs[op->ac.index].srx.transport);
 
 	_leave(" = t");
 	return true;

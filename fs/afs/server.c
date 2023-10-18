@@ -43,7 +43,7 @@ struct afs_server *afs_find_server(struct afs_net *net,
 			hlist_for_each_entry_rcu(server, &net->fs_addresses6, addr6_link) {
 				alist = rcu_dereference(server->addresses);
 				for (i = alist->nr_ipv4; i < alist->nr_addrs; i++) {
-					b = &alist->addrs[i].transport.sin6;
+					b = &alist->addrs[i].srx.transport.sin6;
 					diff = ((u16 __force)a->sin6_port -
 						(u16 __force)b->sin6_port);
 					if (diff == 0)
@@ -59,7 +59,7 @@ struct afs_server *afs_find_server(struct afs_net *net,
 			hlist_for_each_entry_rcu(server, &net->fs_addresses4, addr4_link) {
 				alist = rcu_dereference(server->addresses);
 				for (i = 0; i < alist->nr_ipv4; i++) {
-					b = &alist->addrs[i].transport.sin;
+					b = &alist->addrs[i].srx.transport.sin;
 					diff = ((u16 __force)a->sin_port -
 						(u16 __force)b->sin_port);
 					if (diff == 0)

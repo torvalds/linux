@@ -45,7 +45,7 @@ struct afs_addr_list *afs_alloc_addrlist(unsigned int nr,
 	alist->max_addrs = nr;
 
 	for (i = 0; i < nr; i++) {
-		struct sockaddr_rxrpc *srx = &alist->addrs[i];
+		struct sockaddr_rxrpc *srx = &alist->addrs[i].srx;
 		srx->srx_family			= AF_RXRPC;
 		srx->srx_service		= service;
 		srx->transport_type		= SOCK_DGRAM;
@@ -281,7 +281,7 @@ void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
 		return;
 
 	for (i = 0; i < alist->nr_ipv4; i++) {
-		struct sockaddr_in *a = &alist->addrs[i].transport.sin;
+		struct sockaddr_in *a = &alist->addrs[i].srx.transport.sin;
 		u32 a_addr = ntohl(a->sin_addr.s_addr);
 		u16 a_port = ntohs(a->sin_port);
 
@@ -298,7 +298,7 @@ void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
 			alist->addrs + i,
 			sizeof(alist->addrs[0]) * (alist->nr_addrs - i));
 
-	srx = &alist->addrs[i];
+	srx = &alist->addrs[i].srx;
 	srx->srx_family = AF_RXRPC;
 	srx->transport_type = SOCK_DGRAM;
 	srx->transport_len = sizeof(srx->transport.sin);
@@ -321,7 +321,7 @@ void afs_merge_fs_addr6(struct afs_addr_list *alist, __be32 *xdr, u16 port)
 		return;
 
 	for (i = alist->nr_ipv4; i < alist->nr_addrs; i++) {
-		struct sockaddr_in6 *a = &alist->addrs[i].transport.sin6;
+		struct sockaddr_in6 *a = &alist->addrs[i].srx.transport.sin6;
 		u16 a_port = ntohs(a->sin6_port);
 
 		diff = memcmp(xdr, &a->sin6_addr, 16);
@@ -338,7 +338,7 @@ void afs_merge_fs_addr6(struct afs_addr_list *alist, __be32 *xdr, u16 port)
 			alist->addrs + i,
 			sizeof(alist->addrs[0]) * (alist->nr_addrs - i));
 
-	srx = &alist->addrs[i];
+	srx = &alist->addrs[i].srx;
 	srx->srx_family = AF_RXRPC;
 	srx->transport_type = SOCK_DGRAM;
 	srx->transport_len = sizeof(srx->transport.sin6);

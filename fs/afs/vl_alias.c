@@ -94,8 +94,8 @@ static int afs_compare_fs_alists(const struct afs_server *server_a,
 	lb = rcu_dereference(server_b->addresses);
 
 	while (a < la->nr_addrs && b < lb->nr_addrs) {
-		const struct sockaddr_rxrpc *srx_a = &la->addrs[a];
-		const struct sockaddr_rxrpc *srx_b = &lb->addrs[b];
+		const struct sockaddr_rxrpc *srx_a = &la->addrs[a].srx;
+		const struct sockaddr_rxrpc *srx_b = &lb->addrs[b].srx;
 		int diff = afs_compare_addrs(srx_a, srx_b);
 
 		if (diff < 0) {

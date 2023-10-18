@@ -307,7 +307,7 @@ static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
 		for (i = 0; i < alist->nr_addrs; i++)
 			seq_printf(m, " %c %pISpc\n",
 				   alist->preferred == i ? '>' : '-',
-				   &alist->addrs[i].transport);
+				   &alist->addrs[i].srx.transport);
 	}
 	seq_printf(m, " info: fl=%lx rtt=%d\n", vlserver->flags, vlserver->rtt);
 	seq_printf(m, " probe: fl=%x e=%d ac=%d out=%d\n",
@@ -399,7 +399,7 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 		   alist->version, alist->responded, alist->failed);
 	for (i = 0; i < alist->nr_addrs; i++)
 		seq_printf(m, "    [%x] %pISpc%s\n",
-			   i, &alist->addrs[i].transport,
+			   i, &alist->addrs[i].srx.transport,
 			   alist->preferred == i ? "*" : "");
 	return 0;
 }

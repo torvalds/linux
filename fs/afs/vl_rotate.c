@@ -249,7 +249,7 @@ iterate_address:
 
 	_debug("VL address %d/%d", vc->ac.index, vc->ac.alist->nr_addrs);
 
-	_leave(" = t %pISpc", &vc->ac.alist->addrs[vc->ac.index].transport);
+	_leave(" = t %pISpc", &vc->ac.alist->addrs[vc->ac.index].srx.transport);
 	return true;
 
 next_server:
