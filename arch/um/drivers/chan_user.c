@@ -23,7 +23,7 @@ int generic_read(int fd, __u8 *c_out, void *unused)
 {
 	int n;
 
-	n = read(fd, c_out, sizeof(*c_out));
+	CATCH_EINTR(n = read(fd, c_out, sizeof(*c_out)));
 	if (n > 0)
 		return n;
 	else if (n == 0)
@@ -39,7 +39,7 @@ int generic_write(int fd, const __u8 *buf, size_t n, void *unused)
 {
 	int err;
 
-	err = write(fd, buf, n);
+	CATCH_EINTR(err = write(fd, buf, n));
 	if (err > 0)
 		return err;
 	else if (errno == EAGAIN)
