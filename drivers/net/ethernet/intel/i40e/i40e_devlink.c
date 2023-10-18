@@ -18,8 +18,14 @@ static void i40e_info_fw_mgmt(struct i40e_hw *hw, char *buf, size_t len)
 {
 	struct i40e_adminq_info *aq = &hw->aq;
 
-	snprintf(buf, len, "%u.%u.%05d",
-		 aq->fw_maj_ver, aq->fw_min_ver, aq->fw_build);
+	snprintf(buf, len, "%u.%u", aq->fw_maj_ver, aq->fw_min_ver);
+}
+
+static void i40e_info_fw_mgmt_build(struct i40e_hw *hw, char *buf, size_t len)
+{
+	struct i40e_adminq_info *aq = &hw->aq;
+
+	snprintf(buf, len, "%05d", aq->fw_build);
 }
 
 static void i40e_info_fw_api(struct i40e_hw *hw, char *buf, size_t len)
@@ -77,6 +83,12 @@ static int i40e_devlink_info_get(struct devlink *dl,
 	if (err)
 		return err;
 
+	i40e_info_fw_mgmt_build(hw, buf, sizeof(buf));
+	err = i40e_devlink_info_put(req, I40E_DL_VERSION_RUNNING,
+				    "fw.mgmt.build", buf);
+	if (err)
+		return err;
+
 	i40e_info_fw_api(hw, buf, sizeof(buf));
 	err = i40e_devlink_info_put(req, I40E_DL_VERSION_RUNNING,
 				    DEVLINK_INFO_VERSION_GENERIC_FW_MGMT_API,
@@ -86,7 +98,7 @@ static int i40e_devlink_info_get(struct devlink *dl,
 
 	i40e_info_nvm_ver(hw, buf, sizeof(buf));
 	err = i40e_devlink_info_put(req, I40E_DL_VERSION_RUNNING,
-				    DEVLINK_INFO_VERSION_GENERIC_FW_PSID, buf);
+				    "fw.psid.api", buf);
 	if (err)
 		return err;
 

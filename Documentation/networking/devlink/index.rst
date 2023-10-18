@@ -80,6 +80,7 @@ parameters, info versions, and other features it supports.
    bnxt
    etas_es58x
    hns3
+   i40e
    ionic
    ice
    mlx4
