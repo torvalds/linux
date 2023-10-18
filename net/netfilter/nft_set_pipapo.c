@@ -599,11 +599,18 @@ out:
  * @elem:	nftables API element representation containing key data
  * @flags:	Unused
  */
-static void *nft_pipapo_get(const struct net *net, const struct nft_set *set,
-			    const struct nft_set_elem *elem, unsigned int flags)
+static struct nft_elem_priv *
+nft_pipapo_get(const struct net *net, const struct nft_set *set,
+	       const struct nft_set_elem *elem, unsigned int flags)
 {
-	return pipapo_get(net, set, (const u8 *)elem->key.val.data,
-			 nft_genmask_cur(net));
+	static struct nft_pipapo_elem *e;
+
+	e = pipapo_get(net, set, (const u8 *)elem->key.val.data,
+		       nft_genmask_cur(net));
+	if (IS_ERR(e))
+		return ERR_CAST(e);
+
+	return &e->priv;
 }
 
 /**
@@ -1162,10 +1169,10 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
 	union nft_pipapo_map_bucket rulemap[NFT_PIPAPO_MAX_FIELDS];
 	const u8 *start = (const u8 *)elem->key.val.data, *end;
-	struct nft_pipapo_elem *e = elem->priv, *dup;
 	struct nft_pipapo *priv = nft_set_priv(set);
 	struct nft_pipapo_match *m = priv->clone;
 	u8 genmask = nft_genmask_next(net);
+	struct nft_pipapo_elem *e, *dup;
 	struct nft_pipapo_field *f;
 	const u8 *start_p, *end_p;
 	int i, bsize_max, err = 0;
@@ -1263,6 +1270,7 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 		put_cpu_ptr(m->scratch);
 	}
 
+	e = nft_elem_priv_cast(elem->priv);
 	*ext2 = &e->ext;
 
 	pipapo_map(m, rulemap, e);
@@ -1541,7 +1549,7 @@ static void nft_pipapo_gc_deactivate(struct net *net, struct nft_set *set,
 
 {
 	struct nft_set_elem elem = {
-		.priv	= e,
+		.priv	= &e->priv,
 	};
 
 	nft_setelem_data_deactivate(net, set, &elem);
@@ -1742,7 +1750,7 @@ static void nft_pipapo_activate(const struct net *net,
 				const struct nft_set *set,
 				const struct nft_set_elem *elem)
 {
-	struct nft_pipapo_elem *e = elem->priv;
+	struct nft_pipapo_elem *e = nft_elem_priv_cast(elem->priv);
 
 	nft_set_elem_change_active(net, set, &e->ext);
 }
@@ -1782,9 +1790,9 @@ static void *pipapo_deactivate(const struct net *net, const struct nft_set *set,
  *
  * Return: deactivated element if found, NULL otherwise.
  */
-static void *nft_pipapo_deactivate(const struct net *net,
-				   const struct nft_set *set,
-				   const struct nft_set_elem *elem)
+static struct nft_elem_priv *
+nft_pipapo_deactivate(const struct net *net, const struct nft_set *set,
+		      const struct nft_set_elem *elem)
 {
 	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
 
@@ -1810,9 +1818,9 @@ static void *nft_pipapo_deactivate(const struct net *net,
  * Return: true if element was found and deactivated.
  */
 static void nft_pipapo_flush(const struct net *net, const struct nft_set *set,
-			     void *elem)
+			     struct nft_elem_priv *elem_priv)
 {
-	struct nft_pipapo_elem *e = elem;
+	struct nft_pipapo_elem *e = nft_elem_priv_cast(elem_priv);
 
 	nft_set_elem_change_active(net, set, &e->ext);
 }
@@ -1949,10 +1957,11 @@ static void nft_pipapo_remove(const struct net *net, const struct nft_set *set,
 {
 	struct nft_pipapo *priv = nft_set_priv(set);
 	struct nft_pipapo_match *m = priv->clone;
-	struct nft_pipapo_elem *e = elem->priv;
 	int rules_f0, first_rule = 0;
+	struct nft_pipapo_elem *e;
 	const u8 *data;
 
+	e = nft_elem_priv_cast(elem->priv);
 	data = (const u8 *)nft_set_ext_key(&e->ext);
 
 	while ((rules_f0 = pipapo_rules_same_key(m->f, first_rule))) {
@@ -2039,7 +2048,7 @@ static void nft_pipapo_walk(const struct nft_ctx *ctx, struct nft_set *set,
 
 		e = f->mt[r].e;
 
-		elem.priv = e;
+		elem.priv = &e->priv;
 
 		iter->err = iter->fn(ctx, set, iter, &elem);
 		if (iter->err < 0)
@@ -2112,6 +2121,8 @@ static int nft_pipapo_init(const struct nft_set *set,
 	struct nft_pipapo_match *m;
 	struct nft_pipapo_field *f;
 	int err, i, field_count;
+
+	BUILD_BUG_ON(offsetof(struct nft_pipapo_elem, priv) != 0);
 
 	field_count = desc->field_count ? : 1;
 
@@ -2207,7 +2218,7 @@ static void nft_set_pipapo_match_destroy(const struct nft_ctx *ctx,
 
 		e = f->mt[r].e;
 
-		nf_tables_set_elem_destroy(ctx, set, e);
+		nf_tables_set_elem_destroy(ctx, set, &e->priv);
 	}
 }
 

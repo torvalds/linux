@@ -601,7 +601,7 @@ static int nft_mapelem_deactivate(const struct nft_ctx *ctx,
 struct nft_set_elem_catchall {
 	struct list_head	list;
 	struct rcu_head		rcu;
-	void			*elem;
+	struct nft_elem_priv	*elem;
 };
 
 static void nft_map_catchall_deactivate(const struct nft_ctx *ctx,
@@ -6218,10 +6218,11 @@ static int nft_set_ext_memcpy(const struct nft_set_ext_tmpl *tmpl, u8 id,
 	return 0;
 }
 
-void *nft_set_elem_init(const struct nft_set *set,
-			const struct nft_set_ext_tmpl *tmpl,
-			const u32 *key, const u32 *key_end,
-			const u32 *data, u64 timeout, u64 expiration, gfp_t gfp)
+struct nft_elem_priv *nft_set_elem_init(const struct nft_set *set,
+					const struct nft_set_ext_tmpl *tmpl,
+					const u32 *key, const u32 *key_end,
+					const u32 *data,
+					u64 timeout, u64 expiration, gfp_t gfp)
 {
 	struct nft_set_ext *ext;
 	void *elem;
@@ -6286,10 +6287,11 @@ static void nft_set_elem_expr_destroy(const struct nft_ctx *ctx,
 }
 
 /* Drop references and destroy. Called from gc, dynset and abort path. */
-void nft_set_elem_destroy(const struct nft_set *set, void *elem,
+void nft_set_elem_destroy(const struct nft_set *set,
+			  const struct nft_elem_priv *elem_priv,
 			  bool destroy_expr)
 {
-	struct nft_set_ext *ext = nft_set_elem_ext(set, elem);
+	struct nft_set_ext *ext = nft_set_elem_ext(set, elem_priv);
 	struct nft_ctx ctx = {
 		.net	= read_pnet(&set->net),
 		.family	= set->table->family,
@@ -6300,10 +6302,10 @@ void nft_set_elem_destroy(const struct nft_set *set, void *elem,
 		nft_data_release(nft_set_ext_data(ext), set->dtype);
 	if (destroy_expr && nft_set_ext_exists(ext, NFT_SET_EXT_EXPRESSIONS))
 		nft_set_elem_expr_destroy(&ctx, nft_set_ext_expr(ext));
-
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_OBJREF))
 		nft_use_dec(&(*nft_set_ext_obj(ext))->use);
-	kfree(elem);
+
+	kfree(elem_priv);
 }
 EXPORT_SYMBOL_GPL(nft_set_elem_destroy);
 
@@ -6311,14 +6313,15 @@ EXPORT_SYMBOL_GPL(nft_set_elem_destroy);
  * path via nft_setelem_data_deactivate().
  */
 void nf_tables_set_elem_destroy(const struct nft_ctx *ctx,
-				const struct nft_set *set, void *elem)
+				const struct nft_set *set,
+				const struct nft_elem_priv *elem_priv)
 {
-	struct nft_set_ext *ext = nft_set_elem_ext(set, elem);
+	struct nft_set_ext *ext = nft_set_elem_ext(set, elem_priv);
 
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_EXPRESSIONS))
 		nft_set_elem_expr_destroy(ctx, nft_set_ext_expr(ext));
 
-	kfree(elem);
+	kfree(elem_priv);
 }
 
 int nft_set_elem_expr_clone(const struct nft_ctx *ctx, struct nft_set *set,

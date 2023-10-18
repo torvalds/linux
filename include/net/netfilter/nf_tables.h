@@ -274,6 +274,9 @@ struct nft_userdata {
 	unsigned char		data[];
 };
 
+/* placeholder structure for opaque set element backend representation. */
+struct nft_elem_priv { };
+
 /**
  *	struct nft_set_elem - generic representation of set elements
  *
@@ -294,8 +297,13 @@ struct nft_set_elem {
 		u32		buf[NFT_DATA_VALUE_MAXLEN / sizeof(u32)];
 		struct nft_data val;
 	} data;
-	void			*priv;
+	struct nft_elem_priv	*priv;
 };
+
+static inline void *nft_elem_priv_cast(const struct nft_elem_priv *priv)
+{
+	return (void *)priv;
+}
 
 struct nft_set;
 struct nft_set_iter {
@@ -430,7 +438,8 @@ struct nft_set_ops {
 						  const struct nft_set_ext **ext);
 	bool				(*update)(struct nft_set *set,
 						  const u32 *key,
-						  void *(*new)(struct nft_set *,
+						  struct nft_elem_priv *
+							(*new)(struct nft_set *,
 							       const struct nft_expr *,
 							       struct nft_regs *),
 						  const struct nft_expr *expr,
@@ -446,19 +455,19 @@ struct nft_set_ops {
 	void				(*activate)(const struct net *net,
 						    const struct nft_set *set,
 						    const struct nft_set_elem *elem);
-	void *				(*deactivate)(const struct net *net,
+	struct nft_elem_priv *		(*deactivate)(const struct net *net,
 						      const struct nft_set *set,
 						      const struct nft_set_elem *elem);
 	void				(*flush)(const struct net *net,
 						 const struct nft_set *set,
-						 void *priv);
+						 struct nft_elem_priv *priv);
 	void				(*remove)(const struct net *net,
 						  const struct nft_set *set,
 						  const struct nft_set_elem *elem);
 	void				(*walk)(const struct nft_ctx *ctx,
 						struct nft_set *set,
 						struct nft_set_iter *iter);
-	void *				(*get)(const struct net *net,
+	struct nft_elem_priv *		(*get)(const struct net *net,
 					       const struct nft_set *set,
 					       const struct nft_set_elem *elem,
 					       unsigned int flags);
@@ -796,9 +805,9 @@ static inline bool nft_set_elem_expired(const struct nft_set_ext *ext)
 }
 
 static inline struct nft_set_ext *nft_set_elem_ext(const struct nft_set *set,
-						   void *elem)
+						   const struct nft_elem_priv *elem_priv)
 {
-	return elem + set->ops->elemsize;
+	return (void *)elem_priv + set->ops->elemsize;
 }
 
 static inline struct nft_object **nft_set_ext_obj(const struct nft_set_ext *ext)
@@ -810,16 +819,19 @@ struct nft_expr *nft_set_elem_expr_alloc(const struct nft_ctx *ctx,
 					 const struct nft_set *set,
 					 const struct nlattr *attr);
 
-void *nft_set_elem_init(const struct nft_set *set,
-			const struct nft_set_ext_tmpl *tmpl,
-			const u32 *key, const u32 *key_end, const u32 *data,
-			u64 timeout, u64 expiration, gfp_t gfp);
+struct nft_elem_priv *nft_set_elem_init(const struct nft_set *set,
+					const struct nft_set_ext_tmpl *tmpl,
+					const u32 *key, const u32 *key_end,
+					const u32 *data,
+					u64 timeout, u64 expiration, gfp_t gfp);
 int nft_set_elem_expr_clone(const struct nft_ctx *ctx, struct nft_set *set,
 			    struct nft_expr *expr_array[]);
-void nft_set_elem_destroy(const struct nft_set *set, void *elem,
+void nft_set_elem_destroy(const struct nft_set *set,
+			  const struct nft_elem_priv *elem_priv,
 			  bool destroy_expr);
 void nf_tables_set_elem_destroy(const struct nft_ctx *ctx,
-				const struct nft_set *set, void *elem);
+				const struct nft_set *set,
+				const struct nft_elem_priv *elem_priv);
 
 struct nft_expr_ops;
 /**
