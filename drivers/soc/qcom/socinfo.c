@@ -544,6 +544,7 @@ static const struct soc_id soc_id[] = {
 	{ 614, "CLIFFS" },
 	{ 620, "SA_MONACOAU_SRV1L_FFC" },
 	{ 623, "PITTI" },
+	{ 632, "CLIFFS7" },
 };
 
 static struct attribute *msm_custom_socinfo_attrs[MAX_SOCINFO_ATTRS];
