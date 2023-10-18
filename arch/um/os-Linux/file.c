@@ -240,6 +240,16 @@ out:
 	return err;
 }
 
+int os_dup_file(int fd)
+{
+	int new_fd = dup(fd);
+
+	if (new_fd < 0)
+		return -errno;
+
+	return new_fd;
+}
+
 void os_close_file(int fd)
 {
 	close(fd);
