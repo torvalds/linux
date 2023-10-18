@@ -1356,8 +1356,9 @@ mlx5e_rep_vnic_reporter_diagnose(struct devlink_health_reporter *reporter,
 	struct mlx5e_rep_priv *rpriv = devlink_health_reporter_priv(reporter);
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 
-	return mlx5_reporter_vnic_diagnose_counters(rep->esw->dev, fmsg,
-						    rep->vport, true);
+	mlx5_reporter_vnic_diagnose_counters(rep->esw->dev, fmsg, rep->vport,
+					     true);
+	return 0;
 }
 
 static const struct devlink_health_reporter_ops mlx5_rep_vnic_reporter_ops = {
