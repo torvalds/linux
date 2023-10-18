@@ -2674,7 +2674,11 @@ static void io_pages_free(struct page ***pages, int npages)
 
 	if (!pages)
 		return;
+
 	page_array = *pages;
+	if (!page_array)
+		return;
+
 	for (i = 0; i < npages; i++)
 		unpin_user_page(page_array[i]);
 	kvfree(page_array);
@@ -2758,7 +2762,9 @@ static void io_rings_free(struct io_ring_ctx *ctx)
 		ctx->sq_sqes = NULL;
 	} else {
 		io_pages_free(&ctx->ring_pages, ctx->n_ring_pages);
+		ctx->n_ring_pages = 0;
 		io_pages_free(&ctx->sqe_pages, ctx->n_sqe_pages);
+		ctx->n_sqe_pages = 0;
 	}
 }
 
