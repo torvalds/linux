@@ -430,7 +430,7 @@ static int mtl_max_source_rate(struct intel_dp *intel_dp)
 	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
 
 	if (intel_is_c10phy(i915, phy))
-		return intel_dp_is_edp(intel_dp) ? 675000 : 810000;
+		return 810000;
 
 	return 2000000;
 }
