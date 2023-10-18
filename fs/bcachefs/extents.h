@@ -633,6 +633,8 @@ void bch2_bkey_extent_entry_drop(struct bkey_i *, union bch_extent_entry *);
 
 static inline void bch2_bkey_append_ptr(struct bkey_i *k, struct bch_extent_ptr ptr)
 {
+	struct bch_extent_ptr *dest;
+
 	EBUG_ON(bch2_bkey_has_device(bkey_i_to_s(k), ptr.dev));
 
 	switch (k->k.type) {
@@ -642,12 +644,8 @@ static inline void bch2_bkey_append_ptr(struct bkey_i *k, struct bch_extent_ptr 
 		EBUG_ON(bkey_val_u64s(&k->k) >= BKEY_EXTENT_VAL_U64s_MAX);
 
 		ptr.type = 1 << BCH_EXTENT_ENTRY_ptr;
-
-		unsafe_memcpy((void *) &k->v + bkey_val_bytes(&k->k),
-			      &ptr,
-			      sizeof(ptr),
-			      "Our memcpy target is relative to a zero size array ,"
-			      "compiler bounds checking doesn't work here");
+		dest = (struct bch_extent_ptr *)((void *) &k->v + bkey_val_bytes(&k->k));
+		*dest = ptr;
 		k->k.u64s++;
 		break;
 	default:
