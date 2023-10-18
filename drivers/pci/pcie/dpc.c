@@ -274,20 +274,27 @@ void dpc_process_error(struct pci_dev *pdev)
 	pci_info(pdev, "containment event, status:%#06x source:%#06x\n",
 		 status, source);
 
-	reason = (status & PCI_EXP_DPC_STATUS_TRIGGER_RSN) >> 1;
-	ext_reason = (status & PCI_EXP_DPC_STATUS_TRIGGER_RSN_EXT) >> 5;
+	reason = status & PCI_EXP_DPC_STATUS_TRIGGER_RSN;
+	ext_reason = status & PCI_EXP_DPC_STATUS_TRIGGER_RSN_EXT;
 	pci_warn(pdev, "%s detected\n",
-		 (reason == 0) ? "unmasked uncorrectable error" :
-		 (reason == 1) ? "ERR_NONFATAL" :
-		 (reason == 2) ? "ERR_FATAL" :
-		 (ext_reason == 0) ? "RP PIO error" :
-		 (ext_reason == 1) ? "software trigger" :
-				     "reserved error");
+		 (reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_UNCOR) ?
+		 "unmasked uncorrectable error" :
+		 (reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_NFE) ?
+		 "ERR_NONFATAL" :
+		 (reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_FE) ?
+		 "ERR_FATAL" :
+		 (ext_reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_RP_PIO) ?
+		 "RP PIO error" :
+		 (ext_reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_SW_TRIGGER) ?
+		 "software trigger" :
+		 "reserved error");
 
 	/* show RP PIO error detail information */
-	if (pdev->dpc_rp_extensions && reason == 3 && ext_reason == 0)
+	if (pdev->dpc_rp_extensions &&
+	    reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_IN_EXT &&
+	    ext_reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_RP_PIO)
 		dpc_process_rp_pio_error(pdev);
-	else if (reason == 0 &&
+	else if (reason == PCI_EXP_DPC_STATUS_TRIGGER_RSN_UNCOR &&
 		 dpc_get_aer_uncorrect_severity(pdev, &info) &&
 		 aer_get_device_error_info(pdev, &info)) {
 		aer_print_error(pdev, &info);
