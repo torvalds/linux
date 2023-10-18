@@ -3742,7 +3742,7 @@ F:	net/sched/act_bpf.c
 F:	net/sched/cls_bpf.c
 F:	samples/bpf/
 F:	scripts/bpf_doc.py
-F:	scripts/pahole-flags.sh
+F:	scripts/Makefile.btf
 F:	scripts/pahole-version.sh
 F:	tools/bpf/
 F:	tools/lib/bpf/
