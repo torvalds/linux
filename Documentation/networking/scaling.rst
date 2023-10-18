@@ -105,6 +105,48 @@ a separate CPU. For interrupt handling, HT has shown no benefit in
 initial tests, so limit the number of queues to the number of CPU cores
 in the system.
 
+Dedicated RSS contexts
+~~~~~~~~~~~~~~~~~~~~~~
+
+Modern NICs support creating multiple co-existing RSS configurations
+which are selected based on explicit matching rules. This can be very
+useful when application wants to constrain the set of queues receiving
+traffic for e.g. a particular destination port or IP address.
+The example below shows how to direct all traffic to TCP port 22
+to queues 0 and 1.
+
+To create an additional RSS context use::
+
+  # ethtool -X eth0 hfunc toeplitz context new
+  New RSS context is 1
+
+Kernel reports back the ID of the allocated context (the default, always
+present RSS context has ID of 0). The new context can be queried and
+modified using the same APIs as the default context::
+
+  # ethtool -x eth0 context 1
+  RX flow hash indirection table for eth0 with 13 RX ring(s):
+    0:      0     1     2     3     4     5     6     7
+    8:      8     9    10    11    12     0     1     2
+  [...]
+  # ethtool -X eth0 equal 2 context 1
+  # ethtool -x eth0 context 1
+  RX flow hash indirection table for eth0 with 13 RX ring(s):
+    0:      0     1     0     1     0     1     0     1
+    8:      0     1     0     1     0     1     0     1
+  [...]
+
+To make use of the new context direct traffic to it using an n-tuple
+filter::
+
+  # ethtool -N eth0 flow-type tcp6 dst-port 22 context 1
+  Added rule with ID 1023
+
+When done, remove the context and the rule::
+
+  # ethtool -N eth0 delete 1023
+  # ethtool -X eth0 context 1 delete
+
 
 RPS: Receive Packet Steering
 ============================
