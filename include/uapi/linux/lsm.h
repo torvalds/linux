@@ -54,14 +54,13 @@ struct lsm_ctx {
 #define LSM_ID_SELINUX		101
 #define LSM_ID_SMACK		102
 #define LSM_ID_TOMOYO		103
-#define LSM_ID_IMA		104
-#define LSM_ID_APPARMOR		105
-#define LSM_ID_YAMA		106
-#define LSM_ID_LOADPIN		107
-#define LSM_ID_SAFESETID	108
-#define LSM_ID_LOCKDOWN		109
-#define LSM_ID_BPF		110
-#define LSM_ID_LANDLOCK		111
+#define LSM_ID_APPARMOR		104
+#define LSM_ID_YAMA		105
+#define LSM_ID_LOADPIN		106
+#define LSM_ID_SAFESETID	107
+#define LSM_ID_LOCKDOWN		108
+#define LSM_ID_BPF		109
+#define LSM_ID_LANDLOCK		110
 
 /*
  * LSM_ATTR_XXX definitions identify different LSM attributes
