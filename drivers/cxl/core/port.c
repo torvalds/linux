@@ -751,16 +751,31 @@ static struct cxl_port *__devm_cxl_add_port(struct device *host,
 		return port;
 
 	dev = &port->dev;
-	if (is_cxl_memdev(uport_dev))
-		rc = dev_set_name(dev, "endpoint%d", port->id);
-	else if (parent_dport)
-		rc = dev_set_name(dev, "port%d", port->id);
-	else
-		rc = dev_set_name(dev, "root%d", port->id);
-	if (rc)
-		goto err;
+	if (is_cxl_memdev(uport_dev)) {
+		struct cxl_memdev *cxlmd = to_cxl_memdev(uport_dev);
+		struct cxl_dev_state *cxlds = cxlmd->cxlds;
 
-	rc = cxl_port_setup_regs(port, component_reg_phys);
+		rc = dev_set_name(dev, "endpoint%d", port->id);
+		if (rc)
+			goto err;
+
+		/*
+		 * The endpoint driver already enumerated the component and RAS
+		 * registers. Reuse that enumeration while prepping them to be
+		 * mapped by the cxl_port driver.
+		 */
+		port->reg_map = cxlds->reg_map;
+		port->reg_map.host = &port->dev;
+	} else if (parent_dport) {
+		rc = dev_set_name(dev, "port%d", port->id);
+		if (rc)
+			goto err;
+
+		rc = cxl_port_setup_regs(port, component_reg_phys);
+		if (rc)
+			goto err;
+	} else
+		rc = dev_set_name(dev, "root%d", port->id);
 	if (rc)
 		goto err;
 
