@@ -220,7 +220,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	struct ptp_clock *ptp;
 	struct timestamp_event_queue *queue = NULL;
 	int err = 0, index, major = MAJOR(ptp_devt);
-	char debugfsname[8];
+	char debugfsname[16];
 	size_t size;
 
 	if (info->n_alarm > PTP_MAX_ALARMS)
@@ -343,7 +343,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	}
 
 	/* Debugfs initialization */
-	sprintf(debugfsname, "ptp%d", ptp->index);
+	snprintf(debugfsname, sizeof(debugfsname), "ptp%d", ptp->index);
 	ptp->debugfs_root = debugfs_create_dir(debugfsname, NULL);
 
 	return ptp;
