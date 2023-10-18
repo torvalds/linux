@@ -52,6 +52,24 @@ struct qcom_cpufreq_drv {
 
 static struct platform_device *cpufreq_dt_pdev, *cpufreq_pdev;
 
+static int qcom_cpufreq_simple_get_version(struct device *cpu_dev,
+					   struct nvmem_cell *speedbin_nvmem,
+					   char **pvs_name,
+					   struct qcom_cpufreq_drv *drv)
+{
+	u8 *speedbin;
+
+	*pvs_name = NULL;
+	speedbin = nvmem_cell_read(speedbin_nvmem, NULL);
+	if (IS_ERR(speedbin))
+		return PTR_ERR(speedbin);
+
+	dev_dbg(cpu_dev, "speedbin: %d\n", *speedbin);
+	drv->versions = 1 << *speedbin;
+	kfree(speedbin);
+	return 0;
+}
+
 static void get_krait_bin_format_a(struct device *cpu_dev,
 					  int *speed, int *pvs, int *pvs_ver,
 					  u8 *buf)
@@ -207,12 +225,19 @@ len_error:
 	return ret;
 }
 
+static const char *generic_genpd_names[] = { "perf", NULL };
+
 static const struct qcom_cpufreq_match_data match_data_kryo = {
 	.get_version = qcom_cpufreq_kryo_name_version,
 };
 
 static const struct qcom_cpufreq_match_data match_data_krait = {
 	.get_version = qcom_cpufreq_krait_name_version,
+};
+
+static const struct qcom_cpufreq_match_data match_data_msm8909 = {
+	.get_version = qcom_cpufreq_simple_get_version,
+	.genpd_names = generic_genpd_names,
 };
 
 static const char *qcs404_genpd_names[] = { "cpr", NULL };
@@ -344,6 +369,7 @@ static struct platform_driver qcom_cpufreq_driver = {
 
 static const struct of_device_id qcom_cpufreq_match_list[] __initconst = {
 	{ .compatible = "qcom,apq8096", .data = &match_data_kryo },
+	{ .compatible = "qcom,msm8909", .data = &match_data_msm8909 },
 	{ .compatible = "qcom,msm8996", .data = &match_data_kryo },
 	{ .compatible = "qcom,qcs404", .data = &match_data_qcs404 },
 	{ .compatible = "qcom,ipq8064", .data = &match_data_krait },
