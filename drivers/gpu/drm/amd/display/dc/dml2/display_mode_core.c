@@ -4799,7 +4799,7 @@ static void CalculateSurfaceSizeInMall(
 		if (UseMALLForStaticScreen[k] == dml_use_mall_static_screen_enable)
 			TotalSurfaceSizeInMALL = TotalSurfaceSizeInMALL + SurfaceSizeInMALL[k];
 	}
-	*ExceededMALLSize = (TotalSurfaceSizeInMALL <= MALLAllocatedForDCN * 1024 * 1024 ? false : true);
+	*ExceededMALLSize = (TotalSurfaceSizeInMALL > MALLAllocatedForDCN * 1024 * 1024);
 } // CalculateSurfaceSizeInMall
 
 static void CalculateDETBufferSize(
