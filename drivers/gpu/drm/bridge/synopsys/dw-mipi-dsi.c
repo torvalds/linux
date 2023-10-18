@@ -774,13 +774,19 @@ static u32 dw_mipi_dsi_get_hcomponent_lbcc(struct dw_mipi_dsi *dsi,
 	u32 frac, lbcc, minimum_lbcc;
 	int bpp;
 
-	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
-	if (bpp < 0) {
-		dev_err(dsi->dev, "failed to get bpp\n");
-		return 0;
-	}
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST) {
+		/* lbcc based on lane_mbps */
+		lbcc = hcomponent * dsi->lane_mbps * MSEC_PER_SEC / 8;
+	} else {
+		/* lbcc based on pixel clock rate */
+		bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
+		if (bpp < 0) {
+			dev_err(dsi->dev, "failed to get bpp\n");
+			return 0;
+		}
 
-	lbcc = div_u64((u64)hcomponent * mode->clock * bpp, dsi->lanes * 8);
+		lbcc = div_u64((u64)hcomponent * mode->clock * bpp, dsi->lanes * 8);
+	}
 
 	frac = lbcc % mode->clock;
 	lbcc = lbcc / mode->clock;
