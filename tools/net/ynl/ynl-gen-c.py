@@ -335,6 +335,8 @@ class TypeScalar(Type):
         maybe_enum = not self.is_bitfield and 'enum' in self.attr
         if maybe_enum and self.family.consts[self.attr['enum']].enum_name:
             self.type_name = f"enum {self.family.name}_{c_lower(self.attr['enum'])}"
+        elif self.is_auto_scalar:
+            self.type_name = '__' + self.type[0] + '64'
         else:
             self.type_name = '__' + self.type
 
@@ -362,7 +364,7 @@ class TypeScalar(Type):
         return super()._attr_policy(policy)
 
     def _attr_typol(self):
-        return f'.type = YNL_PT_U{self.type[1:]}, '
+        return f'.type = YNL_PT_U{c_upper(self.type[1:])}, '
 
     def arg_member(self, ri):
         return [f'{self.type_name} {self.c_name}{self.byte_order_comment}']
@@ -1291,7 +1293,7 @@ class CodeWriter:
             self.p(line)
 
 
-scalars = {'u8', 'u16', 'u32', 'u64', 's32', 's64'}
+scalars = {'u8', 'u16', 'u32', 'u64', 's32', 's64', 'uint', 'sint'}
 
 direction_to_suffix = {
     'reply': '_rsp',
