@@ -95,7 +95,7 @@ static int mbm_setup(struct resctrl_val_param *p)
 		return END_OF_TESTS;
 
 	/* Set up shemata with 100% allocation on the first run. */
-	if (p->num_of_runs == 0)
+	if (p->num_of_runs == 0 && validate_resctrl_feature_request("MB", NULL))
 		ret = write_schemata(p->ctrlgrp, "100", p->cpu_no,
 				     p->resctrl_val);
 
