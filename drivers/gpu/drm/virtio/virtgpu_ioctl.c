@@ -565,8 +565,8 @@ static int virtio_gpu_context_init_ioctl(struct drm_device *dev,
 					 void *data, struct drm_file *file)
 {
 	int ret = 0;
-	uint32_t num_params, i, param, value;
-	uint64_t valid_ring_mask;
+	uint32_t num_params, i;
+	uint64_t valid_ring_mask, param, value;
 	size_t len;
 	struct drm_virtgpu_context_set_param *ctx_set_params = NULL;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
