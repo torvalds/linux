@@ -2780,6 +2780,11 @@ config STRSCPY_KUNIT_TEST
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
 
+config INT2FPSTR_KUNIT_TEST
+	tristate "Test int2fpstr library" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+
 config SIPHASH_KUNIT_TEST
 	tristate "Perform selftest on siphash functions" if !KUNIT_ALL_TESTS
 	depends on KUNIT
