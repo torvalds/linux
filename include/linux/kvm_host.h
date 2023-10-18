@@ -782,7 +782,6 @@ struct kvm {
 	struct list_head vm_list;
 	struct mutex lock;
 	struct kvm_io_bus __rcu *buses[KVM_NR_BUSES];
-#ifdef CONFIG_HAVE_KVM_EVENTFD
 	struct {
 		spinlock_t        lock;
 		struct list_head  items;
@@ -791,7 +790,6 @@ struct kvm {
 		struct mutex      resampler_lock;
 	} irqfds;
 	struct list_head ioeventfds;
-#endif
 	struct kvm_vm_stat stat;
 	struct kvm_arch arch;
 	refcount_t users_count;
@@ -2056,8 +2054,6 @@ static inline void kvm_free_irq_routing(struct kvm *kvm) {}
 
 int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
 
-#ifdef CONFIG_HAVE_KVM_EVENTFD
-
 void kvm_eventfd_init(struct kvm *kvm);
 int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
 
@@ -2082,31 +2078,7 @@ static inline bool kvm_notify_irqfd_resampler(struct kvm *kvm,
 {
 	return false;
 }
-#endif
-
-#else
-
-static inline void kvm_eventfd_init(struct kvm *kvm) {}
-
-static inline int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args)
-{
-	return -EINVAL;
-}
-
-static inline void kvm_irqfd_release(struct kvm *kvm) {}
-
-#ifdef CONFIG_HAVE_KVM_IRQCHIP
-static inline void kvm_irq_routing_update(struct kvm *kvm)
-{
-}
-#endif
-
-static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
-{
-	return -ENOSYS;
-}
-
-#endif /* CONFIG_HAVE_KVM_EVENTFD */
+#endif /* CONFIG_HAVE_KVM_IRQFD */
 
 void kvm_arch_irq_routing_update(struct kvm *kvm);
 

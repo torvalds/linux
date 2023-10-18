@@ -3,6 +3,7 @@
 
 config HAVE_KVM
        bool
+       select EVENTFD
 
 config HAVE_KVM_PFNCACHE
        bool
@@ -38,10 +39,6 @@ config HAVE_KVM_DIRTY_RING_ACQ_REL
 config NEED_KVM_DIRTY_RING_WITH_BITMAP
 	bool
 	depends on HAVE_KVM_DIRTY_RING
-
-config HAVE_KVM_EVENTFD
-       bool
-       select EVENTFD
 
 config KVM_MMIO
        bool
