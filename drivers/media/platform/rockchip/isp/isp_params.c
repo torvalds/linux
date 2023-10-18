@@ -130,11 +130,6 @@ static int rkisp_params_vb2_queue_setup(struct vb2_queue *vq,
 
 	INIT_LIST_HEAD(&params_vdev->params);
 
-	if (params_vdev->first_cfg_params) {
-		params_vdev->first_cfg_params = false;
-		return 0;
-	}
-
 	params_vdev->first_params = true;
 
 	return 0;
@@ -246,10 +241,6 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 		params_vdev->cur_buf = NULL;
 	}
 
-	if (dev->is_pre_on) {
-		params_vdev->first_cfg_params = true;
-		return;
-	}
 	rkisp_params_disable_isp(params_vdev);
 	/* clean module params */
 	params_vdev->ops->clear_first_param(params_vdev);
