@@ -127,7 +127,7 @@
 			max-fps-numerator = <10000>;
 			max-fps-denominator = <300000>;
 			bpp = <16>;
-			link-freq-idx = <20>;
+			link-freq-idx = <24>;
 			vc-array = <0x10 0x20 0x40 0x80>; // VC0~3: bit4~7
 		};
 		/* support mode config end */
