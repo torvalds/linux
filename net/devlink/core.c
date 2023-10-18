@@ -168,6 +168,20 @@ int devlink_rel_nested_in_add(u32 *rel_index, u32 devlink_index,
 	return 0;
 }
 
+/**
+ * devlink_rel_nested_in_notify - Notify the object this devlink
+ *				  instance is nested in.
+ * @devlink: devlink
+ *
+ * This is called upon network namespace change of devlink instance.
+ * In case this devlink instance is nested in another devlink object,
+ * a notification of a change of this object should be sent
+ * over netlink. The parent devlink instance lock needs to be
+ * taken during the notification preparation.
+ * However, since the devlink lock of nested instance is held here,
+ * we would end with wrong devlink instance lock ordering and
+ * deadlock. Therefore the work is utilized to avoid that.
+ */
 void devlink_rel_nested_in_notify(struct devlink *devlink)
 {
 	struct devlink_rel *rel = devlink->rel;
@@ -183,9 +197,8 @@ static struct devlink_rel *devlink_rel_find(unsigned long rel_index)
 		       DEVLINK_REL_IN_USE);
 }
 
-static struct devlink *devlink_rel_devlink_get_lock(u32 rel_index)
+static struct devlink *devlink_rel_devlink_get(u32 rel_index)
 {
-	struct devlink *devlink;
 	struct devlink_rel *rel;
 	u32 devlink_index;
 
@@ -198,16 +211,7 @@ static struct devlink *devlink_rel_devlink_get_lock(u32 rel_index)
 	xa_unlock(&devlink_rels);
 	if (!rel)
 		return NULL;
-	devlink = devlinks_xa_get(devlink_index);
-	if (!devlink)
-		return NULL;
-	devl_lock(devlink);
-	if (!devl_is_registered(devlink)) {
-		devl_unlock(devlink);
-		devlink_put(devlink);
-		return NULL;
-	}
-	return devlink;
+	return devlinks_xa_get(devlink_index);
 }
 
 int devlink_rel_devlink_handle_put(struct sk_buff *msg, struct devlink *devlink,
@@ -218,11 +222,10 @@ int devlink_rel_devlink_handle_put(struct sk_buff *msg, struct devlink *devlink,
 	struct devlink *rel_devlink;
 	int err;
 
-	rel_devlink = devlink_rel_devlink_get_lock(rel_index);
+	rel_devlink = devlink_rel_devlink_get(rel_index);
 	if (!rel_devlink)
 		return 0;
 	err = devlink_nl_put_nested_handle(msg, net, rel_devlink, attrtype);
-	devl_unlock(rel_devlink);
 	devlink_put(rel_devlink);
 	if (!err && msg_updated)
 		*msg_updated = true;
@@ -310,6 +313,7 @@ static void devlink_release(struct work_struct *work)
 
 	mutex_destroy(&devlink->lock);
 	lockdep_unregister_key(&devlink->lock_key);
+	put_device(devlink->dev);
 	kfree(devlink);
 }
 
@@ -425,7 +429,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	if (ret < 0)
 		goto err_xa_alloc;
 
-	devlink->dev = dev;
+	devlink->dev = get_device(dev);
 	devlink->ops = ops;
 	xa_init_flags(&devlink->ports, XA_FLAGS_ALLOC);
 	xa_init_flags(&devlink->params, XA_FLAGS_ALLOC);
