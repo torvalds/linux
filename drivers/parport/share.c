@@ -459,7 +459,6 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	sema_init(&tmp->ieee1284.irq, 0);
 	tmp->spintime = parport_default_spintime;
 	atomic_set(&tmp->ref_count, 1);
-	INIT_LIST_HEAD(&tmp->full_list);
 
 	/* Search for the lowest free parport number. */
 
@@ -488,8 +487,6 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	for (device = 0; device < 5; device++)
 		/* assume the worst */
 		tmp->probe_info[device].class = PARPORT_CLASS_LEGACY;
-
-	tmp->waithead = tmp->waittail = NULL;
 
 	ret = device_register(&tmp->bus_dev);
 	if (ret) {
