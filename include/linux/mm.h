@@ -1724,11 +1724,12 @@ static inline void page_cpupid_reset_last(struct page *page)
 }
 #endif /* LAST_CPUPID_NOT_IN_PAGE_FLAGS */
 
-static inline int xchg_page_access_time(struct page *page, int time)
+static inline int folio_xchg_access_time(struct folio *folio, int time)
 {
 	int last_time;
 
-	last_time = page_cpupid_xchg_last(page, time >> PAGE_ACCESS_TIME_BUCKETS);
+	last_time = page_cpupid_xchg_last(&folio->page,
+					  time >> PAGE_ACCESS_TIME_BUCKETS);
 	return last_time << PAGE_ACCESS_TIME_BUCKETS;
 }
 
@@ -1747,7 +1748,7 @@ static inline int page_cpupid_xchg_last(struct page *page, int cpupid)
 	return page_to_nid(page); /* XXX */
 }
 
-static inline int xchg_page_access_time(struct page *page, int time)
+static inline int folio_xchg_access_time(struct folio *folio, int time)
 {
 	return 0;
 }
@@ -1795,11 +1796,6 @@ static inline void vma_set_access_pid_bit(struct vm_area_struct *vma)
 {
 }
 #endif /* CONFIG_NUMA_BALANCING */
-
-static inline int folio_xchg_access_time(struct folio *folio, int time)
-{
-	return xchg_page_access_time(&folio->page, time);
-}
 
 #if defined(CONFIG_KASAN_SW_TAGS) || defined(CONFIG_KASAN_HW_TAGS)
 
