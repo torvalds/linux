@@ -1932,6 +1932,7 @@ static void aspeed_mctp_reset_work(struct work_struct *work)
 						pcie.rst_dwork.work);
 	struct kobject *kobj = &priv->mctp_miscdev.this_device->kobj;
 	u16 bdf;
+	u8 tx_max_payload_size;
 
 	if (priv->pcie.need_uevent) {
 		aspeed_mctp_send_pcie_uevent(kobj, false);
@@ -1943,16 +1944,24 @@ static void aspeed_mctp_reset_work(struct work_struct *work)
 		if (priv->match_data->need_address_mapping)
 			regmap_update_bits(priv->map, ASPEED_MCTP_EID,
 					   MEMORY_SPACE_MAPPING, BIT(31));
+		if (priv->match_data->dma_need_64bits_width)
+			tx_max_payload_size =
+				FIELD_GET(TX_MAX_PAYLOAD_SIZE_MASK,
+					  ilog2(ASPEED_MCTP_MTU >> 6));
+		else
 		/*
-		 * In some condition, tx som and eom will not match expected result.
+		 * In ast2600, tx som and eom will not match expected result.
 		 * e.g. When Maximum Transmit Unit (MTU) set to 64 byte, and then transfer
 		 * size set between 61 ~ 124 (MTU-3 ~ 2*MTU-4), the engine will set all
 		 * packet vdm header eom to 1, no matter what it setted. To fix that
 		 * issue, the driver set MTU to next level(e.g. 64 to 128).
 		 */
+			tx_max_payload_size =
+				FIELD_GET(TX_MAX_PAYLOAD_SIZE_MASK,
+					  fls(ASPEED_MCTP_MTU >> 6));
 		regmap_update_bits(priv->map, ASPEED_MCTP_ENGINE_CTRL,
 				   TX_MAX_PAYLOAD_SIZE_MASK,
-				   FIELD_GET(TX_MAX_PAYLOAD_SIZE_MASK, fls(ASPEED_MCTP_MTU >> 6)));
+				   tx_max_payload_size);
 		aspeed_mctp_flush_all_tx_queues(priv);
 		if (!priv->miss_mctp_int)
 			aspeed_mctp_irq_enable(priv);
