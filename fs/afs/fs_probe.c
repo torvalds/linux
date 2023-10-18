@@ -296,58 +296,48 @@ void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 }
 
 /*
- * Wait for the first as-yet untried fileserver to respond.
+ * Wait for the first as-yet untried fileserver to respond, for the probe state
+ * to be superseded or for all probes to finish.
  */
-int afs_wait_for_fs_probes(struct afs_server_list *slist, unsigned long untried)
+int afs_wait_for_fs_probes(struct afs_operation *op, struct afs_server_state *states, bool intr)
 {
 	struct afs_endpoint_state *estate;
-	struct wait_queue_entry *waits;
-	struct afs_server *server;
-	unsigned int rtt = UINT_MAX, rtt_s;
-	bool have_responders = false;
-	int pref = -1, i;
+	struct afs_server_list *slist = op->server_list;
+	bool still_probing = true;
+	int ret = 0, i;
 
-	_enter("%u,%lx", slist->nr_servers, untried);
+	_enter("%u", slist->nr_servers);
 
-	/* Only wait for servers that have a probe outstanding. */
-	rcu_read_lock();
 	for (i = 0; i < slist->nr_servers; i++) {
-		if (test_bit(i, &untried)) {
-			server = slist->servers[i].server;
-			estate = rcu_dereference(server->endpoint_state);
-			if (!atomic_read(&estate->nr_probing))
-				__clear_bit(i, &untried);
-			if (test_bit(AFS_ESTATE_RESPONDED, &estate->flags))
-				have_responders = true;
-		}
+		estate = states[i].endpoint_state;
+		if (test_bit(AFS_ESTATE_SUPERSEDED, &estate->flags))
+			return 2;
+		if (atomic_read(&estate->nr_probing))
+			still_probing = true;
+		if (estate->responsive_set & states[i].untried_addrs)
+			return 1;
 	}
-	rcu_read_unlock();
-	if (have_responders || !untried)
+	if (!still_probing)
 		return 0;
 
-	waits = kmalloc(array_size(slist->nr_servers, sizeof(*waits)), GFP_KERNEL);
-	if (!waits)
-		return -ENOMEM;
-
-	for (i = 0; i < slist->nr_servers; i++) {
-		if (test_bit(i, &untried)) {
-			server = slist->servers[i].server;
-			init_waitqueue_entry(&waits[i], current);
-			add_wait_queue(&server->probe_wq, &waits[i]);
-		}
-	}
+	for (i = 0; i < slist->nr_servers; i++)
+		add_wait_queue(&slist->servers[i].server->probe_wq, &states[i].probe_waiter);
 
 	for (;;) {
-		bool still_probing = false;
+		still_probing = false;
 
-		set_current_state(TASK_INTERRUPTIBLE);
+		set_current_state(intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
 		for (i = 0; i < slist->nr_servers; i++) {
-			if (test_bit(i, &untried)) {
-				server = slist->servers[i].server;
-				if (test_bit(AFS_ESTATE_RESPONDED, &estate->flags))
-					goto stop;
-				if (atomic_read(&estate->nr_probing))
-					still_probing = true;
+			estate = states[i].endpoint_state;
+			if (test_bit(AFS_ESTATE_SUPERSEDED, &estate->flags)) {
+				ret = 2;
+				goto stop;
+			}
+			if (atomic_read(&estate->nr_probing))
+				still_probing = true;
+			if (estate->responsive_set & states[i].untried_addrs) {
+				ret = 1;
+				goto stop;
 			}
 		}
 
@@ -359,28 +349,12 @@ int afs_wait_for_fs_probes(struct afs_server_list *slist, unsigned long untried)
 stop:
 	set_current_state(TASK_RUNNING);
 
-	for (i = 0; i < slist->nr_servers; i++) {
-		if (test_bit(i, &untried)) {
-			server = slist->servers[i].server;
-			rtt_s = READ_ONCE(server->rtt);
-			if (test_bit(AFS_SERVER_FL_RESPONDING, &server->flags) &&
-			    rtt_s < rtt) {
-				pref = i;
-				rtt = rtt_s;
-			}
+	for (i = 0; i < slist->nr_servers; i++)
+		remove_wait_queue(&slist->servers[i].server->probe_wq, &states[i].probe_waiter);
 
-			remove_wait_queue(&server->probe_wq, &waits[i]);
-		}
-	}
-
-	kfree(waits);
-
-	if (pref == -1 && signal_pending(current))
-		return -ERESTARTSYS;
-
-	if (pref >= 0)
-		slist->preferred = pref;
-	return 0;
+	if (!ret && signal_pending(current))
+		ret = -ERESTARTSYS;
+	return ret;
 }
 
 /*
@@ -508,7 +482,7 @@ again:
  * Wait for a probe on a particular fileserver to complete for 2s.
  */
 int afs_wait_for_one_fs_probe(struct afs_server *server, struct afs_endpoint_state *estate,
-			      bool is_intr)
+			      unsigned long exclude, bool is_intr)
 {
 	struct wait_queue_entry wait;
 	unsigned long timo = 2 * HZ;
@@ -521,7 +495,8 @@ int afs_wait_for_one_fs_probe(struct afs_server *server, struct afs_endpoint_sta
 		prepare_to_wait_event(&server->probe_wq, &wait,
 				      is_intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
 		if (timo == 0 ||
-		    test_bit(AFS_ESTATE_RESPONDED, &estate->flags) ||
+		    test_bit(AFS_ESTATE_SUPERSEDED, &estate->flags) ||
+		    (estate->responsive_set & ~exclude) ||
 		    atomic_read(&estate->nr_probing) == 0 ||
 		    (is_intr && signal_pending(current)))
 			break;
@@ -531,7 +506,9 @@ int afs_wait_for_one_fs_probe(struct afs_server *server, struct afs_endpoint_sta
 	finish_wait(&server->probe_wq, &wait);
 
 dont_wait:
-	if (test_bit(AFS_ESTATE_RESPONDED, &estate->flags))
+	if (estate->responsive_set & ~exclude)
+		return 1;
+	if (test_bit(AFS_ESTATE_SUPERSEDED, &estate->flags))
 		return 0;
 	if (is_intr && signal_pending(current))
 		return -ERESTARTSYS;

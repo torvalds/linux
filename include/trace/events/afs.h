@@ -230,15 +230,12 @@ enum yfs_cm_operation {
 #define afs_estate_traces \
 	EM(afs_estate_trace_alloc_probe,	"ALLOC prob") \
 	EM(afs_estate_trace_alloc_server,	"ALLOC srvr") \
-	EM(afs_estate_trace_get_fsrotate_set,	"GET fs-rot") \
+	EM(afs_estate_trace_get_server_state,	"GET srv-st") \
 	EM(afs_estate_trace_get_getcaps,	"GET getcap") \
 	EM(afs_estate_trace_put_getcaps,	"PUT getcap") \
-	EM(afs_estate_trace_put_next_server,	"PUT nx-srv") \
-	EM(afs_estate_trace_put_op_failed,	"PUT op-fai") \
-	EM(afs_estate_trace_put_operation,	"PUT op    ") \
 	EM(afs_estate_trace_put_probe,		"PUT probe ") \
-	EM(afs_estate_trace_put_restart_rotate,	"PUT rstrot") \
 	EM(afs_estate_trace_put_server,		"PUT server") \
+	EM(afs_estate_trace_put_server_state,	"PUT srv-st") \
 	E_(afs_estate_trace_free,		"FREE      ")
 
 #define afs_fs_operations \
@@ -448,6 +445,29 @@ enum yfs_cm_operation {
 	EM(afs_cb_break_for_vos_release,	"break-vos-release")	\
 	E_(afs_cb_break_volume_excluded,	"vol-excluded")
 
+#define afs_rotate_traces						\
+	EM(afs_rotate_trace_aborted,		"Abortd")		\
+	EM(afs_rotate_trace_busy_sleep,		"BsySlp")		\
+	EM(afs_rotate_trace_check_vol_status,	"VolStt")		\
+	EM(afs_rotate_trace_failed,		"Failed")		\
+	EM(afs_rotate_trace_iter,		"Iter  ")		\
+	EM(afs_rotate_trace_iterate_addr,	"ItAddr")		\
+	EM(afs_rotate_trace_next_server,	"NextSv")		\
+	EM(afs_rotate_trace_no_more_servers,	"NoMore")		\
+	EM(afs_rotate_trace_nomem,		"Nomem ")		\
+	EM(afs_rotate_trace_probe_error,	"PrbErr")		\
+	EM(afs_rotate_trace_probe_fileserver,	"PrbFsv")		\
+	EM(afs_rotate_trace_probe_none,		"PrbNon")		\
+	EM(afs_rotate_trace_probe_response,	"PrbRsp")		\
+	EM(afs_rotate_trace_probe_superseded,	"PrbSup")		\
+	EM(afs_rotate_trace_restart,		"Rstart")		\
+	EM(afs_rotate_trace_retry_server,	"RtrySv")		\
+	EM(afs_rotate_trace_selected_server,	"SlctSv")		\
+	EM(afs_rotate_trace_stale_lock,		"StlLck")		\
+	EM(afs_rotate_trace_start,		"Start ")		\
+	EM(afs_rotate_trace_stop,		"Stop  ")		\
+	E_(afs_rotate_trace_stopped,		"Stoppd")
+
 /*
  * Generate enums for tracing information.
  */
@@ -471,6 +491,7 @@ enum afs_file_error		{ afs_file_errors } __mode(byte);
 enum afs_flock_event		{ afs_flock_events } __mode(byte);
 enum afs_flock_operation	{ afs_flock_operations } __mode(byte);
 enum afs_io_error		{ afs_io_errors } __mode(byte);
+enum afs_rotate_trace		{ afs_rotate_traces } __mode(byte);
 enum afs_server_trace		{ afs_server_traces } __mode(byte);
 enum afs_volume_trace		{ afs_volume_traces } __mode(byte);
 
@@ -486,21 +507,22 @@ enum afs_volume_trace		{ afs_volume_traces } __mode(byte);
 
 afs_alist_traces;
 afs_call_traces;
-afs_server_traces;
+afs_cb_break_reasons;
 afs_cell_traces;
-afs_fs_operations;
-afs_vl_operations;
 afs_cm_operations;
-yfs_cm_operations;
 afs_edit_dir_ops;
 afs_edit_dir_reasons;
 afs_eproto_causes;
 afs_estate_traces;
-afs_io_errors;
 afs_file_errors;
-afs_flock_types;
 afs_flock_operations;
-afs_cb_break_reasons;
+afs_flock_types;
+afs_fs_operations;
+afs_io_errors;
+afs_rotate_traces;
+afs_server_traces;
+afs_vl_operations;
+yfs_cm_operations;
 
 /*
  * Now redefine the EM() and E_() macros to map the enums to the strings that
@@ -1517,6 +1539,41 @@ TRACE_EVENT(afs_vl_probe,
 		      __entry->server, __entry->tx ? "tx" : "rx", __entry->addr_index,
 		      __entry->error, __entry->abort_code, __entry->rtt_us,
 		      &__entry->srx.transport)
+	    );
+
+TRACE_EVENT(afs_rotate,
+	    TP_PROTO(struct afs_operation *op, enum afs_rotate_trace reason, unsigned int extra),
+
+	    TP_ARGS(op, reason, extra),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		op)
+		    __field(unsigned int,		flags)
+		    __field(unsigned int,		extra)
+		    __field(unsigned short,		iteration)
+		    __field(short,			server_index)
+		    __field(short,			addr_index)
+		    __field(enum afs_rotate_trace,	reason)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->op = op->debug_id;
+		    __entry->flags = op->flags;
+		    __entry->iteration = op->nr_iterations;
+		    __entry->server_index = op->server_index;
+		    __entry->addr_index = op->addr_index;
+		    __entry->reason = reason;
+		    __entry->extra = extra;
+			   ),
+
+	    TP_printk("OP=%08x it=%02x %s fl=%x sx=%d ax=%d ext=%d",
+		      __entry->op,
+		      __entry->iteration,
+		      __print_symbolic(__entry->reason, afs_rotate_traces),
+		      __entry->flags,
+		      __entry->server_index,
+		      __entry->addr_index,
+		      __entry->extra)
 	    );
 
 #endif /* _TRACE_AFS_H */

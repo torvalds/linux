@@ -229,7 +229,6 @@ void afs_wait_for_operation(struct afs_operation *op)
  */
 int afs_put_operation(struct afs_operation *op)
 {
-	struct afs_endpoint_state *estate = op->estate;
 	struct afs_addr_list *alist;
 	int i, ret = afs_op_error(op);
 
@@ -253,18 +252,17 @@ int afs_put_operation(struct afs_operation *op)
 		kfree(op->more_files);
 	}
 
-	if (estate) {
-		alist = estate->addresses;
+	if (op->estate) {
+		alist = op->estate->addresses;
 		if (alist) {
 			if (op->call_responded &&
 			    op->addr_index != alist->preferred &&
 			    test_bit(alist->preferred, &op->addr_tried))
 				WRITE_ONCE(alist->preferred, op->addr_index);
 		}
-		afs_put_endpoint_state(estate, afs_estate_trace_put_operation);
-		op->estate = NULL;
 	}
 
+	afs_clear_server_states(op);
 	afs_put_serverlist(op->net, op->server_list);
 	afs_put_volume(op->volume, afs_volume_trace_put_put_op);
 	key_put(op->key);

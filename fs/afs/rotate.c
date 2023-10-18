@@ -15,6 +15,18 @@
 #include "afs_fs.h"
 #include "protocol_uae.h"
 
+void afs_clear_server_states(struct afs_operation *op)
+{
+	unsigned int i;
+
+	if (op->server_states) {
+		for (i = 0; i < op->server_list->nr_servers; i++)
+			afs_put_endpoint_state(op->server_states[i].endpoint_state,
+					       afs_estate_trace_put_server_state);
+		kfree(op->server_states);
+	}
+}
+
 /*
  * Begin iteration through a server list, starting with the vnode's last used
  * server if possible, or the last recorded good server if not.
@@ -26,14 +38,41 @@ static bool afs_start_fs_iteration(struct afs_operation *op,
 	void *cb_server;
 	int i;
 
+	trace_afs_rotate(op, afs_rotate_trace_start, 0);
+
 	read_lock(&op->volume->servers_lock);
 	op->server_list = afs_get_serverlist(
 		rcu_dereference_protected(op->volume->servers,
 					  lockdep_is_held(&op->volume->servers_lock)));
 	read_unlock(&op->volume->servers_lock);
 
+	op->server_states = kcalloc(op->server_list->nr_servers, sizeof(op->server_states[0]),
+				    GFP_KERNEL);
+	if (!op->server_states) {
+		afs_op_nomem(op);
+		trace_afs_rotate(op, afs_rotate_trace_nomem, 0);
+		return false;
+	}
+
+	rcu_read_lock();
+	for (i = 0; i < op->server_list->nr_servers; i++) {
+		struct afs_endpoint_state *estate;
+		struct afs_server_state *s = &op->server_states[i];
+
+		server = op->server_list->servers[i].server;
+		estate = rcu_dereference(server->endpoint_state);
+		s->endpoint_state = afs_get_endpoint_state(estate,
+							   afs_estate_trace_get_server_state);
+		s->probe_seq = estate->probe_seq;
+		s->untried_addrs = (1UL << estate->addresses->nr_addrs) - 1;
+		init_waitqueue_entry(&s->probe_waiter, current);
+		afs_get_address_preferences(op->net, estate->addresses);
+	}
+	rcu_read_unlock();
+
+
 	op->untried_servers = (1UL << op->server_list->nr_servers) - 1;
-	op->server_index = READ_ONCE(op->server_list->preferred);
+	op->server_index = -1;
 
 	cb_server = vnode->cb_server;
 	if (cb_server) {
@@ -52,6 +91,7 @@ static bool afs_start_fs_iteration(struct afs_operation *op,
 		 */
 		if (op->flags & AFS_OPERATION_CUR_ONLY) {
 			afs_op_set_error(op, -ESTALE);
+			trace_afs_rotate(op, afs_rotate_trace_stale_lock, 0);
 			return false;
 		}
 
@@ -90,6 +130,7 @@ static void afs_busy(struct afs_volume *volume, u32 abort_code)
  */
 static bool afs_sleep_and_retry(struct afs_operation *op)
 {
+	trace_afs_rotate(op, afs_rotate_trace_busy_sleep, 0);
 	if (!(op->flags & AFS_OPERATION_UNINTR)) {
 		msleep_interruptible(1000);
 		if (signal_pending(current)) {
@@ -109,14 +150,13 @@ static bool afs_sleep_and_retry(struct afs_operation *op)
  */
 bool afs_select_fileserver(struct afs_operation *op)
 {
-	struct afs_endpoint_state *estate = op->estate;
 	struct afs_addr_list *alist;
 	struct afs_server *server;
 	struct afs_vnode *vnode = op->file[0].vnode;
 	unsigned long set, failed;
-	unsigned int rtt;
 	s32 abort_code = op->call_abort_code;
-	int error = op->call_error, addr_index, i;
+	int best_prio = 0;
+	int error = op->call_error, addr_index, i, j;
 
 	op->nr_iterations++;
 
@@ -127,6 +167,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 	       error, abort_code);
 
 	if (op->flags & AFS_OPERATION_STOP) {
+		trace_afs_rotate(op, afs_rotate_trace_stopped, 0);
 		_leave(" = f [stopped]");
 		return false;
 	}
@@ -134,7 +175,8 @@ bool afs_select_fileserver(struct afs_operation *op)
 	if (op->nr_iterations == 0)
 		goto start;
 
-	WRITE_ONCE(estate->addresses->addrs[op->addr_index].last_error, error);
+	WRITE_ONCE(op->estate->addresses->addrs[op->addr_index].last_error, error);
+	trace_afs_rotate(op, afs_rotate_trace_iter, op->call_error);
 
 	/* Evaluate the result of the previous operation, if there was one. */
 	switch (op->call_error) {
@@ -161,6 +203,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 		/* Success or local failure.  Stop. */
 		afs_op_set_error(op, error);
 		op->flags |= AFS_OPERATION_STOP;
+		trace_afs_rotate(op, afs_rotate_trace_stop, error);
 		_leave(" = f [okay/local %d]", error);
 		return false;
 
@@ -173,6 +216,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 		 * errors instead.  IBM AFS and OpenAFS fileservers, however, do leak
 		 * these abort codes.
 		 */
+		trace_afs_rotate(op, afs_rotate_trace_aborted, abort_code);
 		op->cumul_error.responded = true;
 		switch (abort_code) {
 		case VNOVOL:
@@ -276,10 +320,6 @@ bool afs_select_fileserver(struct afs_operation *op)
 			}
 			if (op->flags & AFS_OPERATION_NO_VSLEEP) {
 				afs_op_set_error(op, -EADV);
-				goto failed;
-			}
-			if (op->flags & AFS_OPERATION_CUR_ONLY) {
-				afs_op_set_error(op, -ESTALE);
 				goto failed;
 			}
 			goto busy;
@@ -417,19 +457,22 @@ bool afs_select_fileserver(struct afs_operation *op)
 	}
 
 restart_from_beginning:
+	trace_afs_rotate(op, afs_rotate_trace_restart, 0);
 	_debug("restart");
-	afs_put_endpoint_state(estate, afs_estate_trace_put_restart_rotate);
-	estate = op->estate = NULL;
+	op->estate = NULL;
 	op->server = NULL;
+	afs_clear_server_states(op);
+	op->server_states = NULL;
 	afs_put_serverlist(op->net, op->server_list);
 	op->server_list = NULL;
 start:
 	_debug("start");
-	ASSERTCMP(estate, ==, NULL);
+	ASSERTCMP(op->estate, ==, NULL);
 	/* See if we need to do an update of the volume record.  Note that the
 	 * volume may have moved or even have been deleted.
 	 */
 	error = afs_check_volume_status(op->volume, op);
+	trace_afs_rotate(op, afs_rotate_trace_check_vol_status, error);
 	if (error < 0) {
 		afs_op_set_error(op, error);
 		goto failed;
@@ -442,16 +485,29 @@ start:
 
 pick_server:
 	_debug("pick [%lx]", op->untried_servers);
-	ASSERTCMP(estate, ==, NULL);
+	ASSERTCMP(op->estate, ==, NULL);
 
-	error = afs_wait_for_fs_probes(op->server_list, op->untried_servers);
-	if (error < 0) {
+	error = afs_wait_for_fs_probes(op, op->server_states,
+				       !(op->flags & AFS_OPERATION_UNINTR));
+	switch (error) {
+	case 0: /* No untried responsive servers and no outstanding probes */
+		trace_afs_rotate(op, afs_rotate_trace_probe_none, 0);
+		goto no_more_servers;
+	case 1: /* Got a response */
+		trace_afs_rotate(op, afs_rotate_trace_probe_response, 0);
+		break;
+	case 2: /* Probe data superseded */
+		trace_afs_rotate(op, afs_rotate_trace_probe_superseded, 0);
+		goto restart_from_beginning;
+	default:
+		trace_afs_rotate(op, afs_rotate_trace_probe_error, error);
 		afs_op_set_error(op, error);
 		goto failed;
 	}
 
-	/* Pick the untried server with the lowest RTT.  If we have outstanding
-	 * callbacks, we stick with the server we're already using if we can.
+	/* Pick the untried server with the highest priority untried endpoint.
+	 * If we have outstanding callbacks, we stick with the server we're
+	 * already using if we can.
 	 */
 	if (op->server) {
 		_debug("server %u", op->server_index);
@@ -461,34 +517,47 @@ pick_server:
 		_debug("no server");
 	}
 
+	rcu_read_lock();
 	op->server_index = -1;
-	rtt = UINT_MAX;
+	best_prio = -1;
 	for (i = 0; i < op->server_list->nr_servers; i++) {
+		struct afs_endpoint_state *es;
 		struct afs_server_entry *se = &op->server_list->servers[i];
+		struct afs_addr_list *sal;
 		struct afs_server *s = se->server;
 
 		if (!test_bit(i, &op->untried_servers) ||
 		    test_bit(AFS_SE_EXCLUDED, &se->flags) ||
 		    !test_bit(AFS_SERVER_FL_RESPONDING, &s->flags))
 			continue;
-		if (s->rtt <= rtt) {
-			op->server_index = i;
-			rtt = s->rtt;
+		es = op->server_states->endpoint_state;
+		sal = es->addresses;
+
+		afs_get_address_preferences_rcu(op->net, sal);
+		for (j = 0; j < sal->nr_addrs; j++) {
+			if (!sal->addrs[j].peer)
+				continue;
+			if (sal->addrs[j].prio > best_prio) {
+				op->server_index = i;
+				best_prio = sal->addrs[j].prio;
+			}
 		}
 	}
+	rcu_read_unlock();
 
 	if (op->server_index == -1)
 		goto no_more_servers;
 
 selected_server:
-	_debug("use %d", op->server_index);
+	trace_afs_rotate(op, afs_rotate_trace_selected_server, best_prio);
+	_debug("use %d prio %u", op->server_index, best_prio);
 	__clear_bit(op->server_index, &op->untried_servers);
 
 	/* We're starting on a different fileserver from the list.  We need to
 	 * check it, create a callback intercept, find its address list and
 	 * probe its capabilities before we use it.
 	 */
-	ASSERTCMP(estate, ==, NULL);
+	ASSERTCMP(op->estate, ==, NULL);
 	server = op->server_list->servers[op->server_index].server;
 
 	if (!afs_check_server_record(op, server, op->key))
@@ -504,12 +573,6 @@ selected_server:
 		atomic64_set(&vnode->cb_expires_at, AFS_NO_CB_PROMISE);
 	}
 
-	read_lock(&server->fs_lock);
-	estate = rcu_dereference_protected(server->endpoint_state,
-					   lockdep_is_held(&server->fs_lock));
-	op->estate = afs_get_endpoint_state(estate, afs_estate_trace_get_fsrotate_set);
-	read_unlock(&server->fs_lock);
-
 retry_server:
 	op->addr_tried = 0;
 	op->addr_index = -1;
@@ -518,14 +581,23 @@ iterate_address:
 	/* Iterate over the current server's address list to try and find an
 	 * address on which it will respond to us.
 	 */
-	set = READ_ONCE(estate->responsive_set);
-	failed = READ_ONCE(estate->failed_set);
-	_debug("iterate ES=%x rs=%lx fs=%lx", estate->probe_seq, set, failed);
+	op->estate = op->server_states[op->server_index].endpoint_state;
+	set = READ_ONCE(op->estate->responsive_set);
+	failed = READ_ONCE(op->estate->failed_set);
+	_debug("iterate ES=%x rs=%lx fs=%lx", op->estate->probe_seq, set, failed);
 	set &= ~(failed | op->addr_tried);
+	trace_afs_rotate(op, afs_rotate_trace_iterate_addr, set);
 	if (!set)
-		goto out_of_addresses;
+		goto wait_for_more_probe_results;
 
-	alist = estate->addresses;
+	alist = op->estate->addresses;
+	for (i = 0; i < alist->nr_addrs; i++) {
+		if (alist->addrs[i].prio > best_prio) {
+			addr_index = i;
+			best_prio = alist->addrs[i].prio;
+		}
+	}
+
 	addr_index = READ_ONCE(alist->preferred);
 	if (!test_bit(addr_index, &set))
 		addr_index = __ffs(set);
@@ -542,17 +614,24 @@ iterate_address:
 	_leave(" = t");
 	return true;
 
-out_of_addresses:
+wait_for_more_probe_results:
+	error = afs_wait_for_one_fs_probe(op->server, op->estate, op->addr_tried,
+					  !(op->flags & AFS_OPERATION_UNINTR));
+	if (!error)
+		goto iterate_address;
+
 	/* We've now had a failure to respond on all of a server's addresses -
 	 * immediately probe them again and consider retrying the server.
 	 */
+	trace_afs_rotate(op, afs_rotate_trace_probe_fileserver, 0);
 	afs_probe_fileserver(op->net, op->server);
 	if (op->flags & AFS_OPERATION_RETRY_SERVER) {
-		error = afs_wait_for_one_fs_probe(op->server, estate,
+		error = afs_wait_for_one_fs_probe(op->server, op->estate, op->addr_tried,
 						  !(op->flags & AFS_OPERATION_UNINTR));
 		switch (error) {
 		case 0:
 			op->flags &= ~AFS_OPERATION_RETRY_SERVER;
+			trace_afs_rotate(op, afs_rotate_trace_retry_server, 0);
 			goto retry_server;
 		case -ERESTARTSYS:
 			afs_op_set_error(op, error);
@@ -564,30 +643,33 @@ out_of_addresses:
 	}
 
 next_server:
+	trace_afs_rotate(op, afs_rotate_trace_next_server, 0);
 	_debug("next");
-	ASSERT(estate);
-	alist = estate->addresses;
+	ASSERT(op->estate);
+	alist = op->estate->addresses;
 	if (op->call_responded &&
 	    op->addr_index != READ_ONCE(alist->preferred) &&
 	    test_bit(alist->preferred, &op->addr_tried))
 		WRITE_ONCE(alist->preferred, op->addr_index);
-	afs_put_endpoint_state(estate, afs_estate_trace_put_next_server);
-	estate = op->estate = NULL;
+	op->estate = NULL;
 	goto pick_server;
 
 no_more_servers:
 	/* That's all the servers poked to no good effect.  Try again if some
 	 * of them were busy.
 	 */
-	if (op->flags & AFS_OPERATION_VBUSY)
+	trace_afs_rotate(op, afs_rotate_trace_no_more_servers, 0);
+	if (op->flags & AFS_OPERATION_VBUSY) {
+		afs_sleep_and_retry(op);
+		op->flags &= ~AFS_OPERATION_VBUSY;
 		goto restart_from_beginning;
+	}
 
 	rcu_read_lock();
 	for (i = 0; i < op->server_list->nr_servers; i++) {
 		struct afs_endpoint_state *estate;
-		struct afs_server *s = op->server_list->servers[i].server;
 
-		estate = rcu_dereference(s->endpoint_state);
+		estate = op->server_states->endpoint_state;
 		error = READ_ONCE(estate->error);
 		if (error < 0)
 			afs_op_accumulate_error(op, error, estate->abort_code);
@@ -595,14 +677,14 @@ no_more_servers:
 	rcu_read_unlock();
 
 failed:
+	trace_afs_rotate(op, afs_rotate_trace_failed, 0);
 	op->flags |= AFS_OPERATION_STOP;
-	if (estate) {
-		alist = estate->addresses;
+	if (op->estate) {
+		alist = op->estate->addresses;
 		if (op->call_responded &&
 		    op->addr_index != READ_ONCE(alist->preferred) &&
 		    test_bit(alist->preferred, &op->addr_tried))
 			WRITE_ONCE(alist->preferred, op->addr_index);
-		afs_put_endpoint_state(estate, afs_estate_trace_put_op_failed);
 		op->estate = NULL;
 	}
 	_leave(" = f [failed %d]", afs_op_error(op));
@@ -635,8 +717,8 @@ void afs_dump_edestaddrreq(const struct afs_operation *op)
 	if (op->server_list) {
 		const struct afs_server_list *sl = op->server_list;
 
-		pr_notice("FC: SL nr=%u pr=%u vnov=%hx\n",
-			  sl->nr_servers, sl->preferred, sl->vnovol_mask);
+		pr_notice("FC: SL nr=%u vnov=%hx\n",
+			  sl->nr_servers, sl->vnovol_mask);
 		for (i = 0; i < sl->nr_servers; i++) {
 			const struct afs_server *s = sl->servers[i].server;
 			const struct afs_endpoint_state *e =

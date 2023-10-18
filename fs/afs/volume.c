@@ -397,7 +397,11 @@ static int afs_update_volume_status(struct afs_volume *volume, struct key *key)
 		discard = old;
 	}
 
-	volume->update_at = ktime_get_real_seconds() + afs_volume_record_life;
+	/* Check more often if replication is ongoing. */
+	if (new->ro_replicating)
+		volume->update_at = ktime_get_real_seconds() + 10 * 60;
+	else
+		volume->update_at = ktime_get_real_seconds() + afs_volume_record_life;
 	write_unlock(&volume->servers_lock);
 
 	if (discard == old)

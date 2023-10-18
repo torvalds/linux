@@ -134,8 +134,7 @@ bool afs_annotate_server_list(struct afs_server_list *new,
 			      struct afs_server_list *old)
 {
 	unsigned long mask = 1UL << AFS_SE_EXCLUDED;
-	struct afs_server *cur;
-	int i, j;
+	int i;
 
 	if (old->nr_servers != new->nr_servers ||
 	    old->ro_replicating != new->ro_replicating)
@@ -148,18 +147,7 @@ bool afs_annotate_server_list(struct afs_server_list *new,
 			goto changed;
 	}
 	return false;
-
 changed:
-	/* Maintain the same preferred server as before if possible. */
-	cur = old->servers[old->preferred].server;
-	for (j = 0; j < new->nr_servers; j++) {
-		if (new->servers[j].server == cur) {
-			if (!test_bit(AFS_SE_EXCLUDED, &new->servers[j].flags))
-				new->preferred = j;
-			break;
-		}
-	}
-
 	return true;
 }
 

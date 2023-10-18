@@ -620,7 +620,6 @@ struct afs_server_list {
 	bool			attached;	/* T if attached to servers */
 	enum afs_ro_replicating	ro_replicating;	/* RW->RO update (probably) in progress */
 	unsigned char		nr_servers;
-	unsigned char		preferred;	/* Preferred server */
 	unsigned short		vnovol_mask;	/* Servers to be skipped due to VNOVOL */
 	unsigned int		seq;		/* Set to ->servers_seq when installed */
 	rwlock_t		lock;
@@ -822,6 +821,20 @@ struct afs_vl_cursor {
 };
 
 /*
+ * Fileserver state tracking for an operation.  An array of these is kept,
+ * indexed by server index.
+ */
+struct afs_server_state {
+	/* Tracking of fileserver probe state.  Other operations may interfere
+	 * by probing a fileserver when accessing other volumes.
+	 */
+	unsigned int		probe_seq;
+	unsigned long		untried_addrs;	/* Addresses we haven't tried yet */
+	struct wait_queue_entry	probe_waiter;
+	struct afs_endpoint_state *endpoint_state; /* Endpoint state being monitored */
+};
+
+/*
  * Fileserver operation methods.
  */
 struct afs_operation_ops {
@@ -921,7 +934,8 @@ struct afs_operation {
 	/* Fileserver iteration state */
 	struct afs_server_list	*server_list;	/* Current server list (pins ref) */
 	struct afs_server	*server;	/* Server we're using (ref pinned by server_list) */
-	struct afs_endpoint_state *estate;	/* Current endpoint state (pins ref) */
+	struct afs_endpoint_state *estate;	/* Current endpoint state (doesn't pin ref) */
+	struct afs_server_state	*server_states;	/* States of the servers involved */
 	struct afs_call		*call;
 	unsigned long		untried_servers; /* Bitmask of untried servers */
 	unsigned long		addr_tried;	/* Tried addresses */
@@ -1235,11 +1249,11 @@ void afs_put_endpoint_state(struct afs_endpoint_state *estate, enum afs_estate_t
 extern void afs_fileserver_probe_result(struct afs_call *);
 void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 			     struct afs_addr_list *new_addrs, struct key *key);
-extern int afs_wait_for_fs_probes(struct afs_server_list *, unsigned long);
+int afs_wait_for_fs_probes(struct afs_operation *op, struct afs_server_state *states, bool intr);
 extern void afs_probe_fileserver(struct afs_net *, struct afs_server *);
 extern void afs_fs_probe_dispatcher(struct work_struct *);
 int afs_wait_for_one_fs_probe(struct afs_server *server, struct afs_endpoint_state *estate,
-			      bool is_intr);
+			      unsigned long exclude, bool is_intr);
 extern void afs_fs_probe_cleanup(struct afs_net *);
 
 /*
@@ -1363,6 +1377,7 @@ static inline void afs_put_sysnames(struct afs_sysnames *sysnames) {}
 /*
  * rotate.c
  */
+void afs_clear_server_states(struct afs_operation *op);
 extern bool afs_select_fileserver(struct afs_operation *);
 extern void afs_dump_edestaddrreq(const struct afs_operation *);
 
