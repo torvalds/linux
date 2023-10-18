@@ -817,12 +817,14 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	drm_dp_add_payload_part2(&intel_dp->mst_mgr, &state->base,
 				 drm_atomic_get_mst_payload_state(mst_state, connector->port));
 
-	if (DISPLAY_VER(dev_priv) >= 14 && pipe_config->fec_enable)
-		intel_de_rmw(dev_priv, MTL_CHICKEN_TRANS(trans), 0,
-			     FECSTALL_DIS_DPTSTREAM_DPTTG);
-	else if (DISPLAY_VER(dev_priv) >= 12 && pipe_config->fec_enable)
-		intel_de_rmw(dev_priv, CHICKEN_TRANS(trans), 0,
-			     FECSTALL_DIS_DPTSTREAM_DPTTG);
+	if (DISPLAY_VER(dev_priv) >= 14)
+		intel_de_rmw(dev_priv, MTL_CHICKEN_TRANS(trans),
+			     FECSTALL_DIS_DPTSTREAM_DPTTG,
+			     pipe_config->fec_enable ? FECSTALL_DIS_DPTSTREAM_DPTTG : 0);
+	else if (DISPLAY_VER(dev_priv) >= 12)
+		intel_de_rmw(dev_priv, CHICKEN_TRANS(trans),
+			     FECSTALL_DIS_DPTSTREAM_DPTTG,
+			     pipe_config->fec_enable ? FECSTALL_DIS_DPTSTREAM_DPTTG : 0);
 
 	intel_audio_sdp_split_update(pipe_config);
 
