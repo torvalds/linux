@@ -880,10 +880,10 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 			cpu_to_le32(fwrt->trans->hw_rev_step);
 		memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
 		       sizeof(dump_info->fw_human_readable));
-		strncpy(dump_info->dev_human_readable, fwrt->trans->name,
-			sizeof(dump_info->dev_human_readable) - 1);
-		strncpy(dump_info->bus_human_readable, fwrt->dev->bus->name,
-			sizeof(dump_info->bus_human_readable) - 1);
+		strscpy_pad(dump_info->dev_human_readable, fwrt->trans->name,
+			sizeof(dump_info->dev_human_readable));
+		strscpy_pad(dump_info->bus_human_readable, fwrt->dev->bus->name,
+			sizeof(dump_info->bus_human_readable));
 		dump_info->num_of_lmacs = fwrt->smem_cfg.num_lmacs;
 		dump_info->lmac_err_id[0] =
 			cpu_to_le32(fwrt->dump.lmac_err_id[0]);
