@@ -314,7 +314,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 	alist			= call->ret_alist;
 	afs_put_call(call);
 	if (vc->call_error) {
-		afs_put_addrlist(alist);
+		afs_put_addrlist(alist, afs_alist_trace_put_getaddru);
 		return ERR_PTR(vc->call_error);
 	}
 	return alist;
@@ -668,7 +668,7 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 	alist			= call->ret_alist;
 	afs_put_call(call);
 	if (vc->call_error) {
-		afs_put_addrlist(alist);
+		afs_put_addrlist(alist, afs_alist_trace_put_getaddru);
 		return ERR_PTR(vc->call_error);
 	}
 	return alist;

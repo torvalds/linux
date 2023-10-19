@@ -202,6 +202,27 @@ enum yfs_cm_operation {
 	EM(afs_cell_trace_use_sbi,		"USE sbi   ") \
 	E_(afs_cell_trace_wait,			"WAIT      ")
 
+#define afs_alist_traces \
+	EM(afs_alist_trace_alloc,		"ALLOC     ") \
+	EM(afs_alist_trace_get_fsrotate_set,	"GET fs-rot") \
+	EM(afs_alist_trace_get_make_call,	"GET mkcall") \
+	EM(afs_alist_trace_get_probe,		"GET probe ") \
+	EM(afs_alist_trace_get_vlrotate_set,	"GET vl-rot") \
+	EM(afs_alist_trace_put_call,		"PUT call  ") \
+	EM(afs_alist_trace_put_end_cursor,	"PUT endcur") \
+	EM(afs_alist_trace_put_getaddru,	"PUT GtAdrU") \
+	EM(afs_alist_trace_put_parse_empty,	"PUT p-empt") \
+	EM(afs_alist_trace_put_parse_error,	"PUT p-err ") \
+	EM(afs_alist_trace_put_probe,		"PUT probe ") \
+	EM(afs_alist_trace_put_retry_server,	"PUT retry ") \
+	EM(afs_alist_trace_put_server,		"PUT server") \
+	EM(afs_alist_trace_put_server_dup,	"PUT sv-dup") \
+	EM(afs_alist_trace_put_server_oom,	"PUT sv-oom") \
+	EM(afs_alist_trace_put_server_update,	"PUT sv-upd") \
+	EM(afs_alist_trace_put_vlserver,	"PUT vlsrvr") \
+	EM(afs_alist_trace_put_vlserver_old,	"PUT vs-old") \
+	E_(afs_alist_trace_free,		"FREE      ")
+
 #define afs_fs_operations \
 	EM(afs_FS_FetchData,			"FS.FetchData") \
 	EM(afs_FS_FetchStatus,			"FS.FetchStatus") \
@@ -420,6 +441,7 @@ enum yfs_cm_operation {
 #define EM(a, b) a,
 #define E_(a, b) a
 
+enum afs_alist_trace		{ afs_alist_traces } __mode(byte);
 enum afs_call_trace		{ afs_call_traces } __mode(byte);
 enum afs_cb_break_reason	{ afs_cb_break_reasons } __mode(byte);
 enum afs_cell_trace		{ afs_cell_traces } __mode(byte);
@@ -443,6 +465,7 @@ enum afs_volume_trace		{ afs_volume_traces } __mode(byte);
 #define EM(a, b) TRACE_DEFINE_ENUM(a);
 #define E_(a, b) TRACE_DEFINE_ENUM(a);
 
+afs_alist_traces;
 afs_call_traces;
 afs_server_traces;
 afs_cell_traces;
@@ -1328,6 +1351,30 @@ TRACE_EVENT(afs_cell,
 		      __print_symbolic(__entry->reason, afs_cell_traces),
 		      __entry->ref,
 		      __entry->active)
+	    );
+
+TRACE_EVENT(afs_alist,
+	    TP_PROTO(unsigned int alist_debug_id, int ref, enum afs_alist_trace reason),
+
+	    TP_ARGS(alist_debug_id, ref, reason),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		alist)
+		    __field(int,			ref)
+		    __field(int,			active)
+		    __field(int,			reason)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->alist = alist_debug_id;
+		    __entry->ref = ref;
+		    __entry->reason = reason;
+			   ),
+
+	    TP_printk("AL=%08x %s r=%d",
+		      __entry->alist,
+		      __print_symbolic(__entry->reason, afs_alist_traces),
+		      __entry->ref)
 	    );
 
 #endif /* _TRACE_AFS_H */

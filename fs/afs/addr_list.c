@@ -20,15 +20,37 @@ static void afs_free_addrlist(struct rcu_head *rcu)
 
 	for (i = 0; i < alist->nr_addrs; i++)
 		rxrpc_kernel_put_peer(alist->addrs[i].peer);
+	trace_afs_alist(alist->debug_id, refcount_read(&alist->usage), afs_alist_trace_free);
+	kfree(alist);
 }
 
 /*
  * Release an address list.
  */
-void afs_put_addrlist(struct afs_addr_list *alist)
+void afs_put_addrlist(struct afs_addr_list *alist, enum afs_alist_trace reason)
 {
-	if (alist && refcount_dec_and_test(&alist->usage))
+	unsigned int debug_id;
+	bool dead;
+	int r;
+
+	if (!alist)
+		return;
+	debug_id = alist->debug_id;
+	dead = __refcount_dec_and_test(&alist->usage, &r);
+	trace_afs_alist(debug_id, r - 1, reason);
+	if (dead)
 		call_rcu(&alist->rcu, afs_free_addrlist);
+}
+
+struct afs_addr_list *afs_get_addrlist(struct afs_addr_list *alist, enum afs_alist_trace reason)
+{
+	int r;
+
+	if (alist) {
+		__refcount_inc(&alist->usage, &r);
+		trace_afs_alist(alist->debug_id, r + 1, reason);
+	}
+	return alist;
 }
 
 /*
@@ -38,6 +60,7 @@ struct afs_addr_list *afs_alloc_addrlist(unsigned int nr, u16 service_id)
 {
 	struct afs_addr_list *alist;
 	unsigned int i;
+	static atomic_t debug_id;
 
 	_enter("%u,%u", nr, service_id);
 
@@ -50,9 +73,11 @@ struct afs_addr_list *afs_alloc_addrlist(unsigned int nr, u16 service_id)
 
 	refcount_set(&alist->usage, 1);
 	alist->max_addrs = nr;
+	alist->debug_id = atomic_inc_return(&debug_id);
 
 	for (i = 0; i < nr; i++)
 		alist->addrs[i].service_id = service_id;
+	trace_afs_alist(alist->debug_id, 1, afs_alist_trace_alloc);
 	return alist;
 }
 
@@ -217,7 +242,7 @@ bad_address:
 	       problem, p - text, (int)len, (int)len, text);
 	ret = -EINVAL;
 error:
-	afs_put_addrlist(alist);
+	afs_put_addrlist(alist, afs_alist_trace_put_parse_error);
 error_vl:
 	afs_put_vlserverlist(net, vllist);
 	return ERR_PTR(ret);
@@ -403,7 +428,7 @@ void afs_end_cursor(struct afs_addr_cursor *ac)
 		    ac->index != alist->preferred &&
 		    test_bit(ac->alist->preferred, &ac->tried))
 			WRITE_ONCE(alist->preferred, ac->index);
-		afs_put_addrlist(alist);
+		afs_put_addrlist(alist, afs_alist_trace_put_end_cursor);
 		ac->alist = NULL;
 	}
 }

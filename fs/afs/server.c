@@ -275,13 +275,13 @@ struct afs_server *afs_lookup_server(struct afs_cell *cell, struct key *key,
 
 	candidate = afs_alloc_server(cell, uuid, alist);
 	if (!candidate) {
-		afs_put_addrlist(alist);
+		afs_put_addrlist(alist, afs_alist_trace_put_server_oom);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	server = afs_install_server(cell, candidate);
 	if (server != candidate) {
-		afs_put_addrlist(alist);
+		afs_put_addrlist(alist, afs_alist_trace_put_server_dup);
 		kfree(candidate);
 	} else {
 		/* Immediately dispatch an asynchronous probe to each interface
@@ -421,7 +421,8 @@ static void afs_server_rcu(struct rcu_head *rcu)
 
 	trace_afs_server(server->debug_id, refcount_read(&server->ref),
 			 atomic_read(&server->active), afs_server_trace_free);
-	afs_put_addrlist(rcu_access_pointer(server->addresses));
+	afs_put_addrlist(rcu_access_pointer(server->addresses),
+			 afs_alist_trace_put_server);
 	kfree(server);
 }
 
@@ -643,7 +644,7 @@ static noinline bool afs_update_server_record(struct afs_operation *op,
 		write_unlock(&server->fs_lock);
 	}
 
-	afs_put_addrlist(discard);
+	afs_put_addrlist(discard, afs_alist_trace_put_server_update);
 	_leave(" = t");
 	return true;
 }

@@ -484,7 +484,7 @@ selected_server:
 	read_lock(&server->fs_lock);
 	alist = rcu_dereference_protected(server->addresses,
 					  lockdep_is_held(&server->fs_lock));
-	afs_get_addrlist(alist);
+	afs_get_addrlist(alist, afs_alist_trace_get_fsrotate_set);
 	read_unlock(&server->fs_lock);
 
 retry_server:
@@ -493,7 +493,7 @@ retry_server:
 	if (!op->ac.alist)
 		op->ac.alist = alist;
 	else
-		afs_put_addrlist(alist);
+		afs_put_addrlist(alist, afs_alist_trace_put_retry_server);
 
 	op->ac.index = -1;
 

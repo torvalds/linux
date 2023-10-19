@@ -33,7 +33,8 @@ static void afs_vlserver_rcu(struct rcu_head *rcu)
 {
 	struct afs_vlserver *vlserver = container_of(rcu, struct afs_vlserver, rcu);
 
-	afs_put_addrlist(rcu_access_pointer(vlserver->addresses));
+	afs_put_addrlist(rcu_access_pointer(vlserver->addresses),
+			 afs_alist_trace_put_vlserver);
 	kfree_rcu(vlserver, rcu);
 }
 
@@ -145,7 +146,7 @@ static struct afs_addr_list *afs_extract_vl_addrs(struct afs_net *net,
 
 error:
 	*_b = b;
-	afs_put_addrlist(alist);
+	afs_put_addrlist(alist, afs_alist_trace_put_parse_error);
 	return ERR_PTR(ret);
 }
 
@@ -260,7 +261,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 
 		if (vllist->nr_servers >= nr_servers) {
 			_debug("skip %u >= %u", vllist->nr_servers, nr_servers);
-			afs_put_addrlist(addrs);
+			afs_put_addrlist(addrs, afs_alist_trace_put_parse_empty);
 			afs_put_vlserver(cell->net, server);
 			continue;
 		}
@@ -269,7 +270,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 		addrs->status = bs.status;
 
 		if (addrs->nr_addrs == 0) {
-			afs_put_addrlist(addrs);
+			afs_put_addrlist(addrs, afs_alist_trace_put_parse_empty);
 			if (!rcu_access_pointer(server->addresses)) {
 				afs_put_vlserver(cell->net, server);
 				continue;
@@ -281,7 +282,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 			old = rcu_replace_pointer(server->addresses, old,
 						  lockdep_is_held(&server->lock));
 			write_unlock(&server->lock);
-			afs_put_addrlist(old);
+			afs_put_addrlist(old, afs_alist_trace_put_vlserver_old);
 		}
 
 

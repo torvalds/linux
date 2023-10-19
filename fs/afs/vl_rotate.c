@@ -231,16 +231,11 @@ selected_server:
 	read_lock(&vlserver->lock);
 	alist = rcu_dereference_protected(vlserver->addresses,
 					  lockdep_is_held(&vlserver->lock));
-	afs_get_addrlist(alist);
+	afs_get_addrlist(alist, afs_alist_trace_get_vlrotate_set);
 	read_unlock(&vlserver->lock);
 
 	memset(&vc->ac, 0, sizeof(vc->ac));
-
-	if (!vc->ac.alist)
-		vc->ac.alist = alist;
-	else
-		afs_put_addrlist(alist);
-
+	vc->ac.alist = alist;
 	vc->ac.index = -1;
 
 iterate_address:

@@ -85,6 +85,7 @@ struct afs_addr_list {
 	struct rcu_head		rcu;
 	refcount_t		usage;
 	u32			version;	/* Version */
+	unsigned int		debug_id;
 	unsigned char		max_addrs;
 	unsigned char		nr_addrs;
 	unsigned char		preferred;	/* Preferred address */
@@ -969,14 +970,9 @@ static inline bool afs_is_folio_dirty_mmapped(unsigned long priv)
 /*
  * addr_list.c
  */
-static inline struct afs_addr_list *afs_get_addrlist(struct afs_addr_list *alist)
-{
-	if (alist)
-		refcount_inc(&alist->usage);
-	return alist;
-}
+struct afs_addr_list *afs_get_addrlist(struct afs_addr_list *alist, enum afs_alist_trace reason);
 extern struct afs_addr_list *afs_alloc_addrlist(unsigned int nr, u16 service_id);
-extern void afs_put_addrlist(struct afs_addr_list *);
+extern void afs_put_addrlist(struct afs_addr_list *alist, enum afs_alist_trace reason);
 extern struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *,
 						      const char *, size_t, char,
 						      unsigned short, unsigned short);

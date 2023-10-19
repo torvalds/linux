@@ -187,7 +187,7 @@ void afs_put_call(struct afs_call *call)
 			call->type->destructor(call);
 
 		afs_unuse_server_notime(call->net, call->server, afs_server_trace_put_call);
-		afs_put_addrlist(call->alist);
+		afs_put_addrlist(call->alist, afs_alist_trace_put_call);
 		kfree(call->request);
 
 		trace_afs_call(call->debug_id, afs_call_trace_free, 0, o,
@@ -315,7 +315,7 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	       atomic_read(&call->net->nr_outstanding_calls));
 
 	call->addr_ix = ac->index;
-	call->alist = afs_get_addrlist(ac->alist);
+	call->alist = afs_get_addrlist(ac->alist, afs_alist_trace_get_make_call);
 
 	/* Work out the length we're going to transmit.  This is awkward for
 	 * calls such as FS.StoreData where there's an extra injection of data

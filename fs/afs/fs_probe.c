@@ -205,7 +205,7 @@ void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 	read_lock(&server->fs_lock);
 	ac.alist = rcu_dereference_protected(server->addresses,
 					     lockdep_is_held(&server->fs_lock));
-	afs_get_addrlist(ac.alist);
+	afs_get_addrlist(ac.alist, afs_alist_trace_get_probe);
 	read_unlock(&server->fs_lock);
 
 	server->probed_at = jiffies;
@@ -226,7 +226,7 @@ void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 			afs_fs_probe_not_done(net, server, &ac);
 	}
 
-	afs_put_addrlist(ac.alist);
+	afs_put_addrlist(ac.alist, afs_alist_trace_put_probe);
 }
 
 /*
