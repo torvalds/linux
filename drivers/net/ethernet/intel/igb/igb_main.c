@@ -7856,7 +7856,8 @@ static int igb_set_vf_mac_filter(struct igb_adapter *adapter, const int vf,
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct vf_data_storage *vf_data = &adapter->vf_data[vf];
-	struct vf_mac_filter *entry = NULL;
+	struct vf_mac_filter *entry;
+	bool found = false;
 	int ret = 0;
 
 	if ((vf_data->flags & IGB_VF_FLAG_PF_SET_MAC) &&
@@ -7887,11 +7888,13 @@ static int igb_set_vf_mac_filter(struct igb_adapter *adapter, const int vf,
 	case E1000_VF_MAC_FILTER_ADD:
 		/* try to find empty slot in the list */
 		list_for_each_entry(entry, &adapter->vf_macs.l, l) {
-			if (entry->free)
+			if (entry->free) {
+				found = true;
 				break;
+			}
 		}
 
-		if (entry && entry->free) {
+		if (found) {
 			entry->free = false;
 			entry->vf = vf;
 			ether_addr_copy(entry->vf_mac, addr);
