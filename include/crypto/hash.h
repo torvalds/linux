@@ -798,12 +798,6 @@ static inline const char *crypto_shash_driver_name(struct crypto_shash *tfm)
 	return crypto_tfm_alg_driver_name(crypto_shash_tfm(tfm));
 }
 
-static inline unsigned int crypto_shash_alignmask(
-	struct crypto_shash *tfm)
-{
-	return crypto_tfm_alg_alignmask(crypto_shash_tfm(tfm));
-}
-
 /**
  * crypto_shash_blocksize() - obtain block size for cipher
  * @tfm: cipher handle
