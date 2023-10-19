@@ -231,6 +231,7 @@ void dml2_init_socbb_params(struct dml2_context *dml2, const struct dc *in_dc, s
 		out->num_chans = 4;
 		out->round_trip_ping_latency_dcfclk_cycles = 106;
 		out->smn_latency_us = 2;
+		out->dispclk_dppclk_vco_speed_mhz = 3600;
 		break;
 
 	case dml_project_dcn351:
