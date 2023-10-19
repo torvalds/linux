@@ -485,8 +485,7 @@ static int hctr2_create_common(struct crypto_template *tmpl,
 	inst->alg.base.cra_blocksize = BLOCKCIPHER_BLOCK_SIZE;
 	inst->alg.base.cra_ctxsize = sizeof(struct hctr2_tfm_ctx) +
 				     polyval_alg->statesize * 2;
-	inst->alg.base.cra_alignmask = xctr_alg->base.cra_alignmask |
-				       polyval_alg->base.cra_alignmask;
+	inst->alg.base.cra_alignmask = xctr_alg->base.cra_alignmask;
 	/*
 	 * The hash function is called twice, so it is weighted higher than the
 	 * xctr and blockcipher.
