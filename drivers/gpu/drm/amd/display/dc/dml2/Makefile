@@ -20,7 +20,9 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 #
-# makefile for dml2
+# Authors: AMD
+#
+# Makefile for dml2.
 
 ifdef CONFIG_X86
 dml2_ccflags-$(CONFIG_CC_IS_GCC) := -mhard-float
