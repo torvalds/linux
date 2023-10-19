@@ -170,6 +170,7 @@ static int mt8186_rt5682s_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_component *cmpnt_codec =
 		snd_soc_rtd_to_codec(rtd, 0)->component;
 	int ret;
+	int type;
 
 	ret = mt8186_dai_i2s_set_share(afe, "I2S1", "I2S0");
 	if (ret) {
@@ -193,7 +194,8 @@ static int mt8186_rt5682s_init(struct snd_soc_pcm_runtime *rtd)
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_2, KEY_VOLUMEUP);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOLUMEDOWN);
 
-	return snd_soc_component_set_jack(cmpnt_codec, jack, NULL);
+	type = SND_JACK_HEADSET | SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2 | SND_JACK_BTN_3;
+	return snd_soc_component_set_jack(cmpnt_codec, jack, (void *)&type);
 }
 
 static int mt8186_rt5682s_i2s_hw_params(struct snd_pcm_substream *substream,
@@ -1058,6 +1060,27 @@ mt8186_mt6366_rt1019_rt5682s_routes[] = {
 	{"DSP_DL2_VIRT", NULL, SOF_DMA_DL2},
 };
 
+static const struct snd_soc_dapm_route mt8186_mt6366_rt5650_routes[] = {
+	/* SPK */
+	{"Speakers", NULL, "SPOL"},
+	{"Speakers", NULL, "SPOR"},
+	/* Headset */
+	{ "Headphone", NULL, "HPOL" },
+	{ "Headphone", NULL, "HPOR" },
+	{ "IN1P", NULL, "Headset Mic" },
+	{ "IN1N", NULL, "Headset Mic"},
+	/* HDMI */
+	{ "HDMI1", NULL, "TX" },
+	/* SOF Uplink */
+	{SOF_DMA_UL1, NULL, "UL1_CH1"},
+	{SOF_DMA_UL1, NULL, "UL1_CH2"},
+	{SOF_DMA_UL2, NULL, "UL2_CH1"},
+	{SOF_DMA_UL2, NULL, "UL2_CH2"},
+	/* SOF Downlink */
+	{"DSP_DL1_VIRT", NULL, SOF_DMA_DL1},
+	{"DSP_DL2_VIRT", NULL, SOF_DMA_DL2},
+};
+
 static const struct snd_kcontrol_new
 mt8186_mt6366_rt1019_rt5682s_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Speakers"),
@@ -1092,6 +1115,21 @@ static struct snd_soc_card mt8186_mt6366_rt5682s_max98360_soc_card = {
 	.num_dapm_widgets = ARRAY_SIZE(mt8186_mt6366_rt1019_rt5682s_widgets),
 	.dapm_routes = mt8186_mt6366_rt1019_rt5682s_routes,
 	.num_dapm_routes = ARRAY_SIZE(mt8186_mt6366_rt1019_rt5682s_routes),
+	.codec_conf = mt8186_mt6366_rt1019_rt5682s_codec_conf,
+	.num_configs = ARRAY_SIZE(mt8186_mt6366_rt1019_rt5682s_codec_conf),
+};
+
+static struct snd_soc_card mt8186_mt6366_rt5650_soc_card = {
+	.name = "mt8186_rt5650",
+	.owner = THIS_MODULE,
+	.dai_link = mt8186_mt6366_rt1019_rt5682s_dai_links,
+	.num_links = ARRAY_SIZE(mt8186_mt6366_rt1019_rt5682s_dai_links),
+	.controls = mt8186_mt6366_rt1019_rt5682s_controls,
+	.num_controls = ARRAY_SIZE(mt8186_mt6366_rt1019_rt5682s_controls),
+	.dapm_widgets = mt8186_mt6366_rt1019_rt5682s_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(mt8186_mt6366_rt1019_rt5682s_widgets),
+	.dapm_routes = mt8186_mt6366_rt5650_routes,
+	.num_dapm_routes = ARRAY_SIZE(mt8186_mt6366_rt5650_routes),
 	.codec_conf = mt8186_mt6366_rt1019_rt5682s_codec_conf,
 	.num_configs = ARRAY_SIZE(mt8186_mt6366_rt1019_rt5682s_codec_conf),
 };
@@ -1252,6 +1290,10 @@ static const struct of_device_id mt8186_mt6366_rt1019_rt5682s_dt_match[] = {
 	{
 		.compatible = "mediatek,mt8186-mt6366-rt5682s-max98360-sound",
 		.data = &mt8186_mt6366_rt5682s_max98360_soc_card,
+	},
+	{
+		.compatible = "mediatek,mt8186-mt6366-rt5650-sound",
+		.data = &mt8186_mt6366_rt5650_soc_card,
 	},
 	{}
 };
