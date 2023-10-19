@@ -4,6 +4,8 @@
  * Copyright (C) 2019 Haren Myneni, IBM Corp
  */
 
+#define pr_fmt(fmt)	"vas-api: " fmt
+
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
@@ -78,7 +80,7 @@ int get_vas_user_win_ref(struct vas_user_win_ref *task_ref)
 	task_ref->mm = get_task_mm(current);
 	if (!task_ref->mm) {
 		put_pid(task_ref->pid);
-		pr_err("VAS: pid(%d): mm_struct is not found\n",
+		pr_err("pid(%d): mm_struct is not found\n",
 				current->pid);
 		return -EPERM;
 	}
@@ -235,8 +237,7 @@ void vas_update_csb(struct coprocessor_request_block *crb,
 	rc = kill_pid_info(SIGSEGV, &info, pid);
 	rcu_read_unlock();
 
-	pr_devel("%s(): pid %d kill_proc_info() rc %d\n", __func__,
-			pid_vnr(pid), rc);
+	pr_devel("pid %d kill_proc_info() rc %d\n", pid_vnr(pid), rc);
 }
 
 void vas_dump_crb(struct coprocessor_request_block *crb)
@@ -294,7 +295,7 @@ static int coproc_ioc_tx_win_open(struct file *fp, unsigned long arg)
 
 	rc = copy_from_user(&uattr, uptr, sizeof(uattr));
 	if (rc) {
-		pr_err("%s(): copy_from_user() returns %d\n", __func__, rc);
+		pr_err("copy_from_user() returns %d\n", rc);
 		return -EFAULT;
 	}
 
@@ -311,7 +312,7 @@ static int coproc_ioc_tx_win_open(struct file *fp, unsigned long arg)
 	txwin = cp_inst->coproc->vops->open_win(uattr.vas_id, uattr.flags,
 						cp_inst->coproc->cop_type);
 	if (IS_ERR(txwin)) {
-		pr_err("%s() VAS window open failed, %ld\n", __func__,
+		pr_err_ratelimited("VAS window open failed rc=%ld\n",
 				PTR_ERR(txwin));
 		return PTR_ERR(txwin);
 	}
@@ -405,8 +406,7 @@ static vm_fault_t vas_mmap_fault(struct vm_fault *vmf)
 	 * window is not opened. Shouldn't expect this error.
 	 */
 	if (!cp_inst || !cp_inst->txwin) {
-		pr_err("%s(): Unexpected fault on paste address with TX window closed\n",
-				__func__);
+		pr_err("Unexpected fault on paste address with TX window closed\n");
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -421,8 +421,7 @@ static vm_fault_t vas_mmap_fault(struct vm_fault *vmf)
 	 * issue NX request.
 	 */
 	if (txwin->task_ref.vma != vmf->vma) {
-		pr_err("%s(): No previous mapping with paste address\n",
-			__func__);
+		pr_err("No previous mapping with paste address\n");
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -481,19 +480,19 @@ static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 	txwin = cp_inst->txwin;
 
 	if ((vma->vm_end - vma->vm_start) > PAGE_SIZE) {
-		pr_debug("%s(): size 0x%zx, PAGE_SIZE 0x%zx\n", __func__,
+		pr_debug("size 0x%zx, PAGE_SIZE 0x%zx\n",
 				(vma->vm_end - vma->vm_start), PAGE_SIZE);
 		return -EINVAL;
 	}
 
 	/* Ensure instance has an open send window */
 	if (!txwin) {
-		pr_err("%s(): No send window open?\n", __func__);
+		pr_err("No send window open?\n");
 		return -EINVAL;
 	}
 
 	if (!cp_inst->coproc->vops || !cp_inst->coproc->vops->paste_addr) {
-		pr_err("%s(): VAS API is not registered\n", __func__);
+		pr_err("VAS API is not registered\n");
 		return -EACCES;
 	}
 
@@ -510,14 +509,14 @@ static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 	 */
 	mutex_lock(&txwin->task_ref.mmap_mutex);
 	if (txwin->status != VAS_WIN_ACTIVE) {
-		pr_err("%s(): Window is not active\n", __func__);
+		pr_err("Window is not active\n");
 		rc = -EACCES;
 		goto out;
 	}
 
 	paste_addr = cp_inst->coproc->vops->paste_addr(txwin);
 	if (!paste_addr) {
-		pr_err("%s(): Window paste address failed\n", __func__);
+		pr_err("Window paste address failed\n");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -533,8 +532,8 @@ static int coproc_mmap(struct file *fp, struct vm_area_struct *vma)
 	rc = remap_pfn_range(vma, vma->vm_start, pfn + vma->vm_pgoff,
 			vma->vm_end - vma->vm_start, prot);
 
-	pr_devel("%s(): paste addr %llx at %lx, rc %d\n", __func__,
-			paste_addr, vma->vm_start, rc);
+	pr_devel("paste addr %llx at %lx, rc %d\n", paste_addr,
+			vma->vm_start, rc);
 
 	txwin->task_ref.vma = vma;
 	vma->vm_ops = &vas_vm_ops;
@@ -609,8 +608,7 @@ int vas_register_coproc_api(struct module *mod, enum vas_cop_type cop_type,
 		goto err;
 	}
 
-	pr_devel("%s: Added dev [%d,%d]\n", __func__, MAJOR(devno),
-			MINOR(devno));
+	pr_devel("Added dev [%d,%d]\n", MAJOR(devno), MINOR(devno));
 
 	return 0;
 
