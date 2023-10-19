@@ -7,6 +7,7 @@
 #define _VCHIQ_DEVICE_H
 
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 
 struct vchiq_device {
 	struct device dev;
@@ -18,6 +19,8 @@ struct vchiq_driver {
 	int		(*resume)(struct vchiq_device *device);
 	int		(*suspend)(struct vchiq_device *device,
 				   pm_message_t state);
+
+	const struct vchiq_device_id *id_table;
 	struct device_driver driver;
 };
 

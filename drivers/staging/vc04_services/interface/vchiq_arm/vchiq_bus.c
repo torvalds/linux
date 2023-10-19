@@ -26,7 +26,7 @@ static int vchiq_bus_uevent(const struct device *dev, struct kobj_uevent_env *en
 {
 	const struct vchiq_device *device = container_of_const(dev, struct vchiq_device, dev);
 
-	return add_uevent_var(env, "MODALIAS=%s", dev_name(&device->dev));
+	return add_uevent_var(env, "MODALIAS=vchiq:%s", dev_name(&device->dev));
 }
 
 static int vchiq_bus_probe(struct device *dev)
