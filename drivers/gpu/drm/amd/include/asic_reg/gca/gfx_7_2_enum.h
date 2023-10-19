@@ -1,0 +1,6280 @@
+/*
+ * GFX_7_2 Register documentation
+ *
+ * Copyright (C) 2014  Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#ifndef GFX_7_2_ENUM_H
+#define GFX_7_2_ENUM_H
+
+typedef enum SurfaceNumber {
+	NUMBER_UNORM                                     = 0x0,
+	NUMBER_SNORM                                     = 0x1,
+	NUMBER_USCALED                                   = 0x2,
+	NUMBER_SSCALED                                   = 0x3,
+	NUMBER_UINT                                      = 0x4,
+	NUMBER_SINT                                      = 0x5,
+	NUMBER_SRGB                                      = 0x6,
+	NUMBER_FLOAT                                     = 0x7,
+} SurfaceNumber;
+typedef enum SurfaceSwap {
+	SWAP_STD                                         = 0x0,
+	SWAP_ALT                                         = 0x1,
+	SWAP_STD_REV                                     = 0x2,
+	SWAP_ALT_REV                                     = 0x3,
+} SurfaceSwap;
+typedef enum CBMode {
+	CB_DISABLE                                       = 0x0,
+	CB_NORMAL                                        = 0x1,
+	CB_ELIMINATE_FAST_CLEAR                          = 0x2,
+	CB_RESOLVE                                       = 0x3,
+	CB_DECOMPRESS                                    = 0x4,
+	CB_FMASK_DECOMPRESS                              = 0x5,
+} CBMode;
+typedef enum RoundMode {
+	ROUND_BY_HALF                                    = 0x0,
+	ROUND_TRUNCATE                                   = 0x1,
+} RoundMode;
+typedef enum SourceFormat {
+	EXPORT_4C_32BPC                                  = 0x0,
+	EXPORT_4C_16BPC                                  = 0x1,
+	EXPORT_2C_32BPC_GR                               = 0x2,
+	EXPORT_2C_32BPC_AR                               = 0x3,
+} SourceFormat;
+typedef enum BlendOp {
+	BLEND_ZERO                                       = 0x0,
+	BLEND_ONE                                        = 0x1,
+	BLEND_SRC_COLOR                                  = 0x2,
+	BLEND_ONE_MINUS_SRC_COLOR                        = 0x3,
+	BLEND_SRC_ALPHA                                  = 0x4,
+	BLEND_ONE_MINUS_SRC_ALPHA                        = 0x5,
+	BLEND_DST_ALPHA                                  = 0x6,
+	BLEND_ONE_MINUS_DST_ALPHA                        = 0x7,
+	BLEND_DST_COLOR                                  = 0x8,
+	BLEND_ONE_MINUS_DST_COLOR                        = 0x9,
+	BLEND_SRC_ALPHA_SATURATE                         = 0xa,
+	BLEND_BOTH_SRC_ALPHA                             = 0xb,
+	BLEND_BOTH_INV_SRC_ALPHA                         = 0xc,
+	BLEND_CONSTANT_COLOR                             = 0xd,
+	BLEND_ONE_MINUS_CONSTANT_COLOR                   = 0xe,
+	BLEND_SRC1_COLOR                                 = 0xf,
+	BLEND_INV_SRC1_COLOR                             = 0x10,
+	BLEND_SRC1_ALPHA                                 = 0x11,
+	BLEND_INV_SRC1_ALPHA                             = 0x12,
+	BLEND_CONSTANT_ALPHA                             = 0x13,
+	BLEND_ONE_MINUS_CONSTANT_ALPHA                   = 0x14,
+} BlendOp;
+typedef enum CombFunc {
+	COMB_DST_PLUS_SRC                                = 0x0,
+	COMB_SRC_MINUS_DST                               = 0x1,
+	COMB_MIN_DST_SRC                                 = 0x2,
+	COMB_MAX_DST_SRC                                 = 0x3,
+	COMB_DST_MINUS_SRC                               = 0x4,
+} CombFunc;
+typedef enum BlendOpt {
+	FORCE_OPT_AUTO                                   = 0x0,
+	FORCE_OPT_DISABLE                                = 0x1,
+	FORCE_OPT_ENABLE_IF_SRC_A_0                      = 0x2,
+	FORCE_OPT_ENABLE_IF_SRC_RGB_0                    = 0x3,
+	FORCE_OPT_ENABLE_IF_SRC_ARGB_0                   = 0x4,
+	FORCE_OPT_ENABLE_IF_SRC_A_1                      = 0x5,
+	FORCE_OPT_ENABLE_IF_SRC_RGB_1                    = 0x6,
+	FORCE_OPT_ENABLE_IF_SRC_ARGB_1                   = 0x7,
+} BlendOpt;
+typedef enum CmaskCode {
+	CMASK_CLR00_F0                                   = 0x0,
+	CMASK_CLR00_F1                                   = 0x1,
+	CMASK_CLR00_F2                                   = 0x2,
+	CMASK_CLR00_FX                                   = 0x3,
+	CMASK_CLR01_F0                                   = 0x4,
+	CMASK_CLR01_F1                                   = 0x5,
+	CMASK_CLR01_F2                                   = 0x6,
+	CMASK_CLR01_FX                                   = 0x7,
+	CMASK_CLR10_F0                                   = 0x8,
+	CMASK_CLR10_F1                                   = 0x9,
+	CMASK_CLR10_F2                                   = 0xa,
+	CMASK_CLR10_FX                                   = 0xb,
+	CMASK_CLR11_F0                                   = 0xc,
+	CMASK_CLR11_F1                                   = 0xd,
+	CMASK_CLR11_F2                                   = 0xe,
+	CMASK_CLR11_FX                                   = 0xf,
+} CmaskCode;
+typedef enum CBPerfSel {
+	CB_PERF_SEL_NONE                                 = 0x0,
+	CB_PERF_SEL_BUSY                                 = 0x1,
+	CB_PERF_SEL_CORE_SCLK_VLD                        = 0x2,
+	CB_PERF_SEL_REG_SCLK0_VLD                        = 0x3,
+	CB_PERF_SEL_REG_SCLK1_VLD                        = 0x4,
+	CB_PERF_SEL_DRAWN_QUAD                           = 0x5,
+	CB_PERF_SEL_DRAWN_PIXEL                          = 0x6,
+	CB_PERF_SEL_DRAWN_QUAD_FRAGMENT                  = 0x7,
+	CB_PERF_SEL_DRAWN_TILE                           = 0x8,
+	CB_PERF_SEL_DB_CB_TILE_VALID_READY               = 0x9,
+	CB_PERF_SEL_DB_CB_TILE_VALID_READYB              = 0xa,
+	CB_PERF_SEL_DB_CB_TILE_VALIDB_READY              = 0xb,
+	CB_PERF_SEL_DB_CB_TILE_VALIDB_READYB             = 0xc,
+	CB_PERF_SEL_CM_FC_TILE_VALID_READY               = 0xd,
+	CB_PERF_SEL_CM_FC_TILE_VALID_READYB              = 0xe,
+	CB_PERF_SEL_CM_FC_TILE_VALIDB_READY              = 0xf,
+	CB_PERF_SEL_CM_FC_TILE_VALIDB_READYB             = 0x10,
+	CB_PERF_SEL_MERGE_TILE_ONLY_VALID_READY          = 0x11,
+	CB_PERF_SEL_MERGE_TILE_ONLY_VALID_READYB         = 0x12,
+	CB_PERF_SEL_DB_CB_LQUAD_VALID_READY              = 0x13,
+	CB_PERF_SEL_DB_CB_LQUAD_VALID_READYB             = 0x14,
+	CB_PERF_SEL_DB_CB_LQUAD_VALIDB_READY             = 0x15,
+	CB_PERF_SEL_DB_CB_LQUAD_VALIDB_READYB            = 0x16,
+	CB_PERF_SEL_LQUAD_NO_TILE                        = 0x17,
+	CB_PERF_SEL_LQUAD_FORMAT_IS_EXPORT_32_R          = 0x18,
+	CB_PERF_SEL_LQUAD_FORMAT_IS_EXPORT_32_AR         = 0x19,
+	CB_PERF_SEL_LQUAD_FORMAT_IS_EXPORT_32_GR         = 0x1a,
+	CB_PERF_SEL_LQUAD_FORMAT_IS_EXPORT_32_ABGR       = 0x1b,
+	CB_PERF_SEL_LQUAD_FORMAT_IS_EXPORT_FP16_ABGR     = 0x1c,
+	CB_PERF_SEL_LQUAD_FORMAT_IS_EXPORT_SIGNED16_ABGR = 0x1d,
+	CB_PERF_SEL_LQUAD_FORMAT_IS_EXPORT_UNSIGNED16_ABGR= 0x1e,
+	CB_PERF_SEL_QUAD_KILLED_BY_EXTRA_PIXEL_EXPORT    = 0x1f,
+	CB_PERF_SEL_QUAD_KILLED_BY_COLOR_INVALID         = 0x20,
+	CB_PERF_SEL_QUAD_KILLED_BY_NULL_TARGET_SHADER_MASK= 0x21,
+	CB_PERF_SEL_QUAD_KILLED_BY_NULL_SAMPLE_MASK      = 0x22,
+	CB_PERF_SEL_QUAD_KILLED_BY_DISCARD_PIXEL         = 0x23,
+	CB_PERF_SEL_FC_CLEAR_QUAD_VALID_READY            = 0x24,
+	CB_PERF_SEL_FC_CLEAR_QUAD_VALID_READYB           = 0x25,
+	CB_PERF_SEL_FC_CLEAR_QUAD_VALIDB_READY           = 0x26,
+	CB_PERF_SEL_FC_CLEAR_QUAD_VALIDB_READYB          = 0x27,
+	CB_PERF_SEL_FOP_IN_VALID_READY                   = 0x28,
+	CB_PERF_SEL_FOP_IN_VALID_READYB                  = 0x29,
+	CB_PERF_SEL_FOP_IN_VALIDB_READY                  = 0x2a,
+	CB_PERF_SEL_FOP_IN_VALIDB_READYB                 = 0x2b,
+	CB_PERF_SEL_FC_CC_QUADFRAG_VALID_READY           = 0x2c,
+	CB_PERF_SEL_FC_CC_QUADFRAG_VALID_READYB          = 0x2d,
+	CB_PERF_SEL_FC_CC_QUADFRAG_VALIDB_READY          = 0x2e,
+	CB_PERF_SEL_FC_CC_QUADFRAG_VALIDB_READYB         = 0x2f,
+	CB_PERF_SEL_CC_IB_SR_FRAG_VALID_READY            = 0x30,
+	CB_PERF_SEL_CC_IB_SR_FRAG_VALID_READYB           = 0x31,
+	CB_PERF_SEL_CC_IB_SR_FRAG_VALIDB_READY           = 0x32,
+	CB_PERF_SEL_CC_IB_SR_FRAG_VALIDB_READYB          = 0x33,
+	CB_PERF_SEL_CC_IB_TB_FRAG_VALID_READY            = 0x34,
+	CB_PERF_SEL_CC_IB_TB_FRAG_VALID_READYB           = 0x35,
+	CB_PERF_SEL_CC_IB_TB_FRAG_VALIDB_READY           = 0x36,
+	CB_PERF_SEL_CC_IB_TB_FRAG_VALIDB_READYB          = 0x37,
+	CB_PERF_SEL_CC_RB_BC_EVENFRAG_VALID_READY        = 0x38,
+	CB_PERF_SEL_CC_RB_BC_EVENFRAG_VALID_READYB       = 0x39,
+	CB_PERF_SEL_CC_RB_BC_EVENFRAG_VALIDB_READY       = 0x3a,
+	CB_PERF_SEL_CC_RB_BC_EVENFRAG_VALIDB_READYB      = 0x3b,
+	CB_PERF_SEL_CC_RB_BC_ODDFRAG_VALID_READY         = 0x3c,
+	CB_PERF_SEL_CC_RB_BC_ODDFRAG_VALID_READYB        = 0x3d,
+	CB_PERF_SEL_CC_RB_BC_ODDFRAG_VALIDB_READY        = 0x3e,
+	CB_PERF_SEL_CC_RB_BC_ODDFRAG_VALIDB_READYB       = 0x3f,
+	CB_PERF_SEL_CC_BC_CS_FRAG_VALID                  = 0x40,
+	CB_PERF_SEL_CM_CACHE_HIT                         = 0x41,
+	CB_PERF_SEL_CM_CACHE_TAG_MISS                    = 0x42,
+	CB_PERF_SEL_CM_CACHE_SECTOR_MISS                 = 0x43,
+	CB_PERF_SEL_CM_CACHE_REEVICTION_STALL            = 0x44,
+	CB_PERF_SEL_CM_CACHE_EVICT_NONZERO_INFLIGHT_STALL= 0x45,
+	CB_PERF_SEL_CM_CACHE_REPLACE_PENDING_EVICT_STALL = 0x46,
+	CB_PERF_SEL_CM_CACHE_INFLIGHT_COUNTER_MAXIMUM_STALL= 0x47,
+	CB_PERF_SEL_CM_CACHE_READ_OUTPUT_STALL           = 0x48,
+	CB_PERF_SEL_CM_CACHE_WRITE_OUTPUT_STALL          = 0x49,
+	CB_PERF_SEL_CM_CACHE_ACK_OUTPUT_STALL            = 0x4a,
+	CB_PERF_SEL_CM_CACHE_STALL                       = 0x4b,
+	CB_PERF_SEL_CM_CACHE_FLUSH                       = 0x4c,
+	CB_PERF_SEL_CM_CACHE_TAGS_FLUSHED                = 0x4d,
+	CB_PERF_SEL_CM_CACHE_SECTORS_FLUSHED             = 0x4e,
+	CB_PERF_SEL_CM_CACHE_DIRTY_SECTORS_FLUSHED       = 0x4f,
+	CB_PERF_SEL_FC_CACHE_HIT                         = 0x50,
+	CB_PERF_SEL_FC_CACHE_TAG_MISS                    = 0x51,
+	CB_PERF_SEL_FC_CACHE_SECTOR_MISS                 = 0x52,
+	CB_PERF_SEL_FC_CACHE_REEVICTION_STALL            = 0x53,
+	CB_PERF_SEL_FC_CACHE_EVICT_NONZERO_INFLIGHT_STALL= 0x54,
+	CB_PERF_SEL_FC_CACHE_REPLACE_PENDING_EVICT_STALL = 0x55,
+	CB_PERF_SEL_FC_CACHE_INFLIGHT_COUNTER_MAXIMUM_STALL= 0x56,
+	CB_PERF_SEL_FC_CACHE_READ_OUTPUT_STALL           = 0x57,
+	CB_PERF_SEL_FC_CACHE_WRITE_OUTPUT_STALL          = 0x58,
+	CB_PERF_SEL_FC_CACHE_ACK_OUTPUT_STALL            = 0x59,
+	CB_PERF_SEL_FC_CACHE_STALL                       = 0x5a,
+	CB_PERF_SEL_FC_CACHE_FLUSH                       = 0x5b,
+	CB_PERF_SEL_FC_CACHE_TAGS_FLUSHED                = 0x5c,
+	CB_PERF_SEL_FC_CACHE_SECTORS_FLUSHED             = 0x5d,
+	CB_PERF_SEL_FC_CACHE_DIRTY_SECTORS_FLUSHED       = 0x5e,
+	CB_PERF_SEL_CC_CACHE_HIT                         = 0x5f,
+	CB_PERF_SEL_CC_CACHE_TAG_MISS                    = 0x60,
+	CB_PERF_SEL_CC_CACHE_SECTOR_MISS                 = 0x61,
+	CB_PERF_SEL_CC_CACHE_REEVICTION_STALL            = 0x62,
+	CB_PERF_SEL_CC_CACHE_EVICT_NONZERO_INFLIGHT_STALL= 0x63,
+	CB_PERF_SEL_CC_CACHE_REPLACE_PENDING_EVICT_STALL = 0x64,
+	CB_PERF_SEL_CC_CACHE_INFLIGHT_COUNTER_MAXIMUM_STALL= 0x65,
+	CB_PERF_SEL_CC_CACHE_READ_OUTPUT_STALL           = 0x66,
+	CB_PERF_SEL_CC_CACHE_WRITE_OUTPUT_STALL          = 0x67,
+	CB_PERF_SEL_CC_CACHE_ACK_OUTPUT_STALL            = 0x68,
+	CB_PERF_SEL_CC_CACHE_STALL                       = 0x69,
+	CB_PERF_SEL_CC_CACHE_FLUSH                       = 0x6a,
+	CB_PERF_SEL_CC_CACHE_TAGS_FLUSHED                = 0x6b,
+	CB_PERF_SEL_CC_CACHE_SECTORS_FLUSHED             = 0x6c,
+	CB_PERF_SEL_CC_CACHE_DIRTY_SECTORS_FLUSHED       = 0x6d,
+	CB_PERF_SEL_CC_CACHE_WA_TO_RMW_CONVERSION        = 0x6e,
+	CB_PERF_SEL_CB_TAP_WRREQ_VALID_READY             = 0x6f,
+	CB_PERF_SEL_CB_TAP_WRREQ_VALID_READYB            = 0x70,
+	CB_PERF_SEL_CB_TAP_WRREQ_VALIDB_READY            = 0x71,
+	CB_PERF_SEL_CB_TAP_WRREQ_VALIDB_READYB           = 0x72,
+	CB_PERF_SEL_CM_MC_WRITE_REQUEST                  = 0x73,
+	CB_PERF_SEL_FC_MC_WRITE_REQUEST                  = 0x74,
+	CB_PERF_SEL_CC_MC_WRITE_REQUEST                  = 0x75,
+	CB_PERF_SEL_CM_MC_WRITE_REQUESTS_IN_FLIGHT       = 0x76,
+	CB_PERF_SEL_FC_MC_WRITE_REQUESTS_IN_FLIGHT       = 0x77,
+	CB_PERF_SEL_CC_MC_WRITE_REQUESTS_IN_FLIGHT       = 0x78,
+	CB_PERF_SEL_CB_TAP_RDREQ_VALID_READY             = 0x79,
+	CB_PERF_SEL_CB_TAP_RDREQ_VALID_READYB            = 0x7a,
+	CB_PERF_SEL_CB_TAP_RDREQ_VALIDB_READY            = 0x7b,
+	CB_PERF_SEL_CB_TAP_RDREQ_VALIDB_READYB           = 0x7c,
+	CB_PERF_SEL_CM_MC_READ_REQUEST                   = 0x7d,
+	CB_PERF_SEL_FC_MC_READ_REQUEST                   = 0x7e,
+	CB_PERF_SEL_CC_MC_READ_REQUEST                   = 0x7f,
+	CB_PERF_SEL_CM_MC_READ_REQUESTS_IN_FLIGHT        = 0x80,
+	CB_PERF_SEL_FC_MC_READ_REQUESTS_IN_FLIGHT        = 0x81,
+	CB_PERF_SEL_CC_MC_READ_REQUESTS_IN_FLIGHT        = 0x82,
+	CB_PERF_SEL_CM_TQ_FULL                           = 0x83,
+	CB_PERF_SEL_CM_TQ_FIFO_TILE_RESIDENCY_STALL      = 0x84,
+	CB_PERF_SEL_FC_QUAD_RDLAT_FIFO_FULL              = 0x85,
+	CB_PERF_SEL_FC_TILE_RDLAT_FIFO_FULL              = 0x86,
+	CB_PERF_SEL_FC_RDLAT_FIFO_QUAD_RESIDENCY_STALL   = 0x87,
+	CB_PERF_SEL_FOP_FMASK_RAW_STALL                  = 0x88,
+	CB_PERF_SEL_FOP_FMASK_BYPASS_STALL               = 0x89,
+	CB_PERF_SEL_CC_SF_FULL                           = 0x8a,
+	CB_PERF_SEL_CC_RB_FULL                           = 0x8b,
+	CB_PERF_SEL_CC_EVENFIFO_QUAD_RESIDENCY_STALL     = 0x8c,
+	CB_PERF_SEL_CC_ODDFIFO_QUAD_RESIDENCY_STALL      = 0x8d,
+	CB_PERF_SEL_BLENDER_RAW_HAZARD_STALL             = 0x8e,
+	CB_PERF_SEL_EVENT                                = 0x8f,
+	CB_PERF_SEL_EVENT_CACHE_FLUSH_TS                 = 0x90,
+	CB_PERF_SEL_EVENT_CONTEXT_DONE                   = 0x91,
+	CB_PERF_SEL_EVENT_CACHE_FLUSH                    = 0x92,
+	CB_PERF_SEL_EVENT_CACHE_FLUSH_AND_INV_TS_EVENT   = 0x93,
+	CB_PERF_SEL_EVENT_CACHE_FLUSH_AND_INV_EVENT      = 0x94,
+	CB_PERF_SEL_EVENT_FLUSH_AND_INV_CB_DATA_TS       = 0x95,
+	CB_PERF_SEL_EVENT_FLUSH_AND_INV_CB_META          = 0x96,
+	CB_PERF_SEL_CC_SURFACE_SYNC                      = 0x97,
+	CB_PERF_SEL_CMASK_READ_DATA_0xC                  = 0x98,
+	CB_PERF_SEL_CMASK_READ_DATA_0xD                  = 0x99,
+	CB_PERF_SEL_CMASK_READ_DATA_0xE                  = 0x9a,
+	CB_PERF_SEL_CMASK_READ_DATA_0xF                  = 0x9b,
+	CB_PERF_SEL_CMASK_WRITE_DATA_0xC                 = 0x9c,
+	CB_PERF_SEL_CMASK_WRITE_DATA_0xD                 = 0x9d,
+	CB_PERF_SEL_CMASK_WRITE_DATA_0xE                 = 0x9e,
+	CB_PERF_SEL_CMASK_WRITE_DATA_0xF                 = 0x9f,
+	CB_PERF_SEL_TWO_PROBE_QUAD_FRAGMENT              = 0xa0,
+	CB_PERF_SEL_EXPORT_32_ABGR_QUAD_FRAGMENT         = 0xa1,
+	CB_PERF_SEL_DUAL_SOURCE_COLOR_QUAD_FRAGMENT      = 0xa2,
+	CB_PERF_SEL_QUAD_HAS_1_FRAGMENT_BEFORE_UPDATE    = 0xa3,
+	CB_PERF_SEL_QUAD_HAS_2_FRAGMENTS_BEFORE_UPDATE   = 0xa4,
+	CB_PERF_SEL_QUAD_HAS_3_FRAGMENTS_BEFORE_UPDATE   = 0xa5,
+	CB_PERF_SEL_QUAD_HAS_4_FRAGMENTS_BEFORE_UPDATE   = 0xa6,
+	CB_PERF_SEL_QUAD_HAS_5_FRAGMENTS_BEFORE_UPDATE   = 0xa7,
+	CB_PERF_SEL_QUAD_HAS_6_FRAGMENTS_BEFORE_UPDATE   = 0xa8,
+	CB_PERF_SEL_QUAD_HAS_7_FRAGMENTS_BEFORE_UPDATE   = 0xa9,
+	CB_PERF_SEL_QUAD_HAS_8_FRAGMENTS_BEFORE_UPDATE   = 0xaa,
+	CB_PERF_SEL_QUAD_HAS_1_FRAGMENT_AFTER_UPDATE     = 0xab,
+	CB_PERF_SEL_QUAD_HAS_2_FRAGMENTS_AFTER_UPDATE    = 0xac,
+	CB_PERF_SEL_QUAD_HAS_3_FRAGMENTS_AFTER_UPDATE    = 0xad,
+	CB_PERF_SEL_QUAD_HAS_4_FRAGMENTS_AFTER_UPDATE    = 0xae,
+	CB_PERF_SEL_QUAD_HAS_5_FRAGMENTS_AFTER_UPDATE    = 0xaf,
+	CB_PERF_SEL_QUAD_HAS_6_FRAGMENTS_AFTER_UPDATE    = 0xb0,
+	CB_PERF_SEL_QUAD_HAS_7_FRAGMENTS_AFTER_UPDATE    = 0xb1,
+	CB_PERF_SEL_QUAD_HAS_8_FRAGMENTS_AFTER_UPDATE    = 0xb2,
+	CB_PERF_SEL_QUAD_ADDED_1_FRAGMENT                = 0xb3,
+	CB_PERF_SEL_QUAD_ADDED_2_FRAGMENTS               = 0xb4,
+	CB_PERF_SEL_QUAD_ADDED_3_FRAGMENTS               = 0xb5,
+	CB_PERF_SEL_QUAD_ADDED_4_FRAGMENTS               = 0xb6,
+	CB_PERF_SEL_QUAD_ADDED_5_FRAGMENTS               = 0xb7,
+	CB_PERF_SEL_QUAD_ADDED_6_FRAGMENTS               = 0xb8,
+	CB_PERF_SEL_QUAD_ADDED_7_FRAGMENTS               = 0xb9,
+	CB_PERF_SEL_QUAD_REMOVED_1_FRAGMENT              = 0xba,
+	CB_PERF_SEL_QUAD_REMOVED_2_FRAGMENTS             = 0xbb,
+	CB_PERF_SEL_QUAD_REMOVED_3_FRAGMENTS             = 0xbc,
+	CB_PERF_SEL_QUAD_REMOVED_4_FRAGMENTS             = 0xbd,
+	CB_PERF_SEL_QUAD_REMOVED_5_FRAGMENTS             = 0xbe,
+	CB_PERF_SEL_QUAD_REMOVED_6_FRAGMENTS             = 0xbf,
+	CB_PERF_SEL_QUAD_REMOVED_7_FRAGMENTS             = 0xc0,
+	CB_PERF_SEL_QUAD_READS_FRAGMENT_0                = 0xc1,
+	CB_PERF_SEL_QUAD_READS_FRAGMENT_1                = 0xc2,
+	CB_PERF_SEL_QUAD_READS_FRAGMENT_2                = 0xc3,
+	CB_PERF_SEL_QUAD_READS_FRAGMENT_3                = 0xc4,
+	CB_PERF_SEL_QUAD_READS_FRAGMENT_4                = 0xc5,
+	CB_PERF_SEL_QUAD_READS_FRAGMENT_5                = 0xc6,
+	CB_PERF_SEL_QUAD_READS_FRAGMENT_6                = 0xc7,
+	CB_PERF_SEL_QUAD_READS_FRAGMENT_7                = 0xc8,
+	CB_PERF_SEL_QUAD_WRITES_FRAGMENT_0               = 0xc9,
+	CB_PERF_SEL_QUAD_WRITES_FRAGMENT_1               = 0xca,
+	CB_PERF_SEL_QUAD_WRITES_FRAGMENT_2               = 0xcb,
+	CB_PERF_SEL_QUAD_WRITES_FRAGMENT_3               = 0xcc,
+	CB_PERF_SEL_QUAD_WRITES_FRAGMENT_4               = 0xcd,
+	CB_PERF_SEL_QUAD_WRITES_FRAGMENT_5               = 0xce,
+	CB_PERF_SEL_QUAD_WRITES_FRAGMENT_6               = 0xcf,
+	CB_PERF_SEL_QUAD_WRITES_FRAGMENT_7               = 0xd0,
+	CB_PERF_SEL_QUAD_BLEND_OPT_DONT_READ_DST         = 0xd1,
+	CB_PERF_SEL_QUAD_BLEND_OPT_BLEND_BYPASS          = 0xd2,
+	CB_PERF_SEL_QUAD_BLEND_OPT_DISCARD_PIXELS        = 0xd3,
+	CB_PERF_SEL_QUAD_DST_READ_COULD_HAVE_BEEN_OPTIMIZED= 0xd4,
+	CB_PERF_SEL_QUAD_BLENDING_COULD_HAVE_BEEN_BYPASSED= 0xd5,
+	CB_PERF_SEL_QUAD_COULD_HAVE_BEEN_DISCARDED       = 0xd6,
+	CB_PERF_SEL_BLEND_OPT_PIXELS_RESULT_EQ_DEST      = 0xd7,
+	CB_PERF_SEL_DRAWN_BUSY                           = 0xd8,
+	CB_PERF_SEL_TILE_TO_CMR_REGION_BUSY              = 0xd9,
+	CB_PERF_SEL_CMR_TO_FCR_REGION_BUSY               = 0xda,
+	CB_PERF_SEL_FCR_TO_CCR_REGION_BUSY               = 0xdb,
+	CB_PERF_SEL_CCR_TO_CCW_REGION_BUSY               = 0xdc,
+	CB_PERF_SEL_FC_PF_SLOW_MODE_QUAD_EMPTY_HALF_DROPPED= 0xdd,
+	CB_PERF_SEL_FC_SEQUENCER_CLEAR                   = 0xde,
+	CB_PERF_SEL_FC_SEQUENCER_ELIMINATE_FAST_CLEAR    = 0xdf,
+	CB_PERF_SEL_FC_SEQUENCER_FMASK_DECOMPRESS        = 0xe0,
+	CB_PERF_SEL_FC_SEQUENCER_FMASK_COMPRESSION_DISABLE= 0xe1,
+} CBPerfSel;
+typedef enum CBPerfOpFilterSel {
+	CB_PERF_OP_FILTER_SEL_WRITE_ONLY                 = 0x0,
+	CB_PERF_OP_FILTER_SEL_NEEDS_DESTINATION          = 0x1,
+	CB_PERF_OP_FILTER_SEL_RESOLVE                    = 0x2,
+	CB_PERF_OP_FILTER_SEL_DECOMPRESS                 = 0x3,
+	CB_PERF_OP_FILTER_SEL_FMASK_DECOMPRESS           = 0x4,
+	CB_PERF_OP_FILTER_SEL_ELIMINATE_FAST_CLEAR       = 0x5,
+} CBPerfOpFilterSel;
+typedef enum CBPerfClearFilterSel {
+	CB_PERF_CLEAR_FILTER_SEL_NONCLEAR                = 0x0,
+	CB_PERF_CLEAR_FILTER_SEL_CLEAR                   = 0x1,
+} CBPerfClearFilterSel;
+typedef enum CP_RING_ID {
+	RINGID0                                          = 0x0,
+	RINGID1                                          = 0x1,
+	RINGID2                                          = 0x2,
+	RINGID3                                          = 0x3,
+} CP_RING_ID;
+typedef enum CP_PIPE_ID {
+	PIPE_ID0                                         = 0x0,
+	PIPE_ID1                                         = 0x1,
+	PIPE_ID2                                         = 0x2,
+	PIPE_ID3                                         = 0x3,
+} CP_PIPE_ID;
+typedef enum CP_ME_ID {
+	ME_ID0                                           = 0x0,
+	ME_ID1                                           = 0x1,
+	ME_ID2                                           = 0x2,
+	ME_ID3                                           = 0x3,
+} CP_ME_ID;
+typedef enum SPM_PERFMON_STATE {
+	STRM_PERFMON_STATE_DISABLE_AND_RESET             = 0x0,
+	STRM_PERFMON_STATE_START_COUNTING                = 0x1,
+	STRM_PERFMON_STATE_STOP_COUNTING                 = 0x2,
+	STRM_PERFMON_STATE_RESERVED_3                    = 0x3,
+	STRM_PERFMON_STATE_DISABLE_AND_RESET_PHANTOM     = 0x4,
+	STRM_PERFMON_STATE_COUNT_AND_DUMP_PHANTOM        = 0x5,
+} SPM_PERFMON_STATE;
+typedef enum CP_PERFMON_STATE {
+	CP_PERFMON_STATE_DISABLE_AND_RESET               = 0x0,
+	CP_PERFMON_STATE_START_COUNTING                  = 0x1,
+	CP_PERFMON_STATE_STOP_COUNTING                   = 0x2,
+	CP_PERFMON_STATE_RESERVED_3                      = 0x3,
+	CP_PERFMON_STATE_DISABLE_AND_RESET_PHANTOM       = 0x4,
+	CP_PERFMON_STATE_COUNT_AND_DUMP_PHANTOM          = 0x5,
+} CP_PERFMON_STATE;
+typedef enum CP_PERFMON_ENABLE_MODE {
+	CP_PERFMON_ENABLE_MODE_ALWAYS_COUNT              = 0x0,
+	CP_PERFMON_ENABLE_MODE_RESERVED_1                = 0x1,
+	CP_PERFMON_ENABLE_MODE_COUNT_CONTEXT_TRUE        = 0x2,
+	CP_PERFMON_ENABLE_MODE_COUNT_CONTEXT_FALSE       = 0x3,
+} CP_PERFMON_ENABLE_MODE;
+typedef enum CPG_PERFCOUNT_SEL {
+	CPG_PERF_SEL_ALWAYS_COUNT                        = 0x0,
+	CPG_PERF_SEL_RBIU_FIFO_FULL                      = 0x1,
+	CPG_PERF_SEL_CSF_RTS_BUT_MIU_NOT_RTR             = 0x2,
+	CPG_PERF_SEL_CSF_ST_BASE_SIZE_FIFO_FULL          = 0x3,
+	CPG_PERF_SEL_CP_GRBM_DWORDS_SENT                 = 0x4,
+	CPG_PERF_SEL_ME_PARSER_BUSY                      = 0x5,
+	CPG_PERF_SEL_COUNT_TYPE0_PACKETS                 = 0x6,
+	CPG_PERF_SEL_COUNT_TYPE3_PACKETS                 = 0x7,
+	CPG_PERF_SEL_CSF_FETCHING_CMD_BUFFERS            = 0x8,
+	CPG_PERF_SEL_CP_GRBM_OUT_OF_CREDITS              = 0x9,
+	CPG_PERF_SEL_CP_PFP_GRBM_OUT_OF_CREDITS          = 0xa,
+	CPG_PERF_SEL_CP_GDS_GRBM_OUT_OF_CREDITS          = 0xb,
+	CPG_PERF_SEL_RCIU_STALLED_ON_ME_READ             = 0xc,
+	CPG_PERF_SEL_RCIU_STALLED_ON_DMA_READ            = 0xd,
+	CPG_PERF_SEL_SSU_STALLED_ON_ACTIVE_CNTX          = 0xe,
+	CPG_PERF_SEL_SSU_STALLED_ON_CLEAN_SIGNALS        = 0xf,
+	CPG_PERF_SEL_QU_STALLED_ON_EOP_DONE_PULSE        = 0x10,
+	CPG_PERF_SEL_QU_STALLED_ON_EOP_DONE_WR_CONFIRM   = 0x11,
+	CPG_PERF_SEL_PFP_STALLED_ON_CSF_READY            = 0x12,
+	CPG_PERF_SEL_PFP_STALLED_ON_MEQ_READY            = 0x13,
+	CPG_PERF_SEL_PFP_STALLED_ON_RCIU_READY           = 0x14,
+	CPG_PERF_SEL_PFP_STALLED_FOR_DATA_FROM_ROQ       = 0x15,
+	CPG_PERF_SEL_ME_STALLED_FOR_DATA_FROM_PFP        = 0x16,
+	CPG_PERF_SEL_ME_STALLED_FOR_DATA_FROM_STQ        = 0x17,
+	CPG_PERF_SEL_ME_STALLED_ON_NO_AVAIL_GFX_CNTX     = 0x18,
+	CPG_PERF_SEL_ME_STALLED_WRITING_TO_RCIU          = 0x19,
+	CPG_PERF_SEL_ME_STALLED_WRITING_CONSTANTS        = 0x1a,
+	CPG_PERF_SEL_ME_STALLED_ON_PARTIAL_FLUSH         = 0x1b,
+	CPG_PERF_SEL_ME_WAIT_ON_CE_COUNTER               = 0x1c,
+	CPG_PERF_SEL_ME_WAIT_ON_AVAIL_BUFFER             = 0x1d,
+	CPG_PERF_SEL_SEMAPHORE_BUSY_POLLING_FOR_PASS     = 0x1e,
+	CPG_PERF_SEL_LOAD_STALLED_ON_SET_COHERENCY       = 0x1f,
+	CPG_PERF_SEL_DYNAMIC_CLK_VALID                   = 0x20,
+	CPG_PERF_SEL_REGISTER_CLK_VALID                  = 0x21,
+	CPG_PERF_SEL_MIU_WRITE_REQUEST_SENT              = 0x22,
+	CPG_PERF_SEL_MIU_READ_REQUEST_SENT               = 0x23,
+	CPG_PERF_SEL_CE_STALL_RAM_DUMP                   = 0x24,
+	CPG_PERF_SEL_CE_STALL_RAM_WRITE                  = 0x25,
+	CPG_PERF_SEL_CE_STALL_ON_INC_FIFO                = 0x26,
+	CPG_PERF_SEL_CE_STALL_ON_WR_RAM_FIFO             = 0x27,
+	CPG_PERF_SEL_CE_STALL_ON_DATA_FROM_MIU           = 0x28,
+	CPG_PERF_SEL_CE_STALL_ON_DATA_FROM_ROQ           = 0x29,
+	CPG_PERF_SEL_CE_STALL_ON_CE_BUFFER_FLAG          = 0x2a,
+	CPG_PERF_SEL_CE_STALL_ON_DE_COUNTER              = 0x2b,
+	CPG_PERF_SEL_TCIU_STALL_WAIT_ON_FREE             = 0x2c,
+	CPG_PERF_SEL_TCIU_STALL_WAIT_ON_TAGS             = 0x2d,
+} CPG_PERFCOUNT_SEL;
+typedef enum CPF_PERFCOUNT_SEL {
+	CPF_PERF_SEL_ALWAYS_COUNT                        = 0x0,
+	CPF_PERF_SEL_MIU_STALLED_WAITING_RDREQ_FREE      = 0x1,
+	CPF_PERF_SEL_TCIU_STALLED_WAITING_ON_FREE        = 0x2,
+	CPF_PERF_SEL_TCIU_STALLED_WAITING_ON_TAGS        = 0x3,
+	CPF_PERF_SEL_CSF_BUSY_FOR_FETCHING_RING          = 0x4,
+	CPF_PERF_SEL_CSF_BUSY_FOR_FETCHING_IB1           = 0x5,
+	CPF_PERF_SEL_CSF_BUSY_FOR_FETCHING_IB2           = 0x6,
+	CPF_PERF_SEL_CSF_BUSY_FOR_FECTHINC_STATE         = 0x7,
+	CPF_PERF_SEL_MIU_BUSY_FOR_OUTSTANDING_TAGS       = 0x8,
+	CPF_PERF_SEL_CSF_RTS_MIU_NOT_RTR                 = 0x9,
+	CPF_PERF_SEL_CSF_STATE_FIFO_NOT_RTR              = 0xa,
+	CPF_PERF_SEL_CSF_FETCHING_CMD_BUFFERS            = 0xb,
+	CPF_PERF_SEL_GRBM_DWORDS_SENT                    = 0xc,
+	CPF_PERF_SEL_DYNAMIC_CLOCK_VALID                 = 0xd,
+	CPF_PERF_SEL_REGISTER_CLOCK_VALID                = 0xe,
+	CPF_PERF_SEL_MIU_WRITE_REQUEST_SEND              = 0xf,
+	CPF_PERF_SEL_MIU_READ_REQUEST_SEND               = 0x10,
+} CPF_PERFCOUNT_SEL;
+typedef enum CPC_PERFCOUNT_SEL {
+	CPC_PERF_SEL_ALWAYS_COUNT                        = 0x0,
+	CPC_PERF_SEL_RCIU_STALL_WAIT_ON_FREE             = 0x1,
+	CPC_PERF_SEL_RCIU_STALL_PRIV_VIOLATION           = 0x2,
+	CPC_PERF_SEL_MIU_STALL_ON_RDREQ_FREE             = 0x3,
+	CPC_PERF_SEL_MIU_STALL_ON_WRREQ_FREE             = 0x4,
+	CPC_PERF_SEL_TCIU_STALL_WAIT_ON_FREE             = 0x5,
+	CPC_PERF_SEL_ME1_STALL_WAIT_ON_RCIU_READY        = 0x6,
+	CPC_PERF_SEL_ME1_STALL_WAIT_ON_RCIU_READY_PERF   = 0x7,
+	CPC_PERF_SEL_ME1_STALL_WAIT_ON_RCIU_READ         = 0x8,
+	CPC_PERF_SEL_ME1_STALL_WAIT_ON_MIU_READ          = 0x9,
+	CPC_PERF_SEL_ME1_STALL_WAIT_ON_MIU_WRITE         = 0xa,
+	CPC_PERF_SEL_ME1_STALL_ON_DATA_FROM_ROQ          = 0xb,
+	CPC_PERF_SEL_ME1_STALL_ON_DATA_FROM_ROQ_PERF     = 0xc,
+	CPC_PERF_SEL_ME1_BUSY_FOR_PACKET_DECODE          = 0xd,
+	CPC_PERF_SEL_ME2_STALL_WAIT_ON_RCIU_READY        = 0xe,
+	CPC_PERF_SEL_ME2_STALL_WAIT_ON_RCIU_READY_PERF   = 0xf,
+	CPC_PERF_SEL_ME2_STALL_WAIT_ON_RCIU_READ         = 0x10,
+	CPC_PERF_SEL_ME2_STALL_WAIT_ON_MIU_READ          = 0x11,
+	CPC_PERF_SEL_ME2_STALL_WAIT_ON_MIU_WRITE         = 0x12,
+	CPC_PERF_SEL_ME2_STALL_ON_DATA_FROM_ROQ          = 0x13,
+	CPC_PERF_SEL_ME2_STALL_ON_DATA_FROM_ROQ_PERF     = 0x14,
+	CPC_PERF_SEL_ME2_BUSY_FOR_PACKET_DECODE          = 0x15,
+} CPC_PERFCOUNT_SEL;
+typedef enum CP_ALPHA_TAG_RAM_SEL {
+	CPG_TAG_RAM                                      = 0x0,
+	CPC_TAG_RAM                                      = 0x1,
+	CPF_TAG_RAM                                      = 0x2,
+	RSV_TAG_RAM                                      = 0x3,
+} CP_ALPHA_TAG_RAM_SEL;
+#define SEM_ECC_ERROR                             0x0
+#define SEM_RESERVED                              0x1
+#define SEM_FAILED                                0x2
+#define SEM_PASSED                                0x3
+#define IQ_QUEUE_SLEEP                            0x0
+#define IQ_OFFLOAD_RETRY                          0x1
+#define IQ_SCH_WAVE_MSG                           0x2
+#define IQ_SEM_REARM                              0x3
+#define IQ_DEQUEUE_RETRY                          0x4
+#define IQ_INTR_TYPE_PQ                           0x0
+#define IQ_INTR_TYPE_IB                           0x1
+#define IQ_INTR_TYPE_MQD                          0x2
+#define VMID_SZ                                   0x4
+#define CONFIG_SPACE_START                        0x2000
+#define CONFIG_SPACE_END                          0x9fff
+#define CONFIG_SPACE1_START                       0x2000
+#define CONFIG_SPACE1_END                         0x2bff
+#define CONFIG_SPACE2_START                       0x3000
+#define CONFIG_SPACE2_END                         0x9fff
+#define UCONFIG_SPACE_START                       0xc000
+#define UCONFIG_SPACE_END                         0xffff
+#define PERSISTENT_SPACE_START                    0x2c00
+#define PERSISTENT_SPACE_END                      0x2fff
+#define CONTEXT_SPACE_START                       0xa000
+#define CONTEXT_SPACE_END                         0xbfff
+typedef enum ForceControl {
+	FORCE_OFF                                        = 0x0,
+	FORCE_ENABLE                                     = 0x1,
+	FORCE_DISABLE                                    = 0x2,
+	FORCE_RESERVED                                   = 0x3,
+} ForceControl;
+typedef enum ZSamplePosition {
+	Z_SAMPLE_CENTER                                  = 0x0,
+	Z_SAMPLE_CENTROID                                = 0x1,
+} ZSamplePosition;
+typedef enum ZOrder {
+	LATE_Z                                           = 0x0,
+	EARLY_Z_THEN_LATE_Z                              = 0x1,
+	RE_Z                                             = 0x2,
+	EARLY_Z_THEN_RE_Z                                = 0x3,
+} ZOrder;
+typedef enum ZpassControl {
+	ZPASS_DISABLE                                    = 0x0,
+	ZPASS_SAMPLES                                    = 0x1,
+	ZPASS_PIXELS                                     = 0x2,
+} ZpassControl;
+typedef enum ZModeForce {
+	NO_FORCE                                         = 0x0,
+	FORCE_EARLY_Z                                    = 0x1,
+	FORCE_LATE_Z                                     = 0x2,
+	FORCE_RE_Z                                       = 0x3,
+} ZModeForce;
+typedef enum ZLimitSumm {
+	FORCE_SUMM_OFF                                   = 0x0,
+	FORCE_SUMM_MINZ                                  = 0x1,
+	FORCE_SUMM_MAXZ                                  = 0x2,
+	FORCE_SUMM_BOTH                                  = 0x3,
+} ZLimitSumm;
+typedef enum CompareFrag {
+	FRAG_NEVER                                       = 0x0,
+	FRAG_LESS                                        = 0x1,
+	FRAG_EQUAL                                       = 0x2,
+	FRAG_LEQUAL                                      = 0x3,
+	FRAG_GREATER                                     = 0x4,
+	FRAG_NOTEQUAL                                    = 0x5,
+	FRAG_GEQUAL                                      = 0x6,
+	FRAG_ALWAYS                                      = 0x7,
+} CompareFrag;
+typedef enum StencilOp {
+	STENCIL_KEEP                                     = 0x0,
+	STENCIL_ZERO                                     = 0x1,
+	STENCIL_ONES                                     = 0x2,
+	STENCIL_REPLACE_TEST                             = 0x3,
+	STENCIL_REPLACE_OP                               = 0x4,
+	STENCIL_ADD_CLAMP                                = 0x5,
+	STENCIL_SUB_CLAMP                                = 0x6,
+	STENCIL_INVERT                                   = 0x7,
+	STENCIL_ADD_WRAP                                 = 0x8,
+	STENCIL_SUB_WRAP                                 = 0x9,
+	STENCIL_AND                                      = 0xa,
+	STENCIL_OR                                       = 0xb,
+	STENCIL_XOR                                      = 0xc,
+	STENCIL_NAND                                     = 0xd,
+	STENCIL_NOR                                      = 0xe,
+	STENCIL_XNOR                                     = 0xf,
+} StencilOp;
+typedef enum ConservativeZExport {
+	EXPORT_ANY_Z                                     = 0x0,
+	EXPORT_LESS_THAN_Z                               = 0x1,
+	EXPORT_GREATER_THAN_Z                            = 0x2,
+	EXPORT_RESERVED                                  = 0x3,
+} ConservativeZExport;
+typedef enum DbPSLControl {
+	PSLC_AUTO                                        = 0x0,
+	PSLC_ON_HANG_ONLY                                = 0x1,
+	PSLC_ASAP                                        = 0x2,
+	PSLC_COUNTDOWN                                   = 0x3,
+} DbPSLControl;
+typedef enum PerfCounter_Vals {
+	DB_PERF_SEL_SC_DB_tile_sends                     = 0x0,
+	DB_PERF_SEL_SC_DB_tile_busy                      = 0x1,
+	DB_PERF_SEL_SC_DB_tile_stalls                    = 0x2,
+	DB_PERF_SEL_SC_DB_tile_events                    = 0x3,
+	DB_PERF_SEL_SC_DB_tile_tiles                     = 0x4,
+	DB_PERF_SEL_SC_DB_tile_covered                   = 0x5,
+	DB_PERF_SEL_hiz_tc_read_starved                  = 0x6,
+	DB_PERF_SEL_hiz_tc_write_stall                   = 0x7,
+	DB_PERF_SEL_hiz_qtiles_culled                    = 0x8,
+	DB_PERF_SEL_his_qtiles_culled                    = 0x9,
+	DB_PERF_SEL_DB_SC_tile_sends                     = 0xa,
+	DB_PERF_SEL_DB_SC_tile_busy                      = 0xb,
+	DB_PERF_SEL_DB_SC_tile_stalls                    = 0xc,
+	DB_PERF_SEL_DB_SC_tile_df_stalls                 = 0xd,
+	DB_PERF_SEL_DB_SC_tile_tiles                     = 0xe,
+	DB_PERF_SEL_DB_SC_tile_culled                    = 0xf,
+	DB_PERF_SEL_DB_SC_tile_hier_kill                 = 0x10,
+	DB_PERF_SEL_DB_SC_tile_fast_ops                  = 0x11,
+	DB_PERF_SEL_DB_SC_tile_no_ops                    = 0x12,
+	DB_PERF_SEL_DB_SC_tile_tile_rate                 = 0x13,
+	DB_PERF_SEL_DB_SC_tile_ssaa_kill                 = 0x14,
+	DB_PERF_SEL_DB_SC_tile_fast_z_ops                = 0x15,
+	DB_PERF_SEL_DB_SC_tile_fast_stencil_ops          = 0x16,
+	DB_PERF_SEL_SC_DB_quad_sends                     = 0x17,
+	DB_PERF_SEL_SC_DB_quad_busy                      = 0x18,
+	DB_PERF_SEL_SC_DB_quad_squads                    = 0x19,
+	DB_PERF_SEL_SC_DB_quad_tiles                     = 0x1a,
+	DB_PERF_SEL_SC_DB_quad_pixels                    = 0x1b,
+	DB_PERF_SEL_SC_DB_quad_killed_tiles              = 0x1c,
+	DB_PERF_SEL_DB_SC_quad_sends                     = 0x1d,
+	DB_PERF_SEL_DB_SC_quad_busy                      = 0x1e,
+	DB_PERF_SEL_DB_SC_quad_stalls                    = 0x1f,
+	DB_PERF_SEL_DB_SC_quad_tiles                     = 0x20,
+	DB_PERF_SEL_DB_SC_quad_lit_quad                  = 0x21,
+	DB_PERF_SEL_DB_CB_tile_sends                     = 0x22,
+	DB_PERF_SEL_DB_CB_tile_busy                      = 0x23,
+	DB_PERF_SEL_DB_CB_tile_stalls                    = 0x24,
+	DB_PERF_SEL_SX_DB_quad_sends                     = 0x25,
+	DB_PERF_SEL_SX_DB_quad_busy                      = 0x26,
+	DB_PERF_SEL_SX_DB_quad_stalls                    = 0x27,
+	DB_PERF_SEL_SX_DB_quad_quads                     = 0x28,
+	DB_PERF_SEL_SX_DB_quad_pixels                    = 0x29,
+	DB_PERF_SEL_SX_DB_quad_exports                   = 0x2a,
+	DB_PERF_SEL_SH_quads_outstanding_sum             = 0x2b,
+	DB_PERF_SEL_DB_CB_lquad_sends                    = 0x2c,
+	DB_PERF_SEL_DB_CB_lquad_busy                     = 0x2d,
+	DB_PERF_SEL_DB_CB_lquad_stalls                   = 0x2e,
+	DB_PERF_SEL_DB_CB_lquad_quads                    = 0x2f,
+	DB_PERF_SEL_tile_rd_sends                        = 0x30,
+	DB_PERF_SEL_mi_tile_rd_outstanding_sum           = 0x31,
+	DB_PERF_SEL_quad_rd_sends                        = 0x32,
+	DB_PERF_SEL_quad_rd_busy                         = 0x33,
+	DB_PERF_SEL_quad_rd_mi_stall                     = 0x34,
+	DB_PERF_SEL_quad_rd_rw_collision                 = 0x35,
+	DB_PERF_SEL_quad_rd_tag_stall                    = 0x36,
+	DB_PERF_SEL_quad_rd_32byte_reqs                  = 0x37,
+	DB_PERF_SEL_quad_rd_panic                        = 0x38,
+	DB_PERF_SEL_mi_quad_rd_outstanding_sum           = 0x39,
+	DB_PERF_SEL_quad_rdret_sends                     = 0x3a,
+	DB_PERF_SEL_quad_rdret_busy                      = 0x3b,
+	DB_PERF_SEL_tile_wr_sends                        = 0x3c,
+	DB_PERF_SEL_tile_wr_acks                         = 0x3d,
+	DB_PERF_SEL_mi_tile_wr_outstanding_sum           = 0x3e,
+	DB_PERF_SEL_quad_wr_sends                        = 0x3f,
+	DB_PERF_SEL_quad_wr_busy                         = 0x40,
+	DB_PERF_SEL_quad_wr_mi_stall                     = 0x41,
+	DB_PERF_SEL_quad_wr_coherency_stall              = 0x42,
+	DB_PERF_SEL_quad_wr_acks                         = 0x43,
+	DB_PERF_SEL_mi_quad_wr_outstanding_sum           = 0x44,
+	DB_PERF_SEL_Tile_Cache_misses                    = 0x45,
+	DB_PERF_SEL_Tile_Cache_hits                      = 0x46,
+	DB_PERF_SEL_Tile_Cache_flushes                   = 0x47,
+	DB_PERF_SEL_Tile_Cache_surface_stall             = 0x48,
+	DB_PERF_SEL_Tile_Cache_starves                   = 0x49,
+	DB_PERF_SEL_Tile_Cache_mem_return_starve         = 0x4a,
+	DB_PERF_SEL_tcp_dispatcher_reads                 = 0x4b,
+	DB_PERF_SEL_tcp_prefetcher_reads                 = 0x4c,
+	DB_PERF_SEL_tcp_preloader_reads                  = 0x4d,
+	DB_PERF_SEL_tcp_dispatcher_flushes               = 0x4e,
+	DB_PERF_SEL_tcp_prefetcher_flushes               = 0x4f,
+	DB_PERF_SEL_tcp_preloader_flushes                = 0x50,
+	DB_PERF_SEL_Depth_Tile_Cache_sends               = 0x51,
+	DB_PERF_SEL_Depth_Tile_Cache_busy                = 0x52,
+	DB_PERF_SEL_Depth_Tile_Cache_starves             = 0x53,
+	DB_PERF_SEL_Depth_Tile_Cache_dtile_locked        = 0x54,
+	DB_PERF_SEL_Depth_Tile_Cache_alloc_stall         = 0x55,
+	DB_PERF_SEL_Depth_Tile_Cache_misses              = 0x56,
+	DB_PERF_SEL_Depth_Tile_Cache_hits                = 0x57,
+	DB_PERF_SEL_Depth_Tile_Cache_flushes             = 0x58,
+	DB_PERF_SEL_Depth_Tile_Cache_noop_tile           = 0x59,
+	DB_PERF_SEL_Depth_Tile_Cache_detailed_noop       = 0x5a,
+	DB_PERF_SEL_Depth_Tile_Cache_event               = 0x5b,
+	DB_PERF_SEL_Depth_Tile_Cache_tile_frees          = 0x5c,
+	DB_PERF_SEL_Depth_Tile_Cache_data_frees          = 0x5d,
+	DB_PERF_SEL_Depth_Tile_Cache_mem_return_starve   = 0x5e,
+	DB_PERF_SEL_Stencil_Cache_misses                 = 0x5f,
+	DB_PERF_SEL_Stencil_Cache_hits                   = 0x60,
+	DB_PERF_SEL_Stencil_Cache_flushes                = 0x61,
+	DB_PERF_SEL_Stencil_Cache_starves                = 0x62,
+	DB_PERF_SEL_Stencil_Cache_frees                  = 0x63,
+	DB_PERF_SEL_Z_Cache_separate_Z_misses            = 0x64,
+	DB_PERF_SEL_Z_Cache_separate_Z_hits              = 0x65,
+	DB_PERF_SEL_Z_Cache_separate_Z_flushes           = 0x66,
+	DB_PERF_SEL_Z_Cache_separate_Z_starves           = 0x67,
+	DB_PERF_SEL_Z_Cache_pmask_misses                 = 0x68,
+	DB_PERF_SEL_Z_Cache_pmask_hits                   = 0x69,
+	DB_PERF_SEL_Z_Cache_pmask_flushes                = 0x6a,
+	DB_PERF_SEL_Z_Cache_pmask_starves                = 0x6b,
+	DB_PERF_SEL_Z_Cache_frees                        = 0x6c,
+	DB_PERF_SEL_Plane_Cache_misses                   = 0x6d,
+	DB_PERF_SEL_Plane_Cache_hits                     = 0x6e,
+	DB_PERF_SEL_Plane_Cache_flushes                  = 0x6f,
+	DB_PERF_SEL_Plane_Cache_starves                  = 0x70,
+	DB_PERF_SEL_Plane_Cache_frees                    = 0x71,
+	DB_PERF_SEL_flush_expanded_stencil               = 0x72,
+	DB_PERF_SEL_flush_compressed_stencil             = 0x73,
+	DB_PERF_SEL_flush_single_stencil                 = 0x74,
+	DB_PERF_SEL_planes_flushed                       = 0x75,
+	DB_PERF_SEL_flush_1plane                         = 0x76,
+	DB_PERF_SEL_flush_2plane                         = 0x77,
+	DB_PERF_SEL_flush_3plane                         = 0x78,
+	DB_PERF_SEL_flush_4plane                         = 0x79,
+	DB_PERF_SEL_flush_5plane                         = 0x7a,
+	DB_PERF_SEL_flush_6plane                         = 0x7b,
+	DB_PERF_SEL_flush_7plane                         = 0x7c,
+	DB_PERF_SEL_flush_8plane                         = 0x7d,
+	DB_PERF_SEL_flush_9plane                         = 0x7e,
+	DB_PERF_SEL_flush_10plane                        = 0x7f,
+	DB_PERF_SEL_flush_11plane                        = 0x80,
+	DB_PERF_SEL_flush_12plane                        = 0x81,
+	DB_PERF_SEL_flush_13plane                        = 0x82,
+	DB_PERF_SEL_flush_14plane                        = 0x83,
+	DB_PERF_SEL_flush_15plane                        = 0x84,
+	DB_PERF_SEL_flush_16plane                        = 0x85,
+	DB_PERF_SEL_flush_expanded_z                     = 0x86,
+	DB_PERF_SEL_earlyZ_waiting_for_postZ_done        = 0x87,
+	DB_PERF_SEL_reZ_waiting_for_postZ_done           = 0x88,
+	DB_PERF_SEL_dk_tile_sends                        = 0x89,
+	DB_PERF_SEL_dk_tile_busy                         = 0x8a,
+	DB_PERF_SEL_dk_tile_quad_starves                 = 0x8b,
+	DB_PERF_SEL_dk_tile_stalls                       = 0x8c,
+	DB_PERF_SEL_dk_squad_sends                       = 0x8d,
+	DB_PERF_SEL_dk_squad_busy                        = 0x8e,
+	DB_PERF_SEL_dk_squad_stalls                      = 0x8f,
+	DB_PERF_SEL_Op_Pipe_Busy                         = 0x90,
+	DB_PERF_SEL_Op_Pipe_MC_Read_stall                = 0x91,
+	DB_PERF_SEL_qc_busy                              = 0x92,
+	DB_PERF_SEL_qc_xfc                               = 0x93,
+	DB_PERF_SEL_qc_conflicts                         = 0x94,
+	DB_PERF_SEL_qc_full_stall                        = 0x95,
+	DB_PERF_SEL_qc_in_preZ_tile_stalls_postZ         = 0x96,
+	DB_PERF_SEL_qc_in_postZ_tile_stalls_preZ         = 0x97,
+	DB_PERF_SEL_tsc_insert_summarize_stall           = 0x98,
+	DB_PERF_SEL_tl_busy                              = 0x99,
+	DB_PERF_SEL_tl_dtc_read_starved                  = 0x9a,
+	DB_PERF_SEL_tl_z_fetch_stall                     = 0x9b,
+	DB_PERF_SEL_tl_stencil_stall                     = 0x9c,
+	DB_PERF_SEL_tl_z_decompress_stall                = 0x9d,
+	DB_PERF_SEL_tl_stencil_locked_stall              = 0x9e,
+	DB_PERF_SEL_tl_events                            = 0x9f,
+	DB_PERF_SEL_tl_summarize_squads                  = 0xa0,
+	DB_PERF_SEL_tl_flush_expand_squads               = 0xa1,
+	DB_PERF_SEL_tl_expand_squads                     = 0xa2,
+	DB_PERF_SEL_tl_preZ_squads                       = 0xa3,
+	DB_PERF_SEL_tl_postZ_squads                      = 0xa4,
+	DB_PERF_SEL_tl_preZ_noop_squads                  = 0xa5,
+	DB_PERF_SEL_tl_postZ_noop_squads                 = 0xa6,
+	DB_PERF_SEL_tl_tile_ops                          = 0xa7,
+	DB_PERF_SEL_tl_in_xfc                            = 0xa8,
+	DB_PERF_SEL_tl_in_single_stencil_expand_stall    = 0xa9,
+	DB_PERF_SEL_tl_in_fast_z_stall                   = 0xaa,
+	DB_PERF_SEL_tl_out_xfc                           = 0xab,
+	DB_PERF_SEL_tl_out_squads                        = 0xac,
+	DB_PERF_SEL_zf_plane_multicycle                  = 0xad,
+	DB_PERF_SEL_PostZ_Samples_passing_Z              = 0xae,
+	DB_PERF_SEL_PostZ_Samples_failing_Z              = 0xaf,
+	DB_PERF_SEL_PostZ_Samples_failing_S              = 0xb0,
+	DB_PERF_SEL_PreZ_Samples_passing_Z               = 0xb1,
+	DB_PERF_SEL_PreZ_Samples_failing_Z               = 0xb2,
+	DB_PERF_SEL_PreZ_Samples_failing_S               = 0xb3,
+	DB_PERF_SEL_ts_tc_update_stall                   = 0xb4,
+	DB_PERF_SEL_sc_kick_start                        = 0xb5,
+	DB_PERF_SEL_sc_kick_end                          = 0xb6,
+	DB_PERF_SEL_clock_reg_active                     = 0xb7,
+	DB_PERF_SEL_clock_main_active                    = 0xb8,
+	DB_PERF_SEL_clock_mem_export_active              = 0xb9,
+	DB_PERF_SEL_esr_ps_out_busy                      = 0xba,
+	DB_PERF_SEL_esr_ps_lqf_busy                      = 0xbb,
+	DB_PERF_SEL_esr_ps_lqf_stall                     = 0xbc,
+	DB_PERF_SEL_etr_out_send                         = 0xbd,
+	DB_PERF_SEL_etr_out_busy                         = 0xbe,
+	DB_PERF_SEL_etr_out_ltile_probe_fifo_full_stall  = 0xbf,
+	DB_PERF_SEL_etr_out_cb_tile_stall                = 0xc0,
+	DB_PERF_SEL_etr_out_esr_stall                    = 0xc1,
+	DB_PERF_SEL_esr_ps_sqq_busy                      = 0xc2,
+	DB_PERF_SEL_esr_ps_sqq_stall                     = 0xc3,
+	DB_PERF_SEL_esr_eot_fwd_busy                     = 0xc4,
+	DB_PERF_SEL_esr_eot_fwd_holding_squad            = 0xc5,
+	DB_PERF_SEL_esr_eot_fwd_forward                  = 0xc6,
+	DB_PERF_SEL_esr_sqq_zi_busy                      = 0xc7,
+	DB_PERF_SEL_esr_sqq_zi_stall                     = 0xc8,
+	DB_PERF_SEL_postzl_sq_pt_busy                    = 0xc9,
+	DB_PERF_SEL_postzl_sq_pt_stall                   = 0xca,
+	DB_PERF_SEL_postzl_se_busy                       = 0xcb,
+	DB_PERF_SEL_postzl_se_stall                      = 0xcc,
+	DB_PERF_SEL_postzl_partial_launch                = 0xcd,
+	DB_PERF_SEL_postzl_full_launch                   = 0xce,
+	DB_PERF_SEL_postzl_partial_waiting               = 0xcf,
+	DB_PERF_SEL_postzl_tile_mem_stall                = 0xd0,
+	DB_PERF_SEL_postzl_tile_init_stall               = 0xd1,
+	DB_PEFF_SEL_prezl_tile_mem_stall                 = 0xd2,
+	DB_PERF_SEL_prezl_tile_init_stall                = 0xd3,
+	DB_PERF_SEL_dtt_sm_clash_stall                   = 0xd4,
+	DB_PERF_SEL_dtt_sm_slot_stall                    = 0xd5,
+	DB_PERF_SEL_dtt_sm_miss_stall                    = 0xd6,
+	DB_PERF_SEL_mi_rdreq_busy                        = 0xd7,
+	DB_PERF_SEL_mi_rdreq_stall                       = 0xd8,
+	DB_PERF_SEL_mi_wrreq_busy                        = 0xd9,
+	DB_PERF_SEL_mi_wrreq_stall                       = 0xda,
+	DB_PERF_SEL_recomp_tile_to_1zplane_no_fastop     = 0xdb,
+	DB_PERF_SEL_dkg_tile_rate_tile                   = 0xdc,
+	DB_PERF_SEL_prezl_src_in_sends                   = 0xdd,
+	DB_PERF_SEL_prezl_src_in_stall                   = 0xde,
+	DB_PERF_SEL_prezl_src_in_squads                  = 0xdf,
+	DB_PERF_SEL_prezl_src_in_squads_unrolled         = 0xe0,
+	DB_PERF_SEL_prezl_src_in_tile_rate               = 0xe1,
+	DB_PERF_SEL_prezl_src_in_tile_rate_unrolled      = 0xe2,
+	DB_PERF_SEL_prezl_src_out_stall                  = 0xe3,
+	DB_PERF_SEL_postzl_src_in_sends                  = 0xe4,
+	DB_PERF_SEL_postzl_src_in_stall                  = 0xe5,
+	DB_PERF_SEL_postzl_src_in_squads                 = 0xe6,
+	DB_PERF_SEL_postzl_src_in_squads_unrolled        = 0xe7,
+	DB_PERF_SEL_postzl_src_in_tile_rate              = 0xe8,
+	DB_PERF_SEL_postzl_src_in_tile_rate_unrolled     = 0xe9,
+	DB_PERF_SEL_postzl_src_out_stall                 = 0xea,
+	DB_PERF_SEL_esr_ps_src_in_sends                  = 0xeb,
+	DB_PERF_SEL_esr_ps_src_in_stall                  = 0xec,
+	DB_PERF_SEL_esr_ps_src_in_squads                 = 0xed,
+	DB_PERF_SEL_esr_ps_src_in_squads_unrolled        = 0xee,
+	DB_PERF_SEL_esr_ps_src_in_tile_rate              = 0xef,
+	DB_PERF_SEL_esr_ps_src_in_tile_rate_unrolled     = 0xf0,
+	DB_PERF_SEL_esr_ps_src_in_tile_rate_unrolled_to_pixel_rate= 0xf1,
+	DB_PERF_SEL_esr_ps_src_out_stall                 = 0xf2,
+	DB_PERF_SEL_depth_bounds_qtiles_culled           = 0xf3,
+	DB_PERF_SEL_PreZ_Samples_failing_DB              = 0xf4,
+	DB_PERF_SEL_PostZ_Samples_failing_DB             = 0xf5,
+	DB_PERF_SEL_flush_compressed                     = 0xf6,
+	DB_PERF_SEL_flush_plane_le4                      = 0xf7,
+	DB_PERF_SEL_tiles_z_fully_summarized             = 0xf8,
+	DB_PERF_SEL_tiles_stencil_fully_summarized       = 0xf9,
+	DB_PERF_SEL_tiles_z_clear_on_expclear            = 0xfa,
+	DB_PERF_SEL_tiles_s_clear_on_expclear            = 0xfb,
+	DB_PERF_SEL_tiles_decomp_on_expclear             = 0xfc,
+	DB_PERF_SEL_tiles_compressed_to_decompressed     = 0xfd,
+	DB_PERF_SEL_Op_Pipe_Prez_Busy                    = 0xfe,
+	DB_PERF_SEL_Op_Pipe_Postz_Busy                   = 0xff,
+	DB_PERF_SEL_di_dt_stall                          = 0x100,
+} PerfCounter_Vals;
+typedef enum RingCounterControl {
+	COUNTER_RING_SPLIT                               = 0x0,
+	COUNTER_RING_0                                   = 0x1,
+	COUNTER_RING_1                                   = 0x2,
+} RingCounterControl;
+typedef enum PixelPipeCounterId {
+	PIXEL_PIPE_OCCLUSION_COUNT_0                     = 0x0,
+	PIXEL_PIPE_OCCLUSION_COUNT_1                     = 0x1,
+	PIXEL_PIPE_OCCLUSION_COUNT_2                     = 0x2,
+	PIXEL_PIPE_OCCLUSION_COUNT_3                     = 0x3,
+	PIXEL_PIPE_SCREEN_MIN_EXTENTS_0                  = 0x4,
+	PIXEL_PIPE_SCREEN_MAX_EXTENTS_0                  = 0x5,
+	PIXEL_PIPE_SCREEN_MIN_EXTENTS_1                  = 0x6,
+	PIXEL_PIPE_SCREEN_MAX_EXTENTS_1                  = 0x7,
+} PixelPipeCounterId;
+typedef enum PixelPipeStride {
+	PIXEL_PIPE_STRIDE_32_BITS                        = 0x0,
+	PIXEL_PIPE_STRIDE_64_BITS                        = 0x1,
+	PIXEL_PIPE_STRIDE_128_BITS                       = 0x2,
+	PIXEL_PIPE_STRIDE_256_BITS                       = 0x3,
+} PixelPipeStride;
+typedef enum GB_EDC_DED_MODE {
+	GB_EDC_DED_MODE_LOG                              = 0x0,
+	GB_EDC_DED_MODE_HALT                             = 0x1,
+	GB_EDC_DED_MODE_INT_HALT                         = 0x2,
+} GB_EDC_DED_MODE;
+#define GB_TILING_CONFIG_TABLE_SIZE               0x20
+#define GB_TILING_CONFIG_MACROTABLE_SIZE          0x10
+typedef enum GRBM_PERF_SEL {
+	GRBM_PERF_SEL_COUNT                              = 0x0,
+	GRBM_PERF_SEL_USER_DEFINED                       = 0x1,
+	GRBM_PERF_SEL_GUI_ACTIVE                         = 0x2,
+	GRBM_PERF_SEL_CP_BUSY                            = 0x3,
+	GRBM_PERF_SEL_CP_COHER_BUSY                      = 0x4,
+	GRBM_PERF_SEL_CP_DMA_BUSY                        = 0x5,
+	GRBM_PERF_SEL_CB_BUSY                            = 0x6,
+	GRBM_PERF_SEL_DB_BUSY                            = 0x7,
+	GRBM_PERF_SEL_PA_BUSY                            = 0x8,
+	GRBM_PERF_SEL_SC_BUSY                            = 0x9,
+	GRBM_PERF_SEL_RESERVED_6                         = 0xa,
+	GRBM_PERF_SEL_SPI_BUSY                           = 0xb,
+	GRBM_PERF_SEL_SX_BUSY                            = 0xc,
+	GRBM_PERF_SEL_TA_BUSY                            = 0xd,
+	GRBM_PERF_SEL_CB_CLEAN                           = 0xe,
+	GRBM_PERF_SEL_DB_CLEAN                           = 0xf,
+	GRBM_PERF_SEL_RESERVED_5                         = 0x10,
+	GRBM_PERF_SEL_VGT_BUSY                           = 0x11,
+	GRBM_PERF_SEL_RESERVED_4                         = 0x12,
+	GRBM_PERF_SEL_RESERVED_3                         = 0x13,
+	GRBM_PERF_SEL_RESERVED_2                         = 0x14,
+	GRBM_PERF_SEL_RESERVED_1                         = 0x15,
+	GRBM_PERF_SEL_RESERVED_0                         = 0x16,
+	GRBM_PERF_SEL_IA_BUSY                            = 0x17,
+	GRBM_PERF_SEL_IA_NO_DMA_BUSY                     = 0x18,
+	GRBM_PERF_SEL_GDS_BUSY                           = 0x19,
+	GRBM_PERF_SEL_BCI_BUSY                           = 0x1a,
+	GRBM_PERF_SEL_RLC_BUSY                           = 0x1b,
+	GRBM_PERF_SEL_TC_BUSY                            = 0x1c,
+	GRBM_PERF_SEL_CPG_BUSY                           = 0x1d,
+	GRBM_PERF_SEL_CPC_BUSY                           = 0x1e,
+	GRBM_PERF_SEL_CPF_BUSY                           = 0x1f,
+	GRBM_PERF_SEL_WD_BUSY                            = 0x20,
+	GRBM_PERF_SEL_WD_NO_DMA_BUSY                     = 0x21,
+} GRBM_PERF_SEL;
+typedef enum GRBM_SE0_PERF_SEL {
+	GRBM_SE0_PERF_SEL_COUNT                          = 0x0,
+	GRBM_SE0_PERF_SEL_USER_DEFINED                   = 0x1,
+	GRBM_SE0_PERF_SEL_CB_BUSY                        = 0x2,
+	GRBM_SE0_PERF_SEL_DB_BUSY                        = 0x3,
+	GRBM_SE0_PERF_SEL_SC_BUSY                        = 0x4,
+	GRBM_SE0_PERF_SEL_RESERVED_1                     = 0x5,
+	GRBM_SE0_PERF_SEL_SPI_BUSY                       = 0x6,
+	GRBM_SE0_PERF_SEL_SX_BUSY                        = 0x7,
+	GRBM_SE0_PERF_SEL_TA_BUSY                        = 0x8,
+	GRBM_SE0_PERF_SEL_CB_CLEAN                       = 0x9,
+	GRBM_SE0_PERF_SEL_DB_CLEAN                       = 0xa,
+	GRBM_SE0_PERF_SEL_RESERVED_0                     = 0xb,
+	GRBM_SE0_PERF_SEL_PA_BUSY                        = 0xc,
+	GRBM_SE0_PERF_SEL_VGT_BUSY                       = 0xd,
+	GRBM_SE0_PERF_SEL_BCI_BUSY                       = 0xe,
+} GRBM_SE0_PERF_SEL;
+typedef enum GRBM_SE1_PERF_SEL {
+	GRBM_SE1_PERF_SEL_COUNT                          = 0x0,
+	GRBM_SE1_PERF_SEL_USER_DEFINED                   = 0x1,
+	GRBM_SE1_PERF_SEL_CB_BUSY                        = 0x2,
+	GRBM_SE1_PERF_SEL_DB_BUSY                        = 0x3,
+	GRBM_SE1_PERF_SEL_SC_BUSY                        = 0x4,
+	GRBM_SE1_PERF_SEL_RESERVED_1                     = 0x5,
+	GRBM_SE1_PERF_SEL_SPI_BUSY                       = 0x6,
+	GRBM_SE1_PERF_SEL_SX_BUSY                        = 0x7,
+	GRBM_SE1_PERF_SEL_TA_BUSY                        = 0x8,
+	GRBM_SE1_PERF_SEL_CB_CLEAN                       = 0x9,
+	GRBM_SE1_PERF_SEL_DB_CLEAN                       = 0xa,
+	GRBM_SE1_PERF_SEL_RESERVED_0                     = 0xb,
+	GRBM_SE1_PERF_SEL_PA_BUSY                        = 0xc,
+	GRBM_SE1_PERF_SEL_VGT_BUSY                       = 0xd,
+	GRBM_SE1_PERF_SEL_BCI_BUSY                       = 0xe,
+} GRBM_SE1_PERF_SEL;
+typedef enum GRBM_SE2_PERF_SEL {
+	GRBM_SE2_PERF_SEL_COUNT                          = 0x0,
+	GRBM_SE2_PERF_SEL_USER_DEFINED                   = 0x1,
+	GRBM_SE2_PERF_SEL_CB_BUSY                        = 0x2,
+	GRBM_SE2_PERF_SEL_DB_BUSY                        = 0x3,
+	GRBM_SE2_PERF_SEL_SC_BUSY                        = 0x4,
+	GRBM_SE2_PERF_SEL_RESERVED_1                     = 0x5,
+	GRBM_SE2_PERF_SEL_SPI_BUSY                       = 0x6,
+	GRBM_SE2_PERF_SEL_SX_BUSY                        = 0x7,
+	GRBM_SE2_PERF_SEL_TA_BUSY                        = 0x8,
+	GRBM_SE2_PERF_SEL_CB_CLEAN                       = 0x9,
+	GRBM_SE2_PERF_SEL_DB_CLEAN                       = 0xa,
+	GRBM_SE2_PERF_SEL_RESERVED_0                     = 0xb,
+	GRBM_SE2_PERF_SEL_PA_BUSY                        = 0xc,
+	GRBM_SE2_PERF_SEL_VGT_BUSY                       = 0xd,
+	GRBM_SE2_PERF_SEL_BCI_BUSY                       = 0xe,
+} GRBM_SE2_PERF_SEL;
+typedef enum GRBM_SE3_PERF_SEL {
+	GRBM_SE3_PERF_SEL_COUNT                          = 0x0,
+	GRBM_SE3_PERF_SEL_USER_DEFINED                   = 0x1,
+	GRBM_SE3_PERF_SEL_CB_BUSY                        = 0x2,
+	GRBM_SE3_PERF_SEL_DB_BUSY                        = 0x3,
+	GRBM_SE3_PERF_SEL_SC_BUSY                        = 0x4,
+	GRBM_SE3_PERF_SEL_RESERVED_1                     = 0x5,
+	GRBM_SE3_PERF_SEL_SPI_BUSY                       = 0x6,
+	GRBM_SE3_PERF_SEL_SX_BUSY                        = 0x7,
+	GRBM_SE3_PERF_SEL_TA_BUSY                        = 0x8,
+	GRBM_SE3_PERF_SEL_CB_CLEAN                       = 0x9,
+	GRBM_SE3_PERF_SEL_DB_CLEAN                       = 0xa,
+	GRBM_SE3_PERF_SEL_RESERVED_0                     = 0xb,
+	GRBM_SE3_PERF_SEL_PA_BUSY                        = 0xc,
+	GRBM_SE3_PERF_SEL_VGT_BUSY                       = 0xd,
+	GRBM_SE3_PERF_SEL_BCI_BUSY                       = 0xe,
+} GRBM_SE3_PERF_SEL;
+typedef enum SU_PERFCNT_SEL {
+	PERF_PAPC_PASX_REQ                               = 0x0,
+	PERF_PAPC_PASX_DISABLE_PIPE                      = 0x1,
+	PERF_PAPC_PASX_FIRST_VECTOR                      = 0x2,
+	PERF_PAPC_PASX_SECOND_VECTOR                     = 0x3,
+	PERF_PAPC_PASX_FIRST_DEAD                        = 0x4,
+	PERF_PAPC_PASX_SECOND_DEAD                       = 0x5,
+	PERF_PAPC_PASX_VTX_KILL_DISCARD                  = 0x6,
+	PERF_PAPC_PASX_VTX_NAN_DISCARD                   = 0x7,
+	PERF_PAPC_PA_INPUT_PRIM                          = 0x8,
+	PERF_PAPC_PA_INPUT_NULL_PRIM                     = 0x9,
+	PERF_PAPC_PA_INPUT_EVENT_FLAG                    = 0xa,
+	PERF_PAPC_PA_INPUT_FIRST_PRIM_SLOT               = 0xb,
+	PERF_PAPC_PA_INPUT_END_OF_PACKET                 = 0xc,
+	PERF_PAPC_PA_INPUT_EXTENDED_EVENT                = 0xd,
+	PERF_PAPC_CLPR_CULL_PRIM                         = 0xe,
+	PERF_PAPC_CLPR_VVUCP_CULL_PRIM                   = 0xf,
+	PERF_PAPC_CLPR_VV_CULL_PRIM                      = 0x10,
+	PERF_PAPC_CLPR_UCP_CULL_PRIM                     = 0x11,
+	PERF_PAPC_CLPR_VTX_KILL_CULL_PRIM                = 0x12,
+	PERF_PAPC_CLPR_VTX_NAN_CULL_PRIM                 = 0x13,
+	PERF_PAPC_CLPR_CULL_TO_NULL_PRIM                 = 0x14,
+	PERF_PAPC_CLPR_VVUCP_CLIP_PRIM                   = 0x15,
+	PERF_PAPC_CLPR_VV_CLIP_PRIM                      = 0x16,
+	PERF_PAPC_CLPR_UCP_CLIP_PRIM                     = 0x17,
+	PERF_PAPC_CLPR_POINT_CLIP_CANDIDATE              = 0x18,
+	PERF_PAPC_CLPR_CLIP_PLANE_CNT_1                  = 0x19,
+	PERF_PAPC_CLPR_CLIP_PLANE_CNT_2                  = 0x1a,
+	PERF_PAPC_CLPR_CLIP_PLANE_CNT_3                  = 0x1b,
+	PERF_PAPC_CLPR_CLIP_PLANE_CNT_4                  = 0x1c,
+	PERF_PAPC_CLPR_CLIP_PLANE_CNT_5_8                = 0x1d,
+	PERF_PAPC_CLPR_CLIP_PLANE_CNT_9_12               = 0x1e,
+	PERF_PAPC_CLPR_CLIP_PLANE_NEAR                   = 0x1f,
+	PERF_PAPC_CLPR_CLIP_PLANE_FAR                    = 0x20,
+	PERF_PAPC_CLPR_CLIP_PLANE_LEFT                   = 0x21,
+	PERF_PAPC_CLPR_CLIP_PLANE_RIGHT                  = 0x22,
+	PERF_PAPC_CLPR_CLIP_PLANE_TOP                    = 0x23,
+	PERF_PAPC_CLPR_CLIP_PLANE_BOTTOM                 = 0x24,
+	PERF_PAPC_CLPR_GSC_KILL_CULL_PRIM                = 0x25,
+	PERF_PAPC_CLPR_RASTER_KILL_CULL_PRIM             = 0x26,
+	PERF_PAPC_CLSM_NULL_PRIM                         = 0x27,
+	PERF_PAPC_CLSM_TOTALLY_VISIBLE_PRIM              = 0x28,
+	PERF_PAPC_CLSM_CULL_TO_NULL_PRIM                 = 0x29,
+	PERF_PAPC_CLSM_OUT_PRIM_CNT_1                    = 0x2a,
+	PERF_PAPC_CLSM_OUT_PRIM_CNT_2                    = 0x2b,
+	PERF_PAPC_CLSM_OUT_PRIM_CNT_3                    = 0x2c,
+	PERF_PAPC_CLSM_OUT_PRIM_CNT_4                    = 0x2d,
+	PERF_PAPC_CLSM_OUT_PRIM_CNT_5_8                  = 0x2e,
+	PERF_PAPC_CLSM_OUT_PRIM_CNT_9_13                 = 0x2f,
+	PERF_PAPC_CLIPGA_VTE_KILL_PRIM                   = 0x30,
+	PERF_PAPC_SU_INPUT_PRIM                          = 0x31,
+	PERF_PAPC_SU_INPUT_CLIP_PRIM                     = 0x32,
+	PERF_PAPC_SU_INPUT_NULL_PRIM                     = 0x33,
+	PERF_PAPC_SU_INPUT_PRIM_DUAL                     = 0x34,
+	PERF_PAPC_SU_INPUT_CLIP_PRIM_DUAL                = 0x35,
+	PERF_PAPC_SU_ZERO_AREA_CULL_PRIM                 = 0x36,
+	PERF_PAPC_SU_BACK_FACE_CULL_PRIM                 = 0x37,
+	PERF_PAPC_SU_FRONT_FACE_CULL_PRIM                = 0x38,
+	PERF_PAPC_SU_POLYMODE_FACE_CULL                  = 0x39,
+	PERF_PAPC_SU_POLYMODE_BACK_CULL                  = 0x3a,
+	PERF_PAPC_SU_POLYMODE_FRONT_CULL                 = 0x3b,
+	PERF_PAPC_SU_POLYMODE_INVALID_FILL               = 0x3c,
+	PERF_PAPC_SU_OUTPUT_PRIM                         = 0x3d,
+	PERF_PAPC_SU_OUTPUT_CLIP_PRIM                    = 0x3e,
+	PERF_PAPC_SU_OUTPUT_NULL_PRIM                    = 0x3f,
+	PERF_PAPC_SU_OUTPUT_EVENT_FLAG                   = 0x40,
+	PERF_PAPC_SU_OUTPUT_FIRST_PRIM_SLOT              = 0x41,
+	PERF_PAPC_SU_OUTPUT_END_OF_PACKET                = 0x42,
+	PERF_PAPC_SU_OUTPUT_POLYMODE_FACE                = 0x43,
+	PERF_PAPC_SU_OUTPUT_POLYMODE_BACK                = 0x44,
+	PERF_PAPC_SU_OUTPUT_POLYMODE_FRONT               = 0x45,
+	PERF_PAPC_SU_OUT_CLIP_POLYMODE_FACE              = 0x46,
+	PERF_PAPC_SU_OUT_CLIP_POLYMODE_BACK              = 0x47,
+	PERF_PAPC_SU_OUT_CLIP_POLYMODE_FRONT             = 0x48,
+	PERF_PAPC_SU_OUTPUT_PRIM_DUAL                    = 0x49,
+	PERF_PAPC_SU_OUTPUT_CLIP_PRIM_DUAL               = 0x4a,
+	PERF_PAPC_SU_OUTPUT_POLYMODE_DUAL                = 0x4b,
+	PERF_PAPC_SU_OUTPUT_CLIP_POLYMODE_DUAL           = 0x4c,
+	PERF_PAPC_PASX_REQ_IDLE                          = 0x4d,
+	PERF_PAPC_PASX_REQ_BUSY                          = 0x4e,
+	PERF_PAPC_PASX_REQ_STALLED                       = 0x4f,
+	PERF_PAPC_PASX_REC_IDLE                          = 0x50,
+	PERF_PAPC_PASX_REC_BUSY                          = 0x51,
+	PERF_PAPC_PASX_REC_STARVED_SX                    = 0x52,
+	PERF_PAPC_PASX_REC_STALLED                       = 0x53,
+	PERF_PAPC_PASX_REC_STALLED_POS_MEM               = 0x54,
+	PERF_PAPC_PASX_REC_STALLED_CCGSM_IN              = 0x55,
+	PERF_PAPC_CCGSM_IDLE                             = 0x56,
+	PERF_PAPC_CCGSM_BUSY                             = 0x57,
+	PERF_PAPC_CCGSM_STALLED                          = 0x58,
+	PERF_PAPC_CLPRIM_IDLE                            = 0x59,
+	PERF_PAPC_CLPRIM_BUSY                            = 0x5a,
+	PERF_PAPC_CLPRIM_STALLED                         = 0x5b,
+	PERF_PAPC_CLPRIM_STARVED_CCGSM                   = 0x5c,
+	PERF_PAPC_CLIPSM_IDLE                            = 0x5d,
+	PERF_PAPC_CLIPSM_BUSY                            = 0x5e,
+	PERF_PAPC_CLIPSM_WAIT_CLIP_VERT_ENGH             = 0x5f,
+	PERF_PAPC_CLIPSM_WAIT_HIGH_PRI_SEQ               = 0x60,
+	PERF_PAPC_CLIPSM_WAIT_CLIPGA                     = 0x61,
+	PERF_PAPC_CLIPSM_WAIT_AVAIL_VTE_CLIP             = 0x62,
+	PERF_PAPC_CLIPSM_WAIT_CLIP_OUTSM                 = 0x63,
+	PERF_PAPC_CLIPGA_IDLE                            = 0x64,
+	PERF_PAPC_CLIPGA_BUSY                            = 0x65,
+	PERF_PAPC_CLIPGA_STARVED_VTE_CLIP                = 0x66,
+	PERF_PAPC_CLIPGA_STALLED                         = 0x67,
+	PERF_PAPC_CLIP_IDLE                              = 0x68,
+	PERF_PAPC_CLIP_BUSY                              = 0x69,
+	PERF_PAPC_SU_IDLE                                = 0x6a,
+	PERF_PAPC_SU_BUSY                                = 0x6b,
+	PERF_PAPC_SU_STARVED_CLIP                        = 0x6c,
+	PERF_PAPC_SU_STALLED_SC                          = 0x6d,
+	PERF_PAPC_CL_DYN_SCLK_VLD                        = 0x6e,
+	PERF_PAPC_SU_DYN_SCLK_VLD                        = 0x6f,
+	PERF_PAPC_PA_REG_SCLK_VLD                        = 0x70,
+	PERF_PAPC_SU_MULTI_GPU_PRIM_FILTER_CULL          = 0x71,
+	PERF_PAPC_PASX_SE0_REQ                           = 0x72,
+	PERF_PAPC_PASX_SE1_REQ                           = 0x73,
+	PERF_PAPC_PASX_SE0_FIRST_VECTOR                  = 0x74,
+	PERF_PAPC_PASX_SE0_SECOND_VECTOR                 = 0x75,
+	PERF_PAPC_PASX_SE1_FIRST_VECTOR                  = 0x76,
+	PERF_PAPC_PASX_SE1_SECOND_VECTOR                 = 0x77,
+	PERF_PAPC_SU_SE0_PRIM_FILTER_CULL                = 0x78,
+	PERF_PAPC_SU_SE1_PRIM_FILTER_CULL                = 0x79,
+	PERF_PAPC_SU_SE01_PRIM_FILTER_CULL               = 0x7a,
+	PERF_PAPC_SU_SE0_OUTPUT_PRIM                     = 0x7b,
+	PERF_PAPC_SU_SE1_OUTPUT_PRIM                     = 0x7c,
+	PERF_PAPC_SU_SE01_OUTPUT_PRIM                    = 0x7d,
+	PERF_PAPC_SU_SE0_OUTPUT_NULL_PRIM                = 0x7e,
+	PERF_PAPC_SU_SE1_OUTPUT_NULL_PRIM                = 0x7f,
+	PERF_PAPC_SU_SE01_OUTPUT_NULL_PRIM               = 0x80,
+	PERF_PAPC_SU_SE0_OUTPUT_FIRST_PRIM_SLOT          = 0x81,
+	PERF_PAPC_SU_SE1_OUTPUT_FIRST_PRIM_SLOT          = 0x82,
+	PERF_PAPC_SU_SE0_STALLED_SC                      = 0x83,
+	PERF_PAPC_SU_SE1_STALLED_SC                      = 0x84,
+	PERF_PAPC_SU_SE01_STALLED_SC                     = 0x85,
+	PERF_PAPC_CLSM_CLIPPING_PRIM                     = 0x86,
+	PERF_PAPC_SU_CULLED_PRIM                         = 0x87,
+	PERF_PAPC_SU_OUTPUT_EOPG                         = 0x88,
+	PERF_PAPC_SU_SE2_PRIM_FILTER_CULL                = 0x89,
+	PERF_PAPC_SU_SE3_PRIM_FILTER_CULL                = 0x8a,
+	PERF_PAPC_SU_SE2_OUTPUT_PRIM                     = 0x8b,
+	PERF_PAPC_SU_SE3_OUTPUT_PRIM                     = 0x8c,
+	PERF_PAPC_SU_SE2_OUTPUT_NULL_PRIM                = 0x8d,
+	PERF_PAPC_SU_SE3_OUTPUT_NULL_PRIM                = 0x8e,
+	PERF_PAPC_SU_SE0_OUTPUT_END_OF_PACKET            = 0x8f,
+	PERF_PAPC_SU_SE1_OUTPUT_END_OF_PACKET            = 0x90,
+	PERF_PAPC_SU_SE2_OUTPUT_END_OF_PACKET            = 0x91,
+	PERF_PAPC_SU_SE3_OUTPUT_END_OF_PACKET            = 0x92,
+	PERF_PAPC_SU_SE0_OUTPUT_EOPG                     = 0x93,
+	PERF_PAPC_SU_SE1_OUTPUT_EOPG                     = 0x94,
+	PERF_PAPC_SU_SE2_OUTPUT_EOPG                     = 0x95,
+	PERF_PAPC_SU_SE3_OUTPUT_EOPG                     = 0x96,
+	PERF_PAPC_SU_SE2_STALLED_SC                      = 0x97,
+	PERF_PAPC_SU_SE3_STALLED_SC                      = 0x98,
+} SU_PERFCNT_SEL;
+typedef enum SC_PERFCNT_SEL {
+	SC_SRPS_WINDOW_VALID                             = 0x0,
+	SC_PSSW_WINDOW_VALID                             = 0x1,
+	SC_TPQZ_WINDOW_VALID                             = 0x2,
+	SC_QZQP_WINDOW_VALID                             = 0x3,
+	SC_TRPK_WINDOW_VALID                             = 0x4,
+	SC_SRPS_WINDOW_VALID_BUSY                        = 0x5,
+	SC_PSSW_WINDOW_VALID_BUSY                        = 0x6,
+	SC_TPQZ_WINDOW_VALID_BUSY                        = 0x7,
+	SC_QZQP_WINDOW_VALID_BUSY                        = 0x8,
+	SC_TRPK_WINDOW_VALID_BUSY                        = 0x9,
+	SC_STARVED_BY_PA                                 = 0xa,
+	SC_STALLED_BY_PRIMFIFO                           = 0xb,
+	SC_STALLED_BY_DB_TILE                            = 0xc,
+	SC_STARVED_BY_DB_TILE                            = 0xd,
+	SC_STALLED_BY_TILEORDERFIFO                      = 0xe,
+	SC_STALLED_BY_TILEFIFO                           = 0xf,
+	SC_STALLED_BY_DB_QUAD                            = 0x10,
+	SC_STARVED_BY_DB_QUAD                            = 0x11,
+	SC_STALLED_BY_QUADFIFO                           = 0x12,
+	SC_STALLED_BY_BCI                                = 0x13,
+	SC_STALLED_BY_SPI                                = 0x14,
+	SC_SCISSOR_DISCARD                               = 0x15,
+	SC_BB_DISCARD                                    = 0x16,
+	SC_SUPERTILE_COUNT                               = 0x17,
+	SC_SUPERTILE_PER_PRIM_H0                         = 0x18,
+	SC_SUPERTILE_PER_PRIM_H1                         = 0x19,
+	SC_SUPERTILE_PER_PRIM_H2                         = 0x1a,
+	SC_SUPERTILE_PER_PRIM_H3                         = 0x1b,
+	SC_SUPERTILE_PER_PRIM_H4                         = 0x1c,
+	SC_SUPERTILE_PER_PRIM_H5                         = 0x1d,
+	SC_SUPERTILE_PER_PRIM_H6                         = 0x1e,
+	SC_SUPERTILE_PER_PRIM_H7                         = 0x1f,
+	SC_SUPERTILE_PER_PRIM_H8                         = 0x20,
+	SC_SUPERTILE_PER_PRIM_H9                         = 0x21,
+	SC_SUPERTILE_PER_PRIM_H10                        = 0x22,
+	SC_SUPERTILE_PER_PRIM_H11                        = 0x23,
+	SC_SUPERTILE_PER_PRIM_H12                        = 0x24,
+	SC_SUPERTILE_PER_PRIM_H13                        = 0x25,
+	SC_SUPERTILE_PER_PRIM_H14                        = 0x26,
+	SC_SUPERTILE_PER_PRIM_H15                        = 0x27,
+	SC_SUPERTILE_PER_PRIM_H16                        = 0x28,
+	SC_TILE_PER_PRIM_H0                              = 0x29,
+	SC_TILE_PER_PRIM_H1                              = 0x2a,
+	SC_TILE_PER_PRIM_H2                              = 0x2b,
+	SC_TILE_PER_PRIM_H3                              = 0x2c,
+	SC_TILE_PER_PRIM_H4                              = 0x2d,
+	SC_TILE_PER_PRIM_H5                              = 0x2e,
+	SC_TILE_PER_PRIM_H6                              = 0x2f,
+	SC_TILE_PER_PRIM_H7                              = 0x30,
+	SC_TILE_PER_PRIM_H8                              = 0x31,
+	SC_TILE_PER_PRIM_H9                              = 0x32,
+	SC_TILE_PER_PRIM_H10                             = 0x33,
+	SC_TILE_PER_PRIM_H11                             = 0x34,
+	SC_TILE_PER_PRIM_H12                             = 0x35,
+	SC_TILE_PER_PRIM_H13                             = 0x36,
+	SC_TILE_PER_PRIM_H14                             = 0x37,
+	SC_TILE_PER_PRIM_H15                             = 0x38,
+	SC_TILE_PER_PRIM_H16                             = 0x39,
+	SC_TILE_PER_SUPERTILE_H0                         = 0x3a,
+	SC_TILE_PER_SUPERTILE_H1                         = 0x3b,
+	SC_TILE_PER_SUPERTILE_H2                         = 0x3c,
+	SC_TILE_PER_SUPERTILE_H3                         = 0x3d,
+	SC_TILE_PER_SUPERTILE_H4                         = 0x3e,
+	SC_TILE_PER_SUPERTILE_H5                         = 0x3f,
+	SC_TILE_PER_SUPERTILE_H6                         = 0x40,
+	SC_TILE_PER_SUPERTILE_H7                         = 0x41,
+	SC_TILE_PER_SUPERTILE_H8                         = 0x42,
+	SC_TILE_PER_SUPERTILE_H9                         = 0x43,
+	SC_TILE_PER_SUPERTILE_H10                        = 0x44,
+	SC_TILE_PER_SUPERTILE_H11                        = 0x45,
+	SC_TILE_PER_SUPERTILE_H12                        = 0x46,
+	SC_TILE_PER_SUPERTILE_H13                        = 0x47,
+	SC_TILE_PER_SUPERTILE_H14                        = 0x48,
+	SC_TILE_PER_SUPERTILE_H15                        = 0x49,
+	SC_TILE_PER_SUPERTILE_H16                        = 0x4a,
+	SC_TILE_PICKED_H1                                = 0x4b,
+	SC_TILE_PICKED_H2                                = 0x4c,
+	SC_TILE_PICKED_H3                                = 0x4d,
+	SC_TILE_PICKED_H4                                = 0x4e,
+	SC_QZ0_MULTI_GPU_TILE_DISCARD                    = 0x4f,
+	SC_QZ1_MULTI_GPU_TILE_DISCARD                    = 0x50,
+	SC_QZ2_MULTI_GPU_TILE_DISCARD                    = 0x51,
+	SC_QZ3_MULTI_GPU_TILE_DISCARD                    = 0x52,
+	SC_QZ0_TILE_COUNT                                = 0x53,
+	SC_QZ1_TILE_COUNT                                = 0x54,
+	SC_QZ2_TILE_COUNT                                = 0x55,
+	SC_QZ3_TILE_COUNT                                = 0x56,
+	SC_QZ0_TILE_COVERED_COUNT                        = 0x57,
+	SC_QZ1_TILE_COVERED_COUNT                        = 0x58,
+	SC_QZ2_TILE_COVERED_COUNT                        = 0x59,
+	SC_QZ3_TILE_COVERED_COUNT                        = 0x5a,
+	SC_QZ0_TILE_NOT_COVERED_COUNT                    = 0x5b,
+	SC_QZ1_TILE_NOT_COVERED_COUNT                    = 0x5c,
+	SC_QZ2_TILE_NOT_COVERED_COUNT                    = 0x5d,
+	SC_QZ3_TILE_NOT_COVERED_COUNT                    = 0x5e,
+	SC_QZ0_QUAD_PER_TILE_H0                          = 0x5f,
+	SC_QZ0_QUAD_PER_TILE_H1                          = 0x60,
+	SC_QZ0_QUAD_PER_TILE_H2                          = 0x61,
+	SC_QZ0_QUAD_PER_TILE_H3                          = 0x62,
+	SC_QZ0_QUAD_PER_TILE_H4                          = 0x63,
+	SC_QZ0_QUAD_PER_TILE_H5                          = 0x64,
+	SC_QZ0_QUAD_PER_TILE_H6                          = 0x65,
+	SC_QZ0_QUAD_PER_TILE_H7                          = 0x66,
+	SC_QZ0_QUAD_PER_TILE_H8                          = 0x67,
+	SC_QZ0_QUAD_PER_TILE_H9                          = 0x68,
+	SC_QZ0_QUAD_PER_TILE_H10                         = 0x69,
+	SC_QZ0_QUAD_PER_TILE_H11                         = 0x6a,
+	SC_QZ0_QUAD_PER_TILE_H12                         = 0x6b,
+	SC_QZ0_QUAD_PER_TILE_H13                         = 0x6c,
+	SC_QZ0_QUAD_PER_TILE_H14                         = 0x6d,
+	SC_QZ0_QUAD_PER_TILE_H15                         = 0x6e,
+	SC_QZ0_QUAD_PER_TILE_H16                         = 0x6f,
+	SC_QZ1_QUAD_PER_TILE_H0                          = 0x70,
+	SC_QZ1_QUAD_PER_TILE_H1                          = 0x71,
+	SC_QZ1_QUAD_PER_TILE_H2                          = 0x72,
+	SC_QZ1_QUAD_PER_TILE_H3                          = 0x73,
+	SC_QZ1_QUAD_PER_TILE_H4                          = 0x74,
+	SC_QZ1_QUAD_PER_TILE_H5                          = 0x75,
+	SC_QZ1_QUAD_PER_TILE_H6                          = 0x76,
+	SC_QZ1_QUAD_PER_TILE_H7                          = 0x77,
+	SC_QZ1_QUAD_PER_TILE_H8                          = 0x78,
+	SC_QZ1_QUAD_PER_TILE_H9                          = 0x79,
+	SC_QZ1_QUAD_PER_TILE_H10                         = 0x7a,
+	SC_QZ1_QUAD_PER_TILE_H11                         = 0x7b,
+	SC_QZ1_QUAD_PER_TILE_H12                         = 0x7c,
+	SC_QZ1_QUAD_PER_TILE_H13                         = 0x7d,
+	SC_QZ1_QUAD_PER_TILE_H14                         = 0x7e,
+	SC_QZ1_QUAD_PER_TILE_H15                         = 0x7f,
+	SC_QZ1_QUAD_PER_TILE_H16                         = 0x80,
+	SC_QZ2_QUAD_PER_TILE_H0                          = 0x81,
+	SC_QZ2_QUAD_PER_TILE_H1                          = 0x82,
+	SC_QZ2_QUAD_PER_TILE_H2                          = 0x83,
+	SC_QZ2_QUAD_PER_TILE_H3                          = 0x84,
+	SC_QZ2_QUAD_PER_TILE_H4                          = 0x85,
+	SC_QZ2_QUAD_PER_TILE_H5                          = 0x86,
+	SC_QZ2_QUAD_PER_TILE_H6                          = 0x87,
+	SC_QZ2_QUAD_PER_TILE_H7                          = 0x88,
+	SC_QZ2_QUAD_PER_TILE_H8                          = 0x89,
+	SC_QZ2_QUAD_PER_TILE_H9                          = 0x8a,
+	SC_QZ2_QUAD_PER_TILE_H10                         = 0x8b,
+	SC_QZ2_QUAD_PER_TILE_H11                         = 0x8c,
+	SC_QZ2_QUAD_PER_TILE_H12                         = 0x8d,
+	SC_QZ2_QUAD_PER_TILE_H13                         = 0x8e,
+	SC_QZ2_QUAD_PER_TILE_H14                         = 0x8f,
+	SC_QZ2_QUAD_PER_TILE_H15                         = 0x90,
+	SC_QZ2_QUAD_PER_TILE_H16                         = 0x91,
+	SC_QZ3_QUAD_PER_TILE_H0                          = 0x92,
+	SC_QZ3_QUAD_PER_TILE_H1                          = 0x93,
+	SC_QZ3_QUAD_PER_TILE_H2                          = 0x94,
+	SC_QZ3_QUAD_PER_TILE_H3                          = 0x95,
+	SC_QZ3_QUAD_PER_TILE_H4                          = 0x96,
+	SC_QZ3_QUAD_PER_TILE_H5                          = 0x97,
+	SC_QZ3_QUAD_PER_TILE_H6                          = 0x98,
+	SC_QZ3_QUAD_PER_TILE_H7                          = 0x99,
+	SC_QZ3_QUAD_PER_TILE_H8                          = 0x9a,
+	SC_QZ3_QUAD_PER_TILE_H9                          = 0x9b,
+	SC_QZ3_QUAD_PER_TILE_H10                         = 0x9c,
+	SC_QZ3_QUAD_PER_TILE_H11                         = 0x9d,
+	SC_QZ3_QUAD_PER_TILE_H12                         = 0x9e,
+	SC_QZ3_QUAD_PER_TILE_H13                         = 0x9f,
+	SC_QZ3_QUAD_PER_TILE_H14                         = 0xa0,
+	SC_QZ3_QUAD_PER_TILE_H15                         = 0xa1,
+	SC_QZ3_QUAD_PER_TILE_H16                         = 0xa2,
+	SC_QZ0_QUAD_COUNT                                = 0xa3,
+	SC_QZ1_QUAD_COUNT                                = 0xa4,
+	SC_QZ2_QUAD_COUNT                                = 0xa5,
+	SC_QZ3_QUAD_COUNT                                = 0xa6,
+	SC_P0_HIZ_TILE_COUNT                             = 0xa7,
+	SC_P1_HIZ_TILE_COUNT                             = 0xa8,
+	SC_P2_HIZ_TILE_COUNT                             = 0xa9,
+	SC_P3_HIZ_TILE_COUNT                             = 0xaa,
+	SC_P0_HIZ_QUAD_PER_TILE_H0                       = 0xab,
+	SC_P0_HIZ_QUAD_PER_TILE_H1                       = 0xac,
+	SC_P0_HIZ_QUAD_PER_TILE_H2                       = 0xad,
+	SC_P0_HIZ_QUAD_PER_TILE_H3                       = 0xae,
+	SC_P0_HIZ_QUAD_PER_TILE_H4                       = 0xaf,
+	SC_P0_HIZ_QUAD_PER_TILE_H5                       = 0xb0,
+	SC_P0_HIZ_QUAD_PER_TILE_H6                       = 0xb1,
+	SC_P0_HIZ_QUAD_PER_TILE_H7                       = 0xb2,
+	SC_P0_HIZ_QUAD_PER_TILE_H8                       = 0xb3,
+	SC_P0_HIZ_QUAD_PER_TILE_H9                       = 0xb4,
+	SC_P0_HIZ_QUAD_PER_TILE_H10                      = 0xb5,
+	SC_P0_HIZ_QUAD_PER_TILE_H11                      = 0xb6,
+	SC_P0_HIZ_QUAD_PER_TILE_H12                      = 0xb7,
+	SC_P0_HIZ_QUAD_PER_TILE_H13                      = 0xb8,
+	SC_P0_HIZ_QUAD_PER_TILE_H14                      = 0xb9,
+	SC_P0_HIZ_QUAD_PER_TILE_H15                      = 0xba,
+	SC_P0_HIZ_QUAD_PER_TILE_H16                      = 0xbb,
+	SC_P1_HIZ_QUAD_PER_TILE_H0                       = 0xbc,
+	SC_P1_HIZ_QUAD_PER_TILE_H1                       = 0xbd,
+	SC_P1_HIZ_QUAD_PER_TILE_H2                       = 0xbe,
+	SC_P1_HIZ_QUAD_PER_TILE_H3                       = 0xbf,
+	SC_P1_HIZ_QUAD_PER_TILE_H4                       = 0xc0,
+	SC_P1_HIZ_QUAD_PER_TILE_H5                       = 0xc1,
+	SC_P1_HIZ_QUAD_PER_TILE_H6                       = 0xc2,
+	SC_P1_HIZ_QUAD_PER_TILE_H7                       = 0xc3,
+	SC_P1_HIZ_QUAD_PER_TILE_H8                       = 0xc4,
+	SC_P1_HIZ_QUAD_PER_TILE_H9                       = 0xc5,
+	SC_P1_HIZ_QUAD_PER_TILE_H10                      = 0xc6,
+	SC_P1_HIZ_QUAD_PER_TILE_H11                      = 0xc7,
+	SC_P1_HIZ_QUAD_PER_TILE_H12                      = 0xc8,
+	SC_P1_HIZ_QUAD_PER_TILE_H13                      = 0xc9,
+	SC_P1_HIZ_QUAD_PER_TILE_H14                      = 0xca,
+	SC_P1_HIZ_QUAD_PER_TILE_H15                      = 0xcb,
+	SC_P1_HIZ_QUAD_PER_TILE_H16                      = 0xcc,
+	SC_P2_HIZ_QUAD_PER_TILE_H0                       = 0xcd,
+	SC_P2_HIZ_QUAD_PER_TILE_H1                       = 0xce,
+	SC_P2_HIZ_QUAD_PER_TILE_H2                       = 0xcf,
+	SC_P2_HIZ_QUAD_PER_TILE_H3                       = 0xd0,
+	SC_P2_HIZ_QUAD_PER_TILE_H4                       = 0xd1,
+	SC_P2_HIZ_QUAD_PER_TILE_H5                       = 0xd2,
+	SC_P2_HIZ_QUAD_PER_TILE_H6                       = 0xd3,
+	SC_P2_HIZ_QUAD_PER_TILE_H7                       = 0xd4,
+	SC_P2_HIZ_QUAD_PER_TILE_H8                       = 0xd5,
+	SC_P2_HIZ_QUAD_PER_TILE_H9                       = 0xd6,
+	SC_P2_HIZ_QUAD_PER_TILE_H10                      = 0xd7,
+	SC_P2_HIZ_QUAD_PER_TILE_H11                      = 0xd8,
+	SC_P2_HIZ_QUAD_PER_TILE_H12                      = 0xd9,
+	SC_P2_HIZ_QUAD_PER_TILE_H13                      = 0xda,
+	SC_P2_HIZ_QUAD_PER_TILE_H14                      = 0xdb,
+	SC_P2_HIZ_QUAD_PER_TILE_H15                      = 0xdc,
+	SC_P2_HIZ_QUAD_PER_TILE_H16                      = 0xdd,
+	SC_P3_HIZ_QUAD_PER_TILE_H0                       = 0xde,
+	SC_P3_HIZ_QUAD_PER_TILE_H1                       = 0xdf,
+	SC_P3_HIZ_QUAD_PER_TILE_H2                       = 0xe0,
+	SC_P3_HIZ_QUAD_PER_TILE_H3                       = 0xe1,
+	SC_P3_HIZ_QUAD_PER_TILE_H4                       = 0xe2,
+	SC_P3_HIZ_QUAD_PER_TILE_H5                       = 0xe3,
+	SC_P3_HIZ_QUAD_PER_TILE_H6                       = 0xe4,
+	SC_P3_HIZ_QUAD_PER_TILE_H7                       = 0xe5,
+	SC_P3_HIZ_QUAD_PER_TILE_H8                       = 0xe6,
+	SC_P3_HIZ_QUAD_PER_TILE_H9                       = 0xe7,
+	SC_P3_HIZ_QUAD_PER_TILE_H10                      = 0xe8,
+	SC_P3_HIZ_QUAD_PER_TILE_H11                      = 0xe9,
+	SC_P3_HIZ_QUAD_PER_TILE_H12                      = 0xea,
+	SC_P3_HIZ_QUAD_PER_TILE_H13                      = 0xeb,
+	SC_P3_HIZ_QUAD_PER_TILE_H14                      = 0xec,
+	SC_P3_HIZ_QUAD_PER_TILE_H15                      = 0xed,
+	SC_P3_HIZ_QUAD_PER_TILE_H16                      = 0xee,
+	SC_P0_HIZ_QUAD_COUNT                             = 0xef,
+	SC_P1_HIZ_QUAD_COUNT                             = 0xf0,
+	SC_P2_HIZ_QUAD_COUNT                             = 0xf1,
+	SC_P3_HIZ_QUAD_COUNT                             = 0xf2,
+	SC_P0_DETAIL_QUAD_COUNT                          = 0xf3,
+	SC_P1_DETAIL_QUAD_COUNT                          = 0xf4,
+	SC_P2_DETAIL_QUAD_COUNT                          = 0xf5,
+	SC_P3_DETAIL_QUAD_COUNT                          = 0xf6,
+	SC_P0_DETAIL_QUAD_WITH_1_PIX                     = 0xf7,
+	SC_P0_DETAIL_QUAD_WITH_2_PIX                     = 0xf8,
+	SC_P0_DETAIL_QUAD_WITH_3_PIX                     = 0xf9,
+	SC_P0_DETAIL_QUAD_WITH_4_PIX                     = 0xfa,
+	SC_P1_DETAIL_QUAD_WITH_1_PIX                     = 0xfb,
+	SC_P1_DETAIL_QUAD_WITH_2_PIX                     = 0xfc,
+	SC_P1_DETAIL_QUAD_WITH_3_PIX                     = 0xfd,
+	SC_P1_DETAIL_QUAD_WITH_4_PIX                     = 0xfe,
+	SC_P2_DETAIL_QUAD_WITH_1_PIX                     = 0xff,
+	SC_P2_DETAIL_QUAD_WITH_2_PIX                     = 0x100,
+	SC_P2_DETAIL_QUAD_WITH_3_PIX                     = 0x101,
+	SC_P2_DETAIL_QUAD_WITH_4_PIX                     = 0x102,
+	SC_P3_DETAIL_QUAD_WITH_1_PIX                     = 0x103,
+	SC_P3_DETAIL_QUAD_WITH_2_PIX                     = 0x104,
+	SC_P3_DETAIL_QUAD_WITH_3_PIX                     = 0x105,
+	SC_P3_DETAIL_QUAD_WITH_4_PIX                     = 0x106,
+	SC_EARLYZ_QUAD_COUNT                             = 0x107,
+	SC_EARLYZ_QUAD_WITH_1_PIX                        = 0x108,
+	SC_EARLYZ_QUAD_WITH_2_PIX                        = 0x109,
+	SC_EARLYZ_QUAD_WITH_3_PIX                        = 0x10a,
+	SC_EARLYZ_QUAD_WITH_4_PIX                        = 0x10b,
+	SC_PKR_QUAD_PER_ROW_H1                           = 0x10c,
+	SC_PKR_QUAD_PER_ROW_H2                           = 0x10d,
+	SC_PKR_QUAD_PER_ROW_H3                           = 0x10e,
+	SC_PKR_QUAD_PER_ROW_H4                           = 0x10f,
+	SC_PKR_END_OF_VECTOR                             = 0x110,
+	SC_PKR_CONTROL_XFER                              = 0x111,
+	SC_PKR_DBHANG_FORCE_EOV                          = 0x112,
+	SC_REG_SCLK_BUSY                                 = 0x113,
+	SC_GRP0_DYN_SCLK_BUSY                            = 0x114,
+	SC_GRP1_DYN_SCLK_BUSY                            = 0x115,
+	SC_GRP2_DYN_SCLK_BUSY                            = 0x116,
+	SC_GRP3_DYN_SCLK_BUSY                            = 0x117,
+	SC_GRP4_DYN_SCLK_BUSY                            = 0x118,
+	SC_PA0_SC_DATA_FIFO_RD                           = 0x119,
+	SC_PA0_SC_DATA_FIFO_WE                           = 0x11a,
+	SC_PA1_SC_DATA_FIFO_RD                           = 0x11b,
+	SC_PA1_SC_DATA_FIFO_WE                           = 0x11c,
+	SC_PS_ARB_XFC_ALL_EVENT_OR_PRIM_CYCLES           = 0x11d,
+	SC_PS_ARB_XFC_ONLY_PRIM_CYCLES                   = 0x11e,
+	SC_PS_ARB_XFC_ONLY_ONE_INC_PER_PRIM              = 0x11f,
+	SC_PS_ARB_STALLED_FROM_BELOW                     = 0x120,
+	SC_PS_ARB_STARVED_FROM_ABOVE                     = 0x121,
+	SC_PS_ARB_SC_BUSY                                = 0x122,
+	SC_PS_ARB_PA_SC_BUSY                             = 0x123,
+	SC_PA2_SC_DATA_FIFO_RD                           = 0x124,
+	SC_PA2_SC_DATA_FIFO_WE                           = 0x125,
+	SC_PA3_SC_DATA_FIFO_RD                           = 0x126,
+	SC_PA3_SC_DATA_FIFO_WE                           = 0x127,
+	SC_PA_SC_DEALLOC_0_0_WE                          = 0x128,
+	SC_PA_SC_DEALLOC_0_1_WE                          = 0x129,
+	SC_PA_SC_DEALLOC_1_0_WE                          = 0x12a,
+	SC_PA_SC_DEALLOC_1_1_WE                          = 0x12b,
+	SC_PA_SC_DEALLOC_2_0_WE                          = 0x12c,
+	SC_PA_SC_DEALLOC_2_1_WE                          = 0x12d,
+	SC_PA_SC_DEALLOC_3_0_WE                          = 0x12e,
+	SC_PA_SC_DEALLOC_3_1_WE                          = 0x12f,
+	SC_PA0_SC_EOP_WE                                 = 0x130,
+	SC_PA0_SC_EOPG_WE                                = 0x131,
+	SC_PA0_SC_EVENT_WE                               = 0x132,
+	SC_PA1_SC_EOP_WE                                 = 0x133,
+	SC_PA1_SC_EOPG_WE                                = 0x134,
+	SC_PA1_SC_EVENT_WE                               = 0x135,
+	SC_PA2_SC_EOP_WE                                 = 0x136,
+	SC_PA2_SC_EOPG_WE                                = 0x137,
+	SC_PA2_SC_EVENT_WE                               = 0x138,
+	SC_PA3_SC_EOP_WE                                 = 0x139,
+	SC_PA3_SC_EOPG_WE                                = 0x13a,
+	SC_PA3_SC_EVENT_WE                               = 0x13b,
+	SC_PS_ARB_OOO_THRESHOLD_SWITCH_TO_DESIRED_FIFO   = 0x13c,
+	SC_PS_ARB_OOO_FIFO_EMPTY_SWITCH                  = 0x13d,
+	SC_PS_ARB_NULL_PRIM_BUBBLE_POP                   = 0x13e,
+	SC_PS_ARB_EOP_POP_SYNC_POP                       = 0x13f,
+	SC_PS_ARB_EVENT_SYNC_POP                         = 0x140,
+	SC_SC_PS_ENG_MULTICYCLE_BUBBLE                   = 0x141,
+	SC_PA0_SC_FPOV_WE                                = 0x142,
+	SC_PA1_SC_FPOV_WE                                = 0x143,
+	SC_PA2_SC_FPOV_WE                                = 0x144,
+	SC_PA3_SC_FPOV_WE                                = 0x145,
+	SC_PA0_SC_LPOV_WE                                = 0x146,
+	SC_PA1_SC_LPOV_WE                                = 0x147,
+	SC_PA2_SC_LPOV_WE                                = 0x148,
+	SC_PA3_SC_LPOV_WE                                = 0x149,
+	SC_SC_SPI_DEALLOC_0_0                            = 0x14a,
+	SC_SC_SPI_DEALLOC_0_1                            = 0x14b,
+	SC_SC_SPI_DEALLOC_0_2                            = 0x14c,
+	SC_SC_SPI_DEALLOC_1_0                            = 0x14d,
+	SC_SC_SPI_DEALLOC_1_1                            = 0x14e,
+	SC_SC_SPI_DEALLOC_1_2                            = 0x14f,
+	SC_SC_SPI_DEALLOC_2_0                            = 0x150,
+	SC_SC_SPI_DEALLOC_2_1                            = 0x151,
+	SC_SC_SPI_DEALLOC_2_2                            = 0x152,
+	SC_SC_SPI_DEALLOC_3_0                            = 0x153,
+	SC_SC_SPI_DEALLOC_3_1                            = 0x154,
+	SC_SC_SPI_DEALLOC_3_2                            = 0x155,
+	SC_SC_SPI_FPOV_0                                 = 0x156,
+	SC_SC_SPI_FPOV_1                                 = 0x157,
+	SC_SC_SPI_FPOV_2                                 = 0x158,
+	SC_SC_SPI_FPOV_3                                 = 0x159,
+	SC_SC_SPI_EVENT                                  = 0x15a,
+	SC_PS_TS_EVENT_FIFO_PUSH                         = 0x15b,
+	SC_PS_TS_EVENT_FIFO_POP                          = 0x15c,
+	SC_PS_CTX_DONE_FIFO_PUSH                         = 0x15d,
+	SC_PS_CTX_DONE_FIFO_POP                          = 0x15e,
+	SC_MULTICYCLE_BUBBLE_FREEZE                      = 0x15f,
+	SC_EOP_SYNC_WINDOW                               = 0x160,
+	SC_PA0_SC_NULL_WE                                = 0x161,
+	SC_PA0_SC_NULL_DEALLOC_WE                        = 0x162,
+	SC_PA0_SC_DATA_FIFO_EOPG_RD                      = 0x163,
+	SC_PA0_SC_DATA_FIFO_EOP_RD                       = 0x164,
+	SC_PA0_SC_DEALLOC_0_RD                           = 0x165,
+	SC_PA0_SC_DEALLOC_1_RD                           = 0x166,
+	SC_PA1_SC_DATA_FIFO_EOPG_RD                      = 0x167,
+	SC_PA1_SC_DATA_FIFO_EOP_RD                       = 0x168,
+	SC_PA1_SC_DEALLOC_0_RD                           = 0x169,
+	SC_PA1_SC_DEALLOC_1_RD                           = 0x16a,
+	SC_PA1_SC_NULL_WE                                = 0x16b,
+	SC_PA1_SC_NULL_DEALLOC_WE                        = 0x16c,
+	SC_PA2_SC_DATA_FIFO_EOPG_RD                      = 0x16d,
+	SC_PA2_SC_DATA_FIFO_EOP_RD                       = 0x16e,
+	SC_PA2_SC_DEALLOC_0_RD                           = 0x16f,
+	SC_PA2_SC_DEALLOC_1_RD                           = 0x170,
+	SC_PA2_SC_NULL_WE                                = 0x171,
+	SC_PA2_SC_NULL_DEALLOC_WE                        = 0x172,
+	SC_PA3_SC_DATA_FIFO_EOPG_RD                      = 0x173,
+	SC_PA3_SC_DATA_FIFO_EOP_RD                       = 0x174,
+	SC_PA3_SC_DEALLOC_0_RD                           = 0x175,
+	SC_PA3_SC_DEALLOC_1_RD                           = 0x176,
+	SC_PA3_SC_NULL_WE                                = 0x177,
+	SC_PA3_SC_NULL_DEALLOC_WE                        = 0x178,
+	SC_PS_PA0_SC_FIFO_EMPTY                          = 0x179,
+	SC_PS_PA0_SC_FIFO_FULL                           = 0x17a,
+	SC_PA0_PS_DATA_SEND                              = 0x17b,
+	SC_PS_PA1_SC_FIFO_EMPTY                          = 0x17c,
+	SC_PS_PA1_SC_FIFO_FULL                           = 0x17d,
+	SC_PA1_PS_DATA_SEND                              = 0x17e,
+	SC_PS_PA2_SC_FIFO_EMPTY                          = 0x17f,
+	SC_PS_PA2_SC_FIFO_FULL                           = 0x180,
+	SC_PA2_PS_DATA_SEND                              = 0x181,
+	SC_PS_PA3_SC_FIFO_EMPTY                          = 0x182,
+	SC_PS_PA3_SC_FIFO_FULL                           = 0x183,
+	SC_PA3_PS_DATA_SEND                              = 0x184,
+	SC_BUSY_PROCESSING_MULTICYCLE_PRIM               = 0x185,
+	SC_BUSY_CNT_NOT_ZERO                             = 0x186,
+	SC_BM_BUSY                                       = 0x187,
+	SC_BACKEND_BUSY                                  = 0x188,
+	SC_SCF_SCB_INTERFACE_BUSY                        = 0x189,
+	SC_SCB_BUSY                                      = 0x18a,
+} SC_PERFCNT_SEL;
+typedef enum SePairXsel {
+	RASTER_CONFIG_SE_PAIR_XSEL_8_WIDE_TILE           = 0x0,
+	RASTER_CONFIG_SE_PAIR_XSEL_16_WIDE_TILE          = 0x1,
+	RASTER_CONFIG_SE_PAIR_XSEL_32_WIDE_TILE          = 0x2,
+	RASTER_CONFIG_SE_PAIR_XSEL_64_WIDE_TILE          = 0x3,
+} SePairXsel;
+typedef enum SePairYsel {
+	RASTER_CONFIG_SE_PAIR_YSEL_8_WIDE_TILE           = 0x0,
+	RASTER_CONFIG_SE_PAIR_YSEL_16_WIDE_TILE          = 0x1,
+	RASTER_CONFIG_SE_PAIR_YSEL_32_WIDE_TILE          = 0x2,
+	RASTER_CONFIG_SE_PAIR_YSEL_64_WIDE_TILE          = 0x3,
+} SePairYsel;
+typedef enum SePairMap {
+	RASTER_CONFIG_SE_PAIR_MAP_0                      = 0x0,
+	RASTER_CONFIG_SE_PAIR_MAP_1                      = 0x1,
+	RASTER_CONFIG_SE_PAIR_MAP_2                      = 0x2,
+	RASTER_CONFIG_SE_PAIR_MAP_3                      = 0x3,
+} SePairMap;
+typedef enum SeXsel {
+	RASTER_CONFIG_SE_XSEL_8_WIDE_TILE                = 0x0,
+	RASTER_CONFIG_SE_XSEL_16_WIDE_TILE               = 0x1,
+	RASTER_CONFIG_SE_XSEL_32_WIDE_TILE               = 0x2,
+	RASTER_CONFIG_SE_XSEL_64_WIDE_TILE               = 0x3,
+} SeXsel;
+typedef enum SeYsel {
+	RASTER_CONFIG_SE_YSEL_8_WIDE_TILE                = 0x0,
+	RASTER_CONFIG_SE_YSEL_16_WIDE_TILE               = 0x1,
+	RASTER_CONFIG_SE_YSEL_32_WIDE_TILE               = 0x2,
+	RASTER_CONFIG_SE_YSEL_64_WIDE_TILE               = 0x3,
+} SeYsel;
+typedef enum SeMap {
+	RASTER_CONFIG_SE_MAP_0                           = 0x0,
+	RASTER_CONFIG_SE_MAP_1                           = 0x1,
+	RASTER_CONFIG_SE_MAP_2                           = 0x2,
+	RASTER_CONFIG_SE_MAP_3                           = 0x3,
+} SeMap;
+typedef enum ScXsel {
+	RASTER_CONFIG_SC_XSEL_8_WIDE_TILE                = 0x0,
+	RASTER_CONFIG_SC_XSEL_16_WIDE_TILE               = 0x1,
+	RASTER_CONFIG_SC_XSEL_32_WIDE_TILE               = 0x2,
+	RASTER_CONFIG_SC_XSEL_64_WIDE_TILE               = 0x3,
+} ScXsel;
+typedef enum ScYsel {
+	RASTER_CONFIG_SC_YSEL_8_WIDE_TILE                = 0x0,
+	RASTER_CONFIG_SC_YSEL_16_WIDE_TILE               = 0x1,
+	RASTER_CONFIG_SC_YSEL_32_WIDE_TILE               = 0x2,
+	RASTER_CONFIG_SC_YSEL_64_WIDE_TILE               = 0x3,
+} ScYsel;
+typedef enum ScMap {
+	RASTER_CONFIG_SC_MAP_0                           = 0x0,
+	RASTER_CONFIG_SC_MAP_1                           = 0x1,
+	RASTER_CONFIG_SC_MAP_2                           = 0x2,
+	RASTER_CONFIG_SC_MAP_3                           = 0x3,
+} ScMap;
+typedef enum PkrXsel2 {
+	RASTER_CONFIG_PKR_XSEL2_0                        = 0x0,
+	RASTER_CONFIG_PKR_XSEL2_1                        = 0x1,
+	RASTER_CONFIG_PKR_XSEL2_2                        = 0x2,
+	RASTER_CONFIG_PKR_XSEL2_3                        = 0x3,
+} PkrXsel2;
+typedef enum PkrXsel {
+	RASTER_CONFIG_PKR_XSEL_0                         = 0x0,
+	RASTER_CONFIG_PKR_XSEL_1                         = 0x1,
+	RASTER_CONFIG_PKR_XSEL_2                         = 0x2,
+	RASTER_CONFIG_PKR_XSEL_3                         = 0x3,
+} PkrXsel;
+typedef enum PkrYsel {
+	RASTER_CONFIG_PKR_YSEL_0                         = 0x0,
+	RASTER_CONFIG_PKR_YSEL_1                         = 0x1,
+	RASTER_CONFIG_PKR_YSEL_2                         = 0x2,
+	RASTER_CONFIG_PKR_YSEL_3                         = 0x3,
+} PkrYsel;
+typedef enum PkrMap {
+	RASTER_CONFIG_PKR_MAP_0                          = 0x0,
+	RASTER_CONFIG_PKR_MAP_1                          = 0x1,
+	RASTER_CONFIG_PKR_MAP_2                          = 0x2,
+	RASTER_CONFIG_PKR_MAP_3                          = 0x3,
+} PkrMap;
+typedef enum RbXsel {
+	RASTER_CONFIG_RB_XSEL_0                          = 0x0,
+	RASTER_CONFIG_RB_XSEL_1                          = 0x1,
+} RbXsel;
+typedef enum RbYsel {
+	RASTER_CONFIG_RB_YSEL_0                          = 0x0,
+	RASTER_CONFIG_RB_YSEL_1                          = 0x1,
+} RbYsel;
+typedef enum RbXsel2 {
+	RASTER_CONFIG_RB_XSEL2_0                         = 0x0,
+	RASTER_CONFIG_RB_XSEL2_1                         = 0x1,
+	RASTER_CONFIG_RB_XSEL2_2                         = 0x2,
+	RASTER_CONFIG_RB_XSEL2_3                         = 0x3,
+} RbXsel2;
+typedef enum RbMap {
+	RASTER_CONFIG_RB_MAP_0                           = 0x0,
+	RASTER_CONFIG_RB_MAP_1                           = 0x1,
+	RASTER_CONFIG_RB_MAP_2                           = 0x2,
+	RASTER_CONFIG_RB_MAP_3                           = 0x3,
+} RbMap;
+typedef enum CSDATA_TYPE {
+	CSDATA_TYPE_TG                                   = 0x0,
+	CSDATA_TYPE_STATE                                = 0x1,
+	CSDATA_TYPE_EVENT                                = 0x2,
+	CSDATA_TYPE_PRIVATE                              = 0x3,
+} CSDATA_TYPE;
+#define CSDATA_TYPE_WIDTH                         0x2
+#define CSDATA_ADDR_WIDTH                         0x7
+#define CSDATA_DATA_WIDTH                         0x20
+typedef enum SPI_SAMPLE_CNTL {
+	CENTROIDS_ONLY                                   = 0x0,
+	CENTERS_ONLY                                     = 0x1,
+	CENTROIDS_AND_CENTERS                            = 0x2,
+	UNDEF                                            = 0x3,
+} SPI_SAMPLE_CNTL;
+typedef enum SPI_FOG_MODE {
+	SPI_FOG_NONE                                     = 0x0,
+	SPI_FOG_EXP                                      = 0x1,
+	SPI_FOG_EXP2                                     = 0x2,
+	SPI_FOG_LINEAR                                   = 0x3,
+} SPI_FOG_MODE;
+typedef enum SPI_PNT_SPRITE_OVERRIDE {
+	SPI_PNT_SPRITE_SEL_0                             = 0x0,
+	SPI_PNT_SPRITE_SEL_1                             = 0x1,
+	SPI_PNT_SPRITE_SEL_S                             = 0x2,
+	SPI_PNT_SPRITE_SEL_T                             = 0x3,
+	SPI_PNT_SPRITE_SEL_NONE                          = 0x4,
+} SPI_PNT_SPRITE_OVERRIDE;
+typedef enum SPI_PERFCNT_SEL {
+	SPI_PERF_VS_WINDOW_VALID                         = 0x0,
+	SPI_PERF_VS_BUSY                                 = 0x1,
+	SPI_PERF_VS_FIRST_WAVE                           = 0x2,
+	SPI_PERF_VS_LAST_WAVE                            = 0x3,
+	SPI_PERF_VS_LSHS_DEALLOC                         = 0x4,
+	SPI_PERF_VS_PC_STALL                             = 0x5,
+	SPI_PERF_VS_POS0_STALL                           = 0x6,
+	SPI_PERF_VS_POS1_STALL                           = 0x7,
+	SPI_PERF_VS_CRAWLER_STALL                        = 0x8,
+	SPI_PERF_VS_EVENT_WAVE                           = 0x9,
+	SPI_PERF_VS_WAVE                                 = 0xa,
+	SPI_PERF_VS_PERS_UPD_FULL0                       = 0xb,
+	SPI_PERF_VS_PERS_UPD_FULL1                       = 0xc,
+	SPI_PERF_VS_LATE_ALLOC_FULL                      = 0xd,
+	SPI_PERF_VS_FIRST_SUBGRP                         = 0xe,
+	SPI_PERF_VS_LAST_SUBGRP                          = 0xf,
+	SPI_PERF_GS_WINDOW_VALID                         = 0x10,
+	SPI_PERF_GS_BUSY                                 = 0x11,
+	SPI_PERF_GS_CRAWLER_STALL                        = 0x12,
+	SPI_PERF_GS_EVENT_WAVE                           = 0x13,
+	SPI_PERF_GS_WAVE                                 = 0x14,
+	SPI_PERF_GS_PERS_UPD_FULL0                       = 0x15,
+	SPI_PERF_GS_PERS_UPD_FULL1                       = 0x16,
+	SPI_PERF_GS_FIRST_SUBGRP                         = 0x17,
+	SPI_PERF_GS_LAST_SUBGRP                          = 0x18,
+	SPI_PERF_ES_WINDOW_VALID                         = 0x19,
+	SPI_PERF_ES_BUSY                                 = 0x1a,
+	SPI_PERF_ES_CRAWLER_STALL                        = 0x1b,
+	SPI_PERF_ES_FIRST_WAVE                           = 0x1c,
+	SPI_PERF_ES_LAST_WAVE                            = 0x1d,
+	SPI_PERF_ES_LSHS_DEALLOC                         = 0x1e,
+	SPI_PERF_ES_EVENT_WAVE                           = 0x1f,
+	SPI_PERF_ES_WAVE                                 = 0x20,
+	SPI_PERF_ES_PERS_UPD_FULL0                       = 0x21,
+	SPI_PERF_ES_PERS_UPD_FULL1                       = 0x22,
+	SPI_PERF_ES_FIRST_SUBGRP                         = 0x23,
+	SPI_PERF_ES_LAST_SUBGRP                          = 0x24,
+	SPI_PERF_HS_WINDOW_VALID                         = 0x25,
+	SPI_PERF_HS_BUSY                                 = 0x26,
+	SPI_PERF_HS_CRAWLER_STALL                        = 0x27,
+	SPI_PERF_HS_FIRST_WAVE                           = 0x28,
+	SPI_PERF_HS_LAST_WAVE                            = 0x29,
+	SPI_PERF_HS_LSHS_DEALLOC                         = 0x2a,
+	SPI_PERF_HS_EVENT_WAVE                           = 0x2b,
+	SPI_PERF_HS_WAVE                                 = 0x2c,
+	SPI_PERF_HS_PERS_UPD_FULL0                       = 0x2d,
+	SPI_PERF_HS_PERS_UPD_FULL1                       = 0x2e,
+	SPI_PERF_LS_WINDOW_VALID                         = 0x2f,
+	SPI_PERF_LS_BUSY                                 = 0x30,
+	SPI_PERF_LS_CRAWLER_STALL                        = 0x31,
+	SPI_PERF_LS_FIRST_WAVE                           = 0x32,
+	SPI_PERF_LS_LAST_WAVE                            = 0x33,
+	SPI_PERF_OFFCHIP_LDS_STALL_LS                    = 0x34,
+	SPI_PERF_LS_EVENT_WAVE                           = 0x35,
+	SPI_PERF_LS_WAVE                                 = 0x36,
+	SPI_PERF_LS_PERS_UPD_FULL0                       = 0x37,
+	SPI_PERF_LS_PERS_UPD_FULL1                       = 0x38,
+	SPI_PERF_CSG_WINDOW_VALID                        = 0x39,
+	SPI_PERF_CSG_BUSY                                = 0x3a,
+	SPI_PERF_CSG_NUM_THREADGROUPS                    = 0x3b,
+	SPI_PERF_CSG_CRAWLER_STALL                       = 0x3c,
+	SPI_PERF_CSG_EVENT_WAVE                          = 0x3d,
+	SPI_PERF_CSG_WAVE                                = 0x3e,
+	SPI_PERF_CSN_WINDOW_VALID                        = 0x3f,
+	SPI_PERF_CSN_BUSY                                = 0x40,
+	SPI_PERF_CSN_NUM_THREADGROUPS                    = 0x41,
+	SPI_PERF_CSN_CRAWLER_STALL                       = 0x42,
+	SPI_PERF_CSN_EVENT_WAVE                          = 0x43,
+	SPI_PERF_CSN_WAVE                                = 0x44,
+	SPI_PERF_PS_CTL_WINDOW_VALID                     = 0x45,
+	SPI_PERF_PS_CTL_BUSY                             = 0x46,
+	SPI_PERF_PS_CTL_ACTIVE                           = 0x47,
+	SPI_PERF_PS_CTL_DEALLOC_BIN0                     = 0x48,
+	SPI_PERF_PS_CTL_FPOS_BIN1_STALL                  = 0x49,
+	SPI_PERF_PS_CTL_EVENT_WAVE                       = 0x4a,
+	SPI_PERF_PS_CTL_WAVE                             = 0x4b,
+	SPI_PERF_PS_CTL_OPT_WAVE                         = 0x4c,
+	SPI_PERF_PS_CTL_PASS_BIN0                        = 0x4d,
+	SPI_PERF_PS_CTL_PASS_BIN1                        = 0x4e,
+	SPI_PERF_PS_CTL_FPOS_BIN2                        = 0x4f,
+	SPI_PERF_PS_CTL_PRIM_BIN0                        = 0x50,
+	SPI_PERF_PS_CTL_PRIM_BIN1                        = 0x51,
+	SPI_PERF_PS_CTL_CNF_BIN2                         = 0x52,
+	SPI_PERF_PS_CTL_CNF_BIN3                         = 0x53,
+	SPI_PERF_PS_CTL_CRAWLER_STALL                    = 0x54,
+	SPI_PERF_PS_CTL_LDS_RES_FULL                     = 0x55,
+	SPI_PERF_PS_PERS_UPD_FULL0                       = 0x56,
+	SPI_PERF_PS_PERS_UPD_FULL1                       = 0x57,
+	SPI_PERF_PIX_ALLOC_PEND_CNT                      = 0x58,
+	SPI_PERF_PIX_ALLOC_SCB_STALL                     = 0x59,
+	SPI_PERF_PIX_ALLOC_DB0_STALL                     = 0x5a,
+	SPI_PERF_PIX_ALLOC_DB1_STALL                     = 0x5b,
+	SPI_PERF_PIX_ALLOC_DB2_STALL                     = 0x5c,
+	SPI_PERF_PIX_ALLOC_DB3_STALL                     = 0x5d,
+	SPI_PERF_LDS0_PC_VALID                           = 0x5e,
+	SPI_PERF_LDS1_PC_VALID                           = 0x5f,
+	SPI_PERF_RA_PIPE_REQ_BIN2                        = 0x60,
+	SPI_PERF_RA_TASK_REQ_BIN3                        = 0x61,
+	SPI_PERF_RA_WR_CTL_FULL                          = 0x62,
+	SPI_PERF_RA_REQ_NO_ALLOC                         = 0x63,
+	SPI_PERF_RA_REQ_NO_ALLOC_PS                      = 0x64,
+	SPI_PERF_RA_REQ_NO_ALLOC_VS                      = 0x65,
+	SPI_PERF_RA_REQ_NO_ALLOC_GS                      = 0x66,
+	SPI_PERF_RA_REQ_NO_ALLOC_ES                      = 0x67,
+	SPI_PERF_RA_REQ_NO_ALLOC_HS                      = 0x68,
+	SPI_PERF_RA_REQ_NO_ALLOC_LS                      = 0x69,
+	SPI_PERF_RA_REQ_NO_ALLOC_CSG                     = 0x6a,
+	SPI_PERF_RA_REQ_NO_ALLOC_CSN                     = 0x6b,
+	SPI_PERF_RA_RES_STALL_PS                         = 0x6c,
+	SPI_PERF_RA_RES_STALL_VS                         = 0x6d,
+	SPI_PERF_RA_RES_STALL_GS                         = 0x6e,
+	SPI_PERF_RA_RES_STALL_ES                         = 0x6f,
+	SPI_PERF_RA_RES_STALL_HS                         = 0x70,
+	SPI_PERF_RA_RES_STALL_LS                         = 0x71,
+	SPI_PERF_RA_RES_STALL_CSG                        = 0x72,
+	SPI_PERF_RA_RES_STALL_CSN                        = 0x73,
+	SPI_PERF_RA_TMP_STALL_PS                         = 0x74,
+	SPI_PERF_RA_TMP_STALL_VS                         = 0x75,
+	SPI_PERF_RA_TMP_STALL_GS                         = 0x76,
+	SPI_PERF_RA_TMP_STALL_ES                         = 0x77,
+	SPI_PERF_RA_TMP_STALL_HS                         = 0x78,
+	SPI_PERF_RA_TMP_STALL_LS                         = 0x79,
+	SPI_PERF_RA_TMP_STALL_CSG                        = 0x7a,
+	SPI_PERF_RA_TMP_STALL_CSN                        = 0x7b,
+	SPI_PERF_RA_WAVE_SIMD_FULL_PS                    = 0x7c,
+	SPI_PERF_RA_WAVE_SIMD_FULL_VS                    = 0x7d,
+	SPI_PERF_RA_WAVE_SIMD_FULL_GS                    = 0x7e,
+	SPI_PERF_RA_WAVE_SIMD_FULL_ES                    = 0x7f,
+	SPI_PERF_RA_WAVE_SIMD_FULL_HS                    = 0x80,
+	SPI_PERF_RA_WAVE_SIMD_FULL_LS                    = 0x81,
+	SPI_PERF_RA_WAVE_SIMD_FULL_CSG                   = 0x82,
+	SPI_PERF_RA_WAVE_SIMD_FULL_CSN                   = 0x83,
+	SPI_PERF_RA_VGPR_SIMD_FULL_PS                    = 0x84,
+	SPI_PERF_RA_VGPR_SIMD_FULL_VS                    = 0x85,
+	SPI_PERF_RA_VGPR_SIMD_FULL_GS                    = 0x86,
+	SPI_PERF_RA_VGPR_SIMD_FULL_ES                    = 0x87,
+	SPI_PERF_RA_VGPR_SIMD_FULL_HS                    = 0x88,
+	SPI_PERF_RA_VGPR_SIMD_FULL_LS                    = 0x89,
+	SPI_PERF_RA_VGPR_SIMD_FULL_CSG                   = 0x8a,
+	SPI_PERF_RA_VGPR_SIMD_FULL_CSN                   = 0x8b,
+	SPI_PERF_RA_SGPR_SIMD_FULL_PS                    = 0x8c,
+	SPI_PERF_RA_SGPR_SIMD_FULL_VS                    = 0x8d,
+	SPI_PERF_RA_SGPR_SIMD_FULL_GS                    = 0x8e,
+	SPI_PERF_RA_SGPR_SIMD_FULL_ES                    = 0x8f,
+	SPI_PERF_RA_SGPR_SIMD_FULL_HS                    = 0x90,
+	SPI_PERF_RA_SGPR_SIMD_FULL_LS                    = 0x91,
+	SPI_PERF_RA_SGPR_SIMD_FULL_CSG                   = 0x92,
+	SPI_PERF_RA_SGPR_SIMD_FULL_CSN                   = 0x93,
+	SPI_PERF_RA_LDS_CU_FULL_PS                       = 0x94,
+	SPI_PERF_RA_LDS_CU_FULL_LS                       = 0x95,
+	SPI_PERF_RA_LDS_CU_FULL_ES                       = 0x96,
+	SPI_PERF_RA_LDS_CU_FULL_CSG                      = 0x97,
+	SPI_PERF_RA_LDS_CU_FULL_CSN                      = 0x98,
+	SPI_PERF_RA_BAR_CU_FULL_HS                       = 0x99,
+	SPI_PERF_RA_BAR_CU_FULL_CSG                      = 0x9a,
+	SPI_PERF_RA_BAR_CU_FULL_CSN                      = 0x9b,
+	SPI_PERF_RA_BULKY_CU_FULL_CSG                    = 0x9c,
+	SPI_PERF_RA_BULKY_CU_FULL_CSN                    = 0x9d,
+	SPI_PERF_RA_TGLIM_CU_FULL_CSG                    = 0x9e,
+	SPI_PERF_RA_TGLIM_CU_FULL_CSN                    = 0x9f,
+	SPI_PERF_RA_WVLIM_STALL_PS                       = 0xa0,
+	SPI_PERF_RA_WVLIM_STALL_VS                       = 0xa1,
+	SPI_PERF_RA_WVLIM_STALL_GS                       = 0xa2,
+	SPI_PERF_RA_WVLIM_STALL_ES                       = 0xa3,
+	SPI_PERF_RA_WVLIM_STALL_HS                       = 0xa4,
+	SPI_PERF_RA_WVLIM_STALL_LS                       = 0xa5,
+	SPI_PERF_RA_WVLIM_STALL_CSG                      = 0xa6,
+	SPI_PERF_RA_WVLIM_STALL_CSN                      = 0xa7,
+	SPI_PERF_RA_PS_LOCK                              = 0xa8,
+	SPI_PERF_RA_VS_LOCK                              = 0xa9,
+	SPI_PERF_RA_GS_LOCK                              = 0xaa,
+	SPI_PERF_RA_ES_LOCK                              = 0xab,
+	SPI_PERF_RA_HS_LOCK                              = 0xac,
+	SPI_PERF_RA_LS_LOCK                              = 0xad,
+	SPI_PERF_RA_CSG_LOCK                             = 0xae,
+	SPI_PERF_RA_CSN_LOCK                             = 0xaf,
+	SPI_PERF_RA_RSV_UPD                              = 0xb0,
+	SPI_PERF_EXP_ARB_COL_CNT                         = 0xb1,
+	SPI_PERF_EXP_ARB_PAR_CNT                         = 0xb2,
+	SPI_PERF_EXP_ARB_POS_CNT                         = 0xb3,
+	SPI_PERF_EXP_ARB_GDS_CNT                         = 0xb4,
+	SPI_PERF_CLKGATE_BUSY_STALL                      = 0xb5,
+	SPI_PERF_CLKGATE_ACTIVE_STALL                    = 0xb6,
+	SPI_PERF_CLKGATE_ALL_CLOCKS_ON                   = 0xb7,
+	SPI_PERF_CLKGATE_CGTT_DYN_ON                     = 0xb8,
+	SPI_PERF_CLKGATE_CGTT_REG_ON                     = 0xb9,
+} SPI_PERFCNT_SEL;
+typedef enum SPI_SHADER_FORMAT {
+	SPI_SHADER_NONE                                  = 0x0,
+	SPI_SHADER_1COMP                                 = 0x1,
+	SPI_SHADER_2COMP                                 = 0x2,
+	SPI_SHADER_4COMPRESS                             = 0x3,
+	SPI_SHADER_4COMP                                 = 0x4,
+} SPI_SHADER_FORMAT;
+typedef enum SPI_SHADER_EX_FORMAT {
+	SPI_SHADER_ZERO                                  = 0x0,
+	SPI_SHADER_32_R                                  = 0x1,
+	SPI_SHADER_32_GR                                 = 0x2,
+	SPI_SHADER_32_AR                                 = 0x3,
+	SPI_SHADER_FP16_ABGR                             = 0x4,
+	SPI_SHADER_UNORM16_ABGR                          = 0x5,
+	SPI_SHADER_SNORM16_ABGR                          = 0x6,
+	SPI_SHADER_UINT16_ABGR                           = 0x7,
+	SPI_SHADER_SINT16_ABGR                           = 0x8,
+	SPI_SHADER_32_ABGR                               = 0x9,
+} SPI_SHADER_EX_FORMAT;
+typedef enum CLKGATE_SM_MODE {
+	ON_SEQ                                           = 0x0,
+	OFF_SEQ                                          = 0x1,
+	PROG_SEQ                                         = 0x2,
+	READ_SEQ                                         = 0x3,
+	SM_MODE_RESERVED                                 = 0x4,
+} CLKGATE_SM_MODE;
+typedef enum CLKGATE_BASE_MODE {
+	MULT_8                                           = 0x0,
+	MULT_16                                          = 0x1,
+} CLKGATE_BASE_MODE;
+typedef enum SQ_TEX_CLAMP {
+	SQ_TEX_WRAP                                      = 0x0,
+	SQ_TEX_MIRROR                                    = 0x1,
+	SQ_TEX_CLAMP_LAST_TEXEL                          = 0x2,
+	SQ_TEX_MIRROR_ONCE_LAST_TEXEL                    = 0x3,
+	SQ_TEX_CLAMP_HALF_BORDER                         = 0x4,
+	SQ_TEX_MIRROR_ONCE_HALF_BORDER                   = 0x5,
+	SQ_TEX_CLAMP_BORDER                              = 0x6,
+	SQ_TEX_MIRROR_ONCE_BORDER                        = 0x7,
+} SQ_TEX_CLAMP;
+typedef enum SQ_TEX_XY_FILTER {
+	SQ_TEX_XY_FILTER_POINT                           = 0x0,
+	SQ_TEX_XY_FILTER_BILINEAR                        = 0x1,
+	SQ_TEX_XY_FILTER_ANISO_POINT                     = 0x2,
+	SQ_TEX_XY_FILTER_ANISO_BILINEAR                  = 0x3,
+} SQ_TEX_XY_FILTER;
+typedef enum SQ_TEX_Z_FILTER {
+	SQ_TEX_Z_FILTER_NONE                             = 0x0,
+	SQ_TEX_Z_FILTER_POINT                            = 0x1,
+	SQ_TEX_Z_FILTER_LINEAR                           = 0x2,
+} SQ_TEX_Z_FILTER;
+typedef enum SQ_TEX_MIP_FILTER {
+	SQ_TEX_MIP_FILTER_NONE                           = 0x0,
+	SQ_TEX_MIP_FILTER_POINT                          = 0x1,
+	SQ_TEX_MIP_FILTER_LINEAR                         = 0x2,
+} SQ_TEX_MIP_FILTER;
+typedef enum SQ_TEX_ANISO_RATIO {
+	SQ_TEX_ANISO_RATIO_1                             = 0x0,
+	SQ_TEX_ANISO_RATIO_2                             = 0x1,
+	SQ_TEX_ANISO_RATIO_4                             = 0x2,
+	SQ_TEX_ANISO_RATIO_8                             = 0x3,
+	SQ_TEX_ANISO_RATIO_16                            = 0x4,
+} SQ_TEX_ANISO_RATIO;
+typedef enum SQ_TEX_DEPTH_COMPARE {
+	SQ_TEX_DEPTH_COMPARE_NEVER                       = 0x0,
+	SQ_TEX_DEPTH_COMPARE_LESS                        = 0x1,
+	SQ_TEX_DEPTH_COMPARE_EQUAL                       = 0x2,
+	SQ_TEX_DEPTH_COMPARE_LESSEQUAL                   = 0x3,
+	SQ_TEX_DEPTH_COMPARE_GREATER                     = 0x4,
+	SQ_TEX_DEPTH_COMPARE_NOTEQUAL                    = 0x5,
+	SQ_TEX_DEPTH_COMPARE_GREATEREQUAL                = 0x6,
+	SQ_TEX_DEPTH_COMPARE_ALWAYS                      = 0x7,
+} SQ_TEX_DEPTH_COMPARE;
+typedef enum SQ_TEX_BORDER_COLOR {
+	SQ_TEX_BORDER_COLOR_TRANS_BLACK                  = 0x0,
+	SQ_TEX_BORDER_COLOR_OPAQUE_BLACK                 = 0x1,
+	SQ_TEX_BORDER_COLOR_OPAQUE_WHITE                 = 0x2,
+	SQ_TEX_BORDER_COLOR_REGISTER                     = 0x3,
+} SQ_TEX_BORDER_COLOR;
+typedef enum SQ_RSRC_BUF_TYPE {
+	SQ_RSRC_BUF                                      = 0x0,
+	SQ_RSRC_BUF_RSVD_1                               = 0x1,
+	SQ_RSRC_BUF_RSVD_2                               = 0x2,
+	SQ_RSRC_BUF_RSVD_3                               = 0x3,
+} SQ_RSRC_BUF_TYPE;
+typedef enum SQ_RSRC_IMG_TYPE {
+	SQ_RSRC_IMG_RSVD_0                               = 0x0,
+	SQ_RSRC_IMG_RSVD_1                               = 0x1,
+	SQ_RSRC_IMG_RSVD_2                               = 0x2,
+	SQ_RSRC_IMG_RSVD_3                               = 0x3,
+	SQ_RSRC_IMG_RSVD_4                               = 0x4,
+	SQ_RSRC_IMG_RSVD_5                               = 0x5,
+	SQ_RSRC_IMG_RSVD_6                               = 0x6,
+	SQ_RSRC_IMG_RSVD_7                               = 0x7,
+	SQ_RSRC_IMG_1D                                   = 0x8,
+	SQ_RSRC_IMG_2D                                   = 0x9,
+	SQ_RSRC_IMG_3D                                   = 0xa,
+	SQ_RSRC_IMG_CUBE                                 = 0xb,
+	SQ_RSRC_IMG_1D_ARRAY                             = 0xc,
+	SQ_RSRC_IMG_2D_ARRAY                             = 0xd,
+	SQ_RSRC_IMG_2D_MSAA                              = 0xe,
+	SQ_RSRC_IMG_2D_MSAA_ARRAY                        = 0xf,
+} SQ_RSRC_IMG_TYPE;
+typedef enum SQ_RSRC_FLAT_TYPE {
+	SQ_RSRC_FLAT_RSVD_0                              = 0x0,
+	SQ_RSRC_FLAT                                     = 0x1,
+	SQ_RSRC_FLAT_RSVD_2                              = 0x2,
+	SQ_RSRC_FLAT_RSVD_3                              = 0x3,
+} SQ_RSRC_FLAT_TYPE;
+typedef enum SQ_IMG_FILTER_TYPE {
+	SQ_IMG_FILTER_MODE_BLEND                         = 0x0,
+	SQ_IMG_FILTER_MODE_MIN                           = 0x1,
+	SQ_IMG_FILTER_MODE_MAX                           = 0x2,
+} SQ_IMG_FILTER_TYPE;
+typedef enum SQ_SEL_XYZW01 {
+	SQ_SEL_0                                         = 0x0,
+	SQ_SEL_1                                         = 0x1,
+	SQ_SEL_RESERVED_0                                = 0x2,
+	SQ_SEL_RESERVED_1                                = 0x3,
+	SQ_SEL_X                                         = 0x4,
+	SQ_SEL_Y                                         = 0x5,
+	SQ_SEL_Z                                         = 0x6,
+	SQ_SEL_W                                         = 0x7,
+} SQ_SEL_XYZW01;
+typedef enum SQ_WAVE_TYPE {
+	SQ_WAVE_TYPE_PS                                  = 0x0,
+	SQ_WAVE_TYPE_VS                                  = 0x1,
+	SQ_WAVE_TYPE_GS                                  = 0x2,
+	SQ_WAVE_TYPE_ES                                  = 0x3,
+	SQ_WAVE_TYPE_HS                                  = 0x4,
+	SQ_WAVE_TYPE_LS                                  = 0x5,
+	SQ_WAVE_TYPE_CS                                  = 0x6,
+	SQ_WAVE_TYPE_PS1                                 = 0x7,
+} SQ_WAVE_TYPE;
+typedef enum SQ_THREAD_TRACE_TOKEN_TYPE {
+	SQ_THREAD_TRACE_TOKEN_MISC                       = 0x0,
+	SQ_THREAD_TRACE_TOKEN_TIMESTAMP                  = 0x1,
+	SQ_THREAD_TRACE_TOKEN_REG                        = 0x2,
+	SQ_THREAD_TRACE_TOKEN_WAVE_START                 = 0x3,
+	SQ_THREAD_TRACE_TOKEN_WAVE_ALLOC                 = 0x4,
+	SQ_THREAD_TRACE_TOKEN_REG_CSPRIV                 = 0x5,
+	SQ_THREAD_TRACE_TOKEN_WAVE_END                   = 0x6,
+	SQ_THREAD_TRACE_TOKEN_EVENT                      = 0x7,
+	SQ_THREAD_TRACE_TOKEN_EVENT_CS                   = 0x8,
+	SQ_THREAD_TRACE_TOKEN_EVENT_GFX1                 = 0x9,
+	SQ_THREAD_TRACE_TOKEN_INST                       = 0xa,
+	SQ_THREAD_TRACE_TOKEN_INST_PC                    = 0xb,
+	SQ_THREAD_TRACE_TOKEN_INST_USERDATA              = 0xc,
+	SQ_THREAD_TRACE_TOKEN_ISSUE                      = 0xd,
+	SQ_THREAD_TRACE_TOKEN_PERF                       = 0xe,
+	SQ_THREAD_TRACE_TOKEN_REG_CS                     = 0xf,
+} SQ_THREAD_TRACE_TOKEN_TYPE;
+typedef enum SQ_THREAD_TRACE_MISC_TOKEN_TYPE {
+	SQ_THREAD_TRACE_MISC_TOKEN_TIME                  = 0x0,
+	SQ_THREAD_TRACE_MISC_TOKEN_TIME_RESET            = 0x1,
+	SQ_THREAD_TRACE_MISC_TOKEN_PACKET_LOST           = 0x2,
+	SQ_THREAD_TRACE_MISC_TOKEN_SURF_SYNC             = 0x3,
+	SQ_THREAD_TRACE_MISC_TOKEN_TTRACE_STALL_BEGIN    = 0x4,
+	SQ_THREAD_TRACE_MISC_TOKEN_TTRACE_STALL_END      = 0x5,
+} SQ_THREAD_TRACE_MISC_TOKEN_TYPE;
+typedef enum SQ_THREAD_TRACE_INST_TYPE {
+	SQ_THREAD_TRACE_INST_TYPE_SMEM                   = 0x0,
+	SQ_THREAD_TRACE_INST_TYPE_SALU                   = 0x1,
+	SQ_THREAD_TRACE_INST_TYPE_VMEM_RD                = 0x2,
+	SQ_THREAD_TRACE_INST_TYPE_VMEM_WR                = 0x3,
+	SQ_THREAD_TRACE_INST_TYPE_FLAT_WR                = 0x4,
+	SQ_THREAD_TRACE_INST_TYPE_VALU                   = 0x5,
+	SQ_THREAD_TRACE_INST_TYPE_LDS                    = 0x6,
+	SQ_THREAD_TRACE_INST_TYPE_PC                     = 0x7,
+	SQ_THREAD_TRACE_INST_TYPE_EXPREQ_GDS             = 0x8,
+	SQ_THREAD_TRACE_INST_TYPE_EXPREQ_GFX             = 0x9,
+	SQ_THREAD_TRACE_INST_TYPE_EXPGNT_PAR_COL         = 0xa,
+	SQ_THREAD_TRACE_INST_TYPE_EXPGNT_POS_GDS         = 0xb,
+	SQ_THREAD_TRACE_INST_TYPE_JUMP                   = 0xc,
+	SQ_THREAD_TRACE_INST_TYPE_NEXT                   = 0xd,
+	SQ_THREAD_TRACE_INST_TYPE_FLAT_RD                = 0xe,
+	SQ_THREAD_TRACE_INST_TYPE_OTHER_MSG              = 0xf,
+} SQ_THREAD_TRACE_INST_TYPE;
+typedef enum SQ_THREAD_TRACE_REG_TYPE {
+	SQ_THREAD_TRACE_REG_TYPE_EVENT                   = 0x0,
+	SQ_THREAD_TRACE_REG_TYPE_DRAW                    = 0x1,
+	SQ_THREAD_TRACE_REG_TYPE_DISPATCH                = 0x2,
+	SQ_THREAD_TRACE_REG_TYPE_USERDATA                = 0x3,
+	SQ_THREAD_TRACE_REG_TYPE_MARKER                  = 0x4,
+	SQ_THREAD_TRACE_REG_TYPE_GFXDEC                  = 0x5,
+	SQ_THREAD_TRACE_REG_TYPE_SHDEC                   = 0x6,
+	SQ_THREAD_TRACE_REG_TYPE_OTHER                   = 0x7,
+} SQ_THREAD_TRACE_REG_TYPE;
+typedef enum SQ_THREAD_TRACE_REG_OP {
+	SQ_THREAD_TRACE_REG_OP_READ                      = 0x0,
+	SQ_THREAD_TRACE_REG_OP_WRITE                     = 0x1,
+} SQ_THREAD_TRACE_REG_OP;
+typedef enum SQ_THREAD_TRACE_MODE_SEL {
+	SQ_THREAD_TRACE_MODE_OFF                         = 0x0,
+	SQ_THREAD_TRACE_MODE_ON                          = 0x1,
+	SQ_THREAD_TRACE_MODE_RANDOM                      = 0x2,
+} SQ_THREAD_TRACE_MODE_SEL;
+typedef enum SQ_THREAD_TRACE_CAPTURE_MODE {
+	SQ_THREAD_TRACE_CAPTURE_MODE_ALL                 = 0x0,
+	SQ_THREAD_TRACE_CAPTURE_MODE_SELECT              = 0x1,
+	SQ_THREAD_TRACE_CAPTURE_MODE_SELECT_DETAIL       = 0x2,
+} SQ_THREAD_TRACE_CAPTURE_MODE;
+typedef enum SQ_THREAD_TRACE_VM_ID_MASK {
+	SQ_THREAD_TRACE_VM_ID_MASK_SINGLE                = 0x0,
+	SQ_THREAD_TRACE_VM_ID_MASK_ALL                   = 0x1,
+	SQ_THREAD_TRACE_VM_ID_MASK_SINGLE_DETAIL         = 0x2,
+} SQ_THREAD_TRACE_VM_ID_MASK;
+typedef enum SQ_THREAD_TRACE_WAVE_MASK {
+	SQ_THREAD_TRACE_WAVE_MASK_NONE                   = 0x0,
+	SQ_THREAD_TRACE_WAVE_MASK_ALL                    = 0x1,
+	SQ_THREAD_TRACE_WAVE_MASK_1_2                    = 0x2,
+	SQ_THREAD_TRACE_WAVE_MASK_1_4                    = 0x3,
+	SQ_THREAD_TRACE_WAVE_MASK_1_8                    = 0x4,
+	SQ_THREAD_TRACE_WAVE_MASK_1_16                   = 0x5,
+	SQ_THREAD_TRACE_WAVE_MASK_1_32                   = 0x6,
+	SQ_THREAD_TRACE_WAVE_MASK_1_64                   = 0x7,
+} SQ_THREAD_TRACE_WAVE_MASK;
+typedef enum SQ_THREAD_TRACE_ISSUE {
+	SQ_THREAD_TRACE_ISSUE_NULL                       = 0x0,
+	SQ_THREAD_TRACE_ISSUE_STALL                      = 0x1,
+	SQ_THREAD_TRACE_ISSUE_INST                       = 0x2,
+	SQ_THREAD_TRACE_ISSUE_IMMED                      = 0x3,
+} SQ_THREAD_TRACE_ISSUE;
+typedef enum SQ_THREAD_TRACE_ISSUE_MASK {
+	SQ_THREAD_TRACE_ISSUE_MASK_ALL                   = 0x0,
+	SQ_THREAD_TRACE_ISSUE_MASK_STALLED               = 0x1,
+	SQ_THREAD_TRACE_ISSUE_MASK_STALLED_AND_IMMED     = 0x2,
+	SQ_THREAD_TRACE_ISSUE_MASK_IMMED                 = 0x3,
+} SQ_THREAD_TRACE_ISSUE_MASK;
+typedef enum SQ_PERF_SEL {
+	SQ_PERF_SEL_NONE                                 = 0x0,
+	SQ_PERF_SEL_ACCUM_PREV                           = 0x1,
+	SQ_PERF_SEL_CYCLES                               = 0x2,
+	SQ_PERF_SEL_BUSY_CYCLES                          = 0x3,
+	SQ_PERF_SEL_WAVES                                = 0x4,
+	SQ_PERF_SEL_LEVEL_WAVES                          = 0x5,
+	SQ_PERF_SEL_WAVES_EQ_64                          = 0x6,
+	SQ_PERF_SEL_WAVES_LT_64                          = 0x7,
+	SQ_PERF_SEL_WAVES_LT_48                          = 0x8,
+	SQ_PERF_SEL_WAVES_LT_32                          = 0x9,
+	SQ_PERF_SEL_WAVES_LT_16                          = 0xa,
+	SQ_PERF_SEL_WAVES_CU                             = 0xb,
+	SQ_PERF_SEL_LEVEL_WAVES_CU                       = 0xc,
+	SQ_PERF_SEL_BUSY_CU_CYCLES                       = 0xd,
+	SQ_PERF_SEL_ITEMS                                = 0xe,
+	SQ_PERF_SEL_QUADS                                = 0xf,
+	SQ_PERF_SEL_EVENTS                               = 0x10,
+	SQ_PERF_SEL_SURF_SYNCS                           = 0x11,
+	SQ_PERF_SEL_TTRACE_REQS                          = 0x12,
+	SQ_PERF_SEL_TTRACE_INFLIGHT_REQS                 = 0x13,
+	SQ_PERF_SEL_TTRACE_STALL                         = 0x14,
+	SQ_PERF_SEL_MSG_CNTR                             = 0x15,
+	SQ_PERF_SEL_MSG_PERF                             = 0x16,
+	SQ_PERF_SEL_MSG_GSCNT                            = 0x17,
+	SQ_PERF_SEL_MSG_INTERRUPT                        = 0x18,
+	SQ_PERF_SEL_INSTS                                = 0x19,
+	SQ_PERF_SEL_INSTS_VALU                           = 0x1a,
+	SQ_PERF_SEL_INSTS_VMEM_WR                        = 0x1b,
+	SQ_PERF_SEL_INSTS_VMEM_RD                        = 0x1c,
+	SQ_PERF_SEL_INSTS_VMEM                           = 0x1d,
+	SQ_PERF_SEL_INSTS_SALU                           = 0x1e,
+	SQ_PERF_SEL_INSTS_SMEM                           = 0x1f,
+	SQ_PERF_SEL_INSTS_FLAT                           = 0x20,
+	SQ_PERF_SEL_INSTS_FLAT_LDS_ONLY                  = 0x21,
+	SQ_PERF_SEL_INSTS_LDS                            = 0x22,
+	SQ_PERF_SEL_INSTS_GDS                            = 0x23,
+	SQ_PERF_SEL_INSTS_EXP                            = 0x24,
+	SQ_PERF_SEL_INSTS_EXP_GDS                        = 0x25,
+	SQ_PERF_SEL_INSTS_BRANCH                         = 0x26,
+	SQ_PERF_SEL_INSTS_SENDMSG                        = 0x27,
+	SQ_PERF_SEL_INSTS_VSKIPPED                       = 0x28,
+	SQ_PERF_SEL_INST_LEVEL_VMEM                      = 0x29,
+	SQ_PERF_SEL_INST_LEVEL_SMEM                      = 0x2a,
+	SQ_PERF_SEL_INST_LEVEL_LDS                       = 0x2b,
+	SQ_PERF_SEL_INST_LEVEL_GDS                       = 0x2c,
+	SQ_PERF_SEL_INST_LEVEL_EXP                       = 0x2d,
+	SQ_PERF_SEL_WAVE_CYCLES                          = 0x2e,
+	SQ_PERF_SEL_WAVE_READY                           = 0x2f,
+	SQ_PERF_SEL_WAIT_CNT_VM                          = 0x30,
+	SQ_PERF_SEL_WAIT_CNT_LGKM                        = 0x31,
+	SQ_PERF_SEL_WAIT_CNT_EXP                         = 0x32,
+	SQ_PERF_SEL_WAIT_CNT_ANY                         = 0x33,
+	SQ_PERF_SEL_WAIT_BARRIER                         = 0x34,
+	SQ_PERF_SEL_WAIT_EXP_ALLOC                       = 0x35,
+	SQ_PERF_SEL_WAIT_SLEEP                           = 0x36,
+	SQ_PERF_SEL_WAIT_OTHER                           = 0x37,
+	SQ_PERF_SEL_WAIT_ANY                             = 0x38,
+	SQ_PERF_SEL_WAIT_TTRACE                          = 0x39,
+	SQ_PERF_SEL_WAIT_IFETCH                          = 0x3a,
+	SQ_PERF_SEL_WAIT_INST_VMEM                       = 0x3b,
+	SQ_PERF_SEL_WAIT_INST_SCA                        = 0x3c,
+	SQ_PERF_SEL_WAIT_INST_LDS                        = 0x3d,
+	SQ_PERF_SEL_WAIT_INST_VALU                       = 0x3e,
+	SQ_PERF_SEL_WAIT_INST_EXP_GDS                    = 0x3f,
+	SQ_PERF_SEL_WAIT_INST_MISC                       = 0x40,
+	SQ_PERF_SEL_WAIT_INST_FLAT                       = 0x41,
+	SQ_PERF_SEL_ACTIVE_INST_ANY                      = 0x42,
+	SQ_PERF_SEL_ACTIVE_INST_VMEM                     = 0x43,
+	SQ_PERF_SEL_ACTIVE_INST_LDS                      = 0x44,
+	SQ_PERF_SEL_ACTIVE_INST_VALU                     = 0x45,
+	SQ_PERF_SEL_ACTIVE_INST_SCA                      = 0x46,
+	SQ_PERF_SEL_ACTIVE_INST_EXP_GDS                  = 0x47,
+	SQ_PERF_SEL_ACTIVE_INST_MISC                     = 0x48,
+	SQ_PERF_SEL_ACTIVE_INST_FLAT                     = 0x49,
+	SQ_PERF_SEL_INST_CYCLES_VMEM_WR                  = 0x4a,
+	SQ_PERF_SEL_INST_CYCLES_VMEM_RD                  = 0x4b,
+	SQ_PERF_SEL_INST_CYCLES_VMEM_ADDR                = 0x4c,
+	SQ_PERF_SEL_INST_CYCLES_VMEM_DATA                = 0x4d,
+	SQ_PERF_SEL_INST_CYCLES_VMEM_CMD                 = 0x4e,
+	SQ_PERF_SEL_INST_CYCLES_VMEM                     = 0x4f,
+	SQ_PERF_SEL_INST_CYCLES_LDS                      = 0x50,
+	SQ_PERF_SEL_INST_CYCLES_VALU                     = 0x51,
+	SQ_PERF_SEL_INST_CYCLES_EXP                      = 0x52,
+	SQ_PERF_SEL_INST_CYCLES_GDS                      = 0x53,
+	SQ_PERF_SEL_INST_CYCLES_SCA                      = 0x54,
+	SQ_PERF_SEL_INST_CYCLES_SMEM                     = 0x55,
+	SQ_PERF_SEL_INST_CYCLES_SALU                     = 0x56,
+	SQ_PERF_SEL_INST_CYCLES_EXP_GDS                  = 0x57,
+	SQ_PERF_SEL_INST_CYCLES_MISC                     = 0x58,
+	SQ_PERF_SEL_THREAD_CYCLES_VALU                   = 0x59,
+	SQ_PERF_SEL_THREAD_CYCLES_VALU_MAX               = 0x5a,
+	SQ_PERF_SEL_IFETCH                               = 0x5b,
+	SQ_PERF_SEL_IFETCH_LEVEL                         = 0x5c,
+	SQ_PERF_SEL_CBRANCH_FORK                         = 0x5d,
+	SQ_PERF_SEL_CBRANCH_FORK_SPLIT                   = 0x5e,
+	SQ_PERF_SEL_VALU_LDS_DIRECT_RD                   = 0x5f,
+	SQ_PERF_SEL_VALU_LDS_INTERP_OP                   = 0x60,
+	SQ_PERF_SEL_LDS_BANK_CONFLICT                    = 0x61,
+	SQ_PERF_SEL_LDS_ADDR_CONFLICT                    = 0x62,
+	SQ_PERF_SEL_LDS_UNALIGNED_STALL                  = 0x63,
+	SQ_PERF_SEL_LDS_MEM_VIOLATIONS                   = 0x64,
+	SQ_PERF_SEL_LDS_ATOMIC_RETURN                    = 0x65,
+	SQ_PERF_SEL_LDS_IDX_ACTIVE                       = 0x66,
+	SQ_PERF_SEL_VALU_DEP_STALL                       = 0x67,
+	SQ_PERF_SEL_VALU_STARVE                          = 0x68,
+	SQ_PERF_SEL_EXP_REQ_FIFO_FULL                    = 0x69,
+	SQ_PERF_SEL_LDS_BACK2BACK_STALL                  = 0x6a,
+	SQ_PERF_SEL_LDS_DATA_FIFO_FULL                   = 0x6b,
+	SQ_PERF_SEL_LDS_CMD_FIFO_FULL                    = 0x6c,
+	SQ_PERF_SEL_VMEM_BACK2BACK_STALL                 = 0x6d,
+	SQ_PERF_SEL_VMEM_TA_ADDR_FIFO_FULL               = 0x6e,
+	SQ_PERF_SEL_VMEM_TA_CMD_FIFO_FULL                = 0x6f,
+	SQ_PERF_SEL_VMEM_EX_DATA_REG_BUSY                = 0x70,
+	SQ_PERF_SEL_VMEM_WR_BACK2BACK_STALL              = 0x71,
+	SQ_PERF_SEL_VMEM_WR_TA_DATA_FIFO_FULL            = 0x72,
+	SQ_PERF_SEL_VALU_SRC_C_CONFLICT                  = 0x73,
+	SQ_PERF_SEL_VMEM_RD_SRC_CD_CONFLICT              = 0x74,
+	SQ_PERF_SEL_VMEM_WR_SRC_CD_CONFLICT              = 0x75,
+	SQ_PERF_SEL_FLAT_SRC_CD_CONFLICT                 = 0x76,
+	SQ_PERF_SEL_LDS_SRC_CD_CONFLICT                  = 0x77,
+	SQ_PERF_SEL_SRC_CD_BUSY                          = 0x78,
+	SQ_PERF_SEL_PT_POWER_STALL                       = 0x79,
+	SQ_PERF_SEL_USER0                                = 0x7a,
+	SQ_PERF_SEL_USER1                                = 0x7b,
+	SQ_PERF_SEL_USER2                                = 0x7c,
+	SQ_PERF_SEL_USER3                                = 0x7d,
+	SQ_PERF_SEL_USER4                                = 0x7e,
+	SQ_PERF_SEL_USER5                                = 0x7f,
+	SQ_PERF_SEL_USER6                                = 0x80,
+	SQ_PERF_SEL_USER7                                = 0x81,
+	SQ_PERF_SEL_USER8                                = 0x82,
+	SQ_PERF_SEL_USER9                                = 0x83,
+	SQ_PERF_SEL_USER10                               = 0x84,
+	SQ_PERF_SEL_USER11                               = 0x85,
+	SQ_PERF_SEL_USER12                               = 0x86,
+	SQ_PERF_SEL_USER13                               = 0x87,
+	SQ_PERF_SEL_USER14                               = 0x88,
+	SQ_PERF_SEL_USER15                               = 0x89,
+	SQ_PERF_SEL_USER_LEVEL0                          = 0x8a,
+	SQ_PERF_SEL_USER_LEVEL1                          = 0x8b,
+	SQ_PERF_SEL_USER_LEVEL2                          = 0x8c,
+	SQ_PERF_SEL_USER_LEVEL3                          = 0x8d,
+	SQ_PERF_SEL_USER_LEVEL4                          = 0x8e,
+	SQ_PERF_SEL_USER_LEVEL5                          = 0x8f,
+	SQ_PERF_SEL_USER_LEVEL6                          = 0x90,
+	SQ_PERF_SEL_USER_LEVEL7                          = 0x91,
+	SQ_PERF_SEL_USER_LEVEL8                          = 0x92,
+	SQ_PERF_SEL_USER_LEVEL9                          = 0x93,
+	SQ_PERF_SEL_USER_LEVEL10                         = 0x94,
+	SQ_PERF_SEL_USER_LEVEL11                         = 0x95,
+	SQ_PERF_SEL_USER_LEVEL12                         = 0x96,
+	SQ_PERF_SEL_USER_LEVEL13                         = 0x97,
+	SQ_PERF_SEL_USER_LEVEL14                         = 0x98,
+	SQ_PERF_SEL_USER_LEVEL15                         = 0x99,
+	SQ_PERF_SEL_POWER_VALU                           = 0x9a,
+	SQ_PERF_SEL_POWER_VALU0                          = 0x9b,
+	SQ_PERF_SEL_POWER_VALU1                          = 0x9c,
+	SQ_PERF_SEL_POWER_VALU2                          = 0x9d,
+	SQ_PERF_SEL_POWER_GPR_RD                         = 0x9e,
+	SQ_PERF_SEL_POWER_GPR_WR                         = 0x9f,
+	SQ_PERF_SEL_POWER_LDS_BUSY                       = 0xa0,
+	SQ_PERF_SEL_POWER_ALU_BUSY                       = 0xa1,
+	SQ_PERF_SEL_POWER_TEX_BUSY                       = 0xa2,
+	SQ_PERF_SEL_ACCUM_PREV_HIRES                     = 0xa3,
+	SQ_PERF_SEL_DUMMY_LAST                           = 0xa7,
+	SQC_PERF_SEL_ICACHE_INPUT_VALID_READY            = 0xa8,
+	SQC_PERF_SEL_ICACHE_INPUT_VALID_READYB           = 0xa9,
+	SQC_PERF_SEL_ICACHE_INPUT_VALIDB                 = 0xaa,
+	SQC_PERF_SEL_DCACHE_INPUT_VALID_READY            = 0xab,
+	SQC_PERF_SEL_DCACHE_INPUT_VALID_READYB           = 0xac,
+	SQC_PERF_SEL_DCACHE_INPUT_VALIDB                 = 0xad,
+	SQC_PERF_SEL_TC_REQ                              = 0xae,
+	SQC_PERF_SEL_TC_INST_REQ                         = 0xaf,
+	SQC_PERF_SEL_TC_DATA_REQ                         = 0xb0,
+	SQC_PERF_SEL_TC_STALL                            = 0xb1,
+	SQC_PERF_SEL_TC_STARVE                           = 0xb2,
+	SQC_PERF_SEL_ICACHE_BUSY_CYCLES                  = 0xb3,
+	SQC_PERF_SEL_ICACHE_REQ                          = 0xb4,
+	SQC_PERF_SEL_ICACHE_HITS                         = 0xb5,
+	SQC_PERF_SEL_ICACHE_MISSES                       = 0xb6,
+	SQC_PERF_SEL_ICACHE_MISSES_DUPLICATE             = 0xb7,
+	SQC_PERF_SEL_ICACHE_UNCACHED                     = 0xb8,
+	SQC_PERF_SEL_ICACHE_VOLATILE                     = 0xb9,
+	SQC_PERF_SEL_ICACHE_INVAL_INST                   = 0xba,
+	SQC_PERF_SEL_ICACHE_INVAL_ASYNC                  = 0xbb,
+	SQC_PERF_SEL_ICACHE_INVAL_VOLATILE_INST          = 0xbc,
+	SQC_PERF_SEL_ICACHE_INVAL_VOLATILE_ASYNC         = 0xbd,
+	SQC_PERF_SEL_ICACHE_INPUT_STALL_ARB_NO_GRANT     = 0xbe,
+	SQC_PERF_SEL_ICACHE_INPUT_STALL_BANK_READYB      = 0xbf,
+	SQC_PERF_SEL_ICACHE_CACHE_STALLED                = 0xc0,
+	SQC_PERF_SEL_ICACHE_CACHE_STALL_INFLIGHT_NONZERO = 0xc1,
+	SQC_PERF_SEL_ICACHE_CACHE_STALL_INFLIGHT_MAX     = 0xc2,
+	SQC_PERF_SEL_ICACHE_CACHE_STALL_VOLATILE_MISMATCH= 0xc3,
+	SQC_PERF_SEL_ICACHE_CACHE_STALL_UNCACHED_HIT     = 0xc4,
+	SQC_PERF_SEL_ICACHE_CACHE_STALL_OUTPUT           = 0xc5,
+	SQC_PERF_SEL_ICACHE_CACHE_STALL_OUTPUT_MISS_FIFO = 0xc6,
+	SQC_PERF_SEL_ICACHE_CACHE_STALL_OUTPUT_HIT_FIFO  = 0xc7,
+	SQC_PERF_SEL_ICACHE_CACHE_STALL_OUTPUT_TC_IF     = 0xc8,
+	SQC_PERF_SEL_ICACHE_STALL_OUTXBAR_ARB_NO_GRANT   = 0xc9,
+	SQC_PERF_SEL_DCACHE_BUSY_CYCLES                  = 0xca,
+	SQC_PERF_SEL_DCACHE_REQ                          = 0xcb,
+	SQC_PERF_SEL_DCACHE_HITS                         = 0xcc,
+	SQC_PERF_SEL_DCACHE_MISSES                       = 0xcd,
+	SQC_PERF_SEL_DCACHE_MISSES_DUPLICATE             = 0xce,
+	SQC_PERF_SEL_DCACHE_UNCACHED                     = 0xcf,
+	SQC_PERF_SEL_DCACHE_VOLATILE                     = 0xd0,
+	SQC_PERF_SEL_DCACHE_INVAL_INST                   = 0xd1,
+	SQC_PERF_SEL_DCACHE_INVAL_ASYNC                  = 0xd2,
+	SQC_PERF_SEL_DCACHE_INVAL_VOLATILE_INST          = 0xd3,
+	SQC_PERF_SEL_DCACHE_INVAL_VOLATILE_ASYNC         = 0xd4,
+	SQC_PERF_SEL_DCACHE_INPUT_STALL_ARB_NO_GRANT     = 0xd5,
+	SQC_PERF_SEL_DCACHE_INPUT_STALL_BANK_READYB      = 0xd6,
+	SQC_PERF_SEL_DCACHE_CACHE_STALLED                = 0xd7,
+	SQC_PERF_SEL_DCACHE_CACHE_STALL_INFLIGHT_NONZERO = 0xd8,
+	SQC_PERF_SEL_DCACHE_CACHE_STALL_INFLIGHT_MAX     = 0xd9,
+	SQC_PERF_SEL_DCACHE_CACHE_STALL_VOLATILE_MISMATCH= 0xda,
+	SQC_PERF_SEL_DCACHE_CACHE_STALL_UNCACHED_HIT     = 0xdb,
+	SQC_PERF_SEL_DCACHE_CACHE_STALL_OUTPUT           = 0xdc,
+	SQC_PERF_SEL_DCACHE_CACHE_STALL_OUTPUT_MISS_FIFO = 0xdd,
+	SQC_PERF_SEL_DCACHE_CACHE_STALL_OUTPUT_HIT_FIFO  = 0xde,
+	SQC_PERF_SEL_DCACHE_CACHE_STALL_OUTPUT_TC_IF     = 0xdf,
+	SQC_PERF_SEL_DCACHE_STALL_OUTXBAR_ARB_NO_GRANT   = 0xe0,
+	SQC_PERF_SEL_DCACHE_REQ_1                        = 0xe1,
+	SQC_PERF_SEL_DCACHE_REQ_2                        = 0xe2,
+	SQC_PERF_SEL_DCACHE_REQ_4                        = 0xe3,
+	SQC_PERF_SEL_DCACHE_REQ_8                        = 0xe4,
+	SQC_PERF_SEL_DCACHE_REQ_16                       = 0xe5,
+	SQC_PERF_SEL_DCACHE_REQ_TIME                     = 0xe6,
+	SQC_PERF_SEL_SQ_DCACHE_REQS                      = 0xe7,
+	SQC_PERF_SEL_DCACHE_FLAT_REQ                     = 0xe8,
+	SQC_PERF_SEL_DCACHE_NONFLAT_REQ                  = 0xe9,
+	SQC_PERF_SEL_ICACHE_INFLIGHT_LEVEL               = 0xea,
+	SQC_PERF_SEL_ICACHE_PRE_CC_LEVEL                 = 0xeb,
+	SQC_PERF_SEL_ICACHE_POST_CC_LEVEL                = 0xec,
+	SQC_PERF_SEL_ICACHE_POST_CC_HIT_LEVEL            = 0xed,
+	SQC_PERF_SEL_ICACHE_POST_CC_MISS_LEVEL           = 0xee,
+	SQC_PERF_SEL_DCACHE_INFLIGHT_LEVEL               = 0xef,
+	SQC_PERF_SEL_DCACHE_PRE_CC_LEVEL                 = 0xf0,
+	SQC_PERF_SEL_DCACHE_POST_CC_LEVEL                = 0xf1,
+	SQC_PERF_SEL_DCACHE_POST_CC_HIT_LEVEL            = 0xf2,
+	SQC_PERF_SEL_DCACHE_POST_CC_MISS_LEVEL           = 0xf3,
+	SQC_PERF_SEL_TC_INFLIGHT_LEVEL                   = 0xf4,
+	SQC_PERF_SEL_ICACHE_TC_INFLIGHT_LEVEL            = 0xf5,
+	SQC_PERF_SEL_DCACHE_TC_INFLIGHT_LEVEL            = 0xf6,
+	SQC_PERF_SEL_ERR_DCACHE_REQ_2_GPR_ADDR_UNALIGNED = 0xf7,
+	SQC_PERF_SEL_ERR_DCACHE_REQ_4_GPR_ADDR_UNALIGNED = 0xf8,
+	SQC_PERF_SEL_ERR_DCACHE_REQ_8_GPR_ADDR_UNALIGNED = 0xf9,
+	SQC_PERF_SEL_ERR_DCACHE_REQ_16_GPR_ADDR_UNALIGNED= 0xfa,
+	SQC_PERF_SEL_DUMMY_LAST                          = 0xfb,
+} SQ_PERF_SEL;
+typedef enum SQC_DATA_CACHE_POLICIES {
+	SQC_DATA_CACHE_POLICY_HIT_LRU                    = 0x0,
+	SQC_DATA_CACHE_POLICY_MISS_EVICT                 = 0x1,
+} SQC_DATA_CACHE_POLICIES;
+typedef enum SQ_CAC_POWER_SEL {
+	SQ_CAC_POWER_VALU                                = 0x0,
+	SQ_CAC_POWER_VALU0                               = 0x1,
+	SQ_CAC_POWER_VALU1                               = 0x2,
+	SQ_CAC_POWER_VALU2                               = 0x3,
+	SQ_CAC_POWER_GPR_RD                              = 0x4,
+	SQ_CAC_POWER_GPR_WR                              = 0x5,
+	SQ_CAC_POWER_LDS_BUSY                            = 0x6,
+	SQ_CAC_POWER_ALU_BUSY                            = 0x7,
+	SQ_CAC_POWER_TEX_BUSY                            = 0x8,
+} SQ_CAC_POWER_SEL;
+typedef enum SQ_IND_CMD_CMD {
+	SQ_IND_CMD_CMD_NULL                              = 0x0,
+	SQ_IND_CMD_CMD_HALT                              = 0x1,
+	SQ_IND_CMD_CMD_RESUME                            = 0x2,
+	SQ_IND_CMD_CMD_KILL                              = 0x3,
+	SQ_IND_CMD_CMD_DEBUG                             = 0x4,
+	SQ_IND_CMD_CMD_TRAP                              = 0x5,
+} SQ_IND_CMD_CMD;
+typedef enum SQ_IND_CMD_MODE {
+	SQ_IND_CMD_MODE_SINGLE                           = 0x0,
+	SQ_IND_CMD_MODE_BROADCAST                        = 0x1,
+	SQ_IND_CMD_MODE_BROADCAST_QUEUE                  = 0x2,
+	SQ_IND_CMD_MODE_BROADCAST_PIPE                   = 0x3,
+	SQ_IND_CMD_MODE_BROADCAST_ME                     = 0x4,
+} SQ_IND_CMD_MODE;
+typedef enum SQ_DED_INFO_SOURCE {
+	SQ_DED_INFO_SOURCE_INVALID                       = 0x0,
+	SQ_DED_INFO_SOURCE_INST                          = 0x1,
+	SQ_DED_INFO_SOURCE_SGPR                          = 0x2,
+	SQ_DED_INFO_SOURCE_VGPR                          = 0x3,
+	SQ_DED_INFO_SOURCE_LDS                           = 0x4,
+	SQ_DED_INFO_SOURCE_GDS                           = 0x5,
+	SQ_DED_INFO_SOURCE_TA                            = 0x6,
+} SQ_DED_INFO_SOURCE;
+typedef enum SQ_ROUND_MODE {
+	SQ_ROUND_NEAREST_EVEN                            = 0x0,
+	SQ_ROUND_PLUS_INFINITY                           = 0x1,
+	SQ_ROUND_MINUS_INFINITY                          = 0x2,
+	SQ_ROUND_TO_ZERO                                 = 0x3,
+} SQ_ROUND_MODE;
+typedef enum SQ_INTERRUPT_WORD_ENCODING {
+	SQ_INTERRUPT_WORD_ENCODING_AUTO                  = 0x0,
+	SQ_INTERRUPT_WORD_ENCODING_INST                  = 0x1,
+	SQ_INTERRUPT_WORD_ENCODING_ERROR                 = 0x2,
+} SQ_INTERRUPT_WORD_ENCODING;
+typedef enum ENUM_SQ_EXPORT_RAT_INST {
+	SQ_EXPORT_RAT_INST_NOP                           = 0x0,
+	SQ_EXPORT_RAT_INST_STORE_TYPED                   = 0x1,
+	SQ_EXPORT_RAT_INST_STORE_RAW                     = 0x2,
+	SQ_EXPORT_RAT_INST_STORE_RAW_FDENORM             = 0x3,
+	SQ_EXPORT_RAT_INST_CMPXCHG_INT                   = 0x4,
+	SQ_EXPORT_RAT_INST_CMPXCHG_FLT                   = 0x5,
+	SQ_EXPORT_RAT_INST_CMPXCHG_FDENORM               = 0x6,
+	SQ_EXPORT_RAT_INST_ADD                           = 0x7,
+	SQ_EXPORT_RAT_INST_SUB                           = 0x8,
+	SQ_EXPORT_RAT_INST_RSUB                          = 0x9,
+	SQ_EXPORT_RAT_INST_MIN_INT                       = 0xa,
+	SQ_EXPORT_RAT_INST_MIN_UINT                      = 0xb,
+	SQ_EXPORT_RAT_INST_MAX_INT                       = 0xc,
+	SQ_EXPORT_RAT_INST_MAX_UINT                      = 0xd,
+	SQ_EXPORT_RAT_INST_AND                           = 0xe,
+	SQ_EXPORT_RAT_INST_OR                            = 0xf,
+	SQ_EXPORT_RAT_INST_XOR                           = 0x10,
+	SQ_EXPORT_RAT_INST_MSKOR                         = 0x11,
+	SQ_EXPORT_RAT_INST_INC_UINT                      = 0x12,
+	SQ_EXPORT_RAT_INST_DEC_UINT                      = 0x13,
+	SQ_EXPORT_RAT_INST_STORE_DWORD                   = 0x14,
+	SQ_EXPORT_RAT_INST_STORE_SHORT                   = 0x15,
+	SQ_EXPORT_RAT_INST_STORE_BYTE                    = 0x16,
+	SQ_EXPORT_RAT_INST_NOP_RTN                       = 0x20,
+	SQ_EXPORT_RAT_INST_XCHG_RTN                      = 0x22,
+	SQ_EXPORT_RAT_INST_XCHG_FDENORM_RTN              = 0x23,
+	SQ_EXPORT_RAT_INST_CMPXCHG_INT_RTN               = 0x24,
+	SQ_EXPORT_RAT_INST_CMPXCHG_FLT_RTN               = 0x25,
+	SQ_EXPORT_RAT_INST_CMPXCHG_FDENORM_RTN           = 0x26,
+	SQ_EXPORT_RAT_INST_ADD_RTN                       = 0x27,
+	SQ_EXPORT_RAT_INST_SUB_RTN                       = 0x28,
+	SQ_EXPORT_RAT_INST_RSUB_RTN                      = 0x29,
+	SQ_EXPORT_RAT_INST_MIN_INT_RTN                   = 0x2a,
+	SQ_EXPORT_RAT_INST_MIN_UINT_RTN                  = 0x2b,
+	SQ_EXPORT_RAT_INST_MAX_INT_RTN                   = 0x2c,
+	SQ_EXPORT_RAT_INST_MAX_UINT_RTN                  = 0x2d,
+	SQ_EXPORT_RAT_INST_AND_RTN                       = 0x2e,
+	SQ_EXPORT_RAT_INST_OR_RTN                        = 0x2f,
+	SQ_EXPORT_RAT_INST_XOR_RTN                       = 0x30,
+	SQ_EXPORT_RAT_INST_MSKOR_RTN                     = 0x31,
+	SQ_EXPORT_RAT_INST_INC_UINT_RTN                  = 0x32,
+	SQ_EXPORT_RAT_INST_DEC_UINT_RTN                  = 0x33,
+} ENUM_SQ_EXPORT_RAT_INST;
+typedef enum SQ_IBUF_ST {
+	SQ_IBUF_IB_IDLE                                  = 0x0,
+	SQ_IBUF_IB_INI_WAIT_GNT                          = 0x1,
+	SQ_IBUF_IB_INI_WAIT_DRET                         = 0x2,
+	SQ_IBUF_IB_LE_4DW                                = 0x3,
+	SQ_IBUF_IB_WAIT_DRET                             = 0x4,
+	SQ_IBUF_IB_EMPTY_WAIT_DRET                       = 0x5,
+	SQ_IBUF_IB_DRET                                  = 0x6,
+	SQ_IBUF_IB_EMPTY_WAIT_GNT                        = 0x7,
+} SQ_IBUF_ST;
+typedef enum SQ_INST_STR_ST {
+	SQ_INST_STR_IB_WAVE_NORML                        = 0x0,
+	SQ_INST_STR_IB_WAVE2ID_NORMAL_INST_AV            = 0x1,
+	SQ_INST_STR_IB_WAVE_INTERNAL_INST_AV             = 0x2,
+	SQ_INST_STR_IB_WAVE_INST_SKIP_AV                 = 0x3,
+	SQ_INST_STR_IB_WAVE_SETVSKIP_ST0                 = 0x4,
+	SQ_INST_STR_IB_WAVE_SETVSKIP_ST1                 = 0x5,
+	SQ_INST_STR_IB_WAVE_NOP_SLEEP_WAIT               = 0x6,
+	SQ_INST_STR_IB_WAVE_PC_FROM_SGPR_MSG_WAIT        = 0x7,
+} SQ_INST_STR_ST;
+typedef enum SQ_WAVE_IB_ECC_ST {
+	SQ_WAVE_IB_ECC_CLEAN                             = 0x0,
+	SQ_WAVE_IB_ECC_ERR_CONTINUE                      = 0x1,
+	SQ_WAVE_IB_ECC_ERR_HALT                          = 0x2,
+	SQ_WAVE_IB_ECC_WITH_ERR_MSG                      = 0x3,
+} SQ_WAVE_IB_ECC_ST;
+typedef enum SH_MEM_ALIGNMENT_MODE {
+	SH_MEM_ALIGNMENT_MODE_DWORD                      = 0x0,
+	SH_MEM_ALIGNMENT_MODE_DWORD_STRICT               = 0x1,
+	SH_MEM_ALIGNMENT_MODE_STRICT                     = 0x2,
+	SH_MEM_ALIGNMENT_MODE_UNALIGNED                  = 0x3,
+} SH_MEM_ALIGNMENT_MODE;
+#define SQ_WAVE_TYPE_PS0                          0x0
+#define SQ_THREAD_TRACE_LFSR_PS                   0x8016
+#define SQ_THREAD_TRACE_LFSR_VS                   0x801c
+#define SQ_THREAD_TRACE_LFSR_GS                   0x801f
+#define SQ_THREAD_TRACE_LFSR_ES                   0x8029
+#define SQ_THREAD_TRACE_LFSR_HS                   0x805e
+#define SQ_THREAD_TRACE_LFSR_LS                   0x806b
+#define SQ_THREAD_TRACE_LFSR_CS                   0x8097
+#define SQIND_GLOBAL_REGS_OFFSET                  0x0
+#define SQIND_GLOBAL_REGS_SIZE                    0x8
+#define SQIND_LOCAL_REGS_OFFSET                   0x8
+#define SQIND_LOCAL_REGS_SIZE                     0x8
+#define SQIND_WAVE_HWREGS_OFFSET                  0x10
+#define SQIND_WAVE_HWREGS_SIZE                    0x1f0
+#define SQIND_WAVE_SGPRS_OFFSET                   0x200
+#define SQIND_WAVE_SGPRS_SIZE                     0x200
+#define SQ_GFXDEC_BEGIN                           0xa000
+#define SQ_GFXDEC_END                             0xc000
+#define SQ_GFXDEC_STATE_ID_SHIFT                  0xa
+#define SQDEC_BEGIN                               0x2300
+#define SQDEC_END                                 0x23ff
+#define SQPERFSDEC_BEGIN                          0xd9c0
+#define SQPERFSDEC_END                            0xda40
+#define SQPERFDDEC_BEGIN                          0xd1c0
+#define SQPERFDDEC_END                            0xd240
+#define SQGFXUDEC_BEGIN                           0xc340
+#define SQGFXUDEC_END                             0xc380
+#define SQPWRDEC_BEGIN                            0xf08c
+#define SQPWRDEC_END                              0xf094
+#define SQ_DISPATCHER_GFX_MIN                     0x10
+#define SQ_DISPATCHER_GFX_CNT_PER_RING            0x8
+#define SQ_MAX_PGM_SGPRS                          0x68
+#define SQ_MAX_PGM_VGPRS                          0x100
+#define SQ_THREAD_TRACE_TIME_UNIT                 0x4
+#define SQ_INTERRUPT_ID                           0xef
+#define SQ_EX_MODE_EXCP_VALU_BASE                 0x0
+#define SQ_EX_MODE_EXCP_VALU_SIZE                 0x7
+#define SQ_EX_MODE_EXCP_INVALID                   0x0
+#define SQ_EX_MODE_EXCP_INPUT_DENORM              0x1
+#define SQ_EX_MODE_EXCP_DIV0                      0x2
+#define SQ_EX_MODE_EXCP_OVERFLOW                  0x3
+#define SQ_EX_MODE_EXCP_UNDERFLOW                 0x4
+#define SQ_EX_MODE_EXCP_INEXACT                   0x5
+#define SQ_EX_MODE_EXCP_INT_DIV0                  0x6
+#define SQ_EX_MODE_EXCP_ADDR_WATCH                0x7
+#define SQ_EX_MODE_EXCP_MEM_VIOL                  0x8
+#define INST_ID_ECC_INTERRUPT_MSG                 0xfffffff0
+#define INST_ID_TTRACE_NEW_PC_MSG                 0xfffffff1
+#define INST_ID_HW_TRAP                           0xfffffff2
+#define INST_ID_KILL_SEQ                          0xfffffff3
+#define INST_ID_HOST_REG_TRAP_MSG                 0xfffffffe
+#define SQ_ENC_SOP1_BITS                          0xbe800000
+#define SQ_ENC_SOP1_MASK                          0xff800000
+#define SQ_ENC_SOP1_FIELD                         0x17d
+#define SQ_ENC_SOPC_BITS                          0xbf000000
+#define SQ_ENC_SOPC_MASK                          0xff800000
+#define SQ_ENC_SOPC_FIELD                         0x17e
+#define SQ_ENC_SOPP_BITS                          0xbf800000
+#define SQ_ENC_SOPP_MASK                          0xff800000
+#define SQ_ENC_SOPP_FIELD                         0x17f
+#define SQ_ENC_SOPK_BITS                          0xb0000000
+#define SQ_ENC_SOPK_MASK                          0xf0000000
+#define SQ_ENC_SOPK_FIELD                         0xb
+#define SQ_ENC_SOP2_BITS                          0x80000000
+#define SQ_ENC_SOP2_MASK                          0xc0000000
+#define SQ_ENC_SOP2_FIELD                         0x2
+#define SQ_ENC_SMRD_BITS                          0xc0000000
+#define SQ_ENC_SMRD_MASK                          0xf8000000
+#define SQ_ENC_SMRD_FIELD                         0x18
+#define SQ_ENC_VOP1_BITS                          0x7e000000
+#define SQ_ENC_VOP1_MASK                          0xfe000000
+#define SQ_ENC_VOP1_FIELD                         0x3f
+#define SQ_ENC_VOPC_BITS                          0x7c000000
+#define SQ_ENC_VOPC_MASK                          0xfe000000
+#define SQ_ENC_VOPC_FIELD                         0x3e
+#define SQ_ENC_VOP2_BITS                          0x0
+#define SQ_ENC_VOP2_MASK                          0x80000000
+#define SQ_ENC_VOP2_FIELD                         0x0
+#define SQ_ENC_VINTRP_BITS                        0xc8000000
+#define SQ_ENC_VINTRP_MASK                        0xfc000000
+#define SQ_ENC_VINTRP_FIELD                       0x32
+#define SQ_ENC_VOP3_BITS                          0xd0000000
+#define SQ_ENC_VOP3_MASK                          0xfc000000
+#define SQ_ENC_VOP3_FIELD                         0x34
+#define SQ_ENC_DS_BITS                            0xd8000000
+#define SQ_ENC_DS_MASK                            0xfc000000
+#define SQ_ENC_DS_FIELD                           0x36
+#define SQ_ENC_MUBUF_BITS                         0xe0000000
+#define SQ_ENC_MUBUF_MASK                         0xfc000000
+#define SQ_ENC_MUBUF_FIELD                        0x38
+#define SQ_ENC_MTBUF_BITS                         0xe8000000
+#define SQ_ENC_MTBUF_MASK                         0xfc000000
+#define SQ_ENC_MTBUF_FIELD                        0x3a
+#define SQ_ENC_MIMG_BITS                          0xf0000000
+#define SQ_ENC_MIMG_MASK                          0xfc000000
+#define SQ_ENC_MIMG_FIELD                         0x3c
+#define SQ_ENC_EXP_BITS                           0xf8000000
+#define SQ_ENC_EXP_MASK                           0xfc000000
+#define SQ_ENC_EXP_FIELD                          0x3e
+#define SQ_ENC_FLAT_BITS                          0xdc000000
+#define SQ_ENC_FLAT_MASK                          0xfc000000
+#define SQ_ENC_FLAT_FIELD                         0x37
+#define SQ_WAITCNT_VM_SHIFT                       0x0
+#define SQ_SENDMSG_STREAMID_SIZE                  0x2
+#define SQ_V_OPC_COUNT                            0x100
+#define SQ_HWREG_OFFSET_SIZE                      0x5
+#define SQ_HWREG_OFFSET_SHIFT                     0x6
+#define SQ_NUM_ATTR                               0x21
+#define SQ_NUM_VGPR                               0x100
+#define SQ_SENDMSG_MSG_SIZE                       0x4
+#define SQ_NUM_TTMP                               0xc
+#define SQ_HWREG_ID_SIZE                          0x6
+#define SQ_SENDMSG_GSOP_SIZE                      0x2
+#define SQ_NUM_SGPR                               0x68
+#define SQ_EXP_NUM_MRT                            0x8
+#define SQ_SENDMSG_SYSTEM_SIZE                    0x3
+#define SQ_WAITCNT_LGKM_SHIFT                     0x8
+#define SQ_WAITCNT_EXP_SIZE                       0x3
+#define SQ_SENDMSG_SYSTEM_SHIFT                   0x4
+#define SQ_HWREG_SIZE_SHIFT                       0xb
+#define SQ_EXP_NUM_GDS                            0x5
+#define SQ_SENDMSG_MSG_SHIFT                      0x0
+#define SQ_WAITCNT_EXP_SHIFT                      0x4
+#define SQ_WAITCNT_VM_SIZE                        0x4
+#define SQ_SENDMSG_GSOP_SHIFT                     0x4
+#define SQ_SRC_VGPR_BIT                           0x100
+#define SQ_V_OP2_COUNT                            0x40
+#define SQ_EXP_NUM_PARAM                          0x20
+#define SQ_SENDMSG_STREAMID_SHIFT                 0x8
+#define SQ_V_OP1_COUNT                            0x80
+#define SQ_WAITCNT_LGKM_SIZE                      0x5
+#define SQ_EXP_NUM_POS                            0x4
+#define SQ_HWREG_SIZE_SIZE                        0x5
+#define SQ_HWREG_ID_SHIFT                         0x0
+#define SQ_S_MOV_B32                              0x3
+#define SQ_S_MOV_B64                              0x4
+#define SQ_S_CMOV_B32                             0x5
+#define SQ_S_CMOV_B64                             0x6
+#define SQ_S_NOT_B32                              0x7
+#define SQ_S_NOT_B64                              0x8
+#define SQ_S_WQM_B32                              0x9
+#define SQ_S_WQM_B64                              0xa
+#define SQ_S_BREV_B32                             0xb
+#define SQ_S_BREV_B64                             0xc
+#define SQ_S_BCNT0_I32_B32                        0xd
+#define SQ_S_BCNT0_I32_B64                        0xe
+#define SQ_S_BCNT1_I32_B32                        0xf
+#define SQ_S_BCNT1_I32_B64                        0x10
+#define SQ_S_FF0_I32_B32                          0x11
+#define SQ_S_FF0_I32_B64                          0x12
+#define SQ_S_FF1_I32_B32                          0x13
+#define SQ_S_FF1_I32_B64                          0x14
+#define SQ_S_FLBIT_I32_B32                        0x15
+#define SQ_S_FLBIT_I32_B64                        0x16
+#define SQ_S_FLBIT_I32                            0x17
+#define SQ_S_FLBIT_I32_I64                        0x18
+#define SQ_S_SEXT_I32_I8                          0x19
+#define SQ_S_SEXT_I32_I16                         0x1a
+#define SQ_S_BITSET0_B32                          0x1b
+#define SQ_S_BITSET0_B64                          0x1c
+#define SQ_S_BITSET1_B32                          0x1d
+#define SQ_S_BITSET1_B64                          0x1e
+#define SQ_S_GETPC_B64                            0x1f
+#define SQ_S_SETPC_B64                            0x20
+#define SQ_S_SWAPPC_B64                           0x21
+#define SQ_S_RFE_B64                              0x22
+#define SQ_S_AND_SAVEEXEC_B64                     0x24
+#define SQ_S_OR_SAVEEXEC_B64                      0x25
+#define SQ_S_XOR_SAVEEXEC_B64                     0x26
+#define SQ_S_ANDN2_SAVEEXEC_B64                   0x27
+#define SQ_S_ORN2_SAVEEXEC_B64                    0x28
+#define SQ_S_NAND_SAVEEXEC_B64                    0x29
+#define SQ_S_NOR_SAVEEXEC_B64                     0x2a
+#define SQ_S_XNOR_SAVEEXEC_B64                    0x2b
+#define SQ_S_QUADMASK_B32                         0x2c
+#define SQ_S_QUADMASK_B64                         0x2d
+#define SQ_S_MOVRELS_B32                          0x2e
+#define SQ_S_MOVRELS_B64                          0x2f
+#define SQ_S_MOVRELD_B32                          0x30
+#define SQ_S_MOVRELD_B64                          0x31
+#define SQ_S_CBRANCH_JOIN                         0x32
+#define SQ_S_MOV_REGRD_B32                        0x33
+#define SQ_S_ABS_I32                              0x34
+#define SQ_S_MOV_FED_B32                          0x35
+#define SQ_ATTR0                                  0x0
+#define SQ_S_MOVK_I32                             0x0
+#define SQ_S_CMOVK_I32                            0x2
+#define SQ_S_CMPK_EQ_I32                          0x3
+#define SQ_S_CMPK_LG_I32                          0x4
+#define SQ_S_CMPK_GT_I32                          0x5
+#define SQ_S_CMPK_GE_I32                          0x6
+#define SQ_S_CMPK_LT_I32                          0x7
+#define SQ_S_CMPK_LE_I32                          0x8
+#define SQ_S_CMPK_EQ_U32                          0x9
+#define SQ_S_CMPK_LG_U32                          0xa
+#define SQ_S_CMPK_GT_U32                          0xb
+#define SQ_S_CMPK_GE_U32                          0xc
+#define SQ_S_CMPK_LT_U32                          0xd
+#define SQ_S_CMPK_LE_U32                          0xe
+#define SQ_S_ADDK_I32                             0xf
+#define SQ_S_MULK_I32                             0x10
+#define SQ_S_CBRANCH_I_FORK                       0x11
+#define SQ_S_GETREG_B32                           0x12
+#define SQ_S_SETREG_B32                           0x13
+#define SQ_S_GETREG_REGRD_B32                     0x14
+#define SQ_S_SETREG_IMM32_B32                     0x15
+#define SQ_TBA_LO                                 0x6c
+#define SQ_TBA_HI                                 0x6d
+#define SQ_TMA_LO                                 0x6e
+#define SQ_TMA_HI                                 0x6f
+#define SQ_TTMP0                                  0x70
+#define SQ_TTMP1                                  0x71
+#define SQ_TTMP2                                  0x72
+#define SQ_TTMP3                                  0x73
+#define SQ_TTMP4                                  0x74
+#define SQ_TTMP5                                  0x75
+#define SQ_TTMP6                                  0x76
+#define SQ_TTMP7                                  0x77
+#define SQ_TTMP8                                  0x78
+#define SQ_TTMP9                                  0x79
+#define SQ_TTMP10                                 0x7a
+#define SQ_TTMP11                                 0x7b
+#define SQ_VGPR0                                  0x0
+#define SQ_EXP                                    0x0
+#define SQ_EXP_MRT0                               0x0
+#define SQ_EXP_MRTZ                               0x8
+#define SQ_EXP_NULL                               0x9
+#define SQ_EXP_POS0                               0xc
+#define SQ_EXP_PARAM0                             0x20
+#define SQ_CNT1                                   0x0
+#define SQ_CNT2                                   0x1
+#define SQ_CNT3                                   0x2
+#define SQ_CNT4                                   0x3
+#define SQ_F                                      0x0
+#define SQ_LT                                     0x1
+#define SQ_EQ                                     0x2
+#define SQ_LE                                     0x3
+#define SQ_GT                                     0x4
+#define SQ_LG                                     0x5
+#define SQ_GE                                     0x6
+#define SQ_O                                      0x7
+#define SQ_U                                      0x8
+#define SQ_NGE                                    0x9
+#define SQ_NLG                                    0xa
+#define SQ_NGT                                    0xb
+#define SQ_NLE                                    0xc
+#define SQ_NEQ                                    0xd
+#define SQ_NLT                                    0xe
+#define SQ_TRU                                    0xf
+#define SQ_V_CMP_F_F32                            0x0
+#define SQ_V_CMP_LT_F32                           0x1
+#define SQ_V_CMP_EQ_F32                           0x2
+#define SQ_V_CMP_LE_F32                           0x3
+#define SQ_V_CMP_GT_F32                           0x4
+#define SQ_V_CMP_LG_F32                           0x5
+#define SQ_V_CMP_GE_F32                           0x6
+#define SQ_V_CMP_O_F32                            0x7
+#define SQ_V_CMP_U_F32                            0x8
+#define SQ_V_CMP_NGE_F32                          0x9
+#define SQ_V_CMP_NLG_F32                          0xa
+#define SQ_V_CMP_NGT_F32                          0xb
+#define SQ_V_CMP_NLE_F32                          0xc
+#define SQ_V_CMP_NEQ_F32                          0xd
+#define SQ_V_CMP_NLT_F32                          0xe
+#define SQ_V_CMP_TRU_F32                          0xf
+#define SQ_V_CMPX_F_F32                           0x10
+#define SQ_V_CMPX_LT_F32                          0x11
+#define SQ_V_CMPX_EQ_F32                          0x12
+#define SQ_V_CMPX_LE_F32                          0x13
+#define SQ_V_CMPX_GT_F32                          0x14
+#define SQ_V_CMPX_LG_F32                          0x15
+#define SQ_V_CMPX_GE_F32                          0x16
+#define SQ_V_CMPX_O_F32                           0x17
+#define SQ_V_CMPX_U_F32                           0x18
+#define SQ_V_CMPX_NGE_F32                         0x19
+#define SQ_V_CMPX_NLG_F32                         0x1a
+#define SQ_V_CMPX_NGT_F32                         0x1b
+#define SQ_V_CMPX_NLE_F32                         0x1c
+#define SQ_V_CMPX_NEQ_F32                         0x1d
+#define SQ_V_CMPX_NLT_F32                         0x1e
+#define SQ_V_CMPX_TRU_F32                         0x1f
+#define SQ_V_CMP_F_F64                            0x20
+#define SQ_V_CMP_LT_F64                           0x21
+#define SQ_V_CMP_EQ_F64                           0x22
+#define SQ_V_CMP_LE_F64                           0x23
+#define SQ_V_CMP_GT_F64                           0x24
+#define SQ_V_CMP_LG_F64                           0x25
+#define SQ_V_CMP_GE_F64                           0x26
+#define SQ_V_CMP_O_F64                            0x27
+#define SQ_V_CMP_U_F64                            0x28
+#define SQ_V_CMP_NGE_F64                          0x29
+#define SQ_V_CMP_NLG_F64                          0x2a
+#define SQ_V_CMP_NGT_F64                          0x2b
+#define SQ_V_CMP_NLE_F64                          0x2c
+#define SQ_V_CMP_NEQ_F64                          0x2d
+#define SQ_V_CMP_NLT_F64                          0x2e
+#define SQ_V_CMP_TRU_F64                          0x2f
+#define SQ_V_CMPX_F_F64                           0x30
+#define SQ_V_CMPX_LT_F64                          0x31
+#define SQ_V_CMPX_EQ_F64                          0x32
+#define SQ_V_CMPX_LE_F64                          0x33
+#define SQ_V_CMPX_GT_F64                          0x34
+#define SQ_V_CMPX_LG_F64                          0x35
+#define SQ_V_CMPX_GE_F64                          0x36
+#define SQ_V_CMPX_O_F64                           0x37
+#define SQ_V_CMPX_U_F64                           0x38
+#define SQ_V_CMPX_NGE_F64                         0x39
+#define SQ_V_CMPX_NLG_F64                         0x3a
+#define SQ_V_CMPX_NGT_F64                         0x3b
+#define SQ_V_CMPX_NLE_F64                         0x3c
+#define SQ_V_CMPX_NEQ_F64                         0x3d
+#define SQ_V_CMPX_NLT_F64                         0x3e
+#define SQ_V_CMPX_TRU_F64                         0x3f
+#define SQ_V_CMPS_F_F32                           0x40
+#define SQ_V_CMPS_LT_F32                          0x41
+#define SQ_V_CMPS_EQ_F32                          0x42
+#define SQ_V_CMPS_LE_F32                          0x43
+#define SQ_V_CMPS_GT_F32                          0x44
+#define SQ_V_CMPS_LG_F32                          0x45
+#define SQ_V_CMPS_GE_F32                          0x46
+#define SQ_V_CMPS_O_F32                           0x47
+#define SQ_V_CMPS_U_F32                           0x48
+#define SQ_V_CMPS_NGE_F32                         0x49
+#define SQ_V_CMPS_NLG_F32                         0x4a
+#define SQ_V_CMPS_NGT_F32                         0x4b
+#define SQ_V_CMPS_NLE_F32                         0x4c
+#define SQ_V_CMPS_NEQ_F32                         0x4d
+#define SQ_V_CMPS_NLT_F32                         0x4e
+#define SQ_V_CMPS_TRU_F32                         0x4f
+#define SQ_V_CMPSX_F_F32                          0x50
+#define SQ_V_CMPSX_LT_F32                         0x51
+#define SQ_V_CMPSX_EQ_F32                         0x52
+#define SQ_V_CMPSX_LE_F32                         0x53
+#define SQ_V_CMPSX_GT_F32                         0x54
+#define SQ_V_CMPSX_LG_F32                         0x55
+#define SQ_V_CMPSX_GE_F32                         0x56
+#define SQ_V_CMPSX_O_F32                          0x57
+#define SQ_V_CMPSX_U_F32                          0x58
+#define SQ_V_CMPSX_NGE_F32                        0x59
+#define SQ_V_CMPSX_NLG_F32                        0x5a
+#define SQ_V_CMPSX_NGT_F32                        0x5b
+#define SQ_V_CMPSX_NLE_F32                        0x5c
+#define SQ_V_CMPSX_NEQ_F32                        0x5d
+#define SQ_V_CMPSX_NLT_F32                        0x5e
+#define SQ_V_CMPSX_TRU_F32                        0x5f
+#define SQ_V_CMPS_F_F64                           0x60
+#define SQ_V_CMPS_LT_F64                          0x61
+#define SQ_V_CMPS_EQ_F64                          0x62
+#define SQ_V_CMPS_LE_F64                          0x63
+#define SQ_V_CMPS_GT_F64                          0x64
+#define SQ_V_CMPS_LG_F64                          0x65
+#define SQ_V_CMPS_GE_F64                          0x66
+#define SQ_V_CMPS_O_F64                           0x67
+#define SQ_V_CMPS_U_F64                           0x68
+#define SQ_V_CMPS_NGE_F64                         0x69
+#define SQ_V_CMPS_NLG_F64                         0x6a
+#define SQ_V_CMPS_NGT_F64                         0x6b
+#define SQ_V_CMPS_NLE_F64                         0x6c
+#define SQ_V_CMPS_NEQ_F64                         0x6d
+#define SQ_V_CMPS_NLT_F64                         0x6e
+#define SQ_V_CMPS_TRU_F64                         0x6f
+#define SQ_V_CMPSX_F_F64                          0x70
+#define SQ_V_CMPSX_LT_F64                         0x71
+#define SQ_V_CMPSX_EQ_F64                         0x72
+#define SQ_V_CMPSX_LE_F64                         0x73
+#define SQ_V_CMPSX_GT_F64                         0x74
+#define SQ_V_CMPSX_LG_F64                         0x75
+#define SQ_V_CMPSX_GE_F64                         0x76
+#define SQ_V_CMPSX_O_F64                          0x77
+#define SQ_V_CMPSX_U_F64                          0x78
+#define SQ_V_CMPSX_NGE_F64                        0x79
+#define SQ_V_CMPSX_NLG_F64                        0x7a
+#define SQ_V_CMPSX_NGT_F64                        0x7b
+#define SQ_V_CMPSX_NLE_F64                        0x7c
+#define SQ_V_CMPSX_NEQ_F64                        0x7d
+#define SQ_V_CMPSX_NLT_F64                        0x7e
+#define SQ_V_CMPSX_TRU_F64                        0x7f
+#define SQ_V_CMP_F_I32                            0x80
+#define SQ_V_CMP_LT_I32                           0x81
+#define SQ_V_CMP_EQ_I32                           0x82
+#define SQ_V_CMP_LE_I32                           0x83
+#define SQ_V_CMP_GT_I32                           0x84
+#define SQ_V_CMP_NE_I32                           0x85
+#define SQ_V_CMP_GE_I32                           0x86
+#define SQ_V_CMP_T_I32                            0x87
+#define SQ_V_CMPX_F_I32                           0x90
+#define SQ_V_CMPX_LT_I32                          0x91
+#define SQ_V_CMPX_EQ_I32                          0x92
+#define SQ_V_CMPX_LE_I32                          0x93
+#define SQ_V_CMPX_GT_I32                          0x94
+#define SQ_V_CMPX_NE_I32                          0x95
+#define SQ_V_CMPX_GE_I32                          0x96
+#define SQ_V_CMPX_T_I32                           0x97
+#define SQ_V_CMP_F_I64                            0xa0
+#define SQ_V_CMP_LT_I64                           0xa1
+#define SQ_V_CMP_EQ_I64                           0xa2
+#define SQ_V_CMP_LE_I64                           0xa3
+#define SQ_V_CMP_GT_I64                           0xa4
+#define SQ_V_CMP_NE_I64                           0xa5
+#define SQ_V_CMP_GE_I64                           0xa6
+#define SQ_V_CMP_T_I64                            0xa7
+#define SQ_V_CMPX_F_I64                           0xb0
+#define SQ_V_CMPX_LT_I64                          0xb1
+#define SQ_V_CMPX_EQ_I64                          0xb2
+#define SQ_V_CMPX_LE_I64                          0xb3
+#define SQ_V_CMPX_GT_I64                          0xb4
+#define SQ_V_CMPX_NE_I64                          0xb5
+#define SQ_V_CMPX_GE_I64                          0xb6
+#define SQ_V_CMPX_T_I64                           0xb7
+#define SQ_V_CMP_F_U32                            0xc0
+#define SQ_V_CMP_LT_U32                           0xc1
+#define SQ_V_CMP_EQ_U32                           0xc2
+#define SQ_V_CMP_LE_U32                           0xc3
+#define SQ_V_CMP_GT_U32                           0xc4
+#define SQ_V_CMP_NE_U32                           0xc5
+#define SQ_V_CMP_GE_U32                           0xc6
+#define SQ_V_CMP_T_U32                            0xc7
+#define SQ_V_CMPX_F_U32                           0xd0
+#define SQ_V_CMPX_LT_U32                          0xd1
+#define SQ_V_CMPX_EQ_U32                          0xd2
+#define SQ_V_CMPX_LE_U32                          0xd3
+#define SQ_V_CMPX_GT_U32                          0xd4
+#define SQ_V_CMPX_NE_U32                          0xd5
+#define SQ_V_CMPX_GE_U32                          0xd6
+#define SQ_V_CMPX_T_U32                           0xd7
+#define SQ_V_CMP_F_U64                            0xe0
+#define SQ_V_CMP_LT_U64                           0xe1
+#define SQ_V_CMP_EQ_U64                           0xe2
+#define SQ_V_CMP_LE_U64                           0xe3
+#define SQ_V_CMP_GT_U64                           0xe4
+#define SQ_V_CMP_NE_U64                           0xe5
+#define SQ_V_CMP_GE_U64                           0xe6
+#define SQ_V_CMP_T_U64                            0xe7
+#define SQ_V_CMPX_F_U64                           0xf0
+#define SQ_V_CMPX_LT_U64                          0xf1
+#define SQ_V_CMPX_EQ_U64                          0xf2
+#define SQ_V_CMPX_LE_U64                          0xf3
+#define SQ_V_CMPX_GT_U64                          0xf4
+#define SQ_V_CMPX_NE_U64                          0xf5
+#define SQ_V_CMPX_GE_U64                          0xf6
+#define SQ_V_CMPX_T_U64                           0xf7
+#define SQ_V_CMP_CLASS_F32                        0x88
+#define SQ_V_CMPX_CLASS_F32                       0x98
+#define SQ_V_CMP_CLASS_F64                        0xa8
+#define SQ_V_CMPX_CLASS_F64                       0xb8
+#define SQ_SGPR0                                  0x0
+#define SQ_F                                      0x0
+#define SQ_LT                                     0x1
+#define SQ_EQ                                     0x2
+#define SQ_LE                                     0x3
+#define SQ_GT                                     0x4
+#define SQ_NE                                     0x5
+#define SQ_GE                                     0x6
+#define SQ_T                                      0x7
+#define SQ_SRC_64_INT                             0xc0
+#define SQ_SRC_M_1_INT                            0xc1
+#define SQ_SRC_M_2_INT                            0xc2
+#define SQ_SRC_M_3_INT                            0xc3
+#define SQ_SRC_M_4_INT                            0xc4
+#define SQ_SRC_M_5_INT                            0xc5
+#define SQ_SRC_M_6_INT                            0xc6
+#define SQ_SRC_M_7_INT                            0xc7
+#define SQ_SRC_M_8_INT                            0xc8
+#define SQ_SRC_M_9_INT                            0xc9
+#define SQ_SRC_M_10_INT                           0xca
+#define SQ_SRC_M_11_INT                           0xcb
+#define SQ_SRC_M_12_INT                           0xcc
+#define SQ_SRC_M_13_INT                           0xcd
+#define SQ_SRC_M_14_INT                           0xce
+#define SQ_SRC_M_15_INT                           0xcf
+#define SQ_SRC_M_16_INT                           0xd0
+#define SQ_SRC_0_5                                0xf0
+#define SQ_SRC_M_0_5                              0xf1
+#define SQ_SRC_1                                  0xf2
+#define SQ_SRC_M_1                                0xf3
+#define SQ_SRC_2                                  0xf4
+#define SQ_SRC_M_2                                0xf5
+#define SQ_SRC_4                                  0xf6
+#define SQ_SRC_M_4                                0xf7
+#define SQ_SRC_0                                  0x80
+#define SQ_SRC_1_INT                              0x81
+#define SQ_SRC_2_INT                              0x82
+#define SQ_SRC_3_INT                              0x83
+#define SQ_SRC_4_INT                              0x84
+#define SQ_SRC_5_INT                              0x85
+#define SQ_SRC_6_INT                              0x86
+#define SQ_SRC_7_INT                              0x87
+#define SQ_SRC_8_INT                              0x88
+#define SQ_SRC_9_INT                              0x89
+#define SQ_SRC_10_INT                             0x8a
+#define SQ_SRC_11_INT                             0x8b
+#define SQ_SRC_12_INT                             0x8c
+#define SQ_SRC_13_INT                             0x8d
+#define SQ_SRC_14_INT                             0x8e
+#define SQ_SRC_15_INT                             0x8f
+#define SQ_SRC_16_INT                             0x90
+#define SQ_SRC_17_INT                             0x91
+#define SQ_SRC_18_INT                             0x92
+#define SQ_SRC_19_INT                             0x93
+#define SQ_SRC_20_INT                             0x94
+#define SQ_SRC_21_INT                             0x95
+#define SQ_SRC_22_INT                             0x96
+#define SQ_SRC_23_INT                             0x97
+#define SQ_SRC_24_INT                             0x98
+#define SQ_SRC_25_INT                             0x99
+#define SQ_SRC_26_INT                             0x9a
+#define SQ_SRC_27_INT                             0x9b
+#define SQ_SRC_28_INT                             0x9c
+#define SQ_SRC_29_INT                             0x9d
+#define SQ_SRC_30_INT                             0x9e
+#define SQ_SRC_31_INT                             0x9f
+#define SQ_SRC_32_INT                             0xa0
+#define SQ_SRC_33_INT                             0xa1
+#define SQ_SRC_34_INT                             0xa2
+#define SQ_SRC_35_INT                             0xa3
+#define SQ_SRC_36_INT                             0xa4
+#define SQ_SRC_37_INT                             0xa5
+#define SQ_SRC_38_INT                             0xa6
+#define SQ_SRC_39_INT                             0xa7
+#define SQ_SRC_40_INT                             0xa8
+#define SQ_SRC_41_INT                             0xa9
+#define SQ_SRC_42_INT                             0xaa
+#define SQ_SRC_43_INT                             0xab
+#define SQ_SRC_44_INT                             0xac
+#define SQ_SRC_45_INT                             0xad
+#define SQ_SRC_46_INT                             0xae
+#define SQ_SRC_47_INT                             0xaf
+#define SQ_SRC_48_INT                             0xb0
+#define SQ_SRC_49_INT                             0xb1
+#define SQ_SRC_50_INT                             0xb2
+#define SQ_SRC_51_INT                             0xb3
+#define SQ_SRC_52_INT                             0xb4
+#define SQ_SRC_53_INT                             0xb5
+#define SQ_SRC_54_INT                             0xb6
+#define SQ_SRC_55_INT                             0xb7
+#define SQ_SRC_56_INT                             0xb8
+#define SQ_SRC_57_INT                             0xb9
+#define SQ_SRC_58_INT                             0xba
+#define SQ_SRC_59_INT                             0xbb
+#define SQ_SRC_60_INT                             0xbc
+#define SQ_SRC_61_INT                             0xbd
+#define SQ_SRC_62_INT                             0xbe
+#define SQ_SRC_63_INT                             0xbf
+#define SQ_BUFFER_LOAD_FORMAT_X                   0x0
+#define SQ_BUFFER_LOAD_FORMAT_XY                  0x1
+#define SQ_BUFFER_LOAD_FORMAT_XYZ                 0x2
+#define SQ_BUFFER_LOAD_FORMAT_XYZW                0x3
+#define SQ_BUFFER_STORE_FORMAT_X                  0x4
+#define SQ_BUFFER_STORE_FORMAT_XY                 0x5
+#define SQ_BUFFER_STORE_FORMAT_XYZ                0x6
+#define SQ_BUFFER_STORE_FORMAT_XYZW               0x7
+#define SQ_BUFFER_LOAD_UBYTE                      0x8
+#define SQ_BUFFER_LOAD_SBYTE                      0x9
+#define SQ_BUFFER_LOAD_USHORT                     0xa
+#define SQ_BUFFER_LOAD_SSHORT                     0xb
+#define SQ_BUFFER_LOAD_DWORD                      0xc
+#define SQ_BUFFER_LOAD_DWORDX2                    0xd
+#define SQ_BUFFER_LOAD_DWORDX4                    0xe
+#define SQ_BUFFER_LOAD_DWORDX3                    0xf
+#define SQ_BUFFER_STORE_BYTE                      0x18
+#define SQ_BUFFER_STORE_SHORT                     0x1a
+#define SQ_BUFFER_STORE_DWORD                     0x1c
+#define SQ_BUFFER_STORE_DWORDX2                   0x1d
+#define SQ_BUFFER_STORE_DWORDX4                   0x1e
+#define SQ_BUFFER_STORE_DWORDX3                   0x1f
+#define SQ_BUFFER_ATOMIC_SWAP                     0x30
+#define SQ_BUFFER_ATOMIC_CMPSWAP                  0x31
+#define SQ_BUFFER_ATOMIC_ADD                      0x32
+#define SQ_BUFFER_ATOMIC_SUB                      0x33
+#define SQ_BUFFER_ATOMIC_SMIN                     0x35
+#define SQ_BUFFER_ATOMIC_UMIN                     0x36
+#define SQ_BUFFER_ATOMIC_SMAX                     0x37
+#define SQ_BUFFER_ATOMIC_UMAX                     0x38
+#define SQ_BUFFER_ATOMIC_AND                      0x39
+#define SQ_BUFFER_ATOMIC_OR                       0x3a
+#define SQ_BUFFER_ATOMIC_XOR                      0x3b
+#define SQ_BUFFER_ATOMIC_INC                      0x3c
+#define SQ_BUFFER_ATOMIC_DEC                      0x3d
+#define SQ_BUFFER_ATOMIC_FCMPSWAP                 0x3e
+#define SQ_BUFFER_ATOMIC_FMIN                     0x3f
+#define SQ_BUFFER_ATOMIC_FMAX                     0x40
+#define SQ_BUFFER_ATOMIC_SWAP_X2                  0x50
+#define SQ_BUFFER_ATOMIC_CMPSWAP_X2               0x51
+#define SQ_BUFFER_ATOMIC_ADD_X2                   0x52
+#define SQ_BUFFER_ATOMIC_SUB_X2                   0x53
+#define SQ_BUFFER_ATOMIC_SMIN_X2                  0x55
+#define SQ_BUFFER_ATOMIC_UMIN_X2                  0x56
+#define SQ_BUFFER_ATOMIC_SMAX_X2                  0x57
+#define SQ_BUFFER_ATOMIC_UMAX_X2                  0x58
+#define SQ_BUFFER_ATOMIC_AND_X2                   0x59
+#define SQ_BUFFER_ATOMIC_OR_X2                    0x5a
+#define SQ_BUFFER_ATOMIC_XOR_X2                   0x5b
+#define SQ_BUFFER_ATOMIC_INC_X2                   0x5c
+#define SQ_BUFFER_ATOMIC_DEC_X2                   0x5d
+#define SQ_BUFFER_ATOMIC_FCMPSWAP_X2              0x5e
+#define SQ_BUFFER_ATOMIC_FMIN_X2                  0x5f
+#define SQ_BUFFER_ATOMIC_FMAX_X2                  0x60
+#define SQ_BUFFER_WBINVL1_VOL                     0x70
+#define SQ_BUFFER_WBINVL1                         0x71
+#define SQ_DS_ADD_U32                             0x0
+#define SQ_DS_SUB_U32                             0x1
+#define SQ_DS_RSUB_U32                            0x2
+#define SQ_DS_INC_U32                             0x3
+#define SQ_DS_DEC_U32                             0x4
+#define SQ_DS_MIN_I32                             0x5
+#define SQ_DS_MAX_I32                             0x6
+#define SQ_DS_MIN_U32                             0x7
+#define SQ_DS_MAX_U32                             0x8
+#define SQ_DS_AND_B32                             0x9
+#define SQ_DS_OR_B32                              0xa
+#define SQ_DS_XOR_B32                             0xb
+#define SQ_DS_MSKOR_B32                           0xc
+#define SQ_DS_WRITE_B32                           0xd
+#define SQ_DS_WRITE2_B32                          0xe
+#define SQ_DS_WRITE2ST64_B32                      0xf
+#define SQ_DS_CMPST_B32                           0x10
+#define SQ_DS_CMPST_F32                           0x11
+#define SQ_DS_MIN_F32                             0x12
+#define SQ_DS_MAX_F32                             0x13
+#define SQ_DS_NOP                                 0x14
+#define SQ_DS_GWS_SEMA_RELEASE_ALL                0x18
+#define SQ_DS_GWS_INIT                            0x19
+#define SQ_DS_GWS_SEMA_V                          0x1a
+#define SQ_DS_GWS_SEMA_BR                         0x1b
+#define SQ_DS_GWS_SEMA_P                          0x1c
+#define SQ_DS_GWS_BARRIER                         0x1d
+#define SQ_DS_WRITE_B8                            0x1e
+#define SQ_DS_WRITE_B16                           0x1f
+#define SQ_DS_ADD_RTN_U32                         0x20
+#define SQ_DS_SUB_RTN_U32                         0x21
+#define SQ_DS_RSUB_RTN_U32                        0x22
+#define SQ_DS_INC_RTN_U32                         0x23
+#define SQ_DS_DEC_RTN_U32                         0x24
+#define SQ_DS_MIN_RTN_I32                         0x25
+#define SQ_DS_MAX_RTN_I32                         0x26
+#define SQ_DS_MIN_RTN_U32                         0x27
+#define SQ_DS_MAX_RTN_U32                         0x28
+#define SQ_DS_AND_RTN_B32                         0x29
+#define SQ_DS_OR_RTN_B32                          0x2a
+#define SQ_DS_XOR_RTN_B32                         0x2b
+#define SQ_DS_MSKOR_RTN_B32                       0x2c
+#define SQ_DS_WRXCHG_RTN_B32                      0x2d
+#define SQ_DS_WRXCHG2_RTN_B32                     0x2e
+#define SQ_DS_WRXCHG2ST64_RTN_B32                 0x2f
+#define SQ_DS_CMPST_RTN_B32                       0x30
+#define SQ_DS_CMPST_RTN_F32                       0x31
+#define SQ_DS_MIN_RTN_F32                         0x32
+#define SQ_DS_MAX_RTN_F32                         0x33
+#define SQ_DS_WRAP_RTN_B32                        0x34
+#define SQ_DS_SWIZZLE_B32                         0x35
+#define SQ_DS_READ_B32                            0x36
+#define SQ_DS_READ2_B32                           0x37
+#define SQ_DS_READ2ST64_B32                       0x38
+#define SQ_DS_READ_I8                             0x39
+#define SQ_DS_READ_U8                             0x3a
+#define SQ_DS_READ_I16                            0x3b
+#define SQ_DS_READ_U16                            0x3c
+#define SQ_DS_CONSUME                             0x3d
+#define SQ_DS_APPEND                              0x3e
+#define SQ_DS_ORDERED_COUNT                       0x3f
+#define SQ_DS_ADD_U64                             0x40
+#define SQ_DS_SUB_U64                             0x41
+#define SQ_DS_RSUB_U64                            0x42
+#define SQ_DS_INC_U64                             0x43
+#define SQ_DS_DEC_U64                             0x44
+#define SQ_DS_MIN_I64                             0x45
+#define SQ_DS_MAX_I64                             0x46
+#define SQ_DS_MIN_U64                             0x47
+#define SQ_DS_MAX_U64                             0x48
+#define SQ_DS_AND_B64                             0x49
+#define SQ_DS_OR_B64                              0x4a
+#define SQ_DS_XOR_B64                             0x4b
+#define SQ_DS_MSKOR_B64                           0x4c
+#define SQ_DS_WRITE_B64                           0x4d
+#define SQ_DS_WRITE2_B64                          0x4e
+#define SQ_DS_WRITE2ST64_B64                      0x4f
+#define SQ_DS_CMPST_B64                           0x50
+#define SQ_DS_CMPST_F64                           0x51
+#define SQ_DS_MIN_F64                             0x52
+#define SQ_DS_MAX_F64                             0x53
+#define SQ_DS_ADD_RTN_U64                         0x60
+#define SQ_DS_SUB_RTN_U64                         0x61
+#define SQ_DS_RSUB_RTN_U64                        0x62
+#define SQ_DS_INC_RTN_U64                         0x63
+#define SQ_DS_DEC_RTN_U64                         0x64
+#define SQ_DS_MIN_RTN_I64                         0x65
+#define SQ_DS_MAX_RTN_I64                         0x66
+#define SQ_DS_MIN_RTN_U64                         0x67
+#define SQ_DS_MAX_RTN_U64                         0x68
+#define SQ_DS_AND_RTN_B64                         0x69
+#define SQ_DS_OR_RTN_B64                          0x6a
+#define SQ_DS_XOR_RTN_B64                         0x6b
+#define SQ_DS_MSKOR_RTN_B64                       0x6c
+#define SQ_DS_WRXCHG_RTN_B64                      0x6d
+#define SQ_DS_WRXCHG2_RTN_B64                     0x6e
+#define SQ_DS_WRXCHG2ST64_RTN_B64                 0x6f
+#define SQ_DS_CMPST_RTN_B64                       0x70
+#define SQ_DS_CMPST_RTN_F64                       0x71
+#define SQ_DS_MIN_RTN_F64                         0x72
+#define SQ_DS_MAX_RTN_F64                         0x73
+#define SQ_DS_READ_B64                            0x76
+#define SQ_DS_READ2_B64                           0x77
+#define SQ_DS_READ2ST64_B64                       0x78
+#define SQ_DS_CONDXCHG32_RTN_B64                  0x7e
+#define SQ_DS_ADD_SRC2_U32                        0x80
+#define SQ_DS_SUB_SRC2_U32                        0x81
+#define SQ_DS_RSUB_SRC2_U32                       0x82
+#define SQ_DS_INC_SRC2_U32                        0x83
+#define SQ_DS_DEC_SRC2_U32                        0x84
+#define SQ_DS_MIN_SRC2_I32                        0x85
+#define SQ_DS_MAX_SRC2_I32                        0x86
+#define SQ_DS_MIN_SRC2_U32                        0x87
+#define SQ_DS_MAX_SRC2_U32                        0x88
+#define SQ_DS_AND_SRC2_B32                        0x89
+#define SQ_DS_OR_SRC2_B32                         0x8a
+#define SQ_DS_XOR_SRC2_B32                        0x8b
+#define SQ_DS_WRITE_SRC2_B32                      0x8d
+#define SQ_DS_MIN_SRC2_F32                        0x92
+#define SQ_DS_MAX_SRC2_F32                        0x93
+#define SQ_DS_ADD_SRC2_U64                        0xc0
+#define SQ_DS_SUB_SRC2_U64                        0xc1
+#define SQ_DS_RSUB_SRC2_U64                       0xc2
+#define SQ_DS_INC_SRC2_U64                        0xc3
+#define SQ_DS_DEC_SRC2_U64                        0xc4
+#define SQ_DS_MIN_SRC2_I64                        0xc5
+#define SQ_DS_MAX_SRC2_I64                        0xc6
+#define SQ_DS_MIN_SRC2_U64                        0xc7
+#define SQ_DS_MAX_SRC2_U64                        0xc8
+#define SQ_DS_AND_SRC2_B64                        0xc9
+#define SQ_DS_OR_SRC2_B64                         0xca
+#define SQ_DS_XOR_SRC2_B64                        0xcb
+#define SQ_DS_WRITE_SRC2_B64                      0xcd
+#define SQ_DS_MIN_SRC2_F64                        0xd2
+#define SQ_DS_MAX_SRC2_F64                        0xd3
+#define SQ_DS_WRITE_B96                           0xde
+#define SQ_DS_WRITE_B128                          0xdf
+#define SQ_DS_CONDXCHG32_RTN_B128                 0xfd
+#define SQ_DS_READ_B96                            0xfe
+#define SQ_DS_READ_B128                           0xff
+#define SQ_SRC_SCC                                0xfd
+#define SQ_OMOD_OFF                               0x0
+#define SQ_OMOD_M2                                0x1
+#define SQ_OMOD_M4                                0x2
+#define SQ_OMOD_D2                                0x3
+#define SQ_EXP_GDS0                               0x18
+#define SQ_GS_OP_NOP                              0x0
+#define SQ_GS_OP_CUT                              0x1
+#define SQ_GS_OP_EMIT                             0x2
+#define SQ_GS_OP_EMIT_CUT                         0x3
+#define SQ_IMAGE_LOAD                             0x0
+#define SQ_IMAGE_LOAD_MIP                         0x1
+#define SQ_IMAGE_LOAD_PCK                         0x2
+#define SQ_IMAGE_LOAD_PCK_SGN                     0x3
+#define SQ_IMAGE_LOAD_MIP_PCK                     0x4
+#define SQ_IMAGE_LOAD_MIP_PCK_SGN                 0x5
+#define SQ_IMAGE_STORE                            0x8
+#define SQ_IMAGE_STORE_MIP                        0x9
+#define SQ_IMAGE_STORE_PCK                        0xa
+#define SQ_IMAGE_STORE_MIP_PCK                    0xb
+#define SQ_IMAGE_GET_RESINFO                      0xe
+#define SQ_IMAGE_ATOMIC_SWAP                      0xf
+#define SQ_IMAGE_ATOMIC_CMPSWAP                   0x10
+#define SQ_IMAGE_ATOMIC_ADD                       0x11
+#define SQ_IMAGE_ATOMIC_SUB                       0x12
+#define SQ_IMAGE_ATOMIC_SMIN                      0x14
+#define SQ_IMAGE_ATOMIC_UMIN                      0x15
+#define SQ_IMAGE_ATOMIC_SMAX                      0x16
+#define SQ_IMAGE_ATOMIC_UMAX                      0x17
+#define SQ_IMAGE_ATOMIC_AND                       0x18
+#define SQ_IMAGE_ATOMIC_OR                        0x19
+#define SQ_IMAGE_ATOMIC_XOR                       0x1a
+#define SQ_IMAGE_ATOMIC_INC                       0x1b
+#define SQ_IMAGE_ATOMIC_DEC                       0x1c
+#define SQ_IMAGE_ATOMIC_FCMPSWAP                  0x1d
+#define SQ_IMAGE_ATOMIC_FMIN                      0x1e
+#define SQ_IMAGE_ATOMIC_FMAX                      0x1f
+#define SQ_IMAGE_SAMPLE                           0x20
+#define SQ_IMAGE_SAMPLE_CL                        0x21
+#define SQ_IMAGE_SAMPLE_D                         0x22
+#define SQ_IMAGE_SAMPLE_D_CL                      0x23
+#define SQ_IMAGE_SAMPLE_L                         0x24
+#define SQ_IMAGE_SAMPLE_B                         0x25
+#define SQ_IMAGE_SAMPLE_B_CL                      0x26
+#define SQ_IMAGE_SAMPLE_LZ                        0x27
+#define SQ_IMAGE_SAMPLE_C                         0x28
+#define SQ_IMAGE_SAMPLE_C_CL                      0x29
+#define SQ_IMAGE_SAMPLE_C_D                       0x2a
+#define SQ_IMAGE_SAMPLE_C_D_CL                    0x2b
+#define SQ_IMAGE_SAMPLE_C_L                       0x2c
+#define SQ_IMAGE_SAMPLE_C_B                       0x2d
+#define SQ_IMAGE_SAMPLE_C_B_CL                    0x2e
+#define SQ_IMAGE_SAMPLE_C_LZ                      0x2f
+#define SQ_IMAGE_SAMPLE_O                         0x30
+#define SQ_IMAGE_SAMPLE_CL_O                      0x31
+#define SQ_IMAGE_SAMPLE_D_O                       0x32
+#define SQ_IMAGE_SAMPLE_D_CL_O                    0x33
+#define SQ_IMAGE_SAMPLE_L_O                       0x34
+#define SQ_IMAGE_SAMPLE_B_O                       0x35
+#define SQ_IMAGE_SAMPLE_B_CL_O                    0x36
+#define SQ_IMAGE_SAMPLE_LZ_O                      0x37
+#define SQ_IMAGE_SAMPLE_C_O                       0x38
+#define SQ_IMAGE_SAMPLE_C_CL_O                    0x39
+#define SQ_IMAGE_SAMPLE_C_D_O                     0x3a
+#define SQ_IMAGE_SAMPLE_C_D_CL_O                  0x3b
+#define SQ_IMAGE_SAMPLE_C_L_O                     0x3c
+#define SQ_IMAGE_SAMPLE_C_B_O                     0x3d
+#define SQ_IMAGE_SAMPLE_C_B_CL_O                  0x3e
+#define SQ_IMAGE_SAMPLE_C_LZ_O                    0x3f
+#define SQ_IMAGE_GATHER4                          0x40
+#define SQ_IMAGE_GATHER4_CL                       0x41
+#define SQ_IMAGE_GATHER4_L                        0x44
+#define SQ_IMAGE_GATHER4_B                        0x45
+#define SQ_IMAGE_GATHER4_B_CL                     0x46
+#define SQ_IMAGE_GATHER4_LZ                       0x47
+#define SQ_IMAGE_GATHER4_C                        0x48
+#define SQ_IMAGE_GATHER4_C_CL                     0x49
+#define SQ_IMAGE_GATHER4_C_L                      0x4c
+#define SQ_IMAGE_GATHER4_C_B                      0x4d
+#define SQ_IMAGE_GATHER4_C_B_CL                   0x4e
+#define SQ_IMAGE_GATHER4_C_LZ                     0x4f
+#define SQ_IMAGE_GATHER4_O                        0x50
+#define SQ_IMAGE_GATHER4_CL_O                     0x51
+#define SQ_IMAGE_GATHER4_L_O                      0x54
+#define SQ_IMAGE_GATHER4_B_O                      0x55
+#define SQ_IMAGE_GATHER4_B_CL_O                   0x56
+#define SQ_IMAGE_GATHER4_LZ_O                     0x57
+#define SQ_IMAGE_GATHER4_C_O                      0x58
+#define SQ_IMAGE_GATHER4_C_CL_O                   0x59
+#define SQ_IMAGE_GATHER4_C_L_O                    0x5c
+#define SQ_IMAGE_GATHER4_C_B_O                    0x5d
+#define SQ_IMAGE_GATHER4_C_B_CL_O                 0x5e
+#define SQ_IMAGE_GATHER4_C_LZ_O                   0x5f
+#define SQ_IMAGE_GET_LOD                          0x60
+#define SQ_IMAGE_SAMPLE_CD                        0x68
+#define SQ_IMAGE_SAMPLE_CD_CL                     0x69
+#define SQ_IMAGE_SAMPLE_C_CD                      0x6a
+#define SQ_IMAGE_SAMPLE_C_CD_CL                   0x6b
+#define SQ_IMAGE_SAMPLE_CD_O                      0x6c
+#define SQ_IMAGE_SAMPLE_CD_CL_O                   0x6d
+#define SQ_IMAGE_SAMPLE_C_CD_O                    0x6e
+#define SQ_IMAGE_SAMPLE_C_CD_CL_O                 0x6f
+#define SQ_IMAGE_RSRC256                          0x7e
+#define SQ_IMAGE_SAMPLER                          0x7f
+#define SQ_SRC_VCCZ                               0xfb
+#define SQ_SRC_VGPR0                              0x100
+#define SQ_DFMT_INVALID                           0x0
+#define SQ_DFMT_8                                 0x1
+#define SQ_DFMT_16                                0x2
+#define SQ_DFMT_8_8                               0x3
+#define SQ_DFMT_32                                0x4
+#define SQ_DFMT_16_16                             0x5
+#define SQ_DFMT_10_11_11                          0x6
+#define SQ_DFMT_11_11_10                          0x7
+#define SQ_DFMT_10_10_10_2                        0x8
+#define SQ_DFMT_2_10_10_10                        0x9
+#define SQ_DFMT_8_8_8_8                           0xa
+#define SQ_DFMT_32_32                             0xb
+#define SQ_DFMT_16_16_16_16                       0xc
+#define SQ_DFMT_32_32_32                          0xd
+#define SQ_DFMT_32_32_32_32                       0xe
+#define SQ_TBUFFER_LOAD_FORMAT_X                  0x0
+#define SQ_TBUFFER_LOAD_FORMAT_XY                 0x1
+#define SQ_TBUFFER_LOAD_FORMAT_XYZ                0x2
+#define SQ_TBUFFER_LOAD_FORMAT_XYZW               0x3
+#define SQ_TBUFFER_STORE_FORMAT_X                 0x4
+#define SQ_TBUFFER_STORE_FORMAT_XY                0x5
+#define SQ_TBUFFER_STORE_FORMAT_XYZ               0x6
+#define SQ_TBUFFER_STORE_FORMAT_XYZW              0x7
+#define SQ_CHAN_X                                 0x0
+#define SQ_CHAN_Y                                 0x1
+#define SQ_CHAN_Z                                 0x2
+#define SQ_CHAN_W                                 0x3
+#define SQ_EXEC_LO                                0x7e
+#define SQ_EXEC_HI                                0x7f
+#define SQ_S_LOAD_DWORD                           0x0
+#define SQ_S_LOAD_DWORDX2                         0x1
+#define SQ_S_LOAD_DWORDX4                         0x2
+#define SQ_S_LOAD_DWORDX8                         0x3
+#define SQ_S_LOAD_DWORDX16                        0x4
+#define SQ_S_BUFFER_LOAD_DWORD                    0x8
+#define SQ_S_BUFFER_LOAD_DWORDX2                  0x9
+#define SQ_S_BUFFER_LOAD_DWORDX4                  0xa
+#define SQ_S_BUFFER_LOAD_DWORDX8                  0xb
+#define SQ_S_BUFFER_LOAD_DWORDX16                 0xc
+#define SQ_S_DCACHE_INV_VOL                       0x1d
+#define SQ_S_MEMTIME                              0x1e
+#define SQ_S_DCACHE_INV                           0x1f
+#define SQ_V_NOP                                  0x0
+#define SQ_V_MOV_B32                              0x1
+#define SQ_V_READFIRSTLANE_B32                    0x2
+#define SQ_V_CVT_I32_F64                          0x3
+#define SQ_V_CVT_F64_I32                          0x4
+#define SQ_V_CVT_F32_I32                          0x5
+#define SQ_V_CVT_F32_U32                          0x6
+#define SQ_V_CVT_U32_F32                          0x7
+#define SQ_V_CVT_I32_F32                          0x8
+#define SQ_V_MOV_FED_B32                          0x9
+#define SQ_V_CVT_F16_F32                          0xa
+#define SQ_V_CVT_F32_F16                          0xb
+#define SQ_V_CVT_RPI_I32_F32                      0xc
+#define SQ_V_CVT_FLR_I32_F32                      0xd
+#define SQ_V_CVT_OFF_F32_I4                       0xe
+#define SQ_V_CVT_F32_F64                          0xf
+#define SQ_V_CVT_F64_F32                          0x10
+#define SQ_V_CVT_F32_UBYTE0                       0x11
+#define SQ_V_CVT_F32_UBYTE1                       0x12
+#define SQ_V_CVT_F32_UBYTE2                       0x13
+#define SQ_V_CVT_F32_UBYTE3                       0x14
+#define SQ_V_CVT_U32_F64                          0x15
+#define SQ_V_CVT_F64_U32                          0x16
+#define SQ_V_TRUNC_F64                            0x17
+#define SQ_V_CEIL_F64                             0x18
+#define SQ_V_RNDNE_F64                            0x19
+#define SQ_V_FLOOR_F64                            0x1a
+#define SQ_V_FRACT_F32                            0x20
+#define SQ_V_TRUNC_F32                            0x21
+#define SQ_V_CEIL_F32                             0x22
+#define SQ_V_RNDNE_F32                            0x23
+#define SQ_V_FLOOR_F32                            0x24
+#define SQ_V_EXP_F32                              0x25
+#define SQ_V_LOG_CLAMP_F32                        0x26
+#define SQ_V_LOG_F32                              0x27
+#define SQ_V_RCP_CLAMP_F32                        0x28
+#define SQ_V_RCP_LEGACY_F32                       0x29
+#define SQ_V_RCP_F32                              0x2a
+#define SQ_V_RCP_IFLAG_F32                        0x2b
+#define SQ_V_RSQ_CLAMP_F32                        0x2c
+#define SQ_V_RSQ_LEGACY_F32                       0x2d
+#define SQ_V_RSQ_F32                              0x2e
+#define SQ_V_RCP_F64                              0x2f
+#define SQ_V_RCP_CLAMP_F64                        0x30
+#define SQ_V_RSQ_F64                              0x31
+#define SQ_V_RSQ_CLAMP_F64                        0x32
+#define SQ_V_SQRT_F32                             0x33
+#define SQ_V_SQRT_F64                             0x34
+#define SQ_V_SIN_F32                              0x35
+#define SQ_V_COS_F32                              0x36
+#define SQ_V_NOT_B32                              0x37
+#define SQ_V_BFREV_B32                            0x38
+#define SQ_V_FFBH_U32                             0x39
+#define SQ_V_FFBL_B32                             0x3a
+#define SQ_V_FFBH_I32                             0x3b
+#define SQ_V_FREXP_EXP_I32_F64                    0x3c
+#define SQ_V_FREXP_MANT_F64                       0x3d
+#define SQ_V_FRACT_F64                            0x3e
+#define SQ_V_FREXP_EXP_I32_F32                    0x3f
+#define SQ_V_FREXP_MANT_F32                       0x40
+#define SQ_V_CLREXCP                              0x41
+#define SQ_V_MOVRELD_B32                          0x42
+#define SQ_V_MOVRELS_B32                          0x43
+#define SQ_V_MOVRELSD_B32                         0x44
+#define SQ_V_LOG_LEGACY_F32                       0x45
+#define SQ_V_EXP_LEGACY_F32                       0x46
+#define SQ_NFMT_UNORM                             0x0
+#define SQ_NFMT_SNORM                             0x1
+#define SQ_NFMT_USCALED                           0x2
+#define SQ_NFMT_SSCALED                           0x3
+#define SQ_NFMT_UINT                              0x4
+#define SQ_NFMT_SINT                              0x5
+#define SQ_NFMT_SNORM_OGL                         0x6
+#define SQ_NFMT_FLOAT                             0x7
+#define SQ_V_OP1_OFFSET                           0x180
+#define SQ_V_OP2_OFFSET                           0x100
+#define SQ_V_OPC_OFFSET                           0x0
+#define SQ_V_INTERP_P1_F32                        0x0
+#define SQ_V_INTERP_P2_F32                        0x1
+#define SQ_V_INTERP_MOV_F32                       0x2
+#define SQ_S_NOP                                  0x0
+#define SQ_S_ENDPGM                               0x1
+#define SQ_S_BRANCH                               0x2
+#define SQ_S_CBRANCH_SCC0                         0x4
+#define SQ_S_CBRANCH_SCC1                         0x5
+#define SQ_S_CBRANCH_VCCZ                         0x6
+#define SQ_S_CBRANCH_VCCNZ                        0x7
+#define SQ_S_CBRANCH_EXECZ                        0x8
+#define SQ_S_CBRANCH_EXECNZ                       0x9
+#define SQ_S_BARRIER                              0xa
+#define SQ_S_SETKILL                              0xb
+#define SQ_S_WAITCNT                              0xc
+#define SQ_S_SETHALT                              0xd
+#define SQ_S_SLEEP                                0xe
+#define SQ_S_SETPRIO                              0xf
+#define SQ_S_SENDMSG                              0x10
+#define SQ_S_SENDMSGHALT                          0x11
+#define SQ_S_TRAP                                 0x12
+#define SQ_S_ICACHE_INV                           0x13
+#define SQ_S_INCPERFLEVEL                         0x14
+#define SQ_S_DECPERFLEVEL                         0x15
+#define SQ_S_TTRACEDATA                           0x16
+#define SQ_S_CBRANCH_CDBGSYS                      0x17
+#define SQ_S_CBRANCH_CDBGUSER                     0x18
+#define SQ_S_CBRANCH_CDBGSYS_OR_USER              0x19
+#define SQ_S_CBRANCH_CDBGSYS_AND_USER             0x1a
+#define SQ_SRC_LITERAL                            0xff
+#define SQ_VCC_LO                                 0x6a
+#define SQ_VCC_HI                                 0x6b
+#define SQ_PARAM_P10                              0x0
+#define SQ_PARAM_P20                              0x1
+#define SQ_PARAM_P0                               0x2
+#define SQ_SRC_LDS_DIRECT                         0xfe
+#define SQ_FLAT_SCRATCH_LO                        0x68
+#define SQ_FLAT_SCRATCH_HI                        0x69
+#define SQ_V_CNDMASK_B32                          0x0
+#define SQ_V_READLANE_B32                         0x1
+#define SQ_V_WRITELANE_B32                        0x2
+#define SQ_V_ADD_F32                              0x3
+#define SQ_V_SUB_F32                              0x4
+#define SQ_V_SUBREV_F32                           0x5
+#define SQ_V_MAC_LEGACY_F32                       0x6
+#define SQ_V_MUL_LEGACY_F32                       0x7
+#define SQ_V_MUL_F32                              0x8
+#define SQ_V_MUL_I32_I24                          0x9
+#define SQ_V_MUL_HI_I32_I24                       0xa
+#define SQ_V_MUL_U32_U24                          0xb
+#define SQ_V_MUL_HI_U32_U24                       0xc
+#define SQ_V_MIN_LEGACY_F32                       0xd
+#define SQ_V_MAX_LEGACY_F32                       0xe
+#define SQ_V_MIN_F32                              0xf
+#define SQ_V_MAX_F32                              0x10
+#define SQ_V_MIN_I32                              0x11
+#define SQ_V_MAX_I32                              0x12
+#define SQ_V_MIN_U32                              0x13
+#define SQ_V_MAX_U32                              0x14
+#define SQ_V_LSHR_B32                             0x15
+#define SQ_V_LSHRREV_B32                          0x16
+#define SQ_V_ASHR_I32                             0x17
+#define SQ_V_ASHRREV_I32                          0x18
+#define SQ_V_LSHL_B32                             0x19
+#define SQ_V_LSHLREV_B32                          0x1a
+#define SQ_V_AND_B32                              0x1b
+#define SQ_V_OR_B32                               0x1c
+#define SQ_V_XOR_B32                              0x1d
+#define SQ_V_BFM_B32                              0x1e
+#define SQ_V_MAC_F32                              0x1f
+#define SQ_V_MADMK_F32                            0x20
+#define SQ_V_MADAK_F32                            0x21
+#define SQ_V_BCNT_U32_B32                         0x22
+#define SQ_V_MBCNT_LO_U32_B32                     0x23
+#define SQ_V_MBCNT_HI_U32_B32                     0x24
+#define SQ_V_ADD_I32                              0x25
+#define SQ_V_SUB_I32                              0x26
+#define SQ_V_SUBREV_I32                           0x27
+#define SQ_V_ADDC_U32                             0x28
+#define SQ_V_SUBB_U32                             0x29
+#define SQ_V_SUBBREV_U32                          0x2a
+#define SQ_V_LDEXP_F32                            0x2b
+#define SQ_V_CVT_PKACCUM_U8_F32                   0x2c
+#define SQ_V_CVT_PKNORM_I16_F32                   0x2d
+#define SQ_V_CVT_PKNORM_U16_F32                   0x2e
+#define SQ_V_CVT_PKRTZ_F16_F32                    0x2f
+#define SQ_V_CVT_PK_U16_U32                       0x30
+#define SQ_V_CVT_PK_I16_I32                       0x31
+#define SQ_FLAT_LOAD_UBYTE                        0x8
+#define SQ_FLAT_LOAD_SBYTE                        0x9
+#define SQ_FLAT_LOAD_USHORT                       0xa
+#define SQ_FLAT_LOAD_SSHORT                       0xb
+#define SQ_FLAT_LOAD_DWORD                        0xc
+#define SQ_FLAT_LOAD_DWORDX2                      0xd
+#define SQ_FLAT_LOAD_DWORDX4                      0xe
+#define SQ_FLAT_LOAD_DWORDX3                      0xf
+#define SQ_FLAT_STORE_BYTE                        0x18
+#define SQ_FLAT_STORE_SHORT                       0x1a
+#define SQ_FLAT_STORE_DWORD                       0x1c
+#define SQ_FLAT_STORE_DWORDX2                     0x1d
+#define SQ_FLAT_STORE_DWORDX4                     0x1e
+#define SQ_FLAT_STORE_DWORDX3                     0x1f
+#define SQ_FLAT_ATOMIC_SWAP                       0x30
+#define SQ_FLAT_ATOMIC_CMPSWAP                    0x31
+#define SQ_FLAT_ATOMIC_ADD                        0x32
+#define SQ_FLAT_ATOMIC_SUB                        0x33
+#define SQ_FLAT_ATOMIC_SMIN                       0x35
+#define SQ_FLAT_ATOMIC_UMIN                       0x36
+#define SQ_FLAT_ATOMIC_SMAX                       0x37
+#define SQ_FLAT_ATOMIC_UMAX                       0x38
+#define SQ_FLAT_ATOMIC_AND                        0x39
+#define SQ_FLAT_ATOMIC_OR                         0x3a
+#define SQ_FLAT_ATOMIC_XOR                        0x3b
+#define SQ_FLAT_ATOMIC_INC                        0x3c
+#define SQ_FLAT_ATOMIC_DEC                        0x3d
+#define SQ_FLAT_ATOMIC_FCMPSWAP                   0x3e
+#define SQ_FLAT_ATOMIC_FMIN                       0x3f
+#define SQ_FLAT_ATOMIC_FMAX                       0x40
+#define SQ_FLAT_ATOMIC_SWAP_X2                    0x50
+#define SQ_FLAT_ATOMIC_CMPSWAP_X2                 0x51
+#define SQ_FLAT_ATOMIC_ADD_X2                     0x52
+#define SQ_FLAT_ATOMIC_SUB_X2                     0x53
+#define SQ_FLAT_ATOMIC_SMIN_X2                    0x55
+#define SQ_FLAT_ATOMIC_UMIN_X2                    0x56
+#define SQ_FLAT_ATOMIC_SMAX_X2                    0x57
+#define SQ_FLAT_ATOMIC_UMAX_X2                    0x58
+#define SQ_FLAT_ATOMIC_AND_X2                     0x59
+#define SQ_FLAT_ATOMIC_OR_X2                      0x5a
+#define SQ_FLAT_ATOMIC_XOR_X2                     0x5b
+#define SQ_FLAT_ATOMIC_INC_X2                     0x5c
+#define SQ_FLAT_ATOMIC_DEC_X2                     0x5d
+#define SQ_FLAT_ATOMIC_FCMPSWAP_X2                0x5e
+#define SQ_FLAT_ATOMIC_FMIN_X2                    0x5f
+#define SQ_FLAT_ATOMIC_FMAX_X2                    0x60
+#define SQ_S_CMP_EQ_I32                           0x0
+#define SQ_S_CMP_LG_I32                           0x1
+#define SQ_S_CMP_GT_I32                           0x2
+#define SQ_S_CMP_GE_I32                           0x3
+#define SQ_S_CMP_LT_I32                           0x4
+#define SQ_S_CMP_LE_I32                           0x5
+#define SQ_S_CMP_EQ_U32                           0x6
+#define SQ_S_CMP_LG_U32                           0x7
+#define SQ_S_CMP_GT_U32                           0x8
+#define SQ_S_CMP_GE_U32                           0x9
+#define SQ_S_CMP_LT_U32                           0xa
+#define SQ_S_CMP_LE_U32                           0xb
+#define SQ_S_BITCMP0_B32                          0xc
+#define SQ_S_BITCMP1_B32                          0xd
+#define SQ_S_BITCMP0_B64                          0xe
+#define SQ_S_BITCMP1_B64                          0xf
+#define SQ_S_SETVSKIP                             0x10
+#define SQ_M0                                     0x7c
+#define SQ_V_MAD_LEGACY_F32                       0x140
+#define SQ_V_MAD_F32                              0x141
+#define SQ_V_MAD_I32_I24                          0x142
+#define SQ_V_MAD_U32_U24                          0x143
+#define SQ_V_CUBEID_F32                           0x144
+#define SQ_V_CUBESC_F32                           0x145
+#define SQ_V_CUBETC_F32                           0x146
+#define SQ_V_CUBEMA_F32                           0x147
+#define SQ_V_BFE_U32                              0x148
+#define SQ_V_BFE_I32                              0x149
+#define SQ_V_BFI_B32                              0x14a
+#define SQ_V_FMA_F32                              0x14b
+#define SQ_V_FMA_F64                              0x14c
+#define SQ_V_LERP_U8                              0x14d
+#define SQ_V_ALIGNBIT_B32                         0x14e
+#define SQ_V_ALIGNBYTE_B32                        0x14f
+#define SQ_V_MULLIT_F32                           0x150
+#define SQ_V_MIN3_F32                             0x151
+#define SQ_V_MIN3_I32                             0x152
+#define SQ_V_MIN3_U32                             0x153
+#define SQ_V_MAX3_F32                             0x154
+#define SQ_V_MAX3_I32                             0x155
+#define SQ_V_MAX3_U32                             0x156
+#define SQ_V_MED3_F32                             0x157
+#define SQ_V_MED3_I32                             0x158
+#define SQ_V_MED3_U32                             0x159
+#define SQ_V_SAD_U8                               0x15a
+#define SQ_V_SAD_HI_U8                            0x15b
+#define SQ_V_SAD_U16                              0x15c
+#define SQ_V_SAD_U32                              0x15d
+#define SQ_V_CVT_PK_U8_F32                        0x15e
+#define SQ_V_DIV_FIXUP_F32                        0x15f
+#define SQ_V_DIV_FIXUP_F64                        0x160
+#define SQ_V_LSHL_B64                             0x161
+#define SQ_V_LSHR_B64                             0x162
+#define SQ_V_ASHR_I64                             0x163
+#define SQ_V_ADD_F64                              0x164
+#define SQ_V_MUL_F64                              0x165
+#define SQ_V_MIN_F64                              0x166
+#define SQ_V_MAX_F64                              0x167
+#define SQ_V_LDEXP_F64                            0x168
+#define SQ_V_MUL_LO_U32                           0x169
+#define SQ_V_MUL_HI_U32                           0x16a
+#define SQ_V_MUL_LO_I32                           0x16b
+#define SQ_V_MUL_HI_I32                           0x16c
+#define SQ_V_DIV_SCALE_F32                        0x16d
+#define SQ_V_DIV_SCALE_F64                        0x16e
+#define SQ_V_DIV_FMAS_F32                         0x16f
+#define SQ_V_DIV_FMAS_F64                         0x170
+#define SQ_V_MSAD_U8                              0x171
+#define SQ_V_QSAD_PK_U16_U8                       0x172
+#define SQ_V_MQSAD_PK_U16_U8                      0x173
+#define SQ_V_TRIG_PREOP_F64                       0x174
+#define SQ_V_MQSAD_U32_U8                         0x175
+#define SQ_V_MAD_U64_U32                          0x176
+#define SQ_V_MAD_I64_I32                          0x177
+#define SQ_VCC_ALL                                0x0
+#define SQ_SRC_EXECZ                              0xfc
+#define SQ_SYSMSG_OP_ECC_ERR_INTERRUPT            0x1
+#define SQ_SYSMSG_OP_REG_RD                       0x2
+#define SQ_SYSMSG_OP_HOST_TRAP_ACK                0x3
+#define SQ_SYSMSG_OP_TTRACE_PC                    0x4
+#define SQ_HW_REG_MODE                            0x1
+#define SQ_HW_REG_STATUS                          0x2
+#define SQ_HW_REG_TRAPSTS                         0x3
+#define SQ_HW_REG_HW_ID                           0x4
+#define SQ_HW_REG_GPR_ALLOC                       0x5
+#define SQ_HW_REG_LDS_ALLOC                       0x6
+#define SQ_HW_REG_IB_STS                          0x7
+#define SQ_HW_REG_PC_LO                           0x8
+#define SQ_HW_REG_PC_HI                           0x9
+#define SQ_HW_REG_INST_DW0                        0xa
+#define SQ_HW_REG_INST_DW1                        0xb
+#define SQ_HW_REG_IB_DBG0                         0xc
+#define SQ_S_ADD_U32                              0x0
+#define SQ_S_SUB_U32                              0x1
+#define SQ_S_ADD_I32                              0x2
+#define SQ_S_SUB_I32                              0x3
+#define SQ_S_ADDC_U32                             0x4
+#define SQ_S_SUBB_U32                             0x5
+#define SQ_S_MIN_I32                              0x6
+#define SQ_S_MIN_U32                              0x7
+#define SQ_S_MAX_I32                              0x8
+#define SQ_S_MAX_U32                              0x9
+#define SQ_S_CSELECT_B32                          0xa
+#define SQ_S_CSELECT_B64                          0xb
+#define SQ_S_AND_B32                              0xe
+#define SQ_S_AND_B64                              0xf
+#define SQ_S_OR_B32                               0x10
+#define SQ_S_OR_B64                               0x11
+#define SQ_S_XOR_B32                              0x12
+#define SQ_S_XOR_B64                              0x13
+#define SQ_S_ANDN2_B32                            0x14
+#define SQ_S_ANDN2_B64                            0x15
+#define SQ_S_ORN2_B32                             0x16
+#define SQ_S_ORN2_B64                             0x17
+#define SQ_S_NAND_B32                             0x18
+#define SQ_S_NAND_B64                             0x19
+#define SQ_S_NOR_B32                              0x1a
+#define SQ_S_NOR_B64                              0x1b
+#define SQ_S_XNOR_B32                             0x1c
+#define SQ_S_XNOR_B64                             0x1d
+#define SQ_S_LSHL_B32                             0x1e
+#define SQ_S_LSHL_B64                             0x1f
+#define SQ_S_LSHR_B32                             0x20
+#define SQ_S_LSHR_B64                             0x21
+#define SQ_S_ASHR_I32                             0x22
+#define SQ_S_ASHR_I64                             0x23
+#define SQ_S_BFM_B32                              0x24
+#define SQ_S_BFM_B64                              0x25
+#define SQ_S_MUL_I32                              0x26
+#define SQ_S_BFE_U32                              0x27
+#define SQ_S_BFE_I32                              0x28
+#define SQ_S_BFE_U64                              0x29
+#define SQ_S_BFE_I64                              0x2a
+#define SQ_S_CBRANCH_G_FORK                       0x2b
+#define SQ_S_ABSDIFF_I32                          0x2c
+#define SQ_MSG_INTERRUPT                          0x1
+#define SQ_MSG_GS                                 0x2
+#define SQ_MSG_GS_DONE                            0x3
+#define SQ_MSG_SYSMSG                             0xf
+typedef enum TEX_BORDER_COLOR_TYPE {
+	TEX_BorderColor_TransparentBlack                 = 0x0,
+	TEX_BorderColor_OpaqueBlack                      = 0x1,
+	TEX_BorderColor_OpaqueWhite                      = 0x2,
+	TEX_BorderColor_Register                         = 0x3,
+} TEX_BORDER_COLOR_TYPE;
+typedef enum TEX_CHROMA_KEY {
+	TEX_ChromaKey_Disabled                           = 0x0,
+	TEX_ChromaKey_Kill                               = 0x1,
+	TEX_ChromaKey_Blend                              = 0x2,
+	TEX_ChromaKey_RESERVED_3                         = 0x3,
+} TEX_CHROMA_KEY;
+typedef enum TEX_CLAMP {
+	TEX_Clamp_Repeat                                 = 0x0,
+	TEX_Clamp_Mirror                                 = 0x1,
+	TEX_Clamp_ClampToLast                            = 0x2,
+	TEX_Clamp_MirrorOnceToLast                       = 0x3,
+	TEX_Clamp_ClampHalfToBorder                      = 0x4,
+	TEX_Clamp_MirrorOnceHalfToBorder                 = 0x5,
+	TEX_Clamp_ClampToBorder                          = 0x6,
+	TEX_Clamp_MirrorOnceToBorder                     = 0x7,
+} TEX_CLAMP;
+typedef enum TEX_COORD_TYPE {
+	TEX_CoordType_Unnormalized                       = 0x0,
+	TEX_CoordType_Normalized                         = 0x1,
+} TEX_COORD_TYPE;
+typedef enum TEX_DEPTH_COMPARE_FUNCTION {
+	TEX_DepthCompareFunction_Never                   = 0x0,
+	TEX_DepthCompareFunction_Less                    = 0x1,
+	TEX_DepthCompareFunction_Equal                   = 0x2,
+	TEX_DepthCompareFunction_LessEqual               = 0x3,
+	TEX_DepthCompareFunction_Greater                 = 0x4,
+	TEX_DepthCompareFunction_NotEqual                = 0x5,
+	TEX_DepthCompareFunction_GreaterEqual            = 0x6,
+	TEX_DepthCompareFunction_Always                  = 0x7,
+} TEX_DEPTH_COMPARE_FUNCTION;
+typedef enum TEX_DIM {
+	TEX_Dim_1D                                       = 0x0,
+	TEX_Dim_2D                                       = 0x1,
+	TEX_Dim_3D                                       = 0x2,
+	TEX_Dim_CubeMap                                  = 0x3,
+	TEX_Dim_1DArray                                  = 0x4,
+	TEX_Dim_2DArray                                  = 0x5,
+	TEX_Dim_2D_MSAA                                  = 0x6,
+	TEX_Dim_2DArray_MSAA                             = 0x7,
+} TEX_DIM;
+typedef enum TEX_FORMAT_COMP {
+	TEX_FormatComp_Unsigned                          = 0x0,
+	TEX_FormatComp_Signed                            = 0x1,
+	TEX_FormatComp_UnsignedBiased                    = 0x2,
+	TEX_FormatComp_RESERVED_3                        = 0x3,
+} TEX_FORMAT_COMP;
+typedef enum TEX_MAX_ANISO_RATIO {
+	TEX_MaxAnisoRatio_1to1                           = 0x0,
+	TEX_MaxAnisoRatio_2to1                           = 0x1,
+	TEX_MaxAnisoRatio_4to1                           = 0x2,
+	TEX_MaxAnisoRatio_8to1                           = 0x3,
+	TEX_MaxAnisoRatio_16to1                          = 0x4,
+	TEX_MaxAnisoRatio_RESERVED_5                     = 0x5,
+	TEX_MaxAnisoRatio_RESERVED_6                     = 0x6,
+	TEX_MaxAnisoRatio_RESERVED_7                     = 0x7,
+} TEX_MAX_ANISO_RATIO;
+typedef enum TEX_MIP_FILTER {
+	TEX_MipFilter_None                               = 0x0,
+	TEX_MipFilter_Point                              = 0x1,
+	TEX_MipFilter_Linear                             = 0x2,
+	TEX_MipFilter_RESERVED_3                         = 0x3,
+} TEX_MIP_FILTER;
+typedef enum TEX_REQUEST_SIZE {
+	TEX_RequestSize_32B                              = 0x0,
+	TEX_RequestSize_64B                              = 0x1,
+	TEX_RequestSize_128B                             = 0x2,
+	TEX_RequestSize_2X64B                            = 0x3,
+} TEX_REQUEST_SIZE;
+typedef enum TEX_SAMPLER_TYPE {
+	TEX_SamplerType_Invalid                          = 0x0,
+	TEX_SamplerType_Valid                            = 0x1,
+} TEX_SAMPLER_TYPE;
+typedef enum TEX_XY_FILTER {
+	TEX_XYFilter_Point                               = 0x0,
+	TEX_XYFilter_Linear                              = 0x1,
+	TEX_XYFilter_AnisoPoint                          = 0x2,
+	TEX_XYFilter_AnisoLinear                         = 0x3,
+} TEX_XY_FILTER;
+typedef enum TEX_Z_FILTER {
+	TEX_ZFilter_None                                 = 0x0,
+	TEX_ZFilter_Point                                = 0x1,
+	TEX_ZFilter_Linear                               = 0x2,
+	TEX_ZFilter_RESERVED_3                           = 0x3,
+} TEX_Z_FILTER;
+typedef enum VTX_CLAMP {
+	VTX_Clamp_ClampToZero                            = 0x0,
+	VTX_Clamp_ClampToNAN                             = 0x1,
+} VTX_CLAMP;
+typedef enum VTX_FETCH_TYPE {
+	VTX_FetchType_VertexData                         = 0x0,
+	VTX_FetchType_InstanceData                       = 0x1,
+	VTX_FetchType_NoIndexOffset                      = 0x2,
+	VTX_FetchType_RESERVED_3                         = 0x3,
+} VTX_FETCH_TYPE;
+typedef enum VTX_FORMAT_COMP_ALL {
+	VTX_FormatCompAll_Unsigned                       = 0x0,
+	VTX_FormatCompAll_Signed                         = 0x1,
+} VTX_FORMAT_COMP_ALL;
+typedef enum VTX_MEM_REQUEST_SIZE {
+	VTX_MemRequestSize_32B                           = 0x0,
+	VTX_MemRequestSize_64B                           = 0x1,
+} VTX_MEM_REQUEST_SIZE;
+typedef enum TVX_DATA_FORMAT {
+	TVX_FMT_INVALID                                  = 0x0,
+	TVX_FMT_8                                        = 0x1,
+	TVX_FMT_4_4                                      = 0x2,
+	TVX_FMT_3_3_2                                    = 0x3,
+	TVX_FMT_RESERVED_4                               = 0x4,
+	TVX_FMT_16                                       = 0x5,
+	TVX_FMT_16_FLOAT                                 = 0x6,
+	TVX_FMT_8_8                                      = 0x7,
+	TVX_FMT_5_6_5                                    = 0x8,
+	TVX_FMT_6_5_5                                    = 0x9,
+	TVX_FMT_1_5_5_5                                  = 0xa,
+	TVX_FMT_4_4_4_4                                  = 0xb,
+	TVX_FMT_5_5_5_1                                  = 0xc,
+	TVX_FMT_32                                       = 0xd,
+	TVX_FMT_32_FLOAT                                 = 0xe,
+	TVX_FMT_16_16                                    = 0xf,
+	TVX_FMT_16_16_FLOAT                              = 0x10,
+	TVX_FMT_8_24                                     = 0x11,
+	TVX_FMT_8_24_FLOAT                               = 0x12,
+	TVX_FMT_24_8                                     = 0x13,
+	TVX_FMT_24_8_FLOAT                               = 0x14,
+	TVX_FMT_10_11_11                                 = 0x15,
+	TVX_FMT_10_11_11_FLOAT                           = 0x16,
+	TVX_FMT_11_11_10                                 = 0x17,
+	TVX_FMT_11_11_10_FLOAT                           = 0x18,
+	TVX_FMT_2_10_10_10                               = 0x19,
+	TVX_FMT_8_8_8_8                                  = 0x1a,
+	TVX_FMT_10_10_10_2                               = 0x1b,
+	TVX_FMT_X24_8_32_FLOAT                           = 0x1c,
+	TVX_FMT_32_32                                    = 0x1d,
+	TVX_FMT_32_32_FLOAT                              = 0x1e,
+	TVX_FMT_16_16_16_16                              = 0x1f,
+	TVX_FMT_16_16_16_16_FLOAT                        = 0x20,
+	TVX_FMT_RESERVED_33                              = 0x21,
+	TVX_FMT_32_32_32_32                              = 0x22,
+	TVX_FMT_32_32_32_32_FLOAT                        = 0x23,
+	TVX_FMT_RESERVED_36                              = 0x24,
+	TVX_FMT_1                                        = 0x25,
+	TVX_FMT_1_REVERSED                               = 0x26,
+	TVX_FMT_GB_GR                                    = 0x27,
+	TVX_FMT_BG_RG                                    = 0x28,
+	TVX_FMT_32_AS_8                                  = 0x29,
+	TVX_FMT_32_AS_8_8                                = 0x2a,
+	TVX_FMT_5_9_9_9_SHAREDEXP                        = 0x2b,
+	TVX_FMT_8_8_8                                    = 0x2c,
+	TVX_FMT_16_16_16                                 = 0x2d,
+	TVX_FMT_16_16_16_FLOAT                           = 0x2e,
+	TVX_FMT_32_32_32                                 = 0x2f,
+	TVX_FMT_32_32_32_FLOAT                           = 0x30,
+	TVX_FMT_BC1                                      = 0x31,
+	TVX_FMT_BC2                                      = 0x32,
+	TVX_FMT_BC3                                      = 0x33,
+	TVX_FMT_BC4                                      = 0x34,
+	TVX_FMT_BC5                                      = 0x35,
+	TVX_FMT_APC0                                     = 0x36,
+	TVX_FMT_APC1                                     = 0x37,
+	TVX_FMT_APC2                                     = 0x38,
+	TVX_FMT_APC3                                     = 0x39,
+	TVX_FMT_APC4                                     = 0x3a,
+	TVX_FMT_APC5                                     = 0x3b,
+	TVX_FMT_APC6                                     = 0x3c,
+	TVX_FMT_APC7                                     = 0x3d,
+	TVX_FMT_CTX1                                     = 0x3e,
+	TVX_FMT_RESERVED_63                              = 0x3f,
+} TVX_DATA_FORMAT;
+typedef enum TVX_DST_SEL {
+	TVX_DstSel_X                                     = 0x0,
+	TVX_DstSel_Y                                     = 0x1,
+	TVX_DstSel_Z                                     = 0x2,
+	TVX_DstSel_W                                     = 0x3,
+	TVX_DstSel_0f                                    = 0x4,
+	TVX_DstSel_1f                                    = 0x5,
+	TVX_DstSel_RESERVED_6                            = 0x6,
+	TVX_DstSel_Mask                                  = 0x7,
+} TVX_DST_SEL;
+typedef enum TVX_ENDIAN_SWAP {
+	TVX_EndianSwap_None                              = 0x0,
+	TVX_EndianSwap_8in16                             = 0x1,
+	TVX_EndianSwap_8in32                             = 0x2,
+	TVX_EndianSwap_8in64                             = 0x3,
+} TVX_ENDIAN_SWAP;
+typedef enum TVX_INST {
+	TVX_Inst_NormalVertexFetch                       = 0x0,
+	TVX_Inst_SemanticVertexFetch                     = 0x1,
+	TVX_Inst_RESERVED_2                              = 0x2,
+	TVX_Inst_LD                                      = 0x3,
+	TVX_Inst_GetTextureResInfo                       = 0x4,
+	TVX_Inst_GetNumberOfSamples                      = 0x5,
+	TVX_Inst_GetLOD                                  = 0x6,
+	TVX_Inst_GetGradientsH                           = 0x7,
+	TVX_Inst_GetGradientsV                           = 0x8,
+	TVX_Inst_SetTextureOffsets                       = 0x9,
+	TVX_Inst_KeepGradients                           = 0xa,
+	TVX_Inst_SetGradientsH                           = 0xb,
+	TVX_Inst_SetGradientsV                           = 0xc,
+	TVX_Inst_Pass                                    = 0xd,
+	TVX_Inst_GetBufferResInfo                        = 0xe,
+	TVX_Inst_RESERVED_15                             = 0xf,
+	TVX_Inst_Sample                                  = 0x10,
+	TVX_Inst_Sample_L                                = 0x11,
+	TVX_Inst_Sample_LB                               = 0x12,
+	TVX_Inst_Sample_LZ                               = 0x13,
+	TVX_Inst_Sample_G                                = 0x14,
+	TVX_Inst_Gather4                                 = 0x15,
+	TVX_Inst_Sample_G_LB                             = 0x16,
+	TVX_Inst_Gather4_O                               = 0x17,
+	TVX_Inst_Sample_C                                = 0x18,
+	TVX_Inst_Sample_C_L                              = 0x19,
+	TVX_Inst_Sample_C_LB                             = 0x1a,
+	TVX_Inst_Sample_C_LZ                             = 0x1b,
+	TVX_Inst_Sample_C_G                              = 0x1c,
+	TVX_Inst_Gather4_C                               = 0x1d,
+	TVX_Inst_Sample_C_G_LB                           = 0x1e,
+	TVX_Inst_Gather4_C_O                             = 0x1f,
+} TVX_INST;
+typedef enum TVX_NUM_FORMAT_ALL {
+	TVX_NumFormatAll_Norm                            = 0x0,
+	TVX_NumFormatAll_Int                             = 0x1,
+	TVX_NumFormatAll_Scaled                          = 0x2,
+	TVX_NumFormatAll_RESERVED_3                      = 0x3,
+} TVX_NUM_FORMAT_ALL;
+typedef enum TVX_SRC_SEL {
+	TVX_SrcSel_X                                     = 0x0,
+	TVX_SrcSel_Y                                     = 0x1,
+	TVX_SrcSel_Z                                     = 0x2,
+	TVX_SrcSel_W                                     = 0x3,
+	TVX_SrcSel_0f                                    = 0x4,
+	TVX_SrcSel_1f                                    = 0x5,
+} TVX_SRC_SEL;
+typedef enum TVX_SRF_MODE_ALL {
+	TVX_SRFModeAll_ZCMO                              = 0x0,
+	TVX_SRFModeAll_NZ                                = 0x1,
+} TVX_SRF_MODE_ALL;
+typedef enum TVX_TYPE {
+	TVX_Type_InvalidTextureResource                  = 0x0,
+	TVX_Type_InvalidVertexBuffer                     = 0x1,
+	TVX_Type_ValidTextureResource                    = 0x2,
+	TVX_Type_ValidVertexBuffer                       = 0x3,
+} TVX_TYPE;
+typedef enum TC_OP_MASKS {
+	TC_OP_MASK_FLUSH_DENROM                          = 0x8,
+	TC_OP_MASK_64                                    = 0x20,
+	TC_OP_MASK_NO_RTN                                = 0x40,
+} TC_OP_MASKS;
+typedef enum TC_OP {
+	TC_OP_READ                                       = 0x0,
+	TC_OP_ATOMIC_FCMPSWAP_RTN_32                     = 0x1,
+	TC_OP_ATOMIC_FMIN_RTN_32                         = 0x2,
+	TC_OP_ATOMIC_FMAX_RTN_32                         = 0x3,
+	TC_OP_RESERVED_FOP_RTN_32_0                      = 0x4,
+	TC_OP_RESERVED_FOP_RTN_32_1                      = 0x5,
+	TC_OP_RESERVED_FOP_RTN_32_2                      = 0x6,
+	TC_OP_ATOMIC_SWAP_RTN_32                         = 0x7,
+	TC_OP_ATOMIC_CMPSWAP_RTN_32                      = 0x8,
+	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DENORM_RTN_32        = 0x9,
+	TC_OP_ATOMIC_FMIN_FLUSH_DENORM_RTN_32            = 0xa,
+	TC_OP_ATOMIC_FMAX_FLUSH_DENORM_RTN_32            = 0xb,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_32_0         = 0xc,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_32_1         = 0xd,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_32_2         = 0xe,
+	TC_OP_ATOMIC_ADD_RTN_32                          = 0xf,
+	TC_OP_ATOMIC_SUB_RTN_32                          = 0x10,
+	TC_OP_ATOMIC_SMIN_RTN_32                         = 0x11,
+	TC_OP_ATOMIC_UMIN_RTN_32                         = 0x12,
+	TC_OP_ATOMIC_SMAX_RTN_32                         = 0x13,
+	TC_OP_ATOMIC_UMAX_RTN_32                         = 0x14,
+	TC_OP_ATOMIC_AND_RTN_32                          = 0x15,
+	TC_OP_ATOMIC_OR_RTN_32                           = 0x16,
+	TC_OP_ATOMIC_XOR_RTN_32                          = 0x17,
+	TC_OP_ATOMIC_INC_RTN_32                          = 0x18,
+	TC_OP_ATOMIC_DEC_RTN_32                          = 0x19,
+	TC_OP_WBINVL1_VOL                                = 0x1a,
+	TC_OP_RESERVED_NON_FLOAT_RTN_32_0                = 0x1b,
+	TC_OP_RESERVED_NON_FLOAT_RTN_32_1                = 0x1c,
+	TC_OP_RESERVED_NON_FLOAT_RTN_32_2                = 0x1d,
+	TC_OP_RESERVED_NON_FLOAT_RTN_32_3                = 0x1e,
+	TC_OP_RESERVED_NON_FLOAT_RTN_32_4                = 0x1f,
+	TC_OP_WRITE                                      = 0x20,
+	TC_OP_ATOMIC_FCMPSWAP_RTN_64                     = 0x21,
+	TC_OP_ATOMIC_FMIN_RTN_64                         = 0x22,
+	TC_OP_ATOMIC_FMAX_RTN_64                         = 0x23,
+	TC_OP_RESERVED_FOP_RTN_64_0                      = 0x24,
+	TC_OP_RESERVED_FOP_RTN_64_1                      = 0x25,
+	TC_OP_RESERVED_FOP_RTN_64_2                      = 0x26,
+	TC_OP_ATOMIC_SWAP_RTN_64                         = 0x27,
+	TC_OP_ATOMIC_CMPSWAP_RTN_64                      = 0x28,
+	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DENORM_RTN_64        = 0x29,
+	TC_OP_ATOMIC_FMIN_FLUSH_DENORM_RTN_64            = 0x2a,
+	TC_OP_ATOMIC_FMAX_FLUSH_DENORM_RTN_64            = 0x2b,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_64_0         = 0x2c,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_64_1         = 0x2d,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_64_2         = 0x2e,
+	TC_OP_ATOMIC_ADD_RTN_64                          = 0x2f,
+	TC_OP_ATOMIC_SUB_RTN_64                          = 0x30,
+	TC_OP_ATOMIC_SMIN_RTN_64                         = 0x31,
+	TC_OP_ATOMIC_UMIN_RTN_64                         = 0x32,
+	TC_OP_ATOMIC_SMAX_RTN_64                         = 0x33,
+	TC_OP_ATOMIC_UMAX_RTN_64                         = 0x34,
+	TC_OP_ATOMIC_AND_RTN_64                          = 0x35,
+	TC_OP_ATOMIC_OR_RTN_64                           = 0x36,
+	TC_OP_ATOMIC_XOR_RTN_64                          = 0x37,
+	TC_OP_ATOMIC_INC_RTN_64                          = 0x38,
+	TC_OP_ATOMIC_DEC_RTN_64                          = 0x39,
+	TC_OP_WBL2_VOL                                   = 0x3a,
+	TC_OP_RESERVED_NON_FLOAT_RTN_64_0                = 0x3b,
+	TC_OP_RESERVED_NON_FLOAT_RTN_64_1                = 0x3c,
+	TC_OP_RESERVED_NON_FLOAT_RTN_64_2                = 0x3d,
+	TC_OP_RESERVED_NON_FLOAT_RTN_64_3                = 0x3e,
+	TC_OP_RESERVED_NON_FLOAT_RTN_64_4                = 0x3f,
+	TC_OP_WBINVL1                                    = 0x40,
+	TC_OP_ATOMIC_FCMPSWAP_32                         = 0x41,
+	TC_OP_ATOMIC_FMIN_32                             = 0x42,
+	TC_OP_ATOMIC_FMAX_32                             = 0x43,
+	TC_OP_RESERVED_FOP_32_0                          = 0x44,
+	TC_OP_RESERVED_FOP_32_1                          = 0x45,
+	TC_OP_RESERVED_FOP_32_2                          = 0x46,
+	TC_OP_ATOMIC_SWAP_32                             = 0x47,
+	TC_OP_ATOMIC_CMPSWAP_32                          = 0x48,
+	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DENORM_32            = 0x49,
+	TC_OP_ATOMIC_FMIN_FLUSH_DENORM_32                = 0x4a,
+	TC_OP_ATOMIC_FMAX_FLUSH_DENORM_32                = 0x4b,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_32_0             = 0x4c,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_32_1             = 0x4d,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_32_2             = 0x4e,
+	TC_OP_ATOMIC_ADD_32                              = 0x4f,
+	TC_OP_ATOMIC_SUB_32                              = 0x50,
+	TC_OP_ATOMIC_SMIN_32                             = 0x51,
+	TC_OP_ATOMIC_UMIN_32                             = 0x52,
+	TC_OP_ATOMIC_SMAX_32                             = 0x53,
+	TC_OP_ATOMIC_UMAX_32                             = 0x54,
+	TC_OP_ATOMIC_AND_32                              = 0x55,
+	TC_OP_ATOMIC_OR_32                               = 0x56,
+	TC_OP_ATOMIC_XOR_32                              = 0x57,
+	TC_OP_ATOMIC_INC_32                              = 0x58,
+	TC_OP_ATOMIC_DEC_32                              = 0x59,
+	TC_OP_INVL2_VOL                                  = 0x5a,
+	TC_OP_RESERVED_NON_FLOAT_32_0                    = 0x5b,
+	TC_OP_RESERVED_NON_FLOAT_32_1                    = 0x5c,
+	TC_OP_RESERVED_NON_FLOAT_32_2                    = 0x5d,
+	TC_OP_RESERVED_NON_FLOAT_32_3                    = 0x5e,
+	TC_OP_RESERVED_NON_FLOAT_32_4                    = 0x5f,
+	TC_OP_WBINVL2                                    = 0x60,
+	TC_OP_ATOMIC_FCMPSWAP_64                         = 0x61,
+	TC_OP_ATOMIC_FMIN_64                             = 0x62,
+	TC_OP_ATOMIC_FMAX_64                             = 0x63,
+	TC_OP_RESERVED_FOP_64_0                          = 0x64,
+	TC_OP_RESERVED_FOP_64_1                          = 0x65,
+	TC_OP_RESERVED_FOP_64_2                          = 0x66,
+	TC_OP_ATOMIC_SWAP_64                             = 0x67,
+	TC_OP_ATOMIC_CMPSWAP_64                          = 0x68,
+	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DENORM_64            = 0x69,
+	TC_OP_ATOMIC_FMIN_FLUSH_DENORM_64                = 0x6a,
+	TC_OP_ATOMIC_FMAX_FLUSH_DENORM_64                = 0x6b,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_64_0             = 0x6c,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_64_1             = 0x6d,
+	TC_OP_RESERVED_FOP_FLUSH_DENORM_64_2             = 0x6e,
+	TC_OP_ATOMIC_ADD_64                              = 0x6f,
+	TC_OP_ATOMIC_SUB_64                              = 0x70,
+	TC_OP_ATOMIC_SMIN_64                             = 0x71,
+	TC_OP_ATOMIC_UMIN_64                             = 0x72,
+	TC_OP_ATOMIC_SMAX_64                             = 0x73,
+	TC_OP_ATOMIC_UMAX_64                             = 0x74,
+	TC_OP_ATOMIC_AND_64                              = 0x75,
+	TC_OP_ATOMIC_OR_64                               = 0x76,
+	TC_OP_ATOMIC_XOR_64                              = 0x77,
+	TC_OP_ATOMIC_INC_64                              = 0x78,
+	TC_OP_ATOMIC_DEC_64                              = 0x79,
+	TC_OP_INVL1L2_VOL                                = 0x7a,
+	TC_OP_RESERVED_NON_FLOAT_64_0                    = 0x7b,
+	TC_OP_RESERVED_NON_FLOAT_64_1                    = 0x7c,
+	TC_OP_RESERVED_NON_FLOAT_64_2                    = 0x7d,
+	TC_OP_RESERVED_NON_FLOAT_64_3                    = 0x7e,
+	TC_OP_RESERVED_NON_FLOAT_64_4                    = 0x7f,
+} TC_OP;
+typedef enum TC_CHUB_REQ_CREDITS_ENUM {
+	TC_CHUB_REQ_CREDITS                              = 0x10,
+} TC_CHUB_REQ_CREDITS_ENUM;
+typedef enum CHUB_TC_RET_CREDITS_ENUM {
+	CHUB_TC_RET_CREDITS                              = 0x20,
+} CHUB_TC_RET_CREDITS_ENUM;
+typedef enum TC_NACKS {
+	TC_NACK_NO_FAULT                                 = 0x0,
+	TC_NACK_PAGE_FAULT                               = 0x1,
+	TC_NACK_PROTECTION_FAULT                         = 0x2,
+	TC_NACK_DATA_ERROR                               = 0x3,
+} TC_NACKS;
+typedef enum TCC_PERF_SEL {
+	TCC_PERF_SEL_NONE                                = 0x0,
+	TCC_PERF_SEL_CYCLE                               = 0x1,
+	TCC_PERF_SEL_BUSY                                = 0x2,
+	TCC_PERF_SEL_REQ                                 = 0x3,
+	TCC_PERF_SEL_STREAMING_REQ                       = 0x4,
+	TCC_PERF_SEL_READ                                = 0x5,
+	TCC_PERF_SEL_WRITE                               = 0x6,
+	TCC_PERF_SEL_ATOMIC                              = 0x7,
+	TCC_PERF_SEL_WBINVL2                             = 0x8,
+	TCC_PERF_SEL_WBINVL2_CYCLE                       = 0x9,
+	TCC_PERF_SEL_HIT                                 = 0xa,
+	TCC_PERF_SEL_MISS                                = 0xb,
+	TCC_PERF_SEL_DEWRITE_ALLOCATE_HIT                = 0xc,
+	TCC_PERF_SEL_FULLY_WRITTEN_HIT                   = 0xd,
+	TCC_PERF_SEL_WRITEBACK                           = 0xe,
+	TCC_PERF_SEL_LATENCY_FIFO_FULL                   = 0xf,
+	TCC_PERF_SEL_SRC_FIFO_FULL                       = 0x10,
+	TCC_PERF_SEL_HOLE_FIFO_FULL                      = 0x11,
+	TCC_PERF_SEL_MC_WRREQ                            = 0x12,
+	TCC_PERF_SEL_MC_WRREQ_STALL                      = 0x13,
+	TCC_PERF_SEL_MC_WRREQ_CREDIT_STALL               = 0x14,
+	TCC_PERF_SEL_MC_WRREQ_MC_HALT_STALL              = 0x15,
+	TCC_PERF_SEL_TOO_MANY_MC_WRREQS_STALL            = 0x16,
+	TCC_PERF_SEL_MC_WRREQ_LEVEL                      = 0x17,
+	TCC_PERF_SEL_MC_RDREQ                            = 0x18,
+	TCC_PERF_SEL_MC_RDREQ_CREDIT_STALL               = 0x19,
+	TCC_PERF_SEL_MC_RDREQ_MC_HALT_STALL              = 0x1a,
+	TCC_PERF_SEL_MC_RDREQ_LEVEL                      = 0x1b,
+	TCC_PERF_SEL_TAG_STALL                           = 0x1c,
+	TCC_PERF_SEL_TAG_WRITEBACK_FIFO_FULL             = 0x1d,
+	TCC_PERF_SEL_TAG_MISS_NOTHING_REPLACEABLE_STALL  = 0x1e,
+	TCC_PERF_SEL_READ_RETURN_TIMEOUT                 = 0x1f,
+	TCC_PERF_SEL_WRITEBACK_READ_TIMEOUT              = 0x20,
+	TCC_PERF_SEL_READ_RETURN_FULL_BUBBLE             = 0x21,
+	TCC_PERF_SEL_BUBBLE                              = 0x22,
+	TCC_PERF_SEL_RETURN_ACK                          = 0x23,
+	TCC_PERF_SEL_RETURN_DATA                         = 0x24,
+	TCC_PERF_SEL_RETURN_HOLE                         = 0x25,
+	TCC_PERF_SEL_RETURN_ACK_HOLE                     = 0x26,
+	TCC_PERF_SEL_IB_STALL                            = 0x27,
+	TCC_PERF_SEL_TCA_LEVEL                           = 0x28,
+	TCC_PERF_SEL_HOLE_LEVEL                          = 0x29,
+	TCC_PERF_SEL_MC_RDRET_NACK                       = 0x2a,
+	TCC_PERF_SEL_MC_WRRET_NACK                       = 0x2b,
+	TCC_PERF_SEL_EXE_REQ                             = 0x2c,
+	TCC_PERF_SEL_CLIENT0_REQ                         = 0x40,
+	TCC_PERF_SEL_CLIENT1_REQ                         = 0x41,
+	TCC_PERF_SEL_CLIENT2_REQ                         = 0x42,
+	TCC_PERF_SEL_CLIENT3_REQ                         = 0x43,
+	TCC_PERF_SEL_CLIENT4_REQ                         = 0x44,
+	TCC_PERF_SEL_CLIENT5_REQ                         = 0x45,
+	TCC_PERF_SEL_CLIENT6_REQ                         = 0x46,
+	TCC_PERF_SEL_CLIENT7_REQ                         = 0x47,
+	TCC_PERF_SEL_CLIENT8_REQ                         = 0x48,
+	TCC_PERF_SEL_CLIENT9_REQ                         = 0x49,
+	TCC_PERF_SEL_CLIENT10_REQ                        = 0x4a,
+	TCC_PERF_SEL_CLIENT11_REQ                        = 0x4b,
+	TCC_PERF_SEL_CLIENT12_REQ                        = 0x4c,
+	TCC_PERF_SEL_CLIENT13_REQ                        = 0x4d,
+	TCC_PERF_SEL_CLIENT14_REQ                        = 0x4e,
+	TCC_PERF_SEL_CLIENT15_REQ                        = 0x4f,
+	TCC_PERF_SEL_CLIENT16_REQ                        = 0x50,
+	TCC_PERF_SEL_CLIENT17_REQ                        = 0x51,
+	TCC_PERF_SEL_CLIENT18_REQ                        = 0x52,
+	TCC_PERF_SEL_CLIENT19_REQ                        = 0x53,
+	TCC_PERF_SEL_CLIENT20_REQ                        = 0x54,
+	TCC_PERF_SEL_CLIENT21_REQ                        = 0x55,
+	TCC_PERF_SEL_CLIENT22_REQ                        = 0x56,
+	TCC_PERF_SEL_CLIENT23_REQ                        = 0x57,
+	TCC_PERF_SEL_CLIENT24_REQ                        = 0x58,
+	TCC_PERF_SEL_CLIENT25_REQ                        = 0x59,
+	TCC_PERF_SEL_CLIENT26_REQ                        = 0x5a,
+	TCC_PERF_SEL_CLIENT27_REQ                        = 0x5b,
+	TCC_PERF_SEL_CLIENT28_REQ                        = 0x5c,
+	TCC_PERF_SEL_CLIENT29_REQ                        = 0x5d,
+	TCC_PERF_SEL_CLIENT30_REQ                        = 0x5e,
+	TCC_PERF_SEL_CLIENT31_REQ                        = 0x5f,
+	TCC_PERF_SEL_CLIENT32_REQ                        = 0x60,
+	TCC_PERF_SEL_CLIENT33_REQ                        = 0x61,
+	TCC_PERF_SEL_CLIENT34_REQ                        = 0x62,
+	TCC_PERF_SEL_CLIENT35_REQ                        = 0x63,
+	TCC_PERF_SEL_CLIENT36_REQ                        = 0x64,
+	TCC_PERF_SEL_CLIENT37_REQ                        = 0x65,
+	TCC_PERF_SEL_CLIENT38_REQ                        = 0x66,
+	TCC_PERF_SEL_CLIENT39_REQ                        = 0x67,
+	TCC_PERF_SEL_CLIENT40_REQ                        = 0x68,
+	TCC_PERF_SEL_CLIENT41_REQ                        = 0x69,
+	TCC_PERF_SEL_CLIENT42_REQ                        = 0x6a,
+	TCC_PERF_SEL_CLIENT43_REQ                        = 0x6b,
+	TCC_PERF_SEL_CLIENT44_REQ                        = 0x6c,
+	TCC_PERF_SEL_CLIENT45_REQ                        = 0x6d,
+	TCC_PERF_SEL_CLIENT46_REQ                        = 0x6e,
+	TCC_PERF_SEL_CLIENT47_REQ                        = 0x6f,
+	TCC_PERF_SEL_CLIENT48_REQ                        = 0x70,
+	TCC_PERF_SEL_CLIENT49_REQ                        = 0x71,
+	TCC_PERF_SEL_CLIENT50_REQ                        = 0x72,
+	TCC_PERF_SEL_CLIENT51_REQ                        = 0x73,
+	TCC_PERF_SEL_CLIENT52_REQ                        = 0x74,
+	TCC_PERF_SEL_CLIENT53_REQ                        = 0x75,
+	TCC_PERF_SEL_CLIENT54_REQ                        = 0x76,
+	TCC_PERF_SEL_CLIENT55_REQ                        = 0x77,
+	TCC_PERF_SEL_CLIENT56_REQ                        = 0x78,
+	TCC_PERF_SEL_CLIENT57_REQ                        = 0x79,
+	TCC_PERF_SEL_CLIENT58_REQ                        = 0x7a,
+	TCC_PERF_SEL_CLIENT59_REQ                        = 0x7b,
+	TCC_PERF_SEL_CLIENT60_REQ                        = 0x7c,
+	TCC_PERF_SEL_CLIENT61_REQ                        = 0x7d,
+	TCC_PERF_SEL_CLIENT62_REQ                        = 0x7e,
+	TCC_PERF_SEL_CLIENT63_REQ                        = 0x7f,
+	TCC_PERF_SEL_NORMAL_WRITEBACK                    = 0x80,
+	TCC_PERF_SEL_TC_OP_WBL2_VOL_WRITEBACK            = 0x81,
+	TCC_PERF_SEL_TC_OP_WBINVL2_WRITEBACK             = 0x82,
+	TCC_PERF_SEL_ALL_TC_OP_WB_WRITEBACK              = 0x83,
+	TCC_PERF_SEL_NORMAL_EVICT                        = 0x84,
+	TCC_PERF_SEL_TC_OP_INVL2_VOL_EVICT               = 0x85,
+	TCC_PERF_SEL_TC_OP_INVL1L2_VOL_EVICT             = 0x86,
+	TCC_PERF_SEL_TC_OP_WBL2_VOL_EVICT                = 0x87,
+	TCC_PERF_SEL_TC_OP_WBINVL2_EVICT                 = 0x88,
+	TCC_PERF_SEL_ALL_TC_OP_INV_EVICT                 = 0x89,
+	TCC_PERF_SEL_ALL_TC_OP_INV_VOL_EVICT             = 0x8a,
+	TCC_PERF_SEL_TC_OP_WBL2_VOL_CYCLE                = 0x8b,
+	TCC_PERF_SEL_TC_OP_INVL2_VOL_CYCLE               = 0x8c,
+	TCC_PERF_SEL_TC_OP_INVL1L2_VOL_CYCLE             = 0x8d,
+	TCC_PERF_SEL_TC_OP_WBINVL2_CYCLE                 = 0x8e,
+	TCC_PERF_SEL_ALL_TC_OP_WB_OR_INV_CYCLE           = 0x8f,
+	TCC_PERF_SEL_ALL_TC_OP_WB_OR_INV_VOL_CYCLE       = 0x90,
+	TCC_PERF_SEL_TC_OP_WBL2_VOL_START                = 0x91,
+	TCC_PERF_SEL_TC_OP_INVL2_VOL_START               = 0x92,
+	TCC_PERF_SEL_TC_OP_INVL1L2_VOL_START             = 0x93,
+	TCC_PERF_SEL_TC_OP_WBINVL2_START                 = 0x94,
+	TCC_PERF_SEL_ALL_TC_OP_WB_OR_INV_START           = 0x95,
+	TCC_PERF_SEL_ALL_TC_OP_WB_OR_INV_VOL_START       = 0x96,
+	TCC_PERF_SEL_TC_OP_WBL2_VOL_FINISH               = 0x97,
+	TCC_PERF_SEL_TC_OP_INVL2_VOL_FINISH              = 0x98,
+	TCC_PERF_SEL_TC_OP_INVL1L2_VOL_FINISH            = 0x99,
+	TCC_PERF_SEL_TC_OP_WBINVL2_FINISH                = 0x9a,
+	TCC_PERF_SEL_ALL_TC_OP_WB_OR_INV_FINISH          = 0x9b,
+	TCC_PERF_SEL_ALL_TC_OP_WB_OR_INV_VOL_FINISH      = 0x9c,
+	TCC_PERF_SEL_VOL_MC_WRREQ                        = 0x9d,
+	TCC_PERF_SEL_VOL_MC_RDREQ                        = 0x9e,
+	TCC_PERF_SEL_VOL_REQ                             = 0x9f,
+} TCC_PERF_SEL;
+typedef enum TCA_PERF_SEL {
+	TCA_PERF_SEL_NONE                                = 0x0,
+	TCA_PERF_SEL_CYCLE                               = 0x1,
+	TCA_PERF_SEL_BUSY                                = 0x2,
+	TCA_PERF_SEL_FORCED_HOLE_TCC0                    = 0x3,
+	TCA_PERF_SEL_FORCED_HOLE_TCC1                    = 0x4,
+	TCA_PERF_SEL_FORCED_HOLE_TCC2                    = 0x5,
+	TCA_PERF_SEL_FORCED_HOLE_TCC3                    = 0x6,
+	TCA_PERF_SEL_FORCED_HOLE_TCC4                    = 0x7,
+	TCA_PERF_SEL_FORCED_HOLE_TCC5                    = 0x8,
+	TCA_PERF_SEL_FORCED_HOLE_TCC6                    = 0x9,
+	TCA_PERF_SEL_FORCED_HOLE_TCC7                    = 0xa,
+	TCA_PERF_SEL_REQ_TCC0                            = 0xb,
+	TCA_PERF_SEL_REQ_TCC1                            = 0xc,
+	TCA_PERF_SEL_REQ_TCC2                            = 0xd,
+	TCA_PERF_SEL_REQ_TCC3                            = 0xe,
+	TCA_PERF_SEL_REQ_TCC4                            = 0xf,
+	TCA_PERF_SEL_REQ_TCC5                            = 0x10,
+	TCA_PERF_SEL_REQ_TCC6                            = 0x11,
+	TCA_PERF_SEL_REQ_TCC7                            = 0x12,
+	TCA_PERF_SEL_CROSSBAR_DOUBLE_ARB_TCC0            = 0x13,
+	TCA_PERF_SEL_CROSSBAR_DOUBLE_ARB_TCC1            = 0x14,
+	TCA_PERF_SEL_CROSSBAR_DOUBLE_ARB_TCC2            = 0x15,
+	TCA_PERF_SEL_CROSSBAR_DOUBLE_ARB_TCC3            = 0x16,
+	TCA_PERF_SEL_CROSSBAR_DOUBLE_ARB_TCC4            = 0x17,
+	TCA_PERF_SEL_CROSSBAR_DOUBLE_ARB_TCC5            = 0x18,
+	TCA_PERF_SEL_CROSSBAR_DOUBLE_ARB_TCC6            = 0x19,
+	TCA_PERF_SEL_CROSSBAR_DOUBLE_ARB_TCC7            = 0x1a,
+	TCA_PERF_SEL_CROSSBAR_STALL_TCC0                 = 0x1b,
+	TCA_PERF_SEL_CROSSBAR_STALL_TCC1                 = 0x1c,
+	TCA_PERF_SEL_CROSSBAR_STALL_TCC2                 = 0x1d,
+	TCA_PERF_SEL_CROSSBAR_STALL_TCC3                 = 0x1e,
+	TCA_PERF_SEL_CROSSBAR_STALL_TCC4                 = 0x1f,
+	TCA_PERF_SEL_CROSSBAR_STALL_TCC5                 = 0x20,
+	TCA_PERF_SEL_CROSSBAR_STALL_TCC6                 = 0x21,
+	TCA_PERF_SEL_CROSSBAR_STALL_TCC7                 = 0x22,
+	TCA_PERF_SEL_FORCED_HOLE_TCS                     = 0x23,
+	TCA_PERF_SEL_REQ_TCS                             = 0x24,
+	TCA_PERF_SEL_CROSSBAR_DOUBLE_ARB_TCS             = 0x25,
+	TCA_PERF_SEL_CROSSBAR_STALL_TCS                  = 0x26,
+} TCA_PERF_SEL;
+typedef enum TCS_PERF_SEL {
+	TCS_PERF_SEL_NONE                                = 0x0,
+	TCS_PERF_SEL_CYCLE                               = 0x1,
+	TCS_PERF_SEL_BUSY                                = 0x2,
+	TCS_PERF_SEL_REQ                                 = 0x3,
+	TCS_PERF_SEL_READ                                = 0x4,
+	TCS_PERF_SEL_WRITE                               = 0x5,
+	TCS_PERF_SEL_ATOMIC                              = 0x6,
+	TCS_PERF_SEL_HOLE_FIFO_FULL                      = 0x7,
+	TCS_PERF_SEL_REQ_FIFO_FULL                       = 0x8,
+	TCS_PERF_SEL_REQ_CREDIT_STALL                    = 0x9,
+	TCS_PERF_SEL_REQ_NO_SRC_DATA_STALL               = 0xa,
+	TCS_PERF_SEL_REQ_STALL                           = 0xb,
+	TCS_PERF_SEL_TCS_CHUB_REQ_SEND                   = 0xc,
+	TCS_PERF_SEL_CHUB_TCS_RET_SEND                   = 0xd,
+	TCS_PERF_SEL_RETURN_ACK                          = 0xe,
+	TCS_PERF_SEL_RETURN_DATA                         = 0xf,
+	TCS_PERF_SEL_IB_TOTAL_REQUESTS_STALL             = 0x10,
+	TCS_PERF_SEL_IB_STALL                            = 0x11,
+	TCS_PERF_SEL_TCA_LEVEL                           = 0x12,
+	TCS_PERF_SEL_HOLE_LEVEL                          = 0x13,
+	TCS_PERF_SEL_CHUB_LEVEL                          = 0x14,
+	TCS_PERF_SEL_CLIENT0_REQ                         = 0x40,
+	TCS_PERF_SEL_CLIENT1_REQ                         = 0x41,
+	TCS_PERF_SEL_CLIENT2_REQ                         = 0x42,
+	TCS_PERF_SEL_CLIENT3_REQ                         = 0x43,
+	TCS_PERF_SEL_CLIENT4_REQ                         = 0x44,
+	TCS_PERF_SEL_CLIENT5_REQ                         = 0x45,
+	TCS_PERF_SEL_CLIENT6_REQ                         = 0x46,
+	TCS_PERF_SEL_CLIENT7_REQ                         = 0x47,
+	TCS_PERF_SEL_CLIENT8_REQ                         = 0x48,
+	TCS_PERF_SEL_CLIENT9_REQ                         = 0x49,
+	TCS_PERF_SEL_CLIENT10_REQ                        = 0x4a,
+	TCS_PERF_SEL_CLIENT11_REQ                        = 0x4b,
+	TCS_PERF_SEL_CLIENT12_REQ                        = 0x4c,
+	TCS_PERF_SEL_CLIENT13_REQ                        = 0x4d,
+	TCS_PERF_SEL_CLIENT14_REQ                        = 0x4e,
+	TCS_PERF_SEL_CLIENT15_REQ                        = 0x4f,
+	TCS_PERF_SEL_CLIENT16_REQ                        = 0x50,
+	TCS_PERF_SEL_CLIENT17_REQ                        = 0x51,
+	TCS_PERF_SEL_CLIENT18_REQ                        = 0x52,
+	TCS_PERF_SEL_CLIENT19_REQ                        = 0x53,
+	TCS_PERF_SEL_CLIENT20_REQ                        = 0x54,
+	TCS_PERF_SEL_CLIENT21_REQ                        = 0x55,
+	TCS_PERF_SEL_CLIENT22_REQ                        = 0x56,
+	TCS_PERF_SEL_CLIENT23_REQ                        = 0x57,
+	TCS_PERF_SEL_CLIENT24_REQ                        = 0x58,
+	TCS_PERF_SEL_CLIENT25_REQ                        = 0x59,
+	TCS_PERF_SEL_CLIENT26_REQ                        = 0x5a,
+	TCS_PERF_SEL_CLIENT27_REQ                        = 0x5b,
+	TCS_PERF_SEL_CLIENT28_REQ                        = 0x5c,
+	TCS_PERF_SEL_CLIENT29_REQ                        = 0x5d,
+	TCS_PERF_SEL_CLIENT30_REQ                        = 0x5e,
+	TCS_PERF_SEL_CLIENT31_REQ                        = 0x5f,
+	TCS_PERF_SEL_CLIENT32_REQ                        = 0x60,
+	TCS_PERF_SEL_CLIENT33_REQ                        = 0x61,
+	TCS_PERF_SEL_CLIENT34_REQ                        = 0x62,
+	TCS_PERF_SEL_CLIENT35_REQ                        = 0x63,
+	TCS_PERF_SEL_CLIENT36_REQ                        = 0x64,
+	TCS_PERF_SEL_CLIENT37_REQ                        = 0x65,
+	TCS_PERF_SEL_CLIENT38_REQ                        = 0x66,
+	TCS_PERF_SEL_CLIENT39_REQ                        = 0x67,
+	TCS_PERF_SEL_CLIENT40_REQ                        = 0x68,
+	TCS_PERF_SEL_CLIENT41_REQ                        = 0x69,
+	TCS_PERF_SEL_CLIENT42_REQ                        = 0x6a,
+	TCS_PERF_SEL_CLIENT43_REQ                        = 0x6b,
+	TCS_PERF_SEL_CLIENT44_REQ                        = 0x6c,
+	TCS_PERF_SEL_CLIENT45_REQ                        = 0x6d,
+	TCS_PERF_SEL_CLIENT46_REQ                        = 0x6e,
+	TCS_PERF_SEL_CLIENT47_REQ                        = 0x6f,
+	TCS_PERF_SEL_CLIENT48_REQ                        = 0x70,
+	TCS_PERF_SEL_CLIENT49_REQ                        = 0x71,
+	TCS_PERF_SEL_CLIENT50_REQ                        = 0x72,
+	TCS_PERF_SEL_CLIENT51_REQ                        = 0x73,
+	TCS_PERF_SEL_CLIENT52_REQ                        = 0x74,
+	TCS_PERF_SEL_CLIENT53_REQ                        = 0x75,
+	TCS_PERF_SEL_CLIENT54_REQ                        = 0x76,
+	TCS_PERF_SEL_CLIENT55_REQ                        = 0x77,
+	TCS_PERF_SEL_CLIENT56_REQ                        = 0x78,
+	TCS_PERF_SEL_CLIENT57_REQ                        = 0x79,
+	TCS_PERF_SEL_CLIENT58_REQ                        = 0x7a,
+	TCS_PERF_SEL_CLIENT59_REQ                        = 0x7b,
+	TCS_PERF_SEL_CLIENT60_REQ                        = 0x7c,
+	TCS_PERF_SEL_CLIENT61_REQ                        = 0x7d,
+	TCS_PERF_SEL_CLIENT62_REQ                        = 0x7e,
+	TCS_PERF_SEL_CLIENT63_REQ                        = 0x7f,
+} TCS_PERF_SEL;
+typedef enum TA_TC_ADDR_MODES {
+	TA_TC_ADDR_MODE_DEFAULT                          = 0x0,
+	TA_TC_ADDR_MODE_COMP0                            = 0x1,
+	TA_TC_ADDR_MODE_COMP1                            = 0x2,
+	TA_TC_ADDR_MODE_COMP2                            = 0x3,
+	TA_TC_ADDR_MODE_COMP3                            = 0x4,
+	TA_TC_ADDR_MODE_UNALIGNED                        = 0x5,
+	TA_TC_ADDR_MODE_BORDER_COLOR                     = 0x6,
+} TA_TC_ADDR_MODES;
+typedef enum TA_PERFCOUNT_SEL {
+	TA_PERF_SEL_ta_busy                              = 0x0,
+	TA_PERF_SEL_sh_fifo_busy                         = 0x1,
+	TA_PERF_SEL_sh_fifo_cmd_busy                     = 0x2,
+	TA_PERF_SEL_sh_fifo_addr_busy                    = 0x3,
+	TA_PERF_SEL_sh_fifo_data_busy                    = 0x4,
+	TA_PERF_SEL_sh_fifo_data_sfifo_busy              = 0x5,
+	TA_PERF_SEL_sh_fifo_data_tfifo_busy              = 0x6,
+	TA_PERF_SEL_gradient_busy                        = 0x7,
+	TA_PERF_SEL_gradient_fifo_busy                   = 0x8,
+	TA_PERF_SEL_lod_busy                             = 0x9,
+	TA_PERF_SEL_lod_fifo_busy                        = 0xa,
+	TA_PERF_SEL_addresser_busy                       = 0xb,
+	TA_PERF_SEL_addresser_fifo_busy                  = 0xc,
+	TA_PERF_SEL_aligner_busy                         = 0xd,
+	TA_PERF_SEL_write_path_busy                      = 0xe,
+	TA_PERF_SEL_RESERVED_15                          = 0xf,
+	TA_PERF_SEL_sq_ta_cmd_cycles                     = 0x10,
+	TA_PERF_SEL_sp_ta_addr_cycles                    = 0x11,
+	TA_PERF_SEL_sp_ta_data_cycles                    = 0x12,
+	TA_PERF_SEL_ta_fa_data_state_cycles              = 0x13,
+	TA_PERF_SEL_sh_fifo_addr_waiting_on_cmd_cycles   = 0x14,
+	TA_PERF_SEL_sh_fifo_cmd_waiting_on_addr_cycles   = 0x15,
+	TA_PERF_SEL_sh_fifo_addr_starved_while_busy_cycles= 0x16,
+	TA_PERF_SEL_sh_fifo_cmd_starved_while_busy_cycles= 0x17,
+	TA_PERF_SEL_sh_fifo_data_waiting_on_data_state_cycles= 0x18,
+	TA_PERF_SEL_sh_fifo_data_state_waiting_on_data_cycles= 0x19,
+	TA_PERF_SEL_sh_fifo_data_starved_while_busy_cycles= 0x1a,
+	TA_PERF_SEL_sh_fifo_data_state_starved_while_busy_cycles= 0x1b,
+	TA_PERF_SEL_RESERVED_28                          = 0x1c,
+	TA_PERF_SEL_RESERVED_29                          = 0x1d,
+	TA_PERF_SEL_sh_fifo_addr_cycles                  = 0x1e,
+	TA_PERF_SEL_sh_fifo_data_cycles                  = 0x1f,
+	TA_PERF_SEL_total_wavefronts                     = 0x20,
+	TA_PERF_SEL_gradient_cycles                      = 0x21,
+	TA_PERF_SEL_walker_cycles                        = 0x22,
+	TA_PERF_SEL_aligner_cycles                       = 0x23,
+	TA_PERF_SEL_image_wavefronts                     = 0x24,
+	TA_PERF_SEL_image_read_wavefronts                = 0x25,
+	TA_PERF_SEL_image_write_wavefronts               = 0x26,
+	TA_PERF_SEL_image_atomic_wavefronts              = 0x27,
+	TA_PERF_SEL_image_total_cycles                   = 0x28,
+	TA_PERF_SEL_RESERVED_41                          = 0x29,
+	TA_PERF_SEL_RESERVED_42                          = 0x2a,
+	TA_PERF_SEL_RESERVED_43                          = 0x2b,
+	TA_PERF_SEL_buffer_wavefronts                    = 0x2c,
+	TA_PERF_SEL_buffer_read_wavefronts               = 0x2d,
+	TA_PERF_SEL_buffer_write_wavefronts              = 0x2e,
+	TA_PERF_SEL_buffer_atomic_wavefronts             = 0x2f,
+	TA_PERF_SEL_buffer_coalescable_wavefronts        = 0x30,
+	TA_PERF_SEL_buffer_total_cycles                  = 0x31,
+	TA_PERF_SEL_buffer_coalescable_addr_multicycled_cycles= 0x32,
+	TA_PERF_SEL_buffer_coalescable_clamp_16kdword_multicycled_cycles= 0x33,
+	TA_PERF_SEL_buffer_coalesced_read_cycles         = 0x34,
+	TA_PERF_SEL_buffer_coalesced_write_cycles        = 0x35,
+	TA_PERF_SEL_addr_stalled_by_tc_cycles            = 0x36,
+	TA_PERF_SEL_addr_stalled_by_td_cycles            = 0x37,
+	TA_PERF_SEL_data_stalled_by_tc_cycles            = 0x38,
+	TA_PERF_SEL_addresser_stalled_by_aligner_only_cycles= 0x39,
+	TA_PERF_SEL_addresser_stalled_cycles             = 0x3a,
+	TA_PERF_SEL_aniso_stalled_by_addresser_only_cycles= 0x3b,
+	TA_PERF_SEL_aniso_stalled_cycles                 = 0x3c,
+	TA_PERF_SEL_deriv_stalled_by_aniso_only_cycles   = 0x3d,
+	TA_PERF_SEL_deriv_stalled_cycles                 = 0x3e,
+	TA_PERF_SEL_aniso_gt1_cycle_quads                = 0x3f,
+	TA_PERF_SEL_color_1_cycle_pixels                 = 0x40,
+	TA_PERF_SEL_color_2_cycle_pixels                 = 0x41,
+	TA_PERF_SEL_color_3_cycle_pixels                 = 0x42,
+	TA_PERF_SEL_color_4_cycle_pixels                 = 0x43,
+	TA_PERF_SEL_mip_1_cycle_pixels                   = 0x44,
+	TA_PERF_SEL_mip_2_cycle_pixels                   = 0x45,
+	TA_PERF_SEL_vol_1_cycle_pixels                   = 0x46,
+	TA_PERF_SEL_vol_2_cycle_pixels                   = 0x47,
+	TA_PERF_SEL_bilin_point_1_cycle_pixels           = 0x48,
+	TA_PERF_SEL_mipmap_lod_0_samples                 = 0x49,
+	TA_PERF_SEL_mipmap_lod_1_samples                 = 0x4a,
+	TA_PERF_SEL_mipmap_lod_2_samples                 = 0x4b,
+	TA_PERF_SEL_mipmap_lod_3_samples                 = 0x4c,
+	TA_PERF_SEL_mipmap_lod_4_samples                 = 0x4d,
+	TA_PERF_SEL_mipmap_lod_5_samples                 = 0x4e,
+	TA_PERF_SEL_mipmap_lod_6_samples                 = 0x4f,
+	TA_PERF_SEL_mipmap_lod_7_samples                 = 0x50,
+	TA_PERF_SEL_mipmap_lod_8_samples                 = 0x51,
+	TA_PERF_SEL_mipmap_lod_9_samples                 = 0x52,
+	TA_PERF_SEL_mipmap_lod_10_samples                = 0x53,
+	TA_PERF_SEL_mipmap_lod_11_samples                = 0x54,
+	TA_PERF_SEL_mipmap_lod_12_samples                = 0x55,
+	TA_PERF_SEL_mipmap_lod_13_samples                = 0x56,
+	TA_PERF_SEL_mipmap_lod_14_samples                = 0x57,
+	TA_PERF_SEL_mipmap_invalid_samples               = 0x58,
+	TA_PERF_SEL_aniso_1_cycle_quads                  = 0x59,
+	TA_PERF_SEL_aniso_2_cycle_quads                  = 0x5a,
+	TA_PERF_SEL_aniso_4_cycle_quads                  = 0x5b,
+	TA_PERF_SEL_aniso_6_cycle_quads                  = 0x5c,
+	TA_PERF_SEL_aniso_8_cycle_quads                  = 0x5d,
+	TA_PERF_SEL_aniso_10_cycle_quads                 = 0x5e,
+	TA_PERF_SEL_aniso_12_cycle_quads                 = 0x5f,
+	TA_PERF_SEL_aniso_14_cycle_quads                 = 0x60,
+	TA_PERF_SEL_aniso_16_cycle_quads                 = 0x61,
+	TA_PERF_SEL_write_path_input_cycles              = 0x62,
+	TA_PERF_SEL_write_path_output_cycles             = 0x63,
+	TA_PERF_SEL_flat_wavefronts                      = 0x64,
+	TA_PERF_SEL_flat_read_wavefronts                 = 0x65,
+	TA_PERF_SEL_flat_write_wavefronts                = 0x66,
+	TA_PERF_SEL_flat_atomic_wavefronts               = 0x67,
+	TA_PERF_SEL_flat_coalesceable_wavefronts         = 0x68,
+	TA_PERF_SEL_reg_sclk_vld                         = 0x69,
+	TA_PERF_SEL_local_cg_dyn_sclk_grp0_en            = 0x6a,
+	TA_PERF_SEL_local_cg_dyn_sclk_grp1_en            = 0x6b,
+	TA_PERF_SEL_local_cg_dyn_sclk_grp1_mems_en       = 0x6c,
+	TA_PERF_SEL_local_cg_dyn_sclk_grp4_en            = 0x6d,
+	TA_PERF_SEL_local_cg_dyn_sclk_grp5_en            = 0x6e,
+} TA_PERFCOUNT_SEL;
+typedef enum TD_PERFCOUNT_SEL {
+	TD_PERF_SEL_td_busy                              = 0x0,
+	TD_PERF_SEL_input_busy                           = 0x1,
+	TD_PERF_SEL_output_busy                          = 0x2,
+	TD_PERF_SEL_lerp_busy                            = 0x3,
+	TD_PERF_SEL_RESERVED_4                           = 0x4,
+	TD_PERF_SEL_reg_sclk_vld                         = 0x5,
+	TD_PERF_SEL_local_cg_dyn_sclk_grp0_en            = 0x6,
+	TD_PERF_SEL_local_cg_dyn_sclk_grp1_en            = 0x7,
+	TD_PERF_SEL_local_cg_dyn_sclk_grp4_en            = 0x8,
+	TD_PERF_SEL_local_cg_dyn_sclk_grp5_en            = 0x9,
+	TD_PERF_SEL_tc_td_fifo_full                      = 0xa,
+	TD_PERF_SEL_constant_state_full                  = 0xb,
+	TD_PERF_SEL_sample_state_full                    = 0xc,
+	TD_PERF_SEL_output_fifo_full                     = 0xd,
+	TD_PERF_SEL_RESERVED_14                          = 0xe,
+	TD_PERF_SEL_tc_stall                             = 0xf,
+	TD_PERF_SEL_pc_stall                             = 0x10,
+	TD_PERF_SEL_gds_stall                            = 0x11,
+	TD_PERF_SEL_RESERVED_18                          = 0x12,
+	TD_PERF_SEL_RESERVED_19                          = 0x13,
+	TD_PERF_SEL_gather4_wavefront                    = 0x14,
+	TD_PERF_SEL_sample_c_wavefront                   = 0x15,
+	TD_PERF_SEL_load_wavefront                       = 0x16,
+	TD_PERF_SEL_atomic_wavefront                     = 0x17,
+	TD_PERF_SEL_store_wavefront                      = 0x18,
+	TD_PERF_SEL_ldfptr_wavefront                     = 0x19,
+	TD_PERF_SEL_RESERVED_26                          = 0x1a,
+	TD_PERF_SEL_RESERVED_27                          = 0x1b,
+	TD_PERF_SEL_RESERVED_28                          = 0x1c,
+	TD_PERF_SEL_RESERVED_29                          = 0x1d,
+	TD_PERF_SEL_bypass_filter_wavefront              = 0x1e,
+	TD_PERF_SEL_min_max_filter_wavefront             = 0x1f,
+	TD_PERF_SEL_coalescable_wavefront                = 0x20,
+	TD_PERF_SEL_coalesced_phase                      = 0x21,
+	TD_PERF_SEL_four_phase_wavefront                 = 0x22,
+	TD_PERF_SEL_eight_phase_wavefront                = 0x23,
+	TD_PERF_SEL_sixteen_phase_wavefront              = 0x24,
+	TD_PERF_SEL_four_phase_forward_wavefront         = 0x25,
+	TD_PERF_SEL_write_ack_wavefront                  = 0x26,
+	TD_PERF_SEL_RESERVED_39                          = 0x27,
+	TD_PERF_SEL_user_defined_border                  = 0x28,
+	TD_PERF_SEL_white_border                         = 0x29,
+	TD_PERF_SEL_opaque_black_border                  = 0x2a,
+	TD_PERF_SEL_RESERVED_43                          = 0x2b,
+	TD_PERF_SEL_RESERVED_44                          = 0x2c,
+	TD_PERF_SEL_nack                                 = 0x2d,
+	TD_PERF_SEL_td_sp_traffic                        = 0x2e,
+	TD_PERF_SEL_consume_gds_traffic                  = 0x2f,
+	TD_PERF_SEL_addresscmd_poison                    = 0x30,
+	TD_PERF_SEL_data_poison                          = 0x31,
+	TD_PERF_SEL_start_cycle_0                        = 0x32,
+	TD_PERF_SEL_start_cycle_1                        = 0x33,
+	TD_PERF_SEL_start_cycle_2                        = 0x34,
+	TD_PERF_SEL_start_cycle_3                        = 0x35,
+	TD_PERF_SEL_null_cycle_output                    = 0x36,
+} TD_PERFCOUNT_SEL;
+typedef enum TCP_PERFCOUNT_SELECT {
+	TCP_PERF_SEL_TA_TCP_ADDR_STARVE_CYCLES           = 0x0,
+	TCP_PERF_SEL_TA_TCP_DATA_STARVE_CYCLES           = 0x1,
+	TCP_PERF_SEL_TCP_TA_ADDR_STALL_CYCLES            = 0x2,
+	TCP_PERF_SEL_TCP_TA_DATA_STALL_CYCLES            = 0x3,
+	TCP_PERF_SEL_TD_TCP_STALL_CYCLES                 = 0x4,
+	TCP_PERF_SEL_TCR_TCP_STALL_CYCLES                = 0x5,
+	TCP_PERF_SEL_LOD_STALL_CYCLES                    = 0x6,
+	TCP_PERF_SEL_READ_TAGCONFLICT_STALL_CYCLES       = 0x7,
+	TCP_PERF_SEL_WRITE_TAGCONFLICT_STALL_CYCLES      = 0x8,
+	TCP_PERF_SEL_ATOMIC_TAGCONFLICT_STALL_CYCLES     = 0x9,
+	TCP_PERF_SEL_ALLOC_STALL_CYCLES                  = 0xa,
+	TCP_PERF_SEL_LFIFO_STALL_CYCLES                  = 0xb,
+	TCP_PERF_SEL_RFIFO_STALL_CYCLES                  = 0xc,
+	TCP_PERF_SEL_TCR_RDRET_STALL                     = 0xd,
+	TCP_PERF_SEL_WRITE_CONFLICT_STALL                = 0xe,
+	TCP_PERF_SEL_HOLE_READ_STALL                     = 0xf,
+	TCP_PERF_SEL_READCONFLICT_STALL_CYCLES           = 0x10,
+	TCP_PERF_SEL_PENDING_STALL_CYCLES                = 0x11,
+	TCP_PERF_SEL_READFIFO_STALL_CYCLES               = 0x12,
+	TCP_PERF_SEL_TCP_LATENCY                         = 0x13,
+	TCP_PERF_SEL_TCC_READ_REQ_LATENCY                = 0x14,
+	TCP_PERF_SEL_TCC_WRITE_REQ_LATENCY               = 0x15,
+	TCP_PERF_SEL_TCC_WRITE_REQ_HOLE_LATENCY          = 0x16,
+	TCP_PERF_SEL_TCC_READ_REQ                        = 0x17,
+	TCP_PERF_SEL_TCC_WRITE_REQ                       = 0x18,
+	TCP_PERF_SEL_TCC_ATOMIC_WITH_RET_REQ             = 0x19,
+	TCP_PERF_SEL_TCC_ATOMIC_WITHOUT_RET_REQ          = 0x1a,
+	TCP_PERF_SEL_TOTAL_LOCAL_READ                    = 0x1b,
+	TCP_PERF_SEL_TOTAL_GLOBAL_READ                   = 0x1c,
+	TCP_PERF_SEL_TOTAL_LOCAL_WRITE                   = 0x1d,
+	TCP_PERF_SEL_TOTAL_GLOBAL_WRITE                  = 0x1e,
+	TCP_PERF_SEL_TOTAL_ATOMIC_WITH_RET               = 0x1f,
+	TCP_PERF_SEL_TOTAL_ATOMIC_WITHOUT_RET            = 0x20,
+	TCP_PERF_SEL_TOTAL_WBINVL1                       = 0x21,
+	TCP_PERF_SEL_IMG_READ_FMT_1                      = 0x22,
+	TCP_PERF_SEL_IMG_READ_FMT_8                      = 0x23,
+	TCP_PERF_SEL_IMG_READ_FMT_16                     = 0x24,
+	TCP_PERF_SEL_IMG_READ_FMT_32                     = 0x25,
+	TCP_PERF_SEL_IMG_READ_FMT_32_AS_8                = 0x26,
+	TCP_PERF_SEL_IMG_READ_FMT_32_AS_16               = 0x27,
+	TCP_PERF_SEL_IMG_READ_FMT_32_AS_128              = 0x28,
+	TCP_PERF_SEL_IMG_READ_FMT_64_2_CYCLE             = 0x29,
+	TCP_PERF_SEL_IMG_READ_FMT_64_1_CYCLE             = 0x2a,
+	TCP_PERF_SEL_IMG_READ_FMT_96                     = 0x2b,
+	TCP_PERF_SEL_IMG_READ_FMT_128_4_CYCLE            = 0x2c,
+	TCP_PERF_SEL_IMG_READ_FMT_128_1_CYCLE            = 0x2d,
+	TCP_PERF_SEL_IMG_READ_FMT_BC1                    = 0x2e,
+	TCP_PERF_SEL_IMG_READ_FMT_BC2                    = 0x2f,
+	TCP_PERF_SEL_IMG_READ_FMT_BC3                    = 0x30,
+	TCP_PERF_SEL_IMG_READ_FMT_BC4                    = 0x31,
+	TCP_PERF_SEL_IMG_READ_FMT_BC5                    = 0x32,
+	TCP_PERF_SEL_IMG_READ_FMT_BC6                    = 0x33,
+	TCP_PERF_SEL_IMG_READ_FMT_BC7                    = 0x34,
+	TCP_PERF_SEL_IMG_READ_FMT_I8                     = 0x35,
+	TCP_PERF_SEL_IMG_READ_FMT_I16                    = 0x36,
+	TCP_PERF_SEL_IMG_READ_FMT_I32                    = 0x37,
+	TCP_PERF_SEL_IMG_READ_FMT_I32_AS_8               = 0x38,
+	TCP_PERF_SEL_IMG_READ_FMT_I32_AS_16              = 0x39,
+	TCP_PERF_SEL_IMG_READ_FMT_D8                     = 0x3a,
+	TCP_PERF_SEL_IMG_READ_FMT_D16                    = 0x3b,
+	TCP_PERF_SEL_IMG_READ_FMT_D32                    = 0x3c,
+	TCP_PERF_SEL_IMG_WRITE_FMT_8                     = 0x3d,
+	TCP_PERF_SEL_IMG_WRITE_FMT_16                    = 0x3e,
+	TCP_PERF_SEL_IMG_WRITE_FMT_32                    = 0x3f,
+	TCP_PERF_SEL_IMG_WRITE_FMT_64                    = 0x40,
+	TCP_PERF_SEL_IMG_WRITE_FMT_128                   = 0x41,
+	TCP_PERF_SEL_IMG_WRITE_FMT_D8                    = 0x42,
+	TCP_PERF_SEL_IMG_WRITE_FMT_D16                   = 0x43,
+	TCP_PERF_SEL_IMG_WRITE_FMT_D32                   = 0x44,
+	TCP_PERF_SEL_IMG_ATOMIC_WITH_RET_FMT_32          = 0x45,
+	TCP_PERF_SEL_IMG_ATOMIC_WITHOUT_RET_FMT_32       = 0x46,
+	TCP_PERF_SEL_IMG_ATOMIC_WITH_RET_FMT_64          = 0x47,
+	TCP_PERF_SEL_IMG_ATOMIC_WITHOUT_RET_FMT_64       = 0x48,
+	TCP_PERF_SEL_BUF_READ_FMT_8                      = 0x49,
+	TCP_PERF_SEL_BUF_READ_FMT_16                     = 0x4a,
+	TCP_PERF_SEL_BUF_READ_FMT_32                     = 0x4b,
+	TCP_PERF_SEL_BUF_WRITE_FMT_8                     = 0x4c,
+	TCP_PERF_SEL_BUF_WRITE_FMT_16                    = 0x4d,
+	TCP_PERF_SEL_BUF_WRITE_FMT_32                    = 0x4e,
+	TCP_PERF_SEL_BUF_ATOMIC_WITH_RET_FMT_32          = 0x4f,
+	TCP_PERF_SEL_BUF_ATOMIC_WITHOUT_RET_FMT_32       = 0x50,
+	TCP_PERF_SEL_BUF_ATOMIC_WITH_RET_FMT_64          = 0x51,
+	TCP_PERF_SEL_BUF_ATOMIC_WITHOUT_RET_FMT_64       = 0x52,
+	TCP_PERF_SEL_ARR_LINEAR_GENERAL                  = 0x53,
+	TCP_PERF_SEL_ARR_LINEAR_ALIGNED                  = 0x54,
+	TCP_PERF_SEL_ARR_1D_THIN1                        = 0x55,
+	TCP_PERF_SEL_ARR_1D_THICK                        = 0x56,
+	TCP_PERF_SEL_ARR_2D_THIN1                        = 0x57,
+	TCP_PERF_SEL_ARR_2D_THICK                        = 0x58,
+	TCP_PERF_SEL_ARR_2D_XTHICK                       = 0x59,
+	TCP_PERF_SEL_ARR_3D_THIN1                        = 0x5a,
+	TCP_PERF_SEL_ARR_3D_THICK                        = 0x5b,
+	TCP_PERF_SEL_ARR_3D_XTHICK                       = 0x5c,
+	TCP_PERF_SEL_DIM_1D                              = 0x5d,
+	TCP_PERF_SEL_DIM_2D                              = 0x5e,
+	TCP_PERF_SEL_DIM_3D                              = 0x5f,
+	TCP_PERF_SEL_DIM_1D_ARRAY                        = 0x60,
+	TCP_PERF_SEL_DIM_2D_ARRAY                        = 0x61,
+	TCP_PERF_SEL_DIM_2D_MSAA                         = 0x62,
+	TCP_PERF_SEL_DIM_2D_ARRAY_MSAA                   = 0x63,
+	TCP_PERF_SEL_DIM_CUBE_ARRAY                      = 0x64,
+	TCP_PERF_SEL_CP_TCP_INVALIDATE                   = 0x65,
+	TCP_PERF_SEL_TA_TCP_STATE_READ                   = 0x66,
+	TCP_PERF_SEL_TAGRAM0_REQ                         = 0x67,
+	TCP_PERF_SEL_TAGRAM1_REQ                         = 0x68,
+	TCP_PERF_SEL_TAGRAM2_REQ                         = 0x69,
+	TCP_PERF_SEL_TAGRAM3_REQ                         = 0x6a,
+	TCP_PERF_SEL_GATE_EN1                            = 0x6b,
+	TCP_PERF_SEL_GATE_EN2                            = 0x6c,
+	TCP_PERF_SEL_CORE_REG_SCLK_VLD                   = 0x6d,
+	TCP_PERF_SEL_TCC_REQ                             = 0x6e,
+	TCP_PERF_SEL_TCC_NON_READ_REQ                    = 0x6f,
+	TCP_PERF_SEL_TCC_BYPASS_READ_REQ                 = 0x70,
+	TCP_PERF_SEL_TCC_MISS_EVICT_READ_REQ             = 0x71,
+	TCP_PERF_SEL_TCC_VOLATILE_READ_REQ               = 0x72,
+	TCP_PERF_SEL_TCC_VOLATILE_BYPASS_READ_REQ        = 0x73,
+	TCP_PERF_SEL_TCC_VOLATILE_MISS_EVICT_READ_REQ    = 0x74,
+	TCP_PERF_SEL_TCC_BYPASS_WRITE_REQ                = 0x75,
+	TCP_PERF_SEL_TCC_MISS_EVICT_WRITE_REQ            = 0x76,
+	TCP_PERF_SEL_TCC_VOLATILE_BYPASS_WRITE_REQ       = 0x77,
+	TCP_PERF_SEL_TCC_VOLATILE_WRITE_REQ              = 0x78,
+	TCP_PERF_SEL_TCC_VOLATILE_MISS_EVICT_WRITE_REQ   = 0x79,
+	TCP_PERF_SEL_TCC_BYPASS_ATOMIC_REQ               = 0x7a,
+	TCP_PERF_SEL_TCC_ATOMIC_REQ                      = 0x7b,
+	TCP_PERF_SEL_TCC_VOLATILE_ATOMIC_REQ             = 0x7c,
+	TCP_PERF_SEL_TCC_DATA_BUS_BUSY                   = 0x7d,
+	TCP_PERF_SEL_TOTAL_ACCESSES                      = 0x7e,
+	TCP_PERF_SEL_TOTAL_READ                          = 0x7f,
+	TCP_PERF_SEL_TOTAL_HIT_LRU_READ                  = 0x80,
+	TCP_PERF_SEL_TOTAL_HIT_EVICT_READ                = 0x81,
+	TCP_PERF_SEL_TOTAL_MISS_LRU_READ                 = 0x82,
+	TCP_PERF_SEL_TOTAL_MISS_EVICT_READ               = 0x83,
+	TCP_PERF_SEL_TOTAL_NON_READ                      = 0x84,
+	TCP_PERF_SEL_TOTAL_WRITE                         = 0x85,
+	TCP_PERF_SEL_TOTAL_MISS_LRU_WRITE                = 0x86,
+	TCP_PERF_SEL_TOTAL_MISS_EVICT_WRITE              = 0x87,
+	TCP_PERF_SEL_TOTAL_WBINVL1_VOL                   = 0x88,
+	TCP_PERF_SEL_TOTAL_WRITEBACK_INVALIDATES         = 0x89,
+	TCP_PERF_SEL_DISPLAY_MICROTILING                 = 0x8a,
+	TCP_PERF_SEL_THIN_MICROTILING                    = 0x8b,
+	TCP_PERF_SEL_DEPTH_MICROTILING                   = 0x8c,
+	TCP_PERF_SEL_ARR_PRT_THIN1                       = 0x8d,
+	TCP_PERF_SEL_ARR_PRT_2D_THIN1                    = 0x8e,
+	TCP_PERF_SEL_ARR_PRT_3D_THIN1                    = 0x8f,
+	TCP_PERF_SEL_ARR_PRT_THICK                       = 0x90,
+	TCP_PERF_SEL_ARR_PRT_2D_THICK                    = 0x91,
+	TCP_PERF_SEL_ARR_PRT_3D_THICK                    = 0x92,
+	TCP_PERF_SEL_CP_TCP_INVALIDATE_VOL               = 0x93,
+	TCP_PERF_SEL_SQ_TCP_INVALIDATE_VOL               = 0x94,
+	TCP_PERF_SEL_UNALIGNED                           = 0x95,
+	TCP_PERF_SEL_ROTATED_MICROTILING                 = 0x96,
+	TCP_PERF_SEL_THICK_MICROTILING                   = 0x97,
+	TCP_PERF_SEL_ATC                                 = 0x98,
+	TCP_PERF_SEL_POWER_STALL                         = 0x99,
+} TCP_PERFCOUNT_SELECT;
+typedef enum TCP_CACHE_POLICIES {
+	TCP_CACHE_POLICY_MISS_LRU                        = 0x0,
+	TCP_CACHE_POLICY_MISS_EVICT                      = 0x1,
+	TCP_CACHE_POLICY_HIT_LRU                         = 0x2,
+	TCP_CACHE_POLICY_HIT_EVICT                       = 0x3,
+} TCP_CACHE_POLICIES;
+typedef enum TCP_CACHE_STORE_POLICIES {
+	TCP_CACHE_STORE_POLICY_MISS_LRU                  = 0x0,
+	TCP_CACHE_STORE_POLICY_MISS_EVICT                = 0x1,
+} TCP_CACHE_STORE_POLICIES;
+typedef enum TCP_WATCH_MODES {
+	TCP_WATCH_MODE_READ                              = 0x0,
+	TCP_WATCH_MODE_NONREAD                           = 0x1,
+	TCP_WATCH_MODE_ATOMIC                            = 0x2,
+	TCP_WATCH_MODE_ALL                               = 0x3,
+} TCP_WATCH_MODES;
+typedef enum VGT_OUT_PRIM_TYPE {
+	VGT_OUT_POINT                                    = 0x0,
+	VGT_OUT_LINE                                     = 0x1,
+	VGT_OUT_TRI                                      = 0x2,
+	VGT_OUT_RECT_V0                                  = 0x3,
+	VGT_OUT_RECT_V1                                  = 0x4,
+	VGT_OUT_RECT_V2                                  = 0x5,
+	VGT_OUT_RECT_V3                                  = 0x6,
+	VGT_OUT_RESERVED                                 = 0x7,
+	VGT_TE_QUAD                                      = 0x8,
+	VGT_TE_PRIM_INDEX_LINE                           = 0x9,
+	VGT_TE_PRIM_INDEX_TRI                            = 0xa,
+	VGT_TE_PRIM_INDEX_QUAD                           = 0xb,
+	VGT_OUT_LINE_ADJ                                 = 0xc,
+	VGT_OUT_TRI_ADJ                                  = 0xd,
+	VGT_OUT_PATCH                                    = 0xe,
+} VGT_OUT_PRIM_TYPE;
+typedef enum VGT_DI_PRIM_TYPE {
+	DI_PT_NONE                                       = 0x0,
+	DI_PT_POINTLIST                                  = 0x1,
+	DI_PT_LINELIST                                   = 0x2,
+	DI_PT_LINESTRIP                                  = 0x3,
+	DI_PT_TRILIST                                    = 0x4,
+	DI_PT_TRIFAN                                     = 0x5,
+	DI_PT_TRISTRIP                                   = 0x6,
+	DI_PT_UNUSED_0                                   = 0x7,
+	DI_PT_UNUSED_1                                   = 0x8,
+	DI_PT_PATCH                                      = 0x9,
+	DI_PT_LINELIST_ADJ                               = 0xa,
+	DI_PT_LINESTRIP_ADJ                              = 0xb,
+	DI_PT_TRILIST_ADJ                                = 0xc,
+	DI_PT_TRISTRIP_ADJ                               = 0xd,
+	DI_PT_UNUSED_3                                   = 0xe,
+	DI_PT_UNUSED_4                                   = 0xf,
+	DI_PT_TRI_WITH_WFLAGS                            = 0x10,
+	DI_PT_RECTLIST                                   = 0x11,
+	DI_PT_LINELOOP                                   = 0x12,
+	DI_PT_QUADLIST                                   = 0x13,
+	DI_PT_QUADSTRIP                                  = 0x14,
+	DI_PT_POLYGON                                    = 0x15,
+	DI_PT_2D_COPY_RECT_LIST_V0                       = 0x16,
+	DI_PT_2D_COPY_RECT_LIST_V1                       = 0x17,
+	DI_PT_2D_COPY_RECT_LIST_V2                       = 0x18,
+	DI_PT_2D_COPY_RECT_LIST_V3                       = 0x19,
+	DI_PT_2D_FILL_RECT_LIST                          = 0x1a,
+	DI_PT_2D_LINE_STRIP                              = 0x1b,
+	DI_PT_2D_TRI_STRIP                               = 0x1c,
+} VGT_DI_PRIM_TYPE;
+typedef enum VGT_DI_SOURCE_SELECT {
+	DI_SRC_SEL_DMA                                   = 0x0,
+	DI_SRC_SEL_IMMEDIATE                             = 0x1,
+	DI_SRC_SEL_AUTO_INDEX                            = 0x2,
+	DI_SRC_SEL_RESERVED                              = 0x3,
+} VGT_DI_SOURCE_SELECT;
+typedef enum VGT_DI_MAJOR_MODE_SELECT {
+	DI_MAJOR_MODE_0                                  = 0x0,
+	DI_MAJOR_MODE_1                                  = 0x1,
+} VGT_DI_MAJOR_MODE_SELECT;
+typedef enum VGT_DI_INDEX_SIZE {
+	DI_INDEX_SIZE_16_BIT                             = 0x0,
+	DI_INDEX_SIZE_32_BIT                             = 0x1,
+} VGT_DI_INDEX_SIZE;
+typedef enum VGT_EVENT_TYPE {
+	Reserved_0x00                                    = 0x0,
+	SAMPLE_STREAMOUTSTATS1                           = 0x1,
+	SAMPLE_STREAMOUTSTATS2                           = 0x2,
+	SAMPLE_STREAMOUTSTATS3                           = 0x3,
+	CACHE_FLUSH_TS                                   = 0x4,
+	CONTEXT_DONE                                     = 0x5,
+	CACHE_FLUSH                                      = 0x6,
+	CS_PARTIAL_FLUSH                                 = 0x7,
+	VGT_STREAMOUT_SYNC                               = 0x8,
+	Reserved_0x09                                    = 0x9,
+	VGT_STREAMOUT_RESET                              = 0xa,
+	END_OF_PIPE_INCR_DE                              = 0xb,
+	END_OF_PIPE_IB_END                               = 0xc,
+	RST_PIX_CNT                                      = 0xd,
+	Reserved_0x0E                                    = 0xe,
+	VS_PARTIAL_FLUSH                                 = 0xf,
+	PS_PARTIAL_FLUSH                                 = 0x10,
+	FLUSH_HS_OUTPUT                                  = 0x11,
+	FLUSH_LS_OUTPUT                                  = 0x12,
+	Reserved_0x13                                    = 0x13,
+	CACHE_FLUSH_AND_INV_TS_EVENT                     = 0x14,
+	ZPASS_DONE                                       = 0x15,
+	CACHE_FLUSH_AND_INV_EVENT                        = 0x16,
+	PERFCOUNTER_START                                = 0x17,
+	PERFCOUNTER_STOP                                 = 0x18,
+	PIPELINESTAT_START                               = 0x19,
+	PIPELINESTAT_STOP                                = 0x1a,
+	PERFCOUNTER_SAMPLE                               = 0x1b,
+	FLUSH_ES_OUTPUT                                  = 0x1c,
+	FLUSH_GS_OUTPUT                                  = 0x1d,
+	SAMPLE_PIPELINESTAT                              = 0x1e,
+	SO_VGTSTREAMOUT_FLUSH                            = 0x1f,
+	SAMPLE_STREAMOUTSTATS                            = 0x20,
+	RESET_VTX_CNT                                    = 0x21,
+	BLOCK_CONTEXT_DONE                               = 0x22,
+	CS_CONTEXT_DONE                                  = 0x23,
+	VGT_FLUSH                                        = 0x24,
+	Reserved_0x25                                    = 0x25,
+	SQ_NON_EVENT                                     = 0x26,
+	SC_SEND_DB_VPZ                                   = 0x27,
+	BOTTOM_OF_PIPE_TS                                = 0x28,
+	FLUSH_SX_TS                                      = 0x29,
+	DB_CACHE_FLUSH_AND_INV                           = 0x2a,
+	FLUSH_AND_INV_DB_DATA_TS                         = 0x2b,
+	FLUSH_AND_INV_DB_META                            = 0x2c,
+	FLUSH_AND_INV_CB_DATA_TS                         = 0x2d,
+	FLUSH_AND_INV_CB_META                            = 0x2e,
+	CS_DONE                                          = 0x2f,
+	PS_DONE                                          = 0x30,
+	FLUSH_AND_INV_CB_PIXEL_DATA                      = 0x31,
+	SX_CB_RAT_ACK_REQUEST                            = 0x32,
+	THREAD_TRACE_START                               = 0x33,
+	THREAD_TRACE_STOP                                = 0x34,
+	THREAD_TRACE_MARKER                              = 0x35,
+	THREAD_TRACE_FLUSH                               = 0x36,
+	THREAD_TRACE_FINISH                              = 0x37,
+	PIXEL_PIPE_STAT_CONTROL                          = 0x38,
+	PIXEL_PIPE_STAT_DUMP                             = 0x39,
+	PIXEL_PIPE_STAT_RESET                            = 0x3a,
+	CONTEXT_SUSPEND                                  = 0x3b,
+} VGT_EVENT_TYPE;
+typedef enum VGT_DMA_SWAP_MODE {
+	VGT_DMA_SWAP_NONE                                = 0x0,
+	VGT_DMA_SWAP_16_BIT                              = 0x1,
+	VGT_DMA_SWAP_32_BIT                              = 0x2,
+	VGT_DMA_SWAP_WORD                                = 0x3,
+} VGT_DMA_SWAP_MODE;
+typedef enum VGT_INDEX_TYPE_MODE {
+	VGT_INDEX_16                                     = 0x0,
+	VGT_INDEX_32                                     = 0x1,
+} VGT_INDEX_TYPE_MODE;
+typedef enum VGT_DMA_BUF_TYPE {
+	VGT_DMA_BUF_MEM                                  = 0x0,
+	VGT_DMA_BUF_RING                                 = 0x1,
+	VGT_DMA_BUF_SETUP                                = 0x2,
+} VGT_DMA_BUF_TYPE;
+typedef enum VGT_OUTPATH_SELECT {
+	VGT_OUTPATH_VTX_REUSE                            = 0x0,
+	VGT_OUTPATH_TESS_EN                              = 0x1,
+	VGT_OUTPATH_PASSTHRU                             = 0x2,
+	VGT_OUTPATH_GS_BLOCK                             = 0x3,
+	VGT_OUTPATH_HS_BLOCK                             = 0x4,
+} VGT_OUTPATH_SELECT;
+typedef enum VGT_GRP_PRIM_TYPE {
+	VGT_GRP_3D_POINT                                 = 0x0,
+	VGT_GRP_3D_LINE                                  = 0x1,
+	VGT_GRP_3D_TRI                                   = 0x2,
+	VGT_GRP_3D_RECT                                  = 0x3,
+	VGT_GRP_3D_QUAD                                  = 0x4,
+	VGT_GRP_2D_COPY_RECT_V0                          = 0x5,
+	VGT_GRP_2D_COPY_RECT_V1                          = 0x6,
+	VGT_GRP_2D_COPY_RECT_V2                          = 0x7,
+	VGT_GRP_2D_COPY_RECT_V3                          = 0x8,
+	VGT_GRP_2D_FILL_RECT                             = 0x9,
+	VGT_GRP_2D_LINE                                  = 0xa,
+	VGT_GRP_2D_TRI                                   = 0xb,
+	VGT_GRP_PRIM_INDEX_LINE                          = 0xc,
+	VGT_GRP_PRIM_INDEX_TRI                           = 0xd,
+	VGT_GRP_PRIM_INDEX_QUAD                          = 0xe,
+	VGT_GRP_3D_LINE_ADJ                              = 0xf,
+	VGT_GRP_3D_TRI_ADJ                               = 0x10,
+	VGT_GRP_3D_PATCH                                 = 0x11,
+} VGT_GRP_PRIM_TYPE;
+typedef enum VGT_GRP_PRIM_ORDER {
+	VGT_GRP_LIST                                     = 0x0,
+	VGT_GRP_STRIP                                    = 0x1,
+	VGT_GRP_FAN                                      = 0x2,
+	VGT_GRP_LOOP                                     = 0x3,
+	VGT_GRP_POLYGON                                  = 0x4,
+} VGT_GRP_PRIM_ORDER;
+typedef enum VGT_GROUP_CONV_SEL {
+	VGT_GRP_INDEX_16                                 = 0x0,
+	VGT_GRP_INDEX_32                                 = 0x1,
+	VGT_GRP_UINT_16                                  = 0x2,
+	VGT_GRP_UINT_32                                  = 0x3,
+	VGT_GRP_SINT_16                                  = 0x4,
+	VGT_GRP_SINT_32                                  = 0x5,
+	VGT_GRP_FLOAT_32                                 = 0x6,
+	VGT_GRP_AUTO_PRIM                                = 0x7,
+	VGT_GRP_FIX_1_23_TO_FLOAT                        = 0x8,
+} VGT_GROUP_CONV_SEL;
+typedef enum VGT_GS_MODE_TYPE {
+	GS_OFF                                           = 0x0,
+	GS_SCENARIO_A                                    = 0x1,
+	GS_SCENARIO_B                                    = 0x2,
+	GS_SCENARIO_G                                    = 0x3,
+	GS_SCENARIO_C                                    = 0x4,
+	SPRITE_EN                                        = 0x5,
+} VGT_GS_MODE_TYPE;
+typedef enum VGT_GS_CUT_MODE {
+	GS_CUT_1024                                      = 0x0,
+	GS_CUT_512                                       = 0x1,
+	GS_CUT_256                                       = 0x2,
+	GS_CUT_128                                       = 0x3,
+} VGT_GS_CUT_MODE;
+typedef enum VGT_GS_OUTPRIM_TYPE {
+	POINTLIST                                        = 0x0,
+	LINESTRIP                                        = 0x1,
+	TRISTRIP                                         = 0x2,
+} VGT_GS_OUTPRIM_TYPE;
+typedef enum VGT_CACHE_INVALID_MODE {
+	VC_ONLY                                          = 0x0,
+	TC_ONLY                                          = 0x1,
+	VC_AND_TC                                        = 0x2,
+} VGT_CACHE_INVALID_MODE;
+typedef enum VGT_TESS_TYPE {
+	TESS_ISOLINE                                     = 0x0,
+	TESS_TRIANGLE                                    = 0x1,
+	TESS_QUAD                                        = 0x2,
+} VGT_TESS_TYPE;
+typedef enum VGT_TESS_PARTITION {
+	PART_INTEGER                                     = 0x0,
+	PART_POW2                                        = 0x1,
+	PART_FRAC_ODD                                    = 0x2,
+	PART_FRAC_EVEN                                   = 0x3,
+} VGT_TESS_PARTITION;
+typedef enum VGT_TESS_TOPOLOGY {
+	OUTPUT_POINT                                     = 0x0,
+	OUTPUT_LINE                                      = 0x1,
+	OUTPUT_TRIANGLE_CW                               = 0x2,
+	OUTPUT_TRIANGLE_CCW                              = 0x3,
+} VGT_TESS_TOPOLOGY;
+typedef enum VGT_RDREQ_POLICY {
+	VGT_POLICY_LRU                                   = 0x0,
+	VGT_POLICY_STREAM                                = 0x1,
+	VGT_POLICY_BYPASS                                = 0x2,
+	VGT_POLICY_RESERVED                              = 0x3,
+} VGT_RDREQ_POLICY;
+typedef enum VGT_STAGES_LS_EN {
+	LS_STAGE_OFF                                     = 0x0,
+	LS_STAGE_ON                                      = 0x1,
+	CS_STAGE_ON                                      = 0x2,
+	RESERVED_LS                                      = 0x3,
+} VGT_STAGES_LS_EN;
+typedef enum VGT_STAGES_HS_EN {
+	HS_STAGE_OFF                                     = 0x0,
+	HS_STAGE_ON                                      = 0x1,
+} VGT_STAGES_HS_EN;
+typedef enum VGT_STAGES_ES_EN {
+	ES_STAGE_OFF                                     = 0x0,
+	ES_STAGE_DS                                      = 0x1,
+	ES_STAGE_REAL                                    = 0x2,
+	RESERVED_ES                                      = 0x3,
+} VGT_STAGES_ES_EN;
+typedef enum VGT_STAGES_GS_EN {
+	GS_STAGE_OFF                                     = 0x0,
+	GS_STAGE_ON                                      = 0x1,
+} VGT_STAGES_GS_EN;
+typedef enum VGT_STAGES_VS_EN {
+	VS_STAGE_REAL                                    = 0x0,
+	VS_STAGE_DS                                      = 0x1,
+	VS_STAGE_COPY_SHADER                             = 0x2,
+	RESERVED_VS                                      = 0x3,
+} VGT_STAGES_VS_EN;
+typedef enum VGT_PERFCOUNT_SELECT {
+	vgt_perf_VGT_SPI_ESTHREAD_EVENT_WINDOW_ACTIVE    = 0x0,
+	vgt_perf_VGT_SPI_ESVERT_VALID                    = 0x1,
+	vgt_perf_VGT_SPI_ESVERT_EOV                      = 0x2,
+	vgt_perf_VGT_SPI_ESVERT_STALLED                  = 0x3,
+	vgt_perf_VGT_SPI_ESVERT_STARVED_BUSY             = 0x4,
+	vgt_perf_VGT_SPI_ESVERT_STARVED_IDLE             = 0x5,
+	vgt_perf_VGT_SPI_ESVERT_STATIC                   = 0x6,
+	vgt_perf_VGT_SPI_ESTHREAD_IS_EVENT               = 0x7,
+	vgt_perf_VGT_SPI_ESTHREAD_SEND                   = 0x8,
+	vgt_perf_VGT_SPI_GSPRIM_VALID                    = 0x9,
+	vgt_perf_VGT_SPI_GSPRIM_EOV                      = 0xa,
+	vgt_perf_VGT_SPI_GSPRIM_CONT                     = 0xb,
+	vgt_perf_VGT_SPI_GSPRIM_STALLED                  = 0xc,
+	vgt_perf_VGT_SPI_GSPRIM_STARVED_BUSY             = 0xd,
+	vgt_perf_VGT_SPI_GSPRIM_STARVED_IDLE             = 0xe,
+	vgt_perf_VGT_SPI_GSPRIM_STATIC                   = 0xf,
+	vgt_perf_VGT_SPI_GSTHREAD_EVENT_WINDOW_ACTIVE    = 0x10,
+	vgt_perf_VGT_SPI_GSTHREAD_IS_EVENT               = 0x11,
+	vgt_perf_VGT_SPI_GSTHREAD_SEND                   = 0x12,
+	vgt_perf_VGT_SPI_VSTHREAD_EVENT_WINDOW_ACTIVE    = 0x13,
+	vgt_perf_VGT_SPI_VSVERT_SEND                     = 0x14,
+	vgt_perf_VGT_SPI_VSVERT_EOV                      = 0x15,
+	vgt_perf_VGT_SPI_VSVERT_STALLED                  = 0x16,
+	vgt_perf_VGT_SPI_VSVERT_STARVED_BUSY             = 0x17,
+	vgt_perf_VGT_SPI_VSVERT_STARVED_IDLE             = 0x18,
+	vgt_perf_VGT_SPI_VSVERT_STATIC                   = 0x19,
+	vgt_perf_VGT_SPI_VSTHREAD_IS_EVENT               = 0x1a,
+	vgt_perf_VGT_SPI_VSTHREAD_SEND                   = 0x1b,
+	vgt_perf_VGT_PA_EVENT_WINDOW_ACTIVE              = 0x1c,
+	vgt_perf_VGT_PA_CLIPV_SEND                       = 0x1d,
+	vgt_perf_VGT_PA_CLIPV_FIRSTVERT                  = 0x1e,
+	vgt_perf_VGT_PA_CLIPV_STALLED                    = 0x1f,
+	vgt_perf_VGT_PA_CLIPV_STARVED_BUSY               = 0x20,
+	vgt_perf_VGT_PA_CLIPV_STARVED_IDLE               = 0x21,
+	vgt_perf_VGT_PA_CLIPV_STATIC                     = 0x22,
+	vgt_perf_VGT_PA_CLIPP_SEND                       = 0x23,
+	vgt_perf_VGT_PA_CLIPP_EOP                        = 0x24,
+	vgt_perf_VGT_PA_CLIPP_IS_EVENT                   = 0x25,
+	vgt_perf_VGT_PA_CLIPP_NULL_PRIM                  = 0x26,
+	vgt_perf_VGT_PA_CLIPP_NEW_VTX_VECT               = 0x27,
+	vgt_perf_VGT_PA_CLIPP_STALLED                    = 0x28,
+	vgt_perf_VGT_PA_CLIPP_STARVED_BUSY               = 0x29,
+	vgt_perf_VGT_PA_CLIPP_STARVED_IDLE               = 0x2a,
+	vgt_perf_VGT_PA_CLIPP_STATIC                     = 0x2b,
+	vgt_perf_VGT_PA_CLIPS_SEND                       = 0x2c,
+	vgt_perf_VGT_PA_CLIPS_STALLED                    = 0x2d,
+	vgt_perf_VGT_PA_CLIPS_STARVED_BUSY               = 0x2e,
+	vgt_perf_VGT_PA_CLIPS_STARVED_IDLE               = 0x2f,
+	vgt_perf_VGT_PA_CLIPS_STATIC                     = 0x30,
+	vgt_perf_vsvert_ds_send                          = 0x31,
+	vgt_perf_vsvert_api_send                         = 0x32,
+	vgt_perf_hs_tif_stall                            = 0x33,
+	vgt_perf_hs_input_stall                          = 0x34,
+	vgt_perf_hs_interface_stall                      = 0x35,
+	vgt_perf_hs_tfm_stall                            = 0x36,
+	vgt_perf_te11_starved                            = 0x37,
+	vgt_perf_gs_event_stall                          = 0x38,
+	vgt_perf_vgt_pa_clipp_send_not_event             = 0x39,
+	vgt_perf_vgt_pa_clipp_valid_prim                 = 0x3a,
+	vgt_perf_reused_es_indices                       = 0x3b,
+	vgt_perf_vs_cache_hits                           = 0x3c,
+	vgt_perf_gs_cache_hits                           = 0x3d,
+	vgt_perf_ds_cache_hits                           = 0x3e,
+	vgt_perf_total_cache_hits                        = 0x3f,
+	vgt_perf_vgt_busy                                = 0x40,
+	vgt_perf_vgt_gs_busy                             = 0x41,
+	vgt_perf_esvert_stalled_es_tbl                   = 0x42,
+	vgt_perf_esvert_stalled_gs_tbl                   = 0x43,
+	vgt_perf_esvert_stalled_gs_event                 = 0x44,
+	vgt_perf_esvert_stalled_gsprim                   = 0x45,
+	vgt_perf_gsprim_stalled_es_tbl                   = 0x46,
+	vgt_perf_gsprim_stalled_gs_tbl                   = 0x47,
+	vgt_perf_gsprim_stalled_gs_event                 = 0x48,
+	vgt_perf_gsprim_stalled_esvert                   = 0x49,
+	vgt_perf_esthread_stalled_es_rb_full             = 0x4a,
+	vgt_perf_esthread_stalled_spi_bp                 = 0x4b,
+	vgt_perf_counters_avail_stalled                  = 0x4c,
+	vgt_perf_gs_rb_space_avail_stalled               = 0x4d,
+	vgt_perf_gs_issue_rtr_stalled                    = 0x4e,
+	vgt_perf_gsthread_stalled                        = 0x4f,
+	vgt_perf_strmout_stalled                         = 0x50,
+	vgt_perf_wait_for_es_done_stalled                = 0x51,
+	vgt_perf_cm_stalled_by_gog                       = 0x52,
+	vgt_perf_cm_reading_stalled                      = 0x53,
+	vgt_perf_cm_stalled_by_gsfetch_done              = 0x54,
+	vgt_perf_gog_vs_tbl_stalled                      = 0x55,
+	vgt_perf_gog_out_indx_stalled                    = 0x56,
+	vgt_perf_gog_out_prim_stalled                    = 0x57,
+	vgt_perf_waveid_stalled                          = 0x58,
+	vgt_perf_gog_busy                                = 0x59,
+	vgt_perf_reused_vs_indices                       = 0x5a,
+	vgt_perf_sclk_reg_vld_event                      = 0x5b,
+	vgt_perf_RESERVED0                               = 0x5c,
+	vgt_perf_sclk_core_vld_event                     = 0x5d,
+	vgt_perf_RESERVED1                               = 0x5e,
+	vgt_perf_sclk_gs_vld_event                       = 0x5f,
+	vgt_perf_VGT_SPI_LSVERT_VALID                    = 0x60,
+	vgt_perf_VGT_SPI_LSVERT_EOV                      = 0x61,
+	vgt_perf_VGT_SPI_LSVERT_STALLED                  = 0x62,
+	vgt_perf_VGT_SPI_LSVERT_STARVED_BUSY             = 0x63,
+	vgt_perf_VGT_SPI_LSVERT_STARVED_IDLE             = 0x64,
+	vgt_perf_VGT_SPI_LSVERT_STATIC                   = 0x65,
+	vgt_perf_VGT_SPI_LSWAVE_EVENT_WINDOW_ACTIVE      = 0x66,
+	vgt_perf_VGT_SPI_LSWAVE_IS_EVENT                 = 0x67,
+	vgt_perf_VGT_SPI_LSWAVE_SEND                     = 0x68,
+	vgt_perf_VGT_SPI_HSVERT_VALID                    = 0x69,
+	vgt_perf_VGT_SPI_HSVERT_EOV                      = 0x6a,
+	vgt_perf_VGT_SPI_HSVERT_STALLED                  = 0x6b,
+	vgt_perf_VGT_SPI_HSVERT_STARVED_BUSY             = 0x6c,
+	vgt_perf_VGT_SPI_HSVERT_STARVED_IDLE             = 0x6d,
+	vgt_perf_VGT_SPI_HSVERT_STATIC                   = 0x6e,
+	vgt_perf_VGT_SPI_HSWAVE_EVENT_WINDOW_ACTIVE      = 0x6f,
+	vgt_perf_VGT_SPI_HSWAVE_IS_EVENT                 = 0x70,
+	vgt_perf_VGT_SPI_HSWAVE_SEND                     = 0x71,
+	vgt_perf_ds_prims                                = 0x72,
+	vgt_perf_null_tess_patches                       = 0x73,
+	vgt_perf_ls_thread_groups                        = 0x74,
+	vgt_perf_hs_thread_groups                        = 0x75,
+	vgt_perf_es_thread_groups                        = 0x76,
+	vgt_perf_vs_thread_groups                        = 0x77,
+	vgt_perf_ls_done_latency                         = 0x78,
+	vgt_perf_hs_done_latency                         = 0x79,
+	vgt_perf_es_done_latency                         = 0x7a,
+	vgt_perf_gs_done_latency                         = 0x7b,
+	vgt_perf_vgt_hs_busy                             = 0x7c,
+	vgt_perf_vgt_te11_busy                           = 0x7d,
+	vgt_perf_ls_flush                                = 0x7e,
+	vgt_perf_hs_flush                                = 0x7f,
+	vgt_perf_es_flush                                = 0x80,
+	vgt_perf_gs_flush                                = 0x81,
+	vgt_perf_ls_done                                 = 0x82,
+	vgt_perf_hs_done                                 = 0x83,
+	vgt_perf_es_done                                 = 0x84,
+	vgt_perf_gs_done                                 = 0x85,
+	vgt_perf_vsfetch_done                            = 0x86,
+	vgt_perf_RESERVED2                               = 0x87,
+	vgt_perf_es_ring_high_water_mark                 = 0x88,
+	vgt_perf_gs_ring_high_water_mark                 = 0x89,
+	vgt_perf_vs_table_high_water_mark                = 0x8a,
+	vgt_perf_hs_tgs_active_high_water_mark           = 0x8b,
+} VGT_PERFCOUNT_SELECT;
+typedef enum IA_PERFCOUNT_SELECT {
+	ia_perf_GRP_INPUT_EVENT_WINDOW_ACTIVE            = 0x0,
+	ia_perf_MC_LAT_BIN_0                             = 0x1,
+	ia_perf_MC_LAT_BIN_1                             = 0x2,
+	ia_perf_MC_LAT_BIN_2                             = 0x3,
+	ia_perf_MC_LAT_BIN_3                             = 0x4,
+	ia_perf_MC_LAT_BIN_4                             = 0x5,
+	ia_perf_MC_LAT_BIN_5                             = 0x6,
+	ia_perf_MC_LAT_BIN_6                             = 0x7,
+	ia_perf_MC_LAT_BIN_7                             = 0x8,
+	ia_perf_ia_busy                                  = 0x9,
+	ia_perf_ia_sclk_reg_vld_event                    = 0xa,
+	ia_perf_RESERVED0                                = 0xb,
+	ia_perf_ia_sclk_core_vld_event                   = 0xc,
+	ia_perf_RESERVED1                                = 0xd,
+	ia_perf_ia_dma_return                            = 0xe,
+	ia_perf_shift_starved_pipe1_event                = 0xf,
+	ia_perf_shift_starved_pipe0_event                = 0x10,
+	ia_perf_ia_stalled                               = 0x11,
+} IA_PERFCOUNT_SELECT;
+typedef enum WD_PERFCOUNT_SELECT {
+	wd_perf_RBIU_FIFOS_EVENT_WINDOW_ACTIVE           = 0x0,
+	wd_perf_RBIU_DR_FIFO_STARVED                     = 0x1,
+	wd_perf_RBIU_DR_FIFO_STALLED                     = 0x2,
+	wd_perf_RBIU_DI_FIFO_STARVED                     = 0x3,
+	wd_perf_RBIU_DI_FIFO_STALLED                     = 0x4,
+	wd_perf_wd_busy                                  = 0x5,
+	wd_perf_wd_sclk_reg_vld_event                    = 0x6,
+	wd_perf_wd_sclk_input_vld_event                  = 0x7,
+	wd_perf_wd_sclk_core_vld_event                   = 0x8,
+	wd_perf_wd_stalled                               = 0x9,
+} WD_PERFCOUNT_SELECT;
+typedef enum WD_IA_DRAW_TYPE {
+	WD_IA_DRAW_TYPE_DI_MM0                           = 0x0,
+	WD_IA_DRAW_TYPE_DI_MM1                           = 0x1,
+	WD_IA_DRAW_TYPE_EVENT_INIT                       = 0x2,
+	WD_IA_DRAW_TYPE_EVENT_ADDR                       = 0x3,
+	WD_IA_DRAW_TYPE_MIN_INDX                         = 0x4,
+	WD_IA_DRAW_TYPE_MAX_INDX                         = 0x5,
+	WD_IA_DRAW_TYPE_INDX_OFF                         = 0x6,
+	WD_IA_DRAW_TYPE_IMM_DATA                         = 0x7,
+} WD_IA_DRAW_TYPE;
+#define GSTHREADID_SIZE                           0x2
+typedef enum SurfaceEndian {
+	ENDIAN_NONE                                      = 0x0,
+	ENDIAN_8IN16                                     = 0x1,
+	ENDIAN_8IN32                                     = 0x2,
+	ENDIAN_8IN64                                     = 0x3,
+} SurfaceEndian;
+typedef enum ArrayMode {
+	ARRAY_LINEAR_GENERAL                             = 0x0,
+	ARRAY_LINEAR_ALIGNED                             = 0x1,
+	ARRAY_1D_TILED_THIN1                             = 0x2,
+	ARRAY_1D_TILED_THICK                             = 0x3,
+	ARRAY_2D_TILED_THIN1                             = 0x4,
+	ARRAY_PRT_TILED_THIN1                            = 0x5,
+	ARRAY_PRT_2D_TILED_THIN1                         = 0x6,
+	ARRAY_2D_TILED_THICK                             = 0x7,
+	ARRAY_2D_TILED_XTHICK                            = 0x8,
+	ARRAY_PRT_TILED_THICK                            = 0x9,
+	ARRAY_PRT_2D_TILED_THICK                         = 0xa,
+	ARRAY_PRT_3D_TILED_THIN1                         = 0xb,
+	ARRAY_3D_TILED_THIN1                             = 0xc,
+	ARRAY_3D_TILED_THICK                             = 0xd,
+	ARRAY_3D_TILED_XTHICK                            = 0xe,
+	ARRAY_PRT_3D_TILED_THICK                         = 0xf,
+} ArrayMode;
+typedef enum PipeTiling {
+	CONFIG_1_PIPE                                    = 0x0,
+	CONFIG_2_PIPE                                    = 0x1,
+	CONFIG_4_PIPE                                    = 0x2,
+	CONFIG_8_PIPE                                    = 0x3,
+} PipeTiling;
+typedef enum BankTiling {
+	CONFIG_4_BANK                                    = 0x0,
+	CONFIG_8_BANK                                    = 0x1,
+} BankTiling;
+typedef enum GroupInterleave {
+	CONFIG_256B_GROUP                                = 0x0,
+	CONFIG_512B_GROUP                                = 0x1,
+} GroupInterleave;
+typedef enum RowTiling {
+	CONFIG_1KB_ROW                                   = 0x0,
+	CONFIG_2KB_ROW                                   = 0x1,
+	CONFIG_4KB_ROW                                   = 0x2,
+	CONFIG_8KB_ROW                                   = 0x3,
+	CONFIG_1KB_ROW_OPT                               = 0x4,
+	CONFIG_2KB_ROW_OPT                               = 0x5,
+	CONFIG_4KB_ROW_OPT                               = 0x6,
+	CONFIG_8KB_ROW_OPT                               = 0x7,
+} RowTiling;
+typedef enum BankSwapBytes {
+	CONFIG_128B_SWAPS                                = 0x0,
+	CONFIG_256B_SWAPS                                = 0x1,
+	CONFIG_512B_SWAPS                                = 0x2,
+	CONFIG_1KB_SWAPS                                 = 0x3,
+} BankSwapBytes;
+typedef enum SampleSplitBytes {
+	CONFIG_1KB_SPLIT                                 = 0x0,
+	CONFIG_2KB_SPLIT                                 = 0x1,
+	CONFIG_4KB_SPLIT                                 = 0x2,
+	CONFIG_8KB_SPLIT                                 = 0x3,
+} SampleSplitBytes;
+typedef enum NumPipes {
+	ADDR_CONFIG_1_PIPE                               = 0x0,
+	ADDR_CONFIG_2_PIPE                               = 0x1,
+	ADDR_CONFIG_4_PIPE                               = 0x2,
+	ADDR_CONFIG_8_PIPE                               = 0x3,
+	ADDR_CONFIG_16_PIPE                              = 0x4,
+} NumPipes;
+typedef enum PipeInterleaveSize {
+	ADDR_CONFIG_PIPE_INTERLEAVE_256B                 = 0x0,
+	ADDR_CONFIG_PIPE_INTERLEAVE_512B                 = 0x1,
+} PipeInterleaveSize;
+typedef enum BankInterleaveSize {
+	ADDR_CONFIG_BANK_INTERLEAVE_1                    = 0x0,
+	ADDR_CONFIG_BANK_INTERLEAVE_2                    = 0x1,
+	ADDR_CONFIG_BANK_INTERLEAVE_4                    = 0x2,
+	ADDR_CONFIG_BANK_INTERLEAVE_8                    = 0x3,
+} BankInterleaveSize;
+typedef enum NumShaderEngines {
+	ADDR_CONFIG_1_SHADER_ENGINE                      = 0x0,
+	ADDR_CONFIG_2_SHADER_ENGINE                      = 0x1,
+} NumShaderEngines;
+typedef enum ShaderEngineTileSize {
+	ADDR_CONFIG_SE_TILE_16                           = 0x0,
+	ADDR_CONFIG_SE_TILE_32                           = 0x1,
+} ShaderEngineTileSize;
+typedef enum NumGPUs {
+	ADDR_CONFIG_1_GPU                                = 0x0,
+	ADDR_CONFIG_2_GPU                                = 0x1,
+	ADDR_CONFIG_4_GPU                                = 0x2,
+} NumGPUs;
+typedef enum MultiGPUTileSize {
+	ADDR_CONFIG_GPU_TILE_16                          = 0x0,
+	ADDR_CONFIG_GPU_TILE_32                          = 0x1,
+	ADDR_CONFIG_GPU_TILE_64                          = 0x2,
+	ADDR_CONFIG_GPU_TILE_128                         = 0x3,
+} MultiGPUTileSize;
+typedef enum RowSize {
+	ADDR_CONFIG_1KB_ROW                              = 0x0,
+	ADDR_CONFIG_2KB_ROW                              = 0x1,
+	ADDR_CONFIG_4KB_ROW                              = 0x2,
+} RowSize;
+typedef enum NumLowerPipes {
+	ADDR_CONFIG_1_LOWER_PIPES                        = 0x0,
+	ADDR_CONFIG_2_LOWER_PIPES                        = 0x1,
+} NumLowerPipes;
+typedef enum DebugBlockId {
+	DBG_CLIENT_BLKID_RESERVED                        = 0x0,
+	DBG_CLIENT_BLKID_dbg                             = 0x1,
+	DBG_CLIENT_BLKID_dco0                            = 0x2,
+	DBG_CLIENT_BLKID_wd                              = 0x3,
+	DBG_CLIENT_BLKID_vmc                             = 0x4,
+	DBG_CLIENT_BLKID_scf2                            = 0x5,
+	DBG_CLIENT_BLKID_spim3                           = 0x6,
+	DBG_CLIENT_BLKID_cb3                             = 0x7,
+	DBG_CLIENT_BLKID_sx0                             = 0x8,
+	DBG_CLIENT_BLKID_cb2                             = 0x9,
+	DBG_CLIENT_BLKID_bci1                            = 0xa,
+	DBG_CLIENT_BLKID_xdma                            = 0xb,
+	DBG_CLIENT_BLKID_bci0                            = 0xc,
+	DBG_CLIENT_BLKID_spim0                           = 0xd,
+	DBG_CLIENT_BLKID_mcd0                            = 0xe,
+	DBG_CLIENT_BLKID_mcc0                            = 0xf,
+	DBG_CLIENT_BLKID_cb0                             = 0x10,
+	DBG_CLIENT_BLKID_cb1                             = 0x11,
+	DBG_CLIENT_BLKID_cpc_0                           = 0x12,
+	DBG_CLIENT_BLKID_cpc_1                           = 0x13,
+	DBG_CLIENT_BLKID_cpf                             = 0x14,
+	DBG_CLIENT_BLKID_rlc                             = 0x15,
+	DBG_CLIENT_BLKID_grbm                            = 0x16,
+	DBG_CLIENT_BLKID_bif                             = 0x17,
+	DBG_CLIENT_BLKID_scf1                            = 0x18,
+	DBG_CLIENT_BLKID_sam                             = 0x19,
+	DBG_CLIENT_BLKID_mcd4                            = 0x1a,
+	DBG_CLIENT_BLKID_mcc4                            = 0x1b,
+	DBG_CLIENT_BLKID_gmcon                           = 0x1c,
+	DBG_CLIENT_BLKID_mcb                             = 0x1d,
+	DBG_CLIENT_BLKID_vgt0                            = 0x1e,
+	DBG_CLIENT_BLKID_pc0                             = 0x1f,
+	DBG_CLIENT_BLKID_spim1                           = 0x20,
+	DBG_CLIENT_BLKID_bci2                            = 0x21,
+	DBG_CLIENT_BLKID_mcd6                            = 0x22,
+	DBG_CLIENT_BLKID_mcc6                            = 0x23,
+	DBG_CLIENT_BLKID_mcd3                            = 0x24,
+	DBG_CLIENT_BLKID_mcc3                            = 0x25,
+	DBG_CLIENT_BLKID_uvdm_0                          = 0x26,
+	DBG_CLIENT_BLKID_uvdm_1                          = 0x27,
+	DBG_CLIENT_BLKID_uvdm_2                          = 0x28,
+	DBG_CLIENT_BLKID_uvdm_3                          = 0x29,
+	DBG_CLIENT_BLKID_spim2                           = 0x2a,
+	DBG_CLIENT_BLKID_ds                              = 0x2b,
+	DBG_CLIENT_BLKID_srbm                            = 0x2c,
+	DBG_CLIENT_BLKID_ih                              = 0x2d,
+	DBG_CLIENT_BLKID_sem                             = 0x2e,
+	DBG_CLIENT_BLKID_sdma_0                          = 0x2f,
+	DBG_CLIENT_BLKID_sdma_1                          = 0x30,
+	DBG_CLIENT_BLKID_hdp                             = 0x31,
+	DBG_CLIENT_BLKID_acp_0                           = 0x32,
+	DBG_CLIENT_BLKID_acp_1                           = 0x33,
+	DBG_CLIENT_BLKID_vceb_0                          = 0x34,
+	DBG_CLIENT_BLKID_vceb_1                          = 0x35,
+	DBG_CLIENT_BLKID_vceb_2                          = 0x36,
+	DBG_CLIENT_BLKID_mcd2                            = 0x37,
+	DBG_CLIENT_BLKID_mcc2                            = 0x38,
+	DBG_CLIENT_BLKID_scf3                            = 0x39,
+	DBG_CLIENT_BLKID_bci3                            = 0x3a,
+	DBG_CLIENT_BLKID_mcd5                            = 0x3b,
+	DBG_CLIENT_BLKID_mcc5                            = 0x3c,
+	DBG_CLIENT_BLKID_vgt2                            = 0x3d,
+	DBG_CLIENT_BLKID_pc2                             = 0x3e,
+	DBG_CLIENT_BLKID_smu_0                           = 0x3f,
+	DBG_CLIENT_BLKID_smu_1                           = 0x40,
+	DBG_CLIENT_BLKID_smu_2                           = 0x41,
+	DBG_CLIENT_BLKID_vcea_0                          = 0x42,
+	DBG_CLIENT_BLKID_vcea_1                          = 0x43,
+	DBG_CLIENT_BLKID_vcea_2                          = 0x44,
+	DBG_CLIENT_BLKID_vcea_3                          = 0x45,
+	DBG_CLIENT_BLKID_vcea_4                          = 0x46,
+	DBG_CLIENT_BLKID_vcea_5                          = 0x47,
+	DBG_CLIENT_BLKID_vcea_6                          = 0x48,
+	DBG_CLIENT_BLKID_scf0                            = 0x49,
+	DBG_CLIENT_BLKID_vgt1                            = 0x4a,
+	DBG_CLIENT_BLKID_pc1                             = 0x4b,
+	DBG_CLIENT_BLKID_gdc_0                           = 0x4c,
+	DBG_CLIENT_BLKID_gdc_1                           = 0x4d,
+	DBG_CLIENT_BLKID_gdc_2                           = 0x4e,
+	DBG_CLIENT_BLKID_gdc_3                           = 0x4f,
+	DBG_CLIENT_BLKID_gdc_4                           = 0x50,
+	DBG_CLIENT_BLKID_gdc_5                           = 0x51,
+	DBG_CLIENT_BLKID_gdc_6                           = 0x52,
+	DBG_CLIENT_BLKID_gdc_7                           = 0x53,
+	DBG_CLIENT_BLKID_gdc_8                           = 0x54,
+	DBG_CLIENT_BLKID_gdc_9                           = 0x55,
+	DBG_CLIENT_BLKID_gdc_10                          = 0x56,
+	DBG_CLIENT_BLKID_gdc_11                          = 0x57,
+	DBG_CLIENT_BLKID_gdc_12                          = 0x58,
+	DBG_CLIENT_BLKID_gdc_13                          = 0x59,
+	DBG_CLIENT_BLKID_gdc_14                          = 0x5a,
+	DBG_CLIENT_BLKID_gdc_15                          = 0x5b,
+	DBG_CLIENT_BLKID_gdc_16                          = 0x5c,
+	DBG_CLIENT_BLKID_gdc_17                          = 0x5d,
+	DBG_CLIENT_BLKID_gdc_18                          = 0x5e,
+	DBG_CLIENT_BLKID_gdc_19                          = 0x5f,
+	DBG_CLIENT_BLKID_gdc_20                          = 0x60,
+	DBG_CLIENT_BLKID_gdc_21                          = 0x61,
+	DBG_CLIENT_BLKID_gdc_22                          = 0x62,
+	DBG_CLIENT_BLKID_vgt3                            = 0x63,
+	DBG_CLIENT_BLKID_pc3                             = 0x64,
+	DBG_CLIENT_BLKID_uvdu_0                          = 0x65,
+	DBG_CLIENT_BLKID_uvdu_1                          = 0x66,
+	DBG_CLIENT_BLKID_uvdu_2                          = 0x67,
+	DBG_CLIENT_BLKID_uvdu_3                          = 0x68,
+	DBG_CLIENT_BLKID_uvdu_4                          = 0x69,
+	DBG_CLIENT_BLKID_uvdu_5                          = 0x6a,
+	DBG_CLIENT_BLKID_uvdu_6                          = 0x6b,
+	DBG_CLIENT_BLKID_mcd7                            = 0x6c,
+	DBG_CLIENT_BLKID_mcc7                            = 0x6d,
+	DBG_CLIENT_BLKID_cpg_0                           = 0x6e,
+	DBG_CLIENT_BLKID_cpg_1                           = 0x6f,
+	DBG_CLIENT_BLKID_gck                             = 0x70,
+	DBG_CLIENT_BLKID_mcd1                            = 0x71,
+	DBG_CLIENT_BLKID_mcc1                            = 0x72,
+	DBG_CLIENT_BLKID_cb101                           = 0x73,
+	DBG_CLIENT_BLKID_cb103                           = 0x74,
+	DBG_CLIENT_BLKID_sx10                            = 0x75,
+	DBG_CLIENT_BLKID_cb102                           = 0x76,
+	DBG_CLIENT_BLKID_cb002                           = 0x77,
+	DBG_CLIENT_BLKID_cb100                           = 0x78,
+	DBG_CLIENT_BLKID_cb000                           = 0x79,
+	DBG_CLIENT_BLKID_pa00                            = 0x7a,
+	DBG_CLIENT_BLKID_pa10                            = 0x7b,
+	DBG_CLIENT_BLKID_ia0                             = 0x7c,
+	DBG_CLIENT_BLKID_ia1                             = 0x7d,
+	DBG_CLIENT_BLKID_tmonw00                         = 0x7e,
+	DBG_CLIENT_BLKID_cb001                           = 0x7f,
+	DBG_CLIENT_BLKID_cb003                           = 0x80,
+	DBG_CLIENT_BLKID_sx00                            = 0x81,
+	DBG_CLIENT_BLKID_sx20                            = 0x82,
+	DBG_CLIENT_BLKID_cb203                           = 0x83,
+	DBG_CLIENT_BLKID_cb201                           = 0x84,
+	DBG_CLIENT_BLKID_cb302                           = 0x85,
+	DBG_CLIENT_BLKID_cb202                           = 0x86,
+	DBG_CLIENT_BLKID_cb300                           = 0x87,
+	DBG_CLIENT_BLKID_cb200                           = 0x88,
+	DBG_CLIENT_BLKID_pa01                            = 0x89,
+	DBG_CLIENT_BLKID_pa11                            = 0x8a,
+	DBG_CLIENT_BLKID_sx30                            = 0x8b,
+	DBG_CLIENT_BLKID_cb303                           = 0x8c,
+	DBG_CLIENT_BLKID_cb301                           = 0x8d,
+	DBG_CLIENT_BLKID_dco                             = 0x8e,
+	DBG_CLIENT_BLKID_scb0                            = 0x8f,
+	DBG_CLIENT_BLKID_scb1                            = 0x90,
+	DBG_CLIENT_BLKID_scb2                            = 0x91,
+	DBG_CLIENT_BLKID_scb3                            = 0x92,
+	DBG_CLIENT_BLKID_tmonw01                         = 0x93,
+	DBG_CLIENT_BLKID_RESERVED_LAST                   = 0x94,
+} DebugBlockId;
+typedef enum DebugBlockId_OLD {
+	DBG_BLOCK_ID_RESERVED                            = 0x0,
+	DBG_BLOCK_ID_DBG                                 = 0x1,
+	DBG_BLOCK_ID_VMC                                 = 0x2,
+	DBG_BLOCK_ID_PDMA                                = 0x3,
+	DBG_BLOCK_ID_CG                                  = 0x4,
+	DBG_BLOCK_ID_SRBM                                = 0x5,
+	DBG_BLOCK_ID_GRBM                                = 0x6,
+	DBG_BLOCK_ID_RLC                                 = 0x7,
+	DBG_BLOCK_ID_CSC                                 = 0x8,
+	DBG_BLOCK_ID_SEM                                 = 0x9,
+	DBG_BLOCK_ID_IH                                  = 0xa,
+	DBG_BLOCK_ID_SC                                  = 0xb,
+	DBG_BLOCK_ID_SQ                                  = 0xc,
+	DBG_BLOCK_ID_AVP                                 = 0xd,
+	DBG_BLOCK_ID_GMCON                               = 0xe,
+	DBG_BLOCK_ID_SMU                                 = 0xf,
+	DBG_BLOCK_ID_DMA0                                = 0x10,
+	DBG_BLOCK_ID_DMA1                                = 0x11,
+	DBG_BLOCK_ID_SPIM                                = 0x12,
+	DBG_BLOCK_ID_GDS                                 = 0x13,
+	DBG_BLOCK_ID_SPIS                                = 0x14,
+	DBG_BLOCK_ID_UNUSED0                             = 0x15,
+	DBG_BLOCK_ID_PA0                                 = 0x16,
+	DBG_BLOCK_ID_PA1                                 = 0x17,
+	DBG_BLOCK_ID_CP0                                 = 0x18,
+	DBG_BLOCK_ID_CP1                                 = 0x19,
+	DBG_BLOCK_ID_CP2                                 = 0x1a,
+	DBG_BLOCK_ID_UNUSED1                             = 0x1b,
+	DBG_BLOCK_ID_UVDU                                = 0x1c,
+	DBG_BLOCK_ID_UVDM                                = 0x1d,
+	DBG_BLOCK_ID_VCE                                 = 0x1e,
+	DBG_BLOCK_ID_UNUSED2                             = 0x1f,
+	DBG_BLOCK_ID_VGT0                                = 0x20,
+	DBG_BLOCK_ID_VGT1                                = 0x21,
+	DBG_BLOCK_ID_IA                                  = 0x22,
+	DBG_BLOCK_ID_UNUSED3                             = 0x23,
+	DBG_BLOCK_ID_SCT0                                = 0x24,
+	DBG_BLOCK_ID_SCT1                                = 0x25,
+	DBG_BLOCK_ID_SPM0                                = 0x26,
+	DBG_BLOCK_ID_SPM1                                = 0x27,
+	DBG_BLOCK_ID_TCAA                                = 0x28,
+	DBG_BLOCK_ID_TCAB                                = 0x29,
+	DBG_BLOCK_ID_TCCA                                = 0x2a,
+	DBG_BLOCK_ID_TCCB                                = 0x2b,
+	DBG_BLOCK_ID_MCC0                                = 0x2c,
+	DBG_BLOCK_ID_MCC1                                = 0x2d,
+	DBG_BLOCK_ID_MCC2                                = 0x2e,
+	DBG_BLOCK_ID_MCC3                                = 0x2f,
+	DBG_BLOCK_ID_SX0                                 = 0x30,
+	DBG_BLOCK_ID_SX1                                 = 0x31,
+	DBG_BLOCK_ID_SX2                                 = 0x32,
+	DBG_BLOCK_ID_SX3                                 = 0x33,
+	DBG_BLOCK_ID_UNUSED4                             = 0x34,
+	DBG_BLOCK_ID_UNUSED5                             = 0x35,
+	DBG_BLOCK_ID_UNUSED6                             = 0x36,
+	DBG_BLOCK_ID_UNUSED7                             = 0x37,
+	DBG_BLOCK_ID_PC0                                 = 0x38,
+	DBG_BLOCK_ID_PC1                                 = 0x39,
+	DBG_BLOCK_ID_UNUSED8                             = 0x3a,
+	DBG_BLOCK_ID_UNUSED9                             = 0x3b,
+	DBG_BLOCK_ID_UNUSED10                            = 0x3c,
+	DBG_BLOCK_ID_UNUSED11                            = 0x3d,
+	DBG_BLOCK_ID_MCB                                 = 0x3e,
+	DBG_BLOCK_ID_UNUSED12                            = 0x3f,
+	DBG_BLOCK_ID_SCB0                                = 0x40,
+	DBG_BLOCK_ID_SCB1                                = 0x41,
+	DBG_BLOCK_ID_UNUSED13                            = 0x42,
+	DBG_BLOCK_ID_UNUSED14                            = 0x43,
+	DBG_BLOCK_ID_SCF0                                = 0x44,
+	DBG_BLOCK_ID_SCF1                                = 0x45,
+	DBG_BLOCK_ID_UNUSED15                            = 0x46,
+	DBG_BLOCK_ID_UNUSED16                            = 0x47,
+	DBG_BLOCK_ID_BCI0                                = 0x48,
+	DBG_BLOCK_ID_BCI1                                = 0x49,
+	DBG_BLOCK_ID_BCI2                                = 0x4a,
+	DBG_BLOCK_ID_BCI3                                = 0x4b,
+	DBG_BLOCK_ID_UNUSED17                            = 0x4c,
+	DBG_BLOCK_ID_UNUSED18                            = 0x4d,
+	DBG_BLOCK_ID_UNUSED19                            = 0x4e,
+	DBG_BLOCK_ID_UNUSED20                            = 0x4f,
+	DBG_BLOCK_ID_CB00                                = 0x50,
+	DBG_BLOCK_ID_CB01                                = 0x51,
+	DBG_BLOCK_ID_CB02                                = 0x52,
+	DBG_BLOCK_ID_CB03                                = 0x53,
+	DBG_BLOCK_ID_CB04                                = 0x54,
+	DBG_BLOCK_ID_UNUSED21                            = 0x55,
+	DBG_BLOCK_ID_UNUSED22                            = 0x56,
+	DBG_BLOCK_ID_UNUSED23                            = 0x57,
+	DBG_BLOCK_ID_CB10                                = 0x58,
+	DBG_BLOCK_ID_CB11                                = 0x59,
+	DBG_BLOCK_ID_CB12                                = 0x5a,
+	DBG_BLOCK_ID_CB13                                = 0x5b,
+	DBG_BLOCK_ID_CB14                                = 0x5c,
+	DBG_BLOCK_ID_UNUSED24                            = 0x5d,
+	DBG_BLOCK_ID_UNUSED25                            = 0x5e,
+	DBG_BLOCK_ID_UNUSED26                            = 0x5f,
+	DBG_BLOCK_ID_TCP0                                = 0x60,
+	DBG_BLOCK_ID_TCP1                                = 0x61,
+	DBG_BLOCK_ID_TCP2                                = 0x62,
+	DBG_BLOCK_ID_TCP3                                = 0x63,
+	DBG_BLOCK_ID_TCP4                                = 0x64,
+	DBG_BLOCK_ID_TCP5                                = 0x65,
+	DBG_BLOCK_ID_TCP6                                = 0x66,
+	DBG_BLOCK_ID_TCP7                                = 0x67,
+	DBG_BLOCK_ID_TCP8                                = 0x68,
+	DBG_BLOCK_ID_TCP9                                = 0x69,
+	DBG_BLOCK_ID_TCP10                               = 0x6a,
+	DBG_BLOCK_ID_TCP11                               = 0x6b,
+	DBG_BLOCK_ID_TCP12                               = 0x6c,
+	DBG_BLOCK_ID_TCP13                               = 0x6d,
+	DBG_BLOCK_ID_TCP14                               = 0x6e,
+	DBG_BLOCK_ID_TCP15                               = 0x6f,
+	DBG_BLOCK_ID_TCP16                               = 0x70,
+	DBG_BLOCK_ID_TCP17                               = 0x71,
+	DBG_BLOCK_ID_TCP18                               = 0x72,
+	DBG_BLOCK_ID_TCP19                               = 0x73,
+	DBG_BLOCK_ID_TCP20                               = 0x74,
+	DBG_BLOCK_ID_TCP21                               = 0x75,
+	DBG_BLOCK_ID_TCP22                               = 0x76,
+	DBG_BLOCK_ID_TCP23                               = 0x77,
+	DBG_BLOCK_ID_TCP_RESERVED0                       = 0x78,
+	DBG_BLOCK_ID_TCP_RESERVED1                       = 0x79,
+	DBG_BLOCK_ID_TCP_RESERVED2                       = 0x7a,
+	DBG_BLOCK_ID_TCP_RESERVED3                       = 0x7b,
+	DBG_BLOCK_ID_TCP_RESERVED4                       = 0x7c,
+	DBG_BLOCK_ID_TCP_RESERVED5                       = 0x7d,
+	DBG_BLOCK_ID_TCP_RESERVED6                       = 0x7e,
+	DBG_BLOCK_ID_TCP_RESERVED7                       = 0x7f,
+	DBG_BLOCK_ID_DB00                                = 0x80,
+	DBG_BLOCK_ID_DB01                                = 0x81,
+	DBG_BLOCK_ID_DB02                                = 0x82,
+	DBG_BLOCK_ID_DB03                                = 0x83,
+	DBG_BLOCK_ID_DB04                                = 0x84,
+	DBG_BLOCK_ID_UNUSED27                            = 0x85,
+	DBG_BLOCK_ID_UNUSED28                            = 0x86,
+	DBG_BLOCK_ID_UNUSED29                            = 0x87,
+	DBG_BLOCK_ID_DB10                                = 0x88,
+	DBG_BLOCK_ID_DB11                                = 0x89,
+	DBG_BLOCK_ID_DB12                                = 0x8a,
+	DBG_BLOCK_ID_DB13                                = 0x8b,
+	DBG_BLOCK_ID_DB14                                = 0x8c,
+	DBG_BLOCK_ID_UNUSED30                            = 0x8d,
+	DBG_BLOCK_ID_UNUSED31                            = 0x8e,
+	DBG_BLOCK_ID_UNUSED32                            = 0x8f,
+	DBG_BLOCK_ID_TCC0                                = 0x90,
+	DBG_BLOCK_ID_TCC1                                = 0x91,
+	DBG_BLOCK_ID_TCC2                                = 0x92,
+	DBG_BLOCK_ID_TCC3                                = 0x93,
+	DBG_BLOCK_ID_TCC4                                = 0x94,
+	DBG_BLOCK_ID_TCC5                                = 0x95,
+	DBG_BLOCK_ID_TCC6                                = 0x96,
+	DBG_BLOCK_ID_TCC7                                = 0x97,
+	DBG_BLOCK_ID_SPS00                               = 0x98,
+	DBG_BLOCK_ID_SPS01                               = 0x99,
+	DBG_BLOCK_ID_SPS02                               = 0x9a,
+	DBG_BLOCK_ID_SPS10                               = 0x9b,
+	DBG_BLOCK_ID_SPS11                               = 0x9c,
+	DBG_BLOCK_ID_SPS12                               = 0x9d,
+	DBG_BLOCK_ID_UNUSED33                            = 0x9e,
+	DBG_BLOCK_ID_UNUSED34                            = 0x9f,
+	DBG_BLOCK_ID_TA00                                = 0xa0,
+	DBG_BLOCK_ID_TA01                                = 0xa1,
+	DBG_BLOCK_ID_TA02                                = 0xa2,
+	DBG_BLOCK_ID_TA03                                = 0xa3,
+	DBG_BLOCK_ID_TA04                                = 0xa4,
+	DBG_BLOCK_ID_TA05                                = 0xa5,
+	DBG_BLOCK_ID_TA06                                = 0xa6,
+	DBG_BLOCK_ID_TA07                                = 0xa7,
+	DBG_BLOCK_ID_TA08                                = 0xa8,
+	DBG_BLOCK_ID_TA09                                = 0xa9,
+	DBG_BLOCK_ID_TA0A                                = 0xaa,
+	DBG_BLOCK_ID_TA0B                                = 0xab,
+	DBG_BLOCK_ID_UNUSED35                            = 0xac,
+	DBG_BLOCK_ID_UNUSED36                            = 0xad,
+	DBG_BLOCK_ID_UNUSED37                            = 0xae,
+	DBG_BLOCK_ID_UNUSED38                            = 0xaf,
+	DBG_BLOCK_ID_TA10                                = 0xb0,
+	DBG_BLOCK_ID_TA11                                = 0xb1,
+	DBG_BLOCK_ID_TA12                                = 0xb2,
+	DBG_BLOCK_ID_TA13                                = 0xb3,
+	DBG_BLOCK_ID_TA14                                = 0xb4,
+	DBG_BLOCK_ID_TA15                                = 0xb5,
+	DBG_BLOCK_ID_TA16                                = 0xb6,
+	DBG_BLOCK_ID_TA17                                = 0xb7,
+	DBG_BLOCK_ID_TA18                                = 0xb8,
+	DBG_BLOCK_ID_TA19                                = 0xb9,
+	DBG_BLOCK_ID_TA1A                                = 0xba,
+	DBG_BLOCK_ID_TA1B                                = 0xbb,
+	DBG_BLOCK_ID_UNUSED39                            = 0xbc,
+	DBG_BLOCK_ID_UNUSED40                            = 0xbd,
+	DBG_BLOCK_ID_UNUSED41                            = 0xbe,
+	DBG_BLOCK_ID_UNUSED42                            = 0xbf,
+	DBG_BLOCK_ID_TD00                                = 0xc0,
+	DBG_BLOCK_ID_TD01                                = 0xc1,
+	DBG_BLOCK_ID_TD02                                = 0xc2,
+	DBG_BLOCK_ID_TD03                                = 0xc3,
+	DBG_BLOCK_ID_TD04                                = 0xc4,
+	DBG_BLOCK_ID_TD05                                = 0xc5,
+	DBG_BLOCK_ID_TD06                                = 0xc6,
+	DBG_BLOCK_ID_TD07                                = 0xc7,
+	DBG_BLOCK_ID_TD08                                = 0xc8,
+	DBG_BLOCK_ID_TD09                                = 0xc9,
+	DBG_BLOCK_ID_TD0A                                = 0xca,
+	DBG_BLOCK_ID_TD0B                                = 0xcb,
+	DBG_BLOCK_ID_UNUSED43                            = 0xcc,
+	DBG_BLOCK_ID_UNUSED44                            = 0xcd,
+	DBG_BLOCK_ID_UNUSED45                            = 0xce,
+	DBG_BLOCK_ID_UNUSED46                            = 0xcf,
+	DBG_BLOCK_ID_TD10                                = 0xd0,
+	DBG_BLOCK_ID_TD11                                = 0xd1,
+	DBG_BLOCK_ID_TD12                                = 0xd2,
+	DBG_BLOCK_ID_TD13                                = 0xd3,
+	DBG_BLOCK_ID_TD14                                = 0xd4,
+	DBG_BLOCK_ID_TD15                                = 0xd5,
+	DBG_BLOCK_ID_TD16                                = 0xd6,
+	DBG_BLOCK_ID_TD17                                = 0xd7,
+	DBG_BLOCK_ID_TD18                                = 0xd8,
+	DBG_BLOCK_ID_TD19                                = 0xd9,
+	DBG_BLOCK_ID_TD1A                                = 0xda,
+	DBG_BLOCK_ID_TD1B                                = 0xdb,
+	DBG_BLOCK_ID_UNUSED47                            = 0xdc,
+	DBG_BLOCK_ID_UNUSED48                            = 0xdd,
+	DBG_BLOCK_ID_UNUSED49                            = 0xde,
+	DBG_BLOCK_ID_UNUSED50                            = 0xdf,
+	DBG_BLOCK_ID_MCD0                                = 0xe0,
+	DBG_BLOCK_ID_MCD1                                = 0xe1,
+	DBG_BLOCK_ID_MCD2                                = 0xe2,
+	DBG_BLOCK_ID_MCD3                                = 0xe3,
+	DBG_BLOCK_ID_MCD4                                = 0xe4,
+	DBG_BLOCK_ID_MCD5                                = 0xe5,
+	DBG_BLOCK_ID_UNUSED51                            = 0xe6,
+	DBG_BLOCK_ID_UNUSED52                            = 0xe7,
+} DebugBlockId_OLD;
+typedef enum DebugBlockId_BY2 {
+	DBG_BLOCK_ID_RESERVED_BY2                        = 0x0,
+	DBG_BLOCK_ID_VMC_BY2                             = 0x1,
+	DBG_BLOCK_ID_CG_BY2                              = 0x2,
+	DBG_BLOCK_ID_GRBM_BY2                            = 0x3,
+	DBG_BLOCK_ID_CSC_BY2                             = 0x4,
+	DBG_BLOCK_ID_IH_BY2                              = 0x5,
+	DBG_BLOCK_ID_SQ_BY2                              = 0x6,
+	DBG_BLOCK_ID_GMCON_BY2                           = 0x7,
+	DBG_BLOCK_ID_DMA0_BY2                            = 0x8,
+	DBG_BLOCK_ID_SPIM_BY2                            = 0x9,
+	DBG_BLOCK_ID_SPIS_BY2                            = 0xa,
+	DBG_BLOCK_ID_PA0_BY2                             = 0xb,
+	DBG_BLOCK_ID_CP0_BY2                             = 0xc,
+	DBG_BLOCK_ID_CP2_BY2                             = 0xd,
+	DBG_BLOCK_ID_UVDU_BY2                            = 0xe,
+	DBG_BLOCK_ID_VCE_BY2                             = 0xf,
+	DBG_BLOCK_ID_VGT0_BY2                            = 0x10,
+	DBG_BLOCK_ID_IA_BY2                              = 0x11,
+	DBG_BLOCK_ID_SCT0_BY2                            = 0x12,
+	DBG_BLOCK_ID_SPM0_BY2                            = 0x13,
+	DBG_BLOCK_ID_TCAA_BY2                            = 0x14,
+	DBG_BLOCK_ID_TCCA_BY2                            = 0x15,
+	DBG_BLOCK_ID_MCC0_BY2                            = 0x16,
+	DBG_BLOCK_ID_MCC2_BY2                            = 0x17,
+	DBG_BLOCK_ID_SX0_BY2                             = 0x18,
+	DBG_BLOCK_ID_SX2_BY2                             = 0x19,
+	DBG_BLOCK_ID_UNUSED4_BY2                         = 0x1a,
+	DBG_BLOCK_ID_UNUSED6_BY2                         = 0x1b,
+	DBG_BLOCK_ID_PC0_BY2                             = 0x1c,
+	DBG_BLOCK_ID_UNUSED8_BY2                         = 0x1d,
+	DBG_BLOCK_ID_UNUSED10_BY2                        = 0x1e,
+	DBG_BLOCK_ID_MCB_BY2                             = 0x1f,
+	DBG_BLOCK_ID_SCB0_BY2                            = 0x20,
+	DBG_BLOCK_ID_UNUSED13_BY2                        = 0x21,
+	DBG_BLOCK_ID_SCF0_BY2                            = 0x22,
+	DBG_BLOCK_ID_UNUSED15_BY2                        = 0x23,
+	DBG_BLOCK_ID_BCI0_BY2                            = 0x24,
+	DBG_BLOCK_ID_BCI2_BY2                            = 0x25,
+	DBG_BLOCK_ID_UNUSED17_BY2                        = 0x26,
+	DBG_BLOCK_ID_UNUSED19_BY2                        = 0x27,
+	DBG_BLOCK_ID_CB00_BY2                            = 0x28,
+	DBG_BLOCK_ID_CB02_BY2                            = 0x29,
+	DBG_BLOCK_ID_CB04_BY2                            = 0x2a,
+	DBG_BLOCK_ID_UNUSED22_BY2                        = 0x2b,
+	DBG_BLOCK_ID_CB10_BY2                            = 0x2c,
+	DBG_BLOCK_ID_CB12_BY2                            = 0x2d,
+	DBG_BLOCK_ID_CB14_BY2                            = 0x2e,
+	DBG_BLOCK_ID_UNUSED25_BY2                        = 0x2f,
+	DBG_BLOCK_ID_TCP0_BY2                            = 0x30,
+	DBG_BLOCK_ID_TCP2_BY2                            = 0x31,
+	DBG_BLOCK_ID_TCP4_BY2                            = 0x32,
+	DBG_BLOCK_ID_TCP6_BY2                            = 0x33,
+	DBG_BLOCK_ID_TCP8_BY2                            = 0x34,
+	DBG_BLOCK_ID_TCP10_BY2                           = 0x35,
+	DBG_BLOCK_ID_TCP12_BY2                           = 0x36,
+	DBG_BLOCK_ID_TCP14_BY2                           = 0x37,
+	DBG_BLOCK_ID_TCP16_BY2                           = 0x38,
+	DBG_BLOCK_ID_TCP18_BY2                           = 0x39,
+	DBG_BLOCK_ID_TCP20_BY2                           = 0x3a,
+	DBG_BLOCK_ID_TCP22_BY2                           = 0x3b,
+	DBG_BLOCK_ID_TCP_RESERVED0_BY2                   = 0x3c,
+	DBG_BLOCK_ID_TCP_RESERVED2_BY2                   = 0x3d,
+	DBG_BLOCK_ID_TCP_RESERVED4_BY2                   = 0x3e,
+	DBG_BLOCK_ID_TCP_RESERVED6_BY2                   = 0x3f,
+	DBG_BLOCK_ID_DB00_BY2                            = 0x40,
+	DBG_BLOCK_ID_DB02_BY2                            = 0x41,
+	DBG_BLOCK_ID_DB04_BY2                            = 0x42,
+	DBG_BLOCK_ID_UNUSED28_BY2                        = 0x43,
+	DBG_BLOCK_ID_DB10_BY2                            = 0x44,
+	DBG_BLOCK_ID_DB12_BY2                            = 0x45,
+	DBG_BLOCK_ID_DB14_BY2                            = 0x46,
+	DBG_BLOCK_ID_UNUSED31_BY2                        = 0x47,
+	DBG_BLOCK_ID_TCC0_BY2                            = 0x48,
+	DBG_BLOCK_ID_TCC2_BY2                            = 0x49,
+	DBG_BLOCK_ID_TCC4_BY2                            = 0x4a,
+	DBG_BLOCK_ID_TCC6_BY2                            = 0x4b,
+	DBG_BLOCK_ID_SPS00_BY2                           = 0x4c,
+	DBG_BLOCK_ID_SPS02_BY2                           = 0x4d,
+	DBG_BLOCK_ID_SPS11_BY2                           = 0x4e,
+	DBG_BLOCK_ID_UNUSED33_BY2                        = 0x4f,
+	DBG_BLOCK_ID_TA00_BY2                            = 0x50,
+	DBG_BLOCK_ID_TA02_BY2                            = 0x51,
+	DBG_BLOCK_ID_TA04_BY2                            = 0x52,
+	DBG_BLOCK_ID_TA06_BY2                            = 0x53,
+	DBG_BLOCK_ID_TA08_BY2                            = 0x54,
+	DBG_BLOCK_ID_TA0A_BY2                            = 0x55,
+	DBG_BLOCK_ID_UNUSED35_BY2                        = 0x56,
+	DBG_BLOCK_ID_UNUSED37_BY2                        = 0x57,
+	DBG_BLOCK_ID_TA10_BY2                            = 0x58,
+	DBG_BLOCK_ID_TA12_BY2                            = 0x59,
+	DBG_BLOCK_ID_TA14_BY2                            = 0x5a,
+	DBG_BLOCK_ID_TA16_BY2                            = 0x5b,
+	DBG_BLOCK_ID_TA18_BY2                            = 0x5c,
+	DBG_BLOCK_ID_TA1A_BY2                            = 0x5d,
+	DBG_BLOCK_ID_UNUSED39_BY2                        = 0x5e,
+	DBG_BLOCK_ID_UNUSED41_BY2                        = 0x5f,
+	DBG_BLOCK_ID_TD00_BY2                            = 0x60,
+	DBG_BLOCK_ID_TD02_BY2                            = 0x61,
+	DBG_BLOCK_ID_TD04_BY2                            = 0x62,
+	DBG_BLOCK_ID_TD06_BY2                            = 0x63,
+	DBG_BLOCK_ID_TD08_BY2                            = 0x64,
+	DBG_BLOCK_ID_TD0A_BY2                            = 0x65,
+	DBG_BLOCK_ID_UNUSED43_BY2                        = 0x66,
+	DBG_BLOCK_ID_UNUSED45_BY2                        = 0x67,
+	DBG_BLOCK_ID_TD10_BY2                            = 0x68,
+	DBG_BLOCK_ID_TD12_BY2                            = 0x69,
+	DBG_BLOCK_ID_TD14_BY2                            = 0x6a,
+	DBG_BLOCK_ID_TD16_BY2                            = 0x6b,
+	DBG_BLOCK_ID_TD18_BY2                            = 0x6c,
+	DBG_BLOCK_ID_TD1A_BY2                            = 0x6d,
+	DBG_BLOCK_ID_UNUSED47_BY2                        = 0x6e,
+	DBG_BLOCK_ID_UNUSED49_BY2                        = 0x6f,
+	DBG_BLOCK_ID_MCD0_BY2                            = 0x70,
+	DBG_BLOCK_ID_MCD2_BY2                            = 0x71,
+	DBG_BLOCK_ID_MCD4_BY2                            = 0x72,
+	DBG_BLOCK_ID_UNUSED51_BY2                        = 0x73,
+} DebugBlockId_BY2;
+typedef enum DebugBlockId_BY4 {
+	DBG_BLOCK_ID_RESERVED_BY4                        = 0x0,
+	DBG_BLOCK_ID_CG_BY4                              = 0x1,
+	DBG_BLOCK_ID_CSC_BY4                             = 0x2,
+	DBG_BLOCK_ID_SQ_BY4                              = 0x3,
+	DBG_BLOCK_ID_DMA0_BY4                            = 0x4,
+	DBG_BLOCK_ID_SPIS_BY4                            = 0x5,
+	DBG_BLOCK_ID_CP0_BY4                             = 0x6,
+	DBG_BLOCK_ID_UVDU_BY4                            = 0x7,
+	DBG_BLOCK_ID_VGT0_BY4                            = 0x8,
+	DBG_BLOCK_ID_SCT0_BY4                            = 0x9,
+	DBG_BLOCK_ID_TCAA_BY4                            = 0xa,
+	DBG_BLOCK_ID_MCC0_BY4                            = 0xb,
+	DBG_BLOCK_ID_SX0_BY4                             = 0xc,
+	DBG_BLOCK_ID_UNUSED4_BY4                         = 0xd,
+	DBG_BLOCK_ID_PC0_BY4                             = 0xe,
+	DBG_BLOCK_ID_UNUSED10_BY4                        = 0xf,
+	DBG_BLOCK_ID_SCB0_BY4                            = 0x10,
+	DBG_BLOCK_ID_SCF0_BY4                            = 0x11,
+	DBG_BLOCK_ID_BCI0_BY4                            = 0x12,
+	DBG_BLOCK_ID_UNUSED17_BY4                        = 0x13,
+	DBG_BLOCK_ID_CB00_BY4                            = 0x14,
+	DBG_BLOCK_ID_CB04_BY4                            = 0x15,
+	DBG_BLOCK_ID_CB10_BY4                            = 0x16,
+	DBG_BLOCK_ID_CB14_BY4                            = 0x17,
+	DBG_BLOCK_ID_TCP0_BY4                            = 0x18,
+	DBG_BLOCK_ID_TCP4_BY4                            = 0x19,
+	DBG_BLOCK_ID_TCP8_BY4                            = 0x1a,
+	DBG_BLOCK_ID_TCP12_BY4                           = 0x1b,
+	DBG_BLOCK_ID_TCP16_BY4                           = 0x1c,
+	DBG_BLOCK_ID_TCP20_BY4                           = 0x1d,
+	DBG_BLOCK_ID_TCP_RESERVED0_BY4                   = 0x1e,
+	DBG_BLOCK_ID_TCP_RESERVED4_BY4                   = 0x1f,
+	DBG_BLOCK_ID_DB_BY4                              = 0x20,
+	DBG_BLOCK_ID_DB04_BY4                            = 0x21,
+	DBG_BLOCK_ID_DB10_BY4                            = 0x22,
+	DBG_BLOCK_ID_DB14_BY4                            = 0x23,
+	DBG_BLOCK_ID_TCC0_BY4                            = 0x24,
+	DBG_BLOCK_ID_TCC4_BY4                            = 0x25,
+	DBG_BLOCK_ID_SPS00_BY4                           = 0x26,
+	DBG_BLOCK_ID_SPS11_BY4                           = 0x27,
+	DBG_BLOCK_ID_TA00_BY4                            = 0x28,
+	DBG_BLOCK_ID_TA04_BY4                            = 0x29,
+	DBG_BLOCK_ID_TA08_BY4                            = 0x2a,
+	DBG_BLOCK_ID_UNUSED35_BY4                        = 0x2b,
+	DBG_BLOCK_ID_TA10_BY4                            = 0x2c,
+	DBG_BLOCK_ID_TA14_BY4                            = 0x2d,
+	DBG_BLOCK_ID_TA18_BY4                            = 0x2e,
+	DBG_BLOCK_ID_UNUSED39_BY4                        = 0x2f,
+	DBG_BLOCK_ID_TD00_BY4                            = 0x30,
+	DBG_BLOCK_ID_TD04_BY4                            = 0x31,
+	DBG_BLOCK_ID_TD08_BY4                            = 0x32,
+	DBG_BLOCK_ID_UNUSED43_BY4                        = 0x33,
+	DBG_BLOCK_ID_TD10_BY4                            = 0x34,
+	DBG_BLOCK_ID_TD14_BY4                            = 0x35,
+	DBG_BLOCK_ID_TD18_BY4                            = 0x36,
+	DBG_BLOCK_ID_UNUSED47_BY4                        = 0x37,
+	DBG_BLOCK_ID_MCD0_BY4                            = 0x38,
+	DBG_BLOCK_ID_MCD4_BY4                            = 0x39,
+} DebugBlockId_BY4;
+typedef enum DebugBlockId_BY8 {
+	DBG_BLOCK_ID_RESERVED_BY8                        = 0x0,
+	DBG_BLOCK_ID_CSC_BY8                             = 0x1,
+	DBG_BLOCK_ID_DMA0_BY8                            = 0x2,
+	DBG_BLOCK_ID_CP0_BY8                             = 0x3,
+	DBG_BLOCK_ID_VGT0_BY8                            = 0x4,
+	DBG_BLOCK_ID_TCAA_BY8                            = 0x5,
+	DBG_BLOCK_ID_SX0_BY8                             = 0x6,
+	DBG_BLOCK_ID_PC0_BY8                             = 0x7,
+	DBG_BLOCK_ID_SCB0_BY8                            = 0x8,
+	DBG_BLOCK_ID_BCI0_BY8                            = 0x9,
+	DBG_BLOCK_ID_CB00_BY8                            = 0xa,
+	DBG_BLOCK_ID_CB10_BY8                            = 0xb,
+	DBG_BLOCK_ID_TCP0_BY8                            = 0xc,
+	DBG_BLOCK_ID_TCP8_BY8                            = 0xd,
+	DBG_BLOCK_ID_TCP16_BY8                           = 0xe,
+	DBG_BLOCK_ID_TCP_RESERVED0_BY8                   = 0xf,
+	DBG_BLOCK_ID_DB00_BY8                            = 0x10,
+	DBG_BLOCK_ID_DB10_BY8                            = 0x11,
+	DBG_BLOCK_ID_TCC0_BY8                            = 0x12,
+	DBG_BLOCK_ID_SPS00_BY8                           = 0x13,
+	DBG_BLOCK_ID_TA00_BY8                            = 0x14,
+	DBG_BLOCK_ID_TA08_BY8                            = 0x15,
+	DBG_BLOCK_ID_TA10_BY8                            = 0x16,
+	DBG_BLOCK_ID_TA18_BY8                            = 0x17,
+	DBG_BLOCK_ID_TD00_BY8                            = 0x18,
+	DBG_BLOCK_ID_TD08_BY8                            = 0x19,
+	DBG_BLOCK_ID_TD10_BY8                            = 0x1a,
+	DBG_BLOCK_ID_TD18_BY8                            = 0x1b,
+	DBG_BLOCK_ID_MCD0_BY8                            = 0x1c,
+} DebugBlockId_BY8;
+typedef enum DebugBlockId_BY16 {
+	DBG_BLOCK_ID_RESERVED_BY16                       = 0x0,
+	DBG_BLOCK_ID_DMA0_BY16                           = 0x1,
+	DBG_BLOCK_ID_VGT0_BY16                           = 0x2,
+	DBG_BLOCK_ID_SX0_BY16                            = 0x3,
+	DBG_BLOCK_ID_SCB0_BY16                           = 0x4,
+	DBG_BLOCK_ID_CB00_BY16                           = 0x5,
+	DBG_BLOCK_ID_TCP0_BY16                           = 0x6,
+	DBG_BLOCK_ID_TCP16_BY16                          = 0x7,
+	DBG_BLOCK_ID_DB00_BY16                           = 0x8,
+	DBG_BLOCK_ID_TCC0_BY16                           = 0x9,
+	DBG_BLOCK_ID_TA00_BY16                           = 0xa,
+	DBG_BLOCK_ID_TA10_BY16                           = 0xb,
+	DBG_BLOCK_ID_TD00_BY16                           = 0xc,
+	DBG_BLOCK_ID_TD10_BY16                           = 0xd,
+	DBG_BLOCK_ID_MCD0_BY16                           = 0xe,
+} DebugBlockId_BY16;
+typedef enum CompareRef {
+	REF_NEVER                                        = 0x0,
+	REF_LESS                                         = 0x1,
+	REF_EQUAL                                        = 0x2,
+	REF_LEQUAL                                       = 0x3,
+	REF_GREATER                                      = 0x4,
+	REF_NOTEQUAL                                     = 0x5,
+	REF_GEQUAL                                       = 0x6,
+	REF_ALWAYS                                       = 0x7,
+} CompareRef;
+typedef enum ReadSize {
+	READ_256_BITS                                    = 0x0,
+	READ_512_BITS                                    = 0x1,
+} ReadSize;
+typedef enum DepthFormat {
+	DEPTH_INVALID                                    = 0x0,
+	DEPTH_16                                         = 0x1,
+	DEPTH_X8_24                                      = 0x2,
+	DEPTH_8_24                                       = 0x3,
+	DEPTH_X8_24_FLOAT                                = 0x4,
+	DEPTH_8_24_FLOAT                                 = 0x5,
+	DEPTH_32_FLOAT                                   = 0x6,
+	DEPTH_X24_8_32_FLOAT                             = 0x7,
+} DepthFormat;
+typedef enum ZFormat {
+	Z_INVALID                                        = 0x0,
+	Z_16                                             = 0x1,
+	Z_24                                             = 0x2,
+	Z_32_FLOAT                                       = 0x3,
+} ZFormat;
+typedef enum StencilFormat {
+	STENCIL_INVALID                                  = 0x0,
+	STENCIL_8                                        = 0x1,
+} StencilFormat;
+typedef enum CmaskMode {
+	CMASK_CLEAR_NONE                                 = 0x0,
+	CMASK_CLEAR_ONE                                  = 0x1,
+	CMASK_CLEAR_ALL                                  = 0x2,
+	CMASK_ANY_EXPANDED                               = 0x3,
+	CMASK_ALPHA0_FRAG1                               = 0x4,
+	CMASK_ALPHA0_FRAG2                               = 0x5,
+	CMASK_ALPHA0_FRAG4                               = 0x6,
+	CMASK_ALPHA0_FRAGS                               = 0x7,
+	CMASK_ALPHA1_FRAG1                               = 0x8,
+	CMASK_ALPHA1_FRAG2                               = 0x9,
+	CMASK_ALPHA1_FRAG4                               = 0xa,
+	CMASK_ALPHA1_FRAGS                               = 0xb,
+	CMASK_ALPHAX_FRAG1                               = 0xc,
+	CMASK_ALPHAX_FRAG2                               = 0xd,
+	CMASK_ALPHAX_FRAG4                               = 0xe,
+	CMASK_ALPHAX_FRAGS                               = 0xf,
+} CmaskMode;
+typedef enum QuadExportFormat {
+	EXPORT_UNUSED                                    = 0x0,
+	EXPORT_32_R                                      = 0x1,
+	EXPORT_32_GR                                     = 0x2,
+	EXPORT_32_AR                                     = 0x3,
+	EXPORT_FP16_ABGR                                 = 0x4,
+	EXPORT_UNSIGNED16_ABGR                           = 0x5,
+	EXPORT_SIGNED16_ABGR                             = 0x6,
+	EXPORT_32_ABGR                                   = 0x7,
+} QuadExportFormat;
+typedef enum QuadExportFormatOld {
+	EXPORT_4P_32BPC_ABGR                             = 0x0,
+	EXPORT_4P_16BPC_ABGR                             = 0x1,
+	EXPORT_4P_32BPC_GR                               = 0x2,
+	EXPORT_4P_32BPC_AR                               = 0x3,
+	EXPORT_2P_32BPC_ABGR                             = 0x4,
+	EXPORT_8P_32BPC_R                                = 0x5,
+} QuadExportFormatOld;
+typedef enum ColorFormat {
+	COLOR_INVALID                                    = 0x0,
+	COLOR_8                                          = 0x1,
+	COLOR_16                                         = 0x2,
+	COLOR_8_8                                        = 0x3,
+	COLOR_32                                         = 0x4,
+	COLOR_16_16                                      = 0x5,
+	COLOR_10_11_11                                   = 0x6,
+	COLOR_11_11_10                                   = 0x7,
+	COLOR_10_10_10_2                                 = 0x8,
+	COLOR_2_10_10_10                                 = 0x9,
+	COLOR_8_8_8_8                                    = 0xa,
+	COLOR_32_32                                      = 0xb,
+	COLOR_16_16_16_16                                = 0xc,
+	COLOR_RESERVED_13                                = 0xd,
+	COLOR_32_32_32_32                                = 0xe,
+	COLOR_RESERVED_15                                = 0xf,
+	COLOR_5_6_5                                      = 0x10,
+	COLOR_1_5_5_5                                    = 0x11,
+	COLOR_5_5_5_1                                    = 0x12,
+	COLOR_4_4_4_4                                    = 0x13,
+	COLOR_8_24                                       = 0x14,
+	COLOR_24_8                                       = 0x15,
+	COLOR_X24_8_32_FLOAT                             = 0x16,
+	COLOR_RESERVED_23                                = 0x17,
+} ColorFormat;
+typedef enum SurfaceFormat {
+	FMT_INVALID                                      = 0x0,
+	FMT_8                                            = 0x1,
+	FMT_16                                           = 0x2,
+	FMT_8_8                                          = 0x3,
+	FMT_32                                           = 0x4,
+	FMT_16_16                                        = 0x5,
+	FMT_10_11_11                                     = 0x6,
+	FMT_11_11_10                                     = 0x7,
+	FMT_10_10_10_2                                   = 0x8,
+	FMT_2_10_10_10                                   = 0x9,
+	FMT_8_8_8_8                                      = 0xa,
+	FMT_32_32                                        = 0xb,
+	FMT_16_16_16_16                                  = 0xc,
+	FMT_32_32_32                                     = 0xd,
+	FMT_32_32_32_32                                  = 0xe,
+	FMT_RESERVED_4                                   = 0xf,
+	FMT_5_6_5                                        = 0x10,
+	FMT_1_5_5_5                                      = 0x11,
+	FMT_5_5_5_1                                      = 0x12,
+	FMT_4_4_4_4                                      = 0x13,
+	FMT_8_24                                         = 0x14,
+	FMT_24_8                                         = 0x15,
+	FMT_X24_8_32_FLOAT                               = 0x16,
+	FMT_RESERVED_33                                  = 0x17,
+	FMT_11_11_10_FLOAT                               = 0x18,
+	FMT_16_FLOAT                                     = 0x19,
+	FMT_32_FLOAT                                     = 0x1a,
+	FMT_16_16_FLOAT                                  = 0x1b,
+	FMT_8_24_FLOAT                                   = 0x1c,
+	FMT_24_8_FLOAT                                   = 0x1d,
+	FMT_32_32_FLOAT                                  = 0x1e,
+	FMT_10_11_11_FLOAT                               = 0x1f,
+	FMT_16_16_16_16_FLOAT                            = 0x20,
+	FMT_3_3_2                                        = 0x21,
+	FMT_6_5_5                                        = 0x22,
+	FMT_32_32_32_32_FLOAT                            = 0x23,
+	FMT_RESERVED_36                                  = 0x24,
+	FMT_1                                            = 0x25,
+	FMT_1_REVERSED                                   = 0x26,
+	FMT_GB_GR                                        = 0x27,
+	FMT_BG_RG                                        = 0x28,
+	FMT_32_AS_8                                      = 0x29,
+	FMT_32_AS_8_8                                    = 0x2a,
+	FMT_5_9_9_9_SHAREDEXP                            = 0x2b,
+	FMT_8_8_8                                        = 0x2c,
+	FMT_16_16_16                                     = 0x2d,
+	FMT_16_16_16_FLOAT                               = 0x2e,
+	FMT_4_4                                          = 0x2f,
+	FMT_32_32_32_FLOAT                               = 0x30,
+	FMT_BC1                                          = 0x31,
+	FMT_BC2                                          = 0x32,
+	FMT_BC3                                          = 0x33,
+	FMT_BC4                                          = 0x34,
+	FMT_BC5                                          = 0x35,
+	FMT_BC6                                          = 0x36,
+	FMT_BC7                                          = 0x37,
+	FMT_32_AS_32_32_32_32                            = 0x38,
+	FMT_APC3                                         = 0x39,
+	FMT_APC4                                         = 0x3a,
+	FMT_APC5                                         = 0x3b,
+	FMT_APC6                                         = 0x3c,
+	FMT_APC7                                         = 0x3d,
+	FMT_CTX1                                         = 0x3e,
+	FMT_RESERVED_63                                  = 0x3f,
+} SurfaceFormat;
+typedef enum BUF_DATA_FORMAT {
+	BUF_DATA_FORMAT_INVALID                          = 0x0,
+	BUF_DATA_FORMAT_8                                = 0x1,
+	BUF_DATA_FORMAT_16                               = 0x2,
+	BUF_DATA_FORMAT_8_8                              = 0x3,
+	BUF_DATA_FORMAT_32                               = 0x4,
+	BUF_DATA_FORMAT_16_16                            = 0x5,
+	BUF_DATA_FORMAT_10_11_11                         = 0x6,
+	BUF_DATA_FORMAT_11_11_10                         = 0x7,
+	BUF_DATA_FORMAT_10_10_10_2                       = 0x8,
+	BUF_DATA_FORMAT_2_10_10_10                       = 0x9,
+	BUF_DATA_FORMAT_8_8_8_8                          = 0xa,
+	BUF_DATA_FORMAT_32_32                            = 0xb,
+	BUF_DATA_FORMAT_16_16_16_16                      = 0xc,
+	BUF_DATA_FORMAT_32_32_32                         = 0xd,
+	BUF_DATA_FORMAT_32_32_32_32                      = 0xe,
+	BUF_DATA_FORMAT_RESERVED_15                      = 0xf,
+} BUF_DATA_FORMAT;
+typedef enum IMG_DATA_FORMAT {
+	IMG_DATA_FORMAT_INVALID                          = 0x0,
+	IMG_DATA_FORMAT_8                                = 0x1,
+	IMG_DATA_FORMAT_16                               = 0x2,
+	IMG_DATA_FORMAT_8_8                              = 0x3,
+	IMG_DATA_FORMAT_32                               = 0x4,
+	IMG_DATA_FORMAT_16_16                            = 0x5,
+	IMG_DATA_FORMAT_10_11_11                         = 0x6,
+	IMG_DATA_FORMAT_11_11_10                         = 0x7,
+	IMG_DATA_FORMAT_10_10_10_2                       = 0x8,
+	IMG_DATA_FORMAT_2_10_10_10                       = 0x9,
+	IMG_DATA_FORMAT_8_8_8_8                          = 0xa,
+	IMG_DATA_FORMAT_32_32                            = 0xb,
+	IMG_DATA_FORMAT_16_16_16_16                      = 0xc,
+	IMG_DATA_FORMAT_32_32_32                         = 0xd,
+	IMG_DATA_FORMAT_32_32_32_32                      = 0xe,
+	IMG_DATA_FORMAT_RESERVED_15                      = 0xf,
+	IMG_DATA_FORMAT_5_6_5                            = 0x10,
+	IMG_DATA_FORMAT_1_5_5_5                          = 0x11,
+	IMG_DATA_FORMAT_5_5_5_1                          = 0x12,
+	IMG_DATA_FORMAT_4_4_4_4                          = 0x13,
+	IMG_DATA_FORMAT_8_24                             = 0x14,
+	IMG_DATA_FORMAT_24_8                             = 0x15,
+	IMG_DATA_FORMAT_X24_8_32                         = 0x16,
+	IMG_DATA_FORMAT_RESERVED_23                      = 0x17,
+	IMG_DATA_FORMAT_RESERVED_24                      = 0x18,
+	IMG_DATA_FORMAT_RESERVED_25                      = 0x19,
+	IMG_DATA_FORMAT_RESERVED_26                      = 0x1a,
+	IMG_DATA_FORMAT_RESERVED_27                      = 0x1b,
+	IMG_DATA_FORMAT_RESERVED_28                      = 0x1c,
+	IMG_DATA_FORMAT_RESERVED_29                      = 0x1d,
+	IMG_DATA_FORMAT_RESERVED_30                      = 0x1e,
+	IMG_DATA_FORMAT_RESERVED_31                      = 0x1f,
+	IMG_DATA_FORMAT_GB_GR                            = 0x20,
+	IMG_DATA_FORMAT_BG_RG                            = 0x21,
+	IMG_DATA_FORMAT_5_9_9_9                          = 0x22,
+	IMG_DATA_FORMAT_BC1                              = 0x23,
+	IMG_DATA_FORMAT_BC2                              = 0x24,
+	IMG_DATA_FORMAT_BC3                              = 0x25,
+	IMG_DATA_FORMAT_BC4                              = 0x26,
+	IMG_DATA_FORMAT_BC5                              = 0x27,
+	IMG_DATA_FORMAT_BC6                              = 0x28,
+	IMG_DATA_FORMAT_BC7                              = 0x29,
+	IMG_DATA_FORMAT_RESERVED_42                      = 0x2a,
+	IMG_DATA_FORMAT_RESERVED_43                      = 0x2b,
+	IMG_DATA_FORMAT_FMASK8_S2_F1                     = 0x2c,
+	IMG_DATA_FORMAT_FMASK8_S4_F1                     = 0x2d,
+	IMG_DATA_FORMAT_FMASK8_S8_F1                     = 0x2e,
+	IMG_DATA_FORMAT_FMASK8_S2_F2                     = 0x2f,
+	IMG_DATA_FORMAT_FMASK8_S4_F2                     = 0x30,
+	IMG_DATA_FORMAT_FMASK8_S4_F4                     = 0x31,
+	IMG_DATA_FORMAT_FMASK16_S16_F1                   = 0x32,
+	IMG_DATA_FORMAT_FMASK16_S8_F2                    = 0x33,
+	IMG_DATA_FORMAT_FMASK32_S16_F2                   = 0x34,
+	IMG_DATA_FORMAT_FMASK32_S8_F4                    = 0x35,
+	IMG_DATA_FORMAT_FMASK32_S8_F8                    = 0x36,
+	IMG_DATA_FORMAT_FMASK64_S16_F4                   = 0x37,
+	IMG_DATA_FORMAT_FMASK64_S16_F8                   = 0x38,
+	IMG_DATA_FORMAT_4_4                              = 0x39,
+	IMG_DATA_FORMAT_6_5_5                            = 0x3a,
+	IMG_DATA_FORMAT_1                                = 0x3b,
+	IMG_DATA_FORMAT_1_REVERSED                       = 0x3c,
+	IMG_DATA_FORMAT_32_AS_8                          = 0x3d,
+	IMG_DATA_FORMAT_32_AS_8_8                        = 0x3e,
+	IMG_DATA_FORMAT_32_AS_32_32_32_32                = 0x3f,
+} IMG_DATA_FORMAT;
+typedef enum BUF_NUM_FORMAT {
+	BUF_NUM_FORMAT_UNORM                             = 0x0,
+	BUF_NUM_FORMAT_SNORM                             = 0x1,
+	BUF_NUM_FORMAT_USCALED                           = 0x2,
+	BUF_NUM_FORMAT_SSCALED                           = 0x3,
+	BUF_NUM_FORMAT_UINT                              = 0x4,
+	BUF_NUM_FORMAT_SINT                              = 0x5,
+	BUF_NUM_FORMAT_SNORM_OGL                         = 0x6,
+	BUF_NUM_FORMAT_FLOAT                             = 0x7,
+} BUF_NUM_FORMAT;
+typedef enum IMG_NUM_FORMAT {
+	IMG_NUM_FORMAT_UNORM                             = 0x0,
+	IMG_NUM_FORMAT_SNORM                             = 0x1,
+	IMG_NUM_FORMAT_USCALED                           = 0x2,
+	IMG_NUM_FORMAT_SSCALED                           = 0x3,
+	IMG_NUM_FORMAT_UINT                              = 0x4,
+	IMG_NUM_FORMAT_SINT                              = 0x5,
+	IMG_NUM_FORMAT_SNORM_OGL                         = 0x6,
+	IMG_NUM_FORMAT_FLOAT                             = 0x7,
+	IMG_NUM_FORMAT_RESERVED_8                        = 0x8,
+	IMG_NUM_FORMAT_SRGB                              = 0x9,
+	IMG_NUM_FORMAT_UBNORM                            = 0xa,
+	IMG_NUM_FORMAT_UBNORM_OGL                        = 0xb,
+	IMG_NUM_FORMAT_UBINT                             = 0xc,
+	IMG_NUM_FORMAT_UBSCALED                          = 0xd,
+	IMG_NUM_FORMAT_RESERVED_14                       = 0xe,
+	IMG_NUM_FORMAT_RESERVED_15                       = 0xf,
+} IMG_NUM_FORMAT;
+typedef enum TileType {
+	ARRAY_COLOR_TILE                                 = 0x0,
+	ARRAY_DEPTH_TILE                                 = 0x1,
+} TileType;
+typedef enum NonDispTilingOrder {
+	ADDR_SURF_MICRO_TILING_DISPLAY                   = 0x0,
+	ADDR_SURF_MICRO_TILING_NON_DISPLAY               = 0x1,
+} NonDispTilingOrder;
+typedef enum MicroTileMode {
+	ADDR_SURF_DISPLAY_MICRO_TILING                   = 0x0,
+	ADDR_SURF_THIN_MICRO_TILING                      = 0x1,
+	ADDR_SURF_DEPTH_MICRO_TILING                     = 0x2,
+	ADDR_SURF_ROTATED_MICRO_TILING                   = 0x3,
+	ADDR_SURF_THICK_MICRO_TILING                     = 0x4,
+} MicroTileMode;
+typedef enum TileSplit {
+	ADDR_SURF_TILE_SPLIT_64B                         = 0x0,
+	ADDR_SURF_TILE_SPLIT_128B                        = 0x1,
+	ADDR_SURF_TILE_SPLIT_256B                        = 0x2,
+	ADDR_SURF_TILE_SPLIT_512B                        = 0x3,
+	ADDR_SURF_TILE_SPLIT_1KB                         = 0x4,
+	ADDR_SURF_TILE_SPLIT_2KB                         = 0x5,
+	ADDR_SURF_TILE_SPLIT_4KB                         = 0x6,
+} TileSplit;
+typedef enum SampleSplit {
+	ADDR_SURF_SAMPLE_SPLIT_1                         = 0x0,
+	ADDR_SURF_SAMPLE_SPLIT_2                         = 0x1,
+	ADDR_SURF_SAMPLE_SPLIT_4                         = 0x2,
+	ADDR_SURF_SAMPLE_SPLIT_8                         = 0x3,
+} SampleSplit;
+typedef enum PipeConfig {
+	ADDR_SURF_P2                                     = 0x0,
+	ADDR_SURF_P2_RESERVED0                           = 0x1,
+	ADDR_SURF_P2_RESERVED1                           = 0x2,
+	ADDR_SURF_P2_RESERVED2                           = 0x3,
+	ADDR_SURF_P4_8x16                                = 0x4,
+	ADDR_SURF_P4_16x16                               = 0x5,
+	ADDR_SURF_P4_16x32                               = 0x6,
+	ADDR_SURF_P4_32x32                               = 0x7,
+	ADDR_SURF_P8_16x16_8x16                          = 0x8,
+	ADDR_SURF_P8_16x32_8x16                          = 0x9,
+	ADDR_SURF_P8_32x32_8x16                          = 0xa,
+	ADDR_SURF_P8_16x32_16x16                         = 0xb,
+	ADDR_SURF_P8_32x32_16x16                         = 0xc,
+	ADDR_SURF_P8_32x32_16x32                         = 0xd,
+	ADDR_SURF_P8_32x64_32x32                         = 0xe,
+	ADDR_SURF_P8_RESERVED0                           = 0xf,
+	ADDR_SURF_P16_32x32_8x16                         = 0x10,
+	ADDR_SURF_P16_32x32_16x16                        = 0x11,
+} PipeConfig;
+typedef enum NumBanks {
+	ADDR_SURF_2_BANK                                 = 0x0,
+	ADDR_SURF_4_BANK                                 = 0x1,
+	ADDR_SURF_8_BANK                                 = 0x2,
+	ADDR_SURF_16_BANK                                = 0x3,
+} NumBanks;
+typedef enum BankWidth {
+	ADDR_SURF_BANK_WIDTH_1                           = 0x0,
+	ADDR_SURF_BANK_WIDTH_2                           = 0x1,
+	ADDR_SURF_BANK_WIDTH_4                           = 0x2,
+	ADDR_SURF_BANK_WIDTH_8                           = 0x3,
+} BankWidth;
+typedef enum BankHeight {
+	ADDR_SURF_BANK_HEIGHT_1                          = 0x0,
+	ADDR_SURF_BANK_HEIGHT_2                          = 0x1,
+	ADDR_SURF_BANK_HEIGHT_4                          = 0x2,
+	ADDR_SURF_BANK_HEIGHT_8                          = 0x3,
+} BankHeight;
+typedef enum BankWidthHeight {
+	ADDR_SURF_BANK_WH_1                              = 0x0,
+	ADDR_SURF_BANK_WH_2                              = 0x1,
+	ADDR_SURF_BANK_WH_4                              = 0x2,
+	ADDR_SURF_BANK_WH_8                              = 0x3,
+} BankWidthHeight;
+typedef enum MacroTileAspect {
+	ADDR_SURF_MACRO_ASPECT_1                         = 0x0,
+	ADDR_SURF_MACRO_ASPECT_2                         = 0x1,
+	ADDR_SURF_MACRO_ASPECT_4                         = 0x2,
+	ADDR_SURF_MACRO_ASPECT_8                         = 0x3,
+} MacroTileAspect;
+typedef enum TCC_CACHE_POLICIES {
+	TCC_CACHE_POLICY_LRU                             = 0x0,
+	TCC_CACHE_POLICY_STREAM                          = 0x1,
+	TCC_CACHE_POLICY_BYPASS                          = 0x2,
+} TCC_CACHE_POLICIES;
+typedef enum MTYPE {
+	MTYPE_NC_NV                                      = 0x0,
+	MTYPE_NC                                         = 0x1,
+	MTYPE_CC                                         = 0x2,
+	MTYPE_UC                                         = 0x3,
+} MTYPE;
+typedef enum PERFMON_COUNTER_MODE {
+	PERFMON_COUNTER_MODE_ACCUM                       = 0x0,
+	PERFMON_COUNTER_MODE_ACTIVE_CYCLES               = 0x1,
+	PERFMON_COUNTER_MODE_MAX                         = 0x2,
+	PERFMON_COUNTER_MODE_DIRTY                       = 0x3,
+	PERFMON_COUNTER_MODE_SAMPLE                      = 0x4,
+	PERFMON_COUNTER_MODE_CYCLES_SINCE_FIRST_EVENT    = 0x5,
+	PERFMON_COUNTER_MODE_CYCLES_SINCE_LAST_EVENT     = 0x6,
+	PERFMON_COUNTER_MODE_CYCLES_GE_HI                = 0x7,
+	PERFMON_COUNTER_MODE_CYCLES_EQ_HI                = 0x8,
+	PERFMON_COUNTER_MODE_INACTIVE_CYCLES             = 0x9,
+	PERFMON_COUNTER_MODE_RESERVED                    = 0xf,
+} PERFMON_COUNTER_MODE;
+typedef enum PERFMON_SPM_MODE {
+	PERFMON_SPM_MODE_OFF                             = 0x0,
+	PERFMON_SPM_MODE_16BIT_CLAMP                     = 0x1,
+	PERFMON_SPM_MODE_16BIT_NO_CLAMP                  = 0x2,
+	PERFMON_SPM_MODE_32BIT_CLAMP                     = 0x3,
+	PERFMON_SPM_MODE_32BIT_NO_CLAMP                  = 0x4,
+	PERFMON_SPM_MODE_RESERVED_5                      = 0x5,
+	PERFMON_SPM_MODE_RESERVED_6                      = 0x6,
+	PERFMON_SPM_MODE_RESERVED_7                      = 0x7,
+	PERFMON_SPM_MODE_TEST_MODE_0                     = 0x8,
+	PERFMON_SPM_MODE_TEST_MODE_1                     = 0x9,
+	PERFMON_SPM_MODE_TEST_MODE_2                     = 0xa,
+} PERFMON_SPM_MODE;
+typedef enum SurfaceTiling {
+	ARRAY_LINEAR                                     = 0x0,
+	ARRAY_TILED                                      = 0x1,
+} SurfaceTiling;
+typedef enum SurfaceArray {
+	ARRAY_1D                                         = 0x0,
+	ARRAY_2D                                         = 0x1,
+	ARRAY_3D                                         = 0x2,
+	ARRAY_3D_SLICE                                   = 0x3,
+} SurfaceArray;
+typedef enum ColorArray {
+	ARRAY_2D_ALT_COLOR                               = 0x0,
+	ARRAY_2D_COLOR                                   = 0x1,
+	ARRAY_3D_SLICE_COLOR                             = 0x3,
+} ColorArray;
+typedef enum DepthArray {
+	ARRAY_2D_ALT_DEPTH                               = 0x0,
+	ARRAY_2D_DEPTH                                   = 0x1,
+} DepthArray;
+
+#endif /* GFX_7_2_ENUM_H */

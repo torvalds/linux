@@ -1,0 +1,23 @@
+#
+# Loongson Processors' Support
+#
+
+
+cflags-$(CONFIG_CPU_LOONGSON64)	+= -Wa,--trap
+
+ifdef CONFIG_CPU_LOONGSON64
+cflags-$(CONFIG_CC_IS_GCC) += -march=loongson3a
+cflags-$(CONFIG_CC_IS_CLANG) += -march=mips64r2
+endif
+
+# Some -march= flags enable MMI instructions, and GCC complains about that
+# support being enabled alongside -msoft-float. Thus explicitly disable MMI.
+cflags-y += $(call cc-option,-mno-loongson-mmi)
+
+#
+# Loongson Machines' Support
+#
+
+cflags-$(CONFIG_MACH_LOONGSON64) += -I$(srctree)/arch/mips/include/asm/mach-loongson64
+cflags-$(CONFIG_CC_HAS_MNO_BRANCH_LIKELY) += -mno-branch-likely
+load-$(CONFIG_CPU_LOONGSON64) += 0xffffffff80200000

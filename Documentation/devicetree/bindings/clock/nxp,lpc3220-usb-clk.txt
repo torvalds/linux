@@ -1,0 +1,22 @@
+NXP LPC32xx USB Clock Controller
+
+Required properties:
+- compatible: should be "nxp,lpc3220-usb-clk"
+- reg:  should contain clock controller registers location and length
+- #clock-cells: must be 1, the cell holds id of a clock provided by the
+  USB clock controller
+
+Examples:
+
+	usb {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x0 0x31020000 0x00001000>;
+
+		usbclk: clock-controller@f00 {
+			compatible = "nxp,lpc3220-usb-clk";
+			reg = <0xf00 0x100>;
+			#clock-cells = <1>;
+		};
+	};

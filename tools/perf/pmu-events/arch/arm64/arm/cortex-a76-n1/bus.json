@@ -1,0 +1,21 @@
+[
+    {
+        "PublicDescription": "The number of core clock cycles",
+        "ArchStdEvent": "CPU_CYCLES",
+        "BriefDescription": "The number of core clock cycles."
+    },
+    {
+        "PublicDescription": "This event counts for every beat of data transferred over the data channels between the core and the SCU. If both read and write data beats are transferred on a given cycle, this event is counted twice on that cycle. This event counts the sum of BUS_ACCESS_RD and BUS_ACCESS_WR.",
+        "ArchStdEvent": "BUS_ACCESS"
+    },
+    {
+        "PublicDescription": "This event duplicates CPU_CYCLES.",
+        "ArchStdEvent": "BUS_CYCLES"
+    },
+    {
+        "ArchStdEvent":  "BUS_ACCESS_RD"
+    },
+    {
+        "ArchStdEvent":  "BUS_ACCESS_WR"
+    }
+]

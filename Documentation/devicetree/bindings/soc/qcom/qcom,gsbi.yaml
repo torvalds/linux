@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/qcom/qcom,gsbi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm General Serial Bus Interface (GSBI)
+
+maintainers:
+  - Andy Gross <agross@kernel.org>
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+
+description:
+  The GSBI controller is modeled as a node with zero or more child nodes, each
+  representing a serial sub-node device that is mux'd as part of the GSBI
+  configuration settings.  The mode setting will govern the input/output mode
+  of the 4 GSBI IOs.
+
+  A GSBI controller node can contain 0 or more child nodes representing serial
+  devices.  These serial devices can be a QCOM UART, I2C controller, spi
+  controller, or some combination of aforementioned devices.
+
+properties:
+  compatible:
+    const: qcom,gsbi-v1.0.0
+
+  '#address-cells':
+    const: 1
+
+  cell-index:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The GSBI index.
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: iface
+
+  qcom,crci:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      CRCI MUX value for QUP CRCI ports.  Please reference
+      include/dt-bindings/soc/qcom,gsbi.h for valid CRCI mux values.
+
+  qcom,mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      MUX value for configuration of the serial interface.  Please reference
+      include/dt-bindings/soc/qcom,gsbi.h for valid mux values.
+
+  '#size-cells':
+    const: 1
+
+  syscon-tcsr:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle of TCSR syscon node.Required if child uses dma.
+
+  ranges: true
+
+  reg:
+    maxItems: 1
+
+patternProperties:
+  "spi@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/spi/qcom,spi-qup.yaml#
+
+  "i2c@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/i2c/qcom,i2c-qup.yaml#
+
+  "serial@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/serial/qcom,msm-uartdm.yaml#
+
+required:
+  - compatible
+  - cell-index
+  - clocks
+  - clock-names
+  - qcom,mode
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,gcc-msm8960.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/soc/qcom,gsbi.h>
+
+    gsbi@12440000 {
+        compatible = "qcom,gsbi-v1.0.0";
+        reg = <0x12440000 0x100>;
+        cell-index = <1>;
+        clocks = <&gcc GSBI1_H_CLK>;
+        clock-names = "iface";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        syscon-tcsr = <&tcsr>;
+        qcom,mode = <GSBI_PROT_I2C_UART>;
+
+        serial@12450000 {
+            compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
+            reg = <0x12450000 0x100>,
+                  <0x12400000 0x03>;
+            interrupts = <0 193 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&gcc GSBI1_UART_CLK>, <&gcc GSBI1_H_CLK>;
+            clock-names = "core", "iface";
+        };
+
+        i2c@12460000 {
+            compatible = "qcom,i2c-qup-v1.1.1";
+            reg = <0x12460000 0x1000>;
+            pinctrl-0 = <&i2c1_pins>;
+            pinctrl-1 = <&i2c1_pins_sleep>;
+            pinctrl-names = "default", "sleep";
+            interrupts = <0 194 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&gcc GSBI1_QUP_CLK>, <&gcc GSBI1_H_CLK>;
+            clock-names = "core", "iface";
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            status = "disabled"; /* UART chosen */
+        };
+    };

@@ -1,0 +1,39 @@
+MediaTek AUDSYS controller
+============================
+
+The MediaTek AUDSYS controller provides various clocks to the system.
+
+Required Properties:
+
+- compatible: Should be one of:
+	- "mediatek,mt2701-audsys", "syscon"
+	- "mediatek,mt6765-audsys", "syscon"
+	- "mediatek,mt6779-audio", "syscon"
+	- "mediatek,mt7622-audsys", "syscon"
+	- "mediatek,mt7623-audsys", "mediatek,mt2701-audsys", "syscon"
+	- "mediatek,mt8167-audiosys", "syscon"
+	- "mediatek,mt8183-audiosys", "syscon"
+	- "mediatek,mt8192-audsys", "syscon"
+	- "mediatek,mt8516-audsys", "syscon"
+- #clock-cells: Must be 1
+
+The AUDSYS controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Required sub-nodes:
+-------
+For common binding part and usage, refer to
+../sonud/mt2701-afe-pcm.txt.
+
+Example:
+
+	audsys: clock-controller@11220000 {
+		compatible = "mediatek,mt7622-audsys", "syscon";
+		reg = <0 0x11220000 0 0x2000>;
+		#clock-cells = <1>;
+
+		afe: audio-controller {
+			...
+		};
+	};

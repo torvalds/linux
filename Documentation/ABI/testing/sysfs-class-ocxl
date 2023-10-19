@@ -1,0 +1,51 @@
+What:		/sys/class/ocxl/<afu name>/afu_version
+Date:		January 2018
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read only
+		Version of the AFU, in the format <major>:<minor>
+		Reflects what is read in the configuration space of the AFU
+
+What:		/sys/class/ocxl/<afu name>/contexts
+Date:		January 2018
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read only
+		Number of contexts for the AFU, in the format <n>/<max>
+		where:
+
+			====	===============================================
+			n	number of currently active contexts, for debug
+			max	maximum number of contexts supported by the AFU
+			====	===============================================
+
+What:		/sys/class/ocxl/<afu name>/pp_mmio_size
+Date:		January 2018
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read only
+		Size of the per-process mmio area, as defined in the
+		configuration space of the AFU
+
+What:		/sys/class/ocxl/<afu name>/global_mmio_size
+Date:		January 2018
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read only
+		Size of the global mmio area, as defined in the
+		configuration space of the AFU
+
+What:		/sys/class/ocxl/<afu name>/global_mmio_area
+Date:		January 2018
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read/write
+		Give access the global mmio area for the AFU
+
+What:		/sys/class/ocxl/<afu name>/reload_on_reset
+Date:		February 2020
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read/write
+		Control whether the FPGA is reloaded on a link reset. Enabled
+		through a vendor-specific logic block on the FPGA.
+
+			===========  ===========================================
+			0	     Do not reload FPGA image from flash
+			1	     Reload FPGA image from flash
+			unavailable  The device does not support this capability
+			===========  ===========================================

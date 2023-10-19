@@ -1,0 +1,26 @@
+Binding for an external clock signal driven by a PWM pin.
+
+This binding uses the common clock binding[1] and the common PWM binding[2].
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+[2] Documentation/devicetree/bindings/pwm/pwm.txt
+
+Required properties:
+- compatible : shall be "pwm-clock".
+- #clock-cells : from common clock binding; shall be set to 0.
+- pwms : from common PWM binding; this determines the clock frequency
+  via the period given in the PWM specifier.
+
+Optional properties:
+- clock-output-names : From common clock binding.
+- clock-frequency : Exact output frequency, in case the PWM period
+  is not exact but was rounded to nanoseconds.
+
+Example:
+	clock {
+		compatible = "pwm-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+		clock-output-names = "mipi_mclk";
+		pwms = <&pwm2 0 40>; /* 1 / 40 ns = 25 MHz */
+	};

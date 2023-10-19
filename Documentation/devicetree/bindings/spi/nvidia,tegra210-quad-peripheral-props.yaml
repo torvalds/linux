@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/nvidia,tegra210-quad-peripheral-props.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Peripheral properties for Tegra Quad SPI Controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jonathan Hunter <jonathanh@nvidia.com>
+
+properties:
+  nvidia,tx-clk-tap-delay:
+    description:
+      Delays the clock going out to device with this tap value.
+      Tap value varies based on platform design trace lengths from Tegra
+      QSPI to corresponding slave device.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 31
+
+  nvidia,rx-clk-tap-delay:
+    description:
+      Delays the clock coming in from the device with this tap value.
+      Tap value varies based on platform design trace lengths from Tegra
+      QSPI to corresponding slave device.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 255
+
+additionalProperties: true

@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2015 Ash Charles, Gumstix, Inc.
+ */
+
+/*
+ * TobiDuo expansion board is manufactured by Gumstix Inc.
+ */
+
+#include "omap3-overo-common-peripherals.dtsi"
+
+#include "omap-gpmc-smsc9221.dtsi"
+
+&gpmc {
+	smsc1: ethernet@gpmc {
+		reg = <5 0 0xff>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <16 IRQ_TYPE_LEVEL_LOW>;	/* GPIO 176 */
+	};
+
+	smsc2: ethernet@4,0 {
+		compatible = "smsc,lan9221","smsc,lan9115";
+		bank-width = <2>;
+
+		gpmc,mux-add-data = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <42>;
+		gpmc,cs-wr-off-ns = <36>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <12>;
+		gpmc,adv-wr-off-ns = <12>;
+		gpmc,oe-on-ns = <0>;
+		gpmc,oe-off-ns = <42>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <36>;
+		gpmc,rd-cycle-ns = <60>;
+		gpmc,wr-cycle-ns = <54>;
+		gpmc,access-ns = <36>;
+		gpmc,page-burst-access-ns = <0>;
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,wr-data-mux-bus-ns = <18>;
+		gpmc,wr-access-ns = <42>;
+		gpmc,cycle2cycle-samecsen;
+		gpmc,cycle2cycle-diffcsen;
+		vddvario-supply = <&vddvario>;
+		vdd33a-supply = <&vdd33a>;
+		reg-io-width = <4>;
+		smsc,save-mac-address;
+
+		reg = <4 0 0xff>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;	/* GPIO 65 */
+	};
+};
+
+&lis33de {
+	status = "disabled";
+};

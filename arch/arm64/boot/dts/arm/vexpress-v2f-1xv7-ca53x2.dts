@@ -1,0 +1,150 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * ARM Ltd. Versatile Express
+ *
+ * LogicTile Express 20MG
+ * V2F-1XV7
+ *
+ * Cortex-A53 (2 cores) Soft Macrocell Model
+ *
+ * HBI-0247C
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "vexpress-v2m-rs1.dtsi"
+
+/ {
+	model = "V2F-1XV7 Cortex-A53x2 SMM";
+	arm,hbi = <0x247>;
+	arm,vexpress,site = <0xf>;
+	compatible = "arm,vexpress,v2f-1xv7,ca53x2", "arm,vexpress,v2f-1xv7", "arm,vexpress";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	chosen {
+		stdout-path = "serial0:38400n8";
+	};
+
+	aliases {
+		serial0 = &v2m_serial0;
+		serial1 = &v2m_serial1;
+		serial2 = &v2m_serial2;
+		serial3 = &v2m_serial3;
+		i2c0 = &v2m_i2c_dvi;
+		i2c1 = &v2m_i2c_pcie;
+	};
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0 0>;
+			next-level-cache = <&L2_0>;
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0 1>;
+			next-level-cache = <&L2_0>;
+		};
+
+		L2_0: l2-cache0 {
+			compatible = "cache";
+		};
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0 0x80000000 0 0x80000000>; /* 2GB @ 2GB */
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* Chipselect 2 is physically at 0x18000000 */
+		vram: vram@18000000 {
+			/* 8 MB of designated video RAM */
+			compatible = "shared-dma-pool";
+			reg = <0 0x18000000 0 0x00800000>;
+			no-map;
+		};
+	};
+
+	gic: interrupt-controller@2c001000 {
+		compatible = "arm,gic-400";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		reg = <0 0x2c001000 0 0x1000>,
+		      <0 0x2c002000 0 0x2000>,
+		      <0 0x2c004000 0 0x2000>,
+		      <0 0x2c006000 0 0x2000>;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	dcc {
+		compatible = "arm,vexpress,config-bus";
+		arm,vexpress,config-bridge = <&v2m_sysreg>;
+
+		smbclk: smclk {
+			/* SMC clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 4>;
+			freq-range = <40000000 40000000>;
+			#clock-cells = <0>;
+			clock-output-names = "smclk";
+		};
+
+		volt-vio {
+			/* VIO to expansion board above */
+			compatible = "arm,vexpress-volt";
+			arm,vexpress-sysreg,func = <2 0>;
+			regulator-name = "VIO_UP";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+		};
+
+		volt-12v {
+			/* 12V from power connector J6 */
+			compatible = "arm,vexpress-volt";
+			arm,vexpress-sysreg,func = <2 1>;
+			regulator-name = "12";
+			regulator-always-on;
+		};
+
+		temp-fpga {
+			/* FPGA temperature */
+			compatible = "arm,vexpress-temp";
+			arm,vexpress-sysreg,func = <4 0>;
+			label = "FPGA";
+		};
+	};
+
+	smb: bus@8000000 {
+		ranges = <0x8000000 0 0x8000000 0x18000000>;
+	};
+};

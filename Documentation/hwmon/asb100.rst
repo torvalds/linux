@@ -1,0 +1,73 @@
+Kernel driver asb100
+====================
+
+Supported Chips:
+
+  * Asus ASB100 and ASB100-A "Bach"
+
+    Prefix: 'asb100'
+
+    Addresses scanned: I2C 0x2d
+
+    Datasheet: none released
+
+Author: Mark M. Hoffman <mhoffman@lightlink.com>
+
+Description
+-----------
+
+This driver implements support for the Asus ASB100 and ASB100-A "Bach".
+These are custom ASICs available only on Asus mainboards. Asus refuses to
+supply a datasheet for these chips. Thanks go to many people who helped
+investigate their hardware, including:
+
+Vitaly V. Bursov
+Alexander van Kaam (author of MBM for Windows)
+Bertrik Sikken
+
+The ASB100 implements seven voltage sensors, three fan rotation speed
+sensors, four temperature sensors, VID lines and alarms. In addition to
+these, the ASB100-A also implements a single PWM controller for fans 2 and
+3 (i.e. one setting controls both.) If you have a plain ASB100, the PWM
+controller will simply not work (or maybe it will for you... it doesn't for
+me).
+
+Temperatures are measured and reported in degrees Celsius.
+
+Fan speeds are reported in RPM (rotations per minute). An alarm is
+triggered if the rotation speed has dropped below a programmable limit.
+
+Voltage sensors (also known as IN sensors) report values in volts.
+
+The VID lines encode the core voltage value: the voltage level your
+processor should work with. This is hardcoded by the mainboard and/or
+processor itself. It is a value in volts.
+
+Alarms: (TODO question marks indicate may or may not work)
+
+- 0x0001 => in0 (?)
+- 0x0002 => in1 (?)
+- 0x0004 => in2
+- 0x0008 => in3
+- 0x0010 => temp1 [1]_
+- 0x0020 => temp2
+- 0x0040 => fan1
+- 0x0080 => fan2
+- 0x0100 => in4
+- 0x0200 => in5 (?) [2]_
+- 0x0400 => in6 (?) [2]_
+- 0x0800 => fan3
+- 0x1000 => chassis switch
+- 0x2000 => temp3
+
+.. [1]	This alarm will only trigger if the hysteresis value is 127C.
+	I.e. it behaves the same as w83781d.
+
+.. [2]	The min and max registers for these values appear to
+	be read-only or otherwise stuck at 0x00.
+
+TODO:
+  * Experiment with fan divisors > 8.
+  * Experiment with temp. sensor types.
+  * Are there really 13 voltage inputs? Probably not...
+  * Cleanups, no doubt...

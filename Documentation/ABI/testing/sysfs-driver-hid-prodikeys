@@ -1,0 +1,29 @@
+What:		/sys/bus/hid/drivers/prodikeys/.../channel
+Date:		April 2010
+KernelVersion:	2.6.34
+Contact:	Don Prince <dhprince.devel@yahoo.co.uk>
+Description:
+		Allows control (via software) the midi channel to which
+		that the pc-midi keyboard will output.midi data.
+		Range: 0..15
+		Type:  Read/write
+What:		/sys/bus/hid/drivers/prodikeys/.../sustain
+Date:		April 2010
+KernelVersion:	2.6.34
+Contact:	Don Prince <dhprince.devel@yahoo.co.uk>
+Description:
+		Allows control (via software) the sustain duration of a
+		note held by the pc-midi driver.
+		0 means sustain mode is disabled.
+		Range: 0..5000 (milliseconds)
+		Type:  Read/write
+What:		/sys/bus/hid/drivers/prodikeys/.../octave
+Date:		April 2010
+KernelVersion:	2.6.34
+Contact:	Don Prince <dhprince.devel@yahoo.co.uk>
+Description:
+		Controls the octave shift modifier in the pc-midi driver.
+		The octave can be shifted via software up/down 2 octaves.
+		0 means the no ocatve shift.
+		Range: -2..2 (minus 2 to plus 2)
+		Type: Read/Write

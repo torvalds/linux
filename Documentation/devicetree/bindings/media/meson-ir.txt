@@ -1,0 +1,20 @@
+* Amlogic Meson IR remote control receiver
+
+Required properties:
+ - compatible	: depending on the platform this should be one of:
+		  - "amlogic,meson6-ir"
+		  - "amlogic,meson8b-ir"
+		  - "amlogic,meson-gxbb-ir"
+ - reg		: physical base address and length of the device registers
+ - interrupts	: a single specifier for the interrupt from the device
+
+Optional properties:
+ - linux,rc-map-name:	see rc.txt file in the same directory.
+
+Example:
+
+	ir-receiver@c8100480 {
+		compatible= "amlogic,meson6-ir";
+		reg = <0xc8100480 0x20>;
+		interrupts = <0 15 1>;
+	};

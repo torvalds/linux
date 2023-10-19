@@ -1,0 +1,213 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/microchip/atmel,at91rm9200-tcb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atmel Timer Counter Block
+
+maintainers:
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+
+description: |
+  The Atmel (now Microchip) SoCs have timers named Timer Counter Block. Each
+  timer has three channels with two counters each.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - atmel,at91rm9200-tcb
+          - atmel,at91sam9x5-tcb
+          - atmel,sama5d2-tcb
+      - const: simple-mfd
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description:
+      List of interrupts. One interrupt per TCB channel if available or one
+      interrupt for the TC block
+    minItems: 1
+    maxItems: 3
+
+  clock-names:
+    description:
+      List of clock names. Always includes t0_clk and slow clk. Also includes
+      t1_clk and t2_clk if a clock per channel is available.
+    minItems: 2
+    maxItems: 4
+
+  clocks:
+    minItems: 2
+    maxItems: 4
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+patternProperties:
+  "^timer@[0-2]$":
+    description: The timer block channels that are used as timers or counters.
+    type: object
+    properties:
+      compatible:
+        items:
+          - enum:
+              - atmel,tcb-timer
+              - atmel,tcb-pwm
+              - microchip,tcb-capture
+      reg:
+        description:
+          List of channels to use for this particular timer. In Microchip TCB capture
+          mode channels are registered as a counter devices, for the qdec mode TCB0's
+          channel <0> and <1> are required.
+
+        minItems: 1
+        maxItems: 3
+    required:
+      - compatible
+      - reg
+
+  "^pwm@[0-2]$":
+    description: The timer block channels that are used as PWMs.
+    $ref: /schemas/pwm/pwm.yaml#
+    type: object
+    properties:
+      compatible:
+        const: atmel,tcb-pwm
+      reg:
+        description:
+          TCB channel to use for this PWM.
+        enum: [ 0, 1, 2 ]
+
+      "#pwm-cells":
+        description:
+          The only third cell flag supported by this binding is
+          PWM_POLARITY_INVERTED.
+        const: 3
+
+    required:
+      - compatible
+      - reg
+      - "#pwm-cells"
+
+    additionalProperties: false
+
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: atmel,sama5d2-tcb
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 3
+        clock-names:
+          items:
+            - const: t0_clk
+            - const: gclk
+            - const: slow_clk
+    else:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 4
+        clock-names:
+          oneOf:
+            - items:
+                - const: t0_clk
+                - const: slow_clk
+            - items:
+                - const: t0_clk
+                - const: t1_clk
+                - const: t2_clk
+                - const: slow_clk
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - '#address-cells'
+  - '#size-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    /* One interrupt per TC block: */
+        tcb0: timer@fff7c000 {
+                compatible = "atmel,at91rm9200-tcb", "simple-mfd", "syscon";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <0xfff7c000 0x100>;
+                interrupts = <18 4>;
+                clocks = <&tcb0_clk>, <&clk32k>;
+                clock-names = "t0_clk", "slow_clk";
+
+                timer@0 {
+                        compatible = "atmel,tcb-timer";
+                        reg = <0>, <1>;
+                };
+
+                timer@2 {
+                        compatible = "atmel,tcb-timer";
+                        reg = <2>;
+                };
+        };
+
+    /* One interrupt per TC channel in a TC block: */
+        tcb1: timer@fffdc000 {
+                compatible = "atmel,at91rm9200-tcb", "simple-mfd", "syscon";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <0xfffdc000 0x100>;
+                interrupts = <26 4>, <27 4>, <28 4>;
+                clocks = <&tcb1_clk>, <&clk32k>;
+                clock-names = "t0_clk", "slow_clk";
+
+                timer@0 {
+                        compatible = "atmel,tcb-timer";
+                        reg = <0>;
+                };
+
+                timer@1 {
+                        compatible = "atmel,tcb-timer";
+                        reg = <1>;
+                };
+
+                pwm@2 {
+                        compatible = "atmel,tcb-pwm";
+                        reg = <2>;
+                        #pwm-cells = <3>;
+                };
+         };
+    /* TCB0 Capture with QDEC: */
+        timer@f800c000 {
+                compatible = "atmel,at91rm9200-tcb", "simple-mfd", "syscon";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <0xfff7c000 0x100>;
+                interrupts = <18 4>;
+                clocks = <&tcb0_clk>, <&clk32k>;
+                clock-names = "t0_clk", "slow_clk";
+
+                timer@0 {
+                        compatible = "microchip,tcb-capture";
+                        reg = <0>, <1>;
+                };
+
+                timer@2 {
+                        compatible = "atmel,tcb-timer";
+                        reg = <2>;
+                };
+        };

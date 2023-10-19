@@ -1,0 +1,14 @@
+What:		/sys/kernel/vmcoreinfo
+Date:		October 2007
+KernelVersion:	2.6.24
+Contact:	Ken'ichi Ohmichi <oomichi@mxs.nes.nec.co.jp>
+		Kexec Mailing List <kexec@lists.infradead.org>
+		Vivek Goyal <vgoyal@redhat.com>
+Description:
+		Shows physical address and size of vmcoreinfo ELF note.
+		First value contains physical address of note in hex and
+		second value contains the size of note in hex. This ELF
+		note info is parsed by second kernel and exported to user
+		space as part of ELF note in /proc/vmcore file. This note
+		contains various information like struct size, symbol
+		values, page size etc.

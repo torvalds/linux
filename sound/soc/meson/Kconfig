@@ -1,0 +1,137 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "ASoC support for Amlogic platforms"
+	depends on ARCH_MESON || (COMPILE_TEST && COMMON_CLK)
+
+config SND_MESON_AIU
+	tristate "Amlogic AIU"
+	select SND_MESON_CODEC_GLUE
+	select SND_PCM_IEC958
+	imply SND_SOC_MESON_T9015
+	imply SND_SOC_HDMI_CODEC if DRM_MESON_DW_HDMI
+	help
+	  Select Y or M to add support for the Audio output subsystem found
+	  in the Amlogic Meson8, Meson8b and GX SoC families
+
+config SND_MESON_AXG_FIFO
+	tristate
+	select REGMAP_MMIO
+	imply COMMON_CLK_AXG_AUDIO
+	imply RESET_MESON_AUDIO_ARB
+
+config SND_MESON_AXG_FRDDR
+	tristate "Amlogic AXG Playback FIFO support"
+	select SND_MESON_AXG_FIFO
+	help
+	  Select Y or M to add support for the frontend playback interfaces
+	  embedded in the Amlogic AXG SoC family
+
+config SND_MESON_AXG_TODDR
+	tristate "Amlogic AXG Capture FIFO support"
+	select SND_MESON_AXG_FIFO
+	help
+	  Select Y or M to add support for the frontend capture interfaces
+	  embedded in the Amlogic AXG SoC family
+
+config SND_MESON_AXG_TDM_FORMATTER
+	tristate
+	select REGMAP_MMIO
+	imply COMMON_CLK_AXG_AUDIO
+
+config SND_MESON_AXG_TDM_INTERFACE
+	tristate
+	select SND_MESON_AXG_TDM_FORMATTER
+
+config SND_MESON_AXG_TDMIN
+	tristate "Amlogic AXG TDM Input Support"
+	select SND_MESON_AXG_TDM_FORMATTER
+	select SND_MESON_AXG_TDM_INTERFACE
+	help
+	  Select Y or M to add support for TDM input formatter embedded
+	  in the Amlogic AXG SoC family
+
+config SND_MESON_AXG_TDMOUT
+	tristate "Amlogic AXG TDM Output Support"
+	select SND_MESON_AXG_TDM_FORMATTER
+	select SND_MESON_AXG_TDM_INTERFACE
+	help
+	  Select Y or M to add support for TDM output formatter embedded
+	  in the Amlogic AXG SoC family
+
+config SND_MESON_AXG_SOUND_CARD
+	tristate "Amlogic AXG Sound Card Support"
+	select SND_MESON_AXG_TDM_INTERFACE
+	select SND_MESON_CARD_UTILS
+	imply SND_MESON_AXG_FRDDR
+	imply SND_MESON_AXG_TODDR
+	imply SND_MESON_AXG_TDMIN
+	imply SND_MESON_AXG_TDMOUT
+	imply SND_MESON_AXG_SPDIFOUT
+	imply SND_MESON_AXG_SPDIFIN
+	imply SND_MESON_AXG_PDM
+	imply SND_MESON_G12A_TOACODEC
+	imply SND_MESON_G12A_TOHDMITX if DRM_MESON_DW_HDMI
+	help
+	  Select Y or M to add support for the AXG SoC sound card
+
+config SND_MESON_AXG_SPDIFOUT
+	tristate "Amlogic AXG SPDIF Output Support"
+	select SND_PCM_IEC958
+	imply SND_SOC_SPDIF
+	imply COMMON_CLK_AXG_AUDIO
+	help
+	  Select Y or M to add support for SPDIF output serializer embedded
+	  in the Amlogic AXG SoC family
+
+config SND_MESON_AXG_SPDIFIN
+	tristate "Amlogic AXG SPDIF Input Support"
+	imply SND_SOC_SPDIF
+	help
+	  Select Y or M to add support for SPDIF input embedded
+	  in the Amlogic AXG SoC family
+
+config SND_MESON_AXG_PDM
+	tristate "Amlogic AXG PDM Input Support"
+	imply SND_SOC_DMIC
+	imply COMMON_CLK_AXG_AUDIO
+	help
+	  Select Y or M to add support for PDM input embedded
+	  in the Amlogic AXG SoC family
+
+config SND_MESON_CARD_UTILS
+	tristate
+
+config SND_MESON_CODEC_GLUE
+	tristate
+
+config SND_MESON_GX_SOUND_CARD
+	tristate "Amlogic GX Sound Card Support"
+	select SND_MESON_CARD_UTILS
+	imply SND_MESON_AIU
+	help
+	  Select Y or M to add support for the GXBB/GXL SoC sound card
+
+config SND_MESON_G12A_TOACODEC
+	tristate "Amlogic G12A To Internal DAC Control Support"
+	select SND_MESON_CODEC_GLUE
+	select REGMAP_MMIO
+	imply SND_SOC_MESON_T9015
+	help
+	  Select Y or M to add support for the internal audio DAC on the
+	  g12a SoC family
+
+config SND_MESON_G12A_TOHDMITX
+	tristate "Amlogic G12A To HDMI TX Control Support"
+	select REGMAP_MMIO
+	select SND_MESON_CODEC_GLUE
+	imply SND_SOC_HDMI_CODEC
+	help
+	  Select Y or M to add support for HDMI audio on the g12a SoC
+	  family
+
+config SND_SOC_MESON_T9015
+	tristate "Amlogic T9015 DAC"
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for the internal DAC found
+	  on GXL, G12 and SM1 SoC family.
+endmenu

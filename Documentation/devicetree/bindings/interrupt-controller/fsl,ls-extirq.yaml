@@ -1,0 +1,118 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/fsl,ls-extirq.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Layerscape External Interrupt Controller
+
+maintainers:
+  - Shawn Guo <shawnguo@kernel.org>
+  - Li Yang <leoyang.li@nxp.com>
+
+description: |
+  Some Layerscape SOCs (LS1021A, LS1043A, LS1046A LS1088A, LS208xA,
+  LX216xA) support inverting the polarity of certain external interrupt
+  lines.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,ls1021a-extirq
+          - fsl,ls1043a-extirq
+          - fsl,ls1088a-extirq
+      - items:
+          - enum:
+              - fsl,ls1046a-extirq
+          - const: fsl,ls1043a-extirq
+      - items:
+          - enum:
+              - fsl,ls2080a-extirq
+              - fsl,lx2160a-extirq
+          - const: fsl,ls1088a-extirq
+
+  '#interrupt-cells':
+    const: 2
+
+  '#address-cells':
+    const: 0
+
+  interrupt-controller: true
+
+  reg:
+    maxItems: 1
+    description:
+      Specifies the Interrupt Polarity Control Register (INTPCR) in the
+      SCFG or the External Interrupt Control Register (IRQCR) in the ISC.
+
+  interrupt-map:
+    description: Specifies the mapping from external interrupts to GIC interrupts.
+
+  interrupt-map-mask: true
+
+required:
+  - compatible
+  - '#interrupt-cells'
+  - '#address-cells'
+  - interrupt-controller
+  - reg
+  - interrupt-map
+  - interrupt-map-mask
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,ls1021a-extirq
+    then:
+      properties:
+        interrupt-map:
+          minItems: 6
+          maxItems: 6
+        interrupt-map-mask:
+          items:
+            - const: 0x7
+            - const: 0
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,ls1043a-extirq
+              - fsl,ls1046a-extirq
+              - fsl,ls1088a-extirq
+              - fsl,ls2080a-extirq
+              - fsl,lx2160a-extirq
+    then:
+      properties:
+        interrupt-map:
+          minItems: 12
+          maxItems: 12
+        interrupt-map-mask:
+          items:
+            - const: 0xf
+            - const: 0
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    interrupt-controller@1ac {
+            compatible = "fsl,ls1021a-extirq";
+            #interrupt-cells = <2>;
+            #address-cells = <0>;
+            interrupt-controller;
+            reg = <0x1ac 4>;
+            interrupt-map =
+                    <0 0 &gic GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+                    <1 0 &gic GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
+                    <2 0 &gic GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>,
+                    <3 0 &gic GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>,
+                    <4 0 &gic GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
+                    <5 0 &gic GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-map-mask = <0x7 0x0>;
+    };

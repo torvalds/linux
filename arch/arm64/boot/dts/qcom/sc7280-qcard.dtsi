@@ -1,0 +1,686 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * sc7280 Qcard device tree source
+ *
+ * Qcard PCB has the processor, RAM, eMMC (if stuffed), and eDP connector (if
+ * stuffed) on it. This device tree tries to encapsulate all the things that
+ * all boards using Qcard will have in common. Given that there are stuffing
+ * options, some things may be left with status "disabled" and enabled in
+ * the actual board device tree files.
+ *
+ * Copyright 2022 Google LLC.
+ */
+
+#include <dt-bindings/iio/qcom,spmi-adc7-pmk8350.h>
+#include <dt-bindings/iio/qcom,spmi-adc7-pmr735a.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+#include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+
+#include "sc7280.dtsi"
+
+/* PMICs depend on spmi_bus label and so must come after SoC */
+#include "pm7325.dtsi"
+#include "pm8350c.dtsi"
+#include "pmk8350.dtsi"
+
+/ {
+	aliases {
+		bluetooth0 = &bluetooth;
+		serial0 = &uart5;
+		serial1 = &uart7;
+		wifi0 = &wifi;
+	};
+
+	wcd9385: audio-codec-1 {
+		compatible = "qcom,wcd9385-codec";
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&wcd_reset_n>, <&us_euro_hs_sel>;
+		pinctrl-1 = <&wcd_reset_n_sleep>, <&us_euro_hs_sel>;
+
+		reset-gpios = <&tlmm 83 GPIO_ACTIVE_LOW>;
+		us-euro-gpios = <&tlmm 81 GPIO_ACTIVE_HIGH>;
+
+		qcom,rx-device = <&wcd_rx>;
+		qcom,tx-device = <&wcd_tx>;
+
+		vdd-rxtx-supply = <&vreg_l18b_1p8>;
+		vdd-io-supply = <&vreg_l18b_1p8>;
+		vdd-buck-supply = <&vreg_l17b_1p8>;
+		vdd-mic-bias-supply = <&vreg_bob>;
+
+		qcom,micbias1-microvolt = <1800000>;
+		qcom,micbias2-microvolt = <1800000>;
+		qcom,micbias3-microvolt = <1800000>;
+		qcom,micbias4-microvolt = <1800000>;
+
+		qcom,mbhc-buttons-vthreshold-microvolt = <75000 150000 237000 500000 500000
+							  500000 500000 500000>;
+		qcom,mbhc-headset-vthreshold-microvolt = <1700000>;
+		qcom,mbhc-headphone-vthreshold-microvolt = <50000>;
+		#sound-dai-cells = <1>;
+
+		status = "disabled";
+	};
+
+	pm8350c_pwm_backlight: backlight {
+		compatible = "pwm-backlight";
+		status = "disabled";
+
+		enable-gpios = <&pm8350c_gpios 7 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_edp_bl_en>;
+		pwms = <&pm8350c_pwm 3 65535>;
+	};
+};
+
+&apps_rsc {
+	/*
+	 * Regulators are given labels corresponding to the various names
+	 * they are referred to on schematics. They are also given labels
+	 * corresponding to named voltage inputs on the SoC or components
+	 * bundled with the SoC (like radio companion chips). We totally
+	 * ignore it when one regulator is the input to another regulator.
+	 * That's handled automatically by the initial config given to
+	 * RPMH by the firmware.
+	 *
+	 * Regulators that the HLOS (High Level OS) doesn't touch at all
+	 * are left out of here since they are managed elsewhere.
+	 */
+
+	pm7325-regulators {
+		compatible = "qcom,pm7325-rpmh-regulators";
+		qcom,pmic-id = "b";
+
+		vdd19_pmu_pcie_i:
+		vdd19_pmu_rfa_i:
+		vreg_s1b_1p856: smps1 {
+			regulator-min-microvolt = <1856000>;
+			regulator-max-microvolt = <2040000>;
+		};
+
+		vdd_pmu_aon_i:
+		vdd09_pmu_rfa_i:
+		vdd095_mx_pmu:
+		vdd095_pmu:
+		vreg_s7b_0p952: smps7 {
+			regulator-min-microvolt = <535000>;
+			regulator-max-microvolt = <1120000>;
+		};
+
+		vdd13_pmu_rfa_i:
+		vdd13_pmu_pcie_i:
+		vreg_s8b_1p256: smps8 {
+			regulator-min-microvolt = <1256000>;
+			regulator-max-microvolt = <1500000>;
+		};
+
+		vdd_a_usbssdp_0_core:
+		vreg_l1b_0p912: ldo1 {
+			regulator-min-microvolt = <825000>;
+			regulator-max-microvolt = <925000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vdd_a_usbhs_3p1:
+		vreg_l2b_3p072: ldo2 {
+			regulator-min-microvolt = <2700000>;
+			regulator-max-microvolt = <3544000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vdd_a_csi_0_1_1p2:
+		vdd_a_csi_2_3_1p2:
+		vdd_a_csi_4_1p2:
+		vdd_a_dsi_0_1p2:
+		vdd_a_edp_0_1p2:
+		vdd_a_qlink_0_1p2:
+		vdd_a_qlink_1_1p2:
+		vdd_a_pcie_0_1p2:
+		vdd_a_pcie_1_1p2:
+		vdd_a_ufs_0_1p2:
+		vdd_a_usbssdp_0_1p2:
+		vreg_l6b_1p2: ldo6 {
+			regulator-min-microvolt = <1140000>;
+			regulator-max-microvolt = <1260000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		/*
+		 * Despite the fact that this is named to be 2.5V on the
+		 * schematic, it powers eMMC which doesn't accept 2.5V
+		 */
+		vreg_l7b_2p5: ldo7 {
+			regulator-min-microvolt = <2960000>;
+			regulator-max-microvolt = <2960000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l17b_1p8: ldo17 {
+			regulator-min-microvolt = <1700000>;
+			regulator-max-microvolt = <1900000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vdd_px_wcd9385:
+		vdd_txrx:
+		vddpx_0:
+		vddpx_3:
+		vddpx_7:
+		vreg_l18b_1p8: ldo18 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2000000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vdd_1p8:
+		vdd_px_sdr735:
+		vdd_pxm:
+		vdd18_io:
+		vddio_px_1:
+		vddio_px_2:
+		vddio_px_3:
+		vddpx_ts:
+		vddpx_wl4otp:
+		vreg_l19b_1p8: ldo19 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+	};
+
+	pm8350c-regulators {
+		compatible = "qcom,pm8350c-rpmh-regulators";
+		qcom,pmic-id = "c";
+
+		vdd22_wlbtpa_ch0:
+		vdd22_wlbtpa_ch1:
+		vdd22_wlbtppa_ch0:
+		vdd22_wlbtppa_ch1:
+		vdd22_wlpa5g_ch0:
+		vdd22_wlpa5g_ch1:
+		vdd22_wlppa5g_ch0:
+		vdd22_wlppa5g_ch1:
+		vreg_s1c_2p2: smps1 {
+			regulator-min-microvolt = <2190000>;
+			regulator-max-microvolt = <2210000>;
+		};
+
+		lp4_vdd2_1p052:
+		vreg_s9c_0p676: smps9 {
+			regulator-min-microvolt = <1010000>;
+			regulator-max-microvolt = <1170000>;
+		};
+
+		vdda_apc_cs_1p8:
+		vdda_gfx_cs_1p8:
+		vdda_turing_q6_cs_1p8:
+		vdd_a_cxo_1p8:
+		vdd_a_qrefs_1p8:
+		vdd_a_usbhs_1p8:
+		vdd_qfprom:
+		vreg_l1c_1p8: ldo1 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1980000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l2c_1p8: ldo2 {
+			regulator-min-microvolt = <1620000>;
+			regulator-max-microvolt = <1980000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l3c_3p0: ldo3 {
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <3540000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vddpx_5:
+		vreg_l4c_1p8_3p0: ldo4 {
+			regulator-min-microvolt = <1620000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vddpx_6:
+		vreg_l5c_1p8_3p0: ldo5 {
+			regulator-min-microvolt = <1620000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vddpx_2:
+		vreg_l6c_2p96: ldo6 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2950000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l7c_3p0: ldo7 {
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3544000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l8c_1p8: ldo8 {
+			regulator-min-microvolt = <1620000>;
+			regulator-max-microvolt = <2000000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l9c_2p96: ldo9 {
+			regulator-min-microvolt = <2960000>;
+			regulator-max-microvolt = <2960000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vdd_a_csi_0_1_0p9:
+		vdd_a_csi_2_3_0p9:
+		vdd_a_csi_4_0p9:
+		vdd_a_dsi_0_0p9:
+		vdd_a_dsi_0_pll_0p9:
+		vdd_a_edp_0_0p9:
+		vdd_a_gnss_0p9:
+		vdd_a_pcie_0_core:
+		vdd_a_pcie_1_core:
+		vdd_a_qlink_0_0p9:
+		vdd_a_qlink_0_0p9_ck:
+		vdd_a_qlink_1_0p9:
+		vdd_a_qlink_1_0p9_ck:
+		vdd_a_qrefs_0p875_0:
+		vdd_a_qrefs_0p875_1:
+		vdd_a_qrefs_0p875_2:
+		vdd_a_qrefs_0p875_3:
+		vdd_a_qrefs_0p875_4_5:
+		vdd_a_qrefs_0p875_6:
+		vdd_a_qrefs_0p875_7:
+		vdd_a_qrefs_0p875_8:
+		vdd_a_qrefs_0p875_9:
+		vdd_a_ufs_0_core:
+		vdd_a_usbhs_core:
+		vreg_l10c_0p88: ldo10 {
+			regulator-min-microvolt = <720000>;
+			regulator-max-microvolt = <1050000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l11c_2p8: ldo11 {
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <3544000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l12c_1p8: ldo12 {
+			regulator-min-microvolt = <1650000>;
+			regulator-max-microvolt = <2000000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l13c_3p0: ldo13 {
+			regulator-min-microvolt = <2700000>;
+			regulator-max-microvolt = <3544000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vdd_flash:
+		vdd_iris_rgb:
+		vdd_mic_bias:
+		vreg_bob: bob {
+			regulator-min-microvolt = <3008000>;
+			regulator-max-microvolt = <3960000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_AUTO>;
+		};
+	};
+};
+
+/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+
+&ipa {
+	status = "okay";
+	modem-init;
+};
+
+&lpass_va_macro {
+	vdd-micb-supply = <&vreg_bob>;
+};
+
+/* NOTE: Not all Qcards have eDP connector stuffed */
+&mdss_edp {
+	aux-bus {
+		edp_panel: panel {
+			compatible = "edp-panel";
+
+			backlight = <&pm8350c_pwm_backlight>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					edp_panel_in: endpoint {
+						remote-endpoint = <&mdss_edp_out>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&mdss_edp_out {
+	remote-endpoint = <&edp_panel_in>;
+};
+
+&mdss_edp_phy {
+	vdda-pll-supply = <&vdd_a_edp_0_0p9>;
+	vdda-phy-supply = <&vdd_a_edp_0_1p2>;
+};
+
+&pcie1_phy {
+	vdda-phy-supply = <&vreg_l10c_0p88>;
+	vdda-pll-supply = <&vreg_l6b_1p2>;
+};
+
+&pm8350c_pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmic_edp_bl_pwm>;
+};
+
+&pmk8350_vadc {
+	pmk8350-die-temp@3 {
+		reg = <PMK8350_ADC7_DIE_TEMP>;
+		label = "pmk8350_die_temp";
+		qcom,pre-scaling = <1 1>;
+	};
+
+	pmr735a-die-temp@403 {
+		reg = <PMR735A_ADC7_DIE_TEMP>;
+		label = "pmr735a_die_temp";
+		qcom,pre-scaling = <1 1>;
+	};
+};
+
+&qfprom {
+	vcc-supply = <&vdd_qfprom>;
+};
+
+/* For eMMC. NOTE: not all Qcards have eMMC stuffed */
+&sdhc_1 {
+	vmmc-supply = <&vreg_l7b_2p5>;
+	vqmmc-supply = <&vreg_l19b_1p8>;
+
+	non-removable;
+	no-sd;
+	no-sdio;
+};
+
+&swr0 {
+	wcd_rx: codec@0,4 {
+		compatible = "sdw20217010d00";
+		reg = <0 4>;
+		#sound-dai-cells = <1>;
+		qcom,rx-port-mapping = <1 2 3 4 5>;
+	};
+};
+
+&swr1 {
+	wcd_tx: codec@0,3 {
+		compatible = "sdw20217010d00";
+		reg = <0 3>;
+		#sound-dai-cells = <1>;
+		qcom,tx-port-mapping = <1 2 3 4>;
+	};
+};
+
+uart_dbg: &uart5 {
+	compatible = "qcom,geni-debug-uart";
+	status = "okay";
+};
+
+mos_bt_uart: &uart7 {
+	status = "okay";
+
+	/delete-property/ interrupts;
+	interrupts-extended = <&intc GIC_SPI 608 IRQ_TYPE_LEVEL_HIGH>,
+				<&tlmm 31 IRQ_TYPE_EDGE_FALLING>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-1 = <&qup_uart7_sleep_cts>, <&qup_uart7_sleep_rts>, <&qup_uart7_sleep_tx>, <&qup_uart7_sleep_rx>;
+
+	bluetooth: bluetooth {
+		compatible = "qcom,wcn6750-bt";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mos_bt_en>;
+		enable-gpios = <&tlmm 85 GPIO_ACTIVE_HIGH>;
+		swctrl-gpios = <&tlmm 86 GPIO_ACTIVE_HIGH>;
+		vddaon-supply = <&vreg_s7b_0p952>;
+		vddbtcxmx-supply = <&vreg_s7b_0p952>;
+		vddrfacmn-supply = <&vreg_s7b_0p952>;
+		vddrfa0p8-supply = <&vreg_s7b_0p952>;
+		vddrfa1p7-supply = <&vdd19_pmu_rfa_i>;
+		vddrfa1p2-supply = <&vdd13_pmu_rfa_i>;
+		vddrfa2p2-supply = <&vreg_s1c_2p2>;
+		vddasd-supply = <&vreg_l11c_2p8>;
+		vddio-supply = <&vreg_l18b_1p8>;
+		max-speed = <3200000>;
+	};
+};
+
+&usb_1_hsphy {
+	vdda-pll-supply = <&vdd_a_usbhs_core>;
+	vdda33-supply = <&vdd_a_usbhs_3p1>;
+	vdda18-supply = <&vdd_a_usbhs_1p8>;
+};
+
+&usb_1_qmpphy {
+	vdda-phy-supply = <&vdd_a_usbssdp_0_1p2>;
+	vdda-pll-supply = <&vdd_a_usbssdp_0_core>;
+};
+
+&usb_2_hsphy {
+	vdda-pll-supply = <&vdd_a_usbhs_core>;
+	vdda33-supply = <&vdd_a_usbhs_3p1>;
+	vdda18-supply = <&vdd_a_usbhs_1p8>;
+};
+
+/*
+ * PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES
+ *
+ * NOTE: In general if pins leave the Qcard then the pinctrl goes in the
+ * baseboard or board device tree, not here.
+ */
+
+/* No external pull for eDP HPD, so set the internal one. */
+&edp_hot_plug_det {
+	bias-pull-down;
+};
+
+/*
+ * For ts_i2c
+ *
+ * Technically this i2c bus actually leaves the Qcard, but it leaves directly
+ * via the eDP connector (it doesn't hit the baseboard). The external pulls
+ * are on Qcard.
+ */
+&qup_i2c13_data_clk {
+	/* Has external pull */
+	bias-disable;
+	drive-strength = <2>;
+};
+
+/* For mos_bt_uart */
+&qup_uart7_cts {
+	/*
+	 * Configure a bias-bus-hold on CTS to lower power
+	 * usage when Bluetooth is turned off. Bus hold will
+	 * maintain a low power state regardless of whether
+	 * the Bluetooth module drives the pin in either
+	 * direction or leaves the pin fully unpowered.
+	 */
+	bias-bus-hold;
+};
+
+/* For mos_bt_uart */
+&qup_uart7_rts {
+	/* We'll drive RTS, so no pull */
+	bias-disable;
+	drive-strength = <2>;
+};
+
+/* For mos_bt_uart */
+&qup_uart7_tx {
+	/* We'll drive TX, so no pull */
+	bias-disable;
+	drive-strength = <2>;
+};
+
+/* For mos_bt_uart */
+&qup_uart7_rx {
+	/*
+	 * Configure a pull-up on RX. This is needed to avoid
+	 * garbage data when the TX pin of the Bluetooth module is
+	 * in tri-state (module powered off or not driving the
+	 * signal yet).
+	 */
+	bias-pull-up;
+};
+
+/* eMMC, if stuffed, is straight on the Qcard */
+&sdc1_clk {
+	bias-disable;
+	drive-strength = <16>;
+};
+
+&sdc1_cmd {
+	bias-pull-up;
+	drive-strength = <10>;
+};
+
+&sdc1_data {
+	bias-pull-up;
+	drive-strength = <10>;
+};
+
+&sdc1_rclk {
+	bias-pull-down;
+};
+
+/*
+ * PINCTRL - QCARD
+ *
+ * This has entries that are defined by Qcard even if they go to the main
+ * board. In cases where the pulls may be board dependent we defer those
+ * settings to the board device tree. Drive strengths tend to be assinged here
+ * but could conceivably be overwridden by board device trees.
+ */
+
+&pm8350c_gpios {
+	pmic_edp_bl_en: pmic-edp-bl-en-state {
+		pins = "gpio7";
+		function = "normal";
+		bias-disable;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+
+		/* Force backlight to be disabled to match state at boot. */
+		output-low;
+	};
+
+	pmic_edp_bl_pwm: pmic-edp-bl-pwm-state {
+		pins = "gpio8";
+		function = "func1";
+		bias-disable;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+		output-low;
+		power-source = <0>;
+	};
+};
+
+&tlmm {
+	mos_bt_en: mos-bt-en-pins {
+		pins = "gpio85";
+		function = "gpio";
+		drive-strength = <2>;
+		output-low;
+	};
+
+	/* For mos_bt_uart */
+	qup_uart7_sleep_cts: qup-uart7-sleep-cts-pins {
+		pins = "gpio28";
+		function = "gpio";
+		/*
+		 * Configure a bias-bus-hold on CTS to lower power
+		 * usage when Bluetooth is turned off. Bus hold will
+		 * maintain a low power state regardless of whether
+		 * the Bluetooth module drives the pin in either
+		 * direction or leaves the pin fully unpowered.
+		 */
+		bias-bus-hold;
+	};
+
+	/* For mos_bt_uart */
+	qup_uart7_sleep_rts: qup-uart7-sleep-rts-pins {
+		pins = "gpio29";
+		function = "gpio";
+		/*
+		 * Configure pull-down on RTS. As RTS is active low
+		 * signal, pull it low to indicate the BT SoC that it
+		 * can wakeup the system anytime from suspend state by
+		 * pulling RX low (by sending wakeup bytes).
+		 */
+		bias-pull-down;
+	};
+
+	/* For mos_bt_uart */
+	qup_uart7_sleep_rx: qup-uart7-sleep-rx-pins {
+		pins = "gpio31";
+		function = "gpio";
+		/*
+		 * Configure a pull-up on RX. This is needed to avoid
+		 * garbage data when the TX pin of the Bluetooth module
+		 * is floating which may cause spurious wakeups.
+		 */
+		bias-pull-up;
+	};
+
+	/* For mos_bt_uart */
+	qup_uart7_sleep_tx: qup-uart7-sleep-tx-pins {
+		pins = "gpio30";
+		function = "gpio";
+		/*
+		 * Configure pull-up on TX when it isn't actively driven
+		 * to prevent BT SoC from receiving garbage during sleep.
+		 */
+		bias-pull-up;
+	};
+
+	ts_int_conn: ts-int-conn-pins {
+		pins = "gpio55";
+		function = "gpio";
+		bias-pull-up;
+	};
+
+	ts_rst_conn: ts-rst-conn-pins {
+		pins = "gpio54";
+		function = "gpio";
+		drive-strength = <2>;
+	};
+
+	us_euro_hs_sel: us-euro-hs-sel {
+		pins = "gpio81";
+		function = "gpio";
+		bias-pull-down;
+		drive-strength = <2>;
+	};
+
+	wcd_reset_n: wcd-reset-n {
+		pins = "gpio83";
+		function = "gpio";
+		drive-strength = <8>;
+	};
+
+	wcd_reset_n_sleep: wcd-reset-n-sleep {
+		pins = "gpio83";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+};

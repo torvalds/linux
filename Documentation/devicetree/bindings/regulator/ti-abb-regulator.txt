@@ -1,0 +1,132 @@
+Adaptive Body Bias(ABB) SoC internal LDO regulator for Texas Instruments SoCs
+
+Required Properties:
+- compatible: Should be one of:
+  - "ti,abb-v1" for older SoCs like OMAP3
+  - "ti,abb-v2" for newer SoCs like OMAP4, OMAP5
+  - "ti,abb-v3" for a generic definition where setup and control registers are
+     provided (example: DRA7)
+- reg: Address and length of the register set for the device. It contains
+  the information of registers in the same order as described by reg-names
+- reg-names: Should contain the reg names
+  - "base-address"	- contains base address of ABB module (ti,abb-v1,ti,abb-v2)
+  - "control-address"	- contains control register address of ABB module (ti,abb-v3)
+  - "setup-address"	- contains setup register address of ABB module (ti,abb-v3)
+  - "int-address"	- contains address of interrupt register for ABB module
+  (also see Optional properties)
+- #address-cells: should be 0
+- #size-cells: should be 0
+- clocks: should point to the clock node used by ABB module
+- ti,settling-time: Settling time in uSecs from SoC documentation for ABB module
+	to settle down(target time for SR2_WTCNT_VALUE).
+- ti,clock-cycles: SoC specific data about count of system ti,clock-cycles used for
+	computing settling time from SoC Documentation for ABB module(clock
+	cycles for SR2_WTCNT_VALUE).
+- ti,tranxdone-status-mask: Mask to the int-register to write-to-clear mask
+	indicating LDO tranxdone (operation complete).
+- ti,abb_info: An array of 6-tuples u32 items providing information about ABB
+	configuration needed per operational voltage of the device.
+	Each item consists of the following in the same order:
+	volt: voltage in uV - Only used to index ABB information.
+	ABB mode: one of the following:
+		0-bypass
+		1-Forward Body Bias(FBB)
+		3-Reverse Body Bias(RBB)
+	efuse:	(see Optional properties)
+	RBB enable efuse Mask:	(See Optional properties)
+	FBB enable efuse Mask:	(See Optional properties)
+	Vset value efuse Mask:	(See Optional properties)
+
+	NOTE: If more than 1 entry is present, then regulator is setup to change
+	      voltage, allowing for various modes to be selected indexed off
+	      the regulator. Further, ABB LDOs are considered always-on by
+	      default.
+
+Optional Properties:
+- reg-names: In addition to the required properties, the following are optional
+  - "efuse-address"	- Contains efuse base address used to pick up ABB info.
+  - "ldo-address"	- Contains address of ABB LDO override register.
+	"efuse-address" is required for this.
+- ti,ldovbb-vset-mask	- Required if ldo-address is set, mask for LDO override
+	register to provide override vset value.
+- ti,ldovbb-override-mask - Required if ldo-address is set, mask for LDO
+	override register to enable override vset value.
+- ti,abb_opp_sel: Addendum to the description in required properties
+	efuse: Mandatory if 'efuse-address' register is defined. Provides offset
+	       from efuse-address to pick up ABB characteristics. Set to 0 if
+	       'efuse-address' is not defined.
+	RBB enable efuse Mask:	Optional if 'efuse-address' register is defined.
+		'ABB mode' is force set to RBB mode if value at "efuse-address"
+		+ efuse maps to RBB mask. Set to 0 to ignore this.
+	FBB enable efuse Mask:	Optional if 'efuse-address' register is defined.
+		'ABB mode' is force set to FBB mode if value at "efuse-address"
+		+ efuse maps to FBB mask (valid only if RBB mask does not match)
+		Set to 0 to ignore this.
+	Vset value efuse Mask:	Mandatory if ldo-address is set. Picks up from
+		efuse the value to set in 'ti,ldovbb-vset-mask' at ldo-address.
+
+Example #1: Simplest configuration (no efuse data, hard coded ABB table):
+abb_x: regulator-abb-x {
+	compatible = "ti,abb-v1";
+	regulator-name = "abb_x";
+	#address-cells = <0>;
+	#size-cells = <0>;
+	reg = <0x483072f0 0x8>, <0x48306818 0x4>;
+	reg-names = "base-address", "int-address";
+	ti,tranxdone-status-mask = <0x4000000>;
+	clocks = <&sysclk>;
+	ti,settling-time = <30>;
+	ti,clock-cycles = <8>;
+	ti,abb_info = <
+	/* uV		ABB	efuse	rbb_m	fbb_m	vset_m */
+	1012500		0	0	0	0	0 /* Bypass */
+	1200000		3	0	0	0	0 /* RBB mandatory */
+	1320000		1	0	0	0	0 /* FBB mandatory */
+	>;
+};
+
+Example #2: Efuse bits contain ABB mode setting (no LDO override capability)
+abb_y: regulator-abb-y {
+	compatible = "ti,abb-v2";
+	regulator-name = "abb_y";
+	#address-cells = <0>;
+	#size-cells = <0>;
+	reg = <0x4a307bd0 0x8>, <0x4a306014 0x4>, <0x4A002268 0x8>;
+	reg-names = "base-address", "int-address", "efuse-address";
+	ti,tranxdone-status-mask = <0x4000000>;
+	clocks = <&sysclk>;
+	ti,settling-time = <50>;
+	ti,clock-cycles = <16>;
+	ti,abb_info = <
+	/* uV		ABB	efuse	rbb_m	fbb_m	vset_m */
+	975000		0	0	0	0	0 /* Bypass */
+	1012500		0	0	0x40000	0	0 /* RBB optional */
+	1200000		0	0x4	0	0x40000	0 /* FBB optional */
+	1320000		1	0	0	0	0 /* FBB mandatory */
+	>;
+};
+
+Example #3: Efuse bits contain ABB mode setting and LDO override capability
+abb_z: regulator-abb-z {
+	compatible = "ti,abb-v2";
+	regulator-name = "abb_z";
+	#address-cells = <0>;
+	#size-cells = <0>;
+	reg = <0x4ae07ce4 0x8>, <0x4ae06010 0x4>,
+	      <0x4a002194 0x8>, <0x4ae0C314 0x4>;
+	reg-names = "base-address", "int-address",
+		    "efuse-address", "ldo-address";
+	ti,tranxdone-status-mask = <0x8000000>;
+	/* LDOVBBMM_MUX_CTRL */
+	ti,ldovbb-override-mask = <0x400>;
+	/* LDOVBBMM_VSET_OUT */
+	ti,ldovbb-vset-mask = <0x1F>;
+	clocks = <&sysclk>;
+	ti,settling-time = <50>;
+	ti,clock-cycles = <16>;
+	ti,abb_info = <
+	/* uV	ABB	efuse	rbb_m	fbb_m	vset_m */
+	975000	0	0	0	0	0	/* Bypass */
+	1200000	0	0x4	0	0x40000	0x1f00	/* FBB optional, vset */
+	>;
+};

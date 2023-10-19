@@ -1,0 +1,289 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) STMicroelectronics 2017 - All Rights Reserved
+ * Author: Alexandre Torgue  <alexandre.torgue@st.com> for STMicroelectronics.
+ */
+
+#include <dt-bindings/pinctrl/stm32-pinfunc.h>
+#include <dt-bindings/mfd/stm32f7-rcc.h>
+
+/ {
+	soc {
+		pinctrl: pinctrl@40020000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x40020000 0x3000>;
+			interrupt-parent = <&exti>;
+			st,syscfg = <&syscfg 0x8>;
+			pins-are-numbered;
+
+			gpioa: gpio@40020000 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x0 0x400>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOA)>;
+				st,bank-name = "GPIOA";
+			};
+
+			gpiob: gpio@40020400 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x400 0x400>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOB)>;
+				st,bank-name = "GPIOB";
+			};
+
+			gpioc: gpio@40020800 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x800 0x400>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOC)>;
+				st,bank-name = "GPIOC";
+			};
+
+			gpiod: gpio@40020c00 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0xc00 0x400>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOD)>;
+				st,bank-name = "GPIOD";
+			};
+
+			gpioe: gpio@40021000 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x1000 0x400>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOE)>;
+				st,bank-name = "GPIOE";
+			};
+
+			gpiof: gpio@40021400 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x1400 0x400>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOF)>;
+				st,bank-name = "GPIOF";
+			};
+
+			gpiog: gpio@40021800 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x1800 0x400>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOG)>;
+				st,bank-name = "GPIOG";
+			};
+
+			gpioh: gpio@40021c00 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x1c00 0x400>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOH)>;
+				st,bank-name = "GPIOH";
+			};
+
+			gpioi: gpio@40022000 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x2000 0x400>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOI)>;
+				st,bank-name = "GPIOI";
+			};
+
+			gpioj: gpio@40022400 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x2400 0x400>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOJ)>;
+				st,bank-name = "GPIOJ";
+			};
+
+			gpiok: gpio@40022800 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x2800 0x400>;
+				clocks = <&rcc 0 STM32F7_AHB1_CLOCK(GPIOK)>;
+				st,bank-name = "GPIOK";
+			};
+
+			cec_pins_a: cec-0 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 15, AF4)>; /* HDMI CEC */
+					slew-rate = <0>;
+					drive-open-drain;
+					bias-disable;
+				};
+			};
+
+			usart1_pins_a: usart1-0 {
+				pins1 {
+					pinmux = <STM32_PINMUX('A', 9, AF7)>; /* USART1_TX */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+				pins2 {
+					pinmux = <STM32_PINMUX('A', 10, AF7)>; /* USART1_RX */
+					bias-disable;
+				};
+			};
+
+			usart1_pins_b: usart1-1 {
+				pins1 {
+					pinmux = <STM32_PINMUX('A', 9, AF7)>; /* USART1_TX */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+				pins2 {
+					pinmux = <STM32_PINMUX('B', 7, AF7)>; /* USART1_RX */
+					bias-disable;
+				};
+			};
+
+			i2c1_pins_b: i2c1-0 {
+				pins {
+					pinmux = <STM32_PINMUX('B', 9, AF4)>, /* I2C1 SDA */
+						 <STM32_PINMUX('B', 8, AF4)>; /* I2C1 SCL */
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
+			};
+
+			usbotg_hs_pins_a: usbotg-hs-0 {
+				pins {
+					pinmux = <STM32_PINMUX('H', 4, AF10)>, /* OTG_HS_ULPI_NXT */
+						 <STM32_PINMUX('I', 11, AF10)>, /* OTG_HS_ULPI_DIR */
+						 <STM32_PINMUX('C', 0, AF10)>, /* OTG_HS_ULPI_STP */
+						 <STM32_PINMUX('A', 5, AF10)>, /* OTG_HS_ULPI_CK */
+						 <STM32_PINMUX('A', 3, AF10)>, /* OTG_HS_ULPI_D0 */
+						 <STM32_PINMUX('B', 0, AF10)>, /* OTG_HS_ULPI_D1 */
+						 <STM32_PINMUX('B', 1, AF10)>, /* OTG_HS_ULPI_D2 */
+						 <STM32_PINMUX('B', 10, AF10)>, /* OTG_HS_ULPI_D3 */
+						 <STM32_PINMUX('B', 11, AF10)>, /* OTG_HS_ULPI_D4 */
+						 <STM32_PINMUX('B', 12, AF10)>, /* OTG_HS_ULPI_D5 */
+						 <STM32_PINMUX('B', 13, AF10)>, /* OTG_HS_ULPI_D6 */
+						 <STM32_PINMUX('B', 5, AF10)>; /* OTG_HS_ULPI_D7 */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <2>;
+				};
+			};
+
+			usbotg_hs_pins_b: usbotg-hs-1 {
+				pins {
+					pinmux = <STM32_PINMUX('H', 4, AF10)>, /* OTG_HS_ULPI_NXT */
+						 <STM32_PINMUX('C', 2, AF10)>, /* OTG_HS_ULPI_DIR */
+						 <STM32_PINMUX('C', 0, AF10)>, /* OTG_HS_ULPI_STP */
+						 <STM32_PINMUX('A', 5, AF10)>, /* OTG_HS_ULPI_CK */
+						 <STM32_PINMUX('A', 3, AF10)>, /* OTG_HS_ULPI_D0 */
+						 <STM32_PINMUX('B', 0, AF10)>, /* OTG_HS_ULPI_D1 */
+						 <STM32_PINMUX('B', 1, AF10)>, /* OTG_HS_ULPI_D2 */
+						 <STM32_PINMUX('B', 10, AF10)>, /* OTG_HS_ULPI_D3 */
+						 <STM32_PINMUX('B', 11, AF10)>, /* OTG_HS_ULPI_D4 */
+						 <STM32_PINMUX('B', 12, AF10)>, /* OTG_HS_ULPI_D5 */
+						 <STM32_PINMUX('B', 13, AF10)>, /* OTG_HS_ULPI_D6 */
+						 <STM32_PINMUX('B', 5, AF10)>; /* OTG_HS_ULPI_D7 */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <2>;
+				};
+			};
+
+			usbotg_fs_pins_a: usbotg-fs-0 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 10, AF10)>, /* OTG_FS_ID */
+						 <STM32_PINMUX('A', 11, AF10)>, /* OTG_FS_DM */
+						 <STM32_PINMUX('A', 12, AF10)>; /* OTG_FS_DP */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <2>;
+				};
+			};
+
+			sdio_pins_a: sdio-pins-a-0 {
+				pins {
+					pinmux = <STM32_PINMUX('C', 8, AF12)>, /* SDMMC1 D0 */
+						 <STM32_PINMUX('C', 9, AF12)>, /* SDMMC1 D1 */
+						 <STM32_PINMUX('C', 10, AF12)>, /* SDMMC1 D2 */
+						 <STM32_PINMUX('C', 11, AF12)>, /* SDMMC1 D3 */
+						 <STM32_PINMUX('C', 12, AF12)>, /* SDMMC1 CLK */
+						 <STM32_PINMUX('D', 2, AF12)>; /* SDMMC1 CMD */
+					drive-push-pull;
+					slew-rate = <2>;
+				};
+			};
+
+			sdio_pins_od_a: sdio-pins-od-a-0 {
+				pins1 {
+					pinmux = <STM32_PINMUX('C', 8, AF12)>, /* SDMMC1 D0 */
+						 <STM32_PINMUX('C', 9, AF12)>, /* SDMMC1 D1 */
+						 <STM32_PINMUX('C', 10, AF12)>, /* SDMMC1 D2 */
+						 <STM32_PINMUX('C', 11, AF12)>, /* SDMMC1 D3 */
+						 <STM32_PINMUX('C', 12, AF12)>; /* SDMMC1 CLK */
+					drive-push-pull;
+					slew-rate = <2>;
+				};
+
+				pins2 {
+					pinmux = <STM32_PINMUX('D', 2, AF12)>; /* SDMMC1 CMD */
+					drive-open-drain;
+					slew-rate = <2>;
+				};
+			};
+
+			sdio_pins_b: sdio-pins-b-0 {
+				pins {
+					pinmux = <STM32_PINMUX('G', 9, AF11)>, /* SDMMC2 D0 */
+						 <STM32_PINMUX('G', 10, AF11)>, /* SDMMC2 D1 */
+						 <STM32_PINMUX('B', 3, AF10)>, /* SDMMC2 D2 */
+						 <STM32_PINMUX('B', 4, AF10)>, /* SDMMC2 D3 */
+						 <STM32_PINMUX('D', 6, AF11)>, /* SDMMC2 CLK */
+						 <STM32_PINMUX('D', 7, AF11)>; /* SDMMC2 CMD */
+					drive-push-pull;
+					slew-rate = <2>;
+				};
+			};
+
+			sdio_pins_od_b: sdio-pins-od-b-0 {
+				pins1 {
+					pinmux = <STM32_PINMUX('G', 9, AF11)>, /* SDMMC2 D0 */
+						 <STM32_PINMUX('G', 10, AF11)>, /* SDMMC2 D1 */
+						 <STM32_PINMUX('B', 3, AF10)>, /* SDMMC2 D2 */
+						 <STM32_PINMUX('B', 4, AF10)>, /* SDMMC2 D3 */
+						 <STM32_PINMUX('D', 6, AF11)>; /* SDMMC2 CLK */
+					drive-push-pull;
+					slew-rate = <2>;
+				};
+
+				pins2 {
+					pinmux = <STM32_PINMUX('D', 7, AF11)>; /* SDMMC2 CMD */
+					drive-open-drain;
+					slew-rate = <2>;
+				};
+			};
+		};
+	};
+};

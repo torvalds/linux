@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/allegro,al5e.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allegro DVT Video IP Codecs
+
+maintainers:
+  - Michael Tretter <m.tretter@pengutronix.de>
+
+description: |-
+  Allegro DVT video IP codecs present in the Xilinx ZynqMP SoC. The IP core may
+  either be a H.264/H.265 encoder or H.264/H.265 decoder ip core.
+
+  Each actual codec engine is controlled by a microcontroller (MCU). Host
+  software uses a provided mailbox interface to communicate with the MCU. The
+  MCUs share an interrupt.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: allegro,al5e-1.1
+          - const: allegro,al5e
+      - items:
+          - const: allegro,al5d-1.1
+          - const: allegro,al5d
+
+  reg:
+    items:
+      - description: The registers
+      - description: The SRAM
+
+  reg-names:
+    items:
+      - const: regs
+      - const: sram
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: Core clock
+      - description: MCU clock
+      - description: Core AXI master port clock
+      - description: MCU AXI master port clock
+      - description: AXI4-Lite slave port clock
+
+  clock-names:
+    items:
+      - const: core_clk
+      - const: mcu_clk
+      - const: m_axi_core_aclk
+      - const: m_axi_mcu_aclk
+      - const: s_axi_lite_aclk
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - clocks
+  - clock-names
+
+additionalProperties: False
+
+examples:
+  - |
+    fpga {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        al5e: video-codec@a0009000 {
+            compatible = "allegro,al5e-1.1", "allegro,al5e";
+            reg = <0 0xa0009000 0 0x1000>,
+            <0 0xa0000000 0 0x8000>;
+            reg-names = "regs", "sram";
+            interrupts = <0 96 4>;
+            clocks = <&xlnx_vcu 0>, <&xlnx_vcu 1>,
+            <&clkc 71>, <&clkc 71>, <&clkc 71>;
+            clock-names = "core_clk", "mcu_clk", "m_axi_core_aclk",
+            "m_axi_mcu_aclk", "s_axi_lite_aclk";
+        };
+    };
+  - |
+    fpga {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        al5d: video-codec@a0029000 {
+            compatible = "allegro,al5d-1.1", "allegro,al5d";
+            reg = <0 0xa0029000 0 0x1000>,
+                  <0 0xa0020000 0 0x8000>;
+            reg-names = "regs", "sram";
+            interrupts = <0 96 4>;
+            clocks = <&xlnx_vcu 2>, <&xlnx_vcu 3>,
+                     <&clkc 71>, <&clkc 71>, <&clkc 71>;
+            clock-names = "core_clk", "mcu_clk", "m_axi_core_aclk",
+            "m_axi_mcu_aclk", "s_axi_lite_aclk";
+        };
+    };
+
+...

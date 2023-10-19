@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/dts-v1/;
+
+#include "pxa300-raumfeld-common.dtsi"
+#include "pxa300-raumfeld-tuneable-clock.dtsi"
+
+/ {
+	model = "Raumfeld Speaker L (PXA3xx)";
+	compatible = "raumfeld,raumfeld-speaker-l-pxa303", "marvell,pxa300";
+};

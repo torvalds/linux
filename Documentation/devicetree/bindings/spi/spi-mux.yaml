@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/spi-mux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Generic SPI Multiplexer
+
+description: |
+  This binding describes a SPI bus multiplexer to route the SPI chip select
+  signals. This can be used when you need more devices than the SPI controller
+  has chip selects available. An example setup is shown in ASCII art; the actual
+  setting of the multiplexer to a channel needs to be done by a specific SPI mux
+  driver.
+
+        MOSI /--------------------------------+--------+--------+--------\
+        MISO |/------------------------------+|-------+|-------+|-------\|
+         SCL ||/----------------------------+||------+||------+||------\||
+             |||                            |||      |||      |||      |||
+      +------------+                        |||      |||      |||      |||
+      | SoC  |||   |                      +-+++-+  +-+++-+  +-+++-+  +-+++-+
+      |      |||   |                      | dev |  | dev |  | dev |  | dev |
+      |   +--+++-+ | CS-X  +------+\      +--+--+  +--+--+  +--+--+  +--+--+
+      |   | SPI  +-|-------+ Mux  |\\   CS-0 |        |        |        |
+      |   +------+ |       +--+---+\\\-------/   CS-1 |        |        |
+      |            |          |    \\\----------------/   CS-2 |        |
+      |   +------+ |          |     \\-------------------------/   CS-3 |
+      |   | ?    +-|----------/      \----------------------------------/
+      |   +------+ |
+      +------------+
+
+allOf:
+  - $ref: "/schemas/spi/spi-controller.yaml#"
+  - $ref: "/schemas/spi/spi-peripheral-props.yaml#"
+
+maintainers:
+  - Chris Packham <chris.packham@alliedtelesis.co.nz>
+
+properties:
+  compatible:
+    const: spi-mux
+
+  mux-controls:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - spi-max-frequency
+  - mux-controls
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    mux: mux-controller {
+        compatible = "gpio-mux";
+        #mux-control-cells = <0>;
+
+        mux-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+    };
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        spi@0 {
+            compatible = "spi-mux";
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            spi-max-frequency = <100000000>;
+
+            mux-controls = <&mux>;
+
+            flash@0 {
+                compatible = "jedec,spi-nor";
+                reg = <0>;
+                spi-max-frequency = <40000000>;
+            };
+
+            sensor@1 {
+                compatible = "bosch,bme680";
+                reg = <1>;
+                spi-max-frequency = <10000000>;
+            };
+        };
+    };

@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/keystone/ti,k3-sci-common.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Common K3 TI-SCI bindings
+
+maintainers:
+  - Nishanth Menon <nm@ti.com>
+
+description: |
+  The TI K3 family of SoCs usually have a central System Controller Processor
+  that is responsible for managing various SoC-level resources like clocks,
+  resets, interrupts etc. The communication with that processor is performed
+  through the TI-SCI protocol.
+
+  Each specific device management node like a clock controller node, a reset
+  controller node or an interrupt-controller node should define a common set
+  of properties that enables them to implement the corresponding functionality
+  over the TI-SCI protocol. The following are some of the common properties
+  needed by such individual nodes. The required properties for each device
+  management node is defined in the respective binding.
+
+properties:
+  ti,sci:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Should be a phandle to the TI-SCI System Controller node
+
+  ti,sci-dev-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Should contain the TI-SCI device id corresponding to the device. Please
+      refer to the corresponding System Controller documentation for valid
+      values for the desired device.
+
+  ti,sci-proc-ids:
+    description: Should contain a single tuple of <proc_id host_id>.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      - description: TI-SCI processor id for the remote processor device
+      - description: TI-SCI host id to which processor control ownership
+                     should be transferred to
+
+additionalProperties: true

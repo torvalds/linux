@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2020 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+
+config AS_AVX512
+	def_bool $(as-instr,vpmovm2b %k1$(comma)%zmm5)
+	help
+	  Supported by binutils >= 2.25 and LLVM integrated assembler
+
+config AS_SHA1_NI
+	def_bool $(as-instr,sha1msg1 %xmm0$(comma)%xmm1)
+	help
+	  Supported by binutils >= 2.24 and LLVM integrated assembler
+
+config AS_SHA256_NI
+	def_bool $(as-instr,sha256msg1 %xmm0$(comma)%xmm1)
+	help
+	  Supported by binutils >= 2.24 and LLVM integrated assembler
+config AS_TPAUSE
+	def_bool $(as-instr,tpause %ecx)
+	help
+	  Supported by binutils >= 2.31.1 and LLVM integrated assembler >= V7

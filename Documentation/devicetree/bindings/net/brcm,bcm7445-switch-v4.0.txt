@@ -1,0 +1,50 @@
+* Broadcom Starfighter 2 integrated swich
+
+See dsa/brcm,bcm7445-switch-v4.0.yaml for the documentation.
+
+*Deprecated* binding required properties:
+
+- dsa,mii-bus: phandle to the MDIO bus controller, see dsa/dsa.txt
+- dsa,ethernet: phandle to the CPU network interface controller, see dsa/dsa.txt
+- #address-cells: must be 2, see dsa/dsa.txt
+
+Example using the old DSA DeviceTree binding:
+
+switch_top@f0b00000 {
+	compatible = "simple-bus";
+	#size-cells = <1>;
+	#address-cells = <1>;
+	ranges = <0 0xf0b00000 0x40804>;
+
+	ethernet_switch@0 {
+		compatible = "brcm,bcm7445-switch-v4.0";
+		#size-cells = <0>;
+		#address-cells = <2>;
+		reg = <0x0 0x40000
+			0x40000 0x110
+			0x40340 0x30
+			0x40380 0x30
+			0x40400 0x34
+			0x40600 0x208>;
+		interrupts = <0 0x18 0
+				0 0x19 0>;
+		brcm,num-gphy = <1>;
+		brcm,num-rgmii-ports = <2>;
+		brcm,fcb-pause-override;
+		brcm,acb-packets-inflight;
+
+		...
+		switch@0 {
+			reg = <0 0>;
+			#size-cells = <0>;
+			#address-cells = <1>;
+
+			port@0 {
+				label = "gphy";
+				reg = <0>;
+				brcm,use-bcm-hdr;
+			};
+			...
+		};
+	};
+};

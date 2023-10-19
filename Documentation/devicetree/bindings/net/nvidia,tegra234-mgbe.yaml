@@ -1,0 +1,162 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/nvidia,tegra234-mgbe.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Tegra234 MGBE Multi-Gigabit Ethernet Controller
+
+maintainers:
+  - Thierry Reding <treding@nvidia.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    const: nvidia,tegra234-mgbe
+
+  reg:
+    maxItems: 3
+
+  reg-names:
+    items:
+      - const: hypervisor
+      - const: mac
+      - const: xpcs
+
+  interrupts:
+    minItems: 1
+    maxItems: 3
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: common
+      - const: macsec-ns
+      - const: macsec
+
+  clocks:
+    maxItems: 12
+
+  clock-names:
+    items:
+      - const: mgbe
+      - const: mac
+      - const: mac-divider
+      - const: ptp-ref
+      - const: rx-input-m
+      - const: rx-input
+      - const: tx
+      - const: eee-pcs
+      - const: rx-pcs-input
+      - const: rx-pcs-m
+      - const: rx-pcs
+      - const: tx-pcs
+
+  resets:
+    maxItems: 2
+
+  reset-names:
+    items:
+      - const: mac
+      - const: pcs
+
+  interconnects:
+    items:
+      - description: memory read client
+      - description: memory write client
+
+  interconnect-names:
+    items:
+      - const: dma-mem
+      - const: write
+
+  iommus:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  phy-handle: true
+
+  phy-mode:
+    contains:
+      enum:
+        - usxgmii
+        - 10gbase-kr
+
+  mdio:
+    $ref: mdio.yaml#
+    unevaluatedProperties: false
+    description:
+      Optional node for embedded MDIO controller.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - power-domains
+  - phy-handle
+  - phy-mode
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra234-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/memory/tegra234-mc.h>
+    #include <dt-bindings/power/tegra234-powergate.h>
+    #include <dt-bindings/reset/tegra234-reset.h>
+
+    ethernet@6800000 {
+        compatible = "nvidia,tegra234-mgbe";
+        reg = <0x06800000 0x10000>,
+              <0x06810000 0x10000>,
+              <0x068a0000 0x10000>;
+        reg-names = "hypervisor", "mac", "xpcs";
+        interrupts = <GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "common";
+        clocks = <&bpmp TEGRA234_CLK_MGBE0_APP>,
+                 <&bpmp TEGRA234_CLK_MGBE0_MAC>,
+                 <&bpmp TEGRA234_CLK_MGBE0_MAC_DIVIDER>,
+                 <&bpmp TEGRA234_CLK_MGBE0_PTP_REF>,
+                 <&bpmp TEGRA234_CLK_MGBE0_RX_INPUT_M>,
+                 <&bpmp TEGRA234_CLK_MGBE0_RX_INPUT>,
+                 <&bpmp TEGRA234_CLK_MGBE0_TX>,
+                 <&bpmp TEGRA234_CLK_MGBE0_EEE_PCS>,
+                 <&bpmp TEGRA234_CLK_MGBE0_RX_PCS_INPUT>,
+                 <&bpmp TEGRA234_CLK_MGBE0_RX_PCS_M>,
+                 <&bpmp TEGRA234_CLK_MGBE0_RX_PCS>,
+                 <&bpmp TEGRA234_CLK_MGBE0_TX_PCS>;
+        clock-names = "mgbe", "mac", "mac-divider", "ptp-ref", "rx-input-m",
+                      "rx-input", "tx", "eee-pcs", "rx-pcs-input", "rx-pcs-m",
+                      "rx-pcs", "tx-pcs";
+        resets = <&bpmp TEGRA234_RESET_MGBE0_MAC>,
+                 <&bpmp TEGRA234_RESET_MGBE0_PCS>;
+        reset-names = "mac", "pcs";
+        interconnects = <&mc TEGRA234_MEMORY_CLIENT_MGBEARD &emc>,
+                        <&mc TEGRA234_MEMORY_CLIENT_MGBEAWR &emc>;
+        interconnect-names = "dma-mem", "write";
+        iommus = <&smmu_niso0 TEGRA234_SID_MGBE>;
+        power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEA>;
+
+        phy-handle = <&mgbe0_phy>;
+        phy-mode = "usxgmii";
+
+        mdio {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            mgbe0_phy: phy@0 {
+                compatible = "ethernet-phy-ieee802.3-c45";
+                reg = <0x0>;
+
+                #phy-cells = <0>;
+            };
+        };
+    };

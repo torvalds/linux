@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+#include "rk3399-nanopi-r4s.dts"
+
+/ {
+	model = "FriendlyElec NanoPi R4S Enterprise Edition";
+	compatible = "friendlyarm,nanopi-r4s-enterprise", "rockchip,rk3399";
+};
+
+&gmac {
+	nvmem-cells = <&mac_address>;
+	nvmem-cell-names = "mac-address";
+};
+
+&i2c2 {
+	eeprom@51 {
+		compatible = "microchip,24c02", "atmel,24c02";
+		reg = <0x51>;
+		pagesize = <16>;
+		size = <256>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		mac_address: mac-address@fa {
+			reg = <0xfa 0x06>;
+		};
+	};
+};

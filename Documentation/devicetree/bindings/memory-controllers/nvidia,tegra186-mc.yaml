@@ -1,0 +1,276 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/nvidia,tegra186-mc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra186 (and later) SoC Memory Controller
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+description: |
+  The NVIDIA Tegra186 SoC features a 128 bit memory controller that is split
+  into four 32 bit channels to support LPDDR4 with x16 subpartitions. The MC
+  handles memory requests for 40-bit virtual addresses from internal clients
+  and arbitrates among them to allocate memory bandwidth.
+
+  Up to 15 GiB of physical memory can be supported. Security features such as
+  encryption of traffic to and from DRAM via general security apertures are
+  available for video and other secure applications, as well as DRAM ECC for
+  automotive safety applications (single bit error correction and double bit
+  error detection).
+
+properties:
+  $nodename:
+    pattern: "^memory-controller@[0-9a-f]+$"
+
+  compatible:
+    items:
+      - enum:
+          - nvidia,tegra186-mc
+          - nvidia,tegra194-mc
+          - nvidia,tegra234-mc
+
+  reg:
+    minItems: 6
+    maxItems: 18
+
+  reg-names:
+    minItems: 6
+    maxItems: 18
+
+  interrupts:
+    items:
+      - description: MC general interrupt
+
+  "#address-cells":
+    const: 2
+
+  "#size-cells":
+    const: 2
+
+  ranges: true
+
+  dma-ranges: true
+
+  "#interconnect-cells":
+    const: 1
+
+patternProperties:
+  "^external-memory-controller@[0-9a-f]+$":
+    description:
+      The bulk of the work involved in controlling the external memory
+      controller on NVIDIA Tegra186 and later is performed on the BPMP. This
+      coprocessor exposes the EMC clock that is used to set the frequency at
+      which the external memory is clocked and a remote procedure call that
+      can be used to obtain the set of available frequencies.
+    type: object
+    properties:
+      compatible:
+        items:
+          - enum:
+              - nvidia,tegra186-emc
+              - nvidia,tegra194-emc
+              - nvidia,tegra234-emc
+
+      reg:
+        minItems: 1
+        maxItems: 2
+
+      interrupts:
+        items:
+          - description: EMC general interrupt
+
+      clocks:
+        items:
+          - description: external memory clock
+
+      clock-names:
+        items:
+          - const: emc
+
+      "#interconnect-cells":
+        const: 0
+
+      nvidia,bpmp:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description:
+          phandle of the node representing the BPMP
+
+    allOf:
+      - if:
+          properties:
+            compatible:
+              const: nvidia,tegra186-emc
+        then:
+          properties:
+            reg:
+              maxItems: 1
+
+      - if:
+          properties:
+            compatible:
+              const: nvidia,tegra194-emc
+        then:
+          properties:
+            reg:
+              minItems: 2
+
+      - if:
+          properties:
+            compatible:
+              const: nvidia,tegra234-emc
+        then:
+          properties:
+            reg:
+              minItems: 2
+
+    additionalProperties: false
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - clocks
+      - clock-names
+      - "#interconnect-cells"
+      - nvidia,bpmp
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          const: nvidia,tegra186-mc
+    then:
+      properties:
+        reg:
+          maxItems: 6
+          description: 5 memory controller channels and 1 for stream-id registers
+
+        reg-names:
+          items:
+            - const: sid
+            - const: broadcast
+            - const: ch0
+            - const: ch1
+            - const: ch2
+            - const: ch3
+
+  - if:
+      properties:
+        compatible:
+          const: nvidia,tegra194-mc
+    then:
+      properties:
+        reg:
+          minItems: 18
+          description: 17 memory controller channels and 1 for stream-id registers
+
+        reg-names:
+          items:
+            - const: sid
+            - const: broadcast
+            - const: ch0
+            - const: ch1
+            - const: ch2
+            - const: ch3
+            - const: ch4
+            - const: ch5
+            - const: ch6
+            - const: ch7
+            - const: ch8
+            - const: ch9
+            - const: ch10
+            - const: ch11
+            - const: ch12
+            - const: ch13
+            - const: ch14
+            - const: ch15
+
+  - if:
+      properties:
+        compatible:
+          const: nvidia,tegra234-mc
+    then:
+      properties:
+        reg:
+          minItems: 18
+          description: 17 memory controller channels and 1 for stream-id registers
+
+        reg-names:
+          items:
+            - const: sid
+            - const: broadcast
+            - const: ch0
+            - const: ch1
+            - const: ch2
+            - const: ch3
+            - const: ch4
+            - const: ch5
+            - const: ch6
+            - const: ch7
+            - const: ch8
+            - const: ch9
+            - const: ch10
+            - const: ch11
+            - const: ch12
+            - const: ch13
+            - const: ch14
+            - const: ch15
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - "#address-cells"
+  - "#size-cells"
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra186-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        memory-controller@2c00000 {
+            compatible = "nvidia,tegra186-mc";
+            reg = <0x0 0x02c00000 0x0 0x10000>,    /* MC-SID */
+                  <0x0 0x02c10000 0x0 0x10000>,    /* Broadcast channel */
+                  <0x0 0x02c20000 0x0 0x10000>,    /* MC0 */
+                  <0x0 0x02c30000 0x0 0x10000>,    /* MC1 */
+                  <0x0 0x02c40000 0x0 0x10000>,    /* MC2 */
+                  <0x0 0x02c50000 0x0 0x10000>;    /* MC3 */
+            reg-names = "sid", "broadcast", "ch0", "ch1", "ch2", "ch3";
+            interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
+
+            #address-cells = <2>;
+            #size-cells = <2>;
+
+            ranges = <0x0 0x02c00000 0x0 0x02c00000 0x0 0xb0000>;
+
+            /*
+             * Memory clients have access to all 40 bits that the memory
+             * controller can address.
+             */
+            dma-ranges = <0x0 0x0 0x0 0x0 0x100 0x0>;
+
+            external-memory-controller@2c60000 {
+                compatible = "nvidia,tegra186-emc";
+                reg = <0x0 0x02c60000 0x0 0x50000>;
+                interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
+                clocks = <&bpmp TEGRA186_CLK_EMC>;
+                clock-names = "emc";
+
+                #interconnect-cells = <0>;
+
+                nvidia,bpmp = <&bpmp>;
+            };
+        };
+    };

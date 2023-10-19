@@ -1,0 +1,2 @@
+libex-y += e.o
+libex-y += f.o

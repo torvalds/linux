@@ -1,0 +1,22 @@
+OMAP Dynamic Memory Manager (DMM) bindings
+
+The dynamic memory manager (DMM) is a module located immediately in front of the
+SDRAM controllers (called EMIFs on OMAP). DMM manages various aspects of memory
+accesses such as priority generation amongst initiators, configuration of SDRAM
+interleaving, optimizing transfer of 2D block objects, and provide MMU-like page
+translation for initiators which need contiguous dma bus addresses.
+
+Required properties:
+- compatible:	Should contain "ti,omap4-dmm" for OMAP4 family
+		Should contain "ti,omap5-dmm" for OMAP5 and DRA7x family
+- reg:		Contains DMM register address range (base address and length)
+- interrupts:	Should contain an interrupt-specifier for DMM_IRQ.
+- ti,hwmods:	Name of the hwmod associated to DMM, which is typically "dmm"
+
+Example:
+
+dmm@4e000000 {
+	compatible = "ti,omap4-dmm";
+	reg = <0x4e000000 0x800>;
+	ti,hwmods = "dmm";
+};

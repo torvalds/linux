@@ -1,0 +1,1153 @@
+# SPDX-License-Identifier: GPL-2.0
+comment "Processor Type"
+
+# Select CPU types depending on the architecture selected.  This selects
+# which CPUs we support in the kernel image, and the compiler instruction
+# optimiser behaviour.
+
+# ARM7TDMI
+config CPU_ARM7TDMI
+	bool
+	depends on !MMU
+	select CPU_32v4T
+	select CPU_ABRT_LV4T
+	select CPU_CACHE_V4
+	select CPU_PABRT_LEGACY
+	help
+	  A 32-bit RISC microprocessor based on the ARM7 processor core
+	  which has no memory control unit and cache.
+
+	  Say Y if you want support for the ARM7TDMI processor.
+	  Otherwise, say N.
+
+# ARM720T
+config CPU_ARM720T
+	bool
+	select CPU_32v4T
+	select CPU_ABRT_LV4T
+	select CPU_CACHE_V4
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WT if MMU
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WT if MMU
+	help
+	  A 32-bit RISC processor with 8kByte Cache, Write Buffer and
+	  MMU built around an ARM7TDMI core.
+
+	  Say Y if you want support for the ARM720T processor.
+	  Otherwise, say N.
+
+# ARM740T
+config CPU_ARM740T
+	bool
+	depends on !MMU
+	select CPU_32v4T
+	select CPU_ABRT_LV4T
+	select CPU_CACHE_V4
+	select CPU_CP15_MPU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	help
+	  A 32-bit RISC processor with 8KB cache or 4KB variants,
+	  write buffer and MPU(Protection Unit) built around
+	  an ARM7TDMI core.
+
+	  Say Y if you want support for the ARM740T processor.
+	  Otherwise, say N.
+
+# ARM9TDMI
+config CPU_ARM9TDMI
+	bool
+	depends on !MMU
+	select CPU_32v4T
+	select CPU_ABRT_NOMMU
+	select CPU_CACHE_V4
+	select CPU_PABRT_LEGACY
+	help
+	  A 32-bit RISC microprocessor based on the ARM9 processor core
+	  which has no memory control unit and cache.
+
+	  Say Y if you want support for the ARM9TDMI processor.
+	  Otherwise, say N.
+
+# ARM920T
+config CPU_ARM920T
+	bool
+	select CPU_32v4T
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB if MMU
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WBI if MMU
+	help
+	  The ARM920T is licensed to be produced by numerous vendors,
+	  and is used in the Cirrus EP93xx and the Samsung S3C2410.
+
+	  Say Y if you want support for the ARM920T processor.
+	  Otherwise, say N.
+
+# ARM922T
+config CPU_ARM922T
+	bool
+	select CPU_32v4T
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB if MMU
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WBI if MMU
+	help
+	  The ARM922T is a version of the ARM920T, but with smaller
+	  instruction and data caches. It is used in Altera's
+	  Excalibur XA device family and the ARM Integrator.
+
+	  Say Y if you want support for the ARM922T processor.
+	  Otherwise, say N.
+
+# ARM925T
+config CPU_ARM925T
+	bool
+	select CPU_32v4T
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB if MMU
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WBI if MMU
+ 	help
+ 	  The ARM925T is a mix between the ARM920T and ARM926T, but with
+	  different instruction and data caches. It is used in TI's OMAP
+ 	  device family.
+
+ 	  Say Y if you want support for the ARM925T processor.
+ 	  Otherwise, say N.
+
+# ARM926T
+config CPU_ARM926T
+	bool
+	select CPU_32v5
+	select CPU_ABRT_EV5TJ
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB if MMU
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WBI if MMU
+	help
+	  This is a variant of the ARM920.  It has slightly different
+	  instruction sequences for cache and TLB operations.  Curiously,
+	  there is no documentation on it at the ARM corporate website.
+
+	  Say Y if you want support for the ARM926T processor.
+	  Otherwise, say N.
+
+# FA526
+config CPU_FA526
+	bool
+	select CPU_32v4
+	select CPU_ABRT_EV4
+	select CPU_CACHE_FA
+	select CPU_CACHE_VIVT
+	select CPU_COPY_FA if MMU
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_TLB_FA if MMU
+	help
+	  The FA526 is a version of the ARMv4 compatible processor with
+	  Branch Target Buffer, Unified TLB and cache line size 16.
+
+	  Say Y if you want support for the FA526 processor.
+	  Otherwise, say N.
+
+# ARM940T
+config CPU_ARM940T
+	bool
+	depends on !MMU
+	select CPU_32v4T
+	select CPU_ABRT_NOMMU
+	select CPU_CACHE_VIVT
+	select CPU_CP15_MPU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	help
+	  ARM940T is a member of the ARM9TDMI family of general-
+	  purpose microprocessors with MPU and separate 4KB
+	  instruction and 4KB data cases, each with a 4-word line
+	  length.
+
+	  Say Y if you want support for the ARM940T processor.
+	  Otherwise, say N.
+
+# ARM946E-S
+config CPU_ARM946E
+	bool
+	depends on !MMU
+	select CPU_32v5
+	select CPU_ABRT_NOMMU
+	select CPU_CACHE_VIVT
+	select CPU_CP15_MPU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	help
+	  ARM946E-S is a member of the ARM9E-S family of high-
+	  performance, 32-bit system-on-chip processor solutions.
+	  The TCM and ARMv5TE 32-bit instruction set is supported.
+
+	  Say Y if you want support for the ARM946E-S processor.
+	  Otherwise, say N.
+
+# ARM1020 - needs validating
+config CPU_ARM1020
+	bool
+	select CPU_32v5
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB if MMU
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WBI if MMU
+	help
+	  The ARM1020 is the 32K cached version of the ARM10 processor,
+	  with an addition of a floating-point unit.
+
+	  Say Y if you want support for the ARM1020 processor.
+	  Otherwise, say N.
+
+# ARM1020E - needs validating
+config CPU_ARM1020E
+	bool
+	depends on n
+	select CPU_32v5
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB if MMU
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WBI if MMU
+
+# ARM1022E
+config CPU_ARM1022
+	bool
+	select CPU_32v5
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB if MMU # can probably do better
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WBI if MMU
+	help
+	  The ARM1022E is an implementation of the ARMv5TE architecture
+	  based upon the ARM10 integer core with a 16KiB L1 Harvard cache,
+	  embedded trace macrocell, and a floating-point unit.
+
+	  Say Y if you want support for the ARM1022E processor.
+	  Otherwise, say N.
+
+# ARM1026EJ-S
+config CPU_ARM1026
+	bool
+	select CPU_32v5
+	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB if MMU # can probably do better
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WBI if MMU
+	help
+	  The ARM1026EJ-S is an implementation of the ARMv5TEJ architecture
+	  based upon the ARM10 integer core.
+
+	  Say Y if you want support for the ARM1026EJ-S processor.
+	  Otherwise, say N.
+
+# SA110
+config CPU_SA110
+	bool
+	select CPU_32v3 if ARCH_RPC
+	select CPU_32v4 if !ARCH_RPC
+	select CPU_ABRT_EV4
+	select CPU_CACHE_V4WB
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB if MMU
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_TLB_V4WB if MMU
+	help
+	  The Intel StrongARM(R) SA-110 is a 32-bit microprocessor and
+	  is available at five speeds ranging from 100 MHz to 233 MHz.
+	  More information is available at
+	  <http://developer.intel.com/design/strong/sa110.htm>.
+
+	  Say Y if you want support for the SA-110 processor.
+	  Otherwise, say N.
+
+# SA1100
+config CPU_SA1100
+	bool
+	select CPU_32v4
+	select CPU_ABRT_EV4
+	select CPU_CACHE_V4WB
+	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_TLB_V4WB if MMU
+
+# XScale
+config CPU_XSCALE
+	bool
+	select CPU_32v5
+	select CPU_ABRT_EV5T
+	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WBI if MMU
+
+# XScale Core Version 3
+config CPU_XSC3
+	bool
+	select CPU_32v5
+	select CPU_ABRT_EV5T
+	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WBI if MMU
+	select IO_36
+
+# Marvell PJ1 (Mohawk)
+config CPU_MOHAWK
+	bool
+	select CPU_32v5
+	select CPU_ABRT_EV5T
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB if MMU
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V4WBI if MMU
+
+# Feroceon
+config CPU_FEROCEON
+	bool
+	select CPU_32v5
+	select CPU_ABRT_EV5T
+	select CPU_CACHE_VIVT
+	select CPU_COPY_FEROCEON if MMU
+	select CPU_CP15_MMU
+	select CPU_PABRT_LEGACY
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_FEROCEON if MMU
+
+config CPU_FEROCEON_OLD_ID
+	bool "Accept early Feroceon cores with an ARM926 ID"
+	depends on CPU_FEROCEON && !CPU_ARM926T
+	default y
+	help
+	  This enables the usage of some old Feroceon cores
+	  for which the CPU ID is equal to the ARM926 ID.
+	  Relevant for Feroceon-1850 and early Feroceon-2850.
+
+# Marvell PJ4
+config CPU_PJ4
+	bool
+	select ARM_THUMBEE
+	select CPU_V7
+
+config CPU_PJ4B
+	bool
+	select CPU_V7
+
+# ARMv6
+config CPU_V6
+	bool
+	select CPU_32v6
+	select CPU_ABRT_EV6
+	select CPU_CACHE_V6
+	select CPU_CACHE_VIPT
+	select CPU_COPY_V6 if MMU
+	select CPU_CP15_MMU
+	select CPU_HAS_ASID if MMU
+	select CPU_PABRT_V6
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V6 if MMU
+	select SMP_ON_UP if SMP
+
+# ARMv6k
+config CPU_V6K
+	bool
+	select CPU_32v6
+	select CPU_32v6K
+	select CPU_ABRT_EV6
+	select CPU_CACHE_V6
+	select CPU_CACHE_VIPT
+	select CPU_COPY_V6 if MMU
+	select CPU_CP15_MMU
+	select CPU_HAS_ASID if MMU
+	select CPU_PABRT_V6
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V6 if MMU
+
+# ARMv7
+config CPU_V7
+	bool
+	select CPU_32v6K
+	select CPU_32v7
+	select CPU_ABRT_EV7
+	select CPU_CACHE_V7
+	select CPU_CACHE_VIPT
+	select CPU_COPY_V6 if MMU
+	select CPU_CP15_MMU if MMU
+	select CPU_CP15_MPU if !MMU
+	select CPU_HAS_ASID if MMU
+	select CPU_PABRT_V7
+	select CPU_SPECTRE if MMU
+	select CPU_THUMB_CAPABLE
+	select CPU_TLB_V7 if MMU
+
+# ARMv7M
+config CPU_V7M
+	bool
+	select CPU_32v7M
+	select CPU_ABRT_NOMMU
+	select CPU_CACHE_V7M
+	select CPU_CACHE_NOP
+	select CPU_PABRT_LEGACY
+	select CPU_THUMBONLY
+
+config CPU_THUMBONLY
+	bool
+	select CPU_THUMB_CAPABLE
+	# There are no CPUs available with MMU that don't implement an ARM ISA:
+	depends on !MMU
+	help
+	  Select this if your CPU doesn't support the 32 bit ARM instructions.
+
+config CPU_THUMB_CAPABLE
+	bool
+	help
+	  Select this if your CPU can support Thumb mode.
+
+# Figure out what processor architecture version we should be using.
+# This defines the compiler instruction set which depends on the machine type.
+config CPU_32v3
+	bool
+	select CPU_USE_DOMAINS if MMU
+	select NEED_KUSER_HELPERS
+	select TLS_REG_EMUL if SMP || !MMU
+	select CPU_NO_EFFICIENT_FFS
+
+config CPU_32v4
+	bool
+	select CPU_USE_DOMAINS if MMU
+	select NEED_KUSER_HELPERS
+	select TLS_REG_EMUL if SMP || !MMU
+	select CPU_NO_EFFICIENT_FFS
+
+config CPU_32v4T
+	bool
+	select CPU_USE_DOMAINS if MMU
+	select NEED_KUSER_HELPERS
+	select TLS_REG_EMUL if SMP || !MMU
+	select CPU_NO_EFFICIENT_FFS
+
+config CPU_32v5
+	bool
+	select CPU_USE_DOMAINS if MMU
+	select NEED_KUSER_HELPERS
+	select TLS_REG_EMUL if SMP || !MMU
+
+config CPU_32v6
+	bool
+	select TLS_REG_EMUL if !CPU_32v6K && !MMU
+
+config CPU_32v6K
+	bool
+
+config CPU_32v7
+	bool
+
+config CPU_32v7M
+	bool
+
+# The abort model
+config CPU_ABRT_NOMMU
+	bool
+
+config CPU_ABRT_EV4
+	bool
+
+config CPU_ABRT_EV4T
+	bool
+
+config CPU_ABRT_LV4T
+	bool
+
+config CPU_ABRT_EV5T
+	bool
+
+config CPU_ABRT_EV5TJ
+	bool
+
+config CPU_ABRT_EV6
+	bool
+
+config CPU_ABRT_EV7
+	bool
+
+config CPU_PABRT_LEGACY
+	bool
+
+config CPU_PABRT_V6
+	bool
+
+config CPU_PABRT_V7
+	bool
+
+# The cache model
+config CPU_CACHE_V4
+	bool
+
+config CPU_CACHE_V4WT
+	bool
+
+config CPU_CACHE_V4WB
+	bool
+
+config CPU_CACHE_V6
+	bool
+
+config CPU_CACHE_V7
+	bool
+
+config CPU_CACHE_NOP
+	bool
+
+config CPU_CACHE_VIVT
+	bool
+
+config CPU_CACHE_VIPT
+	bool
+
+config CPU_CACHE_FA
+	bool
+
+config CPU_CACHE_V7M
+	bool
+
+if MMU
+# The copy-page model
+config CPU_COPY_V4WT
+	bool
+
+config CPU_COPY_V4WB
+	bool
+
+config CPU_COPY_FEROCEON
+	bool
+
+config CPU_COPY_FA
+	bool
+
+config CPU_COPY_V6
+	bool
+
+# This selects the TLB model
+config CPU_TLB_V4WT
+	bool
+	help
+	  ARM Architecture Version 4 TLB with writethrough cache.
+
+config CPU_TLB_V4WB
+	bool
+	help
+	  ARM Architecture Version 4 TLB with writeback cache.
+
+config CPU_TLB_V4WBI
+	bool
+	help
+	  ARM Architecture Version 4 TLB with writeback cache and invalidate
+	  instruction cache entry.
+
+config CPU_TLB_FEROCEON
+	bool
+	help
+	  Feroceon TLB (v4wbi with non-outer-cachable page table walks).
+
+config CPU_TLB_FA
+	bool
+	help
+	  Faraday ARM FA526 architecture, unified TLB with writeback cache
+	  and invalidate instruction cache entry. Branch target buffer is
+	  also supported.
+
+config CPU_TLB_V6
+	bool
+
+config CPU_TLB_V7
+	bool
+
+endif
+
+config CPU_HAS_ASID
+	bool
+	help
+	  This indicates whether the CPU has the ASID register; used to
+	  tag TLB and possibly cache entries.
+
+config CPU_CP15
+	bool
+	help
+	  Processor has the CP15 register.
+
+config CPU_CP15_MMU
+	bool
+	select CPU_CP15
+	help
+	  Processor has the CP15 register, which has MMU related registers.
+
+config CPU_CP15_MPU
+	bool
+	select CPU_CP15
+	help
+	  Processor has the CP15 register, which has MPU related registers.
+
+config CPU_USE_DOMAINS
+	bool
+	help
+	  This option enables or disables the use of domain switching
+	  using the DACR (domain access control register) to protect memory
+	  domains from each other. In Linux we use three domains: kernel, user
+	  and IO. The domains are used to protect userspace from kernelspace
+	  and to handle IO-space as a special type of memory by assigning
+	  manager or client roles to running code (such as a process).
+
+config CPU_V7M_NUM_IRQ
+	int "Number of external interrupts connected to the NVIC"
+	depends on CPU_V7M
+	default 90 if ARCH_STM32
+	default 112 if SOC_VF610
+	default 240
+	help
+	  This option indicates the number of interrupts connected to the NVIC.
+	  The value can be larger than the real number of interrupts supported
+	  by the system, but must not be lower.
+	  The default value is 240, corresponding to the maximum number of
+	  interrupts supported by the NVIC on Cortex-M family.
+
+	  If unsure, keep default value.
+
+#
+# CPU supports 36-bit I/O
+#
+config IO_36
+	bool
+
+comment "Processor Features"
+
+config ARM_LPAE
+	bool "Support for the Large Physical Address Extension"
+	depends on MMU && CPU_32v7 && !CPU_32v6 && !CPU_32v5 && \
+		!CPU_32v4 && !CPU_32v3
+	select PHYS_ADDR_T_64BIT
+	select SWIOTLB
+	help
+	  Say Y if you have an ARMv7 processor supporting the LPAE page
+	  table format and you would like to access memory beyond the
+	  4GB limit. The resulting kernel image will not run on
+	  processors without the LPA extension.
+
+	  If unsure, say N.
+
+config ARM_PV_FIXUP
+	def_bool y
+	depends on ARM_LPAE && ARM_PATCH_PHYS_VIRT && ARCH_KEYSTONE
+
+config ARM_THUMB
+	bool "Support Thumb user binaries" if !CPU_THUMBONLY && EXPERT
+	depends on CPU_THUMB_CAPABLE && !CPU_32v4
+	default y
+	help
+	  Say Y if you want to include kernel support for running user space
+	  Thumb binaries.
+
+	  The Thumb instruction set is a compressed form of the standard ARM
+	  instruction set resulting in smaller binaries at the expense of
+	  slightly less efficient code.
+
+	  If this option is disabled, and you run userspace that switches to
+	  Thumb mode, signal handling will not work correctly, resulting in
+	  segmentation faults or illegal instruction aborts.
+
+	  If you don't know what this all is, saying Y is a safe choice.
+
+config ARM_THUMBEE
+	bool "Enable ThumbEE CPU extension"
+	depends on CPU_V7
+	help
+	  Say Y here if you have a CPU with the ThumbEE extension and code to
+	  make use of it. Say N for code that can run on CPUs without ThumbEE.
+
+config ARM_VIRT_EXT
+	bool
+	default y if CPU_V7
+	help
+	  Enable the kernel to make use of the ARM Virtualization
+	  Extensions to install hypervisors without run-time firmware
+	  assistance.
+
+	  A compliant bootloader is required in order to make maximum
+	  use of this feature.  Refer to Documentation/arm/booting.rst for
+	  details.
+
+config SWP_EMULATE
+	bool "Emulate SWP/SWPB instructions" if !SMP
+	depends on CPU_V7
+	default y if SMP
+	select HAVE_PROC_CPU if PROC_FS
+	help
+	  ARMv6 architecture deprecates use of the SWP/SWPB instructions.
+	  ARMv7 multiprocessing extensions introduce the ability to disable
+	  these instructions, triggering an undefined instruction exception
+	  when executed. Say Y here to enable software emulation of these
+	  instructions for userspace (not kernel) using LDREX/STREX.
+	  Also creates /proc/cpu/swp_emulation for statistics.
+
+	  In some older versions of glibc [<=2.8] SWP is used during futex
+	  trylock() operations with the assumption that the code will not
+	  be preempted. This invalid assumption may be more likely to fail
+	  with SWP emulation enabled, leading to deadlock of the user
+	  application.
+
+	  NOTE: when accessing uncached shared regions, LDREX/STREX rely
+	  on an external transaction monitoring block called a global
+	  monitor to maintain update atomicity. If your system does not
+	  implement a global monitor, this option can cause programs that
+	  perform SWP operations to uncached memory to deadlock.
+
+	  If unsure, say Y.
+
+choice
+	prompt "CPU Endianess"
+	default CPU_LITTLE_ENDIAN
+
+config CPU_LITTLE_ENDIAN
+	bool "Built little-endian kernel"
+	help
+	  Say Y if you plan on running a kernel in little-endian mode.
+	  This is the default and is used in practically all modern user
+	  space builds.
+
+config CPU_BIG_ENDIAN
+	bool "Build big-endian kernel"
+	depends on !LD_IS_LLD
+	help
+	  Say Y if you plan on running a kernel in big-endian mode.
+	  This works on many machines using ARMv6 or newer processors
+	  but requires big-endian user space.
+
+	  The only ARMv5 platform with big-endian support is
+	  Intel IXP4xx.
+
+endchoice
+
+config CPU_ENDIAN_BE8
+	bool
+	depends on CPU_BIG_ENDIAN
+	default CPU_V6 || CPU_V6K || CPU_V7 || CPU_V7M
+	help
+	  Support for the BE-8 (big-endian) mode on ARMv6 and ARMv7 processors.
+
+config CPU_ENDIAN_BE32
+	bool
+	depends on CPU_BIG_ENDIAN
+	default !CPU_ENDIAN_BE8
+	help
+	  Support for the BE-32 (big-endian) mode on pre-ARMv6 processors.
+
+config CPU_HIGH_VECTOR
+	depends on !MMU && CPU_CP15 && !CPU_ARM740T
+	bool "Select the High exception vector"
+	help
+	  Say Y here to select high exception vector(0xFFFF0000~).
+	  The exception vector can vary depending on the platform
+	  design in nommu mode. If your platform needs to select
+	  high exception vector, say Y.
+	  Otherwise or if you are unsure, say N, and the low exception
+	  vector (0x00000000~) will be used.
+
+config CPU_ICACHE_DISABLE
+	bool "Disable I-Cache (I-bit)"
+	depends on (CPU_CP15 && !(CPU_ARM720T || CPU_ARM740T || CPU_XSCALE || CPU_XSC3)) || CPU_V7M
+	help
+	  Say Y here to disable the processor instruction cache. Unless
+	  you have a reason not to or are unsure, say N.
+
+config CPU_ICACHE_MISMATCH_WORKAROUND
+	bool "Workaround for I-Cache line size mismatch between CPU cores"
+	depends on SMP && CPU_V7
+	help
+	  Some big.LITTLE systems have I-Cache line size mismatch between
+	  LITTLE and big cores.  Say Y here to enable a workaround for
+	  proper I-Cache support on such systems.  If unsure, say N.
+
+config CPU_DCACHE_DISABLE
+	bool "Disable D-Cache (C-bit)"
+	depends on (CPU_CP15 && !SMP) || CPU_V7M
+	help
+	  Say Y here to disable the processor data cache. Unless
+	  you have a reason not to or are unsure, say N.
+
+config CPU_DCACHE_SIZE
+	hex
+	depends on CPU_ARM740T || CPU_ARM946E
+	default 0x00001000 if CPU_ARM740T
+	default 0x00002000 # default size for ARM946E-S
+	help
+	  Some cores are synthesizable to have various sized cache. For
+	  ARM946E-S case, it can vary from 0KB to 1MB.
+	  To support such cache operations, it is efficient to know the size
+	  before compile time.
+	  If your SoC is configured to have a different size, define the value
+	  here with proper conditions.
+
+config CPU_DCACHE_WRITETHROUGH
+	bool "Force write through D-cache"
+	depends on (CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_FA526) && !CPU_DCACHE_DISABLE
+	default y if CPU_ARM925T
+	help
+	  Say Y here to use the data cache in writethrough mode. Unless you
+	  specifically require this or are unsure, say N.
+
+config CPU_CACHE_ROUND_ROBIN
+	bool "Round robin I and D cache replacement algorithm"
+	depends on (CPU_ARM926T || CPU_ARM946E || CPU_ARM1020) && (!CPU_ICACHE_DISABLE || !CPU_DCACHE_DISABLE)
+	help
+	  Say Y here to use the predictable round-robin cache replacement
+	  policy.  Unless you specifically require this or are unsure, say N.
+
+config CPU_BPREDICT_DISABLE
+	bool "Disable branch prediction"
+	depends on CPU_ARM1020 || CPU_V6 || CPU_V6K || CPU_MOHAWK || CPU_XSC3 || CPU_V7 || CPU_FA526 || CPU_V7M
+	help
+	  Say Y here to disable branch prediction.  If unsure, say N.
+
+config CPU_SPECTRE
+	bool
+	select GENERIC_CPU_VULNERABILITIES
+
+config HARDEN_BRANCH_PREDICTOR
+	bool "Harden the branch predictor against aliasing attacks" if EXPERT
+	depends on CPU_SPECTRE
+	default y
+	help
+	   Speculation attacks against some high-performance processors rely
+	   on being able to manipulate the branch predictor for a victim
+	   context by executing aliasing branches in the attacker context.
+	   Such attacks can be partially mitigated against by clearing
+	   internal branch predictor state and limiting the prediction
+	   logic in some situations.
+
+	   This config option will take CPU-specific actions to harden
+	   the branch predictor against aliasing attacks and may rely on
+	   specific instruction sequences or control bits being set by
+	   the system firmware.
+
+	   If unsure, say Y.
+
+config HARDEN_BRANCH_HISTORY
+	bool "Harden Spectre style attacks against branch history" if EXPERT
+	depends on CPU_SPECTRE
+	default y
+	help
+	  Speculation attacks against some high-performance processors can
+	  make use of branch history to influence future speculation. When
+	  taking an exception, a sequence of branches overwrites the branch
+	  history, or branch history is invalidated.
+
+config TLS_REG_EMUL
+	bool
+	select NEED_KUSER_HELPERS
+	help
+	  An SMP system using a pre-ARMv6 processor (there are apparently
+	  a few prototypes like that in existence) and therefore access to
+	  that required register must be emulated.
+
+config NEED_KUSER_HELPERS
+	bool
+
+config KUSER_HELPERS
+	bool "Enable kuser helpers in vector page" if !NEED_KUSER_HELPERS
+	depends on MMU
+	default y
+	help
+	  Warning: disabling this option may break user programs.
+
+	  Provide kuser helpers in the vector page.  The kernel provides
+	  helper code to userspace in read only form at a fixed location
+	  in the high vector page to allow userspace to be independent of
+	  the CPU type fitted to the system.  This permits binaries to be
+	  run on ARMv4 through to ARMv7 without modification.
+
+	  See Documentation/arm/kernel_user_helpers.rst for details.
+
+	  However, the fixed address nature of these helpers can be used
+	  by ROP (return orientated programming) authors when creating
+	  exploits.
+
+	  If all of the binaries and libraries which run on your platform
+	  are built specifically for your platform, and make no use of
+	  these helpers, then you can turn this option off to hinder
+	  such exploits. However, in that case, if a binary or library
+	  relying on those helpers is run, it will receive a SIGILL signal,
+	  which will terminate the program.
+
+	  Say N here only if you are absolutely certain that you do not
+	  need these helpers; otherwise, the safe option is to say Y.
+
+config VDSO
+	bool "Enable VDSO for acceleration of some system calls"
+	depends on AEABI && MMU && CPU_V7
+	default y if ARM_ARCH_TIMER
+	select HAVE_GENERIC_VDSO
+	select GENERIC_TIME_VSYSCALL
+	select GENERIC_VDSO_32
+	select GENERIC_GETTIMEOFDAY
+	help
+	  Place in the process address space an ELF shared object
+	  providing fast implementations of gettimeofday and
+	  clock_gettime.  Systems that implement the ARM architected
+	  timer will receive maximum benefit.
+
+	  You must have glibc 2.22 or later for programs to seamlessly
+	  take advantage of this.
+
+config DMA_CACHE_RWFO
+	bool "Enable read/write for ownership DMA cache maintenance"
+	depends on CPU_V6K && SMP
+	default y
+	help
+	  The Snoop Control Unit on ARM11MPCore does not detect the
+	  cache maintenance operations and the dma_{map,unmap}_area()
+	  functions may leave stale cache entries on other CPUs. By
+	  enabling this option, Read or Write For Ownership in the ARMv6
+	  DMA cache maintenance functions is performed. These LDR/STR
+	  instructions change the cache line state to shared or modified
+	  so that the cache operation has the desired effect.
+
+	  Note that the workaround is only valid on processors that do
+	  not perform speculative loads into the D-cache. For such
+	  processors, if cache maintenance operations are not broadcast
+	  in hardware, other workarounds are needed (e.g. cache
+	  maintenance broadcasting in software via FIQ).
+
+config OUTER_CACHE
+	bool
+
+config OUTER_CACHE_SYNC
+	bool
+	select ARM_HEAVY_MB
+	help
+	  The outer cache has a outer_cache_fns.sync function pointer
+	  that can be used to drain the write buffer of the outer cache.
+
+config CACHE_B15_RAC
+	bool "Enable the Broadcom Brahma-B15 read-ahead cache controller"
+	depends on ARCH_BRCMSTB
+	default y
+	help
+	  This option enables the Broadcom Brahma-B15 read-ahead cache
+	  controller. If disabled, the read-ahead cache remains off.
+
+config CACHE_FEROCEON_L2
+	bool "Enable the Feroceon L2 cache controller"
+	depends on ARCH_MV78XX0 || ARCH_MVEBU
+	default y
+	select OUTER_CACHE
+	help
+	  This option enables the Feroceon L2 cache controller.
+
+config CACHE_FEROCEON_L2_WRITETHROUGH
+	bool "Force Feroceon L2 cache write through"
+	depends on CACHE_FEROCEON_L2
+	help
+	  Say Y here to use the Feroceon L2 cache in writethrough mode.
+	  Unless you specifically require this, say N for writeback mode.
+
+config MIGHT_HAVE_CACHE_L2X0
+	bool
+	help
+	  This option should be selected by machines which have a L2x0
+	  or PL310 cache controller, but where its use is optional.
+
+	  The only effect of this option is to make CACHE_L2X0 and
+	  related options available to the user for configuration.
+
+	  Boards or SoCs which always require the cache controller
+	  support to be present should select CACHE_L2X0 directly
+	  instead of this option, thus preventing the user from
+	  inadvertently configuring a broken kernel.
+
+config CACHE_L2X0
+	bool "Enable the L2x0 outer cache controller" if MIGHT_HAVE_CACHE_L2X0
+	default MIGHT_HAVE_CACHE_L2X0
+	select OUTER_CACHE
+	select OUTER_CACHE_SYNC
+	help
+	  This option enables the L2x0 PrimeCell.
+
+config CACHE_L2X0_PMU
+	bool "L2x0 performance monitor support" if CACHE_L2X0
+	depends on PERF_EVENTS
+	help
+	  This option enables support for the performance monitoring features
+	  of the L220 and PL310 outer cache controllers.
+
+if CACHE_L2X0
+
+config PL310_ERRATA_588369
+	bool "PL310 errata: Clean & Invalidate maintenance operations do not invalidate clean lines"
+	help
+	   The PL310 L2 cache controller implements three types of Clean &
+	   Invalidate maintenance operations: by Physical Address
+	   (offset 0x7F0), by Index/Way (0x7F8) and by Way (0x7FC).
+	   They are architecturally defined to behave as the execution of a
+	   clean operation followed immediately by an invalidate operation,
+	   both performing to the same memory location. This functionality
+	   is not correctly implemented in PL310 prior to r2p0 (fixed in r2p0)
+	   as clean lines are not invalidated as a result of these operations.
+
+config PL310_ERRATA_727915
+	bool "PL310 errata: Background Clean & Invalidate by Way operation can cause data corruption"
+	help
+	  PL310 implements the Clean & Invalidate by Way L2 cache maintenance
+	  operation (offset 0x7FC). This operation runs in background so that
+	  PL310 can handle normal accesses while it is in progress. Under very
+	  rare circumstances, due to this erratum, write data can be lost when
+	  PL310 treats a cacheable write transaction during a Clean &
+	  Invalidate by Way operation.  Revisions prior to r3p1 are affected by
+	  this errata (fixed in r3p1).
+
+config PL310_ERRATA_753970
+	bool "PL310 errata: cache sync operation may be faulty"
+	help
+	  This option enables the workaround for the 753970 PL310 (r3p0) erratum.
+
+	  Under some condition the effect of cache sync operation on
+	  the store buffer still remains when the operation completes.
+	  This means that the store buffer is always asked to drain and
+	  this prevents it from merging any further writes. The workaround
+	  is to replace the normal offset of cache sync operation (0x730)
+	  by another offset targeting an unmapped PL310 register 0x740.
+	  This has the same effect as the cache sync operation: store buffer
+	  drain and waiting for all buffers empty.
+
+config PL310_ERRATA_769419
+	bool "PL310 errata: no automatic Store Buffer drain"
+	help
+	  On revisions of the PL310 prior to r3p2, the Store Buffer does
+	  not automatically drain. This can cause normal, non-cacheable
+	  writes to be retained when the memory system is idle, leading
+	  to suboptimal I/O performance for drivers using coherent DMA.
+	  This option adds a write barrier to the cpu_idle loop so that,
+	  on systems with an outer cache, the store buffer is drained
+	  explicitly.
+
+endif
+
+config CACHE_TAUROS2
+	bool "Enable the Tauros2 L2 cache controller"
+	depends on (CPU_MOHAWK || CPU_PJ4)
+	default y
+	select OUTER_CACHE
+	help
+	  This option enables the Tauros2 L2 cache controller (as
+	  found on PJ1/PJ4).
+
+config CACHE_UNIPHIER
+	bool "Enable the UniPhier outer cache controller"
+	depends on ARCH_UNIPHIER
+	select ARM_L1_CACHE_SHIFT_7
+	select OUTER_CACHE
+	select OUTER_CACHE_SYNC
+	help
+	  This option enables the UniPhier outer cache (system cache)
+	  controller.
+
+config CACHE_XSC3L2
+	bool "Enable the L2 cache on XScale3"
+	depends on CPU_XSC3
+	default y
+	select OUTER_CACHE
+	help
+	  This option enables the L2 cache on XScale3.
+
+config ARM_L1_CACHE_SHIFT_6
+	bool
+	default y if CPU_V7
+	help
+	  Setting ARM L1 cache line size to 64 Bytes.
+
+config ARM_L1_CACHE_SHIFT_7
+	bool
+	help
+	  Setting ARM L1 cache line size to 128 Bytes.
+
+config ARM_L1_CACHE_SHIFT
+	int
+	default 7 if ARM_L1_CACHE_SHIFT_7
+	default 6 if ARM_L1_CACHE_SHIFT_6
+	default 5
+
+config ARM_DMA_MEM_BUFFERABLE
+	bool "Use non-cacheable memory for DMA" if (CPU_V6 || CPU_V6K || CPU_V7M) && !CPU_V7
+	default y if CPU_V6 || CPU_V6K || CPU_V7 || CPU_V7M
+	help
+	  Historically, the kernel has used strongly ordered mappings to
+	  provide DMA coherent memory.  With the advent of ARMv7, mapping
+	  memory with differing types results in unpredictable behaviour,
+	  so on these CPUs, this option is forced on.
+
+	  Multiple mappings with differing attributes is also unpredictable
+	  on ARMv6 CPUs, but since they do not have aggressive speculative
+	  prefetch, no harm appears to occur.
+
+	  However, drivers may be missing the necessary barriers for ARMv6,
+	  and therefore turning this on may result in unpredictable driver
+	  behaviour.  Therefore, we offer this as an option.
+
+	  On some of the beefier ARMv7-M machines (with DMA and write
+	  buffers) you likely want this enabled, while those that
+	  didn't need it until now also won't need it in the future.
+
+	  You are recommended say 'Y' here and debug any affected drivers.
+
+config ARM_HEAVY_MB
+	bool
+
+config DEBUG_ALIGN_RODATA
+	bool "Make rodata strictly non-executable"
+	depends on STRICT_KERNEL_RWX
+	default y
+	help
+	  If this is set, rodata will be made explicitly non-executable. This
+	  provides protection on the rare chance that attackers might find and
+	  use ROP gadgets that exist in the rodata section. This adds an
+	  additional section-aligned split of rodata from kernel text so it
+	  can be made explicitly non-executable. This padding may waste memory
+	  space to gain the additional protection.

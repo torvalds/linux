@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/fsl,imx-gpcv2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX General Power Controller v2
+
+maintainers:
+  - Andrey Smirnov <andrew.smirnov@gmail.com>
+
+description: |
+  The i.MX7S/D General Power Control (GPC) block contains Power Gating
+  Control (PGC) for various power domains.
+
+  Power domains contained within GPC node are generic power domain
+  providers, documented in
+  Documentation/devicetree/bindings/power/power-domain.yaml, which are
+  described as subnodes of the power gating controller 'pgc' node.
+
+  IP cores belonging to a power domain should contain a 'power-domains'
+  property that is a phandle for PGC node representing the domain.
+
+properties:
+  compatible:
+    enum:
+      - fsl,imx7d-gpc
+      - fsl,imx8mn-gpc
+      - fsl,imx8mq-gpc
+      - fsl,imx8mm-gpc
+      - fsl,imx8mp-gpc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+  '#interrupt-cells':
+    const: 3
+
+  pgc:
+    type: object
+    additionalProperties: false
+    description: list of power domains provided by this controller.
+
+    properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
+    patternProperties:
+      "power-domain@[0-9a-f]+$":
+        type: object
+        additionalProperties: false
+
+        properties:
+
+          '#power-domain-cells':
+            const: 0
+
+          reg:
+            description: |
+              Power domain index. Valid values are defined in
+              include/dt-bindings/power/imx7-power.h for fsl,imx7d-gpc and
+              include/dt-bindings/power/imx8m-power.h for fsl,imx8mq-gpc
+              include/dt-bindings/power/imx8mm-power.h for fsl,imx8mm-gpc
+              include/dt-bindings/power/imx8mp-power.h for fsl,imx8mp-gpc
+            maxItems: 1
+
+          clocks:
+            description: |
+              A number of phandles to clocks that need to be enabled during domain
+              power-up sequencing to ensure reset propagation into devices located
+              inside this power domain.
+            minItems: 1
+            maxItems: 5
+
+          power-supply: true
+
+          power-domains:
+            maxItems: 1
+
+          resets:
+            description: |
+              A number of phandles to resets that need to be asserted during
+              power-up sequencing of the domain. The resets belong to devices
+              located inside the power domain, which need to be held in reset
+              across the power-up sequence. So no means to specify what each
+              reset is in a generic power-domain binding.
+            minItems: 1
+            maxItems: 4
+
+        required:
+          - '#power-domain-cells'
+          - reg
+
+    required:
+      - '#address-cells'
+      - '#size-cells'
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - pgc
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    gpc@303a0000 {
+        compatible = "fsl,imx7d-gpc";
+        reg = <0x303a0000 0x1000>;
+        interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+
+        pgc {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            pgc_mipi_phy: power-domain@0 {
+                #power-domain-cells = <0>;
+                reg = <0>;
+                power-supply = <&reg_1p0d>;
+            };
+
+            pgc_pcie_phy: power-domain@1 {
+                #power-domain-cells = <0>;
+                reg = <1>;
+                power-supply = <&reg_1p0d>;
+            };
+
+            pgc_hsic_phy: power-domain@2 {
+                #power-domain-cells = <0>;
+                reg = <2>;
+                power-supply = <&reg_1p2>;
+            };
+        };
+    };

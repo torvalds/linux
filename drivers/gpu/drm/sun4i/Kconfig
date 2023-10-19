@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_SUN4I
+	tristate "DRM Support for Allwinner A10 Display Engine"
+	depends on DRM && COMMON_CLK
+	depends on ARCH_SUNXI || COMPILE_TEST
+	select DRM_GEM_DMA_HELPER
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	select REGMAP_MMIO
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you have an Allwinner SoC with a
+	  Display Engine. If M is selected the module will be called
+	  sun4i-drm.
+
+if DRM_SUN4I
+
+config DRM_SUN4I_HDMI
+	tristate "Allwinner A10/A10s/A20/A31 HDMI Controller Support"
+	depends on ARM || COMPILE_TEST
+	default DRM_SUN4I
+	help
+	  Choose this option if you have an Allwinner A10/A10s/A20/A31
+	  SoC with an HDMI controller.
+
+config DRM_SUN4I_HDMI_CEC
+	bool "Allwinner A10/A10s/A20/A31 HDMI CEC Support"
+	depends on DRM_SUN4I_HDMI
+	select CEC_CORE
+	select CEC_PIN
+	help
+	  Choose this option if you have an Allwinner A10/A10s/A20/A31
+	  SoC with an HDMI controller and want to use CEC.
+
+config DRM_SUN4I_BACKEND
+	tristate "Support for Allwinner A10 Display Engine Backend"
+	depends on ARM || COMPILE_TEST
+	default DRM_SUN4I
+	help
+	  Choose this option if you have an Allwinner SoC with the
+	  original Allwinner Display Engine, which has a backend to
+	  do some alpha blending and feed graphics to TCON. If M is
+	  selected the module will be called sun4i-backend.
+
+config DRM_SUN6I_DSI
+	tristate "Allwinner A31/A64 MIPI-DSI Controller Support"
+	default DRM_SUN4I
+	select CRC_CCITT
+	select DRM_MIPI_DSI
+	select RESET_CONTROLLER
+	select PHY_SUN6I_MIPI_DPHY
+	help
+	  Choose this option if you want have an Allwinner SoC with
+	  MIPI-DSI support. If M is selected the module will be called
+	  sun6i_mipi_dsi.
+
+config DRM_SUN8I_DW_HDMI
+	tristate "Support for Allwinner version of DesignWare HDMI"
+	depends on DRM_SUN4I
+	default DRM_SUN4I
+	select DRM_DW_HDMI
+	help
+	  Choose this option if you have an Allwinner SoC with the
+	  DesignWare HDMI controller. SoCs that support HDMI and
+	  have a Display Engine 2.0 contain this controller. If M is
+	  selected the module will be called sun8i_dw_hdmi.
+
+config DRM_SUN8I_MIXER
+	tristate "Support for Allwinner Display Engine 2.0 Mixer"
+	default DRM_SUN4I
+	help
+	  Choose this option if you have an Allwinner SoC with the
+	  Allwinner Display Engine 2.0, which has a mixer to do some
+	  graphics mixture and feed graphics to TCON, If M is
+	  selected the module will be called sun8i-mixer.
+
+config DRM_SUN8I_TCON_TOP
+	tristate
+	default DRM_SUN4I if DRM_SUN8I_MIXER!=n
+	help
+	  TCON TOP is responsible for configuring display pipeline for
+	  HDMI, TVE and LCD.
+
+endif

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0
+menuconfig ARCH_TEGRA
+	bool "NVIDIA Tegra"
+	depends on ARCH_MULTI_V7
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_AMBA
+	select ARM_GIC
+	select CLKSRC_MMIO
+	select GPIOLIB
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select PINCTRL
+	select PM
+	select PM_OPP
+	select RESET_CONTROLLER
+	select SOC_BUS
+	select ZONE_DMA if ARM_LPAE
+	help
+	  This enables support for NVIDIA Tegra based systems.

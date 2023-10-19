@@ -1,0 +1,60 @@
+Link Layer Validation Device is a standard device for testing of Super
+Speed Link Layer tests. These nodes are available in sysfs only when lvs
+driver is bound with root hub device.
+
+What:		/sys/bus/usb/devices/.../get_dev_desc
+Date:		March 2014
+Contact:	Pratyush Anand <pratyush.anand@gmail.com>
+Description:
+		Write to this node to issue "Get Device Descriptor"
+		for Link Layer Validation device. It is needed for TD.7.06.
+
+What:		/sys/bus/usb/devices/.../u1_timeout
+Date:		March 2014
+Contact:	Pratyush Anand <pratyush.anand@gmail.com>
+Description:
+		Set "U1 timeout" for the downstream port where Link Layer
+		Validation device is connected. Timeout value must be between 0
+		and 127. It is needed for TD.7.18, TD.7.19, TD.7.20 and TD.7.21.
+
+What:		/sys/bus/usb/devices/.../u2_timeout
+Date:		March 2014
+Contact:	Pratyush Anand <pratyush.anand@gmail.com>
+Description:
+		Set "U2 timeout" for the downstream port where Link Layer
+		Validation device is connected. Timeout value must be between 0
+		and 127. It is needed for TD.7.18, TD.7.19, TD.7.20 and TD.7.21.
+
+What:		/sys/bus/usb/devices/.../hot_reset
+Date:		March 2014
+Contact:	Pratyush Anand <pratyush.anand@gmail.com>
+Description:
+		Write to this node to issue "Reset" for Link Layer Validation
+		device. It is needed for TD.7.29, TD.7.31, TD.7.34 and TD.7.35.
+
+What:		/sys/bus/usb/devices/.../u3_entry
+Date:		March 2014
+Contact:	Pratyush Anand <pratyush.anand@gmail.com>
+Description:
+		Write to this node to issue "U3 entry" for Link Layer
+		Validation device. It is needed for TD.7.35 and TD.7.36.
+
+What:		/sys/bus/usb/devices/.../u3_exit
+Date:		March 2014
+Contact:	Pratyush Anand <pratyush.anand@gmail.com>
+Description:
+		Write to this node to issue "U3 exit" for Link Layer
+		Validation device. It is needed for TD.7.36.
+
+What:		/sys/bus/usb/devices/.../enable_compliance
+Date:		July 2017
+Description:
+		Write to this node to set the port to compliance mode to test
+		with Link Layer Validation device. It is needed for TD.7.34.
+
+What:		/sys/bus/usb/devices/.../warm_reset
+Date:		July 2017
+Description:
+		Write to this node to issue "Warm Reset" for Link Layer Validation
+		device. It may be needed to properly reset an xHCI 1.1 host port if
+		compliance mode needed to be explicitly enabled.

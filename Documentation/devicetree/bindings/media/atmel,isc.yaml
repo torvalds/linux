@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2016-2021 Microchip Technology, Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/atmel,isc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atmel Image Sensor Controller (ISC)
+
+maintainers:
+  - Eugen Hristev <eugen.hristev@microchip.com>
+
+description: |
+  The Image Sensor Controller (ISC) device provides the video input capabilities for the
+  Atmel/Microchip AT91 SAMA family of devices.
+
+  The ISC has a single parallel input that supports RAW Bayer, RGB or YUV video,
+  with both external synchronization and BT.656 synchronization for the latter.
+
+properties:
+  compatible:
+    const: atmel,sama5d2-isc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 3
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: hclock
+      - const: iscck
+      - const: gck
+
+  '#clock-cells':
+    const: 0
+
+  clock-output-names:
+    const: isc-mck
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description:
+      Input port node, single endpoint describing the input pad.
+
+    properties:
+      endpoint:
+        $ref: video-interfaces.yaml#
+
+        properties:
+          remote-endpoint: true
+
+          bus-width:
+            enum: [8, 9, 10, 11, 12]
+            default: 12
+
+          hsync-active:
+            enum: [0, 1]
+            default: 1
+
+          vsync-active:
+            enum: [0, 1]
+            default: 1
+
+          pclk-sample:
+            enum: [0, 1]
+            default: 1
+
+        required:
+          - remote-endpoint
+
+        additionalProperties: false
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - '#clock-cells'
+  - clock-output-names
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    isc: isc@f0008000 {
+        compatible = "atmel,sama5d2-isc";
+        reg = <0xf0008000 0x4000>;
+        interrupts = <46 IRQ_TYPE_LEVEL_HIGH 5>;
+        clocks = <&isc_clk>, <&iscck>, <&isc_gclk>;
+        clock-names = "hclock", "iscck", "gck";
+        #clock-cells = <0>;
+        clock-output-names = "isc-mck";
+
+        port {
+                isc_0: endpoint {
+                       remote-endpoint = <&ov7740_0>;
+                       hsync-active = <1>;
+                       vsync-active = <0>;
+                       pclk-sample = <1>;
+                       bus-width = <8>;
+                };
+        };
+    };

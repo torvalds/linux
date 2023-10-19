@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
+generated-y += unistd-oabi.h
+generated-y += unistd-eabi.h
+generic-y += kvm_para.h

@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/auxdisplay/holtek,ht16k33.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Holtek HT16K33 RAM mapping 16*8 LED controller with keyscan
+
+maintainers:
+  - Robin van der Gracht <robin@protonic.nl>
+
+allOf:
+  - $ref: "/schemas/input/matrix-keymap.yaml#"
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - adafruit,3108  # 0.56" 4-Digit 7-Segment FeatherWing Display (Red)
+              - adafruit,3130  # 0.54" Quad Alphanumeric FeatherWing Display (Red)
+          - const: holtek,ht16k33
+
+      - const: holtek,ht16k33     # Generic 16*8 LED controller with dot-matrix display
+
+  reg:
+    maxItems: 1
+
+  refresh-rate-hz:
+    maxItems: 1
+    description: Display update interval in Hertz for dot-matrix displays
+
+  interrupts:
+    maxItems: 1
+
+  debounce-delay-ms:
+    maxItems: 1
+    description: Debouncing interval time in milliseconds
+
+  linux,keymap: true
+
+  linux,no-autorepeat:
+    description: Disable keyrepeat
+
+  default-brightness-level:
+    minimum: 1
+    maximum: 16
+    default: 16
+    description: Initial brightness level
+
+  led:
+    type: object
+    $ref: /schemas/leds/common.yaml#
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+
+if:
+  properties:
+    compatible:
+      const: holtek,ht16k33
+then:
+  required:
+    - refresh-rate-hz
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/input/input.h>
+    #include <dt-bindings/leds/common.h>
+    i2c1 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            ht16k33: ht16k33@70 {
+                    compatible = "holtek,ht16k33";
+                    reg = <0x70>;
+                    refresh-rate-hz = <20>;
+                    interrupt-parent = <&gpio4>;
+                    interrupts = <5 (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_EDGE_RISING)>;
+                    debounce-delay-ms = <50>;
+                    linux,keymap = <MATRIX_KEY(2, 0, KEY_F6)>,
+                                   <MATRIX_KEY(3, 0, KEY_F8)>,
+                                   <MATRIX_KEY(4, 0, KEY_F10)>,
+                                   <MATRIX_KEY(5, 0, KEY_F4)>,
+                                   <MATRIX_KEY(6, 0, KEY_F2)>,
+                                   <MATRIX_KEY(2, 1, KEY_F5)>,
+                                   <MATRIX_KEY(3, 1, KEY_F7)>,
+                                   <MATRIX_KEY(4, 1, KEY_F9)>,
+                                   <MATRIX_KEY(5, 1, KEY_F3)>,
+                                   <MATRIX_KEY(6, 1, KEY_F1)>;
+
+                    led {
+                            color = <LED_COLOR_ID_RED>;
+                            function = LED_FUNCTION_BACKLIGHT;
+                            linux,default-trigger = "backlight";
+                    };
+            };
+      };

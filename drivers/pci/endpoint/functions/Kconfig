@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# PCI Endpoint Functions
+#
+
+config PCI_EPF_TEST
+	tristate "PCI Endpoint Test driver"
+	depends on PCI_ENDPOINT
+	select CRC32
+	help
+	   Enable this configuration option to enable the test driver
+	   for PCI Endpoint.
+
+	   If in doubt, say "N" to disable Endpoint test driver.
+
+config PCI_EPF_NTB
+	tristate "PCI Endpoint NTB driver"
+	depends on PCI_ENDPOINT
+	select CONFIGFS_FS
+	help
+	  Select this configuration option to enable the Non-Transparent
+	  Bridge (NTB) driver for PCI Endpoint. NTB driver implements NTB
+	  controller functionality using multiple PCIe endpoint instances.
+	  It can support NTB endpoint function devices created using
+	  device tree.
+
+	  If in doubt, say "N" to disable Endpoint NTB driver.
+
+config PCI_EPF_VNTB
+        tristate "PCI Endpoint NTB driver"
+        depends on PCI_ENDPOINT
+        depends on NTB
+        select CONFIGFS_FS
+        help
+          Select this configuration option to enable the Non-Transparent
+          Bridge (NTB) driver for PCIe Endpoint. NTB driver implements NTB
+          between PCI Root Port and PCIe Endpoint.
+
+          If in doubt, say "N" to disable Endpoint NTB driver.

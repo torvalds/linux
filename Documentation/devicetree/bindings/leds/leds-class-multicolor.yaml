@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/leds-class-multicolor.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Common properties for the multicolor LED class.
+
+maintainers:
+  - Andrew Davis <afd@ti.com>
+
+description: |
+  Bindings for multi color LEDs show how to describe current outputs of
+  either integrated multi-color LED elements (like RGB, RGBW, RGBWA-UV
+  etc.) or standalone LEDs, to achieve logically grouped multi-color LED
+  modules. This is achieved by adding multi-led nodes layer to the
+  monochrome LED bindings.
+  The nodes and properties defined in this document are unique to the multicolor
+  LED class.  Common LED nodes and properties are inherited from the common.yaml
+  within this documentation directory.
+
+properties:
+  $nodename:
+    pattern: "^multi-led(@[0-9a-f])?$"
+
+  color:
+    description: |
+      For multicolor LED support this property should be defined as either
+      LED_COLOR_ID_RGB or LED_COLOR_ID_MULTI which can be found in
+      include/linux/leds/common.h.
+    enum: [ 8, 9 ]
+
+required:
+  - color
+
+allOf:
+  - $ref: "common.yaml#"
+
+additionalProperties: true
+
+...

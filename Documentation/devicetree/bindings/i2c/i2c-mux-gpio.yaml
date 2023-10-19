@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/i2c-mux-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GPIO-based I2C Bus Mux
+
+maintainers:
+  - Wolfram Sang <wsa@kernel.org>
+
+description: |
+  This binding describes an I2C bus multiplexer that uses GPIOs to route the I2C signals.
+
+                                  +-----+  +-----+
+                                  | dev |  | dev |
+    +------------+                +-----+  +-----+
+    | SoC        |                   |        |
+    |            |          /--------+--------+
+    |   +------+ |  +------+    child bus A, on GPIO value set to 0
+    |   | I2C  |-|--| Mux  |
+    |   +------+ |  +--+---+    child bus B, on GPIO value set to 1
+    |            |     |    \----------+--------+--------+
+    |   +------+ |     |               |        |        |
+    |   | GPIO |-|-----+            +-----+  +-----+  +-----+
+    |   +------+ |                  | dev |  | dev |  | dev |
+    +------------+                  +-----+  +-----+  +-----+
+
+  For each I2C child node, an I2C child bus will be created. They will be numbered based on their
+  order in the device tree.
+
+  Whenever an access is made to a device on a child bus, the value set in the relevant node's reg
+  property will be output using the list of GPIOs, the first in the list holding the least-
+  significant value.
+
+  If an idle state is defined, using the idle-state (optional) property, whenever an access is not
+  being made to a device on a child bus, the GPIOs will be set according to the idle value.
+
+  If an idle state is not defined, the most recently used value will be left programmed into
+  hardware whenever no access is being made to a device on a child bus.
+
+properties:
+  compatible:
+    const: i2c-mux-gpio
+
+  i2c-parent:
+    description: phandle of the I2C bus that this multiplexer's master-side port is connected to
+    $ref: "/schemas/types.yaml#/definitions/phandle"
+
+  mux-gpios:
+    description: list of GPIOs used to control the muxer
+    minItems: 1
+    maxItems: 4  # Should be enough
+
+  idle-state:
+    description: Value to set the muxer to when idle. When no value is given, it defaults to the
+      last value used.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+allOf:
+  - $ref: i2c-mux.yaml
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - i2c-parent
+  - mux-gpios
+
+examples:
+  - |
+    i2cmux {
+      compatible = "i2c-mux-gpio";
+      #address-cells = <1>;
+      #size-cells = <0>;
+      mux-gpios = <&gpio1 22 0>, <&gpio1 23 0>;
+      i2c-parent = <&i2c1>;
+
+      i2c@1 {
+        reg = <1>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ssd1307: oled@3c {
+          compatible = "solomon,ssd1307fb-i2c";
+          reg = <0x3c>;
+          pwms = <&pwm 4 3000>;
+          reset-gpios = <&gpio2 7 1>;
+        };
+      };
+
+      i2c@3 {
+        reg = <3>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pca9555: pca9555@20 {
+          compatible = "nxp,pca9555";
+          gpio-controller;
+          #gpio-cells = <2>;
+          reg = <0x20>;
+        };
+      };
+    };

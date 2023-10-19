@@ -1,0 +1,40 @@
+GSSAPI ::=
+	[APPLICATION 0] IMPLICIT SEQUENCE {
+		thisMech
+			OBJECT IDENTIFIER ({cifs_gssapi_this_mech}),
+		negotiationToken
+			NegotiationToken
+	}
+
+MechType ::= OBJECT IDENTIFIER ({cifs_neg_token_init_mech_type})
+
+MechTypeList ::= SEQUENCE OF MechType
+
+NegHints ::= SEQUENCE {
+	hintName
+		[0] GeneralString OPTIONAL,
+	hintAddress
+		[1] OCTET STRING OPTIONAL
+	}
+
+NegTokenInit2 ::=
+	SEQUENCE {
+		mechTypes
+			[0] MechTypeList OPTIONAL,
+		reqFlags
+			[1] BIT STRING OPTIONAL,
+		mechToken
+			[2] OCTET STRING OPTIONAL,
+		negHints
+			[3] NegHints OPTIONAL,
+		mechListMIC
+			[3] OCTET STRING OPTIONAL
+	}
+
+NegotiationToken ::=
+	CHOICE {
+		negTokenInit
+			[0] NegTokenInit2,
+		negTokenTarg
+			[1] ANY
+	}
