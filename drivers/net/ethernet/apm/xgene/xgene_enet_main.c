@@ -2170,7 +2170,7 @@ static void xgene_enet_shutdown(struct platform_device *pdev)
 static struct platform_driver xgene_enet_driver = {
 	.driver = {
 		   .name = "xgene-enet",
-		   .of_match_table = of_match_ptr(xgene_enet_of_match),
+		   .of_match_table = xgene_enet_of_match,
 		   .acpi_match_table = ACPI_PTR(xgene_enet_acpi_match),
 	},
 	.probe = xgene_enet_probe,
