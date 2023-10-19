@@ -276,6 +276,12 @@ MLXSW_ITEM32(cmd_mbox, query_fw, fw_month, 0x14, 8, 8);
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, fw_day, 0x14, 0, 8);
 
+/* cmd_mbox_query_fw_lag_mode_support
+ * 0: CONFIG_PROFILE.lag_mode is not supported by FW
+ * 1: CONFIG_PROFILE.lag_mode is supported by FW
+ */
+MLXSW_ITEM32(cmd_mbox, query_fw, lag_mode_support, 0x18, 1, 1);
+
 /* cmd_mbox_query_fw_clr_int_base_offset
  * Clear Interrupt register's offset from clr_int_bar register
  * in PCI address space.
