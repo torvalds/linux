@@ -695,6 +695,12 @@ MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_version, 0x08, 0, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_time_stamp_type, 0x08, 2, 1);
 
+/* cmd_mbox_config_profile_set_lag_mode
+ * Capability bit. Setting a bit to 1 configures the lag_mode
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_lag_mode, 0x08, 7, 1);
+
 /* cmd_mbox_config_profile_max_vepa_channels
  * Maximum number of VEPA channels per port (0 through 16)
  * 0 - multi-channel VEPA is disabled
@@ -839,6 +845,21 @@ MLXSW_ITEM32(cmd_mbox, config_profile, arn, 0x50, 31, 1);
  * 1 - unified bridge
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, ubridge, 0x50, 4, 1);
+
+enum mlxsw_cmd_mbox_config_profile_lag_mode {
+	/* FW manages PGT LAG table */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_FW,
+	/* SW manages PGT LAG table */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_SW,
+};
+
+/* cmd_mbox_config_profile_lag_mode
+ * LAG mode
+ * Configured if set_lag_mode is set
+ * Supported from Spectrum-2 and above.
+ * Supported only when ubridge = 1
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, lag_mode, 0x50, 3, 1);
 
 /* cmd_mbox_config_kvd_linear_size
  * KVD Linear Size
