@@ -17,7 +17,7 @@
 		pinctrl-0 = <&uart7m1_xfer>;
 
 		amp-cpu-aff-maskbits = /bits/ 64 <0x0 0x1 0x1 0x2 0x2 0x4 0x3 0x8>;
-		amp-irqs = /bits/ 64 <GIC_AMP_IRQ_CFG_ROUTE(81, 0xd0, CPU_GET_AFFINITY(3, 0))>;
+		amp-irqs = /bits/ 64 <GIC_AMP_IRQ_CFG_ROUTE(147, 0xd0, CPU_GET_AFFINITY(3, 0))>;
 
 		status = "okay";
 	};
@@ -57,7 +57,8 @@
 		mbox-names = "rpmsg-rx", "rpmsg-tx";
 		mboxes = <&mailbox 0 &mailbox 3>;
 		rockchip,vdev-nums = <1>;
-		rockchip,link-id = <0x04>;
+		/* CPU3: link-id 0x03; MCU: link-id 0x04; */
+		rockchip,link-id = <0x03>;
 		reg = <0x0 0x7c00000 0x0 0x20000>;
 		memory-region = <&rpmsg_dma_reserved>;
 
