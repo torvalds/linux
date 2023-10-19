@@ -72,6 +72,11 @@ enum afs_call_state {
 	AFS_CALL_COMPLETE,		/* Completed or failed */
 };
 
+struct afs_address {
+	struct rxrpc_peer	*peer;
+	u16			service_id;
+};
+
 /*
  * List of server addresses.
  */
@@ -87,9 +92,7 @@ struct afs_addr_list {
 	enum dns_lookup_status	status:8;
 	unsigned long		failed;		/* Mask of addrs that failed locally/ICMP */
 	unsigned long		responded;	/* Mask of addrs that responded */
-	struct {
-		struct sockaddr_rxrpc	srx;
-	} addrs[] __counted_by(max_addrs);
+	struct afs_address	addrs[] __counted_by(max_addrs);
 #define AFS_MAX_ADDRESSES ((unsigned int)(sizeof(unsigned long) * 8))
 };
 
@@ -420,7 +423,7 @@ struct afs_vlserver {
 	atomic_t		probe_outstanding;
 	spinlock_t		probe_lock;
 	struct {
-		unsigned int	rtt;		/* RTT in uS */
+		unsigned int	rtt;		/* Best RTT in uS (or UINT_MAX) */
 		u32		abort_code;
 		short		error;
 		unsigned short	flags;
@@ -537,7 +540,7 @@ struct afs_server {
 	atomic_t		probe_outstanding;
 	spinlock_t		probe_lock;
 	struct {
-		unsigned int	rtt;		/* RTT in uS */
+		unsigned int	rtt;		/* Best RTT in uS (or UINT_MAX) */
 		u32		abort_code;
 		short		error;
 		bool		responded:1;
@@ -964,9 +967,7 @@ static inline struct afs_addr_list *afs_get_addrlist(struct afs_addr_list *alist
 		refcount_inc(&alist->usage);
 	return alist;
 }
-extern struct afs_addr_list *afs_alloc_addrlist(unsigned int,
-						unsigned short,
-						unsigned short);
+extern struct afs_addr_list *afs_alloc_addrlist(unsigned int nr, u16 service_id);
 extern void afs_put_addrlist(struct afs_addr_list *);
 extern struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *,
 						      const char *, size_t, char,
@@ -977,8 +978,10 @@ extern struct afs_vlserver_list *afs_dns_query(struct afs_cell *, time64_t *);
 extern bool afs_iterate_addresses(struct afs_addr_cursor *);
 extern int afs_end_cursor(struct afs_addr_cursor *);
 
-extern void afs_merge_fs_addr4(struct afs_addr_list *, __be32, u16);
-extern void afs_merge_fs_addr6(struct afs_addr_list *, __be32 *, u16);
+extern int afs_merge_fs_addr4(struct afs_net *net, struct afs_addr_list *addr,
+			      __be32 xdr, u16 port);
+extern int afs_merge_fs_addr6(struct afs_net *net, struct afs_addr_list *addr,
+			      __be32 *xdr, u16 port);
 
 /*
  * callback.c
@@ -1405,8 +1408,7 @@ extern void __exit afs_clean_up_permit_cache(void);
  */
 extern spinlock_t afs_server_peer_lock;
 
-extern struct afs_server *afs_find_server(struct afs_net *,
-					  const struct sockaddr_rxrpc *);
+extern struct afs_server *afs_find_server(struct afs_net *, const struct rxrpc_peer *);
 extern struct afs_server *afs_find_server_by_uuid(struct afs_net *, const uuid_t *);
 extern struct afs_server *afs_lookup_server(struct afs_cell *, struct key *, const uuid_t *, u32);
 extern struct afs_server *afs_get_server(struct afs_server *, enum afs_server_trace);

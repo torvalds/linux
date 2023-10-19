@@ -307,7 +307,7 @@ static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
 		for (i = 0; i < alist->nr_addrs; i++)
 			seq_printf(m, " %c %pISpc\n",
 				   alist->preferred == i ? '>' : '-',
-				   &alist->addrs[i].srx.transport);
+				   rxrpc_kernel_remote_addr(alist->addrs[i].peer));
 	}
 	seq_printf(m, " info: fl=%lx rtt=%d\n", vlserver->flags, vlserver->rtt);
 	seq_printf(m, " probe: fl=%x e=%d ac=%d out=%d\n",
@@ -398,9 +398,10 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 	seq_printf(m, "  - ALIST v=%u rsp=%lx f=%lx\n",
 		   alist->version, alist->responded, alist->failed);
 	for (i = 0; i < alist->nr_addrs; i++)
-		seq_printf(m, "    [%x] %pISpc%s\n",
-			   i, &alist->addrs[i].srx.transport,
-			   alist->preferred == i ? "*" : "");
+		seq_printf(m, "    [%x] %pISpc%s rtt=%d\n",
+			   i, rxrpc_kernel_remote_addr(alist->addrs[i].peer),
+			   alist->preferred == i ? "*" : "",
+			   rxrpc_kernel_get_srtt(alist->addrs[i].peer));
 	return 0;
 }
 

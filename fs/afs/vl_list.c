@@ -83,14 +83,15 @@ static u16 afs_extract_le16(const u8 **_b)
 /*
  * Build a VL server address list from a DNS queried server list.
  */
-static struct afs_addr_list *afs_extract_vl_addrs(const u8 **_b, const u8 *end,
+static struct afs_addr_list *afs_extract_vl_addrs(struct afs_net *net,
+						  const u8 **_b, const u8 *end,
 						  u8 nr_addrs, u16 port)
 {
 	struct afs_addr_list *alist;
 	const u8 *b = *_b;
 	int ret = -EINVAL;
 
-	alist = afs_alloc_addrlist(nr_addrs, VL_SERVICE, port);
+	alist = afs_alloc_addrlist(nr_addrs, VL_SERVICE);
 	if (!alist)
 		return ERR_PTR(-ENOMEM);
 	if (nr_addrs == 0)
@@ -109,7 +110,9 @@ static struct afs_addr_list *afs_extract_vl_addrs(const u8 **_b, const u8 *end,
 				goto error;
 			}
 			memcpy(x, b, 4);
-			afs_merge_fs_addr4(alist, x[0], port);
+			ret = afs_merge_fs_addr4(net, alist, x[0], port);
+			if (ret < 0)
+				goto error;
 			b += 4;
 			break;
 
@@ -119,7 +122,9 @@ static struct afs_addr_list *afs_extract_vl_addrs(const u8 **_b, const u8 *end,
 				goto error;
 			}
 			memcpy(x, b, 16);
-			afs_merge_fs_addr6(alist, x, port);
+			ret = afs_merge_fs_addr6(net, alist, x, port);
+			if (ret < 0)
+				goto error;
 			b += 16;
 			break;
 
@@ -247,7 +252,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 		/* Extract the addresses - note that we can't skip this as we
 		 * have to advance the payload pointer.
 		 */
-		addrs = afs_extract_vl_addrs(&b, end, bs.nr_addrs, bs.port);
+		addrs = afs_extract_vl_addrs(cell->net, &b, end, bs.nr_addrs, bs.port);
 		if (IS_ERR(addrs)) {
 			ret = PTR_ERR(addrs);
 			goto error_2;

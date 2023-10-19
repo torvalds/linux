@@ -101,6 +101,7 @@ static void afs_fs_probe_not_done(struct afs_net *net,
 void afs_fileserver_probe_result(struct afs_call *call)
 {
 	struct afs_addr_list *alist = call->alist;
+	struct afs_address *addr = &alist->addrs[call->addr_ix];
 	struct afs_server *server = call->server;
 	unsigned int index = call->addr_ix;
 	unsigned int rtt_us = 0, cap0;
@@ -153,12 +154,12 @@ responded:
 	if (call->service_id == YFS_FS_SERVICE) {
 		server->probe.is_yfs = true;
 		set_bit(AFS_SERVER_FL_IS_YFS, &server->flags);
-		alist->addrs[index].srx.srx_service = call->service_id;
+		addr->service_id = call->service_id;
 	} else {
 		server->probe.not_yfs = true;
 		if (!server->probe.is_yfs) {
 			clear_bit(AFS_SERVER_FL_IS_YFS, &server->flags);
-			alist->addrs[index].srx.srx_service = call->service_id;
+			addr->service_id = call->service_id;
 		}
 		cap0 = ntohl(call->tmp);
 		if (cap0 & AFS3_VICED_CAPABILITY_64BITFILES)
@@ -167,7 +168,7 @@ responded:
 			clear_bit(AFS_SERVER_FL_HAS_FS64, &server->flags);
 	}
 
-	rxrpc_kernel_get_srtt(call->net->socket, call->rxcall, &rtt_us);
+	rtt_us = rxrpc_kernel_get_srtt(addr->peer);
 	if (rtt_us < server->probe.rtt) {
 		server->probe.rtt = rtt_us;
 		server->rtt = rtt_us;
@@ -181,8 +182,8 @@ responded:
 out:
 	spin_unlock(&server->probe_lock);
 
-	_debug("probe %pU [%u] %pISpc rtt=%u ret=%d",
-	       &server->uuid, index, &alist->addrs[index].srx.transport,
+	_debug("probe %pU [%u] %pISpc rtt=%d ret=%d",
+	       &server->uuid, index, rxrpc_kernel_remote_addr(alist->addrs[index].peer),
 	       rtt_us, ret);
 
 	return afs_done_one_fs_probe(call->net, server);

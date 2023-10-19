@@ -33,55 +33,6 @@ static struct afs_volume *afs_sample_volume(struct afs_cell *cell, struct key *k
 }
 
 /*
- * Compare two addresses.
- */
-static int afs_compare_addrs(const struct sockaddr_rxrpc *srx_a,
-			     const struct sockaddr_rxrpc *srx_b)
-{
-	short port_a, port_b;
-	int addr_a, addr_b, diff;
-
-	diff = (short)srx_a->transport_type - (short)srx_b->transport_type;
-	if (diff)
-		goto out;
-
-	switch (srx_a->transport_type) {
-	case AF_INET: {
-		const struct sockaddr_in *a = &srx_a->transport.sin;
-		const struct sockaddr_in *b = &srx_b->transport.sin;
-		addr_a = ntohl(a->sin_addr.s_addr);
-		addr_b = ntohl(b->sin_addr.s_addr);
-		diff = addr_a - addr_b;
-		if (diff == 0) {
-			port_a = ntohs(a->sin_port);
-			port_b = ntohs(b->sin_port);
-			diff = port_a - port_b;
-		}
-		break;
-	}
-
-	case AF_INET6: {
-		const struct sockaddr_in6 *a = &srx_a->transport.sin6;
-		const struct sockaddr_in6 *b = &srx_b->transport.sin6;
-		diff = memcmp(&a->sin6_addr, &b->sin6_addr, 16);
-		if (diff == 0) {
-			port_a = ntohs(a->sin6_port);
-			port_b = ntohs(b->sin6_port);
-			diff = port_a - port_b;
-		}
-		break;
-	}
-
-	default:
-		WARN_ON(1);
-		diff = 1;
-	}
-
-out:
-	return diff;
-}
-
-/*
  * Compare the address lists of a pair of fileservers.
  */
 static int afs_compare_fs_alists(const struct afs_server *server_a,
@@ -94,9 +45,9 @@ static int afs_compare_fs_alists(const struct afs_server *server_a,
 	lb = rcu_dereference(server_b->addresses);
 
 	while (a < la->nr_addrs && b < lb->nr_addrs) {
-		const struct sockaddr_rxrpc *srx_a = &la->addrs[a].srx;
-		const struct sockaddr_rxrpc *srx_b = &lb->addrs[b].srx;
-		int diff = afs_compare_addrs(srx_a, srx_b);
+		unsigned long pa = (unsigned long)la->addrs[a].peer;
+		unsigned long pb = (unsigned long)lb->addrs[b].peer;
+		long diff = pa - pb;
 
 		if (diff < 0) {
 			a++;

@@ -208,7 +208,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 		count		= ntohl(*bp);
 
 		nentries = min(nentries, count);
-		alist = afs_alloc_addrlist(nentries, FS_SERVICE, AFS_FS_PORT);
+		alist = afs_alloc_addrlist(nentries, FS_SERVICE);
 		if (!alist)
 			return -ENOMEM;
 		alist->version = uniquifier;
@@ -230,9 +230,13 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 		alist = call->ret_alist;
 		bp = call->buffer;
 		count = min(call->count, 4U);
-		for (i = 0; i < count; i++)
-			if (alist->nr_addrs < call->count2)
-				afs_merge_fs_addr4(alist, *bp++, AFS_FS_PORT);
+		for (i = 0; i < count; i++) {
+			if (alist->nr_addrs < call->count2) {
+				ret = afs_merge_fs_addr4(call->net, alist, *bp++, AFS_FS_PORT);
+				if (ret < 0)
+					return ret;
+			}
+		}
 
 		call->count -= count;
 		if (call->count > 0)
@@ -450,7 +454,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		if (call->count > YFS_MAXENDPOINTS)
 			return afs_protocol_error(call, afs_eproto_yvl_fsendpt_num);
 
-		alist = afs_alloc_addrlist(call->count, FS_SERVICE, AFS_FS_PORT);
+		alist = afs_alloc_addrlist(call->count, FS_SERVICE);
 		if (!alist)
 			return -ENOMEM;
 		alist->version = uniquifier;
@@ -488,14 +492,18 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 			if (ntohl(bp[0]) != sizeof(__be32) * 2)
 				return afs_protocol_error(
 					call, afs_eproto_yvl_fsendpt4_len);
-			afs_merge_fs_addr4(alist, bp[1], ntohl(bp[2]));
+			ret = afs_merge_fs_addr4(call->net, alist, bp[1], ntohl(bp[2]));
+			if (ret < 0)
+				return ret;
 			bp += 3;
 			break;
 		case YFS_ENDPOINT_IPV6:
 			if (ntohl(bp[0]) != sizeof(__be32) * 5)
 				return afs_protocol_error(
 					call, afs_eproto_yvl_fsendpt6_len);
-			afs_merge_fs_addr6(alist, bp + 1, ntohl(bp[5]));
+			ret = afs_merge_fs_addr6(call->net, alist, bp + 1, ntohl(bp[5]));
+			if (ret < 0)
+				return ret;
 			bp += 6;
 			break;
 		default:

@@ -146,10 +146,11 @@ static int afs_find_cm_server_by_peer(struct afs_call *call)
 {
 	struct sockaddr_rxrpc srx;
 	struct afs_server *server;
+	struct rxrpc_peer *peer;
 
-	rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
+	peer = rxrpc_kernel_get_call_peer(call->net->socket, call->rxcall);
 
-	server = afs_find_server(call->net, &srx);
+	server = afs_find_server(call->net, peer);
 	if (!server) {
 		trace_afs_cm_no_server(call, &srx);
 		return 0;

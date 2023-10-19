@@ -92,7 +92,7 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 	struct afs_addr_list *alist;
 	struct afs_vlserver *vlserver;
 	struct afs_error e;
-	u32 rtt;
+	unsigned int rtt;
 	int error = vc->ac.error, i;
 
 	_enter("%lx[%d],%lx[%d],%d,%d",
@@ -194,7 +194,7 @@ pick_server:
 		goto selected_server;
 
 	vc->index = -1;
-	rtt = U32_MAX;
+	rtt = UINT_MAX;
 	for (i = 0; i < vc->server_list->nr_servers; i++) {
 		struct afs_vlserver *s = vc->server_list->servers[i].server;
 
@@ -249,7 +249,7 @@ iterate_address:
 
 	_debug("VL address %d/%d", vc->ac.index, vc->ac.alist->nr_addrs);
 
-	_leave(" = t %pISpc", &vc->ac.alist->addrs[vc->ac.index].srx.transport);
+	_leave(" = t %pISpc", rxrpc_kernel_remote_addr(vc->ac.alist->addrs[vc->ac.index].peer));
 	return true;
 
 next_server:

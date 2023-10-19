@@ -21,13 +21,12 @@ static void __afs_put_server(struct afs_net *, struct afs_server *);
 /*
  * Find a server by one of its addresses.
  */
-struct afs_server *afs_find_server(struct afs_net *net,
-				   const struct sockaddr_rxrpc *srx)
+struct afs_server *afs_find_server(struct afs_net *net, const struct rxrpc_peer *peer)
 {
 	const struct afs_addr_list *alist;
 	struct afs_server *server = NULL;
 	unsigned int i;
-	int seq = 1, diff;
+	int seq = 1;
 
 	rcu_read_lock();
 
@@ -38,37 +37,11 @@ struct afs_server *afs_find_server(struct afs_net *net,
 		seq++; /* 2 on the 1st/lockless path, otherwise odd */
 		read_seqbegin_or_lock(&net->fs_addr_lock, &seq);
 
-		if (srx->transport.family == AF_INET6) {
-			const struct sockaddr_in6 *a = &srx->transport.sin6, *b;
-			hlist_for_each_entry_rcu(server, &net->fs_addresses6, addr6_link) {
-				alist = rcu_dereference(server->addresses);
-				for (i = alist->nr_ipv4; i < alist->nr_addrs; i++) {
-					b = &alist->addrs[i].srx.transport.sin6;
-					diff = ((u16 __force)a->sin6_port -
-						(u16 __force)b->sin6_port);
-					if (diff == 0)
-						diff = memcmp(&a->sin6_addr,
-							      &b->sin6_addr,
-							      sizeof(struct in6_addr));
-					if (diff == 0)
-						goto found;
-				}
-			}
-		} else {
-			const struct sockaddr_in *a = &srx->transport.sin, *b;
-			hlist_for_each_entry_rcu(server, &net->fs_addresses4, addr4_link) {
-				alist = rcu_dereference(server->addresses);
-				for (i = 0; i < alist->nr_ipv4; i++) {
-					b = &alist->addrs[i].srx.transport.sin;
-					diff = ((u16 __force)a->sin_port -
-						(u16 __force)b->sin_port);
-					if (diff == 0)
-						diff = ((u32 __force)a->sin_addr.s_addr -
-							(u32 __force)b->sin_addr.s_addr);
-					if (diff == 0)
-						goto found;
-				}
-			}
+		hlist_for_each_entry_rcu(server, &net->fs_addresses6, addr6_link) {
+			alist = rcu_dereference(server->addresses);
+			for (i = 0; i < alist->nr_addrs; i++)
+				if (alist->addrs[i].peer == peer)
+					goto found;
 		}
 
 		server = NULL;

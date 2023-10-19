@@ -113,7 +113,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 	struct afs_server *server;
 	struct afs_vnode *vnode = op->file[0].vnode;
 	struct afs_error e;
-	u32 rtt;
+	unsigned int rtt;
 	int error = op->ac.error, i;
 
 	_enter("%lx[%d],%lx[%d],%d,%d",
@@ -420,7 +420,7 @@ pick_server:
 	}
 
 	op->index = -1;
-	rtt = U32_MAX;
+	rtt = UINT_MAX;
 	for (i = 0; i < op->server_list->nr_servers; i++) {
 		struct afs_server *s = op->server_list->servers[i].server;
 
@@ -488,7 +488,7 @@ iterate_address:
 
 	_debug("address [%u] %u/%u %pISp",
 	       op->index, op->ac.index, op->ac.alist->nr_addrs,
-	       &op->ac.alist->addrs[op->ac.index].srx.transport);
+	       rxrpc_kernel_remote_addr(op->ac.alist->addrs[op->ac.index].peer));
 
 	_leave(" = t");
 	return true;

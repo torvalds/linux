@@ -296,7 +296,8 @@ static void afs_notify_end_request_tx(struct sock *sock,
  */
 void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 {
-	struct sockaddr_rxrpc *srx = &ac->alist->addrs[ac->index].srx;
+	struct afs_address *addr = &ac->alist->addrs[ac->index];
+	struct rxrpc_peer *peer = addr->peer;
 	struct rxrpc_call *rxcall;
 	struct msghdr msg;
 	struct kvec iov[1];
@@ -304,7 +305,7 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	s64 tx_total_len;
 	int ret;
 
-	_enter(",{%pISp},", &srx->transport);
+	_enter(",{%pISp},", rxrpc_kernel_remote_addr(addr->peer));
 
 	ASSERT(call->type != NULL);
 	ASSERT(call->type->name != NULL);
@@ -333,7 +334,7 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	}
 
 	/* create a call */
-	rxcall = rxrpc_kernel_begin_call(call->net->socket, srx, call->key,
+	rxcall = rxrpc_kernel_begin_call(call->net->socket, peer, call->key,
 					 (unsigned long)call,
 					 tx_total_len,
 					 call->max_lifespan,
@@ -341,6 +342,7 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 					 (call->async ?
 					  afs_wake_up_async_call :
 					  afs_wake_up_call_waiter),
+					 addr->service_id,
 					 call->upgrade,
 					 (call->intr ? RXRPC_PREINTERRUPTIBLE :
 					  RXRPC_UNINTERRUPTIBLE),
@@ -461,7 +463,7 @@ static void afs_log_error(struct afs_call *call, s32 remote_abort)
 		max = m + 1;
 		pr_notice("kAFS: Peer reported %s failure on %s [%pISp]\n",
 			  msg, call->type->name,
-			  &call->alist->addrs[call->addr_ix].srx.transport);
+			  rxrpc_kernel_remote_addr(call->alist->addrs[call->addr_ix].peer));
 	}
 }
 
