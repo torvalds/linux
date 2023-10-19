@@ -36,6 +36,8 @@ struct mlxsw_fw_rev;
 unsigned int mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core);
 
 int mlxsw_core_max_lag(struct mlxsw_core *mlxsw_core, u16 *p_max_lag);
+enum mlxsw_cmd_mbox_config_profile_lag_mode
+mlxsw_core_lag_mode(struct mlxsw_core *mlxsw_core);
 
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
 
@@ -485,6 +487,7 @@ struct mlxsw_bus {
 	u32 (*read_frc_l)(void *bus_priv);
 	u32 (*read_utc_sec)(void *bus_priv);
 	u32 (*read_utc_nsec)(void *bus_priv);
+	enum mlxsw_cmd_mbox_config_profile_lag_mode (*lag_mode)(void *bus_priv);
 	u8 features;
 };
 
