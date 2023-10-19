@@ -1,5 +1,5 @@
 #
-# (c) Copyright 2020 Advanced Micro Devices, Inc. All the rights reserved
+# Copyright 2020 Advanced Micro Devices, Inc. All the rights reserved
 #
 #  All rights reserved.  This notice is intended as a precaution against
 #  inadvertent publication and does not imply publication or any waiver
