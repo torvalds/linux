@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
+ */
+
+&twl {
+	/*
+	 * On most OMAP4 platforms, the twl6030 IRQ line is connected
+	 * to the SYS_NIRQ1 line on OMAP and the twl6030 MSECURE line is
+	 * connected to the fref_clk0_out.sys_drm_msecure line.
+	 * Therefore, configure the defaults for the SYS_NIRQ1 and
+	 * fref_clk0_out.sys_drm_msecure pins here.
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&twl6030_pins
+		&twl6030_wkup_pins
+	>;
+};
+
+&omap4_pmx_wkup {
+	twl6030_wkup_pins: pinmux_twl6030_wkup_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x054, PIN_OUTPUT | MUX_MODE2)		/* fref_clk0_out.sys_drm_msecure */
+		>;
+	};
+};
+
+&omap4_pmx_core {
+	twl6030_pins: pinmux_twl6030_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x19e, WAKEUP_EN | PIN_INPUT_PULLUP | MUX_MODE0)	/* sys_nirq1.sys_nirq1 */
+		>;
+	};
+};

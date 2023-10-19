@@ -1,0 +1,110 @@
+Device Tree Clock bindings for the Zynq 7000 EPP
+
+The Zynq EPP has several different clk providers, each with there own bindings.
+The purpose of this document is to document their usage.
+
+See clock_bindings.txt for more information on the generic clock bindings.
+See Chapter 25 of Zynq TRM for more information about Zynq clocks.
+
+== Clock Controller ==
+The clock controller is a logical abstraction of Zynq's clock tree. It reads
+required input clock frequencies from the devicetree and acts as clock provider
+for all clock consumers of PS clocks.
+
+Required properties:
+ - #clock-cells : Must be 1
+ - compatible : "xlnx,ps7-clkc"
+ - reg : SLCR offset and size taken via syscon < 0x100 0x100 >
+ - ps-clk-frequency : Frequency of the oscillator providing ps_clk in HZ
+		      (usually 33 MHz oscillators are used for Zynq platforms)
+ - clock-output-names : List of strings used to name the clock outputs. Shall be
+			a list of the outputs given below.
+
+Optional properties:
+ - clocks : as described in the clock bindings
+ - clock-names : as described in the clock bindings
+ - fclk-enable : Bit mask to enable FCLKs statically at boot time.
+		 Bit [0..3] correspond to FCLK0..FCLK3. The corresponding
+		 FCLK will only be enabled if it is actually running at
+		 boot time.
+
+Clock inputs:
+The following strings are optional parameters to the 'clock-names' property in
+order to provide an optional (E)MIO clock source.
+ - swdt_ext_clk
+ - gem0_emio_clk
+ - gem1_emio_clk
+ - mio_clk_XX		# with XX = 00..53
+...
+
+Clock outputs:
+ 0:  armpll
+ 1:  ddrpll
+ 2:  iopll
+ 3:  cpu_6or4x
+ 4:  cpu_3or2x
+ 5:  cpu_2x
+ 6:  cpu_1x
+ 7:  ddr2x
+ 8:  ddr3x
+ 9:  dci
+ 10: lqspi
+ 11: smc
+ 12: pcap
+ 13: gem0
+ 14: gem1
+ 15: fclk0
+ 16: fclk1
+ 17: fclk2
+ 18: fclk3
+ 19: can0
+ 20: can1
+ 21: sdio0
+ 22: sdio1
+ 23: uart0
+ 24: uart1
+ 25: spi0
+ 26: spi1
+ 27: dma
+ 28: usb0_aper
+ 29: usb1_aper
+ 30: gem0_aper
+ 31: gem1_aper
+ 32: sdio0_aper
+ 33: sdio1_aper
+ 34: spi0_aper
+ 35: spi1_aper
+ 36: can0_aper
+ 37: can1_aper
+ 38: i2c0_aper
+ 39: i2c1_aper
+ 40: uart0_aper
+ 41: uart1_aper
+ 42: gpio_aper
+ 43: lqspi_aper
+ 44: smc_aper
+ 45: swdt
+ 46: dbg_trc
+ 47: dbg_apb
+
+Example:
+	clkc: clkc@100 {
+		#clock-cells = <1>;
+		compatible = "xlnx,ps7-clkc";
+		ps-clk-frequency = <33333333>;
+		reg = <0x100 0x100>;
+		clock-output-names = "armpll", "ddrpll", "iopll", "cpu_6or4x",
+				"cpu_3or2x", "cpu_2x", "cpu_1x", "ddr2x", "ddr3x",
+				"dci", "lqspi", "smc", "pcap", "gem0", "gem1",
+				"fclk0", "fclk1", "fclk2", "fclk3", "can0", "can1",
+				"sdio0", "sdio1", "uart0", "uart1", "spi0", "spi1",
+				"dma", "usb0_aper", "usb1_aper", "gem0_aper",
+				"gem1_aper", "sdio0_aper", "sdio1_aper",
+				"spi0_aper", "spi1_aper", "can0_aper", "can1_aper",
+				"i2c0_aper", "i2c1_aper", "uart0_aper", "uart1_aper",
+				"gpio_aper", "lqspi_aper", "smc_aper", "swdt",
+				"dbg_trc", "dbg_apb";
+		# optional props
+		clocks = <&clkc 16>, <&clk_foo>;
+		clock-names = "gem1_emio_clk", "can_mio_clk_23";
+	};

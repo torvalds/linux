@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/maxim,max44009.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MAX44009 Ambient Light Sensor
+
+maintainers:
+  - Robert Eshleman <bobbyeshleman@gmail.com>
+
+properties:
+  compatible:
+    const: maxim,max44009
+
+  reg:
+    maxItems: 1
+    description: Default address is 0x4a
+
+  interrupts:
+    maxItems: 1
+    description: Should be configured with type IRQ_TYPE_EDGE_FALLING
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        light-sensor@4a {
+            compatible = "maxim,max44009";
+            reg = <0x4a>;
+
+            interrupt-parent = <&gpio1>;
+            interrupts = <17 IRQ_TYPE_EDGE_FALLING>;
+        };
+    };
+...

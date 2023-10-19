@@ -1,0 +1,41 @@
+* I2C
+
+The I2C controller is expressed as a bus under the CPM node.
+
+Properties:
+- compatible : "fsl,cpm1-i2c", "fsl,cpm2-i2c"
+- reg : On CPM2 devices, the second resource doesn't specify the I2C
+  Parameter RAM itself, but the I2C_BASE field of the CPM2 Parameter RAM
+  (typically 0x8afc 0x2).
+- #address-cells : Should be one. The cell is the i2c device address with
+  the r/w bit set to zero.
+- #size-cells : Should be zero.
+- clock-frequency : Can be used to set the i2c clock frequency. If
+  unspecified, a default frequency of 60kHz is being used.
+The following two properties are deprecated. They are only used by legacy
+i2c drivers to find the bus to probe:
+- linux,i2c-index : Can be used to hard code an i2c bus number. By default,
+  the bus number is dynamically assigned by the i2c core.
+- linux,i2c-class : Can be used to override the i2c class. The class is used
+  by legacy i2c device drivers to find a bus in a specific context like
+  system management, video or sound. By default, I2C_CLASS_HWMON (1) is
+  being used. The definition of the classes can be found in
+  include/i2c/i2c.h
+
+Example, based on mpc823:
+
+	i2c@860 {
+		compatible = "fsl,mpc823-i2c",
+			     "fsl,cpm1-i2c";
+		reg = <0x860 0x20 0x3c80 0x30>;
+		interrupts = <16>;
+		interrupt-parent = <&CPM_PIC>;
+		fsl,cpm-command = <0x10>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rtc@68 {
+			compatible = "dallas,ds1307";
+			reg = <0x68>;
+		};
+	};

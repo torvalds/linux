@@ -1,0 +1,36 @@
+Device-tree bindings for AST2600 FSI master
+-------------------------------------------
+
+The AST2600 contains two identical FSI masters. They share a clock and have a
+separate interrupt line and output pins.
+
+Required properties:
+ - compatible: "aspeed,ast2600-fsi-master"
+ - reg: base address and length
+ - clocks: phandle and clock number
+ - interrupts: platform dependent interrupt description
+ - pinctrl-0: phandle to pinctrl node
+ - pinctrl-names: pinctrl state
+
+Optional properties:
+ - cfam-reset-gpios: GPIO for CFAM reset
+
+ - fsi-routing-gpios: GPIO for setting the FSI mux (internal or cabled)
+ - fsi-mux-gpios: GPIO for detecting the desired FSI mux state
+
+
+Examples:
+
+    fsi-master {
+        compatible = "aspeed,ast2600-fsi-master", "fsi-master";
+        reg = <0x1e79b000 0x94>;
+	interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fsi1_default>;
+	clocks = <&syscon ASPEED_CLK_GATE_FSICLK>;
+
+	fsi-routing-gpios = <&gpio0 ASPEED_GPIO(Q, 7) GPIO_ACTIVE_HIGH>;
+	fsi-mux-gpios = <&gpio0 ASPEED_GPIO(B, 0) GPIO_ACTIVE_HIGH>;
+
+	cfam-reset-gpios = <&gpio0 ASPEED_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
+    };

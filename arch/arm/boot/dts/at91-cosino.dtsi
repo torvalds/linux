@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * at91-cosino.dtsi - Device Tree file for Cosino core module
+ *
+ * Copyright (C) 2013 - Rodolfo Giometti <giometti@linux.it>
+ *			HCE Engineering
+ *
+ * Derived from at91sam9x5ek.dtsi by:
+ *	Copyright (C) 2012 Atmel,
+ *	2012 Nicolas Ferre <nicolas.ferre@atmel.com>
+ */
+
+#include "at91sam9g35.dtsi"
+
+/ {
+	model = "HCE Cosino core module";
+	compatible = "hce,cosino", "atmel,at91sam9x5", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 root=/dev/mmcblk0p2 rw rootfstype=ext3 rootwait";
+	};
+
+	memory@20000000 {
+		reg = <0x20000000 0x8000000>;
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+};
+
+&adc0 {
+	atmel,adc-ts-wires = <4>;
+	atmel,adc-ts-pressure-threshold = <10000>;
+	status = "okay";
+};
+
+&dbgu {
+	status = "okay";
+};
+
+&ebi {
+	pinctrl-0 = <&pinctrl_ebi_addr_nand
+		     &pinctrl_ebi_data_0_7>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	nand-controller {
+		pinctrl-0 = <&pinctrl_nand_oe_we
+			     &pinctrl_nand_cs
+			     &pinctrl_nand_rb>;
+		pinctrl-names = "default";
+		status = "okay";
+
+		nand@3 {
+			reg = <0x3 0x0 0x800000>;
+			rb-gpios = <&pioD 5 GPIO_ACTIVE_HIGH>;
+			cs-gpios = <&pioD 4 GPIO_ACTIVE_HIGH>;
+			nand-bus-width = <8>;
+			nand-ecc-mode = "hw";
+			nand-ecc-strength = <4>;
+			nand-ecc-step-size = <512>;
+			nand-on-flash-bbt;
+			label = "atmel_nand";
+
+			partitions {
+				compatible = "fixed-partitions";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				at91bootstrap@0 {
+					label = "at91bootstrap";
+					reg = <0x0 0x40000>;
+				};
+
+				uboot@40000 {
+					label = "u-boot";
+					reg = <0x40000 0x80000>;
+				};
+
+				ubootenv@c0000 {
+					label = "U-Boot Env";
+					reg = <0xc0000 0x140000>;
+				};
+
+				kernel@200000 {
+					label = "kernel";
+					reg = <0x200000 0x600000>;
+				};
+
+				rootfs@800000 {
+					label = "rootfs";
+					reg = <0x800000 0x0f800000>;
+				};
+			};
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&mmc0 {
+	pinctrl-0 = <
+		&pinctrl_board_mmc0
+		&pinctrl_mmc0_slot0_clk_cmd_dat0
+		&pinctrl_mmc0_slot0_dat1_3>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <4>;
+		cd-gpios = <&pioD 15 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&pinctrl {
+	mmc0 {
+		pinctrl_board_mmc0: mmc0-board {
+			atmel,pins =
+				<AT91_PIOD 15 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PD15 gpio CD pin pull up and deglitch */
+		};
+	};
+};
+
+&tcb0 {
+	timer@0 {
+		compatible = "atmel,tcb-timer";
+		reg = <0>;
+	};
+
+	timer@1 {
+		compatible = "atmel,tcb-timer";
+		reg = <1>;
+	};
+};
+
+&usart0 {
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};

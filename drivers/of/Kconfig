@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: GPL-2.0
+config DTC
+	bool
+
+menuconfig OF
+	bool "Device Tree and Open Firmware support"
+	help
+	  This option enables the device tree infrastructure.
+	  It is automatically selected by platforms that need it or can
+	  be enabled manually for unittests, overlays or
+	  compile-coverage.
+
+if OF
+
+config OF_UNITTEST
+	bool "Device Tree runtime unit tests"
+	depends on !SPARC
+	select IRQ_DOMAIN
+	select OF_EARLY_FLATTREE
+	select OF_RESOLVE
+	help
+	  This option builds in test cases for the device tree infrastructure
+	  that are executed once at boot time, and the results dumped to the
+	  console.
+
+	  If unsure, say N here, but this option is safe to enable.
+
+config OF_ALL_DTBS
+	bool "Build all Device Tree Blobs"
+	depends on COMPILE_TEST
+	select DTC
+	help
+	  This option builds all possible Device Tree Blobs (DTBs) for the
+	  current architecture.
+
+	  If unsure, say N here, but this option is safe to enable.
+
+config OF_FLATTREE
+	bool
+	select DTC
+	select LIBFDT
+	select CRC32
+
+config OF_EARLY_FLATTREE
+	bool
+	select DMA_DECLARE_COHERENT if HAS_DMA
+	select OF_FLATTREE
+
+config OF_PROMTREE
+	bool
+
+config OF_KOBJ
+	def_bool SYSFS
+
+# Hardly any platforms need this.  It is safe to select, but only do so if you
+# need it.
+config OF_DYNAMIC
+	bool "Support for dynamic device trees" if OF_UNITTEST
+	select OF_KOBJ
+	help
+	  On some platforms, the device tree can be manipulated at runtime.
+	  While this option is selected automatically on such platforms, you
+	  can enable it manually to improve device tree unit test coverage.
+
+config OF_ADDRESS
+	def_bool y
+	depends on !SPARC && (HAS_IOMEM || UML)
+
+config OF_IRQ
+	def_bool y
+	depends on !SPARC && IRQ_DOMAIN
+
+config OF_RESERVED_MEM
+	def_bool OF_EARLY_FLATTREE
+
+config OF_RESOLVE
+	bool
+
+config OF_OVERLAY
+	bool "Device Tree overlays"
+	select OF_DYNAMIC
+	select OF_FLATTREE
+	select OF_RESOLVE
+	help
+	  Overlays are a method to dynamically modify part of the kernel's
+	  device tree with dynamically loaded data.
+	  While this option is selected automatically when needed, you can
+	  enable it manually to improve device tree unit test coverage.
+
+config OF_NUMA
+	bool
+
+config OF_DMA_DEFAULT_COHERENT
+	# arches should select this if DMA is coherent by default for OF devices
+	bool
+
+endif # OF

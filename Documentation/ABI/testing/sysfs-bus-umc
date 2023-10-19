@@ -1,0 +1,28 @@
+What:           /sys/bus/umc/
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        David Vrabel <david.vrabel@csr.com>
+Description:
+                The Wireless Host Controller Interface (WHCI)
+                specification describes a PCI-based device with
+                multiple capabilities; the UWB Multi-interface
+                Controller (UMC).
+
+                The umc bus presents each of the individual
+                capabilties as a device.
+
+What:           /sys/bus/umc/devices/.../capability_id
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        David Vrabel <david.vrabel@csr.com>
+Description:
+                The ID of this capability, with 0 being the radio
+                controller capability.
+
+What:           /sys/bus/umc/devices/.../version
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        David Vrabel <david.vrabel@csr.com>
+Description:
+                The specification version this capability's hardware
+                interface complies with.

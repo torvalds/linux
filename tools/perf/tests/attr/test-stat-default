@@ -1,0 +1,167 @@
+[config]
+command = stat
+args    = kill >/dev/null 2>&1
+ret     = 1
+
+# PERF_TYPE_SOFTWARE / PERF_COUNT_SW_TASK_CLOCK
+[event1:base-stat]
+fd=1
+type=1
+config=1
+
+# PERF_TYPE_SOFTWARE / PERF_COUNT_SW_CONTEXT_SWITCHES
+[event2:base-stat]
+fd=2
+type=1
+config=3
+
+# PERF_TYPE_SOFTWARE / PERF_COUNT_SW_CPU_MIGRATIONS
+[event3:base-stat]
+fd=3
+type=1
+config=4
+
+# PERF_TYPE_SOFTWARE / PERF_COUNT_SW_PAGE_FAULTS
+[event4:base-stat]
+fd=4
+type=1
+config=2
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_CPU_CYCLES
+[event5:base-stat]
+fd=5
+type=0
+config=0
+optional=1
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_STALLED_CYCLES_FRONTEND
+[event6:base-stat]
+fd=6
+type=0
+config=7
+optional=1
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_STALLED_CYCLES_BACKEND
+[event7:base-stat]
+fd=7
+type=0
+config=8
+optional=1
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_INSTRUCTIONS
+[event8:base-stat]
+fd=8
+type=0
+config=1
+optional=1
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_BRANCH_INSTRUCTIONS
+[event9:base-stat]
+fd=9
+type=0
+config=4
+optional=1
+
+# PERF_TYPE_HARDWARE / PERF_COUNT_HW_BRANCH_MISSES
+[event10:base-stat]
+fd=10
+type=0
+config=5
+optional=1
+
+# PERF_TYPE_RAW / slots (0x400)
+[event11:base-stat]
+fd=11
+group_fd=-1
+type=4
+config=1024
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-retiring (0x8000)
+[event12:base-stat]
+fd=12
+group_fd=11
+type=4
+config=32768
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-bad-spec (0x8100)
+[event13:base-stat]
+fd=13
+group_fd=11
+type=4
+config=33024
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-fe-bound (0x8200)
+[event14:base-stat]
+fd=14
+group_fd=11
+type=4
+config=33280
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-be-bound (0x8300)
+[event15:base-stat]
+fd=15
+group_fd=11
+type=4
+config=33536
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-heavy-ops (0x8400)
+[event16:base-stat]
+fd=16
+group_fd=11
+type=4
+config=33792
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-br-mispredict (0x8500)
+[event17:base-stat]
+fd=17
+group_fd=11
+type=4
+config=34048
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-fetch-lat (0x8600)
+[event18:base-stat]
+fd=18
+group_fd=11
+type=4
+config=34304
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1
+
+# PERF_TYPE_RAW / topdown-mem-bound (0x8700)
+[event19:base-stat]
+fd=19
+group_fd=11
+type=4
+config=34560
+disabled=0
+enable_on_exec=0
+read_format=15
+optional=1

@@ -1,0 +1,237 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2015 Altera Corporation. All rights reserved.
+ */
+
+/dts-v1/;
+
+/ {
+	model = "Altera NiosII Max10";
+	compatible = "altr,niosii-max10";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu: cpu@0 {
+			device_type = "cpu";
+			compatible = "altr,nios2-1.1";
+			reg = <0x00000000>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			altr,exception-addr = <0xc8000120>;
+			altr,fast-tlb-miss-addr = <0xc0000100>;
+			altr,has-div = <1>;
+			altr,has-initda = <1>;
+			altr,has-mmu = <1>;
+			altr,has-mul = <1>;
+			altr,implementation = "fast";
+			altr,pid-num-bits = <8>;
+			altr,reset-addr = <0xd4000000>;
+			altr,tlb-num-entries = <256>;
+			altr,tlb-num-ways = <16>;
+			altr,tlb-ptr-sz = <8>;
+			clock-frequency = <75000000>;
+			dcache-line-size = <32>;
+			dcache-size = <32768>;
+			icache-line-size = <32>;
+			icache-size = <32768>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x08000000 0x08000000>,
+			<0x00000000 0x00000400>;
+	};
+
+	sopc0: sopc@0 {
+		device_type = "soc";
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "altr,avalon", "simple-bus";
+		bus-frequency = <75000000>;
+
+		jtag_uart: serial@18001530 {
+			compatible = "altr,juart-1.0";
+			reg = <0x18001530 0x00000008>;
+			interrupt-parent = <&cpu>;
+			interrupts = <7>;
+		};
+
+		a_16550_uart_0: serial@18001600 {
+			compatible = "altr,16550-FIFO32", "ns16550a";
+			reg = <0x18001600 0x00000200>;
+			interrupt-parent = <&cpu>;
+			interrupts = <1>;
+			auto-flow-control = <1>;
+			clock-frequency = <50000000>;
+			fifo-size = <32>;
+			reg-io-width = <4>;
+			reg-shift = <2>;
+			tx-threshold = <16>;
+		};
+
+		sysid: sysid@18001528 {
+			compatible = "altr,sysid-1.0";
+			reg = <0x18001528 0x00000008>;
+			id = <4207856382>;
+			timestamp = <1431309290>;
+		};
+
+		rgmii_0_eth_tse_0: ethernet@400 {
+			compatible = "altr,tse-msgdma-1.0", "altr,tse-1.0";
+			reg = <0x00000400 0x00000400>,
+				<0x00000820 0x00000020>,
+				<0x00000800 0x00000020>,
+				<0x000008c0 0x00000008>,
+				<0x00000840 0x00000020>,
+				<0x00000860 0x00000020>;
+			reg-names = "control_port", "rx_csr", "rx_desc", "rx_resp", "tx_csr", "tx_desc";
+			interrupt-parent = <&cpu>;
+			interrupts = <2 3>;
+			interrupt-names = "rx_irq", "tx_irq";
+			rx-fifo-depth = <8192>;
+			tx-fifo-depth = <8192>;
+			address-bits = <48>;
+			max-frame-size = <1518>;
+			local-mac-address = [00 00 00 00 00 00];
+			altr,has-supplementary-unicast;
+			altr,enable-sup-addr = <1>;
+			altr,has-hash-multicast-filter;
+			altr,enable-hash = <1>;
+			phy-mode = "rgmii-id";
+			phy-handle = <&phy0>;
+			rgmii_0_eth_tse_0_mdio: mdio {
+				compatible = "altr,tse-mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				phy0: ethernet-phy@0 {
+					reg = <0>;
+					device_type = "ethernet-phy";
+				};
+			};
+		};
+
+		enet_pll: clock@0 {
+			compatible = "altr,pll-1.0";
+			#clock-cells = <1>;
+
+			enet_pll_c0: enet_pll_c0 {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <125000000>;
+				clock-output-names = "enet_pll-c0";
+			};
+
+			enet_pll_c1: enet_pll_c1 {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <25000000>;
+				clock-output-names = "enet_pll-c1";
+			};
+
+			enet_pll_c2: enet_pll_c2 {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <2500000>;
+				clock-output-names = "enet_pll-c2";
+			};
+		};
+
+		sys_pll: clock@1 {
+			compatible = "altr,pll-1.0";
+			#clock-cells = <1>;
+
+			sys_pll_c0: sys_pll_c0 {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <100000000>;
+				clock-output-names = "sys_pll-c0";
+			};
+
+			sys_pll_c1: sys_pll_c1 {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <50000000>;
+				clock-output-names = "sys_pll-c1";
+			};
+
+			sys_pll_c2: sys_pll_c2 {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <75000000>;
+				clock-output-names = "sys_pll-c2";
+			};
+		};
+
+		sys_clk_timer: timer@18001440 {
+			compatible = "altr,timer-1.0";
+			reg = <0x18001440 0x00000020>;
+			interrupt-parent = <&cpu>;
+			interrupts = <0>;
+			clock-frequency = <75000000>;
+		};
+
+		led_pio: gpio@180014d0 {
+			compatible = "altr,pio-1.0";
+			reg = <0x180014d0 0x00000010>;
+			altr,ngpio = <4>;
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+
+		button_pio: gpio@180014c0 {
+			compatible = "altr,pio-1.0";
+			reg = <0x180014c0 0x00000010>;
+			interrupt-parent = <&cpu>;
+			interrupts = <6>;
+			altr,ngpio = <3>;
+			altr,interrupt-type = <2>;
+			edge_type = <1>;
+			level_trigger = <0>;
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+
+		sys_clk_timer_1: timer@880 {
+			compatible = "altr,timer-1.0";
+			reg = <0x00000880 0x00000020>;
+			interrupt-parent = <&cpu>;
+			interrupts = <5>;
+			clock-frequency = <75000000>;
+		};
+
+		fpga_leds: leds {
+			compatible = "gpio-leds";
+
+			led_fpga0: fpga0 {
+				label = "fpga_led0";
+				gpios = <&led_pio 0 1>;
+			};
+
+			led_fpga1: fpga1 {
+				label = "fpga_led1";
+				gpios = <&led_pio 1 1>;
+			};
+
+			led_fpga2: fpga2 {
+				label = "fpga_led2";
+				gpios = <&led_pio 2 1>;
+			};
+
+			led_fpga3: fpga3 {
+				label = "fpga_led3";
+				gpios = <&led_pio 3 1>;
+			};
+		};
+	};
+
+	chosen {
+		bootargs = "debug earlycon console=ttyS0,115200";
+		stdout-path = &a_16550_uart_0;
+	};
+};

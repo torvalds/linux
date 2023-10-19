@@ -1,0 +1,9 @@
+[config]
+command = record
+args    = --no-bpf-event -c 123 kill >/dev/null 2>&1
+ret     = 1
+
+[event:base-record]
+sample_period=123
+sample_type=7
+freq=0

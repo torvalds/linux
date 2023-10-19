@@ -1,0 +1,19 @@
+* Universal Asynchronous Receiver/Transmitter (UART)
+
+- compatible: "cavium,octeon-3860-uart"
+
+  Compatibility with all cn3XXX, cn5XXX and cn6XXX SOCs.
+
+- reg: The base address of the UART register bank.
+
+- interrupts: A single interrupt specifier.
+
+- current-speed: Optional, the current bit rate in bits per second.
+
+Example:
+	uart1: serial@1180000000c00 {
+		compatible = "cavium,octeon-3860-uart","ns16550";
+		reg = <0x11800 0x00000c00 0x0 0x400>;
+		current-speed = <115200>;
+		interrupts = <0 35>;
+	};

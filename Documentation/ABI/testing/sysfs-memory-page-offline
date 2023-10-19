@@ -1,0 +1,44 @@
+What:		/sys/devices/system/memory/soft_offline_page
+Date:		Sep 2009
+KernelVersion:	2.6.33
+Contact:	andi@firstfloor.org
+Description:
+		Soft-offline the memory page containing the physical address
+		written into this file. Input is a hex number specifying the
+		physical address of the page. The kernel will then attempt
+		to soft-offline it, by moving the contents elsewhere or
+		dropping it if possible. The kernel will then be placed
+		on the bad page list and never be reused.
+
+		The offlining is done in kernel specific granuality.
+		Normally it's the base page size of the kernel, but
+		this might change.
+
+		The page must be still accessible, not poisoned. The
+		kernel will never kill anything for this, but rather
+		fail the offline.  Return value is the size of the
+		number, or a error when the offlining failed.  Reading
+		the file is not allowed.
+
+What:		/sys/devices/system/memory/hard_offline_page
+Date:		Sep 2009
+KernelVersion:	2.6.33
+Contact:	andi@firstfloor.org
+Description:
+		Hard-offline the memory page containing the physical
+		address written into this file. Input is a hex number
+		specifying the physical address of the page. The
+		kernel will then attempt to hard-offline the page, by
+		trying to drop the page or killing any owner or
+		triggering IO errors if needed.  Note this may kill
+		any processes owning the page. The kernel will avoid
+		to access this page assuming it's poisoned by the
+		hardware.
+
+		The offlining is done in kernel specific granuality.
+		Normally it's the base page size of the kernel, but
+		this might change.
+
+		Return value is the size of the number, or a error when
+		the offlining failed.
+		Reading the file is not allowed.

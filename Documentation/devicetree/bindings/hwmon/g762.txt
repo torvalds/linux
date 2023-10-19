@@ -1,0 +1,47 @@
+GMT G762/G763 PWM Fan controller
+
+Required node properties:
+
+ - "compatible": must be either "gmt,g762" or "gmt,g763"
+ - "reg": I2C bus address of the device
+ - "clocks": a fixed clock providing input clock frequency
+	     on CLK pin of the chip.
+
+Optional properties:
+
+ - "fan_startv": fan startup voltage. Accepted values are 0, 1, 2 and 3.
+	       The higher the more.
+
+ - "pwm_polarity": pwm polarity. Accepted values are 0 (positive duty)
+	       and 1 (negative duty).
+
+ - "fan_gear_mode": fan gear mode. Supported values are 0, 1 and 2.
+
+If an optional property is not set in .dts file, then current value is kept
+unmodified (e.g. u-boot installed value).
+
+Additional information on operational parameters for the device is available
+in Documentation/hwmon/g762.rst. A detailed datasheet for the device is available
+at http://natisbad.org/NAS/refs/GMT_EDS-762_763-080710-0.2.pdf.
+
+Example g762 node:
+
+   clocks {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	g762_clk: fixedclk {
+		 compatible = "fixed-clock";
+		 #clock-cells = <0>;
+		 clock-frequency = <8192>;
+	}
+   }
+
+   g762: g762@3e {
+	compatible = "gmt,g762";
+	reg = <0x3e>;
+	clocks = <&g762_clk>
+	fan_gear_mode = <0>; /* chip default */
+	fan_startv = <1>;    /* chip default */
+	pwm_polarity = <0>;  /* chip default */
+   };

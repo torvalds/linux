@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config ALTERA_TSE
+	tristate "Altera Triple-Speed Ethernet MAC support"
+	depends on HAS_DMA
+	select PHYLIB
+	select PHYLINK
+	select PCS_ALTERA_TSE
+	help
+	  This driver supports the Altera Triple-Speed (TSE) Ethernet MAC.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called alteratse.

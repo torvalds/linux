@@ -1,0 +1,21 @@
+fuse_daemon $*
+cd fd-dst
+ls
+cd show
+ls
+fsstress -s 123 -d . -p 4 -n 100 -l5
+echo test > wibble
+ls
+cat wibble
+fallocate -l 1000 wobble
+mkdir testdir
+mkdir tmpdir
+rmdir tmpdir
+touch tmp
+mv tmp tmp2
+rm tmp2
+
+# FUSE_LINK
+echo "ln_src contents" > ln_src
+ln ln_src ln_link
+cat ln_link

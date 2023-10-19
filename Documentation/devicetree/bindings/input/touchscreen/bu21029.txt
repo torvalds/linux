@@ -1,0 +1,35 @@
+* Rohm BU21029 Touch Screen Controller
+
+Required properties:
+ - compatible              : must be "rohm,bu21029"
+ - reg                     : i2c device address of the chip (0x40 or 0x41)
+ - interrupt-parent        : the phandle for the gpio controller
+ - interrupts              : (gpio) interrupt to which the chip is connected
+ - rohm,x-plate-ohms       : x-plate resistance in Ohm
+
+Optional properties:
+ - reset-gpios             : gpio pin to reset the chip (active low)
+ - touchscreen-size-x      : horizontal resolution of touchscreen (in pixels)
+ - touchscreen-size-y      : vertical resolution of touchscreen (in pixels)
+ - touchscreen-max-pressure: maximum pressure value
+ - vdd-supply              : power supply for the controller
+
+Example:
+
+	&i2c1 {
+		/* ... */
+
+		bu21029: bu21029@40 {
+			compatible = "rohm,bu21029";
+			reg = <0x40>;
+			interrupt-parent = <&gpio1>;
+			interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+			reset-gpios = <&gpio6 16 GPIO_ACTIVE_LOW>;
+			rohm,x-plate-ohms = <600>;
+			touchscreen-size-x = <800>;
+			touchscreen-size-y = <480>;
+			touchscreen-max-pressure = <4095>;
+		};
+
+		/* ... */
+	};

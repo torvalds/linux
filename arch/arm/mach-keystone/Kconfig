@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config ARCH_KEYSTONE
+	bool "Texas Instruments Keystone Devices"
+	depends on ARCH_MULTI_V7
+	select ARM_GIC
+	select HAVE_ARM_ARCH_TIMER
+	select KEYSTONE_TIMER
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_ERRATA_798181 if SMP
+	select COMMON_CLK_KEYSTONE
+	select ZONE_DMA if ARM_LPAE
+	select PINCTRL
+	select PM_GENERIC_DOMAINS if PM
+	help
+	  Support for boards based on the Texas Instruments Keystone family of
+	  SoCs.

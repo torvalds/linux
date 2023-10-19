@@ -1,0 +1,200 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig ARCH_SA1100
+	bool "SA11x0 Implementations"
+	depends on ARCH_MULTI_V4 && !(ARCH_MULTI_V4T || ARCH_MULTI_V5)
+	depends on !(ARCH_MOXART || ARCH_GEMINI)
+	depends on ATAGS
+	depends on CPU_LITTLE_ENDIAN
+	depends on MMU
+	select ARCH_NO_SG_CHAIN
+	select ARCH_MTD_XIP
+	select CLKSRC_MMIO
+	select CLKSRC_PXA
+	select CPU_FREQ
+	select CPU_SA1100
+	select GPIOLIB
+	select IRQ_DOMAIN
+	select ISA
+	select NEED_MACH_MEMORY_H
+	help
+	  Support for StrongARM 11x0 based boards.
+
+if ARCH_SA1100
+
+config SA1100_ASSABET
+	bool "Assabet"
+	select ARM_SA1110_CPUFREQ
+	select GPIO_REG
+	select LEDS_GPIO_REGISTER
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	help
+	  Say Y here if you are using the Intel(R) StrongARM(R) SA-1110
+	  Microprocessor Development Board (also known as the Assabet).
+
+config ASSABET_NEPONSET
+	bool "Include support for Neponset"
+	depends on SA1100_ASSABET
+	select SA1111
+	help
+	  Say Y here if you are using the Intel(R) StrongARM(R) SA-1110
+	  Microprocessor Development Board (Assabet)  with the SA-1111
+	  Development Board (Nepon).
+
+config SA1100_CERF
+	bool "CerfBoard"
+	depends on UNUSED_BOARD_FILES
+	select ARM_SA1110_CPUFREQ
+	select LEDS_GPIO_REGISTER
+	help
+	  The Intrinsyc CerfBoard is based on the StrongARM 1110 (Discontinued).
+	  More information is available at:
+	  <http://www.intrinsyc.com/products/cerfboard/>.
+
+	  Say Y if configuring for an Intrinsyc CerfBoard.
+	  Say N otherwise.
+
+choice
+	prompt "Cerf Flash available"
+	depends on SA1100_CERF
+	default SA1100_CERF_FLASH_8MB
+
+config SA1100_CERF_FLASH_8MB
+	bool "8MB"
+
+config SA1100_CERF_FLASH_16MB
+	bool "16MB"
+
+config SA1100_CERF_FLASH_32MB
+	bool "32MB"
+
+endchoice
+
+config SA1100_COLLIE
+	bool "Sharp Zaurus SL5500"
+	# FIXME: select ARM_SA11x0_CPUFREQ
+	select SHARP_LOCOMO
+	select SHARP_PARAM
+	select SHARP_SCOOP
+	help
+	  Say Y here to support the Sharp Zaurus SL5500 PDAs.
+
+config SA1100_H3100
+	bool "Compaq iPAQ H3100"
+	depends on UNUSED_BOARD_FILES
+	select ARM_SA1110_CPUFREQ
+	select HTC_EGPIO
+	select MFD_IPAQ_MICRO
+	help
+	  Say Y here if you intend to run this kernel on the Compaq iPAQ
+	  H3100 handheld computer.
+
+config SA1100_H3600
+	bool "Compaq iPAQ H3600/H3700"
+	select ARM_SA1110_CPUFREQ
+	select HTC_EGPIO
+	select MFD_IPAQ_MICRO
+	help
+	  Say Y here if you intend to run this kernel on the Compaq iPAQ
+	  H3600 and H3700 handheld computers.
+
+config SA1100_BADGE4
+	bool "HP Labs BadgePAD 4"
+	depends on UNUSED_BOARD_FILES
+	select ARM_SA1100_CPUFREQ
+	select SA1111
+	help
+	  Say Y here if you want to build a kernel for the HP Laboratories
+	  BadgePAD 4.
+
+config SA1100_JORNADA720
+	bool "HP Jornada 720"
+	depends on UNUSED_BOARD_FILES
+	# FIXME: select ARM_SA11x0_CPUFREQ
+	select SA1111
+	help
+	  Say Y here if you want to build a kernel for the HP Jornada 720
+	  handheld computer.  See 
+	  <http://h10025.www1.hp.com/ewfrf/wc/product?product=61677&cc=us&lc=en&dlc=en&product=61677#> 
+
+config SA1100_JORNADA720_SSP
+	bool "HP Jornada 720 Extended SSP driver"
+	depends on SA1100_JORNADA720
+	select SA1100_SSP
+	help
+	  Say Y here if you have a HP Jornada 7xx handheld computer and you
+	  want to access devices connected to the MCU. Those include the
+	  keyboard, touchscreen, backlight and battery. This driver also activates
+	  the generic SSP which it extends.
+
+config SA1100_HACKKIT
+	bool "HackKit Core CPU Board"
+	depends on UNUSED_BOARD_FILES
+	select ARM_SA1100_CPUFREQ
+	help
+	  Say Y here to support the HackKit Core CPU Board
+	  <http://hackkit.eletztrick.de>;
+
+config SA1100_LART
+	bool "LART"
+	depends on UNUSED_BOARD_FILES
+	select ARM_SA1100_CPUFREQ
+	help
+	  Say Y here if you are using the Linux Advanced Radio Terminal
+	  (also known as the LART).  See <http://www.lartmaker.nl/> for
+	  information on the LART.
+
+config SA1100_NANOENGINE
+	bool "nanoEngine"
+	depends on UNUSED_BOARD_FILES
+	select ARM_SA1110_CPUFREQ
+	select FORCE_PCI
+	select PCI_NANOENGINE
+	help
+	  Say Y here if you are using the Bright Star Engineering nanoEngine.
+	  See <http://www.brightstareng.com/arm/nanoeng.htm> for information
+	  on the BSE nanoEngine.
+
+config SA1100_PLEB
+	bool "PLEB"
+	depends on UNUSED_BOARD_FILES
+	select ARM_SA1100_CPUFREQ
+	help
+	  Say Y here if you are using version 1 of the Portable Linux
+	  Embedded Board (also known as PLEB).
+	  See <http://www.disy.cse.unsw.edu.au/Hardware/PLEB/>
+	  for more information.
+
+config SA1100_SHANNON
+	bool "Shannon"
+	depends on UNUSED_BOARD_FILES
+	select ARM_SA1100_CPUFREQ
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	help
+	  The Shannon (also known as a Tuxscreen, and also as a IS2630) was a
+	  limited edition webphone produced by Philips. The Shannon is a SA1100
+	  platform with a 640x480 LCD, touchscreen, CIR keyboard, PCMCIA slots,
+	  and a telco interface.
+
+config SA1100_SIMPAD
+	bool "Simpad"
+	depends on UNUSED_BOARD_FILES
+	select ARM_SA1110_CPUFREQ
+	help
+	  The SIEMENS webpad SIMpad is based on the StrongARM 1110. There
+	  are two different versions CL4 and SL4. CL4 has 32MB RAM and 16MB
+	  FLASH. The SL4 version got 64 MB RAM and 32 MB FLASH and a
+	  PCMCIA-Slot. The version for the Germany Telecom (DTAG) is the same
+	  like CL4 in additional it has a PCMCIA-Slot. For more information
+	  visit <http://www.usa.siemens.com/> or <http://www.siemens.ch/>.
+
+config SA1100_SSP
+	tristate "Generic PIO SSP"
+	depends on UNUSED_BOARD_FILES
+	help
+	  Say Y here to enable support for the generic PIO SSP driver.
+	  This isn't for audio support, but for attached sensors and
+	  other devices, eg for BadgePAD 4 sensor support.
+
+endif

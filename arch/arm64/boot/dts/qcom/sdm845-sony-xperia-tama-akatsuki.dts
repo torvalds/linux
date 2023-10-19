@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
+ */
+
+/dts-v1/;
+
+#include "sdm845-sony-xperia-tama.dtsi"
+
+/ {
+	model = "Sony Xperia XZ3";
+	compatible = "sony,akatsuki-row", "qcom,sdm845";
+};
+
+/* For the future: WLED + LAB/IBB/OLEDB are not used on Akatsuki */
+&vreg_l14a_1p8 {
+	regulator-min-microvolt = <1840000>;
+	regulator-max-microvolt = <1840000>;
+};
+
+&vreg_l22a_2p8 {
+	/* Note: Round-down from 2700000 to be a multiple of PLDO step-size 8000 */
+	regulator-min-microvolt = <2696000>;
+	regulator-max-microvolt = <2696000>;
+};
+
+&vreg_l28a_2p8 {
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+};

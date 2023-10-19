@@ -1,0 +1,255 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * ARM Ltd. Versatile Express
+ *
+ * CoreTile Express A15x2 (version with Test Chip 1)
+ * Cortex-A15 MPCore (V2P-CA15)
+ *
+ * HBI-0237A
+ */
+
+/dts-v1/;
+#include "vexpress-v2m-rs1.dtsi"
+
+/ {
+	model = "V2P-CA15";
+	arm,hbi = <0x237>;
+	arm,vexpress,site = <0xf>;
+	compatible = "arm,vexpress,v2p-ca15,tc1", "arm,vexpress,v2p-ca15", "arm,vexpress";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	chosen { };
+
+	aliases {
+		serial0 = &v2m_serial0;
+		serial1 = &v2m_serial1;
+		serial2 = &v2m_serial2;
+		serial3 = &v2m_serial3;
+		i2c0 = &v2m_i2c_dvi;
+		i2c1 = &v2m_i2c_pcie;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0>;
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <1>;
+		};
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0 0x80000000 0 0x40000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* Chipselect 2 is physically at 0x18000000 */
+		vram: vram@18000000 {
+			/* 8 MB of designated video RAM */
+			compatible = "shared-dma-pool";
+			reg = <0 0x18000000 0 0x00800000>;
+			no-map;
+		};
+	};
+
+	hdlcd@2b000000 {
+		compatible = "arm,hdlcd";
+		reg = <0 0x2b000000 0 0x1000>;
+		interrupts = <0 85 4>;
+		clocks = <&hdlcd_clk>;
+		clock-names = "pxlclk";
+	};
+
+	memory-controller@2b0a0000 {
+		compatible = "arm,pl341", "arm,primecell";
+		reg = <0 0x2b0a0000 0 0x1000>;
+		clocks = <&sys_pll>;
+		clock-names = "apb_pclk";
+	};
+
+	wdt@2b060000 {
+		compatible = "arm,sp805", "arm,primecell";
+		status = "disabled";
+		reg = <0 0x2b060000 0 0x1000>;
+		interrupts = <0 98 4>;
+		clocks = <&sys_pll>, <&sys_pll>;
+		clock-names = "wdog_clk", "apb_pclk";
+	};
+
+	gic: interrupt-controller@2c001000 {
+		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		reg = <0 0x2c001000 0 0x1000>,
+		      <0 0x2c002000 0 0x2000>,
+		      <0 0x2c004000 0 0x2000>,
+		      <0 0x2c006000 0 0x2000>;
+		interrupts = <1 9 0xf04>;
+	};
+
+	memory-controller@7ffd0000 {
+		compatible = "arm,pl354", "arm,primecell";
+		reg = <0 0x7ffd0000 0 0x1000>;
+		interrupts = <0 86 4>,
+			     <0 87 4>;
+		clocks = <&sys_pll>;
+		clock-names = "apb_pclk";
+	};
+
+	dma@7ffb0000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0 0x7ffb0000 0 0x1000>;
+		interrupts = <0 92 4>,
+			     <0 88 4>,
+			     <0 89 4>,
+			     <0 90 4>,
+			     <0 91 4>;
+		clocks = <&sys_pll>;
+		clock-names = "apb_pclk";
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts = <1 13 0xf08>,
+			     <1 14 0xf08>,
+			     <1 11 0xf08>,
+			     <1 10 0xf08>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a15-pmu";
+		interrupts = <0 68 4>,
+			     <0 69 4>;
+	};
+
+	dcc {
+		compatible = "arm,vexpress,config-bus";
+		arm,vexpress,config-bridge = <&v2m_sysreg>;
+
+		oscclk0 {
+			/* CPU PLL reference clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 0>;
+			freq-range = <50000000 60000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk0";
+		};
+
+		oscclk4 {
+			/* Multiplexed AXI master clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 4>;
+			freq-range = <20000000 40000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk4";
+		};
+
+		hdlcd_clk: oscclk5 {
+			/* HDLCD PLL reference clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 5>;
+			freq-range = <23750000 165000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk5";
+		};
+
+		smbclk: oscclk6 {
+			/* SMB clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 6>;
+			freq-range = <20000000 50000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk6";
+		};
+
+		sys_pll: oscclk7 {
+			/* SYS PLL reference clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 7>;
+			freq-range = <20000000 60000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk7";
+		};
+
+		oscclk8 {
+			/* DDR2 PLL reference clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 8>;
+			freq-range = <40000000 40000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk8";
+		};
+
+		volt-cores {
+			/* CPU core voltage */
+			compatible = "arm,vexpress-volt";
+			arm,vexpress-sysreg,func = <2 0>;
+			regulator-name = "Cores";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <1050000>;
+			regulator-always-on;
+			label = "Cores";
+		};
+
+		amp-cores {
+			/* Total current for the two cores */
+			compatible = "arm,vexpress-amp";
+			arm,vexpress-sysreg,func = <3 0>;
+			label = "Cores";
+		};
+
+		temp-dcc {
+			/* DCC internal temperature */
+			compatible = "arm,vexpress-temp";
+			arm,vexpress-sysreg,func = <4 0>;
+			label = "DCC";
+		};
+
+		power-cores {
+			/* Total power */
+			compatible = "arm,vexpress-power";
+			arm,vexpress-sysreg,func = <12 0>;
+			label = "Cores";
+		};
+
+		energy {
+			/* Total energy */
+			compatible = "arm,vexpress-energy";
+			arm,vexpress-sysreg,func = <13 0>;
+			label = "Cores";
+		};
+	};
+
+	bus@8000000 {
+		ranges = <0x8000000 0 0x8000000 0x18000000>;
+	};
+
+	site2: hsb@40000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0x40000000 0x3fef0000>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 3>;
+		interrupt-map = <0 0 &gic 0 36 4>,
+				<0 1 &gic 0 37 4>,
+				<0 2 &gic 0 38 4>,
+				<0 3 &gic 0 39 4>;
+	};
+};

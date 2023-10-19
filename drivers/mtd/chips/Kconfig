@@ -1,0 +1,243 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "RAM/ROM/Flash chip drivers"
+	depends on MTD!=n
+
+config MTD_CFI
+	tristate "Detect flash chips by Common Flash Interface (CFI) probe"
+	select MTD_GEN_PROBE
+	select MTD_CFI_UTIL
+	help
+	  The Common Flash Interface specification was developed by Intel,
+	  AMD and other flash manufactures that provides a universal method
+	  for probing the capabilities of flash devices. If you wish to
+	  support any device that is CFI-compliant, you need to enable this
+	  option. Visit <https://www.amd.com/products/nvd/overview/cfi.html>
+	  for more information on CFI.
+
+config MTD_JEDECPROBE
+	tristate "Detect non-CFI AMD/JEDEC-compatible flash chips"
+	select MTD_GEN_PROBE
+	select MTD_CFI_UTIL
+	help
+	  This option enables JEDEC-style probing of flash chips which are not
+	  compatible with the Common Flash Interface, but will use the common
+	  CFI-targeted flash drivers for any chips which are identified which
+	  are in fact compatible in all but the probe method. This actually
+	  covers most AMD/Fujitsu-compatible chips and also non-CFI
+	  Intel chips.
+
+config MTD_GEN_PROBE
+	tristate
+
+config MTD_CFI_ADV_OPTIONS
+	bool "Flash chip driver advanced configuration options"
+	depends on MTD_GEN_PROBE
+	help
+	  If you need to specify a specific endianness for access to flash
+	  chips, or if you wish to reduce the size of the kernel by including
+	  support for only specific arrangements of flash chips, say 'Y'. This
+	  option does not directly affect the code, but will enable other
+	  configuration options which allow you to do so.
+
+	  If unsure, say 'N'.
+
+choice
+	prompt "Flash cmd/query data swapping"
+	depends on MTD_CFI_ADV_OPTIONS
+	default MTD_CFI_NOSWAP
+	help
+	  This option defines the way in which the CPU attempts to arrange
+	  data bits when writing the 'magic' commands to the chips. Saying
+	  'NO', which is the default when CONFIG_MTD_CFI_ADV_OPTIONS isn't
+	  enabled, means that the CPU will not do any swapping; the chips
+	  are expected to be wired to the CPU in 'host-endian' form.
+	  Specific arrangements are possible with the BIG_ENDIAN_BYTE and
+	  LITTLE_ENDIAN_BYTE, if the bytes are reversed.
+
+config MTD_CFI_NOSWAP
+	depends on !ARCH_IXP4XX || CPU_BIG_ENDIAN
+	bool "NO"
+
+config MTD_CFI_BE_BYTE_SWAP
+	bool "BIG_ENDIAN_BYTE"
+
+config MTD_CFI_LE_BYTE_SWAP
+	depends on !ARCH_IXP4XX
+	bool "LITTLE_ENDIAN_BYTE"
+
+endchoice
+
+config MTD_CFI_GEOMETRY
+	bool "Specific CFI Flash geometry selection"
+	depends on MTD_CFI_ADV_OPTIONS
+	select MTD_MAP_BANK_WIDTH_1 if  !(MTD_MAP_BANK_WIDTH_2 || \
+		 MTD_MAP_BANK_WIDTH_4  || MTD_MAP_BANK_WIDTH_8 || \
+		 MTD_MAP_BANK_WIDTH_16 || MTD_MAP_BANK_WIDTH_32)
+	select MTD_CFI_I1 if !(MTD_CFI_I2 || MTD_CFI_I4 || MTD_CFI_I8)
+	help
+	  This option does not affect the code directly, but will enable
+	  some other configuration options which would allow you to reduce
+	  the size of the kernel by including support for only certain
+	  arrangements of CFI chips. If unsure, say 'N' and all options
+	  which are supported by the current code will be enabled.
+
+config MTD_MAP_BANK_WIDTH_1
+	bool "Support  8-bit buswidth" if MTD_CFI_GEOMETRY
+	default y
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  8 bits wide, say 'Y'.
+
+config MTD_MAP_BANK_WIDTH_2
+	bool "Support 16-bit buswidth" if MTD_CFI_GEOMETRY
+	default y
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  16 bits wide, say 'Y'.
+
+config MTD_MAP_BANK_WIDTH_4
+	bool "Support 32-bit buswidth" if MTD_CFI_GEOMETRY
+	default y
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  32 bits wide, say 'Y'.
+
+config MTD_MAP_BANK_WIDTH_8
+	bool "Support 64-bit buswidth" if MTD_CFI_GEOMETRY
+	default n
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  64 bits wide, say 'Y'.
+
+config MTD_MAP_BANK_WIDTH_16
+	bool "Support 128-bit buswidth" if MTD_CFI_GEOMETRY
+	default n
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  128 bits wide, say 'Y'.
+
+config MTD_MAP_BANK_WIDTH_32
+	bool "Support 256-bit buswidth" if MTD_CFI_GEOMETRY
+	select MTD_COMPLEX_MAPPINGS if HAS_IOMEM
+	default n
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  256 bits wide, say 'Y'.
+
+config MTD_CFI_I1
+	bool "Support 1-chip flash interleave" if MTD_CFI_GEOMETRY
+	default y
+	help
+	  If your flash chips are not interleaved - i.e. you only have one
+	  flash chip addressed by each bus cycle, then say 'Y'.
+
+config MTD_CFI_I2
+	bool "Support 2-chip flash interleave" if MTD_CFI_GEOMETRY
+	default y
+	help
+	  If your flash chips are interleaved in pairs - i.e. you have two
+	  flash chips addressed by each bus cycle, then say 'Y'.
+
+config MTD_CFI_I4
+	bool "Support 4-chip flash interleave" if MTD_CFI_GEOMETRY
+	default n
+	help
+	  If your flash chips are interleaved in fours - i.e. you have four
+	  flash chips addressed by each bus cycle, then say 'Y'.
+
+config MTD_CFI_I8
+	bool "Support 8-chip flash interleave" if MTD_CFI_GEOMETRY
+	default n
+	help
+	  If your flash chips are interleaved in eights - i.e. you have eight
+	  flash chips addressed by each bus cycle, then say 'Y'.
+
+config MTD_OTP
+	bool "Protection Registers aka one-time programmable (OTP) bits"
+	depends on MTD_CFI_ADV_OPTIONS
+	default n
+	help
+	  This enables support for reading, writing and locking so called
+	  "Protection Registers" present on some flash chips.
+	  A subset of them are pre-programmed at the factory with a
+	  unique set of values. The rest is user-programmable.
+
+	  The user-programmable Protection Registers contain one-time
+	  programmable (OTP) bits; when programmed, register bits cannot be
+	  erased. Each Protection Register can be accessed multiple times to
+	  program individual bits, as long as the register remains unlocked.
+
+	  Each Protection Register has an associated Lock Register bit. When a
+	  Lock Register bit is programmed, the associated Protection Register
+	  can only be read; it can no longer be programmed. Additionally,
+	  because the Lock Register bits themselves are OTP, when programmed,
+	  Lock Register bits cannot be erased. Therefore, when a Protection
+	  Register is locked, it cannot be unlocked.
+
+	  This feature should therefore be used with extreme care. Any mistake
+	  in the programming of OTP bits will waste them.
+
+config MTD_CFI_INTELEXT
+	tristate "Support for CFI command set 0001 (Intel/Sharp chips)"
+	depends on MTD_GEN_PROBE
+	select MTD_CFI_UTIL
+	help
+	  The Common Flash Interface defines a number of different command
+	  sets which a CFI-compliant chip may claim to implement. This code
+	  provides support for command set 0001, used on Intel StrataFlash
+	  and other parts.
+
+config MTD_CFI_AMDSTD
+	tristate "Support for CFI command set 0002 (AMD/Fujitsu/Spansion chips)"
+	depends on MTD_GEN_PROBE
+	select MTD_CFI_UTIL
+	help
+	  The Common Flash Interface defines a number of different command
+	  sets which a CFI-compliant chip may claim to implement. This code
+	  provides support for command set 0002, used on chips including
+	  the AMD Am29LV320.
+
+config MTD_CFI_STAA
+	tristate "Support for CFI command set 0020 (ST (Advanced Architecture) chips)"
+	depends on MTD_GEN_PROBE
+	select MTD_CFI_UTIL
+	help
+	  The Common Flash Interface defines a number of different command
+	  sets which a CFI-compliant chip may claim to implement. This code
+	  provides support for command set 0020.
+
+config MTD_CFI_UTIL
+	tristate
+
+config MTD_RAM
+	tristate "Support for RAM chips in bus mapping"
+	help
+	  This option enables basic support for RAM chips accessed through
+	  a bus mapping driver.
+
+config MTD_ROM
+	tristate "Support for ROM chips in bus mapping"
+	help
+	  This option enables basic support for ROM chips accessed through
+	  a bus mapping driver.
+
+config MTD_ABSENT
+	tristate "Support for absent chips in bus mapping"
+	help
+	  This option enables support for a dummy probing driver used to
+	  allocated placeholder MTD devices on systems that have socketed
+	  or removable media.  Use of this driver as a fallback chip probe
+	  preserves the expected registration order of MTD device nodes on
+	  the system regardless of media presence.  Device nodes created
+	  with this driver will return -ENODEV upon access.
+
+config MTD_XIP
+	bool "XIP aware MTD support"
+	depends on !SMP && (MTD_CFI_INTELEXT || MTD_CFI_AMDSTD) && ARCH_MTD_XIP
+	default y if XIP_KERNEL
+	help
+	  This allows MTD support to work with flash memory which is also
+	  used for XIP purposes.  If you're not sure what this is all about
+	  then say N.
+
+endmenu

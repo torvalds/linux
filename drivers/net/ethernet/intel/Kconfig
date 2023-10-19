@@ -1,0 +1,375 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Intel network device configuration
+#
+
+config NET_VENDOR_INTEL
+	bool "Intel devices"
+	default y
+	help
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Intel cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_INTEL
+
+config E100
+	tristate "Intel(R) PRO/100+ support"
+	depends on PCI
+	select MII
+	help
+	  This driver supports Intel(R) PRO/100 family of adapters.
+	  To verify that your adapter is supported, find the board ID number
+	  on the adapter. Look for a label that has a barcode and a number
+	  in the format 123456-001 (six digits hyphen three digits).
+
+	  Use the above information and the Adapter & Driver ID Guide that
+	  can be located at:
+
+	  <http://support.intel.com>
+
+	  to identify the adapter.
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/e100.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called e100.
+
+config E1000
+	tristate "Intel(R) PRO/1000 Gigabit Ethernet support"
+	depends on PCI
+	help
+	  This driver supports Intel(R) PRO/1000 gigabit ethernet family of
+	  adapters.  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/e1000.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called e1000.
+
+config E1000E
+	tristate "Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support"
+	depends on PCI && (!SPARC32 || BROKEN)
+	depends on PTP_1588_CLOCK_OPTIONAL
+	select CRC32
+	help
+	  This driver supports the PCI-Express Intel(R) PRO/1000 gigabit
+	  ethernet family of adapters. For PCI or PCI-X e1000 adapters,
+	  use the regular e1000 driver For more information on how to
+	  identify your adapter, go to the Adapter & Driver ID Guide that
+	  can be located at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/e1000e.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called e1000e.
+
+config E1000E_HWTS
+	bool "Support HW cross-timestamp on PCH devices"
+	default y
+	depends on E1000E && X86
+	help
+	 Say Y to enable hardware supported cross-timestamping on PCH
+	 devices. The cross-timestamp is available through the PTP clock
+	 driver precise cross-timestamp ioctl (PTP_SYS_OFFSET_PRECISE).
+
+config IGB
+	tristate "Intel(R) 82575/82576 PCI-Express Gigabit Ethernet support"
+	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
+	select I2C
+	select I2C_ALGOBIT
+	help
+	  This driver supports Intel(R) 82575/82576 gigabit ethernet family of
+	  adapters.  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/igb.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called igb.
+
+config IGB_HWMON
+	bool "Intel(R) PCI-Express Gigabit adapters HWMON support"
+	default y
+	depends on IGB && HWMON && !(IGB=y && HWMON=m)
+	help
+	  Say Y if you want to expose thermal sensor data on Intel devices.
+
+	  Some of our devices contain thermal sensors, both external and internal.
+	  This data is available via the hwmon sysfs interface and exposes
+	  the onboard sensors.
+
+config IGB_DCA
+	bool "Direct Cache Access (DCA) Support"
+	default y
+	depends on IGB && DCA && !(IGB=y && DCA=m)
+	help
+	  Say Y here if you want to use Direct Cache Access (DCA) in the
+	  driver.  DCA is a method for warming the CPU cache before data
+	  is used, with the intent of lessening the impact of cache misses.
+
+config IGBVF
+	tristate "Intel(R) 82576 Virtual Function Ethernet support"
+	depends on PCI
+	help
+	  This driver supports Intel(R) 82576 virtual functions.  For more
+	  information on how to identify your adapter, go to the Adapter &
+	  Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/igbvf.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called igbvf.
+
+config IXGB
+	tristate "Intel(R) PRO/10GbE support"
+	depends on PCI
+	help
+	  This driver supports Intel(R) PRO/10GbE family of adapters for
+	  PCI-X type cards. For PCI-E type cards, use the "ixgbe" driver
+	  instead. For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/ixgb.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called ixgb.
+
+config IXGBE
+	tristate "Intel(R) 10GbE PCI Express adapters support"
+	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
+	select MDIO
+	select PHYLIB
+	help
+	  This driver supports Intel(R) 10GbE PCI Express family of
+	  adapters.  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/ixgbe.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called ixgbe.
+
+config IXGBE_HWMON
+	bool "Intel(R) 10GbE PCI Express adapters HWMON support"
+	default y
+	depends on IXGBE && HWMON && !(IXGBE=y && HWMON=m)
+	help
+	  Say Y if you want to expose the thermal sensor data on some of
+	  our cards, via a hwmon sysfs interface.
+
+config IXGBE_DCA
+	bool "Direct Cache Access (DCA) Support"
+	default y
+	depends on IXGBE && DCA && !(IXGBE=y && DCA=m)
+	help
+	  Say Y here if you want to use Direct Cache Access (DCA) in the
+	  driver.  DCA is a method for warming the CPU cache before data
+	  is used, with the intent of lessening the impact of cache misses.
+
+config IXGBE_DCB
+	bool "Data Center Bridging (DCB) Support"
+	default n
+	depends on IXGBE && DCB
+	help
+	  Say Y here if you want to use Data Center Bridging (DCB) in the
+	  driver.
+
+	  If unsure, say N.
+
+config IXGBE_IPSEC
+	bool "IPSec XFRM cryptography-offload acceleration"
+	depends on IXGBE
+	depends on XFRM_OFFLOAD
+	default y
+	select XFRM_ALGO
+	help
+	  Enable support for IPSec offload in ixgbe.ko
+
+config IXGBEVF
+	tristate "Intel(R) 10GbE PCI Express Virtual Function Ethernet support"
+	depends on PCI_MSI
+	help
+	  This driver supports Intel(R) PCI Express virtual functions for the
+	  Intel(R) ixgbe driver.  For more information on how to identify your
+	  adapter, go to the Adapter & Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/ixgbevf.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called ixgbevf.  MSI-X interrupt support is required
+	  for this driver to work correctly.
+
+config IXGBEVF_IPSEC
+	bool "IPSec XFRM cryptography-offload acceleration"
+	depends on IXGBEVF
+	depends on XFRM_OFFLOAD
+	default y
+	select XFRM_ALGO
+	help
+	  Enable support for IPSec offload in ixgbevf.ko
+
+config I40E
+	tristate "Intel(R) Ethernet Controller XL710 Family support"
+	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on PCI
+	select AUXILIARY_BUS
+	help
+	  This driver supports Intel(R) Ethernet Controller XL710 Family of
+	  devices.  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/i40e.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called i40e.
+
+config I40E_DCB
+	bool "Data Center Bridging (DCB) Support"
+	default n
+	depends on I40E && DCB
+	help
+	  Say Y here if you want to use Data Center Bridging (DCB) in the
+	  driver.
+
+	  If unsure, say N.
+
+# this is here to allow seamless migration from I40EVF --> IAVF name
+# so that CONFIG_IAVF symbol will always mirror the state of CONFIG_I40EVF
+config IAVF
+	tristate
+config I40EVF
+	tristate "Intel(R) Ethernet Adaptive Virtual Function support"
+	select IAVF
+	depends on PCI_MSI
+	help
+	  This driver supports virtual functions for Intel XL710,
+	  X710, X722, XXV710, and all devices advertising support for
+	  Intel Ethernet Adaptive Virtual Function devices. For more
+	  information on how to identify your adapter, go to the Adapter
+	  & Driver ID Guide that can be located at:
+
+	  <https://support.intel.com>
+
+	  This driver was formerly named i40evf.
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/iavf.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called iavf.  MSI-X interrupt support is required
+	  for this driver to work correctly.
+
+config ICE
+	tristate "Intel(R) Ethernet Connection E800 Series Support"
+	default n
+	depends on PCI_MSI
+	depends on PTP_1588_CLOCK_OPTIONAL
+	select AUXILIARY_BUS
+	select DIMLIB
+	select NET_DEVLINK
+	select PLDMFW
+	help
+	  This driver supports Intel(R) Ethernet Connection E800 Series of
+	  devices.  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/ice.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called ice.
+
+config ICE_SWITCHDEV
+	bool "Switchdev Support"
+	default y
+	depends on ICE && NET_SWITCHDEV
+	help
+	  Switchdev support provides internal SRIOV packet steering and switching.
+
+	  To enable it on running kernel use devlink tool:
+	  #devlink dev eswitch set pci/0000:XX:XX.X mode switchdev
+
+	  Say Y here if you want to use Switchdev in the driver.
+
+	  If unsure, say N.
+
+config ICE_HWTS
+	bool "Support HW cross-timestamp on platforms with PTM support"
+	default y
+	depends on ICE && X86
+	help
+	  Say Y to enable hardware supported cross-timestamping on platforms
+	  with PCIe PTM support. The cross-timestamp is available through
+	  the PTP clock driver precise cross-timestamp ioctl
+	  (PTP_SYS_OFFSET_PRECISE).
+
+config FM10K
+	tristate "Intel(R) FM10000 Ethernet Switch Host Interface Support"
+	default n
+	depends on PCI_MSI
+	depends on PTP_1588_CLOCK_OPTIONAL
+	help
+	  This driver supports Intel(R) FM10000 Ethernet Switch Host
+	  Interface.  For more information on how to identify your adapter,
+	  go to the Adapter & Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/intel/fm10k.rst>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called fm10k.  MSI-X interrupt support is required
+
+config IGC
+	tristate "Intel(R) Ethernet Controller I225-LM/I225-V support"
+	default n
+	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
+	help
+	  This driver supports Intel(R) Ethernet Controller I225-LM/I225-V
+	  family of adapters.
+
+	  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called igc.
+
+endif # NET_VENDOR_INTEL

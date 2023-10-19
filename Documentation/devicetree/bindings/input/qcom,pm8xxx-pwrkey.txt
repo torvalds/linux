@@ -1,0 +1,46 @@
+Qualcomm PM8xxx PMIC Power Key
+
+PROPERTIES
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be one of:
+		    "qcom,pm8058-pwrkey"
+		    "qcom,pm8921-pwrkey"
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: address of power key control register
+
+- interrupts:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: the first interrupt specifies the key release interrupt
+		    and the second interrupt specifies the key press interrupt.
+		    The format of the specifier is defined by the binding
+		    document describing the node's interrupt parent.
+
+- debounce:
+	Usage: optional
+	Value type: <u32>
+	Definition: time in microseconds that key must be pressed or release
+		    for state change interrupt to trigger.
+
+- pull-up:
+	Usage: optional
+	Value type: <empty>
+	Definition: presence of this property indicates that the KPDPWR_N pin
+		    should be configured for pull up.
+
+EXAMPLE
+
+	pwrkey@1c {
+		compatible = "qcom,pm8921-pwrkey";
+		reg = <0x1c>;
+		interrupt-parent = <&pmicintc>;
+		interrupts = <50 1>, <51 1>;
+		debounce = <15625>;
+		pull-up;
+	};

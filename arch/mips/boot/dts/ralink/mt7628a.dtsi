@@ -1,0 +1,298 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "ralink,mt7628a-soc";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "mti,mips24KEc";
+			device_type = "cpu";
+			reg = <0>;
+		};
+	};
+
+	resetc: reset-controller {
+		compatible = "ralink,rt2880-reset";
+		#reset-cells = <1>;
+	};
+
+	cpuintc: interrupt-controller {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	palmbus@10000000 {
+		compatible = "palmbus";
+		reg = <0x10000000 0x200000>;
+		ranges = <0x0 0x10000000 0x1FFFFF>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		sysc: system-controller@0 {
+			compatible = "ralink,mt7620a-sysc", "syscon";
+			reg = <0x0 0x60>;
+		};
+
+		pinmux: pinmux@60 {
+			compatible = "pinctrl-single";
+			reg = <0x60 0x8>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#pinctrl-cells = <2>;
+			pinctrl-single,bit-per-mux;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <0x1>;
+
+			pinmux_gpio_gpio: pinmux_gpio_gpio {
+				pinctrl-single,bits = <0x0 0x0 0x3>;
+			};
+
+			pinmux_spi_cs1_cs: pinmux_spi_cs1_cs {
+				pinctrl-single,bits = <0x0 0x0 0x30>;
+			};
+
+			pinmux_i2s_gpio: pinmux_i2s_gpio {
+				pinctrl-single,bits = <0x0 0x40 0xc0>;
+			};
+
+			pinmux_uart0_uart: pinmux_uart0_uart0 {
+				pinctrl-single,bits = <0x0 0x0 0x300>;
+			};
+
+			pinmux_sdmode_sdxc: pinmux_sdmode_sdxc {
+				pinctrl-single,bits = <0x0 0x0 0xc00>;
+			};
+
+			pinmux_sdmode_gpio: pinmux_sdmode_gpio {
+				pinctrl-single,bits = <0x0 0x400 0xc00>;
+			};
+
+			pinmux_spi_spi: pinmux_spi_spi {
+				pinctrl-single,bits = <0x0 0x0 0x1000>;
+			};
+
+			pinmux_refclk_gpio: pinmux_refclk_gpio {
+				pinctrl-single,bits = <0x0 0x40000 0x40000>;
+			};
+
+			pinmux_i2c_i2c: pinmux_i2c_i2c {
+				pinctrl-single,bits = <0x0 0x0 0x300000>;
+			};
+
+			pinmux_uart1_uart: pinmux_uart1_uart1 {
+				pinctrl-single,bits = <0x0 0x0 0x3000000>;
+			};
+
+			pinmux_uart2_uart: pinmux_uart2_uart {
+				pinctrl-single,bits = <0x0 0x0 0xc000000>;
+			};
+
+			pinmux_pwm0_pwm: pinmux_pwm0_pwm {
+				pinctrl-single,bits = <0x0 0x0 0x30000000>;
+			};
+
+			pinmux_pwm0_gpio: pinmux_pwm0_gpio {
+				pinctrl-single,bits = <0x0 0x10000000
+						       0x30000000>;
+			};
+
+			pinmux_pwm1_pwm: pinmux_pwm1_pwm {
+				pinctrl-single,bits = <0x0 0x0 0xc0000000>;
+			};
+
+			pinmux_pwm1_gpio: pinmux_pwm1_gpio {
+				pinctrl-single,bits = <0x0 0x40000000
+						       0xc0000000>;
+			};
+
+			pinmux_p0led_an_gpio: pinmux_p0led_an_gpio {
+				pinctrl-single,bits = <0x4 0x4 0xc>;
+			};
+
+			pinmux_p1led_an_gpio: pinmux_p1led_an_gpio {
+				pinctrl-single,bits = <0x4 0x10 0x30>;
+			};
+
+			pinmux_p2led_an_gpio: pinmux_p2led_an_gpio {
+				pinctrl-single,bits = <0x4 0x40 0xc0>;
+			};
+
+			pinmux_p3led_an_gpio: pinmux_p3led_an_gpio {
+				pinctrl-single,bits = <0x4 0x100 0x300>;
+			};
+
+			pinmux_p4led_an_gpio: pinmux_p4led_an_gpio {
+				pinctrl-single,bits = <0x4 0x400 0xc00>;
+			};
+		};
+
+		watchdog: watchdog@100 {
+			compatible = "mediatek,mt7621-wdt";
+			reg = <0x100 0x30>;
+
+			resets = <&resetc 8>;
+			reset-names = "wdt";
+
+			interrupt-parent = <&intc>;
+			interrupts = <24>;
+
+			status = "disabled";
+		};
+
+		intc: interrupt-controller@200 {
+			compatible = "ralink,rt2880-intc";
+			reg = <0x200 0x100>;
+
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			resets = <&resetc 9>;
+			reset-names = "intc";
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <2>;
+
+			ralink,intc-registers = <0x9c 0xa0
+						 0x6c 0xa4
+						 0x80 0x78>;
+		};
+
+		memory-controller@300 {
+			compatible = "ralink,mt7620a-memc";
+			reg = <0x300 0x100>;
+		};
+
+		gpio: gpio@600 {
+			compatible = "mediatek,mt7621-gpio";
+			reg = <0x600 0x100>;
+
+			gpio-controller;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <6>;
+		};
+
+		spi: spi@b00 {
+			compatible = "ralink,mt7621-spi";
+			reg = <0xb00 0x100>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_spi_spi>;
+
+			resets = <&resetc 18>;
+			reset-names = "spi";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+		};
+
+		i2c: i2c@900 {
+			compatible = "mediatek,mt7621-i2c";
+			reg = <0x900 0x100>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_i2c_i2c>;
+
+			resets = <&resetc 16>;
+			reset-names = "i2c";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+		};
+
+		uart0: uartlite@c00 {
+			compatible = "ns16550a";
+			reg = <0xc00 0x100>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_uart0_uart>;
+
+			resets = <&resetc 12>;
+			reset-names = "uart0";
+
+			interrupt-parent = <&intc>;
+			interrupts = <20>;
+
+			reg-shift = <2>;
+		};
+
+		uart1: uart1@d00 {
+			compatible = "ns16550a";
+			reg = <0xd00 0x100>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_uart1_uart>;
+
+			resets = <&resetc 19>;
+			reset-names = "uart1";
+
+			interrupt-parent = <&intc>;
+			interrupts = <21>;
+
+			reg-shift = <2>;
+		};
+
+		uart2: uart2@e00 {
+			compatible = "ns16550a";
+			reg = <0xe00 0x100>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_uart2_uart>;
+
+			resets = <&resetc 20>;
+			reset-names = "uart2";
+
+			interrupt-parent = <&intc>;
+			interrupts = <22>;
+
+			reg-shift = <2>;
+		};
+	};
+
+	usb_phy: usb-phy@10120000 {
+		compatible = "mediatek,mt7628-usbphy";
+		reg = <0x10120000 0x1000>;
+
+		#phy-cells = <0>;
+
+		ralink,sysctl = <&sysc>;
+		resets = <&resetc 22 &resetc 25>;
+		reset-names = "host", "device";
+	};
+
+	usb@101c0000 {
+		compatible = "generic-ehci";
+		reg = <0x101c0000 0x1000>;
+
+		phys = <&usb_phy>;
+		phy-names = "usb";
+
+		interrupt-parent = <&intc>;
+		interrupts = <18>;
+	};
+
+	wmac: wmac@10300000 {
+		compatible = "mediatek,mt7628-wmac";
+		reg = <0x10300000 0x100000>;
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <6>;
+
+		status = "disabled";
+	};
+};

@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/include/ "xtfpga.dtsi"
+/include/ "xtfpga-flash-16m.dtsi"
+
+/ {
+	compatible = "cdns,xtensa-ml605";
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>;
+	};
+};

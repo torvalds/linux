@@ -1,0 +1,179 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# IPMI device configuration
+#
+
+menuconfig IPMI_HANDLER
+	tristate 'IPMI top-level message handler'
+	depends on HAS_IOMEM
+	select IPMI_DMI_DECODE if DMI
+	help
+	  This enables the central IPMI message handler, required for IPMI
+	  to work.
+
+	  IPMI is a standard for managing sensors (temperature,
+	  voltage, etc.) in a system.
+
+	  See <file:Documentation/driver-api/ipmi.rst> for more details on the driver.
+
+	  If unsure, say N.
+
+config IPMI_DMI_DECODE
+	select IPMI_PLAT_DATA
+	bool
+
+config IPMI_PLAT_DATA
+	bool
+
+if IPMI_HANDLER
+
+config IPMI_PANIC_EVENT
+	bool 'Generate a panic event to all BMCs on a panic'
+	help
+	  When a panic occurs, this will cause the IPMI message handler to,
+	  by default, generate an IPMI event describing the panic to each
+	  interface registered with the message handler.  This is always
+	  available, the module parameter for ipmi_msghandler named
+	  panic_op can be set to "event" to chose this value, this config
+	  simply causes the default value to be set to "event".
+
+config IPMI_PANIC_STRING
+	bool 'Generate OEM events containing the panic string'
+	depends on IPMI_PANIC_EVENT
+	help
+	  When a panic occurs, this will cause the IPMI message handler to,
+	  by default, generate IPMI OEM type f0 events holding the IPMB
+	  address of the panic generator (byte 4 of the event), a sequence
+	  number for the string (byte 5 of the event) and part of the
+	  string (the rest of the event).  Bytes 1, 2, and 3 are the normal
+	  usage for an OEM event.  You can fetch these events and use the
+	  sequence numbers to piece the string together.  This config
+	  parameter sets the default value to generate these events,
+	  the module parameter for ipmi_msghandler named panic_op can
+	  be set to "string" to chose this value, this config simply
+	  causes the default value to be set to "string".
+
+config IPMI_DEVICE_INTERFACE
+	tristate 'Device interface for IPMI'
+	help
+	  This provides an IOCTL interface to the IPMI message handler so
+	  userland processes may use IPMI.  It supports poll() and select().
+
+config IPMI_SI
+	tristate 'IPMI System Interface handler'
+	select IPMI_PLAT_DATA
+	help
+	  Provides a driver for System Interfaces (KCS, SMIC, BT).
+	  Currently, only KCS and SMIC are supported.  If
+	  you are using IPMI, you should probably say "y" here.
+
+config IPMI_SSIF
+	tristate 'IPMI SMBus handler (SSIF)'
+	depends on I2C
+	help
+	  Provides a driver for a SMBus interface to a BMC, meaning that you
+	  have a driver that must be accessed over an I2C bus instead of a
+	  standard interface.  This module requires I2C support.
+
+config IPMI_IPMB
+	tristate 'IPMI IPMB interface'
+	depends on I2C && I2C_SLAVE
+	help
+	  Provides a driver for a system running right on the IPMB bus.
+	  It supports normal system interface messages to a BMC on the IPMB
+	  bus, and it also supports direct messaging on the bus using
+	  IPMB direct messages.  This module requires I2C support.
+
+config IPMI_POWERNV
+	depends on PPC_POWERNV
+	tristate 'POWERNV (OPAL firmware) IPMI interface'
+	help
+	  Provides a driver for OPAL firmware-based IPMI interfaces.
+
+config IPMI_WATCHDOG
+	tristate 'IPMI Watchdog Timer'
+	help
+	  This enables the IPMI watchdog timer.
+
+config IPMI_POWEROFF
+	tristate 'IPMI Poweroff'
+	help
+	  This enables a function to power off the system with IPMI if
+	  the IPMI management controller is capable of this.
+
+endif # IPMI_HANDLER
+
+config IPMI_KCS_BMC
+	tristate
+
+config ASPEED_KCS_IPMI_BMC
+	depends on ARCH_ASPEED || COMPILE_TEST
+	select IPMI_KCS_BMC
+	select REGMAP_MMIO
+	tristate "Aspeed KCS IPMI BMC driver"
+	help
+	  Provides a driver for the KCS (Keyboard Controller Style) IPMI
+	  interface found on Aspeed SOCs (AST2400 and AST2500).
+
+	  The driver implements the BMC side of the KCS contorller, it
+	  provides the access of KCS IO space for BMC side.
+
+config NPCM7XX_KCS_IPMI_BMC
+	depends on ARCH_NPCM || COMPILE_TEST
+	select IPMI_KCS_BMC
+	select REGMAP_MMIO
+	tristate "NPCM KCS IPMI BMC driver"
+	help
+	  Provides a driver for the KCS (Keyboard Controller Style) IPMI
+	  interface found on Nuvoton NPCM SOCs.
+
+	  The driver implements the BMC side of the KCS contorller, it
+	  provides the access of KCS IO space for BMC side.
+
+	  This support is also available as a module.  If so, the module
+	  will be called kcs_bmc_npcm7xx.
+
+config IPMI_KCS_BMC_CDEV_IPMI
+	depends on IPMI_KCS_BMC
+	tristate "IPMI character device interface for BMC KCS devices"
+	help
+	  Provides a BMC-side character device implementing IPMI
+	  semantics for KCS IPMI devices.
+
+	  Say YES if you wish to expose KCS devices on the BMC for IPMI
+	  purposes.
+
+	  This support is also available as a module. The module will be
+	  called kcs_bmc_cdev_ipmi.
+
+config IPMI_KCS_BMC_SERIO
+	depends on IPMI_KCS_BMC && SERIO
+	tristate "SerIO adaptor for BMC KCS devices"
+	help
+	  Adapts the BMC KCS device for the SerIO subsystem. This allows users
+	  to take advantage of userspace interfaces provided by SerIO where
+	  appropriate.
+
+	  Say YES if you wish to expose KCS devices on the BMC via SerIO
+	  interfaces.
+
+	  This support is also available as a module. The module will be
+	  called kcs_bmc_serio.
+
+config ASPEED_BT_IPMI_BMC
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on REGMAP && REGMAP_MMIO && MFD_SYSCON
+	tristate "BT IPMI bmc driver"
+	help
+	  Provides a driver for the BT (Block Transfer) IPMI interface
+	  found on Aspeed SOCs (AST2400 and AST2500). The driver
+	  implements the BMC side of the BT interface.
+
+config IPMB_DEVICE_INTERFACE
+	tristate 'IPMB Interface handler'
+	depends on I2C
+	depends on I2C_SLAVE
+	help
+	  Provides a driver for a device (Satellite MC) to
+	  receive requests and send responses back to the BMC via
+	  the IPMB interface. This module requires I2C support.

@@ -1,0 +1,4 @@
+# jinja2>=3.1 is not compatible with Sphinx<4.0
+jinja2<3.1
+sphinx_rtd_theme
+Sphinx==2.4.4

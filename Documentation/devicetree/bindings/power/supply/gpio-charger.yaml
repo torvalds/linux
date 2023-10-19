@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/gpio-charger.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: simple battery chargers only communicating through GPIOs
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+description:
+  This binding is for all chargers, which are working more or less
+  autonomously, only providing some status GPIOs and possibly some
+  GPIOs for limited control over the charging process.
+
+properties:
+  compatible:
+    const: gpio-charger
+
+  charger-type:
+    enum:
+      - unknown
+      - battery
+      - ups
+      - mains
+      - usb-sdp                   # USB standard downstream port
+      - usb-dcp                   # USB dedicated charging port
+      - usb-cdp                   # USB charging downstream port
+      - usb-aca                   # USB accessory charger adapter
+    description:
+      Type of the charger, e.g. "mains" for a wall charger.
+
+  gpios:
+    maxItems: 1
+    description: GPIO indicating the charger presence
+
+  charge-status-gpios:
+    maxItems: 1
+    description: GPIO indicating the charging status
+
+  charge-current-limit-gpios:
+    minItems: 1
+    maxItems: 32
+    description: GPIOs used for current limiting
+
+  charge-current-limit-mapping:
+    description: List of tuples with current in uA and a GPIO bitmap (in
+      this order). The tuples must be provided in descending order of the
+      current limit.
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    items:
+      items:
+        - description:
+            Current limit in uA
+        - description:
+            Encoded GPIO setting. Bit 0 represents last GPIO from the
+            charge-current-limit-gpios property. Bit 1 second to last
+            GPIO and so on.
+
+required:
+  - compatible
+
+anyOf:
+  - required:
+      - gpios
+  - required:
+      - charge-status-gpios
+  - required:
+      - charge-current-limit-gpios
+
+dependencies:
+  charge-current-limit-gpios: [ charge-current-limit-mapping ]
+  charge-current-limit-mapping: [ charge-current-limit-gpios ]
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    charger {
+      compatible = "gpio-charger";
+      charger-type = "usb-sdp";
+
+      gpios = <&gpd 28 GPIO_ACTIVE_LOW>;
+      charge-status-gpios = <&gpc 27 GPIO_ACTIVE_LOW>;
+
+      charge-current-limit-gpios = <&gpioA 11 GPIO_ACTIVE_HIGH>,
+                                   <&gpioA 12 GPIO_ACTIVE_HIGH>;
+      charge-current-limit-mapping = <2500000 0x00>, // 2.5 A => both GPIOs low
+                                     <700000 0x01>, // 700 mA => GPIO A.12 high
+                                     <0 0x02>; // 0 mA => GPIO A.11 high
+    };

@@ -1,0 +1,257 @@
+#
+# README for usbip-utils
+#
+# Copyright (C) 2011 matt mooney <mfm@muteddisk.com>
+#               2005-2008 Takahiro Hirofuchi
+
+[Overview]
+USB/IP protocol allows to pass USB device from server to client over the
+network. Server is a machine which provides (shares) a USB device. Client is
+a machine which uses USB device provided by server over the network.
+The USB device may be either physical device connected to a server or
+software entity created on a server using USB gadget subsystem.
+Whole project consists of four parts:
+
+    - usbip-vhci
+        A client side kernel module which provides a virtual USB Host Controller
+        and allows to import a USB device from a remote machine.
+
+    - usbip-host (stub driver)
+        A server side module which provides a USB device driver which can be
+        bound to a physical USB device to make it exportable.
+
+    - usbip-vudc
+        A server side module which provides a virtual USB Device Controller and allows
+        to export a USB device created using USB Gadget Subsystem.
+
+    - usbip-utils
+        A set of userspace tools used to handle connection and management.
+        Used on both sides.
+
+[Requirements]
+    - USB/IP device drivers
+        Found in the drivers/usb/usbip/ directory of the Linux kernel tree.
+
+    - libudev >= 2.0
+	libudev library
+
+    - libwrap0-dev
+	tcp wrapper library
+
+    - gcc >= 4.0
+
+    - libtool, automake >= 1.9, autoconf >= 2.5.0, pkg-config
+
+[Optional]
+    - hwdata
+        Contains USB device identification data.
+
+
+[Install]
+    0. Generate configuration scripts.
+	$ ./autogen.sh
+
+    1. Compile & install the userspace utilities.
+	$ ./configure [--with-tcp-wrappers=no] [--with-usbids-dir=<dir>]
+	$ make install
+
+    2. Compile & install USB/IP drivers.
+
+
+[Usage]
+On a server side there are two entities which can be shared.
+First of them is physical usb device connected to the machine.
+To make it available below steps should be executed:
+
+    server:# (Physically attach your USB device.)
+
+    server:# insmod usbip-core.ko
+    server:# insmod usbip-host.ko
+
+    server:# usbipd -D
+	- Start usbip daemon.
+
+    server:# usbip list -l
+	- List driver assignments for USB devices.
+
+    server:# usbip bind --busid 1-2
+	- Bind usbip-host.ko to the device with busid 1-2.
+	- The USB device 1-2 is now exportable to other hosts!
+	- Use `usbip unbind --busid 1-2' to stop exporting the device.
+
+Second of shareable entities is USB Gadget created using USB Gadget Subsystem
+on a server machine. To make it available below steps should be executed:
+
+    server:# (Create your USB gadget)
+        - Currently the most preferable way of creating a new USB gadget
+          is ConfigFS Composite Gadget. Please refer to its documentation
+          for details.
+        - See vudc_server_example.sh for a short example of USB gadget creation
+
+    server:# insmod usbip-core.ko
+    server:# insmod usbip-vudc.ko
+        - To create more than one instance of vudc use num module param
+
+    server:# (Bind gadget to one of available vudc)
+        - Assign your new gadget to USB/IP UDC
+        - Using ConfigFS interface you may do this simply by:
+            server:# cd /sys/kernel/config/usb_gadget/<gadget_name>
+            server:# echo "usbip-vudc.0" > UDC
+
+    server:# usbipd -D --device
+        - Start usbip daemon.
+
+To attach new device to client machine below commands should be used:
+
+    client:# insmod usbip-core.ko
+    client:# insmod vhci-hcd.ko
+
+    client:# usbip list --remote <host>
+	- List exported USB devices on the <host>.
+
+    client:# usbip attach --remote <host> --busid 1-2
+	- Connect the remote USB device.
+	- When using vudc on a server side busid is really vudc instance name.
+	  For example: usbip-vudc.0
+
+    client:# usbip port
+	- Show virtual port status.
+
+    client:# usbip detach --port <port>
+	- Detach the USB device.
+
+
+[Example]
+---------------------------
+	SERVER SIDE
+---------------------------
+Physically attach your USB devices to this host.
+
+    trois:# insmod path/to/usbip-core.ko
+    trois:# insmod path/to/usbip-host.ko
+    trois:# usbipd -D
+
+In another terminal, let's look up what USB devices are physically
+attached to this host.
+
+    trois:# usbip list -l
+    Local USB devices
+    =================
+     - busid 1-1 (05a9:a511)
+	     1-1:1.0
+
+     - busid 3-2 (0711:0902)
+	     3-2:1.0
+
+     - busid 3-3.1 (08bb:2702)
+	     3-3.1:1.0
+	     3-3.1:1.1
+
+     - busid 3-3.2 (04bb:0206)
+	     3-3.2:1.0
+
+     - busid 3-3 (0409:0058)
+	     3-3:1.0
+
+     - busid 4-1 (046d:08b2)
+	     4-1:1.0
+	     4-1:1.1
+	     4-1:1.2
+
+     - busid 5-2 (058f:9254)
+	     5-2:1.0
+
+A USB storage device of busid 3-3.2 is now bound to the usb-storage
+driver. To export this device, we first mark the device as
+"exportable"; the device is bound to the usbip-host driver. Please
+remember you can not export a USB hub.
+
+Mark the device of busid 3-3.2 as exportable:
+
+    trois:# usbip --debug bind --busid 3-3.2
+    ...
+    usbip debug: usbip_bind.c:162:[unbind_other] 3-3.2:1.0 -> usb-storage
+    ...
+    bind device on busid 3-3.2: complete
+
+    trois:# usbip list -l
+    Local USB devices
+    =================
+    ...
+
+     - busid 3-3.2 (04bb:0206)
+	     3-3.2:1.0
+    ...
+
+---------------------------
+	CLIENT SIDE
+---------------------------
+First, let's list available remote devices that are marked as
+exportable on the host.
+
+    deux:# insmod path/to/usbip-core.ko
+    deux:# insmod path/to/vhci-hcd.ko
+
+    deux:# usbip list --remote 10.0.0.3
+    Exportable USB devices
+    ======================
+     - 10.0.0.3
+	    1-1: Prolific Technology, Inc. : unknown product (067b:3507)
+	       : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-1
+	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
+	       :  0 - Mass Storage / SCSI / Bulk (Zip) (08/06/50)
+
+	1-2.2.1: Apple Computer, Inc. : unknown product (05ac:0203)
+	       : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-2/1-2.2/1-2.2.1
+	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
+	       :  0 - Human Interface Devices / Boot Interface Subclass / Keyboard (03/01/01)
+
+	1-2.2.3: OmniVision Technologies, Inc. : OV511+ WebCam (05a9:a511)
+	       : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-2/1-2.2/1-2.2.3
+	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
+	       :  0 - Vendor Specific Class / unknown subclass / unknown protocol (ff/00/00)
+
+	    3-1: Logitech, Inc. : QuickCam Pro 4000 (046d:08b2)
+	       : /sys/devices/pci0000:00/0000:00:1e.0/0000:02:0a.0/usb3/3-1
+	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
+	       :  0 - Data / unknown subclass / unknown protocol (0a/ff/00)
+	       :  1 - Audio / Control Device / unknown protocol (01/01/00)
+	       :  2 - Audio / Streaming / unknown protocol (01/02/00)
+
+Attach a remote USB device:
+
+    deux:# usbip attach --remote 10.0.0.3 --busid 1-1
+    port 0 attached
+
+Show the devices attached to this client:
+
+    deux:# usbip port
+    Port 00: <Port in Use> at Full Speed(12Mbps)
+	   Prolific Technology, Inc. : unknown product (067b:3507)
+	   6-1 -> usbip://10.0.0.3:3240/1-1  (remote bus/dev 001/004)
+	   6-1:1.0 used by usb-storage
+			  /sys/class/scsi_device/0:0:0:0/device
+			  /sys/class/scsi_host/host0/device
+			  /sys/block/sda/device
+
+Detach the imported device:
+
+    deux:# usbip detach --port 0
+    port 0 detached
+
+
+[Checklist]
+    - See 'Debug Tips' on the project wiki.
+	- http://usbip.wiki.sourceforge.net/how-to-debug-usbip
+    - usbip-host.ko must be bound to the target device.
+	- See /sys/kernel/debug/usb/devices and find "Driver=..." lines of the device.
+    - Target USB gadget must be bound to vudc
+      (using USB gadget susbsys, not usbip bind command)
+    - Shutdown firewall.
+	- usbip now uses TCP port 3240.
+    - Disable SELinux.
+    - Check the kernel and daemon messages.
+
+
+[Contact]
+    Mailing List: linux-usb@vger.kernel.org

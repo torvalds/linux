@@ -1,0 +1,77 @@
+* Samsung's Keypad Controller device tree bindings
+
+Samsung's Keypad controller is used to interface a SoC with a matrix-type
+keypad device. The keypad controller supports multiple row and column lines.
+A key can be placed at each intersection of a unique row and a unique column.
+The keypad controller can sense a key-press and key-release and report the
+event using a interrupt to the cpu.
+
+Required SoC Specific Properties:
+- compatible: should be one of the following
+  - "samsung,s3c6410-keypad": For controllers compatible with s3c6410 keypad
+    controller.
+  - "samsung,s5pv210-keypad": For controllers compatible with s5pv210 keypad
+    controller.
+
+- reg: physical base address of the controller and length of memory mapped
+  region.
+
+- interrupts: The interrupt number to the cpu.
+
+Required Board Specific Properties:
+- samsung,keypad-num-rows: Number of row lines connected to the keypad
+  controller.
+
+- samsung,keypad-num-columns: Number of column lines connected to the
+  keypad controller.
+
+- Keys represented as child nodes: Each key connected to the keypad
+  controller is represented as a child node to the keypad controller
+  device node and should include the following properties.
+  - keypad,row: the row number to which the key is connected.
+  - keypad,column: the column number to which the key is connected.
+  - linux,code: the key-code to be reported when the key is pressed
+    and released.
+
+- pinctrl-0: Should specify pin control groups used for this controller.
+- pinctrl-names: Should contain only one value - "default".
+
+Optional Properties:
+- wakeup-source: use any event on keypad as wakeup event.
+		 (Legacy property supported: "linux,input-wakeup")
+
+Optional Properties specific to linux:
+- linux,keypad-no-autorepeat: do no enable autorepeat feature.
+
+
+Example:
+	keypad@100a0000 {
+		compatible = "samsung,s5pv210-keypad";
+		reg = <0x100A0000 0x100>;
+		interrupts = <173>;
+		samsung,keypad-num-rows = <2>;
+		samsung,keypad-num-columns = <8>;
+		linux,input-no-autorepeat;
+		wakeup-source;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&keypad_rows &keypad_columns>;
+
+		key_1 {
+			keypad,row = <0>;
+			keypad,column = <3>;
+			linux,code = <2>;
+		};
+
+		key_2 {
+			keypad,row = <0>;
+			keypad,column = <4>;
+			linux,code = <3>;
+		};
+
+		key_3 {
+			keypad,row = <0>;
+			keypad,column = <5>;
+			linux,code = <4>;
+		};
+	};

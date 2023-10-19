@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <dt-bindings/net/microchip-lan78xx.h>
+
+/ {
+	aliases {
+		ethernet0 = &ethernet;
+	};
+};
+
+&usb {
+	usb-port@1 {
+		compatible = "usb424,2514";
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb-port@1 {
+			compatible = "usb424,2514";
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ethernet: ethernet@1 {
+				compatible = "usb424,7800";
+				reg = <1>;
+
+				mdio {
+					#address-cells = <0x1>;
+					#size-cells = <0x0>;
+					eth_phy: ethernet-phy@1 {
+						reg = <1>;
+						microchip,led-modes = <
+							LAN78XX_LINK_1000_ACTIVITY
+							LAN78XX_LINK_10_100_ACTIVITY
+						>;
+					};
+				};
+			};
+		};
+	};
+};

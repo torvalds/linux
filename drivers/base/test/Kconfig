@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+config TEST_ASYNC_DRIVER_PROBE
+	tristate "Build kernel module to test asynchronous driver probing"
+	depends on m
+	help
+	  Enabling this option produces a kernel module that allows
+	  testing asynchronous driver probing by the device core.
+	  The module name will be test_async_driver_probe.ko
+
+	  If unsure say N.
+config DRIVER_PE_KUNIT_TEST
+	bool "KUnit Tests for property entry API" if !KUNIT_ALL_TESTS
+	depends on KUNIT=y
+	default KUNIT_ALL_TESTS

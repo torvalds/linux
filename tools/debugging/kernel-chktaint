@@ -1,0 +1,211 @@
+#! /bin/sh
+# SPDX-License-Identifier: GPL-2.0
+#
+# Randy Dunlap <rdunlap@infradead.org>, 2018
+# Thorsten Leemhuis <linux@leemhuis.info>, 2018
+
+usage()
+{
+	cat <<EOF
+usage: ${0##*/}
+       ${0##*/} <int>
+
+Call without parameters to decode /proc/sys/kernel/tainted.
+
+Call with a positive integer as parameter to decode a value you
+retrieved from /proc/sys/kernel/tainted on another system.
+
+EOF
+}
+
+if [ "$1"x != "x" ]; then
+	if  [ "$1"x == "--helpx" ] || [ "$1"x == "-hx" ] ; then
+		usage
+		exit 1
+	elif  [ $1 -ge 0 ] 2>/dev/null ; then
+		taint=$1
+	else
+		echo "Error: Parameter '$1' not a positive integer. Aborting." >&2
+		exit 1
+	fi
+else
+	TAINTFILE="/proc/sys/kernel/tainted"
+	if [ ! -r $TAINTFILE ]; then
+		echo "No file: $TAINTFILE"
+		exit
+	fi
+
+	taint=`cat $TAINTFILE`
+fi
+
+if [ $taint -eq 0 ]; then
+	echo "Kernel not Tainted"
+	exit
+else
+	echo "Kernel is \"tainted\" for the following reasons:"
+fi
+
+T=$taint
+out=
+
+addout() {
+	out=$out$1
+}
+
+if [ `expr $T % 2` -eq 0 ]; then
+	addout "G"
+else
+	addout "P"
+	echo " * proprietary module was loaded (#0)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "F"
+	echo " * module was force loaded (#1)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "S"
+	echo " * kernel running on an out of specification system (#2)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "R"
+	echo " * module was force unloaded (#3)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "M"
+	echo " * processor reported a Machine Check Exception (MCE) (#4)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "B"
+	echo " * bad page referenced or some unexpected page flags (#5)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "U"
+	echo " * taint requested by userspace application (#6)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "D"
+	echo " * kernel died recently, i.e. there was an OOPS or BUG (#7)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "A"
+	echo " * an ACPI table was overridden by user (#8)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "W"
+	echo " * kernel issued warning (#9)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "C"
+	echo " * staging driver was loaded (#10)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "I"
+	echo " * workaround for bug in platform firmware applied (#11)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "O"
+	echo " * externally-built ('out-of-tree') module was loaded  (#12)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "E"
+	echo " * unsigned module was loaded (#13)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "L"
+	echo " * soft lockup occurred (#14)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "K"
+	echo " * kernel has been live patched (#15)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "X"
+	echo " * auxiliary taint, defined for and used by distros (#16)"
+
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "T"
+	echo " * kernel was built with the struct randomization plugin (#17)"
+fi
+
+T=`expr $T / 2`
+if [ `expr $T % 2` -eq 0 ]; then
+	addout " "
+else
+	addout "N"
+	echo " * an in-kernel test (such as a KUnit test) has been run (#18)"
+fi
+
+echo "For a more detailed explanation of the various taint flags see"
+echo " Documentation/admin-guide/tainted-kernels.rst in the Linux kernel sources"
+echo " or https://kernel.org/doc/html/latest/admin-guide/tainted-kernels.html"
+echo "Raw taint value as int/string: $taint/'$out'"
+#EOF#

@@ -1,0 +1,4 @@
+[abi_symbol_list]
+# commonly used symbols
+  module_layout
+  __put_task_struct

@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2018, The Linux Foundation. All rights reserved.
+
+#include "qcom-ipq4019-ap.dk04.1.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ4019/AP-DK04.1-C1";
+	compatible = "qcom,ipq4019-dk04.1-c1", "qcom,ipq4019";
+
+	soc {
+		dma-controller@7984000 {
+			status = "okay";
+		};
+
+		qpic-nand@79b0000 {
+			status = "okay";
+		};
+	};
+};

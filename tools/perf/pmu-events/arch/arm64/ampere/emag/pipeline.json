@@ -1,0 +1,50 @@
+[
+    {
+        "PublicDescription": "Decode starved for instruction cycle",
+        "EventCode": "0x108",
+        "EventName": "DECODE_STALL",
+        "BriefDescription": "Decode starved"
+    },
+    {
+        "PublicDescription": "Op dispatch stalled cycle",
+        "EventCode": "0x109",
+        "EventName": "DISPATCH_STALL",
+        "BriefDescription": "Dispatch stalled"
+    },
+    {
+        "PublicDescription": "IXA Op non-issue",
+        "EventCode": "0x10a",
+        "EventName": "IXA_STALL",
+        "BriefDescription": "IXA stalled"
+    },
+    {
+        "PublicDescription": "IXB Op non-issue",
+        "EventCode": "0x10b",
+        "EventName": "IXB_STALL",
+        "BriefDescription": "IXB stalled"
+    },
+    {
+        "PublicDescription": "BX Op non-issue",
+        "EventCode": "0x10c",
+        "EventName": "BX_STALL",
+        "BriefDescription": "BX stalled"
+    },
+    {
+        "PublicDescription": "LX Op non-issue",
+        "EventCode": "0x10d",
+        "EventName": "LX_STALL",
+        "BriefDescription": "LX stalled"
+    },
+    {
+        "PublicDescription": "SX Op non-issue",
+        "EventCode": "0x10e",
+        "EventName": "SX_STALL",
+        "BriefDescription": "SX stalled"
+    },
+    {
+        "PublicDescription": "FX Op non-issue",
+        "EventCode": "0x10f",
+        "EventName": "FX_STALL",
+        "BriefDescription": "FX stalled"
+    }
+]

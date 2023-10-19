@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/ti,lp87565-q1.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI LP87565-Q1 / LP87565 dual 2-phase output buck converter
+
+maintainers:
+  - Keerthy <j-keerthy@ti.com>
+
+properties:
+  compatible:
+    enum:
+      - ti,lp87565
+      - ti,lp87565-q1
+
+  reg:
+    description: I2C slave address
+    const: 0x60
+
+  reset-gpios:
+    description: GPIO connected to NRST pin (active low reset, pin 20)
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    description:
+      The first cell is the pin number.
+      The second cell is is used to specify flags.
+      See ../gpio/gpio.txt for more information.
+    const: 2
+
+  buck10-in-supply:
+    description:
+      Voltage regulator supply for BUCK0 and BUCK1 converters.
+
+  buck23-in-supply:
+    description:
+      Voltage regulator supply for BUCK2 and BUCK3 converters.
+
+  regulators:
+    type: object
+
+    patternProperties:
+      "^buck(10|23)$":
+        type: object
+        $ref: /schemas/regulator/regulator.yaml#
+
+    required:
+      - buck10
+      - buck23
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+  - buck10-in-supply
+  - buck23-in-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c@0 {
+        reg = <0x0 0x100>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@60 {
+            compatible = "ti,lp87565-q1";
+            reg = <0x60>;
+            gpio-controller;
+            #gpio-cells = <2>;
+
+            buck10-in-supply = <&vsys_3v3>;
+            buck23-in-supply = <&vsys_3v3>;
+
+            regulators {
+                buck10_reg: buck10 {
+                    /* VDD_MPU */
+                    regulator-name = "buck10";
+                    regulator-min-microvolt = <850000>;
+                    regulator-max-microvolt = <1250000>;
+                    regulator-always-on;
+                    regulator-boot-on;
+                };
+
+                buck23_reg: buck23 {
+                    /* VDD_GPU */
+                    regulator-name = "buck23";
+                    regulator-min-microvolt = <850000>;
+                    regulator-max-microvolt = <1250000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+            };
+        };
+    };
+
+...

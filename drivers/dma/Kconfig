@@ -1,0 +1,807 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# DMA engine configuration
+#
+
+menuconfig DMADEVICES
+	bool "DMA Engine support"
+	depends on HAS_DMA
+	help
+	  DMA engines can do asynchronous data transfers without
+	  involving the host CPU.  Currently, this framework can be
+	  used to offload memory copies in the network stack and
+	  RAID operations in the MD driver.  This menu only presents
+	  DMA Device drivers supported by the configured arch, it may
+	  be empty in some cases.
+
+config DMADEVICES_DEBUG
+	bool "DMA Engine debugging"
+	depends on DMADEVICES != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables DMA engine core and driver debugging.
+
+config DMADEVICES_VDEBUG
+	bool "DMA Engine verbose debugging"
+	depends on DMADEVICES_DEBUG != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables deeper (more verbose) debugging of
+	  the DMA engine core and drivers.
+
+
+if DMADEVICES
+
+comment "DMA Devices"
+
+#core
+config ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	bool
+
+config ARCH_HAS_ASYNC_TX_FIND_CHANNEL
+	bool
+
+config DMA_ENGINE
+	bool
+
+config DMA_VIRTUAL_CHANNELS
+	tristate
+
+config DMA_ACPI
+	def_bool y
+	depends on ACPI
+
+config DMA_OF
+	def_bool y
+	depends on OF
+	select DMA_ENGINE
+
+#devices
+config ALTERA_MSGDMA
+	tristate "Altera / Intel mSGDMA Engine"
+	depends on HAS_IOMEM
+	select DMA_ENGINE
+	help
+	  Enable support for Altera / Intel mSGDMA controller.
+
+config AMBA_PL08X
+	bool "ARM PrimeCell PL080 or PL081 support"
+	depends on ARM_AMBA
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Say yes if your platform has a PL08x DMAC device which can
+	  provide DMA engine support. This includes the original ARM
+	  PL080 and PL081, Samsungs PL080 derivative and Faraday
+	  Technology's FTDMAC020 PL080 derivative.
+
+config AMCC_PPC440SPE_ADMA
+	tristate "AMCC PPC440SPe ADMA support"
+	depends on 440SPe || 440SP
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	select ARCH_HAS_ASYNC_TX_FIND_CHANNEL
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	  Enable support for the AMCC PPC440SPe RAID engines.
+
+config APPLE_ADMAC
+	tristate "Apple ADMAC support"
+	depends on ARCH_APPLE || COMPILE_TEST
+	select DMA_ENGINE
+	default ARCH_APPLE
+	help
+	  Enable support for Audio DMA Controller found on Apple Silicon SoCs.
+
+config AT_HDMAC
+	tristate "Atmel AHB DMA support"
+	depends on ARCH_AT91
+	select DMA_ENGINE
+	help
+	  Support the Atmel AHB DMA controller.
+
+config AT_XDMAC
+	tristate "Atmel XDMA support"
+	depends on ARCH_AT91
+	select DMA_ENGINE
+	help
+	  Support the Atmel XDMA controller.
+
+config AXI_DMAC
+	tristate "Analog Devices AXI-DMAC DMA support"
+	depends on MICROBLAZE || NIOS2 || ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_INTEL_SOCFPGA || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	select REGMAP_MMIO
+	help
+	  Enable support for the Analog Devices AXI-DMAC peripheral. This DMA
+	  controller is often used in Analog Devices' reference designs for FPGA
+	  platforms.
+
+config BCM_SBA_RAID
+	tristate "Broadcom SBA RAID engine support"
+	depends on ARM64 || COMPILE_TEST
+	depends on MAILBOX && RAID6_PQ
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_DISABLE_XOR_VAL_DMA
+	select ASYNC_TX_DISABLE_PQ_VAL_DMA
+	default m if ARCH_BCM_IPROC
+	help
+	  Enable support for Broadcom SBA RAID Engine. The SBA RAID
+	  engine is available on most of the Broadcom iProc SoCs. It
+	  has the capability to offload memcpy, xor and pq computation
+	  for raid5/6.
+
+config DMA_BCM2835
+	tristate "BCM2835 DMA engine support"
+	depends on ARCH_BCM2835
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+
+config DMA_JZ4780
+	tristate "JZ4780 DMA support"
+	depends on MIPS || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  This selects support for the DMA controller in Ingenic JZ4780 SoCs.
+	  If you have a board based on such a SoC and wish to use DMA for
+	  devices which can use the DMA controller, say Y or M here.
+
+config DMA_SA11X0
+	tristate "SA-11x0 DMA support"
+	depends on ARCH_SA1100 || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the DMA engine found on Intel StrongARM SA-1100 and
+	  SA-1110 SoCs.  This DMA engine can only be used with on-chip
+	  devices.
+
+config DMA_SUN4I
+	tristate "Allwinner A10 DMA SoCs support"
+	depends on MACH_SUN4I || MACH_SUN5I || MACH_SUN7I
+	default (MACH_SUN4I || MACH_SUN5I || MACH_SUN7I)
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the DMA controller present in the sun4i,
+	  sun5i and sun7i Allwinner ARM SoCs.
+
+config DMA_SUN6I
+	tristate "Allwinner A31 SoCs DMA support"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on RESET_CONTROLLER
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support for the DMA engine first found in Allwinner A31 SoCs.
+
+config DW_AXI_DMAC
+	tristate "Synopsys DesignWare AXI DMA support"
+	depends on OF
+	depends on HAS_IOMEM
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for Synopsys DesignWare AXI DMA controller.
+	  NOTE: This driver wasn't tested on 64 bit platform because
+	  of lack 64 bit platform with Synopsys DW AXI DMAC.
+
+config EP93XX_DMA
+	bool "Cirrus Logic EP93xx DMA support"
+	depends on ARCH_EP93XX || COMPILE_TEST
+	select DMA_ENGINE
+	help
+	  Enable support for the Cirrus Logic EP93xx M2P/M2M DMA controller.
+
+config FSL_DMA
+	tristate "Freescale Elo series DMA support"
+	depends on FSL_SOC
+	select DMA_ENGINE
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	  Enable support for the Freescale Elo series DMA controllers.
+	  The Elo is the DMA controller on some mpc82xx and mpc83xx parts, the
+	  EloPlus is on mpc85xx and mpc86xx and Pxxx parts, and the Elo3 is on
+	  some Txxx and Bxxx parts.
+
+config FSL_EDMA
+	tristate "Freescale eDMA engine support"
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the Freescale eDMA engine with programmable channel
+	  multiplexing capability for DMA request sources(slot).
+	  This module can be found on Freescale Vybrid and LS-1 SoCs.
+
+config FSL_QDMA
+	tristate "NXP Layerscape qDMA engine support"
+	depends on ARM || ARM64
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	 Support the NXP Layerscape qDMA engine with command queue and legacy mode.
+	 Channel virtualization is supported through enqueuing of DMA jobs to,
+	 or dequeuing DMA jobs from, different work queues.
+	 This module can be found on NXP Layerscape SoCs.
+	  The qdma driver only work on  SoCs with a DPAA hardware block.
+
+config FSL_RAID
+	tristate "Freescale RAID engine Support"
+	depends on FSL_SOC && !ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	help
+	  Enable support for Freescale RAID Engine. RAID Engine is
+	  available on some QorIQ SoCs (like P5020/P5040). It has
+	  the capability to offload memcpy, xor and pq computation
+	  for raid5/6.
+
+config HISI_DMA
+	tristate "HiSilicon DMA Engine support"
+	depends on ARCH_HISI || COMPILE_TEST
+	depends on PCI_MSI
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support HiSilicon Kunpeng DMA engine.
+
+config IMG_MDC_DMA
+	tristate "IMG MDC support"
+	depends on MIPS || COMPILE_TEST
+	depends on MFD_SYSCON
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the IMG multi-threaded DMA controller (MDC).
+
+config IMX_DMA
+	tristate "i.MX DMA support"
+	depends on ARCH_MXC
+	select DMA_ENGINE
+	help
+	  Support the i.MX DMA engine. This engine is integrated into
+	  Freescale i.MX1/21/27 chips.
+
+config IMX_SDMA
+	tristate "i.MX SDMA support"
+	depends on ARCH_MXC
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the i.MX SDMA engine. This engine is integrated into
+	  Freescale i.MX25/31/35/51/53/6 chips.
+
+config INTEL_IDMA64
+	tristate "Intel integrated DMA 64-bit support"
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable DMA support for Intel Low Power Subsystem such as found on
+	  Intel Skylake PCH.
+
+config INTEL_IDXD_BUS
+	tristate
+	default INTEL_IDXD
+
+config INTEL_IDXD
+	tristate "Intel Data Accelerators support"
+	depends on PCI && X86_64 && !UML
+	depends on PCI_MSI
+	depends on PCI_PASID
+	depends on SBITMAP
+	select DMA_ENGINE
+	help
+	  Enable support for the Intel(R) data accelerators present
+	  in Intel Xeon CPU.
+
+	  Say Y if you have such a platform.
+
+	  If unsure, say N.
+
+config INTEL_IDXD_COMPAT
+	bool "Legacy behavior for idxd driver"
+	depends on PCI && X86_64
+	select INTEL_IDXD_BUS
+	help
+	  Compatible driver to support old /sys/bus/dsa/drivers/dsa behavior.
+	  The old behavior performed driver bind/unbind for device and wq
+	  devices all under the dsa driver. The compat driver will emulate
+	  the legacy behavior in order to allow existing support apps (i.e.
+	  accel-config) to continue function. It is expected that accel-config
+	  v3.2 and earlier will need the compat mode. A distro with later
+	  accel-config version can disable this compat config.
+
+	  Say Y if you have old applications that require such behavior.
+
+	  If unsure, say N.
+
+# Config symbol that collects all the dependencies that's necessary to
+# support shared virtual memory for the devices supported by idxd.
+config INTEL_IDXD_SVM
+	bool "Accelerator Shared Virtual Memory Support"
+	depends on INTEL_IDXD
+	depends on INTEL_IOMMU_SVM
+	depends on PCI_PRI
+	depends on PCI_PASID
+	depends on PCI_IOV
+
+config INTEL_IDXD_PERFMON
+	bool "Intel Data Accelerators performance monitor support"
+	depends on INTEL_IDXD
+	help
+	  Enable performance monitor (pmu) support for the Intel(R)
+	  data accelerators present in Intel Xeon CPU.  With this
+	  enabled, perf can be used to monitor the DSA (Intel Data
+	  Streaming Accelerator) events described in the Intel DSA
+	  spec.
+
+	  If unsure, say N.
+
+config INTEL_IOATDMA
+	tristate "Intel I/OAT DMA support"
+	depends on PCI && X86_64 && !UML
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	select DCA
+	help
+	  Enable support for the Intel(R) I/OAT DMA engine present
+	  in recent Intel Xeon chipsets.
+
+	  Say Y here if you have such a chipset.
+
+	  If unsure, say N.
+
+config INTEL_IOP_ADMA
+	tristate "Intel IOP32x ADMA support"
+	depends on ARCH_IOP32X || COMPILE_TEST
+	select DMA_ENGINE
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	  Enable support for the Intel(R) IOP Series RAID engines.
+
+config K3_DMA
+	tristate "Hisilicon K3 DMA support"
+	depends on ARCH_HI3xxx || ARCH_HISI || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the DMA engine for Hisilicon K3 platform
+	  devices.
+
+config LPC18XX_DMAMUX
+	bool "NXP LPC18xx/43xx DMA MUX for PL080"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on OF && AMBA_PL08X
+	select MFD_SYSCON
+	help
+	  Enable support for DMA on NXP LPC18xx/43xx platforms
+	  with PL080 and multiplexed DMA request lines.
+
+config MCF_EDMA
+	tristate "Freescale eDMA engine support, ColdFire mcf5441x SoCs"
+	depends on M5441x || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the Freescale ColdFire eDMA engine, 64-channel
+	  implementation that performs complex data transfers with
+	  minimal intervention from a host processor.
+	  This module can be found on Freescale ColdFire mcf5441x SoCs.
+
+config MILBEAUT_HDMAC
+	tristate "Milbeaut AHB DMA support"
+	depends on ARCH_MILBEAUT || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Say yes here to support the Socionext Milbeaut
+	  HDMAC device.
+
+config MILBEAUT_XDMAC
+	tristate "Milbeaut AXI DMA support"
+	depends on ARCH_MILBEAUT || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Say yes here to support the Socionext Milbeaut
+	  XDMAC device.
+
+config MMP_PDMA
+	tristate "MMP PDMA support"
+	depends on ARCH_MMP || ARCH_PXA || COMPILE_TEST
+	select DMA_ENGINE
+	help
+	  Support the MMP PDMA engine for PXA and MMP platform.
+
+config MMP_TDMA
+	tristate "MMP Two-Channel DMA support"
+	depends on ARCH_MMP || COMPILE_TEST
+	select DMA_ENGINE
+	select GENERIC_ALLOCATOR
+	help
+	  Support the MMP Two-Channel DMA engine.
+	  This engine used for MMP Audio DMA and pxa910 SQU.
+
+config MOXART_DMA
+	tristate "MOXART DMA support"
+	depends on ARCH_MOXART
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the MOXA ART SoC DMA controller.
+ 
+	  Say Y here if you enabled MMP ADMA, otherwise say N.
+
+config MPC512X_DMA
+	tristate "Freescale MPC512x built-in DMA engine support"
+	depends on PPC_MPC512x || PPC_MPC831x
+	select DMA_ENGINE
+	help
+	  Enable support for the Freescale MPC512x built-in DMA engine.
+
+config MV_XOR
+	bool "Marvell XOR engine support"
+	depends on PLAT_ORION || ARCH_MVEBU || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	  Enable support for the Marvell XOR engine.
+
+config MV_XOR_V2
+	bool "Marvell XOR engine version 2 support "
+	depends on ARM64
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	select GENERIC_MSI_IRQ_DOMAIN
+	help
+	  Enable support for the Marvell version 2 XOR engine.
+
+	  This engine provides acceleration for copy, XOR and RAID6
+	  operations, and is available on Marvell Armada 7K and 8K
+	  platforms.
+
+config MXS_DMA
+	bool "MXS DMA support"
+	depends on ARCH_MXS || ARCH_MXC || COMPILE_TEST
+	select STMP_DEVICE
+	select DMA_ENGINE
+	help
+	  Support the MXS DMA engine. This engine including APBH-DMA
+	  and APBX-DMA is integrated into some Freescale chips.
+
+config MX3_IPU
+	bool "MX3x Image Processing Unit support"
+	depends on ARCH_MXC
+	select DMA_ENGINE
+	default y
+	help
+	  If you plan to use the Image Processing unit in the i.MX3x, say
+	  Y here. If unsure, select Y.
+
+config MX3_IPU_IRQS
+	int "Number of dynamically mapped interrupts for IPU"
+	depends on MX3_IPU
+	range 2 137
+	default 4
+	help
+	  Out of 137 interrupt sources on i.MX31 IPU only very few are used.
+	  To avoid bloating the irq_desc[] array we allocate a sufficient
+	  number of IRQ slots and map them dynamically to specific sources.
+
+config NBPFAXI_DMA
+	tristate "Renesas Type-AXI NBPF DMA support"
+	select DMA_ENGINE
+	depends on ARM || COMPILE_TEST
+	help
+	  Support for "Type-AXI" NBPF DMA IPs from Renesas
+
+config OWL_DMA
+	tristate "Actions Semi Owl SoCs DMA support"
+	depends on ARCH_ACTIONS
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the Actions Semi Owl SoCs DMA controller.
+
+config PCH_DMA
+	tristate "Intel EG20T PCH / LAPIS Semicon IOH(ML7213/ML7223/ML7831) DMA"
+	depends on PCI && (X86_32 || COMPILE_TEST)
+	select DMA_ENGINE
+	help
+	  Enable support for Intel EG20T PCH DMA engine.
+
+	  This driver also can be used for LAPIS Semiconductor IOH(Input/
+	  Output Hub), ML7213, ML7223 and ML7831.
+	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use, ML7223 IOH is
+	  for MP(Media Phone) use and ML7831 IOH is for general purpose use.
+	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
+	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
+
+config PL330_DMA
+	tristate "DMA API Driver for PL330"
+	select DMA_ENGINE
+	depends on ARM_AMBA
+	help
+	  Select if your platform has one or more PL330 DMACs.
+	  You need to provide platform specific settings via
+	  platform_data for a dma-pl330 device.
+
+config PXA_DMA
+	bool "PXA DMA support"
+	depends on (ARCH_MMP || ARCH_PXA)
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the DMA engine for PXA. It is also compatible with MMP PDMA
+	  platform. The internal DMA IP of all PXA variants is supported, with
+	  16 to 32 channels for peripheral to memory or memory to memory
+	  transfers.
+
+config PLX_DMA
+	tristate "PLX ExpressLane PEX Switch DMA Engine Support"
+	depends on PCI
+	select DMA_ENGINE
+	help
+	  Some PLX ExpressLane PCI Switches support additional DMA engines.
+	  These are exposed via extra functions on the switch's
+	  upstream port. Each function exposes one DMA channel.
+
+config STE_DMA40
+	bool "ST-Ericsson DMA40 support"
+	depends on ARCH_U8500
+	select DMA_ENGINE
+	help
+	  Support for ST-Ericsson DMA40 controller
+
+config ST_FDMA
+	tristate "ST FDMA dmaengine support"
+	depends on ARCH_STI
+	depends on REMOTEPROC
+	select ST_SLIM_REMOTEPROC
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for ST FDMA controller.
+	  It supports 16 independent DMA channels, accepts up to 32 DMA requests
+
+	  Say Y here if you have such a chipset.
+	  If unsure, say N.
+
+config STM32_DMA
+	bool "STMicroelectronics STM32 DMA support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the on-chip DMA controller on STMicroelectronics
+	  STM32 MCUs.
+	  If you have a board based on such a MCU and wish to use DMA say Y
+	  here.
+
+config STM32_DMAMUX
+	bool "STMicroelectronics STM32 dma multiplexer support"
+	depends on STM32_DMA || COMPILE_TEST
+	help
+	  Enable support for the on-chip DMA multiplexer on STMicroelectronics
+	  STM32 MCUs.
+	  If you have a board based on such a MCU and wish to use DMAMUX say Y
+	  here.
+
+config STM32_MDMA
+	bool "STMicroelectronics STM32 master dma support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the on-chip MDMA controller on STMicroelectronics
+	  STM32 platforms.
+	  If you have a board based on STM32 SoC and wish to use the master DMA
+	  say Y here.
+
+config SPRD_DMA
+	tristate "Spreadtrum DMA support"
+	depends on ARCH_SPRD || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the on-chip DMA controller on Spreadtrum platform.
+
+config S3C24XX_DMAC
+	bool "Samsung S3C24XX DMA support"
+	depends on ARCH_S3C24XX || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support for the Samsung S3C24XX DMA controller driver. The
+	  DMA controller is having multiple DMA channels which can be
+	  configured for different peripherals like audio, UART, SPI.
+	  The DMA controller can transfer data from memory to peripheral,
+	  periphal to memory, periphal to periphal and memory to memory.
+
+config TXX9_DMAC
+	tristate "Toshiba TXx9 SoC DMA support"
+	depends on MACH_TX49XX
+	select DMA_ENGINE
+	help
+	  Support the TXx9 SoC internal DMA controller.  This can be
+	  integrated in chips such as the Toshiba TX4927/38/39.
+
+config TEGRA186_GPC_DMA
+	tristate "NVIDIA Tegra GPC DMA support"
+	depends on (ARCH_TEGRA || COMPILE_TEST) && ARCH_DMA_ADDR_T_64BIT
+	depends on IOMMU_API
+	select DMA_ENGINE
+	help
+	  Support for the NVIDIA Tegra General Purpose Central DMA controller.
+	  The DMA controller has multiple DMA channels which can be configured
+	  for different peripherals like UART, SPI, etc which are on APB bus.
+	  This DMA controller transfers data from memory to peripheral FIFO
+	  or vice versa. It also supports memory to memory data transfer.
+
+config TEGRA20_APB_DMA
+	tristate "NVIDIA Tegra20 APB DMA support"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	select DMA_ENGINE
+	help
+	  Support for the NVIDIA Tegra20 APB DMA controller driver. The
+	  DMA controller is having multiple DMA channel which can be
+	  configured for different peripherals like audio, UART, SPI,
+	  I2C etc which is in APB bus.
+	  This DMA controller transfers data from memory to peripheral fifo
+	  or vice versa. It does not support memory to memory data transfer.
+
+config TEGRA210_ADMA
+	tristate "NVIDIA Tegra210 ADMA support"
+	depends on (ARCH_TEGRA_210_SOC || COMPILE_TEST)
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support for the NVIDIA Tegra210 ADMA controller driver. The
+	  DMA controller has multiple DMA channels and is used to service
+	  various audio clients in the Tegra210 audio processing engine
+	  (APE). This DMA controller transfers data from memory to
+	  peripheral and vice versa. It does not support memory to
+	  memory data transfer.
+
+config TIMB_DMA
+	tristate "Timberdale FPGA DMA support"
+	depends on MFD_TIMBERDALE || COMPILE_TEST
+	select DMA_ENGINE
+	help
+	  Enable support for the Timberdale FPGA DMA engine.
+
+config UNIPHIER_MDMAC
+	tristate "UniPhier MIO DMAC"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the MIO DMAC (Media I/O DMA controller) on the
+	  UniPhier platform.  This DMA controller is used as the external
+	  DMA engine of the SD/eMMC controllers of the LD4, Pro4, sLD8 SoCs.
+
+config UNIPHIER_XDMAC
+	tristate "UniPhier XDMAC support"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the XDMAC (external DMA controller) on the
+	  UniPhier platform. This DMA controller can transfer data from
+	  memory to memory, memory to peripheral and peripheral to memory.
+
+config XGENE_DMA
+	tristate "APM X-Gene DMA support"
+	depends on ARCH_XGENE || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	  Enable support for the APM X-Gene SoC DMA engine.
+
+config XILINX_DMA
+	tristate "Xilinx AXI DMAS Engine"
+	depends on (ARCH_ZYNQ || MICROBLAZE || ARM64)
+	select DMA_ENGINE
+	help
+	  Enable support for Xilinx AXI VDMA Soft IP.
+
+	  AXI VDMA engine provides high-bandwidth direct memory access
+	  between memory and AXI4-Stream video type target
+	  peripherals including peripherals which support AXI4-
+	  Stream Video Protocol.  It has two stream interfaces/
+	  channels, Memory Mapped to Stream (MM2S) and Stream to
+	  Memory Mapped (S2MM) for the data transfers.
+	  AXI CDMA engine provides high-bandwidth direct memory access
+	  between a memory-mapped source address and a memory-mapped
+	  destination address.
+	  AXI DMA engine provides high-bandwidth one dimensional direct
+	  memory access between memory and AXI4-Stream target peripherals.
+	  AXI MCDMA engine provides high-bandwidth direct memory access
+	  between memory and AXI4-Stream target peripherals. It provides
+	  the scatter gather interface with multiple channels independent
+	  configuration support.
+
+config XILINX_ZYNQMP_DMA
+	tristate "Xilinx ZynqMP DMA Engine"
+	depends on ARCH_ZYNQ || MICROBLAZE || ARM64 || COMPILE_TEST
+	select DMA_ENGINE
+	help
+	  Enable support for Xilinx ZynqMP DMA controller.
+
+config XILINX_ZYNQMP_DPDMA
+	tristate "Xilinx DPDMA Engine"
+	depends on HAS_IOMEM && OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for Xilinx ZynqMP DisplayPort DMA. Choose this option
+	  if you have a Xilinx ZynqMP SoC with a DisplayPort subsystem. The
+	  driver provides the dmaengine required by the DisplayPort subsystem
+	  display driver.
+
+# driver files
+source "drivers/dma/bestcomm/Kconfig"
+
+source "drivers/dma/mediatek/Kconfig"
+
+source "drivers/dma/ptdma/Kconfig"
+
+source "drivers/dma/qcom/Kconfig"
+
+source "drivers/dma/dw/Kconfig"
+
+source "drivers/dma/dw-edma/Kconfig"
+
+source "drivers/dma/hsu/Kconfig"
+
+source "drivers/dma/sf-pdma/Kconfig"
+
+source "drivers/dma/sh/Kconfig"
+
+source "drivers/dma/ti/Kconfig"
+
+source "drivers/dma/fsl-dpaa2-qdma/Kconfig"
+
+source "drivers/dma/lgm/Kconfig"
+
+# clients
+comment "DMA Clients"
+	depends on DMA_ENGINE
+
+config ASYNC_TX_DMA
+	bool "Async_tx: Offload support for the async_tx api"
+	depends on DMA_ENGINE
+	help
+	  This allows the async_tx api to take advantage of offload engines for
+	  memcpy, memset, xor, and raid6 p+q operations.  If your platform has
+	  a dma engine that can perform raid operations and you have enabled
+	  MD_RAID456 say Y.
+
+	  If unsure, say N.
+
+config DMATEST
+	tristate "DMA Test client"
+	depends on DMA_ENGINE
+	select DMA_ENGINE_RAID
+	help
+	  Simple DMA test client. Say N unless you're debugging a
+	  DMA Device driver.
+
+config DMA_ENGINE_RAID
+	bool
+
+endif

@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SECURITY_SMACK
+	bool "Simplified Mandatory Access Control Kernel Support"
+	depends on NET
+	depends on INET
+	depends on SECURITY
+	select NETLABEL
+	select SECURITY_NETWORK
+	default n
+	help
+	  This selects the Simplified Mandatory Access Control Kernel.
+	  Smack is useful for sensitivity, integrity, and a variety
+	  of other mandatory security schemes.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SMACK_BRINGUP
+	bool "Reporting on access granted by Smack rules"
+	depends on SECURITY_SMACK
+	default n
+	help
+	  Enable the bring-up ("b") access mode in Smack rules.
+	  When access is granted by a rule with the "b" mode a
+	  message about the access requested is generated. The
+	  intention is that a process can be granted a wide set
+	  of access initially with the bringup mode set on the
+	  rules. The developer can use the information to
+	  identify which rules are necessary and what accesses
+	  may be inappropriate. The developer can reduce the
+	  access rule set once the behavior is well understood.
+	  This is a superior mechanism to the oft abused
+	  "permissive" mode of other systems.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SMACK_NETFILTER
+	bool "Packet marking using secmarks for netfilter"
+	depends on SECURITY_SMACK
+	depends on NETWORK_SECMARK
+	depends on NETFILTER
+	default n
+	help
+	  This enables security marking of network packets using
+	  Smack labels.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SMACK_APPEND_SIGNALS
+	bool "Treat delivering signals as an append operation"
+	depends on SECURITY_SMACK
+	default n
+	help
+	  Sending a signal has been treated as a write operation to the
+	  receiving process. If this option is selected, the delivery
+	  will be an append operation instead. This makes it possible
+	  to differentiate between delivering a network packet and
+	  delivering a signal in the Smack rules.
+	  If you are unsure how to answer this question, answer N.

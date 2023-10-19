@@ -1,0 +1,97 @@
+Texas Instruments - tlv320aic3x Codec module
+
+The tlv320aic3x serial control bus communicates through both I2C and SPI bus protocols
+
+Required properties:
+
+- compatible - "string" - One of:
+    "ti,tlv320aic3x" - Generic TLV320AIC3x device
+    "ti,tlv320aic33" - TLV320AIC33
+    "ti,tlv320aic3007" - TLV320AIC3007
+    "ti,tlv320aic3106" - TLV320AIC3106
+    "ti,tlv320aic3104" - TLV320AIC3104
+
+
+- reg - <int> -  I2C slave address
+
+
+Optional properties:
+
+- reset-gpios - GPIO specification for the active low RESET input.
+- ai3x-gpio-func - <array of 2 int> - AIC3X_GPIO1 & AIC3X_GPIO2 Functionality
+				    - Not supported on tlv320aic3104
+- ai3x-micbias-vg - MicBias Voltage required.
+	1 - MICBIAS output is powered to 2.0V,
+	2 - MICBIAS output is powered to 2.5V,
+	3 - MICBIAS output is connected to AVDD,
+	If this node is not mentioned or if the value is incorrect, then MicBias
+	is powered down.
+- ai3x-ocmv - Output Common-Mode Voltage selection:
+	0 - 1.35V,
+	1 - 1.5V,
+	2 - 1.65V,
+	3 - 1.8V
+- AVDD-supply, IOVDD-supply, DRVDD-supply, DVDD-supply : power supplies for the
+  device as covered in Documentation/devicetree/bindings/regulator/regulator.txt
+
+Deprecated properties:
+
+- gpio-reset - gpio pin number used for codec reset
+
+CODEC output pins:
+  * LLOUT
+  * RLOUT
+  * MONO_LOUT
+  * HPLOUT
+  * HPROUT
+  * HPLCOM
+  * HPRCOM
+
+CODEC input pins for TLV320AIC3104:
+  * MIC2L
+  * MIC2R
+  * LINE1L
+  * LINE1R
+
+CODEC input pins for other compatible codecs:
+  * MIC3L
+  * MIC3R
+  * LINE1L
+  * LINE2L
+  * LINE1R
+  * LINE2R
+
+The pins can be used in referring sound node's audio-routing property.
+
+I2C example:
+
+#include <dt-bindings/gpio/gpio.h>
+
+tlv320aic3x: tlv320aic3x@1b {
+	compatible = "ti,tlv320aic3x";
+	reg = <0x1b>;
+
+	reset-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
+
+	AVDD-supply = <&regulator>;
+	IOVDD-supply = <&regulator>;
+	DRVDD-supply = <&regulator>;
+	DVDD-supply = <&regulator>;
+};
+
+SPI example:
+
+spi0: spi@f0000000 {
+	tlv320aic3x: codec@0 {
+		compatible = "ti,tlv320aic3x";
+		reg = <0>; /* CS number */
+		#sound-dai-cells = <0>;
+		spi-max-frequency = <1000000>;
+
+		AVDD-supply = <&regulator>;
+		IOVDD-supply = <&regulator>;
+		DRVDD-supply = <&regulator>;
+		DVDD-supply = <&regulator>;
+		ai3x-ocmv = <0>;
+	};
+};

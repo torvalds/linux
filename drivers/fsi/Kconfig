@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# FSI subsystem
+#
+
+menuconfig FSI
+	tristate "FSI support"
+	depends on OF
+	select CRC4
+	help
+	  FSI - the FRU Support Interface - is a simple bus for low-level
+	  access to POWER-based hardware.
+
+if FSI
+
+config FSI_NEW_DEV_NODE
+	bool "Create '/dev/fsi' directory for char devices"
+	default n
+	help
+	This option causes char devices created for FSI devices to be
+	located under a common /dev/fsi/ directory. Set to N unless your
+	userspace has been updated to handle the new location.
+
+	Additionally, it also causes the char device names to be offset
+	by one so that chip 0 will have /dev/scom1 and chip1 /dev/scom2
+	to match old userspace expectations.
+
+	New userspace will use udev rules to generate predictable access
+	symlinks in /dev/fsi/by-path when this option is enabled.
+
+config FSI_MASTER_GPIO
+	tristate "GPIO-based FSI master"
+	depends on GPIOLIB
+	select CRC4
+	help
+	This option enables a FSI master driver using GPIO lines.
+
+config FSI_MASTER_HUB
+	tristate "FSI hub master"
+	help
+	This option enables a FSI hub master driver.  Hub is a type of FSI
+	master that is connected to the upstream master via a slave.  Hubs
+	allow chaining of FSI links to an arbitrary depth.  This allows for
+	a high target device fanout.
+
+config FSI_MASTER_AST_CF
+	tristate "FSI master based on Aspeed ColdFire coprocessor"
+	depends on GPIOLIB
+	depends on GPIO_ASPEED
+	select GENERIC_ALLOCATOR
+	help
+	This option enables a FSI master using the AST2400 and AST2500 GPIO
+	lines driven by the internal ColdFire coprocessor. This requires
+	the corresponding machine specific ColdFire firmware to be available.
+
+config FSI_MASTER_ASPEED
+	tristate "FSI ASPEED master"
+	depends on HAS_IOMEM
+	help
+	 This option enables a FSI master that is present behind an OPB bridge
+	 in the AST2600.
+
+	 Enable it for your BMC kernel in an OpenPower or IBM Power system.
+
+config FSI_SCOM
+	tristate "SCOM FSI client device driver"
+	help
+	This option enables an FSI based SCOM device driver.
+
+config FSI_SBEFIFO
+	tristate "SBEFIFO FSI client device driver"
+	depends on OF_ADDRESS
+	help
+	This option enables an FSI based SBEFIFO device driver. The SBEFIFO is
+	a pipe-like FSI device for communicating with the self boot engine
+	(SBE) on POWER processors.
+
+config FSI_OCC
+	tristate "OCC SBEFIFO client device driver"
+	depends on FSI_SBEFIFO
+	help
+	This option enables an SBEFIFO based On-Chip Controller (OCC) device
+	driver. The OCC is a device embedded on a POWER processor that collects
+	and aggregates sensor data from the processor and system. The OCC can
+	provide the raw sensor data as well as perform thermal and power
+	management on the system.
+
+endif

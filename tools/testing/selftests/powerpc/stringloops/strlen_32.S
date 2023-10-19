@@ -1,0 +1,1 @@
+../../../../../arch/powerpc/lib/strlen_32.S

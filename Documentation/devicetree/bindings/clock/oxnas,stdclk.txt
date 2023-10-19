@@ -1,0 +1,28 @@
+Oxford Semiconductor OXNAS SoC Family Standard Clocks
+================================================
+
+Please also refer to clock-bindings.txt in this directory for common clock
+bindings usage.
+
+Required properties:
+- compatible: For OX810SE, should be "oxsemi,ox810se-stdclk"
+	      For OX820, should be "oxsemi,ox820-stdclk"
+- #clock-cells: 1, see below
+
+Parent node should have the following properties :
+- compatible: For OX810SE, should be
+		"oxsemi,ox810se-sys-ctrl", "syscon", "simple-mfd"
+	      For OX820, should be
+		"oxsemi,ox820-sys-ctrl", "syscon", "simple-mfd"
+
+example:
+
+sys: sys-ctrl@000000 {
+	compatible = "oxsemi,ox810se-sys-ctrl", "syscon", "simple-mfd";
+	reg = <0x000000 0x100000>;
+
+	stdclk: stdclk {
+		compatible = "oxsemi,ox810se-stdclk";
+		#clock-cells = <1>;
+	};
+};

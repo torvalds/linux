@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple MacBook Air (M1, 2020)
+ *
+ * target-type: J313
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/dts-v1/;
+
+#include "t8103.dtsi"
+#include "t8103-jxxx.dtsi"
+
+/ {
+	compatible = "apple,j313", "apple,t8103", "apple,arm-platform";
+	model = "Apple MacBook Air (M1, 2020)";
+};
+
+&wifi0 {
+	brcm,board-type = "apple,shikoku";
+};
+
+/*
+ * Remove unused PCIe ports and disable the associated DARTs.
+ */
+
+&pcie0_dart_1 {
+	status = "disabled";
+};
+
+&pcie0_dart_2 {
+	status = "disabled";
+};
+
+/delete-node/ &port01;
+/delete-node/ &port02;

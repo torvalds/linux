@@ -1,0 +1,59 @@
+Truly model NT35597 DSI display driver
+
+The Truly NT35597 is a generic display driver, currently only configured
+for use in the 2K display on the Qualcomm SDM845 MTP board.
+
+Required properties:
+- compatible: should be "truly,nt35597-2K-display"
+- vdda-supply: phandle of the regulator that provides the supply voltage
+  Power IC supply
+- vdispp-supply: phandle of the regulator that provides the supply voltage
+  for positive LCD bias
+- vdispn-supply: phandle of the regulator that provides the supply voltage
+  for negative LCD bias
+- reset-gpios: phandle of gpio for reset line
+  This should be 8mA, gpio can be configured using mux, pinctrl, pinctrl-names
+  (active low)
+- mode-gpios: phandle of the gpio for choosing the mode of the display
+  for single DSI or Dual DSI
+  This should be low for dual DSI and high for single DSI mode
+- ports: This device has two video ports driven by two DSIs. Their connections
+  are modeled using the OF graph bindings specified in
+  Documentation/devicetree/bindings/graph.txt.
+  - port@0: DSI input port driven by master DSI
+  - port@1: DSI input port driven by secondary DSI
+
+Example:
+
+	dsi@ae94000 {
+		panel@0 {
+			compatible = "truly,nt35597-2K-display";
+			reg = <0>;
+			vdda-supply = <&pm8998_l14>;
+			vdispp-supply = <&lab_regulator>;
+			vdispn-supply = <&ibb_regulator>;
+			pinctrl-names = "default", "suspend";
+			pinctrl-0 = <&dpu_dsi_active>;
+			pinctrl-1 = <&dpu_dsi_suspend>;
+
+			reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
+			mode-gpios = <&tlmm 52 GPIO_ACTIVE_HIGH>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					panel0_in: endpoint {
+						remote-endpoint = <&dsi0_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					panel1_in: endpoint {
+						remote-endpoint = <&dsi1_out>;
+					};
+				};
+			};
+		};
+	};

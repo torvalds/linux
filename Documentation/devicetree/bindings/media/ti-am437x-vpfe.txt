@@ -1,0 +1,61 @@
+Texas Instruments AM437x CAMERA (VPFE)
+--------------------------------------
+
+The Video Processing Front End (VPFE) is a key component for image capture
+applications. The capture module provides the system interface and the
+processing capability to connect RAW image-sensor modules and video decoders
+to the AM437x device.
+
+Required properties:
+- compatible: must be "ti,am437x-vpfe"
+- reg: physical base address and length of the registers set for the device;
+- interrupts: should contain IRQ line for the VPFE;
+- ti,am437x-vpfe-interface: can be one of the following,
+	0 - Raw Bayer Interface.
+	1 - 8 Bit BT656 Interface.
+	2 - 10 Bit BT656 Interface.
+	3 - YCbCr 8 Bit Interface.
+	4 - YCbCr 16 Bit Interface.
+
+VPFE supports a single port node with parallel bus. It should contain one
+'port' child node with child 'endpoint' node. Please refer to the bindings
+defined in Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Example:
+	vpfe: vpfe@f0034000 {
+		compatible = "ti,am437x-vpfe";
+		reg = <0x48328000 0x2000>;
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&vpfe_pins_default>;
+		pinctrl-1 = <&vpfe_pins_sleep>;
+
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vpfe0_ep: endpoint {
+				remote-endpoint = <&ov2659_1>;
+				ti,am437x-vpfe-interface = <0>;
+				bus-width = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+			};
+		};
+	};
+
+	i2c1: i2c@4802a000 {
+
+		ov2659@30 {
+			compatible = "ti,ov2659";
+			reg = <0x30>;
+
+			port {
+				ov2659_1: endpoint {
+					remote-endpoint = <&vpfe0_ep>;
+					bus-width = <8>;
+					mclk-frequency = <12000000>;
+				};
+			};
+	};

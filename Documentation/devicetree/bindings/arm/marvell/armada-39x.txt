@@ -1,0 +1,31 @@
+Marvell Armada 39x Platforms Device Tree Bindings
+-------------------------------------------------
+
+Boards with a SoC of the Marvell Armada 39x family shall have the
+following property:
+
+Required root node property:
+
+ - compatible: must contain "marvell,armada390"
+
+In addition, boards using the Marvell Armada 395 SoC shall have the
+following property before the common "marvell,armada390" one:
+
+Required root node property:
+
+compatible: must contain "marvell,armada395"
+
+Example:
+
+compatible = "marvell,a395-gp", "marvell,armada395", "marvell,armada390";
+
+Boards using the Marvell Armada 398 SoC shall have the following
+property before the common "marvell,armada390" one:
+
+Required root node property:
+
+compatible: must contain "marvell,armada398"
+
+Example:
+
+compatible = "marvell,a398-db", "marvell,armada398", "marvell,armada390";

@@ -1,0 +1,113 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# IIO imu drivers configuration
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Inertial measurement units"
+
+config ADIS16400
+	tristate "Analog Devices ADIS16400 and similar IMU SPI driver"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices adis16300, adis16344,
+	  adis16350, adis16354, adis16355, adis16360, adis16362, adis16364,
+	  adis16365, adis16400 and adis16405 triaxial inertial sensors
+	  (adis16400 series also have magnetometers).
+
+config ADIS16460
+	tristate "Analog Devices ADIS16460 and similar IMU driver"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices ADIS16460 inertial
+	  sensor.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called adis16460.
+
+config ADIS16475
+	tristate "Analog Devices ADIS16475 and similar IMU driver"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices ADIS16470, ADIS16475,
+	  ADIS16477, ADIS16465, ADIS16467, ADIS16500, ADIS16505, ADIS16507 inertial
+	  sensors.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called adis16475.
+
+config ADIS16480
+	tristate "Analog Devices ADIS16480 and similar IMU driver"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	select CRC32
+	help
+	  Say yes here to build support for Analog Devices ADIS16375, ADIS16480,
+	  ADIS16485, ADIS16488 inertial sensors.
+
+source "drivers/iio/imu/bmi160/Kconfig"
+source "drivers/iio/imu/bno055/Kconfig"
+
+config FXOS8700
+	tristate
+
+config FXOS8700_I2C
+	tristate "NXP FXOS8700 I2C driver"
+	depends on I2C
+	select FXOS8700
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for the NXP FXOS8700 m+g combo
+	  sensor on I2C.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called fxos8700_i2c.
+
+config FXOS8700_SPI
+	tristate "NXP FXOS8700 SPI driver"
+	depends on SPI
+	select FXOS8700
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for the NXP FXOS8700 m+g combo
+	  sensor on SPI.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called fxos8700_spi.
+
+config KMX61
+	tristate "Kionix KMX61 6-axis accelerometer and magnetometer"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you want to build a driver for Kionix KMX61 6-axis
+	  accelerometer and magnetometer.
+	  To compile this driver as module, choose M here: the module will
+	  be called kmx61.
+
+source "drivers/iio/imu/inv_icm42600/Kconfig"
+source "drivers/iio/imu/inv_mpu6050/Kconfig"
+source "drivers/iio/imu/st_lsm6dsx/Kconfig"
+source "drivers/iio/imu/st_lsm9ds0/Kconfig"
+
+endmenu
+
+config IIO_ADIS_LIB
+	tristate
+	help
+	  A set of IO helper functions for the Analog Devices ADIS* device family.
+
+config IIO_ADIS_LIB_BUFFER
+	bool
+	select IIO_TRIGGERED_BUFFER
+	help
+	  A set of buffer helper functions for the Analog Devices ADIS* device
+	  family.

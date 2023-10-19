@@ -1,0 +1,18 @@
+* MTD SPI driver for Microchip 23K256 (and similar) serial SRAM
+
+Required properties:
+- #address-cells, #size-cells : Must be present if the device has sub-nodes
+  representing partitions.
+- compatible : Must be one of "microchip,mchp23k256" or "microchip,mchp23lcv1024"
+- reg : Chip-Select number
+- spi-max-frequency : Maximum frequency of the SPI bus the chip can operate at
+
+Example:
+
+	spi-sram@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "microchip,mchp23k256";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+	};

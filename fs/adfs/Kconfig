@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config ADFS_FS
+	tristate "ADFS file system support"
+	depends on BLOCK
+	help
+	  The Acorn Disc Filing System is the standard file system of the
+	  RiscOS operating system which runs on Acorn's ARM-based Risc PC
+	  systems and the Acorn Archimedes range of machines. If you say Y
+	  here, Linux will be able to read from ADFS partitions on hard drives
+	  and from ADFS-formatted floppy discs. If you also want to be able to
+	  write to those devices, say Y to "ADFS write support" below.
+
+	  The ADFS partition should be the first partition (i.e.,
+	  /dev/[hs]d?1) on each of your drives. Please read the file
+	  <file:Documentation/filesystems/adfs.rst> for further details.
+
+	  To compile this code as a module, choose M here: the module will be
+	  called adfs.
+
+	  If unsure, say N.
+
+config ADFS_FS_RW
+	bool "ADFS write support (DANGEROUS)"
+	depends on ADFS_FS
+	help
+	  If you say Y here, you will be able to write to ADFS partitions on
+	  hard drives and ADFS-formatted floppy disks. This is experimental
+	  codes, so if you're unsure, say N.

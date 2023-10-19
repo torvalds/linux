@@ -1,0 +1,67 @@
+* Dialog DA9052/53 Power Management Integrated Circuit (PMIC)
+
+Required properties:
+- compatible : Should be "dlg,da9052", "dlg,da9053-aa",
+			 "dlg,da9053-ab", or "dlg,da9053-bb"
+
+Optional properties:
+- dlg,tsi-as-adc : Boolean, if set the X+, X-, Y+, Y- touchscreen
+                    input lines are used as general purpose analogue
+					input.
+- tsiref-supply: Phandle to the regulator, which provides the reference
+                 voltage for the TSIREF pin. Must be provided when the
+			     touchscreen pins are used for ADC purposes.
+
+Sub-nodes:
+- regulators : Contain the regulator nodes. The DA9052/53 regulators are
+  bound using their names as listed below:
+
+    buck1     : regulator BUCK CORE
+    buck2     : regulator BUCK PRO
+    buck3     : regulator BUCK MEM
+    buck4     : regulator BUCK PERI
+    ldo1      : regulator LDO1
+    ldo2      : regulator LDO2
+    ldo3      : regulator LDO3
+    ldo4      : regulator LDO4
+    ldo5      : regulator LDO5
+    ldo6      : regulator LDO6
+    ldo7      : regulator LDO7
+    ldo8      : regulator LDO8
+    ldo9      : regulator LDO9
+    ldo10     : regulator LDO10
+
+  The bindings details of individual regulator device can be found in:
+  Documentation/devicetree/bindings/regulator/regulator.txt
+
+Examples:
+
+i2c@63fc8000 { /* I2C1 */
+
+	pmic: dialog@48 {
+		compatible = "dlg,da9053-aa";
+		reg = <0x48>;
+
+		regulators {
+			buck1 {
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <2075000>;
+			};
+
+			buck2 {
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <2075000>;
+			};
+
+			buck3 {
+				regulator-min-microvolt = <925000>;
+				regulator-max-microvolt = <2500000>;
+			};
+
+			buck4 {
+				regulator-min-microvolt = <925000>;
+				regulator-max-microvolt = <2500000>;
+			};
+		};
+	};
+};
