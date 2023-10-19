@@ -939,16 +939,16 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 			{
 				.direction = {false, true},
 				.dai_name = "cs42l43-dp1",
-				.dai_type = SOF_SDW_DAI_TYPE_JACK,
-				.dailink = {SDW_UNUSED_DAI_ID, SDW_JACK_IN_DAI_ID},
+				.dai_type = SOF_SDW_DAI_TYPE_MIC,
+				.dailink = {SDW_UNUSED_DAI_ID, SDW_DMIC_DAI_ID},
+				.init = sof_sdw_cs42l43_dmic_init,
 			},
 			{
 				.direction = {false, true},
 				.dai_name = "cs42l43-dp2",
-				.dai_type = SOF_SDW_DAI_TYPE_MIC,
-				.dailink = {SDW_UNUSED_DAI_ID, SDW_DMIC_DAI_ID},
-				.init = sof_sdw_cs42l43_dmic_init,
-			}
+				.dai_type = SOF_SDW_DAI_TYPE_JACK,
+				.dailink = {SDW_UNUSED_DAI_ID, SDW_JACK_IN_DAI_ID},
+			},
 		},
 		.dai_num = 3,
 	},
