@@ -73,6 +73,7 @@ $ref: dsa.yaml#
 patternProperties:
   "^(ethernet-)?ports$":
     type: object
+    additionalProperties: true
     patternProperties:
       "^(ethernet-)?port@[0-6]$":
         type: object

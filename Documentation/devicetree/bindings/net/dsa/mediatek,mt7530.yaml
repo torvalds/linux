@@ -154,10 +154,12 @@ properties:
 patternProperties:
   "^(ethernet-)?ports$":
     type: object
+    additionalProperties: true
 
     patternProperties:
-      "^(ethernet-)?port@[0-9]+$":
+      "^(ethernet-)?port@[0-6]$":
         type: object
+        additionalProperties: true
 
         properties:
           reg:
@@ -184,7 +186,7 @@ $defs:
     patternProperties:
       "^(ethernet-)?ports$":
         patternProperties:
-          "^(ethernet-)?port@[0-9]+$":
+          "^(ethernet-)?port@[0-6]$":
             if:
               required: [ ethernet ]
             then:
@@ -210,7 +212,7 @@ $defs:
     patternProperties:
       "^(ethernet-)?ports$":
         patternProperties:
-          "^(ethernet-)?port@[0-9]+$":
+          "^(ethernet-)?port@[0-6]$":
             if:
               required: [ ethernet ]
             then:
