@@ -182,7 +182,6 @@ static struct zynqmp_sha_drv_ctx sha3_drv_ctx = {
 				     CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize = SHA3_384_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct zynqmp_sha_tfm_ctx),
-			.cra_alignmask = 3,
 			.cra_module = THIS_MODULE,
 		}
 	}
