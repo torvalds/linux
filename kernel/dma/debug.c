@@ -139,7 +139,7 @@ static const char *const maperr2str[] = {
 
 static const char *type2name[] = {
 	[dma_debug_single] = "single",
-	[dma_debug_sg] = "scather-gather",
+	[dma_debug_sg] = "scatter-gather",
 	[dma_debug_coherent] = "coherent",
 	[dma_debug_resource] = "resource",
 };
