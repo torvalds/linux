@@ -2530,10 +2530,8 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 				| UFSHCD_QUIRK_BROKEN_PA_RXHSUNTERMCAP);
 	}
 
-	if (host->disable_lpm)
+	if (host->disable_lpm || host->broken_ahit_wa)
 		hba->quirks |= UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8;
-
-	hba->quirks |= UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8;
 
 #if IS_ENABLED(CONFIG_SCSI_UFS_CRYPTO_QTI)
 	hba->android_quirks |= UFSHCD_ANDROID_QUIRK_CUSTOM_CRYPTO_PROFILE;
@@ -3556,6 +3554,20 @@ static void ufs_qcom_parse_pbl_rst_workaround_flag(struct ufs_qcom_host *host)
 	host->bypass_pbl_rst_wa = of_property_read_bool(np, str);
 }
 
+/*
+ * ufs_qcom_parse_borken_ahit_workaround_flag - read broken-ahit-wa entry from DT
+ */
+static void ufs_qcom_parse_broken_ahit_workaround_flag(struct ufs_qcom_host *host)
+{
+	struct device_node *np = host->hba->dev->of_node;
+	const char *str  = "qcom,broken-ahit-wa";
+
+	if (!np)
+		return;
+
+	host->broken_ahit_wa = of_property_read_bool(np, str);
+}
+
 /**
  * ufs_qcom_init - bind phy with controller
  * @hba: host controller instance
@@ -3695,6 +3707,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 
 	ufs_qcom_parse_wb(host);
 	ufs_qcom_parse_pbl_rst_workaround_flag(host);
+	ufs_qcom_parse_broken_ahit_workaround_flag(host);
 	ufs_qcom_set_caps(hba);
 	ufs_qcom_advertise_quirks(hba);
 
@@ -5360,6 +5373,15 @@ static void ufs_qcom_hook_send_command(void *param, struct ufs_hba *hba,
 				       struct ufshcd_lrb *lrbp)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	unsigned long flags;
+
+	if (!host->disable_lpm && host->broken_ahit_wa) {
+		spin_lock_irqsave(hba->host->host_lock, flags);
+		if ((++host->active_cmds) == 1)
+			/* Stop the auto-hiberate idle timer */
+			ufshcd_writel(hba, 0, REG_AUTO_HIBERNATE_IDLE_TIMER);
+		spin_unlock_irqrestore(hba->host->host_lock, flags);
+	}
 
 	if (lrbp && lrbp->cmd && lrbp->cmd->cmnd[0]) {
 		struct request *rq = scsi_cmd_to_rq(lrbp->cmd);
@@ -5411,6 +5433,16 @@ static void ufs_qcom_hook_compl_command(void *param, struct ufs_hba *hba,
 {
 
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	unsigned long flags;
+
+	if (!host->disable_lpm && host->broken_ahit_wa) {
+		spin_lock_irqsave(hba->host->host_lock, flags);
+		if ((--host->active_cmds) == 0)
+			/* Activate the auto-hiberate idle timer */
+			ufshcd_writel(hba, hba->ahit,
+				      REG_AUTO_HIBERNATE_IDLE_TIMER);
+		spin_unlock_irqrestore(hba->host->host_lock, flags);
+	}
 
 	if (lrbp && lrbp->cmd) {
 		struct request *rq = scsi_cmd_to_rq(lrbp->cmd);
