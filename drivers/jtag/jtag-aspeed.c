@@ -374,7 +374,8 @@ static inline void aspeed_jtag_master_26xx(struct aspeed_jtag *aspeed_jtag)
 		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);
 		aspeed_jtag_write(aspeed_jtag,
 				  reg_val | ASPEED_JTAG_GBLCTRL_ENG_MODE_EN |
-					  ASPEED_JTAG_GBLCTRL_ENG_OUT_EN,
+					  ASPEED_JTAG_GBLCTRL_ENG_OUT_EN |
+					  ASPEED_JTAG_GBLCTRL_TRST,
 				  ASPEED_JTAG_GBLCTRL);
 	} else {
 		aspeed_jtag_write(aspeed_jtag, reg_val, ASPEED_JTAG_GBLCTRL);
