@@ -44,6 +44,12 @@ config ROCKCHIP_CPUINFO
 
 	  If unsure, say N.
 
+config ROCKCHIP_CSU
+	tristate "Rockchip Clock Subunit Driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  This adds the clock subunit driver for Rockchip SoCs.
+
 config ROCKCHIP_GRF
 	tristate "Rockchip General Register Files support"
 	help
