@@ -1314,7 +1314,16 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 					profile->cqe_time_stamp_type);
 	}
 
-	mlxsw_pci->lag_mode = MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_FW;
+	if (profile->lag_mode_prefer_sw && mlxsw_pci->lag_mode_support) {
+		enum mlxsw_cmd_mbox_config_profile_lag_mode lag_mode =
+			MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_SW;
+
+		mlxsw_cmd_mbox_config_profile_set_lag_mode_set(mbox, 1);
+		mlxsw_cmd_mbox_config_profile_lag_mode_set(mbox, lag_mode);
+		mlxsw_pci->lag_mode = lag_mode;
+	} else {
+		mlxsw_pci->lag_mode = MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_FW;
+	}
 	return mlxsw_cmd_config_profile_set(mlxsw_pci->core, mbox);
 }
 
@@ -1624,9 +1633,8 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_config_profile;
 
-	/* Some resources depend on unified bridge model, which is configured
-	 * as part of config_profile. Query the resources again to get correct
-	 * values.
+	/* Some resources depend on details of config_profile, such as unified
+	 * bridge model. Query the resources again to get correct values.
 	 */
 	err = mlxsw_core_resources_query(mlxsw_core, mbox, res);
 	if (err)

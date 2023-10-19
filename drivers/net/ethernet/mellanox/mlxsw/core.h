@@ -337,6 +337,7 @@ struct mlxsw_config_profile {
 	u8	kvd_hash_single_parts;
 	u8	kvd_hash_double_parts;
 	u8	cqe_time_stamp_type;
+	bool	lag_mode_prefer_sw;
 	struct mlxsw_swid_config swid_config[MLXSW_CONFIG_PROFILE_SWID_COUNT];
 };
 
