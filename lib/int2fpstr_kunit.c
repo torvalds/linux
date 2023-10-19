@@ -1,25 +1,31 @@
 #include <kunit/test.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/string.h>
+
 #include <linux/int2fpstr.h>
 
 static void should_return_2345_without_errors(struct kunit *test)
 {
 	char *destination = int2fpstr(2345, 2);
-	KUNIT_EXPECT_EQ(test, "23.45", destination);
+	int ret = strncmp(destination, "23.45", 5);
+	KUNIT_EXPECT_EQ(test, 0, ret);
 	kfree(destination);
 }
 
 static void should_return_2_without_errors_and_float_point(struct kunit *test)
 {
 	char *destination = int2fpstr(2, 0);
-	KUNIT_EXPECT_EQ(test, "2", destination);
+	int ret = strncmp(destination, "2", 1);
+	KUNIT_EXPECT_EQ(test, 0, ret);
 	kfree(destination);
 }
 
 static void should_return_0_without_errors(struct kunit *test)
-{ char *destination = int2fpstr(0, 0);
-	KUNIT_EXPECT_EQ(test, "0", destination);
+{ 
+	char *destination = int2fpstr(0, 0);
+	int ret = strncmp(destination, "0", 1);
+	KUNIT_EXPECT_EQ(test, 0, ret);
 	kfree(destination);
 }
 
