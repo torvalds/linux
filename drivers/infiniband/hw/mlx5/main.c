@@ -3263,7 +3263,7 @@ static bool mlx5_ib_bind_slave_port(struct mlx5_ib_dev *ibdev,
 
 	mlx5_ib_init_cong_debugfs(ibdev, port_num);
 
-	key = ibdev->ib_dev.index;
+	key = mpi->mdev->priv.adev_idx;
 	mlx5_core_mp_event_replay(mpi->mdev,
 				  MLX5_DRIVER_EVENT_AFFILIATION_DONE,
 				  &key);
