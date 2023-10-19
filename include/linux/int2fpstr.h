@@ -6,6 +6,8 @@
 
 inline char *int2fpstr(int number, int decimal_places) 
 {
+	if(!number)	return "0";
+
 	char *buffer = kmalloc(32, GFP_KERNEL);
 	if (!buffer) {
 		pr_err("Error: Memory allocation failed.\n");
