@@ -659,37 +659,37 @@ MLXSW_ITEM32(cmd_mbox, config_profile,
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_ar_sec, 0x0C, 15, 1);
 
-/* cmd_mbox_config_set_ubridge
+/* cmd_mbox_config_profile_set_ubridge
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_ubridge, 0x0C, 22, 1);
 
-/* cmd_mbox_config_set_kvd_linear_size
+/* cmd_mbox_config_profile_set_kvd_linear_size
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_linear_size, 0x0C, 24, 1);
 
-/* cmd_mbox_config_set_kvd_hash_single_size
+/* cmd_mbox_config_profile_set_kvd_hash_single_size
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_single_size, 0x0C, 25, 1);
 
-/* cmd_mbox_config_set_kvd_hash_double_size
+/* cmd_mbox_config_profile_set_kvd_hash_double_size
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_double_size, 0x0C, 26, 1);
 
-/* cmd_mbox_config_set_cqe_version
+/* cmd_mbox_config_profile_set_cqe_version
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_version, 0x08, 0, 1);
 
-/* cmd_mbox_config_set_cqe_time_stamp_type
+/* cmd_mbox_config_profile_set_cqe_time_stamp_type
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
@@ -847,7 +847,7 @@ MLXSW_ITEM32(cmd_mbox, config_profile, ubridge, 0x50, 4, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, kvd_linear_size, 0x54, 0, 24);
 
-/* cmd_mbox_config_kvd_hash_single_size
+/* cmd_mbox_config_profile_kvd_hash_single_size
  * KVD Hash single-entries size
  * Valid for Spectrum only
  * Allowed values are 128*N where N=0 or higher
@@ -856,7 +856,7 @@ MLXSW_ITEM32(cmd_mbox, config_profile, kvd_linear_size, 0x54, 0, 24);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, kvd_hash_single_size, 0x58, 0, 24);
 
-/* cmd_mbox_config_kvd_hash_double_size
+/* cmd_mbox_config_profile_kvd_hash_double_size
  * KVD Hash double-entries size (units of single-size entries)
  * Valid for Spectrum only
  * Allowed values are 128*N where N=0 or higher
