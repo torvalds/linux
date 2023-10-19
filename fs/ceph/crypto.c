@@ -460,7 +460,7 @@ int ceph_fname_to_usr(const struct ceph_fname *fname, struct fscrypt_str *tname,
 out:
 	fscrypt_fname_free_buffer(&_tname);
 out_inode:
-	if ((dir != fname->dir) && !IS_ERR(dir)) {
+	if (dir != fname->dir) {
 		if ((dir->i_state & I_NEW))
 			discard_new_inode(dir);
 		else

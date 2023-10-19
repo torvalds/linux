@@ -457,26 +457,41 @@ static int mlx5e_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 static int mlx5e_refill_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 {
 	int remaining = wqe_bulk;
-	int i = 0;
+	int total_alloc = 0;
+	int refill_alloc;
+	int refill;
 
 	/* The WQE bulk is split into smaller bulks that are sized
 	 * according to the page pool cache refill size to avoid overflowing
 	 * the page pool cache due to too many page releases at once.
 	 */
 	do {
-		int refill = min_t(u16, rq->wqe.info.refill_unit, remaining);
-		int alloc_count;
+		refill = min_t(u16, rq->wqe.info.refill_unit, remaining);
 
-		mlx5e_free_rx_wqes(rq, ix + i, refill);
-		alloc_count = mlx5e_alloc_rx_wqes(rq, ix + i, refill);
-		i += alloc_count;
-		if (unlikely(alloc_count != refill))
-			break;
+		mlx5e_free_rx_wqes(rq, ix + total_alloc, refill);
+		refill_alloc = mlx5e_alloc_rx_wqes(rq, ix + total_alloc, refill);
+		if (unlikely(refill_alloc != refill))
+			goto err_free;
 
+		total_alloc += refill_alloc;
 		remaining -= refill;
 	} while (remaining);
 
-	return i;
+	return total_alloc;
+
+err_free:
+	mlx5e_free_rx_wqes(rq, ix, total_alloc + refill_alloc);
+
+	for (int i = 0; i < total_alloc + refill; i++) {
+		int j = mlx5_wq_cyc_ctr2ix(&rq->wqe.wq, ix + i);
+		struct mlx5e_wqe_frag_info *frag;
+
+		frag = get_frag(rq, j);
+		for (int k = 0; k < rq->wqe.info.num_frags; k++, frag++)
+			frag->flags |= BIT(MLX5E_WQE_FRAG_SKIP_RELEASE);
+	}
+
+	return 0;
 }
 
 static void
@@ -815,6 +830,8 @@ err_unmap:
 		frag_page--;
 		mlx5e_page_release_fragmented(rq, frag_page);
 	}
+
+	bitmap_fill(wi->skip_release_bitmap, rq->mpwqe.pages_per_wqe);
 
 err:
 	rq->stats->buff_alloc_err++;

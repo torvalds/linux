@@ -607,16 +607,16 @@ static void virtnet_rq_unmap(struct receive_queue *rq, void *buf, u32 len)
 
 	--dma->ref;
 
-	if (dma->ref) {
-		if (dma->need_sync && len) {
-			offset = buf - (head + sizeof(*dma));
+	if (dma->need_sync && len) {
+		offset = buf - (head + sizeof(*dma));
 
-			virtqueue_dma_sync_single_range_for_cpu(rq->vq, dma->addr, offset,
-								len, DMA_FROM_DEVICE);
-		}
-
-		return;
+		virtqueue_dma_sync_single_range_for_cpu(rq->vq, dma->addr,
+							offset, len,
+							DMA_FROM_DEVICE);
 	}
+
+	if (dma->ref)
+		return;
 
 	virtqueue_dma_unmap_single_attrs(rq->vq, dma->addr, dma->len,
 					 DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);

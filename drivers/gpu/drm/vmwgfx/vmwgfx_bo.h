@@ -195,12 +195,19 @@ static inline struct vmw_bo *vmw_bo_reference(struct vmw_bo *buf)
 	return buf;
 }
 
-static inline void vmw_user_bo_unref(struct vmw_bo *vbo)
+static inline struct vmw_bo *vmw_user_bo_ref(struct vmw_bo *vbo)
 {
-	if (vbo) {
-		ttm_bo_put(&vbo->tbo);
-		drm_gem_object_put(&vbo->tbo.base);
-	}
+	drm_gem_object_get(&vbo->tbo.base);
+	return vbo;
+}
+
+static inline void vmw_user_bo_unref(struct vmw_bo **buf)
+{
+	struct vmw_bo *tmp_buf = *buf;
+
+	*buf = NULL;
+	if (tmp_buf)
+		drm_gem_object_put(&tmp_buf->tbo.base);
 }
 
 static inline struct vmw_bo *to_vmw_bo(struct drm_gem_object *gobj)

@@ -2256,52 +2256,23 @@ static u16 cmdif_rev(struct mlx5_core_dev *dev)
 
 int mlx5_cmd_init(struct mlx5_core_dev *dev)
 {
-	int size = sizeof(struct mlx5_cmd_prot_block);
-	int align = roundup_pow_of_two(size);
 	struct mlx5_cmd *cmd = &dev->cmd;
-	u32 cmd_l;
-	int err;
 
-	cmd->pool = dma_pool_create("mlx5_cmd", mlx5_core_dma_dev(dev), size, align, 0);
-	if (!cmd->pool)
-		return -ENOMEM;
-
-	err = alloc_cmd_page(dev, cmd);
-	if (err)
-		goto err_free_pool;
-
-	cmd_l = (u32)(cmd->dma);
-	if (cmd_l & 0xfff) {
-		mlx5_core_err(dev, "invalid command queue address\n");
-		err = -ENOMEM;
-		goto err_cmd_page;
-	}
 	cmd->checksum_disabled = 1;
 
 	spin_lock_init(&cmd->alloc_lock);
 	spin_lock_init(&cmd->token_lock);
 
-	create_msg_cache(dev);
-
 	set_wqname(dev);
 	cmd->wq = create_singlethread_workqueue(cmd->wq_name);
 	if (!cmd->wq) {
 		mlx5_core_err(dev, "failed to create command workqueue\n");
-		err = -ENOMEM;
-		goto err_cache;
+		return -ENOMEM;
 	}
 
 	mlx5_cmdif_debugfs_init(dev);
 
 	return 0;
-
-err_cache:
-	destroy_msg_cache(dev);
-err_cmd_page:
-	free_cmd_page(dev, cmd);
-err_free_pool:
-	dma_pool_destroy(cmd->pool);
-	return err;
 }
 
 void mlx5_cmd_cleanup(struct mlx5_core_dev *dev)
@@ -2310,15 +2281,15 @@ void mlx5_cmd_cleanup(struct mlx5_core_dev *dev)
 
 	mlx5_cmdif_debugfs_cleanup(dev);
 	destroy_workqueue(cmd->wq);
-	destroy_msg_cache(dev);
-	free_cmd_page(dev, cmd);
-	dma_pool_destroy(cmd->pool);
 }
 
 int mlx5_cmd_enable(struct mlx5_core_dev *dev)
 {
+	int size = sizeof(struct mlx5_cmd_prot_block);
+	int align = roundup_pow_of_two(size);
 	struct mlx5_cmd *cmd = &dev->cmd;
 	u32 cmd_h, cmd_l;
+	int err;
 
 	memset(&cmd->vars, 0, sizeof(cmd->vars));
 	cmd->vars.cmdif_rev = cmdif_rev(dev);
@@ -2351,10 +2322,21 @@ int mlx5_cmd_enable(struct mlx5_core_dev *dev)
 	sema_init(&cmd->vars.pages_sem, 1);
 	sema_init(&cmd->vars.throttle_sem, DIV_ROUND_UP(cmd->vars.max_reg_cmds, 2));
 
+	cmd->pool = dma_pool_create("mlx5_cmd", mlx5_core_dma_dev(dev), size, align, 0);
+	if (!cmd->pool)
+		return -ENOMEM;
+
+	err = alloc_cmd_page(dev, cmd);
+	if (err)
+		goto err_free_pool;
+
 	cmd_h = (u32)((u64)(cmd->dma) >> 32);
 	cmd_l = (u32)(cmd->dma);
-	if (WARN_ON(cmd_l & 0xfff))
-		return -EINVAL;
+	if (cmd_l & 0xfff) {
+		mlx5_core_err(dev, "invalid command queue address\n");
+		err = -ENOMEM;
+		goto err_cmd_page;
+	}
 
 	iowrite32be(cmd_h, &dev->iseg->cmdq_addr_h);
 	iowrite32be(cmd_l, &dev->iseg->cmdq_addr_l_sz);
@@ -2367,17 +2349,27 @@ int mlx5_cmd_enable(struct mlx5_core_dev *dev)
 	cmd->mode = CMD_MODE_POLLING;
 	cmd->allowed_opcode = CMD_ALLOWED_OPCODE_ALL;
 
+	create_msg_cache(dev);
 	create_debugfs_files(dev);
 
 	return 0;
+
+err_cmd_page:
+	free_cmd_page(dev, cmd);
+err_free_pool:
+	dma_pool_destroy(cmd->pool);
+	return err;
 }
 
 void mlx5_cmd_disable(struct mlx5_core_dev *dev)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 
-	clean_debug_files(dev);
 	flush_workqueue(cmd->wq);
+	clean_debug_files(dev);
+	destroy_msg_cache(dev);
+	free_cmd_page(dev, cmd);
+	dma_pool_destroy(cmd->pool);
 }
 
 void mlx5_cmd_set_state(struct mlx5_core_dev *dev,
