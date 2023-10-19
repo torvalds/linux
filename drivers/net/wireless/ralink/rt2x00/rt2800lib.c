@@ -5851,6 +5851,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
 	u32 reg;
 	u16 eeprom;
+	u8 bbp;
 	unsigned int i;
 	int ret;
 
@@ -5859,6 +5860,19 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	ret = rt2800_drv_init_registers(rt2x00dev);
 	if (ret)
 		return ret;
+
+	if (rt2x00_rt(rt2x00dev, RT6352)) {
+		rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0x01);
+
+		bbp = rt2800_bbp_read(rt2x00dev, 21);
+		bbp |= 0x01;
+		rt2800_bbp_write(rt2x00dev, 21, bbp);
+		bbp = rt2800_bbp_read(rt2x00dev, 21);
+		bbp &= (~0x01);
+		rt2800_bbp_write(rt2x00dev, 21, bbp);
+
+		rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0x00);
+	}
 
 	rt2800_register_write(rt2x00dev, LEGACY_BASIC_RATE, 0x0000013f);
 	rt2800_register_write(rt2x00dev, HT_BASIC_RATE, 0x00008003);
@@ -6013,6 +6027,14 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 		reg = rt2800_register_read(rt2x00dev, TX_ALC_CFG_1);
 		rt2x00_set_field32(&reg, TX_ALC_CFG_1_ROS_BUSY_EN, 0);
 		rt2800_register_write(rt2x00dev, TX_ALC_CFG_1, reg);
+
+		rt2800_register_write(rt2x00dev, AMPDU_MAX_LEN_20M1S, 0x77754433);
+		rt2800_register_write(rt2x00dev, AMPDU_MAX_LEN_20M2S, 0x77765543);
+		rt2800_register_write(rt2x00dev, AMPDU_MAX_LEN_40M1S, 0x77765544);
+		rt2800_register_write(rt2x00dev, AMPDU_MAX_LEN_40M2S, 0x77765544);
+
+		rt2800_register_write(rt2x00dev, HT_FBK_TO_LEGACY, 0x1010);
+
 	} else {
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000000);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00080606);
@@ -7231,6 +7253,8 @@ static void rt2800_init_bbp_6352(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_dcoc_write(rt2x00dev, 159, 0x64);
 
 	rt2800_bbp4_mac_if_ctrl(rt2x00dev);
+
+	rt2800_bbp_write(rt2x00dev, 84, 0x19);
 }
 
 static void rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
