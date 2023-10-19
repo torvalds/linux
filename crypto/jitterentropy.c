@@ -100,6 +100,8 @@ struct rand_data {
 	unsigned int apt_observations;	/* Number of collected observations */
 	unsigned int apt_count;		/* APT counter */
 	unsigned int apt_base;		/* APT base reference */
+	unsigned int health_failure;	/* Record health failure */
+
 	unsigned int apt_base_set:1;	/* APT base reference set? */
 };
 
@@ -120,6 +122,13 @@ struct rand_data {
 #define JENT_ERCT	       10 /* RCT failed during initialization */
 #define JENT_EHASH	       11 /* Hash self test failed */
 #define JENT_EMEM	       12 /* Can't allocate memory for initialization */
+
+#define JENT_RCT_FAILURE	1 /* Failure in RCT health test. */
+#define JENT_APT_FAILURE	2 /* Failure in APT health test. */
+#define JENT_PERMANENT_FAILURE_SHIFT	16
+#define JENT_PERMANENT_FAILURE(x)	(x << JENT_PERMANENT_FAILURE_SHIFT)
+#define JENT_RCT_FAILURE_PERMANENT	JENT_PERMANENT_FAILURE(JENT_RCT_FAILURE)
+#define JENT_APT_FAILURE_PERMANENT	JENT_PERMANENT_FAILURE(JENT_APT_FAILURE)
 
 /*
  * The output n bits can receive more than n bits of min entropy, of course,
@@ -215,24 +224,20 @@ static void jent_apt_insert(struct rand_data *ec, unsigned int delta_masked)
 		return;
 	}
 
-	if (delta_masked == ec->apt_base)
+	if (delta_masked == ec->apt_base) {
 		ec->apt_count++;
+
+		/* Note, ec->apt_count starts with one. */
+		if (ec->apt_count >= ec->apt_cutoff_permanent)
+			ec->health_failure |= JENT_APT_FAILURE_PERMANENT;
+		else if (ec->apt_count >= ec->apt_cutoff)
+			ec->health_failure |= JENT_APT_FAILURE;
+	}
 
 	ec->apt_observations++;
 
 	if (ec->apt_observations >= JENT_APT_WINDOW_SIZE)
 		jent_apt_reset(ec, delta_masked);
-}
-
-/* APT health test failure detection */
-static int jent_apt_permanent_failure(struct rand_data *ec)
-{
-	return (ec->apt_count >= ec->apt_cutoff_permanent) ? 1 : 0;
-}
-
-static int jent_apt_failure(struct rand_data *ec)
-{
-	return (ec->apt_count >= ec->apt_cutoff) ? 1 : 0;
 }
 
 /***************************************************************************
@@ -261,6 +266,30 @@ static void jent_rct_insert(struct rand_data *ec, int stuck)
 {
 	if (stuck) {
 		ec->rct_count++;
+
+		/*
+		 * The cutoff value is based on the following consideration:
+		 * alpha = 2^-30 or 2^-60 as recommended in SP800-90B.
+		 * In addition, we require an entropy value H of 1/osr as this
+		 * is the minimum entropy required to provide full entropy.
+		 * Note, we collect (DATA_SIZE_BITS + ENTROPY_SAFETY_FACTOR)*osr
+		 * deltas for inserting them into the entropy pool which should
+		 * then have (close to) DATA_SIZE_BITS bits of entropy in the
+		 * conditioned output.
+		 *
+		 * Note, ec->rct_count (which equals to value B in the pseudo
+		 * code of SP800-90B section 4.4.1) starts with zero. Hence
+		 * we need to subtract one from the cutoff value as calculated
+		 * following SP800-90B. Thus C = ceil(-log_2(alpha)/H) = 30*osr
+		 * or 60*osr.
+		 */
+		if ((unsigned int)ec->rct_count >= (60 * ec->osr)) {
+			ec->rct_count = -1;
+			ec->health_failure |= JENT_RCT_FAILURE_PERMANENT;
+		} else if ((unsigned int)ec->rct_count >= (30 * ec->osr)) {
+			ec->rct_count = -1;
+			ec->health_failure |= JENT_RCT_FAILURE;
+		}
 	} else {
 		/* Reset RCT */
 		ec->rct_count = 0;
@@ -316,38 +345,24 @@ static int jent_stuck(struct rand_data *ec, __u64 current_delta)
 }
 
 /*
- * The cutoff value is based on the following consideration:
- * alpha = 2^-30 or 2^-60 as recommended in SP800-90B.
- * In addition, we require an entropy value H of 1/osr as this is the minimum
- * entropy required to provide full entropy.
- * Note, we collect (DATA_SIZE_BITS + ENTROPY_SAFETY_FACTOR)*osr deltas for
- * inserting them into the entropy pool which should then have (close to)
- * DATA_SIZE_BITS bits of entropy in the conditioned output.
+ * Report any health test failures
  *
- * Note, ec->rct_count (which equals to value B in the pseudo code of SP800-90B
- * section 4.4.1) starts with zero. Hence we need to subtract one from the
- * cutoff value as calculated following SP800-90B. Thus
- * C = ceil(-log_2(alpha)/H) = 30*osr or 60*osr.
+ * @ec [in] Reference to entropy collector
+ *
+ * @return a bitmask indicating which tests failed
+ *	0 No health test failure
+ *	1 RCT failure
+ *	2 APT failure
+ *	1<<JENT_PERMANENT_FAILURE_SHIFT RCT permanent failure
+ *	2<<JENT_PERMANENT_FAILURE_SHIFT APT permanent failure
  */
-static int jent_rct_permanent_failure(struct rand_data *ec)
+static unsigned int jent_health_failure(struct rand_data *ec)
 {
-	return (ec->rct_count >= (60 * ec->osr)) ? 1 : 0;
-}
+	/* Test is only enabled in FIPS mode */
+	if (!fips_enabled)
+		return 0;
 
-static int jent_rct_failure(struct rand_data *ec)
-{
-	return (ec->rct_count >= (30 * ec->osr)) ? 1 : 0;
-}
-
-/* Report of health test failures */
-static int jent_health_failure(struct rand_data *ec)
-{
-	return jent_rct_failure(ec) | jent_apt_failure(ec);
-}
-
-static int jent_permanent_health_failure(struct rand_data *ec)
-{
-	return jent_rct_permanent_failure(ec) | jent_apt_permanent_failure(ec);
+	return ec->health_failure;
 }
 
 /***************************************************************************
@@ -594,11 +609,12 @@ int jent_read_entropy(struct rand_data *ec, unsigned char *data,
 		return -1;
 
 	while (len > 0) {
-		unsigned int tocopy;
+		unsigned int tocopy, health_test_result;
 
 		jent_gen_entropy(ec);
 
-		if (jent_permanent_health_failure(ec)) {
+		health_test_result = jent_health_failure(ec);
+		if (health_test_result > JENT_PERMANENT_FAILURE_SHIFT) {
 			/*
 			 * At this point, the Jitter RNG instance is considered
 			 * as a failed instance. There is no rerun of the
@@ -606,13 +622,18 @@ int jent_read_entropy(struct rand_data *ec, unsigned char *data,
 			 * is assumed to not further use this instance.
 			 */
 			return -3;
-		} else if (jent_health_failure(ec)) {
+		} else if (health_test_result) {
 			/*
 			 * Perform startup health tests and return permanent
 			 * error if it fails.
 			 */
-			if (jent_entropy_init(0, 0, NULL, ec))
+			if (jent_entropy_init(0, 0, NULL, ec)) {
+				/* Mark the permanent error */
+				ec->health_failure &=
+					JENT_RCT_FAILURE_PERMANENT |
+					JENT_APT_FAILURE_PERMANENT;
 				return -3;
+			}
 
 			return -2;
 		}
@@ -695,6 +716,7 @@ int jent_entropy_init(unsigned int osr, unsigned int flags, void *hash_state,
 	 */
 	struct rand_data *ec = p_ec;
 	int i, time_backwards = 0, ret = 0, ec_free = 0;
+	unsigned int health_test_result;
 
 	if (!ec) {
 		ec = jent_entropy_collector_alloc(osr, flags, hash_state);
@@ -708,6 +730,9 @@ int jent_entropy_init(unsigned int osr, unsigned int flags, void *hash_state,
 		ec->apt_base_set = 0;
 		/* Reset the RCT */
 		ec->rct_count = 0;
+		/* Reset intermittent, leave permanent health test result */
+		ec->health_failure &= (~JENT_RCT_FAILURE);
+		ec->health_failure &= (~JENT_APT_FAILURE);
 	}
 
 	/* We could perform statistical tests here, but the problem is
@@ -788,12 +813,10 @@ int jent_entropy_init(unsigned int osr, unsigned int flags, void *hash_state,
 	}
 
 	/* Did we encounter a health test failure? */
-	if (jent_rct_failure(ec)) {
-		ret = JENT_ERCT;
-		goto out;
-	}
-	if (jent_apt_failure(ec)) {
-		ret = JENT_EHEALTH;
+	health_test_result = jent_health_failure(ec);
+	if (health_test_result) {
+		ret = (health_test_result & JENT_RCT_FAILURE) ? JENT_ERCT :
+								JENT_EHEALTH;
 		goto out;
 	}
 
