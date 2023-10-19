@@ -103,6 +103,16 @@ static const int walf_pcs_err_noncorrectable_mask_reg_aldebaran[] = {
 	smnPCS_GOPX1_PCS_ERROR_NONCORRECTABLE_MASK + 0x100000
 };
 
+static const int xgmi3x16_pcs_err_status_reg_v6_4[] = {
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS,
+	smnPCS_XGMI3X16_PCS_ERROR_STATUS + 0x100000
+};
+
+static const int xgmi3x16_pcs_err_noncorrectable_mask_reg_v6_4[] = {
+	smnPCS_XGMI3X16_PCS_ERROR_NONCORRECTABLE_MASK,
+	smnPCS_XGMI3X16_PCS_ERROR_NONCORRECTABLE_MASK + 0x100000
+};
+
 static const struct amdgpu_pcs_ras_field xgmi_pcs_ras_fields[] = {
 	{"XGMI PCS DataLossErr",
 	 SOC15_REG_FIELD(XGMI0_PCS_GOPX16_PCS_ERROR_STATUS, DataLossErr)},
@@ -952,6 +962,16 @@ static void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev)
 	default:
 		break;
 	}
+
+	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
+	case IP_VERSION(6, 4, 0):
+		for (i = 0; i < ARRAY_SIZE(xgmi3x16_pcs_err_status_reg_v6_4); i++)
+			pcs_clear_status(adev,
+					xgmi3x16_pcs_err_status_reg_v6_4[i]);
+		break;
+	default:
+		break;
+	}
 }
 
 static int amdgpu_xgmi_query_pcs_error_status(struct amdgpu_device *adev,
@@ -969,7 +989,9 @@ static int amdgpu_xgmi_query_pcs_error_status(struct amdgpu_device *adev,
 
 	if (is_xgmi_pcs) {
 		if (amdgpu_ip_version(adev, XGMI_HWIP, 0) ==
-		    IP_VERSION(6, 1, 0)) {
+		    IP_VERSION(6, 1, 0) ||
+		    amdgpu_ip_version(adev, XGMI_HWIP, 0) ==
+		    IP_VERSION(6, 4, 0)) {
 			pcs_ras_fields = &xgmi3x16_pcs_ras_fields[0];
 			field_array_size = ARRAY_SIZE(xgmi3x16_pcs_ras_fields);
 		} else {
@@ -1007,7 +1029,7 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 					     void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
-	int i;
+	int i, supported = 1;
 	uint32_t data, mask_data = 0;
 	uint32_t ue_cnt = 0, ce_cnt = 0;
 
@@ -1071,7 +1093,25 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 		}
 		break;
 	default:
-		dev_warn(adev->dev, "XGMI RAS error query not supported");
+		supported = 0;
+		break;
+	}
+
+	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
+	case IP_VERSION(6, 4, 0):
+		/* check xgmi3x16 pcs error */
+		for (i = 0; i < ARRAY_SIZE(xgmi3x16_pcs_err_status_reg_v6_4); i++) {
+			data = RREG32_PCIE(xgmi3x16_pcs_err_status_reg_v6_4[i]);
+			mask_data =
+				RREG32_PCIE(xgmi3x16_pcs_err_noncorrectable_mask_reg_v6_4[i]);
+			if (data)
+				amdgpu_xgmi_query_pcs_error_status(adev, data,
+						mask_data, &ue_cnt, &ce_cnt, true, true);
+		}
+		break;
+	default:
+		if (!supported)
+			dev_warn(adev->dev, "XGMI RAS error query not supported");
 		break;
 	}
 
