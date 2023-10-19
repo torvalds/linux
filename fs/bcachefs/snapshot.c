@@ -1447,6 +1447,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		}
 	}
 
+	bch2_trans_unlock(trans);
 	down_write(&c->snapshot_create_lock);
 
 	for_each_btree_key(trans, iter, BTREE_ID_snapshots,
