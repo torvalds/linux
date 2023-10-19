@@ -316,6 +316,7 @@ struct geni_i3c_dev {
 	dma_addr_t rx_phy;
 	bool gsi_err;
 	bool cfg_sent; /* gsi config sent flag */
+	bool disable_free_run_clks;
 	spinlock_t spinlock;
 	u32 clk_src_freq;
 	u32 dfs_idx;
@@ -2708,6 +2709,21 @@ static void geni_i3c_enable_ibi_irq(struct geni_i3c_dev *gi3c, bool enable)
 	}
 }
 
+/*
+ * geni_i3c_disable_free_running_clock() - fix free running clock
+ *
+ * @gi3c: i3c master device handle
+ *
+ * Return: None
+ */
+static void geni_i3c_disable_free_running_clock(struct geni_i3c_dev *gi3c)
+{
+	I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev, "Force default\n");
+	writel(FORCE_DEFAULT, gi3c->se.base + GENI_FORCE_DEFAULT_REG);
+	writel_relaxed(0x7f, gi3c->se.base + GENI_OUTPUT_CTRL);
+	gi3c->disable_free_run_clks = true;
+}
+
 static void geni_i3c_enable_ibi_ctrl(struct geni_i3c_dev *gi3c, bool enable)
 {
 	u32 val, timeout;
@@ -2723,6 +2739,10 @@ static void geni_i3c_enable_ibi_ctrl(struct geni_i3c_dev *gi3c, bool enable)
 		/* Enable I3C IBI controller, if not in enabled state */
 		val = geni_read_reg(gi3c->ibi.ibi_base, IBI_GEN_CONFIG);
 		if (!(val & IBI_C_ENABLE)) {
+			/* SW WAR for HW BUG - Execute only once */
+			if (!gi3c->disable_free_run_clks)
+				geni_i3c_disable_free_running_clock(gi3c);
+
 			val |= IBI_C_ENABLE;
 			geni_write_reg(val, gi3c->ibi.ibi_base, IBI_GEN_CONFIG);
 
@@ -3412,6 +3432,7 @@ static int geni_i3c_probe(struct platform_device *pdev)
 	}
 
 	gi3c->i3c_rsc.proto = GENI_SE_I3C;
+	gi3c->disable_free_run_clks = false;
 
 	se_mode = geni_read_reg(gi3c->se.base, GENI_IF_DISABLE_RO);
 	if (se_mode) {
