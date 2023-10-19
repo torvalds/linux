@@ -3168,7 +3168,7 @@ struct arm_smmu_device *qsmmuv500_create(struct arm_smmu_device *smmu,
 	struct device *dev = smmu->dev;
 	struct qsmmuv500_archdata *data;
 	int ret;
-#ifdef ARM_SMMU_TESTBUS
+#if IS_ENABLED(CONFIG_ARM_SMMU_TESTBUS)
 	struct platform_device *pdev;
 #endif
 
@@ -3187,7 +3187,7 @@ struct arm_smmu_device *qsmmuv500_create(struct arm_smmu_device *smmu,
 		  qsmmuv500_log_outstanding_transactions);
 	data->smmu.impl = impl;
 
-#ifdef ARM_SMMU_TESTBUS
+#if IS_ENABLED(CONFIG_ARM_SMMU_TESTBUS)
 	pdev = to_platform_device(dev);
 	data->tcu_base = devm_platform_ioremap_resource_byname(pdev, "tcu-base");
 	if (IS_ERR(data->tcu_base)) {
