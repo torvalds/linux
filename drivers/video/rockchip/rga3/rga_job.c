@@ -820,7 +820,14 @@ int rga_request_commit(struct rga_request *request)
 	struct rga_job *job;
 
 	for (i = 0; i < request->task_count; i++) {
-		job = rga_job_commit(&(request->task_list[i]), request);
+		struct rga_req *req = &(request->task_list[i]);
+
+		if (DEBUGGER_EN(MSG)) {
+			pr_info("commit request[%d] task[%d]:\n", request->id, i);
+			rga_cmd_print_debug_info(req);
+		}
+
+		job = rga_job_commit(req, request);
 		if (IS_ERR(job)) {
 			pr_err("request[%d] task[%d] job_commit failed.\n", request->id, i);
 			rga_request_release_abort(request, PTR_ERR(job));

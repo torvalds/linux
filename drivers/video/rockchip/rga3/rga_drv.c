@@ -885,11 +885,6 @@ static long rga_ioctl_blit(unsigned long arg, uint32_t cmd, struct rga_session *
 	/* In the BLIT_SYNC/BLIT_ASYNC command, in_fence_fd needs to be set. */
 	request->acquire_fence_fd = rga_req->in_fence_fd;
 
-	if (DEBUGGER_EN(MSG)) {
-		pr_info("Blit mode: request id = %d", user_request.id);
-		rga_cmd_print_debug_info(rga_req);
-	}
-
 	ret = rga_request_submit(request);
 	if (ret < 0) {
 		pr_err("request[%d] submit failed!\n", user_request.id);
