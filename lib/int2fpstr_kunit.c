@@ -32,7 +32,24 @@ static void should_return_0_without_errors(struct kunit *test)
 static void should_return_12_without_errors_and_float_point(struct kunit *test)
 {
 	char *destination = int2fpstr(12, 0);
-	KUNIT_EXPECT_EQ(test, "12", destination);
+	int ret = strncmp(destination, "12", 2);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+	kfree(destination);
+}
+
+static void should_return_12_without_errors(struct kunit *test)
+{
+	char *destination = int2fpstr(-12, 0);
+	int ret = strncmp(destination, "-12", 2);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+	kfree(destination);
+}
+
+static void should_return_125_without_errors(struct kunit *test)
+{
+	char *destination = int2fpstr(-125, 1);
+	int ret = strncmp(destination, "-12.5", 2);
+	KUNIT_EXPECT_EQ(test, 0, ret);
 	kfree(destination);
 }
 
@@ -42,6 +59,8 @@ static struct kunit_case int_to_fp_str_test_case[] = {
 	KUNIT_CASE(should_return_0_without_errors),
 	KUNIT_CASE(should_return_2_without_errors_and_float_point),
 	KUNIT_CASE(should_return_2345_without_errors),
+	KUNIT_CASE(should_return_12_without_errors),
+	KUNIT_CASE(should_return_125_without_errors),
 	{ /* sentinel */ }
 };
 
