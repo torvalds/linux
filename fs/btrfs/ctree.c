@@ -370,9 +370,9 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 /*
  * check if the tree block can be shared by multiple trees
  */
-int btrfs_block_can_be_shared(struct btrfs_trans_handle *trans,
-			      struct btrfs_root *root,
-			      struct extent_buffer *buf)
+bool btrfs_block_can_be_shared(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct extent_buffer *buf)
 {
 	/*
 	 * Tree blocks not in shareable trees and tree roots are never shared.
@@ -385,7 +385,7 @@ int btrfs_block_can_be_shared(struct btrfs_trans_handle *trans,
 	     btrfs_root_last_snapshot(&root->root_item) ||
 	     btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC))) {
 		if (buf != root->commit_root)
-			return 1;
+			return true;
 		/*
 		 * An extent buffer that used to be the commit root may still be
 		 * shared because the tree height may have increased and it
@@ -393,10 +393,10 @@ int btrfs_block_can_be_shared(struct btrfs_trans_handle *trans,
 		 * snapshotting a subvolume created in the current transaction.
 		 */
 		if (btrfs_header_generation(buf) == trans->transid)
-			return 1;
+			return true;
 	}
 
-	return 0;
+	return false;
 }
 
 static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
