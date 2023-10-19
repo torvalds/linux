@@ -16,7 +16,11 @@ inline char *int2fpstr(int number, int decimal_places)
 
 	int buf_index = 30;
 	int count_decimal_place = 0;
-	int point_include = 0;
+	int point_include = decimal_places < 1;
+
+	int neg = number < 0;
+	if(neg)
+		number *= -1;
 
 	for (; number && buf_index; 
 		--buf_index, number /= 10) 
@@ -31,6 +35,11 @@ inline char *int2fpstr(int number, int decimal_places)
 		}
 
 		buffer[buf_index] = "0123456789"[number % 10];
+	}
+
+	if(neg) {
+		*(buffer + buf_index) = '-';
+		buf_index--;
 	}
 
 	return &buffer[buf_index + 1];
