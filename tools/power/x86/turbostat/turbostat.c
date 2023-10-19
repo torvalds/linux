@@ -667,6 +667,7 @@ static const struct platform_features spr_features = {
 	.bclk_freq = BCLK_100MHZ,
 	.supported_cstates = CC1 | CC6 | PC2 | PC6,
 	.cst_limit = CST_LIMIT_SKX,
+	.has_msr_core_c1_res = 1,
 	.has_irtl_msrs = 1,
 	.has_cst_prewake_bit = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
