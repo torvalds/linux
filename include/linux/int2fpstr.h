@@ -29,18 +29,15 @@ inline char *int2fpstr(int number, int decimal_places)
 		if (!point_include 
 			&& count_decimal_place > decimal_places) 
 		{
-			buffer[buf_index] = '.';
-			buf_index--;
+			buffer[buf_index--] = '.';
 			point_include = 1;
 		}
 
 		buffer[buf_index] = "0123456789"[number % 10];
 	}
 
-	if(neg) {
-		*(buffer + buf_index) = '-';
-		buf_index--;
-	}
+	if(neg)
+		*(buffer + buf_index--) = '-';
 
 	return &buffer[buf_index + 1];
 }
