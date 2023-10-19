@@ -75,10 +75,9 @@ display_control_adjust_SM750LE(struct mode_parameter *mode_param,
 }
 
 /* only timing related registers will be  programed */
-static int program_mode_registers(struct mode_parameter *mode_param,
-				  struct pll_value *pll)
+static void program_mode_registers(struct mode_parameter *mode_param,
+				   struct pll_value *pll)
 {
-	int ret = 0;
 	int cnt = 0;
 	unsigned int tmp, reg;
 
@@ -201,10 +200,7 @@ static int program_mode_registers(struct mode_parameter *mode_param,
 				break;
 			poke32(PANEL_DISPLAY_CTRL, tmp | reg);
 		}
-	} else {
-		ret = -1;
 	}
-	return ret;
 }
 
 int ddk750_set_mode_timing(struct mode_parameter *parm, enum clock_type clock)
