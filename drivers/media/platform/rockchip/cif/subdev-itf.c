@@ -759,6 +759,7 @@ static int sditf_s_stream(struct v4l2_subdev *sd, int on)
 		} else {
 			ret = sditf_stop_stream(priv);
 			sditf_free_buf(priv);
+			priv->mode.rdbk_mode = RKISP_VICAP_RDBK_AIQ;
 		}
 
 	}
