@@ -70,15 +70,6 @@ static const struct dmi_system_id chromebook_platforms[] = {
 	{},
 };
 
-static const struct snd_soc_dapm_widget sof_ssp_amp_dapm_widgets[] = {
-	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
-};
-
-static const struct snd_soc_dapm_route sof_ssp_amp_dapm_routes[] = {
-	/* digital mics */
-	{"DMic", NULL, "SoC DMIC"},
-};
-
 static int sof_card_late_probe(struct snd_soc_card *card)
 {
 	return sof_intel_board_card_late_probe(card);
@@ -87,10 +78,6 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 static struct snd_soc_card sof_ssp_amp_card = {
 	.name         = "ssp_amp",
 	.owner        = THIS_MODULE,
-	.dapm_widgets = sof_ssp_amp_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(sof_ssp_amp_dapm_widgets),
-	.dapm_routes = sof_ssp_amp_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(sof_ssp_amp_dapm_routes),
 	.fully_routed = true,
 	.late_probe = sof_card_late_probe,
 };
@@ -102,17 +89,11 @@ static struct snd_soc_dai_link_component platform_component[] = {
 	}
 };
 
-static struct snd_soc_dai_link_component dmic_component[] = {
-	{
-		.name = "dmic-codec",
-		.dai_name = "dmic-hifi",
-	}
-};
-
 /* BE ID defined in sof-tgl-rt1308-hdmi-ssp.m4 */
 #define HDMI_IN_BE_ID		0
 #define SPK_BE_ID		2
 #define DMIC01_BE_ID		3
+#define DMIC16K_BE_ID		4
 #define INTEL_HDMI_BE_ID	5
 
 static struct snd_soc_dai_link *
@@ -207,28 +188,23 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 	/* dmic */
 	if (dmic_be_num > 0) {
 		/* at least we have dmic01 */
-		links[id].name = "dmic01";
-		links[id].cpus = &cpus[id];
-		links[id].cpus->dai_name = "DMIC01 Pin";
-		if (dmic_be_num > 1) {
-			/* set up 2 BE links at most */
-			links[id + 1].name = "dmic16k";
-			links[id + 1].cpus = &cpus[id + 1];
-			links[id + 1].cpus->dai_name = "DMIC16k Pin";
-			dmic_be_num = 2;
-		}
+		be_id = fixed_be ? DMIC01_BE_ID : id;
+		ret = sof_intel_board_set_dmic_link(dev, &links[id], be_id,
+						    SOF_DMIC_01);
+		if (ret)
+			return NULL;
+
+		id++;
 	}
 
-	for (i = 0; i < dmic_be_num; i++) {
-		links[id].id = fixed_be ? (DMIC01_BE_ID + i) : id;
-		links[id].num_cpus = 1;
-		links[id].codecs = dmic_component;
-		links[id].num_codecs = ARRAY_SIZE(dmic_component);
-		links[id].platforms = platform_component;
-		links[id].num_platforms = ARRAY_SIZE(platform_component);
-		links[id].ignore_suspend = 1;
-		links[id].dpcm_capture = 1;
-		links[id].no_pcm = 1;
+	if (dmic_be_num > 1) {
+		/* set up 2 BE links at most */
+		be_id = fixed_be ? DMIC16K_BE_ID : id;
+		ret = sof_intel_board_set_dmic_link(dev, &links[id], be_id,
+						    SOF_DMIC_16K);
+		if (ret)
+			return NULL;
+
 		id++;
 	}
 
@@ -278,7 +254,6 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
 	struct sof_card_private *ctx;
-	int dmic_be_num = 0;
 	int ret, ssp_codec;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
@@ -291,12 +266,14 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
 
 	if (dmi_check_system(chromebook_platforms) || mach->mach_params.dmic_num > 0)
-		dmic_be_num = 2;
+		ctx->dmic_be_num = 2;
+	else
+		ctx->dmic_be_num = 0;
 
 	ssp_codec = sof_ssp_amp_quirk & SOF_AMPLIFIER_SSP_MASK;
 
 	/* set number of dai links */
-	sof_ssp_amp_card.num_links = dmic_be_num;
+	sof_ssp_amp_card.num_links = ctx->dmic_be_num;
 
 	if (ctx->amp_type != CODEC_NONE)
 		sof_ssp_amp_card.num_links++;
@@ -324,7 +301,7 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 		sof_ssp_amp_card.num_links++;
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
-					      ssp_codec, dmic_be_num,
+					      ssp_codec, ctx->dmic_be_num,
 					      ctx->hdmi_num,
 					      ctx->hdmi.idisp_codec);
 	if (!dai_links)

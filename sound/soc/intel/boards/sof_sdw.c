@@ -939,16 +939,16 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 			{
 				.direction = {false, true},
 				.dai_name = "cs42l43-dp1",
-				.dai_type = SOF_SDW_DAI_TYPE_JACK,
-				.dailink = {SDW_UNUSED_DAI_ID, SDW_JACK_IN_DAI_ID},
+				.dai_type = SOF_SDW_DAI_TYPE_MIC,
+				.dailink = {SDW_UNUSED_DAI_ID, SDW_DMIC_DAI_ID},
+				.init = sof_sdw_cs42l43_dmic_init,
 			},
 			{
 				.direction = {false, true},
 				.dai_name = "cs42l43-dp2",
-				.dai_type = SOF_SDW_DAI_TYPE_MIC,
-				.dailink = {SDW_UNUSED_DAI_ID, SDW_DMIC_DAI_ID},
-				.init = sof_sdw_cs42l43_dmic_init,
-			}
+				.dai_type = SOF_SDW_DAI_TYPE_JACK,
+				.dailink = {SDW_UNUSED_DAI_ID, SDW_JACK_IN_DAI_ID},
+			},
 		},
 		.dai_num = 3,
 	},
@@ -1409,7 +1409,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 			continue;
 
 		/* j reset after loop, adr_index only applies to first link */
-		for (; j < adr_link_next->num_adr; j++) {
+		for (; j < adr_link_next->num_adr && codec_dlc_index < codec_num; j++) {
 			const struct snd_soc_acpi_endpoint *endpoints;
 
 			endpoints = adr_link_next->adr_d[j].endpoints;

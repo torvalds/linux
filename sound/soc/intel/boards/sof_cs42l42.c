@@ -160,10 +160,6 @@ static const struct snd_soc_dapm_widget sof_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 };
 
-static const struct snd_soc_dapm_widget dmic_widgets[] = {
-	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
-};
-
 static const struct snd_soc_dapm_route sof_map[] = {
 	/* HP jack connectors - unknown if we have jack detection */
 	{"Headphone Jack", NULL, "HP"},
@@ -171,33 +167,6 @@ static const struct snd_soc_dapm_route sof_map[] = {
 	/* other jacks */
 	{"HS", NULL, "Headset Mic"},
 };
-
-static const struct snd_soc_dapm_route dmic_map[] = {
-	/* digital mics */
-	{"DMic", NULL, "SoC DMIC"},
-};
-
-static int dmic_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_card *card = rtd->card;
-	int ret;
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, dmic_widgets,
-					ARRAY_SIZE(dmic_widgets));
-	if (ret) {
-		dev_err(card->dev, "DMic widget addition failed: %d\n", ret);
-		/* Don't need to add routes if widget addition failed */
-		return ret;
-	}
-
-	ret = snd_soc_dapm_add_routes(&card->dapm, dmic_map,
-				      ARRAY_SIZE(dmic_map));
-
-	if (ret)
-		dev_err(card->dev, "DMic map addition failed: %d\n", ret);
-
-	return ret;
-}
 
 /* sof audio machine driver for cs42l42 codec */
 static struct snd_soc_card sof_audio_card_cs42l42 = {
@@ -217,13 +186,6 @@ static struct snd_soc_dai_link_component cs42l42_component[] = {
 	{
 		.name = "i2c-10134242:00",
 		.dai_name = "cs42l42",
-	}
-};
-
-static struct snd_soc_dai_link_component dmic_component[] = {
-	{
-		.name = "dmic-codec",
-		.dai_name = "dmic-hifi",
 	}
 };
 
@@ -322,47 +284,6 @@ devm_err:
 	return -ENOMEM;
 }
 
-static int create_dmic_dai_links(struct device *dev,
-				 struct snd_soc_dai_link *links,
-				 struct snd_soc_dai_link_component *cpus,
-				 int *id, int dmic_be_num)
-{
-	int i;
-
-	/* dmic */
-	if (dmic_be_num <= 0)
-		return 0;
-
-	/* at least we have dmic01 */
-	links[*id].name = "dmic01";
-	links[*id].cpus = &cpus[*id];
-	links[*id].cpus->dai_name = "DMIC01 Pin";
-	links[*id].init = dmic_init;
-	if (dmic_be_num > 1) {
-		/* set up 2 BE links at most */
-		links[*id + 1].name = "dmic16k";
-		links[*id + 1].cpus = &cpus[*id + 1];
-		links[*id + 1].cpus->dai_name = "DMIC16k Pin";
-		dmic_be_num = 2;
-	}
-
-	for (i = 0; i < dmic_be_num; i++) {
-		links[*id].id = *id;
-		links[*id].num_cpus = 1;
-		links[*id].codecs = dmic_component;
-		links[*id].num_codecs = ARRAY_SIZE(dmic_component);
-		links[*id].platforms = platform_component;
-		links[*id].num_platforms = ARRAY_SIZE(platform_component);
-		links[*id].ignore_suspend = 1;
-		links[*id].dpcm_capture = 1;
-		links[*id].no_pcm = 1;
-
-		(*id)++;
-	}
-
-	return 0;
-}
-
 static int create_bt_offload_dai_links(struct device *dev,
 				       struct snd_soc_dai_link *links,
 				       struct snd_soc_dai_link_component *cpus,
@@ -446,11 +367,34 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			}
 			break;
 		case LINK_DMIC:
-			ret = create_dmic_dai_links(dev, links, cpus, &id, dmic_be_num);
-			if (ret < 0) {
-				dev_err(dev, "fail to create dmic dai links, ret %d\n",
-					ret);
-				goto devm_err;
+			if (dmic_be_num > 0) {
+				/* at least we have dmic01 */
+				ret = sof_intel_board_set_dmic_link(dev,
+								    &links[id],
+								    id,
+								    SOF_DMIC_01);
+				if (ret) {
+					dev_err(dev, "fail to create dmic01 link, ret %d\n",
+						ret);
+					goto devm_err;
+				}
+
+				id++;
+			}
+
+			if (dmic_be_num > 1) {
+				/* set up 2 BE links at most */
+				ret = sof_intel_board_set_dmic_link(dev,
+								    &links[id],
+								    id,
+								    SOF_DMIC_16K);
+				if (ret) {
+					dev_err(dev, "fail to create dmic16k link, ret %d\n",
+						ret);
+					goto devm_err;
+				}
+
+				id++;
 			}
 			break;
 		case LINK_HDMI:
@@ -496,7 +440,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
 	struct sof_card_private *ctx;
-	int dmic_be_num;
 	int ret, ssp_bt, ssp_amp, ssp_codec;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
@@ -510,10 +453,10 @@ static int sof_audio_probe(struct platform_device *pdev)
 	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
 
 	if (soc_intel_is_glk()) {
-		dmic_be_num = 1;
+		ctx->dmic_be_num = 1;
 		ctx->hdmi_num = 3;
 	} else {
-		dmic_be_num = 2;
+		ctx->dmic_be_num = 2;
 		ctx->hdmi_num = (sof_cs42l42_quirk & SOF_CS42L42_NUM_HDMIDEV_MASK) >>
 			 SOF_CS42L42_NUM_HDMIDEV_SHIFT;
 		/* default number of HDMI DAI's */
@@ -535,7 +478,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	ssp_codec = sof_cs42l42_quirk & SOF_CS42L42_SSP_CODEC_MASK;
 
 	/* compute number of dai links */
-	sof_audio_card_cs42l42.num_links = 1 + dmic_be_num + ctx->hdmi_num;
+	sof_audio_card_cs42l42.num_links = 1 + ctx->dmic_be_num + ctx->hdmi_num;
 
 	if (ctx->amp_type != CODEC_NONE)
 		sof_audio_card_cs42l42.num_links++;
@@ -544,7 +487,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
 					      ssp_codec, ssp_amp, ssp_bt,
-					      dmic_be_num, ctx->hdmi_num,
+					      ctx->dmic_be_num, ctx->hdmi_num,
 					      ctx->hdmi.idisp_codec);
 	if (!dai_links)
 		return -ENOMEM;
