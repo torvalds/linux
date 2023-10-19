@@ -146,11 +146,13 @@ static void xhci_link_rings(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	xhci_link_segments(last, next, ring->type, chain_links);
 	ring->num_segs += num_segs;
 
-	if (ring->type != TYPE_EVENT && ring->enq_seg == ring->last_seg) {
-		ring->last_seg->trbs[TRBS_PER_SEGMENT-1].link.control
-			&= ~cpu_to_le32(LINK_TOGGLE);
-		last->trbs[TRBS_PER_SEGMENT-1].link.control
-			|= cpu_to_le32(LINK_TOGGLE);
+	if (ring->enq_seg == ring->last_seg) {
+		if (ring->type != TYPE_EVENT) {
+			ring->last_seg->trbs[TRBS_PER_SEGMENT-1].link.control
+				&= ~cpu_to_le32(LINK_TOGGLE);
+			last->trbs[TRBS_PER_SEGMENT-1].link.control
+				|= cpu_to_le32(LINK_TOGGLE);
+		}
 		ring->last_seg = last;
 	}
 
