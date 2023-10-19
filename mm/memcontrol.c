@@ -3138,38 +3138,6 @@ static struct obj_cgroup *current_objcg_update(void)
 	return objcg;
 }
 
-__always_inline struct obj_cgroup *get_obj_cgroup_from_current(void)
-{
-	struct mem_cgroup *memcg;
-	struct obj_cgroup *objcg;
-
-	if (in_task()) {
-		memcg = current->active_memcg;
-		if (unlikely(memcg))
-			goto from_memcg;
-
-		objcg = READ_ONCE(current->objcg);
-		if (unlikely((unsigned long)objcg & CURRENT_OBJCG_UPDATE_FLAG))
-			objcg = current_objcg_update();
-
-		if (objcg) {
-			obj_cgroup_get(objcg);
-			return objcg;
-		}
-	} else {
-		memcg = this_cpu_read(int_active_memcg);
-		if (unlikely(memcg))
-			goto from_memcg;
-	}
-	return NULL;
-
-from_memcg:
-	rcu_read_lock();
-	objcg = __get_obj_cgroup_from_memcg(memcg);
-	rcu_read_unlock();
-	return objcg;
-}
-
 __always_inline struct obj_cgroup *current_obj_cgroup(void)
 {
 	struct mem_cgroup *memcg;
