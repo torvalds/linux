@@ -471,8 +471,50 @@ static int stm32_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *pwm,
 	return ret;
 }
 
+static int stm32_pwm_get_state(struct pwm_chip *chip,
+			       struct pwm_device *pwm, struct pwm_state *state)
+{
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
+	int ch = pwm->hwpwm;
+	unsigned long rate;
+	u32 ccer, psc, arr, ccr;
+	u64 dty, prd;
+	int ret;
+
+	mutex_lock(&priv->lock);
+
+	ret = regmap_read(priv->regmap, TIM_CCER, &ccer);
+	if (ret)
+		goto out;
+
+	state->enabled = ccer & (TIM_CCER_CC1E << (ch * 4));
+	state->polarity = (ccer & (TIM_CCER_CC1P << (ch * 4))) ?
+			  PWM_POLARITY_INVERSED : PWM_POLARITY_NORMAL;
+	ret = regmap_read(priv->regmap, TIM_PSC, &psc);
+	if (ret)
+		goto out;
+	ret = regmap_read(priv->regmap, TIM_ARR, &arr);
+	if (ret)
+		goto out;
+	ret = regmap_read(priv->regmap, TIM_CCR1 + 4 * ch, &ccr);
+	if (ret)
+		goto out;
+
+	rate = clk_get_rate(priv->clk);
+
+	prd = (u64)NSEC_PER_SEC * (psc + 1) * (arr + 1);
+	state->period = DIV_ROUND_UP_ULL(prd, rate);
+	dty = (u64)NSEC_PER_SEC * (psc + 1) * ccr;
+	state->duty_cycle = DIV_ROUND_UP_ULL(dty, rate);
+
+out:
+	mutex_unlock(&priv->lock);
+	return ret;
+}
+
 static const struct pwm_ops stm32pwm_ops = {
 	.apply = stm32_pwm_apply_locked,
+	.get_state = stm32_pwm_get_state,
 	.capture = IS_ENABLED(CONFIG_DMA_ENGINE) ? stm32_pwm_capture : NULL,
 };
 
