@@ -9,8 +9,7 @@
         "plugins": {
             "requires": "nsPlugin"
         },
-        "setup": [
-        ],
+        "setup": [],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root hfsc",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
@@ -126,8 +125,7 @@
         "verifyCmd": "$TC qdisc show dev $DUMMY",
         "matchPattern": "qdisc hfsc 1: root refcnt [0-9]+",
         "matchCount": "0",
-        "teardown": [
-        ]
+        "teardown": []
     },
     {
         "id": "8436",
@@ -139,12 +137,34 @@
         "plugins": {
             "requires": "nsPlugin"
         },
-        "setup": [
-        ],
+        "setup": [],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root hfsc",
         "expExitCode": "0",
         "verifyCmd": "$TC class show dev $DUMMY",
         "matchPattern": "class hfsc 1: root",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
+    },
+    {
+        "id": "bef4",
+        "name": "HFSC rt inner class upgrade to sc",
+        "category": [
+            "qdisc",
+            "hfsc"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY handle 1: root hfsc default 1",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 hfsc rt rate 8"
+        ],
+        "cmdUnderTest": "$TC class add dev $DUMMY parent 1:1 classid 1:2 hfsc rt rate 8",
+        "expExitCode": "0",
+        "verifyCmd": "$TC class show dev $DUMMY",
+        "matchPattern": "class hfsc 1:1 parent 1: sc m1 0bit d 0us m2 8bit.*rt m1 0bit d 0us m2 8bit",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root"
