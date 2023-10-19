@@ -101,6 +101,8 @@ int __ip_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 
+	IP_INC_STATS(net, IPSTATS_MIB_OUTREQUESTS);
+
 	iph_set_totlen(iph, skb->len);
 	ip_send_check(iph);
 

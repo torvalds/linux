@@ -24,7 +24,7 @@ enum
 	IPSTATS_MIB_INOCTETS,			/* InOctets */
 	IPSTATS_MIB_INDELIVERS,			/* InDelivers */
 	IPSTATS_MIB_OUTFORWDATAGRAMS,		/* OutForwDatagrams */
-	IPSTATS_MIB_OUTPKTS,			/* OutRequests */
+	IPSTATS_MIB_OUTREQUESTS,		/* OutRequests */
 	IPSTATS_MIB_OUTOCTETS,			/* OutOctets */
 /* other fields */
 	IPSTATS_MIB_INHDRERRORS,		/* InHdrErrors */
@@ -57,6 +57,7 @@ enum
 	IPSTATS_MIB_ECT0PKTS,			/* InECT0Pkts */
 	IPSTATS_MIB_CEPKTS,			/* InCEPkts */
 	IPSTATS_MIB_REASM_OVERLAPS,		/* ReasmOverlaps */
+	IPSTATS_MIB_OUTPKTS,			/* OutTransmits */
 	__IPSTATS_MIB_MAX
 };
 

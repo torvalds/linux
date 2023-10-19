@@ -1789,7 +1789,7 @@ static void mld_sendpack(struct sk_buff *skb)
 
 	rcu_read_lock();
 	idev = __in6_dev_get(skb->dev);
-	IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUT, skb->len);
+	IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTREQUESTS);
 
 	payload_len = (skb_tail_pointer(skb) - skb_network_header(skb)) -
 		sizeof(*pip6);
@@ -2147,8 +2147,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	full_len = sizeof(struct ipv6hdr) + payload_len;
 
 	rcu_read_lock();
-	IP6_UPD_PO_STATS(net, __in6_dev_get(dev),
-		      IPSTATS_MIB_OUT, full_len);
+	IP6_INC_STATS(net, __in6_dev_get(dev), IPSTATS_MIB_OUTREQUESTS);
 	rcu_read_unlock();
 
 	skb = sock_alloc_send_skb(sk, hlen + tlen + full_len, 1, &err);
