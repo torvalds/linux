@@ -1076,8 +1076,6 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops = {
 
 #define MLXSW_SP_FID_8021Q_MAX (VLAN_N_VID - 2)
 #define MLXSW_SP_FID_RFID_MAX (11 * 1024)
-#define MLXSW_SP_FID_8021Q_PGT_BASE 0
-#define MLXSW_SP_FID_8021D_PGT_BASE (3 * MLXSW_SP_FID_8021Q_MAX)
 
 static const struct mlxsw_sp_flood_table mlxsw_sp_fid_8021d_flood_tables[] = {
 	{
@@ -1442,7 +1440,6 @@ static const struct mlxsw_sp_fid_family mlxsw_sp1_fid_8021q_family = {
 	.ops			= &mlxsw_sp_fid_8021q_ops,
 	.flood_rsp              = false,
 	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_0,
-	.pgt_base		= MLXSW_SP_FID_8021Q_PGT_BASE,
 	.smpe_index_valid	= false,
 };
 
@@ -1456,7 +1453,6 @@ static const struct mlxsw_sp_fid_family mlxsw_sp1_fid_8021d_family = {
 	.rif_type		= MLXSW_SP_RIF_TYPE_FID,
 	.ops			= &mlxsw_sp_fid_8021d_ops,
 	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_1,
-	.pgt_base		= MLXSW_SP_FID_8021D_PGT_BASE,
 	.smpe_index_valid       = false,
 };
 
@@ -1498,7 +1494,6 @@ static const struct mlxsw_sp_fid_family mlxsw_sp2_fid_8021q_family = {
 	.ops			= &mlxsw_sp_fid_8021q_ops,
 	.flood_rsp              = false,
 	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_0,
-	.pgt_base		= MLXSW_SP_FID_8021Q_PGT_BASE,
 	.smpe_index_valid	= true,
 };
 
@@ -1512,7 +1507,6 @@ static const struct mlxsw_sp_fid_family mlxsw_sp2_fid_8021d_family = {
 	.rif_type		= MLXSW_SP_RIF_TYPE_FID,
 	.ops			= &mlxsw_sp_fid_8021d_ops,
 	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_1,
-	.pgt_base		= MLXSW_SP_FID_8021D_PGT_BASE,
 	.smpe_index_valid       = true,
 };
 
@@ -1697,7 +1691,7 @@ mlxsw_sp_fid_flood_tables_init(struct mlxsw_sp_fid_family *fid_family)
 		return 0;
 
 	pgt_size = mlxsw_sp_fid_family_pgt_size(fid_family);
-	err = mlxsw_sp_pgt_mid_alloc_range(mlxsw_sp, fid_family->pgt_base,
+	err = mlxsw_sp_pgt_mid_alloc_range(mlxsw_sp, &fid_family->pgt_base,
 					   pgt_size);
 	if (err)
 		return err;

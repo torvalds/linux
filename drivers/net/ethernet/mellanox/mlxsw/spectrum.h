@@ -1480,7 +1480,7 @@ int mlxsw_sp_policer_resources_register(struct mlxsw_core *mlxsw_core);
 /* spectrum_pgt.c */
 int mlxsw_sp_pgt_mid_alloc(struct mlxsw_sp *mlxsw_sp, u16 *p_mid);
 void mlxsw_sp_pgt_mid_free(struct mlxsw_sp *mlxsw_sp, u16 mid_base);
-int mlxsw_sp_pgt_mid_alloc_range(struct mlxsw_sp *mlxsw_sp, u16 mid_base,
+int mlxsw_sp_pgt_mid_alloc_range(struct mlxsw_sp *mlxsw_sp, u16 *mid_base,
 				 u16 count);
 void mlxsw_sp_pgt_mid_free_range(struct mlxsw_sp *mlxsw_sp, u16 mid_base,
 				 u16 count);
