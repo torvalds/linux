@@ -102,6 +102,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-dual-camera.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-image-reverse.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-linux-amp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-pdm-mic-array.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-evb2-ddr4-v10-sii9022-bt1120-to-hdmi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3562-iotest-lp3-v10.dtb

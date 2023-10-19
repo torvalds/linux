@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3562-evb2-ddr4-v10.dtsi"
+#include "rk3562-linux.dtsi"
+#include "rk3562-rk809.dtsi"
+#include "rk3562-evb2-cam.dtsi"
+#include "rk3562-amp.dtsi"
+
+/ {
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x02000000 0x0 0x04b80000>,
+		      <0x0 0x0a200000 0x0 0x75e00000>;
+	};
+};
+
+&arm_pmu {
+	interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>;
+};
+
+/delete-node/ &cpu3;
+
+&sdmmc0 {
+	status = "disabled";
+};
