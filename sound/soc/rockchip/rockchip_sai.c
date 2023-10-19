@@ -881,39 +881,39 @@ static const char * const tpaths_text[] = {
 	"From PATH0", "From PATH1", "From PATH2", "From PATH3" };
 
 /* TXCR */
-static SOC_ENUM_SINGLE_DECL(tsft_enum, SAI_TXCR, 22, edge_shift_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused tsft_enum, SAI_TXCR, 22, edge_shift_text);
 static const struct soc_enum tx_lanes_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(tx_lanes_text), tx_lanes_text);
-static SOC_ENUM_SINGLE_DECL(tsjm_enum, SAI_TXCR, 19, sjm_text);
-static SOC_ENUM_SINGLE_DECL(tfbm_enum, SAI_TXCR, 18, fbm_text);
-static SOC_ENUM_SINGLE_DECL(tvdj_enum, SAI_TXCR, 10, vdj_text);
-static SOC_ENUM_SINGLE_DECL(tsbw_enum, SAI_TXCR,  5, sbw_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused tsjm_enum, SAI_TXCR, 19, sjm_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused tfbm_enum, SAI_TXCR, 18, fbm_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused tvdj_enum, SAI_TXCR, 10, vdj_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused tsbw_enum, SAI_TXCR,  5, sbw_text);
 
 /* FSCR */
-static SOC_ENUM_SINGLE_DECL(edge_enum, SAI_FSCR, 24, edge_text);
-static const struct soc_enum fpw_enum =
+static SOC_ENUM_SINGLE_DECL(__maybe_unused edge_enum, SAI_FSCR, 24, edge_text);
+static const struct soc_enum __maybe_unused fpw_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(fpw_text), fpw_text);
-static const struct soc_enum fw_ratio_enum =
+static const struct soc_enum __maybe_unused fw_ratio_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(fw_ratio_text), fw_ratio_text);
 
 /* RXCR */
-static SOC_ENUM_SINGLE_DECL(rsft_enum, SAI_RXCR, 22, edge_shift_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused rsft_enum, SAI_RXCR, 22, edge_shift_text);
 static const struct soc_enum rx_lanes_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(rx_lanes_text), rx_lanes_text);
-static SOC_ENUM_SINGLE_DECL(rsjm_enum, SAI_RXCR, 19, sjm_text);
-static SOC_ENUM_SINGLE_DECL(rfbm_enum, SAI_RXCR, 18, fbm_text);
-static SOC_ENUM_SINGLE_DECL(rvdj_enum, SAI_RXCR, 10, vdj_text);
-static SOC_ENUM_SINGLE_DECL(rsbw_enum, SAI_RXCR,  5, sbw_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused rsjm_enum, SAI_RXCR, 19, sjm_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused rfbm_enum, SAI_RXCR, 18, fbm_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused rvdj_enum, SAI_RXCR, 10, vdj_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused rsbw_enum, SAI_RXCR,  5, sbw_text);
 
 /* MONO_CR */
 static SOC_ENUM_SINGLE_DECL(rmono_switch, SAI_MONO_CR, 1, mono_text);
 static SOC_ENUM_SINGLE_DECL(tmono_switch, SAI_MONO_CR, 0, mono_text);
 
 /* CKR */
-static const struct soc_enum mss_switch =
+static const struct soc_enum __maybe_unused mss_switch =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(mss_text), mss_text);
-static SOC_ENUM_SINGLE_DECL(sp_switch,  SAI_CKR, 1, ckp_text);
-static SOC_ENUM_SINGLE_DECL(fp_switch,  SAI_CKR, 0, ckp_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused sp_switch,  SAI_CKR, 1, ckp_text);
+static SOC_ENUM_SINGLE_DECL(__maybe_unused fp_switch,  SAI_CKR, 0, ckp_text);
 
 /* PATH_SEL */
 static SOC_ENUM_SINGLE_DECL(lp3_enum, SAI_PATH_SEL, 28, lpx_text);
