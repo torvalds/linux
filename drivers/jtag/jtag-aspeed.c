@@ -218,6 +218,7 @@ struct jtag_low_level_functions {
 			u32 *data);
 	int (*xfer_hw)(struct aspeed_jtag *aspeed_jtag, struct jtag_xfer *xfer,
 		       u32 *data);
+	int (*trst_set)(struct aspeed_jtag *aspeed_jtag, u32 active);
 	void (*xfer_hw_fifo_delay)(void);
 	void (*xfer_sw_delay)(struct aspeed_jtag *aspeed_jtag);
 	irqreturn_t (*jtag_interrupt)(s32 this_irq, void *dev_id);
@@ -1465,13 +1466,31 @@ static int aspeed_jtag_deinit(struct platform_device *pdev,
 	return 0;
 }
 
+static int aspeed_jtag_trst_set_hw1(struct aspeed_jtag *aspeed_jtag, u32 active)
+{
+	aspeed_jtag_write(aspeed_jtag, active ? 0 : ASPEED_JTAG_EC_TRSTn_HIGH,
+			  ASPEED_JTAG_EC);
+	return 0;
+}
+
+static int aspeed_jtag_trst_set_hw2(struct aspeed_jtag *aspeed_jtag, u32 active)
+{
+	u32 reg_val;
+
+	reg_val = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_GBLCTRL);
+	if (active)
+		reg_val |= ASPEED_JTAG_GBLCTRL_TRST;
+	else
+		reg_val &= ~ASPEED_JTAG_GBLCTRL_TRST;
+	aspeed_jtag_write(aspeed_jtag, reg_val, ASPEED_JTAG_GBLCTRL);
+	return 0;
+}
+
 static int aspeed_jtag_trst_set(struct jtag *jtag, u32 active)
 {
 	struct aspeed_jtag *aspeed_jtag = jtag_priv(jtag);
 
-	aspeed_jtag_write(aspeed_jtag, active ? 0 : ASPEED_JTAG_EC_TRSTn_HIGH,
-			  ASPEED_JTAG_EC);
-	return 0;
+	return aspeed_jtag->llops->trst_set(aspeed_jtag, active);
 }
 
 static const struct jtag_ops aspeed_jtag_ops = {
@@ -1515,7 +1534,8 @@ static const struct jtag_low_level_functions ast25xx_llops = {
 	.xfer_hw = aspeed_jtag_xfer_hw,
 	.xfer_hw_fifo_delay = NULL,
 	.xfer_sw_delay = NULL,
-	.jtag_interrupt = aspeed_jtag_interrupt
+	.jtag_interrupt = aspeed_jtag_interrupt,
+	.trst_set = aspeed_jtag_trst_set_hw1
 };
 
 static const struct aspeed_jtag_functions ast25xx_functions = {
@@ -1533,7 +1553,8 @@ static const struct jtag_low_level_functions ast26xx_llops = {
 	.xfer_hw = aspeed_jtag_xfer_hw2,
 	.xfer_hw_fifo_delay = aspeed_jtag_xfer_hw_fifo_delay_26xx,
 	.xfer_sw_delay = aspeed_jtag_sw_delay_26xx,
-	.jtag_interrupt = aspeed_jtag_interrupt_hw2
+	.jtag_interrupt = aspeed_jtag_interrupt_hw2,
+	.trst_set = aspeed_jtag_trst_set_hw2
 #else
 	.master_enable = aspeed_jtag_master,
 	.output_disable = aspeed_jtag_output_disable,
@@ -1543,7 +1564,8 @@ static const struct jtag_low_level_functions ast26xx_llops = {
 	.xfer_hw = aspeed_jtag_xfer_hw,
 	.xfer_hw_fifo_delay = aspeed_jtag_xfer_hw_fifo_delay_26xx,
 	.xfer_sw_delay = aspeed_jtag_sw_delay_26xx,
-	.jtag_interrupt = aspeed_jtag_interrupt
+	.jtag_interrupt = aspeed_jtag_interrupt,
+	.trst_set = aspeed_jtag_trst_set_hw1
 #endif
 };
 
