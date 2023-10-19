@@ -518,55 +518,44 @@ DEFINE_EVENT(xe_vm, xe_vm_rebind_worker_exit,
 	     TP_ARGS(vm)
 );
 
-TRACE_EVENT(xe_guc_ct_h2g_flow_control,
-	    TP_PROTO(u32 _head, u32 _tail, u32 size, u32 space, u32 len),
-	    TP_ARGS(_head, _tail, size, space, len),
 /* GuC */
+DECLARE_EVENT_CLASS(xe_guc_ct_flow_control,
+		    TP_PROTO(u32 _head, u32 _tail, u32 size, u32 space, u32 len),
+		    TP_ARGS(_head, _tail, size, space, len),
 
-	    TP_STRUCT__entry(
-		     __field(u32, _head)
-		     __field(u32, _tail)
-		     __field(u32, size)
-		     __field(u32, space)
-		     __field(u32, len)
-		     ),
+		    TP_STRUCT__entry(
+			     __field(u32, _head)
+			     __field(u32, _tail)
+			     __field(u32, size)
+			     __field(u32, space)
+			     __field(u32, len)
+			     ),
 
-	    TP_fast_assign(
-		   __entry->_head = _head;
-		   __entry->_tail = _tail;
-		   __entry->size = size;
-		   __entry->space = space;
-		   __entry->len = len;
-		   ),
+		    TP_fast_assign(
+			   __entry->_head = _head;
+			   __entry->_tail = _tail;
+			   __entry->size = size;
+			   __entry->space = space;
+			   __entry->len = len;
+			   ),
 
-	    TP_printk("head=%u, tail=%u, size=%u, space=%u, len=%u",
-		      __entry->_head, __entry->_tail, __entry->size,
-		      __entry->space, __entry->len)
+		    TP_printk("h2g flow control: head=%u, tail=%u, size=%u, space=%u, len=%u",
+			      __entry->_head, __entry->_tail, __entry->size,
+			      __entry->space, __entry->len)
 );
 
-TRACE_EVENT(xe_guc_ct_g2h_flow_control,
-	    TP_PROTO(u32 _head, u32 _tail, u32 size, u32 space, u32 len),
-	    TP_ARGS(_head, _tail, size, space, len),
+DEFINE_EVENT(xe_guc_ct_flow_control, xe_guc_ct_h2g_flow_control,
+	     TP_PROTO(u32 _head, u32 _tail, u32 size, u32 space, u32 len),
+	     TP_ARGS(_head, _tail, size, space, len)
+);
 
-	    TP_STRUCT__entry(
-		     __field(u32, _head)
-		     __field(u32, _tail)
-		     __field(u32, size)
-		     __field(u32, space)
-		     __field(u32, len)
-		     ),
+DEFINE_EVENT_PRINT(xe_guc_ct_flow_control, xe_guc_ct_g2h_flow_control,
+		   TP_PROTO(u32 _head, u32 _tail, u32 size, u32 space, u32 len),
+		   TP_ARGS(_head, _tail, size, space, len),
 
-	    TP_fast_assign(
-		   __entry->_head = _head;
-		   __entry->_tail = _tail;
-		   __entry->size = size;
-		   __entry->space = space;
-		   __entry->len = len;
-		   ),
-
-	    TP_printk("head=%u, tail=%u, size=%u, space=%u, len=%u",
-		      __entry->_head, __entry->_tail, __entry->size,
-		      __entry->space, __entry->len)
+		   TP_printk("g2h flow control: head=%u, tail=%u, size=%u, space=%u, len=%u",
+			     __entry->_head, __entry->_tail, __entry->size,
+			     __entry->space, __entry->len)
 );
 
 DECLARE_EVENT_CLASS(xe_guc_ctb,
