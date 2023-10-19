@@ -1117,8 +1117,8 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 		}
 
 		if (msg->flags & I2C_M_RECV_LEN) {
-			msg->len = msg->buf[0] + ((msg->flags & I2C_CLIENT_PEC) ? 2 : 1);
-			msg->len = min_t(unsigned int, msg->len, I2C_SMBUS_BLOCK_MAX);
+			msg->len = min_t(unsigned int, msg->buf[0], I2C_SMBUS_BLOCK_MAX);
+			msg->len += ((msg->flags & I2C_CLIENT_PEC) ? 2 : 1);
 			msg->flags &= ~I2C_M_RECV_LEN;
 		}
 		i2c_bus->master_xfer_cnt += xfer_len;
