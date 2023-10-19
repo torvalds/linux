@@ -590,8 +590,7 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst->alg.base.cra_blocksize = BLOCKCIPHER_BLOCK_SIZE;
 	inst->alg.base.cra_ctxsize = sizeof(struct adiantum_tfm_ctx);
-	inst->alg.base.cra_alignmask = streamcipher_alg->base.cra_alignmask |
-				       hash_alg->base.cra_alignmask;
+	inst->alg.base.cra_alignmask = streamcipher_alg->base.cra_alignmask;
 	/*
 	 * The block cipher is only invoked once per message, so for long
 	 * messages (e.g. sectors for disk encryption) its performance doesn't
