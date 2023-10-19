@@ -224,9 +224,6 @@ struct btrfs_root {
 
 	struct list_head root_list;
 
-	spinlock_t log_extents_lock[2];
-	struct list_head logged_list[2];
-
 	spinlock_t inode_lock;
 	/* red-black tree that keeps track of in-memory inodes */
 	struct rb_root inode_tree;
