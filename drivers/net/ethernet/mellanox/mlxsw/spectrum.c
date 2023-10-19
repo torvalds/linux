@@ -3597,6 +3597,7 @@ static const struct mlxsw_config_profile mlxsw_sp2_config_profile = {
 	},
 	.used_cqe_time_stamp_type	= 1,
 	.cqe_time_stamp_type		= MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
+	.lag_mode_prefer_sw		= true,
 };
 
 /* Reduce number of LAGs from full capacity (256) to the maximum supported LAGs
@@ -3624,6 +3625,7 @@ static const struct mlxsw_config_profile mlxsw_sp4_config_profile = {
 	},
 	.used_cqe_time_stamp_type	= 1,
 	.cqe_time_stamp_type		= MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
+	.lag_mode_prefer_sw		= true,
 };
 
 static void
