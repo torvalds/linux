@@ -38,18 +38,9 @@ static const struct mlxsw_reg_info mlxsw_reg_##_name = {		\
 
 MLXSW_REG_DEFINE(sgcr, MLXSW_REG_SGCR_ID, MLXSW_REG_SGCR_LEN);
 
-/* reg_sgcr_llb
- * Link Local Broadcast (Default=0)
- * When set, all Link Local packets (224.0.0.X) will be treated as broadcast
- * packets and ignore the IGMP snooping entries.
- * Access: RW
- */
-MLXSW_ITEM32(reg, sgcr, llb, 0x04, 0, 1);
-
-static inline void mlxsw_reg_sgcr_pack(char *payload, bool llb)
+static inline void mlxsw_reg_sgcr_pack(char *payload)
 {
 	MLXSW_REG_ZERO(sgcr, payload);
-	mlxsw_reg_sgcr_llb_set(payload, !!llb);
 }
 
 /* SPAD - Switch Physical Address Register
