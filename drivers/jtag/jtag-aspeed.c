@@ -373,23 +373,22 @@ static inline void aspeed_jtag_master_26xx(struct aspeed_jtag *aspeed_jtag)
 	if (aspeed_jtag->mode & JTAG_XFER_HW_MODE) {
 		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_CTRL);
 		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);
-		aspeed_jtag_write(aspeed_jtag,
-				  reg_val | ASPEED_JTAG_GBLCTRL_ENG_MODE_EN |
-					  ASPEED_JTAG_GBLCTRL_ENG_OUT_EN |
-					  ASPEED_JTAG_GBLCTRL_TRST,
-				  ASPEED_JTAG_GBLCTRL);
 	} else {
-		aspeed_jtag_write(aspeed_jtag, reg_val, ASPEED_JTAG_GBLCTRL);
-		aspeed_jtag_write(aspeed_jtag,
-				  ASPEED_JTAG_CTL_ENG_EN |
-					  ASPEED_JTAG_CTL_ENG_OUT_EN,
-				  ASPEED_JTAG_CTRL);
-
 		aspeed_jtag_write(aspeed_jtag,
 				  ASPEED_JTAG_SW_MODE_EN |
 					  ASPEED_JTAG_SW_MODE_TDIO,
 				  ASPEED_JTAG_SW);
 	}
+	/*
+	 * For the software mode, it's still necessary to enable out_en and
+	 * select the out_en in the hw2 register to maintain control of the
+	 * TRST bit same as hw2.
+	 */
+	aspeed_jtag_write(aspeed_jtag,
+			  reg_val | ASPEED_JTAG_GBLCTRL_ENG_MODE_EN |
+				  ASPEED_JTAG_GBLCTRL_ENG_OUT_EN |
+				  ASPEED_JTAG_GBLCTRL_TRST,
+			  ASPEED_JTAG_GBLCTRL);
 	aspeed_jtag_write(aspeed_jtag,
 			  ASPEED_JTAG_INTCTRL_SHCPL_IRQ_EN |
 				  ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT,
