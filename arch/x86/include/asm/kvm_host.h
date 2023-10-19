@@ -1284,7 +1284,6 @@ struct kvm_arch {
 	 */
 	spinlock_t mmu_unsync_pages_lock;
 
-	struct list_head assigned_dev_head;
 	struct iommu_domain *iommu_domain;
 	bool iommu_noncoherent;
 #define __KVM_HAVE_ARCH_NONCOHERENT_DMA
