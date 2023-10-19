@@ -3093,10 +3093,10 @@ static int msm_geni_serial_handle_dma_rx(struct uart_port *uport, bool drop_rx)
 		while (rx_bytes) {
 			/*
 			 * Allocation in tty layer can fail due to higher order page
-			 * request, hence try copying in chunks of 512 bytes which will
+			 * request, hence try copying in chunks of 256 bytes which will
 			 * use zero order pages.
 			 */
-			cnt = rx_bytes < 512 ? rx_bytes : 512;
+			cnt = rx_bytes < 256 ? rx_bytes : 256;
 			UART_LOG_DBG(msm_port->ipc_log_rx, uport->dev,
 				     "%s: To copy %d, try copying %d\n", __func__, rx_bytes, cnt);
 			ret = tty_insert_flip_string(tport, &rx_buf[offset], cnt);
