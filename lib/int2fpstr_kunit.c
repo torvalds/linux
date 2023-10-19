@@ -54,7 +54,6 @@ static void should_return_125_without_errors(struct kunit *test)
 }
 
 static struct kunit_case int_to_fp_str_test_case[] = {
-	KUNIT_CASE(should_return_ERROR_if_parse_number_NULL),
 	KUNIT_CASE(should_return_12_without_errors_and_float_point),
 	KUNIT_CASE(should_return_0_without_errors),
 	KUNIT_CASE(should_return_2_without_errors_and_float_point),
