@@ -19,6 +19,9 @@
 
 #ifdef CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 int hugetlb_vmemmap_restore(const struct hstate *h, struct page *head);
+long hugetlb_vmemmap_restore_folios(const struct hstate *h,
+					struct list_head *folio_list,
+					struct list_head *non_hvo_folios);
 void hugetlb_vmemmap_optimize(const struct hstate *h, struct page *head);
 void hugetlb_vmemmap_optimize_folios(struct hstate *h, struct list_head *folio_list);
 
@@ -42,6 +45,14 @@ static inline unsigned int hugetlb_vmemmap_optimizable_size(const struct hstate 
 #else
 static inline int hugetlb_vmemmap_restore(const struct hstate *h, struct page *head)
 {
+	return 0;
+}
+
+static long hugetlb_vmemmap_restore_folios(const struct hstate *h,
+					struct list_head *folio_list,
+					struct list_head *non_hvo_folios)
+{
+	list_splice_init(folio_list, non_hvo_folios);
 	return 0;
 }
 
