@@ -3861,14 +3861,6 @@ static void rt2800_config_channel_rf7620(struct rt2x00_dev *rt2x00dev,
 		rfcsr |= tx_agc_fc;
 		rt2800_rfcsr_write_bank(rt2x00dev, 7, 59, rfcsr);
 	}
-
-	if (conf_is_ht40(conf)) {
-		rt2800_bbp_glrt_write(rt2x00dev, 141, 0x10);
-		rt2800_bbp_glrt_write(rt2x00dev, 157, 0x2f);
-	} else {
-		rt2800_bbp_glrt_write(rt2x00dev, 141, 0x1a);
-		rt2800_bbp_glrt_write(rt2x00dev, 157, 0x40);
-	}
 }
 
 static void rt2800_config_alc_rt6352(struct rt2x00_dev *rt2x00dev,
@@ -4437,32 +4429,46 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		usleep_range(1000, 1500);
 	}
 
-	if (rt2x00_rt(rt2x00dev, RT5592) || rt2x00_rt(rt2x00dev, RT6352)) {
-		reg = 0x10;
-		if (!conf_is_ht40(conf)) {
-			if (rt2x00_rt(rt2x00dev, RT6352) &&
-			    rt2x00_has_cap_external_lna_bg(rt2x00dev)) {
-				reg |= 0x5;
-			} else {
-				reg |= 0xa;
-			}
-		}
-		rt2800_bbp_write(rt2x00dev, 195, 141);
-		rt2800_bbp_write(rt2x00dev, 196, reg);
+	if (rt2x00_rt(rt2x00dev, RT5592)) {
+		bbp = conf_is_ht40(conf) ? 0x10 : 0x1a;
+		rt2800_bbp_glrt_write(rt2x00dev, 141, bbp);
 
-		/* AGC init.
-		 * Despite the vendor driver using different values here for
-		 * RT6352 chip, we use 0x1c for now. This may have to be changed
-		 * once TSSI got implemented.
-		 */
-		reg = (rf->channel <= 14 ? 0x1c : 0x24) + 2*rt2x00dev->lna_gain;
-		rt2800_bbp_write_with_rx_chain(rt2x00dev, 66, reg);
+		bbp = (rf->channel <= 14 ? 0x1c : 0x24) + 2 * rt2x00dev->lna_gain;
+		rt2800_bbp_write_with_rx_chain(rt2x00dev, 66, bbp);
 
-		if (rt2x00_rt(rt2x00dev, RT5592))
-			rt2800_iq_calibrate(rt2x00dev, rf->channel);
+		rt2800_iq_calibrate(rt2x00dev, rf->channel);
 	}
 
 	if (rt2x00_rt(rt2x00dev, RT6352)) {
+		/* BBP for GLRT BW */
+		bbp = conf_is_ht40(conf) ?
+		      0x10 : rt2x00_has_cap_external_lna_bg(rt2x00dev) ?
+		      0x15 : 0x1a;
+		rt2800_bbp_glrt_write(rt2x00dev, 141, bbp);
+
+		bbp = conf_is_ht40(conf) ? 0x2f : 0x40;
+		rt2800_bbp_glrt_write(rt2x00dev, 157, bbp);
+
+		if (rt2x00dev->default_ant.rx_chain_num == 1) {
+			rt2800_bbp_write(rt2x00dev, 91, 0x07);
+			rt2800_bbp_write(rt2x00dev, 95, 0x1a);
+			rt2800_bbp_glrt_write(rt2x00dev, 128, 0xa0);
+			rt2800_bbp_glrt_write(rt2x00dev, 170, 0x12);
+			rt2800_bbp_glrt_write(rt2x00dev, 171, 0x10);
+		} else {
+			rt2800_bbp_write(rt2x00dev, 91, 0x06);
+			rt2800_bbp_write(rt2x00dev, 95, 0x9a);
+			rt2800_bbp_glrt_write(rt2x00dev, 128, 0xe0);
+			rt2800_bbp_glrt_write(rt2x00dev, 170, 0x30);
+			rt2800_bbp_glrt_write(rt2x00dev, 171, 0x30);
+		}
+
+		/* AGC init */
+		bbp = rf->channel <= 14 ? 0x04 + 2 * rt2x00dev->lna_gain : 0;
+		rt2800_bbp_write_with_rx_chain(rt2x00dev, 66, bbp);
+
+		usleep_range(1000, 1500);
+
 		if (test_bit(CAPABILITY_EXTERNAL_PA_TX0,
 			     &rt2x00dev->cap_flags)) {
 			reg = rt2800_register_read(rt2x00dev, RF_CONTROL3);
@@ -5608,26 +5614,6 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, TX_PIN_CFG, tx_pin);
 
 	if (rt2x00_rt(rt2x00dev, RT6352)) {
-		if (rt2x00dev->default_ant.rx_chain_num == 1) {
-			rt2800_bbp_write(rt2x00dev, 91, 0x07);
-			rt2800_bbp_write(rt2x00dev, 95, 0x1A);
-			rt2800_bbp_write(rt2x00dev, 195, 128);
-			rt2800_bbp_write(rt2x00dev, 196, 0xA0);
-			rt2800_bbp_write(rt2x00dev, 195, 170);
-			rt2800_bbp_write(rt2x00dev, 196, 0x12);
-			rt2800_bbp_write(rt2x00dev, 195, 171);
-			rt2800_bbp_write(rt2x00dev, 196, 0x10);
-		} else {
-			rt2800_bbp_write(rt2x00dev, 91, 0x06);
-			rt2800_bbp_write(rt2x00dev, 95, 0x9A);
-			rt2800_bbp_write(rt2x00dev, 195, 128);
-			rt2800_bbp_write(rt2x00dev, 196, 0xE0);
-			rt2800_bbp_write(rt2x00dev, 195, 170);
-			rt2800_bbp_write(rt2x00dev, 196, 0x30);
-			rt2800_bbp_write(rt2x00dev, 195, 171);
-			rt2800_bbp_write(rt2x00dev, 196, 0x30);
-		}
-
 		if (rt2x00_has_cap_external_lna_bg(rt2x00dev)) {
 			rt2800_bbp_write(rt2x00dev, 75, 0x68);
 			rt2800_bbp_write(rt2x00dev, 76, 0x4C);
@@ -5635,13 +5621,6 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 			rt2800_bbp_write(rt2x00dev, 80, 0x0C);
 			rt2800_bbp_write(rt2x00dev, 82, 0xB6);
 		}
-
-		/* On 11A, We should delay and wait RF/BBP to be stable
-		 * and the appropriate time should be 1000 micro seconds
-		 * 2005/06/05 - On 11G, we also need this delay time.
-		 * Otherwise it's difficult to pass the WHQL.
-		 */
-		usleep_range(1000, 1500);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2800_vco_calibration);
