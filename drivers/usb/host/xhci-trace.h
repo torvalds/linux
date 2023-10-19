@@ -509,14 +509,14 @@ DEFINE_EVENT(xhci_log_ring, xhci_inc_deq,
 );
 
 DECLARE_EVENT_CLASS(xhci_log_portsc,
-		    TP_PROTO(u32 portnum, u32 portsc),
-		    TP_ARGS(portnum, portsc),
+		    TP_PROTO(struct xhci_port *port, u32 portsc),
+		    TP_ARGS(port, portsc),
 		    TP_STRUCT__entry(
 				     __field(u32, portnum)
 				     __field(u32, portsc)
 				     ),
 		    TP_fast_assign(
-				   __entry->portnum = portnum;
+				   __entry->portnum = port->hcd_portnum;
 				   __entry->portsc = portsc;
 				   ),
 		    TP_printk("port-%d: %s",
@@ -526,18 +526,18 @@ DECLARE_EVENT_CLASS(xhci_log_portsc,
 );
 
 DEFINE_EVENT(xhci_log_portsc, xhci_handle_port_status,
-	     TP_PROTO(u32 portnum, u32 portsc),
-	     TP_ARGS(portnum, portsc)
+	     TP_PROTO(struct xhci_port *port, u32 portsc),
+	     TP_ARGS(port, portsc)
 );
 
 DEFINE_EVENT(xhci_log_portsc, xhci_get_port_status,
-	     TP_PROTO(u32 portnum, u32 portsc),
-	     TP_ARGS(portnum, portsc)
+	     TP_PROTO(struct xhci_port *port, u32 portsc),
+	     TP_ARGS(port, portsc)
 );
 
 DEFINE_EVENT(xhci_log_portsc, xhci_hub_status_data,
-	     TP_PROTO(u32 portnum, u32 portsc),
-	     TP_ARGS(portnum, portsc)
+	     TP_PROTO(struct xhci_port *port, u32 portsc),
+	     TP_ARGS(port, portsc)
 );
 
 DECLARE_EVENT_CLASS(xhci_log_doorbell,
