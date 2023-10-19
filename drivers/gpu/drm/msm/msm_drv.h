@@ -389,7 +389,6 @@ int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
 void msm_dp_irq_postinstall(struct msm_dp *dp_display);
 void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp_display);
 
-void msm_dp_debugfs_init(struct msm_dp *dp_display, struct drm_minor *minor);
 bool msm_dp_wide_bus_available(const struct msm_dp *dp_display);
 
 #else
@@ -412,11 +411,6 @@ static inline void msm_dp_irq_postinstall(struct msm_dp *dp_display)
 }
 
 static inline void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp_display)
-{
-}
-
-static inline void msm_dp_debugfs_init(struct msm_dp *dp_display,
-		struct drm_minor *minor)
 {
 }
 

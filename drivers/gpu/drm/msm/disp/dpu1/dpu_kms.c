@@ -274,9 +274,6 @@ static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
 	void *p = dpu_hw_util_get_log_mask_ptr();
 	struct dentry *entry;
-	struct drm_device *dev;
-	struct msm_drm_private *priv;
-	int i;
 
 	if (!p)
 		return -EINVAL;
@@ -284,9 +281,6 @@ static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 	/* Only create a set of debugfs for the primary node, ignore render nodes */
 	if (minor->type != DRM_MINOR_PRIMARY)
 		return 0;
-
-	dev = dpu_kms->dev;
-	priv = dev->dev_private;
 
 	entry = debugfs_create_dir("debug", minor->debugfs_root);
 
@@ -296,11 +290,6 @@ static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 	dpu_debugfs_vbif_init(dpu_kms, entry);
 	dpu_debugfs_core_irq_init(dpu_kms, entry);
 	dpu_debugfs_sspp_init(dpu_kms, entry);
-
-	for (i = 0; i < ARRAY_SIZE(priv->dp); i++) {
-		if (priv->dp[i])
-			msm_dp_debugfs_init(priv->dp[i], minor);
-	}
 
 	return dpu_core_perf_debugfs_init(dpu_kms, entry);
 }

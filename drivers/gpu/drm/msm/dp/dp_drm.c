@@ -90,6 +90,13 @@ static int dp_bridge_get_modes(struct drm_bridge *bridge, struct drm_connector *
 	return rc;
 }
 
+static void dp_bridge_debugfs_init(struct drm_bridge *bridge, struct dentry *root)
+{
+	struct msm_dp *dp = to_dp_bridge(bridge)->dp_display;
+
+	dp_display_debugfs_init(dp, root, false);
+}
+
 static const struct drm_bridge_funcs dp_bridge_ops = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state   = drm_atomic_helper_bridge_destroy_state,
@@ -105,6 +112,7 @@ static const struct drm_bridge_funcs dp_bridge_ops = {
 	.hpd_enable   = dp_bridge_hpd_enable,
 	.hpd_disable  = dp_bridge_hpd_disable,
 	.hpd_notify   = dp_bridge_hpd_notify,
+	.debugfs_init = dp_bridge_debugfs_init,
 };
 
 static int edp_bridge_atomic_check(struct drm_bridge *drm_bridge,
@@ -260,6 +268,13 @@ static enum drm_mode_status edp_bridge_mode_valid(struct drm_bridge *bridge,
 	return MODE_OK;
 }
 
+static void edp_bridge_debugfs_init(struct drm_bridge *bridge, struct dentry *root)
+{
+	struct msm_dp *dp = to_dp_bridge(bridge)->dp_display;
+
+	dp_display_debugfs_init(dp, root, true);
+}
+
 static const struct drm_bridge_funcs edp_bridge_ops = {
 	.atomic_enable = edp_bridge_atomic_enable,
 	.atomic_disable = edp_bridge_atomic_disable,
@@ -270,6 +285,7 @@ static const struct drm_bridge_funcs edp_bridge_ops = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_check = edp_bridge_atomic_check,
+	.debugfs_init = edp_bridge_debugfs_init,
 };
 
 int dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,

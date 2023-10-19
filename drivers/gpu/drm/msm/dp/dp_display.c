@@ -715,7 +715,6 @@ static int dp_irq_hpd_handle(struct dp_display_private *dp, u32 data)
 
 static void dp_display_deinit_sub_modules(struct dp_display_private *dp)
 {
-	dp_debug_put(dp->debug);
 	dp_audio_put(dp->audio);
 	dp_panel_put(dp->panel);
 	dp_aux_put(dp->aux);
@@ -1451,7 +1450,7 @@ bool msm_dp_wide_bus_available(const struct msm_dp *dp_display)
 	return dp->wide_bus_en;
 }
 
-void msm_dp_debugfs_init(struct msm_dp *dp_display, struct drm_minor *minor)
+void dp_display_debugfs_init(struct msm_dp *dp_display, struct dentry *root, bool is_edp)
 {
 	struct dp_display_private *dp;
 	struct device *dev;
@@ -1462,7 +1461,7 @@ void msm_dp_debugfs_init(struct msm_dp *dp_display, struct drm_minor *minor)
 
 	dp->debug = dp_debug_get(dev, dp->panel,
 					dp->link, dp->dp_display.connector,
-					minor);
+					root, is_edp);
 	if (IS_ERR(dp->debug)) {
 		rc = PTR_ERR(dp->debug);
 		DRM_ERROR("failed to initialize debug, rc = %d\n", rc);
