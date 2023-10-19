@@ -521,6 +521,7 @@ DEFINE_EVENT(xe_vm, xe_vm_rebind_worker_exit,
 TRACE_EVENT(xe_guc_ct_h2g_flow_control,
 	    TP_PROTO(u32 _head, u32 _tail, u32 size, u32 space, u32 len),
 	    TP_ARGS(_head, _tail, size, space, len),
+/* GuC */
 
 	    TP_STRUCT__entry(
 		     __field(u32, _head)
@@ -566,6 +567,46 @@ TRACE_EVENT(xe_guc_ct_g2h_flow_control,
 	    TP_printk("head=%u, tail=%u, size=%u, space=%u, len=%u",
 		      __entry->_head, __entry->_tail, __entry->size,
 		      __entry->space, __entry->len)
+);
+
+DECLARE_EVENT_CLASS(xe_guc_ctb,
+		    TP_PROTO(u8 gt_id, u32 action, u32 len, u32 _head, u32 tail),
+		    TP_ARGS(gt_id, action, len, _head, tail),
+
+		    TP_STRUCT__entry(
+				__field(u8, gt_id)
+				__field(u32, action)
+				__field(u32, len)
+				__field(u32, tail)
+				__field(u32, _head)
+		    ),
+
+		    TP_fast_assign(
+			    __entry->gt_id = gt_id;
+			    __entry->action = action;
+			    __entry->len = len;
+			    __entry->tail = tail;
+			    __entry->_head = _head;
+		    ),
+
+		    TP_printk("gt%d: H2G CTB: action=0x%x, len=%d, tail=%d, head=%d\n",
+			      __entry->gt_id, __entry->action, __entry->len,
+			      __entry->tail, __entry->_head)
+);
+
+DEFINE_EVENT(xe_guc_ctb, xe_guc_ctb_h2g,
+	     TP_PROTO(u8 gt_id, u32 action, u32 len, u32 _head, u32 tail),
+	     TP_ARGS(gt_id, action, len, _head, tail)
+);
+
+DEFINE_EVENT_PRINT(xe_guc_ctb, xe_guc_ctb_g2h,
+		   TP_PROTO(u8 gt_id, u32 action, u32 len, u32 _head, u32 tail),
+		   TP_ARGS(gt_id, action, len, _head, tail),
+
+		   TP_printk("gt%d: G2H CTB: action=0x%x, len=%d, tail=%d, head=%d\n",
+			     __entry->gt_id, __entry->action, __entry->len,
+			     __entry->tail, __entry->_head)
+
 );
 
 #endif

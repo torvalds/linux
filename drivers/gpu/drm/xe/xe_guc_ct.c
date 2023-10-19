@@ -460,7 +460,7 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	/* Write H2G ensuring visable before descriptor update */
 	xe_map_memcpy_to(xe, &map, 0, cmd, H2G_CT_HEADERS * sizeof(u32));
 	xe_map_memcpy_to(xe, &map, H2G_CT_HEADERS * sizeof(u32), action, len * sizeof(u32));
-	xe_device_wmb(ct_to_xe(ct));
+	xe_device_wmb(xe);
 
 	/* Update local copies */
 	h2g->info.tail = (tail + full_len) % h2g->info.size;
@@ -468,6 +468,9 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 
 	/* Update descriptor */
 	desc_write(xe, h2g, tail, h2g->info.tail);
+
+	trace_xe_guc_ctb_h2g(ct_to_gt(ct)->info.id, *(action - 1), full_len,
+			     desc_read(xe, h2g, head), h2g->info.tail);
 
 	return 0;
 }
@@ -934,6 +937,7 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 	struct guc_ctb *g2h = &ct->ctbs.g2h;
 	u32 tail, head, len;
 	s32 avail;
+	u32 action;
 
 	lockdep_assert_held(&ct->fast_lock);
 
@@ -984,11 +988,13 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 				   avail * sizeof(u32));
 	}
 
+	action = FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, msg[1]);
+
 	if (fast_path) {
 		if (FIELD_GET(GUC_HXG_MSG_0_TYPE, msg[1]) != GUC_HXG_TYPE_EVENT)
 			return 0;
 
-		switch (FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, msg[1])) {
+		switch (action) {
 		case XE_GUC_ACTION_REPORT_PAGE_FAULT_REQ_DESC:
 		case XE_GUC_ACTION_TLB_INVALIDATION_DONE:
 			break;	/* Process these in fast-path */
@@ -1000,6 +1006,9 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 	/* Update local / descriptor header */
 	g2h->info.head = (head + avail) % g2h->info.size;
 	desc_write(xe, g2h, head, g2h->info.head);
+
+	trace_xe_guc_ctb_g2h(ct_to_gt(ct)->info.id, action, len,
+			     g2h->info.head, tail);
 
 	return len;
 }
