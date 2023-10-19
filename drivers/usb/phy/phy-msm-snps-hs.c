@@ -565,6 +565,7 @@ static int msm_hsphy_init(struct usb_phy *uphy)
 static int msm_hsphy_set_suspend(struct usb_phy *uphy, int suspend)
 {
 	struct msm_hsphy *phy = container_of(uphy, struct msm_hsphy, phy);
+	bool eud_active = false;
 
 	if (phy->suspended && suspend) {
 		if (phy->phy.flags & PHY_SUS_OVERRIDE)
@@ -574,6 +575,9 @@ static int msm_hsphy_set_suspend(struct usb_phy *uphy, int suspend)
 								__func__);
 		return 0;
 	}
+
+	if (phy->eud_enable_reg && readl_relaxed(phy->eud_enable_reg))
+		eud_active = true;
 
 suspend:
 	if (suspend) { /* Bus suspend */
@@ -604,7 +608,7 @@ suspend:
 				phy->re_enable_eud = false;
 			}
 
-			if (!phy->dpdm_enable) {
+			if (!phy->dpdm_enable && !eud_active) {
 				if (!(phy->phy.flags & EUD_SPOOF_DISCONNECT)) {
 					dev_dbg(uphy->dev, "turning off clocks/ldo\n");
 					if (!(phy->phy.flags & PHY_HOST_MODE)) {
