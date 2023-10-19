@@ -1038,7 +1038,7 @@ static void amdgpu_ras_error_print_error_data(struct amdgpu_device *adev,
 			 ras_mgr->err_data.ue_count, blk_name);
 	else
 		dev_info(adev->dev, "%ld correctable hardware errors detected in %s block\n",
-			 ras_mgr->err_data.ue_count, blk_name);
+			 ras_mgr->err_data.ce_count, blk_name);
 
 	for_each_ras_error(err_node, err_data) {
 		err_info = &err_node->err_info;
@@ -1055,7 +1055,7 @@ static void amdgpu_ras_error_print_error_data(struct amdgpu_device *adev,
 				 "%lld correctable hardware errors detected in %s block\n",
 				 mcm_info->socket_id,
 				 mcm_info->die_id,
-				 err_info->ue_count,
+				 err_info->ce_count,
 				 blk_name);
 		}
 	}
