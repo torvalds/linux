@@ -2653,18 +2653,8 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 	/* hw_supported needs to be aligned with RAS block mask. */
 	adev->ras_hw_enabled &= AMDGPU_RAS_BLOCK_MASK;
 
-
-	/*
-	 * Disable ras feature for aqua vanjaram
-	 * by default on apu platform.
-	 */
-	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) &&
-	    adev->gmc.is_app_apu)
-		adev->ras_enabled = amdgpu_ras_enable != 1 ? 0 :
-			adev->ras_hw_enabled & amdgpu_ras_mask;
-	else
-		adev->ras_enabled = amdgpu_ras_enable == 0 ? 0 :
-			adev->ras_hw_enabled & amdgpu_ras_mask;
+	adev->ras_enabled = amdgpu_ras_enable == 0 ? 0 :
+		adev->ras_hw_enabled & amdgpu_ras_mask;
 }
 
 static void amdgpu_ras_counte_dw(struct work_struct *work)
