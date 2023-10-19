@@ -1,31 +1,14 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright 2021 Google LLC
+ * Copyright 2022 Google LLC
  */
 /dts-v1/;
 #include "mt8192-asurada.dtsi"
-#include <dt-bindings/leds/common.h>
 
 / {
-	model = "Google Spherion (rev0 - 3)";
-	compatible = "google,spherion-rev3", "google,spherion-rev2",
-		     "google,spherion-rev1", "google,spherion-rev0",
-		     "google,spherion", "mediatek,mt8192";
-
-	pwmleds {
-		compatible = "pwm-leds";
-
-		led {
-			function = LED_FUNCTION_KBD_BACKLIGHT;
-			color = <LED_COLOR_ID_WHITE>;
-			pwms = <&cros_ec_pwm 0>;
-			max-brightness = <1023>;
-		};
-	};
-};
-
-&cros_ec_pwm {
-	status = "okay";
+	model = "Google Hayato rev5";
+	compatible = "google,hayato-rev5-sku2", "google,hayato-sku2",
+		     "google,hayato", "mediatek,mt8192";
 };
 
 &keyboard_controller {
@@ -43,10 +26,10 @@
 	>;
 	linux,keymap = <
 		MATRIX_KEY(0x00, 0x02, KEY_BACK)
-		MATRIX_KEY(0x03, 0x02, KEY_REFRESH)
-		MATRIX_KEY(0x02, 0x02, KEY_FULL_SCREEN)
-		MATRIX_KEY(0x01, 0x02, KEY_SCALE)
-		MATRIX_KEY(0x03, 0x04, KEY_SYSRQ)
+		MATRIX_KEY(0x03, 0x02, KEY_FORWARD)
+		MATRIX_KEY(0x02, 0x02, KEY_REFRESH)
+		MATRIX_KEY(0x01, 0x02, KEY_FULL_SCREEN)
+		MATRIX_KEY(0x03, 0x04, KEY_SCALE)
 		MATRIX_KEY(0x02, 0x04, KEY_BRIGHTNESSDOWN)
 		MATRIX_KEY(0x01, 0x04, KEY_BRIGHTNESSUP)
 		MATRIX_KEY(0x02, 0x09, KEY_MUTE)
@@ -58,13 +41,11 @@
 };
 
 &rt5682 {
-	compatible = "realtek,rt5682i";
-	realtek,btndet-delay = <16>;
-	VBAT-supply = <&pp3300_ldo_z>;
+	compatible = "realtek,rt5682s";
 };
 
 &sound {
-	compatible = "mediatek,mt8192_mt6359_rt1015p_rt5682";
+	compatible = "mediatek,mt8192_mt6359_rt1015p_rt5682s";
 
 	speaker-codecs {
 		sound-dai = <&rt1015p>;
@@ -76,5 +57,8 @@
 };
 
 &touchscreen {
-	compatible = "elan,ekth3500";
+	compatible = "hid-over-i2c";
+	post-power-on-delay-ms = <10>;
+	hid-descr-addr = <0x0001>;
+	vdd-supply = <&pp3300_u>;
 };

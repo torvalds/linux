@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright 2021 Google LLC
+ * Copyright 2022 Google LLC
  */
 /dts-v1/;
 #include "mt8192-asurada.dtsi"
 #include <dt-bindings/leds/common.h>
 
 / {
-	model = "Google Spherion (rev0 - 3)";
-	compatible = "google,spherion-rev3", "google,spherion-rev2",
-		     "google,spherion-rev1", "google,spherion-rev0",
-		     "google,spherion", "mediatek,mt8192";
+	model = "Google Spherion (rev4)";
+	compatible = "google,spherion-rev4", "google,spherion",
+		     "mediatek,mt8192";
 
 	pwmleds {
 		compatible = "pwm-leds";
@@ -58,13 +57,11 @@
 };
 
 &rt5682 {
-	compatible = "realtek,rt5682i";
-	realtek,btndet-delay = <16>;
-	VBAT-supply = <&pp3300_ldo_z>;
+	compatible = "realtek,rt5682s";
 };
 
 &sound {
-	compatible = "mediatek,mt8192_mt6359_rt1015p_rt5682";
+	compatible = "mediatek,mt8192_mt6359_rt1015p_rt5682s";
 
 	speaker-codecs {
 		sound-dai = <&rt1015p>;
