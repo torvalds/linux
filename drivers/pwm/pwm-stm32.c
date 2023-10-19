@@ -52,21 +52,6 @@ static u32 active_channels(struct stm32_pwm *dev)
 	return ccer & TIM_CCER_CCXE;
 }
 
-static int write_ccrx(struct stm32_pwm *dev, int ch, u32 value)
-{
-	switch (ch) {
-	case 0:
-		return regmap_write(dev->regmap, TIM_CCR1, value);
-	case 1:
-		return regmap_write(dev->regmap, TIM_CCR2, value);
-	case 2:
-		return regmap_write(dev->regmap, TIM_CCR3, value);
-	case 3:
-		return regmap_write(dev->regmap, TIM_CCR4, value);
-	}
-	return -EINVAL;
-}
-
 #define TIM_CCER_CC12P (TIM_CCER_CC1P | TIM_CCER_CC2P)
 #define TIM_CCER_CC12E (TIM_CCER_CC1E | TIM_CCER_CC2E)
 #define TIM_CCER_CC34P (TIM_CCER_CC3P | TIM_CCER_CC4P)
@@ -369,7 +354,7 @@ static int stm32_pwm_config(struct stm32_pwm *priv, int ch,
 	dty = prd * duty_ns;
 	do_div(dty, period_ns);
 
-	write_ccrx(priv, ch, dty);
+	regmap_write(priv->regmap, TIM_CCR1 + 4 * ch, dty);
 
 	/* Configure output mode */
 	shift = (ch & 0x1) * CCMR_CHANNEL_SHIFT;
