@@ -517,7 +517,7 @@ static int qrtr_gunyah_share_mem(struct qrtr_gunyah_dev *qdev, gh_vmid_t self,
 static void qrtr_gunyah_unshare_mem(struct qrtr_gunyah_dev *qdev,
 				    gh_vmid_t self, gh_vmid_t peer)
 {
-	u64 src_vmlist = BIT(self);
+	u64 src_vmlist = BIT(self) | BIT(peer);
 	struct qcom_scm_vmperm dst_vmlist[1] = {{self, PERM_READ | PERM_WRITE | PERM_EXEC}};
 	int ret;
 
