@@ -13,7 +13,6 @@
 #ifndef _LINUX_ETHTOOL_H
 #define _LINUX_ETHTOOL_H
 
-#include <linux/linkmode.h>
 #include <linux/bitmap.h>
 #include <linux/compat.h>
 #include <linux/if_ether.h>
@@ -1070,23 +1069,6 @@ struct ethtool_forced_speed_map {
 	.arr_size	= ARRAY_SIZE(prefix##_##value),			\
 }
 
-/**
- * ethtool_forced_speed_maps_init
- * @maps: Pointer to an array of Ethtool forced speed map
- * @size: Array size
- *
- * Initialize an array of Ethtool forced speed map to Ethtool link modes. This
- * should be called during driver module init.
- */
-static inline void
-ethtool_forced_speed_maps_init(struct ethtool_forced_speed_map *maps, u32 size)
-{
-	for (u32 i = 0; i < size; i++) {
-		struct ethtool_forced_speed_map *map = &maps[i];
-
-		linkmode_set_bit_array(map->cap_arr, map->arr_size, map->caps);
-		map->cap_arr = NULL;
-		map->arr_size = 0;
-	}
-}
+void
+ethtool_forced_speed_maps_init(struct ethtool_forced_speed_map *maps, u32 size);
 #endif /* _LINUX_ETHTOOL_H */
