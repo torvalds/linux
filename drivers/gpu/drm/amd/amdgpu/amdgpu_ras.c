@@ -3503,10 +3503,8 @@ void amdgpu_ras_error_data_fini(struct ras_err_data *err_data)
 {
 	struct ras_err_node *err_node, *tmp;
 
-	list_for_each_entry_safe(err_node, tmp, &err_data->err_node_list, node) {
+	list_for_each_entry_safe(err_node, tmp, &err_data->err_node_list, node)
 		amdgpu_ras_error_node_release(err_node);
-		list_del(&err_node->node);
-	}
 }
 
 static struct ras_err_node *amdgpu_ras_error_find_node_by_id(struct ras_err_data *err_data,
