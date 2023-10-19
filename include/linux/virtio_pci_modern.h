@@ -45,6 +45,7 @@ struct virtio_pci_modern_device {
 
 	size_t notify_len;
 	size_t device_len;
+	size_t common_len;
 
 	int notify_map_cap;
 
