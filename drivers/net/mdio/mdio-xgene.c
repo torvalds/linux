@@ -437,7 +437,7 @@ static void xgene_mdio_remove(struct platform_device *pdev)
 static struct platform_driver xgene_mdio_driver = {
 	.driver = {
 		.name = "xgene-mdio",
-		.of_match_table = of_match_ptr(xgene_mdio_of_match),
+		.of_match_table = xgene_mdio_of_match,
 		.acpi_match_table = ACPI_PTR(xgene_mdio_acpi_match),
 	},
 	.probe = xgene_mdio_probe,
