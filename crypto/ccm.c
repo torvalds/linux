@@ -56,6 +56,7 @@ struct cbcmac_tfm_ctx {
 
 struct cbcmac_desc_ctx {
 	unsigned int len;
+	u8 dg[];
 };
 
 static inline struct crypto_ccm_req_priv_ctx *crypto_ccm_reqctx(
@@ -785,10 +786,9 @@ static int crypto_cbcmac_digest_init(struct shash_desc *pdesc)
 {
 	struct cbcmac_desc_ctx *ctx = shash_desc_ctx(pdesc);
 	int bs = crypto_shash_digestsize(pdesc->tfm);
-	u8 *dg = (u8 *)ctx + crypto_shash_descsize(pdesc->tfm) - bs;
 
 	ctx->len = 0;
-	memset(dg, 0, bs);
+	memset(ctx->dg, 0, bs);
 
 	return 0;
 }
@@ -801,18 +801,17 @@ static int crypto_cbcmac_digest_update(struct shash_desc *pdesc, const u8 *p,
 	struct cbcmac_desc_ctx *ctx = shash_desc_ctx(pdesc);
 	struct crypto_cipher *tfm = tctx->child;
 	int bs = crypto_shash_digestsize(parent);
-	u8 *dg = (u8 *)ctx + crypto_shash_descsize(parent) - bs;
 
 	while (len > 0) {
 		unsigned int l = min(len, bs - ctx->len);
 
-		crypto_xor(dg + ctx->len, p, l);
+		crypto_xor(&ctx->dg[ctx->len], p, l);
 		ctx->len +=l;
 		len -= l;
 		p += l;
 
 		if (ctx->len == bs) {
-			crypto_cipher_encrypt_one(tfm, dg, dg);
+			crypto_cipher_encrypt_one(tfm, ctx->dg, ctx->dg);
 			ctx->len = 0;
 		}
 	}
@@ -827,12 +826,11 @@ static int crypto_cbcmac_digest_final(struct shash_desc *pdesc, u8 *out)
 	struct cbcmac_desc_ctx *ctx = shash_desc_ctx(pdesc);
 	struct crypto_cipher *tfm = tctx->child;
 	int bs = crypto_shash_digestsize(parent);
-	u8 *dg = (u8 *)ctx + crypto_shash_descsize(parent) - bs;
 
 	if (ctx->len)
-		crypto_cipher_encrypt_one(tfm, dg, dg);
+		crypto_cipher_encrypt_one(tfm, ctx->dg, ctx->dg);
 
-	memcpy(out, dg, bs);
+	memcpy(out, ctx->dg, bs);
 	return 0;
 }
 
@@ -889,8 +887,7 @@ static int cbcmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.base.cra_blocksize = 1;
 
 	inst->alg.digestsize = alg->cra_blocksize;
-	inst->alg.descsize = ALIGN(sizeof(struct cbcmac_desc_ctx),
-				   alg->cra_alignmask + 1) +
+	inst->alg.descsize = sizeof(struct cbcmac_desc_ctx) +
 			     alg->cra_blocksize;
 
 	inst->alg.base.cra_ctxsize = sizeof(struct cbcmac_tfm_ctx);
