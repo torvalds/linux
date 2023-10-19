@@ -10,14 +10,11 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
 #include <net/netlink.h>
 
 #include "hash.h"
-
-#define MAX_SHASH_ALIGNMASK 63
 
 static const struct crypto_type crypto_shash_type;
 
@@ -38,27 +35,6 @@ int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
 }
 EXPORT_SYMBOL_GPL(shash_no_setkey);
 
-static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
-				  unsigned int keylen)
-{
-	struct shash_alg *shash = crypto_shash_alg(tfm);
-	unsigned long alignmask = crypto_shash_alignmask(tfm);
-	unsigned long absize;
-	u8 *buffer, *alignbuffer;
-	int err;
-
-	absize = keylen + (alignmask & ~(crypto_tfm_ctx_alignment() - 1));
-	buffer = kmalloc(absize, GFP_ATOMIC);
-	if (!buffer)
-		return -ENOMEM;
-
-	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
-	memcpy(alignbuffer, key, keylen);
-	err = shash->setkey(tfm, alignbuffer, keylen);
-	kfree_sensitive(buffer);
-	return err;
-}
-
 static void shash_set_needkey(struct crypto_shash *tfm, struct shash_alg *alg)
 {
 	if (crypto_shash_alg_needs_key(alg))
@@ -69,14 +45,9 @@ int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
 			unsigned int keylen)
 {
 	struct shash_alg *shash = crypto_shash_alg(tfm);
-	unsigned long alignmask = crypto_shash_alignmask(tfm);
 	int err;
 
-	if ((unsigned long)key & alignmask)
-		err = shash_setkey_unaligned(tfm, key, keylen);
-	else
-		err = shash->setkey(tfm, key, keylen);
-
+	err = shash->setkey(tfm, key, keylen);
 	if (unlikely(err)) {
 		shash_set_needkey(tfm, shash);
 		return err;
@@ -87,109 +58,34 @@ int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
 }
 EXPORT_SYMBOL_GPL(crypto_shash_setkey);
 
-static int shash_update_unaligned(struct shash_desc *desc, const u8 *data,
-				  unsigned int len)
-{
-	struct crypto_shash *tfm = desc->tfm;
-	struct shash_alg *shash = crypto_shash_alg(tfm);
-	unsigned long alignmask = crypto_shash_alignmask(tfm);
-	unsigned int unaligned_len = alignmask + 1 -
-				     ((unsigned long)data & alignmask);
-	/*
-	 * We cannot count on __aligned() working for large values:
-	 * https://patchwork.kernel.org/patch/9507697/
-	 */
-	u8 ubuf[MAX_SHASH_ALIGNMASK * 2];
-	u8 *buf = PTR_ALIGN(&ubuf[0], alignmask + 1);
-	int err;
-
-	if (WARN_ON(buf + unaligned_len > ubuf + sizeof(ubuf)))
-		return -EINVAL;
-
-	if (unaligned_len > len)
-		unaligned_len = len;
-
-	memcpy(buf, data, unaligned_len);
-	err = shash->update(desc, buf, unaligned_len);
-	memset(buf, 0, unaligned_len);
-
-	return err ?:
-	       shash->update(desc, data + unaligned_len, len - unaligned_len);
-}
-
 int crypto_shash_update(struct shash_desc *desc, const u8 *data,
 			unsigned int len)
 {
-	struct crypto_shash *tfm = desc->tfm;
-	struct shash_alg *shash = crypto_shash_alg(tfm);
-	unsigned long alignmask = crypto_shash_alignmask(tfm);
+	struct shash_alg *shash = crypto_shash_alg(desc->tfm);
 	int err;
 
 	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
 		atomic64_add(len, &shash_get_stat(shash)->hash_tlen);
 
-	if ((unsigned long)data & alignmask)
-		err = shash_update_unaligned(desc, data, len);
-	else
-		err = shash->update(desc, data, len);
+	err = shash->update(desc, data, len);
 
 	return crypto_shash_errstat(shash, err);
 }
 EXPORT_SYMBOL_GPL(crypto_shash_update);
 
-static int shash_final_unaligned(struct shash_desc *desc, u8 *out)
-{
-	struct crypto_shash *tfm = desc->tfm;
-	unsigned long alignmask = crypto_shash_alignmask(tfm);
-	struct shash_alg *shash = crypto_shash_alg(tfm);
-	unsigned int ds = crypto_shash_digestsize(tfm);
-	/*
-	 * We cannot count on __aligned() working for large values:
-	 * https://patchwork.kernel.org/patch/9507697/
-	 */
-	u8 ubuf[MAX_SHASH_ALIGNMASK + HASH_MAX_DIGESTSIZE];
-	u8 *buf = PTR_ALIGN(&ubuf[0], alignmask + 1);
-	int err;
-
-	if (WARN_ON(buf + ds > ubuf + sizeof(ubuf)))
-		return -EINVAL;
-
-	err = shash->final(desc, buf);
-	if (err)
-		goto out;
-
-	memcpy(out, buf, ds);
-
-out:
-	memset(buf, 0, ds);
-	return err;
-}
-
 int crypto_shash_final(struct shash_desc *desc, u8 *out)
 {
-	struct crypto_shash *tfm = desc->tfm;
-	struct shash_alg *shash = crypto_shash_alg(tfm);
-	unsigned long alignmask = crypto_shash_alignmask(tfm);
+	struct shash_alg *shash = crypto_shash_alg(desc->tfm);
 	int err;
 
 	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
 		atomic64_inc(&shash_get_stat(shash)->hash_cnt);
 
-	if ((unsigned long)out & alignmask)
-		err = shash_final_unaligned(desc, out);
-	else
-		err = shash->final(desc, out);
+	err = shash->final(desc, out);
 
 	return crypto_shash_errstat(shash, err);
 }
 EXPORT_SYMBOL_GPL(crypto_shash_final);
-
-static int shash_finup_unaligned(struct shash_desc *desc, const u8 *data,
-				 unsigned int len, u8 *out)
-{
-	return shash_update_unaligned(desc, data, len) ?:
-	       shash_final_unaligned(desc, out);
-}
 
 static int shash_default_finup(struct shash_desc *desc, const u8 *data,
 			       unsigned int len, u8 *out)
@@ -205,7 +101,6 @@ int crypto_shash_finup(struct shash_desc *desc, const u8 *data,
 {
 	struct crypto_shash *tfm = desc->tfm;
 	struct shash_alg *shash = crypto_shash_alg(tfm);
-	unsigned long alignmask = crypto_shash_alignmask(tfm);
 	int err;
 
 	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
@@ -215,11 +110,7 @@ int crypto_shash_finup(struct shash_desc *desc, const u8 *data,
 		atomic64_add(len, &istat->hash_tlen);
 	}
 
-	if (((unsigned long)data | (unsigned long)out) & alignmask)
-		err = shash_finup_unaligned(desc, data, len, out);
-	else
-		err = shash->finup(desc, data, len, out);
-
+	err = shash->finup(desc, data, len, out);
 
 	return crypto_shash_errstat(shash, err);
 }
@@ -239,7 +130,6 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 {
 	struct crypto_shash *tfm = desc->tfm;
 	struct shash_alg *shash = crypto_shash_alg(tfm);
-	unsigned long alignmask = crypto_shash_alignmask(tfm);
 	int err;
 
 	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
@@ -251,9 +141,6 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 
 	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		err = -ENOKEY;
-	else if (((unsigned long)data | (unsigned long)out) & alignmask)
-		err = shash->init(desc) ?:
-		      shash_finup_unaligned(desc, data, len, out);
 	else
 		err = shash->digest(desc, data, len, out);
 
@@ -670,7 +557,8 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	if (alg->descsize > HASH_MAX_DESCSIZE)
 		return -EINVAL;
 
-	if (base->cra_alignmask > MAX_SHASH_ALIGNMASK)
+	/* alignmask is not useful for shash, so it is not supported. */
+	if (base->cra_alignmask)
 		return -EINVAL;
 
 	if ((alg->export && !alg->import) || (alg->import && !alg->export))
