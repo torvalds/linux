@@ -1208,15 +1208,6 @@ static inline void ublk_forward_io_cmds(struct ublk_queue *ubq,
 		__ublk_rq_task_work(blk_mq_rq_from_pdu(data), issue_flags);
 }
 
-static inline void ublk_abort_io_cmds(struct ublk_queue *ubq)
-{
-	struct llist_node *io_cmds = llist_del_all(&ubq->io_cmds);
-	struct ublk_rq_data *data, *tmp;
-
-	llist_for_each_entry_safe(data, tmp, io_cmds, node)
-		__ublk_abort_rq(ubq, blk_mq_rq_from_pdu(data));
-}
-
 static void ublk_rq_task_work_cb(struct io_uring_cmd *cmd, unsigned issue_flags)
 {
 	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
