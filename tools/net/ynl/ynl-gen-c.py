@@ -20,6 +20,21 @@ def c_lower(name):
     return name.lower().replace('-', '_')
 
 
+def limit_to_number(name):
+    """
+    Turn a string limit like u32-max or s64-min into its numerical value
+    """
+    if name[0] == 'u' and name.endswith('-min'):
+        return 0
+    width = int(name[1:-4])
+    if name[0] == 's':
+        width -= 1
+    value = (1 << width) - 1
+    if name[0] == 's' and name.endswith('-min'):
+        value = -value - 1
+    return value
+
+
 class BaseNlLib:
     def get_family_id(self):
         return 'ys->family_id'
@@ -42,8 +57,12 @@ class Type(SpecAttr):
         self.type = attr['type']
         self.checks = attr.get('checks', {})
 
+        self.request = False
+        self.reply = False
+
         if 'len' in attr:
             self.len = attr['len']
+
         if 'nested-attributes' in attr:
             self.nested_attrs = attr['nested-attributes']
             if self.nested_attrs == family.name:
@@ -63,6 +82,14 @@ class Type(SpecAttr):
         # Added by resolve():
         self.enum_name = None
         delattr(self, "enum_name")
+
+    def get_limit(self, limit, default=None):
+        value = self.checks.get(limit, default)
+        if value is None:
+            return value
+        if not isinstance(value, int):
+            value = limit_to_number(value)
+        return value
 
     def resolve(self):
         if 'name-prefix' in self.attr:
@@ -259,6 +286,27 @@ class TypeScalar(Type):
         if 'byte-order' in attr:
             self.byte_order_comment = f" /* {attr['byte-order']} */"
 
+        if 'enum' in self.attr:
+            enum = self.family.consts[self.attr['enum']]
+            low, high = enum.value_range()
+            if 'min' not in self.checks:
+                if low != 0 or self.type[0] == 's':
+                    self.checks['min'] = low
+            if 'max' not in self.checks:
+                self.checks['max'] = high
+
+        if 'min' in self.checks and 'max' in self.checks:
+            if self.get_limit('min') > self.get_limit('max'):
+                raise Exception(f'Invalid limit for "{self.name}" min: {self.get_limit("min")} max: {self.get_limit("max")}')
+            self.checks['range'] = True
+
+        low = min(self.get_limit('min', 0), self.get_limit('max', 0))
+        high = max(self.get_limit('min', 0), self.get_limit('max', 0))
+        if low < 0 and self.type[0] == 'u':
+            raise Exception(f'Invalid limit for "{self.name}" negative limit for unsigned type')
+        if low < -32768 or high > 32767:
+            self.checks['full-range'] = True
+
         # Added by resolve():
         self.is_bitfield = None
         delattr(self, "is_bitfield")
@@ -298,14 +346,14 @@ class TypeScalar(Type):
                 flag_cnt = len(flags['entries'])
                 mask = (1 << flag_cnt) - 1
             return f"NLA_POLICY_MASK({policy}, 0x{mask:x})"
+        elif 'full-range' in self.checks:
+            return f"NLA_POLICY_FULL_RANGE({policy}, &{c_lower(self.enum_name)}_range)"
+        elif 'range' in self.checks:
+            return f"NLA_POLICY_RANGE({policy}, {self.get_limit('min')}, {self.get_limit('max')})"
         elif 'min' in self.checks:
-            return f"NLA_POLICY_MIN({policy}, {self.checks['min']})"
-        elif 'enum' in self.attr:
-            enum = self.family.consts[self.attr['enum']]
-            low, high = enum.value_range()
-            if low == 0:
-                return f"NLA_POLICY_MAX({policy}, {high})"
-            return f"NLA_POLICY_RANGE({policy}, {low}, {high})"
+            return f"NLA_POLICY_MIN({policy}, {self.get_limit('min')})"
+        elif 'max' in self.checks:
+            return f"NLA_POLICY_MAX({policy}, {self.get_limit('max')})"
         return super()._attr_policy(policy)
 
     def _attr_typol(self):
@@ -357,7 +405,7 @@ class TypeString(Type):
     def _attr_policy(self, policy):
         mem = '{ .type = ' + policy
         if 'max-len' in self.checks:
-            mem += ', .len = ' + str(self.checks['max-len'])
+            mem += ', .len = ' + str(self.get_limit('max-len'))
         mem += ', }'
         return mem
 
@@ -406,7 +454,7 @@ class TypeBinary(Type):
     def _attr_policy(self, policy):
         mem = '{ '
         if len(self.checks) == 1 and 'min-len' in self.checks:
-            mem += '.len = ' + str(self.checks['min-len'])
+            mem += '.len = ' + str(self.get_limit('min-len'))
         elif len(self.checks) == 0:
             mem += '.type = NLA_BINARY'
         else:
@@ -846,6 +894,7 @@ class Family(SpecFamily):
 
         self._load_root_sets()
         self._load_nested_sets()
+        self._load_attr_use()
         self._load_hooks()
 
         self.kernel_policy = self.yaml.get('kernel-policy', 'split')
@@ -965,6 +1014,22 @@ class Family(SpecFamily):
                     if child:
                         child.request |= struct.request
                         child.reply |= struct.reply
+
+    def _load_attr_use(self):
+        for _, struct in self.pure_nested_structs.items():
+            if struct.request:
+                for _, arg in struct.member_list():
+                    arg.request = True
+            if struct.reply:
+                for _, arg in struct.member_list():
+                    arg.reply = True
+
+        for root_set, rs_members in self.root_sets.items():
+            for attr, spec in self.attr_sets[root_set].items():
+                if attr in rs_members['request']:
+                    spec.request = True
+                if attr in rs_members['reply']:
+                    spec.reply = True
 
     def _load_global_policy(self):
         global_set = set()
@@ -1221,7 +1286,7 @@ class CodeWriter:
         for one in members:
             line = '.' + one[0]
             line += '\t' * ((longest - len(one[0]) - 1 + 7) // 8)
-            line += '= ' + one[1] + ','
+            line += '= ' + str(one[1]) + ','
             self.p(line)
 
 
@@ -1920,6 +1985,34 @@ def policy_should_be_static(family):
     return family.kernel_policy == 'split' or kernel_can_gen_family_struct(family)
 
 
+def print_kernel_policy_ranges(family, cw):
+    first = True
+    for _, attr_set in family.attr_sets.items():
+        if attr_set.subset_of:
+            continue
+
+        for _, attr in attr_set.items():
+            if not attr.request:
+                continue
+            if 'full-range' not in attr.checks:
+                continue
+
+            if first:
+                cw.p('/* Integer value ranges */')
+                first = False
+
+            sign = '' if attr.type[0] == 'u' else '_signed'
+            cw.block_start(line=f'struct netlink_range_validation{sign} {c_lower(attr.enum_name)}_range =')
+            members = []
+            if 'min' in attr.checks:
+                members.append(('min', attr.get_limit('min')))
+            if 'max' in attr.checks:
+                members.append(('max', attr.get_limit('max')))
+            cw.write_struct_init(members)
+            cw.block_end(line=';')
+            cw.nl()
+
+
 def print_kernel_op_table_fwd(family, cw, terminate):
     exported = not kernel_can_gen_family_struct(family)
 
@@ -2459,6 +2552,8 @@ def main():
             print_kernel_mcgrp_hdr(parsed, cw)
             print_kernel_family_struct_hdr(parsed, cw)
         else:
+            print_kernel_policy_ranges(parsed, cw)
+
             for _, struct in sorted(parsed.pure_nested_structs.items()):
                 if struct.request:
                     cw.p('/* Common nested types */')
