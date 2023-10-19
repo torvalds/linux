@@ -473,41 +473,41 @@ ice_aq_get_netlist_node(struct ice_hw *hw, struct ice_aqc_get_link_topo *cmd,
  * @node_part_number: node part number to look for
  * @node_handle: output parameter if node found - optional
  *
- * Find and return the node handle for a given node type and part number in the
- * netlist. When found ICE_SUCCESS is returned, ICE_ERR_DOES_NOT_EXIST
- * otherwise. If node_handle provided, it would be set to found node handle.
+ * Scan the netlist for a node handle of the given node type and part number.
+ *
+ * If node_handle is non-NULL it will be modified on function exit. It is only
+ * valid if the function returns zero, and should be ignored on any non-zero
+ * return value.
+ *
+ * Returns: 0 if the node is found, -ENOENT if no handle was found, and
+ * a negative error code on failure to access the AQ.
  */
 static int ice_find_netlist_node(struct ice_hw *hw, u8 node_type_ctx,
 				 u8 node_part_number, u16 *node_handle)
 {
-	struct ice_aqc_get_link_topo cmd;
-	u8 rec_node_part_number;
-	u16 rec_node_handle;
 	u8 idx;
 
 	for (idx = 0; idx < ICE_MAX_NETLIST_SIZE; idx++) {
+		struct ice_aqc_get_link_topo cmd = {};
+		u8 rec_node_part_number;
 		int status;
 
-		memset(&cmd, 0, sizeof(cmd));
-
 		cmd.addr.topo_params.node_type_ctx =
-			(node_type_ctx << ICE_AQC_LINK_TOPO_NODE_TYPE_S);
+			FIELD_PREP(ICE_AQC_LINK_TOPO_NODE_TYPE_M,
+				   node_type_ctx);
 		cmd.addr.topo_params.index = idx;
 
 		status = ice_aq_get_netlist_node(hw, &cmd,
 						 &rec_node_part_number,
-						 &rec_node_handle);
+						 node_handle);
 		if (status)
 			return status;
 
-		if (rec_node_part_number == node_part_number) {
-			if (node_handle)
-				*node_handle = rec_node_handle;
+		if (rec_node_part_number == node_part_number)
 			return 0;
-		}
 	}
 
-	return -ENOTBLK;
+	return -ENOENT;
 }
 
 /**
