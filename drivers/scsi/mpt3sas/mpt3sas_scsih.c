@@ -11331,6 +11331,7 @@ static void scsih_remove(struct pci_dev *pdev)
 	}
 
 	mpt3sas_base_detach(ioc);
+	mpt3sas_ctl_release(ioc);
 	spin_lock(&gioc_lock);
 	list_del(&ioc->list);
 	spin_unlock(&gioc_lock);
