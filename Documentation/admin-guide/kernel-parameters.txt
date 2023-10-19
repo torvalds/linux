@@ -1331,6 +1331,7 @@
 			earlyprintk=dbgp[debugController#]
 			earlyprintk=pciserial[,force],bus:device.function[,baudrate]
 			earlyprintk=xdbc[xhciController#]
+			earlyprintk=bios
 
 			earlyprintk is useful when the kernel crashes before
 			the normal console is initialized. It is not enabled by
@@ -1360,6 +1361,8 @@
 			The xen option can only be used in Xen domains.
 
 			The sclp output can only be used on s390.
+
+			The bios output can only be used on SuperH.
 
 			The optional "force" to "pciserial" enables use of a
 			PCI device even when its classcode is not of the
