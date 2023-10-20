@@ -50,6 +50,22 @@
 #define MT7996_BASIC_RATES_TBL		11
 #define MT7996_BEACON_RATES_TBL		25
 
+#define MT7996_RRO_MAX_SESSION		1024
+#define MT7996_RRO_WINDOW_MAX_LEN	1024
+#define MT7996_RRO_ADDR_ELEM_LEN	128
+#define MT7996_RRO_BA_BITMAP_LEN	2
+#define MT7996_RRO_BA_BITMAP_CR_SIZE	((MT7996_RRO_MAX_SESSION * 128) /	\
+					 MT7996_RRO_BA_BITMAP_LEN)
+#define MT7996_RRO_BA_BITMAP_SESSION_SIZE	(MT7996_RRO_MAX_SESSION /	\
+						 MT7996_RRO_ADDR_ELEM_LEN)
+#define MT7996_RRO_WINDOW_MAX_SIZE	(MT7996_RRO_WINDOW_MAX_LEN *		\
+					 MT7996_RRO_BA_BITMAP_SESSION_SIZE)
+
+#define MT7996_RX_BUF_SIZE		(1800 + \
+					 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+#define MT7996_RX_MSDU_PAGE_SIZE	(128 + \
+					 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+
 struct mt7996_vif;
 struct mt7996_sta;
 struct mt7996_dfs_pulse;
@@ -79,6 +95,16 @@ enum mt7996_rxq_id {
 	MT7996_RXQ_BAND0 = 4,
 	MT7996_RXQ_BAND1 = 4,/* unused */
 	MT7996_RXQ_BAND2 = 5,
+	MT7996_RXQ_RRO_BAND0 = 8,
+	MT7996_RXQ_RRO_BAND1 = 8,/* unused */
+	MT7996_RXQ_RRO_BAND2 = 6,
+	MT7996_RXQ_MSDU_PG_BAND0 = 10,
+	MT7996_RXQ_MSDU_PG_BAND1 = 11,
+	MT7996_RXQ_MSDU_PG_BAND2 = 12,
+	MT7996_RXQ_TXFREE0 = 9,
+	MT7996_RXQ_TXFREE1 = 9,
+	MT7996_RXQ_TXFREE2 = 7,
+	MT7996_RXQ_RRO_IND = 0,
 };
 
 struct mt7996_twt_flow {
@@ -145,6 +171,15 @@ struct mt7996_hif {
 	struct device *dev;
 	void __iomem *regs;
 	int irq;
+};
+
+struct mt7996_wed_rro_addr {
+	u32 head_low;
+	u32 head_high : 4;
+	u32 count: 11;
+	u32 oor: 1;
+	u32 rsv : 8;
+	u32 signature : 8;
 };
 
 struct mt7996_phy {
@@ -226,6 +261,22 @@ struct mt7996_dev {
 	bool tbtc_support:1;
 	bool flash_mode:1;
 	bool has_eht:1;
+	bool has_rro:1;
+
+	struct {
+		struct {
+			void *ptr;
+			dma_addr_t phy_addr;
+		} ba_bitmap[MT7996_RRO_BA_BITMAP_LEN];
+		struct {
+			void *ptr;
+			dma_addr_t phy_addr;
+		} addr_elem[MT7996_RRO_ADDR_ELEM_LEN];
+		struct {
+			void *ptr;
+			dma_addr_t phy_addr;
+		} session;
+	} wed_rro;
 
 	bool ibf;
 	u8 fw_debug_wm;
@@ -505,5 +556,9 @@ u32 mt7996_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
 #ifdef CONFIG_MTK_DEBUG
 int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir);
 #endif
+
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+int mt7996_dma_rro_init(struct mt7996_dev *dev);
+#endif /* CONFIG_NET_MEDIATEK_SOC_WED */
 
 #endif

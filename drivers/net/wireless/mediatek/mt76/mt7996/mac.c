@@ -449,8 +449,36 @@ mt7996_mac_fill_rx_rate(struct mt7996_dev *dev,
 	return 0;
 }
 
+static void
+mt7996_wed_check_ppe(struct mt7996_dev *dev, struct mt76_queue *q,
+		     struct mt7996_sta *msta, struct sk_buff *skb,
+		     u32 info)
+{
+	struct ieee80211_vif *vif;
+	struct wireless_dev *wdev;
+
+	if (!msta || !msta->vif)
+		return;
+
+	if (!mt76_queue_is_wed_rx(q))
+		return;
+
+	if (!(info & MT_DMA_INFO_PPE_VLD))
+		return;
+
+	vif = container_of((void *)msta->vif, struct ieee80211_vif,
+			   drv_priv);
+	wdev = ieee80211_vif_to_wdev(vif);
+	skb->dev = wdev->netdev;
+
+	mtk_wed_device_ppe_check(&dev->mt76.mmio.wed, skb,
+				 FIELD_GET(MT_DMA_PPE_CPU_REASON, info),
+				 FIELD_GET(MT_DMA_PPE_ENTRY, info));
+}
+
 static int
-mt7996_mac_fill_rx(struct mt7996_dev *dev, struct sk_buff *skb)
+mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
+		   struct sk_buff *skb, u32 *info)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct mt76_phy *mphy = &dev->mt76.phy;
@@ -475,7 +503,10 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, struct sk_buff *skb)
 	u16 seq_ctrl = 0;
 	__le16 fc = 0;
 	int idx;
+	u8 hw_aggr = false;
+	struct mt7996_sta *msta = NULL;
 
+	hw_aggr = status->aggr;
 	memset(status, 0, sizeof(*status));
 
 	band_idx = FIELD_GET(MT_RXD1_NORMAL_BAND_IDX, rxd1);
@@ -502,8 +533,6 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, struct sk_buff *skb)
 	status->wcid = mt7996_rx_get_wcid(dev, idx, unicast);
 
 	if (status->wcid) {
-		struct mt7996_sta *msta;
-
 		msta = container_of(status->wcid, struct mt7996_sta, wcid);
 		spin_lock_bh(&dev->mt76.sta_poll_lock);
 		if (list_empty(&msta->wcid.poll_list))
@@ -708,12 +737,14 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, struct sk_buff *skb)
 		}
 	} else {
 		status->flag |= RX_FLAG_8023;
+		mt7996_wed_check_ppe(dev, &dev->mt76.q_rx[q], msta, skb,
+				     *info);
 	}
 
 	if (rxv && mode >= MT_PHY_TYPE_HE_SU && !(status->flag & RX_FLAG_8023))
 		mt76_connac3_mac_decode_he_radiotap(skb, rxv, mode);
 
-	if (!status->wcid || !ieee80211_is_data_qos(fc))
+	if (!status->wcid || !ieee80211_is_data_qos(fc) || hw_aggr)
 		return 0;
 
 	status->aggr = unicast &&
@@ -1448,7 +1479,7 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 		dev_kfree_skb(skb);
 		break;
 	case PKT_TYPE_NORMAL:
-		if (!mt7996_mac_fill_rx(dev, skb)) {
+		if (!mt7996_mac_fill_rx(dev, q, skb, info)) {
 			mt76_rx(&dev->mt76, q, skb);
 			return;
 		}

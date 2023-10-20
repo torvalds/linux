@@ -39,6 +39,38 @@ enum base_rev {
 
 #define __BASE(_id, _band)			(dev->reg.base[(_id)].band_base[(_band)])
 
+/* RRO TOP */
+#define MT_RRO_TOP_BASE				0xA000
+#define MT_RRO_TOP(ofs)				(MT_RRO_TOP_BASE + (ofs))
+
+#define MT_RRO_BA_BITMAP_BASE0			MT_RRO_TOP(0x8)
+#define MT_RRO_BA_BITMAP_BASE1			MT_RRO_TOP(0xC)
+#define WF_RRO_AXI_MST_CFG			MT_RRO_TOP(0xB8)
+#define WF_RRO_AXI_MST_CFG_DIDX_OK		BIT(12)
+#define MT_RRO_ADDR_ARRAY_BASE1			MT_RRO_TOP(0x34)
+#define MT_RRO_ADDR_ARRAY_ELEM_ADDR_SEG_MODE	BIT(31)
+
+#define MT_RRO_IND_CMD_SIGNATURE_BASE0		MT_RRO_TOP(0x38)
+#define MT_RRO_IND_CMD_SIGNATURE_BASE1		MT_RRO_TOP(0x3C)
+#define MT_RRO_IND_CMD_0_CTRL0			MT_RRO_TOP(0x40)
+#define MT_RRO_IND_CMD_SIGNATURE_BASE1_EN	BIT(31)
+
+#define MT_RRO_PARTICULAR_CFG0			MT_RRO_TOP(0x5C)
+#define MT_RRO_PARTICULAR_CFG1			MT_RRO_TOP(0x60)
+#define MT_RRO_PARTICULAR_CONFG_EN		BIT(31)
+#define MT_RRO_PARTICULAR_SID			GENMASK(30, 16)
+
+#define MT_RRO_BA_BITMAP_BASE_EXT0		MT_RRO_TOP(0x70)
+#define MT_RRO_BA_BITMAP_BASE_EXT1		MT_RRO_TOP(0x74)
+#define MT_RRO_HOST_INT_ENA			MT_RRO_TOP(0x204)
+#define MT_RRO_HOST_INT_ENA_HOST_RRO_DONE_ENA   BIT(0)
+
+#define MT_RRO_ADDR_ELEM_SEG_ADDR0		MT_RRO_TOP(0x400)
+
+#define MT_RRO_ACK_SN_CTRL			MT_RRO_TOP(0x50)
+#define MT_RRO_ACK_SN_CTRL_SN_MASK		GENMASK(27, 16)
+#define MT_RRO_ACK_SN_CTRL_SESSION_MASK		GENMASK(11, 0)
+
 #define MT_MCU_INT_EVENT			0x2108
 #define MT_MCU_INT_EVENT_DMA_STOPPED		BIT(0)
 #define MT_MCU_INT_EVENT_DMA_INIT		BIT(1)
@@ -398,6 +430,7 @@ enum base_rev {
 #define MT_MCUQ_RING_BASE(q)			(MT_Q_BASE(q) + 0x300)
 #define MT_TXQ_RING_BASE(q)			(MT_Q_BASE(__TXQ(q)) + 0x300)
 #define MT_RXQ_RING_BASE(q)			(MT_Q_BASE(__RXQ(q)) + 0x500)
+#define MT_RXQ_RRO_IND_RING_BASE		MT_RRO_TOP(0x40)
 
 #define MT_MCUQ_EXT_CTRL(q)			(MT_Q_BASE(q) +	0x600 +	\
 						 MT_MCUQ_ID(q) * 0x4)
@@ -425,6 +458,14 @@ enum base_rev {
 #define MT_INT_MCU_CMD				BIT(29)
 #define MT_INT_RX_TXFREE_EXT			BIT(26)
 
+#define MT_INT_RX_DONE_RRO_BAND0		BIT(16)
+#define MT_INT_RX_DONE_RRO_BAND1		BIT(16)
+#define MT_INT_RX_DONE_RRO_BAND2		BIT(14)
+#define MT_INT_RX_DONE_RRO_IND			BIT(11)
+#define MT_INT_RX_DONE_MSDU_PG_BAND0		BIT(18)
+#define MT_INT_RX_DONE_MSDU_PG_BAND1		BIT(19)
+#define MT_INT_RX_DONE_MSDU_PG_BAND2		BIT(23)
+
 #define MT_INT_RX(q)				(dev->q_int_mask[__RXQ(q)])
 #define MT_INT_TX_MCU(q)			(dev->q_int_mask[(q)])
 
@@ -432,20 +473,31 @@ enum base_rev {
 						 MT_INT_RX(MT_RXQ_MCU_WA))
 
 #define MT_INT_BAND0_RX_DONE			(MT_INT_RX(MT_RXQ_MAIN) |	\
-						 MT_INT_RX(MT_RXQ_MAIN_WA))
+						 MT_INT_RX(MT_RXQ_MAIN_WA) |	\
+						 MT_INT_RX(MT_RXQ_TXFREE_BAND0))
 
 #define MT_INT_BAND1_RX_DONE			(MT_INT_RX(MT_RXQ_BAND1) |	\
 						 MT_INT_RX(MT_RXQ_BAND1_WA) |	\
-						 MT_INT_RX(MT_RXQ_MAIN_WA))
+						 MT_INT_RX(MT_RXQ_MAIN_WA) |	\
+						 MT_INT_RX(MT_RXQ_TXFREE_BAND0))
 
 #define MT_INT_BAND2_RX_DONE			(MT_INT_RX(MT_RXQ_BAND2) |	\
 						 MT_INT_RX(MT_RXQ_BAND2_WA) |	\
-						 MT_INT_RX(MT_RXQ_MAIN_WA))
+						 MT_INT_RX(MT_RXQ_MAIN_WA) |	\
+						 MT_INT_RX(MT_RXQ_TXFREE_BAND0))
+
+#define MT_INT_RRO_RX_DONE			(MT_INT_RX(MT_RXQ_RRO_BAND0) |		\
+						 MT_INT_RX(MT_RXQ_RRO_BAND1) |		\
+						 MT_INT_RX(MT_RXQ_RRO_BAND2) |		\
+						 MT_INT_RX(MT_RXQ_MSDU_PAGE_BAND0) |	\
+						 MT_INT_RX(MT_RXQ_MSDU_PAGE_BAND1) |	\
+						 MT_INT_RX(MT_RXQ_MSDU_PAGE_BAND2))
 
 #define MT_INT_RX_DONE_ALL			(MT_INT_RX_DONE_MCU |		\
 						 MT_INT_BAND0_RX_DONE |		\
 						 MT_INT_BAND1_RX_DONE |		\
-						 MT_INT_BAND2_RX_DONE)
+						 MT_INT_BAND2_RX_DONE |		\
+						 MT_INT_RRO_RX_DONE)
 
 #define MT_INT_TX_DONE_FWDL			BIT(26)
 #define MT_INT_TX_DONE_MCU_WM			BIT(27)
@@ -558,6 +610,8 @@ enum base_rev {
 #define MT_TOP_MISC_FW_STATE			GENMASK(2, 0)
 
 #define MT_HW_REV				0x70010204
+#define MT_HW_REV1				0x8a00
+
 #define MT_WF_SUBSYS_RST			0x70028600
 
 /* PCIE MAC */

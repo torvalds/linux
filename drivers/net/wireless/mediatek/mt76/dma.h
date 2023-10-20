@@ -23,7 +23,16 @@
 
 #define MT_DMA_PPE_CPU_REASON		GENMASK(15, 11)
 #define MT_DMA_PPE_ENTRY		GENMASK(30, 16)
+#define MT_DMA_INFO_DMA_FRAG		BIT(9)
 #define MT_DMA_INFO_PPE_VLD		BIT(31)
+
+#define MT_DMA_CTL_PN_CHK_FAIL		BIT(13)
+#define MT_DMA_CTL_VER_MASK		BIT(7)
+
+#define MT_DMA_RRO_EN		BIT(13)
+
+#define MT_DMA_WED_IND_CMD_CNT		8
+#define MT_DMA_WED_IND_REASON		GENMASK(15, 12)
 
 #define MT_DMA_HDR_LEN			4
 #define MT_RX_INFO_LEN			4
@@ -35,6 +44,11 @@ struct mt76_desc {
 	__le32 ctrl;
 	__le32 buf1;
 	__le32 info;
+} __packed __aligned(4);
+
+struct mt76_wed_rro_desc {
+	__le32 buf0;
+	__le32 buf1;
 } __packed __aligned(4);
 
 enum mt76_qsel {
@@ -54,9 +68,38 @@ enum mt76_mcu_evt_type {
 	EVT_EVENT_DFS_DETECT_RSP,
 };
 
+enum mt76_dma_wed_ind_reason {
+	MT_DMA_WED_IND_REASON_NORMAL,
+	MT_DMA_WED_IND_REASON_REPEAT,
+	MT_DMA_WED_IND_REASON_OLDPKT,
+};
+
 int mt76_dma_rx_poll(struct napi_struct *napi, int budget);
 void mt76_dma_attach(struct mt76_dev *dev);
 void mt76_dma_cleanup(struct mt76_dev *dev);
 int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset);
+
+static inline void
+mt76_dma_should_drop_buf(bool *drop, u32 ctrl, u32 buf1, u32 info)
+{
+	if (!drop)
+		return;
+
+	*drop = !!(ctrl & (MT_DMA_CTL_TO_HOST_A | MT_DMA_CTL_DROP));
+	if (!(ctrl & MT_DMA_CTL_VER_MASK))
+		return;
+
+	switch (FIELD_GET(MT_DMA_WED_IND_REASON, buf1)) {
+	case MT_DMA_WED_IND_REASON_REPEAT:
+		*drop = true;
+		break;
+	case MT_DMA_WED_IND_REASON_OLDPKT:
+		*drop = !(info & MT_DMA_INFO_DMA_FRAG);
+		break;
+	default:
+		*drop = !!(ctrl & MT_DMA_CTL_PN_CHK_FAIL);
+		break;
+	}
+}
 
 #endif
