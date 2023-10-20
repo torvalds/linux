@@ -2629,8 +2629,7 @@ static struct tls_sw_context_rx *init_ctx_rx(struct tls_context *ctx)
 
 int init_prot_info(struct tls_prot_info *prot,
 		   const struct tls_crypto_info *crypto_info,
-		   const struct tls_cipher_desc *cipher_desc,
-		   int mode)
+		   const struct tls_cipher_desc *cipher_desc)
 {
 	u16 nonce_size = cipher_desc->nonce;
 
@@ -2640,11 +2639,6 @@ int init_prot_info(struct tls_prot_info *prot,
 		prot->tail_size = 1;
 	} else {
 		prot->aad_size = TLS_AAD_SPACE_SIZE;
-		prot->tail_size = 0;
-	}
-
-	if (mode == TLS_HW) {
-		prot->aad_size = 0;
 		prot->tail_size = 0;
 	}
 
@@ -2707,7 +2701,7 @@ int tls_set_sw_offload(struct sock *sk, int tx)
 		goto free_priv;
 	}
 
-	rc = init_prot_info(prot, crypto_info, cipher_desc, TLS_SW);
+	rc = init_prot_info(prot, crypto_info, cipher_desc);
 	if (rc)
 		goto free_priv;
 

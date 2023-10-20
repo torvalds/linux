@@ -1099,7 +1099,7 @@ int tls_set_device_offload(struct sock *sk)
 		goto release_netdev;
 	}
 
-	rc = init_prot_info(prot, crypto_info, cipher_desc, TLS_HW);
+	rc = init_prot_info(prot, crypto_info, cipher_desc);
 	if (rc)
 		goto release_netdev;
 
