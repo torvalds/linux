@@ -523,6 +523,82 @@ struct adf_ras_ops;
 #define ADF_GEN4_CPP_CFC_ERR_PPID_LO			0x640C0C
 #define ADF_GEN4_CPP_CFC_ERR_PPID_HI			0x640C10
 
+/* Exception reporting in QAT SSM CMP */
+#define ADF_GEN4_EXPRPSSMCPR				0x2000
+
+/*
+ * Uncorrectable error mask in EXPRPSSMCPR
+ * BIT(2) - Hard fatal error
+ * BIT(16) - Parity error detected in CPR Push FIFO
+ * BIT(17) - Parity error detected in CPR Pull FIFO
+ * BIT(18) - Parity error detected in CPR Hash Table
+ * BIT(19) - Parity error detected in CPR History Buffer Copy 0
+ * BIT(20) - Parity error detected in CPR History Buffer Copy 1
+ * BIT(21) - Parity error detected in CPR History Buffer Copy 2
+ * BIT(22) - Parity error detected in CPR History Buffer Copy 3
+ * BIT(23) - Parity error detected in CPR History Buffer Copy 4
+ * BIT(24) - Parity error detected in CPR History Buffer Copy 5
+ * BIT(25) - Parity error detected in CPR History Buffer Copy 6
+ * BIT(26) - Parity error detected in CPR History Buffer Copy 7
+ */
+#define ADF_GEN4_EXPRPSSMCPR_UNCERR_BITMASK \
+	(BIT(2) | BIT(16) | BIT(17) | BIT(18) | BIT(19) | BIT(20) | \
+	 BIT(21) | BIT(22) | BIT(23) | BIT(24) | BIT(25) | BIT(26))
+
+/* Exception reporting in QAT SSM XLT */
+#define ADF_GEN4_EXPRPSSMXLT				0xA000
+
+/*
+ * Uncorrectable error mask in EXPRPSSMXLT
+ * BIT(2) - If set, an Uncorrectable Error event occurred
+ * BIT(16) - Parity error detected in XLT Push FIFO
+ * BIT(17) - Parity error detected in XLT Pull FIFO
+ * BIT(18) - Parity error detected in XLT HCTB0
+ * BIT(19) - Parity error detected in XLT HCTB1
+ * BIT(20) - Parity error detected in XLT HCTB2
+ * BIT(21) - Parity error detected in XLT HCTB3
+ * BIT(22) - Parity error detected in XLT CBCL
+ * BIT(23) - Parity error detected in XLT LITPTR
+ */
+#define ADF_GEN4_EXPRPSSMXLT_UNCERR_BITMASK \
+	(BIT(2) | BIT(16) | BIT(17) | BIT(18) | BIT(19) | BIT(20) | BIT(21) | \
+	 BIT(22) | BIT(23))
+
+/*
+ * Correctable error mask in EXPRPSSMXLT
+ * BIT(3) - Correctable error event occurred.
+ */
+#define ADF_GEN4_EXPRPSSMXLT_CERR_BIT			BIT(3)
+
+/* Exception reporting in QAT SSM DCMP */
+#define ADF_GEN4_EXPRPSSMDCPR(_n_) (0x12000 + (_n_) * 0x80)
+
+/*
+ * Uncorrectable error mask in EXPRPSSMDCPR
+ * BIT(2) - Even hard fatal error
+ * BIT(4) - Odd hard fatal error
+ * BIT(6) - decode soft error
+ * BIT(16) - Parity error detected in CPR Push FIFO
+ * BIT(17) - Parity error detected in CPR Pull FIFO
+ * BIT(18) - Parity error detected in the Input Buffer
+ * BIT(19) - symbuf0parerr
+ *	     Parity error detected in CPR Push FIFO
+ * BIT(20) - symbuf1parerr
+ *	     Parity error detected in CPR Push FIFO
+ */
+#define ADF_GEN4_EXPRPSSMDCPR_UNCERR_BITMASK \
+	(BIT(2) | BIT(4) | BIT(6) | BIT(16) | BIT(17) | \
+	 BIT(18) | BIT(19) | BIT(20))
+
+/*
+ * Correctable error mask in EXPRPSSMDCPR
+ * BIT(3) - Even ecc correctable error
+ * BIT(5) - Odd ecc correctable error
+ */
+#define ADF_GEN4_EXPRPSSMDCPR_CERR_BITMASK		(BIT(3) | BIT(5))
+
+#define ADF_GEN4_DCPR_SLICES_NUM			3
+
 /* Command Parity error detected on IOSFP Command to QAT */
 #define ADF_GEN4_RIMISCSTS_BIT				BIT(0)
 

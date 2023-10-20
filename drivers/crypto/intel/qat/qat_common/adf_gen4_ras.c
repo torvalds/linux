@@ -996,13 +996,87 @@ static bool adf_handle_iaintstatssm(struct adf_accel_dev *accel_dev,
 	return reset_required;
 }
 
+static bool adf_handle_exprpssmcmpr(struct adf_accel_dev *accel_dev,
+				    void __iomem *csr)
+{
+	u32 reg = ADF_CSR_RD(csr, ADF_GEN4_EXPRPSSMCPR);
+
+	reg &= ADF_GEN4_EXPRPSSMCPR_UNCERR_BITMASK;
+	if (!reg)
+		return false;
+
+	dev_err(&GET_DEV(accel_dev),
+		"Uncorrectable error exception in SSM CMP: 0x%x", reg);
+
+	ADF_CSR_WR(csr, ADF_GEN4_EXPRPSSMCPR, reg);
+
+	return false;
+}
+
+static bool adf_handle_exprpssmxlt(struct adf_accel_dev *accel_dev,
+				   void __iomem *csr)
+{
+	u32 reg = ADF_CSR_RD(csr, ADF_GEN4_EXPRPSSMXLT);
+
+	reg &= ADF_GEN4_EXPRPSSMXLT_UNCERR_BITMASK |
+	       ADF_GEN4_EXPRPSSMXLT_CERR_BIT;
+	if (!reg)
+		return false;
+
+	if (reg & ADF_GEN4_EXPRPSSMXLT_UNCERR_BITMASK)
+		dev_err(&GET_DEV(accel_dev),
+			"Uncorrectable error exception in SSM XLT: 0x%x", reg);
+
+	if (reg & ADF_GEN4_EXPRPSSMXLT_CERR_BIT)
+		dev_warn(&GET_DEV(accel_dev),
+			 "Correctable error exception in SSM XLT: 0x%x", reg);
+
+	ADF_CSR_WR(csr, ADF_GEN4_EXPRPSSMXLT, reg);
+
+	return false;
+}
+
+static bool adf_handle_exprpssmdcpr(struct adf_accel_dev *accel_dev,
+				    void __iomem *csr)
+{
+	u32 reg;
+	int i;
+
+	for (i = 0; i < ADF_GEN4_DCPR_SLICES_NUM; i++) {
+		reg = ADF_CSR_RD(csr, ADF_GEN4_EXPRPSSMDCPR(i));
+		reg &= ADF_GEN4_EXPRPSSMDCPR_UNCERR_BITMASK |
+		       ADF_GEN4_EXPRPSSMDCPR_CERR_BITMASK;
+		if (!reg)
+			continue;
+
+		if (reg & ADF_GEN4_EXPRPSSMDCPR_UNCERR_BITMASK)
+			dev_err(&GET_DEV(accel_dev),
+				"Uncorrectable error exception in SSM DCMP: 0x%x", reg);
+
+		if (reg & ADF_GEN4_EXPRPSSMDCPR_CERR_BITMASK)
+			dev_warn(&GET_DEV(accel_dev),
+				 "Correctable error exception in SSM DCMP: 0x%x", reg);
+
+		ADF_CSR_WR(csr, ADF_GEN4_EXPRPSSMDCPR(i), reg);
+	}
+
+	return false;
+}
+
 static bool adf_handle_ssm(struct adf_accel_dev *accel_dev, void __iomem *csr,
 			   u32 errsou)
 {
+	bool reset_required;
+
 	if (!(errsou & ADF_GEN4_ERRSOU2_SSM_ERR_BIT))
 		return false;
 
-	return adf_handle_iaintstatssm(accel_dev, csr);
+	reset_required = adf_handle_iaintstatssm(accel_dev, csr);
+	reset_required |= adf_handle_exprpssmcmpr(accel_dev, csr);
+	reset_required |= adf_handle_exprpssmxlt(accel_dev, csr);
+	reset_required |= adf_handle_exprpssmdcpr(accel_dev, csr);
+
+	return reset_required;
 }
 
 static bool adf_handle_cpp_cfc_err(struct adf_accel_dev *accel_dev,
