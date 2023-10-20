@@ -509,7 +509,7 @@ error_pm:
 	return err;
 }
 
-static int sun4i_ss_remove(struct platform_device *pdev)
+static void sun4i_ss_remove(struct platform_device *pdev)
 {
 	int i;
 	struct sun4i_ss_ctx *ss = platform_get_drvdata(pdev);
@@ -529,7 +529,6 @@ static int sun4i_ss_remove(struct platform_device *pdev)
 	}
 
 	sun4i_ss_pm_exit(ss);
-	return 0;
 }
 
 static const struct of_device_id a20ss_crypto_of_match_table[] = {
@@ -545,7 +544,7 @@ MODULE_DEVICE_TABLE(of, a20ss_crypto_of_match_table);
 
 static struct platform_driver sun4i_ss_driver = {
 	.probe          = sun4i_ss_probe,
-	.remove         = sun4i_ss_remove,
+	.remove_new     = sun4i_ss_remove,
 	.driver         = {
 		.name           = "sun4i-ss",
 		.pm		= &sun4i_ss_pm_ops,
