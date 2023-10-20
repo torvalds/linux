@@ -3,6 +3,9 @@
 #include "adf_common_drv.h"
 #include "adf_gen4_hw_data.h"
 #include "adf_gen4_ras.h"
+#include "adf_sysfs_ras_counters.h"
+
+#define BITS_PER_REG(_n_) (sizeof(_n_) * BITS_PER_BYTE)
 
 static void enable_errsou_reporting(void __iomem *csr)
 {
@@ -355,6 +358,8 @@ static void adf_gen4_process_errsou0(struct adf_accel_dev *accel_dev,
 		 "Correctable error detected in AE: 0x%x\n",
 		 aecorrerr);
 
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_CORR);
+
 	/* Clear interrupt from ERRSOU0 */
 	ADF_CSR_WR(csr, ADF_GEN4_HIAECORERRLOG_CPP0, aecorrerr);
 }
@@ -373,6 +378,8 @@ static bool adf_handle_cpp_aeunc(struct adf_accel_dev *accel_dev,
 	dev_err(&GET_DEV(accel_dev),
 		"Uncorrectable error detected in AE: 0x%x\n",
 		aeuncorerr);
+
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 
 	ADF_CSR_WR(csr, ADF_GEN4_HIAEUNCERRLOG_CPP0, aeuncorerr);
 
@@ -395,6 +402,8 @@ static bool adf_handle_cppcmdparerr(struct adf_accel_dev *accel_dev,
 		"HI CPP agent command parity error: 0x%x\n",
 		cmdparerr);
 
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
+
 	ADF_CSR_WR(csr, ADF_GEN4_HICPPAGENTCMDPARERRLOG, cmdparerr);
 
 	return true;
@@ -413,15 +422,18 @@ static bool adf_handle_ri_mem_par_err(struct adf_accel_dev *accel_dev,
 	rimem_parerr_sts &= ADF_GEN4_RIMEM_PARERR_STS_UNCERR_BITMASK |
 			    ADF_GEN4_RIMEM_PARERR_STS_FATAL_BITMASK;
 
-	if (rimem_parerr_sts & ADF_GEN4_RIMEM_PARERR_STS_UNCERR_BITMASK)
+	if (rimem_parerr_sts & ADF_GEN4_RIMEM_PARERR_STS_UNCERR_BITMASK) {
 		dev_err(&GET_DEV(accel_dev),
 			"RI Memory Parity uncorrectable error: 0x%x\n",
 			rimem_parerr_sts);
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+	}
 
 	if (rimem_parerr_sts & ADF_GEN4_RIMEM_PARERR_STS_FATAL_BITMASK) {
 		dev_err(&GET_DEV(accel_dev),
 			"RI Memory Parity fatal error: 0x%x\n",
 			rimem_parerr_sts);
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
 		reset_required = true;
 	}
 
@@ -445,6 +457,7 @@ static bool adf_handle_ti_ci_par_sts(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"TI Memory Parity Error: 0x%x\n", ti_ci_par_sts);
 		ADF_CSR_WR(csr, ADF_GEN4_TI_CI_PAR_STS, ti_ci_par_sts);
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 	}
 
 	return false;
@@ -467,6 +480,8 @@ static bool adf_handle_ti_pullfub_par_sts(struct adf_accel_dev *accel_dev,
 
 		ADF_CSR_WR(csr, ADF_GEN4_TI_PULL0FUB_PAR_STS,
 			   ti_pullfub_par_sts);
+
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 	}
 
 	return false;
@@ -486,6 +501,8 @@ static bool adf_handle_ti_pushfub_par_sts(struct adf_accel_dev *accel_dev,
 	if (ti_pushfub_par_sts) {
 		dev_err(&GET_DEV(accel_dev),
 			"TI Push Parity Error: 0x%x\n", ti_pushfub_par_sts);
+
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 
 		ADF_CSR_WR(csr, ADF_GEN4_TI_PUSHFUB_PAR_STS,
 			   ti_pushfub_par_sts);
@@ -509,6 +526,8 @@ static bool adf_handle_ti_cd_par_sts(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"TI CD Parity Error: 0x%x\n", ti_cd_par_sts);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+
 		ADF_CSR_WR(csr, ADF_GEN4_TI_CD_PAR_STS, ti_cd_par_sts);
 	}
 
@@ -530,6 +549,8 @@ static bool adf_handle_ti_trnsb_par_sts(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"TI TRNSB Parity Error: 0x%x\n", ti_trnsb_par_sts);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+
 		ADF_CSR_WR(csr, ADF_GEN4_TI_TRNSB_PAR_STS, ti_trnsb_par_sts);
 	}
 
@@ -550,6 +571,8 @@ static bool adf_handle_iosfp_cmd_parerr(struct adf_accel_dev *accel_dev,
 	dev_err(&GET_DEV(accel_dev),
 		"Command Parity error detected on IOSFP: 0x%x\n",
 		rimiscsts);
+
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
 
 	ADF_CSR_WR(csr, ADF_GEN4_RIMISCSTS, rimiscsts);
 
@@ -586,6 +609,8 @@ static bool adf_handle_uerrssmsh(struct adf_accel_dev *accel_dev,
 		"Uncorrectable error on ssm shared memory: 0x%x\n",
 		reg);
 
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+
 	ADF_CSR_WR(csr, ADF_GEN4_UERRSSMSH, reg);
 
 	return false;
@@ -605,6 +630,8 @@ static bool adf_handle_cerrssmsh(struct adf_accel_dev *accel_dev,
 	dev_warn(&GET_DEV(accel_dev),
 		 "Correctable error on ssm shared memory: 0x%x\n",
 		 reg);
+
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_CORR);
 
 	ADF_CSR_WR(csr, ADF_GEN4_CERRSSMSH, reg);
 
@@ -626,6 +653,8 @@ static bool adf_handle_pperr_err(struct adf_accel_dev *accel_dev,
 		"Uncorrectable error CPP transaction on memory target: 0x%x\n",
 		reg);
 
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+
 	ADF_CSR_WR(csr, ADF_GEN4_PPERR, reg);
 
 	return false;
@@ -642,6 +671,8 @@ static void adf_poll_slicehang_csr(struct adf_accel_dev *accel_dev,
 
 	dev_err(&GET_DEV(accel_dev),
 		"Slice %s hang error encountered\n", slice_name);
+
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 }
 
 static bool adf_handle_slice_hang_error(struct adf_accel_dev *accel_dev,
@@ -682,6 +713,8 @@ static bool adf_handle_spp_pullcmd_err(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"SPP pull command fatal error ATH_CPH: 0x%x\n", reg);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
+
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPULLCMDPARERR_ATH_CPH, reg);
 
 		reset_required = true;
@@ -692,6 +725,8 @@ static bool adf_handle_spp_pullcmd_err(struct adf_accel_dev *accel_dev,
 	if (reg) {
 		dev_err(&GET_DEV(accel_dev),
 			"SPP pull command fatal error CPR_XLT: 0x%x\n", reg);
+
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
 
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPULLCMDPARERR_CPR_XLT, reg);
 
@@ -704,6 +739,8 @@ static bool adf_handle_spp_pullcmd_err(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"SPP pull command fatal error DCPR_UCS: 0x%x\n", reg);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
+
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPULLCMDPARERR_DCPR_UCS, reg);
 
 		reset_required = true;
@@ -714,6 +751,8 @@ static bool adf_handle_spp_pullcmd_err(struct adf_accel_dev *accel_dev,
 	if (reg) {
 		dev_err(&GET_DEV(accel_dev),
 			"SPP pull command fatal error PKE: 0x%x\n", reg);
+
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
 
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPULLCMDPARERR_PKE, reg);
 
@@ -726,6 +765,8 @@ static bool adf_handle_spp_pullcmd_err(struct adf_accel_dev *accel_dev,
 		if (reg) {
 			dev_err(&GET_DEV(accel_dev),
 				"SPP pull command fatal error WAT_WCP: 0x%x\n", reg);
+
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
 
 			ADF_CSR_WR(csr, ADF_GEN4_SPPPULLCMDPARERR_WAT_WCP, reg);
 
@@ -748,6 +789,8 @@ static bool adf_handle_spp_pulldata_err(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"SPP pull data err ATH_CPH: 0x%x\n", reg);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPULLDATAPARERR_ATH_CPH, reg);
 	}
 
@@ -756,6 +799,8 @@ static bool adf_handle_spp_pulldata_err(struct adf_accel_dev *accel_dev,
 	if (reg) {
 		dev_err(&GET_DEV(accel_dev),
 			"SPP pull data err CPR_XLT: 0x%x\n", reg);
+
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPULLDATAPARERR_CPR_XLT, reg);
 	}
@@ -766,6 +811,8 @@ static bool adf_handle_spp_pulldata_err(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"SPP pull data err DCPR_UCS: 0x%x\n", reg);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPULLDATAPARERR_DCPR_UCS, reg);
 	}
 
@@ -774,6 +821,8 @@ static bool adf_handle_spp_pulldata_err(struct adf_accel_dev *accel_dev,
 	if (reg) {
 		dev_err(&GET_DEV(accel_dev),
 			"SPP pull data err PKE: 0x%x\n", reg);
+
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPULLDATAPARERR_PKE, reg);
 	}
@@ -784,6 +833,8 @@ static bool adf_handle_spp_pulldata_err(struct adf_accel_dev *accel_dev,
 		if (reg) {
 			dev_err(&GET_DEV(accel_dev),
 				"SPP pull data err WAT_WCP: 0x%x\n", reg);
+
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 
 			ADF_CSR_WR(csr, ADF_GEN4_SPPPULLDATAPARERR_WAT_WCP, reg);
 		}
@@ -805,6 +856,8 @@ static bool adf_handle_spp_pushcmd_err(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"SPP push command fatal error ATH_CPH: 0x%x\n", reg);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
+
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPUSHCMDPARERR_ATH_CPH, reg);
 
 		reset_required = true;
@@ -816,6 +869,8 @@ static bool adf_handle_spp_pushcmd_err(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"SPP push command fatal error CPR_XLT: 0x%x\n", reg);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
+
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPUSHCMDPARERR_CPR_XLT, reg);
 
 		reset_required = true;
@@ -826,6 +881,8 @@ static bool adf_handle_spp_pushcmd_err(struct adf_accel_dev *accel_dev,
 	if (reg) {
 		dev_err(&GET_DEV(accel_dev),
 			"SPP push command fatal error DCPR_UCS: 0x%x\n", reg);
+
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
 
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPUSHCMDPARERR_DCPR_UCS, reg);
 
@@ -839,6 +896,8 @@ static bool adf_handle_spp_pushcmd_err(struct adf_accel_dev *accel_dev,
 			"SPP push command fatal error PKE: 0x%x\n",
 			reg);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
+
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPUSHCMDPARERR_PKE, reg);
 
 		reset_required = true;
@@ -850,6 +909,8 @@ static bool adf_handle_spp_pushcmd_err(struct adf_accel_dev *accel_dev,
 		if (reg) {
 			dev_err(&GET_DEV(accel_dev),
 				"SPP push command fatal error WAT_WCP: 0x%x\n", reg);
+
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
 
 			ADF_CSR_WR(csr, ADF_GEN4_SPPPUSHCMDPARERR_WAT_WCP, reg);
 
@@ -872,6 +933,8 @@ static bool adf_handle_spp_pushdata_err(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"SPP push data err ATH_CPH: 0x%x\n", reg);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPUSHDATAPARERR_ATH_CPH, reg);
 	}
 
@@ -880,6 +943,8 @@ static bool adf_handle_spp_pushdata_err(struct adf_accel_dev *accel_dev,
 	if (reg) {
 		dev_err(&GET_DEV(accel_dev),
 			"SPP push data err CPR_XLT: 0x%x\n", reg);
+
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPUSHDATAPARERR_CPR_XLT, reg);
 	}
@@ -890,6 +955,8 @@ static bool adf_handle_spp_pushdata_err(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"SPP push data err DCPR_UCS: 0x%x\n", reg);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPUSHDATAPARERR_DCPR_UCS, reg);
 	}
 
@@ -898,6 +965,8 @@ static bool adf_handle_spp_pushdata_err(struct adf_accel_dev *accel_dev,
 	if (reg) {
 		dev_err(&GET_DEV(accel_dev),
 			"SPP push data err PKE: 0x%x\n", reg);
+
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 
 		ADF_CSR_WR(csr, ADF_GEN4_SPPPUSHDATAPARERR_PKE, reg);
 	}
@@ -908,6 +977,8 @@ static bool adf_handle_spp_pushdata_err(struct adf_accel_dev *accel_dev,
 		if (reg) {
 			dev_err(&GET_DEV(accel_dev),
 				"SPP push data err WAT_WCP: 0x%x\n", reg);
+
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 
 			ADF_CSR_WR(csr, ADF_GEN4_SPPPUSHDATAPARERR_WAT_WCP,
 				   reg);
@@ -936,8 +1007,11 @@ static bool adf_handle_spppar_err(struct adf_accel_dev *accel_dev,
 static bool adf_handle_ssmcpppar_err(struct adf_accel_dev *accel_dev,
 				     void __iomem *csr, u32 iastatssm)
 {
+	u32 reg = ADF_CSR_RD(csr, ADF_GEN4_SSMCPPERR);
+	u32 bits_num = BITS_PER_REG(reg);
 	bool reset_required = false;
-	u32 reg;
+	unsigned long errs_bits;
+	u32 bit_iterator;
 
 	if (!(iastatssm & ADF_GEN4_IAINTSTATSSM_SSMCPPERR_BIT))
 		return false;
@@ -948,12 +1022,22 @@ static bool adf_handle_ssmcpppar_err(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"Fatal SSM CPP parity error: 0x%x\n", reg);
 
+		errs_bits = reg & ADF_GEN4_SSMCPPERR_FATAL_BITMASK;
+		for_each_set_bit(bit_iterator, &errs_bits, bits_num) {
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
+		}
 		reset_required = true;
 	}
 
-	if (reg & ADF_GEN4_SSMCPPERR_UNCERR_BITMASK)
+	if (reg & ADF_GEN4_SSMCPPERR_UNCERR_BITMASK) {
 		dev_err(&GET_DEV(accel_dev),
 			"non-Fatal SSM CPP parity error: 0x%x\n", reg);
+		errs_bits = reg & ADF_GEN4_SSMCPPERR_UNCERR_BITMASK;
+
+		for_each_set_bit(bit_iterator, &errs_bits, bits_num) {
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+		}
+	}
 
 	ADF_CSR_WR(csr, ADF_GEN4_SSMCPPERR, reg);
 
@@ -971,35 +1055,47 @@ static bool adf_handle_rf_parr_err(struct adf_accel_dev *accel_dev,
 
 	reg = ADF_CSR_RD(csr, ADF_GEN4_SSMSOFTERRORPARITY_SRC);
 	reg &= ADF_GEN4_SSMSOFTERRORPARITY_SRC_BIT;
-	if (reg)
+	if (reg) {
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 		ADF_CSR_WR(csr, ADF_GEN4_SSMSOFTERRORPARITY_SRC, reg);
+	}
 
 	reg = ADF_CSR_RD(csr, ADF_GEN4_SSMSOFTERRORPARITY_ATH_CPH);
 	reg &= err_mask->parerr_ath_cph_mask;
-	if (reg)
+	if (reg) {
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 		ADF_CSR_WR(csr, ADF_GEN4_SSMSOFTERRORPARITY_ATH_CPH, reg);
+	}
 
 	reg = ADF_CSR_RD(csr, ADF_GEN4_SSMSOFTERRORPARITY_CPR_XLT);
 	reg &= err_mask->parerr_cpr_xlt_mask;
-	if (reg)
+	if (reg) {
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 		ADF_CSR_WR(csr, ADF_GEN4_SSMSOFTERRORPARITY_CPR_XLT, reg);
+	}
 
 	reg = ADF_CSR_RD(csr, ADF_GEN4_SSMSOFTERRORPARITY_DCPR_UCS);
 	reg &= err_mask->parerr_dcpr_ucs_mask;
-	if (reg)
+	if (reg) {
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 		ADF_CSR_WR(csr, ADF_GEN4_SSMSOFTERRORPARITY_DCPR_UCS, reg);
+	}
 
 	reg = ADF_CSR_RD(csr, ADF_GEN4_SSMSOFTERRORPARITY_PKE);
 	reg &= err_mask->parerr_pke_mask;
-	if (reg)
+	if (reg) {
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 		ADF_CSR_WR(csr, ADF_GEN4_SSMSOFTERRORPARITY_PKE, reg);
+	}
 
 	if (err_mask->parerr_wat_wcp_mask) {
 		reg = ADF_CSR_RD(csr, ADF_GEN4_SSMSOFTERRORPARITY_WAT_WCP);
 		reg &= err_mask->parerr_wat_wcp_mask;
-		if (reg)
+		if (reg) {
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 			ADF_CSR_WR(csr, ADF_GEN4_SSMSOFTERRORPARITY_WAT_WCP,
 				   reg);
+		}
 	}
 
 	dev_err(&GET_DEV(accel_dev), "Slice ssm soft parity error reported");
@@ -1010,8 +1106,11 @@ static bool adf_handle_rf_parr_err(struct adf_accel_dev *accel_dev,
 static bool adf_handle_ser_err_ssmsh(struct adf_accel_dev *accel_dev,
 				     void __iomem *csr, u32 iastatssm)
 {
+	u32 reg = ADF_CSR_RD(csr, ADF_GEN4_SER_ERR_SSMSH);
+	u32 bits_num = BITS_PER_REG(reg);
 	bool reset_required = false;
-	u32 reg;
+	unsigned long errs_bits;
+	u32 bit_iterator;
 
 	if (!(iastatssm & (ADF_GEN4_IAINTSTATSSM_SER_ERR_SSMSH_CERR_BIT |
 			 ADF_GEN4_IAINTSTATSSM_SER_ERR_SSMSH_UNCERR_BIT)))
@@ -1025,16 +1124,33 @@ static bool adf_handle_ser_err_ssmsh(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"Fatal SER_SSMSH_ERR: 0x%x\n", reg);
 
+		errs_bits = reg & ADF_GEN4_SER_ERR_SSMSH_FATAL_BITMASK;
+		for_each_set_bit(bit_iterator, &errs_bits, bits_num) {
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
+		}
+
 		reset_required = true;
 	}
 
-	if (reg & ADF_GEN4_SER_ERR_SSMSH_UNCERR_BITMASK)
+	if (reg & ADF_GEN4_SER_ERR_SSMSH_UNCERR_BITMASK) {
 		dev_err(&GET_DEV(accel_dev),
 			"non-fatal SER_SSMSH_ERR: 0x%x\n", reg);
 
-	if (reg & ADF_GEN4_SER_ERR_SSMSH_CERR_BITMASK)
+		errs_bits = reg & ADF_GEN4_SER_ERR_SSMSH_UNCERR_BITMASK;
+		for_each_set_bit(bit_iterator, &errs_bits, bits_num) {
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+		}
+	}
+
+	if (reg & ADF_GEN4_SER_ERR_SSMSH_CERR_BITMASK) {
 		dev_warn(&GET_DEV(accel_dev),
 			 "Correctable SER_SSMSH_ERR: 0x%x\n", reg);
+
+		errs_bits = reg & ADF_GEN4_SER_ERR_SSMSH_CERR_BITMASK;
+		for_each_set_bit(bit_iterator, &errs_bits, bits_num) {
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_CORR);
+		}
+	}
 
 	ADF_CSR_WR(csr, ADF_GEN4_SER_ERR_SSMSH, reg);
 
@@ -1077,6 +1193,8 @@ static bool adf_handle_exprpssmcmpr(struct adf_accel_dev *accel_dev,
 	dev_err(&GET_DEV(accel_dev),
 		"Uncorrectable error exception in SSM CMP: 0x%x", reg);
 
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+
 	ADF_CSR_WR(csr, ADF_GEN4_EXPRPSSMCPR, reg);
 
 	return false;
@@ -1092,13 +1210,19 @@ static bool adf_handle_exprpssmxlt(struct adf_accel_dev *accel_dev,
 	if (!reg)
 		return false;
 
-	if (reg & ADF_GEN4_EXPRPSSMXLT_UNCERR_BITMASK)
+	if (reg & ADF_GEN4_EXPRPSSMXLT_UNCERR_BITMASK) {
 		dev_err(&GET_DEV(accel_dev),
 			"Uncorrectable error exception in SSM XLT: 0x%x", reg);
 
-	if (reg & ADF_GEN4_EXPRPSSMXLT_CERR_BIT)
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+	}
+
+	if (reg & ADF_GEN4_EXPRPSSMXLT_CERR_BIT) {
 		dev_warn(&GET_DEV(accel_dev),
 			 "Correctable error exception in SSM XLT: 0x%x", reg);
+
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_CORR);
+	}
 
 	ADF_CSR_WR(csr, ADF_GEN4_EXPRPSSMXLT, reg);
 
@@ -1118,13 +1242,19 @@ static bool adf_handle_exprpssmdcpr(struct adf_accel_dev *accel_dev,
 		if (!reg)
 			continue;
 
-		if (reg & ADF_GEN4_EXPRPSSMDCPR_UNCERR_BITMASK)
+		if (reg & ADF_GEN4_EXPRPSSMDCPR_UNCERR_BITMASK) {
 			dev_err(&GET_DEV(accel_dev),
 				"Uncorrectable error exception in SSM DCMP: 0x%x", reg);
 
-		if (reg & ADF_GEN4_EXPRPSSMDCPR_CERR_BITMASK)
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+		}
+
+		if (reg & ADF_GEN4_EXPRPSSMDCPR_CERR_BITMASK) {
 			dev_warn(&GET_DEV(accel_dev),
 				 "Correctable error exception in SSM DCMP: 0x%x", reg);
+
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_CORR);
+		}
 
 		ADF_CSR_WR(csr, ADF_GEN4_EXPRPSSMDCPR(i), reg);
 	}
@@ -1161,11 +1291,13 @@ static bool adf_handle_cpp_cfc_err(struct adf_accel_dev *accel_dev,
 	if (reg & ADF_GEN4_CPP_CFC_ERR_STATUS_DATAPAR_BIT) {
 		dev_err(&GET_DEV(accel_dev),
 			"CPP_CFC_ERR: data parity: 0x%x", reg);
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 	}
 
 	if (reg & ADF_GEN4_CPP_CFC_ERR_STATUS_CMDPAR_BIT) {
 		dev_err(&GET_DEV(accel_dev),
 			"CPP_CFC_ERR: command parity: 0x%x", reg);
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
 
 		reset_required = true;
 	}
@@ -1173,6 +1305,7 @@ static bool adf_handle_cpp_cfc_err(struct adf_accel_dev *accel_dev,
 	if (reg & ADF_GEN4_CPP_CFC_ERR_STATUS_MERR_BIT) {
 		dev_err(&GET_DEV(accel_dev),
 			"CPP_CFC_ERR: multiple errors: 0x%x", reg);
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
 
 		reset_required = true;
 	}
@@ -1204,6 +1337,8 @@ static bool adf_handle_timiscsts(struct adf_accel_dev *accel_dev,
 	dev_err(&GET_DEV(accel_dev),
 		"Fatal error in Transmit Interface: 0x%x\n", timiscsts);
 
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
+
 	return true;
 }
 
@@ -1220,6 +1355,8 @@ static bool adf_handle_ricppintsts(struct adf_accel_dev *accel_dev,
 
 	dev_err(&GET_DEV(accel_dev),
 		"RI CPP Uncorrectable Error: 0x%x\n", ricppintsts);
+
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 
 	ADF_CSR_WR(csr, ADF_GEN4_RICPPINTSTS, ricppintsts);
 
@@ -1240,6 +1377,8 @@ static bool adf_handle_ticppintsts(struct adf_accel_dev *accel_dev,
 	dev_err(&GET_DEV(accel_dev),
 		"TI CPP Uncorrectable Error: 0x%x\n", ticppintsts);
 
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
+
 	ADF_CSR_WR(csr, ADF_GEN4_TICPPINTSTS, ticppintsts);
 
 	return false;
@@ -1258,6 +1397,8 @@ static bool adf_handle_aramcerr(struct adf_accel_dev *accel_dev,
 
 	dev_warn(&GET_DEV(accel_dev),
 		 "ARAM correctable error : 0x%x\n", aram_cerr);
+
+	ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_CORR);
 
 	aram_cerr |= ADF_GEN4_REG_ARAMCERR_EN_BITMASK;
 
@@ -1286,10 +1427,14 @@ static bool adf_handle_aramuerr(struct adf_accel_dev *accel_dev,
 		dev_err(&GET_DEV(accel_dev),
 			"ARAM multiple uncorrectable errors: 0x%x\n", aramuerr);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
+
 		reset_required = true;
 	} else {
 		dev_err(&GET_DEV(accel_dev),
 			"ARAM uncorrectable error: 0x%x\n", aramuerr);
+
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 	}
 
 	aramuerr |= ADF_GEN4_REG_ARAMUERR_EN_BITMASK;
@@ -1319,10 +1464,13 @@ static bool adf_handle_reg_cppmemtgterr(struct adf_accel_dev *accel_dev,
 			"Misc memory target multiple uncorrectable errors: 0x%x\n",
 			cppmemtgterr);
 
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_FATAL);
+
 		reset_required = true;
 	} else {
 		dev_err(&GET_DEV(accel_dev),
 			"Misc memory target uncorrectable error: 0x%x\n", cppmemtgterr);
+		ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 	}
 
 	cppmemtgterr |= ADF_GEN4_REG_CPPMEMTGTERR_EN_BITMASK;
@@ -1350,6 +1498,8 @@ static bool adf_handle_atufaultstatus(struct adf_accel_dev *accel_dev,
 			dev_err(&GET_DEV(accel_dev),
 				"Ring Pair (%u) ATU detected fault: 0x%x\n", i,
 				atufaultstatus);
+
+			ADF_RAS_ERR_CTR_INC(accel_dev->ras_errors, ADF_RAS_UNCORR);
 
 			ADF_CSR_WR(csr, ADF_GEN4_ATUFAULTSTATUS(i), atufaultstatus);
 		}
