@@ -632,6 +632,10 @@ static int ivpu_hw_37xx_info_init(struct ivpu_device *vdev)
 	ivpu_hw_init_range(&hw->ranges.shave, 0x180000000, SZ_2G);
 	ivpu_hw_init_range(&hw->ranges.dma,   0x200000000, SZ_8G);
 
+	ivpu_hw_read_platform(vdev);
+	ivpu_hw_wa_init(vdev);
+	ivpu_hw_timeouts_init(vdev);
+
 	return 0;
 }
 
@@ -687,10 +691,6 @@ static int ivpu_hw_37xx_d0i3_disable(struct ivpu_device *vdev)
 static int ivpu_hw_37xx_power_up(struct ivpu_device *vdev)
 {
 	int ret;
-
-	ivpu_hw_read_platform(vdev);
-	ivpu_hw_wa_init(vdev);
-	ivpu_hw_timeouts_init(vdev);
 
 	ret = ivpu_hw_37xx_reset(vdev);
 	if (ret)
