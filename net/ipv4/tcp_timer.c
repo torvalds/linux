@@ -422,7 +422,7 @@ static void tcp_update_rto_stats(struct sock *sk)
 
 	if (!icsk->icsk_retransmits) {
 		tp->total_rto_recoveries++;
-		tp->rto_stamp = tcp_time_stamp(tp);
+		tp->rto_stamp = tcp_time_stamp_ms(tp);
 	}
 	icsk->icsk_retransmits++;
 	tp->total_rto++;

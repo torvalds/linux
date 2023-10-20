@@ -2856,7 +2856,7 @@ void tcp_enter_recovery(struct sock *sk, bool ece_ack)
 static void tcp_update_rto_time(struct tcp_sock *tp)
 {
 	if (tp->rto_stamp) {
-		tp->total_rto_time += tcp_time_stamp(tp) - tp->rto_stamp;
+		tp->total_rto_time += tcp_time_stamp_ms(tp) - tp->rto_stamp;
 		tp->rto_stamp = 0;
 	}
 }
