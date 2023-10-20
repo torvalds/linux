@@ -1570,7 +1570,7 @@ struct arm_cmn_val {
 	u8 dtm_count[CMN_MAX_DTMS];
 	u8 occupid[CMN_MAX_DTMS][SEL_MAX];
 	u8 wp[CMN_MAX_DTMS][4];
-	int dtc_count;
+	int dtc_count[CMN_MAX_DTCS];
 	bool cycles;
 };
 
@@ -1591,7 +1591,8 @@ static void arm_cmn_val_add_event(struct arm_cmn *cmn, struct arm_cmn_val *val,
 		return;
 	}
 
-	val->dtc_count++;
+	for_each_hw_dtc_idx(hw, dtc, idx)
+		val->dtc_count[dtc]++;
 
 	for_each_hw_dn(hw, dn, i) {
 		int wp_idx, dtm = dn->dtm, sel = hw->filter_sel;
@@ -1638,8 +1639,9 @@ static int arm_cmn_validate_group(struct arm_cmn *cmn, struct perf_event *event)
 		goto done;
 	}
 
-	if (val->dtc_count == CMN_DT_NUM_COUNTERS)
-		goto done;
+	for (i = 0; i < CMN_MAX_DTCS; i++)
+		if (val->dtc_count[i] == CMN_DT_NUM_COUNTERS)
+			goto done;
 
 	for_each_hw_dn(hw, dn, i) {
 		int wp_idx, wp_cmb, dtm = dn->dtm, sel = hw->filter_sel;
@@ -1806,9 +1808,9 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 		return 0;
 	}
 
-	/* Grab a free global counter first... */
+	/* Grab the global counters first... */
 	for_each_hw_dtc_idx(hw, j, idx) {
-		if (j > 0) {
+		if (cmn->part == PART_CMN600 && j > 0) {
 			idx = hw->dtc_idx[0];
 		} else {
 			idx = 0;
@@ -1819,10 +1821,10 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 		hw->dtc_idx[j] = idx;
 	}
 
-	/* ...then the local counters to feed it. */
+	/* ...then the local counters to feed them */
 	for_each_hw_dn(hw, dn, i) {
 		struct arm_cmn_dtm *dtm = &cmn->dtms[dn->dtm] + hw->dtm_offset;
-		unsigned int dtm_idx, shift, d = 0;
+		unsigned int dtm_idx, shift, d = max_t(int, dn->dtc, 0);
 		u64 reg;
 
 		dtm_idx = 0;
