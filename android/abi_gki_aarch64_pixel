@@ -2186,6 +2186,7 @@
   __traceiter_android_rvh_uclamp_eff_get
   __traceiter_android_rvh_update_blocked_fair
   __traceiter_android_rvh_update_load_avg
+  __traceiter_android_rvh_update_misfit_status
   __traceiter_android_rvh_update_rt_rq_load_avg
   __traceiter_android_vh_arch_set_freq_scale
   __traceiter_android_vh_audio_usb_offload_connect
@@ -2242,6 +2243,7 @@
   __traceiter_sched_switch
   __traceiter_sched_util_est_cfs_tp
   __traceiter_sched_util_est_se_tp
+  __traceiter_sched_wakeup
   __traceiter_suspend_resume
   __traceiter_workqueue_execute_end
   __traceiter_workqueue_execute_start
@@ -2278,6 +2280,7 @@
   __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_rvh_update_blocked_fair
   __tracepoint_android_rvh_update_load_avg
+  __tracepoint_android_rvh_update_misfit_status
   __tracepoint_android_rvh_update_rt_rq_load_avg
   __tracepoint_android_vh_arch_set_freq_scale
   __tracepoint_android_vh_audio_usb_offload_connect
@@ -2336,6 +2339,7 @@
   __tracepoint_sched_switch
   __tracepoint_sched_util_est_cfs_tp
   __tracepoint_sched_util_est_se_tp
+  __tracepoint_sched_wakeup
   __tracepoint_suspend_resume
   __tracepoint_workqueue_execute_end
   __tracepoint_workqueue_execute_start
@@ -2574,6 +2578,7 @@
   wireless_nlevent_flush
   woken_wake_function
   work_busy
+  __write_overflow_field
   __xa_alloc
   xa_clear_mark
   xa_destroy
