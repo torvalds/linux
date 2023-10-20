@@ -1803,7 +1803,7 @@ static int bq24190_probe(struct i2c_client *client)
 
 	bdi->client = client;
 	bdi->dev = dev;
-	strncpy(bdi->model_name, id->name, I2C_NAME_SIZE);
+	strscpy(bdi->model_name, id->name, sizeof(bdi->model_name));
 	mutex_init(&bdi->f_reg_lock);
 	bdi->charge_type = POWER_SUPPLY_CHARGE_TYPE_FAST;
 	bdi->f_reg = 0;
