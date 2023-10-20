@@ -2315,7 +2315,7 @@ err_clk:
 	return err;
 }
 
-static int s5p_aes_remove(struct platform_device *pdev)
+static void s5p_aes_remove(struct platform_device *pdev)
 {
 	struct s5p_aes_dev *pdata = platform_get_drvdata(pdev);
 	int i;
@@ -2337,13 +2337,11 @@ static int s5p_aes_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(pdata->clk);
 	s5p_dev = NULL;
-
-	return 0;
 }
 
 static struct platform_driver s5p_aes_crypto = {
 	.probe	= s5p_aes_probe,
-	.remove	= s5p_aes_remove,
+	.remove_new = s5p_aes_remove,
 	.driver	= {
 		.name	= "s5p-secss",
 		.of_match_table = s5p_sss_dt_match,
