@@ -1853,3 +1853,19 @@ enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
 	return MT_DFS_STATE_ACTIVE;
 }
 EXPORT_SYMBOL_GPL(mt76_phy_dfs_state);
+
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+int mt76_net_setup_tc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      struct net_device *netdev, enum tc_setup_type type,
+		      void *type_data)
+{
+	struct mt76_phy *phy = hw->priv;
+	struct mtk_wed_device *wed = &phy->dev->mmio.wed;
+
+	if (!mtk_wed_device_active(wed))
+		return -EOPNOTSUPP;
+
+	return mtk_wed_device_setup_tc(wed, netdev, type, type_data);
+}
+EXPORT_SYMBOL_GPL(mt76_net_setup_tc);
+#endif /* CONFIG_NET_MEDIATEK_SOC_WED */
