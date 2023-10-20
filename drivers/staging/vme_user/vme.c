@@ -80,23 +80,7 @@ static struct vme_bridge *find_bridge(struct vme_resource *resource)
 void *vme_alloc_consistent(struct vme_resource *resource, size_t size,
 			   dma_addr_t *dma)
 {
-	struct vme_bridge *bridge;
-
-	if (!resource) {
-		printk(KERN_ERR "No resource\n");
-		return NULL;
-	}
-
-	bridge = find_bridge(resource);
-	if (!bridge) {
-		printk(KERN_ERR "Can't find bridge\n");
-		return NULL;
-	}
-
-	if (!bridge->parent) {
-		printk(KERN_ERR "Dev entry NULL for bridge %s\n", bridge->name);
-		return NULL;
-	}
+	struct vme_bridge *bridge = find_bridge(resource);
 
 	if (!bridge->alloc_consistent) {
 		dev_err(bridge->parent,
@@ -121,23 +105,7 @@ EXPORT_SYMBOL(vme_alloc_consistent);
 void vme_free_consistent(struct vme_resource *resource, size_t size,
 			 void *vaddr, dma_addr_t dma)
 {
-	struct vme_bridge *bridge;
-
-	if (!resource) {
-		printk(KERN_ERR "No resource\n");
-		return;
-	}
-
-	bridge = find_bridge(resource);
-	if (!bridge) {
-		printk(KERN_ERR "Can't find bridge\n");
-		return;
-	}
-
-	if (!bridge->parent) {
-		printk(KERN_ERR "Dev entry NULL for bridge %s\n", bridge->name);
-		return;
-	}
+	struct vme_bridge *bridge = find_bridge(resource);
 
 	if (!bridge->free_consistent) {
 		dev_err(bridge->parent,
