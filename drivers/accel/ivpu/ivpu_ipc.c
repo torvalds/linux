@@ -45,8 +45,9 @@ static void ivpu_jsm_msg_dump(struct ivpu_device *vdev, char *c,
 	u32 *payload = (u32 *)&jsm_msg->payload;
 
 	ivpu_dbg(vdev, JSM,
-		 "%s: vpu:0x%08x (type:0x%x, status:0x%x, id: 0x%x, result: 0x%x, payload:0x%x 0x%x 0x%x 0x%x 0x%x)\n",
-		 c, vpu_addr, jsm_msg->type, jsm_msg->status, jsm_msg->request_id, jsm_msg->result,
+		 "%s: vpu:0x%08x (type:%s, status:0x%x, id: 0x%x, result: 0x%x, payload:0x%x 0x%x 0x%x 0x%x 0x%x)\n",
+		 c, vpu_addr, ivpu_jsm_msg_type_to_str(jsm_msg->type),
+		 jsm_msg->status, jsm_msg->request_id, jsm_msg->result,
 		 payload[0], payload[1], payload[2], payload[3], payload[4]);
 }
 
@@ -272,8 +273,8 @@ ivpu_ipc_send_receive_internal(struct ivpu_device *vdev, struct vpu_jsm_msg *req
 
 	ret = ivpu_ipc_receive(vdev, &cons, NULL, resp, timeout_ms);
 	if (ret) {
-		ivpu_warn_ratelimited(vdev, "IPC receive failed: type 0x%x, ret %d\n",
-				      req->type, ret);
+		ivpu_warn_ratelimited(vdev, "IPC receive failed: type %s, ret %d\n",
+				      ivpu_jsm_msg_type_to_str(req->type), ret);
 		goto consumer_del;
 	}
 
