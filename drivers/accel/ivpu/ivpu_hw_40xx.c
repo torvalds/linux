@@ -728,6 +728,10 @@ static int ivpu_hw_40xx_info_init(struct ivpu_device *vdev)
 	ivpu_hw_init_range(&vdev->hw->ranges.shave,  0x80000000 + SZ_256M, SZ_2G - SZ_256M);
 	ivpu_hw_init_range(&vdev->hw->ranges.dma,   0x200000000, SZ_8G);
 
+	ivpu_hw_read_platform(vdev);
+	ivpu_hw_wa_init(vdev);
+	ivpu_hw_timeouts_init(vdev);
+
 	return 0;
 }
 
@@ -818,10 +822,6 @@ static int ivpu_hw_40xx_power_up(struct ivpu_device *vdev)
 		ivpu_err(vdev, "Failed to reset HW: %d\n", ret);
 		return ret;
 	}
-
-	ivpu_hw_read_platform(vdev);
-	ivpu_hw_wa_init(vdev);
-	ivpu_hw_timeouts_init(vdev);
 
 	ret = ivpu_hw_40xx_d0i3_disable(vdev);
 	if (ret)
