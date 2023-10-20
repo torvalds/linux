@@ -1071,7 +1071,7 @@ error_pm:
 	return err;
 }
 
-static int sun8i_ce_remove(struct platform_device *pdev)
+static void sun8i_ce_remove(struct platform_device *pdev)
 {
 	struct sun8i_ce_dev *ce = platform_get_drvdata(pdev);
 
@@ -1088,7 +1088,6 @@ static int sun8i_ce_remove(struct platform_device *pdev)
 	sun8i_ce_free_chanlist(ce, MAXFLOW - 1);
 
 	sun8i_ce_pm_exit(ce);
-	return 0;
 }
 
 static const struct of_device_id sun8i_ce_crypto_of_match_table[] = {
@@ -1110,7 +1109,7 @@ MODULE_DEVICE_TABLE(of, sun8i_ce_crypto_of_match_table);
 
 static struct platform_driver sun8i_ce_driver = {
 	.probe		 = sun8i_ce_probe,
-	.remove		 = sun8i_ce_remove,
+	.remove_new	 = sun8i_ce_remove,
 	.driver		 = {
 		.name		= "sun8i-ce",
 		.pm		= &sun8i_ce_pm_ops,
