@@ -1190,17 +1190,16 @@ void gfs2_quota_unlock(struct gfs2_inode *ip)
 
 #define MAX_LINE 256
 
-static int print_message(struct gfs2_quota_data *qd, char *type)
+static void print_message(struct gfs2_quota_data *qd, char *type)
 {
 	struct gfs2_sbd *sdp = qd->qd_sbd;
 
-	if (sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET)
+	if (sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET) {
 		fs_info(sdp, "quota %s for %s %u\n",
 			type,
 			(qd->qd_id.type == USRQUOTA) ? "user" : "group",
 			from_kqid(&init_user_ns, qd->qd_id));
-
-	return 0;
+	}
 }
 
 /**
@@ -1270,7 +1269,8 @@ int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid,
 					 * HZ)) {
 			quota_send_warning(qd->qd_id,
 					   sdp->sd_vfs->s_dev, QUOTA_NL_BSOFTWARN);
-			error = print_message(qd, "warning");
+			print_message(qd, "warning");
+			error = 0;
 			qd->qd_last_warn = jiffies;
 		}
 	}
