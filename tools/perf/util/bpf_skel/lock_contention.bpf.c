@@ -389,6 +389,7 @@ int contention_end(u64 *ctx)
 
 	duration = bpf_ktime_get_ns() - pelem->timestamp;
 	if ((__s64)duration < 0) {
+		pelem->lock = 0;
 		bpf_map_delete_elem(&tstamp, &pid);
 		__sync_fetch_and_add(&time_fail, 1);
 		return 0;
@@ -422,6 +423,7 @@ int contention_end(u64 *ctx)
 	data = bpf_map_lookup_elem(&lock_stat, &key);
 	if (!data) {
 		if (data_map_full) {
+			pelem->lock = 0;
 			bpf_map_delete_elem(&tstamp, &pid);
 			__sync_fetch_and_add(&data_fail, 1);
 			return 0;
@@ -445,6 +447,7 @@ int contention_end(u64 *ctx)
 				data_map_full = 1;
 			__sync_fetch_and_add(&data_fail, 1);
 		}
+		pelem->lock = 0;
 		bpf_map_delete_elem(&tstamp, &pid);
 		return 0;
 	}
@@ -458,6 +461,7 @@ int contention_end(u64 *ctx)
 	if (data->min_time > duration)
 		data->min_time = duration;
 
+	pelem->lock = 0;
 	bpf_map_delete_elem(&tstamp, &pid);
 	return 0;
 }
