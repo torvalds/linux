@@ -53,6 +53,7 @@ static enum dc_link_rate get_link_rate_from_test_link_rate(uint8_t test_rate)
 		return LINK_RATE_UHBR10;
 	case DP_TEST_LINK_RATE_UHBR20:
 		return LINK_RATE_UHBR20;
+	case DP_TEST_LINK_RATE_UHBR13_5_LEGACY:
 	case DP_TEST_LINK_RATE_UHBR13_5:
 		return LINK_RATE_UHBR13_5;
 	default:
@@ -118,6 +119,11 @@ static void dp_test_send_link_training(struct dc_link *link)
 			&test_rate,
 			1);
 	link_settings.link_rate = get_link_rate_from_test_link_rate(test_rate);
+
+	if (link_settings.link_rate == LINK_RATE_UNKNOWN) {
+		DC_LOG_ERROR("%s: Invalid test link rate.", __func__);
+		ASSERT(0);
+	}
 
 	/* Set preferred link settings */
 	link->verified_link_cap.lane_count = link_settings.lane_count;
@@ -457,7 +463,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			controller_color_space = pipe_ctx->stream_res.test_pattern_params.color_space;
 
 			if (controller_color_space == CONTROLLER_DP_COLOR_SPACE_UDEFINED) {
-				DC_LOG_WARNING("%s: Color space must be defined for test pattern", __func__);
+				DC_LOG_ERROR("%s: Color space must be defined for test pattern", __func__);
 				ASSERT(0);
 			}
 
