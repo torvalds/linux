@@ -176,6 +176,10 @@ struct adf_dc_ops {
 	void (*build_deflate_ctx)(void *ctx);
 };
 
+struct adf_dev_err_mask {
+	u32 cppagentcmdpar_mask;
+};
+
 struct adf_hw_device_data {
 	struct adf_hw_device_class *dev_class;
 	u32 (*get_accel_mask)(struct adf_hw_device_data *self);
@@ -222,6 +226,7 @@ struct adf_hw_device_data {
 	struct adf_hw_csr_ops csr_ops;
 	struct adf_dc_ops dc_ops;
 	struct adf_ras_ops ras_ops;
+	struct adf_dev_err_mask dev_err_mask;
 	const char *fw_name;
 	const char *fw_mmp_name;
 	u32 fuses;
@@ -270,6 +275,7 @@ struct adf_hw_device_data {
 #define GET_SRV_TYPE(accel_dev, idx) \
 	(((GET_HW_DATA(accel_dev)->ring_to_svc_map) >> (ADF_SRV_TYPE_BIT_LEN * (idx))) \
 	& ADF_SRV_TYPE_MASK)
+#define GET_ERR_MASK(accel_dev) (&GET_HW_DATA(accel_dev)->dev_err_mask)
 #define GET_MAX_ACCELENGINES(accel_dev) (GET_HW_DATA(accel_dev)->num_engines)
 #define GET_CSR_OPS(accel_dev) (&(accel_dev)->hw_device->csr_ops)
 #define GET_PFVF_OPS(accel_dev) (&(accel_dev)->hw_device->pfvf_ops)
