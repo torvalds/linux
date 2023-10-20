@@ -1816,31 +1816,31 @@ static void bnxt_get_ethtool_modes(struct bnxt_link_info *link_info,
 	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
 
 	if (!(bp->phy_flags & BNXT_PHY_FL_NO_PAUSE)) {
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
-						     Pause);
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
-						     Asym_Pause);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				 lk_ksettings->link_modes.supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				 lk_ksettings->link_modes.supported);
 	}
 
 	if (link_info->support_auto_speeds || link_info->support_pam4_auto_speeds)
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
-						     Autoneg);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+				 lk_ksettings->link_modes.supported);
 
 	if (~link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
 		return;
 
 	if (link_info->auto_pause_setting & BNXT_LINK_PAUSE_RX)
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, advertising,
-						     Pause);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				 lk_ksettings->link_modes.advertising);
 	if (hweight8(link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) == 1)
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, advertising,
-						     Asym_Pause);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				 lk_ksettings->link_modes.advertising);
 	if (link_info->lp_pause & BNXT_LINK_PAUSE_RX)
-		ethtool_link_ksettings_add_link_mode(lk_ksettings,
-						     lp_advertising, Pause);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				 lk_ksettings->link_modes.lp_advertising);
 	if (hweight8(link_info->lp_pause & BNXT_LINK_PAUSE_BOTH) == 1)
-		ethtool_link_ksettings_add_link_mode(lk_ksettings,
-						     lp_advertising, Asym_Pause);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				 lk_ksettings->link_modes.lp_advertising);
 }
 
 static void bnxt_fw_to_ethtool_advertised_fec(struct bnxt_link_info *link_info,
@@ -1988,8 +1988,8 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 	if (link_info->autoneg) {
 		bnxt_fw_to_ethtool_advertised_spds(link_info, lk_ksettings);
 		bnxt_fw_to_ethtool_advertised_fec(link_info, lk_ksettings);
-		ethtool_link_ksettings_add_link_mode(lk_ksettings,
-						     advertising, Autoneg);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+				 lk_ksettings->link_modes.advertising);
 		base->autoneg = AUTONEG_ENABLE;
 		if (link_info->phy_link_status == BNXT_LINK_LINK)
 			bnxt_fw_to_ethtool_lp_adv(link_info, lk_ksettings);
@@ -2000,15 +2000,15 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 	base->port = PORT_NONE;
 	if (link_info->media_type == PORT_PHY_QCFG_RESP_MEDIA_TYPE_TP) {
 		base->port = PORT_TP;
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
-						     TP);
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, advertising,
-						     TP);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_TP_BIT,
+				 lk_ksettings->link_modes.supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_TP_BIT,
+				 lk_ksettings->link_modes.advertising);
 	} else {
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
-						     FIBRE);
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, advertising,
-						     FIBRE);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
+				 lk_ksettings->link_modes.supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
+				 lk_ksettings->link_modes.advertising);
 
 		if (link_info->media_type == PORT_PHY_QCFG_RESP_MEDIA_TYPE_DAC)
 			base->port = PORT_DA;
