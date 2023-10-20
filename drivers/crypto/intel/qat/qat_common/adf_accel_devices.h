@@ -340,6 +340,11 @@ struct adf_pm {
 				   char __user *buf, size_t count, loff_t *pos);
 };
 
+struct adf_sysfs {
+	int ring_num;
+	struct rw_semaphore lock; /* protects access to the fields in this struct */
+};
+
 struct adf_accel_dev {
 	struct adf_etr_data *transport;
 	struct adf_hw_device_data *hw_device;
@@ -361,6 +366,7 @@ struct adf_accel_dev {
 	struct adf_timer *timer;
 	struct adf_heartbeat *heartbeat;
 	struct adf_rl *rate_limiting;
+	struct adf_sysfs sysfs;
 	union {
 		struct {
 			/* protects VF2PF interrupts access */

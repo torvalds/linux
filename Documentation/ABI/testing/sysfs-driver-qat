@@ -95,3 +95,35 @@ Description:	(RW) This configuration option provides a way to force the device i
 			0
 
 		This attribute is only available for qat_4xxx devices.
+
+What:		/sys/bus/pci/devices/<BDF>/qat/rp2srv
+Date:		January 2024
+KernelVersion:	6.7
+Contact:	qat-linux@intel.com
+Description:
+		(RW) This attribute provides a way for a user to query a
+		specific ring pair for the type of service that it is currently
+		configured for.
+
+		When written to, the value is cached and used to perform the
+		read operation. Allowed values are in the range 0 to N-1, where
+		N is the max number of ring pairs supported by a device. This
+		can be queried using the attribute qat/num_rps.
+
+		A read returns the service associated to the ring pair queried.
+
+		The values are:
+
+		* dc: the ring pair is configured for running compression services
+		* sym: the ring pair is configured for running symmetric crypto
+		  services
+		* asym: the ring pair is configured for running asymmetric crypto
+		  services
+
+		Example usage::
+
+			# echo 1 > /sys/bus/pci/devices/<BDF>/qat/rp2srv
+			# cat /sys/bus/pci/devices/<BDF>/qat/rp2srv
+			sym
+
+		This attribute is only available for qat_4xxx devices.
