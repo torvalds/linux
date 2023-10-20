@@ -127,3 +127,17 @@ Description:
 			sym
 
 		This attribute is only available for qat_4xxx devices.
+
+What:		/sys/bus/pci/devices/<BDF>/qat/num_rps
+Date:		January 2024
+KernelVersion:	6.7
+Contact:	qat-linux@intel.com
+Description:
+		(RO) Returns the number of ring pairs that a single device has.
+
+		Example usage::
+
+			# cat /sys/bus/pci/devices/<BDF>/qat/num_rps
+			64
+
+		This attribute is only available for qat_4xxx devices.
