@@ -88,7 +88,7 @@ static void afs_fs_probe_not_done(struct afs_net *net,
 	if (server->probe.error == 0)
 		server->probe.error = -ENOMEM;
 
-	set_bit(index, &alist->failed);
+	set_bit(index, &alist->probe_failed);
 
 	spin_unlock(&server->probe_lock);
 	return afs_done_one_fs_probe(net, server);
@@ -138,7 +138,7 @@ void afs_fileserver_probe_result(struct afs_call *call)
 	case -ETIME:
 	default:
 		clear_bit(index, &alist->responded);
-		set_bit(index, &alist->failed);
+		set_bit(index, &alist->probe_failed);
 		if (!server->probe.responded &&
 		    (server->probe.error == 0 ||
 		     server->probe.error == -ETIMEDOUT ||
@@ -149,7 +149,7 @@ void afs_fileserver_probe_result(struct afs_call *call)
 	}
 
 responded:
-	clear_bit(index, &alist->failed);
+	clear_bit(index, &alist->probe_failed);
 
 	if (call->service_id == YFS_FS_SERVICE) {
 		server->probe.is_yfs = true;

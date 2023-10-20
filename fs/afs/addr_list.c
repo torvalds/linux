@@ -367,7 +367,7 @@ bool afs_iterate_addresses(struct afs_addr_cursor *ac)
 		return false;
 
 	set = ac->alist->responded;
-	failed = ac->alist->failed;
+	failed = ac->alist->probe_failed;
 	_enter("%lx-%lx-%lx,%d", set, failed, ac->tried, ac->index);
 
 	ac->nr_iterations++;

@@ -396,7 +396,7 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 		   (int)(jiffies - server->probed_at) / HZ,
 		   atomic_read(&server->probe_outstanding));
 	seq_printf(m, "  - ALIST v=%u rsp=%lx f=%lx\n",
-		   alist->version, alist->responded, alist->failed);
+		   alist->version, alist->responded, alist->probe_failed);
 	for (i = 0; i < alist->nr_addrs; i++)
 		seq_printf(m, "    [%x] %pISpc%s rtt=%d\n",
 			   i, rxrpc_kernel_remote_addr(alist->addrs[i].peer),

@@ -583,7 +583,7 @@ void afs_dump_edestaddrreq(const struct afs_operation *op)
 					  a->nr_ipv4, a->nr_addrs, a->max_addrs,
 					  a->preferred);
 				pr_notice("FC:  - R=%lx F=%lx\n",
-					  a->responded, a->failed);
+					  a->responded, a->probe_failed);
 				if (a == op->ac.alist)
 					pr_notice("FC:  - current\n");
 			}
