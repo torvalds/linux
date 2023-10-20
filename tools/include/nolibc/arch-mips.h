@@ -10,6 +10,10 @@
 #include "compiler.h"
 #include "crt.h"
 
+#if !defined(_ABIO32)
+#error Unsupported MIPS ABI
+#endif
+
 /* Syscalls for MIPS ABI O32 :
  *   - WARNING! there's always a delayed slot!
  *   - WARNING again, the syntax is different, registers take a '$' and numbers

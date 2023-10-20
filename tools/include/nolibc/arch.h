@@ -23,7 +23,7 @@
 #include "arch-arm.h"
 #elif defined(__aarch64__)
 #include "arch-aarch64.h"
-#elif defined(__mips__) && defined(_ABIO32)
+#elif defined(__mips__)
 #include "arch-mips.h"
 #elif defined(__powerpc__)
 #include "arch-powerpc.h"
