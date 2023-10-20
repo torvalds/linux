@@ -36,7 +36,7 @@ seq_buf_init(struct seq_buf *s, char *buf, unsigned int size)
 
 /*
  * seq_buf have a buffer that might overflow. When this happens
- * the len and size are set to be equal.
+ * len is set to be greater than size.
  */
 static inline bool
 seq_buf_has_overflowed(struct seq_buf *s)
