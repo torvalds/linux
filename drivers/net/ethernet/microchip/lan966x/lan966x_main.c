@@ -671,7 +671,6 @@ static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
 		skb = netdev_alloc_skb(dev, len);
 		if (unlikely(!skb)) {
 			netdev_err(dev, "Unable to allocate sk_buff\n");
-			err = -ENOMEM;
 			break;
 		}
 		buf_len = len - ETH_FCS_LEN;
