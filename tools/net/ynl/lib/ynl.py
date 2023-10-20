@@ -130,6 +130,13 @@ class NlAttr:
         format = self.get_format(attr_type, byte_order)
         return format.unpack(self.raw)[0]
 
+    def as_auto_scalar(self, attr_type, byte_order=None):
+        if len(self.raw) != 4 and len(self.raw) != 8:
+            raise Exception(f"Auto-scalar len payload be 4 or 8 bytes, got {len(self.raw)}")
+        real_type = attr_type[0] + str(len(self.raw) * 8)
+        format = self.get_format(real_type, byte_order)
+        return format.unpack(self.raw)[0]
+
     def as_strz(self):
         return self.raw.decode('ascii')[:-1]
 
@@ -463,6 +470,11 @@ class YnlFamily(SpecFamily):
                 attr_payload = bytes.fromhex(value)
             else:
                 raise Exception(f'Unknown type for binary attribute, value: {value}')
+        elif attr.is_auto_scalar:
+            scalar = int(value)
+            real_type = attr["type"][0] + ('32' if scalar.bit_length() <= 32 else '64')
+            format = NlAttr.get_format(real_type, attr.byte_order)
+            attr_payload = format.pack(int(value))
         elif attr['type'] in NlAttr.type_formats:
             format = NlAttr.get_format(attr['type'], attr.byte_order)
             attr_payload = format.pack(int(value))
@@ -529,6 +541,8 @@ class YnlFamily(SpecFamily):
                 decoded = self._decode_binary(attr, attr_spec)
             elif attr_spec["type"] == 'flag':
                 decoded = True
+            elif attr_spec.is_auto_scalar:
+                decoded = attr.as_auto_scalar(attr_spec['type'], attr_spec.byte_order)
             elif attr_spec["type"] in NlAttr.type_formats:
                 decoded = attr.as_scalar(attr_spec['type'], attr_spec.byte_order)
             elif attr_spec["type"] == 'array-nest':

@@ -133,6 +133,7 @@ enum ynl_policy_type {
 	YNL_PT_U16,
 	YNL_PT_U32,
 	YNL_PT_U64,
+	YNL_PT_UINT,
 	YNL_PT_NUL_STR,
 };
 
@@ -234,4 +235,20 @@ int ynl_exec_dump(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 void ynl_error_unknown_notification(struct ynl_sock *ys, __u8 cmd);
 int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg);
 
+#ifndef MNL_HAS_AUTO_SCALARS
+static inline uint64_t mnl_attr_get_uint(const struct nlattr *attr)
+{
+	if (mnl_attr_get_len(attr) == 4)
+		return mnl_attr_get_u32(attr);
+	return mnl_attr_get_u64(attr);
+}
+
+static inline void
+mnl_attr_put_uint(struct nlmsghdr *nlh, uint16_t type, uint64_t data)
+{
+	if ((uint32_t)data == (uint64_t)data)
+		return mnl_attr_put_u32(nlh, type, data);
+	return mnl_attr_put_u64(nlh, type, data);
+}
+#endif
 #endif
