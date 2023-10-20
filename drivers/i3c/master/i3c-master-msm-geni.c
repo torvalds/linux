@@ -2718,9 +2718,16 @@ static void geni_i3c_enable_ibi_irq(struct geni_i3c_dev *gi3c, bool enable)
  */
 static void geni_i3c_disable_free_running_clock(struct geni_i3c_dev *gi3c)
 {
-	I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev, "Force default\n");
-	writel(FORCE_DEFAULT, gi3c->se.base + GENI_FORCE_DEFAULT_REG);
-	writel_relaxed(0x7f, gi3c->se.base + GENI_OUTPUT_CTRL);
+	/*
+	 * Currently implemented as SWA.
+	 * Fix is present from qup-core version 4.0.0 onwards[major = 4, minor = 0].
+	 * So below SWA is not applicable from qup-core version 4.0.0 onwards.
+	 */
+	if (gi3c->ver_info.hw_major_ver < 4) {
+		I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev, "Force default\n");
+		writel(FORCE_DEFAULT, gi3c->se.base + GENI_FORCE_DEFAULT_REG);
+		writel(0x7f, gi3c->se.base + GENI_OUTPUT_CTRL);
+	}
 	gi3c->disable_free_run_clks = true;
 }
 
@@ -3235,6 +3242,9 @@ static void geni_i3c_get_ver_info(struct geni_i3c_dev *gi3c)
 		"%s hw_ver: 0x%x Major:%d Minor:%d step:%d\n",
 		__func__, hw_ver, major, minor, step);
 
+	gi3c->ver_info.hw_major_ver = major;
+	gi3c->ver_info.hw_minor_ver = minor;
+	gi3c->ver_info.hw_step_ver = step;
 	gi3c->ver_info.m_fw_ver = geni_se_common_get_m_fw(gi3c->se.base);
 	gi3c->ver_info.s_fw_ver = geni_se_common_get_s_fw(gi3c->se.base);
 	I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev, "%s:FW Ver:0x%x%x\n",
