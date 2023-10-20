@@ -2680,7 +2680,7 @@ err_tasklet_kill:
 	return err;
 }
 
-static int atmel_sha_remove(struct platform_device *pdev)
+static void atmel_sha_remove(struct platform_device *pdev)
 {
 	struct atmel_sha_dev *sha_dd = platform_get_drvdata(pdev);
 
@@ -2697,13 +2697,11 @@ static int atmel_sha_remove(struct platform_device *pdev)
 		atmel_sha_dma_cleanup(sha_dd);
 
 	clk_unprepare(sha_dd->iclk);
-
-	return 0;
 }
 
 static struct platform_driver atmel_sha_driver = {
 	.probe		= atmel_sha_probe,
-	.remove		= atmel_sha_remove,
+	.remove_new	= atmel_sha_remove,
 	.driver		= {
 		.name	= "atmel_sha",
 		.of_match_table	= atmel_sha_dt_ids,
