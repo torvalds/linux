@@ -18,14 +18,14 @@
 #include "bnxt_hwrm.h"
 #include "bnxt_hwmon.h"
 
-void bnxt_hwmon_notify_event(struct bnxt *bp, u32 type)
+void bnxt_hwmon_notify_event(struct bnxt *bp)
 {
 	u32 attr;
 
 	if (!bp->hwmon_dev)
 		return;
 
-	switch (type) {
+	switch (bp->thermal_threshold_type) {
 	case ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_WARN:
 		attr = hwmon_temp_max_alarm;
 		break;

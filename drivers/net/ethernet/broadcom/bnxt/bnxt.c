@@ -2147,7 +2147,8 @@ static u16 bnxt_agg_ring_id_to_grp_idx(struct bnxt *bp, u16 ring_id)
 	  ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_TRANSITION_DIR) ==\
 	 ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_TRANSITION_DIR_INCREASING)
 
-static void bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
+/* Return true if the workqueue has to be scheduled */
+static bool bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 {
 	u32 err_type = BNXT_EVENT_ERROR_REPORT_TYPE(data1);
 
@@ -2182,7 +2183,7 @@ static void bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 			break;
 		default:
 			netdev_err(bp->dev, "Unknown Thermal threshold type event\n");
-			return;
+			return false;
 		}
 		if (EVENT_DATA1_THERMAL_THRESHOLD_DIR_INCREASING(data1))
 			dir_str = "above";
@@ -2193,14 +2194,16 @@ static void bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 		netdev_warn(bp->dev, "Temperature (In Celsius), Current: %lu, threshold: %lu\n",
 			    BNXT_EVENT_THERMAL_CURRENT_TEMP(data2),
 			    BNXT_EVENT_THERMAL_THRESHOLD_TEMP(data2));
-		bnxt_hwmon_notify_event(bp, type);
-		break;
+		bp->thermal_threshold_type = type;
+		set_bit(BNXT_THERMAL_THRESHOLD_SP_EVENT, &bp->sp_event);
+		return true;
 	}
 	default:
 		netdev_err(bp->dev, "FW reported unknown error type %u\n",
 			   err_type);
 		break;
 	}
+	return false;
 }
 
 #define BNXT_GET_EVENT_PORT(data)	\
@@ -2401,7 +2404,8 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		goto async_event_process_exit;
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_ERROR_REPORT: {
-		bnxt_event_error_report(bp, data1, data2);
+		if (bnxt_event_error_report(bp, data1, data2))
+			break;
 		goto async_event_process_exit;
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_PHC_UPDATE: {
@@ -12084,6 +12088,9 @@ static void bnxt_sp_task(struct work_struct *work)
 
 	if (test_and_clear_bit(BNXT_FW_ECHO_REQUEST_SP_EVENT, &bp->sp_event))
 		bnxt_fw_echo_reply(bp);
+
+	if (test_and_clear_bit(BNXT_THERMAL_THRESHOLD_SP_EVENT, &bp->sp_event))
+		bnxt_hwmon_notify_event(bp);
 
 	/* These functions below will clear BNXT_STATE_IN_SP_TASK.  They
 	 * must be the last functions to be called before exiting.

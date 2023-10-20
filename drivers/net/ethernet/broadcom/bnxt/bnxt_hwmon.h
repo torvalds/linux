@@ -11,11 +11,11 @@
 #define BNXT_HWMON_H
 
 #ifdef CONFIG_BNXT_HWMON
-void bnxt_hwmon_notify_event(struct bnxt *bp, u32 type);
+void bnxt_hwmon_notify_event(struct bnxt *bp);
 void bnxt_hwmon_uninit(struct bnxt *bp);
 void bnxt_hwmon_init(struct bnxt *bp);
 #else
-static inline void bnxt_hwmon_notify_event(struct bnxt *bp, u32 type)
+static inline void bnxt_hwmon_notify_event(struct bnxt *bp)
 {
 }
 
