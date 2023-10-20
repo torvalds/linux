@@ -875,10 +875,7 @@ void dqput(struct dquot *dquot)
 	}
 
 	/* Need to release dquot? */
-#ifdef CONFIG_QUOTA_DEBUG
-	/* sanity check */
-	BUG_ON(!list_empty(&dquot->dq_free));
-#endif
+	WARN_ON_ONCE(!list_empty(&dquot->dq_free));
 	put_releasing_dquots(dquot);
 	atomic_dec(&dquot->dq_count);
 	spin_unlock(&dq_list_lock);
