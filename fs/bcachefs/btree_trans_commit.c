@@ -379,7 +379,7 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 	if (unlikely(flags & BTREE_TRIGGER_NORUN))
 		return 0;
 
-	if (!btree_node_type_needs_gc((enum btree_node_type) i->btree_id))
+	if (!btree_node_type_needs_gc(__btree_node_type(i->level, i->btree_id)))
 		return 0;
 
 	if (old_ops->atomic_trigger == new_ops->atomic_trigger &&
@@ -776,12 +776,12 @@ static noinline void bch2_drop_overwrites_from_journal(struct btree_trans *trans
 		bch2_journal_key_overwritten(trans->c, wb->btree, 0, wb->k.k.p);
 }
 
-static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans, unsigned flags,
+static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
+						   enum bkey_invalid_flags flags,
 						   struct btree_insert_entry *i,
 						   struct printbuf *err)
 {
 	struct bch_fs *c = trans->c;
-	int rw = (flags & BTREE_INSERT_JOURNAL_REPLAY) ? READ : WRITE;
 
 	printbuf_reset(err);
 	prt_printf(err, "invalid bkey on insert from %s -> %ps",
@@ -792,8 +792,7 @@ static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans, un
 	bch2_bkey_val_to_text(err, c, bkey_i_to_s_c(i->k));
 	prt_newline(err);
 
-	bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
-			  i->bkey_type, rw, err);
+	bch2_bkey_invalid(c, bkey_i_to_s_c(i->k), i->bkey_type, flags, err);
 	bch2_print_string_as_lines(KERN_ERR, err->buf);
 
 	bch2_inconsistent_error(c);
@@ -1034,7 +1033,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 
 		if (unlikely(bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
 					       i->bkey_type, invalid_flags, &buf)))
-			ret = bch2_trans_commit_bkey_invalid(trans, flags, i, &buf);
+			ret = bch2_trans_commit_bkey_invalid(trans, invalid_flags, i, &buf);
 		btree_insert_entry_checks(trans, i);
 		printbuf_exit(&buf);
 

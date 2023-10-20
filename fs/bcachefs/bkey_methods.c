@@ -143,14 +143,19 @@ int bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k,
 }
 
 static u64 bch2_key_types_allowed[] = {
-#define x(name, nr, flags, keys)	[BKEY_TYPE_##name] = BIT_ULL(KEY_TYPE_deleted)|keys,
-	BCH_BTREE_IDS()
-#undef x
 	[BKEY_TYPE_btree] =
 		BIT_ULL(KEY_TYPE_deleted)|
 		BIT_ULL(KEY_TYPE_btree_ptr)|
 		BIT_ULL(KEY_TYPE_btree_ptr_v2),
+#define x(name, nr, flags, keys)	[BKEY_TYPE_##name] = BIT_ULL(KEY_TYPE_deleted)|keys,
+	BCH_BTREE_IDS()
+#undef x
 };
+
+const char *bch2_btree_node_type_str(enum btree_node_type type)
+{
+	return type == BKEY_TYPE_btree ? "internal btree node" : bch2_btree_id_str(type - 1);
+}
 
 int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 			enum btree_node_type type,
@@ -162,10 +167,13 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 		return -BCH_ERR_invalid_bkey;
 	}
 
+	if (type >= BKEY_TYPE_NR)
+		return 0;
+
 	if (flags & BKEY_INVALID_COMMIT	 &&
 	    !(bch2_key_types_allowed[type] & BIT_ULL(k.k->type))) {
 		prt_printf(err, "invalid key type for btree %s (%s)",
-			   bch2_btree_id_str(type), bch2_bkey_types[k.k->type]);
+			   bch2_btree_node_type_str(type), bch2_bkey_types[k.k->type]);
 		return -BCH_ERR_invalid_bkey;
 	}
 
@@ -188,13 +196,15 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	}
 
 	if (type != BKEY_TYPE_btree) {
-		if (!btree_type_has_snapshots((enum btree_id) type) &&
+		enum btree_id btree = type - 1;
+
+		if (!btree_type_has_snapshots(btree) &&
 		    k.k->p.snapshot) {
 			prt_printf(err, "nonzero snapshot");
 			return -BCH_ERR_invalid_bkey;
 		}
 
-		if (btree_type_has_snapshots((enum btree_id) type) &&
+		if (btree_type_has_snapshots(btree) &&
 		    !k.k->p.snapshot) {
 			prt_printf(err, "snapshot == 0");
 			return -BCH_ERR_invalid_bkey;

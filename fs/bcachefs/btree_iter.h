@@ -411,7 +411,7 @@ static inline unsigned __bch2_btree_iter_flags(struct btree_trans *trans,
 		flags |= BTREE_ITER_ALL_SNAPSHOTS|__BTREE_ITER_ALL_SNAPSHOTS;
 
 	if (!(flags & (BTREE_ITER_ALL_SNAPSHOTS|BTREE_ITER_NOT_EXTENTS)) &&
-	    btree_node_type_is_extents(btree_id))
+	    btree_id_is_extents(btree_id))
 		flags |= BTREE_ITER_IS_EXTENTS;
 
 	if (!(flags & __BTREE_ITER_ALL_SNAPSHOTS) &&
