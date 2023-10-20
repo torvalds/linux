@@ -350,11 +350,8 @@ struct ice_flow_entry {
 
 	u64 id;
 	struct ice_flow_prof *prof;
-	/* Flow entry's content */
-	void *entry;
 	enum ice_flow_priority priority;
 	u16 vsi_handle;
-	u16 entry_sz;
 };
 
 #define ICE_FLOW_ENTRY_HNDL(e)	((u64)(uintptr_t)e)

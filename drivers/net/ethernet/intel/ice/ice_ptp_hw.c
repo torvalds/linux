@@ -3564,7 +3564,7 @@ int ice_clear_phy_tstamp(struct ice_hw *hw, u8 block, u8 idx)
  * * 0 - success
  * * negative - failure
  */
-int ice_get_pf_c827_idx(struct ice_hw *hw, u8 *idx)
+static int ice_get_pf_c827_idx(struct ice_hw *hw, u8 *idx)
 {
 	struct ice_aqc_get_link_topo cmd;
 	u8 node_part_number;
