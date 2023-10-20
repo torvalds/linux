@@ -3586,6 +3586,7 @@ static void mark_seamless_boot_stream(
  *       |________|_______________|___________|_____________|
  */
 static bool acquire_otg_master_pipe_for_stream(
+		const struct dc_state *cur_ctx,
 		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream)
@@ -3599,7 +3600,10 @@ static bool acquire_otg_master_pipe_for_stream(
 	int pipe_idx;
 	struct pipe_ctx *pipe_ctx = NULL;
 
-	pipe_idx = resource_find_any_free_pipe(&new_ctx->res_ctx, pool);
+	pipe_idx = recource_find_free_pipe_not_used_in_cur_res_ctx(
+			&cur_ctx->res_ctx, &new_ctx->res_ctx, pool);
+	if (pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
+		pipe_idx = resource_find_any_free_pipe(&new_ctx->res_ctx, pool);
 	if (pipe_idx != FREE_PIPE_INDEX_NOT_FOUND) {
 		pipe_ctx = &new_ctx->res_ctx.pipe_ctx[pipe_idx];
 		memset(pipe_ctx, 0, sizeof(*pipe_ctx));
@@ -3659,7 +3663,7 @@ enum dc_status resource_map_pool_resources(
 
 	if (!acquired)
 		/* acquire new resources */
-		acquired = acquire_otg_master_pipe_for_stream(
+		acquired = acquire_otg_master_pipe_for_stream(dc->current_state,
 				context, pool, stream);
 
 	pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
