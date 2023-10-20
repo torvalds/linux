@@ -476,7 +476,7 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 	bc->shrink.count_objects	= bch2_btree_cache_count;
 	bc->shrink.scan_objects		= bch2_btree_cache_scan;
 	bc->shrink.seeks		= 4;
-	ret = register_shrinker(&bc->shrink, "%s/btree_cache", c->name);
+	ret = register_shrinker(&bc->shrink, "%s-btree_cache", c->name);
 	if (ret)
 		goto err;
 
