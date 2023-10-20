@@ -1102,6 +1102,7 @@ u32 mt76_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size);
 void mt76_mmio_wed_release_rx_buf(struct mtk_wed_device *wed);
 int mt76_mmio_wed_offload_enable(struct mtk_wed_device *wed);
 void mt76_mmio_wed_offload_disable(struct mtk_wed_device *wed);
+void mt76_mmio_wed_reset_complete(struct mtk_wed_device *wed);
 #endif /*CONFIG_NET_MEDIATEK_SOC_WED */
 
 #define mt76xx_chip(dev) mt76_chip(&((dev)->mt76))
