@@ -82,6 +82,66 @@ static inline struct page *page_pool_dev_alloc_frag(struct page_pool *pool,
 	return page_pool_alloc_frag(pool, offset, size, gfp);
 }
 
+static inline struct page *page_pool_alloc(struct page_pool *pool,
+					   unsigned int *offset,
+					   unsigned int *size, gfp_t gfp)
+{
+	unsigned int max_size = PAGE_SIZE << pool->p.order;
+	struct page *page;
+
+	if ((*size << 1) > max_size) {
+		*size = max_size;
+		*offset = 0;
+		return page_pool_alloc_pages(pool, gfp);
+	}
+
+	page = page_pool_alloc_frag(pool, offset, *size, gfp);
+	if (unlikely(!page))
+		return NULL;
+
+	/* There is very likely not enough space for another fragment, so append
+	 * the remaining size to the current fragment to avoid truesize
+	 * underestimate problem.
+	 */
+	if (pool->frag_offset + *size > max_size) {
+		*size = max_size - *offset;
+		pool->frag_offset = max_size;
+	}
+
+	return page;
+}
+
+static inline struct page *page_pool_dev_alloc(struct page_pool *pool,
+					       unsigned int *offset,
+					       unsigned int *size)
+{
+	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+
+	return page_pool_alloc(pool, offset, size, gfp);
+}
+
+static inline void *page_pool_alloc_va(struct page_pool *pool,
+				       unsigned int *size, gfp_t gfp)
+{
+	unsigned int offset;
+	struct page *page;
+
+	/* Mask off __GFP_HIGHMEM to ensure we can use page_address() */
+	page = page_pool_alloc(pool, &offset, size, gfp & ~__GFP_HIGHMEM);
+	if (unlikely(!page))
+		return NULL;
+
+	return page_address(page) + offset;
+}
+
+static inline void *page_pool_dev_alloc_va(struct page_pool *pool,
+					   unsigned int *size)
+{
+	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+
+	return page_pool_alloc_va(pool, size, gfp);
+}
+
 /**
  * page_pool_get_dma_dir() - Retrieve the stored DMA direction.
  * @pool:	pool from which page was allocated
@@ -220,6 +280,12 @@ static inline void page_pool_recycle_direct(struct page_pool *pool,
 
 #define PAGE_POOL_32BIT_ARCH_WITH_64BIT_DMA	\
 		(sizeof(dma_addr_t) > sizeof(unsigned long))
+
+static inline void page_pool_free_va(struct page_pool *pool, void *va,
+				     bool allow_direct)
+{
+	page_pool_put_page(pool, virt_to_head_page(va), -1, allow_direct);
+}
 
 /**
  * page_pool_get_dma_addr() - Retrieve the stored DMA address.
