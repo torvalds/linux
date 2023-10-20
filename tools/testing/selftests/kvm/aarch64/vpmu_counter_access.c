@@ -8,6 +8,8 @@
  * counters (PMCR_EL0.N) that userspace sets, if the guest can access
  * those counters, and if the guest is prevented from accessing any
  * other counters.
+ * It also checks if the userspace accesses to the PMU regsisters honor the
+ * PMCR.N value that's set for the guest.
  * This test runs only when KVM_CAP_ARM_PMU_V3 is supported on the host.
  */
 #include <kvm_util.h>
@@ -20,6 +22,9 @@
 /* The max number of the PMU event counters (excluding the cycle counter) */
 #define ARMV8_PMU_MAX_GENERAL_COUNTERS	(ARMV8_PMU_MAX_COUNTERS - 1)
 
+/* The cycle counter bit position that's common among the PMU registers */
+#define ARMV8_PMU_CYCLE_IDX		31
+
 struct vpmu_vm {
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
@@ -27,6 +32,13 @@ struct vpmu_vm {
 };
 
 static struct vpmu_vm vpmu_vm;
+
+struct pmreg_sets {
+	uint64_t set_reg_id;
+	uint64_t clr_reg_id;
+};
+
+#define PMREG_SET(set, clr) {.set_reg_id = set, .clr_reg_id = clr}
 
 static uint64_t get_pmcr_n(uint64_t pmcr)
 {
@@ -37,6 +49,15 @@ static void set_pmcr_n(uint64_t *pmcr, uint64_t pmcr_n)
 {
 	*pmcr = *pmcr & ~(ARMV8_PMU_PMCR_N_MASK << ARMV8_PMU_PMCR_N_SHIFT);
 	*pmcr |= (pmcr_n << ARMV8_PMU_PMCR_N_SHIFT);
+}
+
+static uint64_t get_counters_mask(uint64_t n)
+{
+	uint64_t mask = BIT(ARMV8_PMU_CYCLE_IDX);
+
+	if (n)
+		mask |= GENMASK(n - 1, 0);
+	return mask;
 }
 
 /* Read PMEVTCNTR<n>_EL0 through PMXEVCNTR_EL0 */
@@ -541,6 +562,68 @@ static void run_access_test(uint64_t pmcr_n)
 	destroy_vpmu_vm();
 }
 
+static struct pmreg_sets validity_check_reg_sets[] = {
+	PMREG_SET(SYS_PMCNTENSET_EL0, SYS_PMCNTENCLR_EL0),
+	PMREG_SET(SYS_PMINTENSET_EL1, SYS_PMINTENCLR_EL1),
+	PMREG_SET(SYS_PMOVSSET_EL0, SYS_PMOVSCLR_EL0),
+};
+
+/*
+ * Create a VM, and check if KVM handles the userspace accesses of
+ * the PMU register sets in @validity_check_reg_sets[] correctly.
+ */
+static void run_pmregs_validity_test(uint64_t pmcr_n)
+{
+	int i;
+	struct kvm_vcpu *vcpu;
+	uint64_t set_reg_id, clr_reg_id, reg_val;
+	uint64_t valid_counters_mask, max_counters_mask;
+
+	test_create_vpmu_vm_with_pmcr_n(pmcr_n, false);
+	vcpu = vpmu_vm.vcpu;
+
+	valid_counters_mask = get_counters_mask(pmcr_n);
+	max_counters_mask = get_counters_mask(ARMV8_PMU_MAX_COUNTERS);
+
+	for (i = 0; i < ARRAY_SIZE(validity_check_reg_sets); i++) {
+		set_reg_id = validity_check_reg_sets[i].set_reg_id;
+		clr_reg_id = validity_check_reg_sets[i].clr_reg_id;
+
+		/*
+		 * Test if the 'set' and 'clr' variants of the registers
+		 * are initialized based on the number of valid counters.
+		 */
+		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(set_reg_id), &reg_val);
+		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
+			    "Initial read of set_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    KVM_ARM64_SYS_REG(set_reg_id), reg_val);
+
+		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(clr_reg_id), &reg_val);
+		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
+			    "Initial read of clr_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    KVM_ARM64_SYS_REG(clr_reg_id), reg_val);
+
+		/*
+		 * Using the 'set' variant, force-set the register to the
+		 * max number of possible counters and test if KVM discards
+		 * the bits for unimplemented counters as it should.
+		 */
+		vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(set_reg_id), max_counters_mask);
+
+		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(set_reg_id), &reg_val);
+		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
+			    "Read of set_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    KVM_ARM64_SYS_REG(set_reg_id), reg_val);
+
+		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(clr_reg_id), &reg_val);
+		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
+			    "Read of clr_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    KVM_ARM64_SYS_REG(clr_reg_id), reg_val);
+	}
+
+	destroy_vpmu_vm();
+}
+
 /*
  * Create a guest with one vCPU, and attempt to set the PMCR_EL0.N for
  * the vCPU to @pmcr_n, which is larger than the host value.
@@ -575,8 +658,10 @@ int main(void)
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_ARM_PMU_V3));
 
 	pmcr_n = get_pmcr_n_limit();
-	for (i = 0; i <= pmcr_n; i++)
+	for (i = 0; i <= pmcr_n; i++) {
 		run_access_test(i);
+		run_pmregs_validity_test(i);
+	}
 
 	for (i = pmcr_n + 1; i < ARMV8_PMU_MAX_COUNTERS; i++)
 		run_error_test(i);
