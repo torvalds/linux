@@ -854,10 +854,16 @@ mt76_dma_rx_reset(struct mt76_dev *dev, enum mt76_rxq_id qid)
 
 	/* reset WED rx queues */
 	mt76_dma_wed_setup(dev, q, true);
-	if (!mt76_queue_is_wed_tx_free(q)) {
-		mt76_dma_sync_idx(dev, q);
-		mt76_dma_rx_fill(dev, q, false);
-	}
+
+	if (mt76_queue_is_wed_tx_free(q))
+		return;
+
+	if (mtk_wed_device_active(&dev->mmio.wed) &&
+	    mt76_queue_is_wed_rro(q))
+		return;
+
+	mt76_dma_sync_idx(dev, q);
+	mt76_dma_rx_fill(dev, q, false);
 }
 
 static void

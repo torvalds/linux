@@ -1712,6 +1712,10 @@ mt7996_mac_restart(struct mt7996_dev *dev)
 	/* disable all tx/rx napi */
 	mt76_worker_disable(&dev->mt76.tx_worker);
 	mt76_for_each_q_rx(mdev, i) {
+		if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
+		    mt76_queue_is_wed_rro(&mdev->q_rx[i]))
+			continue;
+
 		if (mdev->q_rx[i].ndesc)
 			napi_disable(&dev->mt76.napi[i]);
 	}
@@ -1725,6 +1729,10 @@ mt7996_mac_restart(struct mt7996_dev *dev)
 
 	local_bh_disable();
 	mt76_for_each_q_rx(mdev, i) {
+		if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
+		    mt76_queue_is_wed_rro(&mdev->q_rx[i]))
+			continue;
+
 		if (mdev->q_rx[i].ndesc) {
 			napi_enable(&dev->mt76.napi[i]);
 			napi_schedule(&dev->mt76.napi[i]);
@@ -1896,6 +1904,13 @@ void mt7996_mac_reset_work(struct work_struct *work)
 
 	dev_info(dev->mt76.dev,"\n%s L1 SER recovery start.",
 		 wiphy_name(dev->mt76.hw->wiphy));
+
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed_hif2))
+		mtk_wed_device_stop(&dev->mt76.mmio.wed_hif2);
+
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed))
+		mtk_wed_device_stop(&dev->mt76.mmio.wed);
+
 	ieee80211_stop_queues(mt76_hw(dev));
 	if (phy2)
 		ieee80211_stop_queues(phy2->mt76->hw);
@@ -1915,8 +1930,13 @@ void mt7996_mac_reset_work(struct work_struct *work)
 		cancel_delayed_work_sync(&phy3->mt76->mac_work);
 	}
 	mt76_worker_disable(&dev->mt76.tx_worker);
-	mt76_for_each_q_rx(&dev->mt76, i)
+	mt76_for_each_q_rx(&dev->mt76, i) {
+		if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
+		    mt76_queue_is_wed_rro(&dev->mt76.q_rx[i]))
+			continue;
+
 		napi_disable(&dev->mt76.napi[i]);
+	}
 	napi_disable(&dev->mt76.tx_napi);
 
 	mutex_lock(&dev->mt76.mutex);
@@ -1939,6 +1959,27 @@ void mt7996_mac_reset_work(struct work_struct *work)
 	/* enable DMA Tx/Tx and interrupt */
 	mt7996_dma_start(dev, false, false);
 
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
+		u32 wed_irq_mask = MT_INT_RRO_RX_DONE | MT_INT_TX_DONE_BAND2 |
+				   dev->mt76.mmio.irqmask;
+
+		if (mtk_wed_get_rx_capa(&dev->mt76.mmio.wed))
+			wed_irq_mask &= ~MT_INT_RX_DONE_RRO_IND;
+
+		mt76_wr(dev, MT_INT_MASK_CSR, wed_irq_mask);
+
+		mtk_wed_device_start_hw_rro(&dev->mt76.mmio.wed, wed_irq_mask,
+					    true);
+		mt7996_irq_enable(dev, wed_irq_mask);
+		mt7996_irq_disable(dev, 0);
+	}
+
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed_hif2)) {
+		mt76_wr(dev, MT_INT_PCIE1_MASK_CSR, MT_INT_TX_RX_DONE_EXT);
+		mtk_wed_device_start(&dev->mt76.mmio.wed_hif2,
+				     MT_INT_TX_RX_DONE_EXT);
+	}
+
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	clear_bit(MT76_RESET, &dev->mphy.state);
 	if (phy2)
@@ -1948,6 +1989,10 @@ void mt7996_mac_reset_work(struct work_struct *work)
 
 	local_bh_disable();
 	mt76_for_each_q_rx(&dev->mt76, i) {
+		if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
+		    mt76_queue_is_wed_rro(&dev->mt76.q_rx[i]))
+			continue;
+
 		napi_enable(&dev->mt76.napi[i]);
 		napi_schedule(&dev->mt76.napi[i]);
 	}

@@ -621,21 +621,33 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
 	if (force)
 		mt7996_wfsys_reset(dev);
 
+	if (dev->hif2 && mtk_wed_device_active(&dev->mt76.mmio.wed_hif2))
+		mtk_wed_device_dma_reset(&dev->mt76.mmio.wed_hif2);
+
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed))
+		mtk_wed_device_dma_reset(&dev->mt76.mmio.wed);
+
 	mt7996_dma_disable(dev, force);
+	mt76_dma_wed_reset(&dev->mt76);
 
 	/* reset hw queues */
 	for (i = 0; i < __MT_TXQ_MAX; i++) {
-		mt76_queue_reset(dev, dev->mphy.q_tx[i]);
+		mt76_dma_reset_tx_queue(&dev->mt76, dev->mphy.q_tx[i]);
 		if (phy2)
-			mt76_queue_reset(dev, phy2->q_tx[i]);
+			mt76_dma_reset_tx_queue(&dev->mt76, phy2->q_tx[i]);
 		if (phy3)
-			mt76_queue_reset(dev, phy3->q_tx[i]);
+			mt76_dma_reset_tx_queue(&dev->mt76, phy3->q_tx[i]);
 	}
 
 	for (i = 0; i < __MT_MCUQ_MAX; i++)
 		mt76_queue_reset(dev, dev->mt76.q_mcu[i]);
 
 	mt76_for_each_q_rx(&dev->mt76, i) {
+		if (mtk_wed_device_active(&dev->mt76.mmio.wed))
+			if (mt76_queue_is_wed_rro(&dev->mt76.q_rx[i]) ||
+			    mt76_queue_is_wed_tx_free(&dev->mt76.q_rx[i]))
+				continue;
+
 		mt76_queue_reset(dev, &dev->mt76.q_rx[i]);
 	}
 

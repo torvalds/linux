@@ -6,9 +6,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/rtnetlink.h>
 
 #include "mt7996.h"
 #include "mac.h"
+#include "mcu.h"
 #include "../trace.h"
 #include "../dma.h"
 
@@ -195,6 +197,37 @@ static u32 mt7996_rmw(struct mt76_dev *mdev, u32 offset, u32 mask, u32 val)
 	return dev->bus_ops->rmw(mdev, __mt7996_reg_addr(dev, offset), mask, val);
 }
 
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+static int mt7996_mmio_wed_reset(struct mtk_wed_device *wed)
+{
+	struct mt76_dev *mdev = container_of(wed, struct mt76_dev, mmio.wed);
+	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
+	struct mt76_phy *mphy = &dev->mphy;
+	int ret;
+
+	ASSERT_RTNL();
+
+	if (test_and_set_bit(MT76_STATE_WED_RESET, &mphy->state))
+		return -EBUSY;
+
+	ret = mt7996_mcu_set_ser(dev, UNI_CMD_SER_TRIGGER, UNI_CMD_SER_SET_RECOVER_L1,
+				 mphy->band_idx);
+	if (ret)
+		goto out;
+
+	rtnl_unlock();
+	if (!wait_for_completion_timeout(&mdev->mmio.wed_reset, 20 * HZ)) {
+		dev_err(mdev->dev, "wed reset timeout\n");
+		ret = -ETIMEDOUT;
+	}
+	rtnl_lock();
+out:
+	clear_bit(MT76_STATE_WED_RESET, &mphy->state);
+
+	return ret;
+}
+#endif
+
 int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
 			 bool hif2, int *irq)
 {
@@ -311,6 +344,10 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
 	wed->wlan.release_rx_buf = mt76_mmio_wed_release_rx_buf;
 	wed->wlan.offload_enable = mt76_mmio_wed_offload_enable;
 	wed->wlan.offload_disable = mt76_mmio_wed_offload_disable;
+	if (!hif2) {
+		wed->wlan.reset = mt7996_mmio_wed_reset;
+		wed->wlan.reset_complete = mt76_mmio_wed_reset_complete;
+	}
 
 	if (mtk_wed_device_attach(wed))
 		return 0;

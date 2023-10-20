@@ -455,8 +455,9 @@ enum base_rev {
 #define MT_INT_RX_DONE_WA_TRI			BIT(3)
 #define MT_INT_RX_TXFREE_MAIN			BIT(17)
 #define MT_INT_RX_TXFREE_TRI			BIT(15)
-#define MT_INT_MCU_CMD				BIT(29)
+#define MT_INT_RX_DONE_BAND2_EXT		BIT(23)
 #define MT_INT_RX_TXFREE_EXT			BIT(26)
+#define MT_INT_MCU_CMD				BIT(29)
 
 #define MT_INT_RX_DONE_RRO_BAND0		BIT(16)
 #define MT_INT_RX_DONE_RRO_BAND1		BIT(16)
@@ -505,6 +506,10 @@ enum base_rev {
 #define MT_INT_TX_DONE_BAND0			BIT(30)
 #define MT_INT_TX_DONE_BAND1			BIT(31)
 #define MT_INT_TX_DONE_BAND2			BIT(15)
+
+#define MT_INT_TX_RX_DONE_EXT			(MT_INT_TX_DONE_BAND2 |		\
+						 MT_INT_RX_DONE_BAND2_EXT |	\
+						 MT_INT_RX_TXFREE_EXT)
 
 #define MT_INT_TX_DONE_MCU			(MT_INT_TX_MCU(MT_MCUQ_WA) |	\
 						 MT_INT_TX_MCU(MT_MCUQ_WM) |	\
