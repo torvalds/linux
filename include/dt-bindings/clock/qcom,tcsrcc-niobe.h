@@ -9,13 +9,13 @@
 /* TCSR_CC clocks */
 #define TCSR_EDP1_CLKREF_EN					0
 #define TCSR_EDP2_CLKREF_EN					1
-#define TCSR_PCIE2_1_CLKREF_EN					2
-#define TCSR_PCIE2_2_CLKREF_EN					3
-#define TCSR_PCIE4_CLKREF_EN					4
+#define TCSR_PCIE_0_CLKREF_EN					2
+#define TCSR_PCIE_1_CLKREF_EN					3
+#define TCSR_PCIE_2_CLKREF_EN					4
 #define TCSR_UFS_CLKREF_EN					5
-#define TCSR_USB2_1_CLKREF_EN					6
-#define TCSR_USB2_2_CLKREF_EN					7
-#define TCSR_USB3_DP_1_CLKREF_EN				8
-#define TCSR_USB3_DP_2_CLKREF_EN				9
+#define TCSR_USB2_2_CLKREF_EN					6
+#define TCSR_USB2_CLKREF_EN					7
+#define TCSR_USB3_2_CLKREF_EN					8
+#define TCSR_USB3_CLKREF_EN					9
 
 #endif
