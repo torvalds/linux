@@ -599,6 +599,224 @@ struct adf_ras_ops;
 
 #define ADF_GEN4_DCPR_SLICES_NUM			3
 
+/*
+ * ERRSOU3 bit masks
+ * BIT(0) - indicates error Response Order Overflow and/or BME error
+ * BIT(1) - indicates RI push/pull error
+ * BIT(2) - indicates TI push/pull error
+ * BIT(3) - indicates ARAM correctable error
+ * BIT(4) - indicates ARAM uncorrectable error
+ * BIT(5) - indicates TI pull parity error
+ * BIT(6) - indicates RI push parity error
+ * BIT(7) - indicates VFLR interrupt
+ * BIT(8) - indicates ring pair interrupts for ATU detected fault
+ * BIT(9) - indicates error when accessing RLT block
+ */
+#define ADF_GEN4_ERRSOU3_TIMISCSTS_BIT			BIT(0)
+#define ADF_GEN4_ERRSOU3_RICPPINTSTS_BITMASK		(BIT(1) | BIT(6))
+#define ADF_GEN4_ERRSOU3_TICPPINTSTS_BITMASK		(BIT(2) | BIT(5))
+#define ADF_GEN4_ERRSOU3_REG_ARAMCERR_BIT		BIT(3)
+#define ADF_GEN4_ERRSOU3_REG_ARAMUERR_BIT		BIT(4)
+#define ADF_GEN4_ERRSOU3_VFLRNOTIFY_BIT			BIT(7)
+#define ADF_GEN4_ERRSOU3_ATUFAULTSTATUS_BIT		BIT(8)
+#define ADF_GEN4_ERRSOU3_RLTERROR_BIT			BIT(9)
+
+#define ADF_GEN4_ERRSOU3_BITMASK ( \
+	(ADF_GEN4_ERRSOU3_TIMISCSTS_BIT) | \
+	(ADF_GEN4_ERRSOU3_RICPPINTSTS_BITMASK) | \
+	(ADF_GEN4_ERRSOU3_TICPPINTSTS_BITMASK) | \
+	(ADF_GEN4_ERRSOU3_REG_ARAMCERR_BIT) | \
+	(ADF_GEN4_ERRSOU3_REG_ARAMUERR_BIT) | \
+	(ADF_GEN4_ERRSOU3_VFLRNOTIFY_BIT) | \
+	(ADF_GEN4_ERRSOU3_ATUFAULTSTATUS_BIT) | \
+	(ADF_GEN4_ERRSOU3_RLTERROR_BIT))
+
+/* TI Misc status register */
+#define ADF_GEN4_TIMISCSTS				0x50054C
+
+/* TI Misc error reporting mask */
+#define ADF_GEN4_TIMISCCTL				0x500548
+
+/*
+ * TI Misc error reporting control mask
+ * BIT(0) - Enables error detection and logging in TIMISCSTS register
+ * BIT(1) - It has effect only when SRIOV enabled, this bit is 0 by default
+ * BIT(2) - Enables the D-F-x counter within the dispatch arbiter
+ *	    to start based on the command triggered from
+ * BIT(30) - Disables VFLR functionality
+ *	     By setting this bit will revert to CPM1.x functionality
+ * bits 1, 2 and 30 value should be preserved and not meant to be changed
+ * within RAS.
+ */
+#define ADF_GEN4_TIMISCCTL_BIT				BIT(0)
+#define ADF_GEN4_TIMSCCTL_RELAY_BITMASK (BIT(1) | BIT(2) | BIT(30))
+
+/* RI CPP interface status register */
+#define ADF_GEN4_RICPPINTSTS				0x41A330
+
+/*
+ * Uncorrectable error mask in RICPPINTSTS register
+ * BIT(0) - RI asserted the CPP error signal during a push
+ * BIT(1) - RI detected the CPP error signal asserted during a pull
+ * BIT(2) - RI detected a push data parity error
+ * BIT(3) - RI detected a push valid parity error
+ */
+#define ADF_GEN4_RICPPINTSTS_BITMASK \
+	(BIT(0) | BIT(1) | BIT(2) | BIT(3))
+
+/* RI CPP interface status register control */
+#define ADF_GEN4_RICPPINTCTL				0x41A32C
+
+/*
+ * Control bit mask for RICPPINTCTL register
+ * BIT(0) - value of 1 enables error detection and reporting
+ *	    on the RI CPP Push interface
+ * BIT(1) - value of 1 enables error detection and reporting
+ *	    on the RI CPP Pull interface
+ * BIT(2) - value of 1 enables error detection and reporting
+ *	    on the RI Parity
+ * BIT(3) - value of 1 enable checking parity on CPP
+ * BIT(4) - value of 1 enables the stop feature of the stop and stream
+ *	    for all RI CPP Command RFs
+ */
+#define ADF_GEN4_RICPPINTCTL_BITMASK \
+	(BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4))
+
+/* Push ID of the command which triggered the transaction error on RI */
+#define ADF_GEN4_RIERRPUSHID				0x41A334
+
+/* Pull ID of the command which triggered the transaction error on RI */
+#define ADF_GEN4_RIERRPULLID				0x41A338
+
+/* TI CPP interface status register */
+#define ADF_GEN4_TICPPINTSTS				0x50053C
+
+/*
+ * Uncorrectable error mask in TICPPINTSTS register
+ * BIT(0) - value of 1 indicates that the TI asserted
+ *	    the CPP error signal during a push
+ * BIT(1) - value of 1 indicates that the TI detected
+ *	    the CPP error signal asserted during a pull
+ * BIT(2) - value of 1 indicates that the TI detected
+ *	    a pull data parity error
+ */
+#define ADF_GEN4_TICPPINTSTS_BITMASK \
+	(BIT(0) | BIT(1) | BIT(2))
+
+/* TI CPP interface status register control */
+#define ADF_GEN4_TICPPINTCTL				0x500538
+
+/*
+ * Control bit mask for TICPPINTCTL register
+ * BIT(0) - value of 1 enables error detection and reporting on
+ *	    the TI CPP Push interface
+ * BIT(1) - value of 1 enables error detection and reporting on
+ *	    the TI CPP Push interface
+ * BIT(2) - value of 1 enables parity error detection and logging on
+ *	    the TI CPP Pull interface
+ * BIT(3) - value of 1 enables CPP CMD and Pull Data parity checking
+ * BIT(4) - value of 1 enables TI stop part of stop and scream mode on
+ *	    CPP/RF Parity error
+ */
+#define ADF_GEN4_TICPPINTCTL_BITMASK \
+	(BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4))
+
+/* Push ID of the command which triggered the transaction error on TI */
+#define ADF_GEN4_TIERRPUSHID				0x500540
+
+/* Pull ID of the command which triggered the transaction error on TI */
+#define ADF_GEN4_TIERRPULLID				0x500544
+
+/* Correctable error in ARAM agent register */
+#define ADF_GEN4_REG_ARAMCERR				0x1700
+
+#define ADF_GEN4_REG_ARAMCERR_BIT			BIT(0)
+
+/*
+ * Correctable error enablement in ARAM bit mask
+ * BIT(3) - enable ARAM RAM to fix and log correctable error
+ * BIT(26) - enables ARAM agent to generate interrupt for correctable error
+ */
+#define ADF_GEN4_REG_ARAMCERR_EN_BITMASK		(BIT(3) | BIT(26))
+
+/* Correctable error address in ARAM agent register */
+#define ADF_GEN4_REG_ARAMCERRAD				0x1708
+
+/* Uncorrectable error in ARAM agent register */
+#define ADF_GEN4_REG_ARAMUERR				0x1704
+
+/*
+ * ARAM error bit mask
+ * BIT(0) - indicates error logged in ARAMCERR or ARAMUCERR
+ * BIT(18) - indicates uncorrectable multiple errors in ARAM agent
+ */
+#define ADF_GEN4_REG_ARAMUERR_ERROR_BIT			BIT(0)
+#define ADF_GEN4_REG_ARAMUERR_MULTI_ERRORS_BIT		BIT(18)
+
+/*
+ * Uncorrectable error enablement in ARAM bit mask
+ * BIT(3) - enable ARAM RAM to fix and log uncorrectable error
+ * BIT(19) - enables ARAM agent to generate interrupt for uncorrectable error
+ */
+#define ADF_GEN4_REG_ARAMUERR_EN_BITMASK		(BIT(3) | BIT(19))
+
+/* Unorrectable error address in ARAM agent register */
+#define ADF_GEN4_REG_ARAMUERRAD				0x170C
+
+/* Uncorrectable error transaction push/pull ID registers*/
+#define ADF_GEN4_REG_ERRPPID_LO				0x1714
+#define ADF_GEN4_REG_ERRPPID_HI				0x1718
+
+/* ARAM ECC block error enablement */
+#define ADF_GEN4_REG_ARAMCERRUERR_EN			0x1808
+
+/*
+ * ARAM ECC block error control bit masks
+ * BIT(0) - enable ARAM CD ECC block error detecting
+ * BIT(1) - enable ARAM pull request ECC error detecting
+ * BIT(2) - enable ARAM command dispatch ECC error detecting
+ * BIT(3) - enable ARAM read datapath push ECC error detecting
+ * BIT(4) - enable ARAM read datapath pull ECC error detecting
+ * BIT(5) - enable ARAM RMW ECC error detecting
+ * BIT(6) - enable ARAM write datapath RMW ECC error detecting
+ * BIT(7) - enable ARAM write datapath ECC error detecting
+ */
+#define ADF_GEN4_REG_ARAMCERRUERR_EN_BITMASK \
+	(BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4) | \
+	 BIT(5) | BIT(6) | BIT(7))
+
+/* ARAM misc memory target error registers*/
+#define ADF_GEN4_REG_CPPMEMTGTERR			0x1710
+
+/*
+ * ARAM misc memory target error bit masks
+ * BIT(0) - indicates an error in ARAM target memory
+ * BIT(1) - indicates multiple errors in ARAM target memory
+ * BIT(4) - indicates pull error in ARAM target memory
+ * BIT(5) - indicates parity pull error in ARAM target memory
+ * BIT(6) - indicates push error in ARAM target memory
+ */
+#define ADF_GEN4_REG_CPPMEMTGTERR_BITMASK \
+	(BIT(0) | BIT(4) | BIT(5) | BIT(6))
+
+#define ADF_GEN4_REG_CPPMEMTGTERR_MULTI_ERRORS_BIT	BIT(1)
+
+/*
+ * ARAM misc memory target error enablement mask
+ * BIT(2) - enables CPP memory to detect and log push/pull data error
+ * BIT(7) - enables push/pull error to generate interrupts to RI
+ * BIT(8) - enables ARAM to check parity on pull data and CPP command buses
+ * BIT(9) - enables ARAM to autopush to AE when push/parity error is detected
+ *	    on lookaside DT
+ */
+#define ADF_GEN4_REG_CPPMEMTGTERR_EN_BITMASK \
+	(BIT(2) | BIT(7) | BIT(8) | BIT(9))
+
+/* ATU fault status register */
+#define ADF_GEN4_ATUFAULTSTATUS(i)			(0x506000 + ((i) * 0x4))
+
+#define ADF_GEN4_ATUFAULTSTATUS_BIT			BIT(0)
+
 /* Command Parity error detected on IOSFP Command to QAT */
 #define ADF_GEN4_RIMISCSTS_BIT				BIT(0)
 

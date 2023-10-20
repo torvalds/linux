@@ -19,6 +19,14 @@ static void enable_errsou_reporting(void __iomem *csr)
 	ADF_CSR_WR(csr, ADF_GEN4_ERRMSK2,
 		   ADF_GEN4_ERRSOU2_PM_INT_BIT |
 		   ADF_GEN4_ERRSOU2_CPP_CFC_ATT_INT_BITMASK);
+
+	/*
+	 * Enable uncorrectable error reporting in ERRSOU3
+	 * but disable RLT error interrupt and VFLR notify interrupt by default
+	 */
+	ADF_CSR_WR(csr, ADF_GEN4_ERRMSK3,
+		   ADF_GEN4_ERRSOU3_RLTERROR_BIT |
+		   ADF_GEN4_ERRSOU3_VFLRNOTIFY_BIT);
 }
 
 static void disable_errsou_reporting(void __iomem *csr)
@@ -35,6 +43,9 @@ static void disable_errsou_reporting(void __iomem *csr)
 	val = ADF_CSR_RD(csr, ADF_GEN4_ERRMSK2);
 	val |= ADF_GEN4_ERRSOU2_DIS_BITMASK;
 	ADF_CSR_WR(csr, ADF_GEN4_ERRMSK2, val);
+
+	/* Disable uncorrectable error reporting in ERRSOU3 */
+	ADF_CSR_WR(csr, ADF_GEN4_ERRMSK3, ADF_GEN4_ERRSOU3_BITMASK);
 }
 
 static void enable_ae_error_reporting(struct adf_accel_dev *accel_dev,
@@ -82,6 +93,8 @@ static void disable_cpp_error_reporting(void __iomem *csr)
 
 static void enable_ti_ri_error_reporting(void __iomem *csr)
 {
+	u32 reg;
+
 	/* Enable RI Memory error reporting */
 	ADF_CSR_WR(csr, ADF_GEN4_RI_MEM_PAR_ERR_EN0,
 		   ADF_GEN4_RIMEM_PARERR_STS_FATAL_BITMASK |
@@ -96,10 +109,26 @@ static void enable_ti_ri_error_reporting(void __iomem *csr)
 	ADF_CSR_WR(csr, ADF_GEN4_TI_PUSHFUB_PAR_ERR_MASK, 0);
 	ADF_CSR_WR(csr, ADF_GEN4_TI_CD_PAR_ERR_MASK, 0);
 	ADF_CSR_WR(csr, ADF_GEN4_TI_TRNSB_PAR_ERR_MASK, 0);
+
+	/* Enable error handling in RI, TI CPP interface control registers */
+	ADF_CSR_WR(csr, ADF_GEN4_RICPPINTCTL, ADF_GEN4_RICPPINTCTL_BITMASK);
+
+	ADF_CSR_WR(csr, ADF_GEN4_TICPPINTCTL, ADF_GEN4_TICPPINTCTL_BITMASK);
+
+	/*
+	 * Enable error detection and reporting in TIMISCSTS
+	 * with bits 1, 2 and 30 value preserved
+	 */
+	reg = ADF_CSR_RD(csr, ADF_GEN4_TIMISCCTL);
+	reg &= ADF_GEN4_TIMSCCTL_RELAY_BITMASK;
+	reg |= ADF_GEN4_TIMISCCTL_BIT;
+	ADF_CSR_WR(csr, ADF_GEN4_TIMISCCTL, reg);
 }
 
 static void disable_ti_ri_error_reporting(void __iomem *csr)
 {
+	u32 reg;
+
 	/* Disable RI Memory error reporting */
 	ADF_CSR_WR(csr, ADF_GEN4_RI_MEM_PAR_ERR_EN0, 0);
 
@@ -117,6 +146,19 @@ static void disable_ti_ri_error_reporting(void __iomem *csr)
 		   ADF_GEN4_TI_CD_PAR_STS_BITMASK);
 	ADF_CSR_WR(csr, ADF_GEN4_TI_TRNSB_PAR_ERR_MASK,
 		   ADF_GEN4_TI_TRNSB_PAR_STS_BITMASK);
+
+	/* Disable error handling in RI, TI CPP interface control registers */
+	ADF_CSR_WR(csr, ADF_GEN4_RICPPINTCTL, 0);
+
+	ADF_CSR_WR(csr, ADF_GEN4_TICPPINTCTL, 0);
+
+	/*
+	 * Disable error detection and reporting in TIMISCSTS
+	 * with bits 1, 2 and 30 value preserved
+	 */
+	reg = ADF_CSR_RD(csr, ADF_GEN4_TIMISCCTL);
+	reg &= ADF_GEN4_TIMSCCTL_RELAY_BITMASK;
+	ADF_CSR_WR(csr, ADF_GEN4_TIMISCCTL, reg);
 }
 
 static void enable_rf_error_reporting(struct adf_accel_dev *accel_dev,
@@ -251,8 +293,32 @@ static void disable_ssm_error_reporting(struct adf_accel_dev *accel_dev,
 			   err_mask->parerr_wat_wcp_mask);
 }
 
+static void enable_aram_error_reporting(void __iomem *csr)
+{
+	ADF_CSR_WR(csr, ADF_GEN4_REG_ARAMCERRUERR_EN,
+		   ADF_GEN4_REG_ARAMCERRUERR_EN_BITMASK);
+
+	ADF_CSR_WR(csr, ADF_GEN4_REG_ARAMCERR,
+		   ADF_GEN4_REG_ARAMCERR_EN_BITMASK);
+
+	ADF_CSR_WR(csr, ADF_GEN4_REG_ARAMUERR,
+		   ADF_GEN4_REG_ARAMUERR_EN_BITMASK);
+
+	ADF_CSR_WR(csr, ADF_GEN4_REG_CPPMEMTGTERR,
+		   ADF_GEN4_REG_CPPMEMTGTERR_EN_BITMASK);
+}
+
+static void disable_aram_error_reporting(void __iomem *csr)
+{
+	ADF_CSR_WR(csr, ADF_GEN4_REG_ARAMCERRUERR_EN, 0);
+	ADF_CSR_WR(csr, ADF_GEN4_REG_ARAMCERR, 0);
+	ADF_CSR_WR(csr, ADF_GEN4_REG_ARAMUERR, 0);
+	ADF_CSR_WR(csr, ADF_GEN4_REG_CPPMEMTGTERR, 0);
+}
+
 static void adf_gen4_enable_ras(struct adf_accel_dev *accel_dev)
 {
+	void __iomem *aram_csr = adf_get_aram_base(accel_dev);
 	void __iomem *csr = adf_get_pmisc_base(accel_dev);
 
 	enable_errsou_reporting(csr);
@@ -261,10 +327,12 @@ static void adf_gen4_enable_ras(struct adf_accel_dev *accel_dev)
 	enable_ti_ri_error_reporting(csr);
 	enable_rf_error_reporting(accel_dev, csr);
 	enable_ssm_error_reporting(accel_dev, csr);
+	enable_aram_error_reporting(aram_csr);
 }
 
 static void adf_gen4_disable_ras(struct adf_accel_dev *accel_dev)
 {
+	void __iomem *aram_csr = adf_get_aram_base(accel_dev);
 	void __iomem *csr = adf_get_pmisc_base(accel_dev);
 
 	disable_errsou_reporting(csr);
@@ -273,6 +341,7 @@ static void adf_gen4_disable_ras(struct adf_accel_dev *accel_dev)
 	disable_ti_ri_error_reporting(csr);
 	disable_rf_error_reporting(accel_dev, csr);
 	disable_ssm_error_reporting(accel_dev, csr);
+	disable_aram_error_reporting(aram_csr);
 }
 
 static void adf_gen4_process_errsou0(struct adf_accel_dev *accel_dev,
@@ -1122,9 +1191,190 @@ static void adf_gen4_process_errsou2(struct adf_accel_dev *accel_dev,
 	*reset_required |= adf_handle_cpp_cfc_err(accel_dev, csr, errsou);
 }
 
+static bool adf_handle_timiscsts(struct adf_accel_dev *accel_dev,
+				 void __iomem *csr, u32 errsou)
+{
+	u32 timiscsts;
+
+	if (!(errsou & ADF_GEN4_ERRSOU3_TIMISCSTS_BIT))
+		return false;
+
+	timiscsts = ADF_CSR_RD(csr, ADF_GEN4_TIMISCSTS);
+
+	dev_err(&GET_DEV(accel_dev),
+		"Fatal error in Transmit Interface: 0x%x\n", timiscsts);
+
+	return true;
+}
+
+static bool adf_handle_ricppintsts(struct adf_accel_dev *accel_dev,
+				   void __iomem *csr, u32 errsou)
+{
+	u32 ricppintsts;
+
+	if (!(errsou & ADF_GEN4_ERRSOU3_RICPPINTSTS_BITMASK))
+		return false;
+
+	ricppintsts = ADF_CSR_RD(csr, ADF_GEN4_RICPPINTSTS);
+	ricppintsts &= ADF_GEN4_RICPPINTSTS_BITMASK;
+
+	dev_err(&GET_DEV(accel_dev),
+		"RI CPP Uncorrectable Error: 0x%x\n", ricppintsts);
+
+	ADF_CSR_WR(csr, ADF_GEN4_RICPPINTSTS, ricppintsts);
+
+	return false;
+}
+
+static bool adf_handle_ticppintsts(struct adf_accel_dev *accel_dev,
+				   void __iomem *csr, u32 errsou)
+{
+	u32 ticppintsts;
+
+	if (!(errsou & ADF_GEN4_ERRSOU3_TICPPINTSTS_BITMASK))
+		return false;
+
+	ticppintsts = ADF_CSR_RD(csr, ADF_GEN4_TICPPINTSTS);
+	ticppintsts &= ADF_GEN4_TICPPINTSTS_BITMASK;
+
+	dev_err(&GET_DEV(accel_dev),
+		"TI CPP Uncorrectable Error: 0x%x\n", ticppintsts);
+
+	ADF_CSR_WR(csr, ADF_GEN4_TICPPINTSTS, ticppintsts);
+
+	return false;
+}
+
+static bool adf_handle_aramcerr(struct adf_accel_dev *accel_dev,
+				void __iomem *csr, u32 errsou)
+{
+	u32 aram_cerr;
+
+	if (!(errsou & ADF_GEN4_ERRSOU3_REG_ARAMCERR_BIT))
+		return false;
+
+	aram_cerr = ADF_CSR_RD(csr, ADF_GEN4_REG_ARAMCERR);
+	aram_cerr &= ADF_GEN4_REG_ARAMCERR_BIT;
+
+	dev_warn(&GET_DEV(accel_dev),
+		 "ARAM correctable error : 0x%x\n", aram_cerr);
+
+	aram_cerr |= ADF_GEN4_REG_ARAMCERR_EN_BITMASK;
+
+	ADF_CSR_WR(csr, ADF_GEN4_REG_ARAMCERR, aram_cerr);
+
+	return false;
+}
+
+static bool adf_handle_aramuerr(struct adf_accel_dev *accel_dev,
+				void __iomem *csr, u32 errsou)
+{
+	bool reset_required = false;
+	u32 aramuerr;
+
+	if (!(errsou & ADF_GEN4_ERRSOU3_REG_ARAMUERR_BIT))
+		return false;
+
+	aramuerr = ADF_CSR_RD(csr, ADF_GEN4_REG_ARAMUERR);
+	aramuerr &= ADF_GEN4_REG_ARAMUERR_ERROR_BIT |
+		    ADF_GEN4_REG_ARAMUERR_MULTI_ERRORS_BIT;
+
+	if (!aramuerr)
+		return false;
+
+	if (aramuerr & ADF_GEN4_REG_ARAMUERR_MULTI_ERRORS_BIT) {
+		dev_err(&GET_DEV(accel_dev),
+			"ARAM multiple uncorrectable errors: 0x%x\n", aramuerr);
+
+		reset_required = true;
+	} else {
+		dev_err(&GET_DEV(accel_dev),
+			"ARAM uncorrectable error: 0x%x\n", aramuerr);
+	}
+
+	aramuerr |= ADF_GEN4_REG_ARAMUERR_EN_BITMASK;
+
+	ADF_CSR_WR(csr, ADF_GEN4_REG_ARAMUERR, aramuerr);
+
+	return reset_required;
+}
+
+static bool adf_handle_reg_cppmemtgterr(struct adf_accel_dev *accel_dev,
+					void __iomem *csr, u32 errsou)
+{
+	bool reset_required = false;
+	u32 cppmemtgterr;
+
+	if (!(errsou & ADF_GEN4_ERRSOU3_REG_ARAMUERR_BIT))
+		return false;
+
+	cppmemtgterr = ADF_CSR_RD(csr, ADF_GEN4_REG_CPPMEMTGTERR);
+	cppmemtgterr &= ADF_GEN4_REG_CPPMEMTGTERR_BITMASK |
+			ADF_GEN4_REG_CPPMEMTGTERR_MULTI_ERRORS_BIT;
+	if (!cppmemtgterr)
+		return false;
+
+	if (cppmemtgterr & ADF_GEN4_REG_CPPMEMTGTERR_MULTI_ERRORS_BIT) {
+		dev_err(&GET_DEV(accel_dev),
+			"Misc memory target multiple uncorrectable errors: 0x%x\n",
+			cppmemtgterr);
+
+		reset_required = true;
+	} else {
+		dev_err(&GET_DEV(accel_dev),
+			"Misc memory target uncorrectable error: 0x%x\n", cppmemtgterr);
+	}
+
+	cppmemtgterr |= ADF_GEN4_REG_CPPMEMTGTERR_EN_BITMASK;
+
+	ADF_CSR_WR(csr, ADF_GEN4_REG_CPPMEMTGTERR, cppmemtgterr);
+
+	return reset_required;
+}
+
+static bool adf_handle_atufaultstatus(struct adf_accel_dev *accel_dev,
+				      void __iomem *csr, u32 errsou)
+{
+	u32 i;
+	u32 max_rp_num = GET_HW_DATA(accel_dev)->num_banks;
+
+	if (!(errsou & ADF_GEN4_ERRSOU3_ATUFAULTSTATUS_BIT))
+		return false;
+
+	for (i = 0; i < max_rp_num; i++) {
+		u32 atufaultstatus = ADF_CSR_RD(csr, ADF_GEN4_ATUFAULTSTATUS(i));
+
+		atufaultstatus &= ADF_GEN4_ATUFAULTSTATUS_BIT;
+
+		if (atufaultstatus) {
+			dev_err(&GET_DEV(accel_dev),
+				"Ring Pair (%u) ATU detected fault: 0x%x\n", i,
+				atufaultstatus);
+
+			ADF_CSR_WR(csr, ADF_GEN4_ATUFAULTSTATUS(i), atufaultstatus);
+		}
+	}
+
+	return false;
+}
+
+static void adf_gen4_process_errsou3(struct adf_accel_dev *accel_dev,
+				     void __iomem *csr, void __iomem *aram_csr,
+				     u32 errsou, bool *reset_required)
+{
+	*reset_required |= adf_handle_timiscsts(accel_dev, csr, errsou);
+	*reset_required |= adf_handle_ricppintsts(accel_dev, csr, errsou);
+	*reset_required |= adf_handle_ticppintsts(accel_dev, csr, errsou);
+	*reset_required |= adf_handle_aramcerr(accel_dev, aram_csr, errsou);
+	*reset_required |= adf_handle_aramuerr(accel_dev, aram_csr, errsou);
+	*reset_required |= adf_handle_reg_cppmemtgterr(accel_dev, aram_csr, errsou);
+	*reset_required |= adf_handle_atufaultstatus(accel_dev, csr, errsou);
+}
+
 static bool adf_gen4_handle_interrupt(struct adf_accel_dev *accel_dev,
 				      bool *reset_required)
 {
+	void __iomem *aram_csr = adf_get_aram_base(accel_dev);
 	void __iomem *csr = adf_get_pmisc_base(accel_dev);
 	u32 errsou = ADF_CSR_RD(csr, ADF_GEN4_ERRSOU0);
 	bool handled = false;
@@ -1145,6 +1395,12 @@ static bool adf_gen4_handle_interrupt(struct adf_accel_dev *accel_dev,
 	errsou = ADF_CSR_RD(csr, ADF_GEN4_ERRSOU2);
 	if (errsou & ADF_GEN4_ERRSOU2_BITMASK) {
 		adf_gen4_process_errsou2(accel_dev, csr, errsou, reset_required);
+		handled = true;
+	}
+
+	errsou = ADF_CSR_RD(csr, ADF_GEN4_ERRSOU3);
+	if (errsou & ADF_GEN4_ERRSOU3_BITMASK) {
+		adf_gen4_process_errsou3(accel_dev, csr, aram_csr, errsou, reset_required);
 		handled = true;
 	}
 
