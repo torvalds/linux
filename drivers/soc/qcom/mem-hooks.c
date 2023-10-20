@@ -66,6 +66,11 @@ static void kswapd_per_node_stop(int nid, unsigned int kswapd_threads)
 	NODE_DATA(nid)->kswapd = NULL;
 }
 
+static void scan_abort_checks(void *data, bool *check_wmarks)
+{
+	*check_wmarks = true;
+}
+
 static void kswapd_threads_set(void *unused, int nid, bool *skip, bool run)
 {
 	*skip = true;
@@ -111,6 +116,16 @@ static int __init init_mem_hooks(void)
 							NULL);
 		if (ret) {
 			pr_err("Failed to register balance_anon_file_reclaim hooks\n");
+			return ret;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_LRU_GEN)) {
+		ret = register_trace_android_vh_scan_abort_check_wmarks(
+							scan_abort_checks,
+							NULL);
+		if (ret) {
+			pr_err("Failed to register scan_abort_check_wmarks\n");
 			return ret;
 		}
 	}
