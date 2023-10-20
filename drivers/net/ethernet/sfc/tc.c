@@ -629,14 +629,14 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 			}
 			if (child_ip_tos_mask != old->child_ip_tos_mask) {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "Pseudo encap match for TOS mask %#04x conflicts with existing pseudo(MASK) entry for TOS mask %#04x",
+						       "Pseudo encap match for TOS mask %#04x conflicts with existing mask %#04x",
 						       child_ip_tos_mask,
 						       old->child_ip_tos_mask);
 				return -EEXIST;
 			}
 			if (child_udp_sport_mask != old->child_udp_sport_mask) {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "Pseudo encap match for UDP src port mask %#x conflicts with existing pseudo(MASK) entry for mask %#x",
+						       "Pseudo encap match for UDP src port mask %#x conflicts with existing mask %#x",
 						       child_udp_sport_mask,
 						       old->child_udp_sport_mask);
 				return -EEXIST;
@@ -1081,7 +1081,7 @@ static int efx_tc_pedit_add(struct efx_nic *efx, struct efx_tc_action_set *act,
 			/* check that we do not decrement ttl twice */
 			if (!efx_tc_flower_action_order_ok(act,
 							   EFX_TC_AO_DEC_TTL)) {
-				NL_SET_ERR_MSG_MOD(extack, "Unsupported: multiple dec ttl");
+				NL_SET_ERR_MSG_MOD(extack, "multiple dec ttl are not supported");
 				return -EOPNOTSUPP;
 			}
 			act->do_ttl_dec = 1;
@@ -1106,7 +1106,7 @@ static int efx_tc_pedit_add(struct efx_nic *efx, struct efx_tc_action_set *act,
 			/* check that we do not decrement hoplimit twice */
 			if (!efx_tc_flower_action_order_ok(act,
 							   EFX_TC_AO_DEC_TTL)) {
-				NL_SET_ERR_MSG_MOD(extack, "Unsupported: multiple dec ttl");
+				NL_SET_ERR_MSG_MOD(extack, "multiple dec ttl are not supported");
 				return -EOPNOTSUPP;
 			}
 			act->do_ttl_dec = 1;
@@ -1120,7 +1120,7 @@ static int efx_tc_pedit_add(struct efx_nic *efx, struct efx_tc_action_set *act,
 	}
 
 	NL_SET_ERR_MSG_FMT_MOD(extack,
-			       "Unsupported: ttl add action type %x %x %x/%x",
+			       "ttl add action type %x %x %x/%x is not supported",
 			       fa->mangle.htype, fa->mangle.offset,
 			       fa->mangle.val, fa->mangle.mask);
 	return -EOPNOTSUPP;
@@ -1164,7 +1164,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 		case 0:
 			if (fa->mangle.mask) {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "Unsupported: mask (%#x) of eth.dst32 mangle",
+						       "mask (%#x) of eth.dst32 mangle is not supported",
 						       fa->mangle.mask);
 				return -EOPNOTSUPP;
 			}
@@ -1184,7 +1184,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 				mung->dst_mac_16 = 1;
 			} else {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "Unsupported: mask (%#x) of eth+4 mangle is not high or low 16b",
+						       "mask (%#x) of eth+4 mangle is not high or low 16b",
 						       fa->mangle.mask);
 				return -EOPNOTSUPP;
 			}
@@ -1192,7 +1192,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 		case 8:
 			if (fa->mangle.mask) {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "Unsupported: mask (%#x) of eth.src32 mangle",
+						       "mask (%#x) of eth.src32 mangle is not supported",
 						       fa->mangle.mask);
 				return -EOPNOTSUPP;
 			}
@@ -1201,7 +1201,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			mung->src_mac_32 = 1;
 			return efx_tc_complete_mac_mangle(efx, act, mung, extack);
 		default:
-			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported: mangle eth+%u %x/%x",
+			NL_SET_ERR_MSG_FMT_MOD(extack, "mangle eth+%u %x/%x is not supported",
 					       fa->mangle.offset, fa->mangle.val, fa->mangle.mask);
 			return -EOPNOTSUPP;
 		}
@@ -1217,7 +1217,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			/* check that pedit applies to ttl only */
 			if (fa->mangle.mask != ~EFX_TC_HDR_TYPE_TTL_MASK) {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "Unsupported: mask (%#x) out of range, only support mangle action on ipv4.ttl",
+						       "mask (%#x) out of range, only support mangle action on ipv4.ttl",
 						       fa->mangle.mask);
 				return -EOPNOTSUPP;
 			}
@@ -1227,7 +1227,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			 */
 			if (match->mask.ip_ttl != U8_MAX) {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "Unsupported: only support mangle ipv4.ttl when we have an exact match on ttl, mask used for match (%#x)",
+						       "only support mangle ttl when we have an exact match, current mask (%#x)",
 						       match->mask.ip_ttl);
 				return -EOPNOTSUPP;
 			}
@@ -1237,7 +1237,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			 */
 			if (match->value.ip_ttl == 0) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Unsupported: we cannot decrement ttl past 0");
+						   "decrement ttl past 0 is not supported");
 				return -EOPNOTSUPP;
 			}
 
@@ -1245,7 +1245,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			if (!efx_tc_flower_action_order_ok(act,
 							   EFX_TC_AO_DEC_TTL)) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Unsupported: multiple dec ttl");
+						   "multiple dec ttl is not supported");
 				return -EOPNOTSUPP;
 			}
 
@@ -1259,7 +1259,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			fallthrough;
 		default:
 			NL_SET_ERR_MSG_FMT_MOD(extack,
-					       "Unsupported: only support mangle on the ttl field (offset is %u)",
+					       "only support mangle on the ttl field (offset is %u)",
 					       fa->mangle.offset);
 			return -EOPNOTSUPP;
 		}
@@ -1275,7 +1275,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			/* check that pedit applies to ttl only */
 			if (fa->mangle.mask != EFX_TC_HDR_TYPE_HLIMIT_MASK) {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "Unsupported: mask (%#x) out of range, only support mangle action on ipv6.hop_limit",
+						       "mask (%#x) out of range, only support mangle action on ipv6.hop_limit",
 						       fa->mangle.mask);
 
 				return -EOPNOTSUPP;
@@ -1286,7 +1286,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			 */
 			if (match->mask.ip_ttl != U8_MAX) {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "Unsupported: only support mangle ipv6.hop_limit when we have an exact match on ttl, mask used for match (%#x)",
+						       "only support hop_limit when we have an exact match, current mask (%#x)",
 						       match->mask.ip_ttl);
 				return -EOPNOTSUPP;
 			}
@@ -1296,7 +1296,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			 */
 			if (match->value.ip_ttl == 0) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Unsupported: we cannot decrement hop_limit past 0");
+						   "decrementing hop_limit past 0 is not supported");
 				return -EOPNOTSUPP;
 			}
 
@@ -1304,7 +1304,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			if (!efx_tc_flower_action_order_ok(act,
 							   EFX_TC_AO_DEC_TTL)) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Unsupported: multiple dec ttl");
+						   "multiple dec ttl is not supported");
 				return -EOPNOTSUPP;
 			}
 
@@ -1318,7 +1318,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			fallthrough;
 		default:
 			NL_SET_ERR_MSG_FMT_MOD(extack,
-					       "Unsupported: only support mangle on the hop_limit field");
+					       "only support mangle on the hop_limit field");
 			return -EOPNOTSUPP;
 		}
 	default:
