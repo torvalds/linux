@@ -1338,8 +1338,8 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 	struct wmi_block *wblock;
 	union acpi_object *obj;
 	acpi_status status;
-	int retval = 0;
 	u32 i, total;
+	int retval;
 
 	status = acpi_evaluate_object(device->handle, "_WDG", NULL, &out);
 	if (ACPI_FAILURE(status))
@@ -1350,8 +1350,8 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 		return -ENXIO;
 
 	if (obj->type != ACPI_TYPE_BUFFER) {
-		retval = -ENXIO;
-		goto out_free_pointer;
+		kfree(obj);
+		return -ENXIO;
 	}
 
 	gblock = (const struct guid_block *)obj->buffer.pointer;
@@ -1366,8 +1366,8 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 
 		wblock = kzalloc(sizeof(*wblock), GFP_KERNEL);
 		if (!wblock) {
-			retval = -ENOMEM;
-			break;
+			dev_err(wmi_bus_dev, "Failed to allocate %pUL\n", &gblock[i].guid);
+			continue;
 		}
 
 		wblock->acpi_device = device;
@@ -1398,9 +1398,9 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 		}
 	}
 
-out_free_pointer:
-	kfree(out.pointer);
-	return retval;
+	kfree(obj);
+
+	return 0;
 }
 
 /*
