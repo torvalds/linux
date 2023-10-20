@@ -1089,7 +1089,7 @@ static int bq2515x_probe(struct i2c_client *client)
 
 	bq2515x->dev = dev;
 
-	strncpy(bq2515x->model_name, id->name, I2C_NAME_SIZE);
+	strscpy(bq2515x->model_name, id->name, sizeof(bq2515x->model_name));
 
 	bq2515x->info = i2c_get_match_data(client);
 	bq2515x->regmap = devm_regmap_init_i2c(client,
