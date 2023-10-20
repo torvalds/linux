@@ -8,6 +8,7 @@
  * the Free Software Foundation.
  */
 
+#include <linux/bitops.h>
 #include <linux/ctype.h>
 #include <linux/stringify.h>
 #include <linux/ethtool.h>
@@ -1730,86 +1731,6 @@ bnxt_get_link_mode(struct bnxt_link_info *link_info)
 	return link_mode;
 }
 
-#define BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, lk_ksettings, name)		\
-{									\
-	if ((fw_speeds) & BNXT_LINK_SPEED_MSK_100MB)			\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     100baseT_Full);	\
-	if ((fw_speeds) & BNXT_LINK_SPEED_MSK_1GB)			\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     1000baseT_Full);	\
-	if ((fw_speeds) & BNXT_LINK_SPEED_MSK_10GB)			\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     10000baseT_Full);	\
-	if ((fw_speeds) & BNXT_LINK_SPEED_MSK_25GB)			\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     25000baseCR_Full);	\
-	if ((fw_speeds) & BNXT_LINK_SPEED_MSK_40GB)			\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     40000baseCR4_Full);\
-	if ((fw_speeds) & BNXT_LINK_SPEED_MSK_50GB)			\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     50000baseCR2_Full);\
-	if ((fw_speeds) & BNXT_LINK_SPEED_MSK_100GB)			\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     100000baseCR4_Full);\
-}
-
-#define BNXT_ETHTOOL_TO_FW_SPDS(fw_speeds, lk_ksettings, name)		\
-{									\
-	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  100baseT_Full) ||	\
-	    ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  100baseT_Half))	\
-		(fw_speeds) |= BNXT_LINK_SPEED_MSK_100MB;		\
-	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  1000baseT_Full) ||	\
-	    ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  1000baseT_Half))	\
-		(fw_speeds) |= BNXT_LINK_SPEED_MSK_1GB;			\
-	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  10000baseT_Full))	\
-		(fw_speeds) |= BNXT_LINK_SPEED_MSK_10GB;		\
-	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  25000baseCR_Full))	\
-		(fw_speeds) |= BNXT_LINK_SPEED_MSK_25GB;		\
-	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  40000baseCR4_Full))	\
-		(fw_speeds) |= BNXT_LINK_SPEED_MSK_40GB;		\
-	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  50000baseCR2_Full))	\
-		(fw_speeds) |= BNXT_LINK_SPEED_MSK_50GB;		\
-	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  100000baseCR4_Full))	\
-		(fw_speeds) |= BNXT_LINK_SPEED_MSK_100GB;		\
-}
-
-#define BNXT_FW_TO_ETHTOOL_PAM4_SPDS(fw_speeds, lk_ksettings, name)	\
-{									\
-	if ((fw_speeds) & BNXT_LINK_PAM4_SPEED_MSK_50GB)		\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     50000baseCR_Full);	\
-	if ((fw_speeds) & BNXT_LINK_PAM4_SPEED_MSK_100GB)		\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     100000baseCR2_Full);\
-	if ((fw_speeds) & BNXT_LINK_PAM4_SPEED_MSK_200GB)		\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     200000baseCR4_Full);\
-}
-
-#define BNXT_ETHTOOL_TO_FW_PAM4_SPDS(fw_speeds, lk_ksettings, name)	\
-{									\
-	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  50000baseCR_Full))	\
-		(fw_speeds) |= BNXT_LINK_PAM4_SPEED_MSK_50GB;		\
-	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  100000baseCR2_Full))	\
-		(fw_speeds) |= BNXT_LINK_PAM4_SPEED_MSK_100GB;		\
-	if (ethtool_link_ksettings_test_link_mode(lk_ksettings, name,	\
-						  200000baseCR4_Full))	\
-		(fw_speeds) |= BNXT_LINK_PAM4_SPEED_MSK_200GB;		\
-}
-
 static void bnxt_get_ethtool_modes(struct bnxt_link_info *link_info,
 				   struct ethtool_link_ksettings *lk_ksettings)
 {
@@ -1843,6 +1764,133 @@ static void bnxt_get_ethtool_modes(struct bnxt_link_info *link_info,
 				 lk_ksettings->link_modes.lp_advertising);
 }
 
+static const u16 bnxt_nrz_speed_masks[] = {
+	[BNXT_LINK_SPEED_100MB_IDX] = BNXT_LINK_SPEED_MSK_100MB,
+	[BNXT_LINK_SPEED_1GB_IDX] = BNXT_LINK_SPEED_MSK_1GB,
+	[BNXT_LINK_SPEED_10GB_IDX] = BNXT_LINK_SPEED_MSK_10GB,
+	[BNXT_LINK_SPEED_25GB_IDX] = BNXT_LINK_SPEED_MSK_25GB,
+	[BNXT_LINK_SPEED_40GB_IDX] = BNXT_LINK_SPEED_MSK_40GB,
+	[BNXT_LINK_SPEED_50GB_IDX] = BNXT_LINK_SPEED_MSK_50GB,
+	[BNXT_LINK_SPEED_100GB_IDX] = BNXT_LINK_SPEED_MSK_100GB,
+	[__BNXT_LINK_SPEED_END - 1] = 0 /* make any legal speed a valid index */
+};
+
+static const u16 bnxt_pam4_speed_masks[] = {
+	[BNXT_LINK_SPEED_50GB_IDX] = BNXT_LINK_PAM4_SPEED_MSK_50GB,
+	[BNXT_LINK_SPEED_100GB_IDX] = BNXT_LINK_PAM4_SPEED_MSK_100GB,
+	[BNXT_LINK_SPEED_200GB_IDX] = BNXT_LINK_PAM4_SPEED_MSK_200GB,
+};
+
+static enum bnxt_link_speed_indices
+bnxt_encoding_speed_idx(u8 sig_mode, u16 speed_msk)
+{
+	const u16 *speeds;
+	int idx, len;
+
+	switch (sig_mode) {
+	case BNXT_SIG_MODE_NRZ:
+		speeds = bnxt_nrz_speed_masks;
+		len = ARRAY_SIZE(bnxt_nrz_speed_masks);
+		break;
+	case BNXT_SIG_MODE_PAM4:
+		speeds = bnxt_pam4_speed_masks;
+		len = ARRAY_SIZE(bnxt_pam4_speed_masks);
+		break;
+	default:
+		return BNXT_LINK_SPEED_UNKNOWN;
+	}
+
+	for (idx = 0; idx < len; idx++) {
+		if (speeds[idx] == speed_msk)
+			return idx;
+	}
+
+	return BNXT_LINK_SPEED_UNKNOWN;
+}
+
+#define BNXT_FW_SPEED_MSK_BITS 16
+
+static void
+__bnxt_get_ethtool_speeds(unsigned long fw_mask, enum bnxt_media_type media,
+			  u8 sig_mode, unsigned long *et_mask)
+{
+	enum ethtool_link_mode_bit_indices link_mode;
+	enum bnxt_link_speed_indices speed;
+	u8 bit;
+
+	for_each_set_bit(bit, &fw_mask, BNXT_FW_SPEED_MSK_BITS) {
+		speed = bnxt_encoding_speed_idx(sig_mode, 1 << bit);
+		if (!speed)
+			continue;
+
+		link_mode = bnxt_link_modes[speed][sig_mode][media];
+		if (!link_mode)
+			continue;
+
+		linkmode_set_bit(link_mode, et_mask);
+	}
+}
+
+static void
+bnxt_get_ethtool_speeds(unsigned long fw_mask, enum bnxt_media_type media,
+			u8 sig_mode, unsigned long *et_mask)
+{
+	if (media) {
+		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, et_mask);
+		return;
+	}
+
+	/* list speeds for all media if unknown */
+	for (media = 1; media < __BNXT_MEDIA_END; media++)
+		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, et_mask);
+}
+
+static void bnxt_update_speed(u32 *delta, bool installed_media, u16 *speeds,
+			      u16 speed_msk, const unsigned long *et_mask,
+			      enum ethtool_link_mode_bit_indices mode)
+{
+	bool mode_desired = linkmode_test_bit(mode, et_mask);
+
+	if (!mode)
+		return;
+
+	/* enabled speeds for installed media should override */
+	if (installed_media && mode_desired) {
+		*speeds |= speed_msk;
+		*delta |= speed_msk;
+		return;
+	}
+
+	/* many to one mapping, only allow one change per fw_speed bit */
+	if (!(*delta & speed_msk) && (mode_desired == !(*speeds & speed_msk))) {
+		*speeds ^= speed_msk;
+		*delta |= speed_msk;
+	}
+}
+
+static void bnxt_set_ethtool_speeds(struct bnxt_link_info *link_info,
+				    const unsigned long *et_mask)
+{
+	enum bnxt_media_type media = bnxt_get_media(link_info);
+	u32 delta_pam4 = 0;
+	u32 delta_nrz = 0;
+	int i, m;
+
+	for (i = 1; i < __BNXT_LINK_SPEED_END; i++) {
+		/* accept any legal media from user */
+		for (m = 1; m < __BNXT_MEDIA_END; m++) {
+			bnxt_update_speed(&delta_nrz, m == media,
+					  &link_info->advertising,
+					  bnxt_nrz_speed_masks[i], et_mask,
+					  bnxt_link_modes[i][BNXT_SIG_MODE_NRZ][m]);
+			bnxt_update_speed(&delta_pam4, m == media,
+					  &link_info->advertising_pam4,
+					  bnxt_pam4_speed_masks[i], et_mask,
+					  bnxt_link_modes[i][BNXT_SIG_MODE_PAM4][m]);
+		}
+	}
+}
+
 static void bnxt_fw_to_ethtool_advertised_fec(struct bnxt_link_info *link_info,
 				struct ethtool_link_ksettings *lk_ksettings)
 {
@@ -1864,26 +1912,6 @@ static void bnxt_fw_to_ethtool_advertised_fec(struct bnxt_link_info *link_info,
 				 lk_ksettings->link_modes.advertising);
 }
 
-static void bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info,
-				struct ethtool_link_ksettings *lk_ksettings)
-{
-	u16 fw_speeds = link_info->advertising;
-
-	BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, lk_ksettings, advertising);
-	fw_speeds = link_info->advertising_pam4;
-	BNXT_FW_TO_ETHTOOL_PAM4_SPDS(fw_speeds, lk_ksettings, advertising);
-}
-
-static void bnxt_fw_to_ethtool_lp_adv(struct bnxt_link_info *link_info,
-				struct ethtool_link_ksettings *lk_ksettings)
-{
-	u16 fw_speeds = link_info->lp_auto_link_speeds;
-
-	BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, lk_ksettings, lp_advertising);
-	fw_speeds = link_info->lp_auto_pam4_link_speeds;
-	BNXT_FW_TO_ETHTOOL_PAM4_SPDS(fw_speeds, lk_ksettings, lp_advertising);
-}
-
 static void bnxt_fw_to_ethtool_support_fec(struct bnxt_link_info *link_info,
 				struct ethtool_link_ksettings *lk_ksettings)
 {
@@ -1903,16 +1931,6 @@ static void bnxt_fw_to_ethtool_support_fec(struct bnxt_link_info *link_info,
 	if (fec_cfg & BNXT_FEC_ENC_LLRS_CAP)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_LLRS_BIT,
 				 lk_ksettings->link_modes.supported);
-}
-
-static void bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info,
-				struct ethtool_link_ksettings *lk_ksettings)
-{
-	u16 fw_speeds = link_info->support_speeds;
-
-	BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, lk_ksettings, supported);
-	fw_speeds = link_info->support_pam4_speeds;
-	BNXT_FW_TO_ETHTOOL_PAM4_SPDS(fw_speeds, lk_ksettings, supported);
 }
 
 u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
@@ -1968,7 +1986,9 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 	enum ethtool_link_mode_bit_indices link_mode;
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info;
+	enum bnxt_media_type media;
 
+	ethtool_link_ksettings_zero_link_mode(lk_ksettings, lp_advertising);
 	ethtool_link_ksettings_zero_link_mode(lk_ksettings, advertising);
 	ethtool_link_ksettings_zero_link_mode(lk_ksettings, supported);
 	base->duplex = DUPLEX_UNKNOWN;
@@ -1977,7 +1997,13 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 
 	mutex_lock(&bp->link_lock);
 	bnxt_get_ethtool_modes(link_info, lk_ksettings);
-	bnxt_fw_to_ethtool_support_spds(link_info, lk_ksettings);
+	media = bnxt_get_media(link_info);
+	bnxt_get_ethtool_speeds(link_info->support_speeds,
+				media, BNXT_SIG_MODE_NRZ,
+				lk_ksettings->link_modes.supported);
+	bnxt_get_ethtool_speeds(link_info->support_pam4_speeds,
+				media, BNXT_SIG_MODE_PAM4,
+				lk_ksettings->link_modes.supported);
 	bnxt_fw_to_ethtool_support_fec(link_info, lk_ksettings);
 	link_mode = bnxt_get_link_mode(link_info);
 	if (link_mode != BNXT_LINK_MODE_UNKNOWN)
@@ -1986,13 +2012,24 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 		bnxt_get_default_speeds(lk_ksettings, link_info);
 
 	if (link_info->autoneg) {
-		bnxt_fw_to_ethtool_advertised_spds(link_info, lk_ksettings);
 		bnxt_fw_to_ethtool_advertised_fec(link_info, lk_ksettings);
 		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 				 lk_ksettings->link_modes.advertising);
 		base->autoneg = AUTONEG_ENABLE;
-		if (link_info->phy_link_status == BNXT_LINK_LINK)
-			bnxt_fw_to_ethtool_lp_adv(link_info, lk_ksettings);
+		bnxt_get_ethtool_speeds(link_info->advertising,
+					media, BNXT_SIG_MODE_NRZ,
+					lk_ksettings->link_modes.advertising);
+		bnxt_get_ethtool_speeds(link_info->advertising_pam4,
+					media, BNXT_SIG_MODE_PAM4,
+					lk_ksettings->link_modes.advertising);
+		if (link_info->phy_link_status == BNXT_LINK_LINK) {
+			bnxt_get_ethtool_speeds(link_info->lp_auto_link_speeds,
+						media, BNXT_SIG_MODE_NRZ,
+						lk_ksettings->link_modes.lp_advertising);
+			bnxt_get_ethtool_speeds(link_info->lp_auto_pam4_link_speeds,
+						media, BNXT_SIG_MODE_PAM4,
+						lk_ksettings->link_modes.lp_advertising);
+		}
 	} else {
 		base->autoneg = AUTONEG_DISABLE;
 	}
@@ -2156,12 +2193,8 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 
 	mutex_lock(&bp->link_lock);
 	if (base->autoneg == AUTONEG_ENABLE) {
-		link_info->advertising = 0;
-		link_info->advertising_pam4 = 0;
-		BNXT_ETHTOOL_TO_FW_SPDS(link_info->advertising, lk_ksettings,
-					advertising);
-		BNXT_ETHTOOL_TO_FW_PAM4_SPDS(link_info->advertising_pam4,
-					     lk_ksettings, advertising);
+		bnxt_set_ethtool_speeds(link_info,
+					lk_ksettings->link_modes.advertising);
 		link_info->autoneg |= BNXT_AUTONEG_SPEED;
 		if (!link_info->advertising && !link_info->advertising_pam4) {
 			link_info->advertising = link_info->support_auto_speeds;
