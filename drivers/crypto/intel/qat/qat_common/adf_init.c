@@ -9,6 +9,7 @@
 #include "adf_common_drv.h"
 #include "adf_dbgfs.h"
 #include "adf_heartbeat.h"
+#include "adf_sysfs_ras_counters.h"
 
 static LIST_HEAD(service_table);
 static DEFINE_MUTEX(service_lock);
@@ -242,6 +243,7 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 	set_bit(ADF_STATUS_COMP_ALGS_REGISTERED, &accel_dev->status);
 
 	adf_dbgfs_add(accel_dev);
+	adf_sysfs_start_ras(accel_dev);
 
 	return 0;
 }
@@ -268,6 +270,7 @@ static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 		return;
 
 	adf_dbgfs_rm(accel_dev);
+	adf_sysfs_stop_ras(accel_dev);
 
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
 	clear_bit(ADF_STATUS_STARTED, &accel_dev->status);

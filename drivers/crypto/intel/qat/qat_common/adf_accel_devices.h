@@ -7,6 +7,7 @@
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/ratelimit.h>
+#include <linux/types.h>
 #include "adf_cfg_common.h"
 #include "adf_pfvf_msg.h"
 
@@ -79,6 +80,18 @@ enum dev_sku_info {
 	DEV_SKU_4,
 	DEV_SKU_VF,
 	DEV_SKU_UNKNOWN,
+};
+
+enum ras_errors {
+	ADF_RAS_CORR,
+	ADF_RAS_UNCORR,
+	ADF_RAS_FATAL,
+	ADF_RAS_ERRORS,
+};
+
+struct adf_error_counters {
+	atomic_t counter[ADF_RAS_ERRORS];
+	bool enabled;
 };
 
 static inline const char *get_sku_info(enum dev_sku_info info)
@@ -360,6 +373,7 @@ struct adf_accel_dev {
 			u8 pf_compat_ver;
 		} vf;
 	};
+	struct adf_error_counters ras_errors;
 	struct mutex state_lock; /* protect state of the device */
 	bool is_vf;
 	u32 accel_id;
