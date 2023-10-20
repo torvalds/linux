@@ -479,6 +479,11 @@ static u32 uof_get_ae_mask(struct adf_accel_dev *accel_dev, u32 obj_num)
 static void adf_gen4_set_err_mask(struct adf_dev_err_mask *dev_err_mask)
 {
 	dev_err_mask->cppagentcmdpar_mask = ADF_4XXX_HICPPAGENTCMDPARERRLOG_MASK;
+	dev_err_mask->parerr_ath_cph_mask = ADF_4XXX_PARITYERRORMASK_ATH_CPH_MASK;
+	dev_err_mask->parerr_cpr_xlt_mask = ADF_4XXX_PARITYERRORMASK_CPR_XLT_MASK;
+	dev_err_mask->parerr_dcpr_ucs_mask = ADF_4XXX_PARITYERRORMASK_DCPR_UCS_MASK;
+	dev_err_mask->parerr_pke_mask = ADF_4XXX_PARITYERRORMASK_PKE_MASK;
+	dev_err_mask->ssmfeatren_mask = ADF_4XXX_SSMFEATREN_MASK;
 }
 
 void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)

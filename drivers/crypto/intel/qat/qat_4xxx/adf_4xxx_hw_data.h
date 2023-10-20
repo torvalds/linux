@@ -29,6 +29,21 @@
 #define ADF_4XXX_ADMIN_AE_MASK		(0x100)
 
 #define ADF_4XXX_HICPPAGENTCMDPARERRLOG_MASK	0x1F
+#define ADF_4XXX_PARITYERRORMASK_ATH_CPH_MASK	0xF000F
+#define ADF_4XXX_PARITYERRORMASK_CPR_XLT_MASK	0x10001
+#define ADF_4XXX_PARITYERRORMASK_DCPR_UCS_MASK	0x30007
+#define ADF_4XXX_PARITYERRORMASK_PKE_MASK	0x3F
+
+/*
+ * SSMFEATREN bit mask
+ * BIT(4) - enables parity detection on CPP
+ * BIT(12) - enables the logging of push/pull data errors
+ *	     in pperr register
+ * BIT(16) - BIT(23) - enable parity detection on SPPs
+ */
+#define ADF_4XXX_SSMFEATREN_MASK \
+	(BIT(4) | BIT(12) | BIT(16) | BIT(17) | BIT(18) | \
+	 BIT(19) | BIT(20) | BIT(21) | BIT(22) | BIT(23))
 
 #define ADF_4XXX_ETR_MAX_BANKS		64
 

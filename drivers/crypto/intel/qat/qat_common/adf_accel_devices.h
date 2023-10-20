@@ -178,6 +178,12 @@ struct adf_dc_ops {
 
 struct adf_dev_err_mask {
 	u32 cppagentcmdpar_mask;
+	u32 parerr_ath_cph_mask;
+	u32 parerr_cpr_xlt_mask;
+	u32 parerr_dcpr_ucs_mask;
+	u32 parerr_pke_mask;
+	u32 parerr_wat_wcp_mask;
+	u32 ssmfeatren_mask;
 };
 
 struct adf_hw_device_data {
