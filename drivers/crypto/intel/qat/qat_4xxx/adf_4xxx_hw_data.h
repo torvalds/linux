@@ -82,8 +82,19 @@
 #define ADF_402XX_ASYM_OBJ	"qat_402xx_asym.bin"
 #define ADF_402XX_ADMIN_OBJ	"qat_402xx_admin.bin"
 
+/* RL constants */
+#define ADF_4XXX_RL_PCIE_SCALE_FACTOR_DIV	100
+#define ADF_4XXX_RL_PCIE_SCALE_FACTOR_MUL	102
+#define ADF_4XXX_RL_DCPR_CORRECTION		1
+#define ADF_4XXX_RL_SCANS_PER_SEC		954
+#define ADF_4XXX_RL_MAX_TP_ASYM			173750UL
+#define ADF_4XXX_RL_MAX_TP_SYM			95000UL
+#define ADF_4XXX_RL_MAX_TP_DC			45000UL
+#define ADF_4XXX_RL_SLICE_REF			1000UL
+
 /* Clocks frequency */
-#define ADF_4XXX_KPT_COUNTER_FREQ (100 * HZ_PER_MHZ)
+#define ADF_4XXX_KPT_COUNTER_FREQ	(100 * HZ_PER_MHZ)
+#define ADF_4XXX_AE_FREQ		(1000 * HZ_PER_MHZ)
 
 /* qat_4xxx fuse bits are different from old GENs, redefine them */
 enum icp_qat_4xxx_slice_mask {

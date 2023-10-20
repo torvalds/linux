@@ -9,6 +9,7 @@
 #include "adf_common_drv.h"
 #include "adf_dbgfs.h"
 #include "adf_heartbeat.h"
+#include "adf_rl.h"
 #include "adf_sysfs_ras_counters.h"
 
 static LIST_HEAD(service_table);
@@ -137,6 +138,9 @@ static int adf_dev_init(struct adf_accel_dev *accel_dev)
 	}
 
 	adf_heartbeat_init(accel_dev);
+	ret = adf_rl_init(accel_dev);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
 
 	/*
 	 * Subservice initialisation is divided into two stages: init and start.
@@ -212,6 +216,9 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 	}
 
 	adf_heartbeat_start(accel_dev);
+	ret = adf_rl_start(accel_dev);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
 
 	list_for_each_entry(service, &service_table, list) {
 		if (service->event_hld(accel_dev, ADF_EVENT_START)) {
@@ -272,6 +279,7 @@ static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 	    !test_bit(ADF_STATUS_STARTING, &accel_dev->status))
 		return;
 
+	adf_rl_stop(accel_dev);
 	adf_dbgfs_rm(accel_dev);
 	adf_sysfs_stop_ras(accel_dev);
 
@@ -358,6 +366,8 @@ static void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 		else
 			clear_bit(accel_dev->accel_id, service->init_status);
 	}
+
+	adf_rl_exit(accel_dev);
 
 	if (hw_data->ras_ops.disable_ras_errors)
 		hw_data->ras_ops.disable_ras_errors(accel_dev);

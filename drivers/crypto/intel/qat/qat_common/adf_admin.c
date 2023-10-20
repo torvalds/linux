@@ -330,6 +330,53 @@ static int adf_get_fw_capabilities(struct adf_accel_dev *accel_dev, u16 *caps)
 	return 0;
 }
 
+int adf_send_admin_rl_init(struct adf_accel_dev *accel_dev,
+			   struct icp_qat_fw_init_admin_slice_cnt *slices)
+{
+	u32 ae_mask = accel_dev->hw_device->admin_ae_mask;
+	struct icp_qat_fw_init_admin_resp resp = { };
+	struct icp_qat_fw_init_admin_req req = { };
+	int ret;
+
+	req.cmd_id = ICP_QAT_FW_RL_INIT;
+
+	ret = adf_send_admin(accel_dev, &req, &resp, ae_mask);
+	if (ret)
+		return ret;
+
+	memcpy(slices, &resp.slices, sizeof(*slices));
+
+	return 0;
+}
+
+int adf_send_admin_rl_add_update(struct adf_accel_dev *accel_dev,
+				 struct icp_qat_fw_init_admin_req *req)
+{
+	u32 ae_mask = accel_dev->hw_device->admin_ae_mask;
+	struct icp_qat_fw_init_admin_resp resp = { };
+
+	/*
+	 * req struct filled in rl implementation. Used commands
+	 * ICP_QAT_FW_RL_ADD for a new SLA
+	 * ICP_QAT_FW_RL_UPDATE for update SLA
+	 */
+	return adf_send_admin(accel_dev, req, &resp, ae_mask);
+}
+
+int adf_send_admin_rl_delete(struct adf_accel_dev *accel_dev, u16 node_id,
+			     u8 node_type)
+{
+	u32 ae_mask = accel_dev->hw_device->admin_ae_mask;
+	struct icp_qat_fw_init_admin_resp resp = { };
+	struct icp_qat_fw_init_admin_req req = { };
+
+	req.cmd_id = ICP_QAT_FW_RL_REMOVE;
+	req.node_id = node_id;
+	req.node_type = node_type;
+
+	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
+}
+
 /**
  * adf_send_admin_init() - Function sends init message to FW
  * @accel_dev: Pointer to acceleration device.

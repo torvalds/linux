@@ -5,6 +5,8 @@
 
 #include "icp_qat_fw.h"
 
+#define RL_MAX_RP_IDS 16
+
 enum icp_qat_fw_init_admin_cmd_id {
 	ICP_QAT_FW_INIT_AE = 0,
 	ICP_QAT_FW_TRNG_ENABLE = 1,
@@ -19,15 +21,43 @@ enum icp_qat_fw_init_admin_cmd_id {
 	ICP_QAT_FW_CRYPTO_CAPABILITY_GET = 10,
 	ICP_QAT_FW_DC_CHAIN_INIT = 11,
 	ICP_QAT_FW_HEARTBEAT_TIMER_SET = 13,
+	ICP_QAT_FW_RL_INIT = 15,
 	ICP_QAT_FW_TIMER_GET = 19,
 	ICP_QAT_FW_CNV_STATS_GET = 20,
 	ICP_QAT_FW_PM_STATE_CONFIG = 128,
 	ICP_QAT_FW_PM_INFO = 129,
+	ICP_QAT_FW_RL_ADD = 134,
+	ICP_QAT_FW_RL_UPDATE = 135,
+	ICP_QAT_FW_RL_REMOVE = 136,
 };
 
 enum icp_qat_fw_init_admin_resp_status {
 	ICP_QAT_FW_INIT_RESP_STATUS_SUCCESS = 0,
 	ICP_QAT_FW_INIT_RESP_STATUS_FAIL
+};
+
+struct icp_qat_fw_init_admin_slice_cnt {
+	__u8 cpr_cnt;
+	__u8 xlt_cnt;
+	__u8 dcpr_cnt;
+	__u8 pke_cnt;
+	__u8 wat_cnt;
+	__u8 wcp_cnt;
+	__u8 ucs_cnt;
+	__u8 cph_cnt;
+	__u8 ath_cnt;
+};
+
+struct icp_qat_fw_init_admin_sla_config_params {
+	__u32 pcie_in_cir;
+	__u32 pcie_in_pir;
+	__u32 pcie_out_cir;
+	__u32 pcie_out_pir;
+	__u32 slice_util_cir;
+	__u32 slice_util_pir;
+	__u32 ae_util_cir;
+	__u32 ae_util_pir;
+	__u16 rp_ids[RL_MAX_RP_IDS];
 };
 
 struct icp_qat_fw_init_admin_req {
@@ -48,6 +78,13 @@ struct icp_qat_fw_init_admin_req {
 		};
 		struct {
 			__u32 heartbeat_ticks;
+		};
+		struct {
+			__u16 node_id;
+			__u8 node_type;
+			__u8 svc_type;
+			__u8 resrvd5[3];
+			__u8 rp_count;
 		};
 		__u32 idle_filter;
 	};
@@ -110,6 +147,7 @@ struct icp_qat_fw_init_admin_resp {
 			__u32 unsuccessful_count;
 			__u64 resrvd8;
 		};
+		struct icp_qat_fw_init_admin_slice_cnt slices;
 		__u16 fw_capabilities;
 	};
 } __packed;

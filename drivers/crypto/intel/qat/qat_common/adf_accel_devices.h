@@ -9,6 +9,7 @@
 #include <linux/ratelimit.h>
 #include <linux/types.h>
 #include "adf_cfg_common.h"
+#include "adf_rl.h"
 #include "adf_pfvf_msg.h"
 
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
@@ -247,6 +248,7 @@ struct adf_hw_device_data {
 	struct adf_dc_ops dc_ops;
 	struct adf_ras_ops ras_ops;
 	struct adf_dev_err_mask dev_err_mask;
+	struct adf_rl_hw_data rl_data;
 	const char *fw_name;
 	const char *fw_mmp_name;
 	u32 fuses;
@@ -358,6 +360,7 @@ struct adf_accel_dev {
 	struct adf_accel_pci accel_pci_dev;
 	struct adf_timer *timer;
 	struct adf_heartbeat *heartbeat;
+	struct adf_rl *rate_limiting;
 	union {
 		struct {
 			/* protects VF2PF interrupts access */
