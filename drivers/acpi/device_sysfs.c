@@ -410,7 +410,7 @@ static ssize_t uid_show(struct device *dev,
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
-	return sprintf(buf, "%s\n", acpi_dev->pnp.unique_id);
+	return sprintf(buf, "%s\n", acpi_device_uid(acpi_dev));
 }
 static DEVICE_ATTR_RO(uid);
 
@@ -554,7 +554,7 @@ int acpi_device_setup_files(struct acpi_device *dev)
 
 	if (dev->pnp.type.bus_address)
 		result = device_create_file(&dev->dev, &dev_attr_adr);
-	if (dev->pnp.unique_id)
+	if (acpi_device_uid(dev))
 		result = device_create_file(&dev->dev, &dev_attr_uid);
 
 	if (acpi_has_method(dev->handle, "_SUN")) {
@@ -635,7 +635,7 @@ void acpi_device_remove_files(struct acpi_device *dev)
 	if (acpi_has_method(dev->handle, "_HRV"))
 		device_remove_file(&dev->dev, &dev_attr_hrv);
 
-	if (dev->pnp.unique_id)
+	if (acpi_device_uid(dev))
 		device_remove_file(&dev->dev, &dev_attr_uid);
 	if (dev->pnp.type.bus_address)
 		device_remove_file(&dev->dev, &dev_attr_adr);
