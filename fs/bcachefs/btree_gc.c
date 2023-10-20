@@ -1954,18 +1954,16 @@ int bch2_gc_gens(struct bch_fs *c)
 	trans = bch2_trans_get(c);
 
 	for_each_member_device(ca, c, i) {
-		struct bucket_gens *gens;
+		struct bucket_gens *gens = bucket_gens(ca);
 
 		BUG_ON(ca->oldest_gen);
 
-		ca->oldest_gen = kvmalloc(ca->mi.nbuckets, GFP_KERNEL);
+		ca->oldest_gen = kvmalloc(gens->nbuckets, GFP_KERNEL);
 		if (!ca->oldest_gen) {
 			percpu_ref_put(&ca->ref);
 			ret = -BCH_ERR_ENOMEM_gc_gens;
 			goto err;
 		}
-
-		gens = bucket_gens(ca);
 
 		for (b = gens->first_bucket;
 		     b < gens->nbuckets; b++)
