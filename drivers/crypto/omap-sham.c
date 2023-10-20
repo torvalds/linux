@@ -2200,7 +2200,7 @@ data_err:
 	return err;
 }
 
-static int omap_sham_remove(struct platform_device *pdev)
+static void omap_sham_remove(struct platform_device *pdev)
 {
 	struct omap_sham_dev *dd;
 	int i, j;
@@ -2224,13 +2224,11 @@ static int omap_sham_remove(struct platform_device *pdev)
 		dma_release_channel(dd->dma_lch);
 
 	sysfs_remove_group(&dd->dev->kobj, &omap_sham_attr_group);
-
-	return 0;
 }
 
 static struct platform_driver omap_sham_driver = {
 	.probe	= omap_sham_probe,
-	.remove	= omap_sham_remove,
+	.remove_new = omap_sham_remove,
 	.driver	= {
 		.name	= "omap-sham",
 		.of_match_table	= omap_sham_of_match,
