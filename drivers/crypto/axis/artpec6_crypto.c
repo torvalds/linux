@@ -2957,7 +2957,7 @@ free_cache:
 	return err;
 }
 
-static int artpec6_crypto_remove(struct platform_device *pdev)
+static void artpec6_crypto_remove(struct platform_device *pdev)
 {
 	struct artpec6_crypto *ac = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);
@@ -2977,12 +2977,11 @@ static int artpec6_crypto_remove(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	artpec6_crypto_free_debugfs();
 #endif
-	return 0;
 }
 
 static struct platform_driver artpec6_crypto_driver = {
 	.probe   = artpec6_crypto_probe,
-	.remove  = artpec6_crypto_remove,
+	.remove_new = artpec6_crypto_remove,
 	.driver  = {
 		.name  = "artpec6-crypto",
 		.of_match_table = artpec6_crypto_of_match,
