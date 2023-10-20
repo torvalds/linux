@@ -3136,7 +3136,7 @@ static int hw_supports(struct device *dev, __be32 desc_hdr_template)
 	return ret;
 }
 
-static int talitos_remove(struct platform_device *ofdev)
+static void talitos_remove(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct talitos_private *priv = dev_get_drvdata(dev);
@@ -3170,8 +3170,6 @@ static int talitos_remove(struct platform_device *ofdev)
 	tasklet_kill(&priv->done_task[0]);
 	if (priv->irq[1])
 		tasklet_kill(&priv->done_task[1]);
-
-	return 0;
 }
 
 static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
@@ -3559,7 +3557,7 @@ static struct platform_driver talitos_driver = {
 		.of_match_table = talitos_match,
 	},
 	.probe = talitos_probe,
-	.remove = talitos_remove,
+	.remove_new = talitos_remove,
 };
 
 module_platform_driver(talitos_driver);
