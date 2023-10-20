@@ -35,6 +35,7 @@ properties:
 patternProperties:
   '^gpio@':
     type: object
+    additionalProperties: false
 
     description:
       Eight GPIO banks that each contain 32 GPIOs.
