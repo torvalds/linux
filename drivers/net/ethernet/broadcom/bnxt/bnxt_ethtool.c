@@ -1730,7 +1730,7 @@ bnxt_get_link_mode(struct bnxt_link_info *link_info)
 	return link_mode;
 }
 
-#define BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, fw_pause, lk_ksettings, name)\
+#define BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, lk_ksettings, name)		\
 {									\
 	if ((fw_speeds) & BNXT_LINK_SPEED_MSK_100MB)			\
 		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
@@ -1753,16 +1753,6 @@ bnxt_get_link_mode(struct bnxt_link_info *link_info)
 	if ((fw_speeds) & BNXT_LINK_SPEED_MSK_100GB)			\
 		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
 						     100000baseCR4_Full);\
-	if ((fw_pause) & BNXT_LINK_PAUSE_RX) {				\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     Pause);		\
-		if (!((fw_pause) & BNXT_LINK_PAUSE_TX))			\
-			ethtool_link_ksettings_add_link_mode(		\
-					lk_ksettings, name, Asym_Pause);\
-	} else if ((fw_pause) & BNXT_LINK_PAUSE_TX) {			\
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, name,\
-						     Asym_Pause);	\
-	}								\
 }
 
 #define BNXT_ETHTOOL_TO_FW_SPDS(fw_speeds, lk_ksettings, name)		\
@@ -1820,6 +1810,39 @@ bnxt_get_link_mode(struct bnxt_link_info *link_info)
 		(fw_speeds) |= BNXT_LINK_PAM4_SPEED_MSK_200GB;		\
 }
 
+static void bnxt_get_ethtool_modes(struct bnxt_link_info *link_info,
+				   struct ethtool_link_ksettings *lk_ksettings)
+{
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+
+	if (!(bp->phy_flags & BNXT_PHY_FL_NO_PAUSE)) {
+		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
+						     Pause);
+		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
+						     Asym_Pause);
+	}
+
+	if (link_info->support_auto_speeds || link_info->support_pam4_auto_speeds)
+		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
+						     Autoneg);
+
+	if (~link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
+		return;
+
+	if (link_info->auto_pause_setting & BNXT_LINK_PAUSE_RX)
+		ethtool_link_ksettings_add_link_mode(lk_ksettings, advertising,
+						     Pause);
+	if (hweight8(link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) == 1)
+		ethtool_link_ksettings_add_link_mode(lk_ksettings, advertising,
+						     Asym_Pause);
+	if (link_info->lp_pause & BNXT_LINK_PAUSE_RX)
+		ethtool_link_ksettings_add_link_mode(lk_ksettings,
+						     lp_advertising, Pause);
+	if (hweight8(link_info->lp_pause & BNXT_LINK_PAUSE_BOTH) == 1)
+		ethtool_link_ksettings_add_link_mode(lk_ksettings,
+						     lp_advertising, Asym_Pause);
+}
+
 static void bnxt_fw_to_ethtool_advertised_fec(struct bnxt_link_info *link_info,
 				struct ethtool_link_ksettings *lk_ksettings)
 {
@@ -1845,28 +1868,18 @@ static void bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info,
 				struct ethtool_link_ksettings *lk_ksettings)
 {
 	u16 fw_speeds = link_info->advertising;
-	u8 fw_pause = 0;
 
-	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
-		fw_pause = link_info->auto_pause_setting;
-
-	BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, fw_pause, lk_ksettings, advertising);
+	BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, lk_ksettings, advertising);
 	fw_speeds = link_info->advertising_pam4;
 	BNXT_FW_TO_ETHTOOL_PAM4_SPDS(fw_speeds, lk_ksettings, advertising);
-	bnxt_fw_to_ethtool_advertised_fec(link_info, lk_ksettings);
 }
 
 static void bnxt_fw_to_ethtool_lp_adv(struct bnxt_link_info *link_info,
 				struct ethtool_link_ksettings *lk_ksettings)
 {
 	u16 fw_speeds = link_info->lp_auto_link_speeds;
-	u8 fw_pause = 0;
 
-	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
-		fw_pause = link_info->lp_pause;
-
-	BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, fw_pause, lk_ksettings,
-				lp_advertising);
+	BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, lk_ksettings, lp_advertising);
 	fw_speeds = link_info->lp_auto_pam4_link_speeds;
 	BNXT_FW_TO_ETHTOOL_PAM4_SPDS(fw_speeds, lk_ksettings, lp_advertising);
 }
@@ -1895,25 +1908,11 @@ static void bnxt_fw_to_ethtool_support_fec(struct bnxt_link_info *link_info,
 static void bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info,
 				struct ethtool_link_ksettings *lk_ksettings)
 {
-	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
 	u16 fw_speeds = link_info->support_speeds;
 
-	BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, 0, lk_ksettings, supported);
+	BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, lk_ksettings, supported);
 	fw_speeds = link_info->support_pam4_speeds;
 	BNXT_FW_TO_ETHTOOL_PAM4_SPDS(fw_speeds, lk_ksettings, supported);
-
-	if (!(bp->phy_flags & BNXT_PHY_FL_NO_PAUSE)) {
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
-						     Pause);
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
-						     Asym_Pause);
-	}
-
-	if (link_info->support_auto_speeds ||
-	    link_info->support_pam4_auto_speeds)
-		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
-						     Autoneg);
-	bnxt_fw_to_ethtool_support_fec(link_info, lk_ksettings);
 }
 
 u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
@@ -1977,7 +1976,9 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 	link_info = &bp->link_info;
 
 	mutex_lock(&bp->link_lock);
+	bnxt_get_ethtool_modes(link_info, lk_ksettings);
 	bnxt_fw_to_ethtool_support_spds(link_info, lk_ksettings);
+	bnxt_fw_to_ethtool_support_fec(link_info, lk_ksettings);
 	link_mode = bnxt_get_link_mode(link_info);
 	if (link_mode != BNXT_LINK_MODE_UNKNOWN)
 		ethtool_params_from_link_mode(lk_ksettings, link_mode);
@@ -1986,6 +1987,7 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 
 	if (link_info->autoneg) {
 		bnxt_fw_to_ethtool_advertised_spds(link_info, lk_ksettings);
+		bnxt_fw_to_ethtool_advertised_fec(link_info, lk_ksettings);
 		ethtool_link_ksettings_add_link_mode(lk_ksettings,
 						     advertising, Autoneg);
 		base->autoneg = AUTONEG_ENABLE;
