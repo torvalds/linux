@@ -2841,6 +2841,8 @@
 			      "pclk_mac", "aclk_mac";
 		resets = <&cru SRST_A_GMAC>;
 		reset-names = "stmmaceth";
+		rockchip,csu = <&csu CSU_GMAC_ACLK>, <&csu CSU_GMAC_PCLK>;
+		rockchip,csu-names = "aclk", "pclk";
 
 		snps,mixed-burst;
 		snps,tso;
@@ -2959,6 +2961,8 @@
 			      "pclk_mac", "aclk_mac";
 		resets = <&cru SRST_A_MAC100>;
 		reset-names = "stmmaceth";
+		rockchip,csu = <&csu CSU_GMAC_ACLK>, <&csu CSU_GMAC_PCLK>;
+		rockchip,csu-names = "aclk", "pclk";
 		status = "disabled";
 
 		mdio1: mdio {
