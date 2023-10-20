@@ -9,6 +9,7 @@
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/power/rk3562-power.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/soc/rockchip-csu.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/suspend/rockchip-rk3562.h>
@@ -361,20 +362,6 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
-	bus_soc: bus-soc {
-		compatible = "rockchip,rk3562-bus";
-		rockchip,busfreq-policy = "smc";
-		rockchip,soc-bus-table = <0 0x00a000a8 0x7001>,
-					 <1 0x00a000a8 0x7c39>,
-					 <2 0x00a000a8 0x7c39>,
-					 <3 0x00a000a8 0x7c39>,
-					 <4 0x00a000a4 0xb007>,
-					 <5 0x00a000a8 0x7034>,
-					 <6 0x00a000a8 0x7034>,
-					 <7 0x00a000a8 0x7034>,
-					 <8 0x00a000a8 0x7001>;
-	};
-
 	cpuinfo {
 		compatible = "rockchip,cpuinfo";
 		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>;
@@ -421,6 +408,23 @@
 		compatible = "rockchip,rk3562-csi2-dphy";
 		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
 		status = "disabled";
+	};
+
+	csu: csu {
+		compatible = "rockchip,rk3562-csu";
+		rockchip,clock = <CSU_GMAC_ACLK  1>,
+				 <CSU_GMAC_PCLK  3>,
+				 <CSU_VOP_ACLK   4>,
+				 <CSU_MCU_CLK    2>;
+		rockchip,bus = <0 0x00a000a8 0x7001>,
+			       <1 0x00a000a8 0x7c39>,
+			       <2 0x00a000a8 0x7c39>,
+			       <3 0x00a000a8 0x7c39>,
+			       <4 0x00a000a4 0xb007>,
+			       <5 0x00a000a8 0x7034>,
+			       <6 0x00a000a8 0x7034>,
+			       <7 0x00a000a8 0x7034>,
+			       <8 0x00a000a8 0x7001>;
 	};
 
 	display_subsystem: display-subsystem {
