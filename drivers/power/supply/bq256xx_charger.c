@@ -1706,7 +1706,7 @@ static int bq256xx_probe(struct i2c_client *client)
 
 	mutex_init(&bq->lock);
 
-	strncpy(bq->model_name, id->name, I2C_NAME_SIZE);
+	strscpy(bq->model_name, id->name, sizeof(bq->model_name));
 
 	bq->regmap = devm_regmap_init_i2c(client,
 					bq->chip_info->bq256xx_regmap_config);
