@@ -3565,6 +3565,59 @@ int get_physical_node_id(struct cpu_topology *thiscpu)
 	return -1;
 }
 
+static int parse_cpu_str(char *cpu_str, cpu_set_t *cpu_set, int cpu_set_size)
+{
+	unsigned int start, end;
+	char *next = cpu_str;
+
+	while (next && *next) {
+
+		if (*next == '-')	/* no negative cpu numbers */
+			return 1;
+
+		start = strtoul(next, &next, 10);
+
+		if (start >= CPU_SUBSET_MAXCPUS)
+			return 1;
+		CPU_SET_S(start, cpu_set_size, cpu_set);
+
+		if (*next == '\0' || *next == '\n')
+			break;
+
+		if (*next == ',') {
+			next += 1;
+			continue;
+		}
+
+		if (*next == '-') {
+			next += 1;	/* start range */
+		} else if (*next == '.') {
+			next += 1;
+			if (*next == '.')
+				next += 1;	/* start range */
+			else
+				return 1;
+		}
+
+		end = strtoul(next, &next, 10);
+		if (end <= start)
+			return 1;
+
+		while (++start <= end) {
+			if (start >= CPU_SUBSET_MAXCPUS)
+				return 1;
+			CPU_SET_S(start, cpu_set_size, cpu_set);
+		}
+
+		if (*next == ',')
+			next += 1;
+		else if (*next != '\0' && *next != '\n')
+			return 1;
+	}
+
+	return 0;
+}
+
 int get_thread_siblings(struct cpu_topology *thiscpu)
 {
 	char path[80], character;
@@ -6384,9 +6437,6 @@ void probe_sysfs(void)
  */
 void parse_cpu_command(char *optarg)
 {
-	unsigned int start, end;
-	char *next;
-
 	if (!strcmp(optarg, "core")) {
 		if (cpu_subset)
 			goto error;
@@ -6409,52 +6459,8 @@ void parse_cpu_command(char *optarg)
 
 	CPU_ZERO_S(cpu_subset_size, cpu_subset);
 
-	next = optarg;
-
-	while (next && *next) {
-
-		if (*next == '-')	/* no negative cpu numbers */
-			goto error;
-
-		start = strtoul(next, &next, 10);
-
-		if (start >= CPU_SUBSET_MAXCPUS)
-			goto error;
-		CPU_SET_S(start, cpu_subset_size, cpu_subset);
-
-		if (*next == '\0')
-			break;
-
-		if (*next == ',') {
-			next += 1;
-			continue;
-		}
-
-		if (*next == '-') {
-			next += 1;	/* start range */
-		} else if (*next == '.') {
-			next += 1;
-			if (*next == '.')
-				next += 1;	/* start range */
-			else
-				goto error;
-		}
-
-		end = strtoul(next, &next, 10);
-		if (end <= start)
-			goto error;
-
-		while (++start <= end) {
-			if (start >= CPU_SUBSET_MAXCPUS)
-				goto error;
-			CPU_SET_S(start, cpu_subset_size, cpu_subset);
-		}
-
-		if (*next == ',')
-			next += 1;
-		else if (*next != '\0')
-			goto error;
-	}
+	if (parse_cpu_str(optarg, cpu_subset, cpu_subset_size))
+		goto error;
 
 	return;
 
