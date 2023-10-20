@@ -595,9 +595,6 @@ static struct page_pool *idpf_rx_create_page_pool(struct idpf_queue *rxbufq)
 		.offset		= 0,
 	};
 
-	if (rxbufq->rx_buf_size == IDPF_RX_BUF_2048)
-		pp.flags |= PP_FLAG_PAGE_FRAG;
-
 	return page_pool_create(&pp);
 }
 
