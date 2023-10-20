@@ -323,7 +323,7 @@ operations:
             - dev-name
             - sb-index
         reply: &sb-get-reply
-          value: 11
+          value: 13
           attributes: *sb-id-attrs
       dump:
         request:
@@ -350,7 +350,7 @@ operations:
             - sb-index
             - sb-pool-index
         reply: &sb-pool-get-reply
-          value: 15
+          value: 17
           attributes: *sb-pool-id-attrs
       dump:
         request:
@@ -378,7 +378,7 @@ operations:
             - sb-index
             - sb-pool-index
         reply: &sb-port-pool-get-reply
-          value: 19
+          value: 21
           attributes: *sb-port-pool-id-attrs
       dump:
         request:
@@ -407,7 +407,7 @@ operations:
             - sb-pool-type
             - sb-tc-index
         reply: &sb-tc-pool-bind-get-reply
-          value: 23
+          value: 25
           attributes: *sb-tc-pool-bind-id-attrs
       dump:
         request:
@@ -538,7 +538,7 @@ operations:
             - dev-name
             - trap-name
         reply: &trap-get-reply
-          value: 61
+          value: 63
           attributes: *trap-id-attrs
       dump:
         request:
@@ -564,7 +564,7 @@ operations:
             - dev-name
             - trap-group-name
         reply: &trap-group-get-reply
-          value: 65
+          value: 67
           attributes: *trap-group-id-attrs
       dump:
         request:
@@ -590,7 +590,7 @@ operations:
             - dev-name
             - trap-policer-id
         reply: &trap-policer-get-reply
-          value: 69
+          value: 71
           attributes: *trap-policer-id-attrs
       dump:
         request:
@@ -617,7 +617,7 @@ operations:
             - port-index
             - rate-node-name
         reply: &rate-get-reply
-          value: 74
+          value: 76
           attributes: *rate-id-attrs
       dump:
         request:
@@ -643,7 +643,7 @@ operations:
             - dev-name
             - linecard-index
         reply: &linecard-get-reply
-          value: 78
+          value: 80
           attributes: *linecard-id-attrs
       dump:
         request:
