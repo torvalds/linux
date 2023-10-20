@@ -325,8 +325,9 @@ int bch2_mark_snapshot(struct btree_trans *trans,
 		__set_is_ancestor_bitmap(c, id);
 
 		if (BCH_SNAPSHOT_DELETED(s.v)) {
-			set_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
-			c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_delete_dead_snapshots);
+			set_bit(BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS, &c->flags);
+			if (c->curr_recovery_pass > BCH_RECOVERY_PASS_delete_dead_snapshots)
+				bch2_delete_dead_snapshots_async(c);
 		}
 	} else {
 		memset(t, 0, sizeof(*t));
@@ -1251,13 +1252,7 @@ static int move_key_to_correct_snapshot(struct btree_trans *trans,
 	return 0;
 }
 
-/*
- * For a given snapshot, if it doesn't have a subvolume that points to it, and
- * it doesn't have child snapshot nodes - it's now redundant and we can mark it
- * as deleted.
- */
-static int bch2_delete_redundant_snapshot(struct btree_trans *trans, struct btree_iter *iter,
-					  struct bkey_s_c k)
+static int bch2_snapshot_needs_delete(struct btree_trans *trans, struct bkey_s_c k)
 {
 	struct bkey_s_c_snapshot snap;
 	u32 children[2];
@@ -1278,10 +1273,21 @@ static int bch2_delete_redundant_snapshot(struct btree_trans *trans, struct btre
 		bch2_snapshot_live(trans, children[1]);
 	if (ret < 0)
 		return ret;
+	return !ret;
+}
 
-	if (!ret)
-		return bch2_snapshot_node_set_deleted(trans, k.k->p.offset);
-	return 0;
+/*
+ * For a given snapshot, if it doesn't have a subvolume that points to it, and
+ * it doesn't have child snapshot nodes - it's now redundant and we can mark it
+ * as deleted.
+ */
+static int bch2_delete_redundant_snapshot(struct btree_trans *trans, struct bkey_s_c k)
+{
+	int ret = bch2_snapshot_needs_delete(trans, k);
+
+	return ret <= 0
+		? ret
+		: bch2_snapshot_node_set_deleted(trans, k.k->p.offset);
 }
 
 static inline u32 bch2_snapshot_nth_parent_skip(struct bch_fs *c, u32 id, u32 n,
@@ -1369,6 +1375,9 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	u32 *i, id;
 	int ret = 0;
 
+	if (!test_and_clear_bit(BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS, &c->flags))
+		return 0;
+
 	if (!test_bit(BCH_FS_STARTED, &c->flags)) {
 		ret = bch2_fs_read_write_early(c);
 		if (ret) {
@@ -1386,7 +1395,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_snapshots,
 			POS_MIN, 0, k,
 			NULL, NULL, 0,
-		bch2_delete_redundant_snapshot(trans, &iter, k));
+		bch2_delete_redundant_snapshot(trans, k));
 	if (ret) {
 		bch_err_msg(c, ret, "deleting redundant snapshots");
 		goto err;
@@ -1492,8 +1501,6 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			goto err_create_lock;
 		}
 	}
-
-	clear_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
 err_create_lock:
 	up_write(&c->snapshot_create_lock);
 err:
@@ -1509,8 +1516,7 @@ void bch2_delete_dead_snapshots_work(struct work_struct *work)
 {
 	struct bch_fs *c = container_of(work, struct bch_fs, snapshot_delete_work);
 
-	if (test_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags))
-		bch2_delete_dead_snapshots(c);
+	bch2_delete_dead_snapshots(c);
 	bch2_write_ref_put(c, BCH_WRITE_REF_delete_dead_snapshots);
 }
 
@@ -1519,20 +1525,6 @@ void bch2_delete_dead_snapshots_async(struct bch_fs *c)
 	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_delete_dead_snapshots) &&
 	    !queue_work(c->write_ref_wq, &c->snapshot_delete_work))
 		bch2_write_ref_put(c, BCH_WRITE_REF_delete_dead_snapshots);
-}
-
-int bch2_delete_dead_snapshots_hook(struct btree_trans *trans,
-				    struct btree_trans_commit_hook *h)
-{
-	struct bch_fs *c = trans->c;
-
-	set_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
-
-	if (c->curr_recovery_pass <= BCH_RECOVERY_PASS_delete_dead_snapshots)
-		return 0;
-
-	bch2_delete_dead_snapshots_async(c);
-	return 0;
 }
 
 int __bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
@@ -1665,6 +1657,26 @@ again:
 	return ret ?: trans_was_restarted(trans, restart_count);
 }
 
+static int bch2_check_snapshot_needs_deletion(struct btree_trans *trans, struct bkey_s_c k)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_s_c_snapshot snap;
+	int ret = 0;
+
+	if (k.k->type != KEY_TYPE_snapshot)
+		return 0;
+
+	snap = bkey_s_c_to_snapshot(k);
+	if (BCH_SNAPSHOT_DELETED(snap.v) ||
+	    bch2_snapshot_equiv(c, k.k->p.offset) != k.k->p.offset ||
+	    (ret = bch2_snapshot_needs_delete(trans, k)) > 0) {
+		set_bit(BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS, &c->flags);
+		return 0;
+	}
+
+	return ret;
+}
+
 int bch2_snapshots_read(struct bch_fs *c)
 {
 	struct btree_iter iter;
@@ -1675,7 +1687,8 @@ int bch2_snapshots_read(struct bch_fs *c)
 		for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
 			   POS_MIN, 0, k,
 			bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0, bkey_s_c_null, k, 0) ?:
-			bch2_snapshot_set_equiv(trans, k)) ?:
+			bch2_snapshot_set_equiv(trans, k) ?:
+			bch2_check_snapshot_needs_deletion(trans, k)) ?:
 		for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
 			   POS_MIN, 0, k,
 			   (set_is_ancestor_bitmap(c, k.k->p.offset), 0)));

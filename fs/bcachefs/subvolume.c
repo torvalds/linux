@@ -230,7 +230,6 @@ static int __bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 {
 	struct btree_iter iter;
 	struct bkey_s_c_subvolume subvol;
-	struct btree_trans_commit_hook *h;
 	u32 snapid;
 	int ret = 0;
 
@@ -246,22 +245,8 @@ static int __bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 
 	snapid = le32_to_cpu(subvol.v->snapshot);
 
-	ret = bch2_btree_delete_at(trans, &iter, 0);
-	if (ret)
-		goto err;
-
-	ret = bch2_snapshot_node_set_deleted(trans, snapid);
-	if (ret)
-		goto err;
-
-	h = bch2_trans_kmalloc(trans, sizeof(*h));
-	ret = PTR_ERR_OR_ZERO(h);
-	if (ret)
-		goto err;
-
-	h->fn = bch2_delete_dead_snapshots_hook;
-	bch2_trans_commit_hook(trans, h);
-err:
+	ret =   bch2_btree_delete_at(trans, &iter, 0) ?:
+		bch2_snapshot_node_set_deleted(trans, snapid);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

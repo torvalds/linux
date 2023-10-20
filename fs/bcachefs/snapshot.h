@@ -244,8 +244,6 @@ int bch2_check_snapshot_trees(struct bch_fs *);
 int bch2_check_snapshots(struct bch_fs *);
 
 int bch2_snapshot_node_set_deleted(struct btree_trans *, u32);
-int bch2_delete_dead_snapshots_hook(struct btree_trans *,
-				    struct btree_trans_commit_hook *);
 void bch2_delete_dead_snapshots_work(struct work_struct *);
 
 int __bch2_key_has_snapshot_overwrites(struct btree_trans *, enum btree_id, struct bpos);
