@@ -328,7 +328,11 @@ int contention_begin(u64 *ctx)
 	if (pelem == NULL) {
 		struct tstamp_data zero = {};
 
-		bpf_map_update_elem(&tstamp, &pid, &zero, BPF_ANY);
+		if (bpf_map_update_elem(&tstamp, &pid, &zero, BPF_NOEXIST) < 0) {
+			__sync_fetch_and_add(&task_fail, 1);
+			return 0;
+		}
+
 		pelem = bpf_map_lookup_elem(&tstamp, &pid);
 		if (pelem == NULL) {
 			__sync_fetch_and_add(&task_fail, 1);
