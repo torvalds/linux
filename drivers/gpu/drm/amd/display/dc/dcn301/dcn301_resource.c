@@ -701,7 +701,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.dwb_fi_phase = -1, // -1 = disable
 	.dmub_command_table = true,
 	.use_max_lb = false,
-	.exit_idle_opt_for_cursor_updates = true
+	.exit_idle_opt_for_cursor_updates = true,
+	.using_dml2 = false,
 };
 
 static void dcn301_dpp_destroy(struct dpp **dpp)

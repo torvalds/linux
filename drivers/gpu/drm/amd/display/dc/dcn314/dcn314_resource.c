@@ -924,7 +924,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 			}
 	},
 
-	.seamless_boot_odm_combine = true
+	.seamless_boot_odm_combine = true,
+	.using_dml2 = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {

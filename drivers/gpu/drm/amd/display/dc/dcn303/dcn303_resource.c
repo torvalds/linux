@@ -81,6 +81,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.dmub_command_table = true,
 		.exit_idle_opt_for_cursor_updates = true,
 		.disable_idle_power_optimizations = false,
+		.using_dml2 = false,
 };
 
 static const struct dc_panel_config panel_config_defaults = {

@@ -654,6 +654,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.dmub_command_table = true,
 		.use_max_lb = true,
 		.enable_legacy_fast_update = true,
+		.using_dml2 = false,
 };
 
 static const struct dc_panel_config panel_config_defaults = {
