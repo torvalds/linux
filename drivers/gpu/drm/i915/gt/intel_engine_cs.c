@@ -1491,7 +1491,8 @@ static int engine_init_common(struct intel_engine_cs *engine)
 	return 0;
 
 err_bce_context:
-	intel_engine_destroy_pinned_context(bce);
+	if (bce)
+		intel_engine_destroy_pinned_context(bce);
 err_ce_context:
 	intel_engine_destroy_pinned_context(ce);
 	return ret;
