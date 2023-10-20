@@ -987,6 +987,39 @@ static bool access_pmu_evtyper(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	return true;
 }
 
+static int set_pmreg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r, u64 val)
+{
+	bool set;
+
+	val &= kvm_pmu_valid_counter_mask(vcpu);
+
+	switch (r->reg) {
+	case PMOVSSET_EL0:
+		/* CRm[1] being set indicates a SET register, and CLR otherwise */
+		set = r->CRm & 2;
+		break;
+	default:
+		/* Op2[0] being set indicates a SET register, and CLR otherwise */
+		set = r->Op2 & 1;
+		break;
+	}
+
+	if (set)
+		__vcpu_sys_reg(vcpu, r->reg) |= val;
+	else
+		__vcpu_sys_reg(vcpu, r->reg) &= ~val;
+
+	return 0;
+}
+
+static int get_pmreg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r, u64 *val)
+{
+	u64 mask = kvm_pmu_valid_counter_mask(vcpu);
+
+	*val = __vcpu_sys_reg(vcpu, r->reg) & mask;
+	return 0;
+}
+
 static bool access_pmcnten(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 			   const struct sys_reg_desc *r)
 {
@@ -2116,9 +2149,11 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	/* PMBIDR_EL1 is not trapped */
 
 	{ PMU_SYS_REG(PMINTENSET_EL1),
-	  .access = access_pminten, .reg = PMINTENSET_EL1 },
+	  .access = access_pminten, .reg = PMINTENSET_EL1,
+	  .get_user = get_pmreg, .set_user = set_pmreg },
 	{ PMU_SYS_REG(PMINTENCLR_EL1),
-	  .access = access_pminten, .reg = PMINTENSET_EL1 },
+	  .access = access_pminten, .reg = PMINTENSET_EL1,
+	  .get_user = get_pmreg, .set_user = set_pmreg },
 	{ SYS_DESC(SYS_PMMIR_EL1), trap_raz_wi },
 
 	{ SYS_DESC(SYS_MAIR_EL1), access_vm_reg, reset_unknown, MAIR_EL1 },
@@ -2169,11 +2204,14 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ PMU_SYS_REG(PMCR_EL0), .access = access_pmcr,
 	  .reset = reset_pmcr, .reg = PMCR_EL0, .get_user = get_pmcr },
 	{ PMU_SYS_REG(PMCNTENSET_EL0),
-	  .access = access_pmcnten, .reg = PMCNTENSET_EL0 },
+	  .access = access_pmcnten, .reg = PMCNTENSET_EL0,
+	  .get_user = get_pmreg, .set_user = set_pmreg },
 	{ PMU_SYS_REG(PMCNTENCLR_EL0),
-	  .access = access_pmcnten, .reg = PMCNTENSET_EL0 },
+	  .access = access_pmcnten, .reg = PMCNTENSET_EL0,
+	  .get_user = get_pmreg, .set_user = set_pmreg },
 	{ PMU_SYS_REG(PMOVSCLR_EL0),
-	  .access = access_pmovs, .reg = PMOVSSET_EL0 },
+	  .access = access_pmovs, .reg = PMOVSSET_EL0,
+	  .get_user = get_pmreg, .set_user = set_pmreg },
 	/*
 	 * PM_SWINC_EL0 is exposed to userspace as RAZ/WI, as it was
 	 * previously (and pointlessly) advertised in the past...
@@ -2201,7 +2239,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ PMU_SYS_REG(PMUSERENR_EL0), .access = access_pmuserenr,
 	  .reset = reset_val, .reg = PMUSERENR_EL0, .val = 0 },
 	{ PMU_SYS_REG(PMOVSSET_EL0),
-	  .access = access_pmovs, .reg = PMOVSSET_EL0 },
+	  .access = access_pmovs, .reg = PMOVSSET_EL0,
+	  .get_user = get_pmreg, .set_user = set_pmreg },
 
 	{ SYS_DESC(SYS_TPIDR_EL0), NULL, reset_unknown, TPIDR_EL0 },
 	{ SYS_DESC(SYS_TPIDRRO_EL0), NULL, reset_unknown, TPIDRRO_EL0 },
