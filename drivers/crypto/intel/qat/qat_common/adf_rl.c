@@ -16,6 +16,7 @@
 #include "adf_common_drv.h"
 #include "adf_rl_admin.h"
 #include "adf_rl.h"
+#include "adf_sysfs_rl.h"
 
 #define RL_TOKEN_GRANULARITY_PCIEIN_BUCKET	0U
 #define RL_TOKEN_GRANULARITY_PCIEOUT_BUCKET	0U
@@ -1130,8 +1131,16 @@ int adf_rl_start(struct adf_accel_dev *accel_dev)
 		goto ret_sla_rm;
 	}
 
+	ret = adf_sysfs_rl_add(accel_dev);
+	if (ret) {
+		dev_err(&GET_DEV(accel_dev), "failed to add sysfs interface\n");
+		goto ret_sysfs_rm;
+	}
+
 	return 0;
 
+ret_sysfs_rm:
+	adf_sysfs_rl_rm(accel_dev);
 ret_sla_rm:
 	adf_rl_remove_sla_all(accel_dev, true);
 ret_free:
@@ -1146,6 +1155,7 @@ void adf_rl_stop(struct adf_accel_dev *accel_dev)
 	if (!accel_dev->rate_limiting)
 		return;
 
+	adf_sysfs_rl_rm(accel_dev);
 	adf_rl_remove_sla_all(accel_dev, true);
 }
 

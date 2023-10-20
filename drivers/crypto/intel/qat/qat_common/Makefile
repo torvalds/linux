@@ -30,6 +30,7 @@ intel_qat-objs := adf_cfg.o \
 	qat_algs_send.o \
 	adf_rl.o \
 	adf_rl_admin.o \
+	adf_sysfs_rl.o \
 	qat_uclo.o \
 	qat_hal.o \
 	qat_bl.o

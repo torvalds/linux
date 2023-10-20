@@ -75,6 +75,12 @@ struct rl_slice_cnt {
 	u8 cph_cnt;
 };
 
+struct adf_rl_interface_data {
+	struct adf_rl_sla_input_data input;
+	enum adf_base_services cap_rem_srv;
+	struct rw_semaphore lock;
+};
+
 struct adf_rl_hw_data {
 	u32 scale_ref;
 	u32 scan_interval;
@@ -113,6 +119,7 @@ struct adf_rl {
 	bool rp_in_use[RL_RP_CNT_MAX];
 	/* Mutex protecting writing to SLAs lists */
 	struct mutex rl_lock;
+	struct adf_rl_interface_data user_input;
 };
 
 /**
