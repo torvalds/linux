@@ -296,6 +296,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		rt = NULL;
 		goto failure;
 	}
+	tp->tcp_usec_ts = dst_tcp_usec_ts(&rt->dst);
 	/* OK, now commit destination to socket.  */
 	sk->sk_gso_type = SKB_GSO_TCPV4;
 	sk_setup_caps(sk, &rt->dst);

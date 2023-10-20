@@ -825,6 +825,8 @@ static inline u32 tcp_time_stamp_ms(const struct tcp_sock *tp)
 
 static inline u32 tcp_time_stamp_ts(const struct tcp_sock *tp)
 {
+	if (tp->tcp_usec_ts)
+		return tp->tcp_mstamp;
 	return tcp_time_stamp_ms(tp);
 }
 
@@ -852,12 +854,12 @@ static inline u32 tcp_skb_timestamp_ts(bool usec_ts, const struct sk_buff *skb)
 
 static inline u32 tcp_tw_tsval(const struct tcp_timewait_sock *tcptw)
 {
-	return tcp_clock_ts(false) + tcptw->tw_ts_offset;
+	return tcp_clock_ts(tcptw->tw_sk.tw_usec_ts) + tcptw->tw_ts_offset;
 }
 
 static inline u32 tcp_rsk_tsval(const struct tcp_request_sock *treq)
 {
-	return tcp_clock_ts(false) + treq->ts_off;
+	return tcp_clock_ts(treq->req_usec_ts) + treq->ts_off;
 }
 
 #define tcp_flag_byte(th) (((u_int8_t *)th)[13])

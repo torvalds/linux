@@ -698,6 +698,8 @@ static s32 tcp_rtt_tsopt_us(const struct tcp_sock *tp)
 	u32 delta, delta_us;
 
 	delta = tcp_time_stamp_ts(tp) - tp->rx_opt.rcv_tsecr;
+	if (tp->tcp_usec_ts)
+		return delta;
 
 	if (likely(delta < INT_MAX / (USEC_PER_SEC / TCP_TS_HZ))) {
 		if (!delta)
@@ -2452,7 +2454,7 @@ static bool tcp_skb_spurious_retrans(const struct tcp_sock *tp,
 				     const struct sk_buff *skb)
 {
 	return (TCP_SKB_CB(skb)->sacked & TCPCB_RETRANS) &&
-	       tcp_tsopt_ecr_before(tp, tcp_skb_timestamp_ts(false, skb));
+	       tcp_tsopt_ecr_before(tp, tcp_skb_timestamp_ts(tp->tcp_usec_ts, skb));
 }
 
 /* Nothing was retransmitted or returned timestamp is less
@@ -7045,6 +7047,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	req->syncookie = want_cookie;
 	tcp_rsk(req)->af_specific = af_ops;
 	tcp_rsk(req)->ts_off = 0;
+	tcp_rsk(req)->req_usec_ts = -1;
 #if IS_ENABLED(CONFIG_MPTCP)
 	tcp_rsk(req)->is_mptcp = 0;
 #endif

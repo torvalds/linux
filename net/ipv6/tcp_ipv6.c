@@ -286,6 +286,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		goto failure;
 	}
 
+	tp->tcp_usec_ts = dst_tcp_usec_ts(dst);
 	tcp_death_row = &sock_net(sk)->ipv4.tcp_death_row;
 
 	if (!saddr) {

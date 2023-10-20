@@ -799,7 +799,7 @@ static unsigned int tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 
 	if (likely(READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_timestamps) && !*md5)) {
 		opts->options |= OPTION_TS;
-		opts->tsval = tcp_skb_timestamp_ts(false, skb) + tp->tsoffset;
+		opts->tsval = tcp_skb_timestamp_ts(tp->tcp_usec_ts, skb) + tp->tsoffset;
 		opts->tsecr = tp->rx_opt.ts_recent;
 		remaining -= TCPOLEN_TSTAMP_ALIGNED;
 	}
@@ -884,7 +884,8 @@ static unsigned int tcp_synack_options(const struct sock *sk,
 	}
 	if (likely(ireq->tstamp_ok)) {
 		opts->options |= OPTION_TS;
-		opts->tsval = tcp_skb_timestamp_ts(false, skb) + tcp_rsk(req)->ts_off;
+		opts->tsval = tcp_skb_timestamp_ts(tcp_rsk(req)->req_usec_ts, skb) +
+			      tcp_rsk(req)->ts_off;
 		opts->tsecr = READ_ONCE(req->ts_recent);
 		remaining -= TCPOLEN_TSTAMP_ALIGNED;
 	}
@@ -943,7 +944,8 @@ static unsigned int tcp_established_options(struct sock *sk, struct sk_buff *skb
 
 	if (likely(tp->rx_opt.tstamp_ok)) {
 		opts->options |= OPTION_TS;
-		opts->tsval = skb ? tcp_skb_timestamp_ts(false, skb) + tp->tsoffset : 0;
+		opts->tsval = skb ? tcp_skb_timestamp_ts(tp->tcp_usec_ts, skb) +
+				tp->tsoffset : 0;
 		opts->tsecr = tp->rx_opt.ts_recent;
 		size += TCPOLEN_TSTAMP_ALIGNED;
 	}
@@ -3379,7 +3381,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 
 	/* Save stamp of the first (attempted) retransmit. */
 	if (!tp->retrans_stamp)
-		tp->retrans_stamp = tcp_skb_timestamp_ts(false, skb);
+		tp->retrans_stamp = tcp_skb_timestamp_ts(tp->tcp_usec_ts, skb);
 
 	if (tp->undo_retrans < 0)
 		tp->undo_retrans = 0;
@@ -3665,6 +3667,8 @@ struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 	mss = tcp_mss_clamp(tp, dst_metric_advmss(dst));
 
 	memset(&opts, 0, sizeof(opts));
+	if (tcp_rsk(req)->req_usec_ts < 0)
+		tcp_rsk(req)->req_usec_ts = dst_tcp_usec_ts(dst);
 	now = tcp_clock_ns();
 #ifdef CONFIG_SYN_COOKIES
 	if (unlikely(synack_type == TCP_SYNACK_COOKIE && ireq->tstamp_ok))

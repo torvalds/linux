@@ -300,6 +300,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		tcptw->tw_ts_recent	= tp->rx_opt.ts_recent;
 		tcptw->tw_ts_recent_stamp = tp->rx_opt.ts_recent_stamp;
 		tcptw->tw_ts_offset	= tp->tsoffset;
+		tw->tw_usec_ts		= tp->tcp_usec_ts;
 		tcptw->tw_last_oow_ack_time = 0;
 		tcptw->tw_tx_delay	= tp->tcp_tx_delay;
 		tw->tw_txhash		= sk->sk_txhash;
@@ -554,21 +555,29 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	newtp->max_window = newtp->snd_wnd;
 
 	if (newtp->rx_opt.tstamp_ok) {
+		newtp->tcp_usec_ts = treq->req_usec_ts;
 		newtp->rx_opt.ts_recent = READ_ONCE(req->ts_recent);
 		newtp->rx_opt.ts_recent_stamp = ktime_get_seconds();
 		newtp->tcp_header_len = sizeof(struct tcphdr) + TCPOLEN_TSTAMP_ALIGNED;
 	} else {
+		newtp->tcp_usec_ts = 0;
 		newtp->rx_opt.ts_recent_stamp = 0;
 		newtp->tcp_header_len = sizeof(struct tcphdr);
 	}
 	if (req->num_timeout) {
-		newtp->undo_marker = treq->snt_isn;
-		newtp->retrans_stamp = div_u64(treq->snt_synack,
-					       USEC_PER_SEC / TCP_TS_HZ);
 		newtp->total_rto = req->num_timeout;
+		newtp->undo_marker = treq->snt_isn;
+		if (newtp->tcp_usec_ts) {
+			newtp->retrans_stamp = treq->snt_synack;
+			newtp->total_rto_time = (u32)(tcp_clock_us() -
+						      newtp->retrans_stamp) / USEC_PER_MSEC;
+		} else {
+			newtp->retrans_stamp = div_u64(treq->snt_synack,
+						       USEC_PER_SEC / TCP_TS_HZ);
+			newtp->total_rto_time = tcp_clock_ms() -
+						newtp->retrans_stamp;
+		}
 		newtp->total_rto_recoveries = 1;
-		newtp->total_rto_time = tcp_clock_ms() -
-					newtp->retrans_stamp;
 	}
 	newtp->tsoffset = treq->ts_off;
 #ifdef CONFIG_TCP_MD5SIG

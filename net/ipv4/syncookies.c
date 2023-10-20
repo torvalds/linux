@@ -84,7 +84,9 @@ u64 cookie_init_timestamp(struct request_sock *req, u64 now)
 	if (ts > ts_now)
 		ts -= (1UL << TSBITS);
 
-	return ts * (NSEC_PER_SEC / TCP_TS_HZ);
+	if (tcp_rsk(req)->req_usec_ts)
+		return ts * NSEC_PER_USEC;
+	return ts * NSEC_PER_MSEC;
 }
 
 
@@ -304,6 +306,8 @@ struct request_sock *cookie_tcp_reqsk_alloc(const struct request_sock_ops *ops,
 	treq->af_specific = af_ops;
 
 	treq->syn_tos = TCP_SKB_CB(skb)->ip_dsfield;
+	treq->req_usec_ts = -1;
+
 #if IS_ENABLED(CONFIG_MPTCP)
 	treq->is_mptcp = sk_is_mptcp(sk);
 	if (treq->is_mptcp) {

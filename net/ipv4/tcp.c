@@ -3629,10 +3629,16 @@ int do_tcp_setsockopt(struct sock *sk, int level, int optname,
 			tp->fastopen_no_cookie = val;
 		break;
 	case TCP_TIMESTAMP:
-		if (!tp->repair)
+		if (!tp->repair) {
 			err = -EPERM;
-		else
-			WRITE_ONCE(tp->tsoffset, val - tcp_clock_ts(false));
+			break;
+		}
+		/* val is an opaque field,
+		 * and low order bit contains usec_ts enable bit.
+		 * Its a best effort, and we do not care if user makes an error.
+		 */
+		tp->tcp_usec_ts = val & 1;
+		WRITE_ONCE(tp->tsoffset, val - tcp_clock_ts(tp->tcp_usec_ts));
 		break;
 	case TCP_REPAIR_WINDOW:
 		err = tcp_repair_set_window(tp, optval, optlen);
@@ -4143,7 +4149,11 @@ int do_tcp_getsockopt(struct sock *sk, int level,
 		break;
 
 	case TCP_TIMESTAMP:
-		val = tcp_clock_ts(false) + READ_ONCE(tp->tsoffset);
+		val = tcp_clock_ts(tp->tcp_usec_ts) + READ_ONCE(tp->tsoffset);
+		if (tp->tcp_usec_ts)
+			val |= 1;
+		else
+			val &= ~1;
 		break;
 	case TCP_NOTSENT_LOWAT:
 		val = READ_ONCE(tp->notsent_lowat);
