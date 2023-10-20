@@ -904,8 +904,8 @@ int backwards_count;
 char *progname;
 
 #define CPU_SUBSET_MAXCPUS	1024	/* need to use before probe... */
-cpu_set_t *cpu_present_set, *cpu_allowed_set, *cpu_affinity_set, *cpu_subset;
-size_t cpu_present_setsize, cpu_allowed_setsize, cpu_affinity_setsize, cpu_subset_size;
+cpu_set_t *cpu_present_set, *cpu_effective_set, *cpu_allowed_set, *cpu_affinity_set, *cpu_subset;
+size_t cpu_present_setsize, cpu_effective_setsize, cpu_allowed_setsize, cpu_affinity_setsize, cpu_subset_size;
 #define MAX_ADDED_COUNTERS 8
 #define MAX_ADDED_THREAD_COUNTERS 24
 #define BITMASK_SIZE 32
@@ -3419,6 +3419,10 @@ void free_all_buffers(void)
 	cpu_present_set = NULL;
 	cpu_present_setsize = 0;
 
+	CPU_FREE(cpu_effective_set);
+	cpu_effective_set = NULL;
+	cpu_effective_setsize = 0;
+
 	CPU_FREE(cpu_allowed_set);
 	cpu_allowed_set = NULL;
 	cpu_allowed_setsize = 0;
@@ -3739,6 +3743,46 @@ int for_all_proc_cpus(int (func) (int))
 	}
 	fclose(fp);
 	return 0;
+}
+
+#define PATH_EFFECTIVE_CPUS	"/sys/fs/cgroup/cpuset.cpus.effective"
+
+static char cpu_effective_str[1024];
+
+static int update_effective_str(bool startup)
+{
+	FILE *fp;
+	char *pos;
+	char buf[1024];
+	int ret;
+
+	if (cpu_effective_str[0] == '\0' && !startup)
+		return 0;
+
+	fp = fopen(PATH_EFFECTIVE_CPUS, "r");
+	if (!fp)
+		return 0;
+
+	pos = fgets(buf, 1024, fp);
+	if (!pos)
+		err(1, "%s: file read failed\n", PATH_EFFECTIVE_CPUS);
+
+	fclose(fp);
+
+	ret = strncmp(cpu_effective_str, buf, 1024);
+	if (!ret)
+		return 0;
+
+	strncpy(cpu_effective_str, buf, 1024);
+	return 1;
+}
+
+static void update_effective_set(bool startup)
+{
+	update_effective_str(startup);
+
+	if (parse_cpu_str(cpu_effective_str, cpu_effective_set, cpu_effective_setsize))
+		err(1, "%s: cpu str malformat %s\n", PATH_EFFECTIVE_CPUS, cpu_effective_str);
 }
 
 void re_initialize(void)
@@ -4254,6 +4298,10 @@ restart:
 
 	while (1) {
 		if (for_all_proc_cpus(cpu_is_not_present)) {
+			re_initialize();
+			goto restart;
+		}
+		if (update_effective_str(false)) {
 			re_initialize();
 			goto restart;
 		}
@@ -5778,6 +5826,16 @@ void topology_probe(bool startup)
 	for_all_proc_cpus(mark_cpu_present);
 
 	/*
+	 * Allocate and initialize cpu_effective_set
+	 */
+	cpu_effective_set = CPU_ALLOC((topo.max_cpu_num + 1));
+	if (cpu_effective_set == NULL)
+		err(3, "CPU_ALLOC");
+	cpu_effective_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
+	CPU_ZERO_S(cpu_effective_setsize, cpu_effective_set);
+	update_effective_set(startup);
+
+	/*
 	 * Allocate and initialize cpu_allowed_set
 	 */
 	cpu_allowed_set = CPU_ALLOC((topo.max_cpu_num + 1));
@@ -5787,30 +5845,37 @@ void topology_probe(bool startup)
 	CPU_ZERO_S(cpu_allowed_setsize, cpu_allowed_set);
 
 	/*
-	 * Validate cpu_subset and update cpu_allowed_set.
+	 * Validate and update cpu_allowed_set.
 	 *
-	 * Make sure all cpus in cpu_subset are also in cpu_present_set during startup,
-	 * and give a warning when cpus in cpu_subset become unavailable at runtime.
+	 * Make sure all cpus in cpu_subset are also in cpu_present_set during startup.
+	 * Give a warning when cpus in cpu_subset become unavailable at runtime.
+	 * Give a warning when cpus are not effective because of cgroup setting.
 	 *
-	 * cpu_allowed_set is the intersection of cpu_present_set and cpu_subset.
+	 * cpu_allowed_set is the intersection of cpu_present_set/cpu_effective_set/cpu_subset.
 	 */
 	for (i = 0; i < CPU_SUBSET_MAXCPUS; ++i) {
-		if (!cpu_subset) {
-			if (CPU_ISSET_S(i, cpu_present_setsize, cpu_present_set))
-				CPU_SET_S(i, cpu_allowed_setsize, cpu_allowed_set);
+		if (cpu_subset && !CPU_ISSET_S(i, cpu_subset_size, cpu_subset))
 			continue;
-		}
-		if (CPU_ISSET_S(i, cpu_subset_size, cpu_subset)) {
-			if (!CPU_ISSET_S(i, cpu_present_setsize, cpu_present_set)) {
-				/* all cpus in cpu_subset must be in cpu_present_set during startup */
+
+		if (!CPU_ISSET_S(i, cpu_present_setsize, cpu_present_set)) {
+			if (cpu_subset) {
+				/* cpus in cpu_subset must be in cpu_present_set during startup */
 				if (startup)
 					err(1, "cpu%d not present", i);
 				else
 					fprintf(stderr, "cpu%d not present\n", i);
-			} else {
-				CPU_SET_S(i, cpu_allowed_setsize, cpu_allowed_set);
+			}
+			continue;
+		}
+
+		if (CPU_COUNT_S(cpu_effective_setsize, cpu_effective_set)) {
+			if (!CPU_ISSET_S(i, cpu_effective_setsize, cpu_effective_set)) {
+				fprintf(stderr, "cpu%d not effective\n", i);
+				continue;
 			}
 		}
+
+		CPU_SET_S(i, cpu_allowed_setsize, cpu_allowed_set);
 	}
 
 	if (!CPU_COUNT_S(cpu_allowed_setsize, cpu_allowed_set))
