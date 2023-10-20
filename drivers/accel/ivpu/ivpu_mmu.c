@@ -18,10 +18,12 @@
 #define IVPU_MMU_REG_IDR5		      0x00200014u
 #define IVPU_MMU_REG_CR0		      0x00200020u
 #define IVPU_MMU_REG_CR0ACK		      0x00200024u
+#define IVPU_MMU_REG_CR0ACK_VAL_MASK	      GENMASK(31, 0)
 #define IVPU_MMU_REG_CR1		      0x00200028u
 #define IVPU_MMU_REG_CR2		      0x0020002cu
 #define IVPU_MMU_REG_IRQ_CTRL		      0x00200050u
 #define IVPU_MMU_REG_IRQ_CTRLACK	      0x00200054u
+#define IVPU_MMU_REG_IRQ_CTRLACK_VAL_MASK     GENMASK(31, 0)
 
 #define IVPU_MMU_REG_GERROR		      0x00200060u
 #define IVPU_MMU_REG_GERROR_CMDQ_MASK	      BIT_MASK(0)
@@ -39,12 +41,13 @@
 #define IVPU_MMU_REG_CMDQ_BASE		      0x00200090u
 #define IVPU_MMU_REG_CMDQ_PROD		      0x00200098u
 #define IVPU_MMU_REG_CMDQ_CONS		      0x0020009cu
+#define IVPU_MMU_REG_CMDQ_CONS_VAL_MASK	      GENMASK(23, 0)
+#define IVPU_MMU_REG_CMDQ_CONS_ERR_MASK	      GENMASK(30, 24)
 #define IVPU_MMU_REG_EVTQ_BASE		      0x002000a0u
 #define IVPU_MMU_REG_EVTQ_PROD		      0x002000a8u
 #define IVPU_MMU_REG_EVTQ_CONS		      0x002000acu
 #define IVPU_MMU_REG_EVTQ_PROD_SEC	      (0x002000a8u + SZ_64K)
 #define IVPU_MMU_REG_EVTQ_CONS_SEC	      (0x002000acu + SZ_64K)
-#define IVPU_MMU_REG_CMDQ_CONS_ERR_MASK	      GENMASK(30, 24)
 
 #define IVPU_MMU_IDR0_REF		0x080f3e0f
 #define IVPU_MMU_IDR0_REF_SIMICS	0x080f3e1f
@@ -409,19 +412,18 @@ static int ivpu_mmu_structs_alloc(struct ivpu_device *vdev)
 	return ret;
 }
 
-static int ivpu_mmu_reg_write(struct ivpu_device *vdev, u32 reg, u32 val)
+static int ivpu_mmu_reg_write_cr0(struct ivpu_device *vdev, u32 val)
 {
-	u32 reg_ack = reg + 4; /* ACK register is 4B after base register */
-	u32 val_ack;
-	int ret;
+	REGV_WR32(IVPU_MMU_REG_CR0, val);
 
-	REGV_WR32(reg, val);
+	return REGV_POLL_FLD(IVPU_MMU_REG_CR0ACK, VAL, val, IVPU_MMU_REG_TIMEOUT_US);
+}
 
-	ret = REGV_POLL(reg_ack, val_ack, (val == val_ack), IVPU_MMU_REG_TIMEOUT_US);
-	if (ret)
-		ivpu_err(vdev, "Failed to write register 0x%x\n", reg);
+static int ivpu_mmu_reg_write_irq_ctrl(struct ivpu_device *vdev, u32 val)
+{
+	REGV_WR32(IVPU_MMU_REG_IRQ_CTRL, val);
 
-	return ret;
+	return REGV_POLL_FLD(IVPU_MMU_REG_IRQ_CTRLACK, VAL, val, IVPU_MMU_REG_TIMEOUT_US);
 }
 
 static int ivpu_mmu_irqs_setup(struct ivpu_device *vdev)
@@ -429,19 +431,26 @@ static int ivpu_mmu_irqs_setup(struct ivpu_device *vdev)
 	u32 irq_ctrl = IVPU_MMU_IRQ_EVTQ_EN | IVPU_MMU_IRQ_GERROR_EN;
 	int ret;
 
-	ret = ivpu_mmu_reg_write(vdev, IVPU_MMU_REG_IRQ_CTRL, 0);
+	ret = ivpu_mmu_reg_write_irq_ctrl(vdev, 0);
 	if (ret)
 		return ret;
 
-	return ivpu_mmu_reg_write(vdev, IVPU_MMU_REG_IRQ_CTRL, irq_ctrl);
+	return ivpu_mmu_reg_write_irq_ctrl(vdev, irq_ctrl);
 }
 
 static int ivpu_mmu_cmdq_wait_for_cons(struct ivpu_device *vdev)
 {
 	struct ivpu_mmu_queue *cmdq = &vdev->mmu->cmdq;
+	int ret;
 
-	return REGV_POLL(IVPU_MMU_REG_CMDQ_CONS, cmdq->cons, (cmdq->prod == cmdq->cons),
-			 IVPU_MMU_QUEUE_TIMEOUT_US);
+	ret = REGV_POLL_FLD(IVPU_MMU_REG_CMDQ_CONS, VAL, cmdq->prod,
+			    IVPU_MMU_QUEUE_TIMEOUT_US);
+	if (ret)
+		return ret;
+
+	cmdq->cons = cmdq->prod;
+
+	return 0;
 }
 
 static int ivpu_mmu_cmdq_cmd_write(struct ivpu_device *vdev, const char *name, u64 data0, u64 data1)
@@ -528,7 +537,7 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	mmu->evtq.prod = 0;
 	mmu->evtq.cons = 0;
 
-	ret = ivpu_mmu_reg_write(vdev, IVPU_MMU_REG_CR0, 0);
+	ret = ivpu_mmu_reg_write_cr0(vdev, 0);
 	if (ret)
 		return ret;
 
@@ -548,7 +557,7 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	REGV_WR32(IVPU_MMU_REG_CMDQ_CONS, 0);
 
 	val = IVPU_MMU_CR0_CMDQEN;
-	ret = ivpu_mmu_reg_write(vdev, IVPU_MMU_REG_CR0, val);
+	ret = ivpu_mmu_reg_write_cr0(vdev, val);
 	if (ret)
 		return ret;
 
@@ -569,12 +578,12 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	REGV_WR32(IVPU_MMU_REG_EVTQ_CONS_SEC, 0);
 
 	val |= IVPU_MMU_CR0_EVTQEN;
-	ret = ivpu_mmu_reg_write(vdev, IVPU_MMU_REG_CR0, val);
+	ret = ivpu_mmu_reg_write_cr0(vdev, val);
 	if (ret)
 		return ret;
 
 	val |= IVPU_MMU_CR0_ATSCHK;
-	ret = ivpu_mmu_reg_write(vdev, IVPU_MMU_REG_CR0, val);
+	ret = ivpu_mmu_reg_write_cr0(vdev, val);
 	if (ret)
 		return ret;
 
@@ -583,7 +592,7 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 		return ret;
 
 	val |= IVPU_MMU_CR0_SMMUEN;
-	return ivpu_mmu_reg_write(vdev, IVPU_MMU_REG_CR0, val);
+	return ivpu_mmu_reg_write_cr0(vdev, val);
 }
 
 static void ivpu_mmu_strtab_link_cd(struct ivpu_device *vdev, u32 sid)
