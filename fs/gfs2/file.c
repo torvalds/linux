@@ -418,7 +418,7 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct gfs2_alloc_parms ap = { .aflags = 0, };
+	struct gfs2_alloc_parms ap = {};
 	u64 offset = page_offset(page);
 	unsigned int data_blocks, ind_blocks, rblocks;
 	vm_fault_t ret = VM_FAULT_LOCKED;
@@ -1251,7 +1251,7 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 	struct inode *inode = file_inode(file);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_alloc_parms ap = { .aflags = 0, };
+	struct gfs2_alloc_parms ap = {};
 	unsigned int data_blocks = 0, ind_blocks = 0, rblocks;
 	loff_t bytes, max_bytes, max_blks;
 	int error;
