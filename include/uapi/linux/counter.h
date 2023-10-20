@@ -38,7 +38,7 @@ enum counter_scope {
  *
  * For example, if the Count 2 ceiling extension of Counter device 4 is desired,
  * set type equal to COUNTER_COMPONENT_EXTENSION, scope equal to
- * COUNTER_COUNT_SCOPE, parent equal to 2, and id equal to the value provided by
+ * COUNTER_SCOPE_COUNT, parent equal to 2, and id equal to the value provided by
  * the respective /sys/bus/counter/devices/counter4/count2/ceiling_component_id
  * sysfs attribute.
  */
