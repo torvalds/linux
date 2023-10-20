@@ -3529,11 +3529,10 @@ static struct ras_err_node *amdgpu_ras_error_find_node_by_id(struct ras_err_data
 
 	for_each_ras_error(err_node, err_data) {
 		ref_id = &err_node->err_info.mcm_info;
-		if ((mcm_info->socket_id >= 0 && mcm_info->socket_id != ref_id->socket_id) ||
-		    (mcm_info->die_id >= 0 && mcm_info->die_id != ref_id->die_id))
-			continue;
 
-		return err_node;
+		if (mcm_info->socket_id == ref_id->socket_id &&
+		    mcm_info->die_id == ref_id->die_id)
+			return err_node;
 	}
 
 	return NULL;
