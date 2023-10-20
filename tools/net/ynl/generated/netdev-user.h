@@ -69,7 +69,7 @@ netdev_dev_get(struct ynl_sock *ys, struct netdev_dev_get_req *req);
 /* NETDEV_CMD_DEV_GET - dump */
 struct netdev_dev_get_list {
 	struct netdev_dev_get_list *next;
-	struct netdev_dev_get_rsp obj __attribute__ ((aligned (8)));
+	struct netdev_dev_get_rsp obj __attribute__((aligned(8)));
 };
 
 void netdev_dev_get_list_free(struct netdev_dev_get_list *rsp);
@@ -82,7 +82,7 @@ struct netdev_dev_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct netdev_dev_get_ntf *ntf);
-	struct netdev_dev_get_rsp obj __attribute__ ((aligned (8)));
+	struct netdev_dev_get_rsp obj __attribute__((aligned(8)));
 };
 
 void netdev_dev_get_ntf_free(struct netdev_dev_get_ntf *rsp);

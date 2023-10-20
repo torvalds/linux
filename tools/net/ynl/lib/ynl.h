@@ -157,7 +157,7 @@ struct ynl_parse_arg {
 
 struct ynl_dump_list_type {
 	struct ynl_dump_list_type *next;
-	unsigned char data[] __attribute__ ((aligned (8)));
+	unsigned char data[] __attribute__((aligned(8)));
 };
 extern struct ynl_dump_list_type *YNL_LIST_END;
 
@@ -187,7 +187,7 @@ struct ynl_ntf_base_type {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ynl_ntf_base_type *ntf);
-	unsigned char data[] __attribute__ ((aligned (8)));
+	unsigned char data[] __attribute__((aligned(8)));
 };
 
 extern mnl_cb_t ynl_cb_array[NLMSG_MIN_TYPE];

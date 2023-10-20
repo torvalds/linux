@@ -347,7 +347,7 @@ ethtool_strset_get_req_dump_set_counts_only(struct ethtool_strset_get_req_dump *
 
 struct ethtool_strset_get_list {
 	struct ethtool_strset_get_list *next;
-	struct ethtool_strset_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_strset_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_strset_get_list_free(struct ethtool_strset_get_list *rsp);
@@ -472,7 +472,7 @@ ethtool_linkinfo_get_req_dump_set_header_flags(struct ethtool_linkinfo_get_req_d
 
 struct ethtool_linkinfo_get_list {
 	struct ethtool_linkinfo_get_list *next;
-	struct ethtool_linkinfo_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_linkinfo_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_linkinfo_get_list_free(struct ethtool_linkinfo_get_list *rsp);
@@ -487,7 +487,7 @@ struct ethtool_linkinfo_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_linkinfo_get_ntf *ntf);
-	struct ethtool_linkinfo_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_linkinfo_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_linkinfo_get_ntf_free(struct ethtool_linkinfo_get_ntf *rsp);
@@ -712,7 +712,7 @@ ethtool_linkmodes_get_req_dump_set_header_flags(struct ethtool_linkmodes_get_req
 
 struct ethtool_linkmodes_get_list {
 	struct ethtool_linkmodes_get_list *next;
-	struct ethtool_linkmodes_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_linkmodes_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_linkmodes_get_list_free(struct ethtool_linkmodes_get_list *rsp);
@@ -727,7 +727,7 @@ struct ethtool_linkmodes_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_linkmodes_get_ntf *ntf);
-	struct ethtool_linkmodes_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_linkmodes_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_linkmodes_get_ntf_free(struct ethtool_linkmodes_get_ntf *rsp);
@@ -1014,7 +1014,7 @@ ethtool_linkstate_get_req_dump_set_header_flags(struct ethtool_linkstate_get_req
 
 struct ethtool_linkstate_get_list {
 	struct ethtool_linkstate_get_list *next;
-	struct ethtool_linkstate_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_linkstate_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_linkstate_get_list_free(struct ethtool_linkstate_get_list *rsp);
@@ -1129,7 +1129,7 @@ ethtool_debug_get_req_dump_set_header_flags(struct ethtool_debug_get_req_dump *r
 
 struct ethtool_debug_get_list {
 	struct ethtool_debug_get_list *next;
-	struct ethtool_debug_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_debug_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_debug_get_list_free(struct ethtool_debug_get_list *rsp);
@@ -1144,7 +1144,7 @@ struct ethtool_debug_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_debug_get_ntf *ntf);
-	struct ethtool_debug_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_debug_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_debug_get_ntf_free(struct ethtool_debug_get_ntf *rsp);
@@ -1330,7 +1330,7 @@ ethtool_wol_get_req_dump_set_header_flags(struct ethtool_wol_get_req_dump *req,
 
 struct ethtool_wol_get_list {
 	struct ethtool_wol_get_list *next;
-	struct ethtool_wol_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_wol_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_wol_get_list_free(struct ethtool_wol_get_list *rsp);
@@ -1344,7 +1344,7 @@ struct ethtool_wol_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_wol_get_ntf *ntf);
-	struct ethtool_wol_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_wol_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_wol_get_ntf_free(struct ethtool_wol_get_ntf *rsp);
@@ -1546,7 +1546,7 @@ ethtool_features_get_req_dump_set_header_flags(struct ethtool_features_get_req_d
 
 struct ethtool_features_get_list {
 	struct ethtool_features_get_list *next;
-	struct ethtool_features_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_features_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_features_get_list_free(struct ethtool_features_get_list *rsp);
@@ -1561,7 +1561,7 @@ struct ethtool_features_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_features_get_ntf *ntf);
-	struct ethtool_features_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_features_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_features_get_ntf_free(struct ethtool_features_get_ntf *rsp);
@@ -1843,7 +1843,7 @@ ethtool_privflags_get_req_dump_set_header_flags(struct ethtool_privflags_get_req
 
 struct ethtool_privflags_get_list {
 	struct ethtool_privflags_get_list *next;
-	struct ethtool_privflags_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_privflags_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_privflags_get_list_free(struct ethtool_privflags_get_list *rsp);
@@ -1858,7 +1858,7 @@ struct ethtool_privflags_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_privflags_get_ntf *ntf);
-	struct ethtool_privflags_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_privflags_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_privflags_get_ntf_free(struct ethtool_privflags_get_ntf *rsp);
@@ -2072,7 +2072,7 @@ ethtool_rings_get_req_dump_set_header_flags(struct ethtool_rings_get_req_dump *r
 
 struct ethtool_rings_get_list {
 	struct ethtool_rings_get_list *next;
-	struct ethtool_rings_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_rings_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_rings_get_list_free(struct ethtool_rings_get_list *rsp);
@@ -2087,7 +2087,7 @@ struct ethtool_rings_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_rings_get_ntf *ntf);
-	struct ethtool_rings_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_rings_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_rings_get_ntf_free(struct ethtool_rings_get_ntf *rsp);
@@ -2395,7 +2395,7 @@ ethtool_channels_get_req_dump_set_header_flags(struct ethtool_channels_get_req_d
 
 struct ethtool_channels_get_list {
 	struct ethtool_channels_get_list *next;
-	struct ethtool_channels_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_channels_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_channels_get_list_free(struct ethtool_channels_get_list *rsp);
@@ -2410,7 +2410,7 @@ struct ethtool_channels_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_channels_get_ntf *ntf);
-	struct ethtool_channels_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_channels_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_channels_get_ntf_free(struct ethtool_channels_get_ntf *rsp);
@@ -2697,7 +2697,7 @@ ethtool_coalesce_get_req_dump_set_header_flags(struct ethtool_coalesce_get_req_d
 
 struct ethtool_coalesce_get_list {
 	struct ethtool_coalesce_get_list *next;
-	struct ethtool_coalesce_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_coalesce_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_coalesce_get_list_free(struct ethtool_coalesce_get_list *rsp);
@@ -2712,7 +2712,7 @@ struct ethtool_coalesce_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_coalesce_get_ntf *ntf);
-	struct ethtool_coalesce_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_coalesce_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_coalesce_get_ntf_free(struct ethtool_coalesce_get_ntf *rsp);
@@ -3124,7 +3124,7 @@ ethtool_pause_get_req_dump_set_header_flags(struct ethtool_pause_get_req_dump *r
 
 struct ethtool_pause_get_list {
 	struct ethtool_pause_get_list *next;
-	struct ethtool_pause_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_pause_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_pause_get_list_free(struct ethtool_pause_get_list *rsp);
@@ -3139,7 +3139,7 @@ struct ethtool_pause_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_pause_get_ntf *ntf);
-	struct ethtool_pause_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_pause_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_pause_get_ntf_free(struct ethtool_pause_get_ntf *rsp);
@@ -3360,7 +3360,7 @@ ethtool_eee_get_req_dump_set_header_flags(struct ethtool_eee_get_req_dump *req,
 
 struct ethtool_eee_get_list {
 	struct ethtool_eee_get_list *next;
-	struct ethtool_eee_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_eee_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_eee_get_list_free(struct ethtool_eee_get_list *rsp);
@@ -3374,7 +3374,7 @@ struct ethtool_eee_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_eee_get_ntf *ntf);
-	struct ethtool_eee_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_eee_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_eee_get_ntf_free(struct ethtool_eee_get_ntf *rsp);
@@ -3623,7 +3623,7 @@ ethtool_tsinfo_get_req_dump_set_header_flags(struct ethtool_tsinfo_get_req_dump 
 
 struct ethtool_tsinfo_get_list {
 	struct ethtool_tsinfo_get_list *next;
-	struct ethtool_tsinfo_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_tsinfo_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_tsinfo_get_list_free(struct ethtool_tsinfo_get_list *rsp);
@@ -3842,7 +3842,7 @@ ethtool_tunnel_info_get_req_dump_set_header_flags(struct ethtool_tunnel_info_get
 
 struct ethtool_tunnel_info_get_list {
 	struct ethtool_tunnel_info_get_list *next;
-	struct ethtool_tunnel_info_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_tunnel_info_get_rsp obj __attribute__((aligned(8)));
 };
 
 void
@@ -3964,7 +3964,7 @@ ethtool_fec_get_req_dump_set_header_flags(struct ethtool_fec_get_req_dump *req,
 
 struct ethtool_fec_get_list {
 	struct ethtool_fec_get_list *next;
-	struct ethtool_fec_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_fec_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_fec_get_list_free(struct ethtool_fec_get_list *rsp);
@@ -3978,7 +3978,7 @@ struct ethtool_fec_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_fec_get_ntf *ntf);
-	struct ethtool_fec_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_fec_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_fec_get_ntf_free(struct ethtool_fec_get_ntf *rsp);
@@ -4221,7 +4221,7 @@ ethtool_module_eeprom_get_req_dump_set_header_flags(struct ethtool_module_eeprom
 
 struct ethtool_module_eeprom_get_list {
 	struct ethtool_module_eeprom_get_list *next;
-	struct ethtool_module_eeprom_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_module_eeprom_get_rsp obj __attribute__((aligned(8)));
 };
 
 void
@@ -4340,7 +4340,7 @@ ethtool_phc_vclocks_get_req_dump_set_header_flags(struct ethtool_phc_vclocks_get
 
 struct ethtool_phc_vclocks_get_list {
 	struct ethtool_phc_vclocks_get_list *next;
-	struct ethtool_phc_vclocks_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_phc_vclocks_get_rsp obj __attribute__((aligned(8)));
 };
 
 void
@@ -4458,7 +4458,7 @@ ethtool_module_get_req_dump_set_header_flags(struct ethtool_module_get_req_dump 
 
 struct ethtool_module_get_list {
 	struct ethtool_module_get_list *next;
-	struct ethtool_module_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_module_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_module_get_list_free(struct ethtool_module_get_list *rsp);
@@ -4473,7 +4473,7 @@ struct ethtool_module_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_module_get_ntf *ntf);
-	struct ethtool_module_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_module_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_module_get_ntf_free(struct ethtool_module_get_ntf *rsp);
@@ -4654,7 +4654,7 @@ ethtool_pse_get_req_dump_set_header_flags(struct ethtool_pse_get_req_dump *req,
 
 struct ethtool_pse_get_list {
 	struct ethtool_pse_get_list *next;
-	struct ethtool_pse_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_pse_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_pse_get_list_free(struct ethtool_pse_get_list *rsp);
@@ -4849,7 +4849,7 @@ ethtool_rss_get_req_dump_set_header_flags(struct ethtool_rss_get_req_dump *req,
 
 struct ethtool_rss_get_list {
 	struct ethtool_rss_get_list *next;
-	struct ethtool_rss_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_rss_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_rss_get_list_free(struct ethtool_rss_get_list *rsp);
@@ -4979,7 +4979,7 @@ ethtool_plca_get_cfg_req_dump_set_header_flags(struct ethtool_plca_get_cfg_req_d
 
 struct ethtool_plca_get_cfg_list {
 	struct ethtool_plca_get_cfg_list *next;
-	struct ethtool_plca_get_cfg_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_plca_get_cfg_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_plca_get_cfg_list_free(struct ethtool_plca_get_cfg_list *rsp);
@@ -4994,7 +4994,7 @@ struct ethtool_plca_get_cfg_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_plca_get_cfg_ntf *ntf);
-	struct ethtool_plca_get_cfg_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_plca_get_cfg_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_plca_get_cfg_ntf_free(struct ethtool_plca_get_cfg_ntf *rsp);
@@ -5244,7 +5244,7 @@ ethtool_plca_get_status_req_dump_set_header_flags(struct ethtool_plca_get_status
 
 struct ethtool_plca_get_status_list {
 	struct ethtool_plca_get_status_list *next;
-	struct ethtool_plca_get_status_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_plca_get_status_rsp obj __attribute__((aligned(8)));
 };
 
 void
@@ -5376,7 +5376,7 @@ ethtool_mm_get_req_dump_set_header_flags(struct ethtool_mm_get_req_dump *req,
 
 struct ethtool_mm_get_list {
 	struct ethtool_mm_get_list *next;
-	struct ethtool_mm_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_mm_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_mm_get_list_free(struct ethtool_mm_get_list *rsp);
@@ -5390,7 +5390,7 @@ struct ethtool_mm_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_mm_get_ntf *ntf);
-	struct ethtool_mm_get_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_mm_get_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_mm_get_ntf_free(struct ethtool_mm_get_ntf *rsp);
@@ -5504,7 +5504,7 @@ struct ethtool_cable_test_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_cable_test_ntf *ntf);
-	struct ethtool_cable_test_ntf_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_cable_test_ntf_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_cable_test_ntf_free(struct ethtool_cable_test_ntf *rsp);
@@ -5527,7 +5527,7 @@ struct ethtool_cable_test_tdr_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct ethtool_cable_test_tdr_ntf *ntf);
-	struct ethtool_cable_test_tdr_ntf_rsp obj __attribute__ ((aligned (8)));
+	struct ethtool_cable_test_tdr_ntf_rsp obj __attribute__((aligned(8)));
 };
 
 void ethtool_cable_test_tdr_ntf_free(struct ethtool_cable_test_tdr_ntf *rsp);

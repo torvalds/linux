@@ -90,7 +90,7 @@ struct handshake_accept_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct handshake_accept_ntf *ntf);
-	struct handshake_accept_rsp obj __attribute__ ((aligned (8)));
+	struct handshake_accept_rsp obj __attribute__((aligned(8)));
 };
 
 void handshake_accept_ntf_free(struct handshake_accept_ntf *rsp);

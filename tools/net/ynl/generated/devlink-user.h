@@ -134,7 +134,7 @@ devlink_get(struct ynl_sock *ys, struct devlink_get_req *req);
 /* DEVLINK_CMD_GET - dump */
 struct devlink_get_list {
 	struct devlink_get_list *next;
-	struct devlink_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_get_rsp obj __attribute__((aligned(8)));
 };
 
 void devlink_get_list_free(struct devlink_get_list *rsp);
@@ -262,7 +262,7 @@ struct devlink_port_get_rsp_dump {
 
 struct devlink_port_get_rsp_list {
 	struct devlink_port_get_rsp_list *next;
-	struct devlink_port_get_rsp_dump obj __attribute__ ((aligned (8)));
+	struct devlink_port_get_rsp_dump obj __attribute__((aligned(8)));
 };
 
 void devlink_port_get_rsp_list_free(struct devlink_port_get_rsp_list *rsp);
@@ -379,7 +379,7 @@ devlink_sb_get_req_dump_set_dev_name(struct devlink_sb_get_req_dump *req,
 
 struct devlink_sb_get_list {
 	struct devlink_sb_get_list *next;
-	struct devlink_sb_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_sb_get_rsp obj __attribute__((aligned(8)));
 };
 
 void devlink_sb_get_list_free(struct devlink_sb_get_list *rsp);
@@ -509,7 +509,7 @@ devlink_sb_pool_get_req_dump_set_dev_name(struct devlink_sb_pool_get_req_dump *r
 
 struct devlink_sb_pool_get_list {
 	struct devlink_sb_pool_get_list *next;
-	struct devlink_sb_pool_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_sb_pool_get_rsp obj __attribute__((aligned(8)));
 };
 
 void devlink_sb_pool_get_list_free(struct devlink_sb_pool_get_list *rsp);
@@ -654,7 +654,7 @@ devlink_sb_port_pool_get_req_dump_set_dev_name(struct devlink_sb_port_pool_get_r
 
 struct devlink_sb_port_pool_get_list {
 	struct devlink_sb_port_pool_get_list *next;
-	struct devlink_sb_port_pool_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_sb_port_pool_get_rsp obj __attribute__((aligned(8)));
 };
 
 void
@@ -811,7 +811,7 @@ devlink_sb_tc_pool_bind_get_req_dump_set_dev_name(struct devlink_sb_tc_pool_bind
 
 struct devlink_sb_tc_pool_bind_get_list {
 	struct devlink_sb_tc_pool_bind_get_list *next;
-	struct devlink_sb_tc_pool_bind_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_sb_tc_pool_bind_get_rsp obj __attribute__((aligned(8)));
 };
 
 void
@@ -933,7 +933,7 @@ devlink_param_get_req_dump_set_dev_name(struct devlink_param_get_req_dump *req,
 
 struct devlink_param_get_list {
 	struct devlink_param_get_list *next;
-	struct devlink_param_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_param_get_rsp obj __attribute__((aligned(8)));
 };
 
 void devlink_param_get_list_free(struct devlink_param_get_list *rsp);
@@ -1065,7 +1065,7 @@ devlink_region_get_req_dump_set_dev_name(struct devlink_region_get_req_dump *req
 
 struct devlink_region_get_list {
 	struct devlink_region_get_list *next;
-	struct devlink_region_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_region_get_rsp obj __attribute__((aligned(8)));
 };
 
 void devlink_region_get_list_free(struct devlink_region_get_list *rsp);
@@ -1144,7 +1144,7 @@ devlink_info_get(struct ynl_sock *ys, struct devlink_info_get_req *req);
 /* DEVLINK_CMD_INFO_GET - dump */
 struct devlink_info_get_list {
 	struct devlink_info_get_list *next;
-	struct devlink_info_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_info_get_rsp obj __attribute__((aligned(8)));
 };
 
 void devlink_info_get_list_free(struct devlink_info_get_list *rsp);
@@ -1288,7 +1288,7 @@ devlink_health_reporter_get_req_dump_set_port_index(struct devlink_health_report
 
 struct devlink_health_reporter_get_list {
 	struct devlink_health_reporter_get_list *next;
-	struct devlink_health_reporter_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_health_reporter_get_rsp obj __attribute__((aligned(8)));
 };
 
 void
@@ -1410,7 +1410,7 @@ devlink_trap_get_req_dump_set_dev_name(struct devlink_trap_get_req_dump *req,
 
 struct devlink_trap_get_list {
 	struct devlink_trap_get_list *next;
-	struct devlink_trap_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_trap_get_rsp obj __attribute__((aligned(8)));
 };
 
 void devlink_trap_get_list_free(struct devlink_trap_get_list *rsp);
@@ -1534,7 +1534,7 @@ devlink_trap_group_get_req_dump_set_dev_name(struct devlink_trap_group_get_req_d
 
 struct devlink_trap_group_get_list {
 	struct devlink_trap_group_get_list *next;
-	struct devlink_trap_group_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_trap_group_get_rsp obj __attribute__((aligned(8)));
 };
 
 void devlink_trap_group_get_list_free(struct devlink_trap_group_get_list *rsp);
@@ -1657,7 +1657,7 @@ devlink_trap_policer_get_req_dump_set_dev_name(struct devlink_trap_policer_get_r
 
 struct devlink_trap_policer_get_list {
 	struct devlink_trap_policer_get_list *next;
-	struct devlink_trap_policer_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_trap_policer_get_rsp obj __attribute__((aligned(8)));
 };
 
 void
@@ -1790,7 +1790,7 @@ devlink_rate_get_req_dump_set_dev_name(struct devlink_rate_get_req_dump *req,
 
 struct devlink_rate_get_list {
 	struct devlink_rate_get_list *next;
-	struct devlink_rate_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_rate_get_rsp obj __attribute__((aligned(8)));
 };
 
 void devlink_rate_get_list_free(struct devlink_rate_get_list *rsp);
@@ -1910,7 +1910,7 @@ devlink_linecard_get_req_dump_set_dev_name(struct devlink_linecard_get_req_dump 
 
 struct devlink_linecard_get_list {
 	struct devlink_linecard_get_list *next;
-	struct devlink_linecard_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_linecard_get_rsp obj __attribute__((aligned(8)));
 };
 
 void devlink_linecard_get_list_free(struct devlink_linecard_get_list *rsp);
@@ -1981,7 +1981,7 @@ devlink_selftests_get(struct ynl_sock *ys,
 /* DEVLINK_CMD_SELFTESTS_GET - dump */
 struct devlink_selftests_get_list {
 	struct devlink_selftests_get_list *next;
-	struct devlink_selftests_get_rsp obj __attribute__ ((aligned (8)));
+	struct devlink_selftests_get_rsp obj __attribute__((aligned(8)));
 };
 
 void devlink_selftests_get_list_free(struct devlink_selftests_get_list *rsp);
