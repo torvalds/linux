@@ -56,7 +56,7 @@
 #define ACP_IRAM_BASE_ADDRESS			0x000000
 #define ACP_DRAM_BASE_ADDRESS			0x01000000
 #define ACP_DRAM_PAGE_COUNT			128
-
+#define ACP_SRAM_BASE_ADDRESS			0x3806000
 #define ACP_DSP_TO_HOST_IRQ			0x04
 
 #define ACP_RN_PCI_ID				0x01
@@ -88,6 +88,8 @@
 #define PROBE_STATUS_BIT			BIT(31)
 
 #define ACP_FIRMWARE_SIGNATURE			0x100
+#define ACP_DEFAULT_SRAM_LENGTH			0x00080000
+#define ACP_SRAM_PAGE_COUNT			128
 
 enum clock_source {
 	ACP_CLOCK_96M = 0,
@@ -194,13 +196,18 @@ struct acp_dev_data {
 	struct platform_device *dmic_dev;
 	unsigned int fw_bin_size;
 	unsigned int fw_data_bin_size;
+	unsigned int fw_sram_data_bin_size;
 	const char *fw_code_bin;
 	const char *fw_data_bin;
+	const char *fw_sram_data_bin;
 	u32 fw_bin_page_count;
+	u32 fw_data_bin_page_count;
 	dma_addr_t sha_dma_addr;
 	u8 *bin_buf;
 	dma_addr_t dma_addr;
 	u8 *data_buf;
+	dma_addr_t sram_dma_addr;
+	u8 *sram_data_buf;
 	bool signed_fw_image;
 	struct dma_descriptor dscr_info[ACP_MAX_DESC];
 	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
@@ -209,6 +216,7 @@ struct acp_dev_data {
 	struct acp_dsp_stream *probe_stream;
 	bool enable_fw_debug;
 	bool is_dram_in_use;
+	bool is_sram_in_use;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);

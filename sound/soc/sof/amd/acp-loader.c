@@ -19,8 +19,9 @@
 #include "acp-dsp-offset.h"
 #include "acp.h"
 
-#define FW_BIN		0
-#define FW_DATA_BIN	1
+#define FW_BIN			0
+#define FW_DATA_BIN		1
+#define FW_SRAM_DATA_BIN	2
 
 #define FW_BIN_PTE_OFFSET	0x00
 #define FW_DATA_BIN_PTE_OFFSET	0x08
@@ -49,7 +50,6 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 			u32 offset, void *src, size_t size)
 {
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
-	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	struct acp_dev_data *adata;
 	void *dest;
 	u32 dma_size, page_count;
@@ -86,9 +86,18 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 		adata->is_dram_in_use = true;
 		break;
 	case SOF_FW_BLK_TYPE_SRAM:
-		offset = offset - desc->sram_pte_offset;
-		memcpy_to_scratch(sdev, offset, src, size);
-		return 0;
+		if (!adata->sram_data_buf) {
+			adata->sram_data_buf = dma_alloc_coherent(&pci->dev,
+								  ACP_DEFAULT_SRAM_LENGTH,
+								  &adata->sram_dma_addr,
+								  GFP_ATOMIC);
+			if (!adata->sram_data_buf)
+				return -ENOMEM;
+		}
+		adata->fw_sram_data_bin_size = size + offset;
+		dest = adata->sram_data_buf + offset;
+		adata->is_sram_in_use = true;
+		break;
 	default:
 		dev_err(sdev->dev, "bad blk type 0x%x\n", blk_type);
 		return -EINVAL;
@@ -122,6 +131,10 @@ static void configure_pte_for_fw_loading(int type, int num_pages, struct acp_dev
 	case FW_DATA_BIN:
 		offset = adata->fw_bin_page_count * 8;
 		addr = adata->dma_addr;
+		break;
+	case FW_SRAM_DATA_BIN:
+		offset = (adata->fw_bin_page_count + ACP_DRAM_PAGE_COUNT) * 8;
+		addr = adata->sram_dma_addr;
 		break;
 	default:
 		dev_err(sdev->dev, "Invalid data type %x\n", type);
@@ -189,6 +202,22 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 		if (ret < 0)
 			dev_err(sdev->dev, "acp dma transfer status: %d\n", ret);
 	}
+	if (adata->is_sram_in_use) {
+		configure_pte_for_fw_loading(FW_SRAM_DATA_BIN, ACP_SRAM_PAGE_COUNT, adata);
+		src_addr = ACP_SYSTEM_MEMORY_WINDOW + ACP_DEFAULT_SRAM_LENGTH +
+			   (page_count * ACP_PAGE_SIZE);
+		dest_addr = ACP_SRAM_BASE_ADDRESS;
+
+		ret = configure_and_run_dma(adata, src_addr, dest_addr,
+					    adata->fw_sram_data_bin_size);
+		if (ret < 0) {
+			dev_err(sdev->dev, "acp dma configuration failed: %d\n", ret);
+			return ret;
+		}
+		ret = acp_dma_status(adata, 0);
+		if (ret < 0)
+			dev_err(sdev->dev, "acp dma transfer status: %d\n", ret);
+	}
 
 	if (desc->rev > 3) {
 		/* Cache Window enable */
@@ -204,6 +233,11 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 		dma_free_coherent(&pci->dev, ACP_DEFAULT_DRAM_LENGTH, adata->data_buf,
 				  adata->dma_addr);
 		adata->data_buf = NULL;
+	}
+	if (adata->is_sram_in_use) {
+		dma_free_coherent(&pci->dev, ACP_DEFAULT_SRAM_LENGTH, adata->sram_data_buf,
+				  adata->sram_dma_addr);
+		adata->sram_data_buf = NULL;
 	}
 	return ret;
 }
