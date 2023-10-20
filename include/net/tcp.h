@@ -824,12 +824,6 @@ static inline u32 tcp_time_stamp_ms(const struct tcp_sock *tp)
 	return div_u64(tp->tcp_mstamp, USEC_PER_MSEC);
 }
 
-/* Convert a nsec timestamp into TCP TSval timestamp (ms based currently) */
-static inline u64 tcp_ns_to_ts(u64 ns)
-{
-	return div_u64(ns, NSEC_PER_SEC / TCP_TS_HZ);
-}
-
 void tcp_mstamp_refresh(struct tcp_sock *tp);
 
 static inline u32 tcp_stamp_us_delta(u64 t1, u64 t0)

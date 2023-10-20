@@ -51,6 +51,14 @@ static u32 cookie_hash(__be32 saddr, __be32 daddr, __be16 sport, __be16 dport,
 			    count, &syncookie_secret[c]);
 }
 
+/* Convert one nsec 64bit timestamp to ts (ms or usec resolution) */
+static u64 tcp_ns_to_ts(bool usec_ts, u64 val)
+{
+	if (usec_ts)
+		return div_u64(val, NSEC_PER_USEC);
+
+	return div_u64(val, NSEC_PER_MSEC);
+}
 
 /*
  * when syncookies are in effect and tcp timestamps are enabled we encode
@@ -62,7 +70,7 @@ static u32 cookie_hash(__be32 saddr, __be32 daddr, __be16 sport, __be16 dport,
 u64 cookie_init_timestamp(struct request_sock *req, u64 now)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
-	u64 ts, ts_now = tcp_ns_to_ts(now);
+	u64 ts, ts_now = tcp_ns_to_ts(false, now);
 	u32 options = 0;
 
 	options = ireq->wscale_ok ? ireq->snd_wscale : TS_OPT_WSCALE_MASK;
