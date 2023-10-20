@@ -46,18 +46,22 @@
  */
 &cpu0 {
 	compatible = "qcom,kryo250";
+	dynamic-power-coefficient = <172>;
 };
 
 &cpu1 {
 	compatible = "qcom,kryo250";
+	dynamic-power-coefficient = <172>;
 };
 
 &cpu2 {
 	compatible = "qcom,kryo250";
+	dynamic-power-coefficient = <172>;
 };
 
 &cpu3 {
 	compatible = "qcom,kryo250";
+	dynamic-power-coefficient = <172>;
 };
 
 &cpu4 {
