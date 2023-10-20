@@ -129,6 +129,13 @@ SYM_CODE_END(__x86_indirect_jump_thunk_array)
 
 #ifdef CONFIG_RETHUNK
 
+/*
+ * Be careful here: that label cannot really be removed because in
+ * some configurations and toolchains, the JMP __x86_return_thunk the
+ * compiler issues is either a short one or the compiler doesn't use
+ * relocations for same-section JMPs and that breaks the returns
+ * detection logic in apply_returns() and in objtool.
+ */
 	.section .text..__x86.return_thunk
 
 #ifdef CONFIG_CPU_SRSO
@@ -361,6 +368,14 @@ SYM_FUNC_END(call_depth_return_thunk)
  * This code is only used during kernel boot or module init.  All
  * 'JMP __x86_return_thunk' sites are changed to something else by
  * apply_returns().
+ *
+ * This should be converted eventually to call a warning function which
+ * should scream loudly when the default return thunk is called after
+ * alternatives have been applied.
+ *
+ * That warning function cannot BUG() because the bug splat cannot be
+ * displayed in all possible configurations, leading to users not really
+ * knowing why the machine froze.
  */
 SYM_CODE_START(__x86_return_thunk)
 	UNWIND_HINT_FUNC
