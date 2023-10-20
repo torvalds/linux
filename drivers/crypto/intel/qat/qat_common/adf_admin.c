@@ -310,6 +310,26 @@ static bool is_dcc_enabled(struct adf_accel_dev *accel_dev)
 	return !strcmp(services, "dcc");
 }
 
+static int adf_get_fw_capabilities(struct adf_accel_dev *accel_dev, u16 *caps)
+{
+	u32 ae_mask = accel_dev->hw_device->admin_ae_mask;
+	struct icp_qat_fw_init_admin_resp resp = { };
+	struct icp_qat_fw_init_admin_req req = { };
+	int ret;
+
+	if (!ae_mask)
+		return 0;
+
+	req.cmd_id = ICP_QAT_FW_CAPABILITIES_GET;
+	ret = adf_send_admin(accel_dev, &req, &resp, ae_mask);
+	if (ret)
+		return ret;
+
+	*caps = resp.fw_capabilities;
+
+	return 0;
+}
+
 /**
  * adf_send_admin_init() - Function sends init message to FW
  * @accel_dev: Pointer to acceleration device.
@@ -320,6 +340,7 @@ static bool is_dcc_enabled(struct adf_accel_dev *accel_dev)
  */
 int adf_send_admin_init(struct adf_accel_dev *accel_dev)
 {
+	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
 	u32 dc_capabilities = 0;
 	int ret;
 
@@ -339,6 +360,8 @@ int adf_send_admin_init(struct adf_accel_dev *accel_dev)
 		return ret;
 	}
 	accel_dev->hw_device->extended_dc_capabilities = dc_capabilities;
+
+	adf_get_fw_capabilities(accel_dev, &hw_data->fw_capabilities);
 
 	return adf_init_ae(accel_dev);
 }

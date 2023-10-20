@@ -16,6 +16,7 @@ enum icp_qat_fw_init_admin_cmd_id {
 	ICP_QAT_FW_HEARTBEAT_SYNC = 7,
 	ICP_QAT_FW_HEARTBEAT_GET = 8,
 	ICP_QAT_FW_COMP_CAPABILITY_GET = 9,
+	ICP_QAT_FW_CRYPTO_CAPABILITY_GET = 10,
 	ICP_QAT_FW_DC_CHAIN_INIT = 11,
 	ICP_QAT_FW_HEARTBEAT_TIMER_SET = 13,
 	ICP_QAT_FW_TIMER_GET = 19,
@@ -109,10 +110,12 @@ struct icp_qat_fw_init_admin_resp {
 			__u32 unsuccessful_count;
 			__u64 resrvd8;
 		};
+		__u16 fw_capabilities;
 	};
 } __packed;
 
 #define ICP_QAT_FW_SYNC ICP_QAT_FW_HEARTBEAT_SYNC
+#define ICP_QAT_FW_CAPABILITIES_GET ICP_QAT_FW_CRYPTO_CAPABILITY_GET
 
 #define ICP_QAT_NUMBER_OF_PM_EVENTS 8
 
