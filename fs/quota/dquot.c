@@ -2385,7 +2385,8 @@ int dquot_load_quota_sb(struct super_block *sb, int type, int format_id,
 	lockdep_assert_held_write(&sb->s_umount);
 
 	/* Just unsuspend quotas? */
-	BUG_ON(flags & DQUOT_SUSPENDED);
+	if (WARN_ON_ONCE(flags & DQUOT_SUSPENDED))
+		return -EINVAL;
 
 	if (!fmt)
 		return -ESRCH;
