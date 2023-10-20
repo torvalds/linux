@@ -33,7 +33,7 @@ static u32 tcp_clamp_rto_to_user_timeout(const struct sock *sk)
 	user_timeout = READ_ONCE(icsk->icsk_user_timeout);
 	if (!user_timeout)
 		return icsk->icsk_rto;
-	elapsed = tcp_time_stamp(tcp_sk(sk)) - start_ts;
+	elapsed = tcp_time_stamp_ts(tcp_sk(sk)) - start_ts;
 	remaining = user_timeout - elapsed;
 	if (remaining <= 0)
 		return 1; /* user timeout has passed; fire ASAP */
@@ -226,7 +226,7 @@ static bool retransmits_timed_out(struct sock *sk,
 		timeout = tcp_model_timeout(sk, boundary, rto_base);
 	}
 
-	return (s32)(tcp_time_stamp(tcp_sk(sk)) - start_ts - timeout) >= 0;
+	return (s32)(tcp_time_stamp_ts(tcp_sk(sk)) - start_ts - timeout) >= 0;
 }
 
 /* A write timeout has occurred. Process the after effects. */
@@ -462,7 +462,7 @@ static void tcp_fastopen_synack_timer(struct sock *sk, struct request_sock *req)
 	req->num_timeout++;
 	tcp_update_rto_stats(sk);
 	if (!tp->retrans_stamp)
-		tp->retrans_stamp = tcp_time_stamp(tp);
+		tp->retrans_stamp = tcp_time_stamp_ts(tp);
 	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
 			  req->timeout << req->num_timeout, TCP_RTO_MAX);
 }
@@ -478,7 +478,7 @@ static bool tcp_rtx_probe0_timed_out(const struct sock *sk,
 	if (rcv_delta <= timeout)
 		return false;
 
-	rtx_delta = (u32)msecs_to_jiffies(tcp_time_stamp(tp) -
+	rtx_delta = (u32)msecs_to_jiffies(tcp_time_stamp_ts(tp) -
 			(tp->retrans_stamp ?: tcp_skb_timestamp_ts(false, skb)));
 
 	return rtx_delta > timeout;
@@ -534,7 +534,7 @@ void tcp_retransmit_timer(struct sock *sk)
 		struct inet_sock *inet = inet_sk(sk);
 		u32 rtx_delta;
 
-		rtx_delta = tcp_time_stamp(tp) - (tp->retrans_stamp ?: tcp_skb_timestamp_ts(false, skb));
+		rtx_delta = tcp_time_stamp_ts(tp) - (tp->retrans_stamp ?: tcp_skb_timestamp_ts(false, skb));
 		if (sk->sk_family == AF_INET) {
 			net_dbg_ratelimited("Probing zero-window on %pI4:%u/%u, seq=%u:%u, recv %ums ago, lasting %ums\n",
 				&inet->inet_daddr, ntohs(inet->inet_dport),

@@ -813,15 +813,14 @@ static inline u32 tcp_clock_ts(bool usec_ts)
 	return usec_ts ? tcp_clock_us() : tcp_clock_ms();
 }
 
-/* This should only be used in contexts where tp->tcp_mstamp is up to date */
-static inline u32 tcp_time_stamp(const struct tcp_sock *tp)
-{
-	return div_u64(tp->tcp_mstamp, USEC_PER_SEC / TCP_TS_HZ);
-}
-
 static inline u32 tcp_time_stamp_ms(const struct tcp_sock *tp)
 {
 	return div_u64(tp->tcp_mstamp, USEC_PER_MSEC);
+}
+
+static inline u32 tcp_time_stamp_ts(const struct tcp_sock *tp)
+{
+	return tcp_time_stamp_ms(tp);
 }
 
 void tcp_mstamp_refresh(struct tcp_sock *tp);

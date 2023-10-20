@@ -3961,7 +3961,7 @@ int tcp_connect(struct sock *sk)
 
 	tcp_init_nondata_skb(buff, tp->write_seq++, TCPHDR_SYN);
 	tcp_mstamp_refresh(tp);
-	tp->retrans_stamp = tcp_time_stamp(tp);
+	tp->retrans_stamp = tcp_time_stamp_ts(tp);
 	tcp_connect_queue_skb(sk, buff);
 	tcp_ecn_send_syn(sk, buff);
 	tcp_rbtree_insert(&sk->tcp_rtx_queue, buff);
