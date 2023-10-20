@@ -1110,7 +1110,7 @@ static void bch2_moving_ctxt_to_text(struct printbuf *out, struct bch_fs *c, str
 
 	prt_printf(out, " data type %s btree_id %s position: ",
 		   bch2_data_types[stats->data_type],
-		   bch2_btree_ids[stats->btree_id]);
+		   bch2_btree_id_str(stats->btree_id));
 	bch2_bpos_to_text(out, stats->pos);
 	prt_newline(out);
 	printbuf_indent_add(out, 2);

@@ -349,7 +349,7 @@ static int btree_key_can_insert_cached(struct btree_trans *trans, unsigned flags
 	new_k		= krealloc(ck->k, new_u64s * sizeof(u64), GFP_NOFS);
 	if (!new_k) {
 		bch_err(c, "error allocating memory for key cache key, btree %s u64s %u",
-			bch2_btree_ids[path->btree_id], new_u64s);
+			bch2_btree_id_str(path->btree_id), new_u64s);
 		return -BCH_ERR_ENOMEM_btree_key_cache_insert;
 	}
 

@@ -3,6 +3,7 @@
 #define _BCACHEFS_BBPOS_H
 
 #include "bkey_methods.h"
+#include "btree_cache.h"
 
 struct bbpos {
 	enum btree_id		btree;
@@ -40,7 +41,7 @@ static inline struct bbpos bbpos_successor(struct bbpos pos)
 
 static inline void bch2_bbpos_to_text(struct printbuf *out, struct bbpos pos)
 {
-	prt_str(out, bch2_btree_ids[pos.btree]);
+	prt_str(out, bch2_btree_id_str(pos.btree));
 	prt_char(out, ':');
 	bch2_bpos_to_text(out, pos.pos);
 }

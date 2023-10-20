@@ -16,7 +16,7 @@ extern const char * const bch2_fsck_fix_opts[];
 extern const char * const bch2_version_upgrade_opts[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];
-extern const char * const bch2_btree_ids[];
+extern const char * const __bch2_btree_ids[];
 extern const char * const bch2_csum_types[];
 extern const char * const bch2_csum_opts[];
 extern const char * const bch2_compression_types[];

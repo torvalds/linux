@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "bkey_buf.h"
+#include "btree_cache.h"
 #include "btree_update.h"
 #include "buckets.h"
 #include "darray.h"
@@ -444,7 +445,7 @@ static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 		if (i->equiv == n.equiv) {
 			bch_err(c, "snapshot deletion did not finish:\n"
 				"  duplicate keys in btree %s at %llu:%llu snapshots %u, %u (equiv %u)\n",
-				bch2_btree_ids[btree_id],
+				bch2_btree_id_str(btree_id),
 				pos.inode, pos.offset,
 				i->id, n.id, n.equiv);
 			set_bit(BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS, &c->flags);
@@ -809,7 +810,7 @@ out:
 	return ret;
 bad_hash:
 	if (fsck_err(c, "hash table key at wrong offset: btree %s inode %llu offset %llu, hashed to %llu\n%s",
-		     bch2_btree_ids[desc.btree_id], hash_k.k->p.inode, hash_k.k->p.offset, hash,
+		     bch2_btree_id_str(desc.btree_id), hash_k.k->p.inode, hash_k.k->p.offset, hash,
 		     (printbuf_reset(&buf),
 		      bch2_bkey_val_to_text(&buf, c, hash_k), buf.buf))) {
 		ret = hash_redo_key(trans, desc, hash_info, k_iter, hash_k);

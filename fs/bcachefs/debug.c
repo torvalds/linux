@@ -517,7 +517,7 @@ static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *
 
 	prt_printf(out, "%px btree=%s l=%u ",
 	       b,
-	       bch2_btree_ids[b->c.btree_id],
+	       bch2_btree_id_str(b->c.btree_id),
 	       b->c.level);
 	prt_newline(out);
 
@@ -919,18 +919,18 @@ void bch2_fs_debug_init(struct bch_fs *c)
 	     bd < c->btree_debug + ARRAY_SIZE(c->btree_debug);
 	     bd++) {
 		bd->id = bd - c->btree_debug;
-		debugfs_create_file(bch2_btree_ids[bd->id],
+		debugfs_create_file(bch2_btree_id_str(bd->id),
 				    0400, c->btree_debug_dir, bd,
 				    &btree_debug_ops);
 
 		snprintf(name, sizeof(name), "%s-formats",
-			 bch2_btree_ids[bd->id]);
+			 bch2_btree_id_str(bd->id));
 
 		debugfs_create_file(name, 0400, c->btree_debug_dir, bd,
 				    &btree_format_debug_ops);
 
 		snprintf(name, sizeof(name), "%s-bfloat-failed",
-			 bch2_btree_ids[bd->id]);
+			 bch2_btree_id_str(bd->id));
 
 		debugfs_create_file(name, 0400, c->btree_debug_dir, bd,
 				    &bfloat_failed_debug_ops);

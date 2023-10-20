@@ -362,7 +362,7 @@ void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
 	bch2_bpos_to_text(&buf, pos);
 
 	panic("not locked: %s %s%s\n",
-	      bch2_btree_ids[id], buf.buf,
+	      bch2_btree_id_str(id), buf.buf,
 	      key_cache ? " cached" : "");
 }
 
@@ -1371,7 +1371,7 @@ void bch2_trans_updates_to_text(struct printbuf *buf, struct btree_trans *trans)
 		struct bkey_s_c old = { &i->old_k, i->old_v };
 
 		prt_printf(buf, "update: btree=%s cached=%u %pS",
-		       bch2_btree_ids[i->btree_id],
+		       bch2_btree_id_str(i->btree_id),
 		       i->cached,
 		       (void *) i->ip_allocated);
 		prt_newline(buf);
@@ -1387,7 +1387,7 @@ void bch2_trans_updates_to_text(struct printbuf *buf, struct btree_trans *trans)
 
 	trans_for_each_wb_update(trans, wb) {
 		prt_printf(buf, "update: btree=%s wb=1 %pS",
-		       bch2_btree_ids[wb->btree],
+		       bch2_btree_id_str(wb->btree),
 		       (void *) i->ip_allocated);
 		prt_newline(buf);
 
@@ -1416,7 +1416,7 @@ void bch2_btree_path_to_text(struct printbuf *out, struct btree_path *path)
 		   path->idx, path->ref, path->intent_ref,
 		   path->preserve ? 'P' : ' ',
 		   path->should_be_locked ? 'S' : ' ',
-		   bch2_btree_ids[path->btree_id],
+		   bch2_btree_id_str(path->btree_id),
 		   path->level);
 	bch2_bpos_to_text(out, path->pos);
 
@@ -3025,7 +3025,7 @@ leaked:
 	trans_for_each_path(trans, path)
 		if (path->ref)
 			printk(KERN_ERR "  btree %s %pS\n",
-			       bch2_btree_ids[path->btree_id],
+			       bch2_btree_id_str(path->btree_id),
 			       (void *) path->ip_allocated);
 	/* Be noisy about this: */
 	bch2_fatal_error(c);
@@ -3100,7 +3100,7 @@ bch2_btree_bkey_cached_common_to_text(struct printbuf *out,
 
 	prt_tab(out);
 	prt_printf(out, "%px %c l=%u %s:", b, b->cached ? 'c' : 'b',
-		   b->level, bch2_btree_ids[b->btree_id]);
+		   b->level, bch2_btree_id_str(b->btree_id));
 	bch2_bpos_to_text(out, btree_node_pos(b));
 
 	prt_tab(out);
@@ -3130,7 +3130,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 		       path->idx,
 		       path->cached ? 'c' : 'b',
 		       path->level,
-		       bch2_btree_ids[path->btree_id]);
+		       bch2_btree_id_str(path->btree_id));
 		bch2_bpos_to_text(out, path->pos);
 		prt_newline(out);
 

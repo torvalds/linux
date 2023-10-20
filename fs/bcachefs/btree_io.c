@@ -510,16 +510,6 @@ void bch2_btree_init_next(struct btree_trans *trans, struct btree *b)
 		bch2_trans_node_reinit_iter(trans, b);
 }
 
-static void btree_pos_to_text(struct printbuf *out, struct bch_fs *c,
-			  struct btree *b)
-{
-	prt_printf(out, "%s level %u/%u\n  ",
-	       bch2_btree_ids[b->c.btree_id],
-	       b->c.level,
-	       bch2_btree_id_root(c, b->c.btree_id)->level);
-	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
-}
-
 static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 			  struct bch_dev *ca,
 			  struct btree *b, struct bset *i,
@@ -532,7 +522,7 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 	if (ca)
 		prt_printf(out, "on %s ", ca->name);
 	prt_printf(out, "at btree ");
-	btree_pos_to_text(out, c, b);
+	bch2_btree_pos_to_text(out, c, b);
 
 	prt_printf(out, "\n  node offset %u", b->written);
 	if (i)
@@ -1177,7 +1167,7 @@ static void btree_node_read_work(struct work_struct *work)
 		}
 start:
 		printbuf_reset(&buf);
-		btree_pos_to_text(&buf, c, b);
+		bch2_btree_pos_to_text(&buf, c, b);
 		bch2_dev_io_err_on(bio->bi_status, ca, "btree read error %s for %s",
 				   bch2_blk_status_to_str(bio->bi_status), buf.buf);
 		if (rb->have_ioref)
@@ -1213,7 +1203,7 @@ start:
 		printbuf_reset(&buf);
 		bch2_bpos_to_text(&buf, b->key.k.p);
 		bch_info(c, "%s: rewriting btree node at btree=%s level=%u %s due to error",
-			 __func__, bch2_btree_ids[b->c.btree_id], b->c.level, buf.buf);
+			 __func__, bch2_btree_id_str(b->c.btree_id), b->c.level, buf.buf);
 
 		bch2_btree_node_rewrite_async(c, b);
 	}
@@ -1524,7 +1514,7 @@ void bch2_btree_node_read(struct bch_fs *c, struct btree *b,
 		struct printbuf buf = PRINTBUF;
 
 		prt_str(&buf, "btree node read error: no device to read from\n at ");
-		btree_pos_to_text(&buf, c, b);
+		bch2_btree_pos_to_text(&buf, c, b);
 		bch_err(c, "%s", buf.buf);
 
 		if (c->recovery_passes_explicit & BIT_ULL(BCH_RECOVERY_PASS_check_topology) &&

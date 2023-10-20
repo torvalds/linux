@@ -727,7 +727,7 @@ static int bch2_bucket_do_index(struct btree_trans *trans,
 			"incorrect key when %s %s:%llu:%llu:0 (got %s should be %s)\n"
 			"  for %s",
 			set ? "setting" : "clearing",
-			bch2_btree_ids[btree],
+			bch2_btree_id_str(btree),
 			iter.pos.inode,
 			iter.pos.offset,
 			bch2_bkey_types[old.k->type],
@@ -1245,7 +1245,7 @@ static noinline_for_stack int __bch2_check_discard_freespace_key(struct btree_tr
 
 	if (fsck_err_on(!bch2_dev_bucket_exists(c, pos), c,
 			"entry in %s btree for nonexistant dev:bucket %llu:%llu",
-			bch2_btree_ids[iter->btree_id], pos.inode, pos.offset))
+			bch2_btree_id_str(iter->btree_id), pos.inode, pos.offset))
 		goto delete;
 
 	a = bch2_alloc_to_v4(alloc_k, &a_convert);
@@ -1255,7 +1255,7 @@ static noinline_for_stack int __bch2_check_discard_freespace_key(struct btree_tr
 			 genbits != alloc_freespace_genbits(*a)), c,
 			"%s\n  incorrectly set at %s:%llu:%llu:0 (free %u, genbits %llu should be %llu)",
 			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf),
-			bch2_btree_ids[iter->btree_id],
+			bch2_btree_id_str(iter->btree_id),
 			iter->pos.inode,
 			iter->pos.offset,
 			a->data_type == state,

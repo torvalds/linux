@@ -3,6 +3,7 @@
 #include "bcachefs.h"
 #include "backpointers.h"
 #include "bkey_methods.h"
+#include "btree_cache.h"
 #include "btree_types.h"
 #include "alloc_background.h"
 #include "dirent.h"
@@ -164,7 +165,7 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	if (flags & BKEY_INVALID_COMMIT	 &&
 	    !(bch2_key_types_allowed[type] & BIT_ULL(k.k->type))) {
 		prt_printf(err, "invalid key type for btree %s (%s)",
-			   bch2_btree_ids[type], bch2_bkey_types[k.k->type]);
+			   bch2_btree_id_str(type), bch2_bkey_types[k.k->type]);
 		return -BCH_ERR_invalid_bkey;
 	}
 

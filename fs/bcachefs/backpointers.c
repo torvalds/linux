@@ -55,7 +55,7 @@ int bch2_backpointer_invalid(const struct bch_fs *c, struct bkey_s_c k,
 void bch2_backpointer_to_text(struct printbuf *out, const struct bch_backpointer *bp)
 {
 	prt_printf(out, "btree=%s l=%u offset=%llu:%u len=%u pos=",
-	       bch2_btree_ids[bp->btree_id],
+	       bch2_btree_id_str(bp->btree_id),
 	       bp->level,
 	       (u64) (bp->bucket_offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT),
 	       (u32) bp->bucket_offset & ~(~0U << MAX_EXTENT_COMPRESS_RATIO_SHIFT),
@@ -453,7 +453,7 @@ fsck_err:
 	return ret;
 missing:
 	prt_printf(&buf, "missing backpointer for btree=%s l=%u ",
-	       bch2_btree_ids[bp.btree_id], bp.level);
+	       bch2_btree_id_str(bp.btree_id), bp.level);
 	bch2_bkey_val_to_text(&buf, c, orig_k);
 	prt_printf(&buf, "\nbp pos ");
 	bch2_bpos_to_text(&buf, bp_iter.pos);

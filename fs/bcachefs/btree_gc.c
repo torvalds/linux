@@ -101,7 +101,7 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 				  "btree node with incorrect min_key at btree %s level %u:\n"
 				  "  prev %s\n"
 				  "  cur %s",
-				  bch2_btree_ids[b->c.btree_id], b->c.level,
+				  bch2_btree_id_str(b->c.btree_id), b->c.level,
 				  buf1.buf, buf2.buf) &&
 			    should_restart_for_topology_repair(c)) {
 				bch_info(c, "Halting mark and sweep to start topology repair pass");
@@ -129,7 +129,7 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 			  "btree node with incorrect max_key at btree %s level %u:\n"
 			  "  %s\n"
 			  "  expected %s",
-			  bch2_btree_ids[b->c.btree_id], b->c.level,
+			  bch2_btree_id_str(b->c.btree_id), b->c.level,
 			  buf1.buf, buf2.buf) &&
 		    should_restart_for_topology_repair(c)) {
 			bch_info(c, "Halting mark and sweep to start topology repair pass");
@@ -290,7 +290,7 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 				"btree node overwritten by next node at btree %s level %u:\n"
 				"  node %s\n"
 				"  next %s",
-				bch2_btree_ids[b->c.btree_id], b->c.level,
+				bch2_btree_id_str(b->c.btree_id), b->c.level,
 				buf1.buf, buf2.buf)) {
 			ret = DROP_PREV_NODE;
 			goto out;
@@ -301,7 +301,7 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 				"btree node with incorrect max_key at btree %s level %u:\n"
 				"  node %s\n"
 				"  next %s",
-				bch2_btree_ids[b->c.btree_id], b->c.level,
+				bch2_btree_id_str(b->c.btree_id), b->c.level,
 				buf1.buf, buf2.buf))
 			ret = set_node_max(c, prev,
 					   bpos_predecessor(cur->data->min_key));
@@ -313,7 +313,7 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 				"btree node overwritten by prev node at btree %s level %u:\n"
 				"  prev %s\n"
 				"  node %s",
-				bch2_btree_ids[b->c.btree_id], b->c.level,
+				bch2_btree_id_str(b->c.btree_id), b->c.level,
 				buf1.buf, buf2.buf)) {
 			ret = DROP_THIS_NODE;
 			goto out;
@@ -323,7 +323,7 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 				"btree node with incorrect min_key at btree %s level %u:\n"
 				"  prev %s\n"
 				"  node %s",
-				bch2_btree_ids[b->c.btree_id], b->c.level,
+				bch2_btree_id_str(b->c.btree_id), b->c.level,
 				buf1.buf, buf2.buf))
 			ret = set_node_min(c, cur, expected_start);
 	}
@@ -347,7 +347,7 @@ static int btree_repair_node_end(struct bch_fs *c, struct btree *b,
 			"btree node with incorrect max_key at btree %s level %u:\n"
 			"  %s\n"
 			"  expected %s",
-			bch2_btree_ids[b->c.btree_id], b->c.level,
+			bch2_btree_id_str(b->c.btree_id), b->c.level,
 			buf1.buf, buf2.buf)) {
 		ret = set_node_max(c, child, b->key.k.p);
 		if (ret)
@@ -398,7 +398,7 @@ again:
 		if (mustfix_fsck_err_on(ret == -EIO, c,
 				"Topology repair: unreadable btree node at btree %s level %u:\n"
 				"  %s",
-				bch2_btree_ids[b->c.btree_id],
+				bch2_btree_id_str(b->c.btree_id),
 				b->c.level - 1,
 				buf.buf)) {
 			bch2_btree_node_evict(trans, cur_k.k);
@@ -506,7 +506,7 @@ again:
 	if (mustfix_fsck_err_on(!have_child, c,
 			"empty interior btree node at btree %s level %u\n"
 			"  %s",
-			bch2_btree_ids[b->c.btree_id],
+			bch2_btree_id_str(b->c.btree_id),
 			b->c.level, buf.buf))
 		ret = DROP_THIS_NODE;
 err:
@@ -970,7 +970,7 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 					  FSCK_NO_RATELIMIT,
 					  "Unreadable btree node at btree %s level %u:\n"
 					  "  %s",
-					  bch2_btree_ids[b->c.btree_id],
+					  bch2_btree_id_str(b->c.btree_id),
 					  b->c.level - 1,
 					  (printbuf_reset(&buf),
 					   bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur.k)), buf.buf)) &&
