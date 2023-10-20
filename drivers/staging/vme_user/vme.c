@@ -62,7 +62,6 @@ static struct vme_bridge *find_bridge(struct vme_resource *resource)
 		return list_entry(resource->entry, struct vme_lm_resource,
 			list)->parent;
 	default:
-		printk(KERN_ERR "Unknown resource type\n");
 		return NULL;
 	}
 }
