@@ -1149,7 +1149,7 @@ struct timeval tv_even, tv_odd, tv_delta;
 int *irq_column_2_cpu;		/* /proc/interrupts column numbers */
 int *irqs_per_cpu;		/* indexed by cpu_num */
 
-void setup_all_buffers(void);
+void setup_all_buffers(bool startup);
 
 char *sys_lpi_file;
 char *sys_lpi_file_sysfs = "/sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us";
@@ -3691,7 +3691,7 @@ int for_all_proc_cpus(int (func) (int))
 void re_initialize(void)
 {
 	free_all_buffers();
-	setup_all_buffers();
+	setup_all_buffers(false);
 	fprintf(outf, "turbostat: re-initialized with num_cpus %d, allowed_cpus %d\n", topo.num_cpus, topo.allowed_cpus);
 }
 
@@ -5692,7 +5692,7 @@ int dir_filter(const struct dirent *dirp)
 		return 0;
 }
 
-void topology_probe()
+void topology_probe(bool startup)
 {
 	int i;
 	int max_core_id = 0;
@@ -5734,7 +5734,12 @@ void topology_probe()
 	CPU_ZERO_S(cpu_allowed_setsize, cpu_allowed_set);
 
 	/*
-	 * Validate that all cpus in cpu_subset are also in cpu_present_set
+	 * Validate cpu_subset and update cpu_allowed_set.
+	 *
+	 * Make sure all cpus in cpu_subset are also in cpu_present_set during startup,
+	 * and give a warning when cpus in cpu_subset become unavailable at runtime.
+	 *
+	 * cpu_allowed_set is the intersection of cpu_present_set and cpu_subset.
 	 */
 	for (i = 0; i < CPU_SUBSET_MAXCPUS; ++i) {
 		if (!cpu_subset) {
@@ -5743,9 +5748,15 @@ void topology_probe()
 			continue;
 		}
 		if (CPU_ISSET_S(i, cpu_subset_size, cpu_subset)) {
-			if (!CPU_ISSET_S(i, cpu_present_setsize, cpu_present_set))
-				err(1, "cpu%d not present", i);
-			CPU_SET_S(i, cpu_allowed_setsize, cpu_allowed_set);
+			if (!CPU_ISSET_S(i, cpu_present_setsize, cpu_present_set)) {
+				/* all cpus in cpu_subset must be in cpu_present_set during startup */
+				if (startup)
+					err(1, "cpu%d not present", i);
+				else
+					fprintf(stderr, "cpu%d not present\n", i);
+			} else {
+				CPU_SET_S(i, cpu_allowed_setsize, cpu_allowed_set);
+			}
 		}
 	}
 
@@ -5973,9 +5984,9 @@ void topology_update(void)
 	topo.allowed_packages = 0;
 	for_all_cpus(update_topo, ODD_COUNTERS);
 }
-void setup_all_buffers(void)
+void setup_all_buffers(bool startup)
 {
-	topology_probe();
+	topology_probe(startup);
 	allocate_irq_buffers();
 	allocate_fd_percpu();
 	allocate_counters(&thread_even, &core_even, &package_even);
@@ -6002,7 +6013,7 @@ void set_base_cpu(void)
 
 void turbostat_init()
 {
-	setup_all_buffers();
+	setup_all_buffers(true);
 	set_base_cpu();
 	check_dev_msr();
 	check_permissions();
