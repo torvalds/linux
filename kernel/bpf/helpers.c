@@ -1811,8 +1811,6 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 	}
 }
 
-void __bpf_obj_drop_impl(void *p, const struct btf_record *rec);
-
 void bpf_list_head_free(const struct btf_field *field, void *list_head,
 			struct bpf_spin_lock *spin_lock)
 {
