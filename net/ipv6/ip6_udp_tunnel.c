@@ -119,9 +119,13 @@ EXPORT_SYMBOL_GPL(udp_tunnel6_xmit_skb);
  *      @dev: Tunnel device
  *      @net: Network namespace of tunnel device
  *      @sock: Socket which provides route info
+ *      @oif: Index of the output interface
  *      @saddr: Memory to store the src ip address
- *      @info: Tunnel information
- *      @use_cache: Flag to enable cache usage
+ *      @key: Tunnel information
+ *      @sport: UDP source port
+ *      @dport: UDP destination port
+ *      @dsfield: The traffic class field
+ *      @dst_cache: The dst cache to use for lookup
  *      This function performs a route lookup on a UDP tunnel
  *
  *      It returns a valid dst pointer and stores src address to be used in
@@ -132,20 +136,17 @@ struct dst_entry *udp_tunnel6_dst_lookup(struct sk_buff *skb,
 					 struct net_device *dev,
 					 struct net *net,
 					 struct socket *sock,
+					 int oif,
 					 struct in6_addr *saddr,
-					 const struct ip_tunnel_info *info,
-					 bool use_cache)
+					 const struct ip_tunnel_key *key,
+					 __be16 sport, __be16 dport, u8 dsfield,
+					 struct dst_cache *dst_cache)
 {
 	struct dst_entry *dst = NULL;
-#ifdef CONFIG_DST_CACHE
-	struct dst_cache *dst_cache;
-#endif
 	struct flowi6 fl6;
-	__u8 prio;
 
 #ifdef CONFIG_DST_CACHE
-	dst_cache = (struct dst_cache *)&info->dst_cache;
-	if (use_cache) {
+	if (dst_cache) {
 		dst = dst_cache_get_ip6(dst_cache, saddr);
 		if (dst)
 			return dst;
@@ -154,10 +155,12 @@ struct dst_entry *udp_tunnel6_dst_lookup(struct sk_buff *skb,
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_mark = skb->mark;
 	fl6.flowi6_proto = IPPROTO_UDP;
-	fl6.daddr = info->key.u.ipv6.dst;
-	fl6.saddr = info->key.u.ipv6.src;
-	prio = info->key.tos;
-	fl6.flowlabel = ip6_make_flowinfo(prio, info->key.label);
+	fl6.flowi6_oif = oif;
+	fl6.daddr = key->u.ipv6.dst;
+	fl6.saddr = key->u.ipv6.src;
+	fl6.fl6_sport = sport;
+	fl6.fl6_dport = dport;
+	fl6.flowlabel = ip6_make_flowinfo(dsfield, key->label);
 
 	dst = ipv6_stub->ipv6_dst_lookup_flow(net, sock->sk, &fl6,
 					      NULL);
@@ -171,7 +174,7 @@ struct dst_entry *udp_tunnel6_dst_lookup(struct sk_buff *skb,
 		return ERR_PTR(-ELOOP);
 	}
 #ifdef CONFIG_DST_CACHE
-	if (use_cache)
+	if (dst_cache)
 		dst_cache_set_ip6(dst_cache, dst, &fl6.saddr);
 #endif
 	*saddr = fl6.saddr;
