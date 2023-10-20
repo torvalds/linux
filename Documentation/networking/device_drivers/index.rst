@@ -16,7 +16,6 @@ Contents:
    ethernet/index
    fddi/index
    hamradio/index
-   qlogic/index
    wifi/index
    wwan/index
 

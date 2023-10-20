@@ -72,8 +72,6 @@ source "drivers/staging/axis-fifo/Kconfig"
 
 source "drivers/staging/fieldbus/Kconfig"
 
-source "drivers/staging/qlge/Kconfig"
-
 source "drivers/staging/vme_user/Kconfig"
 
 endif # STAGING
