@@ -1111,6 +1111,7 @@ static int bnxt_re_handle_cq_async_error(void *event, struct bnxt_re_cq *cq)
 	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_RES_CQ_OVERFLOW_ERROR:
 	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_RES_CQ_LOAD_ERROR:
 		ibevent.event = IB_EVENT_CQ_ERR;
+		break;
 	default:
 		break;
 	}
