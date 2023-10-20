@@ -64,6 +64,10 @@
 #define KSZ886X_BMCR_DISABLE_TRANSMIT		BIT(1)
 #define KSZ886X_BMCR_DISABLE_LED		BIT(0)
 
+/* PHY Special Control/Status Register (Reg 31) */
 #define KSZ886X_CTRL_MDIX_STAT			BIT(4)
+#define KSZ886X_CTRL_FORCE_LINK			BIT(3)
+#define KSZ886X_CTRL_PWRSAVE			BIT(2)
+#define KSZ886X_CTRL_REMOTE_LOOPBACK		BIT(1)
 
 #endif /* _MICREL_PHY_H */
