@@ -306,13 +306,11 @@ static int exynos_rng_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int exynos_rng_remove(struct platform_device *pdev)
+static void exynos_rng_remove(struct platform_device *pdev)
 {
 	crypto_unregister_rng(&exynos_rng_alg);
 
 	exynos_rng_dev = NULL;
-
-	return 0;
 }
 
 static int __maybe_unused exynos_rng_suspend(struct device *dev)
@@ -391,7 +389,7 @@ static struct platform_driver exynos_rng_driver = {
 		.of_match_table = exynos_rng_dt_match,
 	},
 	.probe		= exynos_rng_probe,
-	.remove		= exynos_rng_remove,
+	.remove_new	= exynos_rng_remove,
 };
 
 module_platform_driver(exynos_rng_driver);
