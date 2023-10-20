@@ -89,6 +89,18 @@ static inline void __extent_entry_insert(struct bkey_i *k,
 	memcpy_u64s_small(dst, new, extent_entry_u64s(new));
 }
 
+static inline void extent_entry_drop(struct bkey_s k, union bch_extent_entry *entry)
+{
+	union bch_extent_entry *next = extent_entry_next(entry);
+
+	/* stripes have ptrs, but their layout doesn't work with this code */
+	BUG_ON(k.k->type == KEY_TYPE_stripe);
+
+	memmove_u64s_down(entry, next,
+			  (u64 *) bkey_val_end(k) - (u64 *) next);
+	k.k->u64s -= (u64 *) next - (u64 *) entry;
+}
+
 static inline bool extent_entry_is_ptr(const union bch_extent_entry *e)
 {
 	return extent_entry_type(e) == BCH_EXTENT_ENTRY_ptr;
@@ -697,6 +709,14 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *, struct bkey_s_c,
 			   enum bkey_invalid_flags, struct printbuf *);
 
 void bch2_ptr_swab(struct bkey_s);
+
+const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c);
+unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *, struct bkey_s_c,
+				       unsigned, unsigned);
+bool bch2_bkey_needs_rebalance(struct bch_fs *, struct bkey_s_c);
+
+int bch2_bkey_set_needs_rebalance(struct bch_fs *, struct bkey_i *,
+				  unsigned, unsigned);
 
 /* Generic extent code: */
 

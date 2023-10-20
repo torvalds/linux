@@ -212,7 +212,7 @@ read_attribute(copy_gc_wait);
 
 rw_attribute(rebalance_enabled);
 sysfs_pd_controller_attribute(rebalance);
-read_attribute(rebalance_work);
+read_attribute(rebalance_status);
 rw_attribute(promote_whole_extents);
 
 read_attribute(new_stripes);
@@ -386,8 +386,8 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_copy_gc_wait)
 		bch2_copygc_wait_to_text(out, c);
 
-	if (attr == &sysfs_rebalance_work)
-		bch2_rebalance_work_to_text(out, c);
+	if (attr == &sysfs_rebalance_status)
+		bch2_rebalance_status_to_text(out, c);
 
 	sysfs_print(promote_whole_extents,	c->promote_whole_extents);
 
@@ -646,7 +646,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_copy_gc_wait,
 
 	&sysfs_rebalance_enabled,
-	&sysfs_rebalance_work,
+	&sysfs_rebalance_status,
 	sysfs_pd_controller_files(rebalance),
 
 	&sysfs_moving_ctxts,
@@ -707,10 +707,8 @@ STORE(bch2_fs_opts_dir)
 	bch2_opt_set_by_id(&c->opts, id, v);
 
 	if ((id == Opt_background_target ||
-	     id == Opt_background_compression) && v) {
-		bch2_rebalance_add_work(c, S64_MAX);
-		rebalance_wakeup(c);
-	}
+	     id == Opt_background_compression) && v)
+		bch2_set_rebalance_needs_scan(c, 0);
 
 	ret = size;
 err:

@@ -590,7 +590,7 @@ err:
 	if (value &&
 	    (opt_id == Opt_background_compression ||
 	     opt_id == Opt_background_target))
-		bch2_rebalance_add_work(c, inode->v.i_blocks);
+		bch2_set_rebalance_needs_scan(c, inode->ei_inode.bi_inum);
 
 	return bch2_err_class(ret);
 }

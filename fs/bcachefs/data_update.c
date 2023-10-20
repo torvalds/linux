@@ -13,6 +13,7 @@
 #include "keylist.h"
 #include "move.h"
 #include "nocow_locking.h"
+#include "rebalance.h"
 #include "subvolume.h"
 #include "trace.h"
 
@@ -251,11 +252,11 @@ restart_drop_extra_replicas:
 		ret =   bch2_insert_snapshot_whiteouts(trans, m->btree_id,
 						k.k->p, bkey_start_pos(&insert->k)) ?:
 			bch2_insert_snapshot_whiteouts(trans, m->btree_id,
-						k.k->p, insert->k.p);
-		if (ret)
-			goto err;
-
-		ret   = bch2_trans_update(trans, &iter, insert,
+						k.k->p, insert->k.p) ?:
+			bch2_bkey_set_needs_rebalance(c, insert,
+						      op->opts.background_target,
+						      op->opts.background_compression) ?:
+			bch2_trans_update(trans, &iter, insert,
 				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 			bch2_trans_commit(trans, &op->res,
 				NULL,

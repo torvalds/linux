@@ -697,16 +697,24 @@ err:
 	return ret;
 }
 
+void bch2_compression_opt_to_text(struct printbuf *out, u64 v)
+{
+	struct bch_compression_opt opt = bch2_compression_decode(v);
+
+	if (opt.type < BCH_COMPRESSION_OPT_NR)
+		prt_str(out, bch2_compression_opts[opt.type]);
+	else
+		prt_printf(out, "(unknown compression opt %u)", opt.type);
+	if (opt.level)
+		prt_printf(out, ":%u", opt.level);
+}
+
 void bch2_opt_compression_to_text(struct printbuf *out,
 				  struct bch_fs *c,
 				  struct bch_sb *sb,
 				  u64 v)
 {
-	struct bch_compression_opt opt = bch2_compression_decode(v);
-
-	prt_str(out, bch2_compression_opts[opt.type]);
-	if (opt.level)
-		prt_printf(out, ":%u", opt.level);
+	return bch2_compression_opt_to_text(out, v);
 }
 
 int bch2_opt_compression_validate(u64 v, struct printbuf *err)

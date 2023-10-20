@@ -58,6 +58,8 @@ int bch2_check_set_has_compressed_data(struct bch_fs *, unsigned);
 void bch2_fs_compress_exit(struct bch_fs *);
 int bch2_fs_compress_init(struct bch_fs *);
 
+void bch2_compression_opt_to_text(struct printbuf *, u64);
+
 int bch2_opt_compression_parse(struct bch_fs *, const char *, u64 *, struct printbuf *);
 void bch2_opt_compression_to_text(struct printbuf *, struct bch_fs *, struct bch_sb *, u64);
 int bch2_opt_compression_validate(u64, struct printbuf *);

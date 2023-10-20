@@ -42,6 +42,7 @@
 	x(check_nlinks,			PASS_FSCK)						\
 	x(delete_dead_inodes,		PASS_FSCK|PASS_UNCLEAN)					\
 	x(fix_reflink_p,		0)							\
+	x(set_fs_needs_rebalance,	0)							\
 
 enum bch_recovery_pass {
 #define x(n, when)	BCH_RECOVERY_PASS_##n,

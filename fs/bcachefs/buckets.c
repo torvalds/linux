@@ -1536,6 +1536,16 @@ int bch2_trans_mark_extent(struct btree_trans *trans,
 			   struct bkey_s_c old, struct bkey_i *new,
 			   unsigned flags)
 {
+	struct bch_fs *c = trans->c;
+	int mod = (int) bch2_bkey_needs_rebalance(c, bkey_i_to_s_c(new)) -
+		  (int) bch2_bkey_needs_rebalance(c, old);
+
+	if (mod) {
+		int ret = bch2_btree_bit_mod(trans, BTREE_ID_rebalance_work, new->k.p, mod > 0);
+		if (ret)
+			return ret;
+	}
+
 	return trigger_run_overwrite_then_insert(__trans_mark_extent, trans, btree_id, level, old, new, flags);
 }
 

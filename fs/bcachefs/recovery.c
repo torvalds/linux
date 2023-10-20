@@ -23,6 +23,7 @@
 #include "logged_ops.h"
 #include "move.h"
 #include "quota.h"
+#include "rebalance.h"
 #include "recovery.h"
 #include "replicas.h"
 #include "sb-clean.h"
