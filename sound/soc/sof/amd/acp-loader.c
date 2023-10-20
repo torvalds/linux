@@ -83,6 +83,7 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 		}
 		dest = adata->data_buf + offset;
 		adata->fw_data_bin_size = size + offset;
+		adata->is_dram_in_use = true;
 		break;
 	case SOF_FW_BLK_TYPE_SRAM:
 		offset = offset - desc->sram_pte_offset;
@@ -153,7 +154,7 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	struct acp_dev_data *adata;
-	unsigned int src_addr, size_fw;
+	unsigned int src_addr, size_fw, dest_addr;
 	u32 page_count, dma_size;
 	int ret;
 
@@ -174,19 +175,20 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "SHA DMA transfer failed status: %d\n", ret);
 		return ret;
 	}
-	configure_pte_for_fw_loading(FW_DATA_BIN, ACP_DRAM_PAGE_COUNT, adata);
+	if (adata->is_dram_in_use) {
+		configure_pte_for_fw_loading(FW_DATA_BIN, ACP_DRAM_PAGE_COUNT, adata);
+		src_addr = ACP_SYSTEM_MEMORY_WINDOW + (page_count * ACP_PAGE_SIZE);
+		dest_addr = ACP_DRAM_BASE_ADDRESS;
 
-	src_addr = ACP_SYSTEM_MEMORY_WINDOW + page_count * ACP_PAGE_SIZE;
-	ret = configure_and_run_dma(adata, src_addr, ACP_DATA_RAM_BASE_ADDRESS,
-				    adata->fw_data_bin_size);
-	if (ret < 0) {
-		dev_err(sdev->dev, "acp dma configuration failed: %d\n", ret);
-		return ret;
+		ret = configure_and_run_dma(adata, src_addr, dest_addr, adata->fw_data_bin_size);
+		if (ret < 0) {
+			dev_err(sdev->dev, "acp dma configuration failed: %d\n", ret);
+			return ret;
+		}
+		ret = acp_dma_status(adata, 0);
+		if (ret < 0)
+			dev_err(sdev->dev, "acp dma transfer status: %d\n", ret);
 	}
-
-	ret = acp_dma_status(adata, 0);
-	if (ret < 0)
-		dev_err(sdev->dev, "acp dma transfer status: %d\n", ret);
 
 	if (desc->rev > 3) {
 		/* Cache Window enable */
@@ -197,10 +199,12 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 	/* Free memory once DMA is complete */
 	dma_size =  (PAGE_ALIGN(sdev->basefw.fw->size) >> PAGE_SHIFT) * ACP_PAGE_SIZE;
 	dma_free_coherent(&pci->dev, dma_size, adata->bin_buf, adata->sha_dma_addr);
-	dma_free_coherent(&pci->dev, ACP_DEFAULT_DRAM_LENGTH, adata->data_buf, adata->dma_addr);
 	adata->bin_buf = NULL;
-	adata->data_buf = NULL;
-
+	if (adata->is_dram_in_use) {
+		dma_free_coherent(&pci->dev, ACP_DEFAULT_DRAM_LENGTH, adata->data_buf,
+				  adata->dma_addr);
+		adata->data_buf = NULL;
+	}
 	return ret;
 }
 EXPORT_SYMBOL_NS(acp_dsp_pre_fw_run, SND_SOC_SOF_AMD_COMMON);

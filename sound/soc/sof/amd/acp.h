@@ -54,7 +54,7 @@
 #define ACP3X_SCRATCH_MEMORY_ADDRESS		0x02050000
 #define ACP_SYSTEM_MEMORY_WINDOW		0x4000000
 #define ACP_IRAM_BASE_ADDRESS			0x000000
-#define ACP_DATA_RAM_BASE_ADDRESS		0x01000000
+#define ACP_DRAM_BASE_ADDRESS			0x01000000
 #define ACP_DRAM_PAGE_COUNT			128
 
 #define ACP_DSP_TO_HOST_IRQ			0x04
@@ -208,6 +208,7 @@ struct acp_dev_data {
 	struct pci_dev *smn_dev;
 	struct acp_dsp_stream *probe_stream;
 	bool enable_fw_debug;
+	bool is_dram_in_use;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
