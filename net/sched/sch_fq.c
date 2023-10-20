@@ -651,7 +651,7 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 begin:
 	head = fq_pband_head_select(pband);
 	if (!head) {
-		while (++retry < FQ_BANDS) {
+		while (++retry <= FQ_BANDS) {
 			if (++q->band_nr == FQ_BANDS)
 				q->band_nr = 0;
 			pband = &q->band_flows[q->band_nr];
