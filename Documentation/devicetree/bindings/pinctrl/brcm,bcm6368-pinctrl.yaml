@@ -24,6 +24,7 @@ patternProperties:
   '-pins$':
     type: object
     $ref: pinmux-node.yaml#
+    unevaluatedProperties: false
 
     properties:
       function:
@@ -41,6 +42,10 @@ patternProperties:
                 gpio16, gpio17, gpio18, gpio19, gpio20, gpio22, gpio23,
                 gpio24, gpio25, gpio26, gpio27, gpio28, gpio29, gpio30,
                 gpio31, uart1_grp ]
+
+    patternProperties:
+      '-pins$':
+        $ref: '#/patternProperties/-pins$'
 
 allOf:
   - $ref: pinctrl.yaml#
@@ -215,6 +220,6 @@ examples:
 
       pinctrl_uart1: uart1-pins {
         function = "uart1";
-        group = "uart1_grp";
+        pins = "uart1_grp";
       };
     };
