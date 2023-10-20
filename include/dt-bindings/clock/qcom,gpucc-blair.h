@@ -32,4 +32,8 @@
 #define GPU_CC_RBCPR_CLK_SRC				21
 #define GPU_CC_SLEEP_CLK				22
 
+/* GPU_CC resets */
+
+#define GPUCC_GPU_CC_FREQUENCY_LIMITER_IRQ_CLEAR	0
+
 #endif
