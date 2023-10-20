@@ -80,9 +80,6 @@ static int __xfrm6_udp_encap_rcv(struct sock *sk, struct sk_buff *skb, bool pull
 	__be32 *udpdata32;
 	u16 encap_type;
 
-	if (skb->protocol == htons(ETH_P_IP))
-		return xfrm4_udp_encap_rcv(sk, skb);
-
 	encap_type = READ_ONCE(up->encap_type);
 	/* if this is not encapsulated socket, then just return now */
 	if (!encap_type)
@@ -169,6 +166,9 @@ int xfrm6_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	int ret;
 
+	if (skb->protocol == htons(ETH_P_IP))
+		return xfrm4_udp_encap_rcv(sk, skb);
+
 	ret = __xfrm6_udp_encap_rcv(sk, skb, true);
 	if (!ret)
 		return xfrm6_rcv_encap(skb, IPPROTO_ESP, 0,
@@ -189,6 +189,9 @@ struct sk_buff *xfrm6_gro_udp_encap_rcv(struct sock *sk, struct list_head *head,
 	const struct net_offload *ops;
 	struct sk_buff *pp = NULL;
 	int ret;
+
+	if (skb->protocol == htons(ETH_P_IP))
+		return xfrm4_gro_udp_encap_rcv(sk, head, skb);
 
 	offset = offset - sizeof(struct udphdr);
 

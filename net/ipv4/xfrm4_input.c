@@ -159,7 +159,6 @@ static int __xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb, bool pull
 	/* process ESP */
 	return 0;
 }
-EXPORT_SYMBOL(xfrm4_udp_encap_rcv);
 
 /* If it's a keepalive packet, then just eat it.
  * If it's an encapsulated packet, then pass it to the
@@ -184,6 +183,7 @@ int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 
 	return ret;
 }
+EXPORT_SYMBOL(xfrm4_udp_encap_rcv);
 
 struct sk_buff *xfrm4_gro_udp_encap_rcv(struct sock *sk, struct list_head *head,
 					struct sk_buff *skb)
@@ -223,6 +223,7 @@ out:
 
 	return NULL;
 }
+EXPORT_SYMBOL(xfrm4_gro_udp_encap_rcv);
 
 int xfrm4_rcv(struct sk_buff *skb)
 {
