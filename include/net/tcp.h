@@ -166,7 +166,12 @@ static_assert((1 << ATO_BITS) > TCP_DELACK_MAX);
 #define MAX_TCP_KEEPCNT		127
 #define MAX_TCP_SYNCNT		127
 
-#define TCP_PAWS_24DAYS	(60 * 60 * 24 * 24)
+/* Ensure that TCP PAWS checks are relaxed after ~2147 seconds
+ * to avoid overflows. This assumes a clock smaller than 1 Mhz.
+ * Default clock is 1 Khz, tcp_usec_ts uses 1 Mhz.
+ */
+#define TCP_PAWS_WRAP (INT_MAX / USEC_PER_SEC)
+
 #define TCP_PAWS_MSL	60		/* Per-host timestamps are invalidated
 					 * after this time. It should be equal
 					 * (or greater than) TCP_TIMEWAIT_LEN
@@ -1619,7 +1624,7 @@ static inline bool tcp_paws_check(const struct tcp_options_received *rx_opt,
 	if ((s32)(rx_opt->ts_recent - rx_opt->rcv_tsval) <= paws_win)
 		return true;
 	if (unlikely(!time_before32(ktime_get_seconds(),
-				    rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS)))
+				    rx_opt->ts_recent_stamp + TCP_PAWS_WRAP)))
 		return true;
 	/*
 	 * Some OSes send SYN and SYNACK messages with tsval=0 tsecr=0,
