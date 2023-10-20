@@ -315,136 +315,76 @@ void hinic_devlink_unregister(struct hinic_devlink_priv *priv)
 	devlink_unregister(devlink);
 }
 
-static int chip_fault_show(struct devlink_fmsg *fmsg,
-			   struct hinic_fault_event *event)
+static void chip_fault_show(struct devlink_fmsg *fmsg,
+			    struct hinic_fault_event *event)
 {
 	const char * const level_str[FAULT_LEVEL_MAX + 1] = {
 		"fatal", "reset", "flr", "general", "suggestion", "Unknown"};
 	u8 fault_level;
-	int err;
 
 	fault_level = (event->event.chip.err_level < FAULT_LEVEL_MAX) ?
 		event->event.chip.err_level : FAULT_LEVEL_MAX;
-	if (fault_level == FAULT_LEVEL_SERIOUS_FLR) {
-		err = devlink_fmsg_u32_pair_put(fmsg, "Function level err func_id",
-						(u32)event->event.chip.func_id);
-		if (err)
-			return err;
-	}
-
-	err = devlink_fmsg_u8_pair_put(fmsg, "module_id", event->event.chip.node_id);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "err_type", (u32)event->event.chip.err_type);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_string_pair_put(fmsg, "err_level", level_str[fault_level]);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "err_csr_addr",
-					event->event.chip.err_csr_addr);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "err_csr_value",
-					event->event.chip.err_csr_value);
-	if (err)
-		return err;
-
-	return 0;
+	if (fault_level == FAULT_LEVEL_SERIOUS_FLR)
+		devlink_fmsg_u32_pair_put(fmsg, "Function level err func_id",
+					  (u32)event->event.chip.func_id);
+	devlink_fmsg_u8_pair_put(fmsg, "module_id", event->event.chip.node_id);
+	devlink_fmsg_u32_pair_put(fmsg, "err_type", (u32)event->event.chip.err_type);
+	devlink_fmsg_string_pair_put(fmsg, "err_level", level_str[fault_level]);
+	devlink_fmsg_u32_pair_put(fmsg, "err_csr_addr",
+				  event->event.chip.err_csr_addr);
+	devlink_fmsg_u32_pair_put(fmsg, "err_csr_value",
+				  event->event.chip.err_csr_value);
 }
 
-static int fault_report_show(struct devlink_fmsg *fmsg,
-			     struct hinic_fault_event *event)
+static void fault_report_show(struct devlink_fmsg *fmsg,
+			      struct hinic_fault_event *event)
 {
 	const char * const type_str[FAULT_TYPE_MAX + 1] = {
 		"chip", "ucode", "mem rd timeout", "mem wr timeout",
 		"reg rd timeout", "reg wr timeout", "phy fault", "Unknown"};
 	u8 fault_type;
-	int err;
 
 	fault_type = (event->type < FAULT_TYPE_MAX) ? event->type : FAULT_TYPE_MAX;
 
-	err = devlink_fmsg_string_pair_put(fmsg, "Fault type", type_str[fault_type]);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_binary_pair_put(fmsg, "Fault raw data",
-					   event->event.val, sizeof(event->event.val));
-	if (err)
-		return err;
+	devlink_fmsg_string_pair_put(fmsg, "Fault type", type_str[fault_type]);
+	devlink_fmsg_binary_pair_put(fmsg, "Fault raw data", event->event.val,
+				     sizeof(event->event.val));
 
 	switch (event->type) {
 	case FAULT_TYPE_CHIP:
-		err = chip_fault_show(fmsg, event);
-		if (err)
-			return err;
+		chip_fault_show(fmsg, event);
 		break;
 	case FAULT_TYPE_UCODE:
-		err = devlink_fmsg_u8_pair_put(fmsg, "Cause_id", event->event.ucode.cause_id);
-		if (err)
-			return err;
-		err = devlink_fmsg_u8_pair_put(fmsg, "core_id", event->event.ucode.core_id);
-		if (err)
-			return err;
-		err = devlink_fmsg_u8_pair_put(fmsg, "c_id", event->event.ucode.c_id);
-		if (err)
-			return err;
-		err = devlink_fmsg_u8_pair_put(fmsg, "epc", event->event.ucode.epc);
-		if (err)
-			return err;
+		devlink_fmsg_u8_pair_put(fmsg, "Cause_id", event->event.ucode.cause_id);
+		devlink_fmsg_u8_pair_put(fmsg, "core_id", event->event.ucode.core_id);
+		devlink_fmsg_u8_pair_put(fmsg, "c_id", event->event.ucode.c_id);
+		devlink_fmsg_u8_pair_put(fmsg, "epc", event->event.ucode.epc);
 		break;
 	case FAULT_TYPE_MEM_RD_TIMEOUT:
 	case FAULT_TYPE_MEM_WR_TIMEOUT:
-		err = devlink_fmsg_u32_pair_put(fmsg, "Err_csr_ctrl",
-						event->event.mem_timeout.err_csr_ctrl);
-		if (err)
-			return err;
-		err = devlink_fmsg_u32_pair_put(fmsg, "err_csr_data",
-						event->event.mem_timeout.err_csr_data);
-		if (err)
-			return err;
-		err = devlink_fmsg_u32_pair_put(fmsg, "ctrl_tab",
-						event->event.mem_timeout.ctrl_tab);
-		if (err)
-			return err;
-		err = devlink_fmsg_u32_pair_put(fmsg, "mem_index",
-						event->event.mem_timeout.mem_index);
-		if (err)
-			return err;
+		devlink_fmsg_u32_pair_put(fmsg, "Err_csr_ctrl",
+					  event->event.mem_timeout.err_csr_ctrl);
+		devlink_fmsg_u32_pair_put(fmsg, "err_csr_data",
+					  event->event.mem_timeout.err_csr_data);
+		devlink_fmsg_u32_pair_put(fmsg, "ctrl_tab",
+					  event->event.mem_timeout.ctrl_tab);
+		devlink_fmsg_u32_pair_put(fmsg, "mem_index",
+					  event->event.mem_timeout.mem_index);
 		break;
 	case FAULT_TYPE_REG_RD_TIMEOUT:
 	case FAULT_TYPE_REG_WR_TIMEOUT:
-		err = devlink_fmsg_u32_pair_put(fmsg, "Err_csr", event->event.reg_timeout.err_csr);
-		if (err)
-			return err;
+		devlink_fmsg_u32_pair_put(fmsg, "Err_csr", event->event.reg_timeout.err_csr);
 		break;
 	case FAULT_TYPE_PHY_FAULT:
-		err = devlink_fmsg_u8_pair_put(fmsg, "Op_type", event->event.phy_fault.op_type);
-		if (err)
-			return err;
-		err = devlink_fmsg_u8_pair_put(fmsg, "port_id", event->event.phy_fault.port_id);
-		if (err)
-			return err;
-		err = devlink_fmsg_u8_pair_put(fmsg, "dev_ad", event->event.phy_fault.dev_ad);
-		if (err)
-			return err;
-
-		err = devlink_fmsg_u32_pair_put(fmsg, "csr_addr", event->event.phy_fault.csr_addr);
-		if (err)
-			return err;
-		err = devlink_fmsg_u32_pair_put(fmsg, "op_data", event->event.phy_fault.op_data);
-		if (err)
-			return err;
+		devlink_fmsg_u8_pair_put(fmsg, "Op_type", event->event.phy_fault.op_type);
+		devlink_fmsg_u8_pair_put(fmsg, "port_id", event->event.phy_fault.port_id);
+		devlink_fmsg_u8_pair_put(fmsg, "dev_ad", event->event.phy_fault.dev_ad);
+		devlink_fmsg_u32_pair_put(fmsg, "csr_addr", event->event.phy_fault.csr_addr);
+		devlink_fmsg_u32_pair_put(fmsg, "op_data", event->event.phy_fault.op_data);
 		break;
 	default:
 		break;
 	}
-
-	return 0;
 }
 
 static int hinic_hw_reporter_dump(struct devlink_health_reporter *reporter,
@@ -452,75 +392,30 @@ static int hinic_hw_reporter_dump(struct devlink_health_reporter *reporter,
 				  struct netlink_ext_ack *extack)
 {
 	if (priv_ctx)
-		return fault_report_show(fmsg, priv_ctx);
+		fault_report_show(fmsg, priv_ctx);
 
 	return 0;
 }
 
-static int mgmt_watchdog_report_show(struct devlink_fmsg *fmsg,
-				     struct hinic_mgmt_watchdog_info *watchdog_info)
+static void mgmt_watchdog_report_show(struct devlink_fmsg *fmsg,
+				      struct hinic_mgmt_watchdog_info *winfo)
 {
-	int err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "Mgmt deadloop time_h", watchdog_info->curr_time_h);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "time_l", watchdog_info->curr_time_l);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "task_id", watchdog_info->task_id);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "sp", watchdog_info->sp);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "stack_current_used", watchdog_info->curr_used);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "peak_used", watchdog_info->peak_used);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "\n Overflow_flag", watchdog_info->is_overflow);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "stack_top", watchdog_info->stack_top);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "stack_bottom", watchdog_info->stack_bottom);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "mgmt_pc", watchdog_info->pc);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "lr", watchdog_info->lr);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "cpsr", watchdog_info->cpsr);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_binary_pair_put(fmsg, "Mgmt register info",
-					   watchdog_info->reg, sizeof(watchdog_info->reg));
-	if (err)
-		return err;
-
-	err = devlink_fmsg_binary_pair_put(fmsg, "Mgmt dump stack(start from sp)",
-					   watchdog_info->data, sizeof(watchdog_info->data));
-	if (err)
-		return err;
-
-	return 0;
+	devlink_fmsg_u32_pair_put(fmsg, "Mgmt deadloop time_h", winfo->curr_time_h);
+	devlink_fmsg_u32_pair_put(fmsg, "time_l", winfo->curr_time_l);
+	devlink_fmsg_u32_pair_put(fmsg, "task_id", winfo->task_id);
+	devlink_fmsg_u32_pair_put(fmsg, "sp", winfo->sp);
+	devlink_fmsg_u32_pair_put(fmsg, "stack_current_used", winfo->curr_used);
+	devlink_fmsg_u32_pair_put(fmsg, "peak_used", winfo->peak_used);
+	devlink_fmsg_u32_pair_put(fmsg, "\n Overflow_flag", winfo->is_overflow);
+	devlink_fmsg_u32_pair_put(fmsg, "stack_top", winfo->stack_top);
+	devlink_fmsg_u32_pair_put(fmsg, "stack_bottom", winfo->stack_bottom);
+	devlink_fmsg_u32_pair_put(fmsg, "mgmt_pc", winfo->pc);
+	devlink_fmsg_u32_pair_put(fmsg, "lr", winfo->lr);
+	devlink_fmsg_u32_pair_put(fmsg, "cpsr", winfo->cpsr);
+	devlink_fmsg_binary_pair_put(fmsg, "Mgmt register info", winfo->reg,
+				     sizeof(winfo->reg));
+	devlink_fmsg_binary_pair_put(fmsg, "Mgmt dump stack(start from sp)",
+				     winfo->data, sizeof(winfo->data));
 }
 
 static int hinic_fw_reporter_dump(struct devlink_health_reporter *reporter,
@@ -528,7 +423,7 @@ static int hinic_fw_reporter_dump(struct devlink_health_reporter *reporter,
 				  struct netlink_ext_ack *extack)
 {
 	if (priv_ctx)
-		return mgmt_watchdog_report_show(fmsg, priv_ctx);
+		mgmt_watchdog_report_show(fmsg, priv_ctx);
 
 	return 0;
 }
