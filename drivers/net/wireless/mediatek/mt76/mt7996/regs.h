@@ -330,6 +330,7 @@ enum base_rev {
 
 #define MT_WFDMA0_RX_INT_PCIE_SEL		MT_WFDMA0(0x154)
 #define MT_WFDMA0_RX_INT_SEL_RING3		BIT(3)
+#define MT_WFDMA0_RX_INT_SEL_RING6		BIT(6)
 
 #define MT_WFDMA0_MCU_HOST_INT_ENA		MT_WFDMA0(0x1f4)
 
@@ -373,6 +374,9 @@ enum base_rev {
 /* WFDMA0 PCIE1 */
 #define MT_WFDMA0_PCIE1_BASE			0xd8000
 #define MT_WFDMA0_PCIE1(ofs)			(MT_WFDMA0_PCIE1_BASE + (ofs))
+
+#define MT_INT_PCIE1_SOURCE_CSR_EXT		MT_WFDMA0_PCIE1(0x118)
+#define MT_INT_PCIE1_MASK_CSR			MT_WFDMA0_PCIE1(0x11c)
 
 #define MT_WFDMA0_PCIE1_BUSY_ENA		MT_WFDMA0_PCIE1(0x13c)
 #define MT_WFDMA0_PCIE1_BUSY_ENA_TX_FIFO0	BIT(0)
@@ -419,6 +423,7 @@ enum base_rev {
 #define MT_INT_RX_TXFREE_MAIN			BIT(17)
 #define MT_INT_RX_TXFREE_TRI			BIT(15)
 #define MT_INT_MCU_CMD				BIT(29)
+#define MT_INT_RX_TXFREE_EXT			BIT(26)
 
 #define MT_INT_RX(q)				(dev->q_int_mask[__RXQ(q)])
 #define MT_INT_TX_MCU(q)			(dev->q_int_mask[(q)])

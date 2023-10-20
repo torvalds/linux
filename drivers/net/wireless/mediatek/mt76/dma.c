@@ -988,10 +988,13 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 		page_pool_destroy(q->page_pool);
 	}
 
-	mt76_free_pending_txwi(dev);
-	mt76_free_pending_rxwi(dev);
-
 	if (mtk_wed_device_active(&dev->mmio.wed))
 		mtk_wed_device_detach(&dev->mmio.wed);
+
+	if (mtk_wed_device_active(&dev->mmio.wed_hif2))
+		mtk_wed_device_detach(&dev->mmio.wed_hif2);
+
+	mt76_free_pending_txwi(dev);
+	mt76_free_pending_rxwi(dev);
 }
 EXPORT_SYMBOL_GPL(mt76_dma_cleanup);

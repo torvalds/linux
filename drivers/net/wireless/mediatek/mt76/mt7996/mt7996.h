@@ -37,6 +37,7 @@
 #define MT7996_EEPROM_SIZE		7680
 #define MT7996_EEPROM_BLOCK_SIZE	16
 #define MT7996_TOKEN_SIZE		16384
+#define MT7996_HW_TOKEN_SIZE		8192
 
 #define MT7996_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
 #define MT7996_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
@@ -334,7 +335,9 @@ int mt7996_dma_init(struct mt7996_dev *dev);
 void mt7996_dma_reset(struct mt7996_dev *dev, bool force);
 void mt7996_dma_prefetch(struct mt7996_dev *dev);
 void mt7996_dma_cleanup(struct mt7996_dev *dev);
-void mt7996_dma_start(struct mt7996_dev *dev, bool reset);
+void mt7996_dma_start(struct mt7996_dev *dev, bool reset, bool wed_reset);
+int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx,
+			  int n_desc, int ring_base, struct mtk_wed_device *wed);
 void mt7996_init_txpower(struct mt7996_dev *dev,
 			 struct ieee80211_supported_band *sband);
 int mt7996_txbf_init(struct mt7996_dev *dev);
@@ -494,6 +497,13 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
 #ifdef CONFIG_MAC80211_DEBUGFS
 void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir);
+#endif
+int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+			 bool hif2, int *irq);
+u32 mt7996_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
+
+#ifdef CONFIG_MTK_DEBUG
+int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir);
 #endif
 
 #endif

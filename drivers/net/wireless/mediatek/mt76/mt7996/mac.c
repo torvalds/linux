@@ -996,6 +996,29 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	return 0;
 }
 
+u32 mt7996_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
+{
+	struct mt76_connac_fw_txp *txp = ptr + MT_TXD_SIZE;
+	__le32 *txwi = ptr;
+	u32 val;
+
+	memset(ptr, 0, MT_TXD_SIZE + sizeof(*txp));
+
+	val = FIELD_PREP(MT_TXD0_TX_BYTES, MT_TXD_SIZE) |
+	      FIELD_PREP(MT_TXD0_PKT_FMT, MT_TX_TYPE_CT);
+	txwi[0] = cpu_to_le32(val);
+
+	val = BIT(31) |
+	      FIELD_PREP(MT_TXD1_HDR_FORMAT, MT_HDR_FORMAT_802_3);
+	txwi[1] = cpu_to_le32(val);
+
+	txp->token = cpu_to_le16(token_id);
+	txp->nbuf = 1;
+	txp->buf[0] = cpu_to_le32(phys + MT_TXD_SIZE + sizeof(*txp));
+
+	return MT_TXD_SIZE + sizeof(*txp);
+}
+
 static void
 mt7996_tx_check_aggr(struct ieee80211_sta *sta, struct sk_buff *skb)
 {
@@ -1403,6 +1426,12 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 
 	switch (type) {
 	case PKT_TYPE_TXRX_NOTIFY:
+		if (mtk_wed_device_active(&dev->mt76.mmio.wed_hif2) &&
+		    q == MT_RXQ_TXFREE_BAND2) {
+			dev_kfree_skb(skb);
+			break;
+		}
+
 		mt7996_mac_tx_free(dev, skb->data, skb->len);
 		napi_consume_skb(skb, 1);
 		break;
@@ -1877,7 +1906,7 @@ void mt7996_mac_reset_work(struct work_struct *work)
 	mt7996_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
 
 	/* enable DMA Tx/Tx and interrupt */
-	mt7996_dma_start(dev, false);
+	mt7996_dma_start(dev, false, false);
 
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	clear_bit(MT76_RESET, &dev->mphy.state);

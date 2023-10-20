@@ -107,6 +107,16 @@ enum mt76_rxq_id {
 	MT_RXQ_MAIN_WA,
 	MT_RXQ_BAND2,
 	MT_RXQ_BAND2_WA,
+	MT_RXQ_RRO_BAND0,
+	MT_RXQ_RRO_BAND1,
+	MT_RXQ_RRO_BAND2,
+	MT_RXQ_MSDU_PAGE_BAND0,
+	MT_RXQ_MSDU_PAGE_BAND1,
+	MT_RXQ_MSDU_PAGE_BAND2,
+	MT_RXQ_TXFREE_BAND0,
+	MT_RXQ_TXFREE_BAND1,
+	MT_RXQ_TXFREE_BAND2,
+	MT_RXQ_RRO_IND,
 	__MT_RXQ_MAX
 };
 
@@ -604,6 +614,7 @@ struct mt76_mmio {
 	u32 irqmask;
 
 	struct mtk_wed_device wed;
+	struct mtk_wed_device wed_hif2;
 	struct completion wed_reset;
 	struct completion wed_reset_complete;
 };

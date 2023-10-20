@@ -156,7 +156,7 @@ mt7996_regd_notifier(struct wiphy *wiphy,
 }
 
 static void
-mt7996_init_wiphy(struct ieee80211_hw *hw)
+mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
 {
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	struct mt76_dev *mdev = &phy->dev->mt76;
@@ -168,6 +168,8 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
 	hw->max_rx_aggregation_subframes = max_subframes;
 	hw->max_tx_aggregation_subframes = max_subframes;
 	hw->netdev_features = NETIF_F_RXCSUM;
+	if (mtk_wed_device_active(wed))
+		hw->netdev_features |= NETIF_F_HW_TC;
 
 	hw->radiotap_timestamp.units_pos =
 		IEEE80211_RADIOTAP_TIMESTAMP_UNIT_US;
@@ -356,6 +358,7 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
 	struct mt76_phy *mphy;
 	u32 mac_ofs, hif1_ofs = 0;
 	int ret;
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
 
 	if (band != MT_BAND1 && band != MT_BAND2)
 		return 0;
@@ -367,8 +370,10 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
 	if (phy)
 		return 0;
 
-	if (band == MT_BAND2 && dev->hif2)
+	if (band == MT_BAND2 && dev->hif2) {
 		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
+		wed = &dev->mt76.mmio.wed_hif2;
+	}
 
 	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7996_ops, band);
 	if (!mphy)
@@ -401,12 +406,12 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
 	mt76_eeprom_override(mphy);
 
 	/* init wiphy according to mphy and phy */
-	mt7996_init_wiphy(mphy->hw);
-	ret = mt76_connac_init_tx_queues(phy->mt76,
-					 MT_TXQ_ID(band),
-					 MT7996_TX_RING_SIZE,
-					 MT_TXQ_RING_BASE(band) + hif1_ofs,
-					 NULL, 0);
+	mt7996_init_wiphy(mphy->hw, wed);
+	ret = mt7996_init_tx_queues(mphy->priv,
+				    MT_TXQ_ID(band),
+				    MT7996_TX_RING_SIZE,
+				    MT_TXQ_RING_BASE(band) + hif1_ofs,
+				    wed);
 	if (ret)
 		goto error;
 
@@ -418,6 +423,13 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
 	ret = mt7996_init_debugfs(phy);
 	if (ret)
 		goto error;
+
+	if (wed == &dev->mt76.mmio.wed_hif2 && mtk_wed_device_active(wed)) {
+		u32 irq_mask = dev->mt76.mmio.irqmask | MT_INT_TX_DONE_BAND2;
+
+		mt76_wr(dev, MT_INT1_MASK_CSR, irq_mask);
+		mtk_wed_device_start(&dev->mt76.mmio.wed_hif2, irq_mask);
+	}
 
 	return 0;
 
@@ -890,7 +902,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
 	if (ret)
 		return ret;
 
-	mt7996_init_wiphy(hw);
+	mt7996_init_wiphy(hw, &dev->mt76.mmio.wed);
 
 	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
 				   ARRAY_SIZE(mt76_rates));

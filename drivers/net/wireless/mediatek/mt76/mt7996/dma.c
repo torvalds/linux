@@ -7,6 +7,26 @@
 #include "../dma.h"
 #include "mac.h"
 
+int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx, int n_desc,
+			  int ring_base, struct mtk_wed_device *wed)
+{
+	struct mt7996_dev *dev = phy->dev;
+	u32 flags = 0;
+
+	if (mtk_wed_device_active(wed)) {
+		ring_base += MT_TXQ_ID(0) * MT_RING_SIZE;
+		idx -= MT_TXQ_ID(0);
+
+		if (phy->mt76->band_idx == MT_BAND2)
+			flags = MT_WED_Q_TX(0);
+		else
+			flags = MT_WED_Q_TX(idx);
+	}
+
+	return mt76_connac_init_tx_queues(phy->mt76, idx, n_desc,
+					  ring_base, wed, flags);
+}
+
 static int mt7996_poll_tx(struct napi_struct *napi, int budget)
 {
 	struct mt7996_dev *dev;
@@ -128,7 +148,7 @@ static void mt7996_dma_disable(struct mt7996_dev *dev, bool reset)
 	}
 }
 
-void mt7996_dma_start(struct mt7996_dev *dev, bool reset)
+void mt7996_dma_start(struct mt7996_dev *dev, bool reset, bool wed_reset)
 {
 	u32 hif1_ofs = 0;
 	u32 irq_mask;
@@ -153,11 +173,7 @@ void mt7996_dma_start(struct mt7996_dev *dev, bool reset)
 	}
 
 	/* enable interrupts for TX/RX rings */
-	irq_mask = MT_INT_MCU_CMD;
-	if (reset)
-		goto done;
-
-	irq_mask = MT_INT_RX_DONE_MCU | MT_INT_TX_DONE_MCU;
+	irq_mask = MT_INT_MCU_CMD | MT_INT_RX_DONE_MCU | MT_INT_TX_DONE_MCU;
 
 	if (!dev->mphy.band_idx)
 		irq_mask |= MT_INT_BAND0_RX_DONE;
@@ -168,7 +184,16 @@ void mt7996_dma_start(struct mt7996_dev *dev, bool reset)
 	if (dev->tbtc_support)
 		irq_mask |= MT_INT_BAND2_RX_DONE;
 
-done:
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed) && wed_reset) {
+		u32 wed_irq_mask = irq_mask;
+
+		wed_irq_mask |= MT_INT_TX_DONE_BAND0 | MT_INT_TX_DONE_BAND1;
+		mt76_wr(dev, MT_INT_MASK_CSR, wed_irq_mask);
+		mtk_wed_device_start(&dev->mt76.mmio.wed, wed_irq_mask);
+	}
+
+	irq_mask = reset ? MT_INT_MCU_CMD : irq_mask;
+
 	mt7996_irq_enable(dev, irq_mask);
 	mt7996_irq_disable(dev, 0);
 }
@@ -243,15 +268,16 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
 		 */
 		mt76_set(dev, MT_WFDMA0_RX_INT_PCIE_SEL,
 			 MT_WFDMA0_RX_INT_SEL_RING3);
-
-		/* TODO: redirect rx ring6 interrupt to pcie0 for wed function */
 	}
 
-	mt7996_dma_start(dev, reset);
+	mt7996_dma_start(dev, reset, true);
 }
 
 int mt7996_dma_init(struct mt7996_dev *dev)
 {
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
+	struct mtk_wed_device *wed_hif2 = &dev->mt76.mmio.wed_hif2;
+	u32 rx_base;
 	u32 hif1_ofs = 0;
 	int ret;
 
@@ -265,10 +291,11 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 	mt7996_dma_disable(dev, true);
 
 	/* init tx queue */
-	ret = mt76_connac_init_tx_queues(dev->phy.mt76,
-					 MT_TXQ_ID(dev->mphy.band_idx),
-					 MT7996_TX_RING_SIZE,
-					 MT_TXQ_RING_BASE(0), NULL, 0);
+	ret = mt7996_init_tx_queues(&dev->phy,
+				    MT_TXQ_ID(dev->mphy.band_idx),
+				    MT7996_TX_RING_SIZE,
+				    MT_TXQ_RING_BASE(0),
+				    wed);
 	if (ret)
 		return ret;
 
@@ -315,6 +342,11 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		return ret;
 
 	/* rx data queue for band0 and band1 */
+	if (mtk_wed_device_active(wed) && mtk_wed_get_rx_capa(wed)) {
+		dev->mt76.q_rx[MT_RXQ_MAIN].flags = MT_WED_Q_RX(0);
+		dev->mt76.q_rx[MT_RXQ_MAIN].wed = wed;
+	}
+
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN],
 			       MT_RXQ_ID(MT_RXQ_MAIN),
 			       MT7996_RX_RING_SIZE,
@@ -324,6 +356,11 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		return ret;
 
 	/* tx free notify event from WA for band0 */
+	if (mtk_wed_device_active(wed)) {
+		dev->mt76.q_rx[MT_RXQ_MAIN_WA].flags = MT_WED_Q_TXFREE;
+		dev->mt76.q_rx[MT_RXQ_MAIN_WA].wed = wed;
+	}
+
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN_WA],
 			       MT_RXQ_ID(MT_RXQ_MAIN_WA),
 			       MT7996_RX_MCU_RING_SIZE,
@@ -334,17 +371,26 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 
 	if (dev->tbtc_support || dev->mphy.band_idx == MT_BAND2) {
 		/* rx data queue for band2 */
+		rx_base = MT_RXQ_RING_BASE(MT_RXQ_BAND2) + hif1_ofs;
+		if (mtk_wed_device_active(wed))
+			rx_base = MT_RXQ_RING_BASE(MT_RXQ_BAND2);
+
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_BAND2],
 				       MT_RXQ_ID(MT_RXQ_BAND2),
 				       MT7996_RX_RING_SIZE,
 				       MT_RX_BUF_SIZE,
-				       MT_RXQ_RING_BASE(MT_RXQ_BAND2) + hif1_ofs);
+				       rx_base);
 		if (ret)
 			return ret;
 
 		/* tx free notify event from WA for band2
 		 * use pcie0's rx ring3, but, redirect pcie0 rx ring3 interrupt to pcie1
 		 */
+		if (mtk_wed_device_active(wed_hif2)) {
+			dev->mt76.q_rx[MT_RXQ_BAND2_WA].flags = MT_WED_Q_TXFREE;
+			dev->mt76.q_rx[MT_RXQ_BAND2_WA].wed = wed_hif2;
+		}
+
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_BAND2_WA],
 				       MT_RXQ_ID(MT_RXQ_BAND2_WA),
 				       MT7996_RX_MCU_RING_SIZE,

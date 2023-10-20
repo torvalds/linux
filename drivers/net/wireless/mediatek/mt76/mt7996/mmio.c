@@ -10,6 +10,10 @@
 #include "mt7996.h"
 #include "mac.h"
 #include "../trace.h"
+#include "../dma.h"
+
+static bool wed_enable;
+module_param(wed_enable, bool, 0644);
 
 static const struct __base mt7996_reg_base[] = {
 	[WF_AGG_BASE]		= { { 0x820e2000, 0x820f2000, 0x830e2000 } },
@@ -191,6 +195,106 @@ static u32 mt7996_rmw(struct mt76_dev *mdev, u32 offset, u32 mask, u32 val)
 	return dev->bus_ops->rmw(mdev, __mt7996_reg_addr(dev, offset), mask, val);
 }
 
+int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+			 bool hif2, int *irq)
+{
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
+	struct pci_dev *pci_dev = pdev_ptr;
+	u32 hif1_ofs = 0;
+	int ret;
+
+	if (!wed_enable)
+		return 0;
+
+	hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
+
+	if (hif2)
+		wed = &dev->mt76.mmio.wed_hif2;
+
+	wed->wlan.pci_dev = pci_dev;
+	wed->wlan.bus_type = MTK_WED_BUS_PCIE;
+
+	wed->wlan.base = devm_ioremap(dev->mt76.dev,
+				      pci_resource_start(pci_dev, 0),
+				      pci_resource_len(pci_dev, 0));
+	wed->wlan.phy_base = pci_resource_start(pci_dev, 0);
+
+	if (hif2) {
+		wed->wlan.wpdma_int = wed->wlan.phy_base +
+				      MT_INT_PCIE1_SOURCE_CSR_EXT;
+		wed->wlan.wpdma_mask = wed->wlan.phy_base +
+				       MT_INT_PCIE1_MASK_CSR;
+		wed->wlan.wpdma_tx = wed->wlan.phy_base + hif1_ofs +
+					     MT_TXQ_RING_BASE(0) +
+					     MT7996_TXQ_BAND2 * MT_RING_SIZE;
+		wed->wlan.wpdma_txfree = wed->wlan.phy_base + hif1_ofs +
+					 MT_RXQ_RING_BASE(0) +
+					 MT7996_RXQ_MCU_WA_TRI * MT_RING_SIZE;
+		wed->wlan.txfree_tbit = ffs(MT_INT_RX_DONE_WA_TRI) - 1;
+
+		wed->wlan.id = 0x7991;
+		wed->wlan.tx_tbit[0] = ffs(MT_INT_TX_DONE_BAND2) - 1;
+	} else {
+		wed->wlan.wpdma_int = wed->wlan.phy_base + MT_INT_SOURCE_CSR;
+		wed->wlan.wpdma_mask = wed->wlan.phy_base + MT_INT_MASK_CSR;
+		wed->wlan.wpdma_tx = wed->wlan.phy_base + MT_TXQ_RING_BASE(0) +
+				     MT7996_TXQ_BAND0 * MT_RING_SIZE;
+
+		wed->wlan.wpdma_rx_glo = wed->wlan.phy_base + MT_WFDMA0_GLO_CFG;
+
+		wed->wlan.wpdma_rx = wed->wlan.phy_base +
+				     MT_RXQ_RING_BASE(MT7996_RXQ_BAND0) +
+				     MT7996_RXQ_BAND0 * MT_RING_SIZE;
+
+		wed->wlan.rx_nbuf = 65536;
+		wed->wlan.rx_npkt = dev->hif2 ? 32768 : 24576;
+		wed->wlan.rx_size = SKB_WITH_OVERHEAD(MT_RX_BUF_SIZE);
+
+		wed->wlan.rx_tbit[0] = ffs(MT_INT_RX_DONE_BAND0) - 1;
+		wed->wlan.rx_tbit[1] = ffs(MT_INT_RX_DONE_BAND2) - 1;
+
+		wed->wlan.tx_tbit[0] = ffs(MT_INT_TX_DONE_BAND0) - 1;
+		wed->wlan.tx_tbit[1] = ffs(MT_INT_TX_DONE_BAND1) - 1;
+		wed->wlan.txfree_tbit = ffs(MT_INT_RX_DONE_WA_MAIN) - 1;
+		wed->wlan.wpdma_txfree = wed->wlan.phy_base + MT_RXQ_RING_BASE(0) +
+					  MT7996_RXQ_MCU_WA_MAIN * MT_RING_SIZE;
+	}
+
+	wed->wlan.nbuf = MT7996_HW_TOKEN_SIZE;
+	wed->wlan.token_start = MT7996_TOKEN_SIZE - wed->wlan.nbuf;
+
+	wed->wlan.amsdu_max_subframes = 8;
+	wed->wlan.amsdu_max_len = 1536;
+
+	wed->wlan.init_buf = mt7996_wed_init_buf;
+	wed->wlan.init_rx_buf = mt76_mmio_wed_init_rx_buf;
+	wed->wlan.release_rx_buf = mt76_mmio_wed_release_rx_buf;
+	wed->wlan.offload_enable = mt76_mmio_wed_offload_enable;
+	wed->wlan.offload_disable = mt76_mmio_wed_offload_disable;
+
+	dev->mt76.rx_token_size += wed->wlan.rx_npkt;
+
+	if (mtk_wed_device_attach(wed))
+		return 0;
+
+	*irq = wed->irq;
+	dev->mt76.dma_dev = wed->dev;
+
+	ret = dma_set_mask(wed->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	ret = dma_set_coherent_mask(wed->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	return 1;
+#else
+	return 0;
+#endif
+}
+
 static int mt7996_mmio_init(struct mt76_dev *mdev,
 			    void __iomem *mem_base,
 			    u32 device_id)
@@ -241,8 +345,17 @@ void mt7996_dual_hif_set_irq_mask(struct mt7996_dev *dev, bool write_reg,
 	mdev->mmio.irqmask |= set;
 
 	if (write_reg) {
-		mt76_wr(dev, MT_INT_MASK_CSR, mdev->mmio.irqmask);
-		mt76_wr(dev, MT_INT1_MASK_CSR, mdev->mmio.irqmask);
+		if (mtk_wed_device_active(&mdev->mmio.wed)) {
+			mtk_wed_device_irq_set_mask(&mdev->mmio.wed,
+						    mdev->mmio.irqmask);
+			if (mtk_wed_device_active(&mdev->mmio.wed_hif2)) {
+				mtk_wed_device_irq_set_mask(&mdev->mmio.wed_hif2,
+							    mdev->mmio.irqmask);
+			}
+		} else {
+			mt76_wr(dev, MT_INT_MASK_CSR, mdev->mmio.irqmask);
+			mt76_wr(dev, MT_INT1_MASK_CSR, mdev->mmio.irqmask);
+		}
 	}
 
 	spin_unlock_irqrestore(&mdev->mmio.irq_lock, flags);
@@ -260,22 +373,36 @@ static void mt7996_rx_poll_complete(struct mt76_dev *mdev,
 static void mt7996_irq_tasklet(struct tasklet_struct *t)
 {
 	struct mt7996_dev *dev = from_tasklet(dev, t, mt76.irq_tasklet);
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
+	struct mtk_wed_device *wed_hif2 = &dev->mt76.mmio.wed_hif2;
 	u32 i, intr, mask, intr1;
 
-	mt76_wr(dev, MT_INT_MASK_CSR, 0);
-	if (dev->hif2)
-		mt76_wr(dev, MT_INT1_MASK_CSR, 0);
+	if (dev->hif2 && mtk_wed_device_active(wed_hif2)) {
+		mtk_wed_device_irq_set_mask(wed_hif2, 0);
+		intr1 = mtk_wed_device_irq_get(wed_hif2,
+					       dev->mt76.mmio.irqmask);
+		if (intr1 & MT_INT_RX_TXFREE_EXT)
+			napi_schedule(&dev->mt76.napi[MT_RXQ_TXFREE_BAND2]);
+	}
 
-	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
-	intr &= dev->mt76.mmio.irqmask;
-	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
+	if (mtk_wed_device_active(wed)) {
+		mtk_wed_device_irq_set_mask(wed, 0);
+		intr = mtk_wed_device_irq_get(wed, dev->mt76.mmio.irqmask);
+		intr |= (intr1 & ~MT_INT_RX_TXFREE_EXT);
+	} else {
+		mt76_wr(dev, MT_INT_MASK_CSR, 0);
+		if (dev->hif2)
+			mt76_wr(dev, MT_INT1_MASK_CSR, 0);
 
-	if (dev->hif2) {
-		intr1 = mt76_rr(dev, MT_INT1_SOURCE_CSR);
-		intr1 &= dev->mt76.mmio.irqmask;
-		mt76_wr(dev, MT_INT1_SOURCE_CSR, intr1);
-
-		intr |= intr1;
+		intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
+		intr &= dev->mt76.mmio.irqmask;
+		mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
+		if (dev->hif2) {
+			intr1 = mt76_rr(dev, MT_INT1_SOURCE_CSR);
+			intr1 &= dev->mt76.mmio.irqmask;
+			mt76_wr(dev, MT_INT1_SOURCE_CSR, intr1);
+			intr |= intr1;
+		}
 	}
 
 	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
@@ -307,10 +434,19 @@ static void mt7996_irq_tasklet(struct tasklet_struct *t)
 irqreturn_t mt7996_irq_handler(int irq, void *dev_instance)
 {
 	struct mt7996_dev *dev = dev_instance;
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
 
-	mt76_wr(dev, MT_INT_MASK_CSR, 0);
-	if (dev->hif2)
-		mt76_wr(dev, MT_INT1_MASK_CSR, 0);
+	if (mtk_wed_device_active(wed))
+		mtk_wed_device_irq_set_mask(wed, 0);
+	else
+		mt76_wr(dev, MT_INT_MASK_CSR, 0);
+
+	if (dev->hif2) {
+		if (mtk_wed_device_active(&dev->mt76.mmio.wed_hif2))
+			mtk_wed_device_irq_set_mask(&dev->mt76.mmio.wed_hif2, 0);
+		else
+			mt76_wr(dev, MT_INT1_MASK_CSR, 0);
+	}
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
 		return IRQ_NONE;
