@@ -13,6 +13,20 @@
 #include "reg.h"
 #include "util.h"
 
+union rtw89_fw_element_arg {
+	size_t offset;
+	enum rtw89_rf_path rf_path;
+	enum rtw89_fw_type fw_type;
+};
+
+struct rtw89_fw_element_handler {
+	int (*fn)(struct rtw89_dev *rtwdev,
+		  const struct rtw89_fw_element_hdr *elm,
+		  const union rtw89_fw_element_arg arg);
+	const union rtw89_fw_element_arg arg;
+	const char *name;
+};
+
 static void rtw89_fw_c2h_cmd_handle(struct rtw89_dev *rtwdev,
 				    struct sk_buff *skb);
 static int rtw89_h2c_tx_and_wait(struct rtw89_dev *rtwdev, struct sk_buff *skb,
@@ -384,9 +398,9 @@ int __rtw89_fw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
 static
 int __rtw89_fw_recognize_from_elm(struct rtw89_dev *rtwdev,
 				  const struct rtw89_fw_element_hdr *elm,
-				  const void *data)
+				  const union rtw89_fw_element_arg arg)
 {
-	enum rtw89_fw_type type = (enum rtw89_fw_type)data;
+	enum rtw89_fw_type type = arg.fw_type;
 	struct rtw89_fw_suit *fw_suit;
 
 	fw_suit = rtw89_fw_suit_get(rtwdev, type);
@@ -542,7 +556,7 @@ normal_done:
 static
 int rtw89_build_phy_tbl_from_elm(struct rtw89_dev *rtwdev,
 				 const struct rtw89_fw_element_hdr *elm,
-				 const void *data)
+				 const union rtw89_fw_element_arg arg)
 {
 	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
 	struct rtw89_phy_table *tbl;
@@ -566,7 +580,7 @@ int rtw89_build_phy_tbl_from_elm(struct rtw89_dev *rtwdev,
 	case RTW89_FW_ELEMENT_ID_RADIO_B:
 	case RTW89_FW_ELEMENT_ID_RADIO_C:
 	case RTW89_FW_ELEMENT_ID_RADIO_D:
-		rf_path = (enum rtw89_rf_path)data;
+		rf_path = arg.rf_path;
 		idx = elm->u.reg2.idx;
 
 		elm_info->rf_radio[idx] = tbl;
@@ -604,10 +618,10 @@ out:
 static
 int rtw89_fw_recognize_txpwr_from_elm(struct rtw89_dev *rtwdev,
 				      const struct rtw89_fw_element_hdr *elm,
-				      const void *data)
+				      const union rtw89_fw_element_arg arg)
 {
 	const struct __rtw89_fw_txpwr_element *txpwr_elm = &elm->u.txpwr;
-	const unsigned long offset = (const unsigned long)data;
+	const unsigned long offset = arg.offset;
 	struct rtw89_efuse *efuse = &rtwdev->efuse;
 	struct rtw89_txpwr_conf *conf;
 
@@ -644,64 +658,57 @@ setup:
 	return 0;
 }
 
-struct rtw89_fw_element_handler {
-	int (*fn)(struct rtw89_dev *rtwdev,
-		  const struct rtw89_fw_element_hdr *elm, const void *data);
-	const void *data;
-	const char *name;
-};
-
 static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 	[RTW89_FW_ELEMENT_ID_BBMCU0] = {__rtw89_fw_recognize_from_elm,
-					(const void *)RTW89_FW_BBMCU0, NULL},
+					{ .fw_type = RTW89_FW_BBMCU0 }, NULL},
 	[RTW89_FW_ELEMENT_ID_BBMCU1] = {__rtw89_fw_recognize_from_elm,
-					(const void *)RTW89_FW_BBMCU1, NULL},
-	[RTW89_FW_ELEMENT_ID_BB_REG] = {rtw89_build_phy_tbl_from_elm, NULL, "BB"},
-	[RTW89_FW_ELEMENT_ID_BB_GAIN] = {rtw89_build_phy_tbl_from_elm, NULL, NULL},
+					{ .fw_type = RTW89_FW_BBMCU1 }, NULL},
+	[RTW89_FW_ELEMENT_ID_BB_REG] = {rtw89_build_phy_tbl_from_elm, {}, "BB"},
+	[RTW89_FW_ELEMENT_ID_BB_GAIN] = {rtw89_build_phy_tbl_from_elm, {}, NULL},
 	[RTW89_FW_ELEMENT_ID_RADIO_A] = {rtw89_build_phy_tbl_from_elm,
-					 (const void *)RF_PATH_A, "radio A"},
+					 { .rf_path =  RF_PATH_A }, "radio A"},
 	[RTW89_FW_ELEMENT_ID_RADIO_B] = {rtw89_build_phy_tbl_from_elm,
-					 (const void *)RF_PATH_B, NULL},
+					 { .rf_path =  RF_PATH_B }, NULL},
 	[RTW89_FW_ELEMENT_ID_RADIO_C] = {rtw89_build_phy_tbl_from_elm,
-					 (const void *)RF_PATH_C, NULL},
+					 { .rf_path =  RF_PATH_C }, NULL},
 	[RTW89_FW_ELEMENT_ID_RADIO_D] = {rtw89_build_phy_tbl_from_elm,
-					 (const void *)RF_PATH_D, NULL},
-	[RTW89_FW_ELEMENT_ID_RF_NCTL] = {rtw89_build_phy_tbl_from_elm, NULL, "NCTL"},
+					 { .rf_path =  RF_PATH_D }, NULL},
+	[RTW89_FW_ELEMENT_ID_RF_NCTL] = {rtw89_build_phy_tbl_from_elm, {}, "NCTL"},
 	[RTW89_FW_ELEMENT_ID_TXPWR_BYRATE] = {
 		rtw89_fw_recognize_txpwr_from_elm,
-		(const void *)offsetof(struct rtw89_rfe_data, byrate.conf), "TXPWR",
+		{ .offset = offsetof(struct rtw89_rfe_data, byrate.conf) }, "TXPWR",
 	},
 	[RTW89_FW_ELEMENT_ID_TXPWR_LMT_2GHZ] = {
 		rtw89_fw_recognize_txpwr_from_elm,
-		(const void *)offsetof(struct rtw89_rfe_data, lmt_2ghz.conf), NULL,
+		{ .offset = offsetof(struct rtw89_rfe_data, lmt_2ghz.conf) }, NULL,
 	},
 	[RTW89_FW_ELEMENT_ID_TXPWR_LMT_5GHZ] = {
 		rtw89_fw_recognize_txpwr_from_elm,
-		(const void *)offsetof(struct rtw89_rfe_data, lmt_5ghz.conf), NULL,
+		{ .offset = offsetof(struct rtw89_rfe_data, lmt_5ghz.conf) }, NULL,
 	},
 	[RTW89_FW_ELEMENT_ID_TXPWR_LMT_6GHZ] = {
 		rtw89_fw_recognize_txpwr_from_elm,
-		(const void *)offsetof(struct rtw89_rfe_data, lmt_6ghz.conf), NULL,
+		{ .offset = offsetof(struct rtw89_rfe_data, lmt_6ghz.conf) }, NULL,
 	},
 	[RTW89_FW_ELEMENT_ID_TXPWR_LMT_RU_2GHZ] = {
 		rtw89_fw_recognize_txpwr_from_elm,
-		(const void *)offsetof(struct rtw89_rfe_data, lmt_ru_2ghz.conf), NULL,
+		{ .offset = offsetof(struct rtw89_rfe_data, lmt_ru_2ghz.conf) }, NULL,
 	},
 	[RTW89_FW_ELEMENT_ID_TXPWR_LMT_RU_5GHZ] = {
 		rtw89_fw_recognize_txpwr_from_elm,
-		(const void *)offsetof(struct rtw89_rfe_data, lmt_ru_5ghz.conf), NULL,
+		{ .offset = offsetof(struct rtw89_rfe_data, lmt_ru_5ghz.conf) }, NULL,
 	},
 	[RTW89_FW_ELEMENT_ID_TXPWR_LMT_RU_6GHZ] = {
 		rtw89_fw_recognize_txpwr_from_elm,
-		(const void *)offsetof(struct rtw89_rfe_data, lmt_ru_6ghz.conf), NULL,
+		{ .offset = offsetof(struct rtw89_rfe_data, lmt_ru_6ghz.conf) }, NULL,
 	},
 	[RTW89_FW_ELEMENT_ID_TX_SHAPE_LMT] = {
 		rtw89_fw_recognize_txpwr_from_elm,
-		(const void *)offsetof(struct rtw89_rfe_data, tx_shape_lmt.conf), NULL,
+		{ .offset = offsetof(struct rtw89_rfe_data, tx_shape_lmt.conf) }, NULL,
 	},
 	[RTW89_FW_ELEMENT_ID_TX_SHAPE_LMT_RU] = {
 		rtw89_fw_recognize_txpwr_from_elm,
-		(const void *)offsetof(struct rtw89_rfe_data, tx_shape_lmt_ru.conf), NULL,
+		{ .offset = offsetof(struct rtw89_rfe_data, tx_shape_lmt_ru.conf) }, NULL,
 	},
 };
 
@@ -742,7 +749,7 @@ int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev)
 		if (!handler->fn)
 			goto next;
 
-		ret = handler->fn(rtwdev, hdr, handler->data);
+		ret = handler->fn(rtwdev, hdr, handler->arg);
 		if (ret)
 			return ret;
 
