@@ -1390,6 +1390,16 @@ config SM_VIDEOCC_VOLCANO
 	  Volcano devices.
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
+
+config SXR_TCSRCC_NIOBE
+	tristate "NIOBE Top-Level CSR Clock Controller"
+	depends on SXR_GCC_NIOBE
+	help
+	  Support for the TCSR clock controller on Qualcomm Technologies, Inc
+	  NIOBE devices.
+	  Say Y if you want to support miscellaneous top-level clocks
+	  such as for the PHY references.
+
 endif
 
 config VIRTIO_CLK

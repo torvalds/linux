@@ -180,6 +180,7 @@ obj-$(CONFIG_SM_VIDEOCC_PINEAPPLE) += videocc-pineapple.o
 obj-$(CONFIG_SM_VIDEOCC_VOLCANO) += videocc-volcano.o
 obj-$(CONFIG_SXR_VIDEOCC_NIOBE) += videocc-niobe.o
 obj-$(CONFIG_SM_TCSRCC_PINEAPPLE) += tcsrcc-pineapple.o
+obj-$(CONFIG_SXR_TCSRCC_NIOBE) += tcsrcc-niobe.o
 obj-$(CONFIG_SPMI_PMIC_CLKDIV) += clk-spmi-pmic-div.o
 obj-$(CONFIG_KPSS_XCC) += kpss-xcc.o
 obj-$(CONFIG_QCOM_HFPLL) += hfpll.o
