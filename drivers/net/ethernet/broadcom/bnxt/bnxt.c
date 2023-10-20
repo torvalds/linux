@@ -2166,6 +2166,7 @@ static bool bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 	case ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_THERMAL_THRESHOLD: {
 		u32 type = EVENT_DATA1_THERMAL_THRESHOLD_TYPE(data1);
 		char *threshold_type;
+		bool notify = false;
 		char *dir_str;
 
 		switch (type) {
@@ -2185,18 +2186,23 @@ static bool bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 			netdev_err(bp->dev, "Unknown Thermal threshold type event\n");
 			return false;
 		}
-		if (EVENT_DATA1_THERMAL_THRESHOLD_DIR_INCREASING(data1))
+		if (EVENT_DATA1_THERMAL_THRESHOLD_DIR_INCREASING(data1)) {
 			dir_str = "above";
-		else
+			notify = true;
+		} else {
 			dir_str = "below";
+		}
 		netdev_warn(bp->dev, "Chip temperature has gone %s the %s thermal threshold!\n",
 			    dir_str, threshold_type);
 		netdev_warn(bp->dev, "Temperature (In Celsius), Current: %lu, threshold: %lu\n",
 			    BNXT_EVENT_THERMAL_CURRENT_TEMP(data2),
 			    BNXT_EVENT_THERMAL_THRESHOLD_TEMP(data2));
-		bp->thermal_threshold_type = type;
-		set_bit(BNXT_THERMAL_THRESHOLD_SP_EVENT, &bp->sp_event);
-		return true;
+		if (notify) {
+			bp->thermal_threshold_type = type;
+			set_bit(BNXT_THERMAL_THRESHOLD_SP_EVENT, &bp->sp_event);
+			return true;
+		}
+		return false;
 	}
 	default:
 		netdev_err(bp->dev, "FW reported unknown error type %u\n",
