@@ -737,22 +737,4 @@ static inline void bch2_key_resize(struct bkey *k, unsigned new_size)
 	k->size = new_size;
 }
 
-/*
- * In extent_sort_fix_overlapping(), insert_fixup_extent(),
- * extent_merge_inline() - we're modifying keys in place that are packed. To do
- * that we have to unpack the key, modify the unpacked key - then this
- * copies/repacks the unpacked to the original as necessary.
- */
-static inline void extent_save(struct btree *b, struct bkey_packed *dst,
-			       struct bkey *src)
-{
-	struct bkey_format *f = &b->format;
-	struct bkey_i *dst_unpacked;
-
-	if ((dst_unpacked = packed_to_bkey(dst)))
-		dst_unpacked->k = *src;
-	else
-		BUG_ON(!bch2_bkey_pack_key(dst, src, f));
-}
-
 #endif /* _BCACHEFS_EXTENTS_H */
