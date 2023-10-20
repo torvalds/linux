@@ -115,28 +115,49 @@ static inline long page_pool_defrag_page(struct page *page, long nr)
 	long ret;
 
 	/* If nr == pp_frag_count then we have cleared all remaining
-	 * references to the page. No need to actually overwrite it, instead
-	 * we can leave this to be overwritten by the calling function.
+	 * references to the page:
+	 * 1. 'n == 1': no need to actually overwrite it.
+	 * 2. 'n != 1': overwrite it with one, which is the rare case
+	 *              for pp_frag_count draining.
 	 *
-	 * The main advantage to doing this is that an atomic_read is
-	 * generally a much cheaper operation than an atomic update,
-	 * especially when dealing with a page that may be partitioned
-	 * into only 2 or 3 pieces.
+	 * The main advantage to doing this is that not only we avoid a atomic
+	 * update, as an atomic_read is generally a much cheaper operation than
+	 * an atomic update, especially when dealing with a page that may be
+	 * partitioned into only 2 or 3 pieces; but also unify the pp_frag_count
+	 * handling by ensuring all pages have partitioned into only 1 piece
+	 * initially, and only overwrite it when the page is partitioned into
+	 * more than one piece.
 	 */
-	if (atomic_long_read(&page->pp_frag_count) == nr)
+	if (atomic_long_read(&page->pp_frag_count) == nr) {
+		/* As we have ensured nr is always one for constant case using
+		 * the BUILD_BUG_ON(), only need to handle the non-constant case
+		 * here for pp_frag_count draining, which is a rare case.
+		 */
+		BUILD_BUG_ON(__builtin_constant_p(nr) && nr != 1);
+		if (!__builtin_constant_p(nr))
+			atomic_long_set(&page->pp_frag_count, 1);
+
 		return 0;
+	}
 
 	ret = atomic_long_sub_return(nr, &page->pp_frag_count);
 	WARN_ON(ret < 0);
+
+	/* We are the last user here too, reset pp_frag_count back to 1 to
+	 * ensure all pages have been partitioned into 1 piece initially,
+	 * this should be the rare case when the last two fragment users call
+	 * page_pool_defrag_page() currently.
+	 */
+	if (unlikely(!ret))
+		atomic_long_set(&page->pp_frag_count, 1);
+
 	return ret;
 }
 
-static inline bool page_pool_is_last_frag(struct page_pool *pool,
-					  struct page *page)
+static inline bool page_pool_is_last_frag(struct page *page)
 {
-	/* If fragments aren't enabled or count is 0 we were the last user */
-	return !(pool->p.flags & PP_FLAG_PAGE_FRAG) ||
-	       (page_pool_defrag_page(page, 1) == 0);
+	/* If page_pool_defrag_page() returns 0, we were the last user */
+	return page_pool_defrag_page(page, 1) == 0;
 }
 
 /**
@@ -161,7 +182,7 @@ static inline void page_pool_put_page(struct page_pool *pool,
 	 * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
 	 */
 #ifdef CONFIG_PAGE_POOL
-	if (!page_pool_is_last_frag(pool, page))
+	if (!page_pool_is_last_frag(page))
 		return;
 
 	page_pool_put_defragged_page(pool, page, dma_sync_size, allow_direct);
