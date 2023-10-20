@@ -5,6 +5,7 @@
  */
 
 #include "gem/i915_gem_internal.h"
+#include "gem/i915_gem_lmem.h"
 
 #include "i915_drv.h"
 #include "i915_irq.h"
@@ -315,6 +316,8 @@ void intel_dsb_finish(struct intel_dsb *dsb)
 				   DSB_FORCE_DEWAKE, 0);
 
 	intel_dsb_align_tail(dsb);
+
+	i915_gem_object_flush_map(dsb->vma->obj);
 }
 
 static int intel_dsb_dewake_scanline(const struct intel_crtc_state *crtc_state)
@@ -461,9 +464,18 @@ struct intel_dsb *intel_dsb_prepare(const struct intel_crtc_state *crtc_state,
 	/* ~1 qword per instruction, full cachelines */
 	size = ALIGN(max_cmds * 8, CACHELINE_BYTES);
 
-	obj = i915_gem_object_create_internal(i915, PAGE_ALIGN(size));
-	if (IS_ERR(obj))
-		goto out_put_rpm;
+	if (HAS_LMEM(i915)) {
+		obj = i915_gem_object_create_lmem(i915, PAGE_ALIGN(size),
+						  I915_BO_ALLOC_CONTIGUOUS);
+		if (IS_ERR(obj))
+			goto out_put_rpm;
+	} else {
+		obj = i915_gem_object_create_internal(i915, PAGE_ALIGN(size));
+		if (IS_ERR(obj))
+			goto out_put_rpm;
+
+		i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
+	}
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 	if (IS_ERR(vma)) {

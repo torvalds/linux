@@ -185,8 +185,6 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 						struct drm_connector_state *conn_state,
 						struct link_config_limits *limits)
 {
-	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
-	struct intel_dp *intel_dp = &intel_mst->primary->dp;
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
@@ -194,7 +192,7 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 		&crtc_state->hw.adjusted_mode;
 	int slots = -EINVAL;
 	int i, num_bpc;
-	u8 dsc_bpc[3] = {0};
+	u8 dsc_bpc[3] = {};
 	int min_bpp, max_bpp, sink_min_bpp, sink_max_bpp;
 	u8 dsc_max_bpc;
 	bool need_timeslot_recalc = false;
@@ -209,7 +207,7 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 	max_bpp = min_t(u8, dsc_max_bpc * 3, limits->pipe.max_bpp);
 	min_bpp = limits->pipe.min_bpp;
 
-	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(intel_dp->dsc_dpcd,
+	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(connector->dp.dsc_dpcd,
 						       dsc_bpc);
 
 	drm_dbg_kms(&i915->drm, "DSC Source supported min bpp %d max bpp %d\n",
@@ -998,14 +996,14 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	}
 
 	if (DISPLAY_VER(dev_priv) >= 10 &&
-	    drm_dp_sink_supports_dsc(intel_dp->dsc_dpcd)) {
+	    drm_dp_sink_supports_dsc(intel_connector->dp.dsc_dpcd)) {
 		/*
 		 * TBD pass the connector BPC,
 		 * for now U8_MAX so that max BPC on that platform would be picked
 		 */
-		int pipe_bpp = intel_dp_dsc_compute_max_bpp(intel_dp, U8_MAX);
+		int pipe_bpp = intel_dp_dsc_compute_max_bpp(intel_connector, U8_MAX);
 
-		if (drm_dp_sink_supports_fec(intel_dp->fec_capable)) {
+		if (drm_dp_sink_supports_fec(intel_connector->dp.fec_capability)) {
 			dsc_max_compressed_bpp =
 				intel_dp_dsc_get_max_compressed_bpp(dev_priv,
 								    max_link_clock,
@@ -1016,7 +1014,7 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 								    INTEL_OUTPUT_FORMAT_RGB,
 								    pipe_bpp, 64);
 			dsc_slice_count =
-				intel_dp_dsc_get_slice_count(intel_dp,
+				intel_dp_dsc_get_slice_count(intel_connector,
 							     target_clock,
 							     mode->hdisplay,
 							     bigjoiner);
@@ -1126,6 +1124,21 @@ static int intel_dp_mst_add_properties(struct intel_dp *intel_dp,
 	return drm_connector_set_path_property(connector, pathprop);
 }
 
+static void
+intel_dp_mst_read_decompression_port_dsc_caps(struct intel_dp *intel_dp,
+					      struct intel_connector *connector)
+{
+	u8 dpcd_caps[DP_RECEIVER_CAP_SIZE];
+
+	if (!connector->dp.dsc_decompression_aux)
+		return;
+
+	if (drm_dp_read_dpcd_caps(connector->dp.dsc_decompression_aux, dpcd_caps) < 0)
+		return;
+
+	intel_dp_get_dsc_sink_cap(dpcd_caps[DP_DPCD_REV], connector);
+}
+
 static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 							struct drm_dp_mst_port *port,
 							const char *pathprop)
@@ -1158,6 +1171,14 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	}
 
 	drm_connector_helper_add(connector, &intel_dp_mst_connector_helper_funcs);
+
+	/*
+	 * TODO: set the AUX for the actual MST port decompressing the stream.
+	 * At the moment the driver only supports enabling this globally in the
+	 * first downstream MST branch, via intel_dp's (root port) AUX.
+	 */
+	intel_connector->dp.dsc_decompression_aux = &intel_dp->aux;
+	intel_dp_mst_read_decompression_port_dsc_caps(intel_dp, intel_connector);
 
 	for_each_pipe(dev_priv, pipe) {
 		struct drm_encoder *enc =
