@@ -152,6 +152,13 @@ struct adf_accel_dev;
 struct adf_etr_data;
 struct adf_etr_ring_data;
 
+struct adf_ras_ops {
+	void (*enable_ras_errors)(struct adf_accel_dev *accel_dev);
+	void (*disable_ras_errors)(struct adf_accel_dev *accel_dev);
+	bool (*handle_interrupt)(struct adf_accel_dev *accel_dev,
+				 bool *reset_required);
+};
+
 struct adf_pfvf_ops {
 	int (*enable_comms)(struct adf_accel_dev *accel_dev);
 	u32 (*get_pf2vf_offset)(u32 i);
@@ -214,6 +221,7 @@ struct adf_hw_device_data {
 	struct adf_pfvf_ops pfvf_ops;
 	struct adf_hw_csr_ops csr_ops;
 	struct adf_dc_ops dc_ops;
+	struct adf_ras_ops ras_ops;
 	const char *fw_name;
 	const char *fw_mmp_name;
 	u32 fuses;

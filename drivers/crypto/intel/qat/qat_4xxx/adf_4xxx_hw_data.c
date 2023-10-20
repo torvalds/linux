@@ -9,6 +9,7 @@
 #include <adf_gen4_hw_data.h>
 #include <adf_gen4_pfvf.h>
 #include <adf_gen4_pm.h>
+#include "adf_gen4_ras.h"
 #include <adf_gen4_timer.h>
 #include "adf_4xxx_hw_data.h"
 #include "adf_cfg_services.h"
@@ -541,6 +542,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	adf_gen4_init_hw_csr_ops(&hw_data->csr_ops);
 	adf_gen4_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen4_init_dc_ops(&hw_data->dc_ops);
+	adf_gen4_init_ras_ops(&hw_data->ras_ops);
 }
 
 void adf_clean_hw_data_4xxx(struct adf_hw_device_data *hw_data)

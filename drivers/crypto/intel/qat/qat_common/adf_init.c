@@ -116,6 +116,9 @@ static int adf_dev_init(struct adf_accel_dev *accel_dev)
 	}
 	set_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status);
 
+	if (hw_data->ras_ops.enable_ras_errors)
+		hw_data->ras_ops.enable_ras_errors(accel_dev);
+
 	hw_data->enable_ints(accel_dev);
 	hw_data->enable_error_correction(accel_dev);
 
@@ -349,6 +352,9 @@ static void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 		else
 			clear_bit(accel_dev->accel_id, service->init_status);
 	}
+
+	if (hw_data->ras_ops.disable_ras_errors)
+		hw_data->ras_ops.disable_ras_errors(accel_dev);
 
 	adf_heartbeat_shutdown(accel_dev);
 
