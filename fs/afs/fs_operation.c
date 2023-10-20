@@ -179,6 +179,7 @@ void afs_wait_for_operation(struct afs_operation *op)
 	_enter("");
 
 	while (afs_select_fileserver(op)) {
+		op->call_responded = false;
 		op->call_error = 0;
 		op->call_abort_code = 0;
 		op->cb_s_break = op->server->cb_s_break;
@@ -191,16 +192,18 @@ void afs_wait_for_operation(struct afs_operation *op)
 			op->call_error = -ENOTSUPP;
 
 		if (op->call) {
-			afs_wait_for_call_to_complete(op->call, &op->ac);
+			afs_wait_for_call_to_complete(op->call);
 			op->call_abort_code = op->call->abort_code;
 			op->call_error = op->call->error;
 			op->call_responded = op->call->responded;
-			op->ac.call_responded = true;
-			WRITE_ONCE(op->ac.alist->addrs[op->ac.index].last_error,
+			WRITE_ONCE(op->alist->addrs[op->addr_index].last_error,
 				   op->call_error);
 			afs_put_call(op->call);
 		}
 	}
+
+	if (op->call_responded)
+		set_bit(AFS_SERVER_FL_RESPONDING, &op->server->flags);
 
 	if (!afs_op_error(op)) {
 		_debug("success");
@@ -227,6 +230,7 @@ void afs_wait_for_operation(struct afs_operation *op)
  */
 int afs_put_operation(struct afs_operation *op)
 {
+	struct afs_addr_list *alist;
 	int i, ret = afs_op_error(op);
 
 	_enter("op=%08x,%d", op->debug_id, ret);
@@ -249,7 +253,16 @@ int afs_put_operation(struct afs_operation *op)
 		kfree(op->more_files);
 	}
 
-	afs_end_cursor(&op->ac);
+	alist = op->alist;
+	if (alist) {
+		if (op->call_responded &&
+		    op->addr_index != alist->preferred &&
+		    test_bit(alist->preferred, &op->addr_tried))
+			WRITE_ONCE(alist->preferred, op->addr_index);
+		afs_put_addrlist(alist, afs_alist_trace_put_operation);
+		op->alist = NULL;
+	}
+
 	afs_put_serverlist(op->net, op->server_list);
 	afs_put_volume(op->net, op->volume, afs_volume_trace_put_put_op);
 	key_put(op->key);

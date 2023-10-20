@@ -149,7 +149,7 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->ret_vldb = entry;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
-	call->peer = rxrpc_kernel_get_peer(vc->ac.alist->addrs[vc->ac.index].peer);
+	call->peer = rxrpc_kernel_get_peer(vc->alist->addrs[vc->addr_index].peer);
 	call->service_id = vc->server->service_id;
 
 	/* Marshall the parameters */
@@ -161,8 +161,8 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 		memset((void *)bp + volnamesz, 0, padsz);
 
 	trace_afs_make_vl_call(call);
-	afs_make_call(&vc->ac, call, GFP_KERNEL);
-	afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_make_call(call, GFP_KERNEL);
+	afs_wait_for_call_to_complete(call);
 	vc->call_abort_code	= call->abort_code;
 	vc->call_error		= call->error;
 	vc->call_responded	= call->responded;
@@ -290,7 +290,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->ret_alist = NULL;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
-	call->peer = rxrpc_kernel_get_peer(vc->ac.alist->addrs[vc->ac.index].peer);
+	call->peer = rxrpc_kernel_get_peer(vc->alist->addrs[vc->addr_index].peer);
 	call->service_id = vc->server->service_id;
 
 	/* Marshall the parameters */
@@ -310,8 +310,8 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 		r->uuid.node[i] = htonl(u->node[i]);
 
 	trace_afs_make_vl_call(call);
-	afs_make_call(&vc->ac, call, GFP_KERNEL);
-	afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_make_call(call, GFP_KERNEL);
+	afs_wait_for_call_to_complete(call);
 	vc->call_abort_code	= call->abort_code;
 	vc->call_error		= call->error;
 	vc->call_responded	= call->responded;
@@ -371,6 +371,7 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 
 static void afs_destroy_vl_get_capabilities(struct afs_call *call)
 {
+	afs_put_addrlist(call->probe_alist, afs_alist_trace_put_vlgetcaps);
 	afs_put_vlserver(call->net, call->vlserver);
 	afs_flat_call_destructor(call);
 }
@@ -394,7 +395,8 @@ static const struct afs_call_type afs_RXVLGetCapabilities = {
  * other end supports.
  */
 struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
-					 struct afs_addr_cursor *ac,
+					 struct afs_addr_list *alist,
+					 unsigned int addr_index,
 					 struct key *key,
 					 struct afs_vlserver *server,
 					 unsigned int server_index)
@@ -411,7 +413,9 @@ struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
 	call->key = key;
 	call->vlserver = afs_get_vlserver(server);
 	call->server_index = server_index;
-	call->peer = rxrpc_kernel_get_peer(ac->alist->addrs[ac->index].peer);
+	call->peer = rxrpc_kernel_get_peer(alist->addrs[addr_index].peer);
+	call->probe_alist = afs_get_addrlist(alist, afs_alist_trace_get_vlgetcaps);
+	call->probe_index = addr_index;
 	call->service_id = server->service_id;
 	call->upgrade = true;
 	call->async = true;
@@ -423,7 +427,7 @@ struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
 
 	/* Can't take a ref on server */
 	trace_afs_make_vl_call(call);
-	afs_make_call(ac, call, GFP_KERNEL);
+	afs_make_call(call, GFP_KERNEL);
 	return call;
 }
 
@@ -658,7 +662,7 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->ret_alist = NULL;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
-	call->peer = rxrpc_kernel_get_peer(vc->ac.alist->addrs[vc->ac.index].peer);
+	call->peer = rxrpc_kernel_get_peer(vc->alist->addrs[vc->addr_index].peer);
 	call->service_id = vc->server->service_id;
 
 	/* Marshall the parameters */
@@ -668,8 +672,8 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 	memcpy(bp, uuid, sizeof(*uuid)); /* Type opr_uuid */
 
 	trace_afs_make_vl_call(call);
-	afs_make_call(&vc->ac, call, GFP_KERNEL);
-	afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_make_call(call, GFP_KERNEL);
+	afs_wait_for_call_to_complete(call);
 	vc->call_abort_code	= call->abort_code;
 	vc->call_error		= call->error;
 	vc->call_responded	= call->responded;
@@ -777,7 +781,7 @@ char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *vc)
 	call->key = vc->key;
 	call->ret_str = NULL;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
-	call->peer = rxrpc_kernel_get_peer(vc->ac.alist->addrs[vc->ac.index].peer);
+	call->peer = rxrpc_kernel_get_peer(vc->alist->addrs[vc->addr_index].peer);
 	call->service_id = vc->server->service_id;
 
 	/* marshall the parameters */
@@ -786,8 +790,8 @@ char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *vc)
 
 	/* Can't take a ref on server */
 	trace_afs_make_vl_call(call);
-	afs_make_call(&vc->ac, call, GFP_KERNEL);
-	afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_make_call(call, GFP_KERNEL);
+	afs_wait_for_call_to_complete(call);
 	vc->call_abort_code	= call->abort_code;
 	vc->call_error		= call->error;
 	vc->call_responded	= call->responded;

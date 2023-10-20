@@ -74,11 +74,9 @@ static void afs_done_one_fs_probe(struct afs_net *net, struct afs_server *server
  */
 static void afs_fs_probe_not_done(struct afs_net *net,
 				  struct afs_server *server,
-				  struct afs_addr_cursor *ac)
+				  struct afs_addr_list *alist,
+				  int index)
 {
-	struct afs_addr_list *alist = ac->alist;
-	unsigned int index = ac->index;
-
 	_enter("");
 
 	trace_afs_io_error(0, -ENOMEM, afs_io_error_fs_probe_fail);
@@ -100,10 +98,10 @@ static void afs_fs_probe_not_done(struct afs_net *net,
  */
 void afs_fileserver_probe_result(struct afs_call *call)
 {
-	struct afs_addr_list *alist = call->alist;
-	struct afs_address *addr = &alist->addrs[call->addr_ix];
+	struct afs_addr_list *alist = call->probe_alist;
+	struct afs_address *addr = &alist->addrs[call->probe_index];
 	struct afs_server *server = call->server;
-	unsigned int index = call->addr_ix;
+	unsigned int index = call->probe_index;
 	unsigned int rtt_us = 0, cap0;
 	int ret = call->error;
 
@@ -196,37 +194,36 @@ out:
 void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 			     struct key *key, bool all)
 {
-	struct afs_addr_cursor ac = {
-		.index = 0,
-	};
+	struct afs_addr_list *alist;
+	unsigned int index;
 
 	_enter("%pU", &server->uuid);
 
 	read_lock(&server->fs_lock);
-	ac.alist = rcu_dereference_protected(server->addresses,
-					     lockdep_is_held(&server->fs_lock));
-	afs_get_addrlist(ac.alist, afs_alist_trace_get_probe);
+	alist = rcu_dereference_protected(server->addresses,
+					  lockdep_is_held(&server->fs_lock));
+	afs_get_addrlist(alist, afs_alist_trace_get_probe);
 	read_unlock(&server->fs_lock);
 
 	server->probed_at = jiffies;
-	atomic_set(&server->probe_outstanding, all ? ac.alist->nr_addrs : 1);
+	atomic_set(&server->probe_outstanding, all ? alist->nr_addrs : 1);
 	memset(&server->probe, 0, sizeof(server->probe));
 	server->probe.rtt = UINT_MAX;
 
-	ac.index = ac.alist->preferred;
-	if (ac.index < 0 || ac.index >= ac.alist->nr_addrs)
+	index = alist->preferred;
+	if (index < 0 || index >= alist->nr_addrs)
 		all = true;
 
 	if (all) {
-		for (ac.index = 0; ac.index < ac.alist->nr_addrs; ac.index++)
-			if (!afs_fs_get_capabilities(net, server, &ac, key))
-				afs_fs_probe_not_done(net, server, &ac);
+		for (index = 0; index < alist->nr_addrs; index++)
+			if (!afs_fs_get_capabilities(net, server, alist, index, key))
+				afs_fs_probe_not_done(net, server, alist, index);
 	} else {
-		if (!afs_fs_get_capabilities(net, server, &ac, key))
-			afs_fs_probe_not_done(net, server, &ac);
+		if (!afs_fs_get_capabilities(net, server, alist, index, key))
+			afs_fs_probe_not_done(net, server, alist, index);
 	}
 
-	afs_put_addrlist(ac.alist, afs_alist_trace_put_probe);
+	afs_put_addrlist(alist, afs_alist_trace_put_probe);
 }
 
 /*

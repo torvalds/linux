@@ -189,7 +189,6 @@ void afs_put_call(struct afs_call *call)
 			call->type->destructor(call);
 
 		afs_unuse_server_notime(call->net, call->server, afs_server_trace_put_call);
-		afs_put_addrlist(call->alist, afs_alist_trace_put_call);
 		kfree(call->request);
 
 		trace_afs_call(call->debug_id, afs_call_trace_free, 0, o,
@@ -296,7 +295,7 @@ static void afs_notify_end_request_tx(struct sock *sock,
  * Initiate a call and synchronously queue up the parameters for dispatch.  Any
  * error is stored into the call struct, which the caller must check for.
  */
-void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
+void afs_make_call(struct afs_call *call, gfp_t gfp)
 {
 	struct rxrpc_call *rxcall;
 	struct msghdr msg;
@@ -313,9 +312,6 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	_debug("____MAKE %p{%s,%x} [%d]____",
 	       call, call->type->name, key_serial(call->key),
 	       atomic_read(&call->net->nr_outstanding_calls));
-
-	call->addr_ix = ac->index;
-	call->alist = afs_get_addrlist(ac->alist, afs_alist_trace_get_make_call);
 
 	/* Work out the length we're going to transmit.  This is awkward for
 	 * calls such as FS.StoreData where there's an extra injection of data
@@ -392,7 +388,7 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	/* Note that at this point, we may have received the reply or an abort
 	 * - and an asynchronous call may already have completed.
 	 *
-	 * afs_wait_for_call_to_complete(call, ac)
+	 * afs_wait_for_call_to_complete(call)
 	 * must be called to synchronously clean up.
 	 */
 	return;
@@ -577,7 +573,7 @@ call_complete:
 /*
  * Wait synchronously for a call to complete.
  */
-void afs_wait_for_call_to_complete(struct afs_call *call, struct afs_addr_cursor *ac)
+void afs_wait_for_call_to_complete(struct afs_call *call)
 {
 	bool rxrpc_complete = false;
 
@@ -627,9 +623,6 @@ void afs_wait_for_call_to_complete(struct afs_call *call, struct afs_addr_cursor
 				afs_set_call_complete(call, -EINTR, 0);
 		}
 	}
-
-	if (call->error == 0 || call->error == -ECONNABORTED)
-		call->responded = true;
 }
 
 /*

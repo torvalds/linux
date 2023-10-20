@@ -46,12 +46,12 @@ static void afs_done_one_vl_probe(struct afs_vlserver *server, bool wake_up)
  */
 void afs_vlserver_probe_result(struct afs_call *call)
 {
-	struct afs_addr_list *alist = call->alist;
+	struct afs_addr_list *alist = call->probe_alist;
 	struct afs_vlserver *server = call->vlserver;
-	struct afs_address *addr = &alist->addrs[call->addr_ix];
+	struct afs_address *addr = &alist->addrs[call->probe_index];
 	unsigned int server_index = call->server_index;
 	unsigned int rtt_us = 0;
-	unsigned int index = call->addr_ix;
+	unsigned int index = call->probe_index;
 	bool have_result = false;
 	int ret = call->error;
 
@@ -148,25 +148,25 @@ static bool afs_do_probe_vlserver(struct afs_net *net,
 				  unsigned int server_index,
 				  struct afs_error *_e)
 {
-	struct afs_addr_cursor ac = {
-		.index = 0,
-	};
+	struct afs_addr_list *alist;
 	struct afs_call *call;
+	unsigned int index;
 	bool in_progress = false;
 
 	_enter("%s", server->name);
 
 	read_lock(&server->lock);
-	ac.alist = rcu_dereference_protected(server->addresses,
-					     lockdep_is_held(&server->lock));
+	alist = rcu_dereference_protected(server->addresses,
+					  lockdep_is_held(&server->lock));
+	afs_get_addrlist(alist, afs_alist_trace_get_vlprobe);
 	read_unlock(&server->lock);
 
-	atomic_set(&server->probe_outstanding, ac.alist->nr_addrs);
+	atomic_set(&server->probe_outstanding, alist->nr_addrs);
 	memset(&server->probe, 0, sizeof(server->probe));
 	server->probe.rtt = UINT_MAX;
 
-	for (ac.index = 0; ac.index < ac.alist->nr_addrs; ac.index++) {
-		call = afs_vl_get_capabilities(net, &ac, key, server,
+	for (index = 0; index < alist->nr_addrs; index++) {
+		call = afs_vl_get_capabilities(net, alist, index, key, server,
 					       server_index);
 		if (!IS_ERR(call)) {
 			afs_prioritise_error(_e, call->error, call->abort_code);
@@ -178,6 +178,7 @@ static bool afs_do_probe_vlserver(struct afs_net *net,
 		}
 	}
 
+	afs_put_addrlist(alist, afs_alist_trace_put_vlprobe);
 	return in_progress;
 }
 

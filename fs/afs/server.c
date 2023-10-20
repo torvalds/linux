@@ -436,12 +436,8 @@ static void __afs_put_server(struct afs_net *net, struct afs_server *server)
 static void afs_give_up_callbacks(struct afs_net *net, struct afs_server *server)
 {
 	struct afs_addr_list *alist = rcu_access_pointer(server->addresses);
-	struct afs_addr_cursor ac = {
-		.alist	= alist,
-		.index	= alist->preferred,
-	};
 
-	afs_fs_give_up_all_callbacks(net, server, &ac, NULL);
+	afs_fs_give_up_all_callbacks(net, server, &alist->addrs[alist->preferred], NULL);
 }
 
 /*

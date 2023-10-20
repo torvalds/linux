@@ -204,21 +204,31 @@ enum yfs_cm_operation {
 
 #define afs_alist_traces \
 	EM(afs_alist_trace_alloc,		"ALLOC     ") \
+	EM(afs_alist_trace_get_getcaps,		"GET getcap") \
 	EM(afs_alist_trace_get_fsrotate_set,	"GET fs-rot") \
-	EM(afs_alist_trace_get_make_call,	"GET mkcall") \
 	EM(afs_alist_trace_get_probe,		"GET probe ") \
+	EM(afs_alist_trace_get_vlgetcaps,	"GET vgtcap") \
+	EM(afs_alist_trace_get_vlprobe,		"GET vprobe") \
 	EM(afs_alist_trace_get_vlrotate_set,	"GET vl-rot") \
-	EM(afs_alist_trace_put_call,		"PUT call  ") \
-	EM(afs_alist_trace_put_end_cursor,	"PUT endcur") \
 	EM(afs_alist_trace_put_getaddru,	"PUT GtAdrU") \
+	EM(afs_alist_trace_put_getcaps,		"PUT getcap") \
+	EM(afs_alist_trace_put_next_server,	"PUT nx-srv") \
+	EM(afs_alist_trace_put_op_failed,	"PUT op-fai") \
+	EM(afs_alist_trace_put_operation,	"PUT op    ") \
 	EM(afs_alist_trace_put_parse_empty,	"PUT p-empt") \
 	EM(afs_alist_trace_put_parse_error,	"PUT p-err ") \
 	EM(afs_alist_trace_put_probe,		"PUT probe ") \
-	EM(afs_alist_trace_put_retry_server,	"PUT retry ") \
+	EM(afs_alist_trace_put_restart_rotate,	"PUT rstrot") \
 	EM(afs_alist_trace_put_server,		"PUT server") \
 	EM(afs_alist_trace_put_server_dup,	"PUT sv-dup") \
 	EM(afs_alist_trace_put_server_oom,	"PUT sv-oom") \
 	EM(afs_alist_trace_put_server_update,	"PUT sv-upd") \
+	EM(afs_alist_trace_put_vlgetcaps,	"PUT vgtcap") \
+	EM(afs_alist_trace_put_vlprobe,		"PUT vprobe") \
+	EM(afs_alist_trace_put_vlrotate_end,	"PUT vr-end") \
+	EM(afs_alist_trace_put_vlrotate_fail,	"PUT vr-fai") \
+	EM(afs_alist_trace_put_vlrotate_next,	"PUT vr-nxt") \
+	EM(afs_alist_trace_put_vlrotate_restart,"PUT vr-rst") \
 	EM(afs_alist_trace_put_vlserver,	"PUT vlsrvr") \
 	EM(afs_alist_trace_put_vlserver_old,	"PUT vs-old") \
 	E_(afs_alist_trace_free,		"FREE      ")

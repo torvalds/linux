@@ -109,19 +109,20 @@ static bool afs_sleep_and_retry(struct afs_operation *op)
  */
 bool afs_select_fileserver(struct afs_operation *op)
 {
-	struct afs_addr_list *alist;
+	struct afs_addr_list *alist = op->alist;
 	struct afs_server *server;
 	struct afs_vnode *vnode = op->file[0].vnode;
+	unsigned long set;
 	unsigned int rtt;
 	s32 abort_code = op->call_abort_code;
-	int error = op->call_error, i;
+	int error = op->call_error, addr_index, i;
 
 	op->nr_iterations++;
 
-	_enter("OP=%x+%x,%llx,%lx[%d],%lx[%d],%d,%d",
+	_enter("OP=%x+%x,%llx,%u{%lx},%u{%lx},%d,%d",
 	       op->debug_id, op->nr_iterations, op->volume->vid,
-	       op->untried_servers, op->server_index,
-	       op->ac.tried, op->ac.index,
+	       op->server_index, op->untried_servers,
+	       op->addr_index, op->addr_tried,
 	       error, abort_code);
 
 	if (op->flags & AFS_OPERATION_STOP) {
@@ -398,12 +399,14 @@ bool afs_select_fileserver(struct afs_operation *op)
 
 restart_from_beginning:
 	_debug("restart");
-	afs_end_cursor(&op->ac);
+	afs_put_addrlist(alist, afs_alist_trace_put_restart_rotate);
+	alist = op->alist = NULL;
 	op->server = NULL;
 	afs_put_serverlist(op->net, op->server_list);
 	op->server_list = NULL;
 start:
 	_debug("start");
+	ASSERTCMP(alist, ==, NULL);
 	/* See if we need to do an update of the volume record.  Note that the
 	 * volume may have moved or even have been deleted.
 	 */
@@ -420,6 +423,7 @@ start:
 
 pick_server:
 	_debug("pick [%lx]", op->untried_servers);
+	ASSERTCMP(alist, ==, NULL);
 
 	error = afs_wait_for_fs_probes(op->server_list, op->untried_servers);
 	if (error < 0) {
@@ -463,7 +467,7 @@ selected_server:
 	 * check it, create a callback intercept, find its address list and
 	 * probe its capabilities before we use it.
 	 */
-	ASSERTCMP(op->ac.alist, ==, NULL);
+	ASSERTCMP(alist, ==, NULL);
 	server = op->server_list->servers[op->server_index].server;
 
 	if (!afs_check_server_record(op, server))
@@ -484,32 +488,34 @@ selected_server:
 	read_lock(&server->fs_lock);
 	alist = rcu_dereference_protected(server->addresses,
 					  lockdep_is_held(&server->fs_lock));
-	afs_get_addrlist(alist, afs_alist_trace_get_fsrotate_set);
+	op->alist = afs_get_addrlist(alist, afs_alist_trace_get_fsrotate_set);
 	read_unlock(&server->fs_lock);
 
 retry_server:
-	memset(&op->ac, 0, sizeof(op->ac));
-
-	if (!op->ac.alist)
-		op->ac.alist = alist;
-	else
-		afs_put_addrlist(alist, afs_alist_trace_put_retry_server);
-
-	op->ac.index = -1;
+	op->addr_tried = 0;
+	op->addr_index = -1;
 
 iterate_address:
-	ASSERT(op->ac.alist);
 	/* Iterate over the current server's address list to try and find an
 	 * address on which it will respond to us.
 	 */
-	if (!afs_iterate_addresses(&op->ac))
+	set = READ_ONCE(alist->responded);
+	set &= ~(READ_ONCE(alist->probe_failed) | op->addr_tried);
+	if (!set)
 		goto out_of_addresses;
 
-	_debug("address [%u] %u/%u %pISp",
-	       op->server_index, op->ac.index, op->ac.alist->nr_addrs,
-	       rxrpc_kernel_remote_addr(op->ac.alist->addrs[op->ac.index].peer));
+	addr_index = READ_ONCE(alist->preferred);
+	if (!test_bit(addr_index, &set))
+		addr_index = __ffs(set);
+
+	op->addr_index = addr_index;
+	set_bit(addr_index, &op->addr_tried);
+	op->alist = alist;
 
 	op->call_responded = false;
+	_debug("address [%u] %u/%u %pISp",
+	       op->server_index, addr_index, alist->nr_addrs,
+	       rxrpc_kernel_remote_addr(alist->addrs[op->addr_index].peer));
 	_leave(" = t");
 	return true;
 
@@ -519,7 +525,6 @@ out_of_addresses:
 	 */
 	afs_probe_fileserver(op->net, op->server);
 	if (op->flags & AFS_OPERATION_RETRY_SERVER) {
-		alist = op->ac.alist;
 		error = afs_wait_for_one_fs_probe(
 			op->server, !(op->flags & AFS_OPERATION_UNINTR));
 		switch (error) {
@@ -537,7 +542,13 @@ out_of_addresses:
 
 next_server:
 	_debug("next");
-	afs_end_cursor(&op->ac);
+	ASSERT(alist);
+	if (op->call_responded &&
+	    op->addr_index != READ_ONCE(alist->preferred) &&
+	    test_bit(alist->preferred, &op->addr_tried))
+		WRITE_ONCE(alist->preferred, op->addr_index);
+	afs_put_addrlist(alist, afs_alist_trace_put_next_server);
+	alist = op->alist = NULL;
 	goto pick_server;
 
 no_more_servers:
@@ -557,7 +568,14 @@ no_more_servers:
 
 failed:
 	op->flags |= AFS_OPERATION_STOP;
-	afs_end_cursor(&op->ac);
+	if (alist) {
+		if (op->call_responded &&
+		    op->addr_index != READ_ONCE(alist->preferred) &&
+		    test_bit(alist->preferred, &op->addr_tried))
+			WRITE_ONCE(alist->preferred, op->addr_index);
+		afs_put_addrlist(alist, afs_alist_trace_put_op_failed);
+		op->alist = NULL;
+	}
 	_leave(" = f [failed %d]", afs_op_error(op));
 	return false;
 }
@@ -602,13 +620,12 @@ void afs_dump_edestaddrreq(const struct afs_operation *op)
 					  a->preferred);
 				pr_notice("FC:  - R=%lx F=%lx\n",
 					  a->responded, a->probe_failed);
-				if (a == op->ac.alist)
+				if (a == op->alist)
 					pr_notice("FC:  - current\n");
 			}
 		}
 	}
 
-	pr_notice("AC: t=%lx ax=%u ni=%u\n",
-		  op->ac.tried, op->ac.index, op->ac.nr_iterations);
+	pr_notice("AC: t=%lx ax=%u\n", op->addr_tried, op->addr_index);
 	rcu_read_unlock();
 }

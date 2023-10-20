@@ -102,7 +102,6 @@ struct afs_addr_list {
  */
 struct afs_call {
 	const struct afs_call_type *type;	/* type of call */
-	struct afs_addr_list	*alist;		/* Address is alist[addr_ix] */
 	wait_queue_head_t	waitq;		/* processes awaiting completion */
 	struct work_struct	async_work;	/* async I/O processor */
 	struct work_struct	work;		/* actual work processor */
@@ -123,6 +122,10 @@ struct afs_call {
 	};
 	void			*buffer;	/* reply receive buffer */
 	union {
+		struct {
+			struct afs_addr_list	*probe_alist;
+			unsigned char		probe_index;	/* Address in ->probe_alist */
+		};
 		struct afs_addr_list	*ret_alist;
 		struct afs_vldb_entry	*ret_vldb;
 		char			*ret_str;
@@ -139,7 +142,6 @@ struct afs_call {
 	unsigned		reply_max;	/* maximum size of reply */
 	unsigned		count2;		/* count used in unmarshalling */
 	unsigned char		unmarshall;	/* unmarshalling phase */
-	unsigned char		addr_ix;	/* Address in ->alist */
 	bool			drop_ref;	/* T if need to drop ref for incoming call */
 	bool			need_attention;	/* T if RxRPC poked us */
 	bool			async;		/* T if asynchronous */
@@ -730,30 +732,22 @@ struct afs_error {
 };
 
 /*
- * Cursor for iterating over a server's address list.
- */
-struct afs_addr_cursor {
-	struct afs_addr_list	*alist;		/* Current address list (pins ref) */
-	unsigned long		tried;		/* Tried addresses */
-	signed char		index;		/* Current address */
-	unsigned short		nr_iterations;	/* Number of address iterations */
-	bool			call_responded;
-};
-
-/*
  * Cursor for iterating over a set of volume location servers.
  */
 struct afs_vl_cursor {
-	struct afs_addr_cursor	ac;
 	struct afs_cell		*cell;		/* The cell we're querying */
 	struct afs_vlserver_list *server_list;	/* Current server list (pins ref) */
 	struct afs_vlserver	*server;	/* Server on which this resides */
+	struct afs_addr_list	*alist;		/* Current address list (pins ref) */
 	struct key		*key;		/* Key for the server */
 	unsigned long		untried_servers; /* Bitmask of untried servers */
+	unsigned long		addr_tried;	/* Tried addresses */
 	struct afs_error	cumul_error;	/* Cumulative error */
+	unsigned int		debug_id;
 	s32			call_abort_code;
 	short			call_error;	/* Error from single call */
 	short			server_index;	/* Current server */
+	signed char		addr_index;	/* Current address */
 	unsigned short		flags;
 #define AFS_VL_CURSOR_STOP	0x0001		/* Set to cease iteration */
 #define AFS_VL_CURSOR_RETRY	0x0002		/* Set to do a retry */
@@ -812,8 +806,6 @@ struct afs_operation {
 	struct timespec64	ctime;		/* Change time to set */
 	struct afs_error	cumul_error;	/* Cumulative error */
 	short			nr_files;	/* Number of entries in file[], more_files */
-	short			call_error;	/* Error from single call */
-	s32			call_abort_code; /* Abort code from single call */
 	unsigned int		debug_id;
 
 	unsigned int		cb_v_break;	/* Volume break counter before op */
@@ -862,15 +854,18 @@ struct afs_operation {
 	};
 
 	/* Fileserver iteration state */
-	struct afs_addr_cursor	ac;
 	struct afs_server_list	*server_list;	/* Current server list (pins ref) */
 	struct afs_server	*server;	/* Server we're using (ref pinned by server_list) */
+	struct afs_addr_list	*alist;		/* Current address list (pins ref) */
 	struct afs_call		*call;
 	unsigned long		untried_servers; /* Bitmask of untried servers */
+	unsigned long		addr_tried;	/* Tried addresses */
+	s32			call_abort_code; /* Abort code from single call */
+	short			call_error;	/* Error from single call */
 	short			server_index;	/* Current server */
 	short			nr_iterations;	/* Number of server iterations */
+	signed char		addr_index;	/* Current address */
 	bool			call_responded;	/* T if the current address responded */
-
 
 	unsigned int		flags;
 #define AFS_OPERATION_STOP		0x0001	/* Set to cease iteration */
@@ -981,8 +976,6 @@ extern struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *,
 bool afs_addr_list_same(const struct afs_addr_list *a,
 			const struct afs_addr_list *b);
 extern struct afs_vlserver_list *afs_dns_query(struct afs_cell *, time64_t *);
-extern bool afs_iterate_addresses(struct afs_addr_cursor *);
-extern void afs_end_cursor(struct afs_addr_cursor *ac);
 
 extern int afs_merge_fs_addr4(struct afs_net *net, struct afs_addr_list *addr,
 			      __be32 xdr, u16 port);
@@ -1123,10 +1116,11 @@ extern void afs_fs_get_volume_status(struct afs_operation *);
 extern void afs_fs_set_lock(struct afs_operation *);
 extern void afs_fs_extend_lock(struct afs_operation *);
 extern void afs_fs_release_lock(struct afs_operation *);
-extern int afs_fs_give_up_all_callbacks(struct afs_net *, struct afs_server *,
-					struct afs_addr_cursor *, struct key *);
-extern bool afs_fs_get_capabilities(struct afs_net *, struct afs_server *,
-				    struct afs_addr_cursor *, struct key *);
+int afs_fs_give_up_all_callbacks(struct afs_net *net, struct afs_server *server,
+				 struct afs_address *addr, struct key *key);
+bool afs_fs_get_capabilities(struct afs_net *net, struct afs_server *server,
+			     struct afs_addr_list *alist, unsigned int addr_index,
+			     struct key *key);
 extern void afs_fs_inline_bulk_status(struct afs_operation *);
 
 struct afs_acl {
@@ -1306,8 +1300,8 @@ extern int __net_init afs_open_socket(struct afs_net *);
 extern void __net_exit afs_close_socket(struct afs_net *);
 extern void afs_charge_preallocation(struct work_struct *);
 extern void afs_put_call(struct afs_call *);
-extern void afs_make_call(struct afs_addr_cursor *, struct afs_call *, gfp_t);
-void afs_wait_for_call_to_complete(struct afs_call *call, struct afs_addr_cursor *ac);
+void afs_make_call(struct afs_call *call, gfp_t gfp);
+void afs_wait_for_call_to_complete(struct afs_call *call);
 extern struct afs_call *afs_alloc_flat_call(struct afs_net *,
 					    const struct afs_call_type *,
 					    size_t, size_t);
@@ -1325,9 +1319,9 @@ static inline void afs_make_op_call(struct afs_operation *op, struct afs_call *c
 	call->op	= op;
 	call->key	= op->key;
 	call->intr	= !(op->flags & AFS_OPERATION_UNINTR);
-	call->peer	= rxrpc_kernel_get_peer(op->ac.alist->addrs[op->ac.index].peer);
+	call->peer	= rxrpc_kernel_get_peer(op->alist->addrs[op->addr_index].peer);
 	call->service_id = op->server->service_id;
-	afs_make_call(&op->ac, call, gfp);
+	afs_make_call(call, gfp);
 }
 
 static inline void afs_extract_begin(struct afs_call *call, void *buf, size_t size)
@@ -1493,8 +1487,12 @@ extern void afs_fs_exit(void);
 extern struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *,
 							 const char *, int);
 extern struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *, const uuid_t *);
-extern struct afs_call *afs_vl_get_capabilities(struct afs_net *, struct afs_addr_cursor *,
-						struct key *, struct afs_vlserver *, unsigned int);
+struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
+					 struct afs_addr_list *alist,
+					 unsigned int addr_index,
+					 struct key *key,
+					 struct afs_vlserver *server,
+					 unsigned int server_index);
 extern struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *, const uuid_t *);
 extern char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *);
 

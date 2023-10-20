@@ -1605,10 +1605,8 @@ static const struct afs_call_type afs_RXFSGiveUpAllCallBacks = {
 /*
  * Flush all the callbacks we have on a server.
  */
-int afs_fs_give_up_all_callbacks(struct afs_net *net,
-				 struct afs_server *server,
-				 struct afs_addr_cursor *ac,
-				 struct key *key)
+int afs_fs_give_up_all_callbacks(struct afs_net *net, struct afs_server *server,
+				 struct afs_address *addr, struct key *key)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -1621,7 +1619,7 @@ int afs_fs_give_up_all_callbacks(struct afs_net *net,
 		return -ENOMEM;
 
 	call->key	= key;
-	call->peer	= rxrpc_kernel_get_peer(ac->alist->addrs[ac->index].peer);
+	call->peer	= rxrpc_kernel_get_peer(addr->peer);
 	call->service_id = server->service_id;
 
 	/* marshall the parameters */
@@ -1629,9 +1627,11 @@ int afs_fs_give_up_all_callbacks(struct afs_net *net,
 	*bp++ = htonl(FSGIVEUPALLCALLBACKS);
 
 	call->server = afs_use_server(server, afs_server_trace_give_up_cb);
-	afs_make_call(ac, call, GFP_NOFS);
-	afs_wait_for_call_to_complete(call, ac);
+	afs_make_call(call, GFP_NOFS);
+	afs_wait_for_call_to_complete(call);
 	ret = call->error;
+	if (call->responded)
+		set_bit(AFS_SERVER_FL_RESPONDING, &server->flags);
 	afs_put_call(call);
 	return ret;
 }
@@ -1695,6 +1695,12 @@ static int afs_deliver_fs_get_capabilities(struct afs_call *call)
 	return 0;
 }
 
+static void afs_fs_get_capabilities_destructor(struct afs_call *call)
+{
+	afs_put_addrlist(call->probe_alist, afs_alist_trace_put_getcaps);
+	afs_flat_call_destructor(call);
+}
+
 /*
  * FS.GetCapabilities operation type
  */
@@ -1703,7 +1709,7 @@ static const struct afs_call_type afs_RXFSGetCapabilities = {
 	.op		= afs_FS_GetCapabilities,
 	.deliver	= afs_deliver_fs_get_capabilities,
 	.done		= afs_fileserver_probe_result,
-	.destructor	= afs_flat_call_destructor,
+	.destructor	= afs_fs_get_capabilities_destructor,
 };
 
 /*
@@ -1713,7 +1719,8 @@ static const struct afs_call_type afs_RXFSGetCapabilities = {
  * ->done() - otherwise we return false to indicate we didn't even try.
  */
 bool afs_fs_get_capabilities(struct afs_net *net, struct afs_server *server,
-			     struct afs_addr_cursor *ac, struct key *key)
+			     struct afs_addr_list *alist, unsigned int addr_index,
+			     struct key *key)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -1726,7 +1733,9 @@ bool afs_fs_get_capabilities(struct afs_net *net, struct afs_server *server,
 
 	call->key	= key;
 	call->server	= afs_use_server(server, afs_server_trace_get_caps);
-	call->peer	= rxrpc_kernel_get_peer(ac->alist->addrs[ac->index].peer);
+	call->peer	= rxrpc_kernel_get_peer(alist->addrs[addr_index].peer);
+	call->probe_alist = afs_get_addrlist(alist, afs_alist_trace_get_getcaps);
+	call->probe_index = addr_index;
 	call->service_id = server->service_id;
 	call->upgrade	= true;
 	call->async	= true;
@@ -1737,7 +1746,7 @@ bool afs_fs_get_capabilities(struct afs_net *net, struct afs_server *server,
 	*bp++ = htonl(FSGETCAPABILITIES);
 
 	trace_afs_make_fs_call(call, NULL);
-	afs_make_call(ac, call, GFP_NOFS);
+	afs_make_call(call, GFP_NOFS);
 	afs_put_call(call);
 	return true;
 }
