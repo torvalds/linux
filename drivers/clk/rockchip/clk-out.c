@@ -23,6 +23,7 @@ static int rockchip_clk_out_probe(struct platform_device *pdev)
 	void __iomem *reg;
 	u32 shift = 0;
 	u8 clk_gate_flags = CLK_GATE_HIWORD_MASK;
+	unsigned long flags = CLK_SET_RATE_PARENT;
 	int ret;
 
 	ret = device_property_read_string(dev, "clock-output-names", &clk_name);
@@ -35,6 +36,9 @@ static int rockchip_clk_out_probe(struct platform_device *pdev)
 
 	if (device_property_read_bool(dev, "rockchip,bit-set-to-disable"))
 		clk_gate_flags |= CLK_GATE_SET_TO_DISABLE;
+
+	if (device_property_read_bool(dev, "rockchip,clk-ignore-unused"))
+		flags |= CLK_IGNORE_UNUSED;
 
 	ret = of_clk_parent_fill(node, &parent_name, 1);
 	if (ret != 1)
@@ -50,7 +54,8 @@ static int rockchip_clk_out_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	hw = clk_hw_register_gate(dev, clk_name, parent_name, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+
+	hw = clk_hw_register_gate(dev, clk_name, parent_name, flags,
 				  reg, shift, clk_gate_flags, &clk_out_lock);
 	if (IS_ERR(hw)) {
 		ret = -EINVAL;
