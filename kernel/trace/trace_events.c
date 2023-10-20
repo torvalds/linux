@@ -2354,7 +2354,7 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 		nr_entries = ARRAY_SIZE(system_entries);
 
 	ei = eventfs_create_dir(name, parent, system_entries, nr_entries, dir);
-	if (!ei) {
+	if (IS_ERR(ei)) {
 		pr_warn("Failed to create system directory %s\n", name);
 		__put_system(system);
 		goto out_free;
