@@ -160,8 +160,8 @@ size_t vme_get_size(struct vme_resource *resource)
 }
 EXPORT_SYMBOL(vme_get_size);
 
-int vme_check_window(u32 aspace, unsigned long long vme_base,
-		     unsigned long long size)
+int vme_check_window(struct vme_bridge *bridge, u32 aspace,
+		     unsigned long long vme_base, unsigned long long size)
 {
 	int retval = 0;
 
@@ -195,7 +195,7 @@ int vme_check_window(u32 aspace, unsigned long long vme_base,
 		/* User Defined */
 		break;
 	default:
-		printk(KERN_ERR "Invalid address space\n");
+		dev_err(bridge->parent, "Invalid address space\n");
 		retval = -EINVAL;
 		break;
 	}
@@ -350,7 +350,7 @@ int vme_slave_set(struct vme_resource *resource, int enabled,
 		return -EINVAL;
 	}
 
-	retval = vme_check_window(aspace, vme_base, size);
+	retval = vme_check_window(bridge, aspace, vme_base, size);
 	if (retval)
 		return retval;
 
@@ -552,7 +552,7 @@ int vme_master_set(struct vme_resource *resource, int enabled,
 		return -EINVAL;
 	}
 
-	retval = vme_check_window(aspace, vme_base, size);
+	retval = vme_check_window(bridge, aspace, vme_base, size);
 	if (retval)
 		return retval;
 
