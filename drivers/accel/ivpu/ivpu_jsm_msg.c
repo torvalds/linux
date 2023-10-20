@@ -22,7 +22,7 @@ int ivpu_jsm_register_db(struct ivpu_device *vdev, u32 ctx_id, u32 db_id,
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_REGISTER_DB_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret) {
-		ivpu_err(vdev, "Failed to register doorbell %d: %d\n", db_id, ret);
+		ivpu_err_ratelimited(vdev, "Failed to register doorbell %d: %d\n", db_id, ret);
 		return ret;
 	}
 
@@ -42,7 +42,7 @@ int ivpu_jsm_unregister_db(struct ivpu_device *vdev, u32 db_id)
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_UNREGISTER_DB_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret) {
-		ivpu_warn(vdev, "Failed to unregister doorbell %d: %d\n", db_id, ret);
+		ivpu_warn_ratelimited(vdev, "Failed to unregister doorbell %d: %d\n", db_id, ret);
 		return ret;
 	}
 
@@ -65,7 +65,8 @@ int ivpu_jsm_get_heartbeat(struct ivpu_device *vdev, u32 engine, u64 *heartbeat)
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_QUERY_ENGINE_HB_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret) {
-		ivpu_err(vdev, "Failed to get heartbeat from engine %d: %d\n", engine, ret);
+		ivpu_err_ratelimited(vdev, "Failed to get heartbeat from engine %d: %d\n",
+				     engine, ret);
 		return ret;
 	}
 
@@ -87,7 +88,7 @@ int ivpu_jsm_reset_engine(struct ivpu_device *vdev, u32 engine)
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_ENGINE_RESET_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret)
-		ivpu_err(vdev, "Failed to reset engine %d: %d\n", engine, ret);
+		ivpu_err_ratelimited(vdev, "Failed to reset engine %d: %d\n", engine, ret);
 
 	return ret;
 }
@@ -107,7 +108,7 @@ int ivpu_jsm_preempt_engine(struct ivpu_device *vdev, u32 engine, u32 preempt_id
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_ENGINE_PREEMPT_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret)
-		ivpu_err(vdev, "Failed to preempt engine %d: %d\n", engine, ret);
+		ivpu_err_ratelimited(vdev, "Failed to preempt engine %d: %d\n", engine, ret);
 
 	return ret;
 }
@@ -123,7 +124,8 @@ int ivpu_jsm_dyndbg_control(struct ivpu_device *vdev, char *command, size_t size
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_DYNDBG_CONTROL_RSP, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret)
-		ivpu_warn(vdev, "Failed to send command \"%s\": ret %d\n", command, ret);
+		ivpu_warn_ratelimited(vdev, "Failed to send command \"%s\": ret %d\n",
+				      command, ret);
 
 	return ret;
 }
@@ -138,7 +140,7 @@ int ivpu_jsm_trace_get_capability(struct ivpu_device *vdev, u32 *trace_destinati
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_TRACE_GET_CAPABILITY_RSP, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret) {
-		ivpu_warn(vdev, "Failed to get trace capability: %d\n", ret);
+		ivpu_warn_ratelimited(vdev, "Failed to get trace capability: %d\n", ret);
 		return ret;
 	}
 
@@ -162,7 +164,7 @@ int ivpu_jsm_trace_set_config(struct ivpu_device *vdev, u32 trace_level, u32 tra
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_TRACE_SET_CONFIG_RSP, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret)
-		ivpu_warn(vdev, "Failed to set config: %d\n", ret);
+		ivpu_warn_ratelimited(vdev, "Failed to set config: %d\n", ret);
 
 	return ret;
 }
