@@ -254,8 +254,7 @@ static int bch2_rebalance_thread(void *arg)
 		rebalance_work_reset(c);
 
 		bch2_move_data(c,
-			       0,		POS_MIN,
-			       BTREE_ID_NR,	POS_MAX,
+			       BBPOS_MIN, BBPOS_MAX,
 			       /* ratelimiting disabled for now */
 			       NULL, /*  &r->pd.rate, */
 			       &move_stats,

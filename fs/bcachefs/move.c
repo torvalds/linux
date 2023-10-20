@@ -171,8 +171,8 @@ void bch2_moving_ctxt_do_pending_writes(struct moving_context *ctxt,
 	}
 }
 
-static void bch2_move_ctxt_wait_for_io(struct moving_context *ctxt,
-				       struct btree_trans *trans)
+void bch2_move_ctxt_wait_for_io(struct moving_context *ctxt,
+				struct btree_trans *trans)
 {
 	unsigned sectors_pending = atomic_read(&ctxt->write_sectors);
 
@@ -287,14 +287,13 @@ static int bch2_extent_drop_ptrs(struct btree_trans *trans,
 		bch2_trans_commit(trans, NULL, NULL, BTREE_INSERT_NOFAIL);
 }
 
-static int bch2_move_extent(struct btree_trans *trans,
-			    struct btree_iter *iter,
-			    struct moving_context *ctxt,
-			    struct move_bucket_in_flight *bucket_in_flight,
-			    struct bch_io_opts io_opts,
-			    enum btree_id btree_id,
-			    struct bkey_s_c k,
-			    struct data_update_opts data_opts)
+int bch2_move_extent(struct btree_trans *trans,
+		     struct btree_iter *iter,
+		     struct moving_context *ctxt,
+		     struct move_bucket_in_flight *bucket_in_flight,
+		     struct bch_io_opts io_opts,
+		     struct bkey_s_c k,
+		     struct data_update_opts data_opts)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
@@ -356,7 +355,7 @@ static int bch2_move_extent(struct btree_trans *trans,
 	io->rbio.bio.bi_end_io		= move_read_endio;
 
 	ret = bch2_data_update_init(trans, ctxt, &io->write, ctxt->wp,
-				    io_opts, data_opts, btree_id, k);
+				    io_opts, data_opts, iter->btree_id, k);
 	if (ret && ret != -BCH_ERR_unwritten_extent_update)
 		goto err_free_pages;
 
@@ -370,6 +369,9 @@ static int bch2_move_extent(struct btree_trans *trans,
 
 	io->write.ctxt = ctxt;
 	io->write.op.end_io = move_write_done;
+
+	if (ctxt->rate)
+		bch2_ratelimit_increment(ctxt->rate, k.k->size);
 
 	if (ctxt->stats) {
 		atomic64_inc(&ctxt->stats->keys_moved);
@@ -400,7 +402,7 @@ static int bch2_move_extent(struct btree_trans *trans,
 	closure_get(&ctxt->cl);
 	bch2_read_extent(trans, &io->rbio,
 			 bkey_start_pos(k.k),
-			 btree_id, k, 0,
+			 iter->btree_id, k, 0,
 			 BCH_READ_NODECODE|
 			 BCH_READ_LAST_FRAGMENT);
 	return 0;
@@ -464,9 +466,9 @@ struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 	return &io_opts->fs_io_opts;
 }
 
-static int bch2_move_get_io_opts_one(struct btree_trans *trans,
-				     struct bch_io_opts *io_opts,
-				     struct bkey_s_c extent_k)
+int bch2_move_get_io_opts_one(struct btree_trans *trans,
+			      struct bch_io_opts *io_opts,
+			      struct bkey_s_c extent_k)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -497,8 +499,8 @@ static int bch2_move_get_io_opts_one(struct btree_trans *trans,
 	return 0;
 }
 
-static int move_ratelimit(struct btree_trans *trans,
-			  struct moving_context *ctxt)
+int bch2_move_ratelimit(struct btree_trans *trans,
+			struct moving_context *ctxt)
 {
 	struct bch_fs *c = trans->c;
 	u64 delay;
@@ -545,7 +547,8 @@ static int move_ratelimit(struct btree_trans *trans,
 	return 0;
 }
 
-static int __bch2_move_data(struct moving_context *ctxt,
+static int bch2_move_data_btree(struct btree_trans *trans,
+			    struct moving_context *ctxt,
 			    struct bpos start,
 			    struct bpos end,
 			    move_pred_fn pred, void *arg,
@@ -555,7 +558,6 @@ static int __bch2_move_data(struct moving_context *ctxt,
 	struct per_snapshot_io_opts snapshot_io_opts;
 	struct bch_io_opts *io_opts;
 	struct bkey_buf sk;
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct data_update_opts data_opts;
@@ -577,7 +579,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 	if (ctxt->rate)
 		bch2_ratelimit_reset(ctxt->rate);
 
-	while (!move_ratelimit(trans, ctxt)) {
+	while (!bch2_move_ratelimit(trans, ctxt)) {
 		bch2_trans_begin(trans);
 
 		k = bch2_btree_iter_peek(&iter);
@@ -616,7 +618,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		k = bkey_i_to_s_c(sk.k);
 
 		ret2 = bch2_move_extent(trans, &iter, ctxt, NULL,
-					*io_opts, btree_id, k, data_opts);
+					*io_opts, k, data_opts);
 		if (ret2) {
 			if (bch2_err_matches(ret2, BCH_ERR_transaction_restart))
 				continue;
@@ -630,9 +632,6 @@ static int __bch2_move_data(struct moving_context *ctxt,
 			/* XXX signal failure */
 			goto next;
 		}
-
-		if (ctxt->rate)
-			bch2_ratelimit_increment(ctxt->rate, k.k->size);
 next:
 		if (ctxt->stats)
 			atomic64_add(k.k->size, &ctxt->stats->sectors_seen);
@@ -641,48 +640,60 @@ next_nondata:
 	}
 
 	bch2_trans_iter_exit(trans, &iter);
-	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&sk, c);
 	per_snapshot_io_opts_exit(&snapshot_io_opts);
 
 	return ret;
 }
 
+int __bch2_move_data(struct btree_trans *trans,
+		     struct moving_context *ctxt,
+		     struct bbpos start,
+		     struct bbpos end,
+		     move_pred_fn pred, void *arg)
+{
+	struct bch_fs *c = trans->c;
+	enum btree_id id;
+	int ret = 0;
+
+	for (id = start.btree;
+	     id <= min_t(unsigned, end.btree, btree_id_nr_alive(c) - 1);
+	     id++) {
+		ctxt->stats->btree_id = id;
+
+		if (!btree_type_has_ptrs(id) ||
+		    !bch2_btree_id_root(c, id)->b)
+			continue;
+
+		ret = bch2_move_data_btree(trans, ctxt,
+				       id == start.btree ? start.pos : POS_MIN,
+				       id == end.btree   ? end.pos   : POS_MAX,
+				       pred, arg, id);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
 int bch2_move_data(struct bch_fs *c,
-		   enum btree_id start_btree_id, struct bpos start_pos,
-		   enum btree_id end_btree_id,   struct bpos end_pos,
+		   struct bbpos start,
+		   struct bbpos end,
 		   struct bch_ratelimit *rate,
 		   struct bch_move_stats *stats,
 		   struct write_point_specifier wp,
 		   bool wait_on_copygc,
 		   move_pred_fn pred, void *arg)
 {
+
+	struct btree_trans *trans;
 	struct moving_context ctxt;
-	enum btree_id id;
-	int ret = 0;
+	int ret;
 
 	bch2_moving_ctxt_init(&ctxt, c, rate, stats, wp, wait_on_copygc);
-
-	for (id = start_btree_id;
-	     id <= min_t(unsigned, end_btree_id, btree_id_nr_alive(c) - 1);
-	     id++) {
-		stats->btree_id = id;
-
-		if (id != BTREE_ID_extents &&
-		    id != BTREE_ID_reflink)
-			continue;
-
-		if (!bch2_btree_id_root(c, id)->b)
-			continue;
-
-		ret = __bch2_move_data(&ctxt,
-				       id == start_btree_id ? start_pos : POS_MIN,
-				       id == end_btree_id   ? end_pos   : POS_MAX,
-				       pred, arg, id);
-		if (ret)
-			break;
-	}
-
+	trans = bch2_trans_get(c);
+	ret = __bch2_move_data(trans, &ctxt, start, end, pred, arg);
+	bch2_trans_put(trans);
 	bch2_moving_ctxt_exit(&ctxt);
 
 	return ret;
@@ -739,7 +750,7 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 		goto err;
 	}
 
-	while (!(ret = move_ratelimit(trans, ctxt))) {
+	while (!(ret = bch2_move_ratelimit(trans, ctxt))) {
 		bch2_trans_begin(trans);
 
 		ret = bch2_get_next_backpointer(trans, bucket, gen,
@@ -791,7 +802,7 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 
 			ret = bch2_move_extent(trans, &iter, ctxt,
 					bucket_in_flight,
-					io_opts, bp.btree_id, k, data_opts);
+					io_opts, k, data_opts);
 			bch2_trans_iter_exit(trans, &iter);
 
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -804,8 +815,6 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 			if (ret)
 				goto err;
 
-			if (ctxt->rate)
-				bch2_ratelimit_increment(ctxt->rate, k.k->size);
 			if (ctxt->stats)
 				atomic64_add(k.k->size, &ctxt->stats->sectors_seen);
 		} else {
@@ -1087,8 +1096,8 @@ int bch2_data_job(struct bch_fs *c,
 		ret = bch2_replicas_gc2(c) ?: ret;
 
 		ret = bch2_move_data(c,
-				     op.start_btree,	op.start_pos,
-				     op.end_btree,	op.end_pos,
+				     (struct bbpos) { op.start_btree,	op.start_pos },
+				     (struct bbpos) { op.end_btree,	op.end_pos },
 				     NULL,
 				     stats,
 				     writepoint_hashed((unsigned long) current),
@@ -1111,8 +1120,8 @@ int bch2_data_job(struct bch_fs *c,
 		ret = bch2_replicas_gc2(c) ?: ret;
 
 		ret = bch2_move_data(c,
-				     op.start_btree,	op.start_pos,
-				     op.end_btree,	op.end_pos,
+				     (struct bbpos) { op.start_btree,	op.start_pos },
+				     (struct bbpos) { op.end_btree,	op.end_pos },
 				     NULL,
 				     stats,
 				     writepoint_hashed((unsigned long) current),

@@ -2,6 +2,7 @@
 #ifndef _BCACHEFS_MOVE_H
 #define _BCACHEFS_MOVE_H
 
+#include "bbpos.h"
 #include "bcachefs_ioctl.h"
 #include "btree_iter.h"
 #include "buckets.h"
@@ -61,6 +62,9 @@ void bch2_moving_ctxt_init(struct moving_context *, struct bch_fs *,
 struct moving_io *bch2_moving_ctxt_next_pending_write(struct moving_context *);
 void bch2_moving_ctxt_do_pending_writes(struct moving_context *,
 					struct btree_trans *);
+void bch2_move_ctxt_wait_for_io(struct moving_context *,
+				struct btree_trans *);
+int bch2_move_ratelimit(struct btree_trans *, struct moving_context *);
 
 /* Inodes in different snapshots may have different IO options: */
 struct snapshot_io_opts_entry {
@@ -87,12 +91,26 @@ static inline void per_snapshot_io_opts_exit(struct per_snapshot_io_opts *io_opt
 
 struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *,
 				struct per_snapshot_io_opts *, struct bkey_s_c);
+int bch2_move_get_io_opts_one(struct btree_trans *, struct bch_io_opts *, struct bkey_s_c);
 
 int bch2_scan_old_btree_nodes(struct bch_fs *, struct bch_move_stats *);
 
+int bch2_move_extent(struct btree_trans *,
+		     struct btree_iter *,
+		     struct moving_context *,
+		     struct move_bucket_in_flight *,
+		     struct bch_io_opts,
+		     struct bkey_s_c,
+		     struct data_update_opts);
+
+int __bch2_move_data(struct btree_trans *,
+		     struct moving_context *,
+		     struct bbpos,
+		     struct bbpos,
+		     move_pred_fn, void *);
 int bch2_move_data(struct bch_fs *,
-		   enum btree_id, struct bpos,
-		   enum btree_id, struct bpos,
+		   struct bbpos start,
+		   struct bbpos end,
 		   struct bch_ratelimit *,
 		   struct bch_move_stats *,
 		   struct write_point_specifier,
