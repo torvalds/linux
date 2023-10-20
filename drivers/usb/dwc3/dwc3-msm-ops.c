@@ -21,6 +21,40 @@ struct kprobe_data {
 	int xi0;
 };
 
+static int entry_usb_ep_set_maxpacket_limit(struct kretprobe_instance *ri,
+				struct pt_regs *regs)
+{
+	struct usb_ep *ep = (struct usb_ep *)regs->regs[0];
+	struct dwc3_ep *dep;
+	struct dwc3 *dwc;
+	struct kprobe_data *data = (struct kprobe_data *)ri->data;
+
+	dep =  to_dwc3_ep(ep);
+	dwc = dep->dwc;
+
+	data->dwc = dwc;
+	data->xi0 = dep->number;
+
+	return 0;
+}
+
+static int exit_usb_ep_set_maxpacket_limit(struct kretprobe_instance *ri,
+				struct pt_regs *regs)
+{
+	struct kprobe_data *data = (struct kprobe_data *)ri->data;
+	struct dwc3 *dwc = data->dwc;
+	u8 epnum = data->xi0;
+	struct dwc3_ep *dep = dwc->eps[epnum];
+	struct usb_ep *ep = &dep->endpoint;
+
+	if (epnum >= 2) {
+		ep->maxpacket_limit = 1024;
+		ep->maxpacket = 1024;
+	}
+
+	return 0;
+}
+
 static int entry_dwc3_gadget_run_stop(struct kretprobe_instance *ri,
 				   struct pt_regs *regs)
 {
@@ -215,6 +249,7 @@ static struct kretprobe dwc3_msm_probes[] = {
 	ENTRY(__dwc3_gadget_ep_enable),
 	ENTRY_EXIT(dwc3_gadget_pullup),
 	ENTRY(__dwc3_gadget_start),
+	ENTRY_EXIT(usb_ep_set_maxpacket_limit),
 	ENTRY(trace_event_raw_event_dwc3_log_request),
 	ENTRY(trace_event_raw_event_dwc3_log_gadget_ep_cmd),
 	ENTRY(trace_event_raw_event_dwc3_log_trb),
