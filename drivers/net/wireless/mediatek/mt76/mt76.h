@@ -199,6 +199,7 @@ struct mt76_queue {
 	u8 hw_idx;
 	u8 flags;
 
+	struct mtk_wed_device *wed;
 	u32 wed_regs;
 
 	dma_addr_t desc_dma;
@@ -1121,15 +1122,16 @@ int mt76_get_of_data_from_nvmem(struct mt76_dev *dev, void *eep,
 
 struct mt76_queue *
 mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
-		int ring_base, u32 flags);
+		int ring_base, void *wed, u32 flags);
 u16 mt76_calculate_default_rate(struct mt76_phy *phy,
 				struct ieee80211_vif *vif, int rateidx);
 static inline int mt76_init_tx_queue(struct mt76_phy *phy, int qid, int idx,
-				     int n_desc, int ring_base, u32 flags)
+				     int n_desc, int ring_base, void *wed,
+				     u32 flags)
 {
 	struct mt76_queue *q;
 
-	q = mt76_init_queue(phy->dev, qid, idx, n_desc, ring_base, flags);
+	q = mt76_init_queue(phy->dev, qid, idx, n_desc, ring_base, wed, flags);
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
@@ -1143,7 +1145,7 @@ static inline int mt76_init_mcu_queue(struct mt76_dev *dev, int qid, int idx,
 {
 	struct mt76_queue *q;
 
-	q = mt76_init_queue(dev, qid, idx, n_desc, ring_base, 0);
+	q = mt76_init_queue(dev, qid, idx, n_desc, ring_base, NULL, 0);
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 

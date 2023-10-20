@@ -256,11 +256,12 @@ void mt76_connac_txp_skb_unmap(struct mt76_dev *dev,
 EXPORT_SYMBOL_GPL(mt76_connac_txp_skb_unmap);
 
 int mt76_connac_init_tx_queues(struct mt76_phy *phy, int idx, int n_desc,
-			       int ring_base, u32 flags)
+			       int ring_base, void *wed, u32 flags)
 {
 	int i, err;
 
-	err = mt76_init_tx_queue(phy, 0, idx, n_desc, ring_base, flags);
+	err = mt76_init_tx_queue(phy, 0, idx, n_desc, ring_base,
+				 wed, flags);
 	if (err < 0)
 		return err;
 

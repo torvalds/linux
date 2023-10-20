@@ -9,18 +9,20 @@ static int
 mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc, int ring_base)
 {
 	struct mt7915_dev *dev = phy->dev;
+	struct mtk_wed_device *wed = NULL;
 
-	if (mtk_wed_device_active(&phy->dev->mt76.mmio.wed)) {
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
 		if (is_mt798x(&dev->mt76))
 			ring_base += MT_TXQ_ID(0) * MT_RING_SIZE;
 		else
 			ring_base = MT_WED_TX_RING_BASE;
 
 		idx -= MT_TXQ_ID(0);
+		wed = &dev->mt76.mmio.wed;
 	}
 
 	return mt76_connac_init_tx_queues(phy->mt76, idx, n_desc, ring_base,
-					  MT_WED_Q_TX(idx));
+					  wed, MT_WED_Q_TX(idx));
 }
 
 static int mt7915_poll_tx(struct napi_struct *napi, int budget)
@@ -492,7 +494,8 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 	if (mtk_wed_device_active(&mdev->mmio.wed) && is_mt7915(mdev)) {
 		wa_rx_base = MT_WED_RX_RING_BASE;
 		wa_rx_idx = MT7915_RXQ_MCU_WA;
-		dev->mt76.q_rx[MT_RXQ_MCU_WA].flags = MT_WED_Q_TXFREE;
+		mdev->q_rx[MT_RXQ_MCU_WA].flags = MT_WED_Q_TXFREE;
+		mdev->q_rx[MT_RXQ_MCU_WA].wed = &mdev->mmio.wed;
 	} else {
 		wa_rx_base = MT_RXQ_RING_BASE(MT_RXQ_MCU_WA);
 		wa_rx_idx = MT_RXQ_ID(MT_RXQ_MCU_WA);
@@ -507,9 +510,10 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 	if (!dev->phy.mt76->band_idx) {
 		if (mtk_wed_device_active(&mdev->mmio.wed) &&
 		    mtk_wed_get_rx_capa(&mdev->mmio.wed)) {
-			dev->mt76.q_rx[MT_RXQ_MAIN].flags =
+			mdev->q_rx[MT_RXQ_MAIN].flags =
 				MT_WED_Q_RX(MT7915_RXQ_BAND0);
 			dev->mt76.rx_token_size += MT7915_RX_RING_SIZE;
+			mdev->q_rx[MT_RXQ_MAIN].wed = &mdev->mmio.wed;
 		}
 
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN],
@@ -528,6 +532,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 
 		if (mtk_wed_device_active(&mdev->mmio.wed)) {
 			mdev->q_rx[MT_RXQ_MAIN_WA].flags = MT_WED_Q_TXFREE;
+			mdev->q_rx[MT_RXQ_MAIN_WA].wed = &mdev->mmio.wed;
 			if (is_mt7916(mdev)) {
 				wa_rx_base =  MT_WED_RX_RING_BASE;
 				wa_rx_idx = MT7915_RXQ_MCU_WA;
@@ -544,9 +549,10 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 	if (dev->dbdc_support || dev->phy.mt76->band_idx) {
 		if (mtk_wed_device_active(&mdev->mmio.wed) &&
 		    mtk_wed_get_rx_capa(&mdev->mmio.wed)) {
-			dev->mt76.q_rx[MT_RXQ_BAND1].flags =
+			mdev->q_rx[MT_RXQ_BAND1].flags =
 				MT_WED_Q_RX(MT7915_RXQ_BAND1);
 			dev->mt76.rx_token_size += MT7915_RX_RING_SIZE;
+			mdev->q_rx[MT_RXQ_BAND1].wed = &mdev->mmio.wed;
 		}
 
 		/* rx data queue for band1 */

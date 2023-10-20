@@ -405,7 +405,8 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
 	ret = mt76_connac_init_tx_queues(phy->mt76,
 					 MT_TXQ_ID(band),
 					 MT7996_TX_RING_SIZE,
-					 MT_TXQ_RING_BASE(band) + hif1_ofs, 0);
+					 MT_TXQ_RING_BASE(band) + hif1_ofs,
+					 NULL, 0);
 	if (ret)
 		goto error;
 
