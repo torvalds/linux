@@ -567,8 +567,8 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 					       USEC_PER_SEC / TCP_TS_HZ);
 		newtp->total_rto = req->num_timeout;
 		newtp->total_rto_recoveries = 1;
-		newtp->total_rto_time = tcp_time_stamp_raw() -
-						newtp->retrans_stamp;
+		newtp->total_rto_time = tcp_clock_ms() -
+					newtp->retrans_stamp;
 	}
 	newtp->tsoffset = treq->ts_off;
 #ifdef CONFIG_TCP_MD5SIG

@@ -798,6 +798,11 @@ static inline u64 tcp_clock_us(void)
 	return div_u64(tcp_clock_ns(), NSEC_PER_USEC);
 }
 
+static inline u64 tcp_clock_ms(void)
+{
+	return div_u64(tcp_clock_ns(), NSEC_PER_MSEC);
+}
+
 /* This should only be used in contexts where tp->tcp_mstamp is up to date */
 static inline u32 tcp_time_stamp(const struct tcp_sock *tp)
 {

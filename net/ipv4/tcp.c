@@ -3817,10 +3817,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_total_rto = tp->total_rto;
 	info->tcpi_total_rto_recoveries = tp->total_rto_recoveries;
 	info->tcpi_total_rto_time = tp->total_rto_time;
-	if (tp->rto_stamp) {
-		info->tcpi_total_rto_time += tcp_time_stamp_raw() -
-						tp->rto_stamp;
-	}
+	if (tp->rto_stamp)
+		info->tcpi_total_rto_time += tcp_clock_ms() - tp->rto_stamp;
 
 	unlock_sock_fast(sk, slow);
 }
