@@ -576,4 +576,9 @@ void tcp_sock_set_quickack(struct sock *sk, int val);
 int tcp_sock_set_syncnt(struct sock *sk, int val);
 int tcp_sock_set_user_timeout(struct sock *sk, int val);
 
+static inline bool dst_tcp_usec_ts(const struct dst_entry *dst)
+{
+	return dst_feature(dst, RTAX_FEATURE_TCP_USEC_TS);
+}
+
 #endif	/* _LINUX_TCP_H */
