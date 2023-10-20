@@ -644,6 +644,7 @@ static int sdhci_sprd_tuning(struct mmc_host *mmc, struct mmc_card *card,
 	best_clk_sample = sdhci_sprd_get_best_clk_sample(mmc, value);
 	if (best_clk_sample < 0) {
 		dev_err(mmc_dev(host->mmc), "all tuning phase fail!\n");
+		err = best_clk_sample;
 		goto out;
 	}
 
