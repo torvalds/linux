@@ -655,7 +655,7 @@ static int profile_uring(struct aa_profile *profile, u32 request,
  * Check to see if the current task is allowed to override it's credentials
  * to service an io_uring operation.
  */
-int apparmor_uring_override_creds(const struct cred *new)
+static int apparmor_uring_override_creds(const struct cred *new)
 {
 	struct aa_profile *profile;
 	struct aa_label *label;
@@ -679,7 +679,7 @@ int apparmor_uring_override_creds(const struct cred *new)
  * Check to see if the current task is allowed to create a new io_uring
  * kernel polling thread.
  */
-int apparmor_uring_sqpoll(void)
+static int apparmor_uring_sqpoll(void)
 {
 	struct aa_profile *profile;
 	struct aa_label *label;
