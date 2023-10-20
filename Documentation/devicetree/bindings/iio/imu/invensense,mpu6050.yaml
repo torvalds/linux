@@ -48,6 +48,11 @@ properties:
 
   mount-matrix: true
 
+  invensense,level-shifter:
+    type: boolean
+    description: |
+      From ancient platform data struct: false: VLogic, true: VDD
+
   i2c-gate:
     $ref: /schemas/i2c/i2c-controller.yaml
     unevaluatedProperties: false

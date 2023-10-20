@@ -946,7 +946,7 @@ err_disable_reg:
 	return ret;
 }
 
-static int exynos_adc_remove(struct platform_device *pdev)
+static void exynos_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct exynos_adc *info = iio_priv(indio_dev);
@@ -964,8 +964,6 @@ static int exynos_adc_remove(struct platform_device *pdev)
 	exynos_adc_disable_clk(info);
 	exynos_adc_unprepare_clk(info);
 	regulator_disable(info->vdd);
-
-	return 0;
 }
 
 static int exynos_adc_suspend(struct device *dev)
@@ -1006,7 +1004,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(exynos_adc_pm_ops, exynos_adc_suspend,
 
 static struct platform_driver exynos_adc_driver = {
 	.probe		= exynos_adc_probe,
-	.remove		= exynos_adc_remove,
+	.remove_new	= exynos_adc_remove,
 	.driver		= {
 		.name	= "exynos-adc",
 		.of_match_table = exynos_adc_match,

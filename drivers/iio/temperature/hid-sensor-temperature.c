@@ -257,7 +257,7 @@ error_remove_trigger:
 }
 
 /* Function to deinitialize the processing for usage id */
-static int hid_temperature_remove(struct platform_device *pdev)
+static void hid_temperature_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = dev_get_platdata(&pdev->dev);
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -265,8 +265,6 @@ static int hid_temperature_remove(struct platform_device *pdev)
 
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_TEMPERATURE);
 	hid_sensor_remove_trigger(indio_dev, &temp_st->common_attributes);
-
-	return 0;
 }
 
 static const struct platform_device_id hid_temperature_ids[] = {
@@ -285,7 +283,7 @@ static struct platform_driver hid_temperature_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_temperature_probe,
-	.remove		= hid_temperature_remove,
+	.remove_new	= hid_temperature_remove,
 };
 module_platform_driver(hid_temperature_platform_driver);
 

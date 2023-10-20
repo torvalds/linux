@@ -21,6 +21,7 @@
 
 enum hmc425a_type {
 	ID_HMC425A,
+	ID_HMC540S,
 };
 
 struct hmc425a_chip_info {
@@ -70,6 +71,9 @@ static int hmc425a_read_raw(struct iio_dev *indio_dev,
 		case ID_HMC425A:
 			gain = ~code * -500;
 			break;
+		case ID_HMC540S:
+			gain = ~code * -1000;
+			break;
 		}
 
 		*val = gain / 1000;
@@ -105,6 +109,9 @@ static int hmc425a_write_raw(struct iio_dev *indio_dev,
 	switch (st->type) {
 	case ID_HMC425A:
 		code = ~((abs(gain) / 500) & 0x3F);
+		break;
+	case ID_HMC540S:
+		code = ~((abs(gain) / 1000) & 0xF);
 		break;
 	}
 
@@ -157,6 +164,7 @@ static const struct iio_chan_spec hmc425a_channels[] = {
 /* Match table for of_platform binding */
 static const struct of_device_id hmc425a_of_match[] = {
 	{ .compatible = "adi,hmc425a", .data = (void *)ID_HMC425A },
+	{ .compatible = "adi,hmc540s", .data = (void *)ID_HMC540S },
 	{},
 };
 MODULE_DEVICE_TABLE(of, hmc425a_of_match);
@@ -170,6 +178,15 @@ static struct hmc425a_chip_info hmc425a_chip_info_tbl[] = {
 		.gain_min = -31500,
 		.gain_max = 0,
 		.default_gain = -0x40, /* set default gain -31.5db*/
+	},
+	[ID_HMC540S] = {
+		.name = "hmc540s",
+		.channels = hmc425a_channels,
+		.num_channels = ARRAY_SIZE(hmc425a_channels),
+		.num_gpios = 4,
+		.gain_min = -15000,
+		.gain_max = 0,
+		.default_gain = -0x10, /* set default gain -15.0db*/
 	},
 };
 

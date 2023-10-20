@@ -607,6 +607,16 @@ config LPC32XX_ADC
 	  activate only one via device tree selection.  Provides direct access
 	  via sysfs.
 
+config LTC2309
+	tristate "Linear Technology LTC2309 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Linear Technology LTC2309, a low
+	  noise, low power, 8-channel, 12-bit SAR ADC
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2309.
+
 config LTC2471
 	tristate "Linear Technology LTC2471 and LTC2473 ADC driver"
 	depends on I2C
@@ -779,14 +789,29 @@ config MCP3422
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3422.
 
+config MCP3564
+        tristate "Microchip Technology MCP3461/2/4/R, MCP3561/2/4/R driver"
+        depends on SPI
+        depends on IIO
+        help
+          Say yes here to build support for Microchip Technology's MCP3461,
+          MCP3462, MCP3464, MCP3461R, MCP3462R, MCP3464R, MCP3561, MCP3562,
+          MCP3564, MCP3561R, MCP3562R and MCP3564R analog to digital
+          converters.
+
+          This driver can also be built as a module. If so, the module will be
+          called mcp3564.
+
 config MCP3911
 	tristate "Microchip Technology MCP3911 driver"
 	depends on SPI
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for Microchip Technology's MCP3911
-	  analog to digital converter.
+	  Say yes here to build support for one of the following
+	  Microchip Technology's analog to digital converters:
+	  MCP3910, MCP3911, MCP3912, MCP3913, MCP3914,
+	  MCP3918 and MCP3919.
 
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3911.
