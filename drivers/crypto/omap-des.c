@@ -1072,7 +1072,7 @@ err_data:
 	return err;
 }
 
-static int omap_des_remove(struct platform_device *pdev)
+static void omap_des_remove(struct platform_device *pdev)
 {
 	struct omap_des_dev *dd = platform_get_drvdata(pdev);
 	int i, j;
@@ -1089,8 +1089,6 @@ static int omap_des_remove(struct platform_device *pdev)
 	tasklet_kill(&dd->done_task);
 	omap_des_dma_cleanup(dd);
 	pm_runtime_disable(dd->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1117,7 +1115,7 @@ static SIMPLE_DEV_PM_OPS(omap_des_pm_ops, omap_des_suspend, omap_des_resume);
 
 static struct platform_driver omap_des_driver = {
 	.probe	= omap_des_probe,
-	.remove	= omap_des_remove,
+	.remove_new = omap_des_remove,
 	.driver	= {
 		.name	= "omap-des",
 		.pm	= &omap_des_pm_ops,
