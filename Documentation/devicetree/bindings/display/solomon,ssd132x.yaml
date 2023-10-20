@@ -11,10 +11,10 @@ maintainers:
 
 properties:
   compatible:
-    - enum:
-        - solomon,ssd1322
-        - solomon,ssd1325
-        - solomon,ssd1327
+    enum:
+      - solomon,ssd1322
+      - solomon,ssd1325
+      - solomon,ssd1327
 
 required:
   - compatible
