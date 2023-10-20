@@ -4,6 +4,7 @@
 #include <adf_accel_devices.h>
 #include <adf_admin.h>
 #include <adf_cfg.h>
+#include <adf_cfg_services.h>
 #include <adf_clock.h>
 #include <adf_common_drv.h>
 #include <adf_gen4_dc.h>
@@ -13,7 +14,6 @@
 #include "adf_gen4_ras.h"
 #include <adf_gen4_timer.h>
 #include "adf_4xxx_hw_data.h"
-#include "adf_cfg_services.h"
 #include "icp_qat_hw.h"
 
 #define ADF_AE_GROUP_0		GENMASK(3, 0)
