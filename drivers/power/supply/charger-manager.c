@@ -1516,9 +1516,11 @@ static int charger_manager_probe(struct platform_device *pdev)
 	memcpy(&cm->charger_psy_desc, &psy_default, sizeof(psy_default));
 
 	if (!desc->psy_name)
-		strncpy(cm->psy_name_buf, psy_default.name, PSY_NAME_MAX);
+		strscpy(cm->psy_name_buf, psy_default.name,
+			sizeof(cm->psy_name_buf));
 	else
-		strncpy(cm->psy_name_buf, desc->psy_name, PSY_NAME_MAX);
+		strscpy(cm->psy_name_buf, desc->psy_name,
+			sizeof(cm->psy_name_buf));
 	cm->charger_psy_desc.name = cm->psy_name_buf;
 
 	/* Allocate for psy properties because they may vary */
