@@ -224,13 +224,11 @@ fail:
 	return ret;
 }
 
-static int qcom_rng_remove(struct platform_device *pdev)
+static void qcom_rng_remove(struct platform_device *pdev)
 {
 	crypto_unregister_rng(&qcom_rng_alg);
 
 	qcom_rng_dev = NULL;
-
-	return 0;
 }
 
 static struct qcom_rng_of_data qcom_prng_of_data = {
@@ -264,7 +262,7 @@ MODULE_DEVICE_TABLE(of, qcom_rng_of_match);
 
 static struct platform_driver qcom_rng_driver = {
 	.probe = qcom_rng_probe,
-	.remove =  qcom_rng_remove,
+	.remove_new =  qcom_rng_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = of_match_ptr(qcom_rng_of_match),
