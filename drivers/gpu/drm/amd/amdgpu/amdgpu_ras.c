@@ -2738,7 +2738,8 @@ static void amdgpu_ras_query_poison_mode(struct amdgpu_device *adev)
 		return;
 
 	/* Init poison supported flag, the default value is false */
-	if (adev->gmc.xgmi.connected_to_cpu) {
+	if (adev->gmc.xgmi.connected_to_cpu ||
+	    adev->gmc.is_app_apu) {
 		/* enabled by default when GPU is connected to CPU */
 		con->poison_supported = true;
 	} else if (adev->df.funcs &&
