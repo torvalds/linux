@@ -1525,7 +1525,7 @@ mt7996_phy_get_nf(struct mt7996_phy *phy, u8 band_idx)
 
 void mt7996_update_channel(struct mt76_phy *mphy)
 {
-	struct mt7996_phy *phy = (struct mt7996_phy *)mphy->priv;
+	struct mt7996_phy *phy = mphy->priv;
 	struct mt76_channel_state *state = mphy->chan_state;
 	int nf;
 
