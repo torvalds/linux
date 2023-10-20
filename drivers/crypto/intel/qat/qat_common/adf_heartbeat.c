@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <asm/errno.h>
 #include "adf_accel_devices.h"
+#include "adf_admin.h"
 #include "adf_cfg.h"
 #include "adf_cfg_strings.h"
 #include "adf_clock.h"

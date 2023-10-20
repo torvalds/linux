@@ -6,6 +6,7 @@
 #include <linux/stringify.h>
 
 #include "adf_accel_devices.h"
+#include "adf_admin.h"
 #include "adf_common_drv.h"
 #include "adf_gen4_pm.h"
 #include "icp_qat_fw_init_admin.h"

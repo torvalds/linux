@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 
 #include "adf_accel_devices.h"
+#include "adf_admin.h"
 #include "adf_common_drv.h"
 #include "adf_cnv_dbgfs.h"
 #include "qat_compression.h"

@@ -2,6 +2,7 @@
 /* Copyright(c) 2020 - 2021 Intel Corporation */
 #include <linux/iopoll.h>
 #include <adf_accel_devices.h>
+#include <adf_admin.h>
 #include <adf_cfg.h>
 #include <adf_clock.h>
 #include <adf_common_drv.h>
