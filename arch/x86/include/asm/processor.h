@@ -518,6 +518,9 @@ static __always_inline unsigned long current_top_of_stack(void)
 	 *  and around vm86 mode and sp0 on x86_64 is special because of the
 	 *  entry trampoline.
 	 */
+	if (IS_ENABLED(CONFIG_USE_X86_SEG_SUPPORT))
+		return pcpu_hot.top_of_stack;
+
 	return this_cpu_read_stable(pcpu_hot.top_of_stack);
 }
 
