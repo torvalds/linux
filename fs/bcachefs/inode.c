@@ -981,6 +981,18 @@ void bch2_inode_opts_get(struct bch_io_opts *opts, struct bch_fs *c,
 		opts->compression = opts->background_compression = opts->data_checksum = opts->erasure_code = 0;
 }
 
+int bch2_inum_opts_get(struct btree_trans *trans, subvol_inum inum, struct bch_io_opts *opts)
+{
+	struct bch_inode_unpacked inode;
+	int ret = lockrestart_do(trans, bch2_inode_find_by_inum_trans(trans, inum, &inode));
+
+	if (ret)
+		return ret;
+
+	bch2_inode_opts_get(opts, trans->c, &inode);
+	return 0;
+}
+
 int bch2_inode_rm_snapshot(struct btree_trans *trans, u64 inum, u32 snapshot)
 {
 	struct bch_fs *c = trans->c;
