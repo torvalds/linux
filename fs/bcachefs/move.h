@@ -12,7 +12,7 @@
 struct bch_read_bio;
 
 struct moving_context {
-	struct bch_fs		*c;
+	struct btree_trans	*trans;
 	struct list_head	list;
 	void			*fn;
 
@@ -38,10 +38,10 @@ struct moving_context {
 	wait_queue_head_t	wait;
 };
 
-#define move_ctxt_wait_event(_ctxt, _trans, _cond)			\
+#define move_ctxt_wait_event(_ctxt, _cond)				\
 do {									\
 	bool cond_finished = false;					\
-	bch2_moving_ctxt_do_pending_writes(_ctxt, _trans);		\
+	bch2_moving_ctxt_do_pending_writes(_ctxt);			\
 									\
 	if (_cond)							\
 		break;							\
@@ -60,11 +60,9 @@ void bch2_moving_ctxt_init(struct moving_context *, struct bch_fs *,
 			   struct bch_ratelimit *, struct bch_move_stats *,
 			   struct write_point_specifier, bool);
 struct moving_io *bch2_moving_ctxt_next_pending_write(struct moving_context *);
-void bch2_moving_ctxt_do_pending_writes(struct moving_context *,
-					struct btree_trans *);
-void bch2_move_ctxt_wait_for_io(struct moving_context *,
-				struct btree_trans *);
-int bch2_move_ratelimit(struct btree_trans *, struct moving_context *);
+void bch2_moving_ctxt_do_pending_writes(struct moving_context *);
+void bch2_move_ctxt_wait_for_io(struct moving_context *);
+int bch2_move_ratelimit(struct moving_context *);
 
 /* Inodes in different snapshots may have different IO options: */
 struct snapshot_io_opts_entry {
@@ -95,16 +93,14 @@ int bch2_move_get_io_opts_one(struct btree_trans *, struct bch_io_opts *, struct
 
 int bch2_scan_old_btree_nodes(struct bch_fs *, struct bch_move_stats *);
 
-int bch2_move_extent(struct btree_trans *,
-		     struct btree_iter *,
-		     struct moving_context *,
+int bch2_move_extent(struct moving_context *,
 		     struct move_bucket_in_flight *,
-		     struct bch_io_opts,
+		     struct btree_iter *,
 		     struct bkey_s_c,
+		     struct bch_io_opts,
 		     struct data_update_opts);
 
-int __bch2_move_data(struct btree_trans *,
-		     struct moving_context *,
+int __bch2_move_data(struct moving_context *,
 		     struct bbpos,
 		     struct bbpos,
 		     move_pred_fn, void *);
@@ -117,8 +113,7 @@ int bch2_move_data(struct bch_fs *,
 		   bool,
 		   move_pred_fn, void *);
 
-int __bch2_evacuate_bucket(struct btree_trans *,
-			   struct moving_context *,
+int __bch2_evacuate_bucket(struct moving_context *,
 			   struct move_bucket_in_flight *,
 			   struct bpos, int,
 			   struct data_update_opts);

@@ -101,8 +101,7 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 	return ret;
 }
 
-static void move_buckets_wait(struct btree_trans *trans,
-			      struct moving_context *ctxt,
+static void move_buckets_wait(struct moving_context *ctxt,
 			      struct buckets_in_flight *list,
 			      bool flush)
 {
@@ -111,7 +110,7 @@ static void move_buckets_wait(struct btree_trans *trans,
 
 	while ((i = list->first)) {
 		if (flush)
-			move_ctxt_wait_event(ctxt, trans, !atomic_read(&i->count));
+			move_ctxt_wait_event(ctxt, !atomic_read(&i->count));
 
 		if (atomic_read(&i->count))
 			break;
@@ -129,7 +128,7 @@ static void move_buckets_wait(struct btree_trans *trans,
 		kfree(i);
 	}
 
-	bch2_trans_unlock(trans);
+	bch2_trans_unlock(ctxt->trans);
 }
 
 static bool bucket_in_flight(struct buckets_in_flight *list,
@@ -140,11 +139,11 @@ static bool bucket_in_flight(struct buckets_in_flight *list,
 
 typedef DARRAY(struct move_bucket) move_buckets;
 
-static int bch2_copygc_get_buckets(struct btree_trans *trans,
-			struct moving_context *ctxt,
+static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 			struct buckets_in_flight *buckets_in_flight,
 			move_buckets *buckets)
 {
+	struct btree_trans *trans = ctxt->trans;
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -152,7 +151,7 @@ static int bch2_copygc_get_buckets(struct btree_trans *trans,
 	size_t saw = 0, in_flight = 0, not_movable = 0, sectors = 0;
 	int ret;
 
-	move_buckets_wait(trans, ctxt, buckets_in_flight, false);
+	move_buckets_wait(ctxt, buckets_in_flight, false);
 
 	ret = bch2_btree_write_buffer_flush(trans);
 	if (bch2_fs_fatal_err_on(ret, c, "%s: error %s from bch2_btree_write_buffer_flush()",
@@ -188,10 +187,10 @@ static int bch2_copygc_get_buckets(struct btree_trans *trans,
 }
 
 noinline
-static int bch2_copygc(struct btree_trans *trans,
-		       struct moving_context *ctxt,
+static int bch2_copygc(struct moving_context *ctxt,
 		       struct buckets_in_flight *buckets_in_flight)
 {
+	struct btree_trans *trans = ctxt->trans;
 	struct bch_fs *c = trans->c;
 	struct data_update_opts data_opts = {
 		.btree_insert_flags = BCH_WATERMARK_copygc,
@@ -202,7 +201,7 @@ static int bch2_copygc(struct btree_trans *trans,
 	u64 moved = atomic64_read(&ctxt->stats->sectors_moved);
 	int ret = 0;
 
-	ret = bch2_copygc_get_buckets(trans, ctxt, buckets_in_flight, &buckets);
+	ret = bch2_copygc_get_buckets(ctxt, buckets_in_flight, &buckets);
 	if (ret)
 		goto err;
 
@@ -221,7 +220,7 @@ static int bch2_copygc(struct btree_trans *trans,
 			break;
 		}
 
-		ret = __bch2_evacuate_bucket(trans, ctxt, f, f->bucket.k.bucket,
+		ret = __bch2_evacuate_bucket(ctxt, f, f->bucket.k.bucket,
 					     f->bucket.k.gen, data_opts);
 		if (ret)
 			goto err;
@@ -300,7 +299,6 @@ void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 static int bch2_copygc_thread(void *arg)
 {
 	struct bch_fs *c = arg;
-	struct btree_trans *trans;
 	struct moving_context ctxt;
 	struct bch_move_stats move_stats;
 	struct io_clock *clock = &c->io_clock[WRITE];
@@ -317,7 +315,6 @@ static int bch2_copygc_thread(void *arg)
 	}
 
 	set_freezable();
-	trans = bch2_trans_get(c);
 
 	bch2_move_stats_init(&move_stats, "copygc");
 	bch2_moving_ctxt_init(&ctxt, c, NULL, &move_stats,
@@ -325,16 +322,16 @@ static int bch2_copygc_thread(void *arg)
 			      false);
 
 	while (!ret && !kthread_should_stop()) {
-		bch2_trans_unlock(trans);
+		bch2_trans_unlock(ctxt.trans);
 		cond_resched();
 
 		if (!c->copy_gc_enabled) {
-			move_buckets_wait(trans, &ctxt, &buckets, true);
+			move_buckets_wait(&ctxt, &buckets, true);
 			kthread_wait_freezable(c->copy_gc_enabled);
 		}
 
 		if (unlikely(freezing(current))) {
-			move_buckets_wait(trans, &ctxt, &buckets, true);
+			move_buckets_wait(&ctxt, &buckets, true);
 			__refrigerator(false);
 			continue;
 		}
@@ -345,7 +342,7 @@ static int bch2_copygc_thread(void *arg)
 		if (wait > clock->max_slop) {
 			c->copygc_wait_at = last;
 			c->copygc_wait = last + wait;
-			move_buckets_wait(trans, &ctxt, &buckets, true);
+			move_buckets_wait(&ctxt, &buckets, true);
 			trace_and_count(c, copygc_wait, c, wait, last + wait);
 			bch2_kthread_io_clock_wait(clock, last + wait,
 					MAX_SCHEDULE_TIMEOUT);
@@ -355,15 +352,14 @@ static int bch2_copygc_thread(void *arg)
 		c->copygc_wait = 0;
 
 		c->copygc_running = true;
-		ret = bch2_copygc(trans, &ctxt, &buckets);
+		ret = bch2_copygc(&ctxt, &buckets);
 		c->copygc_running = false;
 
 		wake_up(&c->copygc_running_wq);
 	}
 
-	move_buckets_wait(trans, &ctxt, &buckets, true);
+	move_buckets_wait(&ctxt, &buckets, true);
 	rhashtable_destroy(&buckets.table);
-	bch2_trans_put(trans);
 	bch2_moving_ctxt_exit(&ctxt);
 
 	return 0;

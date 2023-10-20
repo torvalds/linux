@@ -157,13 +157,11 @@ static void move_read_endio(struct bio *bio)
 	closure_put(&ctxt->cl);
 }
 
-void bch2_moving_ctxt_do_pending_writes(struct moving_context *ctxt,
-					struct btree_trans *trans)
+void bch2_moving_ctxt_do_pending_writes(struct moving_context *ctxt)
 {
 	struct moving_io *io;
 
-	if (trans)
-		bch2_trans_unlock(trans);
+	bch2_trans_unlock(ctxt->trans);
 
 	while ((io = bch2_moving_ctxt_next_pending_write(ctxt))) {
 		list_del(&io->read_list);
@@ -171,21 +169,20 @@ void bch2_moving_ctxt_do_pending_writes(struct moving_context *ctxt,
 	}
 }
 
-void bch2_move_ctxt_wait_for_io(struct moving_context *ctxt,
-				struct btree_trans *trans)
+void bch2_move_ctxt_wait_for_io(struct moving_context *ctxt)
 {
 	unsigned sectors_pending = atomic_read(&ctxt->write_sectors);
 
-	move_ctxt_wait_event(ctxt, trans,
+	move_ctxt_wait_event(ctxt,
 		!atomic_read(&ctxt->write_sectors) ||
 		atomic_read(&ctxt->write_sectors) != sectors_pending);
 }
 
 void bch2_moving_ctxt_exit(struct moving_context *ctxt)
 {
-	struct bch_fs *c = ctxt->c;
+	struct bch_fs *c = ctxt->trans->c;
 
-	move_ctxt_wait_event(ctxt, NULL, list_empty(&ctxt->reads));
+	move_ctxt_wait_event(ctxt, list_empty(&ctxt->reads));
 	closure_sync(&ctxt->cl);
 
 	EBUG_ON(atomic_read(&ctxt->write_sectors));
@@ -203,6 +200,9 @@ void bch2_moving_ctxt_exit(struct moving_context *ctxt)
 	mutex_lock(&c->moving_context_lock);
 	list_del(&ctxt->list);
 	mutex_unlock(&c->moving_context_lock);
+
+	bch2_trans_put(ctxt->trans);
+	memset(ctxt, 0, sizeof(*ctxt));
 }
 
 void bch2_moving_ctxt_init(struct moving_context *ctxt,
@@ -214,7 +214,7 @@ void bch2_moving_ctxt_init(struct moving_context *ctxt,
 {
 	memset(ctxt, 0, sizeof(*ctxt));
 
-	ctxt->c		= c;
+	ctxt->trans	= bch2_trans_get(c);
 	ctxt->fn	= (void *) _RET_IP_;
 	ctxt->rate	= rate;
 	ctxt->stats	= stats;
@@ -287,14 +287,14 @@ static int bch2_extent_drop_ptrs(struct btree_trans *trans,
 		bch2_trans_commit(trans, NULL, NULL, BTREE_INSERT_NOFAIL);
 }
 
-int bch2_move_extent(struct btree_trans *trans,
-		     struct btree_iter *iter,
-		     struct moving_context *ctxt,
+int bch2_move_extent(struct moving_context *ctxt,
 		     struct move_bucket_in_flight *bucket_in_flight,
-		     struct bch_io_opts io_opts,
+		     struct btree_iter *iter,
 		     struct bkey_s_c k,
+		     struct bch_io_opts io_opts,
 		     struct data_update_opts data_opts)
 {
+	struct btree_trans *trans = ctxt->trans;
 	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	struct moving_io *io;
@@ -499,14 +499,13 @@ int bch2_move_get_io_opts_one(struct btree_trans *trans,
 	return 0;
 }
 
-int bch2_move_ratelimit(struct btree_trans *trans,
-			struct moving_context *ctxt)
+int bch2_move_ratelimit(struct moving_context *ctxt)
 {
-	struct bch_fs *c = trans->c;
+	struct bch_fs *c = ctxt->trans->c;
 	u64 delay;
 
 	if (ctxt->wait_on_copygc) {
-		bch2_trans_unlock(trans);
+		bch2_trans_unlock(ctxt->trans);
 		wait_event_killable(c->copygc_running_wq,
 				    !c->copygc_running ||
 				    kthread_should_stop());
@@ -516,7 +515,7 @@ int bch2_move_ratelimit(struct btree_trans *trans,
 		delay = ctxt->rate ? bch2_ratelimit_delay(ctxt->rate) : 0;
 
 		if (delay) {
-			bch2_trans_unlock(trans);
+			bch2_trans_unlock(ctxt->trans);
 			set_current_state(TASK_INTERRUPTIBLE);
 		}
 
@@ -529,7 +528,7 @@ int bch2_move_ratelimit(struct btree_trans *trans,
 			schedule_timeout(delay);
 
 		if (unlikely(freezing(current))) {
-			move_ctxt_wait_event(ctxt, trans, list_empty(&ctxt->reads));
+			move_ctxt_wait_event(ctxt, list_empty(&ctxt->reads));
 			try_to_freeze();
 		}
 	} while (delay);
@@ -538,7 +537,7 @@ int bch2_move_ratelimit(struct btree_trans *trans,
 	 * XXX: these limits really ought to be per device, SSDs and hard drives
 	 * will want different limits
 	 */
-	move_ctxt_wait_event(ctxt, trans,
+	move_ctxt_wait_event(ctxt,
 		atomic_read(&ctxt->write_sectors) < c->opts.move_bytes_in_flight >> 9 &&
 		atomic_read(&ctxt->read_sectors) < c->opts.move_bytes_in_flight >> 9 &&
 		atomic_read(&ctxt->write_ios) < c->opts.move_ios_in_flight &&
@@ -547,14 +546,14 @@ int bch2_move_ratelimit(struct btree_trans *trans,
 	return 0;
 }
 
-static int bch2_move_data_btree(struct btree_trans *trans,
-			    struct moving_context *ctxt,
-			    struct bpos start,
-			    struct bpos end,
-			    move_pred_fn pred, void *arg,
-			    enum btree_id btree_id)
+static int bch2_move_data_btree(struct moving_context *ctxt,
+				struct bpos start,
+				struct bpos end,
+				move_pred_fn pred, void *arg,
+				enum btree_id btree_id)
 {
-	struct bch_fs *c = ctxt->c;
+	struct btree_trans *trans = ctxt->trans;
+	struct bch_fs *c = trans->c;
 	struct per_snapshot_io_opts snapshot_io_opts;
 	struct bch_io_opts *io_opts;
 	struct bkey_buf sk;
@@ -579,7 +578,7 @@ static int bch2_move_data_btree(struct btree_trans *trans,
 	if (ctxt->rate)
 		bch2_ratelimit_reset(ctxt->rate);
 
-	while (!bch2_move_ratelimit(trans, ctxt)) {
+	while (!bch2_move_ratelimit(ctxt)) {
 		bch2_trans_begin(trans);
 
 		k = bch2_btree_iter_peek(&iter);
@@ -617,15 +616,14 @@ static int bch2_move_data_btree(struct btree_trans *trans,
 		bch2_bkey_buf_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
 
-		ret2 = bch2_move_extent(trans, &iter, ctxt, NULL,
-					*io_opts, k, data_opts);
+		ret2 = bch2_move_extent(ctxt, NULL, &iter, k, *io_opts, data_opts);
 		if (ret2) {
 			if (bch2_err_matches(ret2, BCH_ERR_transaction_restart))
 				continue;
 
 			if (ret2 == -ENOMEM) {
 				/* memory allocation failure, wait for some IO to finish */
-				bch2_move_ctxt_wait_for_io(ctxt, trans);
+				bch2_move_ctxt_wait_for_io(ctxt);
 				continue;
 			}
 
@@ -646,13 +644,12 @@ next_nondata:
 	return ret;
 }
 
-int __bch2_move_data(struct btree_trans *trans,
-		     struct moving_context *ctxt,
+int __bch2_move_data(struct moving_context *ctxt,
 		     struct bbpos start,
 		     struct bbpos end,
 		     move_pred_fn pred, void *arg)
 {
-	struct bch_fs *c = trans->c;
+	struct bch_fs *c = ctxt->trans->c;
 	enum btree_id id;
 	int ret = 0;
 
@@ -665,7 +662,7 @@ int __bch2_move_data(struct btree_trans *trans,
 		    !bch2_btree_id_root(c, id)->b)
 			continue;
 
-		ret = bch2_move_data_btree(trans, ctxt,
+		ret = bch2_move_data_btree(ctxt,
 				       id == start.btree ? start.pos : POS_MIN,
 				       id == end.btree   ? end.pos   : POS_MAX,
 				       pred, arg, id);
@@ -686,26 +683,23 @@ int bch2_move_data(struct bch_fs *c,
 		   move_pred_fn pred, void *arg)
 {
 
-	struct btree_trans *trans;
 	struct moving_context ctxt;
 	int ret;
 
 	bch2_moving_ctxt_init(&ctxt, c, rate, stats, wp, wait_on_copygc);
-	trans = bch2_trans_get(c);
-	ret = __bch2_move_data(trans, &ctxt, start, end, pred, arg);
-	bch2_trans_put(trans);
+	ret = __bch2_move_data(&ctxt, start, end, pred, arg);
 	bch2_moving_ctxt_exit(&ctxt);
 
 	return ret;
 }
 
-int __bch2_evacuate_bucket(struct btree_trans *trans,
-			   struct moving_context *ctxt,
+int __bch2_evacuate_bucket(struct moving_context *ctxt,
 			   struct move_bucket_in_flight *bucket_in_flight,
 			   struct bpos bucket, int gen,
 			   struct data_update_opts _data_opts)
 {
-	struct bch_fs *c = ctxt->c;
+	struct btree_trans *trans = ctxt->trans;
+	struct bch_fs *c = trans->c;
 	struct bch_io_opts io_opts = bch2_opts_to_inode_opts(c->opts);
 	struct btree_iter iter;
 	struct bkey_buf sk;
@@ -750,7 +744,7 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 		goto err;
 	}
 
-	while (!(ret = bch2_move_ratelimit(trans, ctxt))) {
+	while (!(ret = bch2_move_ratelimit(ctxt))) {
 		bch2_trans_begin(trans);
 
 		ret = bch2_get_next_backpointer(trans, bucket, gen,
@@ -800,16 +794,15 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 				i++;
 			}
 
-			ret = bch2_move_extent(trans, &iter, ctxt,
-					bucket_in_flight,
-					io_opts, k, data_opts);
+			ret = bch2_move_extent(ctxt, bucket_in_flight,
+					       &iter, k, io_opts, data_opts);
 			bch2_trans_iter_exit(trans, &iter);
 
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				continue;
 			if (ret == -ENOMEM) {
 				/* memory allocation failure, wait for some IO to finish */
-				bch2_move_ctxt_wait_for_io(ctxt, trans);
+				bch2_move_ctxt_wait_for_io(ctxt);
 				continue;
 			}
 			if (ret)
@@ -865,14 +858,12 @@ int bch2_evacuate_bucket(struct bch_fs *c,
 			 struct write_point_specifier wp,
 			 bool wait_on_copygc)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct moving_context ctxt;
 	int ret;
 
 	bch2_moving_ctxt_init(&ctxt, c, rate, stats, wp, wait_on_copygc);
-	ret = __bch2_evacuate_bucket(trans, &ctxt, NULL, bucket, gen, data_opts);
+	ret = __bch2_evacuate_bucket(&ctxt, NULL, bucket, gen, data_opts);
 	bch2_moving_ctxt_exit(&ctxt);
-	bch2_trans_put(trans);
 
 	return ret;
 }

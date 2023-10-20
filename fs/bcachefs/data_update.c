@@ -487,7 +487,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 
 		if (c->opts.nocow_enabled) {
 			if (ctxt) {
-				move_ctxt_wait_event(ctxt, trans,
+				move_ctxt_wait_event(ctxt,
 						(locked = bch2_bucket_nocow_trylock(&c->nocow_locks,
 									  PTR_BUCKET_POS(c, &p.ptr), 0)) ||
 						!atomic_read(&ctxt->read_sectors));
