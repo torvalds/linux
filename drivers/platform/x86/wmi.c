@@ -1221,6 +1221,26 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	return 0;
 }
 
+static int wmi_add_device(struct platform_device *pdev, struct wmi_device *wdev)
+{
+	struct device_link *link;
+
+	/*
+	 * Many aggregate WMI drivers do not use -EPROBE_DEFER when they
+	 * are unable to find a WMI device during probe, instead they require
+	 * all WMI devices associated with an platform device to become available
+	 * at once. This device link thus prevents WMI drivers from probing until
+	 * the associated platform device has finished probing (and has registered
+	 * all discovered WMI devices).
+	 */
+
+	link = device_link_add(&wdev->dev, &pdev->dev, DL_FLAG_AUTOREMOVE_SUPPLIER);
+	if (!link)
+		return -EINVAL;
+
+	return device_add(&wdev->dev);
+}
+
 static void wmi_free_devices(struct acpi_device *device)
 {
 	struct wmi_block *wblock, *next;
@@ -1263,11 +1283,12 @@ static bool guid_already_parsed_for_legacy(struct acpi_device *device, const gui
 /*
  * Parse the _WDG method for the GUID data blocks
  */
-static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
+static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 {
+	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
 	const struct guid_block *gblock;
-	struct wmi_block *wblock, *next;
+	struct wmi_block *wblock;
 	union acpi_object *obj;
 	acpi_status status;
 	int retval = 0;
@@ -1317,22 +1338,14 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 			wblock->handler = wmi_notify_debug;
 			wmi_method_enable(wblock, true);
 		}
-	}
 
-	/*
-	 * Now that all of the devices are created, add them to the
-	 * device tree and probe subdrivers.
-	 */
-	list_for_each_entry_safe(wblock, next, &wmi_block_list, list) {
-		if (wblock->acpi_device != device)
-			continue;
-
-		retval = device_add(&wblock->dev.dev);
+		retval = wmi_add_device(pdev, &wblock->dev);
 		if (retval) {
 			dev_err(wmi_bus_dev, "failed to register %pUL\n",
 				&wblock->gblock.guid);
 			if (debug_event)
 				wmi_method_enable(wblock, false);
+
 			list_del(&wblock->list);
 			put_device(&wblock->dev.dev);
 		}
@@ -1487,7 +1500,7 @@ static int acpi_wmi_probe(struct platform_device *device)
 	}
 	dev_set_drvdata(&device->dev, wmi_bus_dev);
 
-	error = parse_wdg(wmi_bus_dev, acpi_device);
+	error = parse_wdg(wmi_bus_dev, device);
 	if (error) {
 		pr_err("Failed to parse WDG method\n");
 		goto err_remove_busdev;
