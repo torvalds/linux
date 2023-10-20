@@ -220,6 +220,7 @@ static int imx_scu_ocotp_write(void *context, unsigned int offset,
 
 static struct nvmem_config imx_scu_ocotp_nvmem_config = {
 	.name = "imx-scu-ocotp",
+	.add_legacy_fixed_of_cells = true,
 	.read_only = false,
 	.word_size = 4,
 	.stride = 1,
