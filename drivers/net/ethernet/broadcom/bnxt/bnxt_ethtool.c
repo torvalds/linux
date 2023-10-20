@@ -2019,13 +2019,15 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 	return 0;
 }
 
-static int bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed)
+static int
+bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info = &bp->link_info;
 	u16 support_pam4_spds = link_info->support_pam4_speeds;
 	u16 support_spds = link_info->support_speeds;
 	u8 sig_mode = BNXT_SIG_MODE_NRZ;
+	u32 lanes_needed = 1;
 	u16 fw_speed = 0;
 
 	switch (ethtool_speed) {
@@ -2046,43 +2048,57 @@ static int bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed)
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_10GB;
 		break;
 	case SPEED_20000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_20GB)
+		if (support_spds & BNXT_LINK_SPEED_MSK_20GB) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_20GB;
+			lanes_needed = 2;
+		}
 		break;
 	case SPEED_25000:
 		if (support_spds & BNXT_LINK_SPEED_MSK_25GB)
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_25GB;
 		break;
 	case SPEED_40000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_40GB)
+		if (support_spds & BNXT_LINK_SPEED_MSK_40GB) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_40GB;
+			lanes_needed = 4;
+		}
 		break;
 	case SPEED_50000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_50GB) {
+		if ((support_spds & BNXT_LINK_SPEED_MSK_50GB) && lanes != 1) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_50GB;
+			lanes_needed = 2;
 		} else if (support_pam4_spds & BNXT_LINK_PAM4_SPEED_MSK_50GB) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_50GB;
 			sig_mode = BNXT_SIG_MODE_PAM4;
 		}
 		break;
 	case SPEED_100000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_100GB) {
+		if ((support_spds & BNXT_LINK_SPEED_MSK_100GB) &&
+		    lanes != 2 && lanes != 1) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_100GB;
+			lanes_needed = 4;
 		} else if (support_pam4_spds & BNXT_LINK_PAM4_SPEED_MSK_100GB) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_100GB;
 			sig_mode = BNXT_SIG_MODE_PAM4;
+			lanes_needed = 2;
 		}
 		break;
 	case SPEED_200000:
 		if (support_pam4_spds & BNXT_LINK_PAM4_SPEED_MSK_200GB) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_200GB;
 			sig_mode = BNXT_SIG_MODE_PAM4;
+			lanes_needed = 4;
 		}
 		break;
 	}
 
 	if (!fw_speed) {
 		netdev_err(dev, "unsupported speed!\n");
+		return -EINVAL;
+	}
+
+	if (lanes && lanes != lanes_needed) {
+		netdev_err(dev, "unsupported number of lanes for speed\n");
 		return -EINVAL;
 	}
 
@@ -2130,7 +2146,7 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 	struct bnxt_link_info *link_info = &bp->link_info;
 	const struct ethtool_link_settings *base = &lk_ksettings->base;
 	bool set_pause = false;
-	u32 speed;
+	u32 speed, lanes = 0;
 	int rc = 0;
 
 	if (!BNXT_PHY_CFG_ABLE(bp))
@@ -2171,7 +2187,8 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 			goto set_setting_exit;
 		}
 		speed = base->speed;
-		rc = bnxt_force_link_speed(dev, speed);
+		lanes = lk_ksettings->lanes;
+		rc = bnxt_force_link_speed(dev, speed, lanes);
 		if (rc) {
 			if (rc == -EALREADY)
 				rc = 0;
@@ -4377,6 +4394,7 @@ void bnxt_ethtool_free(struct bnxt *bp)
 }
 
 const struct ethtool_ops bnxt_ethtool_ops = {
+	.cap_link_lanes_supported	= 1,
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
 				     ETHTOOL_COALESCE_USECS_IRQ |
