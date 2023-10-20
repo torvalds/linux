@@ -245,7 +245,7 @@ clk_exit:
 	return rc;
 }
 
-static int aspeed_hace_remove(struct platform_device *pdev)
+static void aspeed_hace_remove(struct platform_device *pdev)
 {
 	struct aspeed_hace_dev *hace_dev = platform_get_drvdata(pdev);
 	struct aspeed_engine_crypto *crypto_engine = &hace_dev->crypto_engine;
@@ -260,15 +260,13 @@ static int aspeed_hace_remove(struct platform_device *pdev)
 	tasklet_kill(&crypto_engine->done_task);
 
 	clk_disable_unprepare(hace_dev->clk);
-
-	return 0;
 }
 
 MODULE_DEVICE_TABLE(of, aspeed_hace_of_matches);
 
 static struct platform_driver aspeed_hace_driver = {
 	.probe		= aspeed_hace_probe,
-	.remove		= aspeed_hace_remove,
+	.remove_new	= aspeed_hace_remove,
 	.driver         = {
 		.name   = KBUILD_MODNAME,
 		.of_match_table = aspeed_hace_of_matches,
