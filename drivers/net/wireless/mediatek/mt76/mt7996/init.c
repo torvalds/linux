@@ -641,6 +641,54 @@ static void mt7996_wed_rro_free(struct mt7996_dev *dev)
 #endif
 }
 
+static void mt7996_wed_rro_work(struct work_struct *work)
+{
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	struct mt7996_dev *dev;
+	LIST_HEAD(list);
+
+	dev = (struct mt7996_dev *)container_of(work, struct mt7996_dev,
+						wed_rro.work);
+
+	spin_lock_bh(&dev->wed_rro.lock);
+	list_splice_init(&dev->wed_rro.poll_list, &list);
+	spin_unlock_bh(&dev->wed_rro.lock);
+
+	while (!list_empty(&list)) {
+		struct mt7996_wed_rro_session_id *e;
+		int i;
+
+		e = list_first_entry(&list, struct mt7996_wed_rro_session_id,
+				     list);
+		list_del_init(&e->list);
+
+		for (i = 0; i < MT7996_RRO_WINDOW_MAX_LEN; i++) {
+			void *ptr = dev->wed_rro.session.ptr;
+			struct mt7996_wed_rro_addr *elem;
+			u32 idx, elem_id = i;
+
+			if (e->id == MT7996_RRO_MAX_SESSION)
+				goto reset;
+
+			idx = e->id / MT7996_RRO_BA_BITMAP_SESSION_SIZE;
+			if (idx >= ARRAY_SIZE(dev->wed_rro.addr_elem))
+				goto out;
+
+			ptr = dev->wed_rro.addr_elem[idx].ptr;
+			elem_id +=
+				(e->id % MT7996_RRO_BA_BITMAP_SESSION_SIZE) *
+				MT7996_RRO_WINDOW_MAX_LEN;
+reset:
+			elem = ptr + elem_id * sizeof(*elem);
+			elem->signature = 0xff;
+		}
+		mt7996_mcu_wed_rro_reset_sessions(dev, e->id);
+out:
+		kfree(e);
+	}
+#endif
+}
+
 static int mt7996_init_hardware(struct mt7996_dev *dev)
 {
 	int ret, idx;
@@ -648,6 +696,9 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
 	INIT_WORK(&dev->init_work, mt7996_init_work);
+	INIT_WORK(&dev->wed_rro.work, mt7996_wed_rro_work);
+	INIT_LIST_HEAD(&dev->wed_rro.poll_list);
+	spin_lock_init(&dev->wed_rro.lock);
 
 	dev->dbdc_support = true;
 	dev->tbtc_support = true;
@@ -1100,6 +1151,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
 
 void mt7996_unregister_device(struct mt7996_dev *dev)
 {
+	cancel_work_sync(&dev->wed_rro.work);
 	mt7996_unregister_phy(mt7996_phy3(dev), MT_BAND2);
 	mt7996_unregister_phy(mt7996_phy2(dev), MT_BAND1);
 	mt7996_coredump_unregister(dev);

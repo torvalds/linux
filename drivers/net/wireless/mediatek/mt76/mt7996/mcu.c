@@ -527,6 +527,73 @@ mt7996_mcu_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
 }
 
 static void
+mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
+{
+	struct mt7996_mcu_wed_rro_event *event = (void *)skb->data;
+
+	if (!dev->has_rro)
+		return;
+
+	skb_pull(skb, sizeof(struct mt7996_mcu_rxd) + 4);
+
+	switch (le16_to_cpu(event->tag)) {
+	case UNI_WED_RRO_BA_SESSION_STATUS: {
+		struct mt7996_mcu_wed_rro_ba_event *e;
+
+		while (skb->len >= sizeof(*e)) {
+			struct mt76_rx_tid *tid;
+			struct mt76_wcid *wcid;
+			u16 idx;
+
+			e = (void *)skb->data;
+			idx = le16_to_cpu(e->wlan_id);
+			if (idx >= ARRAY_SIZE(dev->mt76.wcid))
+				break;
+
+			wcid = rcu_dereference(dev->mt76.wcid[idx]);
+			if (!wcid || !wcid->sta)
+				break;
+
+			if (e->tid >= ARRAY_SIZE(wcid->aggr))
+				break;
+
+			tid = rcu_dereference(wcid->aggr[e->tid]);
+			if (!tid)
+				break;
+
+			tid->id = le16_to_cpu(e->id);
+			skb_pull(skb, sizeof(*e));
+		}
+		break;
+	}
+	case UNI_WED_RRO_BA_SESSION_DELETE: {
+		struct mt7996_mcu_wed_rro_ba_delete_event *e;
+
+		while (skb->len >= sizeof(*e)) {
+			struct mt7996_wed_rro_session_id *session;
+
+			e = (void *)skb->data;
+			session = kzalloc(sizeof(*session), GFP_ATOMIC);
+			if (!session)
+				break;
+
+			session->id = le16_to_cpu(e->session_id);
+
+			spin_lock_bh(&dev->wed_rro.lock);
+			list_add_tail(&session->list, &dev->wed_rro.poll_list);
+			spin_unlock_bh(&dev->wed_rro.lock);
+
+			ieee80211_queue_work(mt76_hw(dev), &dev->wed_rro.work);
+			skb_pull(skb, sizeof(*e));
+		}
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+static void
 mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
 {
 	struct mt7996_mcu_rxd *rxd = (struct mt7996_mcu_rxd *)skb->data;
@@ -543,6 +610,9 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
 		break;
 	case MCU_UNI_EVENT_ALL_STA_INFO:
 		mt7996_mcu_rx_all_sta_info_event(dev, skb);
+		break;
+	case MCU_UNI_EVENT_WED_RRO:
+		mt7996_mcu_wed_rro_event(dev, skb);
 		break;
 	default:
 		break;
@@ -4086,4 +4156,23 @@ int mt7996_mcu_get_all_sta_info(struct mt7996_phy *phy, u16 tag)
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(ALL_STA_INFO),
 				 &req, sizeof(req), false);
+}
+
+int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id)
+{
+	struct {
+		u8 __rsv[4];
+
+		__le16 tag;
+		__le16 len;
+		__le16 session_id;
+		u8 pad[4];
+	} __packed req = {
+		.tag = cpu_to_le16(UNI_RRO_DEL_BA_SESSION),
+		.len = cpu_to_le16(sizeof(req) - 4),
+		.session_id = cpu_to_le16(id),
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(RRO), &req,
+				 sizeof(req), true);
 }

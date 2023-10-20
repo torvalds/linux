@@ -182,6 +182,11 @@ struct mt7996_wed_rro_addr {
 	u32 signature : 8;
 };
 
+struct mt7996_wed_rro_session_id {
+	struct list_head list;
+	u16 id;
+};
+
 struct mt7996_phy {
 	struct mt76_phy *mt76;
 	struct mt7996_dev *dev;
@@ -276,6 +281,10 @@ struct mt7996_dev {
 			void *ptr;
 			dma_addr_t phy_addr;
 		} session;
+
+		struct work_struct work;
+		struct list_head poll_list;
+		spinlock_t lock;
 	} wed_rro;
 
 	bool ibf;
@@ -456,6 +465,7 @@ int mt7996_mcu_trigger_assert(struct mt7996_dev *dev);
 void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
 void mt7996_mcu_exit(struct mt7996_dev *dev);
 int mt7996_mcu_get_all_sta_info(struct mt7996_phy *phy, u16 tag);
+int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id);
 
 static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
 {

@@ -404,6 +404,7 @@ struct mt76_rx_tid {
 	spinlock_t lock;
 	struct delayed_work reorder_work;
 
+	u16 id;
 	u16 head;
 	u16 size;
 	u16 nframes;

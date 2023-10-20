@@ -179,6 +179,41 @@ struct mt7996_mcu_all_sta_info_event {
 	};
 } __packed;
 
+struct mt7996_mcu_wed_rro_event {
+	struct mt7996_mcu_rxd rxd;
+
+	u8 __rsv1[4];
+
+	__le16 tag;
+	__le16 len;
+} __packed;
+
+struct mt7996_mcu_wed_rro_ba_event {
+	__le16 tag;
+	__le16 len;
+
+	__le16 wlan_id;
+	u8 tid;
+	u8 __rsv1;
+	__le32 status;
+	__le16 id;
+	u8 __rsv2[2];
+} __packed;
+
+struct mt7996_mcu_wed_rro_ba_delete_event {
+	__le16 tag;
+	__le16 len;
+
+	__le16 session_id;
+	u8 __rsv2[2];
+} __packed;
+
+enum  {
+	UNI_WED_RRO_BA_SESSION_STATUS,
+	UNI_WED_RRO_BA_SESSION_TBL,
+	UNI_WED_RRO_BA_SESSION_DELETE,
+};
+
 enum mt7996_chan_mib_offs {
 	UNI_MIB_OBSS_AIRTIME = 26,
 	UNI_MIB_NON_WIFI_TIME = 27,

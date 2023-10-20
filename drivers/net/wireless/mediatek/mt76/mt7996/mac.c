@@ -1822,6 +1822,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
 	if (phy3)
 		ieee80211_stop_queues(phy3->mt76->hw);
 
+	cancel_work_sync(&dev->wed_rro.work);
 	cancel_delayed_work_sync(&dev->mphy.mac_work);
 	if (phy2)
 		cancel_delayed_work_sync(&phy2->mt76->mac_work);
@@ -1920,6 +1921,8 @@ void mt7996_mac_reset_work(struct work_struct *work)
 	set_bit(MT76_RESET, &dev->mphy.state);
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
 	wake_up(&dev->mt76.mcu.wait);
+
+	cancel_work_sync(&dev->wed_rro.work);
 	cancel_delayed_work_sync(&dev->mphy.mac_work);
 	if (phy2) {
 		set_bit(MT76_RESET, &phy2->mt76->state);
