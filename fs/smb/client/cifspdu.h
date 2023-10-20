@@ -2570,7 +2570,7 @@ typedef struct {
 
 
 struct win_dev {
-	unsigned char type[8]; /* IntxCHR or IntxBLK */
+	unsigned char type[8]; /* IntxCHR or IntxBLK or LnxFIFO*/
 	__le64 major;
 	__le64 minor;
 } __attribute__((packed));

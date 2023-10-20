@@ -592,6 +592,10 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 			cifs_dbg(FYI, "Symlink\n");
 			fattr->cf_mode |= S_IFLNK;
 			fattr->cf_dtype = DT_LNK;
+		} else if (memcmp("LnxFIFO", pbuf, 8) == 0) {
+			cifs_dbg(FYI, "FIFO\n");
+			fattr->cf_mode |= S_IFIFO;
+			fattr->cf_dtype = DT_FIFO;
 		} else {
 			fattr->cf_mode |= S_IFREG; /* file? */
 			fattr->cf_dtype = DT_REG;
