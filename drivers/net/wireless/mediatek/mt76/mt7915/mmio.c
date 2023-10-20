@@ -567,80 +567,6 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
 	spin_unlock_bh(&dev->mt76.token_lock);
 }
 
-static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
-{
-	struct mt7915_dev *dev;
-	int i;
-
-	dev = container_of(wed, struct mt7915_dev, mt76.mmio.wed);
-	for (i = 0; i < dev->mt76.rx_token_size; i++) {
-		struct mt76_txwi_cache *t;
-
-		t = mt76_rx_token_release(&dev->mt76, i);
-		if (!t || !t->ptr)
-			continue;
-
-		mt76_put_page_pool_buf(t->ptr, false);
-		t->ptr = NULL;
-
-		mt76_put_rxwi(&dev->mt76, t);
-	}
-
-	mt76_free_pending_rxwi(&dev->mt76);
-}
-
-static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
-{
-	struct mtk_wed_bm_desc *desc = wed->rx_buf_ring.desc;
-	struct mt76_txwi_cache *t = NULL;
-	struct mt7915_dev *dev;
-	struct mt76_queue *q;
-	int i, len;
-
-	dev = container_of(wed, struct mt7915_dev, mt76.mmio.wed);
-	q = &dev->mt76.q_rx[MT_RXQ_MAIN];
-	len = SKB_WITH_OVERHEAD(q->buf_size);
-
-	for (i = 0; i < size; i++) {
-		enum dma_data_direction dir;
-		dma_addr_t addr;
-		u32 offset;
-		int token;
-		void *buf;
-
-		t = mt76_get_rxwi(&dev->mt76);
-		if (!t)
-			goto unmap;
-
-		buf = mt76_get_page_pool_buf(q, &offset, q->buf_size);
-		if (!buf)
-			goto unmap;
-
-		addr = page_pool_get_dma_addr(virt_to_head_page(buf)) + offset;
-		dir = page_pool_get_dma_dir(q->page_pool);
-		dma_sync_single_for_device(dev->mt76.dma_dev, addr, len, dir);
-
-		desc->buf0 = cpu_to_le32(addr);
-		token = mt76_rx_token_consume(&dev->mt76, buf, t, addr);
-		if (token < 0) {
-			mt76_put_page_pool_buf(buf, false);
-			goto unmap;
-		}
-
-		desc->token |= cpu_to_le32(FIELD_PREP(MT_DMA_CTL_TOKEN,
-						      token));
-		desc++;
-	}
-
-	return 0;
-
-unmap:
-	if (t)
-		mt76_put_rxwi(&dev->mt76, t);
-	mt7915_mmio_wed_release_rx_buf(wed);
-	return -ENOMEM;
-}
-
 static void mt7915_mmio_wed_update_rx_stats(struct mtk_wed_device *wed,
 					    struct mtk_wed_wo_rx_stats *stats)
 {
@@ -780,8 +706,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
 	wed->wlan.init_buf = mt7915_wed_init_buf;
 	wed->wlan.offload_enable = mt7915_mmio_wed_offload_enable;
 	wed->wlan.offload_disable = mt7915_mmio_wed_offload_disable;
-	wed->wlan.init_rx_buf = mt7915_mmio_wed_init_rx_buf;
-	wed->wlan.release_rx_buf = mt7915_mmio_wed_release_rx_buf;
+	wed->wlan.init_rx_buf = mt76_mmio_wed_init_rx_buf;
+	wed->wlan.release_rx_buf = mt76_mmio_wed_release_rx_buf;
 	wed->wlan.update_wo_rx_stats = mt7915_mmio_wed_update_rx_stats;
 	wed->wlan.reset = mt7915_mmio_wed_reset;
 	wed->wlan.reset_complete = mt7915_mmio_wed_reset_complete;
