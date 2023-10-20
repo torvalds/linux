@@ -82,6 +82,7 @@ KBUILD_AFLAGS_MODULE		+= -Wa,-mla-global-with-abs
 KBUILD_CFLAGS_MODULE		+= -fplt -Wa,-mla-global-with-abs,-mla-local-with-abs
 endif
 
+KBUILD_RUSTFLAGS			+= --target=$(objtree)/scripts/target.json
 KBUILD_RUSTFLAGS_MODULE		+= -Crelocation-model=pic
 
 ifeq ($(CONFIG_RELOCATABLE),y)
