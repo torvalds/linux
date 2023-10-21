@@ -188,17 +188,6 @@ struct acp_dev_data {
 	u32 xfer_rx_resolution[3];
 };
 
-union acp_i2stdm_mstrclkgen {
-	struct {
-		u32 i2stdm_master_mode : 1;
-		u32 i2stdm_format_mode : 1;
-		u32 i2stdm_lrclk_div_val : 9;
-		u32 i2stdm_bclk_div_val : 11;
-		u32:10;
-	} bitfields, bits;
-	u32  u32_all;
-};
-
 extern const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops;
 extern const struct snd_soc_dai_ops acp_dmic_dai_ops;
 
@@ -275,33 +264,5 @@ static inline u64 acp_get_byte_count(struct acp_dev_data *adata, int dai_id, int
 
 POINTER_RETURN_BYTES:
 	return byte_count;
-}
-
-static inline void acp_set_i2s_clk(struct acp_dev_data *adata, int dai_id)
-{
-	union acp_i2stdm_mstrclkgen mclkgen;
-	u32 master_reg;
-
-	switch (dai_id) {
-	case I2S_SP_INSTANCE:
-		master_reg = ACP_I2STDM0_MSTRCLKGEN;
-		break;
-	case I2S_BT_INSTANCE:
-		master_reg = ACP_I2STDM1_MSTRCLKGEN;
-		break;
-	case I2S_HS_INSTANCE:
-		master_reg = ACP_I2STDM2_MSTRCLKGEN;
-		break;
-	default:
-		master_reg = ACP_I2STDM0_MSTRCLKGEN;
-		break;
-	}
-
-	mclkgen.bits.i2stdm_master_mode = 0x1;
-	mclkgen.bits.i2stdm_format_mode = 0x00;
-
-	mclkgen.bits.i2stdm_bclk_div_val = adata->bclk_div;
-	mclkgen.bits.i2stdm_lrclk_div_val = adata->lrclk_div;
-	writel(mclkgen.u32_all, adata->acp_base + master_reg);
 }
 #endif
