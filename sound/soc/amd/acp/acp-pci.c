@@ -55,7 +55,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	int ret;
 
 	flag = snd_amd_acp_find_config(pci);
-	if (flag != FLAG_AMD_LEGACY)
+	if (flag != FLAG_AMD_LEGACY && flag != FLAG_AMD_LEGACY_ONLY_DMIC)
 		return -ENODEV;
 
 	chip = devm_kzalloc(&pci->dev, sizeof(*chip), GFP_KERNEL);
@@ -129,6 +129,13 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		}
 	}
 
+	if (flag == FLAG_AMD_LEGACY_ONLY_DMIC) {
+		ret = check_acp_pdm(pci, chip);
+		if (ret < 0)
+			goto skip_pdev_creation;
+	}
+
+	chip->flag = flag;
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 
 	pdevinfo.name = chip->name;
@@ -145,6 +152,8 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		ret = PTR_ERR(pdev);
 		goto unregister_dmic_dev;
 	}
+
+skip_pdev_creation:
 	chip->chip_pdev = pdev;
 	dev_set_drvdata(&pci->dev, chip);
 	pm_runtime_set_autosuspend_delay(&pci->dev, 2000);

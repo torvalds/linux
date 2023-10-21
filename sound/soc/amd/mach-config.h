@@ -15,6 +15,7 @@
 #define FLAG_AMD_SOF			BIT(1)
 #define FLAG_AMD_SOF_ONLY_DMIC		BIT(2)
 #define FLAG_AMD_LEGACY			BIT(3)
+#define FLAG_AMD_LEGACY_ONLY_DMIC	BIT(4)
 
 #define ACP_PCI_DEV_ID			0x15E2
 

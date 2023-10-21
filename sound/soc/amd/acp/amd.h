@@ -133,6 +133,7 @@ struct acp_chip_info {
 	unsigned int acp_rev;	/* ACP Revision id */
 	void __iomem *base;	/* ACP memory PCI base */
 	struct platform_device *chip_pdev;
+	unsigned int flag;	/* Distinguish b/w Legacy or Only PDM */
 };
 
 struct acp_stream {
@@ -188,6 +189,25 @@ struct acp_dev_data {
 	u32 xfer_rx_resolution[3];
 };
 
+enum acp_config {
+	ACP_CONFIG_0 = 0,
+	ACP_CONFIG_1,
+	ACP_CONFIG_2,
+	ACP_CONFIG_3,
+	ACP_CONFIG_4,
+	ACP_CONFIG_5,
+	ACP_CONFIG_6,
+	ACP_CONFIG_7,
+	ACP_CONFIG_8,
+	ACP_CONFIG_9,
+	ACP_CONFIG_10,
+	ACP_CONFIG_11,
+	ACP_CONFIG_12,
+	ACP_CONFIG_13,
+	ACP_CONFIG_14,
+	ACP_CONFIG_15,
+};
+
 extern const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops;
 extern const struct snd_soc_dai_ops acp_dmic_dai_ops;
 
@@ -213,6 +233,8 @@ void restore_acp_pdm_params(struct snd_pcm_substream *substream,
 
 int restore_acp_i2s_params(struct snd_pcm_substream *substream,
 			   struct acp_dev_data *adata, struct acp_stream *stream);
+
+int check_acp_pdm(struct pci_dev *pci, struct acp_chip_info *chip);
 
 static inline u64 acp_get_byte_count(struct acp_dev_data *adata, int dai_id, int direction)
 {

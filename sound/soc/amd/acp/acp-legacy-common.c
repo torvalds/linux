@@ -16,6 +16,10 @@
 #include <linux/pci.h>
 #include <linux/export.h>
 
+#define ACP_RENOIR_PDM_ADDR	0x02
+#define ACP_REMBRANDT_PDM_ADDR	0x03
+#define ACP63_PDM_ADDR		0x02
+
 void acp_enable_interrupts(struct acp_dev_data *adata)
 {
 	struct acp_resource *rsrc = adata->rsrc;
@@ -347,5 +351,53 @@ int smn_read(struct pci_dev *dev, u32 smn_addr)
 	return data;
 }
 EXPORT_SYMBOL_NS_GPL(smn_read, SND_SOC_ACP_COMMON);
+
+int check_acp_pdm(struct pci_dev *pci, struct acp_chip_info *chip)
+{
+	struct acpi_device *pdm_dev;
+	const union acpi_object *obj;
+	u32 pdm_addr, val;
+
+	val = readl(chip->base + ACP_PIN_CONFIG);
+	switch (val) {
+	case ACP_CONFIG_4:
+	case ACP_CONFIG_5:
+	case ACP_CONFIG_6:
+	case ACP_CONFIG_7:
+	case ACP_CONFIG_8:
+	case ACP_CONFIG_10:
+	case ACP_CONFIG_11:
+	case ACP_CONFIG_12:
+	case ACP_CONFIG_13:
+	case ACP_CONFIG_14:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (chip->acp_rev) {
+	case ACP3X_DEV:
+		pdm_addr = ACP_RENOIR_PDM_ADDR;
+		break;
+	case ACP6X_DEV:
+		pdm_addr = ACP_REMBRANDT_PDM_ADDR;
+		break;
+	case ACP63_DEV:
+		pdm_addr = ACP63_PDM_ADDR;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	pdm_dev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), pdm_addr, 0);
+	if (pdm_dev) {
+		if (!acpi_dev_get_property(pdm_dev, "acp-audio-device-type",
+					   ACPI_TYPE_INTEGER, &obj) &&
+					   obj->integer.value == pdm_addr)
+			return 0;
+	}
+	return -ENODEV;
+}
+EXPORT_SYMBOL_NS_GPL(check_acp_pdm, SND_SOC_ACP_COMMON);
 
 MODULE_LICENSE("Dual BSD/GPL");
