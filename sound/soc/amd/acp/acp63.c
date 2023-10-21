@@ -21,6 +21,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/pci.h>
 #include "amd.h"
+#include "acp-mach.h"
+#include "../mach-config.h"
 
 #define DRV_NAME "acp_asoc_acp63"
 
@@ -237,6 +239,8 @@ static int acp63_audio_probe(struct platform_device *pdev)
 	adata->dai_driver = acp63_dai;
 	adata->num_dai = ARRAY_SIZE(acp63_dai);
 	adata->rsrc = &rsrc;
+	adata->platform = ACP63;
+	adata->flag = chip->flag;
 	adata->machines = snd_soc_acpi_amd_acp63_acp_machines;
 	acp_machine_select(adata);
 	dev_set_drvdata(dev, adata);
