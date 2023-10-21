@@ -1755,6 +1755,10 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 	if (rphy->phy_cfg->phy_lowpower)
 		ret = rphy->phy_cfg->phy_lowpower(rphy, true);
 
+	/* Set gpio output low to avoid leakage */
+	if (rphy->vup_gpio && !wakeup_enable)
+		gpiod_set_value(rphy->vup_gpio, 1);
+
 	return ret;
 }
 
@@ -1769,6 +1773,10 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 
 	if (device_may_wakeup(rphy->dev))
 		wakeup_enable = true;
+
+	/* Set gpio output high to disable pull-up circuit on DM */
+	if (rphy->vup_gpio && !wakeup_enable)
+		gpiod_set_value(rphy->vup_gpio, 0);
 
 	/* exit low power state */
 	if (rphy->phy_cfg->phy_lowpower)
