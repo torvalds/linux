@@ -19,6 +19,7 @@
 #define ACP_RENOIR_PDM_ADDR	0x02
 #define ACP_REMBRANDT_PDM_ADDR	0x03
 #define ACP63_PDM_ADDR		0x02
+#define ACP70_PDM_ADDR		0x02
 
 void acp_enable_interrupts(struct acp_dev_data *adata)
 {
@@ -268,6 +269,10 @@ static int acp_power_on(struct acp_chip_info *chip)
 		acp_pgfsm_stat_reg = ACP63_PGFSM_STATUS;
 		acp_pgfsm_ctrl_reg = ACP63_PGFSM_CONTROL;
 		break;
+	case ACP70_DEV:
+		acp_pgfsm_stat_reg = ACP70_PGFSM_STATUS;
+		acp_pgfsm_ctrl_reg = ACP70_PGFSM_CONTROL;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -329,7 +334,8 @@ int acp_deinit(struct acp_chip_info *chip)
 	if (ret)
 		return ret;
 
-	writel(0, chip->base + ACP_CONTROL);
+	if (chip->acp_rev != ACP70_DEV)
+		writel(0, chip->base + ACP_CONTROL);
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(acp_deinit, SND_SOC_ACP_COMMON);
@@ -384,6 +390,9 @@ int check_acp_pdm(struct pci_dev *pci, struct acp_chip_info *chip)
 		break;
 	case ACP63_DEV:
 		pdm_addr = ACP63_PDM_ADDR;
+		break;
+	case ACP70_DEV:
+		pdm_addr = ACP70_PDM_ADDR;
 		break;
 	default:
 		return -EINVAL;
