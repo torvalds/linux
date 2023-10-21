@@ -27,14 +27,19 @@
 #define DRV_NAME "acp_i2s_playcap"
 #define	I2S_MASTER_MODE_ENABLE		1
 #define	I2S_MODE_ENABLE			0
-#define	I2S_FORMAT_MODE			GENMASK(1, 1)
 #define	LRCLK_DIV_FIELD			GENMASK(10, 2)
 #define	BCLK_DIV_FIELD			GENMASK(23, 11)
+#define	ACP63_LRCLK_DIV_FIELD		GENMASK(12, 2)
+#define	ACP63_BCLK_DIV_FIELD		GENMASK(23, 13)
 
 static inline void acp_set_i2s_clk(struct acp_dev_data *adata, int dai_id)
 {
 	u32 i2s_clk_reg, val;
+	struct acp_chip_info *chip;
+	struct device *dev;
 
+	dev = adata->dev;
+	chip = dev_get_platdata(dev);
 	switch (dai_id) {
 	case I2S_SP_INSTANCE:
 		i2s_clk_reg = ACP_I2STDM0_MSTRCLKGEN;
@@ -52,8 +57,16 @@ static inline void acp_set_i2s_clk(struct acp_dev_data *adata, int dai_id)
 
 	val  = I2S_MASTER_MODE_ENABLE;
 	val |= I2S_MODE_ENABLE & BIT(1);
-	val |= FIELD_PREP(LRCLK_DIV_FIELD, adata->lrclk_div);
-	val |= FIELD_PREP(BCLK_DIV_FIELD, adata->bclk_div);
+
+	switch (chip->acp_rev) {
+	case ACP63_DEV:
+		val |= FIELD_PREP(ACP63_LRCLK_DIV_FIELD, adata->lrclk_div);
+		val |= FIELD_PREP(ACP63_BCLK_DIV_FIELD, adata->bclk_div);
+		break;
+	default:
+		val |= FIELD_PREP(LRCLK_DIV_FIELD, adata->lrclk_div);
+		val |= FIELD_PREP(BCLK_DIV_FIELD, adata->bclk_div);
+	}
 	writel(val, adata->acp_base + i2s_clk_reg);
 }
 
