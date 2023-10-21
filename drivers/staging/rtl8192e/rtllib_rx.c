@@ -63,7 +63,7 @@ rtllib_frag_cache_find(struct rtllib_device *ieee, unsigned int seq,
 
 	for (i = 0; i < RTLLIB_FRAG_CACHE_LEN; i++) {
 		entry = &ieee->frag_cache[tid][i];
-		if (entry->skb != NULL &&
+		if (entry->skb &&
 		    time_after(jiffies, entry->first_frag_time + 2 * HZ)) {
 			netdev_dbg(ieee->dev,
 				   "expiring fragment cache entry seq=%u last_frag=%u\n",
@@ -72,7 +72,7 @@ rtllib_frag_cache_find(struct rtllib_device *ieee, unsigned int seq,
 			entry->skb = NULL;
 		}
 
-		if (entry->skb != NULL && entry->seq == seq &&
+		if (entry->skb && entry->seq == seq &&
 		    (entry->last_frag + 1 == frag || frag == -1) &&
 		    memcmp(entry->src_addr, src, ETH_ALEN) == 0 &&
 		    memcmp(entry->dst_addr, dst, ETH_ALEN) == 0)
@@ -130,7 +130,7 @@ rtllib_frag_cache_get(struct rtllib_device *ieee,
 		if (ieee->frag_next_idx[tid] >= RTLLIB_FRAG_CACHE_LEN)
 			ieee->frag_next_idx[tid] = 0;
 
-		if (entry->skb != NULL)
+		if (entry->skb)
 			dev_kfree_skb_any(entry->skb);
 
 		entry->first_frag_time = jiffies;
@@ -145,7 +145,7 @@ rtllib_frag_cache_get(struct rtllib_device *ieee,
 		 */
 		entry = rtllib_frag_cache_find(ieee, seq, frag, tid, hdr->addr2,
 						  hdr->addr1);
-		if (entry != NULL) {
+		if (entry) {
 			entry->last_frag = frag;
 			skb = entry->skb;
 		}
@@ -184,7 +184,7 @@ static int rtllib_frag_cache_invalidate(struct rtllib_device *ieee,
 	entry = rtllib_frag_cache_find(ieee, seq, -1, tid, hdr->addr2,
 					  hdr->addr1);
 
-	if (entry == NULL) {
+	if (!entry) {
 		netdev_dbg(ieee->dev,
 			   "Couldn't invalidate fragment cache entry (seq=%u)\n",
 			   seq);
@@ -276,7 +276,7 @@ rtllib_rx_frame_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	struct ieee80211_hdr *hdr;
 	int res, hdrlen;
 
-	if (crypt == NULL || crypt->ops->decrypt_mpdu == NULL)
+	if (!crypt || !crypt->ops->decrypt_mpdu)
 		return 0;
 
 	if (ieee->hwsec_active) {
@@ -316,7 +316,7 @@ rtllib_rx_frame_decrypt_msdu(struct rtllib_device *ieee, struct sk_buff *skb,
 	struct ieee80211_hdr *hdr;
 	int res, hdrlen;
 
-	if (crypt == NULL || crypt->ops->decrypt_msdu == NULL)
+	if (!crypt || !crypt->ops->decrypt_msdu)
 		return 0;
 	if (ieee->hwsec_active) {
 		struct cb_desc *tcb_desc = (struct cb_desc *)
@@ -998,8 +998,7 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* allow NULL decrypt to indicate an station specific override
 	 * for default encryption
 	 */
-	if (*crypt && ((*crypt)->ops == NULL ||
-		      (*crypt)->ops->decrypt_mpdu == NULL))
+	if (*crypt && (!(*crypt)->ops || !(*crypt)->ops->decrypt_mpdu))
 		*crypt = NULL;
 
 	if (!*crypt && (fc & IEEE80211_FCTL_PROTECTED)) {
@@ -1171,7 +1170,7 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 	u16 ethertype;
 	int i = 0;
 
-	if (rxb == NULL) {
+	if (!rxb) {
 		netdev_info(dev, "%s: rxb is NULL!!\n", __func__);
 		return;
 	}
@@ -1369,7 +1368,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	rtllib_rx_check_leave_lps(ieee, unicast, nr_subframes);
 
 	/* Indicate packets to upper layer or Rx Reorder */
-	if (!ieee->ht_info->cur_rx_reorder_enable || ts == NULL)
+	if (!ieee->ht_info->cur_rx_reorder_enable || !ts)
 		rtllib_rx_indicate_pkt_legacy(ieee, rx_stats, rxb, dst, src);
 	else
 		RxReorderIndicatePacket(ieee, rxb, ts, SeqNum);
@@ -2510,8 +2509,7 @@ static inline void rtllib_process_probe_response(
 		if (is_same_network(target, network,
 		   (target->ssid_len ? 1 : 0)))
 			break;
-		if ((oldest == NULL) ||
-		    (target->last_scanned < oldest->last_scanned))
+		if (!oldest || (target->last_scanned < oldest->last_scanned))
 			oldest = target;
 	}
 

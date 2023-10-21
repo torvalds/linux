@@ -918,7 +918,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	int len = 0;
 
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
-	if (crypt != NULL)
+	if (crypt)
 		encrypt = crypt && crypt->ops &&
 			  ((strcmp(crypt->ops->name, "R-WEP") == 0 ||
 			  wpa_ie_len));

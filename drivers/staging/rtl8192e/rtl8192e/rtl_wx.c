@@ -805,7 +805,7 @@ static int _rtl92e_wx_get_gen_ie(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 
-	if (ieee->wpa_ie_len == 0 || ieee->wpa_ie == NULL) {
+	if (ieee->wpa_ie_len == 0 || !ieee->wpa_ie) {
 		data->data.length = 0;
 		return 0;
 	}
