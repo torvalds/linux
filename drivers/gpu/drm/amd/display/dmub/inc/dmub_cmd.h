@@ -658,8 +658,8 @@ union dmub_fw_boot_options {
 		uint32_t disable_clk_ds: 1; /* 1 if disallow dispclk_ds and dppclk_ds*/
 		uint32_t disable_timeout_recovery : 1; /* 1 if timeout recovery should be disabled */
 		uint32_t ips_pg_disable: 1; /* 1 to disable ONO domains power gating*/
-		uint32_t ips_disable: 2; /* options to disable ips support*/
-		uint32_t reserved : 10; /**< reserved */
+		uint32_t ips_disable: 3; /* options to disable ips support*/
+		uint32_t reserved : 9; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
