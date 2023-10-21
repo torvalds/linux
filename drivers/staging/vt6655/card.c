@@ -184,7 +184,7 @@ static void s_vCalculateOFDMRParameter(unsigned char rate,
  */
 bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 {
-	unsigned char byCWMaxMin = 0;
+	unsigned char cw_max_min = 0;
 	unsigned char bySlot = 0;
 	unsigned char bySIFS = 0;
 	unsigned char byDIFS = 0;
@@ -197,14 +197,14 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		bySlot = C_SLOT_SHORT;
 		bySIFS = C_SIFS_A;
 		byDIFS = C_SIFS_A + 2 * C_SLOT_SHORT;
-		byCWMaxMin = 0xA4;
+		cw_max_min = 0xA4;
 	} else if (bb_type == BB_TYPE_11B) {
 		vt6655_mac_set_bb_type(priv->port_offset, BB_TYPE_11B);
 		bb_write_embedded(priv, 0x88, 0x02);
 		bySlot = C_SLOT_LONG;
 		bySIFS = C_SIFS_BG;
 		byDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
-		byCWMaxMin = 0xA5;
+		cw_max_min = 0xA5;
 	} else { /* PK_TYPE_11GA & PK_TYPE_11GB */
 		vt6655_mac_set_bb_type(priv->port_offset, BB_TYPE_11G);
 		bb_write_embedded(priv, 0x88, 0x08);
@@ -218,11 +218,11 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 			byDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
 		}
 
-		byCWMaxMin = 0xa4;
+		cw_max_min = 0xa4;
 
 		for (i = RATE_54M; i >= RATE_6M; i--) {
 			if (priv->basic_rates & ((u32)(0x1 << i))) {
-				byCWMaxMin |= 0x1;
+				cw_max_min |= 0x1;
 				break;
 			}
 		}
@@ -260,9 +260,9 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 
 		bb_set_short_slot_time(priv);
 	}
-	if (priv->byCWMaxMin != byCWMaxMin) {
-		priv->byCWMaxMin = byCWMaxMin;
-		iowrite8(priv->byCWMaxMin, priv->port_offset + MAC_REG_CWMAXMIN0);
+	if (priv->cw_max_min != cw_max_min) {
+		priv->cw_max_min = cw_max_min;
+		iowrite8(priv->cw_max_min, priv->port_offset + MAC_REG_CWMAXMIN0);
 	}
 
 	priv->byPacketType = CARDbyGetPktType(priv);
