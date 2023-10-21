@@ -20,6 +20,7 @@
 
 #define ACP3X_DEV			3
 #define ACP6X_DEV			6
+#define ACP63_DEV			0x63
 
 #define DMIC_INSTANCE			0x00
 #define I2S_SP_INSTANCE			0x01
@@ -94,6 +95,9 @@
 
 #define ACP6X_PGFSM_CONTROL                     0x1024
 #define ACP6X_PGFSM_STATUS                      0x1028
+
+#define ACP63_PGFSM_CONTROL			ACP6X_PGFSM_CONTROL
+#define ACP63_PGFSM_STATUS			ACP6X_PGFSM_STATUS
 
 #define ACP_SOFT_RST_DONE_MASK	0x00010001
 

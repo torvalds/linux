@@ -260,6 +260,10 @@ static int acp_power_on(struct acp_chip_info *chip)
 		acp_pgfsm_stat_reg = ACP6X_PGFSM_STATUS;
 		acp_pgfsm_ctrl_reg = ACP6X_PGFSM_CONTROL;
 		break;
+	case ACP63_DEV:
+		acp_pgfsm_stat_reg = ACP63_PGFSM_STATUS;
+		acp_pgfsm_ctrl_reg = ACP63_PGFSM_CONTROL;
+		break;
 	default:
 		return -EINVAL;
 	}
