@@ -244,10 +244,12 @@ static int acp63_audio_probe(struct platform_device *pdev)
 	adata->machines = snd_soc_acpi_amd_acp63_acp_machines;
 	acp_machine_select(adata);
 	dev_set_drvdata(dev, adata);
-	ret = acp63_i2s_master_clock_generate(adata);
-	if (ret)
-		return ret;
 
+	if (chip->flag != FLAG_AMD_LEGACY_ONLY_DMIC) {
+		ret = acp63_i2s_master_clock_generate(adata);
+		if (ret)
+			return ret;
+	}
 	acp_enable_interrupts(adata);
 	acp_platform_register(dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
@@ -276,7 +278,9 @@ static int __maybe_unused acp63_pcm_resume(struct device *dev)
 	snd_pcm_uframes_t buf_in_frames;
 	u64 buf_size;
 
-	acp63_i2s_master_clock_generate(adata);
+	if (adata->flag != FLAG_AMD_LEGACY_ONLY_DMIC)
+		acp63_i2s_master_clock_generate(adata);
+
 	spin_lock(&adata->acp_lock);
 	list_for_each_entry(stream, &adata->stream_list, list) {
 		if (stream) {

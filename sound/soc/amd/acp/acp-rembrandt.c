@@ -191,6 +191,7 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 	struct acp_chip_info *chip;
 	struct acp_dev_data *adata;
 	struct resource *res;
+	u32 ret;
 
 	chip = dev_get_platdata(&pdev->dev);
 	if (!chip || !chip->base) {
@@ -234,7 +235,12 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 	acp_machine_select(adata);
 
 	dev_set_drvdata(dev, adata);
-	acp6x_master_clock_generate(dev);
+
+	if (chip->flag != FLAG_AMD_LEGACY_ONLY_DMIC) {
+		ret = acp6x_master_clock_generate(dev);
+		if (ret)
+			return ret;
+	}
 	acp_enable_interrupts(adata);
 	acp_platform_register(dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
@@ -263,7 +269,9 @@ static int __maybe_unused rmb_pcm_resume(struct device *dev)
 	snd_pcm_uframes_t buf_in_frames;
 	u64 buf_size;
 
-	acp6x_master_clock_generate(dev);
+	if (adata->flag != FLAG_AMD_LEGACY_ONLY_DMIC)
+		acp6x_master_clock_generate(dev);
+
 	spin_lock(&adata->acp_lock);
 	list_for_each_entry(stream, &adata->stream_list, list) {
 		substream = stream->substream;
