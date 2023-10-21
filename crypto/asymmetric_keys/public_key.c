@@ -81,14 +81,13 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		 * RSA signatures usually use EMSA-PKCS1-1_5 [RFC3447 sec 8.2].
 		 */
 		if (strcmp(encoding, "pkcs1") == 0) {
+			*sig = op == kernel_pkey_sign ||
+			       op == kernel_pkey_verify;
 			if (!hash_algo) {
-				*sig = false;
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s)",
 					     pkey->pkey_algo);
 			} else {
-				*sig = op == kernel_pkey_sign ||
-				       op == kernel_pkey_verify;
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s,%s)",
 					     pkey->pkey_algo, hash_algo);
