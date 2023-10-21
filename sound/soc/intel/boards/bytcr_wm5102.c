@@ -413,14 +413,15 @@ static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 	 */
 	mach = dev->platform_data;
 	adev = acpi_dev_get_first_match_dev(mach->id, NULL, -1);
-	if (!adev) {
-		dev_err(dev, "Error cannot find acpi-dev for codec\n");
-		return -ENOENT;
+	if (adev) {
+		snprintf(codec_name, sizeof(codec_name), "spi-%s", acpi_dev_name(adev));
+		acpi_dev_put(adev);
+	} else {
+		/* Special case for when the codec is missing from the DSTD */
+		strscpy(codec_name, "spi1.0", sizeof(codec_name));
 	}
-	snprintf(codec_name, sizeof(codec_name), "spi-%s", acpi_dev_name(adev));
 
 	codec_dev = bus_find_device_by_name(&spi_bus_type, NULL, codec_name);
-	acpi_dev_put(adev);
 	if (!codec_dev)
 		return -EPROBE_DEFER;
 
