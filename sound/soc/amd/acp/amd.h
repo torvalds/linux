@@ -222,7 +222,7 @@ int smn_read(struct pci_dev *dev, u32 smn_addr);
 int smn_write(struct pci_dev *dev, u32 smn_addr, u32 data);
 
 int acp_init(struct acp_chip_info *chip);
-int acp_deinit(void __iomem *base);
+int acp_deinit(struct acp_chip_info *chip);
 void acp_enable_interrupts(struct acp_dev_data *adata);
 void acp_disable_interrupts(struct acp_dev_data *adata);
 /* Machine configuration */

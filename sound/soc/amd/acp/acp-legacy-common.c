@@ -320,16 +320,16 @@ int acp_init(struct acp_chip_info *chip)
 }
 EXPORT_SYMBOL_NS_GPL(acp_init, SND_SOC_ACP_COMMON);
 
-int acp_deinit(void __iomem *base)
+int acp_deinit(struct acp_chip_info *chip)
 {
 	int ret;
 
 	/* Reset */
-	ret = acp_reset(base);
+	ret = acp_reset(chip->base);
 	if (ret)
 		return ret;
 
-	writel(0, base + ACP_CONTROL);
+	writel(0, chip->base + ACP_CONTROL);
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(acp_deinit, SND_SOC_ACP_COMMON);
