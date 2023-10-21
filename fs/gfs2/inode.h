@@ -44,19 +44,17 @@ static inline int gfs2_is_dir(const struct gfs2_inode *ip)
 
 static inline void gfs2_set_inode_blocks(struct inode *inode, u64 blocks)
 {
-	inode->i_blocks = blocks <<
-		(GFS2_SB(inode)->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT);
+	inode->i_blocks = blocks << (inode->i_blkbits - 9);
 }
 
 static inline u64 gfs2_get_inode_blocks(const struct inode *inode)
 {
-	return inode->i_blocks >>
-		(GFS2_SB(inode)->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT);
+	return inode->i_blocks >> (inode->i_blkbits - 9);
 }
 
 static inline void gfs2_add_inode_blocks(struct inode *inode, s64 change)
 {
-	change <<= inode->i_blkbits - GFS2_BASIC_BLOCK_SHIFT;
+	change <<= inode->i_blkbits - 9;
 	gfs2_assert(GFS2_SB(inode), (change >= 0 || inode->i_blocks >= -change));
 	inode->i_blocks += change;
 }

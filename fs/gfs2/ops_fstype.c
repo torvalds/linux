@@ -292,8 +292,7 @@ static int gfs2_read_sb(struct gfs2_sbd *sdp, int silent)
 		return error;
 	}
 
-	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift -
-			       GFS2_BASIC_BLOCK_SHIFT;
+	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift - 9;
 	sdp->sd_fsb2bb = BIT(sdp->sd_fsb2bb_shift);
 	sdp->sd_diptrs = (sdp->sd_sb.sb_bsize -
 			  sizeof(struct gfs2_dinode)) / sizeof(u64);
@@ -1190,10 +1189,9 @@ static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/* Set up the buffer cache and fill in some fake block size values
 	   to allow us to read-in the on-disk superblock. */
-	sdp->sd_sb.sb_bsize = sb_min_blocksize(sb, GFS2_BASIC_BLOCK);
+	sdp->sd_sb.sb_bsize = sb_min_blocksize(sb, 512);
 	sdp->sd_sb.sb_bsize_shift = sb->s_blocksize_bits;
-	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift -
-                               GFS2_BASIC_BLOCK_SHIFT;
+	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift - 9;
 	sdp->sd_fsb2bb = BIT(sdp->sd_fsb2bb_shift);
 
 	sdp->sd_tune.gt_logd_secs = sdp->sd_args.ar_commit;
