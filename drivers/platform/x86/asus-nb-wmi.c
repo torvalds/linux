@@ -16,6 +16,8 @@
 #include <linux/dmi.h>
 #include <linux/i8042.h>
 
+#include <acpi/video.h>
+
 #include "asus-wmi.h"
 
 #define	ASUS_NB_WMI_FILE	"asus-nb-wmi"
@@ -603,6 +605,19 @@ static const struct key_entry asus_nb_wmi_keymap[] = {
 	{ KE_END, 0},
 };
 
+static void asus_nb_wmi_key_filter(struct asus_wmi_driver *asus_wmi, int *code,
+				   unsigned int *value, bool *autorelease)
+{
+	switch (*code) {
+	case ASUS_WMI_BRN_DOWN:
+	case ASUS_WMI_BRN_UP:
+		if (acpi_video_handles_brightness_key_presses())
+			*code = ASUS_WMI_KEY_IGNORE;
+
+		break;
+	}
+}
+
 static struct asus_wmi_driver asus_nb_wmi_driver = {
 	.name = ASUS_NB_WMI_FILE,
 	.owner = THIS_MODULE,
@@ -611,6 +626,7 @@ static struct asus_wmi_driver asus_nb_wmi_driver = {
 	.input_name = "Asus WMI hotkeys",
 	.input_phys = ASUS_NB_WMI_FILE "/input0",
 	.detect_quirks = asus_nb_wmi_quirks,
+	.key_filter = asus_nb_wmi_key_filter,
 };
 
 
