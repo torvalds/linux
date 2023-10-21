@@ -267,7 +267,7 @@ static int sof_msg_inject_probe(struct auxiliary_device *auxdev,
 	priv->max_msg_size = sof_client_get_ipc_max_payload_size(cdev);
 	alloc_size = priv->max_msg_size;
 
-	if (priv->ipc_type == SOF_INTEL_IPC4)
+	if (priv->ipc_type == SOF_IPC_TYPE_4)
 		alloc_size += sizeof(struct sof_ipc4_msg);
 
 	priv->tx_buffer = devm_kmalloc(dev, alloc_size, GFP_KERNEL);
@@ -275,7 +275,7 @@ static int sof_msg_inject_probe(struct auxiliary_device *auxdev,
 	if (!priv->tx_buffer || !priv->rx_buffer)
 		return -ENOMEM;
 
-	if (priv->ipc_type == SOF_INTEL_IPC4) {
+	if (priv->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_msg *ipc4_msg;
 
 		ipc4_msg = priv->tx_buffer;

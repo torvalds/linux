@@ -5,6 +5,7 @@
  * Copyright (c) 2013 Dialog Semiconductor
  *
  * Author: Adam Thomson <Adam.Thomson.Opensource@diasemi.com>
+ * Author: David Rau <David.Rau.opensource@dm.renesas.com>
  */
 
 #ifndef _DA7213_H
@@ -135,13 +136,24 @@
 #define DA7213_DAC_NG_ON_THRESHOLD	0xB1
 #define DA7213_DAC_NG_CTRL		0xB2
 
+#define DA7213_TONE_GEN_CFG1		0xB4
+#define DA7213_TONE_GEN_CFG2		0xB5
+#define DA7213_TONE_GEN_CYCLES		0xB6
+#define DA7213_TONE_GEN_FREQ1_L		0xB7
+#define DA7213_TONE_GEN_FREQ1_U		0xB8
+#define DA7213_TONE_GEN_FREQ2_L		0xB9
+#define DA7213_TONE_GEN_FREQ2_U		0xBA
+#define DA7213_TONE_GEN_ON_PER		0xBB
+#define DA7213_TONE_GEN_OFF_PER		0xBC
 
 /*
  * Bit fields
  */
 
+#define DA7213_SWITCH_EN_MAX		0x1
+
 /* DA7213_PLL_STATUS = 0x03 */
-#define DA7219_PLL_SRM_LOCK					(0x1 << 1)
+#define DA7213_PLL_SRM_LOCK					(0x1 << 1)
 
 /* DA7213_SR = 0x22 */
 #define DA7213_SR_8000						(0x1 << 0)
@@ -484,6 +496,55 @@
 #define DA7213_DAC_NG_EN_SHIFT					7
 #define DA7213_DAC_NG_EN_MAX					0x1
 
+/* DA7213_TONE_GEN_CFG1 = 0xB4 */
+#define DA7213_DTMF_REG_SHIFT		0
+#define DA7213_DTMF_REG_MASK		(0xF << 0)
+#define DA7213_DTMF_REG_MAX		16
+#define DA7213_DTMF_EN_SHIFT		4
+#define DA7213_DTMF_EN_MASK		(0x1 << 4)
+#define DA7213_START_STOPN_SHIFT	7
+#define DA7213_START_STOPN_MASK		(0x1 << 7)
+
+/* DA7213_TONE_GEN_CFG2 = 0xB5 */
+#define DA7213_SWG_SEL_SHIFT		0
+#define DA7213_SWG_SEL_MASK		(0x3 << 0)
+#define DA7213_SWG_SEL_MAX		4
+#define DA7213_SWG_SEL_SRAMP		(0x3 << 0)
+#define DA7213_TONE_GEN_GAIN_SHIFT	4
+#define DA7213_TONE_GEN_GAIN_MASK	(0xF << 4)
+#define DA7213_TONE_GEN_GAIN_MAX	0xF
+#define DA7213_TONE_GEN_GAIN_MINUS_9DB	(0x3 << 4)
+#define DA7213_TONE_GEN_GAIN_MINUS_15DB	(0x5 << 4)
+
+/* DA7213_TONE_GEN_CYCLES = 0xB6 */
+#define DA7213_BEEP_CYCLES_SHIFT	0
+#define DA7213_BEEP_CYCLES_MASK		(0x7 << 0)
+
+/* DA7213_TONE_GEN_FREQ1_L = 0xB7 */
+#define DA7213_FREQ1_L_SHIFT	0
+#define DA7213_FREQ1_L_MASK	(0xFF << 0)
+#define DA7213_FREQ_MAX		0xFFFF
+
+/* DA7213_TONE_GEN_FREQ1_U = 0xB8 */
+#define DA7213_FREQ1_U_SHIFT	0
+#define DA7213_FREQ1_U_MASK	(0xFF << 0)
+
+/* DA7213_TONE_GEN_FREQ2_L = 0xB9 */
+#define DA7213_FREQ2_L_SHIFT	0
+#define DA7213_FREQ2_L_MASK	(0xFF << 0)
+
+/* DA7213_TONE_GEN_FREQ2_U = 0xBA */
+#define DA7213_FREQ2_U_SHIFT	0
+#define DA7213_FREQ2_U_MASK	(0xFF << 0)
+
+/* DA7213_TONE_GEN_ON_PER = 0xBB */
+#define DA7213_BEEP_ON_PER_SHIFT	0
+#define DA7213_BEEP_ON_PER_MASK		(0x3F << 0)
+#define DA7213_BEEP_ON_OFF_MAX		0x3F
+
+/* DA7213_TONE_GEN_OFF_PER = 0xBC */
+#define DA7213_BEEP_OFF_PER_SHIFT	0
+#define DA7213_BEEP_OFF_PER_MASK	(0x3F << 0)
 
 /*
  * General defines
@@ -534,6 +595,7 @@ enum da7213_supplies {
 /* Codec private data */
 struct da7213_priv {
 	struct regmap *regmap;
+	struct mutex ctrl_lock;
 	struct regulator_bulk_data supplies[DA7213_NUM_SUPPLIES];
 	struct clk *mclk;
 	unsigned int mclk_rate;

@@ -31,6 +31,7 @@
 #include "../sof-pci-dev.h"
 #include "../ops.h"
 #include "hda.h"
+#include "telemetry.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/sof_intel.h>
@@ -718,7 +719,7 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	hda_dsp_get_state(sdev, level);
 
 	/* The firmware register dump only available with IPC3 */
-	if (flags & SOF_DBG_DUMP_REGS && sdev->pdata->ipc_type == SOF_IPC) {
+	if (flags & SOF_DBG_DUMP_REGS && sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		u32 status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_STATUS);
 		u32 panic = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_TRACEP);
 
@@ -729,6 +730,19 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	} else {
 		hda_dsp_dump_ext_rom_status(sdev, level, flags);
 	}
+}
+
+void hda_ipc4_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
+{
+	char *level = (flags & SOF_DBG_DUMP_OPTIONAL) ? KERN_DEBUG : KERN_ERR;
+
+	/* print ROM/FW status */
+	hda_dsp_get_state(sdev, level);
+
+	if (flags & SOF_DBG_DUMP_REGS)
+		sof_ipc4_intel_dump_telemetry_state(sdev, flags);
+	else
+		hda_dsp_dump_ext_rom_status(sdev, level, flags);
 }
 
 static bool hda_check_ipc_irq(struct snd_sof_dev *sdev)
@@ -1313,7 +1327,7 @@ hdac_bus_unmap:
 	return ret;
 }
 
-int hda_dsp_remove(struct snd_sof_dev *sdev)
+void hda_dsp_remove(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -1366,8 +1380,6 @@ skip_disable_dsp:
 
 	if (!sdev->dspless_mode_selected)
 		iounmap(sdev->bar[HDA_DSP_BAR]);
-
-	return 0;
 }
 
 int hda_dsp_remove_late(struct snd_sof_dev *sdev)

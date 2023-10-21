@@ -26,6 +26,7 @@
 #include "../../codecs/hda.h"
 #include "avs.h"
 #include "cldma.h"
+#include "messages.h"
 
 static u32 pgctl_mask = AZX_PGCTL_LSRMD_MASK;
 module_param(pgctl_mask, uint, 0444);
@@ -375,6 +376,10 @@ static int avs_bus_init(struct avs_dev *adev, struct pci_dev *pci, const struct 
 	ret = avs_ipc_init(ipc, dev);
 	if (ret < 0)
 		return ret;
+
+	adev->modcfg_buf = devm_kzalloc(dev, AVS_MAILBOX_SIZE, GFP_KERNEL);
+	if (!adev->modcfg_buf)
+		return -ENOMEM;
 
 	adev->dev = dev;
 	adev->spec = (const struct avs_spec *)id->driver_data;

@@ -1136,6 +1136,9 @@ static void nau8821_jdet_work(struct work_struct *work)
 				NAU8821_R12_INTERRUPT_DIS_CTRL,
 				NAU8821_IRQ_KEY_RELEASE_DIS |
 				NAU8821_IRQ_KEY_PRESS_DIS, 0);
+		} else {
+			snd_soc_component_disable_pin(component, "MICBIAS");
+			snd_soc_dapm_sync(nau8821->dapm);
 		}
 	} else {
 		dev_dbg(nau8821->dev, "Headphone connected\n");

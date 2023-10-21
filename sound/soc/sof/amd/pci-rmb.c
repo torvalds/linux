@@ -46,16 +46,16 @@ static const struct sof_dev_desc rembrandt_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info		= &rembrandt_chip_info,
-	.ipc_supported_mask     = BIT(SOF_IPC),
-	.ipc_default            = SOF_IPC,
+	.ipc_supported_mask     = BIT(SOF_IPC_TYPE_3),
+	.ipc_default            = SOF_IPC_TYPE_3,
 	.default_fw_path	= {
-		[SOF_IPC] = "amd/sof",
+		[SOF_IPC_TYPE_3] = "amd/sof",
 	},
 	.default_tplg_path	= {
-		[SOF_IPC] = "amd/sof-tplg",
+		[SOF_IPC_TYPE_3] = "amd/sof-tplg",
 	},
 	.default_fw_filename	= {
-		[SOF_IPC] = "sof-rmb.ri",
+		[SOF_IPC_TYPE_3] = "sof-rmb.ri",
 	},
 	.nocodec_tplg_filename	= "sof-acp.tplg",
 	.ops			= &sof_rembrandt_ops,

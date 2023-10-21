@@ -76,7 +76,7 @@ static struct snd_soc_dai_driver sc7180_lpass_cpu_dai_driver[] = {
 static int sc7180_lpass_alloc_dma_channel(struct lpass_data *drvdata,
 					   int direction, unsigned int dai_id)
 {
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int chan = 0;
 
 	if (dai_id == LPASS_DP_RX) {
@@ -123,7 +123,7 @@ static int sc7180_lpass_free_dma_channel(struct lpass_data *drvdata, int chan, u
 static int sc7180_lpass_init(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata = platform_get_drvdata(pdev);
-	struct lpass_variant *variant = drvdata->variant;
+	const struct lpass_variant *variant = drvdata->variant;
 	struct device *dev = &pdev->dev;
 	int ret, i;
 
@@ -179,7 +179,7 @@ static const struct dev_pm_ops sc7180_lpass_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sc7180_lpass_dev_suspend, sc7180_lpass_dev_resume)
 };
 
-static struct lpass_variant sc7180_data = {
+static const struct lpass_variant sc7180_data = {
 	.i2sctrl_reg_base	= 0x1000,
 	.i2sctrl_reg_stride	= 0x1000,
 	.i2s_ports		= 3,

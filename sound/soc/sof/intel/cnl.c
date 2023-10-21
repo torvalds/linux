@@ -386,7 +386,7 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 	sof_cnl_ops.shutdown	= hda_dsp_shutdown;
 
 	/* ipc */
-	if (sdev->pdata->ipc_type == SOF_IPC) {
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		/* doorbell */
 		sof_cnl_ops.irq_thread	= cnl_ipc_irq_thread;
 
@@ -399,7 +399,7 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 		sof_cnl_ops.set_power_state = hda_dsp_set_power_state_ipc3;
 	}
 
-	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_fw_data *ipc4_data;
 
 		sdev->private = devm_kzalloc(sdev->dev, sizeof(*ipc4_data), GFP_KERNEL);

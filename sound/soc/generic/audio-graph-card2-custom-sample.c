@@ -12,10 +12,10 @@
 
 /*
  * Custom driver can have own priv
- * which includes asoc_simple_priv.
+ * which includes simple_util_priv.
  */
 struct custom_priv {
-	struct asoc_simple_priv simple_priv;
+	struct simple_util_priv simple_priv;
 
 	/* custom driver's own params */
 	int custom_params;
@@ -26,7 +26,7 @@ struct custom_priv {
 
 static int custom_card_probe(struct snd_soc_card *card)
 {
-	struct asoc_simple_priv *simple_priv = snd_soc_card_get_drvdata(card);
+	struct simple_util_priv *simple_priv = snd_soc_card_get_drvdata(card);
 	struct custom_priv *custom_priv = simple_to_custom(simple_priv);
 	struct device *dev = simple_priv_to_dev(simple_priv);
 
@@ -35,10 +35,10 @@ static int custom_card_probe(struct snd_soc_card *card)
 	custom_priv->custom_params = 1;
 
 	/* you can use generic probe function */
-	return asoc_graph_card_probe(card);
+	return graph_util_card_probe(card);
 }
 
-static int custom_hook_pre(struct asoc_simple_priv *priv)
+static int custom_hook_pre(struct simple_util_priv *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
 
@@ -48,7 +48,7 @@ static int custom_hook_pre(struct asoc_simple_priv *priv)
 	return 0;
 }
 
-static int custom_hook_post(struct asoc_simple_priv *priv)
+static int custom_hook_post(struct simple_util_priv *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_card *card;
@@ -63,7 +63,7 @@ static int custom_hook_post(struct asoc_simple_priv *priv)
 	return 0;
 }
 
-static int custom_normal(struct asoc_simple_priv *priv,
+static int custom_normal(struct simple_util_priv *priv,
 			 struct device_node *lnk,
 			 struct link_info *li)
 {
@@ -78,7 +78,7 @@ static int custom_normal(struct asoc_simple_priv *priv,
 	return audio_graph2_link_normal(priv, lnk, li);
 }
 
-static int custom_dpcm(struct asoc_simple_priv *priv,
+static int custom_dpcm(struct simple_util_priv *priv,
 		       struct device_node *lnk,
 		       struct link_info *li)
 {
@@ -93,7 +93,7 @@ static int custom_dpcm(struct asoc_simple_priv *priv,
 	return audio_graph2_link_dpcm(priv, lnk, li);
 }
 
-static int custom_c2c(struct asoc_simple_priv *priv,
+static int custom_c2c(struct simple_util_priv *priv,
 		      struct device_node *lnk,
 		      struct link_info *li)
 {
@@ -121,26 +121,26 @@ static struct graph2_custom_hooks custom_hooks = {
 
 static int custom_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct simple_util_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct device *dev = simple_priv_to_dev(priv);
 
 	dev_info(dev, "custom startup\n");
 
-	return asoc_simple_startup(substream);
+	return simple_util_startup(substream);
 }
 
 /* You can use custom ops */
 static const struct snd_soc_ops custom_ops = {
 	.startup	= custom_startup,
-	.shutdown	= asoc_simple_shutdown,
-	.hw_params	= asoc_simple_hw_params,
+	.shutdown	= simple_util_shutdown,
+	.hw_params	= simple_util_hw_params,
 };
 
 static int custom_probe(struct platform_device *pdev)
 {
 	struct custom_priv *custom_priv;
-	struct asoc_simple_priv *simple_priv;
+	struct simple_util_priv *simple_priv;
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -176,7 +176,7 @@ static struct platform_driver custom_card = {
 		.of_match_table = custom_of_match,
 	},
 	.probe	= custom_probe,
-	.remove	= asoc_simple_remove,
+	.remove	= simple_util_remove,
 };
 module_platform_driver(custom_card);
 

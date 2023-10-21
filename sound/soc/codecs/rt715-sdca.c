@@ -41,8 +41,8 @@ static int rt715_sdca_index_write(struct rt715_sdca_priv *rt715,
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0)
 		dev_err(&rt715->slave->dev,
-				"Failed to set private value: %08x <= %04x %d\n", ret, addr,
-				value);
+			"Failed to set private value: %08x <= %04x %d\n",
+			addr, value, ret);
 
 	return ret;
 }

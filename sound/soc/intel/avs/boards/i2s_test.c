@@ -12,9 +12,10 @@
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-dapm.h>
+#include "../utils.h"
 
 static int avs_create_dai_link(struct device *dev, const char *platform_name, int ssp_port,
-			       struct snd_soc_dai_link **dai_link)
+			       int tdm_slot, struct snd_soc_dai_link **dai_link)
 {
 	struct snd_soc_dai_link_component *platform;
 	struct snd_soc_dai_link *dl;
@@ -26,13 +27,15 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 
 	platform->name = platform_name;
 
-	dl->name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", ssp_port);
+	dl->name = devm_kasprintf(dev, GFP_KERNEL,
+				  AVS_STRING_FMT("SSP", "-Codec", ssp_port, tdm_slot));
 	dl->cpus = devm_kzalloc(dev, sizeof(*dl->cpus), GFP_KERNEL);
 	if (!dl->name || !dl->cpus)
 		return -ENOMEM;
 
-	dl->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_port);
-	dl->codecs = &asoc_dummy_dlc;
+	dl->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
+					    AVS_STRING_FMT("SSP", " Pin", ssp_port, tdm_slot));
+	dl->codecs = &snd_soc_dummy_dlc;
 	if (!dl->cpus->dai_name || !dl->codecs->name || !dl->codecs->dai_name)
 		return -ENOMEM;
 
@@ -51,7 +54,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	return 0;
 }
 
-static int avs_create_dapm_routes(struct device *dev, int ssp_port,
+static int avs_create_dapm_routes(struct device *dev, int ssp_port, int tdm_slot,
 				  struct snd_soc_dapm_route **routes, int *num_routes)
 {
 	struct snd_soc_dapm_route *dr;
@@ -61,13 +64,17 @@ static int avs_create_dapm_routes(struct device *dev, int ssp_port,
 	if (!dr)
 		return -ENOMEM;
 
-	dr[0].sink = devm_kasprintf(dev, GFP_KERNEL, "ssp%dpb", ssp_port);
-	dr[0].source = devm_kasprintf(dev, GFP_KERNEL, "ssp%d Tx", ssp_port);
+	dr[0].sink = devm_kasprintf(dev, GFP_KERNEL,
+				    AVS_STRING_FMT("ssp", "pb", ssp_port, tdm_slot));
+	dr[0].source = devm_kasprintf(dev, GFP_KERNEL,
+				      AVS_STRING_FMT("ssp", " Tx", ssp_port, tdm_slot));
 	if (!dr[0].sink || !dr[0].source)
 		return -ENOMEM;
 
-	dr[1].sink = devm_kasprintf(dev, GFP_KERNEL, "ssp%d Rx", ssp_port);
-	dr[1].source = devm_kasprintf(dev, GFP_KERNEL, "ssp%dcp", ssp_port);
+	dr[1].sink = devm_kasprintf(dev, GFP_KERNEL,
+				    AVS_STRING_FMT("ssp", " Rx", ssp_port, tdm_slot));
+	dr[1].source = devm_kasprintf(dev, GFP_KERNEL,
+				      AVS_STRING_FMT("ssp", "cp", ssp_port, tdm_slot));
 	if (!dr[1].sink || !dr[1].source)
 		return -ENOMEM;
 
@@ -77,7 +84,7 @@ static int avs_create_dapm_routes(struct device *dev, int ssp_port,
 	return 0;
 }
 
-static int avs_create_dapm_widgets(struct device *dev, int ssp_port,
+static int avs_create_dapm_widgets(struct device *dev, int ssp_port, int tdm_slot,
 				   struct snd_soc_dapm_widget **widgets, int *num_widgets)
 {
 	struct snd_soc_dapm_widget *dw;
@@ -89,13 +96,15 @@ static int avs_create_dapm_widgets(struct device *dev, int ssp_port,
 
 	dw[0].id = snd_soc_dapm_hp;
 	dw[0].reg = SND_SOC_NOPM;
-	dw[0].name = devm_kasprintf(dev, GFP_KERNEL, "ssp%dpb", ssp_port);
+	dw[0].name = devm_kasprintf(dev, GFP_KERNEL,
+				    AVS_STRING_FMT("ssp", "pb", ssp_port, tdm_slot));
 	if (!dw[0].name)
 		return -ENOMEM;
 
 	dw[1].id = snd_soc_dapm_mic;
 	dw[1].reg = SND_SOC_NOPM;
-	dw[1].name = devm_kasprintf(dev, GFP_KERNEL, "ssp%dcp", ssp_port);
+	dw[1].name = devm_kasprintf(dev, GFP_KERNEL,
+				    AVS_STRING_FMT("ssp", "cp", ssp_port, tdm_slot));
 	if (!dw[1].name)
 		return -ENOMEM;
 
@@ -115,33 +124,45 @@ static int avs_i2s_test_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const char *pname;
 	int num_routes, num_widgets;
-	int ssp_port, ret;
+	int ssp_port, tdm_slot, ret;
 
 	mach = dev_get_platdata(dev);
 	pname = mach->mach_params.platform;
-	ssp_port = __ffs(mach->mach_params.i2s_link_mask);
+
+	if (!avs_mach_singular_ssp(mach)) {
+		dev_err(dev, "Invalid SSP configuration\n");
+		return -EINVAL;
+	}
+	ssp_port = avs_mach_ssp_port(mach);
+
+	if (!avs_mach_singular_tdm(mach, ssp_port)) {
+		dev_err(dev, "Invalid TDM configuration\n");
+		return -EINVAL;
+	}
+	tdm_slot = avs_mach_ssp_tdm(mach, ssp_port);
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
 		return -ENOMEM;
 
-	card->name = devm_kasprintf(dev, GFP_KERNEL, "ssp%d-loopback", ssp_port);
+	card->name = devm_kasprintf(dev, GFP_KERNEL,
+				    AVS_STRING_FMT("ssp", "-loopback", ssp_port, tdm_slot));
 	if (!card->name)
 		return -ENOMEM;
 
-	ret = avs_create_dai_link(dev, pname, ssp_port, &dai_link);
+	ret = avs_create_dai_link(dev, pname, ssp_port, tdm_slot, &dai_link);
 	if (ret) {
 		dev_err(dev, "Failed to create dai link: %d\n", ret);
 		return ret;
 	}
 
-	ret = avs_create_dapm_routes(dev, ssp_port, &routes, &num_routes);
+	ret = avs_create_dapm_routes(dev, ssp_port, tdm_slot, &routes, &num_routes);
 	if (ret) {
 		dev_err(dev, "Failed to create dapm routes: %d\n", ret);
 		return ret;
 	}
 
-	ret = avs_create_dapm_widgets(dev, ssp_port, &widgets, &num_widgets);
+	ret = avs_create_dapm_widgets(dev, ssp_port, tdm_slot, &widgets, &num_widgets);
 	if (ret) {
 		dev_err(dev, "Failed to create dapm widgets: %d\n", ret);
 		return ret;

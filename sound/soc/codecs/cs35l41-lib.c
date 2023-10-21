@@ -1192,8 +1192,28 @@ bool cs35l41_safe_reset(struct regmap *regmap, enum cs35l41_boost_type b_type)
 }
 EXPORT_SYMBOL_GPL(cs35l41_safe_reset);
 
+/*
+ * Enabling the CS35L41_SHD_BOOST_ACTV and CS35L41_SHD_BOOST_PASS shared boosts
+ * does also require a call to cs35l41_mdsync_up(), but not before getting the
+ * PLL Lock signal.
+ *
+ * PLL Lock seems to be triggered soon after snd_pcm_start() is executed and
+ * SNDRV_PCM_TRIGGER_START command is processed, which happens (long) after the
+ * SND_SOC_DAPM_PRE_PMU event handler is invoked as part of snd_pcm_prepare().
+ *
+ * This event handler is where cs35l41_global_enable() is normally called from,
+ * but waiting for PLL Lock here will time out. Increasing the wait duration
+ * will not help, as the only consequence of it would be to add an unnecessary
+ * delay in the invocation of snd_pcm_start().
+ *
+ * Trying to move the wait in the SNDRV_PCM_TRIGGER_START callback is not a
+ * solution either, as the trigger is executed in an IRQ-off atomic context.
+ *
+ * The current approach is to invoke cs35l41_mdsync_up() right after receiving
+ * the PLL Lock interrupt, in the IRQ handler.
+ */
 int cs35l41_global_enable(struct device *dev, struct regmap *regmap, enum cs35l41_boost_type b_type,
-			  int enable, struct completion *pll_lock, bool firmware_running)
+			  int enable, bool firmware_running)
 {
 	int ret;
 	unsigned int gpio1_func, pad_control, pwr_ctrl1, pwr_ctrl3, int_status, pup_pdn_mask;
@@ -1202,11 +1222,6 @@ int cs35l41_global_enable(struct device *dev, struct regmap *regmap, enum cs35l4
 		{CS35L41_PWR_CTRL3,		0},
 		{CS35L41_GPIO_PAD_CONTROL,	0},
 		{CS35L41_PWR_CTRL1,		0, 3000},
-	};
-	struct reg_sequence cs35l41_mdsync_up_seq[] = {
-		{CS35L41_PWR_CTRL3,	0},
-		{CS35L41_PWR_CTRL1,	0x00000000, 3000},
-		{CS35L41_PWR_CTRL1,	0x00000001, 3000},
 	};
 
 	pup_pdn_mask = enable ? CS35L41_PUP_DONE_MASK : CS35L41_PDN_DONE_MASK;
@@ -1241,24 +1256,12 @@ int cs35l41_global_enable(struct device *dev, struct regmap *regmap, enum cs35l4
 		cs35l41_mdsync_down_seq[0].def = pwr_ctrl3;
 		cs35l41_mdsync_down_seq[1].def = pad_control;
 		cs35l41_mdsync_down_seq[2].def = pwr_ctrl1;
+
 		ret = regmap_multi_reg_write(regmap, cs35l41_mdsync_down_seq,
 					     ARRAY_SIZE(cs35l41_mdsync_down_seq));
-		if (!enable)
-			break;
-
-		if (!pll_lock)
-			return -EINVAL;
-
-		ret = wait_for_completion_timeout(pll_lock, msecs_to_jiffies(1000));
-		if (ret == 0) {
-			ret = -ETIMEDOUT;
-		} else {
-			regmap_read(regmap, CS35L41_PWR_CTRL3, &pwr_ctrl3);
-			pwr_ctrl3 |= CS35L41_SYNC_EN_MASK;
-			cs35l41_mdsync_up_seq[0].def = pwr_ctrl3;
-			ret = regmap_multi_reg_write(regmap, cs35l41_mdsync_up_seq,
-						     ARRAY_SIZE(cs35l41_mdsync_up_seq));
-		}
+		/* Activation to be completed later via cs35l41_mdsync_up() */
+		if (ret || enable)
+			return ret;
 
 		ret = regmap_read_poll_timeout(regmap, CS35L41_IRQ1_STATUS1,
 					int_status, int_status & pup_pdn_mask,
@@ -1266,7 +1269,7 @@ int cs35l41_global_enable(struct device *dev, struct regmap *regmap, enum cs35l4
 		if (ret)
 			dev_err(dev, "Enable(%d) failed: %d\n", enable, ret);
 
-		// Clear PUP/PDN status
+		/* Clear PUP/PDN status */
 		regmap_write(regmap, CS35L41_IRQ1_STATUS1, pup_pdn_mask);
 		break;
 	case CS35L41_INT_BOOST:
@@ -1347,6 +1350,17 @@ int cs35l41_global_enable(struct device *dev, struct regmap *regmap, enum cs35l4
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cs35l41_global_enable);
+
+/*
+ * To be called after receiving the IRQ Lock interrupt, in order to complete
+ * any shared boost activation initiated by cs35l41_global_enable().
+ */
+int cs35l41_mdsync_up(struct regmap *regmap)
+{
+	return regmap_update_bits(regmap, CS35L41_PWR_CTRL3,
+				  CS35L41_SYNC_EN_MASK, CS35L41_SYNC_EN_MASK);
+}
+EXPORT_SYMBOL_GPL(cs35l41_mdsync_up);
 
 int cs35l41_gpio_config(struct regmap *regmap, struct cs35l41_hw_cfg *hw_cfg)
 {

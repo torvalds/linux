@@ -15,6 +15,7 @@
 #include "sof-audio.h"
 #include "ipc4-fw-reg.h"
 #include "ipc4-priv.h"
+#include "ipc4-telemetry.h"
 #include "ops.h"
 
 static const struct sof_ipc4_fw_status {
@@ -99,6 +100,10 @@ static int sof_ipc4_check_reply_status(struct snd_sof_dev *sdev, u32 status)
 
 to_errno:
 	switch (status) {
+	case 2:
+	case 15:
+		ret = -EOPNOTSUPP;
+		break;
 	case 8:
 	case 11:
 	case 105 ... 109:
@@ -153,6 +158,7 @@ static const char * const ipc4_dbg_glb_msg_type[] = {
 	DBG_IPC4_MSG_TYPE_ENTRY(GLB_SAVE_PIPELINE),
 	DBG_IPC4_MSG_TYPE_ENTRY(GLB_RESTORE_PIPELINE),
 	DBG_IPC4_MSG_TYPE_ENTRY(GLB_LOAD_LIBRARY),
+	DBG_IPC4_MSG_TYPE_ENTRY(GLB_LOAD_LIBRARY_PREPARE),
 	DBG_IPC4_MSG_TYPE_ENTRY(GLB_INTERNAL_MESSAGE),
 	DBG_IPC4_MSG_TYPE_ENTRY(GLB_NOTIFICATION),
 };
@@ -513,10 +519,10 @@ static int sof_ipc4_set_get_data(struct snd_sof_dev *sdev, void *data,
 	if (!set && payload_bytes != offset)
 		ipc4_msg->data_size = offset;
 
+out:
 	if (sof_debug_check_flag(SOF_DBG_DUMP_IPC_MESSAGE_PAYLOAD))
 		sof_ipc4_dump_payload(sdev, ipc4_msg->data_ptr, ipc4_msg->data_size);
 
-out:
 	mutex_unlock(&sdev->ipc->tx_mutex);
 
 	return ret;
@@ -541,6 +547,29 @@ static int sof_ipc4_init_msg_memory(struct snd_sof_dev *sdev)
 
 	return 0;
 }
+
+size_t sof_ipc4_find_debug_slot_offset_by_type(struct snd_sof_dev *sdev,
+					       u32 slot_type)
+{
+	size_t slot_desc_type_offset;
+	u32 type;
+	int i;
+
+	/* The type is the second u32 in the slot descriptor */
+	slot_desc_type_offset = sdev->debug_box.offset + sizeof(u32);
+	for (i = 0; i < SOF_IPC4_MAX_DEBUG_SLOTS; i++) {
+		sof_mailbox_read(sdev, slot_desc_type_offset, &type, sizeof(type));
+
+		if (type == slot_type)
+			return sdev->debug_box.offset + (i + 1) * SOF_IPC4_DEBUG_SLOT_SIZE;
+
+		slot_desc_type_offset += SOF_IPC4_DEBUG_DESCRIPTOR_SIZE;
+	}
+
+	dev_dbg(sdev->dev, "Slot type %#x is not available in debug window\n", slot_type);
+	return 0;
+}
+EXPORT_SYMBOL(sof_ipc4_find_debug_slot_offset_by_type);
 
 static int ipc4_fw_ready(struct snd_sof_dev *sdev, struct sof_ipc4_msg *ipc4_msg)
 {
@@ -569,6 +598,8 @@ static int ipc4_fw_ready(struct snd_sof_dev *sdev, struct sof_ipc4_msg *ipc4_msg
 
 	sdev->debug_box.offset = snd_sof_dsp_get_window_offset(sdev,
 							SOF_IPC4_DEBUG_WINDOW_IDX);
+
+	sof_ipc4_create_exception_debugfs_node(sdev);
 
 	dev_dbg(sdev->dev, "mailbox upstream 0x%x - size 0x%x\n",
 		inbox_offset, inbox_size);
@@ -614,6 +645,9 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 	case SOF_IPC4_NOTIFY_LOG_BUFFER_STATUS:
 		sof_ipc4_mtrace_update_pos(sdev, SOF_IPC4_LOG_CORE_GET(ipc4_msg->primary));
 		break;
+	case SOF_IPC4_NOTIFY_EXCEPTION_CAUGHT:
+		snd_sof_dsp_panic(sdev, 0, true);
+		break;
 	default:
 		dev_dbg(sdev->dev, "Unhandled DSP message: %#x|%#x\n",
 			ipc4_msg->primary, ipc4_msg->extension);
@@ -632,6 +666,10 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 	sof_ipc4_log_header(sdev->dev, "ipc rx done ", ipc4_msg, true);
 
 	if (data_size) {
+		if (sof_debug_check_flag(SOF_DBG_DUMP_IPC_MESSAGE_PAYLOAD))
+			sof_ipc4_dump_payload(sdev, ipc4_msg->data_ptr,
+					      ipc4_msg->data_size);
+
 		kfree(ipc4_msg->data_ptr);
 		ipc4_msg->data_ptr = NULL;
 		ipc4_msg->data_size = 0;

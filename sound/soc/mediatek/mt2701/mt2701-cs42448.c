@@ -10,16 +10,15 @@
 #include <linux/module.h>
 #include <sound/soc.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/of_gpio.h>
 
 #include "mt2701-afe-common.h"
 
 struct mt2701_cs42448_private {
 	int i2s1_in_mux;
-	int i2s1_in_mux_gpio_sel_1;
-	int i2s1_in_mux_gpio_sel_2;
+	struct gpio_desc *i2s1_in_mux_sel_1;
+	struct gpio_desc *i2s1_in_mux_sel_2;
 };
 
 static const char * const i2sin_mux_switch_text[] = {
@@ -53,20 +52,20 @@ static int mt2701_cs42448_i2sin1_mux_set(struct snd_kcontrol *kcontrol,
 
 	switch (ucontrol->value.integer.value[0]) {
 	case 0:
-		gpio_set_value(priv->i2s1_in_mux_gpio_sel_1, 0);
-		gpio_set_value(priv->i2s1_in_mux_gpio_sel_2, 0);
+		gpiod_set_value(priv->i2s1_in_mux_sel_1, 0);
+		gpiod_set_value(priv->i2s1_in_mux_sel_2, 0);
 		break;
 	case 1:
-		gpio_set_value(priv->i2s1_in_mux_gpio_sel_1, 1);
-		gpio_set_value(priv->i2s1_in_mux_gpio_sel_2, 0);
+		gpiod_set_value(priv->i2s1_in_mux_sel_1, 1);
+		gpiod_set_value(priv->i2s1_in_mux_sel_2, 0);
 		break;
 	case 2:
-		gpio_set_value(priv->i2s1_in_mux_gpio_sel_1, 0);
-		gpio_set_value(priv->i2s1_in_mux_gpio_sel_2, 1);
+		gpiod_set_value(priv->i2s1_in_mux_sel_1, 0);
+		gpiod_set_value(priv->i2s1_in_mux_sel_2, 1);
 		break;
 	case 3:
-		gpio_set_value(priv->i2s1_in_mux_gpio_sel_1, 1);
-		gpio_set_value(priv->i2s1_in_mux_gpio_sel_2, 1);
+		gpiod_set_value(priv->i2s1_in_mux_sel_1, 1);
+		gpiod_set_value(priv->i2s1_in_mux_sel_2, 1);
 		break;
 	default:
 		dev_warn(card->dev, "%s invalid setting\n", __func__);
@@ -127,9 +126,9 @@ static const struct snd_soc_ops mt2701_cs42448_48k_fe_ops = {
 static int mt2701_cs42448_be_ops_hw_params(struct snd_pcm_substream *substream,
 					   struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	unsigned int mclk_rate;
 	unsigned int rate = params_rate(params);
 	unsigned int div_mclk_over_bck = rate > 192000 ? 2 : 4;
@@ -382,27 +381,18 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	priv->i2s1_in_mux_gpio_sel_1 =
-		of_get_named_gpio(dev->of_node, "i2s1-in-sel-gpio1", 0);
-	if (gpio_is_valid(priv->i2s1_in_mux_gpio_sel_1)) {
-		ret = devm_gpio_request(dev, priv->i2s1_in_mux_gpio_sel_1,
-					"i2s1_in_mux_gpio_sel_1");
-		if (ret)
-			dev_warn(&pdev->dev, "%s devm_gpio_request fail %d\n",
-				 __func__, ret);
-		gpio_direction_output(priv->i2s1_in_mux_gpio_sel_1, 0);
-	}
+	priv->i2s1_in_mux_sel_1 = devm_gpiod_get_optional(dev, "i2s1-in-sel-gpio1",
+							  GPIOD_OUT_LOW);
+	if (IS_ERR(priv->i2s1_in_mux_sel_1))
+		return dev_err_probe(dev, PTR_ERR(priv->i2s1_in_mux_sel_1),
+				     "error getting mux 1 selector\n");
 
-	priv->i2s1_in_mux_gpio_sel_2 =
-		of_get_named_gpio(dev->of_node, "i2s1-in-sel-gpio2", 0);
-	if (gpio_is_valid(priv->i2s1_in_mux_gpio_sel_2)) {
-		ret = devm_gpio_request(dev, priv->i2s1_in_mux_gpio_sel_2,
-					"i2s1_in_mux_gpio_sel_2");
-		if (ret)
-			dev_warn(&pdev->dev, "%s devm_gpio_request fail2 %d\n",
-				 __func__, ret);
-		gpio_direction_output(priv->i2s1_in_mux_gpio_sel_2, 0);
-	}
+	priv->i2s1_in_mux_sel_2 = devm_gpiod_get_optional(dev, "i2s1-in-sel-gpio2",
+							  GPIOD_OUT_LOW);
+	if (IS_ERR(priv->i2s1_in_mux_sel_2))
+		return dev_err_probe(dev, PTR_ERR(priv->i2s1_in_mux_sel_2),
+				     "error getting mux 2 selector\n");
+
 	snd_soc_card_set_drvdata(card, priv);
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);

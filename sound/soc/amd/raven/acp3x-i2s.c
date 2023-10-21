@@ -80,7 +80,7 @@ static int acp3x_i2s_hwparams(struct snd_pcm_substream *substream,
 	u32 val;
 	u32 reg_val, frmt_reg;
 
-	prtd = asoc_substream_to_rtd(substream);
+	prtd = snd_soc_substream_to_rtd(substream);
 	rtd = substream->runtime->private_data;
 	card = prtd->card;
 	adata = snd_soc_dai_get_drvdata(dai);

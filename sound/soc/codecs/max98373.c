@@ -12,9 +12,8 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <sound/tlv.h>
 #include "max98373.h"
 
@@ -478,20 +477,24 @@ void max98373_slot_config(struct device *dev,
 		max98373->i_slot = value & 0xF;
 	else
 		max98373->i_slot = 1;
-	if (dev->of_node) {
-		max98373->reset_gpio = of_get_named_gpio(dev->of_node,
-						"maxim,reset-gpio", 0);
-		if (!gpio_is_valid(max98373->reset_gpio)) {
-			dev_err(dev, "Looking up %s property in node %s failed %d\n",
-				"maxim,reset-gpio", dev->of_node->full_name,
-				max98373->reset_gpio);
-		} else {
-			dev_dbg(dev, "maxim,reset-gpio=%d",
-				max98373->reset_gpio);
-		}
-	} else {
-		/* this makes reset_gpio as invalid */
-		max98373->reset_gpio = -1;
+
+	/* This will assert RESET */
+	max98373->reset = devm_gpiod_get_optional(dev,
+						  "maxim,reset",
+						  GPIOD_OUT_HIGH);
+	if (IS_ERR(max98373->reset)) {
+		dev_err(dev, "error %ld looking up RESET GPIO line\n",
+			PTR_ERR(max98373->reset));
+		return;
+	}
+
+	/* Cycle reset */
+	if (max98373->reset) {
+		gpiod_set_consumer_name(max98373->reset ,"MAX98373_RESET");
+		gpiod_direction_output(max98373->reset, 1);
+		msleep(50);
+		gpiod_direction_output(max98373->reset, 0);
+		msleep(20);
 	}
 
 	if (!device_property_read_u32(dev, "maxim,spkfb-slot-no", &value))
