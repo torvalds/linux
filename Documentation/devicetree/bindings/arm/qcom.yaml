@@ -187,6 +187,7 @@ properties:
 
       - items:
           - enum:
+              - huawei,kiwi
               - longcheer,l9100
               - samsung,a7
               - sony,kanuti-tulip
