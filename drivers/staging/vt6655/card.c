@@ -250,9 +250,9 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		priv->difs = difs;
 		iowrite8(priv->difs, priv->port_offset + MAC_REG_DIFS);
 	}
-	if (priv->byEIFS != C_EIFS) {
-		priv->byEIFS = C_EIFS;
-		iowrite8(priv->byEIFS, priv->port_offset + MAC_REG_EIFS);
+	if (priv->eifs != C_EIFS) {
+		priv->eifs = C_EIFS;
+		iowrite8(priv->eifs, priv->port_offset + MAC_REG_EIFS);
 	}
 	if (priv->slot != slot) {
 		priv->slot = slot;

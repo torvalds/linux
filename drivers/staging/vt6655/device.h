@@ -183,7 +183,7 @@ struct vnt_private {
 	/* PHY parameter */
 	unsigned char sifs;
 	unsigned char difs;
-	unsigned char byEIFS;
+	unsigned char eifs;
 	unsigned char slot;
 	unsigned char cw_max_min;
 
