@@ -186,7 +186,7 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 {
 	unsigned char cw_max_min = 0;
 	unsigned char slot = 0;
-	unsigned char bySIFS = 0;
+	unsigned char sifs = 0;
 	unsigned char byDIFS = 0;
 	int i;
 
@@ -195,20 +195,20 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		vt6655_mac_set_bb_type(priv->port_offset, BB_TYPE_11A);
 		bb_write_embedded(priv, 0x88, 0x03);
 		slot = C_SLOT_SHORT;
-		bySIFS = C_SIFS_A;
+		sifs = C_SIFS_A;
 		byDIFS = C_SIFS_A + 2 * C_SLOT_SHORT;
 		cw_max_min = 0xA4;
 	} else if (bb_type == BB_TYPE_11B) {
 		vt6655_mac_set_bb_type(priv->port_offset, BB_TYPE_11B);
 		bb_write_embedded(priv, 0x88, 0x02);
 		slot = C_SLOT_LONG;
-		bySIFS = C_SIFS_BG;
+		sifs = C_SIFS_BG;
 		byDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
 		cw_max_min = 0xA5;
 	} else { /* PK_TYPE_11GA & PK_TYPE_11GB */
 		vt6655_mac_set_bb_type(priv->port_offset, BB_TYPE_11G);
 		bb_write_embedded(priv, 0x88, 0x08);
-		bySIFS = C_SIFS_BG;
+		sifs = C_SIFS_BG;
 
 		if (priv->short_slot_time) {
 			slot = C_SLOT_SHORT;
@@ -233,7 +233,7 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		 * bcs TX_PE will reserve 3 us hardware's processing
 		 * time here is 2 us.
 		 */
-		bySIFS -= 3;
+		sifs -= 3;
 		byDIFS -= 3;
 		/*
 		 * TX_PE will reserve 3 us for MAX2829 A mode only, it is for
@@ -242,9 +242,9 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		 */
 	}
 
-	if (priv->bySIFS != bySIFS) {
-		priv->bySIFS = bySIFS;
-		iowrite8(priv->bySIFS, priv->port_offset + MAC_REG_SIFS);
+	if (priv->sifs != sifs) {
+		priv->sifs = sifs;
+		iowrite8(priv->sifs, priv->port_offset + MAC_REG_SIFS);
 	}
 	if (priv->byDIFS != byDIFS) {
 		priv->byDIFS = byDIFS;
