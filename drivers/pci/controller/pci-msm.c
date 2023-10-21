@@ -3903,12 +3903,12 @@ static void msm_pcie_cesta_disable_drv(struct msm_pcie_dev_t *dev)
 	if (!dev->pcie_sm)
 		return;
 
-	msm_pcie_cesta_disable_l1ss_to(dev);
-
 	/* Use CESTA to turn on the resources into D0 state from DRV state*/
 	ret = msm_pcie_cesta_map_apply(dev, D0_STATE);
 	if (ret)
 		PCIE_ERR(dev, "Failed to move to D0 State %d\n", ret);
+
+	msm_pcie_cesta_disable_l1ss_to(dev);
 
 	/* Remove CLKREQ as wake up capable gpio */
 	ret = msm_gpio_mpm_wake_set(dev->clkreq_gpio, false);
