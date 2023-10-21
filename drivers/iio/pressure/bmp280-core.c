@@ -920,7 +920,7 @@ static int bmp380_cmd(struct bmp280_data *data, u8 cmd)
 }
 
 /*
- * Returns temperature in Celsius dregrees, resolution is 0.01º C. Output value of
+ * Returns temperature in Celsius degrees, resolution is 0.01º C. Output value of
  * "5123" equals 51.2º C. t_fine carries fine temperature as global value.
  *
  * Taken from datasheet, Section Appendix 9, "Compensation formula" and repo
@@ -1385,7 +1385,7 @@ static int bmp580_read_temp(struct bmp280_data *data, int *val, int *val2)
 
 	/*
 	 * Temperature is returned in Celsius degrees in fractional
-	 * form down 2^16. We reescale by x1000 to return milli Celsius
+	 * form down 2^16. We rescale by x1000 to return milli Celsius
 	 * to respect IIO ABI.
 	 */
 	*val = raw_temp * 1000;
@@ -1412,7 +1412,7 @@ static int bmp580_read_press(struct bmp280_data *data, int *val, int *val2)
 	}
 	/*
 	 * Pressure is returned in Pascals in fractional form down 2^16.
-	 * We reescale /1000 to convert to kilopascal to respect IIO ABI.
+	 * We rescale /1000 to convert to kilopascal to respect IIO ABI.
 	 */
 	*val = raw_press;
 	*val2 = 64000; /* 2^6 * 1000 */

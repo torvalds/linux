@@ -410,7 +410,7 @@ struct bmp280_data {
 		__le16 bmp280_cal_buf[BMP280_CONTIGUOUS_CALIB_REGS / 2];
 		__be16 bmp180_cal_buf[BMP180_REG_CALIB_COUNT / 2];
 		u8 bmp380_cal_buf[BMP380_CALIB_REG_COUNT];
-		/* Miscellaneous, endianess-aware data buffers */
+		/* Miscellaneous, endianness-aware data buffers */
 		__le16 le16;
 		__be16 be16;
 	} __aligned(IIO_DMA_MINALIGN);
