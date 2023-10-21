@@ -1083,8 +1083,7 @@ int gfs2_quota_lock(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 	u32 x;
 	int error;
 
-	if (sdp->sd_args.ar_quota != GFS2_QUOTA_ON &&
-	    sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET)
+	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return 0;
 
 	error = gfs2_quota_hold(ip, uid, gid);
@@ -1285,8 +1284,7 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 	u32 x;
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 
-	if ((sdp->sd_args.ar_quota != GFS2_QUOTA_ON &&
-	    sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET) ||
+	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF ||
 	    gfs2_assert_warn(sdp, change))
 		return;
 	if (ip->i_diskflags & GFS2_DIF_SYSTEM)
