@@ -20,6 +20,7 @@
 #include "keylist.h"
 #include "move.h"
 #include "replicas.h"
+#include "snapshot.h"
 #include "super-io.h"
 #include "trace.h"
 
@@ -413,35 +414,87 @@ err:
 	return ret;
 }
 
-static int lookup_inode(struct btree_trans *trans, struct bpos pos,
-			struct bch_inode_unpacked *inode)
+struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
+			  struct per_snapshot_io_opts *io_opts,
+			  struct bkey_s_c extent_k)
+{
+	struct bch_fs *c = trans->c;
+	u32 restart_count = trans->restart_count;
+	int ret = 0;
+
+	if (io_opts->cur_inum != extent_k.k->p.inode) {
+		struct btree_iter iter;
+		struct bkey_s_c k;
+
+		io_opts->d.nr = 0;
+
+		for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, extent_k.k->p.inode),
+				   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
+			if (k.k->p.offset != extent_k.k->p.inode)
+				break;
+
+			if (!bkey_is_inode(k.k))
+				continue;
+
+			struct bch_inode_unpacked inode;
+			BUG_ON(bch2_inode_unpack(k, &inode));
+
+			struct snapshot_io_opts_entry e = { .snapshot = k.k->p.snapshot };
+			bch2_inode_opts_get(&e.io_opts, trans->c, &inode);
+
+			ret = darray_push(&io_opts->d, e);
+			if (ret)
+				break;
+		}
+		bch2_trans_iter_exit(trans, &iter);
+		io_opts->cur_inum = extent_k.k->p.inode;
+	}
+
+	ret = ret ?: trans_was_restarted(trans, restart_count);
+	if (ret)
+		return ERR_PTR(ret);
+
+	if (extent_k.k->p.snapshot) {
+		struct snapshot_io_opts_entry *i;
+		darray_for_each(io_opts->d, i)
+			if (bch2_snapshot_is_ancestor(c, extent_k.k->p.snapshot, i->snapshot))
+				return &i->io_opts;
+	}
+
+	return &io_opts->fs_io_opts;
+}
+
+static int bch2_move_get_io_opts_one(struct btree_trans *trans,
+				     struct bch_io_opts *io_opts,
+				     struct bkey_s_c extent_k)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes, pos,
-			     BTREE_ITER_ALL_SNAPSHOTS);
-	k = bch2_btree_iter_peek(&iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
-
-	if (!k.k || !bkey_eq(k.k->p, pos)) {
-		ret = -BCH_ERR_ENOENT_inode;
-		goto err;
+	/* reflink btree? */
+	if (!extent_k.k->p.inode) {
+		*io_opts = bch2_opts_to_inode_opts(trans->c->opts);
+		return 0;
 	}
 
-	ret = bkey_is_inode(k.k) ? 0 : -EIO;
-	if (ret)
-		goto err;
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
+			       SPOS(0, extent_k.k->p.inode, extent_k.k->p.snapshot),
+			       BTREE_ITER_CACHED);
+	ret = bkey_err(k);
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+		return ret;
 
-	ret = bch2_inode_unpack(k, inode);
-	if (ret)
-		goto err;
-err:
+	if (!ret && bkey_is_inode(k.k)) {
+		struct bch_inode_unpacked inode;
+		bch2_inode_unpack(k, &inode);
+		bch2_inode_opts_get(io_opts, trans->c, &inode);
+	} else {
+		*io_opts = bch2_opts_to_inode_opts(trans->c->opts);
+	}
+
 	bch2_trans_iter_exit(trans, &iter);
-	return ret;
+	return 0;
 }
 
 static int move_ratelimit(struct btree_trans *trans,
@@ -492,30 +545,6 @@ static int move_ratelimit(struct btree_trans *trans,
 	return 0;
 }
 
-static int move_get_io_opts(struct btree_trans *trans,
-			    struct bch_io_opts *io_opts,
-			    struct bkey_s_c k, u64 *cur_inum)
-{
-	struct bch_inode_unpacked inode;
-	int ret;
-
-	if (*cur_inum == k.k->p.inode)
-		return 0;
-
-	ret = lookup_inode(trans,
-			   SPOS(0, k.k->p.inode, k.k->p.snapshot),
-			   &inode);
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		return ret;
-
-	if (!ret)
-		bch2_inode_opts_get(io_opts, trans->c, &inode);
-	else
-		*io_opts = bch2_opts_to_inode_opts(trans->c->opts);
-	*cur_inum = k.k->p.inode;
-	return 0;
-}
-
 static int __bch2_move_data(struct moving_context *ctxt,
 			    struct bpos start,
 			    struct bpos end,
@@ -523,15 +552,16 @@ static int __bch2_move_data(struct moving_context *ctxt,
 			    enum btree_id btree_id)
 {
 	struct bch_fs *c = ctxt->c;
-	struct bch_io_opts io_opts = bch2_opts_to_inode_opts(c->opts);
+	struct per_snapshot_io_opts snapshot_io_opts;
+	struct bch_io_opts *io_opts;
 	struct bkey_buf sk;
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct data_update_opts data_opts;
-	u64 cur_inum = U64_MAX;
 	int ret = 0, ret2;
 
+	per_snapshot_io_opts_init(&snapshot_io_opts, c);
 	bch2_bkey_buf_init(&sk);
 
 	if (ctxt->stats) {
@@ -569,12 +599,13 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		if (!bkey_extent_is_direct_data(k.k))
 			goto next_nondata;
 
-		ret = move_get_io_opts(trans, &io_opts, k, &cur_inum);
+		io_opts = bch2_move_get_io_opts(trans, &snapshot_io_opts, k);
+		ret = PTR_ERR_OR_ZERO(io_opts);
 		if (ret)
 			continue;
 
 		memset(&data_opts, 0, sizeof(data_opts));
-		if (!pred(c, arg, k, &io_opts, &data_opts))
+		if (!pred(c, arg, k, io_opts, &data_opts))
 			goto next;
 
 		/*
@@ -585,7 +616,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		k = bkey_i_to_s_c(sk.k);
 
 		ret2 = bch2_move_extent(trans, &iter, ctxt, NULL,
-					io_opts, btree_id, k, data_opts);
+					*io_opts, btree_id, k, data_opts);
 		if (ret2) {
 			if (bch2_err_matches(ret2, BCH_ERR_transaction_restart))
 				continue;
@@ -612,6 +643,7 @@ next_nondata:
 	bch2_trans_iter_exit(trans, &iter);
 	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&sk, c);
+	per_snapshot_io_opts_exit(&snapshot_io_opts);
 
 	return ret;
 }
@@ -673,7 +705,6 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 	struct data_update_opts data_opts;
 	unsigned dirty_sectors, bucket_size;
 	u64 fragmentation;
-	u64 cur_inum = U64_MAX;
 	struct bpos bp_pos = POS_MIN;
 	int ret = 0;
 
@@ -737,7 +768,7 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 			bch2_bkey_buf_reassemble(&sk, c, k);
 			k = bkey_i_to_s_c(sk.k);
 
-			ret = move_get_io_opts(trans, &io_opts, k, &cur_inum);
+			ret = bch2_move_get_io_opts_one(trans, &io_opts, k);
 			if (ret) {
 				bch2_trans_iter_exit(trans, &iter);
 				continue;
