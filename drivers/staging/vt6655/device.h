@@ -182,7 +182,7 @@ struct vnt_private {
 	unsigned int	uCwMax;   /* CwMax is fixed on 1023. */
 	/* PHY parameter */
 	unsigned char sifs;
-	unsigned char byDIFS;
+	unsigned char difs;
 	unsigned char byEIFS;
 	unsigned char slot;
 	unsigned char cw_max_min;

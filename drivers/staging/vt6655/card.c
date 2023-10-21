@@ -187,7 +187,7 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 	unsigned char cw_max_min = 0;
 	unsigned char slot = 0;
 	unsigned char sifs = 0;
-	unsigned char byDIFS = 0;
+	unsigned char difs = 0;
 	int i;
 
 	/* Set SIFS, DIFS, EIFS, SlotTime, CwMin */
@@ -196,14 +196,14 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		bb_write_embedded(priv, 0x88, 0x03);
 		slot = C_SLOT_SHORT;
 		sifs = C_SIFS_A;
-		byDIFS = C_SIFS_A + 2 * C_SLOT_SHORT;
+		difs = C_SIFS_A + 2 * C_SLOT_SHORT;
 		cw_max_min = 0xA4;
 	} else if (bb_type == BB_TYPE_11B) {
 		vt6655_mac_set_bb_type(priv->port_offset, BB_TYPE_11B);
 		bb_write_embedded(priv, 0x88, 0x02);
 		slot = C_SLOT_LONG;
 		sifs = C_SIFS_BG;
-		byDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
+		difs = C_SIFS_BG + 2 * C_SLOT_LONG;
 		cw_max_min = 0xA5;
 	} else { /* PK_TYPE_11GA & PK_TYPE_11GB */
 		vt6655_mac_set_bb_type(priv->port_offset, BB_TYPE_11G);
@@ -212,10 +212,10 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 
 		if (priv->short_slot_time) {
 			slot = C_SLOT_SHORT;
-			byDIFS = C_SIFS_BG + 2 * C_SLOT_SHORT;
+			difs = C_SIFS_BG + 2 * C_SLOT_SHORT;
 		} else {
 			slot = C_SLOT_LONG;
-			byDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
+			difs = C_SIFS_BG + 2 * C_SLOT_LONG;
 		}
 
 		cw_max_min = 0xa4;
@@ -234,7 +234,7 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		 * time here is 2 us.
 		 */
 		sifs -= 3;
-		byDIFS -= 3;
+		difs -= 3;
 		/*
 		 * TX_PE will reserve 3 us for MAX2829 A mode only, it is for
 		 * better TX throughput; MAC will need 2 us to process, so the
@@ -246,9 +246,9 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		priv->sifs = sifs;
 		iowrite8(priv->sifs, priv->port_offset + MAC_REG_SIFS);
 	}
-	if (priv->byDIFS != byDIFS) {
-		priv->byDIFS = byDIFS;
-		iowrite8(priv->byDIFS, priv->port_offset + MAC_REG_DIFS);
+	if (priv->difs != difs) {
+		priv->difs = difs;
+		iowrite8(priv->difs, priv->port_offset + MAC_REG_DIFS);
 	}
 	if (priv->byEIFS != C_EIFS) {
 		priv->byEIFS = C_EIFS;
