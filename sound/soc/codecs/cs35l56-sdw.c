@@ -550,7 +550,7 @@ MODULE_DEVICE_TABLE(sdw, cs35l56_sdw_id);
 static struct sdw_driver cs35l56_sdw_driver = {
 	.driver = {
 		.name = "cs35l56",
-		.pm = &cs35l56_sdw_pm,
+		.pm = pm_ptr(&cs35l56_sdw_pm),
 	},
 	.probe = cs35l56_sdw_probe,
 	.remove = cs35l56_sdw_remove,

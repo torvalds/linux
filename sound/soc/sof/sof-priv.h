@@ -167,7 +167,7 @@ struct snd_sof_dsp_ops {
 	/* probe/remove/shutdown */
 	int (*probe_early)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*probe)(struct snd_sof_dev *sof_dev); /* mandatory */
-	int (*remove)(struct snd_sof_dev *sof_dev); /* optional */
+	void (*remove)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*remove_late)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*shutdown)(struct snd_sof_dev *sof_dev); /* optional */
 

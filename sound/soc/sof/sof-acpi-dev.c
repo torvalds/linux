@@ -74,20 +74,18 @@ int sof_acpi_probe(struct platform_device *pdev, const struct sof_dev_desc *desc
 
 	sof_pdata->desc = desc;
 	sof_pdata->dev = &pdev->dev;
-	sof_pdata->fw_filename = desc->default_fw_filename[SOF_IPC];
+	sof_pdata->fw_filename = desc->default_fw_filename[SOF_IPC_TYPE_3];
 
 	/* alternate fw and tplg filenames ? */
 	if (fw_path)
 		sof_pdata->fw_filename_prefix = fw_path;
 	else
-		sof_pdata->fw_filename_prefix =
-			sof_pdata->desc->default_fw_path[SOF_IPC];
+		sof_pdata->fw_filename_prefix = desc->default_fw_path[SOF_IPC_TYPE_3];
 
 	if (tplg_path)
 		sof_pdata->tplg_filename_prefix = tplg_path;
 	else
-		sof_pdata->tplg_filename_prefix =
-			sof_pdata->desc->default_tplg_path[SOF_IPC];
+		sof_pdata->tplg_filename_prefix = desc->default_tplg_path[SOF_IPC_TYPE_3];
 
 	/* set callback to be called on successful device probe to enable runtime_pm */
 	sof_pdata->sof_probe_complete = sof_acpi_probe_complete;
@@ -97,7 +95,7 @@ int sof_acpi_probe(struct platform_device *pdev, const struct sof_dev_desc *desc
 }
 EXPORT_SYMBOL_NS(sof_acpi_probe, SND_SOC_SOF_ACPI_DEV);
 
-int sof_acpi_remove(struct platform_device *pdev)
+void sof_acpi_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
@@ -106,8 +104,6 @@ int sof_acpi_remove(struct platform_device *pdev)
 
 	/* call sof helper for DSP hardware remove */
 	snd_sof_device_remove(dev);
-
-	return 0;
 }
 EXPORT_SYMBOL_NS(sof_acpi_remove, SND_SOC_SOF_ACPI_DEV);
 

@@ -20,6 +20,7 @@
 #include <linux/module.h>
 
 #include "acp-mach.h"
+#include "acp3x-es83xx/acp3x-es83xx.h"
 
 static struct acp_card_drvdata rt5682_rt1019_data = {
 	.hs_cpu_id = I2S_SP,
@@ -51,6 +52,14 @@ static struct acp_card_drvdata rt5682s_rt1019_data = {
 	.tdm_mode = false,
 };
 
+static struct acp_card_drvdata es83xx_rn_data = {
+	.hs_cpu_id = I2S_SP,
+	.dmic_cpu_id = DMIC,
+	.hs_codec_id = ES83XX,
+	.dmic_codec_id = DMIC,
+	.platform = RENOIR,
+};
+
 static struct acp_card_drvdata max_nau8825_data = {
 	.hs_cpu_id = I2S_HS,
 	.amp_cpu_id = I2S_HS,
@@ -75,6 +84,39 @@ static struct acp_card_drvdata rt5682s_rt1019_rmb_data = {
 	.tdm_mode = false,
 };
 
+static bool acp_asoc_init_ops(struct acp_card_drvdata *priv)
+{
+	bool has_ops = false;
+
+	if (priv->hs_codec_id == ES83XX) {
+		has_ops = true;
+		acp3x_es83xx_init_ops(&priv->ops);
+	}
+	return has_ops;
+}
+
+static int acp_asoc_suspend_pre(struct snd_soc_card *card)
+{
+	int ret;
+
+	ret = acp_ops_suspend_pre(card);
+	if (ret == 1)
+		return 0;
+	else
+		return ret;
+}
+
+static int acp_asoc_resume_post(struct snd_soc_card *card)
+{
+	int ret;
+
+	ret = acp_ops_resume_post(card);
+	if (ret == 1)
+		return 0;
+	else
+		return ret;
+}
+
 static int acp_asoc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = NULL;
@@ -83,35 +125,68 @@ static int acp_asoc_probe(struct platform_device *pdev)
 	struct acp_card_drvdata *acp_card_drvdata;
 	int ret;
 
-	if (!pdev->id_entry)
-		return -EINVAL;
+	if (!pdev->id_entry) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
-	if (!card)
-		return -ENOMEM;
+	if (!card) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
+	card->drvdata = (struct acp_card_drvdata *)pdev->id_entry->driver_data;
+	acp_card_drvdata = card->drvdata;
+	acp_card_drvdata->acpi_mach = (struct snd_soc_acpi_mach *)pdev->dev.platform_data;
 	card->dev = dev;
 	card->owner = THIS_MODULE;
 	card->name = pdev->id_entry->name;
-	card->drvdata = (struct acp_card_drvdata *)pdev->id_entry->driver_data;
-	/* Widgets and controls added per-codec in acp-mach-common.c */
 
-	acp_card_drvdata = card->drvdata;
+	acp_asoc_init_ops(card->drvdata);
+
+	/* If widgets and controls are not set in specific callback,
+	 * they will be added per-codec in acp-mach-common.c
+	 */
+	ret = acp_ops_configure_widgets(card);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Cannot configure widgets for card (%s): %d\n",
+			card->name, ret);
+		goto out;
+	}
+	card->suspend_pre = acp_asoc_suspend_pre;
+	card->resume_post = acp_asoc_resume_post;
+
+	ret = acp_ops_probe(card);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Cannot probe card (%s): %d\n",
+			card->name, ret);
+		goto out;
+	}
+
 	dmi_id = dmi_first_match(acp_quirk_table);
 	if (dmi_id && dmi_id->driver_data)
 		acp_card_drvdata->tdm_mode = dmi_id->driver_data;
 
-	acp_legacy_dai_links_create(card);
+	ret = acp_legacy_dai_links_create(card);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"Cannot create dai links for card (%s): %d\n",
+			card->name, ret);
+		goto out;
+	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		dev_err(&pdev->dev,
 				"devm_snd_soc_register_card(%s) failed: %d\n",
 				card->name, ret);
-		return ret;
+		goto out;
 	}
-
-	return 0;
+out:
+	return ret;
 }
 
 static const struct platform_device_id board_ids[] = {
@@ -126,6 +201,10 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "acp3xalc5682s1019",
 		.driver_data = (kernel_ulong_t)&rt5682s_rt1019_data,
+	},
+	{
+		.name = "acp3x-es83xx",
+		.driver_data = (kernel_ulong_t)&es83xx_rn_data,
 	},
 	{
 		.name = "rmb-nau8825-max",
@@ -153,6 +232,7 @@ MODULE_DESCRIPTION("ACP chrome audio support");
 MODULE_ALIAS("platform:acp3xalc56821019");
 MODULE_ALIAS("platform:acp3xalc5682sm98360");
 MODULE_ALIAS("platform:acp3xalc5682s1019");
+MODULE_ALIAS("platform:acp3x-es83xx");
 MODULE_ALIAS("platform:rmb-nau8825-max");
 MODULE_ALIAS("platform:rmb-rt5682s-rt1019");
 MODULE_LICENSE("GPL v2");

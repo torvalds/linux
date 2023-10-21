@@ -8,6 +8,8 @@
 
 /* NPL clock is expected */
 #define LPASS_MACRO_FLAG_HAS_NPL_CLOCK		BIT(0)
+/* The soundwire block should be internally reset at probe */
+#define LPASS_MACRO_FLAG_RESET_SWR		BIT(1)
 
 struct lpass_macro {
 	struct device *macro_pd;

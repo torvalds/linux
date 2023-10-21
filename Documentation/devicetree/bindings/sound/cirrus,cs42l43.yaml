@@ -83,7 +83,7 @@ properties:
       Current at which the headset micbias sense clamp will engage, 0 to
       disable.
     enum: [ 0, 14, 24, 43, 52, 61, 71, 90, 99 ]
-    default: 0
+    default: 14
 
   cirrus,bias-ramp-ms:
     description:
@@ -97,7 +97,7 @@ properties:
       Time in microseconds the type detection will run for. Long values will
       cause more audible effects, but give more accurate detection.
     enum: [ 20, 100, 1000, 10000, 50000, 75000, 100000, 200000 ]
-    default: 10000
+    default: 1000
 
   cirrus,button-automute:
     type: boolean

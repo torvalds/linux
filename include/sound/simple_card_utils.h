@@ -11,18 +11,18 @@
 #include <linux/clk.h>
 #include <sound/soc.h>
 
-#define asoc_simple_init_hp(card, sjack, prefix) \
-	asoc_simple_init_jack(card, sjack, 1, prefix, NULL)
-#define asoc_simple_init_mic(card, sjack, prefix) \
-	asoc_simple_init_jack(card, sjack, 0, prefix, NULL)
+#define simple_util_init_hp(card, sjack, prefix)		\
+	simple_util_init_jack(card, sjack, 1, prefix, NULL)
+#define simple_util_init_mic(card, sjack, prefix)		\
+	simple_util_init_jack(card, sjack, 0, prefix, NULL)
 
-struct asoc_simple_tdm_width_map {
+struct simple_util_tdm_width_map {
 	u8 sample_bits;
 	u8 slot_count;
 	u16 slot_width;
 };
 
-struct asoc_simple_dai {
+struct simple_util_dai {
 	const char *name;
 	unsigned int sysclk;
 	int clk_direction;
@@ -32,17 +32,17 @@ struct asoc_simple_dai {
 	unsigned int rx_slot_mask;
 	struct clk *clk;
 	bool clk_fixed;
-	struct asoc_simple_tdm_width_map *tdm_width_map;
+	struct simple_util_tdm_width_map *tdm_width_map;
 	int n_tdm_widths;
 };
 
-struct asoc_simple_data {
+struct simple_util_data {
 	u32 convert_rate;
 	u32 convert_channels;
 	const char *convert_sample_format;
 };
 
-struct asoc_simple_jack {
+struct simple_util_jack {
 	struct snd_soc_jack jack;
 	struct snd_soc_jack_pin pin;
 	struct snd_soc_jack_gpio gpio;
@@ -54,21 +54,21 @@ struct prop_nums {
 	int platforms;
 };
 
-struct asoc_simple_priv {
+struct simple_util_priv {
 	struct snd_soc_card snd_card;
 	struct simple_dai_props {
-		struct asoc_simple_dai *cpu_dai;
-		struct asoc_simple_dai *codec_dai;
-		struct asoc_simple_data adata;
+		struct simple_util_dai *cpu_dai;
+		struct simple_util_dai *codec_dai;
+		struct simple_util_data adata;
 		struct snd_soc_codec_conf *codec_conf;
 		struct prop_nums num;
 		unsigned int mclk_fs;
 	} *dai_props;
-	struct asoc_simple_jack hp_jack;
-	struct asoc_simple_jack mic_jack;
+	struct simple_util_jack hp_jack;
+	struct simple_util_jack mic_jack;
 	struct snd_soc_jack *aux_jacks;
 	struct snd_soc_dai_link *dai_link;
-	struct asoc_simple_dai *dais;
+	struct simple_util_dai *dais;
 	struct snd_soc_dai_link_component *dlcs;
 	struct snd_soc_codec_conf *codec_conf;
 	struct gpio_desc *pa_gpio;
@@ -130,75 +130,75 @@ struct link_info {
 	struct prop_nums num[SNDRV_MAX_LINKS];
 };
 
-int asoc_simple_parse_daifmt(struct device *dev,
+int simple_util_parse_daifmt(struct device *dev,
 			     struct device_node *node,
 			     struct device_node *codec,
 			     char *prefix,
 			     unsigned int *retfmt);
-int asoc_simple_parse_tdm_width_map(struct device *dev, struct device_node *np,
-				    struct asoc_simple_dai *dai);
+int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
+				    struct simple_util_dai *dai);
 
 __printf(3, 4)
-int asoc_simple_set_dailink_name(struct device *dev,
+int simple_util_set_dailink_name(struct device *dev,
 				 struct snd_soc_dai_link *dai_link,
 				 const char *fmt, ...);
-int asoc_simple_parse_card_name(struct snd_soc_card *card,
+int simple_util_parse_card_name(struct snd_soc_card *card,
 				char *prefix);
 
-int asoc_simple_parse_clk(struct device *dev,
+int simple_util_parse_clk(struct device *dev,
 			  struct device_node *node,
-			  struct asoc_simple_dai *simple_dai,
+			  struct simple_util_dai *simple_dai,
 			  struct snd_soc_dai_link_component *dlc);
-int asoc_simple_startup(struct snd_pcm_substream *substream);
-void asoc_simple_shutdown(struct snd_pcm_substream *substream);
-int asoc_simple_hw_params(struct snd_pcm_substream *substream,
+int simple_util_startup(struct snd_pcm_substream *substream);
+void simple_util_shutdown(struct snd_pcm_substream *substream);
+int simple_util_hw_params(struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params);
-int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd);
-int asoc_simple_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+int simple_util_dai_init(struct snd_soc_pcm_runtime *rtd);
+int simple_util_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				   struct snd_pcm_hw_params *params);
 
-#define asoc_simple_parse_tdm(np, dai)			\
+#define simple_util_parse_tdm(np, dai)				\
 	snd_soc_of_parse_tdm_slot(np,	&(dai)->tx_slot_mask,	\
 					&(dai)->rx_slot_mask,	\
 					&(dai)->slots,		\
 					&(dai)->slot_width);
 
-void asoc_simple_canonicalize_platform(struct snd_soc_dai_link_component *platforms,
+void simple_util_canonicalize_platform(struct snd_soc_dai_link_component *platforms,
 				       struct snd_soc_dai_link_component *cpus);
-void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
+void simple_util_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
 				  int is_single_links);
 
-void asoc_simple_clean_reference(struct snd_soc_card *card);
+void simple_util_clean_reference(struct snd_soc_card *card);
 
-void asoc_simple_parse_convert(struct device_node *np, char *prefix,
-			       struct asoc_simple_data *data);
-bool asoc_simple_is_convert_required(const struct asoc_simple_data *data);
+void simple_util_parse_convert(struct device_node *np, char *prefix,
+			       struct simple_util_data *data);
+bool simple_util_is_convert_required(const struct simple_util_data *data);
 
-int asoc_simple_parse_routing(struct snd_soc_card *card,
+int simple_util_parse_routing(struct snd_soc_card *card,
 				      char *prefix);
-int asoc_simple_parse_widgets(struct snd_soc_card *card,
+int simple_util_parse_widgets(struct snd_soc_card *card,
 				      char *prefix);
-int asoc_simple_parse_pin_switches(struct snd_soc_card *card,
+int simple_util_parse_pin_switches(struct snd_soc_card *card,
 				   char *prefix);
 
-int asoc_simple_init_jack(struct snd_soc_card *card,
-			       struct asoc_simple_jack *sjack,
+int simple_util_init_jack(struct snd_soc_card *card,
+			       struct simple_util_jack *sjack,
 			       int is_hp, char *prefix, char *pin);
-int asoc_simple_init_aux_jacks(struct asoc_simple_priv *priv,
+int simple_util_init_aux_jacks(struct simple_util_priv *priv,
 				char *prefix);
-int asoc_simple_init_priv(struct asoc_simple_priv *priv,
+int simple_util_init_priv(struct simple_util_priv *priv,
 			       struct link_info *li);
-int asoc_simple_remove(struct platform_device *pdev);
+int simple_util_remove(struct platform_device *pdev);
 
-int asoc_graph_card_probe(struct snd_soc_card *card);
-int asoc_graph_is_ports0(struct device_node *port);
-int asoc_graph_parse_dai(struct device *dev, struct device_node *ep,
+int graph_util_card_probe(struct snd_soc_card *card);
+int graph_util_is_ports0(struct device_node *port);
+int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 			 struct snd_soc_dai_link_component *dlc, int *is_single_link);
 
 #ifdef DEBUG
-static inline void asoc_simple_debug_dai(struct asoc_simple_priv *priv,
+static inline void simple_util_debug_dai(struct simple_util_priv *priv,
 					 char *name,
-					 struct asoc_simple_dai *dai)
+					 struct simple_util_dai *dai)
 {
 	struct device *dev = simple_priv_to_dev(priv);
 
@@ -228,7 +228,7 @@ static inline void asoc_simple_debug_dai(struct asoc_simple_priv *priv,
 			name, dai->clk_direction ? "OUT" : "IN");
 }
 
-static inline void asoc_simple_debug_info(struct asoc_simple_priv *priv)
+static inline void simple_util_debug_info(struct simple_util_priv *priv)
 {
 	struct snd_soc_card *card = simple_priv_to_card(priv);
 	struct device *dev = simple_priv_to_dev(priv);
@@ -241,7 +241,7 @@ static inline void asoc_simple_debug_info(struct asoc_simple_priv *priv)
 	for (i = 0; i < card->num_links; i++) {
 		struct simple_dai_props *props = simple_priv_to_props(priv, i);
 		struct snd_soc_dai_link *link = simple_priv_to_link(priv, i);
-		struct asoc_simple_dai *dai;
+		struct simple_util_dai *dai;
 		struct snd_soc_codec_conf *cnf;
 		int j;
 
@@ -249,10 +249,10 @@ static inline void asoc_simple_debug_info(struct asoc_simple_priv *priv)
 
 		dev_dbg(dev, "cpu num = %d\n", link->num_cpus);
 		for_each_prop_dai_cpu(props, j, dai)
-			asoc_simple_debug_dai(priv, "cpu", dai);
+			simple_util_debug_dai(priv, "cpu", dai);
 		dev_dbg(dev, "codec num = %d\n", link->num_codecs);
 		for_each_prop_dai_codec(props, j, dai)
-			asoc_simple_debug_dai(priv, "codec", dai);
+			simple_util_debug_dai(priv, "codec", dai);
 
 		if (link->name)
 			dev_dbg(dev, "dai name = %s\n", link->name);
@@ -270,7 +270,7 @@ static inline void asoc_simple_debug_info(struct asoc_simple_priv *priv)
 	}
 }
 #else
-#define  asoc_simple_debug_info(priv)
+#define  simple_util_debug_info(priv)
 #endif /* DEBUG */
 
 #endif /* __SIMPLE_CARD_UTILS_H */

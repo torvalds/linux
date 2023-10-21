@@ -16,7 +16,7 @@
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
 #include <linux/lcm.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>

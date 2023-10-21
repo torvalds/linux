@@ -155,7 +155,7 @@ static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 		card->num_dapm_widgets = ARRAY_SIZE(skl_hda_widgets);
 		if (!ctx->idisp_codec) {
 			for (i = 0; i < IDISP_DAI_COUNT; i++) {
-				skl_hda_be_dai_links[i].codecs = &asoc_dummy_dlc;
+				skl_hda_be_dai_links[i].codecs = &snd_soc_dummy_dlc;
 				skl_hda_be_dai_links[i].num_codecs = 1;
 			}
 		}
@@ -179,7 +179,7 @@ static void skl_set_hda_codec_autosuspend_delay(struct snd_soc_card *card)
 	for_each_card_rtds(card, rtd) {
 		if (!strstr(rtd->dai_link->codecs->name, "ehdaudio0D0"))
 			continue;
-		dai = asoc_rtd_to_codec(rtd, 0);
+		dai = snd_soc_rtd_to_codec(rtd, 0);
 		hda_pvt = snd_soc_component_get_drvdata(dai->component);
 		if (hda_pvt) {
 			/*

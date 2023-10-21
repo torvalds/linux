@@ -20,8 +20,6 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -42,8 +40,8 @@ static int rt715_index_write(struct regmap *regmap, unsigned int reg,
 
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0) {
-		pr_err("Failed to set private value: %08x <= %04x %d\n", ret,
-			addr, value);
+		pr_err("Failed to set private value: %08x <= %04x %d\n",
+		       addr, value, ret);
 	}
 
 	return ret;

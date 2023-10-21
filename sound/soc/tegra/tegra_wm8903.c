@@ -75,7 +75,7 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 		return err;
 
 	if (!machine->gpiod_mic_det && machine->asoc->add_mic_jack) {
-		struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+		struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 		struct snd_soc_component *component = codec_dai->component;
 		int shrt = 0;
 
@@ -105,7 +105,7 @@ static int tegra_wm8903_remove(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *link = &card->dai_link[0];
 	struct snd_soc_pcm_runtime *rtd = snd_soc_get_pcm_runtime(card, link);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *component = codec_dai->component;
 
 	wm8903_mic_detect(component, NULL, 0, 0);

@@ -15424,7 +15424,7 @@ NXP TFA9879 DRIVER
 M:	Peter Rosin <peda@axentia.se>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
-F:	Documentation/devicetree/bindings/sound/tfa9879.txt
+F:	Documentation/devicetree/bindings/sound/nxp,tfa9879.yaml
 F:	sound/soc/codecs/tfa9879*
 
 NXP-NCI NFC DRIVER
@@ -20114,6 +20114,10 @@ F:	Documentation/devicetree/bindings/sound/
 F:	Documentation/sound/soc/
 F:	include/dt-bindings/sound/
 F:	include/sound/soc*
+F:	include/sound/sof.h
+F:	include/sound/sof/
+F:	include/trace/events/sof*.h
+F:	include/uapi/sound/asoc.h
 F:	sound/soc/
 
 SOUND - SOUND OPEN FIRMWARE (SOF) DRIVERS
@@ -20466,6 +20470,13 @@ M:	Xingyu Wu <xingyu.wu@starfivetech.com>
 S:	Supported
 F:	Documentation/devicetree/bindings/clock/starfive,jh7110-pll.yaml
 F:	drivers/clk/starfive/clk-starfive-jh7110-pll.c
+
+STARFIVE JH7110 PWMDAC DRIVER
+M:	Hal Feng <hal.feng@starfivetech.com>
+M:	Xingyu Wu <xingyu.wu@starfivetech.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/sound/starfive,jh7110-pwmdac.yaml
+F:	sound/soc/starfive/jh7110_pwmdac.c
 
 STARFIVE JH7110 SYSCON
 M:	William Qiu <william.qiu@starfivetech.com>

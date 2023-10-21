@@ -169,6 +169,7 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 		return ret;
 
 	hda_priv->codec = codec;
+	hda_priv->dev_index = address;
 	dev_set_drvdata(&codec->core.dev, hda_priv);
 
 	if ((resp & 0xFFFF0000) == IDISP_VID_INTEL) {

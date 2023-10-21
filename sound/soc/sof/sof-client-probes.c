@@ -423,13 +423,13 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	priv->host_ops = ops;
 
 	switch (sof_client_get_ipc_type(cdev)) {
-#ifdef CONFIG_SND_SOC_SOF_INTEL_IPC4
-	case SOF_INTEL_IPC4:
+#ifdef CONFIG_SND_SOC_SOF_IPC4
+	case SOF_IPC_TYPE_4:
 		priv->ipc_ops = &ipc4_probe_ops;
 		break;
 #endif
 #ifdef CONFIG_SND_SOC_SOF_IPC3
-	case SOF_IPC:
+	case SOF_IPC_TYPE_3:
 		priv->ipc_ops = &ipc3_probe_ops;
 		break;
 #endif

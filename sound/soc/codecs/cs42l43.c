@@ -162,7 +162,7 @@ CS42L43_IRQ_COMPLETE(load_detect)
 static irqreturn_t cs42l43_mic_shutter(int irq, void *data)
 {
 	struct cs42l43_codec *priv = data;
-	const char * const controls[] = {
+	static const char * const controls[] = {
 		"Decimator 1 Switch",
 		"Decimator 2 Switch",
 		"Decimator 3 Switch",
