@@ -263,7 +263,6 @@ operations:
             - bus-name
             - dev-name
             - reload-failed
-            - reload-action
             - dev-stats
       dump:
         reply: *get-reply

@@ -475,11 +475,6 @@ int devlink_get_rsp_parse(const struct nlmsghdr *nlh, void *data)
 				return MNL_CB_ERROR;
 			dst->_present.reload_failed = 1;
 			dst->reload_failed = mnl_attr_get_u8(attr);
-		} else if (type == DEVLINK_ATTR_RELOAD_ACTION) {
-			if (ynl_attr_validate(yarg, attr))
-				return MNL_CB_ERROR;
-			dst->_present.reload_action = 1;
-			dst->reload_action = mnl_attr_get_u8(attr);
 		} else if (type == DEVLINK_ATTR_DEV_STATS) {
 			if (ynl_attr_validate(yarg, attr))
 				return MNL_CB_ERROR;

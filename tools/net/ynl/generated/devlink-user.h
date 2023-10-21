@@ -112,14 +112,12 @@ struct devlink_get_rsp {
 		__u32 bus_name_len;
 		__u32 dev_name_len;
 		__u32 reload_failed:1;
-		__u32 reload_action:1;
 		__u32 dev_stats:1;
 	} _present;
 
 	char *bus_name;
 	char *dev_name;
 	__u8 reload_failed;
-	__u8 reload_action;
 	struct devlink_dl_dev_stats dev_stats;
 };
 
