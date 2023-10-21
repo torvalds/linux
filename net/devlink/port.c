@@ -772,7 +772,7 @@ static int devlink_port_function_set(struct devlink_port *port,
 	return err;
 }
 
-int devlink_nl_cmd_port_set_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_port_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink_port *devlink_port = info->user_ptr[1];
 	int err;
@@ -798,7 +798,7 @@ int devlink_nl_cmd_port_set_doit(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-int devlink_nl_cmd_port_split_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_port_split_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct devlink *devlink = info->user_ptr[0];
@@ -829,8 +829,7 @@ int devlink_nl_cmd_port_split_doit(struct sk_buff *skb, struct genl_info *info)
 					     info->extack);
 }
 
-int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
-				     struct genl_info *info)
+int devlink_nl_port_unsplit_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct devlink *devlink = info->user_ptr[0];
@@ -840,7 +839,7 @@ int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
 	return devlink_port->ops->port_unsplit(devlink, devlink_port, info->extack);
 }
 
-int devlink_nl_cmd_port_new_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_port_new_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink_port_new_attrs new_attrs = {};
@@ -904,7 +903,7 @@ err_out_port_del:
 	return err;
 }
 
-int devlink_nl_cmd_port_del_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_port_del_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct netlink_ext_ack *extack = info->extack;
