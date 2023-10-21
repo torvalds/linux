@@ -96,8 +96,6 @@ int z_erofs_load_lzma_config(struct super_block *sb,
 		return -EINVAL;
 	}
 
-	erofs_info(sb, "EXPERIMENTAL MicroLZMA in use. Use at your own risk!");
-
 	/* in case 2 z_erofs_load_lzma_config() race to avoid deadlock */
 	mutex_lock(&lzma_resize_mutex);
 
