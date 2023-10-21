@@ -379,6 +379,12 @@ int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr)
 		yerr(yarg->ys, YNL_ERROR_ATTR_INVALID,
 		     "Invalid attribute (string %s)", policy->name);
 		return -1;
+	case YNL_PT_BITFIELD32:
+		if (len == sizeof(struct nla_bitfield32))
+			break;
+		yerr(yarg->ys, YNL_ERROR_ATTR_INVALID,
+		     "Invalid attribute (bitfield32 %s)", policy->name);
+		return -1;
 	default:
 		yerr(yarg->ys, YNL_ERROR_ATTR_INVALID,
 		     "Invalid attribute (unknown %s)", policy->name);
