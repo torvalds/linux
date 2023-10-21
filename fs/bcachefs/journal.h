@@ -534,6 +534,7 @@ bool bch2_journal_seq_pins_to_text(struct printbuf *, struct journal *, u64 *);
 int bch2_set_nr_journal_buckets(struct bch_fs *, struct bch_dev *,
 				unsigned nr);
 int bch2_dev_journal_alloc(struct bch_dev *);
+int bch2_fs_journal_alloc(struct bch_fs *);
 
 void bch2_dev_journal_stop(struct journal *, struct bch_dev *);
 

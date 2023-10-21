@@ -946,16 +946,12 @@ int bch2_fs_initialize(struct bch_fs *c)
 	for (i = 0; i < BTREE_ID_NR; i++)
 		bch2_btree_root_alloc(c, i);
 
-	for_each_online_member(ca, c, i)
+	for_each_member_device(ca, c, i)
 		bch2_dev_usage_init(ca);
 
-	for_each_online_member(ca, c, i) {
-		ret = bch2_dev_journal_alloc(ca);
-		if (ret) {
-			percpu_ref_put(&ca->io_ref);
-			goto err;
-		}
-	}
+	ret = bch2_fs_journal_alloc(c);
+	if (ret)
+		goto err;
 
 	/*
 	 * journal_res_get() will crash if called before this has
@@ -973,15 +969,13 @@ int bch2_fs_initialize(struct bch_fs *c)
 	 * btree updates
 	 */
 	bch_verbose(c, "marking superblocks");
-	for_each_member_device(ca, c, i) {
-		ret = bch2_trans_mark_dev_sb(c, ca);
-		if (ret) {
-			percpu_ref_put(&ca->ref);
-			goto err;
-		}
+	ret = bch2_trans_mark_dev_sbs(c);
+	bch_err_msg(c, ret, "marking superblocks");
+	if (ret)
+		goto err;
 
+	for_each_online_member(ca, c, i)
 		ca->new_fs_bucket_idx = 0;
-	}
 
 	ret = bch2_fs_freespace_init(c);
 	if (ret)

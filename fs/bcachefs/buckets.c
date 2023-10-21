@@ -1825,16 +1825,16 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 			bch2_data_types[type],
 			bch2_data_types[type]);
 		ret = -EIO;
-		goto out;
+		goto err;
 	}
 
-	a->v.data_type		= type;
-	a->v.dirty_sectors	= sectors;
-
-	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
-	if (ret)
-		goto out;
-out:
+	if (a->v.data_type	!= type ||
+	    a->v.dirty_sectors	!= sectors) {
+		a->v.data_type		= type;
+		a->v.dirty_sectors	= sectors;
+		ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
+	}
+err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -1927,6 +1927,22 @@ int bch2_trans_mark_dev_sb(struct bch_fs *c, struct bch_dev *ca)
 	if (ret)
 		bch_err_fn(c, ret);
 	return ret;
+}
+
+int bch2_trans_mark_dev_sbs(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	unsigned i;
+
+	for_each_online_member(ca, c, i) {
+		int ret = bch2_trans_mark_dev_sb(c, ca);
+		if (ret) {
+			percpu_ref_put(&ca->ref);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 /* Disk reservations: */

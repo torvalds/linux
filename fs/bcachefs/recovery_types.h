@@ -14,6 +14,8 @@
 	x(snapshots_read,		PASS_ALWAYS)						\
 	x(check_topology,		0)							\
 	x(check_allocations,		PASS_FSCK)						\
+	x(trans_mark_dev_sbs,		PASS_ALWAYS|PASS_SILENT)				\
+	x(fs_journal_alloc,		PASS_ALWAYS|PASS_SILENT)				\
 	x(set_may_go_rw,		PASS_ALWAYS|PASS_SILENT)				\
 	x(journal_replay,		PASS_ALWAYS)						\
 	x(check_alloc_info,		PASS_FSCK)						\

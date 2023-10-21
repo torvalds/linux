@@ -1019,6 +1019,25 @@ err:
 	return ret;
 }
 
+int bch2_fs_journal_alloc(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	unsigned i;
+
+	for_each_online_member(ca, c, i) {
+		if (ca->journal.nr)
+			continue;
+
+		int ret = bch2_dev_journal_alloc(ca);
+		if (ret) {
+			percpu_ref_put(&ca->io_ref);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 /* startup/shutdown: */
 
 static bool bch2_journal_writing_to_device(struct journal *j, unsigned dev_idx)

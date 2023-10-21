@@ -345,6 +345,7 @@ int bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *
 int bch2_trans_mark_metadata_bucket(struct btree_trans *, struct bch_dev *,
 				    size_t, enum bch_data_type, unsigned);
 int bch2_trans_mark_dev_sb(struct bch_fs *, struct bch_dev *);
+int bch2_trans_mark_dev_sbs(struct bch_fs *);
 
 static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)
 {
