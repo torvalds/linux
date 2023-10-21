@@ -68,9 +68,13 @@ properties:
               - items:
                   pattern: c32$
               - items:
+                  pattern: c32d-wl$
+              - items:
                   pattern: cs32$
               - items:
                   pattern: c64$
+              - items:
+                  pattern: c64d-wl$
               - items:
                   pattern: cs64$
               - items:
