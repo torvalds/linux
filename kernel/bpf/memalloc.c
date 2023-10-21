@@ -340,6 +340,7 @@ static void free_bulk(struct bpf_mem_cache *c)
 	int cnt;
 
 	WARN_ON_ONCE(tgt->unit_size != c->unit_size);
+	WARN_ON_ONCE(tgt->percpu_size != c->percpu_size);
 
 	do {
 		inc_active(c, &flags);
@@ -364,6 +365,9 @@ static void __free_by_rcu(struct rcu_head *head)
 	struct bpf_mem_cache *c = container_of(head, struct bpf_mem_cache, rcu);
 	struct bpf_mem_cache *tgt = c->tgt;
 	struct llist_node *llnode;
+
+	WARN_ON_ONCE(tgt->unit_size != c->unit_size);
+	WARN_ON_ONCE(tgt->percpu_size != c->percpu_size);
 
 	llnode = llist_del_all(&c->waiting_for_gp);
 	if (!llnode)
