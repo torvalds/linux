@@ -101,7 +101,7 @@
 
 #define ACP_SOFT_RST_DONE_MASK	0x00010001
 
-#define ACP_PGFSM_CNTL_POWER_ON_MASK            0x01
+#define ACP_PGFSM_CNTL_POWER_ON_MASK            0xffffffff
 #define ACP_PGFSM_CNTL_POWER_OFF_MASK           0x00
 #define ACP_PGFSM_STATUS_MASK                   0x03
 #define ACP_POWERED_ON                          0x00
