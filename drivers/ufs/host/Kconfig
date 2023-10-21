@@ -68,7 +68,6 @@ config SCSI_UFS_DWC_TC_PLATFORM
 config SCSI_UFS_QCOM
 	tristate "QCOM specific hooks to UFS controller platform driver"
 	depends on SCSI_UFSHCD_PLATFORM && ARCH_QCOM
-	depends on GENERIC_MSI_IRQ
 	depends on RESET_CONTROLLER
 	select QCOM_SCM if SCSI_UFS_CRYPTO
 	help
