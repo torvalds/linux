@@ -1207,6 +1207,14 @@ int bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				return -BCH_ERR_invalid_bkey;
 			}
 			crc_since_last_ptr = true;
+
+			if (crc_is_encoded(crc) &&
+			    (crc.uncompressed_size > c->opts.encoded_extent_max >> 9) &&
+			    (flags & (BKEY_INVALID_WRITE|BKEY_INVALID_COMMIT))) {
+				prt_printf(err, "too large encoded extent");
+				return -BCH_ERR_invalid_bkey;
+			}
+
 			break;
 		case BCH_EXTENT_ENTRY_stripe_ptr:
 			if (have_ec) {

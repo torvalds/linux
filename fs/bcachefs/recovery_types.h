@@ -34,6 +34,7 @@
 	x(resume_logged_ops,		PASS_ALWAYS)						\
 	x(check_inodes,			PASS_FSCK)						\
 	x(check_extents,		PASS_FSCK)						\
+	x(check_indirect_extents,	PASS_FSCK)						\
 	x(check_dirents,		PASS_FSCK)						\
 	x(check_xattrs,			PASS_FSCK)						\
 	x(check_root,			PASS_FSCK)						\

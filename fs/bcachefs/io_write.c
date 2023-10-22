@@ -1092,9 +1092,7 @@ static bool bch2_extent_is_writeable(struct bch_write_op *op,
 
 	e = bkey_s_c_to_extent(k);
 	extent_for_each_ptr_decode(e, p, entry) {
-		if (p.crc.csum_type ||
-		    crc_is_compressed(p.crc) ||
-		    p.has_ec)
+		if (crc_is_encoded(p.crc) || p.has_ec)
 			return false;
 
 		replicas += bch2_extent_ptr_durability(c, &p);

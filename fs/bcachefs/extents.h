@@ -190,6 +190,11 @@ static inline bool crc_is_compressed(struct bch_extent_crc_unpacked crc)
 		crc.compression_type != BCH_COMPRESSION_TYPE_incompressible);
 }
 
+static inline bool crc_is_encoded(struct bch_extent_crc_unpacked crc)
+{
+	return crc.csum_type != BCH_CSUM_none || crc_is_compressed(crc);
+}
+
 /* bkey_ptrs: generically over any key type that has ptrs */
 
 struct bkey_ptrs_c {

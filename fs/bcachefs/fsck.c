@@ -1299,6 +1299,28 @@ err:
 	return ret;
 }
 
+static int check_extent_overbig(struct btree_trans *trans, struct btree_iter *iter,
+				struct bkey_s_c k)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	struct bch_extent_crc_unpacked crc;
+	const union bch_extent_entry *i;
+	unsigned encoded_extent_max_sectors = c->opts.encoded_extent_max >> 9;
+
+	bkey_for_each_crc(k.k, ptrs, crc, i)
+		if (crc_is_encoded(crc) &&
+		    crc.uncompressed_size > encoded_extent_max_sectors) {
+			struct printbuf buf = PRINTBUF;
+
+			bch2_bkey_val_to_text(&buf, c, k);
+			bch_err(c, "overbig encoded extent, please report this:\n  %s", buf.buf);
+			printbuf_exit(&buf);
+		}
+
+	return 0;
+}
+
 static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			struct bkey_s_c k,
 			struct inode_walker *inode,
@@ -1434,7 +1456,8 @@ int bch2_check_extents(struct bch_fs *c)
 			&res, NULL,
 			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL, ({
 		bch2_disk_reservation_put(c, &res);
-		check_extent(trans, &iter, k, &w, &s, &extent_ends);
+		check_extent(trans, &iter, k, &w, &s, &extent_ends) ?:
+		check_extent_overbig(trans, &iter, k);
 	})) ?:
 	check_i_sectors(trans, &w);
 
@@ -1442,6 +1465,30 @@ int bch2_check_extents(struct bch_fs *c)
 	extent_ends_exit(&extent_ends);
 	inode_walker_exit(&w);
 	snapshots_seen_exit(&s);
+	bch2_trans_put(trans);
+
+	bch_err_fn(c, ret);
+	return ret;
+}
+
+int bch2_check_indirect_extents(struct bch_fs *c)
+{
+	struct btree_trans *trans = bch2_trans_get(c);
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct disk_reservation res = { 0 };
+	int ret = 0;
+
+	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_reflink,
+			POS_MIN,
+			BTREE_ITER_PREFETCH, k,
+			&res, NULL,
+			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL, ({
+		bch2_disk_reservation_put(c, &res);
+		check_extent_overbig(trans, &iter, k);
+	}));
+
+	bch2_disk_reservation_put(c, &res);
 	bch2_trans_put(trans);
 
 	bch_err_fn(c, ret);
