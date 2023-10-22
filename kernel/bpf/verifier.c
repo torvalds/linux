@@ -14031,11 +14031,15 @@ static int is_branch32_taken(struct bpf_reg_state *reg, u32 val, u8 opcode)
 			return !!tnum_equals_const(subreg, val);
 		else if (val < reg->u32_min_value || val > reg->u32_max_value)
 			return 0;
+		else if (sval < reg->s32_min_value || sval > reg->s32_max_value)
+			return 0;
 		break;
 	case BPF_JNE:
 		if (tnum_is_const(subreg))
 			return !tnum_equals_const(subreg, val);
 		else if (val < reg->u32_min_value || val > reg->u32_max_value)
+			return 1;
+		else if (sval < reg->s32_min_value || sval > reg->s32_max_value)
 			return 1;
 		break;
 	case BPF_JSET:
@@ -14108,11 +14112,15 @@ static int is_branch64_taken(struct bpf_reg_state *reg, u64 val, u8 opcode)
 			return !!tnum_equals_const(reg->var_off, val);
 		else if (val < reg->umin_value || val > reg->umax_value)
 			return 0;
+		else if (sval < reg->smin_value || sval > reg->smax_value)
+			return 0;
 		break;
 	case BPF_JNE:
 		if (tnum_is_const(reg->var_off))
 			return !tnum_equals_const(reg->var_off, val);
 		else if (val < reg->umin_value || val > reg->umax_value)
+			return 1;
+		else if (sval < reg->smin_value || sval > reg->smax_value)
 			return 1;
 		break;
 	case BPF_JSET:
