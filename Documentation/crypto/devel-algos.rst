@@ -235,6 +235,4 @@ Specifics Of Asynchronous HASH Transformation
 
 Some of the drivers will want to use the Generic ScatterWalk in case the
 implementation needs to be fed separate chunks of the scatterlist which
-contains the input data. The buffer containing the resulting hash will
-always be properly aligned to .cra_alignmask so there is no need to
-worry about this.
+contains the input data.

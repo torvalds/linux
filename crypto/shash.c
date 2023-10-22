@@ -541,6 +541,10 @@ int hash_prepare_alg(struct hash_alg_common *alg)
 	if (alg->digestsize > HASH_MAX_DIGESTSIZE)
 		return -EINVAL;
 
+	/* alignmask is not useful for hashes, so it is not supported. */
+	if (base->cra_alignmask)
+		return -EINVAL;
+
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 
 	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
@@ -555,10 +559,6 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	int err;
 
 	if (alg->descsize > HASH_MAX_DESCSIZE)
-		return -EINVAL;
-
-	/* alignmask is not useful for shash, so it is not supported. */
-	if (base->cra_alignmask)
 		return -EINVAL;
 
 	if ((alg->export && !alg->import) || (alg->import && !alg->export))
