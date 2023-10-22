@@ -25,14 +25,6 @@
 
 static const struct crypto_type crypto_ahash_type;
 
-struct ahash_request_priv {
-	crypto_completion_t complete;
-	void *data;
-	u8 *result;
-	u32 flags;
-	void *ubuf[] CRYPTO_MINALIGN_ATTR;
-};
-
 static int hash_walk_next(struct crypto_hash_walk *walk)
 {
 	unsigned int offset = walk->offset;
