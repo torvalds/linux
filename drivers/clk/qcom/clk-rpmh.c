@@ -17,6 +17,9 @@
 
 #include <dt-bindings/clock/qcom,rpmh.h>
 
+#include "clk-debug.h"
+#include "common.h"
+
 #define CLK_RPMH_ARC_EN_OFFSET		0
 #define CLK_RPMH_VRM_EN_OFFSET		4
 
@@ -899,6 +902,11 @@ static int clk_rpmh_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to register %s\n", name);
 			return ret;
 		}
+
+		ret = clk_hw_debug_register(&pdev->dev, hw_clks[i]);
+		if (ret)
+			dev_warn(&pdev->dev, "Failed to add %s to debug list\n",
+						qcom_clk_hw_get_name(hw_clks[i]));
 	}
 
 	/* typecast to silence compiler warning */
