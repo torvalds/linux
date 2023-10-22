@@ -3257,7 +3257,7 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 		alg->cra_priority = t_alg->algt.priority;
 	else
 		alg->cra_priority = TALITOS_CRA_PRIORITY;
-	if (has_ftr_sec1(priv))
+	if (has_ftr_sec1(priv) && t_alg->algt.type != CRYPTO_ALG_TYPE_AHASH)
 		alg->cra_alignmask = 3;
 	else
 		alg->cra_alignmask = 0;
