@@ -708,3 +708,13 @@ void bch2_opt_compression_to_text(struct printbuf *out,
 	if (opt.level)
 		prt_printf(out, ":%u", opt.level);
 }
+
+int bch2_opt_compression_validate(u64 v, struct printbuf *err)
+{
+	if (!bch2_compression_opt_valid(v)) {
+		prt_printf(err, "invalid compression opt %llu", v);
+		return -BCH_ERR_invalid_sb_opt_compression;
+	}
+
+	return 0;
+}

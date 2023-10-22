@@ -6,6 +6,7 @@
 #include "bkey_methods.h"
 #include "btree_update.h"
 #include "buckets.h"
+#include "compress.h"
 #include "error.h"
 #include "extents.h"
 #include "extent_update.h"
@@ -422,9 +423,10 @@ static int __bch2_inode_invalid(struct bkey_s_c k, struct printbuf *err)
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	if (unpacked.bi_compression >= BCH_COMPRESSION_OPT_NR + 1) {
-		prt_printf(err, "invalid data checksum type (%u >= %u)",
-		       unpacked.bi_compression, BCH_COMPRESSION_OPT_NR + 1);
+	if (unpacked.bi_compression &&
+	    !bch2_compression_opt_valid(unpacked.bi_compression - 1)) {
+		prt_printf(err, "invalid compression opt %u",
+			   unpacked.bi_compression - 1);
 		return -BCH_ERR_invalid_bkey;
 	}
 

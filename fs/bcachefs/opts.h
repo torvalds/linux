@@ -74,6 +74,7 @@ enum opt_type {
 struct bch_opt_fn {
 	int (*parse)(struct bch_fs *, const char *, u64 *, struct printbuf *);
 	void (*to_text)(struct printbuf *, struct bch_fs *, struct bch_sb *, u64);
+	int (*validate)(u64, struct printbuf *);
 };
 
 /**

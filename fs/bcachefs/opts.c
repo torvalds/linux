@@ -294,6 +294,9 @@ int bch2_opt_validate(const struct bch_option *opt, u64 v, struct printbuf *err)
 		return -EINVAL;
 	}
 
+	if (opt->fn.validate)
+		return opt->fn.validate(v, err);
+
 	return 0;
 }
 
