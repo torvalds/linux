@@ -493,10 +493,7 @@ int bch2_opt_target_parse(struct bch_fs *c, const char *val, u64 *res,
 	return -EINVAL;
 }
 
-void bch2_opt_target_to_text(struct printbuf *out,
-			     struct bch_fs *c,
-			     struct bch_sb *sb,
-			     u64 v)
+void bch2_target_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
 {
 	struct target t = target_decode(v);
 
@@ -504,47 +501,71 @@ void bch2_opt_target_to_text(struct printbuf *out,
 	case TARGET_NULL:
 		prt_printf(out, "none");
 		break;
-	case TARGET_DEV:
-		if (c) {
-			struct bch_dev *ca;
+	case TARGET_DEV: {
+		struct bch_dev *ca;
 
-			rcu_read_lock();
-			ca = t.dev < c->sb.nr_devices
-				? rcu_dereference(c->devs[t.dev])
-				: NULL;
+		rcu_read_lock();
+		ca = t.dev < c->sb.nr_devices
+			? rcu_dereference(c->devs[t.dev])
+			: NULL;
 
-			if (ca && percpu_ref_tryget(&ca->io_ref)) {
-				prt_printf(out, "/dev/%pg", ca->disk_sb.bdev);
-				percpu_ref_put(&ca->io_ref);
-			} else if (ca) {
-				prt_printf(out, "offline device %u", t.dev);
-			} else {
-				prt_printf(out, "invalid device %u", t.dev);
-			}
-
-			rcu_read_unlock();
+		if (ca && percpu_ref_tryget(&ca->io_ref)) {
+			prt_printf(out, "/dev/%pg", ca->disk_sb.bdev);
+			percpu_ref_put(&ca->io_ref);
+		} else if (ca) {
+			prt_printf(out, "offline device %u", t.dev);
 		} else {
-			struct bch_member m = bch2_sb_member_get(sb, t.dev);
-
-			if (bch2_dev_exists(sb, t.dev)) {
-				prt_printf(out, "Device ");
-				pr_uuid(out, m.uuid.b);
-				prt_printf(out, " (%u)", t.dev);
-			} else {
-				prt_printf(out, "Bad device %u", t.dev);
-			}
+			prt_printf(out, "invalid device %u", t.dev);
 		}
+
+		rcu_read_unlock();
 		break;
+	}
 	case TARGET_GROUP:
-		if (c) {
-			mutex_lock(&c->sb_lock);
-			bch2_disk_path_to_text(out, c->disk_sb.sb, t.group);
-			mutex_unlock(&c->sb_lock);
-		} else {
-			bch2_disk_path_to_text(out, sb, t.group);
-		}
+		mutex_lock(&c->sb_lock);
+		bch2_disk_path_to_text(out, c->disk_sb.sb, t.group);
+		mutex_unlock(&c->sb_lock);
 		break;
 	default:
 		BUG();
 	}
+}
+
+void bch2_target_to_text_sb(struct printbuf *out, struct bch_sb *sb, unsigned v)
+{
+	struct target t = target_decode(v);
+
+	switch (t.type) {
+	case TARGET_NULL:
+		prt_printf(out, "none");
+		break;
+	case TARGET_DEV: {
+		struct bch_member m = bch2_sb_member_get(sb, t.dev);
+
+		if (bch2_dev_exists(sb, t.dev)) {
+			prt_printf(out, "Device ");
+			pr_uuid(out, m.uuid.b);
+			prt_printf(out, " (%u)", t.dev);
+		} else {
+			prt_printf(out, "Bad device %u", t.dev);
+		}
+		break;
+	}
+	case TARGET_GROUP:
+		bch2_disk_path_to_text(out, sb, t.group);
+		break;
+	default:
+		BUG();
+	}
+}
+
+void bch2_opt_target_to_text(struct printbuf *out,
+			     struct bch_fs *c,
+			     struct bch_sb *sb,
+			     u64 v)
+{
+	if (c)
+		bch2_target_to_text(out, c, v);
+	else
+		bch2_target_to_text_sb(out, sb, v);
 }
