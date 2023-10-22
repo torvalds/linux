@@ -27,8 +27,6 @@
 
 #define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000e
 
-static const struct crypto_type crypto_ahash_type;
-
 static int shash_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 			      unsigned int keylen)
 {
@@ -511,7 +509,7 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 
 	crypto_ahash_set_statesize(hash, alg->halg.statesize);
 
-	if (tfm->__crt_alg->cra_type != &crypto_ahash_type)
+	if (tfm->__crt_alg->cra_type == &crypto_shash_type)
 		return crypto_init_shash_ops_async(tfm);
 
 	hash->init = alg->init;
@@ -535,7 +533,7 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 
 static unsigned int crypto_ahash_extsize(struct crypto_alg *alg)
 {
-	if (alg->cra_type != &crypto_ahash_type)
+	if (alg->cra_type == &crypto_shash_type)
 		return sizeof(struct crypto_shash *);
 
 	return crypto_alg_extsize(alg);
@@ -760,7 +758,7 @@ bool crypto_hash_alg_has_setkey(struct hash_alg_common *halg)
 {
 	struct crypto_alg *alg = &halg->base;
 
-	if (alg->cra_type != &crypto_ahash_type)
+	if (alg->cra_type == &crypto_shash_type)
 		return crypto_shash_alg_has_setkey(__crypto_shash_alg(alg));
 
 	return __crypto_ahash_alg(alg)->setkey != NULL;
