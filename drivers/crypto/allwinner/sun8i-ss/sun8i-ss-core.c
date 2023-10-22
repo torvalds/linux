@@ -322,7 +322,6 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_name = "md5",
 				.cra_driver_name = "md5-sun8i-ss",
 				.cra_priority = 300,
-				.cra_alignmask = 3,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
@@ -355,7 +354,6 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_name = "sha1",
 				.cra_driver_name = "sha1-sun8i-ss",
 				.cra_priority = 300,
-				.cra_alignmask = 3,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
@@ -388,7 +386,6 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_name = "sha224",
 				.cra_driver_name = "sha224-sun8i-ss",
 				.cra_priority = 300,
-				.cra_alignmask = 3,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
@@ -421,7 +418,6 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_name = "sha256",
 				.cra_driver_name = "sha256-sun8i-ss",
 				.cra_priority = 300,
-				.cra_alignmask = 3,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
@@ -455,7 +451,6 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_name = "hmac(sha1)",
 				.cra_driver_name = "hmac-sha1-sun8i-ss",
 				.cra_priority = 300,
-				.cra_alignmask = 3,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
