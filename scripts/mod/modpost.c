@@ -794,8 +794,6 @@ static void check_section(const char *modname, struct elf_info *elf,
 #define ALL_INIT_DATA_SECTIONS \
 	".init.setup", ".init.rodata", ".meminit.rodata", \
 	".init.data", ".meminit.data"
-#define ALL_EXIT_DATA_SECTIONS \
-	".exit.data", ".memexit.data"
 
 #define ALL_INIT_TEXT_SECTIONS \
 	".init.text", ".meminit.text"
