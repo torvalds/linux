@@ -1295,6 +1295,7 @@ struct bnxt_link_info {
 	u8			req_signal_mode;
 #define BNXT_SIG_MODE_NRZ	PORT_PHY_QCFG_RESP_SIGNAL_MODE_NRZ
 #define BNXT_SIG_MODE_PAM4	PORT_PHY_QCFG_RESP_SIGNAL_MODE_PAM4
+#define BNXT_SIG_MODE_MAX	(PORT_PHY_QCFG_RESP_SIGNAL_MODE_LAST + 1)
 	u8			req_duplex;
 	u8			req_flow_ctrl;
 	u16			req_link_speed;
@@ -2094,6 +2095,7 @@ struct bnxt {
 #define BNXT_FW_RESET_NOTIFY_SP_EVENT	18
 #define BNXT_FW_EXCEPTION_SP_EVENT	19
 #define BNXT_LINK_CFG_CHANGE_SP_EVENT	21
+#define BNXT_THERMAL_THRESHOLD_SP_EVENT	22
 #define BNXT_FW_ECHO_REQUEST_SP_EVENT	23
 
 	struct delayed_work	fw_reset_task;
@@ -2196,6 +2198,7 @@ struct bnxt {
 	u8			fatal_thresh_temp;
 	u8			shutdown_thresh_temp;
 #endif
+	u32			thermal_threshold_type;
 	enum board_idx		board_idx;
 };
 
