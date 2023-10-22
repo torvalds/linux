@@ -610,8 +610,7 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->alg.base.cra_priority = (chacha->base.cra_priority +
 				       poly->base.cra_priority) / 2;
 	inst->alg.base.cra_blocksize = 1;
-	inst->alg.base.cra_alignmask = chacha->base.cra_alignmask |
-				       poly->base.cra_alignmask;
+	inst->alg.base.cra_alignmask = chacha->base.cra_alignmask;
 	inst->alg.base.cra_ctxsize = sizeof(struct chachapoly_ctx) +
 				     ctx->saltlen;
 	inst->alg.ivsize = ivsize;
