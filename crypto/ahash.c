@@ -2,8 +2,12 @@
 /*
  * Asynchronous Cryptographic Hash operations.
  *
- * This is the asynchronous version of hash.c with notification of
- * completion via a callback.
+ * This is the implementation of the ahash (asynchronous hash) API.  It differs
+ * from shash (synchronous hash) in that ahash supports asynchronous operations,
+ * and it hashes data from scatterlists instead of virtually addressed buffers.
+ *
+ * The ahash API provides access to both ahash and shash algorithms.  The shash
+ * API only provides access to shash algorithms.
  *
  * Copyright (c) 2008 Loc Ho <lho@amcc.com>
  */
