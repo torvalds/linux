@@ -175,6 +175,7 @@ int bch2_sb_disk_groups_to_cpu(struct bch_fs *c)
 
 		dst->deleted	= BCH_GROUP_DELETED(src);
 		dst->parent	= BCH_GROUP_PARENT(src);
+		memcpy(dst->label, src->label, sizeof(dst->label));
 	}
 
 	for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
@@ -382,7 +383,57 @@ int bch2_disk_path_find_or_create(struct bch_sb_handle *sb, const char *name)
 	return v;
 }
 
-void bch2_disk_path_to_text(struct printbuf *out, struct bch_sb *sb, unsigned v)
+void bch2_disk_path_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
+{
+	struct bch_disk_groups_cpu *groups;
+	struct bch_disk_group_cpu *g;
+	unsigned nr = 0;
+	u16 path[32];
+
+	out->atomic++;
+	rcu_read_lock();
+	groups = rcu_dereference(c->disk_groups);
+	if (!groups)
+		goto invalid;
+
+	while (1) {
+		if (nr == ARRAY_SIZE(path))
+			goto invalid;
+
+		if (v >= groups->nr)
+			goto invalid;
+
+		g = groups->entries + v;
+
+		if (g->deleted)
+			goto invalid;
+
+		path[nr++] = v;
+
+		if (!g->parent)
+			break;
+
+		v = g->parent - 1;
+	}
+
+	while (nr) {
+		v = path[--nr];
+		g = groups->entries + v;
+
+		prt_printf(out, "%.*s", (int) sizeof(g->label), g->label);
+		if (nr)
+			prt_printf(out, ".");
+	}
+out:
+	rcu_read_unlock();
+	out->atomic--;
+	return;
+invalid:
+	prt_printf(out, "invalid label %u", v);
+	goto out;
+}
+
+void bch2_disk_path_to_text_sb(struct printbuf *out, struct bch_sb *sb, unsigned v)
 {
 	struct bch_sb_field_disk_groups *groups =
 		bch2_sb_field_get(sb, disk_groups);
@@ -522,9 +573,7 @@ void bch2_target_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
 		break;
 	}
 	case TARGET_GROUP:
-		mutex_lock(&c->sb_lock);
-		bch2_disk_path_to_text(out, c->disk_sb.sb, t.group);
-		mutex_unlock(&c->sb_lock);
+		bch2_disk_path_to_text(out, c, t.group);
 		break;
 	default:
 		BUG();
@@ -552,7 +601,7 @@ void bch2_target_to_text_sb(struct printbuf *out, struct bch_sb *sb, unsigned v)
 		break;
 	}
 	case TARGET_GROUP:
-		bch2_disk_path_to_text(out, sb, t.group);
+		bch2_disk_path_to_text_sb(out, sb, t.group);
 		break;
 	default:
 		BUG();

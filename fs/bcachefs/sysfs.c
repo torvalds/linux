@@ -910,13 +910,8 @@ SHOW(bch2_dev)
 	sysfs_print(discard,		ca->mi.discard);
 
 	if (attr == &sysfs_label) {
-		if (ca->mi.group) {
-			mutex_lock(&c->sb_lock);
-			bch2_disk_path_to_text(out, c->disk_sb.sb,
-					       ca->mi.group - 1);
-			mutex_unlock(&c->sb_lock);
-		}
-
+		if (ca->mi.group)
+			bch2_disk_path_to_text(out, c, ca->mi.group - 1);
 		prt_char(out, '\n');
 	}
 

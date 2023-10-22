@@ -5,6 +5,7 @@
 struct bch_disk_group_cpu {
 	bool				deleted;
 	u16				parent;
+	u8				label[BCH_SB_LABEL_SIZE];
 	struct bch_devs_mask		devs;
 };
 
