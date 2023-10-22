@@ -504,8 +504,7 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 	inst->alg.base.cra_priority = (mac->base.cra_priority +
 				       ctr->base.cra_priority) / 2;
 	inst->alg.base.cra_blocksize = 1;
-	inst->alg.base.cra_alignmask = mac->base.cra_alignmask |
-				       ctr->base.cra_alignmask;
+	inst->alg.base.cra_alignmask = ctr->base.cra_alignmask;
 	inst->alg.ivsize = 16;
 	inst->alg.chunksize = ctr->chunksize;
 	inst->alg.maxauthsize = 16;
