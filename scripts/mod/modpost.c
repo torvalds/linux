@@ -1164,7 +1164,7 @@ static void check_export_symbol(struct module *mod, struct elf_info *elf,
 	    ELF_ST_TYPE(sym->st_info) == STT_LOPROC)
 		s->is_func = true;
 
-	if (match(secname, PATTERNS(INIT_SECTIONS)))
+	if (match(secname, PATTERNS(ALL_INIT_SECTIONS)))
 		warn("%s: %s: EXPORT_SYMBOL used for init symbol. Remove __init or EXPORT_SYMBOL.\n",
 		     mod->name, name);
 	else if (match(secname, PATTERNS(ALL_EXIT_SECTIONS)))
