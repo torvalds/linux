@@ -129,6 +129,17 @@ enum OID {
 	OID_TPMImportableKey,		/* 2.23.133.10.1.4 */
 	OID_TPMSealedData,		/* 2.23.133.10.1.5 */
 
+	/* CSOR FIPS-202 SHA-3 */
+	OID_sha3_256,                           /* 2.16.840.1.101.3.4.2.8 */
+	OID_sha3_384,                           /* 2.16.840.1.101.3.4.2.9 */
+	OID_sha3_512,                           /* 2.16.840.1.101.3.4.2.10 */
+	OID_id_ecdsa_with_sha3_256,             /* 2.16.840.1.101.3.4.3.10 */
+	OID_id_ecdsa_with_sha3_384,             /* 2.16.840.1.101.3.4.3.11 */
+	OID_id_ecdsa_with_sha3_512,             /* 2.16.840.1.101.3.4.3.12 */
+	OID_id_rsassa_pkcs1_v1_5_with_sha3_256, /* 2.16.840.1.101.3.4.3.14 */
+	OID_id_rsassa_pkcs1_v1_5_with_sha3_384, /* 2.16.840.1.101.3.4.3.15 */
+	OID_id_rsassa_pkcs1_v1_5_with_sha3_512, /* 2.16.840.1.101.3.4.3.16 */
+
 	OID__NR
 };
 
