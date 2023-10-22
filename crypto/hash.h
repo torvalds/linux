@@ -12,6 +12,16 @@
 
 #include "internal.h"
 
+static inline struct crypto_istat_hash *hash_get_stat(
+	struct hash_alg_common *alg)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	return &alg->stat;
+#else
+	return NULL;
+#endif
+}
+
 static inline int crypto_hash_report_stat(struct sk_buff *skb,
 					  struct crypto_alg *alg,
 					  const char *type)

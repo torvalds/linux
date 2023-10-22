@@ -23,7 +23,13 @@ static inline struct crypto_istat_hash *shash_get_stat(struct shash_alg *alg)
 
 static inline int crypto_shash_errstat(struct shash_alg *alg, int err)
 {
-	return crypto_hash_errstat(&alg->halg, err);
+	if (!IS_ENABLED(CONFIG_CRYPTO_STATS))
+		return err;
+
+	if (err && err != -EINPROGRESS && err != -EBUSY)
+		atomic64_inc(&shash_get_stat(alg)->err_cnt);
+
+	return err;
 }
 
 int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
