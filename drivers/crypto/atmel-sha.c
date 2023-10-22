@@ -1300,7 +1300,6 @@ static struct ahash_alg sha_384_512_algs[] = {
 	.halg.base.cra_name		= "sha384",
 	.halg.base.cra_driver_name	= "atmel-sha384",
 	.halg.base.cra_blocksize	= SHA384_BLOCK_SIZE,
-	.halg.base.cra_alignmask	= 0x3,
 
 	.halg.digestsize = SHA384_DIGEST_SIZE,
 },
@@ -1308,7 +1307,6 @@ static struct ahash_alg sha_384_512_algs[] = {
 	.halg.base.cra_name		= "sha512",
 	.halg.base.cra_driver_name	= "atmel-sha512",
 	.halg.base.cra_blocksize	= SHA512_BLOCK_SIZE,
-	.halg.base.cra_alignmask	= 0x3,
 
 	.halg.digestsize = SHA512_DIGEST_SIZE,
 },
