@@ -248,6 +248,15 @@ int pkcs7_sig_note_digest_algo(void *context, size_t hdrlen,
 	case OID_gost2012Digest512:
 		ctx->sinfo->sig->hash_algo = "streebog512";
 		break;
+	case OID_sha3_256:
+		ctx->sinfo->sig->hash_algo = "sha3-256";
+		break;
+	case OID_sha3_384:
+		ctx->sinfo->sig->hash_algo = "sha3-384";
+		break;
+	case OID_sha3_512:
+		ctx->sinfo->sig->hash_algo = "sha3-512";
+		break;
 	default:
 		printk("Unsupported digest algo: %u\n", ctx->last_oid);
 		return -ENOPKG;
@@ -273,6 +282,9 @@ int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
 	case OID_id_ecdsa_with_sha256:
 	case OID_id_ecdsa_with_sha384:
 	case OID_id_ecdsa_with_sha512:
+	case OID_id_ecdsa_with_sha3_256:
+	case OID_id_ecdsa_with_sha3_384:
+	case OID_id_ecdsa_with_sha3_512:
 		ctx->sinfo->sig->pkey_algo = "ecdsa";
 		ctx->sinfo->sig->encoding = "x962";
 		break;
