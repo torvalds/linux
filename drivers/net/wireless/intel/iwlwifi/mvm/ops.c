@@ -322,6 +322,19 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_NO_SIZE(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics,
 			   RX_HANDLER_ASYNC_LOCKED),
 
+	RX_HANDLER_GRP(STATISTICS_GROUP, STATISTICS_OPER_NOTIF,
+		       iwl_mvm_handle_rx_system_oper_stats,
+		       RX_HANDLER_ASYNC_LOCKED,
+		       struct iwl_system_statistics_notif_oper),
+	RX_HANDLER_GRP(STATISTICS_GROUP, STATISTICS_OPER_PART1_NOTIF,
+		       iwl_mvm_handle_rx_system_oper_part1_stats,
+		       RX_HANDLER_ASYNC_LOCKED,
+		       struct iwl_system_statistics_part1_notif_oper),
+	RX_HANDLER_GRP(SYSTEM_GROUP, SYSTEM_STATISTICS_END_NOTIF,
+		       iwl_mvm_handle_rx_system_end_stats_notif,
+		       RX_HANDLER_ASYNC_LOCKED,
+		       struct iwl_system_statistics_end_notif),
+
 	RX_HANDLER(BA_WINDOW_STATUS_NOTIFICATION_ID,
 		   iwl_mvm_window_status_notif, RX_HANDLER_SYNC,
 		   struct iwl_ba_window_status_notif),
@@ -538,6 +551,8 @@ static const struct iwl_hcmd_names iwl_mvm_system_names[] = {
 	HCMD_NAME(RFI_GET_FREQ_TABLE_CMD),
 	HCMD_NAME(SYSTEM_FEATURES_CONTROL_CMD),
 	HCMD_NAME(RFI_DEACTIVATE_NOTIF),
+	HCMD_NAME(SYSTEM_STATISTICS_CMD),
+	HCMD_NAME(SYSTEM_STATISTICS_END_NOTIF),
 };
 
 /* Please keep this array *SORTED* by hex value.
@@ -594,6 +609,14 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 /* Please keep this array *SORTED* by hex value.
  * Access is done through binary search
  */
+static const struct iwl_hcmd_names iwl_mvm_statistics_names[] = {
+	HCMD_NAME(STATISTICS_OPER_NOTIF),
+	HCMD_NAME(STATISTICS_OPER_PART1_NOTIF),
+};
+
+/* Please keep this array *SORTED* by hex value.
+ * Access is done through binary search
+ */
 static const struct iwl_hcmd_names iwl_mvm_scan_names[] = {
 	HCMD_NAME(OFFLOAD_MATCH_INFO_NOTIF),
 };
@@ -645,6 +668,7 @@ static const struct iwl_hcmd_arr iwl_mvm_groups[] = {
 	[PROT_OFFLOAD_GROUP] = HCMD_ARR(iwl_mvm_prot_offload_names),
 	[REGULATORY_AND_NVM_GROUP] =
 		HCMD_ARR(iwl_mvm_regulatory_and_nvm_names),
+	[STATISTICS_GROUP] = HCMD_ARR(iwl_mvm_statistics_names),
 };
 
 /* this forward declaration can avoid to export the function */

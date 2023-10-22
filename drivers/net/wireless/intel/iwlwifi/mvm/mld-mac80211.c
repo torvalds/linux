@@ -10,6 +10,7 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
+	int i;
 
 	mutex_lock(&mvm->mutex);
 
@@ -22,8 +23,9 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 
 	/* make sure that beacon statistics don't go backwards with FW reset */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
-		mvmvif->deflink.beacon_stats.accu_num_beacons +=
-			mvmvif->deflink.beacon_stats.num_beacons;
+		for_each_mvm_vif_valid_link(mvmvif, i)
+			mvmvif->link[i]->beacon_stats.accu_num_beacons +=
+				mvmvif->link[i]->beacon_stats.num_beacons;
 
 	/* Allocate resources for the MAC context, and add it to the fw  */
 	ret = iwl_mvm_mac_ctxt_init(mvm, vif);

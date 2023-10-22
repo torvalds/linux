@@ -1194,6 +1194,8 @@ struct iwl_mvm {
 	struct iwl_time_sync_data time_sync;
 
 	struct iwl_mei_scan_filter mei_scan_filter;
+
+	bool statistics_clear;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -1685,6 +1687,16 @@ static inline void iwl_mvm_wait_for_async_handlers(struct iwl_mvm *mvm)
 }
 
 /* Statistics */
+void iwl_mvm_handle_rx_system_oper_stats(struct iwl_mvm *mvm,
+					 struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_handle_rx_system_oper_part1_stats(struct iwl_mvm *mvm,
+					       struct iwl_rx_cmd_buffer *rxb);
+static inline void
+iwl_mvm_handle_rx_system_end_stats_notif(struct iwl_mvm *mvm,
+					 struct iwl_rx_cmd_buffer *rxb)
+{
+}
+
 void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 				  struct iwl_rx_packet *pkt);
 void iwl_mvm_rx_statistics(struct iwl_mvm *mvm,

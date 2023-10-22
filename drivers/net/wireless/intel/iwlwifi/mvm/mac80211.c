@@ -1539,6 +1539,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
+	int i;
 
 	mutex_lock(&mvm->mutex);
 
@@ -1555,8 +1556,9 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	/* make sure that beacon statistics don't go backwards with FW reset */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
-		mvmvif->deflink.beacon_stats.accu_num_beacons +=
-			mvmvif->deflink.beacon_stats.num_beacons;
+		for_each_mvm_vif_valid_link(mvmvif, i)
+			mvmvif->link[i]->beacon_stats.accu_num_beacons +=
+				mvmvif->link[i]->beacon_stats.num_beacons;
 
 	/* Allocate resources for the MAC context, and add it to the fw  */
 	ret = iwl_mvm_mac_ctxt_init(mvm, vif);
@@ -2581,6 +2583,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
+	int i;
 
 	/*
 	 * Re-calculate the tsf id, as the leader-follower relations depend
@@ -2627,8 +2630,9 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		if (vif->cfg.assoc) {
 			/* clear statistics to get clean beacon counter */
 			iwl_mvm_request_statistics(mvm, true);
-			memset(&mvmvif->deflink.beacon_stats, 0,
-			       sizeof(mvmvif->deflink.beacon_stats));
+			for_each_mvm_vif_valid_link(mvmvif, i)
+				memset(&mvmvif->link[i]->beacon_stats, 0,
+				       sizeof(mvmvif->link[i]->beacon_stats));
 
 			/* add quota for this interface */
 			ret = iwl_mvm_update_quotas(mvm, true, NULL);
@@ -5726,7 +5730,11 @@ int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 			   struct survey_info *survey)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	int ret;
+	int ret = 0;
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+					   WIDE_ID(SYSTEM_GROUP,
+						   SYSTEM_STATISTICS_CMD),
+					   IWL_FW_CMD_VER_UNKNOWN);
 
 	memset(survey, 0, sizeof(*survey));
 
@@ -5746,13 +5754,8 @@ int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 			goto out;
 	}
 
-	survey->filled = SURVEY_INFO_TIME |
-			 SURVEY_INFO_TIME_RX |
-			 SURVEY_INFO_TIME_TX |
-			 SURVEY_INFO_TIME_SCAN;
-	survey->time = mvm->accu_radio_stats.on_time_rf +
-		       mvm->radio_stats.on_time_rf;
-	do_div(survey->time, USEC_PER_MSEC);
+	survey->filled = SURVEY_INFO_TIME_RX |
+			 SURVEY_INFO_TIME_TX;
 
 	survey->time_rx = mvm->accu_radio_stats.rx_time +
 			  mvm->radio_stats.rx_time;
@@ -5762,11 +5765,20 @@ int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 			  mvm->radio_stats.tx_time;
 	do_div(survey->time_tx, USEC_PER_MSEC);
 
+	/* the new fw api doesn't support the following fields */
+	if (cmd_ver != IWL_FW_CMD_VER_UNKNOWN)
+		goto out;
+
+	survey->filled |= SURVEY_INFO_TIME |
+			  SURVEY_INFO_TIME_SCAN;
+	survey->time = mvm->accu_radio_stats.on_time_rf +
+		       mvm->radio_stats.on_time_rf;
+	do_div(survey->time, USEC_PER_MSEC);
+
 	survey->time_scan = mvm->accu_radio_stats.on_time_scan +
 			    mvm->radio_stats.on_time_scan;
 	do_div(survey->time_scan, USEC_PER_MSEC);
 
-	ret = 0;
  out:
 	mutex_unlock(&mvm->mutex);
 	return ret;
@@ -5915,6 +5927,7 @@ void iwl_mvm_mac_sta_statistics(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	int i;
 
 	if (mvmsta->deflink.avg_energy) {
 		sinfo->signal_avg = -(s8)mvmsta->deflink.avg_energy;
@@ -5943,8 +5956,11 @@ void iwl_mvm_mac_sta_statistics(struct ieee80211_hw *hw,
 	if (iwl_mvm_request_statistics(mvm, false))
 		goto unlock;
 
-	sinfo->rx_beacon = mvmvif->deflink.beacon_stats.num_beacons +
-			   mvmvif->deflink.beacon_stats.accu_num_beacons;
+	sinfo->rx_beacon = 0;
+	for_each_mvm_vif_valid_link(mvmvif, i)
+		sinfo->rx_beacon += mvmvif->link[i]->beacon_stats.num_beacons +
+			mvmvif->link[i]->beacon_stats.accu_num_beacons;
+
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_BEACON_RX);
 	if (mvmvif->deflink.beacon_stats.avg_signal) {
 		/* firmware only reports a value after RXing a few beacons */
