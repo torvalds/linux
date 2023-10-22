@@ -3868,6 +3868,7 @@ static struct gdsc venus_gdsc = {
 
 static struct gdsc venus_core0_gdsc = {
 	.gdscr = 0x4c028,
+	.parent = &venus_gdsc.pd,
 	.cxcs = (unsigned int []){ 0x4c02c },
 	.cxc_count = 1,
 	.pd = {
