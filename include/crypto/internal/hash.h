@@ -269,11 +269,6 @@ static inline struct crypto_shash *crypto_spawn_shash(
 	return crypto_spawn_tfm2(&spawn->base);
 }
 
-static inline void *crypto_shash_ctx_aligned(struct crypto_shash *tfm)
-{
-	return crypto_tfm_ctx_aligned(&tfm->base);
-}
-
 static inline struct crypto_shash *__crypto_shash_cast(struct crypto_tfm *tfm)
 {
 	return container_of(tfm, struct crypto_shash, base);
