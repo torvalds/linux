@@ -992,10 +992,6 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
-	struct bch_extent_crc_unpacked crc;
-	const struct bch_extent_ptr *ptr;
-	const struct bch_extent_stripe_ptr *ec;
-	struct bch_dev *ca;
 	bool first = true;
 
 	if (c)
@@ -1006,9 +1002,9 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			prt_printf(out, " ");
 
 		switch (__extent_entry_type(entry)) {
-		case BCH_EXTENT_ENTRY_ptr:
-			ptr = entry_to_ptr(entry);
-			ca = c && ptr->dev < c->sb.nr_devices && c->devs[ptr->dev]
+		case BCH_EXTENT_ENTRY_ptr: {
+			const struct bch_extent_ptr *ptr = entry_to_ptr(entry);
+			struct bch_dev *ca = c && ptr->dev < c->sb.nr_devices && c->devs[ptr->dev]
 				? bch_dev_bkey_exists(c, ptr->dev)
 				: NULL;
 
@@ -1030,10 +1026,12 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 					prt_printf(out, " stale");
 			}
 			break;
+		}
 		case BCH_EXTENT_ENTRY_crc32:
 		case BCH_EXTENT_ENTRY_crc64:
-		case BCH_EXTENT_ENTRY_crc128:
-			crc = bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
+		case BCH_EXTENT_ENTRY_crc128: {
+			struct bch_extent_crc_unpacked crc =
+				bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
 
 			prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum %s compress %s",
 			       crc.compressed_size,
@@ -1042,12 +1040,14 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			       bch2_csum_types[crc.csum_type],
 			       bch2_compression_types[crc.compression_type]);
 			break;
-		case BCH_EXTENT_ENTRY_stripe_ptr:
-			ec = &entry->stripe_ptr;
+		}
+		case BCH_EXTENT_ENTRY_stripe_ptr: {
+			const struct bch_extent_stripe_ptr *ec = &entry->stripe_ptr;
 
 			prt_printf(out, "ec: idx %llu block %u",
 			       (u64) ec->idx, ec->block);
 			break;
+		}
 		default:
 			prt_printf(out, "(invalid extent entry %.16llx)", *((u64 *) entry));
 			return;
