@@ -823,9 +823,7 @@ static void check_section(const char *modname, struct elf_info *elf,
 		TEXT_SECTIONS, OTHER_TEXT_SECTIONS
 
 enum mismatch {
-	TEXT_TO_ANY_INIT,
-	DATA_TO_ANY_INIT,
-	TEXTDATA_TO_ANY_EXIT,
+	TEXTDATA_TO_ANY_INIT_EXIT,
 	XXXINIT_TO_SOME_INIT,
 	ANY_INIT_TO_ANY_EXIT,
 	ANY_EXIT_TO_ANY_INIT,
@@ -857,19 +855,9 @@ static const struct sectioncheck sectioncheck[] = {
  * normal code and data
  */
 {
-	.fromsec = { TEXT_SECTIONS, NULL },
-	.bad_tosec = { ALL_INIT_SECTIONS, NULL },
-	.mismatch = TEXT_TO_ANY_INIT,
-},
-{
-	.fromsec = { DATA_SECTIONS, NULL },
-	.bad_tosec = { ALL_INIT_SECTIONS, NULL },
-	.mismatch = DATA_TO_ANY_INIT,
-},
-{
 	.fromsec = { TEXT_SECTIONS, DATA_SECTIONS, NULL },
-	.bad_tosec = { ALL_EXIT_SECTIONS, NULL },
-	.mismatch = TEXTDATA_TO_ANY_EXIT,
+	.bad_tosec = { ALL_INIT_SECTIONS, ALL_EXIT_SECTIONS, NULL },
+	.mismatch = TEXTDATA_TO_ANY_INIT_EXIT,
 },
 /* Do not reference init code/data from meminit code/data */
 {
