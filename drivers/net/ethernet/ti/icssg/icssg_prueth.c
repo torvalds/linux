@@ -1659,6 +1659,19 @@ static void emac_ndo_get_stats64(struct net_device *ndev,
 	stats->tx_dropped = ndev->stats.tx_dropped;
 }
 
+static int emac_ndo_get_phys_port_name(struct net_device *ndev, char *name,
+				       size_t len)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	int ret;
+
+	ret = snprintf(name, len, "p%d", emac->port_id);
+	if (ret >= len)
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct net_device_ops emac_netdev_ops = {
 	.ndo_open = emac_ndo_open,
 	.ndo_stop = emac_ndo_stop,
@@ -1669,6 +1682,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_set_rx_mode = emac_ndo_set_rx_mode,
 	.ndo_eth_ioctl = emac_ndo_ioctl,
 	.ndo_get_stats64 = emac_ndo_get_stats64,
+	.ndo_get_phys_port_name = emac_ndo_get_phys_port_name,
 };
 
 /* get emac_port corresponding to eth_node name */
