@@ -462,10 +462,17 @@ static void iwl_mvm_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 					     struct ieee80211_bss_conf *link_conf,
 					     struct ieee80211_chanctx_conf *ctx)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	mutex_lock(&mvm->mutex);
 	__iwl_mvm_mld_unassign_vif_chanctx(mvm, vif, link_conf, ctx, false);
+	/* in the non-MLD case, remove/re-add the link to clean up FW state */
+	if (!ieee80211_vif_is_mld(vif) && !mvmvif->ap_sta &&
+	    !WARN_ON_ONCE(vif->cfg.assoc)) {
+		iwl_mvm_remove_link(mvm, vif, link_conf);
+		iwl_mvm_add_link(mvm, vif, link_conf);
+	}
 	mutex_unlock(&mvm->mutex);
 }
 
