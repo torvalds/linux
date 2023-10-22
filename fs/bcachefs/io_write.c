@@ -816,6 +816,7 @@ static enum prep_encoded_ret {
 
 	/* Can we just write the entire extent as is? */
 	if (op->crc.uncompressed_size == op->crc.live_size &&
+	    op->crc.uncompressed_size <= c->opts.encoded_extent_max >> 9 &&
 	    op->crc.compressed_size <= wp->sectors_free &&
 	    (op->crc.compression_type == bch2_compression_opt_to_type(op->compression_opt) ||
 	     op->incompressible)) {
