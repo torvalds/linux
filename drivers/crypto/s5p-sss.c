@@ -224,9 +224,6 @@
 /* HASH HW constants */
 #define BUFLEN			HASH_BLOCK_SIZE
 
-#define SSS_HASH_DMA_LEN_ALIGN	8
-#define SSS_HASH_DMA_ALIGN_MASK	(SSS_HASH_DMA_LEN_ALIGN - 1)
-
 #define SSS_HASH_QUEUE_LENGTH	10
 
 /**
@@ -1746,7 +1743,6 @@ static struct ahash_alg algs_sha1_md5_sha256[] = {
 					  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= HASH_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct s5p_hash_ctx),
-		.cra_alignmask		= SSS_HASH_DMA_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= s5p_hash_cra_init,
 		.cra_exit		= s5p_hash_cra_exit,
@@ -1771,7 +1767,6 @@ static struct ahash_alg algs_sha1_md5_sha256[] = {
 					  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= HASH_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct s5p_hash_ctx),
-		.cra_alignmask		= SSS_HASH_DMA_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= s5p_hash_cra_init,
 		.cra_exit		= s5p_hash_cra_exit,
@@ -1796,7 +1791,6 @@ static struct ahash_alg algs_sha1_md5_sha256[] = {
 					  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= HASH_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct s5p_hash_ctx),
-		.cra_alignmask		= SSS_HASH_DMA_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= s5p_hash_cra_init,
 		.cra_exit		= s5p_hash_cra_exit,
