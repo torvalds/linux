@@ -415,11 +415,11 @@ void bch2_prt_bitflags(struct printbuf *out,
 	while (list[nr])
 		nr++;
 
-	while (flags && (bit = __ffs(flags)) < nr) {
+	while (flags && (bit = __ffs64(flags)) < nr) {
 		if (!first)
 			bch2_prt_printf(out, ",");
 		first = false;
 		bch2_prt_printf(out, "%s", list[bit]);
-		flags ^= 1 << bit;
+		flags ^= BIT_ULL(bit);
 	}
 }
