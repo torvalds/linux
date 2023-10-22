@@ -418,6 +418,7 @@ enum bch_time_stats {
 #include "buckets_types.h"
 #include "buckets_waiting_for_journal_types.h"
 #include "clock_types.h"
+#include "disk_groups_types.h"
 #include "ec_types.h"
 #include "journal_types.h"
 #include "keylist_types.h"

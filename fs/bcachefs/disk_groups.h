@@ -2,6 +2,8 @@
 #ifndef _BCACHEFS_DISK_GROUPS_H
 #define _BCACHEFS_DISK_GROUPS_H
 
+#include "disk_groups_types.h"
+
 extern const struct bch_sb_field_ops bch_sb_field_ops_disk_groups;
 
 static inline unsigned disk_groups_nr(struct bch_sb_field_disk_groups *groups)
