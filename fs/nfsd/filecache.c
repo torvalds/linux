@@ -717,7 +717,7 @@ nfsd_file_cache_init(void)
 		return ret;
 
 	ret = -ENOMEM;
-	nfsd_filecache_wq = alloc_workqueue("nfsd_filecache", 0, 0);
+	nfsd_filecache_wq = alloc_workqueue("nfsd_filecache", WQ_UNBOUND, 0);
 	if (!nfsd_filecache_wq)
 		goto out;
 
