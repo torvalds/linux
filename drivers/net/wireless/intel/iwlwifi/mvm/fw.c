@@ -15,6 +15,7 @@
 #include "iwl-prph.h"
 #include "fw/acpi.h"
 #include "fw/pnvm.h"
+#include "fw/uefi.h"
 
 #include "mvm.h"
 #include "fw/dbg.h"
@@ -28,6 +29,9 @@
 
 #define IWL_TAS_US_MCC 0x5553
 #define IWL_TAS_CANADA_MCC 0x4341
+
+#define IWL_UATS_VLP_AP_SUPPORTED BIT(29)
+#define IWL_UATS_AFC_AP_SUPPORTED BIT(30)
 
 struct iwl_mvm_alive_data {
 	bool valid;
@@ -487,6 +491,52 @@ static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
 }
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_EFI)
+static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
+{
+	u8 cmd_ver;
+	int ret;
+	struct iwl_host_cmd cmd = {
+		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP,
+			      UATS_TABLE_CMD),
+		.flags = 0,
+		.data[0] = &mvm->fwrt.uats_table,
+		.len[0] =  sizeof(mvm->fwrt.uats_table),
+		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+	};
+
+	if (!(mvm->trans->trans_cfg->device_family >=
+	      IWL_DEVICE_FAMILY_AX210)) {
+		IWL_DEBUG_RADIO(mvm, "UATS feature is not supported\n");
+		return;
+	}
+
+	if (!mvm->fwrt.uats_enabled) {
+		IWL_DEBUG_RADIO(mvm, "UATS feature is disabled\n");
+		return;
+	}
+
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd.id,
+					IWL_FW_CMD_VER_UNKNOWN);
+	if (cmd_ver != 1) {
+		IWL_DEBUG_RADIO(mvm,
+				"UATS_TABLE_CMD ver %d not supported\n",
+				cmd_ver);
+		return;
+	}
+
+	ret = iwl_uefi_get_uats_table(mvm->trans, &mvm->fwrt);
+	if (ret < 0) {
+		IWL_ERR(mvm, "failed to read UATS table (%d)\n", ret);
+		return;
+	}
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret < 0)
+		IWL_ERR(mvm, "failed to send UATS_TABLE_CMD (%d)\n", ret);
+	else
+		IWL_DEBUG_RADIO(mvm, "UATS_TABLE_CMD sent to FW\n");
+}
+
 static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
 {
 	u8 cmd_ver;
@@ -525,6 +575,10 @@ static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
 static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
 {
 	return 0;
+}
+
+static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
+{
 }
 #endif
 
@@ -1336,6 +1390,10 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 					"Failed to send LARI_CONFIG_CHANGE (%d)\n",
 					ret);
 	}
+
+	if (le32_to_cpu(cmd.oem_uhb_allow_bitmap) & IWL_UATS_VLP_AP_SUPPORTED ||
+	    le32_to_cpu(cmd.oem_uhb_allow_bitmap) & IWL_UATS_AFC_AP_SUPPORTED)
+		mvm->fwrt.uats_enabled = TRUE;
 }
 
 void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
@@ -1745,6 +1803,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	iwl_mvm_tas_init(mvm);
 	iwl_mvm_leds_sync(mvm);
+	iwl_mvm_uats_init(mvm);
 
 	if (iwl_rfi_supported(mvm)) {
 		if (iwl_mvm_eval_dsm_rfi(mvm) == DSM_VALUE_RFI_ENABLE)
