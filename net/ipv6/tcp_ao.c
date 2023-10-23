@@ -53,11 +53,12 @@ int tcp_v6_ao_calc_key_skb(struct tcp_ao_key *mkt, u8 *key,
 			   const struct sk_buff *skb,
 			   __be32 sisn, __be32 disn)
 {
-       const struct ipv6hdr *iph = ipv6_hdr(skb);
-       const struct tcphdr *th = tcp_hdr(skb);
+	const struct ipv6hdr *iph = ipv6_hdr(skb);
+	const struct tcphdr *th = tcp_hdr(skb);
 
-       return tcp_v6_ao_calc_key(mkt, key, &iph->saddr, &iph->daddr,
-				 th->source, th->dest, sisn, disn);
+	return tcp_v6_ao_calc_key(mkt, key, &iph->saddr,
+				  &iph->daddr, th->source,
+				  th->dest, sisn, disn);
 }
 
 int tcp_v6_ao_calc_key_sk(struct tcp_ao_key *mkt, u8 *key,
