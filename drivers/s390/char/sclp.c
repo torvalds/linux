@@ -81,7 +81,7 @@ static inline void sclp_trace(int prio, char *id, u32 a, u64 b, bool err)
 	struct sclp_trace_entry e;
 
 	memset(&e, 0, sizeof(e));
-	strncpy(e.id, id, sizeof(e.id));
+	strtomem(e.id, id);
 	e.a = a;
 	e.b = b;
 	debug_event(&sclp_debug, prio, &e, sizeof(e));
