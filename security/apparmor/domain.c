@@ -31,7 +31,7 @@
 
 /**
  * may_change_ptraced_domain - check if can change profile on ptraced task
- * @cred: cred of task changing domain
+ * @to_cred: cred of task changing domain
  * @to_label: profile to change to  (NOT NULL)
  * @info: message if there is an error
  *
