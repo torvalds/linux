@@ -1080,49 +1080,45 @@ static int __dev_alloc_name(struct net *net, const char *name, char *res)
 	if (!dev_valid_name(name))
 		return -EINVAL;
 
+	/* Verify the string as this thing may have come from the user.
+	 * There must be one "%d" and no other "%" characters.
+	 */
 	p = strchr(name, '%');
-	if (p) {
-		/*
-		 * Verify the string as this thing may have come from
-		 * the user.  There must be either one "%d" and no other "%"
-		 * characters.
-		 */
-		if (p[1] != 'd' || strchr(p + 2, '%'))
-			return -EINVAL;
+	if (!p || p[1] != 'd' || strchr(p + 2, '%'))
+		return -EINVAL;
 
-		/* Use one page as a bit array of possible slots */
-		inuse = bitmap_zalloc(max_netdevices, GFP_ATOMIC);
-		if (!inuse)
-			return -ENOMEM;
+	/* Use one page as a bit array of possible slots */
+	inuse = bitmap_zalloc(max_netdevices, GFP_ATOMIC);
+	if (!inuse)
+		return -ENOMEM;
 
-		for_each_netdev(net, d) {
-			struct netdev_name_node *name_node;
+	for_each_netdev(net, d) {
+		struct netdev_name_node *name_node;
 
-			netdev_for_each_altname(d, name_node) {
-				if (!sscanf(name_node->name, name, &i))
-					continue;
-				if (i < 0 || i >= max_netdevices)
-					continue;
-
-				/*  avoid cases where sscanf is not exact inverse of printf */
-				snprintf(buf, IFNAMSIZ, name, i);
-				if (!strncmp(buf, name_node->name, IFNAMSIZ))
-					__set_bit(i, inuse);
-			}
-			if (!sscanf(d->name, name, &i))
+		netdev_for_each_altname(d, name_node) {
+			if (!sscanf(name_node->name, name, &i))
 				continue;
 			if (i < 0 || i >= max_netdevices)
 				continue;
 
-			/*  avoid cases where sscanf is not exact inverse of printf */
+			/* avoid cases where sscanf is not exact inverse of printf */
 			snprintf(buf, IFNAMSIZ, name, i);
-			if (!strncmp(buf, d->name, IFNAMSIZ))
+			if (!strncmp(buf, name_node->name, IFNAMSIZ))
 				__set_bit(i, inuse);
 		}
+		if (!sscanf(d->name, name, &i))
+			continue;
+		if (i < 0 || i >= max_netdevices)
+			continue;
 
-		i = find_first_zero_bit(inuse, max_netdevices);
-		bitmap_free(inuse);
+		/* avoid cases where sscanf is not exact inverse of printf */
+		snprintf(buf, IFNAMSIZ, name, i);
+		if (!strncmp(buf, d->name, IFNAMSIZ))
+			__set_bit(i, inuse);
 	}
+
+	i = find_first_zero_bit(inuse, max_netdevices);
+	bitmap_free(inuse);
 
 	snprintf(buf, IFNAMSIZ, name, i);
 	if (!netdev_name_in_use(net, buf)) {
