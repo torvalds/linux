@@ -15,8 +15,6 @@ int for_each_thermal_trip(struct thermal_zone_device *tz,
 {
 	int i, ret;
 
-	lockdep_assert_held(&tz->lock);
-
 	for (i = 0; i < tz->num_trips; i++) {
 		ret = cb(&tz->trips[i], data);
 		if (ret)
@@ -176,8 +174,6 @@ int thermal_zone_trip_id(struct thermal_zone_device *tz,
 			 const struct thermal_trip *trip)
 {
 	int i;
-
-	lockdep_assert_held(&tz->lock);
 
 	for (i = 0; i < tz->num_trips; i++) {
 		if (&tz->trips[i] == trip)

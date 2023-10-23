@@ -495,25 +495,6 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_update);
 
-/**
- * thermal_zone_device_exec - Run a callback under the zone lock.
- * @tz: Thermal zone.
- * @cb: Callback to run.
- * @data: Data to pass to the callback.
- */
-void thermal_zone_device_exec(struct thermal_zone_device *tz,
-			      void (*cb)(struct thermal_zone_device *,
-					 unsigned long),
-			      unsigned long data)
-{
-	mutex_lock(&tz->lock);
-
-	cb(tz, data);
-
-	mutex_unlock(&tz->lock);
-}
-EXPORT_SYMBOL_GPL(thermal_zone_device_exec);
-
 static void thermal_zone_device_check(struct work_struct *work)
 {
 	struct thermal_zone_device *tz = container_of(work, struct
