@@ -1834,7 +1834,8 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 		} else {
 			ahd_set_transaction_status(scb, CAM_REQ_CMP);
 		}
-	} else if (ahd_get_transaction_status(scb) == CAM_SCSI_STATUS_ERROR) {
+	} else if (cmd &&
+		   ahd_get_transaction_status(scb) == CAM_SCSI_STATUS_ERROR) {
 		ahd_linux_handle_scsi_status(ahd, cmd->device, scb);
 	}
 
@@ -1868,7 +1869,8 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 	}
 
 	ahd_free_scb(ahd, scb);
-	ahd_linux_queue_cmd_complete(ahd, cmd);
+	if (cmd)
+		ahd_linux_queue_cmd_complete(ahd, cmd);
 }
 
 static void
