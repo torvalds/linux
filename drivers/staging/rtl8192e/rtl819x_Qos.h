@@ -11,7 +11,6 @@ union qos_tsinfo {
 	struct {
 		u8		ucTSID:4;
 		u8		ucDirection:2;
-		u8		ucUP:3;
 	} field;
 };
 
