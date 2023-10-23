@@ -2285,7 +2285,9 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
 			       IEEE80211_RC_BW_CHANGED))
 			mt7996_mcu_add_rate_ctrl(dev, vif, sta, true);
 
-		/* TODO: smps change */
+		if (changed & IEEE80211_RC_SMPS_CHANGED)
+			mt7996_mcu_set_fixed_field(dev, vif, sta, NULL,
+						   RATE_PARAM_MMPS_UPDATE);
 
 		spin_lock_bh(&dev->mt76.sta_poll_lock);
 	}
