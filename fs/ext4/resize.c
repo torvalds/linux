@@ -235,8 +235,10 @@ struct ext4_new_flex_group_data {
  *
  * Returns NULL on failure otherwise address of the allocated structure.
  */
-static struct ext4_new_flex_group_data *alloc_flex_gd(unsigned int flexbg_size)
+static struct ext4_new_flex_group_data *alloc_flex_gd(unsigned int flexbg_size,
+				ext4_group_t o_group, ext4_group_t n_group)
 {
+	ext4_group_t last_group;
 	struct ext4_new_flex_group_data *flex_gd;
 
 	flex_gd = kmalloc(sizeof(*flex_gd), GFP_NOFS);
@@ -247,6 +249,14 @@ static struct ext4_new_flex_group_data *alloc_flex_gd(unsigned int flexbg_size)
 		flex_gd->resize_bg = MAX_RESIZE_BG;
 	else
 		flex_gd->resize_bg = flexbg_size;
+
+	/* Avoid allocating large 'groups' array if not needed */
+	last_group = o_group | (flex_gd->resize_bg - 1);
+	if (n_group <= last_group)
+		flex_gd->resize_bg = 1 << fls(n_group - o_group + 1);
+	else if (n_group - last_group < flex_gd->resize_bg)
+		flex_gd->resize_bg = 1 << max(fls(last_group - o_group + 1),
+					      fls(n_group - last_group));
 
 	flex_gd->groups = kmalloc_array(flex_gd->resize_bg,
 					sizeof(struct ext4_new_group_data),
@@ -2131,7 +2141,7 @@ retry:
 	if (err)
 		goto out;
 
-	flex_gd = alloc_flex_gd(flexbg_size);
+	flex_gd = alloc_flex_gd(flexbg_size, o_group, n_group);
 	if (flex_gd == NULL) {
 		err = -ENOMEM;
 		goto out;
