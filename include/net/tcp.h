@@ -2258,7 +2258,12 @@ static inline __u32 cookie_init_sequence(const struct tcp_request_sock_ops *ops,
 
 struct tcp_key {
 	union {
-		struct tcp_ao_key *ao_key;
+		struct {
+			struct tcp_ao_key *ao_key;
+			char *traffic_key;
+			u32 sne;
+			u8 rcv_next;
+		};
 		struct tcp_md5sig_key *md5_key;
 	};
 	enum {

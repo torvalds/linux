@@ -854,8 +854,8 @@ const struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
 
 static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32 seq,
 				 u32 ack, u32 win, u32 tsval, u32 tsecr,
-				 int oif, struct tcp_md5sig_key *key, int rst,
-				 u8 tclass, __be32 label, u32 priority, u32 txhash)
+				 int oif, int rst, u8 tclass, __be32 label,
+				 u32 priority, u32 txhash, struct tcp_key *key)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
 	struct tcphdr *t1;
@@ -870,13 +870,13 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 
 	if (tsecr)
 		tot_len += TCPOLEN_TSTAMP_ALIGNED;
-#ifdef CONFIG_TCP_MD5SIG
-	if (key)
+	if (tcp_key_is_md5(key))
 		tot_len += TCPOLEN_MD5SIG_ALIGNED;
-#endif
+	if (tcp_key_is_ao(key))
+		tot_len += tcp_ao_len(key->ao_key);
 
 #ifdef CONFIG_MPTCP
-	if (rst && !key) {
+	if (rst && !tcp_key_is_md5(key)) {
 		mrst = mptcp_reset_option(skb);
 
 		if (mrst)
@@ -917,12 +917,26 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 		*topt++ = mrst;
 
 #ifdef CONFIG_TCP_MD5SIG
-	if (key) {
+	if (tcp_key_is_md5(key)) {
 		*topt++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
 				(TCPOPT_MD5SIG << 8) | TCPOLEN_MD5SIG);
-		tcp_v6_md5_hash_hdr((__u8 *)topt, key,
+		tcp_v6_md5_hash_hdr((__u8 *)topt, key->md5_key,
 				    &ipv6_hdr(skb)->saddr,
 				    &ipv6_hdr(skb)->daddr, t1);
+	}
+#endif
+#ifdef CONFIG_TCP_AO
+	if (tcp_key_is_ao(key)) {
+		*topt++ = htonl((TCPOPT_AO << 24) |
+				(tcp_ao_len(key->ao_key) << 16) |
+				(key->ao_key->sndid << 8) |
+				(key->rcv_next));
+
+		tcp_ao_hash_hdr(AF_INET6, (char *)topt, key->ao_key,
+				key->traffic_key,
+				(union tcp_ao_addr *)&ipv6_hdr(skb)->saddr,
+				(union tcp_ao_addr *)&ipv6_hdr(skb)->daddr,
+				t1, key->sne);
 	}
 #endif
 
@@ -987,19 +1001,23 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
-	u32 seq = 0, ack_seq = 0;
-	struct tcp_md5sig_key *key = NULL;
-#ifdef CONFIG_TCP_MD5SIG
 	const __u8 *md5_hash_location = NULL;
-	unsigned char newhash[16];
-	int genhash;
-	struct sock *sk1 = NULL;
+#if defined(CONFIG_TCP_MD5SIG) || defined(CONFIG_TCP_AO)
+	bool allocated_traffic_key = false;
 #endif
+	const struct tcp_ao_hdr *aoh;
+	struct tcp_key key = {};
+	u32 seq = 0, ack_seq = 0;
 	__be32 label = 0;
 	u32 priority = 0;
 	struct net *net;
 	u32 txhash = 0;
 	int oif = 0;
+#ifdef CONFIG_TCP_MD5SIG
+	unsigned char newhash[16];
+	int genhash;
+	struct sock *sk1 = NULL;
+#endif
 
 	if (th->rst)
 		return;
@@ -1011,12 +1029,13 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 		return;
 
 	net = sk ? sock_net(sk) : dev_net(skb_dst(skb)->dev);
-#ifdef CONFIG_TCP_MD5SIG
 	/* Invalid TCP option size or twice included auth */
-	if (tcp_parse_auth_options(th, &md5_hash_location, NULL))
+	if (tcp_parse_auth_options(th, &md5_hash_location, &aoh))
 		return;
-
+#if defined(CONFIG_TCP_MD5SIG) || defined(CONFIG_TCP_AO)
 	rcu_read_lock();
+#endif
+#ifdef CONFIG_TCP_MD5SIG
 	if (sk && sk_fullsock(sk)) {
 		int l3index;
 
@@ -1024,7 +1043,9 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 		 * in an L3 domain and inet_iif is set to it.
 		 */
 		l3index = tcp_v6_sdif(skb) ? tcp_v6_iif_l3_slave(skb) : 0;
-		key = tcp_v6_md5_do_lookup(sk, &ipv6h->saddr, l3index);
+		key.md5_key = tcp_v6_md5_do_lookup(sk, &ipv6h->saddr, l3index);
+		if (key.md5_key)
+			key.type = TCP_KEY_MD5;
 	} else if (md5_hash_location) {
 		int dif = tcp_v6_iif_l3_slave(skb);
 		int sdif = tcp_v6_sdif(skb);
@@ -1049,11 +1070,12 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 		 */
 		l3index = tcp_v6_sdif(skb) ? dif : 0;
 
-		key = tcp_v6_md5_do_lookup(sk1, &ipv6h->saddr, l3index);
-		if (!key)
+		key.md5_key = tcp_v6_md5_do_lookup(sk1, &ipv6h->saddr, l3index);
+		if (!key.md5_key)
 			goto out;
+		key.type = TCP_KEY_MD5;
 
-		genhash = tcp_v6_md5_hash_skb(newhash, key, NULL, skb);
+		genhash = tcp_v6_md5_hash_skb(newhash, key.md5_key, NULL, skb);
 		if (genhash || memcmp(md5_hash_location, newhash, 16) != 0)
 			goto out;
 	}
@@ -1064,6 +1086,20 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 	else
 		ack_seq = ntohl(th->seq) + th->syn + th->fin + skb->len -
 			  (th->doff << 2);
+
+#ifdef CONFIG_TCP_AO
+	if (aoh) {
+		int l3index;
+
+		l3index = tcp_v6_sdif(skb) ? tcp_v6_iif_l3_slave(skb) : 0;
+		if (tcp_ao_prepare_reset(sk, skb, aoh, l3index,
+					 &key.ao_key, &key.traffic_key,
+					 &allocated_traffic_key,
+					 &key.rcv_next, &key.sne))
+			goto out;
+		key.type = TCP_KEY_AO;
+	}
+#endif
 
 	if (sk) {
 		oif = sk->sk_bound_dev_if;
@@ -1084,22 +1120,30 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 			label = ip6_flowlabel(ipv6h);
 	}
 
-	tcp_v6_send_response(sk, skb, seq, ack_seq, 0, 0, 0, oif, key, 1,
-			     ipv6_get_dsfield(ipv6h), label, priority, txhash);
+	tcp_v6_send_response(sk, skb, seq, ack_seq, 0, 0, 0, oif, 1,
+			     ipv6_get_dsfield(ipv6h), label, priority, txhash,
+			     &key);
 
-#ifdef CONFIG_TCP_MD5SIG
+#if defined(CONFIG_TCP_MD5SIG) || defined(CONFIG_TCP_AO)
 out:
+	if (allocated_traffic_key)
+		kfree(key.traffic_key);
 	rcu_read_unlock();
 #endif
 }
 
 static void tcp_v6_send_ack(const struct sock *sk, struct sk_buff *skb, u32 seq,
 			    u32 ack, u32 win, u32 tsval, u32 tsecr, int oif,
-			    struct tcp_md5sig_key *key, u8 tclass,
+			    struct tcp_md5sig_key *md5_key, u8 tclass,
 			    __be32 label, u32 priority, u32 txhash)
 {
-	tcp_v6_send_response(sk, skb, seq, ack, win, tsval, tsecr, oif, key, 0,
-			     tclass, label, priority, txhash);
+	struct tcp_key key = {
+				.md5_key = md5_key,
+				.type = md5_key ? TCP_KEY_MD5 : TCP_KEY_NONE,
+	};
+
+	tcp_v6_send_response(sk, skb, seq, ack, win, tsval, tsecr, oif, 0,
+			     tclass, label, priority, txhash, &key);
 }
 
 static void tcp_v6_timewait_ack(struct sock *sk, struct sk_buff *skb)
