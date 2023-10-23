@@ -1,19 +1,3 @@
-config PCMCIA_RAYCS
-	tristate "Aviator/Raytheon 2.4GHz wireless support"
-	depends on PCMCIA
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select WEXT_PRIV
-	help
-	  Say Y here if you intend to attach an Aviator/Raytheon PCMCIA
-	  (PC-card) wireless Ethernet networking card to your computer.
-	  Please read the file
-	  <file:Documentation/networking/device_drivers/wifi/ray_cs.rst> for
-	  details.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called ray_cs.  If unsure, say N.
-
 config PCMCIA_WL3501
 	tristate "Planet WL3501 PCMCIA cards"
 	depends on CFG80211 && PCMCIA
