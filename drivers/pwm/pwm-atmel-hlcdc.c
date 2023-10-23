@@ -180,7 +180,6 @@ static const struct atmel_hlcdc_pwm_errata atmel_hlcdc_pwm_sama5d3_errata = {
 	.div1_clk_erratum = true,
 };
 
-#ifdef CONFIG_PM_SLEEP
 static int atmel_hlcdc_pwm_suspend(struct device *dev)
 {
 	struct atmel_hlcdc_pwm *atmel = dev_get_drvdata(dev);
@@ -210,10 +209,9 @@ static int atmel_hlcdc_pwm_resume(struct device *dev)
 	return atmel_hlcdc_pwm_apply(&atmel->chip, &atmel->chip.pwms[0],
 				     &state);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(atmel_hlcdc_pwm_pm_ops,
-			 atmel_hlcdc_pwm_suspend, atmel_hlcdc_pwm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(atmel_hlcdc_pwm_pm_ops,
+				atmel_hlcdc_pwm_suspend, atmel_hlcdc_pwm_resume);
 
 static const struct of_device_id atmel_hlcdc_dt_ids[] = {
 	{
@@ -297,7 +295,7 @@ static struct platform_driver atmel_hlcdc_pwm_driver = {
 	.driver = {
 		.name = "atmel-hlcdc-pwm",
 		.of_match_table = atmel_hlcdc_pwm_dt_ids,
-		.pm = &atmel_hlcdc_pwm_pm_ops,
+		.pm = pm_ptr(&atmel_hlcdc_pwm_pm_ops),
 	},
 	.probe = atmel_hlcdc_pwm_probe,
 	.remove_new = atmel_hlcdc_pwm_remove,
