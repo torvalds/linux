@@ -226,7 +226,6 @@ static int berlin_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int berlin_pwm_suspend(struct device *dev)
 {
 	struct berlin_pwm_chip *bpc = dev_get_drvdata(dev);
@@ -267,17 +266,16 @@ static int berlin_pwm_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(berlin_pwm_pm_ops, berlin_pwm_suspend,
-			 berlin_pwm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(berlin_pwm_pm_ops, berlin_pwm_suspend,
+				berlin_pwm_resume);
 
 static struct platform_driver berlin_pwm_driver = {
 	.probe = berlin_pwm_probe,
 	.driver = {
 		.name = "berlin-pwm",
 		.of_match_table = berlin_pwm_match,
-		.pm = &berlin_pwm_pm_ops,
+		.pm = pm_ptr(&berlin_pwm_pm_ops),
 	},
 };
 module_platform_driver(berlin_pwm_driver);
