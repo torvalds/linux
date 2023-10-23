@@ -54,12 +54,21 @@ enum {
 	BNXT_RE_UCNTX_CMASK_HAVE_MODE = 0x02ULL,
 	BNXT_RE_UCNTX_CMASK_WC_DPI_ENABLED = 0x04ULL,
 	BNXT_RE_UCNTX_CMASK_DBR_PACING_ENABLED = 0x08ULL,
+	BNXT_RE_UCNTX_CMASK_POW2_DISABLED = 0x10ULL,
 };
 
 enum bnxt_re_wqe_mode {
 	BNXT_QPLIB_WQE_MODE_STATIC	= 0x00,
 	BNXT_QPLIB_WQE_MODE_VARIABLE	= 0x01,
 	BNXT_QPLIB_WQE_MODE_INVALID	= 0x02,
+};
+
+enum {
+	BNXT_RE_COMP_MASK_REQ_UCNTX_POW2_SUPPORT = 0x01,
+};
+
+struct bnxt_re_uctx_req {
+	__aligned_u64 comp_mask;
 };
 
 struct bnxt_re_uctx_resp {
