@@ -215,11 +215,8 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 }
 
 static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *addr,
-			struct qos_tsinfo *pTSPEC, union qos_tclas *pTCLAS,
-			u8 TCLAS_Num, u8 TCLAS_Proc)
+			struct qos_tsinfo *pTSPEC)
 {
-	u8	count;
-
 	if (!pTsCommonInfo)
 		return;
 
@@ -228,13 +225,6 @@ static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *addr,
 	if (pTSPEC)
 		memcpy((u8 *)(&(pTsCommonInfo->TSpec)), (u8 *)pTSPEC,
 			sizeof(struct qos_tsinfo));
-
-	for (count = 0; count < TCLAS_Num; count++)
-		memcpy((u8 *)(&(pTsCommonInfo->TClass[count])),
-		       (u8 *)pTCLAS, sizeof(union qos_tclas));
-
-	pTsCommonInfo->TClasProc = TCLAS_Proc;
-	pTsCommonInfo->TClasNum = TCLAS_Num;
 }
 
 bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
@@ -321,7 +311,7 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		ts_info->ucTSID = UP;
 		ts_info->ucDirection = Dir;
 
-		MakeTSEntry(*ppTS, addr, &TSpec, NULL, 0, 0);
+		MakeTSEntry(*ppTS, addr, &TSpec);
 		list_add_tail(&((*ppTS)->List), pAddmitList);
 
 		return true;
