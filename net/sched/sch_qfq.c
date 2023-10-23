@@ -1003,7 +1003,7 @@ static inline struct sk_buff *qfq_peek_skb(struct qfq_aggregate *agg,
 	*cl = list_first_entry(&agg->active, struct qfq_class, alist);
 	skb = (*cl)->qdisc->ops->peek((*cl)->qdisc);
 	if (skb == NULL)
-		WARN_ONCE(1, "qfq_dequeue: non-workconserving leaf\n");
+		qdisc_warn_nonwc("qfq_dequeue", (*cl)->qdisc);
 	else
 		*len = qdisc_pkt_len(skb);
 
