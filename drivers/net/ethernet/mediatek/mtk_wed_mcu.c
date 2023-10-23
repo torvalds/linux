@@ -32,12 +32,12 @@ static struct mtk_wed_wo_memory_region mem_region[] = {
 	},
 };
 
-static u32 wo_r32(struct mtk_wed_wo *wo, u32 reg)
+static u32 wo_r32(u32 reg)
 {
 	return readl(mem_region[MTK_WED_WO_REGION_BOOT].addr + reg);
 }
 
-static void wo_w32(struct mtk_wed_wo *wo, u32 reg, u32 val)
+static void wo_w32(u32 reg, u32 val)
 {
 	writel(val, mem_region[MTK_WED_WO_REGION_BOOT].addr + reg);
 }
@@ -373,13 +373,13 @@ mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 		boot_cr = MTK_WO_MCU_CFG_LS_WA_BOOT_ADDR_ADDR;
 	else
 		boot_cr = MTK_WO_MCU_CFG_LS_WM_BOOT_ADDR_ADDR;
-	wo_w32(wo, boot_cr, mem_region[MTK_WED_WO_REGION_EMI].phy_addr >> 16);
+	wo_w32(boot_cr, mem_region[MTK_WED_WO_REGION_EMI].phy_addr >> 16);
 	/* wo firmware reset */
-	wo_w32(wo, MTK_WO_MCU_CFG_LS_WF_MCCR_CLR_ADDR, 0xc00);
+	wo_w32(MTK_WO_MCU_CFG_LS_WF_MCCR_CLR_ADDR, 0xc00);
 
-	val = wo_r32(wo, MTK_WO_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR) |
+	val = wo_r32(MTK_WO_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR) |
 	      MTK_WO_MCU_CFG_LS_WF_WM_WA_WM_CPU_RSTB_MASK;
-	wo_w32(wo, MTK_WO_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR, val);
+	wo_w32(MTK_WO_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR, val);
 out:
 	release_firmware(fw);
 
