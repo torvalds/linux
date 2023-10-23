@@ -136,6 +136,8 @@
 		prepare-delay-ms = <20>;
 		enable-delay-ms = <20>;
 		reset-delay-ms = <20>;
+		width-mm = <120>;
+		height-mm = <160>;
 
 		display-timings {
 			native-mode = <&timing0>;

@@ -46,6 +46,8 @@
 		reset-gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
 		prepare-delay-ms = <20>;
 		enable-delay-ms = <20>;
+		width-mm = <120>;
+		height-mm = <160>;
 
 		display-timings {
 			native-mode = <&timing0>;

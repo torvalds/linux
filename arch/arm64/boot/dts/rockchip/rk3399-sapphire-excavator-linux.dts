@@ -73,6 +73,8 @@
 		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		prepare-delay-ms = <20>;
 		enable-delay-ms = <20>;
+		width-mm = <120>;
+		height-mm = <160>;
 
 		display-timings {
 			native-mode = <&timing0>;
