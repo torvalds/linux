@@ -360,7 +360,7 @@ MODULE_DEVICE_TABLE(of, axg_card_of_match);
 
 static struct platform_driver axg_card_pdrv = {
 	.probe = meson_card_probe,
-	.remove = meson_card_remove,
+	.remove_new = meson_card_remove,
 	.driver = {
 		.name = "axg-sound-card",
 		.of_match_table = axg_card_of_match,

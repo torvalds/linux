@@ -327,13 +327,11 @@ out_err:
 }
 EXPORT_SYMBOL_GPL(meson_card_probe);
 
-int meson_card_remove(struct platform_device *pdev)
+void meson_card_remove(struct platform_device *pdev)
 {
 	struct meson_card *priv = platform_get_drvdata(pdev);
 
 	meson_card_clean_references(priv);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(meson_card_remove);
 

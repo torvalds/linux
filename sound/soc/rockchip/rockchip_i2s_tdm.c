@@ -1714,14 +1714,12 @@ err_disable_hclk:
 	return ret;
 }
 
-static int rockchip_i2s_tdm_remove(struct platform_device *pdev)
+static void rockchip_i2s_tdm_remove(struct platform_device *pdev)
 {
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		i2s_tdm_runtime_suspend(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused rockchip_i2s_tdm_suspend(struct device *dev)
@@ -1756,7 +1754,7 @@ static const struct dev_pm_ops rockchip_i2s_tdm_pm_ops = {
 
 static struct platform_driver rockchip_i2s_tdm_driver = {
 	.probe = rockchip_i2s_tdm_probe,
-	.remove = rockchip_i2s_tdm_remove,
+	.remove_new = rockchip_i2s_tdm_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = of_match_ptr(rockchip_i2s_tdm_match),
