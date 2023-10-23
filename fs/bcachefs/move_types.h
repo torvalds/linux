@@ -2,10 +2,11 @@
 #ifndef _BCACHEFS_MOVE_TYPES_H
 #define _BCACHEFS_MOVE_TYPES_H
 
+#include "bbpos_types.h"
+
 struct bch_move_stats {
 	enum bch_data_type	data_type;
-	enum btree_id		btree_id;
-	struct bpos		pos;
+	struct bbpos		pos;
 	struct list_head	list;
 	char			name[32];
 

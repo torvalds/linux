@@ -367,7 +367,6 @@ int bch2_move_extent(struct moving_context *ctxt,
 
 	BUG_ON(ret);
 
-	io->write.ctxt = ctxt;
 	io->write.op.end_io = move_write_done;
 
 	if (ctxt->rate)
@@ -567,8 +566,7 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 
 	if (ctxt->stats) {
 		ctxt->stats->data_type	= BCH_DATA_user;
-		ctxt->stats->btree_id	= btree_id;
-		ctxt->stats->pos	= start;
+		ctxt->stats->pos	= BBPOS(btree_id, start);
 	}
 
 	bch2_trans_iter_init(trans, &iter, btree_id, start,
@@ -595,7 +593,7 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 			break;
 
 		if (ctxt->stats)
-			ctxt->stats->pos = iter.pos;
+			ctxt->stats->pos = BBPOS(iter.btree_id, iter.pos);
 
 		if (!bkey_extent_is_direct_data(k.k))
 			goto next_nondata;
@@ -656,7 +654,7 @@ int __bch2_move_data(struct moving_context *ctxt,
 	for (id = start.btree;
 	     id <= min_t(unsigned, end.btree, btree_id_nr_alive(c) - 1);
 	     id++) {
-		ctxt->stats->btree_id = id;
+		ctxt->stats->pos = BBPOS(id, POS_MIN);
 
 		if (!btree_type_has_ptrs(id) ||
 		    !bch2_btree_id_root(c, id)->b)
@@ -894,7 +892,7 @@ static int bch2_move_btree(struct bch_fs *c,
 	for (id = start_btree_id;
 	     id <= min_t(unsigned, end_btree_id, btree_id_nr_alive(c) - 1);
 	     id++) {
-		stats->btree_id = id;
+		stats->pos = BBPOS(id, POS_MIN);
 
 		if (!bch2_btree_id_root(c, id)->b)
 			continue;
@@ -913,7 +911,7 @@ retry:
 			     bpos_cmp(b->key.k.p, end_pos)) > 0)
 				break;
 
-			stats->pos = iter.pos;
+			stats->pos = BBPOS(iter.btree_id, iter.pos);
 
 			if (!pred(c, arg, b, &io_opts, &data_opts))
 				goto next;
@@ -1139,10 +1137,9 @@ static void bch2_moving_ctxt_to_text(struct printbuf *out, struct bch_fs *c, str
 	prt_printf(out, "%s (%ps):", stats->name, ctxt->fn);
 	prt_newline(out);
 
-	prt_printf(out, " data type %s btree_id %s position: ",
-		   bch2_data_types[stats->data_type],
-		   bch2_btree_id_str(stats->btree_id));
-	bch2_bpos_to_text(out, stats->pos);
+	prt_printf(out, " data type %s position: ",
+		   bch2_data_types[stats->data_type]);
+	bch2_bbpos_to_text(out, stats->pos);
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
 

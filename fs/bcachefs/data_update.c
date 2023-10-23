@@ -281,11 +281,11 @@ next:
 		}
 		continue;
 nowork:
-		if (m->ctxt && m->ctxt->stats) {
+		if (m->stats && m->stats) {
 			BUG_ON(k.k->p.offset <= iter.pos.offset);
-			atomic64_inc(&m->ctxt->stats->keys_raced);
+			atomic64_inc(&m->stats->keys_raced);
 			atomic64_add(k.k->p.offset - iter.pos.offset,
-				     &m->ctxt->stats->sectors_raced);
+				     &m->stats->sectors_raced);
 		}
 
 		this_cpu_inc(c->counters[BCH_COUNTER_move_extent_fail]);
@@ -439,6 +439,8 @@ int bch2_data_update_init(struct btree_trans *trans,
 	bch2_bkey_buf_reassemble(&m->k, c, k);
 	m->btree_id	= btree_id;
 	m->data_opts	= data_opts;
+	m->ctxt		= ctxt;
+	m->stats	= ctxt->stats;
 
 	bch2_write_op_init(&m->op, c, io_opts);
 	m->op.pos	= bkey_start_pos(k.k);
