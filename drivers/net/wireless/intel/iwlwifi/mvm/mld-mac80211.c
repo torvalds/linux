@@ -731,73 +731,78 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 
 	mvmvif->associated = vif->cfg.assoc;
 
-	if (!(changes & BSS_CHANGED_ASSOC))
-		return;
+	if (changes & BSS_CHANGED_ASSOC) {
+		if (vif->cfg.assoc) {
+			/* clear statistics to get clean beacon counter */
+			iwl_mvm_request_statistics(mvm, true);
+			iwl_mvm_sf_update(mvm, vif, false);
+			iwl_mvm_power_vif_assoc(mvm, vif);
 
-	if (vif->cfg.assoc) {
-		/* clear statistics to get clean beacon counter */
-		iwl_mvm_request_statistics(mvm, true);
-		iwl_mvm_sf_update(mvm, vif, false);
-		iwl_mvm_power_vif_assoc(mvm, vif);
+			for_each_mvm_vif_valid_link(mvmvif, i) {
+				memset(&mvmvif->link[i]->beacon_stats, 0,
+				       sizeof(mvmvif->link[i]->beacon_stats));
 
-		for_each_mvm_vif_valid_link(mvmvif, i) {
-			memset(&mvmvif->link[i]->beacon_stats, 0,
-			       sizeof(mvmvif->link[i]->beacon_stats));
+				if (vif->p2p) {
+					iwl_mvm_update_smps(mvm, vif,
+							    IWL_MVM_SMPS_REQ_PROT,
+							    IEEE80211_SMPS_DYNAMIC, i);
+				}
 
-			if (vif->p2p) {
-				iwl_mvm_update_smps(mvm, vif,
-						    IWL_MVM_SMPS_REQ_PROT,
-						    IEEE80211_SMPS_DYNAMIC, i);
+				rcu_read_lock();
+				link_conf = rcu_dereference(vif->link_conf[i]);
+				if (link_conf && !link_conf->dtim_period)
+					protect = true;
+				rcu_read_unlock();
 			}
 
-			rcu_read_lock();
-			link_conf = rcu_dereference(vif->link_conf[i]);
-			if (link_conf && !link_conf->dtim_period)
-				protect = true;
-			rcu_read_unlock();
-		}
+			if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
+			    protect) {
+				/* If we're not restarting and still haven't
+				 * heard a beacon (dtim period unknown) then
+				 * make sure we still have enough minimum time
+				 * remaining in the time event, since the auth
+				 * might actually have taken quite a while
+				 * (especially for SAE) and so the remaining
+				 * time could be small without us having heard
+				 * a beacon yet.
+				 */
+				iwl_mvm_protect_assoc(mvm, vif, 0);
+			}
 
-		if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
-		    protect) {
-			/* If we're not restarting and still haven't
-			 * heard a beacon (dtim period unknown) then
-			 * make sure we still have enough minimum time
-			 * remaining in the time event, since the auth
-			 * might actually have taken quite a while
-			 * (especially for SAE) and so the remaining
-			 * time could be small without us having heard
-			 * a beacon yet.
+			iwl_mvm_sf_update(mvm, vif, false);
+
+			/* FIXME: need to decide about misbehaving AP handling */
+			iwl_mvm_power_vif_assoc(mvm, vif);
+		} else if (iwl_mvm_mld_vif_have_valid_ap_sta(mvmvif)) {
+			iwl_mvm_mei_host_disassociated(mvm);
+
+			/* If update fails - SF might be running in associated
+			 * mode while disassociated - which is forbidden.
 			 */
-			iwl_mvm_protect_assoc(mvm, vif, 0);
+			ret = iwl_mvm_sf_update(mvm, vif, false);
+			WARN_ONCE(ret &&
+				  !test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
+					    &mvm->status),
+				  "Failed to update SF upon disassociation\n");
+
+			/* If we get an assert during the connection (after the
+			 * station has been added, but before the vif is set
+			 * to associated), mac80211 will re-add the station and
+			 * then configure the vif. Since the vif is not
+			 * associated, we would remove the station here and
+			 * this would fail the recovery.
+			 */
+			iwl_mvm_mld_vif_delete_all_stas(mvm, vif);
 		}
 
-		iwl_mvm_sf_update(mvm, vif, false);
-
-		/* FIXME: need to decide about misbehaving AP handling */
-		iwl_mvm_power_vif_assoc(mvm, vif);
-	} else if (iwl_mvm_mld_vif_have_valid_ap_sta(mvmvif)) {
-		iwl_mvm_mei_host_disassociated(mvm);
-
-		/* If update fails - SF might be running in associated
-		 * mode while disassociated - which is forbidden.
-		 */
-		ret = iwl_mvm_sf_update(mvm, vif, false);
-		WARN_ONCE(ret &&
-			  !test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
-				    &mvm->status),
-			  "Failed to update SF upon disassociation\n");
-
-		/* If we get an assert during the connection (after the
-		 * station has been added, but before the vif is set
-		 * to associated), mac80211 will re-add the station and
-		 * then configure the vif. Since the vif is not
-		 * associated, we would remove the station here and
-		 * this would fail the recovery.
-		 */
-		iwl_mvm_mld_vif_delete_all_stas(mvm, vif);
+		iwl_mvm_bss_info_changed_station_assoc(mvm, vif, changes);
 	}
 
-	iwl_mvm_bss_info_changed_station_assoc(mvm, vif, changes);
+	if (changes & BSS_CHANGED_PS) {
+		ret = iwl_mvm_power_update_mac(mvm);
+		if (ret)
+			IWL_ERR(mvm, "failed to update power mode\n");
+	}
 }
 
 static void

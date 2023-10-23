@@ -23,6 +23,7 @@
 #define DRIVER_DATE "20230117"
 
 #define PCI_DEVICE_ID_MTL   0x7d1d
+#define PCI_DEVICE_ID_ARL   0xad1d
 #define PCI_DEVICE_ID_LNL   0x643e
 
 #define IVPU_HW_37XX	37
@@ -158,6 +159,7 @@ void ivpu_file_priv_put(struct ivpu_file_priv **link);
 
 int ivpu_boot(struct ivpu_device *vdev);
 int ivpu_shutdown(struct ivpu_device *vdev);
+void ivpu_prepare_for_reset(struct ivpu_device *vdev);
 
 static inline u8 ivpu_revision(struct ivpu_device *vdev)
 {
@@ -173,6 +175,7 @@ static inline int ivpu_hw_gen(struct ivpu_device *vdev)
 {
 	switch (ivpu_device_id(vdev)) {
 	case PCI_DEVICE_ID_MTL:
+	case PCI_DEVICE_ID_ARL:
 		return IVPU_HW_37XX;
 	case PCI_DEVICE_ID_LNL:
 		return IVPU_HW_40XX;

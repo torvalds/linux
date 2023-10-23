@@ -1910,6 +1910,10 @@ static umode_t nct6775_in_is_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	int in = index / 5;	/* voltage index */
+	int nr = index % 5;	/* attribute index */
+
+	if (nr == 1 && data->ALARM_BITS[in] == -1)
+		return 0;
 
 	if (!(data->have_in & BIT(in)))
 		return 0;

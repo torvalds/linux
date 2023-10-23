@@ -195,7 +195,7 @@ struct locomo_driver {
 
 #define LOCOMO_DRIVER_NAME(_ldev) ((_ldev)->dev.driver->name)
 
-void locomo_lcd_power(struct locomo_dev *, int, unsigned int);
+extern void locomolcd_power(int on);
 
 int locomo_driver_register(struct locomo_driver *);
 void locomo_driver_unregister(struct locomo_driver *);

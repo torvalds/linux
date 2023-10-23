@@ -154,18 +154,20 @@ static struct dma_chan *fsl_edma3_xlate(struct of_phandle_args *dma_spec,
 		fsl_chan = to_fsl_edma_chan(chan);
 		i = fsl_chan - fsl_edma->chans;
 
-		chan = dma_get_slave_channel(chan);
-		chan->device->privatecnt++;
 		fsl_chan->priority = dma_spec->args[1];
 		fsl_chan->is_rxchan = dma_spec->args[2] & ARGS_RX;
 		fsl_chan->is_remote = dma_spec->args[2] & ARGS_REMOTE;
 		fsl_chan->is_multi_fifo = dma_spec->args[2] & ARGS_MULTI_FIFO;
 
 		if (!b_chmux && i == dma_spec->args[0]) {
+			chan = dma_get_slave_channel(chan);
+			chan->device->privatecnt++;
 			mutex_unlock(&fsl_edma->fsl_edma_mutex);
 			return chan;
 		} else if (b_chmux && !fsl_chan->srcid) {
 			/* if controller support channel mux, choose a free channel */
+			chan = dma_get_slave_channel(chan);
+			chan->device->privatecnt++;
 			fsl_chan->srcid = dma_spec->args[0];
 			mutex_unlock(&fsl_edma->fsl_edma_mutex);
 			return chan;
@@ -355,7 +357,7 @@ static struct fsl_edma_drvdata imx93_data3 = {
 };
 
 static struct fsl_edma_drvdata imx93_data4 = {
-	.flags = FSL_EDMA_DRV_HAS_CHMUX | FSL_EDMA_DRV_HAS_DMACLK | FSL_EDMA_DRV_EDMA3,
+	.flags = FSL_EDMA_DRV_HAS_CHMUX | FSL_EDMA_DRV_HAS_DMACLK | FSL_EDMA_DRV_EDMA4,
 	.chreg_space_sz = 0x8000,
 	.chreg_off = 0x10000,
 	.setup_irq = fsl_edma3_irq_init,

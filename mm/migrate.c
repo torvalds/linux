@@ -243,7 +243,9 @@ static bool remove_migration_pte(struct folio *folio,
 
 #ifdef CONFIG_HUGETLB_PAGE
 		if (folio_test_hugetlb(folio)) {
-			unsigned int shift = huge_page_shift(hstate_vma(vma));
+			struct hstate *h = hstate_vma(vma);
+			unsigned int shift = huge_page_shift(h);
+			unsigned long psize = huge_page_size(h);
 
 			pte = arch_make_huge_pte(pte, shift, vma->vm_flags);
 			if (folio_test_anon(folio))
@@ -251,7 +253,8 @@ static bool remove_migration_pte(struct folio *folio,
 						       rmap_flags);
 			else
 				page_dup_file_rmap(new, true);
-			set_huge_pte_at(vma->vm_mm, pvmw.address, pvmw.pte, pte);
+			set_huge_pte_at(vma->vm_mm, pvmw.address, pvmw.pte, pte,
+					psize);
 		} else
 #endif
 		{

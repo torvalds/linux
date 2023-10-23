@@ -298,7 +298,10 @@ static int efx_tc_ct_replace(struct efx_tc_ct_zone *ct_zone,
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->ct_ht,
 						&conn->linkage,
 						efx_tc_ct_ht_params);
-	if (old) {
+	if (IS_ERR(old)) {
+		rc = PTR_ERR(old);
+		goto release;
+	} else if (old) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Already offloaded conntrack (cookie %lx)\n", tc->cookie);
 		rc = -EEXIST;
@@ -482,6 +485,8 @@ struct efx_tc_ct_zone *efx_tc_ct_register_zone(struct efx_nic *efx, u16 zone,
 	if (old) {
 		/* don't need our new entry */
 		kfree(ct_zone);
+		if (IS_ERR(old)) /* oh dear, it's actually an error */
+			return ERR_CAST(old);
 		if (!refcount_inc_not_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found */

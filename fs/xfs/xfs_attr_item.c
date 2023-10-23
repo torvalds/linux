@@ -547,7 +547,7 @@ xfs_attri_item_recover(
 	struct xfs_inode		*ip;
 	struct xfs_da_args		*args;
 	struct xfs_trans		*tp;
-	struct xfs_trans_res		tres;
+	struct xfs_trans_res		resv;
 	struct xfs_attri_log_format	*attrp;
 	struct xfs_attri_log_nameval	*nv = attrip->attri_nameval;
 	int				error;
@@ -618,8 +618,9 @@ xfs_attri_item_recover(
 		goto out;
 	}
 
-	xfs_init_attr_trans(args, &tres, &total);
-	error = xfs_trans_alloc(mp, &tres, total, 0, XFS_TRANS_RESERVE, &tp);
+	xfs_init_attr_trans(args, &resv, &total);
+	resv = xlog_recover_resv(&resv);
+	error = xfs_trans_alloc(mp, &resv, total, 0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		goto out;
 

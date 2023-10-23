@@ -432,6 +432,7 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	if (!ivpu_fw_is_cold_boot(vdev)) {
 		boot_params->save_restore_ret_address = 0;
 		vdev->pm->is_warmboot = true;
+		wmb(); /* Flush WC buffers after writing save_restore_ret_address */
 		return;
 	}
 

@@ -9,6 +9,9 @@ title: Freescale MXS Inter IC (I2C) Controller
 maintainers:
   - Shawn Guo <shawnguo@kernel.org>
 
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
 properties:
   compatible:
     enum:
@@ -37,7 +40,7 @@ required:
   - dmas
   - dma-names
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

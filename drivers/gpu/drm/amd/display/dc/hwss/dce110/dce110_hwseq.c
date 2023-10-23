@@ -1183,10 +1183,11 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 		dto_params.otg_inst = tg->inst;
 		dto_params.timing = &pipe_ctx->stream->timing;
 		dp_hpo_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
-
-		dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
-		dccg->funcs->disable_symclk32_se(dccg, dp_hpo_inst);
-		dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, dp_hpo_inst);
+		if (dccg) {
+			dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
+			dccg->funcs->disable_symclk32_se(dccg, dp_hpo_inst);
+			dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, dp_hpo_inst);
+		}
 	} else if (dccg && dccg->funcs->disable_symclk_se) {
 		dccg->funcs->disable_symclk_se(dccg, stream_enc->stream_enc_inst,
 					       link_enc->transmitter - TRANSMITTER_UNIPHY_A);

@@ -704,6 +704,7 @@ struct perf_event {
 	/* The cumulative AND of all event_caps for events in this group. */
 	int				group_caps;
 
+	unsigned int			group_generation;
 	struct perf_event		*group_leader;
 	/*
 	 * event->pmu will always point to pmu in which this event belongs.

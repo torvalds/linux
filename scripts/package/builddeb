@@ -64,7 +64,6 @@ install_linux_image () {
 
 	${MAKE} -f ${srctree}/Makefile INSTALL_MOD_PATH="${pdir}" modules_install
 	rm -f "${pdir}/lib/modules/${KERNELRELEASE}/build"
-	rm -f "${pdir}/lib/modules/${KERNELRELEASE}/source"
 
 	# Install the kernel
 	if [ "${ARCH}" = um ] ; then

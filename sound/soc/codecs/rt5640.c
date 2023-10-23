@@ -2403,13 +2403,11 @@ static irqreturn_t rt5640_irq(int irq, void *data)
 	struct rt5640_priv *rt5640 = data;
 	int delay = 0;
 
-	if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER) {
-		cancel_delayed_work_sync(&rt5640->jack_work);
+	if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER)
 		delay = 100;
-	}
 
 	if (rt5640->jack)
-		queue_delayed_work(system_long_wq, &rt5640->jack_work, delay);
+		mod_delayed_work(system_long_wq, &rt5640->jack_work, delay);
 
 	return IRQ_HANDLED;
 }
@@ -2565,10 +2563,9 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 	if (jack_data && jack_data->use_platform_clock)
 		rt5640->use_platform_clock = jack_data->use_platform_clock;
 
-	ret = devm_request_threaded_irq(component->dev, rt5640->irq,
-					NULL, rt5640_irq,
-					IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					"rt5640", rt5640);
+	ret = request_irq(rt5640->irq, rt5640_irq,
+			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+			  "rt5640", rt5640);
 	if (ret) {
 		dev_warn(component->dev, "Failed to request IRQ %d: %d\n", rt5640->irq, ret);
 		rt5640_disable_jack_detect(component);
@@ -2621,14 +2618,14 @@ static void rt5640_enable_hda_jack_detect(
 
 	rt5640->jack = jack;
 
-	ret = devm_request_threaded_irq(component->dev, rt5640->irq,
-					NULL, rt5640_irq, IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					"rt5640", rt5640);
+	ret = request_irq(rt5640->irq, rt5640_irq,
+			  IRQF_TRIGGER_RISING | IRQF_ONESHOT, "rt5640", rt5640);
 	if (ret) {
 		dev_warn(component->dev, "Failed to request IRQ %d: %d\n", rt5640->irq, ret);
-		rt5640->irq = -ENXIO;
+		rt5640->jack = NULL;
 		return;
 	}
+	rt5640->irq_requested = true;
 
 	/* sync initial jack state */
 	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
@@ -2801,12 +2798,12 @@ static int rt5640_suspend(struct snd_soc_component *component)
 {
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
 
-	if (rt5640->irq) {
+	if (rt5640->jack) {
 		/* disable jack interrupts during system suspend */
 		disable_irq(rt5640->irq);
+		rt5640_cancel_work(rt5640);
 	}
 
-	rt5640_cancel_work(rt5640);
 	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
 	rt5640_reset(component);
 	regcache_cache_only(rt5640->regmap, true);
@@ -2828,9 +2825,6 @@ static int rt5640_resume(struct snd_soc_component *component)
 
 	regcache_cache_only(rt5640->regmap, false);
 	regcache_sync(rt5640->regmap);
-
-	if (rt5640->irq)
-		enable_irq(rt5640->irq);
 
 	if (rt5640->jack) {
 		if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER) {
@@ -2859,6 +2853,7 @@ static int rt5640_resume(struct snd_soc_component *component)
 			}
 		}
 
+		enable_irq(rt5640->irq);
 		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 	}
 

@@ -452,11 +452,13 @@ static int aw_dev_parse_reg_bin_with_hdr(struct aw_device *aw_dev,
 	if ((aw_bin->all_bin_parse_num != 1) ||
 		(aw_bin->header_info[0].bin_data_type != DATA_TYPE_REGISTER)) {
 		dev_err(aw_dev->dev, "bin num or type error");
+		ret = -EINVAL;
 		goto parse_bin_failed;
 	}
 
 	if (aw_bin->header_info[0].valid_data_len % 4) {
 		dev_err(aw_dev->dev, "bin data len get error!");
+		ret = -EINVAL;
 		goto parse_bin_failed;
 	}
 

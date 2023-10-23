@@ -686,9 +686,6 @@ static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 	    container_of(base, struct vmw_user_surface, prime.base);
 	struct vmw_resource *res = &user_srf->srf.res;
 
-	if (res->guest_memory_bo)
-		drm_gem_object_put(&res->guest_memory_bo->tbo.base);
-
 	*p_base = NULL;
 	vmw_resource_unreference(&res);
 }
@@ -855,23 +852,21 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	 * expect a backup buffer to be present.
 	 */
 	if (dev_priv->has_mob && req->shareable) {
-		uint32_t backup_handle;
+		struct vmw_bo_params params = {
+			.domain = VMW_BO_DOMAIN_SYS,
+			.busy_domain = VMW_BO_DOMAIN_SYS,
+			.bo_type = ttm_bo_type_device,
+			.size = res->guest_memory_size,
+			.pin = false
+		};
 
-		ret = vmw_gem_object_create_with_handle(dev_priv,
-							file_priv,
-							res->guest_memory_size,
-							&backup_handle,
-							&res->guest_memory_bo);
+		ret = vmw_gem_object_create(dev_priv,
+					    &params,
+					    &res->guest_memory_bo);
 		if (unlikely(ret != 0)) {
 			vmw_resource_unreference(&res);
 			goto out_unlock;
 		}
-		vmw_bo_reference(res->guest_memory_bo);
-		/*
-		 * We don't expose the handle to the userspace and surface
-		 * already holds a gem reference
-		 */
-		drm_gem_handle_delete(file_priv, backup_handle);
 	}
 
 	tmp = vmw_resource_reference(&srf->res);
@@ -1512,7 +1507,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		if (ret == 0) {
 			if (res->guest_memory_bo->tbo.base.size < res->guest_memory_size) {
 				VMW_DEBUG_USER("Surface backup buffer too small.\n");
-				vmw_bo_unreference(&res->guest_memory_bo);
+				vmw_user_bo_unref(&res->guest_memory_bo);
 				ret = -EINVAL;
 				goto out_unlock;
 			} else {
@@ -1526,8 +1521,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 							res->guest_memory_size,
 							&backup_handle,
 							&res->guest_memory_bo);
-		if (ret == 0)
-			vmw_bo_reference(res->guest_memory_bo);
 	}
 
 	if (unlikely(ret != 0)) {

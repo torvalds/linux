@@ -340,8 +340,10 @@ static inline u64 hv_get_non_nested_register(unsigned int reg) { return 0; }
 
 #ifdef CONFIG_HYPERV_VTL_MODE
 void __init hv_vtl_init_platform(void);
+int __init hv_vtl_early_init(void);
 #else
 static inline void __init hv_vtl_init_platform(void) {}
+static inline int __init hv_vtl_early_init(void) { return 0; }
 #endif
 
 #include <asm-generic/mshyperv.h>

@@ -70,6 +70,7 @@ static struct dentry *eventfs_root_lookup(struct inode *dir,
 					  struct dentry *dentry,
 					  unsigned int flags);
 static int dcache_dir_open_wrapper(struct inode *inode, struct file *file);
+static int dcache_readdir_wrapper(struct file *file, struct dir_context *ctx);
 static int eventfs_release(struct inode *inode, struct file *file);
 
 static const struct inode_operations eventfs_root_dir_inode_operations = {
@@ -79,7 +80,7 @@ static const struct inode_operations eventfs_root_dir_inode_operations = {
 static const struct file_operations eventfs_file_operations = {
 	.open		= dcache_dir_open_wrapper,
 	.read		= generic_read_dir,
-	.iterate_shared	= dcache_readdir,
+	.iterate_shared	= dcache_readdir_wrapper,
 	.llseek		= generic_file_llseek,
 	.release	= eventfs_release,
 };
@@ -396,6 +397,11 @@ static struct dentry *eventfs_root_lookup(struct inode *dir,
 	return ret;
 }
 
+struct dentry_list {
+	void			*cursor;
+	struct dentry		**dentries;
+};
+
 /**
  * eventfs_release - called to release eventfs file/dir
  * @inode: inode to be released
@@ -404,26 +410,25 @@ static struct dentry *eventfs_root_lookup(struct inode *dir,
 static int eventfs_release(struct inode *inode, struct file *file)
 {
 	struct tracefs_inode *ti;
-	struct eventfs_inode *ei;
-	struct eventfs_file *ef;
-	struct dentry *dentry;
-	int idx;
+	struct dentry_list *dlist = file->private_data;
+	void *cursor;
+	int i;
 
 	ti = get_tracefs(inode);
 	if (!(ti->flags & TRACEFS_EVENT_INODE))
 		return -EINVAL;
 
-	ei = ti->private;
-	idx = srcu_read_lock(&eventfs_srcu);
-	list_for_each_entry_srcu(ef, &ei->e_top_files, list,
-				 srcu_read_lock_held(&eventfs_srcu)) {
-		mutex_lock(&eventfs_mutex);
-		dentry = ef->dentry;
-		mutex_unlock(&eventfs_mutex);
-		if (dentry)
-			dput(dentry);
+	if (WARN_ON_ONCE(!dlist))
+		return -EINVAL;
+
+	for (i = 0; dlist->dentries && dlist->dentries[i]; i++) {
+		dput(dlist->dentries[i]);
 	}
-	srcu_read_unlock(&eventfs_srcu, idx);
+
+	cursor = dlist->cursor;
+	kfree(dlist->dentries);
+	kfree(dlist);
+	file->private_data = cursor;
 	return dcache_dir_close(inode, file);
 }
 
@@ -442,22 +447,70 @@ static int dcache_dir_open_wrapper(struct inode *inode, struct file *file)
 	struct tracefs_inode *ti;
 	struct eventfs_inode *ei;
 	struct eventfs_file *ef;
+	struct dentry_list *dlist;
+	struct dentry **dentries = NULL;
 	struct dentry *dentry = file_dentry(file);
+	struct dentry *d;
 	struct inode *f_inode = file_inode(file);
+	int cnt = 0;
 	int idx;
+	int ret;
 
 	ti = get_tracefs(f_inode);
 	if (!(ti->flags & TRACEFS_EVENT_INODE))
 		return -EINVAL;
 
+	if (WARN_ON_ONCE(file->private_data))
+		return -EINVAL;
+
+	dlist = kmalloc(sizeof(*dlist), GFP_KERNEL);
+	if (!dlist)
+		return -ENOMEM;
+
 	ei = ti->private;
 	idx = srcu_read_lock(&eventfs_srcu);
 	list_for_each_entry_srcu(ef, &ei->e_top_files, list,
 				 srcu_read_lock_held(&eventfs_srcu)) {
-		create_dentry(ef, dentry, false);
+		d = create_dentry(ef, dentry, false);
+		if (d) {
+			struct dentry **tmp;
+
+			tmp = krealloc(dentries, sizeof(d) * (cnt + 2), GFP_KERNEL);
+			if (!tmp)
+				break;
+			tmp[cnt] = d;
+			tmp[cnt + 1] = NULL;
+			cnt++;
+			dentries = tmp;
+		}
 	}
 	srcu_read_unlock(&eventfs_srcu, idx);
-	return dcache_dir_open(inode, file);
+	ret = dcache_dir_open(inode, file);
+
+	/*
+	 * dcache_dir_open() sets file->private_data to a dentry cursor.
+	 * Need to save that but also save all the dentries that were
+	 * opened by this function.
+	 */
+	dlist->cursor = file->private_data;
+	dlist->dentries = dentries;
+	file->private_data = dlist;
+	return ret;
+}
+
+/*
+ * This just sets the file->private_data back to the cursor and back.
+ */
+static int dcache_readdir_wrapper(struct file *file, struct dir_context *ctx)
+{
+	struct dentry_list *dlist = file->private_data;
+	int ret;
+
+	file->private_data = dlist->cursor;
+	ret = dcache_readdir(file, ctx);
+	dlist->cursor = file->private_data;
+	file->private_data = dlist;
+	return ret;
 }
 
 /**
