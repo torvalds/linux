@@ -559,11 +559,13 @@ static const struct isi_format *find_format_by_fourcc(struct atmel_isi *isi,
 static void isi_try_fse(struct atmel_isi *isi, const struct isi_format *isi_fmt,
 			struct v4l2_subdev_state *sd_state)
 {
-	int ret;
+	struct v4l2_rect *try_crop =
+		v4l2_subdev_get_pad_crop(isi->entity.subdev, sd_state, 0);
 	struct v4l2_subdev_frame_size_enum fse = {
 		.code = isi_fmt->mbus_code,
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
+	int ret;
 
 	ret = v4l2_subdev_call(isi->entity.subdev, pad, enum_frame_size,
 			       sd_state, &fse);
@@ -572,11 +574,11 @@ static void isi_try_fse(struct atmel_isi *isi, const struct isi_format *isi_fmt,
 	 * just use the maximum ISI can receive.
 	 */
 	if (ret) {
-		sd_state->pads->try_crop.width = MAX_SUPPORT_WIDTH;
-		sd_state->pads->try_crop.height = MAX_SUPPORT_HEIGHT;
+		try_crop->width = MAX_SUPPORT_WIDTH;
+		try_crop->height = MAX_SUPPORT_HEIGHT;
 	} else {
-		sd_state->pads->try_crop.width = fse.max_width;
-		sd_state->pads->try_crop.height = fse.max_height;
+		try_crop->width = fse.max_width;
+		try_crop->height = fse.max_height;
 	}
 }
 
