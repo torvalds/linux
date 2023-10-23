@@ -1046,6 +1046,7 @@ static void waltgov_tunables_restore(struct cpufreq_policy *policy)
 	tunables->target_load_shift = cached->target_load_shift;
 }
 
+bool waltgov_disabled = true;
 static int waltgov_init(struct cpufreq_policy *policy)
 {
 	struct waltgov_policy *wg_policy;
@@ -1164,6 +1165,7 @@ static int waltgov_start(struct cpufreq_policy *policy)
 		waltgov_add_callback(cpu, &wg_cpu->cb, waltgov_update_freq);
 	}
 
+	waltgov_disabled = false;
 	return 0;
 }
 
@@ -1181,6 +1183,8 @@ static void waltgov_stop(struct cpufreq_policy *policy)
 		irq_work_sync(&wg_policy->irq_work);
 		kthread_cancel_work_sync(&wg_policy->work);
 	}
+
+	waltgov_disabled = true;
 }
 
 static void waltgov_limits(struct cpufreq_policy *policy)
