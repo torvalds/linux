@@ -210,6 +210,8 @@ struct mt7996_phy {
 
 	struct mt76_mib_stats mib;
 	struct mt76_channel_state state_ts;
+
+	bool has_aux_rx;
 };
 
 struct mt7996_dev {
@@ -500,6 +502,18 @@ static inline void mt7996_irq_disable(struct mt7996_dev *dev, u32 mask)
 
 void mt7996_memcpy_fromio(struct mt7996_dev *dev, void *buf, u32 offset,
 			  size_t len);
+
+static inline u16 mt7996_rx_chainmask(struct mt7996_phy *phy)
+{
+	int max_nss = hweight8(phy->mt76->hw->wiphy->available_antennas_tx);
+	int cur_nss = hweight8(phy->mt76->antenna_mask);
+	u16 tx_chainmask = phy->mt76->chainmask;
+
+	if (cur_nss != max_nss)
+		return tx_chainmask;
+
+	return tx_chainmask | (BIT(fls(tx_chainmask)) * phy->has_aux_rx);
+}
 
 void mt7996_mac_init(struct mt7996_dev *dev);
 u32 mt7996_mac_wtbl_lmac_addr(struct mt7996_dev *dev, u16 wcid, u8 dw);

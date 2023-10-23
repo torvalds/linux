@@ -3299,7 +3299,7 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag)
 		.center_ch = ieee80211_frequency_to_channel(freq1),
 		.bw = mt76_connac_chan_bw(chandef),
 		.tx_path_num = hweight16(phy->mt76->chainmask),
-		.rx_path = phy->mt76->chainmask >> dev->chainshift[band_idx],
+		.rx_path = mt7996_rx_chainmask(phy) >> dev->chainshift[band_idx],
 		.band_idx = band_idx,
 		.channel_band = ch_band[chandef->chan->band],
 	};
