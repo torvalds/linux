@@ -6,6 +6,17 @@
 #ifndef __XFS_RTBITMAP_H__
 #define	__XFS_RTBITMAP_H__
 
+struct xfs_rtalloc_args {
+	struct xfs_mount	*mp;
+	struct xfs_trans	*tp;
+
+	struct xfs_buf		*rbmbp;	/* bitmap block buffer */
+	struct xfs_buf		*sumbp;	/* summary block buffer */
+
+	xfs_fileoff_t		rbmoff;	/* bitmap block number */
+	xfs_fileoff_t		sumoff;	/* summary block number */
+};
+
 static inline xfs_rtblock_t
 xfs_rtx_to_rtb(
 	struct xfs_mount	*mp,
@@ -161,10 +172,10 @@ xfs_rbmblock_to_rtx(
 /* Return a pointer to a bitmap word within a rt bitmap block. */
 static inline union xfs_rtword_raw *
 xfs_rbmblock_wordptr(
-	struct xfs_buf		*bp,
+	struct xfs_rtalloc_args	*args,
 	unsigned int		index)
 {
-	union xfs_rtword_raw	*words = bp->b_addr;
+	union xfs_rtword_raw	*words = args->rbmbp->b_addr;
 
 	return words + index;
 }
@@ -172,10 +183,10 @@ xfs_rbmblock_wordptr(
 /* Convert an ondisk bitmap word to its incore representation. */
 static inline xfs_rtword_t
 xfs_rtbitmap_getword(
-	struct xfs_buf		*bp,
+	struct xfs_rtalloc_args	*args,
 	unsigned int		index)
 {
-	union xfs_rtword_raw	*word = xfs_rbmblock_wordptr(bp, index);
+	union xfs_rtword_raw	*word = xfs_rbmblock_wordptr(args, index);
 
 	return word->old;
 }
@@ -183,11 +194,11 @@ xfs_rtbitmap_getword(
 /* Set an ondisk bitmap word from an incore representation. */
 static inline void
 xfs_rtbitmap_setword(
-	struct xfs_buf		*bp,
+	struct xfs_rtalloc_args	*args,
 	unsigned int		index,
 	xfs_rtword_t		value)
 {
-	union xfs_rtword_raw	*word = xfs_rbmblock_wordptr(bp, index);
+	union xfs_rtword_raw	*word = xfs_rbmblock_wordptr(args, index);
 
 	word->old = value;
 }
@@ -234,10 +245,10 @@ xfs_rtsumoffs_to_infoword(
 /* Return a pointer to a summary info word within a rt summary block. */
 static inline union xfs_suminfo_raw *
 xfs_rsumblock_infoptr(
-	struct xfs_buf		*bp,
+	struct xfs_rtalloc_args	*args,
 	unsigned int		index)
 {
-	union xfs_suminfo_raw	*info = bp->b_addr;
+	union xfs_suminfo_raw	*info = args->sumbp->b_addr;
 
 	return info + index;
 }
@@ -245,10 +256,10 @@ xfs_rsumblock_infoptr(
 /* Get the current value of a summary counter. */
 static inline xfs_suminfo_t
 xfs_suminfo_get(
-	struct xfs_buf		*bp,
+	struct xfs_rtalloc_args	*args,
 	unsigned int		index)
 {
-	union xfs_suminfo_raw	*info = xfs_rsumblock_infoptr(bp, index);
+	union xfs_suminfo_raw	*info = xfs_rsumblock_infoptr(args, index);
 
 	return info->old;
 }
@@ -256,11 +267,11 @@ xfs_suminfo_get(
 /* Add to the current value of a summary counter and return the new value. */
 static inline xfs_suminfo_t
 xfs_suminfo_add(
-	struct xfs_buf		*bp,
+	struct xfs_rtalloc_args	*args,
 	unsigned int		index,
 	int			delta)
 {
-	union xfs_suminfo_raw	*info = xfs_rsumblock_infoptr(bp, index);
+	union xfs_suminfo_raw	*info = xfs_rsumblock_infoptr(args, index);
 
 	info->old += delta;
 	return info->old;
@@ -281,29 +292,41 @@ typedef int (*xfs_rtalloc_query_range_fn)(
 	void				*priv);
 
 #ifdef CONFIG_XFS_RT
-int xfs_rtbuf_get(struct xfs_mount *mp, struct xfs_trans *tp,
-		  xfs_fileoff_t block, int issum, struct xfs_buf **bpp);
-int xfs_rtcheck_range(struct xfs_mount *mp, struct xfs_trans *tp,
-		      xfs_rtxnum_t start, xfs_rtxlen_t len, int val,
-		      xfs_rtxnum_t *new, int *stat);
-int xfs_rtfind_back(struct xfs_mount *mp, struct xfs_trans *tp,
-		    xfs_rtxnum_t start, xfs_rtxnum_t limit,
-		    xfs_rtxnum_t *rtblock);
-int xfs_rtfind_forw(struct xfs_mount *mp, struct xfs_trans *tp,
-		    xfs_rtxnum_t start, xfs_rtxnum_t limit,
-		    xfs_rtxnum_t *rtblock);
-int xfs_rtmodify_range(struct xfs_mount *mp, struct xfs_trans *tp,
-		       xfs_rtxnum_t start, xfs_rtxlen_t len, int val);
-int xfs_rtmodify_summary_int(struct xfs_mount *mp, struct xfs_trans *tp,
-			     int log, xfs_fileoff_t bbno, int delta,
-			     struct xfs_buf **rbpp, xfs_fileoff_t *rsb,
-			     xfs_suminfo_t *sum);
-int xfs_rtmodify_summary(struct xfs_mount *mp, struct xfs_trans *tp, int log,
-			 xfs_fileoff_t bbno, int delta, struct xfs_buf **rbpp,
-			 xfs_fileoff_t *rsb);
-int xfs_rtfree_range(struct xfs_mount *mp, struct xfs_trans *tp,
-		     xfs_rtxnum_t start, xfs_rtxlen_t len,
-		     struct xfs_buf **rbpp, xfs_fileoff_t *rsb);
+void xfs_rtbuf_cache_relse(struct xfs_rtalloc_args *args);
+
+int xfs_rtbuf_get(struct xfs_rtalloc_args *args, xfs_fileoff_t block,
+		int issum);
+
+static inline int
+xfs_rtbitmap_read_buf(
+	struct xfs_rtalloc_args		*args,
+	xfs_fileoff_t			block)
+{
+	return xfs_rtbuf_get(args, block, 0);
+}
+
+static inline int
+xfs_rtsummary_read_buf(
+	struct xfs_rtalloc_args		*args,
+	xfs_fileoff_t			block)
+{
+	return xfs_rtbuf_get(args, block, 1);
+}
+
+int xfs_rtcheck_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
+		xfs_rtxlen_t len, int val, xfs_rtxnum_t *new, int *stat);
+int xfs_rtfind_back(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
+		xfs_rtxnum_t limit, xfs_rtxnum_t *rtblock);
+int xfs_rtfind_forw(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
+		xfs_rtxnum_t limit, xfs_rtxnum_t *rtblock);
+int xfs_rtmodify_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
+		xfs_rtxlen_t len, int val);
+int xfs_rtmodify_summary_int(struct xfs_rtalloc_args *args, int log,
+		xfs_fileoff_t bbno, int delta, xfs_suminfo_t *sum);
+int xfs_rtmodify_summary(struct xfs_rtalloc_args *args, int log,
+		xfs_fileoff_t bbno, int delta);
+int xfs_rtfree_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
+		xfs_rtxlen_t len);
 int xfs_rtalloc_query_range(struct xfs_mount *mp, struct xfs_trans *tp,
 		const struct xfs_rtalloc_rec *low_rec,
 		const struct xfs_rtalloc_rec *high_rec,
@@ -342,7 +365,9 @@ unsigned long long xfs_rtsummary_wordcount(struct xfs_mount *mp,
 # define xfs_rtfree_blocks(t,rb,rl)			(-ENOSYS)
 # define xfs_rtalloc_query_range(m,t,l,h,f,p)		(-ENOSYS)
 # define xfs_rtalloc_query_all(m,t,f,p)			(-ENOSYS)
-# define xfs_rtbuf_get(m,t,b,i,p)			(-ENOSYS)
+# define xfs_rtbitmap_read_buf(a,b)			(-ENOSYS)
+# define xfs_rtsummary_read_buf(a,b)			(-ENOSYS)
+# define xfs_rtbuf_cache_relse(a)			(0)
 # define xfs_rtalloc_extent_is_free(m,t,s,l,i)		(-ENOSYS)
 static inline xfs_filblks_t
 xfs_rtbitmap_blockcount(struct xfs_mount *mp, xfs_rtbxlen_t rtextents)
