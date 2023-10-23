@@ -2035,6 +2035,7 @@ svm_range_split_new(struct svm_range_list *svms, uint64_t start, uint64_t last,
  * @update_list: output, the ranges need validate and update GPU mapping
  * @insert_list: output, the ranges need insert to svms
  * @remove_list: output, the ranges are replaced and need remove from svms
+ * @remap_list: output, remap unaligned svm ranges
  *
  * Check if the virtual address range has overlap with any existing ranges,
  * split partly overlapping ranges and add new ranges in the gaps. All changes
