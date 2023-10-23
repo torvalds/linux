@@ -4398,7 +4398,8 @@ tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
 	l3index = sdif ? dif : 0;
 
 	hash_expected = tcp_md5_do_lookup(sk, l3index, saddr, family);
-	hash_location = tcp_parse_md5sig_option(th);
+	if (tcp_parse_auth_options(th, &hash_location, NULL))
+		return SKB_DROP_REASON_TCP_AUTH_HDR;
 
 	/* We've parsed the options - do we have a hash? */
 	if (!hash_expected && !hash_location)
