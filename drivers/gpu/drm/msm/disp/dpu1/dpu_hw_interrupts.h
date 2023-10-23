@@ -36,7 +36,17 @@ enum dpu_hw_intr_reg {
 
 #define MDP_INTFn_INTR(intf)	(MDP_INTF0_INTR + (intf - INTF_0))
 
-#define DPU_IRQ_IDX(reg_idx, offset)	(reg_idx * 32 + offset)
+#define DPU_IRQ_IDX(reg_idx, offset)	(1 + reg_idx * 32 + offset)
+#define DPU_IRQ_REG(irq_idx)	((irq_idx - 1) / 32)
+#define DPU_IRQ_BIT(irq_idx)	((irq_idx - 1) % 32)
+
+#define DPU_NUM_IRQS		(MDP_INTR_MAX * 32)
+
+struct dpu_hw_intr_entry {
+	void (*cb)(void *arg);
+	void *arg;
+	atomic_t count;
+};
 
 /**
  * struct dpu_hw_intr: hw interrupts handling data structure
@@ -44,7 +54,6 @@ enum dpu_hw_intr_reg {
  * @ops:              function pointer mapping for IRQ handling
  * @cache_irq_mask:   array of IRQ enable masks reg storage created during init
  * @save_irq_status:  array of IRQ status reg storage created during init
- * @total_irqs: total number of irq_idx mapped in the hw_interrupts
  * @irq_lock:         spinlock for accessing IRQ resources
  * @irq_cb_tbl:       array of IRQ callbacks
  */
@@ -52,16 +61,11 @@ struct dpu_hw_intr {
 	struct dpu_hw_blk_reg_map hw;
 	u32 cache_irq_mask[MDP_INTR_MAX];
 	u32 *save_irq_status;
-	u32 total_irqs;
 	spinlock_t irq_lock;
 	unsigned long irq_mask;
 	const struct dpu_intr_reg *intr_set;
 
-	struct {
-		void (*cb)(void *arg, int irq_idx);
-		void *arg;
-		atomic_t count;
-	} irq_tbl[] __counted_by(total_irqs);
+	struct dpu_hw_intr_entry irq_tbl[DPU_NUM_IRQS];
 };
 
 /**
