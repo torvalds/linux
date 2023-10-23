@@ -12,6 +12,7 @@
 #include <linux/reboot.h> /* for LINUX_REBOOT_* */
 #include <linux/stat.h>
 #include <linux/time.h>
+#include <linux/wait.h>
 
 
 /* Only the generic macros and types may be defined here. The arch-specific
@@ -107,9 +108,6 @@
 #define WIFEXITED(status)   (((status) & 0x7f) == 0)
 #define WTERMSIG(status)    ((status) & 0x7f)
 #define WIFSIGNALED(status) ((status) - 1 < 0xff)
-
-/* waitpid() flags */
-#define WNOHANG      1
 
 /* standard exit() codes */
 #define EXIT_SUCCESS 0
