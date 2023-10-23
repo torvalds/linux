@@ -84,6 +84,31 @@ static int rockchip_mdais_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static int rockchip_mdais_hw_free(struct snd_pcm_substream *substream,
+				  struct snd_soc_dai *dai)
+{
+	struct rk_mdais_dev *mdais = to_info(dai);
+	struct snd_soc_dai *child;
+	unsigned int *channel_maps;
+	int ret = 0, i = 0;
+
+	channel_maps = mdais_channel_maps(mdais, substream);
+
+	for (i = 0; i < mdais->num_dais; i++) {
+		child = mdais->dais[i].dai;
+		if (!channel_maps[i])
+			continue;
+
+		if (child->driver->ops && child->driver->ops->hw_free) {
+			ret = child->driver->ops->hw_free(substream, child);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int rockchip_mdais_trigger(struct snd_pcm_substream *substream,
 				  int cmd, struct snd_soc_dai *dai)
 {
@@ -285,6 +310,7 @@ static int rockchip_mdais_dai_probe(struct snd_soc_dai *dai)
 
 static const struct snd_soc_dai_ops rockchip_mdais_dai_ops = {
 	.hw_params = rockchip_mdais_hw_params,
+	.hw_free = rockchip_mdais_hw_free,
 	.set_sysclk = rockchip_mdais_set_sysclk,
 	.set_fmt = rockchip_mdais_set_fmt,
 	.set_tdm_slot = rockchip_mdais_tdm_slot,
