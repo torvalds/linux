@@ -16068,13 +16068,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hubcap/linux.git
 F:	Documentation/filesystems/orangefs.rst
 F:	fs/orangefs/
 
-ORINOCO DRIVER
-L:	linux-wireless@vger.kernel.org
-S:	Orphan
-W:	https://wireless.wiki.kernel.org/en/users/Drivers/orinoco
-W:	http://www.nongnu.org/orinoco/
-F:	drivers/net/wireless/intersil/orinoco/
-
 OV2659 OMNIVISION SENSOR DRIVER
 M:	"Lad, Prabhakar" <prabhakar.csengg@gmail.com>
 L:	linux-media@vger.kernel.org
