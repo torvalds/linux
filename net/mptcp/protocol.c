@@ -1760,6 +1760,18 @@ static int mptcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 	return ret;
 }
 
+static int do_copy_data_nocache(struct sock *sk, int copy,
+				struct iov_iter *from, char *to)
+{
+	if (sk->sk_route_caps & NETIF_F_NOCACHE_COPY) {
+		if (!copy_from_iter_full_nocache(to, copy, from))
+			return -EFAULT;
+	} else if (!copy_from_iter_full(to, copy, from)) {
+		return -EFAULT;
+	}
+	return 0;
+}
+
 static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
@@ -1833,11 +1845,10 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if (!sk_wmem_schedule(sk, total_ts))
 			goto wait_for_memory;
 
-		if (copy_page_from_iter(dfrag->page, offset, psize,
-					&msg->msg_iter) != psize) {
-			ret = -EFAULT;
+		ret = do_copy_data_nocache(sk, psize, &msg->msg_iter,
+					   page_address(dfrag->page) + offset);
+		if (ret)
 			goto do_error;
-		}
 
 		/* data successfully copied into the write queue */
 		sk_forward_alloc_add(sk, -total_ts);
