@@ -23236,11 +23236,6 @@ M:	Miloslav Trmac <mitr@volny.cz>
 S:	Maintained
 F:	drivers/input/misc/wistron_btns.c
 
-WL3501 WIRELESS PCMCIA CARD DRIVER
-L:	linux-wireless@vger.kernel.org
-S:	Orphan
-F:	drivers/net/wireless/legacy/wl3501*
-
 WMI BINARY MOF DRIVER
 M:	Armin Wolf <W_Armin@gmx.de>
 R:	Thomas Weißschuh <linux@weissschuh.net>
