@@ -1131,14 +1131,13 @@ static int dev_prep_valid_name(struct net *net, struct net_device *dev,
 	if (!dev_valid_name(want_name))
 		return -EINVAL;
 
-	if (strchr(want_name, '%')) {
+	if (strchr(want_name, '%'))
 		return __dev_alloc_name(net, want_name, out_name);
-	} else if (netdev_name_in_use(net, want_name)) {
-		return -dup_errno;
-	} else if (out_name != want_name) {
-		strscpy(out_name, want_name, IFNAMSIZ);
-	}
 
+	if (netdev_name_in_use(net, want_name))
+		return -dup_errno;
+	if (out_name != want_name)
+		strscpy(out_name, want_name, IFNAMSIZ);
 	return 0;
 }
 
