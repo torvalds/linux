@@ -1316,7 +1316,6 @@ struct rtl_phy {
 	u8 sw_chnl_stage;
 	u8 sw_chnl_step;
 	u8 current_channel;
-	u8 h2c_box_num;
 	u8 set_io_inprogress;
 	u8 lck_inprogress;
 
@@ -1329,9 +1328,6 @@ struct rtl_phy {
 	s32 reg_ebc;
 	s32 reg_ec4;
 	s32 reg_ecc;
-	u8 rfpienable;
-	u8 reserve_0;
-	u16 reserve_1;
 	u32 reg_c04, reg_c08, reg_874;
 	u32 adda_backup[16];
 	u32 iqk_mac_backup[IQK_MAC_REG_NUM];
@@ -1345,7 +1341,6 @@ struct rtl_phy {
 	struct iqk_matrix_regs iqk_matrix[IQK_MATRIX_SETTINGS_NUM];
 
 	bool rfpi_enable;
-	bool iqk_in_progress;
 
 	u8 pwrgroup_cnt;
 	u8 cck_high_power;
@@ -1383,7 +1378,6 @@ struct rtl_phy {
 			 [MAX_RF_PATH_NUM];
 
 	u32 rfreg_chnlval[2];
-	bool apk_done;
 	u32 reg_rf3c[2];	/* pathA / pathB  */
 
 	u32 backup_rf_0x1a;/*92ee*/
@@ -1395,7 +1389,6 @@ struct rtl_phy {
 	struct phy_parameters hwparam_tables[MAX_TAB];
 	u16 rf_pathmap;
 
-	u8 hw_rof_enable; /*Enable GPIO[9] as WL RF HW PDn source*/
 	enum rt_polarity_ctl polarity_ctl;
 };
 

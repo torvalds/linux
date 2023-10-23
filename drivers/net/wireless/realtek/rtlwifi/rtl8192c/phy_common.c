@@ -1487,12 +1487,8 @@ EXPORT_SYMBOL(rtl92c_phy_lc_calibrate);
 
 void rtl92c_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
-	if (rtlphy->apk_done)
-		return;
 	if (IS_92C_SERIAL(rtlhal->version))
 		_rtl92c_phy_ap_calibrate(hw, delta, true);
 	else
