@@ -1085,10 +1085,10 @@ struct rt_pwr_save_ctrl {
 
 #define RT_RF_CHANGE_SOURCE u32
 
-#define RF_CHANGE_BY_SW BIT31
-#define RF_CHANGE_BY_HW BIT30
-#define RF_CHANGE_BY_PS BIT29
-#define RF_CHANGE_BY_IPS BIT28
+#define RF_CHANGE_BY_SW BIT(31)
+#define RF_CHANGE_BY_HW BIT(30)
+#define RF_CHANGE_BY_PS BIT(29)
+#define RF_CHANGE_BY_IPS BIT(28)
 #define RF_CHANGE_BY_INIT	0
 
 enum country_code_type {
