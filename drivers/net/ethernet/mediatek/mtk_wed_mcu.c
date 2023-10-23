@@ -258,15 +258,11 @@ mtk_wed_get_memory_region(struct mtk_wed_hw *hw, int index,
 }
 
 static int
-mtk_wed_mcu_run_firmware(struct mtk_wed_wo *wo, const struct firmware *fw,
-			 struct mtk_wed_wo_memory_region *region)
+mtk_wed_mcu_run_firmware(struct mtk_wed_wo *wo, const struct firmware *fw)
 {
 	const u8 *first_region_ptr, *region_ptr, *trailer_ptr, *ptr = fw->data;
 	const struct mtk_wed_fw_trailer *trailer;
 	const struct mtk_wed_fw_region *fw_region;
-
-	if (!region->phy_addr || !region->size)
-		return 0;
 
 	trailer_ptr = fw->data + fw->size - sizeof(*trailer);
 	trailer = (const struct mtk_wed_fw_trailer *)trailer_ptr;
@@ -275,33 +271,41 @@ mtk_wed_mcu_run_firmware(struct mtk_wed_wo *wo, const struct firmware *fw,
 
 	while (region_ptr < trailer_ptr) {
 		u32 length;
+		int i;
 
 		fw_region = (const struct mtk_wed_fw_region *)region_ptr;
 		length = le32_to_cpu(fw_region->len);
-
-		if (region->phy_addr != le32_to_cpu(fw_region->addr))
-			goto next;
-
-		if (region->size < length)
-			goto next;
-
 		if (first_region_ptr < ptr + length)
 			goto next;
 
-		if (region->shared && region->consumed)
-			return 0;
+		for (i = 0; i < ARRAY_SIZE(mem_region); i++) {
+			struct mtk_wed_wo_memory_region *region;
 
-		if (!region->shared || !region->consumed) {
-			memcpy_toio(region->addr, ptr, length);
-			region->consumed = true;
-			return 0;
+			region = &mem_region[i];
+			if (region->phy_addr != le32_to_cpu(fw_region->addr))
+				continue;
+
+			if (region->size < length)
+				continue;
+
+			if (region->shared && region->consumed)
+				break;
+
+			if (!region->shared || !region->consumed) {
+				memcpy_toio(region->addr, ptr, length);
+				region->consumed = true;
+				break;
+			}
 		}
+
+		if (i == ARRAY_SIZE(mem_region))
+			return -EINVAL;
 next:
 		region_ptr += sizeof(*fw_region);
 		ptr += length;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 static int
@@ -360,11 +364,9 @@ mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 	dev_info(wo->hw->dev, "MTK WED WO Chip ID %02x Region %d\n",
 		 trailer->chip_id, trailer->num_region);
 
-	for (i = 0; i < ARRAY_SIZE(mem_region); i++) {
-		ret = mtk_wed_mcu_run_firmware(wo, fw, &mem_region[i]);
-		if (ret)
-			goto out;
-	}
+	ret = mtk_wed_mcu_run_firmware(wo, fw);
+	if (ret)
+		goto out;
 
 	/* set the start address */
 	if (!mtk_wed_is_v3_or_greater(wo->hw) && wo->hw->index)
