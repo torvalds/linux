@@ -4159,6 +4159,9 @@ int ksz_switch_register(struct ksz_device *dev)
 			dev_err(dev->dev, "inconsistent synclko settings\n");
 			return -EINVAL;
 		}
+
+		dev->wakeup_source = of_property_read_bool(dev->dev->of_node,
+							   "wakeup-source");
 	}
 
 	ret = dsa_register_switch(dev->ds);

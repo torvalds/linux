@@ -163,6 +163,7 @@ struct ksz_device {
 	phy_interface_t compat_interface;
 	bool synclko_125;
 	bool synclko_disable;
+	bool wakeup_source;
 
 	struct vlan_table *vlan_cache;
 
