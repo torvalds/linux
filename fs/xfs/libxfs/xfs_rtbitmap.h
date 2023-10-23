@@ -6,6 +6,131 @@
 #ifndef __XFS_RTBITMAP_H__
 #define	__XFS_RTBITMAP_H__
 
+static inline xfs_rtblock_t
+xfs_rtx_to_rtb(
+	struct xfs_mount	*mp,
+	xfs_rtxnum_t		rtx)
+{
+	if (mp->m_rtxblklog >= 0)
+		return rtx << mp->m_rtxblklog;
+
+	return rtx * mp->m_sb.sb_rextsize;
+}
+
+static inline xfs_extlen_t
+xfs_rtxlen_to_extlen(
+	struct xfs_mount	*mp,
+	xfs_rtxlen_t		rtxlen)
+{
+	if (mp->m_rtxblklog >= 0)
+		return rtxlen << mp->m_rtxblklog;
+
+	return rtxlen * mp->m_sb.sb_rextsize;
+}
+
+/* Compute the misalignment between an extent length and a realtime extent .*/
+static inline unsigned int
+xfs_extlen_to_rtxmod(
+	struct xfs_mount	*mp,
+	xfs_extlen_t		len)
+{
+	if (mp->m_rtxblklog >= 0)
+		return len & mp->m_rtxblkmask;
+
+	return len % mp->m_sb.sb_rextsize;
+}
+
+static inline xfs_rtxlen_t
+xfs_extlen_to_rtxlen(
+	struct xfs_mount	*mp,
+	xfs_extlen_t		len)
+{
+	if (mp->m_rtxblklog >= 0)
+		return len >> mp->m_rtxblklog;
+
+	return len / mp->m_sb.sb_rextsize;
+}
+
+/* Convert an rt block number into an rt extent number. */
+static inline xfs_rtxnum_t
+xfs_rtb_to_rtx(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno)
+{
+	if (likely(mp->m_rtxblklog >= 0))
+		return rtbno >> mp->m_rtxblklog;
+
+	return div_u64(rtbno, mp->m_sb.sb_rextsize);
+}
+
+/* Return the offset of an rt block number within an rt extent. */
+static inline xfs_extlen_t
+xfs_rtb_to_rtxoff(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno)
+{
+	if (likely(mp->m_rtxblklog >= 0))
+		return rtbno & mp->m_rtxblkmask;
+
+	return do_div(rtbno, mp->m_sb.sb_rextsize);
+}
+
+/*
+ * Crack an rt block number into an rt extent number and an offset within that
+ * rt extent.  Returns the rt extent number directly and the offset in @off.
+ */
+static inline xfs_rtxnum_t
+xfs_rtb_to_rtxrem(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno,
+	xfs_extlen_t		*off)
+{
+	if (likely(mp->m_rtxblklog >= 0)) {
+		*off = rtbno & mp->m_rtxblkmask;
+		return rtbno >> mp->m_rtxblklog;
+	}
+
+	return div_u64_rem(rtbno, mp->m_sb.sb_rextsize, off);
+}
+
+/*
+ * Convert an rt block number into an rt extent number, rounding up to the next
+ * rt extent if the rt block is not aligned to an rt extent boundary.
+ */
+static inline xfs_rtxnum_t
+xfs_rtb_to_rtxup(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno)
+{
+	if (likely(mp->m_rtxblklog >= 0)) {
+		if (rtbno & mp->m_rtxblkmask)
+			return (rtbno >> mp->m_rtxblklog) + 1;
+		return rtbno >> mp->m_rtxblklog;
+	}
+
+	if (do_div(rtbno, mp->m_sb.sb_rextsize))
+		rtbno++;
+	return rtbno;
+}
+
+/* Round this rtblock up to the nearest rt extent size. */
+static inline xfs_rtblock_t
+xfs_rtb_roundup_rtx(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno)
+{
+	return roundup_64(rtbno, mp->m_sb.sb_rextsize);
+}
+
+/* Round this rtblock down to the nearest rt extent size. */
+static inline xfs_rtblock_t
+xfs_rtb_rounddown_rtx(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno)
+{
+	return rounddown_64(rtbno, mp->m_sb.sb_rextsize);
+}
+
 /*
  * Functions for walking free space rtextents in the realtime bitmap.
  */

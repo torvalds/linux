@@ -20,6 +20,7 @@
 #include "xfs_reflink.h"
 #include "xfs_rmap.h"
 #include "xfs_bmap_util.h"
+#include "xfs_rtbitmap.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
@@ -225,7 +226,7 @@ xchk_inode_extsize(
 	 */
 	if ((flags & XFS_DIFLAG_RTINHERIT) &&
 	    (flags & XFS_DIFLAG_EXTSZINHERIT) &&
-	    value % sc->mp->m_sb.sb_rextsize > 0)
+	    xfs_extlen_to_rtxmod(sc->mp, value) > 0)
 		xchk_ino_set_warning(sc, ino);
 }
 
