@@ -1077,9 +1077,6 @@ static int __dev_alloc_name(struct net *net, const char *name, char *res)
 	struct net_device *d;
 	char buf[IFNAMSIZ];
 
-	if (!dev_valid_name(name))
-		return -EINVAL;
-
 	/* Verify the string as this thing may have come from the user.
 	 * There must be one "%d" and no other "%" characters.
 	 */
