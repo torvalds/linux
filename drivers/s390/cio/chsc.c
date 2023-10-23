@@ -393,8 +393,8 @@ static void format_node_data(char *params, char *id, struct node_descriptor *nd)
 	memset(id, 0, NODEID_LEN);
 
 	if (nd->validity != ND_VALIDITY_VALID) {
-		strncpy(params, "n/a", PARAMS_LEN - 1);
-		strncpy(id, "n/a", NODEID_LEN - 1);
+		strscpy(params, "n/a", PARAMS_LEN);
+		strscpy(id, "n/a", NODEID_LEN);
 		return;
 	}
 
