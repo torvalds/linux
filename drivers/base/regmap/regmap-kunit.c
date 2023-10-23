@@ -442,10 +442,18 @@ static struct regmap_range_cfg test_range = {
 	.range_max = 40,
 };
 
-static bool test_range_volatile(struct device *dev, unsigned int reg)
+static bool test_range_window_volatile(struct device *dev, unsigned int reg)
 {
 	if (reg >= test_range.window_start &&
 	    reg <= test_range.window_start + test_range.window_len)
+		return true;
+
+	return false;
+}
+
+static bool test_range_all_volatile(struct device *dev, unsigned int reg)
+{
+	if (test_range_window_volatile(dev, reg))
 		return true;
 
 	if (reg >= test_range.range_min && reg <= test_range.range_max)
@@ -465,7 +473,7 @@ static void basic_ranges(struct kunit *test)
 
 	config = test_regmap_config;
 	config.cache_type = t->type;
-	config.volatile_reg = test_range_volatile;
+	config.volatile_reg = test_range_all_volatile;
 	config.ranges = &test_range;
 	config.num_ranges = 1;
 	config.max_register = test_range.range_max;
@@ -875,6 +883,59 @@ static void cache_present(struct kunit *test)
 	regmap_exit(map);
 }
 
+/* Check that caching the window register works with sync */
+static void cache_range_window_reg(struct kunit *test)
+{
+	struct regcache_types *t = (struct regcache_types *)test->param_value;
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int val;
+	int i;
+
+	config = test_regmap_config;
+	config.cache_type = t->type;
+	config.volatile_reg = test_range_window_volatile;
+	config.ranges = &test_range;
+	config.num_ranges = 1;
+	config.max_register = test_range.range_max;
+
+	map = gen_regmap(&config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	/* Write new values to the entire range */
+	for (i = test_range.range_min; i <= test_range.range_max; i++)
+		KUNIT_ASSERT_EQ(test, 0, regmap_write(map, i, 0));
+
+	val = data->vals[test_range.selector_reg] & test_range.selector_mask;
+	KUNIT_ASSERT_EQ(test, val, 2);
+
+	/* Write to the first register in the range to reset the page */
+	KUNIT_ASSERT_EQ(test, 0, regmap_write(map, test_range.range_min, 0));
+	val = data->vals[test_range.selector_reg] & test_range.selector_mask;
+	KUNIT_ASSERT_EQ(test, val, 0);
+
+	/* Trigger a cache sync */
+	regcache_mark_dirty(map);
+	KUNIT_ASSERT_EQ(test, 0, regcache_sync(map));
+
+	/* Write to the first register again, the page should be reset */
+	KUNIT_ASSERT_EQ(test, 0, regmap_write(map, test_range.range_min, 0));
+	val = data->vals[test_range.selector_reg] & test_range.selector_mask;
+	KUNIT_ASSERT_EQ(test, val, 0);
+
+	/* Trigger another cache sync */
+	regcache_mark_dirty(map);
+	KUNIT_ASSERT_EQ(test, 0, regcache_sync(map));
+
+	/* Write to the last register again, the page should be reset */
+	KUNIT_ASSERT_EQ(test, 0, regmap_write(map, test_range.range_max, 0));
+	val = data->vals[test_range.selector_reg] & test_range.selector_mask;
+	KUNIT_ASSERT_EQ(test, val, 2);
+}
+
 struct raw_test_types {
 	const char *name;
 
@@ -1217,6 +1278,7 @@ static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(cache_sync_patch, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_drop, sparse_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_present, sparse_cache_types_gen_params),
+	KUNIT_CASE_PARAM(cache_range_window_reg, real_cache_types_gen_params),
 
 	KUNIT_CASE_PARAM(raw_read_defaults_single, raw_test_types_gen_params),
 	KUNIT_CASE_PARAM(raw_read_defaults, raw_test_types_gen_params),
