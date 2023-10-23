@@ -2310,7 +2310,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mutex_init(&tsi148_device->vme_rmw);
 
 	tsi148_bridge->parent = &pdev->dev;
-	strcpy(tsi148_bridge->name, driver_name);
+	strscpy(tsi148_bridge->name, driver_name, VMENAMSIZ);
 
 	/* Setup IRQ */
 	retval = tsi148_irq_init(tsi148_bridge);
