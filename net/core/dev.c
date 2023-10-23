@@ -1137,19 +1137,18 @@ static int __dev_alloc_name(struct net *net, const char *name, char *res)
 	return -ENFILE;
 }
 
+/* Returns negative errno or allocated unit id (see __dev_alloc_name()) */
 static int dev_prep_valid_name(struct net *net, struct net_device *dev,
-			       const char *want_name, char *out_name)
+			       const char *want_name, char *out_name,
+			       int dup_errno)
 {
-	int ret;
-
 	if (!dev_valid_name(want_name))
 		return -EINVAL;
 
 	if (strchr(want_name, '%')) {
-		ret = __dev_alloc_name(net, want_name, out_name);
-		return ret < 0 ? ret : 0;
+		return __dev_alloc_name(net, want_name, out_name);
 	} else if (netdev_name_in_use(net, want_name)) {
-		return -EEXIST;
+		return -dup_errno;
 	} else if (out_name != want_name) {
 		strscpy(out_name, want_name, IFNAMSIZ);
 	}
@@ -1173,14 +1172,17 @@ static int dev_prep_valid_name(struct net *net, struct net_device *dev,
 
 int dev_alloc_name(struct net_device *dev, const char *name)
 {
-	return __dev_alloc_name(dev_net(dev), name, dev->name);
+	return dev_prep_valid_name(dev_net(dev), dev, name, dev->name, ENFILE);
 }
 EXPORT_SYMBOL(dev_alloc_name);
 
 static int dev_get_valid_name(struct net *net, struct net_device *dev,
 			      const char *name)
 {
-	return dev_prep_valid_name(net, dev, name, dev->name);
+	int ret;
+
+	ret = dev_prep_valid_name(net, dev, name, dev->name, EEXIST);
+	return ret < 0 ? ret : 0;
 }
 
 /**
@@ -11118,7 +11120,7 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 		/* We get here if we can't use the current device name */
 		if (!pat)
 			goto out;
-		err = dev_prep_valid_name(net, dev, pat, new_name);
+		err = dev_prep_valid_name(net, dev, pat, new_name, EEXIST);
 		if (err < 0)
 			goto out;
 	}
