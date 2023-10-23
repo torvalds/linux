@@ -41,6 +41,9 @@ EXPORT_SYMBOL(simple_getattr);
 
 int simple_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	u64 id = huge_encode_dev(dentry->d_sb->s_dev);
+
+	buf->f_fsid = u64_to_fsid(id);
 	buf->f_type = dentry->d_sb->s_magic;
 	buf->f_bsize = PAGE_SIZE;
 	buf->f_namelen = NAME_MAX;
