@@ -1595,7 +1595,7 @@ static int fanotify_test_fid(struct dentry *dentry, unsigned int flags)
 	 * file handles so user can use name_to_handle_at() to compare fids
 	 * reported with events to the file handle of watched objects.
 	 */
-	if (!nop)
+	if (!exportfs_can_encode_fid(nop))
 		return -EOPNOTSUPP;
 
 	/*
@@ -1603,7 +1603,7 @@ static int fanotify_test_fid(struct dentry *dentry, unsigned int flags)
 	 * supports decoding file handles, so user has a way to map back the
 	 * reported fids to filesystem objects.
 	 */
-	if (mark_type != FAN_MARK_INODE && !nop->fh_to_dentry)
+	if (mark_type != FAN_MARK_INODE && !exportfs_can_decode_fh(nop))
 		return -EOPNOTSUPP;
 
 	return 0;

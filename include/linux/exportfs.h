@@ -233,6 +233,33 @@ extern int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
 extern int exportfs_encode_fh(struct dentry *dentry, struct fid *fid,
 			      int *max_len, int flags);
 
+static inline bool exportfs_can_encode_fid(const struct export_operations *nop)
+{
+	return nop;
+}
+
+static inline bool exportfs_can_decode_fh(const struct export_operations *nop)
+{
+	return nop && nop->fh_to_dentry;
+}
+
+static inline bool exportfs_can_encode_fh(const struct export_operations *nop,
+					  int fh_flags)
+{
+	/*
+	 * If a non-decodeable file handle was requested, we only need to make
+	 * sure that filesystem can encode file handles.
+	 */
+	if (fh_flags & EXPORT_FH_FID)
+		return exportfs_can_encode_fid(nop);
+
+	/*
+	 * If a decodeable file handle was requested, we need to make sure that
+	 * filesystem can also decode file handles.
+	 */
+	return exportfs_can_decode_fh(nop);
+}
+
 static inline int exportfs_encode_fid(struct inode *inode, struct fid *fid,
 				      int *max_len)
 {

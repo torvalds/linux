@@ -396,11 +396,7 @@ int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
 {
 	const struct export_operations *nop = inode->i_sb->s_export_op;
 
-	/*
-	 * If a decodeable file handle was requested, we need to make sure that
-	 * filesystem can decode file handles.
-	 */
-	if (nop && !(flags & EXPORT_FH_FID) && !nop->fh_to_dentry)
+	if (!exportfs_can_encode_fh(nop, flags))
 		return -EOPNOTSUPP;
 
 	if (nop && nop->encode_fh)
@@ -456,7 +452,7 @@ exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
 	/*
 	 * Try to get any dentry for the given file handle from the filesystem.
 	 */
-	if (!nop || !nop->fh_to_dentry)
+	if (!exportfs_can_decode_fh(nop))
 		return ERR_PTR(-ESTALE);
 	result = nop->fh_to_dentry(mnt->mnt_sb, fid, fh_len, fileid_type);
 	if (IS_ERR_OR_NULL(result))
