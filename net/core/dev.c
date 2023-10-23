@@ -1057,7 +1057,7 @@ EXPORT_SYMBOL(dev_valid_name);
  *	__dev_alloc_name - allocate a name for a device
  *	@net: network namespace to allocate the device name in
  *	@name: name format string
- *	@buf:  scratch buffer and result name string
+ *	@res: result name string
  *
  *	Passed a format string - eg "lt%d" it will try and find a suitable
  *	id. It scans list of devices to build up a free map, then chooses
@@ -1068,13 +1068,14 @@ EXPORT_SYMBOL(dev_valid_name);
  *	Returns the number of the unit assigned or a negative errno code.
  */
 
-static int __dev_alloc_name(struct net *net, const char *name, char *buf)
+static int __dev_alloc_name(struct net *net, const char *name, char *res)
 {
 	int i = 0;
 	const char *p;
 	const int max_netdevices = 8*PAGE_SIZE;
 	unsigned long *inuse;
 	struct net_device *d;
+	char buf[IFNAMSIZ];
 
 	if (!dev_valid_name(name))
 		return -EINVAL;
@@ -1124,8 +1125,10 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 	}
 
 	snprintf(buf, IFNAMSIZ, name, i);
-	if (!netdev_name_in_use(net, buf))
+	if (!netdev_name_in_use(net, buf)) {
+		strscpy(res, buf, IFNAMSIZ);
 		return i;
+	}
 
 	/* It is possible to run out of possible slots
 	 * when the name is long and there isn't enough space left
@@ -1154,20 +1157,6 @@ static int dev_prep_valid_name(struct net *net, struct net_device *dev,
 	return 0;
 }
 
-static int dev_alloc_name_ns(struct net *net,
-			     struct net_device *dev,
-			     const char *name)
-{
-	char buf[IFNAMSIZ];
-	int ret;
-
-	BUG_ON(!net);
-	ret = __dev_alloc_name(net, name, buf);
-	if (ret >= 0)
-		strscpy(dev->name, buf, IFNAMSIZ);
-	return ret;
-}
-
 /**
  *	dev_alloc_name - allocate a name for a device
  *	@dev: device
@@ -1184,20 +1173,14 @@ static int dev_alloc_name_ns(struct net *net,
 
 int dev_alloc_name(struct net_device *dev, const char *name)
 {
-	return dev_alloc_name_ns(dev_net(dev), dev, name);
+	return __dev_alloc_name(dev_net(dev), name, dev->name);
 }
 EXPORT_SYMBOL(dev_alloc_name);
 
 static int dev_get_valid_name(struct net *net, struct net_device *dev,
 			      const char *name)
 {
-	char buf[IFNAMSIZ];
-	int ret;
-
-	ret = dev_prep_valid_name(net, dev, name, buf);
-	if (ret >= 0)
-		strscpy(dev->name, buf, IFNAMSIZ);
-	return ret;
+	return dev_prep_valid_name(net, dev, name, dev->name);
 }
 
 /**
