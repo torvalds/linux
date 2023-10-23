@@ -445,7 +445,7 @@ static struct regmap_range_cfg test_range = {
 static bool test_range_volatile(struct device *dev, unsigned int reg)
 {
 	if (reg >= test_range.window_start &&
-	    reg <= test_range.selector_reg + test_range.window_len)
+	    reg <= test_range.window_start + test_range.window_len)
 		return true;
 
 	if (reg >= test_range.range_min && reg <= test_range.range_max)
