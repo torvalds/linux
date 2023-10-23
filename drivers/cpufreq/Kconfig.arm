@@ -124,8 +124,8 @@ config ARM_IMX_CPUFREQ_DT
 	tristate "Freescale i.MX8M cpufreq support"
 	depends on ARCH_MXC && CPUFREQ_DT
 	help
-	  This adds cpufreq driver support for Freescale i.MX8M series SoCs,
-	  based on cpufreq-dt.
+	  This adds cpufreq driver support for Freescale i.MX7/i.MX8M
+	  series SoCs, based on cpufreq-dt.
 
 	  If in doubt, say N.
 
