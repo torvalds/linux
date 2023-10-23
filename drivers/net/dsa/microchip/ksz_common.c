@@ -441,6 +441,7 @@ static const u8 ksz8795_shifts[] = {
 };
 
 static const u16 ksz8863_regs[] = {
+	[REG_SW_MAC_ADDR]		= 0x70,
 	[REG_IND_CTRL_0]		= 0x79,
 	[REG_IND_DATA_8]		= 0x7B,
 	[REG_IND_DATA_CHECK]		= 0x7B,
