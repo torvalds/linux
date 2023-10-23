@@ -1072,6 +1072,8 @@ v3d_gem_destroy(struct drm_device *dev)
 	 */
 	WARN_ON(v3d->bin_job);
 	WARN_ON(v3d->render_job);
+	WARN_ON(v3d->tfu_job);
+	WARN_ON(v3d->csd_job);
 
 	drm_mm_takedown(&v3d->mm);
 
