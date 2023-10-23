@@ -706,7 +706,7 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56)
 
 	mutex_lock(&cs35l56->base.irq_lock);
 
-	init_completion(&cs35l56->init_completion);
+	reinit_completion(&cs35l56->init_completion);
 
 	cs35l56->soft_resetting = true;
 	cs35l56_system_reset(&cs35l56->base, !!cs35l56->sdw_peripheral);
@@ -1185,6 +1185,12 @@ post_soft_reset:
 
 	/* Registers could be dirty after soft reset or SoundWire enumeration */
 	regcache_sync(cs35l56->base.regmap);
+
+	/* Set ASP1 DOUT to high-impedance when it is not transmitting audio data. */
+	ret = regmap_set_bits(cs35l56->base.regmap, CS35L56_ASP1_CONTROL3,
+			      CS35L56_ASP1_DOUT_HIZ_CTRL_MASK);
+	if (ret)
+		return dev_err_probe(cs35l56->base.dev, ret, "Failed to write ASP1_CONTROL3\n");
 
 	cs35l56->base.init_done = true;
 	complete(&cs35l56->init_completion);

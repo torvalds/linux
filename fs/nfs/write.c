@@ -788,6 +788,8 @@ static void nfs_inode_add_request(struct nfs_page *req)
  */
 static void nfs_inode_remove_request(struct nfs_page *req)
 {
+	struct nfs_inode *nfsi = NFS_I(nfs_page_to_inode(req));
+
 	if (nfs_page_group_sync_on_bit(req, PG_REMOVE)) {
 		struct folio *folio = nfs_page_to_folio(req->wb_head);
 		struct address_space *mapping = folio_file_mapping(folio);
@@ -802,7 +804,7 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 	}
 
 	if (test_and_clear_bit(PG_INODE_REF, &req->wb_flags)) {
-		atomic_long_dec(&NFS_I(nfs_page_to_inode(req))->nrequests);
+		atomic_long_dec(&nfsi->nrequests);
 		nfs_release_request(req);
 	}
 }

@@ -295,7 +295,7 @@ static int perf_pmu__parse_scale(struct perf_pmu *pmu, struct perf_pmu_alias *al
 	len = perf_pmu__event_source_devices_scnprintf(path, sizeof(path));
 	if (!len)
 		return 0;
-	scnprintf(path + len, sizeof(path) - len, "%s/%s.scale", pmu->name, alias->name);
+	scnprintf(path + len, sizeof(path) - len, "%s/events/%s.scale", pmu->name, alias->name);
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1)
@@ -330,7 +330,7 @@ static int perf_pmu__parse_unit(struct perf_pmu *pmu, struct perf_pmu_alias *ali
 	len = perf_pmu__event_source_devices_scnprintf(path, sizeof(path));
 	if (!len)
 		return 0;
-	scnprintf(path + len, sizeof(path) - len, "%s/%s.unit", pmu->name, alias->name);
+	scnprintf(path + len, sizeof(path) - len, "%s/events/%s.unit", pmu->name, alias->name);
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1)
@@ -364,7 +364,7 @@ perf_pmu__parse_per_pkg(struct perf_pmu *pmu, struct perf_pmu_alias *alias)
 	len = perf_pmu__event_source_devices_scnprintf(path, sizeof(path));
 	if (!len)
 		return 0;
-	scnprintf(path + len, sizeof(path) - len, "%s/%s.per-pkg", pmu->name, alias->name);
+	scnprintf(path + len, sizeof(path) - len, "%s/events/%s.per-pkg", pmu->name, alias->name);
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1)
@@ -385,7 +385,7 @@ static int perf_pmu__parse_snapshot(struct perf_pmu *pmu, struct perf_pmu_alias 
 	len = perf_pmu__event_source_devices_scnprintf(path, sizeof(path));
 	if (!len)
 		return 0;
-	scnprintf(path + len, sizeof(path) - len, "%s/%s.snapshot", pmu->name, alias->name);
+	scnprintf(path + len, sizeof(path) - len, "%s/events/%s.snapshot", pmu->name, alias->name);
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1)

@@ -881,8 +881,10 @@ static loff_t iomap_write_iter(struct iomap_iter *iter, struct iov_iter *i)
 		size_t bytes;		/* Bytes to write to folio */
 		size_t copied;		/* Bytes copied from user */
 
+		bytes = iov_iter_count(i);
+retry:
 		offset = pos & (chunk - 1);
-		bytes = min(chunk - offset, iov_iter_count(i));
+		bytes = min(chunk - offset, bytes);
 		status = balance_dirty_pages_ratelimited_flags(mapping,
 							       bdp_flags);
 		if (unlikely(status))
@@ -933,10 +935,12 @@ static loff_t iomap_write_iter(struct iomap_iter *iter, struct iov_iter *i)
 			 * halfway through, might be a race with munmap,
 			 * might be severe memory pressure.
 			 */
-			if (copied)
-				bytes = copied;
 			if (chunk > PAGE_SIZE)
 				chunk /= 2;
+			if (copied) {
+				bytes = copied;
+				goto retry;
+			}
 		} else {
 			pos += status;
 			written += status;

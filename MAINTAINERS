@@ -378,8 +378,9 @@ F:	drivers/acpi/viot.c
 F:	include/linux/acpi_viot.h
 
 ACPI WMI DRIVER
+M:	Armin Wolf <W_Armin@gmx.de>
 L:	platform-driver-x86@vger.kernel.org
-S:	Orphan
+S:	Maintained
 F:	Documentation/driver-api/wmi.rst
 F:	Documentation/wmi/
 F:	drivers/platform/x86/wmi.c
