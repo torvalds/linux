@@ -478,6 +478,8 @@ class YnlFamily(SpecFamily):
         elif attr['type'] in NlAttr.type_formats:
             format = NlAttr.get_format(attr['type'], attr.byte_order)
             attr_payload = format.pack(int(value))
+        elif attr['type'] in "bitfield32":
+            attr_payload = struct.pack("II", int(value["value"]), int(value["selector"]))
         else:
             raise Exception(f'Unknown type at {space} {name} {value} {attr["type"]}')
 
@@ -545,13 +547,18 @@ class YnlFamily(SpecFamily):
                 decoded = attr.as_auto_scalar(attr_spec['type'], attr_spec.byte_order)
             elif attr_spec["type"] in NlAttr.type_formats:
                 decoded = attr.as_scalar(attr_spec['type'], attr_spec.byte_order)
+                if 'enum' in attr_spec:
+                    decoded = self._decode_enum(decoded, attr_spec)
             elif attr_spec["type"] == 'array-nest':
                 decoded = self._decode_array_nest(attr, attr_spec)
+            elif attr_spec["type"] == 'bitfield32':
+                value, selector = struct.unpack("II", attr.raw)
+                if 'enum' in attr_spec:
+                    value = self._decode_enum(value, attr_spec)
+                    selector = self._decode_enum(selector, attr_spec)
+                decoded = {"value": value, "selector": selector}
             else:
                 raise Exception(f'Unknown {attr_spec["type"]} with name {attr_spec["name"]}')
-
-            if 'enum' in attr_spec:
-                decoded = self._decode_enum(decoded, attr_spec)
 
             if not attr_spec.is_multi:
                 rsp[attr_spec['name']] = decoded

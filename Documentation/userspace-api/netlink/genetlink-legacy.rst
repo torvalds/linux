@@ -182,7 +182,7 @@ members
 
  - ``name`` - The attribute name of the struct member
  - ``type`` - One of the scalar types ``u8``, ``u16``, ``u32``, ``u64``, ``s8``,
-   ``s16``, ``s32``, ``s64``, ``string`` or ``binary``.
+   ``s16``, ``s32``, ``s64``, ``string``, ``binary`` or ``bitfield32``.
  - ``byte-order`` - ``big-endian`` or ``little-endian``
  - ``doc``, ``enum``, ``enum-as-flags``, ``display-hint`` - Same as for
    :ref:`attribute definitions <attribute_properties>`

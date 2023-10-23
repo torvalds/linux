@@ -135,6 +135,7 @@ enum ynl_policy_type {
 	YNL_PT_U64,
 	YNL_PT_UINT,
 	YNL_PT_NUL_STR,
+	YNL_PT_BITFIELD32,
 };
 
 struct ynl_policy_attr {

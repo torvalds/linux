@@ -488,6 +488,31 @@ class TypeBinary(Type):
                 f'memcpy({member}, {self.c_name}, {presence}_len);']
 
 
+class TypeBitfield32(Type):
+    def _complex_member_type(self, ri):
+        return "struct nla_bitfield32"
+
+    def _attr_typol(self):
+        return f'.type = YNL_PT_BITFIELD32, '
+
+    def _attr_policy(self, policy):
+        if not 'enum' in self.attr:
+            raise Exception('Enum required for bitfield32 attr')
+        enum = self.family.consts[self.attr['enum']]
+        mask = enum.get_mask(as_flags=True)
+        return f"NLA_POLICY_BITFIELD32({mask})"
+
+    def attr_put(self, ri, var):
+        line = f"mnl_attr_put(nlh, {self.enum_name}, sizeof(struct nla_bitfield32), &{var}->{self.c_name})"
+        self._attr_put_line(ri, var, line)
+
+    def _attr_get(self, ri, var):
+        return f"memcpy(&{var}->{self.c_name}, mnl_attr_get_payload(attr), sizeof(struct nla_bitfield32));", None, None
+
+    def _setter_lines(self, ri, member, presence):
+        return [f"memcpy(&{member}, {self.c_name}, sizeof(struct nla_bitfield32));"]
+
+
 class TypeNest(Type):
     def _complex_member_type(self, ri):
         return self.nested_struct_type
@@ -786,6 +811,8 @@ class AttrSet(SpecAttrSet):
             t = TypeString(self.family, self, elem, value)
         elif elem['type'] == 'binary':
             t = TypeBinary(self.family, self, elem, value)
+        elif elem['type'] == 'bitfield32':
+            t = TypeBitfield32(self.family, self, elem, value)
         elif elem['type'] == 'nest':
             t = TypeNest(self.family, self, elem, value)
         elif elem['type'] == 'array-nest':
@@ -1085,10 +1112,13 @@ class RenderInfo:
 
         # 'do' and 'dump' response parsing is identical
         self.type_consistent = True
-        if op_mode != 'do' and 'dump' in op and 'do' in op:
-            if ('reply' in op['do']) != ('reply' in op["dump"]):
-                self.type_consistent = False
-            elif 'reply' in op['do'] and op["do"]["reply"] != op["dump"]["reply"]:
+        if op_mode != 'do' and 'dump' in op:
+            if 'do' in op:
+                if ('reply' in op['do']) != ('reply' in op["dump"]):
+                    self.type_consistent = False
+                elif 'reply' in op['do'] and op["do"]["reply"] != op["dump"]["reply"]:
+                    self.type_consistent = False
+            else:
                 self.type_consistent = False
 
         self.attr_set = attr_set
@@ -2414,6 +2444,16 @@ def render_user_family(family, cw, prototype):
     cw.block_end(line=';')
 
 
+def family_contains_bitfield32(family):
+    for _, attr_set in family.attr_sets.items():
+        if attr_set.subset_of:
+            continue
+        for _, attr in attr_set.items():
+            if attr.type == "bitfield32":
+                return True
+    return False
+
+
 def find_kernel_root(full_path):
     sub_path = ''
     while True:
@@ -2499,6 +2539,8 @@ def main():
         cw.p('#include <string.h>')
         if args.header:
             cw.p('#include <linux/types.h>')
+            if family_contains_bitfield32(parsed):
+                cw.p('#include <linux/netlink.h>')
         else:
             cw.p(f'#include "{parsed.name}-user.h"')
             cw.p('#include "ynl.h"')

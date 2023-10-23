@@ -369,8 +369,7 @@ out:
 	return err;
 }
 
-int devlink_nl_cmd_linecard_set_doit(struct sk_buff *skb,
-				     struct genl_info *info)
+int devlink_nl_linecard_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink *devlink = info->user_ptr[0];
