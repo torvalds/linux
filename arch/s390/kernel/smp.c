@@ -898,7 +898,7 @@ static void smp_start_secondary(void *cpuvoid)
 	S390_lowcore.restart_flags = 0;
 	restore_access_regs(S390_lowcore.access_regs_save_area);
 	cpu_init();
-	rcu_cpu_starting(cpu);
+	rcutree_report_cpu_starting(cpu);
 	init_cpu_timer();
 	vtime_init();
 	vdso_getcpu_init();

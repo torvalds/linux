@@ -10,6 +10,7 @@
 #ifndef __LINUX_RCU_H
 #define __LINUX_RCU_H
 
+#include <linux/slab.h>
 #include <trace/events/rcu.h>
 
 /*
@@ -247,6 +248,12 @@ static inline void debug_rcu_head_unqueue(struct rcu_head *head)
 {
 }
 #endif	/* #else !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+
+static inline void debug_rcu_head_callback(struct rcu_head *rhp)
+{
+	if (unlikely(!rhp->func))
+		kmem_dump_obj(rhp);
+}
 
 extern int rcu_cpu_stall_suppress_at_boot;
 
@@ -649,5 +656,11 @@ static inline bool rcu_cpu_beenfullyonline(int cpu) { return true; }
 #else
 bool rcu_cpu_beenfullyonline(int cpu);
 #endif
+
+#ifdef CONFIG_RCU_STALL_COMMON
+int rcu_stall_notifier_call_chain(unsigned long val, void *v);
+#else // #ifdef CONFIG_RCU_STALL_COMMON
+static inline int rcu_stall_notifier_call_chain(unsigned long val, void *v) { return NOTIFY_DONE; }
+#endif // #else // #ifdef CONFIG_RCU_STALL_COMMON
 
 #endif /* __LINUX_RCU_H */
