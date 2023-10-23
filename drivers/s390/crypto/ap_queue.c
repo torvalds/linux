@@ -200,13 +200,13 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 			return AP_SM_WAIT_AGAIN;
 		}
 		aq->sm_state = AP_SM_STATE_IDLE;
-		return AP_SM_WAIT_NONE;
+		break;
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		if (aq->queue_count > 0)
 			return status.irq_enabled ?
 				AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_HIGH_TIMEOUT;
 		aq->sm_state = AP_SM_STATE_IDLE;
-		return AP_SM_WAIT_NONE;
+		break;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
@@ -215,6 +215,16 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
 	}
+	/* Check and maybe enable irq support (again) on this queue */
+	if (!status.irq_enabled && status.queue_empty) {
+		void *lsi_ptr = ap_airq_ptr();
+
+		if (lsi_ptr && ap_queue_enable_irq(aq, lsi_ptr) == 0) {
+			aq->sm_state = AP_SM_STATE_SETIRQ_WAIT;
+			return AP_SM_WAIT_AGAIN;
+		}
+	}
+	return AP_SM_WAIT_NONE;
 }
 
 /**
