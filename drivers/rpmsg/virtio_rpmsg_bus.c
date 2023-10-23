@@ -329,7 +329,7 @@ static int virtio_rpmsg_announce_create(struct rpmsg_device *rpdev)
 	    virtio_has_feature(vrp->vdev, VIRTIO_RPMSG_F_NS)) {
 		struct rpmsg_ns_msg nsm;
 
-		strncpy(nsm.name, rpdev->id.name, RPMSG_NAME_SIZE);
+		strscpy_pad(nsm.name, rpdev->id.name, sizeof(nsm.name));
 		nsm.addr = cpu_to_rpmsg32(rpdev, rpdev->ept->addr);
 		nsm.flags = cpu_to_rpmsg32(rpdev, RPMSG_NS_CREATE);
 
@@ -353,7 +353,7 @@ static int virtio_rpmsg_announce_destroy(struct rpmsg_device *rpdev)
 	    virtio_has_feature(vrp->vdev, VIRTIO_RPMSG_F_NS)) {
 		struct rpmsg_ns_msg nsm;
 
-		strncpy(nsm.name, rpdev->id.name, RPMSG_NAME_SIZE);
+		strscpy_pad(nsm.name, rpdev->id.name, sizeof(nsm.name));
 		nsm.addr = cpu_to_rpmsg32(rpdev, rpdev->ept->addr);
 		nsm.flags = cpu_to_rpmsg32(rpdev, RPMSG_NS_DESTROY);
 
@@ -424,7 +424,7 @@ static struct rpmsg_device *__rpmsg_create_channel(struct virtproc_info *vrp,
 	 */
 	rpdev->announce = rpdev->src != RPMSG_ADDR_ANY;
 
-	strncpy(rpdev->id.name, chinfo->name, RPMSG_NAME_SIZE);
+	strscpy(rpdev->id.name, chinfo->name, sizeof(rpdev->id.name));
 
 	rpdev->dev.parent = &vrp->vdev->dev;
 	rpdev->dev.release = virtio_rpmsg_release_device;
