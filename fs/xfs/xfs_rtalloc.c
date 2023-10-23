@@ -177,7 +177,7 @@ xfs_rtallocate_range(
 	 */
 	error = xfs_rtmodify_summary(mp, tp,
 		XFS_RTBLOCKLOG(postblock + 1 - preblock),
-		XFS_BITTOBLOCK(mp, preblock), -1, rbpp, rsb);
+		xfs_rtx_to_rbmblock(mp, preblock), -1, rbpp, rsb);
 	if (error) {
 		return error;
 	}
@@ -188,7 +188,7 @@ xfs_rtallocate_range(
 	if (preblock < start) {
 		error = xfs_rtmodify_summary(mp, tp,
 			XFS_RTBLOCKLOG(start - preblock),
-			XFS_BITTOBLOCK(mp, preblock), 1, rbpp, rsb);
+			xfs_rtx_to_rbmblock(mp, preblock), 1, rbpp, rsb);
 		if (error) {
 			return error;
 		}
@@ -200,7 +200,7 @@ xfs_rtallocate_range(
 	if (postblock > end) {
 		error = xfs_rtmodify_summary(mp, tp,
 			XFS_RTBLOCKLOG(postblock - end),
-			XFS_BITTOBLOCK(mp, end + 1), 1, rbpp, rsb);
+			xfs_rtx_to_rbmblock(mp, end + 1), 1, rbpp, rsb);
 		if (error) {
 			return error;
 		}
@@ -261,8 +261,8 @@ xfs_rtallocate_extent_block(
 	 * Loop over all the extents starting in this bitmap block,
 	 * looking for one that's long enough.
 	 */
-	for (i = XFS_BLOCKTOBIT(mp, bbno), besti = -1, bestlen = 0,
-		end = XFS_BLOCKTOBIT(mp, bbno + 1) - 1;
+	for (i = xfs_rbmblock_to_rtx(mp, bbno), besti = -1, bestlen = 0,
+		end = xfs_rbmblock_to_rtx(mp, bbno + 1) - 1;
 	     i <= end;
 	     i++) {
 		/* Make sure we don't scan off the end of the rt volume. */
@@ -489,7 +489,7 @@ xfs_rtallocate_extent_near(
 		*rtx = r;
 		return 0;
 	}
-	bbno = XFS_BITTOBLOCK(mp, start);
+	bbno = xfs_rtx_to_rbmblock(mp, start);
 	i = 0;
 	ASSERT(minlen != 0);
 	log2len = xfs_highbit32(minlen);
@@ -708,8 +708,8 @@ xfs_rtallocate_extent_size(
 			 * allocator is beyond the next bitmap block,
 			 * skip to that bitmap block.
 			 */
-			if (XFS_BITTOBLOCK(mp, n) > i + 1)
-				i = XFS_BITTOBLOCK(mp, n) - 1;
+			if (xfs_rtx_to_rbmblock(mp, n) > i + 1)
+				i = xfs_rtx_to_rbmblock(mp, n) - 1;
 		}
 	}
 	/*
@@ -771,8 +771,8 @@ xfs_rtallocate_extent_size(
 			 * allocator is beyond the next bitmap block,
 			 * skip to that bitmap block.
 			 */
-			if (XFS_BITTOBLOCK(mp, n) > i + 1)
-				i = XFS_BITTOBLOCK(mp, n) - 1;
+			if (xfs_rtx_to_rbmblock(mp, n) > i + 1)
+				i = xfs_rtx_to_rbmblock(mp, n) - 1;
 		}
 	}
 	/*
@@ -998,7 +998,7 @@ xfs_growfs_rt(
 	 */
 	nrextents = nrblocks;
 	do_div(nrextents, in->extsize);
-	nrbmblocks = howmany_64(nrextents, NBBY * sbp->sb_blocksize);
+	nrbmblocks = xfs_rtbitmap_blockcount(mp, nrextents);
 	nrextslog = xfs_highbit32(nrextents);
 	nrsumlevels = nrextslog + 1;
 	nrsumsize = (uint)sizeof(xfs_suminfo_t) * nrsumlevels * nrbmblocks;
