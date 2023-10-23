@@ -939,9 +939,6 @@ struct bch_fs {
 	struct list_head	moving_context_list;
 	struct mutex		moving_context_lock;
 
-	struct list_head	data_progress_list;
-	struct mutex		data_progress_lock;
-
 	/* REBALANCE */
 	struct bch_fs_rebalance	rebalance;
 

@@ -767,25 +767,36 @@ DEFINE_EVENT(bkey, move_extent_alloc_mem_fail,
 );
 
 TRACE_EVENT(move_data,
-	TP_PROTO(struct bch_fs *c, u64 sectors_moved,
-		 u64 keys_moved),
-	TP_ARGS(c, sectors_moved, keys_moved),
+	TP_PROTO(struct bch_fs *c,
+		 struct bch_move_stats *stats),
+	TP_ARGS(c, stats),
 
 	TP_STRUCT__entry(
-		__field(dev_t,		dev			)
-		__field(u64,		sectors_moved	)
+		__field(dev_t,		dev		)
 		__field(u64,		keys_moved	)
+		__field(u64,		keys_raced	)
+		__field(u64,		sectors_seen	)
+		__field(u64,		sectors_moved	)
+		__field(u64,		sectors_raced	)
 	),
 
 	TP_fast_assign(
-		__entry->dev			= c->dev;
-		__entry->sectors_moved = sectors_moved;
-		__entry->keys_moved = keys_moved;
+		__entry->dev		= c->dev;
+		__entry->keys_moved	= atomic64_read(&stats->keys_moved);
+		__entry->keys_raced	= atomic64_read(&stats->keys_raced);
+		__entry->sectors_seen	= atomic64_read(&stats->sectors_seen);
+		__entry->sectors_moved	= atomic64_read(&stats->sectors_moved);
+		__entry->sectors_raced	= atomic64_read(&stats->sectors_raced);
 	),
 
-	TP_printk("%d,%d sectors_moved %llu keys_moved %llu",
+	TP_printk("%d,%d keys moved %llu raced %llu"
+		  "sectors seen %llu moved %llu raced %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->sectors_moved, __entry->keys_moved)
+		  __entry->keys_moved,
+		  __entry->keys_raced,
+		  __entry->sectors_seen,
+		  __entry->sectors_moved,
+		  __entry->sectors_raced)
 );
 
 TRACE_EVENT(evacuate_bucket,

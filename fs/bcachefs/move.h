@@ -127,7 +127,10 @@ int bch2_data_job(struct bch_fs *,
 		  struct bch_move_stats *,
 		  struct bch_ioctl_data);
 
-void bch2_move_stats_init(struct bch_move_stats *stats, char *name);
+void bch2_move_stats_to_text(struct printbuf *, struct bch_move_stats *);
+void bch2_move_stats_exit(struct bch_move_stats *, struct bch_fs *);
+void bch2_move_stats_init(struct bch_move_stats *, char *);
+
 void bch2_fs_moving_ctxts_to_text(struct printbuf *, struct bch_fs *);
 
 void bch2_fs_move_init(struct bch_fs *);

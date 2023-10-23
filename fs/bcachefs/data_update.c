@@ -440,7 +440,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	m->btree_id	= btree_id;
 	m->data_opts	= data_opts;
 	m->ctxt		= ctxt;
-	m->stats	= ctxt->stats;
+	m->stats	= ctxt ? ctxt->stats : NULL;
 
 	bch2_write_op_init(&m->op, c, io_opts);
 	m->op.pos	= bkey_start_pos(k.k);
