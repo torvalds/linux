@@ -494,6 +494,8 @@ int tcp_v4_err(struct sk_buff *skb, u32 info)
 		return -ENOENT;
 	}
 	if (sk->sk_state == TCP_TIME_WAIT) {
+		/* To increase the counter of ignored icmps for TCP-AO */
+		tcp_ao_ignore_icmp(sk, AF_INET, type, code);
 		inet_twsk_put(inet_twsk(sk));
 		return 0;
 	}
@@ -504,6 +506,11 @@ int tcp_v4_err(struct sk_buff *skb, u32 info)
 				     (type == ICMP_DEST_UNREACH &&
 				      (code == ICMP_NET_UNREACH ||
 				       code == ICMP_HOST_UNREACH)));
+		return 0;
+	}
+
+	if (tcp_ao_ignore_icmp(sk, AF_INET, type, code)) {
+		sock_put(sk);
 		return 0;
 	}
 
