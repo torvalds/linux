@@ -38,6 +38,8 @@ properties:
       Should be a gpio specifier for a reset line.
     maxItems: 1
 
+  wakeup-source: true
+
   microchip,synclko-125:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
