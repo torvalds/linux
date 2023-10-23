@@ -616,7 +616,6 @@ struct hid_device {							/* device report descriptor */
 	__s32 battery_max;
 	__s32 battery_report_type;
 	__s32 battery_report_id;
-	__s32 battery_charge_status;
 	enum hid_battery_status battery_status;
 	bool battery_avoid_query;
 	ktime_t battery_ratelimit_time;
@@ -659,7 +658,7 @@ struct hid_device {							/* device report descriptor */
 
 	unsigned int id;						/* system unique id */
 
-	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_USE(1, struct { __s32 battery_charge_status; u32 padding; });
 	ANDROID_KABI_RESERVE(2);
 };
 
