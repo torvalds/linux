@@ -31,6 +31,11 @@
 static cpumask_t i915_pmu_cpumask;
 static unsigned int i915_pmu_target_cpu = -1;
 
+static struct drm_i915_private *pmu_to_i915(struct i915_pmu *pmu)
+{
+	return container_of(pmu, struct drm_i915_private, pmu);
+}
+
 static u8 engine_config_sample(u64 config)
 {
 	return config & I915_PMU_SAMPLE_MASK;
@@ -141,7 +146,7 @@ static u32 frequency_enabled_mask(void)
 
 static bool pmu_needs_timer(struct i915_pmu *pmu)
 {
-	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	u32 enable;
 
 	/*
@@ -251,7 +256,7 @@ static u64 get_rc6(struct intel_gt *gt)
 
 static void init_rc6(struct i915_pmu *pmu)
 {
-	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	struct intel_gt *gt;
 	unsigned int i;
 
@@ -982,7 +987,7 @@ add_pmu_attr(struct perf_pmu_events_attr *attr, const char *name,
 static struct attribute **
 create_event_attributes(struct i915_pmu *pmu)
 {
-	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	static const struct {
 		unsigned int counter;
 		const char *name;
