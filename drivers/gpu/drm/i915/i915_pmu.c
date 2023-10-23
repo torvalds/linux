@@ -31,6 +31,11 @@
 static cpumask_t i915_pmu_cpumask;
 static unsigned int i915_pmu_target_cpu = -1;
 
+static struct i915_pmu *event_to_pmu(struct perf_event *event)
+{
+	return container_of(event->pmu, struct i915_pmu, base);
+}
+
 static struct drm_i915_private *pmu_to_i915(struct i915_pmu *pmu)
 {
 	return container_of(pmu, struct drm_i915_private, pmu);
@@ -510,8 +515,8 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 
 static void i915_pmu_event_destroy(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 
 	drm_WARN_ON(&i915->drm, event->parent);
 
@@ -577,8 +582,8 @@ config_status(struct drm_i915_private *i915, u64 config)
 
 static int engine_event_init(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	struct intel_engine_cs *engine;
 
 	engine = intel_engine_lookup_user(i915, engine_event_class(event),
@@ -591,9 +596,8 @@ static int engine_event_init(struct perf_event *event)
 
 static int i915_pmu_event_init(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
-	struct i915_pmu *pmu = &i915->pmu;
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	int ret;
 
 	if (pmu->closed)
@@ -633,9 +637,8 @@ static int i915_pmu_event_init(struct perf_event *event)
 
 static u64 __i915_pmu_event_read(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
-	struct i915_pmu *pmu = &i915->pmu;
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	u64 val = 0;
 
 	if (is_engine_event(event)) {
@@ -691,10 +694,8 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 
 static void i915_pmu_event_read(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = event_to_pmu(event);
 	struct hw_perf_event *hwc = &event->hw;
-	struct i915_pmu *pmu = &i915->pmu;
 	u64 prev, new;
 
 	if (pmu->closed) {
@@ -712,10 +713,9 @@ static void i915_pmu_event_read(struct perf_event *event)
 
 static void i915_pmu_enable(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	const unsigned int bit = event_bit(event);
-	struct i915_pmu *pmu = &i915->pmu;
 	unsigned long flags;
 
 	if (bit == -1)
@@ -776,10 +776,9 @@ update:
 
 static void i915_pmu_disable(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	const unsigned int bit = event_bit(event);
-	struct i915_pmu *pmu = &i915->pmu;
 	unsigned long flags;
 
 	if (bit == -1)
@@ -823,9 +822,7 @@ static void i915_pmu_disable(struct perf_event *event)
 
 static void i915_pmu_event_start(struct perf_event *event, int flags)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
-	struct i915_pmu *pmu = &i915->pmu;
+	struct i915_pmu *pmu = event_to_pmu(event);
 
 	if (pmu->closed)
 		return;
@@ -853,9 +850,7 @@ out:
 
 static int i915_pmu_event_add(struct perf_event *event, int flags)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
-	struct i915_pmu *pmu = &i915->pmu;
+	struct i915_pmu *pmu = event_to_pmu(event);
 
 	if (pmu->closed)
 		return -ENODEV;
