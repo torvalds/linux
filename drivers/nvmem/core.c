@@ -935,7 +935,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->nkeepout = config->nkeepout;
 	if (config->of_node)
 		nvmem->dev.of_node = config->of_node;
-	else if (!config->no_of_node)
+	else
 		nvmem->dev.of_node = config->dev->of_node;
 
 	switch (config->id) {
