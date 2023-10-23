@@ -13,9 +13,10 @@
 
 #include "thermal_core.h"
 
-static int thermal_zone_trip_update(struct thermal_zone_device *tz, int trip_index)
+static int thermal_zone_trip_update(struct thermal_zone_device *tz,
+				    const struct thermal_trip *trip)
 {
-	const struct thermal_trip *trip = &tz->trips[trip_index];
+	int trip_index = thermal_zone_trip_id(tz, trip);
 	struct thermal_instance *instance;
 
 	if (!trip->hysteresis)
@@ -89,7 +90,8 @@ static int thermal_zone_trip_update(struct thermal_zone_device *tz, int trip_ind
  *     (trip_temp - hyst) so that the fan gets turned off again.
  *
  */
-static int bang_bang_control(struct thermal_zone_device *tz, int trip)
+static int bang_bang_control(struct thermal_zone_device *tz,
+			     const struct thermal_trip *trip)
 {
 	struct thermal_instance *instance;
 	int ret;
