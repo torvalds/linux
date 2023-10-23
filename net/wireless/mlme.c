@@ -52,7 +52,8 @@ void cfg80211_rx_assoc_resp(struct net_device *dev,
 		cr.links[link_id].bssid = data->links[link_id].bss->bssid;
 		cr.links[link_id].addr = data->links[link_id].addr;
 		/* need to have local link addresses for MLO connections */
-		WARN_ON(cr.ap_mld_addr && !cr.links[link_id].addr);
+		WARN_ON(cr.ap_mld_addr &&
+			!is_valid_ether_addr(cr.links[link_id].addr));
 
 		BUG_ON(!cr.links[link_id].bss->channel);
 

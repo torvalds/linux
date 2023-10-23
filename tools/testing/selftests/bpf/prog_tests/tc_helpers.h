@@ -45,7 +45,7 @@ static inline __u32 ifindex_from_link_fd(int fd)
 	return link_info.tcx.ifindex;
 }
 
-static inline void __assert_mprog_count(int target, int expected, bool miniq, int ifindex)
+static inline void __assert_mprog_count(int target, int expected, int ifindex)
 {
 	__u32 count = 0, attach_flags = 0;
 	int err;
@@ -53,20 +53,22 @@ static inline void __assert_mprog_count(int target, int expected, bool miniq, in
 	err = bpf_prog_query(ifindex, target, 0, &attach_flags,
 			     NULL, &count);
 	ASSERT_EQ(count, expected, "count");
-	if (!expected && !miniq)
-		ASSERT_EQ(err, -ENOENT, "prog_query");
-	else
-		ASSERT_EQ(err, 0, "prog_query");
+	ASSERT_EQ(err, 0, "prog_query");
 }
 
 static inline void assert_mprog_count(int target, int expected)
 {
-	__assert_mprog_count(target, expected, false, loopback);
+	__assert_mprog_count(target, expected, loopback);
 }
 
 static inline void assert_mprog_count_ifindex(int ifindex, int target, int expected)
 {
-	__assert_mprog_count(target, expected, false, ifindex);
+	__assert_mprog_count(target, expected, ifindex);
+}
+
+static inline void tc_skel_reset_all_seen(struct test_tc_link *skel)
+{
+	memset(skel->bss, 0, sizeof(*skel->bss));
 }
 
 #endif /* TC_HELPERS */

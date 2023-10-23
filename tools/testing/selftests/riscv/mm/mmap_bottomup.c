@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <sys/mman.h>
-#include <testcases/mmap_test.h>
+#include <mmap_test.h>
 
 #include "../../kselftest_harness.h"
 

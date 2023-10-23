@@ -54,6 +54,7 @@ properties:
 
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
 
     properties:
       endpoint:

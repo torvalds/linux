@@ -31,10 +31,6 @@ properties:
   charger:
     $ref: /schemas/power/supply/maxim,max77693.yaml
 
-  connector:
-    $ref: /schemas/connector/usb-connector.yaml#
-    unevaluatedProperties: false
-
   led:
     $ref: /schemas/leds/maxim,max77693.yaml
 

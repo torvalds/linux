@@ -853,17 +853,11 @@ static inline void create_debug_files(struct rtk_phy *rtk_phy)
 
 	rtk_phy->debug_dir = debugfs_create_dir(dev_name(rtk_phy->dev),
 						phy_debug_root);
-	if (!rtk_phy->debug_dir)
-		return;
 
-	if (!debugfs_create_file("parameter", 0444, rtk_phy->debug_dir, rtk_phy,
-				 &rtk_usb2_parameter_fops))
-		goto file_error;
+	debugfs_create_file("parameter", 0444, rtk_phy->debug_dir, rtk_phy,
+			    &rtk_usb2_parameter_fops);
 
 	return;
-
-file_error:
-	debugfs_remove_recursive(rtk_phy->debug_dir);
 }
 
 static inline void remove_debug_files(struct rtk_phy *rtk_phy)

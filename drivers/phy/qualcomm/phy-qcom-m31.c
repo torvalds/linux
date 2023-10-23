@@ -82,7 +82,7 @@ struct m31_priv_data {
 	unsigned int			nregs;
 };
 
-struct m31_phy_regs m31_ipq5332_regs[] = {
+static struct m31_phy_regs m31_ipq5332_regs[] = {
 	{
 		USB_PHY_CFG0,
 		UTMI_PHY_OVERRIDE_EN,
@@ -172,8 +172,7 @@ static int m31usb_phy_init(struct phy *phy)
 
 	ret = clk_prepare_enable(qphy->clk);
 	if (ret) {
-		if (qphy->vreg)
-			regulator_disable(qphy->vreg);
+		regulator_disable(qphy->vreg);
 		dev_err(&phy->dev, "failed to enable cfg ahb clock, %d\n", ret);
 		return ret;
 	}
@@ -256,7 +255,7 @@ static int m31usb_phy_probe(struct platform_device *pdev)
 
 	qphy->vreg = devm_regulator_get(dev, "vdda-phy");
 	if (IS_ERR(qphy->vreg))
-		return dev_err_probe(dev, PTR_ERR(qphy->phy),
+		return dev_err_probe(dev, PTR_ERR(qphy->vreg),
 						"failed to get vreg\n");
 
 	phy_set_drvdata(qphy->phy, qphy);
