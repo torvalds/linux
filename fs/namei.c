@@ -3516,7 +3516,8 @@ static const char *open_last_lookups(struct nameidata *nd,
 		if (likely(dentry))
 			goto finish_lookup;
 
-		BUG_ON(nd->flags & LOOKUP_RCU);
+		if (WARN_ON_ONCE(nd->flags & LOOKUP_RCU))
+			return ERR_PTR(-ECHILD);
 	} else {
 		/* create side of things */
 		if (nd->flags & LOOKUP_RCU) {
