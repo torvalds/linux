@@ -168,8 +168,6 @@ static int create_pnp_modalias(const struct acpi_device *acpi_dev, char *modalia
 			continue;
 
 		count = snprintf(&modalias[len], size, "%s:", id->id);
-		if (count < 0)
-			return -EINVAL;
 
 		if (count >= size)
 			return -ENOMEM;
@@ -177,7 +175,7 @@ static int create_pnp_modalias(const struct acpi_device *acpi_dev, char *modalia
 		len += count;
 		size -= count;
 	}
-	modalias[len] = '\0';
+
 	return len;
 }
 
@@ -228,8 +226,6 @@ static int create_of_modalias(const struct acpi_device *acpi_dev, char *modalias
 	for (i = 0; i < nval; i++, obj++) {
 		count = snprintf(&modalias[len], size, "C%s",
 				 obj->string.pointer);
-		if (count < 0)
-			return -EINVAL;
 
 		if (count >= size)
 			return -ENOMEM;
@@ -237,7 +233,7 @@ static int create_of_modalias(const struct acpi_device *acpi_dev, char *modalias
 		len += count;
 		size -= count;
 	}
-	modalias[len] = '\0';
+
 	return len;
 }
 
