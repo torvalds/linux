@@ -177,6 +177,8 @@ static int autofs_parse_fd(struct fs_context *fc, struct autofs_sb_info *sbi,
 		return -EBADF;
 	}
 
+	autofs_set_packet_pipe_flags(pipe);
+
 	if (sbi->pipe)
 		fput(sbi->pipe);
 

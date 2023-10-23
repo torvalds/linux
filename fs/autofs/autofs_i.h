@@ -221,15 +221,20 @@ static inline int autofs_check_pipe(struct file *pipe)
 	return 0;
 }
 
+static inline void autofs_set_packet_pipe_flags(struct file *pipe)
+{
+	/* We want a packet pipe */
+	pipe->f_flags |= O_DIRECT;
+	/* We don't expect -EAGAIN */
+	pipe->f_flags &= ~O_NONBLOCK;
+}
+
 static inline int autofs_prepare_pipe(struct file *pipe)
 {
 	int ret = autofs_check_pipe(pipe);
 	if (ret < 0)
 		return ret;
-	/* We want a packet pipe */
-	pipe->f_flags |= O_DIRECT;
-	/* We don't expect -EAGAIN */
-	pipe->f_flags &= ~O_NONBLOCK;
+	autofs_set_packet_pipe_flags(pipe);
 	return 0;
 }
 
