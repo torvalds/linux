@@ -18,6 +18,7 @@ Required properties for power domain controller:
 	"rockchip,rk3366-power-controller" - for RK3366 SoCs.
 	"rockchip,rk3368-power-controller" - for RK3368 SoCs.
 	"rockchip,rk3399-power-controller" - for RK3399 SoCs.
+	"rockchip,rk3562-power-controller" - for RK3562 SoCs.
 	"rockchip,rk3568-power-controller" - for RK3568 SoCs.
 - #power-domain-cells: Number of cells in a power-domain specifier.
 	Should be 1 for multiple PM domains.
@@ -39,6 +40,7 @@ Required properties for power domain sub nodes:
 	"include/dt-bindings/power/rk3366-power.h" - for RK3366 type power domain.
 	"include/dt-bindings/power/rk3368-power.h" - for RK3368 type power domain.
 	"include/dt-bindings/power/rk3399-power.h" - for RK3399 type power domain.
+	"include/dt-bindings/power/rk3562-power.h" - for RK3562 type power domain.
 	"include/dt-bindings/power/rk3568-power.h" - for RK3568 type power domain.
 - clocks (optional): phandles to clocks which need to be enabled while power domain
 	switches state.
@@ -50,6 +52,14 @@ Qos Example:
 	qos_gpu: qos_gpu@ffaf0000 {
 		compatible ="syscon";
 		reg = <0x0 0xffaf0000 0x0 0x20>;
+		priority-init = <0x202>;
+	};
+
+Shaping Example:
+	shaping_gpu: shaping@fee30088 {
+		compatible = "syscon";
+		reg = <0x0 0xfee30088 0x0 0x4>;
+		shaping-init = <0xff>;
 	};
 
 Example:
@@ -64,6 +74,7 @@ Example:
 			reg = <RK3288_PD_GPU>;
 			clocks = <&cru ACLK_GPU>;
 			pm_qos = <&qos_gpu>;
+			pm_shaping = <&shaping_gpu>;
 		};
 	};
 
@@ -122,6 +133,7 @@ The index should use macros in:
 	"include/dt-bindings/power/rk3366-power.h" - for rk3366 type power domain.
 	"include/dt-bindings/power/rk3368-power.h" - for rk3368 type power domain.
 	"include/dt-bindings/power/rk3399-power.h" - for rk3399 type power domain.
+	"include/dt-bindings/power/rk3562-power.h" - for rk3562 type power domain.
 	"include/dt-bindings/power/rk3568-power.h" - for rk3568 type power domain.
 
 Example of the node using power domain:
