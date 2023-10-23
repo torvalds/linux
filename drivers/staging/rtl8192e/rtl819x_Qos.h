@@ -15,25 +15,8 @@ union qos_tsinfo {
 };
 
 union tspec_body {
-	u8		charData[55];
-
 	struct {
 		union qos_tsinfo ts_info;
-		u16	NominalMSDUsize;
-		u16	MaxMSDUsize;
-		u32	MinServiceItv;
-		u32	MaxServiceItv;
-		u32	InactivityItv;
-		u32	SuspenItv;
-		u32	ServiceStartTime;
-		u32	MinDataRate;
-		u32	MeanDataRate;
-		u32	PeakDataRate;
-		u32	MaxBurstSize;
-		u32	DelayBound;
-		u32	MinPhyRate;
-		u16	SurplusBandwidthAllowance;
-		u16	MediumTime;
 	} f;
 };
 
