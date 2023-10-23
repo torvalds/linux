@@ -1036,13 +1036,14 @@ TRACE_EVENT(xfarray_sort_stats,
 
 #ifdef CONFIG_XFS_RT
 TRACE_EVENT(xchk_rtsum_record_free,
-	TP_PROTO(struct xfs_mount *mp, xfs_rtblock_t start,
-		 uint64_t len, unsigned int log, loff_t pos, xfs_suminfo_t v),
+	TP_PROTO(struct xfs_mount *mp, xfs_rtxnum_t start,
+		 xfs_rtbxlen_t len, unsigned int log, loff_t pos,
+		 xfs_suminfo_t v),
 	TP_ARGS(mp, start, len, log, pos, v),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(dev_t, rtdev)
-		__field(xfs_rtblock_t, start)
+		__field(xfs_rtxnum_t, start)
 		__field(unsigned long long, len)
 		__field(unsigned int, log)
 		__field(loff_t, pos)
