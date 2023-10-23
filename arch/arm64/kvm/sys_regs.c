@@ -1791,8 +1791,8 @@ static unsigned int el2_visibility(const struct kvm_vcpu *vcpu,
  * HCR_EL2.E2H==1, and only in the sysreg table for convenience of
  * handling traps. Given that, they are always hidden from userspace.
  */
-static unsigned int elx2_visibility(const struct kvm_vcpu *vcpu,
-				    const struct sys_reg_desc *rd)
+static unsigned int hidden_user_visibility(const struct kvm_vcpu *vcpu,
+					   const struct sys_reg_desc *rd)
 {
 	return REG_HIDDEN_USER;
 }
@@ -1803,7 +1803,7 @@ static unsigned int elx2_visibility(const struct kvm_vcpu *vcpu,
 	.reset = rst,				\
 	.reg = name##_EL1,			\
 	.val = v,				\
-	.visibility = elx2_visibility,		\
+	.visibility = hidden_user_visibility,	\
 }
 
 /*
@@ -2386,6 +2386,16 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG(SPSR_EL2, access_rw, reset_val, 0),
 	EL2_REG(ELR_EL2, access_rw, reset_val, 0),
 	{ SYS_DESC(SYS_SP_EL1), access_sp_el1},
+
+	/* AArch32 SPSR_* are RES0 if trapped from a NV guest */
+	{ SYS_DESC(SYS_SPSR_irq), .access = trap_raz_wi,
+	  .visibility = hidden_user_visibility },
+	{ SYS_DESC(SYS_SPSR_abt), .access = trap_raz_wi,
+	  .visibility = hidden_user_visibility },
+	{ SYS_DESC(SYS_SPSR_und), .access = trap_raz_wi,
+	  .visibility = hidden_user_visibility },
+	{ SYS_DESC(SYS_SPSR_fiq), .access = trap_raz_wi,
+	  .visibility = hidden_user_visibility },
 
 	{ SYS_DESC(SYS_IFSR32_EL2), trap_undef, reset_unknown, IFSR32_EL2 },
 	EL2_REG(AFSR0_EL2, access_rw, reset_val, 0),
