@@ -30,12 +30,6 @@ enum direction_value {
 	DIR_BI_DIR		= 3,
 };
 
-struct acm {
-	u64		UsedTime;
-	u64		MediumTime;
-	u8		HwAcmCtl;
-};
-
 union qos_tclas {
 	struct _TYPE_GENERAL {
 		u8		Priority;
