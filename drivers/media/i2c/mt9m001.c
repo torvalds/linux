@@ -405,7 +405,7 @@ static int mt9m001_set_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return mt9m001_s_fmt(sd, fmt, mf);
-	sd_state->pads->try_fmt = *mf;
+	*v4l2_subdev_get_pad_format(sd, sd_state, 0) = *mf;
 	return 0;
 }
 

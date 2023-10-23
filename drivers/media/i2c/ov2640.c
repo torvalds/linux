@@ -988,7 +988,7 @@ static int ov2640_set_fmt(struct v4l2_subdev *sd,
 		/* select format */
 		priv->cfmt_code = mf->code;
 	} else {
-		sd_state->pads->try_fmt = *mf;
+		*v4l2_subdev_get_pad_format(sd, sd_state, 0) = *mf;
 	}
 out:
 	mutex_unlock(&priv->lock);

@@ -951,7 +951,7 @@ done:
 static int mt9v111_init_cfg(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_state *sd_state)
 {
-	sd_state->pads->try_fmt = mt9v111_def_fmt;
+	*v4l2_subdev_get_pad_format(subdev, sd_state, 0) = mt9v111_def_fmt;
 
 	return 0;
 }

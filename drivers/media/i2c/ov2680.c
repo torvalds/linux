@@ -760,9 +760,9 @@ static int ov2680_init_cfg(struct v4l2_subdev *sd,
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 
-	sd_state->pads[0].try_crop = ov2680_default_crop;
+	*v4l2_subdev_get_pad_crop(sd, sd_state, 0) = ov2680_default_crop;
 
-	ov2680_fill_format(sensor, &sd_state->pads[0].try_fmt,
+	ov2680_fill_format(sensor, v4l2_subdev_get_pad_format(sd, sd_state, 0),
 			   OV2680_DEFAULT_WIDTH, OV2680_DEFAULT_HEIGHT);
 	return 0;
 }

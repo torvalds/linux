@@ -443,7 +443,7 @@ static int adv7183_set_fmt(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		decoder->fmt = *fmt;
 	else
-		sd_state->pads->try_fmt = *fmt;
+		*v4l2_subdev_get_pad_format(sd, sd_state, 0) = *fmt;
 	return 0;
 }
 
