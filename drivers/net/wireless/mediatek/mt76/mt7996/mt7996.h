@@ -50,6 +50,13 @@
 #define MT7996_BASIC_RATES_TBL		11
 #define MT7996_BEACON_RATES_TBL		25
 
+#define MT7996_THERMAL_THROTTLE_MAX	100
+#define MT7996_CDEV_THROTTLE_MAX	99
+#define MT7996_CRIT_TEMP_IDX		0
+#define MT7996_MAX_TEMP_IDX		1
+#define MT7996_CRIT_TEMP		110
+#define MT7996_MAX_TEMP			120
+
 #define MT7996_RRO_MAX_SESSION		1024
 #define MT7996_RRO_WINDOW_MAX_LEN	1024
 #define MT7996_RRO_ADDR_ELEM_LEN	128
@@ -194,6 +201,11 @@ struct mt7996_phy {
 	struct ieee80211_sband_iftype_data iftype[NUM_NL80211_BANDS][NUM_NL80211_IFTYPES];
 
 	struct ieee80211_vif *monitor_vif;
+
+	struct thermal_cooling_device *cdev;
+	u8 cdev_state;
+	u8 throttle_state;
+	u32 throttle_temp[2]; /* 0: critical high, 1: maximum */
 
 	u32 rxfilter;
 	u64 omac_mask;
@@ -453,6 +465,9 @@ int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable);
 int mt7996_mcu_set_rts_thresh(struct mt7996_phy *phy, u32 val);
 int mt7996_mcu_set_timing(struct mt7996_phy *phy, struct ieee80211_vif *vif);
 int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch);
+int mt7996_mcu_get_temperature(struct mt7996_phy *phy);
+int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state);
+int mt7996_mcu_set_thermal_protect(struct mt7996_phy *phy, bool enable);
 int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
 		       u8 rx_sel, u8 val);
 int mt7996_mcu_rdd_background_enable(struct mt7996_phy *phy,

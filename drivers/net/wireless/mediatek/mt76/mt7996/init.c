@@ -43,6 +43,97 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	}
 };
 
+static int
+mt7996_thermal_get_max_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long *state)
+{
+	*state = MT7996_CDEV_THROTTLE_MAX;
+
+	return 0;
+}
+
+static int
+mt7996_thermal_get_cur_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long *state)
+{
+	struct mt7996_phy *phy = cdev->devdata;
+
+	*state = phy->cdev_state;
+
+	return 0;
+}
+
+static int
+mt7996_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long state)
+{
+	struct mt7996_phy *phy = cdev->devdata;
+	u8 throttling = MT7996_THERMAL_THROTTLE_MAX - state;
+	int ret;
+
+	if (state > MT7996_CDEV_THROTTLE_MAX) {
+		dev_err(phy->dev->mt76.dev,
+			"please specify a valid throttling state\n");
+		return -EINVAL;
+	}
+
+	if (state == phy->cdev_state)
+		return 0;
+
+	/* cooling_device convention: 0 = no cooling, more = more cooling
+	 * mcu convention: 1 = max cooling, more = less cooling
+	 */
+	ret = mt7996_mcu_set_thermal_throttling(phy, throttling);
+	if (ret)
+		return ret;
+
+	phy->cdev_state = state;
+
+	return 0;
+}
+
+static const struct thermal_cooling_device_ops mt7996_thermal_ops = {
+	.get_max_state = mt7996_thermal_get_max_throttle_state,
+	.get_cur_state = mt7996_thermal_get_cur_throttle_state,
+	.set_cur_state = mt7996_thermal_set_cur_throttle_state,
+};
+
+static void mt7996_unregister_thermal(struct mt7996_phy *phy)
+{
+	struct wiphy *wiphy = phy->mt76->hw->wiphy;
+
+	if (!phy->cdev)
+		return;
+
+	sysfs_remove_link(&wiphy->dev.kobj, "cooling_device");
+	thermal_cooling_device_unregister(phy->cdev);
+}
+
+static int mt7996_thermal_init(struct mt7996_phy *phy)
+{
+	struct wiphy *wiphy = phy->mt76->hw->wiphy;
+	struct thermal_cooling_device *cdev;
+	const char *name;
+
+	name = devm_kasprintf(&wiphy->dev, GFP_KERNEL, "mt7996_%s",
+			      wiphy_name(wiphy));
+
+	cdev = thermal_cooling_device_register(name, phy, &mt7996_thermal_ops);
+	if (!IS_ERR(cdev)) {
+		if (sysfs_create_link(&wiphy->dev.kobj, &cdev->device.kobj,
+				      "cooling_device") < 0)
+			thermal_cooling_device_unregister(cdev);
+		else
+			phy->cdev = cdev;
+	}
+
+	/* initialize critical/maximum high temperature */
+	phy->throttle_temp[MT7996_CRIT_TEMP_IDX] = MT7996_CRIT_TEMP;
+	phy->throttle_temp[MT7996_MAX_TEMP_IDX] = MT7996_MAX_TEMP;
+
+	return 0;
+}
+
 static void mt7996_led_set_config(struct led_classdev *led_cdev,
 				  u8 delay_on, u8 delay_off)
 {
@@ -429,6 +520,10 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
 	if (ret)
 		goto error;
 
+	ret = mt7996_thermal_init(phy);
+	if (ret)
+		goto error;
+
 	ret = mt7996_init_debugfs(phy);
 	if (ret)
 		goto error;
@@ -455,6 +550,8 @@ mt7996_unregister_phy(struct mt7996_phy *phy, enum mt76_band_id band)
 
 	if (!phy)
 		return;
+
+	mt7996_unregister_thermal(phy);
 
 	mphy = phy->dev->mt76.phys[band];
 	mt76_unregister_phy(mphy);
@@ -1130,6 +1227,10 @@ int mt7996_register_device(struct mt7996_dev *dev)
 	if (ret)
 		return ret;
 
+	ret = mt7996_thermal_init(&dev->phy);
+	if (ret)
+		return ret;
+
 	ieee80211_queue_work(mt76_hw(dev), &dev->init_work);
 
 	ret = mt7996_register_phy(dev, mt7996_phy2(dev), MT_BAND1);
@@ -1154,6 +1255,7 @@ void mt7996_unregister_device(struct mt7996_dev *dev)
 	cancel_work_sync(&dev->wed_rro.work);
 	mt7996_unregister_phy(mt7996_phy3(dev), MT_BAND2);
 	mt7996_unregister_phy(mt7996_phy2(dev), MT_BAND1);
+	mt7996_unregister_thermal(&dev->phy);
 	mt7996_coredump_unregister(dev);
 	mt76_unregister_device(&dev->mt76);
 	mt7996_wed_rro_free(dev);

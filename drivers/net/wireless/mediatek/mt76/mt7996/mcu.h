@@ -30,6 +30,28 @@ struct mt7996_mcu_uni_event {
 	__le32 status; /* 0: success, others: fail */
 } __packed;
 
+struct mt7996_mcu_thermal_ctrl {
+	u8 ctrl_id;
+	u8 band_idx;
+	union {
+		struct {
+			u8 protect_type; /* 1: duty admit, 2: radio off */
+			u8 trigger_type; /* 0: low, 1: high */
+		} __packed type;
+		struct {
+			u8 duty_level;	/* level 0~3 */
+			u8 duty_cycle;
+		} __packed duty;
+	};
+} __packed;
+
+struct mt7996_mcu_thermal_enable {
+	__le32 trigger_temp;
+	__le32 restore_temp;
+	__le16 sustain_time;
+	u8 rsv[2];
+} __packed;
+
 struct mt7996_mcu_csa_notify {
 	struct mt7996_mcu_rxd rxd;
 
@@ -213,6 +235,22 @@ enum  {
 	UNI_WED_RRO_BA_SESSION_TBL,
 	UNI_WED_RRO_BA_SESSION_DELETE,
 };
+
+struct mt7996_mcu_thermal_notify {
+	struct mt7996_mcu_rxd rxd;
+
+	u8 __rsv1[4];
+
+	__le16 tag;
+	__le16 len;
+
+	u8 event_id;
+	u8 band_idx;
+	u8 level_idx;
+	u8 duty_percent;
+	__le32 restore_temp;
+	u8 __rsv2[4];
+} __packed;
 
 enum mt7996_chan_mib_offs {
 	UNI_MIB_OBSS_AIRTIME = 26,
@@ -717,6 +755,12 @@ enum{
 	UNI_CMD_SR_SET_SRG_BITMAP = 0x80,
 	UNI_CMD_SR_SET_PARAM = 0xc1,
 	UNI_CMD_SR_SET_SIGA = 0xd0,
+};
+
+enum {
+	UNI_CMD_THERMAL_PROTECT_ENABLE = 0x6,
+	UNI_CMD_THERMAL_PROTECT_DISABLE,
+	UNI_CMD_THERMAL_PROTECT_DUTY_CONFIG,
 };
 
 enum {

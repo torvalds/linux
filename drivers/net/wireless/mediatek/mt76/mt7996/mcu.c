@@ -498,6 +498,34 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
 }
 
 static void
+mt7996_mcu_rx_thermal_notify(struct mt7996_dev *dev, struct sk_buff *skb)
+{
+#define THERMAL_NOTIFY_TAG 0x4
+#define THERMAL_NOTIFY 0x2
+	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt7996_mcu_thermal_notify *n;
+	struct mt7996_phy *phy;
+
+	n = (struct mt7996_mcu_thermal_notify *)skb->data;
+
+	if (le16_to_cpu(n->tag) != THERMAL_NOTIFY_TAG)
+		return;
+
+	if (n->event_id != THERMAL_NOTIFY)
+		return;
+
+	if (n->band_idx > MT_BAND2)
+		return;
+
+	mphy = dev->mt76.phys[n->band_idx];
+	if (!mphy)
+		return;
+
+	phy = (struct mt7996_phy *)mphy->priv;
+	phy->throttle_state = n->duty_percent;
+}
+
+static void
 mt7996_mcu_rx_ext_event(struct mt7996_dev *dev, struct sk_buff *skb)
 {
 	struct mt7996_mcu_rxd *rxd = (struct mt7996_mcu_rxd *)skb->data;
@@ -519,6 +547,9 @@ mt7996_mcu_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
 	switch (rxd->eid) {
 	case MCU_EVENT_EXT:
 		mt7996_mcu_rx_ext_event(dev, skb);
+		break;
+	case MCU_UNI_EVENT_THERMAL:
+		mt7996_mcu_rx_thermal_notify(dev, skb);
 		break;
 	default:
 		break;
@@ -3569,6 +3600,79 @@ out:
 	dev_kfree_skb(skb);
 
 	return 0;
+}
+
+int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state)
+{
+	struct {
+		u8 _rsv[4];
+
+		__le16 tag;
+		__le16 len;
+
+		struct mt7996_mcu_thermal_ctrl ctrl;
+	} __packed req = {
+		.tag = cpu_to_le16(UNI_CMD_THERMAL_PROTECT_DUTY_CONFIG),
+		.len = cpu_to_le16(sizeof(req) - 4),
+		.ctrl = {
+			.band_idx = phy->mt76->band_idx,
+		},
+	};
+	int level, ret;
+
+	/* set duty cycle and level */
+	for (level = 0; level < 4; level++) {
+		req.ctrl.duty.duty_level = level;
+		req.ctrl.duty.duty_cycle = state;
+		state /= 2;
+
+		ret = mt76_mcu_send_msg(&phy->dev->mt76, MCU_WM_UNI_CMD(THERMAL),
+					&req, sizeof(req), false);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int mt7996_mcu_set_thermal_protect(struct mt7996_phy *phy, bool enable)
+{
+#define SUSTAIN_PERIOD		10
+	struct {
+		u8 _rsv[4];
+
+		__le16 tag;
+		__le16 len;
+
+		struct mt7996_mcu_thermal_ctrl ctrl;
+		struct mt7996_mcu_thermal_enable enable;
+	} __packed req = {
+		.len = cpu_to_le16(sizeof(req) - 4 - sizeof(req.enable)),
+		.ctrl = {
+			.band_idx = phy->mt76->band_idx,
+			.type.protect_type = 1,
+			.type.trigger_type = 1,
+		},
+	};
+	int ret;
+
+	req.tag = cpu_to_le16(UNI_CMD_THERMAL_PROTECT_DISABLE);
+
+	ret = mt76_mcu_send_msg(&phy->dev->mt76, MCU_WM_UNI_CMD(THERMAL),
+				&req, sizeof(req) - sizeof(req.enable), false);
+	if (ret || !enable)
+		return ret;
+
+	/* set high-temperature trigger threshold */
+	req.tag = cpu_to_le16(UNI_CMD_THERMAL_PROTECT_ENABLE);
+	req.enable.restore_temp = cpu_to_le32(phy->throttle_temp[0]);
+	req.enable.trigger_temp = cpu_to_le32(phy->throttle_temp[1]);
+	req.enable.sustain_time = cpu_to_le16(SUSTAIN_PERIOD);
+
+	req.len = cpu_to_le16(sizeof(req) - 4);
+
+	return mt76_mcu_send_msg(&phy->dev->mt76, MCU_WM_UNI_CMD(THERMAL),
+				 &req, sizeof(req), false);
 }
 
 int mt7996_mcu_set_ser(struct mt7996_dev *dev, u8 action, u8 val, u8 band)
