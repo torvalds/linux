@@ -2392,7 +2392,6 @@ F:	drivers/memory/atmel*
 F:	drivers/watchdog/sama5d4_wdt.c
 F:	include/soc/at91/
 X:	drivers/input/touchscreen/atmel_mxt_ts.c
-X:	drivers/net/wireless/atmel/
 N:	at91
 N:	atmel
 
@@ -3283,13 +3282,6 @@ S:	Maintained
 T:	git git://github.com/ndyer/linux.git
 F:	Documentation/devicetree/bindings/input/atmel,maxtouch.yaml
 F:	drivers/input/touchscreen/atmel_mxt_ts.c
-
-ATMEL WIRELESS DRIVER
-L:	linux-wireless@vger.kernel.org
-S:	Orphan
-W:	http://www.thekelleys.org.uk/atmel
-W:	http://atmelwlandriver.sourceforge.net/
-F:	drivers/net/wireless/atmel/atmel*
 
 ATOMIC INFRASTRUCTURE
 M:	Will Deacon <will@kernel.org>
