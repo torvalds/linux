@@ -9553,11 +9553,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/iio/pressure/honeywell,mprls0025pa.yaml
 F:	drivers/iio/pressure/mprls0025pa.c
 
-HOST AP DRIVER
-L:	linux-wireless@vger.kernel.org
-S:	Obsolete
-F:	drivers/net/wireless/intersil/hostap/
-
 HP BIOSCFG DRIVER
 M:	Jorge Lopez <jorge.lopez2@hp.com>
 L:	platform-driver-x86@vger.kernel.org
