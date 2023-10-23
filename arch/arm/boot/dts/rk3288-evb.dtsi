@@ -148,6 +148,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_cs>;
 		prepare-delay-ms = <120>;
+		width-mm = <120>;
+		height-mm = <160>;
 
 		panel-timing {
 			clock-frequency = <200000000>;
