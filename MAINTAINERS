@@ -22441,12 +22441,6 @@ S:	Supported
 F:	drivers/usb/host/pci-quirks*
 F:	drivers/usb/host/xhci*
 
-USB ZD1201 DRIVER
-L:	linux-wireless@vger.kernel.org
-S:	Orphan
-W:	http://linux-lc100020.sourceforge.net
-F:	drivers/net/wireless/zydas/zd1201.*
-
 USER DATAGRAM PROTOCOL (UDP)
 M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
 S:	Maintained
