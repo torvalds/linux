@@ -265,7 +265,7 @@ mptfc_bus_reset(struct scsi_cmnd *SCpnt)
 	MPT_SCSI_HOST __maybe_unused *hd = shost_priv(shost);
 	int channel = SCpnt->device->channel;
 	struct mptfc_rport_info *ri;
-	int rtn;
+	int rtn = FAILED;
 
 	list_for_each_entry(ri, &hd->ioc->fc_rports, list) {
 		if (ri->flags & MPT_RPORT_INFO_FLAGS_REGISTERED) {
