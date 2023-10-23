@@ -545,7 +545,7 @@ static int bmi323_tap_event_en(struct bmi323_data *data,
 	guard(mutex)(&data->mutex);
 
 	if (data->odrhz[BMI323_ACCEL] < 200) {
-		dev_err(data->dev, "Invalid accelrometer parameter\n");
+		dev_err(data->dev, "Invalid accelerometer parameter\n");
 		return -EINVAL;
 	}
 
@@ -1453,7 +1453,7 @@ static int bmi323_enable_steps(struct bmi323_data *data, int val)
 
 	guard(mutex)(&data->mutex);
 	if (data->odrhz[BMI323_ACCEL] < 200) {
-		dev_err(data->dev, "Invalid accelrometer parameter\n");
+		dev_err(data->dev, "Invalid accelerometer parameter\n");
 		return -EINVAL;
 	}
 
