@@ -296,6 +296,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		rt = NULL;
 		goto failure;
 	}
+	tp->tcp_usec_ts = dst_tcp_usec_ts(&rt->dst);
 	/* OK, now commit destination to socket.  */
 	sk->sk_gso_type = SKB_GSO_TCPV4;
 	sk_setup_caps(sk, &rt->dst);
@@ -954,7 +955,7 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	tcp_v4_send_ack(sk, skb,
 			tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
-			tcp_time_stamp_raw() + tcptw->tw_ts_offset,
+			tcp_tw_tsval(tcptw),
 			tcptw->tw_ts_recent,
 			tw->tw_bound_dev_if,
 			tcp_twsk_md5_key(tcptw),
@@ -988,7 +989,7 @@ static void tcp_v4_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 	tcp_v4_send_ack(sk, skb, seq,
 			tcp_rsk(req)->rcv_nxt,
 			req->rsk_rcv_wnd >> inet_rsk(req)->rcv_wscale,
-			tcp_time_stamp_raw() + tcp_rsk(req)->ts_off,
+			tcp_rsk_tsval(tcp_rsk(req)),
 			READ_ONCE(req->ts_recent),
 			0,
 			tcp_md5_do_lookup(sk, l3index, addr, AF_INET),

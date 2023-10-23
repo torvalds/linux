@@ -177,7 +177,7 @@ static __always_inline __u32 tcp_ns_to_ts(__u64 ns)
 	return ns / (NSEC_PER_SEC / TCP_TS_HZ);
 }
 
-static __always_inline __u32 tcp_time_stamp_raw(void)
+static __always_inline __u32 tcp_clock_ms(void)
 {
 	return tcp_ns_to_ts(tcp_clock_ns());
 }
@@ -274,7 +274,7 @@ static __always_inline bool tscookie_init(struct tcphdr *tcp_header,
 	if (!loop_ctx.option_timestamp)
 		return false;
 
-	cookie = tcp_time_stamp_raw() & ~TSMASK;
+	cookie = tcp_clock_ms() & ~TSMASK;
 	cookie |= loop_ctx.wscale & TS_OPT_WSCALE_MASK;
 	if (loop_ctx.option_sack)
 		cookie |= TS_OPT_SACK;
