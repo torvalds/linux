@@ -159,14 +159,37 @@ xfs_rbmblock_to_rtx(
 }
 
 /* Return a pointer to a bitmap word within a rt bitmap block. */
-static inline xfs_rtword_t *
+static inline union xfs_rtword_raw *
 xfs_rbmblock_wordptr(
 	struct xfs_buf		*bp,
 	unsigned int		index)
 {
-	xfs_rtword_t		*words = bp->b_addr;
+	union xfs_rtword_raw	*words = bp->b_addr;
 
 	return words + index;
+}
+
+/* Convert an ondisk bitmap word to its incore representation. */
+static inline xfs_rtword_t
+xfs_rtbitmap_getword(
+	struct xfs_buf		*bp,
+	unsigned int		index)
+{
+	union xfs_rtword_raw	*word = xfs_rbmblock_wordptr(bp, index);
+
+	return word->old;
+}
+
+/* Set an ondisk bitmap word from an incore representation. */
+static inline void
+xfs_rtbitmap_setword(
+	struct xfs_buf		*bp,
+	unsigned int		index,
+	xfs_rtword_t		value)
+{
+	union xfs_rtword_raw	*word = xfs_rbmblock_wordptr(bp, index);
+
+	word->old = value;
 }
 
 /*
@@ -209,14 +232,38 @@ xfs_rtsumoffs_to_infoword(
 }
 
 /* Return a pointer to a summary info word within a rt summary block. */
-static inline xfs_suminfo_t *
+static inline union xfs_suminfo_raw *
 xfs_rsumblock_infoptr(
 	struct xfs_buf		*bp,
 	unsigned int		index)
 {
-	xfs_suminfo_t		*info = bp->b_addr;
+	union xfs_suminfo_raw	*info = bp->b_addr;
 
 	return info + index;
+}
+
+/* Get the current value of a summary counter. */
+static inline xfs_suminfo_t
+xfs_suminfo_get(
+	struct xfs_buf		*bp,
+	unsigned int		index)
+{
+	union xfs_suminfo_raw	*info = xfs_rsumblock_infoptr(bp, index);
+
+	return info->old;
+}
+
+/* Add to the current value of a summary counter and return the new value. */
+static inline xfs_suminfo_t
+xfs_suminfo_add(
+	struct xfs_buf		*bp,
+	unsigned int		index,
+	int			delta)
+{
+	union xfs_suminfo_raw	*info = xfs_rsumblock_infoptr(bp, index);
+
+	info->old += delta;
+	return info->old;
 }
 
 /*
@@ -285,6 +332,11 @@ xfs_filblks_t xfs_rtbitmap_blockcount(struct xfs_mount *mp, xfs_rtbxlen_t
 		rtextents);
 unsigned long long xfs_rtbitmap_wordcount(struct xfs_mount *mp,
 		xfs_rtbxlen_t rtextents);
+
+xfs_filblks_t xfs_rtsummary_blockcount(struct xfs_mount *mp,
+		unsigned int rsumlevels, xfs_extlen_t rbmblocks);
+unsigned long long xfs_rtsummary_wordcount(struct xfs_mount *mp,
+		unsigned int rsumlevels, xfs_extlen_t rbmblocks);
 #else /* CONFIG_XFS_RT */
 # define xfs_rtfree_extent(t,b,l)			(-ENOSYS)
 # define xfs_rtfree_blocks(t,rb,rl)			(-ENOSYS)
@@ -299,6 +351,8 @@ xfs_rtbitmap_blockcount(struct xfs_mount *mp, xfs_rtbxlen_t rtextents)
 	return 0;
 }
 # define xfs_rtbitmap_wordcount(mp, r)			(0)
+# define xfs_rtsummary_blockcount(mp, l, b)		(0)
+# define xfs_rtsummary_wordcount(mp, l, b)		(0)
 #endif /* CONFIG_XFS_RT */
 
 #endif /* __XFS_RTBITMAP_H__ */

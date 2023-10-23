@@ -82,9 +82,10 @@ static inline int
 xfsum_load(
 	struct xfs_scrub	*sc,
 	xfs_rtsumoff_t		sumoff,
-	xfs_suminfo_t		*info)
+	union xfs_suminfo_raw	*rawinfo)
 {
-	return xfile_obj_load(sc->xfile, info, sizeof(xfs_suminfo_t),
+	return xfile_obj_load(sc->xfile, rawinfo,
+			sizeof(union xfs_suminfo_raw),
 			sumoff << XFS_WORDLOG);
 }
 
@@ -92,9 +93,10 @@ static inline int
 xfsum_store(
 	struct xfs_scrub	*sc,
 	xfs_rtsumoff_t		sumoff,
-	const xfs_suminfo_t	info)
+	const union xfs_suminfo_raw rawinfo)
 {
-	return xfile_obj_store(sc->xfile, &info, sizeof(xfs_suminfo_t),
+	return xfile_obj_store(sc->xfile, &rawinfo,
+			sizeof(union xfs_suminfo_raw),
 			sumoff << XFS_WORDLOG);
 }
 
@@ -102,11 +104,20 @@ static inline int
 xfsum_copyout(
 	struct xfs_scrub	*sc,
 	xfs_rtsumoff_t		sumoff,
-	xfs_suminfo_t		*info,
+	union xfs_suminfo_raw	*rawinfo,
 	unsigned int		nr_words)
 {
-	return xfile_obj_load(sc->xfile, info, nr_words << XFS_WORDLOG,
+	return xfile_obj_load(sc->xfile, rawinfo, nr_words << XFS_WORDLOG,
 			sumoff << XFS_WORDLOG);
+}
+
+static inline xfs_suminfo_t
+xchk_rtsum_inc(
+	struct xfs_mount	*mp,
+	union xfs_suminfo_raw	*v)
+{
+	v->old += 1;
+	return v->old;
 }
 
 /* Update the summary file to reflect the free extent that we've accumulated. */
@@ -123,7 +134,8 @@ xchk_rtsum_record_free(
 	xfs_filblks_t			rtlen;
 	xfs_rtsumoff_t			offs;
 	unsigned int			lenlog;
-	xfs_suminfo_t			v = 0;
+	union xfs_suminfo_raw		v;
+	xfs_suminfo_t			value;
 	int				error = 0;
 
 	if (xchk_should_terminate(sc, &error))
@@ -147,9 +159,9 @@ xchk_rtsum_record_free(
 	if (error)
 		return error;
 
-	v++;
+	value = xchk_rtsum_inc(sc->mp, &v);
 	trace_xchk_rtsum_record_free(mp, rec->ar_startext, rec->ar_extcount,
-			lenlog, offs, v);
+			lenlog, offs, value);
 
 	return xfsum_store(sc, offs, v);
 }
@@ -184,7 +196,7 @@ xchk_rtsum_compare(
 	int			nmap;
 
 	for (off = 0; off < XFS_B_TO_FSB(mp, mp->m_rsumsize); off++) {
-		xfs_suminfo_t	*ondisk_info;
+		union xfs_suminfo_raw *ondisk_info;
 		int		error = 0;
 
 		if (xchk_should_terminate(sc, &error))
