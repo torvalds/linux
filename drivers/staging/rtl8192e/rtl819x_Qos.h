@@ -14,12 +14,6 @@ union qos_tsinfo {
 	} field;
 };
 
-union tspec_body {
-	struct {
-		union qos_tsinfo ts_info;
-	} f;
-};
-
 struct octet_string {
 	u8 *Octet;
 	u16 Length;
