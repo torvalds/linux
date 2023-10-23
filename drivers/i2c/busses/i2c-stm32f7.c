@@ -325,6 +325,7 @@ struct stm32f7_i2c_alert {
  * @dnf_dt: value of digital filter requested via dt
  * @dnf: value of digital filter to apply
  * @alert: SMBus alert specific data
+ * @atomic: boolean indicating that current transfer is atomic
  */
 struct stm32f7_i2c_dev {
 	struct i2c_adapter adap;
