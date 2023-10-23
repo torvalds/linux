@@ -554,7 +554,7 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	unsigned int val = XRS_HSR_CFG_HSR_PRP;
 	struct dsa_port *partner = NULL, *dp;
 	struct xrs700x *priv = ds->priv;
-	struct net_device *slave;
+	struct net_device *user;
 	int ret, i, hsr_pair[2];
 	enum hsr_version ver;
 	bool fwd = false;
@@ -638,8 +638,8 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 	hsr_pair[0] = port;
 	hsr_pair[1] = partner->index;
 	for (i = 0; i < ARRAY_SIZE(hsr_pair); i++) {
-		slave = dsa_to_port(ds, hsr_pair[i])->slave;
-		slave->features |= XRS7000X_SUPPORTED_HSR_FEATURES;
+		user = dsa_to_port(ds, hsr_pair[i])->user;
+		user->features |= XRS7000X_SUPPORTED_HSR_FEATURES;
 	}
 
 	return 0;
@@ -650,7 +650,7 @@ static int xrs700x_hsr_leave(struct dsa_switch *ds, int port,
 {
 	struct dsa_port *partner = NULL, *dp;
 	struct xrs700x *priv = ds->priv;
-	struct net_device *slave;
+	struct net_device *user;
 	int i, hsr_pair[2];
 	unsigned int val;
 
@@ -692,8 +692,8 @@ static int xrs700x_hsr_leave(struct dsa_switch *ds, int port,
 	hsr_pair[0] = port;
 	hsr_pair[1] = partner->index;
 	for (i = 0; i < ARRAY_SIZE(hsr_pair); i++) {
-		slave = dsa_to_port(ds, hsr_pair[i])->slave;
-		slave->features &= ~XRS7000X_SUPPORTED_HSR_FEATURES;
+		user = dsa_to_port(ds, hsr_pair[i])->user;
+		user->features &= ~XRS7000X_SUPPORTED_HSR_FEATURES;
 	}
 
 	return 0;

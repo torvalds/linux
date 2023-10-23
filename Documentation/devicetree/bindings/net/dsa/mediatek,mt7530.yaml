@@ -60,7 +60,7 @@ description: |
 
       Check out example 6.
 
-    - Port 5 can be wired to an external phy. Port 5 becomes a DSA slave.
+    - Port 5 can be wired to an external phy. Port 5 becomes a DSA user port.
 
       For the multi-chip module MT7530, the external phy must be wired TX to TX
       to gmac1 of the SoC for this to work. Ubiquiti EdgeRouter X SFP is wired

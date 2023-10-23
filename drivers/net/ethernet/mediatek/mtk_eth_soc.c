@@ -3329,7 +3329,7 @@ static int mtk_device_event(struct notifier_block *n, unsigned long event, void 
 	return NOTIFY_DONE;
 
 found:
-	if (!dsa_slave_dev_check(dev))
+	if (!dsa_user_dev_check(dev))
 		return NOTIFY_DONE;
 
 	if (__ethtool_get_link_ksettings(dev, &s))

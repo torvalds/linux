@@ -37,8 +37,8 @@ static struct sk_buff *ocelot_defer_xmit(struct dsa_port *dp,
 		return NULL;
 
 	/* PTP over IP packets need UDP checksumming. We may have inherited
-	 * NETIF_F_HW_CSUM from the DSA master, but these packets are not sent
-	 * through the DSA master, so calculate the checksum here.
+	 * NETIF_F_HW_CSUM from the DSA conduit, but these packets are not sent
+	 * through the DSA conduit, so calculate the checksum here.
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL && skb_checksum_help(skb))
 		return NULL;
@@ -49,7 +49,7 @@ static struct sk_buff *ocelot_defer_xmit(struct dsa_port *dp,
 
 	/* Calls felix_port_deferred_xmit in felix.c */
 	kthread_init_work(&xmit_work->work, xmit_work_fn);
-	/* Increase refcount so the kfree_skb in dsa_slave_xmit
+	/* Increase refcount so the kfree_skb in dsa_user_xmit
 	 * won't really free the packet.
 	 */
 	xmit_work->dp = dp;
@@ -63,7 +63,7 @@ static struct sk_buff *ocelot_defer_xmit(struct dsa_port *dp,
 static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
-	struct dsa_port *dp = dsa_slave_to_port(netdev);
+	struct dsa_port *dp = dsa_user_to_port(netdev);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
 	u16 tx_vid = dsa_tag_8021q_standalone_vid(dp);
@@ -83,7 +83,7 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 
 	dsa_8021q_rcv(skb, &src_port, &switch_id, NULL);
 
-	skb->dev = dsa_master_find_slave(netdev, switch_id, src_port);
+	skb->dev = dsa_conduit_find_user(netdev, switch_id, src_port);
 	if (!skb->dev)
 		return NULL;
 
@@ -130,7 +130,7 @@ static const struct dsa_device_ops ocelot_8021q_netdev_ops = {
 	.connect		= ocelot_connect,
 	.disconnect		= ocelot_disconnect,
 	.needed_headroom	= VLAN_HLEN,
-	.promisc_on_master	= true,
+	.promisc_on_conduit	= true,
 };
 
 MODULE_LICENSE("GPL v2");
