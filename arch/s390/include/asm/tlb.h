@@ -112,7 +112,7 @@ static inline void p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
 	__tlb_adjust_range(tlb, address, PAGE_SIZE);
 	tlb->mm->context.flush_mm = 1;
 	tlb->freed_tables = 1;
-	tlb_remove_table(tlb, p4d);
+	tlb_remove_ptdesc(tlb, p4d);
 }
 
 /*
@@ -130,7 +130,7 @@ static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
 	tlb->mm->context.flush_mm = 1;
 	tlb->freed_tables = 1;
 	tlb->cleared_p4ds = 1;
-	tlb_remove_table(tlb, pud);
+	tlb_remove_ptdesc(tlb, pud);
 }
 
 

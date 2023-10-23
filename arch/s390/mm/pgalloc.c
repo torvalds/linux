@@ -412,7 +412,7 @@ void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
 	}
 	spin_unlock_bh(&mm->context.lock);
 	table = (unsigned long *) ((unsigned long) table | (0x01U << bit));
-	tlb_remove_table(tlb, table);
+	tlb_remove_ptdesc(tlb, table);
 }
 
 void __tlb_remove_table(void *_table)
