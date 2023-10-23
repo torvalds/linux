@@ -1119,18 +1119,11 @@ static int __dev_alloc_name(struct net *net, const char *name, char *res)
 
 	i = find_first_zero_bit(inuse, max_netdevices);
 	bitmap_free(inuse);
+	if (i == max_netdevices)
+		return -ENFILE;
 
-	snprintf(buf, IFNAMSIZ, name, i);
-	if (!netdev_name_in_use(net, buf)) {
-		strscpy(res, buf, IFNAMSIZ);
-		return i;
-	}
-
-	/* It is possible to run out of possible slots
-	 * when the name is long and there isn't enough space left
-	 * for the digits, or if all bits are used.
-	 */
-	return -ENFILE;
+	snprintf(res, IFNAMSIZ, name, i);
+	return i;
 }
 
 /* Returns negative errno or allocated unit id (see __dev_alloc_name()) */
