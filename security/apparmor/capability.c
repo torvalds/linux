@@ -51,7 +51,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 
 /**
  * audit_caps - audit a capability
- * @as: audit data
+ * @ad: audit data
  * @profile: profile being tested for confinement (NOT NULL)
  * @cap: capability tested
  * @error: error code returned by test
@@ -140,7 +140,7 @@ static int profile_capable(struct aa_profile *profile, int cap,
 
 /**
  * aa_capable - test permission to use capability
- * @subj_cread: cred we are testing capability against
+ * @subj_cred: cred we are testing capability against
  * @label: label being tested for capability (NOT NULL)
  * @cap: capability to be tested
  * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
