@@ -95,8 +95,6 @@ static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
 	eth_zero_addr(pTsCommonInfo->addr);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(struct qos_tsinfo));
-	pTsCommonInfo->TClasProc = 0;
-	pTsCommonInfo->TClasNum = 0;
 }
 
 static void ResetTxTsEntry(struct tx_ts_record *ts)

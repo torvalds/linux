@@ -21,8 +21,6 @@ struct ts_common_info {
 	struct list_head		List;
 	u8				addr[ETH_ALEN];
 	struct qos_tsinfo TSpec;
-	u8				TClasProc;
-	u8				TClasNum;
 };
 
 struct tx_ts_record {
