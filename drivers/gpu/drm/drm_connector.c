@@ -1198,6 +1198,12 @@ static const u32 dp_colorspaces =
  * 	drm_connector_set_path_property(), in the case of DP MST with the
  * 	path property the MST manager created. Userspace cannot change this
  * 	property.
+ *
+ * 	In the case of DP MST, the property has the format
+ * 	``mst:<parent>-<ports>`` where ``<parent>`` is the KMS object ID of the
+ * 	parent connector and ``<ports>`` is a hyphen-separated list of DP MST
+ * 	port numbers. Note, KMS object IDs are not guaranteed to be stable
+ * 	across reboots.
  * TILE:
  * 	Connector tile group property to indicate how a set of DRM connector
  * 	compose together into one logical screen. This is used by both high-res
