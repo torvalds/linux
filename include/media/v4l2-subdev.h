@@ -691,10 +691,6 @@ struct v4l2_subdev_ir_ops {
  * @format: &struct v4l2_mbus_framefmt
  * @crop: &struct v4l2_rect to be used for crop
  * @compose: &struct v4l2_rect to be used for compose
- *
- * This structure only needs to be passed to the pad op if the 'which' field
- * of the main argument is set to %V4L2_SUBDEV_FORMAT_TRY. For
- * %V4L2_SUBDEV_FORMAT_ACTIVE it is safe to pass %NULL.
  */
 struct v4l2_subdev_pad_config {
 	struct v4l2_mbus_framefmt format;
