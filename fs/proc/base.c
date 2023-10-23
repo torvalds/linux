@@ -2972,7 +2972,7 @@ static const struct file_operations proc_coredump_filter_operations = {
 #ifdef CONFIG_TASK_IO_ACCOUNTING
 static int do_io_accounting(struct task_struct *task, struct seq_file *m, int whole)
 {
-	struct task_io_accounting acct = task->ioac;
+	struct task_io_accounting acct;
 	unsigned long flags;
 	int result;
 
@@ -2986,14 +2986,18 @@ static int do_io_accounting(struct task_struct *task, struct seq_file *m, int wh
 	}
 
 	if (whole && lock_task_sighand(task, &flags)) {
-		struct task_struct *t = task;
+		struct signal_struct *sig = task->signal;
+		struct task_struct *t;
 
-		task_io_accounting_add(&acct, &task->signal->ioac);
-		while_each_thread(task, t)
+		acct = sig->ioac;
+		__for_each_thread(sig, t)
 			task_io_accounting_add(&acct, &t->ioac);
 
 		unlock_task_sighand(task, &flags);
+	} else {
+		acct = task->ioac;
 	}
+
 	seq_printf(m,
 		   "rchar: %llu\n"
 		   "wchar: %llu\n"
