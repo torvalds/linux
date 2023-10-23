@@ -10,6 +10,7 @@
 #include "xe_device.h"
 #include "xe_exec_queue.h"
 #include "xe_gt.h"
+#include "xe_gt_mcr.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
 #include "xe_step_types.h"
@@ -491,8 +492,7 @@ static u32 get_entry_control(const struct xe_mocs_info *info,
 }
 
 static void __init_mocs_table(struct xe_gt *gt,
-			      const struct xe_mocs_info *info,
-			      u32 addr)
+			      const struct xe_mocs_info *info)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 
@@ -505,10 +505,13 @@ static void __init_mocs_table(struct xe_gt *gt,
 	for (i = 0;
 	     i < info->n_entries ? (mocs = get_entry_control(info, i)), 1 : 0;
 	     i++) {
-		struct xe_reg reg = XE_REG(addr + i * 4);
+		mocs_dbg(&gt_to_xe(gt)->drm, "%d 0x%x 0x%x\n", i,
+			 XELP_GLOBAL_MOCS(i).addr, mocs);
 
-		mocs_dbg(&gt_to_xe(gt)->drm, "%d 0x%x 0x%x\n", i, reg.addr, mocs);
-		xe_mmio_write32(gt, reg, mocs);
+		if (GRAPHICS_VERx100(gt_to_xe(gt)) > 1250)
+			xe_gt_mcr_multicast_write(gt, XEHP_GLOBAL_MOCS(i), mocs);
+		else
+			xe_mmio_write32(gt, XELP_GLOBAL_MOCS(i), mocs);
 	}
 }
 
@@ -542,9 +545,13 @@ static void init_l3cc_table(struct xe_gt *gt,
 	     (l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
 				  get_entry_l3cc(info, 2 * i + 1))), 1 : 0;
 	     i++) {
-		mocs_dbg(&gt_to_xe(gt)->drm, "%d 0x%x 0x%x\n", i, LNCFCMOCS(i).addr,
+		mocs_dbg(&gt_to_xe(gt)->drm, "%d 0x%x 0x%x\n", i, XELP_LNCFCMOCS(i).addr,
 			 l3cc);
-		xe_mmio_write32(gt, LNCFCMOCS(i), l3cc);
+
+		if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
+			xe_gt_mcr_multicast_write(gt, XEHP_LNCFCMOCS(i), l3cc);
+		else
+			xe_mmio_write32(gt, XELP_LNCFCMOCS(i), l3cc);
 	}
 }
 
@@ -569,7 +576,7 @@ void xe_mocs_init(struct xe_gt *gt)
 	mocs_dbg(&gt_to_xe(gt)->drm, "flag:0x%x\n", flags);
 
 	if (flags & HAS_GLOBAL_MOCS)
-		__init_mocs_table(gt, &table, GLOBAL_MOCS(0).addr);
+		__init_mocs_table(gt, &table);
 
 	/*
 	 * Initialize the L3CC table as part of mocs initalization to make

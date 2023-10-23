@@ -43,7 +43,8 @@
 #define FORCEWAKE_ACK_GT_MTL			XE_REG(0xdfc)
 
 /* L3 Cache Control */
-#define LNCFCMOCS(i)				XE_REG(0xb020 + (i) * 4)
+#define XELP_LNCFCMOCS(i)			XE_REG(0xb020 + (i) * 4)
+#define XEHP_LNCFCMOCS(i)			XE_REG_MCR(0xb020 + (i) * 4)
 #define LNCFCMOCS_REG_COUNT			32
 
 #define MCFG_MCR_SELECTOR			XE_REG(0xfd0)
@@ -79,7 +80,8 @@
 #define   PREEMPT_GPGPU_LEVEL_MASK		PREEMPT_GPGPU_LEVEL(1, 1)
 #define   PREEMPT_3D_OBJECT_LEVEL		REG_BIT(0)
 
-#define GLOBAL_MOCS(i)				XE_REG(0x4000 + (i) * 4) /* Global MOCS regs */
+#define XELP_GLOBAL_MOCS(i)			XE_REG(0x4000 + (i) * 4)
+#define XEHP_GLOBAL_MOCS(i)			XE_REG_MCR(0x4000 + (i) * 4)
 #define CCS_AUX_INV				XE_REG(0x4208)
 
 #define VD0_AUX_INV				XE_REG(0x4218)

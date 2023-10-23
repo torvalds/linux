@@ -473,7 +473,7 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 	if (needs_wa_1607983814(xe) && hwe->class == XE_ENGINE_CLASS_RENDER) {
 		for (i = 0; i < LNCFCMOCS_REG_COUNT; i++) {
 			guc_mmio_regset_write_one(ads, regset_map,
-						  LNCFCMOCS(i), count++);
+						  XELP_LNCFCMOCS(i), count++);
 		}
 	}
 
