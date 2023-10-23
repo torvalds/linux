@@ -4,7 +4,6 @@ POST_DEFCONFIG_CMDS="update_config"
 function update_config() {
     ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
          -e UNWINDER_FRAME_POINTER \
-         -d WERROR \
          -d SAMPLES \
          -d BPFILTER \
          -e RANDSTRUCT_NONE \

@@ -359,6 +359,7 @@
   __traceiter_android_vh_wq_lockup_pool
   __traceiter_block_rq_insert
   __traceiter_console
+  __traceiter_error_report_end
   __traceiter_hrtimer_expire_entry
   __traceiter_hrtimer_expire_exit
   __traceiter_irq_handler_entry
@@ -400,6 +401,7 @@
   __tracepoint_android_vh_watchdog_timer_softlockup
   __tracepoint_android_vh_wq_lockup_pool
   __tracepoint_block_rq_insert
+  __tracepoint_error_report_end
   __tracepoint_console
   __tracepoint_hrtimer_expire_entry
   __tracepoint_hrtimer_expire_exit

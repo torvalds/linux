@@ -56,15 +56,29 @@ struct fuse_in_postfilter_header {
 /** One input argument of a request */
 struct fuse_bpf_in_arg {
 	uint32_t size;
-	const void *value;
-	const void *end_offset;
+	uint32_t padding;
+	union {
+		const void *value;
+		uint64_t padding2;
+	};
+	union {
+		const void *end_offset;
+		uint64_t padding3;
+	};
 };
 
 /** One output argument of a request */
 struct fuse_bpf_arg {
 	uint32_t size;
-	void *value;
-	void *end_offset;
+	uint32_t padding;
+	union {
+		void *value;
+		uint64_t padding2;
+	};
+	union {
+		void *end_offset;
+		uint64_t padding3;
+	};
 };
 
 #define FUSE_MAX_IN_ARGS 5
@@ -80,6 +94,7 @@ struct fuse_bpf_args {
 	uint32_t in_numargs;
 	uint32_t out_numargs;
 	uint32_t flags;
+	uint32_t padding;
 	struct fuse_bpf_in_arg in_args[FUSE_MAX_IN_ARGS];
 	struct fuse_bpf_arg out_args[FUSE_MAX_OUT_ARGS];
 };

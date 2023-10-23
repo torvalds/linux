@@ -73,6 +73,7 @@
   bin2hex
   bio_endio
   bio_end_io_acct_remapped
+  bio_split
   bio_start_io_acct
   bitmap_allocate_region
   __bitmap_and
@@ -93,6 +94,8 @@
   bit_wait
   bit_wait_timeout
   __blk_alloc_disk
+  blk_crypto_keyslot_index
+  blk_crypto_register
   blkdev_get_by_dev
   blk_execute_rq
   blk_execute_rq_nowait
@@ -813,6 +816,22 @@
   dma_unmap_sg_attrs
   dma_vmap_noncontiguous
   dma_vunmap_noncontiguous
+  dm_bufio_client_create
+  dm_bufio_client_destroy
+  dm_bufio_mark_buffer_dirty
+  dm_bufio_new
+  dm_bufio_read
+  dm_bufio_release
+  dm_bufio_write_dirty_buffers
+  dm_disk
+  dm_get_device
+  dm_kobject_release
+  dm_read_arg_group
+  dm_register_target
+  dm_shift_arg
+  dm_table_get_md
+  dm_table_get_mode
+  dm_unregister_target
   do_trace_netlink_extack
   do_trace_rcu_torture_read
   double_rq_lock
@@ -2212,6 +2231,7 @@
   page_ext_put
   page_is_ram
   page_mapping
+  page_owner_inited
   page_pinner_inited
   __page_pinner_put_page
   page_pool_alloc_pages
@@ -2887,6 +2907,7 @@
   set_normalized_timespec64
   set_page_dirty_lock
   __SetPageMovable
+  __set_page_owner
   set_task_cpu
   setup_udp_tunnel_sock
   set_user_nice
@@ -3903,6 +3924,7 @@
   vhost_add_used_and_signal
   vhost_dev_check_owner
   vhost_dev_cleanup
+  vhost_dev_flush
   vhost_dev_init
   vhost_dev_ioctl
   vhost_dev_stop
