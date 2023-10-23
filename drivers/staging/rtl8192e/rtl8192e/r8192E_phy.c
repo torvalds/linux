@@ -965,7 +965,7 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 
 void rtl92e_set_rf_off(struct net_device *dev)
 {
-	rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);
+	rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE, BIT(4), 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x18, 0x0);
 	rtl92e_set_bb_reg(dev, rOFDM0_TRxPathEnable, 0xf, 0x0);
@@ -1016,7 +1016,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 					 0x4, 0x1);
 			priv->hw_rf_off_action = 0;
 			rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE,
-					  BIT4, 0x1);
+					  BIT(4), 0x1);
 			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4,
 					  0x300, 0x3);
 			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
