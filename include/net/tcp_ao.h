@@ -81,10 +81,25 @@ struct tcp_ao_info {
 	 */
 	struct tcp_ao_key	*current_key;
 	struct tcp_ao_key	*rnext_key;
-	u32			flags;
+	u32			ao_required	:1,
+				__unused	:31;
 	__be32			lisn;
 	__be32			risn;
 	struct rcu_head		rcu;
 };
+
+#ifdef CONFIG_TCP_AO
+int tcp_parse_ao(struct sock *sk, int cmd, unsigned short int family,
+		 sockptr_t optval, int optlen);
+void tcp_ao_destroy_sock(struct sock *sk);
+/* ipv4 specific functions */
+int tcp_v4_parse_ao(struct sock *sk, int cmd, sockptr_t optval, int optlen);
+/* ipv6 specific functions */
+int tcp_v6_parse_ao(struct sock *sk, int cmd, sockptr_t optval, int optlen);
+#else
+static inline void tcp_ao_destroy_sock(struct sock *sk)
+{
+}
+#endif
 
 #endif /* _TCP_AO_H */

@@ -129,6 +129,9 @@ enum {
 
 #define TCP_TX_DELAY		37	/* delay outgoing packets by XX usec */
 
+#define TCP_AO_ADD_KEY		38	/* Add/Set MKT */
+#define TCP_AO_DEL_KEY		39	/* Delete MKT */
+#define TCP_AO_INFO		40	/* Modify TCP-AO per-socket options */
 
 #define TCP_REPAIR_ON		1
 #define TCP_REPAIR_OFF		0
@@ -362,6 +365,49 @@ struct tcp_diag_md5sig {
 };
 
 #define TCP_AO_MAXKEYLEN	80
+
+#define TCP_AO_KEYF_IFINDEX	(1 << 0)	/* L3 ifindex for VRF */
+
+struct tcp_ao_add { /* setsockopt(TCP_AO_ADD_KEY) */
+	struct __kernel_sockaddr_storage addr;	/* peer's address for the key */
+	char	alg_name[64];		/* crypto hash algorithm to use */
+	__s32	ifindex;		/* L3 dev index for VRF */
+	__u32   set_current	:1,	/* set key as Current_key at once */
+		set_rnext	:1,	/* request it from peer with RNext_key */
+		reserved	:30;	/* must be 0 */
+	__u16	reserved2;		/* padding, must be 0 */
+	__u8	prefix;			/* peer's address prefix */
+	__u8	sndid;			/* SendID for outgoing segments */
+	__u8	rcvid;			/* RecvID to match for incoming seg */
+	__u8	maclen;			/* length of authentication code (hash) */
+	__u8	keyflags;		/* see TCP_AO_KEYF_ */
+	__u8	keylen;			/* length of ::key */
+	__u8	key[TCP_AO_MAXKEYLEN];
+} __attribute__((aligned(8)));
+
+struct tcp_ao_del { /* setsockopt(TCP_AO_DEL_KEY) */
+	struct __kernel_sockaddr_storage addr;	/* peer's address for the key */
+	__s32	ifindex;		/* L3 dev index for VRF */
+	__u32   set_current	:1,	/* corresponding ::current_key */
+		set_rnext	:1,	/* corresponding ::rnext */
+		reserved	:30;	/* must be 0 */
+	__u16	reserved2;		/* padding, must be 0 */
+	__u8	prefix;			/* peer's address prefix */
+	__u8	sndid;			/* SendID for outgoing segments */
+	__u8	rcvid;			/* RecvID to match for incoming seg */
+	__u8	current_key;		/* KeyID to set as Current_key */
+	__u8	rnext;			/* KeyID to set as Rnext_key */
+	__u8	keyflags;		/* see TCP_AO_KEYF_ */
+} __attribute__((aligned(8)));
+
+struct tcp_ao_info_opt { /* setsockopt(TCP_AO_INFO) */
+	__u32   set_current	:1,	/* corresponding ::current_key */
+		set_rnext	:1,	/* corresponding ::rnext */
+		ao_required	:1,	/* don't accept non-AO connects */
+		reserved	:29;	/* must be 0 */
+	__u8	current_key;		/* KeyID to set as Current_key */
+	__u8	rnext;			/* KeyID to set as Rnext_key */
+} __attribute__((aligned(8)));
 
 /* setsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE, ...) */
 
