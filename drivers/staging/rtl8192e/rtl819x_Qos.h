@@ -7,11 +7,9 @@
 #ifndef __INC_QOS_TYPE_H
 #define __INC_QOS_TYPE_H
 
-union qos_tsinfo {
-	struct {
-		u8		ucTSID:4;
-		u8		ucDirection:2;
-	} field;
+struct qos_tsinfo {
+	u8		ucTSID:4;
+	u8		ucDirection:2;
 };
 
 struct octet_string {
