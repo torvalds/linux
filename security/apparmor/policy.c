@@ -111,7 +111,7 @@ static void aa_free_pdb(struct aa_policydb *policy)
 
 /**
  * aa_pdb_free_kref - free aa_policydb by kref (called by aa_put_pdb)
- * @kr: kref callback for freeing of a dfa  (NOT NULL)
+ * @kref: kref callback for freeing of a dfa  (NOT NULL)
  */
 void aa_pdb_free_kref(struct kref *kref)
 {
@@ -870,7 +870,7 @@ bool aa_current_policy_admin_capable(struct aa_ns *ns)
 
 /**
  * aa_may_manage_policy - can the current task manage policy
- * @subj_cred; subjects cred
+ * @subj_cred: subjects cred
  * @label: label to check if it can manage policy
  * @ns: namespace being managed by @label (may be NULL if @label's ns)
  * @mask: contains the policy manipulation operation being done
