@@ -533,6 +533,15 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 			goto err_free_encoder;
 		}
 
+		if (lvds->secondary) {
+			kfree(connector->name);
+			connector->name = kasprintf(GFP_KERNEL, "LVDS-DUAL");
+			if (!connector->name) {
+				ret = -ENOMEM;
+				goto err_free_connector;
+			}
+		}
+
 		drm_connector_helper_add(connector,
 					 &rockchip_lvds_connector_helper_funcs);
 
