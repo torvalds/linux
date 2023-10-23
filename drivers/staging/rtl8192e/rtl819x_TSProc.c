@@ -318,15 +318,9 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		netdev_dbg(ieee->dev,
 			   "to init current TS, UP:%d, Dir:%d, addr: %pM ppTs=%p\n",
 			   UP, Dir, addr, *ppTS);
-		ts_info->field.ucTrafficType = 0;
 		ts_info->field.ucTSID = UP;
 		ts_info->field.ucDirection = Dir;
-		ts_info->field.ucAccessPolicy = 1;
-		ts_info->field.ucAggregation = 0;
-		ts_info->field.ucPSB = 0;
 		ts_info->field.ucUP = UP;
-		ts_info->field.ucTSInfoAckPolicy = 0;
-		ts_info->field.ucSchedule = 0;
 
 		MakeTSEntry(*ppTS, addr, &TSpec, NULL, 0, 0);
 		list_add_tail(&((*ppTS)->List), pAddmitList);

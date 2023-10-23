@@ -8,18 +8,10 @@
 #define __INC_QOS_TYPE_H
 
 union qos_tsinfo {
-	u8		charData[3];
 	struct {
-		u8		ucTrafficType:1;
 		u8		ucTSID:4;
 		u8		ucDirection:2;
-		u8		ucAccessPolicy:2;
-		u8		ucAggregation:1;
-		u8		ucPSB:1;
 		u8		ucUP:3;
-		u8		ucTSInfoAckPolicy:2;
-		u8		ucSchedule:1;
-		u8		ucReserved:7;
 	} field;
 };
 
