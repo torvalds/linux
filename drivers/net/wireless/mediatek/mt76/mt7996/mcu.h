@@ -801,4 +801,24 @@ enum {
 #define MT7996_SEC_KEY_IDX		GENMASK(2, 1)
 #define MT7996_SEC_IV			BIT(3)
 
+struct fixed_rate_table_ctrl {
+	u8 _rsv[4];
+
+	__le16 tag;
+	__le16 len;
+
+	u8 table_idx;
+	u8 antenna_idx;
+	__le16 rate_idx;
+	u8 spe_idx_sel;
+	u8 spe_idx;
+	u8 gi;
+	u8 he_ltf;
+	bool ldpc;
+	bool txbf;
+	bool dynamic_bw;
+
+	u8 _rsv2;
+} __packed;
+
 #endif

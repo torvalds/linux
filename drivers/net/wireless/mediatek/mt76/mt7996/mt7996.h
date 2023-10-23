@@ -47,7 +47,7 @@
 #define MT7996_MAX_QUEUE		(__MT_RXQ_MAX +	__MT_MCUQ_MAX + 3)
 
 /* NOTE: used to map mt76_rates. idx may change if firmware expands table */
-#define MT7996_BASIC_RATES_TBL		11
+#define MT7996_BASIC_RATES_TBL		31
 #define MT7996_BEACON_RATES_TBL		25
 
 #define MT7996_THERMAL_THROTTLE_MAX	100
@@ -216,6 +216,8 @@ struct mt7996_phy {
 	u8 slottime;
 
 	u8 rdd_state;
+
+	u16 beacon_rate;
 
 	u32 rx_ampdu_ts;
 	u32 ampdu_ref;
@@ -472,6 +474,8 @@ int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
 		       u8 rx_sel, u8 val);
 int mt7996_mcu_rdd_background_enable(struct mt7996_phy *phy,
 				     struct cfg80211_chan_def *chandef);
+int mt7996_mcu_set_fixed_rate_table(struct mt7996_phy *phy, u8 table_idx,
+				    u16 rate_idx, bool beacon);
 int mt7996_mcu_rf_regval(struct mt7996_dev *dev, u32 regidx, u32 *val, bool set);
 int mt7996_mcu_set_hdr_trans(struct mt7996_dev *dev, bool hdr_trans);
 int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u16 val);
@@ -538,8 +542,6 @@ void mt7996_mac_cca_stats_reset(struct mt7996_phy *phy);
 void mt7996_mac_enable_nf(struct mt7996_dev *dev, u8 band);
 void mt7996_mac_enable_rtscts(struct mt7996_dev *dev,
 			      struct ieee80211_vif *vif, bool enable);
-void mt7996_mac_set_fixed_rate_table(struct mt7996_dev *dev,
-				     u8 tbl_idx, u16 rate_idx);
 void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid,
 			   struct ieee80211_key_conf *key, int pid,

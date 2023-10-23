@@ -4179,6 +4179,35 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
 				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
 }
 
+int mt7996_mcu_set_fixed_rate_table(struct mt7996_phy *phy, u8 table_idx,
+				    u16 rate_idx, bool beacon)
+{
+#define UNI_FIXED_RATE_TABLE_SET	0
+#define SPE_IXD_SELECT_TXD		0
+#define SPE_IXD_SELECT_BMC_WTBL		1
+	struct mt7996_dev *dev = phy->dev;
+	struct fixed_rate_table_ctrl req = {
+		.tag = cpu_to_le16(UNI_FIXED_RATE_TABLE_SET),
+		.len = cpu_to_le16(sizeof(req) - 4),
+		.table_idx = table_idx,
+		.rate_idx = cpu_to_le16(rate_idx),
+		.gi = 1,
+		.he_ltf = 1,
+	};
+	u8 band_idx = phy->mt76->band_idx;
+
+	if (beacon) {
+		req.spe_idx_sel = SPE_IXD_SELECT_TXD;
+		req.spe_idx = 24 + band_idx;
+		phy->beacon_rate = rate_idx;
+	} else {
+		req.spe_idx_sel = SPE_IXD_SELECT_BMC_WTBL;
+	}
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(FIXED_RATE_TABLE),
+				 &req, sizeof(req), false);
+}
+
 int mt7996_mcu_rf_regval(struct mt7996_dev *dev, u32 regidx, u32 *val, bool set)
 {
 	struct {

@@ -522,24 +522,25 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
 	struct mt76_phy *mphy = hw->priv;
 	u16 rate;
-	u8 i, idx, ht;
+	u8 i, idx;
 
 	rate = mt76_connac2_mac_tx_rate_val(mphy, vif, beacon, mcast);
-	ht = FIELD_GET(MT_TX_RATE_MODE, rate) > MT_PHY_TYPE_OFDM;
 
-	if (beacon && ht) {
-		struct mt7996_dev *dev = mt7996_hw_dev(hw);
+	if (beacon) {
+		struct mt7996_phy *phy = mphy->priv;
 
-		/* must odd index */
-		idx = MT7996_BEACON_RATES_TBL + 2 * (mvif->idx % 20);
-		mt7996_mac_set_fixed_rate_table(dev, idx, rate);
+		/* odd index for driver, even index for firmware */
+		idx = MT7996_BEACON_RATES_TBL + 2 * phy->mt76->band_idx;
+		if (phy->beacon_rate != rate)
+			mt7996_mcu_set_fixed_rate_table(phy, idx, rate, beacon);
+
 		return idx;
 	}
 
 	idx = FIELD_GET(MT_TX_RATE_IDX, rate);
 	for (i = 0; i < ARRAY_SIZE(mt76_rates); i++)
 		if ((mt76_rates[i].hw_value & GENMASK(7, 0)) == idx)
-			return MT7996_BASIC_RATES_TBL + i;
+			return MT7996_BASIC_RATES_TBL + 2 * i;
 
 	return mvif->basic_rates_idx;
 }
@@ -965,7 +966,6 @@ mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	mt7996_set_stream_vht_txbf_caps(phy);
 	mt7996_set_stream_he_eht_caps(phy);
 
-	/* TODO: update bmc_wtbl spe_idx when antenna changes */
 	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
