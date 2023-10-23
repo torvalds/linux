@@ -365,6 +365,15 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			return -EINVAL;
 		file_priv->writeback_connectors = req->value;
 		break;
+	case DRM_CLIENT_CAP_CURSOR_PLANE_HOTSPOT:
+		if (!drm_core_check_feature(dev, DRIVER_CURSOR_HOTSPOT))
+			return -EOPNOTSUPP;
+		if (!file_priv->atomic)
+			return -EINVAL;
+		if (req->value > 1)
+			return -EINVAL;
+		file_priv->supports_virtualized_cursor_plane = req->value;
+		break;
 	default:
 		return -EINVAL;
 	}
