@@ -478,9 +478,8 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 
 static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 {
-	struct drm_i915_private *i915 =
-		container_of(hrtimer, struct drm_i915_private, pmu.timer);
-	struct i915_pmu *pmu = &i915->pmu;
+	struct i915_pmu *pmu = container_of(hrtimer, struct i915_pmu, timer);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	unsigned int period_ns;
 	struct intel_gt *gt;
 	unsigned int i;
