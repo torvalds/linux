@@ -148,7 +148,7 @@
 	/*
 	 * A fallback to GPIO is provided for I2C2.
 	 */
-	i2chdmi: i2c-10 {
+	i2chdmi: i2c-mux1 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&i2c2>, <&gpioi2c2>;
 		i2c-bus-name = "i2c-hdmi";
