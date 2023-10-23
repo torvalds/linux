@@ -3066,6 +3066,7 @@ static int pmcraid_eh_target_reset_handler(struct scsi_cmnd *scmd)
 {
 	struct Scsi_Host *shost = scmd->device->host;
 	struct scsi_device *scsi_dev = NULL, *tmp;
+	int ret;
 
 	shost_for_each_device(tmp, shost) {
 		if ((tmp->channel == scmd->device->channel) &&
@@ -3078,9 +3079,11 @@ static int pmcraid_eh_target_reset_handler(struct scsi_cmnd *scmd)
 		return FAILED;
 	sdev_printk(KERN_INFO, scsi_dev,
 		    "Doing target reset due to an I/O command timeout.\n");
-	return pmcraid_reset_device(scsi_dev,
-				    PMCRAID_INTERNAL_TIMEOUT,
-				    RESET_DEVICE_TARGET);
+	ret = pmcraid_reset_device(scsi_dev,
+				   PMCRAID_INTERNAL_TIMEOUT,
+				   RESET_DEVICE_TARGET);
+	scsi_device_put(scsi_dev);
+	return ret;
 }
 
 /**
