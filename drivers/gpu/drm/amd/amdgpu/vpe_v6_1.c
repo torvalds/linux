@@ -205,19 +205,21 @@ static int vpe_v6_1_ring_start(struct amdgpu_vpe *vpe)
 static int vpe_v_6_1_ring_stop(struct amdgpu_vpe *vpe)
 {
 	struct amdgpu_device *adev = vpe->ring.adev;
-	uint32_t rb_cntl, ib_cntl;
+	uint32_t queue_reset;
+	int ret;
 
-	rb_cntl = RREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_RB_CNTL));
-	rb_cntl = REG_SET_FIELD(rb_cntl, VPEC_QUEUE0_RB_CNTL, RB_ENABLE, 0);
-	WREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_RB_CNTL), rb_cntl);
+	queue_reset = RREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE_RESET_REQ));
+	queue_reset = REG_SET_FIELD(queue_reset, VPEC_QUEUE_RESET_REQ, QUEUE0_RESET, 1);
+	WREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE_RESET_REQ), queue_reset);
 
-	ib_cntl = RREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_IB_CNTL));
-	ib_cntl = REG_SET_FIELD(ib_cntl, VPEC_QUEUE0_IB_CNTL, IB_ENABLE, 0);
-	WREG32(vpe_get_reg_offset(vpe, 0, regVPEC_QUEUE0_IB_CNTL), ib_cntl);
+	ret = SOC15_WAIT_ON_RREG(VPE, 0, regVPEC_QUEUE_RESET_REQ, 0,
+				 VPEC_QUEUE_RESET_REQ__QUEUE0_RESET_MASK);
+	if (ret)
+		dev_err(adev->dev, "VPE queue reset failed\n");
 
 	vpe->ring.sched.ready = false;
 
-	return 0;
+	return ret;
 }
 
 static int vpe_v6_1_set_trap_irq_state(struct amdgpu_device *adev,
