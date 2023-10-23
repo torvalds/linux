@@ -1925,10 +1925,13 @@ megaraid_abort_and_reset(adapter_t *adapter, struct scsi_cmnd *cmd, int aor)
 	struct list_head	*pos, *next;
 	scb_t			*scb;
 
-	dev_warn(&adapter->dev->dev, "%s cmd=%x <c=%d t=%d l=%d>\n",
-	     (aor == SCB_ABORT)? "ABORTING":"RESET",
-	     cmd->cmnd[0], cmd->device->channel,
-	     cmd->device->id, (u32)cmd->device->lun);
+	if (aor == SCB_ABORT)
+		dev_warn(&adapter->dev->dev,
+			 "ABORTING cmd=%x <c=%d t=%d l=%d>\n",
+			 cmd->cmnd[0], cmd->device->channel,
+			 cmd->device->id, (u32)cmd->device->lun);
+	else
+		dev_warn(&adapter->dev->dev, "RESETTING\n");
 
 	if(list_empty(&adapter->pending_list))
 		return FAILED;
