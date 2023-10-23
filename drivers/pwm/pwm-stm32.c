@@ -645,7 +645,7 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused stm32_pwm_suspend(struct device *dev)
+static int stm32_pwm_suspend(struct device *dev)
 {
 	struct stm32_pwm *priv = dev_get_drvdata(dev);
 	unsigned int i;
@@ -666,7 +666,7 @@ static int __maybe_unused stm32_pwm_suspend(struct device *dev)
 	return pinctrl_pm_select_sleep_state(dev);
 }
 
-static int __maybe_unused stm32_pwm_resume(struct device *dev)
+static int stm32_pwm_resume(struct device *dev)
 {
 	struct stm32_pwm *priv = dev_get_drvdata(dev);
 	int ret;
@@ -679,7 +679,7 @@ static int __maybe_unused stm32_pwm_resume(struct device *dev)
 	return stm32_pwm_apply_breakinputs(priv);
 }
 
-static SIMPLE_DEV_PM_OPS(stm32_pwm_pm_ops, stm32_pwm_suspend, stm32_pwm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(stm32_pwm_pm_ops, stm32_pwm_suspend, stm32_pwm_resume);
 
 static const struct of_device_id stm32_pwm_of_match[] = {
 	{ .compatible = "st,stm32-pwm",	},
@@ -692,7 +692,7 @@ static struct platform_driver stm32_pwm_driver = {
 	.driver	= {
 		.name = "stm32-pwm",
 		.of_match_table = stm32_pwm_of_match,
-		.pm = &stm32_pwm_pm_ops,
+		.pm = pm_ptr(&stm32_pwm_pm_ops),
 	},
 };
 module_platform_driver(stm32_pwm_driver);
