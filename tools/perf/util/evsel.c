@@ -49,6 +49,7 @@
 #include "off_cpu.h"
 #include "pmu.h"
 #include "pmus.h"
+#include "rlimit.h"
 #include "../perf-sys.h"
 #include "util/parse-branch-options.h"
 #include "util/bpf-filter.h"
@@ -1989,33 +1990,6 @@ bool evsel__detect_missing_features(struct evsel *evsel)
 	}
 }
 
-bool evsel__increase_rlimit(enum rlimit_action *set_rlimit)
-{
-	int old_errno;
-	struct rlimit l;
-
-	if (*set_rlimit < INCREASED_MAX) {
-		old_errno = errno;
-
-		if (getrlimit(RLIMIT_NOFILE, &l) == 0) {
-			if (*set_rlimit == NO_CHANGE) {
-				l.rlim_cur = l.rlim_max;
-			} else {
-				l.rlim_cur = l.rlim_max + 1000;
-				l.rlim_max = l.rlim_cur;
-			}
-			if (setrlimit(RLIMIT_NOFILE, &l) == 0) {
-				(*set_rlimit) += 1;
-				errno = old_errno;
-				return true;
-			}
-		}
-		errno = old_errno;
-	}
-
-	return false;
-}
-
 static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads,
 		int start_cpu_map_idx, int end_cpu_map_idx)
@@ -2143,7 +2117,7 @@ try_fallback:
 	 * perf stat needs between 5 and 22 fds per CPU. When we run out
 	 * of them try to increase the limits.
 	 */
-	if (err == -EMFILE && evsel__increase_rlimit(&set_rlimit))
+	if (err == -EMFILE && rlimit__increase_nofile(&set_rlimit))
 		goto retry_open;
 
 	if (err != -EINVAL || idx > 0 || thread > 0)

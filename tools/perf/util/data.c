@@ -17,7 +17,7 @@
 #include "util.h" // rm_rf_perf_data()
 #include "debug.h"
 #include "header.h"
-#include "evsel.h"
+#include "rlimit.h"
 #include <internal/lib.h>
 
 static void close_dir(struct perf_data_file *files, int nr)
@@ -64,7 +64,7 @@ retry_open:
 			 * perf record needs at least 6 fds per CPU.
 			 * When we run out of them try to increase the limits.
 			 */
-			if (errno == EMFILE && evsel__increase_rlimit(&set_rlimit))
+			if (errno == EMFILE && rlimit__increase_nofile(&set_rlimit))
 				goto retry_open;
 
 			ret = -errno;
