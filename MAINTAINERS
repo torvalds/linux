@@ -22417,11 +22417,6 @@ F:	drivers/usb/gadget/function/*uvc*
 F:	drivers/usb/gadget/legacy/webcam.c
 F:	include/uapi/linux/usb/g_uvc.h
 
-USB WIRELESS RNDIS DRIVER (rndis_wlan)
-L:	linux-wireless@vger.kernel.org
-S:	Orphan
-F:	drivers/net/wireless/legacy/rndis_wlan.c
-
 USB XHCI DRIVER
 M:	Mathias Nyman <mathias.nyman@intel.com>
 L:	linux-usb@vger.kernel.org
