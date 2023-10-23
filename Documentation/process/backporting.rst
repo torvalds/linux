@@ -54,6 +54,12 @@ problem with applying the patch to the "wrong" base is that it may pull
 in more unrelated changes in the context of the diff when cherry-picking
 it to the older branch.
 
+A good reason to prefer ``git cherry-pick`` over ``git am`` is that git
+knows the precise history of an existing commit, so it will know when
+code has moved around and changed the line numbers; this in turn makes
+it less likely to apply the patch to the wrong place (which can result
+in silent mistakes or messy conflicts).
+
 If you are using `b4`_. and you are applying the patch directly from an
 email, you can use ``b4 am`` with the options ``-g``/``--guess-base``
 and ``-3``/``--prep-3way`` to do some of this automatically (see the
@@ -112,6 +118,7 @@ each method, and sometimes there's value in using both.
 We will not cover using dedicated merge tools here beyond providing some
 pointers to various tools that you could use:
 
+-  `Emacs Ediff mode <https://www.emacswiki.org/emacs/EdiffMode>`__
 -  `vimdiff/gvimdiff <https://linux.die.net/man/1/vimdiff>`__
 -  `KDiff3 <http://kdiff3.sourceforge.net/>`__
 -  `TortoiseMerge <https://tortoisesvn.net/TortoiseMerge.html>`__
@@ -255,7 +262,7 @@ something like::
     >>>>>>> <commit>... title
 
 This is what you would see if you opened the file in your editor.
-However, if you were to run run ``git diff`` without any arguments, the
+However, if you were to run ``git diff`` without any arguments, the
 output would look something like this::
 
     $ git diff
@@ -320,11 +327,11 @@ style, which looks like this::
     >>>>>>> <commit> (title)
 
 As you can see, this has 3 parts instead of 2, and includes what git
-expected to find there but didn't. Some people vastly prefer this style
-as it makes it much clearer what the patch actually changed; i.e., it
-allows you to compare the before-and-after versions of the file for the
-commit you are cherry-picking. This allows you to make better decisions
-about how to resolve the conflict.
+expected to find there but didn't. It is *highly recommended* to use
+this conflict style as it makes it much clearer what the patch actually
+changed; i.e., it allows you to compare the before-and-after versions
+of the file for the commit you are cherry-picking. This allows you to
+make better decisions about how to resolve the conflict.
 
 To change conflict marker styles, you can use the following command::
 
@@ -370,34 +377,6 @@ get them out of the way; this also lets you use ``git diff HEAD`` to
 always see what remains to be resolved or ``git diff --cached`` to see
 what your patch looks like so far.
 
-Function arguments
-~~~~~~~~~~~~~~~~~~
-
-Pay attention to changing function arguments! It's easy to gloss over
-details and think that two lines are the same but actually they differ
-in some small detail like which variable was passed as an argument
-(especially if the two variables are both a single character that look
-the same, like i and j).
-
-Error handling
-~~~~~~~~~~~~~~
-
-If you cherry-pick a patch that includes a ``goto`` statement (typically
-for error handling), it is absolutely imperative to double check that
-the target label is still correct in the branch you are backporting to.
-Error handling is typically located at the bottom of the function, so it
-may not be part of the conflict even though could have been changed by
-other patches.
-
-A good way to ensure that you review the error paths is to always use
-``git diff -W`` and ``git show -W`` (AKA ``--function-context``) when
-inspecting your changes.  For C code, this will show you the whole
-function that's being changed in a patch. One of the things that often
-go wrong during backports is that something else in the function changed
-on either of the branches that you're backporting from or to. By
-including the whole function in the diff you get more context and can
-more easily spot problems that might otherwise go unnoticed.
-
 Dealing with file renames
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -413,6 +392,13 @@ just go ahead and apply the change by hand and be done with it. On the
 other hand, if the change is big or complicated, you definitely don't
 want to do it by hand.
 
+As a first pass, you can try something like this, which will lower the
+rename detection threshold to 30% (by default, git uses 50%, meaning
+that two files need to have at least 50% in common for it to consider
+an add-delete pair to be a potential rename)::
+
+  git cherry-pick -strategy=recursive -Xrename-threshold=30
+
 Sometimes the right thing to do will be to also backport the patch that
 did the rename, but that's definitely not the most common case. Instead,
 what you can do is to temporarily rename the file in the branch you're
@@ -423,6 +409,66 @@ committing again), and finally squash the result using ``git rebase -i``
 are done.
 
 .. _rebase tutorial: https://medium.com/@slamflipstrom/a-beginners-guide-to-squashing-commits-with-git-rebase-8185cf6e62ec
+
+Gotchas
+-------
+
+Function arguments
+~~~~~~~~~~~~~~~~~~
+
+Pay attention to changing function arguments! It's easy to gloss over
+details and think that two lines are the same but actually they differ
+in some small detail like which variable was passed as an argument
+(especially if the two variables are both a single character that look
+the same, like i and j).
+
+Error handling
+~~~~~~~~~~~~~~
+
+If you cherry-pick a patch that includes a ``goto`` statement (typically
+for error handling), it is absolutely imperative to double check that
+the target label is still correct in the branch you are backporting to.
+The same goes for added ``return``, ``break``, and ``continue``
+statements.
+
+Error handling is typically located at the bottom of the function, so it
+may not be part of the conflict even though could have been changed by
+other patches.
+
+A good way to ensure that you review the error paths is to always use
+``git diff -W`` and ``git show -W`` (AKA ``--function-context``) when
+inspecting your changes.  For C code, this will show you the whole
+function that's being changed in a patch. One of the things that often
+go wrong during backports is that something else in the function changed
+on either of the branches that you're backporting from or to. By
+including the whole function in the diff you get more context and can
+more easily spot problems that might otherwise go unnoticed.
+
+Refactored code
+~~~~~~~~~~~~~~~
+
+Something that happens quite often is that code gets refactored by
+"factoring out" a common code sequence or pattern into a helper
+function. When backporting patches to an area where such a refactoring
+has taken place, you effectively need to do the reverse when
+backporting: a patch to a single location may need to be applied to
+multiple locations in the backported version. (One giveaway for this
+scenario is that a function was renamed -- but that's not always the
+case.)
+
+To avoid incomplete backports, it's worth trying to figure out if the
+patch fixes a bug that appears in more than one place. One way to do
+this would be to use ``git grep``. (This is actually a good idea to do
+in general, not just for backports.) If you do find that the same kind
+of fix would apply to other places, it's also worth seeing if those
+places exist upstream -- if they don't, it's likely the patch may need
+to be adjusted. ``git log`` is your friend to figure out what happened
+to these areas as ``git blame`` won't show you code that has been
+removed.
+
+If you do find other instances of the same pattern in the upstream tree
+and you're not sure whether it's also a bug, it may be worth asking the
+patch author. It's not uncommon to find new bugs during backporting!
 
 Verifying the result
 ====================
@@ -502,6 +548,50 @@ a backport is to review the final patch with the same level of scrutiny
 as you would (or should) give to any other patch. Having unit tests and
 regression tests or other types of automatic testing can help increase
 the confidence in the correctness of a backport.
+
+Submitting backports to stable
+==============================
+
+As the stable maintainers try to cherry-pick mainline fixes onto their
+stable kernels, they may send out emails asking for backports when when
+encountering conflicts, see e.g.
+<https://lore.kernel.org/stable/2023101528-jawed-shelving-071a@gregkh/>.
+These emails typically include the exact steps you need to cherry-pick
+the patch to the correct tree and submit the patch.
+
+One thing to make sure is that your changelog conforms to the expected
+format::
+
+  <original patch title>
+  
+  [ Upstream commit <mainline rev> ]
+  
+  <rest of the original changelog>
+  [ <summary of the conflicts and their resolutions> ]
+  Signed-off-by: <your name and email>
+
+The "Upstream commit" line is sometimes slightly different depending on
+the stable version. Older version used this format::
+
+  commit <mainline rev> upstream.
+
+It is most common to indicate the kernel version the patch applies to
+in the email subject line (using e.g.
+``git send-email --subject-prefix='PATCH 6.1.y'``), but you can also put
+it in the Signed-off-by:-area or below the ``---`` line.
+
+The stable maintainers expect separate submissions for each active
+stable version, and each submission should also be tested separately.
+
+A few final words of advice
+===========================
+
+1) Approach the backporting process with humility.
+2) Understand the patch you are backporting; this means reading both
+   the changelog and the code.
+3) Be honest about your confidence in the result when submitting the
+   patch.
+4) Ask relevant maintainers for explicit acks.
 
 Examples
 ========
