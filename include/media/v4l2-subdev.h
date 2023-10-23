@@ -688,21 +688,18 @@ struct v4l2_subdev_ir_ops {
 /**
  * struct v4l2_subdev_pad_config - Used for storing subdev pad information.
  *
- * @try_fmt: &struct v4l2_mbus_framefmt
- * @try_crop: &struct v4l2_rect to be used for crop
- * @try_compose: &struct v4l2_rect to be used for compose
+ * @format: &struct v4l2_mbus_framefmt
+ * @crop: &struct v4l2_rect to be used for crop
+ * @compose: &struct v4l2_rect to be used for compose
  *
  * This structure only needs to be passed to the pad op if the 'which' field
  * of the main argument is set to %V4L2_SUBDEV_FORMAT_TRY. For
  * %V4L2_SUBDEV_FORMAT_ACTIVE it is safe to pass %NULL.
- *
- * Note: This struct is also used in active state, and the 'try' prefix is
- * historical and to be removed.
  */
 struct v4l2_subdev_pad_config {
-	struct v4l2_mbus_framefmt try_fmt;
-	struct v4l2_rect try_crop;
-	struct v4l2_rect try_compose;
+	struct v4l2_mbus_framefmt format;
+	struct v4l2_rect crop;
+	struct v4l2_rect compose;
 };
 
 /**
@@ -1145,8 +1142,8 @@ struct v4l2_subdev_fh {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 
 /**
- * v4l2_subdev_get_pad_format - ancillary routine to call
- *	&struct v4l2_subdev_pad_config->try_fmt
+ * v4l2_subdev_get_pad_format - ancillary routine to get
+ *	&struct v4l2_subdev_pad_config->format
  *
  * @sd: pointer to &struct v4l2_subdev
  * @state: pointer to &struct v4l2_subdev_state
@@ -1161,12 +1158,12 @@ v4l2_subdev_get_pad_format(struct v4l2_subdev *sd,
 		return NULL;
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
-	return &state->pads[pad].try_fmt;
+	return &state->pads[pad].format;
 }
 
 /**
- * v4l2_subdev_get_pad_crop - ancillary routine to call
- *	&struct v4l2_subdev_pad_config->try_crop
+ * v4l2_subdev_get_pad_crop - ancillary routine to get
+ *	&struct v4l2_subdev_pad_config->crop
  *
  * @sd: pointer to &struct v4l2_subdev
  * @state: pointer to &struct v4l2_subdev_state.
@@ -1181,12 +1178,12 @@ v4l2_subdev_get_pad_crop(struct v4l2_subdev *sd,
 		return NULL;
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
-	return &state->pads[pad].try_crop;
+	return &state->pads[pad].crop;
 }
 
 /**
- * v4l2_subdev_get_pad_compose - ancillary routine to call
- *	&struct v4l2_subdev_pad_config->try_compose
+ * v4l2_subdev_get_pad_compose - ancillary routine to get
+ *	&struct v4l2_subdev_pad_config->compose
  *
  * @sd: pointer to &struct v4l2_subdev
  * @state: pointer to &struct v4l2_subdev_state.
@@ -1201,7 +1198,7 @@ v4l2_subdev_get_pad_compose(struct v4l2_subdev *sd,
 		return NULL;
 	if (WARN_ON(pad >= sd->entity.num_pads))
 		pad = 0;
-	return &state->pads[pad].try_compose;
+	return &state->pads[pad].compose;
 }
 
 /*
