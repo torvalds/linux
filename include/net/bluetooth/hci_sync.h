@@ -80,6 +80,8 @@ int hci_start_per_adv_sync(struct hci_dev *hdev, u8 instance, u8 data_len,
 			   u8 *data, u32 flags, u16 min_interval,
 			   u16 max_interval, u16 sync_interval);
 
+int hci_disable_per_advertising_sync(struct hci_dev *hdev, u8 instance);
+
 int hci_remove_advertising_sync(struct hci_dev *hdev, struct sock *sk,
 				u8 instance, bool force);
 int hci_disable_advertising_sync(struct hci_dev *hdev);
