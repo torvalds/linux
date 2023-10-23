@@ -239,7 +239,8 @@ enum tx_mgnt_type {
 
 #define MT_TXD6_TX_SRC			GENMASK(31, 30)
 #define MT_TXD6_VTA			BIT(28)
-#define MT_TXD6_BW			GENMASK(25, 22)
+#define MT_TXD6_FIXED_BW		BIT(25)
+#define MT_TXD6_BW			GENMASK(24, 22)
 #define MT_TXD6_TX_RATE			GENMASK(21, 16)
 #define MT_TXD6_TIMESTAMP_OFS_EN	BIT(15)
 #define MT_TXD6_TIMESTAMP_OFS_IDX	GENMASK(14, 10)
