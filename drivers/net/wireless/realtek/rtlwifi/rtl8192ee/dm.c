@@ -560,7 +560,7 @@ static void rtl92ee_dm_write_dynamic_cca(struct ieee80211_hw *hw,
 	primarycca->mf_state = cur_mf_state;
 }
 
-static void rtl92ee_dm_dynamic_primary_cca_ckeck(struct ieee80211_hw *hw)
+static void rtl92ee_dm_dynamic_primary_cca_check(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct false_alarm_statistics *falsealm_cnt = &rtlpriv->falsealm_cnt;
@@ -1083,7 +1083,7 @@ void rtl92ee_dm_watchdog(struct ieee80211_hw *hw)
 		rtl92ee_dm_refresh_rate_adaptive_mask(hw);
 		rtl92ee_dm_check_edca_turbo(hw);
 		rtl92ee_dm_dynamic_atc_switch(hw);
-		rtl92ee_dm_dynamic_primary_cca_ckeck(hw);
+		rtl92ee_dm_dynamic_primary_cca_check(hw);
 	}
 	spin_unlock(&rtlpriv->locks.rf_ps_lock);
 }
