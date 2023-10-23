@@ -8,8 +8,6 @@
 #include <linux/preempt.h>
 #include <linux/rethook.h>
 #include <linux/slab.h>
-#include <linux/sort.h>
-#include <linux/smp.h>
 
 /* Return hook list (shadow stack by list) */
 
