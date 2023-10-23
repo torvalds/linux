@@ -1127,8 +1127,7 @@ static void vi_program_aspm(struct amdgpu_device *adev)
 	if (!amdgpu_device_should_use_aspm(adev) || !amdgpu_device_pcie_dynamic_switching_supported())
 		return;
 
-	if (adev->flags & AMD_IS_APU ||
-	    adev->asic_type < CHIP_POLARIS10)
+	if (adev->asic_type < CHIP_POLARIS10)
 		return;
 
 	orig = data = RREG32_PCIE(ixPCIE_LC_CNTL);
