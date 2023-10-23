@@ -5,6 +5,8 @@
 
 #include <linux/etherdevice.h>
 #include <linux/of.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include <linux/thermal.h>
 #include "mt7996.h"
 #include "mac.h"
@@ -42,6 +44,82 @@ static const struct ieee80211_iface_combination if_comb[] = {
 				       BIT(NL80211_CHAN_WIDTH_160),
 	}
 };
+
+static ssize_t mt7996_thermal_temp_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct mt7996_phy *phy = dev_get_drvdata(dev);
+	int i = to_sensor_dev_attr(attr)->index;
+	int temperature;
+
+	switch (i) {
+	case 0:
+		temperature = mt7996_mcu_get_temperature(phy);
+		if (temperature < 0)
+			return temperature;
+		/* display in millidegree celcius */
+		return sprintf(buf, "%u\n", temperature * 1000);
+	case 1:
+	case 2:
+		return sprintf(buf, "%u\n",
+			       phy->throttle_temp[i - 1] * 1000);
+	case 3:
+		return sprintf(buf, "%hhu\n", phy->throttle_state);
+	default:
+		return -EINVAL;
+	}
+}
+
+static ssize_t mt7996_thermal_temp_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct mt7996_phy *phy = dev_get_drvdata(dev);
+	int ret, i = to_sensor_dev_attr(attr)->index;
+	long val;
+
+	ret = kstrtol(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&phy->dev->mt76.mutex);
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), 40, 130);
+
+	/* add a safety margin ~10 */
+	if ((i - 1 == MT7996_CRIT_TEMP_IDX &&
+	     val > phy->throttle_temp[MT7996_MAX_TEMP_IDX] - 10) ||
+	    (i - 1 == MT7996_MAX_TEMP_IDX &&
+	     val - 10 < phy->throttle_temp[MT7996_CRIT_TEMP_IDX])) {
+		dev_err(phy->dev->mt76.dev,
+			"temp1_max shall be 10 degrees higher than temp1_crit.");
+		mutex_unlock(&phy->dev->mt76.mutex);
+		return -EINVAL;
+	}
+
+	phy->throttle_temp[i - 1] = val;
+	mutex_unlock(&phy->dev->mt76.mutex);
+
+	ret = mt7996_mcu_set_thermal_protect(phy, true);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR_RO(temp1_input, mt7996_thermal_temp, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_crit, mt7996_thermal_temp, 1);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, mt7996_thermal_temp, 2);
+static SENSOR_DEVICE_ATTR_RO(throttle1, mt7996_thermal_temp, 3);
+
+static struct attribute *mt7996_hwmon_attrs[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_throttle1.dev_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(mt7996_hwmon);
 
 static int
 mt7996_thermal_get_max_throttle_state(struct thermal_cooling_device *cdev,
@@ -113,6 +191,7 @@ static int mt7996_thermal_init(struct mt7996_phy *phy)
 {
 	struct wiphy *wiphy = phy->mt76->hw->wiphy;
 	struct thermal_cooling_device *cdev;
+	struct device *hwmon;
 	const char *name;
 
 	name = devm_kasprintf(&wiphy->dev, GFP_KERNEL, "mt7996_%s",
@@ -130,6 +209,15 @@ static int mt7996_thermal_init(struct mt7996_phy *phy)
 	/* initialize critical/maximum high temperature */
 	phy->throttle_temp[MT7996_CRIT_TEMP_IDX] = MT7996_CRIT_TEMP;
 	phy->throttle_temp[MT7996_MAX_TEMP_IDX] = MT7996_MAX_TEMP;
+
+	if (!IS_REACHABLE(CONFIG_HWMON))
+		return 0;
+
+	hwmon = devm_hwmon_device_register_with_groups(&wiphy->dev, name, phy,
+						       mt7996_hwmon_groups);
+
+	if (IS_ERR(hwmon))
+		return PTR_ERR(hwmon);
 
 	return 0;
 }

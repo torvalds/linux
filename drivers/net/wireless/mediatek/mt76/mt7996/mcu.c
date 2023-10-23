@@ -3602,6 +3602,48 @@ out:
 	return 0;
 }
 
+int mt7996_mcu_get_temperature(struct mt7996_phy *phy)
+{
+#define TEMPERATURE_QUERY 0
+#define GET_TEMPERATURE 0
+	struct {
+		u8 _rsv[4];
+
+		__le16 tag;
+		__le16 len;
+
+		u8 rsv1;
+		u8 action;
+		u8 band_idx;
+		u8 rsv2;
+	} req = {
+		.tag = cpu_to_le16(TEMPERATURE_QUERY),
+		.len = cpu_to_le16(sizeof(req) - 4),
+		.action = GET_TEMPERATURE,
+		.band_idx = phy->mt76->band_idx,
+	};
+	struct mt7996_mcu_thermal {
+		u8 _rsv[4];
+
+		__le16 tag;
+		__le16 len;
+
+		__le32 rsv;
+		__le32 temperature;
+	} __packed * res;
+	struct sk_buff *skb;
+	int ret;
+
+	ret = mt76_mcu_send_and_get_msg(&phy->dev->mt76, MCU_WM_UNI_CMD(THERMAL),
+					&req, sizeof(req), true, &skb);
+	if (ret)
+		return ret;
+
+	res = (void *)skb->data;
+
+	return le32_to_cpu(res->temperature);
+}
+
 int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state)
 {
 	struct {
