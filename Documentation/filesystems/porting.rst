@@ -1045,3 +1045,12 @@ filesystem type is now moved to a later point when the devices are closed:
 As this is a VFS level change it has no practical consequences for filesystems
 other than that all of them must use one of the provided kill_litter_super(),
 kill_anon_super(), or kill_block_super() helpers.
+
+---
+
+**mandatory**
+
+export_operations ->encode_fh() no longer has a default implementation to
+encode FILEID_INO32_GEN* file handles.
+Filesystems that used the default implementation may use the generic helper
+generic_encode_ino32_fh() explicitly.

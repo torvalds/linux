@@ -279,6 +279,7 @@ static struct dentry *fat_get_parent(struct dentry *child_dir)
 }
 
 const struct export_operations fat_export_ops = {
+	.encode_fh	= generic_encode_ino32_fh,
 	.fh_to_dentry   = fat_fh_to_dentry,
 	.fh_to_parent   = fat_fh_to_parent,
 	.get_parent     = fat_get_parent,

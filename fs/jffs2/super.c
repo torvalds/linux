@@ -150,6 +150,7 @@ static struct dentry *jffs2_get_parent(struct dentry *child)
 }
 
 static const struct export_operations jffs2_export_ops = {
+	.encode_fh = generic_encode_ino32_fh,
 	.get_parent = jffs2_get_parent,
 	.fh_to_dentry = jffs2_fh_to_dentry,
 	.fh_to_parent = jffs2_fh_to_parent,
