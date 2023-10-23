@@ -432,10 +432,8 @@ static void rtl92ee_dm_check_rssi_monitor(struct ieee80211_hw *hw)
 static void rtl92ee_dm_init_primary_cca_check(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct dynamic_primary_cca *primarycca = &rtlpriv->primarycca;
 
-	rtlhal->rts_en = 0;
 	primarycca->dup_rts_flag = 0;
 	primarycca->intf_flag = 0;
 	primarycca->intf_type = 0;
@@ -615,13 +613,11 @@ static void rtl92ee_dm_dynamic_primary_cca_ckeck(struct ieee80211_hw *hw)
 				rtl92ee_dm_write_dynamic_cca(hw, cur_mf_state);
 				primarycca->pricca_flag = 1;
 				primarycca->dup_rts_flag = 1;
-				rtlpriv->rtlhal.rts_en = 1;
 			} else {
 				primarycca->intf_type = 0;
 				primarycca->intf_flag = 0;
 				cur_mf_state = MF_USC_LSC;
 				rtl92ee_dm_write_dynamic_cca(hw, cur_mf_state);
-				rtlpriv->rtlhal.rts_en = 0;
 				primarycca->dup_rts_flag = 0;
 			}
 		} else if (sec_ch_offset == 1) {
@@ -642,13 +638,11 @@ static void rtl92ee_dm_dynamic_primary_cca_ckeck(struct ieee80211_hw *hw)
 				rtl92ee_dm_write_dynamic_cca(hw, cur_mf_state);
 				primarycca->pricca_flag = 1;
 				primarycca->dup_rts_flag = 1;
-				rtlpriv->rtlhal.rts_en = 1;
 			} else {
 				primarycca->intf_type = 0;
 				primarycca->intf_flag = 0;
 				cur_mf_state = MF_USC_LSC;
 				rtl92ee_dm_write_dynamic_cca(hw, cur_mf_state);
-				rtlpriv->rtlhal.rts_en = 0;
 				primarycca->dup_rts_flag = 0;
 			}
 		}
@@ -660,7 +654,6 @@ static void rtl92ee_dm_dynamic_primary_cca_ckeck(struct ieee80211_hw *hw)
 			cur_mf_state = MF_USC_LSC;
 			/* default */
 			rtl92ee_dm_write_dynamic_cca(hw, cur_mf_state);
-			rtlpriv->rtlhal.rts_en = 0;
 			primarycca->dup_rts_flag = 0;
 			primarycca->intf_type = 0;
 			primarycca->intf_flag = 0;
