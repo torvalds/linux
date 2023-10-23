@@ -1499,7 +1499,7 @@ static void gfx_v9_0_init_always_on_cu_mask(struct amdgpu_device *adev)
 			amdgpu_gfx_select_se_sh(adev, i, j, 0xffffffff, 0);
 
 			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k ++) {
-				if (cu_info->bitmap[i][j] & mask) {
+				if (cu_info->bitmap[0][i][j] & mask) {
 					if (counter == pg_always_on_cu_num)
 						WREG32_SOC15(GC, 0, mmRLC_PG_ALWAYS_ON_CU_MASK, cu_bitmap);
 					if (counter < always_on_cu_num)
@@ -7233,7 +7233,7 @@ static int gfx_v9_0_get_cu_info(struct amdgpu_device *adev,
 			 *    SE6,SH0 --> bitmap[2][1]
 			 *    SE7,SH0 --> bitmap[3][1]
 			 */
-			cu_info->bitmap[i % 4][j + i / 4] = bitmap;
+			cu_info->bitmap[0][i % 4][j + i / 4] = bitmap;
 
 			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k ++) {
 				if (bitmap & mask) {

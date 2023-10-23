@@ -282,13 +282,21 @@ static struct perf_event_attr *dlfilter__attr(void *ctx)
 	return &d->evsel->core.attr;
 }
 
+static __s32 code_read(__u64 ip, struct map *map, struct machine *machine, void *buf, __u32 len)
+{
+	u64 offset = map__map_ip(map, ip);
+
+	if (ip + len >= map__end(map))
+		len = map__end(map) - ip;
+
+	return dso__data_read_offset(map__dso(map), machine, offset, buf, len);
+}
+
 static __s32 dlfilter__object_code(void *ctx, __u64 ip, void *buf, __u32 len)
 {
 	struct dlfilter *d = (struct dlfilter *)ctx;
 	struct addr_location *al;
 	struct addr_location a;
-	struct map *map;
-	u64 offset;
 	__s32 ret;
 
 	if (!d->ctx_valid)
@@ -298,27 +306,17 @@ static __s32 dlfilter__object_code(void *ctx, __u64 ip, void *buf, __u32 len)
 	if (!al)
 		return -1;
 
-	map = al->map;
-
-	if (map && ip >= map__start(map) && ip < map__end(map) &&
+	if (al->map && ip >= map__start(al->map) && ip < map__end(al->map) &&
 	    machine__kernel_ip(d->machine, ip) == machine__kernel_ip(d->machine, d->sample->ip))
-		goto have_map;
+		return code_read(ip, al->map, d->machine, buf, len);
 
 	addr_location__init(&a);
-	thread__find_map_fb(al->thread, d->sample->cpumode, ip, &a);
-	if (!a.map) {
-		ret = -1;
-		goto out;
-	}
 
-	map = a.map;
-have_map:
-	offset = map__map_ip(map, ip);
-	if (ip + len >= map__end(map))
-		len = map__end(map) - ip;
-	ret = dso__data_read_offset(map__dso(map), d->machine, offset, buf, len);
-out:
+	thread__find_map_fb(al->thread, d->sample->cpumode, ip, &a);
+	ret = a.map ? code_read(ip, a.map, d->machine, buf, len) : -1;
+
 	addr_location__exit(&a);
+
 	return ret;
 }
 

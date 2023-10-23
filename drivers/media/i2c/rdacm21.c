@@ -608,7 +608,6 @@ static void rdacm21_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(&dev->sd);
 	v4l2_ctrl_handler_free(&dev->ctrls);
 	i2c_unregister_device(dev->isp);
-	fwnode_handle_put(dev->sd.fwnode);
 }
 
 static const struct of_device_id rdacm21_of_ids[] = {

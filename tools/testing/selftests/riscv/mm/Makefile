@@ -5,11 +5,11 @@
 # Additional include paths needed by kselftest.h and local headers
 CFLAGS += -D_GNU_SOURCE -std=gnu99 -I.
 
-TEST_GEN_FILES := testcases/mmap_default testcases/mmap_bottomup
+TEST_GEN_FILES := mmap_default mmap_bottomup
 
-TEST_PROGS := testcases/run_mmap.sh
+TEST_PROGS := run_mmap.sh
 
 include ../../lib.mk
 
-$(OUTPUT)/mm: testcases/mmap_default.c testcases/mmap_bottomup.c testcases/mmap_tests.h
+$(OUTPUT)/mm: mmap_default.c mmap_bottomup.c mmap_tests.h
 	$(CC) -o$@ $(CFLAGS) $(LDFLAGS) $^

@@ -2437,6 +2437,9 @@ ipv4_mpath_list_test()
 	run_cmd "ip -n ns2 route add 203.0.113.0/24
 		nexthop via 172.16.201.2 nexthop via 172.16.202.2"
 	run_cmd "ip netns exec ns2 sysctl -qw net.ipv4.fib_multipath_hash_policy=1"
+	run_cmd "ip netns exec ns2 sysctl -qw net.ipv4.conf.veth2.rp_filter=0"
+	run_cmd "ip netns exec ns2 sysctl -qw net.ipv4.conf.all.rp_filter=0"
+	run_cmd "ip netns exec ns2 sysctl -qw net.ipv4.conf.default.rp_filter=0"
 	set +e
 
 	local dmac=$(ip -n ns2 -j link show dev veth2 | jq -r '.[]["address"]')
@@ -2449,7 +2452,7 @@ ipv4_mpath_list_test()
 	# words, the FIB lookup tracepoint needs to be triggered for every
 	# packet.
 	local t0_rx_pkts=$(link_stats_get ns2 veth2 rx packets)
-	run_cmd "perf stat -e fib:fib_table_lookup --filter 'err == 0' -j -o $tmp_file -- $cmd"
+	run_cmd "perf stat -a -e fib:fib_table_lookup --filter 'err == 0' -j -o $tmp_file -- $cmd"
 	local t1_rx_pkts=$(link_stats_get ns2 veth2 rx packets)
 	local diff=$(echo $t1_rx_pkts - $t0_rx_pkts | bc -l)
 	list_rcv_eval $tmp_file $diff
@@ -2494,7 +2497,7 @@ ipv6_mpath_list_test()
 	# words, the FIB lookup tracepoint needs to be triggered for every
 	# packet.
 	local t0_rx_pkts=$(link_stats_get ns2 veth2 rx packets)
-	run_cmd "perf stat -e fib6:fib6_table_lookup --filter 'err == 0' -j -o $tmp_file -- $cmd"
+	run_cmd "perf stat -a -e fib6:fib6_table_lookup --filter 'err == 0' -j -o $tmp_file -- $cmd"
 	local t1_rx_pkts=$(link_stats_get ns2 veth2 rx packets)
 	local diff=$(echo $t1_rx_pkts - $t0_rx_pkts | bc -l)
 	list_rcv_eval $tmp_file $diff

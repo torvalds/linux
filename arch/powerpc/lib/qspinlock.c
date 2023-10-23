@@ -406,6 +406,9 @@ static __always_inline bool yield_to_prev(struct qspinlock *lock, struct qnode *
 	if ((yield_count & 1) == 0)
 		goto yield_prev; /* owner vcpu is running */
 
+	if (get_owner_cpu(READ_ONCE(lock->val)) != yield_cpu)
+		goto yield_prev; /* re-sample lock owner */
+
 	spin_end();
 
 	preempted = true;

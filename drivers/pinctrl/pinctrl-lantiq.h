@@ -198,5 +198,4 @@ enum ltq_pin {
 
 extern int ltq_pinctrl_register(struct platform_device *pdev,
 				   struct ltq_pinmux_info *info);
-extern int ltq_pinctrl_unregister(struct platform_device *pdev);
 #endif	/* __PINCTRL_LANTIQ_H */
