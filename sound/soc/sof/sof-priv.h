@@ -168,7 +168,7 @@ struct snd_sof_dsp_ops {
 	int (*probe_early)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*probe)(struct snd_sof_dev *sof_dev); /* mandatory */
 	void (*remove)(struct snd_sof_dev *sof_dev); /* optional */
-	int (*remove_late)(struct snd_sof_dev *sof_dev); /* optional */
+	void (*remove_late)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*shutdown)(struct snd_sof_dev *sof_dev); /* optional */
 
 	/* DSP core boot / reset */
