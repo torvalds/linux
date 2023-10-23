@@ -343,7 +343,7 @@ done:
 	hwq->cons = 0;
 	hwq->pdev = pdev;
 	hwq->depth = hwq_attr->depth;
-	hwq->max_elements = depth;
+	hwq->max_elements = hwq->depth;
 	hwq->element_size = stride;
 	hwq->qe_ppg = pg_size / stride;
 	/* For direct access to the elements */

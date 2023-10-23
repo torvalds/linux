@@ -348,9 +348,21 @@ struct bnxt_qplib_qp {
 #define CQE_IDX(x)		((x) & CQE_MAX_IDX_PER_PG)
 
 #define ROCE_CQE_CMP_V			0
-#define CQE_CMP_VALID(hdr, raw_cons, cp_bit)			\
+#define CQE_CMP_VALID(hdr, pass)			\
 	(!!((hdr)->cqe_type_toggle & CQ_BASE_TOGGLE) ==		\
-	   !((raw_cons) & (cp_bit)))
+	   !((pass) & BNXT_QPLIB_FLAG_EPOCH_CONS_MASK))
+
+static inline u32 __bnxt_qplib_get_avail(struct bnxt_qplib_hwq *hwq)
+{
+	int cons, prod, avail;
+
+	cons = hwq->cons;
+	prod = hwq->prod;
+	avail = cons - prod;
+	if (cons <= prod)
+		avail += hwq->depth;
+	return avail;
+}
 
 static inline bool bnxt_qplib_queue_full(struct bnxt_qplib_q *que,
 					 u8 slots)
@@ -443,9 +455,9 @@ struct bnxt_qplib_cq {
 #define NQE_PG(x)		(((x) & ~NQE_MAX_IDX_PER_PG) / NQE_CNT_PER_PG)
 #define NQE_IDX(x)		((x) & NQE_MAX_IDX_PER_PG)
 
-#define NQE_CMP_VALID(hdr, raw_cons, cp_bit)			\
+#define NQE_CMP_VALID(hdr, pass)			\
 	(!!(le32_to_cpu((hdr)->info63_v[0]) & NQ_BASE_V) ==	\
-	   !((raw_cons) & (cp_bit)))
+	   !((pass) & BNXT_QPLIB_FLAG_EPOCH_CONS_MASK))
 
 #define BNXT_QPLIB_NQE_MAX_CNT		(128 * 1024)
 

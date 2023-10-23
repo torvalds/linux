@@ -734,17 +734,15 @@ static void bnxt_qplib_service_creq(struct tasklet_struct *t)
 	u32 type, budget = CREQ_ENTRY_POLL_BUDGET;
 	struct bnxt_qplib_hwq *hwq = &creq->hwq;
 	struct creq_base *creqe;
-	u32 sw_cons, raw_cons;
 	unsigned long flags;
 	u32 num_wakeup = 0;
+	u32 hw_polled = 0;
 
 	/* Service the CREQ until budget is over */
 	spin_lock_irqsave(&hwq->lock, flags);
-	raw_cons = hwq->cons;
 	while (budget > 0) {
-		sw_cons = HWQ_CMP(raw_cons, hwq);
-		creqe = bnxt_qplib_get_qe(hwq, sw_cons, NULL);
-		if (!CREQ_CMP_VALID(creqe, raw_cons, hwq->max_elements))
+		creqe = bnxt_qplib_get_qe(hwq, hwq->cons, NULL);
+		if (!CREQ_CMP_VALID(creqe, creq->creq_db.dbinfo.flags))
 			break;
 		/* The valid test of the entry must be done first before
 		 * reading any further.
@@ -775,15 +773,15 @@ static void bnxt_qplib_service_creq(struct tasklet_struct *t)
 					 type);
 			break;
 		}
-		raw_cons++;
 		budget--;
+		hw_polled++;
+		bnxt_qplib_hwq_incr_cons(hwq->max_elements, &hwq->cons,
+					 1, &creq->creq_db.dbinfo.flags);
 	}
 
-	if (hwq->cons != raw_cons) {
-		hwq->cons = raw_cons;
+	if (hw_polled)
 		bnxt_qplib_ring_nq_db(&creq->creq_db.dbinfo,
 				      rcfw->res->cctx, true);
-	}
 	spin_unlock_irqrestore(&hwq->lock, flags);
 	if (num_wakeup)
 		wake_up_nr(&rcfw->cmdq.waitq, num_wakeup);
@@ -1113,6 +1111,7 @@ static int bnxt_qplib_map_creq_db(struct bnxt_qplib_rcfw *rcfw, u32 reg_offt)
 	pdev = rcfw->pdev;
 	creq_db = &rcfw->creq.creq_db;
 
+	creq_db->dbinfo.flags = 0;
 	creq_db->reg.bar_id = RCFW_COMM_CONS_PCI_BAR_REGION;
 	creq_db->reg.bar_base = pci_resource_start(pdev, creq_db->reg.bar_id);
 	if (!creq_db->reg.bar_id)
