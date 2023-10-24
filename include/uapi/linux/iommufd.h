@@ -48,6 +48,7 @@ enum {
 	IOMMUFD_CMD_HWPT_ALLOC,
 	IOMMUFD_CMD_GET_HW_INFO,
 	IOMMUFD_CMD_HWPT_SET_DIRTY_TRACKING,
+	IOMMUFD_CMD_HWPT_GET_DIRTY_BITMAP,
 };
 
 /**
@@ -481,4 +482,38 @@ struct iommu_hwpt_set_dirty_tracking {
 };
 #define IOMMU_HWPT_SET_DIRTY_TRACKING _IO(IOMMUFD_TYPE, \
 					  IOMMUFD_CMD_HWPT_SET_DIRTY_TRACKING)
+
+/**
+ * struct iommu_hwpt_get_dirty_bitmap - ioctl(IOMMU_HWPT_GET_DIRTY_BITMAP)
+ * @size: sizeof(struct iommu_hwpt_get_dirty_bitmap)
+ * @hwpt_id: HW pagetable ID that represents the IOMMU domain
+ * @flags: Must be zero
+ * @__reserved: Must be 0
+ * @iova: base IOVA of the bitmap first bit
+ * @length: IOVA range size
+ * @page_size: page size granularity of each bit in the bitmap
+ * @data: bitmap where to set the dirty bits. The bitmap bits each
+ *        represent a page_size which you deviate from an arbitrary iova.
+ *
+ * Checking a given IOVA is dirty:
+ *
+ *  data[(iova / page_size) / 64] & (1ULL << ((iova / page_size) % 64))
+ *
+ * Walk the IOMMU pagetables for a given IOVA range to return a bitmap
+ * with the dirty IOVAs. In doing so it will also by default clear any
+ * dirty bit metadata set in the IOPTE.
+ */
+struct iommu_hwpt_get_dirty_bitmap {
+	__u32 size;
+	__u32 hwpt_id;
+	__u32 flags;
+	__u32 __reserved;
+	__aligned_u64 iova;
+	__aligned_u64 length;
+	__aligned_u64 page_size;
+	__aligned_u64 data;
+};
+#define IOMMU_HWPT_GET_DIRTY_BITMAP _IO(IOMMUFD_TYPE, \
+					IOMMUFD_CMD_HWPT_GET_DIRTY_BITMAP)
+
 #endif

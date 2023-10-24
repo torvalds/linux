@@ -220,3 +220,25 @@ int iommufd_hwpt_set_dirty_tracking(struct iommufd_ucmd *ucmd)
 	iommufd_put_object(&hwpt->obj);
 	return rc;
 }
+
+int iommufd_hwpt_get_dirty_bitmap(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hwpt_get_dirty_bitmap *cmd = ucmd->cmd;
+	struct iommufd_hw_pagetable *hwpt;
+	struct iommufd_ioas *ioas;
+	int rc = -EOPNOTSUPP;
+
+	if ((cmd->flags || cmd->__reserved))
+		return -EOPNOTSUPP;
+
+	hwpt = iommufd_get_hwpt(ucmd, cmd->hwpt_id);
+	if (IS_ERR(hwpt))
+		return PTR_ERR(hwpt);
+
+	ioas = hwpt->ioas;
+	rc = iopt_read_and_clear_dirty_data(&ioas->iopt, hwpt->domain,
+					    cmd->flags, cmd);
+
+	iommufd_put_object(&hwpt->obj);
+	return rc;
+}
