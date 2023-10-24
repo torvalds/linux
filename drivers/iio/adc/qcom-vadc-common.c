@@ -613,9 +613,10 @@ static const struct u32_fract adc5_prescale_ratios[] = {
 	{ .numerator = 1280, .denominator = 4100 },	/* IIN_SMB_new */
 	{ .numerator = 640, .denominator = 4100 },	/* ICHG_SMB_new */
 	{ .numerator = 1000, .denominator = 305185 },	/* ICHG_FB */
-	{ .numerator = 1000, .denominator = 610370 },	/* ICHG_FB_2X */
-	{ .numerator = 1000, .denominator = 366220 },	/* ICHG_FB ADC5_GEN3 */
-	{ .numerator = 1000, .denominator = 732440 },	/* ICHG_FB_2X ADC5_GEN3 */
+	{ .numerator = 1000, .denominator = 610370 },	/* ICHG_FB_2X, ICHG_FB for ADC5_GEN4 */
+	{ .numerator = 1000, .denominator = 366220 },	/* ICHG_FB for ADC5_GEN3 */
+	{ .numerator = 1000, .denominator = 732440 },	/* ICHG_FB_2X for ADC5_GEN3 */
+	{ .numerator = 1000, .denominator = 1220740 },	/* ICHG_FB_2X for ADC5_GEN4*/
 };
 
 static int qcom_vadc_scale_hw_calib_volt(
@@ -701,6 +702,14 @@ static int qcom_vadc7_scale_hw_calib_die_temp(
 				const struct u32_fract *prescale,
 				const struct adc5_data *data,
 				u16 adc_code, int *result_mdec);
+static int qcom_adc5_gen4_scale_hw_calib_batt_therm_10(
+				const struct u32_fract *prescale,
+				const struct adc5_data *data,
+				u16 adc_code, int *result_mdec);
+static int qcom_adc5_gen4_scale_hw_calib_batt_id_10(
+				const struct u32_fract *prescale,
+				const struct adc5_data *data,
+				u16 adc_code, int *result_mdec);
 
 static struct qcom_adc5_scale_type scale_adc5_fn[] = {
 	[SCALE_HW_CALIB_DEFAULT] = {qcom_vadc_scale_hw_calib_volt},
@@ -729,6 +738,8 @@ static struct qcom_adc5_scale_type scale_adc5_fn[] = {
 	[SCALE_HW_CALIB_PM5_GEN3_USB_IN_I] = {qcom_adc5_gen3_scale_hw_calib_usb_in_current},
 	[SCALE_HW_CALIB_PM7_SMB_TEMP] = {qcom_vadc_scale_hw_pm7_smb_temp},
 	[SCALE_HW_CALIB_PM7_CHG_TEMP] = {qcom_vadc_scale_hw_pm7_chg_temp},
+	[SCALE_HW_CALIB_PM5_GEN4_BATT_THERM_10K] = {qcom_adc5_gen4_scale_hw_calib_batt_therm_10},
+	[SCALE_HW_CALIB_PM5_GEN4_BATT_ID_10K] = {qcom_adc5_gen4_scale_hw_calib_batt_id_10},
 };
 
 static int qcom_vadc_map_voltage_temp(const struct vadc_map_pt *pts,
@@ -1296,6 +1307,43 @@ static int qcom_vadc_scale_hw_chg5_temp(
 
 	return 0;
 }
+
+static int qcom_adc5_gen4_scale_hw_calib_batt_therm_10(
+				const struct u32_fract *prescale,
+				const struct adc5_data *data,
+				u16 adc_code, int *result_mdec)
+{
+	s64 resistance;
+	int ret, result = 0;
+
+	if (adc_code >= data->full_scale_code_raw)
+		return -EINVAL;
+
+	resistance = adc_code_to_resistance(adc_code, R_PU_10K, data->full_scale_code_raw);
+
+	ret = qcom_vadc_map_voltage_temp(adcmap_gen3_batt_therm_100k,
+				 ARRAY_SIZE(adcmap_gen3_batt_therm_100k),
+				 resistance, &result);
+	if (ret)
+		return ret;
+
+	*result_mdec = result;
+
+	return 0;
+}
+
+static int qcom_adc5_gen4_scale_hw_calib_batt_id_10(
+				const struct u32_fract *prescale,
+				const struct adc5_data *data,
+				u16 adc_code, int *result_mdec)
+{
+	if (adc_code >= data->full_scale_code_raw)
+		return -EINVAL;
+
+	*result_mdec = (int)adc_code_to_resistance(adc_code, R_PU_10K, data->full_scale_code_raw);
+
+	return 0;
+};
 
 void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param, const struct adc5_data *data)
 {
