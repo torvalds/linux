@@ -751,7 +751,7 @@ process_free_data_message(struct vchiq_state *state, u32 *service_found,
 		 */
 		complete(&quota->quota_event);
 	} else if (count == 0) {
-		vchiq_log_error(vchiq_core_log_level,
+		vchiq_log_error(state->dev, VCHIQ_CORE,
 				"service %d message_use_count=%d (header %pK, msgid %x, header->msgid %x, header->size %x)",
 				port, quota->message_use_count, header, msgid, header->msgid,
 				header->size);
@@ -776,7 +776,7 @@ process_free_data_message(struct vchiq_state *state, u32 *service_found,
 			vchiq_log_trace(vchiq_core_log_level, "%d: pfq:%d %x@%pK - slot_use->%d",
 					state->id, port, header->size, header, count - 1);
 		} else {
-			vchiq_log_error(vchiq_core_log_level,
+			vchiq_log_error(state->dev, VCHIQ_CORE,
 					"service %d slot_use_count=%d (header %pK, msgid %x, header->msgid %x, header->size %x)",
 					port, count, header, msgid, header->msgid, header->size);
 			WARN(1, "bad slot use count\n");
@@ -841,7 +841,7 @@ process_free_queue(struct vchiq_state *state, u32 *service_found,
 
 			pos += calc_stride(header->size);
 			if (pos > VCHIQ_SLOT_SIZE) {
-				vchiq_log_error(vchiq_core_log_level,
+				vchiq_log_error(state->dev, VCHIQ_CORE,
 						"pfq - pos %x: header %pK, msgid %x, header->msgid %x, header->size %x",
 						pos, header, msgid, header->msgid, header->size);
 				WARN(1, "invalid slot position\n");
@@ -1178,7 +1178,7 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 		int oldmsgid = header->msgid;
 
 		if (oldmsgid != VCHIQ_MSGID_PADDING)
-			vchiq_log_error(vchiq_core_log_level, "%d: qms - msgid %x, not PADDING",
+			vchiq_log_error(state->dev, VCHIQ_CORE, "%d: qms - msgid %x, not PADDING",
 					state->id, oldmsgid);
 	}
 
@@ -1512,11 +1512,9 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 
 	if ((service->version < version_min) || (version < service->version_min)) {
 		/* Version mismatch */
-		vchiq_loud_error_header();
-		vchiq_loud_error("%d: service %d (%c%c%c%c) version mismatch - local (%d, min %d) vs. remote (%d, min %d)",
-				 state->id, service->localport, VCHIQ_FOURCC_AS_4CHARS(fourcc),
-				 service->version, service->version_min, version, version_min);
-		vchiq_loud_error_footer();
+		dev_err(state->dev, "%d: service %d (%c%c%c%c) version mismatch - local (%d, min %d) vs. remote (%d, min %d)",
+			state->id, service->localport, VCHIQ_FOURCC_AS_4CHARS(fourcc),
+			service->version, service->version_min, version, version_min);
 		vchiq_service_put(service);
 		service = NULL;
 		goto fail_open;
@@ -1631,7 +1629,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		}
 
 		if (!service) {
-			vchiq_log_error(vchiq_core_log_level,
+			vchiq_log_error(state->dev, VCHIQ_CORE,
 					"%d: prs %s@%pK (%d->%d) - invalid/closed service %d",
 					state->id, msg_type_str(type), header, remoteport,
 					localport, localport);
@@ -1658,7 +1656,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 
 	if (((unsigned long)header & VCHIQ_SLOT_MASK) +
 	    calc_stride(size) > VCHIQ_SLOT_SIZE) {
-		vchiq_log_error(vchiq_core_log_level,
+		vchiq_log_error(state->dev, VCHIQ_CORE,
 				"header %pK (msgid %x) - size %x too big for slot",
 				header, (unsigned int)msgid, (unsigned int)size);
 		WARN(1, "oversized for slot\n");
@@ -1685,7 +1683,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			set_service_state(service, VCHIQ_SRVSTATE_OPEN);
 			complete(&service->remove_event);
 		} else {
-			vchiq_log_error(vchiq_core_log_level, "OPENACK received in state %s",
+			vchiq_log_error(state->dev, VCHIQ_CORE, "OPENACK received in state %s",
 					srvstate_names[service->srvstate]);
 		}
 		break;
@@ -1756,7 +1754,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			}
 			if ((int)(queue->remote_insert -
 				queue->local_insert) >= 0) {
-				vchiq_log_error(vchiq_core_log_level,
+				vchiq_log_error(state->dev, VCHIQ_CORE,
 						"%d: prs %s@%pK (%d->%d) unexpected (ri=%d,li=%d)",
 						state->id, msg_type_str(type), header, remoteport,
 						localport, queue->remote_insert,
@@ -1805,8 +1803,8 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		vchiq_log_trace(vchiq_core_log_level, "%d: prs PAUSE@%pK,%x",
 				state->id, header, size);
 		if (state->conn_state == VCHIQ_CONNSTATE_PAUSED) {
-			vchiq_log_error(vchiq_core_log_level, "%d: PAUSE received in state PAUSED",
-					state->id);
+			vchiq_log_error(state->dev, VCHIQ_CORE,
+					"%d: PAUSE received in state PAUSED", state->id);
 			break;
 		}
 		if (state->conn_state != VCHIQ_CONNSTATE_PAUSE_SENT) {
@@ -1836,7 +1834,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		break;
 
 	default:
-		vchiq_log_error(vchiq_core_log_level, "%d: prs invalid msgid %x@%pK,%x",
+		vchiq_log_error(state->dev, VCHIQ_CORE, "%d: prs invalid msgid %x@%pK,%x",
 				state->id, msgid, header, size);
 		WARN(1, "invalid message\n");
 		break;
@@ -1947,7 +1945,7 @@ handle_poll(struct vchiq_state *state)
 			 * since the PAUSE should have flushed
 			 * through outstanding messages.
 			 */
-			vchiq_log_error(vchiq_core_log_level, "Failed to send RESUME message");
+			vchiq_log_error(state->dev, VCHIQ_CORE, "Failed to send RESUME message");
 		}
 		break;
 	default:
@@ -2046,7 +2044,7 @@ sync_func(void *v)
 		service = find_service_by_port(state, localport);
 
 		if (!service) {
-			vchiq_log_error(vchiq_sync_log_level,
+			vchiq_log_error(state->dev, VCHIQ_SYNC,
 					"%d: sf %s@%pK (%d->%d) - invalid/closed service %d",
 					state->id, msg_type_str(type), header,
 					remoteport, localport, localport);
@@ -2096,14 +2094,14 @@ sync_func(void *v)
 			    (service->srvstate == VCHIQ_SRVSTATE_OPENSYNC)) {
 				if (make_service_callback(service, VCHIQ_MESSAGE_AVAILABLE, header,
 							  NULL) == -EAGAIN)
-					vchiq_log_error(vchiq_sync_log_level,
+					vchiq_log_error(state->dev, VCHIQ_SYNC,
 							"synchronous callback to service %d returns -EAGAIN",
 							localport);
 			}
 			break;
 
 		default:
-			vchiq_log_error(vchiq_sync_log_level, "%d: sf unexpected msgid %x@%pK,%x",
+			vchiq_log_error(state->dev, VCHIQ_SYNC, "%d: sf unexpected msgid %x@%pK,%x",
 					state->id, msgid, header, size);
 			release_message_sync(state, header);
 			break;
@@ -2137,7 +2135,7 @@ vchiq_init_slots(struct device *dev, void *mem_base, int mem_size)
 	num_slots -= first_data_slot;
 
 	if (num_slots < 4) {
-		vchiq_log_error(vchiq_core_log_level, "%s - insufficient memory %x bytes",
+		vchiq_log_error(dev, VCHIQ_CORE, "%s - insufficient memory %x bytes",
 				__func__, mem_size);
 		return NULL;
 	}
@@ -2174,12 +2172,11 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero, s
 	remote = &slot_zero->master;
 
 	if (local->initialised) {
-		vchiq_loud_error_header();
 		if (remote->initialised)
-			vchiq_loud_error("local state has already been initialised");
+			dev_err(dev, "local state has already been initialised\n");
 		else
-			vchiq_loud_error("master/slave mismatch two slaves");
-		vchiq_loud_error_footer();
+			dev_err(dev, "master/slave mismatch two slaves\n");
+
 		return -EINVAL;
 	}
 
@@ -2257,9 +2254,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero, s
 	state->slot_handler_thread = kthread_create(&slot_handler_func, (void *)state, threadname);
 
 	if (IS_ERR(state->slot_handler_thread)) {
-		vchiq_loud_error_header();
-		vchiq_loud_error("couldn't create thread %s", threadname);
-		vchiq_loud_error_footer();
+		dev_err(state->dev, "couldn't create thread %s\n", threadname);
 		return PTR_ERR(state->slot_handler_thread);
 	}
 	set_user_nice(state->slot_handler_thread, -19);
@@ -2267,9 +2262,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero, s
 	snprintf(threadname, sizeof(threadname), "vchiq-recy/%d", state->id);
 	state->recycle_thread = kthread_create(&recycle_func, (void *)state, threadname);
 	if (IS_ERR(state->recycle_thread)) {
-		vchiq_loud_error_header();
-		vchiq_loud_error("couldn't create thread %s", threadname);
-		vchiq_loud_error_footer();
+		dev_err(state->dev, "couldn't create thread %s\n", threadname);
 		ret = PTR_ERR(state->recycle_thread);
 		goto fail_free_handler_thread;
 	}
@@ -2278,9 +2271,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero, s
 	snprintf(threadname, sizeof(threadname), "vchiq-sync/%d", state->id);
 	state->sync_thread = kthread_create(&sync_func, (void *)state, threadname);
 	if (IS_ERR(state->sync_thread)) {
-		vchiq_loud_error_header();
-		vchiq_loud_error("couldn't create thread %s", threadname);
-		vchiq_loud_error_footer();
+		dev_err(state->dev, "couldn't create thread %s\n", threadname);
 		ret = PTR_ERR(state->sync_thread);
 		goto fail_free_recycle_thread;
 	}
@@ -2353,10 +2344,11 @@ struct vchiq_header *vchiq_msg_hold(struct vchiq_instance *instance, unsigned in
 }
 EXPORT_SYMBOL(vchiq_msg_hold);
 
-static int vchiq_validate_params(const struct vchiq_service_params_kernel *params)
+static int vchiq_validate_params(struct vchiq_state *state,
+				 const struct vchiq_service_params_kernel *params)
 {
 	if (!params->callback || !params->fourcc) {
-		vchiq_loud_error("Can't add service, invalid params\n");
+		dev_err(state->dev, "Can't add service, invalid params\n");
 		return -EINVAL;
 	}
 
@@ -2376,7 +2368,7 @@ vchiq_add_service_internal(struct vchiq_state *state,
 	int ret;
 	int i;
 
-	ret = vchiq_validate_params(params);
+	ret = vchiq_validate_params(state, params);
 	if (ret)
 		return NULL;
 
@@ -2525,7 +2517,7 @@ vchiq_open_service_internal(struct vchiq_service *service, int client_id)
 	} else if ((service->srvstate != VCHIQ_SRVSTATE_OPEN) &&
 		   (service->srvstate != VCHIQ_SRVSTATE_OPENSYNC)) {
 		if (service->srvstate != VCHIQ_SRVSTATE_CLOSEWAIT)
-			vchiq_log_error(vchiq_core_log_level,
+			vchiq_log_error(service->state->dev, VCHIQ_CORE,
 					"%d: osi - srvstate = %s (ref %u)",
 					service->state->id,
 					srvstate_names[service->srvstate],
@@ -2589,7 +2581,7 @@ release_service_messages(struct vchiq_service *service)
 			}
 			pos += calc_stride(header->size);
 			if (pos > VCHIQ_SLOT_SIZE) {
-				vchiq_log_error(vchiq_core_log_level,
+				vchiq_log_error(state->dev, VCHIQ_CORE,
 						"fsi - pos %x: header %pK, msgid %x, header->msgid %x, header->size %x",
 						pos, header, msgid, header->msgid, header->size);
 				WARN(1, "invalid slot position\n");
@@ -2645,8 +2637,8 @@ close_service_complete(struct vchiq_service *service, int failstate)
 	case VCHIQ_SRVSTATE_LISTENING:
 		break;
 	default:
-		vchiq_log_error(vchiq_core_log_level, "%s(%x) called in state %s", __func__,
-				service->handle, srvstate_names[service->srvstate]);
+		vchiq_log_error(service->state->dev, VCHIQ_CORE, "%s(%x) called in state %s",
+				__func__, service->handle, srvstate_names[service->srvstate]);
 		WARN(1, "%s in unexpected state\n", __func__);
 		return -EINVAL;
 	}
@@ -2701,7 +2693,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 	case VCHIQ_SRVSTATE_LISTENING:
 	case VCHIQ_SRVSTATE_CLOSEWAIT:
 		if (close_recvd) {
-			vchiq_log_error(vchiq_core_log_level, "%s(1) called in state %s",
+			vchiq_log_error(state->dev, VCHIQ_CORE, "%s(1) called in state %s",
 					__func__, srvstate_names[service->srvstate]);
 		} else if (is_server) {
 			if (service->srvstate == VCHIQ_SRVSTATE_LISTENING) {
@@ -2789,7 +2781,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 		break;
 
 	default:
-		vchiq_log_error(vchiq_core_log_level, "%s(%d) called in state %s", __func__,
+		vchiq_log_error(state->dev, VCHIQ_CORE, "%s(%d) called in state %s", __func__,
 				close_recvd, srvstate_names[service->srvstate]);
 		break;
 	}
@@ -2828,7 +2820,7 @@ vchiq_free_service_internal(struct vchiq_service *service)
 	case VCHIQ_SRVSTATE_CLOSEWAIT:
 		break;
 	default:
-		vchiq_log_error(vchiq_core_log_level, "%d: fsi - (%d) in state %s", state->id,
+		vchiq_log_error(state->dev, VCHIQ_CORE, "%d: fsi - (%d) in state %s", state->id,
 				service->localport, srvstate_names[service->srvstate]);
 		return;
 	}
@@ -3626,26 +3618,6 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 	if (service->srvstate != VCHIQ_SRVSTATE_FREE)
 		err = vchiq_dump_platform_service_state(dump_context, service);
 	return err;
-}
-
-void
-vchiq_loud_error_header(void)
-{
-	vchiq_log_error(vchiq_core_log_level,
-			"============================================================================");
-	vchiq_log_error(vchiq_core_log_level,
-			"============================================================================");
-	vchiq_log_error(vchiq_core_log_level, "=====");
-}
-
-void
-vchiq_loud_error_footer(void)
-{
-	vchiq_log_error(vchiq_core_log_level, "=====");
-	vchiq_log_error(vchiq_core_log_level,
-			"============================================================================");
-	vchiq_log_error(vchiq_core_log_level,
-			"============================================================================");
 }
 
 int vchiq_send_remote_use(struct vchiq_state *state)

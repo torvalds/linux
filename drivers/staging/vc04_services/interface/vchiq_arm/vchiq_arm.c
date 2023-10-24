@@ -690,7 +690,8 @@ int vchiq_initialise(struct vchiq_instance **instance_out)
 		usleep_range(500, 600);
 	}
 	if (i == VCHIQ_INIT_RETRIES) {
-		vchiq_log_error(vchiq_core_log_level, "%s: videocore not initialized\n", __func__);
+		vchiq_log_error(state->dev, VCHIQ_CORE, "%s: videocore not initialized\n",
+				__func__);
 		ret = -ENOTCONN;
 		goto failed;
 	} else if (i > 0) {
@@ -700,7 +701,7 @@ int vchiq_initialise(struct vchiq_instance **instance_out)
 
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance) {
-		vchiq_log_error(vchiq_core_log_level,
+		vchiq_log_error(state->dev, VCHIQ_CORE,
 				"%s: error allocating vchiq instance\n", __func__);
 		ret = -ENOMEM;
 		goto failed;
@@ -966,7 +967,8 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 	} else {
 		waiter = kzalloc(sizeof(*waiter), GFP_KERNEL);
 		if (!waiter) {
-			vchiq_log_error(vchiq_core_log_level, "%s - out of memory", __func__);
+			vchiq_log_error(service->state->dev, VCHIQ_CORE,
+					"%s - out of memory", __func__);
 			return -ENOMEM;
 		}
 	}
@@ -1333,7 +1335,8 @@ vchiq_keepalive_vchiq_callback(struct vchiq_instance *instance,
 			       struct vchiq_header *header,
 			       unsigned int service_user, void *bulk_user)
 {
-	vchiq_log_error(vchiq_susp_log_level, "%s callback reason %d", __func__, reason);
+	vchiq_log_error(instance->state->dev, VCHIQ_SUSPEND,
+			"%s callback reason %d", __func__, reason);
 	return 0;
 }
 
@@ -1357,22 +1360,22 @@ vchiq_keepalive_thread_func(void *v)
 
 	ret = vchiq_initialise(&instance);
 	if (ret) {
-		vchiq_log_error(vchiq_susp_log_level, "%s vchiq_initialise failed %d", __func__,
-				ret);
+		vchiq_log_error(state->dev, VCHIQ_SUSPEND,
+				"%s vchiq_initialise failed %d", __func__, ret);
 		goto exit;
 	}
 
 	status = vchiq_connect(instance);
 	if (status) {
-		vchiq_log_error(vchiq_susp_log_level, "%s vchiq_connect failed %d", __func__,
-				status);
+		vchiq_log_error(state->dev, VCHIQ_SUSPEND,
+				"%s vchiq_connect failed %d", __func__, status);
 		goto shutdown;
 	}
 
 	status = vchiq_add_service(instance, &params, &ka_handle);
 	if (status) {
-		vchiq_log_error(vchiq_susp_log_level, "%s vchiq_open_service failed %d", __func__,
-				status);
+		vchiq_log_error(state->dev, VCHIQ_SUSPEND,
+				"%s vchiq_open_service failed %d", __func__, status);
 		goto shutdown;
 	}
 
@@ -1380,7 +1383,8 @@ vchiq_keepalive_thread_func(void *v)
 		long rc = 0, uc = 0;
 
 		if (wait_for_completion_interruptible(&arm_state->ka_evt)) {
-			vchiq_log_error(vchiq_susp_log_level, "%s interrupted", __func__);
+			vchiq_log_error(state->dev, VCHIQ_SUSPEND,
+					"%s interrupted", __func__);
 			flush_signals(current);
 			continue;
 		}
@@ -1400,14 +1404,14 @@ vchiq_keepalive_thread_func(void *v)
 			atomic_inc(&arm_state->ka_use_ack_count);
 			status = vchiq_use_service(instance, ka_handle);
 			if (status) {
-				vchiq_log_error(vchiq_susp_log_level,
+				vchiq_log_error(state->dev, VCHIQ_SUSPEND,
 						"%s vchiq_use_service error %d", __func__, status);
 			}
 		}
 		while (rc--) {
 			status = vchiq_release_service(instance, ka_handle);
 			if (status) {
-				vchiq_log_error(vchiq_susp_log_level,
+				vchiq_log_error(state->dev, VCHIQ_SUSPEND,
 						"%s vchiq_release_service error %d", __func__,
 						status);
 			}
@@ -1444,7 +1448,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 			service->client_id);
 		entity_uc = &service->service_use_count;
 	} else {
-		vchiq_log_error(vchiq_susp_log_level, "%s null service ptr", __func__);
+		vchiq_log_error(state->dev, VCHIQ_SUSPEND, "%s null service ptr", __func__);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1725,7 +1729,7 @@ vchiq_check_service(struct vchiq_service *service)
 	read_unlock_bh(&arm_state->susp_res_lock);
 
 	if (ret) {
-		vchiq_log_error(vchiq_susp_log_level,
+		vchiq_log_error(service->state->dev, VCHIQ_SUSPEND,
 				"%s ERROR - %c%c%c%c:%d service count %d, state count %d", __func__,
 				VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc), service->client_id,
 				service->service_use_count, arm_state->videocore_use_count);
@@ -1761,7 +1765,7 @@ void vchiq_platform_conn_state_changed(struct vchiq_state *state,
 					      (void *)state,
 					      threadname);
 	if (IS_ERR(arm_state->ka_thread)) {
-		vchiq_log_error(vchiq_susp_log_level,
+		vchiq_log_error(state->dev, VCHIQ_SUSPEND,
 				"vchiq: FATAL: couldn't create thread %s",
 				threadname);
 	} else {

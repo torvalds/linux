@@ -271,7 +271,7 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 			ret = -EFAULT;
 		}
 	} else {
-		vchiq_log_error(vchiq_arm_log_level,
+		vchiq_log_error(service->state->dev, VCHIQ_ARM,
 				"header %pK: bufsize %x < size %x",
 				header, args->bufsize, header->size);
 		WARN(1, "invalid size\n");
@@ -318,7 +318,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		}
 		mutex_unlock(&instance->bulk_waiter_list_mutex);
 		if (!waiter) {
-			vchiq_log_error(vchiq_arm_log_level,
+			vchiq_log_error(service->state->dev, VCHIQ_ARM,
 					"no bulk_waiter found for pid %d", current->pid);
 			ret = -ESRCH;
 			goto out;
@@ -501,7 +501,7 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 			msglen = header->size + sizeof(struct vchiq_header);
 			/* This must be a VCHIQ-style service */
 			if (args->msgbufsize < msglen) {
-				vchiq_log_error(vchiq_arm_log_level,
+				vchiq_log_error(service->state->dev, VCHIQ_ARM,
 						"header %pK: msgbufsize %x < msglen %x",
 						header, args->msgbufsize, msglen);
 						WARN(1, "invalid message size\n");
@@ -618,7 +618,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		rc = mutex_lock_killable(&instance->state->mutex);
 		if (rc) {
-			vchiq_log_error(vchiq_arm_log_level,
+			vchiq_log_error(instance->state->dev, VCHIQ_ARM,
 					"vchiq: connect: could not lock mutex for state %d: %d",
 					instance->state->id, rc);
 			ret = -EINTR;
@@ -630,7 +630,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (!status)
 			instance->connected = 1;
 		else
-			vchiq_log_error(vchiq_arm_log_level,
+			vchiq_log_error(instance->state->dev, VCHIQ_ARM,
 					"vchiq: could not connect: %d", status);
 		break;
 
@@ -700,7 +700,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				vchiq_use_service_internal(service) :
 				vchiq_release_service_internal(service);
 			if (ret) {
-				vchiq_log_error(vchiq_susp_log_level,
+				vchiq_log_error(instance->state->dev, VCHIQ_SUSPEND,
 						"%s: cmd %s returned error %ld for service %c%c%c%c:%03d",
 						__func__, (cmd == VCHIQ_IOC_USE_SERVICE) ?
 						"VCHIQ_IOC_USE_SERVICE" :
@@ -1173,7 +1173,7 @@ static int vchiq_open(struct inode *inode, struct file *file)
 	vchiq_log_info(vchiq_arm_log_level, "vchiq_open");
 
 	if (!state) {
-		vchiq_log_error(vchiq_arm_log_level,
+		vchiq_log_error(state->dev, VCHIQ_ARM,
 				"vchiq has no connection to VideoCore");
 		return -ENOTCONN;
 	}
