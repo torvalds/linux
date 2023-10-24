@@ -3642,28 +3642,17 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 static int smack_getselfattr(unsigned int attr, struct lsm_ctx __user *ctx,
 			     size_t *size, u32 flags)
 {
-	struct smack_known *skp = smk_of_current();
-	int total;
-	int slen;
 	int rc;
+	struct smack_known *skp;
 
 	if (attr != LSM_ATTR_CURRENT)
 		return -EOPNOTSUPP;
 
-	slen = strlen(skp->smk_known) + 1;
-	total = ALIGN(slen + sizeof(*ctx), 8);
-	if (total > *size)
-		rc = -E2BIG;
-	else if (ctx)
-		rc = lsm_fill_user_ctx(ctx, skp->smk_known, slen, LSM_ID_SMACK,
-				       0);
-	else
-		rc = 1;
-
-	*size = total;
-	if (rc >= 0)
-		return 1;
-	return rc;
+	skp = smk_of_current();
+	rc = lsm_fill_user_ctx(ctx, size,
+			       skp->smk_known, strlen(skp->smk_known) + 1,
+			       LSM_ID_SMACK, 0);
+	return (!rc ? 1 : rc);
 }
 
 /**

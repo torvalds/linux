@@ -782,7 +782,6 @@ static int apparmor_getselfattr(unsigned int attr, struct lsm_ctx __user *lx,
 	int error = -ENOENT;
 	struct aa_task_ctx *ctx = task_ctx(current);
 	struct aa_label *label = NULL;
-	size_t total_len = 0;
 	char *value;
 
 	switch (attr) {
@@ -804,22 +803,14 @@ static int apparmor_getselfattr(unsigned int attr, struct lsm_ctx __user *lx,
 
 	if (label) {
 		error = aa_getprocattr(label, &value, false);
-		if (error > 0) {
-			total_len = ALIGN(struct_size(lx, ctx, error), 8);
-			if (total_len > *size)
-				error = -E2BIG;
-			else if (lx)
-				error = lsm_fill_user_ctx(lx, value, error,
-							  LSM_ID_APPARMOR, 0);
-			else
-				error = 1;
-		}
+		if (error > 0)
+			error = lsm_fill_user_ctx(lx, size, value, error,
+						  LSM_ID_APPARMOR, 0);
 		kfree(value);
 	}
 
 	aa_put_label(label);
 
-	*size = total_len;
 	if (error < 0)
 		return error;
 	return 1;

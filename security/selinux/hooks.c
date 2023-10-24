@@ -6486,30 +6486,32 @@ abort_change:
 	return error;
 }
 
+/**
+ * selinux_getselfattr - Get SELinux current task attributes
+ * @attr: the requested attribute
+ * @ctx: buffer to receive the result
+ * @size: buffer size (input), buffer size used (output)
+ * @flags: unused
+ *
+ * Fill the passed user space @ctx with the details of the requested
+ * attribute.
+ *
+ * Returns the number of attributes on success, an error code otherwise.
+ * There will only ever be one attribute.
+ */
 static int selinux_getselfattr(unsigned int attr, struct lsm_ctx __user *ctx,
 			       size_t *size, u32 flags)
 {
-	char *value;
-	size_t total_len;
-	int len;
-	int rc = 0;
+	int rc;
+	char *val;
+	int val_len;
 
-	len = selinux_lsm_getattr(attr, current, &value);
-	if (len < 0)
-		return len;
-
-	total_len = ALIGN(struct_size(ctx, ctx, len), 8);
-
-	if (total_len > *size)
-		rc = -E2BIG;
-	else if (ctx)
-		rc = lsm_fill_user_ctx(ctx, value, len, LSM_ID_SELINUX, 0);
-
-	kfree(value);
-	*size = total_len;
-	if (rc < 0)
-		return rc;
-	return 1;
+	val_len = selinux_lsm_getattr(attr, current, &val);
+	if (val_len < 0)
+		return val_len;
+	rc = lsm_fill_user_ctx(ctx, size, val, val_len, LSM_ID_SELINUX, 0);
+	kfree(val);
+	return (!rc ? 1 : rc);
 }
 
 static int selinux_setselfattr(unsigned int attr, struct lsm_ctx *ctx,
