@@ -5994,6 +5994,7 @@ static bool drm_dp_mst_is_virtual_dpcd(struct drm_dp_mst_port *port)
 struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 {
 	struct drm_dp_mst_port *immediate_upstream_port;
+	struct drm_dp_aux *immediate_upstream_aux;
 	struct drm_dp_mst_port *fec_port;
 	struct drm_dp_desc desc = {};
 	u8 endpoint_fec;
@@ -6058,21 +6059,25 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 	 * - Port is on primary branch device
 	 * - Not a VGA adapter (DP_DWN_STRM_PORT_TYPE_ANALOG)
 	 */
-	if (drm_dp_read_desc(port->mgr->aux, &desc, true))
+	if (immediate_upstream_port)
+		immediate_upstream_aux = &immediate_upstream_port->aux;
+	else
+		immediate_upstream_aux = port->mgr->aux;
+
+	if (drm_dp_read_desc(immediate_upstream_aux, &desc, true))
 		return NULL;
 
-	if (drm_dp_has_quirk(&desc, DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD) &&
-	    port->mgr->dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14 &&
-	    port->parent == port->mgr->mst_primary) {
+	if (drm_dp_has_quirk(&desc, DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD)) {
 		u8 dpcd_ext[DP_RECEIVER_CAP_SIZE];
 
-		if (drm_dp_read_dpcd_caps(port->mgr->aux, dpcd_ext) < 0)
+		if (drm_dp_read_dpcd_caps(immediate_upstream_aux, dpcd_ext) < 0)
 			return NULL;
 
-		if ((dpcd_ext[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT) &&
+		if (dpcd_ext[DP_DPCD_REV] >= DP_DPCD_REV_14 &&
+		    ((dpcd_ext[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT) &&
 		    ((dpcd_ext[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_TYPE_MASK)
-		     != DP_DWN_STRM_PORT_TYPE_ANALOG))
-			return port->mgr->aux;
+		     != DP_DWN_STRM_PORT_TYPE_ANALOG)))
+			return immediate_upstream_aux;
 	}
 
 	/*
