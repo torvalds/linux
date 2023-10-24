@@ -164,12 +164,12 @@ secondary_start_sbi:
 	XIP_FIXUP_OFFSET a0
 	call relocate_enable_mmu
 #endif
-	call setup_trap_vector
+	call .Lsetup_trap_vector
 	tail smp_callin
 #endif /* CONFIG_SMP */
 
 .align 2
-setup_trap_vector:
+.Lsetup_trap_vector:
 	/* Set trap vector to exception handler */
 	la a0, handle_exception
 	csrw CSR_TVEC, a0
@@ -206,7 +206,7 @@ ENTRY(_start_kernel)
 	 * not implement PMPs, so we set up a quick trap handler to just skip
 	 * touching the PMPs on any trap.
 	 */
-	la a0, pmp_done
+	la a0, .Lpmp_done
 	csrw CSR_TVEC, a0
 
 	li a0, -1
@@ -214,7 +214,7 @@ ENTRY(_start_kernel)
 	li a0, (PMP_A_NAPOT | PMP_R | PMP_W | PMP_X)
 	csrw CSR_PMPCFG0, a0
 .align 2
-pmp_done:
+.Lpmp_done:
 
 	/*
 	 * The hartid in a0 is expected later on, and we have no firmware
@@ -275,12 +275,12 @@ pmp_done:
 	/* Clear BSS for flat non-ELF images */
 	la a3, __bss_start
 	la a4, __bss_stop
-	ble a4, a3, clear_bss_done
-clear_bss:
+	ble a4, a3, .Lclear_bss_done
+.Lclear_bss:
 	REG_S zero, (a3)
 	add a3, a3, RISCV_SZPTR
-	blt a3, a4, clear_bss
-clear_bss_done:
+	blt a3, a4, .Lclear_bss
+.Lclear_bss_done:
 #endif
 	la a2, boot_cpu_hartid
 	XIP_FIXUP_OFFSET a2
@@ -305,7 +305,7 @@ clear_bss_done:
 	call relocate_enable_mmu
 #endif /* CONFIG_MMU */
 
-	call setup_trap_vector
+	call .Lsetup_trap_vector
 	/* Restore C environment */
 	la tp, init_task
 	la sp, init_thread_union + THREAD_SIZE

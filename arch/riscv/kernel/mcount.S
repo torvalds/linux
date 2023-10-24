@@ -85,16 +85,16 @@ ENTRY(MCOUNT_NAME)
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	la	t0, ftrace_graph_return
 	REG_L	t1, 0(t0)
-	bne	t1, t4, do_ftrace_graph_caller
+	bne	t1, t4, .Ldo_ftrace_graph_caller
 
 	la	t3, ftrace_graph_entry
 	REG_L	t2, 0(t3)
 	la	t6, ftrace_graph_entry_stub
-	bne	t2, t6, do_ftrace_graph_caller
+	bne	t2, t6, .Ldo_ftrace_graph_caller
 #endif
 	la	t3, ftrace_trace_function
 	REG_L	t5, 0(t3)
-	bne	t5, t4, do_trace
+	bne	t5, t4, .Ldo_trace
 	ret
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -102,7 +102,7 @@ ENTRY(MCOUNT_NAME)
  * A pseudo representation for the function graph tracer:
  * prepare_to_return(&ra_to_caller_of_caller, ra_to_caller)
  */
-do_ftrace_graph_caller:
+.Ldo_ftrace_graph_caller:
 	addi	a0, s0, -SZREG
 	mv	a1, ra
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
@@ -118,7 +118,7 @@ do_ftrace_graph_caller:
  * A pseudo representation for the function tracer:
  * (*ftrace_trace_function)(ra_to_caller, ra_to_caller_of_caller)
  */
-do_trace:
+.Ldo_trace:
 	REG_L	a1, -SZREG(s0)
 	mv	a0, ra
 
