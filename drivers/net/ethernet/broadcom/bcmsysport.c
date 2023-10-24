@@ -2430,7 +2430,7 @@ static int bcm_sysport_netdevice_event(struct notifier_block *nb,
 		if (dev->netdev_ops != &bcm_sysport_netdev_ops)
 			return NOTIFY_DONE;
 
-		if (!dsa_slave_dev_check(info->upper_dev))
+		if (!dsa_user_dev_check(info->upper_dev))
 			return NOTIFY_DONE;
 
 		if (info->linking)

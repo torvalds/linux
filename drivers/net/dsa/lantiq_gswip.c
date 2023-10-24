@@ -510,22 +510,22 @@ static int gswip_mdio(struct gswip_priv *priv, struct device_node *mdio_np)
 	struct dsa_switch *ds = priv->ds;
 	int err;
 
-	ds->slave_mii_bus = mdiobus_alloc();
-	if (!ds->slave_mii_bus)
+	ds->user_mii_bus = mdiobus_alloc();
+	if (!ds->user_mii_bus)
 		return -ENOMEM;
 
-	ds->slave_mii_bus->priv = priv;
-	ds->slave_mii_bus->read = gswip_mdio_rd;
-	ds->slave_mii_bus->write = gswip_mdio_wr;
-	ds->slave_mii_bus->name = "lantiq,xrx200-mdio";
-	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "%s-mii",
+	ds->user_mii_bus->priv = priv;
+	ds->user_mii_bus->read = gswip_mdio_rd;
+	ds->user_mii_bus->write = gswip_mdio_wr;
+	ds->user_mii_bus->name = "lantiq,xrx200-mdio";
+	snprintf(ds->user_mii_bus->id, MII_BUS_ID_SIZE, "%s-mii",
 		 dev_name(priv->dev));
-	ds->slave_mii_bus->parent = priv->dev;
-	ds->slave_mii_bus->phy_mask = ~ds->phys_mii_mask;
+	ds->user_mii_bus->parent = priv->dev;
+	ds->user_mii_bus->phy_mask = ~ds->phys_mii_mask;
 
-	err = of_mdiobus_register(ds->slave_mii_bus, mdio_np);
+	err = of_mdiobus_register(ds->user_mii_bus, mdio_np);
 	if (err)
-		mdiobus_free(ds->slave_mii_bus);
+		mdiobus_free(ds->user_mii_bus);
 
 	return err;
 }
@@ -2196,8 +2196,8 @@ disable_switch:
 	dsa_unregister_switch(priv->ds);
 mdio_bus:
 	if (mdio_np) {
-		mdiobus_unregister(priv->ds->slave_mii_bus);
-		mdiobus_free(priv->ds->slave_mii_bus);
+		mdiobus_unregister(priv->ds->user_mii_bus);
+		mdiobus_free(priv->ds->user_mii_bus);
 	}
 put_mdio_node:
 	of_node_put(mdio_np);
@@ -2219,10 +2219,10 @@ static void gswip_remove(struct platform_device *pdev)
 
 	dsa_unregister_switch(priv->ds);
 
-	if (priv->ds->slave_mii_bus) {
-		mdiobus_unregister(priv->ds->slave_mii_bus);
-		of_node_put(priv->ds->slave_mii_bus->dev.of_node);
-		mdiobus_free(priv->ds->slave_mii_bus);
+	if (priv->ds->user_mii_bus) {
+		mdiobus_unregister(priv->ds->user_mii_bus);
+		of_node_put(priv->ds->user_mii_bus->dev.of_node);
+		mdiobus_free(priv->ds->user_mii_bus);
 	}
 
 	for (i = 0; i < priv->num_gphy_fw; i++)

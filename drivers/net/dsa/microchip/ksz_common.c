@@ -1945,14 +1945,14 @@ static int ksz_irq_phy_setup(struct ksz_device *dev)
 				ret = irq;
 				goto out;
 			}
-			ds->slave_mii_bus->irq[phy] = irq;
+			ds->user_mii_bus->irq[phy] = irq;
 		}
 	}
 	return 0;
 out:
 	while (phy--)
 		if (BIT(phy) & ds->phys_mii_mask)
-			irq_dispose_mapping(ds->slave_mii_bus->irq[phy]);
+			irq_dispose_mapping(ds->user_mii_bus->irq[phy]);
 
 	return ret;
 }
@@ -1964,7 +1964,7 @@ static void ksz_irq_phy_free(struct ksz_device *dev)
 
 	for (phy = 0; phy < KSZ_MAX_NUM_PORTS; phy++)
 		if (BIT(phy) & ds->phys_mii_mask)
-			irq_dispose_mapping(ds->slave_mii_bus->irq[phy]);
+			irq_dispose_mapping(ds->user_mii_bus->irq[phy]);
 }
 
 static int ksz_mdio_register(struct ksz_device *dev)
@@ -1987,12 +1987,12 @@ static int ksz_mdio_register(struct ksz_device *dev)
 	bus->priv = dev;
 	bus->read = ksz_sw_mdio_read;
 	bus->write = ksz_sw_mdio_write;
-	bus->name = "ksz slave smi";
+	bus->name = "ksz user smi";
 	snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
 	bus->parent = ds->dev;
 	bus->phy_mask = ~ds->phys_mii_mask;
 
-	ds->slave_mii_bus = bus;
+	ds->user_mii_bus = bus;
 
 	if (dev->irq > 0) {
 		ret = ksz_irq_phy_setup(dev);
@@ -2344,7 +2344,7 @@ static void ksz_mib_read_work(struct work_struct *work)
 		if (!p->read) {
 			const struct dsa_port *dp = dsa_to_port(dev->ds, i);
 
-			if (!netif_carrier_ok(dp->slave))
+			if (!netif_carrier_ok(dp->user))
 				mib->cnt_ptr = dev->info->reg_mib_cnt;
 		}
 		port_r_cnt(dev, i);
@@ -2464,7 +2464,7 @@ static void ksz_get_ethtool_stats(struct dsa_switch *ds, int port,
 	mutex_lock(&mib->cnt_mutex);
 
 	/* Only read dropped counters if no link. */
-	if (!netif_carrier_ok(dp->slave))
+	if (!netif_carrier_ok(dp->user))
 		mib->cnt_ptr = dev->info->reg_mib_cnt;
 	port_r_cnt(dev, port);
 	memcpy(buf, mib->counters, dev->info->mib_cnt * sizeof(u64));
@@ -2574,7 +2574,7 @@ static int ksz_port_setup(struct dsa_switch *ds, int port)
 	if (!dsa_is_user_port(ds, port))
 		return 0;
 
-	/* setup slave port */
+	/* setup user port */
 	dev->dev_ops->port_setup(dev, port, false);
 
 	/* port_stp_state_set() will be called after to enable the port so
@@ -3567,8 +3567,8 @@ static int ksz_port_set_mac_address(struct dsa_switch *ds, int port,
 static int ksz_switch_macaddr_get(struct dsa_switch *ds, int port,
 				  struct netlink_ext_ack *extack)
 {
-	struct net_device *slave = dsa_to_port(ds, port)->slave;
-	const unsigned char *addr = slave->dev_addr;
+	struct net_device *user = dsa_to_port(ds, port)->user;
+	const unsigned char *addr = user->dev_addr;
 	struct ksz_switch_macaddr *switch_macaddr;
 	struct ksz_device *dev = ds->priv;
 	const u16 *regs = dev->info->regs;

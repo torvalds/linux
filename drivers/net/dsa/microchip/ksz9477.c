@@ -1170,7 +1170,7 @@ int ksz9477_tc_cbs_set_cinc(struct ksz_device *dev, int port, u32 val)
 void ksz9477_hsr_join(struct dsa_switch *ds, int port, struct net_device *hsr)
 {
 	struct ksz_device *dev = ds->priv;
-	struct net_device *slave;
+	struct net_device *user;
 	struct dsa_port *hsr_dp;
 	u8 data, hsr_ports = 0;
 
@@ -1202,8 +1202,8 @@ void ksz9477_hsr_join(struct dsa_switch *ds, int port, struct net_device *hsr)
 	ksz_port_cfg(dev, port, REG_PORT_LUE_CTRL, PORT_SRC_ADDR_FILTER, true);
 
 	/* Setup HW supported features for lan HSR ports */
-	slave = dsa_to_port(ds, port)->slave;
-	slave->features |= KSZ9477_SUPPORTED_HSR_FEATURES;
+	user = dsa_to_port(ds, port)->user;
+	user->features |= KSZ9477_SUPPORTED_HSR_FEATURES;
 }
 
 void ksz9477_hsr_leave(struct dsa_switch *ds, int port, struct net_device *hsr)

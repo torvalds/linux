@@ -175,7 +175,7 @@ mtk_flow_get_dsa_port(struct net_device **dev)
 	if (dp->cpu_dp->tag_ops->proto != DSA_TAG_PROTO_MTK)
 		return -ENODEV;
 
-	*dev = dsa_port_to_master(dp);
+	*dev = dsa_port_to_conduit(dp);
 
 	return dp->index;
 #else

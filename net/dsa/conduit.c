@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Handling of a master device, switching frames via its switch fabric CPU port
+ * Handling of a conduit device, switching frames via its switch fabric CPU port
  *
  * Copyright (c) 2017 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
@@ -11,12 +11,12 @@
 #include <linux/netlink.h>
 #include <net/dsa.h>
 
+#include "conduit.h"
 #include "dsa.h"
-#include "master.h"
 #include "port.h"
 #include "tag.h"
 
-static int dsa_master_get_regs_len(struct net_device *dev)
+static int dsa_conduit_get_regs_len(struct net_device *dev)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
@@ -45,8 +45,8 @@ static int dsa_master_get_regs_len(struct net_device *dev)
 	return ret;
 }
 
-static void dsa_master_get_regs(struct net_device *dev,
-				struct ethtool_regs *regs, void *data)
+static void dsa_conduit_get_regs(struct net_device *dev,
+				 struct ethtool_regs *regs, void *data)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
@@ -80,9 +80,9 @@ static void dsa_master_get_regs(struct net_device *dev,
 	}
 }
 
-static void dsa_master_get_ethtool_stats(struct net_device *dev,
-					 struct ethtool_stats *stats,
-					 uint64_t *data)
+static void dsa_conduit_get_ethtool_stats(struct net_device *dev,
+					  struct ethtool_stats *stats,
+					  uint64_t *data)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
@@ -99,9 +99,9 @@ static void dsa_master_get_ethtool_stats(struct net_device *dev,
 		ds->ops->get_ethtool_stats(ds, port, data + count);
 }
 
-static void dsa_master_get_ethtool_phy_stats(struct net_device *dev,
-					     struct ethtool_stats *stats,
-					     uint64_t *data)
+static void dsa_conduit_get_ethtool_phy_stats(struct net_device *dev,
+					      struct ethtool_stats *stats,
+					      uint64_t *data)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
@@ -125,7 +125,7 @@ static void dsa_master_get_ethtool_phy_stats(struct net_device *dev,
 		ds->ops->get_ethtool_phy_stats(ds, port, data + count);
 }
 
-static int dsa_master_get_sset_count(struct net_device *dev, int sset)
+static int dsa_conduit_get_sset_count(struct net_device *dev, int sset)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
@@ -147,8 +147,8 @@ static int dsa_master_get_sset_count(struct net_device *dev, int sset)
 	return count;
 }
 
-static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
-				   uint8_t *data)
+static void dsa_conduit_get_strings(struct net_device *dev, uint32_t stringset,
+				    uint8_t *data)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
@@ -195,12 +195,12 @@ static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
 	}
 }
 
-/* Deny PTP operations on master if there is at least one switch in the tree
+/* Deny PTP operations on conduit if there is at least one switch in the tree
  * that is PTP capable.
  */
-int __dsa_master_hwtstamp_validate(struct net_device *dev,
-				   const struct kernel_hwtstamp_config *config,
-				   struct netlink_ext_ack *extack)
+int __dsa_conduit_hwtstamp_validate(struct net_device *dev,
+				    const struct kernel_hwtstamp_config *config,
+				    struct netlink_ext_ack *extack)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct dsa_switch *ds = cpu_dp->ds;
@@ -212,7 +212,7 @@ int __dsa_master_hwtstamp_validate(struct net_device *dev,
 	list_for_each_entry(dp, &dst->ports, list) {
 		if (dsa_port_supports_hwtstamp(dp)) {
 			NL_SET_ERR_MSG(extack,
-				       "HW timestamping not allowed on DSA master when switch supports the operation");
+				       "HW timestamping not allowed on DSA conduit when switch supports the operation");
 			return -EBUSY;
 		}
 	}
@@ -220,7 +220,7 @@ int __dsa_master_hwtstamp_validate(struct net_device *dev,
 	return 0;
 }
 
-static int dsa_master_ethtool_setup(struct net_device *dev)
+static int dsa_conduit_ethtool_setup(struct net_device *dev)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct dsa_switch *ds = cpu_dp->ds;
@@ -237,19 +237,19 @@ static int dsa_master_ethtool_setup(struct net_device *dev)
 	if (cpu_dp->orig_ethtool_ops)
 		memcpy(ops, cpu_dp->orig_ethtool_ops, sizeof(*ops));
 
-	ops->get_regs_len = dsa_master_get_regs_len;
-	ops->get_regs = dsa_master_get_regs;
-	ops->get_sset_count = dsa_master_get_sset_count;
-	ops->get_ethtool_stats = dsa_master_get_ethtool_stats;
-	ops->get_strings = dsa_master_get_strings;
-	ops->get_ethtool_phy_stats = dsa_master_get_ethtool_phy_stats;
+	ops->get_regs_len = dsa_conduit_get_regs_len;
+	ops->get_regs = dsa_conduit_get_regs;
+	ops->get_sset_count = dsa_conduit_get_sset_count;
+	ops->get_ethtool_stats = dsa_conduit_get_ethtool_stats;
+	ops->get_strings = dsa_conduit_get_strings;
+	ops->get_ethtool_phy_stats = dsa_conduit_get_ethtool_phy_stats;
 
 	dev->ethtool_ops = ops;
 
 	return 0;
 }
 
-static void dsa_master_ethtool_teardown(struct net_device *dev)
+static void dsa_conduit_ethtool_teardown(struct net_device *dev)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 
@@ -260,16 +260,16 @@ static void dsa_master_ethtool_teardown(struct net_device *dev)
 	cpu_dp->orig_ethtool_ops = NULL;
 }
 
-/* Keep the master always promiscuous if the tagging protocol requires that
+/* Keep the conduit always promiscuous if the tagging protocol requires that
  * (garbles MAC DA) or if it doesn't support unicast filtering, case in which
  * it would revert to promiscuous mode as soon as we call dev_uc_add() on it
  * anyway.
  */
-static void dsa_master_set_promiscuity(struct net_device *dev, int inc)
+static void dsa_conduit_set_promiscuity(struct net_device *dev, int inc)
 {
 	const struct dsa_device_ops *ops = dev->dsa_ptr->tag_ops;
 
-	if ((dev->priv_flags & IFF_UNICAST_FLT) && !ops->promisc_on_master)
+	if ((dev->priv_flags & IFF_UNICAST_FLT) && !ops->promisc_on_conduit)
 		return;
 
 	ASSERT_RTNL();
@@ -336,17 +336,17 @@ out:
 }
 static DEVICE_ATTR_RW(tagging);
 
-static struct attribute *dsa_slave_attrs[] = {
+static struct attribute *dsa_user_attrs[] = {
 	&dev_attr_tagging.attr,
 	NULL
 };
 
 static const struct attribute_group dsa_group = {
 	.name	= "dsa",
-	.attrs	= dsa_slave_attrs,
+	.attrs	= dsa_user_attrs,
 };
 
-static void dsa_master_reset_mtu(struct net_device *dev)
+static void dsa_conduit_reset_mtu(struct net_device *dev)
 {
 	int err;
 
@@ -356,7 +356,7 @@ static void dsa_master_reset_mtu(struct net_device *dev)
 			   "Unable to reset MTU to exclude DSA overheads\n");
 }
 
-int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
+int dsa_conduit_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 {
 	const struct dsa_device_ops *tag_ops = cpu_dp->tag_ops;
 	struct dsa_switch *ds = cpu_dp->ds;
@@ -365,7 +365,7 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 
 	mtu = ETH_DATA_LEN + dsa_tag_protocol_overhead(tag_ops);
 
-	/* The DSA master must use SET_NETDEV_DEV for this to work. */
+	/* The DSA conduit must use SET_NETDEV_DEV for this to work. */
 	if (!netif_is_lag_master(dev)) {
 		consumer_link = device_link_add(ds->dev, dev->dev.parent,
 						DL_FLAG_AUTOREMOVE_CONSUMER);
@@ -376,7 +376,7 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 	}
 
 	/* The switch driver may not implement ->port_change_mtu(), case in
-	 * which dsa_slave_change_mtu() will not update the master MTU either,
+	 * which dsa_user_change_mtu() will not update the conduit MTU either,
 	 * so we need to do that here.
 	 */
 	ret = dev_set_mtu(dev, mtu);
@@ -392,9 +392,9 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 
 	dev->dsa_ptr = cpu_dp;
 
-	dsa_master_set_promiscuity(dev, 1);
+	dsa_conduit_set_promiscuity(dev, 1);
 
-	ret = dsa_master_ethtool_setup(dev);
+	ret = dsa_conduit_ethtool_setup(dev);
 	if (ret)
 		goto out_err_reset_promisc;
 
@@ -405,18 +405,18 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 	return ret;
 
 out_err_ethtool_teardown:
-	dsa_master_ethtool_teardown(dev);
+	dsa_conduit_ethtool_teardown(dev);
 out_err_reset_promisc:
-	dsa_master_set_promiscuity(dev, -1);
+	dsa_conduit_set_promiscuity(dev, -1);
 	return ret;
 }
 
-void dsa_master_teardown(struct net_device *dev)
+void dsa_conduit_teardown(struct net_device *dev)
 {
 	sysfs_remove_group(&dev->dev.kobj, &dsa_group);
-	dsa_master_ethtool_teardown(dev);
-	dsa_master_reset_mtu(dev);
-	dsa_master_set_promiscuity(dev, -1);
+	dsa_conduit_ethtool_teardown(dev);
+	dsa_conduit_reset_mtu(dev);
+	dsa_conduit_set_promiscuity(dev, -1);
 
 	dev->dsa_ptr = NULL;
 
@@ -427,40 +427,40 @@ void dsa_master_teardown(struct net_device *dev)
 	wmb();
 }
 
-int dsa_master_lag_setup(struct net_device *lag_dev, struct dsa_port *cpu_dp,
-			 struct netdev_lag_upper_info *uinfo,
-			 struct netlink_ext_ack *extack)
+int dsa_conduit_lag_setup(struct net_device *lag_dev, struct dsa_port *cpu_dp,
+			  struct netdev_lag_upper_info *uinfo,
+			  struct netlink_ext_ack *extack)
 {
-	bool master_setup = false;
+	bool conduit_setup = false;
 	int err;
 
 	if (!netdev_uses_dsa(lag_dev)) {
-		err = dsa_master_setup(lag_dev, cpu_dp);
+		err = dsa_conduit_setup(lag_dev, cpu_dp);
 		if (err)
 			return err;
 
-		master_setup = true;
+		conduit_setup = true;
 	}
 
 	err = dsa_port_lag_join(cpu_dp, lag_dev, uinfo, extack);
 	if (err) {
 		NL_SET_ERR_MSG_WEAK_MOD(extack, "CPU port failed to join LAG");
-		goto out_master_teardown;
+		goto out_conduit_teardown;
 	}
 
 	return 0;
 
-out_master_teardown:
-	if (master_setup)
-		dsa_master_teardown(lag_dev);
+out_conduit_teardown:
+	if (conduit_setup)
+		dsa_conduit_teardown(lag_dev);
 	return err;
 }
 
-/* Tear down a master if there isn't any other user port on it,
+/* Tear down a conduit if there isn't any other user port on it,
  * optionally also destroying LAG information.
  */
-void dsa_master_lag_teardown(struct net_device *lag_dev,
-			     struct dsa_port *cpu_dp)
+void dsa_conduit_lag_teardown(struct net_device *lag_dev,
+			      struct dsa_port *cpu_dp)
 {
 	struct net_device *upper;
 	struct list_head *iter;
@@ -468,8 +468,8 @@ void dsa_master_lag_teardown(struct net_device *lag_dev,
 	dsa_port_lag_leave(cpu_dp, lag_dev);
 
 	netdev_for_each_upper_dev_rcu(lag_dev, upper, iter)
-		if (dsa_slave_dev_check(upper))
+		if (dsa_user_dev_check(upper))
 			return;
 
-	dsa_master_teardown(lag_dev);
+	dsa_conduit_teardown(lag_dev);
 }
