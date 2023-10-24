@@ -179,6 +179,23 @@ static int _test_cmd_access_replace_ioas(int fd, __u32 access_id,
 #define test_cmd_access_replace_ioas(access_id, ioas_id) \
 	ASSERT_EQ(0, _test_cmd_access_replace_ioas(self->fd, access_id, ioas_id))
 
+static int _test_cmd_set_dirty_tracking(int fd, __u32 hwpt_id, bool enabled)
+{
+	struct iommu_hwpt_set_dirty_tracking cmd = {
+		.size = sizeof(cmd),
+		.flags = enabled ? IOMMU_HWPT_DIRTY_TRACKING_ENABLE : 0,
+		.hwpt_id = hwpt_id,
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_HWPT_SET_DIRTY_TRACKING, &cmd);
+	if (ret)
+		return -errno;
+	return 0;
+}
+#define test_cmd_set_dirty_tracking(hwpt_id, enabled) \
+	ASSERT_EQ(0, _test_cmd_set_dirty_tracking(self->fd, hwpt_id, enabled))
+
 static int _test_cmd_create_access(int fd, unsigned int ioas_id,
 				   __u32 *access_id, unsigned int flags)
 {
