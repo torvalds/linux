@@ -67,6 +67,63 @@ static int intel_dp_mst_check_constraints(struct drm_i915_private *i915, int bpp
 	return 0;
 }
 
+static int intel_dp_mst_bw_overhead(const struct intel_crtc_state *crtc_state,
+				    const struct intel_connector *connector,
+				    bool ssc, bool dsc, int bpp)
+{
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+	unsigned long flags = DRM_DP_BW_OVERHEAD_MST;
+	int dsc_slice_count = 0;
+	int overhead;
+
+	flags |= intel_dp_is_uhbr(crtc_state) ? DRM_DP_BW_OVERHEAD_UHBR : 0;
+	flags |= ssc ? DRM_DP_BW_OVERHEAD_SSC_REF_CLK : 0;
+	flags |= crtc_state->fec_enable ? DRM_DP_BW_OVERHEAD_FEC : 0;
+
+	if (dsc) {
+		flags |= DRM_DP_BW_OVERHEAD_DSC;
+		/* TODO: add support for bigjoiner */
+		dsc_slice_count = intel_dp_dsc_get_slice_count(connector,
+							       adjusted_mode->clock,
+							       adjusted_mode->hdisplay,
+							       false);
+	}
+
+	overhead = drm_dp_bw_overhead(crtc_state->lane_count,
+				      adjusted_mode->hdisplay,
+				      dsc_slice_count,
+				      to_bpp_x16(bpp),
+				      flags);
+
+	/*
+	 * TODO: clarify whether a minimum required by the fixed FEC overhead
+	 * in the bspec audio programming sequence is required here.
+	 */
+	return max(overhead, intel_dp_bw_fec_overhead(crtc_state->fec_enable));
+}
+
+static void intel_dp_mst_compute_m_n(const struct intel_crtc_state *crtc_state,
+				     const struct intel_connector *connector,
+				     bool ssc, bool dsc,
+				     int bpp,
+				     struct intel_link_m_n *m_n)
+{
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+	int overhead = intel_dp_mst_bw_overhead(crtc_state,
+						connector,
+						ssc, dsc, bpp);
+
+	intel_link_compute_m_n(bpp, crtc_state->lane_count,
+			       adjusted_mode->crtc_clock,
+			       crtc_state->port_clock,
+			       overhead,
+			       m_n);
+
+	m_n->tu = DIV_ROUND_UP_ULL(mul_u32_u32(m_n->data_m, 64), m_n->data_n);
+}
+
 static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 						struct intel_crtc_state *crtc_state,
 						int max_bpp,
@@ -107,14 +164,40 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 						      crtc_state->lane_count);
 
 	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
+		struct intel_link_m_n remote_m_n;
+		int link_bpp;
+
 		drm_dbg_kms(&i915->drm, "Trying bpp %d\n", bpp);
 
 		ret = intel_dp_mst_check_constraints(i915, bpp, adjusted_mode, crtc_state, dsc);
 		if (ret)
 			continue;
 
-		crtc_state->pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock,
-						       bpp << 4);
+		link_bpp = dsc ? bpp :
+			intel_dp_output_bpp(crtc_state->output_format, bpp);
+
+		intel_dp_mst_compute_m_n(crtc_state, connector, false, dsc, link_bpp,
+					 &crtc_state->dp_m_n);
+		intel_dp_mst_compute_m_n(crtc_state, connector, true, dsc, link_bpp,
+					 &remote_m_n);
+
+		/*
+		 * The TU size programmed to the HW determines which slots in
+		 * an MTP frame are used for this stream, which needs to match
+		 * the payload size programmed to the first downstream branch
+		 * device's payload table.
+		 *
+		 * Note that atm the payload's PBN value DRM core sends via
+		 * the ALLOCATE_PAYLOAD side-band message matches the payload
+		 * size (which it calculates from the PBN value) it programs
+		 * to the first branch device's payload table. The allocation
+		 * in the payload table could be reduced though (to
+		 * crtc_state->dp_m_n.tu), provided that the driver doesn't
+		 * enable SSC on the corresponding link.
+		 */
+		drm_WARN_ON(&i915->drm, remote_m_n.tu < crtc_state->dp_m_n.tu);
+		crtc_state->dp_m_n.tu = remote_m_n.tu;
+		crtc_state->pbn = remote_m_n.tu * mst_state->pbn_div;
 
 		slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst_mgr,
 						      connector->port,
@@ -123,6 +206,8 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 			return slots;
 
 		if (slots >= 0) {
+			drm_WARN_ON(&i915->drm, slots != remote_m_n.tu);
+
 			ret = drm_dp_mst_atomic_check(state);
 			/*
 			 * If we got slots >= 0 and we can fit those based on check
@@ -156,10 +241,7 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 					    struct drm_connector_state *conn_state,
 					    struct link_config_limits *limits)
 {
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
 	int slots = -EINVAL;
-	int link_bpp;
 
 	/*
 	 * FIXME: allocate the BW according to link_bpp, which in the case of
@@ -174,16 +256,6 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 	if (slots < 0)
 		return slots;
 
-	link_bpp = intel_dp_output_bpp(crtc_state->output_format, crtc_state->pipe_bpp);
-
-	intel_link_compute_m_n(link_bpp,
-			       crtc_state->lane_count,
-			       adjusted_mode->crtc_clock,
-			       crtc_state->port_clock,
-			       intel_dp_bw_fec_overhead(crtc_state->fec_enable),
-			       &crtc_state->dp_m_n);
-	crtc_state->dp_m_n.tu = slots;
-
 	return 0;
 }
 
@@ -195,8 +267,6 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
 	int slots = -EINVAL;
 	int i, num_bpc;
 	u8 dsc_bpc[3] = {};
@@ -270,14 +340,6 @@ static int intel_dp_dsc_mst_compute_link_config(struct intel_encoder *encoder,
 		if (slots < 0)
 			return slots;
 	}
-
-	intel_link_compute_m_n(crtc_state->dsc.compressed_bpp,
-			       crtc_state->lane_count,
-			       adjusted_mode->crtc_clock,
-			       crtc_state->port_clock,
-			       intel_dp_bw_fec_overhead(crtc_state->fec_enable),
-			       &crtc_state->dp_m_n);
-	crtc_state->dp_m_n.tu = slots;
 
 	return 0;
 }
@@ -987,6 +1049,18 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	if (ret)
 		return ret;
 
+	/*
+	 * TODO:
+	 * - Also check if compression would allow for the mode
+	 * - Calculate the overhead using drm_dp_bw_overhead() /
+	 *   drm_dp_bw_channel_coding_efficiency(), similarly to the
+	 *   compute config code, as drm_dp_calc_pbn_mode() doesn't
+	 *   account with all the overheads.
+	 * - Check here and during compute config the BW reported by
+	 *   DFP_Link_Available_Payload_Bandwidth_Number (or the
+	 *   corresponding link capabilities of the sink) in case the
+	 *   stream is uncompressed for it by the last branch device.
+	 */
 	if (mode_rate > max_rate || mode->clock > max_dotclk ||
 	    drm_dp_calc_pbn_mode(mode->clock, min_bpp << 4) > port->full_pbn) {
 		*status = MODE_CLOCK_HIGH;
