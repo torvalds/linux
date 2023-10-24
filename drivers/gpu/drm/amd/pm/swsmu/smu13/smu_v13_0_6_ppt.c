@@ -48,6 +48,7 @@
 #include "smu_cmn.h"
 #include "mp/mp_13_0_6_offset.h"
 #include "mp/mp_13_0_6_sh_mask.h"
+#include "umc_v12_0.h"
 
 #undef MP1_Public
 #undef smnMP1_FIRMWARE_FLAGS
@@ -2481,7 +2482,7 @@ static int mca_decode_mca_ipid(struct amdgpu_device *adev, enum amdgpu_mca_error
 	return 0;
 }
 
-static int mca_normal_mca_get_err_count(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
+static int mca_umc_mca_get_err_count(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
 					enum amdgpu_mca_error_type type, int idx, uint32_t *count)
 {
 	uint64_t status0;
@@ -2491,10 +2492,15 @@ static int mca_normal_mca_get_err_count(const struct mca_ras_info *mca_ras, stru
 	if (ret)
 		return ret;
 
-	if (REG_GET_FIELD(status0, MCMP1_STATUST0, Val))
-		*count = 1;
-	else
+	if (!REG_GET_FIELD(status0, MCMP1_STATUST0, Val)) {
 		*count = 0;
+		return 0;
+	}
+
+	if (type == AMDGPU_MCA_ERROR_TYPE_UE && umc_v12_0_is_uncorrectable_error(status0))
+		*count = 1;
+	else if (type == AMDGPU_MCA_ERROR_TYPE_CE && umc_v12_0_is_correctable_error(status0))
+		*count = 1;
 
 	return 0;
 }
@@ -2608,7 +2614,7 @@ static const struct mca_ras_info mca_ras_table[] = {
 	{
 		.blkid = AMDGPU_RAS_BLOCK__UMC,
 		.ip = AMDGPU_MCA_IP_UMC,
-		.get_err_count = mca_normal_mca_get_err_count,
+		.get_err_count = mca_umc_mca_get_err_count,
 	}, {
 		.blkid = AMDGPU_RAS_BLOCK__GFX,
 		.ip = AMDGPU_MCA_IP_MP5,
