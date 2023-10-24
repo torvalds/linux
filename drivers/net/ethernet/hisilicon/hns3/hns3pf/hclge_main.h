@@ -185,15 +185,22 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_SUPPORT_1G_BIT		BIT(0)
 #define HCLGE_SUPPORT_10G_BIT		BIT(1)
 #define HCLGE_SUPPORT_25G_BIT		BIT(2)
-#define HCLGE_SUPPORT_50G_BIT		BIT(3)
-#define HCLGE_SUPPORT_100G_BIT		BIT(4)
+#define HCLGE_SUPPORT_50G_R2_BIT	BIT(3)
+#define HCLGE_SUPPORT_100G_R4_BIT	BIT(4)
 /* to be compatible with exsit board */
 #define HCLGE_SUPPORT_40G_BIT		BIT(5)
 #define HCLGE_SUPPORT_100M_BIT		BIT(6)
 #define HCLGE_SUPPORT_10M_BIT		BIT(7)
 #define HCLGE_SUPPORT_200G_BIT		BIT(8)
+#define HCLGE_SUPPORT_50G_R1_BIT	BIT(9)
+#define HCLGE_SUPPORT_100G_R2_BIT	BIT(10)
+
 #define HCLGE_SUPPORT_GE \
 	(HCLGE_SUPPORT_1G_BIT | HCLGE_SUPPORT_100M_BIT | HCLGE_SUPPORT_10M_BIT)
+#define HCLGE_SUPPORT_50G_BITS \
+	(HCLGE_SUPPORT_50G_R2_BIT | HCLGE_SUPPORT_50G_R1_BIT)
+#define HCLGE_SUPPORT_100G_BITS \
+	(HCLGE_SUPPORT_100G_R4_BIT | HCLGE_SUPPORT_100G_R2_BIT)
 
 enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REINITING,
@@ -1074,6 +1081,11 @@ struct hclge_speed_bit_map {
 struct hclge_mac_speed_map {
 	u32 speed_drv; /* speed defined in driver */
 	u32 speed_fw; /* speed defined in firmware */
+};
+
+struct hclge_link_mode_bmap {
+	u16 support_bit;
+	enum ethtool_link_mode_bit_indices link_mode;
 };
 
 int hclge_set_vport_promisc_mode(struct hclge_vport *vport, bool en_uc_pmc,
