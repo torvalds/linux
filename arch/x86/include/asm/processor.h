@@ -519,7 +519,7 @@ static __always_inline unsigned long current_top_of_stack(void)
 	 *  entry trampoline.
 	 */
 	if (IS_ENABLED(CONFIG_USE_X86_SEG_SUPPORT))
-		return pcpu_hot.top_of_stack;
+		return const_pcpu_hot.top_of_stack;
 
 	return this_cpu_read_stable(pcpu_hot.top_of_stack);
 }
