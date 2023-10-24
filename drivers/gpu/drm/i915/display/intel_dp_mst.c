@@ -782,7 +782,7 @@ static void intel_mst_disable_dp(struct intel_atomic_state *state,
 		 * TODO: disable decompression for all streams/in any MST ports, not
 		 * only in the first downstream branch device.
 		 */
-		intel_dp_sink_set_decompression_state(intel_dp, old_crtc_state, false);
+		intel_dp_sink_disable_decompression(state, connector, old_crtc_state);
 }
 
 static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
@@ -944,7 +944,7 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 		 * TODO: enable decompression for all streams/in any MST ports, not
 		 * only in the first downstream branch device.
 		 */
-		intel_dp_sink_set_decompression_state(intel_dp, pipe_config, true);
+		intel_dp_sink_enable_decompression(state, connector, pipe_config);
 		dig_port->base.pre_enable(state, &dig_port->base,
 						pipe_config, NULL);
 	}

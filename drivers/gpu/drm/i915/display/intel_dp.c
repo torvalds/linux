@@ -2937,22 +2937,92 @@ static bool downstream_hpd_needs_d0(struct intel_dp *intel_dp)
 		intel_dp->downstream_ports[0] & DP_DS_PORT_HPD;
 }
 
-void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
-					   const struct intel_crtc_state *crtc_state,
-					   bool enable)
+static int
+write_dsc_decompression_flag(struct drm_dp_aux *aux, u8 flag, bool set)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	int ret;
+	int err;
+	u8 val;
 
-	if (!crtc_state->dsc.compression_enable)
-		return;
+	err = drm_dp_dpcd_readb(aux, DP_DSC_ENABLE, &val);
+	if (err < 0)
+		return err;
 
-	ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_DSC_ENABLE,
-				 enable ? DP_DECOMPRESSION_EN : 0);
-	if (ret < 0)
+	if (set)
+		val |= flag;
+	else
+		val &= ~flag;
+
+	return drm_dp_dpcd_writeb(aux, DP_DSC_ENABLE, val);
+}
+
+static void
+intel_dp_sink_set_dsc_decompression(struct intel_connector *connector,
+				    bool enable)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+
+	if (write_dsc_decompression_flag(connector->dp.dsc_decompression_aux,
+					 DP_DECOMPRESSION_EN, enable) < 0)
 		drm_dbg_kms(&i915->drm,
 			    "Failed to %s sink decompression state\n",
 			    str_enable_disable(enable));
+}
+
+/**
+ * intel_dp_sink_enable_decompression - Enable DSC decompression in sink/last branch device
+ * @state: atomic state
+ * @connector: connector to enable the decompression for
+ * @new_crtc_state: new state for the CRTC driving @connector
+ *
+ * Enable the DSC decompression if required in the %DP_DSC_ENABLE DPCD
+ * register of the appropriate sink/branch device. On SST this is always the
+ * sink device, whereas on MST based on each device's DSC capabilities it's
+ * either the last branch device (enabling decompression in it) or both the
+ * last branch device (enabling passthrough in it) and the sink device
+ * (enabling decompression in it).
+ */
+void intel_dp_sink_enable_decompression(struct intel_atomic_state *state,
+					struct intel_connector *connector,
+					const struct intel_crtc_state *new_crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+
+	if (!new_crtc_state->dsc.compression_enable)
+		return;
+
+	if (drm_WARN_ON(&i915->drm,
+			!connector->dp.dsc_decompression_aux))
+		return;
+
+	/* TODO: Enable passthrough in the MST last branch device if needed. */
+	intel_dp_sink_set_dsc_decompression(connector, true);
+}
+
+/**
+ * intel_dp_sink_disable_decompression - Disable DSC decompression in sink/last branch device
+ * @state: atomic state
+ * @connector: connector to disable the decompression for
+ * @old_crtc_state: old state for the CRTC driving @connector
+ *
+ * Disable the DSC decompression if required in the %DP_DSC_ENABLE DPCD
+ * register of the appropriate sink/branch device, corresponding to the
+ * sequence in intel_dp_sink_enable_decompression().
+ */
+void intel_dp_sink_disable_decompression(struct intel_atomic_state *state,
+					 struct intel_connector *connector,
+					 const struct intel_crtc_state *old_crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+
+	if (!old_crtc_state->dsc.compression_enable)
+		return;
+
+	if (drm_WARN_ON(&i915->drm,
+			!connector->dp.dsc_decompression_aux))
+		return;
+
+	intel_dp_sink_set_dsc_decompression(connector, false);
+	/* TODO: Disable passthrough in the MST last branch device if needed. */
 }
 
 static void
