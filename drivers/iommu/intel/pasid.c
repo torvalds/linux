@@ -277,6 +277,11 @@ static inline void pasid_set_bits(u64 *ptr, u64 mask, u64 bits)
 	WRITE_ONCE(*ptr, (old & ~mask) | bits);
 }
 
+static inline u64 pasid_get_bits(u64 *ptr)
+{
+	return READ_ONCE(*ptr);
+}
+
 /*
  * Setup the DID(Domain Identifier) field (Bit 64~79) of scalable mode
  * PASID entry.
@@ -333,6 +338,36 @@ pasid_set_translation_type(struct pasid_entry *pe, u64 value)
 static inline void pasid_set_fault_enable(struct pasid_entry *pe)
 {
 	pasid_set_bits(&pe->val[0], 1 << 1, 0);
+}
+
+/*
+ * Enable second level A/D bits by setting the SLADE (Second Level
+ * Access Dirty Enable) field (Bit 9) of a scalable mode PASID
+ * entry.
+ */
+static inline void pasid_set_ssade(struct pasid_entry *pe)
+{
+	pasid_set_bits(&pe->val[0], 1 << 9, 1 << 9);
+}
+
+/*
+ * Disable second level A/D bits by clearing the SLADE (Second Level
+ * Access Dirty Enable) field (Bit 9) of a scalable mode PASID
+ * entry.
+ */
+static inline void pasid_clear_ssade(struct pasid_entry *pe)
+{
+	pasid_set_bits(&pe->val[0], 1 << 9, 0);
+}
+
+/*
+ * Checks if second level A/D bits specifically the SLADE (Second Level
+ * Access Dirty Enable) field (Bit 9) of a scalable mode PASID
+ * entry is set.
+ */
+static inline bool pasid_get_ssade(struct pasid_entry *pe)
+{
+	return pasid_get_bits(&pe->val[0]) & (1 << 9);
 }
 
 /*
@@ -627,11 +662,85 @@ int intel_pasid_setup_second_level(struct intel_iommu *iommu,
 	pasid_set_translation_type(pte, PASID_ENTRY_PGTT_SL_ONLY);
 	pasid_set_fault_enable(pte);
 	pasid_set_page_snoop(pte, !!ecap_smpwc(iommu->ecap));
+	if (domain->dirty_tracking)
+		pasid_set_ssade(pte);
 
 	pasid_set_present(pte);
 	spin_unlock(&iommu->lock);
 
 	pasid_flush_caches(iommu, pte, pasid, did);
+
+	return 0;
+}
+
+/*
+ * Set up dirty tracking on a second only or nested translation type.
+ */
+int intel_pasid_setup_dirty_tracking(struct intel_iommu *iommu,
+				     struct dmar_domain *domain,
+				     struct device *dev, u32 pasid,
+				     bool enabled)
+{
+	struct pasid_entry *pte;
+	u16 did, pgtt;
+
+	spin_lock(&iommu->lock);
+
+	pte = intel_pasid_get_entry(dev, pasid);
+	if (!pte) {
+		spin_unlock(&iommu->lock);
+		dev_err_ratelimited(
+			dev, "Failed to get pasid entry of PASID %d\n", pasid);
+		return -ENODEV;
+	}
+
+	did = domain_id_iommu(domain, iommu);
+	pgtt = pasid_pte_get_pgtt(pte);
+	if (pgtt != PASID_ENTRY_PGTT_SL_ONLY &&
+	    pgtt != PASID_ENTRY_PGTT_NESTED) {
+		spin_unlock(&iommu->lock);
+		dev_err_ratelimited(
+			dev,
+			"Dirty tracking not supported on translation type %d\n",
+			pgtt);
+		return -EOPNOTSUPP;
+	}
+
+	if (pasid_get_ssade(pte) == enabled) {
+		spin_unlock(&iommu->lock);
+		return 0;
+	}
+
+	if (enabled)
+		pasid_set_ssade(pte);
+	else
+		pasid_clear_ssade(pte);
+	spin_unlock(&iommu->lock);
+
+	if (!ecap_coherent(iommu->ecap))
+		clflush_cache_range(pte, sizeof(*pte));
+
+	/*
+	 * From VT-d spec table 25 "Guidance to Software for Invalidations":
+	 *
+	 * - PASID-selective-within-Domain PASID-cache invalidation
+	 *   If (PGTT=SS or Nested)
+	 *    - Domain-selective IOTLB invalidation
+	 *   Else
+	 *    - PASID-selective PASID-based IOTLB invalidation
+	 * - If (pasid is RID_PASID)
+	 *    - Global Device-TLB invalidation to affected functions
+	 *   Else
+	 *    - PASID-based Device-TLB invalidation (with S=1 and
+	 *      Addr[63:12]=0x7FFFFFFF_FFFFF) to affected functions
+	 */
+	pasid_cache_invalidation_with_pasid(iommu, did, pasid);
+
+	iommu->flush.flush_iotlb(iommu, did, 0, 0, DMA_TLB_DSI_FLUSH);
+
+	/* Device IOTLB doesn't need to be flushed in caching mode. */
+	if (!cap_caching_mode(iommu->cap))
+		devtlb_invalidation_with_pasid(iommu, dev, pasid);
 
 	return 0;
 }

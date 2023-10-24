@@ -300,6 +300,7 @@ static int iommu_skip_te_disable;
 #define IDENTMAP_AZALIA		4
 
 const struct iommu_ops intel_iommu_ops;
+const struct iommu_dirty_ops intel_dirty_ops;
 
 static bool translation_pre_enabled(struct intel_iommu *iommu)
 {
@@ -4079,8 +4080,10 @@ intel_iommu_domain_alloc_user(struct device *dev, u32 flags)
 {
 	struct iommu_domain *domain;
 	struct intel_iommu *iommu;
+	bool dirty_tracking;
 
-	if (flags & (~IOMMU_HWPT_ALLOC_NEST_PARENT))
+	if (flags &
+	    (~(IOMMU_HWPT_ALLOC_NEST_PARENT | IOMMU_HWPT_ALLOC_DIRTY_TRACKING)))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	iommu = device_to_iommu(dev, NULL, NULL);
@@ -4088,6 +4091,10 @@ intel_iommu_domain_alloc_user(struct device *dev, u32 flags)
 		return ERR_PTR(-ENODEV);
 
 	if ((flags & IOMMU_HWPT_ALLOC_NEST_PARENT) && !ecap_nest(iommu->ecap))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	dirty_tracking = (flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING);
+	if (dirty_tracking && !ssads_supported(iommu))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	/*
@@ -4098,6 +4105,15 @@ intel_iommu_domain_alloc_user(struct device *dev, u32 flags)
 	domain = iommu_domain_alloc(dev->bus);
 	if (!domain)
 		domain = ERR_PTR(-ENOMEM);
+
+	if (!IS_ERR(domain) && dirty_tracking) {
+		if (to_dmar_domain(domain)->use_first_level) {
+			iommu_domain_free(domain);
+			return ERR_PTR(-EOPNOTSUPP);
+		}
+		domain->dirty_ops = &intel_dirty_ops;
+	}
+
 	return domain;
 }
 
@@ -4119,6 +4135,9 @@ static int prepare_domain_attach_device(struct iommu_domain *domain,
 		return -ENODEV;
 
 	if (dmar_domain->force_snooping && !ecap_sc_support(iommu->ecap))
+		return -EINVAL;
+
+	if (domain->dirty_ops && !ssads_supported(iommu))
 		return -EINVAL;
 
 	/* check if this iommu agaw is sufficient for max mapped address */
@@ -4375,6 +4394,8 @@ static bool intel_iommu_capable(struct device *dev, enum iommu_cap cap)
 		return dmar_platform_optin();
 	case IOMMU_CAP_ENFORCE_CACHE_COHERENCY:
 		return ecap_sc_support(info->iommu->ecap);
+	case IOMMU_CAP_DIRTY_TRACKING:
+		return ssads_supported(info->iommu);
 	default:
 		return false;
 	}
@@ -4772,6 +4793,9 @@ static int intel_iommu_set_dev_pasid(struct iommu_domain *domain,
 	if (!pasid_supported(iommu) || dev_is_real_dma_subdevice(dev))
 		return -EOPNOTSUPP;
 
+	if (domain->dirty_ops)
+		return -EINVAL;
+
 	if (context_copied(iommu, info->bus, info->devfn))
 		return -EBUSY;
 
@@ -4829,6 +4853,83 @@ static void *intel_iommu_hw_info(struct device *dev, u32 *length, u32 *type)
 	*type = IOMMU_HW_INFO_TYPE_INTEL_VTD;
 	return vtd;
 }
+
+static int intel_iommu_set_dirty_tracking(struct iommu_domain *domain,
+					  bool enable)
+{
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
+	struct device_domain_info *info;
+	int ret;
+
+	spin_lock(&dmar_domain->lock);
+	if (dmar_domain->dirty_tracking == enable)
+		goto out_unlock;
+
+	list_for_each_entry(info, &dmar_domain->devices, link) {
+		ret = intel_pasid_setup_dirty_tracking(info->iommu,
+						       info->domain, info->dev,
+						       IOMMU_NO_PASID, enable);
+		if (ret)
+			goto err_unwind;
+	}
+
+	dmar_domain->dirty_tracking = enable;
+out_unlock:
+	spin_unlock(&dmar_domain->lock);
+
+	return 0;
+
+err_unwind:
+	list_for_each_entry(info, &dmar_domain->devices, link)
+		intel_pasid_setup_dirty_tracking(info->iommu, dmar_domain,
+						 info->dev, IOMMU_NO_PASID,
+						 dmar_domain->dirty_tracking);
+	spin_unlock(&dmar_domain->lock);
+	return ret;
+}
+
+static int intel_iommu_read_and_clear_dirty(struct iommu_domain *domain,
+					    unsigned long iova, size_t size,
+					    unsigned long flags,
+					    struct iommu_dirty_bitmap *dirty)
+{
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
+	unsigned long end = iova + size - 1;
+	unsigned long pgsize;
+
+	/*
+	 * IOMMUFD core calls into a dirty tracking disabled domain without an
+	 * IOVA bitmap set in order to clean dirty bits in all PTEs that might
+	 * have occurred when we stopped dirty tracking. This ensures that we
+	 * never inherit dirtied bits from a previous cycle.
+	 */
+	if (!dmar_domain->dirty_tracking && dirty->bitmap)
+		return -EINVAL;
+
+	do {
+		struct dma_pte *pte;
+		int lvl = 0;
+
+		pte = pfn_to_dma_pte(dmar_domain, iova >> VTD_PAGE_SHIFT, &lvl,
+				     GFP_ATOMIC);
+		pgsize = level_size(lvl) << VTD_PAGE_SHIFT;
+		if (!pte || !dma_pte_present(pte)) {
+			iova += pgsize;
+			continue;
+		}
+
+		if (dma_sl_pte_test_and_clear_dirty(pte, flags))
+			iommu_dirty_bitmap_record(dirty, iova, pgsize);
+		iova += pgsize;
+	} while (iova < end);
+
+	return 0;
+}
+
+const struct iommu_dirty_ops intel_dirty_ops = {
+	.set_dirty_tracking = intel_iommu_set_dirty_tracking,
+	.read_and_clear_dirty = intel_iommu_read_and_clear_dirty,
+};
 
 const struct iommu_ops intel_iommu_ops = {
 	.capable		= intel_iommu_capable,
