@@ -739,7 +739,7 @@ static bool tb_asym_supported(struct tb_port *src_port, struct tb_port *dst_port
 }
 
 /**
- * tb_maximum_banwidth() - Maximum bandwidth over a single link
+ * tb_maximum_bandwidth() - Maximum bandwidth over a single link
  * @tb: Domain structure
  * @src_port: Source protocol adapter
  * @dst_port: Destination protocol adapter
