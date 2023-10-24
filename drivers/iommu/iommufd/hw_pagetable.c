@@ -196,3 +196,27 @@ out_put_idev:
 	iommufd_put_object(&idev->obj);
 	return rc;
 }
+
+int iommufd_hwpt_set_dirty_tracking(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hwpt_set_dirty_tracking *cmd = ucmd->cmd;
+	struct iommufd_hw_pagetable *hwpt;
+	struct iommufd_ioas *ioas;
+	int rc = -EOPNOTSUPP;
+	bool enable;
+
+	if (cmd->flags & ~IOMMU_HWPT_DIRTY_TRACKING_ENABLE)
+		return rc;
+
+	hwpt = iommufd_get_hwpt(ucmd, cmd->hwpt_id);
+	if (IS_ERR(hwpt))
+		return PTR_ERR(hwpt);
+
+	ioas = hwpt->ioas;
+	enable = cmd->flags & IOMMU_HWPT_DIRTY_TRACKING_ENABLE;
+
+	rc = iopt_set_dirty_tracking(&ioas->iopt, hwpt->domain, enable);
+
+	iommufd_put_object(&hwpt->obj);
+	return rc;
+}
