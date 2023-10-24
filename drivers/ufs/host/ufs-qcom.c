@@ -2281,11 +2281,12 @@ struct ufs_qcom_dev_params ufs_qcom_cap;
 					       PA_NO_ADAPT);
 			}
 		}
+		if (hba->dev_quirks & UFS_DEVICE_QUIRK_PA_TX_DEEMPHASIS_TUNING)
+			ufs_qcom_set_tx_hs_equalizer(hba,
+				dev_req_params->gear_tx, dev_req_params->lane_tx);
+
 		break;
 	case POST_CHANGE:
-		ufs_qcom_set_tx_hs_equalizer(hba,
-			dev_req_params->gear_tx, dev_req_params->lane_tx);
-
 		if (ufs_qcom_cfg_timers(hba, dev_req_params->gear_rx,
 					dev_req_params->pwr_rx,
 					dev_req_params->hs_rate, false)) {
@@ -4842,7 +4843,8 @@ static struct ufs_dev_quirk ufs_qcom_dev_fixups[] = {
 	{ .wmanufacturerid = UFS_VENDOR_SAMSUNG,
 	  .model = UFS_ANY_MODEL,
 	  .quirk = UFS_DEVICE_QUIRK_PA_HIBER8TIME |
-			UFS_DEVICE_QUIRK_PA_TX_HSG1_SYNC_LENGTH},
+			UFS_DEVICE_QUIRK_PA_TX_HSG1_SYNC_LENGTH |
+			UFS_DEVICE_QUIRK_PA_TX_DEEMPHASIS_TUNING },
 	{ .wmanufacturerid = UFS_VENDOR_MICRON,
 	  .model = UFS_ANY_MODEL,
 	  .quirk = UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM },
