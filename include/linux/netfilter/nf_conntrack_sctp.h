@@ -9,7 +9,6 @@ struct ip_ct_sctp {
 	enum sctp_conntrack state;
 
 	__be32 vtag[IP_CT_DIR_MAX];
-	u8 init[IP_CT_DIR_MAX];
 	u8 last_dir;
 	u8 flags;
 };
