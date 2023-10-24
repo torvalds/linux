@@ -11,6 +11,24 @@
 #include "ice_tc_lib.h"
 
 /**
+ * ice_eswitch_del_sp_rules - delete adv rules added on PRs
+ * @pf: pointer to the PF struct
+ *
+ * Delete all advanced rules that were used to forward packets with the
+ * device's VSI index to the corresponding eswitch ctrl VSI queue.
+ */
+static void ice_eswitch_del_sp_rules(struct ice_pf *pf)
+{
+	struct ice_repr *repr;
+	unsigned long id;
+
+	xa_for_each(&pf->eswitch.reprs, id, repr) {
+		if (repr->sp_rule.rid)
+			ice_rem_adv_rule_by_id(&pf->hw, &repr->sp_rule);
+	}
+}
+
+/**
  * ice_eswitch_add_sp_rule - add adv rule with device's VSI index
  * @pf: pointer to PF struct
  * @repr: pointer to the repr struct
@@ -18,8 +36,7 @@
  * This function adds advanced rule that forwards packets with
  * device's VSI index to the corresponding eswitch ctrl VSI queue.
  */
-static int
-ice_eswitch_add_sp_rule(struct ice_pf *pf, struct ice_repr *repr)
+static int ice_eswitch_add_sp_rule(struct ice_pf *pf, struct ice_repr *repr)
 {
 	struct ice_vsi *ctrl_vsi = pf->eswitch.control_vsi;
 	struct ice_adv_rule_info rule_info = { 0 };
@@ -54,17 +71,22 @@ ice_eswitch_add_sp_rule(struct ice_pf *pf, struct ice_repr *repr)
 	return err;
 }
 
-/**
- * ice_eswitch_del_sp_rule - delete adv rule with device's VSI index
- * @pf: pointer to the PF struct
- * @repr: pointer to the repr struct
- *
- * Delete the advanced rule that was used to forward packets with the device's
- * VSI index to the corresponding eswitch ctrl VSI queue.
- */
-static void ice_eswitch_del_sp_rule(struct ice_pf *pf, struct ice_repr *repr)
+static int
+ice_eswitch_add_sp_rules(struct ice_pf *pf)
 {
-	ice_rem_adv_rule_by_id(&pf->hw, &repr->sp_rule);
+	struct ice_repr *repr;
+	unsigned long id;
+	int err;
+
+	xa_for_each(&pf->eswitch.reprs, id, repr) {
+		err = ice_eswitch_add_sp_rule(pf, repr);
+		if (err) {
+			ice_eswitch_del_sp_rules(pf);
+			return err;
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -131,7 +153,7 @@ err_def_rx:
 
 /**
  * ice_eswitch_remap_rings_to_vectors - reconfigure rings of eswitch ctrl VSI
- * @pf: pointer to PF struct
+ * @eswitch: pointer to eswitch struct
  *
  * In eswitch number of allocated Tx/Rx rings is equal.
  *
@@ -140,9 +162,9 @@ err_def_rx:
  * will have dedicated 1 Tx/Rx ring pair, so number of rings pair is equal to
  * number of VFs.
  */
-static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
+static void ice_eswitch_remap_rings_to_vectors(struct ice_eswitch *eswitch)
 {
-	struct ice_vsi *vsi = pf->eswitch.control_vsi;
+	struct ice_vsi *vsi = eswitch->control_vsi;
 	unsigned long repr_id = 0;
 	int q_id;
 
@@ -152,7 +174,7 @@ static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 		struct ice_rx_ring *rx_ring;
 		struct ice_repr *repr;
 
-		repr = xa_find(&pf->eswitch.reprs, &repr_id, U32_MAX,
+		repr = xa_find(&eswitch->reprs, &repr_id, U32_MAX,
 			       XA_PRESENT);
 		if (WARN_ON(!repr))
 			break;
@@ -185,100 +207,70 @@ static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 }
 
 /**
- * ice_eswitch_release_reprs - clear PR VSIs configuration
+ * ice_eswitch_release_repr - clear PR VSI configuration
  * @pf: poiner to PF struct
+ * @repr: pointer to PR
  */
 static void
-ice_eswitch_release_reprs(struct ice_pf *pf)
+ice_eswitch_release_repr(struct ice_pf *pf, struct ice_repr *repr)
 {
-	struct ice_repr *repr;
-	unsigned long id;
+	struct ice_vsi *vsi = repr->src_vsi;
 
-	xa_for_each(&pf->eswitch.reprs, id, repr) {
-		struct ice_vsi *vsi = repr->src_vsi;
+	/* Skip representors that aren't configured */
+	if (!repr->dst)
+		return;
 
-		/* Skip representors that aren't configured */
-		if (!repr->dst)
-			continue;
+	ice_vsi_update_security(vsi, ice_vsi_ctx_set_antispoof);
+	metadata_dst_free(repr->dst);
+	repr->dst = NULL;
+	ice_fltr_add_mac_and_broadcast(vsi, repr->parent_mac,
+				       ICE_FWD_TO_VSI);
 
-		ice_vsi_update_security(vsi, ice_vsi_ctx_set_antispoof);
-		metadata_dst_free(repr->dst);
-		repr->dst = NULL;
-		ice_eswitch_del_sp_rule(pf, repr);
-		ice_fltr_add_mac_and_broadcast(vsi, repr->parent_mac,
-					       ICE_FWD_TO_VSI);
-
-		netif_napi_del(&repr->q_vector->napi);
-	}
+	netif_napi_del(&repr->q_vector->napi);
 }
 
 /**
- * ice_eswitch_setup_reprs - configure port reprs to run in switchdev mode
+ * ice_eswitch_setup_repr - configure PR to run in switchdev mode
  * @pf: pointer to PF struct
+ * @repr: pointer to PR struct
  */
-static int ice_eswitch_setup_reprs(struct ice_pf *pf)
+static int ice_eswitch_setup_repr(struct ice_pf *pf, struct ice_repr *repr)
 {
 	struct ice_vsi *ctrl_vsi = pf->eswitch.control_vsi;
-	struct ice_repr *repr;
-	unsigned long id;
+	struct ice_vsi *vsi = repr->src_vsi;
+	struct metadata_dst *dst;
 
-	xa_for_each(&pf->eswitch.reprs, id, repr) {
-		struct ice_vsi *vsi = repr->src_vsi;
+	ice_remove_vsi_fltr(&pf->hw, vsi->idx);
+	repr->dst = metadata_dst_alloc(0, METADATA_HW_PORT_MUX,
+				       GFP_KERNEL);
+	if (!repr->dst)
+		goto err_add_mac_fltr;
 
-		ice_remove_vsi_fltr(&pf->hw, vsi->idx);
-		repr->dst = metadata_dst_alloc(0, METADATA_HW_PORT_MUX,
-					       GFP_KERNEL);
-		if (!repr->dst) {
-			ice_fltr_add_mac_and_broadcast(vsi, repr->parent_mac,
-						       ICE_FWD_TO_VSI);
-			goto err;
-		}
+	if (ice_vsi_update_security(vsi, ice_vsi_ctx_clear_antispoof))
+		goto err_dst_free;
 
-		if (ice_eswitch_add_sp_rule(pf, repr)) {
-			ice_fltr_add_mac_and_broadcast(vsi, repr->parent_mac,
-						       ICE_FWD_TO_VSI);
-			goto err;
-		}
+	if (ice_vsi_add_vlan_zero(vsi))
+		goto err_update_security;
 
-		if (ice_vsi_update_security(vsi, ice_vsi_ctx_clear_antispoof)) {
-			ice_fltr_add_mac_and_broadcast(vsi, repr->parent_mac,
-						       ICE_FWD_TO_VSI);
-			ice_eswitch_del_sp_rule(pf, repr);
-			metadata_dst_free(repr->dst);
-			repr->dst = NULL;
-			goto err;
-		}
+	netif_napi_add(repr->netdev, &repr->q_vector->napi,
+		       ice_napi_poll);
 
-		if (ice_vsi_add_vlan_zero(vsi)) {
-			ice_fltr_add_mac_and_broadcast(vsi, repr->parent_mac,
-						       ICE_FWD_TO_VSI);
-			ice_eswitch_del_sp_rule(pf, repr);
-			metadata_dst_free(repr->dst);
-			repr->dst = NULL;
-			ice_vsi_update_security(vsi, ice_vsi_ctx_set_antispoof);
-			goto err;
-		}
+	netif_keep_dst(repr->netdev);
 
-		netif_napi_add(repr->netdev, &repr->q_vector->napi,
-			       ice_napi_poll);
-
-		netif_keep_dst(repr->netdev);
-	}
-
-	xa_for_each(&pf->eswitch.reprs, id, repr) {
-		struct ice_vsi *vsi = repr->src_vsi;
-		struct metadata_dst *dst;
-
-		dst = repr->dst;
-		dst->u.port_info.port_id = vsi->vsi_num;
-		dst->u.port_info.lower_dev = repr->netdev;
-		ice_repr_set_traffic_vsi(repr, ctrl_vsi);
-	}
+	dst = repr->dst;
+	dst->u.port_info.port_id = vsi->vsi_num;
+	dst->u.port_info.lower_dev = repr->netdev;
+	ice_repr_set_traffic_vsi(repr, ctrl_vsi);
 
 	return 0;
 
-err:
-	ice_eswitch_release_reprs(pf);
+err_update_security:
+	ice_vsi_update_security(vsi, ice_vsi_ctx_set_antispoof);
+err_dst_free:
+	metadata_dst_free(repr->dst);
+	repr->dst = NULL;
+err_add_mac_fltr:
+	ice_fltr_add_mac_and_broadcast(vsi, repr->parent_mac, ICE_FWD_TO_VSI);
 
 	return -ENODEV;
 }
@@ -481,31 +473,14 @@ static int ice_eswitch_enable_switchdev(struct ice_pf *pf)
 	if (ice_eswitch_setup_env(pf))
 		goto err_vsi;
 
-	if (ice_repr_add_for_all_vfs(pf))
-		goto err_repr_add;
-
-	if (ice_eswitch_setup_reprs(pf))
-		goto err_setup_reprs;
-
-	ice_eswitch_remap_rings_to_vectors(pf);
-
-	if (ice_vsi_open(ctrl_vsi))
-		goto err_vsi_open;
-
 	if (ice_eswitch_br_offloads_init(pf))
 		goto err_br_offloads;
 
-	ice_eswitch_napi_enable(&pf->eswitch.reprs);
+	pf->eswitch.is_running = true;
 
 	return 0;
 
 err_br_offloads:
-	ice_vsi_close(ctrl_vsi);
-err_vsi_open:
-	ice_eswitch_release_reprs(pf);
-err_setup_reprs:
-	ice_repr_rem_from_all_vfs(pf);
-err_repr_add:
 	ice_eswitch_release_env(pf);
 err_vsi:
 	ice_vsi_release(ctrl_vsi);
@@ -519,22 +494,12 @@ err_vsi:
 static void ice_eswitch_disable_switchdev(struct ice_pf *pf)
 {
 	struct ice_vsi *ctrl_vsi = pf->eswitch.control_vsi;
-	struct devlink *devlink = priv_to_devlink(pf);
 
-	ice_eswitch_napi_disable(&pf->eswitch.reprs);
 	ice_eswitch_br_offloads_deinit(pf);
 	ice_eswitch_release_env(pf);
-	ice_eswitch_release_reprs(pf);
 	ice_vsi_release(ctrl_vsi);
-	ice_repr_rem_from_all_vfs(pf);
 
-	/* since all port representors are destroyed, there is
-	 * no point in keeping the nodes
-	 */
-	ice_devlink_rate_clear_tx_topology(ice_get_main_vsi(pf));
-	devl_lock(devlink);
-	devl_rate_nodes_destroy(devlink);
-	devl_unlock(devlink);
+	pf->eswitch.is_running = false;
 }
 
 /**
@@ -614,39 +579,6 @@ bool ice_is_eswitch_mode_switchdev(struct ice_pf *pf)
 }
 
 /**
- * ice_eswitch_release - cleanup eswitch
- * @pf: pointer to PF structure
- */
-void ice_eswitch_release(struct ice_pf *pf)
-{
-	if (pf->eswitch_mode == DEVLINK_ESWITCH_MODE_LEGACY)
-		return;
-
-	ice_eswitch_disable_switchdev(pf);
-	pf->eswitch.is_running = false;
-}
-
-/**
- * ice_eswitch_configure - configure eswitch
- * @pf: pointer to PF structure
- */
-int ice_eswitch_configure(struct ice_pf *pf)
-{
-	int status;
-
-	if (pf->eswitch_mode == DEVLINK_ESWITCH_MODE_LEGACY ||
-	    pf->eswitch.is_running)
-		return 0;
-
-	status = ice_eswitch_enable_switchdev(pf);
-	if (status)
-		return status;
-
-	pf->eswitch.is_running = true;
-	return 0;
-}
-
-/**
  * ice_eswitch_start_all_tx_queues - start Tx queues of all port representors
  * @pf: pointer to PF structure
  */
@@ -678,6 +610,20 @@ void ice_eswitch_stop_all_tx_queues(struct ice_pf *pf)
 		ice_repr_stop_tx_queues(repr);
 }
 
+static void ice_eswitch_stop_reprs(struct ice_pf *pf)
+{
+	ice_eswitch_del_sp_rules(pf);
+	ice_eswitch_stop_all_tx_queues(pf);
+	ice_eswitch_napi_disable(&pf->eswitch.reprs);
+}
+
+static void ice_eswitch_start_reprs(struct ice_pf *pf)
+{
+	ice_eswitch_napi_enable(&pf->eswitch.reprs);
+	ice_eswitch_start_all_tx_queues(pf);
+	ice_eswitch_add_sp_rules(pf);
+}
+
 /**
  * ice_eswitch_rebuild - rebuild eswitch
  * @pf: pointer to PF structure
@@ -694,11 +640,7 @@ int ice_eswitch_rebuild(struct ice_pf *pf)
 	if (status)
 		return status;
 
-	status = ice_eswitch_setup_reprs(pf);
-	if (status)
-		return status;
-
-	ice_eswitch_remap_rings_to_vectors(pf);
+	ice_eswitch_remap_rings_to_vectors(&pf->eswitch);
 
 	ice_replay_tc_fltrs(pf);
 
@@ -710,4 +652,103 @@ int ice_eswitch_rebuild(struct ice_pf *pf)
 	ice_eswitch_start_all_tx_queues(pf);
 
 	return 0;
+}
+
+static void
+ice_eswitch_cp_change_queues(struct ice_eswitch *eswitch, int change)
+{
+	struct ice_vsi *cp = eswitch->control_vsi;
+
+	ice_vsi_close(cp);
+
+	cp->req_txq = cp->alloc_txq + change;
+	cp->req_rxq = cp->alloc_rxq + change;
+	ice_vsi_rebuild(cp, ICE_VSI_FLAG_NO_INIT);
+	ice_eswitch_remap_rings_to_vectors(eswitch);
+
+	ice_vsi_open(cp);
+}
+
+int
+ice_eswitch_attach(struct ice_pf *pf, struct ice_vf *vf)
+{
+	struct ice_repr *repr;
+	int change = 1;
+	int err;
+
+	if (pf->eswitch_mode == DEVLINK_ESWITCH_MODE_LEGACY)
+		return 0;
+
+	if (xa_empty(&pf->eswitch.reprs)) {
+		err = ice_eswitch_enable_switchdev(pf);
+		if (err)
+			return err;
+		/* Control plane VSI is created with 1 queue as default */
+		change = 0;
+	}
+
+	ice_eswitch_stop_reprs(pf);
+
+	repr = ice_repr_add_vf(vf);
+	if (IS_ERR(repr))
+		goto err_create_repr;
+
+	err = ice_eswitch_setup_repr(pf, repr);
+	if (err)
+		goto err_setup_repr;
+
+	err = xa_alloc(&pf->eswitch.reprs, &repr->id, repr,
+		       XA_LIMIT(1, INT_MAX), GFP_KERNEL);
+	if (err)
+		goto err_xa_alloc;
+
+	vf->repr_id = repr->id;
+
+	ice_eswitch_cp_change_queues(&pf->eswitch, change);
+	ice_eswitch_start_reprs(pf);
+
+	return 0;
+
+err_xa_alloc:
+	ice_eswitch_release_repr(pf, repr);
+err_setup_repr:
+	ice_repr_rem_vf(repr);
+err_create_repr:
+	if (xa_empty(&pf->eswitch.reprs))
+		ice_eswitch_disable_switchdev(pf);
+	ice_eswitch_start_reprs(pf);
+
+	return err;
+}
+
+void ice_eswitch_detach(struct ice_pf *pf, struct ice_vf *vf)
+{
+	struct ice_repr *repr = xa_load(&pf->eswitch.reprs, vf->repr_id);
+	struct devlink *devlink = priv_to_devlink(pf);
+
+	if (!repr)
+		return;
+
+	ice_eswitch_stop_reprs(pf);
+	xa_erase(&pf->eswitch.reprs, repr->id);
+
+	if (xa_empty(&pf->eswitch.reprs))
+		ice_eswitch_disable_switchdev(pf);
+	else
+		ice_eswitch_cp_change_queues(&pf->eswitch, -1);
+
+	ice_eswitch_release_repr(pf, repr);
+	ice_repr_rem_vf(repr);
+
+	if (xa_empty(&pf->eswitch.reprs)) {
+		/* since all port representors are destroyed, there is
+		 * no point in keeping the nodes
+		 */
+		ice_devlink_rate_clear_tx_topology(ice_get_main_vsi(pf));
+		devl_lock(devlink);
+		devl_rate_nodes_destroy(devlink);
+		devl_unlock(devlink);
+	} else {
+		ice_eswitch_start_reprs(pf);
+	}
 }

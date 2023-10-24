@@ -7,8 +7,9 @@
 #include <net/devlink.h>
 
 #ifdef CONFIG_ICE_SWITCHDEV
-void ice_eswitch_release(struct ice_pf *pf);
-int ice_eswitch_configure(struct ice_pf *pf);
+void ice_eswitch_detach(struct ice_pf *pf, struct ice_vf *vf);
+int
+ice_eswitch_attach(struct ice_pf *pf, struct ice_vf *vf);
 int ice_eswitch_rebuild(struct ice_pf *pf);
 
 int ice_eswitch_mode_get(struct devlink *devlink, u16 *mode);
@@ -26,7 +27,13 @@ void ice_eswitch_set_target_vsi(struct sk_buff *skb,
 netdev_tx_t
 ice_eswitch_port_start_xmit(struct sk_buff *skb, struct net_device *netdev);
 #else /* CONFIG_ICE_SWITCHDEV */
-static inline void ice_eswitch_release(struct ice_pf *pf) { }
+static inline void ice_eswitch_detach(struct ice_pf *pf, struct ice_vf *vf) { }
+
+static inline int
+ice_eswitch_attach(struct ice_pf *pf, struct ice_vf *vf)
+{
+	return -EOPNOTSUPP;
+}
 
 static inline void ice_eswitch_stop_all_tx_queues(struct ice_pf *pf) { }
 

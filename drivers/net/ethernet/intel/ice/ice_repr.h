@@ -22,8 +22,8 @@ struct ice_repr {
 #endif
 };
 
-int ice_repr_add_for_all_vfs(struct ice_pf *pf);
-void ice_repr_rem_from_all_vfs(struct ice_pf *pf);
+struct ice_repr *ice_repr_add_vf(struct ice_vf *vf);
+void ice_repr_rem_vf(struct ice_repr *repr);
 
 void ice_repr_start_tx_queues(struct ice_repr *repr);
 void ice_repr_stop_tx_queues(struct ice_repr *repr);
