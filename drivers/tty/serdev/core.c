@@ -187,30 +187,20 @@ void serdev_device_close(struct serdev_device *serdev)
 }
 EXPORT_SYMBOL_GPL(serdev_device_close);
 
-static void devm_serdev_device_release(struct device *dev, void *dr)
+static void devm_serdev_device_close(void *serdev)
 {
-	serdev_device_close(*(struct serdev_device **)dr);
+	serdev_device_close(serdev);
 }
 
 int devm_serdev_device_open(struct device *dev, struct serdev_device *serdev)
 {
-	struct serdev_device **dr;
 	int ret;
 
-	dr = devres_alloc(devm_serdev_device_release, sizeof(*dr), GFP_KERNEL);
-	if (!dr)
-		return -ENOMEM;
-
 	ret = serdev_device_open(serdev);
-	if (ret) {
-		devres_free(dr);
+	if (ret)
 		return ret;
-	}
 
-	*dr = serdev;
-	devres_add(dev, dr);
-
-	return 0;
+	return devm_add_action_or_reset(dev, devm_serdev_device_close, serdev);
 }
 EXPORT_SYMBOL_GPL(devm_serdev_device_open);
 
