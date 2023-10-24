@@ -4095,7 +4095,7 @@ intel_iommu_domain_alloc_user(struct device *dev, u32 flags,
 	if (!iommu)
 		return ERR_PTR(-ENODEV);
 
-	if ((flags & IOMMU_HWPT_ALLOC_NEST_PARENT) && !ecap_nest(iommu->ecap))
+	if ((flags & IOMMU_HWPT_ALLOC_NEST_PARENT) && !nested_supported(iommu))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	dirty_tracking = (flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING);
