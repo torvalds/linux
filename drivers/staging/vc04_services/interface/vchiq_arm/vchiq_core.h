@@ -38,8 +38,6 @@
 #define VCHIQ_LOG_INFO     6
 #define VCHIQ_LOG_TRACE    7
 
-#define VCHIQ_LOG_PREFIX   KERN_INFO "vchiq: "
-
 enum vchiq_log_category {
 	VCHIQ_ARM,
 	VCHIQ_CORE,
