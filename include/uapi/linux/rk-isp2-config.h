@@ -1993,6 +1993,7 @@ struct rkisp_thunderboot_resmem_head {
 	__u32 exp_gain[3];
 	__u32 exp_time_reg[3];
 	__u32 exp_gain_reg[3];
+	__u32 exp_isp_dgain[3];
 } __attribute__ ((packed));
 
 /**
