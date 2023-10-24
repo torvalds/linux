@@ -139,7 +139,7 @@ struct lpc_ich_gpio_info {
 	size_t nr_devices;
 	struct resource **resources;
 	size_t nr_resources;
-	resource_size_t *offsets;
+	const resource_size_t *offsets;
 };
 
 #define APL_GPIO_NORTH		0
@@ -151,7 +151,7 @@ struct lpc_ich_gpio_info {
 #define APL_GPIO_NR_RESOURCES	4
 
 /* Offset data for Apollo Lake GPIO controllers */
-static resource_size_t apl_gpio_offsets[APL_GPIO_NR_RESOURCES] = {
+static const resource_size_t apl_gpio_offsets[APL_GPIO_NR_RESOURCES] = {
 	[APL_GPIO_NORTH]	= 0xc50000,
 	[APL_GPIO_NORTHWEST]	= 0xc40000,
 	[APL_GPIO_WEST]		= 0xc70000,
@@ -233,7 +233,7 @@ static const struct lpc_ich_gpio_info apl_gpio_info = {
 #define DNV_GPIO_NR_RESOURCES	2
 
 /* Offset data for Denverton GPIO controllers */
-static resource_size_t dnv_gpio_offsets[DNV_GPIO_NR_RESOURCES] = {
+static const resource_size_t dnv_gpio_offsets[DNV_GPIO_NR_RESOURCES] = {
 	[DNV_GPIO_NORTH]	= 0xc20000,
 	[DNV_GPIO_SOUTH]	= 0xc50000,
 };
