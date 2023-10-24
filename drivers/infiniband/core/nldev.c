@@ -371,8 +371,7 @@ static int fill_port_info(struct sk_buff *msg,
 	}
 
 out:
-	if (netdev)
-		dev_put(netdev);
+	dev_put(netdev);
 	return ret;
 }
 
