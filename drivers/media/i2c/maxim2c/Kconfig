@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Maxim Dual GMSL deserializer and serializer devices
+#
+config VIDEO_DES_MAXIM2C
+	tristate "Maxim Dual GMSL deserializer support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This driver supports the Maxim Dual GMSL2/GMSL1 deserializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called maxim2c.
+
+menu "Maxim Dual GMSL serializer devices support"
+	visible if VIDEO_DES_MAXIM2C
+
+config MAXIM2C_SER_MAX9295
+	tristate "Maxim GMSL2 serializer max9295 support"
+	depends on VIDEO_DES_MAXIM2C
+	help
+	  This driver supports the Maxim GMSL2 max9295 serializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called remote_max9295.
+
+config MAXIM2C_SER_MAX96715
+	tristate "Maxim GMSL1 Serializer max96715 support"
+	depends on VIDEO_DES_MAXIM2C
+	help
+	  This driver supports the Maxim GMSL1 max96715 serializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called remote_max96715.
+
+config MAXIM2C_SER_MAX96717
+	tristate "Maxim GMSL2 Serializer max96717 support"
+	depends on VIDEO_DES_MAXIM2C
+	help
+	  This driver supports the Maxim GMSL2 max96717 serializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called remote_max96717.
+
+endmenu
