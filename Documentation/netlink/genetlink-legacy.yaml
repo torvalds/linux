@@ -242,6 +242,9 @@ properties:
                   max-len:
                     description: Max length for a string or a binary attribute.
                     $ref: '#/$defs/len-or-define'
+                  exact-len:
+                    description: Exact length for a string or a binary attribute.
+                    $ref: '#/$defs/len-or-define'
               sub-type: *attr-type
               display-hint: *display-hint
               # Start genetlink-c
@@ -337,7 +340,7 @@ properties:
               description: Command flags.
               type: array
               items:
-                enum: [ admin-perm ]
+                enum: [ admin-perm, uns-admin-perm ]
             dont-validate:
               description: Kernel attribute validation flags.
               type: array
