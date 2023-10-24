@@ -74,6 +74,35 @@ static int _test_cmd_mock_domain(int fd, unsigned int ioas_id, __u32 *stdev_id,
 	EXPECT_ERRNO(_errno, _test_cmd_mock_domain(self->fd, ioas_id, \
 						   stdev_id, hwpt_id, NULL))
 
+static int _test_cmd_mock_domain_flags(int fd, unsigned int ioas_id,
+				       __u32 stdev_flags, __u32 *stdev_id,
+				       __u32 *hwpt_id, __u32 *idev_id)
+{
+	struct iommu_test_cmd cmd = {
+		.size = sizeof(cmd),
+		.op = IOMMU_TEST_OP_MOCK_DOMAIN_FLAGS,
+		.id = ioas_id,
+		.mock_domain_flags = { .dev_flags = stdev_flags },
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_TEST_CMD, &cmd);
+	if (ret)
+		return ret;
+	if (stdev_id)
+		*stdev_id = cmd.mock_domain_flags.out_stdev_id;
+	assert(cmd.id != 0);
+	if (hwpt_id)
+		*hwpt_id = cmd.mock_domain_flags.out_hwpt_id;
+	if (idev_id)
+		*idev_id = cmd.mock_domain_flags.out_idev_id;
+	return 0;
+}
+#define test_err_mock_domain_flags(_errno, ioas_id, flags, stdev_id, hwpt_id) \
+	EXPECT_ERRNO(_errno,                                                  \
+		     _test_cmd_mock_domain_flags(self->fd, ioas_id, flags,    \
+						 stdev_id, hwpt_id, NULL))
+
 static int _test_cmd_mock_domain_replace(int fd, __u32 stdev_id, __u32 pt_id,
 					 __u32 *hwpt_id)
 {
