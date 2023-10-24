@@ -8,23 +8,46 @@
 /**
  * DOC: page_pool allocator
  *
- * The page_pool allocator is optimized for the XDP mode that
- * uses one frame per-page, but it can fallback on the
- * regular page allocator APIs.
+ * The page_pool allocator is optimized for recycling page or page fragment used
+ * by skb packet and xdp frame.
  *
- * Basic use involves replacing alloc_pages() calls with the
- * page_pool_alloc_pages() call.  Drivers should use
- * page_pool_dev_alloc_pages() replacing dev_alloc_pages().
+ * Basic use involves replacing and alloc_pages() calls with page_pool_alloc(),
+ * which allocate memory with or without page splitting depending on the
+ * requested memory size.
  *
- * The API keeps track of in-flight pages, in order to let API users know
- * when it is safe to free a page_pool object.  Thus, API users
- * must call page_pool_put_page() to free the page, or attach
- * the page to a page_pool-aware object like skbs marked with
+ * If the driver knows that it always requires full pages or its allocations are
+ * always smaller than half a page, it can use one of the more specific API
+ * calls:
+ *
+ * 1. page_pool_alloc_pages(): allocate memory without page splitting when
+ * driver knows that the memory it need is always bigger than half of the page
+ * allocated from page pool. There is no cache line dirtying for 'struct page'
+ * when a page is recycled back to the page pool.
+ *
+ * 2. page_pool_alloc_frag(): allocate memory with page splitting when driver
+ * knows that the memory it need is always smaller than or equal to half of the
+ * page allocated from page pool. Page splitting enables memory saving and thus
+ * avoids TLB/cache miss for data access, but there also is some cost to
+ * implement page splitting, mainly some cache line dirtying/bouncing for
+ * 'struct page' and atomic operation for page->pp_frag_count.
+ *
+ * The API keeps track of in-flight pages, in order to let API users know when
+ * it is safe to free a page_pool object, the API users must call
+ * page_pool_put_page() or page_pool_free_va() to free the page_pool object, or
+ * attach the page_pool object to a page_pool-aware object like skbs marked with
  * skb_mark_for_recycle().
  *
- * API users must call page_pool_put_page() once on a page, as it
- * will either recycle the page, or in case of refcnt > 1, it will
- * release the DMA mapping and in-flight state accounting.
+ * page_pool_put_page() may be called multi times on the same page if a page is
+ * split into multi fragments. For the last fragment, it will either recycle the
+ * page, or in case of page->_refcount > 1, it will release the DMA mapping and
+ * in-flight state accounting.
+ *
+ * dma_sync_single_range_for_device() is only called for the last fragment when
+ * page_pool is created with PP_FLAG_DMA_SYNC_DEV flag, so it depends on the
+ * last freed fragment to do the sync_for_device operation for all fragments in
+ * the same page when a page is split, the API user must setup pool->p.max_len
+ * and pool->p.offset correctly and ensure that page_pool_put_page() is called
+ * with dma_sync_size being -1 for fragment API.
  */
 #ifndef _NET_PAGE_POOL_HELPERS_H
 #define _NET_PAGE_POOL_HELPERS_H
@@ -73,6 +96,17 @@ static inline struct page *page_pool_dev_alloc_pages(struct page_pool *pool)
 	return page_pool_alloc_pages(pool, gfp);
 }
 
+/**
+ * page_pool_dev_alloc_frag() - allocate a page fragment.
+ * @pool: pool from which to allocate
+ * @offset: offset to the allocated page
+ * @size: requested size
+ *
+ * Get a page fragment from the page allocator or page_pool caches.
+ *
+ * Return:
+ * Return allocated page fragment, otherwise return NULL.
+ */
 static inline struct page *page_pool_dev_alloc_frag(struct page_pool *pool,
 						    unsigned int *offset,
 						    unsigned int size)
@@ -80,6 +114,91 @@ static inline struct page *page_pool_dev_alloc_frag(struct page_pool *pool,
 	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
 
 	return page_pool_alloc_frag(pool, offset, size, gfp);
+}
+
+static inline struct page *page_pool_alloc(struct page_pool *pool,
+					   unsigned int *offset,
+					   unsigned int *size, gfp_t gfp)
+{
+	unsigned int max_size = PAGE_SIZE << pool->p.order;
+	struct page *page;
+
+	if ((*size << 1) > max_size) {
+		*size = max_size;
+		*offset = 0;
+		return page_pool_alloc_pages(pool, gfp);
+	}
+
+	page = page_pool_alloc_frag(pool, offset, *size, gfp);
+	if (unlikely(!page))
+		return NULL;
+
+	/* There is very likely not enough space for another fragment, so append
+	 * the remaining size to the current fragment to avoid truesize
+	 * underestimate problem.
+	 */
+	if (pool->frag_offset + *size > max_size) {
+		*size = max_size - *offset;
+		pool->frag_offset = max_size;
+	}
+
+	return page;
+}
+
+/**
+ * page_pool_dev_alloc() - allocate a page or a page fragment.
+ * @pool: pool from which to allocate
+ * @offset: offset to the allocated page
+ * @size: in as the requested size, out as the allocated size
+ *
+ * Get a page or a page fragment from the page allocator or page_pool caches
+ * depending on the requested size in order to allocate memory with least memory
+ * utilization and performance penalty.
+ *
+ * Return:
+ * Return allocated page or page fragment, otherwise return NULL.
+ */
+static inline struct page *page_pool_dev_alloc(struct page_pool *pool,
+					       unsigned int *offset,
+					       unsigned int *size)
+{
+	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+
+	return page_pool_alloc(pool, offset, size, gfp);
+}
+
+static inline void *page_pool_alloc_va(struct page_pool *pool,
+				       unsigned int *size, gfp_t gfp)
+{
+	unsigned int offset;
+	struct page *page;
+
+	/* Mask off __GFP_HIGHMEM to ensure we can use page_address() */
+	page = page_pool_alloc(pool, &offset, size, gfp & ~__GFP_HIGHMEM);
+	if (unlikely(!page))
+		return NULL;
+
+	return page_address(page) + offset;
+}
+
+/**
+ * page_pool_dev_alloc_va() - allocate a page or a page fragment and return its
+ *			      va.
+ * @pool: pool from which to allocate
+ * @size: in as the requested size, out as the allocated size
+ *
+ * This is just a thin wrapper around the page_pool_alloc() API, and
+ * it returns va of the allocated page or page fragment.
+ *
+ * Return:
+ * Return the va for the allocated page or page fragment, otherwise return NULL.
+ */
+static inline void *page_pool_dev_alloc_va(struct page_pool *pool,
+					   unsigned int *size)
+{
+	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+
+	return page_pool_alloc_va(pool, size, gfp);
 }
 
 /**
@@ -115,28 +234,49 @@ static inline long page_pool_defrag_page(struct page *page, long nr)
 	long ret;
 
 	/* If nr == pp_frag_count then we have cleared all remaining
-	 * references to the page. No need to actually overwrite it, instead
-	 * we can leave this to be overwritten by the calling function.
+	 * references to the page:
+	 * 1. 'n == 1': no need to actually overwrite it.
+	 * 2. 'n != 1': overwrite it with one, which is the rare case
+	 *              for pp_frag_count draining.
 	 *
-	 * The main advantage to doing this is that an atomic_read is
-	 * generally a much cheaper operation than an atomic update,
-	 * especially when dealing with a page that may be partitioned
-	 * into only 2 or 3 pieces.
+	 * The main advantage to doing this is that not only we avoid a atomic
+	 * update, as an atomic_read is generally a much cheaper operation than
+	 * an atomic update, especially when dealing with a page that may be
+	 * partitioned into only 2 or 3 pieces; but also unify the pp_frag_count
+	 * handling by ensuring all pages have partitioned into only 1 piece
+	 * initially, and only overwrite it when the page is partitioned into
+	 * more than one piece.
 	 */
-	if (atomic_long_read(&page->pp_frag_count) == nr)
+	if (atomic_long_read(&page->pp_frag_count) == nr) {
+		/* As we have ensured nr is always one for constant case using
+		 * the BUILD_BUG_ON(), only need to handle the non-constant case
+		 * here for pp_frag_count draining, which is a rare case.
+		 */
+		BUILD_BUG_ON(__builtin_constant_p(nr) && nr != 1);
+		if (!__builtin_constant_p(nr))
+			atomic_long_set(&page->pp_frag_count, 1);
+
 		return 0;
+	}
 
 	ret = atomic_long_sub_return(nr, &page->pp_frag_count);
 	WARN_ON(ret < 0);
+
+	/* We are the last user here too, reset pp_frag_count back to 1 to
+	 * ensure all pages have been partitioned into 1 piece initially,
+	 * this should be the rare case when the last two fragment users call
+	 * page_pool_defrag_page() currently.
+	 */
+	if (unlikely(!ret))
+		atomic_long_set(&page->pp_frag_count, 1);
+
 	return ret;
 }
 
-static inline bool page_pool_is_last_frag(struct page_pool *pool,
-					  struct page *page)
+static inline bool page_pool_is_last_frag(struct page *page)
 {
-	/* If fragments aren't enabled or count is 0 we were the last user */
-	return !(pool->p.flags & PP_FLAG_PAGE_FRAG) ||
-	       (page_pool_defrag_page(page, 1) == 0);
+	/* If page_pool_defrag_page() returns 0, we were the last user */
+	return page_pool_defrag_page(page, 1) == 0;
 }
 
 /**
@@ -161,7 +301,7 @@ static inline void page_pool_put_page(struct page_pool *pool,
 	 * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
 	 */
 #ifdef CONFIG_PAGE_POOL
-	if (!page_pool_is_last_frag(pool, page))
+	if (!page_pool_is_last_frag(page))
 		return;
 
 	page_pool_put_defragged_page(pool, page, dma_sync_size, allow_direct);
@@ -199,6 +339,20 @@ static inline void page_pool_recycle_direct(struct page_pool *pool,
 
 #define PAGE_POOL_32BIT_ARCH_WITH_64BIT_DMA	\
 		(sizeof(dma_addr_t) > sizeof(unsigned long))
+
+/**
+ * page_pool_free_va() - free a va into the page_pool
+ * @pool: pool from which va was allocated
+ * @va: va to be freed
+ * @allow_direct: freed by the consumer, allow lockless caching
+ *
+ * Free a va allocated from page_pool_allo_va().
+ */
+static inline void page_pool_free_va(struct page_pool *pool, void *va,
+				     bool allow_direct)
+{
+	page_pool_put_page(pool, virt_to_head_page(va), -1, allow_direct);
+}
 
 /**
  * page_pool_get_dma_addr() - Retrieve the stored DMA address.
