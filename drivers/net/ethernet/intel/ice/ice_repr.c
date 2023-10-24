@@ -306,6 +306,7 @@ static int ice_repr_add(struct ice_vf *vf)
 
 	repr->src_vsi = vsi;
 	repr->vf = vf;
+	repr->q_id = vf->vf_id;
 	vf->repr = repr;
 	np = netdev_priv(repr->netdev);
 	np->repr = repr;
