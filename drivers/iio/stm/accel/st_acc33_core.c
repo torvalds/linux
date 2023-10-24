@@ -374,7 +374,7 @@ static ssize_t st_acc33_get_module_id(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_acc33_hw *hw = iio_priv(iio_dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%u\n", hw->module_id);

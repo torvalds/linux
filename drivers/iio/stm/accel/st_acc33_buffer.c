@@ -103,7 +103,7 @@ ssize_t st_acc33_flush_hwfifo(struct device *device,
 			      struct device_attribute *attr,
 			      const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(device);
+	struct iio_dev *iio_dev = dev_to_iio_dev(device);
 	struct st_acc33_hw *hw = iio_priv(iio_dev);
 	s64 code;
 	int err;
@@ -127,7 +127,7 @@ ssize_t st_acc33_get_hwfifo_watermark(struct device *device,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(device);
+	struct iio_dev *iio_dev = dev_to_iio_dev(device);
 	struct st_acc33_hw *hw = iio_priv(iio_dev);
 
 	return sprintf(buf, "%d\n", hw->watermark);
@@ -144,7 +144,7 @@ ssize_t st_acc33_set_hwfifo_watermark(struct device *device,
 				      struct device_attribute *attr,
 				      const char *buf, size_t size)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(device);
+	struct iio_dev *iio_dev = dev_to_iio_dev(device);
 	struct st_acc33_hw *hw = iio_priv(iio_dev);
 	int err, val;
 
