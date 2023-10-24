@@ -690,7 +690,6 @@ static struct tc_action_ops act_ct_ops;
 
 struct tc_ct_action_net {
 	struct tc_action_net tn; /* Must be first */
-	bool labels;
 };
 
 /* Determine whether skb->_nfct is equal to the result of conntrack lookup. */
@@ -829,8 +828,13 @@ static void tcf_ct_params_free(struct tcf_ct_params *params)
 	}
 	if (params->ct_ft)
 		tcf_ct_flow_table_put(params->ct_ft);
-	if (params->tmpl)
+	if (params->tmpl) {
+		if (params->put_labels)
+			nf_connlabels_put(nf_ct_net(params->tmpl));
+
 		nf_ct_put(params->tmpl);
+	}
+
 	kfree(params);
 }
 
@@ -1154,9 +1158,9 @@ static int tcf_ct_fill_params(struct net *net,
 			      struct nlattr **tb,
 			      struct netlink_ext_ack *extack)
 {
-	struct tc_ct_action_net *tn = net_generic(net, act_ct_ops.net_id);
 	struct nf_conntrack_zone zone;
 	int err, family, proto, len;
+	bool put_labels = false;
 	struct nf_conn *tmpl;
 	char *name;
 
@@ -1186,15 +1190,20 @@ static int tcf_ct_fill_params(struct net *net,
 	}
 
 	if (tb[TCA_CT_LABELS]) {
+		unsigned int n_bits = sizeof_field(struct tcf_ct_params, labels) * 8;
+
 		if (!IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS)) {
 			NL_SET_ERR_MSG_MOD(extack, "Conntrack labels isn't enabled.");
 			return -EOPNOTSUPP;
 		}
 
-		if (!tn->labels) {
+		if (nf_connlabels_get(net, n_bits - 1)) {
 			NL_SET_ERR_MSG_MOD(extack, "Failed to set connlabel length");
 			return -EOPNOTSUPP;
+		} else {
+			put_labels = true;
 		}
+
 		tcf_ct_set_key_val(tb,
 				   p->labels, TCA_CT_LABELS,
 				   p->labels_mask, TCA_CT_LABELS_MASK,
@@ -1238,10 +1247,15 @@ static int tcf_ct_fill_params(struct net *net,
 		}
 	}
 
+	p->put_labels = put_labels;
+
 	if (p->ct_action & TCA_CT_ACT_COMMIT)
 		__set_bit(IPS_CONFIRMED_BIT, &tmpl->status);
 	return 0;
 err:
+	if (put_labels)
+		nf_connlabels_put(net);
+
 	nf_ct_put(p->tmpl);
 	p->tmpl = NULL;
 	return err;
@@ -1542,32 +1556,13 @@ static struct tc_action_ops act_ct_ops = {
 
 static __net_init int ct_init_net(struct net *net)
 {
-	unsigned int n_bits = sizeof_field(struct tcf_ct_params, labels) * 8;
 	struct tc_ct_action_net *tn = net_generic(net, act_ct_ops.net_id);
-
-	if (nf_connlabels_get(net, n_bits - 1)) {
-		tn->labels = false;
-		pr_err("act_ct: Failed to set connlabels length");
-	} else {
-		tn->labels = true;
-	}
 
 	return tc_action_net_init(net, &tn->tn, &act_ct_ops);
 }
 
 static void __net_exit ct_exit_net(struct list_head *net_list)
 {
-	struct net *net;
-
-	rtnl_lock();
-	list_for_each_entry(net, net_list, exit_list) {
-		struct tc_ct_action_net *tn = net_generic(net, act_ct_ops.net_id);
-
-		if (tn->labels)
-			nf_connlabels_put(net);
-	}
-	rtnl_unlock();
-
 	tc_action_net_exit(net_list, act_ct_ops.net_id);
 }
 
