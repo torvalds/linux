@@ -104,7 +104,6 @@ struct dml2_helper_det_policy_scratch {
 
 enum dml2_architecture {
 	dml2_architecture_20,
-	dml2_architecture_21
 };
 
 struct dml2_context {

@@ -911,26 +911,14 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 	unsigned int stream_id;
 
 	const unsigned int *ODMMode, *DPPPerSurface;
-	unsigned int odm_mode_array[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0}, dpp_per_surface_array[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0};
 	struct dc_pipe_mapping_scratch scratch;
 
 	if (ctx->config.map_dc_pipes_with_callbacks)
 		return map_dc_pipes_with_callbacks(
 				ctx, state, disp_cfg, mapping, existing_state);
 
-	if (ctx->architecture == dml2_architecture_21) {
-		/*
-		 * Extract ODM and DPP outputs from DML2.1 and map them in an array as required for pipe mapping in dml2_map_dc_pipes.
-		 * As data cannot be directly extracted in const pointers, assign these arrays to const pointers before proceeding to
-		 * maximize the reuse of existing code. Const pointers are required because dml2.0 dml_display_cfg_st is const.
-		 *
-		 */
-		ODMMode = (const unsigned int *)odm_mode_array;
-		DPPPerSurface = (const unsigned int *)dpp_per_surface_array;
-	} else {
-		ODMMode = (unsigned int *)disp_cfg->hw.ODMMode;
-		DPPPerSurface = disp_cfg->hw.DPPPerSurface;
-	}
+	ODMMode = (unsigned int *)disp_cfg->hw.ODMMode;
+	DPPPerSurface = disp_cfg->hw.DPPPerSurface;
 
 	for (stream_index = 0; stream_index < state->stream_count; stream_index++) {
 		memset(&scratch, 0, sizeof(struct dc_pipe_mapping_scratch));
