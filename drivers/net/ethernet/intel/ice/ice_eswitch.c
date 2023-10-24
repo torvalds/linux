@@ -189,10 +189,9 @@ static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 /**
  * ice_eswitch_release_reprs - clear PR VSIs configuration
  * @pf: poiner to PF struct
- * @ctrl_vsi: pointer to eswitch control VSI
  */
 static void
-ice_eswitch_release_reprs(struct ice_pf *pf, struct ice_vsi *ctrl_vsi)
+ice_eswitch_release_reprs(struct ice_pf *pf)
 {
 	struct ice_vf *vf;
 	unsigned int bkt;
@@ -286,7 +285,7 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 	return 0;
 
 err:
-	ice_eswitch_release_reprs(pf, ctrl_vsi);
+	ice_eswitch_release_reprs(pf);
 
 	return -ENODEV;
 }
@@ -532,7 +531,7 @@ static void ice_eswitch_disable_switchdev(struct ice_pf *pf)
 	ice_eswitch_napi_disable(pf);
 	ice_eswitch_br_offloads_deinit(pf);
 	ice_eswitch_release_env(pf);
-	ice_eswitch_release_reprs(pf, ctrl_vsi);
+	ice_eswitch_release_reprs(pf);
 	ice_vsi_release(ctrl_vsi);
 	ice_repr_rem_from_all_vfs(pf);
 }
