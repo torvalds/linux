@@ -129,7 +129,7 @@ struct callchain_list {
 	u64			cycles_count;
 	u64			iter_count;
 	u64			iter_cycles;
-	struct branch_type_stat brtype_stat;
+	struct branch_type_stat *brtype_stat;
 	const char		*srcline;
 	struct list_head	list;
 };
