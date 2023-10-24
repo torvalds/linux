@@ -695,7 +695,7 @@ int vchiq_initialise(struct vchiq_instance **instance_out)
 		ret = -ENOTCONN;
 		goto failed;
 	} else if (i > 0) {
-		vchiq_log_warning(vchiq_core_log_level,
+		vchiq_log_warning(state->dev, VCHIQ_CORE,
 				  "%s: videocore initialized after %d retries\n", __func__, i);
 	}
 
@@ -1696,17 +1696,19 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 	read_unlock_bh(&arm_state->susp_res_lock);
 
 	if (only_nonzero)
-		vchiq_log_warning(vchiq_susp_log_level, "Too many active services (%d). Only dumping up to first %d services with non-zero use-count",
+		vchiq_log_warning(state->dev, VCHIQ_SUSPEND,
+				  "Too many active services (%d). Only dumping up to first %d services with non-zero use-count",
 				  active_services, found);
 
 	for (i = 0; i < found; i++) {
-		vchiq_log_warning(vchiq_susp_log_level, "----- %c%c%c%c:%d service count %d %s",
+		vchiq_log_warning(state->dev, VCHIQ_SUSPEND,
+				  "%c%c%c%c:%d service count %d %s",
 				  VCHIQ_FOURCC_AS_4CHARS(service_data[i].fourcc),
 				  service_data[i].clientid, service_data[i].use_count,
 				  service_data[i].use_count ? nz : "");
 	}
-	vchiq_log_warning(vchiq_susp_log_level, "----- VCHIQ use count %d", peer_count);
-	vchiq_log_warning(vchiq_susp_log_level, "--- Overall vchiq instance use count %d",
+	vchiq_log_warning(state->dev, VCHIQ_SUSPEND, "VCHIQ use count %d", peer_count);
+	vchiq_log_warning(state->dev, VCHIQ_SUSPEND, "Overall vchiq instance use count %d",
 			  vc_use_count);
 
 	kfree(service_data);
@@ -1822,7 +1824,7 @@ static int vchiq_probe(struct platform_device *pdev)
 	 */
 	err = vchiq_register_chrdev(&pdev->dev);
 	if (err) {
-		vchiq_log_warning(vchiq_arm_log_level,
+		vchiq_log_warning(&pdev->dev, VCHIQ_ARM,
 				  "Failed to initialize vchiq cdev");
 		goto error_exit;
 	}
@@ -1833,7 +1835,7 @@ static int vchiq_probe(struct platform_device *pdev)
 	return 0;
 
 failed_platform_init:
-	vchiq_log_warning(vchiq_arm_log_level, "could not initialize vchiq platform");
+	vchiq_log_warning(&pdev->dev, VCHIQ_ARM, "could not initialize vchiq platform");
 error_exit:
 	return err;
 }
