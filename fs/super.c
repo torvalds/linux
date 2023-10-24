@@ -1027,34 +1027,6 @@ void iterate_supers_type(struct file_system_type *type,
 
 EXPORT_SYMBOL(iterate_supers_type);
 
-/**
- * get_active_super - get an active reference to the superblock of a device
- * @bdev: device to get the superblock for
- *
- * Scans the superblock list and finds the superblock of the file system
- * mounted on the device given.  Returns the superblock with an active
- * reference or %NULL if none was found.
- */
-struct super_block *get_active_super(struct block_device *bdev)
-{
-	struct super_block *sb;
-
-	if (!bdev)
-		return NULL;
-
-	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (sb->s_bdev == bdev) {
-			if (!grab_super(sb))
-				return NULL;
-			super_unlock_excl(sb);
-			return sb;
-		}
-	}
-	spin_unlock(&sb_lock);
-	return NULL;
-}
-
 struct super_block *user_get_super(dev_t dev, bool excl)
 {
 	struct super_block *sb;
