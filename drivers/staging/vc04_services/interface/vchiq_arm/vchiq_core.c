@@ -2122,7 +2122,7 @@ get_conn_state_name(enum vchiq_connstate conn_state)
 }
 
 struct vchiq_slot_zero *
-vchiq_init_slots(void *mem_base, int mem_size)
+vchiq_init_slots(struct device *dev, void *mem_base, int mem_size)
 {
 	int mem_align =
 		(int)((VCHIQ_SLOT_SIZE - (long)mem_base) & VCHIQ_SLOT_MASK);
