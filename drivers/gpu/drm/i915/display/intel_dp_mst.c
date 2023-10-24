@@ -878,6 +878,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	struct drm_dp_mst_topology_state *mst_state =
 		drm_atomic_get_new_mst_topology_state(&state->base, &intel_dp->mst_mgr);
 	enum transcoder trans = pipe_config->cpu_transcoder;
+	bool first_mst_stream = intel_dp->active_mst_links == 1;
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
 
@@ -903,6 +904,9 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 		    intel_dp->active_mst_links);
 
 	wait_for_act_sent(encoder, pipe_config);
+
+	if (first_mst_stream)
+		intel_ddi_wait_for_fec_status(encoder, pipe_config, true);
 
 	drm_dp_add_payload_part2(&intel_dp->mst_mgr, &state->base,
 				 drm_atomic_get_mst_payload_state(mst_state, connector->port));
