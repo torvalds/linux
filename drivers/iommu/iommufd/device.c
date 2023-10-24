@@ -1185,6 +1185,10 @@ int iommufd_get_hw_info(struct iommufd_ucmd *ucmd)
 	 */
 	cmd->data_len = data_len;
 
+	cmd->out_capabilities = 0;
+	if (device_iommu_capable(idev->dev, IOMMU_CAP_DIRTY_TRACKING))
+		cmd->out_capabilities |= IOMMU_HW_CAP_DIRTY_TRACKING;
+
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 out_free:
 	kfree(data);
