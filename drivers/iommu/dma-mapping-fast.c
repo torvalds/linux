@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/dma-mapping.h>
@@ -11,11 +11,11 @@
 #include <linux/io-pgtable-fast.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 #include <linux/pci.h>
 #include <linux/iova.h>
 #include <linux/io-pgtable.h>
-#include <linux/rwlock.h>
 #include <linux/qcom-iommu-util.h>
 #include <trace/hooks/iommu.h>
 #include "qcom-dma-iommu-generic.h"
