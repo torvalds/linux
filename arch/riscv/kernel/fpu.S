@@ -19,7 +19,7 @@
 #include <asm/csr.h>
 #include <asm/asm-offsets.h>
 
-ENTRY(__fstate_save)
+SYM_FUNC_START(__fstate_save)
 	li  a2,  TASK_THREAD_F0
 	add a0, a0, a2
 	li t1, SR_FS
@@ -60,9 +60,9 @@ ENTRY(__fstate_save)
 	sw t0, TASK_THREAD_FCSR_F0(a0)
 	csrc CSR_STATUS, t1
 	ret
-ENDPROC(__fstate_save)
+SYM_FUNC_END(__fstate_save)
 
-ENTRY(__fstate_restore)
+SYM_FUNC_START(__fstate_restore)
 	li  a2,  TASK_THREAD_F0
 	add a0, a0, a2
 	li t1, SR_FS
@@ -103,7 +103,7 @@ ENTRY(__fstate_restore)
 	fscsr t0
 	csrc CSR_STATUS, t1
 	ret
-ENDPROC(__fstate_restore)
+SYM_FUNC_END(__fstate_restore)
 
 #define get_f32(which) fmv.x.s a0, which; j 2f
 #define put_f32(which) fmv.s.x which, a1; j 2f

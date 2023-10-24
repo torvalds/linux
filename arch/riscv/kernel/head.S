@@ -19,7 +19,7 @@
 #include "efi-header.S"
 
 __HEAD
-ENTRY(_start)
+SYM_CODE_START(_start)
 	/*
 	 * Image header expected by Linux boot-loaders. The image header data
 	 * structure is described in asm/image.h.
@@ -187,9 +187,9 @@ secondary_start_sbi:
 	wfi
 	j .Lsecondary_park
 
-END(_start)
+SYM_CODE_END(_start)
 
-ENTRY(_start_kernel)
+SYM_CODE_START(_start_kernel)
 	/* Mask all interrupts */
 	csrw CSR_IE, zero
 	csrw CSR_IP, zero
@@ -348,10 +348,10 @@ ENTRY(_start_kernel)
 	tail .Lsecondary_start_common
 #endif /* CONFIG_RISCV_BOOT_SPINWAIT */
 
-END(_start_kernel)
+SYM_CODE_END(_start_kernel)
 
 #ifdef CONFIG_RISCV_M_MODE
-ENTRY(reset_regs)
+SYM_CODE_START_LOCAL(reset_regs)
 	li	sp, 0
 	li	gp, 0
 	li	tp, 0
@@ -449,5 +449,5 @@ ENTRY(reset_regs)
 .Lreset_regs_done_vector:
 #endif /* CONFIG_RISCV_ISA_V */
 	ret
-END(reset_regs)
+SYM_CODE_END(reset_regs)
 #endif /* CONFIG_RISCV_M_MODE */

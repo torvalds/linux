@@ -61,7 +61,7 @@ SYM_TYPED_FUNC_START(ftrace_stub_graph)
 	ret
 SYM_FUNC_END(ftrace_stub_graph)
 
-ENTRY(return_to_handler)
+SYM_FUNC_START(return_to_handler)
 /*
  * On implementing the frame point test, the ideal way is to compare the
  * s0 (frame pointer, if enabled) on entry and the sp (stack pointer) on return.
@@ -76,11 +76,11 @@ ENTRY(return_to_handler)
 	mv	a2, a0
 	RESTORE_RET_ABI_STATE
 	jalr	a2
-ENDPROC(return_to_handler)
+SYM_FUNC_END(return_to_handler)
 #endif
 
 #ifndef CONFIG_DYNAMIC_FTRACE
-ENTRY(MCOUNT_NAME)
+SYM_FUNC_START(MCOUNT_NAME)
 	la	t4, ftrace_stub
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	la	t0, ftrace_graph_return
@@ -126,6 +126,6 @@ ENTRY(MCOUNT_NAME)
 	jalr	t5
 	RESTORE_ABI_STATE
 	ret
-ENDPROC(MCOUNT_NAME)
+SYM_FUNC_END(MCOUNT_NAME)
 #endif
 EXPORT_SYMBOL(MCOUNT_NAME)

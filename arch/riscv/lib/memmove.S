@@ -7,7 +7,6 @@
 #include <asm/asm.h>
 
 SYM_FUNC_START(__memmove)
-SYM_FUNC_START_WEAK(memmove)
 	/*
 	 * Returns
 	 *   a0 - dest
@@ -312,7 +311,7 @@ SYM_FUNC_START_WEAK(memmove)
 .Lreturn_from_memmove:
 	ret
 
-SYM_FUNC_END(memmove)
 SYM_FUNC_END(__memmove)
+SYM_FUNC_ALIAS_WEAK(memmove, __memmove)
 SYM_FUNC_ALIAS(__pi_memmove, __memmove)
 SYM_FUNC_ALIAS(__pi___memmove, __memmove)
