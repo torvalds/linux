@@ -23,6 +23,8 @@ static inline void closure_put_after_sub(struct closure *cl, int flags)
 	if (!r) {
 		smp_acquire__after_ctrl_dep();
 
+		cl->closure_get_happened = false;
+
 		if (cl->fn && !(flags & CLOSURE_DESTRUCTOR)) {
 			atomic_set(&cl->remaining,
 				   CLOSURE_REMAINING_INITIALIZER);
@@ -92,6 +94,7 @@ bool closure_wait(struct closure_waitlist *waitlist, struct closure *cl)
 	if (atomic_read(&cl->remaining) & CLOSURE_WAITING)
 		return false;
 
+	cl->closure_get_happened = true;
 	closure_set_waiting(cl, _RET_IP_);
 	atomic_add(CLOSURE_WAITING + 1, &cl->remaining);
 	llist_add(&cl->list, &waitlist->list);

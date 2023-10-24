@@ -113,6 +113,7 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 	} else {
 		atomic_set(&dio->cl.remaining,
 			   CLOSURE_REMAINING_INITIALIZER + 1);
+		dio->cl.closure_get_happened = true;
 	}
 
 	dio->req	= req;
