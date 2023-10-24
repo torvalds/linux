@@ -212,11 +212,18 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
 						 vsi->alloc_txq));
 		break;
 	case ICE_VSI_SWITCHDEV_CTRL:
-		/* The number of queues for ctrl VSI is equal to number of VFs.
+		/* The number of queues for ctrl VSI is equal to number of PRs
 		 * Each ring is associated to the corresponding VF_PR netdev.
+		 * Tx and Rx rings are always equal
 		 */
-		vsi->alloc_txq = ice_get_num_vfs(pf);
-		vsi->alloc_rxq = vsi->alloc_txq;
+		if (vsi->req_txq && vsi->req_rxq) {
+			vsi->alloc_txq = vsi->req_txq;
+			vsi->alloc_rxq = vsi->req_rxq;
+		} else {
+			vsi->alloc_txq = 1;
+			vsi->alloc_rxq = 1;
+		}
+
 		vsi->num_q_vectors = 1;
 		break;
 	case ICE_VSI_VF:
