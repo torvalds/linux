@@ -126,7 +126,7 @@
 
 #define APPL_LTR_MSG_1				0xC4
 #define LTR_MSG_REQ				BIT(15)
-#define LTR_MST_NO_SNOOP_SHIFT			16
+#define LTR_NOSNOOP_MSG_REQ			BIT(31)
 
 #define APPL_LTR_MSG_2				0xC8
 #define APPL_LTR_MSG_2_LTR_MSG_REQ_STATE	BIT(3)
@@ -496,8 +496,12 @@ static irqreturn_t tegra_pcie_ep_irq_thread(int irq, void *arg)
 		ktime_t timeout;
 
 		/* 110us for both snoop and no-snoop */
-		val = 110 | (2 << PCI_LTR_SCALE_SHIFT) | LTR_MSG_REQ;
-		val |= (val << LTR_MST_NO_SNOOP_SHIFT);
+		val = FIELD_PREP(PCI_LTR_VALUE_MASK, 110) |
+		      FIELD_PREP(PCI_LTR_SCALE_MASK, 2) |
+		      LTR_MSG_REQ |
+		      FIELD_PREP(PCI_LTR_NOSNOOP_VALUE, 110) |
+		      FIELD_PREP(PCI_LTR_NOSNOOP_SCALE, 2) |
+		      LTR_NOSNOOP_MSG_REQ;
 		appl_writel(pcie, val, APPL_LTR_MSG_1);
 
 		/* Send LTR upstream */
