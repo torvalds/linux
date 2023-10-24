@@ -49,6 +49,7 @@ perf-y += dso.o
 perf-y += dsos.o
 perf-y += symbol.o
 perf-y += symbol_fprintf.o
+perf-y += map_symbol.o
 perf-y += color.o
 perf-y += color_config.o
 perf-y += metricgroup.o

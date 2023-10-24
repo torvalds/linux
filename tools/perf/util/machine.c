@@ -2389,8 +2389,7 @@ static int add_callchain_ip(struct thread *thread,
 				      iter_cycles, branch_from, srcline);
 out:
 	addr_location__exit(&al);
-	maps__put(ms.maps);
-	map__put(ms.map);
+	map_symbol__exit(&ms);
 	return err;
 }
 
@@ -3116,8 +3115,7 @@ static int append_inlines(struct callchain_cursor *cursor, struct map_symbol *ms
 		if (ret != 0)
 			return ret;
 	}
-	map__put(ilist_ms.map);
-	maps__put(ilist_ms.maps);
+	map_symbol__exit(&ilist_ms);
 
 	return ret;
 }

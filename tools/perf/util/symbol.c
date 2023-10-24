@@ -2791,8 +2791,11 @@ struct mem_info *mem_info__get(struct mem_info *mi)
 
 void mem_info__put(struct mem_info *mi)
 {
-	if (mi && refcount_dec_and_test(&mi->refcnt))
+	if (mi && refcount_dec_and_test(&mi->refcnt)) {
+		addr_map_symbol__exit(&mi->iaddr);
+		addr_map_symbol__exit(&mi->daddr);
 		free(mi);
+	}
 }
 
 struct mem_info *mem_info__new(void)

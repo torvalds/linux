@@ -515,17 +515,16 @@ err_rawdata:
 
 err_infos:
 	if (he->branch_info) {
-		map__put(he->branch_info->from.ms.map);
-		map__put(he->branch_info->to.ms.map);
+		map_symbol__exit(&he->branch_info->from.ms);
+		map_symbol__exit(&he->branch_info->to.ms);
 		zfree(&he->branch_info);
 	}
 	if (he->mem_info) {
-		map__put(he->mem_info->iaddr.ms.map);
-		map__put(he->mem_info->daddr.ms.map);
+		map_symbol__exit(&he->mem_info->iaddr.ms);
+		map_symbol__exit(&he->mem_info->daddr.ms);
 	}
 err:
-	maps__zput(he->ms.maps);
-	map__zput(he->ms.map);
+	map_symbol__exit(&he->ms);
 	zfree(&he->stat_acc);
 	return -ENOMEM;
 }
@@ -1317,20 +1316,19 @@ void hist_entry__delete(struct hist_entry *he)
 	struct hist_entry_ops *ops = he->ops;
 
 	thread__zput(he->thread);
-	maps__zput(he->ms.maps);
-	map__zput(he->ms.map);
+	map_symbol__exit(&he->ms);
 
 	if (he->branch_info) {
-		map__zput(he->branch_info->from.ms.map);
-		map__zput(he->branch_info->to.ms.map);
+		map_symbol__exit(&he->branch_info->from.ms);
+		map_symbol__exit(&he->branch_info->to.ms);
 		zfree_srcline(&he->branch_info->srcline_from);
 		zfree_srcline(&he->branch_info->srcline_to);
 		zfree(&he->branch_info);
 	}
 
 	if (he->mem_info) {
-		map__zput(he->mem_info->iaddr.ms.map);
-		map__zput(he->mem_info->daddr.ms.map);
+		map_symbol__exit(&he->mem_info->iaddr.ms);
+		map_symbol__exit(&he->mem_info->daddr.ms);
 		mem_info__zput(he->mem_info);
 	}
 
@@ -2700,10 +2698,8 @@ void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
 					*total_cycles += bi[i].flags.cycles;
 			}
 			for (unsigned int i = 0; i < bs->nr; i++) {
-				map__put(bi[i].to.ms.map);
-				maps__put(bi[i].to.ms.maps);
-				map__put(bi[i].from.ms.map);
-				maps__put(bi[i].from.ms.maps);
+				map_symbol__exit(&bi[i].to.ms);
+				map_symbol__exit(&bi[i].from.ms);
 			}
 			free(bi);
 		}
