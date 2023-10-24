@@ -16,6 +16,7 @@
 	model = "Rockchip RK3567 EVB2 LP4X V10 Board";
 	compatible = "rockchip,rk3567-evb2-lp4x-v10", "rockchip,rk3567";
 
+	/* panel: claa070wp03xg */
 	panel {
 		compatible = "simple-panel";
 		backlight = <&backlight>;
@@ -40,7 +41,7 @@
 				vback-porch = <4>;
 				vfront-porch = <2>;
 				hsync-len = <8>;
-				vsync-len = <2>;
+				vsync-len = <8>;
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;

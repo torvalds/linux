@@ -9,6 +9,7 @@
 #include "rk3568-evb1-ddr4-v10.dtsi"
 
 / {
+	/* panel: claa070wp03xg */
 	panel {
 		compatible = "simple-panel";
 		backlight = <&backlight>;
@@ -33,7 +34,7 @@
 				vback-porch = <4>;
 				vfront-porch = <2>;
 				hsync-len = <8>;
-				vsync-len = <2>;
+				vsync-len = <8>;
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
