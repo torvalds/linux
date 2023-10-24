@@ -228,7 +228,8 @@ int iommufd_hwpt_get_dirty_bitmap(struct iommufd_ucmd *ucmd)
 	struct iommufd_ioas *ioas;
 	int rc = -EOPNOTSUPP;
 
-	if ((cmd->flags || cmd->__reserved))
+	if ((cmd->flags & ~(IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR)) ||
+	    cmd->__reserved)
 		return -EOPNOTSUPP;
 
 	hwpt = iommufd_get_hwpt(ucmd, cmd->hwpt_id);
