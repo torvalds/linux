@@ -1468,6 +1468,16 @@ struct blk_holder_ops {
 	 * Sync the file system mounted on the block device.
 	 */
 	void (*sync)(struct block_device *bdev);
+
+	/*
+	 * Freeze the file system mounted on the block device.
+	 */
+	int (*freeze)(struct block_device *bdev);
+
+	/*
+	 * Thaw the file system mounted on the block device.
+	 */
+	int (*thaw)(struct block_device *bdev);
 };
 
 extern const struct blk_holder_ops fs_holder_ops;
