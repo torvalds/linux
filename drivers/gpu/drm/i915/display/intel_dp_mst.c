@@ -776,6 +776,13 @@ static void intel_mst_disable_dp(struct intel_atomic_state *state,
 	intel_hdcp_disable(intel_mst->connector);
 
 	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
+
+	if (intel_dp->active_mst_links == 1) /* last stream ? */
+		/*
+		 * TODO: disable decompression for all streams/in any MST ports, not
+		 * only in the first downstream branch device.
+		 */
+		intel_dp_sink_set_decompression_state(intel_dp, old_crtc_state, false);
 }
 
 static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
@@ -932,9 +939,15 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 
 	drm_dp_send_power_updown_phy(&intel_dp->mst_mgr, connector->port, true);
 
-	if (first_mst_stream)
+	if (first_mst_stream) {
+		/*
+		 * TODO: enable decompression for all streams/in any MST ports, not
+		 * only in the first downstream branch device.
+		 */
+		intel_dp_sink_set_decompression_state(intel_dp, pipe_config, true);
 		dig_port->base.pre_enable(state, &dig_port->base,
 						pipe_config, NULL);
+	}
 
 	intel_dp->active_mst_links++;
 
