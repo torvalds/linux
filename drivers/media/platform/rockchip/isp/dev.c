@@ -1149,7 +1149,7 @@ static void rkisp_pm_complete(struct device *dev)
 	isp_dev->isp_state = ISP_START | ISP_FRAME_END;
 	for (i = 0; i < RKISP_MAX_STREAM; i++) {
 		stream = &isp_dev->cap_dev.stream[i];
-		if (i == RKISP_STREAM_VIR || !stream->streaming)
+		if (i == RKISP_STREAM_VIR || !stream->streaming || !stream->curr_buf)
 			continue;
 		stream->skip_frame = 1;
 	}
