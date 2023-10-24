@@ -969,7 +969,7 @@ static int machine__process_ksymbol_unregister(struct machine *machine,
 	if (!map)
 		return 0;
 
-	if (RC_CHK_ACCESS(map) != RC_CHK_ACCESS(machine->vmlinux_map))
+	if (!RC_CHK_EQUAL(map, machine->vmlinux_map))
 		maps__remove(machine__kernel_maps(machine), map);
 	else {
 		struct dso *dso = map__dso(map);
@@ -2058,7 +2058,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread_rb_n
 	if (!nd)
 		nd = thread_rb_node__find(th, &threads->entries.rb_root);
 
-	if (threads->last_match && RC_CHK_ACCESS(threads->last_match) == RC_CHK_ACCESS(th))
+	if (threads->last_match && RC_CHK_EQUAL(threads->last_match, th))
 		threads__set_last_match(threads, NULL);
 
 	if (lock)

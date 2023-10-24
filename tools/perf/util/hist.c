@@ -2142,7 +2142,7 @@ static bool hists__filter_entry_by_thread(struct hists *hists,
 					  struct hist_entry *he)
 {
 	if (hists->thread_filter != NULL &&
-	    RC_CHK_ACCESS(he->thread) != RC_CHK_ACCESS(hists->thread_filter)) {
+	    !RC_CHK_EQUAL(he->thread, hists->thread_filter)) {
 		he->filtered |= (1 << HIST_FILTER__THREAD);
 		return true;
 	}
