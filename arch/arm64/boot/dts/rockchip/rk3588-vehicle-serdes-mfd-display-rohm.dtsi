@@ -411,6 +411,7 @@
 			reg = <1>;
 
 			dp0_out_i2c4_bu18tl82: endpoint {
+				link-frequencies = /bits/ 64 <1620000000>;
 				remote-endpoint = <&i2c4_bu18tl82_in_dp0>;
 			};
 		};
@@ -796,20 +797,18 @@
 			0424 0000
 			0425 0020
 			0426 0080
-			//0057 0000
-			//0058 0002
-			//0057 0000	//rl gpio0 output	lcd_bl_pwm
-			//0058 0002	//bypass ser gpio0
-			//005a 0000	//rl gpio1 output	lcd_pwr_en
-			//005b 0003	//bypass ser gpio1
-			//005d 0000	//rl gpio2 output	lcd_rst
-			//005e 0004	//bypass ser gpio2
-			//0060 0000	//rl gpio3 output	tp-rst
-			//0061 0005	//bypass ser gpio3
-			//0063 0018	//rl gpio4 input	tp-int
-			//0064 0006	//bypass ser gpio4
-			//0066 0000	//rl gpio5 output
-			//0067 0001	//set gpio5 high
+			0057 0000	//rl gpio0 output	lcd_bl_pwm
+			0058 0000	//bypass ser gpio0
+			005a 0000	//rl gpio1 output	lcd_pwr_en
+			005b 0000	//bypass ser gpio1
+			005d 0000	//rl gpio2 output	lcd_rst
+			005e 0000	//bypass ser gpio2
+			0060 0000	//rl gpio3 output	tp-rst
+			0061 0000	//bypass ser gpio3
+			0063 0018	//rl gpio4 input	tp-int
+			0064 0006	//bypass ser gpio4
+			0066 0000	//rl gpio5 output
+			0067 0000	//set gpio5 high
 
 			0073 0080
 			0074 0007	//0x0780 = 1920
@@ -853,24 +852,15 @@
 
 		i2c2_bu18rl82_pinctrl: i2c2-bu18rl82-pinctrl {
 			compatible = "rohm,bu18rl82-pinctrl";
-			pinctrl-names = "default","sleep";
+			pinctrl-names = "default","init","sleep";
 			pinctrl-0 = <&i2c2_bu18rl82_panel_pins>;
-			pinctrl-1 = <&i2c2_bu18rl82_panel_sleep_pins>;
+			pinctrl-1 = <&i2c2_bu18rl82_panel_pins>;
+			pinctrl-2 = <&i2c2_bu18rl82_panel_sleep_pins>;
 			status = "okay";
 
 			i2c2_bu18rl82_panel_pins: panel-pins {
-				lcd-bl-pwm {
-					pins = "BU18RL82_GPIO0";
-					function = "SER_GPIO0_TO_DES";
-				};
-
-				lcd-pwr-en {
-					pins = "BU18RL82_GPIO1";
-					function = "SER_GPIO1_TO_DES";
-				};
-
-				lcd-rst {
-					pins = "BU18RL82_GPIO2";
+				lcd-otp-pin {
+					pins = "BU18RL82_GPIO5";
 					function = "DES_GPIO_OUTPUT_HIGH";
 				};
 
@@ -879,14 +869,29 @@
 					function = "DES_GPIO_OUTPUT_HIGH";
 				};
 
+				lcd-rst {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
 				tp-int {
 					pins = "BU18RL82_GPIO4";
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				lcd-otp-pin {
-					pins = "BU18RL82_GPIO5";
+				100ms-delay {
+					pins = "BU18RL82_GPIO1";
+					function = "DELAY_100MS";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18RL82_GPIO1";
 					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				lcd-bl-pwm {
+					pins = "BU18RL82_GPIO0";
+					function = "SER_GPIO0_TO_DES";
 				};
 			};
 
@@ -1130,20 +1135,18 @@
 			0424 0000
 			0425 0020
 			0426 0080
-			//0057 0000
-			//0058 0002
-			//0057 0000	//rl gpio0 output	lcd_bl_pwm
-			//0058 0002	//bypass ser gpio0
-			//005a 0000	//rl gpio1 output	lcd_pwr_en
-			//005b 0003	//bypass ser gpio1
-			//005d 0000	//rl gpio2 output	lcd_rst
-			//005e 0004	//bypass ser gpio2
-			//0060 0000	//rl gpio3 output	tp-rst
-			//0061 0005	//bypass ser gpio3
-			//0063 0018	//rl gpio4 input	tp-int
-			//0064 0006	//bypass ser gpio4
-			//0066 0000	//rl gpio5 output
-			//0067 0001	//set gpio5 high
+			0057 0000	//rl gpio0 output	lcd_bl_pwm
+			0058 0000	//set gpio0 low
+			005a 0000	//rl gpio1 output	lcd_pwr_en
+			005b 0000	//set gpio1 low
+			005d 0000	//rl gpio2 output	lcd_rst
+			005e 0000	//set gpio2 low
+			0060 0000	//rl gpio3 output	tp-rst
+			0061 0000	//set gpio3 low
+			0063 0018	//rl gpio4 input	tp-int
+			0064 0006	//bypass ser gpio4
+			0066 0000	//rl gpio5 output
+			0067 0000	//set gpio5 low
 
 			0073 0080
 			0074 0007	//0x0780 = 1920
@@ -1187,24 +1190,15 @@
 
 		i2c4_bu18rl82_pinctrl: i2c4-bu18rl82-pinctrl {
 			compatible = "rohm,bu18rl82-pinctrl";
-			pinctrl-names = "default","sleep";
+			pinctrl-names = "default","init","sleep";
 			pinctrl-0 = <&i2c4_bu18rl82_panel_pins>;
-			pinctrl-1 = <&i2c4_bu18rl82_panel_sleep_pins>;
+			pinctrl-1 = <&i2c4_bu18rl82_panel_pins>;
+			pinctrl-2 = <&i2c4_bu18rl82_panel_sleep_pins>;
 			status = "okay";
 
 			i2c4_bu18rl82_panel_pins: panel-pins {
-				lcd-bl-pwm {
-					pins = "BU18RL82_GPIO0";
-					function = "SER_GPIO0_TO_DES";
-				};
-
-				lcd-pwr-en {
-					pins = "BU18RL82_GPIO1";
-					function = "SER_GPIO1_TO_DES";
-				};
-
-				lcd-rst {
-					pins = "BU18RL82_GPIO2";
+				lcd-otp-pin {
+					pins = "BU18RL82_GPIO5";
 					function = "DES_GPIO_OUTPUT_HIGH";
 				};
 
@@ -1213,14 +1207,29 @@
 					function = "DES_GPIO_OUTPUT_HIGH";
 				};
 
+				lcd-rst {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
 				tp-int {
 					pins = "BU18RL82_GPIO4";
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				lcd-otp-pin {
-					pins = "BU18RL82_GPIO5";
+				100ms-delay {
+					pins = "BU18RL82_GPIO1";
+					function = "DELAY_100MS";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18RL82_GPIO1";
 					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				lcd-bl-pwm {
+					pins = "BU18RL82_GPIO0";
+					function = "SER_GPIO0_TO_DES";
 				};
 			};
 
@@ -1456,20 +1465,18 @@
 			0020 0002
 			0031 0041	//i2c addr 0x41
 			0032 0041	//i2c addr 0x41
-			//0057 0000	//rl gpio0 output	lcd_bl_pwm
-			//0058 0002	//bypass ser gpio0
-			//005a 0000	//rl gpio1 output	lcd_pwr_en
-			//005b 0001	//bypass ser gpio1
-			//005d 0000	//rl gpio2 output	lcd_rst
-			//005e 0004	//bypass ser gpio2
-			//0060 0018	//rl gpio3 input	tp-int
-			//042e 0005	//bypass ser gpio3
-			//0061 0005	//bypass ser gpio3
-			//0063 0000	//rl gpio4 output	tp-rst
-			//042f 0006	//bypass ser gpio4
-			//0064 0006	//bypass ser gpio4
-			//0066 0000	//rl gpio5 output
-			//0067 0007	//bypass ser gpio5
+			0057 0000	//rl gpio0 output	lcd_bl_pwm
+			0058 0000	//set gpio0 low
+			005a 0000	//rl gpio1 output	lcd_pwr_en
+			005b 0000	//set gpio1 low
+			005d 0000	//rl gpio2 output	lcd_rst
+			005e 0000	//set gpio2 low
+			0060 0000	//rl gpio3 output	tp-rst
+			0061 0000	//set gpio3 low
+			0063 0018	//rl gpio4 input	tp-int
+			0064 0006	//bypass ser gpio4
+			0066 0000	//rl gpio5 output
+			0067 0000	//set gpio5 low
 			0073 0080
 			0074 0007
 			0079 000a
@@ -1514,20 +1521,21 @@
 
 		i2c5_bu18rl82_pinctrl: i2c5-bu18rl82-pinctrl {
 			compatible = "rohm,bu18rl82-pinctrl";
-			pinctrl-names = "default","sleep";
+			pinctrl-names = "default","init","sleep";
 			pinctrl-0 = <&i2c5_bu18rl82_panel_pins>;
-			pinctrl-1 = <&i2c5_bu18rl82_panel_sleep_pins>;
+			pinctrl-1 = <&i2c5_bu18rl82_panel_pins>;
+			pinctrl-2 = <&i2c5_bu18rl82_panel_sleep_pins>;
 			status = "okay";
 
 			i2c5_bu18rl82_panel_pins: panel-pins {
-				lcd-bl-pwm {
-					pins = "BU18RL82_GPIO0";
-					function = "SER_GPIO0_TO_DES";
+				lcd-otp-pin {
+					pins = "BU18RL82_GPIO5";
+					function = "DES_GPIO_OUTPUT_HIGH";
 				};
 
-				lcd-pwr-en {
-					pins = "BU18RL82_GPIO1";
-					function = "SER_GPIO1_TO_DES";
+				tp-rst {
+					pins = "BU18RL82_GPIO3";
+					function = "DES_GPIO_OUTPUT_HIGH";
 				};
 
 				lcd-rst {
@@ -1536,18 +1544,23 @@
 				};
 
 				tp-int {
-					pins = "BU18RL82_GPIO3";
+					pins = "BU18RL82_GPIO4";
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				tp-rst {
-					pins = "BU18RL82_GPIO4";
+				100ms-delay {
+					pins = "BU18RL82_GPIO1";
+					function = "DELAY_100MS";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18RL82_GPIO1";
 					function = "DES_GPIO_OUTPUT_HIGH";
 				};
 
-				lcd-otp-pin {
-					pins = "BU18RL82_GPIO5";
-					function = "DES_GPIO_OUTPUT_HIGH";
+				lcd-bl-pwm {
+					pins = "BU18RL82_GPIO0";
+					function = "SER_GPIO0_TO_DES";
 				};
 			};
 
@@ -1799,20 +1812,18 @@
 			0424 0000
 			0425 0020
 			0426 0080
-			//0057 0000
-			//0058 0002
-			//0057 0000	//rl gpio0 output	lcd_bl_pwm
-			//0058 0002	//bypass ser gpio0
-			//005a 0000	//rl gpio1 output	lcd_pwr_en
-			//005b 0003	//bypass ser gpio1
-			//005d 0000	//rl gpio2 output	lcd_rst
-			//005e 0004	//bypass ser gpio2
-			//0060 0000	//rl gpio3 output	tp-rst
-			//0061 0005	//bypass ser gpio3
-			//0063 0018	//rl gpio4 input	tp-int
-			//0064 0006	//bypass ser gpio4
-			//0066 0000	//rl gpio5 output
-			//0067 0001	//set gpio5 high
+			0057 0000	//rl gpio0 output	lcd_bl_pwm
+			0058 0000	//set gpio0 low
+			005a 0000	//rl gpio1 output	lcd_pwr_en
+			005b 0000	//set gpio1 low
+			005d 0000	//rl gpio2 output	lcd_rst
+			005e 0000	//set gpio2 low
+			0060 0000	//rl gpio3 output	tp-rst
+			0061 0000	//set gpio3 low
+			0063 0018	//rl gpio4 input	tp-int
+			0064 0006	//bypass ser gpio4
+			0066 0000	//rl gpio5 output
+			0067 0000	//set gpio5 low
 
 			0073 0080
 			0074 0007	//0x0780 = 1920
@@ -1856,24 +1867,15 @@
 
 		i2c6_bu18rl82_pinctrl: i2c6-bu18rl82-pinctrl {
 			compatible = "rohm,bu18rl82-pinctrl";
-			pinctrl-names = "default","sleep";
+			pinctrl-names = "default","init","sleep";
 			pinctrl-0 = <&i2c6_bu18rl82_panel_pins>;
-			pinctrl-1 = <&i2c6_bu18rl82_panel_sleep_pins>;
+			pinctrl-1 = <&i2c6_bu18rl82_panel_pins>;
+			pinctrl-2 = <&i2c6_bu18rl82_panel_sleep_pins>;
 			status = "okay";
 
 			i2c6_bu18rl82_panel_pins: panel-pins {
-				lcd-bl-pwm {
-					pins = "BU18RL82_GPIO0";
-					function = "SER_GPIO0_TO_DES";
-				};
-
-				lcd-pwr-en {
-					pins = "BU18RL82_GPIO1";
-					function = "SER_GPIO1_TO_DES";
-				};
-
-				lcd-rst {
-					pins = "BU18RL82_GPIO2";
+				lcd-otp-pin {
+					pins = "BU18RL82_GPIO5";
 					function = "DES_GPIO_OUTPUT_HIGH";
 				};
 
@@ -1882,14 +1884,29 @@
 					function = "DES_GPIO_OUTPUT_HIGH";
 				};
 
+				lcd-rst {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
 				tp-int {
 					pins = "BU18RL82_GPIO4";
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				lcd-otp-pin {
-					pins = "BU18RL82_GPIO5";
+				100ms-delay {
+					pins = "BU18RL82_GPIO1";
+					function = "DELAY_100MS";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18RL82_GPIO1";
 					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				lcd-bl-pwm {
+					pins = "BU18RL82_GPIO0";
+					function = "SER_GPIO0_TO_DES";
 				};
 			};
 
