@@ -355,16 +355,16 @@ err_alloc:
  */
 static void ice_repr_rem(struct ice_vf *vf)
 {
-	if (!vf->repr)
+	struct ice_repr *repr = vf->repr;
+
+	if (!repr)
 		return;
 
-	kfree(vf->repr->q_vector);
-	vf->repr->q_vector = NULL;
-	unregister_netdev(vf->repr->netdev);
+	kfree(repr->q_vector);
+	unregister_netdev(repr->netdev);
 	ice_devlink_destroy_vf_port(vf);
-	free_netdev(vf->repr->netdev);
-	vf->repr->netdev = NULL;
-	kfree(vf->repr);
+	free_netdev(repr->netdev);
+	kfree(repr);
 	vf->repr = NULL;
 
 	ice_virtchnl_set_dflt_ops(vf);
