@@ -3922,9 +3922,9 @@ int security_getselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
 		/*
 		 * Only flag supported is LSM_FLAG_SINGLE
 		 */
-		if (flags != LSM_FLAG_SINGLE)
+		if (flags != LSM_FLAG_SINGLE || !uctx)
 			return -EINVAL;
-		if (uctx && copy_from_user(&lctx, uctx, sizeof(lctx)))
+		if (copy_from_user(&lctx, uctx, sizeof(lctx)))
 			return -EFAULT;
 		/*
 		 * If the LSM ID isn't specified it is an error.
