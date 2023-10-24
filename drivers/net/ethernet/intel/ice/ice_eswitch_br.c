@@ -893,10 +893,14 @@ ice_eswitch_br_port_deinit(struct ice_esw_br *bridge,
 			ice_eswitch_br_fdb_entry_delete(bridge, fdb_entry);
 	}
 
-	if (br_port->type == ICE_ESWITCH_BR_UPLINK_PORT && vsi->back)
+	if (br_port->type == ICE_ESWITCH_BR_UPLINK_PORT && vsi->back) {
 		vsi->back->br_port = NULL;
-	else if (vsi->vf && vsi->vf->repr)
-		vsi->vf->repr->br_port = NULL;
+	} else {
+		struct ice_repr *repr = ice_repr_get_by_vsi(vsi);
+
+		if (repr)
+			repr->br_port = NULL;
+	}
 
 	xa_erase(&bridge->ports, br_port->vsi_idx);
 	ice_eswitch_br_port_vlans_flush(br_port);

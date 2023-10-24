@@ -285,15 +285,20 @@ err:
 
 /**
  * ice_eswitch_update_repr - reconfigure port representor
- * @repr: pointer to repr struct
+ * @repr_id: representor ID
  * @vsi: VSI for which port representor is configured
  */
-void ice_eswitch_update_repr(struct ice_repr *repr, struct ice_vsi *vsi)
+void ice_eswitch_update_repr(unsigned long repr_id, struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
+	struct ice_repr *repr;
 	int ret;
 
 	if (!ice_is_switchdev_running(pf))
+		return;
+
+	repr = xa_load(&pf->eswitch.reprs, repr_id);
+	if (!repr)
 		return;
 
 	repr->src_vsi = vsi;

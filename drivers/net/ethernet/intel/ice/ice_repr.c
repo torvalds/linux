@@ -14,7 +14,7 @@
  */
 static int ice_repr_get_sw_port_id(struct ice_repr *repr)
 {
-	return repr->vf->pf->hw.port_info->lport;
+	return repr->src_vsi->back->hw.port_info->lport;
 }
 
 /**
@@ -35,7 +35,7 @@ ice_repr_get_phys_port_name(struct net_device *netdev, char *buf, size_t len)
 		return -EOPNOTSUPP;
 
 	res = snprintf(buf, len, "pf%dvfr%d", ice_repr_get_sw_port_id(repr),
-		       repr->vf->vf_id);
+		       repr->id);
 	if (res <= 0)
 		return -EOPNOTSUPP;
 	return 0;
@@ -279,103 +279,28 @@ ice_repr_reg_netdev(struct net_device *netdev)
 }
 
 /**
- * ice_repr_add - add representor for VF
- * @vf: pointer to VF structure
+ * ice_repr_rem - remove representor from VF
+ * @reprs: xarray storing representors
+ * @repr: pointer to representor structure
  */
-static int ice_repr_add(struct ice_vf *vf)
+static void ice_repr_rem(struct xarray *reprs, struct ice_repr *repr)
 {
-	struct ice_q_vector *q_vector;
-	struct ice_netdev_priv *np;
-	struct ice_repr *repr;
-	struct ice_vsi *vsi;
-	int err;
-
-	vsi = ice_get_vf_vsi(vf);
-	if (!vsi)
-		return -EINVAL;
-
-	repr = kzalloc(sizeof(*repr), GFP_KERNEL);
-	if (!repr)
-		return -ENOMEM;
-
-	repr->netdev = alloc_etherdev(sizeof(struct ice_netdev_priv));
-	if (!repr->netdev) {
-		err =  -ENOMEM;
-		goto err_alloc;
-	}
-
-	repr->src_vsi = vsi;
-	repr->vf = vf;
-	repr->q_id = vf->vf_id;
-	vf->repr = repr;
-	np = netdev_priv(repr->netdev);
-	np->repr = repr;
-
-	q_vector = kzalloc(sizeof(*q_vector), GFP_KERNEL);
-	if (!q_vector) {
-		err = -ENOMEM;
-		goto err_alloc_q_vector;
-	}
-	repr->q_vector = q_vector;
-
-	err = xa_alloc(&vf->pf->eswitch.reprs, &repr->id, repr,
-		       xa_limit_32b, GFP_KERNEL);
-	if (err)
-		goto err_xa_alloc;
-
-	err = ice_devlink_create_vf_port(vf);
-	if (err)
-		goto err_devlink;
-
-	repr->netdev->min_mtu = ETH_MIN_MTU;
-	repr->netdev->max_mtu = ICE_MAX_MTU;
-
-	SET_NETDEV_DEV(repr->netdev, ice_pf_to_dev(vf->pf));
-	SET_NETDEV_DEVLINK_PORT(repr->netdev, &vf->devlink_port);
-	err = ice_repr_reg_netdev(repr->netdev);
-	if (err)
-		goto err_netdev;
-
-	ether_addr_copy(repr->parent_mac, vf->hw_lan_addr);
-	ice_virtchnl_set_repr_ops(vf);
-
-	return 0;
-
-err_netdev:
-	ice_devlink_destroy_vf_port(vf);
-err_devlink:
-	xa_erase(&vf->pf->eswitch.reprs, repr->id);
-err_xa_alloc:
+	xa_erase(reprs, repr->id);
 	kfree(repr->q_vector);
-	vf->repr->q_vector = NULL;
-err_alloc_q_vector:
 	free_netdev(repr->netdev);
-	repr->netdev = NULL;
-err_alloc:
 	kfree(repr);
-	vf->repr = NULL;
-	return err;
 }
 
-/**
- * ice_repr_rem - remove representor from VF
- * @vf: pointer to VF structure
- */
-static void ice_repr_rem(struct ice_vf *vf)
+static void ice_repr_rem_vf(struct ice_vf *vf)
 {
-	struct ice_repr *repr = vf->repr;
+	struct ice_repr *repr = xa_load(&vf->pf->eswitch.reprs, vf->repr_id);
 
 	if (!repr)
 		return;
 
-	kfree(repr->q_vector);
 	unregister_netdev(repr->netdev);
+	ice_repr_rem(&vf->pf->eswitch.reprs, repr);
 	ice_devlink_destroy_vf_port(vf);
-	xa_erase(&vf->pf->eswitch.reprs, repr->id);
-	free_netdev(repr->netdev);
-	kfree(repr);
-	vf->repr = NULL;
-
 	ice_virtchnl_set_dflt_ops(vf);
 }
 
@@ -392,7 +317,7 @@ void ice_repr_rem_from_all_vfs(struct ice_pf *pf)
 	lockdep_assert_held(&pf->vfs.table_lock);
 
 	ice_for_each_vf(pf, bkt, vf)
-		ice_repr_rem(vf);
+		ice_repr_rem_vf(vf);
 
 	/* since all port representors are destroyed, there is
 	 * no point in keeping the nodes
@@ -401,6 +326,103 @@ void ice_repr_rem_from_all_vfs(struct ice_pf *pf)
 	devl_lock(devlink);
 	devl_rate_nodes_destroy(devlink);
 	devl_unlock(devlink);
+}
+
+/**
+ * ice_repr_add - add representor for generic VSI
+ * @pf: pointer to PF structure
+ * @src_vsi: pointer to VSI structure of device to represent
+ * @parent_mac: device MAC address
+ */
+static struct ice_repr *
+ice_repr_add(struct ice_pf *pf, struct ice_vsi *src_vsi, const u8 *parent_mac)
+{
+	struct ice_q_vector *q_vector;
+	struct ice_netdev_priv *np;
+	struct ice_repr *repr;
+	int err;
+
+	repr = kzalloc(sizeof(*repr), GFP_KERNEL);
+	if (!repr)
+		return ERR_PTR(-ENOMEM);
+
+	repr->netdev = alloc_etherdev(sizeof(struct ice_netdev_priv));
+	if (!repr->netdev) {
+		err =  -ENOMEM;
+		goto err_alloc;
+	}
+
+	repr->src_vsi = src_vsi;
+	np = netdev_priv(repr->netdev);
+	np->repr = repr;
+
+	q_vector = kzalloc(sizeof(*q_vector), GFP_KERNEL);
+	if (!q_vector) {
+		err = -ENOMEM;
+		goto err_alloc_q_vector;
+	}
+	repr->q_vector = q_vector;
+
+	err = xa_alloc(&pf->eswitch.reprs, &repr->id, repr,
+		       XA_LIMIT(1, INT_MAX), GFP_KERNEL);
+	if (err)
+		goto err_xa_alloc;
+	repr->q_id = repr->id;
+
+	ether_addr_copy(repr->parent_mac, parent_mac);
+
+	return repr;
+
+err_xa_alloc:
+	kfree(repr->q_vector);
+err_alloc_q_vector:
+	free_netdev(repr->netdev);
+err_alloc:
+	kfree(repr);
+	return ERR_PTR(err);
+}
+
+static int ice_repr_add_vf(struct ice_vf *vf)
+{
+	struct ice_repr *repr;
+	struct ice_vsi *vsi;
+	int err;
+
+	vsi = ice_get_vf_vsi(vf);
+	if (!vsi)
+		return -EINVAL;
+
+	err = ice_devlink_create_vf_port(vf);
+	if (err)
+		return err;
+
+	repr = ice_repr_add(vf->pf, vsi, vf->hw_lan_addr);
+	if (IS_ERR(repr)) {
+		err = PTR_ERR(repr);
+		goto err_repr_add;
+	}
+
+	vf->repr_id = repr->id;
+	repr->vf = vf;
+
+	repr->netdev->min_mtu = ETH_MIN_MTU;
+	repr->netdev->max_mtu = ICE_MAX_MTU;
+
+	SET_NETDEV_DEV(repr->netdev, ice_pf_to_dev(vf->pf));
+	SET_NETDEV_DEVLINK_PORT(repr->netdev, &vf->devlink_port);
+	err = ice_repr_reg_netdev(repr->netdev);
+	if (err)
+		goto err_netdev;
+
+	ice_virtchnl_set_repr_ops(vf);
+
+	return 0;
+
+err_netdev:
+	ice_repr_rem(&vf->pf->eswitch.reprs, repr);
+err_repr_add:
+	ice_devlink_destroy_vf_port(vf);
+	return err;
 }
 
 /**
@@ -417,7 +439,7 @@ int ice_repr_add_for_all_vfs(struct ice_pf *pf)
 	lockdep_assert_held(&pf->vfs.table_lock);
 
 	ice_for_each_vf(pf, bkt, vf) {
-		err = ice_repr_add(vf);
+		err = ice_repr_add_vf(vf);
 		if (err)
 			goto err;
 	}
@@ -435,6 +457,14 @@ err:
 	ice_repr_rem_from_all_vfs(pf);
 
 	return err;
+}
+
+struct ice_repr *ice_repr_get_by_vsi(struct ice_vsi *vsi)
+{
+	if (!vsi->vf)
+		return NULL;
+
+	return xa_load(&vsi->back->eswitch.reprs, vsi->vf->repr_id);
 }
 
 /**

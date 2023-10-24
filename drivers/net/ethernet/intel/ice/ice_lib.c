@@ -519,16 +519,14 @@ static irqreturn_t ice_eswitch_msix_clean_rings(int __always_unused irq, void *d
 {
 	struct ice_q_vector *q_vector = (struct ice_q_vector *)data;
 	struct ice_pf *pf = q_vector->vsi->back;
-	struct ice_vf *vf;
-	unsigned int bkt;
+	struct ice_repr *repr;
+	unsigned long id;
 
 	if (!q_vector->tx.tx_ring && !q_vector->rx.rx_ring)
 		return IRQ_HANDLED;
 
-	rcu_read_lock();
-	ice_for_each_vf_rcu(pf, bkt, vf)
-		napi_schedule(&vf->repr->q_vector->napi);
-	rcu_read_unlock();
+	xa_for_each(&pf->eswitch.reprs, id, repr)
+		napi_schedule(&repr->q_vector->napi);
 
 	return IRQ_HANDLED;
 }
