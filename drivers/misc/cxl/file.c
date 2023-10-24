@@ -38,8 +38,6 @@
 
 static dev_t cxl_dev;
 
-static struct class *cxl_class;
-
 static int __afu_open(struct inode *inode, struct file *file, bool master)
 {
 	struct cxl *adapter;
@@ -559,7 +557,10 @@ static char *cxl_devnode(const struct device *dev, umode_t *mode)
 	return kasprintf(GFP_KERNEL, "cxl/%s", dev_name(dev));
 }
 
-extern struct class *cxl_class;
+static const struct class cxl_class = {
+	.name =		"cxl",
+	.devnode =	cxl_devnode,
+};
 
 static int cxl_add_chardev(struct cxl_afu *afu, dev_t devt, struct cdev *cdev,
 			   struct device **chardev, char *postfix, char *desc,
@@ -575,7 +576,7 @@ static int cxl_add_chardev(struct cxl_afu *afu, dev_t devt, struct cdev *cdev,
 		return rc;
 	}
 
-	dev = device_create(cxl_class, &afu->dev, devt, afu,
+	dev = device_create(&cxl_class, &afu->dev, devt, afu,
 			"afu%i.%i%s", afu->adapter->adapter_num, afu->slice, postfix);
 	if (IS_ERR(dev)) {
 		rc = PTR_ERR(dev);
@@ -633,14 +634,14 @@ void cxl_chardev_afu_remove(struct cxl_afu *afu)
 
 int cxl_register_afu(struct cxl_afu *afu)
 {
-	afu->dev.class = cxl_class;
+	afu->dev.class = &cxl_class;
 
 	return device_register(&afu->dev);
 }
 
 int cxl_register_adapter(struct cxl *adapter)
 {
-	adapter->dev.class = cxl_class;
+	adapter->dev.class = &cxl_class;
 
 	/*
 	 * Future: When we support dynamically reprogramming the PSL & AFU we
@@ -678,13 +679,11 @@ int __init cxl_file_init(void)
 
 	pr_devel("CXL device allocated, MAJOR %i\n", MAJOR(cxl_dev));
 
-	cxl_class = class_create("cxl");
-	if (IS_ERR(cxl_class)) {
+	rc = class_register(&cxl_class);
+	if (rc) {
 		pr_err("Unable to create CXL class\n");
-		rc = PTR_ERR(cxl_class);
 		goto err;
 	}
-	cxl_class->devnode = cxl_devnode;
 
 	return 0;
 
@@ -696,5 +695,5 @@ err:
 void cxl_file_exit(void)
 {
 	unregister_chrdev_region(cxl_dev, CXL_NUM_MINORS);
-	class_destroy(cxl_class);
+	class_unregister(&cxl_class);
 }
