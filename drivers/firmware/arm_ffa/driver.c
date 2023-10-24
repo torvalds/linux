@@ -1422,11 +1422,7 @@ static void ffa_notifications_setup(void)
 	hash_init(drv_info->notifier_hash);
 	mutex_init(&drv_info->notify_lock);
 
-	/* Register internal scheduling callback */
-	ret = ffa_sched_recv_cb_update(drv_info->vm_id, ffa_self_notif_handle,
-				       drv_info, true);
-	if (!ret)
-		return;
+	return;
 cleanup:
 	pr_info("Notification setup failed %d, not enabled\n", ret);
 	ffa_notifications_cleanup();
@@ -1483,11 +1479,16 @@ static int __init ffa_init(void)
 	mutex_init(&drv_info->rx_lock);
 	mutex_init(&drv_info->tx_lock);
 
-	ffa_setup_partitions();
-
 	ffa_set_up_mem_ops_native_flag();
 
 	ffa_notifications_setup();
+
+	ffa_setup_partitions();
+
+	ret = ffa_sched_recv_cb_update(drv_info->vm_id, ffa_self_notif_handle,
+				       drv_info, true);
+	if (ret)
+		pr_info("Failed to register driver sched callback %d\n", ret);
 
 	return 0;
 free_pages:
