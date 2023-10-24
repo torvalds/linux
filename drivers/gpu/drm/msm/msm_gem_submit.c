@@ -17,6 +17,12 @@
 #include "msm_gem.h"
 #include "msm_gpu_trace.h"
 
+/* For userspace errors, use DRM_UT_DRIVER.. so that userspace can enable
+ * error msgs for debugging, but we don't spam dmesg by default
+ */
+#define SUBMIT_ERROR(submit, fmt, ...) \
+	DRM_DEV_DEBUG_DRIVER((submit)->dev->dev, fmt, ##__VA_ARGS__)
+
 /*
  * Cmdstream submission:
  */
@@ -136,7 +142,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 
 		if ((submit_bo.flags & ~MSM_SUBMIT_BO_FLAGS) ||
 			!(submit_bo.flags & MANDATORY_FLAGS)) {
-			DRM_ERROR("invalid flags: %x\n", submit_bo.flags);
+			SUBMIT_ERROR(submit, "invalid flags: %x\n", submit_bo.flags);
 			ret = -EINVAL;
 			i = 0;
 			goto out;
@@ -158,7 +164,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 		 */
 		obj = idr_find(&file->object_idr, submit->bos[i].handle);
 		if (!obj) {
-			DRM_ERROR("invalid handle %u at index %u\n", submit->bos[i].handle, i);
+			SUBMIT_ERROR(submit, "invalid handle %u at index %u\n", submit->bos[i].handle, i);
 			ret = -EINVAL;
 			goto out_unlock;
 		}
@@ -202,13 +208,13 @@ static int submit_lookup_cmds(struct msm_gem_submit *submit,
 		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
 			break;
 		default:
-			DRM_ERROR("invalid type: %08x\n", submit_cmd.type);
+			SUBMIT_ERROR(submit, "invalid type: %08x\n", submit_cmd.type);
 			return -EINVAL;
 		}
 
 		if (submit_cmd.size % 4) {
-			DRM_ERROR("non-aligned cmdstream buffer size: %u\n",
-					submit_cmd.size);
+			SUBMIT_ERROR(submit, "non-aligned cmdstream buffer size: %u\n",
+				     submit_cmd.size);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -306,8 +312,8 @@ retry:
 
 fail:
 	if (ret == -EALREADY) {
-		DRM_ERROR("handle %u at index %u already on submit list\n",
-				submit->bos[i].handle, i);
+		SUBMIT_ERROR(submit, "handle %u at index %u already on submit list\n",
+			     submit->bos[i].handle, i);
 		ret = -EINVAL;
 	}
 
@@ -448,8 +454,8 @@ static int submit_bo(struct msm_gem_submit *submit, uint32_t idx,
 		struct drm_gem_object **obj, uint64_t *iova, bool *valid)
 {
 	if (idx >= submit->nr_bos) {
-		DRM_ERROR("invalid buffer index: %u (out of %u)\n",
-				idx, submit->nr_bos);
+		SUBMIT_ERROR(submit, "invalid buffer index: %u (out of %u)\n",
+			     idx, submit->nr_bos);
 		return -EINVAL;
 	}
 
@@ -475,7 +481,7 @@ static int submit_reloc(struct msm_gem_submit *submit, struct drm_gem_object *ob
 		return 0;
 
 	if (offset % 4) {
-		DRM_ERROR("non-aligned cmdstream buffer: %u\n", offset);
+		SUBMIT_ERROR(submit, "non-aligned cmdstream buffer: %u\n", offset);
 		return -EINVAL;
 	}
 
@@ -497,8 +503,8 @@ static int submit_reloc(struct msm_gem_submit *submit, struct drm_gem_object *ob
 		bool valid;
 
 		if (submit_reloc.submit_offset % 4) {
-			DRM_ERROR("non-aligned reloc offset: %u\n",
-					submit_reloc.submit_offset);
+			SUBMIT_ERROR(submit, "non-aligned reloc offset: %u\n",
+				     submit_reloc.submit_offset);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -508,7 +514,7 @@ static int submit_reloc(struct msm_gem_submit *submit, struct drm_gem_object *ob
 
 		if ((off >= (obj->size / 4)) ||
 				(off < last_offset)) {
-			DRM_ERROR("invalid offset %u at reloc %u\n", off, i);
+			SUBMIT_ERROR(submit, "invalid offset %u at reloc %u\n", off, i);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -881,7 +887,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		if (!submit->cmd[i].size ||
 			((submit->cmd[i].size + submit->cmd[i].offset) >
 				obj->size / 4)) {
-			DRM_ERROR("invalid cmdstream size: %u\n", submit->cmd[i].size * 4);
+			SUBMIT_ERROR(submit, "invalid cmdstream size: %u\n", submit->cmd[i].size * 4);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -893,7 +899,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 		if (!gpu->allow_relocs) {
 			if (submit->cmd[i].nr_relocs) {
-				DRM_ERROR("relocs not allowed\n");
+				SUBMIT_ERROR(submit, "relocs not allowed\n");
 				ret = -EINVAL;
 				goto out;
 			}
