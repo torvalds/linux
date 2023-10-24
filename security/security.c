@@ -3950,8 +3950,9 @@ int security_getselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
 			continue;
 		}
 		if (rc == -E2BIG) {
-			toobig = true;
+			rc = 0;
 			left = 0;
+			toobig = true;
 		} else if (rc < 0)
 			return rc;
 		else
