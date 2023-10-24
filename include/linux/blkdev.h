@@ -1480,6 +1480,11 @@ struct blk_holder_ops {
 	int (*thaw)(struct block_device *bdev);
 };
 
+/*
+ * For filesystems using @fs_holder_ops, the @holder argument passed to
+ * helpers used to open and claim block devices via
+ * bd_prepare_to_claim() must point to a superblock.
+ */
 extern const struct blk_holder_ops fs_holder_ops;
 
 /*
