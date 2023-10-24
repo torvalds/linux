@@ -66,6 +66,7 @@ LIST_HEAD(hpet_map);
 LIST_HEAD(acpihid_map);
 
 const struct iommu_ops amd_iommu_ops;
+const struct iommu_dirty_ops amd_dirty_ops;
 
 static ATOMIC_NOTIFIER_HEAD(ppr_notifier);
 int amd_iommu_max_glx_val = -1;
@@ -1611,6 +1612,9 @@ static void set_dte_entry(struct amd_iommu *iommu, u16 devid,
 			pte_root |= 1ULL << DEV_ENTRY_PPR;
 	}
 
+	if (domain->dirty_tracking)
+		pte_root |= DTE_FLAG_HAD;
+
 	if (domain->flags & PD_IOMMUV2_MASK) {
 		u64 gcr3 = iommu_virt_to_phys(domain->gcr3_tbl);
 		u64 glx  = domain->glx;
@@ -2156,9 +2160,15 @@ static inline u64 dma_max_address(void)
 	return ((1ULL << PM_LEVEL_SHIFT(amd_iommu_gpt_level)) - 1);
 }
 
+static bool amd_iommu_hd_support(struct amd_iommu *iommu)
+{
+	return iommu && (iommu->features & FEATURE_HDSUP);
+}
+
 static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
 						  struct device *dev, u32 flags)
 {
+	bool dirty_tracking = flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
 	struct protection_domain *domain;
 	struct amd_iommu *iommu = NULL;
 
@@ -2175,6 +2185,9 @@ static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
 	if (amd_iommu_snp_en && (type == IOMMU_DOMAIN_IDENTITY))
 		return ERR_PTR(-EINVAL);
 
+	if (dirty_tracking && !amd_iommu_hd_support(iommu))
+		return ERR_PTR(-EOPNOTSUPP);
+
 	domain = protection_domain_alloc(type);
 	if (!domain)
 		return ERR_PTR(-ENOMEM);
@@ -2187,6 +2200,9 @@ static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
 		domain->domain.type = type;
 		domain->domain.pgsize_bitmap = iommu->iommu.ops->pgsize_bitmap;
 		domain->domain.ops = iommu->iommu.ops->default_domain_ops;
+
+		if (dirty_tracking)
+			domain->domain.dirty_ops = &amd_dirty_ops;
 	}
 
 	return &domain->domain;
@@ -2208,7 +2224,7 @@ static struct iommu_domain *amd_iommu_domain_alloc_user(struct device *dev,
 {
 	unsigned int type = IOMMU_DOMAIN_UNMANAGED;
 
-	if (flags)
+	if (flags & ~IOMMU_HWPT_ALLOC_DIRTY_TRACKING)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	return do_iommu_domain_alloc(type, dev, flags);
@@ -2250,6 +2266,13 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 		return 0;
 
 	dev_data->defer_attach = false;
+
+	/*
+	 * Restrict to devices with compatible IOMMU hardware support
+	 * when enforcement of dirty tracking is enabled.
+	 */
+	if (dom->dirty_ops && !amd_iommu_hd_support(iommu))
+		return -EINVAL;
 
 	if (dev_data->domain)
 		detach_device(dev);
@@ -2369,11 +2392,83 @@ static bool amd_iommu_capable(struct device *dev, enum iommu_cap cap)
 		return true;
 	case IOMMU_CAP_DEFERRED_FLUSH:
 		return true;
+	case IOMMU_CAP_DIRTY_TRACKING: {
+		struct amd_iommu *iommu = rlookup_amd_iommu(dev);
+
+		return amd_iommu_hd_support(iommu);
+	}
 	default:
 		break;
 	}
 
 	return false;
+}
+
+static int amd_iommu_set_dirty_tracking(struct iommu_domain *domain,
+					bool enable)
+{
+	struct protection_domain *pdomain = to_pdomain(domain);
+	struct dev_table_entry *dev_table;
+	struct iommu_dev_data *dev_data;
+	bool domain_flush = false;
+	struct amd_iommu *iommu;
+	unsigned long flags;
+	u64 pte_root;
+
+	spin_lock_irqsave(&pdomain->lock, flags);
+	if (!(pdomain->dirty_tracking ^ enable)) {
+		spin_unlock_irqrestore(&pdomain->lock, flags);
+		return 0;
+	}
+
+	list_for_each_entry(dev_data, &pdomain->dev_list, list) {
+		iommu = rlookup_amd_iommu(dev_data->dev);
+		if (!iommu)
+			continue;
+
+		dev_table = get_dev_table(iommu);
+		pte_root = dev_table[dev_data->devid].data[0];
+
+		pte_root = (enable ? pte_root | DTE_FLAG_HAD :
+				     pte_root & ~DTE_FLAG_HAD);
+
+		/* Flush device DTE */
+		dev_table[dev_data->devid].data[0] = pte_root;
+		device_flush_dte(dev_data);
+		domain_flush = true;
+	}
+
+	/* Flush IOTLB to mark IOPTE dirty on the next translation(s) */
+	if (domain_flush) {
+		amd_iommu_domain_flush_tlb_pde(pdomain);
+		amd_iommu_domain_flush_complete(pdomain);
+	}
+	pdomain->dirty_tracking = enable;
+	spin_unlock_irqrestore(&pdomain->lock, flags);
+
+	return 0;
+}
+
+static int amd_iommu_read_and_clear_dirty(struct iommu_domain *domain,
+					  unsigned long iova, size_t size,
+					  unsigned long flags,
+					  struct iommu_dirty_bitmap *dirty)
+{
+	struct protection_domain *pdomain = to_pdomain(domain);
+	struct io_pgtable_ops *ops = &pdomain->iop.iop.ops;
+	unsigned long lflags;
+
+	if (!ops || !ops->read_and_clear_dirty)
+		return -EOPNOTSUPP;
+
+	spin_lock_irqsave(&pdomain->lock, lflags);
+	if (!pdomain->dirty_tracking && dirty->bitmap) {
+		spin_unlock_irqrestore(&pdomain->lock, lflags);
+		return -EINVAL;
+	}
+	spin_unlock_irqrestore(&pdomain->lock, lflags);
+
+	return ops->read_and_clear_dirty(ops, iova, size, flags, dirty);
 }
 
 static void amd_iommu_get_resv_regions(struct device *dev,
@@ -2497,6 +2592,11 @@ static bool amd_iommu_enforce_cache_coherency(struct iommu_domain *domain)
 	/* IOMMU_PTE_FC is always set */
 	return true;
 }
+
+const struct iommu_dirty_ops amd_dirty_ops = {
+	.set_dirty_tracking = amd_iommu_set_dirty_tracking,
+	.read_and_clear_dirty = amd_iommu_read_and_clear_dirty,
+};
 
 const struct iommu_ops amd_iommu_ops = {
 	.capable = amd_iommu_capable,
