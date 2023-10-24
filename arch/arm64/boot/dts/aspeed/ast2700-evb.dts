@@ -48,14 +48,14 @@
 			no-map;
 		};
 
-		mctp0_reserved: mctp0_reserved@40a000000 {
-			reg = <0x4 0x0a000000 0x0 0x10000>;
+		mctp0_reserved: mctp0_reserved@431080000 {
+			reg = <0x4 0x31080000 0x0 0x10000>;
 			compatible = "shared-dma-pool";
 			no-map;
 		};
 
-		mctp1_reserved: mctp1_reserved@40a010000 {
-			reg = <0x4 0x0a010000 0x0 0x10000>;
+		mctp1_reserved: mctp1_reserved@431090000 {
+			reg = <0x4 0x31090000 0x0 0x10000>;
 			compatible = "shared-dma-pool";
 			no-map;
 		};
