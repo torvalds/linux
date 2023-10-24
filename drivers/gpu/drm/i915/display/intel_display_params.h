@@ -7,6 +7,7 @@
 #define _INTEL_DISPLAY_PARAMS_H_
 
 struct drm_printer;
+struct drm_i915_private;
 
 /*
  * Invoke param, a function-like macro, for each intel display param, with
@@ -28,6 +29,8 @@ struct intel_display_params {
 };
 #undef MEMBER
 
+void intel_display_params_dump(struct drm_i915_private *i915,
+			       struct drm_printer *p);
 void intel_display_params_copy(struct intel_display_params *dest);
 void intel_display_params_free(struct intel_display_params *params);
 
