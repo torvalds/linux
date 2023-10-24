@@ -523,37 +523,6 @@ void deactivate_super(struct super_block *s)
 
 EXPORT_SYMBOL(deactivate_super);
 
-/**
- *	grab_super - acquire an active reference
- *	@s: reference we are trying to make active
- *
- *	Tries to acquire an active reference.  grab_super() is used when we
- * 	had just found a superblock in super_blocks or fs_type->fs_supers
- *	and want to turn it into a full-blown active reference.  grab_super()
- *	is called with sb_lock held and drops it.  Returns 1 in case of
- *	success, 0 if we had failed (superblock contents was already dead or
- *	dying when grab_super() had been called).  Note that this is only
- *	called for superblocks not in rundown mode (== ones still on ->fs_supers
- *	of their type), so increment of ->s_count is OK here.
- */
-static int grab_super(struct super_block *s) __releases(sb_lock)
-{
-	bool locked;
-
-	s->s_count++;
-	spin_unlock(&sb_lock);
-	locked = super_lock_excl(s);
-	if (locked) {
-		if (atomic_inc_not_zero(&s->s_active)) {
-			put_super(s);
-			return 1;
-		}
-		super_unlock_excl(s);
-	}
-	put_super(s);
-	return 0;
-}
-
 static inline bool wait_dead(struct super_block *sb)
 {
 	unsigned int flags;
@@ -567,7 +536,7 @@ static inline bool wait_dead(struct super_block *sb)
 }
 
 /**
- * grab_super_dead - acquire an active reference to a superblock
+ * grab_super - acquire an active reference to a superblock
  * @sb: superblock to acquire
  *
  * Acquire a temporary reference on a superblock and try to trade it for
@@ -578,16 +547,21 @@ static inline bool wait_dead(struct super_block *sb)
  * Return: This returns true if an active reference could be acquired,
  *         false if not.
  */
-static bool grab_super_dead(struct super_block *sb)
+static bool grab_super(struct super_block *sb)
 {
+	bool locked;
+
 	sb->s_count++;
-	if (grab_super(sb)) {
-		put_super(sb);
-		lockdep_assert_held(&sb->s_umount);
-		return true;
+	spin_unlock(&sb_lock);
+	locked = super_lock_excl(sb);
+	if (locked) {
+		if (atomic_inc_not_zero(&sb->s_active)) {
+			put_super(sb);
+			return true;
+		}
+		super_unlock_excl(sb);
 	}
 	wait_var_event(&sb->s_flags, wait_dead(sb));
-	lockdep_assert_not_held(&sb->s_umount);
 	put_super(sb);
 	return false;
 }
@@ -838,7 +812,7 @@ share_extant_sb:
 			warnfc(fc, "reusing existing filesystem in another namespace not allowed");
 		return ERR_PTR(-EBUSY);
 	}
-	if (!grab_super_dead(old))
+	if (!grab_super(old))
 		goto retry;
 	destroy_unused_super(s);
 	return old;
@@ -882,7 +856,7 @@ retry:
 				destroy_unused_super(s);
 				return ERR_PTR(-EBUSY);
 			}
-			if (!grab_super_dead(old))
+			if (!grab_super(old))
 				goto retry;
 			destroy_unused_super(s);
 			return old;
