@@ -233,8 +233,6 @@ static inline void set_closure_fn(struct closure *cl, closure_fn *fn,
 	closure_set_ip(cl);
 	cl->fn = fn;
 	cl->wq = wq;
-	/* between atomic_dec() in closure_put() */
-	smp_mb__before_atomic();
 }
 
 static inline void closure_queue(struct closure *cl)

@@ -21,6 +21,8 @@ static inline void closure_put_after_sub(struct closure *cl, int flags)
 	BUG_ON(!r && (flags & ~CLOSURE_DESTRUCTOR));
 
 	if (!r) {
+		smp_acquire__after_ctrl_dep();
+
 		if (cl->fn && !(flags & CLOSURE_DESTRUCTOR)) {
 			atomic_set(&cl->remaining,
 				   CLOSURE_REMAINING_INITIALIZER);
@@ -43,7 +45,7 @@ static inline void closure_put_after_sub(struct closure *cl, int flags)
 /* For clearing flags with the same atomic op as a put */
 void closure_sub(struct closure *cl, int v)
 {
-	closure_put_after_sub(cl, atomic_sub_return(v, &cl->remaining));
+	closure_put_after_sub(cl, atomic_sub_return_release(v, &cl->remaining));
 }
 EXPORT_SYMBOL(closure_sub);
 
@@ -52,7 +54,7 @@ EXPORT_SYMBOL(closure_sub);
  */
 void closure_put(struct closure *cl)
 {
-	closure_put_after_sub(cl, atomic_dec_return(&cl->remaining));
+	closure_put_after_sub(cl, atomic_dec_return_release(&cl->remaining));
 }
 EXPORT_SYMBOL(closure_put);
 
