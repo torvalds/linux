@@ -1403,6 +1403,7 @@ static bool intel_dp_supports_dsc(const struct intel_connector *connector,
 		return false;
 
 	return intel_dsc_source_support(crtc_state) &&
+		connector->dp.dsc_decompression_aux &&
 		drm_dp_sink_supports_dsc(connector->dp.dsc_dpcd);
 }
 
@@ -2986,6 +2987,65 @@ intel_dp_sink_set_dsc_passthrough(const struct intel_connector *connector,
 			    str_enable_disable(enable));
 }
 
+static int intel_dp_dsc_aux_ref_count(struct intel_atomic_state *state,
+				      const struct intel_connector *connector,
+				      bool for_get_ref)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct drm_connector *_connector_iter;
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	int ref_count = 0;
+	int i;
+
+	/*
+	 * On SST the decompression AUX device won't be shared, each connector
+	 * uses for this its own AUX targeting the sink device.
+	 */
+	if (!connector->mst_port)
+		return connector->dp.dsc_decompression_enabled ? 1 : 0;
+
+	for_each_oldnew_connector_in_state(&state->base, _connector_iter,
+					   old_conn_state, new_conn_state, i) {
+		const struct intel_connector *
+			connector_iter = to_intel_connector(_connector_iter);
+
+		if (connector_iter->mst_port != connector->mst_port)
+			continue;
+
+		if (!connector_iter->dp.dsc_decompression_enabled)
+			continue;
+
+		drm_WARN_ON(&i915->drm,
+			    (for_get_ref && !new_conn_state->crtc) ||
+			    (!for_get_ref && !old_conn_state->crtc));
+
+		if (connector_iter->dp.dsc_decompression_aux ==
+		    connector->dp.dsc_decompression_aux)
+			ref_count++;
+	}
+
+	return ref_count;
+}
+
+static bool intel_dp_dsc_aux_get_ref(struct intel_atomic_state *state,
+				     struct intel_connector *connector)
+{
+	bool ret = intel_dp_dsc_aux_ref_count(state, connector, true) == 0;
+
+	connector->dp.dsc_decompression_enabled = true;
+
+	return ret;
+}
+
+static bool intel_dp_dsc_aux_put_ref(struct intel_atomic_state *state,
+				     struct intel_connector *connector)
+{
+	connector->dp.dsc_decompression_enabled = false;
+
+	return intel_dp_dsc_aux_ref_count(state, connector, false) == 0;
+}
+
 /**
  * intel_dp_sink_enable_decompression - Enable DSC decompression in sink/last branch device
  * @state: atomic state
@@ -3009,7 +3069,11 @@ void intel_dp_sink_enable_decompression(struct intel_atomic_state *state,
 		return;
 
 	if (drm_WARN_ON(&i915->drm,
-			!connector->dp.dsc_decompression_aux))
+			!connector->dp.dsc_decompression_aux ||
+			connector->dp.dsc_decompression_enabled))
+		return;
+
+	if (!intel_dp_dsc_aux_get_ref(state, connector))
 		return;
 
 	intel_dp_sink_set_dsc_passthrough(connector, true);
@@ -3036,7 +3100,11 @@ void intel_dp_sink_disable_decompression(struct intel_atomic_state *state,
 		return;
 
 	if (drm_WARN_ON(&i915->drm,
-			!connector->dp.dsc_decompression_aux))
+			!connector->dp.dsc_decompression_aux ||
+			!connector->dp.dsc_decompression_enabled))
+		return;
+
+	if (!intel_dp_dsc_aux_put_ref(state, connector))
 		return;
 
 	intel_dp_sink_set_dsc_decompression(connector, false);

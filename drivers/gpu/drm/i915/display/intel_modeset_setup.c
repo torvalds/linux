@@ -318,6 +318,12 @@ static void intel_modeset_update_connector_atomic_state(struct drm_i915_private 
 			const struct intel_crtc_state *crtc_state =
 				to_intel_crtc_state(crtc->base.state);
 
+			if (crtc_state->dsc.compression_enable) {
+				drm_WARN_ON(&i915->drm, !connector->dp.dsc_decompression_aux);
+				connector->dp.dsc_decompression_enabled = true;
+			} else {
+				connector->dp.dsc_decompression_enabled = false;
+			}
 			conn_state->max_bpc = (crtc_state->pipe_bpp ?: 24) / 3;
 		}
 	}
