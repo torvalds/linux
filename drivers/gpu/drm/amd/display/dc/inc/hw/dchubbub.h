@@ -49,6 +49,8 @@ struct dcn_hubbub_wm_set {
 	uint32_t dram_clk_change;
 	uint32_t usr_retrain;
 	uint32_t fclk_pstate_change;
+	uint32_t sr_enter_exit_Z8;
+	uint32_t sr_enter_Z8;
 };
 
 struct dcn_hubbub_wm {
@@ -191,6 +193,7 @@ struct hubbub_funcs {
 	void (*force_usr_retraining_allow)(struct hubbub *hubbub, bool allow);
 	void (*set_request_limit)(struct hubbub *hubbub, int memory_channel_count, int words_per_channel);
 	void (*dchubbub_init)(struct hubbub *hubbub);
+	void (*get_mall_en)(struct hubbub *hubbub, unsigned int *mall_in_use);
 };
 
 struct hubbub {

@@ -1223,18 +1223,18 @@ static int sh_vou_probe(struct platform_device *pdev)
 	struct i2c_adapter *i2c_adap;
 	struct video_device *vdev;
 	struct sh_vou_device *vou_dev;
-	struct resource *reg_res;
 	struct v4l2_subdev *subdev;
 	struct vb2_queue *q;
 	int irq, ret;
 
-	reg_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	irq = platform_get_irq(pdev, 0);
-
-	if (!vou_pdata || !reg_res || irq <= 0) {
+	if (!vou_pdata) {
 		dev_err(&pdev->dev, "Insufficient VOU platform information.\n");
 		return -ENODEV;
 	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	vou_dev = devm_kzalloc(&pdev->dev, sizeof(*vou_dev), GFP_KERNEL);
 	if (!vou_dev)
@@ -1264,7 +1264,7 @@ static int sh_vou_probe(struct platform_device *pdev)
 	pix->sizeimage		= VOU_MAX_IMAGE_WIDTH * 2 * 480;
 	pix->colorspace		= V4L2_COLORSPACE_SMPTE170M;
 
-	vou_dev->base = devm_ioremap_resource(&pdev->dev, reg_res);
+	vou_dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vou_dev->base))
 		return PTR_ERR(vou_dev->base);
 

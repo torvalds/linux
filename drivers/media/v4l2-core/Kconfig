@@ -74,6 +74,15 @@ config V4L2_FWNODE
 config V4L2_ASYNC
 	tristate
 
+config V4L2_CCI
+	tristate
+
+config V4L2_CCI_I2C
+	tristate
+	depends on I2C
+	select REGMAP_I2C
+	select V4L2_CCI
+
 # Used by drivers that need Videobuf modules
 config VIDEOBUF_GEN
 	tristate

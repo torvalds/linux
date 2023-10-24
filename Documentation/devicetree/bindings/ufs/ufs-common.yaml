@@ -74,7 +74,7 @@ properties:
       Specifies max. load that can be drawn from VCCQ2 supply.
 
 dependencies:
-  freq-table-hz: [ 'clocks' ]
+  freq-table-hz: [ clocks ]
 
 required:
   - interrupts

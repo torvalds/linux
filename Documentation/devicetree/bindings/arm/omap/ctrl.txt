@@ -8,7 +8,7 @@ control module driver itself.
 
 See [2] for documentation about clock/clockdomain nodes.
 
-[1] Documentation/devicetree/bindings/pinctrl/pinctrl-single.txt
+[1] Documentation/devicetree/bindings/pinctrl/pinctrl-single.yaml
 [2] Documentation/devicetree/bindings/clock/ti/*
 
 Required properties:

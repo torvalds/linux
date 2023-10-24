@@ -19,24 +19,66 @@
 
 #include "../../kselftest.h"
 
-#define TESTS_PER_HWCAP 2
+#define TESTS_PER_HWCAP 3
 
 /*
- * Function expected to generate SIGILL when the feature is not
- * supported and return when it is supported. If SIGILL is generated
- * then the handler must be able to skip over the instruction safely.
+ * Function expected to generate exception when the feature is not
+ * supported and return when it is supported. If the specific exception
+ * is generated then the handler must be able to skip over the
+ * instruction safely.
  *
  * Note that it is expected that for many architecture extensions
  * there are no specific traps due to no architecture state being
  * added so we may not fault if running on a kernel which doesn't know
  * to add the hwcap.
  */
-typedef void (*sigill_fn)(void);
+typedef void (*sig_fn)(void);
+
+static void aes_sigill(void)
+{
+	/* AESE V0.16B, V0.16B */
+	asm volatile(".inst 0x4e284800" : : : );
+}
+
+static void atomics_sigill(void)
+{
+	/* STADD W0, [SP] */
+	asm volatile(".inst 0xb82003ff" : : : );
+}
+
+static void crc32_sigill(void)
+{
+	/* CRC32W W0, W0, W1 */
+	asm volatile(".inst 0x1ac14800" : : : );
+}
 
 static void cssc_sigill(void)
 {
 	/* CNT x0, x0 */
 	asm volatile(".inst 0xdac01c00" : : : "x0");
+}
+
+static void fp_sigill(void)
+{
+	asm volatile("fmov s0, #1");
+}
+
+static void ilrcpc_sigill(void)
+{
+	/* LDAPUR W0, [SP, #8] */
+	asm volatile(".inst 0x994083e0" : : : );
+}
+
+static void jscvt_sigill(void)
+{
+	/* FJCVTZS W0, D0 */
+	asm volatile(".inst 0x1e7e0000" : : : );
+}
+
+static void lrcpc_sigill(void)
+{
+	/* LDAPR W0, [SP, #0] */
+	asm volatile(".inst 0xb8bfc3e0" : : : );
 }
 
 static void mops_sigill(void)
@@ -53,9 +95,33 @@ static void mops_sigill(void)
 		     : "cc", "memory");
 }
 
+static void pmull_sigill(void)
+{
+	/* PMULL V0.1Q, V0.1D, V0.1D */
+	asm volatile(".inst 0x0ee0e000" : : : );
+}
+
 static void rng_sigill(void)
 {
 	asm volatile("mrs x0, S3_3_C2_C4_0" : : : "x0");
+}
+
+static void sha1_sigill(void)
+{
+	/* SHA1H S0, S0 */
+	asm volatile(".inst 0x5e280800" : : : );
+}
+
+static void sha2_sigill(void)
+{
+	/* SHA256H Q0, Q0, V0.4S */
+	asm volatile(".inst 0x5e004000" : : : );
+}
+
+static void sha512_sigill(void)
+{
+	/* SHA512H Q0, Q0, V0.2D */
+	asm volatile(".inst 0xce608000" : : : );
 }
 
 static void sme_sigill(void)
@@ -208,14 +274,45 @@ static void svebf16_sigill(void)
 	asm volatile(".inst 0x658aa000" : : : "z0");
 }
 
+static void hbc_sigill(void)
+{
+	/* BC.EQ +4 */
+	asm volatile("cmp xzr, xzr\n"
+		     ".inst 0x54000030" : : : "cc");
+}
+
+static void uscat_sigbus(void)
+{
+	/* unaligned atomic access */
+	asm volatile("ADD x1, sp, #2" : : : );
+	/* STADD W0, [X1] */
+	asm volatile(".inst 0xb820003f" : : : );
+}
+
 static const struct hwcap_data {
 	const char *name;
 	unsigned long at_hwcap;
 	unsigned long hwcap_bit;
 	const char *cpuinfo;
-	sigill_fn sigill_fn;
+	sig_fn sigill_fn;
 	bool sigill_reliable;
+	sig_fn sigbus_fn;
+	bool sigbus_reliable;
 } hwcaps[] = {
+	{
+		.name = "AES",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_AES,
+		.cpuinfo = "aes",
+		.sigill_fn = aes_sigill,
+	},
+	{
+		.name = "CRC32",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_CRC32,
+		.cpuinfo = "crc32",
+		.sigill_fn = crc32_sigill,
+	},
 	{
 		.name = "CSSC",
 		.at_hwcap = AT_HWCAP2,
@@ -224,12 +321,63 @@ static const struct hwcap_data {
 		.sigill_fn = cssc_sigill,
 	},
 	{
+		.name = "FP",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_FP,
+		.cpuinfo = "fp",
+		.sigill_fn = fp_sigill,
+	},
+	{
+		.name = "JSCVT",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_JSCVT,
+		.cpuinfo = "jscvt",
+		.sigill_fn = jscvt_sigill,
+	},
+	{
+		.name = "LRCPC",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_LRCPC,
+		.cpuinfo = "lrcpc",
+		.sigill_fn = lrcpc_sigill,
+	},
+	{
+		.name = "LRCPC2",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_ILRCPC,
+		.cpuinfo = "ilrcpc",
+		.sigill_fn = ilrcpc_sigill,
+	},
+	{
+		.name = "LSE",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_ATOMICS,
+		.cpuinfo = "atomics",
+		.sigill_fn = atomics_sigill,
+	},
+	{
+		.name = "LSE2",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_USCAT,
+		.cpuinfo = "uscat",
+		.sigill_fn = atomics_sigill,
+		.sigbus_fn = uscat_sigbus,
+		.sigbus_reliable = true,
+	},
+	{
 		.name = "MOPS",
 		.at_hwcap = AT_HWCAP2,
 		.hwcap_bit = HWCAP2_MOPS,
 		.cpuinfo = "mops",
 		.sigill_fn = mops_sigill,
 		.sigill_reliable = true,
+	},
+	{
+		.name = "PMULL",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_PMULL,
+		.cpuinfo = "pmull",
+		.sigill_fn = pmull_sigill,
 	},
 	{
 		.name = "RNG",
@@ -243,6 +391,27 @@ static const struct hwcap_data {
 		.at_hwcap = AT_HWCAP2,
 		.hwcap_bit = HWCAP2_RPRFM,
 		.cpuinfo = "rprfm",
+	},
+	{
+		.name = "SHA1",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_SHA1,
+		.cpuinfo = "sha1",
+		.sigill_fn = sha1_sigill,
+	},
+	{
+		.name = "SHA2",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_SHA2,
+		.cpuinfo = "sha2",
+		.sigill_fn = sha2_sigill,
+	},
+	{
+		.name = "SHA512",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_SHA512,
+		.cpuinfo = "sha512",
+		.sigill_fn = sha512_sigill,
 	},
 	{
 		.name = "SME",
@@ -386,19 +555,31 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_SVE_EBF16,
 		.cpuinfo = "sveebf16",
 	},
+	{
+		.name = "HBC",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_HBC,
+		.cpuinfo = "hbc",
+		.sigill_fn = hbc_sigill,
+		.sigill_reliable = true,
+	},
 };
 
-static bool seen_sigill;
+typedef void (*sighandler_fn)(int, siginfo_t *, void *);
 
-static void handle_sigill(int sig, siginfo_t *info, void *context)
-{
-	ucontext_t *uc = context;
-
-	seen_sigill = true;
-
-	/* Skip over the offending instruction */
-	uc->uc_mcontext.pc += 4;
+#define DEF_SIGHANDLER_FUNC(SIG, NUM)					\
+static bool seen_##SIG;							\
+static void handle_##SIG(int sig, siginfo_t *info, void *context)	\
+{									\
+	ucontext_t *uc = context;					\
+									\
+	seen_##SIG = true;						\
+	/* Skip over the offending instruction */			\
+	uc->uc_mcontext.pc += 4;					\
 }
+
+DEF_SIGHANDLER_FUNC(sigill, SIGILL);
+DEF_SIGHANDLER_FUNC(sigbus, SIGBUS);
 
 bool cpuinfo_present(const char *name)
 {
@@ -442,24 +623,77 @@ bool cpuinfo_present(const char *name)
 	return false;
 }
 
+static int install_sigaction(int signum, sighandler_fn handler)
+{
+	int ret;
+	struct sigaction sa;
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_sigaction = handler;
+	sa.sa_flags = SA_RESTART | SA_SIGINFO;
+	sigemptyset(&sa.sa_mask);
+	ret = sigaction(signum, &sa, NULL);
+	if (ret < 0)
+		ksft_exit_fail_msg("Failed to install SIGNAL handler: %s (%d)\n",
+				   strerror(errno), errno);
+
+	return ret;
+}
+
+static void uninstall_sigaction(int signum)
+{
+	if (sigaction(signum, NULL, NULL) < 0)
+		ksft_exit_fail_msg("Failed to uninstall SIGNAL handler: %s (%d)\n",
+				   strerror(errno), errno);
+}
+
+#define DEF_INST_RAISE_SIG(SIG, NUM)					\
+static bool inst_raise_##SIG(const struct hwcap_data *hwcap,		\
+				bool have_hwcap)			\
+{									\
+	if (!hwcap->SIG##_fn) {						\
+		ksft_test_result_skip(#SIG"_%s\n", hwcap->name);	\
+		/* assume that it would raise exception in default */	\
+		return true;						\
+	}								\
+									\
+	install_sigaction(NUM, handle_##SIG);				\
+									\
+	seen_##SIG = false;						\
+	hwcap->SIG##_fn();						\
+									\
+	if (have_hwcap) {						\
+		/* Should be able to use the extension */		\
+		ksft_test_result(!seen_##SIG,				\
+				#SIG"_%s\n", hwcap->name);		\
+	} else if (hwcap->SIG##_reliable) {				\
+		/* Guaranteed a SIGNAL */				\
+		ksft_test_result(seen_##SIG,				\
+				#SIG"_%s\n", hwcap->name);		\
+	} else {							\
+		/* Missing SIGNAL might be fine */			\
+		ksft_print_msg(#SIG"_%sreported for %s\n",		\
+				seen_##SIG ? "" : "not ",		\
+				hwcap->name);				\
+		ksft_test_result_skip(#SIG"_%s\n",			\
+					hwcap->name);			\
+	}								\
+									\
+	uninstall_sigaction(NUM);					\
+	return seen_##SIG;						\
+}
+
+DEF_INST_RAISE_SIG(sigill, SIGILL);
+DEF_INST_RAISE_SIG(sigbus, SIGBUS);
+
 int main(void)
 {
+	int i;
 	const struct hwcap_data *hwcap;
-	int i, ret;
-	bool have_cpuinfo, have_hwcap;
-	struct sigaction sa;
+	bool have_cpuinfo, have_hwcap, raise_sigill;
 
 	ksft_print_header();
 	ksft_set_plan(ARRAY_SIZE(hwcaps) * TESTS_PER_HWCAP);
-
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_sigaction = handle_sigill;
-	sa.sa_flags = SA_RESTART | SA_SIGINFO;
-	sigemptyset(&sa.sa_mask);
-	ret = sigaction(SIGILL, &sa, NULL);
-	if (ret < 0)
-		ksft_exit_fail_msg("Failed to install SIGILL handler: %s (%d)\n",
-				   strerror(errno), errno);
 
 	for (i = 0; i < ARRAY_SIZE(hwcaps); i++) {
 		hwcap = &hwcaps[i];
@@ -473,30 +707,15 @@ int main(void)
 		ksft_test_result(have_hwcap == have_cpuinfo,
 				 "cpuinfo_match_%s\n", hwcap->name);
 
-		if (hwcap->sigill_fn) {
-			seen_sigill = false;
-			hwcap->sigill_fn();
-
-			if (have_hwcap) {
-				/* Should be able to use the extension */
-				ksft_test_result(!seen_sigill, "sigill_%s\n",
-						 hwcap->name);
-			} else if (hwcap->sigill_reliable) {
-				/* Guaranteed a SIGILL */
-				ksft_test_result(seen_sigill, "sigill_%s\n",
-						 hwcap->name);
-			} else {
-				/* Missing SIGILL might be fine */
-				ksft_print_msg("SIGILL %sreported for %s\n",
-					       seen_sigill ? "" : "not ",
-					       hwcap->name);
-				ksft_test_result_skip("sigill_%s\n",
-						      hwcap->name);
-			}
-		} else {
-			ksft_test_result_skip("sigill_%s\n",
-					      hwcap->name);
-		}
+		/*
+		 * Testing for SIGBUS only makes sense after make sure
+		 * that the instruction does not cause a SIGILL signal.
+		 */
+		raise_sigill = inst_raise_sigill(hwcap, have_hwcap);
+		if (!raise_sigill)
+			inst_raise_sigbus(hwcap, have_hwcap);
+		else
+			ksft_test_result_skip("sigbus_%s\n", hwcap->name);
 	}
 
 	ksft_print_cnts();

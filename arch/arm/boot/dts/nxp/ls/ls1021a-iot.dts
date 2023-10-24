@@ -62,19 +62,19 @@
 	};
 };
 
-&can0{
+&can0 {
 	status = "disabled";
 };
 
-&can1{
+&can1 {
 	status = "disabled";
 };
 
-&can2{
+&can2 {
 	status = "disabled";
 };
 
-&can3{
+&can3 {
 	status = "okay";
 };
 
@@ -125,7 +125,7 @@
 	status = "okay";
 };
 
-&esdhc{
+&esdhc {
 	status = "okay";
 };
 

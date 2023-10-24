@@ -55,11 +55,6 @@ static struct irq_ops arch_timer_irq_ops = {
 	.get_input_level = kvm_arch_timer_get_input_level,
 };
 
-static bool has_cntpoff(void)
-{
-	return (has_vhe() && cpus_have_final_cap(ARM64_HAS_ECV_CNTPOFF));
-}
-
 static int nr_timers(struct kvm_vcpu *vcpu)
 {
 	if (!vcpu_has_nv(vcpu))
@@ -180,7 +175,7 @@ u64 kvm_phys_timer_read(void)
 	return timecounter->cc->read(timecounter->cc);
 }
 
-static void get_timer_map(struct kvm_vcpu *vcpu, struct timer_map *map)
+void get_timer_map(struct kvm_vcpu *vcpu, struct timer_map *map)
 {
 	if (vcpu_has_nv(vcpu)) {
 		if (is_hyp_ctxt(vcpu)) {
@@ -548,8 +543,7 @@ static void timer_save_state(struct arch_timer_context *ctx)
 		timer_set_ctl(ctx, read_sysreg_el0(SYS_CNTP_CTL));
 		cval = read_sysreg_el0(SYS_CNTP_CVAL);
 
-		if (!has_cntpoff())
-			cval -= timer_get_offset(ctx);
+		cval -= timer_get_offset(ctx);
 
 		timer_set_cval(ctx, cval);
 
@@ -636,8 +630,7 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 		cval = timer_get_cval(ctx);
 		offset = timer_get_offset(ctx);
 		set_cntpoff(offset);
-		if (!has_cntpoff())
-			cval += offset;
+		cval += offset;
 		write_sysreg_el0(cval, SYS_CNTP_CVAL);
 		isb();
 		write_sysreg_el0(timer_get_ctl(ctx), SYS_CNTP_CTL);
@@ -827,8 +820,8 @@ static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 	assign_clear_set_bit(tpt, CNTHCTL_EL1PCEN << 10, set, clr);
 	assign_clear_set_bit(tpc, CNTHCTL_EL1PCTEN << 10, set, clr);
 
-	/* This only happens on VHE, so use the CNTKCTL_EL1 accessor */
-	sysreg_clear_set(cntkctl_el1, clr, set);
+	/* This only happens on VHE, so use the CNTHCTL_EL2 accessor. */
+	sysreg_clear_set(cnthctl_el2, clr, set);
 }
 
 void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
@@ -1563,7 +1556,7 @@ no_vgic:
 void kvm_timer_init_vhe(void)
 {
 	if (cpus_have_final_cap(ARM64_HAS_ECV_CNTPOFF))
-		sysreg_clear_set(cntkctl_el1, 0, CNTHCTL_ECV);
+		sysreg_clear_set(cnthctl_el2, 0, CNTHCTL_ECV);
 }
 
 int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)

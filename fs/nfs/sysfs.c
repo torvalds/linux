@@ -345,8 +345,10 @@ void nfs_sysfs_move_sb_to_server(struct nfs_server *server)
 	int ret = -ENOMEM;
 
 	s = kasprintf(GFP_KERNEL, "server-%d", server->s_sysfs_id);
-	if (s)
+	if (s) {
 		ret = kobject_rename(&server->kobj, s);
+		kfree(s);
+	}
 	if (ret < 0)
 		pr_warn("NFS: rename sysfs %s failed (%d)\n",
 					server->kobj.name, ret);

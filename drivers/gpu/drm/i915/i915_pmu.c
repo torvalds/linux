@@ -696,12 +696,11 @@ static void i915_pmu_event_read(struct perf_event *event)
 		event->hw.state = PERF_HES_STOPPED;
 		return;
 	}
-again:
-	prev = local64_read(&hwc->prev_count);
-	new = __i915_pmu_event_read(event);
 
-	if (local64_cmpxchg(&hwc->prev_count, prev, new) != prev)
-		goto again;
+	prev = local64_read(&hwc->prev_count);
+	do {
+		new = __i915_pmu_event_read(event);
+	} while (!local64_try_cmpxchg(&hwc->prev_count, &prev, new));
 
 	local64_add(new - prev, &event->count);
 }

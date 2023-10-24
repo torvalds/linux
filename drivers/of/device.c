@@ -32,25 +32,6 @@ const struct of_device_id *of_match_device(const struct of_device_id *matches,
 }
 EXPORT_SYMBOL(of_match_device);
 
-int of_device_add(struct platform_device *ofdev)
-{
-	BUG_ON(ofdev->dev.of_node == NULL);
-
-	/* name and id have to be set so that the platform bus doesn't get
-	 * confused on matching */
-	ofdev->name = dev_name(&ofdev->dev);
-	ofdev->id = PLATFORM_DEVID_NONE;
-
-	/*
-	 * If this device has not binding numa node in devicetree, that is
-	 * of_node_to_nid returns NUMA_NO_NODE. device_add will assume that this
-	 * device is on the same node as the parent.
-	 */
-	set_dev_node(&ofdev->dev, of_node_to_nid(ofdev->dev.of_node));
-
-	return device_add(&ofdev->dev);
-}
-
 static void
 of_dma_set_restricted_buffer(struct device *dev, struct device_node *np)
 {
@@ -220,19 +201,6 @@ int of_dma_configure_id(struct device *dev, struct device_node *np,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_dma_configure_id);
-
-int of_device_register(struct platform_device *pdev)
-{
-	device_initialize(&pdev->dev);
-	return of_device_add(pdev);
-}
-EXPORT_SYMBOL(of_device_register);
-
-void of_device_unregister(struct platform_device *ofdev)
-{
-	device_unregister(&ofdev->dev);
-}
-EXPORT_SYMBOL(of_device_unregister);
 
 const void *of_device_get_match_data(const struct device *dev)
 {

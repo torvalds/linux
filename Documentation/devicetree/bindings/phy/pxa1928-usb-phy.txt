@@ -4,7 +4,7 @@ Required properties:
 - compatible: "marvell,pxa1928-usb-phy" or "marvell,pxa1928-hsic-phy"
 - reg: base address and length of the registers
 - clocks - A single clock. From common clock binding.
-- #phys-cells: should be 0. From commmon phy binding.
+- #phys-cells: should be 0. From common phy binding.
 - resets: reference to the reset controller
 
 Example:

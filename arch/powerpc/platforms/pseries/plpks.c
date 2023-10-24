@@ -194,7 +194,7 @@ static struct plpks_auth *construct_auth(u8 consumer)
 	return auth;
 }
 
-/**
+/*
  * Label is combination of label attributes + name.
  * Label attributes are used internally by kernel and not exposed to the user.
  */

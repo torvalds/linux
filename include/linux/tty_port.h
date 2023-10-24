@@ -39,9 +39,10 @@ struct tty_port_operations {
 };
 
 struct tty_port_client_operations {
-	int (*receive_buf)(struct tty_port *port, const unsigned char *, const unsigned char *, size_t);
-	void (*lookahead_buf)(struct tty_port *port, const unsigned char *cp,
-			      const unsigned char *fp, unsigned int count);
+	size_t (*receive_buf)(struct tty_port *port, const u8 *cp, const u8 *fp,
+			      size_t count);
+	void (*lookahead_buf)(struct tty_port *port, const u8 *cp,
+			      const u8 *fp, size_t count);
 	void (*write_wakeup)(struct tty_port *port);
 };
 

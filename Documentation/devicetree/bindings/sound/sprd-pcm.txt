@@ -1,4 +1,4 @@
-* Spreadtrum DMA platfrom bindings
+* Spreadtrum DMA platform bindings
 
 Required properties:
 - compatible: Should be "sprd,pcm-platform".

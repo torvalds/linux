@@ -15805,6 +15805,11 @@
 #define mmDME6_DME_MEMORY_CONTROL                                                                      0x093d
 #define mmDME6_DME_MEMORY_CONTROL_BASE_IDX                                                             3
 
+// addressBlock: dce_dc_hpo_hpo_top_dispdec
+// base address: 0x0
+#define mmHPO_TOP_CLOCK_CONTROL                                                                        0x0e43
+#define mmHPO_TOP_CLOCK_CONTROL_BASE_IDX                                                               3
+
 // base address: 0x1a698
 #define mmDC_PERFMON29_PERFCOUNTER_CNTL                                                                0x0e66
 #define mmDC_PERFMON29_PERFCOUNTER_CNTL_BASE_IDX                                                       3

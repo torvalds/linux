@@ -211,7 +211,7 @@ static int ext2_link (struct dentry * old_dentry, struct inode * dir,
 	if (err)
 		return err;
 
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	inode_inc_link_count(inode);
 	ihold(inode);
 
@@ -291,7 +291,7 @@ static int ext2_unlink(struct inode *dir, struct dentry *dentry)
 	if (err)
 		goto out;
 
-	inode->i_ctime = dir->i_ctime;
+	inode_set_ctime_to_ts(inode, inode_get_ctime(dir));
 	inode_dec_link_count(inode);
 	err = 0;
 out:
@@ -367,7 +367,7 @@ static int ext2_rename (struct mnt_idmap * idmap,
 		ext2_put_page(new_page, new_de);
 		if (err)
 			goto out_dir;
-		new_inode->i_ctime = current_time(new_inode);
+		inode_set_ctime_current(new_inode);
 		if (dir_de)
 			drop_nlink(new_inode);
 		inode_dec_link_count(new_inode);
@@ -383,7 +383,7 @@ static int ext2_rename (struct mnt_idmap * idmap,
 	 * Like most other Unix systems, set the ctime for inodes on a
  	 * rename.
 	 */
-	old_inode->i_ctime = current_time(old_inode);
+	inode_set_ctime_current(old_inode);
 	mark_inode_dirty(old_inode);
 
 	err = ext2_delete_entry(old_de, old_page);

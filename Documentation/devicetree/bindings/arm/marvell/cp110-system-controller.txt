@@ -21,13 +21,13 @@ The Device Tree node representing this System Controller 0 provides a
 number of clocks:
 
  - a set of core clocks
- - a set of gatable clocks
+ - a set of gateable clocks
 
 Those clocks can be referenced by other Device Tree nodes using two
 cells:
  - The first cell must be 0 or 1. 0 for the core clocks and 1 for the
-   gatable clocks.
- - The second cell identifies the particular core clock or gatable
+   gateable clocks.
+ - The second cell identifies the particular core clock or gateable
    clocks.
 
 The following clocks are available:
@@ -38,7 +38,7 @@ The following clocks are available:
    - 0 3	Core
    - 0 4	NAND core
    - 0 5	SDIO core
- - Gatable clocks
+ - Gateable clocks
    - 1 0	Audio
    - 1 1	Comm Unit
    - 1 2	NAND

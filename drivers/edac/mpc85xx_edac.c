@@ -22,8 +22,7 @@
 #include <linux/gfp.h>
 #include <linux/fsl/edac.h>
 
-#include <linux/of_platform.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include "edac_module.h"

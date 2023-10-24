@@ -133,7 +133,6 @@ int start_crypto(void);
 int stop_crypto(void);
 int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 			const struct pkt_gl *pgl);
-int chcr_uld_tx_handler(struct sk_buff *skb, struct net_device *dev);
 int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 		     int err);
 #endif /* __CHCR_CORE_H__ */

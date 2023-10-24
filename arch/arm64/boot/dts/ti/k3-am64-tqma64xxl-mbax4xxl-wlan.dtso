@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2022-2023 TQ-Systems GmbH <linux@ew.tq-group.com>, D-82229 Seefeld, Germany.
+ */
+
+/dts-v1/;
+/plugin/;
+
+&sdhci1 {
+	mmc-pwrseq = <&wifi_pwrseq>;
+	no-sd;
+	status = "okay";
+};
+
+&main_gpio0 {
+	line43-hog {
+		gpio-hog;
+		gpios = <43 0>;
+		line-name = "MMC1_CTRL";
+		output-high;
+	};
+};

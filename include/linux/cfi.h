@@ -19,11 +19,13 @@ static inline enum bug_trap_type report_cfi_failure_noaddr(struct pt_regs *regs,
 {
 	return report_cfi_failure(regs, addr, NULL, 0);
 }
+#endif /* CONFIG_CFI_CLANG */
 
 #ifdef CONFIG_ARCH_USES_CFI_TRAPS
 bool is_cfi_trap(unsigned long addr);
+#else
+static inline bool is_cfi_trap(unsigned long addr) { return false; }
 #endif
-#endif /* CONFIG_CFI_CLANG */
 
 #ifdef CONFIG_MODULES
 #ifdef CONFIG_ARCH_USES_CFI_TRAPS

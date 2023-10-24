@@ -59,25 +59,6 @@
 #define NGBE_EEPROM_VERSION_L			0x1D
 #define NGBE_EEPROM_VERSION_H			0x1E
 
-/* mdio access */
-#define NGBE_MSCA				0x11200
-#define NGBE_MSCA_RA(v)				FIELD_PREP(U16_MAX, v)
-#define NGBE_MSCA_PA(v)				FIELD_PREP(GENMASK(20, 16), v)
-#define NGBE_MSCA_DA(v)				FIELD_PREP(GENMASK(25, 21), v)
-#define NGBE_MSCC				0x11204
-#define NGBE_MSCC_CMD(v)			FIELD_PREP(GENMASK(17, 16), v)
-
-enum NGBE_MSCA_CMD_value {
-	NGBE_MSCA_CMD_RSV = 0,
-	NGBE_MSCA_CMD_WRITE,
-	NGBE_MSCA_CMD_POST_READ,
-	NGBE_MSCA_CMD_READ,
-};
-
-#define NGBE_MSCC_SADDR				BIT(18)
-#define NGBE_MSCC_BUSY				BIT(22)
-#define NGBE_MDIO_CLK(v)			FIELD_PREP(GENMASK(21, 19), v)
-
 /* Media-dependent registers. */
 #define NGBE_MDIO_CLAUSE_SELECT			0x11220
 

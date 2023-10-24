@@ -131,7 +131,7 @@ int vega20_fan_ctrl_get_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 
 	tmp64 = (uint64_t)duty * 255;
 	do_div(tmp64, duty100);
-	*speed = MIN((uint32_t)tmp64, 255);
+	*speed = min_t(uint32_t, tmp64, 255);
 
 	return 0;
 }
@@ -144,7 +144,7 @@ int vega20_fan_ctrl_set_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 	uint32_t duty;
 	uint64_t tmp64;
 
-	speed = MIN(speed, 255);
+	speed = min_t(uint32_t, speed, 255);
 
 	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 		vega20_fan_ctrl_stop_smc_fan_control(hwmgr);

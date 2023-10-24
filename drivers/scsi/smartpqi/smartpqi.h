@@ -710,7 +710,7 @@ typedef u32 pqi_index_t;
 #define SOP_TMF_COMPLETE		0x0
 #define SOP_TMF_REJECTED		0x4
 #define SOP_TMF_FUNCTION_SUCCEEDED	0x8
-#define SOP_RC_INCORRECT_LOGICAL_UNIT	0x9
+#define SOP_TMF_INCORRECT_LOGICAL_UNIT	0x9
 
 /* additional CDB bytes usage field codes */
 #define SOP_ADDITIONAL_CDB_BYTES_0	0	/* 16-byte CDB */
@@ -1085,7 +1085,16 @@ struct pqi_stream_data {
 	u32	last_accessed;
 };
 
-#define PQI_MAX_LUNS_PER_DEVICE         256
+#define PQI_MAX_LUNS_PER_DEVICE		256
+
+struct pqi_tmf_work {
+	struct work_struct work_struct;
+	struct scsi_cmnd *scmd;
+	struct pqi_ctrl_info *ctrl_info;
+	struct pqi_scsi_dev *device;
+	u8	lun;
+	u8	scsi_opcode;
+};
 
 struct pqi_scsi_dev {
 	int	devtype;		/* as reported by INQUIRY command */
@@ -1111,6 +1120,7 @@ struct pqi_scsi_dev {
 	u8	erase_in_progress : 1;
 	bool	aio_enabled;		/* only valid for physical disks */
 	bool	in_remove;
+	bool	in_reset[PQI_MAX_LUNS_PER_DEVICE];
 	bool	device_offline;
 	u8	vendor[8];		/* bytes 8-15 of inquiry data */
 	u8	model[16];		/* bytes 16-31 of inquiry data */
@@ -1149,6 +1159,8 @@ struct pqi_scsi_dev {
 	struct pqi_stream_data stream_data[NUM_STREAMS_PER_LUN];
 	atomic_t scsi_cmds_outstanding[PQI_MAX_LUNS_PER_DEVICE];
 	unsigned int raid_bypass_cnt;
+
+	struct pqi_tmf_work tmf_work[PQI_MAX_LUNS_PER_DEVICE];
 };
 
 /* VPD inquiry pages */

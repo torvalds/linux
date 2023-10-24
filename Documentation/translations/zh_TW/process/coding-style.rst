@@ -15,7 +15,7 @@
                  管旭東 Xudong Guan <xudong.guan@gmail.com>
                  Li Zefan <lizf@cn.fujitsu.com>
                  Wang Chen <wangchen@cn.fujitsu.com>
-                 Hu Haowen <src.res@email.cn>
+                 Hu Haowen <src.res.211@gmail.com>
 
 Linux 內核代碼風格
 =========================

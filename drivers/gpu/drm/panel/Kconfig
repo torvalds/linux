@@ -244,6 +244,17 @@ config DRM_PANEL_JDI_LT070ME05000
 	  The panel has a 1200(RGB)×1920 (WUXGA) resolution and uses
 	  24 bit per pixel.
 
+config DRM_PANEL_JDI_LPM102A188A
+	tristate "JDI LPM102A188A DSI panel"
+	depends on OF && GPIOLIB
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for JDI LPM102A188A DSI
+	  command mode panel as found in Google Pixel C devices.
+	  The panel has a 2560×1800 resolution. It provides a MIPI DSI interface
+	  to the host.
+
 config DRM_PANEL_JDI_R63452
 	tristate "JDI R63452 Full HD DSI panel"
 	depends on OF
@@ -504,6 +515,15 @@ config DRM_PANEL_RAYDIUM_RM68200
 	help
 	  Say Y here if you want to enable support for Raydium RM68200
 	  720x1280 DSI video mode panel.
+
+config DRM_PANEL_RAYDIUM_RM692E5
+	tristate "Raydium RM692E5-based DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Raydium RM692E5-based
+	  display panels, such as the one found in the Fairphone 5 smartphone.
 
 config DRM_PANEL_RONBO_RB070D30
 	tristate "Ronbo Electronics RB070D30 panel"

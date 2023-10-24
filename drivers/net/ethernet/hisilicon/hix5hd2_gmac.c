@@ -1206,9 +1206,8 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 	}
 
 	ndev->irq = platform_get_irq(pdev, 0);
-	if (ndev->irq <= 0) {
-		netdev_err(ndev, "No irq resource\n");
-		ret = -EINVAL;
+	if (ndev->irq < 0) {
+		ret = ndev->irq;
 		goto out_phy_node;
 	}
 

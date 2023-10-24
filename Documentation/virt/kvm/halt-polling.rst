@@ -14,7 +14,7 @@ before giving up the cpu to the scheduler in order to let something else run.
 Polling provides a latency advantage in cases where the guest can be run again
 very quickly by at least saving us a trip through the scheduler, normally on
 the order of a few micro-seconds, although performance benefits are workload
-dependant. In the event that no wakeup source arrives during the polling
+dependent. In the event that no wakeup source arrives during the polling
 interval or some other task on the runqueue is runnable the scheduler is
 invoked. Thus halt polling is especially useful on workloads with very short
 wakeup periods where the time spent halt polling is minimised and the time

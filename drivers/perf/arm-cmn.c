@@ -72,6 +72,8 @@
 /* For most nodes, this is all there is */
 #define CMN_PMU_EVENT_SEL		0x000
 #define CMN__PMU_CBUSY_SNTHROTTLE_SEL	GENMASK_ULL(44, 42)
+#define CMN__PMU_SN_HOME_SEL		GENMASK_ULL(40, 39)
+#define CMN__PMU_HBT_LBT_SEL		GENMASK_ULL(38, 37)
 #define CMN__PMU_CLASS_OCCUP_ID		GENMASK_ULL(36, 35)
 /* Technically this is 4 bits wide on DNs, but we only use 2 there anyway */
 #define CMN__PMU_OCCUP1_ID		GENMASK_ULL(34, 32)
@@ -226,6 +228,7 @@ enum cmn_revision {
 	REV_CMN700_R0P0 = 0,
 	REV_CMN700_R1P0,
 	REV_CMN700_R2P0,
+	REV_CMN700_R3P0,
 	REV_CI700_R0P0 = 0,
 	REV_CI700_R1P0,
 	REV_CI700_R2P0,
@@ -254,6 +257,9 @@ enum cmn_node_type {
 	CMN_TYPE_CCHA,
 	CMN_TYPE_CCLA,
 	CMN_TYPE_CCLA_RNI,
+	CMN_TYPE_HNS = 0x200,
+	CMN_TYPE_HNS_MPAM_S,
+	CMN_TYPE_HNS_MPAM_NS,
 	/* Not a real node type */
 	CMN_TYPE_WP = 0x7770
 };
@@ -263,6 +269,8 @@ enum cmn_filter_select {
 	SEL_OCCUP1ID,
 	SEL_CLASS_OCCUP_ID,
 	SEL_CBUSY_SNTHROTTLE_SEL,
+	SEL_HBT_LBT_SEL,
+	SEL_SN_HOME_SEL,
 	SEL_MAX
 };
 
@@ -742,8 +750,8 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 	_CMN_EVENT_ATTR(_model, dn_##_name, CMN_TYPE_DVM, _event, _occup, _fsel)
 #define CMN_EVENT_DTC(_name)					\
 	CMN_EVENT_ATTR(CMN_ANY, dtc_##_name, CMN_TYPE_DTC, 0)
-#define _CMN_EVENT_HNF(_model, _name, _event, _occup, _fsel)		\
-	_CMN_EVENT_ATTR(_model, hnf_##_name, CMN_TYPE_HNF, _event, _occup, _fsel)
+#define CMN_EVENT_HNF(_model, _name, _event)			\
+	CMN_EVENT_ATTR(_model, hnf_##_name, CMN_TYPE_HNF, _event)
 #define CMN_EVENT_HNI(_name, _event)				\
 	CMN_EVENT_ATTR(CMN_ANY, hni_##_name, CMN_TYPE_HNI, _event)
 #define CMN_EVENT_HNP(_name, _event)				\
@@ -768,6 +776,8 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 	CMN_EVENT_ATTR(CMN_ANY, ccla_##_name, CMN_TYPE_CCLA, _event)
 #define CMN_EVENT_CCLA_RNI(_name, _event)				\
 	CMN_EVENT_ATTR(CMN_ANY, ccla_rni_##_name, CMN_TYPE_CCLA_RNI, _event)
+#define CMN_EVENT_HNS(_name, _event)				\
+	CMN_EVENT_ATTR(CMN_ANY, hns_##_name, CMN_TYPE_HNS, _event)
 
 #define CMN_EVENT_DVM(_model, _name, _event)			\
 	_CMN_EVENT_DVM(_model, _name, _event, 0, SEL_NONE)
@@ -775,31 +785,67 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 	_CMN_EVENT_DVM(_model, _name##_all, _event, 0, SEL_OCCUP1ID),	\
 	_CMN_EVENT_DVM(_model, _name##_dvmop, _event, 1, SEL_OCCUP1ID),	\
 	_CMN_EVENT_DVM(_model, _name##_dvmsync, _event, 2, SEL_OCCUP1ID)
-#define CMN_EVENT_HNF(_model, _name, _event)			\
-	_CMN_EVENT_HNF(_model, _name, _event, 0, SEL_NONE)
-#define CMN_EVENT_HNF_CLS(_model, _name, _event)			\
-	_CMN_EVENT_HNF(_model, _name##_class0, _event, 0, SEL_CLASS_OCCUP_ID), \
-	_CMN_EVENT_HNF(_model, _name##_class1, _event, 1, SEL_CLASS_OCCUP_ID), \
-	_CMN_EVENT_HNF(_model, _name##_class2, _event, 2, SEL_CLASS_OCCUP_ID), \
-	_CMN_EVENT_HNF(_model, _name##_class3, _event, 3, SEL_CLASS_OCCUP_ID)
-#define CMN_EVENT_HNF_SNT(_model, _name, _event)			\
-	_CMN_EVENT_HNF(_model, _name##_all, _event, 0, SEL_CBUSY_SNTHROTTLE_SEL), \
-	_CMN_EVENT_HNF(_model, _name##_group0_read, _event, 1, SEL_CBUSY_SNTHROTTLE_SEL), \
-	_CMN_EVENT_HNF(_model, _name##_group0_write, _event, 2, SEL_CBUSY_SNTHROTTLE_SEL), \
-	_CMN_EVENT_HNF(_model, _name##_group1_read, _event, 3, SEL_CBUSY_SNTHROTTLE_SEL), \
-	_CMN_EVENT_HNF(_model, _name##_group1_write, _event, 4, SEL_CBUSY_SNTHROTTLE_SEL), \
-	_CMN_EVENT_HNF(_model, _name##_read, _event, 5, SEL_CBUSY_SNTHROTTLE_SEL), \
-	_CMN_EVENT_HNF(_model, _name##_write, _event, 6, SEL_CBUSY_SNTHROTTLE_SEL)
 
-#define _CMN_EVENT_XP(_name, _event)				\
+#define CMN_EVENT_HN_OCC(_model, _name, _type, _event)		\
+	_CMN_EVENT_ATTR(_model, _name##_all, _type, _event, 0, SEL_OCCUP1ID), \
+	_CMN_EVENT_ATTR(_model, _name##_read, _type, _event, 1, SEL_OCCUP1ID), \
+	_CMN_EVENT_ATTR(_model, _name##_write, _type, _event, 2, SEL_OCCUP1ID), \
+	_CMN_EVENT_ATTR(_model, _name##_atomic, _type, _event, 3, SEL_OCCUP1ID), \
+	_CMN_EVENT_ATTR(_model, _name##_stash, _type, _event, 4, SEL_OCCUP1ID)
+#define CMN_EVENT_HN_CLS(_model, _name, _type, _event)			\
+	_CMN_EVENT_ATTR(_model, _name##_class0, _type, _event, 0, SEL_CLASS_OCCUP_ID), \
+	_CMN_EVENT_ATTR(_model, _name##_class1, _type, _event, 1, SEL_CLASS_OCCUP_ID), \
+	_CMN_EVENT_ATTR(_model, _name##_class2, _type, _event, 2, SEL_CLASS_OCCUP_ID), \
+	_CMN_EVENT_ATTR(_model, _name##_class3, _type, _event, 3, SEL_CLASS_OCCUP_ID)
+#define CMN_EVENT_HN_SNT(_model, _name, _type, _event)			\
+	_CMN_EVENT_ATTR(_model, _name##_all, _type, _event, 0, SEL_CBUSY_SNTHROTTLE_SEL), \
+	_CMN_EVENT_ATTR(_model, _name##_group0_read, _type, _event, 1, SEL_CBUSY_SNTHROTTLE_SEL), \
+	_CMN_EVENT_ATTR(_model, _name##_group0_write, _type, _event, 2, SEL_CBUSY_SNTHROTTLE_SEL), \
+	_CMN_EVENT_ATTR(_model, _name##_group1_read, _type, _event, 3, SEL_CBUSY_SNTHROTTLE_SEL), \
+	_CMN_EVENT_ATTR(_model, _name##_group1_write, _type, _event, 4, SEL_CBUSY_SNTHROTTLE_SEL), \
+	_CMN_EVENT_ATTR(_model, _name##_read, _type, _event, 5, SEL_CBUSY_SNTHROTTLE_SEL), \
+	_CMN_EVENT_ATTR(_model, _name##_write, _type, _event, 6, SEL_CBUSY_SNTHROTTLE_SEL)
+
+#define CMN_EVENT_HNF_OCC(_model, _name, _event)			\
+	CMN_EVENT_HN_OCC(_model, hnf_##_name, CMN_TYPE_HNF, _event)
+#define CMN_EVENT_HNF_CLS(_model, _name, _event)			\
+	CMN_EVENT_HN_CLS(_model, hnf_##_name, CMN_TYPE_HNS, _event)
+#define CMN_EVENT_HNF_SNT(_model, _name, _event)			\
+	CMN_EVENT_HN_SNT(_model, hnf_##_name, CMN_TYPE_HNF, _event)
+
+#define CMN_EVENT_HNS_OCC(_name, _event)				\
+	CMN_EVENT_HN_OCC(CMN_ANY, hns_##_name, CMN_TYPE_HNS, _event),	\
+	_CMN_EVENT_ATTR(CMN_ANY, hns_##_name##_rxsnp, CMN_TYPE_HNS, _event, 5, SEL_OCCUP1ID), \
+	_CMN_EVENT_ATTR(CMN_ANY, hns_##_name##_lbt, CMN_TYPE_HNS, _event, 6, SEL_OCCUP1ID), \
+	_CMN_EVENT_ATTR(CMN_ANY, hns_##_name##_hbt, CMN_TYPE_HNS, _event, 7, SEL_OCCUP1ID)
+#define CMN_EVENT_HNS_CLS( _name, _event)				\
+	CMN_EVENT_HN_CLS(CMN_ANY, hns_##_name, CMN_TYPE_HNS, _event)
+#define CMN_EVENT_HNS_SNT(_name, _event)				\
+	CMN_EVENT_HN_SNT(CMN_ANY, hns_##_name, CMN_TYPE_HNS, _event)
+#define CMN_EVENT_HNS_HBT(_name, _event)				\
+	_CMN_EVENT_ATTR(CMN_ANY, hns_##_name##_all, CMN_TYPE_HNS, _event, 0, SEL_HBT_LBT_SEL), \
+	_CMN_EVENT_ATTR(CMN_ANY, hns_##_name##_hbt, CMN_TYPE_HNS, _event, 1, SEL_HBT_LBT_SEL), \
+	_CMN_EVENT_ATTR(CMN_ANY, hns_##_name##_lbt, CMN_TYPE_HNS, _event, 2, SEL_HBT_LBT_SEL)
+#define CMN_EVENT_HNS_SNH(_name, _event)				\
+	_CMN_EVENT_ATTR(CMN_ANY, hns_##_name##_all, CMN_TYPE_HNS, _event, 0, SEL_SN_HOME_SEL), \
+	_CMN_EVENT_ATTR(CMN_ANY, hns_##_name##_sn, CMN_TYPE_HNS, _event, 1, SEL_SN_HOME_SEL), \
+	_CMN_EVENT_ATTR(CMN_ANY, hns_##_name##_home, CMN_TYPE_HNS, _event, 2, SEL_SN_HOME_SEL)
+
+#define _CMN_EVENT_XP_MESH(_name, _event)			\
 	__CMN_EVENT_XP(e_##_name, (_event) | (0 << 2)),		\
 	__CMN_EVENT_XP(w_##_name, (_event) | (1 << 2)),		\
 	__CMN_EVENT_XP(n_##_name, (_event) | (2 << 2)),		\
-	__CMN_EVENT_XP(s_##_name, (_event) | (3 << 2)),		\
+	__CMN_EVENT_XP(s_##_name, (_event) | (3 << 2))
+
+#define _CMN_EVENT_XP_PORT(_name, _event)			\
 	__CMN_EVENT_XP(p0_##_name, (_event) | (4 << 2)),	\
 	__CMN_EVENT_XP(p1_##_name, (_event) | (5 << 2)),	\
 	__CMN_EVENT_XP(p2_##_name, (_event) | (6 << 2)),	\
 	__CMN_EVENT_XP(p3_##_name, (_event) | (7 << 2))
+
+#define _CMN_EVENT_XP(_name, _event)				\
+	_CMN_EVENT_XP_MESH(_name, _event),			\
+	_CMN_EVENT_XP_PORT(_name, _event)
 
 /* Good thing there are only 3 fundamental XP events... */
 #define CMN_EVENT_XP(_name, _event)				\
@@ -812,6 +858,10 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 	_CMN_EVENT_XP(dat2_##_name, (_event) | (6 << 5)),	\
 	_CMN_EVENT_XP(snp2_##_name, (_event) | (7 << 5)),	\
 	_CMN_EVENT_XP(req2_##_name, (_event) | (8 << 5))
+
+#define CMN_EVENT_XP_DAT(_name, _event)				\
+	_CMN_EVENT_XP_PORT(dat_##_name, (_event) | (3 << 5)),	\
+	_CMN_EVENT_XP_PORT(dat2_##_name, (_event) | (6 << 5))
 
 
 static struct attribute *arm_cmn_event_attrs[] = {
@@ -862,11 +912,7 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_HNF(CMN_ANY, mc_retries,		0x0c),
 	CMN_EVENT_HNF(CMN_ANY, mc_reqs,			0x0d),
 	CMN_EVENT_HNF(CMN_ANY, qos_hh_retry,		0x0e),
-	_CMN_EVENT_HNF(CMN_ANY, qos_pocq_occupancy_all,	0x0f, 0, SEL_OCCUP1ID),
-	_CMN_EVENT_HNF(CMN_ANY, qos_pocq_occupancy_read, 0x0f, 1, SEL_OCCUP1ID),
-	_CMN_EVENT_HNF(CMN_ANY, qos_pocq_occupancy_write, 0x0f, 2, SEL_OCCUP1ID),
-	_CMN_EVENT_HNF(CMN_ANY, qos_pocq_occupancy_atomic, 0x0f, 3, SEL_OCCUP1ID),
-	_CMN_EVENT_HNF(CMN_ANY, qos_pocq_occupancy_stash, 0x0f, 4, SEL_OCCUP1ID),
+	CMN_EVENT_HNF_OCC(CMN_ANY, qos_pocq_occupancy,	0x0f),
 	CMN_EVENT_HNF(CMN_ANY, pocq_addrhaz,		0x10),
 	CMN_EVENT_HNF(CMN_ANY, pocq_atomic_addrhaz,	0x11),
 	CMN_EVENT_HNF(CMN_ANY, ld_st_swp_adq_full,	0x12),
@@ -943,7 +989,7 @@ static struct attribute *arm_cmn_event_attrs[] = {
 
 	CMN_EVENT_XP(txflit_valid,			0x01),
 	CMN_EVENT_XP(txflit_stall,			0x02),
-	CMN_EVENT_XP(partial_dat_flit,			0x03),
+	CMN_EVENT_XP_DAT(partial_dat_flit,		0x03),
 	/* We treat watchpoints as a special made-up class of XP events */
 	CMN_EVENT_ATTR(CMN_ANY, watchpoint_up, CMN_TYPE_WP, CMN_WP_UP),
 	CMN_EVENT_ATTR(CMN_ANY, watchpoint_down, CMN_TYPE_WP, CMN_WP_DOWN),
@@ -1131,6 +1177,66 @@ static struct attribute *arm_cmn_event_attrs[] = {
 	CMN_EVENT_CCLA(pfwd_sndr_num_flits,		0x29),
 	CMN_EVENT_CCLA(pfwd_sndr_stalls_static_crd,	0x2a),
 	CMN_EVENT_CCLA(pfwd_sndr_stalls_dynmaic_crd,	0x2b),
+
+	CMN_EVENT_HNS_HBT(cache_miss,			0x01),
+	CMN_EVENT_HNS_HBT(slc_sf_cache_access,		0x02),
+	CMN_EVENT_HNS_HBT(cache_fill,			0x03),
+	CMN_EVENT_HNS_HBT(pocq_retry,			0x04),
+	CMN_EVENT_HNS_HBT(pocq_reqs_recvd,		0x05),
+	CMN_EVENT_HNS_HBT(sf_hit,			0x06),
+	CMN_EVENT_HNS_HBT(sf_evictions,			0x07),
+	CMN_EVENT_HNS(dir_snoops_sent,			0x08),
+	CMN_EVENT_HNS(brd_snoops_sent,			0x09),
+	CMN_EVENT_HNS_HBT(slc_eviction,			0x0a),
+	CMN_EVENT_HNS_HBT(slc_fill_invalid_way,		0x0b),
+	CMN_EVENT_HNS(mc_retries_local,			0x0c),
+	CMN_EVENT_HNS_SNH(mc_reqs_local,		0x0d),
+	CMN_EVENT_HNS(qos_hh_retry,			0x0e),
+	CMN_EVENT_HNS_OCC(qos_pocq_occupancy,		0x0f),
+	CMN_EVENT_HNS(pocq_addrhaz,			0x10),
+	CMN_EVENT_HNS(pocq_atomic_addrhaz,		0x11),
+	CMN_EVENT_HNS(ld_st_swp_adq_full,		0x12),
+	CMN_EVENT_HNS(cmp_adq_full,			0x13),
+	CMN_EVENT_HNS(txdat_stall,			0x14),
+	CMN_EVENT_HNS(txrsp_stall,			0x15),
+	CMN_EVENT_HNS(seq_full,				0x16),
+	CMN_EVENT_HNS(seq_hit,				0x17),
+	CMN_EVENT_HNS(snp_sent,				0x18),
+	CMN_EVENT_HNS(sfbi_dir_snp_sent,		0x19),
+	CMN_EVENT_HNS(sfbi_brd_snp_sent,		0x1a),
+	CMN_EVENT_HNS(intv_dirty,			0x1c),
+	CMN_EVENT_HNS(stash_snp_sent,			0x1d),
+	CMN_EVENT_HNS(stash_data_pull,			0x1e),
+	CMN_EVENT_HNS(snp_fwded,			0x1f),
+	CMN_EVENT_HNS(atomic_fwd,			0x20),
+	CMN_EVENT_HNS(mpam_hardlim,			0x21),
+	CMN_EVENT_HNS(mpam_softlim,			0x22),
+	CMN_EVENT_HNS(snp_sent_cluster,			0x23),
+	CMN_EVENT_HNS(sf_imprecise_evict,		0x24),
+	CMN_EVENT_HNS(sf_evict_shared_line,		0x25),
+	CMN_EVENT_HNS_CLS(pocq_class_occup,		0x26),
+	CMN_EVENT_HNS_CLS(pocq_class_retry,		0x27),
+	CMN_EVENT_HNS_CLS(class_mc_reqs_local,		0x28),
+	CMN_EVENT_HNS_CLS(class_cgnt_cmin,		0x29),
+	CMN_EVENT_HNS_SNT(sn_throttle,			0x2a),
+	CMN_EVENT_HNS_SNT(sn_throttle_min,		0x2b),
+	CMN_EVENT_HNS(sf_precise_to_imprecise,		0x2c),
+	CMN_EVENT_HNS(snp_intv_cln,			0x2d),
+	CMN_EVENT_HNS(nc_excl,				0x2e),
+	CMN_EVENT_HNS(excl_mon_ovfl,			0x2f),
+	CMN_EVENT_HNS(snp_req_recvd,			0x30),
+	CMN_EVENT_HNS(snp_req_byp_pocq,			0x31),
+	CMN_EVENT_HNS(dir_ccgha_snp_sent,		0x32),
+	CMN_EVENT_HNS(brd_ccgha_snp_sent,		0x33),
+	CMN_EVENT_HNS(ccgha_snp_stall,			0x34),
+	CMN_EVENT_HNS(lbt_req_hardlim,			0x35),
+	CMN_EVENT_HNS(hbt_req_hardlim,			0x36),
+	CMN_EVENT_HNS(sf_reupdate,			0x37),
+	CMN_EVENT_HNS(excl_sf_imprecise,		0x38),
+	CMN_EVENT_HNS(snp_pocq_addrhaz,			0x39),
+	CMN_EVENT_HNS(mc_retries_remote,		0x3a),
+	CMN_EVENT_HNS_SNH(mc_reqs_remote,		0x3b),
+	CMN_EVENT_HNS_CLS(class_mc_reqs_remote,		0x3c),
 
 	NULL
 };
@@ -1373,6 +1479,10 @@ static int arm_cmn_set_event_sel_hi(struct arm_cmn_node *dn,
 		dn->occupid[fsel].val = occupid;
 		reg = FIELD_PREP(CMN__PMU_CBUSY_SNTHROTTLE_SEL,
 				 dn->occupid[SEL_CBUSY_SNTHROTTLE_SEL].val) |
+		      FIELD_PREP(CMN__PMU_SN_HOME_SEL,
+				 dn->occupid[SEL_SN_HOME_SEL].val) |
+		      FIELD_PREP(CMN__PMU_HBT_LBT_SEL,
+				 dn->occupid[SEL_HBT_LBT_SEL].val) |
 		      FIELD_PREP(CMN__PMU_CLASS_OCCUP_ID,
 				 dn->occupid[SEL_CLASS_OCCUP_ID].val) |
 		      FIELD_PREP(CMN__PMU_OCCUP1_ID,
@@ -1862,7 +1972,7 @@ static irqreturn_t arm_cmn_handle_irq(int irq, void *dev_id)
 		u64 delta;
 		int i;
 
-		for (i = 0; i < CMN_DTM_NUM_COUNTERS; i++) {
+		for (i = 0; i < CMN_DT_NUM_COUNTERS; i++) {
 			if (status & (1U << i)) {
 				ret = IRQ_HANDLED;
 				if (WARN_ON(!dtc->counters[i]))
@@ -2200,6 +2310,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 			case CMN_TYPE_CCRA:
 			case CMN_TYPE_CCHA:
 			case CMN_TYPE_CCLA:
+			case CMN_TYPE_HNS:
 				dn++;
 				break;
 			/* Nothing to see here */
@@ -2207,6 +2318,8 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 			case CMN_TYPE_MPAM_NS:
 			case CMN_TYPE_RNSAM:
 			case CMN_TYPE_CXLA:
+			case CMN_TYPE_HNS_MPAM_S:
+			case CMN_TYPE_HNS_MPAM_NS:
 				break;
 			/*
 			 * Split "optimised" combination nodes into separate

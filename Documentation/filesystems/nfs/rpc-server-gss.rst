@@ -29,7 +29,7 @@ The Linux kernel, at the moment, supports only the KRB5 mechanism, and
 depends on GSSAPI extensions that are KRB5 specific.
 
 GSSAPI is a complex library, and implementing it completely in kernel is
-unwarranted. However GSSAPI operations are fundementally separable in 2
+unwarranted. However GSSAPI operations are fundamentally separable in 2
 parts:
 
 - initial context establishment

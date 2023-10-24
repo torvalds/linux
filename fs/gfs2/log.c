@@ -1227,6 +1227,21 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	gfs2_log_unlock(sdp);
 }
 
+static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
+{
+	return atomic_read(&sdp->sd_log_pinned) +
+	       atomic_read(&sdp->sd_log_blks_needed) >=
+	       atomic_read(&sdp->sd_log_thresh1);
+}
+
+static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
+{
+	return sdp->sd_jdesc->jd_blocks -
+	       atomic_read(&sdp->sd_log_blks_free) +
+	       atomic_read(&sdp->sd_log_blks_needed) >=
+	       atomic_read(&sdp->sd_log_thresh2);
+}
+
 /**
  * gfs2_log_commit - Commit a transaction to the log
  * @sdp: the filesystem
@@ -1246,9 +1261,7 @@ void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	log_refund(sdp, tr);
 
-	if (atomic_read(&sdp->sd_log_pinned) > atomic_read(&sdp->sd_log_thresh1) ||
-	    ((sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free)) >
-	    atomic_read(&sdp->sd_log_thresh2)))
+	if (gfs2_ail_flush_reqd(sdp) || gfs2_jrnl_flush_reqd(sdp))
 		wake_up(&sdp->sd_logd_waitq);
 }
 
@@ -1271,24 +1284,6 @@ static void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 	gfs2_assert_warn(sdp, list_empty(&sdp->sd_ail2_list));
 }
 
-static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
-{
-	return (atomic_read(&sdp->sd_log_pinned) +
-		atomic_read(&sdp->sd_log_blks_needed) >=
-		atomic_read(&sdp->sd_log_thresh1));
-}
-
-static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
-{
-	unsigned int used_blocks = sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free);
-
-	if (test_and_clear_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags))
-		return 1;
-
-	return used_blocks + atomic_read(&sdp->sd_log_blks_needed) >=
-		atomic_read(&sdp->sd_log_thresh2);
-}
-
 /**
  * gfs2_logd - Update log tail as Active Items get flushed to in-place blocks
  * @data: Pointer to GFS2 superblock
@@ -1301,14 +1296,11 @@ int gfs2_logd(void *data)
 {
 	struct gfs2_sbd *sdp = data;
 	unsigned long t = 1;
-	DEFINE_WAIT(wait);
 
 	while (!kthread_should_stop()) {
+		if (gfs2_withdrawn(sdp))
+			break;
 
-		if (gfs2_withdrawn(sdp)) {
-			msleep_interruptible(HZ);
-			continue;
-		}
 		/* Check for errors writing to the journal */
 		if (sdp->sd_log_error) {
 			gfs2_lm(sdp,
@@ -1317,7 +1309,7 @@ int gfs2_logd(void *data)
 				"prevent further damage.\n",
 				sdp->sd_fsname, sdp->sd_log_error);
 			gfs2_withdraw(sdp);
-			continue;
+			break;
 		}
 
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {
@@ -1326,7 +1318,9 @@ int gfs2_logd(void *data)
 						  GFS2_LFC_LOGD_JFLUSH_REQD);
 		}
 
-		if (gfs2_ail_flush_reqd(sdp)) {
+		if (test_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags) ||
+		    gfs2_ail_flush_reqd(sdp)) {
+			clear_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags);
 			gfs2_ail1_start(sdp);
 			gfs2_ail1_wait(sdp);
 			gfs2_ail1_empty(sdp, 0);
@@ -1338,17 +1332,14 @@ int gfs2_logd(void *data)
 
 		try_to_freeze();
 
-		do {
-			prepare_to_wait(&sdp->sd_logd_waitq, &wait,
-					TASK_INTERRUPTIBLE);
-			if (!gfs2_ail_flush_reqd(sdp) &&
-			    !gfs2_jrnl_flush_reqd(sdp) &&
-			    !kthread_should_stop())
-				t = schedule_timeout(t);
-		} while(t && !gfs2_ail_flush_reqd(sdp) &&
-			!gfs2_jrnl_flush_reqd(sdp) &&
-			!kthread_should_stop());
-		finish_wait(&sdp->sd_logd_waitq, &wait);
+		t = wait_event_interruptible_timeout(sdp->sd_logd_waitq,
+				test_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags) ||
+				gfs2_ail_flush_reqd(sdp) ||
+				gfs2_jrnl_flush_reqd(sdp) ||
+				sdp->sd_log_error ||
+				gfs2_withdrawn(sdp) ||
+				kthread_should_stop(),
+				t);
 	}
 
 	return 0;

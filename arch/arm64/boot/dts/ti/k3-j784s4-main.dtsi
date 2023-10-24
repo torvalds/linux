@@ -60,7 +60,7 @@
 		#interrupt-cells = <1>;
 		ti,sci = <&sms>;
 		ti,sci-dev-id = <10>;
-		ti,interrupt-ranges = <8 360 56>;
+		ti,interrupt-ranges = <8 392 56>;
 	};
 
 	main_pmx0: pinctrl@11c000 {
@@ -618,7 +618,7 @@
 		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&k3_pds 140 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 140 1>, <&k3_clks 140 2>;
-		clock-names =  "clk_ahb", "clk_xin";
+		clock-names = "clk_ahb", "clk_xin";
 		assigned-clocks = <&k3_clks 140 2>;
 		assigned-clock-parents = <&k3_clks 140 3>;
 		bus-width = <8>;
@@ -646,7 +646,7 @@
 		interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&k3_pds 141 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 141 3>, <&k3_clks 141 4>;
-		clock-names =  "clk_ahb", "clk_xin";
+		clock-names = "clk_ahb", "clk_xin";
 		assigned-clocks = <&k3_clks 141 4>;
 		assigned-clock-parents = <&k3_clks 141 5>;
 		bus-width = <4>;
@@ -670,6 +670,7 @@
 	};
 
 	main_navss: bus@30000000 {
+		bootph-all;
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -705,6 +706,7 @@
 		};
 
 		secure_proxy_main: mailbox@32c00000 {
+			bootph-all;
 			compatible = "ti,am654-secure-proxy";
 			#mbox-cells = <1>;
 			reg-names = "target_data", "rt", "scfg";
@@ -966,8 +968,9 @@
 			reg = <0x00 0x3c000000 0x00 0x400000>,
 			      <0x00 0x38000000 0x00 0x400000>,
 			      <0x00 0x31120000 0x00 0x100>,
-			      <0x00 0x33000000 0x00 0x40000>;
-			reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target";
+			      <0x00 0x33000000 0x00 0x40000>,
+			      <0x00 0x31080000 0x00 0x40000>;
+			reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target", "cfg";
 			ti,num-rings = <1024>;
 			ti,sci-rm-range-gp-rings = <0x1>;
 			ti,sci = <&sms>;
@@ -1370,6 +1373,30 @@
 		status = "disabled";
 	};
 
+	ufs_wrapper: ufs-wrapper@4e80000 {
+		compatible = "ti,j721e-ufs";
+		reg = <0x00 0x4e80000 0x00 0x100>;
+		power-domains = <&k3_pds 387 TI_SCI_PD_EXCLUSIVE>;
+		clocks = <&k3_clks 387 3>;
+		assigned-clocks = <&k3_clks 387 3>;
+		assigned-clock-parents = <&k3_clks 387 6>;
+		ranges;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		status = "disabled";
+
+		ufs@4e84000 {
+			compatible = "cdns,ufshc-m31-16nm", "jedec,ufs-2.0";
+			reg = <0x00 0x4e84000 0x00 0x10000>;
+			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+			freq-table-hz = <250000000 250000000>, <19200000 19200000>,
+					<19200000 19200000>;
+			clocks = <&k3_clks 387 1>, <&k3_clks 387 3>, <&k3_clks 387 3>;
+			clock-names = "core_clk", "phy_clk", "ref_clk";
+			dma-coherent;
+		};
+	};
+
 	main_r5fss0: r5fss@5c00000 {
 		compatible = "ti,j721s2-r5fss";
 		ti,cluster-mode = <1>;
@@ -1500,6 +1527,7 @@
 		ti,sci-proc-ids = <0x30 0xff>;
 		resets = <&k3_reset 30 1>;
 		firmware-name = "j784s4-c71_0-fw";
+		status = "disabled";
 	};
 
 	c71_1: dsp@65800000 {
@@ -1512,6 +1540,7 @@
 		ti,sci-proc-ids = <0x31 0xff>;
 		resets = <&k3_reset 33 1>;
 		firmware-name = "j784s4-c71_1-fw";
+		status = "disabled";
 	};
 
 	c71_2: dsp@66800000 {
@@ -1524,6 +1553,7 @@
 		ti,sci-proc-ids = <0x32 0xff>;
 		resets = <&k3_reset 37 1>;
 		firmware-name = "j784s4-c71_2-fw";
+		status = "disabled";
 	};
 
 	c71_3: dsp@67800000 {
@@ -1536,5 +1566,6 @@
 		ti,sci-proc-ids = <0x33 0xff>;
 		resets = <&k3_reset 40 1>;
 		firmware-name = "j784s4-c71_3-fw";
+		status = "disabled";
 	};
 };

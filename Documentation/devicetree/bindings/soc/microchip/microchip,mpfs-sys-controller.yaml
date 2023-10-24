@@ -12,7 +12,7 @@ maintainers:
 description: |
   PolarFire SoC devices include a microcontroller acting as the system controller,
   which provides "services" to the main processor and to the FPGA fabric. These
-  services include hardware rng, reprogramming of the FPGA and verfification of the
+  services include hardware rng, reprogramming of the FPGA and verification of the
   eNVM contents etc. More information on these services can be found online, at
   https://onlinedocs.microchip.com/pr/GUID-1409CF11-8EF9-4C24-A94E-70979A688632-en-US-1/index.html
 

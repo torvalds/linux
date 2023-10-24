@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/netdevice.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <soc/fsl/qman.h>

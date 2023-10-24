@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
+#include <linux/libgcc.h>
 
 union ull_union {
 	unsigned long long ull;
@@ -9,7 +10,7 @@ union ull_union {
 	} ui;
 };
 
-int __ucmpdi2(unsigned long long a, unsigned long long b)
+word_type __ucmpdi2(unsigned long long a, unsigned long long b)
 {
 	union ull_union au = {.ull = a};
 	union ull_union bu = {.ull = b};

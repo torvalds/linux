@@ -18,9 +18,8 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/dmaengine.h>
-#include <linux/of_address.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
 #include <linux/libata.h>
@@ -1211,7 +1210,7 @@ error_out:
 	return err;
 }
 
-static int sata_dwc_remove(struct platform_device *ofdev)
+static void sata_dwc_remove(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct ata_host *host = dev_get_drvdata(dev);
@@ -1227,7 +1226,6 @@ static int sata_dwc_remove(struct platform_device *ofdev)
 #endif
 
 	dev_dbg(dev, "done\n");
-	return 0;
 }
 
 static const struct of_device_id sata_dwc_match[] = {
@@ -1242,7 +1240,7 @@ static struct platform_driver sata_dwc_driver = {
 		.of_match_table = sata_dwc_match,
 	},
 	.probe = sata_dwc_probe,
-	.remove = sata_dwc_remove,
+	.remove_new = sata_dwc_remove,
 };
 
 module_platform_driver(sata_dwc_driver);

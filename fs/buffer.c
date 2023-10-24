@@ -49,6 +49,7 @@
 #include <trace/events/block.h>
 #include <linux/fscrypt.h>
 #include <linux/fsverity.h>
+#include <linux/sched/isolation.h>
 
 #include "internal.h"
 
@@ -560,12 +561,6 @@ repeat:
 	}
 	spin_unlock(lock);
 	return err;
-}
-
-void emergency_thaw_bdev(struct super_block *sb)
-{
-	while (sb->s_bdev && !thaw_bdev(sb->s_bdev))
-		printk(KERN_WARNING "Emergency Thaw on %pg\n", sb->s_bdev);
 }
 
 /**
@@ -1225,19 +1220,14 @@ EXPORT_SYMBOL(mark_buffer_dirty);
 
 void mark_buffer_write_io_error(struct buffer_head *bh)
 {
-	struct super_block *sb;
-
 	set_buffer_write_io_error(bh);
 	/* FIXME: do we need to set this in both places? */
 	if (bh->b_folio && bh->b_folio->mapping)
 		mapping_set_error(bh->b_folio->mapping, -EIO);
-	if (bh->b_assoc_map)
+	if (bh->b_assoc_map) {
 		mapping_set_error(bh->b_assoc_map, -EIO);
-	rcu_read_lock();
-	sb = READ_ONCE(bh->b_bdev->bd_super);
-	if (sb)
-		errseq_set(&sb->s_wb_err, -EIO);
-	rcu_read_unlock();
+		errseq_set(&bh->b_assoc_map->host->i_sb->s_wb_err, -EIO);
+	}
 }
 EXPORT_SYMBOL(mark_buffer_write_io_error);
 
@@ -1352,7 +1342,7 @@ static void bh_lru_install(struct buffer_head *bh)
 	 * failing page migration.
 	 * Skip putting upcoming bh into bh_lru until migration is done.
 	 */
-	if (lru_cache_disabled()) {
+	if (lru_cache_disabled() || cpu_is_isolated(smp_processor_id())) {
 		bh_lru_unlock();
 		return;
 	}
@@ -1382,6 +1372,10 @@ lookup_bh_lru(struct block_device *bdev, sector_t block, unsigned size)
 
 	check_irqs_on();
 	bh_lru_lock();
+	if (cpu_is_isolated(smp_processor_id())) {
+		bh_lru_unlock();
+		return NULL;
+	}
 	for (i = 0; i < BH_LRU_SIZE; i++) {
 		struct buffer_head *bh = __this_cpu_read(bh_lrus.bhs[i]);
 
@@ -1538,21 +1532,6 @@ void invalidate_bh_lrus_cpu(void)
 	__invalidate_bh_lrus(b);
 	bh_lru_unlock();
 }
-
-void set_bh_page(struct buffer_head *bh,
-		struct page *page, unsigned long offset)
-{
-	bh->b_page = page;
-	BUG_ON(offset >= PAGE_SIZE);
-	if (PageHighMem(page))
-		/*
-		 * This catches illegal uses and preserves the offset:
-		 */
-		bh->b_data = (char *)(0 + offset);
-	else
-		bh->b_data = page_address(page) + offset;
-}
-EXPORT_SYMBOL(set_bh_page);
 
 void folio_set_bh(struct buffer_head *bh, struct folio *folio,
 		  unsigned long offset)
@@ -2032,7 +2011,7 @@ void folio_zero_new_buffers(struct folio *folio, size_t from, size_t to)
 }
 EXPORT_SYMBOL(folio_zero_new_buffers);
 
-static void
+static int
 iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 		const struct iomap *iomap)
 {
@@ -2046,7 +2025,8 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 	 * current block, then do not map the buffer and let the caller
 	 * handle it.
 	 */
-	BUG_ON(offset >= iomap->offset + iomap->length);
+	if (offset >= iomap->offset + iomap->length)
+		return -EIO;
 
 	switch (iomap->type) {
 	case IOMAP_HOLE:
@@ -2058,7 +2038,7 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 		if (!buffer_uptodate(bh) ||
 		    (offset >= i_size_read(inode)))
 			set_buffer_new(bh);
-		break;
+		return 0;
 	case IOMAP_DELALLOC:
 		if (!buffer_uptodate(bh) ||
 		    (offset >= i_size_read(inode)))
@@ -2066,7 +2046,7 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 		set_buffer_uptodate(bh);
 		set_buffer_mapped(bh);
 		set_buffer_delay(bh);
-		break;
+		return 0;
 	case IOMAP_UNWRITTEN:
 		/*
 		 * For unwritten regions, we always need to ensure that regions
@@ -2078,12 +2058,24 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 		fallthrough;
 	case IOMAP_MAPPED:
 		if ((iomap->flags & IOMAP_F_NEW) ||
-		    offset >= i_size_read(inode))
+		    offset >= i_size_read(inode)) {
+			/*
+			 * This can happen if truncating the block device races
+			 * with the check in the caller as i_size updates on
+			 * block devices aren't synchronized by i_rwsem for
+			 * block devices.
+			 */
+			if (S_ISBLK(inode->i_mode))
+				return -EIO;
 			set_buffer_new(bh);
+		}
 		bh->b_blocknr = (iomap->addr + offset - iomap->offset) >>
 				inode->i_blkbits;
 		set_buffer_mapped(bh);
-		break;
+		return 0;
+	default:
+		WARN_ON_ONCE(1);
+		return -EIO;
 	}
 }
 
@@ -2124,13 +2116,12 @@ int __block_write_begin_int(struct folio *folio, loff_t pos, unsigned len,
 			clear_buffer_new(bh);
 		if (!buffer_mapped(bh)) {
 			WARN_ON(bh->b_size != blocksize);
-			if (get_block) {
+			if (get_block)
 				err = get_block(inode, block, bh, 1);
-				if (err)
-					break;
-			} else {
-				iomap_to_bh(inode, block, bh, iomap);
-			}
+			else
+				err = iomap_to_bh(inode, block, bh, iomap);
+			if (err)
+				break;
 
 			if (buffer_new(bh)) {
 				clean_bdev_bh_alias(bh);
@@ -2180,8 +2171,7 @@ int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 }
 EXPORT_SYMBOL(__block_write_begin);
 
-static int __block_commit_write(struct inode *inode, struct folio *folio,
-		size_t from, size_t to)
+static void __block_commit_write(struct folio *folio, size_t from, size_t to)
 {
 	size_t block_start, block_end;
 	bool partial = false;
@@ -2216,7 +2206,6 @@ static int __block_commit_write(struct inode *inode, struct folio *folio,
 	 */
 	if (!partial)
 		folio_mark_uptodate(folio);
-	return 0;
 }
 
 /*
@@ -2253,7 +2242,6 @@ int block_write_end(struct file *file, struct address_space *mapping,
 			struct page *page, void *fsdata)
 {
 	struct folio *folio = page_folio(page);
-	struct inode *inode = mapping->host;
 	size_t start = pos - folio_pos(folio);
 
 	if (unlikely(copied < len)) {
@@ -2277,7 +2265,7 @@ int block_write_end(struct file *file, struct address_space *mapping,
 	flush_dcache_folio(folio);
 
 	/* This could be a short (even 0-length) commit */
-	__block_commit_write(inode, folio, start, start + copied);
+	__block_commit_write(folio, start, start + copied);
 
 	return copied;
 }
@@ -2598,12 +2586,10 @@ int cont_write_begin(struct file *file, struct address_space *mapping,
 }
 EXPORT_SYMBOL(cont_write_begin);
 
-int block_commit_write(struct page *page, unsigned from, unsigned to)
+void block_commit_write(struct page *page, unsigned from, unsigned to)
 {
 	struct folio *folio = page_folio(page);
-	struct inode *inode = folio->mapping->host;
-	__block_commit_write(inode, folio, from, to);
-	return 0;
+	__block_commit_write(folio, from, to);
 }
 EXPORT_SYMBOL(block_commit_write);
 
@@ -2649,11 +2635,11 @@ int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 		end = size - folio_pos(folio);
 
 	ret = __block_write_begin_int(folio, 0, end, get_block, NULL);
-	if (!ret)
-		ret = __block_commit_write(inode, folio, 0, end);
-
-	if (unlikely(ret < 0))
+	if (unlikely(ret))
 		goto out_unlock;
+
+	__block_commit_write(folio, 0, end);
+
 	folio_mark_dirty(folio);
 	folio_wait_stable(folio);
 	return 0;

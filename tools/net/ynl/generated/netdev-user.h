@@ -47,10 +47,12 @@ struct netdev_dev_get_rsp {
 	struct {
 		__u32 ifindex:1;
 		__u32 xdp_features:1;
+		__u32 xdp_zc_max_segs:1;
 	} _present;
 
 	__u32 ifindex;
 	__u64 xdp_features;
+	__u32 xdp_zc_max_segs;
 };
 
 void netdev_dev_get_rsp_free(struct netdev_dev_get_rsp *rsp);

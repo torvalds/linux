@@ -3854,9 +3854,9 @@ enum wmi_pdev_param {
 	 * retransmitting frames.
 	 */
 	WMI_PDEV_PARAM_DYNAMIC_BW,
-	/* Non aggregrate/ 11g sw retry threshold.0-disable */
+	/* Non aggregate/ 11g sw retry threshold.0-disable */
 	WMI_PDEV_PARAM_NON_AGG_SW_RETRY_TH,
-	/* aggregrate sw retry threshold. 0-disable*/
+	/* aggregate sw retry threshold. 0-disable*/
 	WMI_PDEV_PARAM_AGG_SW_RETRY_TH,
 	/* Station kickout threshold (non of consecutive failures).0-disable */
 	WMI_PDEV_PARAM_STA_KICKOUT_TH,
@@ -3953,9 +3953,9 @@ enum wmi_10x_pdev_param {
 	WMI_10X_PDEV_PARAM_PROTECTION_MODE,
 	/* Dynamic bandwidth 0: disable 1: enable */
 	WMI_10X_PDEV_PARAM_DYNAMIC_BW,
-	/* Non aggregrate/ 11g sw retry threshold.0-disable */
+	/* Non aggregate/ 11g sw retry threshold.0-disable */
 	WMI_10X_PDEV_PARAM_NON_AGG_SW_RETRY_TH,
-	/* aggregrate sw retry threshold. 0-disable*/
+	/* aggregate sw retry threshold. 0-disable*/
 	WMI_10X_PDEV_PARAM_AGG_SW_RETRY_TH,
 	/* Station kickout threshold (non of consecutive failures).0-disable */
 	WMI_10X_PDEV_PARAM_STA_KICKOUT_TH,

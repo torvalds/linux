@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * tools/testing/selftests/kvm/lib/x86_64/processor.c
- *
  * Copyright (C) 2021, Google LLC.
  */
 

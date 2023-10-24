@@ -178,8 +178,6 @@ struct uvc_file_handle {
  */
 
 extern void uvc_function_setup_continue(struct uvc_device *uvc);
-extern void uvc_endpoint_stream(struct uvc_device *dev);
-
 extern void uvc_function_connect(struct uvc_device *uvc);
 extern void uvc_function_disconnect(struct uvc_device *uvc);
 

@@ -5,14 +5,7 @@
  *  Copyright (C) 2013 Atmel,
  *                2016 Andras Szemzo <szemzo.andras@gmail.com>
  */
-#include <linux/of.h>
-#include <linux/of_platform.h>
-#include <linux/of_address.h>
-#include <linux/slab.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/system_misc.h>
-#include "generic.h"
 
 static const char *const samv7_dt_board_compat[] __initconst = {
 	"atmel,samv7",

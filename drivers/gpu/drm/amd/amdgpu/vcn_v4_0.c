@@ -169,7 +169,8 @@ static int vcn_v4_0_sw_init(void *handle)
 		fw_shared->smu_dpm_interface.smu_interface_type = (adev->flags & AMD_IS_APU) ?
 			AMDGPU_VCN_SMU_DPM_INTERFACE_APU : AMDGPU_VCN_SMU_DPM_INTERFACE_DGPU;
 
-		if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(4, 0, 2)) {
+		if (amdgpu_ip_version(adev, VCN_HWIP, 0) ==
+		    IP_VERSION(4, 0, 2)) {
 			fw_shared->present_flag_0 |= AMDGPU_FW_SHARED_FLAG_0_DRM_KEY_INJECT;
 			fw_shared->drm_key_wa.method =
 				AMDGPU_DRM_KEY_INJECT_WORKAROUND_VCNFW_ASD_HANDSHAKING;
@@ -876,8 +877,6 @@ static void vcn_v4_0_enable_clock_gating(struct amdgpu_device *adev, int inst)
 		| UVD_SUVD_CGC_CTRL__IME_MODE_MASK
 		| UVD_SUVD_CGC_CTRL__SITE_MODE_MASK);
 	WREG32_SOC15(VCN, inst, regUVD_SUVD_CGC_CTRL, data);
-
-	return;
 }
 
 static void vcn_v4_0_enable_ras(struct amdgpu_device *adev, int inst_idx,
@@ -1139,11 +1138,11 @@ static int vcn_v4_0_start(struct amdgpu_device *adev)
 				if (status & 2)
 					break;
 				mdelay(10);
-				if (amdgpu_emu_mode==1)
+				if (amdgpu_emu_mode == 1)
 					msleep(1);
 			}
 
-			if (amdgpu_emu_mode==1) {
+			if (amdgpu_emu_mode == 1) {
 				r = -1;
 				if (status & 2) {
 					r = 0;
@@ -1849,7 +1848,7 @@ static void vcn_v4_0_set_unified_ring_funcs(struct amdgpu_device *adev)
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
-		if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(4, 0, 2))
+		if (amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 2))
 			vcn_v4_0_unified_ring_vm_funcs.secure_submission_supported = true;
 
 		adev->vcn.inst[i].ring_enc[0].funcs =
@@ -1918,7 +1917,7 @@ static int vcn_v4_0_wait_for_idle(void *handle)
 static int vcn_v4_0_set_clockgating_state(void *handle, enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	bool enable = state == AMD_CG_STATE_GATE;
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
@@ -1959,7 +1958,7 @@ static int vcn_v4_0_set_powergating_state(void *handle, enum amd_powergating_sta
 		return 0;
 	}
 
-	if(state == adev->vcn.cur_state)
+	if (state == adev->vcn.cur_state)
 		return 0;
 
 	if (state == AMD_PG_STATE_GATE)
@@ -1967,7 +1966,7 @@ static int vcn_v4_0_set_powergating_state(void *handle, enum amd_powergating_sta
 	else
 		ret = vcn_v4_0_start(adev);
 
-	if(!ret)
+	if (!ret)
 		adev->vcn.cur_state = state;
 
 	return ret;
@@ -2101,8 +2100,7 @@ static const struct amd_ip_funcs vcn_v4_0_ip_funcs = {
 	.set_powergating_state = vcn_v4_0_set_powergating_state,
 };
 
-const struct amdgpu_ip_block_version vcn_v4_0_ip_block =
-{
+const struct amdgpu_ip_block_version vcn_v4_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCN,
 	.major = 4,
 	.minor = 0,
@@ -2157,7 +2155,7 @@ static struct amdgpu_vcn_ras vcn_v4_0_ras = {
 
 static void vcn_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[VCN_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, VCN_HWIP, 0)) {
 	case IP_VERSION(4, 0, 0):
 		adev->vcn.ras = &vcn_v4_0_ras;
 		break;

@@ -363,8 +363,7 @@ void HTConstructInfoElement(struct rtllib_device *ieee, u8 *posHTInfo,
 	}
 
 	memset(posHTInfo, 0, *len);
-	if ((ieee->iw_mode == IW_MODE_ADHOC) ||
-	    (ieee->iw_mode == IW_MODE_MASTER)) {
+	if (ieee->iw_mode == IW_MODE_ADHOC) {
 		pHTInfoEle->ControlChl	= ieee->current_network.channel;
 		pHTInfoEle->ExtChlOffset = ((!pHT->bRegBW40MHz) ?
 					    HT_EXTCHNL_OFFSET_NO_EXT :

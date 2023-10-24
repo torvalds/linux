@@ -21,7 +21,7 @@ Optional properties:
    MAC can generate it.
  - st,tx-retime-src: This specifies which clk is wired up to the mac for
    retimeing tx lines. This is totally board dependent and can take one of the
-   posssible values from "txclk", "clk_125" or "clkgen".
+   possible values from "txclk", "clk_125" or "clkgen".
    If not passed, the internal clock will be used by default.
  - sti-ethclk: this is the phy clock.
  - sti-clkconf: this is an extra sysconfig register, available in new SoCs,

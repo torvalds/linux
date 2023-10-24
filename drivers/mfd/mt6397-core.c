@@ -6,9 +6,10 @@
 
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/irqdomain.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/mt6323/core.h>

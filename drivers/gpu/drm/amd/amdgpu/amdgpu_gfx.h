@@ -43,9 +43,10 @@
 #define AMDGPU_GFX_LBPW_DISABLED_MODE		0x00000008L
 
 #define AMDGPU_MAX_GC_INSTANCES		8
+#define AMDGPU_MAX_QUEUES		128
 
-#define AMDGPU_MAX_GFX_QUEUES KGD_MAX_QUEUES
-#define AMDGPU_MAX_COMPUTE_QUEUES KGD_MAX_QUEUES
+#define AMDGPU_MAX_GFX_QUEUES AMDGPU_MAX_QUEUES
+#define AMDGPU_MAX_COMPUTE_QUEUES AMDGPU_MAX_QUEUES
 
 enum amdgpu_gfx_pipe_priority {
 	AMDGPU_GFX_PIPE_PRIO_NORMAL = AMDGPU_RING_PRIO_1,
@@ -67,11 +68,6 @@ enum amdgpu_gfx_partition {
 };
 
 #define NUM_XCC(x) hweight16(x)
-
-enum amdgpu_pkg_type {
-	AMDGPU_PKG_TYPE_APU = 2,
-	AMDGPU_PKG_TYPE_UNKNOWN,
-};
 
 enum amdgpu_gfx_ras_mem_id_type {
 	AMDGPU_GFX_CP_MEM = 0,
@@ -241,6 +237,9 @@ struct amdgpu_gfx_config {
 	uint32_t gc_gl1c_per_sa;
 	uint32_t gc_gl1c_size_per_instance;
 	uint32_t gc_gl2c_per_gpu;
+	uint32_t gc_tcp_size_per_cu;
+	uint32_t gc_num_cu_per_sqc;
+	uint32_t gc_tcc_size;
 };
 
 struct amdgpu_cu_info {
@@ -254,7 +253,7 @@ struct amdgpu_cu_info {
 	uint32_t number;
 	uint32_t ao_cu_mask;
 	uint32_t ao_cu_bitmap[4][4];
-	uint32_t bitmap[4][4];
+	uint32_t bitmap[AMDGPU_MAX_GC_INSTANCES][4][4];
 };
 
 struct amdgpu_gfx_ras {

@@ -3,6 +3,6 @@ TEST_GEN_PROGS := test_cachestat
 
 CFLAGS += $(KHDR_INCLUDES)
 CFLAGS += -Wall
-CFLAGS += -lrt
+LDLIBS += -lrt
 
 include ../lib.mk

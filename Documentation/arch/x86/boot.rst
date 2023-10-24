@@ -1105,7 +1105,7 @@ The kernel command line should not be located below the real-mode
 code, nor should it be located in high memory.
 
 
-Sample Boot Configuartion
+Sample Boot Configuration
 =========================
 
 As a sample configuration, assume the following layout of the real
@@ -1417,7 +1417,7 @@ execution context provided by the EFI firmware.
 
 The function prototype for the handover entry point looks like this::
 
-    efi_main(void *handle, efi_system_table_t *table, struct boot_params *bp)
+    efi_stub_entry(void *handle, efi_system_table_t *table, struct boot_params *bp)
 
 'handle' is the EFI image handle passed to the boot loader by the EFI
 firmware, 'table' is the EFI system table - these are the first two

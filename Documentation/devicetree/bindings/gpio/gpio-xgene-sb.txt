@@ -27,7 +27,7 @@ Required properties:
 - gpio-controller: Marks the device node as a GPIO controller.
 - interrupts: The EXT_INT_0 parent interrupt resource must be listed first.
 - interrupt-cells: Should be two.
-       - first cell is 0-N coresponding for EXT_INT_0 to EXT_INT_N.
+       - first cell is 0-N corresponding for EXT_INT_0 to EXT_INT_N.
        - second cell is used to specify flags.
 - interrupt-controller: Marks the device node as an interrupt controller.
 - apm,nr-gpios: Optional, specify number of gpios pin.

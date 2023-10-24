@@ -137,7 +137,7 @@
 				>;
 			};
 
-			dfesync_rp1_pins: dfesync-rp1-pins{
+			dfesync_rp1_pins: dfesync-rp1-pins {
 				pinctrl-single,bits = <
 					/* DFESYNC_RP1_SEL */
 					0x0 0x0 0x2

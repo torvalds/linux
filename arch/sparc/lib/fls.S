@@ -5,8 +5,8 @@
  * and onward.
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
-#include <asm/export.h>
 
 	.text
 	.register	%g2, #scratch

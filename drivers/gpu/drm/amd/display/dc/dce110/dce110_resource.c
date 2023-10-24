@@ -46,7 +46,7 @@
 #include "dce110/dce110_opp_v.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
@@ -942,7 +942,7 @@ static enum dc_status build_mapped_resource(
 		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
-	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
+	struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
 
 	if (!pipe_ctx)
 		return DC_ERROR_UNEXPECTED;
@@ -1119,13 +1119,15 @@ static enum dc_status dce110_add_stream_to_ctx(
 }
 
 static struct pipe_ctx *dce110_acquire_underlay(
-		struct dc_state *context,
+		const struct dc_state *cur_ctx,
+		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
-		struct dc_stream_state *stream)
+		const struct pipe_ctx *opp_head_pipe)
 {
+	struct dc_stream_state *stream = opp_head_pipe->stream;
 	struct dc *dc = stream->ctx->dc;
 	struct dce_hwseq *hws = dc->hwseq;
-	struct resource_context *res_ctx = &context->res_ctx;
+	struct resource_context *res_ctx = &new_ctx->res_ctx;
 	unsigned int underlay_idx = pool->underlay_pipe_index;
 	struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[underlay_idx];
 
@@ -1173,7 +1175,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 				stream->timing.h_total,
 				stream->timing.v_total,
 				stream->timing.pix_clk_100hz / 10,
-				context->stream_count);
+				new_ctx->stream_count);
 
 		color_space_to_black_color(dc,
 				COLOR_SPACE_YCBCR601, &black_color);
@@ -1233,7 +1235,7 @@ static const struct resource_funcs dce110_res_pool_funcs = {
 	.panel_cntl_create = dce110_panel_cntl_create,
 	.validate_bandwidth = dce110_validate_bandwidth,
 	.validate_plane = dce110_validate_plane,
-	.acquire_idle_pipe_for_layer = dce110_acquire_underlay,
+	.acquire_free_pipe_as_secondary_dpp_pipe = dce110_acquire_underlay,
 	.add_stream_to_ctx = dce110_add_stream_to_ctx,
 	.validate_global = dce110_validate_global,
 	.find_first_free_match_stream_enc_for_link = dce110_find_first_free_match_stream_enc_for_link

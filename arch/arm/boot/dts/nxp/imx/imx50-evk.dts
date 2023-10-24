@@ -23,7 +23,7 @@
 	cs-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>, <&gpio4 13 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
-	flash: m25p32@1 {
+	flash: flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "m25p32", "jedec,spi-nor";

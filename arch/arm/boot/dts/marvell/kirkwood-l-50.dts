@@ -62,7 +62,7 @@
 			status = "okay";
 			clock-frequency = <400000>;
 
-			gpio2: gpio-expander@20{
+			gpio2: gpio-expander@20 {
 				#gpio-cells = <2>;
 				#interrupt-cells = <2>;
 				compatible = "semtech,sx1505q";
@@ -76,7 +76,7 @@
 			 * 5: mPCIE reset (active low)
 			 * 6: Express card reset (active low)
 			 */
-			gpio3: gpio-expander@21{
+			gpio3: gpio-expander@21 {
 				#gpio-cells = <2>;
 				#interrupt-cells = <2>;
 				compatible = "semtech,sx1505q";

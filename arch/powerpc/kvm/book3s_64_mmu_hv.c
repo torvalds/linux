@@ -182,7 +182,7 @@ void kvmppc_free_hpt(struct kvm_hpt_info *info)
 	vfree(info->rev);
 	info->rev = NULL;
 	if (info->cma)
-		kvm_free_hpt_cma(virt_to_page(info->virt),
+		kvm_free_hpt_cma(virt_to_page((void *)info->virt),
 				 1 << (info->order - PAGE_SHIFT));
 	else if (info->virt)
 		free_pages(info->virt, info->order - PAGE_SHIFT);

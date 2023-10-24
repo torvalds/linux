@@ -301,7 +301,7 @@ static const struct regmap_config jz4740_codec_regmap_config = {
 
 	.reg_defaults = jz4740_codec_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(jz4740_codec_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int jz4740_codec_probe(struct platform_device *pdev)

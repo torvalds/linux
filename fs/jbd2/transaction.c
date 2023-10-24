@@ -935,19 +935,15 @@ static void warn_dirty_buffer(struct buffer_head *bh)
 /* Call t_frozen trigger and copy buffer data into jh->b_frozen_data. */
 static void jbd2_freeze_jh_data(struct journal_head *jh)
 {
-	struct page *page;
-	int offset;
 	char *source;
 	struct buffer_head *bh = jh2bh(jh);
 
 	J_EXPECT_JH(jh, buffer_uptodate(bh), "Possible IO failure.\n");
-	page = bh->b_page;
-	offset = offset_in_page(bh->b_data);
-	source = kmap_atomic(page);
+	source = kmap_local_folio(bh->b_folio, bh_offset(bh));
 	/* Fire data frozen trigger just before we copy the data */
-	jbd2_buffer_frozen_trigger(jh, source + offset, jh->b_triggers);
-	memcpy(jh->b_frozen_data, source + offset, bh->b_size);
-	kunmap_atomic(source);
+	jbd2_buffer_frozen_trigger(jh, source, jh->b_triggers);
+	memcpy(jh->b_frozen_data, source, bh->b_size);
+	kunmap_local(source);
 
 	/*
 	 * Now that the frozen data is saved off, we need to store any matching
@@ -1784,8 +1780,7 @@ int jbd2_journal_forget(handle_t *handle, struct buffer_head *bh)
 		 * Otherwise, if the buffer has been written to disk,
 		 * it is safe to remove the checkpoint and drop it.
 		 */
-		if (!buffer_dirty(bh)) {
-			__jbd2_journal_remove_checkpoint(jh);
+		if (jbd2_journal_try_remove_checkpoint(jh) >= 0) {
 			spin_unlock(&journal->j_list_lock);
 			goto drop;
 		}
@@ -2100,35 +2095,6 @@ void jbd2_journal_unfile_buffer(journal_t *journal, struct journal_head *jh)
 	__brelse(bh);
 }
 
-/*
- * Called from jbd2_journal_try_to_free_buffers().
- *
- * Called under jh->b_state_lock
- */
-static void
-__journal_try_to_free_buffer(journal_t *journal, struct buffer_head *bh)
-{
-	struct journal_head *jh;
-
-	jh = bh2jh(bh);
-
-	if (buffer_locked(bh) || buffer_dirty(bh))
-		goto out;
-
-	if (jh->b_next_transaction != NULL || jh->b_transaction != NULL)
-		goto out;
-
-	spin_lock(&journal->j_list_lock);
-	if (jh->b_cp_transaction != NULL) {
-		/* written-back checkpointed metadata buffer */
-		JBUFFER_TRACE(jh, "remove from checkpoint list");
-		__jbd2_journal_remove_checkpoint(jh);
-	}
-	spin_unlock(&journal->j_list_lock);
-out:
-	return;
-}
-
 /**
  * jbd2_journal_try_to_free_buffers() - try to free page buffers.
  * @journal: journal for operation
@@ -2186,7 +2152,13 @@ bool jbd2_journal_try_to_free_buffers(journal_t *journal, struct folio *folio)
 			continue;
 
 		spin_lock(&jh->b_state_lock);
-		__journal_try_to_free_buffer(journal, bh);
+		if (!jh->b_transaction && !jh->b_next_transaction) {
+			spin_lock(&journal->j_list_lock);
+			/* Remove written-back checkpointed metadata buffer */
+			if (jh->b_cp_transaction != NULL)
+				jbd2_journal_try_remove_checkpoint(jh);
+			spin_unlock(&journal->j_list_lock);
+		}
 		spin_unlock(&jh->b_state_lock);
 		jbd2_journal_put_journal_head(jh);
 		if (buffer_jbd(bh))

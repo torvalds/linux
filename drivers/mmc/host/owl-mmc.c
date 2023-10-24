@@ -16,8 +16,9 @@
 #include <linux/interrupt.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/slot-gpio.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/spinlock.h>
 
@@ -667,7 +668,7 @@ err_free_host:
 	return ret;
 }
 
-static int owl_mmc_remove(struct platform_device *pdev)
+static void owl_mmc_remove(struct platform_device *pdev)
 {
 	struct mmc_host	*mmc = platform_get_drvdata(pdev);
 	struct owl_mmc_host *owl_host = mmc_priv(mmc);
@@ -676,8 +677,6 @@ static int owl_mmc_remove(struct platform_device *pdev)
 	disable_irq(owl_host->irq);
 	dma_release_channel(owl_host->dma);
 	mmc_free_host(mmc);
-
-	return 0;
 }
 
 static const struct of_device_id owl_mmc_of_match[] = {
@@ -693,7 +692,7 @@ static struct platform_driver owl_mmc_driver = {
 		.of_match_table = owl_mmc_of_match,
 	},
 	.probe		= owl_mmc_probe,
-	.remove		= owl_mmc_remove,
+	.remove_new	= owl_mmc_remove,
 };
 module_platform_driver(owl_mmc_driver);
 

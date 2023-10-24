@@ -69,7 +69,7 @@
 			mdio-parent-bus = <&emdio1>;
 			reg = <0x54 1>;		/* BRDCFG4 */
 			mux-mask = <0xe0>;	/* EMI1_MDIO */
-			#address-cells=<1>;
+			#address-cells = <1>;
 			#size-cells = <0>;
 
 			/* Child MDIO buses, one for each riser card:

@@ -279,8 +279,6 @@ extern const struct file_operations zonefs_dir_operations;
 extern const struct address_space_operations zonefs_file_aops;
 extern const struct file_operations zonefs_file_operations;
 int zonefs_file_truncate(struct inode *inode, loff_t isize);
-int zonefs_file_bioset_init(void);
-void zonefs_file_bioset_exit(void);
 
 /* In sysfs.c */
 int zonefs_sysfs_register(struct super_block *sb);

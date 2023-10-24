@@ -438,7 +438,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 
 	// set up PCI related soft state and other pre-known parameters
-	adapter->unique_id	= pdev->bus->number << 8 | pdev->devfn;
+	adapter->unique_id	= pci_dev_id(pdev);
 	adapter->irq		= pdev->irq;
 	adapter->pdev		= pdev;
 

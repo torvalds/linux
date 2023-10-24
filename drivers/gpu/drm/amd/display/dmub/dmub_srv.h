@@ -65,6 +65,7 @@
  */
 
 #include "inc/dmub_cmd.h"
+#include "dc/dc_types.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -103,6 +104,7 @@ enum dmub_asic {
 	DMUB_ASIC_DCN316,
 	DMUB_ASIC_DCN32,
 	DMUB_ASIC_DCN321,
+	DMUB_ASIC_DCN35,
 	DMUB_ASIC_MAX,
 };
 
@@ -139,6 +141,13 @@ enum dpia_notify_bw_alloc_status {
 	DPIA_BW_REQ_SUCCESS,
 	DPIA_EST_BW_CHANGED,
 	DPIA_BW_ALLOC_CAPS_CHANGED
+};
+
+/* enum dmub_memory_access_type - memory access method */
+enum dmub_memory_access_type {
+	DMUB_MEMORY_ACCESS_DEFAULT,
+	DMUB_MEMORY_ACCESS_CPU = DMUB_MEMORY_ACCESS_DEFAULT,
+	DMUB_MEMORY_ACCESS_DMA
 };
 
 /**
@@ -263,6 +272,8 @@ struct dmub_srv_hw_params {
 	bool dpia_hpd_int_enable_supported;
 	bool disable_clock_gate;
 	bool disallow_dispclk_dppclk_ds;
+	enum dmub_memory_access_type mem_access_type;
+	enum dmub_ips_disable_type disable_ips;
 };
 
 /**
@@ -370,6 +381,7 @@ struct dmub_srv_hw_funcs {
 	bool (*is_psrsu_supported)(struct dmub_srv *dmub);
 
 	bool (*is_hw_init)(struct dmub_srv *dmub);
+	bool (*is_hw_powered_up)(struct dmub_srv *dmub);
 
 	void (*enable_dmub_boot_options)(struct dmub_srv *dmub,
 				const struct dmub_srv_hw_params *params);
@@ -399,6 +411,9 @@ struct dmub_srv_hw_funcs {
 	void (*get_diagnostic_data)(struct dmub_srv *dmub, struct dmub_diagnostic_data *dmub_oca);
 
 	bool (*should_detect)(struct dmub_srv *dmub);
+	void (*init_reg_offsets)(struct dmub_srv *dmub, struct dc_context *ctx);
+
+	void (*subvp_save_surf_addr)(struct dmub_srv *dmub, const struct dc_plane_address *addr, uint8_t subvp_index);
 };
 
 /**
@@ -414,6 +429,7 @@ struct dmub_srv_create_params {
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs *hw_funcs;
 	void *user_ctx;
+	struct dc_context *dc_ctx;
 	enum dmub_asic asic;
 	uint32_t fw_version;
 	bool is_virtual;
@@ -438,7 +454,8 @@ struct dmub_srv {
 	/* private: internal use only */
 	const struct dmub_srv_common_regs *regs;
 	const struct dmub_srv_dcn31_regs *regs_dcn31;
-	const struct dmub_srv_dcn32_regs *regs_dcn32;
+	struct dmub_srv_dcn32_regs *regs_dcn32;
+	struct dmub_srv_dcn35_regs *regs_dcn35;
 
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs hw_funcs;
@@ -647,6 +664,24 @@ enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
 enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub);
 
 /**
+ * dmub_srv_wait_for_hw_pwr_up() - Waits for firmware hardware power up is completed
+ * @dmub: the dmub service
+ * @timeout_us: the maximum number of microseconds to wait
+ *
+ * Waits until firmware hardware is powered up. The maximum
+ * wait time is given in microseconds to prevent spinning forever.
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_TIMEOUT - timed out
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_wait_for_hw_pwr_up(struct dmub_srv *dmub,
+					     uint32_t timeout_us);
+
+bool dmub_srv_is_hw_pwr_up(struct dmub_srv *dmub);
+
+/**
  * dmub_srv_wait_for_auto_load() - Waits for firmware auto load to complete
  * @dmub: the dmub service
  * @timeout_us: the maximum number of microseconds to wait
@@ -832,6 +867,21 @@ enum dmub_status dmub_srv_wait_for_inbox0_ack(struct dmub_srv *dmub, uint32_t ti
  *   DMUB_STATUS_INVALID - hw_init false or hw function does not exist
  */
 enum dmub_status dmub_srv_clear_inbox0_ack(struct dmub_srv *dmub);
+
+/**
+ * dmub_srv_subvp_save_surf_addr() - Save primary and meta address for subvp on each flip
+ * @dmub: The dmub service
+ * @addr: The surface address to be programmed on the current flip
+ * @subvp_index: Index of subvp pipe, indicates which subvp pipe the address should be saved for
+ *
+ * Function to save the surface flip addr into scratch registers. This is to fix a race condition
+ * between FW and driver reading / writing to the surface address at the same time. This is
+ * required because there is no EARLIEST_IN_USE_META.
+ *
+ * Return:
+ *   void
+ */
+void dmub_srv_subvp_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_address *addr, uint8_t subvp_index);
 
 #if defined(__cplusplus)
 }

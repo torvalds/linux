@@ -881,14 +881,10 @@ static int ti_adpll_probe(struct platform_device *pdev)
 	dev_set_drvdata(d->dev, d);
 	spin_lock_init(&d->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-	d->pa = res->start;
-
-	d->iobase = devm_ioremap_resource(dev, res);
+	d->iobase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(d->iobase))
 		return PTR_ERR(d->iobase);
+	d->pa = res->start;
 
 	err = ti_adpll_init_registers(d);
 	if (err)

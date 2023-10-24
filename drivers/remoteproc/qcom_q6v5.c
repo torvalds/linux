@@ -23,19 +23,13 @@
 
 static int q6v5_load_state_toggle(struct qcom_q6v5 *q6v5, bool enable)
 {
-	char buf[Q6V5_LOAD_STATE_MSG_LEN];
 	int ret;
 
 	if (!q6v5->qmp)
 		return 0;
 
-	ret = snprintf(buf, sizeof(buf),
-		       "{class: image, res: load_state, name: %s, val: %s}",
+	ret = qmp_send(q6v5->qmp, "{class: image, res: load_state, name: %s, val: %s}",
 		       q6v5->load_state, enable ? "on" : "off");
-
-	WARN_ON(ret >= Q6V5_LOAD_STATE_MSG_LEN);
-
-	ret = qmp_send(q6v5->qmp, buf, sizeof(buf));
 	if (ret)
 		dev_err(q6v5->dev, "failed to toggle load state\n");
 

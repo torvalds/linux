@@ -8,7 +8,6 @@
  *   Copyright (C) 2021, Red Hat, Inc.
  *
  */
-
 #include <stdatomic.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -34,13 +33,12 @@ static void l2_guest_code_int(void);
 static void guest_int_handler(struct ex_regs *regs)
 {
 	int_fired++;
-	GUEST_ASSERT_2(regs->rip == (unsigned long)l2_guest_code_int,
-		       regs->rip, (unsigned long)l2_guest_code_int);
+	GUEST_ASSERT_EQ(regs->rip, (unsigned long)l2_guest_code_int);
 }
 
 static void l2_guest_code_int(void)
 {
-	GUEST_ASSERT_1(int_fired == 1, int_fired);
+	GUEST_ASSERT_EQ(int_fired, 1);
 
 	/*
          * Same as the vmmcall() function, but with a ud2 sneaked after the
@@ -53,7 +51,7 @@ static void l2_guest_code_int(void)
                              : "rbx", "rdx", "rsi", "rdi", "r8", "r9",
                                "r10", "r11", "r12", "r13", "r14", "r15");
 
-	GUEST_ASSERT_1(bp_fired == 1, bp_fired);
+	GUEST_ASSERT_EQ(bp_fired, 1);
 	hlt();
 }
 
@@ -66,9 +64,9 @@ static void guest_nmi_handler(struct ex_regs *regs)
 
 	if (nmi_stage_get() == 1) {
 		vmmcall();
-		GUEST_ASSERT(false);
+		GUEST_FAIL("Unexpected resume after VMMCALL");
 	} else {
-		GUEST_ASSERT_1(nmi_stage_get() == 3, nmi_stage_get());
+		GUEST_ASSERT_EQ(nmi_stage_get(), 3);
 		GUEST_DONE();
 	}
 }
@@ -104,7 +102,8 @@ static void l1_guest_code(struct svm_test_data *svm, uint64_t is_nmi, uint64_t i
 	}
 
 	run_guest(vmcb, svm->vmcb_gpa);
-	GUEST_ASSERT_3(vmcb->control.exit_code == SVM_EXIT_VMMCALL,
+	__GUEST_ASSERT(vmcb->control.exit_code == SVM_EXIT_VMMCALL,
+		       "Expected VMMCAL #VMEXIT, got '0x%x', info1 = '0x%llx, info2 = '0x%llx'",
 		       vmcb->control.exit_code,
 		       vmcb->control.exit_info_1, vmcb->control.exit_info_2);
 
@@ -112,7 +111,7 @@ static void l1_guest_code(struct svm_test_data *svm, uint64_t is_nmi, uint64_t i
 		clgi();
 		x2apic_write_reg(APIC_ICR, APIC_DEST_SELF | APIC_INT_ASSERT | APIC_DM_NMI);
 
-		GUEST_ASSERT_1(nmi_stage_get() == 1, nmi_stage_get());
+		GUEST_ASSERT_EQ(nmi_stage_get(), 1);
 		nmi_stage_inc();
 
 		stgi();
@@ -133,7 +132,8 @@ static void l1_guest_code(struct svm_test_data *svm, uint64_t is_nmi, uint64_t i
 	vmcb->control.next_rip = vmcb->save.rip + 2;
 
 	run_guest(vmcb, svm->vmcb_gpa);
-	GUEST_ASSERT_3(vmcb->control.exit_code == SVM_EXIT_HLT,
+	__GUEST_ASSERT(vmcb->control.exit_code == SVM_EXIT_HLT,
+		       "Expected HLT #VMEXIT, got '0x%x', info1 = '0x%llx, info2 = '0x%llx'",
 		       vmcb->control.exit_code,
 		       vmcb->control.exit_info_1, vmcb->control.exit_info_2);
 
@@ -185,7 +185,7 @@ static void run_test(bool is_nmi)
 
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
-		REPORT_GUEST_ASSERT_3(uc, "vals = 0x%lx 0x%lx 0x%lx");
+		REPORT_GUEST_ASSERT(uc);
 		break;
 		/* NOT REACHED */
 	case UCALL_DONE:

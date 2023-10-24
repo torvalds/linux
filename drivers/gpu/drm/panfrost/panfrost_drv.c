@@ -20,6 +20,7 @@
 #include "panfrost_job.h"
 #include "panfrost_gpu.h"
 #include "panfrost_perfcnt.h"
+#include "panfrost_debugfs.h"
 
 static bool unstable_ioctls;
 module_param_unsafe(unstable_ioctls, bool, 0600);
@@ -267,6 +268,7 @@ static int panfrost_ioctl_submit(struct drm_device *dev, void *data,
 	job->requirements = args->requirements;
 	job->flush_id = panfrost_gpu_get_latest_flush_id(pfdev);
 	job->mmu = file_priv->mmu;
+	job->engine_usage = &file_priv->engine_usage;
 
 	slot = panfrost_job_get_slot(job);
 
@@ -523,7 +525,58 @@ static const struct drm_ioctl_desc panfrost_drm_driver_ioctls[] = {
 	PANFROST_IOCTL(MADVISE,		madvise,	DRM_RENDER_ALLOW),
 };
 
-DEFINE_DRM_GEM_FOPS(panfrost_drm_driver_fops);
+static void panfrost_gpu_show_fdinfo(struct panfrost_device *pfdev,
+				     struct panfrost_file_priv *panfrost_priv,
+				     struct drm_printer *p)
+{
+	int i;
+
+	/*
+	 * IMPORTANT NOTE: drm-cycles and drm-engine measurements are not
+	 * accurate, as they only provide a rough estimation of the number of
+	 * GPU cycles and CPU time spent in a given context. This is due to two
+	 * different factors:
+	 * - Firstly, we must consider the time the CPU and then the kernel
+	 *   takes to process the GPU interrupt, which means additional time and
+	 *   GPU cycles will be added in excess to the real figure.
+	 * - Secondly, the pipelining done by the Job Manager (2 job slots per
+	 *   engine) implies there is no way to know exactly how much time each
+	 *   job spent on the GPU.
+	 */
+
+	static const char * const engine_names[] = {
+		"fragment", "vertex-tiler", "compute-only"
+	};
+
+	BUILD_BUG_ON(ARRAY_SIZE(engine_names) != NUM_JOB_SLOTS);
+
+	for (i = 0; i < NUM_JOB_SLOTS - 1; i++) {
+		drm_printf(p, "drm-engine-%s:\t%llu ns\n",
+			   engine_names[i], panfrost_priv->engine_usage.elapsed_ns[i]);
+		drm_printf(p, "drm-cycles-%s:\t%llu\n",
+			   engine_names[i], panfrost_priv->engine_usage.cycles[i]);
+		drm_printf(p, "drm-maxfreq-%s:\t%lu Hz\n",
+			   engine_names[i], pfdev->pfdevfreq.fast_rate);
+		drm_printf(p, "drm-curfreq-%s:\t%lu Hz\n",
+			   engine_names[i], pfdev->pfdevfreq.current_frequency);
+	}
+}
+
+static void panfrost_show_fdinfo(struct drm_printer *p, struct drm_file *file)
+{
+	struct drm_device *dev = file->minor->dev;
+	struct panfrost_device *pfdev = dev->dev_private;
+
+	panfrost_gpu_show_fdinfo(pfdev, file->driver_priv, p);
+
+	drm_show_memory_stats(p, file);
+}
+
+static const struct file_operations panfrost_drm_driver_fops = {
+	.owner = THIS_MODULE,
+	DRM_GEM_FOPS,
+	.show_fdinfo = drm_show_fdinfo,
+};
 
 /*
  * Panfrost driver version:
@@ -535,6 +588,7 @@ static const struct drm_driver panfrost_drm_driver = {
 	.driver_features	= DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
 	.open			= panfrost_open,
 	.postclose		= panfrost_postclose,
+	.show_fdinfo		= panfrost_show_fdinfo,
 	.ioctls			= panfrost_drm_driver_ioctls,
 	.num_ioctls		= ARRAY_SIZE(panfrost_drm_driver_ioctls),
 	.fops			= &panfrost_drm_driver_fops,
@@ -546,6 +600,10 @@ static const struct drm_driver panfrost_drm_driver = {
 
 	.gem_create_object	= panfrost_gem_create_object,
 	.gem_prime_import_sg_table = panfrost_gem_prime_import_sg_table,
+
+#ifdef CONFIG_DEBUG_FS
+	.debugfs_init		= panfrost_debugfs_init,
+#endif
 };
 
 static int panfrost_probe(struct platform_device *pdev)

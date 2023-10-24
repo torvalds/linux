@@ -305,8 +305,7 @@ struct inode *qnx4_iget(struct super_block *sb, unsigned long ino)
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_atime.tv_sec   = le32_to_cpu(raw_inode->di_atime);
 	inode->i_atime.tv_nsec = 0;
-	inode->i_ctime.tv_sec   = le32_to_cpu(raw_inode->di_ctime);
-	inode->i_ctime.tv_nsec = 0;
+	inode_set_ctime(inode, le32_to_cpu(raw_inode->di_ctime), 0);
 	inode->i_blocks  = le32_to_cpu(raw_inode->di_first_xtnt.xtnt_size);
 
 	memcpy(qnx4_inode, raw_inode, QNX4_DIR_ENTRY_SIZE);

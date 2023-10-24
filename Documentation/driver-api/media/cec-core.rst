@@ -109,9 +109,11 @@ your driver:
 		int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
 		int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
 		int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
-		void (*adap_configured)(struct cec_adapter *adap, bool configured);
+		void (*adap_unconfigured)(struct cec_adapter *adap);
 		int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 				      u32 signal_free_time, struct cec_msg *msg);
+		void (*adap_nb_transmit_canceled)(struct cec_adapter *adap,
+						  const struct cec_msg *msg);
 		void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
 		void (*adap_free)(struct cec_adapter *adap);
 
@@ -122,8 +124,8 @@ your driver:
 		...
 	};
 
-The seven low-level ops deal with various aspects of controlling the CEC adapter
-hardware:
+These low-level ops deal with various aspects of controlling the CEC adapter
+hardware. They are all called with the mutex adap->lock held.
 
 
 To enable/disable the hardware::
@@ -179,14 +181,12 @@ can receive directed messages to that address.
 Note that adap_log_addr must return 0 if logical_addr is CEC_LOG_ADDR_INVALID.
 
 
-Called when the adapter is fully configured or unconfigured::
+Called when the adapter is unconfigured::
 
-	void (*adap_configured)(struct cec_adapter *adap, bool configured);
+	void (*adap_unconfigured)(struct cec_adapter *adap);
 
-If configured == true, then the adapter is fully configured, i.e. all logical
-addresses have been successfully claimed. If configured == false, then the
-adapter is unconfigured. If the driver has to take specific actions after
-(un)configuration, then that can be done through this optional callback.
+The adapter is unconfigured. If the driver has to take specific actions after
+unconfiguration, then that can be done through this optional callback.
 
 
 To transmit a new message::
@@ -205,6 +205,19 @@ automatically, but in some cases this information is needed.
 
 The CEC_FREE_TIME_TO_USEC macro can be used to convert signal_free_time to
 microseconds (one data bit period is 2.4 ms).
+
+
+To pass on the result of a canceled non-blocking transmit::
+
+	void (*adap_nb_transmit_canceled)(struct cec_adapter *adap,
+					  const struct cec_msg *msg);
+
+This optional callback can be used to obtain the result of a canceled
+non-blocking transmit with sequence number msg->sequence. This is
+called if the transmit was aborted, the transmit timed out (i.e. the
+hardware never signaled that the transmit finished), or the transmit
+was successful, but the wait for the expected reply was either aborted
+or it timed out.
 
 
 To log the current CEC hardware status::
@@ -372,7 +385,8 @@ Implementing the High-Level CEC Adapter
 ---------------------------------------
 
 The low-level operations drive the hardware, the high-level operations are
-CEC protocol driven. The following high-level callbacks are available:
+CEC protocol driven. The high-level callbacks are called without the adap->lock
+mutex being held. The following high-level callbacks are available:
 
 .. code-block:: none
 
@@ -384,8 +398,18 @@ CEC protocol driven. The following high-level callbacks are available:
 		...
 
 		/* High-level CEC message callback */
+		void (*configured)(struct cec_adapter *adap);
 		int (*received)(struct cec_adapter *adap, struct cec_msg *msg);
 	};
+
+Called when the adapter is configured::
+
+	void (*configured)(struct cec_adapter *adap);
+
+The adapter is fully configured, i.e. all logical addresses have been
+successfully claimed. If the driver has to take specific actions after
+configuration, then that can be done through this optional callback.
+
 
 The received() callback allows the driver to optionally handle a newly
 received CEC message::

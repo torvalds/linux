@@ -14,6 +14,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/miscdevice.h>
+#include <net/xdp.h>
 
 #define TSNEP "tsnep"
 

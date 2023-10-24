@@ -159,7 +159,7 @@ properties:
   qcom,ports-hstart:
     $ref: /schemas/types.yaml#/definitions/uint8-array
     description:
-      Identifying lowerst numbered coloum in SoundWire Frame,
+      Identifying lowerst numbered column in SoundWire Frame,
       i.e. left edge of the Transport sub-frame for each port.
       Out ports followed by In ports.
       Value of 0xff indicates that this option is not implemented
@@ -176,7 +176,7 @@ properties:
   qcom,ports-hstop:
     $ref: /schemas/types.yaml#/definitions/uint8-array
     description:
-      Identifying highest numbered coloum in SoundWire Frame,
+      Identifying highest numbered column in SoundWire Frame,
       i.e. the right edge of the Transport
       sub-frame for each port. Out ports followed by In ports.
       Value of 0xff indicates that this option is not implemented

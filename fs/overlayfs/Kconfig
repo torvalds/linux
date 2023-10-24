@@ -124,3 +124,12 @@ config OVERLAY_FS_METACOPY
 	  that doesn't support this feature will have unexpected results.
 
 	  If unsure, say N.
+
+config OVERLAY_FS_DEBUG
+	bool "Overlayfs: turn on extra debugging checks"
+	default n
+	depends on OVERLAY_FS
+	help
+	  Say Y here to enable extra debugging checks in overlayfs.
+
+	  If unsure, say N.

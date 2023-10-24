@@ -150,8 +150,8 @@ xchk_parent_validate(
 
 	lock_mode = xchk_parent_ilock_dir(dp);
 	if (!lock_mode) {
-		xfs_iunlock(sc->ip, XFS_ILOCK_EXCL);
-		xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
+		xchk_iunlock(sc, XFS_ILOCK_EXCL);
+		xchk_ilock(sc, XFS_ILOCK_EXCL);
 		error = -EAGAIN;
 		goto out_rele;
 	}

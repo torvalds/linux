@@ -181,8 +181,8 @@ static inline void dz_receive_chars(struct dz_mux *mux)
 	struct dz_port *dport = &mux->dport[0];
 	struct uart_icount *icount;
 	int lines_rx[DZ_NB_PORT] = { [0 ... DZ_NB_PORT - 1] = 0 };
-	unsigned char ch, flag;
 	u16 status;
+	u8 ch, flag;
 	int i;
 
 	while ((status = dz_in(dport, DZ_RBUF)) & DZ_DVAL) {

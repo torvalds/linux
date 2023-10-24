@@ -92,7 +92,7 @@ fec_stats_recalc(struct fec_stat_grp *grp, struct ethtool_fec_stat *stats)
 
 static int fec_prepare_data(const struct ethnl_req_info *req_base,
 			    struct ethnl_reply_data *reply_base,
-			    struct genl_info *info)
+			    const struct genl_info *info)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(active_fec_modes) = {};
 	struct fec_reply_data *data = FEC_REPDATA(reply_base);

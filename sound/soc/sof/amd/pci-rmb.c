@@ -25,6 +25,7 @@
 
 #define ACP6x_REG_START		0x1240000
 #define ACP6x_REG_END		0x125C000
+#define ACP6X_FUTURE_REG_ACLK_0	0x1854
 
 static const struct sof_amd_acp_desc rembrandt_chip_info = {
 	.rev		= 6,
@@ -34,8 +35,8 @@ static const struct sof_amd_acp_desc rembrandt_chip_info = {
 	.dsp_intr_base	= ACP6X_DSP_SW_INTR_BASE,
 	.sram_pte_offset = ACP6X_SRAM_PTE_OFFSET,
 	.hw_semaphore_offset = ACP6X_AXI2DAGB_SEM_0,
-	.acp_clkmux_sel = ACP6X_CLKMUX_SEL,
 	.fusion_dsp_offset = ACP6X_DSP_FUSION_RUNSTALL,
+	.probe_reg_offset = ACP6X_FUTURE_REG_ACLK_0,
 };
 
 static const struct sof_dev_desc rembrandt_desc = {

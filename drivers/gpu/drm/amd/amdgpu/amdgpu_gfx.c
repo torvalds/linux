@@ -158,7 +158,7 @@ static bool amdgpu_gfx_is_compute_multipipe_capable(struct amdgpu_device *adev)
 		return amdgpu_compute_multipipe == 1;
 	}
 
-	if (adev->ip_versions[GC_HWIP][0] > IP_VERSION(9, 0, 0))
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) > IP_VERSION(9, 0, 0))
 		return true;
 
 	/* FIXME: spreading the queues across pipes causes perf regressions
@@ -385,7 +385,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 	u32 domain = AMDGPU_GEM_DOMAIN_GTT;
 
 	/* Only enable on gfx10 and 11 for now to avoid changing behavior on older chips */
-	if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 0, 0))
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(10, 0, 0))
 		domain |= AMDGPU_GEM_DOMAIN_VRAM;
 
 	/* create MQD for KIQ */
@@ -700,15 +700,8 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 
 		if (adev->gfx.gfx_off_req_count == 0 &&
 		    !adev->gfx.gfx_off_state) {
-			/* If going to s2idle, no need to wait */
-			if (adev->in_s0ix) {
-				if (!amdgpu_dpm_set_powergating_by_smu(adev,
-						AMD_IP_BLOCK_TYPE_GFX, true))
-					adev->gfx.gfx_off_state = true;
-			} else {
-				schedule_delayed_work(&adev->gfx.gfx_off_delay_work,
+			schedule_delayed_work(&adev->gfx.gfx_off_delay_work,
 					      delay);
-			}
 		}
 	} else {
 		if (adev->gfx.gfx_off_req_count == 0) {

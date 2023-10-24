@@ -47,6 +47,9 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
+	/* actually fed by vcc5v0_sys, dependent
+	 * on pi6c clock generator
+	 */
 	vcc3v3_minipcie: vcc3v3-minipcie-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -54,9 +57,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&minipcie_enable_h>;
 		regulator-name = "vcc3v3_minipcie";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		vin-supply = <&vcc5v0_sys>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc3v3_pi6c_05>;
 	};
 
 	vcc3v3_ngff: vcc3v3-ngff-regulator {
@@ -71,9 +74,6 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	/* actually fed by vcc5v0_sys, dependent
-	 * on pi6c clock generator
-	 */
 	vcc3v3_pcie30x1: vcc3v3-pcie30x1-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -83,7 +83,7 @@
 		regulator-name = "vcc3v3_pcie30x1";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc3v3_pi6c_05>;
+		vin-supply = <&vcc5v0_sys>;
 	};
 
 	vcc3v3_pi6c_05: vcc3v3-pi6c-05-regulator {
@@ -97,6 +97,10 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc5v0_sys>;
 	};
+};
+
+&combphy1 {
+	phy-supply = <&vcc3v3_pcie30x1>;
 };
 
 &pcie2x1 {
@@ -117,7 +121,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie30x1m0_pins>;
 	reset-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
-	vpcie3v3-supply = <&vcc3v3_pcie30x1>;
+	vpcie3v3-supply = <&vcc3v3_minipcie>;
 	status = "okay";
 };
 
@@ -175,6 +179,10 @@
 &pwm12 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm12m1_pins>;
+	status = "okay";
+};
+
+&sata1 {
 	status = "okay";
 };
 

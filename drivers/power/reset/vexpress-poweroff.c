@@ -121,7 +121,7 @@ static int vexpress_reset_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 	dev_set_drvdata(&pdev->dev, regmap);
 
-	switch ((enum vexpress_reset_func)match->data) {
+	switch ((uintptr_t)match->data) {
 	case FUNC_SHUTDOWN:
 		vexpress_power_off_device = &pdev->dev;
 		pm_power_off = vexpress_power_off;

@@ -45,6 +45,14 @@ static void komeda_platform_remove(struct platform_device *pdev)
 	devm_kfree(dev, mdrv);
 }
 
+static void komeda_platform_shutdown(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct komeda_drv *mdrv = dev_get_drvdata(dev);
+
+	komeda_kms_shutdown(mdrv->kms);
+}
+
 static int komeda_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -142,6 +150,7 @@ static const struct dev_pm_ops komeda_pm_ops = {
 static struct platform_driver komeda_platform_driver = {
 	.probe	= komeda_platform_probe,
 	.remove_new = komeda_platform_remove,
+	.shutdown = komeda_platform_shutdown,
 	.driver	= {
 		.name = "komeda",
 		.of_match_table	= komeda_of_match,

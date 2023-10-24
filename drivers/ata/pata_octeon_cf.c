@@ -815,8 +815,8 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	irq_handler_t irq_handler = NULL;
 	void __iomem *base;
 	struct octeon_cf_port *cf_port;
-	int rv = -ENOMEM;
 	u32 bus_width;
+	int rv;
 
 	node = pdev->dev.of_node;
 	if (node == NULL)
@@ -893,12 +893,12 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	cs0 = devm_ioremap(&pdev->dev, res_cs0->start,
 				   resource_size(res_cs0));
 	if (!cs0)
-		return rv;
+		return -ENOMEM;
 
 	/* allocate host */
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host)
-		return rv;
+		return -ENOMEM;
 
 	ap = host->ports[0];
 	ap->private_data = cf_port;

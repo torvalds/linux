@@ -53,8 +53,7 @@
 static void dce_v8_0_set_display_funcs(struct amdgpu_device *adev);
 static void dce_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 
-static const u32 crtc_offsets[6] =
-{
+static const u32 crtc_offsets[6] = {
 	CRTC0_REGISTER_OFFSET,
 	CRTC1_REGISTER_OFFSET,
 	CRTC2_REGISTER_OFFSET,
@@ -63,8 +62,7 @@ static const u32 crtc_offsets[6] =
 	CRTC5_REGISTER_OFFSET
 };
 
-static const u32 hpd_offsets[] =
-{
+static const u32 hpd_offsets[] = {
 	HPD0_REGISTER_OFFSET,
 	HPD1_REGISTER_OFFSET,
 	HPD2_REGISTER_OFFSET,
@@ -977,7 +975,7 @@ static void dce_v8_0_program_watermarks(struct amdgpu_device *adev,
 					    (u32)mode->clock);
 		line_time = (u32) div_u64((u64)mode->crtc_htotal * 1000000,
 					  (u32)mode->clock);
-		line_time = min(line_time, (u32)65535);
+		line_time = min_t(u32, line_time, 65535);
 
 		/* watermark for high clocks */
 		if (adev->pm.dpm_enabled) {
@@ -1007,7 +1005,7 @@ static void dce_v8_0_program_watermarks(struct amdgpu_device *adev,
 		wm_high.num_heads = num_heads;
 
 		/* set for high clocks */
-		latency_watermark_a = min(dce_v8_0_latency_watermark(&wm_high), (u32)65535);
+		latency_watermark_a = min_t(u32, dce_v8_0_latency_watermark(&wm_high), 65535);
 
 		/* possibly force display priority to high */
 		/* should really do this at mode validation time... */
@@ -1046,7 +1044,7 @@ static void dce_v8_0_program_watermarks(struct amdgpu_device *adev,
 		wm_low.num_heads = num_heads;
 
 		/* set for low clocks */
-		latency_watermark_b = min(dce_v8_0_latency_watermark(&wm_low), (u32)65535);
+		latency_watermark_b = min_t(u32, dce_v8_0_latency_watermark(&wm_low), 65535);
 
 		/* possibly force display priority to high */
 		/* should really do this at mode validation time... */
@@ -1345,9 +1343,9 @@ static void dce_v8_0_audio_write_sad_regs(struct drm_encoder *encoder)
 				if (sad->channels > max_channels) {
 					value = (sad->channels <<
 						 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__MAX_CHANNELS__SHIFT) |
-					        (sad->byte2 <<
+						(sad->byte2 <<
 						 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__DESCRIPTOR_BYTE_2__SHIFT) |
-					        (sad->freq <<
+						(sad->freq <<
 						 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__SUPPORTED_FREQUENCIES__SHIFT);
 					max_channels = sad->channels;
 				}
@@ -1379,8 +1377,7 @@ static void dce_v8_0_audio_enable(struct amdgpu_device *adev,
 		enable ? AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL__AUDIO_ENABLED_MASK : 0);
 }
 
-static const u32 pin_offsets[7] =
-{
+static const u32 pin_offsets[7] = {
 	(0x1780 - 0x1780),
 	(0x1786 - 0x1780),
 	(0x178c - 0x1780),
@@ -1740,8 +1737,7 @@ static void dce_v8_0_afmt_fini(struct amdgpu_device *adev)
 	}
 }
 
-static const u32 vga_control_regs[6] =
-{
+static const u32 vga_control_regs[6] = {
 	mmD1VGA_CONTROL,
 	mmD2VGA_CONTROL,
 	mmD3VGA_CONTROL,
@@ -1895,9 +1891,9 @@ static int dce_v8_0_crtc_do_set_base(struct drm_crtc *crtc,
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ABGR8888:
 		fb_format = ((GRPH_DEPTH_32BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
-		             (GRPH_FORMAT_ARGB8888 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
+				(GRPH_FORMAT_ARGB8888 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
 		fb_swap = ((GRPH_RED_SEL_B << GRPH_SWAP_CNTL__GRPH_RED_CROSSBAR__SHIFT) |
-		           (GRPH_BLUE_SEL_R << GRPH_SWAP_CNTL__GRPH_BLUE_CROSSBAR__SHIFT));
+			(GRPH_BLUE_SEL_R << GRPH_SWAP_CNTL__GRPH_BLUE_CROSSBAR__SHIFT));
 #ifdef __BIG_ENDIAN
 		fb_swap |= (GRPH_ENDIAN_8IN32 << GRPH_SWAP_CNTL__GRPH_ENDIAN_SWAP__SHIFT);
 #endif
@@ -3151,7 +3147,7 @@ static int dce_v8_0_pageflip_irq(struct amdgpu_device *adev,
 
 	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
 	works = amdgpu_crtc->pflip_works;
-	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_SUBMITTED){
+	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_SUBMITTED) {
 		DRM_DEBUG_DRIVER("amdgpu_crtc->pflip_status = %d != "
 						"AMDGPU_FLIP_SUBMITTED(%d)\n",
 						amdgpu_crtc->pflip_status,
@@ -3544,8 +3540,7 @@ static void dce_v8_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->hpd_irq.funcs = &dce_v8_0_hpd_irq_funcs;
 }
 
-const struct amdgpu_ip_block_version dce_v8_0_ip_block =
-{
+const struct amdgpu_ip_block_version dce_v8_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_DCE,
 	.major = 8,
 	.minor = 0,
@@ -3553,8 +3548,7 @@ const struct amdgpu_ip_block_version dce_v8_0_ip_block =
 	.funcs = &dce_v8_0_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version dce_v8_1_ip_block =
-{
+const struct amdgpu_ip_block_version dce_v8_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_DCE,
 	.major = 8,
 	.minor = 1,
@@ -3562,8 +3556,7 @@ const struct amdgpu_ip_block_version dce_v8_1_ip_block =
 	.funcs = &dce_v8_0_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version dce_v8_2_ip_block =
-{
+const struct amdgpu_ip_block_version dce_v8_2_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_DCE,
 	.major = 8,
 	.minor = 2,
@@ -3571,8 +3564,7 @@ const struct amdgpu_ip_block_version dce_v8_2_ip_block =
 	.funcs = &dce_v8_0_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version dce_v8_3_ip_block =
-{
+const struct amdgpu_ip_block_version dce_v8_3_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_DCE,
 	.major = 8,
 	.minor = 3,
@@ -3580,8 +3572,7 @@ const struct amdgpu_ip_block_version dce_v8_3_ip_block =
 	.funcs = &dce_v8_0_ip_funcs,
 };
 
-const struct amdgpu_ip_block_version dce_v8_5_ip_block =
-{
+const struct amdgpu_ip_block_version dce_v8_5_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_DCE,
 	.major = 8,
 	.minor = 5,

@@ -128,10 +128,54 @@ static void mt7996_dma_disable(struct mt7996_dev *dev, bool reset)
 	}
 }
 
-static int mt7996_dma_enable(struct mt7996_dev *dev)
+void mt7996_dma_start(struct mt7996_dev *dev, bool reset)
 {
 	u32 hif1_ofs = 0;
 	u32 irq_mask;
+
+	if (dev->hif2)
+		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
+
+	/* enable WFDMA Tx/Rx */
+	if (!reset) {
+		mt76_set(dev, MT_WFDMA0_GLO_CFG,
+			 MT_WFDMA0_GLO_CFG_TX_DMA_EN |
+			 MT_WFDMA0_GLO_CFG_RX_DMA_EN |
+			 MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
+			 MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
+
+		if (dev->hif2)
+			mt76_set(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
+				 MT_WFDMA0_GLO_CFG_TX_DMA_EN |
+				 MT_WFDMA0_GLO_CFG_RX_DMA_EN |
+				 MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
+				 MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
+	}
+
+	/* enable interrupts for TX/RX rings */
+	irq_mask = MT_INT_MCU_CMD;
+	if (reset)
+		goto done;
+
+	irq_mask = MT_INT_RX_DONE_MCU | MT_INT_TX_DONE_MCU;
+
+	if (!dev->mphy.band_idx)
+		irq_mask |= MT_INT_BAND0_RX_DONE;
+
+	if (dev->dbdc_support)
+		irq_mask |= MT_INT_BAND1_RX_DONE;
+
+	if (dev->tbtc_support)
+		irq_mask |= MT_INT_BAND2_RX_DONE;
+
+done:
+	mt7996_irq_enable(dev, irq_mask);
+	mt7996_irq_disable(dev, 0);
+}
+
+static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
+{
+	u32 hif1_ofs = 0;
 
 	if (dev->hif2)
 		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
@@ -170,13 +214,6 @@ static int mt7996_dma_enable(struct mt7996_dev *dev)
 	mt76_poll(dev, MT_WFDMA_EXT_CSR_HIF_MISC,
 		  MT_WFDMA_EXT_CSR_HIF_MISC_BUSY, 0, 1000);
 
-	/* set WFDMA Tx/Rx */
-	mt76_set(dev, MT_WFDMA0_GLO_CFG,
-		 MT_WFDMA0_GLO_CFG_TX_DMA_EN |
-		 MT_WFDMA0_GLO_CFG_RX_DMA_EN |
-		 MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
-		 MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
-
 	/* GLO_CFG_EXT0 */
 	mt76_set(dev, WF_WFDMA0_GLO_CFG_EXT0,
 		 WF_WFDMA0_GLO_CFG_EXT0_RX_WB_RXD |
@@ -187,12 +224,6 @@ static int mt7996_dma_enable(struct mt7996_dev *dev)
 		 WF_WFDMA0_GLO_CFG_EXT1_TX_FCTRL_MODE);
 
 	if (dev->hif2) {
-		mt76_set(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
-			 MT_WFDMA0_GLO_CFG_TX_DMA_EN |
-			 MT_WFDMA0_GLO_CFG_RX_DMA_EN |
-			 MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
-			 MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
-
 		/* GLO_CFG_EXT0 */
 		mt76_set(dev, WF_WFDMA0_GLO_CFG_EXT0 + hif1_ofs,
 			 WF_WFDMA0_GLO_CFG_EXT0_RX_WB_RXD |
@@ -216,23 +247,7 @@ static int mt7996_dma_enable(struct mt7996_dev *dev)
 		/* TODO: redirect rx ring6 interrupt to pcie0 for wed function */
 	}
 
-	/* enable interrupts for TX/RX rings */
-	irq_mask = MT_INT_RX_DONE_MCU |
-		   MT_INT_TX_DONE_MCU |
-		   MT_INT_MCU_CMD;
-
-	if (!dev->mphy.band_idx)
-		irq_mask |= MT_INT_BAND0_RX_DONE;
-
-	if (dev->dbdc_support)
-		irq_mask |= MT_INT_BAND1_RX_DONE;
-
-	if (dev->tbtc_support)
-		irq_mask |= MT_INT_BAND2_RX_DONE;
-
-	mt7996_irq_enable(dev, irq_mask);
-
-	return 0;
+	mt7996_dma_start(dev, reset);
 }
 
 int mt7996_dma_init(struct mt7996_dev *dev)
@@ -293,7 +308,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 	/* event from WA */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
 			       MT_RXQ_ID(MT_RXQ_MCU_WA),
-			       MT7996_RX_MCU_RING_SIZE,
+			       MT7996_RX_MCU_RING_SIZE_WA,
 			       MT_RX_BUF_SIZE,
 			       MT_RXQ_RING_BASE(MT_RXQ_MCU_WA));
 	if (ret)
@@ -347,7 +362,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 			  mt7996_poll_tx);
 	napi_enable(&dev->mt76.tx_napi);
 
-	mt7996_dma_enable(dev);
+	mt7996_dma_enable(dev, false);
 
 	return 0;
 }
@@ -413,7 +428,7 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
 	mt76_for_each_q_rx(&dev->mt76, i)
 		mt76_queue_rx_reset(dev, i);
 
-	mt7996_dma_enable(dev);
+	mt7996_dma_enable(dev, !force);
 }
 
 void mt7996_dma_cleanup(struct mt7996_dev *dev)

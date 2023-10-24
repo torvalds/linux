@@ -876,9 +876,9 @@ static int prepare_uptodate_page(struct inode *inode,
 	return 0;
 }
 
-static unsigned int get_prepare_fgp_flags(bool nowait)
+static fgf_t get_prepare_fgp_flags(bool nowait)
 {
-	unsigned int fgp_flags = FGP_LOCK | FGP_ACCESSED | FGP_CREAT;
+	fgf_t fgp_flags = FGP_LOCK | FGP_ACCESSED | FGP_CREAT;
 
 	if (nowait)
 		fgp_flags |= FGP_NOWAIT;
@@ -910,7 +910,7 @@ static noinline int prepare_pages(struct inode *inode, struct page **pages,
 	int i;
 	unsigned long index = pos >> PAGE_SHIFT;
 	gfp_t mask = get_prepare_gfp_flags(inode, nowait);
-	unsigned int fgp_flags = get_prepare_fgp_flags(nowait);
+	fgf_t fgp_flags = get_prepare_fgp_flags(nowait);
 	int err = 0;
 	int faili;
 
@@ -1108,7 +1108,7 @@ void btrfs_check_nocow_unlock(struct btrfs_inode *inode)
 
 static void update_time_for_write(struct inode *inode)
 {
-	struct timespec64 now;
+	struct timespec64 now, ctime;
 
 	if (IS_NOCMTIME(inode))
 		return;
@@ -1117,8 +1117,9 @@ static void update_time_for_write(struct inode *inode)
 	if (!timespec64_equal(&inode->i_mtime, &now))
 		inode->i_mtime = now;
 
-	if (!timespec64_equal(&inode->i_ctime, &now))
-		inode->i_ctime = now;
+	ctime = inode_get_ctime(inode);
+	if (!timespec64_equal(&ctime, &now))
+		inode_set_ctime_to_ts(inode, now);
 
 	if (IS_I_VERSION(inode))
 		inode_inc_iversion(inode);
@@ -1466,14 +1467,26 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		ilock_flags |= BTRFS_ILOCK_TRY;
 
-	/* If the write DIO is within EOF, use a shared lock */
-	if (iocb->ki_pos + iov_iter_count(from) <= i_size_read(inode))
+	/*
+	 * If the write DIO is within EOF, use a shared lock and also only if
+	 * security bits will likely not be dropped by file_remove_privs() called
+	 * from btrfs_write_check(). Either will need to be rechecked after the
+	 * lock was acquired.
+	 */
+	if (iocb->ki_pos + iov_iter_count(from) <= i_size_read(inode) && IS_NOSEC(inode))
 		ilock_flags |= BTRFS_ILOCK_SHARED;
 
 relock:
 	err = btrfs_inode_lock(BTRFS_I(inode), ilock_flags);
 	if (err < 0)
 		return err;
+
+	/* Shared lock cannot be used with security bits set. */
+	if ((ilock_flags & BTRFS_ILOCK_SHARED) && !IS_NOSEC(inode)) {
+		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
+		ilock_flags &= ~BTRFS_ILOCK_SHARED;
+		goto relock;
+	}
 
 	err = generic_write_checks(iocb, from);
 	if (err <= 0) {
@@ -2459,10 +2472,8 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 		 */
 		inode_inc_iversion(&inode->vfs_inode);
 
-		if (!extent_info || extent_info->update_times) {
-			inode->vfs_inode.i_mtime = current_time(&inode->vfs_inode);
-			inode->vfs_inode.i_ctime = inode->vfs_inode.i_mtime;
-		}
+		if (!extent_info || extent_info->update_times)
+			inode->vfs_inode.i_mtime = inode_set_ctime_current(&inode->vfs_inode);
 
 		ret = btrfs_update_inode(trans, root, inode);
 		if (ret)
@@ -2703,8 +2714,7 @@ static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 
 	ASSERT(trans != NULL);
 	inode_inc_iversion(inode);
-	inode->i_mtime = current_time(inode);
-	inode->i_ctime = inode->i_mtime;
+	inode->i_mtime = inode_set_ctime_current(inode);
 	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 	updated_inode = true;
 	btrfs_end_transaction(trans);
@@ -2721,11 +2731,10 @@ out_only_mutex:
 		 * for detecting, at fsync time, if the inode isn't yet in the
 		 * log tree or it's there but not up to date.
 		 */
-		struct timespec64 now = current_time(inode);
+		struct timespec64 now = inode_set_ctime_current(inode);
 
 		inode_inc_iversion(inode);
 		inode->i_mtime = now;
-		inode->i_ctime = now;
 		trans = btrfs_start_transaction(root, 1);
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
@@ -2796,7 +2805,7 @@ static int btrfs_fallocate_update_isize(struct inode *inode,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	i_size_write(inode, end);
 	btrfs_inode_safe_disk_i_size_write(BTRFS_I(inode), 0);
 	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
@@ -3018,7 +3027,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 	struct extent_changeset *data_reserved = NULL;
 	struct falloc_range *range;
 	struct falloc_range *tmp;
-	struct list_head reserve_list;
+	LIST_HEAD(reserve_list);
 	u64 cur_offset;
 	u64 last_byte;
 	u64 alloc_start;
@@ -3110,7 +3119,6 @@ static long btrfs_fallocate(struct file *file, int mode,
 	btrfs_assert_inode_range_clean(BTRFS_I(inode), alloc_start, locked_end);
 
 	/* First, check if we exceed the qgroup limit */
-	INIT_LIST_HEAD(&reserve_list);
 	while (cur_offset < alloc_end) {
 		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, cur_offset,
 				      alloc_end - cur_offset);

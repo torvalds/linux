@@ -62,6 +62,12 @@ static void hubp31_program_extended_blank(struct hubp *hubp,
 	REG_UPDATE(BLANK_OFFSET_1, MIN_DST_Y_NEXT_START, min_dst_y_next_start_optimized);
 }
 
+void hubp31_program_extended_blank_value(
+	struct hubp *hubp, unsigned int min_dst_y_next_start_optimized)
+{
+	hubp31_program_extended_blank(hubp, min_dst_y_next_start_optimized);
+}
+
 static struct hubp_funcs dcn31_hubp_funcs = {
 	.hubp_enable_tripleBuffer = hubp2_enable_triplebuffer,
 	.hubp_is_triplebuffer_enabled = hubp2_is_triplebuffer_enabled,

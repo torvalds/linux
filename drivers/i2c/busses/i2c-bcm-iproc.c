@@ -7,7 +7,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -233,13 +233,14 @@ static inline u32 iproc_i2c_rd_reg(struct bcm_iproc_i2c_dev *iproc_i2c,
 				   u32 offset)
 {
 	u32 val;
+	unsigned long flags;
 
 	if (iproc_i2c->idm_base) {
-		spin_lock(&iproc_i2c->idm_lock);
+		spin_lock_irqsave(&iproc_i2c->idm_lock, flags);
 		writel(iproc_i2c->ape_addr_mask,
 		       iproc_i2c->idm_base + IDM_CTRL_DIRECT_OFFSET);
 		val = readl(iproc_i2c->base + offset);
-		spin_unlock(&iproc_i2c->idm_lock);
+		spin_unlock_irqrestore(&iproc_i2c->idm_lock, flags);
 	} else {
 		val = readl(iproc_i2c->base + offset);
 	}
@@ -250,12 +251,14 @@ static inline u32 iproc_i2c_rd_reg(struct bcm_iproc_i2c_dev *iproc_i2c,
 static inline void iproc_i2c_wr_reg(struct bcm_iproc_i2c_dev *iproc_i2c,
 				    u32 offset, u32 val)
 {
+	unsigned long flags;
+
 	if (iproc_i2c->idm_base) {
-		spin_lock(&iproc_i2c->idm_lock);
+		spin_lock_irqsave(&iproc_i2c->idm_lock, flags);
 		writel(iproc_i2c->ape_addr_mask,
 		       iproc_i2c->idm_base + IDM_CTRL_DIRECT_OFFSET);
 		writel(val, iproc_i2c->base + offset);
-		spin_unlock(&iproc_i2c->idm_lock);
+		spin_unlock_irqrestore(&iproc_i2c->idm_lock, flags);
 	} else {
 		writel(val, iproc_i2c->base + offset);
 	}
@@ -1026,7 +1029,6 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 	int irq, ret = 0;
 	struct bcm_iproc_i2c_dev *iproc_i2c;
 	struct i2c_adapter *adap;
-	struct resource *res;
 
 	iproc_i2c = devm_kzalloc(&pdev->dev, sizeof(*iproc_i2c),
 				 GFP_KERNEL);
@@ -1039,15 +1041,12 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 		(enum bcm_iproc_i2c_type)of_device_get_match_data(&pdev->dev);
 	init_completion(&iproc_i2c->done);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iproc_i2c->base = devm_ioremap_resource(iproc_i2c->device, res);
+	iproc_i2c->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(iproc_i2c->base))
 		return PTR_ERR(iproc_i2c->base);
 
 	if (iproc_i2c->type == IPROC_I2C_NIC) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		iproc_i2c->idm_base = devm_ioremap_resource(iproc_i2c->device,
-							    res);
+		iproc_i2c->idm_base = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(iproc_i2c->idm_base))
 			return PTR_ERR(iproc_i2c->idm_base);
 
@@ -1125,8 +1124,6 @@ static void bcm_iproc_i2c_remove(struct platform_device *pdev)
 	bcm_iproc_i2c_enable_disable(iproc_i2c, false);
 }
 
-#ifdef CONFIG_PM_SLEEP
-
 static int bcm_iproc_i2c_suspend(struct device *dev)
 {
 	struct bcm_iproc_i2c_dev *iproc_i2c = dev_get_drvdata(dev);
@@ -1176,12 +1173,6 @@ static const struct dev_pm_ops bcm_iproc_i2c_pm_ops = {
 	.suspend_late = &bcm_iproc_i2c_suspend,
 	.resume_early = &bcm_iproc_i2c_resume
 };
-
-#define BCM_IPROC_I2C_PM_OPS (&bcm_iproc_i2c_pm_ops)
-#else
-#define BCM_IPROC_I2C_PM_OPS NULL
-#endif /* CONFIG_PM_SLEEP */
-
 
 static int bcm_iproc_i2c_reg_slave(struct i2c_client *slave)
 {
@@ -1255,7 +1246,7 @@ static struct platform_driver bcm_iproc_i2c_driver = {
 	.driver = {
 		.name = "bcm-iproc-i2c",
 		.of_match_table = bcm_iproc_i2c_of_match,
-		.pm = BCM_IPROC_I2C_PM_OPS,
+		.pm = pm_sleep_ptr(&bcm_iproc_i2c_pm_ops),
 	},
 	.probe = bcm_iproc_i2c_probe,
 	.remove_new = bcm_iproc_i2c_remove,

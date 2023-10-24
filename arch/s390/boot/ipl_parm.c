@@ -19,7 +19,6 @@ struct parmarea parmarea __section(".parmarea") = {
 };
 
 char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
-int __bootdata(noexec_disabled);
 
 unsigned int __bootdata_preserved(zlib_dfltcc_support) = ZLIB_DFLTCC_FULL;
 struct ipl_parameter_block __bootdata_preserved(ipl_block);
@@ -288,12 +287,6 @@ void parse_boot_command_line(void)
 				zlib_dfltcc_support = ZLIB_DFLTCC_INFLATE_ONLY;
 			else if (!strcmp(val, "always"))
 				zlib_dfltcc_support = ZLIB_DFLTCC_FULL_DEBUG;
-		}
-
-		if (!strcmp(param, "noexec")) {
-			rc = kstrtobool(val, &enabled);
-			if (!rc && !enabled)
-				noexec_disabled = 1;
 		}
 
 		if (!strcmp(param, "facilities") && val)

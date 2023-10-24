@@ -1875,6 +1875,8 @@ struct rtl8xxxu_fileops rtl8710bu_fops = {
 	 */
 	.ustime_tsf_edca = 0x28,
 	.max_aggr_num = 0x0c14,
+	.supports_ap = 1,
+	.max_macid_num = 16,
 	.adda_1t_init = 0x03c00016,
 	.adda_1t_path_on = 0x03c00016,
 	.trxff_boundary = 0x3f7f,

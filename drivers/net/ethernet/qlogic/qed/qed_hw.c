@@ -23,7 +23,10 @@
 #include "qed_reg_addr.h"
 #include "qed_sriov.h"
 
-#define QED_BAR_ACQUIRE_TIMEOUT 1000
+#define QED_BAR_ACQUIRE_TIMEOUT_USLEEP_CNT	1000
+#define QED_BAR_ACQUIRE_TIMEOUT_USLEEP		1000
+#define QED_BAR_ACQUIRE_TIMEOUT_UDELAY_CNT	100000
+#define QED_BAR_ACQUIRE_TIMEOUT_UDELAY		10
 
 /* Invalid values */
 #define QED_BAR_INVALID_OFFSET          (cpu_to_le32(-1))
@@ -85,11 +88,21 @@ void qed_ptt_pool_free(struct qed_hwfn *p_hwfn)
 
 struct qed_ptt *qed_ptt_acquire(struct qed_hwfn *p_hwfn)
 {
+	return qed_ptt_acquire_context(p_hwfn, false);
+}
+
+struct qed_ptt *qed_ptt_acquire_context(struct qed_hwfn *p_hwfn, bool is_atomic)
+{
 	struct qed_ptt *p_ptt;
-	unsigned int i;
+	unsigned int i, count;
+
+	if (is_atomic)
+		count = QED_BAR_ACQUIRE_TIMEOUT_UDELAY_CNT;
+	else
+		count = QED_BAR_ACQUIRE_TIMEOUT_USLEEP_CNT;
 
 	/* Take the free PTT from the list */
-	for (i = 0; i < QED_BAR_ACQUIRE_TIMEOUT; i++) {
+	for (i = 0; i < count; i++) {
 		spin_lock_bh(&p_hwfn->p_ptt_pool->lock);
 
 		if (!list_empty(&p_hwfn->p_ptt_pool->free_list)) {
@@ -105,7 +118,12 @@ struct qed_ptt *qed_ptt_acquire(struct qed_hwfn *p_hwfn)
 		}
 
 		spin_unlock_bh(&p_hwfn->p_ptt_pool->lock);
-		usleep_range(1000, 2000);
+
+		if (is_atomic)
+			udelay(QED_BAR_ACQUIRE_TIMEOUT_UDELAY);
+		else
+			usleep_range(QED_BAR_ACQUIRE_TIMEOUT_USLEEP,
+				     QED_BAR_ACQUIRE_TIMEOUT_USLEEP * 2);
 	}
 
 	DP_NOTICE(p_hwfn, "PTT acquire timeout - failed to allocate PTT\n");

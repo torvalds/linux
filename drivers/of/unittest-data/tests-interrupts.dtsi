@@ -5,6 +5,7 @@
 		interrupts {
 			#address-cells = <1>;
 			#size-cells = <1>;
+
 			test_intc0: intc0 {
 				interrupt-controller;
 				#interrupt-cells = <1>;

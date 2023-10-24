@@ -25,6 +25,53 @@
 #include <asm/unaligned.h>
 
 /*
+ * Some filesystems were never converted to '->iterate_shared()'
+ * and their directory iterators want the inode lock held for
+ * writing. This wrapper allows for converting from the shared
+ * semantics to the exclusive inode use.
+ */
+int wrap_directory_iterator(struct file *file,
+			    struct dir_context *ctx,
+			    int (*iter)(struct file *, struct dir_context *))
+{
+	struct inode *inode = file_inode(file);
+	int ret;
+
+	/*
+	 * We'd love to have an 'inode_upgrade_trylock()' operation,
+	 * see the comment in mmap_upgrade_trylock() in mm/memory.c.
+	 *
+	 * But considering this is for "filesystems that never got
+	 * converted", it really doesn't matter.
+	 *
+	 * Also note that since we have to return with the lock held
+	 * for reading, we can't use the "killable()" locking here,
+	 * since we do need to get the lock even if we're dying.
+	 *
+	 * We could do the write part killably and then get the read
+	 * lock unconditionally if it mattered, but see above on why
+	 * this does the very simplistic conversion.
+	 */
+	up_read(&inode->i_rwsem);
+	down_write(&inode->i_rwsem);
+
+	/*
+	 * Since we dropped the inode lock, we should do the
+	 * DEADDIR test again. See 'iterate_dir()' below.
+	 *
+	 * Note that we don't need to re-do the f_pos games,
+	 * since the file must be locked wrt f_pos anyway.
+	 */
+	ret = -ENOENT;
+	if (!IS_DEADDIR(inode))
+		ret = iter(file, ctx);
+
+	downgrade_write(&inode->i_rwsem);
+	return ret;
+}
+EXPORT_SYMBOL(wrap_directory_iterator);
+
+/*
  * Note the "unsafe_put_user() semantics: we goto a
  * label for errors.
  */
@@ -40,39 +87,28 @@
 int iterate_dir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
-	bool shared = false;
 	int res = -ENOTDIR;
-	if (file->f_op->iterate_shared)
-		shared = true;
-	else if (!file->f_op->iterate)
+
+	if (!file->f_op->iterate_shared)
 		goto out;
 
 	res = security_file_permission(file, MAY_READ);
 	if (res)
 		goto out;
 
-	if (shared)
-		res = down_read_killable(&inode->i_rwsem);
-	else
-		res = down_write_killable(&inode->i_rwsem);
+	res = down_read_killable(&inode->i_rwsem);
 	if (res)
 		goto out;
 
 	res = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
 		ctx->pos = file->f_pos;
-		if (shared)
-			res = file->f_op->iterate_shared(file, ctx);
-		else
-			res = file->f_op->iterate(file, ctx);
+		res = file->f_op->iterate_shared(file, ctx);
 		file->f_pos = ctx->pos;
 		fsnotify_access(file);
 		file_accessed(file);
 	}
-	if (shared)
-		inode_unlock_shared(inode);
-	else
-		inode_unlock(inode);
+	inode_unlock_shared(inode);
 out:
 	return res;
 }

@@ -227,7 +227,7 @@ static int cm3605_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		ret = dev_err_probe(dev, irq, "failed to get irq\n");
+		ret = irq;
 		goto out_disable_aset;
 	}
 

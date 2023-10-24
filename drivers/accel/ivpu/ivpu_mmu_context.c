@@ -11,6 +11,7 @@
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
 
+#define IVPU_MMU_VPU_ADDRESS_MASK        GENMASK(47, 12)
 #define IVPU_MMU_PGD_INDEX_MASK          GENMASK(47, 39)
 #define IVPU_MMU_PUD_INDEX_MASK          GENMASK(38, 30)
 #define IVPU_MMU_PMD_INDEX_MASK          GENMASK(29, 21)
@@ -328,12 +329,8 @@ ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 
 	if (!IS_ALIGNED(vpu_addr, IVPU_MMU_PAGE_SIZE))
 		return -EINVAL;
-	/*
-	 * VPU is only 32 bit, but DMA engine is 38 bit
-	 * Ranges < 2 GB are reserved for VPU internal registers
-	 * Limit range to 8 GB
-	 */
-	if (vpu_addr < SZ_2G || vpu_addr > SZ_8G)
+
+	if (vpu_addr & ~IVPU_MMU_VPU_ADDRESS_MASK)
 		return -EINVAL;
 
 	prot = IVPU_MMU_ENTRY_MAPPED;
@@ -427,15 +424,17 @@ ivpu_mmu_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u3
 	INIT_LIST_HEAD(&ctx->bo_list);
 
 	ret = ivpu_mmu_pgtable_init(vdev, &ctx->pgtable);
-	if (ret)
+	if (ret) {
+		ivpu_err(vdev, "Failed to initialize pgtable for ctx %u: %d\n", context_id, ret);
 		return ret;
+	}
 
 	if (!context_id) {
-		start = vdev->hw->ranges.global_low.start;
-		end = vdev->hw->ranges.global_high.end;
+		start = vdev->hw->ranges.global.start;
+		end = vdev->hw->ranges.shave.end;
 	} else {
-		start = vdev->hw->ranges.user_low.start;
-		end = vdev->hw->ranges.user_high.end;
+		start = vdev->hw->ranges.user.start;
+		end = vdev->hw->ranges.dma.end;
 	}
 
 	drm_mm_init(&ctx->mm, start, end - start);
@@ -467,6 +466,16 @@ void ivpu_mmu_global_context_fini(struct ivpu_device *vdev)
 	return ivpu_mmu_context_fini(vdev, &vdev->gctx);
 }
 
+int ivpu_mmu_reserved_context_init(struct ivpu_device *vdev)
+{
+	return ivpu_mmu_user_context_init(vdev, &vdev->rctx, IVPU_RESERVED_CONTEXT_MMU_SSID);
+}
+
+void ivpu_mmu_reserved_context_fini(struct ivpu_device *vdev)
+{
+	return ivpu_mmu_user_context_fini(vdev, &vdev->rctx);
+}
+
 void ivpu_mmu_user_context_mark_invalid(struct ivpu_device *vdev, u32 ssid)
 {
 	struct ivpu_file_priv *file_priv;
@@ -488,13 +497,13 @@ int ivpu_mmu_user_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context
 
 	ret = ivpu_mmu_context_init(vdev, ctx, ctx_id);
 	if (ret) {
-		ivpu_err(vdev, "Failed to initialize context: %d\n", ret);
+		ivpu_err(vdev, "Failed to initialize context %u: %d\n", ctx_id, ret);
 		return ret;
 	}
 
 	ret = ivpu_mmu_set_pgtable(vdev, ctx_id, &ctx->pgtable);
 	if (ret) {
-		ivpu_err(vdev, "Failed to set page table: %d\n", ret);
+		ivpu_err(vdev, "Failed to set page table for context %u: %d\n", ctx_id, ret);
 		goto err_context_fini;
 	}
 

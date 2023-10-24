@@ -169,7 +169,7 @@ intel_dp_aux_hdr_get_backlight(struct intel_connector *connector, enum pipe pipe
 	struct intel_panel *panel = &connector->panel;
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
 	u8 tmp;
-	u8 buf[2] = { 0 };
+	u8 buf[2] = {};
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, INTEL_EDP_HDR_GETSET_CTRL_PARAMS, &tmp) != 1) {
 		drm_err(&i915->drm, "[CONNECTOR:%d:%s] Failed to read current backlight mode from DPCD\n",
@@ -204,7 +204,7 @@ intel_dp_aux_hdr_set_aux_backlight(const struct drm_connector_state *conn_state,
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_device *dev = connector->base.dev;
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
-	u8 buf[4] = { 0 };
+	u8 buf[4] = {};
 
 	buf[0] = level & 0xFF;
 	buf[1] = (level & 0xFF00) >> 8;

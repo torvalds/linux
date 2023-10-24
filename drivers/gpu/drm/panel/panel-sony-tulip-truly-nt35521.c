@@ -23,8 +23,6 @@ struct truly_nt35521 {
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *blen_gpio;
-	bool prepared;
-	bool enabled;
 };
 
 static inline
@@ -296,9 +294,6 @@ static int truly_nt35521_prepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (ctx->prepared)
-		return 0;
-
 	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators: %d\n", ret);
@@ -314,7 +309,6 @@ static int truly_nt35521_prepare(struct drm_panel *panel)
 		return ret;
 	}
 
-	ctx->prepared = true;
 	return 0;
 }
 
@@ -324,9 +318,6 @@ static int truly_nt35521_unprepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = truly_nt35521_off(ctx);
 	if (ret < 0)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
@@ -335,7 +326,6 @@ static int truly_nt35521_unprepare(struct drm_panel *panel)
 	regulator_bulk_disable(ARRAY_SIZE(ctx->supplies),
 			       ctx->supplies);
 
-	ctx->prepared = false;
 	return 0;
 }
 
@@ -343,12 +333,8 @@ static int truly_nt35521_enable(struct drm_panel *panel)
 {
 	struct truly_nt35521 *ctx = to_truly_nt35521(panel);
 
-	if (ctx->enabled)
-		return 0;
-
 	gpiod_set_value_cansleep(ctx->blen_gpio, 1);
 
-	ctx->enabled = true;
 	return 0;
 }
 
@@ -356,12 +342,8 @@ static int truly_nt35521_disable(struct drm_panel *panel)
 {
 	struct truly_nt35521 *ctx = to_truly_nt35521(panel);
 
-	if (!ctx->enabled)
-		return 0;
-
 	gpiod_set_value_cansleep(ctx->blen_gpio, 0);
 
-	ctx->enabled = false;
 	return 0;
 }
 

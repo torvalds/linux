@@ -218,6 +218,14 @@ properties:
               - amlogic,aq222
           - const: amlogic,s4
 
+      - description: Boards with the Amlogic T7 A311D2 SoC
+        items:
+          - enum:
+              - amlogic,an400
+              - khadas,vim4
+          - const: amlogic,a311d2
+          - const: amlogic,t7
+
 additionalProperties: true
 
 ...

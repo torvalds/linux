@@ -23,15 +23,9 @@ struct mnt_idmap;
  */
 #ifdef CONFIG_BLOCK
 extern void __init bdev_cache_init(void);
-
-void emergency_thaw_bdev(struct super_block *sb);
 #else
 static inline void bdev_cache_init(void)
 {
-}
-static inline int emergency_thaw_bdev(struct super_block *sb)
-{
-	return 0;
 }
 #endif /* CONFIG_BLOCK */
 
@@ -115,7 +109,7 @@ static inline void put_file_access(struct file *file)
  * super.c
  */
 extern int reconfigure_super(struct fs_context *);
-extern bool trylock_super(struct super_block *sb);
+extern bool super_trylock_shared(struct super_block *sb);
 struct super_block *user_get_super(dev_t, bool excl);
 void put_super(struct super_block *sb);
 extern bool mount_capable(struct fs_context *);
@@ -201,7 +195,7 @@ void lock_two_inodes(struct inode *inode1, struct inode *inode2,
  * fs-writeback.c
  */
 extern long get_nr_dirty_inodes(void);
-extern int invalidate_inodes(struct super_block *, bool);
+void invalidate_inodes(struct super_block *sb);
 
 /*
  * dcache.c

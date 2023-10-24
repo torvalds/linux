@@ -28,6 +28,7 @@ config EXT3_FS_SECURITY
 
 config EXT4_FS
 	tristate "The Extended 4 (ext4) filesystem"
+	select BUFFER_HEAD
 	select JBD2
 	select CRC16
 	select CRYPTO

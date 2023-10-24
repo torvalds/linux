@@ -27,7 +27,7 @@
 #include "util.h"
 #include "dir.h"
 
-struct workqueue_struct *gfs_recovery_wq;
+struct workqueue_struct *gfs2_recovery_wq;
 
 int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 			   struct buffer_head **bh)
@@ -570,7 +570,7 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd, bool wait)
 		return -EBUSY;
 
 	/* we have JDF_RECOVERY, queue should always succeed */
-	rv = queue_work(gfs_recovery_wq, &jd->jd_work);
+	rv = queue_work(gfs2_recovery_wq, &jd->jd_work);
 	BUG_ON(!rv);
 
 	if (wait)

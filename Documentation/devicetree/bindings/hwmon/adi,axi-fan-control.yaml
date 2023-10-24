@@ -11,7 +11,7 @@ maintainers:
   - Nuno Sá <nuno.sa@analog.com>
 
 description: |+
-  Bindings for the Analog Devices AXI FAN Control driver. Spefications of the
+  Bindings for the Analog Devices AXI FAN Control driver. Specifications of the
   core can be found in:
 
   https://wiki.analog.com/resources/fpga/docs/axi_fan_control

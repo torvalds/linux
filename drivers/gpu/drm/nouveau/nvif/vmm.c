@@ -104,6 +104,90 @@ nvif_vmm_get(struct nvif_vmm *vmm, enum nvif_vmm_get type, bool sparse,
 	return ret;
 }
 
+int
+nvif_vmm_raw_get(struct nvif_vmm *vmm, u64 addr, u64 size,
+		 u8 shift)
+{
+	struct nvif_vmm_raw_v0 args = {
+		.version = 0,
+		.op = NVIF_VMM_RAW_V0_GET,
+		.addr = addr,
+		.size = size,
+		.shift = shift,
+	};
+
+	return nvif_object_mthd(&vmm->object, NVIF_VMM_V0_RAW,
+				&args, sizeof(args));
+}
+
+int
+nvif_vmm_raw_put(struct nvif_vmm *vmm, u64 addr, u64 size, u8 shift)
+{
+	struct nvif_vmm_raw_v0 args = {
+		.version = 0,
+		.op = NVIF_VMM_RAW_V0_PUT,
+		.addr = addr,
+		.size = size,
+		.shift = shift,
+	};
+
+	return nvif_object_mthd(&vmm->object, NVIF_VMM_V0_RAW,
+				&args, sizeof(args));
+}
+
+int
+nvif_vmm_raw_map(struct nvif_vmm *vmm, u64 addr, u64 size, u8 shift,
+		 void *argv, u32 argc, struct nvif_mem *mem, u64 offset)
+{
+	struct nvif_vmm_raw_v0 args = {
+		.version = 0,
+		.op = NVIF_VMM_RAW_V0_MAP,
+		.addr = addr,
+		.size = size,
+		.shift = shift,
+		.memory = nvif_handle(&mem->object),
+		.offset = offset,
+		.argv = (u64)(uintptr_t)argv,
+		.argc = argc,
+	};
+
+
+	return nvif_object_mthd(&vmm->object, NVIF_VMM_V0_RAW,
+				&args, sizeof(args));
+}
+
+int
+nvif_vmm_raw_unmap(struct nvif_vmm *vmm, u64 addr, u64 size,
+		   u8 shift, bool sparse)
+{
+	struct nvif_vmm_raw_v0 args = {
+		.version = 0,
+		.op = NVIF_VMM_RAW_V0_UNMAP,
+		.addr = addr,
+		.size = size,
+		.shift = shift,
+		.sparse = sparse,
+	};
+
+	return nvif_object_mthd(&vmm->object, NVIF_VMM_V0_RAW,
+				&args, sizeof(args));
+}
+
+int
+nvif_vmm_raw_sparse(struct nvif_vmm *vmm, u64 addr, u64 size, bool ref)
+{
+	struct nvif_vmm_raw_v0 args = {
+		.version = 0,
+		.op = NVIF_VMM_RAW_V0_SPARSE,
+		.addr = addr,
+		.size = size,
+		.ref = ref,
+	};
+
+	return nvif_object_mthd(&vmm->object, NVIF_VMM_V0_RAW,
+				&args, sizeof(args));
+}
+
 void
 nvif_vmm_dtor(struct nvif_vmm *vmm)
 {
@@ -112,8 +196,9 @@ nvif_vmm_dtor(struct nvif_vmm *vmm)
 }
 
 int
-nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name, s32 oclass, bool managed,
-	      u64 addr, u64 size, void *argv, u32 argc, struct nvif_vmm *vmm)
+nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name, s32 oclass,
+	      enum nvif_vmm_type type, u64 addr, u64 size, void *argv, u32 argc,
+	      struct nvif_vmm *vmm)
 {
 	struct nvif_vmm_v0 *args;
 	u32 argn = sizeof(*args) + argc;
@@ -125,9 +210,18 @@ nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name, s32 oclass, bool managed,
 	if (!(args = kmalloc(argn, GFP_KERNEL)))
 		return -ENOMEM;
 	args->version = 0;
-	args->managed = managed;
 	args->addr = addr;
 	args->size = size;
+
+	switch (type) {
+	case UNMANAGED: args->type = NVIF_VMM_V0_TYPE_UNMANAGED; break;
+	case MANAGED: args->type = NVIF_VMM_V0_TYPE_MANAGED; break;
+	case RAW: args->type = NVIF_VMM_V0_TYPE_RAW; break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
 	memcpy(args->data, argv, argc);
 
 	ret = nvif_object_ctor(&mmu->object, name ? name : "nvifVmm", 0,

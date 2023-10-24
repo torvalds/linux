@@ -8,7 +8,7 @@ Required properties:
 
 Optional properties:
 - st,hw-flow-ctrl	bool flag to enable hardware flow control.
-- st,force-m1		bool flat to force asc to be in Mode-1 recommeded
+- st,force-m1		bool flat to force asc to be in Mode-1 recommended
 			for high bit rates (above 19.2K)
 Example:
 serial@fe440000{

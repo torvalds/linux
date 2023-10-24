@@ -30,7 +30,7 @@ Optional properties:
 			* frame using two different ways:
 			* 1) Normal I2S mode on two data pins -- each SDOUT
 			*    carries 2-channel data in the same time.
-			* 2) TDM mode on one signle data pin -- SDOUT1 carries
+			* 2) TDM mode on one single data pin -- SDOUT1 carries
 			*    4-channel data per frame.
 
 Example:

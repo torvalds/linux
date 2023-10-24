@@ -14,14 +14,15 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <net/llc_sap.h>
+#include <net/llc.h>
+#include <net/llc_c_ac.h>
+#include <net/llc_c_ev.h>
+#include <net/llc_c_st.h>
 #include <net/llc_conn.h>
+#include <net/llc_pdu.h>
+#include <net/llc_sap.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
-#include <net/llc_c_ev.h>
-#include <net/llc_c_ac.h>
-#include <net/llc_c_st.h>
-#include <net/llc_pdu.h>
 
 #if 0
 #define dprintk(args...) printk(KERN_DEBUG args)
@@ -453,11 +454,13 @@ static int llc_exec_conn_trans_actions(struct sock *sk,
 static inline bool llc_estab_match(const struct llc_sap *sap,
 				   const struct llc_addr *daddr,
 				   const struct llc_addr *laddr,
-				   const struct sock *sk)
+				   const struct sock *sk,
+				   const struct net *net)
 {
 	struct llc_sock *llc = llc_sk(sk);
 
-	return llc->laddr.lsap == laddr->lsap &&
+	return net_eq(sock_net(sk), net) &&
+		llc->laddr.lsap == laddr->lsap &&
 		llc->daddr.lsap == daddr->lsap &&
 		ether_addr_equal(llc->laddr.mac, laddr->mac) &&
 		ether_addr_equal(llc->daddr.mac, daddr->mac);
@@ -468,6 +471,7 @@ static inline bool llc_estab_match(const struct llc_sap *sap,
  *	@sap: SAP
  *	@daddr: address of remote LLC (MAC + SAP)
  *	@laddr: address of local LLC (MAC + SAP)
+ *	@net: netns to look up a socket in
  *
  *	Search connection list of the SAP and finds connection using the remote
  *	mac, remote sap, local mac, and local sap. Returns pointer for
@@ -476,7 +480,8 @@ static inline bool llc_estab_match(const struct llc_sap *sap,
  */
 static struct sock *__llc_lookup_established(struct llc_sap *sap,
 					     struct llc_addr *daddr,
-					     struct llc_addr *laddr)
+					     struct llc_addr *laddr,
+					     const struct net *net)
 {
 	struct sock *rc;
 	struct hlist_nulls_node *node;
@@ -486,12 +491,12 @@ static struct sock *__llc_lookup_established(struct llc_sap *sap,
 	rcu_read_lock();
 again:
 	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
-		if (llc_estab_match(sap, daddr, laddr, rc)) {
+		if (llc_estab_match(sap, daddr, laddr, rc, net)) {
 			/* Extra checks required by SLAB_TYPESAFE_BY_RCU */
 			if (unlikely(!refcount_inc_not_zero(&rc->sk_refcnt)))
 				goto again;
 			if (unlikely(llc_sk(rc)->sap != sap ||
-				     !llc_estab_match(sap, daddr, laddr, rc))) {
+				     !llc_estab_match(sap, daddr, laddr, rc, net))) {
 				sock_put(rc);
 				continue;
 			}
@@ -513,29 +518,33 @@ found:
 
 struct sock *llc_lookup_established(struct llc_sap *sap,
 				    struct llc_addr *daddr,
-				    struct llc_addr *laddr)
+				    struct llc_addr *laddr,
+				    const struct net *net)
 {
 	struct sock *sk;
 
 	local_bh_disable();
-	sk = __llc_lookup_established(sap, daddr, laddr);
+	sk = __llc_lookup_established(sap, daddr, laddr, net);
 	local_bh_enable();
 	return sk;
 }
 
 static inline bool llc_listener_match(const struct llc_sap *sap,
 				      const struct llc_addr *laddr,
-				      const struct sock *sk)
+				      const struct sock *sk,
+				      const struct net *net)
 {
 	struct llc_sock *llc = llc_sk(sk);
 
-	return sk->sk_type == SOCK_STREAM && sk->sk_state == TCP_LISTEN &&
+	return net_eq(sock_net(sk), net) &&
+		sk->sk_type == SOCK_STREAM && sk->sk_state == TCP_LISTEN &&
 		llc->laddr.lsap == laddr->lsap &&
 		ether_addr_equal(llc->laddr.mac, laddr->mac);
 }
 
 static struct sock *__llc_lookup_listener(struct llc_sap *sap,
-					  struct llc_addr *laddr)
+					  struct llc_addr *laddr,
+					  const struct net *net)
 {
 	struct sock *rc;
 	struct hlist_nulls_node *node;
@@ -545,12 +554,12 @@ static struct sock *__llc_lookup_listener(struct llc_sap *sap,
 	rcu_read_lock();
 again:
 	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
-		if (llc_listener_match(sap, laddr, rc)) {
+		if (llc_listener_match(sap, laddr, rc, net)) {
 			/* Extra checks required by SLAB_TYPESAFE_BY_RCU */
 			if (unlikely(!refcount_inc_not_zero(&rc->sk_refcnt)))
 				goto again;
 			if (unlikely(llc_sk(rc)->sap != sap ||
-				     !llc_listener_match(sap, laddr, rc))) {
+				     !llc_listener_match(sap, laddr, rc, net))) {
 				sock_put(rc);
 				continue;
 			}
@@ -574,6 +583,7 @@ found:
  *	llc_lookup_listener - Finds listener for local MAC + SAP
  *	@sap: SAP
  *	@laddr: address of local LLC (MAC + SAP)
+ *	@net: netns to look up a socket in
  *
  *	Search connection list of the SAP and finds connection listening on
  *	local mac, and local sap. Returns pointer for parent socket found,
@@ -581,24 +591,26 @@ found:
  *	Caller has to make sure local_bh is disabled.
  */
 static struct sock *llc_lookup_listener(struct llc_sap *sap,
-					struct llc_addr *laddr)
+					struct llc_addr *laddr,
+					const struct net *net)
 {
+	struct sock *rc = __llc_lookup_listener(sap, laddr, net);
 	static struct llc_addr null_addr;
-	struct sock *rc = __llc_lookup_listener(sap, laddr);
 
 	if (!rc)
-		rc = __llc_lookup_listener(sap, &null_addr);
+		rc = __llc_lookup_listener(sap, &null_addr, net);
 
 	return rc;
 }
 
 static struct sock *__llc_lookup(struct llc_sap *sap,
 				 struct llc_addr *daddr,
-				 struct llc_addr *laddr)
+				 struct llc_addr *laddr,
+				 const struct net *net)
 {
-	struct sock *sk = __llc_lookup_established(sap, daddr, laddr);
+	struct sock *sk = __llc_lookup_established(sap, daddr, laddr, net);
 
-	return sk ? : llc_lookup_listener(sap, laddr);
+	return sk ? : llc_lookup_listener(sap, laddr, net);
 }
 
 /**
@@ -776,7 +788,7 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 	llc_pdu_decode_da(skb, daddr.mac);
 	llc_pdu_decode_dsap(skb, &daddr.lsap);
 
-	sk = __llc_lookup(sap, &saddr, &daddr);
+	sk = __llc_lookup(sap, &saddr, &daddr, dev_net(skb->dev));
 	if (!sk)
 		goto drop;
 

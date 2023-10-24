@@ -1833,7 +1833,6 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	const struct xgene_pmu_data *dev_data;
 	const struct of_device_id *of_id;
 	struct xgene_pmu *xgene_pmu;
-	struct resource *res;
 	int irq, rc;
 	int version;
 
@@ -1883,8 +1882,7 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	xgene_pmu->version = version;
 	dev_info(&pdev->dev, "X-Gene PMU version %d\n", xgene_pmu->version);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xgene_pmu->pcppmu_csr = devm_ioremap_resource(&pdev->dev, res);
+	xgene_pmu->pcppmu_csr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xgene_pmu->pcppmu_csr)) {
 		dev_err(&pdev->dev, "ioremap failed for PCP PMU resource\n");
 		return PTR_ERR(xgene_pmu->pcppmu_csr);

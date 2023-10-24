@@ -11,7 +11,7 @@
 #include "cxd2880_tnrdmd_dvbt.h"
 #include "cxd2880_tnrdmd_dvbt_mon.h"
 
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 
 static const int ref_dbm_1000[3][5] = {
 	{-93000, -91000, -90000, -89000, -88000},

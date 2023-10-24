@@ -203,6 +203,9 @@ static void gfx_v9_4_3_init_golden_registers(struct amdgpu_device *adev)
 		if (adev->rev_id == 0) {
 			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL1,
 					      REDUCE_FIFO_DEPTH_BY_2, 2);
+		} else {
+			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL2,
+						SPARE, 0x1);
 		}
 	}
 }
@@ -337,13 +340,11 @@ static uint64_t gfx_v9_4_3_get_gpu_clock_counter(struct amdgpu_device *adev)
 {
 	uint64_t clock;
 
-	amdgpu_gfx_off_ctrl(adev, false);
 	mutex_lock(&adev->gfx.gpu_clock_mutex);
 	WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_CAPTURE_GPU_CLOCK_COUNT, 1);
 	clock = (uint64_t)RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPU_CLOCK_COUNT_LSB) |
 		((uint64_t)RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
 	mutex_unlock(&adev->gfx.gpu_clock_mutex);
-	amdgpu_gfx_off_ctrl(adev, true);
 
 	return clock;
 }
@@ -681,7 +682,7 @@ static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
 	adev->gfx.funcs = &gfx_v9_4_3_gfx_funcs;
 	adev->gfx.ras = &gfx_v9_4_3_ras;
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
@@ -862,11 +863,15 @@ static int gfx_v9_4_3_sw_init(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_gfx_sysfs_init(adev);
+	r = amdgpu_gfx_ras_sw_init(adev);
 	if (r)
 		return r;
 
-	return amdgpu_gfx_ras_sw_init(adev);
+
+	if (!amdgpu_sriov_vf(adev))
+		r = amdgpu_gfx_sysfs_init(adev);
+
+	return r;
 }
 
 static int gfx_v9_4_3_sw_fini(void *handle)
@@ -887,7 +892,8 @@ static int gfx_v9_4_3_sw_fini(void *handle)
 	gfx_v9_4_3_mec_fini(adev);
 	amdgpu_bo_unref(&adev->gfx.rlc.clear_state_obj);
 	gfx_v9_4_3_free_microcode(adev);
-	amdgpu_gfx_sysfs_fini(adev);
+	if (!amdgpu_sriov_vf(adev))
+		amdgpu_gfx_sysfs_fini(adev);
 
 	return 0;
 }
@@ -2221,15 +2227,6 @@ static void gfx_v9_4_3_xcc_update_sram_fgcg(struct amdgpu_device *adev,
 		WREG32_SOC15(GC, GET_INST(GC, xcc_id),
 			     regRLC_CGTT_MGCG_OVERRIDE, data);
 
-	def = data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CLK_CNTL);
-
-	if (enable)
-		data &= ~RLC_CLK_CNTL__RLC_SRAM_CLK_GATER_OVERRIDE_MASK;
-	else
-		data |= RLC_CLK_CNTL__RLC_SRAM_CLK_GATER_OVERRIDE_MASK;
-
-	if (def != data)
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CLK_CNTL, data);
 }
 
 static void gfx_v9_4_3_xcc_update_repeater_fgcg(struct amdgpu_device *adev,
@@ -2433,7 +2430,7 @@ static int gfx_v9_4_3_set_clockgating_state(void *handle,
 		return 0;
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
 		for (i = 0; i < num_xcc; i++)
 			gfx_v9_4_3_xcc_update_gfx_clock_gating(
@@ -3656,19 +3653,19 @@ static const struct amdgpu_gfx_ras_reg_entry gfx_v9_4_3_ce_reg_list[] = {
 	    AMDGPU_GFX_GC_CANE_MEM, 1},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regSPI_CE_ERR_STATUS_LO, regSPI_CE_ERR_STATUS_HI),
 	    1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "SPI"},
-	    AMDGPU_GFX_SPI_MEM, 8},
+	    AMDGPU_GFX_SPI_MEM, 1},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regSP0_CE_ERR_STATUS_LO, regSP0_CE_ERR_STATUS_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "SP0"},
-	    AMDGPU_GFX_SP_MEM, 1},
+	    AMDGPU_GFX_SP_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regSP1_CE_ERR_STATUS_LO, regSP1_CE_ERR_STATUS_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "SP1"},
-	    AMDGPU_GFX_SP_MEM, 1},
+	    AMDGPU_GFX_SP_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regSQ_CE_ERR_STATUS_LO, regSQ_CE_ERR_STATUS_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "SQ"},
-	    AMDGPU_GFX_SQ_MEM, 8},
+	    AMDGPU_GFX_SQ_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regSQC_CE_EDC_LO, regSQC_CE_EDC_HI),
 	    5, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "SQC"},
-	    AMDGPU_GFX_SQC_MEM, 8},
+	    AMDGPU_GFX_SQC_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regTCX_CE_ERR_STATUS_LO, regTCX_CE_ERR_STATUS_HI),
 	    2, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TCX"},
 	    AMDGPU_GFX_TCX_MEM, 1},
@@ -3677,22 +3674,22 @@ static const struct amdgpu_gfx_ras_reg_entry gfx_v9_4_3_ce_reg_list[] = {
 	    AMDGPU_GFX_TCC_MEM, 1},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regTA_CE_EDC_LO, regTA_CE_EDC_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TA"},
-	    AMDGPU_GFX_TA_MEM, 8},
+	    AMDGPU_GFX_TA_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regTCI_CE_EDC_LO_REG, regTCI_CE_EDC_HI_REG),
-	    31, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TCI"},
+	    27, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TCI"},
 	    AMDGPU_GFX_TCI_MEM, 1},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regTCP_CE_EDC_LO_REG, regTCP_CE_EDC_HI_REG),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TCP"},
-	    AMDGPU_GFX_TCP_MEM, 8},
+	    AMDGPU_GFX_TCP_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regTD_CE_EDC_LO, regTD_CE_EDC_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TD"},
-	    AMDGPU_GFX_TD_MEM, 8},
+	    AMDGPU_GFX_TD_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regGCEA_CE_ERR_STATUS_LO, regGCEA_CE_ERR_STATUS_HI),
 	    16, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "GCEA"},
 	    AMDGPU_GFX_GCEA_MEM, 1},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regLDS_CE_ERR_STATUS_LO, regLDS_CE_ERR_STATUS_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "LDS"},
-	    AMDGPU_GFX_LDS_MEM, 1},
+	    AMDGPU_GFX_LDS_MEM, 4},
 };
 
 static const struct amdgpu_gfx_ras_reg_entry gfx_v9_4_3_ue_reg_list[] = {
@@ -3716,19 +3713,19 @@ static const struct amdgpu_gfx_ras_reg_entry gfx_v9_4_3_ue_reg_list[] = {
 	    AMDGPU_GFX_GC_CANE_MEM, 1},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regSPI_UE_ERR_STATUS_LO, regSPI_UE_ERR_STATUS_HI),
 	    1, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "SPI"},
-	    AMDGPU_GFX_SPI_MEM, 8},
+	    AMDGPU_GFX_SPI_MEM, 1},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regSP0_UE_ERR_STATUS_LO, regSP0_UE_ERR_STATUS_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "SP0"},
-	    AMDGPU_GFX_SP_MEM, 1},
+	    AMDGPU_GFX_SP_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regSP1_UE_ERR_STATUS_LO, regSP1_UE_ERR_STATUS_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "SP1"},
-	    AMDGPU_GFX_SP_MEM, 1},
+	    AMDGPU_GFX_SP_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regSQ_UE_ERR_STATUS_LO, regSQ_UE_ERR_STATUS_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "SQ"},
-	    AMDGPU_GFX_SQ_MEM, 8},
+	    AMDGPU_GFX_SQ_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regSQC_UE_EDC_LO, regSQC_UE_EDC_HI),
 	    5, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "SQC"},
-	    AMDGPU_GFX_SQC_MEM, 8},
+	    AMDGPU_GFX_SQC_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regTCX_UE_ERR_STATUS_LO, regTCX_UE_ERR_STATUS_HI),
 	    2, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TCX"},
 	    AMDGPU_GFX_TCX_MEM, 1},
@@ -3737,16 +3734,16 @@ static const struct amdgpu_gfx_ras_reg_entry gfx_v9_4_3_ue_reg_list[] = {
 	    AMDGPU_GFX_TCC_MEM, 1},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regTA_UE_EDC_LO, regTA_UE_EDC_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TA"},
-	    AMDGPU_GFX_TA_MEM, 8},
+	    AMDGPU_GFX_TA_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regTCI_UE_EDC_LO_REG, regTCI_UE_EDC_HI_REG),
-	    31, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TCI"},
+	    27, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TCI"},
 	    AMDGPU_GFX_TCI_MEM, 1},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regTCP_UE_EDC_LO_REG, regTCP_UE_EDC_HI_REG),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TCP"},
-	    AMDGPU_GFX_TCP_MEM, 8},
+	    AMDGPU_GFX_TCP_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regTD_UE_EDC_LO, regTD_UE_EDC_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TD"},
-	    AMDGPU_GFX_TD_MEM, 8},
+	    AMDGPU_GFX_TD_MEM, 4},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regTCA_UE_ERR_STATUS_LO, regTCA_UE_ERR_STATUS_HI),
 	    2, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "TCA"},
 	    AMDGPU_GFX_TCA_MEM, 1},
@@ -3755,7 +3752,7 @@ static const struct amdgpu_gfx_ras_reg_entry gfx_v9_4_3_ue_reg_list[] = {
 	    AMDGPU_GFX_GCEA_MEM, 1},
 	{{AMDGPU_RAS_REG_ENTRY(GC, 0, regLDS_UE_ERR_STATUS_LO, regLDS_UE_ERR_STATUS_HI),
 	    10, (AMDGPU_RAS_ERR_INFO_VALID | AMDGPU_RAS_ERR_STATUS_VALID), "LDS"},
-	    AMDGPU_GFX_LDS_MEM, 1},
+	    AMDGPU_GFX_LDS_MEM, 4},
 };
 
 static const struct soc15_reg_entry gfx_v9_4_3_ea_err_status_regs = {
@@ -3768,6 +3765,12 @@ static void gfx_v9_4_3_inst_query_ras_err_count(struct amdgpu_device *adev,
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 	unsigned long ce_count = 0, ue_count = 0;
 	uint32_t i, j, k;
+
+	/* NOTE: convert xcc_id to physical XCD ID (XCD0 or XCD1) */
+	struct amdgpu_smuio_mcm_config_info mcm_info = {
+		.socket_id = adev->smuio.funcs->get_socket_id(adev),
+		.die_id = xcc_id & 0x01 ? 1 : 0,
+	};
 
 	mutex_lock(&adev->grbm_idx_mutex);
 
@@ -3807,8 +3810,8 @@ static void gfx_v9_4_3_inst_query_ras_err_count(struct amdgpu_device *adev,
 	/* the caller should make sure initialize value of
 	 * err_data->ue_count and err_data->ce_count
 	 */
-	err_data->ce_count += ce_count;
-	err_data->ue_count += ue_count;
+	amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, ue_count);
+	amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, ce_count);
 }
 
 static void gfx_v9_4_3_inst_reset_ras_err_count(struct amdgpu_device *adev,
@@ -4050,7 +4053,8 @@ static void gfx_v9_4_3_inst_enable_watchdog_timer(struct amdgpu_device *adev,
 	uint32_t i;
 	uint32_t data;
 
-	data = REG_SET_FIELD(0, SQ_TIMEOUT_CONFIG, TIMEOUT_FATAL_DISABLE,
+	data = RREG32_SOC15(GC, GET_INST(GC, 0), regSQ_TIMEOUT_CONFIG);
+	data = REG_SET_FIELD(data, SQ_TIMEOUT_CONFIG, TIMEOUT_FATAL_DISABLE,
 			     amdgpu_watchdog_timer.timeout_fatal_disable ? 1 : 0);
 
 	if (amdgpu_watchdog_timer.timeout_fatal_disable &&
@@ -4233,7 +4237,7 @@ static void gfx_v9_4_3_set_rlc_funcs(struct amdgpu_device *adev)
 static void gfx_v9_4_3_set_gds_init(struct amdgpu_device *adev)
 {
 	/* init asci gds info */
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
 		/* 9.4.3 removed all the GDS internal memory,
 		 * only support GWS opcode in kernel, like barrier
@@ -4245,7 +4249,7 @@ static void gfx_v9_4_3_set_gds_init(struct amdgpu_device *adev)
 		break;
 	}
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
 		/* deprecated for 9.4.3, no usage at all */
 		adev->gds.gds_compute_max_wave_id = 0;
@@ -4261,7 +4265,7 @@ static void gfx_v9_4_3_set_gds_init(struct amdgpu_device *adev)
 }
 
 static void gfx_v9_4_3_set_user_cu_inactive_bitmap(struct amdgpu_device *adev,
-						 u32 bitmap)
+						 u32 bitmap, int xcc_id)
 {
 	u32 data;
 
@@ -4271,15 +4275,15 @@ static void gfx_v9_4_3_set_user_cu_inactive_bitmap(struct amdgpu_device *adev,
 	data = bitmap << GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
 	data &= GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
 
-	WREG32_SOC15(GC, GET_INST(GC, 0), regGC_USER_SHADER_ARRAY_CONFIG, data);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regGC_USER_SHADER_ARRAY_CONFIG, data);
 }
 
-static u32 gfx_v9_4_3_get_cu_active_bitmap(struct amdgpu_device *adev)
+static u32 gfx_v9_4_3_get_cu_active_bitmap(struct amdgpu_device *adev, int xcc_id)
 {
 	u32 data, mask;
 
-	data = RREG32_SOC15(GC, GET_INST(GC, 0), regCC_GC_SHADER_ARRAY_CONFIG);
-	data |= RREG32_SOC15(GC, GET_INST(GC, 0), regGC_USER_SHADER_ARRAY_CONFIG);
+	data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCC_GC_SHADER_ARRAY_CONFIG);
+	data |= RREG32_SOC15(GC, GET_INST(GC, xcc_id), regGC_USER_SHADER_ARRAY_CONFIG);
 
 	data &= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
 	data >>= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
@@ -4292,7 +4296,7 @@ static u32 gfx_v9_4_3_get_cu_active_bitmap(struct amdgpu_device *adev)
 static int gfx_v9_4_3_get_cu_info(struct amdgpu_device *adev,
 				 struct amdgpu_cu_info *cu_info)
 {
-	int i, j, k, counter, active_cu_number = 0;
+	int i, j, k, counter, xcc_id, active_cu_number = 0;
 	u32 mask, bitmap, ao_bitmap, ao_cu_mask = 0;
 	unsigned disable_masks[4 * 4];
 
@@ -4311,46 +4315,38 @@ static int gfx_v9_4_3_get_cu_info(struct amdgpu_device *adev,
 				    adev->gfx.config.max_sh_per_se);
 
 	mutex_lock(&adev->grbm_idx_mutex);
-	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
-		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
-			mask = 1;
-			ao_bitmap = 0;
-			counter = 0;
-			gfx_v9_4_3_xcc_select_se_sh(adev, i, j, 0xffffffff, 0);
-			gfx_v9_4_3_set_user_cu_inactive_bitmap(
-				adev, disable_masks[i * adev->gfx.config.max_sh_per_se + j]);
-			bitmap = gfx_v9_4_3_get_cu_active_bitmap(adev);
+	for (xcc_id = 0; xcc_id < NUM_XCC(adev->gfx.xcc_mask); xcc_id++) {
+		for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+			for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
+				mask = 1;
+				ao_bitmap = 0;
+				counter = 0;
+				gfx_v9_4_3_xcc_select_se_sh(adev, i, j, 0xffffffff, xcc_id);
+				gfx_v9_4_3_set_user_cu_inactive_bitmap(
+					adev,
+					disable_masks[i * adev->gfx.config.max_sh_per_se + j],
+					xcc_id);
+				bitmap = gfx_v9_4_3_get_cu_active_bitmap(adev, xcc_id);
 
-			/*
-			 * The bitmap(and ao_cu_bitmap) in cu_info structure is
-			 * 4x4 size array, and it's usually suitable for Vega
-			 * ASICs which has 4*2 SE/SH layout.
-			 * But for Arcturus, SE/SH layout is changed to 8*1.
-			 * To mostly reduce the impact, we make it compatible
-			 * with current bitmap array as below:
-			 *    SE4,SH0 --> bitmap[0][1]
-			 *    SE5,SH0 --> bitmap[1][1]
-			 *    SE6,SH0 --> bitmap[2][1]
-			 *    SE7,SH0 --> bitmap[3][1]
-			 */
-			cu_info->bitmap[i % 4][j + i / 4] = bitmap;
+				cu_info->bitmap[xcc_id][i][j] = bitmap;
 
-			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k++) {
-				if (bitmap & mask) {
-					if (counter < adev->gfx.config.max_cu_per_sh)
-						ao_bitmap |= mask;
-					counter++;
+				for (k = 0; k < adev->gfx.config.max_cu_per_sh; k++) {
+					if (bitmap & mask) {
+						if (counter < adev->gfx.config.max_cu_per_sh)
+							ao_bitmap |= mask;
+						counter++;
+					}
+					mask <<= 1;
 				}
-				mask <<= 1;
+				active_cu_number += counter;
+				if (i < 2 && j < 2)
+					ao_cu_mask |= (ao_bitmap << (i * 16 + j * 8));
+				cu_info->ao_cu_bitmap[i][j] = ao_bitmap;
 			}
-			active_cu_number += counter;
-			if (i < 2 && j < 2)
-				ao_cu_mask |= (ao_bitmap << (i * 16 + j * 8));
-			cu_info->ao_cu_bitmap[i % 4][j + i / 4] = ao_bitmap;
 		}
+		gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
+					    xcc_id);
 	}
-	gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
-				    0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	cu_info->number = active_cu_number;

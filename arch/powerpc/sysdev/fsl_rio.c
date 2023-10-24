@@ -23,16 +23,17 @@
 #include <linux/types.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <asm/machdep.h>
+#include <asm/rio.h>
 
 #include "fsl_rio.h"
 
@@ -303,8 +304,8 @@ static void fsl_rio_inbound_mem_init(struct rio_priv *priv)
 		out_be32(&priv->inb_atmu_regs[i].riwar, 0);
 }
 
-int fsl_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
-	u64 rstart, u64 size, u32 flags)
+static int fsl_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
+			   u64 rstart, u64 size, u32 flags)
 {
 	struct rio_priv *priv = mport->priv;
 	u32 base_size;
@@ -354,7 +355,7 @@ int fsl_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 	return 0;
 }
 
-void fsl_unmap_inb_mem(struct rio_mport *mport, dma_addr_t lstart)
+static void fsl_unmap_inb_mem(struct rio_mport *mport, dma_addr_t lstart)
 {
 	u32 win_start_shift, base_start_shift;
 	struct rio_priv *priv = mport->priv;
@@ -442,7 +443,7 @@ static inline void fsl_rio_info(struct device *dev, u32 ccsr)
  * master port with system-specific info, and registers the
  * master port with the RapidIO subsystem.
  */
-int fsl_rio_setup(struct platform_device *dev)
+static int fsl_rio_setup(struct platform_device *dev)
 {
 	struct rio_ops *ops;
 	struct rio_mport *port;

@@ -1309,7 +1309,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		ret = i40e_asq_send_command(&pf->hw, desc, NULL, 0, NULL);
 		if (!ret) {
 			dev_info(&pf->pdev->dev, "AQ command sent Status : Success\n");
-		} else if (ret == I40E_ERR_ADMIN_QUEUE_ERROR) {
+		} else if (ret == -EIO) {
 			dev_info(&pf->pdev->dev,
 				 "AQ command send failed Opcode %x AQ Error: %d\n",
 				 desc->opcode, pf->hw.aq.asq_last_status);
@@ -1370,7 +1370,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 					    buffer_len, NULL);
 		if (!ret) {
 			dev_info(&pf->pdev->dev, "AQ command sent Status : Success\n");
-		} else if (ret == I40E_ERR_ADMIN_QUEUE_ERROR) {
+		} else if (ret == -EIO) {
 			dev_info(&pf->pdev->dev,
 				 "AQ command send failed Opcode %x AQ Error: %d\n",
 				 desc->opcode, pf->hw.aq.asq_last_status);
@@ -1839,7 +1839,7 @@ void i40e_dbg_pf_exit(struct i40e_pf *pf)
 void i40e_dbg_init(void)
 {
 	i40e_dbg_root = debugfs_create_dir(i40e_driver_name, NULL);
-	if (!i40e_dbg_root)
+	if (IS_ERR(i40e_dbg_root))
 		pr_info("init of debugfs failed\n");
 }
 

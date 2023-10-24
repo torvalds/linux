@@ -327,14 +327,6 @@ static void notrace start_secondary(void *unused)
 }
 
 /**
- * topology_smt_supported - Check whether SMT is supported by the CPUs
- */
-bool topology_smt_supported(void)
-{
-	return smp_num_siblings > 1;
-}
-
-/**
  * topology_phys_to_logical_pkg - Map a physical package id to a logical
  * @phys_pkg:	The physical package id to map
  *
@@ -422,7 +414,7 @@ found:
 	return 0;
 }
 
-void __init smp_store_boot_cpu_info(void)
+static void __init smp_store_boot_cpu_info(void)
 {
 	int id = 0; /* CPU 0 */
 	struct cpuinfo_x86 *c = &cpu_data(id);
@@ -587,7 +579,6 @@ static bool match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 }
 
 
-#if defined(CONFIG_SCHED_SMT) || defined(CONFIG_SCHED_CLUSTER) || defined(CONFIG_SCHED_MC)
 static inline int x86_sched_itmt_flags(void)
 {
 	return sysctl_sched_itmt_enabled ? SD_ASYM_PACKING : 0;
@@ -611,7 +602,14 @@ static int x86_cluster_flags(void)
 	return cpu_cluster_flags() | x86_sched_itmt_flags();
 }
 #endif
-#endif
+
+static int x86_die_flags(void)
+{
+	if (cpu_feature_enabled(X86_FEATURE_HYBRID_CPU))
+	       return x86_sched_itmt_flags();
+
+	return 0;
+}
 
 /*
  * Set if a package/die has multiple NUMA nodes inside.
@@ -632,14 +630,9 @@ static void __init build_sched_topology(void)
 	};
 #endif
 #ifdef CONFIG_SCHED_CLUSTER
-	/*
-	 * For now, skip the cluster domain on Hybrid.
-	 */
-	if (!cpu_feature_enabled(X86_FEATURE_HYBRID_CPU)) {
-		x86_topology[i++] = (struct sched_domain_topology_level){
-			cpu_clustergroup_mask, x86_cluster_flags, SD_INIT_NAME(CLS)
-		};
-	}
+	x86_topology[i++] = (struct sched_domain_topology_level){
+		cpu_clustergroup_mask, x86_cluster_flags, SD_INIT_NAME(CLS)
+	};
 #endif
 #ifdef CONFIG_SCHED_MC
 	x86_topology[i++] = (struct sched_domain_topology_level){
@@ -653,7 +646,7 @@ static void __init build_sched_topology(void)
 	 */
 	if (!x86_has_numa_in_package) {
 		x86_topology[i++] = (struct sched_domain_topology_level){
-			cpu_cpu_mask, SD_INIT_NAME(DIE)
+			cpu_cpu_mask, x86_die_flags, SD_INIT_NAME(DIE)
 		};
 	}
 
@@ -772,44 +765,6 @@ static void impress_friends(void)
 		(bogosum/(5000/HZ))%100);
 
 	pr_debug("Before bogocount - setting activated=1\n");
-}
-
-void __inquire_remote_apic(int apicid)
-{
-	unsigned i, regs[] = { APIC_ID >> 4, APIC_LVR >> 4, APIC_SPIV >> 4 };
-	const char * const names[] = { "ID", "VERSION", "SPIV" };
-	int timeout;
-	u32 status;
-
-	pr_info("Inquiring remote APIC 0x%x...\n", apicid);
-
-	for (i = 0; i < ARRAY_SIZE(regs); i++) {
-		pr_info("... APIC 0x%x %s: ", apicid, names[i]);
-
-		/*
-		 * Wait for idle.
-		 */
-		status = safe_apic_wait_icr_idle();
-		if (status)
-			pr_cont("a previous APIC delivery may have failed\n");
-
-		apic_icr_write(APIC_DM_REMRD | regs[i], apicid);
-
-		timeout = 0;
-		do {
-			udelay(100);
-			status = apic_read(APIC_ICR) & APIC_ICR_RR_MASK;
-		} while (status == APIC_ICR_RR_INPROG && timeout++ < 1000);
-
-		switch (status) {
-		case APIC_ICR_RR_VALID:
-			status = apic_read(APIC_RRR);
-			pr_cont("%08x\n", status);
-			break;
-		default:
-			pr_cont("failed\n");
-		}
-	}
 }
 
 /*
@@ -1102,9 +1057,8 @@ int native_kick_ap(unsigned int cpu, struct task_struct *tidle)
 
 	pr_debug("++++++++++++++++++++=_---CPU UP  %u\n", cpu);
 
-	if (apicid == BAD_APICID ||
-	    !physid_isset(apicid, phys_cpu_present_map) ||
-	    !apic->apic_id_valid(apicid)) {
+	if (apicid == BAD_APICID || !physid_isset(apicid, phys_cpu_present_map) ||
+	    !apic_id_valid(apicid)) {
 		pr_err("%s: bad cpu %d\n", __func__, cpu);
 		return -EINVAL;
 	}
@@ -1187,58 +1141,6 @@ static __init void disable_smp(void)
 	cpumask_set_cpu(0, topology_die_cpumask(0));
 }
 
-/*
- * Various sanity checks.
- */
-static void __init smp_sanity_check(void)
-{
-	preempt_disable();
-
-#if !defined(CONFIG_X86_BIGSMP) && defined(CONFIG_X86_32)
-	if (def_to_bigsmp && nr_cpu_ids > 8) {
-		unsigned int cpu;
-		unsigned nr;
-
-		pr_warn("More than 8 CPUs detected - skipping them\n"
-			"Use CONFIG_X86_BIGSMP\n");
-
-		nr = 0;
-		for_each_present_cpu(cpu) {
-			if (nr >= 8)
-				set_cpu_present(cpu, false);
-			nr++;
-		}
-
-		nr = 0;
-		for_each_possible_cpu(cpu) {
-			if (nr >= 8)
-				set_cpu_possible(cpu, false);
-			nr++;
-		}
-
-		set_nr_cpu_ids(8);
-	}
-#endif
-
-	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
-		pr_warn("weird, boot CPU (#%d) not listed by the BIOS\n",
-			hard_smp_processor_id());
-
-		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
-	}
-
-	/*
-	 * Should not be necessary because the MP table should list the boot
-	 * CPU too, but we do it for the sake of robustness anyway.
-	 */
-	if (!apic->check_phys_apicid_present(boot_cpu_physical_apicid)) {
-		pr_notice("weird, boot CPU (#%d) not listed by the BIOS\n",
-			  boot_cpu_physical_apicid);
-		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
-	}
-	preempt_enable();
-}
-
 static void __init smp_cpu_index_default(void)
 {
 	int i;
@@ -1298,8 +1200,6 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
 	smp_prepare_cpus_common();
 
-	smp_sanity_check();
-
 	switch (apic_intr_mode) {
 	case APIC_PIC:
 	case APIC_VIRTUAL_WIRE_NO_CONFIG:
@@ -1338,33 +1238,6 @@ void arch_thaw_secondary_cpus_begin(void)
 void arch_thaw_secondary_cpus_end(void)
 {
 	cache_aps_init();
-}
-
-bool smp_park_other_cpus_in_init(void)
-{
-	unsigned int cpu, this_cpu = smp_processor_id();
-	unsigned int apicid;
-
-	if (apic->wakeup_secondary_cpu_64 || apic->wakeup_secondary_cpu)
-		return false;
-
-	/*
-	 * If this is a crash stop which does not execute on the boot CPU,
-	 * then this cannot use the INIT mechanism because INIT to the boot
-	 * CPU will reset the machine.
-	 */
-	if (this_cpu)
-		return false;
-
-	for_each_present_cpu(cpu) {
-		if (cpu == this_cpu)
-			continue;
-		apicid = apic->cpu_present_to_apicid(cpu);
-		if (apicid == BAD_APICID)
-			continue;
-		send_init_sequence(apicid);
-	}
-	return true;
 }
 
 /*
@@ -1434,24 +1307,6 @@ early_param("possible_cpus", _setup_possible_cpus);
 __init void prefill_possible_map(void)
 {
 	int i, possible;
-
-	/* No boot processor was found in mptable or ACPI MADT */
-	if (!num_processors) {
-		if (boot_cpu_has(X86_FEATURE_APIC)) {
-			int apicid = boot_cpu_physical_apicid;
-			int cpu = hard_smp_processor_id();
-
-			pr_warn("Boot CPU (id %d) not listed by BIOS\n", cpu);
-
-			/* Make sure boot cpu is enumerated */
-			if (apic->cpu_present_to_apicid(0) == BAD_APICID &&
-			    apic->apic_id_valid(apicid))
-				generic_processor_info(apicid, boot_cpu_apic_version);
-		}
-
-		if (!num_processors)
-			num_processors = 1;
-	}
 
 	i = setup_max_cpus ?: 1;
 	if (setup_possible_cpus == -1) {
@@ -1614,9 +1469,7 @@ void play_dead_common(void)
 	idle_task_exit();
 
 	cpuhp_ap_report_dead();
-	/*
-	 * With physical CPU hotplug, we should halt the cpu
-	 */
+
 	local_irq_disable();
 }
 

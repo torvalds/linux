@@ -513,9 +513,9 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 		INIT_LIST_HEAD(&pool->sp_all_threads);
 		spin_lock_init(&pool->sp_lock);
 
+		percpu_counter_init(&pool->sp_messages_arrived, 0, GFP_KERNEL);
 		percpu_counter_init(&pool->sp_sockets_queued, 0, GFP_KERNEL);
 		percpu_counter_init(&pool->sp_threads_woken, 0, GFP_KERNEL);
-		percpu_counter_init(&pool->sp_threads_timedout, 0, GFP_KERNEL);
 	}
 
 	return serv;
@@ -588,9 +588,9 @@ svc_destroy(struct kref *ref)
 	for (i = 0; i < serv->sv_nrpools; i++) {
 		struct svc_pool *pool = &serv->sv_pools[i];
 
+		percpu_counter_destroy(&pool->sp_messages_arrived);
 		percpu_counter_destroy(&pool->sp_sockets_queued);
 		percpu_counter_destroy(&pool->sp_threads_woken);
-		percpu_counter_destroy(&pool->sp_threads_timedout);
 	}
 	kfree(serv->sv_pools);
 	kfree(serv);
@@ -689,23 +689,44 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 	return rqstp;
 }
 
-/*
- * Choose a pool in which to create a new thread, for svc_set_num_threads
+/**
+ * svc_pool_wake_idle_thread - Awaken an idle thread in @pool
+ * @pool: service thread pool
+ *
+ * Can be called from soft IRQ or process context. Finding an idle
+ * service thread and marking it BUSY is atomic with respect to
+ * other calls to svc_pool_wake_idle_thread().
+ *
  */
-static inline struct svc_pool *
-choose_pool(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
+void svc_pool_wake_idle_thread(struct svc_pool *pool)
 {
-	if (pool != NULL)
-		return pool;
+	struct svc_rqst	*rqstp;
 
-	return &serv->sv_pools[(*state)++ % serv->sv_nrpools];
+	rcu_read_lock();
+	list_for_each_entry_rcu(rqstp, &pool->sp_all_threads, rq_all) {
+		if (test_and_set_bit(RQ_BUSY, &rqstp->rq_flags))
+			continue;
+
+		WRITE_ONCE(rqstp->rq_qtime, ktime_get());
+		wake_up_process(rqstp->rq_task);
+		rcu_read_unlock();
+		percpu_counter_inc(&pool->sp_threads_woken);
+		trace_svc_wake_up(rqstp->rq_task->pid);
+		return;
+	}
+	rcu_read_unlock();
+
+	set_bit(SP_CONGESTED, &pool->sp_flags);
 }
 
-/*
- * Choose a thread to kill, for svc_set_num_threads
- */
-static inline struct task_struct *
-choose_victim(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
+static struct svc_pool *
+svc_pool_next(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
+{
+	return pool ? pool : &serv->sv_pools[(*state)++ % serv->sv_nrpools];
+}
+
+static struct task_struct *
+svc_pool_victim(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
 {
 	unsigned int i;
 	struct task_struct *task = NULL;
@@ -713,7 +734,6 @@ choose_victim(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
 	if (pool != NULL) {
 		spin_lock_bh(&pool->sp_lock);
 	} else {
-		/* choose a pool in round-robin fashion */
 		for (i = 0; i < serv->sv_nrpools; i++) {
 			pool = &serv->sv_pools[--(*state) % serv->sv_nrpools];
 			spin_lock_bh(&pool->sp_lock);
@@ -728,21 +748,15 @@ found_pool:
 	if (!list_empty(&pool->sp_all_threads)) {
 		struct svc_rqst *rqstp;
 
-		/*
-		 * Remove from the pool->sp_all_threads list
-		 * so we don't try to kill it again.
-		 */
 		rqstp = list_entry(pool->sp_all_threads.next, struct svc_rqst, rq_all);
 		set_bit(RQ_VICTIM, &rqstp->rq_flags);
 		list_del_rcu(&rqstp->rq_all);
 		task = rqstp->rq_task;
 	}
 	spin_unlock_bh(&pool->sp_lock);
-
 	return task;
 }
 
-/* create new threads */
 static int
 svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 {
@@ -754,13 +768,12 @@ svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 
 	do {
 		nrservs--;
-		chosen_pool = choose_pool(serv, pool, &state);
-
+		chosen_pool = svc_pool_next(serv, pool, &state);
 		node = svc_pool_map_get_node(chosen_pool->sp_id);
+
 		rqstp = svc_prepare_thread(serv, chosen_pool, node);
 		if (IS_ERR(rqstp))
 			return PTR_ERR(rqstp);
-
 		task = kthread_create_on_node(serv->sv_threadfn, rqstp,
 					      node, "%s", serv->sv_name);
 		if (IS_ERR(task)) {
@@ -779,15 +792,6 @@ svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 	return 0;
 }
 
-/*
- * Create or destroy enough new threads to make the number
- * of threads the given number.  If `pool' is non-NULL, applies
- * only to threads in that pool, otherwise round-robins between
- * all pools.  Caller must ensure that mutual exclusion between this and
- * server startup or shutdown.
- */
-
-/* destroy old threads */
 static int
 svc_stop_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 {
@@ -795,9 +799,8 @@ svc_stop_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 	struct task_struct *task;
 	unsigned int state = serv->sv_nrthreads-1;
 
-	/* destroy old threads */
 	do {
-		task = choose_victim(serv, pool, &state);
+		task = svc_pool_victim(serv, pool, &state);
 		if (task == NULL)
 			break;
 		rqstp = kthread_data(task);
@@ -809,6 +812,23 @@ svc_stop_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 	return 0;
 }
 
+/**
+ * svc_set_num_threads - adjust number of threads per RPC service
+ * @serv: RPC service to adjust
+ * @pool: Specific pool from which to choose threads, or NULL
+ * @nrservs: New number of threads for @serv (0 or less means kill all threads)
+ *
+ * Create or destroy threads to make the number of threads for @serv the
+ * given number. If @pool is non-NULL, change only threads in that pool;
+ * otherwise, round-robin between all pools for @serv. @serv's
+ * sv_nrthreads is adjusted for each thread created or destroyed.
+ *
+ * Caller must ensure mutual exclusion between this and server startup or
+ * shutdown.
+ *
+ * Returns zero on success or a negative errno if an error occurred while
+ * starting a thread.
+ */
 int
 svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 {
@@ -1277,8 +1297,9 @@ svc_process_common(struct svc_rqst *rqstp)
 	const struct svc_procedure *procp = NULL;
 	struct svc_serv		*serv = rqstp->rq_server;
 	struct svc_process_info process;
-	int			auth_res, rc;
+	enum svc_auth_status	auth_res;
 	unsigned int		aoffset;
+	int			rc;
 	__be32			*p;
 
 	/* Will be turned off by GSS integrity and privacy services */
@@ -1333,6 +1354,9 @@ svc_process_common(struct svc_rqst *rqstp)
 		goto dropit;
 	case SVC_COMPLETE:
 		goto sendit;
+	default:
+		pr_warn_once("Unexpected svc_auth_status (%d)\n", auth_res);
+		goto err_system_err;
 	}
 
 	if (progp == NULL)
@@ -1370,6 +1394,8 @@ svc_process_common(struct svc_rqst *rqstp)
 	rc = process.dispatch(rqstp);
 	if (procp->pc_release)
 		procp->pc_release(rqstp);
+	xdr_finish_decode(xdr);
+
 	if (!rc)
 		goto dropit;
 	if (rqstp->rq_auth_stat != rpc_auth_ok)
@@ -1516,7 +1542,6 @@ out_baddir:
 out_drop:
 	svc_drop(rqstp);
 }
-EXPORT_SYMBOL_GPL(svc_process);
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 /*

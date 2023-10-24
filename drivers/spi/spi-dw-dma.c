@@ -139,8 +139,8 @@ static int dw_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 	if (!dws->txchan)
 		goto free_rxchan;
 
-	dws->master->dma_rx = dws->rxchan;
-	dws->master->dma_tx = dws->txchan;
+	dws->host->dma_rx = dws->rxchan;
+	dws->host->dma_tx = dws->txchan;
 
 	init_completion(&dws->dma_completion);
 
@@ -183,8 +183,8 @@ static int dw_spi_dma_init_generic(struct device *dev, struct dw_spi *dws)
 		goto free_rxchan;
 	}
 
-	dws->master->dma_rx = dws->rxchan;
-	dws->master->dma_tx = dws->txchan;
+	dws->host->dma_rx = dws->rxchan;
+	dws->host->dma_tx = dws->txchan;
 
 	init_completion(&dws->dma_completion);
 
@@ -242,10 +242,10 @@ static enum dma_slave_buswidth dw_spi_dma_convert_width(u8 n_bytes)
 	}
 }
 
-static bool dw_spi_can_dma(struct spi_controller *master,
+static bool dw_spi_can_dma(struct spi_controller *host,
 			   struct spi_device *spi, struct spi_transfer *xfer)
 {
-	struct dw_spi *dws = spi_controller_get_devdata(master);
+	struct dw_spi *dws = spi_controller_get_devdata(host);
 	enum dma_slave_buswidth dma_bus_width;
 
 	if (xfer->len <= dws->fifo_len)
@@ -271,7 +271,7 @@ static int dw_spi_dma_wait(struct dw_spi *dws, unsigned int len, u32 speed)
 					 msecs_to_jiffies(ms));
 
 	if (ms == 0) {
-		dev_err(&dws->master->cur_msg->spi->dev,
+		dev_err(&dws->host->cur_msg->spi->dev,
 			"DMA transaction timed out\n");
 		return -ETIMEDOUT;
 	}
@@ -299,7 +299,7 @@ static int dw_spi_dma_wait_tx_done(struct dw_spi *dws,
 		spi_delay_exec(&delay, xfer);
 
 	if (retry < 0) {
-		dev_err(&dws->master->dev, "Tx hanged up\n");
+		dev_err(&dws->host->dev, "Tx hanged up\n");
 		return -EIO;
 	}
 
@@ -400,7 +400,7 @@ static int dw_spi_dma_wait_rx_done(struct dw_spi *dws)
 		spi_delay_exec(&delay, NULL);
 
 	if (retry < 0) {
-		dev_err(&dws->master->dev, "Rx hanged up\n");
+		dev_err(&dws->host->dev, "Rx hanged up\n");
 		return -EIO;
 	}
 
@@ -656,13 +656,13 @@ static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 	if (ret)
 		return ret;
 
-	if (dws->master->cur_msg->status == -EINPROGRESS) {
+	if (dws->host->cur_msg->status == -EINPROGRESS) {
 		ret = dw_spi_dma_wait_tx_done(dws, xfer);
 		if (ret)
 			return ret;
 	}
 
-	if (xfer->rx_buf && dws->master->cur_msg->status == -EINPROGRESS)
+	if (xfer->rx_buf && dws->host->cur_msg->status == -EINPROGRESS)
 		ret = dw_spi_dma_wait_rx_done(dws);
 
 	return ret;

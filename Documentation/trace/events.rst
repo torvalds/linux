@@ -219,6 +219,20 @@ the function "security_prepare_creds" and less than the end of that function.
 The ".function" postfix can only be attached to values of size long, and can only
 be compared with "==" or "!=".
 
+Cpumask fields or scalar fields that encode a CPU number can be filtered using
+a user-provided cpumask in cpulist format. The format is as follows::
+
+  CPUS{$cpulist}
+
+Operators available to cpumask filtering are:
+
+& (intersection), ==, !=
+
+For example, this will filter events that have their .target_cpu field present
+in the given cpumask::
+
+  target_cpu & CPUS{17-42}
+
 5.2 Setting filters
 -------------------
 
@@ -915,7 +929,7 @@ functions can be used.
 
 To create a kprobe event, an empty or partially empty kprobe event
 should first be created using kprobe_event_gen_cmd_start().  The name
-of the event and the probe location should be specfied along with one
+of the event and the probe location should be specified along with one
 or args each representing a probe field should be supplied to this
 function.  Before calling kprobe_event_gen_cmd_start(), the user
 should create and initialize a dynevent_cmd object using
@@ -995,7 +1009,7 @@ The basic idea is simple and amounts to providing a general-purpose
 layer that can be used to generate trace event commands.  The
 generated command strings can then be passed to the command-parsing
 and event creation code that already exists in the trace event
-subystem for creating the corresponding trace events.
+subsystem for creating the corresponding trace events.
 
 In a nutshell, the way it works is that the higher-level interface
 code creates a struct dynevent_cmd object, then uses a couple
@@ -1068,7 +1082,7 @@ to add an operator between the pair (here none) and a separator to be
 appended onto the end of the arg pair (here ';').
 
 There's also a dynevent_str_add() function that can be used to simply
-add a string as-is, with no spaces, delimeters, or arg check.
+add a string as-is, with no spaces, delimiters, or arg check.
 
 Any number of dynevent_*_add() calls can be made to build up the string
 (until its length surpasses cmd->maxlen).  When all the arguments have

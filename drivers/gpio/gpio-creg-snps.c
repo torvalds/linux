@@ -8,7 +8,7 @@
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #define MAX_GPIO	32
 

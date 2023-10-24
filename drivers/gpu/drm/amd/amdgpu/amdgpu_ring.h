@@ -44,6 +44,7 @@ struct amdgpu_vm;
 #define AMDGPU_MAX_COMPUTE_RINGS	8
 #define AMDGPU_MAX_VCE_RINGS		3
 #define AMDGPU_MAX_UVD_ENC_RINGS	2
+#define AMDGPU_MAX_VPE_RINGS		2
 
 enum amdgpu_ring_priority_level {
 	AMDGPU_RING_PRIO_0,
@@ -77,8 +78,10 @@ enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_VCN_DEC	= AMDGPU_HW_IP_VCN_DEC,
 	AMDGPU_RING_TYPE_VCN_ENC	= AMDGPU_HW_IP_VCN_ENC,
 	AMDGPU_RING_TYPE_VCN_JPEG	= AMDGPU_HW_IP_VCN_JPEG,
+	AMDGPU_RING_TYPE_VPE		= AMDGPU_HW_IP_VPE,
 	AMDGPU_RING_TYPE_KIQ,
-	AMDGPU_RING_TYPE_MES
+	AMDGPU_RING_TYPE_MES,
+	AMDGPU_RING_TYPE_UMSCH_MM,
 };
 
 enum amdgpu_ib_pool_type {
@@ -389,7 +392,7 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
 	occupied = ring->wptr & ring->buf_mask;
 	dst = (void *)&ring->ring[occupied];
 	chunk1 = ring->buf_mask + 1 - occupied;
-	chunk1 = (chunk1 >= count_dw) ? count_dw: chunk1;
+	chunk1 = (chunk1 >= count_dw) ? count_dw : chunk1;
 	chunk2 = count_dw - chunk1;
 	chunk1 <<= 2;
 	chunk2 <<= 2;

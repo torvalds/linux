@@ -289,10 +289,6 @@ clear_bss:
 	blt a3, a4, clear_bss
 clear_bss_done:
 #endif
-	/* Save hart ID and DTB physical address */
-	mv s0, a0
-	mv s1, a1
-
 	la a2, boot_cpu_hartid
 	XIP_FIXUP_OFFSET a2
 	REG_S a0, (a2)
@@ -306,7 +302,7 @@ clear_bss_done:
 	la a0, __dtb_start
 	XIP_FIXUP_OFFSET a0
 #else
-	mv a0, s1
+	mv a0, a1
 #endif /* CONFIG_BUILTIN_DTB */
 	call setup_vm
 #ifdef CONFIG_MMU

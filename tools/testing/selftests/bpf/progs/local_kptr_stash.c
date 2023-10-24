@@ -14,10 +14,16 @@ struct node_data {
 	struct bpf_rb_node node;
 };
 
+struct plain_local {
+	long key;
+	long data;
+};
+
 struct map_value {
 	struct prog_test_ref_kfunc *not_kptr;
 	struct prog_test_ref_kfunc __kptr *val;
 	struct node_data __kptr *node;
+	struct plain_local __kptr *plain;
 };
 
 /* This is necessary so that LLVM generates BTF for node_data struct
@@ -64,6 +70,28 @@ SEC("tc")
 long stash_rb_nodes(void *ctx)
 {
 	return create_and_stash(0, 41) ?: create_and_stash(1, 42);
+}
+
+SEC("tc")
+long stash_plain(void *ctx)
+{
+	struct map_value *mapval;
+	struct plain_local *res;
+	int idx = 0;
+
+	mapval = bpf_map_lookup_elem(&some_nodes, &idx);
+	if (!mapval)
+		return 1;
+
+	res = bpf_obj_new(typeof(*res));
+	if (!res)
+		return 1;
+	res->key = 41;
+
+	res = bpf_kptr_xchg(&mapval->plain, res);
+	if (res)
+		bpf_obj_drop(res);
+	return 0;
 }
 
 SEC("tc")

@@ -211,6 +211,9 @@ enum flag_bits {
 				 * check if there is collision between raid1
 				 * serial bios.
 				 */
+	Holder,			/* rdev is used as holder while opening
+				 * underlying disk exclusively.
+				 */
 };
 
 static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
@@ -510,7 +513,7 @@ struct mddev {
 	struct bio_set			sync_set; /* for sync operations like
 						   * metadata and bitmap writes
 						   */
-	struct bio_set			io_acct_set; /* for raid0 and raid5 io accounting */
+	struct bio_set			io_clone_set;
 
 	/* Generic flush handling.
 	 * The last to finish preflush schedules a worker to submit
@@ -534,6 +537,11 @@ struct mddev {
 	 * reconfig_mutex is unlocked, protected by reconfig_mutex.
 	 */
 	struct list_head		deleting;
+
+	/* Used to synchronize idle and frozen for action_store() */
+	struct mutex			sync_mutex;
+	/* The sequence number for sync thread */
+	atomic_t sync_seq;
 
 	bool	has_superblocks:1;
 	bool	fail_last_dev:1;
@@ -731,7 +739,7 @@ struct md_thread {
 	void			*private;
 };
 
-struct md_io_acct {
+struct md_io_clone {
 	struct mddev	*mddev;
 	struct bio	*orig_bio;
 	unsigned long	start_time;
@@ -756,7 +764,7 @@ extern struct md_thread *md_register_thread(
 	void (*run)(struct md_thread *thread),
 	struct mddev *mddev,
 	const char *name);
-extern void md_unregister_thread(struct md_thread __rcu **threadp);
+extern void md_unregister_thread(struct mddev *mddev, struct md_thread __rcu **threadp);
 extern void md_wakeup_thread(struct md_thread __rcu *thread);
 extern void md_check_recovery(struct mddev *mddev);
 extern void md_reap_sync_thread(struct mddev *mddev);
@@ -769,8 +777,6 @@ extern void md_error(struct mddev *mddev, struct md_rdev *rdev);
 extern void md_finish_reshape(struct mddev *mddev);
 void md_submit_discard_bio(struct mddev *mddev, struct md_rdev *rdev,
 			struct bio *bio, sector_t start, sector_t size);
-int acct_bioset_init(struct mddev *mddev);
-void acct_bioset_exit(struct mddev *mddev);
 void md_account_bio(struct mddev *mddev, struct bio **bio);
 
 extern bool __must_check md_flush_request(struct mddev *mddev, struct bio *bio);

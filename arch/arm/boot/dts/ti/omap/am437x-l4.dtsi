@@ -442,8 +442,8 @@
 				compatible = "ti,am4372-rtc", "ti,am3352-rtc",
 					     "ti,da830-rtc";
 				reg = <0x0 0x1000>;
-				interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH
-					      GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk_32768_ck>;
 				clock-names = "int-clk";
 				system-power-controller;
@@ -549,10 +549,10 @@
 				syscon = <&scm_conf>;
 				status = "disabled";
 
-				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH
-					      GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH
-					      GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH
-					      GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "rx_thresh", "rx", "tx", "misc";
 
 				ethernet-ports {

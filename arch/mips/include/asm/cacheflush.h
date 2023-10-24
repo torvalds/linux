@@ -36,12 +36,12 @@
  */
 #define PG_dcache_dirty			PG_arch_1
 
-#define Page_dcache_dirty(page)		\
-	test_bit(PG_dcache_dirty, &(page)->flags)
-#define SetPageDcacheDirty(page)	\
-	set_bit(PG_dcache_dirty, &(page)->flags)
-#define ClearPageDcacheDirty(page)	\
-	clear_bit(PG_dcache_dirty, &(page)->flags)
+#define folio_test_dcache_dirty(folio)		\
+	test_bit(PG_dcache_dirty, &(folio)->flags)
+#define folio_set_dcache_dirty(folio)	\
+	set_bit(PG_dcache_dirty, &(folio)->flags)
+#define folio_clear_dcache_dirty(folio)	\
+	clear_bit(PG_dcache_dirty, &(folio)->flags)
 
 extern void (*flush_cache_all)(void);
 extern void (*__flush_cache_all)(void);
@@ -50,15 +50,24 @@ extern void (*flush_cache_mm)(struct mm_struct *mm);
 extern void (*flush_cache_range)(struct vm_area_struct *vma,
 	unsigned long start, unsigned long end);
 extern void (*flush_cache_page)(struct vm_area_struct *vma, unsigned long page, unsigned long pfn);
-extern void __flush_dcache_page(struct page *page);
+extern void __flush_dcache_pages(struct page *page, unsigned int nr);
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
+static inline void flush_dcache_folio(struct folio *folio)
+{
+	if (cpu_has_dc_aliases)
+		__flush_dcache_pages(&folio->page, folio_nr_pages(folio));
+	else if (!cpu_has_ic_fills_f_dc)
+		folio_set_dcache_dirty(folio);
+}
+#define flush_dcache_folio flush_dcache_folio
+
 static inline void flush_dcache_page(struct page *page)
 {
 	if (cpu_has_dc_aliases)
-		__flush_dcache_page(page);
+		__flush_dcache_pages(page, 1);
 	else if (!cpu_has_ic_fills_f_dc)
-		SetPageDcacheDirty(page);
+		folio_set_dcache_dirty(page_folio(page));
 }
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
@@ -71,11 +80,6 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
 {
 	if (cpu_has_dc_aliases && PageAnon(page))
 		__flush_anon_page(page, vmaddr);
-}
-
-static inline void flush_icache_page(struct vm_area_struct *vma,
-	struct page *page)
-{
 }
 
 extern void (*flush_icache_range)(unsigned long start, unsigned long end);

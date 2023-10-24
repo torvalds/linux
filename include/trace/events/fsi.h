@@ -122,6 +122,37 @@ TRACE_EVENT(fsi_master_break,
 	)
 );
 
+TRACE_EVENT(fsi_master_scan,
+	TP_PROTO(const struct fsi_master *master, bool scan),
+	TP_ARGS(master, scan),
+	TP_STRUCT__entry(
+		__field(int,	master_idx)
+		__field(int,	n_links)
+		__field(bool,	scan)
+	),
+	TP_fast_assign(
+		__entry->master_idx = master->idx;
+		__entry->n_links = master->n_links;
+		__entry->scan = scan;
+	),
+	TP_printk("fsi%d (%d links) %s", __entry->master_idx, __entry->n_links,
+		  __entry->scan ? "scan" : "unscan")
+);
+
+TRACE_EVENT(fsi_master_unregister,
+	TP_PROTO(const struct fsi_master *master),
+	TP_ARGS(master),
+	TP_STRUCT__entry(
+		__field(int,	master_idx)
+		__field(int,	n_links)
+	),
+	TP_fast_assign(
+		__entry->master_idx = master->idx;
+		__entry->n_links = master->n_links;
+	),
+	TP_printk("fsi%d (%d links)", __entry->master_idx, __entry->n_links)
+);
+
 TRACE_EVENT(fsi_slave_init,
 	TP_PROTO(const struct fsi_slave *slave),
 	TP_ARGS(slave),

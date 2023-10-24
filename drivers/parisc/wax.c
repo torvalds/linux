@@ -4,7 +4,7 @@
  *
  *	(c) Copyright 2000 The Puffin Group Inc.
  *
- *	by Helge Deller <deller@gmx.de>
+ *	(c) 2000-2023 by Helge Deller <deller@gmx.de>
  */
 
 #include <linux/errno.h>
@@ -121,14 +121,20 @@ static int __init wax_init_chip(struct parisc_device *dev)
 }
 
 static const struct parisc_device_id wax_tbl[] __initconst = {
-  	{ HPHW_BA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0008e },
+	{ HPHW_BA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0008e },
 	{ 0, }
 };
 
 MODULE_DEVICE_TABLE(parisc, wax_tbl);
 
-struct parisc_driver wax_driver __refdata = {
+static struct parisc_driver wax_driver __refdata = {
 	.name =		"wax",
 	.id_table =	wax_tbl,
 	.probe =	wax_init_chip,
 };
+
+static int __init wax_init(void)
+{
+	return register_parisc_driver(&wax_driver);
+}
+arch_initcall(wax_init);

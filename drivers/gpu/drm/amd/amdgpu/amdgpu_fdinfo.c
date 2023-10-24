@@ -51,6 +51,7 @@ static const char *amdgpu_ip_name[AMDGPU_HW_IP_NUM] = {
 	[AMDGPU_HW_IP_VCN_DEC]	=	"dec",
 	[AMDGPU_HW_IP_VCN_ENC]	=	"enc",
 	[AMDGPU_HW_IP_VCN_JPEG]	=	"jpeg",
+	[AMDGPU_HW_IP_VPE]	=	"vpe",
 };
 
 void amdgpu_show_fdinfo(struct drm_printer *p, struct drm_file *file)

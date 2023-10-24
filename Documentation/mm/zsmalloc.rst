@@ -263,3 +263,8 @@ is heavy internal fragmentation and zspool compaction is unable to relocate
 objects and release zspages. In these cases, it is recommended to decrease
 the limit on the size of the zspage chains (as specified by the
 CONFIG_ZSMALLOC_CHAIN_SIZE option).
+
+Functions
+=========
+
+.. kernel-doc:: mm/zsmalloc.c

@@ -173,6 +173,9 @@ static void internal_free_pages_locked(struct ivpu_bo *bo)
 {
 	unsigned int i, npages = bo->base.size >> PAGE_SHIFT;
 
+	if (ivpu_bo_cache_mode(bo) != DRM_IVPU_BO_CACHED)
+		set_pages_array_wb(bo->pages, bo->base.size >> PAGE_SHIFT);
+
 	for (i = 0; i < npages; i++)
 		put_page(bo->pages[i]);
 
@@ -279,10 +282,12 @@ ivpu_bo_alloc_vpu_addr(struct ivpu_bo *bo, struct ivpu_mmu_context *ctx,
 	int ret;
 
 	if (!range) {
-		if (bo->flags & DRM_IVPU_BO_HIGH_MEM)
-			range = &vdev->hw->ranges.user_high;
+		if (bo->flags & DRM_IVPU_BO_SHAVE_MEM)
+			range = &vdev->hw->ranges.shave;
+		else if (bo->flags & DRM_IVPU_BO_DMA_MEM)
+			range = &vdev->hw->ranges.dma;
 		else
-			range = &vdev->hw->ranges.user_low;
+			range = &vdev->hw->ranges.user;
 	}
 
 	mutex_lock(&ctx->lock);
@@ -570,7 +575,7 @@ ivpu_bo_alloc_internal(struct ivpu_device *vdev, u64 vpu_addr, u64 size, u32 fla
 		fixed_range.end = vpu_addr + size;
 		range = &fixed_range;
 	} else {
-		range = &vdev->hw->ranges.global_low;
+		range = &vdev->hw->ranges.global;
 	}
 
 	bo = ivpu_bo_alloc(vdev, &vdev->gctx, size, flags, &internal_ops, range, 0);
@@ -586,6 +591,11 @@ ivpu_bo_alloc_internal(struct ivpu_device *vdev, u64 vpu_addr, u64 size, u32 fla
 
 	if (ivpu_bo_cache_mode(bo) != DRM_IVPU_BO_CACHED)
 		drm_clflush_pages(bo->pages, bo->base.size >> PAGE_SHIFT);
+
+	if (bo->flags & DRM_IVPU_BO_WC)
+		set_pages_array_wc(bo->pages, bo->base.size >> PAGE_SHIFT);
+	else if (bo->flags & DRM_IVPU_BO_UNCACHED)
+		set_pages_array_uc(bo->pages, bo->base.size >> PAGE_SHIFT);
 
 	prot = ivpu_bo_pgprot(bo, PAGE_KERNEL);
 	bo->kvaddr = vmap(bo->pages, bo->base.size >> PAGE_SHIFT, VM_MAP, prot);

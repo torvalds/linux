@@ -152,7 +152,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       When the DRAM type is DDR3, this parameter defines the phy side CA line
-      (incluing command line, address line and clock line) drive strength.
+      (including command line, address line and clock line) drive strength.
     default: 40
 
   rockchip,phy_ddr3_dq_drv:
@@ -305,7 +305,7 @@ properties:
     description:
       Defines the self-refresh power down idle period in which memories are
       placed into self-refresh power down mode if bus is idle for
-      srpd_lite_idle nanoseonds. This parameter is for LPDDR4 only.
+      srpd_lite_idle nanoseconds. This parameter is for LPDDR4 only.
 
   rockchip,standby-idle-ns:
     description:

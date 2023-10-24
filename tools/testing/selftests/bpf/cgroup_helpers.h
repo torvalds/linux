@@ -22,6 +22,7 @@ void remove_cgroup(const char *relative_path);
 unsigned long long get_cgroup_id(const char *relative_path);
 
 int join_cgroup(const char *relative_path);
+int join_root_cgroup(void);
 int join_parent_cgroup(const char *relative_path);
 
 int setup_cgroup_environment(void);

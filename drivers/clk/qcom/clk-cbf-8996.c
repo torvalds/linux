@@ -52,7 +52,7 @@ static const u8 cbf_pll_regs[PLL_OFF_MAX_REGS] = {
 	[PLL_OFF_STATUS] = 0x28,
 };
 
-static const struct alpha_pll_config cbfpll_config = {
+static struct alpha_pll_config cbfpll_config = {
 	.l = 72,
 	.config_ctl_val = 0x200d4828,
 	.config_ctl_hi_val = 0x006,
@@ -141,7 +141,7 @@ static int clk_cbf_8996_mux_determine_rate(struct clk_hw *hw,
 {
 	struct clk_hw *parent;
 
-	if (req->rate < (DIV_THRESHOLD / 2))
+	if (req->rate < (DIV_THRESHOLD / cbf_pll_postdiv.div))
 		return -EINVAL;
 
 	if (req->rate < DIV_THRESHOLD)
@@ -312,6 +312,11 @@ static int qcom_msm8996_cbf_probe(struct platform_device *pdev)
 	/* Switch CBF to use the primary PLL */
 	regmap_update_bits(regmap, CBF_MUX_OFFSET, CBF_MUX_PARENT_MASK, 0x1);
 
+	if (of_device_is_compatible(dev->of_node, "qcom,msm8996pro-cbf")) {
+		cbfpll_config.post_div_val = 0x3 << 8;
+		cbf_pll_postdiv.div = 4;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(cbf_msm8996_hw_clks); i++) {
 		ret = devm_clk_hw_register(dev, cbf_msm8996_hw_clks[i]);
 		if (ret)
@@ -342,6 +347,7 @@ static int qcom_msm8996_cbf_remove(struct platform_device *pdev)
 
 static const struct of_device_id qcom_msm8996_cbf_match_table[] = {
 	{ .compatible = "qcom,msm8996-cbf" },
+	{ .compatible = "qcom,msm8996pro-cbf" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, qcom_msm8996_cbf_match_table);

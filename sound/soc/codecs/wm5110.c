@@ -2073,6 +2073,10 @@ static int wm5110_set_fll(struct snd_soc_component *component, int fll_id,
 #define WM5110_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static const struct snd_soc_dai_ops wm5110_dai_ops = {
+	.compress_new = snd_soc_new_compress,
+};
+
 static struct snd_soc_dai_driver wm5110_dai[] = {
 	{
 		.name = "wm5110-aif1",
@@ -2206,7 +2210,7 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 			.rates = WM5110_RATES,
 			.formats = WM5110_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.ops = &wm5110_dai_ops,
 	},
 	{
 		.name = "wm5110-dsp-voicectrl",
@@ -2227,7 +2231,7 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 			.rates = WM5110_RATES,
 			.formats = WM5110_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.ops = &wm5110_dai_ops,
 	},
 	{
 		.name = "wm5110-dsp-trace",

@@ -231,7 +231,15 @@
 
 #define BT848_INT_ETBF         (1<<23)
 
+#define BT848_RISC_VIDEO 1
+#define BT848_RISC_TOP 2
+#define BT848_RISC_VBI 4
+
 #define BT848_INT_RISCS   (0xf<<28)
+#define BT848_INT_RISCS_VIDEO   (BT848_RISC_VIDEO << 28)
+#define BT848_INT_RISCS_TOP   (BT848_RISC_TOP << 28)
+#define BT848_INT_RISCS_VBI   (BT848_RISC_VBI << 28)
+
 #define BT848_INT_RISC_EN (1<<27)
 #define BT848_INT_RACK    (1<<25)
 #define BT848_INT_FIELD   (1<<24)

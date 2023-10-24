@@ -6,10 +6,11 @@
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
  */
 
+#include <linux/kernel.h>
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/coresight-pmu.h>
 #include <linux/err.h>
-#include <linux/kernel.h>
 #include <linux/log2.h>
 #include <linux/types.h>
 #include <linux/zalloc.h>
@@ -280,17 +281,6 @@ static int cs_etm__metadata_set_trace_id(u8 trace_chan_id, u64 *cpu_metadata)
 	}
 	return 0;
 }
-
-/*
- * FIELD_GET (linux/bitfield.h) not available outside kernel code,
- * and the header contains too many dependencies to just copy over,
- * so roll our own based on the original
- */
-#define __bf_shf(x) (__builtin_ffsll(x) - 1)
-#define FIELD_GET(_mask, _reg)						\
-	({								\
-		(typeof(_mask))(((_reg) & (_mask)) >> __bf_shf(_mask)); \
-	})
 
 /*
  * Get a metadata for a specific cpu from an array.

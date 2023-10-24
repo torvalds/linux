@@ -18,10 +18,19 @@
 #define HCR_DCT		(UL(1) << 57)
 #define HCR_ATA_SHIFT	56
 #define HCR_ATA		(UL(1) << HCR_ATA_SHIFT)
+#define HCR_TTLBOS	(UL(1) << 55)
+#define HCR_TTLBIS	(UL(1) << 54)
+#define HCR_ENSCXT	(UL(1) << 53)
+#define HCR_TOCU	(UL(1) << 52)
 #define HCR_AMVOFFEN	(UL(1) << 51)
+#define HCR_TICAB	(UL(1) << 50)
 #define HCR_TID4	(UL(1) << 49)
 #define HCR_FIEN	(UL(1) << 47)
 #define HCR_FWB		(UL(1) << 46)
+#define HCR_NV2		(UL(1) << 45)
+#define HCR_AT		(UL(1) << 44)
+#define HCR_NV1		(UL(1) << 43)
+#define HCR_NV		(UL(1) << 42)
 #define HCR_API		(UL(1) << 41)
 #define HCR_APK		(UL(1) << 40)
 #define HCR_TEA		(UL(1) << 37)
@@ -89,7 +98,6 @@
 			 HCR_BSU_IS | HCR_FB | HCR_TACR | \
 			 HCR_AMO | HCR_SWIO | HCR_TIDCP | HCR_RW | HCR_TLOR | \
 			 HCR_FMO | HCR_IMO | HCR_PTW | HCR_TID3)
-#define HCR_VIRT_EXCP_MASK (HCR_VSE | HCR_VI | HCR_VF)
 #define HCR_HOST_NVHE_FLAGS (HCR_RW | HCR_API | HCR_APK | HCR_ATA)
 #define HCR_HOST_NVHE_PROTECTED_FLAGS (HCR_HOST_NVHE_FLAGS | HCR_TSC)
 #define HCR_HOST_VHE_FLAGS (HCR_RW | HCR_TGE | HCR_E2H)
@@ -323,6 +331,47 @@
 				 GENMASK(22, 20) |	\
 				 BIT(18) |		\
 				 GENMASK(16, 15))
+
+/*
+ * FGT register definitions
+ *
+ * RES0 and polarity masks as of DDI0487J.a, to be updated as needed.
+ * We're not using the generated masks as they are usually ahead of
+ * the published ARM ARM, which we use as a reference.
+ *
+ * Once we get to a point where the two describe the same thing, we'll
+ * merge the definitions. One day.
+ */
+#define __HFGRTR_EL2_RES0	(GENMASK(63, 56) | GENMASK(53, 51))
+#define __HFGRTR_EL2_MASK	GENMASK(49, 0)
+#define __HFGRTR_EL2_nMASK	(GENMASK(58, 57) | GENMASK(55, 54) | BIT(50))
+
+#define __HFGWTR_EL2_RES0	(GENMASK(63, 56) | GENMASK(53, 51) |	\
+				 BIT(46) | BIT(42) | BIT(40) | BIT(28) | \
+				 GENMASK(26, 25) | BIT(21) | BIT(18) |	\
+				 GENMASK(15, 14) | GENMASK(10, 9) | BIT(2))
+#define __HFGWTR_EL2_MASK	GENMASK(49, 0)
+#define __HFGWTR_EL2_nMASK	(GENMASK(58, 57) | GENMASK(55, 54) | BIT(50))
+
+#define __HFGITR_EL2_RES0	GENMASK(63, 57)
+#define __HFGITR_EL2_MASK	GENMASK(54, 0)
+#define __HFGITR_EL2_nMASK	GENMASK(56, 55)
+
+#define __HDFGRTR_EL2_RES0	(BIT(49) | BIT(42) | GENMASK(39, 38) |	\
+				 GENMASK(21, 20) | BIT(8))
+#define __HDFGRTR_EL2_MASK	~__HDFGRTR_EL2_nMASK
+#define __HDFGRTR_EL2_nMASK	GENMASK(62, 59)
+
+#define __HDFGWTR_EL2_RES0	(BIT(63) | GENMASK(59, 58) | BIT(51) | BIT(47) | \
+				 BIT(43) | GENMASK(40, 38) | BIT(34) | BIT(30) | \
+				 BIT(22) | BIT(9) | BIT(6))
+#define __HDFGWTR_EL2_MASK	~__HDFGWTR_EL2_nMASK
+#define __HDFGWTR_EL2_nMASK	GENMASK(62, 60)
+
+/* Similar definitions for HCRX_EL2 */
+#define __HCRX_EL2_RES0		(GENMASK(63, 16) | GENMASK(13, 12))
+#define __HCRX_EL2_MASK		(0)
+#define __HCRX_EL2_nMASK	(GENMASK(15, 14) | GENMASK(4, 0))
 
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
 #define HPFAR_MASK	(~UL(0xf))

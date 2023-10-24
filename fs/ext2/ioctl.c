@@ -44,7 +44,7 @@ int ext2_fileattr_set(struct mnt_idmap *idmap,
 		(fa->flags & EXT2_FL_USER_MODIFIABLE);
 
 	ext2_set_inode_flags(inode);
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	mark_inode_dirty(inode);
 
 	return 0;
@@ -77,7 +77,7 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 
 		inode_lock(inode);
-		inode->i_ctime = current_time(inode);
+		inode_set_ctime_current(inode);
 		inode->i_generation = generation;
 		inode_unlock(inode);
 

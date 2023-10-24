@@ -24,6 +24,7 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/dcr.h>
+#include <asm/uic.h>
 
 #define NR_UIC_INTS	32
 

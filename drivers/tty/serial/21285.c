@@ -117,7 +117,8 @@ static void serial21285_stop_rx(struct uart_port *port)
 static irqreturn_t serial21285_rx_chars(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	unsigned int status, ch, flag, rxs, max_count = 256;
+	unsigned int status, rxs, max_count = 256;
+	u8 ch, flag;
 
 	status = *CSR_UARTFLG;
 	while (!(status & 0x10) && max_count--) {

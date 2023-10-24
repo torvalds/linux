@@ -152,7 +152,7 @@ config INET6_TUNNEL
 	default n
 
 config IPV6_VTI
-tristate "Virtual (secure) IPv6: tunneling"
+	tristate "Virtual (secure) IPv6: tunneling"
 	select IPV6_TUNNEL
 	select NET_IP_TUNNEL
 	select XFRM

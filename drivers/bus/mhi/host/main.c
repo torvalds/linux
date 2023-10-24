@@ -938,7 +938,6 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 				if (!mhi_chan->configured)
 					break;
 				parse_xfer_event(mhi_cntrl, local_rp, mhi_chan);
-				event_quota--;
 			}
 			break;
 		default:

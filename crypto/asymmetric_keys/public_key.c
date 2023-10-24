@@ -42,7 +42,7 @@ static void public_key_describe(const struct key *asymmetric_key,
 void public_key_free(struct public_key *key)
 {
 	if (key) {
-		kfree(key->key);
+		kfree_sensitive(key->key);
 		kfree(key->params);
 		kfree(key);
 	}
@@ -81,14 +81,13 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		 * RSA signatures usually use EMSA-PKCS1-1_5 [RFC3447 sec 8.2].
 		 */
 		if (strcmp(encoding, "pkcs1") == 0) {
+			*sig = op == kernel_pkey_sign ||
+			       op == kernel_pkey_verify;
 			if (!hash_algo) {
-				*sig = false;
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s)",
 					     pkey->pkey_algo);
 			} else {
-				*sig = op == kernel_pkey_sign ||
-				       op == kernel_pkey_verify;
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s,%s)",
 					     pkey->pkey_algo, hash_algo);
@@ -263,7 +262,7 @@ error_free_tfm:
 	else
 		crypto_free_akcipher(tfm);
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
@@ -369,7 +368,7 @@ error_free_tfm:
 	else
 		crypto_free_akcipher(tfm);
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
@@ -441,7 +440,7 @@ int public_key_verify_signature(const struct public_key *pkey,
 				sig->digest, sig->digest_size);
 
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 error_free_tfm:
 	crypto_free_sig(tfm);
 	pr_devel("<==%s() = %d\n", __func__, ret);

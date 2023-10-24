@@ -146,8 +146,9 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 	if (n == 0)
 		return 0;
 
-	/* unaligned */
-	if (((unsigned long)to & 0x3) || ((unsigned long)from & 0x3)) {
+	/* fallback for unaligned access when hardware doesn't support */
+	if (!IS_ENABLED(CONFIG_ARC_USE_UNALIGNED_MEM_ACCESS) &&
+	     (((unsigned long)to & 0x3) || ((unsigned long)from & 0x3))) {
 
 		unsigned char tmp;
 
@@ -373,8 +374,9 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 	if (n == 0)
 		return 0;
 
-	/* unaligned */
-	if (((unsigned long)to & 0x3) || ((unsigned long)from & 0x3)) {
+	/* fallback for unaligned access when hardware doesn't support */
+	if (!IS_ENABLED(CONFIG_ARC_USE_UNALIGNED_MEM_ACCESS) &&
+	     (((unsigned long)to & 0x3) || ((unsigned long)from & 0x3))) {
 
 		unsigned char tmp;
 
@@ -584,7 +586,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 	return res;
 }
 
-static inline unsigned long __arc_clear_user(void __user *to, unsigned long n)
+static inline unsigned long __clear_user(void __user *to, unsigned long n)
 {
 	long res = n;
 	unsigned char *d_char = to;
@@ -626,17 +628,10 @@ static inline unsigned long __arc_clear_user(void __user *to, unsigned long n)
 	return res;
 }
 
-#ifndef CONFIG_CC_OPTIMIZE_FOR_SIZE
-
 #define INLINE_COPY_TO_USER
 #define INLINE_COPY_FROM_USER
 
-#define __clear_user(d, n)		__arc_clear_user(d, n)
-#else
-extern unsigned long arc_clear_user_noinline(void __user *to,
-		unsigned long n);
-#define __clear_user(d, n)		arc_clear_user_noinline(d, n)
-#endif
+#define __clear_user			__clear_user
 
 #include <asm-generic/uaccess.h>
 

@@ -965,7 +965,7 @@ static int bq24190_charger_get_precharge(struct bq24190_dev_info *bdi,
 		union power_supply_propval *val)
 {
 	u8 v;
-	int ret;
+	int curr, ret;
 
 	ret = bq24190_read_mask(bdi, BQ24190_REG_PCTCC,
 			BQ24190_REG_PCTCC_IPRECHG_MASK,
@@ -973,7 +973,20 @@ static int bq24190_charger_get_precharge(struct bq24190_dev_info *bdi,
 	if (ret < 0)
 		return ret;
 
-	val->intval = ++v * 128 * 1000;
+	curr = ++v * 128 * 1000;
+
+	ret = bq24190_read_mask(bdi, BQ24190_REG_CCC,
+			BQ24190_REG_CCC_FORCE_20PCT_MASK,
+			BQ24190_REG_CCC_FORCE_20PCT_SHIFT, &v);
+	if (ret < 0)
+		return ret;
+
+	/* If FORCE_20PCT is enabled, then current is 50% of IPRECHG value */
+	if (v)
+		curr /= 2;
+
+	val->intval = curr;
+
 	return 0;
 }
 

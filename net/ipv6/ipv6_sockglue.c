@@ -102,7 +102,7 @@ int ip6_ra_control(struct sock *sk, int sel)
 struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
 					   struct ipv6_txoptions *opt)
 {
-	if (inet_sk(sk)->is_icsk) {
+	if (inet_test_bit(IS_ICSK, sk)) {
 		if (opt &&
 		    !((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_CLOSE)) &&
 		    inet_sk(sk)->inet_daddr != LOOPBACK4_IPV6) {
@@ -474,8 +474,8 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 				WRITE_ONCE(sk->sk_prot, &tcp_prot);
 				/* Paired with READ_ONCE() in tcp_(get|set)sockopt() */
 				WRITE_ONCE(icsk->icsk_af_ops, &ipv4_specific);
-				sk->sk_socket->ops = &inet_stream_ops;
-				sk->sk_family = PF_INET;
+				WRITE_ONCE(sk->sk_socket->ops, &inet_stream_ops);
+				WRITE_ONCE(sk->sk_family, PF_INET);
 				tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 			} else {
 				struct proto *prot = &udp_prot;
@@ -488,8 +488,8 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 				/* Paired with READ_ONCE(sk->sk_prot) in inet6_dgram_ops */
 				WRITE_ONCE(sk->sk_prot, prot);
-				sk->sk_socket->ops = &inet_dgram_ops;
-				sk->sk_family = PF_INET;
+				WRITE_ONCE(sk->sk_socket->ops, &inet_dgram_ops);
+				WRITE_ONCE(sk->sk_family, PF_INET);
 			}
 
 			/* Disable all options not to allocate memory anymore,
@@ -633,7 +633,7 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		if (optlen < sizeof(int))
 			goto e_inval;
 		/* we don't have a separate transparent bit for IPV6 we use the one in the IPv4 socket */
-		inet_sk(sk)->transparent = valbool;
+		inet_assign_bit(TRANSPARENT, sk, valbool);
 		retv = 0;
 		break;
 
@@ -641,7 +641,7 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		if (optlen < sizeof(int))
 			goto e_inval;
 		/* we also don't have a separate freebind bit for IPV6 */
-		inet_sk(sk)->freebind = valbool;
+		inet_assign_bit(FREEBIND, sk, valbool);
 		retv = 0;
 		break;
 
@@ -831,7 +831,7 @@ done:
 			goto e_inval;
 
 		retv = -EPROTO;
-		if (inet_sk(sk)->is_icsk)
+		if (inet_test_bit(IS_ICSK, sk))
 			break;
 
 		retv = -EFAULT;
@@ -923,7 +923,7 @@ done:
 			goto e_inval;
 		np->recverr = valbool;
 		if (!val)
-			skb_queue_purge(&sk->sk_error_queue);
+			skb_errqueue_purge(&sk->sk_error_queue);
 		retv = 0;
 		break;
 	case IPV6_FLOWINFO_SEND:
@@ -1330,11 +1330,11 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	}
 
 	case IPV6_TRANSPARENT:
-		val = inet_sk(sk)->transparent;
+		val = inet_test_bit(TRANSPARENT, sk);
 		break;
 
 	case IPV6_FREEBIND:
-		val = inet_sk(sk)->freebind;
+		val = inet_test_bit(FREEBIND, sk);
 		break;
 
 	case IPV6_RECVORIGDSTADDR:

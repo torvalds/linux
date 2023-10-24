@@ -16,7 +16,6 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/bitops.h>
 #include <linux/regulator/consumer.h>

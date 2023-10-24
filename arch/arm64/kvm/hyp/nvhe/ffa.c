@@ -634,9 +634,8 @@ out_handled:
 	return true;
 }
 
-bool kvm_host_ffa_handler(struct kvm_cpu_context *host_ctxt)
+bool kvm_host_ffa_handler(struct kvm_cpu_context *host_ctxt, u32 func_id)
 {
-	DECLARE_REG(u64, func_id, host_ctxt, 0);
 	struct arm_smccc_res res;
 
 	/*
@@ -705,7 +704,20 @@ int hyp_ffa_init(void *pages)
 	if (res.a0 == FFA_RET_NOT_SUPPORTED)
 		return 0;
 
-	if (res.a0 != FFA_VERSION_1_0)
+	/*
+	 * Firmware returns the maximum supported version of the FF-A
+	 * implementation. Check that the returned version is
+	 * backwards-compatible with the hyp according to the rules in DEN0077A
+	 * v1.1 REL0 13.2.1.
+	 *
+	 * Of course, things are never simple when dealing with firmware. v1.1
+	 * broke ABI with v1.0 on several structures, which is itself
+	 * incompatible with the aforementioned versioning scheme. The
+	 * expectation is that v1.x implementations that do not support the v1.0
+	 * ABI return NOT_SUPPORTED rather than a version number, according to
+	 * DEN0077A v1.1 REL0 18.6.4.
+	 */
+	if (FFA_MAJOR_VERSION(res.a0) != 1)
 		return -EOPNOTSUPP;
 
 	arm_smccc_1_1_smc(FFA_ID_GET, 0, 0, 0, 0, 0, 0, 0, &res);

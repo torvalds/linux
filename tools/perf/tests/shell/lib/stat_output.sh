@@ -1,3 +1,4 @@
+#!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
 # Return true if perf_event_paranoid is > $1 and not running as root.

@@ -54,10 +54,6 @@ int for_each_thermal_cooling_device(int (*cb)(struct thermal_cooling_device *,
 int for_each_thermal_governor(int (*cb)(struct thermal_governor *, void *),
 			      void *thermal_governor);
 
-int __for_each_thermal_trip(struct thermal_zone_device *,
-			    int (*cb)(struct thermal_trip *, void *),
-			    void *);
-
 struct thermal_zone_device *thermal_zone_get_by_id(int id);
 
 struct thermal_attr {
@@ -74,7 +70,7 @@ static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
 void thermal_cdev_update(struct thermal_cooling_device *);
 void __thermal_cdev_update(struct thermal_cooling_device *cdev);
 
-int get_tz_trend(struct thermal_zone_device *tz, int trip);
+int get_tz_trend(struct thermal_zone_device *tz, int trip_index);
 
 struct thermal_instance *
 get_thermal_instance(struct thermal_zone_device *tz,

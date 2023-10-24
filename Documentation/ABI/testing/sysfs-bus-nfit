@@ -121,7 +121,7 @@ KernelVersion:	v4.7
 Contact:	nvdimm@lists.linux.dev
 Description:
 		(RO) ACPI specification 6.2 section 5.2.25.9, defines an
-		identifier for an NVDIMM, which refelects the id attribute.
+		identifier for an NVDIMM, which reflects the id attribute.
 
 
 What:		/sys/bus/nd/devices/nmemX/nfit/subsystem_vendor

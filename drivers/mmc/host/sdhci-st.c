@@ -348,7 +348,6 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	struct clk *clk, *icnclk;
 	int ret = 0;
 	u16 host_version;
-	struct resource *res;
 	struct reset_control *rstc;
 
 	clk =  devm_clk_get(&pdev->dev, "mmc");
@@ -397,9 +396,7 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	}
 
 	/* Configure the FlashSS Top registers for setting eMMC TX/RX delay */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "top-mmc-delay");
-	pdata->top_ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	pdata->top_ioaddr = devm_platform_ioremap_resource_byname(pdev, "top-mmc-delay");
 	if (IS_ERR(pdata->top_ioaddr))
 		pdata->top_ioaddr = NULL;
 
@@ -434,20 +431,20 @@ err_pltfm_init:
 	return ret;
 }
 
-static int sdhci_st_remove(struct platform_device *pdev)
+static void sdhci_st_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct st_mmc_platform_data *pdata = sdhci_pltfm_priv(pltfm_host);
 	struct reset_control *rstc = pdata->rstc;
+	struct clk *clk = pltfm_host->clk;
 
-	sdhci_pltfm_unregister(pdev);
+	sdhci_pltfm_remove(pdev);
 
 	clk_disable_unprepare(pdata->icnclk);
+	clk_disable_unprepare(clk);
 
 	reset_control_assert(rstc);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -510,7 +507,7 @@ MODULE_DEVICE_TABLE(of, st_sdhci_match);
 
 static struct platform_driver sdhci_st_driver = {
 	.probe = sdhci_st_probe,
-	.remove = sdhci_st_remove,
+	.remove_new = sdhci_st_remove,
 	.driver = {
 		   .name = "sdhci-st",
 		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,

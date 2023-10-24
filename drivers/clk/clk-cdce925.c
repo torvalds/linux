@@ -834,7 +834,7 @@ MODULE_DEVICE_TABLE(of, clk_cdce925_of_match);
 static struct i2c_driver cdce925_driver = {
 	.driver = {
 		.name = "cdce925",
-		.of_match_table = of_match_ptr(clk_cdce925_of_match),
+		.of_match_table = clk_cdce925_of_match,
 	},
 	.probe		= cdce925_probe,
 	.id_table	= cdce925_id,

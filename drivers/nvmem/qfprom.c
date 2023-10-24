@@ -374,8 +374,7 @@ static int qfprom_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* The corrected section is always provided */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->qfpcorrected = devm_ioremap_resource(dev, res);
+	priv->qfpcorrected = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->qfpcorrected))
 		return PTR_ERR(priv->qfpcorrected);
 
@@ -402,12 +401,10 @@ static int qfprom_probe(struct platform_device *pdev)
 		priv->qfpraw = devm_ioremap_resource(dev, res);
 		if (IS_ERR(priv->qfpraw))
 			return PTR_ERR(priv->qfpraw);
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-		priv->qfpconf = devm_ioremap_resource(dev, res);
+		priv->qfpconf = devm_platform_ioremap_resource(pdev, 2);
 		if (IS_ERR(priv->qfpconf))
 			return PTR_ERR(priv->qfpconf);
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
-		priv->qfpsecurity = devm_ioremap_resource(dev, res);
+		priv->qfpsecurity = devm_platform_ioremap_resource(pdev, 3);
 		if (IS_ERR(priv->qfpsecurity))
 			return PTR_ERR(priv->qfpsecurity);
 
@@ -427,12 +424,8 @@ static int qfprom_probe(struct platform_device *pdev)
 			return PTR_ERR(priv->vcc);
 
 		priv->secclk = devm_clk_get(dev, "core");
-		if (IS_ERR(priv->secclk)) {
-			ret = PTR_ERR(priv->secclk);
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "Error getting clock: %d\n", ret);
-			return ret;
-		}
+		if (IS_ERR(priv->secclk))
+			return dev_err_probe(dev, PTR_ERR(priv->secclk), "Error getting clock\n");
 
 		/* Only enable writing if we have SoC data. */
 		if (priv->soc_data)

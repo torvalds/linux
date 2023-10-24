@@ -179,6 +179,25 @@ dtb-$(CONFIG_MACH_SUN7I) += \
 	sun7i-a20-pcduino3-nano.dtb \
 	sun7i-a20-wexler-tab7200.dtb \
 	sun7i-a20-wits-pro-a20-dkt.dtb
+
+# Enables support for device-tree overlays for all pis
+DTC_FLAGS_sun8i-h3-orangepi-lite := -@
+DTC_FLAGS_sun8i-h3-bananapi-m2-plus := -@
+DTC_FLAGS_sun8i-h3-nanopi-m1-plus := -@
+DTC_FLAGS_sun8i-h3-nanopi-m1 := -@
+DTC_FLAGS_sun8i-h3-nanopi-duo2 := -@
+DTC_FLAGS_sun8i-h3-orangepi-plus2e := -@
+DTC_FLAGS_sun8i-h3-orangepi-one := -@
+DTC_FLAGS_sun8i-h3-orangepi-plus := -@
+DTC_FLAGS_sun8i-h3-orangepi-2 := -@
+DTC_FLAGS_sun8i-h3-orangepi-zero-plus2 := -@
+DTC_FLAGS_sun8i-h3-nanopi-neo-air := -@
+DTC_FLAGS_sun8i-h3-zeropi := -@
+DTC_FLAGS_sun8i-h3-nanopi-neo := -@
+DTC_FLAGS_sun8i-h3-nanopi-r1 := -@
+DTC_FLAGS_sun8i-h3-orangepi-pc := -@
+DTC_FLAGS_sun8i-h3-bananapi-m2-plus-v1.2 := -@
+DTC_FLAGS_sun8i-h3-orangepi-pc-plus := -@
 dtb-$(CONFIG_MACH_SUN8I) += \
 	sun8i-a23-evb.dtb \
 	sun8i-a23-gt90h-v4.dtb \

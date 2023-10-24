@@ -101,7 +101,6 @@
 
 		interrupt-parent = <&tlmm>;
 		interrupts = <115 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "INT1";
 
 		st,drdy-int-pin = <1>;
 		mount-matrix = "0", "1", "0",

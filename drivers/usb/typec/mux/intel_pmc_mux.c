@@ -59,7 +59,7 @@ enum {
 };
 
 /* Common Mode Data bits */
-#define PMC_USB_ALTMODE_ACTIVE_CABLE	BIT(2)
+#define PMC_USB_ALTMODE_RETIMER_CABLE	BIT(2)
 
 #define PMC_USB_ALTMODE_ORI_SHIFT	1
 #define PMC_USB_ALTMODE_UFP_SHIFT	3
@@ -71,6 +71,7 @@ enum {
 #define PMC_USB_ALTMODE_TBT_TYPE	BIT(17)
 #define PMC_USB_ALTMODE_CABLE_TYPE	BIT(18)
 #define PMC_USB_ALTMODE_ACTIVE_LINK	BIT(20)
+#define PMC_USB_ALTMODE_ACTIVE_CABLE	BIT(22)
 #define PMC_USB_ALTMODE_FORCE_LSR	BIT(23)
 #define PMC_USB_ALTMODE_CABLE_SPD(_s_)	(((_s_) & GENMASK(2, 0)) << 25)
 #define   PMC_USB_ALTMODE_CABLE_USB31	1
@@ -117,6 +118,16 @@ enum {
 	  IOM_PORT_STATUS_DHPD_HPD_STATUS_SHIFT) &			\
 	 IOM_PORT_STATUS_DHPD_HPD_STATUS_ASSERT)
 
+/* IOM port status register */
+#define IOM_PORT_STATUS_REGS(_offset_, _size_)	((_offset_) | (_size_))
+#define IOM_PORT_STATUS_REGS_SZ_MASK		BIT(0)
+#define IOM_PORT_STATUS_REGS_SZ_4		0
+#define IOM_PORT_STATUS_REGS_SZ_8		1
+#define IOM_PORT_STATUS_REGS_OFFSET(_d_)				\
+	((_d_) & ~IOM_PORT_STATUS_REGS_SZ_MASK)
+#define IOM_PORT_STATUS_REGS_SIZE(_d_)					\
+	(4 << ((_d_) & IOM_PORT_STATUS_REGS_SZ_MASK))
+
 struct pmc_usb;
 
 struct pmc_usb_port {
@@ -145,6 +156,7 @@ struct pmc_usb {
 	struct acpi_device *iom_adev;
 	void __iomem *iom_base;
 	u32 iom_port_status_offset;
+	u8 iom_port_status_size;
 
 	struct dentry *dentry;
 };
@@ -160,7 +172,7 @@ static void update_port_status(struct pmc_usb_port *port)
 
 	port->iom_status = readl(port->pmc->iom_base +
 				 port->pmc->iom_port_status_offset +
-				 port_num * sizeof(u32));
+				 port_num * port->pmc->iom_port_status_size);
 }
 
 static int sbu_orientation(struct pmc_usb_port *port)
@@ -319,8 +331,18 @@ pmc_usb_mux_tbt(struct pmc_usb_port *port, struct typec_mux_state *state)
 	if (data->cable_mode & TBT_CABLE_LINK_TRAINING)
 		req.mode_data |= PMC_USB_ALTMODE_ACTIVE_LINK;
 
-	if (data->enter_vdo & TBT_ENTER_MODE_ACTIVE_CABLE)
-		req.mode_data |= PMC_USB_ALTMODE_ACTIVE_CABLE;
+	if (acpi_dev_hid_uid_match(port->pmc->iom_adev, "INTC1072", NULL) ||
+	    acpi_dev_hid_uid_match(port->pmc->iom_adev, "INTC1079", NULL)) {
+		if ((data->enter_vdo & TBT_ENTER_MODE_ACTIVE_CABLE) ||
+		    (data->cable_mode & TBT_CABLE_RETIMER))
+			req.mode_data |= PMC_USB_ALTMODE_RETIMER_CABLE;
+	} else {
+		if (data->enter_vdo & TBT_ENTER_MODE_ACTIVE_CABLE)
+			req.mode_data |= PMC_USB_ALTMODE_ACTIVE_CABLE;
+
+		if (data->cable_mode & TBT_CABLE_RETIMER)
+			req.mode_data |= PMC_USB_ALTMODE_RETIMER_CABLE;
+	}
 
 	req.mode_data |= PMC_USB_ALTMODE_CABLE_SPD(cable_speed);
 
@@ -359,8 +381,17 @@ pmc_usb_mux_usb4(struct pmc_usb_port *port, struct typec_mux_state *state)
 	case EUDO_CABLE_TYPE_OPTICAL:
 		req.mode_data |= PMC_USB_ALTMODE_CABLE_TYPE;
 		fallthrough;
+	case EUDO_CABLE_TYPE_RE_TIMER:
+		if (!acpi_dev_hid_uid_match(port->pmc->iom_adev, "INTC1072", NULL) ||
+		    !acpi_dev_hid_uid_match(port->pmc->iom_adev, "INTC1079", NULL))
+			req.mode_data |= PMC_USB_ALTMODE_RETIMER_CABLE;
+		fallthrough;
 	default:
-		req.mode_data |= PMC_USB_ALTMODE_ACTIVE_CABLE;
+		if (acpi_dev_hid_uid_match(port->pmc->iom_adev, "INTC1072", NULL) ||
+		    acpi_dev_hid_uid_match(port->pmc->iom_adev, "INTC1079", NULL))
+			req.mode_data |= PMC_USB_ALTMODE_RETIMER_CABLE;
+		else
+			req.mode_data |= PMC_USB_ALTMODE_ACTIVE_CABLE;
 
 		/* Configure data rate to rounded in the case of Active TBT3
 		 * and USB4 cables.
@@ -589,13 +620,16 @@ err_unregister_switch:
 /* IOM ACPI IDs and IOM_PORT_STATUS_OFFSET */
 static const struct acpi_device_id iom_acpi_ids[] = {
 	/* TigerLake */
-	{ "INTC1072", 0x560, },
+	{ "INTC1072", IOM_PORT_STATUS_REGS(0x560, IOM_PORT_STATUS_REGS_SZ_4) },
 
 	/* AlderLake */
-	{ "INTC1079", 0x160, },
+	{ "INTC1079", IOM_PORT_STATUS_REGS(0x160, IOM_PORT_STATUS_REGS_SZ_4) },
 
 	/* Meteor Lake */
-	{ "INTC107A", 0x160, },
+	{ "INTC107A", IOM_PORT_STATUS_REGS(0x160, IOM_PORT_STATUS_REGS_SZ_4) },
+
+	/* Lunar Lake */
+	{ "INTC10EA", IOM_PORT_STATUS_REGS(0x150, IOM_PORT_STATUS_REGS_SZ_8) },
 	{}
 };
 
@@ -615,7 +649,8 @@ static int pmc_usb_probe_iom(struct pmc_usb *pmc)
 	if (!adev)
 		return -ENODEV;
 
-	pmc->iom_port_status_offset = (u32)dev_id->driver_data;
+	pmc->iom_port_status_offset = IOM_PORT_STATUS_REGS_OFFSET(dev_id->driver_data);
+	pmc->iom_port_status_size = IOM_PORT_STATUS_REGS_SIZE(dev_id->driver_data);
 
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_memory_resources(adev, &resource_list);

@@ -16,10 +16,6 @@ void xbitmap_destroy(struct xbitmap *bitmap);
 int xbitmap_clear(struct xbitmap *bitmap, uint64_t start, uint64_t len);
 int xbitmap_set(struct xbitmap *bitmap, uint64_t start, uint64_t len);
 int xbitmap_disunion(struct xbitmap *bitmap, struct xbitmap *sub);
-int xbitmap_set_btcur_path(struct xbitmap *bitmap,
-		struct xfs_btree_cur *cur);
-int xbitmap_set_btblocks(struct xbitmap *bitmap,
-		struct xfs_btree_cur *cur);
 uint64_t xbitmap_hweight(struct xbitmap *bitmap);
 
 /*
@@ -31,10 +27,6 @@ uint64_t xbitmap_hweight(struct xbitmap *bitmap);
  */
 typedef int (*xbitmap_walk_fn)(uint64_t start, uint64_t len, void *priv);
 int xbitmap_walk(struct xbitmap *bitmap, xbitmap_walk_fn fn,
-		void *priv);
-
-typedef int (*xbitmap_walk_bits_fn)(uint64_t bit, void *priv);
-int xbitmap_walk_bits(struct xbitmap *bitmap, xbitmap_walk_bits_fn fn,
 		void *priv);
 
 bool xbitmap_empty(struct xbitmap *bitmap);
@@ -109,6 +101,8 @@ static inline int xagb_bitmap_walk(struct xagb_bitmap *bitmap,
 }
 
 int xagb_bitmap_set_btblocks(struct xagb_bitmap *bitmap,
+		struct xfs_btree_cur *cur);
+int xagb_bitmap_set_btcur_path(struct xagb_bitmap *bitmap,
 		struct xfs_btree_cur *cur);
 
 #endif	/* __XFS_SCRUB_BITMAP_H__ */

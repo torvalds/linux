@@ -1907,14 +1907,14 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 	in = &sw->ports[ev->port];
 	if (!tb_port_is_dpin(in)) {
 		tb_port_warn(in, "bandwidth request to non-DP IN adapter\n");
-		goto unlock;
+		goto put_sw;
 	}
 
 	tb_port_dbg(in, "handling bandwidth allocation request\n");
 
 	if (!usb4_dp_port_bandwidth_mode_enabled(in)) {
 		tb_port_warn(in, "bandwidth allocation mode not enabled\n");
-		goto unlock;
+		goto put_sw;
 	}
 
 	ret = usb4_dp_port_requested_bandwidth(in);
@@ -1923,7 +1923,7 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 			tb_port_dbg(in, "no bandwidth request active\n");
 		else
 			tb_port_warn(in, "failed to read requested bandwidth\n");
-		goto unlock;
+		goto put_sw;
 	}
 	requested_bw = ret;
 
@@ -1932,7 +1932,7 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 	tunnel = tb_find_tunnel(tb, TB_TUNNEL_DP, in, NULL);
 	if (!tunnel) {
 		tb_port_warn(in, "failed to find tunnel\n");
-		goto unlock;
+		goto put_sw;
 	}
 
 	out = tunnel->dst_port;
@@ -1959,11 +1959,15 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 		tb_recalc_estimated_bandwidth(tb);
 	}
 
+put_sw:
+	tb_switch_put(sw);
 unlock:
 	mutex_unlock(&tb->lock);
 
 	pm_runtime_mark_last_busy(&tb->dev);
 	pm_runtime_put_autosuspend(&tb->dev);
+
+	kfree(ev);
 }
 
 static void tb_queue_dp_bandwidth_request(struct tb *tb, u64 route, u8 port)
@@ -2366,12 +2370,13 @@ static const struct tb_cm_ops tb_cm_ops = {
  * downstream ports and the NHI so that the device core will make sure
  * NHI is resumed first before the rest.
  */
-static void tb_apple_add_links(struct tb_nhi *nhi)
+static bool tb_apple_add_links(struct tb_nhi *nhi)
 {
 	struct pci_dev *upstream, *pdev;
+	bool ret;
 
 	if (!x86_apple_machine)
-		return;
+		return false;
 
 	switch (nhi->pdev->device) {
 	case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
@@ -2380,26 +2385,27 @@ static void tb_apple_add_links(struct tb_nhi *nhi)
 	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI:
 		break;
 	default:
-		return;
+		return false;
 	}
 
 	upstream = pci_upstream_bridge(nhi->pdev);
 	while (upstream) {
 		if (!pci_is_pcie(upstream))
-			return;
+			return false;
 		if (pci_pcie_type(upstream) == PCI_EXP_TYPE_UPSTREAM)
 			break;
 		upstream = pci_upstream_bridge(upstream);
 	}
 
 	if (!upstream)
-		return;
+		return false;
 
 	/*
 	 * For each hotplug downstream port, create add device link
 	 * back to NHI so that PCIe tunnels can be re-established after
 	 * sleep.
 	 */
+	ret = false;
 	for_each_pci_bridge(pdev, upstream->subordinate) {
 		const struct device_link *link;
 
@@ -2415,11 +2421,14 @@ static void tb_apple_add_links(struct tb_nhi *nhi)
 		if (link) {
 			dev_dbg(&nhi->pdev->dev, "created link from %s\n",
 				dev_name(&pdev->dev));
+			ret = true;
 		} else {
 			dev_warn(&nhi->pdev->dev, "device link creation from %s failed\n",
 				 dev_name(&pdev->dev));
 		}
 	}
+
+	return ret;
 }
 
 struct tb *tb_probe(struct tb_nhi *nhi)
@@ -2446,8 +2455,13 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 
 	tb_dbg(tb, "using software connection manager\n");
 
-	tb_apple_add_links(nhi);
-	tb_acpi_add_links(nhi);
+	/*
+	 * Device links are needed to make sure we establish tunnels
+	 * before the PCIe/USB stack is resumed so complain here if we
+	 * found them missing.
+	 */
+	if (!tb_apple_add_links(nhi) && !tb_acpi_add_links(nhi))
+		tb_warn(tb, "device links to tunneled native ports are missing!\n");
 
 	return tb;
 }

@@ -27,7 +27,7 @@ const struct nla_policy ethnl_mm_get_policy[ETHTOOL_A_MM_HEADER + 1] = {
 
 static int mm_prepare_data(const struct ethnl_req_info *req_base,
 			   struct ethnl_reply_data *reply_base,
-			   struct genl_info *info)
+			   const struct genl_info *info)
 {
 	struct mm_reply_data *data = MM_REPDATA(reply_base);
 	struct net_device *dev = reply_base->dev;

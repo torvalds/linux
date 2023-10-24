@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include "ta_ras_if.h"
 #include "amdgpu_ras_eeprom.h"
+#include "amdgpu_smuio.h"
 
 struct amdgpu_iv_entry;
 
@@ -389,9 +390,12 @@ struct amdgpu_ras {
 	/* ras infrastructure */
 	/* for ras itself. */
 	uint32_t features;
+	uint32_t schema;
 	struct list_head head;
 	/* sysfs */
 	struct device_attribute features_attr;
+	struct device_attribute version_attr;
+	struct device_attribute schema_attr;
 	struct bin_attribute badpages_attr;
 	struct dentry *de_ras_eeprom_table;
 	/* block array */
@@ -436,8 +440,19 @@ struct amdgpu_ras {
 };
 
 struct ras_fs_data {
-	char sysfs_name[32];
+	char sysfs_name[48];
 	char debugfs_name[32];
+};
+
+struct ras_err_info {
+	struct amdgpu_smuio_mcm_config_info mcm_info;
+	u64 ce_count;
+	u64 ue_count;
+};
+
+struct ras_err_node {
+	struct list_head node;
+	struct ras_err_info err_info;
 };
 
 struct ras_err_data {
@@ -445,7 +460,12 @@ struct ras_err_data {
 	unsigned long ce_count;
 	unsigned long err_addr_cnt;
 	struct eeprom_table_record *err_addr;
+	u32 err_list_count;
+	struct list_head err_node_list;
 };
+
+#define for_each_ras_error(err_node, err_data) \
+	list_for_each_entry(err_node, &(err_data)->err_node_list, node)
 
 struct ras_err_handler_data {
 	/* point to bad page records array */
@@ -493,7 +513,10 @@ struct ras_manager {
 	/* IH data */
 	struct ras_ih_data ih_data;
 
-	struct ras_err_data err_data;
+	struct {
+		unsigned long ue_count;
+		unsigned long ce_count;
+	} err_data;
 };
 
 struct ras_badpage {
@@ -767,4 +790,12 @@ void amdgpu_ras_inst_reset_ras_error_count(struct amdgpu_device *adev,
 					   const struct amdgpu_ras_err_status_reg_entry *reg_list,
 					   uint32_t reg_list_size,
 					   uint32_t instance);
+
+int amdgpu_ras_error_data_init(struct ras_err_data *err_data);
+void amdgpu_ras_error_data_fini(struct ras_err_data *err_data);
+int amdgpu_ras_error_statistic_ce_count(struct ras_err_data *err_data,
+					struct amdgpu_smuio_mcm_config_info *mcm_info, u64 count);
+int amdgpu_ras_error_statistic_ue_count(struct ras_err_data *err_data,
+					struct amdgpu_smuio_mcm_config_info *mcm_info, u64 count);
+
 #endif

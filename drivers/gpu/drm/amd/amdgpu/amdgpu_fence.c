@@ -552,6 +552,42 @@ int amdgpu_fence_driver_sw_init(struct amdgpu_device *adev)
 }
 
 /**
+ * amdgpu_fence_need_ring_interrupt_restore - helper function to check whether
+ * fence driver interrupts need to be restored.
+ *
+ * @ring: ring that to be checked
+ *
+ * Interrupts for rings that belong to GFX IP don't need to be restored
+ * when the target power state is s0ix.
+ *
+ * Return true if need to restore interrupts, false otherwise.
+ */
+static bool amdgpu_fence_need_ring_interrupt_restore(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	bool is_gfx_power_domain = false;
+
+	switch (ring->funcs->type) {
+	case AMDGPU_RING_TYPE_SDMA:
+	/* SDMA 5.x+ is part of GFX power domain so it's covered by GFXOFF */
+		if (amdgpu_ip_version(adev, SDMA0_HWIP, 0) >=
+		    IP_VERSION(5, 0, 0))
+			is_gfx_power_domain = true;
+		break;
+	case AMDGPU_RING_TYPE_GFX:
+	case AMDGPU_RING_TYPE_COMPUTE:
+	case AMDGPU_RING_TYPE_KIQ:
+	case AMDGPU_RING_TYPE_MES:
+		is_gfx_power_domain = true;
+		break;
+	default:
+		break;
+	}
+
+	return !(adev->in_s0ix && is_gfx_power_domain);
+}
+
+/**
  * amdgpu_fence_driver_hw_fini - tear down the fence driver
  * for all possible rings.
  *
@@ -579,7 +615,8 @@ void amdgpu_fence_driver_hw_fini(struct amdgpu_device *adev)
 			amdgpu_fence_driver_force_completion(ring);
 
 		if (!drm_dev_is_unplugged(adev_to_drm(adev)) &&
-		    ring->fence_drv.irq_src)
+		    ring->fence_drv.irq_src &&
+		    amdgpu_fence_need_ring_interrupt_restore(ring))
 			amdgpu_irq_put(adev, ring->fence_drv.irq_src,
 				       ring->fence_drv.irq_type);
 
@@ -655,7 +692,8 @@ void amdgpu_fence_driver_hw_init(struct amdgpu_device *adev)
 			continue;
 
 		/* enable the interrupt */
-		if (ring->fence_drv.irq_src)
+		if (ring->fence_drv.irq_src &&
+		    amdgpu_fence_need_ring_interrupt_restore(ring))
 			amdgpu_irq_get(adev, ring->fence_drv.irq_src,
 				       ring->fence_drv.irq_type);
 	}

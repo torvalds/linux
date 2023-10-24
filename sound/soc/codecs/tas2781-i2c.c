@@ -743,7 +743,6 @@ MODULE_DEVICE_TABLE(acpi, tasdevice_acpi_match);
 static struct i2c_driver tasdevice_i2c_driver = {
 	.driver = {
 		.name = "tas2781-codec",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(tasdevice_of_match),
 #ifdef CONFIG_ACPI
 		.acpi_match_table = ACPI_PTR(tasdevice_acpi_match),

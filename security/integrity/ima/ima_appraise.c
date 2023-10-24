@@ -458,11 +458,13 @@ int ima_check_blacklist(struct integrity_iint_cache *iint,
 		ima_get_modsig_digest(modsig, &hash_algo, &digest, &digestsize);
 
 		rc = is_binary_blacklisted(digest, digestsize);
-		if ((rc == -EPERM) && (iint->flags & IMA_MEASURE))
-			process_buffer_measurement(&nop_mnt_idmap, NULL, digest, digestsize,
-						   "blacklisted-hash", NONE,
-						   pcr, NULL, false, NULL, 0);
-	}
+	} else if (iint->flags & IMA_DIGSIG_REQUIRED && iint->ima_hash)
+		rc = is_binary_blacklisted(iint->ima_hash->digest, iint->ima_hash->length);
+
+	if ((rc == -EPERM) && (iint->flags & IMA_MEASURE))
+		process_buffer_measurement(&nop_mnt_idmap, NULL, digest, digestsize,
+					   "blacklisted-hash", NONE,
+					   pcr, NULL, false, NULL, 0);
 
 	return rc;
 }

@@ -1,5 +1,6 @@
 perf-y += sched-messaging.o
 perf-y += sched-pipe.o
+perf-y += sched-seccomp-notify.o
 perf-y += syscall.o
 perf-y += mem-functions.o
 perf-y += futex-hash.o
@@ -16,6 +17,7 @@ perf-y += inject-buildid.o
 perf-y += evlist-open-close.o
 perf-y += breakpoint.o
 perf-y += pmu-scan.o
+perf-y += uprobe.o
 
 perf-$(CONFIG_X86_64) += mem-memcpy-x86-64-asm.o
 perf-$(CONFIG_X86_64) += mem-memset-x86-64-asm.o

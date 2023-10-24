@@ -211,9 +211,7 @@ autoconf_fail:
 	if (ret)
 		return ret;
 
-	DBG(cdev, "%s speed %s: IN/%s, OUT/%s\n",
-	    (gadget_is_superspeed(c->cdev->gadget) ? "super" :
-	     (gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full")),
+	DBG(cdev, "%s: IN/%s, OUT/%s\n",
 			f->name, loop->in_ep->name, loop->out_ep->name);
 	return 0;
 }

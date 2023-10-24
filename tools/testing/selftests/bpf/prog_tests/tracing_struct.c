@@ -55,6 +55,25 @@ static void test_fentry(void)
 
 	ASSERT_EQ(skel->bss->t6, 1, "t6 ret");
 
+	ASSERT_EQ(skel->bss->t7_a, 16, "t7:a");
+	ASSERT_EQ(skel->bss->t7_b, 17, "t7:b");
+	ASSERT_EQ(skel->bss->t7_c, 18, "t7:c");
+	ASSERT_EQ(skel->bss->t7_d, 19, "t7:d");
+	ASSERT_EQ(skel->bss->t7_e, 20, "t7:e");
+	ASSERT_EQ(skel->bss->t7_f_a, 21, "t7:f.a");
+	ASSERT_EQ(skel->bss->t7_f_b, 22, "t7:f.b");
+	ASSERT_EQ(skel->bss->t7_ret, 133, "t7 ret");
+
+	ASSERT_EQ(skel->bss->t8_a, 16, "t8:a");
+	ASSERT_EQ(skel->bss->t8_b, 17, "t8:b");
+	ASSERT_EQ(skel->bss->t8_c, 18, "t8:c");
+	ASSERT_EQ(skel->bss->t8_d, 19, "t8:d");
+	ASSERT_EQ(skel->bss->t8_e, 20, "t8:e");
+	ASSERT_EQ(skel->bss->t8_f_a, 21, "t8:f.a");
+	ASSERT_EQ(skel->bss->t8_f_b, 22, "t8:f.b");
+	ASSERT_EQ(skel->bss->t8_g, 23, "t8:g");
+	ASSERT_EQ(skel->bss->t8_ret, 156, "t8 ret");
+
 	tracing_struct__detach(skel);
 destroy_skel:
 	tracing_struct__destroy(skel);

@@ -1143,6 +1143,10 @@ static int cs47l15_set_fll(struct snd_soc_component *component, int fll_id,
 	}
 }
 
+static const struct snd_soc_dai_ops cs47l15_dai_ops = {
+	.compress_new = snd_soc_new_compress,
+};
+
 static struct snd_soc_dai_driver cs47l15_dai[] = {
 	{
 		.name = "cs47l15-aif1",
@@ -1219,7 +1223,7 @@ static struct snd_soc_dai_driver cs47l15_dai[] = {
 			.rates = MADERA_RATES,
 			.formats = MADERA_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.ops = &cs47l15_dai_ops,
 	},
 	{
 		.name = "cs47l15-dsp-trace",

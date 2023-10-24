@@ -172,7 +172,7 @@ static int extlog_print(struct notifier_block *nb, unsigned long val,
 			fru_text = "";
 		sec_type = (guid_t *)gdata->section_type;
 		if (guid_equal(sec_type, &CPER_SEC_PLATFORM_MEM)) {
-			struct cper_sec_mem_err *mem = (void *)(gdata + 1);
+			struct cper_sec_mem_err *mem = acpi_hest_get_payload(gdata);
 
 			if (gdata->error_data_length >= sizeof(*mem))
 				trace_extlog_mem_event(mem, err_seq, fru_id, fru_text,

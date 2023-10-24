@@ -529,10 +529,8 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(&pdev->dev, priv->irq, xlp9xx_i2c_isr, 0,
 			       pdev->name, priv);
-	if (err) {
-		dev_err(&pdev->dev, "IRQ request failed!\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err, "IRQ request failed!\n");
 
 	init_completion(&priv->msg_complete);
 	priv->adapter.dev.parent = &pdev->dev;

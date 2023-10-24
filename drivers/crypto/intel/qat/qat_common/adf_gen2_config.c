@@ -7,6 +7,7 @@
 #include "adf_common_drv.h"
 #include "qat_crypto.h"
 #include "qat_compression.h"
+#include "adf_heartbeat.h"
 #include "adf_transport_access_macros.h"
 
 static int adf_gen2_crypto_dev_config(struct adf_accel_dev *accel_dev)
@@ -194,6 +195,12 @@ int adf_gen2_dev_config(struct adf_accel_dev *accel_dev)
 	ret = adf_gen2_comp_dev_config(accel_dev);
 	if (ret)
 		goto err;
+
+	ret = adf_cfg_section_add(accel_dev, ADF_GENERAL_SEC);
+	if (ret)
+		goto err;
+
+	adf_heartbeat_save_cfg_param(accel_dev, ADF_CFG_HB_TIMER_DEFAULT_MS);
 
 	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
 

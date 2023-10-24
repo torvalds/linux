@@ -23,7 +23,7 @@
 int ef100_tx_probe(struct efx_tx_queue *tx_queue)
 {
 	/* Allocate an extra descriptor for the QMDA status completion entry */
-	return efx_nic_alloc_buffer(tx_queue->efx, &tx_queue->txd.buf,
+	return efx_nic_alloc_buffer(tx_queue->efx, &tx_queue->txd,
 				    (tx_queue->ptr_mask + 2) *
 				    sizeof(efx_oword_t),
 				    GFP_KERNEL);
@@ -101,8 +101,8 @@ static bool ef100_tx_can_tso(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 
 static efx_oword_t *ef100_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 {
-	if (likely(tx_queue->txd.buf.addr))
-		return ((efx_oword_t *)tx_queue->txd.buf.addr) + index;
+	if (likely(tx_queue->txd.addr))
+		return ((efx_oword_t *)tx_queue->txd.addr) + index;
 	else
 		return NULL;
 }

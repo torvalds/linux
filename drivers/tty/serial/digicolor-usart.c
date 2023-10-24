@@ -136,8 +136,7 @@ static void digicolor_uart_rx(struct uart_port *port)
 	spin_lock_irqsave(&port->lock, flags);
 
 	while (1) {
-		u8 status, ch;
-		unsigned int ch_flag;
+		u8 status, ch, ch_flag;
 
 		if (digicolor_uart_rx_empty(port))
 			break;

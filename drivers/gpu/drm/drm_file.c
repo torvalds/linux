@@ -160,7 +160,7 @@ struct drm_file *drm_file_alloc(struct drm_minor *minor)
 
 	/* Get a unique identifier for fdinfo: */
 	file->client_id = atomic64_inc_return(&ident);
-	file->pid = get_pid(task_tgid(current));
+	rcu_assign_pointer(file->pid, get_pid(task_tgid(current)));
 	file->minor = minor;
 
 	/* for compatibility root is always authenticated */
@@ -200,7 +200,7 @@ out_prime_destroy:
 		drm_syncobj_release(file);
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_release(dev, file);
-	put_pid(file->pid);
+	put_pid(rcu_access_pointer(file->pid));
 	kfree(file);
 
 	return ERR_PTR(ret);
@@ -291,7 +291,7 @@ void drm_file_free(struct drm_file *file)
 
 	WARN_ON(!list_empty(&file->event_list));
 
-	put_pid(file->pid);
+	put_pid(rcu_access_pointer(file->pid));
 	kfree(file);
 }
 
@@ -504,6 +504,40 @@ int drm_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 EXPORT_SYMBOL(drm_release);
+
+void drm_file_update_pid(struct drm_file *filp)
+{
+	struct drm_device *dev;
+	struct pid *pid, *old;
+
+	/*
+	 * Master nodes need to keep the original ownership in order for
+	 * drm_master_check_perm to keep working correctly. (See comment in
+	 * drm_auth.c.)
+	 */
+	if (filp->was_master)
+		return;
+
+	pid = task_tgid(current);
+
+	/*
+	 * Quick unlocked check since the model is a single handover followed by
+	 * exclusive repeated use.
+	 */
+	if (pid == rcu_access_pointer(filp->pid))
+		return;
+
+	dev = filp->minor->dev;
+	mutex_lock(&dev->filelist_mutex);
+	old = rcu_replace_pointer(filp->pid, pid, 1);
+	mutex_unlock(&dev->filelist_mutex);
+
+	if (pid != old) {
+		get_pid(pid);
+		synchronize_rcu();
+		put_pid(old);
+	}
+}
 
 /**
  * drm_release_noglobal - release method for DRM file
@@ -930,6 +964,8 @@ void drm_show_memory_stats(struct drm_printer *p, struct drm_file *file)
 	spin_lock(&file->table_lock);
 	idr_for_each_entry (&file->object_idr, obj, id) {
 		enum drm_gem_object_status s = 0;
+		size_t add_size = (obj->funcs && obj->funcs->rss) ?
+			obj->funcs->rss(obj) : obj->size;
 
 		if (obj->funcs && obj->funcs->status) {
 			s = obj->funcs->status(obj);
@@ -944,7 +980,7 @@ void drm_show_memory_stats(struct drm_printer *p, struct drm_file *file)
 		}
 
 		if (s & DRM_GEM_OBJECT_RESIDENT) {
-			status.resident += obj->size;
+			status.resident += add_size;
 		} else {
 			/* If already purged or not yet backed by pages, don't
 			 * count it as purgeable:
@@ -953,14 +989,14 @@ void drm_show_memory_stats(struct drm_printer *p, struct drm_file *file)
 		}
 
 		if (!dma_resv_test_signaled(obj->resv, dma_resv_usage_rw(true))) {
-			status.active += obj->size;
+			status.active += add_size;
 
 			/* If still active, don't count as purgeable: */
 			s &= ~DRM_GEM_OBJECT_PURGEABLE;
 		}
 
 		if (s & DRM_GEM_OBJECT_PURGEABLE)
-			status.purgeable += obj->size;
+			status.purgeable += add_size;
 	}
 	spin_unlock(&file->table_lock);
 

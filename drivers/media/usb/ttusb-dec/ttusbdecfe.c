@@ -76,7 +76,7 @@ static int ttusbdecfe_dvbt_read_status(struct dvb_frontend *fe,
 static int ttusbdecfe_dvbt_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	struct ttusbdecfe_state* state = (struct ttusbdecfe_state*) fe->demodulator_priv;
+	struct ttusbdecfe_state *state = fe->demodulator_priv;
 	u8 b[] = { 0x00, 0x00, 0x00, 0x03,
 		   0x00, 0x00, 0x00, 0x00,
 		   0x00, 0x00, 0x00, 0x01,
@@ -103,7 +103,7 @@ static int ttusbdecfe_dvbt_get_tune_settings(struct dvb_frontend* fe,
 static int ttusbdecfe_dvbs_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	struct ttusbdecfe_state* state = (struct ttusbdecfe_state*) fe->demodulator_priv;
+	struct ttusbdecfe_state *state = fe->demodulator_priv;
 
 	u8 b[] = { 0x00, 0x00, 0x00, 0x01,
 		   0x00, 0x00, 0x00, 0x00,
@@ -137,7 +137,7 @@ static int ttusbdecfe_dvbs_set_frontend(struct dvb_frontend *fe)
 
 static int ttusbdecfe_dvbs_diseqc_send_master_cmd(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd *cmd)
 {
-	struct ttusbdecfe_state* state = (struct ttusbdecfe_state*) fe->demodulator_priv;
+	struct ttusbdecfe_state *state = fe->demodulator_priv;
 	u8 b[] = { 0x00, 0xff, 0x00, 0x00,
 		   0x00, 0x00, 0x00, 0x00,
 		   0x00, 0x00 };
@@ -158,7 +158,7 @@ static int ttusbdecfe_dvbs_diseqc_send_master_cmd(struct dvb_frontend* fe, struc
 static int ttusbdecfe_dvbs_set_tone(struct dvb_frontend *fe,
 				    enum fe_sec_tone_mode tone)
 {
-	struct ttusbdecfe_state* state = (struct ttusbdecfe_state*) fe->demodulator_priv;
+	struct ttusbdecfe_state *state = fe->demodulator_priv;
 
 	state->hi_band = (SEC_TONE_ON == tone);
 
@@ -169,7 +169,7 @@ static int ttusbdecfe_dvbs_set_tone(struct dvb_frontend *fe,
 static int ttusbdecfe_dvbs_set_voltage(struct dvb_frontend *fe,
 				       enum fe_sec_voltage voltage)
 {
-	struct ttusbdecfe_state* state = (struct ttusbdecfe_state*) fe->demodulator_priv;
+	struct ttusbdecfe_state *state = fe->demodulator_priv;
 
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
@@ -187,7 +187,7 @@ static int ttusbdecfe_dvbs_set_voltage(struct dvb_frontend *fe,
 
 static void ttusbdecfe_release(struct dvb_frontend* fe)
 {
-	struct ttusbdecfe_state* state = (struct ttusbdecfe_state*) fe->demodulator_priv;
+	struct ttusbdecfe_state *state = fe->demodulator_priv;
 	kfree(state);
 }
 

@@ -285,8 +285,8 @@ static int c_can_plat_probe(struct platform_device *pdev)
 
 	/* get the platform data */
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		ret = -ENODEV;
+	if (irq < 0) {
+		ret = irq;
 		goto exit;
 	}
 

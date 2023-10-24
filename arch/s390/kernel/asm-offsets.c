@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/purgatory.h>
 #include <linux/pgtable.h>
+#include <linux/ftrace.h>
 #include <asm/idle.h>
 #include <asm/gmap.h>
 #include <asm/stacktrace.h>
@@ -177,5 +178,13 @@ int main(void)
 	DEFINE(OLDMEM_SIZE, PARMAREA + offsetof(struct parmarea, oldmem_size));
 	DEFINE(COMMAND_LINE, PARMAREA + offsetof(struct parmarea, command_line));
 	DEFINE(MAX_COMMAND_LINE_SIZE, PARMAREA + offsetof(struct parmarea, max_command_line_size));
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	/* function graph return value tracing */
+	OFFSET(__FGRAPH_RET_GPR2, fgraph_ret_regs, gpr2);
+	OFFSET(__FGRAPH_RET_FP, fgraph_ret_regs, fp);
+	DEFINE(__FGRAPH_RET_SIZE, sizeof(struct fgraph_ret_regs));
+#endif
+	OFFSET(__FTRACE_REGS_PT_REGS, ftrace_regs, regs);
+	DEFINE(__FTRACE_REGS_SIZE, sizeof(struct ftrace_regs));
 	return 0;
 }

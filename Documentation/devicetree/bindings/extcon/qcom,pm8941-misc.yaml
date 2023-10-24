@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Technologies, Inc. PM8941 USB ID Extcon device
 
 maintainers:
-  - Guru Das Srinagesh <gurus@codeaurora.org>
+  - Guru Das Srinagesh <quic_gurus@quicinc.com>
 
 description: |
   Some Qualcomm PMICs have a "misc" module that can be used to detect when

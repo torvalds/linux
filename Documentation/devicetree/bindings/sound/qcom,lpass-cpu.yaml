@@ -8,7 +8,7 @@ title: Qualcomm Technologies Inc. LPASS CPU dai driver
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
-  - Rohit kumar <rohitkr@codeaurora.org>
+  - Rohit kumar <quic_rohkumar@quicinc.com>
 
 description: |
   Qualcomm Technologies Inc. SOC Low-Power Audio SubSystem (LPASS) that consist

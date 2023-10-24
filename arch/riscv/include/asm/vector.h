@@ -70,8 +70,9 @@ static __always_inline void __vstate_csr_save(struct __riscv_v_ext_state *dest)
 		"csrr	%1, " __stringify(CSR_VTYPE) "\n\t"
 		"csrr	%2, " __stringify(CSR_VL) "\n\t"
 		"csrr	%3, " __stringify(CSR_VCSR) "\n\t"
+		"csrr	%4, " __stringify(CSR_VLENB) "\n\t"
 		: "=r" (dest->vstart), "=r" (dest->vtype), "=r" (dest->vl),
-		  "=r" (dest->vcsr) : :);
+		  "=r" (dest->vcsr), "=r" (dest->vlenb) : :);
 }
 
 static __always_inline void __vstate_csr_restore(struct __riscv_v_ext_state *src)

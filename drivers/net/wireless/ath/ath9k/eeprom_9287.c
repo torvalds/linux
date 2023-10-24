@@ -572,8 +572,7 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 	}
 
 	for (ctlMode = 0; ctlMode < numCtlModes; ctlMode++) {
-		bool isHt40CtlMode =
-			(pCtlMode[ctlMode] == CTL_2GHT40) ? true : false;
+		bool isHt40CtlMode = pCtlMode[ctlMode] == CTL_2GHT40;
 
 		if (isHt40CtlMode)
 			freq = centers.synth_center;

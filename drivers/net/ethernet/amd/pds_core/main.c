@@ -367,14 +367,13 @@ static int pdsc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = pdsc_init_vf(pdsc);
 	if (err) {
 		dev_err(dev, "Cannot init device: %pe\n", ERR_PTR(err));
-		goto err_out_clear_master;
+		goto err_out_disable_device;
 	}
 
 	clear_bit(PDSC_S_INITING_DRIVER, &pdsc->state);
 	return 0;
 
-err_out_clear_master:
-	pci_clear_master(pdev);
+err_out_disable_device:
 	pci_disable_device(pdev);
 err_out_free_ida:
 	ida_free(&pdsc_ida, pdsc->uid);
@@ -439,7 +438,6 @@ static void pdsc_remove(struct pci_dev *pdev)
 		pci_release_regions(pdev);
 	}
 
-	pci_clear_master(pdev);
 	pci_disable_device(pdev);
 
 	ida_free(&pdsc_ida, pdsc->uid);

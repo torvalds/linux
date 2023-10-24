@@ -1422,6 +1422,7 @@ ethtool_wol_set_req_set_sopass(struct ethtool_wol_set_req *req,
 			       const void *sopass, size_t len)
 {
 	free(req->sopass);
+	req->_present.sopass_len = len;
 	req->sopass = malloc(req->_present.sopass_len);
 	memcpy(req->sopass, sopass, req->_present.sopass_len);
 }
@@ -4071,6 +4072,7 @@ ethtool_fec_set_req_set_stats_corrected(struct ethtool_fec_set_req *req,
 					const void *corrected, size_t len)
 {
 	free(req->stats.corrected);
+	req->stats._present.corrected_len = len;
 	req->stats.corrected = malloc(req->stats._present.corrected_len);
 	memcpy(req->stats.corrected, corrected, req->stats._present.corrected_len);
 }
@@ -4079,6 +4081,7 @@ ethtool_fec_set_req_set_stats_uncorr(struct ethtool_fec_set_req *req,
 				     const void *uncorr, size_t len)
 {
 	free(req->stats.uncorr);
+	req->stats._present.uncorr_len = len;
 	req->stats.uncorr = malloc(req->stats._present.uncorr_len);
 	memcpy(req->stats.uncorr, uncorr, req->stats._present.uncorr_len);
 }
@@ -4087,6 +4090,7 @@ ethtool_fec_set_req_set_stats_corr_bits(struct ethtool_fec_set_req *req,
 					const void *corr_bits, size_t len)
 {
 	free(req->stats.corr_bits);
+	req->stats._present.corr_bits_len = len;
 	req->stats.corr_bits = malloc(req->stats._present.corr_bits_len);
 	memcpy(req->stats.corr_bits, corr_bits, req->stats._present.corr_bits_len);
 }

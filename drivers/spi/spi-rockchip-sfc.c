@@ -487,7 +487,7 @@ static int rockchip_sfc_xfer_done(struct rockchip_sfc *sfc, u32 timeout_us)
 
 static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
-	struct rockchip_sfc *sfc = spi_master_get_devdata(mem->spi->master);
+	struct rockchip_sfc *sfc = spi_controller_get_devdata(mem->spi->controller);
 	u32 len = op->data.nbytes;
 	int ret;
 
@@ -523,7 +523,7 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 
 static int rockchip_sfc_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
-	struct rockchip_sfc *sfc = spi_master_get_devdata(mem->spi->master);
+	struct rockchip_sfc *sfc = spi_controller_get_devdata(mem->spi->controller);
 
 	op->data.nbytes = min(op->data.nbytes, sfc->max_iosize);
 
@@ -557,22 +557,22 @@ static irqreturn_t rockchip_sfc_irq_handler(int irq, void *dev_id)
 static int rockchip_sfc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct rockchip_sfc *sfc;
 	int ret;
 
-	master = devm_spi_alloc_master(&pdev->dev, sizeof(*sfc));
-	if (!master)
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*sfc));
+	if (!host)
 		return -ENOMEM;
 
-	master->flags = SPI_MASTER_HALF_DUPLEX;
-	master->mem_ops = &rockchip_sfc_mem_ops;
-	master->dev.of_node = pdev->dev.of_node;
-	master->mode_bits = SPI_TX_QUAD | SPI_TX_DUAL | SPI_RX_QUAD | SPI_RX_DUAL;
-	master->max_speed_hz = SFC_MAX_SPEED;
-	master->num_chipselect = SFC_MAX_CHIPSELECT_NUM;
+	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
+	host->mem_ops = &rockchip_sfc_mem_ops;
+	host->dev.of_node = pdev->dev.of_node;
+	host->mode_bits = SPI_TX_QUAD | SPI_TX_DUAL | SPI_RX_QUAD | SPI_RX_DUAL;
+	host->max_speed_hz = SFC_MAX_SPEED;
+	host->num_chipselect = SFC_MAX_CHIPSELECT_NUM;
 
-	sfc = spi_master_get_devdata(master);
+	sfc = spi_controller_get_devdata(host);
 	sfc->dev = dev;
 
 	sfc->regbase = devm_platform_ioremap_resource(pdev, 0);
@@ -640,7 +640,7 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	sfc->max_iosize = rockchip_sfc_get_max_iosize(sfc);
 	sfc->version = rockchip_sfc_get_version(sfc);
 
-	ret = spi_register_master(master);
+	ret = spi_register_controller(host);
 	if (ret)
 		goto err_irq;
 
@@ -656,10 +656,10 @@ err_hclk:
 
 static void rockchip_sfc_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = platform_get_drvdata(pdev);
+	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct rockchip_sfc *sfc = platform_get_drvdata(pdev);
 
-	spi_unregister_master(master);
+	spi_unregister_controller(host);
 
 	clk_disable_unprepare(sfc->clk);
 	clk_disable_unprepare(sfc->hclk);

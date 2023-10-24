@@ -19,7 +19,7 @@
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/sh_dma.h>
@@ -1294,7 +1294,7 @@ static int rspi_probe(struct platform_device *pdev)
 	const struct spi_ops *ops;
 	unsigned long clksrc;
 
-	ctlr = spi_alloc_master(&pdev->dev, sizeof(struct rspi_data));
+	ctlr = spi_alloc_host(&pdev->dev, sizeof(struct rspi_data));
 	if (ctlr == NULL)
 		return -ENOMEM;
 
@@ -1317,8 +1317,7 @@ static int rspi_probe(struct platform_device *pdev)
 	rspi->ops = ops;
 	rspi->ctlr = ctlr;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rspi->addr = devm_ioremap_resource(&pdev->dev, res);
+	rspi->addr = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(rspi->addr)) {
 		ret = PTR_ERR(rspi->addr);
 		goto error1;

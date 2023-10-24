@@ -15,7 +15,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 #include <crypto/internal/rng.h>
@@ -277,7 +277,7 @@ static int exynos_rng_probe(struct platform_device *pdev)
 	if (!rng)
 		return -ENOMEM;
 
-	rng->type = (enum exynos_prng_type)of_device_get_match_data(&pdev->dev);
+	rng->type = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
 	mutex_init(&rng->lock);
 

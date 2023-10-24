@@ -84,6 +84,12 @@ static enum amdgpu_pkg_type smuio_v13_0_3_get_pkg_type(struct amdgpu_device *ade
 	 * b0100 - b1111 - Reserved
 	 */
 	switch (data & PKG_TYPE_MASK) {
+	case 0x0:
+		pkg_type = AMDGPU_PKG_TYPE_CEM;
+		break;
+	case 0x1:
+		pkg_type = AMDGPU_PKG_TYPE_OAM;
+		break;
 	case 0x2:
 		pkg_type = AMDGPU_PKG_TYPE_APU;
 		break;

@@ -75,8 +75,14 @@ DEFINE_STATIC_KEY_TRUE(virt_spin_lock_key);
 
 void __init native_pv_lock_init(void)
 {
-	if (!boot_cpu_has(X86_FEATURE_HYPERVISOR))
+	if (IS_ENABLED(CONFIG_PARAVIRT_SPINLOCKS) &&
+	    !boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		static_branch_disable(&virt_spin_lock_key);
+}
+
+static void native_tlb_remove_table(struct mmu_gather *tlb, void *table)
+{
+	tlb_remove_page(tlb, table);
 }
 
 unsigned int paravirt_patch(u8 type, void *insn_buff, unsigned long addr,
@@ -137,66 +143,7 @@ int paravirt_disable_iospace(void)
 	return request_resource(&ioport_resource, &reserve_ioports);
 }
 
-static DEFINE_PER_CPU(enum paravirt_lazy_mode, paravirt_lazy_mode) = PARAVIRT_LAZY_NONE;
-
-static inline void enter_lazy(enum paravirt_lazy_mode mode)
-{
-	BUG_ON(this_cpu_read(paravirt_lazy_mode) != PARAVIRT_LAZY_NONE);
-
-	this_cpu_write(paravirt_lazy_mode, mode);
-}
-
-static void leave_lazy(enum paravirt_lazy_mode mode)
-{
-	BUG_ON(this_cpu_read(paravirt_lazy_mode) != mode);
-
-	this_cpu_write(paravirt_lazy_mode, PARAVIRT_LAZY_NONE);
-}
-
-void paravirt_enter_lazy_mmu(void)
-{
-	enter_lazy(PARAVIRT_LAZY_MMU);
-}
-
-void paravirt_leave_lazy_mmu(void)
-{
-	leave_lazy(PARAVIRT_LAZY_MMU);
-}
-
-void paravirt_flush_lazy_mmu(void)
-{
-	preempt_disable();
-
-	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
-		arch_leave_lazy_mmu_mode();
-		arch_enter_lazy_mmu_mode();
-	}
-
-	preempt_enable();
-}
-
 #ifdef CONFIG_PARAVIRT_XXL
-void paravirt_start_context_switch(struct task_struct *prev)
-{
-	BUG_ON(preemptible());
-
-	if (this_cpu_read(paravirt_lazy_mode) == PARAVIRT_LAZY_MMU) {
-		arch_leave_lazy_mmu_mode();
-		set_ti_thread_flag(task_thread_info(prev), TIF_LAZY_MMU_UPDATES);
-	}
-	enter_lazy(PARAVIRT_LAZY_CPU);
-}
-
-void paravirt_end_context_switch(struct task_struct *next)
-{
-	BUG_ON(preemptible());
-
-	leave_lazy(PARAVIRT_LAZY_CPU);
-
-	if (test_and_clear_ti_thread_flag(task_thread_info(next), TIF_LAZY_MMU_UPDATES))
-		arch_enter_lazy_mmu_mode();
-}
-
 static noinstr void pv_native_write_cr2(unsigned long val)
 {
 	native_write_cr2(val);
@@ -222,14 +169,6 @@ static noinstr void pv_native_safe_halt(void)
 	native_safe_halt();
 }
 #endif
-
-enum paravirt_lazy_mode paravirt_get_lazy_mode(void)
-{
-	if (in_interrupt())
-		return PARAVIRT_LAZY_NONE;
-
-	return this_cpu_read(paravirt_lazy_mode);
-}
 
 struct pv_info pv_info = {
 	.name = "bare hardware",
@@ -295,8 +234,7 @@ struct paravirt_patch_template pv_ops = {
 	.mmu.flush_tlb_kernel	= native_flush_tlb_global,
 	.mmu.flush_tlb_one_user	= native_flush_tlb_one_user,
 	.mmu.flush_tlb_multi	= native_flush_tlb_multi,
-	.mmu.tlb_remove_table	=
-			(void (*)(struct mmu_gather *, void *))tlb_remove_page,
+	.mmu.tlb_remove_table	= native_tlb_remove_table,
 
 	.mmu.exit_mmap		= paravirt_nop,
 	.mmu.notify_page_enc_status_changed	= paravirt_nop,

@@ -246,11 +246,10 @@ static void serial_txx9_initialize(struct uart_port *up)
 static inline void
 receive_chars(struct uart_port *up, unsigned int *status)
 {
-	unsigned char ch;
 	unsigned int disr = *status;
 	int max_count = 256;
-	char flag;
 	unsigned int next_ignore_status_mask;
+	u8 ch, flag;
 
 	do {
 		ch = sio_in(up, TXX9_SIRFIFO);

@@ -166,6 +166,8 @@ EXPORT_SYMBOL_GPL(ufshcd_populate_vreg);
  * If any of the supplies are not defined it is assumed that they are always-on
  * and hence return zero. If the property is defined but parsing is failed
  * then return corresponding error.
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_parse_regulator_info(struct ufs_hba *hba)
 {
@@ -212,7 +214,7 @@ static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
  * @dev_max: pointer to device attributes
  * @agreed_pwr: returned agreed attributes
  *
- * Returns 0 on success, non-zero value on failure
+ * Return: 0 on success, non-zero value on failure.
  */
 int ufshcd_get_pwr_dev_param(const struct ufs_dev_params *pltfrm_param,
 			     const struct ufs_pa_layer_attr *dev_max,
@@ -305,8 +307,8 @@ EXPORT_SYMBOL_GPL(ufshcd_get_pwr_dev_param);
 void ufshcd_init_pwr_dev_param(struct ufs_dev_params *dev_param)
 {
 	*dev_param = (struct ufs_dev_params){
-		.tx_lanes = 2,
-		.rx_lanes = 2,
+		.tx_lanes = UFS_LANE_2,
+		.rx_lanes = UFS_LANE_2,
 		.hs_rx_gear = UFS_HS_G3,
 		.hs_tx_gear = UFS_HS_G3,
 		.pwm_rx_gear = UFS_PWM_G4,
@@ -326,7 +328,7 @@ EXPORT_SYMBOL_GPL(ufshcd_init_pwr_dev_param);
  * @pdev: pointer to Platform device handle
  * @vops: pointer to variant ops
  *
- * Returns 0 on success, non-zero value on failure
+ * Return: 0 on success, non-zero value on failure.
  */
 int ufshcd_pltfrm_init(struct platform_device *pdev,
 		       const struct ufs_hba_variant_ops *vops)
@@ -373,7 +375,8 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 
 	err = ufshcd_init(hba, mmio_base, irq);
 	if (err) {
-		dev_err(dev, "Initialization failed\n");
+		dev_err_probe(dev, err, "Initialization failed with error %d\n",
+			      err);
 		goto dealloc_host;
 	}
 

@@ -16,6 +16,7 @@
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
+#include <linux/irqchip/xtensa-pic.h>
 #include <linux/of.h>
 
 unsigned int cached_irq_mask;

@@ -314,11 +314,10 @@ static int mtk_mdp_rdma_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mtk_mdp_rdma_remove(struct platform_device *pdev)
+static void mtk_mdp_rdma_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &mtk_mdp_rdma_component_ops);
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id mtk_mdp_rdma_driver_dt_match[] = {
@@ -329,7 +328,7 @@ MODULE_DEVICE_TABLE(of, mtk_mdp_rdma_driver_dt_match);
 
 struct platform_driver mtk_mdp_rdma_driver = {
 	.probe = mtk_mdp_rdma_probe,
-	.remove = mtk_mdp_rdma_remove,
+	.remove_new = mtk_mdp_rdma_remove,
 	.driver = {
 		.name = "mediatek-mdp-rdma",
 		.owner = THIS_MODULE,

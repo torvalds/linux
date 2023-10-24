@@ -8,19 +8,56 @@
 #include "debug.h"
 
 #define DATA_RATE_MODE_CTRL_MASK	GENMASK(8, 7)
+#define DATA_RATE_MODE_CTRL_MASK_V1	GENMASK(10, 8)
 #define DATA_RATE_NOT_HT_IDX_MASK	GENMASK(3, 0)
 #define DATA_RATE_MODE_NON_HT		0x0
 #define DATA_RATE_HT_IDX_MASK		GENMASK(4, 0)
+#define DATA_RATE_HT_IDX_MASK_V1	GENMASK(4, 0)
 #define DATA_RATE_MODE_HT		0x1
 #define DATA_RATE_VHT_HE_NSS_MASK	GENMASK(6, 4)
 #define DATA_RATE_VHT_HE_IDX_MASK	GENMASK(3, 0)
+#define DATA_RATE_NSS_MASK_V1		GENMASK(7, 5)
+#define DATA_RATE_MCS_MASK_V1		GENMASK(4, 0)
 #define DATA_RATE_MODE_VHT		0x2
 #define DATA_RATE_MODE_HE		0x3
-#define GET_DATA_RATE_MODE(r)		FIELD_GET(DATA_RATE_MODE_CTRL_MASK, r)
-#define GET_DATA_RATE_NOT_HT_IDX(r)	FIELD_GET(DATA_RATE_NOT_HT_IDX_MASK, r)
-#define GET_DATA_RATE_HT_IDX(r)		FIELD_GET(DATA_RATE_HT_IDX_MASK, r)
-#define GET_DATA_RATE_VHT_HE_IDX(r)	FIELD_GET(DATA_RATE_VHT_HE_IDX_MASK, r)
-#define GET_DATA_RATE_NSS(r)		FIELD_GET(DATA_RATE_VHT_HE_NSS_MASK, r)
+#define DATA_RATE_MODE_EHT		0x4
+
+static inline u8 rtw89_get_data_rate_mode(struct rtw89_dev *rtwdev, u16 hw_rate)
+{
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
+		return u16_get_bits(hw_rate, DATA_RATE_MODE_CTRL_MASK_V1);
+
+	return u16_get_bits(hw_rate, DATA_RATE_MODE_CTRL_MASK);
+}
+
+static inline u8 rtw89_get_data_not_ht_idx(struct rtw89_dev *rtwdev, u16 hw_rate)
+{
+	return u16_get_bits(hw_rate, DATA_RATE_NOT_HT_IDX_MASK);
+}
+
+static inline u8 rtw89_get_data_ht_mcs(struct rtw89_dev *rtwdev, u16 hw_rate)
+{
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
+		return u16_get_bits(hw_rate, DATA_RATE_HT_IDX_MASK_V1);
+
+	return u16_get_bits(hw_rate, DATA_RATE_HT_IDX_MASK);
+}
+
+static inline u8 rtw89_get_data_mcs(struct rtw89_dev *rtwdev, u16 hw_rate)
+{
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
+		return u16_get_bits(hw_rate, DATA_RATE_MCS_MASK_V1);
+
+	return u16_get_bits(hw_rate, DATA_RATE_VHT_HE_IDX_MASK);
+}
+
+static inline u8 rtw89_get_data_nss(struct rtw89_dev *rtwdev, u16 hw_rate)
+{
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
+		return u16_get_bits(hw_rate, DATA_RATE_NSS_MASK_V1);
+
+	return u16_get_bits(hw_rate, DATA_RATE_VHT_HE_NSS_MASK);
+}
 
 /* TX WD BODY DWORD 0 */
 #define RTW89_TXWD_BODY0_WP_OFFSET GENMASK(31, 24)

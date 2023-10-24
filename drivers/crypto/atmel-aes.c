@@ -28,7 +28,7 @@
 #include <linux/irq.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/crypto.h>
 #include <crypto/scatterwalk.h>
@@ -2533,13 +2533,11 @@ static void atmel_aes_get_cap(struct atmel_aes_dev *dd)
 	}
 }
 
-#if defined(CONFIG_OF)
 static const struct of_device_id atmel_aes_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9g46-aes" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, atmel_aes_dt_ids);
-#endif
 
 static int atmel_aes_probe(struct platform_device *pdev)
 {
@@ -2566,11 +2564,9 @@ static int atmel_aes_probe(struct platform_device *pdev)
 
 	crypto_init_queue(&aes_dd->queue, ATMEL_AES_QUEUE_LENGTH);
 
-	/* Get the base address */
-	aes_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!aes_res) {
-		dev_err(dev, "no MEM resource info\n");
-		err = -ENODEV;
+	aes_dd->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &aes_res);
+	if (IS_ERR(aes_dd->io_base)) {
+		err = PTR_ERR(aes_dd->io_base);
 		goto err_tasklet_kill;
 	}
 	aes_dd->phys_base = aes_res->start;
@@ -2594,13 +2590,6 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	if (IS_ERR(aes_dd->iclk)) {
 		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(aes_dd->iclk);
-		goto err_tasklet_kill;
-	}
-
-	aes_dd->io_base = devm_ioremap_resource(&pdev->dev, aes_res);
-	if (IS_ERR(aes_dd->io_base)) {
-		dev_err(dev, "can't ioremap\n");
-		err = PTR_ERR(aes_dd->io_base);
 		goto err_tasklet_kill;
 	}
 
@@ -2687,7 +2676,7 @@ static struct platform_driver atmel_aes_driver = {
 	.remove		= atmel_aes_remove,
 	.driver		= {
 		.name	= "atmel_aes",
-		.of_match_table = of_match_ptr(atmel_aes_dt_ids),
+		.of_match_table = atmel_aes_dt_ids,
 	},
 };
 

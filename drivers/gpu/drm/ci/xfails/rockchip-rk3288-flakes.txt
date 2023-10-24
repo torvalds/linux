@@ -1,0 +1,9 @@
+kms_addfb_basic@addfb25-bad-modifier
+kms_cursor_crc@.*
+kms_flip@basic-flip-vs-wf_vblank
+kms_invalid_mode@int-max-clock,Crash
+kms_pipe_crc_basic@.*
+kms_properties@connector-properties-atomic,Crash
+kms_properties@get_properties-sanity-atomic,Crash
+kms_properties@get_properties-sanity-non-atomic,Crash
+kms_rmfb@close-fd

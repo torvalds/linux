@@ -677,7 +677,7 @@ void kgd_gfx_v9_set_wave_launch_stall(struct amdgpu_device *adev,
 	int i;
 	uint32_t data = RREG32(SOC15_REG_OFFSET(GC, 0, mmSPI_GDBG_WAVE_CNTL));
 
-	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 1))
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 1))
 		data = REG_SET_FIELD(data, SPI_GDBG_WAVE_CNTL, STALL_VMID,
 							stall ? 1 << vmid : 0);
 	else
@@ -1037,7 +1037,7 @@ void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev, int pasid,
 	int pasid_tmp;
 	int max_queue_cnt;
 	int vmid_wave_cnt = 0;
-	DECLARE_BITMAP(cp_queue_bitmap, KGD_MAX_QUEUES);
+	DECLARE_BITMAP(cp_queue_bitmap, AMDGPU_MAX_QUEUES);
 
 	lock_spi_csq_mutexes(adev);
 	soc15_grbm_select(adev, 1, 0, 0, 0, inst);
@@ -1047,7 +1047,7 @@ void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev, int pasid,
 	 * to get number of waves in flight
 	 */
 	bitmap_complement(cp_queue_bitmap, adev->gfx.mec_bitmap[0].queue_bitmap,
-			  KGD_MAX_QUEUES);
+			  AMDGPU_MAX_QUEUES);
 	max_queue_cnt = adev->gfx.mec.num_pipe_per_mec *
 			adev->gfx.mec.num_queue_per_pipe;
 	sh_cnt = adev->gfx.config.max_sh_per_se;
@@ -1103,8 +1103,7 @@ void kgd_gfx_v9_build_grace_period_packet_info(struct amdgpu_device *adev,
 		uint32_t wait_times,
 		uint32_t grace_period,
 		uint32_t *reg_offset,
-		uint32_t *reg_data,
-		uint32_t inst)
+		uint32_t *reg_data)
 {
 	*reg_data = wait_times;
 
@@ -1120,8 +1119,7 @@ void kgd_gfx_v9_build_grace_period_packet_info(struct amdgpu_device *adev,
 			SCH_WAVE,
 			grace_period);
 
-	*reg_offset = SOC15_REG_OFFSET(GC, GET_INST(GC, inst),
-			mmCP_IQ_WAIT_TIME2);
+	*reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_IQ_WAIT_TIME2);
 }
 
 void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,
@@ -1133,9 +1131,9 @@ void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,
 	 * Program TBA registers
 	 */
 	WREG32_SOC15(GC, GET_INST(GC, inst), mmSQ_SHADER_TBA_LO,
-                        lower_32_bits(tba_addr >> 8));
+			lower_32_bits(tba_addr >> 8));
 	WREG32_SOC15(GC, GET_INST(GC, inst), mmSQ_SHADER_TBA_HI,
-                        upper_32_bits(tba_addr >> 8));
+			upper_32_bits(tba_addr >> 8));
 
 	/*
 	 * Program TMA registers

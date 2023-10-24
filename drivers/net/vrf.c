@@ -638,9 +638,7 @@ static void vrf_finish_direct(struct sk_buff *skb)
 		eth_zero_addr(eth->h_dest);
 		eth->h_proto = skb->protocol;
 
-		rcu_read_lock_bh();
 		dev_queue_xmit_nit(skb, vrf_dev);
-		rcu_read_unlock_bh();
 
 		skb_pull(skb, ETH_HLEN);
 	}
@@ -664,7 +662,7 @@ static int vrf_finish_output6(struct net *net, struct sock *sk,
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->dev = dev;
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	nexthop = rt6_nexthop((struct rt6_info *)dst, &ipv6_hdr(skb)->daddr);
 	neigh = __ipv6_neigh_lookup_noref(dst->dev, nexthop);
 	if (unlikely(!neigh))
@@ -672,10 +670,10 @@ static int vrf_finish_output6(struct net *net, struct sock *sk,
 	if (!IS_ERR(neigh)) {
 		sock_confirm_neigh(skb, neigh);
 		ret = neigh_output(neigh, skb, false);
-		rcu_read_unlock_bh();
+		rcu_read_unlock();
 		return ret;
 	}
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	IP6_INC_STATS(dev_net(dst->dev),
 		      ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
@@ -889,7 +887,7 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 		}
 	}
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 
 	neigh = ip_neigh_for_gw(rt, skb, &is_v6gw);
 	if (!IS_ERR(neigh)) {
@@ -898,11 +896,11 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 		sock_confirm_neigh(skb, neigh);
 		/* if crossing protocols, can not use the cached header */
 		ret = neigh_output(neigh, skb, is_v6gw);
-		rcu_read_unlock_bh();
+		rcu_read_unlock();
 		return ret;
 	}
 
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 	vrf_tx_error(skb->dev, skb);
 	return -EINVAL;
 }
@@ -1979,7 +1977,8 @@ static int vrf_netns_init_sysctl(struct net *net, struct netns_vrf *nn_vrf)
 	/* init the extra1 parameter with the reference to current netns */
 	table[0].extra1 = net;
 
-	nn_vrf->ctl_hdr = register_net_sysctl(net, "net/vrf", table);
+	nn_vrf->ctl_hdr = register_net_sysctl_sz(net, "net/vrf", table,
+						 ARRAY_SIZE(vrf_table));
 	if (!nn_vrf->ctl_hdr) {
 		kfree(table);
 		return -ENOMEM;

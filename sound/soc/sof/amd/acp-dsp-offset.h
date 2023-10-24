@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license. When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright(c) 2021, 2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Author: Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
  */
@@ -49,27 +49,33 @@
 #define ACP_CONTROL				0x1004
 
 #define ACP3X_I2S_PIN_CONFIG			0x1400
+#define ACP5X_I2S_PIN_CONFIG			0x1400
 #define ACP6X_I2S_PIN_CONFIG			0x1440
 
 /* Registers offsets from ACP_PGFSM block */
 #define ACP3X_PGFSM_BASE			0x141C
+#define ACP5X_PGFSM_BASE			0x1424
 #define ACP6X_PGFSM_BASE                        0x1024
 #define PGFSM_CONTROL_OFFSET			0x0
 #define PGFSM_STATUS_OFFSET			0x4
 #define ACP3X_CLKMUX_SEL			0x1424
+#define ACP5X_CLKMUX_SEL			0x142C
 #define ACP6X_CLKMUX_SEL			0x102C
 
 /* Registers from ACP_INTR block */
 #define ACP3X_EXT_INTR_STAT			0x1808
+#define ACP5X_EXT_INTR_STAT			0x1808
 #define ACP6X_EXT_INTR_STAT                     0x1A0C
 
 #define ACP3X_DSP_SW_INTR_BASE			0x1814
+#define ACP5X_DSP_SW_INTR_BASE			0x1814
 #define ACP6X_DSP_SW_INTR_BASE                  0x1808
 #define DSP_SW_INTR_CNTL_OFFSET			0x0
 #define DSP_SW_INTR_STAT_OFFSET			0x4
 #define DSP_SW_INTR_TRIG_OFFSET			0x8
 #define ACP_ERROR_STATUS			0x18C4
 #define ACP3X_AXI2DAGB_SEM_0			0x1880
+#define ACP5X_AXI2DAGB_SEM_0			0x1884
 #define ACP6X_AXI2DAGB_SEM_0			0x1874
 
 /* Registers from ACP_SHA block */
@@ -81,6 +87,7 @@
 #define ACP_SHA_DMA_CMD_STS			0x1CC0
 #define ACP_SHA_DMA_ERR_STATUS			0x1CC4
 #define ACP_SHA_TRANSFER_BYTE_CNT		0x1CC8
+#define ACP_SHA_DMA_INCLUDE_HDR         0x1CCC
 #define ACP_SHA_PSP_ACK                         0x1C74
 
 #define ACP_SCRATCH_REG_0			0x10000

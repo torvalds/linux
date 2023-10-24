@@ -863,7 +863,6 @@ struct dlm_processed_nodes {
 static void process_dlm_messages(struct work_struct *work)
 {
 	struct processqueue_entry *pentry;
-	LIST_HEAD(processed_nodes);
 
 	spin_lock(&processqueue_lock);
 	pentry = list_first_entry_or_null(&processqueue,

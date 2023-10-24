@@ -280,7 +280,6 @@ static int fme_mgr_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct fme_mgr_priv *priv;
 	struct fpga_manager *mgr;
-	struct resource *res;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -290,8 +289,7 @@ static int fme_mgr_probe(struct platform_device *pdev)
 		priv->ioaddr = pdata->ioaddr;
 
 	if (!priv->ioaddr) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		priv->ioaddr = devm_ioremap_resource(dev, res);
+		priv->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(priv->ioaddr))
 			return PTR_ERR(priv->ioaddr);
 	}

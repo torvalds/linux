@@ -534,7 +534,7 @@ static struct platform_driver at91_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-at91sam9",
 		.pm	= &at91_rtc_pm_ops,
-		.of_match_table = of_match_ptr(at91_rtc_dt_ids),
+		.of_match_table = at91_rtc_dt_ids,
 	},
 };
 

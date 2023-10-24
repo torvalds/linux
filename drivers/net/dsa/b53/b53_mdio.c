@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/phy.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/delay.h>
 #include <linux/brcmphy.h>
 #include <linux/rtnetlink.h>

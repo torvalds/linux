@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Cirrus Logic pinctrl drivers
+obj-$(CONFIG_PINCTRL_CS42L43)	+= pinctrl-cs42l43.o
+
 obj-$(CONFIG_PINCTRL_LOCHNAGAR)	+= pinctrl-lochnagar.o
 
 pinctrl-madera-objs		:= pinctrl-madera-core.o

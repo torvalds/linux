@@ -35,6 +35,7 @@
 #include "en/xdp.h"
 #include "en/params.h"
 #include <linux/bitfield.h>
+#include <net/page_pool/helpers.h>
 
 int mlx5e_xdp_max_mtu(struct mlx5e_params *params, struct mlx5e_xsk_param *xsk)
 {
@@ -873,11 +874,11 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	}
 
 out:
-	if (flags & XDP_XMIT_FLUSH) {
-		if (sq->mpwqe.wqe)
-			mlx5e_xdp_mpwqe_complete(sq);
+	if (sq->mpwqe.wqe)
+		mlx5e_xdp_mpwqe_complete(sq);
+
+	if (flags & XDP_XMIT_FLUSH)
 		mlx5e_xmit_xdp_doorbell(sq);
-	}
 
 	return nxmit;
 }

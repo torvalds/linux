@@ -338,7 +338,9 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		 *  - Delta for CEIL: delta_from_mid_point_in_us_1
 		 *  - Delta for FLOOR: delta_from_mid_point_in_us_2
 		 */
-		if ((last_render_time_in_us / mid_point_frames_ceil) < in_out_vrr->min_duration_in_us) {
+		if (mid_point_frames_ceil &&
+		    (last_render_time_in_us / mid_point_frames_ceil) <
+		    in_out_vrr->min_duration_in_us) {
 			/* Check for out of range.
 			 * If using CEIL produces a value that is out of range,
 			 * then we are forced to use FLOOR.
@@ -385,8 +387,9 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		/* Either we've calculated the number of frames to insert,
 		 * or we need to insert min duration frames
 		 */
-		if (last_render_time_in_us / frames_to_insert <
-				in_out_vrr->min_duration_in_us){
+		if (frames_to_insert &&
+		    (last_render_time_in_us / frames_to_insert) <
+		    in_out_vrr->min_duration_in_us){
 			frames_to_insert -= (frames_to_insert > 1) ?
 					1 : 0;
 		}
@@ -623,7 +626,6 @@ static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
 	unsigned int max_refresh;
 	unsigned int fixed_refresh;
 	unsigned int min_programmed;
-	unsigned int max_programmed;
 
 	/* PB1 = 0x1A (24bit AMD IEEE OUI (0x00001A) - Byte 0) */
 	infopacket->sb[1] = 0x1A;
@@ -669,21 +671,17 @@ static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
 			(vrr->state == VRR_STATE_INACTIVE) ? min_refresh :
 			max_refresh; // Non-fs case, program nominal range
 
-	max_programmed = (vrr->state == VRR_STATE_ACTIVE_FIXED) ? fixed_refresh :
-			(vrr->state == VRR_STATE_ACTIVE_VARIABLE) ? max_refresh :
-			max_refresh;// Non-fs case, program nominal range
-
 	/* PB7 = FreeSync Minimum refresh rate (Hz) */
 	infopacket->sb[7] = min_programmed & 0xFF;
 
 	/* PB8 = FreeSync Maximum refresh rate (Hz) */
-	infopacket->sb[8] = max_programmed & 0xFF;
+	infopacket->sb[8] = max_refresh & 0xFF;
 
 	/* PB11 : MSB FreeSync Minimum refresh rate [Hz] - bits 9:8 */
 	infopacket->sb[11] = (min_programmed >> 8) & 0x03;
 
 	/* PB12 : MSB FreeSync Maximum refresh rate [Hz] - bits 9:8 */
-	infopacket->sb[12] = (max_programmed >> 8) & 0x03;
+	infopacket->sb[12] = (max_refresh >> 8) & 0x03;
 
 	/* PB16 : Reserved bits 7:1, FixedRate bit 0 */
 	infopacket->sb[16] = (vrr->state == VRR_STATE_ACTIVE_FIXED) ? 1 : 0;

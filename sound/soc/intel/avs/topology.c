@@ -1388,12 +1388,12 @@ static int avs_route_load(struct snd_soc_component *comp, int index,
 		port = __ffs(mach->mach_params.i2s_link_mask);
 
 		snprintf(buf, len, route->source, port);
-		strncpy((char *)route->source, buf, len);
+		strscpy((char *)route->source, buf, len);
 		snprintf(buf, len, route->sink, port);
-		strncpy((char *)route->sink, buf, len);
+		strscpy((char *)route->sink, buf, len);
 		if (route->control) {
 			snprintf(buf, len, route->control, port);
-			strncpy((char *)route->control, buf, len);
+			strscpy((char *)route->control, buf, len);
 		}
 	}
 

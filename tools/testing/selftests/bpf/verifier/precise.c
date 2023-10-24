@@ -216,7 +216,7 @@
 	},
 	.fixup_map_ringbuf = { 1 },
 	.prog_type = BPF_PROG_TYPE_XDP,
-	.flags = BPF_F_TEST_STATE_FREQ,
+	.flags = BPF_F_TEST_STATE_FREQ | F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	.errstr = "invalid access to memory, mem_size=1 off=42 size=8",
 	.result = REJECT,
 },

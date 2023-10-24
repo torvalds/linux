@@ -310,7 +310,8 @@ int asoc_simple_startup(struct snd_pcm_substream *substream)
 		if (fixed_sysclk % props->mclk_fs) {
 			dev_err(rtd->dev, "fixed sysclk %u not divisible by mclk_fs %u\n",
 				fixed_sysclk, props->mclk_fs);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto codec_err;
 		}
 		ret = snd_pcm_hw_constraint_minmax(substream->runtime, SNDRV_PCM_HW_PARAM_RATE,
 			fixed_rate, fixed_rate);
@@ -649,7 +650,7 @@ void asoc_simple_canonicalize_platform(struct snd_soc_dai_link_component *platfo
 	 *	simple-card.c :: simple_count_noml()
 	 */
 	if (!platforms->of_node)
-		platforms->of_node = cpus->of_node;
+		snd_soc_dlc_use_cpu_as_platform(platforms, cpus);
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_platform);
 
@@ -1066,18 +1067,32 @@ static int graph_get_dai_id(struct device_node *ep)
 	return id;
 }
 
-int asoc_graph_parse_dai(struct device_node *ep,
-			 struct snd_soc_dai_link_component *dlc,
-			 int *is_single_link)
+int asoc_graph_parse_dai(struct device *dev, struct device_node *ep,
+			 struct snd_soc_dai_link_component *dlc, int *is_single_link)
 {
 	struct device_node *node;
 	struct of_phandle_args args = {};
+	struct snd_soc_dai *dai;
 	int ret;
 
 	if (!ep)
 		return 0;
 
 	node = of_graph_get_port_parent(ep);
+
+	/*
+	 * Try to find from DAI node
+	 */
+	args.np = ep;
+	dai = snd_soc_get_dai_via_args(&args);
+	if (dai) {
+		dlc->dai_name = snd_soc_dai_name_get(dai);
+		dlc->dai_args = snd_soc_copy_dai_args(dev, &args);
+		if (!dlc->dai_args)
+			return -ENOMEM;
+
+		goto parse_dai_end;
+	}
 
 	/* Get dai->name */
 	args.np		= node;
@@ -1109,6 +1124,7 @@ int asoc_graph_parse_dai(struct device_node *ep,
 		return ret;
 	}
 
+parse_dai_end:
 	if (is_single_link)
 		*is_single_link = of_graph_get_endpoint_count(node) == 1;
 

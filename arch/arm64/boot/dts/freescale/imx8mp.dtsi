@@ -306,8 +306,7 @@
 
 		etm0: etm@28440000 {
 			compatible = "arm,coresight-etm4x", "arm,primecell";
-			reg = <0x28440000 0x10000>;
-			arm,primecell-periphid = <0xbb95d>;
+			reg = <0x28440000 0x1000>;
 			cpu = <&A53_0>;
 			clocks = <&clk IMX8MP_CLK_MAIN_AXI>;
 			clock-names = "apb_pclk";
@@ -323,8 +322,7 @@
 
 		etm1: etm@28540000 {
 			compatible = "arm,coresight-etm4x", "arm,primecell";
-			reg = <0x28540000 0x10000>;
-			arm,primecell-periphid = <0xbb95d>;
+			reg = <0x28540000 0x1000>;
 			cpu = <&A53_1>;
 			clocks = <&clk IMX8MP_CLK_MAIN_AXI>;
 			clock-names = "apb_pclk";
@@ -340,8 +338,7 @@
 
 		etm2: etm@28640000 {
 			compatible = "arm,coresight-etm4x", "arm,primecell";
-			reg = <0x28640000 0x10000>;
-			arm,primecell-periphid = <0xbb95d>;
+			reg = <0x28640000 0x1000>;
 			cpu = <&A53_2>;
 			clocks = <&clk IMX8MP_CLK_MAIN_AXI>;
 			clock-names = "apb_pclk";
@@ -357,8 +354,7 @@
 
 		etm3: etm@28740000 {
 			compatible = "arm,coresight-etm4x", "arm,primecell";
-			reg = <0x28740000 0x10000>;
-			arm,primecell-periphid = <0xbb95d>;
+			reg = <0x28740000 0x1000>;
 			cpu = <&A53_3>;
 			clocks = <&clk IMX8MP_CLK_MAIN_AXI>;
 			clock-names = "apb_pclk";
@@ -701,7 +697,7 @@
 
 				snvs_rtc: snvs-rtc-lp {
 					compatible = "fsl,sec-v4.0-mon-rtc-lp";
-					regmap =<&snvs>;
+					regmap = <&snvs>;
 					offset = <0x34>;
 					interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
 						     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
@@ -794,6 +790,12 @@
 						reg = <IMX8MP_POWER_DOMAIN_AUDIOMIX>;
 						clocks = <&clk IMX8MP_CLK_AUDIO_ROOT>,
 							 <&clk IMX8MP_CLK_AUDIO_AXI>;
+						assigned-clocks = <&clk IMX8MP_CLK_AUDIO_AHB>,
+								  <&clk IMX8MP_CLK_AUDIO_AXI_SRC>;
+						assigned-clock-parents =  <&clk IMX8MP_SYS_PLL1_800M>,
+									  <&clk IMX8MP_SYS_PLL1_800M>;
+						assigned-clock-rates = <400000000>,
+								       <600000000>;
 					};
 
 					pgc_gpu2d: power-domain@6 {
@@ -854,7 +856,7 @@
 					pgc_vpumix: power-domain@19 {
 						#power-domain-cells = <0>;
 						reg = <IMX8MP_POWER_DOMAIN_VPUMIX>;
-						clocks =<&clk IMX8MP_CLK_VPU_ROOT>;
+						clocks = <&clk IMX8MP_CLK_VPU_ROOT>;
 					};
 
 					pgc_vpu_g1: power-domain@20 {
@@ -1846,8 +1848,8 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			bus-range = <0x00 0xff>;
-			ranges =  <0x81000000 0 0x00000000 0x1ff80000 0 0x00010000>, /* downstream I/O 64KB */
-				  <0x82000000 0 0x18000000 0x18000000 0 0x07f00000>; /* non-prefetchable memory */
+			ranges = <0x81000000 0 0x00000000 0x1ff80000 0 0x00010000>, /* downstream I/O 64KB */
+				 <0x82000000 0 0x18000000 0x18000000 0 0x07f00000>; /* non-prefetchable memory */
 			num-lanes = <1>;
 			num-viewport = <4>;
 			interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;

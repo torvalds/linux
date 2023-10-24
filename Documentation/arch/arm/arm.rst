@@ -141,7 +141,7 @@ ST506 hard drives
   `*configure` harddrive set to 2). I've got an internal 20MB and a great
   big external 5.25" FH 64MB drive (who could ever want more :-) ).
 
-  I've just got 240K/s off it (a dd with bs=128k); thats about half of what
+  I've just got 240K/s off it (a dd with bs=128k); that's about half of what
   RiscOS gets; but it's a heck of a lot better than the 50K/s I was getting
   last week :-)
 

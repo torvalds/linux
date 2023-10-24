@@ -10,7 +10,7 @@
  */
 
 &main_pmx0 {
-	cp2102n_reset_pin_default: cp2102n-reset-pin-default {
+	cp2102n_reset_pin_default: cp2102n-reset-default-pins {
 		pinctrl-single,pins = <
 			/* (AF12) GPIO1_24, used as cp2102 reset */
 			AM65X_IOPAD(0x01e0, PIN_OUTPUT, 7)

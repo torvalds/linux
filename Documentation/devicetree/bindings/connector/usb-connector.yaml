@@ -30,6 +30,9 @@ properties:
           - const: samsung,usb-connector-11pin
           - const: usb-b-connector
 
+  reg:
+    maxItems: 1
+
   label:
     description: Symbolic name for the connector.
 
@@ -224,13 +227,13 @@ properties:
       state as defined in 7.4.2 Sink Electrical Parameters of USB Power Delivery Specification
       Revision 3.0, Version 1.2. When the property is set, the port requests pSnkStby(2.5W -
       5V@500mA) upon entering SNK_DISCOVERY(instead of 3A or the 1.5A, Rp current advertised, during
-      SNK_DISCOVERY) and the actual currrent limit after reception of PS_Ready for PD link or during
+      SNK_DISCOVERY) and the actual current limit after reception of PS_Ready for PD link or during
       SNK_READY for non-pd link.
     type: boolean
 
 dependencies:
-  sink-vdos-v1: [ 'sink-vdos' ]
-  sink-vdos: [ 'sink-vdos-v1' ]
+  sink-vdos-v1: [ sink-vdos ]
+  sink-vdos: [ sink-vdos-v1 ]
 
 required:
   - compatible
@@ -264,7 +267,7 @@ anyOf:
         - typec-power-opmode
         - new-source-frs-typec-current
 
-additionalProperties: true
+additionalProperties: false
 
 examples:
   # Micro-USB connector with HS lines routed via controller (MUIC).

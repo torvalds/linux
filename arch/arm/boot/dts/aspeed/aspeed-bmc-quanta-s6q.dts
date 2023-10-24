@@ -285,7 +285,7 @@
 		reg = <0x4b>;
 	};
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -321,7 +321,7 @@
 &i2c1 {
 	status = "okay";
 
-	i2c-switch@59 {
+	i2c-mux@59 {
 		compatible = "nxp,pca9848";
 		reg = <0x59>;
 		#address-cells = <1>;
@@ -393,7 +393,7 @@
 			#size-cells = <0>;
 			reg = <7>;
 
-			i2c-switch@77 {
+			i2c-mux@77 {
 				compatible = "nxp,pca9546";
 				reg = <0x77>;
 				#address-cells = <1>;
@@ -490,7 +490,7 @@
 &i2c6 {
 	status = "okay";
 
-	i2c-switch@77 {
+	i2c-mux@77 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -556,7 +556,7 @@
 &i2c7 {
 	status = "okay";
 
-	i2c-switch@75 {
+	i2c-mux@75 {
 		compatible = "nxp,pca9546";
 		#address-cells = <1>;
 		#size-cells = <0>;

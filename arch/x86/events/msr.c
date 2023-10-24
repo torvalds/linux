@@ -106,7 +106,7 @@ static bool test_intel(int idx, void *data)
 	case INTEL_FAM6_ROCKETLAKE:
 	case INTEL_FAM6_ALDERLAKE:
 	case INTEL_FAM6_ALDERLAKE_L:
-	case INTEL_FAM6_ALDERLAKE_N:
+	case INTEL_FAM6_ATOM_GRACEMONT:
 	case INTEL_FAM6_RAPTORLAKE:
 	case INTEL_FAM6_RAPTORLAKE_P:
 	case INTEL_FAM6_RAPTORLAKE_S:
@@ -244,12 +244,10 @@ static void msr_event_update(struct perf_event *event)
 	s64 delta;
 
 	/* Careful, an NMI might modify the previous event value: */
-again:
 	prev = local64_read(&event->hw.prev_count);
-	now = msr_read_counter(event);
-
-	if (local64_cmpxchg(&event->hw.prev_count, prev, now) != prev)
-		goto again;
+	do {
+		now = msr_read_counter(event);
+	} while (!local64_try_cmpxchg(&event->hw.prev_count, &prev, now));
 
 	delta = now - prev;
 	if (unlikely(event->hw.event_base == MSR_SMI_COUNT)) {

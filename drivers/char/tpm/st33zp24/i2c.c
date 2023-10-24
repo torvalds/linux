@@ -160,7 +160,7 @@ static struct i2c_driver st33zp24_i2c_driver = {
 		.of_match_table = of_match_ptr(of_st33zp24_i2c_match),
 		.acpi_match_table = ACPI_PTR(st33zp24_i2c_acpi_match),
 	},
-	.probe_new = st33zp24_i2c_probe,
+	.probe = st33zp24_i2c_probe,
 	.remove = st33zp24_i2c_remove,
 	.id_table = st33zp24_i2c_id
 };

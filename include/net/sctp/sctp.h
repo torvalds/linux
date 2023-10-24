@@ -148,8 +148,6 @@ void sctp_icmp_redirect(struct sock *, struct sctp_transport *,
 void sctp_icmp_proto_unreachable(struct sock *sk,
 				 struct sctp_association *asoc,
 				 struct sctp_transport *t);
-void sctp_backlog_migrate(struct sctp_association *assoc,
-			  struct sock *oldsk, struct sock *newsk);
 int sctp_transport_hashtable_init(void);
 void sctp_transport_hashtable_destroy(void);
 int sctp_hash_transport(struct sctp_transport *t);

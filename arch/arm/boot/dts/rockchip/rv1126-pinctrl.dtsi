@@ -59,6 +59,24 @@
 				<0 RK_PD5 2 &pcfg_pull_up_drv_level_2>;
 		};
 	};
+	fspi {
+		/omit-if-no-ref/
+		fspi_pins: fspi-pins {
+			rockchip,pins =
+				/* fspi_clk */
+				<1 RK_PA3 3 &pcfg_pull_down>,
+				/* fspi_cs0n */
+				<0 RK_PD4 3 &pcfg_pull_up>,
+				/* fspi_d0 */
+				<1 RK_PA0 3 &pcfg_pull_up>,
+				/* fspi_d1 */
+				<1 RK_PA1 3 &pcfg_pull_up>,
+				/* fspi_d2 */
+				<0 RK_PD6 3 &pcfg_pull_up>,
+				/* fspi_d3 */
+				<1 RK_PA2 3 &pcfg_pull_up>;
+		};
+	};
 	i2c0 {
 		/omit-if-no-ref/
 		i2c0_xfer: i2c0-xfer {
@@ -248,6 +266,14 @@
 				<3 RK_PA7 4 &pcfg_pull_up>,
 				/* uart5_tx_m0 */
 				<3 RK_PA6 4 &pcfg_pull_up>;
+		};
+		/omit-if-no-ref/
+		uart5m2_xfer: uart5m2-xfer {
+			rockchip,pins =
+				/* uart5_rx_m2 */
+				<2 RK_PA1 3 &pcfg_pull_up>,
+				/* uart5_tx_m2 */
+				<2 RK_PA0 3 &pcfg_pull_up>;
 		};
 	};
 };

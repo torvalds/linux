@@ -38,7 +38,6 @@ struct find_free_extent_ctl;
 	__print_symbolic(type,						\
 		{ BTRFS_TREE_BLOCK_REF_KEY, 	"TREE_BLOCK_REF" },	\
 		{ BTRFS_EXTENT_DATA_REF_KEY, 	"EXTENT_DATA_REF" },	\
-		{ BTRFS_EXTENT_REF_V0_KEY, 	"EXTENT_REF_V0" },	\
 		{ BTRFS_SHARED_BLOCK_REF_KEY, 	"SHARED_BLOCK_REF" },	\
 		{ BTRFS_SHARED_DATA_REF_KEY, 	"SHARED_DATA_REF" })
 
@@ -2482,7 +2481,7 @@ DECLARE_EVENT_CLASS(btrfs_raid56_bio,
 		__entry->offset, __entry->opf, __entry->physical, __entry->len)
 );
 
-DEFINE_EVENT(btrfs_raid56_bio, raid56_read_partial,
+DEFINE_EVENT(btrfs_raid56_bio, raid56_read,
 	TP_PROTO(const struct btrfs_raid_bio *rbio,
 		 const struct bio *bio,
 		 const struct raid56_bio_trace_info *trace_info),
@@ -2490,32 +2489,7 @@ DEFINE_EVENT(btrfs_raid56_bio, raid56_read_partial,
 	TP_ARGS(rbio, bio, trace_info)
 );
 
-DEFINE_EVENT(btrfs_raid56_bio, raid56_write_stripe,
-	TP_PROTO(const struct btrfs_raid_bio *rbio,
-		 const struct bio *bio,
-		 const struct raid56_bio_trace_info *trace_info),
-
-	TP_ARGS(rbio, bio, trace_info)
-);
-
-
-DEFINE_EVENT(btrfs_raid56_bio, raid56_scrub_write_stripe,
-	TP_PROTO(const struct btrfs_raid_bio *rbio,
-		 const struct bio *bio,
-		 const struct raid56_bio_trace_info *trace_info),
-
-	TP_ARGS(rbio, bio, trace_info)
-);
-
-DEFINE_EVENT(btrfs_raid56_bio, raid56_scrub_read,
-	TP_PROTO(const struct btrfs_raid_bio *rbio,
-		 const struct bio *bio,
-		 const struct raid56_bio_trace_info *trace_info),
-
-	TP_ARGS(rbio, bio, trace_info)
-);
-
-DEFINE_EVENT(btrfs_raid56_bio, raid56_scrub_read_recover,
+DEFINE_EVENT(btrfs_raid56_bio, raid56_write,
 	TP_PROTO(const struct btrfs_raid_bio *rbio,
 		 const struct bio *bio,
 		 const struct raid56_bio_trace_info *trace_info),

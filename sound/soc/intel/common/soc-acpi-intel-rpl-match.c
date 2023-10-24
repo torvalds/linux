@@ -308,6 +308,15 @@ static const struct snd_soc_acpi_link_adr rpl_sdw_rt1316_link12_rt714_link0[] = 
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr rpl_sdca_rvp[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt711_sdca_0_adr),
+		.adr_d = rt711_sdca_0_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr rplp_crb[] = {
 	{
 		.mask = BIT(2),
@@ -322,6 +331,16 @@ static const struct snd_soc_acpi_codecs rpl_rt5682_hp = {
 	.codecs = {"10EC5682", "RTL5682"},
 };
 
+static const struct snd_soc_acpi_codecs rpl_essx_83x6 = {
+	.num_codecs = 3,
+	.codecs = { "ESSX8316", "ESSX8326", "ESSX8336"},
+};
+
+static const struct snd_soc_acpi_codecs rpl_max98357a_amp = {
+	.num_codecs = 1,
+	.codecs = {"MX98357A"}
+};
+
 static const struct snd_soc_acpi_codecs rpl_max98360a_amp = {
 	.num_codecs = 1,
 	.codecs = {"MX98360A"},
@@ -332,12 +351,29 @@ static const struct snd_soc_acpi_codecs rpl_max98373_amp = {
 	.codecs = {"MX98373"}
 };
 
+static const struct snd_soc_acpi_codecs rpl_lt6911_hdmi = {
+	.num_codecs = 1,
+	.codecs = {"INTC10B0"}
+};
+
+static const struct snd_soc_acpi_codecs rpl_nau8318_amp = {
+	.num_codecs = 1,
+	.codecs = {"NVTN2012"}
+};
+
 static const struct snd_soc_acpi_codecs rpl_rt1019p_amp = {
 	.num_codecs = 1,
 	.codecs = {"RTL1019"}
 };
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
+	{
+		.comp_ids = &rpl_rt5682_hp,
+		.drv_name = "rpl_mx98357_rt5682",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rpl_max98357a_amp,
+		.sof_tplg_filename = "sof-rpl-max98357a-rt5682.tplg",
+	},
 	{
 		.comp_ids = &rpl_rt5682_hp,
 		.drv_name = "rpl_mx98360_rt5682",
@@ -353,11 +389,38 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
 		.sof_tplg_filename = "sof-rpl-max98373-nau8825.tplg",
 	},
 	{
+		.id = "10508825",
+		.drv_name = "rpl_nau8318_8825",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rpl_nau8318_amp,
+		.sof_tplg_filename = "sof-rpl-nau8318-nau8825.tplg",
+	},
+	{
 		.comp_ids = &rpl_rt5682_hp,
 		.drv_name = "rpl_rt1019_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &rpl_rt1019p_amp,
 		.sof_tplg_filename = "sof-rpl-rt1019-rt5682.tplg",
+	},
+	{
+		.comp_ids = &rpl_essx_83x6,
+		.drv_name = "rpl_es83x6_c1_h02",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rpl_lt6911_hdmi,
+		.sof_tplg_filename = "sof-rpl-es83x6-ssp1-hdmi-ssp02.tplg",
+	},
+	{
+		.comp_ids = &rpl_essx_83x6,
+		.drv_name = "sof-essx8336",
+		.sof_tplg_filename = "sof-rpl-es83x6", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
+					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
+					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
+	},
+	{
+		.id = "INTC10B0",
+		.drv_name = "rpl_lt6911_hdmi_ssp",
+		.sof_tplg_filename = "sof-rpl-nocodec-hdmi-ssp02.tplg"
 	},
 	{},
 };
@@ -410,6 +473,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_sdw_machines[] = {
 	{
 		.link_mask = 0x1, /* link0 required */
 		.links = rpl_rvp,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-rpl-rt711-l0.tplg",
+	},
+	{
+		.link_mask = 0x1, /* link0 required */
+		.links = rpl_sdca_rvp,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-rpl-rt711-l0.tplg",
 	},

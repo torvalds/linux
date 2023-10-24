@@ -400,10 +400,6 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 			drm_err(dev, "failed to add component to create link to typec connector\n");
 	}
 
-	if (connector->ddc)
-		return sysfs_create_link(&connector->kdev->kobj,
-				 &connector->ddc->dev.kobj, "ddc");
-
 	return 0;
 
 err_free:
@@ -411,13 +407,25 @@ err_free:
 	return r;
 }
 
+int drm_sysfs_connector_add_late(struct drm_connector *connector)
+{
+	if (connector->ddc)
+		return sysfs_create_link(&connector->kdev->kobj,
+					 &connector->ddc->dev.kobj, "ddc");
+
+	return 0;
+}
+
+void drm_sysfs_connector_remove_early(struct drm_connector *connector)
+{
+	if (connector->ddc)
+		sysfs_remove_link(&connector->kdev->kobj, "ddc");
+}
+
 void drm_sysfs_connector_remove(struct drm_connector *connector)
 {
 	if (!connector->kdev)
 		return;
-
-	if (connector->ddc)
-		sysfs_remove_link(&connector->kdev->kobj, "ddc");
 
 	if (dev_fwnode(connector->kdev))
 		component_del(connector->kdev, &typec_connector_ops);

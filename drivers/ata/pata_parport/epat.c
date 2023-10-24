@@ -358,5 +358,8 @@ static void __exit epat_exit(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
+MODULE_DESCRIPTION("Shuttle Technologies EPAT parallel port IDE adapter "
+		   "protocol driver");
 module_init(epat_init)
 module_exit(epat_exit)

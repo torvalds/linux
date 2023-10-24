@@ -449,7 +449,8 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	diff = size - size_bl;
 	swap_inode_data(inode, inode_bl);
 
-	inode->i_ctime = inode_bl->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
+	inode_set_ctime_current(inode_bl);
 	inode_inc_iversion(inode);
 
 	inode->i_generation = get_random_u32();
@@ -663,7 +664,7 @@ static int ext4_ioctl_setflags(struct inode *inode,
 
 	ext4_set_inode_flags(inode, false);
 
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	inode_inc_iversion(inode);
 
 	err = ext4_mark_iloc_dirty(handle, inode, &iloc);
@@ -774,7 +775,7 @@ static int ext4_ioctl_setproject(struct inode *inode, __u32 projid)
 	}
 
 	EXT4_I(inode)->i_projid = kprojid;
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	inode_inc_iversion(inode);
 out_dirty:
 	rc = ext4_mark_iloc_dirty(handle, inode, &iloc);
@@ -801,7 +802,7 @@ int ext4_force_shutdown(struct super_block *sb, u32 flags)
 	if (flags > EXT4_GOING_FLAGS_NOLOGFLUSH)
 		return -EINVAL;
 
-	if (ext4_forced_shutdown(sbi))
+	if (ext4_forced_shutdown(sb))
 		return 0;
 
 	ext4_msg(sb, KERN_ALERT, "shut down requested (%d)", flags);
@@ -1266,7 +1267,7 @@ static long __ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		err = ext4_reserve_inode_write(handle, inode, &iloc);
 		if (err == 0) {
-			inode->i_ctime = current_time(inode);
+			inode_set_ctime_current(inode);
 			inode_inc_iversion(inode);
 			inode->i_generation = generation;
 			err = ext4_mark_iloc_dirty(handle, inode, &iloc);

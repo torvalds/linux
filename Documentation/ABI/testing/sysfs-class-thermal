@@ -4,7 +4,7 @@ Description:
 		This is given by thermal zone driver as part of registration.
 		E.g: "acpitz" indicates it's an ACPI thermal device.
 		In order to keep it consistent with hwmon sys attribute; this
-		shouldbe a short, lowercase string, not containing spaces nor
+		should be a short, lowercase string, not containing spaces nor
 		dashes.
 
 		RO, Required

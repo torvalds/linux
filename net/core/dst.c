@@ -152,7 +152,7 @@ void dst_dev_put(struct dst_entry *dst)
 
 	dst->obsolete = DST_OBSOLETE_DEAD;
 	if (dst->ops->ifdown)
-		dst->ops->ifdown(dst, dev, true);
+		dst->ops->ifdown(dst, dev);
 	dst->input = dst_discard;
 	dst->output = dst_discard_out;
 	dst->dev = blackhole_netdev;

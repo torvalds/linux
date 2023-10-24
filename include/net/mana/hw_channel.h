@@ -23,6 +23,10 @@
 #define HWC_INIT_DATA_PF_DEST_RQ_ID	10
 #define HWC_INIT_DATA_PF_DEST_CQ_ID	11
 
+#define HWC_DATA_CFG_HWC_TIMEOUT 1
+
+#define HW_CHANNEL_WAIT_RESOURCE_TIMEOUT_MS 30000
+
 /* Structures labeled with "HW DATA" are exchanged with the hardware. All of
  * them are naturally aligned and hence don't need __packed.
  */
@@ -182,6 +186,7 @@ struct hw_channel_context {
 
 	u32 pf_dest_vrq_id;
 	u32 pf_dest_vrcq_id;
+	u32 hwc_timeout;
 
 	struct hwc_caller_ctx *caller_ctx;
 };

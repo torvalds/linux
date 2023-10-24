@@ -2691,18 +2691,9 @@
 		 45 = /dev/ttyMM1		Marvell MPSC - port 1 (obsolete unused)
 		 46 = /dev/ttyCPM0		PPC CPM (SCC or SMC) - port 0
 		    ...
-		 47 = /dev/ttyCPM5		PPC CPM (SCC or SMC) - port 5
-		 50 = /dev/ttyIOC0		Altix serial card
-		    ...
-		 81 = /dev/ttyIOC31		Altix serial card
+		 51 = /dev/ttyCPM5		PPC CPM (SCC or SMC) - port 5
 		 82 = /dev/ttyVR0		NEC VR4100 series SIU
 		 83 = /dev/ttyVR1		NEC VR4100 series DSIU
-		 84 = /dev/ttyIOC84		Altix ioc4 serial card
-		    ...
-		 115 = /dev/ttyIOC115		Altix ioc4 serial card
-		 116 = /dev/ttySIOC0		Altix ioc3 serial card
-		    ...
-		 147 = /dev/ttySIOC31		Altix ioc3 serial card
 		 148 = /dev/ttyPSC0		PPC PSC - port 0
 		    ...
 		 153 = /dev/ttyPSC5		PPC PSC - port 5
@@ -2761,10 +2752,7 @@
 		 43 = /dev/ttycusmx2		Callout device for ttySMX2
 		 46 = /dev/cucpm0		Callout device for ttyCPM0
 		    ...
-		 49 = /dev/cucpm5		Callout device for ttyCPM5
-		 50 = /dev/cuioc40		Callout device for ttyIOC40
-		    ...
-		 81 = /dev/cuioc431		Callout device for ttyIOC431
+		 51 = /dev/cucpm5		Callout device for ttyCPM5
 		 82 = /dev/cuvr0		Callout device for ttyVR0
 		 83 = /dev/cuvr1		Callout device for ttyVR1
 

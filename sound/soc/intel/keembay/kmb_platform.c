@@ -733,6 +733,7 @@ static int kmb_dai_hw_free(struct snd_pcm_substream *substream,
 }
 
 static const struct snd_soc_dai_ops kmb_dai_ops = {
+	.probe		= kmb_probe,
 	.startup	= kmb_dai_startup,
 	.trigger	= kmb_dai_trigger,
 	.hw_params	= kmb_dai_hw_params,
@@ -755,7 +756,6 @@ static struct snd_soc_dai_driver intel_kmb_hdmi_dai[] = {
 				    SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE),
 		},
 		.ops = &kmb_dai_ops,
-		.probe = kmb_probe,
 	},
 };
 
@@ -787,7 +787,6 @@ static struct snd_soc_dai_driver intel_kmb_i2s_dai[] = {
 				    SNDRV_PCM_FMTBIT_S16_LE),
 		},
 		.ops = &kmb_dai_ops,
-		.probe = kmb_probe,
 	},
 };
 
@@ -807,7 +806,6 @@ static struct snd_soc_dai_driver intel_kmb_tdm_dai[] = {
 				    SNDRV_PCM_FMTBIT_S16_LE),
 		},
 		.ops = &kmb_dai_ops,
-		.probe = kmb_probe,
 	},
 };
 

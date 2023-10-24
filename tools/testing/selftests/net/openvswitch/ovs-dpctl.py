@@ -9,9 +9,12 @@ import errno
 import ipaddress
 import logging
 import multiprocessing
+import re
 import struct
 import sys
 import time
+import types
+import uuid
 
 try:
     from pyroute2 import NDB
@@ -25,8 +28,10 @@ try:
     from pyroute2.netlink import nlmsg_atoms
     from pyroute2.netlink.exceptions import NetlinkError
     from pyroute2.netlink.generic import GenericNetlinkSocket
+    import pyroute2
+
 except ModuleNotFoundError:
-    print("Need to install the python pyroute2 package.")
+    print("Need to install the python pyroute2 package >= 0.6.")
     sys.exit(0)
 
 
@@ -59,24 +64,207 @@ def macstr(mac):
     return outstr
 
 
-def convert_mac(mac_str, mask=False):
-    if mac_str is None or mac_str == "":
-        mac_str = "00:00:00:00:00:00"
-    if mask is True and mac_str != "00:00:00:00:00:00":
-        mac_str = "FF:FF:FF:FF:FF:FF"
-    mac_split = mac_str.split(":")
-    ret = bytearray([int(i, 16) for i in mac_split])
-    return bytes(ret)
+def strcspn(str1, str2):
+    tot = 0
+    for char in str1:
+        if str2.find(char) != -1:
+            return tot
+        tot += 1
+    return tot
 
 
-def convert_ipv4(ip, mask=False):
-    if ip is None:
-        ip = 0
-    if mask is True:
-        if ip != 0:
-            ip = int(ipaddress.IPv4Address(ip)) & 0xFFFFFFFF
+def strspn(str1, str2):
+    tot = 0
+    for char in str1:
+        if str2.find(char) == -1:
+            return tot
+        tot += 1
+    return tot
 
-    return int(ipaddress.IPv4Address(ip))
+
+def intparse(statestr, defmask="0xffffffff"):
+    totalparse = strspn(statestr, "0123456789abcdefABCDEFx/")
+    # scan until "/"
+    count = strspn(statestr, "x0123456789abcdefABCDEF")
+
+    firstnum = statestr[:count]
+    if firstnum[-1] == "/":
+        firstnum = firstnum[:-1]
+    k = int(firstnum, 0)
+
+    m = None
+    if defmask is not None:
+        secondnum = defmask
+        if statestr[count] == "/":
+            secondnum = statestr[count + 1 :]  # this is wrong...
+        m = int(secondnum, 0)
+
+    return statestr[totalparse + 1 :], k, m
+
+
+def parse_flags(flag_str, flag_vals):
+    bitResult = 0
+    maskResult = 0
+
+    if len(flag_str) == 0:
+        return flag_str, bitResult, maskResult
+
+    if flag_str[0].isdigit():
+        idx = 0
+        while flag_str[idx].isdigit() or flag_str[idx] == "x":
+            idx += 1
+        digits = flag_str[:idx]
+        flag_str = flag_str[idx:]
+
+        bitResult = int(digits, 0)
+        maskResult = int(digits, 0)
+
+    while len(flag_str) > 0 and (flag_str[0] == "+" or flag_str[0] == "-"):
+        if flag_str[0] == "+":
+            setFlag = True
+        elif flag_str[0] == "-":
+            setFlag = False
+
+        flag_str = flag_str[1:]
+
+        flag_len = 0
+        while (
+            flag_str[flag_len] != "+"
+            and flag_str[flag_len] != "-"
+            and flag_str[flag_len] != ","
+            and flag_str[flag_len] != ")"
+        ):
+            flag_len += 1
+
+        flag = flag_str[0:flag_len]
+
+        if flag in flag_vals:
+            if maskResult & flag_vals[flag]:
+                raise KeyError(
+                    "Flag %s set once, cannot be set in multiples" % flag
+                )
+
+            if setFlag:
+                bitResult |= flag_vals[flag]
+
+            maskResult |= flag_vals[flag]
+        else:
+            raise KeyError("Missing flag value: %s" % flag)
+
+        flag_str = flag_str[flag_len:]
+
+    return flag_str, bitResult, maskResult
+
+
+def parse_ct_state(statestr):
+    ct_flags = {
+        "new": 1 << 0,
+        "est": 1 << 1,
+        "rel": 1 << 2,
+        "rpl": 1 << 3,
+        "inv": 1 << 4,
+        "trk": 1 << 5,
+        "snat": 1 << 6,
+        "dnat": 1 << 7,
+    }
+
+    return parse_flags(statestr, ct_flags)
+
+
+def convert_mac(data):
+    def to_bytes(mac):
+        mac_split = mac.split(":")
+        ret = bytearray([int(i, 16) for i in mac_split])
+        return bytes(ret)
+
+    mac_str, _, mask_str = data.partition('/')
+
+    if not mac_str:
+        mac_str = mask_str = "00:00:00:00:00:00"
+    elif not mask_str:
+        mask_str = "FF:FF:FF:FF:FF:FF"
+
+    return to_bytes(mac_str), to_bytes(mask_str)
+
+def convert_ipv4(data):
+    ip, _, mask = data.partition('/')
+
+    if not ip:
+        ip = mask = 0
+    elif not mask:
+        mask = 0xFFFFFFFF
+    elif mask.isdigit():
+        mask = (0xFFFFFFFF << (32 - int(mask))) & 0xFFFFFFFF
+
+    return int(ipaddress.IPv4Address(ip)), int(ipaddress.IPv4Address(mask))
+
+def convert_int(size):
+    def convert_int_sized(data):
+        value, _, mask = data.partition('/')
+
+        if not value:
+            return 0, 0
+        elif not mask:
+            return int(value, 0), pow(2, size) - 1
+        else:
+            return int(value, 0), int(mask, 0)
+
+    return convert_int_sized
+
+def parse_starts_block(block_str, scanstr, returnskipped, scanregex=False):
+    if scanregex:
+        m = re.search(scanstr, block_str)
+        if m is None:
+            if returnskipped:
+                return block_str
+            return False
+        if returnskipped:
+            block_str = block_str[len(m.group(0)) :]
+            return block_str
+        return True
+
+    if block_str.startswith(scanstr):
+        if returnskipped:
+            block_str = block_str[len(scanstr) :]
+        else:
+            return True
+
+    if returnskipped:
+        return block_str
+
+    return False
+
+
+def parse_extract_field(
+    block_str, fieldstr, scanfmt, convert, masked=False, defval=None
+):
+    if fieldstr and not block_str.startswith(fieldstr):
+        return block_str, defval
+
+    if fieldstr:
+        str_skiplen = len(fieldstr)
+        str_skipped = block_str[str_skiplen:]
+        if str_skiplen == 0:
+            return str_skipped, defval
+    else:
+        str_skiplen = 0
+        str_skipped = block_str
+
+    m = re.search(scanfmt, str_skipped)
+    if m is None:
+        raise ValueError("Bad fmt string")
+
+    data = m.group(0)
+    if convert:
+        data = convert(m.group(0))
+
+    str_skipped = str_skipped[len(m.group(0)) :]
+    if masked:
+        if str_skipped[0] == "/":
+            raise ValueError("Masking support TBD...")
+
+    str_skipped = str_skipped[strspn(str_skipped, ", ") :]
+    return str_skipped, data
 
 
 class ovs_dp_msg(genlmsg):
@@ -115,6 +303,7 @@ class ovsactions(nla):
         ("OVS_ACTION_ATTR_CHECK_PKT_LEN", "none"),
         ("OVS_ACTION_ATTR_ADD_MPLS", "none"),
         ("OVS_ACTION_ATTR_DEC_TTL", "none"),
+        ("OVS_ACTION_ATTR_DROP", "uint32"),
     )
 
     class ctact(nla):
@@ -261,6 +450,8 @@ class ovsactions(nla):
                     print_str += "recirc(0x%x)" % int(self.get_attr(field[0]))
                 elif field[0] == "OVS_ACTION_ATTR_TRUNC":
                     print_str += "trunc(%d)" % int(self.get_attr(field[0]))
+                elif field[0] == "OVS_ACTION_ATTR_DROP":
+                    print_str += "drop(%d)" % int(self.get_attr(field[0]))
             elif field[1] == "flag":
                 if field[0] == "OVS_ACTION_ATTR_CT_CLEAR":
                     print_str += "ct_clear"
@@ -277,6 +468,153 @@ class ovsactions(nla):
                 print_str += datum.dpstr(more)
 
         return print_str
+
+    def parse(self, actstr):
+        while len(actstr) != 0:
+            parsed = False
+            if actstr.startswith("drop"):
+                # If no reason is provided, the implicit drop is used (i.e no
+                # action). If some reason is given, an explicit action is used.
+                actstr, reason = parse_extract_field(
+                    actstr,
+                    "drop(",
+                    "([0-9]+)",
+                    lambda x: int(x, 0),
+                    False,
+                    None,
+                )
+                if reason is not None:
+                    self["attrs"].append(["OVS_ACTION_ATTR_DROP", reason])
+                    parsed = True
+                else:
+                    return
+
+            elif parse_starts_block(actstr, "^(\d+)", False, True):
+                actstr, output = parse_extract_field(
+                    actstr, None, "(\d+)", lambda x: int(x), False, "0"
+                )
+                self["attrs"].append(["OVS_ACTION_ATTR_OUTPUT", output])
+                parsed = True
+            elif parse_starts_block(actstr, "recirc(", False):
+                actstr, recircid = parse_extract_field(
+                    actstr,
+                    "recirc(",
+                    "([0-9a-fA-Fx]+)",
+                    lambda x: int(x, 0),
+                    False,
+                    0,
+                )
+                self["attrs"].append(["OVS_ACTION_ATTR_RECIRC", recircid])
+                parsed = True
+
+            parse_flat_map = (
+                ("ct_clear", "OVS_ACTION_ATTR_CT_CLEAR"),
+                ("pop_vlan", "OVS_ACTION_ATTR_POP_VLAN"),
+                ("pop_eth", "OVS_ACTION_ATTR_POP_ETH"),
+                ("pop_nsh", "OVS_ACTION_ATTR_POP_NSH"),
+            )
+
+            for flat_act in parse_flat_map:
+                if parse_starts_block(actstr, flat_act[0], False):
+                    actstr += len(flat_act[0])
+                    self["attrs"].append([flat_act[1]])
+                    actstr = actstr[strspn(actstr, ", ") :]
+                    parsed = True
+
+            if parse_starts_block(actstr, "ct(", False):
+                actstr = actstr[len("ct(") :]
+                ctact = ovsactions.ctact()
+
+                for scan in (
+                    ("commit", "OVS_CT_ATTR_COMMIT", None),
+                    ("force_commit", "OVS_CT_ATTR_FORCE_COMMIT", None),
+                    ("zone", "OVS_CT_ATTR_ZONE", int),
+                    ("mark", "OVS_CT_ATTR_MARK", int),
+                    ("helper", "OVS_CT_ATTR_HELPER", lambda x, y: str(x)),
+                    ("timeout", "OVS_CT_ATTR_TIMEOUT", lambda x, y: str(x)),
+                ):
+                    if actstr.startswith(scan[0]):
+                        actstr = actstr[len(scan[0]) :]
+                        if scan[2] is not None:
+                            if actstr[0] != "=":
+                                raise ValueError("Invalid ct attr")
+                            actstr = actstr[1:]
+                            pos = strcspn(actstr, ",)")
+                            datum = scan[2](actstr[:pos], 0)
+                            ctact["attrs"].append([scan[1], datum])
+                            actstr = actstr[pos:]
+                        else:
+                            ctact["attrs"].append([scan[1], None])
+                        actstr = actstr[strspn(actstr, ", ") :]
+                    # it seems strange to put this here, but nat() is a complex
+                    # sub-action and this lets it sit anywhere in the ct() action
+                    if actstr.startswith("nat"):
+                        actstr = actstr[3:]
+                        natact = ovsactions.ctact.natattr()
+
+                        if actstr.startswith("("):
+                            t = None
+                            actstr = actstr[1:]
+                            if actstr.startswith("src"):
+                                t = "OVS_NAT_ATTR_SRC"
+                                actstr = actstr[3:]
+                            elif actstr.startswith("dst"):
+                                t = "OVS_NAT_ATTR_DST"
+                                actstr = actstr[3:]
+
+                            actstr, ip_block_min = parse_extract_field(
+                                actstr, "=", "([0-9a-fA-F\.]+)", str, False
+                            )
+                            actstr, ip_block_max = parse_extract_field(
+                                actstr, "-", "([0-9a-fA-F\.]+)", str, False
+                            )
+
+                            actstr, proto_min = parse_extract_field(
+                                actstr, ":", "(\d+)", int, False
+                            )
+                            actstr, proto_max = parse_extract_field(
+                                actstr, "-", "(\d+)", int, False
+                            )
+
+                            if t is not None:
+                                natact["attrs"].append([t, None])
+
+                                if ip_block_min is not None:
+                                    natact["attrs"].append(
+                                        ["OVS_NAT_ATTR_IP_MIN", ip_block_min]
+                                    )
+                                if ip_block_max is not None:
+                                    natact["attrs"].append(
+                                        ["OVS_NAT_ATTR_IP_MAX", ip_block_max]
+                                    )
+                                if proto_min is not None:
+                                    natact["attrs"].append(
+                                        ["OVS_NAT_ATTR_PROTO_MIN", proto_min]
+                                    )
+                                if proto_max is not None:
+                                    natact["attrs"].append(
+                                        ["OVS_NAT_ATTR_PROTO_MAX", proto_max]
+                                    )
+
+                            for natscan in (
+                                ("persistent", "OVS_NAT_ATTR_PERSISTENT"),
+                                ("hash", "OVS_NAT_ATTR_PROTO_HASH"),
+                                ("random", "OVS_NAT_ATTR_PROTO_RANDOM"),
+                            ):
+                                if actstr.startswith(natscan[0]):
+                                    actstr = actstr[len(natscan[0]) :]
+                                    natact["attrs"].append([natscan[1], None])
+                                    actstr = actstr[strspn(actstr, ", ") :]
+
+                        ctact["attrs"].append(["OVS_CT_ATTR_NAT", natact])
+                        actstr = actstr[strspn(actstr, ",) ") :]
+
+                self["attrs"].append(["OVS_ACTION_ATTR_CT", ctact])
+                parsed = True
+
+            actstr = actstr[strspn(actstr, "), ") :]
+            if not parsed:
+                raise ValueError("Action str: '%s' not supported" % actstr)
 
 
 class ovskey(nla):
@@ -324,8 +662,10 @@ class ovskey(nla):
         )
 
         fields_map = (
-            ("src", "src", "%d", lambda x: int(x) if x is not None else 0),
-            ("dst", "dst", "%d", lambda x: int(x) if x is not None else 0),
+            ("src", "src", "%d", lambda x: int(x) if x else 0,
+                convert_int(16)),
+            ("dst", "dst", "%d", lambda x: int(x) if x else 0,
+                convert_int(16)),
         )
 
         def __init__(
@@ -346,6 +686,49 @@ class ovskey(nla):
                 length=length,
                 init=init,
             )
+
+        def parse(self, flowstr, typeInst):
+            if not flowstr.startswith(self.proto_str):
+                return None, None
+
+            k = typeInst()
+            m = typeInst()
+
+            flowstr = flowstr[len(self.proto_str) :]
+            if flowstr.startswith("("):
+                flowstr = flowstr[1:]
+
+            keybits = b""
+            maskbits = b""
+            for f in self.fields_map:
+                if flowstr.startswith(f[1]):
+                    # the following assumes that the field looks
+                    # something like 'field.' where '.' is a
+                    # character that we don't exactly care about.
+                    flowstr = flowstr[len(f[1]) + 1 :]
+                    splitchar = 0
+                    for c in flowstr:
+                        if c == "," or c == ")":
+                            break
+                        splitchar += 1
+                    data = flowstr[:splitchar]
+                    flowstr = flowstr[splitchar:]
+                else:
+                    data = ""
+
+                if len(f) > 4:
+                    k[f[0]], m[f[0]] = f[4](data)
+                else:
+                    k[f[0]] = f[3](data)
+                    m[f[0]] = f[3](data)
+
+                flowstr = flowstr[strspn(flowstr, ", ") :]
+                if len(flowstr) == 0:
+                    return flowstr, k, m
+
+            flowstr = flowstr[strspn(flowstr, "), ") :]
+
+            return flowstr, k, m
 
         def dpstr(self, masked=None, more=False):
             outstr = self.proto_str + "("
@@ -441,10 +824,14 @@ class ovskey(nla):
                 int,
                 convert_ipv4,
             ),
-            ("proto", "proto", "%d", lambda x: int(x) if x is not None else 0),
-            ("tos", "tos", "%d", lambda x: int(x) if x is not None else 0),
-            ("ttl", "ttl", "%d", lambda x: int(x) if x is not None else 0),
-            ("frag", "frag", "%d", lambda x: int(x) if x is not None else 0),
+            ("proto", "proto", "%d", lambda x: int(x) if x else 0,
+                convert_int(8)),
+            ("tos", "tos", "%d", lambda x: int(x) if x else 0,
+                convert_int(8)),
+            ("ttl", "ttl", "%d", lambda x: int(x) if x else 0,
+                convert_int(8)),
+            ("frag", "frag", "%d", lambda x: int(x) if x else 0,
+                convert_int(8)),
         )
 
         def __init__(
@@ -580,8 +967,8 @@ class ovskey(nla):
         )
 
         fields_map = (
-            ("type", "type", "%d", int),
-            ("code", "code", "%d", int),
+            ("type", "type", "%d", lambda x: int(x) if x else 0),
+            ("code", "code", "%d", lambda x: int(x) if x else 0),
         )
 
         def __init__(
@@ -646,7 +1033,7 @@ class ovskey(nla):
                 int,
                 convert_ipv4,
             ),
-            ("op", "op", "%d", lambda x: int(x) if x is not None else 0),
+            ("op", "op", "%d", lambda x: int(x) if x else 0),
             (
                 "sha",
                 "sha",
@@ -732,12 +1119,14 @@ class ovskey(nla):
                 "src",
                 lambda x: str(ipaddress.IPv4Address(x)),
                 int,
+                convert_ipv4,
             ),
             (
                 "dst",
                 "dst",
-                lambda x: str(ipaddress.IPv6Address(x)),
+                lambda x: str(ipaddress.IPv4Address(x)),
                 int,
+                convert_ipv4,
             ),
             ("tp_src", "tp_src", "%d", int),
             ("tp_dst", "tp_dst", "%d", int),
@@ -809,6 +1198,81 @@ class ovskey(nla):
 
     class ovs_key_mpls(nla):
         fields = (("lse", ">I"),)
+
+    def parse(self, flowstr, mask=None):
+        for field in (
+            ("OVS_KEY_ATTR_PRIORITY", "skb_priority", intparse),
+            ("OVS_KEY_ATTR_SKB_MARK", "skb_mark", intparse),
+            ("OVS_KEY_ATTR_RECIRC_ID", "recirc_id", intparse),
+            ("OVS_KEY_ATTR_DP_HASH", "dp_hash", intparse),
+            ("OVS_KEY_ATTR_CT_STATE", "ct_state", parse_ct_state),
+            ("OVS_KEY_ATTR_CT_ZONE", "ct_zone", intparse),
+            ("OVS_KEY_ATTR_CT_MARK", "ct_mark", intparse),
+            ("OVS_KEY_ATTR_IN_PORT", "in_port", intparse),
+            (
+                "OVS_KEY_ATTR_ETHERNET",
+                "eth",
+                ovskey.ethaddr,
+            ),
+            (
+                "OVS_KEY_ATTR_ETHERTYPE",
+                "eth_type",
+                lambda x: intparse(x, "0xffff"),
+            ),
+            (
+                "OVS_KEY_ATTR_IPV4",
+                "ipv4",
+                ovskey.ovs_key_ipv4,
+            ),
+            (
+                "OVS_KEY_ATTR_IPV6",
+                "ipv6",
+                ovskey.ovs_key_ipv6,
+            ),
+            (
+                "OVS_KEY_ATTR_ARP",
+                "arp",
+                ovskey.ovs_key_arp,
+            ),
+            (
+                "OVS_KEY_ATTR_TCP",
+                "tcp",
+                ovskey.ovs_key_tcp,
+            ),
+            (
+                "OVS_KEY_ATTR_UDP",
+                "udp",
+                ovskey.ovs_key_udp,
+            ),
+            (
+                "OVS_KEY_ATTR_ICMP",
+                "icmp",
+                ovskey.ovs_key_icmp,
+            ),
+            (
+                "OVS_KEY_ATTR_TCP_FLAGS",
+                "tcp_flags",
+                lambda x: parse_flags(x, None),
+            ),
+        ):
+            fld = field[1] + "("
+            if not flowstr.startswith(fld):
+                continue
+
+            if not isinstance(field[2], types.FunctionType):
+                nk = field[2]()
+                flowstr, k, m = nk.parse(flowstr, field[2])
+            else:
+                flowstr = flowstr[len(fld) :]
+                flowstr, k, m = field[2](flowstr)
+
+            if m and mask is not None:
+                mask["attrs"].append([field[0], m])
+            self["attrs"].append([field[0], k])
+
+            flowstr = flowstr[strspn(flowstr, "),") :]
+
+        return flowstr
 
     def dpstr(self, mask=None, more=False):
         print_str = ""
@@ -1358,10 +1822,117 @@ class OvsFlow(GenericNetlinkSocket):
 
             return print_str
 
+        def parse(self, flowstr, actstr, dpidx=0):
+            OVS_UFID_F_OMIT_KEY = 1 << 0
+            OVS_UFID_F_OMIT_MASK = 1 << 1
+            OVS_UFID_F_OMIT_ACTIONS = 1 << 2
+
+            self["cmd"] = 0
+            self["version"] = 0
+            self["reserved"] = 0
+            self["dpifindex"] = 0
+
+            if flowstr.startswith("ufid:"):
+                count = 5
+                while flowstr[count] != ",":
+                    count += 1
+                ufidstr = flowstr[5:count]
+                flowstr = flowstr[count + 1 :]
+            else:
+                ufidstr = str(uuid.uuid4())
+            uuidRawObj = uuid.UUID(ufidstr).fields
+
+            self["attrs"].append(
+                [
+                    "OVS_FLOW_ATTR_UFID",
+                    [
+                        uuidRawObj[0],
+                        uuidRawObj[1] << 16 | uuidRawObj[2],
+                        uuidRawObj[3] << 24
+                        | uuidRawObj[4] << 16
+                        | uuidRawObj[5] & (0xFF << 32) >> 32,
+                        uuidRawObj[5] & (0xFFFFFFFF),
+                    ],
+                ]
+            )
+            self["attrs"].append(
+                [
+                    "OVS_FLOW_ATTR_UFID_FLAGS",
+                    int(
+                        OVS_UFID_F_OMIT_KEY
+                        | OVS_UFID_F_OMIT_MASK
+                        | OVS_UFID_F_OMIT_ACTIONS
+                    ),
+                ]
+            )
+
+            k = ovskey()
+            m = ovskey()
+            k.parse(flowstr, m)
+            self["attrs"].append(["OVS_FLOW_ATTR_KEY", k])
+            self["attrs"].append(["OVS_FLOW_ATTR_MASK", m])
+
+            a = ovsactions()
+            a.parse(actstr)
+            self["attrs"].append(["OVS_FLOW_ATTR_ACTIONS", a])
+
     def __init__(self):
         GenericNetlinkSocket.__init__(self)
 
         self.bind(OVS_FLOW_FAMILY, OvsFlow.ovs_flow_msg)
+
+    def add_flow(self, dpifindex, flowmsg):
+        """
+        Send a new flow message to the kernel.
+
+        dpifindex should be a valid datapath obtained by calling
+        into the OvsDatapath lookup
+
+        flowmsg is a flow object obtained by calling a dpparse
+        """
+
+        flowmsg["cmd"] = OVS_FLOW_CMD_NEW
+        flowmsg["version"] = OVS_DATAPATH_VERSION
+        flowmsg["reserved"] = 0
+        flowmsg["dpifindex"] = dpifindex
+
+        try:
+            reply = self.nlm_request(
+                flowmsg,
+                msg_type=self.prid,
+                msg_flags=NLM_F_REQUEST | NLM_F_ACK,
+            )
+            reply = reply[0]
+        except NetlinkError as ne:
+            print(flowmsg)
+            raise ne
+        return reply
+
+    def del_flows(self, dpifindex):
+        """
+        Send a del message to the kernel that will drop all flows.
+
+        dpifindex should be a valid datapath obtained by calling
+        into the OvsDatapath lookup
+        """
+
+        flowmsg = OvsFlow.ovs_flow_msg()
+        flowmsg["cmd"] = OVS_FLOW_CMD_DEL
+        flowmsg["version"] = OVS_DATAPATH_VERSION
+        flowmsg["reserved"] = 0
+        flowmsg["dpifindex"] = dpifindex
+
+        try:
+            reply = self.nlm_request(
+                flowmsg,
+                msg_type=self.prid,
+                msg_flags=NLM_F_REQUEST | NLM_F_ACK,
+            )
+            reply = reply[0]
+        except NetlinkError as ne:
+            print(flowmsg)
+            raise ne
+        return reply
 
     def dump(self, dpifindex, flowspec=None):
         """
@@ -1457,6 +2028,12 @@ def main(argv):
     nlmsg_atoms.ovskey = ovskey
     nlmsg_atoms.ovsactions = ovsactions
 
+    # version check for pyroute2
+    prverscheck = pyroute2.__version__.split(".")
+    if int(prverscheck[0]) == 0 and int(prverscheck[1]) < 6:
+        print("Need to upgrade the python pyroute2 package to >= 0.6.")
+        sys.exit(0)
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-v",
@@ -1513,6 +2090,14 @@ def main(argv):
 
     dumpflcmd = subparsers.add_parser("dump-flows")
     dumpflcmd.add_argument("dumpdp", help="Datapath Name")
+
+    addflcmd = subparsers.add_parser("add-flow")
+    addflcmd.add_argument("flbr", help="Datapath name")
+    addflcmd.add_argument("flow", help="Flow specification")
+    addflcmd.add_argument("acts", help="Flow actions")
+
+    delfscmd = subparsers.add_parser("del-flows")
+    delfscmd.add_argument("flsbr", help="Datapath name")
 
     args = parser.parse_args()
 
@@ -1589,6 +2174,19 @@ def main(argv):
         rep = ovsflow.dump(rep["dpifindex"])
         for flow in rep:
             print(flow.dpstr(True if args.verbose > 0 else False))
+    elif hasattr(args, "flbr"):
+        rep = ovsdp.info(args.flbr, 0)
+        if rep is None:
+            print("DP '%s' not found." % args.flbr)
+            return 1
+        flow = OvsFlow.ovs_flow_msg()
+        flow.parse(args.flow, args.acts, rep["dpifindex"])
+        ovsflow.add_flow(rep["dpifindex"], flow)
+    elif hasattr(args, "flsbr"):
+        rep = ovsdp.info(args.flsbr, 0)
+        if rep is None:
+            print("DP '%s' not found." % args.flsbr)
+        ovsflow.del_flows(rep["dpifindex"])
 
     return 0
 

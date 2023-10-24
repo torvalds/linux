@@ -2002,6 +2002,7 @@ static void isp_remove(struct platform_device *pdev)
 	struct isp_device *isp = platform_get_drvdata(pdev);
 
 	v4l2_async_nf_unregister(&isp->notifier);
+	v4l2_async_nf_cleanup(&isp->notifier);
 	isp_unregister_entities(isp);
 	isp_cleanup_modules(isp);
 	isp_xclk_cleanup(isp);
@@ -2011,7 +2012,6 @@ static void isp_remove(struct platform_device *pdev)
 	__omap3isp_put(isp, false);
 
 	media_entity_enum_cleanup(&isp->crashed);
-	v4l2_async_nf_cleanup(&isp->notifier);
 
 	kfree(isp);
 }
@@ -2022,35 +2022,34 @@ enum isp_of_phy {
 	ISP_OF_PHY_CSIPHY2,
 };
 
+static int isp_subdev_notifier_bound(struct v4l2_async_notifier *async,
+				     struct v4l2_subdev *sd,
+				     struct v4l2_async_connection *asc)
+{
+	struct isp_device *isp = container_of(async, struct isp_device,
+					      notifier);
+	struct isp_bus_cfg *bus_cfg =
+		&container_of(asc, struct isp_async_subdev, asd)->bus;
+	int ret;
+
+	mutex_lock(&isp->media_dev.graph_mutex);
+	ret = isp_link_entity(isp, &sd->entity, bus_cfg->interface);
+	mutex_unlock(&isp->media_dev.graph_mutex);
+
+	return ret;
+}
+
 static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 {
 	struct isp_device *isp = container_of(async, struct isp_device,
 					      notifier);
-	struct v4l2_device *v4l2_dev = &isp->v4l2_dev;
-	struct v4l2_subdev *sd;
 	int ret;
 
 	mutex_lock(&isp->media_dev.graph_mutex);
-
 	ret = media_entity_enum_init(&isp->crashed, &isp->media_dev);
-	if (ret) {
-		mutex_unlock(&isp->media_dev.graph_mutex);
-		return ret;
-	}
-
-	list_for_each_entry(sd, &v4l2_dev->subdevs, list) {
-		if (sd->notifier != &isp->notifier)
-			continue;
-
-		ret = isp_link_entity(isp, &sd->entity,
-				      v4l2_subdev_to_bus_cfg(sd)->interface);
-		if (ret < 0) {
-			mutex_unlock(&isp->media_dev.graph_mutex);
-			return ret;
-		}
-	}
-
 	mutex_unlock(&isp->media_dev.graph_mutex);
+	if (ret)
+		return ret;
 
 	ret = v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
 	if (ret < 0)
@@ -2240,6 +2239,7 @@ static int isp_parse_of_endpoints(struct isp_device *isp)
 }
 
 static const struct v4l2_async_notifier_operations isp_subdev_notifier_ops = {
+	.bound = isp_subdev_notifier_bound,
 	.complete = isp_subdev_notifier_complete,
 };
 
@@ -2288,12 +2288,7 @@ static int isp_probe(struct platform_device *pdev)
 
 	mutex_init(&isp->isp_mutex);
 	spin_lock_init(&isp->stat_lock);
-	v4l2_async_nf_init(&isp->notifier);
 	isp->dev = &pdev->dev;
-
-	ret = isp_parse_of_endpoints(isp);
-	if (ret < 0)
-		goto error;
 
 	isp->ref_count = 0;
 
@@ -2329,9 +2324,8 @@ static int isp_probe(struct platform_device *pdev)
 	for (i = 0; i < 2; i++) {
 		unsigned int map_idx = i ? OMAP3_ISP_IOMEM_CSI2A_REGS1 : 0;
 
-		mem = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		isp->mmio_base[map_idx] =
-			devm_ioremap_resource(isp->dev, mem);
+			devm_platform_get_and_ioremap_resource(pdev, i, &mem);
 		if (IS_ERR(isp->mmio_base[map_idx])) {
 			ret = PTR_ERR(isp->mmio_base[map_idx]);
 			goto error;
@@ -2398,10 +2392,8 @@ static int isp_probe(struct platform_device *pdev)
 
 	/* Interrupt */
 	ret = platform_get_irq(pdev, 0);
-	if (ret <= 0) {
-		ret = -ENODEV;
+	if (ret < 0)
 		goto error_iommu;
-	}
 	isp->irq_num = ret;
 
 	if (devm_request_irq(isp->dev, isp->irq_num, isp_isr, IRQF_SHARED,
@@ -2426,7 +2418,13 @@ static int isp_probe(struct platform_device *pdev)
 
 	isp->notifier.ops = &isp_subdev_notifier_ops;
 
-	ret = v4l2_async_nf_register(&isp->v4l2_dev, &isp->notifier);
+	v4l2_async_nf_init(&isp->notifier, &isp->v4l2_dev);
+
+	ret = isp_parse_of_endpoints(isp);
+	if (ret < 0)
+		goto error_register_entities;
+
+	ret = v4l2_async_nf_register(&isp->notifier);
 	if (ret)
 		goto error_register_entities;
 
@@ -2436,6 +2434,7 @@ static int isp_probe(struct platform_device *pdev)
 	return 0;
 
 error_register_entities:
+	v4l2_async_nf_cleanup(&isp->notifier);
 	isp_unregister_entities(isp);
 error_modules:
 	isp_cleanup_modules(isp);
@@ -2445,7 +2444,6 @@ error_isp:
 	isp_xclk_cleanup(isp);
 	__omap3isp_put(isp, false);
 error:
-	v4l2_async_nf_cleanup(&isp->notifier);
 	mutex_destroy(&isp->isp_mutex);
 error_release_isp:
 	kfree(isp);

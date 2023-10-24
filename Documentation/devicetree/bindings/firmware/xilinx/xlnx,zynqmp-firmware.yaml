@@ -38,6 +38,9 @@ properties:
       - smc
       - hvc
 
+  "#power-domain-cells":
+    const: 1
+
   versal_fpga:
     $ref: /schemas/fpga/xlnx,versal-fpga.yaml#
     description: Compatible of the FPGA device.
@@ -66,6 +69,17 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/power/xlnx-zynqmp-power.h>
+    firmware {
+      zynqmp_firmware: zynqmp-firmware {
+        #power-domain-cells = <1>;
+        };
+    };
+
+    sata {
+      power-domains = <&zynqmp_firmware PD_SATA>;
+    };
+
     versal-firmware {
       compatible = "xlnx,versal-firmware";
       method = "smc";

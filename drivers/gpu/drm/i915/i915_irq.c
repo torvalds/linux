@@ -751,6 +751,8 @@ static void dg1_irq_reset(struct drm_i915_private *dev_priv)
 
 	GEN3_IRQ_RESET(uncore, GEN11_GU_MISC_);
 	GEN3_IRQ_RESET(uncore, GEN8_PCU_);
+
+	intel_uncore_write(uncore, GEN11_GFX_MSTR_IRQ, ~0);
 }
 
 static void cherryview_irq_reset(struct drm_i915_private *dev_priv)
@@ -772,45 +774,9 @@ static void cherryview_irq_reset(struct drm_i915_private *dev_priv)
 
 static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
-	u32 display_mask, extra_mask;
-
-	if (GRAPHICS_VER(dev_priv) >= 7) {
-		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE_IVB |
-				DE_PCH_EVENT_IVB | DE_AUX_CHANNEL_A_IVB);
-		extra_mask = (DE_PIPEC_VBLANK_IVB | DE_PIPEB_VBLANK_IVB |
-			      DE_PIPEA_VBLANK_IVB | DE_ERR_INT_IVB |
-			      DE_PLANE_FLIP_DONE_IVB(PLANE_C) |
-			      DE_PLANE_FLIP_DONE_IVB(PLANE_B) |
-			      DE_PLANE_FLIP_DONE_IVB(PLANE_A) |
-			      DE_DP_A_HOTPLUG_IVB);
-	} else {
-		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
-				DE_AUX_CHANNEL_A | DE_PIPEB_CRC_DONE |
-				DE_PIPEA_CRC_DONE | DE_POISON);
-		extra_mask = (DE_PIPEA_VBLANK | DE_PIPEB_VBLANK |
-			      DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN |
-			      DE_PLANE_FLIP_DONE(PLANE_A) |
-			      DE_PLANE_FLIP_DONE(PLANE_B) |
-			      DE_DP_A_HOTPLUG);
-	}
-
-	if (IS_HASWELL(dev_priv)) {
-		gen3_assert_iir_is_zero(uncore, EDP_PSR_IIR);
-		display_mask |= DE_EDP_PSR_INT_HSW;
-	}
-
-	if (IS_IRONLAKE_M(dev_priv))
-		extra_mask |= DE_PCU_EVENT;
-
-	dev_priv->irq_mask = ~display_mask;
-
-	ibx_irq_postinstall(dev_priv);
-
 	gen5_gt_irq_postinstall(to_gt(dev_priv));
 
-	GEN3_IRQ_INIT(uncore, DE, dev_priv->irq_mask,
-		      display_mask | extra_mask);
+	ilk_de_irq_postinstall(dev_priv);
 }
 
 static void valleyview_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -828,11 +794,6 @@ static void valleyview_irq_postinstall(struct drm_i915_private *dev_priv)
 
 static void gen8_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-		icp_irq_postinstall(dev_priv);
-	else if (HAS_PCH_SPLIT(dev_priv))
-		ibx_irq_postinstall(dev_priv);
-
 	gen8_gt_irq_postinstall(to_gt(dev_priv));
 	gen8_de_irq_postinstall(dev_priv);
 
@@ -844,9 +805,6 @@ static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
 	struct intel_gt *gt = to_gt(dev_priv);
 	struct intel_uncore *uncore = gt->uncore;
 	u32 gu_misc_masked = GEN11_GU_MISC_GSE;
-
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-		icp_irq_postinstall(dev_priv);
 
 	gen11_gt_irq_postinstall(gt);
 	gen11_de_irq_postinstall(dev_priv);
@@ -869,16 +827,7 @@ static void dg1_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	GEN3_IRQ_INIT(uncore, GEN11_GU_MISC_, ~gu_misc_masked, gu_misc_masked);
 
-	if (HAS_DISPLAY(dev_priv)) {
-		if (DISPLAY_VER(dev_priv) >= 14)
-			mtp_irq_postinstall(dev_priv);
-		else
-			icp_irq_postinstall(dev_priv);
-
-		gen8_de_irq_postinstall(dev_priv);
-		intel_uncore_write(&dev_priv->uncore, GEN11_DISPLAY_INT_CTL,
-				   GEN11_DISPLAY_IRQ_ENABLE);
-	}
+	dg1_de_irq_postinstall(dev_priv);
 
 	dg1_master_intr_enable(intel_uncore_regs(uncore));
 	intel_uncore_posting_read(uncore, DG1_MSTR_TILE_INTR);
@@ -1343,23 +1292,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	/* pre-gen11 the guc irqs bits are in the upper 16 bits of the pm reg */
 	if (HAS_GT_UC(dev_priv) && GRAPHICS_VER(dev_priv) < 11)
 		to_gt(dev_priv)->pm_guc_events = GUC_INTR_GUC2HOST << 16;
-
-	if (!HAS_DISPLAY(dev_priv))
-		return;
-
-	dev_priv->drm.vblank_disable_immediate = true;
-
-	/* Most platforms treat the display irq block as an always-on
-	 * power domain. vlv/chv can disable it at runtime and need
-	 * special care to avoid writing any of the display block registers
-	 * outside of the power domain. We defer setting up the display irqs
-	 * in this case to the runtime pm.
-	 */
-	dev_priv->display_irqs_enabled = true;
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		dev_priv->display_irqs_enabled = false;
-
-	intel_hotplug_irq_init(dev_priv);
 }
 
 /**

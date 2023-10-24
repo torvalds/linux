@@ -220,6 +220,13 @@ static int uvd_v4_2_hw_fini(void *handle)
 	return 0;
 }
 
+static int uvd_v4_2_prepare_suspend(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return amdgpu_uvd_prepare_suspend(adev);
+}
+
 static int uvd_v4_2_suspend(void *handle)
 {
 	int r;
@@ -756,6 +763,7 @@ static const struct amd_ip_funcs uvd_v4_2_ip_funcs = {
 	.sw_fini = uvd_v4_2_sw_fini,
 	.hw_init = uvd_v4_2_hw_init,
 	.hw_fini = uvd_v4_2_hw_fini,
+	.prepare_suspend = uvd_v4_2_prepare_suspend,
 	.suspend = uvd_v4_2_suspend,
 	.resume = uvd_v4_2_resume,
 	.is_idle = uvd_v4_2_is_idle,

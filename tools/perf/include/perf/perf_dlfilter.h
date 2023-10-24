@@ -91,6 +91,7 @@ struct perf_dlfilter_al {
 	/* Below members are only populated by resolve_ip() */
 	__u8 filtered; /* True if this sample event will be filtered out */
 	const char *comm;
+	void *priv; /* Private data. Do not change */
 };
 
 struct perf_dlfilter_fns {
@@ -102,7 +103,8 @@ struct perf_dlfilter_fns {
 	char **(*args)(void *ctx, int *dlargc);
 	/*
 	 * Return information about address (al->size must be set before
-	 * calling). Returns 0 on success, -1 otherwise.
+	 * calling). Returns 0 on success, -1 otherwise. Call al_cleanup()
+	 * when 'al' data is no longer needed.
 	 */
 	__s32 (*resolve_address)(void *ctx, __u64 address, struct perf_dlfilter_al *al);
 	/* Return instruction bytes and length */
@@ -113,8 +115,13 @@ struct perf_dlfilter_fns {
 	struct perf_event_attr *(*attr)(void *ctx);
 	/* Read object code, return numbers of bytes read */
 	__s32 (*object_code)(void *ctx, __u64 ip, void *buf, __u32 len);
+	/*
+	 * If present (i.e. must check al_cleanup != NULL), call after
+	 * resolve_address() to free any associated resources.
+	 */
+	void (*al_cleanup)(void *ctx, struct perf_dlfilter_al *al);
 	/* Reserved */
-	void *(*reserved[120])(void *);
+	void *(*reserved[119])(void *);
 };
 
 /*

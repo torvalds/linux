@@ -22,6 +22,15 @@
 #include "smc_ib.h"
 
 #define SMC_RMBS_PER_LGR_MAX	255	/* max. # of RMBs per link group */
+#define SMC_CONN_PER_LGR_MIN	16	/* min. # of connections per link group */
+#define SMC_CONN_PER_LGR_MAX	255	/* max. # of connections per link group,
+					 * also is the default value for SMC-R v1 and v2.0
+					 */
+#define SMC_CONN_PER_LGR_PREFER	255	/* Preferred connections per link group used for
+					 * SMC-R v2.1 and later negotiation, vendors or
+					 * distrubutions may modify it to a value between
+					 * 16-255 as needed.
+					 */
 
 struct smc_lgr_list {			/* list of link group definition */
 	struct list_head	list;
@@ -164,6 +173,15 @@ struct smc_link {
  */
 #define SMC_LINKS_PER_LGR_MAX	3
 #define SMC_SINGLE_LINK		0
+#define SMC_LINKS_ADD_LNK_MIN	1	/* min. # of links per link group */
+#define SMC_LINKS_ADD_LNK_MAX	2	/* max. # of links per link group, also is the
+					 * default value for smc-r v1.0 and v2.0
+					 */
+#define SMC_LINKS_PER_LGR_MAX_PREFER	2	/* Preferred max links per link group used for
+						 * SMC-R v2.1 and later negotiation, vendors or
+						 * distrubutions may modify it to a value between
+						 * 1-2 as needed.
+						 */
 
 /* tx/rx buffer list element for sndbufs list and rmbs list of a lgr */
 struct smc_buf_desc {
@@ -331,6 +349,10 @@ struct smc_link_group {
 			__be32			saddr;
 						/* net namespace */
 			struct net		*net;
+			u8			max_conns;
+						/* max conn can be assigned to lgr */
+			u8			max_links;
+						/* max links can be added in lgr */
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;
@@ -374,6 +396,9 @@ struct smc_init_info {
 	u8			is_smcd;
 	u8			smc_type_v1;
 	u8			smc_type_v2;
+	u8			release_nr;
+	u8			max_conns;
+	u8			max_links;
 	u8			first_contact_peer;
 	u8			first_contact_local;
 	unsigned short		vlan_id;
@@ -539,7 +564,6 @@ int smc_vlan_by_tcpsk(struct socket *clcsock, struct smc_init_info *ini);
 
 void smc_conn_free(struct smc_connection *conn);
 int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini);
-void smc_lgr_schedule_free_work_fast(struct smc_link_group *lgr);
 int smc_core_init(void);
 void smc_core_exit(void);
 

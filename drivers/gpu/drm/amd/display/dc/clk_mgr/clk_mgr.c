@@ -48,6 +48,7 @@
 #include "dcn315/dcn315_clk_mgr.h"
 #include "dcn316/dcn316_clk_mgr.h"
 #include "dcn32/dcn32_clk_mgr.h"
+#include "dcn35/dcn35_clk_mgr.h"
 
 int clk_mgr_helper_get_active_display_cnt(
 		struct dc *dc,
@@ -117,6 +118,7 @@ void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_m
 				continue;
 			clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
 			dc->link_srv->edp_set_psr_allow_active(edp_link, &allow_active, false, false, NULL);
+			dc->link_srv->edp_set_replay_allow_active(edp_link, &allow_active, false, false, NULL);
 		}
 	}
 
@@ -136,6 +138,8 @@ void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 			if (!edp_link->psr_settings.psr_feature_enabled)
 				continue;
 			dc->link_srv->edp_set_psr_allow_active(edp_link,
+					&clk_mgr->psr_allow_active_cache, false, false, NULL);
+			dc->link_srv->edp_set_replay_allow_active(edp_link,
 					&clk_mgr->psr_allow_active_cache, false, false, NULL);
 		}
 	}
@@ -351,6 +355,19 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 	break;
 
+	case AMDGPU_FAMILY_GC_11_5_0: {
+		struct clk_mgr_dcn35 *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
+
+		dcn35_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+		return &clk_mgr->base.base;
+	}
+	break;
+
 #endif /* CONFIG_DRM_AMD_DC_FP - Family RV */
 	default:
 		ASSERT(0); /* Unknown Asic */
@@ -400,6 +417,10 @@ void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 
 	case AMDGPU_FAMILY_GC_11_0_1:
 		dcn314_clk_mgr_destroy(clk_mgr);
+		break;
+
+	case AMDGPU_FAMILY_GC_11_5_0:
+		dcn35_clk_mgr_destroy(clk_mgr);
 		break;
 
 	default:

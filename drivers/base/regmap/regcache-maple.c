@@ -74,7 +74,7 @@ static int regcache_maple_write(struct regmap *map, unsigned int reg,
 	rcu_read_unlock();
 
 	entry = kmalloc((last - index + 1) * sizeof(unsigned long),
-			GFP_KERNEL);
+			map->alloc_flags);
 	if (!entry)
 		return -ENOMEM;
 
@@ -92,7 +92,7 @@ static int regcache_maple_write(struct regmap *map, unsigned int reg,
 	mas_lock(&mas);
 
 	mas_set_range(&mas, index, last);
-	ret = mas_store_gfp(&mas, entry, GFP_KERNEL);
+	ret = mas_store_gfp(&mas, entry, map->alloc_flags);
 
 	mas_unlock(&mas);
 
@@ -134,7 +134,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 
 			lower = kmemdup(entry, ((min - mas.index) *
 						sizeof(unsigned long)),
-					GFP_KERNEL);
+					map->alloc_flags);
 			if (!lower) {
 				ret = -ENOMEM;
 				goto out_unlocked;
@@ -148,7 +148,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 			upper = kmemdup(&entry[max + 1],
 					((mas.last - max) *
 					 sizeof(unsigned long)),
-					GFP_KERNEL);
+					map->alloc_flags);
 			if (!upper) {
 				ret = -ENOMEM;
 				goto out_unlocked;
@@ -162,7 +162,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 		/* Insert new nodes with the saved data */
 		if (lower) {
 			mas_set_range(&mas, lower_index, lower_last);
-			ret = mas_store_gfp(&mas, lower, GFP_KERNEL);
+			ret = mas_store_gfp(&mas, lower, map->alloc_flags);
 			if (ret != 0)
 				goto out;
 			lower = NULL;
@@ -170,7 +170,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 
 		if (upper) {
 			mas_set_range(&mas, upper_index, upper_last);
-			ret = mas_store_gfp(&mas, upper, GFP_KERNEL);
+			ret = mas_store_gfp(&mas, upper, map->alloc_flags);
 			if (ret != 0)
 				goto out;
 			upper = NULL;
@@ -320,7 +320,7 @@ static int regcache_maple_insert_block(struct regmap *map, int first,
 	unsigned long *entry;
 	int i, ret;
 
-	entry = kcalloc(last - first + 1, sizeof(unsigned long), GFP_KERNEL);
+	entry = kcalloc(last - first + 1, sizeof(unsigned long), map->alloc_flags);
 	if (!entry)
 		return -ENOMEM;
 
@@ -331,7 +331,7 @@ static int regcache_maple_insert_block(struct regmap *map, int first,
 
 	mas_set_range(&mas, map->reg_defaults[first].reg,
 		      map->reg_defaults[last].reg);
-	ret = mas_store_gfp(&mas, entry, GFP_KERNEL);
+	ret = mas_store_gfp(&mas, entry, map->alloc_flags);
 
 	mas_unlock(&mas);
 

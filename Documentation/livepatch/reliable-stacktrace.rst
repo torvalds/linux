@@ -40,7 +40,7 @@ Principally, the reliable stacktrace function must ensure that either:
 .. note::
    In some cases it is legitimate to omit specific functions from the trace,
    but all other functions must be reported. These cases are described in
-   futher detail below.
+   further detail below.
 
 Secondly, the reliable stacktrace function must be robust to cases where
 the stack or other unwind state is corrupt or otherwise unreliable. The

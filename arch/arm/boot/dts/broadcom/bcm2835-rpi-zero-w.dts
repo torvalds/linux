@@ -97,6 +97,7 @@
 			  "SD_DATA2_R",
 			  "SD_DATA3_R";
 
+	pinctrl-names = "default";
 	pinctrl-0 = <&gpioout &alt0>;
 };
 
@@ -111,6 +112,7 @@
 };
 
 &sdhci {
+	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_gpio34 &gpclk2_gpio43>;
 };
 

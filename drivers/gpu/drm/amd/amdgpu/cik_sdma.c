@@ -925,8 +925,13 @@ static void cik_enable_sdma_mgls(struct amdgpu_device *adev,
 static int cik_sdma_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
 
 	adev->sdma.num_instances = SDMA_MAX_INSTANCE;
+
+	r = cik_sdma_init_microcode(adev);
+	if (r)
+		return r;
 
 	cik_sdma_set_ring_funcs(adev);
 	cik_sdma_set_irq_funcs(adev);
@@ -941,12 +946,6 @@ static int cik_sdma_sw_init(void *handle)
 	struct amdgpu_ring *ring;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r, i;
-
-	r = cik_sdma_init_microcode(adev);
-	if (r) {
-		DRM_ERROR("Failed to load sdma firmware!\n");
-		return r;
-	}
 
 	/* SDMA trap event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 224,

@@ -43,12 +43,20 @@ static char *ivpu_firmware;
 module_param_named_unsafe(firmware, ivpu_firmware, charp, 0644);
 MODULE_PARM_DESC(firmware, "VPU firmware binary in /lib/firmware/..");
 
+/* TODO: Remove mtl_vpu.bin from names after transition to generation based FW names */
+static struct {
+	int gen;
+	const char *name;
+} fw_names[] = {
+	{ IVPU_HW_37XX, "vpu_37xx.bin" },
+	{ IVPU_HW_37XX, "mtl_vpu.bin" },
+	{ IVPU_HW_37XX, "intel/vpu/vpu_37xx_v0.0.bin" },
+	{ IVPU_HW_40XX, "vpu_40xx.bin" },
+	{ IVPU_HW_40XX, "intel/vpu/vpu_40xx_v0.0.bin" },
+};
+
 static int ivpu_fw_request(struct ivpu_device *vdev)
 {
-	static const char * const fw_names[] = {
-		"mtl_vpu.bin",
-		"intel/vpu/mtl_vpu_v0.0.bin"
-	};
 	int ret = -ENOENT;
 	int i;
 
@@ -60,9 +68,12 @@ static int ivpu_fw_request(struct ivpu_device *vdev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fw_names); i++) {
-		ret = firmware_request_nowarn(&vdev->fw->file, fw_names[i], vdev->drm.dev);
+		if (fw_names[i].gen != ivpu_hw_gen(vdev))
+			continue;
+
+		ret = firmware_request_nowarn(&vdev->fw->file, fw_names[i].name, vdev->drm.dev);
 		if (!ret) {
-			vdev->fw->name = fw_names[i];
+			vdev->fw->name = fw_names[i].name;
 			return 0;
 		}
 	}
@@ -195,7 +206,7 @@ static int ivpu_fw_update_global_range(struct ivpu_device *vdev)
 		return -EINVAL;
 	}
 
-	ivpu_hw_init_range(&vdev->hw->ranges.global_low, start, size);
+	ivpu_hw_init_range(&vdev->hw->ranges.global, start, size);
 	return 0;
 }
 
@@ -236,7 +247,7 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 	}
 
 	if (fw->shave_nn_size) {
-		fw->mem_shave_nn = ivpu_bo_alloc_internal(vdev, vdev->hw->ranges.global_high.start,
+		fw->mem_shave_nn = ivpu_bo_alloc_internal(vdev, vdev->hw->ranges.shave.start,
 							  fw->shave_nn_size, DRM_IVPU_BO_UNCACHED);
 		if (!fw->mem_shave_nn) {
 			ivpu_err(vdev, "Failed to allocate shavenn buffer\n");
@@ -290,6 +301,8 @@ int ivpu_fw_init(struct ivpu_device *vdev)
 	if (ret)
 		goto err_fw_release;
 
+	ivpu_fw_load(vdev);
+
 	return 0;
 
 err_fw_release:
@@ -303,7 +316,7 @@ void ivpu_fw_fini(struct ivpu_device *vdev)
 	ivpu_fw_release(vdev);
 }
 
-int ivpu_fw_load(struct ivpu_device *vdev)
+void ivpu_fw_load(struct ivpu_device *vdev)
 {
 	struct ivpu_fw_info *fw = vdev->fw;
 	u64 image_end_offset = fw->image_load_offset + fw->image_size;
@@ -320,8 +333,6 @@ int ivpu_fw_load(struct ivpu_device *vdev)
 	}
 
 	wmb(); /* Flush WC buffers after writing fw->mem */
-
-	return 0;
 }
 
 static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_params *boot_params)
@@ -421,6 +432,7 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	if (!ivpu_fw_is_cold_boot(vdev)) {
 		boot_params->save_restore_ret_address = 0;
 		vdev->pm->is_warmboot = true;
+		wmb(); /* Flush WC buffers after writing save_restore_ret_address */
 		return;
 	}
 
@@ -434,9 +446,9 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	 * Uncached region of VPU address space, covers IPC buffers, job queues
 	 * and log buffers, programmable to L2$ Uncached by VPU MTRR
 	 */
-	boot_params->shared_region_base = vdev->hw->ranges.global_low.start;
-	boot_params->shared_region_size = vdev->hw->ranges.global_low.end -
-					  vdev->hw->ranges.global_low.start;
+	boot_params->shared_region_base = vdev->hw->ranges.global.start;
+	boot_params->shared_region_size = vdev->hw->ranges.global.end -
+					  vdev->hw->ranges.global.start;
 
 	boot_params->ipc_header_area_start = ipc_mem_rx->vpu_addr;
 	boot_params->ipc_header_area_size = ipc_mem_rx->base.size / 2;
@@ -444,10 +456,8 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->ipc_payload_area_start = ipc_mem_rx->vpu_addr + ipc_mem_rx->base.size / 2;
 	boot_params->ipc_payload_area_size = ipc_mem_rx->base.size / 2;
 
-	boot_params->global_aliased_pio_base =
-		vdev->hw->ranges.global_aliased_pio.start;
-	boot_params->global_aliased_pio_size =
-		ivpu_hw_range_size(&vdev->hw->ranges.global_aliased_pio);
+	boot_params->global_aliased_pio_base = vdev->hw->ranges.user.start;
+	boot_params->global_aliased_pio_size = ivpu_hw_range_size(&vdev->hw->ranges.user);
 
 	/* Allow configuration for L2C_PAGE_TABLE with boot param value */
 	boot_params->autoconfig = 1;
@@ -455,7 +465,7 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	/* Enable L2 cache for first 2GB of high memory */
 	boot_params->cache_defaults[VPU_BOOT_L2_CACHE_CFG_NN].use = 1;
 	boot_params->cache_defaults[VPU_BOOT_L2_CACHE_CFG_NN].cfg =
-		ADDR_TO_L2_CACHE_CFG(vdev->hw->ranges.global_high.start);
+		ADDR_TO_L2_CACHE_CFG(vdev->hw->ranges.shave.start);
 
 	if (vdev->fw->mem_shave_nn)
 		boot_params->shave_nn_fw_base = vdev->fw->mem_shave_nn->vpu_addr;

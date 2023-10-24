@@ -412,6 +412,13 @@ config HID_GOOGLE_HAMMER
 	help
 	Say Y here if you have a Google Hammer device.
 
+config HID_GOOGLE_STADIA_FF
+	tristate "Google Stadia force feedback"
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you want to enable force feedback support for the Google
+	Stadia controller.
+
 config HID_VIVALDI
 	tristate "Vivaldi Keyboard"
 	select HID_VIVALDI_COMMON
@@ -792,6 +799,8 @@ config HID_NVIDIA_SHIELD
 	tristate "NVIDIA SHIELD devices"
 	depends on USB_HID
 	depends on BT_HIDP
+	depends on LEDS_CLASS
+	select POWER_SUPPLY
 	help
 	  Support for NVIDIA SHIELD accessories.
 
@@ -871,11 +880,7 @@ config HID_PICOLCD_FB
 	default !EXPERT
 	depends on HID_PICOLCD
 	depends on HID_PICOLCD=FB || FB=y
-	select FB_DEFERRED_IO
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
+	select FB_SYSMEM_HELPERS_DEFERRED
 	help
 	  Provide access to PicoLCD's 256x64 monochrome display via a
 	  framebuffer device.
@@ -1037,7 +1042,7 @@ config HID_SONY
 	  * Guitar Hero PS3 and PC guitar dongles
 
 config SONY_FF
-	bool "Sony PS2/3/4 accessories force feedback support" 
+	bool "Sony PS2/3/4 accessories force feedback support"
 	depends on HID_SONY
 	select INPUT_FF_MEMLESS
 	help
@@ -1066,9 +1071,11 @@ config STEAM_FF
 	Deck.
 
 config HID_STEELSERIES
-	tristate "Steelseries SRW-S1 steering wheel support"
+	tristate "Steelseries devices support"
+	depends on USB_HID
 	help
-	Support for Steelseries SRW-S1 steering wheel
+	Support for Steelseries SRW-S1 steering wheel, and the Steelseries
+	Arctis 1 Wireless for XBox headset.
 
 config HID_SUNPLUS
 	tristate "Sunplus wireless desktop"

@@ -38,6 +38,91 @@
 			wakeup-source;
 		};
 	};
+
+	vreg_hdmi_out_1p2: regulator-hdmi-out-1p2 {
+		compatible = "regulator-fixed";
+		regulator-name = "VREG_HDMI_OUT_1P2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		vin-supply = <&vdc_1v2>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	lt9611_3v3: regulator-lt9611-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "LT9611_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vdc_3v3>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	/* Main barrel jack input */
+	vdc_12v: regulator-vdc-12v {
+		compatible = "regulator-fixed";
+		regulator-name = "DC_12V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	/* 1.2V supply stepped down from the barrel jack input */
+	vdc_1v2: regulator-vdc-1v2 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDC_1V2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		vin-supply = <&vdc_12v>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	/* 3.3V supply stepped down from the barrel jack input */
+	vdc_3v3: regulator-vdc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDC_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vdc_12v>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	/* 5V supply stepped down from the barrel jack input */
+	vdc_5v: regulator-vdc-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "VDC_5V";
+
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	/* "Battery" voltage for the SoM, stepped down from the barrel jack input */
+	vdc_vbat_som: regulator-vdc-vbat {
+		compatible = "regulator-fixed";
+		regulator-name = "VBAT_SOM";
+		regulator-min-microvolt = <4200000>;
+		regulator-max-microvolt = <4200000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	/* PM2250 charger out, supplied by VBAT */
+	vph_pwr: regulator-vph-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "vph_pwr";
+		regulator-min-microvolt = <3700000>;
+		regulator-max-microvolt = <3700000>;
+		vin-supply = <&vdc_vbat_som>;
+
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &pm2250_resin {
@@ -49,7 +134,183 @@
 	status = "okay";
 };
 
+&rpm_requests {
+	regulators {
+		compatible = "qcom,rpm-pm2250-regulators";
+		vdd_s3-supply = <&vph_pwr>;
+		vdd_s4-supply = <&vph_pwr>;
+		vdd_l1_l2_l3_l5_l6_l7_l8_l9_l10_l11_l12-supply = <&pm2250_s3>;
+		vdd_l4_l17_l18_l19_l20_l21_l22-supply = <&vph_pwr>;
+		vdd_l13_l14_l15_l16-supply = <&pm2250_s4>;
+
+		/*
+		 * S1 - VDD_APC
+		 * S2 - VDD_CX
+		 */
+
+		pm2250_s3: s3 {
+			/* 0.4V-1.6625V -> 1.3V (Power tree requirements) */
+			regulator-min-microvolts = <1350000>;
+			regulator-max-microvolts = <1350000>;
+			regulator-boot-on;
+		};
+
+		pm2250_s4: s4 {
+			/* 1.2V-2.35V -> 2.05V (Power tree requirements) */
+			regulator-min-microvolts = <2072000>;
+			regulator-max-microvolts = <2072000>;
+			regulator-boot-on;
+		};
+
+		/* L1 - VDD_MX */
+
+		pm2250_l2: l2 {
+			/* LPDDR4X VDD2 */
+			regulator-min-microvolts = <1136000>;
+			regulator-max-microvolts = <1136000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		pm2250_l3: l3 {
+			/* LPDDR4X VDDQ */
+			regulator-min-microvolts = <616000>;
+			regulator-max-microvolts = <616000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		pm2250_l4: l4 {
+			/* max = 3.05V -> max = just below 3V (SDHCI2) */
+			regulator-min-microvolts = <1648000>;
+			regulator-max-microvolts = <2992000>;
+			regulator-allow-set-load;
+		};
+
+		pm2250_l5: l5 {
+			/* CSI/DSI */
+			regulator-min-microvolts = <1232000>;
+			regulator-max-microvolts = <1232000>;
+			regulator-allow-set-load;
+			regulator-boot-on;
+		};
+
+		pm2250_l6: l6 {
+			/* DRAM PLL */
+			regulator-min-microvolts = <928000>;
+			regulator-max-microvolts = <928000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		pm2250_l7: l7 {
+			/* Wi-Fi CX/MX */
+			regulator-min-microvolts = <664000>;
+			regulator-max-microvolts = <664000>;
+		};
+
+		/*
+		 * L8 - VDD_LPI_CX
+		 * L9 - VDD_LPI_MX
+		 */
+
+		pm2250_l10: l10 {
+			/* Wi-Fi RFA */
+			regulator-min-microvolts = <1300000>;
+			regulator-max-microvolts = <1300000>;
+		};
+
+		pm2250_l11: l11 {
+			/* GPS RF1 */
+			regulator-min-microvolts = <1000000>;
+			regulator-max-microvolts = <1000000>;
+			regulator-boot-on;
+		};
+
+		pm2250_l12: l12 {
+			/* USB PHYs */
+			regulator-min-microvolts = <928000>;
+			regulator-max-microvolts = <928000>;
+			regulator-allow-set-load;
+			regulator-boot-on;
+		};
+
+		pm2250_l13: l13 {
+			/* USB/QFPROM/PLLs */
+			regulator-min-microvolts = <1800000>;
+			regulator-max-microvolts = <1800000>;
+			regulator-allow-set-load;
+			regulator-boot-on;
+		};
+
+		pm2250_l14: l14 {
+			/* SDHCI1 VQMMC */
+			regulator-min-microvolts = <1800000>;
+			regulator-max-microvolts = <1800000>;
+			regulator-allow-set-load;
+			/* Broken hardware, never turn it off! */
+			regulator-always-on;
+		};
+
+		pm2250_l15: l15 {
+			/* WCD/DSI/BT VDDIO */
+			regulator-min-microvolts = <1800000>;
+			regulator-max-microvolts = <1800000>;
+			regulator-allow-set-load;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		pm2250_l16: l16 {
+			/* GPS RF2 */
+			regulator-min-microvolts = <1800000>;
+			regulator-max-microvolts = <1800000>;
+			regulator-boot-on;
+		};
+
+		pm2250_l17: l17 {
+			regulator-min-microvolts = <3000000>;
+			regulator-max-microvolts = <3000000>;
+		};
+
+		pm2250_l18: l18 {
+			/* VDD_PXn */
+			regulator-min-microvolts = <1800000>;
+			regulator-max-microvolts = <1800000>;
+		};
+
+		pm2250_l19: l19 {
+			/* VDD_PXn */
+			regulator-min-microvolts = <1800000>;
+			regulator-max-microvolts = <1800000>;
+		};
+
+		pm2250_l20: l20 {
+			/* SDHCI1 VMMC */
+			regulator-min-microvolts = <2856000>;
+			regulator-max-microvolts = <2856000>;
+			regulator-allow-set-load;
+		};
+
+		pm2250_l21: l21 {
+			/* SDHCI2 VMMC */
+			regulator-min-microvolts = <2960000>;
+			regulator-max-microvolts = <3300000>;
+			regulator-allow-set-load;
+			regulator-boot-on;
+		};
+
+		pm2250_l22: l22 {
+			/* Wi-Fi */
+			regulator-min-microvolts = <3312000>;
+			regulator-max-microvolts = <3312000>;
+		};
+	};
+};
+
 &sdhc_1 {
+	vmmc-supply = <&pm2250_l20>;
+	vqmmc-supply = <&pm2250_l14>;
 	pinctrl-0 = <&sdc1_state_on>;
 	pinctrl-1 = <&sdc1_state_off>;
 	pinctrl-names = "default", "sleep";
@@ -61,6 +322,8 @@
 };
 
 &sdhc_2 {
+	vmmc-supply = <&pm2250_l21>;
+	vqmmc-supply = <&pm2250_l4>;
 	cd-gpios = <&tlmm 88 GPIO_ACTIVE_LOW>;
 	pinctrl-0 = <&sdc2_state_on &sd_det_in_on>;
 	pinctrl-1 = <&sdc2_state_off &sd_det_in_off>;
@@ -104,6 +367,9 @@
 };
 
 &usb_hsphy {
+	vdd-supply = <&pm2250_l12>;
+	vdda-pll-supply = <&pm2250_l13>;
+	vdda-phy-dpdm-supply = <&pm2250_l21>;
 	status = "okay";
 };
 

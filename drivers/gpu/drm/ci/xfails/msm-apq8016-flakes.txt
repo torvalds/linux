@@ -1,0 +1,4 @@
+kms_force_connector_basic@force-connector-state
+kms_force_connector_basic@force-edid
+kms_force_connector_basic@force-load-detect
+kms_force_connector_basic@prune-stale-modes

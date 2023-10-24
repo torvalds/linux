@@ -46,7 +46,7 @@ request queue into the application's virtual address space.
 The application can then submit one or more requests to the engine by
 using copy/paste instructions and pasting the CRBs to the virtual address
 (aka paste_address) returned by mmap(). User space can close the
-established connection or send window by closing the file descriptior
+established connection or send window by closing the file descriptor
 (close(fd)) or upon the process exit.
 
 Note that applications can send several requests with the same window or
@@ -240,7 +240,7 @@ issued. This signal returns with the following siginfo struct::
 	siginfo.si_signo = SIGSEGV;
 	siginfo.si_errno = EFAULT;
 	siginfo.si_code = SEGV_MAPERR;
-	siginfo.si_addr = CSB adress;
+	siginfo.si_addr = CSB address;
 
 In the case of multi-thread applications, NX send windows can be shared
 across all threads. For example, a child thread can open a send window,

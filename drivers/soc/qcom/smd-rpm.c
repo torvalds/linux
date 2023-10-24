@@ -19,7 +19,6 @@
 /**
  * struct qcom_smd_rpm - state of the rpm device driver
  * @rpm_channel:	reference to the smd channel
- * @icc:		interconnect proxy device
  * @dev:		rpm device
  * @ack:		completion for acks
  * @lock:		mutual exclusion around the send/complete pair
@@ -27,7 +26,6 @@
  */
 struct qcom_smd_rpm {
 	struct rpmsg_endpoint *rpm_channel;
-	struct platform_device *icc;
 	struct device *dev;
 
 	struct completion ack;
@@ -197,7 +195,9 @@ static int qcom_smd_rpm_callback(struct rpmsg_device *rpdev,
 static int qcom_smd_rpm_probe(struct rpmsg_device *rpdev)
 {
 	struct qcom_smd_rpm *rpm;
-	int ret;
+
+	if (!rpdev->dev.of_node)
+		return -EINVAL;
 
 	rpm = devm_kzalloc(&rpdev->dev, sizeof(*rpm), GFP_KERNEL);
 	if (!rpm)
@@ -210,58 +210,26 @@ static int qcom_smd_rpm_probe(struct rpmsg_device *rpdev)
 	rpm->rpm_channel = rpdev->ept;
 	dev_set_drvdata(&rpdev->dev, rpm);
 
-	rpm->icc = platform_device_register_data(&rpdev->dev, "icc_smd_rpm", -1,
-						 NULL, 0);
-	if (IS_ERR(rpm->icc))
-		return PTR_ERR(rpm->icc);
-
-	ret = of_platform_populate(rpdev->dev.of_node, NULL, NULL, &rpdev->dev);
-	if (ret)
-		platform_device_unregister(rpm->icc);
-
-	return ret;
+	return of_platform_populate(rpdev->dev.of_node, NULL, NULL, &rpdev->dev);
 }
 
 static void qcom_smd_rpm_remove(struct rpmsg_device *rpdev)
 {
-	struct qcom_smd_rpm *rpm = dev_get_drvdata(&rpdev->dev);
-
-	platform_device_unregister(rpm->icc);
 	of_platform_depopulate(&rpdev->dev);
 }
 
-static const struct of_device_id qcom_smd_rpm_of_match[] = {
-	{ .compatible = "qcom,rpm-apq8084" },
-	{ .compatible = "qcom,rpm-ipq6018" },
-	{ .compatible = "qcom,rpm-ipq9574" },
-	{ .compatible = "qcom,rpm-msm8226" },
-	{ .compatible = "qcom,rpm-msm8909" },
-	{ .compatible = "qcom,rpm-msm8916" },
-	{ .compatible = "qcom,rpm-msm8936" },
-	{ .compatible = "qcom,rpm-msm8953" },
-	{ .compatible = "qcom,rpm-msm8974" },
-	{ .compatible = "qcom,rpm-msm8976" },
-	{ .compatible = "qcom,rpm-msm8994" },
-	{ .compatible = "qcom,rpm-msm8996" },
-	{ .compatible = "qcom,rpm-msm8998" },
-	{ .compatible = "qcom,rpm-sdm660" },
-	{ .compatible = "qcom,rpm-sm6115" },
-	{ .compatible = "qcom,rpm-sm6125" },
-	{ .compatible = "qcom,rpm-sm6375" },
-	{ .compatible = "qcom,rpm-qcm2290" },
-	{ .compatible = "qcom,rpm-qcs404" },
-	{}
+static const struct rpmsg_device_id qcom_smd_rpm_id_table[] = {
+	{ .name = "rpm_requests", },
+	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, qcom_smd_rpm_of_match);
+MODULE_DEVICE_TABLE(rpmsg, qcom_smd_rpm_id_table);
 
 static struct rpmsg_driver qcom_smd_rpm_driver = {
 	.probe = qcom_smd_rpm_probe,
 	.remove = qcom_smd_rpm_remove,
 	.callback = qcom_smd_rpm_callback,
-	.drv  = {
-		.name  = "qcom_smd_rpm",
-		.of_match_table = qcom_smd_rpm_of_match,
-	},
+	.id_table = qcom_smd_rpm_id_table,
+	.drv.name = "qcom_smd_rpm",
 };
 
 static int __init qcom_smd_rpm_init(void)

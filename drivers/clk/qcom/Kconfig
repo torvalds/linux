@@ -145,6 +145,14 @@ config IPQ_GCC_4019
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, SD/eMMC, etc.
 
+config IPQ_GCC_5018
+	tristate "IPQ5018 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  Support for global clock controller on ipq5018 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc.
+
 config IPQ_GCC_5332
 	tristate "IPQ5332 Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -247,11 +255,11 @@ config MSM_GCC_8960
 	  i2c, USB, SD/eMMC, SATA, PCIe, etc.
 
 config MSM_LCC_8960
-	tristate "APQ8064/MSM8960 LPASS Clock Controller"
+	tristate "APQ8064/MSM8960/MDM9650 LPASS Clock Controller"
 	depends on ARM || COMPILE_TEST
-	select MSM_GCC_8960
 	help
-	  Support for the LPASS clock controller on apq8064/msm8960 devices.
+	  Support for the LPASS clock controller on apq8064/msm8960/mdm9650
+	  devices.
 	  Say Y if you want to use audio devices such as i2s, pcm,
 	  SLIMBus, etc.
 
@@ -270,15 +278,6 @@ config MDM_GCC_9615
 	  Support for the global clock controller on mdm9615 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, SD/eMMC, etc.
-
-config MDM_LCC_9615
-	tristate "MDM9615 LPASS Clock Controller"
-	depends on ARM || COMPILE_TEST
-	select MDM_GCC_9615
-	help
-	  Support for the LPASS clock controller on mdm9615 devices.
-	  Say Y if you want to use audio devices such as i2s, pcm,
-	  SLIMBus, etc.
 
 config MSM_MMCC_8960
 	tristate "MSM8960 Multimedia Clock Controller"
@@ -987,6 +986,7 @@ config SM_GPUCC_8350
 
 config SM_GPUCC_8450
 	tristate "SM8450 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8450
 	help
 	  Support for the graphics clock controller on SM8450 devices.
@@ -995,6 +995,7 @@ config SM_GPUCC_8450
 
 config SM_GPUCC_8550
 	tristate "SM8550 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8550
 	help
 	  Support for the graphics clock controller on SM8550 devices.
@@ -1031,6 +1032,7 @@ config SM_VIDEOCC_8250
 
 config SM_VIDEOCC_8350
 	tristate "SM8350 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8350
 	select QCOM_GDSC
 	help
@@ -1040,6 +1042,7 @@ config SM_VIDEOCC_8350
 
 config SM_VIDEOCC_8550
 	tristate "SM8550 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8550
 	select QCOM_GDSC
 	help
@@ -1088,6 +1091,7 @@ config CLK_GFM_LPASS_SM8250
 
 config SM_VIDEOCC_8450
 	tristate "SM8450 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8450
 	select QCOM_GDSC
 	help

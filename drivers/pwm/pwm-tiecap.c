@@ -12,7 +12,7 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/pwm.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 /* ECAP registers and bits definitions */
 #define CAP1			0x08

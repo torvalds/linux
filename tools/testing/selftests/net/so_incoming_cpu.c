@@ -159,7 +159,7 @@ void create_clients(struct __test_metadata *_metadata,
 		/* Make sure SYN will be processed on the i-th CPU
 		 * and finally distributed to the i-th listener.
 		 */
-		sched_setaffinity(0, sizeof(cpu_set), &cpu_set);
+		ret = sched_setaffinity(0, sizeof(cpu_set), &cpu_set);
 		ASSERT_EQ(ret, 0);
 
 		for (j = 0; j < CLIENT_PER_SERVER; j++) {

@@ -6,6 +6,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
@@ -37,9 +38,9 @@ struct cros_ec_pwm {
 	u16 duty_cycle;
 };
 
-static inline struct cros_ec_pwm_device *pwm_to_cros_ec_pwm(struct pwm_chip *c)
+static inline struct cros_ec_pwm_device *pwm_to_cros_ec_pwm(struct pwm_chip *chip)
 {
-	return container_of(c, struct cros_ec_pwm_device, chip);
+	return container_of(chip, struct cros_ec_pwm_device, chip);
 }
 
 static int cros_ec_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -218,14 +219,14 @@ static int cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 }
 
 static struct pwm_device *
-cros_ec_pwm_xlate(struct pwm_chip *pc, const struct of_phandle_args *args)
+cros_ec_pwm_xlate(struct pwm_chip *chip, const struct of_phandle_args *args)
 {
 	struct pwm_device *pwm;
 
-	if (args->args[0] >= pc->npwm)
+	if (args->args[0] >= chip->npwm)
 		return ERR_PTR(-EINVAL);
 
-	pwm = pwm_request_from_chip(pc, args->args[0], NULL);
+	pwm = pwm_request_from_chip(chip, args->args[0], NULL);
 	if (IS_ERR(pwm))
 		return pwm;
 

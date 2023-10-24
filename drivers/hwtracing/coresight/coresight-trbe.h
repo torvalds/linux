@@ -23,7 +23,7 @@ static inline bool is_trbe_available(void)
 	unsigned int trbe = cpuid_feature_extract_unsigned_field(aa64dfr0,
 								 ID_AA64DFR0_EL1_TraceBuffer_SHIFT);
 
-	return trbe >= 0b0001;
+	return trbe >= ID_AA64DFR0_EL1_TraceBuffer_IMP;
 }
 
 static inline bool is_trbe_enabled(void)

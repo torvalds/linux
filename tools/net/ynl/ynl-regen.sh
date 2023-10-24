@@ -4,15 +4,18 @@
 TOOL=$(dirname $(realpath $0))/ynl-gen-c.py
 
 force=
+search=
 
 while [ ! -z "$1" ]; do
   case "$1" in
     -f ) force=yes; shift ;;
+    -p ) search=$2; shift 2 ;;
     * )  echo "Unrecognized option '$1'"; exit 1 ;;
   esac
 done
 
 KDIR=$(dirname $(dirname $(dirname $(dirname $(realpath $0)))))
+pushd ${search:-$KDIR} >>/dev/null
 
 files=$(git grep --files-with-matches '^/\* YNL-GEN \(kernel\|uapi\|user\)')
 for f in $files; do
@@ -30,3 +33,5 @@ for f in $files; do
     $TOOL --mode ${params[2]} --${params[3]} --spec $KDIR/${params[0]} \
 	  $args -o $f
 done
+
+popd >>/dev/null

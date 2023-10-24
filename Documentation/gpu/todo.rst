@@ -69,7 +69,7 @@ Clean up the clipped coordination confusion around planes
 ---------------------------------------------------------
 
 We have a helper to get this right with drm_plane_helper_check_update(), but
-it's not consistently used. This should be fixed, preferrably in the atomic
+it's not consistently used. This should be fixed, preferably in the atomic
 helpers (and drivers then moved over to clipped coordinates). Probably the
 helper should also be moved from drm_plane_helper.c to the atomic helpers, to
 avoid confusion - the other helpers in that file are all deprecated legacy
@@ -185,13 +185,13 @@ reversed.
 
 To solve this we need one standard per-object locking mechanism, which is
 dma_resv_lock(). This lock needs to be called as the outermost lock, with all
-other driver specific per-object locks removed. The problem is tha rolling out
+other driver specific per-object locks removed. The problem is that rolling out
 the actual change to the locking contract is a flag day, due to struct dma_buf
 buffer sharing.
 
 Level: Expert
 
-Convert logging to drm_* functions with drm_device paramater
+Convert logging to drm_* functions with drm_device parameter
 ------------------------------------------------------------
 
 For drivers which could have multiple instances, it is necessary to
@@ -248,7 +248,7 @@ Level: Advanced
 Benchmark and optimize blitting and format-conversion function
 --------------------------------------------------------------
 
-Drawing to dispay memory quickly is crucial for many applications'
+Drawing to display memory quickly is crucial for many applications'
 performance.
 
 On at least x86-64, sys_imageblit() is significantly slower than

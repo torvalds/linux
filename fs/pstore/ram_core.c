@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <asm/page.h>
 
 #include "ram_internal.h"
@@ -24,12 +25,10 @@
 /**
  * struct persistent_ram_buffer - persistent circular RAM buffer
  *
- * @sig:
- *	signature to indicate header (PERSISTENT_RAM_SIG xor PRZ-type value)
- * @start:
- *	offset into @data where the beginning of the stored bytes begin
- * @size:
- *	number of valid bytes stored in @data
+ * @sig: Signature to indicate header (PERSISTENT_RAM_SIG xor PRZ-type value)
+ * @start: First valid byte in the buffer.
+ * @size: Number of valid bytes in the buffer.
+ * @data: The contents of the buffer.
  */
 struct persistent_ram_buffer {
 	uint32_t    sig;
@@ -301,7 +300,7 @@ void persistent_ram_save_old(struct persistent_ram_zone *prz)
 
 	if (!prz->old_log) {
 		persistent_ram_ecc_old(prz);
-		prz->old_log = kmalloc(size, GFP_KERNEL);
+		prz->old_log = kvzalloc(size, GFP_KERNEL);
 	}
 	if (!prz->old_log) {
 		pr_err("failed to allocate buffer\n");
@@ -385,7 +384,7 @@ void *persistent_ram_old(struct persistent_ram_zone *prz)
 
 void persistent_ram_free_old(struct persistent_ram_zone *prz)
 {
-	kfree(prz->old_log);
+	kvfree(prz->old_log);
 	prz->old_log = NULL;
 	prz->old_log_size = 0;
 }
@@ -519,7 +518,7 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 	sig ^= PERSISTENT_RAM_SIG;
 
 	if (prz->buffer->sig == sig) {
-		if (buffer_size(prz) == 0) {
+		if (buffer_size(prz) == 0 && buffer_start(prz) == 0) {
 			pr_debug("found existing empty buffer\n");
 			return 0;
 		}

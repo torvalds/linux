@@ -1045,7 +1045,7 @@ All time durations are in microseconds.
 	- user_usec
 	- system_usec
 
-	and the following three when the controller is enabled:
+	and the following five when the controller is enabled:
 
 	- nr_periods
 	- nr_throttled

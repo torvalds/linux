@@ -52,8 +52,8 @@ struct ssd1307fb_deviceinfo {
 	u32 default_vcomh;
 	u32 default_dclk_div;
 	u32 default_dclk_frq;
-	int need_pwm;
-	int need_chargepump;
+	bool need_pwm;
+	bool need_chargepump;
 };
 
 struct ssd1307fb_par {
@@ -352,8 +352,8 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 		/* Enable the PWM */
 		pwm_enable(par->pwm);
 
-		dev_dbg(&par->client->dev, "Using PWM%d with a %lluns period.\n",
-			par->pwm->pwm, pwm_get_period(par->pwm));
+		dev_dbg(&par->client->dev, "Using PWM %s with a %lluns period.\n",
+			par->pwm->label, pwm_get_period(par->pwm));
 	}
 
 	/* Set initial contrast */

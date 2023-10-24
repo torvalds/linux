@@ -46,6 +46,9 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: CAN Tx mailbox buffer count (CAN FD)
 
+  resets:
+    maxItems: 1
+
 required:
   - compatible
   - reg

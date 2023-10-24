@@ -22,9 +22,6 @@
 #include <linux/kthread.h>
 #include <linux/device.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
-#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/serial_core.h>
@@ -70,8 +67,9 @@ static void apbuart_stop_rx(struct uart_port *port)
 
 static void apbuart_rx_chars(struct uart_port *port)
 {
-	unsigned int status, ch, rsr, flag;
+	unsigned int status, rsr;
 	unsigned int max_chars = port->fifosize;
+	u8 ch, flag;
 
 	status = UART_GET_STATUS(port);
 

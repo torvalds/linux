@@ -13,7 +13,7 @@ menuconfig UBSAN
 if UBSAN
 
 config UBSAN_TRAP
-	bool "On Sanitizer warnings, abort the running kernel code"
+	bool "Abort on Sanitizer warnings (smaller kernel but less verbose)"
 	depends on !COMPILE_TEST
 	help
 	  Building kernels with Sanitizer features enabled tends to grow
@@ -25,6 +25,14 @@ config UBSAN_TRAP
 	  (regardless of context, locks held, etc), which may destabilize
 	  the system. For some system builders this is an acceptable
 	  trade-off.
+
+	  Also note that selecting Y will cause your kernel to Oops
+	  with an "illegal instruction" error with no further details
+	  when a UBSAN violation occurs. (Except on arm64, which will
+	  report which Sanitizer failed.) This may make it hard to
+	  determine whether an Oops was caused by UBSAN or to figure
+	  out the details of a UBSAN violation. It makes the kernel log
+	  output less useful for bug reports.
 
 config CC_HAS_UBSAN_BOUNDS_STRICT
 	def_bool $(cc-option,-fsanitize=bounds-strict)

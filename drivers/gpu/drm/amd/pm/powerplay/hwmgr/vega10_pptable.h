@@ -317,16 +317,14 @@ typedef struct _ATOM_Vega10_Thermal_Controller {
     UCHAR ucFlags;          /* to be defined */
 } ATOM_Vega10_Thermal_Controller;
 
-typedef struct _ATOM_Vega10_VCE_State_Record
-{
+typedef struct _ATOM_Vega10_VCE_State_Record {
     UCHAR  ucVCEClockIndex;         /*index into usVCEDependencyTableOffset of 'ATOM_Vega10_MM_Dependency_Table' type */
     UCHAR  ucFlag;                  /* 2 bits indicates memory p-states */
     UCHAR  ucSCLKIndex;             /* index into ATOM_Vega10_SCLK_Dependency_Table */
     UCHAR  ucMCLKIndex;             /* index into ATOM_Vega10_MCLK_Dependency_Table */
 } ATOM_Vega10_VCE_State_Record;
 
-typedef struct _ATOM_Vega10_VCE_State_Table
-{
+typedef struct _ATOM_Vega10_VCE_State_Table {
     UCHAR ucRevId;
     UCHAR ucNumEntries;
     ATOM_Vega10_VCE_State_Record entries[1];
@@ -361,8 +359,7 @@ typedef struct _ATOM_Vega10_PowerTune_Table {
 	USHORT usTemperatureLimitTedge;
 } ATOM_Vega10_PowerTune_Table;
 
-typedef struct _ATOM_Vega10_PowerTune_Table_V2
-{
+typedef struct _ATOM_Vega10_PowerTune_Table_V2 {
 	UCHAR  ucRevId;
 	USHORT usSocketPowerLimit;
 	USHORT usBatteryPowerLimit;
@@ -388,8 +385,7 @@ typedef struct _ATOM_Vega10_PowerTune_Table_V2
 	USHORT usTemperatureLimitTedge;
 } ATOM_Vega10_PowerTune_Table_V2;
 
-typedef struct _ATOM_Vega10_PowerTune_Table_V3
-{
+typedef struct _ATOM_Vega10_PowerTune_Table_V3 {
 	UCHAR  ucRevId;
 	USHORT usSocketPowerLimit;
 	USHORT usBatteryPowerLimit;
@@ -428,15 +424,13 @@ typedef struct _ATOM_Vega10_Hard_Limit_Record {
     USHORT usVddMemLimit;
 } ATOM_Vega10_Hard_Limit_Record;
 
-typedef struct _ATOM_Vega10_Hard_Limit_Table
-{
+typedef struct _ATOM_Vega10_Hard_Limit_Table {
     UCHAR ucRevId;
     UCHAR ucNumEntries;
     ATOM_Vega10_Hard_Limit_Record entries[1];
 } ATOM_Vega10_Hard_Limit_Table;
 
-typedef struct _Vega10_PPTable_Generic_SubTable_Header
-{
+typedef struct _Vega10_PPTable_Generic_SubTable_Header {
     UCHAR  ucRevId;
 } Vega10_PPTable_Generic_SubTable_Header;
 

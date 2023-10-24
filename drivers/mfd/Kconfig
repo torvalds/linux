@@ -237,6 +237,30 @@ config MFD_CROS_EC_DEV
 	  To compile this driver as a module, choose M here: the module will be
 	  called cros-ec-dev.
 
+config MFD_CS42L43
+	tristate
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_IRQ
+
+config MFD_CS42L43_I2C
+	tristate "Cirrus Logic CS42L43 (I2C)"
+	depends on I2C
+	select REGMAP_I2C
+	select MFD_CS42L43
+	help
+	  Select this to support the Cirrus Logic CS42L43 PC CODEC with
+	  headphone and class D speaker drivers over I2C.
+
+config MFD_CS42L43_SDW
+	tristate "Cirrus Logic CS42L43 (SoundWire)"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select MFD_CS42L43
+	help
+	  Select this to support the Cirrus Logic CS42L43 PC CODEC with
+	  headphone and class D speaker drivers over SoundWire.
+
 config MFD_MADERA
 	tristate "Cirrus Logic Madera codecs"
 	select MFD_CORE
@@ -1197,7 +1221,7 @@ config MFD_RC5T583
 	  different functionality of the device.
 
 config MFD_RK8XX
-	bool
+	tristate
 	select MFD_CORE
 
 config MFD_RK8XX_I2C
@@ -1348,8 +1372,9 @@ config MFD_SC27XX_PMIC
 	  and it also adds the irq_chip parts for handling the PMIC chip events.
 
 config RZ_MTU3
-	bool "Renesas RZ/G2L MTU3a core driver"
+	tristate "Renesas RZ/G2L MTU3a core driver"
 	depends on (ARCH_RZG2L && OF) || COMPILE_TEST
+	select MFD_CORE
 	help
 	  Select this option to enable Renesas RZ/G2L MTU3a core driver for
 	  the Multi-Function Timer Pulse Unit 3 (MTU3a) hardware available

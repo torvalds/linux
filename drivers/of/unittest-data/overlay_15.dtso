@@ -7,6 +7,7 @@
 &unittest_i2c_test_bus {
 	#address-cells = <1>;
 	#size-cells = <0>;
+
 	test-unittest15 {
 		reg = <11>;
 		compatible = "unittest-i2c-mux";

@@ -45,6 +45,7 @@ torture_param(int, stutter, 5, "Number of jiffies to run/halt test, 0=disable");
 torture_param(int, rt_boost, 2,
 		   "Do periodic rt-boost. 0=Disable, 1=Only for rt_mutex, 2=For all lock types.");
 torture_param(int, rt_boost_factor, 50, "A factor determining how often rt-boost happens.");
+torture_param(int, writer_fifo, 0, "Run writers at sched_set_fifo() priority");
 torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
 torture_param(int, nested_locks, 0, "Number of nested locks (max = 8)");
 /* Going much higher trips "BUG: MAX_LOCKDEP_CHAIN_HLOCKS too low!" errors */
@@ -809,7 +810,8 @@ static int lock_torture_writer(void *arg)
 	bool skip_main_lock;
 
 	VERBOSE_TOROUT_STRING("lock_torture_writer task started");
-	set_user_nice(current, MAX_NICE);
+	if (!rt_task(current))
+		set_user_nice(current, MAX_NICE);
 
 	do {
 		if ((torture_random(&rand) & 0xfffff) == 0)
@@ -1015,8 +1017,7 @@ static void lock_torture_cleanup(void)
 
 	if (writer_tasks) {
 		for (i = 0; i < cxt.nrealwriters_stress; i++)
-			torture_stop_kthread(lock_torture_writer,
-					     writer_tasks[i]);
+			torture_stop_kthread(lock_torture_writer, writer_tasks[i]);
 		kfree(writer_tasks);
 		writer_tasks = NULL;
 	}
@@ -1244,8 +1245,9 @@ static int __init lock_torture_init(void)
 			goto create_reader;
 
 		/* Create writer. */
-		firsterr = torture_create_kthread(lock_torture_writer, &cxt.lwsa[i],
-						  writer_tasks[i]);
+		firsterr = torture_create_kthread_cb(lock_torture_writer, &cxt.lwsa[i],
+						     writer_tasks[i],
+						     writer_fifo ? sched_set_fifo : NULL);
 		if (torture_init_error(firsterr))
 			goto unwind;
 

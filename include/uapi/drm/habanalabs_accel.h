@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
  *
- * Copyright 2016-2022 HabanaLabs, Ltd.
+ * Copyright 2016-2023 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -8,8 +8,7 @@
 #ifndef HABANALABS_H_
 #define HABANALABS_H_
 
-#include <linux/types.h>
-#include <linux/ioctl.h>
+#include <drm/drm.h>
 
 /*
  * Defines that are asic-specific but constitutes as ABI between kernel driver
@@ -607,9 +606,9 @@ enum gaudi2_engine_id {
 /*
  * ASIC specific PLL index
  *
- * Used to retrieve in frequency info of different IPs via
- * HL_INFO_PLL_FREQUENCY under HL_IOCTL_INFO IOCTL. The enums need to be
- * used as an index in struct hl_pll_frequency_info
+ * Used to retrieve in frequency info of different IPs via HL_INFO_PLL_FREQUENCY under
+ * DRM_IOCTL_HL_INFO IOCTL.
+ * The enums need to be used as an index in struct hl_pll_frequency_info.
  */
 
 enum hl_goya_pll_index {
@@ -809,6 +808,7 @@ enum hl_server_type {
  * HL_INFO_FW_ERR_EVENT   - Retrieve information on the reported FW error.
  *                          May return 0 even though no new data is available, in that case
  *                          timestamp will be 0.
+ * HL_INFO_USER_ENGINE_ERR_EVENT - Retrieve the last engine id that reported an error.
  */
 #define HL_INFO_HW_IP_INFO			0
 #define HL_INFO_HW_EVENTS			1
@@ -845,6 +845,7 @@ enum hl_server_type {
 #define HL_INFO_FW_GENERIC_REQ			35
 #define HL_INFO_HW_ERR_EVENT			36
 #define HL_INFO_FW_ERR_EVENT			37
+#define HL_INFO_USER_ENGINE_ERR_EVENT		38
 
 #define HL_INFO_VERSION_MAX_LEN			128
 #define HL_INFO_CARD_NAME_MAX_LEN		16
@@ -884,11 +885,11 @@ enum hl_server_type {
  * @dram_enabled: Whether the DRAM is enabled.
  * @security_enabled: Whether security is enabled on device.
  * @mme_master_slave_mode: Indicate whether the MME is working in master/slave
- *                         configuration. Relevant for Greco and later.
+ *                         configuration. Relevant for Gaudi2 and later.
  * @cpucp_version: The CPUCP f/w version.
  * @card_name: The card name as passed by the f/w.
  * @tpc_enabled_mask_ext: Bit-mask that represents which TPCs are enabled.
- *                        Relevant for Greco and later.
+ *                        Relevant for Gaudi2 and later.
  * @dram_page_size: The DRAM physical page size.
  * @edma_enabled_mask: Bit-mask that represents which EDMAs are enabled.
  *                     Relevant for Gaudi2 and later.
@@ -990,6 +991,7 @@ struct hl_info_reset_count {
 struct hl_info_time_sync {
 	__u64 device_time;
 	__u64 host_time;
+	__u64 tsc_time;
 };
 
 /**
@@ -1227,6 +1229,20 @@ struct hl_info_fw_err_event {
 };
 
 /**
+ * struct hl_info_engine_err_event - engine error info
+ * @timestamp: time-stamp of error occurrence
+ * @engine_id: engine id who reported the error.
+ * @error_count: Amount of errors reported.
+ * @pad: size padding for u64 granularity.
+ */
+struct hl_info_engine_err_event {
+	__s64 timestamp;
+	__u16 engine_id;
+	__u16 error_count;
+	__u32 pad;
+};
+
+/**
  * struct hl_info_dev_memalloc_page_sizes - valid page sizes in device mem alloc information.
  * @page_order_bitmask: bitmap in which a set bit represents the order of the supported page size
  *                      (e.g. 0x2100000 means that 1MB and 32MB pages are supported).
@@ -1409,7 +1425,7 @@ union hl_cb_args {
  *
  * HL_CS_CHUNK_FLAGS_USER_ALLOC_CB:
  *      Indicates if the CB was allocated and mapped by userspace
- *      (relevant to greco and above). User allocated CB is a command buffer,
+ *      (relevant to Gaudi2 and later). User allocated CB is a command buffer,
  *      allocated by the user, via malloc (or similar). After allocating the
  *      CB, the user invokes - “memory ioctl” to map the user memory into a
  *      device virtual address. The user provides this address via the
@@ -1434,7 +1450,7 @@ struct hl_cs_chunk {
 		 * a DRAM address of the internal CB. In Gaudi, this might also
 		 * represent a mapped host address of the CB.
 		 *
-		 * Greco onwards:
+		 * Gaudi2 onwards:
 		 * For H/W queue, this represents either a Handle of CB on the
 		 * Host, or an SRAM, a DRAM, or a mapped host address of the CB.
 		 *
@@ -2147,6 +2163,13 @@ struct hl_debug_args {
 	__u32 ctx_id;
 };
 
+#define HL_IOCTL_INFO		0x00
+#define HL_IOCTL_CB		0x01
+#define HL_IOCTL_CS		0x02
+#define HL_IOCTL_WAIT_CS	0x03
+#define HL_IOCTL_MEMORY		0x04
+#define HL_IOCTL_DEBUG		0x05
+
 /*
  * Various information operations such as:
  * - H/W IP information
@@ -2161,8 +2184,7 @@ struct hl_debug_args {
  * definitions of structures in kernel and userspace, e.g. in case of old
  * userspace and new kernel driver
  */
-#define HL_IOCTL_INFO	\
-		_IOWR('H', 0x01, struct hl_info_args)
+#define DRM_IOCTL_HL_INFO	DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_INFO, struct hl_info_args)
 
 /*
  * Command Buffer
@@ -2183,8 +2205,7 @@ struct hl_debug_args {
  * and won't be returned to user.
  *
  */
-#define HL_IOCTL_CB		\
-		_IOWR('H', 0x02, union hl_cb_args)
+#define DRM_IOCTL_HL_CB		DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_CB, union hl_cb_args)
 
 /*
  * Command Submission
@@ -2206,7 +2227,7 @@ struct hl_debug_args {
  * internal. The driver will get completion notifications from the device only
  * on JOBS which are enqueued in the external queues.
  *
- * Greco onwards:
+ * Gaudi2 onwards:
  * There is a single type of queue for all types of engines, either DMA engines
  * for transfers from/to the host or inside the device, or compute engines.
  * The driver will get completion notifications from the device for all queues.
@@ -2236,8 +2257,7 @@ struct hl_debug_args {
  * and only if CS N and CS N-1 are exactly the same (same CBs for the same
  * queues).
  */
-#define HL_IOCTL_CS			\
-		_IOWR('H', 0x03, union hl_cs_args)
+#define DRM_IOCTL_HL_CS		DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_CS, union hl_cs_args)
 
 /*
  * Wait for Command Submission
@@ -2269,9 +2289,7 @@ struct hl_debug_args {
  * HL_WAIT_CS_STATUS_ABORTED     - The CS was aborted, usually because the
  *                                 device was reset (EIO)
  */
-
-#define HL_IOCTL_WAIT_CS			\
-		_IOWR('H', 0x04, union hl_wait_cs_args)
+#define DRM_IOCTL_HL_WAIT_CS	DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_WAIT_CS, union hl_wait_cs_args)
 
 /*
  * Memory
@@ -2288,8 +2306,7 @@ struct hl_debug_args {
  * There is an option for the user to specify the requested virtual address.
  *
  */
-#define HL_IOCTL_MEMORY		\
-		_IOWR('H', 0x05, union hl_mem_args)
+#define DRM_IOCTL_HL_MEMORY	DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_MEMORY, union hl_mem_args)
 
 /*
  * Debug
@@ -2315,10 +2332,9 @@ struct hl_debug_args {
  * The driver can decide to "kick out" the user if he abuses this interface.
  *
  */
-#define HL_IOCTL_DEBUG		\
-		_IOWR('H', 0x06, struct hl_debug_args)
+#define DRM_IOCTL_HL_DEBUG	DRM_IOWR(DRM_COMMAND_BASE + HL_IOCTL_DEBUG, struct hl_debug_args)
 
-#define HL_COMMAND_START	0x01
-#define HL_COMMAND_END		0x07
+#define HL_COMMAND_START	(DRM_COMMAND_BASE + HL_IOCTL_INFO)
+#define HL_COMMAND_END		(DRM_COMMAND_BASE + HL_IOCTL_DEBUG + 1)
 
 #endif /* HABANALABS_H_ */

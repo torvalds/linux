@@ -8,7 +8,7 @@ to configure for some global common configuration, such as domain
 pad driving level, system control select and so on ("domain pad
 driving level": One pin can output 3.0v or 1.8v, depending on the
 related domain pad driving selection, if the related domain pad
-slect 3.0v, then the pin can output 3.0v. "system control" is used
+select 3.0v, then the pin can output 3.0v. "system control" is used
 to choose one function (like: UART0) for which system, since we
 have several systems (AP/CP/CM4) on one SoC.).
 

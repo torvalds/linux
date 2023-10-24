@@ -12,7 +12,7 @@
  *	  do this instead of the 9 instructions that
  *	  binary search needs).
  */
-#include <asm/export.h>
+#include <linux/export.h>
 	.set noreorder
 	.set noat
 

@@ -210,7 +210,8 @@ config  TI_PWMSS
 
 config TI_SYSC
 	bool "TI sysc interconnect target module driver"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || ARCH_K3
+	default y
 	help
 	  Generic driver for Texas Instruments interconnect target module
 	  found on many TI SoCs.

@@ -4,6 +4,7 @@
 
 extern time64_t pas_get_boot_time(void);
 extern void pas_pci_init(void);
+struct pci_dev;
 extern void pas_pci_irq_fixup(struct pci_dev *dev);
 extern void pas_pci_dma_dev_setup(struct pci_dev *dev);
 

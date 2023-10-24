@@ -272,14 +272,32 @@
 
 		gmac0: ethernet@24000 {
 			reg = <0x24000 0x800>;
+			phy-mode = "internal";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 		};
 
 		gmac1: ethernet@25000 {
 			reg = <0x25000 0x800>;
+			phy-mode = "internal";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 		};
 
 		gmac2: ethernet@26000 {
 			reg = <0x26000 0x800>;
+			phy-mode = "internal";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 		};
 
 		gmac3: ethernet@27000 {

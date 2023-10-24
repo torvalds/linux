@@ -26,8 +26,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 
-#include "pm_domains.h"
-
 static int __init ux500_l2x0_unlock(void)
 {
 	int i;
@@ -115,9 +113,6 @@ static const struct of_device_id u8500_local_bus_nodes[] = {
 
 static void __init u8500_init_machine(void)
 {
-	/* Initialize ux500 power domains */
-	ux500_pm_domains_init();
-
 	of_platform_populate(NULL, u8500_local_bus_nodes,
 			     NULL, NULL);
 }

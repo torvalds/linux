@@ -179,6 +179,10 @@ struct link_service {
 	int (*aux_transfer_raw)(struct ddc_service *ddc,
 			struct aux_payload *payload,
 			enum aux_return_code_type *operation_result);
+	bool (*configure_fixed_vs_pe_retimer)(
+			struct ddc_service *ddc,
+			const uint8_t *data,
+			uint32_t len);
 	bool (*aux_transfer_with_retries_no_mutex)(struct ddc_service *ddc,
 			struct aux_payload *payload);
 	bool (*is_in_aux_transaction_mode)(struct ddc_service *ddc);
@@ -269,6 +273,20 @@ struct link_service {
 			uint16_t psr_vtotal_su);
 	void (*edp_get_psr_residency)(
 			const struct dc_link *link, uint32_t *residency);
+
+	bool (*edp_get_replay_state)(
+			const struct dc_link *link, uint64_t *state);
+	bool (*edp_set_replay_allow_active)(struct dc_link *dc_link,
+			const bool *enable, bool wait, bool force_static,
+			const unsigned int *power_opts);
+	bool (*edp_setup_replay)(struct dc_link *link,
+			const struct dc_stream_state *stream);
+	bool (*edp_set_coasting_vtotal)(
+			struct dc_link *link, uint16_t coasting_vtotal);
+	bool (*edp_replay_residency)(const struct dc_link *link,
+			unsigned int *residency, const bool is_start,
+			const bool is_alpm);
+
 	bool (*edp_wait_for_t12)(struct dc_link *link);
 	bool (*edp_is_ilr_optimization_required)(struct dc_link *link,
 			struct dc_crtc_timing *crtc_timing);
@@ -277,6 +295,7 @@ struct link_service {
 	bool (*edp_receiver_ready_T9)(struct dc_link *link);
 	bool (*edp_receiver_ready_T7)(struct dc_link *link);
 	bool (*edp_power_alpm_dpcd_enable)(struct dc_link *link, bool enable);
+	void (*edp_set_panel_power)(struct dc_link *link, bool powerOn);
 
 
 	/*************************** DP CTS ************************************/

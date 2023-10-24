@@ -67,11 +67,12 @@ static int ext4_journal_check_start(struct super_block *sb)
 
 	might_sleep();
 
-	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+	if (unlikely(ext4_forced_shutdown(sb)))
 		return -EIO;
 
-	if (sb_rdonly(sb))
+	if (WARN_ON_ONCE(sb_rdonly(sb)))
 		return -EROFS;
+
 	WARN_ON(sb->s_writers.frozen == SB_FREEZE_COMPLETE);
 	journal = EXT4_SB(sb)->s_journal;
 	/*
@@ -234,8 +235,7 @@ int __ext4_journal_get_write_access(const char *where, unsigned int line,
 
 	might_sleep();
 
-	if (bh->b_bdev->bd_super)
-		ext4_check_bdev_write_error(bh->b_bdev->bd_super);
+	ext4_check_bdev_write_error(sb);
 
 	if (ext4_handle_valid(handle)) {
 		err = jbd2_journal_get_write_access(handle, bh);

@@ -1,7 +1,7 @@
 Mediatek AFE PCM controller for mt2701
 
 Required properties:
-- compatible: should be one of the followings.
+- compatible: should be one of the following.
 	      - "mediatek,mt2701-audio"
 	      - "mediatek,mt7622-audio"
 - interrupts: should contain AFE and ASYS interrupts

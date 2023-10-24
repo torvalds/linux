@@ -35,7 +35,7 @@ information for that regulator. The definition for each of these
 nodes is defined using the standard binding for regulators found at
 <Documentation/devicetree/bindings/regulator/regulator.txt>.
 
-Theres are also additional properties for SD/LDOs. These additional properties
+There are also additional properties for SD/LDOs. These additional properties
 are required to configure FPS configuration parameters for SDs and LDOs.
 Please refer <devicetree/bindings/mfd/max77620.txt> for more detail of Flexible
 Power Sequence (FPS).

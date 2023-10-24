@@ -207,7 +207,7 @@ static void fill_port_info(struct snd_seq_port_info *port,
 		SNDRV_SEQ_PORT_TYPE_PORT;
 	port->midi_channels = 16;
 	if (*group->name)
-		snprintf(port->name, sizeof(port->name), "Group %d (%s)",
+		snprintf(port->name, sizeof(port->name), "Group %d (%.53s)",
 			 group->group + 1, group->name);
 	else
 		sprintf(port->name, "Group %d", group->group + 1);
@@ -298,8 +298,7 @@ static void update_group_attrs(struct seq_ump_client *client)
 	}
 
 	list_for_each_entry(fb, &client->ump->block_list, list) {
-		if (fb->info.first_group < 0 ||
-		    fb->info.first_group + fb->info.num_groups > SNDRV_UMP_MAX_GROUPS)
+		if (fb->info.first_group + fb->info.num_groups > SNDRV_UMP_MAX_GROUPS)
 			break;
 		group = &client->groups[fb->info.first_group];
 		for (i = 0; i < fb->info.num_groups; i++, group++) {
@@ -417,6 +416,25 @@ static void setup_client_midi_version(struct seq_ump_client *client)
 	snd_seq_kernel_client_put(cptr);
 }
 
+/* set up client's group_filter bitmap */
+static void setup_client_group_filter(struct seq_ump_client *client)
+{
+	struct snd_seq_client *cptr;
+	unsigned int filter;
+	int p;
+
+	cptr = snd_seq_kernel_client_get(client->seq_client);
+	if (!cptr)
+		return;
+	filter = ~(1U << 0); /* always allow groupless messages */
+	for (p = 0; p < SNDRV_UMP_MAX_GROUPS; p++) {
+		if (client->groups[p].active)
+			filter &= ~(1U << (p + 1));
+	}
+	cptr->group_filter = filter;
+	snd_seq_kernel_client_put(cptr);
+}
+
 /* UMP group change notification */
 static void handle_group_notify(struct work_struct *work)
 {
@@ -425,6 +443,7 @@ static void handle_group_notify(struct work_struct *work)
 
 	update_group_attrs(client);
 	update_port_infos(client);
+	setup_client_group_filter(client);
 }
 
 /* UMP FB change notification */
@@ -492,6 +511,8 @@ static int snd_seq_ump_probe(struct device *_dev)
 		if (err < 0)
 			goto error;
 	}
+
+	setup_client_group_filter(client);
 
 	err = create_ump_endpoint_port(client);
 	if (err < 0)

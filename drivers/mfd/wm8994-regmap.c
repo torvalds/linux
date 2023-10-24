@@ -1238,7 +1238,7 @@ struct regmap_config wm1811_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 16,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.reg_defaults = wm1811_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm1811_defaults),
@@ -1253,7 +1253,7 @@ struct regmap_config wm8994_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 16,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.reg_defaults = wm8994_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8994_defaults),
@@ -1268,7 +1268,7 @@ struct regmap_config wm8958_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 16,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.reg_defaults = wm8958_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8958_defaults),

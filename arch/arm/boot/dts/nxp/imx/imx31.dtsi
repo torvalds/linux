@@ -232,7 +232,7 @@
 			reg = <0x53f00000 0x100000>;
 			ranges;
 
-			clks: ccm@53f80000{
+			clks: ccm@53f80000 {
 				compatible = "fsl,imx31-ccm";
 				reg = <0x53f80000 0x4000>;
 				interrupts = <31>, <53>;

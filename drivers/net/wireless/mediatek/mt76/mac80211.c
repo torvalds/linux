@@ -4,7 +4,6 @@
  */
 #include <linux/sched.h>
 #include <linux/of.h>
-#include <net/page_pool.h>
 #include "mt76.h"
 
 #define CHAN2G(_idx, _freq) {			\
@@ -76,6 +75,7 @@ static const struct ieee80211_channel mt76_channels_5ghz[] = {
 	CHAN5G(165, 5825),
 	CHAN5G(169, 5845),
 	CHAN5G(173, 5865),
+	CHAN5G(177, 5885),
 };
 
 static const struct ieee80211_channel mt76_channels_6ghz[] = {
@@ -660,6 +660,8 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 	idr_init(&dev->rx_token);
 
 	INIT_LIST_HEAD(&dev->wcid_list);
+	INIT_LIST_HEAD(&dev->sta_poll_list);
+	spin_lock_init(&dev->sta_poll_lock);
 
 	INIT_LIST_HEAD(&dev->txwi_cache);
 	INIT_LIST_HEAD(&dev->rxwi_cache);
@@ -1742,6 +1744,9 @@ void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
 
 	for (i = 0; i < (eht ? 14 : 12); i++)
 		data[ei++] += stats->tx_mcs[i];
+
+	for (i = 0; i < 4; i++)
+		data[ei++] += stats->tx_nss[i];
 
 	wi->worker_stat_count = ei - wi->initial_stat_idx;
 }

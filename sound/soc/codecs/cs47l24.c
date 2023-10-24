@@ -957,6 +957,10 @@ static int cs47l24_set_fll(struct snd_soc_component *component, int fll_id,
 #define CS47L24_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static const struct snd_soc_dai_ops cs47l24_dai_ops = {
+	.compress_new = snd_soc_new_compress,
+};
+
 static struct snd_soc_dai_driver cs47l24_dai[] = {
 	{
 		.name = "cs47l24-aif1",
@@ -1033,7 +1037,7 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			.rates = CS47L24_RATES,
 			.formats = CS47L24_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.ops = &cs47l24_dai_ops,
 	},
 	{
 		.name = "cs47l24-dsp-voicectrl",
@@ -1054,7 +1058,7 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			.rates = CS47L24_RATES,
 			.formats = CS47L24_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.ops = &cs47l24_dai_ops,
 	},
 	{
 		.name = "cs47l24-dsp-trace",

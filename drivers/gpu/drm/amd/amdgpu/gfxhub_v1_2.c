@@ -329,7 +329,8 @@ static void gfxhub_v1_2_xcc_setup_vmid_config(struct amdgpu_device *adev,
 	for_each_inst(j, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(j)];
 		for (i = 0; i <= 14; i++) {
-			tmp = RREG32_SOC15_OFFSET(GC, GET_INST(GC, j), regVM_CONTEXT1_CNTL, i);
+			tmp = RREG32_SOC15_OFFSET(GC, GET_INST(GC, j), regVM_CONTEXT1_CNTL,
+					i * hub->ctx_distance);
 			tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, ENABLE_CONTEXT, 1);
 			tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_DEPTH,
 					    num_level);
@@ -356,11 +357,14 @@ static void gfxhub_v1_2_xcc_setup_vmid_config(struct amdgpu_device *adev,
 			 * the SQ per-process.
 			 * Retry faults need to be enabled for that to work.
 			 */
-			tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
-					    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
-					    !adev->gmc.noretry ||
-					    adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2) ||
-					    adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3));
+			tmp = REG_SET_FIELD(
+				tmp, VM_CONTEXT1_CNTL,
+				RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
+				!adev->gmc.noretry ||
+					amdgpu_ip_version(adev, GC_HWIP, 0) ==
+						IP_VERSION(9, 4, 2) ||
+					amdgpu_ip_version(adev, GC_HWIP, 0) ==
+						IP_VERSION(9, 4, 3));
 			WREG32_SOC15_OFFSET(GC, GET_INST(GC, j), regVM_CONTEXT1_CNTL,
 					    i * hub->ctx_distance, tmp);
 			WREG32_SOC15_OFFSET(GC, GET_INST(GC, j),
@@ -402,22 +406,6 @@ static void gfxhub_v1_2_xcc_program_invalidation(struct amdgpu_device *adev,
 static int gfxhub_v1_2_xcc_gart_enable(struct amdgpu_device *adev,
 				       uint32_t xcc_mask)
 {
-	int i;
-
-	/*
-	 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, because they are
-	 * VF copy registers so vbios post doesn't program them, for
-	 * SRIOV driver need to program them
-	 */
-	if (amdgpu_sriov_vf(adev)) {
-		for_each_inst(i, xcc_mask) {
-			WREG32_SOC15_RLC(GC, GET_INST(GC, i), regMC_VM_FB_LOCATION_BASE,
-				     adev->gmc.vram_start >> 24);
-			WREG32_SOC15_RLC(GC, GET_INST(GC, i), regMC_VM_FB_LOCATION_TOP,
-				     adev->gmc.vram_end >> 24);
-		}
-	}
-
 	/* GART Enable. */
 	gfxhub_v1_2_xcc_init_gart_aperture_regs(adev, xcc_mask);
 	gfxhub_v1_2_xcc_init_system_aperture_regs(adev, xcc_mask);

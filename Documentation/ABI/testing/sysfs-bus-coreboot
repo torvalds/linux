@@ -21,7 +21,7 @@ What:		/sys/bus/coreboot/devices/cbmem-<id>/address
 Date:		August 2022
 Contact:	Jack Rosenthal <jrosenth@chromium.org>
 Description:
-		This is the pyhsical memory address that the CBMEM entry's data
+		This is the physical memory address that the CBMEM entry's data
 		begins at, in hexadecimal (e.g., ``0x76ffe000``).
 
 What:		/sys/bus/coreboot/devices/cbmem-<id>/size

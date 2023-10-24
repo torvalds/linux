@@ -8,9 +8,6 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
 
-/* comment the #define statement to disable SCIF2 (SER0) on PMOD1 (CN7) */
-#define PMOD1_SER0	1
-
 / {
 	aliases {
 		serial1 = &scif2;
@@ -114,6 +111,26 @@
 		reg = <0x1a>;
 	};
 };
+
+#if PMOD_MTU3
+&mtu3 {
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+#if MTU3_COUNTER_Z_PHASE_SIGNAL
+/* SDHI cd pin is muxed with counter Z phase signal */
+&sdhi1 {
+	status = "disabled";
+};
+#endif /* MTU3_COUNTER_Z_PHASE_SIGNAL */
+
+&spi1 {
+	status = "disabled";
+};
+#endif /* PMOD_MTU3 */
 
 /*
  * To enable SCIF2 (SER0) on PMOD1 (CN7)

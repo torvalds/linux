@@ -7,25 +7,11 @@
 
 /dts-v1/;
 
-#include "ipq5332.dtsi"
+#include "ipq5332-rdp-common.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ5332 MI01.2";
 	compatible = "qcom,ipq5332-ap-mi01.2", "qcom,ipq5332";
-
-	aliases {
-		serial0 = &blsp1_uart0;
-	};
-
-	chosen {
-		stdout-path = "serial0";
-	};
-};
-
-&blsp1_uart0 {
-	pinctrl-0 = <&serial_0_pins>;
-	pinctrl-names = "default";
-	status = "okay";
 };
 
 &blsp1_i2c1 {
@@ -45,16 +31,6 @@
 	pinctrl-names = "default";
 	status = "okay";
 };
-
-&sleep_clk {
-	clock-frequency = <32000>;
-};
-
-&xo_board {
-	clock-frequency = <24000000>;
-};
-
-/* PINCTRL */
 
 &tlmm {
 	i2c_1_pins: i2c-1-state {

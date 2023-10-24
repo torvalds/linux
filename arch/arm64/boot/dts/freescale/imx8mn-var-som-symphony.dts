@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
+ * Supports Symphony evaluation board versions >= 1.4a.
+ *
  * Copyright 2019-2020 Variscite Ltd.
  * Copyright (C) 2020 Krzysztof Kozlowski <krzk@kernel.org>
  */
 
 /dts-v1/;
 
+#include <dt-bindings/usb/pd.h>
 #include "imx8mn-var-som.dtsi"
 
 / {
@@ -100,14 +103,26 @@
 		};
 	};
 
+	/*
+	 * For Symphony board version <= 1.4, the PTN5150 IRQ pin is connected
+	 * to GPIO1_IO11 on the SoM (R106 present, R132 absent). From Symphony
+	 * board version >= 1.4a, the PTN5150 ID pin is connected to GPIO1_IO11
+	 * on the SoM (R106 absent, R132 present).
+	 */
 	extcon_usbotg1: typec@3d {
 		compatible = "nxp,ptn5150";
 		reg = <0x3d>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ptn5150>;
 		status = "okay";
+
+		port {
+			typec1_dr_sw: endpoint {
+				remote-endpoint = <&usb1_drd_sw>;
+			};
+		};
 	};
 };
 
@@ -148,8 +163,21 @@
 };
 
 &usbotg1 {
+	dr_mode = "otg";
+	hnp-disable;
+	srp-disable;
+	adp-disable;
+	usb-role-switch;
 	disable-over-current;
-	extcon = <&extcon_usbotg1>, <&extcon_usbotg1>;
+	samsung,picophy-pre-emp-curr-control = <3>;
+	samsung,picophy-dc-vol-level-adjust = <7>;
+	status = "okay";
+
+	port {
+		usb1_drd_sw: endpoint {
+			remote-endpoint = <&typec1_dr_sw>;
+		};
+	};
 };
 
 &iomuxc {

@@ -93,13 +93,13 @@ __mt76_get_rxwi(struct mt76_dev *dev)
 {
 	struct mt76_txwi_cache *t = NULL;
 
-	spin_lock(&dev->wed_lock);
+	spin_lock_bh(&dev->wed_lock);
 	if (!list_empty(&dev->rxwi_cache)) {
 		t = list_first_entry(&dev->rxwi_cache, struct mt76_txwi_cache,
 				     list);
 		list_del(&t->list);
 	}
-	spin_unlock(&dev->wed_lock);
+	spin_unlock_bh(&dev->wed_lock);
 
 	return t;
 }
@@ -145,9 +145,9 @@ mt76_put_rxwi(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 	if (!t)
 		return;
 
-	spin_lock(&dev->wed_lock);
+	spin_lock_bh(&dev->wed_lock);
 	list_add(&t->list, &dev->rxwi_cache);
-	spin_unlock(&dev->wed_lock);
+	spin_unlock_bh(&dev->wed_lock);
 }
 EXPORT_SYMBOL_GPL(mt76_put_rxwi);
 
@@ -466,6 +466,9 @@ mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
 	struct mt76_queue_buf buf = {};
 	dma_addr_t addr;
 
+	if (test_bit(MT76_MCU_RESET, &dev->phy.state))
+		goto error;
+
 	if (q->queued + 1 >= q->ndesc - 1)
 		goto error;
 
@@ -506,6 +509,9 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 	struct sk_buff *iter;
 	dma_addr_t addr;
 	u8 *txwi;
+
+	if (test_bit(MT76_RESET, &dev->phy.state))
+		goto free_skb;
 
 	t = mt76_get_txwi(dev);
 	if (!t)

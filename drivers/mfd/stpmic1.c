@@ -219,7 +219,7 @@ MODULE_DEVICE_TABLE(of, stpmic1_of_match);
 static struct i2c_driver stpmic1_driver = {
 	.driver = {
 		.name = "stpmic1",
-		.of_match_table = of_match_ptr(stpmic1_of_match),
+		.of_match_table = stpmic1_of_match,
 		.pm = pm_sleep_ptr(&stpmic1_pm),
 	},
 	.probe = stpmic1_probe,

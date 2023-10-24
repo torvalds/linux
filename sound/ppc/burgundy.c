@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/of.h>
 #include <sound/core.h>
 #include "pmac.h"
 #include "burgundy.h"

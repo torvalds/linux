@@ -31,8 +31,8 @@ static uint64_t guest_stolen_time[NR_VCPUS];
 static void check_status(struct kvm_steal_time *st)
 {
 	GUEST_ASSERT(!(READ_ONCE(st->version) & 1));
-	GUEST_ASSERT(READ_ONCE(st->flags) == 0);
-	GUEST_ASSERT(READ_ONCE(st->preempted) == 0);
+	GUEST_ASSERT_EQ(READ_ONCE(st->flags), 0);
+	GUEST_ASSERT_EQ(READ_ONCE(st->preempted), 0);
 }
 
 static void guest_code(int cpu)
@@ -40,7 +40,7 @@ static void guest_code(int cpu)
 	struct kvm_steal_time *st = st_gva[cpu];
 	uint32_t version;
 
-	GUEST_ASSERT(rdmsr(MSR_KVM_STEAL_TIME) == ((uint64_t)st_gva[cpu] | KVM_MSR_ENABLED));
+	GUEST_ASSERT_EQ(rdmsr(MSR_KVM_STEAL_TIME), ((uint64_t)st_gva[cpu] | KVM_MSR_ENABLED));
 
 	memset(st, 0, sizeof(*st));
 	GUEST_SYNC(0);
@@ -122,8 +122,8 @@ static int64_t smccc(uint32_t func, uint64_t arg)
 
 static void check_status(struct st_time *st)
 {
-	GUEST_ASSERT(READ_ONCE(st->rev) == 0);
-	GUEST_ASSERT(READ_ONCE(st->attr) == 0);
+	GUEST_ASSERT_EQ(READ_ONCE(st->rev), 0);
+	GUEST_ASSERT_EQ(READ_ONCE(st->attr), 0);
 }
 
 static void guest_code(int cpu)
@@ -132,15 +132,15 @@ static void guest_code(int cpu)
 	int64_t status;
 
 	status = smccc(SMCCC_ARCH_FEATURES, PV_TIME_FEATURES);
-	GUEST_ASSERT(status == 0);
+	GUEST_ASSERT_EQ(status, 0);
 	status = smccc(PV_TIME_FEATURES, PV_TIME_FEATURES);
-	GUEST_ASSERT(status == 0);
+	GUEST_ASSERT_EQ(status, 0);
 	status = smccc(PV_TIME_FEATURES, PV_TIME_ST);
-	GUEST_ASSERT(status == 0);
+	GUEST_ASSERT_EQ(status, 0);
 
 	status = smccc(PV_TIME_ST, 0);
-	GUEST_ASSERT(status != -1);
-	GUEST_ASSERT(status == (ulong)st_gva[cpu]);
+	GUEST_ASSERT_NE(status, -1);
+	GUEST_ASSERT_EQ(status, (ulong)st_gva[cpu]);
 
 	st = (struct st_time *)status;
 	GUEST_SYNC(0);

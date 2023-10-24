@@ -408,30 +408,6 @@ static const char * const follower_vols[] = {
 static
 DECLARE_TLV_DB_SCALE(juli_master_db_scale, -6350, 50, 1);
 
-static struct snd_kcontrol *ctl_find(struct snd_card *card,
-				     const char *name)
-{
-	struct snd_ctl_elem_id sid = {0};
-
-	strscpy(sid.name, name, sizeof(sid.name));
-	sid.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	return snd_ctl_find_id(card, &sid);
-}
-
-static void add_followers(struct snd_card *card,
-			  struct snd_kcontrol *master,
-			  const char * const *list)
-{
-	for (; *list; list++) {
-		struct snd_kcontrol *follower = ctl_find(card, *list);
-		/* dev_dbg(card->dev, "add_followers - %s\n", *list); */
-		if (follower) {
-			/* dev_dbg(card->dev, "follower %s found\n", *list); */
-			snd_ctl_add_follower(master, follower);
-		}
-	}
-}
-
 static int juli_add_controls(struct snd_ice1712 *ice)
 {
 	struct juli_spec *spec = ice->spec;
@@ -454,8 +430,10 @@ static int juli_add_controls(struct snd_ice1712 *ice)
 					      juli_master_db_scale);
 	if (!vmaster)
 		return -ENOMEM;
-	add_followers(ice->card, vmaster, follower_vols);
 	err = snd_ctl_add(ice->card, vmaster);
+	if (err < 0)
+		return err;
+	err = snd_ctl_add_followers(ice->card, vmaster, follower_vols);
 	if (err < 0)
 		return err;
 

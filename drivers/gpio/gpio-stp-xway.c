@@ -4,11 +4,12 @@
  *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  */
 
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/mutex.h>
 #include <linux/gpio/driver.h>
 #include <linux/io.h>

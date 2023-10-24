@@ -278,16 +278,14 @@ struct pp_atom_ctrl__avfs_parameters {
 	uint8_t  ucReserved;
 };
 
-struct _AtomCtrl_HiLoLeakageOffsetTable
-{
+struct _AtomCtrl_HiLoLeakageOffsetTable {
     USHORT usHiLoLeakageThreshold;
     USHORT usEdcDidtLoDpm7TableOffset;
     USHORT usEdcDidtHiDpm7TableOffset;
 };
 typedef struct _AtomCtrl_HiLoLeakageOffsetTable AtomCtrl_HiLoLeakageOffsetTable;
 
-struct _AtomCtrl_EDCLeakgeTable
-{
+struct _AtomCtrl_EDCLeakgeTable {
     ULONG DIDT_REG[24];
 };
 typedef struct _AtomCtrl_EDCLeakgeTable AtomCtrl_EDCLeakgeTable;

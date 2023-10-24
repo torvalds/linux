@@ -81,10 +81,10 @@
 			dma_apbh: dma-controller@80004000 {
 				compatible = "fsl,imx28-dma-apbh";
 				reg = <0x80004000 0x2000>;
-				interrupts = <82 83 84 85
-					      88 88 88 88
-					      88 88 88 88
-					      87 86 0 0>;
+				interrupts = <82>, <83>, <84>, <85>,
+					     <88>, <88>, <88>, <88>,
+					     <88>, <88>, <88>, <88>,
+					     <87>, <86>, <0>, <0>;
 				#dma-cells = <1>;
 				dma-channels = <16>;
 				clocks = <&clks 25>;
@@ -993,10 +993,10 @@
 			dma_apbx: dma-apbx@80024000 {
 				compatible = "fsl,imx28-dma-apbx";
 				reg = <0x80024000 0x2000>;
-				interrupts = <78 79 66 0
-					      80 81 68 69
-					      70 71 72 73
-					      74 75 76 77>;
+				interrupts = <78>, <79>, <66>, <0>,
+					     <80>, <81>, <68>, <69>,
+					     <70>, <71>, <72>, <73>,
+					     <74>, <75>, <76>, <77>;
 				#dma-cells = <1>;
 				dma-channels = <16>;
 				clocks = <&clks 26>;
@@ -1005,7 +1005,7 @@
 			dcp: crypto@80028000 {
 				compatible = "fsl,imx28-dcp", "fsl,imx23-dcp";
 				reg = <0x80028000 0x2000>;
-				interrupts = <52 53 54>;
+				interrupts = <52>, <53>, <54>;
 				status = "okay";
 			};
 
@@ -1136,8 +1136,8 @@
 			lradc: lradc@80050000 {
 				compatible = "fsl,imx28-lradc";
 				reg = <0x80050000 0x2000>;
-				interrupts = <10 14 15 16 17 18 19
-						20 21 22 23 24 25>;
+				interrupts = <10>, <14>, <15>, <16>, <17>, <18>, <19>,
+					     <20>, <21>, <22>, <23>, <24>, <25>;
 				status = "disabled";
 				clocks = <&clks 41>;
 				#io-channel-cells = <1>;
@@ -1193,7 +1193,7 @@
 			timer: timrot@80068000 {
 				compatible = "fsl,imx28-timrot", "fsl,timrot";
 				reg = <0x80068000 0x2000>;
-				interrupts = <48 49 50 51>;
+				interrupts = <48>, <49>, <50>, <51>;
 				clocks = <&clks 26>;
 			};
 

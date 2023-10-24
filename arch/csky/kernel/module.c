@@ -40,7 +40,7 @@ static void jsri_2_lrw_jsr(uint32_t *location)
 	}
 }
 #else
-static void inline jsri_2_lrw_jsr(uint32_t *location)
+static inline void jsri_2_lrw_jsr(uint32_t *location)
 {
 	return;
 }

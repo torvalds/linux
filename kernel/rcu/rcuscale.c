@@ -84,15 +84,17 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
 #endif
 
 torture_param(bool, gp_async, false, "Use asynchronous GP wait primitives");
-torture_param(int, gp_async_max, 1000, "Max # outstanding waits per reader");
+torture_param(int, gp_async_max, 1000, "Max # outstanding waits per writer");
 torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(int, holdoff, 10, "Holdoff time before test start (s)");
+torture_param(int, minruntime, 0, "Minimum run time (s)");
 torture_param(int, nreaders, -1, "Number of RCU reader threads");
 torture_param(int, nwriters, -1, "Number of RCU updater threads");
 torture_param(bool, shutdown, RCUSCALE_SHUTDOWN,
 	      "Shutdown at end of scalability tests.");
 torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
 torture_param(int, writer_holdoff, 0, "Holdoff (us) between GPs, zero to disable");
+torture_param(int, writer_holdoff_jiffies, 0, "Holdoff (jiffies) between GPs, zero to disable");
 torture_param(int, kfree_rcu_test, 0, "Do we run a kfree_rcu() scale test?");
 torture_param(int, kfree_mult, 1, "Multiple of kfree_obj size to allocate.");
 torture_param(int, kfree_by_call_rcu, 0, "Use call_rcu() to emulate kfree_rcu()?");
@@ -139,6 +141,7 @@ struct rcu_scale_ops {
 	void (*gp_barrier)(void);
 	void (*sync)(void);
 	void (*exp_sync)(void);
+	struct task_struct *(*rso_gp_kthread)(void);
 	const char *name;
 };
 
@@ -295,6 +298,7 @@ static struct rcu_scale_ops tasks_ops = {
 	.gp_barrier	= rcu_barrier_tasks,
 	.sync		= synchronize_rcu_tasks,
 	.exp_sync	= synchronize_rcu_tasks,
+	.rso_gp_kthread	= get_rcu_tasks_gp_kthread,
 	.name		= "tasks"
 };
 
@@ -305,6 +309,44 @@ static struct rcu_scale_ops tasks_ops = {
 #define TASKS_OPS
 
 #endif // #else // #ifdef CONFIG_TASKS_RCU
+
+#ifdef CONFIG_TASKS_RUDE_RCU
+
+/*
+ * Definitions for RCU-tasks-rude scalability testing.
+ */
+
+static int tasks_rude_scale_read_lock(void)
+{
+	return 0;
+}
+
+static void tasks_rude_scale_read_unlock(int idx)
+{
+}
+
+static struct rcu_scale_ops tasks_rude_ops = {
+	.ptype		= RCU_TASKS_RUDE_FLAVOR,
+	.init		= rcu_sync_scale_init,
+	.readlock	= tasks_rude_scale_read_lock,
+	.readunlock	= tasks_rude_scale_read_unlock,
+	.get_gp_seq	= rcu_no_completed,
+	.gp_diff	= rcu_seq_diff,
+	.async		= call_rcu_tasks_rude,
+	.gp_barrier	= rcu_barrier_tasks_rude,
+	.sync		= synchronize_rcu_tasks_rude,
+	.exp_sync	= synchronize_rcu_tasks_rude,
+	.rso_gp_kthread	= get_rcu_tasks_rude_gp_kthread,
+	.name		= "tasks-rude"
+};
+
+#define TASKS_RUDE_OPS &tasks_rude_ops,
+
+#else // #ifdef CONFIG_TASKS_RUDE_RCU
+
+#define TASKS_RUDE_OPS
+
+#endif // #else // #ifdef CONFIG_TASKS_RUDE_RCU
 
 #ifdef CONFIG_TASKS_TRACE_RCU
 
@@ -334,6 +376,7 @@ static struct rcu_scale_ops tasks_tracing_ops = {
 	.gp_barrier	= rcu_barrier_tasks_trace,
 	.sync		= synchronize_rcu_tasks_trace,
 	.exp_sync	= synchronize_rcu_tasks_trace,
+	.rso_gp_kthread	= get_rcu_tasks_trace_gp_kthread,
 	.name		= "tasks-tracing"
 };
 
@@ -410,10 +453,12 @@ rcu_scale_writer(void *arg)
 {
 	int i = 0;
 	int i_max;
+	unsigned long jdone;
 	long me = (long)arg;
 	struct rcu_head *rhp = NULL;
 	bool started = false, done = false, alldone = false;
 	u64 t;
+	DEFINE_TORTURE_RANDOM(tr);
 	u64 *wdp;
 	u64 *wdpp = writer_durations[me];
 
@@ -424,7 +469,7 @@ rcu_scale_writer(void *arg)
 	sched_set_fifo_low(current);
 
 	if (holdoff)
-		schedule_timeout_uninterruptible(holdoff * HZ);
+		schedule_timeout_idle(holdoff * HZ);
 
 	/*
 	 * Wait until rcu_end_inkernel_boot() is called for normal GP tests
@@ -445,9 +490,12 @@ rcu_scale_writer(void *arg)
 		}
 	}
 
+	jdone = jiffies + minruntime * HZ;
 	do {
 		if (writer_holdoff)
 			udelay(writer_holdoff);
+		if (writer_holdoff_jiffies)
+			schedule_timeout_idle(torture_random(&tr) % writer_holdoff_jiffies + 1);
 		wdp = &wdpp[i];
 		*wdp = ktime_get_mono_fast_ns();
 		if (gp_async) {
@@ -475,7 +523,7 @@ retry:
 		if (!started &&
 		    atomic_read(&n_rcu_scale_writer_started) >= nrealwriters)
 			started = true;
-		if (!done && i >= MIN_MEAS) {
+		if (!done && i >= MIN_MEAS && time_after(jiffies, jdone)) {
 			done = true;
 			sched_set_normal(current, 0);
 			pr_alert("%s%s rcu_scale_writer %ld has %d measurements\n",
@@ -518,8 +566,8 @@ static void
 rcu_scale_print_module_parms(struct rcu_scale_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" SCALE_FLAG
-		 "--- %s: nreaders=%d nwriters=%d verbose=%d shutdown=%d\n",
-		 scale_type, tag, nrealreaders, nrealwriters, verbose, shutdown);
+		 "--- %s: gp_async=%d gp_async_max=%d gp_exp=%d holdoff=%d minruntime=%d nreaders=%d nwriters=%d writer_holdoff=%d writer_holdoff_jiffies=%d verbose=%d shutdown=%d\n",
+		 scale_type, tag, gp_async, gp_async_max, gp_exp, holdoff, minruntime, nrealreaders, nrealwriters, writer_holdoff, writer_holdoff_jiffies, verbose, shutdown);
 }
 
 /*
@@ -556,6 +604,8 @@ static struct task_struct **kfree_reader_tasks;
 static int kfree_nrealthreads;
 static atomic_t n_kfree_scale_thread_started;
 static atomic_t n_kfree_scale_thread_ended;
+static struct task_struct *kthread_tp;
+static u64 kthread_stime;
 
 struct kfree_obj {
 	char kfree_obj[8];
@@ -701,6 +751,10 @@ kfree_scale_init(void)
 	unsigned long jif_start;
 	unsigned long orig_jif;
 
+	pr_alert("%s" SCALE_FLAG
+		 "--- kfree_rcu_test: kfree_mult=%d kfree_by_call_rcu=%d kfree_nthreads=%d kfree_alloc_num=%d kfree_loops=%d kfree_rcu_test_double=%d kfree_rcu_test_single=%d\n",
+		 scale_type, kfree_mult, kfree_by_call_rcu, kfree_nthreads, kfree_alloc_num, kfree_loops, kfree_rcu_test_double, kfree_rcu_test_single);
+
 	// Also, do a quick self-test to ensure laziness is as much as
 	// expected.
 	if (kfree_by_call_rcu && !IS_ENABLED(CONFIG_RCU_LAZY)) {
@@ -797,6 +851,18 @@ rcu_scale_cleanup(void)
 	if (gp_exp && gp_async)
 		SCALEOUT_ERRSTRING("No expedited async GPs, so went with async!");
 
+	// If built-in, just report all of the GP kthread's CPU time.
+	if (IS_BUILTIN(CONFIG_RCU_SCALE_TEST) && !kthread_tp && cur_ops->rso_gp_kthread)
+		kthread_tp = cur_ops->rso_gp_kthread();
+	if (kthread_tp) {
+		u32 ns;
+		u64 us;
+
+		kthread_stime = kthread_tp->stime - kthread_stime;
+		us = div_u64_rem(kthread_stime, 1000, &ns);
+		pr_info("rcu_scale: Grace-period kthread CPU time: %llu.%03u us\n", us, ns);
+		show_rcu_gp_kthreads();
+	}
 	if (kfree_rcu_test) {
 		kfree_scale_cleanup();
 		return;
@@ -885,7 +951,7 @@ rcu_scale_init(void)
 	long i;
 	int firsterr = 0;
 	static struct rcu_scale_ops *scale_ops[] = {
-		&rcu_ops, &srcu_ops, &srcud_ops, TASKS_OPS TASKS_TRACING_OPS
+		&rcu_ops, &srcu_ops, &srcud_ops, TASKS_OPS TASKS_RUDE_OPS TASKS_TRACING_OPS
 	};
 
 	if (!torture_init_begin(scale_type, verbose))
@@ -910,6 +976,11 @@ rcu_scale_init(void)
 	if (cur_ops->init)
 		cur_ops->init();
 
+	if (cur_ops->rso_gp_kthread) {
+		kthread_tp = cur_ops->rso_gp_kthread();
+		if (kthread_tp)
+			kthread_stime = kthread_tp->stime;
+	}
 	if (kfree_rcu_test)
 		return kfree_scale_init();
 

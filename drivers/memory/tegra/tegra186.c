@@ -7,7 +7,8 @@
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
 #include <soc/tegra/mc.h>

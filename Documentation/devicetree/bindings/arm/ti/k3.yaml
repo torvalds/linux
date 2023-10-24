@@ -25,6 +25,12 @@ properties:
               - ti,am62a7-sk
           - const: ti,am62a7
 
+      - description: K3 AM62P5 SoC and Boards
+        items:
+          - enum:
+              - ti,am62p5-sk
+          - const: ti,am62p5
+
       - description: K3 AM625 SoC PHYTEC phyBOARD-Lyra
         items:
           - const: phytec,am625-phyboard-lyra-rdk
@@ -70,6 +76,13 @@ properties:
         items:
           - const: phytec,am642-phyboard-electra-rdk
           - const: phytec,am64-phycore-som
+          - const: ti,am642
+
+      - description: K3 AM642 SoC on TQ-Systems TQMaX4XxL SoM
+        items:
+          - enum:
+              - tq,am642-tqma6442l-mbax4xxl # MBaX4XxL base board
+          - const: tq,am642-tqma6442l
           - const: ti,am642
 
       - description: K3 AM654 SoC

@@ -70,7 +70,7 @@ Bank 1:
 25: DMA9
 26: DMA10
 27: DMA11-14 - shared interrupt for DMA 11 to 14
-28: DMAALL - triggers on all dma interrupts (including chanel 15)
+28: DMAALL - triggers on all dma interrupts (including channel 15)
 29: AUX
 30: ARM
 31: VPUDMA

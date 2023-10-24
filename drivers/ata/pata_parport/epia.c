@@ -306,4 +306,7 @@ static struct pi_protocol epia = {
 };
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
+MODULE_DESCRIPTION("Shuttle Technologies EPIA parallel port IDE adapter "
+		   "protocol driver");
 module_pata_parport_driver(epia);

@@ -259,11 +259,9 @@ put_bpmp:
 	return err;
 }
 
-static int tegra186_cpufreq_remove(struct platform_device *pdev)
+static void tegra186_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&tegra186_cpufreq_driver);
-
-	return 0;
 }
 
 static const struct of_device_id tegra186_cpufreq_of_match[] = {
@@ -278,7 +276,7 @@ static struct platform_driver tegra186_cpufreq_platform_driver = {
 		.of_match_table = tegra186_cpufreq_of_match,
 	},
 	.probe = tegra186_cpufreq_probe,
-	.remove = tegra186_cpufreq_remove,
+	.remove_new = tegra186_cpufreq_remove,
 };
 module_platform_driver(tegra186_cpufreq_platform_driver);
 

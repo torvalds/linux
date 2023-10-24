@@ -160,16 +160,9 @@ static int lpc32xx_kscan_probe(struct platform_device *pdev)
 {
 	struct lpc32xx_kscan_drv *kscandat;
 	struct input_dev *input;
-	struct resource *res;
 	size_t keymap_size;
 	int error;
 	int irq;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get platform I/O memory\n");
-		return -EINVAL;
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -221,7 +214,7 @@ static int lpc32xx_kscan_probe(struct platform_device *pdev)
 
 	input_set_drvdata(kscandat->input, kscandat);
 
-	kscandat->kscan_base = devm_ioremap_resource(&pdev->dev, res);
+	kscandat->kscan_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(kscandat->kscan_base))
 		return PTR_ERR(kscandat->kscan_base);
 

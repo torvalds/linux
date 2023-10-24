@@ -45,7 +45,7 @@
 			linux,code = <BTN_1>;
 			gpios = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_LOW>;
 			interrupt-parent = <&gpio_intc>;
-			interrupts = <3 IRQ_TYPE_EDGE_BOTH>;
+			interrupts = <IRQID_GPIOAO_3 IRQ_TYPE_EDGE_BOTH>;
 		};
 	};
 
@@ -217,7 +217,7 @@
 
 		interrupt-parent = <&gpio_intc>;
 		/* MAC_INTR on GPIOZ_14 */
-		interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <IRQID_GPIOZ_14 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 

@@ -759,7 +759,7 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 	 * so to avoid any memory possible allocation failures, vzalloc is
 	 * used here
 	 */
-	mhi_cntrl->mhi_chan = vzalloc(mhi_cntrl->max_chan *
+	mhi_cntrl->mhi_chan = vcalloc(mhi_cntrl->max_chan,
 				      sizeof(*mhi_cntrl->mhi_chan));
 	if (!mhi_cntrl->mhi_chan)
 		return -ENOMEM;

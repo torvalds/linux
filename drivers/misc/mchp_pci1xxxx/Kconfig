@@ -2,6 +2,7 @@ config GP_PCI1XXXX
        tristate "Microchip PCI1XXXX PCIe to GPIO Expander + OTP/EEPROM manager"
        depends on PCI
        depends on GPIOLIB
+       depends on NVMEM_SYSFS
        select GPIOLIB_IRQCHIP
        select AUXILIARY_BUS
        help

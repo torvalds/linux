@@ -412,7 +412,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(inode));
 	str->di_atime = cpu_to_be64(inode->i_atime.tv_sec);
 	str->di_mtime = cpu_to_be64(inode->i_mtime.tv_sec);
-	str->di_ctime = cpu_to_be64(inode->i_ctime.tv_sec);
+	str->di_ctime = cpu_to_be64(inode_get_ctime(inode).tv_sec);
 
 	str->di_goal_meta = cpu_to_be64(ip->i_goal);
 	str->di_goal_data = cpu_to_be64(ip->i_goal);
@@ -429,7 +429,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_eattr = cpu_to_be64(ip->i_eattr);
 	str->di_atime_nsec = cpu_to_be32(inode->i_atime.tv_nsec);
 	str->di_mtime_nsec = cpu_to_be32(inode->i_mtime.tv_nsec);
-	str->di_ctime_nsec = cpu_to_be32(inode->i_ctime.tv_nsec);
+	str->di_ctime_nsec = cpu_to_be32(inode_get_ctime(inode).tv_nsec);
 }
 
 /**
@@ -546,20 +546,10 @@ void gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 {
 	int log_write_allowed = test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 
-	if (!test_bit(SDF_DEACTIVATING, &sdp->sd_flags))
+	if (!test_bit(SDF_KILL, &sdp->sd_flags))
 		gfs2_flush_delete_work(sdp);
 
-	if (!log_write_allowed && current == sdp->sd_quotad_process)
-		fs_warn(sdp, "The quotad daemon is withdrawing.\n");
-	else if (sdp->sd_quotad_process)
-		kthread_stop(sdp->sd_quotad_process);
-	sdp->sd_quotad_process = NULL;
-
-	if (!log_write_allowed && current == sdp->sd_logd_process)
-		fs_warn(sdp, "The logd daemon is withdrawing.\n");
-	else if (sdp->sd_logd_process)
-		kthread_stop(sdp->sd_logd_process);
-	sdp->sd_logd_process = NULL;
+	gfs2_destroy_threads(sdp);
 
 	if (log_write_allowed) {
 		gfs2_quota_sync(sdp->sd_vfs, 0);
@@ -580,15 +570,8 @@ void gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 				   gfs2_log_is_empty(sdp),
 				   HZ * 5);
 		gfs2_assert_warn(sdp, gfs2_log_is_empty(sdp));
-	} else {
-		wait_event_timeout(sdp->sd_log_waitq,
-				   gfs2_log_is_empty(sdp),
-				   HZ * 5);
 	}
 	gfs2_quota_cleanup(sdp);
-
-	if (!log_write_allowed)
-		sdp->sd_vfs->s_flags |= SB_RDONLY;
 }
 
 /**
@@ -621,6 +604,10 @@ restart:
 
 	if (!sb_rdonly(sb)) {
 		gfs2_make_fs_ro(sdp);
+	}
+	if (gfs2_withdrawn(sdp)) {
+		gfs2_destroy_threads(sdp);
+		gfs2_quota_cleanup(sdp);
 	}
 	WARN_ON(gfs2_withdrawing(sdp));
 
@@ -689,7 +676,7 @@ static int gfs2_freeze_locally(struct gfs2_sbd *sdp)
 	struct super_block *sb = sdp->sd_vfs;
 	int error;
 
-	error = freeze_super(sb);
+	error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
 	if (error)
 		return error;
 
@@ -697,7 +684,9 @@ static int gfs2_freeze_locally(struct gfs2_sbd *sdp)
 		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_FREEZE |
 			       GFS2_LFC_FREEZE_GO_SYNC);
 		if (gfs2_withdrawn(sdp)) {
-			thaw_super(sb);
+			error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
+			if (error)
+				return error;
 			return -EIO;
 		}
 	}
@@ -712,7 +701,7 @@ static int gfs2_do_thaw(struct gfs2_sbd *sdp)
 	error = gfs2_freeze_lock_shared(sdp);
 	if (error)
 		goto fail;
-	error = thaw_super(sb);
+	error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
 	if (!error)
 		return 0;
 
@@ -761,7 +750,7 @@ out:
  *
  */
 
-static int gfs2_freeze_super(struct super_block *sb)
+static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
@@ -816,7 +805,7 @@ out:
  *
  */
 
-static int gfs2_thaw_super(struct super_block *sb)
+static int gfs2_thaw_super(struct super_block *sb, enum freeze_holder who)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
@@ -1131,6 +1120,9 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 			break;
 		case GFS2_QUOTA_ON:
 			state = "on";
+			break;
+		case GFS2_QUOTA_QUIET:
+			state = "quiet";
 			break;
 		default:
 			state = "unknown";

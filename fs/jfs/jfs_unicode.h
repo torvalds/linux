@@ -8,16 +8,9 @@
 
 #include <linux/slab.h>
 #include <asm/byteorder.h>
+#include "../nls/nls_ucs2_data.h"
 #include "jfs_types.h"
 
-typedef struct {
-	wchar_t start;
-	wchar_t end;
-	signed char *table;
-} UNICASERANGE;
-
-extern signed char UniUpperTable[512];
-extern UNICASERANGE UniUpperRange[];
 extern int get_UCSname(struct component_name *, struct dentry *);
 extern int jfs_strfromUCS_le(char *, const __le16 *, int, struct nls_table *);
 
@@ -107,12 +100,12 @@ static inline wchar_t *UniStrncpy_from_le(wchar_t * ucs1, const __le16 * ucs2,
  */
 static inline wchar_t UniToupper(wchar_t uc)
 {
-	UNICASERANGE *rp;
+	const struct UniCaseRange *rp;
 
-	if (uc < sizeof(UniUpperTable)) {	/* Latin characters */
-		return uc + UniUpperTable[uc];	/* Use base tables */
+	if (uc < sizeof(NlsUniUpperTable)) {	/* Latin characters */
+		return uc + NlsUniUpperTable[uc];	/* Use base tables */
 	} else {
-		rp = UniUpperRange;	/* Use range tables */
+		rp = NlsUniUpperRange;	/* Use range tables */
 		while (rp->start) {
 			if (uc < rp->start)	/* Before start of range */
 				return uc;	/* Uppercase = input */

@@ -32,6 +32,7 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 				 const struct inode *inode)
 {
 	struct dentry *real = NULL, *lower;
+	int err;
 
 	/* It's an overlay file */
 	if (inode && d_inode(dentry) == inode)
@@ -58,7 +59,9 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 	 * uprobes on offset within the file, so lowerdata should be available
 	 * when setting the uprobe.
 	 */
-	ovl_maybe_lookup_lowerdata(dentry);
+	err = ovl_verify_lowerdata(dentry);
+	if (err)
+		goto bug;
 	lower = ovl_dentry_lowerdata(dentry);
 	if (!lower)
 		goto bug;
@@ -101,8 +104,8 @@ static int ovl_revalidate_real(struct dentry *d, unsigned int flags, bool weak)
 static int ovl_dentry_revalidate_common(struct dentry *dentry,
 					unsigned int flags, bool weak)
 {
-	struct ovl_entry *oe = OVL_E(dentry);
-	struct ovl_path *lowerstack = ovl_lowerstack(oe);
+	struct ovl_entry *oe;
+	struct ovl_path *lowerstack;
 	struct inode *inode = d_inode_rcu(dentry);
 	struct dentry *upper;
 	unsigned int i;
@@ -112,6 +115,8 @@ static int ovl_dentry_revalidate_common(struct dentry *dentry,
 	if (!inode)
 		return -ECHILD;
 
+	oe = OVL_I_E(inode);
+	lowerstack = ovl_lowerstack(oe);
 	upper = ovl_i_dentry_upper(inode);
 	if (upper)
 		ret = ovl_revalidate_real(upper, flags, weak);
@@ -164,6 +169,7 @@ static void ovl_free_inode(struct inode *inode)
 	struct ovl_inode *oi = OVL_I(inode);
 
 	kfree(oi->redirect);
+	kfree(oi->oe);
 	mutex_destroy(&oi->lock);
 	kmem_cache_free(ovl_inode_cachep, oi);
 }
@@ -173,7 +179,7 @@ static void ovl_destroy_inode(struct inode *inode)
 	struct ovl_inode *oi = OVL_I(inode);
 
 	dput(oi->__upperdentry);
-	ovl_free_entry(oi->oe);
+	ovl_stack_put(ovl_lowerstack(oi->oe), ovl_numlower(oi->oe));
 	if (S_ISDIR(inode->i_mode))
 		ovl_dir_cache_free(inode);
 	else
@@ -182,7 +188,7 @@ static void ovl_destroy_inode(struct inode *inode)
 
 static void ovl_put_super(struct super_block *sb)
 {
-	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(sb);
 
 	if (ofs)
 		ovl_free_fs(ofs);
@@ -191,7 +197,7 @@ static void ovl_put_super(struct super_block *sb)
 /* Sync real dirty inodes in upper filesystem (if it exists) */
 static int ovl_sync_fs(struct super_block *sb, int wait)
 {
-	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(sb);
 	struct super_block *upper_sb;
 	int ret;
 
@@ -239,8 +245,9 @@ static int ovl_sync_fs(struct super_block *sb, int wait)
  */
 static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
-	struct dentry *root_dentry = dentry->d_sb->s_root;
+	struct super_block *sb = dentry->d_sb;
+	struct ovl_fs *ofs = OVL_FS(sb);
+	struct dentry *root_dentry = sb->s_root;
 	struct path path;
 	int err;
 
@@ -250,6 +257,8 @@ static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (!err) {
 		buf->f_namelen = ofs->namelen;
 		buf->f_type = OVERLAYFS_SUPER_MAGIC;
+		if (ovl_has_fsid(ofs))
+			buf->f_fsid = uuid_to_fsid(sb->s_uuid.b);
 	}
 
 	return err;
@@ -397,6 +406,7 @@ static int ovl_lower_dir(const char *name, struct path *path,
 		pr_warn("fs on '%s' does not support file handles, falling back to index=off,nfs_export=off.\n",
 			name);
 	}
+	ofs->nofh |= !fh_type;
 	/*
 	 * Decoding origin file handle is required for persistent st_ino.
 	 * Without persistent st_ino, xino=auto falls back to xino=off.
@@ -561,11 +571,6 @@ static int ovl_get_upper(struct super_block *sb, struct ovl_fs *ofs,
 	upper_layer->mnt = upper_mnt;
 	upper_layer->idx = 0;
 	upper_layer->fsid = 0;
-
-	err = -ENOMEM;
-	upper_layer->name = kstrdup(ofs->config.upperdir, GFP_KERNEL);
-	if (!upper_layer->name)
-		goto out;
 
 	/*
 	 * Inherit SB_NOSEC flag from upperdir.
@@ -770,6 +775,10 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 			ofs->config.index = false;
 			pr_warn("...falling back to index=off.\n");
 		}
+		if (ovl_has_fsid(ofs)) {
+			ofs->config.uuid = OVL_UUID_NULL;
+			pr_warn("...falling back to uuid=null.\n");
+		}
 		/*
 		 * xattr support is required for persistent st_ino.
 		 * Without persistent st_ino, xino=auto falls back to xino=off.
@@ -815,6 +824,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 		ofs->config.index = false;
 		pr_warn("upper fs does not support file handles, falling back to index=off.\n");
 	}
+	ofs->nofh |= !fh_type;
 
 	/* Check if upper fs has 32bit inode numbers */
 	if (fh_type != FILEID_INO32_GEN)
@@ -1110,7 +1120,8 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		layers[ofs->numlayer].idx = ofs->numlayer;
 		layers[ofs->numlayer].fsid = fsid;
 		layers[ofs->numlayer].fs = &ofs->fs[fsid];
-		layers[ofs->numlayer].name = l->name;
+		/* Store for printing lowerdir=... in ovl_show_options() */
+		ofs->config.lowerdirs[ofs->numlayer] = l->name;
 		l->name = NULL;
 		ofs->numlayer++;
 		ofs->fs[fsid].is_lower = true;
@@ -1355,8 +1366,16 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!layers)
 		goto out_err;
 
+	ofs->config.lowerdirs = kcalloc(ctx->nr + 1, sizeof(char *), GFP_KERNEL);
+	if (!ofs->config.lowerdirs) {
+		kfree(layers);
+		goto out_err;
+	}
 	ofs->layers = layers;
-	/* Layer 0 is reserved for upper even if there's no upper */
+	/*
+	 * Layer 0 is reserved for upper even if there's no upper.
+	 * For consistency, config.lowerdirs[0] is NULL.
+	 */
 	ofs->numlayer = 1;
 
 	sb->s_stack_depth = 0;
@@ -1416,9 +1435,12 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!ovl_upper_mnt(ofs))
 		sb->s_flags |= SB_RDONLY;
 
-	if (!ofs->config.uuid && ofs->numfs > 1) {
-		pr_warn("The uuid=off requires a single fs for lower and upper, falling back to uuid=on.\n");
-		ofs->config.uuid = true;
+	if (!ovl_origin_uuid(ofs) && ofs->numfs > 1) {
+		pr_warn("The uuid=off requires a single fs for lower and upper, falling back to uuid=null.\n");
+		ofs->config.uuid = OVL_UUID_NULL;
+	} else if (ovl_has_fsid(ofs) && ovl_upper_mnt(ofs)) {
+		/* Use per instance persistent uuid/fsid */
+		ovl_init_uuid_xattr(sb, ofs, &ctx->upper);
 	}
 
 	if (!ovl_force_readonly(ofs) && ofs->config.index) {
@@ -1449,8 +1471,15 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 		ofs->config.nfs_export = false;
 	}
 
+	/*
+	 * Support encoding decodable file handles with nfs_export=on
+	 * and encoding non-decodable file handles with nfs_export=off
+	 * if all layers support file handles.
+	 */
 	if (ofs->config.nfs_export)
 		sb->s_export_op = &ovl_export_operations;
+	else if (!ofs->nofh)
+		sb->s_export_op = &ovl_export_fid_operations;
 
 	/* Never override disk quota limits or use reserved space */
 	cap_lower(cred->cap_effective, CAP_SYS_RESOURCE);
@@ -1460,7 +1489,7 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 		ovl_trusted_xattr_handlers;
 	sb->s_fs_info = ofs;
 	sb->s_flags |= SB_POSIXACL;
-	sb->s_iflags |= SB_I_SKIP_SYNC;
+	sb->s_iflags |= SB_I_SKIP_SYNC | SB_I_IMA_UNVERIFIABLE_SIGNATURE;
 
 	err = -ENOMEM;
 	root_dentry = ovl_get_root(sb, ctx->upper.dentry, oe);
@@ -1479,7 +1508,7 @@ out_err:
 	return err;
 }
 
-static struct file_system_type ovl_fs_type = {
+struct file_system_type ovl_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "overlay",
 	.init_fs_context	= ovl_init_fs_context,

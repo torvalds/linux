@@ -6,6 +6,16 @@ protocol: genetlink-legacy
 
 doc: Partial family for Devlink.
 
+definitions:
+  -
+    type: enum
+    name: sb-pool-type
+    entries:
+      -
+        name: ingress
+      -
+        name: egress
+
 attribute-sets:
   -
     name: devlink
@@ -21,6 +31,46 @@ attribute-sets:
       -
         name: port-index
         type: u32
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: sb-index
+        type: u32
+        value: 11
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: sb-pool-index
+        type: u16
+        value: 17
+
+      -
+        name: sb-pool-type
+        type: u8
+        enum: sb-pool-type
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: sb-tc-index
+        type: u16
+        value: 22
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: param-name
+        type: string
+        value: 81
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: region-name
+        type: string
+        value: 88
 
       # TODO: fill in the attributes in between
 
@@ -56,9 +106,34 @@ attribute-sets:
       # TODO: fill in the attributes in between
 
       -
+        name: health-reporter-name
+        type: string
+        value: 115
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: trap-name
+        type: string
+        value: 130
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: trap-group-name
+        type: string
+        value: 135
+
+      -
         name: reload-failed
         type: u8
-        value: 136
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: trap-policer-id
+        type: u32
+        value: 142
 
       # TODO: fill in the attributes in between
 
@@ -103,6 +178,21 @@ attribute-sets:
         type: nest
         multi-attr: true
         nested-attributes: dl-reload-act-stats
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: rate-node-name
+        type: string
+        value: 168
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: linecard-index
+        type: u32
+        value: 171
+
   -
     name: dl-dev-stats
     subset-of: devlink
@@ -165,8 +255,13 @@ operations:
       name: get
       doc: Get devlink instances.
       attribute-set: devlink
+      dont-validate:
+        - strict
+        - dump
 
       do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
         request:
           value: 1
           attributes: &dev-id-attrs
@@ -183,18 +278,212 @@ operations:
       dump:
         reply: *get-reply
 
+    -
+      name: port-get
+      doc: Get devlink port instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          value: 5
+          attributes: &port-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+        reply:
+          value: 7
+          attributes: *port-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply:
+          value: 3  # due to a bug, port dump returns DEVLINK_CMD_NEW
+          attributes: *port-id-attrs
+
+      # TODO: fill in the operations in between
+
+    -
+      name: sb-get
+      doc: Get shared buffer instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 11
+          attributes: &sb-id-attrs
+            - bus-name
+            - dev-name
+            - sb-index
+        reply: &sb-get-reply
+          value: 13
+          attributes: *sb-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *sb-get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: sb-pool-get
+      doc: Get shared buffer pool instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 15
+          attributes: &sb-pool-id-attrs
+            - bus-name
+            - dev-name
+            - sb-index
+            - sb-pool-index
+        reply: &sb-pool-get-reply
+          value: 17
+          attributes: *sb-pool-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *sb-pool-get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: sb-port-pool-get
+      doc: Get shared buffer port-pool combinations and threshold.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          value: 19
+          attributes: &sb-port-pool-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+            - sb-index
+            - sb-pool-index
+        reply: &sb-port-pool-get-reply
+          value: 21
+          attributes: *sb-port-pool-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *sb-port-pool-get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: sb-tc-pool-bind-get
+      doc: Get shared buffer port-TC to pool bindings and threshold.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          value: 23
+          attributes: &sb-tc-pool-bind-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+            - sb-index
+            - sb-pool-type
+            - sb-tc-index
+        reply: &sb-tc-pool-bind-get-reply
+          value: 25
+          attributes: *sb-tc-pool-bind-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *sb-tc-pool-bind-get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: param-get
+      doc: Get param instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 38
+          attributes: &param-id-attrs
+            - bus-name
+            - dev-name
+            - param-name
+        reply: &param-get-reply
+          value: 38
+          attributes: *param-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *param-get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: region-get
+      doc: Get region instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit-port-optional
+        post: devlink-nl-post-doit
+        request:
+          value: 42
+          attributes: &region-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+            - region-name
+        reply: &region-get-reply
+          value: 42
+          attributes: *region-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *region-get-reply
+
       # TODO: fill in the operations in between
 
     -
       name: info-get
       doc: Get device information, like driver name, hardware and firmware versions etc.
       attribute-set: devlink
+      dont-validate:
+        - strict
+        - dump
 
       do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
         request:
           value: 51
           attributes: *dev-id-attrs
-        reply:
+        reply: &info-get-reply
           value: 51
           attributes:
             - bus-name
@@ -204,3 +493,181 @@ operations:
             - info-version-fixed
             - info-version-running
             - info-version-stored
+      dump:
+        reply: *info-get-reply
+
+    -
+      name: health-reporter-get
+      doc: Get health reporter instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit-port-optional
+        post: devlink-nl-post-doit
+        request:
+          attributes: &health-reporter-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+            - health-reporter-name
+        reply: &health-reporter-get-reply
+          attributes: *health-reporter-id-attrs
+      dump:
+        request:
+          attributes: *port-id-attrs
+        reply: *health-reporter-get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: trap-get
+      doc: Get trap instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 61
+          attributes: &trap-id-attrs
+            - bus-name
+            - dev-name
+            - trap-name
+        reply: &trap-get-reply
+          value: 63
+          attributes: *trap-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *trap-get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: trap-group-get
+      doc: Get trap group instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 65
+          attributes: &trap-group-id-attrs
+            - bus-name
+            - dev-name
+            - trap-group-name
+        reply: &trap-group-get-reply
+          value: 67
+          attributes: *trap-group-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *trap-group-get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: trap-policer-get
+      doc: Get trap policer instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 69
+          attributes: &trap-policer-id-attrs
+            - bus-name
+            - dev-name
+            - trap-policer-id
+        reply: &trap-policer-get-reply
+          value: 71
+          attributes: *trap-policer-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *trap-policer-get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: rate-get
+      doc: Get rate instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 74
+          attributes: &rate-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+            - rate-node-name
+        reply: &rate-get-reply
+          value: 76
+          attributes: *rate-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *rate-get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: linecard-get
+      doc: Get line card instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 78
+          attributes: &linecard-id-attrs
+            - bus-name
+            - dev-name
+            - linecard-index
+        reply: &linecard-get-reply
+          value: 80
+          attributes: *linecard-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *linecard-get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: selftests-get
+      doc: Get device selftest instances.
+      attribute-set: devlink
+      dont-validate:
+        - strict
+        - dump
+
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 82
+          attributes: *dev-id-attrs
+        reply: &selftests-get-reply
+          value: 82
+          attributes: *dev-id-attrs
+      dump:
+        reply: *selftests-get-reply

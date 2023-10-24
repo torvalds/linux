@@ -10,7 +10,7 @@ maintainers:
   - Heiko Stuebner <heiko@sntech.de>
 
 description: |
-  The Rockchip SoC has a MIPI CSI D-PHY based on an Innosilicon IP wich
+  The Rockchip SoC has a MIPI CSI D-PHY based on an Innosilicon IP which
   connects to the ISP1 (Image Signal Processing unit v1.0) for CSI cameras.
 
 properties:

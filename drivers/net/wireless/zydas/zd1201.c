@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *	Driver for ZyDAS zd1201 based wireless USB devices.
+ *	Driver for ZyDAS zd1201 based USB wireless devices.
  *
  *	Copyright (c) 2004, 2005 Jeroen Vreeken (pe1rxq@amsat.org)
  *
@@ -23,8 +23,8 @@
 #include "zd1201.h"
 
 static const struct usb_device_id zd1201_table[] = {
-	{USB_DEVICE(0x0586, 0x3400)}, /* Peabird Wireless USB Adapter */
-	{USB_DEVICE(0x0ace, 0x1201)}, /* ZyDAS ZD1201 Wireless USB Adapter */
+	{USB_DEVICE(0x0586, 0x3400)}, /* Peabird USB Wireless Adapter */
+	{USB_DEVICE(0x0ace, 0x1201)}, /* ZyDAS ZD1201 USB Wireless Adapter */
 	{USB_DEVICE(0x050d, 0x6051)}, /* Belkin F5D6051 usb  adapter */
 	{USB_DEVICE(0x0db0, 0x6823)}, /* MSI UB11B usb  adapter */
 	{USB_DEVICE(0x1044, 0x8004)}, /* Gigabyte GN-WLBZ101 */

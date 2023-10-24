@@ -221,7 +221,7 @@ struct devlink_dpipe_field {
 /**
  * struct devlink_dpipe_header - dpipe header object
  * @name: header name
- * @id: index, global/local detrmined by global bit
+ * @id: index, global/local determined by global bit
  * @fields: fields
  * @fields_count: number of fields
  * @global: indicates if header is shared like most protocol header
@@ -241,7 +241,7 @@ struct devlink_dpipe_header {
  * @header_index: header index (packets can have several headers of same
  *		  type like in case of tunnels)
  * @header: header
- * @fieled_id: field index
+ * @field_id: field index
  */
 struct devlink_dpipe_match {
 	enum devlink_dpipe_match_type type;
@@ -256,7 +256,7 @@ struct devlink_dpipe_match {
  * @header_index: header index (packets can have several headers of same
  *		  type like in case of tunnels)
  * @header: header
- * @fieled_id: field index
+ * @field_id: field index
  */
 struct devlink_dpipe_action {
 	enum devlink_dpipe_action_type type;
@@ -292,7 +292,7 @@ struct devlink_dpipe_value {
  * struct devlink_dpipe_entry - table entry object
  * @index: index of the entry in the table
  * @match_values: match values
- * @matche_values_count: count of matches tuples
+ * @match_values_count: count of matches tuples
  * @action_values: actions values
  * @action_values_count: count of actions values
  * @counter: value of counter
@@ -342,7 +342,9 @@ struct devlink_dpipe_table_ops;
  */
 struct devlink_dpipe_table {
 	void *priv;
+	/* private: */
 	struct list_head list;
+	/* public: */
 	const char *name;
 	bool counters_enabled;
 	bool counter_control_extern;
@@ -355,13 +357,13 @@ struct devlink_dpipe_table {
 
 /**
  * struct devlink_dpipe_table_ops - dpipe_table ops
- * @actions_dump - dumps all tables actions
- * @matches_dump - dumps all tables matches
- * @entries_dump - dumps all active entries in the table
- * @counters_set_update - when changing the counter status hardware sync
+ * @actions_dump: dumps all tables actions
+ * @matches_dump: dumps all tables matches
+ * @entries_dump: dumps all active entries in the table
+ * @counters_set_update:  when changing the counter status hardware sync
  *			  maybe needed to allocate/free counter related
  *			  resources
- * @size_get - get size
+ * @size_get: get size
  */
 struct devlink_dpipe_table_ops {
 	int (*actions_dump)(void *priv, struct sk_buff *skb);
@@ -374,8 +376,8 @@ struct devlink_dpipe_table_ops {
 
 /**
  * struct devlink_dpipe_headers - dpipe headers
- * @headers - header array can be shared (global bit) or driver specific
- * @headers_count - count of headers
+ * @headers: header array can be shared (global bit) or driver specific
+ * @headers_count: count of headers
  */
 struct devlink_dpipe_headers {
 	struct devlink_dpipe_header **headers;
@@ -387,7 +389,7 @@ struct devlink_dpipe_headers {
  * @size_min: minimum size which can be set
  * @size_max: maximum size which can be set
  * @size_granularity: size granularity
- * @size_unit: resource's basic unit
+ * @unit: resource's basic unit
  */
 struct devlink_resource_size_params {
 	u64 size_min;
@@ -457,6 +459,7 @@ struct devlink_flash_notify {
 
 /**
  * struct devlink_param - devlink configuration parameter data
+ * @id: devlink parameter id number
  * @name: name of the parameter
  * @generic: indicates if the parameter is generic or driver specific
  * @type: parameter type
@@ -632,6 +635,7 @@ enum devlink_param_generic_id {
  * struct devlink_flash_update_params - Flash Update parameters
  * @fw: pointer to the firmware data to update from
  * @component: the flash component to update
+ * @overwrite_mask: which types of flash update are supported (may be %0)
  *
  * With the exception of fw, drivers must opt-in to parameters by
  * setting the appropriate bit in the supported_flash_update_params field in
@@ -1579,6 +1583,24 @@ void devlink_free(struct devlink *devlink);
  *		       Should be used by device drivers set
  *		       the admin state of a function managed
  *		       by the devlink port.
+ * @port_fn_ipsec_crypto_get: Callback used to get port function's ipsec_crypto
+ *			      capability. Should be used by device drivers
+ *			      to report the current state of ipsec_crypto
+ *			      capability of a function managed by the devlink
+ *			      port.
+ * @port_fn_ipsec_crypto_set: Callback used to set port function's ipsec_crypto
+ *			      capability. Should be used by device drivers to
+ *			      enable/disable ipsec_crypto capability of a
+ *			      function managed by the devlink port.
+ * @port_fn_ipsec_packet_get: Callback used to get port function's ipsec_packet
+ *			      capability. Should be used by device drivers
+ *			      to report the current state of ipsec_packet
+ *			      capability of a function managed by the devlink
+ *			      port.
+ * @port_fn_ipsec_packet_set: Callback used to set port function's ipsec_packet
+ *			      capability. Should be used by device drivers to
+ *			      enable/disable ipsec_packet capability of a
+ *			      function managed by the devlink port.
  *
  * Note: Driver should return -EOPNOTSUPP if it doesn't support
  * port function (@port_fn_*) handling for a particular port.
@@ -1616,6 +1638,18 @@ struct devlink_port_ops {
 	int (*port_fn_state_set)(struct devlink_port *port,
 				 enum devlink_port_fn_state state,
 				 struct netlink_ext_ack *extack);
+	int (*port_fn_ipsec_crypto_get)(struct devlink_port *devlink_port,
+					bool *is_enable,
+					struct netlink_ext_ack *extack);
+	int (*port_fn_ipsec_crypto_set)(struct devlink_port *devlink_port,
+					bool enable,
+					struct netlink_ext_ack *extack);
+	int (*port_fn_ipsec_packet_get)(struct devlink_port *devlink_port,
+					bool *is_enable,
+					struct netlink_ext_ack *extack);
+	int (*port_fn_ipsec_packet_set)(struct devlink_port *devlink_port,
+					bool enable,
+					struct netlink_ext_ack *extack);
 };
 
 void devlink_port_init(struct devlink *devlink,
@@ -1739,9 +1773,6 @@ int devl_resource_size_get(struct devlink *devlink,
 int devl_dpipe_table_resource_set(struct devlink *devlink,
 				  const char *table_name, u64 resource_id,
 				  u64 resource_units);
-int devlink_dpipe_table_resource_set(struct devlink *devlink,
-				     const char *table_name, u64 resource_id,
-				     u64 resource_units);
 void devl_resource_occ_get_register(struct devlink *devlink,
 				    u64 resource_id,
 				    devlink_resource_occ_get_t *occ_get,
@@ -1786,8 +1817,6 @@ devlink_port_region_create(struct devlink_port *port,
 			   u32 region_max_snapshots, u64 region_size);
 void devl_region_destroy(struct devlink_region *region);
 void devlink_region_destroy(struct devlink_region *region);
-void devlink_port_region_destroy(struct devlink_region *region);
-
 int devlink_region_snapshot_id_get(struct devlink *devlink, u32 *id);
 void devlink_region_snapshot_id_put(struct devlink *devlink, u32 id);
 int devlink_region_snapshot_create(struct devlink_region *region,

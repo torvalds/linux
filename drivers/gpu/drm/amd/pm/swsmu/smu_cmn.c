@@ -39,6 +39,8 @@
 
 #define MP1_C2PMSG_90__CONTENT_MASK                                                                    0xFFFFFFFFL
 
+const int link_speed[] = {25, 50, 80, 160, 320, 640};
+
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	#type
 static const char * const __smu_message_names[] = {
@@ -983,6 +985,9 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 		break;
 	case METRICS_VERSION(1, 3):
 		structure_size = sizeof(struct gpu_metrics_v1_3);
+		break;
+	case METRICS_VERSION(1, 4):
+		structure_size = sizeof(struct gpu_metrics_v1_4);
 		break;
 	case METRICS_VERSION(2, 0):
 		structure_size = sizeof(struct gpu_metrics_v2_0);

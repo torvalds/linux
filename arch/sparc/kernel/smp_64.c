@@ -921,20 +921,26 @@ extern unsigned long xcall_flush_dcache_page_cheetah;
 #endif
 extern unsigned long xcall_flush_dcache_page_spitfire;
 
-static inline void __local_flush_dcache_page(struct page *page)
+static inline void __local_flush_dcache_folio(struct folio *folio)
 {
+	unsigned int i, nr = folio_nr_pages(folio);
+
 #ifdef DCACHE_ALIASING_POSSIBLE
-	__flush_dcache_page(page_address(page),
+	for (i = 0; i < nr; i++)
+		__flush_dcache_page(folio_address(folio) + i * PAGE_SIZE,
 			    ((tlb_type == spitfire) &&
-			     page_mapping_file(page) != NULL));
+			     folio_flush_mapping(folio) != NULL));
 #else
-	if (page_mapping_file(page) != NULL &&
-	    tlb_type == spitfire)
-		__flush_icache_page(__pa(page_address(page)));
+	if (folio_flush_mapping(folio) != NULL &&
+	    tlb_type == spitfire) {
+		unsigned long pfn = folio_pfn(folio)
+		for (i = 0; i < nr; i++)
+			__flush_icache_page((pfn + i) * PAGE_SIZE);
+	}
 #endif
 }
 
-void smp_flush_dcache_page_impl(struct page *page, int cpu)
+void smp_flush_dcache_folio_impl(struct folio *folio, int cpu)
 {
 	int this_cpu;
 
@@ -948,14 +954,14 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
 	this_cpu = get_cpu();
 
 	if (cpu == this_cpu) {
-		__local_flush_dcache_page(page);
+		__local_flush_dcache_folio(folio);
 	} else if (cpu_online(cpu)) {
-		void *pg_addr = page_address(page);
+		void *pg_addr = folio_address(folio);
 		u64 data0 = 0;
 
 		if (tlb_type == spitfire) {
 			data0 = ((u64)&xcall_flush_dcache_page_spitfire);
-			if (page_mapping_file(page) != NULL)
+			if (folio_flush_mapping(folio) != NULL)
 				data0 |= ((u64)1 << 32);
 		} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 #ifdef DCACHE_ALIASING_POSSIBLE
@@ -963,18 +969,23 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
 #endif
 		}
 		if (data0) {
-			xcall_deliver(data0, __pa(pg_addr),
-				      (u64) pg_addr, cpumask_of(cpu));
+			unsigned int i, nr = folio_nr_pages(folio);
+
+			for (i = 0; i < nr; i++) {
+				xcall_deliver(data0, __pa(pg_addr),
+					      (u64) pg_addr, cpumask_of(cpu));
 #ifdef CONFIG_DEBUG_DCFLUSH
-			atomic_inc(&dcpage_flushes_xcall);
+				atomic_inc(&dcpage_flushes_xcall);
 #endif
+				pg_addr += PAGE_SIZE;
+			}
 		}
 	}
 
 	put_cpu();
 }
 
-void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
+void flush_dcache_folio_all(struct mm_struct *mm, struct folio *folio)
 {
 	void *pg_addr;
 	u64 data0;
@@ -988,10 +999,10 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 	atomic_inc(&dcpage_flushes);
 #endif
 	data0 = 0;
-	pg_addr = page_address(page);
+	pg_addr = folio_address(folio);
 	if (tlb_type == spitfire) {
 		data0 = ((u64)&xcall_flush_dcache_page_spitfire);
-		if (page_mapping_file(page) != NULL)
+		if (folio_flush_mapping(folio) != NULL)
 			data0 |= ((u64)1 << 32);
 	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 #ifdef DCACHE_ALIASING_POSSIBLE
@@ -999,13 +1010,18 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 #endif
 	}
 	if (data0) {
-		xcall_deliver(data0, __pa(pg_addr),
-			      (u64) pg_addr, cpu_online_mask);
+		unsigned int i, nr = folio_nr_pages(folio);
+
+		for (i = 0; i < nr; i++) {
+			xcall_deliver(data0, __pa(pg_addr),
+				      (u64) pg_addr, cpu_online_mask);
 #ifdef CONFIG_DEBUG_DCFLUSH
-		atomic_inc(&dcpage_flushes_xcall);
+			atomic_inc(&dcpage_flushes_xcall);
 #endif
+			pg_addr += PAGE_SIZE;
+		}
 	}
-	__local_flush_dcache_page(page);
+	__local_flush_dcache_folio(folio);
 
 	preempt_enable();
 }

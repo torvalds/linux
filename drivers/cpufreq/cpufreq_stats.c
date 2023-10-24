@@ -243,7 +243,8 @@ void cpufreq_stats_create_table(struct cpufreq_policy *policy)
 
 	/* Find valid-unique entries */
 	cpufreq_for_each_valid_entry(pos, policy->freq_table)
-		if (freq_table_get_index(stats, pos->frequency) == -1)
+		if (policy->freq_table_sorted != CPUFREQ_TABLE_UNSORTED ||
+		    freq_table_get_index(stats, pos->frequency) == -1)
 			stats->freq_table[i++] = pos->frequency;
 
 	stats->state_num = i;

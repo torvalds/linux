@@ -1197,9 +1197,13 @@ static int renoir_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_AVERAGE_VCNACTIVITY:
 		*value = metrics->AverageUvdActivity / 100;
 		break;
-	case METRICS_AVERAGE_SOCKETPOWER:
-		if (((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(12, 0, 1)) && (adev->pm.fw_version >= 0x40000f)) ||
-		((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(12, 0, 0)) && (adev->pm.fw_version >= 0x373200)))
+	case METRICS_CURR_SOCKETPOWER:
+		if (((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
+		      IP_VERSION(12, 0, 1)) &&
+		     (adev->pm.fw_version >= 0x40000f)) ||
+		    ((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
+		      IP_VERSION(12, 0, 0)) &&
+		     (adev->pm.fw_version >= 0x373200)))
 			*value = metrics->CurrentSocketPower << 8;
 		else
 			*value = (metrics->CurrentSocketPower << 8) / 1000;
@@ -1297,9 +1301,9 @@ static int renoir_read_sensor(struct smu_context *smu,
 						  (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 		ret = renoir_get_smu_metrics_data(smu,
-						  METRICS_AVERAGE_SOCKETPOWER,
+						  METRICS_CURR_SOCKETPOWER,
 						  (uint32_t *)data);
 		*size = 4;
 		break;
@@ -1315,6 +1319,7 @@ static int renoir_read_sensor(struct smu_context *smu,
 						  (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 	default:
 		ret = -EOPNOTSUPP;
 		break;

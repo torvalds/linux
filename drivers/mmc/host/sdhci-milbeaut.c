@@ -313,7 +313,7 @@ err:
 	return ret;
 }
 
-static int sdhci_milbeaut_remove(struct platform_device *pdev)
+static void sdhci_milbeaut_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct f_sdhost_priv *priv = sdhci_priv(host);
@@ -326,18 +326,16 @@ static int sdhci_milbeaut_remove(struct platform_device *pdev)
 
 	sdhci_free_host(host);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static struct platform_driver sdhci_milbeaut_driver = {
 	.driver = {
 		.name = "sdhci-milbeaut",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table = of_match_ptr(mlb_dt_ids),
+		.of_match_table = mlb_dt_ids,
 	},
 	.probe	= sdhci_milbeaut_probe,
-	.remove	= sdhci_milbeaut_remove,
+	.remove_new = sdhci_milbeaut_remove,
 };
 
 module_platform_driver(sdhci_milbeaut_driver);

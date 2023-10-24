@@ -7,10 +7,12 @@
 
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sm8350.dtsi"
+#include "pmk8350.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. SM8350 HDK";
 	compatible = "qcom,sm8350-hdk", "qcom,sm8350";
+	chassis-type = "embedded";
 
 	aliases {
 		serial0 = &uart2;
@@ -348,18 +350,10 @@
 		vcc-supply = <&vreg_bob>;
 		mode-switch;
 		orientation-switch;
-		svid = /bits/ 16 <0xff01>;
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-
-				fsa4480_sbu_mux: endpoint {
-					remote-endpoint = <&pmic_glink_sbu>;
-				};
+		port {
+			fsa4480_sbu_mux: endpoint {
+				remote-endpoint = <&pmic_glink_sbu>;
 			};
 		};
 	};
@@ -471,6 +465,18 @@
 };
 
 &qupv3_id_2 {
+	status = "okay";
+};
+
+&sdhc_2 {
+	cd-gpios = <&tlmm 92 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc2_default_state &sdc2_card_det_n>;
+	pinctrl-1 = <&sdc2_sleep_state &sdc2_card_det_n>;
+	vmmc-supply = <&vreg_l9c_2p96>;
+	vqmmc-supply = <&vreg_l6c_1p8>;
+	no-sdio;
+	no-mmc;
 	status = "okay";
 };
 
@@ -731,6 +737,13 @@
 			drive-strength = <2>;
 			bias-pull-up;
 		};
+	};
+
+	sdc2_card_det_n: sd-card-det-n-state {
+		pins = "gpio92";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 };
 

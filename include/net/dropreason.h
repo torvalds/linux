@@ -23,6 +23,12 @@ enum skb_drop_reason_subsys {
 	 */
 	SKB_DROP_REASON_SUBSYS_MAC80211_MONITOR,
 
+	/**
+	 * @SKB_DROP_REASON_SUBSYS_OPENVSWITCH: openvswitch drop reasons,
+	 * see net/openvswitch/drop.h
+	 */
+	SKB_DROP_REASON_SUBSYS_OPENVSWITCH,
+
 	/** @SKB_DROP_REASON_SUBSYS_NUM: number of subsystems defined */
 	SKB_DROP_REASON_SUBSYS_NUM
 };

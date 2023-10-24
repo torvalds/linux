@@ -48,7 +48,6 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 
 static void __init MP_processor_info(struct mpc_cpu *m)
 {
-	int apicid;
 	char *bootup_cpu = "";
 
 	if (!(m->cpuflag & CPU_ENABLED)) {
@@ -56,15 +55,11 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 		return;
 	}
 
-	apicid = m->apicid;
-
-	if (m->cpuflag & CPU_BOOTPROCESSOR) {
+	if (m->cpuflag & CPU_BOOTPROCESSOR)
 		bootup_cpu = " (Bootup-CPU)";
-		boot_cpu_physical_apicid = m->apicid;
-	}
 
 	pr_info("Processor #%d%s\n", m->apicid, bootup_cpu);
-	generic_processor_info(apicid, m->apicver);
+	generic_processor_info(m->apicid);
 }
 
 #ifdef CONFIG_X86_IO_APIC
@@ -380,11 +375,6 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	int i;
 
 	/*
-	 * local APIC has default address
-	 */
-	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
-
-	/*
 	 * 2 CPUs, numbered 0 & 1.
 	 */
 	processor.type = MP_PROCESSOR;
@@ -525,10 +515,8 @@ void __init default_get_smp_config(unsigned int early)
 	 */
 	if (mpf->feature1) {
 		if (early) {
-			/*
-			 * local APIC has default address
-			 */
-			mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
+			/* Local APIC has default address */
+			register_lapic_address(APIC_DEFAULT_PHYS_BASE);
 			goto out;
 		}
 

@@ -853,6 +853,10 @@ static inline bool vmw_resource_mob_attached(const struct vmw_resource *res)
 /**
  * GEM related functionality - vmwgfx_gem.c
  */
+struct vmw_bo_params;
+int vmw_gem_object_create(struct vmw_private *vmw,
+			  struct vmw_bo_params *params,
+			  struct vmw_bo **p_vbo);
 extern int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 					     struct drm_file *filp,
 					     uint32_t size,
@@ -1511,6 +1515,18 @@ static inline bool vmw_has_fences(struct vmw_private *vmw)
 				  SVGA_CAP_CMD_BUFFERS_2)) != 0)
 		return true;
 	return (vmw_fifo_caps(vmw) & SVGA_FIFO_CAP_FENCE) != 0;
+}
+
+static inline bool vmw_shadertype_is_valid(enum vmw_sm_type shader_model,
+					   u32 shader_type)
+{
+	SVGA3dShaderType max_allowed = SVGA3D_SHADERTYPE_PREDX_MAX;
+
+	if (shader_model >= VMW_SM_5)
+		max_allowed = SVGA3D_SHADERTYPE_MAX;
+	else if (shader_model >= VMW_SM_4)
+		max_allowed = SVGA3D_SHADERTYPE_DX10_MAX;
+	return shader_type >= SVGA3D_SHADERTYPE_MIN && shader_type < max_allowed;
 }
 
 #endif

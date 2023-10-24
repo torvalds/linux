@@ -394,8 +394,6 @@ static int npcm_rc_probe(struct platform_device *pdev)
 	rc->rcdev.of_reset_n_cells = 2;
 	rc->rcdev.of_xlate = npcm_reset_xlate;
 
-	platform_set_drvdata(pdev, rc);
-
 	ret = devm_reset_controller_register(&pdev->dev, &rc->rcdev);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to register device\n");

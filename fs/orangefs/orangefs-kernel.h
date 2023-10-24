@@ -370,7 +370,7 @@ int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
 int orangefs_permission(struct mnt_idmap *idmap,
 			struct inode *inode, int mask);
 
-int orangefs_update_time(struct inode *, struct timespec64 *, int);
+int orangefs_update_time(struct inode *, int);
 
 /*
  * defined in xattr.c

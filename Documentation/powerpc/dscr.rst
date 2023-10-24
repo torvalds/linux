@@ -6,7 +6,7 @@ DSCR register in powerpc allows user to have some control of prefetch of data
 stream in the processor. Please refer to the ISA documents or related manual
 for more detailed information regarding how to use this DSCR to attain this
 control of the prefetches . This document here provides an overview of kernel
-support for DSCR, related kernel objects, it's functionalities and exported
+support for DSCR, related kernel objects, its functionalities and exported
 user interface.
 
 (A) Data Structures:

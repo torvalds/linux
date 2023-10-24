@@ -5,8 +5,6 @@
  * Copyright (C) 2015 Annapurna Labs Ltd.
  */
 
-#include <linux/of_platform.h>
-
 #include <asm/mach/arch.h>
 
 static const char * const al_match[] __initconst = {

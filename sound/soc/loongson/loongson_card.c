@@ -208,7 +208,7 @@ static struct platform_driver loongson_audio_driver = {
 	.driver = {
 		.name = "loongson-asoc-card",
 		.pm = &snd_soc_pm_ops,
-		.of_match_table = of_match_ptr(loongson_asoc_dt_ids),
+		.of_match_table = loongson_asoc_dt_ids,
 	},
 };
 module_platform_driver(loongson_audio_driver);

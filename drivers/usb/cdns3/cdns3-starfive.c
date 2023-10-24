@@ -166,7 +166,7 @@ static int cdns_starfive_remove_core(struct device *dev, void *c)
 	return 0;
 }
 
-static int cdns_starfive_remove(struct platform_device *pdev)
+static void cdns_starfive_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cdns_starfive *data = dev_get_drvdata(dev);
@@ -178,8 +178,6 @@ static int cdns_starfive_remove(struct platform_device *pdev)
 	pm_runtime_put_noidle(dev);
 	cdns_clk_rst_deinit(data);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -232,7 +230,7 @@ MODULE_DEVICE_TABLE(of, cdns_starfive_of_match);
 
 static struct platform_driver cdns_starfive_driver = {
 	.probe		= cdns_starfive_probe,
-	.remove		= cdns_starfive_remove,
+	.remove_new	= cdns_starfive_remove,
 	.driver		= {
 		.name	= "cdns3-starfive",
 		.of_match_table	= cdns_starfive_of_match,

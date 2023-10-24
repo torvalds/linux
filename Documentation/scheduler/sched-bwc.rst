@@ -186,7 +186,7 @@ average usage, albeit over a longer time window than a single period.  This
 also limits the burst ability to no more than 1ms per cpu.  This provides
 better more predictable user experience for highly threaded applications with
 small quota limits on high core count machines. It also eliminates the
-propensity to throttle these applications while simultanously using less than
+propensity to throttle these applications while simultaneously using less than
 quota amounts of cpu. Another way to say this, is that by allowing the unused
 portion of a slice to remain valid across periods we have decreased the
 possibility of wastefully expiring quota on cpu-local silos that don't need a

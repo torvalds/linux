@@ -10,7 +10,7 @@
 #
 # Makefile for dcn314.
 
-DCN314 = dcn314_resource.o dcn314_hwseq.o dcn314_init.o \
+DCN314 = dcn314_resource.o dcn314_init.o \
 		dcn314_dio_stream_encoder.o dcn314_dccg.o dcn314_optc.o
 
 AMD_DAL_DCN314 = $(addprefix $(AMDDALPATH)/dc/dcn314/,$(DCN314))

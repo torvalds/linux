@@ -20,7 +20,7 @@ description: |
   The panel itself contains:
     - AT24C16C EEPROM holding panel identification and timing requirements
     - AR1021 resistive touch screen controller (optional)
-    - FT5x6 capacitive touch screnn controller (optional)
+    - FT5x6 capacitive touch screen controller (optional)
     - GT911/GT928 capacitive touch screen controller (optional)
 
   The above chips share same I2C bus. The EEPROM is factory preprogrammed with

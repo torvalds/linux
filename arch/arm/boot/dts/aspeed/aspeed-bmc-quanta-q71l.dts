@@ -197,7 +197,7 @@
 	 *    Slot 6,
 	 *    Slot 7
 	 */
-	i2c-switch@74 {
+	i2c-mux@74 {
 		compatible = "nxp,pca9546";
 		reg = <0x74>;
 		#address-cells = <1>;
@@ -238,7 +238,7 @@
 	 *    SSD 1,
 	 *    SSD 2
 	 */
-	i2c-switch@77 {
+	i2c-mux@77 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -325,7 +325,7 @@
 	 *    PSU3
 	 *    PSU2
 	 */
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		#address-cells = <1>;

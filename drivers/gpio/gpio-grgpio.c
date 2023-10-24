@@ -19,10 +19,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/err.h>

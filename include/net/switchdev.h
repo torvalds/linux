@@ -201,8 +201,6 @@ struct switchdev_obj_in_state_mrp {
 #define SWITCHDEV_OBJ_IN_STATE_MRP(OBJ) \
 	container_of((OBJ), struct switchdev_obj_in_state_mrp, obj)
 
-typedef int switchdev_obj_dump_cb_t(struct switchdev_obj *obj);
-
 struct switchdev_brport {
 	struct net_device *dev;
 	const void *ctx;
@@ -231,6 +229,7 @@ enum switchdev_notifier_type {
 
 	SWITCHDEV_BRPORT_OFFLOADED,
 	SWITCHDEV_BRPORT_UNOFFLOADED,
+	SWITCHDEV_BRPORT_REPLAY,
 };
 
 struct switchdev_notifier_info {
@@ -299,6 +298,11 @@ void switchdev_bridge_port_unoffload(struct net_device *brport_dev,
 				     const void *ctx,
 				     struct notifier_block *atomic_nb,
 				     struct notifier_block *blocking_nb);
+int switchdev_bridge_port_replay(struct net_device *brport_dev,
+				 struct net_device *dev, const void *ctx,
+				 struct notifier_block *atomic_nb,
+				 struct notifier_block *blocking_nb,
+				 struct netlink_ext_ack *extack);
 
 void switchdev_deferred_process(void);
 int switchdev_port_attr_set(struct net_device *dev,
@@ -321,10 +325,6 @@ int unregister_switchdev_blocking_notifier(struct notifier_block *nb);
 int call_switchdev_blocking_notifiers(unsigned long val, struct net_device *dev,
 				      struct switchdev_notifier_info *info,
 				      struct netlink_ext_ack *extack);
-
-void switchdev_port_fwd_mark_set(struct net_device *dev,
-				 struct net_device *group_dev,
-				 bool joining);
 
 int switchdev_handle_fdb_event_to_device(struct net_device *dev, unsigned long event,
 		const struct switchdev_notifier_fdb_info *fdb_info,

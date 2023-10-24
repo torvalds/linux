@@ -31,8 +31,8 @@ static unsigned int dw_pcm_tx_##sample_bits(struct dw_i2s_dev *dev, \
 	int i; \
 \
 	for (i = 0; i < dev->fifo_th; i++) { \
-		iowrite32(p[tx_ptr][0], dev->i2s_base + LRBR_LTHR(0)); \
-		iowrite32(p[tx_ptr][1], dev->i2s_base + RRBR_RTHR(0)); \
+		iowrite32(p[tx_ptr][0], dev->i2s_base + dev->l_reg); \
+		iowrite32(p[tx_ptr][1], dev->i2s_base + dev->r_reg); \
 		period_pos++; \
 		if (++tx_ptr >= runtime->buffer_size) \
 			tx_ptr = 0; \
@@ -51,8 +51,8 @@ static unsigned int dw_pcm_rx_##sample_bits(struct dw_i2s_dev *dev, \
 	int i; \
 \
 	for (i = 0; i < dev->fifo_th; i++) { \
-		p[rx_ptr][0] = ioread32(dev->i2s_base + LRBR_LTHR(0)); \
-		p[rx_ptr][1] = ioread32(dev->i2s_base + RRBR_RTHR(0)); \
+		p[rx_ptr][0] = ioread32(dev->i2s_base + dev->l_reg); \
+		p[rx_ptr][1] = ioread32(dev->i2s_base + dev->r_reg); \
 		period_pos++; \
 		if (++rx_ptr >= runtime->buffer_size) \
 			rx_ptr = 0; \

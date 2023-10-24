@@ -170,33 +170,27 @@ int config_ep_by_speed_and_alt(struct usb_gadget *g,
 	/* select desired speed */
 	switch (g->speed) {
 	case USB_SPEED_SUPER_PLUS:
-		if (gadget_is_superspeed_plus(g)) {
-			if (f->ssp_descriptors) {
-				speed_desc = f->ssp_descriptors;
-				want_comp_desc = 1;
-				break;
-			}
-			incomplete_desc = true;
+		if (f->ssp_descriptors) {
+			speed_desc = f->ssp_descriptors;
+			want_comp_desc = 1;
+			break;
 		}
+		incomplete_desc = true;
 		fallthrough;
 	case USB_SPEED_SUPER:
-		if (gadget_is_superspeed(g)) {
-			if (f->ss_descriptors) {
-				speed_desc = f->ss_descriptors;
-				want_comp_desc = 1;
-				break;
-			}
-			incomplete_desc = true;
+		if (f->ss_descriptors) {
+			speed_desc = f->ss_descriptors;
+			want_comp_desc = 1;
+			break;
 		}
+		incomplete_desc = true;
 		fallthrough;
 	case USB_SPEED_HIGH:
-		if (gadget_is_dualspeed(g)) {
-			if (f->hs_descriptors) {
-				speed_desc = f->hs_descriptors;
-				break;
-			}
-			incomplete_desc = true;
+		if (f->hs_descriptors) {
+			speed_desc = f->hs_descriptors;
+			break;
 		}
+		incomplete_desc = true;
 		fallthrough;
 	default:
 		speed_desc = f->fs_descriptors;
@@ -1125,6 +1119,10 @@ int usb_add_config(struct usb_composite_dev *cdev,
 		goto done;
 
 	status = bind(config);
+
+	if (status == 0)
+		status = usb_gadget_check_config(cdev->gadget);
+
 	if (status < 0) {
 		while (!list_empty(&config->functions)) {
 			struct usb_function		*f;

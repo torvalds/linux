@@ -282,7 +282,6 @@
 
 			spi4: spi@1a280000 {
 				status = "okay";
-				spi-max-frequency = <50000000>;
 
 				pinctrl-0 = <&spi_pins>;
 				pinctrl-names = "default";

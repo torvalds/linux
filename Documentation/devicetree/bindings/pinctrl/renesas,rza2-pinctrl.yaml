@@ -37,40 +37,37 @@ properties:
   gpio-ranges:
     maxItems: 1
 
-patternProperties:
-  "^.*$":
-    if:
-      type: object
-    then:
-      allOf:
-        - $ref: pincfg-node.yaml#
-        - $ref: pinmux-node.yaml#
+additionalProperties:
+  type: object
+
+  allOf:
+    - $ref: pincfg-node.yaml#
+    - $ref: pinmux-node.yaml#
+
+  description:
+    The child nodes of the pin controller designate pins to be used for
+    specific peripheral functions or as GPIO.
+
+    A pin multiplexing sub-node describes how to configure a set of
+    (or a single) pin in some desired alternate function mode.
+    The values for the pinmux properties are a combination of port name,
+    pin number and the desired function index. Use the RZA2_PINMUX macro
+    located in include/dt-bindings/pinctrl/r7s9210-pinctrl.h to easily
+    define these.
+    For assigning GPIO pins, use the macro RZA2_PIN also in
+    to express the desired port pin.
+
+  properties:
+    pinmux:
       description:
-        The child nodes of the pin controller designate pins to be used for
-        specific peripheral functions or as GPIO.
+        Values are constructed from GPIO port number, pin number, and
+        alternate function configuration number using the RZA2_PINMUX()
+        helper macro in r7s9210-pinctrl.h.
 
-        A pin multiplexing sub-node describes how to configure a set of
-        (or a single) pin in some desired alternate function mode.
-        The values for the pinmux properties are a combination of port name,
-        pin number and the desired function index. Use the RZA2_PINMUX macro
-        located in include/dt-bindings/pinctrl/r7s9210-pinctrl.h to easily
-        define these.
-        For assigning GPIO pins, use the macro RZA2_PIN also in
-        to express the desired port pin.
+  required:
+    - pinmux
 
-      properties:
-        phandle: true
-
-        pinmux:
-          description:
-            Values are constructed from GPIO port number, pin number, and
-            alternate function configuration number using the RZA2_PINMUX()
-            helper macro in r7s9210-pinctrl.h.
-
-      required:
-        - pinmux
-
-      additionalProperties: false
+  additionalProperties: false
 
 allOf:
   - $ref: pinctrl.yaml#
@@ -81,8 +78,6 @@ required:
   - gpio-controller
   - '#gpio-cells'
   - gpio-ranges
-
-additionalProperties: false
 
 examples:
   - |

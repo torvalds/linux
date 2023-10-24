@@ -37,13 +37,13 @@ properties:
     type: boolean
     description: |
       For I2C type of connection. Specifies that the chip read event shall be
-      trigged on falling edge.
+      triggered on falling edge.
 
   i2c-int-rising:
     type: boolean
     description: |
       For I2C type of connection.  Specifies that the chip read event shall be
-      trigged on rising edge.
+      triggered on rising edge.
 
   break-control:
     type: boolean

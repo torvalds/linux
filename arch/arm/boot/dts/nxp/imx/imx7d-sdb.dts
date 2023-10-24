@@ -10,6 +10,11 @@
 	model = "Freescale i.MX7 SabreSD Board";
 	compatible = "fsl,imx7d-sdb", "fsl,imx7d";
 
+	aliases {
+		ethernet0 = &fec1;
+		ethernet1 = &fec2;
+	};
+
 	chosen {
 		stdout-path = &uart1;
 	};

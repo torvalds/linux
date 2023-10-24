@@ -4,8 +4,8 @@
 #define __USDT_BPF_H__
 
 #include <linux/errno.h>
-#include <bpf/bpf_helpers.h>
-#include <bpf/bpf_tracing.h>
+#include "bpf_helpers.h"
+#include "bpf_tracing.h"
 
 /* Below types and maps are internal implementation details of libbpf's USDT
  * support and are subjects to change. Also, bpf_usdt_xxx() API helpers should

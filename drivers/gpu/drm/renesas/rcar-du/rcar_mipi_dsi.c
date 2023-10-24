@@ -1001,7 +1001,6 @@ static int rcar_mipi_dsi_get_clocks(struct rcar_mipi_dsi *dsi)
 static int rcar_mipi_dsi_probe(struct platform_device *pdev)
 {
 	struct rcar_mipi_dsi *dsi;
-	struct resource *mem;
 	int ret;
 
 	dsi = devm_kzalloc(&pdev->dev, sizeof(*dsi), GFP_KERNEL);
@@ -1018,8 +1017,7 @@ static int rcar_mipi_dsi_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Acquire resources. */
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dsi->mmio = devm_ioremap_resource(dsi->dev, mem);
+	dsi->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dsi->mmio))
 		return PTR_ERR(dsi->mmio);
 

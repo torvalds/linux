@@ -2194,23 +2194,8 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 				  struct resource *res)
 {
 	struct property *prop;
-	const __be32 *ranges;
 	const char *name;
-	u32 nr_addr, nr_size;
-	u64 base, size;
-	int len, error;
-
-	if (!res)
-		return -EINVAL;
-
-	ranges = of_get_property(np, "ranges", &len);
-	if (!ranges)
-		return -ENOENT;
-
-	len /= sizeof(*ranges);
-
-	if (len < 3)
-		return -EINVAL;
+	int err;
 
 	of_property_for_each_string(np, "compatible", prop, name)
 		if (!strncmp("ti,sysc-", name, 8))
@@ -2219,36 +2204,18 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 	if (!name)
 		return -ENOENT;
 
-	error = of_property_read_u32(np, "#address-cells", &nr_addr);
-	if (error)
-		return -ENOENT;
+	err = of_range_to_resource(np, 0, res);
+	if (err)
+		return err;
 
-	error = of_property_read_u32(np, "#size-cells", &nr_size);
-	if (error)
-		return -ENOENT;
-
-	if (nr_addr != 1 || nr_size != 1) {
-		pr_err("%s: invalid range for %s->%pOFn\n", __func__,
-		       oh->name, np);
-		return -EINVAL;
-	}
-
-	ranges++;
-	base = of_translate_address(np, ranges++);
-	size = be32_to_cpup(ranges);
-
-	pr_debug("omap_hwmod: %s %pOFn at 0x%llx size 0x%llx\n",
-		 oh->name, np, base, size);
+	pr_debug("omap_hwmod: %s %pOFn at %pR\n",
+		 oh->name, np, &res);
 
 	if (oh && oh->mpu_rt_idx) {
 		omap_hwmod_fix_mpu_rt_idx(oh, np, res);
 
 		return 0;
 	}
-
-	res->start = base;
-	res->end = base + size - 1;
-	res->flags = IORESOURCE_MEM;
 
 	return 0;
 }

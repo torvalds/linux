@@ -65,16 +65,8 @@ static struct vgastate vgastate;
  *  Interface used by the world
  */
 
-static const char *vgacon_startup(void);
-static void vgacon_init(struct vc_data *c, int init);
-static void vgacon_deinit(struct vc_data *c);
-static void vgacon_cursor(struct vc_data *c, int mode);
-static int vgacon_switch(struct vc_data *c);
-static int vgacon_blank(struct vc_data *c, int blank, int mode_switch);
-static void vgacon_scrolldelta(struct vc_data *c, int lines);
 static int vgacon_set_origin(struct vc_data *c);
-static void vgacon_save_screen(struct vc_data *c);
-static void vgacon_invert_region(struct vc_data *c, u16 * p, int count);
+
 static struct uni_pagedict *vgacon_uni_pagedir;
 static int vgacon_refcount;
 
@@ -142,17 +134,17 @@ static inline void vga_set_mem_top(struct vc_data *c)
 	write_vga(12, (c->vc_visible_origin - vga_vram_base) / 2);
 }
 
-static void vgacon_restore_screen(struct vc_data *c)
-{
-	if (c->vc_origin != c->vc_visible_origin)
-		vgacon_scrolldelta(c, 0);
-}
-
 static void vgacon_scrolldelta(struct vc_data *c, int lines)
 {
 	vc_scrolldelta_helper(c, lines, vga_rolled_over, (void *)vga_vram_base,
 			vga_vram_size);
 	vga_set_mem_top(c);
+}
+
+static void vgacon_restore_screen(struct vc_data *c)
+{
+	if (c->vc_origin != c->vc_visible_origin)
+		vgacon_scrolldelta(c, 0);
 }
 
 static const char *vgacon_startup(void)
@@ -445,7 +437,7 @@ static void vgacon_invert_region(struct vc_data *c, u16 * p, int count)
 	}
 }
 
-static void vgacon_set_cursor_size(int xpos, int from, int to)
+static void vgacon_set_cursor_size(int from, int to)
 {
 	unsigned long flags;
 	int curs, cure;
@@ -478,18 +470,22 @@ static void vgacon_set_cursor_size(int xpos, int from, int to)
 
 static void vgacon_cursor(struct vc_data *c, int mode)
 {
+	unsigned int c_height;
+
 	if (c->vc_mode != KD_TEXT)
 		return;
 
 	vgacon_restore_screen(c);
 
+	c_height = c->vc_cell_height;
+
 	switch (mode) {
 	case CM_ERASE:
 		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
 	        if (vga_video_type >= VIDEO_TYPE_VGAC)
-			vgacon_set_cursor_size(c->state.x, 31, 30);
+			vgacon_set_cursor_size(31, 30);
 		else
-			vgacon_set_cursor_size(c->state.x, 31, 31);
+			vgacon_set_cursor_size(31, 31);
 		break;
 
 	case CM_MOVE:
@@ -497,51 +493,38 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
 		switch (CUR_SIZE(c->vc_cursor_type)) {
 		case CUR_UNDERLINE:
-			vgacon_set_cursor_size(c->state.x,
-					       c->vc_cell_height -
-					       (c->vc_cell_height <
-						10 ? 2 : 3),
-					       c->vc_cell_height -
-					       (c->vc_cell_height <
-						10 ? 1 : 2));
+			vgacon_set_cursor_size(c_height -
+					       (c_height < 10 ? 2 : 3),
+					       c_height -
+					       (c_height < 10 ? 1 : 2));
 			break;
 		case CUR_TWO_THIRDS:
-			vgacon_set_cursor_size(c->state.x,
-					       c->vc_cell_height / 3,
-					       c->vc_cell_height -
-					       (c->vc_cell_height <
-						10 ? 1 : 2));
+			vgacon_set_cursor_size(c_height / 3, c_height -
+					       (c_height < 10 ? 1 : 2));
 			break;
 		case CUR_LOWER_THIRD:
-			vgacon_set_cursor_size(c->state.x,
-					       (c->vc_cell_height * 2) / 3,
-					       c->vc_cell_height -
-					       (c->vc_cell_height <
-						10 ? 1 : 2));
+			vgacon_set_cursor_size(c_height * 2 / 3, c_height -
+					       (c_height < 10 ? 1 : 2));
 			break;
 		case CUR_LOWER_HALF:
-			vgacon_set_cursor_size(c->state.x,
-					       c->vc_cell_height / 2,
-					       c->vc_cell_height -
-					       (c->vc_cell_height <
-						10 ? 1 : 2));
+			vgacon_set_cursor_size(c_height / 2, c_height -
+					       (c_height < 10 ? 1 : 2));
 			break;
 		case CUR_NONE:
 			if (vga_video_type >= VIDEO_TYPE_VGAC)
-				vgacon_set_cursor_size(c->state.x, 31, 30);
+				vgacon_set_cursor_size(31, 30);
 			else
-				vgacon_set_cursor_size(c->state.x, 31, 31);
+				vgacon_set_cursor_size(31, 31);
 			break;
 		default:
-			vgacon_set_cursor_size(c->state.x, 1,
-					       c->vc_cell_height);
+			vgacon_set_cursor_size(1, c_height);
 			break;
 		}
 		break;
 	}
 }
 
-static int vgacon_doresize(struct vc_data *c,
+static void vgacon_doresize(struct vc_data *c,
 		unsigned int width, unsigned int height)
 {
 	unsigned long flags;
@@ -600,7 +583,6 @@ static int vgacon_doresize(struct vc_data *c,
 	}
 
 	raw_spin_unlock_irqrestore(&vga_lock, flags);
-	return 0;
 }
 
 static int vgacon_switch(struct vc_data *c)

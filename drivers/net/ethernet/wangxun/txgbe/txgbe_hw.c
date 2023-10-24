@@ -14,6 +14,34 @@
 #include "txgbe_hw.h"
 
 /**
+ *  txgbe_disable_sec_tx_path - Stops the transmit data path
+ *  @wx: pointer to hardware structure
+ *
+ *  Stops the transmit data path and waits for the HW to internally empty
+ *  the tx security block
+ **/
+int txgbe_disable_sec_tx_path(struct wx *wx)
+{
+	int val;
+
+	wr32m(wx, WX_TSC_CTL, WX_TSC_CTL_TX_DIS, WX_TSC_CTL_TX_DIS);
+	return read_poll_timeout(rd32, val, val & WX_TSC_ST_SECTX_RDY,
+				 1000, 20000, false, wx, WX_TSC_ST);
+}
+
+/**
+ *  txgbe_enable_sec_tx_path - Enables the transmit data path
+ *  @wx: pointer to hardware structure
+ *
+ *  Enables the transmit data path.
+ **/
+void txgbe_enable_sec_tx_path(struct wx *wx)
+{
+	wr32m(wx, WX_TSC_CTL, WX_TSC_CTL_TX_DIS, 0);
+	WX_WRITE_FLUSH(wx);
+}
+
+/**
  *  txgbe_init_thermal_sensor_thresh - Inits thermal sensor thresholds
  *  @wx: pointer to hardware structure
  *
@@ -263,11 +291,14 @@ int txgbe_reset_hw(struct wx *wx)
 	if (status != 0)
 		return status;
 
-	if (!(((wx->subsystem_device_id & WX_NCSI_MASK) == WX_NCSI_SUP) ||
-	      ((wx->subsystem_device_id & WX_WOL_MASK) == WX_WOL_SUP)))
-		wx_reset_hostif(wx);
+	if (wx->media_type != sp_media_copper) {
+		u32 val;
 
-	usleep_range(10, 100);
+		val = WX_MIS_RST_LAN_RST(wx->bus.func);
+		wr32(wx, WX_MIS_RST, val | rd32(wx, WX_MIS_RST));
+		WX_WRITE_FLUSH(wx);
+		usleep_range(10, 100);
+	}
 
 	status = wx_check_flash_load(wx, TXGBE_SPI_ILDR_STATUS_LAN_SW_RST(wx->bus.func));
 	if (status != 0)

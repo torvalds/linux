@@ -843,14 +843,8 @@ static void amdgpu_vm_pte_update_flags(struct amdgpu_vm_update_params *params,
 	 */
 	if ((flags & AMDGPU_PTE_SYSTEM) && (adev->flags & AMD_IS_APU) &&
 	    adev->gmc.gmc_funcs->override_vm_pte_flags &&
-	    num_possible_nodes() > 1) {
-		if (!params->pages_addr)
-			amdgpu_gmc_override_vm_pte_flags(adev, params->vm,
-							 addr, &flags);
-		else
-			dev_dbg(adev->dev,
-				"override_vm_pte_flags skipped: non-contiguous\n");
-	}
+	    num_possible_nodes() > 1 && !params->pages_addr)
+		amdgpu_gmc_override_vm_pte_flags(adev, params->vm, addr, &flags);
 
 	params->vm->update_funcs->update(params, pt, pe, addr, count, incr,
 					 flags);

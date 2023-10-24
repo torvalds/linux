@@ -47,7 +47,7 @@
 	status = "okay";
 };
 
-&pinctrl{
+&pinctrl {
 	pinctrl-names = "default";
 	pinctrl-0 = <&hog_pins_cpuimx283>;
 

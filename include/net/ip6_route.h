@@ -156,7 +156,7 @@ void fib6_force_start_gc(struct net *net);
 
 struct fib6_info *addrconf_f6i_alloc(struct net *net, struct inet6_dev *idev,
 				     const struct in6_addr *addr, bool anycast,
-				     gfp_t gfp_flags);
+				     gfp_t gfp_flags, struct netlink_ext_ack *extack);
 
 struct rt6_info *ip6_dst_alloc(struct net *net, struct net_device *dev,
 			       int flags);

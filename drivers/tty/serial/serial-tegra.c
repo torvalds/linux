@@ -20,7 +20,6 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
@@ -434,10 +433,10 @@ static int tegra_set_baudrate(struct tegra_uart_port *tup, unsigned int baud)
 	return 0;
 }
 
-static char tegra_uart_decode_rx_error(struct tegra_uart_port *tup,
+static u8 tegra_uart_decode_rx_error(struct tegra_uart_port *tup,
 			unsigned long lsr)
 {
-	char flag = TTY_NORMAL;
+	u8 flag = TTY_NORMAL;
 
 	if (unlikely(lsr & TEGRA_UART_LSR_ANY)) {
 		if (lsr & UART_LSR_OE) {
@@ -642,9 +641,8 @@ static void tegra_uart_handle_rx_pio(struct tegra_uart_port *tup,
 		struct tty_port *port)
 {
 	do {
-		char flag = TTY_NORMAL;
 		unsigned long lsr = 0;
-		unsigned char ch;
+		u8 ch, flag = TTY_NORMAL;
 
 		lsr = tegra_uart_read(tup, UART_LSR);
 		if (!(lsr & UART_LSR_DR))
@@ -998,7 +996,11 @@ static int tegra_uart_hw_init(struct tegra_uart_port *tup)
 	tup->ier_shadow = 0;
 	tup->current_baud = 0;
 
-	clk_prepare_enable(tup->uart_clk);
+	ret = clk_prepare_enable(tup->uart_clk);
+	if (ret) {
+		dev_err(tup->uport.dev, "could not enable clk\n");
+		return ret;
+	}
 
 	/* Reset the UART controller to clear all previous status.*/
 	reset_control_assert(tup->rst);
@@ -1579,22 +1581,15 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	tup->cdata = cdata;
 
 	platform_set_drvdata(pdev, tup);
-	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!resource) {
-		dev_err(&pdev->dev, "No IO memory resource\n");
-		return -ENODEV;
-	}
 
-	u->mapbase = resource->start;
-	u->membase = devm_ioremap_resource(&pdev->dev, resource);
+	u->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &resource);
 	if (IS_ERR(u->membase))
 		return PTR_ERR(u->membase);
+	u->mapbase = resource->start;
 
 	tup->uart_clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(tup->uart_clk)) {
-		dev_err(&pdev->dev, "Couldn't get the clock\n");
-		return PTR_ERR(tup->uart_clk);
-	}
+	if (IS_ERR(tup->uart_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(tup->uart_clk), "Couldn't get the clock");
 
 	tup->rst = devm_reset_control_get_exclusive(&pdev->dev, "serial");
 	if (IS_ERR(tup->rst)) {

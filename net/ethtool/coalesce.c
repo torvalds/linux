@@ -59,10 +59,9 @@ const struct nla_policy ethnl_coalesce_get_policy[] = {
 
 static int coalesce_prepare_data(const struct ethnl_req_info *req_base,
 				 struct ethnl_reply_data *reply_base,
-				 struct genl_info *info)
+				 const struct genl_info *info)
 {
 	struct coalesce_reply_data *data = COALESCE_REPDATA(reply_base);
-	struct netlink_ext_ack *extack = info ? info->extack : NULL;
 	struct net_device *dev = reply_base->dev;
 	int ret;
 
@@ -73,7 +72,8 @@ static int coalesce_prepare_data(const struct ethnl_req_info *req_base,
 	if (ret < 0)
 		return ret;
 	ret = dev->ethtool_ops->get_coalesce(dev, &data->coalesce,
-					     &data->kernel_coalesce, extack);
+					     &data->kernel_coalesce,
+					     info->extack);
 	ethnl_ops_complete(dev);
 
 	return ret;

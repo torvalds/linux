@@ -1348,6 +1348,10 @@ static int cs47l35_set_fll(struct snd_soc_component *component, int fll_id,
 	}
 }
 
+static const struct snd_soc_dai_ops cs47l35_dai_ops = {
+	.compress_new = snd_soc_new_compress,
+};
+
 static struct snd_soc_dai_driver cs47l35_dai[] = {
 	{
 		.name = "cs47l35-aif1",
@@ -1462,7 +1466,7 @@ static struct snd_soc_dai_driver cs47l35_dai[] = {
 			.rates = MADERA_RATES,
 			.formats = MADERA_FORMATS,
 		},
-		.compress_new = &snd_soc_new_compress,
+		.ops = &cs47l35_dai_ops,
 	},
 	{
 		.name = "cs47l35-dsp-voicectrl",
@@ -1483,7 +1487,7 @@ static struct snd_soc_dai_driver cs47l35_dai[] = {
 			.rates = MADERA_RATES,
 			.formats = MADERA_FORMATS,
 		},
-		.compress_new = &snd_soc_new_compress,
+		.ops = &cs47l35_dai_ops,
 	},
 	{
 		.name = "cs47l35-dsp-trace",

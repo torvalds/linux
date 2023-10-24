@@ -160,35 +160,24 @@ static int max98363_io_init(struct sdw_slave *slave)
 	struct max98363_priv *max98363 = dev_get_drvdata(dev);
 	int ret, reg;
 
-	if (max98363->first_hw_init) {
-		regcache_cache_only(max98363->regmap, false);
+	regcache_cache_only(max98363->regmap, false);
+	if (max98363->first_hw_init)
 		regcache_cache_bypass(max98363->regmap, true);
-	}
 
 	/*
-	 * PM runtime is only enabled when a Slave reports as Attached
+	 * PM runtime status is marked as 'active' only when a Slave reports as Attached
 	 */
-	if (!max98363->first_hw_init) {
-		/* set autosuspend parameters */
-		pm_runtime_set_autosuspend_delay(dev, 3000);
-		pm_runtime_use_autosuspend(dev);
-
+	if (!max98363->first_hw_init)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(dev);
-
-		/* make sure the device does not suspend immediately */
-		pm_runtime_mark_last_busy(dev);
-
-		pm_runtime_enable(dev);
-	}
 
 	pm_runtime_get_noresume(dev);
 
 	ret = regmap_read(max98363->regmap, MAX98363_R21FF_REV_ID, &reg);
-	if (!ret) {
+	if (!ret)
 		dev_info(dev, "Revision ID: %X\n", reg);
-		return ret;
-	}
+	else
+		goto out;
 
 	if (max98363->first_hw_init) {
 		regcache_cache_bypass(max98363->regmap, false);
@@ -198,10 +187,11 @@ static int max98363_io_init(struct sdw_slave *slave)
 	max98363->first_hw_init = true;
 	max98363->hw_init = true;
 
+out:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
-	return 0;
+	return ret;
 }
 
 #define MAX98363_RATES SNDRV_PCM_RATE_8000_192000
@@ -409,6 +399,8 @@ static int max98363_init(struct sdw_slave *slave, struct regmap *regmap)
 	max98363->regmap = regmap;
 	max98363->slave = slave;
 
+	regcache_cache_only(max98363->regmap, true);
+
 	max98363->hw_init = false;
 	max98363->first_hw_init = false;
 
@@ -416,10 +408,26 @@ static int max98363_init(struct sdw_slave *slave, struct regmap *regmap)
 	ret = devm_snd_soc_register_component(dev, &soc_codec_dev_max98363,
 					      max98363_dai,
 					      ARRAY_SIZE(max98363_dai));
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(dev, "Failed to register codec: %d\n", ret);
+		return ret;
+	}
 
-	return ret;
+	/* set autosuspend parameters */
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+
+	/* make sure the device does not suspend immediately */
+	pm_runtime_mark_last_busy(dev);
+
+	pm_runtime_enable(dev);
+
+	/* important note: the device is NOT tagged as 'active' and will remain
+	 * 'suspended' until the hardware is enumerated/initialized. This is required
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * fail with -EACCESS because of race conditions between card creation and enumeration
+	 */
+	return 0;
 }
 
 static int max98363_sdw_probe(struct sdw_slave *slave,

@@ -280,7 +280,6 @@
 		assigned-clock-rates = <589824000>,
 				       <270950400>,
 				       <393216000>;
-		status = "okay";
 
 		dai-link-0 {
 			sound-dai = <&frddr_a>;

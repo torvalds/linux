@@ -467,6 +467,7 @@ static const struct snd_soc_dai_ops sst_media_dai_ops = {
 };
 
 static const struct snd_soc_dai_ops sst_compr_dai_ops = {
+	.compress_new = snd_soc_new_compress,
 	.mute_stream = sst_media_digital_mute,
 };
 
@@ -510,7 +511,6 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 },
 {
 	.name = "compress-cpu-dai",
-	.compress_new = snd_soc_new_compress,
 	.ops = &sst_compr_dai_ops,
 	.playback = {
 		.stream_name = "Compress Playback",

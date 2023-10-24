@@ -467,6 +467,11 @@ bool dc_link_setup_psr(struct dc_link *link,
 	return link->dc->link_srv->edp_setup_psr(link, stream, psr_config, psr_context);
 }
 
+bool dc_link_get_replay_state(const struct dc_link *link, uint64_t *state)
+{
+	return link->dc->link_srv->edp_get_replay_state(link, state);
+}
+
 bool dc_link_wait_for_t12(struct dc_link *link)
 {
 	return link->dc->link_srv->edp_wait_for_t12(link);

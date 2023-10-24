@@ -49,8 +49,11 @@
  *    h. tests for invalid and corner case Tx descriptors so that the correct ones
  *       are discarded and let through, respectively.
  *    i. 2K frame size tests
- *
- * Total tests: 12
+ *    j. If multi-buffer is supported, send 9k packets divided into 3 frames
+ *    k. If multi-buffer and huge pages are supported, send 9k packets in a single frame
+ *       using unaligned mode
+ *    l. If multi-buffer is supported, try various nasty combinations of descriptors to
+ *       check if they pass the validation or not
  *
  * Flow:
  * -----
@@ -73,10 +76,10 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <getopt.h>
-#include <asm/barrier.h>
 #include <linux/if_link.h>
 #include <linux/if_ether.h>
 #include <linux/mman.h>
+#include <linux/netdev.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <locale.h>
@@ -91,7 +94,6 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
 
 #include "xsk_xdp_progs.skel.h"
@@ -253,6 +255,8 @@ static int __xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_i
 	cfg.bind_flags = ifobject->bind_flags;
 	if (shared)
 		cfg.bind_flags |= XDP_SHARED_UMEM;
+	if (ifobject->pkt_stream && ifobject->mtu > MAX_ETH_PKT_SIZE)
+		cfg.bind_flags |= XDP_USE_SG;
 
 	txr = ifobject->tx_on ? &xsk->tx : NULL;
 	rxr = ifobject->rx_on ? &xsk->rx : NULL;
@@ -415,6 +419,7 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 	test->total_steps = 1;
 	test->nb_sockets = 1;
 	test->fail = false;
+	test->mtu = MAX_ETH_PKT_SIZE;
 	test->xdp_prog_rx = ifobj_rx->xdp_progs->progs.xsk_def_prog;
 	test->xskmap_rx = ifobj_rx->xdp_progs->maps.xsk;
 	test->xdp_prog_tx = ifobj_tx->xdp_progs->progs.xsk_def_prog;
@@ -466,6 +471,26 @@ static void test_spec_set_xdp_prog(struct test_spec *test, struct bpf_program *x
 	test->xdp_prog_tx = xdp_prog_tx;
 	test->xskmap_rx = xskmap_rx;
 	test->xskmap_tx = xskmap_tx;
+}
+
+static int test_spec_set_mtu(struct test_spec *test, int mtu)
+{
+	int err;
+
+	if (test->ifobj_rx->mtu != mtu) {
+		err = xsk_set_mtu(test->ifobj_rx->ifindex, mtu);
+		if (err)
+			return err;
+		test->ifobj_rx->mtu = mtu;
+	}
+	if (test->ifobj_tx->mtu != mtu) {
+		err = xsk_set_mtu(test->ifobj_tx->ifindex, mtu);
+		if (err)
+			return err;
+		test->ifobj_tx->mtu = mtu;
+	}
+
+	return 0;
 }
 
 static void pkt_stream_reset(struct pkt_stream *pkt_stream)
@@ -533,23 +558,49 @@ static struct pkt_stream *__pkt_stream_alloc(u32 nb_pkts)
 	return pkt_stream;
 }
 
+static bool pkt_continues(u32 options)
+{
+	return options & XDP_PKT_CONTD;
+}
+
 static u32 ceil_u32(u32 a, u32 b)
 {
 	return (a + b - 1) / b;
 }
 
-static u32 pkt_nb_frags(u32 frame_size, struct pkt *pkt)
+static u32 pkt_nb_frags(u32 frame_size, struct pkt_stream *pkt_stream, struct pkt *pkt)
 {
-	if (!pkt || !pkt->valid)
+	u32 nb_frags = 1, next_frag;
+
+	if (!pkt)
 		return 1;
-	return ceil_u32(pkt->len, frame_size);
+
+	if (!pkt_stream->verbatim) {
+		if (!pkt->valid || !pkt->len)
+			return 1;
+		return ceil_u32(pkt->len, frame_size);
+	}
+
+	/* Search for the end of the packet in verbatim mode */
+	if (!pkt_continues(pkt->options))
+		return nb_frags;
+
+	next_frag = pkt_stream->current_pkt_nb;
+	pkt++;
+	while (next_frag++ < pkt_stream->nb_pkts) {
+		nb_frags++;
+		if (!pkt_continues(pkt->options) || !pkt->valid)
+			break;
+		pkt++;
+	}
+	return nb_frags;
 }
 
 static void pkt_set(struct xsk_umem_info *umem, struct pkt *pkt, int offset, u32 len)
 {
 	pkt->offset = offset;
 	pkt->len = len;
-	if (len > umem->frame_size - XDP_PACKET_HEADROOM - MIN_PKT_SIZE * 2 - umem->frame_headroom)
+	if (len > MAX_ETH_JUMBO_SIZE)
 		pkt->valid = false;
 	else
 		pkt->valid = true;
@@ -637,6 +688,11 @@ static u64 pkt_get_addr(struct pkt *pkt, struct xsk_umem_info *umem)
 	return pkt->offset + umem_alloc_buffer(umem);
 }
 
+static void pkt_stream_cancel(struct pkt_stream *pkt_stream)
+{
+	pkt_stream->current_pkt_nb--;
+}
+
 static void pkt_generate(struct ifobject *ifobject, u64 addr, u32 len, u32 pkt_nb,
 			 u32 bytes_written)
 {
@@ -657,34 +713,59 @@ static void pkt_generate(struct ifobject *ifobject, u64 addr, u32 len, u32 pkt_n
 	write_payload(data, pkt_nb, bytes_written, len);
 }
 
-static void __pkt_stream_generate_custom(struct ifobject *ifobj,
-					 struct pkt *pkts, u32 nb_pkts)
+static struct pkt_stream *__pkt_stream_generate_custom(struct ifobject *ifobj, struct pkt *frames,
+						       u32 nb_frames, bool verbatim)
 {
+	u32 i, len = 0, pkt_nb = 0, payload = 0;
 	struct pkt_stream *pkt_stream;
-	u32 i;
 
-	pkt_stream = __pkt_stream_alloc(nb_pkts);
+	pkt_stream = __pkt_stream_alloc(nb_frames);
 	if (!pkt_stream)
 		exit_with_error(ENOMEM);
 
-	for (i = 0; i < nb_pkts; i++) {
-		struct pkt *pkt = &pkt_stream->pkts[i];
+	for (i = 0; i < nb_frames; i++) {
+		struct pkt *pkt = &pkt_stream->pkts[pkt_nb];
+		struct pkt *frame = &frames[i];
 
-		pkt->offset = pkts[i].offset;
-		pkt->len = pkts[i].len;
-		pkt->pkt_nb = i;
-		pkt->valid = pkts[i].valid;
-		if (pkt->len > pkt_stream->max_pkt_len)
+		pkt->offset = frame->offset;
+		if (verbatim) {
+			*pkt = *frame;
+			pkt->pkt_nb = payload;
+			if (!frame->valid || !pkt_continues(frame->options))
+				payload++;
+		} else {
+			if (frame->valid)
+				len += frame->len;
+			if (frame->valid && pkt_continues(frame->options))
+				continue;
+
+			pkt->pkt_nb = pkt_nb;
+			pkt->len = len;
+			pkt->valid = frame->valid;
+			pkt->options = 0;
+
+			len = 0;
+		}
+
+		if (pkt->valid && pkt->len > pkt_stream->max_pkt_len)
 			pkt_stream->max_pkt_len = pkt->len;
+		pkt_nb++;
 	}
 
-	ifobj->pkt_stream = pkt_stream;
+	pkt_stream->nb_pkts = pkt_nb;
+	pkt_stream->verbatim = verbatim;
+	return pkt_stream;
 }
 
 static void pkt_stream_generate_custom(struct test_spec *test, struct pkt *pkts, u32 nb_pkts)
 {
-	__pkt_stream_generate_custom(test->ifobj_tx, pkts, nb_pkts);
-	__pkt_stream_generate_custom(test->ifobj_rx, pkts, nb_pkts);
+	struct pkt_stream *pkt_stream;
+
+	pkt_stream = __pkt_stream_generate_custom(test->ifobj_tx, pkts, nb_pkts, true);
+	test->ifobj_tx->pkt_stream = pkt_stream;
+
+	pkt_stream = __pkt_stream_generate_custom(test->ifobj_rx, pkts, nb_pkts, false);
+	test->ifobj_rx->pkt_stream = pkt_stream;
 }
 
 static void pkt_print_data(u32 *data, u32 cnt)
@@ -765,41 +846,74 @@ static bool is_metadata_correct(struct pkt *pkt, void *buffer, u64 addr)
 	return true;
 }
 
-static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
+static bool is_frag_valid(struct xsk_umem_info *umem, u64 addr, u32 len, u32 expected_pkt_nb,
+			  u32 bytes_processed)
 {
-	void *data = xsk_umem__get_data(buffer, addr);
-	u32 seqnum, pkt_data;
+	u32 seqnum, pkt_nb, *pkt_data, words_to_end, expected_seqnum;
+	void *data = xsk_umem__get_data(umem->buffer, addr);
 
-	if (!pkt) {
-		ksft_print_msg("[%s] too many packets received\n", __func__);
+	addr -= umem->base_addr;
+
+	if (addr >= umem->num_frames * umem->frame_size ||
+	    addr + len > umem->num_frames * umem->frame_size) {
+		ksft_print_msg("Frag invalid addr: %llx len: %u\n", addr, len);
+		return false;
+	}
+	if (!umem->unaligned_mode && addr % umem->frame_size + len > umem->frame_size) {
+		ksft_print_msg("Frag crosses frame boundary addr: %llx len: %u\n", addr, len);
+		return false;
+	}
+
+	pkt_data = data;
+	if (!bytes_processed) {
+		pkt_data += PKT_HDR_SIZE / sizeof(*pkt_data);
+		len -= PKT_HDR_SIZE;
+	} else {
+		bytes_processed -= PKT_HDR_SIZE;
+	}
+
+	expected_seqnum = bytes_processed / sizeof(*pkt_data);
+	seqnum = ntohl(*pkt_data) & 0xffff;
+	pkt_nb = ntohl(*pkt_data) >> 16;
+
+	if (expected_pkt_nb != pkt_nb) {
+		ksft_print_msg("[%s] expected pkt_nb [%u], got pkt_nb [%u]\n",
+			       __func__, expected_pkt_nb, pkt_nb);
+		goto error;
+	}
+	if (expected_seqnum != seqnum) {
+		ksft_print_msg("[%s] expected seqnum at start [%u], got seqnum [%u]\n",
+			       __func__, expected_seqnum, seqnum);
 		goto error;
 	}
 
-	if (len < MIN_PKT_SIZE || pkt->len < MIN_PKT_SIZE) {
-		/* Do not try to verify packets that are smaller than minimum size. */
-		return true;
-	}
-
-	if (pkt->len != len) {
-		ksft_print_msg("[%s] expected length [%d], got length [%d]\n",
-			       __func__, pkt->len, len);
-		goto error;
-	}
-
-	pkt_data = ntohl(*((u32 *)(data + PKT_HDR_SIZE)));
-	seqnum = pkt_data >> 16;
-
-	if (pkt->pkt_nb != seqnum) {
-		ksft_print_msg("[%s] expected seqnum [%d], got seqnum [%d]\n",
-			       __func__, pkt->pkt_nb, seqnum);
+	words_to_end = len / sizeof(*pkt_data) - 1;
+	pkt_data += words_to_end;
+	seqnum = ntohl(*pkt_data) & 0xffff;
+	expected_seqnum += words_to_end;
+	if (expected_seqnum != seqnum) {
+		ksft_print_msg("[%s] expected seqnum at end [%u], got seqnum [%u]\n",
+			       __func__, expected_seqnum, seqnum);
 		goto error;
 	}
 
 	return true;
 
 error:
-	pkt_dump(data, len, true);
+	pkt_dump(data, len, !bytes_processed);
 	return false;
+}
+
+static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
+{
+	if (pkt->len != len) {
+		ksft_print_msg("[%s] expected packet length [%d], got length [%d]\n",
+			       __func__, pkt->len, len);
+		pkt_dump(xsk_umem__get_data(buffer, addr), len, true);
+		return false;
+	}
+
+	return true;
 }
 
 static void kick_tx(struct xsk_socket_info *xsk)
@@ -854,8 +968,8 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 {
 	struct timeval tv_end, tv_now, tv_timeout = {THREAD_TMOUT, 0};
 	struct pkt_stream *pkt_stream = test->ifobj_rx->pkt_stream;
-	u32 idx_rx = 0, idx_fq = 0, rcvd, i, pkts_sent = 0;
 	struct xsk_socket_info *xsk = test->ifobj_rx->xsk;
+	u32 idx_rx = 0, idx_fq = 0, rcvd, pkts_sent = 0;
 	struct ifobject *ifobj = test->ifobj_rx;
 	struct xsk_umem_info *umem = xsk->umem;
 	struct pkt *pkt;
@@ -868,6 +982,9 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 
 	pkt = pkt_stream_get_next_rx_pkt(pkt_stream, &pkts_sent);
 	while (pkt) {
+		u32 frags_processed = 0, nb_frags = 0, pkt_len = 0;
+		u64 first_addr;
+
 		ret = gettimeofday(&tv_now, NULL);
 		if (ret)
 			exit_with_error(errno);
@@ -888,7 +1005,6 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 
 				ksft_print_msg("ERROR: [%s] Poll timed out\n", __func__);
 				return TEST_FAILURE;
-
 			}
 
 			if (!(fds->revents & POLLIN))
@@ -913,27 +1029,59 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 			}
 		}
 
-		for (i = 0; i < rcvd; i++) {
+		while (frags_processed < rcvd) {
 			const struct xdp_desc *desc = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++);
 			u64 addr = desc->addr, orig;
 
 			orig = xsk_umem__extract_addr(addr);
 			addr = xsk_umem__add_offset_to_addr(addr);
 
-			if (!is_pkt_valid(pkt, umem->buffer, addr, desc->len) ||
+			if (!pkt) {
+				ksft_print_msg("[%s] received too many packets addr: %lx len %u\n",
+					       __func__, addr, desc->len);
+				return TEST_FAILURE;
+			}
+
+			if (!is_frag_valid(umem, addr, desc->len, pkt->pkt_nb, pkt_len) ||
 			    !is_offset_correct(umem, pkt, addr) ||
 			    (ifobj->use_metadata && !is_metadata_correct(pkt, umem->buffer, addr)))
 				return TEST_FAILURE;
 
+			if (!nb_frags++)
+				first_addr = addr;
+			frags_processed++;
+			pkt_len += desc->len;
 			if (ifobj->use_fill_ring)
 				*xsk_ring_prod__fill_addr(&umem->fq, idx_fq++) = orig;
+
+			if (pkt_continues(desc->options))
+				continue;
+
+			/* The complete packet has been received */
+			if (!is_pkt_valid(pkt, umem->buffer, first_addr, pkt_len) ||
+			    !is_offset_correct(umem, pkt, addr))
+				return TEST_FAILURE;
+
 			pkt = pkt_stream_get_next_rx_pkt(pkt_stream, &pkts_sent);
+			nb_frags = 0;
+			pkt_len = 0;
+		}
+
+		if (nb_frags) {
+			/* In the middle of a packet. Start over from beginning of packet. */
+			idx_rx -= nb_frags;
+			xsk_ring_cons__cancel(&xsk->rx, nb_frags);
+			if (ifobj->use_fill_ring) {
+				idx_fq -= nb_frags;
+				xsk_ring_prod__cancel(&umem->fq, nb_frags);
+			}
+			frags_processed -= nb_frags;
 		}
 
 		if (ifobj->use_fill_ring)
-			xsk_ring_prod__submit(&umem->fq, rcvd);
+			xsk_ring_prod__submit(&umem->fq, frags_processed);
 		if (ifobj->release_rx)
-			xsk_ring_cons__release(&xsk->rx, rcvd);
+			xsk_ring_cons__release(&xsk->rx, frags_processed);
 
 		pthread_mutex_lock(&pacing_mutex);
 		pkts_in_flight -= pkts_sent;
@@ -946,13 +1094,14 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 
 static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeout)
 {
+	u32 i, idx = 0, valid_pkts = 0, valid_frags = 0, buffer_len;
+	struct pkt_stream *pkt_stream = ifobject->pkt_stream;
 	struct xsk_socket_info *xsk = ifobject->xsk;
 	struct xsk_umem_info *umem = ifobject->umem;
-	u32 i, idx = 0, valid_pkts = 0, buffer_len;
 	bool use_poll = ifobject->use_poll;
 	int ret;
 
-	buffer_len = pkt_get_buffer_len(umem, ifobject->pkt_stream->max_pkt_len);
+	buffer_len = pkt_get_buffer_len(umem, pkt_stream->max_pkt_len);
 	/* pkts_in_flight might be negative if many invalid packets are sent */
 	if (pkts_in_flight >= (int)((umem_size(umem) - BATCH_SIZE * buffer_len) / buffer_len)) {
 		kick_tx(xsk);
@@ -983,17 +1132,49 @@ static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeo
 	}
 
 	for (i = 0; i < BATCH_SIZE; i++) {
-		struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx, idx + i);
-		struct pkt *pkt = pkt_stream_get_next_tx_pkt(ifobject->pkt_stream);
+		struct pkt *pkt = pkt_stream_get_next_tx_pkt(pkt_stream);
+		u32 nb_frags_left, nb_frags, bytes_written = 0;
 
 		if (!pkt)
 			break;
 
-		tx_desc->addr = pkt_get_addr(pkt, umem);
-		tx_desc->len = pkt->len;
-		if (pkt->valid) {
+		nb_frags = pkt_nb_frags(umem->frame_size, pkt_stream, pkt);
+		if (nb_frags > BATCH_SIZE - i) {
+			pkt_stream_cancel(pkt_stream);
+			xsk_ring_prod__cancel(&xsk->tx, BATCH_SIZE - i);
+			break;
+		}
+		nb_frags_left = nb_frags;
+
+		while (nb_frags_left--) {
+			struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx, idx + i);
+
+			tx_desc->addr = pkt_get_addr(pkt, ifobject->umem);
+			if (pkt_stream->verbatim) {
+				tx_desc->len = pkt->len;
+				tx_desc->options = pkt->options;
+			} else if (nb_frags_left) {
+				tx_desc->len = umem->frame_size;
+				tx_desc->options = XDP_PKT_CONTD;
+			} else {
+				tx_desc->len = pkt->len - bytes_written;
+				tx_desc->options = 0;
+			}
+			if (pkt->valid)
+				pkt_generate(ifobject, tx_desc->addr, tx_desc->len, pkt->pkt_nb,
+					     bytes_written);
+			bytes_written += tx_desc->len;
+
+			if (nb_frags_left) {
+				i++;
+				if (pkt_stream->verbatim)
+					pkt = pkt_stream_get_next_tx_pkt(pkt_stream);
+			}
+		}
+
+		if (pkt && pkt->valid) {
 			valid_pkts++;
-			pkt_generate(ifobject, tx_desc->addr, tx_desc->len, pkt->pkt_nb, 0);
+			valid_frags += nb_frags;
 		}
 	}
 
@@ -1002,7 +1183,7 @@ static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeo
 	pthread_mutex_unlock(&pacing_mutex);
 
 	xsk_ring_prod__submit(&xsk->tx, i);
-	xsk->outstanding_tx += valid_pkts;
+	xsk->outstanding_tx += valid_frags;
 
 	if (use_poll) {
 		ret = poll(fds, 1, POLL_TMOUT);
@@ -1222,7 +1403,7 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 		u64 addr;
 		u32 i;
 
-		for (i = 0; i < pkt_nb_frags(rx_frame_size, pkt); i++) {
+		for (i = 0; i < pkt_nb_frags(rx_frame_size, pkt_stream, pkt); i++) {
 			if (!pkt) {
 				if (!fill_up)
 					break;
@@ -1415,6 +1596,25 @@ static int __testapp_validate_traffic(struct test_spec *test, struct ifobject *i
 				      struct ifobject *ifobj2)
 {
 	pthread_t t0, t1;
+	int err;
+
+	if (test->mtu > MAX_ETH_PKT_SIZE) {
+		if (test->mode == TEST_MODE_ZC && (!ifobj1->multi_buff_zc_supp ||
+						   (ifobj2 && !ifobj2->multi_buff_zc_supp))) {
+			ksft_test_result_skip("Multi buffer for zero-copy not supported.\n");
+			return TEST_SKIP;
+		}
+		if (test->mode != TEST_MODE_ZC && (!ifobj1->multi_buff_supp ||
+						   (ifobj2 && !ifobj2->multi_buff_supp))) {
+			ksft_test_result_skip("Multi buffer not supported.\n");
+			return TEST_SKIP;
+		}
+	}
+	err = test_spec_set_mtu(test, test->mtu);
+	if (err) {
+		ksft_print_msg("Error, could not set mtu.\n");
+		exit_with_error(err);
+	}
 
 	if (ifobj2) {
 		if (pthread_barrier_init(&barr, NULL, 2))
@@ -1616,10 +1816,69 @@ static int testapp_unaligned(struct test_spec *test)
 	return testapp_validate_traffic(test);
 }
 
+static int testapp_unaligned_mb(struct test_spec *test)
+{
+	test_spec_set_name(test, "UNALIGNED_MODE_9K");
+	test->mtu = MAX_ETH_JUMBO_SIZE;
+	test->ifobj_tx->umem->unaligned_mode = true;
+	test->ifobj_rx->umem->unaligned_mode = true;
+	pkt_stream_replace(test, DEFAULT_PKT_CNT, MAX_ETH_JUMBO_SIZE);
+	return testapp_validate_traffic(test);
+}
+
 static int testapp_single_pkt(struct test_spec *test)
 {
 	struct pkt pkts[] = {{0, MIN_PKT_SIZE, 0, true}};
 
+	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
+	return testapp_validate_traffic(test);
+}
+
+static int testapp_multi_buffer(struct test_spec *test)
+{
+	test_spec_set_name(test, "RUN_TO_COMPLETION_9K_PACKETS");
+	test->mtu = MAX_ETH_JUMBO_SIZE;
+	pkt_stream_replace(test, DEFAULT_PKT_CNT, MAX_ETH_JUMBO_SIZE);
+
+	return testapp_validate_traffic(test);
+}
+
+static int testapp_invalid_desc_mb(struct test_spec *test)
+{
+	struct xsk_umem_info *umem = test->ifobj_tx->umem;
+	u64 umem_size = umem->num_frames * umem->frame_size;
+	struct pkt pkts[] = {
+		/* Valid packet for synch to start with */
+		{0, MIN_PKT_SIZE, 0, true, 0},
+		/* Zero frame len is not legal */
+		{0, XSK_UMEM__LARGE_FRAME_SIZE, 0, false, XDP_PKT_CONTD},
+		{0, XSK_UMEM__LARGE_FRAME_SIZE, 0, false, XDP_PKT_CONTD},
+		{0, 0, 0, false, 0},
+		/* Invalid address in the second frame */
+		{0, XSK_UMEM__LARGE_FRAME_SIZE, 0, false, XDP_PKT_CONTD},
+		{umem_size, XSK_UMEM__LARGE_FRAME_SIZE, 0, false, XDP_PKT_CONTD},
+		/* Invalid len in the middle */
+		{0, XSK_UMEM__LARGE_FRAME_SIZE, 0, false, XDP_PKT_CONTD},
+		{0, XSK_UMEM__INVALID_FRAME_SIZE, 0, false, XDP_PKT_CONTD},
+		/* Invalid options in the middle */
+		{0, XSK_UMEM__LARGE_FRAME_SIZE, 0, false, XDP_PKT_CONTD},
+		{0, XSK_UMEM__LARGE_FRAME_SIZE, 0, false, XSK_DESC__INVALID_OPTION},
+		/* Transmit 2 frags, receive 3 */
+		{0, XSK_UMEM__MAX_FRAME_SIZE, 0, true, XDP_PKT_CONTD},
+		{0, XSK_UMEM__MAX_FRAME_SIZE, 0, true, 0},
+		/* Middle frame crosses chunk boundary with small length */
+		{0, XSK_UMEM__LARGE_FRAME_SIZE, 0, false, XDP_PKT_CONTD},
+		{-MIN_PKT_SIZE / 2, MIN_PKT_SIZE, 0, false, 0},
+		/* Valid packet for synch so that something is received */
+		{0, MIN_PKT_SIZE, 0, true, 0}};
+
+	if (umem->unaligned_mode) {
+		/* Crossing a chunk boundary allowed */
+		pkts[12].valid = true;
+		pkts[13].valid = true;
+	}
+
+	test->mtu = MAX_ETH_JUMBO_SIZE;
 	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
 	return testapp_validate_traffic(test);
 }
@@ -1690,7 +1949,6 @@ static int testapp_xdp_metadata_count(struct test_spec *test)
 	int count = 0;
 	int key = 0;
 
-	test_spec_set_name(test, "XDP_METADATA_COUNT");
 	test_spec_set_xdp_prog(test, skel_rx->progs.xsk_xdp_populate_metadata,
 			       skel_tx->progs.xsk_xdp_populate_metadata,
 			       skel_rx->maps.xsk, skel_tx->maps.xsk);
@@ -1722,6 +1980,48 @@ static int testapp_poll_rxq_tmout(struct test_spec *test)
 	test_spec_set_name(test, "POLL_RXQ_EMPTY");
 	test->ifobj_rx->use_poll = true;
 	return testapp_validate_traffic_single_thread(test, test->ifobj_rx);
+}
+
+static int testapp_too_many_frags(struct test_spec *test)
+{
+	struct pkt pkts[2 * XSK_DESC__MAX_SKB_FRAGS + 2] = {};
+	u32 max_frags, i;
+
+	test_spec_set_name(test, "TOO_MANY_FRAGS");
+	if (test->mode == TEST_MODE_ZC)
+		max_frags = test->ifobj_tx->xdp_zc_max_segs;
+	else
+		max_frags = XSK_DESC__MAX_SKB_FRAGS;
+
+	test->mtu = MAX_ETH_JUMBO_SIZE;
+
+	/* Valid packet for synch */
+	pkts[0].len = MIN_PKT_SIZE;
+	pkts[0].valid = true;
+
+	/* One valid packet with the max amount of frags */
+	for (i = 1; i < max_frags + 1; i++) {
+		pkts[i].len = MIN_PKT_SIZE;
+		pkts[i].options = XDP_PKT_CONTD;
+		pkts[i].valid = true;
+	}
+	pkts[max_frags].options = 0;
+
+	/* An invalid packet with the max amount of frags but signals packet
+	 * continues on the last frag
+	 */
+	for (i = max_frags + 1; i < 2 * max_frags + 1; i++) {
+		pkts[i].len = MIN_PKT_SIZE;
+		pkts[i].options = XDP_PKT_CONTD;
+		pkts[i].valid = false;
+	}
+
+	/* Valid packet for synch */
+	pkts[2 * max_frags + 1].len = MIN_PKT_SIZE;
+	pkts[2 * max_frags + 1].valid = true;
+
+	pkt_stream_generate_custom(test, pkts, 2 * max_frags + 2);
+	return testapp_validate_traffic(test);
 }
 
 static int xsk_load_xdp_programs(struct ifobject *ifobj)
@@ -1757,6 +2057,7 @@ static bool hugepages_present(void)
 static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *src_mac,
 		       thread_func_t func_ptr)
 {
+	LIBBPF_OPTS(bpf_xdp_query_opts, query_opts);
 	int err;
 
 	memcpy(ifobj->dst_mac, dst_mac, ETH_ALEN);
@@ -1772,6 +2073,22 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *
 
 	if (hugepages_present())
 		ifobj->unaligned_supp = true;
+
+	err = bpf_xdp_query(ifobj->ifindex, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (err) {
+		ksft_print_msg("Error querying XDP capabilities\n");
+		exit_with_error(-err);
+	}
+	if (query_opts.feature_flags & NETDEV_XDP_ACT_RX_SG)
+		ifobj->multi_buff_supp = true;
+	if (query_opts.feature_flags & NETDEV_XDP_ACT_XSK_ZEROCOPY) {
+		if (query_opts.xdp_zc_max_segs > 1) {
+			ifobj->multi_buff_zc_supp = true;
+			ifobj->xdp_zc_max_segs = query_opts.xdp_zc_max_segs;
+		} else {
+			ifobj->xdp_zc_max_segs = 0;
+		}
+	}
 }
 
 static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_type type)
@@ -1803,6 +2120,9 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 	case TEST_TYPE_RUN_TO_COMPLETION:
 		test_spec_set_name(test, "RUN_TO_COMPLETION");
 		ret = testapp_validate_traffic(test);
+		break;
+	case TEST_TYPE_RUN_TO_COMPLETION_MB:
+		ret = testapp_multi_buffer(test);
 		break;
 	case TEST_TYPE_RUN_TO_COMPLETION_SINGLE_PKT:
 		test_spec_set_name(test, "RUN_TO_COMPLETION_SINGLE_PKT");
@@ -1866,8 +2186,21 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		ret = testapp_invalid_desc(test);
 		break;
 	}
+	case TEST_TYPE_ALIGNED_INV_DESC_MB:
+		test_spec_set_name(test, "ALIGNED_INV_DESC_MULTI_BUFF");
+		ret = testapp_invalid_desc_mb(test);
+		break;
+	case TEST_TYPE_UNALIGNED_INV_DESC_MB:
+		test_spec_set_name(test, "UNALIGNED_INV_DESC_MULTI_BUFF");
+		test->ifobj_tx->umem->unaligned_mode = true;
+		test->ifobj_rx->umem->unaligned_mode = true;
+		ret = testapp_invalid_desc_mb(test);
+		break;
 	case TEST_TYPE_UNALIGNED:
 		ret = testapp_unaligned(test);
+		break;
+	case TEST_TYPE_UNALIGNED_MB:
+		ret = testapp_unaligned_mb(test);
 		break;
 	case TEST_TYPE_HEADROOM:
 		ret = testapp_headroom(test);
@@ -1876,7 +2209,16 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		ret = testapp_xdp_drop(test);
 		break;
 	case TEST_TYPE_XDP_METADATA_COUNT:
+		test_spec_set_name(test, "XDP_METADATA_COUNT");
 		ret = testapp_xdp_metadata_count(test);
+		break;
+	case TEST_TYPE_XDP_METADATA_COUNT_MB:
+		test_spec_set_name(test, "XDP_METADATA_COUNT_MULTI_BUFF");
+		test->mtu = MAX_ETH_JUMBO_SIZE;
+		ret = testapp_xdp_metadata_count(test);
+		break;
+	case TEST_TYPE_TOO_MANY_FRAGS:
+		ret = testapp_too_many_frags(test);
 		break;
 	default:
 		break;

@@ -176,6 +176,7 @@ static int identity_show(struct seq_file *seq, void *v)
 {
 	struct pds_vdpa_aux *vdpa_aux = seq->private;
 	struct vdpa_mgmt_dev *mgmt;
+	u64 hw_features;
 
 	seq_printf(seq, "aux_dev:            %s\n",
 		   dev_name(&vdpa_aux->padev->aux_dev.dev));
@@ -183,8 +184,9 @@ static int identity_show(struct seq_file *seq, void *v)
 	mgmt = &vdpa_aux->vdpa_mdev;
 	seq_printf(seq, "max_vqs:            %d\n", mgmt->max_supported_vqs);
 	seq_printf(seq, "config_attr_mask:   %#llx\n", mgmt->config_attr_mask);
-	seq_printf(seq, "supported_features: %#llx\n", mgmt->supported_features);
-	print_feature_bits_all(seq, mgmt->supported_features);
+	hw_features = le64_to_cpu(vdpa_aux->ident.hw_features);
+	seq_printf(seq, "hw_features:        %#llx\n", hw_features);
+	print_feature_bits_all(seq, hw_features);
 
 	return 0;
 }
@@ -200,7 +202,6 @@ static int config_show(struct seq_file *seq, void *v)
 {
 	struct pds_vdpa_device *pdsv = seq->private;
 	struct virtio_net_config vc;
-	u64 driver_features;
 	u8 status;
 
 	memcpy_fromio(&vc, pdsv->vdpa_aux->vd_mdev.device,
@@ -223,12 +224,8 @@ static int config_show(struct seq_file *seq, void *v)
 	status = vp_modern_get_status(&pdsv->vdpa_aux->vd_mdev);
 	seq_printf(seq, "dev_status:           %#x\n", status);
 	print_status_bits(seq, status);
-
-	seq_printf(seq, "req_features:         %#llx\n", pdsv->req_features);
-	print_feature_bits_all(seq, pdsv->req_features);
-	driver_features = vp_modern_get_driver_features(&pdsv->vdpa_aux->vd_mdev);
-	seq_printf(seq, "driver_features:      %#llx\n", driver_features);
-	print_feature_bits_all(seq, driver_features);
+	seq_printf(seq, "negotiated_features:  %#llx\n", pdsv->negotiated_features);
+	print_feature_bits_all(seq, pdsv->negotiated_features);
 	seq_printf(seq, "vdpa_index:           %d\n", pdsv->vdpa_index);
 	seq_printf(seq, "num_vqs:              %d\n", pdsv->num_vqs);
 

@@ -39,6 +39,5 @@ extern rwlock_t dtl_access_lock;
 
 extern void register_dtl_buffer(int cpu);
 extern void alloc_dtl_buffers(unsigned long *time_limit);
-extern long hcall_vphn(unsigned long cpu, u64 flags, __be32 *associativity);
 
 #endif /* _ASM_POWERPC_DTL_H */

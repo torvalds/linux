@@ -62,7 +62,13 @@ void intel_gt_common_init_early(struct intel_gt *gt)
 /* Preliminary initialization of Tile 0 */
 int intel_root_gt_init_early(struct drm_i915_private *i915)
 {
-	struct intel_gt *gt = to_gt(i915);
+	struct intel_gt *gt;
+
+	gt = drmm_kzalloc(&i915->drm, sizeof(*gt), GFP_KERNEL);
+	if (!gt)
+		return -ENOMEM;
+
+	i915->gt[0] = gt;
 
 	gt->i915 = i915;
 	gt->uncore = &i915->uncore;
@@ -179,7 +185,7 @@ int intel_gt_init_hw(struct intel_gt *gt)
 	if (IS_HASWELL(i915))
 		intel_uncore_write(uncore,
 				   HSW_MI_PREDICATE_RESULT_2,
-				   IS_HSW_GT3(i915) ?
+				   IS_HASWELL_GT3(i915) ?
 				   LOWER_SLICE_ENABLED : LOWER_SLICE_DISABLED);
 
 	/* Apply the GT workarounds... */
@@ -921,8 +927,6 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 	ret = intel_gt_tile_setup(gt, phys_addr);
 	if (ret)
 		return ret;
-
-	i915->gt[0] = gt;
 
 	if (!HAS_EXTRA_GT_LIST(i915))
 		return 0;

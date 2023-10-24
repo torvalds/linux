@@ -11,6 +11,7 @@
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/static_key.h>
+#include <linux/module.h>
 #include <linux/netfilter_defs.h>
 #include <linux/netdevice.h>
 #include <linux/sockptr.h>
@@ -480,6 +481,15 @@ struct nfnl_ct_hook {
 			   enum ip_conntrack_info ctinfo, s32 off);
 };
 extern const struct nfnl_ct_hook __rcu *nfnl_ct_hook;
+
+struct nf_defrag_hook {
+	struct module *owner;
+	int (*enable)(struct net *net);
+	void (*disable)(struct net *net);
+};
+
+extern const struct nf_defrag_hook __rcu *nf_defrag_v4_hook;
+extern const struct nf_defrag_hook __rcu *nf_defrag_v6_hook;
 
 /*
  * nf_skb_duplicated - TEE target has sent a packet

@@ -100,7 +100,7 @@ config CRYPTO_AES_GCM_P10
 	select CRYPTO_LIB_AES
 	select CRYPTO_ALGAPI
 	select CRYPTO_AEAD
-	default m
+	select CRYPTO_SKCIPHER
 	help
 	  AEAD cipher: AES cipher algorithms (FIPS-197)
 	  GCM (Galois/Counter Mode) authenticated encryption mode (NIST SP800-38D)
@@ -110,5 +110,31 @@ config CRYPTO_AES_GCM_P10
 
 	  Support for cryptographic acceleration instructions on Power10 or
 	  later CPU. This module supports stitched acceleration for AES/GCM.
+
+config CRYPTO_CHACHA20_P10
+	tristate "Ciphers: ChaCha20, XChacha20, XChacha12 (P10 or later)"
+	depends on PPC64 && CPU_LITTLE_ENDIAN && VSX
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_CHACHA_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_CHACHA
+	help
+	  Length-preserving ciphers: ChaCha20, XChaCha20, and XChaCha12
+	  stream cipher algorithms
+
+	  Architecture: PowerPC64
+	  - Power10 or later
+	  - Little-endian
+
+config CRYPTO_POLY1305_P10
+	tristate "Hash functions: Poly1305 (P10 or later)"
+	depends on PPC64 && CPU_LITTLE_ENDIAN && VSX
+	select CRYPTO_HASH
+	select CRYPTO_LIB_POLY1305_GENERIC
+	help
+	  Poly1305 authenticator algorithm (RFC7539)
+
+	  Architecture: PowerPC64
+	  - Power10 or later
+	  - Little-endian
 
 endmenu

@@ -2209,7 +2209,7 @@ static int efx_ef10_tx_probe(struct efx_tx_queue *tx_queue)
 	/* low two bits of label are what we want for type */
 	BUILD_BUG_ON((EFX_TXQ_TYPE_OUTER_CSUM | EFX_TXQ_TYPE_INNER_CSUM) != 3);
 	tx_queue->type = tx_queue->label & 3;
-	return efx_nic_alloc_buffer(tx_queue->efx, &tx_queue->txd.buf,
+	return efx_nic_alloc_buffer(tx_queue->efx, &tx_queue->txd,
 				    (tx_queue->ptr_mask + 1) *
 				    sizeof(efx_qword_t),
 				    GFP_KERNEL);
@@ -4267,8 +4267,6 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.sriov_init = efx_ef10_sriov_init,
 	.sriov_fini = efx_ef10_sriov_fini,
 	.sriov_wanted = efx_ef10_sriov_wanted,
-	.sriov_reset = efx_ef10_sriov_reset,
-	.sriov_flr = efx_ef10_sriov_flr,
 	.sriov_set_vf_mac = efx_ef10_sriov_set_vf_mac,
 	.sriov_set_vf_vlan = efx_ef10_sriov_set_vf_vlan,
 	.sriov_set_vf_spoofchk = efx_ef10_sriov_set_vf_spoofchk,

@@ -6,7 +6,8 @@
 // Copyright 2012 Freescale Semiconductor, Inc.
 
 #include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
 #include "pinctrl-mxs.h"
 

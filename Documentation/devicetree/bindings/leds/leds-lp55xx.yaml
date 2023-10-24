@@ -106,7 +106,7 @@ patternProperties:
 
           max-cur:
             $ref: /schemas/types.yaml#/definitions/uint8
-            description: Maximun current at each LED channel.
+            description: Maximum current at each LED channel.
 
           reg:
             maximum: 8
@@ -129,7 +129,7 @@ patternProperties:
 
       max-cur:
         $ref: /schemas/types.yaml#/definitions/uint8
-        description: Maximun current at each LED channel.
+        description: Maximum current at each LED channel.
 
       reg:
         description: |

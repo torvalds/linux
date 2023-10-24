@@ -29,6 +29,7 @@ patternProperties:
   "^DSV(LCM|P|N)$":
     type: object
     $ref: regulator.yaml#
+    unevaluatedProperties: false
     description:
       Properties for single Display Bias Voltage regulator.
 

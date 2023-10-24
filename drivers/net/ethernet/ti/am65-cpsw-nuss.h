@@ -192,7 +192,6 @@ struct am65_cpsw_ndev_priv {
 
 extern const struct ethtool_ops am65_cpsw_ethtool_ops_slave;
 
-void am65_cpsw_nuss_adjust_link(struct net_device *ndev);
 void am65_cpsw_nuss_set_p0_ptype(struct am65_cpsw_common *common);
 void am65_cpsw_nuss_remove_tx_chns(struct am65_cpsw_common *common);
 int am65_cpsw_nuss_update_tx_chns(struct am65_cpsw_common *common, int num_tx);

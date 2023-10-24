@@ -90,6 +90,19 @@ config SWIOTLB
 	bool
 	select NEED_DMA_MAP_STATE
 
+config SWIOTLB_DYNAMIC
+	bool "Dynamic allocation of DMA bounce buffers"
+	default n
+	depends on SWIOTLB
+	help
+	  This enables dynamic resizing of the software IO TLB. The kernel
+	  starts with one memory pool at boot and it will allocate additional
+	  pools as needed. To reduce run-time kernel memory requirements, you
+	  may have to specify a smaller size of the initial pool using
+	  "swiotlb=" on the kernel command line.
+
+	  If unsure, say N.
+
 config DMA_BOUNCE_UNALIGNED_KMALLOC
 	bool
 	depends on SWIOTLB
@@ -145,15 +158,16 @@ config DMA_CMA
 
 if  DMA_CMA
 
-config DMA_PERNUMA_CMA
-	bool "Enable separate DMA Contiguous Memory Area for each NUMA Node"
-	default NUMA && ARM64
+config DMA_NUMA_CMA
+	bool "Enable separate DMA Contiguous Memory Area for NUMA Node"
+	depends on NUMA
 	help
-	  Enable this option to get pernuma CMA areas so that devices like
-	  ARM64 SMMU can get local memory by DMA coherent APIs.
+	  Enable this option to get numa CMA areas so that NUMA devices
+	  can get local memory by DMA coherent APIs.
 
 	  You can set the size of pernuma CMA by specifying "cma_pernuma=size"
-	  on the kernel's command line.
+	  or set the node id and its size of CMA by specifying "numa_cma=
+	  <node>:size[,<node>:size]" on the kernel's command line.
 
 comment "Default contiguous memory area size:"
 

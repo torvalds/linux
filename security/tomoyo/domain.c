@@ -784,13 +784,12 @@ retry:
 		if (!strcmp(domainname, "parent")) {
 			char *cp;
 
-			strncpy(ee->tmp, old_domain->domainname->name,
-				TOMOYO_EXEC_TMPSIZE - 1);
+			strscpy(ee->tmp, old_domain->domainname->name, TOMOYO_EXEC_TMPSIZE);
 			cp = strrchr(ee->tmp, ' ');
 			if (cp)
 				*cp = '\0';
 		} else if (*domainname == '<')
-			strncpy(ee->tmp, domainname, TOMOYO_EXEC_TMPSIZE - 1);
+			strscpy(ee->tmp, domainname, TOMOYO_EXEC_TMPSIZE);
 		else
 			snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
 				 old_domain->domainname->name, domainname);

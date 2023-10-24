@@ -2,7 +2,7 @@
 
 Required properties:
 - compatible: Should be "nvidia,<chip>-apbdma"
-- reg: Should contain DMA registers location and length. This shuld include
+- reg: Should contain DMA registers location and length. This should include
   all of the per-channel registers.
 - interrupts: Should contain all of the per-channel DMA interrupts.
 - clocks: Must contain one entry, for the module clock.

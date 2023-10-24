@@ -333,7 +333,13 @@ if RISCV
 
 config ARCH_R9A07G043
 	bool "RISC-V Platform support for RZ/Five"
+	depends on NONPORTABLE
 	select ARCH_RZG2L
+	select AX45MP_L2_CACHE if RISCV_DMA_NONCOHERENT
+	select DMA_GLOBAL_POOL
+	select ERRATA_ANDES if RISCV_SBI
+	select ERRATA_ANDES_CMO if ERRATA_ANDES
+
 	help
 	  This enables support for the Renesas RZ/Five SoC.
 

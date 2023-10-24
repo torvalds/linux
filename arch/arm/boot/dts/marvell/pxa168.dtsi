@@ -153,7 +153,7 @@
 			};
 		};
 
-		soc_clocks: clocks{
+		soc_clocks: clocks {
 			compatible = "marvell,pxa168-clock";
 			reg = <0xd4050000 0x1000>,
 			      <0xd4282800 0x400>,

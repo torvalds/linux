@@ -120,7 +120,7 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		case CHIP_TOPAZ:
 			hwmgr->smumgr_funcs = &iceland_smu_funcs;
 			topaz_set_asic_special_caps(hwmgr);
-			hwmgr->feature_mask &= ~ (PP_VBI_TIME_SUPPORT_MASK |
+			hwmgr->feature_mask &= ~(PP_VBI_TIME_SUPPORT_MASK |
 						PP_ENABLE_GFX_CG_THRU_SMU);
 			hwmgr->pp_table_version = PP_TABLE_V0;
 			hwmgr->od_enabled = false;
@@ -133,7 +133,7 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		case CHIP_FIJI:
 			hwmgr->smumgr_funcs = &fiji_smu_funcs;
 			fiji_set_asic_special_caps(hwmgr);
-			hwmgr->feature_mask &= ~ (PP_VBI_TIME_SUPPORT_MASK |
+			hwmgr->feature_mask &= ~(PP_VBI_TIME_SUPPORT_MASK |
 						PP_ENABLE_GFX_CG_THRU_SMU);
 			break;
 		case CHIP_POLARIS11:
@@ -195,7 +195,7 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 
 int hwmgr_sw_init(struct pp_hwmgr *hwmgr)
 {
-	if (!hwmgr|| !hwmgr->smumgr_funcs || !hwmgr->smumgr_funcs->smu_init)
+	if (!hwmgr || !hwmgr->smumgr_funcs || !hwmgr->smumgr_funcs->smu_init)
 		return -EINVAL;
 
 	phm_register_irq_handlers(hwmgr);

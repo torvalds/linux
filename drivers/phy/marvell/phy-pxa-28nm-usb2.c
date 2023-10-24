@@ -11,7 +11,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/err.h>

@@ -303,11 +303,6 @@ static inline u8 gisa_get_ipm_or_restore_iam(struct kvm_s390_gisa_interrupt *gi)
 	return 0;
 }
 
-static inline int gisa_in_alert_list(struct kvm_s390_gisa *gisa)
-{
-	return READ_ONCE(gisa->next_alert) != (u32)virt_to_phys(gisa);
-}
-
 static inline void gisa_set_ipm_gisc(struct kvm_s390_gisa *gisa, u32 gisc)
 {
 	set_bit_inv(IPM_BIT_OFFSET + gisc, (unsigned long *) gisa);
@@ -1392,6 +1387,7 @@ int __must_check kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	int rc = 0;
+	bool delivered = false;
 	unsigned long irq_type;
 	unsigned long irqs;
 
@@ -1465,6 +1461,19 @@ int __must_check kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 			WARN_ONCE(1, "Unknown pending irq type %ld", irq_type);
 			clear_bit(irq_type, &li->pending_irqs);
 		}
+		delivered |= !rc;
+	}
+
+	/*
+	 * We delivered at least one interrupt and modified the PC. Force a
+	 * singlestep event now.
+	 */
+	if (delivered && guestdbg_sstep_enabled(vcpu)) {
+		struct kvm_debug_exit_arch *debug_exit = &vcpu->run->debug.arch;
+
+		debug_exit->addr = vcpu->arch.sie_block->gpsw.addr;
+		debug_exit->type = KVM_SINGLESTEP;
+		vcpu->guest_debug |= KVM_GUESTDBG_EXIT_PENDING;
 	}
 
 	set_intercept_indicators(vcpu);
@@ -3202,11 +3211,12 @@ void kvm_s390_gisa_destroy(struct kvm *kvm)
 
 	if (!gi->origin)
 		return;
-	if (gi->alert.mask)
-		KVM_EVENT(3, "vm 0x%pK has unexpected iam 0x%02x",
-			  kvm, gi->alert.mask);
-	while (gisa_in_alert_list(gi->origin))
-		cpu_relax();
+	WARN(gi->alert.mask != 0x00,
+	     "unexpected non zero alert.mask 0x%02x",
+	     gi->alert.mask);
+	gi->alert.mask = 0x00;
+	if (gisa_set_iam(gi->origin, gi->alert.mask))
+		process_gib_alert_list();
 	hrtimer_cancel(&gi->timer);
 	gi->origin = NULL;
 	VM_EVENT(kvm, 3, "gisa 0x%pK destroyed", gisa);
@@ -3398,7 +3408,6 @@ static void gib_alert_irq_handler(struct airq_struct *airq,
 
 static struct airq_struct gib_alert_irq = {
 	.handler = gib_alert_irq_handler,
-	.lsi_ptr = &gib_alert_irq.lsi_mask,
 };
 
 void kvm_s390_gib_destroy(void)
@@ -3438,6 +3447,8 @@ int __init kvm_s390_gib_init(u8 nisc)
 		rc = -EIO;
 		goto out_free_gib;
 	}
+	/* adapter interrupts used for AP (applicable here) don't use the LSI */
+	*gib_alert_irq.lsi_ptr = 0xff;
 
 	gib->nisc = nisc;
 	gib_origin = virt_to_phys(gib);

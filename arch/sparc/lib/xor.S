@@ -9,12 +9,12 @@
  * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/visasm.h>
 #include <asm/asi.h>
 #include <asm/dcu.h>
 #include <asm/spitfire.h>
-#include <asm/export.h>
 
 /*
  *	Requirements:

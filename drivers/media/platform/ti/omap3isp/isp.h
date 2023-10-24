@@ -220,12 +220,21 @@ struct isp_device {
 };
 
 struct isp_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct isp_bus_cfg bus;
 };
 
-#define v4l2_subdev_to_bus_cfg(sd) \
-	(&container_of((sd)->asd, struct isp_async_subdev, asd)->bus)
+static inline struct isp_bus_cfg *
+v4l2_subdev_to_bus_cfg(struct v4l2_subdev *sd)
+{
+	struct v4l2_async_connection *asc;
+
+	asc = v4l2_async_connection_unique(sd);
+	if (!asc)
+		return NULL;
+
+	return &container_of(asc, struct isp_async_subdev, asd)->bus;
+}
 
 #define v4l2_dev_to_isp_device(dev) \
 	container_of(dev, struct isp_device, v4l2_dev)

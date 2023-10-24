@@ -9,7 +9,7 @@ title: Synopsys DesignWare APB GPIO controller
 description: |
   Synopsys DesignWare GPIO controllers have a configurable number of ports,
   each of which are intended to be represented as child nodes with the generic
-  GPIO-controller properties as desribed in this bindings file.
+  GPIO-controller properties as described in this bindings file.
 
 maintainers:
   - Hoan Tran <hoan@os.amperecomputing.com>
@@ -60,6 +60,10 @@ patternProperties:
 
       '#gpio-cells':
         const: 2
+
+      gpio-line-names:
+        minItems: 1
+        maxItems: 32
 
       ngpios:
         default: 32

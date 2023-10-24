@@ -189,13 +189,9 @@ static int ba431_trng_probe(struct platform_device *pdev)
 	ba431->rng.cleanup = ba431_trng_cleanup;
 	ba431->rng.read = ba431_trng_read;
 
-	platform_set_drvdata(pdev, ba431);
-
 	ret = devm_hwrng_register(&pdev->dev, &ba431->rng);
-	if (ret) {
-		dev_err(&pdev->dev, "BA431 registration failed (%d)\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "BA431 registration failed\n");
 
 	dev_info(&pdev->dev, "BA431 TRNG registered\n");
 
@@ -203,7 +199,7 @@ static int ba431_trng_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id ba431_trng_dt_ids[] = {
-	{ .compatible = "silex-insight,ba431-rng", .data = NULL },
+	{ .compatible = "silex-insight,ba431-rng" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ba431_trng_dt_ids);

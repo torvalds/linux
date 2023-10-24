@@ -44,6 +44,10 @@ patternProperties:
           - const: pull
           - const: gpio
 
+      gpio-line-names:
+        minItems: 11 # GXL
+        maxItems: 16 # Meson8
+
 unevaluatedProperties:
   type: object
   $ref: amlogic,meson-pinctrl-common.yaml#/$defs/meson-pins

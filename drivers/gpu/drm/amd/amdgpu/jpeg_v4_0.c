@@ -431,6 +431,10 @@ static int jpeg_v4_0_start_sriov(struct amdgpu_device *adev)
 	end.cmd_header.command_type =
 		MMSCH_COMMAND__END;
 
+	size = sizeof(struct mmsch_v4_0_init_header);
+	table_loc = (uint32_t *)table->cpu_addr;
+	memcpy(&header, (void *)table_loc, size);
+
 	header.version = MMSCH_VERSION;
 	header.total_size = RREG32_SOC15(VCN, 0, regMMSCH_VF_CTX_SIZE);
 
@@ -467,6 +471,9 @@ static int jpeg_v4_0_start_sriov(struct amdgpu_device *adev)
 	size = sizeof(struct mmsch_v4_0_init_header);
 	table_loc = (uint32_t *)table->cpu_addr;
 	memcpy((void *)table_loc, &header, size);
+
+	/* Perform HDP flush before writing to MMSCH registers */
+	amdgpu_device_flush_hdp(adev, NULL);
 
 	/* message MMSCH (in VCN[0]) to initialize this client
 	 * 1, write to mmsch_vf_ctx_addr_lo/hi register with GPU mc addr
@@ -515,8 +522,11 @@ static int jpeg_v4_0_start_sriov(struct amdgpu_device *adev)
 			return -EBUSY;
 		}
 	}
-	if (resp != expected && resp != MMSCH_VF_MAILBOX_RESP__INCOMPLETE && init_status != MMSCH_VF_ENGINE_STATUS__PASS)
+	if (resp != expected && resp != MMSCH_VF_MAILBOX_RESP__INCOMPLETE
+			&& init_status != MMSCH_VF_ENGINE_STATUS__PASS) {
 		DRM_ERROR("MMSCH init status is incorrect! readback=0x%08x, header init status for jpeg: %x\n", resp, init_status);
+		return -EINVAL;
+	}
 
 	return 0;
 
@@ -626,7 +636,7 @@ static int jpeg_v4_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	bool enable = state == AMD_CG_STATE_GATE;
 
 	if (enable) {
 		if (!jpeg_v4_0_is_idle(handle))
@@ -831,7 +841,7 @@ static struct amdgpu_jpeg_ras jpeg_v4_0_ras = {
 
 static void jpeg_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[JPEG_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, JPEG_HWIP, 0)) {
 	case IP_VERSION(4, 0, 0):
 		adev->jpeg.ras = &jpeg_v4_0_ras;
 		break;

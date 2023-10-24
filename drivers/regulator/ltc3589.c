@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
@@ -392,8 +391,7 @@ static int ltc3589_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, ltc3589);
 	if (client->dev.of_node)
-		ltc3589->variant = (enum ltc3589_variant)
-			of_device_get_match_data(&client->dev);
+		ltc3589->variant = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		ltc3589->variant = id->driver_data;
 	ltc3589->dev = dev;

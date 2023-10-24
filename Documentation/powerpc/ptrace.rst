@@ -15,7 +15,7 @@ that's extendable and that covers both BookE and server processors, so
 that GDB doesn't need to special-case each of them. We added the
 following 3 new ptrace requests.
 
-1. PTRACE_PPC_GETHWDEBUGINFO
+1. PPC_PTRACE_GETHWDBGINFO
 ============================
 
 Query for GDB to discover the hardware debug features. The main info to
@@ -48,7 +48,7 @@ features will have bits indicating whether there is support for::
   #define PPC_DEBUG_FEATURE_DATA_BP_DAWR		0x10
   #define PPC_DEBUG_FEATURE_DATA_BP_ARCH_31		0x20
 
-2. PTRACE_SETHWDEBUG
+2. PPC_PTRACE_SETHWDEBUG
 
 Sets a hardware breakpoint or watchpoint, according to the provided structure::
 
@@ -88,7 +88,7 @@ that the BookE supports. COMEFROM breakpoints available in server processors
 are not contemplated, but that is out of the scope of this work.
 
 ptrace will return an integer (handle) uniquely identifying the breakpoint or
-watchpoint just created. This integer will be used in the PTRACE_DELHWDEBUG
+watchpoint just created. This integer will be used in the PPC_PTRACE_DELHWDEBUG
 request to ask for its removal. Return -ENOSPC if the requested breakpoint
 can't be allocated on the registers.
 
@@ -150,7 +150,7 @@ Some examples of using the structure to:
     p.addr2           = (uint64_t) end_range;
     p.condition_value = 0;
 
-3. PTRACE_DELHWDEBUG
+3. PPC_PTRACE_DELHWDEBUG
 
 Takes an integer which identifies an existing breakpoint or watchpoint
 (i.e., the value returned from PTRACE_SETHWDEBUG), and deletes the

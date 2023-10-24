@@ -25,7 +25,9 @@ static inline int pte_write(pte_t pte)
 	return pte_val(pte) & _PAGE_RW;
 }
 #endif
+#ifndef pte_read
 static inline int pte_read(pte_t pte)		{ return 1; }
+#endif
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
 static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
@@ -101,8 +103,6 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot) {
 	return __pte(((pte_basic_t)(pfn) << PTE_RPN_SHIFT) |
 		     pgprot_val(pgprot)); }
-static inline unsigned long pte_pfn(pte_t pte)	{
-	return pte_val(pte) >> PTE_RPN_SHIFT; }
 
 /* Generic modifiers for PTE bits */
 static inline pte_t pte_exprotect(pte_t pte)
@@ -165,12 +165,6 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~_PAGE_SWP_EXCLUSIVE);
 }
-
-/* Insert a PTE, top-level function is out of line. It uses an inline
- * low level function in the respective pgtable-* files
- */
-extern void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
-		       pte_t pte);
 
 /* This low level function performs the actual PTE insertion
  * Setting the PTE depends on the MMU type and other factors. It's
@@ -282,10 +276,12 @@ static inline int pud_huge(pud_t pud)
  * for the page which has just been mapped in.
  */
 #if defined(CONFIG_PPC_E500) && defined(CONFIG_HUGETLB_PAGE)
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep);
+void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
+		unsigned long address, pte_t *ptep, unsigned int nr);
 #else
-static inline
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep) {}
+static inline void update_mmu_cache_range(struct vm_fault *vmf,
+		struct vm_area_struct *vma, unsigned long address,
+		pte_t *ptep, unsigned int nr) {}
 #endif
 
 #endif /* __ASSEMBLY__ */

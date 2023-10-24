@@ -14,6 +14,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#include "kselftest.h"
+
 #define DATA_LEN			100
 #define DATA_CHAR			'a'
 #define DATA_CHAR_1			'b'
@@ -63,7 +65,7 @@ static __maybe_unused void pair_udp_setfilter(int fd)
 	struct sock_fprog bpf_prog;
 
 	bpf_prog.filter = bpf_filter;
-	bpf_prog.len = sizeof(bpf_filter) / sizeof(struct sock_filter);
+	bpf_prog.len = ARRAY_SIZE(bpf_filter);
 
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_prog,
 		       sizeof(bpf_prog))) {

@@ -1355,7 +1355,7 @@ static void perf_setup_dbgfs(struct perf_ctx *perf)
 	struct pci_dev *pdev = perf->ntb->pdev;
 
 	perf->dbgfs_dir = debugfs_create_dir(pci_name(pdev), perf_dbgfs_topdir);
-	if (!perf->dbgfs_dir) {
+	if (IS_ERR(perf->dbgfs_dir)) {
 		dev_warn(&perf->ntb->dev, "DebugFS unsupported\n");
 		return;
 	}

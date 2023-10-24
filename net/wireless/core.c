@@ -1181,16 +1181,11 @@ void wiphy_rfkill_set_hw_state_reason(struct wiphy *wiphy, bool blocked,
 }
 EXPORT_SYMBOL(wiphy_rfkill_set_hw_state_reason);
 
-void cfg80211_cqm_config_free(struct wireless_dev *wdev)
-{
-	kfree(wdev->cqm_config);
-	wdev->cqm_config = NULL;
-}
-
 static void _cfg80211_unregister_wdev(struct wireless_dev *wdev,
 				      bool unregister_netdev)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
+	struct cfg80211_cqm_config *cqm_config;
 	unsigned int link_id;
 
 	ASSERT_RTNL();
@@ -1227,7 +1222,10 @@ static void _cfg80211_unregister_wdev(struct wireless_dev *wdev,
 	kfree_sensitive(wdev->wext.keys);
 	wdev->wext.keys = NULL;
 #endif
-	cfg80211_cqm_config_free(wdev);
+	wiphy_work_cancel(wdev->wiphy, &wdev->cqm_rssi_work);
+	/* deleted from the list, so can't be found from nl80211 any more */
+	cqm_config = rcu_access_pointer(wdev->cqm_config);
+	kfree_rcu(cqm_config, rcu_head);
 
 	/*
 	 * Ensure that all events have been processed and
@@ -1378,6 +1376,8 @@ void cfg80211_init_wdev(struct wireless_dev *wdev)
 	wdev->wext.default_mgmt_key = -1;
 	wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
 #endif
+
+	wiphy_work_init(&wdev->cqm_rssi_work, cfg80211_cqm_rssi_notify_work);
 
 	if (wdev->wiphy->flags & WIPHY_FLAG_PS_ON_BY_DEFAULT)
 		wdev->ps = true;
@@ -1622,7 +1622,7 @@ void wiphy_work_queue(struct wiphy *wiphy, struct wiphy_work *work)
 		list_add_tail(&work->entry, &rdev->wiphy_work_list);
 	spin_unlock_irqrestore(&rdev->wiphy_work_lock, flags);
 
-	schedule_work(&rdev->wiphy_work);
+	queue_work(system_unbound_wq, &rdev->wiphy_work);
 }
 EXPORT_SYMBOL_GPL(wiphy_work_queue);
 

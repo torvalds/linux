@@ -56,12 +56,12 @@ void fsl_spi_cpm_reinit_txrx(struct mpc8xxx_spi *mspi)
 			     QE_CR_PROTOCOL_UNSPECIFIED, 0);
 	} else {
 		if (mspi->flags & SPI_CPM1) {
-			out_be32(&mspi->pram->rstate, 0);
-			out_be16(&mspi->pram->rbptr,
-				 in_be16(&mspi->pram->rbase));
-			out_be32(&mspi->pram->tstate, 0);
-			out_be16(&mspi->pram->tbptr,
-				 in_be16(&mspi->pram->tbase));
+			iowrite32be(0, &mspi->pram->rstate);
+			iowrite16be(ioread16be(&mspi->pram->rbase),
+				    &mspi->pram->rbptr);
+			iowrite32be(0, &mspi->pram->tstate);
+			iowrite16be(ioread16be(&mspi->pram->tbase),
+				    &mspi->pram->tbptr);
 		} else {
 			cpm_command(CPM_SPI_CMD, CPM_CR_INIT_TRX);
 		}
@@ -75,24 +75,24 @@ static void fsl_spi_cpm_bufs_start(struct mpc8xxx_spi *mspi)
 	struct cpm_buf_desc __iomem *rx_bd = mspi->rx_bd;
 	unsigned int xfer_len = min(mspi->count, SPI_MRBLR);
 	unsigned int xfer_ofs;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
+	struct fsl_spi_reg __iomem *reg_base = mspi->reg_base;
 
 	xfer_ofs = mspi->xfer_in_progress->len - mspi->count;
 
 	if (mspi->rx_dma == mspi->dma_dummy_rx)
-		out_be32(&rx_bd->cbd_bufaddr, mspi->rx_dma);
+		iowrite32be(mspi->rx_dma, &rx_bd->cbd_bufaddr);
 	else
-		out_be32(&rx_bd->cbd_bufaddr, mspi->rx_dma + xfer_ofs);
-	out_be16(&rx_bd->cbd_datlen, 0);
-	out_be16(&rx_bd->cbd_sc, BD_SC_EMPTY | BD_SC_INTRPT | BD_SC_WRAP);
+		iowrite32be(mspi->rx_dma + xfer_ofs, &rx_bd->cbd_bufaddr);
+	iowrite16be(0, &rx_bd->cbd_datlen);
+	iowrite16be(BD_SC_EMPTY | BD_SC_INTRPT | BD_SC_WRAP, &rx_bd->cbd_sc);
 
 	if (mspi->tx_dma == mspi->dma_dummy_tx)
-		out_be32(&tx_bd->cbd_bufaddr, mspi->tx_dma);
+		iowrite32be(mspi->tx_dma, &tx_bd->cbd_bufaddr);
 	else
-		out_be32(&tx_bd->cbd_bufaddr, mspi->tx_dma + xfer_ofs);
-	out_be16(&tx_bd->cbd_datlen, xfer_len);
-	out_be16(&tx_bd->cbd_sc, BD_SC_READY | BD_SC_INTRPT | BD_SC_WRAP |
-				 BD_SC_LAST);
+		iowrite32be(mspi->tx_dma + xfer_ofs, &tx_bd->cbd_bufaddr);
+	iowrite16be(xfer_len, &tx_bd->cbd_datlen);
+	iowrite16be(BD_SC_READY | BD_SC_INTRPT | BD_SC_WRAP | BD_SC_LAST,
+		    &tx_bd->cbd_sc);
 
 	/* start transfer */
 	mpc8xxx_spi_write_reg(&reg_base->command, SPCOM_STR);
@@ -102,7 +102,7 @@ int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 		     struct spi_transfer *t, bool is_dma_mapped)
 {
 	struct device *dev = mspi->dev;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
+	struct fsl_spi_reg __iomem *reg_base = mspi->reg_base;
 
 	if (is_dma_mapped) {
 		mspi->map_tx_dma = 0;
@@ -123,7 +123,7 @@ int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 	}
 	if (t->bits_per_word == 16 && t->tx_buf) {
 		const u16 *src = t->tx_buf;
-		u16 *dst;
+		__le16 *dst;
 		int i;
 
 		dst = kmalloc(t->len, GFP_KERNEL);
@@ -202,12 +202,12 @@ EXPORT_SYMBOL_GPL(fsl_spi_cpm_bufs_complete);
 void fsl_spi_cpm_irq(struct mpc8xxx_spi *mspi, u32 events)
 {
 	u16 len;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
+	struct fsl_spi_reg __iomem *reg_base = mspi->reg_base;
 
 	dev_dbg(mspi->dev, "%s: bd datlen %d, count %d\n", __func__,
-		in_be16(&mspi->rx_bd->cbd_datlen), mspi->count);
+		ioread16be(&mspi->rx_bd->cbd_datlen), mspi->count);
 
-	len = in_be16(&mspi->rx_bd->cbd_datlen);
+	len = ioread16be(&mspi->rx_bd->cbd_datlen);
 	if (len > mspi->count) {
 		WARN_ON(1);
 		len = mspi->count;
@@ -328,7 +328,7 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 	}
 
 	if (mspi->flags & SPI_CPM1) {
-		void *pram;
+		void __iomem *pram;
 
 		pram = devm_platform_ioremap_resource(to_platform_device(dev),
 						      1);
@@ -374,21 +374,21 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 	mspi->rx_bd = cpm_muram_addr(bds_ofs + sizeof(*mspi->tx_bd));
 
 	/* Initialize parameter ram. */
-	out_be16(&mspi->pram->tbase, cpm_muram_offset(mspi->tx_bd));
-	out_be16(&mspi->pram->rbase, cpm_muram_offset(mspi->rx_bd));
-	out_8(&mspi->pram->tfcr, CPMFCR_EB | CPMFCR_GBL);
-	out_8(&mspi->pram->rfcr, CPMFCR_EB | CPMFCR_GBL);
-	out_be16(&mspi->pram->mrblr, SPI_MRBLR);
-	out_be32(&mspi->pram->rstate, 0);
-	out_be32(&mspi->pram->rdp, 0);
-	out_be16(&mspi->pram->rbptr, 0);
-	out_be16(&mspi->pram->rbc, 0);
-	out_be32(&mspi->pram->rxtmp, 0);
-	out_be32(&mspi->pram->tstate, 0);
-	out_be32(&mspi->pram->tdp, 0);
-	out_be16(&mspi->pram->tbptr, 0);
-	out_be16(&mspi->pram->tbc, 0);
-	out_be32(&mspi->pram->txtmp, 0);
+	iowrite16be(cpm_muram_offset(mspi->tx_bd), &mspi->pram->tbase);
+	iowrite16be(cpm_muram_offset(mspi->rx_bd), &mspi->pram->rbase);
+	iowrite8(CPMFCR_EB | CPMFCR_GBL, &mspi->pram->tfcr);
+	iowrite8(CPMFCR_EB | CPMFCR_GBL, &mspi->pram->rfcr);
+	iowrite16be(SPI_MRBLR, &mspi->pram->mrblr);
+	iowrite32be(0, &mspi->pram->rstate);
+	iowrite32be(0, &mspi->pram->rdp);
+	iowrite16be(0, &mspi->pram->rbptr);
+	iowrite16be(0, &mspi->pram->rbc);
+	iowrite32be(0, &mspi->pram->rxtmp);
+	iowrite32be(0, &mspi->pram->tstate);
+	iowrite32be(0, &mspi->pram->tdp);
+	iowrite16be(0, &mspi->pram->tbptr);
+	iowrite16be(0, &mspi->pram->tbc);
+	iowrite32be(0, &mspi->pram->txtmp);
 
 	return 0;
 

@@ -119,7 +119,6 @@ export KBUILD_CFLAGS_DECOMPRESSOR
 OBJCOPYFLAGS	:= -O binary
 
 libs-y		+= arch/s390/lib/
-drivers-y	+= drivers/s390/
 
 boot		:= arch/s390/boot
 syscalls	:= arch/s390/kernel/syscalls

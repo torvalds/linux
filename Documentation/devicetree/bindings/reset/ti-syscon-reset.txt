@@ -43,7 +43,7 @@ Required properties:
 			    Cell #6 : bit position of the reset in the
 			              reset status register
 			    Cell #7 : Flags used to control reset behavior,
-			              availible flags defined in the DT include
+			              available flags defined in the DT include
 			              file <dt-bindings/reset/ti-syscon.h>
 
 SysCon Reset Consumer Nodes

@@ -96,7 +96,7 @@ struct snd_card {
 								private data */
 	struct list_head devices;	/* devices */
 
-	struct device ctl_dev;		/* control device */
+	struct device *ctl_dev;		/* control device */
 	unsigned int last_numid;	/* last used numeric ID */
 	struct rw_semaphore controls_rwsem;	/* controls lock (list and values) */
 	rwlock_t ctl_files_rwlock;	/* ctl_files list lock */
@@ -239,7 +239,7 @@ extern struct dentry *sound_debugfs_root;
 
 void snd_request_card(int card);
 
-void snd_device_initialize(struct device *dev, struct snd_card *card);
+int snd_device_alloc(struct device **dev_p, struct snd_card *card);
 
 int snd_register_device(int type, struct snd_card *card, int dev,
 			const struct file_operations *f_ops,

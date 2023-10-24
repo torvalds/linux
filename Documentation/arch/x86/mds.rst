@@ -60,7 +60,7 @@ needed for exploiting MDS requires:
    data
 
 The existence of such a construct in the kernel cannot be excluded with
-100% certainty, but the complexity involved makes it extremly unlikely.
+100% certainty, but the complexity involved makes it extremely unlikely.
 
 There is one exception, which is untrusted BPF. The functionality of
 untrusted BPF is limited, but it needs to be thoroughly investigated

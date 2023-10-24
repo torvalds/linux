@@ -512,11 +512,6 @@ bnad_debugfs_init(struct bnad *bnad)
 	if (!bnad->port_debugfs_root) {
 		bnad->port_debugfs_root =
 			debugfs_create_dir(name, bna_debugfs_root);
-		if (!bnad->port_debugfs_root) {
-			netdev_warn(bnad->netdev,
-				    "debugfs root dir creation failed\n");
-			return;
-		}
 
 		atomic_inc(&bna_debugfs_port_count);
 

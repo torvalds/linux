@@ -226,46 +226,6 @@
 		hwlocks = <&sfpb_mutex 3>;
 	};
 
-	smd {
-		compatible = "qcom,smd";
-
-		modem-edge {
-			interrupts = <0 37 IRQ_TYPE_EDGE_RISING>;
-
-			qcom,ipc = <&l2cc 8 3>;
-			qcom,smd-edge = <0>;
-
-			status = "disabled";
-		};
-
-		q6-edge {
-			interrupts = <0 90 IRQ_TYPE_EDGE_RISING>;
-
-			qcom,ipc = <&l2cc 8 15>;
-			qcom,smd-edge = <1>;
-
-			status = "disabled";
-		};
-
-		dsps-edge {
-			interrupts = <0 138 IRQ_TYPE_EDGE_RISING>;
-
-			qcom,ipc = <&sps_sic_non_secure 0x4080 0>;
-			qcom,smd-edge = <3>;
-
-			status = "disabled";
-		};
-
-		riva-edge {
-			interrupts = <0 198 IRQ_TYPE_EDGE_RISING>;
-
-			qcom,ipc = <&l2cc 8 25>;
-			qcom,smd-edge = <6>;
-
-			status = "disabled";
-		};
-	};
-
 	smsm {
 		compatible = "qcom,smsm";
 
@@ -554,6 +514,18 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+
+			gsbi4_serial: serial@16340000 {
+				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
+				reg = <0x16340000 0x100>,
+				      <0x16300000 0x3>;
+				interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-0 = <&gsbi4_uart_pin_a>;
+				pinctrl-names = "default";
+				clocks = <&gcc GSBI4_UART_CLK>, <&gcc GSBI4_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
+			};
 
 			gsbi4_i2c: i2c@16380000 {
 				compatible = "qcom,i2c-qup-v1.1.1";

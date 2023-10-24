@@ -156,19 +156,12 @@ static int *cci_pci_create_irq_table(struct pci_dev *pcidev, unsigned int nvec)
 
 static int find_dfls_by_vsec(struct pci_dev *pcidev, struct dfl_fpga_enum_info *info)
 {
-	u32 bir, offset, vndr_hdr, dfl_cnt, dfl_res;
-	int dfl_res_off, i, bars, voff = 0;
+	u32 bir, offset, dfl_cnt, dfl_res;
+	int dfl_res_off, i, bars, voff;
 	resource_size_t start, len;
 
-	while ((voff = pci_find_next_ext_capability(pcidev, voff, PCI_EXT_CAP_ID_VNDR))) {
-		vndr_hdr = 0;
-		pci_read_config_dword(pcidev, voff + PCI_VNDR_HEADER, &vndr_hdr);
-
-		if (PCI_VNDR_HEADER_ID(vndr_hdr) == PCI_VSEC_ID_INTEL_DFLS &&
-		    pcidev->vendor == PCI_VENDOR_ID_INTEL)
-			break;
-	}
-
+	voff = pci_find_vsec_capability(pcidev, PCI_VENDOR_ID_INTEL,
+					PCI_VSEC_ID_INTEL_DFLS);
 	if (!voff) {
 		dev_dbg(&pcidev->dev, "%s no DFL VSEC found\n", __func__);
 		return -ENODEV;

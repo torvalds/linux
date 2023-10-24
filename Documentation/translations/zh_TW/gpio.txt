@@ -8,7 +8,7 @@ or if there is a problem with the translation.
 
 Maintainer: Grant Likely <grant.likely@secretlab.ca>
 		Linus Walleij <linus.walleij@linaro.org>
-Traditional Chinese maintainer: Hu Haowen <src.res@email.cn>
+Traditional Chinese maintainer: Hu Haowen <src.res.211@gmail.com>
 ---------------------------------------------------------------------
 Documentation/admin-guide/gpio 的繁體中文翻譯
 
@@ -18,9 +18,9 @@ Documentation/admin-guide/gpio 的繁體中文翻譯
 
 英文版維護者： Grant Likely <grant.likely@secretlab.ca>
 		Linus Walleij <linus.walleij@linaro.org>
-繁體中文版維護者： 胡皓文 Hu Haowen <src.res@email.cn>
-繁體中文版翻譯者： 胡皓文 Hu Haowen <src.res@email.cn>
-繁體中文版校譯者： 胡皓文 Hu Haowen <src.res@email.cn>
+繁體中文版維護者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
+繁體中文版翻譯者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
+繁體中文版校譯者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 以下爲正文
 ---------------------------------------------------------------------

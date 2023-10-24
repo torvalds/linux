@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config NTFS3_FS
 	tristate "NTFS Read-Write file system support"
+	select BUFFER_HEAD
 	select NLS
 	select LEGACY_DIRECT_IO
 	help

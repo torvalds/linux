@@ -65,7 +65,7 @@
 			clock-frequency = <0>;
 		};
 
-		adc_op_clk: adc_op_clk{
+		adc_op_clk: adc_op_clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <5000000>;
@@ -148,9 +148,9 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0xfffa0000 0x100>;
-				interrupts = <17 IRQ_TYPE_LEVEL_HIGH 0
-					      18 IRQ_TYPE_LEVEL_HIGH 0
-					      19 IRQ_TYPE_LEVEL_HIGH 0>;
+				interrupts = <17 IRQ_TYPE_LEVEL_HIGH 0>,
+					     <18 IRQ_TYPE_LEVEL_HIGH 0>,
+					     <19 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 17>, <&pmc PMC_TYPE_PERIPHERAL 18>, <&pmc PMC_TYPE_PERIPHERAL 19>, <&pmc PMC_TYPE_CORE PMC_SLOW>;
 				clock-names = "t0_clk", "t1_clk", "t2_clk", "slow_clk";
 			};
@@ -160,9 +160,9 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0xfffdc000 0x100>;
-				interrupts = <26 IRQ_TYPE_LEVEL_HIGH 0
-					      27 IRQ_TYPE_LEVEL_HIGH 0
-					      28 IRQ_TYPE_LEVEL_HIGH 0>;
+				interrupts = <26 IRQ_TYPE_LEVEL_HIGH 0>,
+					     <27 IRQ_TYPE_LEVEL_HIGH 0>,
+					     <28 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 26>, <&pmc PMC_TYPE_PERIPHERAL 27>, <&pmc PMC_TYPE_PERIPHERAL 28>, <&pmc PMC_TYPE_CORE PMC_SLOW>;
 				clock-names = "t0_clk", "t1_clk", "t2_clk", "slow_clk";
 			};

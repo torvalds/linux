@@ -792,7 +792,9 @@ static u32 gen8_de_port_aux_mask(struct drm_i915_private *dev_priv)
 {
 	u32 mask;
 
-	if (DISPLAY_VER(dev_priv) >= 14)
+	if (DISPLAY_VER(dev_priv) >= 20)
+		return 0;
+	else if (DISPLAY_VER(dev_priv) >= 14)
 		return TGL_DE_PORT_AUX_DDIA |
 			TGL_DE_PORT_AUX_DDIB;
 	else if (DISPLAY_VER(dev_priv) >= 13)
@@ -1537,7 +1539,7 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
  * to avoid races with the irq handler, assuming we have MSI. Shared legacy
  * interrupts could still race.
  */
-void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
+static void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 mask;
@@ -1583,6 +1585,50 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
 		vlv_display_irq_reset(dev_priv);
 }
 
+void ilk_de_irq_postinstall(struct drm_i915_private *i915)
+{
+	struct intel_uncore *uncore = &i915->uncore;
+	u32 display_mask, extra_mask;
+
+	if (GRAPHICS_VER(i915) >= 7) {
+		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE_IVB |
+				DE_PCH_EVENT_IVB | DE_AUX_CHANNEL_A_IVB);
+		extra_mask = (DE_PIPEC_VBLANK_IVB | DE_PIPEB_VBLANK_IVB |
+			      DE_PIPEA_VBLANK_IVB | DE_ERR_INT_IVB |
+			      DE_PLANE_FLIP_DONE_IVB(PLANE_C) |
+			      DE_PLANE_FLIP_DONE_IVB(PLANE_B) |
+			      DE_PLANE_FLIP_DONE_IVB(PLANE_A) |
+			      DE_DP_A_HOTPLUG_IVB);
+	} else {
+		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
+				DE_AUX_CHANNEL_A | DE_PIPEB_CRC_DONE |
+				DE_PIPEA_CRC_DONE | DE_POISON);
+		extra_mask = (DE_PIPEA_VBLANK | DE_PIPEB_VBLANK |
+			      DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN |
+			      DE_PLANE_FLIP_DONE(PLANE_A) |
+			      DE_PLANE_FLIP_DONE(PLANE_B) |
+			      DE_DP_A_HOTPLUG);
+	}
+
+	if (IS_HASWELL(i915)) {
+		gen3_assert_iir_is_zero(uncore, EDP_PSR_IIR);
+		display_mask |= DE_EDP_PSR_INT_HSW;
+	}
+
+	if (IS_IRONLAKE_M(i915))
+		extra_mask |= DE_PCU_EVENT;
+
+	i915->irq_mask = ~display_mask;
+
+	ibx_irq_postinstall(i915);
+
+	GEN3_IRQ_INIT(uncore, DE, i915->irq_mask,
+		      display_mask | extra_mask);
+}
+
+static void mtp_irq_postinstall(struct drm_i915_private *i915);
+static void icp_irq_postinstall(struct drm_i915_private *i915);
+
 void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
@@ -1599,6 +1645,13 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;
+
+	if (DISPLAY_VER(dev_priv) >= 14)
+		mtp_irq_postinstall(dev_priv);
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+		icp_irq_postinstall(dev_priv);
+	else if (HAS_PCH_SPLIT(dev_priv))
+		ibx_irq_postinstall(dev_priv);
 
 	if (DISPLAY_VER(dev_priv) <= 10)
 		de_misc_masked |= GEN8_DE_MISC_GSE;
@@ -1666,7 +1719,7 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	}
 }
 
-void mtp_irq_postinstall(struct drm_i915_private *i915)
+static void mtp_irq_postinstall(struct drm_i915_private *i915)
 {
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 sde_mask = SDE_GMBUS_ICP | SDE_PICAINTERRUPT;
@@ -1680,7 +1733,7 @@ void mtp_irq_postinstall(struct drm_i915_private *i915)
 	GEN3_IRQ_INIT(uncore, SDE, ~sde_mask, 0xffffffff);
 }
 
-void icp_irq_postinstall(struct drm_i915_private *dev_priv)
+static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 mask = SDE_GMBUS_ICP;
@@ -1699,3 +1752,30 @@ void gen11_de_irq_postinstall(struct drm_i915_private *dev_priv)
 			   GEN11_DISPLAY_IRQ_ENABLE);
 }
 
+void dg1_de_irq_postinstall(struct drm_i915_private *i915)
+{
+	if (!HAS_DISPLAY(i915))
+		return;
+
+	gen8_de_irq_postinstall(i915);
+	intel_uncore_write(&i915->uncore, GEN11_DISPLAY_INT_CTL,
+			   GEN11_DISPLAY_IRQ_ENABLE);
+}
+
+void intel_display_irq_init(struct drm_i915_private *i915)
+{
+	i915->drm.vblank_disable_immediate = true;
+
+	/*
+	 * Most platforms treat the display irq block as an always-on power
+	 * domain. vlv/chv can disable it at runtime and need special care to
+	 * avoid writing any of the display block registers outside of the power
+	 * domain. We defer setting up the display irqs in this case to the
+	 * runtime pm.
+	 */
+	i915->display_irqs_enabled = true;
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+		i915->display_irqs_enabled = false;
+
+	intel_hotplug_irq_init(i915);
+}

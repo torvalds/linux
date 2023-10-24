@@ -15,7 +15,7 @@ KernelVersion:	3.19
 Contact:	Gabriele Mazzotta <gabriele.mzt@gmail.com>,
 		Pali Rohár <pali@kernel.org>
 Description:
-		This file allows to specifiy the on/off threshold value,
+		This file allows to specify the on/off threshold value,
 		as reported by the ambient light sensor.
 
 What:		/sys/class/leds/dell::kbd_backlight/start_triggers

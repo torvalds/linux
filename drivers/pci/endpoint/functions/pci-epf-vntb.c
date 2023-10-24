@@ -986,22 +986,22 @@ static struct config_group *epf_ntb_add_cfs(struct pci_epf *epf,
 /*==== virtual PCI bus driver, which only load virtual NTB PCI driver ====*/
 
 static u32 pci_space[] = {
-	0xffffffff,	/*DeviceID, Vendor ID*/
-	0,		/*Status, Command*/
-	0xffffffff,	/*Class code, subclass, prog if, revision id*/
-	0x40,		/*bist, header type, latency Timer, cache line size*/
-	0,		/*BAR 0*/
-	0,		/*BAR 1*/
-	0,		/*BAR 2*/
-	0,		/*BAR 3*/
-	0,		/*BAR 4*/
-	0,		/*BAR 5*/
-	0,		/*Cardbus cis point*/
-	0,		/*Subsystem ID Subystem vendor id*/
-	0,		/*ROM Base Address*/
-	0,		/*Reserved, Cap. Point*/
-	0,		/*Reserved,*/
-	0,		/*Max Lat, Min Gnt, interrupt pin, interrupt line*/
+	0xffffffff,	/* Device ID, Vendor ID */
+	0,		/* Status, Command */
+	0xffffffff,	/* Base Class, Subclass, Prog Intf, Revision ID */
+	0x40,		/* BIST, Header Type, Latency Timer, Cache Line Size */
+	0,		/* BAR 0 */
+	0,		/* BAR 1 */
+	0,		/* BAR 2 */
+	0,		/* BAR 3 */
+	0,		/* BAR 4 */
+	0,		/* BAR 5 */
+	0,		/* Cardbus CIS Pointer */
+	0,		/* Subsystem ID, Subsystem Vendor ID */
+	0,		/* ROM Base Address */
+	0,		/* Reserved, Capabilities Pointer */
+	0,		/* Reserved */
+	0,		/* Max_Lat, Min_Gnt, Interrupt Pin, Interrupt Line */
 };
 
 static int pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)

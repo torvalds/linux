@@ -9,6 +9,35 @@ __modinst:
 include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
 
+install-y :=
+
+ifeq ($(KBUILD_EXTMOD)$(sign-only),)
+
+# remove the old directory and symlink
+$(shell rm -fr $(MODLIB)/kernel $(MODLIB)/build)
+
+install-$(CONFIG_MODULES) += $(addprefix $(MODLIB)/, build modules.order)
+
+$(MODLIB)/build: FORCE
+	$(call cmd,symlink)
+
+quiet_cmd_symlink = SYMLINK $@
+      cmd_symlink = ln -s $(CURDIR) $@
+
+$(MODLIB)/modules.order: modules.order FORCE
+	$(call cmd,install_modorder)
+
+quiet_cmd_install_modorder = INSTALL $@
+      cmd_install_modorder = sed 's:^\(.*\)\.o$$:kernel/\1.ko:' $< > $@
+
+# Install modules.builtin(.modinfo) even when CONFIG_MODULES is disabled.
+install-y += $(addprefix $(MODLIB)/, modules.builtin modules.builtin.modinfo)
+
+$(addprefix $(MODLIB)/, modules.builtin modules.builtin.modinfo): $(MODLIB)/%: % FORCE
+	$(call cmd,install)
+
+endif
+
 modules := $(call read-file, $(MODORDER))
 
 ifeq ($(KBUILD_EXTMOD),)
@@ -27,15 +56,16 @@ suffix-$(CONFIG_MODULE_COMPRESS_XZ)	:= .xz
 suffix-$(CONFIG_MODULE_COMPRESS_ZSTD)	:= .zst
 
 modules := $(patsubst $(extmod_prefix)%.o, $(dst)/%.ko$(suffix-y), $(modules))
+install-$(CONFIG_MODULES) += $(modules)
 
-__modinst: $(modules)
+__modinst: $(install-y)
 	@:
 
 #
 # Installation
 #
 quiet_cmd_install = INSTALL $@
-      cmd_install = mkdir -p $(dir $@); cp $< $@
+      cmd_install = cp $< $@
 
 # Strip
 #
@@ -65,7 +95,6 @@ endif
 # Signing
 # Don't stop modules_install even if we can't sign external modules.
 #
-ifeq ($(CONFIG_MODULE_SIG_ALL),y)
 ifeq ($(filter pkcs11:%, $(CONFIG_MODULE_SIG_KEY)),)
 sig-key := $(if $(wildcard $(CONFIG_MODULE_SIG_KEY)),,$(srctree)/)$(CONFIG_MODULE_SIG_KEY)
 else
@@ -74,17 +103,33 @@ endif
 quiet_cmd_sign = SIGN    $@
       cmd_sign = scripts/sign-file $(CONFIG_MODULE_SIG_HASH) "$(sig-key)" certs/signing_key.x509 $@ \
                  $(if $(KBUILD_EXTMOD),|| true)
-else
+
+ifeq ($(sign-only),)
+
+# During modules_install, modules are signed only when CONFIG_MODULE_SIG_ALL=y.
+ifndef CONFIG_MODULE_SIG_ALL
 quiet_cmd_sign :=
       cmd_sign := :
 endif
 
-ifeq ($(modules_sign_only),)
+# Create necessary directories
+$(foreach dir, $(sort $(dir $(install-y))), $(shell mkdir -p $(dir)))
 
 $(dst)/%.ko: $(extmod_prefix)%.ko FORCE
 	$(call cmd,install)
 	$(call cmd,strip)
 	$(call cmd,sign)
+
+ifdef CONFIG_MODULES
+__modinst: depmod
+
+PHONY += depmod
+depmod: $(install-y)
+	$(call cmd,depmod)
+
+quiet_cmd_depmod = DEPMOD  $(MODLIB)
+      cmd_depmod = $(srctree)/scripts/depmod.sh $(KERNELRELEASE)
+endif
 
 else
 
@@ -99,7 +144,7 @@ endif
 quiet_cmd_gzip = GZIP    $@
       cmd_gzip = $(KGZIP) -n -f $<
 quiet_cmd_xz = XZ      $@
-      cmd_xz = $(XZ) --lzma2=dict=2MiB -f $<
+      cmd_xz = $(XZ) --check=crc32 --lzma2=dict=1MiB -f $<
 quiet_cmd_zstd = ZSTD    $@
       cmd_zstd = $(ZSTD) -T0 --rm -f -q $<
 

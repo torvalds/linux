@@ -55,7 +55,6 @@
 		assigned-clock-parents = <&clk IMX8MP_CLK_24M>;
 		assigned-clock-rates = <24000000>;
 		clocks = <&clk IMX8MP_CLK_CLKOUT1>;
-		clock-names = "mclk";
 		#sound-dai-cells = <0>;
 
 		VDDA-supply  = <&reg_vcc_3v3_audio>;

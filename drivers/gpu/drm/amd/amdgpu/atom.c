@@ -1444,10 +1444,27 @@ static void atom_get_vbios_pn(struct atom_context *ctx)
 
 static void atom_get_vbios_version(struct atom_context *ctx)
 {
+	unsigned short start = 3, end;
 	unsigned char *vbios_ver;
+	unsigned char *p_rom;
+
+	p_rom = ctx->bios;
+	/* Search from strings offset if it's present */
+	start = *(unsigned short *)(p_rom +
+				    OFFSET_TO_GET_ATOMBIOS_STRING_START);
+
+	/* Search till atom rom header start point */
+	end = *(unsigned short *)(p_rom + OFFSET_TO_ATOM_ROM_HEADER_POINTER);
+
+	/* Use hardcoded offsets, if the offsets are not populated */
+	if (end <= start) {
+		start = 3;
+		end = 1024;
+	}
 
 	/* find anchor ATOMBIOSBK-AMD */
-	vbios_ver = atom_find_str_in_rom(ctx, BIOS_VERSION_PREFIX, 3, 1024, 64);
+	vbios_ver =
+		atom_find_str_in_rom(ctx, BIOS_VERSION_PREFIX, start, end, 64);
 	if (vbios_ver != NULL) {
 		/* skip ATOMBIOSBK-AMD VER */
 		vbios_ver += 18;

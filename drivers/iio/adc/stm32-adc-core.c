@@ -18,6 +18,8 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -723,8 +725,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	priv->nb_adc_max = priv->cfg->num_adcs;
 	spin_lock_init(&priv->common.lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->common.base = devm_ioremap_resource(&pdev->dev, res);
+	priv->common.base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->common.base))
 		return PTR_ERR(priv->common.base);
 	priv->common.phys_base = res->start;

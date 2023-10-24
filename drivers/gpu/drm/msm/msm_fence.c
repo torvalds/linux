@@ -191,6 +191,12 @@ msm_fence_init(struct dma_fence *fence, struct msm_fence_context *fctx)
 
 	f->fctx = fctx;
 
+	/*
+	 * Until this point, the fence was just some pre-allocated memory,
+	 * no-one should have taken a reference to it yet.
+	 */
+	WARN_ON(kref_read(&fence->refcount));
+
 	dma_fence_init(&f->base, &msm_fence_ops, &fctx->spinlock,
 		       fctx->context, ++fctx->last_fence);
 }

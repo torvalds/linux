@@ -6,6 +6,8 @@
 #ifndef _LINUX_CORESIGHT_H
 #define _LINUX_CORESIGHT_H
 
+#include <linux/amba/bus.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/perf_event.h>
@@ -384,6 +386,63 @@ static inline u32 csdev_access_relaxed_read32(struct csdev_access *csa,
 		return readl_relaxed(csa->base + offset);
 
 	return csa->read(offset, true, false);
+}
+
+#define CORESIGHT_CIDRn(i)	(0xFF0 + ((i) * 4))
+
+static inline u32 coresight_get_cid(void __iomem *base)
+{
+	u32 i, cid = 0;
+
+	for (i = 0; i < 4; i++)
+		cid |= readl(base + CORESIGHT_CIDRn(i)) << (i * 8);
+
+	return cid;
+}
+
+static inline bool is_coresight_device(void __iomem *base)
+{
+	u32 cid = coresight_get_cid(base);
+
+	return cid == CORESIGHT_CID;
+}
+
+/*
+ * Attempt to find and enable "APB clock" for the given device
+ *
+ * Returns:
+ *
+ * clk   - Clock is found and enabled
+ * NULL  - clock is not found
+ * ERROR - Clock is found but failed to enable
+ */
+static inline struct clk *coresight_get_enable_apb_pclk(struct device *dev)
+{
+	struct clk *pclk;
+	int ret;
+
+	pclk = clk_get(dev, "apb_pclk");
+	if (IS_ERR(pclk))
+		return NULL;
+
+	ret = clk_prepare_enable(pclk);
+	if (ret) {
+		clk_put(pclk);
+		return ERR_PTR(ret);
+	}
+	return pclk;
+}
+
+#define CORESIGHT_PIDRn(i)	(0xFE0 + ((i) * 4))
+
+static inline u32 coresight_get_pid(struct csdev_access *csa)
+{
+	u32 i, pid = 0;
+
+	for (i = 0; i < 4; i++)
+		pid |= csdev_access_relaxed_read32(csa, CORESIGHT_PIDRn(i)) << (i * 8);
+
+	return pid;
 }
 
 static inline u64 csdev_access_relaxed_read_pair(struct csdev_access *csa,

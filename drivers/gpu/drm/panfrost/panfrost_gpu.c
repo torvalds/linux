@@ -73,6 +73,13 @@ int panfrost_gpu_soft_reset(struct panfrost_device *pfdev)
 	gpu_write(pfdev, GPU_INT_CLEAR, GPU_IRQ_MASK_ALL);
 	gpu_write(pfdev, GPU_INT_MASK, GPU_IRQ_MASK_ALL);
 
+	/*
+	 * All in-flight jobs should have released their cycle
+	 * counter references upon reset, but let us make sure
+	 */
+	if (drm_WARN_ON(pfdev->ddev, atomic_read(&pfdev->cycle_counter.use_count) != 0))
+		atomic_set(&pfdev->cycle_counter.use_count, 0);
+
 	return 0;
 }
 
@@ -321,6 +328,40 @@ static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 		 pfdev->features.shader_present, pfdev->features.l2_present);
 }
 
+void panfrost_cycle_counter_get(struct panfrost_device *pfdev)
+{
+	if (atomic_inc_not_zero(&pfdev->cycle_counter.use_count))
+		return;
+
+	spin_lock(&pfdev->cycle_counter.lock);
+	if (atomic_inc_return(&pfdev->cycle_counter.use_count) == 1)
+		gpu_write(pfdev, GPU_CMD, GPU_CMD_CYCLE_COUNT_START);
+	spin_unlock(&pfdev->cycle_counter.lock);
+}
+
+void panfrost_cycle_counter_put(struct panfrost_device *pfdev)
+{
+	if (atomic_add_unless(&pfdev->cycle_counter.use_count, -1, 1))
+		return;
+
+	spin_lock(&pfdev->cycle_counter.lock);
+	if (atomic_dec_return(&pfdev->cycle_counter.use_count) == 0)
+		gpu_write(pfdev, GPU_CMD, GPU_CMD_CYCLE_COUNT_STOP);
+	spin_unlock(&pfdev->cycle_counter.lock);
+}
+
+unsigned long long panfrost_cycle_counter_read(struct panfrost_device *pfdev)
+{
+	u32 hi, lo;
+
+	do {
+		hi = gpu_read(pfdev, GPU_CYCLE_COUNT_HI);
+		lo = gpu_read(pfdev, GPU_CYCLE_COUNT_LO);
+	} while (hi != gpu_read(pfdev, GPU_CYCLE_COUNT_HI));
+
+	return ((u64)hi << 32) | lo;
+}
+
 void panfrost_gpu_power_on(struct panfrost_device *pfdev)
 {
 	int ret;
@@ -390,8 +431,8 @@ int panfrost_gpu_init(struct panfrost_device *pfdev)
 	dma_set_max_seg_size(pfdev->dev, UINT_MAX);
 
 	irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "gpu");
-	if (irq <= 0)
-		return -ENODEV;
+	if (irq < 0)
+		return irq;
 
 	err = devm_request_irq(pfdev->dev, irq, panfrost_gpu_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME "-gpu", pfdev);

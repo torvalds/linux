@@ -4,22 +4,8 @@
 Page Pool API
 =============
 
-The page_pool allocator is optimized for the XDP mode that uses one frame
-per-page, but it can fallback on the regular page allocator APIs.
-
-Basic use involves replacing alloc_pages() calls with the
-page_pool_alloc_pages() call.  Drivers should use page_pool_dev_alloc_pages()
-replacing dev_alloc_pages().
-
-API keeps track of in-flight pages, in order to let API user know
-when it is safe to free a page_pool object.  Thus, API users
-must run page_pool_release_page() when a page is leaving the page_pool or
-call page_pool_put_page() where appropriate in order to maintain correct
-accounting.
-
-API user must call page_pool_put_page() once on a page, as it
-will either recycle the page, or in case of refcnt > 1, it will
-release the DMA mapping and in-flight state accounting.
+.. kernel-doc:: include/net/page_pool/helpers.h
+   :doc: page_pool allocator
 
 Architecture overview
 =====================
@@ -64,87 +50,68 @@ This lockless guarantee naturally comes from running under a NAPI softirq.
 The protection doesn't strictly have to be NAPI, any guarantee that allocating
 a page will cause no race conditions is enough.
 
-* page_pool_create(): Create a pool.
-    * flags:      PP_FLAG_DMA_MAP, PP_FLAG_DMA_SYNC_DEV
-    * order:      2^order pages on allocation
-    * pool_size:  size of the ptr_ring
-    * nid:        preferred NUMA node for allocation
-    * dev:        struct device. Used on DMA operations
-    * dma_dir:    DMA direction
-    * max_len:    max DMA sync memory size
-    * offset:     DMA address offset
+.. kernel-doc:: net/core/page_pool.c
+   :identifiers: page_pool_create
 
-* page_pool_put_page(): The outcome of this depends on the page refcnt. If the
-  driver bumps the refcnt > 1 this will unmap the page. If the page refcnt is 1
-  the allocator owns the page and will try to recycle it in one of the pool
-  caches. If PP_FLAG_DMA_SYNC_DEV is set, the page will be synced for_device
-  using dma_sync_single_range_for_device().
+.. kernel-doc:: include/net/page_pool/types.h
+   :identifiers: struct page_pool_params
 
-* page_pool_put_full_page(): Similar to page_pool_put_page(), but will DMA sync
-  for the entire memory area configured in area pool->max_len.
+.. kernel-doc:: include/net/page_pool/helpers.h
+   :identifiers: page_pool_put_page page_pool_put_full_page
+		 page_pool_recycle_direct page_pool_dev_alloc_pages
+		 page_pool_get_dma_addr page_pool_get_dma_dir
 
-* page_pool_recycle_direct(): Similar to page_pool_put_full_page() but caller
-  must guarantee safe context (e.g NAPI), since it will recycle the page
-  directly into the pool fast cache.
+.. kernel-doc:: net/core/page_pool.c
+   :identifiers: page_pool_put_page_bulk page_pool_get_stats
 
-* page_pool_release_page(): Unmap the page (if mapped) and account for it on
-  in-flight counters.
+DMA sync
+--------
+Driver is always responsible for syncing the pages for the CPU.
+Drivers may choose to take care of syncing for the device as well
+or set the ``PP_FLAG_DMA_SYNC_DEV`` flag to request that pages
+allocated from the page pool are already synced for the device.
 
-* page_pool_dev_alloc_pages(): Get a page from the page allocator or page_pool
-  caches.
+If ``PP_FLAG_DMA_SYNC_DEV`` is set, the driver must inform the core what portion
+of the buffer has to be synced. This allows the core to avoid syncing the entire
+page when the drivers knows that the device only accessed a portion of the page.
 
-* page_pool_get_dma_addr(): Retrieve the stored DMA address.
+Most drivers will reserve headroom in front of the frame. This part
+of the buffer is not touched by the device, so to avoid syncing
+it drivers can set the ``offset`` field in struct page_pool_params
+appropriately.
 
-* page_pool_get_dma_dir(): Retrieve the stored DMA direction.
+For pages recycled on the XDP xmit and skb paths the page pool will
+use the ``max_len`` member of struct page_pool_params to decide how
+much of the page needs to be synced (starting at ``offset``).
+When directly freeing pages in the driver (page_pool_put_page())
+the ``dma_sync_size`` argument specifies how much of the buffer needs
+to be synced.
 
-* page_pool_put_page_bulk(): Tries to refill a number of pages into the
-  ptr_ring cache holding ptr_ring producer lock. If the ptr_ring is full,
-  page_pool_put_page_bulk() will release leftover pages to the page allocator.
-  page_pool_put_page_bulk() is suitable to be run inside the driver NAPI tx
-  completion loop for the XDP_REDIRECT use case.
-  Please note the caller must not use data area after running
-  page_pool_put_page_bulk(), as this function overwrites it.
+If in doubt set ``offset`` to 0, ``max_len`` to ``PAGE_SIZE`` and
+pass -1 as ``dma_sync_size``. That combination of arguments is always
+correct.
 
-* page_pool_get_stats(): Retrieve statistics about the page_pool. This API
-  is only available if the kernel has been configured with
-  ``CONFIG_PAGE_POOL_STATS=y``. A pointer to a caller allocated ``struct
-  page_pool_stats`` structure is passed to this API which is filled in. The
-  caller can then report those stats to the user (perhaps via ethtool,
-  debugfs, etc.). See below for an example usage of this API.
+Note that the syncing parameters are for the entire page.
+This is important to remember when using fragments (``PP_FLAG_PAGE_FRAG``),
+where allocated buffers may be smaller than a full page.
+Unless the driver author really understands page pool internals
+it's recommended to always use ``offset = 0``, ``max_len = PAGE_SIZE``
+with fragmented page pools.
 
 Stats API and structures
 ------------------------
 If the kernel is configured with ``CONFIG_PAGE_POOL_STATS=y``, the API
-``page_pool_get_stats()`` and structures described below are available. It
-takes a  pointer to a ``struct page_pool`` and a pointer to a ``struct
-page_pool_stats`` allocated by the caller.
+page_pool_get_stats() and structures described below are available.
+It takes a  pointer to a ``struct page_pool`` and a pointer to a struct
+page_pool_stats allocated by the caller.
 
-The API will fill in the provided ``struct page_pool_stats`` with
+The API will fill in the provided struct page_pool_stats with
 statistics about the page_pool.
 
-The stats structure has the following fields::
-
-    struct page_pool_stats {
-        struct page_pool_alloc_stats alloc_stats;
-        struct page_pool_recycle_stats recycle_stats;
-    };
-
-
-The ``struct page_pool_alloc_stats`` has the following fields:
-  * ``fast``: successful fast path allocations
-  * ``slow``: slow path order-0 allocations
-  * ``slow_high_order``: slow path high order allocations
-  * ``empty``: ptr ring is empty, so a slow path allocation was forced.
-  * ``refill``: an allocation which triggered a refill of the cache
-  * ``waive``: pages obtained from the ptr ring that cannot be added to
-    the cache due to a NUMA mismatch.
-
-The ``struct page_pool_recycle_stats`` has the following fields:
-  * ``cached``: recycling placed page in the page pool cache
-  * ``cache_full``: page pool cache was full
-  * ``ring``: page placed into the ptr ring
-  * ``ring_full``: page released from page pool because the ptr ring was full
-  * ``released_refcnt``: page released (and not recycled) because refcnt > 1
+.. kernel-doc:: include/net/page_pool/types.h
+   :identifiers: struct page_pool_recycle_stats
+		 struct page_pool_alloc_stats
+		 struct page_pool_stats
 
 Coding examples
 ===============
@@ -194,7 +161,7 @@ NAPI poller
             if XDP_DROP:
                 page_pool_recycle_direct(page_pool, page);
         } else (packet_is_skb) {
-            page_pool_release_page(page_pool, page);
+            skb_mark_for_recycle(skb);
             new_page = page_pool_dev_alloc_pages(page_pool);
         }
     }

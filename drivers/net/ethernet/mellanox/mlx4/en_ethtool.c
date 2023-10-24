@@ -1467,8 +1467,8 @@ static int add_ip_rule(struct mlx4_en_priv *priv,
 		       struct list_head *list_h)
 {
 	int err;
-	struct mlx4_spec_list *spec_l2 = NULL;
-	struct mlx4_spec_list *spec_l3 = NULL;
+	struct mlx4_spec_list *spec_l2;
+	struct mlx4_spec_list *spec_l3;
 	struct ethtool_usrip4_spec *l3_mask = &cmd->fs.m_u.usr_ip4_spec;
 
 	spec_l3 = kzalloc(sizeof(*spec_l3), GFP_KERNEL);
@@ -1505,9 +1505,9 @@ static int add_tcp_udp_rule(struct mlx4_en_priv *priv,
 			     struct list_head *list_h, int proto)
 {
 	int err;
-	struct mlx4_spec_list *spec_l2 = NULL;
-	struct mlx4_spec_list *spec_l3 = NULL;
-	struct mlx4_spec_list *spec_l4 = NULL;
+	struct mlx4_spec_list *spec_l2;
+	struct mlx4_spec_list *spec_l3;
+	struct mlx4_spec_list *spec_l4;
 	struct ethtool_tcpip4_spec *l4_mask = &cmd->fs.m_u.tcp_ip4_spec;
 
 	spec_l2 = kzalloc(sizeof(*spec_l2), GFP_KERNEL);

@@ -17,18 +17,18 @@
  */
 
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 
-#include <linux/fs_uart_pd.h>
 #include <soc/fsl/qe/ucc_slow.h>
 
 #include <linux/firmware.h>
@@ -59,7 +59,7 @@ static int firmware_loaded;
 /* #define LOOPBACK */
 
 /* The major and minor device numbers are defined in
- * http://www.lanana.org/docs/device-list/devices-2.6+.txt.  For the QE
+ * Documentation/admin-guide/devices.txt.  For the QE
  * UART, we have major number 204 and minor numbers 46 - 49, which are the
  * same as for the CPM2.  This decision was made because no Freescale part
  * has both a CPM and a QE.

@@ -1,0 +1,61 @@
+What:		/sys/kernel/debug/qat_<device>_<BDF>/qat/fw_counters
+Date:		November 2023
+KernelVersion:	6.6
+Contact:	qat-linux@intel.com
+Description:	(RO) Read returns the number of requests sent to the FW and the number of responses
+		received from the FW for each Acceleration Engine
+		Reported firmware counters::
+
+			<N>: Number of requests sent from Acceleration Engine N to FW and responses
+			     Acceleration Engine N received from FW
+
+What:		/sys/kernel/debug/qat_<device>_<BDF>/heartbeat/config
+Date:		November 2023
+KernelVersion:	6.6
+Contact:	qat-linux@intel.com
+Description:	(RW) Read returns value of the Heartbeat update period.
+		Write to the file changes this period value.
+
+		This period should reflect planned polling interval of device
+		health status. High frequency Heartbeat monitoring wastes CPU cycles
+		but minimizes the customer’s system downtime. Also, if there are
+		large service requests that take some time to complete, high frequency
+		Heartbeat monitoring could result in false reports of unresponsiveness
+		and in those cases, period needs to be increased.
+
+		This parameter is effective only for c3xxx, c62x, dh895xcc devices.
+		4xxx has this value internally fixed to 200ms.
+
+		Default value is set to 500. Minimal allowed value is 200.
+		All values are expressed in milliseconds.
+
+What:		/sys/kernel/debug/qat_<device>_<BDF>/heartbeat/queries_failed
+Date:		November 2023
+KernelVersion:	6.6
+Contact:	qat-linux@intel.com
+Description:	(RO) Read returns the number of times the device became unresponsive.
+
+		Attribute returns value of the counter which is incremented when
+		status query results negative.
+
+What:		/sys/kernel/debug/qat_<device>_<BDF>/heartbeat/queries_sent
+Date:		November 2023
+KernelVersion:	6.6
+Contact:	qat-linux@intel.com
+Description:	(RO) Read returns the number of times the control process checked
+		if the device is responsive.
+
+		Attribute returns value of the counter which is incremented on
+		every status query.
+
+What:		/sys/kernel/debug/qat_<device>_<BDF>/heartbeat/status
+Date:		November 2023
+KernelVersion:	6.6
+Contact:	qat-linux@intel.com
+Description:	(RO) Read returns the device health status.
+
+		Returns 0 when device is healthy or -1 when is unresponsive
+		or the query failed to send.
+
+		The driver does not monitor for Heartbeat. It is left for a user
+		to poll the status periodically.

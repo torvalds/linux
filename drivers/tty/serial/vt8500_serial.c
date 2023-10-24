@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/console.h>
+#include <linux/platform_device.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
@@ -21,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/err.h>
 
 /*
@@ -611,10 +611,6 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	if (!flags)
 		return -EINVAL;
 
-	mmres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mmres)
-		return -ENODEV;
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -647,7 +643,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	if (!vt8500_port)
 		return -ENOMEM;
 
-	vt8500_port->uart.membase = devm_ioremap_resource(&pdev->dev, mmres);
+	vt8500_port->uart.membase = devm_platform_get_and_ioremap_resource(pdev, 0, &mmres);
 	if (IS_ERR(vt8500_port->uart.membase))
 		return PTR_ERR(vt8500_port->uart.membase);
 

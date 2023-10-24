@@ -172,3 +172,10 @@ void dcss_kms_detach(struct dcss_kms_dev *kms)
 	dcss_crtc_deinit(&kms->crtc, drm);
 	drm->dev_private = NULL;
 }
+
+void dcss_kms_shutdown(struct dcss_kms_dev *kms)
+{
+	struct drm_device *drm = &kms->base;
+
+	drm_atomic_helper_shutdown(drm);
+}

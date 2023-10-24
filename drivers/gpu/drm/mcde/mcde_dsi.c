@@ -1226,7 +1226,7 @@ static const struct of_device_id mcde_dsi_of_match[] = {
 struct platform_driver mcde_dsi_driver = {
 	.driver = {
 		.name           = "mcde-dsi",
-		.of_match_table = of_match_ptr(mcde_dsi_of_match),
+		.of_match_table = mcde_dsi_of_match,
 	},
 	.probe = mcde_dsi_probe,
 	.remove_new = mcde_dsi_remove,

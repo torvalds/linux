@@ -51,8 +51,6 @@ static bool is_unsupported(u32 member_offset)
 	return false;
 }
 
-extern struct btf *btf_vmlinux;
-
 static bool bpf_tcp_ca_is_valid_access(int off, int size,
 				       enum bpf_access_type type,
 				       const struct bpf_prog *prog,

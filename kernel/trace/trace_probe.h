@@ -383,9 +383,15 @@ static inline bool tparg_is_function_entry(unsigned int flags)
 
 struct traceprobe_parse_context {
 	struct trace_event_call *event;
-	const struct btf_param *params;
-	s32 nr_params;
-	const char *funcname;
+	/* BTF related parameters */
+	const char *funcname;		/* Function name in BTF */
+	const struct btf_type  *proto;	/* Prototype of the function */
+	const struct btf_param *params;	/* Parameter of the function */
+	s32 nr_params;			/* The number of the parameters */
+	struct btf *btf;		/* The BTF to be used */
+	const struct btf_type *last_type;	/* Saved type */
+	u32 last_bitoffs;		/* Saved bitoffs */
+	u32 last_bitsize;		/* Saved bitsize */
 	unsigned int flags;
 	int offset;
 };
@@ -399,6 +405,12 @@ const char **traceprobe_expand_meta_args(int argc, const char *argv[],
 
 extern int traceprobe_update_arg(struct probe_arg *arg);
 extern void traceprobe_free_probe_arg(struct probe_arg *arg);
+
+/*
+ * If either traceprobe_parse_probe_arg() or traceprobe_expand_meta_args() is called,
+ * this MUST be called for clean up the context and return a resource.
+ */
+void traceprobe_finish_parse(struct traceprobe_parse_context *ctx);
 
 extern int traceprobe_split_symbol_offset(char *symbol, long *offset);
 int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
@@ -438,6 +450,7 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(BAD_MAXACT,		"Invalid maxactive number"),		\
 	C(MAXACT_TOO_BIG,	"Maxactive is too big"),		\
 	C(BAD_PROBE_ADDR,	"Invalid probed address or symbol"),	\
+	C(NON_UNIQ_SYMBOL,	"The symbol is not unique"),		\
 	C(BAD_RETPROBE,		"Retprobe address must be an function entry"), \
 	C(NO_TRACEPOINT,	"Tracepoint is not found"),		\
 	C(BAD_ADDR_SUFFIX,	"Invalid probed address suffix"), \
@@ -495,7 +508,14 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(BAD_VAR_ARGS,		"$arg* must be an independent parameter without name etc."),\
 	C(NOFENTRY_ARGS,	"$arg* can be used only on function entry"),	\
 	C(DOUBLE_ARGS,		"$arg* can be used only once in the parameters"),	\
-	C(ARGS_2LONG,		"$arg* failed because the argument list is too long"),
+	C(ARGS_2LONG,		"$arg* failed because the argument list is too long"),	\
+	C(ARGIDX_2BIG,		"$argN index is too big"),		\
+	C(NO_PTR_STRCT,		"This is not a pointer to union/structure."),	\
+	C(NOSUP_DAT_ARG,	"Non pointer structure/union argument is not supported."),\
+	C(BAD_HYPHEN,		"Failed to parse single hyphen. Forgot '>'?"),	\
+	C(NO_BTF_FIELD,		"This field is not found."),	\
+	C(BAD_BTF_TID,		"Failed to get BTF type info."),\
+	C(BAD_TYPE4STR,		"This type does not fit for string."),
 
 #undef C
 #define C(a, b)		TP_ERR_##a
@@ -519,3 +539,8 @@ void __trace_probe_log_err(int offset, int err);
 
 #define trace_probe_log_err(offs, err)	\
 	__trace_probe_log_err(offs, TP_ERR_##err)
+
+struct uprobe_dispatch_data {
+	struct trace_uprobe	*tu;
+	unsigned long		bp_addr;
+};

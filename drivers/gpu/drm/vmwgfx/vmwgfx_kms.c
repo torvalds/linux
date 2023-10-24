@@ -1471,8 +1471,8 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 	/* Reserve and switch the backing mob. */
 	mutex_lock(&res->dev_priv->cmdbuf_mutex);
 	(void) vmw_resource_reserve(res, false, true);
-	vmw_bo_unreference(&res->guest_memory_bo);
-	res->guest_memory_bo = vmw_bo_reference(bo_mob);
+	vmw_user_bo_unref(&res->guest_memory_bo);
+	res->guest_memory_bo = vmw_user_bo_ref(bo_mob);
 	res->guest_memory_offset = 0;
 	vmw_resource_unreserve(res, false, false, false, NULL, 0);
 	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
@@ -1665,10 +1665,8 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 
 err_out:
 	/* vmw_user_lookup_handle takes one ref so does new_fb */
-	if (bo) {
-		vmw_bo_unreference(&bo);
-		drm_gem_object_put(&bo->tbo.base);
-	}
+	if (bo)
+		vmw_user_bo_unref(&bo);
 	if (surface)
 		vmw_surface_unreference(&surface);
 

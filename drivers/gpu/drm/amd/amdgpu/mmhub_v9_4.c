@@ -108,7 +108,7 @@ static void mmhub_v9_4_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmi
 }
 
 static void mmhub_v9_4_init_system_aperture_regs(struct amdgpu_device *adev,
-					         int hubid)
+						int hubid)
 {
 	uint64_t value;
 	uint32_t tmp;
@@ -308,7 +308,7 @@ static void mmhub_v9_4_setup_vmid_config(struct amdgpu_device *adev, int hubid)
 
 	for (i = 0; i <= 14; i++) {
 		tmp = RREG32_SOC15_OFFSET(MMHUB, 0, mmVML2VC0_VM_CONTEXT1_CNTL,
-				hubid * MMHUB_INSTANCE_REGISTER_OFFSET + i);
+				hubid * MMHUB_INSTANCE_REGISTER_OFFSET + i * hub->ctx_distance);
 		tmp = REG_SET_FIELD(tmp, VML2VC0_VM_CONTEXT1_CNTL,
 				    ENABLE_CONTEXT, 1);
 		tmp = REG_SET_FIELD(tmp, VML2VC0_VM_CONTEXT1_CNTL,
@@ -1568,7 +1568,7 @@ static int mmhub_v9_4_get_ras_error_count(struct amdgpu_device *adev,
 	uint32_t sec_cnt, ded_cnt;
 
 	for (i = 0; i < ARRAY_SIZE(mmhub_v9_4_ras_fields); i++) {
-		if(mmhub_v9_4_ras_fields[i].reg_offset != reg->reg_offset)
+		if (mmhub_v9_4_ras_fields[i].reg_offset != reg->reg_offset)
 			continue;
 
 		sec_cnt = (value &

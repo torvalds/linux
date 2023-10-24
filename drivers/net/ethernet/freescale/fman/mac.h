@@ -68,10 +68,6 @@ struct dpaa_eth_data {
 
 extern const char	*mac_driver_description;
 
-int fman_set_mac_active_pause(struct mac_device *mac_dev, bool rx, bool tx);
-
-void fman_get_pause_cfg(struct mac_device *mac_dev, bool *rx_pause,
-			bool *tx_pause);
 int fman_set_multi(struct net_device *net_dev, struct mac_device *mac_dev);
 
 #endif	/* __MAC_H */

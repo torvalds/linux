@@ -3,3 +3,4 @@ disable-tsc-ctxt-sw-stress-test
 disable-tsc-on-off-stress-test
 disable-tsc-test
 set-anon-vma-name-test
+set-process-name

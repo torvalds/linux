@@ -28,26 +28,6 @@ static int flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 1;
 }
 
-/*
- * Set up the logical destination ID.
- *
- * Intel recommends to set DFR, LDR and TPR before enabling
- * an APIC.  See e.g. "AP-388 82489DX User's Manual" (Intel
- * document number 292116).  So here it goes...
- */
-void flat_init_apic_ldr(void)
-{
-	unsigned long val;
-	unsigned long num, id;
-
-	num = smp_processor_id();
-	id = 1UL << num;
-	apic_write(APIC_DFR, APIC_DFR_FLAT);
-	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
-	val |= SET_APIC_LOGICAL_ID(id);
-	apic_write(APIC_LDR, val);
-}
-
 static void _flat_send_IPI_mask(unsigned long mask, int vector)
 {
 	unsigned long flags;
@@ -86,16 +66,6 @@ static u32 set_apic_id(unsigned int id)
 	return (id & 0xFF) << 24;
 }
 
-static unsigned int read_xapic_id(void)
-{
-	return flat_get_apic_id(apic_read(APIC_ID));
-}
-
-static int flat_apic_id_registered(void)
-{
-	return physid_isset(read_xapic_id(), phys_cpu_present_map);
-}
-
 static int flat_phys_pkg_id(int initial_apic_id, int index_msb)
 {
 	return initial_apic_id >> index_msb;
@@ -110,23 +80,18 @@ static struct apic apic_flat __ro_after_init = {
 	.name				= "flat",
 	.probe				= flat_probe,
 	.acpi_madt_oem_check		= flat_acpi_madt_oem_check,
-	.apic_id_valid			= default_apic_id_valid,
-	.apic_id_registered		= flat_apic_id_registered,
+	.apic_id_registered		= default_apic_id_registered,
 
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= true,
 
 	.disable_esr			= 0,
 
-	.check_apicid_used		= NULL,
-	.init_apic_ldr			= flat_init_apic_ldr,
-	.ioapic_phys_id_map		= NULL,
-	.setup_apic_routing		= NULL,
+	.init_apic_ldr			= default_init_apic_ldr,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
-	.apicid_to_cpu_present		= NULL,
-	.check_phys_apicid_present	= default_check_phys_apicid_present,
 	.phys_pkg_id			= flat_phys_pkg_id,
 
+	.max_apic_id			= 0xFE,
 	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
 
@@ -139,15 +104,13 @@ static struct apic apic_flat __ro_after_init = {
 	.send_IPI_all			= default_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
 
-	.inquire_remote_apic		= default_inquire_remote_apic,
-
 	.read				= native_apic_mem_read,
 	.write				= native_apic_mem_write,
-	.eoi_write			= native_apic_mem_write,
+	.eoi				= native_apic_mem_eoi,
 	.icr_read			= native_apic_icr_read,
 	.icr_write			= native_apic_icr_write,
-	.wait_icr_idle			= native_apic_wait_icr_idle,
-	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
+	.wait_icr_idle			= apic_mem_wait_icr_idle,
+	.safe_wait_icr_idle		= apic_mem_wait_icr_idle_timeout,
 };
 
 /*
@@ -178,22 +141,9 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;
 }
 
-static void physflat_init_apic_ldr(void)
-{
-	/*
-	 * LDR and DFR are not involved in physflat mode, rather:
-	 * "In physical destination mode, the destination processor is
-	 * specified by its local APIC ID [...]." (Intel SDM, 10.6.2.1)
-	 */
-}
-
 static int physflat_probe(void)
 {
-	if (apic == &apic_physflat || num_possible_cpus() > 8 ||
-	    jailhouse_paravirt())
-		return 1;
-
-	return 0;
+	return apic == &apic_physflat || num_possible_cpus() > 8 || jailhouse_paravirt();
 }
 
 static struct apic apic_physflat __ro_after_init = {
@@ -201,8 +151,7 @@ static struct apic apic_physflat __ro_after_init = {
 	.name				= "physical flat",
 	.probe				= physflat_probe,
 	.acpi_madt_oem_check		= physflat_acpi_madt_oem_check,
-	.apic_id_valid			= default_apic_id_valid,
-	.apic_id_registered		= flat_apic_id_registered,
+	.apic_id_registered		= default_apic_id_registered,
 
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= false,
@@ -210,14 +159,11 @@ static struct apic apic_physflat __ro_after_init = {
 	.disable_esr			= 0,
 
 	.check_apicid_used		= NULL,
-	.init_apic_ldr			= physflat_init_apic_ldr,
 	.ioapic_phys_id_map		= NULL,
-	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
-	.apicid_to_cpu_present		= NULL,
-	.check_phys_apicid_present	= default_check_phys_apicid_present,
 	.phys_pkg_id			= flat_phys_pkg_id,
 
+	.max_apic_id			= 0xFE,
 	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
 
@@ -230,15 +176,13 @@ static struct apic apic_physflat __ro_after_init = {
 	.send_IPI_all			= default_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
 
-	.inquire_remote_apic		= default_inquire_remote_apic,
-
 	.read				= native_apic_mem_read,
 	.write				= native_apic_mem_write,
-	.eoi_write			= native_apic_mem_write,
+	.eoi				= native_apic_mem_eoi,
 	.icr_read			= native_apic_icr_read,
 	.icr_write			= native_apic_icr_write,
-	.wait_icr_idle			= native_apic_wait_icr_idle,
-	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
+	.wait_icr_idle			= apic_mem_wait_icr_idle,
+	.safe_wait_icr_idle		= apic_mem_wait_icr_idle_timeout,
 };
 
 /*

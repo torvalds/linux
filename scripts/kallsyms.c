@@ -129,6 +129,7 @@ static struct sym_entry *read_symbol(FILE *in, char **buf, size_t *buf_len)
 	ssize_t readlen;
 	struct sym_entry *sym;
 
+	errno = 0;
 	readlen = getline(buf, buf_len, in);
 	if (readlen < 0) {
 		if (errno) {

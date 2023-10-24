@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2023, Intel Corporation. All rights reserved.
+
+config INTEL_VSC
+	tristate "Intel Visual Sensing Controller"
+	depends on INTEL_MEI && ACPI && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This adds support for Intel Visual Sensing Controller (IVSC).
+
+	  Enables the IVSC firmware services required for controlling
+	  camera sensor ownership and CSI-2 link through Image Processing
+	  Unit(IPU) driver of Intel.

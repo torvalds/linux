@@ -87,6 +87,61 @@ int cpupower_intel_set_perf_bias(unsigned int cpu, unsigned int val)
 	return 0;
 }
 
+int cpupower_set_epp(unsigned int cpu, char *epp)
+{
+	char path[SYSFS_PATH_MAX];
+	char linebuf[30] = {};
+
+	snprintf(path, sizeof(path),
+		PATH_TO_CPU "cpu%u/cpufreq/energy_performance_preference", cpu);
+
+	if (!is_valid_path(path))
+		return -1;
+
+	snprintf(linebuf, sizeof(linebuf), "%s", epp);
+
+	if (cpupower_write_sysfs(path, linebuf, 30) <= 0)
+		return -1;
+
+	return 0;
+}
+
+int cpupower_set_amd_pstate_mode(char *mode)
+{
+	char path[SYSFS_PATH_MAX];
+	char linebuf[20] = {};
+
+	snprintf(path, sizeof(path), PATH_TO_CPU "amd_pstate/status");
+
+	if (!is_valid_path(path))
+		return -1;
+
+	snprintf(linebuf, sizeof(linebuf), "%s\n", mode);
+
+	if (cpupower_write_sysfs(path, linebuf, 20) <= 0)
+		return -1;
+
+	return 0;
+}
+
+int cpupower_set_turbo_boost(int turbo_boost)
+{
+	char path[SYSFS_PATH_MAX];
+	char linebuf[2] = {};
+
+	snprintf(path, sizeof(path), PATH_TO_CPU "cpufreq/boost");
+
+	if (!is_valid_path(path))
+		return -1;
+
+	snprintf(linebuf, sizeof(linebuf), "%d", turbo_boost);
+
+	if (cpupower_write_sysfs(path, linebuf, 2) <= 0)
+		return -1;
+
+	return 0;
+}
+
 bool cpupower_amd_pstate_enabled(void)
 {
 	char *driver = cpufreq_get_driver(0);
@@ -95,7 +150,7 @@ bool cpupower_amd_pstate_enabled(void)
 	if (!driver)
 		return ret;
 
-	if (!strcmp(driver, "amd-pstate"))
+	if (!strncmp(driver, "amd", 3))
 		ret = true;
 
 	cpufreq_put_driver(driver);

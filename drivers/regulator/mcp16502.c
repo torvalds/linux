@@ -8,7 +8,6 @@
 //
 // Inspired from tps65086-regulator.c
 
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -111,7 +110,7 @@ static unsigned int mcp16502_of_map_mode(unsigned int mode)
 #define MCP16502_REGULATOR(_name, _id, _ranges, _ops, _ramp_table)	\
 	[_id] = {							\
 		.name			= _name,			\
-		.regulators_node	= of_match_ptr("regulators"),	\
+		.regulators_node	= "regulators",			\
 		.id			= _id,				\
 		.ops			= &(_ops),			\
 		.type			= REGULATOR_VOLTAGE,		\
@@ -120,7 +119,7 @@ static unsigned int mcp16502_of_map_mode(unsigned int mode)
 		.linear_ranges		= _ranges,			\
 		.linear_min_sel		= VDD_LOW_SEL,			\
 		.n_linear_ranges	= ARRAY_SIZE(_ranges),		\
-		.of_match		= of_match_ptr(_name),		\
+		.of_match		= _name,			\
 		.of_map_mode		= mcp16502_of_map_mode,		\
 		.vsel_reg		= (((_id) + 1) << 4),		\
 		.vsel_mask		= MCP16502_VSEL,		\
@@ -588,7 +587,7 @@ static struct i2c_driver mcp16502_drv = {
 	.driver		= {
 		.name	= "mcp16502-regulator",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table	= of_match_ptr(mcp16502_ids),
+		.of_match_table	= mcp16502_ids,
 #ifdef CONFIG_PM
 		.pm = &mcp16502_pm_ops,
 #endif

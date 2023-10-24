@@ -221,6 +221,10 @@ static bool fix_pwm_polarity;
  * Super-I/O configuration space.
  */
 #define IT87_REG_VID           0x0a
+
+/* Interface Selection register on other chips */
+#define IT87_REG_IFSEL         0x0a
+
 /*
  * The IT8705F and IT8712F earlier than revision 0x08 use register 0x0b
  * for fan divisors. Later IT8712F revisions must use 16-bit tachometer
@@ -1159,28 +1163,66 @@ static SENSOR_DEVICE_ATTR_2(temp4_input, S_IRUGO, show_temp, NULL, 3, 0);
 static SENSOR_DEVICE_ATTR_2(temp5_input, S_IRUGO, show_temp, NULL, 4, 0);
 static SENSOR_DEVICE_ATTR_2(temp6_input, S_IRUGO, show_temp, NULL, 5, 0);
 
+static int get_temp_type(struct it87_data *data, int index)
+{
+	/*
+	 * 2 is deprecated;
+	 * 3 = thermal diode;
+	 * 4 = thermistor;
+	 * 5 = AMDTSI;
+	 * 6 = Intel PECI;
+	 * 0 = disabled
+	 */
+	u8 reg, extra;
+	int ttype, type = 0;
+
+	/* Detect PECI vs. AMDTSI */
+	ttype = 6;
+	if ((has_temp_peci(data, index)) || data->type == it8721 ||
+	    data->type == it8720) {
+		extra = it87_read_value(data, IT87_REG_IFSEL);
+		if ((extra & 0x70) == 0x40)
+			ttype = 5;
+	}
+
+	reg = it87_read_value(data, IT87_REG_TEMP_ENABLE);
+
+	/* Per chip special detection */
+	switch (data->type) {
+	case it8622:
+		if (!(reg & 0xc0) && index == 3)
+			type = ttype;
+		break;
+	default:
+		break;
+	}
+
+	if (type || index >= 3)
+		return type;
+
+	extra = it87_read_value(data, IT87_REG_TEMP_EXTRA);
+
+	if ((has_temp_peci(data, index) && (reg >> 6 == index + 1)) ||
+	    (has_temp_old_peci(data, index) && (extra & 0x80)))
+		type = ttype;	/* Intel PECI or AMDTSI */
+	else if (reg & BIT(index))
+		type = 3;	/* thermal diode */
+	else if (reg & BIT(index + 3))
+		type = 4;	/* thermistor */
+
+	return type;
+}
+
 static ssize_t show_temp_type(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index;
 	struct it87_data *data = it87_update_device(dev);
-	u8 reg, extra;
 
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	reg = data->sensor;	/* In case value is updated while used */
-	extra = data->extra;
-
-	if ((has_temp_peci(data, nr) && (reg >> 6 == nr + 1)) ||
-	    (has_temp_old_peci(data, nr) && (extra & 0x80)))
-		return sprintf(buf, "6\n");  /* Intel PECI */
-	if (reg & (1 << nr))
-		return sprintf(buf, "3\n");  /* thermal diode */
-	if (reg & (8 << nr))
-		return sprintf(buf, "4\n");  /* thermistor */
-	return sprintf(buf, "0\n");      /* disabled */
+	return sprintf(buf, "%d\n", get_temp_type(data, sensor_attr->index));
 }
 
 static ssize_t set_temp_type(struct device *dev, struct device_attribute *attr,
@@ -2312,6 +2354,12 @@ static umode_t it87_temp_is_visible(struct kobject *kobj,
 
 	if (!(data->has_temp & BIT(i)))
 		return 0;
+
+	if (a == 3) {
+		if (get_temp_type(data, i) == 0)
+			return 0;
+		return attr->mode;
+	}
 
 	if (a == 5 && !has_temp_offset(data))
 		return 0;

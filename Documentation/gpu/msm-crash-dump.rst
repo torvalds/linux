@@ -23,7 +23,7 @@ module
 	The module that generated the crashdump.
 
 time
-	The kernel time at crash formated as seconds.microseconds.
+	The kernel time at crash formatted as seconds.microseconds.
 
 comm
 	Comm string for the binary that generated the fault.

@@ -230,8 +230,8 @@ enum tpm2_pt_props {
  * compiler warnings about stack frame size. */
 #define TPM_MAX_RNG_DATA	128
 
-extern struct class *tpm_class;
-extern struct class *tpmrm_class;
+extern const struct class tpm_class;
+extern const struct class tpmrm_class;
 extern dev_t tpm_devt;
 extern const struct file_operations tpm_fops;
 extern const struct file_operations tpmrm_fops;

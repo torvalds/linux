@@ -1042,7 +1042,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 	dev_dbg(dev, "DMA is %senabled\n", priv->dma_enabled ? "" : "not ");
 
 	memset(&up, 0, sizeof(up));
-	up.port.type = PORT_16550A;
+	up.port.type = PORT_BCM7271;
 	up.port.uartclk = clk_rate;
 	up.port.dev = dev;
 	up.port.mapbase = mapbase;
@@ -1056,8 +1056,6 @@ static int brcmuart_probe(struct platform_device *pdev)
 		| UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	up.port.dev = dev;
 	up.port.private_data = priv;
-	up.capabilities = UART_CAP_FIFO | UART_CAP_AFE;
-	up.port.fifosize = 32;
 
 	/* Check for a fixed line number */
 	ret = of_alias_get_id(np, "serial");

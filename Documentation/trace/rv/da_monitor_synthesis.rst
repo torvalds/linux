@@ -1,7 +1,7 @@
 Deterministic Automata Monitor Synthesis
 ========================================
 
-The starting point for the application of runtime verification (RV) technics
+The starting point for the application of runtime verification (RV) techniques
 is the *specification* or *modeling* of the desired (or undesired) behavior
 of the system under scrutiny.
 

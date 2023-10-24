@@ -803,7 +803,7 @@ static const struct attribute_group bonding_group = {
 /* Initialize sysfs.  This sets up the bonding_masters file in
  * /sys/class/net.
  */
-int bond_create_sysfs(struct bond_net *bn)
+int __net_init bond_create_sysfs(struct bond_net *bn)
 {
 	int ret;
 
@@ -836,7 +836,7 @@ int bond_create_sysfs(struct bond_net *bn)
 }
 
 /* Remove /sys/class/net/bonding_masters. */
-void bond_destroy_sysfs(struct bond_net *bn)
+void __net_exit bond_destroy_sysfs(struct bond_net *bn)
 {
 	netdev_class_remove_file_ns(&bn->class_attr_bonding_masters, bn->net);
 }

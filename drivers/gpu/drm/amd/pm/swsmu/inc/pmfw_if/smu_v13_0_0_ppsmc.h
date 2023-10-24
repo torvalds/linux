@@ -138,7 +138,10 @@
 #define PPSMC_MSG_SetBadMemoryPagesRetiredFlagsPerChannel 0x4A
 #define PPSMC_MSG_SetPriorityDeltaGain           0x4B
 #define PPSMC_MSG_AllowIHHostInterrupt           0x4C
-#define PPSMC_Message_Count                      0x4D
+
+#define PPSMC_MSG_DALNotPresent                  0x4E
+
+#define PPSMC_Message_Count                      0x4F
 
 //Debug Dump Message
 #define DEBUGSMC_MSG_TestMessage                    0x1

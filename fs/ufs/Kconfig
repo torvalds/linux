@@ -2,6 +2,7 @@
 config UFS_FS
 	tristate "UFS file system support (read only)"
 	depends on BLOCK
+	select BUFFER_HEAD
 	help
 	  BSD and derivate versions of Unix (such as SunOS, FreeBSD, NetBSD,
 	  OpenBSD and NeXTstep) use a file system called UFS. Some System V

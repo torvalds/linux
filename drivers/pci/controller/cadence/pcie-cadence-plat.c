@@ -6,11 +6,10 @@
  * Author: Tom Joseph <tjoseph@cadence.com>
  */
 #include <linux/kernel.h>
-#include <linux/of_address.h>
+#include <linux/of.h>
 #include <linux/of_pci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/of_device.h>
 #include "pcie-cadence.h"
 
 #define CDNS_PLAT_CPU_TO_BUS_ADDR	0x0FFFFFFF

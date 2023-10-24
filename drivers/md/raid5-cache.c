@@ -1260,14 +1260,13 @@ static void r5l_log_flush_endio(struct bio *bio)
 
 	if (bio->bi_status)
 		md_error(log->rdev->mddev, log->rdev);
+	bio_uninit(bio);
 
 	spin_lock_irqsave(&log->io_list_lock, flags);
 	list_for_each_entry(io, &log->flushing_ios, log_sibling)
 		r5l_io_run_stripes(io);
 	list_splice_tail_init(&log->flushing_ios, &log->finished_ios);
 	spin_unlock_irqrestore(&log->io_list_lock, flags);
-
-	bio_uninit(bio);
 }
 
 /*
@@ -3168,12 +3167,15 @@ void r5l_exit_log(struct r5conf *conf)
 {
 	struct r5l_log *log = conf->log;
 
-	/* Ensure disable_writeback_work wakes up and exits */
+	md_unregister_thread(conf->mddev, &log->reclaim_thread);
+
+	/*
+	 * 'reconfig_mutex' is held by caller, set 'confg->log' to NULL to
+	 * ensure disable_writeback_work wakes up and exits.
+	 */
+	conf->log = NULL;
 	wake_up(&conf->mddev->sb_wait);
 	flush_work(&log->disable_writeback_work);
-	md_unregister_thread(&log->reclaim_thread);
-
-	conf->log = NULL;
 
 	mempool_exit(&log->meta_pool);
 	bioset_exit(&log->bs);

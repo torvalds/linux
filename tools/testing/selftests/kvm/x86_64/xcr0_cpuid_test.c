@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2022, Google LLC.
  */
-
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,13 +19,14 @@
  * Assert that architectural dependency rules are satisfied, e.g. that AVX is
  * supported if and only if SSE is supported.
  */
-#define ASSERT_XFEATURE_DEPENDENCIES(supported_xcr0, xfeatures, dependencies)	  \
-do {										  \
-	uint64_t __supported = (supported_xcr0) & ((xfeatures) | (dependencies)); \
-										  \
-	GUEST_ASSERT_3((__supported & (xfeatures)) != (xfeatures) ||		  \
-		       __supported == ((xfeatures) | (dependencies)),		  \
-		       __supported, (xfeatures), (dependencies));		  \
+#define ASSERT_XFEATURE_DEPENDENCIES(supported_xcr0, xfeatures, dependencies)		\
+do {											\
+	uint64_t __supported = (supported_xcr0) & ((xfeatures) | (dependencies));	\
+											\
+	__GUEST_ASSERT((__supported & (xfeatures)) != (xfeatures) ||			\
+		       __supported == ((xfeatures) | (dependencies)),			\
+		       "supported = 0x%llx, xfeatures = 0x%llx, dependencies = 0x%llx",	\
+		       __supported, (xfeatures), (dependencies));			\
 } while (0)
 
 /*
@@ -41,7 +41,8 @@ do {										  \
 do {									\
 	uint64_t __supported = (supported_xcr0) & (xfeatures);		\
 									\
-	GUEST_ASSERT_2(!__supported || __supported == (xfeatures),	\
+	__GUEST_ASSERT(!__supported || __supported == (xfeatures),	\
+		       "supported = 0x%llx, xfeatures = 0x%llx",	\
 		       __supported, (xfeatures));			\
 } while (0)
 
@@ -79,14 +80,18 @@ static void guest_code(void)
 				    XFEATURE_MASK_XTILE);
 
 	vector = xsetbv_safe(0, supported_xcr0);
-	GUEST_ASSERT_2(!vector, supported_xcr0, vector);
+	__GUEST_ASSERT(!vector,
+		       "Expected success on XSETBV(0x%llx), got vector '0x%x'",
+		       supported_xcr0, vector);
 
 	for (i = 0; i < 64; i++) {
 		if (supported_xcr0 & BIT_ULL(i))
 			continue;
 
 		vector = xsetbv_safe(0, supported_xcr0 | BIT_ULL(i));
-		GUEST_ASSERT_3(vector == GP_VECTOR, supported_xcr0, vector, BIT_ULL(i));
+		__GUEST_ASSERT(vector == GP_VECTOR,
+			       "Expected #GP on XSETBV(0x%llx), supported XCR0 = %llx, got vector '0x%x'",
+			       BIT_ULL(i), supported_xcr0, vector);
 	}
 
 	GUEST_DONE();
@@ -117,7 +122,7 @@ int main(int argc, char *argv[])
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_3(uc, "0x%lx 0x%lx 0x%lx");
+			REPORT_GUEST_ASSERT(uc);
 			break;
 		case UCALL_DONE:
 			goto done;

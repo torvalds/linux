@@ -130,9 +130,9 @@ static int snd_es1688_probe(struct snd_card *card, unsigned int n)
 
 	strscpy(card->driver, "ES1688", sizeof(card->driver));
 	strscpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
-	snprintf(card->longname, sizeof(card->longname),
-		"%s at 0x%lx, irq %i, dma %i", chip->pcm->name, chip->port,
-		 chip->irq, chip->dma8);
+	scnprintf(card->longname, sizeof(card->longname),
+		  "%s at 0x%lx, irq %i, dma %i", chip->pcm->name, chip->port,
+		  chip->irq, chip->dma8);
 
 	if (fm_port[n] == SNDRV_AUTO_PORT)
 		fm_port[n] = port[n];	/* share the same port */

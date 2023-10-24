@@ -50,7 +50,7 @@
 #include "dcn314/dcn314_optc.h"
 #include "dcn20/dcn20_hwseq.h"
 #include "dcn30/dcn30_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 #include "dcn30/dcn30_opp.h"
 #include "dcn20/dcn20_dsc.h"
 #include "dcn30/dcn30_vpg.h"
@@ -93,6 +93,7 @@
 #include "reg_helper.h"
 #include "dce/dmub_abm.h"
 #include "dce/dmub_psr.h"
+#include "dce/dmub_replay.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
 #include "dml/dcn314/display_mode_vba_314.h"
@@ -117,6 +118,8 @@
 #define regBIF_BX2_BIOS_SCRATCH_6			0x003e
 #define regBIF_BX2_BIOS_SCRATCH_6_BASE_IDX		1
 
+#define DC_LOGGER \
+	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 enum dcn31_clk_src_array_id {
@@ -870,6 +873,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.enable_z9_disable_interface = true,
 	.minimum_z8_residency_time = 2000,
 	.psr_skip_crtc_disable = true,
+	.replay_skip_crtc_disabled = true,
 	.disable_dmcu = true,
 	.force_abm_enable = false,
 	.timing_trace = false,
@@ -945,6 +949,7 @@ static const struct dc_panel_config panel_config_defaults = {
 	.psr = {
 		.disable_psr = false,
 		.disallow_psrsu = false,
+		.disallow_replay = false,
 	},
 	.ilr = {
 		.optimize_edp_link_rate = true,
@@ -1028,6 +1033,28 @@ static const struct dce_i2c_shift i2c_shifts = {
 static const struct dce_i2c_mask i2c_masks = {
 		I2C_COMMON_MASK_SH_LIST_DCN30(_MASK)
 };
+
+/* ========================================================== */
+
+/*
+ * DPIA index | Preferred Encoder     |    Host Router
+ *   0        |      C                |       0
+ *   1        |      First Available  |       0
+ *   2        |      D                |       1
+ *   3        |      First Available  |       1
+ */
+/* ========================================================== */
+static const enum engine_id dpia_to_preferred_enc_id_table[] = {
+		ENGINE_ID_DIGC,
+		ENGINE_ID_DIGC,
+		ENGINE_ID_DIGD,
+		ENGINE_ID_DIGD
+};
+
+static enum engine_id dcn314_get_preferred_eng_id_dpia(unsigned int dpia_index)
+{
+	return dpia_to_preferred_enc_id_table[dpia_index];
+}
 
 static struct dce_i2c_hw *dcn31_i2c_hw_create(
 	struct dc_context *ctx,
@@ -1528,6 +1555,9 @@ static void dcn314_resource_destruct(struct dcn314_resource_pool *pool)
 	if (pool->base.psr != NULL)
 		dmub_psr_destroy(&pool->base.psr);
 
+	if (pool->base.replay != NULL)
+		dmub_replay_destroy(&pool->base.replay);
+
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
 }
@@ -1683,7 +1713,9 @@ static bool filter_modes_for_single_channel_workaround(struct dc *dc,
 		struct dc_state *context)
 {
 	// Filter 2K@240Hz+8K@24fps above combination timing if memory only has single dimm LPDDR
-	if (dc->clk_mgr->bw_params->vram_type == 34 && dc->clk_mgr->bw_params->num_channels < 2) {
+	if (dc->clk_mgr->bw_params->vram_type == 34 &&
+	    dc->clk_mgr->bw_params->num_channels < 2 &&
+	    context->stream_count > 1) {
 		int total_phy_pix_clk = 0;
 
 		for (int i = 0; i < context->stream_count; i++)
@@ -1732,8 +1764,8 @@ bool dcn314_validate_bandwidth(struct dc *dc,
 		BW_VAL_TRACE_SKIP(fast);
 		goto validate_out;
 	}
-
-	dc->res_pool->funcs->calculate_wm_and_dlg(dc, context, pipes, pipe_cnt, vlevel);
+	if (dc->res_pool->funcs->calculate_wm_and_dlg)
+		dc->res_pool->funcs->calculate_wm_and_dlg(dc, context, pipes, pipe_cnt, vlevel);
 
 	BW_VAL_TRACE_END_WATERMARKS();
 
@@ -1765,7 +1797,8 @@ static struct resource_funcs dcn314_res_pool_funcs = {
 	.calculate_wm_and_dlg = dcn31_calculate_wm_and_dlg,
 	.update_soc_for_wm_a = dcn31_update_soc_for_wm_a,
 	.populate_dml_pipes = dcn314_populate_dml_pipes_from_context,
-	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
+	.acquire_free_pipe_as_secondary_dpp_pipe = dcn20_acquire_free_pipe_for_layer,
+	.release_pipe = dcn20_release_pipe,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
@@ -1777,6 +1810,7 @@ static struct resource_funcs dcn314_res_pool_funcs = {
 	.update_bw_bounding_box = dcn314_update_bw_bounding_box,
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.get_panel_config_defaults = dcn314_get_panel_config_defaults,
+	.get_preferred_eng_id_dpia = dcn314_get_preferred_eng_id_dpia,
 };
 
 static struct clock_source *dcn30_clock_source_create(
@@ -1879,6 +1913,8 @@ static bool dcn314_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+
+	dc->caps.max_disp_clock_khz_at_vmin = 650000;
 
 	/* Use pipe context based otg sync logic */
 	dc->config.use_pipe_ctx_sync_logic = true;
@@ -2021,6 +2057,14 @@ static bool dcn314_resource_construct(
 	pool->base.psr = dmub_psr_create(ctx);
 	if (pool->base.psr == NULL) {
 		dm_error("DC: failed to create psr obj!\n");
+		BREAK_TO_DEBUGGER();
+		goto create_fail;
+	}
+
+	/* Replay */
+	pool->base.replay = dmub_replay_create(ctx);
+	if (pool->base.replay == NULL) {
+		dm_error("DC: failed to create replay obj!\n");
 		BREAK_TO_DEBUGGER();
 		goto create_fail;
 	}

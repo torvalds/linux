@@ -747,10 +747,7 @@ static int tegra_pinctrl_resume(struct device *dev)
 	return 0;
 }
 
-const struct dev_pm_ops tegra_pinctrl_pm = {
-	.suspend_noirq = &tegra_pinctrl_suspend,
-	.resume_noirq = &tegra_pinctrl_resume
-};
+DEFINE_NOIRQ_DEV_PM_OPS(tegra_pinctrl_pm, tegra_pinctrl_suspend, tegra_pinctrl_resume);
 
 static bool tegra_pinctrl_gpio_node_has_range(struct tegra_pmx *pmx)
 {

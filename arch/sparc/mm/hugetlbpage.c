@@ -328,7 +328,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	return pte_offset_huge(pmd, addr);
 }
 
-void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+void __set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t entry)
 {
 	unsigned int nptes, orig_shift, shift;
@@ -362,6 +362,12 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 	if (size == HPAGE_SIZE)
 		maybe_tlb_batch_add(mm, addr + REAL_HPAGE_SIZE, ptep, orig, 0,
 				    orig_shift);
+}
+
+void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+		     pte_t *ptep, pte_t entry, unsigned long sz)
+{
+	__set_huge_pte_at(mm, addr, ptep, entry);
 }
 
 pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,

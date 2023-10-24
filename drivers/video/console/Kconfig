@@ -73,6 +73,7 @@ config DUMMY_CONSOLE_ROWS
 config FRAMEBUFFER_CONSOLE
 	bool "Framebuffer Console support"
 	depends on FB_CORE && !UML
+	default DRM_FBDEV_EMULATION
 	select VT_HW_CONSOLE_BINDING
 	select CRC32
 	select FONT_SUPPORT

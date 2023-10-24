@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#include "i40e_status.h"
 #include "i40e_type.h"
 #include "i40e_register.h"
 #include "i40e_adminq.h"
@@ -284,7 +283,7 @@ static int i40e_config_asq_regs(struct i40e_hw *hw)
 	/* Check one register to verify that config was applied */
 	reg = rd32(hw, hw->aq.asq.bal);
 	if (reg != lower_32_bits(hw->aq.asq.desc_buf.pa))
-		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+		ret_code = -EIO;
 
 	return ret_code;
 }
@@ -316,7 +315,7 @@ static int i40e_config_arq_regs(struct i40e_hw *hw)
 	/* Check one register to verify that config was applied */
 	reg = rd32(hw, hw->aq.arq.bal);
 	if (reg != lower_32_bits(hw->aq.arq.desc_buf.pa))
-		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+		ret_code = -EIO;
 
 	return ret_code;
 }
@@ -340,14 +339,14 @@ static int i40e_init_asq(struct i40e_hw *hw)
 
 	if (hw->aq.asq.count > 0) {
 		/* queue already initialized */
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = -EBUSY;
 		goto init_adminq_exit;
 	}
 
 	/* verify input for valid configuration */
 	if ((hw->aq.num_asq_entries == 0) ||
 	    (hw->aq.asq_buf_size == 0)) {
-		ret_code = I40E_ERR_CONFIG;
+		ret_code = -EIO;
 		goto init_adminq_exit;
 	}
 
@@ -399,14 +398,14 @@ static int i40e_init_arq(struct i40e_hw *hw)
 
 	if (hw->aq.arq.count > 0) {
 		/* queue already initialized */
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = -EBUSY;
 		goto init_adminq_exit;
 	}
 
 	/* verify input for valid configuration */
 	if ((hw->aq.num_arq_entries == 0) ||
 	    (hw->aq.arq_buf_size == 0)) {
-		ret_code = I40E_ERR_CONFIG;
+		ret_code = -EIO;
 		goto init_adminq_exit;
 	}
 
@@ -452,7 +451,7 @@ static int i40e_shutdown_asq(struct i40e_hw *hw)
 	mutex_lock(&hw->aq.asq_mutex);
 
 	if (hw->aq.asq.count == 0) {
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = -EBUSY;
 		goto shutdown_asq_out;
 	}
 
@@ -486,7 +485,7 @@ static int i40e_shutdown_arq(struct i40e_hw *hw)
 	mutex_lock(&hw->aq.arq_mutex);
 
 	if (hw->aq.arq.count == 0) {
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = -EBUSY;
 		goto shutdown_arq_out;
 	}
 
@@ -594,7 +593,7 @@ int i40e_init_adminq(struct i40e_hw *hw)
 	    (hw->aq.num_asq_entries == 0) ||
 	    (hw->aq.arq_buf_size == 0) ||
 	    (hw->aq.asq_buf_size == 0)) {
-		ret_code = I40E_ERR_CONFIG;
+		ret_code = -EIO;
 		goto init_adminq_exit;
 	}
 
@@ -626,13 +625,13 @@ int i40e_init_adminq(struct i40e_hw *hw)
 							&hw->aq.api_maj_ver,
 							&hw->aq.api_min_ver,
 							NULL);
-		if (ret_code != I40E_ERR_ADMIN_QUEUE_TIMEOUT)
+		if (ret_code != -EIO)
 			break;
 		retry++;
 		msleep(100);
 		i40e_resume_aq(hw);
 	} while (retry < 10);
-	if (ret_code != I40E_SUCCESS)
+	if (ret_code != 0)
 		goto init_adminq_free_arq;
 
 	/* Some features were introduced in different FW API version
@@ -672,7 +671,7 @@ int i40e_init_adminq(struct i40e_hw *hw)
 		hw->flags |= I40E_HW_FLAG_802_1AD_CAPABLE;
 
 	if (hw->aq.api_maj_ver > I40E_FW_API_VERSION_MAJOR) {
-		ret_code = I40E_ERR_FIRMWARE_API_VERSION;
+		ret_code = -EIO;
 		goto init_adminq_free_arq;
 	}
 
@@ -799,7 +798,7 @@ i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
 	if (hw->aq.asq.count == 0) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: Admin queue not initialized.\n");
-		status = I40E_ERR_QUEUE_EMPTY;
+		status = -EIO;
 		goto asq_send_command_error;
 	}
 
@@ -809,7 +808,7 @@ i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
 	if (val >= hw->aq.num_asq_entries) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: head overrun at %d\n", val);
-		status = I40E_ERR_ADMIN_QUEUE_FULL;
+		status = -ENOSPC;
 		goto asq_send_command_error;
 	}
 
@@ -840,7 +839,7 @@ i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: Invalid buffer size: %d.\n",
 			   buff_size);
-		status = I40E_ERR_INVALID_SIZE;
+		status = -EINVAL;
 		goto asq_send_command_error;
 	}
 
@@ -848,7 +847,7 @@ i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
 		i40e_debug(hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: Async flag not set along with postpone flag");
-		status = I40E_ERR_PARAM;
+		status = -EINVAL;
 		goto asq_send_command_error;
 	}
 
@@ -863,7 +862,7 @@ i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
 		i40e_debug(hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: Error queue is full.\n");
-		status = I40E_ERR_ADMIN_QUEUE_FULL;
+		status = -ENOSPC;
 		goto asq_send_command_error;
 	}
 
@@ -940,9 +939,9 @@ i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
 		if ((enum i40e_admin_queue_err)retval == I40E_AQ_RC_OK)
 			status = 0;
 		else if ((enum i40e_admin_queue_err)retval == I40E_AQ_RC_EBUSY)
-			status = I40E_ERR_NOT_READY;
+			status = -EBUSY;
 		else
-			status = I40E_ERR_ADMIN_QUEUE_ERROR;
+			status = -EIO;
 		hw->aq.asq_last_status = (enum i40e_admin_queue_err)retval;
 	}
 
@@ -960,11 +959,11 @@ i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
 		if (rd32(hw, hw->aq.asq.len) & I40E_GL_ATQLEN_ATQCRIT_MASK) {
 			i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 				   "AQTX: AQ Critical error.\n");
-			status = I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR;
+			status = -EIO;
 		} else {
 			i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 				   "AQTX: Writeback timeout.\n");
-			status = I40E_ERR_ADMIN_QUEUE_TIMEOUT;
+			status = -EIO;
 		}
 	}
 
@@ -1106,7 +1105,7 @@ int i40e_clean_arq_element(struct i40e_hw *hw,
 	if (hw->aq.arq.count == 0) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 			   "AQRX: Admin queue not initialized.\n");
-		ret_code = I40E_ERR_QUEUE_EMPTY;
+		ret_code = -EIO;
 		goto clean_arq_element_err;
 	}
 
@@ -1114,7 +1113,7 @@ int i40e_clean_arq_element(struct i40e_hw *hw,
 	ntu = rd32(hw, hw->aq.arq.head) & I40E_PF_ARQH_ARQH_MASK;
 	if (ntu == ntc) {
 		/* nothing to do - shouldn't need to update ring's values */
-		ret_code = I40E_ERR_ADMIN_QUEUE_NO_WORK;
+		ret_code = -EALREADY;
 		goto clean_arq_element_out;
 	}
 
@@ -1126,7 +1125,7 @@ int i40e_clean_arq_element(struct i40e_hw *hw,
 		(enum i40e_admin_queue_err)le16_to_cpu(desc->retval);
 	flags = le16_to_cpu(desc->flags);
 	if (flags & I40E_AQ_FLAG_ERR) {
-		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+		ret_code = -EIO;
 		i40e_debug(hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQRX: Event received with error 0x%X.\n",

@@ -37,7 +37,9 @@
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 #include <asm/elf.h>
+#include <asm/exec.h>
 #include <asm/fpu.h>
+#include <asm/lbt.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
@@ -61,13 +63,6 @@ EXPORT_SYMBOL(__stack_chk_guard);
 unsigned long boot_option_idle_override = IDLE_NO_OVERRIDE;
 EXPORT_SYMBOL(boot_option_idle_override);
 
-#ifdef CONFIG_HOTPLUG_CPU
-void __noreturn arch_cpu_idle_dead(void)
-{
-	play_dead();
-}
-#endif
-
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 
@@ -89,9 +84,11 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
 	euen = regs->csr_euen & ~(CSR_EUEN_FPEN);
 	regs->csr_euen = euen;
 	lose_fpu(0);
+	lose_lbt(0);
 
 	clear_thread_flag(TIF_LSX_CTX_LIVE);
 	clear_thread_flag(TIF_LASX_CTX_LIVE);
+	clear_thread_flag(TIF_LBT_CTX_LIVE);
 	clear_used_math();
 	regs->csr_era = pc;
 	regs->regs[3] = sp;
@@ -128,10 +125,14 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 
 	preempt_enable();
 
-	if (used_math())
-		memcpy(dst, src, sizeof(struct task_struct));
-	else
+	if (!used_math())
 		memcpy(dst, src, offsetof(struct task_struct, thread.fpu.fpr));
+	else
+		memcpy(dst, src, offsetof(struct task_struct, thread.lbt.scr0));
+
+#ifdef CONFIG_CPU_HAS_LBT
+	memcpy(&dst->thread.lbt, &src->thread.lbt, sizeof(struct loongarch_lbt));
+#endif
 
 	return 0;
 }
@@ -196,8 +197,10 @@ out:
 	ptrace_hw_copy_thread(p);
 	clear_tsk_thread_flag(p, TIF_USEDFPU);
 	clear_tsk_thread_flag(p, TIF_USEDSIMD);
+	clear_tsk_thread_flag(p, TIF_USEDLBT);
 	clear_tsk_thread_flag(p, TIF_LSX_CTX_LIVE);
 	clear_tsk_thread_flag(p, TIF_LASX_CTX_LIVE);
+	clear_tsk_thread_flag(p, TIF_LBT_CTX_LIVE);
 
 	return 0;
 }
@@ -345,9 +348,9 @@ static void raise_backtrace(cpumask_t *mask)
 	}
 }
 
-void arch_trigger_cpumask_backtrace(const cpumask_t *mask, bool exclude_self)
+void arch_trigger_cpumask_backtrace(const cpumask_t *mask, int exclude_cpu)
 {
-	nmi_trigger_cpumask_backtrace(mask, exclude_self, raise_backtrace);
+	nmi_trigger_cpumask_backtrace(mask, exclude_cpu, raise_backtrace);
 }
 
 #ifdef CONFIG_64BIT

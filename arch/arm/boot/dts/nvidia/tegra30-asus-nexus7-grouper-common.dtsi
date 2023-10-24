@@ -798,12 +798,14 @@
 
 	uartb: serial@70006040 {
 		compatible = "nvidia,tegra30-hsuart";
+		reset-names = "serial";
 		/delete-property/ reg-shift;
 		/* GPS BCM4751 */
 	};
 
 	uartc: serial@70006200 {
 		compatible = "nvidia,tegra30-hsuart";
+		reset-names = "serial";
 		/delete-property/ reg-shift;
 		status = "okay";
 
@@ -1090,15 +1092,11 @@
 
 	display-panel {
 		/*
-		 * Nexus 7 supports two compatible panel models:
-		 *
-		 *  1. hydis,hv070wx2-1e0
-		 *  2. chunghwa,claa070wp03xg
-		 *
-		 * We want to use timing which is optimized for Nexus 7,
-		 * hence we need to customize the timing.
+		 * Some device variants come with a Hydis HV070WX2-1E0, but
+		 * since they are all largely compatible, we'll go with the
+		 * Chunghwa one here.
 		 */
-		compatible = "panel-lvds";
+		compatible = "chunghwa,claa070wp03xg", "panel-lvds";
 
 		width-mm = <94>;
 		height-mm = <150>;

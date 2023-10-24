@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::alloc::{Allocator, Global};
-use core::mem::{self, ManuallyDrop};
+use core::mem::{ManuallyDrop, SizedTypeProperties};
 use core::ptr;
 use core::slice;
 
@@ -18,7 +18,7 @@ use super::Vec;
 /// #![feature(drain_filter)]
 ///
 /// let mut v = vec![0, 1, 2];
-/// let iter: std::vec::DrainFilter<_, _> = v.drain_filter(|x| *x % 2 == 0);
+/// let iter: std::vec::DrainFilter<'_, _, _> = v.drain_filter(|x| *x % 2 == 0);
 /// ```
 #[unstable(feature = "drain_filter", reason = "recently added", issue = "43244")]
 #[derive(Debug)]
@@ -98,9 +98,7 @@ where
 
         unsafe {
             // ZSTs have no identity, so we don't need to move them around.
-            let needs_move = mem::size_of::<T>() != 0;
-
-            if needs_move && this.idx < this.old_len && this.del > 0 {
+            if !T::IS_ZST && this.idx < this.old_len && this.del > 0 {
                 let ptr = this.vec.as_mut_ptr();
                 let src = ptr.add(this.idx);
                 let dst = src.sub(this.del);

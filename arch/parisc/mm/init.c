@@ -32,6 +32,7 @@
 #include <asm/sections.h>
 #include <asm/msgbuf.h>
 #include <asm/sparsemem.h>
+#include <asm/asm-offsets.h>
 
 extern int  data_start;
 extern void parisc_kernel_start(void);	/* Kernel entry point in head.S */
@@ -523,10 +524,6 @@ void mark_rodata_ro(void)
 void *parisc_vmalloc_start __ro_after_init;
 EXPORT_SYMBOL(parisc_vmalloc_start);
 
-#ifdef CONFIG_PA11
-unsigned long pcxl_dma_start __ro_after_init;
-#endif
-
 void __init mem_init(void)
 {
 	/* Do sanity checks on IPC (compat) structures */
@@ -669,6 +666,39 @@ static void __init gateway_init(void)
 		  PAGE_SIZE, PAGE_GATEWAY, 1);
 }
 
+static void __init fixmap_init(void)
+{
+	unsigned long addr = FIXMAP_START;
+	unsigned long end = FIXMAP_START + FIXMAP_SIZE;
+	pgd_t *pgd = pgd_offset_k(addr);
+	p4d_t *p4d = p4d_offset(pgd, addr);
+	pud_t *pud = pud_offset(p4d, addr);
+	pmd_t *pmd;
+
+	BUILD_BUG_ON(FIXMAP_SIZE > PMD_SIZE);
+
+#if CONFIG_PGTABLE_LEVELS == 3
+	if (pud_none(*pud)) {
+		pmd = memblock_alloc(PAGE_SIZE << PMD_TABLE_ORDER,
+				     PAGE_SIZE << PMD_TABLE_ORDER);
+		if (!pmd)
+			panic("fixmap: pmd allocation failed.\n");
+		pud_populate(NULL, pud, pmd);
+	}
+#endif
+
+	pmd = pmd_offset(pud, addr);
+	do {
+		pte_t *pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+		if (!pte)
+			panic("fixmap: pte allocation failed.\n");
+
+		pmd_populate_kernel(&init_mm, pmd, pte);
+
+		addr += PAGE_SIZE;
+	} while (addr < end);
+}
+
 static void __init parisc_bootmem_free(void)
 {
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
@@ -683,11 +713,83 @@ void __init paging_init(void)
 	setup_bootmem();
 	pagetable_init();
 	gateway_init();
+	fixmap_init();
 	flush_cache_all_local(); /* start with known state */
 	flush_tlb_all_local(NULL);
 
 	sparse_init();
 	parisc_bootmem_free();
+}
+
+static void alloc_btlb(unsigned long start, unsigned long end, int *slot,
+			unsigned long entry_info)
+{
+	const int slot_max = btlb_info.fixed_range_info.num_comb;
+	int min_num_pages = btlb_info.min_size;
+	unsigned long size;
+
+	/* map at minimum 4 pages */
+	if (min_num_pages < 4)
+		min_num_pages = 4;
+
+	size = HUGEPAGE_SIZE;
+	while (start < end && *slot < slot_max && size >= PAGE_SIZE) {
+		/* starting address must have same alignment as size! */
+		/* if correctly aligned and fits in double size, increase */
+		if (((start & (2 * size - 1)) == 0) &&
+		    (end - start) >= (2 * size)) {
+			size <<= 1;
+			continue;
+		}
+		/* if current size alignment is too big, try smaller size */
+		if ((start & (size - 1)) != 0) {
+			size >>= 1;
+			continue;
+		}
+		if ((end - start) >= size) {
+			if ((size >> PAGE_SHIFT) >= min_num_pages)
+				pdc_btlb_insert(start >> PAGE_SHIFT, __pa(start) >> PAGE_SHIFT,
+					size >> PAGE_SHIFT, entry_info, *slot);
+			(*slot)++;
+			start += size;
+			continue;
+		}
+		size /= 2;
+		continue;
+	}
+}
+
+void btlb_init_per_cpu(void)
+{
+	unsigned long s, t, e;
+	int slot;
+
+	/* BTLBs are not available on 64-bit CPUs */
+	if (IS_ENABLED(CONFIG_PA20))
+		return;
+	else if (pdc_btlb_info(&btlb_info) < 0) {
+		memset(&btlb_info, 0, sizeof btlb_info);
+	}
+
+	/* insert BLTLBs for code and data segments */
+	s = (uintptr_t) dereference_function_descriptor(&_stext);
+	e = (uintptr_t) dereference_function_descriptor(&_etext);
+	t = (uintptr_t) dereference_function_descriptor(&_sdata);
+	BUG_ON(t != e);
+
+	/* code segments */
+	slot = 0;
+	alloc_btlb(s, e, &slot, 0x13800000);
+
+	/* sanity check */
+	t = (uintptr_t) dereference_function_descriptor(&_edata);
+	e = (uintptr_t) dereference_function_descriptor(&__bss_start);
+	BUG_ON(t != e);
+
+	/* data segments */
+	s = (uintptr_t) dereference_function_descriptor(&_sdata);
+	e = (uintptr_t) dereference_function_descriptor(&__bss_stop);
+	alloc_btlb(s, e, &slot, 0x11800000);
 }
 
 #ifdef CONFIG_PA20

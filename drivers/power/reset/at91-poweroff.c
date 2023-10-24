@@ -151,13 +151,11 @@ static void at91_poweroff_dt_set_wakeup_mode(struct platform_device *pdev)
 
 static int __init at91_poweroff_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct device_node *np;
 	u32 ddr_type;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	at91_shdwc.shdwc_base = devm_ioremap_resource(&pdev->dev, res);
+	at91_shdwc.shdwc_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(at91_shdwc.shdwc_base))
 		return PTR_ERR(at91_shdwc.shdwc_base);
 

@@ -3,15 +3,20 @@
  * Copyright (c) 2021 Aspeed Technology Inc.
  */
 
+#include "aspeed-hace.h"
+#include <crypto/engine.h>
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
+#include <linux/err.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-
-#include "aspeed-hace.h"
 
 #ifdef CONFIG_CRYPTO_DEV_ASPEED_DEBUG
 #define HACE_DBG(d, fmt, ...)	\

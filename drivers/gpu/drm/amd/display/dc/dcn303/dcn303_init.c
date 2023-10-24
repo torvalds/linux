@@ -5,7 +5,7 @@
  * Authors: AMD
  */
 
-#include "dcn303_hwseq.h"
+#include "dcn303/dcn303_hwseq.h"
 #include "dcn30/dcn30_init.h"
 #include "dc.h"
 

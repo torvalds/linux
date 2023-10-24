@@ -74,6 +74,8 @@ static inline int overlaps_kernel_text(unsigned long start, unsigned long end)
 		(unsigned long)_stext < end;
 }
 
+#else
+static inline unsigned long kernel_toc_addr(void) { BUILD_BUG(); return -1UL; }
 #endif
 
 #endif /* __KERNEL__ */

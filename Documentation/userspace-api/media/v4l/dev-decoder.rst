@@ -277,7 +277,7 @@ Initialization
      other fields
          follow standard semantics.
 
-   * **Return fields:**
+   * **Returned fields:**
 
      ``sizeimage``
          adjusted size of ``OUTPUT`` buffers.
@@ -311,7 +311,7 @@ Initialization
       ``memory``
           follows standard semantics.
 
-    * **Return fields:**
+    * **Returned fields:**
 
       ``count``
           the actual number of buffers allocated.
@@ -339,7 +339,7 @@ Initialization
       ``format``
           follows standard semantics.
 
-    * **Return fields:**
+    * **Returned fields:**
 
       ``count``
           adjusted to the number of allocated buffers.
@@ -410,7 +410,7 @@ Capture Setup
       ``type``
           a ``V4L2_BUF_TYPE_*`` enum appropriate for ``CAPTURE``.
 
-    * **Return fields:**
+    * **Returned fields:**
 
       ``width``, ``height``
           frame buffer resolution for the decoded frames.
@@ -443,7 +443,7 @@ Capture Setup
       ``target``
           set to ``V4L2_SEL_TGT_COMPOSE``.
 
-    * **Return fields:**
+    * **Returned fields:**
 
       ``r.left``, ``r.top``, ``r.width``, ``r.height``
           the visible rectangle; it must fit within the frame buffer resolution
@@ -552,7 +552,7 @@ Capture Setup
          frame is written; defaults to ``V4L2_SEL_TGT_COMPOSE_DEFAULT``;
          read-only on hardware without additional compose/scaling capabilities.
 
-   * **Return fields:**
+   * **Returned fields:**
 
      ``r.left``, ``r.top``, ``r.width``, ``r.height``
          the visible rectangle; it must fit within the frame buffer resolution
@@ -629,7 +629,7 @@ Capture Setup
       ``memory``
           follows standard semantics.
 
-    * **Return fields:**
+    * **Returned fields:**
 
       ``count``
           actual number of buffers allocated.
@@ -668,7 +668,7 @@ Capture Setup
           a format representing the maximum framebuffer resolution to be
           accommodated by newly allocated buffers.
 
-    * **Return fields:**
+    * **Returned fields:**
 
       ``count``
           adjusted to the number of allocated buffers.

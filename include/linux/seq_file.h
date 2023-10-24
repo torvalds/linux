@@ -249,18 +249,19 @@ static inline void seq_show_option(struct seq_file *m, const char *name,
 
 /**
  * seq_show_option_n - display mount options with appropriate escapes
- *		       where @value must be a specific length.
+ *		       where @value must be a specific length (i.e.
+ *		       not NUL-terminated).
  * @m: the seq_file handle
  * @name: the mount option name
  * @value: the mount option name's value, cannot be NULL
- * @length: the length of @value to display
+ * @length: the exact length of @value to display, must be constant expression
  *
  * This is a macro since this uses "length" to define the size of the
  * stack buffer.
  */
 #define seq_show_option_n(m, name, value, length) {	\
 	char val_buf[length + 1];			\
-	strncpy(val_buf, value, length);		\
+	memcpy(val_buf, value, length);			\
 	val_buf[length] = '\0';				\
 	seq_show_option(m, name, val_buf);		\
 }

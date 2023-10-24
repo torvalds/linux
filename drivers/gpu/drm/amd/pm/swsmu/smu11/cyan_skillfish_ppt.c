@@ -154,8 +154,12 @@ cyan_skillfish_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_CURR_UCLK:
 		*value = metrics->Current.MemclkFrequency;
 		break;
-	case METRICS_AVERAGE_SOCKETPOWER:
+	case METRICS_CURR_SOCKETPOWER:
 		*value = (metrics->Current.CurrentSocketPower << 8) /
+				1000;
+		break;
+	case METRICS_AVERAGE_SOCKETPOWER:
+		*value = (metrics->Average.CurrentSocketPower << 8) /
 				1000;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
@@ -208,9 +212,15 @@ static int cyan_skillfish_read_sensor(struct smu_context *smu,
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 		ret = cyan_skillfish_get_smu_metrics_data(smu,
 						   METRICS_AVERAGE_SOCKETPOWER,
+						   (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
+		ret = cyan_skillfish_get_smu_metrics_data(smu,
+						   METRICS_CURR_SOCKETPOWER,
 						   (uint32_t *)data);
 		*size = 4;
 		break;

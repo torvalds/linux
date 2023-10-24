@@ -12,7 +12,6 @@
 #define _PKC_DESC_H_
 #include "compat.h"
 #include "pdb.h"
-#include <crypto/engine.h>
 
 /**
  * caam_priv_key_form - CAAM RSA private key representation
@@ -88,13 +87,11 @@ struct caam_rsa_key {
 
 /**
  * caam_rsa_ctx - per session context.
- * @enginectx   : crypto engine context
  * @key         : RSA key in DMA zone
  * @dev         : device structure
  * @padding_dma : dma address of padding, for adding it to the input
  */
 struct caam_rsa_ctx {
-	struct crypto_engine_ctx enginectx;
 	struct caam_rsa_key key;
 	struct device *dev;
 	dma_addr_t padding_dma;

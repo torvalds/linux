@@ -255,7 +255,7 @@ const struct regmap_config cs35l45_i2c_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs35l45_defaults),
 	.volatile_reg = cs35l45_volatile_reg,
 	.readable_reg = cs35l45_readable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l45_i2c_regmap, SND_SOC_CS35L45);
 
@@ -271,7 +271,7 @@ const struct regmap_config cs35l45_spi_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs35l45_defaults),
 	.volatile_reg = cs35l45_volatile_reg,
 	.readable_reg = cs35l45_readable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l45_spi_regmap, SND_SOC_CS35L45);
 

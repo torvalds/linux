@@ -4148,9 +4148,9 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 				      inode->i_mtime.tv_nsec);
 
 	btrfs_set_token_timespec_sec(&token, &item->ctime,
-				     inode->i_ctime.tv_sec);
+				     inode_get_ctime(inode).tv_sec);
 	btrfs_set_token_timespec_nsec(&token, &item->ctime,
-				      inode->i_ctime.tv_nsec);
+				      inode_get_ctime(inode).tv_nsec);
 
 	/*
 	 * We do not need to set the nbytes field, in fact during a fast fsync
@@ -4722,7 +4722,7 @@ static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	int slot;
 	int ins_nr = 0;
-	int start_slot;
+	int start_slot = 0;
 	int ret;
 
 	if (!(inode->flags & BTRFS_INODE_PREALLOC))
@@ -4841,12 +4841,10 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_ordered_extent *tmp;
 	struct extent_map *em, *n;
-	struct list_head extents;
+	LIST_HEAD(extents);
 	struct extent_map_tree *tree = &inode->extent_tree;
 	int ret = 0;
 	int num = 0;
-
-	INIT_LIST_HEAD(&extents);
 
 	write_lock(&tree->lock);
 
@@ -6794,8 +6792,8 @@ static int log_new_ancestors(struct btrfs_trans_handle *trans,
 
 	while (true) {
 		struct btrfs_fs_info *fs_info = root->fs_info;
-		struct extent_buffer *leaf = path->nodes[0];
-		int slot = path->slots[0];
+		struct extent_buffer *leaf;
+		int slot;
 		struct btrfs_key search_key;
 		struct inode *inode;
 		u64 ino;

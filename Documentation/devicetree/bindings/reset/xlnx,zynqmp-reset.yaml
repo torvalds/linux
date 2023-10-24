@@ -32,6 +32,7 @@ properties:
     enum:
       - xlnx,zynqmp-reset
       - xlnx,versal-reset
+      - xlnx,versal-net-reset
 
   "#reset-cells":
     const: 1

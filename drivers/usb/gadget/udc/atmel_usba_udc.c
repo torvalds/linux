@@ -2285,15 +2285,13 @@ static int usba_udc_probe(struct platform_device *pdev)
 	udc->gadget = usba_gadget_template;
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, CTRL_IOMEM_ID);
-	udc->regs = devm_ioremap_resource(&pdev->dev, res);
+	udc->regs = devm_platform_get_and_ioremap_resource(pdev, CTRL_IOMEM_ID, &res);
 	if (IS_ERR(udc->regs))
 		return PTR_ERR(udc->regs);
 	dev_info(&pdev->dev, "MMIO registers at %pR mapped at %p\n",
 		 res, udc->regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, FIFO_IOMEM_ID);
-	udc->fifo = devm_ioremap_resource(&pdev->dev, res);
+	udc->fifo = devm_platform_get_and_ioremap_resource(pdev, FIFO_IOMEM_ID, &res);
 	if (IS_ERR(udc->fifo))
 		return PTR_ERR(udc->fifo);
 	dev_info(&pdev->dev, "FIFO at %pR mapped at %p\n", res, udc->fifo);

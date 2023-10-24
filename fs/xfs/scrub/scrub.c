@@ -22,6 +22,8 @@
 #include "scrub/trace.h"
 #include "scrub/repair.h"
 #include "scrub/health.h"
+#include "scrub/stats.h"
+#include "scrub/xfile.h"
 
 /*
  * Online Scrub and Repair
@@ -166,8 +168,6 @@ xchk_teardown(
 	struct xfs_scrub	*sc,
 	int			error)
 {
-	struct xfs_inode	*ip_in = XFS_I(file_inode(sc->file));
-
 	xchk_ag_free(sc, &sc->sa);
 	if (sc->tp) {
 		if (error == 0 && (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR))
@@ -178,14 +178,18 @@ xchk_teardown(
 	}
 	if (sc->ip) {
 		if (sc->ilock_flags)
-			xfs_iunlock(sc->ip, sc->ilock_flags);
-		if (sc->ip != ip_in &&
-		    !xfs_internal_inum(sc->mp, sc->ip->i_ino))
-			xchk_irele(sc, sc->ip);
+			xchk_iunlock(sc, sc->ilock_flags);
+		xchk_irele(sc, sc->ip);
 		sc->ip = NULL;
 	}
-	if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
+	if (sc->flags & XCHK_HAVE_FREEZE_PROT) {
+		sc->flags &= ~XCHK_HAVE_FREEZE_PROT;
 		mnt_drop_write_file(sc->file);
+	}
+	if (sc->xfile) {
+		xfile_destroy(sc->xfile);
+		sc->xfile = NULL;
+	}
 	if (sc->buf) {
 		if (sc->buf_cleanup)
 			sc->buf_cleanup(sc->buf);
@@ -320,14 +324,14 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 	},
 	[XFS_SCRUB_TYPE_RTBITMAP] = {	/* realtime bitmap */
 		.type	= ST_FS,
-		.setup	= xchk_setup_rt,
+		.setup	= xchk_setup_rtbitmap,
 		.scrub	= xchk_rtbitmap,
 		.has	= xfs_has_realtime,
 		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_RTSUM] = {	/* realtime summary */
 		.type	= ST_FS,
-		.setup	= xchk_setup_rt,
+		.setup	= xchk_setup_rtsummary,
 		.scrub	= xchk_rtsummary,
 		.has	= xfs_has_realtime,
 		.repair	= xrep_notsupported,
@@ -407,6 +411,11 @@ xchk_validate_inputs(
 		goto out;
 	}
 
+	/* No rebuild without repair. */
+	if ((sm->sm_flags & XFS_SCRUB_IFLAG_FORCE_REBUILD) &&
+	    !(sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR))
+		return -EINVAL;
+
 	/*
 	 * We only want to repair read-write v5+ filesystems.  Defer the check
 	 * for ops->repair until after our scrub confirms that we need to
@@ -461,8 +470,10 @@ xfs_scrub_metadata(
 	struct file			*file,
 	struct xfs_scrub_metadata	*sm)
 {
+	struct xchk_stats_run		run = { };
 	struct xfs_scrub		*sc;
 	struct xfs_mount		*mp = XFS_I(file_inode(file))->i_mount;
+	u64				check_start;
 	int				error = 0;
 
 	BUILD_BUG_ON(sizeof(meta_scrub_ops) !=
@@ -505,6 +516,8 @@ retry_op:
 		error = mnt_want_write_file(sc->file);
 		if (error)
 			goto out_sc;
+
+		sc->flags |= XCHK_HAVE_FREEZE_PROT;
 	}
 
 	/* Set up for the operation. */
@@ -517,7 +530,9 @@ retry_op:
 		goto out_teardown;
 
 	/* Scrub for errors. */
+	check_start = xchk_stats_now();
 	error = sc->ops->scrub(sc);
+	run.scrub_ns += xchk_stats_elapsed_ns(check_start);
 	if (error == -EDEADLOCK && !(sc->flags & XCHK_TRY_HARDER))
 		goto try_harder;
 	if (error == -ECHRNG && !(sc->flags & XCHK_NEED_DRAIN))
@@ -529,15 +544,16 @@ retry_op:
 
 	if ((sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) &&
 	    !(sc->flags & XREP_ALREADY_FIXED)) {
-		bool needs_fix;
+		bool needs_fix = xchk_needs_repair(sc->sm);
+
+		/* Userspace asked us to rebuild the structure regardless. */
+		if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_FORCE_REBUILD)
+			needs_fix = true;
 
 		/* Let debug users force us into the repair routines. */
-		if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_FORCE_SCRUB_REPAIR))
-			sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
+		if (XFS_TEST_ERROR(needs_fix, mp, XFS_ERRTAG_FORCE_SCRUB_REPAIR))
+			needs_fix = true;
 
-		needs_fix = (sc->sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
-						 XFS_SCRUB_OFLAG_XCORRUPT |
-						 XFS_SCRUB_OFLAG_PREEN));
 		/*
 		 * If userspace asked for a repair but it wasn't necessary,
 		 * report that back to userspace.
@@ -551,7 +567,7 @@ retry_op:
 		 * If it's broken, userspace wants us to fix it, and we haven't
 		 * already tried to fix it, then attempt a repair.
 		 */
-		error = xrep_attempt(sc);
+		error = xrep_attempt(sc, &run);
 		if (error == -EAGAIN) {
 			/*
 			 * Either the repair function succeeded or it couldn't
@@ -572,6 +588,8 @@ out_nofix:
 out_teardown:
 	error = xchk_teardown(sc, error);
 out_sc:
+	if (error != -ENOENT)
+		xchk_stats_merge(mp, sm, &run);
 	kfree(sc);
 out:
 	trace_xchk_done(XFS_I(file_inode(file)), sm, error);
@@ -585,6 +603,7 @@ need_drain:
 	if (error)
 		goto out_sc;
 	sc->flags |= XCHK_NEED_DRAIN;
+	run.retries++;
 	goto retry_op;
 try_harder:
 	/*
@@ -596,5 +615,6 @@ try_harder:
 	if (error)
 		goto out_sc;
 	sc->flags |= XCHK_TRY_HARDER;
+	run.retries++;
 	goto retry_op;
 }

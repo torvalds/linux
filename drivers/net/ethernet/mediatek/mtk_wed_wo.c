@@ -7,10 +7,9 @@
 
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
-#include <linux/of_platform.h>
 #include <linux/interrupt.h>
-#include <linux/of_address.h>
 #include <linux/mfd/syscon.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/bitfield.h>
 

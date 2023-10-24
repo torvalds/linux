@@ -63,11 +63,6 @@ int audit_classify_syscall(int abi, unsigned syscall)
 static int __init audit_classes_init(void)
 {
 #ifdef CONFIG_IA32_EMULATION
-	extern __u32 ia32_dir_class[];
-	extern __u32 ia32_write_class[];
-	extern __u32 ia32_read_class[];
-	extern __u32 ia32_chattr_class[];
-	extern __u32 ia32_signal_class[];
 	audit_register_class(AUDIT_CLASS_WRITE_32, ia32_write_class);
 	audit_register_class(AUDIT_CLASS_READ_32, ia32_read_class);
 	audit_register_class(AUDIT_CLASS_DIR_WRITE_32, ia32_dir_class);

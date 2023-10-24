@@ -22,7 +22,7 @@ privileged operations. Currently there are two PAPR compliant hypervisors:
 On PPC64 arch a guest kernel running on top of a PAPR hypervisor is called
 a *pSeries guest*. A pseries guest runs in a supervisor mode (HV=0) and must
 issue hypercalls to the hypervisor whenever it needs to perform an action
-that is hypervisor priviledged [3]_ or for other services managed by the
+that is hypervisor privileged [3]_ or for other services managed by the
 hypervisor.
 
 Hence a Hypercall (hcall) is essentially a request by the pseries guest

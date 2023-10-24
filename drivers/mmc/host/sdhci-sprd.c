@@ -9,9 +9,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
 #include <linux/iopoll.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
@@ -73,6 +74,11 @@
 #define SDHCI_SPRD_CLK_DEF_RATE		26000000
 #define SDHCI_SPRD_PHY_DLL_CLK		52000000
 
+#define SDHCI_SPRD_MAX_RANGE		0xff
+#define SDHCI_SPRD_CMD_DLY_MASK		GENMASK(15, 8)
+#define SDHCI_SPRD_POSRD_DLY_MASK	GENMASK(23, 16)
+#define SDHCI_SPRD_CPST_EN		GENMASK(27, 24)
+
 struct sdhci_sprd_host {
 	u32 version;
 	struct clk *clk_sdio;
@@ -84,6 +90,11 @@ struct sdhci_sprd_host {
 	u32 base_rate;
 	int flags; /* backup of host attribute */
 	u32 phy_delay[MMC_TIMING_MMC_HS400 + 2];
+};
+
+enum sdhci_sprd_tuning_type {
+	SDHCI_SPRD_TUNING_SD_HS_CMD,
+	SDHCI_SPRD_TUNING_SD_HS_DATA,
 };
 
 struct sdhci_sprd_phy_cfg {
@@ -533,6 +544,139 @@ static void sdhci_sprd_hs400_enhanced_strobe(struct mmc_host *mmc,
 		     SDHCI_SPRD_REG_32_DLL_DLY);
 }
 
+static int mmc_send_tuning_cmd(struct mmc_card *card)
+{
+	return mmc_send_status(card, NULL);
+}
+
+static int mmc_send_tuning_data(struct mmc_card *card)
+{
+	u8 *status;
+	int ret;
+
+	status = kmalloc(64, GFP_KERNEL);
+	if (!status)
+		return -ENOMEM;
+
+	ret = mmc_sd_switch(card, 0, 0, 0, status);
+
+	kfree(status);
+
+	return ret;
+}
+
+static int sdhci_sprd_get_best_clk_sample(struct mmc_host *mmc, u8 *value)
+{
+	int range_end = SDHCI_SPRD_MAX_RANGE;
+	int range_length = 0;
+	int middle_range = 0;
+	int count = 0;
+	int i;
+
+	for (i = 0; i <= SDHCI_SPRD_MAX_RANGE; i++) {
+		if (value[i]) {
+			pr_debug("%s: tuning ok: %d\n", mmc_hostname(mmc), i);
+			count++;
+		} else {
+			pr_debug("%s: tuning fail: %d\n", mmc_hostname(mmc), i);
+			if (range_length < count) {
+				range_length = count;
+				range_end = i - 1;
+				count = 0;
+			}
+		}
+	}
+
+	if (!count)
+		return -EIO;
+
+	if (count > range_length) {
+		range_length = count;
+		range_end = i - 1;
+	}
+
+	middle_range = range_end - (range_length - 1) / 2;
+
+	return middle_range;
+}
+
+static int sdhci_sprd_tuning(struct mmc_host *mmc, struct mmc_card *card,
+			enum sdhci_sprd_tuning_type type)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_sprd_host *sprd_host = TO_SPRD_HOST(host);
+	u32 *p = sprd_host->phy_delay;
+	u32 dll_cfg, dll_dly;
+	int best_clk_sample;
+	int err = 0;
+	u8 *value;
+	int i;
+
+	value = kmalloc(SDHCI_SPRD_MAX_RANGE + 1, GFP_KERNEL);
+	if (!value)
+		return -ENOMEM;
+
+	sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
+
+	dll_cfg = sdhci_readl(host, SDHCI_SPRD_REG_32_DLL_CFG);
+	dll_cfg &= ~SDHCI_SPRD_CPST_EN;
+	sdhci_writel(host, dll_cfg, SDHCI_SPRD_REG_32_DLL_CFG);
+
+	dll_dly = p[mmc->ios.timing];
+
+	for (i = 0; i <= SDHCI_SPRD_MAX_RANGE; i++) {
+		if (type == SDHCI_SPRD_TUNING_SD_HS_CMD) {
+			dll_dly &= ~SDHCI_SPRD_CMD_DLY_MASK;
+			dll_dly |= ((i << 8) & SDHCI_SPRD_CMD_DLY_MASK);
+		} else {
+			dll_dly &= ~SDHCI_SPRD_POSRD_DLY_MASK;
+			dll_dly |= ((i << 16) & SDHCI_SPRD_POSRD_DLY_MASK);
+		}
+
+		sdhci_writel(host, dll_dly, SDHCI_SPRD_REG_32_DLL_DLY);
+
+		if (type == SDHCI_SPRD_TUNING_SD_HS_CMD)
+			value[i] = !mmc_send_tuning_cmd(card);
+		else
+			value[i] = !mmc_send_tuning_data(card);
+	}
+
+	best_clk_sample = sdhci_sprd_get_best_clk_sample(mmc, value);
+	if (best_clk_sample < 0) {
+		dev_err(mmc_dev(host->mmc), "all tuning phase fail!\n");
+		err = best_clk_sample;
+		goto out;
+	}
+
+	if (type == SDHCI_SPRD_TUNING_SD_HS_CMD) {
+		p[mmc->ios.timing] &= ~SDHCI_SPRD_CMD_DLY_MASK;
+		p[mmc->ios.timing] |= ((best_clk_sample << 8) & SDHCI_SPRD_CMD_DLY_MASK);
+	} else {
+		p[mmc->ios.timing] &= ~(SDHCI_SPRD_POSRD_DLY_MASK);
+		p[mmc->ios.timing] |= ((best_clk_sample << 16) & SDHCI_SPRD_POSRD_DLY_MASK);
+	}
+
+	pr_debug("%s: the best clk sample %d, delay value 0x%08x\n",
+			mmc_hostname(host->mmc), best_clk_sample, p[mmc->ios.timing]);
+
+out:
+	sdhci_writel(host, p[mmc->ios.timing], SDHCI_SPRD_REG_32_DLL_DLY);
+
+	kfree(value);
+
+	return err;
+}
+
+static int sdhci_sprd_prepare_sd_hs_cmd_tuning(struct mmc_host *mmc, struct mmc_card *card)
+{
+	return sdhci_sprd_tuning(mmc, card, SDHCI_SPRD_TUNING_SD_HS_CMD);
+}
+
+static int sdhci_sprd_execute_sd_hs_data_tuning(struct mmc_host *mmc, struct mmc_card *card)
+{
+	return sdhci_sprd_tuning(mmc, card, SDHCI_SPRD_TUNING_SD_HS_DATA);
+}
+
 static void sdhci_sprd_phy_param_parse(struct sdhci_sprd_host *sprd_host,
 				       struct device_node *np)
 {
@@ -577,6 +721,11 @@ static int sdhci_sprd_probe(struct platform_device *pdev)
 	host->mmc_host_ops.request = sdhci_sprd_request;
 	host->mmc_host_ops.hs400_enhanced_strobe =
 		sdhci_sprd_hs400_enhanced_strobe;
+	host->mmc_host_ops.prepare_sd_hs_tuning =
+		sdhci_sprd_prepare_sd_hs_cmd_tuning;
+	host->mmc_host_ops.execute_sd_hs_tuning =
+		sdhci_sprd_execute_sd_hs_data_tuning;
+
 	/*
 	 * We can not use the standard ops to change and detect the voltage
 	 * signal for Spreadtrum SD host controller, since our voltage regulator
@@ -720,7 +869,7 @@ pltfm_free:
 	return ret;
 }
 
-static int sdhci_sprd_remove(struct platform_device *pdev)
+static void sdhci_sprd_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_sprd_host *sprd_host = TO_SPRD_HOST(host);
@@ -732,8 +881,6 @@ static int sdhci_sprd_remove(struct platform_device *pdev)
 	clk_disable_unprepare(sprd_host->clk_2x_enable);
 
 	sdhci_pltfm_free(pdev);
-
-	return 0;
 }
 
 static const struct of_device_id sdhci_sprd_of_match[] = {
@@ -800,7 +947,7 @@ static const struct dev_pm_ops sdhci_sprd_pm_ops = {
 
 static struct platform_driver sdhci_sprd_driver = {
 	.probe = sdhci_sprd_probe,
-	.remove = sdhci_sprd_remove,
+	.remove_new = sdhci_sprd_remove,
 	.driver = {
 		.name = "sdhci_sprd_r11",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

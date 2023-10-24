@@ -916,29 +916,8 @@ struct dpcd_usb4_dp_tunneling_info {
 	uint8_t usb4_topology_id[DPCD_USB4_TOPOLOGY_ID_LEN];
 };
 
-#ifndef DP_MAIN_LINK_CHANNEL_CODING_CAP
-#define DP_MAIN_LINK_CHANNEL_CODING_CAP			0x006
-#endif
-#ifndef DP_SINK_VIDEO_FALLBACK_FORMATS
-#define DP_SINK_VIDEO_FALLBACK_FORMATS			0x020
-#endif
-#ifndef DP_FEC_CAPABILITY_1
-#define DP_FEC_CAPABILITY_1				0x091
-#endif
 #ifndef DP_DFP_CAPABILITY_EXTENSION_SUPPORT
 #define DP_DFP_CAPABILITY_EXTENSION_SUPPORT		0x0A3
-#endif
-#ifndef DP_DSC_CONFIGURATION
-#define DP_DSC_CONFIGURATION				0x161
-#endif
-#ifndef DP_PHY_SQUARE_PATTERN
-#define DP_PHY_SQUARE_PATTERN				0x249
-#endif
-#ifndef DP_128b_132b_SUPPORTED_LINK_RATES
-#define DP_128b_132b_SUPPORTED_LINK_RATES		0x2215
-#endif
-#ifndef DP_128b_132b_TRAINING_AUX_RD_INTERVAL
-#define DP_128b_132b_TRAINING_AUX_RD_INTERVAL		0x2216
 #endif
 #ifndef DP_TEST_264BIT_CUSTOM_PATTERN_7_0
 #define DP_TEST_264BIT_CUSTOM_PATTERN_7_0		0X2230
@@ -946,43 +925,7 @@ struct dpcd_usb4_dp_tunneling_info {
 #ifndef DP_TEST_264BIT_CUSTOM_PATTERN_263_256
 #define DP_TEST_264BIT_CUSTOM_PATTERN_263_256		0X2250
 #endif
-#ifndef DP_DSC_SUPPORT_AND_DECODER_COUNT
-#define DP_DSC_SUPPORT_AND_DECODER_COUNT		0x2260
-#endif
-#ifndef DP_DSC_MAX_SLICE_COUNT_AND_AGGREGATION_0
-#define DP_DSC_MAX_SLICE_COUNT_AND_AGGREGATION_0	0x2270
-#endif
-#ifndef DP_DSC_DECODER_0_MAXIMUM_SLICE_COUNT_MASK
-#define DP_DSC_DECODER_0_MAXIMUM_SLICE_COUNT_MASK	(1 << 0)
-#endif
-#ifndef DP_DSC_DECODER_0_AGGREGATION_SUPPORT_MASK
-#define DP_DSC_DECODER_0_AGGREGATION_SUPPORT_MASK	(0b111 << 1)
-#endif
-#ifndef DP_DSC_DECODER_0_AGGREGATION_SUPPORT_SHIFT
-#define DP_DSC_DECODER_0_AGGREGATION_SUPPORT_SHIFT	1
-#endif
-#ifndef DP_DSC_DECODER_COUNT_MASK
-#define DP_DSC_DECODER_COUNT_MASK			(0b111 << 5)
-#endif
-#ifndef DP_DSC_DECODER_COUNT_SHIFT
-#define DP_DSC_DECODER_COUNT_SHIFT			5
-#endif
-#ifndef DP_MAIN_LINK_CHANNEL_CODING_SET
-#define DP_MAIN_LINK_CHANNEL_CODING_SET			0x108
-#endif
-#ifndef DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER
-#define DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER	0xF0006
-#endif
-#ifndef DP_PHY_REPEATER_128b_132b_RATES
-#define DP_PHY_REPEATER_128b_132b_RATES			0xF0007
-#endif
-#ifndef DP_128b_132b_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1
-#define DP_128b_132b_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1	0xF0022
-#endif
-#ifndef DP_INTRA_HOP_AUX_REPLY_INDICATION
-#define DP_INTRA_HOP_AUX_REPLY_INDICATION		(1 << 3)
-/* TODO - Use DRM header to replace above once available */
-#endif // DP_INTRA_HOP_AUX_REPLY_INDICATION
+
 union dp_main_line_channel_coding_cap {
 	struct {
 		uint8_t DP_8b_10b_SUPPORTED	:1;
@@ -1117,6 +1060,11 @@ struct edp_psr_info {
 	uint8_t force_psrsu_cap;
 };
 
+struct replay_info {
+	uint8_t pixel_deviation_per_line;
+	uint8_t max_deviation_line;
+};
+
 struct dprx_states {
 	bool cable_id_written;
 };
@@ -1236,6 +1184,8 @@ struct dpcd_caps {
 	uint8_t edp_rev;
 	union edp_alpm_caps alpm_caps;
 	struct edp_psr_info psr_info;
+
+	struct replay_info pr_info;
 };
 
 union dpcd_sink_ext_caps {
@@ -1272,6 +1222,28 @@ union dpcd_psr_configuration {
 		unsigned char IRQ_HPD_WITH_CRC_ERROR    : 1;
 		unsigned char ENABLE_PSR2               : 1;
 		unsigned char EARLY_TRANSPORT_ENABLE    : 1;
+	} bits;
+	unsigned char raw;
+};
+
+union replay_enable_and_configuration {
+	struct {
+		unsigned char FREESYNC_PANEL_REPLAY_MODE              :1;
+		unsigned char TIMING_DESYNC_ERROR_VERIFICATION        :1;
+		unsigned char STATE_TRANSITION_ERROR_DETECTION        :1;
+		unsigned char RESERVED0                               :1;
+		unsigned char RESERVED1                               :4;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_replay_configuration {
+	struct {
+		unsigned char STATE_TRANSITION_ERROR_STATUS    : 1;
+		unsigned char DESYNC_ERROR_STATUS              : 1;
+		unsigned char SINK_DEVICE_REPLAY_STATUS        : 3;
+		unsigned char SINK_FRAME_LOCKED                : 2;
+		unsigned char RESERVED                         : 1;
 	} bits;
 	unsigned char raw;
 };

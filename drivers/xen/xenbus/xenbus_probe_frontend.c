@@ -429,7 +429,7 @@ static void xenbus_check_frontend(char *class, char *dev)
 		printk(KERN_DEBUG "XENBUS: frontend %s %s\n",
 				frontend, xenbus_strstate(fe_state));
 		backend = xenbus_read(XBT_NIL, frontend, "backend", NULL);
-		if (!backend || IS_ERR(backend))
+		if (IS_ERR_OR_NULL(backend))
 			goto out;
 		err = xenbus_scanf(XBT_NIL, backend, "state", "%i", &be_state);
 		if (err == 1)

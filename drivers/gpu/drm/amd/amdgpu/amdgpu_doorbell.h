@@ -31,10 +31,15 @@ struct amdgpu_doorbell {
 	/* doorbell mmio */
 	resource_size_t		base;
 	resource_size_t		size;
-	u32 __iomem		*ptr;
 
 	/* Number of doorbells reserved for amdgpu kernel driver */
 	u32 num_kernel_doorbells;
+
+	/* Kernel doorbells */
+	struct amdgpu_bo *kernel_doorbells;
+
+	/* For CPU access of doorbells */
+	uint32_t *cpu_addr;
 };
 
 /* Reserved doorbells for amdgpu (including multimedia).
@@ -81,6 +86,7 @@ struct amdgpu_doorbell_index {
 			uint32_t vce_ring6_7;
 		} uvd_vce;
 	};
+	uint32_t vpe_ring;
 	uint32_t first_non_cp;
 	uint32_t last_non_cp;
 	uint32_t max_assignment;
@@ -221,10 +227,12 @@ enum AMDGPU_NAVI10_DOORBELL_ASSIGNMENT {
 	AMDGPU_NAVI10_DOORBELL64_VCNc_d			= 0x18E,
 	AMDGPU_NAVI10_DOORBELL64_VCNe_f			= 0x18F,
 
-	AMDGPU_NAVI10_DOORBELL64_FIRST_NON_CP		= AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE0,
-	AMDGPU_NAVI10_DOORBELL64_LAST_NON_CP		= AMDGPU_NAVI10_DOORBELL64_VCNe_f,
+	AMDGPU_NAVI10_DOORBELL64_VPE			= 0x190,
 
-	AMDGPU_NAVI10_DOORBELL_MAX_ASSIGNMENT		= 0x18F,
+	AMDGPU_NAVI10_DOORBELL64_FIRST_NON_CP		= AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE0,
+	AMDGPU_NAVI10_DOORBELL64_LAST_NON_CP		= AMDGPU_NAVI10_DOORBELL64_VPE,
+
+	AMDGPU_NAVI10_DOORBELL_MAX_ASSIGNMENT		= AMDGPU_NAVI10_DOORBELL64_VPE,
 	AMDGPU_NAVI10_DOORBELL_INVALID			= 0xFFFF
 };
 
@@ -329,14 +337,14 @@ enum AMDGPU_DOORBELL_ASSIGNMENT_LAYOUT1 {
 	AMDGPU_DOORBELL_LAYOUT1_sDMA_ENGINE_END		= 0x19F,
 	/* IH: 0x1A0 ~ 0x1AF */
 	AMDGPU_DOORBELL_LAYOUT1_IH                      = 0x1A0,
-	/* VCN: 0x1B0 ~ 0x1D4 */
+	/* VCN: 0x1B0 ~ 0x1E8 */
 	AMDGPU_DOORBELL_LAYOUT1_VCN_START               = 0x1B0,
-	AMDGPU_DOORBELL_LAYOUT1_VCN_END                 = 0x1D4,
+	AMDGPU_DOORBELL_LAYOUT1_VCN_END                 = 0x1E8,
 
 	AMDGPU_DOORBELL_LAYOUT1_FIRST_NON_CP		= AMDGPU_DOORBELL_LAYOUT1_sDMA_ENGINE_START,
 	AMDGPU_DOORBELL_LAYOUT1_LAST_NON_CP		= AMDGPU_DOORBELL_LAYOUT1_VCN_END,
 
-	AMDGPU_DOORBELL_LAYOUT1_MAX_ASSIGNMENT          = 0x1D4,
+	AMDGPU_DOORBELL_LAYOUT1_MAX_ASSIGNMENT          = 0x1E8,
 	AMDGPU_DOORBELL_LAYOUT1_INVALID                 = 0xFFFF
 };
 
@@ -350,6 +358,11 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v);
  */
 int amdgpu_doorbell_init(struct amdgpu_device *adev);
 void amdgpu_doorbell_fini(struct amdgpu_device *adev);
+int amdgpu_doorbell_create_kernel_doorbells(struct amdgpu_device *adev);
+uint32_t amdgpu_doorbell_index_on_bar(struct amdgpu_device *adev,
+				      struct amdgpu_bo *db_bo,
+				      uint32_t doorbell_index,
+				      uint32_t db_size);
 
 #define RDOORBELL32(index) amdgpu_mm_rdoorbell(adev, (index))
 #define WDOORBELL32(index, v) amdgpu_mm_wdoorbell(adev, (index), (v))

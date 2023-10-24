@@ -42,6 +42,11 @@ do {									\
  * call_srcu() function, with this wrapper supplying the pointer to the
  * corresponding srcu_struct.
  *
+ * Note that call_rcu_hurry() should be used instead of call_rcu()
+ * because in kernels built with CONFIG_RCU_LAZY=y the delay between the
+ * invocation of call_rcu() and that of the corresponding RCU callback
+ * can be multiple seconds.
+ *
  * The first argument tells Tiny RCU's _wait_rcu_gp() not to
  * bother waiting for RCU.  The reason for this is because anywhere
  * synchronize_rcu_mult() can be called is automatically already a full

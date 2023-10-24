@@ -28,6 +28,7 @@ static LIST_HEAD(icc_providers);
 static int providers_count;
 static bool synced_state;
 static DEFINE_MUTEX(icc_lock);
+static DEFINE_MUTEX(icc_bw_lock);
 static struct dentry *icc_debugfs_dir;
 
 static void icc_summary_show_one(struct seq_file *s, struct icc_node *n)
@@ -145,6 +146,21 @@ DEFINE_SHOW_ATTRIBUTE(icc_graph);
 static struct icc_node *node_find(const int id)
 {
 	return idr_find(&icc_idr, id);
+}
+
+static struct icc_node *node_find_by_name(const char *name)
+{
+	struct icc_provider *provider;
+	struct icc_node *n;
+
+	list_for_each_entry(provider, &icc_providers, provider_list) {
+		list_for_each_entry(n, &provider->nodes, node_list) {
+			if (!strcmp(n->name, name))
+				return n;
+		}
+	}
+
+	return NULL;
 }
 
 static struct icc_path *path_init(struct device *dev, struct icc_node *dst,
@@ -562,6 +578,54 @@ struct icc_path *of_icc_get(struct device *dev, const char *name)
 EXPORT_SYMBOL_GPL(of_icc_get);
 
 /**
+ * icc_get() - get a path handle between two endpoints
+ * @dev: device pointer for the consumer device
+ * @src: source node name
+ * @dst: destination node name
+ *
+ * This function will search for a path between two endpoints and return an
+ * icc_path handle on success. Use icc_put() to release constraints when they
+ * are not needed anymore.
+ *
+ * Return: icc_path pointer on success or ERR_PTR() on error. NULL is returned
+ * when the API is disabled.
+ */
+struct icc_path *icc_get(struct device *dev, const char *src, const char *dst)
+{
+	struct icc_node *src_node, *dst_node;
+	struct icc_path *path = ERR_PTR(-EPROBE_DEFER);
+
+	mutex_lock(&icc_lock);
+
+	src_node = node_find_by_name(src);
+	if (!src_node) {
+		dev_err(dev, "%s: invalid src=%s\n", __func__, src);
+		goto out;
+	}
+
+	dst_node = node_find_by_name(dst);
+	if (!dst_node) {
+		dev_err(dev, "%s: invalid dst=%s\n", __func__, dst);
+		goto out;
+	}
+
+	path = path_find(dev, src_node, dst_node);
+	if (IS_ERR(path)) {
+		dev_err(dev, "%s: invalid path=%ld\n", __func__, PTR_ERR(path));
+		goto out;
+	}
+
+	path->name = kasprintf(GFP_KERNEL, "%s-%s", src_node->name, dst_node->name);
+	if (!path->name) {
+		kfree(path);
+		path = ERR_PTR(-ENOMEM);
+	}
+out:
+	mutex_unlock(&icc_lock);
+	return path;
+}
+
+/**
  * icc_set_tag() - set an optional tag on a path
  * @path: the path we want to tag
  * @tag: the tag value
@@ -631,7 +695,7 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 	if (WARN_ON(IS_ERR(path) || !path->num_nodes))
 		return -EINVAL;
 
-	mutex_lock(&icc_lock);
+	mutex_lock(&icc_bw_lock);
 
 	old_avg = path->reqs[0].avg_bw;
 	old_peak = path->reqs[0].peak_bw;
@@ -663,7 +727,7 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 		apply_constraints(path);
 	}
 
-	mutex_unlock(&icc_lock);
+	mutex_unlock(&icc_bw_lock);
 
 	trace_icc_set_bw_end(path, ret);
 
@@ -872,6 +936,7 @@ void icc_node_add(struct icc_node *node, struct icc_provider *provider)
 		return;
 
 	mutex_lock(&icc_lock);
+	mutex_lock(&icc_bw_lock);
 
 	node->provider = provider;
 	list_add_tail(&node->node_list, &provider->nodes);
@@ -900,6 +965,7 @@ void icc_node_add(struct icc_node *node, struct icc_provider *provider)
 	node->avg_bw = 0;
 	node->peak_bw = 0;
 
+	mutex_unlock(&icc_bw_lock);
 	mutex_unlock(&icc_lock);
 }
 EXPORT_SYMBOL_GPL(icc_node_add);
@@ -1025,6 +1091,7 @@ void icc_sync_state(struct device *dev)
 		return;
 
 	mutex_lock(&icc_lock);
+	mutex_lock(&icc_bw_lock);
 	synced_state = true;
 	list_for_each_entry(p, &icc_providers, provider_list) {
 		dev_dbg(p->dev, "interconnect provider is in synced state\n");
@@ -1037,13 +1104,21 @@ void icc_sync_state(struct device *dev)
 			}
 		}
 	}
+	mutex_unlock(&icc_bw_lock);
 	mutex_unlock(&icc_lock);
 }
 EXPORT_SYMBOL_GPL(icc_sync_state);
 
 static int __init icc_init(void)
 {
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_node *root;
+
+	/* Teach lockdep about lock ordering wrt. shrinker: */
+	fs_reclaim_acquire(GFP_KERNEL);
+	might_lock(&icc_bw_lock);
+	fs_reclaim_release(GFP_KERNEL);
+
+	root = of_find_node_by_path("/");
 
 	providers_count = of_count_icc_providers(root);
 	of_node_put(root);
@@ -1053,6 +1128,9 @@ static int __init icc_init(void)
 			    icc_debugfs_dir, NULL, &icc_summary_fops);
 	debugfs_create_file("interconnect_graph", 0444,
 			    icc_debugfs_dir, NULL, &icc_graph_fops);
+
+	icc_debugfs_client_init(icc_debugfs_dir);
+
 	return 0;
 }
 

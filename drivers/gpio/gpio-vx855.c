@@ -240,8 +240,6 @@ static int vx855gpio_probe(struct platform_device *pdev)
 	if (!vg)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, vg);
-
 	dev_info(&pdev->dev, "found VX855 GPIO controller\n");
 	vg->io_gpi = res_gpi->start;
 	vg->io_gpo = res_gpo->start;

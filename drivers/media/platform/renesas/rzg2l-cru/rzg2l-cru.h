@@ -45,7 +45,7 @@ enum rzg2l_cru_dma_state {
 };
 
 struct rzg2l_cru_csi {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct v4l2_subdev *subdev;
 	u32 channel;
 };

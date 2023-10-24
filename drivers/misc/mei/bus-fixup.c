@@ -184,6 +184,7 @@ static int mei_fwver(struct mei_cl_device *cldev)
 		cldev->bus->fw_ver[i].hotfix = fwver->ver[i].hotfix;
 		cldev->bus->fw_ver[i].buildno = fwver->ver[i].buildno;
 	}
+	cldev->bus->fw_ver_received = 1;
 
 	return ret;
 }
@@ -237,8 +238,11 @@ static void mei_gsc_mkhi_ver(struct mei_cl_device *cldev)
 {
 	int ret;
 
-	/* No need to enable the client if nothing is needed from it */
-	if (!cldev->bus->fw_f_fw_ver_supported)
+	/*
+	 * No need to enable the client if nothing is needed from it.
+	 * No need to fill in version if it is already filled in by the fix address client.
+	 */
+	if (!cldev->bus->fw_f_fw_ver_supported || cldev->bus->fw_ver_received)
 		return;
 
 	ret = mei_cldev_enable(cldev);
@@ -555,8 +559,8 @@ static struct mei_fixup {
 	MEI_FIXUP(MEI_UUID_NFC_HCI, mei_nfc),
 	MEI_FIXUP(MEI_UUID_WD, mei_wd),
 	MEI_FIXUP(MEI_UUID_MKHIF_FIX, mei_mkhi_fix),
-	MEI_FIXUP(MEI_UUID_IGSC_MKHI, mei_gsc_mkhi_ver),
 	MEI_FIXUP(MEI_UUID_IGSC_MKHI_FIX, mei_gsc_mkhi_fix_ver),
+	MEI_FIXUP(MEI_UUID_IGSC_MKHI, mei_gsc_mkhi_ver),
 	MEI_FIXUP(MEI_UUID_HDCP, whitelist),
 	MEI_FIXUP(MEI_UUID_ANY, vt_support),
 	MEI_FIXUP(MEI_UUID_PAVP, pxp_is_ready),

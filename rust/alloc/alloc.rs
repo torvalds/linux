@@ -16,8 +16,6 @@ use core::ptr::{self, NonNull};
 #[doc(inline)]
 pub use core::alloc::*;
 
-use core::marker::Destruct;
-
 #[cfg(test)]
 mod tests;
 
@@ -41,6 +39,9 @@ extern "Rust" {
     #[rustc_allocator_zeroed]
     #[rustc_nounwind]
     fn __rust_alloc_zeroed(size: usize, align: usize) -> *mut u8;
+
+    #[cfg(not(bootstrap))]
+    static __rust_no_alloc_shim_is_unstable: u8;
 }
 
 /// The global memory allocator.
@@ -94,7 +95,14 @@ pub use std::alloc::Global;
 #[must_use = "losing the pointer will leak memory"]
 #[inline]
 pub unsafe fn alloc(layout: Layout) -> *mut u8 {
-    unsafe { __rust_alloc(layout.size(), layout.align()) }
+    unsafe {
+        // Make sure we don't accidentally allow omitting the allocator shim in
+        // stable code until it is actually stabilized.
+        #[cfg(not(bootstrap))]
+        core::ptr::read_volatile(&__rust_no_alloc_shim_is_unstable);
+
+        __rust_alloc(layout.size(), layout.align())
+    }
 }
 
 /// Deallocate memory with the global allocator.
@@ -333,16 +341,12 @@ unsafe fn exchange_malloc(size: usize, align: usize) -> *mut u8 {
 
 #[cfg_attr(not(test), lang = "box_free")]
 #[inline]
-#[rustc_const_unstable(feature = "const_box", issue = "92521")]
 // This signature has to be the same as `Box`, otherwise an ICE will happen.
 // When an additional parameter to `Box` is added (like `A: Allocator`), this has to be added here as
 // well.
 // For example if `Box` is changed to  `struct Box<T: ?Sized, A: Allocator>(Unique<T>, A)`,
 // this function has to be changed to `fn box_free<T: ?Sized, A: Allocator>(Unique<T>, A)` as well.
-pub(crate) const unsafe fn box_free<T: ?Sized, A: ~const Allocator + ~const Destruct>(
-    ptr: Unique<T>,
-    alloc: A,
-) {
+pub(crate) unsafe fn box_free<T: ?Sized, A: Allocator>(ptr: Unique<T>, alloc: A) {
     unsafe {
         let size = size_of_val(ptr.as_ref());
         let align = min_align_of_val(ptr.as_ref());

@@ -846,7 +846,7 @@ static bool _iqk_one_shot(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 	case ID_NBTXK:
 		rtw89_phy_write32_mask(rtwdev, R_P0_RFCTM, B_P0_RFCTM_EN, 0x0);
 		rtw89_phy_write32_mask(rtwdev, R_IQK_DIF4, B_IQK_DIF4_TXT, 0x011);
-		iqk_cmd = 0x308 | (1 << (4 + path));
+		iqk_cmd = 0x408 | (1 << (4 + path));
 		break;
 	case ID_NBRXK:
 		rtw89_phy_write32_mask(rtwdev, R_P0_RFCTM, B_P0_RFCTM_EN, 0x1);
@@ -1078,7 +1078,7 @@ static bool _iqk_nbtxk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx, u8 
 {
 	struct rtw89_iqk_info *iqk_info = &rtwdev->iqk;
 	bool kfail;
-	u8 gp = 0x3;
+	u8 gp = 0x2;
 
 	switch (iqk_info->iqk_band[path]) {
 	case RTW89_BAND_2G:

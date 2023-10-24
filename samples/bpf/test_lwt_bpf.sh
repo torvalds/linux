@@ -376,7 +376,7 @@ DST_MAC=$(lookup_mac $VETH1 $NS1)
 SRC_MAC=$(lookup_mac $VETH0)
 DST_IFINDEX=$(cat /sys/class/net/$VETH0/ifindex)
 
-CLANG_OPTS="-O2 -target bpf -I ../include/"
+CLANG_OPTS="-O2 --target=bpf -I ../include/"
 CLANG_OPTS+=" -DSRC_MAC=$SRC_MAC -DDST_MAC=$DST_MAC -DDST_IFINDEX=$DST_IFINDEX"
 clang $CLANG_OPTS -c $PROG_SRC -o $BPF_PROG
 

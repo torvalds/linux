@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "tegra234.dtsi"
+#include "tegra234-p3701.dtsi"
 
 / {
 	model = "NVIDIA Jetson AGX Orin";

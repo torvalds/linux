@@ -5,7 +5,7 @@
 :Original: Documentation/filesystems/tmpfs.rst
 
 Translated by Wang Qing <wangqing@vivo.com>
-and Hu Haowen <src.res@email.cn>
+and Hu Haowen <src.res.211@gmail.com>
 
 =====
 Tmpfs

@@ -40,7 +40,7 @@ static bool dpu_encoder_phys_vid_is_master(
 static void drm_mode_to_intf_timing_params(
 		const struct dpu_encoder_phys *phys_enc,
 		const struct drm_display_mode *mode,
-		struct intf_timing_params *timing)
+		struct dpu_hw_intf_timing_params *timing)
 {
 	memset(timing, 0, sizeof(*timing));
 
@@ -114,7 +114,7 @@ static void drm_mode_to_intf_timing_params(
 	}
 }
 
-static u32 get_horizontal_total(const struct intf_timing_params *timing)
+static u32 get_horizontal_total(const struct dpu_hw_intf_timing_params *timing)
 {
 	u32 active = timing->xres;
 	u32 inactive =
@@ -123,7 +123,7 @@ static u32 get_horizontal_total(const struct intf_timing_params *timing)
 	return active + inactive;
 }
 
-static u32 get_vertical_total(const struct intf_timing_params *timing)
+static u32 get_vertical_total(const struct dpu_hw_intf_timing_params *timing)
 {
 	u32 active = timing->yres;
 	u32 inactive =
@@ -148,7 +148,7 @@ static u32 get_vertical_total(const struct intf_timing_params *timing)
  */
 static u32 programmable_fetch_get_num_lines(
 		struct dpu_encoder_phys *phys_enc,
-		const struct intf_timing_params *timing)
+		const struct dpu_hw_intf_timing_params *timing)
 {
 	u32 worst_case_needed_lines =
 	    phys_enc->hw_intf->cap->prog_fetch_lines_worst_case;
@@ -196,9 +196,9 @@ static u32 programmable_fetch_get_num_lines(
  * @timing: Pointer to the intf timing information for the requested mode
  */
 static void programmable_fetch_config(struct dpu_encoder_phys *phys_enc,
-				      const struct intf_timing_params *timing)
+				      const struct dpu_hw_intf_timing_params *timing)
 {
-	struct intf_prog_fetch f = { 0 };
+	struct dpu_hw_intf_prog_fetch f = { 0 };
 	u32 vfp_fetch_lines = 0;
 	u32 horiz_total = 0;
 	u32 vert_total = 0;
@@ -231,7 +231,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 		struct dpu_encoder_phys *phys_enc)
 {
 	struct drm_display_mode mode;
-	struct intf_timing_params timing_params = { 0 };
+	struct dpu_hw_intf_timing_params timing_params = { 0 };
 	const struct dpu_format *fmt = NULL;
 	u32 fmt_fourcc = DRM_FORMAT_RGB888;
 	unsigned long lock_flags;
@@ -297,7 +297,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	programmable_fetch_config(phys_enc, &timing_params);
 }
 
-static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
+static void dpu_encoder_phys_vid_vblank_irq(void *arg)
 {
 	struct dpu_encoder_phys *phys_enc = arg;
 	struct dpu_hw_ctl *hw_ctl;
@@ -334,7 +334,7 @@ static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 	DPU_ATRACE_END("vblank_irq");
 }
 
-static void dpu_encoder_phys_vid_underrun_irq(void *arg, int irq_idx)
+static void dpu_encoder_phys_vid_underrun_irq(void *arg)
 {
 	struct dpu_encoder_phys *phys_enc = arg;
 
@@ -522,7 +522,7 @@ static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 {
 	unsigned long lock_flags;
 	int ret;
-	struct intf_status intf_status = {0};
+	struct dpu_hw_intf_status intf_status = {0};
 
 	if (!phys_enc->parent || !phys_enc->parent->dev) {
 		DPU_ERROR("invalid encoder/device\n");
@@ -651,7 +651,7 @@ static int dpu_encoder_phys_vid_get_line_count(
 static int dpu_encoder_phys_vid_get_frame_count(
 		struct dpu_encoder_phys *phys_enc)
 {
-	struct intf_status s = {0};
+	struct dpu_hw_intf_status s = {0};
 	u32 fetch_start = 0;
 	struct drm_display_mode mode;
 

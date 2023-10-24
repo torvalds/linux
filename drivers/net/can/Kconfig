@@ -160,8 +160,13 @@ config CAN_KVASER_PCIEFD
 	    Kvaser PCIEcan 4xHS
 	    Kvaser PCIEcan 2xHS v2
 	    Kvaser PCIEcan HS v2
+	    Kvaser PCIEcan 1xCAN v3
+	    Kvaser PCIEcan 2xCAN v3
+	    Kvaser PCIEcan 4xCAN v2
 	    Kvaser Mini PCI Express HS v2
 	    Kvaser Mini PCI Express 2xHS v2
+	    Kvaser Mini PCI Express 1xCAN v3
+	    Kvaser Mini PCI Express 2xCAN v3
 
 config CAN_SLCAN
 	tristate "Serial / USB serial CAN Adaptors (slcan)"
@@ -185,10 +190,10 @@ config CAN_SLCAN
 
 config CAN_SUN4I
 	tristate "Allwinner A10 CAN controller"
-	depends on MACH_SUN4I || MACH_SUN7I || COMPILE_TEST
+	depends on MACH_SUN4I || MACH_SUN7I || (RISCV && ARCH_SUNXI) || COMPILE_TEST
 	help
 	  Say Y here if you want to use CAN controller found on Allwinner
-	  A10/A20 SoCs.
+	  A10/A20/D1 SoCs.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called sun4i_can.

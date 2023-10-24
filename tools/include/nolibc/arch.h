@@ -25,6 +25,8 @@
 #include "arch-aarch64.h"
 #elif defined(__mips__) && defined(_ABIO32)
 #include "arch-mips.h"
+#elif defined(__powerpc__)
+#include "arch-powerpc.h"
 #elif defined(__riscv)
 #include "arch-riscv.h"
 #elif defined(__s390x__)

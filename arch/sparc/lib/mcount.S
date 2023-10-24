@@ -6,8 +6,8 @@
  * This can also be tweaked for kernel stack overflow detection.
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
-#include <asm/export.h>
 
 /*
  * This is the main variant and is called by C code.  GCC's -pg option

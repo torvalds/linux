@@ -12,11 +12,14 @@ exitcode=0
 
 usage() {
 	cat <<EOF
-usage: ${BASH_SOURCE[0]:-$0} [ -h | -t "<categories>"]
+usage: ${BASH_SOURCE[0]:-$0} [ options ]
+
+  -a: run all tests, including extra ones
   -t: specify specific categories to tests to run
   -h: display this message
 
-The default behavior is to run all tests.
+The default behavior is to run required tests only.  If -a is specified,
+will run all tests.
 
 Alternatively, specific groups tests can be run by passing a string
 to the -t argument containing one or more of the following categories
@@ -55,14 +58,27 @@ separated by spaces:
 	test soft dirty page bit semantics
 - cow
 	test copy-on-write semantics
+- thp
+	test transparent huge pages
+- migration
+	invoke move_pages(2) to exercise the migration entry code
+	paths in the kernel
+- mkdirty
+	test handling of code that might set PTE/PMD dirty in
+	read-only VMAs
+- mdwe
+	test prctl(PR_SET_MDWE, ...)
+
 example: ./run_vmtests.sh -t "hmm mmap ksm"
 EOF
 	exit 0
 }
 
+RUN_ALL=false
 
-while getopts "ht:" OPT; do
+while getopts "aht:" OPT; do
 	case ${OPT} in
+		"a") RUN_ALL=true ;;
 		"h") usage ;;
 		"t") VM_SELFTEST_ITEMS=${OPTARG} ;;
 	esac
@@ -83,6 +99,30 @@ test_selected() {
 	else
 	        return 1
 	fi
+}
+
+run_gup_matrix() {
+    # -t: thp=on, -T: thp=off, -H: hugetlb=on
+    local hugetlb_mb=$(( needmem_KB / 1024 ))
+
+    for huge in -t -T "-H -m $hugetlb_mb"; do
+        # -u: gup-fast, -U: gup-basic, -a: pin-fast, -b: pin-basic, -L: pin-longterm
+        for test_cmd in -u -U -a -b -L; do
+            # -w: write=1, -W: write=0
+            for write in -w -W; do
+                # -S: shared
+                for share in -S " "; do
+                    # -n: How many pages to fetch together?  512 is special
+                    # because it's default thp size (or 2M on x86), 123 to
+                    # just test partial gup when hit a huge in whatever form
+                    for num in "-n 1" "-n 512" "-n 123"; do
+                        CATEGORY="gup_test" run_test ./gup_test \
+                                $huge $test_cmd $write $share $num
+                    done
+                done
+            done
+        done
+    done
 }
 
 # get huge pagesize and freepages from /proc/meminfo
@@ -189,13 +229,16 @@ fi
 
 CATEGORY="mmap" run_test ./map_fixed_noreplace
 
-# get_user_pages_fast() benchmark
-CATEGORY="gup_test" run_test ./gup_test -u
-# pin_user_pages_fast() benchmark
-CATEGORY="gup_test" run_test ./gup_test -a
+if $RUN_ALL; then
+    run_gup_matrix
+else
+    # get_user_pages_fast() benchmark
+    CATEGORY="gup_test" run_test ./gup_test -u
+    # pin_user_pages_fast() benchmark
+    CATEGORY="gup_test" run_test ./gup_test -a
+fi
 # Dump pages 0, 19, and 4096, using pin_user_pages:
 CATEGORY="gup_test" run_test ./gup_test -ct -F 0x1 0 19 0x1000
-
 CATEGORY="gup_test" run_test ./gup_longterm
 
 CATEGORY="userfaultfd" run_test ./uffd-unit-tests
@@ -262,6 +305,10 @@ CATEGORY="madv_populate" run_test ./madv_populate
 
 CATEGORY="memfd_secret" run_test ./memfd_secret
 
+# KSM KSM_MERGE_TIME_HUGE_PAGES test with size of 100
+CATEGORY="ksm" run_test ./ksm_tests -H -s 100
+# KSM KSM_MERGE_TIME test with size of 100
+CATEGORY="ksm" run_test ./ksm_tests -P -s 100
 # KSM MADV_MERGEABLE test with 10 identical pages
 CATEGORY="ksm" run_test ./ksm_tests -M -p 10
 # KSM unmerge test
@@ -290,10 +337,25 @@ then
 	CATEGORY="pkey" run_test ./protection_keys_64
 fi
 
-CATEGORY="soft_dirty" run_test ./soft-dirty
+if [ -x ./soft-dirty ]
+then
+	CATEGORY="soft_dirty" run_test ./soft-dirty
+fi
 
 # COW tests
 CATEGORY="cow" run_test ./cow
+
+CATEGORY="thp" run_test ./khugepaged
+
+CATEGORY="thp" run_test ./transhuge-stress -d 20
+
+CATEGORY="thp" run_test ./split_huge_page_test
+
+CATEGORY="migration" run_test ./migration
+
+CATEGORY="mkdirty" run_test ./mkdirty
+
+CATEGORY="mdwe" run_test ./mdwe_test
 
 echo "SUMMARY: PASS=${count_pass} SKIP=${count_skip} FAIL=${count_fail}"
 

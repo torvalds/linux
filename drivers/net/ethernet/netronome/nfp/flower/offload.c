@@ -24,43 +24,43 @@
 	 FLOW_DIS_FIRST_FRAG)
 
 #define NFP_FLOWER_WHITELIST_DISSECTOR \
-	(BIT(FLOW_DISSECTOR_KEY_CONTROL) | \
-	 BIT(FLOW_DISSECTOR_KEY_BASIC) | \
-	 BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) | \
-	 BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) | \
-	 BIT(FLOW_DISSECTOR_KEY_TCP) | \
-	 BIT(FLOW_DISSECTOR_KEY_PORTS) | \
-	 BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) | \
-	 BIT(FLOW_DISSECTOR_KEY_VLAN) | \
-	 BIT(FLOW_DISSECTOR_KEY_CVLAN) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_OPTS) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_IP) | \
-	 BIT(FLOW_DISSECTOR_KEY_MPLS) | \
-	 BIT(FLOW_DISSECTOR_KEY_CT) | \
-	 BIT(FLOW_DISSECTOR_KEY_META) | \
-	 BIT(FLOW_DISSECTOR_KEY_IP))
+	(BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_TCP) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_PORTS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_VLAN) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_CVLAN) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_KEYID) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_PORTS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_OPTS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IP) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_MPLS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_CT) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_META) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_IP))
 
 #define NFP_FLOWER_WHITELIST_TUN_DISSECTOR \
-	(BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_OPTS) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_IP))
+	(BIT_ULL(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_KEYID) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_OPTS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_PORTS) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IP))
 
 #define NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R \
-	(BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS))
+	(BIT_ULL(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS))
 
 #define NFP_FLOWER_WHITELIST_TUN_DISSECTOR_V6_R \
-	(BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
-	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS))
+	(BIT_ULL(FLOW_DISSECTOR_KEY_ENC_CONTROL) | \
+	 BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS))
 
 #define NFP_FLOWER_MERGE_FIELDS \
 	(NFP_FLOWER_LAYER_PORT | \
@@ -1009,8 +1009,6 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 	u64 parent_ctx = 0;
 	int err;
 
-	ASSERT_RTNL();
-
 	if (sub_flow1 == sub_flow2 ||
 	    nfp_flower_is_merge_flow(sub_flow1) ||
 	    nfp_flower_is_merge_flow(sub_flow2))
@@ -1303,7 +1301,7 @@ static bool offload_pre_check(struct flow_cls_offload *flow)
 	struct flow_dissector *dissector = rule->match.dissector;
 	struct flow_match_ct ct;
 
-	if (dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CT)) {
+	if (dissector->used_keys & BIT_ULL(FLOW_DISSECTOR_KEY_CT)) {
 		flow_rule_match_ct(rule, &ct);
 		/* Allow special case where CT match is all 0 */
 		if (memchr_inv(ct.key, 0, sizeof(*ct.key)))
@@ -1727,19 +1725,30 @@ static int
 nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 			struct flow_cls_offload *flower)
 {
+	struct nfp_flower_priv *priv = app->priv;
+	int ret;
+
 	if (!eth_proto_is_802_3(flower->common.protocol))
 		return -EOPNOTSUPP;
 
+	mutex_lock(&priv->nfp_fl_lock);
 	switch (flower->command) {
 	case FLOW_CLS_REPLACE:
-		return nfp_flower_add_offload(app, netdev, flower);
+		ret = nfp_flower_add_offload(app, netdev, flower);
+		break;
 	case FLOW_CLS_DESTROY:
-		return nfp_flower_del_offload(app, netdev, flower);
+		ret = nfp_flower_del_offload(app, netdev, flower);
+		break;
 	case FLOW_CLS_STATS:
-		return nfp_flower_get_stats(app, netdev, flower);
+		ret = nfp_flower_get_stats(app, netdev, flower);
+		break;
 	default:
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
+		break;
 	}
+	mutex_unlock(&priv->nfp_fl_lock);
+
+	return ret;
 }
 
 static int nfp_flower_setup_tc_block_cb(enum tc_setup_type type,
@@ -1778,6 +1787,7 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 	repr_priv = repr->app_priv;
 	repr_priv->block_shared = f->block_shared;
 	f->driver_block_list = &nfp_block_cb_list;
+	f->unlocked_driver_cb = true;
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
@@ -1875,6 +1885,8 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct Qdisc *sch, str
 	    (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS &&
 	     nfp_flower_internal_port_can_offload(app, netdev)))
 		return -EOPNOTSUPP;
+
+	f->unlocked_driver_cb = true;
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:

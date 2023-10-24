@@ -31,11 +31,11 @@
 #include <linux/types.h>
 #include <linux/bitmap.h>
 #include <linux/dma-fence.h>
+#include "amdgpu_irq.h"
+#include "amdgpu_gfx.h"
 
 struct pci_dev;
 struct amdgpu_device;
-
-#define KGD_MAX_QUEUES 128
 
 struct kfd_dev;
 struct kgd_mem;
@@ -55,20 +55,6 @@ struct kfd_vm_fault_info {
 	bool		prot_read;
 	bool		prot_write;
 	bool		prot_exec;
-};
-
-struct kfd_cu_info {
-	uint32_t num_shader_engines;
-	uint32_t num_shader_arrays_per_engine;
-	uint32_t num_cu_per_sh;
-	uint32_t cu_active_number;
-	uint32_t cu_ao_mask;
-	uint32_t simd_per_cu;
-	uint32_t max_waves_per_simd;
-	uint32_t wave_front_size;
-	uint32_t max_scratch_slots_per_cu;
-	uint32_t lds_size;
-	uint32_t cu_bitmap[4][4];
 };
 
 /* For getting GPU local memory information from KGD */
@@ -123,7 +109,7 @@ struct kgd2kfd_shared_resources {
 	uint32_t num_queue_per_pipe;
 
 	/* Bit n == 1 means Queue n is available for KFD */
-	DECLARE_BITMAP(cp_queue_bitmap, KGD_MAX_QUEUES);
+	DECLARE_BITMAP(cp_queue_bitmap, AMDGPU_MAX_QUEUES);
 
 	/* SDMA doorbell assignments (SOC15 and later chips only). Only
 	 * specific doorbells are routed to each SDMA engine. Others
@@ -326,8 +312,7 @@ struct kfd2kgd_calls {
 			uint32_t wait_times,
 			uint32_t grace_period,
 			uint32_t *reg_offset,
-			uint32_t *reg_data,
-			uint32_t inst);
+			uint32_t *reg_data);
 	void (*get_cu_occupancy)(struct amdgpu_device *adev, int pasid,
 			int *wave_cnt, int *max_waves_per_cu, uint32_t inst);
 	void (*program_trap_handler_settings)(struct amdgpu_device *adev,

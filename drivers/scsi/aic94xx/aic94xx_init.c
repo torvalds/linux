@@ -667,7 +667,6 @@ static int asd_register_sas_ha(struct asd_ha_struct *asd_ha)
 	}
 
 	asd_ha->sas_ha.sas_ha_name = (char *) asd_ha->name;
-	asd_ha->sas_ha.lldd_module = THIS_MODULE;
 	asd_ha->sas_ha.sas_addr = &asd_ha->hw_prof.sas_addr[0];
 
 	for (i = 0; i < ASD_MAX_PHYS; i++) {
@@ -688,8 +687,8 @@ static int asd_unregister_sas_ha(struct asd_ha_struct *asd_ha)
 
 	err = sas_unregister_ha(&asd_ha->sas_ha);
 
-	sas_remove_host(asd_ha->sas_ha.core.shost);
-	scsi_host_put(asd_ha->sas_ha.core.shost);
+	sas_remove_host(asd_ha->sas_ha.shost);
+	scsi_host_put(asd_ha->sas_ha.shost);
 
 	kfree(asd_ha->sas_ha.sas_phy);
 	kfree(asd_ha->sas_ha.sas_port);
@@ -739,7 +738,7 @@ static int asd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	asd_printk("found %s, device %s\n", asd_ha->name, pci_name(dev));
 
 	SHOST_TO_SAS_HA(shost) = &asd_ha->sas_ha;
-	asd_ha->sas_ha.core.shost = shost;
+	asd_ha->sas_ha.shost = shost;
 	shost->transportt = aic94xx_transport_template;
 	shost->max_id = ~0;
 	shost->max_lun = ~0;

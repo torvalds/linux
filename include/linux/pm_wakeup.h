@@ -194,6 +194,16 @@ static inline void pm_wakeup_dev_event(struct device *dev, unsigned int msec,
 
 #endif /* !CONFIG_PM_SLEEP */
 
+static inline bool device_awake_path(struct device *dev)
+{
+	return device_wakeup_path(dev);
+}
+
+static inline void device_set_awake_path(struct device *dev)
+{
+	device_set_wakeup_path(dev);
+}
+
 static inline void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec)
 {
 	return pm_wakeup_ws_event(ws, msec, false);

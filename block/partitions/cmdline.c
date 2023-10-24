@@ -81,8 +81,7 @@ static int parse_subpart(struct cmdline_subpart **subpart, char *partdef)
 
 		length = min_t(int, next - partdef,
 			       sizeof(new_subpart->name) - 1);
-		strncpy(new_subpart->name, partdef, length);
-		new_subpart->name[length] = '\0';
+		strscpy(new_subpart->name, partdef, length);
 
 		partdef = ++next;
 	} else
@@ -140,8 +139,7 @@ static int parse_parts(struct cmdline_parts **parts, const char *bdevdef)
 	}
 
 	length = min_t(int, next - bdevdef, sizeof(newparts->name) - 1);
-	strncpy(newparts->name, bdevdef, length);
-	newparts->name[length] = '\0';
+	strscpy(newparts->name, bdevdef, length);
 	newparts->nr_subparts = 0;
 
 	next_subpart = &newparts->subpart;
@@ -153,8 +151,7 @@ static int parse_parts(struct cmdline_parts **parts, const char *bdevdef)
 		length = (!next) ? (sizeof(buf) - 1) :
 			min_t(int, next - bdevdef, sizeof(buf) - 1);
 
-		strncpy(buf, bdevdef, length);
-		buf[length] = '\0';
+		strscpy(buf, bdevdef, length);
 
 		ret = parse_subpart(next_subpart, buf);
 		if (ret)
@@ -267,8 +264,7 @@ static int add_part(int slot, struct cmdline_subpart *subpart,
 
 	label_min = min_t(int, sizeof(info->volname) - 1,
 			  sizeof(subpart->name));
-	strncpy(info->volname, subpart->name, label_min);
-	info->volname[label_min] = '\0';
+	strscpy(info->volname, subpart->name, label_min);
 
 	snprintf(tmp, sizeof(tmp), "(%s)", info->volname);
 	strlcat(state->pp_buf, tmp, PAGE_SIZE);

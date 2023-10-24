@@ -434,7 +434,11 @@ brcm_avs_get_freq_table(struct device *dev, struct private_data *priv)
 	if (ret)
 		return ERR_PTR(ret);
 
-	table = devm_kcalloc(dev, AVS_PSTATE_MAX + 1, sizeof(*table),
+	/*
+	 * We allocate space for the 5 different P-STATES AVS,
+	 * plus extra space for a terminating element.
+	 */
+	table = devm_kcalloc(dev, AVS_PSTATE_MAX + 1 + 1, sizeof(*table),
 			     GFP_KERNEL);
 	if (!table)
 		return ERR_PTR(-ENOMEM);
@@ -749,13 +753,11 @@ static int brcm_avs_cpufreq_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int brcm_avs_cpufreq_remove(struct platform_device *pdev)
+static void brcm_avs_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&brcm_avs_driver);
 
 	brcm_avs_prepare_uninit(pdev);
-
-	return 0;
 }
 
 static const struct of_device_id brcm_avs_cpufreq_match[] = {
@@ -770,7 +772,7 @@ static struct platform_driver brcm_avs_cpufreq_platdrv = {
 		.of_match_table = brcm_avs_cpufreq_match,
 	},
 	.probe		= brcm_avs_cpufreq_probe,
-	.remove		= brcm_avs_cpufreq_remove,
+	.remove_new	= brcm_avs_cpufreq_remove,
 };
 module_platform_driver(brcm_avs_cpufreq_platdrv);
 

@@ -259,9 +259,7 @@ static void cachefiles_write_complete(struct kiocb *iocb, long ret)
 
 	_enter("%ld", ret);
 
-	/* Tell lockdep we inherited freeze protection from submission thread */
-	__sb_writers_acquired(inode->i_sb, SB_FREEZE_WRITE);
-	__sb_end_write(inode->i_sb, SB_FREEZE_WRITE);
+	kiocb_end_write(iocb);
 
 	if (ret < 0)
 		trace_cachefiles_io_error(object, inode, ret,
@@ -286,7 +284,6 @@ int __cachefiles_write(struct cachefiles_object *object,
 {
 	struct cachefiles_cache *cache;
 	struct cachefiles_kiocb *ki;
-	struct inode *inode;
 	unsigned int old_nofs;
 	ssize_t ret;
 	size_t len = iov_iter_count(iter);
@@ -322,19 +319,12 @@ int __cachefiles_write(struct cachefiles_object *object,
 		ki->iocb.ki_complete = cachefiles_write_complete;
 	atomic_long_add(ki->b_writing, &cache->b_writing);
 
-	/* Open-code file_start_write here to grab freeze protection, which
-	 * will be released by another thread in aio_complete_rw().  Fool
-	 * lockdep by telling it the lock got released so that it doesn't
-	 * complain about the held lock when we return to userspace.
-	 */
-	inode = file_inode(file);
-	__sb_start_write(inode->i_sb, SB_FREEZE_WRITE);
-	__sb_writers_release(inode->i_sb, SB_FREEZE_WRITE);
+	kiocb_start_write(&ki->iocb);
 
 	get_file(ki->iocb.ki_filp);
 	cachefiles_grab_object(object, cachefiles_obj_get_ioreq);
 
-	trace_cachefiles_write(object, inode, ki->iocb.ki_pos, len);
+	trace_cachefiles_write(object, file_inode(file), ki->iocb.ki_pos, len);
 	old_nofs = memalloc_nofs_save();
 	ret = cachefiles_inject_write_error();
 	if (ret == 0)

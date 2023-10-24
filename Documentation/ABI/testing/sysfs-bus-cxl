@@ -82,7 +82,12 @@ Description:
 		whether it resides in persistent capacity, volatile capacity,
 		or the LSA, is made permanently unavailable by whatever means
 		is appropriate for the media type. This functionality requires
-		the device to be not be actively decoding any HPA ranges.
+		the device to be disabled, that is, not actively decoding any
+		HPA ranges. This permits avoiding explicit global CPU cache
+		management, relying instead for it to be done when a region
+		transitions between software programmed and hardware committed
+		states. If this file is not present, then there is no hardware
+		support for the operation.
 
 
 What            /sys/bus/cxl/devices/memX/security/erase
@@ -92,7 +97,13 @@ Contact:        linux-cxl@vger.kernel.org
 Description:
 		(WO) Write a boolean 'true' string value to this attribute to
 		secure erase user data by changing the media encryption keys for
-		all user data areas of the device.
+		all user data areas of the device. This functionality requires
+		the device to be disabled, that is, not actively decoding any
+		HPA ranges. This permits avoiding explicit global CPU cache
+		management, relying instead for it to be done when a region
+		transitions between software programmed and hardware committed
+		states. If this file is not present, then there is no hardware
+		support for the operation.
 
 
 What:		/sys/bus/cxl/devices/memX/firmware/

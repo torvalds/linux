@@ -873,8 +873,6 @@ struct dsa_switch_ops {
 	struct phylink_pcs *(*phylink_mac_select_pcs)(struct dsa_switch *ds,
 						      int port,
 						      phy_interface_t iface);
-	int	(*phylink_mac_link_state)(struct dsa_switch *ds, int port,
-					  struct phylink_link_state *state);
 	int	(*phylink_mac_prepare)(struct dsa_switch *ds, int port,
 				       unsigned int mode,
 				       phy_interface_t interface);
@@ -884,7 +882,6 @@ struct dsa_switch_ops {
 	int	(*phylink_mac_finish)(struct dsa_switch *ds, int port,
 				      unsigned int mode,
 				      phy_interface_t interface);
-	void	(*phylink_mac_an_restart)(struct dsa_switch *ds, int port);
 	void	(*phylink_mac_link_down)(struct dsa_switch *ds, int port,
 					 unsigned int mode,
 					 phy_interface_t interface);
