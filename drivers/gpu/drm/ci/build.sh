@@ -35,7 +35,7 @@ elif [[ "$KERNEL_ARCH" = "arm" ]]; then
     apt-get install -y libssl-dev:armhf
 else
     GCC_ARCH="x86_64-linux-gnu"
-    DEBIAN_ARCH="x86_64"
+    DEBIAN_ARCH="amd64"
     DEVICE_TREES=""
 fi
 

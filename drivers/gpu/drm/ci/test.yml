@@ -23,7 +23,7 @@
     - .lava-test:arm32
   variables:
     HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
-    ARCH: "armhf"
+    DEBIAN_ARCH: "armhf"
   dependencies:
     - testing:arm32
   needs:
@@ -38,7 +38,7 @@
     - .lava-test:arm64
   variables:
     HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
-    ARCH: "arm64"
+    DEBIAN_ARCH: "arm64"
   dependencies:
     - testing:arm64
   needs:
@@ -53,7 +53,7 @@
     - .lava-test:x86_64
   variables:
     HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
-    ARCH: "x86_64"
+    DEBIAN_ARCH: "amd64"
   dependencies:
     - testing:x86_64
   needs:
