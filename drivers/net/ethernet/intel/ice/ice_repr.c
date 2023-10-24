@@ -382,7 +382,7 @@ err_alloc:
 	return ERR_PTR(err);
 }
 
-static int ice_repr_add_vf(struct ice_vf *vf)
+static struct ice_repr *ice_repr_add_vf(struct ice_vf *vf)
 {
 	struct ice_repr *repr;
 	struct ice_vsi *vsi;
@@ -390,11 +390,11 @@ static int ice_repr_add_vf(struct ice_vf *vf)
 
 	vsi = ice_get_vf_vsi(vf);
 	if (!vsi)
-		return -EINVAL;
+		return ERR_PTR(-ENOENT);
 
 	err = ice_devlink_create_vf_port(vf);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
 	repr = ice_repr_add(vf->pf, vsi, vf->hw_lan_addr);
 	if (IS_ERR(repr)) {
@@ -416,13 +416,13 @@ static int ice_repr_add_vf(struct ice_vf *vf)
 
 	ice_virtchnl_set_repr_ops(vf);
 
-	return 0;
+	return repr;
 
 err_netdev:
 	ice_repr_rem(&vf->pf->eswitch.reprs, repr);
 err_repr_add:
 	ice_devlink_destroy_vf_port(vf);
-	return err;
+	return ERR_PTR(err);
 }
 
 /**
@@ -432,6 +432,7 @@ err_repr_add:
 int ice_repr_add_for_all_vfs(struct ice_pf *pf)
 {
 	struct devlink *devlink;
+	struct ice_repr *repr;
 	struct ice_vf *vf;
 	unsigned int bkt;
 	int err;
@@ -439,9 +440,11 @@ int ice_repr_add_for_all_vfs(struct ice_pf *pf)
 	lockdep_assert_held(&pf->vfs.table_lock);
 
 	ice_for_each_vf(pf, bkt, vf) {
-		err = ice_repr_add_vf(vf);
-		if (err)
+		repr = ice_repr_add_vf(vf);
+		if (IS_ERR(repr)) {
+			err = PTR_ERR(repr);
 			goto err;
+		}
 	}
 
 	/* only export if ADQ and DCB disabled */
