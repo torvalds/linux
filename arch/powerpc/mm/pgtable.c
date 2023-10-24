@@ -104,6 +104,8 @@ static pte_t set_pte_filter_hash(pte_t pte) { return pte; }
 /* Embedded type MMU with HW exec support. This is a bit more complicated
  * as we don't have two bits to spare for _PAGE_EXEC and _PAGE_HWEXEC so
  * instead we "filter out" the exec permission for non clean pages.
+ *
+ * This is also called once for the folio. So only work with folio->flags here.
  */
 static inline pte_t set_pte_filter(pte_t pte)
 {
@@ -190,29 +192,39 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 void set_ptes(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 		pte_t pte, unsigned int nr)
 {
-	/*
-	 * Make sure hardware valid bit is not set. We don't do
-	 * tlb flush for this update.
-	 */
-	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
 
 	/* Note: mm->context.id might not yet have been assigned as
 	 * this context might not have been activated yet when this
-	 * is called.
+	 * is called. Filter the pte value and use the filtered value
+	 * to setup all the ptes in the range.
 	 */
 	pte = set_pte_filter(pte);
 
-	/* Perform the setting of the PTE */
-	arch_enter_lazy_mmu_mode();
+	/*
+	 * We don't need to call arch_enter/leave_lazy_mmu_mode()
+	 * because we expect set_ptes to be only be used on not present
+	 * and not hw_valid ptes. Hence there is no translation cache flush
+	 * involved that need to be batched.
+	 */
 	for (;;) {
+
+		/*
+		 * Make sure hardware valid bit is not set. We don't do
+		 * tlb flush for this update.
+		 */
+		VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
+
+		/* Perform the setting of the PTE */
 		__set_pte_at(mm, addr, ptep, pte, 0);
 		if (--nr == 0)
 			break;
 		ptep++;
-		pte = __pte(pte_val(pte) + (1UL << PTE_RPN_SHIFT));
 		addr += PAGE_SIZE;
+		/*
+		 * increment the pfn.
+		 */
+		pte = pfn_pte(pte_pfn(pte) + 1, pte_pgprot((pte)));
 	}
-	arch_leave_lazy_mmu_mode();
 }
 
 void unmap_kernel_page(unsigned long va)
