@@ -166,7 +166,8 @@ static ssize_t st_mag40_get_sampling_frequency(struct device *dev,
 					       struct device_attribute *attr,
 					       char *buf)
 {
-	struct st_mag40_data *cdata = iio_priv(dev_get_drvdata(dev));
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_mag40_data *cdata = iio_priv(iio_dev);
 
 	return sprintf(buf, "%d\n", cdata->odr);
 }
@@ -175,7 +176,7 @@ static ssize_t st_mag40_set_sampling_frequency(struct device * dev,
 					       struct device_attribute * attr,
 					       const char *buf, size_t count)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_mag40_data *cdata = iio_priv(iio_dev);
 	unsigned int odr;
 	int err;
@@ -264,7 +265,7 @@ static ssize_t st_mag40_get_module_id(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
 	struct st_mag40_data *cdata = iio_priv(iio_dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%u\n", cdata->module_id);
