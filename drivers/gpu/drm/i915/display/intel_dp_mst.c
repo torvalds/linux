@@ -563,18 +563,22 @@ static int intel_dp_mst_compute_config_late(struct intel_encoder *encoder,
  * that shares the same MST stream as mode changed,
  * intel_modeset_pipe_config()+intel_crtc_check_fastset() will take care to do
  * a fastset when possible.
+ *
+ * On TGL+ this is required since each stream go through a master transcoder,
+ * so if the master transcoder needs modeset, all other streams in the
+ * topology need a modeset. All platforms need to add the atomic state
+ * for all streams in the topology, since a modeset on one may require
+ * changing the MST link BW usage of the others, which in turn needs a
+ * recomputation of the corresponding CRTC states.
  */
 static int
-intel_dp_mst_atomic_master_trans_check(struct intel_connector *connector,
-				       struct intel_atomic_state *state)
+intel_dp_mst_atomic_topology_check(struct intel_connector *connector,
+				   struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct drm_connector_list_iter connector_list_iter;
 	struct intel_connector *connector_iter;
 	int ret = 0;
-
-	if (DISPLAY_VER(dev_priv) < 12)
-		return  0;
 
 	if (!intel_connector_needs_modeset(state, &connector->base))
 		return 0;
@@ -629,7 +633,7 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	if (ret)
 		return ret;
 
-	ret = intel_dp_mst_atomic_master_trans_check(intel_connector, state);
+	ret = intel_dp_mst_atomic_topology_check(intel_connector, state);
 	if (ret)
 		return ret;
 
