@@ -217,11 +217,12 @@ static int _test_cmd_set_dirty_tracking(int fd, __u32 hwpt_id, bool enabled)
 
 static int _test_cmd_get_dirty_bitmap(int fd, __u32 hwpt_id, size_t length,
 				      __u64 iova, size_t page_size,
-				      __u64 *bitmap)
+				      __u64 *bitmap, __u32 flags)
 {
 	struct iommu_hwpt_get_dirty_bitmap cmd = {
 		.size = sizeof(cmd),
 		.hwpt_id = hwpt_id,
+		.flags = flags,
 		.iova = iova,
 		.length = length,
 		.page_size = page_size,
@@ -236,9 +237,9 @@ static int _test_cmd_get_dirty_bitmap(int fd, __u32 hwpt_id, size_t length,
 }
 
 #define test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, page_size,    \
-				  bitmap)                                  \
+				  bitmap, flags)                           \
 	ASSERT_EQ(0, _test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, \
-						page_size, bitmap))
+						page_size, bitmap, flags))
 
 static int _test_cmd_mock_domain_set_dirty(int fd, __u32 hwpt_id, size_t length,
 					   __u64 iova, size_t page_size,
@@ -273,7 +274,7 @@ static int _test_cmd_mock_domain_set_dirty(int fd, __u32 hwpt_id, size_t length,
 
 static int _test_mock_dirty_bitmaps(int fd, __u32 hwpt_id, size_t length,
 				    __u64 iova, size_t page_size, __u64 *bitmap,
-				    __u64 bitmap_size,
+				    __u64 bitmap_size, __u32 flags,
 				    struct __test_metadata *_metadata)
 {
 	unsigned long i, count, nbits = bitmap_size * BITS_PER_BYTE;
@@ -292,25 +293,30 @@ static int _test_mock_dirty_bitmaps(int fd, __u32 hwpt_id, size_t length,
 
 	/* Expect all even bits as dirty in the user bitmap */
 	memset(bitmap, 0, bitmap_size);
-	test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, page_size, bitmap);
+	test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, page_size, bitmap,
+				  flags);
 	for (count = 0, i = 0; i < nbits; count += !(i % 2), i++)
 		ASSERT_EQ(!(i % 2), test_bit(i, (unsigned long *)bitmap));
 	ASSERT_EQ(count, out_dirty);
 
 	memset(bitmap, 0, bitmap_size);
-	test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, page_size, bitmap);
+	test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, page_size, bitmap,
+				  flags);
 
 	/* It as read already -- expect all zeroes */
-	for (i = 0; i < nbits; i++)
-		ASSERT_EQ(0, test_bit(i, (unsigned long *)bitmap));
+	for (i = 0; i < nbits; i++) {
+		ASSERT_EQ(!(i % 2) && (flags &
+				       IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR),
+			  test_bit(i, (unsigned long *)bitmap));
+	}
 
 	return 0;
 }
 #define test_mock_dirty_bitmaps(hwpt_id, length, iova, page_size, bitmap,      \
-				bitmap_size, _metadata)                        \
+				bitmap_size, flags, _metadata)                 \
 	ASSERT_EQ(0, _test_mock_dirty_bitmaps(self->fd, hwpt_id, length, iova, \
 					      page_size, bitmap, bitmap_size,  \
-					      _metadata))
+					      flags, _metadata))
 
 static int _test_cmd_create_access(int fd, unsigned int ioas_id,
 				   __u32 *access_id, unsigned int flags)
