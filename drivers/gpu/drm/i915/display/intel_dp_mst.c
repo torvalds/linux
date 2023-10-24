@@ -95,6 +95,13 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	crtc_state->lane_count = limits->max_lane_count;
 	crtc_state->port_clock = limits->max_rate;
 
+	if (dsc) {
+		if (!intel_dp_supports_fec(intel_dp, connector, crtc_state))
+			return -EINVAL;
+
+		crtc_state->fec_enable = !intel_dp_is_uhbr(crtc_state);
+	}
+
 	mst_state->pbn_div = drm_dp_get_vc_payload_bw(&intel_dp->mst_mgr,
 						      crtc_state->port_clock,
 						      crtc_state->lane_count);
