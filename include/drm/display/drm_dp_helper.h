@@ -788,4 +788,15 @@ bool drm_dp_downstream_rgb_to_ycbcr_conversion(const u8 dpcd[DP_RECEIVER_CAP_SIZ
 					       const u8 port_cap[4], u8 color_spc);
 int drm_dp_pcon_convert_rgb_to_ycbcr(struct drm_dp_aux *aux, u8 color_spc);
 
+#define DRM_DP_BW_OVERHEAD_MST		BIT(0)
+#define DRM_DP_BW_OVERHEAD_UHBR		BIT(1)
+#define DRM_DP_BW_OVERHEAD_SSC_REF_CLK	BIT(2)
+#define DRM_DP_BW_OVERHEAD_FEC		BIT(3)
+#define DRM_DP_BW_OVERHEAD_DSC		BIT(4)
+
+int drm_dp_bw_overhead(int lane_count, int hactive,
+		       int dsc_slice_count,
+		       int bpp_x16, unsigned long flags);
+int drm_dp_bw_channel_coding_efficiency(bool is_uhbr);
+
 #endif /* _DRM_DP_HELPER_H_ */

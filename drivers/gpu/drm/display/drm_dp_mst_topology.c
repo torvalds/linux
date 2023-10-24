@@ -4726,17 +4726,28 @@ EXPORT_SYMBOL(drm_dp_check_act_status);
 int drm_dp_calc_pbn_mode(int clock, int bpp)
 {
 	/*
-	 * margin 5300ppm + 300ppm ~ 0.6% as per spec, factor is 1.006
 	 * The unit of 54/64Mbytes/sec is an arbitrary unit chosen based on
 	 * common multiplier to render an integer PBN for all link rate/lane
 	 * counts combinations
 	 * calculate
-	 * peak_kbps *= (1006/1000)
-	 * peak_kbps *= (64/54)
-	 * peak_kbps *= 8    convert to bytes
+	 * peak_kbps = clock * bpp / 16
+	 * peak_kbps *= SSC overhead / 1000000
+	 * peak_kbps /= 8    convert to Kbytes
+	 * peak_kBps *= (64/54) / 1000    convert to PBN
 	 */
-	return DIV_ROUND_UP_ULL(mul_u32_u32(clock * bpp, 64 * 1006 >> 4),
-				1000 * 8 * 54 * 1000);
+	/*
+	 * TODO: Use the actual link and mode parameters to calculate
+	 * the overhead. For now it's assumed that these are
+	 * 4 link lanes, 4096 hactive pixels, which don't add any
+	 * significant data padding overhead and that there is no DSC
+	 * or FEC overhead.
+	 */
+	int overhead = drm_dp_bw_overhead(4, 4096, 0, bpp,
+					  DRM_DP_BW_OVERHEAD_MST |
+					  DRM_DP_BW_OVERHEAD_SSC_REF_CLK);
+
+	return DIV64_U64_ROUND_UP(mul_u32_u32(clock * bpp, 64 * overhead >> 4),
+				  1000000ULL * 8 * 54 * 1000);
 }
 EXPORT_SYMBOL(drm_dp_calc_pbn_mode);
 
