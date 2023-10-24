@@ -47,7 +47,8 @@ ice_eswitch_add_sp_rule(struct ice_pf *pf, struct ice_repr *repr)
 	err = ice_add_adv_rule(hw, list, lkups_cnt, &rule_info,
 			       &repr->sp_rule);
 	if (err)
-		dev_err(ice_pf_to_dev(pf), "Unable to add slow-path rule in switchdev mode");
+		dev_err(ice_pf_to_dev(pf), "Unable to add slow-path rule for eswitch for PR %d",
+			repr->id);
 
 	kfree(list);
 	return err;
@@ -142,6 +143,7 @@ err_def_rx:
 static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 {
 	struct ice_vsi *vsi = pf->eswitch.control_vsi;
+	unsigned long repr_id = 0;
 	int q_id;
 
 	ice_for_each_txq(vsi, q_id) {
@@ -149,13 +151,14 @@ static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 		struct ice_tx_ring *tx_ring;
 		struct ice_rx_ring *rx_ring;
 		struct ice_repr *repr;
-		struct ice_vf *vf;
 
-		vf = ice_get_vf_by_id(pf, q_id);
-		if (WARN_ON(!vf))
-			continue;
+		repr = xa_find(&pf->eswitch.reprs, &repr_id, U32_MAX,
+			       XA_PRESENT);
+		if (WARN_ON(!repr))
+			break;
 
-		repr = vf->repr;
+		repr_id += 1;
+		repr->q_id = q_id;
 		q_vector = repr->q_vector;
 		tx_ring = vsi->tx_rings[q_id];
 		rx_ring = vsi->rx_rings[q_id];
@@ -178,8 +181,6 @@ static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 		rx_ring->q_vector = q_vector;
 		rx_ring->next = NULL;
 		rx_ring->netdev = repr->netdev;
-
-		ice_put_vf(vf);
 	}
 }
 
@@ -284,20 +285,17 @@ err:
 
 /**
  * ice_eswitch_update_repr - reconfigure port representor
- * @vsi: VF VSI for which port representor is configured
+ * @repr: pointer to repr struct
+ * @vsi: VSI for which port representor is configured
  */
-void ice_eswitch_update_repr(struct ice_vsi *vsi)
+void ice_eswitch_update_repr(struct ice_repr *repr, struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
-	struct ice_repr *repr;
-	struct ice_vf *vf;
 	int ret;
 
 	if (!ice_is_switchdev_running(pf))
 		return;
 
-	vf = vsi->vf;
-	repr = vf->repr;
 	repr->src_vsi = vsi;
 	repr->dst->u.port_info.port_id = vsi->vsi_num;
 
@@ -306,9 +304,10 @@ void ice_eswitch_update_repr(struct ice_vsi *vsi)
 
 	ret = ice_vsi_update_security(vsi, ice_vsi_ctx_clear_antispoof);
 	if (ret) {
-		ice_fltr_add_mac_and_broadcast(vsi, vf->hw_lan_addr, ICE_FWD_TO_VSI);
-		dev_err(ice_pf_to_dev(pf), "Failed to update VF %d port representor",
-			vsi->vf->vf_id);
+		ice_fltr_add_mac_and_broadcast(vsi, repr->parent_mac,
+					       ICE_FWD_TO_VSI);
+		dev_err(ice_pf_to_dev(pf), "Failed to update VSI of port representor %d",
+			repr->id);
 	}
 }
 
@@ -340,7 +339,7 @@ ice_eswitch_port_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	skb_dst_drop(skb);
 	dst_hold((struct dst_entry *)repr->dst);
 	skb_dst_set(skb, (struct dst_entry *)repr->dst);
-	skb->queue_mapping = repr->vf->vf_id;
+	skb->queue_mapping = repr->q_id;
 
 	return ice_start_xmit(skb, netdev);
 }
@@ -486,7 +485,7 @@ static int ice_eswitch_enable_switchdev(struct ice_pf *pf)
 	ice_eswitch_remap_rings_to_vectors(pf);
 
 	if (ice_vsi_open(ctrl_vsi))
-		goto err_setup_reprs;
+		goto err_vsi_open;
 
 	if (ice_eswitch_br_offloads_init(pf))
 		goto err_br_offloads;
@@ -497,6 +496,8 @@ static int ice_eswitch_enable_switchdev(struct ice_pf *pf)
 
 err_br_offloads:
 	ice_vsi_close(ctrl_vsi);
+err_vsi_open:
+	ice_eswitch_release_reprs(pf);
 err_setup_reprs:
 	ice_repr_rem_from_all_vfs(pf);
 err_repr_add:
