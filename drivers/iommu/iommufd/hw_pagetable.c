@@ -42,7 +42,7 @@ void iommufd_hw_pagetable_abort(struct iommufd_object *obj)
 	iommufd_hw_pagetable_destroy(obj);
 }
 
-int iommufd_hw_pagetable_enforce_cc(struct iommufd_hw_pagetable *hwpt)
+static int iommufd_hw_pagetable_enforce_cc(struct iommufd_hw_pagetable *hwpt)
 {
 	if (hwpt->enforce_cache_coherency)
 		return 0;
@@ -116,6 +116,13 @@ iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 	 * doing any maps. It is an iommu driver bug to report
 	 * IOMMU_CAP_ENFORCE_CACHE_COHERENCY but fail enforce_cache_coherency on
 	 * a new domain.
+	 *
+	 * The cache coherency mode must be configured here and unchanged later.
+	 * Note that a HWPT (non-CC) created for a device (non-CC) can be later
+	 * reused by another device (either non-CC or CC). However, A HWPT (CC)
+	 * created for a device (CC) cannot be reused by another device (non-CC)
+	 * but only devices (CC). Instead user space in this case would need to
+	 * allocate a separate HWPT (non-CC).
 	 */
 	if (idev->enforce_cache_coherency) {
 		rc = iommufd_hw_pagetable_enforce_cc(hwpt);
