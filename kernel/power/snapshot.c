@@ -2778,7 +2778,7 @@ static void *get_buffer(struct memory_bitmap *bm, struct chain_allocator *ca)
 int snapshot_write_next(struct snapshot_handle *handle)
 {
 	static struct chain_allocator ca;
-	int error = 0;
+	int error;
 
 next:
 	/* Check if we have already loaded the entire image */
