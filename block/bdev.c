@@ -245,7 +245,7 @@ int bdev_freeze(struct block_device *bdev)
 	bdev->bd_fsfreeze_sb = sb;
 
 sync:
-	sync_blockdev(bdev);
+	error = sync_blockdev(bdev);
 done:
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	return error;
