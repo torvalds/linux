@@ -31,13 +31,6 @@
 #define VCHIQ_SLOT_SIZE     4096
 #define VCHIQ_MAX_MSG_SIZE  (VCHIQ_SLOT_SIZE - sizeof(struct vchiq_header))
 
-/* Run time control of log level, based on KERN_XXX level. */
-#define VCHIQ_LOG_DEFAULT  4
-#define VCHIQ_LOG_ERROR    3
-#define VCHIQ_LOG_WARNING  4
-#define VCHIQ_LOG_INFO     6
-#define VCHIQ_LOG_TRACE    7
-
 enum vchiq_log_category {
 	VCHIQ_ARM,
 	VCHIQ_CORE,
@@ -475,10 +468,6 @@ struct vchiq_config {
 };
 
 extern spinlock_t bulk_waiter_spinlock;
-
-extern int vchiq_core_log_level;
-extern int vchiq_core_msg_log_level;
-extern int vchiq_sync_log_level;
 
 extern const char *
 get_conn_state_name(enum vchiq_connstate conn_state);

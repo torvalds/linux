@@ -103,9 +103,6 @@ static_assert((unsigned int)VCHIQ_PORT_MAX <
 
 #define BULK_INDEX(x) ((x) & (VCHIQ_NUM_SERVICE_BULKS - 1))
 
-#define SRVTRACE_ENABLED(srv, lev) \
-	(((srv) && (srv)->trace) || (vchiq_core_msg_log_level >= (lev)))
-
 #define NO_CLOSE_RECVD	0
 #define CLOSE_RECVD	1
 
@@ -151,11 +148,6 @@ static inline void check_sizes(void)
 	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_NUM_SERVICE_BULKS);
 	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_MAX_SERVICES);
 }
-
-/* Run time control of log level, based on KERN_XXX level. */
-int vchiq_core_log_level = VCHIQ_LOG_DEFAULT;
-int vchiq_core_msg_log_level = VCHIQ_LOG_DEFAULT;
-int vchiq_sync_log_level = VCHIQ_LOG_DEFAULT;
 
 DEFINE_SPINLOCK(bulk_waiter_spinlock);
 static DEFINE_SPINLOCK(quota_spinlock);
@@ -1048,11 +1040,9 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 			return -EINVAL;
 		}
 
-		if (SRVTRACE_ENABLED(service,
-				     VCHIQ_LOG_INFO))
-			vchiq_log_dump_mem(state->dev, "Sent", 0,
-					   header->data,
-					   min_t(size_t, 16, callback_result));
+		vchiq_log_dump_mem(state->dev, "Sent", 0,
+				   header->data,
+				   min_t(size_t, 16, callback_result));
 
 		spin_lock(&quota_spinlock);
 		quota->message_use_count++;
@@ -1157,6 +1147,7 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 	struct vchiq_shared_state *local;
 	struct vchiq_header *header;
 	ssize_t callback_result;
+	int svc_fourcc;
 
 	local = state->local;
 
@@ -1197,11 +1188,9 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 	}
 
 	if (service) {
-		if (SRVTRACE_ENABLED(service,
-				     VCHIQ_LOG_INFO))
-			vchiq_log_dump_mem(state->dev, "Sent", 0,
-					   header->data,
-					   min_t(size_t, 16, callback_result));
+		vchiq_log_dump_mem(state->dev, "Sent", 0,
+				   header->data,
+				   min_t(size_t, 16, callback_result));
 
 		VCHIQ_SERVICE_STATS_INC(service, ctrl_tx_count);
 		VCHIQ_SERVICE_STATS_ADD(service, ctrl_tx_bytes, size);
@@ -1212,19 +1201,15 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 	header->size = size;
 	header->msgid = msgid;
 
-	if (vchiq_sync_log_level >= VCHIQ_LOG_TRACE) {
-		int svc_fourcc;
 
-		svc_fourcc = service
-			? service->base.fourcc
-			: VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
+	svc_fourcc = service ? service->base.fourcc
+			     : VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 
-		vchiq_log_trace(state->dev, VCHIQ_SYNC,
-				"Sent Sync Msg %s(%u) to %c%c%c%c s:%u d:%d len:%d",
-				msg_type_str(VCHIQ_MSG_TYPE(msgid)), VCHIQ_MSG_TYPE(msgid),
-				VCHIQ_FOURCC_AS_4CHARS(svc_fourcc), VCHIQ_MSG_SRCPORT(msgid),
-				VCHIQ_MSG_DSTPORT(msgid), size);
-	}
+	vchiq_log_trace(state->dev, VCHIQ_SYNC,
+			"Sent Sync Msg %s(%u) to %c%c%c%c s:%u d:%d len:%d",
+			msg_type_str(VCHIQ_MSG_TYPE(msgid)), VCHIQ_MSG_TYPE(msgid),
+			VCHIQ_FOURCC_AS_4CHARS(svc_fourcc), VCHIQ_MSG_SRCPORT(msgid),
+			VCHIQ_MSG_DSTPORT(msgid), size);
 
 	remote_event_signal(&state->remote->sync_trigger);
 
@@ -1586,6 +1571,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 	struct vchiq_service *service = NULL;
 	unsigned int localport, remoteport;
 	int msgid, size, type, ret = -EINVAL;
+	int svc_fourcc;
 
 	DEBUG_INITIALISE(state->local);
 
@@ -1641,20 +1627,16 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		break;
 	}
 
-	if (SRVTRACE_ENABLED(service, VCHIQ_LOG_INFO)) {
-		int svc_fourcc;
 
-		svc_fourcc = service
-			? service->base.fourcc
-			: VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
+	svc_fourcc = service ? service->base.fourcc
+			     : VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 
-		vchiq_log_debug(state->dev, VCHIQ_CORE_MSG,
-				"Rcvd Msg %s(%u) from %c%c%c%c s:%d d:%d len:%d",
-				msg_type_str(type), type, VCHIQ_FOURCC_AS_4CHARS(svc_fourcc),
-				remoteport, localport, size);
-		if (size > 0)
-			vchiq_log_dump_mem(state->dev, "Rcvd", 0, header->data, min(16, size));
-	}
+	vchiq_log_debug(state->dev, VCHIQ_CORE_MSG,
+			"Rcvd Msg %s(%u) from %c%c%c%c s:%d d:%d len:%d",
+			msg_type_str(type), type, VCHIQ_FOURCC_AS_4CHARS(svc_fourcc),
+			remoteport, localport, size);
+	if (size > 0)
+		vchiq_log_dump_mem(state->dev, "Rcvd", 0, header->data, min(16, size));
 
 	if (((unsigned long)header & VCHIQ_SLOT_MASK) +
 	    calc_stride(size) > VCHIQ_SLOT_SIZE) {
@@ -2028,6 +2010,7 @@ sync_func(void *v)
 	struct vchiq_header *header =
 		(struct vchiq_header *)SLOT_DATA_FROM_INDEX(state,
 			state->remote->slot_sync);
+	int svc_fourcc;
 
 	while (1) {
 		struct vchiq_service *service;
@@ -2057,19 +2040,15 @@ sync_func(void *v)
 			continue;
 		}
 
-		if (vchiq_sync_log_level >= VCHIQ_LOG_TRACE) {
-			int svc_fourcc;
+		svc_fourcc = service ? service->base.fourcc
+				     : VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 
-			svc_fourcc = service
-				? service->base.fourcc
-				: VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
-			vchiq_log_trace(state->dev, VCHIQ_SYNC,
-					"Rcvd Msg %s from %c%c%c%c s:%d d:%d len:%d",
-					msg_type_str(type), VCHIQ_FOURCC_AS_4CHARS(svc_fourcc),
-					remoteport, localport, size);
-			if (size > 0)
-				vchiq_log_dump_mem(state->dev, "Rcvd", 0, header->data, min(16, size));
-		}
+		vchiq_log_trace(state->dev, VCHIQ_SYNC,
+				"Rcvd Msg %s from %c%c%c%c s:%d d:%d len:%d",
+				msg_type_str(type), VCHIQ_FOURCC_AS_4CHARS(svc_fourcc),
+				remoteport, localport, size);
+		if (size > 0)
+			vchiq_log_dump_mem(state->dev, "Rcvd", 0, header->data, min(16, size));
 
 		switch (type) {
 		case VCHIQ_MSG_OPENACK:
