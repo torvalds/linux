@@ -2615,13 +2615,19 @@ static int smu_v13_0_0_baco_exit(struct smu_context *smu)
 static bool smu_v13_0_0_is_mode1_reset_supported(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	u32 smu_version;
+	int ret;
 
 	/* SRIOV does not support SMU mode1 reset */
 	if (amdgpu_sriov_vf(adev))
 		return false;
 
 	/* PMFW support is available since 78.41 */
-	if (smu->smc_fw_version < 0x004e2900)
+	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (ret)
+		return false;
+
+	if (smu_version < 0x004e2900)
 		return false;
 
 	return true;
