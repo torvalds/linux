@@ -224,7 +224,6 @@ ice_eswitch_release_reprs(struct ice_pf *pf, struct ice_vsi *ctrl_vsi)
 static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 {
 	struct ice_vsi *ctrl_vsi = pf->eswitch.control_vsi;
-	int max_vsi_num = 0;
 	struct ice_vf *vf;
 	unsigned int bkt;
 
@@ -266,9 +265,6 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 			ice_vsi_update_security(vsi, ice_vsi_ctx_set_antispoof);
 			goto err;
 		}
-
-		if (max_vsi_num < vsi->vsi_num)
-			max_vsi_num = vsi->vsi_num;
 
 		netif_napi_add(vf->repr->netdev, &vf->repr->q_vector->napi,
 			       ice_napi_poll);
