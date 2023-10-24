@@ -152,11 +152,8 @@ void pdsc_qcq_free(struct pdsc *pdsc, struct pdsc_qcq *qcq)
 		dma_free_coherent(dev, qcq->cq_size,
 				  qcq->cq_base, qcq->cq_base_pa);
 
-	if (qcq->cq.info)
-		vfree(qcq->cq.info);
-
-	if (qcq->q.info)
-		vfree(qcq->q.info);
+	vfree(qcq->cq.info);
+	vfree(qcq->q.info);
 
 	memset(qcq, 0, sizeof(*qcq));
 }
