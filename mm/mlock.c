@@ -346,6 +346,10 @@ static inline bool allow_mlock_munlock(struct folio *folio,
 	if (!(vma->vm_flags & VM_LOCKED))
 		return true;
 
+	/* folio_within_range() cannot take KSM, but any small folio is OK */
+	if (!folio_test_large(folio))
+		return true;
+
 	/* folio not in range [start, end), skip mlock */
 	if (!folio_within_range(folio, vma, start, end))
 		return false;
