@@ -99,6 +99,7 @@ struct ffa_drv_info {
 	void *tx_buffer;
 	bool mem_ops_native;
 	bool bitmap_created;
+	bool notif_enabled;
 	unsigned int sched_recv_irq;
 	unsigned int cpuhp_state;
 	struct ffa_pcpu_irq __percpu *irq_pcpu;
@@ -889,6 +890,8 @@ static int ffa_memory_lend(struct ffa_mem_ops_args *args)
 
 #define FFA_SECURE_PARTITION_ID_FLAG	BIT(15)
 
+#define ffa_notifications_disabled()	(!drv_info->notif_enabled)
+
 enum notify_type {
 	NON_SECURE_VM,
 	SECURE_PARTITION,
@@ -907,6 +910,9 @@ static int ffa_sched_recv_cb_update(u16 part_id, ffa_sched_recv_cb callback,
 {
 	struct ffa_dev_part_info *partition;
 	bool cb_valid;
+
+	if (ffa_notifications_disabled())
+		return -EOPNOTSUPP;
 
 	partition = xa_load(&drv_info->partition_info, part_id);
 	write_lock(&partition->rw_lock);
@@ -1001,6 +1007,9 @@ static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id)
 	int rc;
 	enum notify_type type = ffa_notify_type_get(dev->vm_id);
 
+	if (ffa_notifications_disabled())
+		return -EOPNOTSUPP;
+
 	if (notify_id >= FFA_MAX_NOTIFICATIONS)
 		return -EINVAL;
 
@@ -1026,6 +1035,9 @@ static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
 	int rc;
 	u32 flags = 0;
 	enum notify_type type = ffa_notify_type_get(dev->vm_id);
+
+	if (ffa_notifications_disabled())
+		return -EOPNOTSUPP;
 
 	if (notify_id >= FFA_MAX_NOTIFICATIONS)
 		return -EINVAL;
@@ -1056,6 +1068,9 @@ static int ffa_notify_send(struct ffa_device *dev, int notify_id,
 			   bool is_per_vcpu, u16 vcpu)
 {
 	u32 flags = 0;
+
+	if (ffa_notifications_disabled())
+		return -EOPNOTSUPP;
 
 	if (is_per_vcpu)
 		flags |= (PER_VCPU_NOTIFICATION_FLAG | vcpu << 16);
@@ -1388,6 +1403,7 @@ static void ffa_notifications_cleanup(void)
 		ffa_notification_bitmap_destroy();
 		drv_info->bitmap_created = false;
 	}
+	drv_info->notif_enabled = false;
 }
 
 static void ffa_notifications_setup(void)
@@ -1422,6 +1438,7 @@ static void ffa_notifications_setup(void)
 	hash_init(drv_info->notifier_hash);
 	mutex_init(&drv_info->notify_lock);
 
+	drv_info->notif_enabled = true;
 	return;
 cleanup:
 	pr_info("Notification setup failed %d, not enabled\n", ret);
