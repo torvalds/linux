@@ -20,6 +20,7 @@ enum {
 	IOMMU_TEST_OP_MOCK_DOMAIN_REPLACE,
 	IOMMU_TEST_OP_ACCESS_REPLACE_IOAS,
 	IOMMU_TEST_OP_MOCK_DOMAIN_FLAGS,
+	IOMMU_TEST_OP_DIRTY,
 };
 
 enum {
@@ -107,6 +108,14 @@ struct iommu_test_cmd {
 		struct {
 			__u32 ioas_id;
 		} access_replace_ioas;
+		struct {
+			__u32 flags;
+			__aligned_u64 iova;
+			__aligned_u64 length;
+			__aligned_u64 page_size;
+			__aligned_u64 uptr;
+			__aligned_u64 out_nr_dirty;
+		} dirty;
 	};
 	__u32 last;
 };

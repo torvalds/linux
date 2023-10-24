@@ -1440,12 +1440,46 @@ FIXTURE(iommufd_dirty_tracking)
 	uint32_t hwpt_id;
 	uint32_t stdev_id;
 	uint32_t idev_id;
+	unsigned long page_size;
+	unsigned long bitmap_size;
+	void *bitmap;
+	void *buffer;
+};
+
+FIXTURE_VARIANT(iommufd_dirty_tracking)
+{
+	unsigned long buffer_size;
 };
 
 FIXTURE_SETUP(iommufd_dirty_tracking)
 {
+	void *vrc;
+	int rc;
+
 	self->fd = open("/dev/iommu", O_RDWR);
 	ASSERT_NE(-1, self->fd);
+
+	rc = posix_memalign(&self->buffer, HUGEPAGE_SIZE, variant->buffer_size);
+	if (rc || !self->buffer) {
+		SKIP(return, "Skipping buffer_size=%lu due to errno=%d",
+			   variant->buffer_size, rc);
+	}
+
+	assert((uintptr_t)self->buffer % HUGEPAGE_SIZE == 0);
+	vrc = mmap(self->buffer, variant->buffer_size, PROT_READ | PROT_WRITE,
+		   MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	assert(vrc == self->buffer);
+
+	self->page_size = MOCK_PAGE_SIZE;
+	self->bitmap_size =
+		variant->buffer_size / self->page_size / BITS_PER_BYTE;
+
+	/* Provision with an extra (MOCK_PAGE_SIZE) for the unaligned case */
+	rc = posix_memalign(&self->bitmap, PAGE_SIZE,
+			    self->bitmap_size + MOCK_PAGE_SIZE);
+	assert(!rc);
+	assert(self->bitmap);
+	assert((uintptr_t)self->bitmap % PAGE_SIZE == 0);
 
 	test_ioctl_ioas_alloc(&self->ioas_id);
 	test_cmd_mock_domain(self->ioas_id, &self->stdev_id, &self->hwpt_id,
@@ -1454,8 +1488,40 @@ FIXTURE_SETUP(iommufd_dirty_tracking)
 
 FIXTURE_TEARDOWN(iommufd_dirty_tracking)
 {
+	munmap(self->buffer, variant->buffer_size);
+	munmap(self->bitmap, self->bitmap_size);
 	teardown_iommufd(self->fd, _metadata);
 }
+
+FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty128k)
+{
+	/* one u32 index bitmap */
+	.buffer_size = 128UL * 1024UL,
+};
+
+FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty256k)
+{
+	/* one u64 index bitmap */
+	.buffer_size = 256UL * 1024UL,
+};
+
+FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty640k)
+{
+	/* two u64 index and trailing end bitmap */
+	.buffer_size = 640UL * 1024UL,
+};
+
+FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty128M)
+{
+	/* 4K bitmap (128M IOVA range) */
+	.buffer_size = 128UL * 1024UL * 1024UL,
+};
+
+FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty256M)
+{
+	/* 8K bitmap (256M IOVA range) */
+	.buffer_size = 256UL * 1024UL * 1024UL,
+};
 
 TEST_F(iommufd_dirty_tracking, enforce_dirty)
 {
@@ -1492,6 +1558,36 @@ TEST_F(iommufd_dirty_tracking, set_dirty_tracking)
 	test_cmd_mock_domain(hwpt_id, &stddev_id, NULL, NULL);
 	test_cmd_set_dirty_tracking(hwpt_id, true);
 	test_cmd_set_dirty_tracking(hwpt_id, false);
+
+	test_ioctl_destroy(stddev_id);
+	test_ioctl_destroy(hwpt_id);
+}
+
+TEST_F(iommufd_dirty_tracking, get_dirty_bitmap)
+{
+	uint32_t stddev_id;
+	uint32_t hwpt_id;
+	uint32_t ioas_id;
+
+	test_ioctl_ioas_alloc(&ioas_id);
+	test_ioctl_ioas_map_fixed_id(ioas_id, self->buffer,
+				     variant->buffer_size, MOCK_APERTURE_START);
+
+	test_cmd_hwpt_alloc(self->idev_id, ioas_id,
+			    IOMMU_HWPT_ALLOC_DIRTY_TRACKING, &hwpt_id);
+	test_cmd_mock_domain(hwpt_id, &stddev_id, NULL, NULL);
+
+	test_cmd_set_dirty_tracking(hwpt_id, true);
+
+	test_mock_dirty_bitmaps(hwpt_id, variant->buffer_size,
+				MOCK_APERTURE_START, self->page_size,
+				self->bitmap, self->bitmap_size, _metadata);
+
+	/* PAGE_SIZE unaligned bitmap */
+	test_mock_dirty_bitmaps(hwpt_id, variant->buffer_size,
+				MOCK_APERTURE_START, self->page_size,
+				self->bitmap + MOCK_PAGE_SIZE,
+				self->bitmap_size, _metadata);
 
 	test_ioctl_destroy(stddev_id);
 	test_ioctl_destroy(hwpt_id);
