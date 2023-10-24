@@ -1224,7 +1224,7 @@ static void do_thaw_all_callback(struct super_block *sb)
 
 	if (locked && sb->s_root) {
 		if (IS_ENABLED(CONFIG_BLOCK))
-			while (sb->s_bdev && !thaw_bdev(sb->s_bdev))
+			while (sb->s_bdev && !bdev_thaw(sb->s_bdev))
 				pr_warn("Emergency Thaw on %pg\n", sb->s_bdev);
 		thaw_super_locked(sb, FREEZE_HOLDER_USERSPACE);
 		return;
@@ -1532,7 +1532,7 @@ int setup_bdev_super(struct super_block *sb, int sb_flags,
 	/*
 	 * Until SB_BORN flag is set, there can be no active superblock
 	 * references and thus no filesystem freezing. get_active_super() will
-	 * just loop waiting for SB_BORN so even freeze_bdev() cannot proceed.
+	 * just loop waiting for SB_BORN so even bdev_freeze() cannot proceed.
 	 *
 	 * It is enough to check bdev was not frozen before we set s_bdev.
 	 */

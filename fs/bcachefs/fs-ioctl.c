@@ -291,14 +291,14 @@ static int bch2_ioc_goingdown(struct bch_fs *c, u32 __user *arg)
 
 	switch (flags) {
 	case FSOP_GOING_FLAGS_DEFAULT:
-		ret = freeze_bdev(c->vfs_sb->s_bdev);
+		ret = bdev_freeze(c->vfs_sb->s_bdev);
 		if (ret)
 			goto err;
 
 		bch2_journal_flush(&c->journal);
 		c->vfs_sb->s_flags |= SB_RDONLY;
 		bch2_fs_emergency_read_only(c);
-		thaw_bdev(c->vfs_sb->s_bdev);
+		bdev_thaw(c->vfs_sb->s_bdev);
 		break;
 
 	case FSOP_GOING_FLAGS_LOGFLUSH:

@@ -207,18 +207,20 @@ int sync_blockdev_range(struct block_device *bdev, loff_t lstart, loff_t lend)
 EXPORT_SYMBOL(sync_blockdev_range);
 
 /**
- * freeze_bdev - lock a filesystem and force it into a consistent state
+ * bdev_freeze - lock a filesystem and force it into a consistent state
  * @bdev:	blockdevice to lock
  *
  * If a superblock is found on this device, we take the s_umount semaphore
  * on it to make sure nobody unmounts until the snapshot creation is done.
  * The reference counter (bd_fsfreeze_count) guarantees that only the last
  * unfreeze process can unfreeze the frozen filesystem actually when multiple
- * freeze requests arrive simultaneously. It counts up in freeze_bdev() and
- * count down in thaw_bdev(). When it becomes 0, thaw_bdev() will unfreeze
+ * freeze requests arrive simultaneously. It counts up in bdev_freeze() and
+ * count down in bdev_thaw(). When it becomes 0, thaw_bdev() will unfreeze
  * actually.
+ *
+ * Return: On success zero is returned, negative error code on failure.
  */
-int freeze_bdev(struct block_device *bdev)
+int bdev_freeze(struct block_device *bdev)
 {
 	struct super_block *sb;
 	int error = 0;
@@ -248,15 +250,17 @@ done:
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	return error;
 }
-EXPORT_SYMBOL(freeze_bdev);
+EXPORT_SYMBOL(bdev_freeze);
 
 /**
- * thaw_bdev - unlock filesystem
+ * bdev_thaw - unlock filesystem
  * @bdev:	blockdevice to unlock
  *
- * Unlocks the filesystem and marks it writeable again after freeze_bdev().
+ * Unlocks the filesystem and marks it writeable again after bdev_freeze().
+ *
+ * Return: On success zero is returned, negative error code on failure.
  */
-int thaw_bdev(struct block_device *bdev)
+int bdev_thaw(struct block_device *bdev)
 {
 	struct super_block *sb;
 	int error = -EINVAL;
@@ -285,7 +289,7 @@ out:
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	return error;
 }
-EXPORT_SYMBOL(thaw_bdev);
+EXPORT_SYMBOL(bdev_thaw);
 
 /*
  * pseudo-fs
