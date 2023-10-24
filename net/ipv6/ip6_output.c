@@ -191,7 +191,6 @@ static int __ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff 
 		return ip6_finish_output_gso_slowpath_drop(net, sk, skb, mtu);
 
 	if ((skb->len > mtu && !skb_is_gso(skb)) ||
-	    dst_allfrag(skb_dst(skb)) ||
 	    (IP6CB(skb)->frag_max_size && skb->len > IP6CB(skb)->frag_max_size))
 		return ip6_fragment(net, sk, skb, ip6_finish_output2);
 	else
@@ -1017,9 +1016,6 @@ slow_path:
 	return err;
 
 fail_toobig:
-	if (skb->sk && dst_allfrag(skb_dst(skb)))
-		sk_gso_disable(skb->sk);
-
 	icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 	err = -EMSGSIZE;
 
@@ -1384,10 +1380,7 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 	cork->base.mark = ipc6->sockc.mark;
 	sock_tx_timestamp(sk, ipc6->sockc.tsflags, &cork->base.tx_flags);
 
-	if (dst_allfrag(xfrm_dst_path(&rt->dst)))
-		cork->base.flags |= IPCORK_ALLFRAG;
 	cork->base.length = 0;
-
 	cork->base.transmit_time = ipc6->sockc.transmit_time;
 
 	return 0;
@@ -1444,8 +1437,6 @@ static int __ip6_append_data(struct sock *sk,
 
 	headersize = sizeof(struct ipv6hdr) +
 		     (opt ? opt->opt_flen + opt->opt_nflen : 0) +
-		     (dst_allfrag(&rt->dst) ?
-		      sizeof(struct frag_hdr) : 0) +
 		     rt->rt6i_nfheader_len;
 
 	if (mtu <= fragheaderlen ||
@@ -1555,7 +1546,7 @@ emsgsize:
 
 	while (length > 0) {
 		/* Check if the remaining data fits into current packet. */
-		copy = (cork->length <= mtu && !(cork->flags & IPCORK_ALLFRAG) ? mtu : maxfraglen) - skb->len;
+		copy = (cork->length <= mtu ? mtu : maxfraglen) - skb->len;
 		if (copy < length)
 			copy = maxfraglen - skb->len;
 
@@ -1586,7 +1577,7 @@ alloc_new_skb:
 			 */
 			datalen = length + fraggap;
 
-			if (datalen > (cork->length <= mtu && !(cork->flags & IPCORK_ALLFRAG) ? mtu : maxfraglen) - fragheaderlen)
+			if (datalen > (cork->length <= mtu ? mtu : maxfraglen) - fragheaderlen)
 				datalen = maxfraglen - fragheaderlen - rt->dst.trailer_len;
 			fraglen = datalen + fragheaderlen;
 			pagedlen = 0;
@@ -1835,7 +1826,6 @@ static void ip6_cork_steal_dst(struct sk_buff *skb, struct inet_cork_full *cork)
 	struct dst_entry *dst = cork->base.dst;
 
 	cork->base.dst = NULL;
-	cork->base.flags &= ~IPCORK_ALLFRAG;
 	skb_dst_set(skb, dst);
 }
 
@@ -1856,7 +1846,6 @@ static void ip6_cork_release(struct inet_cork_full *cork,
 	if (cork->base.dst) {
 		dst_release(cork->base.dst);
 		cork->base.dst = NULL;
-		cork->base.flags &= ~IPCORK_ALLFRAG;
 	}
 }
 
