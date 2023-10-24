@@ -407,19 +407,6 @@ ice_eswitch_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 }
 
 /**
- * ice_eswitch_napi_del - remove NAPI handle for all port representors
- * @reprs: xarray of reprs
- */
-static void ice_eswitch_napi_del(struct xarray *reprs)
-{
-	struct ice_repr *repr;
-	unsigned long id;
-
-	xa_for_each(reprs, id, repr)
-		netif_napi_del(&repr->q_vector->napi);
-}
-
-/**
  * ice_eswitch_napi_enable - enable NAPI for all port representors
  * @reprs: xarray of reprs
  */
@@ -624,36 +611,6 @@ static void ice_eswitch_start_reprs(struct ice_pf *pf)
 	ice_eswitch_add_sp_rules(pf);
 }
 
-/**
- * ice_eswitch_rebuild - rebuild eswitch
- * @pf: pointer to PF structure
- */
-int ice_eswitch_rebuild(struct ice_pf *pf)
-{
-	struct ice_vsi *ctrl_vsi = pf->eswitch.control_vsi;
-	int status;
-
-	ice_eswitch_napi_disable(&pf->eswitch.reprs);
-	ice_eswitch_napi_del(&pf->eswitch.reprs);
-
-	status = ice_eswitch_setup_env(pf);
-	if (status)
-		return status;
-
-	ice_eswitch_remap_rings_to_vectors(&pf->eswitch);
-
-	ice_replay_tc_fltrs(pf);
-
-	status = ice_vsi_open(ctrl_vsi);
-	if (status)
-		return status;
-
-	ice_eswitch_napi_enable(&pf->eswitch.reprs);
-	ice_eswitch_start_all_tx_queues(pf);
-
-	return 0;
-}
-
 static void
 ice_eswitch_cp_change_queues(struct ice_eswitch *eswitch, int change)
 {
@@ -751,4 +708,27 @@ void ice_eswitch_detach(struct ice_pf *pf, struct ice_vf *vf)
 	} else {
 		ice_eswitch_start_reprs(pf);
 	}
+}
+
+/**
+ * ice_eswitch_rebuild - rebuild eswitch
+ * @pf: pointer to PF structure
+ */
+int ice_eswitch_rebuild(struct ice_pf *pf)
+{
+	struct ice_repr *repr;
+	unsigned long id;
+	int err;
+
+	if (!ice_is_switchdev_running(pf))
+		return 0;
+
+	err = ice_vsi_rebuild(pf->eswitch.control_vsi, ICE_VSI_FLAG_INIT);
+	if (err)
+		return err;
+
+	xa_for_each(&pf->eswitch.reprs, id, repr)
+		ice_eswitch_detach(pf, repr->vf);
+
+	return 0;
 }
