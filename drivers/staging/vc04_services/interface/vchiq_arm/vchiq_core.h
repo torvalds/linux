@@ -600,7 +600,8 @@ void vchiq_platform_conn_state_changed(struct vchiq_state *state,
 
 void vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newstate);
 
-void vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem, size_t num_bytes);
+void vchiq_log_dump_mem(struct device *dev, const char *label, u32 addr,
+			const void *void_mem, size_t num_bytes);
 
 int vchiq_remove_service(struct vchiq_instance *instance, unsigned int service);
 

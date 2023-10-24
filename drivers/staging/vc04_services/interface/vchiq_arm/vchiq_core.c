@@ -1052,7 +1052,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 
 		if (SRVTRACE_ENABLED(service,
 				     VCHIQ_LOG_INFO))
-			vchiq_log_dump_mem("Sent", 0,
+			vchiq_log_dump_mem(state->dev, "Sent", 0,
 					   header->data,
 					   min_t(size_t, 16, callback_result));
 
@@ -1201,7 +1201,7 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 	if (service) {
 		if (SRVTRACE_ENABLED(service,
 				     VCHIQ_LOG_INFO))
-			vchiq_log_dump_mem("Sent", 0,
+			vchiq_log_dump_mem(state->dev, "Sent", 0,
 					   header->data,
 					   min_t(size_t, 16, callback_result));
 
@@ -1653,7 +1653,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			       msg_type_str(type), type, VCHIQ_FOURCC_AS_4CHARS(svc_fourcc),
 			       remoteport, localport, size);
 		if (size > 0)
-			vchiq_log_dump_mem("Rcvd", 0, header->data, min(16, size));
+			vchiq_log_dump_mem(state->dev, "Rcvd", 0, header->data, min(16, size));
 	}
 
 	if (((unsigned long)header & VCHIQ_SLOT_MASK) +
@@ -2065,7 +2065,7 @@ sync_func(void *v)
 					msg_type_str(type), VCHIQ_FOURCC_AS_4CHARS(svc_fourcc),
 					remoteport, localport, size);
 			if (size > 0)
-				vchiq_log_dump_mem("Rcvd", 0, header->data, min(16, size));
+				vchiq_log_dump_mem(state->dev, "Rcvd", 0, header->data, min(16, size));
 		}
 
 		switch (type) {
@@ -3665,7 +3665,8 @@ int vchiq_send_remote_use_active(struct vchiq_state *state)
 			     NULL, NULL, 0, 0);
 }
 
-void vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem, size_t num_bytes)
+void vchiq_log_dump_mem(struct device *dev, const char *label, u32 addr,
+			const void *void_mem, size_t num_bytes)
 {
 	const u8 *mem = void_mem;
 	size_t offset;
