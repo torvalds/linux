@@ -746,9 +746,8 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 	 * BSpec 4287: disable DIP after the transcoder is disabled and before
 	 * the transcoder clock select is set to none.
 	 */
-	if (last_mst_stream)
-		intel_dp_set_infoframes(&dig_port->base, false,
-					old_crtc_state, NULL);
+	intel_dp_set_infoframes(&dig_port->base, false,
+				old_crtc_state, NULL);
 	/*
 	 * From TGL spec: "If multi-stream slave transcoder: Configure
 	 * Transcoder Clock Select to direct no clock to the transcoder"
