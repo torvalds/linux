@@ -1326,8 +1326,10 @@ static int ffa_sched_recv_irq_map(void)
 
 static void ffa_sched_recv_irq_unmap(void)
 {
-	if (drv_info->sched_recv_irq)
+	if (drv_info->sched_recv_irq) {
 		irq_dispose_mapping(drv_info->sched_recv_irq);
+		drv_info->sched_recv_irq = 0;
+	}
 }
 
 static int ffa_cpuhp_pcpu_irq_enable(unsigned int cpu)
@@ -1344,17 +1346,23 @@ static int ffa_cpuhp_pcpu_irq_disable(unsigned int cpu)
 
 static void ffa_uninit_pcpu_irq(void)
 {
-	if (drv_info->cpuhp_state)
+	if (drv_info->cpuhp_state) {
 		cpuhp_remove_state(drv_info->cpuhp_state);
+		drv_info->cpuhp_state = 0;
+	}
 
-	if (drv_info->notif_pcpu_wq)
+	if (drv_info->notif_pcpu_wq) {
 		destroy_workqueue(drv_info->notif_pcpu_wq);
+		drv_info->notif_pcpu_wq = NULL;
+	}
 
 	if (drv_info->sched_recv_irq)
 		free_percpu_irq(drv_info->sched_recv_irq, drv_info->irq_pcpu);
 
-	if (drv_info->irq_pcpu)
+	if (drv_info->irq_pcpu) {
 		free_percpu(drv_info->irq_pcpu);
+		drv_info->irq_pcpu = NULL;
+	}
 }
 
 static int ffa_init_pcpu_irq(unsigned int irq)
