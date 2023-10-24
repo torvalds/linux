@@ -665,7 +665,7 @@ static int acpi_serdev_check_resources(struct serdev_controller *ctrl,
 		acpi_get_parent(adev->handle, &lookup.controller_handle);
 
 	/* Make sure controller and ResourceSource handle match */
-	if (ACPI_HANDLE(ctrl->dev.parent) != lookup.controller_handle)
+	if (!device_match_acpi_handle(ctrl->dev.parent, lookup.controller_handle))
 		return -ENODEV;
 
 	return 0;
