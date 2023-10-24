@@ -188,6 +188,7 @@ struct serdes_chip_data {
 	int same_chip_count;
 	u8 bank_num;
 
+	int (*chip_init)(struct serdes *serdes);
 	struct regmap_config *regmap_config;
 	struct serdes_chip_pinctrl_info *pinctrl_info;
 	struct serdes_chip_bridge_ops *bridge_ops;
@@ -305,6 +306,7 @@ struct serdes {
 	bool use_delay_work;
 	struct pinctrl *pinctrl_node;
 	struct pinctrl_state *pins_default;
+	struct pinctrl_state *pins_init;
 	struct pinctrl_state *pins_sleep;
 
 	struct serdes_init_seq *serdes_init_seq;

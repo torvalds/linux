@@ -344,6 +344,8 @@ static int serdes_pinctrl_probe(struct platform_device *pdev)
 	if (!IS_ERR(serdes->pinctrl_node)) {
 		serdes->pins_default =
 			pinctrl_lookup_state(serdes->pinctrl_node, PINCTRL_STATE_DEFAULT);
+		serdes->pins_init =
+			pinctrl_lookup_state(serdes->pinctrl_node, PINCTRL_STATE_INIT);
 		serdes->pins_sleep =
 			pinctrl_lookup_state(serdes->pinctrl_node, PINCTRL_STATE_SLEEP);
 	}

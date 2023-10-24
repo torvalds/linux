@@ -146,8 +146,6 @@ static void bu18tl82_bridge_swrst(struct serdes *serdes)
 	struct device *dev = serdes->dev;
 	int ret;
 
-	return;
-
 	ret = serdes_reg_write(serdes, BU18TL82_REG_SWRST_INTERNAL, 0x00ef);
 	if (ret < 0)
 		dev_err(dev, "%s: failed to reset serdes 0x11 ret=%d\n", __func__, ret);
@@ -229,7 +227,6 @@ static int bu18tl82_bridge_pre_enable(struct serdes *serdes)
 }
 
 static struct serdes_chip_bridge_ops bu18tl82_bridge_ops = {
-	.init = bu18tl82_bridge_init,
 	.get_modes = bu18tl82_bridge_get_modes,
 	.pre_enable = bu18tl82_bridge_pre_enable,
 	.enable = bu18tl82_bridge_enable,
@@ -445,9 +442,10 @@ struct serdes_chip_data serdes_bu18tl82_data = {
 	.name		= "bu18tl82",
 	.serdes_type	= TYPE_SER,
 	.serdes_id	= ROHM_ID_BU18TL82,
-	.sequence_init = 1,
+	.sequence_init	= 1,
 	.bridge_type	= TYPE_BRIDGE_BRIDGE,
 	.connector_type	= DRM_MODE_CONNECTOR_eDP,
+	.chip_init	= bu18tl82_bridge_init,
 	.regmap_config	= &bu18tl82_regmap_config,
 	.pinctrl_info	= &bu18tl82_pinctrl_info,
 	.bridge_ops	= &bu18tl82_bridge_ops,

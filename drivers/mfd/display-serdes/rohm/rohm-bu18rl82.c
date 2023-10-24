@@ -45,6 +45,7 @@ static int BU18RL82_GPIO7_pins[] = {7};
 struct serdes_function_data {
 	u8 gpio_rx_en:1;
 	u16 gpio_id;
+	u16 mdelay;
 };
 
 static const char *serdes_gpio_groups[] = {
@@ -71,6 +72,16 @@ static const char *serdes_gpio_groups[] = {
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
 		{ .gpio_rx_en = 0, .gpio_id = id + 2 } \
+	}, \
+} \
+
+#define FUNCTION_DES_DELAY_MS(ms) \
+{ \
+	.name = "DELAY_"#ms"MS", \
+	.group_names = serdes_gpio_groups, \
+	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
+	.data = (void *)(const struct serdes_function_data []) { \
+		{ .mdelay = ms, } \
 	}, \
 } \
 
@@ -154,6 +165,12 @@ static struct function_desc bu18rl82_functions_desc[] = {
 
 	FUNCTION_DESC_GPIO_OUTPUT_HIGH(),
 	FUNCTION_DESC_GPIO_OUTPUT_LOW(),
+
+	FUNCTION_DES_DELAY_MS(10),
+	FUNCTION_DES_DELAY_MS(50),
+	FUNCTION_DES_DELAY_MS(100),
+	FUNCTION_DES_DELAY_MS(200),
+	FUNCTION_DES_DELAY_MS(500),
 };
 
 static struct serdes_chip_pinctrl_info bu18rl82_pinctrl_info = {
@@ -203,34 +220,33 @@ static void bu18rl82_enable_hwint(struct serdes *serdes, int enable)
 
 static int bu18rl82_bridge_init(struct serdes *serdes)
 {
-	return 0;
-
 	bu18rl82_bridge_swrst(serdes);
 
 	return 0;
 }
 
-static int bu18rl82_bridge_enable(struct serdes *serdes)
+static int bu18rl82_bridge_pre_enable(struct serdes *serdes)
 {
 	int ret = 0;
 
 	/* 1:enable 0:disable */
 	bu18rl82_enable_hwint(serdes, 0);
 
+	msleep(100);
+
 	SERDES_DBG_CHIP("%s: serdes %s ret=%d\n", __func__,
 			serdes->chip_data->name, ret);
 	return ret;
 }
 
-static int bu18rl82_bridge_disable(struct serdes *serdes)
+static int bu18rl82_bridge_post_disable(struct serdes *serdes)
 {
 	return 0;
 }
 
 static struct serdes_chip_bridge_ops bu18rl82_bridge_ops = {
-	.init = bu18rl82_bridge_init,
-	.enable = bu18rl82_bridge_enable,
-	.disable = bu18rl82_bridge_disable,
+	.enable = bu18rl82_bridge_pre_enable,
+	.disable = bu18rl82_bridge_post_disable,
 };
 
 static int bu18rl82_pinctrl_config_get(struct serdes *serdes,
@@ -320,6 +336,7 @@ static int bu18rl82_pinctrl_set_mux(struct serdes *serdes,
 	struct function_desc *func;
 	struct group_desc *grp;
 	int i, offset;
+	u16 ms;
 
 	func = pinmux_generic_get_function(pinctrl->pctl, function);
 	if (!func)
@@ -335,6 +352,7 @@ static int bu18rl82_pinctrl_set_mux(struct serdes *serdes,
 
 	if (func->data) {
 		struct serdes_function_data *fdata = func->data;
+		ms = fdata->mdelay;
 
 		for (i = 0; i < grp->num_pins; i++) {
 			offset = grp->pins[i] - pinctrl->pin_base;
@@ -344,22 +362,29 @@ static int bu18rl82_pinctrl_set_mux(struct serdes *serdes,
 			else
 				SERDES_DBG_CHIP("%s: serdes chip %s gpio_id=0x%x, offset=%d\n",
 						__func__, serdes->chip_data->name, fdata->gpio_id, offset);
-			serdes_set_bits(serdes, bu18rl82_gpio_oen[offset].reg,
-					bu18rl82_gpio_oen[offset].mask,
-					FIELD_PREP(BIT(3), fdata->gpio_rx_en));
 
-			serdes_set_bits(serdes, bu18rl82_gpio_id_low[offset].reg,
-					bu18rl82_gpio_id_low[offset].mask,
-					FIELD_PREP(GENMASK(7, 0),
-					(fdata->gpio_id & 0xff)));
+			if (!ms) {
+				serdes_set_bits(serdes, bu18rl82_gpio_oen[offset].reg,
+						bu18rl82_gpio_oen[offset].mask,
+						FIELD_PREP(BIT(3), fdata->gpio_rx_en));
 
-			serdes_set_bits(serdes, bu18rl82_gpio_id_high[offset].reg,
-					bu18rl82_gpio_id_high[offset].mask,
-					FIELD_PREP(GENMASK(2, 0),
-					((fdata->gpio_id >> 8) & 0x7)));
-			serdes_set_bits(serdes, bu18rl82_gpio_pden[offset].reg,
-					bu18rl82_gpio_pden[offset].mask,
-					FIELD_PREP(BIT(4), 0));
+				serdes_set_bits(serdes, bu18rl82_gpio_id_low[offset].reg,
+						bu18rl82_gpio_id_low[offset].mask,
+						FIELD_PREP(GENMASK(7, 0),
+						(fdata->gpio_id & 0xff)));
+
+				serdes_set_bits(serdes, bu18rl82_gpio_id_high[offset].reg,
+						bu18rl82_gpio_id_high[offset].mask,
+						FIELD_PREP(GENMASK(2, 0),
+						((fdata->gpio_id >> 8) & 0x7)));
+				serdes_set_bits(serdes, bu18rl82_gpio_pden[offset].reg,
+						bu18rl82_gpio_pden[offset].mask,
+						FIELD_PREP(BIT(4), 0));
+			} else {
+				mdelay(ms);
+				SERDES_DBG_CHIP("%s: delay %d ms\n",
+						__func__, ms);
+			}
 		}
 	}
 
@@ -447,6 +472,7 @@ struct serdes_chip_data serdes_bu18rl82_data = {
 	.serdes_id	= ROHM_ID_BU18RL82,
 	.bridge_type	= TYPE_BRIDGE_BRIDGE,
 	.connector_type	= DRM_MODE_CONNECTOR_LVDS,
+	.chip_init	= bu18rl82_bridge_init,
 	.regmap_config	= &bu18rl82_regmap_config,
 	.pinctrl_info	= &bu18rl82_pinctrl_info,
 	.bridge_ops	= &bu18rl82_bridge_ops,

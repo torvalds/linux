@@ -164,17 +164,17 @@ static void serdes_bridge_pre_enable(struct drm_bridge *bridge)
 	struct serdes *serdes = serdes_bridge->parent;
 	int ret = 0;
 
-	if (serdes->chip_data->bridge_ops->init)
-		ret = serdes->chip_data->bridge_ops->init(serdes);
-
-	if (serdes->chip_data->serdes_type == TYPE_DES)
-		serdes_i2c_set_sequence(serdes);
-
-	if (serdes_bridge->panel)
-		ret = drm_panel_prepare(serdes_bridge->panel);
+	if (serdes->chip_data->serdes_type == TYPE_DES) {
+		if (serdes->chip_data->chip_init)
+			serdes->chip_data->chip_init(serdes);
+		ret = serdes_i2c_set_sequence(serdes);
+	}
 
 	if (serdes->chip_data->bridge_ops->pre_enable)
 		ret = serdes->chip_data->bridge_ops->pre_enable(serdes);
+
+	if (serdes_bridge->panel)
+		ret = drm_panel_prepare(serdes_bridge->panel);
 
 	serdes_set_pinctrl_default(serdes);
 

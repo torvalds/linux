@@ -125,8 +125,11 @@ static int serdes_get_init_seq(struct serdes *serdes)
 
 	/* init ser register(not des register) more early if uboot logo disabled */
 	serdes->route_enable = of_property_read_bool(dev->of_node, "route-enable");
-	if ((!serdes->route_enable) && (serdes->chip_data->serdes_type == TYPE_SER))
+	if ((!serdes->route_enable) && (serdes->chip_data->serdes_type == TYPE_SER)) {
+		if (serdes->chip_data->chip_init)
+			serdes->chip_data->chip_init(serdes);
 		ret = serdes_i2c_set_sequence(serdes);
+	}
 
 	return ret;
 }
@@ -213,7 +216,7 @@ static int serdes_i2c_probe(struct i2c_client *client,
 		queue_delayed_work(serdes->mfd_wq, &serdes->mfd_delay_work, msecs_to_jiffies(300));
 		SERDES_DBG_MFD("%s: use_delay_work=%d\n", __func__, serdes->use_delay_work);
 	} else {
-		ret = serdes_device_init(serdes);
+		serdes_device_init(serdes);
 		SERDES_DBG_MFD("%s: use_delay_work=%d\n", __func__, serdes->use_delay_work);
 	}
 
