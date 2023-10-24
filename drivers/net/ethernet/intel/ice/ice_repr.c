@@ -318,6 +318,11 @@ static int ice_repr_add(struct ice_vf *vf)
 	}
 	repr->q_vector = q_vector;
 
+	err = xa_alloc(&vf->pf->eswitch.reprs, &repr->id, repr,
+		       xa_limit_32b, GFP_KERNEL);
+	if (err)
+		goto err_xa_alloc;
+
 	err = ice_devlink_create_vf_port(vf);
 	if (err)
 		goto err_devlink;
@@ -338,6 +343,8 @@ static int ice_repr_add(struct ice_vf *vf)
 err_netdev:
 	ice_devlink_destroy_vf_port(vf);
 err_devlink:
+	xa_erase(&vf->pf->eswitch.reprs, repr->id);
+err_xa_alloc:
 	kfree(repr->q_vector);
 	vf->repr->q_vector = NULL;
 err_alloc_q_vector:
@@ -363,6 +370,7 @@ static void ice_repr_rem(struct ice_vf *vf)
 	kfree(repr->q_vector);
 	unregister_netdev(repr->netdev);
 	ice_devlink_destroy_vf_port(vf);
+	xa_erase(&vf->pf->eswitch.reprs, repr->id);
 	free_netdev(repr->netdev);
 	kfree(repr);
 	vf->repr = NULL;

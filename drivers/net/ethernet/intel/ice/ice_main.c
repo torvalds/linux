@@ -4702,6 +4702,8 @@ static void ice_deinit_features(struct ice_pf *pf)
 		ice_ptp_release(pf);
 	if (test_bit(ICE_FLAG_DPLL, pf->flags))
 		ice_dpll_deinit(pf);
+	if (pf->eswitch_mode == DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		xa_destroy(&pf->eswitch.reprs);
 }
 
 static void ice_init_wakeup(struct ice_pf *pf)

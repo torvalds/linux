@@ -526,6 +526,7 @@ struct ice_eswitch {
 	struct ice_vsi *control_vsi;
 	struct ice_vsi *uplink_vsi;
 	struct ice_esw_br_offloads *br_offloads;
+	struct xarray reprs;
 	bool is_running;
 };
 
