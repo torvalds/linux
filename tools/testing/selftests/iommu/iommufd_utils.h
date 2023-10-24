@@ -98,6 +98,9 @@ static int _test_cmd_mock_domain_flags(int fd, unsigned int ioas_id,
 		*idev_id = cmd.mock_domain_flags.out_idev_id;
 	return 0;
 }
+#define test_cmd_mock_domain_flags(ioas_id, flags, stdev_id, hwpt_id, idev_id) \
+	ASSERT_EQ(0, _test_cmd_mock_domain_flags(self->fd, ioas_id, flags,     \
+						 stdev_id, hwpt_id, idev_id))
 #define test_err_mock_domain_flags(_errno, ioas_id, flags, stdev_id, hwpt_id) \
 	EXPECT_ERRNO(_errno,                                                  \
 		     _test_cmd_mock_domain_flags(self->fd, ioas_id, flags,    \
