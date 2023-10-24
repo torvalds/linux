@@ -6,6 +6,8 @@
 #ifndef _INTEL_DISPLAY_PARAMS_H_
 #define _INTEL_DISPLAY_PARAMS_H_
 
+#include <linux/types.h>
+
 struct drm_printer;
 struct drm_i915_private;
 
@@ -23,6 +25,9 @@ struct drm_i915_private;
  */
 #define INTEL_DISPLAY_PARAMS_FOR_EACH(param) \
 	param(int, enable_fbc, -1, 0600) \
+	param(int, enable_psr, -1, 0600) \
+	param(bool, psr_safest_params, false, 0400) \
+	param(bool, enable_psr2_sel_fetch, true, 0400) \
 
 #define MEMBER(T, member, ...) T member;
 struct intel_display_params {
