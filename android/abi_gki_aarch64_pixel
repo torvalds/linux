@@ -2197,6 +2197,7 @@
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_dup_task_struct
   __traceiter_android_vh_enable_thermal_genl_check
+  __traceiter_android_vh_filemap_get_folio
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_mm_compaction_begin
   __traceiter_android_vh_mm_compaction_end
@@ -2291,6 +2292,7 @@
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_dup_task_struct
   __tracepoint_android_vh_enable_thermal_genl_check
+  __tracepoint_android_vh_filemap_get_folio
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_mm_compaction_begin
   __tracepoint_android_vh_mm_compaction_end
