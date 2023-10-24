@@ -1390,20 +1390,20 @@ static void ffa_notifications_cleanup(void)
 	}
 }
 
-static int ffa_notifications_setup(void)
+static void ffa_notifications_setup(void)
 {
 	int ret, irq;
 
 	ret = ffa_features(FFA_NOTIFICATION_BITMAP_CREATE, 0, NULL, NULL);
 	if (ret) {
-		pr_err("Notifications not supported, continuing with it ..\n");
-		return 0;
+		pr_info("Notifications not supported, continuing with it ..\n");
+		return;
 	}
 
 	ret = ffa_notification_bitmap_create();
 	if (ret) {
-		pr_err("notification_bitmap_create error %d\n", ret);
-		return ret;
+		pr_info("Notification bitmap create error %d\n", ret);
+		return;
 	}
 	drv_info->bitmap_created = true;
 
@@ -1426,10 +1426,10 @@ static int ffa_notifications_setup(void)
 	ret = ffa_sched_recv_cb_update(drv_info->vm_id, ffa_self_notif_handle,
 				       drv_info, true);
 	if (!ret)
-		return ret;
+		return;
 cleanup:
+	pr_info("Notification setup failed %d, not enabled\n", ret);
 	ffa_notifications_cleanup();
-	return ret;
 }
 
 static int __init ffa_init(void)
@@ -1487,13 +1487,9 @@ static int __init ffa_init(void)
 
 	ffa_set_up_mem_ops_native_flag();
 
-	ret = ffa_notifications_setup();
-	if (ret)
-		goto partitions_cleanup;
+	ffa_notifications_setup();
 
 	return 0;
-partitions_cleanup:
-	ffa_partitions_cleanup();
 free_pages:
 	if (drv_info->tx_buffer)
 		free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
