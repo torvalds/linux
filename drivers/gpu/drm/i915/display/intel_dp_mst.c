@@ -209,13 +209,7 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		if (slots >= 0) {
 			drm_WARN_ON(&i915->drm, slots != remote_m_n.tu);
 
-			ret = drm_dp_mst_atomic_check(state);
-			/*
-			 * If we got slots >= 0 and we can fit those based on check
-			 * then we can exit the loop. Otherwise keep trying.
-			 */
-			if (!ret)
-				break;
+			break;
 		}
 	}
 
