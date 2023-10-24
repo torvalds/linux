@@ -5542,6 +5542,16 @@ int intel_modeset_pipes_in_mask_early(struct intel_atomic_state *state,
 	return 0;
 }
 
+static void
+intel_crtc_flag_modeset(struct intel_crtc_state *crtc_state)
+{
+	crtc_state->uapi.mode_changed = true;
+
+	crtc_state->update_pipe = false;
+	crtc_state->update_m_n = false;
+	crtc_state->update_lrr = false;
+}
+
 /**
  * intel_modeset_all_pipes_late - force a full modeset on all pipes
  * @state: intel atomic state
@@ -5575,9 +5585,8 @@ int intel_modeset_all_pipes_late(struct intel_atomic_state *state,
 		if (ret)
 			return ret;
 
-		crtc_state->update_pipe = false;
-		crtc_state->update_m_n = false;
-		crtc_state->update_lrr = false;
+		intel_crtc_flag_modeset(crtc_state);
+
 		crtc_state->update_planes |= crtc_state->active_planes;
 		crtc_state->async_flip_planes = 0;
 		crtc_state->do_async_flip = false;
@@ -5690,17 +5699,17 @@ static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_sta
 	else
 		new_crtc_state->uapi.mode_changed = false;
 
-	if (intel_crtc_needs_modeset(new_crtc_state) ||
-	    intel_compare_link_m_n(&old_crtc_state->dp_m_n,
+	if (intel_compare_link_m_n(&old_crtc_state->dp_m_n,
 				   &new_crtc_state->dp_m_n))
 		new_crtc_state->update_m_n = false;
 
-	if (intel_crtc_needs_modeset(new_crtc_state) ||
-	    (old_crtc_state->hw.adjusted_mode.crtc_vtotal == new_crtc_state->hw.adjusted_mode.crtc_vtotal &&
+	if ((old_crtc_state->hw.adjusted_mode.crtc_vtotal == new_crtc_state->hw.adjusted_mode.crtc_vtotal &&
 	     old_crtc_state->hw.adjusted_mode.crtc_vblank_end == new_crtc_state->hw.adjusted_mode.crtc_vblank_end))
 		new_crtc_state->update_lrr = false;
 
-	if (!intel_crtc_needs_modeset(new_crtc_state))
+	if (intel_crtc_needs_modeset(new_crtc_state))
+		intel_crtc_flag_modeset(new_crtc_state);
+	else
 		new_crtc_state->update_pipe = true;
 }
 
@@ -6475,12 +6484,8 @@ int intel_atomic_check(struct drm_device *dev,
 		if (intel_dp_mst_is_slave_trans(new_crtc_state)) {
 			enum transcoder master = new_crtc_state->mst_master_transcoder;
 
-			if (intel_cpu_transcoders_need_modeset(state, BIT(master))) {
-				new_crtc_state->uapi.mode_changed = true;
-				new_crtc_state->update_pipe = false;
-				new_crtc_state->update_m_n = false;
-				new_crtc_state->update_lrr = false;
-			}
+			if (intel_cpu_transcoders_need_modeset(state, BIT(master)))
+				intel_crtc_flag_modeset(new_crtc_state);
 		}
 
 		if (is_trans_port_sync_mode(new_crtc_state)) {
@@ -6489,21 +6494,13 @@ int intel_atomic_check(struct drm_device *dev,
 			if (new_crtc_state->master_transcoder != INVALID_TRANSCODER)
 				trans |= BIT(new_crtc_state->master_transcoder);
 
-			if (intel_cpu_transcoders_need_modeset(state, trans)) {
-				new_crtc_state->uapi.mode_changed = true;
-				new_crtc_state->update_pipe = false;
-				new_crtc_state->update_m_n = false;
-				new_crtc_state->update_lrr = false;
-			}
+			if (intel_cpu_transcoders_need_modeset(state, trans))
+				intel_crtc_flag_modeset(new_crtc_state);
 		}
 
 		if (new_crtc_state->bigjoiner_pipes) {
-			if (intel_pipes_need_modeset(state, new_crtc_state->bigjoiner_pipes)) {
-				new_crtc_state->uapi.mode_changed = true;
-				new_crtc_state->update_pipe = false;
-				new_crtc_state->update_m_n = false;
-				new_crtc_state->update_lrr = false;
-			}
+			if (intel_pipes_need_modeset(state, new_crtc_state->bigjoiner_pipes))
+				intel_crtc_flag_modeset(new_crtc_state);
 		}
 	}
 
