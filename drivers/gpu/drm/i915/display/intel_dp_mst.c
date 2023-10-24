@@ -378,8 +378,91 @@ intel_dp_mst_dsc_source_support(const struct intel_crtc_state *crtc_state)
 	return DISPLAY_VER(i915) >= 12 && intel_dsc_source_support(crtc_state);
 }
 
+static int mode_hblank_period_ns(const struct drm_display_mode *mode)
+{
+	return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(mode->htotal - mode->hdisplay,
+						 NSEC_PER_SEC / 1000),
+				     mode->crtc_clock);
+}
+
+static bool
+hblank_expansion_quirk_needs_dsc(const struct intel_connector *connector,
+				 const struct intel_crtc_state *crtc_state)
+{
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+
+	if (!connector->dp.dsc_hblank_expansion_quirk)
+		return false;
+
+	if (mode_hblank_period_ns(adjusted_mode) > 300)
+		return false;
+
+	return true;
+}
+
+static bool
+adjust_limits_for_dsc_hblank_expansion_quirk(const struct intel_connector *connector,
+					     const struct intel_crtc_state *crtc_state,
+					     struct link_config_limits *limits,
+					     bool dsc)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	const struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	int min_bpp_x16 = limits->link.min_bpp_x16;
+
+	if (!hblank_expansion_quirk_needs_dsc(connector, crtc_state))
+		return true;
+
+	if (!dsc) {
+		if (intel_dp_mst_dsc_source_support(crtc_state)) {
+			drm_dbg_kms(&i915->drm,
+				    "[CRTC:%d:%s][CONNECTOR:%d:%s] DSC needed by hblank expansion quirk\n",
+				    crtc->base.base.id, crtc->base.name,
+				    connector->base.base.id, connector->base.name);
+			return false;
+		}
+
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s][CONNECTOR:%d:%s] Increasing link min bpp to 24 due to hblank expansion quirk\n",
+			    crtc->base.base.id, crtc->base.name,
+			    connector->base.base.id, connector->base.name);
+
+		if (limits->link.max_bpp_x16 < to_bpp_x16(24))
+			return false;
+
+		limits->link.min_bpp_x16 = to_bpp_x16(24);
+
+		return true;
+	}
+
+	drm_WARN_ON(&i915->drm, limits->min_rate != limits->max_rate);
+
+	if (limits->max_rate < 540000)
+		min_bpp_x16 = to_bpp_x16(13);
+	else if (limits->max_rate < 810000)
+		min_bpp_x16 = to_bpp_x16(10);
+
+	if (limits->link.min_bpp_x16 >= min_bpp_x16)
+		return true;
+
+	drm_dbg_kms(&i915->drm,
+		    "[CRTC:%d:%s][CONNECTOR:%d:%s] Increasing link min bpp to " BPP_X16_FMT " in DSC mode due to hblank expansion quirk\n",
+		    crtc->base.base.id, crtc->base.name,
+		    connector->base.base.id, connector->base.name,
+		    BPP_X16_ARGS(min_bpp_x16));
+
+	if (limits->link.max_bpp_x16 < min_bpp_x16)
+		return false;
+
+	limits->link.min_bpp_x16 = min_bpp_x16;
+
+	return true;
+}
+
 static bool
 intel_dp_mst_compute_config_limits(struct intel_dp *intel_dp,
+				   const struct intel_connector *connector,
 				   struct intel_crtc_state *crtc_state,
 				   bool dsc,
 				   struct link_config_limits *limits)
@@ -407,10 +490,16 @@ intel_dp_mst_compute_config_limits(struct intel_dp *intel_dp,
 
 	intel_dp_adjust_compliance_config(intel_dp, crtc_state, limits);
 
-	return intel_dp_compute_config_link_bpp_limits(intel_dp,
-						       crtc_state,
-						       dsc,
-						       limits);
+	if (!intel_dp_compute_config_link_bpp_limits(intel_dp,
+						     crtc_state,
+						     dsc,
+						     limits))
+		return false;
+
+	return adjust_limits_for_dsc_hblank_expansion_quirk(connector,
+							    crtc_state,
+							    limits,
+							    dsc);
 }
 
 static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
@@ -420,6 +509,8 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
 	struct intel_dp *intel_dp = &intel_mst->primary->dp;
+	const struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *adjusted_mode =
 		&pipe_config->hw.adjusted_mode;
 	struct link_config_limits limits;
@@ -435,6 +526,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	dsc_needed = intel_dp->force_dsc_en ||
 		     !intel_dp_mst_compute_config_limits(intel_dp,
+							 connector,
 							 pipe_config,
 							 false,
 							 &limits);
@@ -460,6 +552,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 			return -EINVAL;
 
 		if (!intel_dp_mst_compute_config_limits(intel_dp,
+							connector,
 							pipe_config,
 							true,
 							&limits))
@@ -1236,6 +1329,36 @@ intel_dp_mst_read_decompression_port_dsc_caps(struct intel_dp *intel_dp,
 	intel_dp_get_dsc_sink_cap(dpcd_caps[DP_DPCD_REV], connector);
 }
 
+static bool detect_dsc_hblank_expansion_quirk(const struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct drm_dp_desc desc;
+	u8 dpcd[DP_RECEIVER_CAP_SIZE];
+
+	if (!connector->dp.dsc_decompression_aux)
+		return false;
+
+	if (drm_dp_read_desc(connector->dp.dsc_decompression_aux,
+			     &desc, true) < 0)
+		return false;
+
+	if (!drm_dp_has_quirk(&desc,
+			      DP_DPCD_QUIRK_HBLANK_EXPANSION_REQUIRES_DSC))
+		return false;
+
+	if (drm_dp_read_dpcd_caps(connector->dp.dsc_decompression_aux, dpcd) < 0)
+		return false;
+
+	if (!(dpcd[DP_RECEIVE_PORT_0_CAP_0] & DP_HBLANK_EXPANSION_CAPABLE))
+		return false;
+
+	drm_dbg_kms(&i915->drm,
+		    "[CONNECTOR:%d:%s] DSC HBLANK expansion quirk detected\n",
+		    connector->base.base.id, connector->base.name);
+
+	return true;
+}
+
 static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 							struct drm_dp_mst_port *port,
 							const char *pathprop)
@@ -1265,6 +1388,8 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	 */
 	intel_connector->dp.dsc_decompression_aux = &intel_dp->aux;
 	intel_dp_mst_read_decompression_port_dsc_caps(intel_dp, intel_connector);
+	intel_connector->dp.dsc_hblank_expansion_quirk =
+		detect_dsc_hblank_expansion_quirk(intel_connector);
 
 	connector = &intel_connector->base;
 	ret = drm_connector_init(dev, connector, &intel_dp_mst_connector_funcs,
