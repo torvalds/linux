@@ -792,25 +792,73 @@ static int iso_sock_bind_bc(struct socket *sock, struct sockaddr *addr,
 	BT_DBG("sk %p bc_sid %u bc_num_bis %u", sk, sa->iso_bc->bc_sid,
 	       sa->iso_bc->bc_num_bis);
 
-	if (addr_len > sizeof(*sa) + sizeof(*sa->iso_bc))
+	if (addr_len != sizeof(*sa) + sizeof(*sa->iso_bc))
 		return -EINVAL;
 
 	bacpy(&iso_pi(sk)->dst, &sa->iso_bc->bc_bdaddr);
+
+	/* Check if the address type is of LE type */
+	if (!bdaddr_type_is_le(sa->iso_bc->bc_bdaddr_type))
+		return -EINVAL;
+
 	iso_pi(sk)->dst_type = sa->iso_bc->bc_bdaddr_type;
 	iso_pi(sk)->sync_handle = -1;
+
+	if (sa->iso_bc->bc_sid > 0x0f)
+		return -EINVAL;
+
 	iso_pi(sk)->bc_sid = sa->iso_bc->bc_sid;
+
+	if (sa->iso_bc->bc_num_bis > ISO_MAX_NUM_BIS)
+		return -EINVAL;
+
 	iso_pi(sk)->bc_num_bis = sa->iso_bc->bc_num_bis;
 
-	for (i = 0; i < iso_pi(sk)->bc_num_bis; i++) {
+	for (i = 0; i < iso_pi(sk)->bc_num_bis; i++)
 		if (sa->iso_bc->bc_bis[i] < 0x01 ||
 		    sa->iso_bc->bc_bis[i] > 0x1f)
 			return -EINVAL;
 
-		memcpy(iso_pi(sk)->bc_bis, sa->iso_bc->bc_bis,
-		       iso_pi(sk)->bc_num_bis);
-	}
+	memcpy(iso_pi(sk)->bc_bis, sa->iso_bc->bc_bis,
+	       iso_pi(sk)->bc_num_bis);
 
 	return 0;
+}
+
+static int iso_sock_bind_pa_sk(struct sock *sk, struct sockaddr_iso *sa,
+			       int addr_len)
+{
+	int err = 0;
+
+	if (sk->sk_type != SOCK_SEQPACKET) {
+		err = -EINVAL;
+		goto done;
+	}
+
+	if (addr_len != sizeof(*sa) + sizeof(*sa->iso_bc)) {
+		err = -EINVAL;
+		goto done;
+	}
+
+	if (sa->iso_bc->bc_num_bis > ISO_MAX_NUM_BIS) {
+		err = -EINVAL;
+		goto done;
+	}
+
+	iso_pi(sk)->bc_num_bis = sa->iso_bc->bc_num_bis;
+
+	for (int i = 0; i < iso_pi(sk)->bc_num_bis; i++)
+		if (sa->iso_bc->bc_bis[i] < 0x01 ||
+		    sa->iso_bc->bc_bis[i] > 0x1f) {
+			err = -EINVAL;
+			goto done;
+		}
+
+	memcpy(iso_pi(sk)->bc_bis, sa->iso_bc->bc_bis,
+	       iso_pi(sk)->bc_num_bis);
+
+done:
+	return err;
 }
 
 static int iso_sock_bind(struct socket *sock, struct sockaddr *addr,
@@ -827,6 +875,15 @@ static int iso_sock_bind(struct socket *sock, struct sockaddr *addr,
 		return -EINVAL;
 
 	lock_sock(sk);
+
+	/* Allow the user to bind a PA sync socket to a number
+	 * of BISes to sync to.
+	 */
+	if (sk->sk_state == BT_CONNECT2 &&
+	    test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
+		err = iso_sock_bind_pa_sk(sk, sa, addr_len);
+		goto done;
+	}
 
 	if (sk->sk_state != BT_OPEN) {
 		err = -EBADFD;
