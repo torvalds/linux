@@ -1112,9 +1112,9 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 			: VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 
 		vchiq_log_debug(state->dev, VCHIQ_CORE_MSG,
-				"Sent Msg %s(%u) to %c%c%c%c s:%u d:%d len:%zu",
+				"Sent Msg %s(%u) to %p4cc s:%u d:%d len:%zu",
 				msg_type_str(VCHIQ_MSG_TYPE(msgid)), VCHIQ_MSG_TYPE(msgid),
-				VCHIQ_FOURCC_AS_4CHARS(svc_fourcc), VCHIQ_MSG_SRCPORT(msgid),
+				&svc_fourcc, VCHIQ_MSG_SRCPORT(msgid),
 				VCHIQ_MSG_DSTPORT(msgid), size);
 	}
 
@@ -1206,9 +1206,9 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 			     : VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 
 	vchiq_log_trace(state->dev, VCHIQ_SYNC,
-			"Sent Sync Msg %s(%u) to %c%c%c%c s:%u d:%d len:%d",
+			"Sent Sync Msg %s(%u) to %p4cc s:%u d:%d len:%d",
 			msg_type_str(VCHIQ_MSG_TYPE(msgid)), VCHIQ_MSG_TYPE(msgid),
-			VCHIQ_FOURCC_AS_4CHARS(svc_fourcc), VCHIQ_MSG_SRCPORT(msgid),
+			&svc_fourcc, VCHIQ_MSG_SRCPORT(msgid),
 			VCHIQ_MSG_DSTPORT(msgid), size);
 
 	remote_event_signal(&state->remote->sync_trigger);
@@ -1449,9 +1449,9 @@ abort_outstanding_bulks(struct vchiq_service *service,
 			vchiq_complete_bulk(service->instance, bulk);
 
 			vchiq_log_debug(service->state->dev, VCHIQ_CORE_MSG,
-					"%s %c%c%c%c d:%d ABORTED - tx len:%d, rx len:%d",
+					"%s %p4cc d:%d ABORTED - tx len:%d, rx len:%d",
 					is_tx ? "Send Bulk to" : "Recv Bulk from",
-					VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc),
+					&service->base.fourcc,
 					service->remoteport, bulk->size, bulk->remote_size);
 		} else {
 			/* fabricate a matching dummy bulk */
@@ -1485,8 +1485,8 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 
 	payload = (struct vchiq_open_payload *)header->data;
 	fourcc = payload->fourcc;
-	vchiq_log_debug(state->dev, VCHIQ_CORE, "%d: prs OPEN@%pK (%d->'%c%c%c%c')",
-			state->id, header, localport, VCHIQ_FOURCC_AS_4CHARS(fourcc));
+	vchiq_log_debug(state->dev, VCHIQ_CORE, "%d: prs OPEN@%pK (%d->'%p4cc')",
+			state->id, header, localport, &fourcc);
 
 	service = get_listening_service(state, fourcc);
 	if (!service)
@@ -1498,8 +1498,8 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 
 	if ((service->version < version_min) || (version < service->version_min)) {
 		/* Version mismatch */
-		dev_err(state->dev, "%d: service %d (%c%c%c%c) version mismatch - local (%d, min %d) vs. remote (%d, min %d)",
-			state->id, service->localport, VCHIQ_FOURCC_AS_4CHARS(fourcc),
+		dev_err(state->dev, "%d: service %d (%p4cc) version mismatch - local (%d, min %d) vs. remote (%d, min %d)",
+			state->id, service->localport, &fourcc,
 			service->version, service->version_min, version, version_min);
 		vchiq_service_put(service);
 		service = NULL;
@@ -1632,8 +1632,8 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			     : VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 
 	vchiq_log_debug(state->dev, VCHIQ_CORE_MSG,
-			"Rcvd Msg %s(%u) from %c%c%c%c s:%d d:%d len:%d",
-			msg_type_str(type), type, VCHIQ_FOURCC_AS_4CHARS(svc_fourcc),
+			"Rcvd Msg %s(%u) from %p4cc s:%d d:%d len:%d",
+			msg_type_str(type), type, &svc_fourcc,
 			remoteport, localport, size);
 	if (size > 0)
 		vchiq_log_dump_mem(state->dev, "Rcvd", 0, header->data, min(16, size));
@@ -1683,8 +1683,8 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		if (vchiq_close_service_internal(service, CLOSE_RECVD) == -EAGAIN)
 			goto bail_not_ready;
 
-		vchiq_log_debug(state->dev, VCHIQ_CORE, "Close Service %c%c%c%c s:%u d:%d",
-				VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc),
+		vchiq_log_debug(state->dev, VCHIQ_CORE, "Close Service %p4cc s:%u d:%d",
+				&service->base.fourcc,
 				service->localport, service->remoteport);
 		break;
 	case VCHIQ_MSG_DATA:
@@ -2044,8 +2044,8 @@ sync_func(void *v)
 				     : VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 
 		vchiq_log_trace(state->dev, VCHIQ_SYNC,
-				"Rcvd Msg %s from %c%c%c%c s:%d d:%d len:%d",
-				msg_type_str(type), VCHIQ_FOURCC_AS_4CHARS(svc_fourcc),
+				"Rcvd Msg %s from %p4cc s:%d d:%d len:%d",
+				msg_type_str(type), &svc_fourcc,
 				remoteport, localport, size);
 		if (size > 0)
 			vchiq_log_dump_mem(state->dev, "Rcvd", 0, header->data, min(16, size));
@@ -2462,9 +2462,9 @@ vchiq_add_service_internal(struct vchiq_state *state,
 	/* Bring this service online */
 	set_service_state(service, srvstate);
 
-	vchiq_log_debug(state->dev, VCHIQ_CORE_MSG, "%s Service %c%c%c%c SrcPort:%d",
+	vchiq_log_debug(state->dev, VCHIQ_CORE_MSG, "%s Service %p4cc SrcPort:%d",
 			(srvstate == VCHIQ_SRVSTATE_OPENING) ? "Open" : "Add",
-			VCHIQ_FOURCC_AS_4CHARS(params->fourcc), service->localport);
+			&params->fourcc, service->localport);
 
 	/* Don't unlock the service - leave it with a ref_count of 1. */
 
@@ -3543,8 +3543,8 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 		}
 
 		len += scnprintf(buf + len, sizeof(buf) - len,
-				 " '%c%c%c%c' remote %s (msg use %d/%d, slot use %d/%d)",
-				 VCHIQ_FOURCC_AS_4CHARS(fourcc), remoteport,
+				 " '%p4cc' remote %s (msg use %d/%d, slot use %d/%d)",
+				 &fourcc, remoteport,
 				 quota->message_use_count, quota->message_quota,
 				 quota->slot_use_count, quota->slot_quota);
 

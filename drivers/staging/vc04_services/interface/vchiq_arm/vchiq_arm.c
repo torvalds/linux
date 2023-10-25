@@ -1441,7 +1441,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	int ret = 0;
-	char entity[16];
+	char entity[64];
 	int *entity_uc;
 	int local_uc;
 
@@ -1454,8 +1454,8 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 		sprintf(entity, "VCHIQ:   ");
 		entity_uc = &arm_state->peer_use_count;
 	} else if (service) {
-		sprintf(entity, "%c%c%c%c:%03d",
-			VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc),
+		sprintf(entity, "%p4cc:%03d",
+			&service->base.fourcc,
 			service->client_id);
 		entity_uc = &service->service_use_count;
 	} else {
@@ -1497,7 +1497,7 @@ vchiq_release_internal(struct vchiq_state *state, struct vchiq_service *service)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	int ret = 0;
-	char entity[16];
+	char entity[64];
 	int *entity_uc;
 
 	if (!arm_state) {
@@ -1506,8 +1506,8 @@ vchiq_release_internal(struct vchiq_state *state, struct vchiq_service *service)
 	}
 
 	if (service) {
-		sprintf(entity, "%c%c%c%c:%03d",
-			VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc),
+		sprintf(entity, "%p4cc:%03d",
+			&service->base.fourcc,
 			service->client_id);
 		entity_uc = &service->service_use_count;
 	} else {
@@ -1713,8 +1713,8 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 
 	for (i = 0; i < found; i++) {
 		vchiq_log_warning(state->dev, VCHIQ_SUSPEND,
-				  "%c%c%c%c:%d service count %d %s",
-				  VCHIQ_FOURCC_AS_4CHARS(service_data[i].fourcc),
+				  "%p4cc:%d service count %d %s",
+				  &service_data[i].fourcc,
 				  service_data[i].clientid, service_data[i].use_count,
 				  service_data[i].use_count ? nz : "");
 	}
@@ -1743,8 +1743,8 @@ vchiq_check_service(struct vchiq_service *service)
 
 	if (ret) {
 		vchiq_log_error(service->state->dev, VCHIQ_SUSPEND,
-				"%s ERROR - %c%c%c%c:%d service count %d, state count %d", __func__,
-				VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc), service->client_id,
+				"%s ERROR - %p4cc:%d service count %d, state count %d", __func__,
+				&service->base.fourcc, service->client_id,
 				service->service_use_count, arm_state->videocore_use_count);
 		vchiq_dump_service_use_state(service->state);
 	}

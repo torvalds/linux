@@ -74,12 +74,6 @@ static inline const char *log_category_str(enum vchiq_log_category c)
 #define VCHIQ_SLOT_ZERO_SLOTS  DIV_ROUND_UP(sizeof(struct vchiq_slot_zero), \
 					    VCHIQ_SLOT_SIZE)
 
-#define VCHIQ_FOURCC_AS_4CHARS(fourcc)	\
-	((fourcc) >> 24) & 0xff, \
-	((fourcc) >> 16) & 0xff, \
-	((fourcc) >>  8) & 0xff, \
-	(fourcc) & 0xff
-
 #define BITSET_SIZE(b)        ((b + 31) >> 5)
 #define BITSET_WORD(b)        (b >> 5)
 #define BITSET_BIT(b)         (1 << (b & 31))

@@ -701,13 +701,12 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				vchiq_release_service_internal(service);
 			if (ret) {
 				vchiq_log_error(instance->state->dev, VCHIQ_SUSPEND,
-						"%s: cmd %s returned error %ld for service %c%c%c%c:%03d",
+						"%s: cmd %s returned error %ld for service %p4cc:%03d",
 						__func__, (cmd == VCHIQ_IOC_USE_SERVICE) ?
 						"VCHIQ_IOC_USE_SERVICE" :
 						"VCHIQ_IOC_RELEASE_SERVICE",
-					ret,
-					VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc),
-					service->client_id);
+						ret, &service->base.fourcc,
+						service->client_id);
 			}
 		} else {
 			ret = -EINVAL;
