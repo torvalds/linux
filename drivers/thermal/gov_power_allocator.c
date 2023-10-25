@@ -379,17 +379,16 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 	u32 total_req_power, max_allocatable_power, total_weighted_req_power;
 	u32 *req_power, *max_power, *granted_power, *extra_actor_power;
 	struct power_allocator_params *params = tz->governor_data;
-	const struct thermal_trip *trip_max = params->trip_max;
 	u32 total_granted_power, power_range;
 	struct thermal_cooling_device *cdev;
 	struct thermal_instance *instance;
 	u32 *weighted_req_power;
-	int i, weight, ret = 0;
 	int total_weight = 0;
 	int num_actors = 0;
+	int i, weight;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if ((instance->trip == trip_max) &&
+		if ((instance->trip == params->trip_max) &&
 		    cdev_is_power_actor(instance->cdev)) {
 			num_actors++;
 			total_weight += instance->weight;
@@ -427,7 +426,7 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		cdev = instance->cdev;
 
-		if (instance->trip != trip_max)
+		if (instance->trip != params->trip_max)
 			continue;
 
 		if (!cdev_is_power_actor(cdev))
@@ -463,7 +462,7 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 	total_granted_power = 0;
 	i = 0;
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip != trip_max)
+		if (instance->trip != params->trip_max)
 			continue;
 
 		if (!cdev_is_power_actor(instance->cdev))
@@ -484,7 +483,7 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 
 	kfree(req_power);
 
-	return ret;
+	return 0;
 }
 
 /**
