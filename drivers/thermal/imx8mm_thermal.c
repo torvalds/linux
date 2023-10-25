@@ -78,7 +78,7 @@
 struct thermal_soc_data {
 	u32 num_sensors;
 	u32 version;
-	int (*get_temp)(void *, int *);
+	int (*get_temp)(void *data, int *temp);
 };
 
 struct tmu_sensor {
