@@ -1015,6 +1015,7 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 
 	MATCH(PIPELINE_SELECT);
 
+	MATCH3D(3DSTATE_DRAWING_RECTANGLE_FAST);
 	MATCH3D(3DSTATE_CLEAR_PARAMS);
 	MATCH3D(3DSTATE_DEPTH_BUFFER);
 	MATCH3D(3DSTATE_STENCIL_BUFFER);
@@ -1235,8 +1236,7 @@ void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *b
 
 	switch (GRAPHICS_VERx100(xe)) {
 	case 1255:
-	case 1270:
-	case 1271:
+	case 1270 ... 2004:
 		state_table = xe_hpg_svg_state;
 		state_table_size = ARRAY_SIZE(xe_hpg_svg_state);
 		break;
@@ -1254,6 +1254,17 @@ void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *b
 		xe_gt_assert(gt, (instr & XE_INSTR_CMD_TYPE) == XE_INSTR_GFXPIPE);
 		xe_gt_assert(gt, num_dw != 0);
 		xe_gt_assert(gt, is_single_dw ^ (num_dw > 1));
+
+		/*
+		 * Xe2's SVG context is the same as the one on DG2 / MTL
+		 * except that 3DSTATE_DRAWING_RECTANGLE (non-pipelined) has
+		 * been replaced by 3DSTATE_DRAWING_RECTANGLE_FAST (pipelined).
+		 * Just make the replacement here rather than defining a
+		 * whole separate table for the single trivial change.
+		 */
+		if (GRAPHICS_VER(xe) >= 20 &&
+		    instr == CMD_3DSTATE_DRAWING_RECTANGLE)
+			instr = CMD_3DSTATE_DRAWING_RECTANGLE_FAST;
 
 		bb->cs[bb->len] = instr;
 		if (!is_single_dw)
