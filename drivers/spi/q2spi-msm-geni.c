@@ -2831,14 +2831,17 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 		dev_err(dev, "Error creating IPC logs\n");
 
 	q2spi->se.base = q2spi->base;
-	if (of_property_read_u32(pdev->dev.of_node, "q2spi-max-frequency",
+	if (q2spi_max_speed) {
+		q2spi->max_speed_hz = q2spi_max_speed;
+	} else {
+		if (of_property_read_u32(pdev->dev.of_node, "q2spi-max-frequency",
 				 &q2spi->max_speed_hz)) {
-		Q2SPI_ERROR(q2spi, "Err Max frequency not specified\n");
-		ret = -EINVAL;
-		goto probe_err;
+			Q2SPI_ERROR(q2spi, "Err Max frequency not specified\n");
+			return -EINVAL;
+		}
 	}
 
-	Q2SPI_INFO(q2spi, "%s max_speed:%u\n", __func__, q2spi->max_speed_hz);
+	Q2SPI_INFO(q2spi, "%s q2spi_max_freq:%u\n", __func__, q2spi->max_speed_hz);
 	q2spi->wrapper_dev = dev->parent;
 	Q2SPI_INFO(q2spi, "q2spi:%p q2spi_cdev:%p w_dev:%p, dev:%p, p_dev:%p dev_name:%s",
 		   q2spi, q2spi->chrdev, q2spi->wrapper_dev, dev, &pdev->dev,
@@ -3023,6 +3026,9 @@ static void __exit q2spi_dev_exit(void)
 	pr_info("%s PID=%d\n", __func__, current->pid);
 	platform_driver_unregister(&q2spi_geni_driver);
 }
+
+module_param(q2spi_max_speed, uint, 0644);
+MODULE_PARM_DESC(q2spi_max_speed, "Maximum speed setting\n");
 
 module_init(q2spi_dev_init);
 module_exit(q2spi_dev_exit);
