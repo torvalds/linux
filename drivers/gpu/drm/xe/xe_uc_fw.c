@@ -344,6 +344,69 @@ fail:
 	return -ENOEXEC;
 }
 
+/* Refer to the "CSS-based Firmware Layout" documentation entry for details */
+static int parse_css_header(struct xe_uc_fw *uc_fw, const void *fw_data, size_t fw_size)
+{
+	struct xe_device *xe = uc_fw_to_xe(uc_fw);
+	struct uc_css_header *css;
+	size_t size;
+
+	/* Check the size of the blob before examining buffer contents */
+	if (unlikely(fw_size < sizeof(struct uc_css_header))) {
+		drm_warn(&xe->drm, "%s firmware %s: invalid size: %zu < %zu\n",
+			 xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 fw_size, sizeof(struct uc_css_header));
+		return -ENODATA;
+	}
+
+	css = (struct uc_css_header *)fw_data;
+
+	/* Check integrity of size values inside CSS header */
+	size = (css->header_size_dw - css->key_size_dw - css->modulus_size_dw -
+		css->exponent_size_dw) * sizeof(u32);
+	if (unlikely(size != sizeof(struct uc_css_header))) {
+		drm_warn(&xe->drm,
+			 "%s firmware %s: unexpected header size: %zu != %zu\n",
+			 xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 fw_size, sizeof(struct uc_css_header));
+		return -EPROTO;
+	}
+
+	/* uCode size must calculated from other sizes */
+	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
+
+	/* now RSA */
+	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
+
+	/* At least, it should have header, uCode and RSA. Size of all three. */
+	size = sizeof(struct uc_css_header) + uc_fw->ucode_size +
+		uc_fw->rsa_size;
+	if (unlikely(fw_size < size)) {
+		drm_warn(&xe->drm, "%s firmware %s: invalid size: %zu < %zu\n",
+			 xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 fw_size, size);
+		return -ENOEXEC;
+	}
+
+	/* Get version numbers from the CSS header */
+	uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
+					   css->sw_version);
+	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
+					   css->sw_version);
+	uc_fw->patch_ver_found = FIELD_GET(CSS_SW_VERSION_UC_PATCH,
+					   css->sw_version);
+
+	if (uc_fw->type == XE_UC_FW_TYPE_GUC)
+		guc_read_css_info(uc_fw, css);
+
+	return 0;
+}
+
+static int parse_headers(struct xe_uc_fw *uc_fw, const struct firmware *fw)
+{
+	return parse_css_header(uc_fw, fw->data, fw->size);
+}
+
 int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 {
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
@@ -351,9 +414,7 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct device *dev = xe->drm.dev;
 	const struct firmware *fw = NULL;
-	struct uc_css_header *css;
 	struct xe_bo *obj;
-	size_t size;
 	int err;
 
 	/*
@@ -385,53 +446,9 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	if (err)
 		goto fail;
 
-	/* Check the size of the blob before examining buffer contents */
-	if (unlikely(fw->size < sizeof(struct uc_css_header))) {
-		drm_warn(&xe->drm, "%s firmware %s: invalid size: %zu < %zu\n",
-			 xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			 fw->size, sizeof(struct uc_css_header));
-		err = -ENODATA;
+	err = parse_headers(uc_fw, fw);
+	if (err)
 		goto fail;
-	}
-
-	css = (struct uc_css_header *)fw->data;
-
-	/* Check integrity of size values inside CSS header */
-	size = (css->header_size_dw - css->key_size_dw - css->modulus_size_dw -
-		css->exponent_size_dw) * sizeof(u32);
-	if (unlikely(size != sizeof(struct uc_css_header))) {
-		drm_warn(&xe->drm,
-			 "%s firmware %s: unexpected header size: %zu != %zu\n",
-			 xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			 fw->size, sizeof(struct uc_css_header));
-		err = -EPROTO;
-		goto fail;
-	}
-
-	/* uCode size must calculated from other sizes */
-	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
-
-	/* now RSA */
-	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
-
-	/* At least, it should have header, uCode and RSA. Size of all three. */
-	size = sizeof(struct uc_css_header) + uc_fw->ucode_size +
-		uc_fw->rsa_size;
-	if (unlikely(fw->size < size)) {
-		drm_warn(&xe->drm, "%s firmware %s: invalid size: %zu < %zu\n",
-			 xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			 fw->size, size);
-		err = -ENOEXEC;
-		goto fail;
-	}
-
-	/* Get version numbers from the CSS header */
-	uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
-					   css->sw_version);
-	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
-					   css->sw_version);
-	uc_fw->patch_ver_found = FIELD_GET(CSS_SW_VERSION_UC_PATCH,
-					   css->sw_version);
 
 	drm_info(&xe->drm, "Using %s firmware from %s version %u.%u.%u\n",
 		 xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
@@ -440,9 +457,6 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	err = uc_fw_check_version_requirements(uc_fw);
 	if (err)
 		goto fail;
-
-	if (uc_fw->type == XE_UC_FW_TYPE_GUC)
-		guc_read_css_info(uc_fw, css);
 
 	obj = xe_bo_create_from_data(xe, tile, fw->data, fw->size,
 				     ttm_bo_type_kernel,

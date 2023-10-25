@@ -10,9 +10,12 @@
 #include <linux/types.h>
 
 /**
- * DOC: Firmware Layout
+ * DOC: CSS-based Firmware Layout
  *
- * The GuC/HuC firmware layout looks like this::
+ * The CSS-based firmware structure is used for GuC releases on all platforms
+ * and for HuC releases up to DG1. Starting from DG2/MTL the HuC uses the GSC
+ * layout instead.
+ * The CSS firmware layout looks like this::
  *
  *      +======================================================================+
  *      |  Firmware blob                                                       |
