@@ -46,6 +46,9 @@ struct hybrid_node {
 struct pmu_caps {
 	int		nr_caps;
 	unsigned int    max_branches;
+	unsigned int	br_cntr_nr;
+	unsigned int	br_cntr_width;
+
 	char            **caps;
 	char            *pmu_name;
 };
@@ -62,6 +65,8 @@ struct perf_env {
 	unsigned long long	total_mem;
 	unsigned int		msr_pmu_type;
 	unsigned int		max_branches;
+	unsigned int		br_cntr_nr;
+	unsigned int		br_cntr_width;
 	int			kernel_is_64_bit;
 
 	int			nr_cmdline;
