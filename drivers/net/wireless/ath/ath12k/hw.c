@@ -886,7 +886,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.vdev_start_delay = false,
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
-					BIT(NL80211_IFTYPE_AP),
+					BIT(NL80211_IFTYPE_AP) |
+					BIT(NL80211_IFTYPE_MESH_POINT),
 		.supports_monitor = false,
 
 		.idle_ps = false,
@@ -911,6 +912,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.rfkill_pin = 0,
 		.rfkill_cfg = 0,
 		.rfkill_on_level = 0,
+
+		.rddm_size = 0,
 	},
 	{
 		.name = "wcn7850 hw2.0",
@@ -972,6 +975,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.rfkill_pin = 48,
 		.rfkill_cfg = 0,
 		.rfkill_on_level = 1,
+
+		.rddm_size = 0x780000,
 	},
 	{
 		.name = "qcn9274 hw2.0",
@@ -1006,7 +1011,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.vdev_start_delay = false,
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
-					BIT(NL80211_IFTYPE_AP),
+					BIT(NL80211_IFTYPE_AP) |
+					BIT(NL80211_IFTYPE_MESH_POINT),
 		.supports_monitor = false,
 
 		.idle_ps = false,
@@ -1031,6 +1037,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.rfkill_pin = 0,
 		.rfkill_cfg = 0,
 		.rfkill_on_level = 0,
+
+		.rddm_size = 0,
 	},
 };
 

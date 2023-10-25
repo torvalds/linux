@@ -2374,7 +2374,7 @@ ath12k_dp_mon_rx_update_user_stats(struct ath12k *ar,
 		return;
 	}
 
-	arsta = (struct ath12k_sta *)peer->sta->drv_priv;
+	arsta = ath12k_sta_to_arsta(peer->sta);
 	rx_stats = arsta->rx_stats;
 
 	if (!rx_stats)
@@ -2550,7 +2550,7 @@ int ath12k_dp_mon_rx_process_stats(struct ath12k *ar, int mac_id,
 			}
 
 			if (ppdu_info->reception_type == HAL_RX_RECEPTION_TYPE_SU) {
-				arsta = (struct ath12k_sta *)peer->sta->drv_priv;
+				arsta = ath12k_sta_to_arsta(peer->sta);
 				ath12k_dp_mon_rx_update_peer_su_stats(ar, arsta,
 								      ppdu_info);
 			} else if ((ppdu_info->fc_valid) &&
