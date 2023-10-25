@@ -437,7 +437,6 @@ static void afs_give_up_callbacks(struct afs_net *net, struct afs_server *server
 	struct afs_addr_cursor ac = {
 		.alist	= alist,
 		.index	= alist->preferred,
-		.error	= 0,
 	};
 
 	afs_fs_give_up_all_callbacks(net, server, &ac, NULL);

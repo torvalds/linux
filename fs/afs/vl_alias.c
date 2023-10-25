@@ -236,7 +236,7 @@ static char *afs_vl_get_cell_name(struct afs_cell *cell, struct key *key)
 
 	while (afs_select_vlserver(&vc)) {
 		if (!test_bit(AFS_VLSERVER_FL_IS_YFS, &vc.server->flags)) {
-			vc.ac.error = -EOPNOTSUPP;
+			vc.call_error = -EOPNOTSUPP;
 			skipped = true;
 			continue;
 		}

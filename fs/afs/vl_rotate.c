@@ -20,11 +20,11 @@ bool afs_begin_vlserver_operation(struct afs_vl_cursor *vc, struct afs_cell *cel
 	memset(vc, 0, sizeof(*vc));
 	vc->cell = cell;
 	vc->key = key;
-	vc->error = -EDESTADDRREQ;
-	vc->ac.error = SHRT_MAX;
+	vc->cumul_error.error = -EDESTADDRREQ;
+	vc->nr_iterations = -1;
 
 	if (signal_pending(current)) {
-		vc->error = -EINTR;
+		vc->cumul_error.error = -EINTR;
 		vc->flags |= AFS_VL_CURSOR_STOP;
 		return false;
 	}
@@ -52,7 +52,7 @@ static bool afs_start_vl_iteration(struct afs_vl_cursor *vc)
 				    &cell->dns_lookup_count,
 				    smp_load_acquire(&cell->dns_lookup_count)
 				    != dns_lookup_count) < 0) {
-				vc->error = -ERESTARTSYS;
+				vc->cumul_error.error = -ERESTARTSYS;
 				return false;
 			}
 		}
@@ -60,12 +60,12 @@ static bool afs_start_vl_iteration(struct afs_vl_cursor *vc)
 		/* Status load is ordered after lookup counter load */
 		if (cell->dns_status == DNS_LOOKUP_GOT_NOT_FOUND) {
 			pr_warn("No record of cell %s\n", cell->name);
-			vc->error = -ENOENT;
+			vc->cumul_error.error = -ENOENT;
 			return false;
 		}
 
 		if (cell->dns_source == DNS_RECORD_UNAVAILABLE) {
-			vc->error = -EDESTADDRREQ;
+			vc->cumul_error.error = -EDESTADDRREQ;
 			return false;
 		}
 	}
@@ -91,52 +91,52 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 {
 	struct afs_addr_list *alist;
 	struct afs_vlserver *vlserver;
-	struct afs_error e;
 	unsigned int rtt;
-	int error = vc->ac.error, i;
+	s32 abort_code = vc->call_abort_code;
+	int error = vc->call_error, i;
+
+	vc->nr_iterations++;
 
 	_enter("%lx[%d],%lx[%d],%d,%d",
 	       vc->untried, vc->index,
 	       vc->ac.tried, vc->ac.index,
-	       error, vc->ac.abort_code);
+	       error, abort_code);
 
 	if (vc->flags & AFS_VL_CURSOR_STOP) {
 		_leave(" = f [stopped]");
 		return false;
 	}
 
-	vc->nr_iterations++;
+	if (vc->nr_iterations == 0)
+		goto start;
 
 	/* Evaluate the result of the previous operation, if there was one. */
 	switch (error) {
-	case SHRT_MAX:
-		goto start;
-
 	default:
 	case 0:
 		/* Success or local failure.  Stop. */
-		vc->error = error;
+		vc->cumul_error.error = error;
 		vc->flags |= AFS_VL_CURSOR_STOP;
-		_leave(" = f [okay/local %d]", vc->ac.error);
+		_leave(" = f [okay/local %d]", vc->cumul_error.error);
 		return false;
 
 	case -ECONNABORTED:
 		/* The far side rejected the operation on some grounds.  This
 		 * might involve the server being busy or the volume having been moved.
 		 */
-		switch (vc->ac.abort_code) {
+		switch (abort_code) {
 		case AFSVL_IO:
 		case AFSVL_BADVOLOPER:
 		case AFSVL_NOMEM:
 			/* The server went weird. */
-			vc->error = -EREMOTEIO;
+			afs_prioritise_error(&vc->cumul_error, -EREMOTEIO, abort_code);
 			//write_lock(&vc->cell->vl_servers_lock);
 			//vc->server_list->weird_mask |= 1 << vc->index;
 			//write_unlock(&vc->cell->vl_servers_lock);
 			goto next_server;
 
 		default:
-			vc->error = afs_abort_to_error(vc->ac.abort_code);
+			afs_prioritise_error(&vc->cumul_error, error, abort_code);
 			goto failed;
 		}
 
@@ -149,12 +149,12 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 	case -ETIMEDOUT:
 	case -ETIME:
 		_debug("no conn %d", error);
-		vc->error = error;
+		afs_prioritise_error(&vc->cumul_error, error, 0);
 		goto iterate_address;
 
 	case -ECONNRESET:
 		_debug("call reset");
-		vc->error = error;
+		afs_prioritise_error(&vc->cumul_error, error, 0);
 		vc->flags |= AFS_VL_CURSOR_RETRY;
 		goto next_server;
 
@@ -178,15 +178,19 @@ start:
 		goto failed;
 
 	error = afs_send_vl_probes(vc->cell->net, vc->key, vc->server_list);
-	if (error < 0)
-		goto failed_set_error;
+	if (error < 0) {
+		afs_prioritise_error(&vc->cumul_error, error, 0);
+		goto failed;
+	}
 
 pick_server:
 	_debug("pick [%lx]", vc->untried);
 
 	error = afs_wait_for_vl_probes(vc->server_list, vc->untried);
-	if (error < 0)
-		goto failed_set_error;
+	if (error < 0) {
+		afs_prioritise_error(&vc->cumul_error, error, 0);
+		goto failed;
+	}
 
 	/* Pick the untried server with the lowest RTT. */
 	vc->index = vc->server_list->preferred;
@@ -249,6 +253,7 @@ iterate_address:
 
 	_debug("VL address %d/%d", vc->ac.index, vc->ac.alist->nr_addrs);
 
+	vc->call_responded = false;
 	_leave(" = t %pISpc", rxrpc_kernel_remote_addr(vc->ac.alist->addrs[vc->ac.index].peer));
 	return true;
 
@@ -264,25 +269,19 @@ no_more_servers:
 	if (vc->flags & AFS_VL_CURSOR_RETRY)
 		goto restart_from_beginning;
 
-	e.error = -EDESTADDRREQ;
-	e.responded = false;
 	for (i = 0; i < vc->server_list->nr_servers; i++) {
 		struct afs_vlserver *s = vc->server_list->servers[i].server;
 
 		if (test_bit(AFS_VLSERVER_FL_RESPONDING, &s->flags))
-			e.responded = true;
-		afs_prioritise_error(&e, READ_ONCE(s->probe.error),
+			vc->cumul_error.responded = true;
+		afs_prioritise_error(&vc->cumul_error, READ_ONCE(s->probe.error),
 				     s->probe.abort_code);
 	}
 
-	error = e.error;
-
-failed_set_error:
-	vc->error = error;
 failed:
 	vc->flags |= AFS_VL_CURSOR_STOP;
 	afs_end_cursor(&vc->ac);
-	_leave(" = f [failed %d]", vc->error);
+	_leave(" = f [failed %d]", vc->cumul_error.error);
 	return false;
 }
 
@@ -305,7 +304,10 @@ static void afs_vl_dump_edestaddrreq(const struct afs_vl_cursor *vc)
 	pr_notice("DNS: src=%u st=%u lc=%x\n",
 		  cell->dns_source, cell->dns_status, cell->dns_lookup_count);
 	pr_notice("VC: ut=%lx ix=%u ni=%hu fl=%hx err=%hd\n",
-		  vc->untried, vc->index, vc->nr_iterations, vc->flags, vc->error);
+		  vc->untried, vc->index, vc->nr_iterations, vc->flags,
+		  vc->cumul_error.error);
+	pr_notice("VC: call  er=%d ac=%d r=%u\n",
+		  vc->call_error, vc->call_abort_code, vc->call_responded);
 
 	if (vc->server_list) {
 		const struct afs_vlserver_list *sl = vc->server_list;
@@ -329,9 +331,8 @@ static void afs_vl_dump_edestaddrreq(const struct afs_vl_cursor *vc)
 		}
 	}
 
-	pr_notice("AC: t=%lx ax=%u ac=%d er=%d r=%u ni=%u\n",
-		  vc->ac.tried, vc->ac.index, vc->ac.abort_code, vc->ac.error,
-		  vc->ac.responded, vc->ac.nr_iterations);
+	pr_notice("AC: t=%lx ax=%u ni=%u\n",
+		  vc->ac.tried, vc->ac.index, vc->ac.nr_iterations);
 	rcu_read_unlock();
 }
 
@@ -342,17 +343,16 @@ int afs_end_vlserver_operation(struct afs_vl_cursor *vc)
 {
 	struct afs_net *net = vc->cell->net;
 
-	if (vc->error == -EDESTADDRREQ ||
-	    vc->error == -EADDRNOTAVAIL ||
-	    vc->error == -ENETUNREACH ||
-	    vc->error == -EHOSTUNREACH)
+	switch (vc->cumul_error.error) {
+	case -EDESTADDRREQ:
+	case -EADDRNOTAVAIL:
+	case -ENETUNREACH:
+	case -EHOSTUNREACH:
 		afs_vl_dump_edestaddrreq(vc);
+		break;
+	}
 
 	afs_end_cursor(&vc->ac);
 	afs_put_vlserverlist(net, vc->server_list);
-
-	if (vc->error == -ECONNABORTED)
-		vc->error = afs_abort_to_error(vc->ac.abort_code);
-
-	return vc->error;
+	return vc->cumul_error.error;
 }

@@ -408,8 +408,7 @@ error_do_abort:
 		rxrpc_kernel_recv_data(call->net->socket, rxcall,
 				       &msg.msg_iter, &len, false,
 				       &call->abort_code, &call->service_id);
-		ac->abort_code = call->abort_code;
-		ac->responded = true;
+		call->responded = true;
 	}
 	call->error = ret;
 	trace_afs_call_done(call);
@@ -429,7 +428,7 @@ error_kill_call:
 		afs_set_call_complete(call, ret, 0);
 	}
 
-	ac->error = ret;
+	call->error = ret;
 	call->state = AFS_CALL_COMPLETE;
 	_leave(" = %d", ret);
 }
@@ -510,6 +509,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 			ret = -EBADMSG;
 		switch (ret) {
 		case 0:
+			call->responded = true;
 			afs_queue_call_work(call);
 			if (state == AFS_CALL_CL_PROC_REPLY) {
 				if (call->op)
@@ -524,9 +524,11 @@ static void afs_deliver_to_call(struct afs_call *call)
 			goto out;
 		case -ECONNABORTED:
 			ASSERTCMP(state, ==, AFS_CALL_COMPLETE);
+			call->responded = true;
 			afs_log_error(call, call->abort_code);
 			goto done;
 		case -ENOTSUPP:
+			call->responded = true;
 			abort_code = RXGEN_OPCODE;
 			rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
 						abort_code, ret,
@@ -573,7 +575,7 @@ call_complete:
 }
 
 /*
- * Wait synchronously for a call to complete and clean up the call struct.
+ * Wait synchronously for a call to complete.
  */
 void afs_wait_for_call_to_complete(struct afs_call *call, struct afs_addr_cursor *ac)
 {
@@ -626,13 +628,8 @@ void afs_wait_for_call_to_complete(struct afs_call *call, struct afs_addr_cursor
 		}
 	}
 
-	spin_lock_bh(&call->state_lock);
-	ac->abort_code = call->abort_code;
-	ac->error = call->error;
-	spin_unlock_bh(&call->state_lock);
-
 	if (call->error == 0 || call->error == -ECONNABORTED)
-		ac->responded = true;
+		call->responded = true;
 }
 
 /*

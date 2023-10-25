@@ -693,8 +693,9 @@ static void afs_do_lookup_success(struct afs_operation *op)
 			vp = &op->file[0];
 			abort_code = vp->scb.status.abort_code;
 			if (abort_code != 0) {
-				op->ac.abort_code = abort_code;
-				op->error = afs_abort_to_error(abort_code);
+				op->call_abort_code = abort_code;
+				afs_op_set_error(op, afs_abort_to_error(abort_code));
+				op->cumul_error.abort_code = abort_code;
 			}
 			break;
 
@@ -846,13 +847,14 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 	_debug("nr_files %u", op->nr_files);
 
 	/* Need space for examining all the selected files */
-	op->error = -ENOMEM;
 	if (op->nr_files > 2) {
 		op->more_files = kvcalloc(op->nr_files - 2,
 					  sizeof(struct afs_vnode_param),
 					  GFP_KERNEL);
-		if (!op->more_files)
+		if (!op->more_files) {
+			afs_op_nomem(op);
 			goto out_op;
+		}
 
 		for (i = 2; i < op->nr_files; i++) {
 			vp = &op->more_files[i - 2];
@@ -1255,7 +1257,7 @@ void afs_check_for_remote_deletion(struct afs_operation *op)
 {
 	struct afs_vnode *vnode = op->file[0].vnode;
 
-	switch (op->ac.abort_code) {
+	switch (afs_op_abort_code(op)) {
 	case VNOVNODE:
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
 		afs_break_callback(vnode, afs_cb_break_for_deleted);
@@ -1280,7 +1282,7 @@ static void afs_vnode_new_inode(struct afs_operation *op)
 		/* ENOMEM or EINTR at a really inconvenient time - just abandon
 		 * the new directory on the server.
 		 */
-		op->error = PTR_ERR(inode);
+		afs_op_accumulate_error(op, PTR_ERR(inode), 0);
 		return;
 	}
 

@@ -169,10 +169,11 @@ static bool afs_do_probe_vlserver(struct afs_net *net,
 		call = afs_vl_get_capabilities(net, &ac, key, server,
 					       server_index);
 		if (!IS_ERR(call)) {
+			afs_prioritise_error(_e, call->error, call->abort_code);
 			afs_put_call(call);
 			in_progress = true;
 		} else {
-			afs_prioritise_error(_e, PTR_ERR(call), ac.abort_code);
+			afs_prioritise_error(_e, PTR_ERR(call), 0);
 			afs_done_one_vl_probe(server, false);
 		}
 	}
@@ -187,12 +188,10 @@ int afs_send_vl_probes(struct afs_net *net, struct key *key,
 		       struct afs_vlserver_list *vllist)
 {
 	struct afs_vlserver *server;
-	struct afs_error e;
+	struct afs_error e = {};
 	bool in_progress = false;
 	int i;
 
-	e.error = 0;
-	e.responded = false;
 	for (i = 0; i < vllist->nr_servers; i++) {
 		server = vllist->servers[i].server;
 		if (test_bit(AFS_VLSERVER_FL_PROBED, &server->flags))

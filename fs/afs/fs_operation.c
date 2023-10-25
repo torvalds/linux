@@ -169,9 +169,6 @@ static void afs_end_vnode_operation(struct afs_operation *op)
 	}
 
 	afs_drop_io_locks(op);
-
-	if (op->error == -ECONNABORTED)
-		op->error = afs_abort_to_error(op->ac.abort_code);
 }
 
 /*
@@ -182,6 +179,8 @@ void afs_wait_for_operation(struct afs_operation *op)
 	_enter("");
 
 	while (afs_select_fileserver(op)) {
+		op->call_error = 0;
+		op->call_abort_code = 0;
 		op->cb_s_break = op->server->cb_s_break;
 		if (test_bit(AFS_SERVER_FL_IS_YFS, &op->server->flags) &&
 		    op->ops->issue_yfs_rpc)
@@ -189,28 +188,29 @@ void afs_wait_for_operation(struct afs_operation *op)
 		else if (op->ops->issue_afs_rpc)
 			op->ops->issue_afs_rpc(op);
 		else
-			op->ac.error = -ENOTSUPP;
+			op->call_error = -ENOTSUPP;
 
 		if (op->call) {
 			afs_wait_for_call_to_complete(op->call, &op->ac);
-			op->error = op->ac.error;
+			op->call_abort_code = op->call->abort_code;
+			op->call_error = op->call->error;
+			op->call_responded = op->call->responded;
+			op->ac.call_responded = true;
+			WRITE_ONCE(op->ac.alist->addrs[op->ac.index].last_error,
+				   op->call_error);
 			afs_put_call(op->call);
 		}
 	}
 
-	switch (op->error) {
-	case 0:
+	if (!afs_op_error(op)) {
 		_debug("success");
 		op->ops->success(op);
-		break;
-	case -ECONNABORTED:
+	} else if (op->cumul_error.aborted) {
 		if (op->ops->aborted)
 			op->ops->aborted(op);
-		fallthrough;
-	default:
+	} else {
 		if (op->ops->failed)
 			op->ops->failed(op);
-		break;
 	}
 
 	afs_end_vnode_operation(op);

@@ -161,10 +161,13 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 	trace_afs_make_vl_call(call);
 	afs_make_call(&vc->ac, call, GFP_KERNEL);
 	afs_wait_for_call_to_complete(call, &vc->ac);
+	vc->call_abort_code	= call->abort_code;
+	vc->call_error		= call->error;
+	vc->call_responded	= call->responded;
 	afs_put_call(call);
-	if (vc->ac.error) {
+	if (vc->call_error) {
 		kfree(entry);
-		return ERR_PTR(vc->ac.error);
+		return ERR_PTR(vc->call_error);
 	}
 	return entry;
 }
@@ -305,11 +308,14 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 	trace_afs_make_vl_call(call);
 	afs_make_call(&vc->ac, call, GFP_KERNEL);
 	afs_wait_for_call_to_complete(call, &vc->ac);
-	alist = call->ret_alist;
+	vc->call_abort_code	= call->abort_code;
+	vc->call_error		= call->error;
+	vc->call_responded	= call->responded;
+	alist			= call->ret_alist;
 	afs_put_call(call);
-	if (vc->ac.error) {
+	if (vc->call_error) {
 		afs_put_addrlist(alist);
-		return ERR_PTR(vc->ac.error);
+		return ERR_PTR(vc->call_error);
 	}
 	return alist;
 }
@@ -656,11 +662,14 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 	trace_afs_make_vl_call(call);
 	afs_make_call(&vc->ac, call, GFP_KERNEL);
 	afs_wait_for_call_to_complete(call, &vc->ac);
-	alist = call->ret_alist;
+	vc->call_abort_code	= call->abort_code;
+	vc->call_error		= call->error;
+	vc->call_responded	= call->responded;
+	alist			= call->ret_alist;
 	afs_put_call(call);
-	if (vc->ac.error) {
+	if (vc->call_error) {
 		afs_put_addrlist(alist);
-		return ERR_PTR(vc->ac.error);
+		return ERR_PTR(vc->call_error);
 	}
 	return alist;
 }
@@ -769,11 +778,14 @@ char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *vc)
 	trace_afs_make_vl_call(call);
 	afs_make_call(&vc->ac, call, GFP_KERNEL);
 	afs_wait_for_call_to_complete(call, &vc->ac);
-	cellname = call->ret_str;
+	vc->call_abort_code	= call->abort_code;
+	vc->call_error		= call->error;
+	vc->call_responded	= call->responded;
+	cellname		= call->ret_str;
 	afs_put_call(call);
-	if (vc->ac.error) {
+	if (vc->call_error) {
 		kfree(cellname);
-		return ERR_PTR(vc->ac.error);
+		return ERR_PTR(vc->call_error);
 	}
 	return cellname;
 }

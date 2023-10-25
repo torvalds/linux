@@ -386,26 +386,24 @@ bool afs_iterate_addresses(struct afs_addr_cursor *ac)
 selected:
 	ac->index = index;
 	set_bit(index, &ac->tried);
-	ac->responded = false;
+	ac->call_responded = false;
 	return true;
 }
 
 /*
  * Release an address list cursor.
  */
-int afs_end_cursor(struct afs_addr_cursor *ac)
+void afs_end_cursor(struct afs_addr_cursor *ac)
 {
 	struct afs_addr_list *alist;
 
 	alist = ac->alist;
 	if (alist) {
-		if (ac->responded &&
+		if (ac->call_responded &&
 		    ac->index != alist->preferred &&
 		    test_bit(ac->alist->preferred, &ac->tried))
 			WRITE_ONCE(alist->preferred, ac->index);
 		afs_put_addrlist(alist);
 		ac->alist = NULL;
 	}
-
-	return ac->error;
 }

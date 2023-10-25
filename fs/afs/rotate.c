@@ -112,9 +112,9 @@ bool afs_select_fileserver(struct afs_operation *op)
 	struct afs_addr_list *alist;
 	struct afs_server *server;
 	struct afs_vnode *vnode = op->file[0].vnode;
-	struct afs_error e;
 	unsigned int rtt;
-	int error = op->ac.error, i;
+	s32 abort_code = op->call_abort_code;
+	int error = op->call_error, i;
 
 	op->nr_iterations++;
 
@@ -122,7 +122,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 	       op->debug_id, op->nr_iterations, op->volume->vid,
 	       op->untried, op->index,
 	       op->ac.tried, op->ac.index,
-	       error, op->ac.abort_code);
+	       error, abort_code);
 
 	if (op->flags & AFS_OPERATION_STOP) {
 		_leave(" = f [stopped]");
@@ -133,8 +133,10 @@ bool afs_select_fileserver(struct afs_operation *op)
 		goto start;
 
 	/* Evaluate the result of the previous operation, if there was one. */
-	switch (error) {
+	switch (op->call_error) {
 	case 0:
+		op->cumul_error.responded = true;
+		fallthrough;
 	default:
 		/* Success or local failure.  Stop. */
 		afs_op_set_error(op, error);
@@ -151,7 +153,8 @@ bool afs_select_fileserver(struct afs_operation *op)
 		 * errors instead.  IBM AFS and OpenAFS fileservers, however, do leak
 		 * these abort codes.
 		 */
-		switch (op->ac.abort_code) {
+		op->cumul_error.responded = true;
+		switch (abort_code) {
 		case VNOVOL:
 			/* This fileserver doesn't know about the volume.
 			 * - May indicate that the VL is wrong - retry once and compare
@@ -164,7 +167,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			 *   (administrative action).
 			 */
 			if (op->flags & AFS_OPERATION_VNOVOL) {
-				op->error = -EREMOTEIO;
+				afs_op_accumulate_error(op, -EREMOTEIO, abort_code);
 				goto next_server;
 			}
 
@@ -188,7 +191,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			 * it's the fileserver having trouble.
 			 */
 			if (rcu_access_pointer(op->volume->servers) == op->server_list) {
-				op->error = -EREMOTEIO;
+				afs_op_accumulate_error(op, -EREMOTEIO, abort_code);
 				goto next_server;
 			}
 
@@ -201,8 +204,8 @@ bool afs_select_fileserver(struct afs_operation *op)
 		case VONLINE:
 			/* These should not be returned from the fileserver. */
 			pr_warn("Fileserver returned unexpected abort %d\n",
-				op->ac.abort_code);
-			op->error = -EREMOTEIO;
+				abort_code);
+			afs_op_accumulate_error(op, -EREMOTEIO, abort_code);
 			goto next_server;
 
 		case VNOSERVICE:
@@ -233,7 +236,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			 * VNOSERVICE should be treated as an alias for RX_CALL_TIMEOUT.
 			 */
 		case RX_CALL_TIMEOUT:
-			op->error = -ETIMEDOUT;
+			afs_op_accumulate_error(op, -ETIMEDOUT, abort_code);
 			goto next_server;
 
 		case VSALVAGING: /* This error should not be leaked to cache managers
@@ -248,7 +251,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			 * days).
 			 */
 			if (!test_and_set_bit(AFS_VOLUME_OFFLINE, &op->volume->flags)) {
-				afs_busy(op->volume, op->ac.abort_code);
+				afs_busy(op->volume, abort_code);
 				clear_bit(AFS_VOLUME_BUSY, &op->volume->flags);
 			}
 			if (op->flags & AFS_OPERATION_NO_VSLEEP) {
@@ -281,7 +284,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 				goto failed;
 			}
 			if (!test_and_set_bit(AFS_VOLUME_BUSY, &op->volume->flags)) {
-				afs_busy(op->volume, op->ac.abort_code);
+				afs_busy(op->volume, abort_code);
 				clear_bit(AFS_VOLUME_OFFLINE, &op->volume->flags);
 			}
 		busy:
@@ -329,7 +332,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			 * TODO: Retry a few times with sleeps.
 			 */
 			if (rcu_access_pointer(op->volume->servers) == op->server_list) {
-				op->error = -ENOMEDIUM;
+				afs_op_accumulate_error(op, -ENOMEDIUM, abort_code);
 				goto failed;
 			}
 
@@ -337,7 +340,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 
 		case UAEIO:
 		case VIO:
-			op->error = -EREMOTEIO;
+			afs_op_accumulate_error(op, -EREMOTEIO, abort_code);
 			if (op->volume->type != AFSVL_RWVOL)
 				goto next_server;
 			goto failed;
@@ -361,7 +364,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			goto failed_but_online;
 
 		default:
-			op->error = afs_abort_to_error(op->ac.abort_code);
+			afs_op_accumulate_error(op, error, abort_code);
 		failed_but_online:
 			clear_bit(AFS_VOLUME_OFFLINE, &op->volume->flags);
 			clear_bit(AFS_VOLUME_BUSY, &op->volume->flags);
@@ -380,7 +383,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 	case -EHOSTDOWN:
 	case -ECONNREFUSED:
 		_debug("no conn");
-		op->error = error;
+		afs_op_accumulate_error(op, error, 0);
 		goto iterate_address;
 
 	case -ENETRESET:
@@ -506,6 +509,7 @@ iterate_address:
 	       op->index, op->ac.index, op->ac.alist->nr_addrs,
 	       rxrpc_kernel_remote_addr(op->ac.alist->addrs[op->ac.index].peer));
 
+	op->call_responded = false;
 	_leave(" = t");
 	return true;
 
@@ -543,17 +547,14 @@ no_more_servers:
 	if (op->flags & AFS_OPERATION_VBUSY)
 		goto restart_from_beginning;
 
-	e.error = -EDESTADDRREQ;
-	e.responded = false;
 	for (i = 0; i < op->server_list->nr_servers; i++) {
 		struct afs_server *s = op->server_list->servers[i].server;
 
-		afs_prioritise_error(&e, READ_ONCE(s->probe.error),
-				     s->probe.abort_code);
+		error = READ_ONCE(s->probe.error);
+		if (error < 0)
+			afs_op_accumulate_error(op, error, s->probe.abort_code);
 	}
 
-	error = e.error;
-	op->error = error;
 failed:
 	op->flags |= AFS_OPERATION_STOP;
 	afs_end_cursor(&op->ac);
@@ -576,11 +577,13 @@ void afs_dump_edestaddrreq(const struct afs_operation *op)
 	rcu_read_lock();
 
 	pr_notice("EDESTADDR occurred\n");
-	pr_notice("FC: cbb=%x cbb2=%x fl=%x err=%hd\n",
+	pr_notice("OP: cbb=%x cbb2=%x fl=%x err=%hd\n",
 		  op->file[0].cb_break_before,
-		  op->file[1].cb_break_before, op->flags, op->error);
-	pr_notice("FC: ut=%lx ix=%d ni=%u\n",
+		  op->file[1].cb_break_before, op->flags, op->cumul_error.error);
+	pr_notice("OP: ut=%lx ix=%d ni=%u\n",
 		  op->untried, op->index, op->nr_iterations);
+	pr_notice("OP: call  er=%d ac=%d r=%u\n",
+		  op->call_error, op->call_abort_code, op->call_responded);
 
 	if (op->server_list) {
 		const struct afs_server_list *sl = op->server_list;
@@ -605,8 +608,7 @@ void afs_dump_edestaddrreq(const struct afs_operation *op)
 		}
 	}
 
-	pr_notice("AC: t=%lx ax=%u ac=%d er=%d r=%u ni=%u\n",
-		  op->ac.tried, op->ac.index, op->ac.abort_code, op->ac.error,
-		  op->ac.responded, op->ac.nr_iterations);
+	pr_notice("AC: t=%lx ax=%u ni=%u\n",
+		  op->ac.tried, op->ac.index, op->ac.nr_iterations);
 	rcu_read_unlock();
 }
