@@ -5,6 +5,8 @@
 
 starfive-camss-objs += \
 		stf-camss.o \
+		stf-isp.o \
+		stf-isp-hw-ops.o \
 		stf-video.o
 
 obj-$(CONFIG_VIDEO_STARFIVE_CAMSS) += starfive-camss.o

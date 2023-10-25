@@ -18,6 +18,8 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 
+#include "stf-isp.h"
+
 enum stf_port_num {
 	STF_PORT_DVP = 0,
 	STF_PORT_CSI2RX
@@ -49,6 +51,7 @@ struct stfcamss {
 	struct media_device media_dev;
 	struct media_pipeline pipe;
 	struct device *dev;
+	struct stf_isp_dev isp_dev;
 	struct v4l2_async_notifier notifier;
 	void __iomem *syscon_base;
 	void __iomem *isp_base;
