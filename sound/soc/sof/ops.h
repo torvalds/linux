@@ -57,12 +57,10 @@ static inline void snd_sof_remove(struct snd_sof_dev *sdev)
 		sof_ops(sdev)->remove(sdev);
 }
 
-static inline int snd_sof_remove_late(struct snd_sof_dev *sdev)
+static inline void snd_sof_remove_late(struct snd_sof_dev *sdev)
 {
 	if (sof_ops(sdev)->remove_late)
-		return sof_ops(sdev)->remove_late(sdev);
-
-	return 0;
+		sof_ops(sdev)->remove_late(sdev);
 }
 
 static inline int snd_sof_shutdown(struct snd_sof_dev *sdev)
