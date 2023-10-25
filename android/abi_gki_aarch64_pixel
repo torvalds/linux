@@ -2199,6 +2199,7 @@
   __traceiter_android_vh_enable_thermal_genl_check
   __traceiter_android_vh_filemap_get_folio
   __traceiter_android_vh_ipi_stop
+  __traceiter_android_vh_meminfo_proc_show
   __traceiter_android_vh_mm_compaction_begin
   __traceiter_android_vh_mm_compaction_end
   __traceiter_android_vh_rmqueue
@@ -2234,6 +2235,8 @@
   __traceiter_mmap_lock_acquire_returned
   __traceiter_mmap_lock_released
   __traceiter_mmap_lock_start_locking
+  __traceiter_mm_vmscan_direct_reclaim_begin
+  __traceiter_mm_vmscan_direct_reclaim_end
   __traceiter_pelt_cfs_tp
   __traceiter_pelt_dl_tp
   __traceiter_pelt_irq_tp
@@ -2294,6 +2297,7 @@
   __tracepoint_android_vh_enable_thermal_genl_check
   __tracepoint_android_vh_filemap_get_folio
   __tracepoint_android_vh_ipi_stop
+  __tracepoint_android_vh_meminfo_proc_show
   __tracepoint_android_vh_mm_compaction_begin
   __tracepoint_android_vh_mm_compaction_end
   __tracepoint_android_vh_rmqueue
@@ -2329,6 +2333,8 @@
   __tracepoint_mmap_lock_acquire_returned
   __tracepoint_mmap_lock_released
   __tracepoint_mmap_lock_start_locking
+  __tracepoint_mm_vmscan_direct_reclaim_begin
+  __tracepoint_mm_vmscan_direct_reclaim_end
   __tracepoint_pelt_cfs_tp
   __tracepoint_pelt_dl_tp
   __tracepoint_pelt_irq_tp
