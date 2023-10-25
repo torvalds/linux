@@ -83,6 +83,12 @@ int xe_huc_auth(struct xe_huc *huc)
 
 	xe_assert(xe, !xe_uc_fw_is_running(&huc->fw));
 
+	/* On newer platforms the HuC survives reset, so no need to re-auth */
+	if (xe_mmio_read32(gt, HUC_KERNEL_LOAD_INFO) & HUC_LOAD_SUCCESSFUL) {
+		xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_RUNNING);
+		return 0;
+	}
+
 	if (!xe_uc_fw_is_loaded(&huc->fw))
 		return -ENOEXEC;
 
