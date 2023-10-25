@@ -59,9 +59,8 @@ static inline s64 div_frac(s64 x, s64 y)
  *			governor switches on when this trip point is crossed.
  *			If the thermal zone only has one passive trip point,
  *			@trip_switch_on should be NULL.
- * @trip_max_desired_temperature:	last passive trip point of the thermal
- *					zone.  The temperature we are
- *					controlling for.
+ * @trip_max:		last passive trip point of the thermal zone. The
+ *			temperature we are controlling for.
  */
 struct power_allocator_params {
 	bool allocated_tzp;
@@ -69,7 +68,7 @@ struct power_allocator_params {
 	s32 prev_err;
 	u32 sustainable_power;
 	const struct thermal_trip *trip_switch_on;
-	const struct thermal_trip *trip_max_desired_temperature;
+	const struct thermal_trip *trip_max;
 };
 
 /**
@@ -93,7 +92,7 @@ static u32 estimate_sustainable_power(struct thermal_zone_device *tz)
 		struct thermal_cooling_device *cdev = instance->cdev;
 		u32 min_power;
 
-		if (instance->trip != params->trip_max_desired_temperature)
+		if (instance->trip != params->trip_max)
 			continue;
 
 		if (!cdev_is_power_actor(cdev))
@@ -379,8 +378,7 @@ static int allocate_power(struct thermal_zone_device *tz,
 {
 	struct thermal_instance *instance;
 	struct power_allocator_params *params = tz->governor_data;
-	const struct thermal_trip *trip_max_desired_temperature =
-					params->trip_max_desired_temperature;
+	const struct thermal_trip *trip_max = params->trip_max;
 	u32 *req_power, *max_power, *granted_power, *extra_actor_power;
 	u32 *weighted_req_power;
 	u32 total_req_power, max_allocatable_power, total_weighted_req_power;
@@ -390,7 +388,7 @@ static int allocate_power(struct thermal_zone_device *tz,
 	num_actors = 0;
 	total_weight = 0;
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if ((instance->trip == trip_max_desired_temperature) &&
+		if ((instance->trip == trip_max) &&
 		    cdev_is_power_actor(instance->cdev)) {
 			num_actors++;
 			total_weight += instance->weight;
@@ -429,7 +427,7 @@ static int allocate_power(struct thermal_zone_device *tz,
 		int weight;
 		struct thermal_cooling_device *cdev = instance->cdev;
 
-		if (instance->trip != trip_max_desired_temperature)
+		if (instance->trip != trip_max)
 			continue;
 
 		if (!cdev_is_power_actor(cdev))
@@ -465,7 +463,7 @@ static int allocate_power(struct thermal_zone_device *tz,
 	total_granted_power = 0;
 	i = 0;
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip != trip_max_desired_temperature)
+		if (instance->trip != trip_max)
 			continue;
 
 		if (!cdev_is_power_actor(instance->cdev))
@@ -531,13 +529,13 @@ static void get_governor_trips(struct thermal_zone_device *tz,
 
 	if (last_passive) {
 		params->trip_switch_on = first_passive;
-		params->trip_max_desired_temperature = last_passive;
+		params->trip_max = last_passive;
 	} else if (first_passive) {
 		params->trip_switch_on = NULL;
-		params->trip_max_desired_temperature = first_passive;
+		params->trip_max = first_passive;
 	} else {
 		params->trip_switch_on = NULL;
-		params->trip_max_desired_temperature = last_active;
+		params->trip_max = last_active;
 	}
 }
 
@@ -556,8 +554,8 @@ static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		struct thermal_cooling_device *cdev = instance->cdev;
 
-		if (instance->trip != params->trip_max_desired_temperature ||
-		    (!cdev_is_power_actor(instance->cdev)))
+		if (instance->trip != params->trip_max ||
+		    !cdev_is_power_actor(instance->cdev))
 			continue;
 
 		instance->target = 0;
@@ -642,12 +640,10 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 
 	get_governor_trips(tz, params);
 
-	if (params->trip_max_desired_temperature) {
-		int temp = params->trip_max_desired_temperature->temperature;
-
+	if (params->trip_max)
 		estimate_pid_constants(tz, tz->tzp->sustainable_power,
-				       params->trip_switch_on, temp);
-	}
+				       params->trip_switch_on,
+				       params->trip_max->temperature);
 
 	reset_pid_controller(params);
 
@@ -688,7 +684,7 @@ static int power_allocator_throttle(struct thermal_zone_device *tz,
 	 * We get called for every trip point but we only need to do
 	 * our calculations once
 	 */
-	if (trip != params->trip_max_desired_temperature)
+	if (trip != params->trip_max)
 		return 0;
 
 	trip = params->trip_switch_on;
@@ -702,7 +698,7 @@ static int power_allocator_throttle(struct thermal_zone_device *tz,
 
 	tz->passive = 1;
 
-	return allocate_power(tz, params->trip_max_desired_temperature->temperature);
+	return allocate_power(tz, params->trip_max->temperature);
 }
 
 static struct thermal_governor thermal_gov_power_allocator = {
