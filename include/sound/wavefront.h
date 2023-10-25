@@ -468,7 +468,7 @@ typedef struct wf_alias {
     */
 
     u8 sixteen_bit_padding;
-} __attribute__((packed)) wavefront_alias;
+} __packed wavefront_alias;
 
 typedef struct wf_drum {
     u8 PatchNumber;
