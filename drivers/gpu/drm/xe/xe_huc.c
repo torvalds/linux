@@ -35,10 +35,19 @@ huc_to_guc(struct xe_huc *huc)
 
 int xe_huc_init(struct xe_huc *huc)
 {
-	struct xe_device *xe = huc_to_xe(huc);
+	struct xe_gt *gt = huc_to_gt(huc);
+	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_device *xe = gt_to_xe(gt);
 	int ret;
 
 	huc->fw.type = XE_UC_FW_TYPE_HUC;
+
+	/* On platforms with a media GT the HuC is only available there */
+	if (tile->media_gt && (gt != tile->media_gt)) {
+		xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_NOT_SUPPORTED);
+		return 0;
+	}
+
 	ret = xe_uc_fw_init(&huc->fw);
 	if (ret)
 		goto out;
