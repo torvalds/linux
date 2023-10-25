@@ -789,9 +789,11 @@ class AttrSet(SpecAttrSet):
                 pfx = f"{family.name}-a-{self.name}-"
             self.name_prefix = c_upper(pfx)
             self.max_name = c_upper(self.yaml.get('attr-max-name', f"{self.name_prefix}max"))
+            self.cnt_name = c_upper(self.yaml.get('attr-cnt-name', f"__{self.name_prefix}max"))
         else:
             self.name_prefix = family.attr_sets[self.subset_of].name_prefix
             self.max_name = family.attr_sets[self.subset_of].max_name
+            self.cnt_name = family.attr_sets[self.subset_of].cnt_name
 
         # Added by resolve:
         self.c_name = None
@@ -2354,8 +2356,7 @@ def render_uapi(family, cw):
         if attr_set.subset_of:
             continue
 
-        cnt_name = c_upper(family.get('attr-cnt-name', f"__{attr_set.name_prefix}MAX"))
-        max_value = f"({cnt_name} - 1)"
+        max_value = f"({attr_set.cnt_name} - 1)"
 
         val = 0
         uapi_enum_start(family, cw, attr_set.yaml, 'enum-name')
@@ -2367,7 +2368,7 @@ def render_uapi(family, cw):
             val += 1
             cw.p(attr.enum_name + suffix)
         cw.nl()
-        cw.p(cnt_name + ('' if max_by_define else ','))
+        cw.p(attr_set.cnt_name + ('' if max_by_define else ','))
         if not max_by_define:
             cw.p(f"{attr_set.max_name} = {max_value}")
         cw.block_end(line=';')
