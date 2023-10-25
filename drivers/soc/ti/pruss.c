@@ -565,7 +565,7 @@ rpm_disable:
 	return ret;
 }
 
-static int pruss_remove(struct platform_device *pdev)
+static void pruss_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
@@ -573,8 +573,6 @@ static int pruss_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 /* instance-specific driver private data */
@@ -610,7 +608,7 @@ static struct platform_driver pruss_driver = {
 		.of_match_table = pruss_of_match,
 	},
 	.probe  = pruss_probe,
-	.remove = pruss_remove,
+	.remove_new = pruss_remove,
 };
 module_platform_driver(pruss_driver);
 
