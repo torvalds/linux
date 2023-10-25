@@ -346,6 +346,11 @@ properties:
               type: array
               items:
                 enum: [ strict, dump, dump-strict ]
+            config-cond:
+              description: |
+                Name of the kernel config option gating the presence of
+                the operation, without the 'CONFIG_' prefix.
+              type: string
             # Start genetlink-legacy
             fixed-header: *fixed-header
             # End genetlink-legacy
