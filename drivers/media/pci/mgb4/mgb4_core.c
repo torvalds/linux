@@ -42,6 +42,10 @@
 
 #define MGB4_USER_IRQS 16
 
+#define DIGITEQ_VID 0x1ed8
+#define T100_DID    0x0101
+#define T200_DID    0x0201
+
 ATTRIBUTE_GROUPS(mgb4_pci);
 
 static int flashid;
@@ -151,7 +155,7 @@ static struct spi_master *get_spi_adap(struct platform_device *pdev)
 	return dev ? container_of(dev, struct spi_master, dev) : NULL;
 }
 
-static int init_spi(struct mgb4_dev *mgbdev)
+static int init_spi(struct mgb4_dev *mgbdev, u32 devid)
 {
 	struct resource spi_resources[] = {
 		{
@@ -213,8 +217,13 @@ static int init_spi(struct mgb4_dev *mgbdev)
 	snprintf(mgbdev->fw_part_name, sizeof(mgbdev->fw_part_name),
 		 "mgb4-fw.%d", flashid);
 	mgbdev->partitions[0].name = mgbdev->fw_part_name;
-	mgbdev->partitions[0].size = 0x400000;
-	mgbdev->partitions[0].offset = 0x400000;
+	if (devid == T200_DID) {
+		mgbdev->partitions[0].size = 0x950000;
+		mgbdev->partitions[0].offset = 0x1000000;
+	} else {
+		mgbdev->partitions[0].size = 0x400000;
+		mgbdev->partitions[0].offset = 0x400000;
+	}
 	mgbdev->partitions[0].mask_flags = 0;
 
 	snprintf(mgbdev->data_part_name, sizeof(mgbdev->data_part_name),
@@ -551,7 +560,7 @@ static int mgb4_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_video_regs;
 
 	/* SPI FLASH */
-	rv = init_spi(mgbdev);
+	rv = init_spi(mgbdev, id->device);
 	if (rv < 0)
 		goto err_cmt_regs;
 
@@ -666,7 +675,8 @@ static void mgb4_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id mgb4_pci_ids[] = {
-	{ PCI_DEVICE(0x1ed8, 0x0101), },
+	{ PCI_DEVICE(DIGITEQ_VID, T100_DID), },
+	{ PCI_DEVICE(DIGITEQ_VID, T200_DID), },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, mgb4_pci_ids);
