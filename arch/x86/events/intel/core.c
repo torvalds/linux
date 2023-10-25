@@ -5540,6 +5540,12 @@ static struct attribute *lbr_attrs[] = {
 	NULL
 };
 
+static umode_t
+lbr_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	return x86_pmu.lbr_nr ? attr->mode : 0;
+}
+
 static char pmu_name_str[30];
 
 static ssize_t pmu_name_show(struct device *cdev,
@@ -5567,6 +5573,15 @@ static struct attribute *intel_pmu_attrs[] = {
 };
 
 static umode_t
+default_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	if (attr == &dev_attr_allow_tsx_force_abort.attr)
+		return x86_pmu.flags & PMU_FL_TFA ? attr->mode : 0;
+
+	return attr->mode;
+}
+
+static umode_t
 tsx_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 {
 	return boot_cpu_has(X86_FEATURE_RTM) ? attr->mode : 0;
@@ -5588,24 +5603,9 @@ mem_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 }
 
 static umode_t
-lbr_is_visible(struct kobject *kobj, struct attribute *attr, int i)
-{
-	return x86_pmu.lbr_nr ? attr->mode : 0;
-}
-
-static umode_t
 exra_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 {
 	return x86_pmu.version >= 2 ? attr->mode : 0;
-}
-
-static umode_t
-default_is_visible(struct kobject *kobj, struct attribute *attr, int i)
-{
-	if (attr == &dev_attr_allow_tsx_force_abort.attr)
-		return x86_pmu.flags & PMU_FL_TFA ? attr->mode : 0;
-
-	return attr->mode;
 }
 
 static struct attribute_group group_events_td  = {
