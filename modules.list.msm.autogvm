@@ -26,3 +26,4 @@ virtio_regulator.ko
 iommu-logger.ko
 qcom_iommu_util.ko
 arm_smmu.ko
+virt-arm-smmu-v3.ko
