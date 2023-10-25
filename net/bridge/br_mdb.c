@@ -1411,3 +1411,161 @@ int br_mdb_del(struct net_device *dev, struct nlattr *tb[],
 	br_mdb_config_fini(&cfg);
 	return err;
 }
+
+static const struct nla_policy br_mdbe_attrs_get_pol[MDBE_ATTR_MAX + 1] = {
+	[MDBE_ATTR_SOURCE] = NLA_POLICY_RANGE(NLA_BINARY,
+					      sizeof(struct in_addr),
+					      sizeof(struct in6_addr)),
+};
+
+static int br_mdb_get_parse(struct net_device *dev, struct nlattr *tb[],
+			    struct br_ip *group, struct netlink_ext_ack *extack)
+{
+	struct br_mdb_entry *entry = nla_data(tb[MDBA_GET_ENTRY]);
+	struct nlattr *mdbe_attrs[MDBE_ATTR_MAX + 1];
+	int err;
+
+	if (!tb[MDBA_GET_ENTRY_ATTRS]) {
+		__mdb_entry_to_br_ip(entry, group, NULL);
+		return 0;
+	}
+
+	err = nla_parse_nested(mdbe_attrs, MDBE_ATTR_MAX,
+			       tb[MDBA_GET_ENTRY_ATTRS], br_mdbe_attrs_get_pol,
+			       extack);
+	if (err)
+		return err;
+
+	if (mdbe_attrs[MDBE_ATTR_SOURCE] &&
+	    !is_valid_mdb_source(mdbe_attrs[MDBE_ATTR_SOURCE],
+				 entry->addr.proto, extack))
+		return -EINVAL;
+
+	__mdb_entry_to_br_ip(entry, group, mdbe_attrs);
+
+	return 0;
+}
+
+static struct sk_buff *
+br_mdb_get_reply_alloc(const struct net_bridge_mdb_entry *mp)
+{
+	struct net_bridge_port_group *pg;
+	size_t nlmsg_size;
+
+	nlmsg_size = NLMSG_ALIGN(sizeof(struct br_port_msg)) +
+		     /* MDBA_MDB */
+		     nla_total_size(0) +
+		     /* MDBA_MDB_ENTRY */
+		     nla_total_size(0);
+
+	if (mp->host_joined)
+		nlmsg_size += rtnl_mdb_nlmsg_pg_size(NULL);
+
+	for (pg = mlock_dereference(mp->ports, mp->br); pg;
+	     pg = mlock_dereference(pg->next, mp->br))
+		nlmsg_size += rtnl_mdb_nlmsg_pg_size(pg);
+
+	return nlmsg_new(nlmsg_size, GFP_ATOMIC);
+}
+
+static int br_mdb_get_reply_fill(struct sk_buff *skb,
+				 struct net_bridge_mdb_entry *mp, u32 portid,
+				 u32 seq)
+{
+	struct nlattr *mdb_nest, *mdb_entry_nest;
+	struct net_bridge_port_group *pg;
+	struct br_port_msg *bpm;
+	struct nlmsghdr *nlh;
+	int err;
+
+	nlh = nlmsg_put(skb, portid, seq, RTM_NEWMDB, sizeof(*bpm), 0);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	bpm = nlmsg_data(nlh);
+	memset(bpm, 0, sizeof(*bpm));
+	bpm->family  = AF_BRIDGE;
+	bpm->ifindex = mp->br->dev->ifindex;
+	mdb_nest = nla_nest_start_noflag(skb, MDBA_MDB);
+	if (!mdb_nest) {
+		err = -EMSGSIZE;
+		goto cancel;
+	}
+	mdb_entry_nest = nla_nest_start_noflag(skb, MDBA_MDB_ENTRY);
+	if (!mdb_entry_nest) {
+		err = -EMSGSIZE;
+		goto cancel;
+	}
+
+	if (mp->host_joined) {
+		err = __mdb_fill_info(skb, mp, NULL);
+		if (err)
+			goto cancel;
+	}
+
+	for (pg = mlock_dereference(mp->ports, mp->br); pg;
+	     pg = mlock_dereference(pg->next, mp->br)) {
+		err = __mdb_fill_info(skb, mp, pg);
+		if (err)
+			goto cancel;
+	}
+
+	nla_nest_end(skb, mdb_entry_nest);
+	nla_nest_end(skb, mdb_nest);
+	nlmsg_end(skb, nlh);
+
+	return 0;
+
+cancel:
+	nlmsg_cancel(skb, nlh);
+	return err;
+}
+
+int br_mdb_get(struct net_device *dev, struct nlattr *tb[], u32 portid, u32 seq,
+	       struct netlink_ext_ack *extack)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_mdb_entry *mp;
+	struct sk_buff *skb;
+	struct br_ip group;
+	int err;
+
+	err = br_mdb_get_parse(dev, tb, &group, extack);
+	if (err)
+		return err;
+
+	/* Hold the multicast lock to ensure that the MDB entry does not change
+	 * between the time the reply size is determined and when the reply is
+	 * filled in.
+	 */
+	spin_lock_bh(&br->multicast_lock);
+
+	mp = br_mdb_ip_get(br, &group);
+	if (!mp) {
+		NL_SET_ERR_MSG_MOD(extack, "MDB entry not found");
+		err = -ENOENT;
+		goto unlock;
+	}
+
+	skb = br_mdb_get_reply_alloc(mp);
+	if (!skb) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	err = br_mdb_get_reply_fill(skb, mp, portid, seq);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to fill MDB get reply");
+		goto free;
+	}
+
+	spin_unlock_bh(&br->multicast_lock);
+
+	return rtnl_unicast(skb, dev_net(dev), portid);
+
+free:
+	kfree_skb(skb);
+unlock:
+	spin_unlock_bh(&br->multicast_lock);
+	return err;
+}
