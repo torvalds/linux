@@ -60,6 +60,13 @@
 		};
 	};
 
+	minidump: minidump {
+		compatible = "rockchip,minidump";
+		smem-region = <&minidump_smem>;
+		minidump-region = <&minidump_mem>;
+		status = "disabled";
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -84,12 +91,28 @@
 
 		ramoops: ramoops@110000 {
 			compatible = "ramoops";
-			reg = <0x0 0x110000 0x0 0xf0000>;
-			record-size = <0x20000>;
+			/* 0x110000 to 0x1f0000 is for ramoops */
+			reg = <0x0 0x110000 0x0 0xe0000>;
+			boot-log-size = <0x8000>;	/* do not change */
+			boot-log-count = <0x1>;		/* do not change */
 			console-size = <0x80000>;
+			pmsg-size = <0x30000>;
 			ftrace-size = <0x00000>;
-			pmsg-size = <0x50000>;
+			record-size = <0x14000>;
 		};
+
+		minidump_smem: minidump-smem@1f0000 {
+			reg = <0x0 0x1f0000 0x0 0x100>;		/* do not change */
+			no-map;
+			status = "disabled";
+		};
+
+		minidump_mem: minidump-mem@c000000 {
+			reg = <0x0 0x0c000000 0x0 0x2000000>;	/* changing according to your project */
+			no-map;
+			status = "disabled";
+		};
+
 	};
 };
 
