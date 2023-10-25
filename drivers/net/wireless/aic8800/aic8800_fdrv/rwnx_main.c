@@ -8935,9 +8935,6 @@ if((g_rwnx_plat->usbdev->chipid == PRODUCT_ID_AIC8801) ||
     vif = rwnx_interface_add(rwnx_hw, "wlan%d", NET_NAME_UNKNOWN,
                                 NL80211_IFTYPE_STATION, NULL);
 
-    vif = rwnx_interface_add(rwnx_hw, "wlan-ap%d", NET_NAME_UNKNOWN,
-                                NL80211_IFTYPE_AP, NULL);
-
     #ifdef CONFIG_RWNX_MON_DATA
     /* Add an initial station interface */
     vif = rwnx_interface_add(rwnx_hw, "wlan%d", 1,
