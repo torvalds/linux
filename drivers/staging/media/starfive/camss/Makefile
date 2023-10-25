@@ -5,6 +5,7 @@
 
 starfive-camss-objs += \
 		stf-camss.o \
+		stf-capture.o \
 		stf-isp.o \
 		stf-isp-hw-ops.o \
 		stf-video.o
