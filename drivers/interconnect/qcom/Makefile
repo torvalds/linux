@@ -42,6 +42,7 @@ qnoc-holi-objs				:= holi.o
 qnoc-pitti-objs				:= pitti.o
 icc-smd-rpm-objs			:= smd-rpm.o
 qnoc-qos-obj				:= qnoc-qos.o
+qnoc-mdm9x07-objs			:= mdm9x07.o
 
 obj-$(CONFIG_INTERCONNECT_QCOM_BCM_VOTER) += icc-bcm-voter.o
 obj-$(CONFIG_INTERCONNECT_QCOM_MSM8916) += qnoc-msm8916.o
@@ -83,3 +84,4 @@ obj-$(CONFIG_INTERCONNECT_QCOM_SMD_RPM) += icc-smd-rpm.o
 obj-$(CONFIG_INTERCONNECT_QCOM_QOS) += qnoc-qos.o
 obj-$(CONFIG_INTERCONNECT_QCOM_QOS_RPM) += qnoc-qos-rpm.o
 obj-$(CONFIG_INTERCONNECT_QCOM_DEBUG) += icc-debug.o
+obj-$(CONFIG_INTERCONNECT_QCOM_MDM9X07) += qnoc-mdm9x07.o
