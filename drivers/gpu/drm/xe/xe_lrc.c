@@ -12,6 +12,7 @@
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
 #include "regs/xe_regs.h"
+#include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_drm_client.h"
@@ -1108,3 +1109,47 @@ void xe_lrc_dump_default(struct drm_printer *p,
 		remaining_dw -= num_dw;
 	}
 }
+
+struct instr_state {
+	u32 instr;
+	u16 num_dw;
+};
+
+void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *bb)
+{
+	struct xe_gt *gt = q->hwe->gt;
+	struct xe_device *xe = gt_to_xe(gt);
+	const struct instr_state *state_table = NULL;
+	int state_table_size = 0;
+
+	/*
+	 * At the moment we only need to emit non-register state for the RCS
+	 * engine.
+	 */
+	if (q->hwe->class != XE_ENGINE_CLASS_RENDER)
+		return;
+
+	switch (GRAPHICS_VERx100(xe)) {
+	default:
+		xe_gt_dbg(gt, "No non-register state to emit on graphics ver %d.%02d\n",
+			  GRAPHICS_VER(xe), GRAPHICS_VERx100(xe) % 100);
+		return;
+	}
+
+	for (int i = 0; i < state_table_size; i++) {
+		u32 instr = state_table[i].instr;
+		u16 num_dw = state_table[i].num_dw;
+		bool is_single_dw = ((instr & GFXPIPE_PIPELINE) == PIPELINE_SINGLE_DW);
+
+		xe_gt_assert(gt, (instr & XE_INSTR_CMD_TYPE) == XE_INSTR_GFXPIPE);
+		xe_gt_assert(gt, num_dw != 0);
+		xe_gt_assert(gt, is_single_dw ^ (num_dw > 1));
+
+		bb->cs[bb->len] = instr;
+		if (!is_single_dw)
+			bb->cs[bb->len] |= (num_dw - 2);
+
+		bb->len += num_dw;
+	}
+}
+

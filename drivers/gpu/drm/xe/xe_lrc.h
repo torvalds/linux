@@ -8,6 +8,7 @@
 #include "xe_lrc_types.h"
 
 struct drm_printer;
+struct xe_bb;
 struct xe_device;
 struct xe_exec_queue;
 enum xe_engine_class;
@@ -51,5 +52,7 @@ size_t xe_lrc_skip_size(struct xe_device *xe);
 void xe_lrc_dump_default(struct drm_printer *p,
 			 struct xe_gt *gt,
 			 enum xe_engine_class);
+
+void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *bb);
 
 #endif

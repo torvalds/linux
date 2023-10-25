@@ -136,7 +136,13 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	long timeout;
 	int count = 0;
 
-	bb = xe_bb_new(gt, SZ_4K, false);	/* Just pick a large BB size */
+	if (q->hwe->class == XE_ENGINE_CLASS_RENDER)
+		/* Big enough to emit all of the context's 3DSTATE */
+		bb = xe_bb_new(gt, xe_lrc_size(gt_to_xe(gt), q->hwe->class), false);
+	else
+		/* Just pick a large BB size */
+		bb = xe_bb_new(gt, SZ_4K, false);
+
 	if (IS_ERR(bb))
 		return PTR_ERR(bb);
 
@@ -172,6 +178,8 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 			xe_gt_dbg(gt, "REG[0x%x] = 0x%08x", reg.addr, val);
 		}
 	}
+
+	xe_lrc_emit_hwe_state_instructions(q, bb);
 
 	job = xe_bb_create_job(q, bb);
 	if (IS_ERR(job)) {
