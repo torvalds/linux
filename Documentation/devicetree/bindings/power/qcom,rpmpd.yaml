@@ -55,6 +55,7 @@ properties:
           - qcom,sm8350-rpmhpd
           - qcom,sm8450-rpmhpd
           - qcom,sm8550-rpmhpd
+          - qcom,sm8650-rpmhpd
       - items:
           - enum:
               - qcom,msm8937-rpmpd
