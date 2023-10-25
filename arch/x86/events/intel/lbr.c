@@ -676,6 +676,25 @@ void intel_pmu_lbr_del(struct perf_event *event)
 	WARN_ON_ONCE(cpuc->lbr_users < 0);
 	WARN_ON_ONCE(cpuc->lbr_pebs_users < 0);
 	perf_sched_cb_dec(event->pmu);
+
+	/*
+	 * The logged occurrences information is only valid for the
+	 * current LBR group. If another LBR group is scheduled in
+	 * later, the information from the stale LBRs will be wrongly
+	 * interpreted. Reset the LBRs here.
+	 *
+	 * Only clear once for a branch counter group with the leader
+	 * event. Because
+	 * - Cannot simply reset the LBRs with the !cpuc->lbr_users.
+	 *   Because it's possible that the last LBR user is not in a
+	 *   branch counter group, e.g., a branch_counters group +
+	 *   several normal LBR events.
+	 * - The LBR reset can be done with any one of the events in a
+	 *   branch counter group, since they are always scheduled together.
+	 *   It's easy to force the leader event an LBR event.
+	 */
+	if (is_branch_counters_group(event) && event == event->group_leader)
+		intel_pmu_lbr_reset();
 }
 
 static inline bool vlbr_exclude_host(void)
@@ -866,6 +885,8 @@ static __always_inline u16 get_lbr_cycles(u64 info)
 	return cycles;
 }
 
+static_assert((64 - PERF_BRANCH_ENTRY_INFO_BITS_MAX) > LBR_INFO_BR_CNTR_NUM * LBR_INFO_BR_CNTR_BITS);
+
 static void intel_pmu_store_lbr(struct cpu_hw_events *cpuc,
 				struct lbr_entry *entries)
 {
@@ -898,9 +919,65 @@ static void intel_pmu_store_lbr(struct cpu_hw_events *cpuc,
 		e->abort	= !!(info & LBR_INFO_ABORT);
 		e->cycles	= get_lbr_cycles(info);
 		e->type		= get_lbr_br_type(info);
+
+		/*
+		 * Leverage the reserved field of cpuc->lbr_entries[i] to
+		 * temporarily store the branch counters information.
+		 * The later code will decide what content can be disclosed
+		 * to the perf tool. Pleae see intel_pmu_lbr_counters_reorder().
+		 */
+		e->reserved	= (info >> LBR_INFO_BR_CNTR_OFFSET) & LBR_INFO_BR_CNTR_FULL_MASK;
 	}
 
 	cpuc->lbr_stack.nr = i;
+}
+
+/*
+ * The enabled order may be different from the counter order.
+ * Update the lbr_counters with the enabled order.
+ */
+static void intel_pmu_lbr_counters_reorder(struct cpu_hw_events *cpuc,
+					   struct perf_event *event)
+{
+	int i, j, pos = 0, order[X86_PMC_IDX_MAX];
+	struct perf_event *leader, *sibling;
+	u64 src, dst, cnt;
+
+	leader = event->group_leader;
+	if (branch_sample_counters(leader))
+		order[pos++] = leader->hw.idx;
+
+	for_each_sibling_event(sibling, leader) {
+		if (!branch_sample_counters(sibling))
+			continue;
+		order[pos++] = sibling->hw.idx;
+	}
+
+	WARN_ON_ONCE(!pos);
+
+	for (i = 0; i < cpuc->lbr_stack.nr; i++) {
+		src = cpuc->lbr_entries[i].reserved;
+		dst = 0;
+		for (j = 0; j < pos; j++) {
+			cnt = (src >> (order[j] * LBR_INFO_BR_CNTR_BITS)) & LBR_INFO_BR_CNTR_MASK;
+			dst |= cnt << j * LBR_INFO_BR_CNTR_BITS;
+		}
+		cpuc->lbr_counters[i] = dst;
+		cpuc->lbr_entries[i].reserved = 0;
+	}
+}
+
+void intel_pmu_lbr_save_brstack(struct perf_sample_data *data,
+				struct cpu_hw_events *cpuc,
+				struct perf_event *event)
+{
+	if (is_branch_counters_group(event)) {
+		intel_pmu_lbr_counters_reorder(cpuc, event);
+		perf_sample_save_brstack(data, event, &cpuc->lbr_stack, cpuc->lbr_counters);
+		return;
+	}
+
+	perf_sample_save_brstack(data, event, &cpuc->lbr_stack, NULL);
 }
 
 static void intel_pmu_arch_lbr_read(struct cpu_hw_events *cpuc)
@@ -1173,8 +1250,10 @@ intel_pmu_lbr_filter(struct cpu_hw_events *cpuc)
 	for (i = 0; i < cpuc->lbr_stack.nr; ) {
 		if (!cpuc->lbr_entries[i].from) {
 			j = i;
-			while (++j < cpuc->lbr_stack.nr)
+			while (++j < cpuc->lbr_stack.nr) {
 				cpuc->lbr_entries[j-1] = cpuc->lbr_entries[j];
+				cpuc->lbr_counters[j-1] = cpuc->lbr_counters[j];
+			}
 			cpuc->lbr_stack.nr--;
 			if (!cpuc->lbr_entries[i].from)
 				continue;
@@ -1525,7 +1604,11 @@ void __init intel_pmu_arch_lbr_init(void)
 	x86_pmu.lbr_mispred = ecx.split.lbr_mispred;
 	x86_pmu.lbr_timed_lbr = ecx.split.lbr_timed_lbr;
 	x86_pmu.lbr_br_type = ecx.split.lbr_br_type;
+	x86_pmu.lbr_counters = ecx.split.lbr_counters;
 	x86_pmu.lbr_nr = lbr_nr;
+
+	if (!!x86_pmu.lbr_counters)
+		x86_pmu.flags |= PMU_FL_BR_CNTR;
 
 	if (x86_pmu.lbr_mispred)
 		static_branch_enable(&x86_lbr_mispred);
