@@ -224,13 +224,51 @@ static int kgd_gfx_v12_validate_trap_override_request(struct amdgpu_device *adev
 				KFD_DBG_TRAP_MASK_FP_INEXACT |
 				KFD_DBG_TRAP_MASK_INT_DIVIDE_BY_ZERO |
 				KFD_DBG_TRAP_MASK_DBG_ADDRESS_WATCH |
-				KFD_DBG_TRAP_MASK_DBG_MEMORY_VIOLATION;
+				KFD_DBG_TRAP_MASK_DBG_MEMORY_VIOLATION |
+				KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_START |
+				KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_END;
+
 
 	if (trap_override != KFD_DBG_TRAP_OVERRIDE_OR &&
 			trap_override != KFD_DBG_TRAP_OVERRIDE_REPLACE)
 		return -EPERM;
 
 	return 0;
+}
+
+static uint32_t trap_mask_map_sw_to_hw(uint32_t mask)
+{
+	uint32_t trap_on_start = (mask & KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_START) ? 1 : 0;
+	uint32_t trap_on_end = (mask & KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_END) ? 1 : 0;
+	uint32_t excp_en = mask & (KFD_DBG_TRAP_MASK_FP_INVALID |
+			KFD_DBG_TRAP_MASK_FP_INPUT_DENORMAL |
+			KFD_DBG_TRAP_MASK_FP_DIVIDE_BY_ZERO |
+			KFD_DBG_TRAP_MASK_FP_OVERFLOW |
+			KFD_DBG_TRAP_MASK_FP_UNDERFLOW |
+			KFD_DBG_TRAP_MASK_FP_INEXACT |
+			KFD_DBG_TRAP_MASK_INT_DIVIDE_BY_ZERO |
+			KFD_DBG_TRAP_MASK_DBG_ADDRESS_WATCH |
+			KFD_DBG_TRAP_MASK_DBG_MEMORY_VIOLATION);
+	uint32_t ret;
+
+	ret = REG_SET_FIELD(0, SPI_GDBG_PER_VMID_CNTL, EXCP_EN, excp_en);
+	ret = REG_SET_FIELD(ret, SPI_GDBG_PER_VMID_CNTL, TRAP_ON_START, trap_on_start);
+	ret = REG_SET_FIELD(ret, SPI_GDBG_PER_VMID_CNTL, TRAP_ON_END, trap_on_end);
+
+	return ret;
+}
+
+static uint32_t trap_mask_map_hw_to_sw(uint32_t mask)
+{
+	uint32_t ret = REG_GET_FIELD(mask, SPI_GDBG_PER_VMID_CNTL, EXCP_EN);
+
+	if (REG_GET_FIELD(mask, SPI_GDBG_PER_VMID_CNTL, TRAP_ON_START))
+		ret |= KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_START;
+
+	if (REG_GET_FIELD(mask, SPI_GDBG_PER_VMID_CNTL, TRAP_ON_END))
+		ret |= KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_END;
+
+	return ret;
 }
 
 /* returns TRAP_EN, EXCP_EN and EXCP_REPLACE. */
@@ -245,12 +283,12 @@ static uint32_t kgd_gfx_v12_set_wave_launch_trap_override(struct amdgpu_device *
 {
 	uint32_t data = 0;
 
-	*trap_mask_prev = REG_GET_FIELD(kfd_dbg_trap_cntl_prev, SPI_GDBG_PER_VMID_CNTL, EXCP_EN);
-	trap_mask_bits = (trap_mask_bits & trap_mask_request) |
-		(*trap_mask_prev & ~trap_mask_request);
+	*trap_mask_prev = trap_mask_map_hw_to_sw(kfd_dbg_trap_cntl_prev);
+
+	data = (trap_mask_bits & trap_mask_request) | (*trap_mask_prev & ~trap_mask_request);
+	data = trap_mask_map_sw_to_hw(data);
 
 	data = REG_SET_FIELD(data, SPI_GDBG_PER_VMID_CNTL, TRAP_EN, 1);
-	data = REG_SET_FIELD(data, SPI_GDBG_PER_VMID_CNTL, EXCP_EN, trap_mask_bits);
 	data = REG_SET_FIELD(data, SPI_GDBG_PER_VMID_CNTL, EXCP_REPLACE, trap_override);
 
 	return data;
