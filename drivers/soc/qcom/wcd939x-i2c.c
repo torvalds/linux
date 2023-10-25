@@ -1214,6 +1214,11 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			for (i = 0; i < ARRAY_SIZE(coeff_init); ++i)
 				regmap_update_bits(wcd_usbss_ctxt_->regmap, coeff_init[i].reg,
 						coeff_init[i].mask, coeff_init[i].val);
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_USB_SS_CNTL, 0x08, 0x00);
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_USB_SS_CNTL, 0x08, 0x08);
+			usleep_range(10000, 10100);
 			break;
 		case WCD_USBSS_GND_MIC_SWAP_AATC:
 			dev_info(wcd_usbss_ctxt_->dev,
