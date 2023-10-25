@@ -340,7 +340,7 @@ static void pc_update_rp_values(struct xe_guc_pc *pc)
 	struct xe_gt *gt = pc_to_gt(pc);
 	struct xe_device *xe = gt_to_xe(gt);
 
-	if (xe->info.platform == XE_METEORLAKE)
+	if (GRAPHICS_VERx100(xe) >= 1270)
 		mtl_update_rpe_value(pc);
 	else
 		tgl_update_rpe_value(pc);
@@ -365,7 +365,7 @@ static ssize_t freq_act_show(struct device *dev,
 	xe_device_mem_access_get(gt_to_xe(gt));
 
 	/* When in RC6, actual frequency reported will be 0. */
-	if (xe->info.platform == XE_METEORLAKE) {
+	if (GRAPHICS_VERx100(xe) >= 1270) {
 		freq = xe_mmio_read32(gt, MTL_MIRROR_TARGET_WP1);
 		freq = REG_FIELD_GET(MTL_CAGF_MASK, freq);
 	} else {
@@ -680,7 +680,7 @@ static void pc_init_fused_rp_values(struct xe_guc_pc *pc)
 	struct xe_gt *gt = pc_to_gt(pc);
 	struct xe_device *xe = gt_to_xe(gt);
 
-	if (xe->info.platform == XE_METEORLAKE)
+	if (GRAPHICS_VERx100(xe) >= 1270)
 		mtl_init_fused_rp_values(pc);
 	else
 		tgl_init_fused_rp_values(pc);
