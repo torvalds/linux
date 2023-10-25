@@ -370,6 +370,10 @@
 	};
 };
 
+&pmic {
+	interrupts-extended = <&pio 182 IRQ_TYPE_LEVEL_HIGH>;
+};
+
 &mfg {
 	domain-supply = <&mt6358_vgpu_reg>;
 };
