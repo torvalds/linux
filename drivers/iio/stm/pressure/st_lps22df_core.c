@@ -316,14 +316,19 @@ static int st_lps22df_write_raw(struct iio_dev *indio_dev,
 				int val, int val2, long mask)
 {
 	struct st_lps22df_sensor *sensor = iio_priv(indio_dev);
-	int ret;
+	int ret = -EINVAL;
 
 	switch (mask) {
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		ret = st_lps22df_get_odr(sensor, val);
-		if (ret > 0)
+	case IIO_CHAN_INFO_SAMP_FREQ: {
+		int index;
+
+		index = st_lps22df_get_odr(sensor, val);
+		if (index > 0) {
 			sensor->odr = val;
+			ret = 0;
+		}
 		break;
+	}
 	default:
 		ret = -EINVAL;
 		break;
