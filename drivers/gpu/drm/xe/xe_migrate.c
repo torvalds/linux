@@ -980,8 +980,6 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 
 		size -= clear_L0;
 
-		/* TODO: Add dependencies here */
-
 		/* Preemption is enabled again by the ring ops. */
 		if (!clear_vram) {
 			emit_pte(m, bb, clear_L0_pt, clear_vram, &src_it, clear_L0,
@@ -1010,6 +1008,18 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		}
 
 		xe_sched_job_add_migrate_flush(job, flush_flags);
+		if (!fence) {
+			/*
+			 * There can't be anything userspace related at this
+			 * point, so we just need to respect any potential move
+			 * fences, which are always tracked as
+			 * DMA_RESV_USAGE_KERNEL.
+			 */
+			err = job_add_deps(job, bo->ttm.base.resv,
+					   DMA_RESV_USAGE_KERNEL);
+			if (err)
+				goto err_job;
+		}
 
 		xe_sched_job_arm(job);
 		dma_fence_put(fence);
@@ -1024,6 +1034,8 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		xe_bb_free(bb, fence);
 		continue;
 
+err_job:
+		xe_sched_job_put(job);
 err:
 		mutex_unlock(&m->job_mutex);
 		xe_bb_free(bb, NULL);
