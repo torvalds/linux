@@ -263,8 +263,12 @@ mlx5e_rx_reporter_build_diagnose_output_rq_common(struct mlx5e_rq *rq,
 	if (rq->icosq) {
 		struct mlx5e_icosq *icosq = rq->icosq;
 		u8 icosq_hw_state;
+		int err;
 
-		mlx5_core_query_sq_state(rq->mdev, icosq->sqn, &icosq_hw_state);
+		err = mlx5_core_query_sq_state(rq->mdev, icosq->sqn, &icosq_hw_state);
+		if (err)
+			return err;
+
 		mlx5e_reporter_icosq_diagnose(icosq, icosq_hw_state, fmsg);
 	}
 

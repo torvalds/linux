@@ -221,12 +221,16 @@ mlx5e_tx_reporter_build_diagnose_output_sq_common(struct devlink_fmsg *fmsg,
 	bool stopped = netif_xmit_stopped(sq->txq);
 	struct mlx5e_priv *priv = sq->priv;
 	u8 state;
+	int err;
 
-	mlx5_core_query_sq_state(priv->mdev, sq->sqn, &state);
 	devlink_fmsg_u32_pair_put(fmsg, "tc", tc);
 	devlink_fmsg_u32_pair_put(fmsg, "txq ix", sq->txq_ix);
 	devlink_fmsg_u32_pair_put(fmsg, "sqn", sq->sqn);
-	devlink_fmsg_u8_pair_put(fmsg, "HW state", state);
+
+	err = mlx5_core_query_sq_state(priv->mdev, sq->sqn, &state);
+	if (!err)
+		devlink_fmsg_u8_pair_put(fmsg, "HW state", state);
+
 	devlink_fmsg_bool_pair_put(fmsg, "stopped", stopped);
 	devlink_fmsg_u32_pair_put(fmsg, "cc", sq->cc);
 	devlink_fmsg_u32_pair_put(fmsg, "pc", sq->pc);
