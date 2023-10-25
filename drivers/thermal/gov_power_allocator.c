@@ -560,7 +560,7 @@ static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 			continue;
 
 		instance->target = 0;
-		mutex_lock(&instance->cdev->lock);
+		mutex_lock(&cdev->lock);
 		/*
 		 * Call for updating the cooling devices local stats and avoid
 		 * periods of dozen of seconds when those have not been
@@ -569,9 +569,9 @@ static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 		cdev->ops->get_requested_power(cdev, &req_power);
 
 		if (update)
-			__thermal_cdev_update(instance->cdev);
+			__thermal_cdev_update(cdev);
 
-		mutex_unlock(&instance->cdev->lock);
+		mutex_unlock(&cdev->lock);
 	}
 }
 
