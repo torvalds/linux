@@ -376,16 +376,19 @@ static void divvy_up_power(u32 *req_power, u32 *max_power, int num_actors,
 
 static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 {
-	u32 total_req_power, max_allocatable_power, total_weighted_req_power;
 	u32 *req_power, *max_power, *granted_power, *extra_actor_power;
 	struct power_allocator_params *params = tz->governor_data;
-	u32 total_granted_power, power_range;
 	struct thermal_cooling_device *cdev;
 	struct thermal_instance *instance;
+	u32 total_weighted_req_power = 0;
+	u32 max_allocatable_power = 0;
+	u32 total_granted_power = 0;
+	u32 total_req_power = 0;
 	u32 *weighted_req_power;
+	u32 power_range, weight;
 	int total_weight = 0;
 	int num_actors = 0;
-	int i, weight;
+	int i = 0;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if ((instance->trip == params->trip_max) &&
@@ -417,11 +420,6 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 	granted_power = &req_power[2 * num_actors];
 	extra_actor_power = &req_power[3 * num_actors];
 	weighted_req_power = &req_power[4 * num_actors];
-
-	i = 0;
-	total_weighted_req_power = 0;
-	total_req_power = 0;
-	max_allocatable_power = 0;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		cdev = instance->cdev;
@@ -459,7 +457,6 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 		       total_weighted_req_power, power_range, granted_power,
 		       extra_actor_power);
 
-	total_granted_power = 0;
 	i = 0;
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if (instance->trip != params->trip_max)
