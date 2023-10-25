@@ -4683,6 +4683,287 @@ int show_path(struct seq_file *m, struct dentry *root)
 	return 0;
 }
 
+static struct vfsmount *lookup_mnt_in_ns(u64 id, struct mnt_namespace *ns)
+{
+	struct mount *mnt = mnt_find_id_at(ns, id);
+
+	if (!mnt || mnt->mnt_id_unique != id)
+		return NULL;
+
+	return &mnt->mnt;
+}
+
+struct kstatmount {
+	struct statmount __user *const buf;
+	size_t const bufsize;
+	struct vfsmount *const mnt;
+	u64 const mask;
+	struct seq_file seq;
+	struct path root;
+	struct statmount sm;
+	size_t pos;
+	int err;
+};
+
+typedef int (*statmount_func_t)(struct kstatmount *);
+
+static int statmount_string_seq(struct kstatmount *s, statmount_func_t func)
+{
+	size_t rem = s->bufsize - s->pos - sizeof(s->sm);
+	struct seq_file *seq = &s->seq;
+	int ret;
+
+	seq->count = 0;
+	seq->size = min(seq->size, rem);
+	seq->buf = kvmalloc(seq->size, GFP_KERNEL_ACCOUNT);
+	if (!seq->buf)
+		return -ENOMEM;
+
+	ret = func(s);
+	if (ret)
+		return ret;
+
+	if (seq_has_overflowed(seq)) {
+		if (seq->size == rem)
+			return -EOVERFLOW;
+		seq->size *= 2;
+		if (seq->size > MAX_RW_COUNT)
+			return -ENOMEM;
+		kvfree(seq->buf);
+		return 0;
+	}
+
+	/* Done */
+	return 1;
+}
+
+static void statmount_string(struct kstatmount *s, u64 mask, statmount_func_t func,
+		       u32 *str)
+{
+	int ret = s->pos + sizeof(s->sm) >= s->bufsize ? -EOVERFLOW : 0;
+	struct statmount *sm = &s->sm;
+	struct seq_file *seq = &s->seq;
+
+	if (s->err || !(s->mask & mask))
+		return;
+
+	seq->size = PAGE_SIZE;
+	while (!ret)
+		ret = statmount_string_seq(s, func);
+
+	if (ret < 0) {
+		s->err = ret;
+	} else {
+		seq->buf[seq->count++] = '\0';
+		if (copy_to_user(s->buf->str + s->pos, seq->buf, seq->count)) {
+			s->err = -EFAULT;
+		} else {
+			*str = s->pos;
+			s->pos += seq->count;
+		}
+	}
+	kvfree(seq->buf);
+	sm->mask |= mask;
+}
+
+static void statmount_numeric(struct kstatmount *s, u64 mask, statmount_func_t func)
+{
+	if (s->err || !(s->mask & mask))
+		return;
+
+	s->err = func(s);
+	s->sm.mask |= mask;
+}
+
+static u64 mnt_to_attr_flags(struct vfsmount *mnt)
+{
+	unsigned int mnt_flags = READ_ONCE(mnt->mnt_flags);
+	u64 attr_flags = 0;
+
+	if (mnt_flags & MNT_READONLY)
+		attr_flags |= MOUNT_ATTR_RDONLY;
+	if (mnt_flags & MNT_NOSUID)
+		attr_flags |= MOUNT_ATTR_NOSUID;
+	if (mnt_flags & MNT_NODEV)
+		attr_flags |= MOUNT_ATTR_NODEV;
+	if (mnt_flags & MNT_NOEXEC)
+		attr_flags |= MOUNT_ATTR_NOEXEC;
+	if (mnt_flags & MNT_NODIRATIME)
+		attr_flags |= MOUNT_ATTR_NODIRATIME;
+	if (mnt_flags & MNT_NOSYMFOLLOW)
+		attr_flags |= MOUNT_ATTR_NOSYMFOLLOW;
+
+	if (mnt_flags & MNT_NOATIME)
+		attr_flags |= MOUNT_ATTR_NOATIME;
+	else if (mnt_flags & MNT_RELATIME)
+		attr_flags |= MOUNT_ATTR_RELATIME;
+	else
+		attr_flags |= MOUNT_ATTR_STRICTATIME;
+
+	if (is_idmapped_mnt(mnt))
+		attr_flags |= MOUNT_ATTR_IDMAP;
+
+	return attr_flags;
+}
+
+static u64 mnt_to_propagation_flags(struct mount *m)
+{
+	u64 propagation = 0;
+
+	if (IS_MNT_SHARED(m))
+		propagation |= MS_SHARED;
+	if (IS_MNT_SLAVE(m))
+		propagation |= MS_SLAVE;
+	if (IS_MNT_UNBINDABLE(m))
+		propagation |= MS_UNBINDABLE;
+	if (!propagation)
+		propagation |= MS_PRIVATE;
+
+	return propagation;
+}
+
+static int statmount_sb_basic(struct kstatmount *s)
+{
+	struct super_block *sb = s->mnt->mnt_sb;
+
+	s->sm.sb_dev_major = MAJOR(sb->s_dev);
+	s->sm.sb_dev_minor = MINOR(sb->s_dev);
+	s->sm.sb_magic = sb->s_magic;
+	s->sm.sb_flags = sb->s_flags & (SB_RDONLY|SB_SYNCHRONOUS|SB_DIRSYNC|SB_LAZYTIME);
+
+	return 0;
+}
+
+static int statmount_mnt_basic(struct kstatmount *s)
+{
+	struct mount *m = real_mount(s->mnt);
+
+	s->sm.mnt_id = m->mnt_id_unique;
+	s->sm.mnt_parent_id = m->mnt_parent->mnt_id_unique;
+	s->sm.mnt_id_old = m->mnt_id;
+	s->sm.mnt_parent_id_old = m->mnt_parent->mnt_id;
+	s->sm.mnt_attr = mnt_to_attr_flags(&m->mnt);
+	s->sm.mnt_propagation = mnt_to_propagation_flags(m);
+	s->sm.mnt_peer_group = IS_MNT_SHARED(m) ? m->mnt_group_id : 0;
+	s->sm.mnt_master = IS_MNT_SLAVE(m) ? m->mnt_master->mnt_group_id : 0;
+
+	return 0;
+}
+
+static int statmount_propagate_from(struct kstatmount *s)
+{
+	struct mount *m = real_mount(s->mnt);
+
+	if (!IS_MNT_SLAVE(m))
+		return 0;
+
+	s->sm.propagate_from = get_dominating_id(m, &current->fs->root);
+
+	return 0;
+}
+
+static int statmount_mnt_root(struct kstatmount *s)
+{
+	struct seq_file *seq = &s->seq;
+	int err = show_path(seq, s->mnt->mnt_root);
+
+	if (!err && !seq_has_overflowed(seq)) {
+		seq->buf[seq->count] = '\0';
+		seq->count = string_unescape_inplace(seq->buf, UNESCAPE_OCTAL);
+	}
+	return err;
+}
+
+static int statmount_mnt_point(struct kstatmount *s)
+{
+	struct vfsmount *mnt = s->mnt;
+	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
+	int err = seq_path_root(&s->seq, &mnt_path, &s->root, "");
+
+	return err == SEQ_SKIP ? 0 : err;
+}
+
+static int statmount_fs_type(struct kstatmount *s)
+{
+	struct seq_file *seq = &s->seq;
+	struct super_block *sb = s->mnt->mnt_sb;
+
+	seq_puts(seq, sb->s_type->name);
+	return 0;
+}
+
+static int do_statmount(struct kstatmount *s)
+{
+	struct statmount *sm = &s->sm;
+	struct mount *m = real_mount(s->mnt);
+	size_t copysize = min_t(size_t, s->bufsize, sizeof(*sm));
+	int err;
+
+	/*
+	 * Don't trigger audit denials. We just want to determine what
+	 * mounts to show users.
+	 */
+	if (!is_path_reachable(m, m->mnt.mnt_root, &s->root) &&
+	    !ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
+
+	err = security_sb_statfs(s->mnt->mnt_root);
+	if (err)
+		return err;
+
+	statmount_numeric(s, STATMOUNT_SB_BASIC, statmount_sb_basic);
+	statmount_numeric(s, STATMOUNT_MNT_BASIC, statmount_mnt_basic);
+	statmount_numeric(s, STATMOUNT_PROPAGATE_FROM, statmount_propagate_from);
+	statmount_string(s, STATMOUNT_FS_TYPE, statmount_fs_type, &sm->fs_type);
+	statmount_string(s, STATMOUNT_MNT_ROOT, statmount_mnt_root, &sm->mnt_root);
+	statmount_string(s, STATMOUNT_MNT_POINT, statmount_mnt_point, &sm->mnt_point);
+
+	if (s->err)
+		return s->err;
+
+	/* Return the number of bytes copied to the buffer */
+	sm->size = copysize + s->pos;
+
+	if (copy_to_user(s->buf, sm, copysize))
+		return -EFAULT;
+
+	return 0;
+}
+
+SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
+		struct statmount __user *, buf, size_t, bufsize,
+		unsigned int, flags)
+{
+	struct vfsmount *mnt;
+	struct mnt_id_req kreq;
+	int ret;
+
+	if (flags)
+		return -EINVAL;
+
+	if (copy_from_user(&kreq, req, sizeof(kreq)))
+		return -EFAULT;
+
+	down_read(&namespace_sem);
+	mnt = lookup_mnt_in_ns(kreq.mnt_id, current->nsproxy->mnt_ns);
+	ret = -ENOENT;
+	if (mnt) {
+		struct kstatmount s = {
+			.mask = kreq.request_mask,
+			.buf = buf,
+			.bufsize = bufsize,
+			.mnt = mnt,
+		};
+
+		get_fs_root(current->fs, &s.root);
+		ret = do_statmount(&s);
+		path_put(&s.root);
+	}
+	up_read(&namespace_sem);
+
+	return ret;
+}
+
 static void __init init_mount_tree(void)
 {
 	struct vfsmount *mnt;
