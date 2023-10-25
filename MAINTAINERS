@@ -10464,7 +10464,6 @@ F:	drivers/platform/x86/intel/atomisp2/led.c
 
 INTEL BIOS SAR INT1092 DRIVER
 M:	Shravan Sudhakar <s.shravan@intel.com>
-M:	Intel Corporation <linuxwwan@intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/intel/int1092/
@@ -10894,7 +10893,6 @@ F:	drivers/platform/x86/intel/wmi/thunderbolt.c
 
 INTEL WWAN IOSM DRIVER
 M:	M Chetan Kumar <m.chetan.kumar@intel.com>
-M:	Intel Corporation <linuxwwan@intel.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wwan/iosm/
@@ -13515,7 +13513,6 @@ F:	net/dsa/tag_mtk.c
 
 MEDIATEK T7XX 5G WWAN MODEM DRIVER
 M:	Chandrashekar Devegowda <chandrashekar.devegowda@intel.com>
-M:	Intel Corporation <linuxwwan@intel.com>
 R:	Chiranjeevi Rapolu <chiranjeevi.rapolu@linux.intel.com>
 R:	Liu Haijun <haijun.liu@mediatek.com>
 R:	M Chetan Kumar <m.chetan.kumar@linux.intel.com>
