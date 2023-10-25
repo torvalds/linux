@@ -35,6 +35,12 @@ static const char * const stfcamss_resets[] = {
 	"isp_top_axi",
 };
 
+static const struct stf_isr_data stf_isrs[] = {
+	{"wr_irq", stf_wr_irq_handler},
+	{"isp_irq", stf_isp_irq_handler},
+	{"line_irq", stf_line_irq_handler},
+};
+
 static int stfcamss_get_mem_res(struct stfcamss *stfcamss)
 {
 	struct platform_device *pdev = to_platform_device(stfcamss->dev);
@@ -159,6 +165,21 @@ static int stfcamss_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	stfcamss->dev = dev;
+
+	for (i = 0; i < ARRAY_SIZE(stf_isrs); ++i) {
+		int irq;
+
+		irq = platform_get_irq(pdev, i);
+		if (irq < 0)
+			return irq;
+
+		ret = devm_request_irq(stfcamss->dev, irq, stf_isrs[i].isr, 0,
+				       stf_isrs[i].name, stfcamss);
+		if (ret) {
+			dev_err(dev, "request irq failed: %d\n", ret);
+			return ret;
+		}
+	}
 
 	stfcamss->nclks = ARRAY_SIZE(stfcamss->sys_clk);
 	for (i = 0; i < stfcamss->nclks; ++i)
