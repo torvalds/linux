@@ -617,13 +617,23 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 	int ret;
 	struct power_allocator_params *params;
 
-	ret = check_power_actors(tz);
-	if (ret)
-		return ret;
-
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;
+
+	get_governor_trips(tz, params);
+	if (!params->trip_max) {
+		dev_warn(&tz->device, "power_allocator: missing trip_max\n");
+		kfree(params);
+		return -EINVAL;
+	}
+
+	ret = check_power_actors(tz);
+	if (ret) {
+		dev_warn(&tz->device, "power_allocator: binding failed\n");
+		kfree(params);
+		return ret;
+	}
 
 	if (!tz->tzp) {
 		tz->tzp = kzalloc(sizeof(*tz->tzp), GFP_KERNEL);
@@ -638,12 +648,9 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 	if (!tz->tzp->sustainable_power)
 		dev_warn(&tz->device, "power_allocator: sustainable_power will be estimated\n");
 
-	get_governor_trips(tz, params);
-
-	if (params->trip_max)
-		estimate_pid_constants(tz, tz->tzp->sustainable_power,
-				       params->trip_switch_on,
-				       params->trip_max->temperature);
+	estimate_pid_constants(tz, tz->tzp->sustainable_power,
+			       params->trip_switch_on,
+			       params->trip_max->temperature);
 
 	reset_pid_controller(params);
 
