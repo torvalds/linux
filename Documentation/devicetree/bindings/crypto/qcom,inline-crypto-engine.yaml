@@ -16,6 +16,7 @@ properties:
           - qcom,sa8775p-inline-crypto-engine
           - qcom,sm8450-inline-crypto-engine
           - qcom,sm8550-inline-crypto-engine
+          - qcom,sm8650-inline-crypto-engine
       - const: qcom,inline-crypto-engine
 
   reg:
