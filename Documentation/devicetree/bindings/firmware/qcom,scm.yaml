@@ -63,6 +63,7 @@ properties:
           - qcom,scm-sm8350
           - qcom,scm-sm8450
           - qcom,scm-sm8550
+          - qcom,scm-sm8650
           - qcom,scm-qcs404
       - const: qcom,scm
 
@@ -189,6 +190,7 @@ allOf:
                 - qcom,scm-sc8280xp
                 - qcom,scm-sm8450
                 - qcom,scm-sm8550
+                - qcom,scm-sm8650
     then:
       properties:
         interconnects: false
@@ -202,6 +204,7 @@ allOf:
               enum:
                 - qcom,scm-sm8450
                 - qcom,scm-sm8550
+                - qcom,scm-sm8650
     then:
       properties:
         interrupts: false
