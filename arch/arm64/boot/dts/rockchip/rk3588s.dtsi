@@ -443,6 +443,11 @@
 		status = "disabled";
 	};
 
+	pmu1grf: syscon@fd58a000 {
+		compatible = "rockchip,rk3588-pmugrf", "syscon", "simple-mfd";
+		reg = <0x0 0xfd58a000 0x0 0x10000>;
+	};
+
 	sys_grf: syscon@fd58c000 {
 		compatible = "rockchip,rk3588-sys-grf", "syscon";
 		reg = <0x0 0xfd58c000 0x0 0x1000>;
@@ -1327,6 +1332,17 @@
 			interrupt-parent = <&gic>;
 			interrupts = <GIC_SPI 250 IRQ_TYPE_EDGE_RISING 0>;
 		};
+	};
+
+	dfi: dfi@fe060000 {
+		reg = <0x00 0xfe060000 0x00 0x10000>;
+		compatible = "rockchip,rk3588-dfi";
+		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH 0>,
+			     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH 0>,
+			     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH 0>,
+			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "ch0", "ch1", "ch2", "ch3";
+		rockchip,pmu = <&pmu1grf>;
 	};
 
 	gmac1: ethernet@fe1c0000 {

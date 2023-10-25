@@ -64,11 +64,15 @@
 
 /delete-node/ &adc_keys;
 
+&chosen {
+	/delete-property/ stdout-path;
+};
+
 &cru {
 	assigned-clocks = <&pmucru CLK_RTC_32K>, <&cru PLL_GPLL>,
 			  <&pmucru PLL_PPLL>, <&cru PLL_VPLL>;
 	assigned-clock-rates = <32768>, <1200000000>,
-			       <200000000>, <108000000>;
+			       <200000000>, <292500000>;
 };
 
 &gpio_keys_control {
@@ -147,6 +151,11 @@
 		rockchip,sleep-enter-current-microamp = <300000>;
 		rockchip,sleep-filter-current-microamp = <100000>;
 	};
+};
+
+/* There is no UART header visible on the board for this device. */
+&uart2 {
+	status = "disabled";
 };
 
 /delete-node/ &vibrator;
