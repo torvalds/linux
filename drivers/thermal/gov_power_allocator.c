@@ -84,13 +84,14 @@ struct power_allocator_params {
  */
 static u32 estimate_sustainable_power(struct thermal_zone_device *tz)
 {
-	u32 sustainable_power = 0;
-	struct thermal_instance *instance;
 	struct power_allocator_params *params = tz->governor_data;
+	struct thermal_cooling_device *cdev;
+	struct thermal_instance *instance;
+	u32 sustainable_power = 0;
+	u32 min_power;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		struct thermal_cooling_device *cdev = instance->cdev;
-		u32 min_power;
+		cdev = instance->cdev;
 
 		if (instance->trip != params->trip_max)
 			continue;
@@ -211,10 +212,10 @@ static u32 pid_controller(struct thermal_zone_device *tz,
 			  int control_temp,
 			  u32 max_allocatable_power)
 {
+	struct power_allocator_params *params = tz->governor_data;
 	s64 p, i, d, power_range;
 	s32 err, max_power_frac;
 	u32 sustainable_power;
-	struct power_allocator_params *params = tz->governor_data;
 
 	max_power_frac = int_to_frac(max_allocatable_power);
 
@@ -373,20 +374,20 @@ static void divvy_up_power(u32 *req_power, u32 *max_power, int num_actors,
 		}
 }
 
-static int allocate_power(struct thermal_zone_device *tz,
-			  int control_temp)
+static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 {
-	struct thermal_instance *instance;
+	u32 total_req_power, max_allocatable_power, total_weighted_req_power;
+	u32 *req_power, *max_power, *granted_power, *extra_actor_power;
 	struct power_allocator_params *params = tz->governor_data;
 	const struct thermal_trip *trip_max = params->trip_max;
-	u32 *req_power, *max_power, *granted_power, *extra_actor_power;
-	u32 *weighted_req_power;
-	u32 total_req_power, max_allocatable_power, total_weighted_req_power;
 	u32 total_granted_power, power_range;
-	int i, num_actors, total_weight, ret = 0;
+	struct thermal_cooling_device *cdev;
+	struct thermal_instance *instance;
+	u32 *weighted_req_power;
+	int i, weight, ret = 0;
+	int total_weight = 0;
+	int num_actors = 0;
 
-	num_actors = 0;
-	total_weight = 0;
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if ((instance->trip == trip_max) &&
 		    cdev_is_power_actor(instance->cdev)) {
@@ -424,8 +425,7 @@ static int allocate_power(struct thermal_zone_device *tz,
 	max_allocatable_power = 0;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		int weight;
-		struct thermal_cooling_device *cdev = instance->cdev;
+		cdev = instance->cdev;
 
 		if (instance->trip != trip_max)
 			continue;
@@ -547,12 +547,13 @@ static void reset_pid_controller(struct power_allocator_params *params)
 
 static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 {
-	struct thermal_instance *instance;
 	struct power_allocator_params *params = tz->governor_data;
+	struct thermal_cooling_device *cdev;
+	struct thermal_instance *instance;
 	u32 req_power;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		struct thermal_cooling_device *cdev = instance->cdev;
+		cdev = instance->cdev;
 
 		if (instance->trip != params->trip_max ||
 		    !cdev_is_power_actor(instance->cdev))
@@ -619,8 +620,8 @@ static int check_power_actors(struct thermal_zone_device *tz,
  */
 static int power_allocator_bind(struct thermal_zone_device *tz)
 {
-	int ret;
 	struct power_allocator_params *params;
+	int ret;
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
