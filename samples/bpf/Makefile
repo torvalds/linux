@@ -260,8 +260,9 @@ $(LIBBPF): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(LIBBPF_OU
 
 BPFTOOLDIR := $(TOOLS_PATH)/bpf/bpftool
 BPFTOOL_OUTPUT := $(abspath $(BPF_SAMPLES_PATH))/bpftool
-BPFTOOL := $(BPFTOOL_OUTPUT)/bootstrap/bpftool
-$(BPFTOOL): $(wildcard $(BPFTOOLDIR)/*.[ch] $(BPFTOOLDIR)/Makefile) | $(BPFTOOL_OUTPUT)
+DEFAULT_BPFTOOL := $(BPFTOOL_OUTPUT)/bootstrap/bpftool
+BPFTOOL ?= $(DEFAULT_BPFTOOL)
+$(DEFAULT_BPFTOOL): $(wildcard $(BPFTOOLDIR)/*.[ch] $(BPFTOOLDIR)/Makefile) | $(BPFTOOL_OUTPUT)
 	$(MAKE) -C $(BPFTOOLDIR) srctree=$(BPF_SAMPLES_PATH)/../../ 		\
 		OUTPUT=$(BPFTOOL_OUTPUT)/ bootstrap
 
