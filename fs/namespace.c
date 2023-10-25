@@ -32,6 +32,7 @@
 #include <linux/fs_context.h>
 #include <linux/shmem_fs.h>
 #include <linux/mnt_idmapping.h>
+#include <linux/nospec.h>
 
 #include "pnode.h"
 #include "internal.h"
@@ -1009,7 +1010,7 @@ void mnt_change_mountpoint(struct mount *parent, struct mountpoint *mp, struct m
 
 static inline struct mount *node_to_mount(struct rb_node *node)
 {
-	return rb_entry(node, struct mount, mnt_node);
+	return node ? rb_entry(node, struct mount, mnt_node) : NULL;
 }
 
 static void mnt_add_to_ns(struct mnt_namespace *ns, struct mount *mnt)
@@ -4945,7 +4946,7 @@ static int prepare_kstatmount(struct kstatmount *ks, struct mnt_id_req *kreq,
 		return -EFAULT;
 
 	memset(ks, 0, sizeof(*ks));
-	ks->mask = kreq->request_mask;
+	ks->mask = kreq->param;
 	ks->buf = buf;
 	ks->bufsize = bufsize;
 	ks->seq.size = seq_size;
@@ -4998,6 +4999,87 @@ retry:
 		goto retry;
 	return ret;
 }
+
+static struct mount *listmnt_next(struct mount *curr)
+{
+	return node_to_mount(rb_next(&curr->mnt_node));
+}
+
+static ssize_t do_listmount(struct mount *first, struct path *orig, u64 mnt_id,
+			    u64 __user *buf, size_t bufsize,
+			    const struct path *root)
+{
+	struct mount *r;
+	ssize_t ctr;
+	int err;
+
+	/*
+	 * Don't trigger audit denials. We just want to determine what
+	 * mounts to show users.
+	 */
+	if (!is_path_reachable(real_mount(orig->mnt), orig->dentry, root) &&
+	    !ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
+
+	err = security_sb_statfs(orig->dentry);
+	if (err)
+		return err;
+
+	for (ctr = 0, r = first; r && ctr < bufsize; r = listmnt_next(r)) {
+		if (r->mnt_id_unique == mnt_id)
+			continue;
+		if (!is_path_reachable(r, r->mnt.mnt_root, orig))
+			continue;
+		ctr = array_index_nospec(ctr, bufsize);
+		if (put_user(r->mnt_id_unique, buf + ctr))
+			return -EFAULT;
+		if (check_add_overflow(ctr, 1, &ctr))
+			return -ERANGE;
+	}
+	return ctr;
+}
+
+SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
+		u64 __user *, buf, size_t, bufsize, unsigned int, flags)
+{
+	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
+	struct mnt_id_req kreq;
+	struct mount *first;
+	struct path root, orig;
+	u64 mnt_id, last_mnt_id;
+	ssize_t ret;
+
+	if (flags)
+		return -EINVAL;
+
+	if (copy_from_user(&kreq, req, sizeof(kreq)))
+		return -EFAULT;
+	mnt_id = kreq.mnt_id;
+	last_mnt_id = kreq.param;
+
+	down_read(&namespace_sem);
+	get_fs_root(current->fs, &root);
+	if (mnt_id == LSMT_ROOT) {
+		orig = root;
+	} else {
+		ret = -ENOENT;
+		orig.mnt  = lookup_mnt_in_ns(mnt_id, ns);
+		if (!orig.mnt)
+			goto err;
+		orig.dentry = orig.mnt->mnt_root;
+	}
+	if (!last_mnt_id)
+		first = node_to_mount(rb_first(&ns->mounts));
+	else
+		first = mnt_find_id_at(ns, last_mnt_id + 1);
+
+	ret = do_listmount(first, &orig, mnt_id, buf, bufsize, &root);
+err:
+	path_put(&root);
+	up_read(&namespace_sem);
+	return ret;
+}
+
 
 static void __init init_mount_tree(void)
 {
