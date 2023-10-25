@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/platform_data/x86/soc.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
@@ -36,6 +37,21 @@ struct byt_wm5102_private {
 	struct clk *mclk;
 	struct gpio_desc *spkvdd_en_gpio;
 };
+
+/* Bits 0-15 are reserved for things like an input-map */
+#define BYT_WM5102_SSP2			BIT(16)
+
+static unsigned long quirk;
+
+static int quirk_override = -1;
+module_param_named(quirk, quirk_override, int, 0444);
+MODULE_PARM_DESC(quirk, "Board-specific quirk override");
+
+static void log_quirks(struct device *dev)
+{
+	if (quirk & BYT_WM5102_SSP2)
+		dev_info_once(dev, "quirk SSP2 enabled");
+}
 
 static int byt_wm5102_spkvdd_power_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
@@ -166,12 +182,22 @@ static const struct snd_soc_dapm_route byt_wm5102_audio_map[] = {
 	{"Headset Mic", NULL, "MICBIAS1"},
 	{"Headset Mic", NULL, "MICBIAS2"},
 	{"IN1L", NULL, "Headset Mic"},
+};
 
+static const struct snd_soc_dapm_route bytcr_wm5102_ssp0_map[] = {
 	{"AIF1 Playback", NULL, "ssp0 Tx"},
 	{"ssp0 Tx", NULL, "modem_out"},
-
 	{"modem_in", NULL, "ssp0 Rx"},
 	{"ssp0 Rx", NULL, "AIF1 Capture"},
+};
+
+static const struct snd_soc_dapm_route bytcr_wm5102_ssp2_map[] = {
+	{"AIF1 Playback", NULL, "ssp2 Tx"},
+	{"ssp2 Tx", NULL, "codec_out0"},
+	{"ssp2 Tx", NULL, "codec_out1"},
+	{"codec_in0", NULL, "ssp2 Rx"},
+	{"codec_in1", NULL, "ssp2 Rx"},
+	{"ssp2 Rx", NULL, "AIF1 Capture"},
 };
 
 static const struct snd_kcontrol_new byt_wm5102_controls[] = {
@@ -202,7 +228,8 @@ static int byt_wm5102_init(struct snd_soc_pcm_runtime *runtime)
 	struct snd_soc_card *card = runtime->card;
 	struct byt_wm5102_private *priv = snd_soc_card_get_drvdata(card);
 	struct snd_soc_component *component = snd_soc_rtd_to_codec(runtime, 0)->component;
-	int ret, jack_type;
+	const struct snd_soc_dapm_route *custom_map = NULL;
+	int ret, jack_type, num_routes = 0;
 
 	card->dapm.idle_bias_off = true;
 
@@ -212,6 +239,17 @@ static int byt_wm5102_init(struct snd_soc_pcm_runtime *runtime)
 		dev_err(card->dev, "Error adding card controls: %d\n", ret);
 		return ret;
 	}
+
+	if (quirk & BYT_WM5102_SSP2) {
+		custom_map = bytcr_wm5102_ssp2_map;
+		num_routes = ARRAY_SIZE(bytcr_wm5102_ssp2_map);
+	} else {
+		custom_map = bytcr_wm5102_ssp0_map;
+		num_routes = ARRAY_SIZE(bytcr_wm5102_ssp0_map);
+	}
+	ret = snd_soc_dapm_add_routes(&card->dapm, custom_map, num_routes);
+	if (ret)
+		return ret;
 
 	/*
 	 * The firmware might enable the clock at boot (this information
@@ -253,7 +291,7 @@ static int byt_wm5102_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 						      SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *channels = hw_param_interval(params,
 							  SNDRV_PCM_HW_PARAM_CHANNELS);
-	int ret;
+	int ret, bits;
 
 	/* The DSP will convert the FE rate to 48k, stereo */
 	rate->min = 48000;
@@ -261,8 +299,15 @@ static int byt_wm5102_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	channels->min = 2;
 	channels->max = 2;
 
-	/* set SSP0 to 16-bit */
-	params_set_format(params, SNDRV_PCM_FORMAT_S16_LE);
+	if (quirk & BYT_WM5102_SSP2) {
+		/* set SSP2 to 24-bit */
+		params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
+		bits = 24;
+	} else {
+		/* set SSP0 to 16-bit */
+		params_set_format(params, SNDRV_PCM_FORMAT_S16_LE);
+		bits = 16;
+	}
 
 	/*
 	 * Default mode for SSP configuration is TDM 4 slot, override config
@@ -278,7 +323,7 @@ static int byt_wm5102_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_tdm_slot(snd_soc_rtd_to_cpu(rtd, 0), 0x3, 0x3, 2, 16);
+	ret = snd_soc_dai_set_tdm_slot(snd_soc_rtd_to_cpu(rtd, 0), 0x3, 0x3, 2, bits);
 	if (ret) {
 		dev_err(rtd->dev, "Error setting I2S config: %d\n", ret);
 		return ret;
@@ -345,12 +390,9 @@ static struct snd_soc_dai_link byt_wm5102_dais[] = {
 		/* back ends */
 	{
 		/*
-		 * This must be named SSP2-Codec even though this machine driver
-		 * always uses SSP0. Most machine drivers support both and dynamically
-		 * update the dailink to point to SSP0 or SSP2, while keeping the name
-		 * as "SSP2-Codec". The SOF tplg files hardcode the "SSP2-Codec" even
-		 * in the byt-foo-ssp0.tplg versions because the other machine-drivers
-		 * use "SSP2-Codec" even when SSP0 is used.
+		 * This dailink is updated dynamically to point to SSP0 or SSP2.
+		 * Yet its name is always kept as "SSP2-Codec" because the SOF
+		 * tplg files hardcode "SSP2-Codec" even in byt-foo-ssp0.tplg.
 		 */
 		.name = "SSP2-Codec",
 		.id = 0,
@@ -393,8 +435,9 @@ static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 	const char *platform_name;
 	struct acpi_device *adev;
 	struct device *codec_dev;
+	int dai_index = 0;
 	bool sof_parent;
-	int ret;
+	int i, ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -441,12 +484,36 @@ static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "getting spkvdd-GPIO\n");
 	}
 
+	if (soc_intel_is_cht()) {
+		/* On CHT default to SSP2 */
+		quirk = BYT_WM5102_SSP2;
+	}
+	if (quirk_override != -1) {
+		dev_info_once(dev, "Overriding quirk 0x%lx => 0x%x\n",
+			      quirk, quirk_override);
+		quirk = quirk_override;
+	}
+	log_quirks(dev);
+
+	/* find index of codec dai */
+	for (i = 0; i < ARRAY_SIZE(byt_wm5102_dais); i++) {
+		if (!strcmp(byt_wm5102_dais[i].codecs->name,
+			    "wm5102-codec")) {
+			dai_index = i;
+			break;
+		}
+	}
+
 	/* override platform name, if required */
 	byt_wm5102_card.dev = dev;
 	platform_name = mach->mach_params.platform;
 	ret = snd_soc_fixup_dai_links_platform_name(&byt_wm5102_card, platform_name);
 	if (ret)
 		goto out_put_gpio;
+
+	/* override SSP port, if required */
+	if (quirk & BYT_WM5102_SSP2)
+		byt_wm5102_dais[dai_index].cpus->dai_name = "ssp2-port";
 
 	/* set card and driver name and pm-ops */
 	sof_parent = snd_soc_acpi_sof_parent(dev);
