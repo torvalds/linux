@@ -304,12 +304,7 @@
 		reg = <1>;
 	};
 
-	/*
-	 * NOTE: switch nodes are enabled by U-Boot if modules are present
-	 * DO NOT change this node name (switch0@10) even if it is not following
-	 * conventions! Deployed U-Boot binaries are explicitly looking for
-	 * this node in order to augment the device tree!
-	 */
+	/* switch nodes are enabled by U-Boot if modules are present */
 	switch0@10 {
 		compatible = "marvell,mv88e6190";
 		reg = <0x10>;
@@ -322,92 +317,92 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			switch0phy1: ethernet-phy@1 {
+			switch0phy1: switch0phy1@1 {
 				reg = <0x1>;
 			};
 
-			switch0phy2: ethernet-phy@2 {
+			switch0phy2: switch0phy2@2 {
 				reg = <0x2>;
 			};
 
-			switch0phy3: ethernet-phy@3 {
+			switch0phy3: switch0phy3@3 {
 				reg = <0x3>;
 			};
 
-			switch0phy4: ethernet-phy@4 {
+			switch0phy4: switch0phy4@4 {
 				reg = <0x4>;
 			};
 
-			switch0phy5: ethernet-phy@5 {
+			switch0phy5: switch0phy5@5 {
 				reg = <0x5>;
 			};
 
-			switch0phy6: ethernet-phy@6 {
+			switch0phy6: switch0phy6@6 {
 				reg = <0x6>;
 			};
 
-			switch0phy7: ethernet-phy@7 {
+			switch0phy7: switch0phy7@7 {
 				reg = <0x7>;
 			};
 
-			switch0phy8: ethernet-phy@8 {
+			switch0phy8: switch0phy8@8 {
 				reg = <0x8>;
 			};
 		};
 
-		ethernet-ports {
+		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			ethernet-port@1 {
+			port@1 {
 				reg = <0x1>;
 				label = "lan1";
 				phy-handle = <&switch0phy1>;
 			};
 
-			ethernet-port@2 {
+			port@2 {
 				reg = <0x2>;
 				label = "lan2";
 				phy-handle = <&switch0phy2>;
 			};
 
-			ethernet-port@3 {
+			port@3 {
 				reg = <0x3>;
 				label = "lan3";
 				phy-handle = <&switch0phy3>;
 			};
 
-			ethernet-port@4 {
+			port@4 {
 				reg = <0x4>;
 				label = "lan4";
 				phy-handle = <&switch0phy4>;
 			};
 
-			ethernet-port@5 {
+			port@5 {
 				reg = <0x5>;
 				label = "lan5";
 				phy-handle = <&switch0phy5>;
 			};
 
-			ethernet-port@6 {
+			port@6 {
 				reg = <0x6>;
 				label = "lan6";
 				phy-handle = <&switch0phy6>;
 			};
 
-			ethernet-port@7 {
+			port@7 {
 				reg = <0x7>;
 				label = "lan7";
 				phy-handle = <&switch0phy7>;
 			};
 
-			ethernet-port@8 {
+			port@8 {
 				reg = <0x8>;
 				label = "lan8";
 				phy-handle = <&switch0phy8>;
 			};
 
-			ethernet-port@9 {
+			port@9 {
 				reg = <0x9>;
 				label = "cpu";
 				ethernet = <&eth1>;
@@ -415,7 +410,7 @@
 				managed = "in-band-status";
 			};
 
-			switch0port10: ethernet-port@a {
+			switch0port10: port@a {
 				reg = <0xa>;
 				label = "dsa";
 				phy-mode = "2500base-x";
@@ -435,7 +430,7 @@
 		};
 	};
 
-	ethernet-switch@2 {
+	switch0@2 {
 		compatible = "marvell,mv88e6085";
 		reg = <0x2>;
 		dsa,member = <0 0>;
@@ -447,52 +442,52 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			switch0phy1_topaz: ethernet-phy@11 {
+			switch0phy1_topaz: switch0phy1@11 {
 				reg = <0x11>;
 			};
 
-			switch0phy2_topaz: ethernet-phy@12 {
+			switch0phy2_topaz: switch0phy2@12 {
 				reg = <0x12>;
 			};
 
-			switch0phy3_topaz: ethernet-phy@13 {
+			switch0phy3_topaz: switch0phy3@13 {
 				reg = <0x13>;
 			};
 
-			switch0phy4_topaz: ethernet-phy@14 {
+			switch0phy4_topaz: switch0phy4@14 {
 				reg = <0x14>;
 			};
 		};
 
-		ethernet-ports {
+		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			ethernet-port@1 {
+			port@1 {
 				reg = <0x1>;
 				label = "lan1";
 				phy-handle = <&switch0phy1_topaz>;
 			};
 
-			ethernet-port@2 {
+			port@2 {
 				reg = <0x2>;
 				label = "lan2";
 				phy-handle = <&switch0phy2_topaz>;
 			};
 
-			ethernet-port@3 {
+			port@3 {
 				reg = <0x3>;
 				label = "lan3";
 				phy-handle = <&switch0phy3_topaz>;
 			};
 
-			ethernet-port@4 {
+			port@4 {
 				reg = <0x4>;
 				label = "lan4";
 				phy-handle = <&switch0phy4_topaz>;
 			};
 
-			ethernet-port@5 {
+			port@5 {
 				reg = <0x5>;
 				label = "cpu";
 				phy-mode = "2500base-x";
@@ -502,7 +497,7 @@
 		};
 	};
 
-	ethernet-switch@11 {
+	switch1@11 {
 		compatible = "marvell,mv88e6190";
 		reg = <0x11>;
 		dsa,member = <0 1>;
@@ -514,92 +509,92 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			switch1phy1: ethernet-phy@1 {
+			switch1phy1: switch1phy1@1 {
 				reg = <0x1>;
 			};
 
-			switch1phy2: ethernet-phy@2 {
+			switch1phy2: switch1phy2@2 {
 				reg = <0x2>;
 			};
 
-			switch1phy3: ethernet-phy@3 {
+			switch1phy3: switch1phy3@3 {
 				reg = <0x3>;
 			};
 
-			switch1phy4: ethernet-phy@4 {
+			switch1phy4: switch1phy4@4 {
 				reg = <0x4>;
 			};
 
-			switch1phy5: ethernet-phy@5 {
+			switch1phy5: switch1phy5@5 {
 				reg = <0x5>;
 			};
 
-			switch1phy6: ethernet-phy@6 {
+			switch1phy6: switch1phy6@6 {
 				reg = <0x6>;
 			};
 
-			switch1phy7: ethernet-phy@7 {
+			switch1phy7: switch1phy7@7 {
 				reg = <0x7>;
 			};
 
-			switch1phy8: ethernet-phy@8 {
+			switch1phy8: switch1phy8@8 {
 				reg = <0x8>;
 			};
 		};
 
-		ethernet-ports {
+		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			ethernet-port@1 {
+			port@1 {
 				reg = <0x1>;
 				label = "lan9";
 				phy-handle = <&switch1phy1>;
 			};
 
-			ethernet-port@2 {
+			port@2 {
 				reg = <0x2>;
 				label = "lan10";
 				phy-handle = <&switch1phy2>;
 			};
 
-			ethernet-port@3 {
+			port@3 {
 				reg = <0x3>;
 				label = "lan11";
 				phy-handle = <&switch1phy3>;
 			};
 
-			ethernet-port@4 {
+			port@4 {
 				reg = <0x4>;
 				label = "lan12";
 				phy-handle = <&switch1phy4>;
 			};
 
-			ethernet-port@5 {
+			port@5 {
 				reg = <0x5>;
 				label = "lan13";
 				phy-handle = <&switch1phy5>;
 			};
 
-			ethernet-port@6 {
+			port@6 {
 				reg = <0x6>;
 				label = "lan14";
 				phy-handle = <&switch1phy6>;
 			};
 
-			ethernet-port@7 {
+			port@7 {
 				reg = <0x7>;
 				label = "lan15";
 				phy-handle = <&switch1phy7>;
 			};
 
-			ethernet-port@8 {
+			port@8 {
 				reg = <0x8>;
 				label = "lan16";
 				phy-handle = <&switch1phy8>;
 			};
 
-			switch1port9: ethernet-port@9 {
+			switch1port9: port@9 {
 				reg = <0x9>;
 				label = "dsa";
 				phy-mode = "2500base-x";
@@ -607,7 +602,7 @@
 				link = <&switch0port10>;
 			};
 
-			switch1port10: ethernet-port@a {
+			switch1port10: port@a {
 				reg = <0xa>;
 				label = "dsa";
 				phy-mode = "2500base-x";
@@ -627,7 +622,7 @@
 		};
 	};
 
-	ethernet-switch@2 {
+	switch1@2 {
 		compatible = "marvell,mv88e6085";
 		reg = <0x2>;
 		dsa,member = <0 1>;
@@ -639,52 +634,52 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			switch1phy1_topaz: ethernet-phy@11 {
+			switch1phy1_topaz: switch1phy1@11 {
 				reg = <0x11>;
 			};
 
-			switch1phy2_topaz: ethernet-phy@12 {
+			switch1phy2_topaz: switch1phy2@12 {
 				reg = <0x12>;
 			};
 
-			switch1phy3_topaz: ethernet-phy@13 {
+			switch1phy3_topaz: switch1phy3@13 {
 				reg = <0x13>;
 			};
 
-			switch1phy4_topaz: ethernet-phy@14 {
+			switch1phy4_topaz: switch1phy4@14 {
 				reg = <0x14>;
 			};
 		};
 
-		ethernet-ports {
+		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			ethernet-port@1 {
+			port@1 {
 				reg = <0x1>;
 				label = "lan9";
 				phy-handle = <&switch1phy1_topaz>;
 			};
 
-			ethernet-port@2 {
+			port@2 {
 				reg = <0x2>;
 				label = "lan10";
 				phy-handle = <&switch1phy2_topaz>;
 			};
 
-			ethernet-port@3 {
+			port@3 {
 				reg = <0x3>;
 				label = "lan11";
 				phy-handle = <&switch1phy3_topaz>;
 			};
 
-			ethernet-port@4 {
+			port@4 {
 				reg = <0x4>;
 				label = "lan12";
 				phy-handle = <&switch1phy4_topaz>;
 			};
 
-			ethernet-port@5 {
+			port@5 {
 				reg = <0x5>;
 				label = "dsa";
 				phy-mode = "2500base-x";
@@ -694,7 +689,7 @@
 		};
 	};
 
-	ethernet-switch@12 {
+	switch2@12 {
 		compatible = "marvell,mv88e6190";
 		reg = <0x12>;
 		dsa,member = <0 2>;
@@ -706,92 +701,92 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			switch2phy1: ethernet-phy@1 {
+			switch2phy1: switch2phy1@1 {
 				reg = <0x1>;
 			};
 
-			switch2phy2: ethernet-phy@2 {
+			switch2phy2: switch2phy2@2 {
 				reg = <0x2>;
 			};
 
-			switch2phy3: ethernet-phy@3 {
+			switch2phy3: switch2phy3@3 {
 				reg = <0x3>;
 			};
 
-			switch2phy4: ethernet-phy@4 {
+			switch2phy4: switch2phy4@4 {
 				reg = <0x4>;
 			};
 
-			switch2phy5: ethernet-phy@5 {
+			switch2phy5: switch2phy5@5 {
 				reg = <0x5>;
 			};
 
-			switch2phy6: ethernet-phy@6 {
+			switch2phy6: switch2phy6@6 {
 				reg = <0x6>;
 			};
 
-			switch2phy7: ethernet-phy@7 {
+			switch2phy7: switch2phy7@7 {
 				reg = <0x7>;
 			};
 
-			switch2phy8: ethernet-phy@8 {
+			switch2phy8: switch2phy8@8 {
 				reg = <0x8>;
 			};
 		};
 
-		ethernet-ports {
+		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			ethernet-port@1 {
+			port@1 {
 				reg = <0x1>;
 				label = "lan17";
 				phy-handle = <&switch2phy1>;
 			};
 
-			ethernet-port@2 {
+			port@2 {
 				reg = <0x2>;
 				label = "lan18";
 				phy-handle = <&switch2phy2>;
 			};
 
-			ethernet-port@3 {
+			port@3 {
 				reg = <0x3>;
 				label = "lan19";
 				phy-handle = <&switch2phy3>;
 			};
 
-			ethernet-port@4 {
+			port@4 {
 				reg = <0x4>;
 				label = "lan20";
 				phy-handle = <&switch2phy4>;
 			};
 
-			ethernet-port@5 {
+			port@5 {
 				reg = <0x5>;
 				label = "lan21";
 				phy-handle = <&switch2phy5>;
 			};
 
-			ethernet-port@6 {
+			port@6 {
 				reg = <0x6>;
 				label = "lan22";
 				phy-handle = <&switch2phy6>;
 			};
 
-			ethernet-port@7 {
+			port@7 {
 				reg = <0x7>;
 				label = "lan23";
 				phy-handle = <&switch2phy7>;
 			};
 
-			ethernet-port@8 {
+			port@8 {
 				reg = <0x8>;
 				label = "lan24";
 				phy-handle = <&switch2phy8>;
 			};
 
-			switch2port9: ethernet-port@9 {
+			switch2port9: port@9 {
 				reg = <0x9>;
 				label = "dsa";
 				phy-mode = "2500base-x";
@@ -810,7 +805,7 @@
 		};
 	};
 
-	ethernet-switch@2 {
+	switch2@2 {
 		compatible = "marvell,mv88e6085";
 		reg = <0x2>;
 		dsa,member = <0 2>;
@@ -822,52 +817,52 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			switch2phy1_topaz: ethernet-phy@11 {
+			switch2phy1_topaz: switch2phy1@11 {
 				reg = <0x11>;
 			};
 
-			switch2phy2_topaz: ethernet-phy@12 {
+			switch2phy2_topaz: switch2phy2@12 {
 				reg = <0x12>;
 			};
 
-			switch2phy3_topaz: ethernet-phy@13 {
+			switch2phy3_topaz: switch2phy3@13 {
 				reg = <0x13>;
 			};
 
-			switch2phy4_topaz: ethernet-phy@14 {
+			switch2phy4_topaz: switch2phy4@14 {
 				reg = <0x14>;
 			};
 		};
 
-		ethernet-ports {
+		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			ethernet-port@1 {
+			port@1 {
 				reg = <0x1>;
 				label = "lan17";
 				phy-handle = <&switch2phy1_topaz>;
 			};
 
-			ethernet-port@2 {
+			port@2 {
 				reg = <0x2>;
 				label = "lan18";
 				phy-handle = <&switch2phy2_topaz>;
 			};
 
-			ethernet-port@3 {
+			port@3 {
 				reg = <0x3>;
 				label = "lan19";
 				phy-handle = <&switch2phy3_topaz>;
 			};
 
-			ethernet-port@4 {
+			port@4 {
 				reg = <0x4>;
 				label = "lan20";
 				phy-handle = <&switch2phy4_topaz>;
 			};
 
-			ethernet-port@5 {
+			port@5 {
 				reg = <0x5>;
 				label = "dsa";
 				phy-mode = "2500base-x";

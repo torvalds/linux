@@ -112,7 +112,7 @@
 		suppress-preamble;
 		status = "okay";
 
-		switch0: ethernet-switch@0 {
+		switch0: switch0@0 {
 			compatible = "marvell,mv88e6190";
 			pinctrl-0 = <&pinctrl_gpio_switch0>;
 			pinctrl-names = "default";
@@ -123,11 +123,11 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
-			ethernet-ports {
+			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				ethernet-port@0 {
+				port@0 {
 					reg = <0>;
 					phy-mode = "rmii";
 					ethernet = <&fec1>;
@@ -138,27 +138,27 @@
 					};
 				};
 
-				ethernet-port@1 {
+				port@1 {
 					reg = <1>;
 					label = "eth_cu_100_3";
 				};
 
-				ethernet-port@5 {
+				port@5 {
 					reg = <5>;
 					label = "eth_cu_1000_4";
 				};
 
-				ethernet-port@6 {
+				port@6 {
 					reg = <6>;
 					label = "eth_cu_1000_5";
 				};
 
-				ethernet-port@8 {
+				port@8 {
 					reg = <8>;
 					label = "eth_cu_1000_1";
 				};
 
-				ethernet-port@9 {
+				port@9 {
 					reg = <9>;
 					label = "eth_cu_1000_2";
 					phy-handle = <&phy9>;
@@ -167,12 +167,12 @@
 				};
 			};
 
-			mdio-external {
+			mdio1 {
 				compatible = "marvell,mv88e6xxx-mdio-external";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				phy9: ethernet-phy@0 {
+				phy9: phy9@0 {
 					compatible = "ethernet-phy-ieee802.3-c45";
 					pinctrl-0 = <&pinctrl_gpio_phy9>;
 					pinctrl-names = "default";

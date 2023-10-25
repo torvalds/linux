@@ -46,10 +46,4 @@ $defs:
             $ref: dsa-port.yaml#
             unevaluatedProperties: false
 
-oneOf:
-  - required:
-      - ports
-  - required:
-      - ethernet-ports
-
 ...

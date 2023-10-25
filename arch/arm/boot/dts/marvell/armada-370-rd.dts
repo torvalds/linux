@@ -149,37 +149,39 @@
 		};
 	};
 
-	switch: ethernet-switch@10 {
+	switch: switch@10 {
 		compatible = "marvell,mv88e6085";
+		#address-cells = <1>;
+		#size-cells = <0>;
 		reg = <0x10>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 
-		ethernet-ports {
+		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			ethernet-port@0 {
+			port@0 {
 				reg = <0>;
 				label = "lan0";
 			};
 
-			ethernet-port@1 {
+			port@1 {
 				reg = <1>;
 				label = "lan1";
 			};
 
-			ethernet-port@2 {
+			port@2 {
 				reg = <2>;
 				label = "lan2";
 			};
 
-			ethernet-port@3 {
+			port@3 {
 				reg = <3>;
 				label = "lan3";
 			};
 
-			ethernet-port@5 {
+			port@5 {
 				reg = <5>;
 				ethernet = <&eth1>;
 				phy-mode = "rgmii-id";
@@ -194,25 +196,25 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			switchphy0: ethernet-phy@0 {
+			switchphy0: switchphy@0 {
 				reg = <0>;
 				interrupt-parent = <&switch>;
 				interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			switchphy1: ethernet-phy@1 {
+			switchphy1: switchphy@1 {
 				reg = <1>;
 				interrupt-parent = <&switch>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			switchphy2: ethernet-phy@2 {
+			switchphy2: switchphy@2 {
 				reg = <2>;
 				interrupt-parent = <&switch>;
 				interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			switchphy3: ethernet-phy@3 {
+			switchphy3: switchphy@3 {
 				reg = <3>;
 				interrupt-parent = <&switch>;
 				interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
