@@ -88,6 +88,27 @@ static void umc_v12_0_reset_error_count(struct amdgpu_device *adev)
 		umc_v12_0_reset_error_count_per_channel, NULL);
 }
 
+static bool umc_v12_0_is_uncorrectable_error(uint64_t mc_umc_status)
+{
+	return ((REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1) &&
+		(REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Deferred) == 1 ||
+		REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, PCC) == 1 ||
+		REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UC) == 1 ||
+		REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, TCC) == 1));
+}
+
+static bool umc_v12_0_is_correctable_error(uint64_t mc_umc_status)
+{
+	return (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
+		(REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1 ||
+		(REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1 &&
+		REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UC) == 0) ||
+		/* Identify data parity error in replay mode */
+		((REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, ErrorCodeExt) == 0x5 ||
+		REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, ErrorCodeExt) == 0xb) &&
+		!(umc_v12_0_is_uncorrectable_error(mc_umc_status)))));
+}
+
 static void umc_v12_0_query_correctable_error_count(struct amdgpu_device *adev,
 						   uint64_t umc_reg_offset,
 						   unsigned long *error_count)
@@ -104,10 +125,7 @@ static void umc_v12_0_query_correctable_error_count(struct amdgpu_device *adev,
 	mc_umc_status =
 		RREG64_PCIE_EXT((mc_umc_status_addr + umc_reg_offset) * 4);
 
-	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
-	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1 ||
-	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1 &&
-	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UC) == 0)))
+	if (umc_v12_0_is_correctable_error(mc_umc_status))
 		*error_count += 1;
 }
 
@@ -125,11 +143,7 @@ static void umc_v12_0_query_uncorrectable_error_count(struct amdgpu_device *adev
 	mc_umc_status =
 		RREG64_PCIE_EXT((mc_umc_status_addr + umc_reg_offset) * 4);
 
-	if ((REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1) &&
-	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Deferred) == 1 ||
-	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, PCC) == 1 ||
-	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UC) == 1 ||
-	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, TCC) == 1))
+	if (umc_v12_0_is_uncorrectable_error(mc_umc_status))
 		*error_count += 1;
 }
 
