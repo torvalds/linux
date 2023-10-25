@@ -213,6 +213,7 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_crypt)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_clean)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_quota)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_errors)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_opt_compression)		\
 	x(BCH_ERR_invalid,		invalid_bkey)				\
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\

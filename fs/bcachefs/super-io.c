@@ -13,6 +13,7 @@
 #include "replicas.h"
 #include "quota.h"
 #include "sb-clean.h"
+#include "sb-errors.h"
 #include "sb-members.h"
 #include "super-io.h"
 #include "super.h"
@@ -897,7 +898,9 @@ int bch2_write_super(struct bch_fs *c)
 	SET_BCH_SB_BIG_ENDIAN(c->disk_sb.sb, CPU_BIG_ENDIAN);
 
 	bch2_sb_counters_from_cpu(c);
+	bch2_sb_members_from_cpu(c);
 	bch2_sb_members_cpy_v2_v1(&c->disk_sb);
+	bch2_sb_errors_from_cpu(c);
 
 	for_each_online_member(ca, c, i)
 		bch2_sb_from_fs(c, ca);

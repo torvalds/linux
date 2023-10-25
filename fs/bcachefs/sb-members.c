@@ -84,7 +84,7 @@ static int sb_members_v2_resize_entries(struct bch_fs *c)
 	return 0;
 }
 
-int bch2_members_v2_init(struct bch_fs *c)
+int bch2_sb_members_v2_init(struct bch_fs *c)
 {
 	struct bch_sb_field_members_v1 *mi1;
 	struct bch_sb_field_members_v2 *mi2;

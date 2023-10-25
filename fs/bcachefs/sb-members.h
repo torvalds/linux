@@ -4,7 +4,7 @@
 
 extern char * const bch2_member_error_strs[];
 
-int bch2_members_v2_init(struct bch_fs *c);
+int bch2_sb_members_v2_init(struct bch_fs *c);
 int bch2_sb_members_cpy_v2_v1(struct bch_sb_handle *disk_sb);
 struct bch_member *bch2_members_v2_get_mut(struct bch_sb *sb, int i);
 struct bch_member bch2_sb_member_get(struct bch_sb *sb, int i);

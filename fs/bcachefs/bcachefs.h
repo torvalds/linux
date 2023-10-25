@@ -209,6 +209,7 @@
 #include "nocow_locking_types.h"
 #include "opts.h"
 #include "recovery_types.h"
+#include "sb-errors_types.h"
 #include "seqmutex.h"
 #include "util.h"
 
@@ -992,11 +993,6 @@ struct bch_fs {
 	struct bio_set		dio_read_bioset;
 	struct bio_set		nocow_flush_bioset;
 
-	/* ERRORS */
-	struct list_head	fsck_errors;
-	struct mutex		fsck_error_lock;
-	bool			fsck_alloc_err;
-
 	/* QUOTAS */
 	struct bch_memquota_type quotas[QTYP_NR];
 
@@ -1045,6 +1041,14 @@ struct bch_fs {
 	struct bch2_time_stats	times[BCH_TIME_STAT_NR];
 
 	struct btree_transaction_stats btree_transaction_stats[BCH_TRANSACTIONS_NR];
+
+	/* ERRORS */
+	struct list_head	fsck_error_msgs;
+	struct mutex		fsck_error_msgs_lock;
+	bool			fsck_alloc_msgs_err;
+
+	bch_sb_errors_cpu	fsck_error_counts;
+	struct mutex		fsck_error_counts_lock;
 };
 
 extern struct wait_queue_head bch2_read_only_wait;

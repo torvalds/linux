@@ -70,6 +70,7 @@ bcachefs-y		:=	\
 	reflink.o		\
 	replicas.o		\
 	sb-clean.o		\
+	sb-errors.o		\
 	sb-members.o		\
 	siphash.o		\
 	six.o			\

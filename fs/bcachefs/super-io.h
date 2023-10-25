@@ -23,6 +23,11 @@ u64 bch2_upgrade_recovery_passes(struct bch_fs *c,
 				 unsigned,
 				 unsigned);
 
+static inline size_t bch2_sb_field_bytes(struct bch_sb_field *f)
+{
+	return le32_to_cpu(f->u64s) * sizeof(u64);
+}
+
 #define field_to_type(_f, _name)					\
 	container_of_or_null(_f, struct bch_sb_field_##_name, field)
 
