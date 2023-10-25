@@ -52,10 +52,10 @@
 		states = <3300000 1>, <1800000 0>;
 	};
 
-	keyboard-irq {
+	keypad-0 {
 		compatible = "gpio-keys";
 
-		pinctrl-0 = <&keyboard_irq_pins>;
+		pinctrl-0 = <&keypad0_pins>;
 		pinctrl-names = "default";
 
 		interrupt-parent = <&gpio0>;
@@ -76,11 +76,11 @@
 		};
 	};
 
-	keyboard-gpio {
+	keypad-1 {
 		compatible = "gpio-keys-polled";
 		poll-interval = <50>;
 
-		pinctrl-0 = <&keyboard_gpio_pins>;
+		pinctrl-0 = <&keypad1_pins>;
 		pinctrl-names = "default";
 
 		key-3 {
@@ -193,7 +193,7 @@
 };
 
 &gpio0 {
-	keyboard-irq-hog {
+	keypad0-hog {
 		gpio-hog;
 		gpios = <17 GPIO_ACTIVE_LOW>, <18 GPIO_ACTIVE_LOW>;
 		input;
@@ -320,11 +320,11 @@
 		function = "hspi0";
 	};
 
-	keyboard_irq_pins: keyboard-irq {
+	keypad0_pins: keypad-0 {
 		pins = "GP_0_17", "GP_0_18";
 		bias-pull-up;
 	};
-	keyboard_gpio_pins: keyboard-gpio {
+	keypad1_pins: keypad-1 {
 		pins = "GP_0_19", "GP_0_20";
 		bias-pull-up;
 	};
