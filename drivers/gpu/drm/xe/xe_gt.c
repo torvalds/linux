@@ -10,6 +10,7 @@
 #include <drm/drm_managed.h>
 #include <drm/xe_drm.h>
 
+#include "instructions/xe_gfxpipe_commands.h"
 #include "instructions/xe_mi_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "xe_assert.h"
