@@ -355,6 +355,8 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 	i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
 				seqno, dw, i);
 
+	dw[i++] = MI_ARB_ON_OFF | MI_ARB_DISABLE; /* Enabled again below */
+
 	i = emit_bb_start(job->batch_addr[0], BIT(8), dw, i);
 
 	/* XXX: Do we need this? Leaving for now. */

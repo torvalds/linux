@@ -406,12 +406,6 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 	return m;
 }
 
-static void emit_arb_clear(struct xe_bb *bb)
-{
-	/* 1 dword */
-	bb->cs[bb->len++] = MI_ARB_ON_OFF | MI_ARB_DISABLE;
-}
-
 static u64 xe_migrate_res_sizes(struct xe_res_cursor *cur)
 {
 	/*
@@ -745,10 +739,6 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 			goto err_sync;
 		}
 
-		/* Preemption is enabled again by the ring ops. */
-		if (!src_is_vram || !dst_is_vram)
-			emit_arb_clear(bb);
-
 		if (!src_is_vram)
 			emit_pte(m, bb, src_L0_pt, src_is_vram, &src_it, src_L0,
 				 src_bo);
@@ -994,7 +984,6 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 
 		/* Preemption is enabled again by the ring ops. */
 		if (!clear_vram) {
-			emit_arb_clear(bb);
 			emit_pte(m, bb, clear_L0_pt, clear_vram, &src_it, clear_L0,
 				 bo);
 		} else {
@@ -1285,9 +1274,6 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 				VM_SA_UPDATE_UNIT_SIZE;
 		}
 
-		/* Preemption is enabled again by the ring ops. */
-		emit_arb_clear(bb);
-
 		/* Map our PT's to gtt */
 		bb->cs[bb->len++] = MI_STORE_DATA_IMM | MI_SDI_NUM_QW(num_updates);
 		bb->cs[bb->len++] = ppgtt_ofs * XE_PAGE_SIZE + page_ofs;
@@ -1316,8 +1302,6 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 		update_idx = bb->len;
 
-		/* Preemption is enabled again by the ring ops. */
-		emit_arb_clear(bb);
 		for (i = 0; i < num_updates; i++)
 			write_pgtable(tile, bb, 0, &updates[i], pt_update);
 	}
