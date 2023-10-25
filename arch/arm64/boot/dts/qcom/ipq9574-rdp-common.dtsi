@@ -10,6 +10,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include "ipq9574.dtsi"
 
 / {
@@ -49,6 +50,20 @@
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&tlmm 37 GPIO_ACTIVE_LOW>;
 			debounce-interval = <60>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&gpio_leds_default>;
+		pinctrl-names = "default";
+
+		led-0 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_WLAN;
+			gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "phy0tx";
+			default-state = "off";
 		};
 	};
 };
@@ -113,6 +128,13 @@
 
 	gpio_keys_default: gpio-keys-default-state {
 		pins = "gpio37";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	gpio_leds_default: gpio-leds-default-state {
+		pins = "gpio64";
 		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-up;
