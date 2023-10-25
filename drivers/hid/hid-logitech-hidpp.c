@@ -4461,18 +4461,21 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	else
 		hidpp_non_unifying_init(hidpp);
 
-	schedule_work(&hidpp->work);
-	flush_work(&hidpp->work);
-
 	if (hidpp->quirks & HIDPP_QUIRK_DELAYED_INIT)
 		connect_mask &= ~HID_CONNECT_HIDINPUT;
 
 	/* Now export the actual inputs and hidraw nodes to the world */
+	hid_device_io_stop(hdev);
 	ret = hid_connect(hdev, connect_mask);
 	if (ret) {
 		hid_err(hdev, "%s:hid_connect returned error %d\n", __func__, ret);
 		goto hid_hw_init_fail;
 	}
+
+	/* Check for connected devices now that incoming packets will not be disabled again */
+	hid_device_io_start(hdev);
+	schedule_work(&hidpp->work);
+	flush_work(&hidpp->work);
 
 	if (hidpp->quirks & HIDPP_QUIRK_CLASS_G920) {
 		struct hidpp_ff_private_data data;
