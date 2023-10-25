@@ -55,7 +55,6 @@ static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 	if (err)
 		goto out;
 	imu_hdr = (const struct imu_firmware_header_v1_0 *)adev->gfx.imu_fw->data;
-	adev->gfx.imu_fw_version = le32_to_cpu(imu_hdr->header.ucode_version);
 	//adev->gfx.imu_feature_version = le32_to_cpu(imu_hdr->ucode_feature_version);
 	
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
@@ -69,7 +68,8 @@ static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 		info->fw = adev->gfx.imu_fw;
 		adev->firmware.fw_size +=
 			ALIGN(le32_to_cpu(imu_hdr->imu_dram_ucode_size_bytes), PAGE_SIZE);
-	}
+	} else
+		adev->gfx.imu_fw_version = le32_to_cpu(imu_hdr->header.ucode_version);
 
 out:
 	if (err) {

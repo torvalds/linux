@@ -1267,6 +1267,8 @@ invoke:
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__INITIALIZE;
 
 	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
+	/* note down the capbility flag for XGMI TA */
+	psp->xgmi_context.xgmi_ta_caps = xgmi_cmd->caps_flag;
 
 	return ret;
 }
@@ -1388,7 +1390,7 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 
 	/* Fill in the shared memory with topology information as input */
 	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
-	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_GET_TOPOLOGY_INFO;
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_TOPOLOGY_INFO;
 	topology_info_input->num_nodes = number_devices;
 
 	for (i = 0; i < topology_info_input->num_nodes; i++) {
@@ -1399,7 +1401,7 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 	}
 
 	/* Invoke xgmi ta to get the topology information */
-	ret = psp_xgmi_invoke(psp, TA_COMMAND_XGMI__GET_GET_TOPOLOGY_INFO);
+	ret = psp_xgmi_invoke(psp, TA_COMMAND_XGMI__GET_TOPOLOGY_INFO);
 	if (ret)
 		return ret;
 
@@ -1424,28 +1426,53 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 
 	/* Invoke xgmi ta again to get the link information */
 	if (psp_xgmi_peer_link_info_supported(psp)) {
-		struct ta_xgmi_cmd_get_peer_link_info_output *link_info_output;
+		struct ta_xgmi_cmd_get_peer_link_info *link_info_output;
+		struct ta_xgmi_cmd_get_extend_peer_link_info *link_extend_info_output;
 		bool requires_reflection =
 			(psp->xgmi_context.supports_extended_data &&
 			 get_extended_data) ||
 			amdgpu_ip_version(psp->adev, MP0_HWIP, 0) ==
 				IP_VERSION(13, 0, 6);
+		bool ta_port_num_support = psp->xgmi_context.xgmi_ta_caps &
+						EXTEND_PEER_LINK_INFO_CMD_FLAG;
 
-		xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_PEER_LINKS;
+		/* popluate the shared output buffer rather than the cmd input buffer
+		 * with node_ids as the input for GET_PEER_LINKS command execution.
+		 * This is required for GET_PEER_LINKS per xgmi ta implementation.
+		 * The same requirement for GET_EXTEND_PEER_LINKS command.
+		 */
+		if (ta_port_num_support) {
+			link_extend_info_output = &xgmi_cmd->xgmi_out_message.get_extend_link_info;
 
-		ret = psp_xgmi_invoke(psp, TA_COMMAND_XGMI__GET_PEER_LINKS);
+			for (i = 0; i < topology->num_nodes; i++)
+				link_extend_info_output->nodes[i].node_id = topology->nodes[i].node_id;
 
+			link_extend_info_output->num_nodes = topology->num_nodes;
+			xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_EXTEND_PEER_LINKS;
+		} else {
+			link_info_output = &xgmi_cmd->xgmi_out_message.get_link_info;
+
+			for (i = 0; i < topology->num_nodes; i++)
+				link_info_output->nodes[i].node_id = topology->nodes[i].node_id;
+
+			link_info_output->num_nodes = topology->num_nodes;
+			xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_PEER_LINKS;
+		}
+
+		ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
 		if (ret)
 			return ret;
 
-		link_info_output = &xgmi_cmd->xgmi_out_message.get_link_info;
 		for (i = 0; i < topology->num_nodes; i++) {
+			uint8_t node_num_links = ta_port_num_support ?
+				link_extend_info_output->nodes[i].num_links : link_info_output->nodes[i].num_links;
 			/* accumulate num_links on extended data */
-			topology->nodes[i].num_links = get_extended_data ?
-					topology->nodes[i].num_links +
-							link_info_output->nodes[i].num_links :
-					((requires_reflection && topology->nodes[i].num_links) ? topology->nodes[i].num_links :
-					 link_info_output->nodes[i].num_links);
+			if (get_extended_data) {
+				topology->nodes[i].num_links = topology->nodes[i].num_links + node_num_links;
+			} else {
+				topology->nodes[i].num_links = (requires_reflection && topology->nodes[i].num_links) ?
+								topology->nodes[i].num_links : node_num_links;
+			}
 
 			/* reflect the topology information for bi-directionality */
 			if (requires_reflection && topology->nodes[i].num_hops)

@@ -434,6 +434,8 @@ struct amdgpu_ras {
 
 	/* Indicates smu whether need update bad channel info */
 	bool update_channel_flag;
+	/* Record status of smu mca debug mode */
+	bool is_mca_debug_mode;
 
 	/* Record special requirements of gpu reset caller */
 	uint32_t  gpu_reset_flags;
@@ -714,6 +716,8 @@ void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev);
 int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 		struct ras_query_if *info);
 
+int amdgpu_ras_reset_error_count(struct amdgpu_device *adev,
+		enum amdgpu_ras_block block);
 int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
 		enum amdgpu_ras_block block);
 
@@ -765,6 +769,9 @@ int amdgpu_ras_reset_gpu(struct amdgpu_device *adev);
 struct amdgpu_ras* amdgpu_ras_get_context(struct amdgpu_device *adev);
 
 int amdgpu_ras_set_context(struct amdgpu_device *adev, struct amdgpu_ras *ras_con);
+
+void amdgpu_ras_set_mca_debug_mode(struct amdgpu_device *adev, bool enable);
+bool amdgpu_ras_get_mca_debug_mode(struct amdgpu_device *adev);
 
 int amdgpu_ras_register_ras_block(struct amdgpu_device *adev,
 				struct amdgpu_ras_block_object *ras_block_obj);

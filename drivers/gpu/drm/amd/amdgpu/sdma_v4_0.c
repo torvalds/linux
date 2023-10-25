@@ -1749,11 +1749,8 @@ static int sdma_v4_0_late_init(void *handle)
 
 	sdma_v4_0_setup_ulv(adev);
 
-	if (!amdgpu_persistent_edc_harvesting_supported(adev)) {
-		if (adev->sdma.ras && adev->sdma.ras->ras_block.hw_ops &&
-		    adev->sdma.ras->ras_block.hw_ops->reset_ras_error_count)
-			adev->sdma.ras->ras_block.hw_ops->reset_ras_error_count(adev);
-	}
+	if (!amdgpu_persistent_edc_harvesting_supported(adev))
+		amdgpu_ras_reset_error_count(adev, AMDGPU_RAS_BLOCK__SDMA);
 
 	return 0;
 }

@@ -1309,9 +1309,10 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 }
 
 static int smu_v13_0_6_get_power_limit(struct smu_context *smu,
-				       uint32_t *current_power_limit,
-				       uint32_t *default_power_limit,
-				       uint32_t *max_power_limit)
+						uint32_t *current_power_limit,
+						uint32_t *default_power_limit,
+						uint32_t *max_power_limit,
+						uint32_t *min_power_limit)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct PPTable_t *pptable =
@@ -1335,6 +1336,8 @@ static int smu_v13_0_6_get_power_limit(struct smu_context *smu,
 		*max_power_limit = pptable->MaxSocketPowerLimit;
 	}
 
+	if (min_power_limit)
+		*min_power_limit = 0;
 	return 0;
 }
 
@@ -2035,8 +2038,10 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 
 	metrics = kzalloc(sizeof(MetricsTable_t), GFP_KERNEL);
 	ret = smu_v13_0_6_get_metrics_table(smu, metrics, true);
-	if (ret)
+	if (ret) {
+		kfree(metrics);
 		return ret;
+	}
 
 	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 4);
 
@@ -2238,16 +2243,24 @@ failed:
 static int smu_v13_0_6_mode1_reset(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_hive_info *hive = NULL;
+	u32 hive_ras_recovery = 0;
 	struct amdgpu_ras *ras;
 	u32 fatal_err, param;
 	int ret = 0;
 
+	hive = amdgpu_get_xgmi_hive(adev);
 	ras = amdgpu_ras_get_context(adev);
 	fatal_err = 0;
 	param = SMU_RESET_MODE_1;
 
+	if (hive) {
+		hive_ras_recovery = atomic_read(&hive->ras_recovery);
+		amdgpu_put_xgmi_hive(hive);
+	}
+
 	/* fatal error triggered by ras, PMFW supports the flag */
-	if (ras && atomic_read(&ras->in_recovery))
+	if (ras && (atomic_read(&ras->in_recovery) || hive_ras_recovery))
 		fatal_err = 1;
 
 	param |= (fatal_err << 16);
@@ -2290,7 +2303,7 @@ static int smu_v13_0_6_post_init(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	if (!amdgpu_sriov_vf(adev) && amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC))
+	if (!amdgpu_sriov_vf(adev) && adev->ras_enabled)
 		return smu_v13_0_6_mca_set_debug_mode(smu, true);
 
 	return 0;

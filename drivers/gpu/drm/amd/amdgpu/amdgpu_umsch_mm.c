@@ -843,6 +843,20 @@ static int umsch_mm_hw_fini(void *handle)
 	return 0;
 }
 
+static int umsch_mm_suspend(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return umsch_mm_hw_fini(adev);
+}
+
+static int umsch_mm_resume(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return umsch_mm_hw_init(adev);
+}
+
 static const struct amd_ip_funcs umsch_mm_v4_0_ip_funcs = {
 	.name = "umsch_mm_v4_0",
 	.early_init = umsch_mm_early_init,
@@ -851,6 +865,8 @@ static const struct amd_ip_funcs umsch_mm_v4_0_ip_funcs = {
 	.sw_fini = umsch_mm_sw_fini,
 	.hw_init = umsch_mm_hw_init,
 	.hw_fini = umsch_mm_hw_fini,
+	.suspend = umsch_mm_suspend,
+	.resume = umsch_mm_resume,
 };
 
 const struct amdgpu_ip_block_version umsch_mm_v4_0_ip_block = {

@@ -2341,16 +2341,17 @@ static int smu_v13_0_0_enable_mgpu_fan_boost(struct smu_context *smu)
 }
 
 static int smu_v13_0_0_get_power_limit(struct smu_context *smu,
-				       uint32_t *current_power_limit,
-				       uint32_t *default_power_limit,
-				       uint32_t *max_power_limit)
+						uint32_t *current_power_limit,
+						uint32_t *default_power_limit,
+						uint32_t *max_power_limit,
+						uint32_t *min_power_limit)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
 	struct smu_13_0_0_powerplay_table *powerplay_table =
 		(struct smu_13_0_0_powerplay_table *)table_context->power_play_table;
 	PPTable_t *pptable = table_context->driver_pptable;
 	SkuTable_t *skutable = &pptable->SkuTable;
-	uint32_t power_limit, od_percent;
+	uint32_t power_limit, od_percent_upper, od_percent_lower;
 
 	if (smu_v13_0_get_current_power_limit(smu, &power_limit))
 		power_limit = smu->adev->pm.ac_power ?
@@ -2362,16 +2363,25 @@ static int smu_v13_0_0_get_power_limit(struct smu_context *smu,
 	if (default_power_limit)
 		*default_power_limit = power_limit;
 
+	if (smu->od_enabled) {
+		od_percent_upper = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_13_0_0_ODSETTING_POWERPERCENTAGE]);
+		od_percent_lower = le32_to_cpu(powerplay_table->overdrive_table.min[SMU_13_0_0_ODSETTING_POWERPERCENTAGE]);
+	} else {
+		od_percent_upper = 0;
+		od_percent_lower = 100;
+	}
+
+	dev_dbg(smu->adev->dev, "od percent upper:%d, od percent lower:%d (default power: %d)\n",
+					od_percent_upper, od_percent_lower, power_limit);
+
 	if (max_power_limit) {
-		if (smu->od_enabled) {
-			od_percent = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_13_0_0_ODSETTING_POWERPERCENTAGE]);
+		*max_power_limit = power_limit * (100 + od_percent_upper);
+		*max_power_limit /= 100;
+	}
 
-			dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_percent, power_limit);
-
-			power_limit *= (100 + od_percent);
-			power_limit /= 100;
-		}
-		*max_power_limit = power_limit;
+	if (min_power_limit) {
+		*min_power_limit = power_limit * (100 - od_percent_lower);
+		*min_power_limit /= 100;
 	}
 
 	return 0;
@@ -2562,7 +2572,7 @@ static int smu_v13_0_0_set_power_profile_mode(struct smu_context *smu,
 	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_COMPUTE &&
 	    (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 0)) &&
 	    ((smu->adev->pm.fw_version == 0x004e6601) ||
-	     (smu->adev->pm.fw_version >= 0x004e7300))) {
+	     (smu->adev->pm.fw_version >= 0x004e7400))) {
 		workload_type = smu_cmn_to_asic_specific_index(smu,
 							       CMN2ASIC_MAPPING_WORKLOAD,
 							       PP_SMC_POWER_PROFILE_POWERSAVING);

@@ -2900,7 +2900,7 @@ static int dm_resume(void *handle)
 	}
 
 	/* power on hardware */
-	 dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
+	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
 
 	/* program HPD filter */
 	dc_resume(dm->dc);

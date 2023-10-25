@@ -623,7 +623,7 @@ static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 						int num_xccs_per_xcp)
 {
 	int ret, i, num_xcc;
-	u32 tmp = 0, regval;
+	u32 tmp = 0;
 
 	if (adev->psp.funcs) {
 		ret = psp_spatial_partition(&adev->psp,
@@ -631,24 +631,23 @@ static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 						    num_xccs_per_xcp);
 		if (ret)
 			return ret;
-	}
+	} else {
+		num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-
-	for (i = 0; i < num_xcc; i++) {
-		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, NUM_XCC_IN_XCP,
-				    num_xccs_per_xcp);
-		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, VIRTUAL_XCC_ID,
-				    i % num_xccs_per_xcp);
-		regval = RREG32_SOC15(GC, GET_INST(GC, i), regCP_HYP_XCP_CTL);
-		if (regval != tmp)
+		for (i = 0; i < num_xcc; i++) {
+			tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, NUM_XCC_IN_XCP,
+					    num_xccs_per_xcp);
+			tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, VIRTUAL_XCC_ID,
+					    i % num_xccs_per_xcp);
 			WREG32_SOC15(GC, GET_INST(GC, i), regCP_HYP_XCP_CTL,
 				     tmp);
+		}
+		ret = 0;
 	}
 
 	adev->gfx.num_xcc_per_xcp = num_xccs_per_xcp;
 
-	return 0;
+	return ret;
 }
 
 static int gfx_v9_4_3_ih_to_xcc_inst(struct amdgpu_device *adev, int ih_node)
@@ -3755,10 +3754,6 @@ static const struct amdgpu_gfx_ras_reg_entry gfx_v9_4_3_ue_reg_list[] = {
 	    AMDGPU_GFX_LDS_MEM, 4},
 };
 
-static const struct soc15_reg_entry gfx_v9_4_3_ea_err_status_regs = {
-	SOC15_REG_ENTRY(GC, 0, regGCEA_ERR_STATUS), 0, 1, 16
-};
-
 static void gfx_v9_4_3_inst_query_ras_err_count(struct amdgpu_device *adev,
 					void *ras_error_status, int xcc_id)
 {
@@ -3839,39 +3834,6 @@ static void gfx_v9_4_3_inst_reset_ras_err_count(struct amdgpu_device *adev,
 					1,
 					GET_INST(GC, xcc_id));
 			}
-		}
-	}
-
-	gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
-			xcc_id);
-	mutex_unlock(&adev->grbm_idx_mutex);
-}
-
-static void gfx_v9_4_3_inst_query_ea_err_status(struct amdgpu_device *adev,
-					int xcc_id)
-{
-	uint32_t i, j;
-	uint32_t reg_value;
-
-	mutex_lock(&adev->grbm_idx_mutex);
-
-	for (i = 0; i < gfx_v9_4_3_ea_err_status_regs.se_num; i++) {
-		for (j = 0; j < gfx_v9_4_3_ea_err_status_regs.instance; j++) {
-			gfx_v9_4_3_xcc_select_se_sh(adev, i, 0, j, xcc_id);
-			reg_value = RREG32_SOC15(GC, GET_INST(GC, xcc_id),
-					regGCEA_ERR_STATUS);
-			if (REG_GET_FIELD(reg_value, GCEA_ERR_STATUS, SDP_RDRSP_STATUS) ||
-			    REG_GET_FIELD(reg_value, GCEA_ERR_STATUS, SDP_WRRSP_STATUS) ||
-			    REG_GET_FIELD(reg_value, GCEA_ERR_STATUS, SDP_RDRSP_DATAPARITY_ERROR)) {
-				dev_warn(adev->dev,
-					"GCEA err detected at instance: %d, status: 0x%x!\n",
-					j, reg_value);
-			}
-			/* clear after read */
-			reg_value = REG_SET_FIELD(reg_value, GCEA_ERR_STATUS,
-						  CLEAR_ERROR_STATUS, 0x1);
-			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regGCEA_ERR_STATUS,
-					reg_value);
 		}
 	}
 
@@ -3984,7 +3946,6 @@ static void gfx_v9_4_3_inst_query_sq_timeout_status(struct amdgpu_device *adev,
 static void gfx_v9_4_3_inst_query_ras_err_status(struct amdgpu_device *adev,
 					void *ras_error_status, int xcc_id)
 {
-	gfx_v9_4_3_inst_query_ea_err_status(adev, xcc_id);
 	gfx_v9_4_3_inst_query_utc_err_status(adev, xcc_id);
 	gfx_v9_4_3_inst_query_sq_timeout_status(adev, xcc_id);
 }
@@ -3995,27 +3956,6 @@ static void gfx_v9_4_3_inst_reset_utc_err_status(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regUTCL2_MEM_ECC_STATUS, 0x3);
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regVML2_MEM_ECC_STATUS, 0x3);
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regVML2_WALKER_MEM_ECC_STATUS, 0x3);
-}
-
-static void gfx_v9_4_3_inst_reset_ea_err_status(struct amdgpu_device *adev,
-					int xcc_id)
-{
-	uint32_t i, j;
-	uint32_t value;
-
-	mutex_lock(&adev->grbm_idx_mutex);
-	for (i = 0; i < gfx_v9_4_3_ea_err_status_regs.se_num; i++) {
-		for (j = 0; j < gfx_v9_4_3_ea_err_status_regs.instance; j++) {
-			gfx_v9_4_3_xcc_select_se_sh(adev, i, 0, j, xcc_id);
-			value = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regGCEA_ERR_STATUS);
-			value = REG_SET_FIELD(value, GCEA_ERR_STATUS,
-						CLEAR_ERROR_STATUS, 0x1);
-			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regGCEA_ERR_STATUS, value);
-		}
-	}
-	gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
-			xcc_id);
-	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
 static void gfx_v9_4_3_inst_reset_sq_timeout_status(struct amdgpu_device *adev,
@@ -4043,7 +3983,6 @@ static void gfx_v9_4_3_inst_reset_ras_err_status(struct amdgpu_device *adev,
 					void *ras_error_status, int xcc_id)
 {
 	gfx_v9_4_3_inst_reset_utc_err_status(adev, xcc_id);
-	gfx_v9_4_3_inst_reset_ea_err_status(adev, xcc_id);
 	gfx_v9_4_3_inst_reset_sq_timeout_status(adev, xcc_id);
 }
 

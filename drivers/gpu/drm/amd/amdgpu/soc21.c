@@ -863,6 +863,8 @@ static int soc21_common_set_clockgating_state(void *handle,
 	case IP_VERSION(4, 3, 0):
 	case IP_VERSION(4, 3, 1):
 	case IP_VERSION(7, 7, 0):
+	case IP_VERSION(7, 7, 1):
+	case IP_VERSION(7, 11, 0):
 		adev->nbio.funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		adev->nbio.funcs->update_medium_grain_light_sleep(adev,

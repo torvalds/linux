@@ -65,8 +65,6 @@
 
 #include "dcn10/dcn10_hwseq.h"
 
-#include "dce110_hwseq.h"
-
 #define GAMMA_HW_POINTS_NUM 256
 
 /*

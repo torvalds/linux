@@ -273,6 +273,8 @@ enum amd_dpm_forced_level;
  * @hw_init: sets up the hw state
  * @hw_fini: tears down the hw state
  * @late_fini: final cleanup
+ * @prepare_suspend: handle IP specific changes to prepare for suspend
+ *                   (such as allocating any required memory)
  * @suspend: handles IP specific hw/sw changes for suspend
  * @resume: handles IP specific hw/sw changes for resume
  * @is_idle: returns current IP block idle status

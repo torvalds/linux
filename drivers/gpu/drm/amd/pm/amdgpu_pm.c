@@ -761,7 +761,7 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	if (count > 127)
+	if (count > 127 || count == 0)
 		return -EINVAL;
 
 	if (*buf == 's')
@@ -781,7 +781,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 	else
 		return -EINVAL;
 
-	memcpy(buf_cpy, buf, count+1);
+	memcpy(buf_cpy, buf, count);
+	buf_cpy[count] = 0;
 
 	tmp_str = buf_cpy;
 
@@ -797,6 +798,9 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 		if (ret)
 			return -EINVAL;
 		parameter_size++;
+
+		if (!tmp_str)
+			break;
 
 		while (isspace(*tmp_str))
 			tmp_str++;
@@ -2921,14 +2925,6 @@ static ssize_t amdgpu_hwmon_show_power_input(struct device *dev,
 	return sysfs_emit(buf, "%zd\n", val);
 }
 
-static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	return sysfs_emit(buf, "%i\n", 0);
-}
-
-
 static ssize_t amdgpu_hwmon_show_power_cap_generic(struct device *dev,
 					struct device_attribute *attr,
 					char *buf,
@@ -2965,6 +2961,12 @@ static ssize_t amdgpu_hwmon_show_power_cap_generic(struct device *dev,
 	return size;
 }
 
+static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	return amdgpu_hwmon_show_power_cap_generic(dev, attr, buf, PP_PWR_LIMIT_MIN);
+}
 
 static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
 					 struct device_attribute *attr,
