@@ -299,5 +299,7 @@ int smu_v13_0_update_pcie_parameters(struct smu_context *smu,
 				     uint8_t pcie_gen_cap,
 				     uint8_t pcie_width_cap);
 
+int smu_v13_0_disable_pmfw_state(struct smu_context *smu);
+
 #endif
 #endif

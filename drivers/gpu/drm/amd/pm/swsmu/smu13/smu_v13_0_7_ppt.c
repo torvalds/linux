@@ -2498,7 +2498,13 @@ static int smu_v13_0_7_set_mp1_state(struct smu_context *smu,
 
 	switch (mp1_state) {
 	case PP_MP1_STATE_UNLOAD:
-		ret = smu_cmn_set_mp1_state(smu, mp1_state);
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+											  SMU_MSG_PrepareMp1ForUnload,
+											  0x55, NULL);
+
+		if (!ret && smu->smu_baco.state == SMU_BACO_STATE_EXIT)
+			ret = smu_v13_0_disable_pmfw_state(smu);
+
 		break;
 	default:
 		/* Ignore others */
@@ -2524,14 +2530,20 @@ static int smu_v13_0_7_baco_enter(struct smu_context *smu)
 static int smu_v13_0_7_baco_exit(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	int ret;
 
 	if (adev->in_runpm && smu_cmn_is_audio_func_enabled(adev)) {
 		/* Wait for PMFW handling for the Dstate change */
 		usleep_range(10000, 11000);
-		return smu_v13_0_baco_set_armd3_sequence(smu, BACO_SEQ_ULPS);
+		ret = smu_v13_0_baco_set_armd3_sequence(smu, BACO_SEQ_ULPS);
 	} else {
-		return smu_v13_0_baco_exit(smu);
+		ret = smu_v13_0_baco_exit(smu);
 	}
+
+	if (!ret)
+		adev->gfx.is_poweron = false;
+
+	return ret;
 }
 
 static bool smu_v13_0_7_is_mode1_reset_supported(struct smu_context *smu)
