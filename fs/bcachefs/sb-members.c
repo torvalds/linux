@@ -7,6 +7,18 @@
 #include "sb-members.h"
 #include "super-io.h"
 
+#define x(t, n, ...) [n] = #t,
+static const char * const bch2_iops_measurements[] = {
+	BCH_IOPS_MEASUREMENTS()
+	NULL
+};
+
+char * const bch2_member_error_strs[] = {
+	BCH_MEMBER_ERROR_TYPES()
+	NULL
+};
+#undef x
+
 /* Code for bch_sb_field_members_v1: */
 
 static struct bch_member *members_v2_get_mut(struct bch_sb_field_members_v2 *mi, int i)
@@ -92,7 +104,7 @@ int bch2_members_v2_init(struct bch_fs *c)
 	return sb_members_v2_resize_entries(c);
 }
 
-int bch_members_cpy_v2_v1(struct bch_sb_handle *disk_sb)
+int bch2_sb_members_cpy_v2_v1(struct bch_sb_handle *disk_sb)
 {
 	struct bch_sb_field_members_v1 *mi1;
 	struct bch_sb_field_members_v2 *mi2;
@@ -156,13 +168,27 @@ static void member_to_text(struct printbuf *out,
 	u64 bucket_size = le16_to_cpu(m.bucket_size);
 	u64 device_size = le64_to_cpu(m.nbuckets) * bucket_size;
 
-
 	prt_printf(out, "Device:");
 	prt_tab(out);
 	prt_printf(out, "%u", i);
 	prt_newline(out);
 
 	printbuf_indent_add(out, 2);
+
+	prt_printf(out, "Label:");
+	prt_tab(out);
+	if (BCH_MEMBER_GROUP(&m)) {
+		unsigned idx = BCH_MEMBER_GROUP(&m) - 1;
+
+		if (idx < disk_groups_nr(gi))
+			prt_printf(out, "%s (%u)",
+				   gi->entries[idx].label, idx);
+		else
+			prt_printf(out, "(bad disk labels section)");
+	} else {
+		prt_printf(out, "(none)");
+	}
+	prt_newline(out);
 
 	prt_printf(out, "UUID:");
 	prt_tab(out);
@@ -173,6 +199,13 @@ static void member_to_text(struct printbuf *out,
 	prt_tab(out);
 	prt_units_u64(out, device_size << 9);
 	prt_newline(out);
+
+	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++) {
+		prt_printf(out, "%s errors:", bch2_member_error_strs[i]);
+		prt_tab(out);
+		prt_u64(out, le64_to_cpu(m.errors[i]));
+		prt_newline(out);
+	}
 
 	for (unsigned i = 0; i < BCH_IOPS_NR; i++) {
 		prt_printf(out, "%s iops:", bch2_iops_measurements[i]);
@@ -210,21 +243,6 @@ static void member_to_text(struct printbuf *out,
 		   BCH_MEMBER_STATE(&m) < BCH_MEMBER_STATE_NR
 		   ? bch2_member_states[BCH_MEMBER_STATE(&m)]
 		   : "unknown");
-	prt_newline(out);
-
-	prt_printf(out, "Label:");
-	prt_tab(out);
-	if (BCH_MEMBER_GROUP(&m)) {
-		unsigned idx = BCH_MEMBER_GROUP(&m) - 1;
-
-		if (idx < disk_groups_nr(gi))
-			prt_printf(out, "%s (%u)",
-				   gi->entries[idx].label, idx);
-		else
-			prt_printf(out, "(bad disk labels section)");
-	} else {
-		prt_printf(out, "(none)");
-	}
 	prt_newline(out);
 
 	prt_printf(out, "Data allowed:");
@@ -337,3 +355,72 @@ const struct bch_sb_field_ops bch_sb_field_ops_members_v2 = {
 	.validate	= bch2_sb_members_v2_validate,
 	.to_text	= bch2_sb_members_v2_to_text,
 };
+
+void bch2_sb_members_from_cpu(struct bch_fs *c)
+{
+	struct bch_sb_field_members_v2 *mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
+	struct bch_dev *ca;
+	unsigned i, e;
+
+	rcu_read_lock();
+	for_each_member_device_rcu(ca, c, i, NULL) {
+		struct bch_member *m = members_v2_get_mut(mi, i);
+
+		for (e = 0; e < BCH_MEMBER_ERROR_NR; e++)
+			m->errors[e] = cpu_to_le64(atomic64_read(&ca->errors[e]));
+	}
+	rcu_read_unlock();
+}
+
+void bch2_dev_io_errors_to_text(struct printbuf *out, struct bch_dev *ca)
+{
+	struct bch_fs *c = ca->fs;
+	struct bch_member m;
+
+	mutex_lock(&ca->fs->sb_lock);
+	m = bch2_sb_member_get(c->disk_sb.sb, ca->dev_idx);
+	mutex_unlock(&ca->fs->sb_lock);
+
+	printbuf_tabstop_push(out, 12);
+
+	prt_str(out, "IO errors since filesystem creation");
+	prt_newline(out);
+
+	printbuf_indent_add(out, 2);
+	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++) {
+		prt_printf(out, "%s:", bch2_member_error_strs[i]);
+		prt_tab(out);
+		prt_u64(out, atomic64_read(&ca->errors[i]));
+		prt_newline(out);
+	}
+	printbuf_indent_sub(out, 2);
+
+	prt_str(out, "IO errors since ");
+	bch2_pr_time_units(out, (ktime_get_real_seconds() - le64_to_cpu(m.errors_reset_time)) * NSEC_PER_SEC);
+	prt_str(out, " ago");
+	prt_newline(out);
+
+	printbuf_indent_add(out, 2);
+	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++) {
+		prt_printf(out, "%s:", bch2_member_error_strs[i]);
+		prt_tab(out);
+		prt_u64(out, atomic64_read(&ca->errors[i]) - le64_to_cpu(m.errors_at_reset[i]));
+		prt_newline(out);
+	}
+	printbuf_indent_sub(out, 2);
+}
+
+void bch2_dev_errors_reset(struct bch_dev *ca)
+{
+	struct bch_fs *c = ca->fs;
+	struct bch_member *m;
+
+	mutex_lock(&c->sb_lock);
+	m = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
+	for (unsigned i = 0; i < ARRAY_SIZE(m->errors_at_reset); i++)
+		m->errors_at_reset[i] = cpu_to_le64(atomic64_read(&ca->errors[i]));
+	m->errors_reset_time = ktime_get_real_seconds();
+
+	bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
+}

@@ -149,7 +149,9 @@ read_attribute(bucket_size);
 read_attribute(first_bucket);
 read_attribute(nbuckets);
 rw_attribute(durability);
-read_attribute(iodone);
+read_attribute(io_done);
+read_attribute(io_errors);
+write_attribute(io_errors_reset);
 
 read_attribute(io_latency_read);
 read_attribute(io_latency_write);
@@ -880,7 +882,7 @@ static const char * const bch2_rw[] = {
 	NULL
 };
 
-static void dev_iodone_to_text(struct printbuf *out, struct bch_dev *ca)
+static void dev_io_done_to_text(struct printbuf *out, struct bch_dev *ca)
 {
 	int rw, i;
 
@@ -923,8 +925,11 @@ SHOW(bch2_dev)
 		prt_char(out, '\n');
 	}
 
-	if (attr == &sysfs_iodone)
-		dev_iodone_to_text(out, ca);
+	if (attr == &sysfs_io_done)
+		dev_io_done_to_text(out, ca);
+
+	if (attr == &sysfs_io_errors)
+		bch2_dev_io_errors_to_text(out, ca);
 
 	sysfs_print(io_latency_read,		atomic64_read(&ca->cur_latency[READ]));
 	sysfs_print(io_latency_write,		atomic64_read(&ca->cur_latency[WRITE]));
@@ -991,6 +996,9 @@ STORE(bch2_dev)
 			return ret;
 	}
 
+	if (attr == &sysfs_io_errors_reset)
+		bch2_dev_errors_reset(ca);
+
 	return size;
 }
 SYSFS_OPS(bch2_dev);
@@ -1008,7 +1016,9 @@ struct attribute *bch2_dev_files[] = {
 	&sysfs_label,
 
 	&sysfs_has_data,
-	&sysfs_iodone,
+	&sysfs_io_done,
+	&sysfs_io_errors,
+	&sysfs_io_errors_reset,
 
 	&sysfs_io_latency_read,
 	&sysfs_io_latency_write,

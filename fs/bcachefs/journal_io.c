@@ -900,7 +900,7 @@ reread:
 			ret = submit_bio_wait(bio);
 			kfree(bio);
 
-			if (bch2_dev_io_err_on(ret, ca,
+			if (bch2_dev_io_err_on(ret, ca, BCH_MEMBER_ERROR_read,
 					       "journal read error: sector %llu",
 					       offset) ||
 			    bch2_meta_read_fault("journal")) {
@@ -956,7 +956,8 @@ reread:
 		ja->bucket_seq[bucket] = le64_to_cpu(j->seq);
 
 		csum_good = jset_csum_good(c, j);
-		if (!csum_good)
+		if (bch2_dev_io_err_on(!csum_good, ca, BCH_MEMBER_ERROR_checksum,
+				       "journal checksum error"))
 			saw_bad = true;
 
 		ret = bch2_encrypt(c, JSET_CSUM_TYPE(j), journal_nonce(j),
@@ -1581,7 +1582,8 @@ static void journal_write_endio(struct bio *bio)
 	struct journal_buf *w = journal_last_unwritten_buf(j);
 	unsigned long flags;
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, "error writing journal entry %llu: %s",
+	if (bch2_dev_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_write,
+			       "error writing journal entry %llu: %s",
 			       le64_to_cpu(w->data->seq),
 			       bch2_blk_status_to_str(bio->bi_status)) ||
 	    bch2_meta_write_fault("journal")) {

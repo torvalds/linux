@@ -56,8 +56,9 @@ void bch2_io_error_work(struct work_struct *work)
 	up_write(&c->state_lock);
 }
 
-void bch2_io_error(struct bch_dev *ca)
+void bch2_io_error(struct bch_dev *ca, enum bch_member_error_type type)
 {
+	atomic64_inc(&ca->errors[type]);
 	//queue_work(system_long_wq, &ca->io_error_work);
 }
 

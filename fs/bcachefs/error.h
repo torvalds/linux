@@ -179,26 +179,26 @@ do {									\
 void bch2_io_error_work(struct work_struct *);
 
 /* Does the error handling without logging a message */
-void bch2_io_error(struct bch_dev *);
+void bch2_io_error(struct bch_dev *, enum bch_member_error_type);
 
-#define bch2_dev_io_err_on(cond, ca, ...)				\
+#define bch2_dev_io_err_on(cond, ca, _type, ...)			\
 ({									\
 	bool _ret = (cond);						\
 									\
 	if (_ret) {							\
 		bch_err_dev_ratelimited(ca, __VA_ARGS__);		\
-		bch2_io_error(ca);					\
+		bch2_io_error(ca, _type);				\
 	}								\
 	_ret;								\
 })
 
-#define bch2_dev_inum_io_err_on(cond, ca, ...)				\
+#define bch2_dev_inum_io_err_on(cond, ca, _type, ...)			\
 ({									\
 	bool _ret = (cond);						\
 									\
 	if (_ret) {							\
 		bch_err_inum_offset_ratelimited(ca, __VA_ARGS__);	\
-		bch2_io_error(ca);					\
+		bch2_io_error(ca, _type);				\
 	}								\
 	_ret;								\
 })

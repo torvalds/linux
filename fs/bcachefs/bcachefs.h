@@ -502,6 +502,8 @@ struct bch_dev {
 	 * Committed by bch2_write_super() -> bch_fs_mi_update()
 	 */
 	struct bch_member_cpu	mi;
+	atomic64_t		errors[BCH_MEMBER_ERROR_NR];
+
 	__uuid_t		uuid;
 	char			name[BDEVNAME_SIZE];
 

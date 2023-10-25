@@ -637,7 +637,7 @@ static void bch2_write_endio(struct bio *bio)
 	struct bch_fs *c		= wbio->c;
 	struct bch_dev *ca		= bch_dev_bkey_exists(c, wbio->dev);
 
-	if (bch2_dev_inum_io_err_on(bio->bi_status, ca,
+	if (bch2_dev_inum_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_write,
 				    op->pos.inode,
 				    wbio->inode_offset << 9,
 				    "data write error: %s",

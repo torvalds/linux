@@ -1131,6 +1131,7 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 					struct bch_member *member)
 {
 	struct bch_dev *ca;
+	unsigned i;
 
 	ca = kzalloc(sizeof(*ca), GFP_KERNEL);
 	if (!ca)
@@ -1148,6 +1149,10 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 	bch2_time_stats_init(&ca->io_latency[WRITE]);
 
 	ca->mi = bch2_mi_to_cpu(member);
+
+	for (i = 0; i < ARRAY_SIZE(member->errors); i++)
+		atomic64_set(&ca->errors[i], le64_to_cpu(member->errors[i]));
+
 	ca->uuid = member->uuid;
 
 	ca->nr_btree_reserve = DIV_ROUND_UP(BTREE_NODE_RESERVE,

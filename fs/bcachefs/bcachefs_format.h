@@ -1268,6 +1268,18 @@ enum bch_iops_measurement {
 	BCH_IOPS_NR
 };
 
+#define BCH_MEMBER_ERROR_TYPES()		\
+	x(read,		0)			\
+	x(write,	1)			\
+	x(checksum,	2)
+
+enum bch_member_error_type {
+#define x(t, n) BCH_MEMBER_ERROR_##t = n,
+	BCH_MEMBER_ERROR_TYPES()
+#undef x
+	BCH_MEMBER_ERROR_NR
+};
+
 struct bch_member {
 	__uuid_t		uuid;
 	__le64			nbuckets;	/* device size */
@@ -1278,6 +1290,9 @@ struct bch_member {
 
 	__le64			flags;
 	__le32			iops[4];
+	__le64			errors[BCH_MEMBER_ERROR_NR];
+	__le64			errors_at_reset[BCH_MEMBER_ERROR_NR];
+	__le64			errors_reset_time;
 };
 
 #define BCH_MEMBER_V1_BYTES	56

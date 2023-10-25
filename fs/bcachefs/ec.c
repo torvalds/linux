@@ -373,7 +373,11 @@ static void ec_block_endio(struct bio *bio)
 	struct bch_dev *ca = ec_bio->ca;
 	struct closure *cl = bio->bi_private;
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, "erasure coding %s error: %s",
+	if (bch2_dev_io_err_on(bio->bi_status, ca,
+			       bio_data_dir(bio)
+			       ? BCH_MEMBER_ERROR_write
+			       : BCH_MEMBER_ERROR_read,
+			       "erasure coding %s error: %s",
 			       bio_data_dir(bio) ? "write" : "read",
 			       bch2_blk_status_to_str(bio->bi_status)))
 		clear_bit(ec_bio->idx, ec_bio->buf->valid);

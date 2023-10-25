@@ -934,8 +934,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	while (b->written < (ptr_written ?: btree_sectors(c))) {
 		unsigned sectors;
 		struct nonce nonce;
-		struct bch_csum csum;
 		bool first = !b->written;
+		bool csum_bad;
 
 		if (!b->written) {
 			i = &b->data->keys;
@@ -946,9 +946,13 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 				     BSET_CSUM_TYPE(i));
 
 			nonce = btree_nonce(i, b->written << 9);
-			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, b->data);
 
-			btree_err_on(bch2_crc_cmp(csum, b->data->csum),
+			csum_bad = bch2_crc_cmp(b->data->csum,
+				csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, b->data));
+			if (csum_bad)
+				bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
+
+			btree_err_on(csum_bad,
 				     -BCH_ERR_btree_node_read_err_want_retry, c, ca, b, i,
 				     "invalid checksum");
 
@@ -976,9 +980,12 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 				     BSET_CSUM_TYPE(i));
 
 			nonce = btree_nonce(i, b->written << 9);
-			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, bne);
+			csum_bad = bch2_crc_cmp(bne->csum,
+				csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, bne));
+			if (csum_bad)
+				bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
 
-			btree_err_on(bch2_crc_cmp(csum, bne->csum),
+			btree_err_on(csum_bad,
 				     -BCH_ERR_btree_node_read_err_want_retry, c, ca, b, i,
 				     "invalid checksum");
 
@@ -1168,7 +1175,8 @@ static void btree_node_read_work(struct work_struct *work)
 start:
 		printbuf_reset(&buf);
 		bch2_btree_pos_to_text(&buf, c, b);
-		bch2_dev_io_err_on(bio->bi_status, ca, "btree read error %s for %s",
+		bch2_dev_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_read,
+				   "btree read error %s for %s",
 				   bch2_blk_status_to_str(bio->bi_status), buf.buf);
 		if (rb->have_ioref)
 			percpu_ref_put(&ca->io_ref);
@@ -1749,7 +1757,8 @@ static void btree_node_write_endio(struct bio *bio)
 	if (wbio->have_ioref)
 		bch2_latency_acct(ca, wbio->submit_time, WRITE);
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, "btree write error: %s",
+	if (bch2_dev_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_write,
+			       "btree write error: %s",
 			       bch2_blk_status_to_str(bio->bi_status)) ||
 	    bch2_meta_write_fault("btree")) {
 		spin_lock_irqsave(&c->btree_write_error_lock, flags);
