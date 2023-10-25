@@ -10,6 +10,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/init.h>
@@ -37,9 +38,16 @@ struct byt_wm5102_private {
 	int mclk_freq;
 };
 
-/* Bits 0-15 are reserved for things like an input-map */
+/* Bits 0-3 are reserved for the input-map */
+#define BYT_WM5102_OUT_MAP		GENMASK(7, 4)
 #define BYT_WM5102_SSP2			BIT(16)
 #define BYT_WM5102_MCLK_19_2MHZ		BIT(17)
+
+/* Note these values are pre-shifted for easy use of setting quirks */
+enum {
+	BYT_WM5102_SPK_SPK_MAP		= FIELD_PREP_CONST(BYT_WM5102_OUT_MAP, 0),
+	BYT_WM5102_SPK_HPOUT2_MAP	= FIELD_PREP_CONST(BYT_WM5102_OUT_MAP, 1),
+};
 
 static unsigned long quirk;
 
@@ -49,6 +57,20 @@ MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
 static void log_quirks(struct device *dev)
 {
+	switch (quirk & BYT_WM5102_OUT_MAP) {
+	case BYT_WM5102_SPK_SPK_MAP:
+		dev_info_once(dev, "quirk SPK_SPK_MAP enabled\n");
+		break;
+	case BYT_WM5102_SPK_HPOUT2_MAP:
+		dev_info_once(dev, "quirk SPK_HPOUT2_MAP enabled\n");
+		break;
+	default:
+		dev_warn_once(dev, "quirk sets invalid output map: 0x%lx, defaulting to SPK_SPK_MAP\n",
+			      quirk & BYT_WM5102_OUT_MAP);
+		quirk &= ~BYT_WM5102_OUT_MAP;
+		quirk |= BYT_WM5102_SPK_SPK_MAP;
+		break;
+	}
 	if (quirk & BYT_WM5102_SSP2)
 		dev_info_once(dev, "quirk SSP2 enabled");
 	if (quirk & BYT_WM5102_MCLK_19_2MHZ)
@@ -164,12 +186,6 @@ static const struct snd_soc_dapm_route byt_wm5102_audio_map[] = {
 	{"Headset Mic", NULL, "Platform Clock"},
 	{"Internal Mic", NULL, "Platform Clock"},
 	{"Speaker", NULL, "Platform Clock"},
-	{"Line Out", NULL, "Platform Clock"},
-
-	{"Speaker", NULL, "SPKOUTLP"},
-	{"Speaker", NULL, "SPKOUTLN"},
-	{"Speaker", NULL, "SPKOUTRP"},
-	{"Speaker", NULL, "SPKOUTRN"},
 	{"Speaker", NULL, "Speaker VDD"},
 
 	{"Headphone", NULL, "HPOUT1L"},
@@ -201,6 +217,18 @@ static const struct snd_soc_dapm_route bytcr_wm5102_ssp2_map[] = {
 	{"codec_in0", NULL, "ssp2 Rx"},
 	{"codec_in1", NULL, "ssp2 Rx"},
 	{"ssp2 Rx", NULL, "AIF1 Capture"},
+};
+
+static const struct snd_soc_dapm_route byt_wm5102_spk_spk_map[] = {
+	{"Speaker", NULL, "SPKOUTLP"},
+	{"Speaker", NULL, "SPKOUTLN"},
+	{"Speaker", NULL, "SPKOUTRP"},
+	{"Speaker", NULL, "SPKOUTRN"},
+};
+
+static const struct snd_soc_dapm_route byt_wm5102_spk_hpout2_map[] = {
+	{"Speaker", NULL, "HPOUT2L"},
+	{"Speaker", NULL, "HPOUT2R"},
 };
 
 static const struct snd_kcontrol_new byt_wm5102_controls[] = {
@@ -242,6 +270,20 @@ static int byt_wm5102_init(struct snd_soc_pcm_runtime *runtime)
 		dev_err(card->dev, "Error adding card controls: %d\n", ret);
 		return ret;
 	}
+
+	switch (quirk & BYT_WM5102_OUT_MAP) {
+	case BYT_WM5102_SPK_SPK_MAP:
+		custom_map = byt_wm5102_spk_spk_map;
+		num_routes = ARRAY_SIZE(byt_wm5102_spk_spk_map);
+		break;
+	case BYT_WM5102_SPK_HPOUT2_MAP:
+		custom_map = byt_wm5102_spk_hpout2_map;
+		num_routes = ARRAY_SIZE(byt_wm5102_spk_hpout2_map);
+		break;
+	}
+	ret = snd_soc_dapm_add_routes(&card->dapm, custom_map, num_routes);
+	if (ret)
+		return ret;
 
 	if (quirk & BYT_WM5102_SSP2) {
 		custom_map = bytcr_wm5102_ssp2_map;
@@ -434,8 +476,11 @@ static struct snd_soc_card byt_wm5102_card = {
 	.fully_routed = true,
 };
 
+static char byt_wm5102_components[64]; /* = "cfg-spk:* cfg-int-mic:* cfg-hs-mic:* ..." */
+
 static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 {
+	static const char * const out_map_name[] = { "spk", "hpout2" };
 	char codec_name[SND_ACPI_I2C_ID_LEN];
 	struct device *dev = &pdev->dev;
 	struct byt_wm5102_private *priv;
@@ -493,8 +538,13 @@ static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 	}
 
 	if (soc_intel_is_cht()) {
-		/* On CHT default to SSP2 */
-		quirk = BYT_WM5102_SSP2 | BYT_WM5102_MCLK_19_2MHZ;
+		/*
+		 * CHT always uses SSP2 and 19.2 MHz; and
+		 * the one currently supported CHT design uses HPOUT2 as
+		 * speaker output.
+		 */
+		quirk = BYT_WM5102_SSP2 | BYT_WM5102_MCLK_19_2MHZ |
+			BYT_WM5102_SPK_HPOUT2_MAP;
 	}
 	if (quirk_override != -1) {
 		dev_info_once(dev, "Overriding quirk 0x%lx => 0x%x\n",
@@ -502,6 +552,10 @@ static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 		quirk = quirk_override;
 	}
 	log_quirks(dev);
+
+	snprintf(byt_wm5102_components, sizeof(byt_wm5102_components),
+		 "cfg-spk:%s", out_map_name[FIELD_GET(BYT_WM5102_OUT_MAP, quirk)]);
+	byt_wm5102_card.components = byt_wm5102_components;
 
 	/* find index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(byt_wm5102_dais); i++) {
