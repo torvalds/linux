@@ -1267,7 +1267,7 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 		 * queue management operation, to avoid breaking the ext <->
 		 * SSN association set here
 		 */
-		mpext = skb_ext_find(skb, SKB_EXT_MPTCP);
+		mpext = mptcp_get_ext(skb);
 		if (!mptcp_skb_can_collapse_to(data_seq, skb, mpext)) {
 			TCP_SKB_CB(skb)->eor = 1;
 			goto alloc_skb;
@@ -1289,7 +1289,7 @@ alloc_skb:
 
 		i = skb_shinfo(skb)->nr_frags;
 		reuse_skb = false;
-		mpext = skb_ext_find(skb, SKB_EXT_MPTCP);
+		mpext = mptcp_get_ext(skb);
 	}
 
 	/* Zero window and all data acked? Probe. */
