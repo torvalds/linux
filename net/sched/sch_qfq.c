@@ -213,7 +213,7 @@ static struct qfq_class *qfq_find_class(struct Qdisc *sch, u32 classid)
 	return container_of(clc, struct qfq_class, common);
 }
 
-static struct netlink_range_validation lmax_range = {
+static const struct netlink_range_validation lmax_range = {
 	.min = QFQ_MIN_LMAX,
 	.max = QFQ_MAX_LMAX,
 };

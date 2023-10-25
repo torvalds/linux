@@ -360,8 +360,8 @@ struct nla_policy {
 		const u32 mask;
 		const char *reject_message;
 		const struct nla_policy *nested_policy;
-		struct netlink_range_validation *range;
-		struct netlink_range_validation_signed *range_signed;
+		const struct netlink_range_validation *range;
+		const struct netlink_range_validation_signed *range_signed;
 		struct {
 			s16 min, max;
 		};

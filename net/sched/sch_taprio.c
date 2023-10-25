@@ -1015,7 +1015,7 @@ static const struct nla_policy taprio_tc_policy[TCA_TAPRIO_TC_ENTRY_MAX + 1] = {
 							      TC_FP_PREEMPTIBLE),
 };
 
-static struct netlink_range_validation_signed taprio_cycle_time_range = {
+static const struct netlink_range_validation_signed taprio_cycle_time_range = {
 	.min = 0,
 	.max = INT_MAX,
 };

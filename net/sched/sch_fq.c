@@ -897,7 +897,7 @@ static int fq_resize(struct Qdisc *sch, u32 log)
 	return 0;
 }
 
-static struct netlink_range_validation iq_range = {
+static const struct netlink_range_validation iq_range = {
 	.max = INT_MAX,
 };
 

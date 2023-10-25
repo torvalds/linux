@@ -2038,7 +2038,7 @@ def print_kernel_policy_ranges(family, cw):
                 first = False
 
             sign = '' if attr.type[0] == 'u' else '_signed'
-            cw.block_start(line=f'struct netlink_range_validation{sign} {c_lower(attr.enum_name)}_range =')
+            cw.block_start(line=f'static const struct netlink_range_validation{sign} {c_lower(attr.enum_name)}_range =')
             members = []
             if 'min' in attr.checks:
                 members.append(('min', attr.get_limit('min')))

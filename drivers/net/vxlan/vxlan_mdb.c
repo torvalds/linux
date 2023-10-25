@@ -311,7 +311,7 @@ vxlan_mdbe_src_list_pol[MDBE_SRC_LIST_MAX + 1] = {
 	[MDBE_SRC_LIST_ENTRY] = NLA_POLICY_NESTED(vxlan_mdbe_src_list_entry_pol),
 };
 
-static struct netlink_range_validation vni_range = {
+static const struct netlink_range_validation vni_range = {
 	.max = VXLAN_N_VID - 1,
 };
 
