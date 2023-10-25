@@ -107,7 +107,7 @@ static const char * const drv_names_kalama[][MAX_DRV_NAMES] = {
 			"MDM HW", "WLAN RF", "WLAN BB", "CAM_IFE0", "CAM_IFE1", "CAM_IFE2",
 			"DDR AUX", "ARC CPRF", ""},
 	[AOSS_DRV_NAME] = {"APPS", "SP", "AUDIO", "AOP", "DEBUG", "GPU", "DISPLAY", "COMPUTE",
-			"TME", "MODEM", "WLAN BB", "CAM", ""},
+			"TME", "MODEM", "WLAN RF", "WLAN BB", "CAM", ""},
 };
 
 static const char * const drv_names_pineapple[][MAX_DRV_NAMES] = {
@@ -117,7 +117,7 @@ static const char * const drv_names_pineapple[][MAX_DRV_NAMES] = {
 			"CAM_IFE1", "CAM_IFE2", "PCI0 CESTA", "PCI1 CESTA",
 			"DDR AUX", "ARC CPRF", ""},
 	[AOSS_DRV_NAME] = {"APPS", "SP", "AUDIO", "AOP", "DEBUG", "GPU", "DISPLAY", "COMPUTE",
-			"TME", "MODEM", "WLAN BB", "CAM", "PCIE", ""},
+			"TME", "MODEM", "WLAN RF", "WLAN BB", "CAM", "PCIE", ""},
 };
 
 static ssize_t debug_time_ms_show(struct device *dev,
