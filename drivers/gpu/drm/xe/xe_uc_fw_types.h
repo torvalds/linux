@@ -113,6 +113,8 @@ struct xe_uc_fw {
 	u32 rsa_size;
 	/** @ucode_size: micro kernel size */
 	u32 ucode_size;
+	/** @css_offset: offset within the blob at which the CSS is located */
+	u32 css_offset;
 
 	/** @private_data_size: size of private data found in uC css header */
 	u32 private_data_size;

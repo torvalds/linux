@@ -21,7 +21,7 @@ void xe_uc_fw_print(struct xe_uc_fw *uc_fw, struct drm_printer *p);
 
 static inline u32 xe_uc_fw_rsa_offset(struct xe_uc_fw *uc_fw)
 {
-	return sizeof(struct uc_css_header) + uc_fw->ucode_size;
+	return sizeof(struct uc_css_header) + uc_fw->ucode_size + uc_fw->css_offset;
 }
 
 static inline void xe_uc_fw_change_status(struct xe_uc_fw *uc_fw,

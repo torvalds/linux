@@ -10,6 +10,9 @@ Firmware Layout
 .. kernel-doc:: drivers/gpu/drm/xe/xe_uc_fw_abi.h
    :doc: CSS-based Firmware Layout
 
+.. kernel-doc:: drivers/gpu/drm/xe/xe_uc_fw_abi.h
+   :doc: GSC-based Firmware Layout
+
 Write Once Protected Content Memory (WOPCM) Layout
 ==================================================
 

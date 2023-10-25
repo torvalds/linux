@@ -85,4 +85,124 @@ struct uc_css_header {
 } __packed;
 static_assert(sizeof(struct uc_css_header) == 128);
 
+/**
+ * DOC: GSC-based Firmware Layout
+ *
+ * The GSC-based firmware structure is used for GSC releases on all platforms
+ * and for HuC releases starting from DG2/MTL. Older HuC releases use the
+ * CSS-based layout instead. Differently from the CSS headers, the GSC headers
+ * uses a directory + entries structure (i.e., there is array of addresses
+ * pointing to specific header extensions identified by a name). Although the
+ * header structures are the same, some of the entries are specific to GSC while
+ * others are specific to HuC. The manifest header entry, which includes basic
+ * information about the binary (like the version) is always present, but it is
+ * named differently based on the binary type.
+ *
+ * The HuC binary starts with a Code Partition Directory (CPD) header. The
+ * entries we're interested in for use in the driver are:
+ *
+ * 1. "HUCP.man": points to the manifest header for the HuC.
+ * 2. "huc_fw": points to the FW code. On platforms that support load via DMA
+ *    and 2-step HuC authentication (i.e. MTL+) this is a full CSS-based binary,
+ *    while if the GSC is the one doing the load (which only happens on DG2)
+ *    this section only contains the uCode.
+ *
+ * The GSC-based HuC firmware layout looks like this::
+ *
+ *	+================================================+
+ *	|  CPD Header                                    |
+ *	+================================================+
+ *	|  CPD entries[]                                 |
+ *	|      entry1                                    |
+ *	|      ...                                       |
+ *	|      entryX                                    |
+ *	|          "HUCP.man"                            |
+ *	|           ...                                  |
+ *	|           offset  >----------------------------|------o
+ *	|      ...                                       |      |
+ *	|      entryY                                    |      |
+ *	|          "huc_fw"                              |      |
+ *	|           ...                                  |      |
+ *	|           offset  >----------------------------|----------o
+ *	+================================================+      |   |
+ *	                                                        |   |
+ *	+================================================+      |   |
+ *	|  Manifest Header                               |<-----o   |
+ *	|      ...                                       |          |
+ *	|      FW version                                |          |
+ *	|      ...                                       |          |
+ *	+================================================+          |
+ *	                                                            |
+ *	+================================================+          |
+ *	|  FW binary                                     |<---------o
+ *	|      CSS (MTL+ only)                           |
+ *	|      uCode                                     |
+ *	|      RSA Key (MTL+ only)                       |
+ *	|      ...                                       |
+ *	+================================================+
+ */
+
+struct gsc_version {
+	u16 major;
+	u16 minor;
+	u16 hotfix;
+	u16 build;
+} __packed;
+
+/* Code partition directory (CPD) structures */
+struct gsc_cpd_header_v2 {
+	u32 header_marker;
+#define GSC_CPD_HEADER_MARKER 0x44504324
+
+	u32 num_of_entries;
+	u8 header_version;
+	u8 entry_version;
+	u8 header_length; /* in bytes */
+	u8 flags;
+	u32 partition_name;
+	u32 crc32;
+} __packed;
+
+struct gsc_cpd_entry {
+	u8 name[12];
+
+	/*
+	 * Bits 0-24: offset from the beginning of the code partition
+	 * Bit 25: huffman compressed
+	 * Bits 26-31: reserved
+	 */
+	u32 offset;
+#define GSC_CPD_ENTRY_OFFSET_MASK GENMASK(24, 0)
+#define GSC_CPD_ENTRY_HUFFMAN_COMP BIT(25)
+
+	/*
+	 * Module/Item length, in bytes. For Huffman-compressed modules, this
+	 * refers to the uncompressed size. For software-compressed modules,
+	 * this refers to the compressed size.
+	 */
+	u32 length;
+
+	u8 reserved[4];
+} __packed;
+
+struct gsc_manifest_header {
+	u32 header_type; /* 0x4 for manifest type */
+	u32 header_length; /* in dwords */
+	u32 header_version;
+	u32 flags;
+	u32 vendor;
+	u32 date;
+	u32 size; /* In dwords, size of entire manifest (header + extensions) */
+	u32 header_id;
+	u32 internal_data;
+	struct gsc_version fw_version;
+	u32 security_version;
+	struct gsc_version meu_kit_version;
+	u32 meu_manifest_version;
+	u8 general_data[4];
+	u8 reserved3[56];
+	u32 modulus_size; /* in dwords */
+	u32 exponent_size; /* in dwords */
+} __packed;
+
 #endif

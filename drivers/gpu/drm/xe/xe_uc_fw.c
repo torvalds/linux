@@ -402,9 +402,125 @@ static int parse_css_header(struct xe_uc_fw *uc_fw, const void *fw_data, size_t 
 	return 0;
 }
 
+static bool is_cpd_header(const void *data)
+{
+	const u32 *marker = data;
+
+	return *marker == GSC_CPD_HEADER_MARKER;
+}
+
+static u32 entry_offset(const struct gsc_cpd_header_v2 *header, const char *name)
+{
+	const struct gsc_cpd_entry *entry;
+	int i;
+
+	entry = (void *)header + header->header_length;
+
+	for (i = 0; i < header->num_of_entries; i++, entry++)
+		if (strcmp(entry->name, name) == 0)
+			return entry->offset & GSC_CPD_ENTRY_OFFSET_MASK;
+
+	return 0;
+}
+
+/* Refer to the "GSC-based Firmware Layout" documentation entry for details */
+static int parse_cpd_header(struct xe_uc_fw *uc_fw, const void *data, size_t size,
+			    const char *manifest_entry, const char *css_entry)
+{
+	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
+	struct xe_device *xe = gt_to_xe(gt);
+	const struct gsc_cpd_header_v2 *header = data;
+	const struct gsc_manifest_header *manifest;
+	size_t min_size = sizeof(*header);
+	u32 offset;
+
+	/* manifest_entry is mandatory, css_entry is optional */
+	xe_assert(xe, manifest_entry);
+
+	if (size < min_size || !is_cpd_header(header))
+		return -ENOENT;
+
+	if (header->header_length < sizeof(struct gsc_cpd_header_v2)) {
+		xe_gt_err(gt, "invalid CPD header length %u!\n", header->header_length);
+		return -EINVAL;
+	}
+
+	min_size = header->header_length + sizeof(struct gsc_cpd_entry) * header->num_of_entries;
+	if (size < min_size) {
+		xe_gt_err(gt, "FW too small! %zu < %zu\n", size, min_size);
+		return -ENODATA;
+	}
+
+	/* Look for the manifest first */
+	offset = entry_offset(header, manifest_entry);
+	if (!offset) {
+		xe_gt_err(gt, "Failed to find %s manifest!\n",
+			  xe_uc_fw_type_repr(uc_fw->type));
+		return -ENODATA;
+	}
+
+	min_size = offset + sizeof(struct gsc_manifest_header);
+	if (size < min_size) {
+		xe_gt_err(gt, "FW too small! %zu < %zu\n", size, min_size);
+		return -ENODATA;
+	}
+
+	manifest = data + offset;
+
+	uc_fw->major_ver_found = manifest->fw_version.major;
+	uc_fw->minor_ver_found = manifest->fw_version.minor;
+	uc_fw->patch_ver_found = manifest->fw_version.hotfix;
+
+	/* then optionally look for the css header */
+	if (css_entry) {
+		int ret;
+
+		/*
+		 * This section does not contain a CSS entry on DG2. We
+		 * don't support DG2 HuC right now, so no need to handle
+		 * it, just add a reminder in case that changes.
+		 */
+		xe_assert(xe, xe->info.platform != XE_DG2);
+
+		offset = entry_offset(header, css_entry);
+
+		/* the CSS header parser will check that the CSS header fits */
+		if (offset > size) {
+			xe_gt_err(gt, "FW too small! %zu < %u\n", size, offset);
+			return -ENODATA;
+		}
+
+		ret = parse_css_header(uc_fw, data + offset, size - offset);
+		if (ret)
+			return ret;
+
+		uc_fw->css_offset = offset;
+	}
+
+	return 0;
+}
+
 static int parse_headers(struct xe_uc_fw *uc_fw, const struct firmware *fw)
 {
-	return parse_css_header(uc_fw, fw->data, fw->size);
+	int ret;
+
+	/*
+	 * All GuC releases and older HuC ones use CSS headers, while newer HuC
+	 * releases use GSC CPD headers.
+	 */
+	switch (uc_fw->type) {
+	case XE_UC_FW_TYPE_HUC:
+		ret = parse_cpd_header(uc_fw, fw->data, fw->size, "HUCP.man", "huc_fw");
+		if (!ret || ret != -ENOENT)
+			return ret;
+		fallthrough;
+	case XE_UC_FW_TYPE_GUC:
+		return parse_css_header(uc_fw, fw->data, fw->size);
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
@@ -510,7 +626,7 @@ static int uc_fw_xfer(struct xe_uc_fw *uc_fw, u32 offset, u32 dma_flags)
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
 	/* Set the source address for the uCode */
-	src_offset = uc_fw_ggtt_offset(uc_fw);
+	src_offset = uc_fw_ggtt_offset(uc_fw) + uc_fw->css_offset;
 	xe_mmio_write32(gt, DMA_ADDR_0_LOW, lower_32_bits(src_offset));
 	xe_mmio_write32(gt, DMA_ADDR_0_HIGH, upper_32_bits(src_offset));
 
