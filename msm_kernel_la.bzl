@@ -451,6 +451,10 @@ def define_msm_la(
     gki_ramdisk_prebuilt_binary = get_gki_ramdisk_prebuilt_binary()
     build_config_fragments = get_build_config_fragments(msm_target)
 
+    # Can't enable dpm_overlay if no overlays are listed
+    if len(dtbo_list) == 0 and dpm_overlay:
+        dpm_overlay = False
+
     _define_build_config(
         msm_target,
         target,
