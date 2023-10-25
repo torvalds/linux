@@ -43,6 +43,7 @@ properties:
           - qcom,sm8350-pdc
           - qcom,sm8450-pdc
           - qcom,sm8550-pdc
+          - qcom,sm8650-pdc
       - const: qcom,pdc
 
   reg:
