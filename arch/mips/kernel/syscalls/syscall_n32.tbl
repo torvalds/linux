@@ -395,3 +395,5 @@
 454	n32	futex_wake			sys_futex_wake
 455	n32	futex_wait			sys_futex_wait
 456	n32	futex_requeue			sys_futex_requeue
+457	n32	statmount			sys_statmount
+458	n32	listmount			sys_listmount

@@ -496,3 +496,5 @@
 564	common	futex_wake			sys_futex_wake
 565	common	futex_wait			sys_futex_wait
 566	common	futex_requeue			sys_futex_requeue
+567	common	statmount			sys_statmount
+568	common	listmount			sys_listmount
