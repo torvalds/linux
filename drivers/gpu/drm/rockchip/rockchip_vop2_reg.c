@@ -48,8 +48,10 @@ static const uint32_t formats_rk356x_esmart[] = {
 	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_NV16, /* yuv422_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV61, /* yuv422_8bit linear mode, 2 plane */
+	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_NV24, /* yuv444_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV42, /* yuv444_8bit linear mode, 2 plane */
+	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_YVYU, /* yuv422_8bit[YVYU] linear mode */
 	DRM_FORMAT_VYUY, /* yuv422_8bit[VYUY] linear mode */
 };
