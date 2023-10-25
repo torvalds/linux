@@ -68,20 +68,29 @@ static const struct st_lps22df_transfer_function st_lps22df_tf_spi = {
 
 static int st_lps22df_spi_probe(struct spi_device *spi)
 {
-	return st_lps22df_common_probe(&spi->dev, spi->irq, spi->modalias,
-				       &st_lps22df_tf_spi);
+	const struct spi_device_id *id = spi_get_device_id(spi);
+	int hw_id = id->driver_data;
+
+	return st_lps22df_common_probe(&spi->dev, spi->irq,
+				       hw_id, &st_lps22df_tf_spi);
 }
 
 static const struct spi_device_id st_lps22df_ids[] = {
-	{ "lps22df" },
-	{ "lps28dfw" },
+	{ "lps22df", ST_LPS22DF_ID },
+	{ "lps28dfw", ST_LPS28DFW_ID },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, st_lps22df_ids);
 
 static const struct of_device_id st_lps22df_id_table[] = {
-	{ .compatible = "st,lps22df" },
-	{ .compatible = "st,lps28dfw" },
+	{
+		.compatible = "st,lps22df",
+		.data = (void *)ST_LPS22DF_ID,
+	},
+	{
+		.compatible = "st,lps28dfw",
+		.data = (void *)ST_LPS28DFW_ID,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lps22df_id_table);

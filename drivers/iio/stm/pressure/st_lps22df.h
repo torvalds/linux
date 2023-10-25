@@ -18,6 +18,9 @@
 
 #include "../common/stm_iio_types.h"
 
+#define ST_LPS22DF_DEV_NAME			"lps22df"
+#define ST_LPS28DFW_DEV_NAME			"lps28dfw"
+
 #define ST_LPS22DF_MAX_FIFO_LENGTH		127
 
 #define ST_LPS22DF_INTERRUPT_CFG_ADDR		0x0b
@@ -34,6 +37,7 @@
 #define ST_LPS22DF_SWRESET_MASK			BIT(2)
 #define ST_LPS22DF_BDU_MASK			BIT(3)
 #define ST_LPS22DF_EN_LPFP_MASK			BIT(4)
+#define ST_LPS22DF_FS_MODE_MASK			BIT(6)
 #define ST_LPS22DF_BOOT_MASK			BIT(7)
 
 #define ST_LPS22DF_CTRL3_ADDR			0x12
@@ -62,7 +66,8 @@
 
 #define ST_LPS22DF_FIFO_DATA_OUT_PRESS_XL_ADDR	0x78
 
-#define ST_LPS22DF_PRESS_FS_AVL_GAIN		(1000000000UL / 4096UL)
+#define ST_LPS22DF_PRESS_1260_FS_AVL_GAIN	(1000000000UL / 4096UL)
+#define ST_LPS22DF_PRESS_4060_FS_AVL_GAIN	(1000000000UL / 2048UL)
 #define ST_LPS22DF_TEMP_FS_AVL_GAIN		100
 
 #define ST_LPS22DF_ODR_LIST_NUM			9
@@ -95,6 +100,33 @@ struct st_lps22df_transfer_function {
 	int (*read)(struct device *dev, u8 addr, int len, u8 *data);
 };
 
+enum st_lps22df_hw_id {
+	ST_LPS22DF_ID,
+	ST_LPS28DFW_ID,
+	ST_LPS22DF_MAX_ID,
+};
+
+struct st_lps22df_fs {
+	u32 gain;
+	u8 val;
+};
+
+struct st_lps22df_fs_table_t {
+	u8 addr;
+	u8 mask;
+	u8 fs_len;
+	struct st_lps22df_fs fs_avl[2];
+};
+
+struct st_lps22df_settings {
+	struct {
+		enum st_lps22df_hw_id hw_id;
+		const char *name;
+	} id[ST_LPS22DF_MAX_ID];
+	struct st_lps22df_fs_table_t fs_table;
+	bool st_multi_scale;
+};
+
 struct st_lps22df_hw {
 	struct device *dev;
 	int irq;
@@ -111,6 +143,7 @@ struct st_lps22df_hw {
 	s64 delta_ts;
 	s64 ts_irq;
 	s64 ts;
+	const struct st_lps22df_settings *settings;
 
 	const struct st_lps22df_transfer_function *tf;
 	struct st_lps22df_transfer_buffer tb;
@@ -125,7 +158,7 @@ struct st_lps22df_sensor {
 	u8 odr;
 };
 
-int st_lps22df_common_probe(struct device *dev, int irq, const char *name,
+int st_lps22df_common_probe(struct device *dev, int irq, int hw_id,
 			    const struct st_lps22df_transfer_function *tf_ops);
 int st_lps22df_write_with_mask(struct st_lps22df_hw *hw, u8 addr, u8 mask,
 			       u8 data);

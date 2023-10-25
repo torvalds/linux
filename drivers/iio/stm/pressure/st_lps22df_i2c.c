@@ -71,20 +71,27 @@ static const struct st_lps22df_transfer_function st_lps22df_tf_i2c = {
 static int st_lps22df_i2c_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
-	return st_lps22df_common_probe(&client->dev, client->irq, client->name,
-				       &st_lps22df_tf_i2c);
+	int hw_id = id->driver_data;
+	return st_lps22df_common_probe(&client->dev, client->irq,
+				       hw_id, &st_lps22df_tf_i2c);
 }
 
 static const struct i2c_device_id st_lps22df_ids[] = {
-	{ "lps22df" },
-	{ "lps28dfw" },
+	{ "lps22df", ST_LPS22DF_ID },
+	{ "lps28dfw", ST_LPS28DFW_ID },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, st_lps22df_ids);
 
 static const struct of_device_id st_lps22df_id_table[] = {
-	{ .compatible = "st,lps22df" },
-	{ .compatible = "st,lps28dfw" },
+	{
+		.compatible = "st,lps22df",
+		.data = (void *)ST_LPS22DF_ID,
+	},
+	{
+		.compatible = "st,lps28dfw",
+		.data = (void *)ST_LPS28DFW_ID,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lps22df_id_table);

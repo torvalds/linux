@@ -31,6 +31,15 @@ const static struct st_lps22df_odr_table_t st_lps22df_odr_table = {
 	.odr_avl = { 0, 1, 4, 10, 25, 50, 75, 100, 200 },
 };
 
+const static struct st_lps22df_fs_table_t st_lps22df_fs_table = {
+	.addr = ST_LPS22DF_CTRL_REG2_ADDR,
+	.mask = ST_LPS22DF_FS_MODE_MASK,
+	.fs_avl = {
+			{ ST_LPS22DF_PRESS_1260_FS_AVL_GAIN, 0 },
+			{ ST_LPS22DF_PRESS_4060_FS_AVL_GAIN, 1 },
+		},
+};
+
 const struct iio_event_spec st_lps22df_fifo_flush_event = {
 	.type = STM_IIO_EV_TYPE_FIFO_FLUSH,
 	.dir = IIO_EV_DIR_EITHER,
@@ -80,6 +89,44 @@ static const struct iio_chan_spec st_lps22df_temp_channels[] = {
 	},
 };
 
+static const struct st_lps22df_settings st_lps22df_sensor_settings[] = {
+	{
+		.id = {
+			{
+				.hw_id = ST_LPS22DF_ID,
+				.name = ST_LPS22DF_DEV_NAME,
+			},
+		},
+		.fs_table = {
+			.addr = ST_LPS22DF_CTRL_REG2_ADDR,
+			.mask = ST_LPS22DF_FS_MODE_MASK,
+			.fs_len = 1,
+			.fs_avl = {
+				{ ST_LPS22DF_PRESS_1260_FS_AVL_GAIN, 0 },
+			},
+		},
+		.st_multi_scale = false,
+	},
+	{
+		.id = {
+			{
+				.hw_id = ST_LPS28DFW_ID,
+				.name = ST_LPS28DFW_DEV_NAME,
+			},
+		},
+		.fs_table = {
+			.addr = ST_LPS22DF_CTRL_REG2_ADDR,
+			.mask = ST_LPS22DF_FS_MODE_MASK,
+			.fs_len = 2,
+			.fs_avl = {
+				{ ST_LPS22DF_PRESS_1260_FS_AVL_GAIN, 0 },
+				{ ST_LPS22DF_PRESS_4060_FS_AVL_GAIN, 1 },
+			},
+		},
+		.st_multi_scale = true,
+	},
+};
+
 int st_lps22df_write_with_mask(struct st_lps22df_hw *hw, u8 addr, u8 mask,
 			       u8 val)
 {
@@ -100,13 +147,30 @@ unlock:
 	return err;
 }
 
-static int st_lps22df_check_whoami(struct st_lps22df_hw *hw)
+static int st_lps22df_check_whoami(struct st_lps22df_hw *hw, int hw_id)
 {
-	int err;
+	int err, i, j;
 	u8 data;
 
-	err = hw->tf->read(hw->dev, ST_LPS22DF_WHO_AM_I_ADDR, sizeof(data),
-			   &data);
+	for (i = 0; i < ARRAY_SIZE(st_lps22df_sensor_settings); i++) {
+		for (j = 0; j < ST_LPS22DF_MAX_ID; j++) {
+			if (st_lps22df_sensor_settings[i].id[j].name &&
+			    st_lps22df_sensor_settings[i].id[j].hw_id == hw_id)
+				break;
+		}
+
+		if (j < ST_LPS22DF_MAX_ID)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(st_lps22df_sensor_settings)) {
+		dev_err(hw->dev, "unsupported hw id [%02x]\n", hw_id);
+
+		return -ENODEV;
+	}
+
+	err = hw->tf->read(hw->dev, ST_LPS22DF_WHO_AM_I_ADDR,
+			   sizeof(data), &data);
 	if (err < 0) {
 		dev_err(hw->dev, "failed to read Who-Am-I register\n");
 
@@ -114,10 +178,13 @@ static int st_lps22df_check_whoami(struct st_lps22df_hw *hw)
 	}
 
 	if (data != ST_LPS22DF_WHO_AM_I_VAL) {
-		dev_err(hw->dev, "Who-Am-I value not valid (%x)\n", data);
+		dev_err(hw->dev, "Who-Am-I value not valid (%x)\n",
+			data);
 
 		return -ENODEV;
 	}
+
+	hw->settings = &st_lps22df_sensor_settings[i];
 
 	return 0;
 }
@@ -241,6 +308,20 @@ st_lps22df_sysfs_get_hwfifo_watermark_max(struct device *dev,
 	return sprintf(buf, "%d\n", ST_LPS22DF_MAX_FIFO_LENGTH);
 }
 
+static int st_lps22df_get_pressure_gain(struct st_lps22df_sensor *sensor,
+					int val, int val2)
+{
+	struct st_lps22df_hw *hw = sensor->hw;
+	int i;
+
+	for (i = 0; i < hw->settings->fs_table.fs_len; i++) {
+		if (val2 == hw->settings->fs_table.fs_avl[i].gain)
+			return hw->settings->fs_table.fs_avl[i].val;
+	}
+
+	return -EINVAL;
+}
+
 static int st_lps22df_read_raw(struct iio_dev *indio_dev,
 			       struct iio_chan_spec const *ch,
 			       int *val, int *val2, long mask)
@@ -316,6 +397,7 @@ static int st_lps22df_write_raw(struct iio_dev *indio_dev,
 				int val, int val2, long mask)
 {
 	struct st_lps22df_sensor *sensor = iio_priv(indio_dev);
+	struct st_lps22df_hw *hw = sensor->hw;
 	int ret = -EINVAL;
 
 	switch (mask) {
@@ -329,13 +411,81 @@ static int st_lps22df_write_raw(struct iio_dev *indio_dev,
 		}
 		break;
 	}
+	case IIO_CHAN_INFO_SCALE:
+		switch (ch->type) {
+		case IIO_PRESSURE: {
+			int fs_val;
+
+			fs_val = st_lps22df_get_pressure_gain(sensor,
+							      val,
+							      val2);
+			if (fs_val < 0)
+				return fs_val;
+
+			ret = st_lps22df_write_with_mask(hw,
+					hw->settings->fs_table.addr,
+					hw->settings->fs_table.mask,
+					fs_val);
+			if (ret < 0)
+				return ret;
+
+			sensor->gain = val2;
+			break;
+		}
+		default:
+			ret = -EINVAL;
+			break;
+		}
+		break;
 	default:
 		ret = -EINVAL;
 		break;
 	}
+
 	return ret;
 }
 
+static ssize_t st_lps22df_sysfs_scale_avail(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct st_lps22df_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
+	struct st_lps22df_hw *hw = sensor->hw;
+	int i, len = 0;
+
+	for (i = 0; i < hw->settings->fs_table.fs_len; i++)
+		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09u ",
+				 hw->settings->fs_table.fs_avl[i].gain);
+	buf[len - 1] = '\n';
+
+	return len;
+}
+
+static int st_lps22df_write_raw_get_fmt(struct iio_dev *indio_dev,
+					struct iio_chan_spec const *chan,
+					long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->type) {
+		case IIO_PRESSURE:
+			return IIO_VAL_INT_PLUS_NANO;
+		case IIO_TEMP:
+			return IIO_VAL_FRACTIONAL;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
+static IIO_DEVICE_ATTR(in_pressure_scale_available, 0444,
+		       st_lps22df_sysfs_scale_avail, NULL, 0);
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_lps22df_get_sampling_frequency_avail);
 static IIO_DEVICE_ATTR(hwfifo_watermark, 0644,
 		       st_lps22df_sysfs_get_hwfifo_watermark,
@@ -350,6 +500,7 @@ static struct attribute *st_lps22df_press_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_in_pressure_scale_available.dev_attr.attr,
 	NULL,
 };
 
@@ -366,6 +517,7 @@ static const struct attribute_group st_lps22df_temp_attribute_group = {
 };
 
 static const struct iio_info st_lps22df_press_info = {
+	.write_raw_get_fmt = st_lps22df_write_raw_get_fmt,
 	.attrs = &st_lps22df_press_attribute_group,
 	.read_raw = st_lps22df_read_raw,
 	.write_raw = st_lps22df_write_raw,
@@ -377,12 +529,13 @@ static const struct iio_info st_lps22df_temp_info = {
 	.write_raw = st_lps22df_write_raw,
 };
 
-int st_lps22df_common_probe(struct device *dev, int irq, const char *name,
+int st_lps22df_common_probe(struct device *dev, int irq, int hw_id,
 			    const struct st_lps22df_transfer_function *tf_ops)
 {
 	struct st_lps22df_sensor *sensor;
 	struct st_lps22df_hw *hw;
 	struct iio_dev *iio_dev;
+	const char *name;
 	int err, i;
 
 	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
@@ -400,10 +553,11 @@ int st_lps22df_common_probe(struct device *dev, int irq, const char *name,
 	mutex_init(&hw->lock);
 	mutex_init(&hw->fifo_lock);
 
-	err = st_lps22df_check_whoami(hw);
+	err = st_lps22df_check_whoami(hw, hw_id);
 	if (err < 0)
 		return err;
 
+	name = hw->settings->id->name;
 	for (i = 0; i < ST_LPS22DF_SENSORS_NUMB; i++) {
 		iio_dev = devm_iio_device_alloc(dev, sizeof(*sensor));
 		if (!iio_dev)
@@ -417,7 +571,7 @@ int st_lps22df_common_probe(struct device *dev, int irq, const char *name,
 
 		switch (i) {
 		case ST_LPS22DF_PRESS:
-			sensor->gain = ST_LPS22DF_PRESS_FS_AVL_GAIN;
+			sensor->gain = ST_LPS22DF_PRESS_1260_FS_AVL_GAIN;
 			scnprintf(sensor->name, sizeof(sensor->name),
 				  "%s_press", name);
 			iio_dev->channels = st_lps22df_press_channels;
@@ -457,6 +611,7 @@ int st_lps22df_common_probe(struct device *dev, int irq, const char *name,
 		if (err)
 			return err;
 	}
+
 	return 0;
 }
 EXPORT_SYMBOL(st_lps22df_common_probe);
