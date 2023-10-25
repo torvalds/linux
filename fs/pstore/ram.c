@@ -799,10 +799,12 @@ static void ramoops_register_ram_zone_info_to_minidump(struct ramoops_context *c
 	int i = 0;
 	struct persistent_ram_zone *prz = NULL;
 
+#ifdef CONFIG_PSTORE_BOOT_LOG
 	for (i = 0; i < cxt->max_boot_log_cnt; i++) {
 		prz = cxt->boot_przs[i];
 		_ramoops_register_ram_zone_info_to_minidump(prz);
 	}
+#endif
 
 	for (i = 0; i < cxt->max_dump_cnt; i++) {
 		prz = cxt->dprzs[i];
