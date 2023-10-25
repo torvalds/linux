@@ -123,6 +123,85 @@ err_cleanup:
 	return ret;
 }
 
+static int stfcamss_register_devs(struct stfcamss *stfcamss)
+{
+	struct stf_capture *cap_yuv = &stfcamss->captures[STF_CAPTURE_YUV];
+	struct stf_isp_dev *isp_dev = &stfcamss->isp_dev;
+	int ret;
+
+	ret = stf_isp_register(isp_dev, &stfcamss->v4l2_dev);
+	if (ret < 0) {
+		dev_err(stfcamss->dev,
+			"failed to register stf isp%d entity: %d\n", 0, ret);
+		return ret;
+	}
+
+	ret = stf_capture_register(stfcamss, &stfcamss->v4l2_dev);
+	if (ret < 0) {
+		dev_err(stfcamss->dev,
+			"failed to register capture: %d\n", ret);
+		goto err_isp_unregister;
+	}
+
+	ret = media_create_pad_link(&isp_dev->subdev.entity, STF_ISP_PAD_SRC,
+				    &cap_yuv->video.vdev.entity, 0, 0);
+	if (ret)
+		goto err_cap_unregister;
+
+	cap_yuv->video.source_subdev = &isp_dev->subdev;
+
+	return ret;
+
+err_cap_unregister:
+	stf_capture_unregister(stfcamss);
+err_isp_unregister:
+	stf_isp_unregister(&stfcamss->isp_dev);
+
+	return ret;
+}
+
+static void stfcamss_unregister_devs(struct stfcamss *stfcamss)
+{
+	stf_isp_unregister(&stfcamss->isp_dev);
+	stf_capture_unregister(stfcamss);
+}
+
+static int stfcamss_subdev_notifier_bound(struct v4l2_async_notifier *async,
+					  struct v4l2_subdev *subdev,
+					  struct v4l2_async_connection *asc)
+{
+	struct stfcamss *stfcamss =
+		container_of(async, struct stfcamss, notifier);
+	struct stfcamss_async_subdev *csd =
+		container_of(asc, struct stfcamss_async_subdev, asd);
+	enum stf_port_num port = csd->port;
+	struct stf_isp_dev *isp_dev = &stfcamss->isp_dev;
+	struct stf_capture *cap_raw = &stfcamss->captures[STF_CAPTURE_RAW];
+	struct media_pad *pad;
+	int ret;
+
+	if (port == STF_PORT_CSI2RX) {
+		pad = &isp_dev->pads[STF_ISP_PAD_SINK];
+	} else {
+		dev_err(stfcamss->dev, "not support port %d\n", port);
+		return -EPERM;
+	}
+
+	ret = v4l2_create_fwnode_links_to_pad(subdev, pad, 0);
+	if (ret)
+		return ret;
+
+	ret = media_create_pad_link(&subdev->entity, 1,
+				    &cap_raw->video.vdev.entity, 0, 0);
+	if (ret)
+		return ret;
+
+	isp_dev->source_subdev = subdev;
+	cap_raw->video.source_subdev = subdev;
+
+	return 0;
+}
+
 static int stfcamss_subdev_notifier_complete(struct v4l2_async_notifier *ntf)
 {
 	struct stfcamss *stfcamss =
@@ -133,6 +212,7 @@ static int stfcamss_subdev_notifier_complete(struct v4l2_async_notifier *ntf)
 
 static const struct v4l2_async_notifier_operations
 stfcamss_subdev_notifier_ops = {
+	.bound = stfcamss_subdev_notifier_bound,
 	.complete = stfcamss_subdev_notifier_complete,
 };
 
@@ -217,6 +297,12 @@ static int stfcamss_probe(struct platform_device *pdev)
 		goto err_cleanup_notifier;
 	}
 
+	ret = stf_isp_init(stfcamss);
+	if (ret < 0) {
+		dev_err(dev, "Failed to init isp: %d\n", ret);
+		goto err_cleanup_notifier;
+	}
+
 	stfcamss_mc_init(pdev, stfcamss);
 
 	ret = v4l2_device_register(stfcamss->dev, &stfcamss->v4l2_dev);
@@ -231,6 +317,12 @@ static int stfcamss_probe(struct platform_device *pdev)
 		goto err_unregister_device;
 	}
 
+	ret = stfcamss_register_devs(stfcamss);
+	if (ret < 0) {
+		dev_err(dev, "Failed to register subdevice: %d\n", ret);
+		goto err_unregister_media_dev;
+	}
+
 	pm_runtime_enable(dev);
 
 	stfcamss->notifier.ops = &stfcamss_subdev_notifier_ops;
@@ -239,11 +331,13 @@ static int stfcamss_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to register async subdev nodes: %d\n",
 			ret);
 		pm_runtime_disable(dev);
-		goto err_unregister_media_dev;
+		goto err_unregister_subdevs;
 	}
 
 	return 0;
 
+err_unregister_subdevs:
+	stfcamss_unregister_devs(stfcamss);
 err_unregister_media_dev:
 	media_device_unregister(&stfcamss->media_dev);
 err_unregister_device:
@@ -265,6 +359,7 @@ static int stfcamss_remove(struct platform_device *pdev)
 {
 	struct stfcamss *stfcamss = platform_get_drvdata(pdev);
 
+	stfcamss_unregister_devs(stfcamss);
 	v4l2_device_unregister(&stfcamss->v4l2_dev);
 	media_device_cleanup(&stfcamss->media_dev);
 	v4l2_async_nf_cleanup(&stfcamss->notifier);
