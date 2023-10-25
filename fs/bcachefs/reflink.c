@@ -28,7 +28,7 @@ static inline unsigned bkey_type_to_indirect(const struct bkey *k)
 
 /* reflink pointers */
 
-int bch2_reflink_p_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_reflink_p_invalid(struct bch_fs *c, struct bkey_s_c k,
 			   enum bkey_invalid_flags flags,
 			   struct printbuf *err)
 {
@@ -75,7 +75,7 @@ bool bch2_reflink_p_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 
 /* indirect extents */
 
-int bch2_reflink_v_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_reflink_v_invalid(struct bch_fs *c, struct bkey_s_c k,
 			   enum bkey_invalid_flags flags,
 			   struct printbuf *err)
 {
@@ -126,7 +126,7 @@ int bch2_trans_mark_reflink_v(struct btree_trans *trans,
 
 /* indirect inline data */
 
-int bch2_indirect_inline_data_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_indirect_inline_data_invalid(struct bch_fs *c, struct bkey_s_c k,
 				      enum bkey_invalid_flags flags,
 				      struct printbuf *err)
 {

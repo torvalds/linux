@@ -370,8 +370,8 @@ static inline int update_replicas(struct bch_fs *c, struct bkey_s_c k,
 
 	idx = bch2_replicas_entry_idx(c, r);
 	if (idx < 0 &&
-	    fsck_err(c, "no replicas entry\n"
-		     "  while marking %s",
+	    fsck_err(c, ptr_to_missing_replicas_entry,
+		     "no replicas entry\n  while marking %s",
 		     (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		percpu_up_read(&c->mark_lock);
 		ret = bch2_mark_replicas(c, r);
@@ -695,6 +695,7 @@ static int check_bucket_ref(struct btree_trans *trans,
 
 	if (gen_after(ptr->gen, b_gen)) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      BCH_FSCK_ERR_ptr_gen_newer_than_bucket_gen,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -707,6 +708,7 @@ static int check_bucket_ref(struct btree_trans *trans,
 
 	if (gen_cmp(b_gen, ptr->gen) > BUCKET_GC_GEN_MAX) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      BCH_FSCK_ERR_ptr_too_stale,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -720,6 +722,7 @@ static int check_bucket_ref(struct btree_trans *trans,
 
 	if (b_gen != ptr->gen && !ptr->cached) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      BCH_FSCK_ERR_stale_dirty_ptr,
 			"bucket %u:%zu gen %u (mem gen %u) data type %s: stale dirty ptr (gen %u)\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -741,6 +744,7 @@ static int check_bucket_ref(struct btree_trans *trans,
 	    ptr_data_type &&
 	    bucket_data_type != ptr_data_type) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      BCH_FSCK_ERR_ptr_bucket_data_type_mismatch,
 			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -754,6 +758,7 @@ static int check_bucket_ref(struct btree_trans *trans,
 
 	if ((u64) bucket_sectors + sectors > U32_MAX) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      BCH_FSCK_ERR_bucket_sector_count_overflow,
 			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -1195,7 +1200,8 @@ static s64 __bch2_mark_reflink_p(struct btree_trans *trans,
 	*idx = r->offset;
 	return 0;
 not_found:
-	if (fsck_err(c, "pointer to missing indirect extent\n"
+	if (fsck_err(c, reflink_p_to_missing_reflink_v,
+		     "pointer to missing indirect extent\n"
 		     "  %s\n"
 		     "  missing range %llu-%llu",
 		     (bch2_bkey_val_to_text(&buf, c, p.s_c), buf.buf),
@@ -1857,6 +1863,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 
 	if (a->v.data_type && type && a->v.data_type != type) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      BCH_FSCK_ERR_bucket_metadata_type_mismatch,
 			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
 			iter.pos.inode, iter.pos.offset, a->v.gen,

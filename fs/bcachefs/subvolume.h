@@ -9,7 +9,7 @@ enum bkey_invalid_flags;
 
 int bch2_check_subvols(struct bch_fs *);
 
-int bch2_subvolume_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_subvolume_invalid(struct bch_fs *, struct bkey_s_c,
 			   enum bkey_invalid_flags, struct printbuf *);
 void bch2_subvolume_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 

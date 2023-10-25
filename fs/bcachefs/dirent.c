@@ -97,61 +97,51 @@ const struct bch_hash_desc bch2_dirent_hash_desc = {
 	.is_visible	= dirent_is_visible,
 };
 
-int bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_dirent_invalid(struct bch_fs *c, struct bkey_s_c k,
 			enum bkey_invalid_flags flags,
 			struct printbuf *err)
 {
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 	struct qstr d_name = bch2_dirent_get_name(d);
+	int ret = 0;
 
-	if (!d_name.len) {
-		prt_printf(err, "empty name");
-		return -BCH_ERR_invalid_bkey;
-	}
+	bkey_fsck_err_on(!d_name.len, c, err,
+			 dirent_empty_name,
+			 "empty name");
 
-	if (bkey_val_u64s(k.k) > dirent_val_u64s(d_name.len)) {
-		prt_printf(err, "value too big (%zu > %u)",
-		       bkey_val_u64s(k.k), dirent_val_u64s(d_name.len));
-		return -BCH_ERR_invalid_bkey;
-	}
+	bkey_fsck_err_on(bkey_val_u64s(k.k) > dirent_val_u64s(d_name.len), c, err,
+			 dirent_val_too_big,
+			 "value too big (%zu > %u)",
+			 bkey_val_u64s(k.k), dirent_val_u64s(d_name.len));
 
 	/*
 	 * Check new keys don't exceed the max length
 	 * (older keys may be larger.)
 	 */
-	if ((flags & BKEY_INVALID_COMMIT) && d_name.len > BCH_NAME_MAX) {
-		prt_printf(err, "dirent name too big (%u > %u)",
-		       d_name.len, BCH_NAME_MAX);
-		return -BCH_ERR_invalid_bkey;
-	}
+	bkey_fsck_err_on((flags & BKEY_INVALID_COMMIT) && d_name.len > BCH_NAME_MAX, c, err,
+			 dirent_name_too_long,
+			 "dirent name too big (%u > %u)",
+			 d_name.len, BCH_NAME_MAX);
 
-	if (d_name.len != strnlen(d_name.name, d_name.len)) {
-		prt_printf(err, "dirent has stray data after name's NUL");
-		return -BCH_ERR_invalid_bkey;
-	}
+	bkey_fsck_err_on(d_name.len != strnlen(d_name.name, d_name.len), c, err,
+			 dirent_name_embedded_nul,
+			 "dirent has stray data after name's NUL");
 
-	if (d_name.len == 1 && !memcmp(d_name.name, ".", 1)) {
-		prt_printf(err, "invalid name");
-		return -BCH_ERR_invalid_bkey;
-	}
+	bkey_fsck_err_on((d_name.len == 1 && !memcmp(d_name.name, ".", 1)) ||
+			 (d_name.len == 2 && !memcmp(d_name.name, "..", 2)), c, err,
+			 dirent_name_dot_or_dotdot,
+			 "invalid name");
 
-	if (d_name.len == 2 && !memcmp(d_name.name, "..", 2)) {
-		prt_printf(err, "invalid name");
-		return -BCH_ERR_invalid_bkey;
-	}
+	bkey_fsck_err_on(memchr(d_name.name, '/', d_name.len), c, err,
+			 dirent_name_has_slash,
+			 "name with /");
 
-	if (memchr(d_name.name, '/', d_name.len)) {
-		prt_printf(err, "invalid name");
-		return -BCH_ERR_invalid_bkey;
-	}
-
-	if (d.v->d_type != DT_SUBVOL &&
-	    le64_to_cpu(d.v->d_inum) == d.k->p.inode) {
-		prt_printf(err, "dirent points to own directory");
-		return -BCH_ERR_invalid_bkey;
-	}
-
-	return 0;
+	bkey_fsck_err_on(d.v->d_type != DT_SUBVOL &&
+			 le64_to_cpu(d.v->d_inum) == d.k->p.inode, c, err,
+			 dirent_to_itself,
+			 "dirent points to own directory");
+fsck_err:
+	return ret;
 }
 
 void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,

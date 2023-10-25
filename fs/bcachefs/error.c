@@ -141,13 +141,18 @@ static struct fsck_err_state *fsck_err_get(struct bch_fs *c, const char *fmt)
 	return s;
 }
 
-int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
+int bch2_fsck_err(struct bch_fs *c,
+		  enum bch_fsck_flags flags,
+		  enum bch_sb_error_id err,
+		  const char *fmt, ...)
 {
 	struct fsck_err_state *s = NULL;
 	va_list args;
 	bool print = true, suppressing = false, inconsistent = false;
 	struct printbuf buf = PRINTBUF, *out = &buf;
 	int ret = -BCH_ERR_fsck_ignore;
+
+	bch2_sb_error_count(c, err);
 
 	va_start(args, fmt);
 	prt_vprintf(out, fmt, args);

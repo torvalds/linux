@@ -8,7 +8,7 @@
 
 enum bkey_invalid_flags;
 
-int bch2_stripe_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_stripe_invalid(struct bch_fs *, struct bkey_s_c,
 			enum bkey_invalid_flags, struct printbuf *);
 void bch2_stripe_to_text(struct printbuf *, struct bch_fs *,
 			 struct bkey_s_c);

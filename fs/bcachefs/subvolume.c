@@ -62,7 +62,8 @@ static int check_subvol(struct btree_trans *trans,
 		if (ret)
 			return ret;
 
-		if (fsck_err_on(le32_to_cpu(st.master_subvol) != subvol.k->p.offset, c,
+		if (fsck_err_on(le32_to_cpu(st.master_subvol) != subvol.k->p.offset,
+				c, subvol_not_master_and_not_snapshot,
 				"subvolume %llu is not set as snapshot but is not master subvolume",
 				k.k->p.offset)) {
 			struct bkey_i_subvolume *s =
@@ -97,16 +98,17 @@ int bch2_check_subvols(struct bch_fs *c)
 
 /* Subvolumes: */
 
-int bch2_subvolume_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_subvolume_invalid(struct bch_fs *c, struct bkey_s_c k,
 			   enum bkey_invalid_flags flags, struct printbuf *err)
 {
-	if (bkey_lt(k.k->p, SUBVOL_POS_MIN) ||
-	    bkey_gt(k.k->p, SUBVOL_POS_MAX)) {
-		prt_printf(err, "invalid pos");
-		return -BCH_ERR_invalid_bkey;
-	}
+	int ret = 0;
 
-	return 0;
+	bkey_fsck_err_on(bkey_lt(k.k->p, SUBVOL_POS_MIN) ||
+			 bkey_gt(k.k->p, SUBVOL_POS_MAX), c, err,
+			 subvol_pos_bad,
+			 "invalid pos");
+fsck_err:
+	return ret;
 }
 
 void bch2_subvolume_to_text(struct printbuf *out, struct bch_fs *c,

@@ -105,29 +105,26 @@ struct ec_bio {
 
 /* Stripes btree keys: */
 
-int bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_stripe_invalid(struct bch_fs *c, struct bkey_s_c k,
 			enum bkey_invalid_flags flags,
 			struct printbuf *err)
 {
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
+	int ret = 0;
 
-	if (bkey_eq(k.k->p, POS_MIN)) {
-		prt_printf(err, "stripe at POS_MIN");
-		return -BCH_ERR_invalid_bkey;
-	}
+	bkey_fsck_err_on(bkey_eq(k.k->p, POS_MIN) ||
+			 bpos_gt(k.k->p, POS(0, U32_MAX)), c, err,
+			 stripe_pos_bad,
+			 "stripe at bad pos");
 
-	if (k.k->p.inode) {
-		prt_printf(err, "nonzero inode field");
-		return -BCH_ERR_invalid_bkey;
-	}
+	bkey_fsck_err_on(bkey_val_u64s(k.k) < stripe_val_u64s(s), c, err,
+			 stripe_val_size_bad,
+			 "incorrect value size (%zu < %u)",
+			 bkey_val_u64s(k.k), stripe_val_u64s(s));
 
-	if (bkey_val_u64s(k.k) < stripe_val_u64s(s)) {
-		prt_printf(err, "incorrect value size (%zu < %u)",
-		       bkey_val_u64s(k.k), stripe_val_u64s(s));
-		return -BCH_ERR_invalid_bkey;
-	}
-
-	return bch2_bkey_ptrs_invalid(c, k, flags, err);
+	ret = bch2_bkey_ptrs_invalid(c, k, flags, err);
+fsck_err:
+	return ret;
 }
 
 void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,

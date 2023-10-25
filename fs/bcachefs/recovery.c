@@ -365,8 +365,10 @@ static int read_btree_roots(struct bch_fs *c)
 		}
 
 		if (r->error) {
-			__fsck_err(c, btree_id_is_alloc(i)
+			__fsck_err(c,
+				   btree_id_is_alloc(i)
 				   ? FSCK_CAN_IGNORE : 0,
+				   btree_root_bkey_invalid,
 				   "invalid btree root %s",
 				   bch2_btree_id_str(i));
 			if (i == BTREE_ID_alloc)
@@ -376,6 +378,7 @@ static int read_btree_roots(struct bch_fs *c)
 		ret = bch2_btree_root_read(c, i, &r->key, r->level);
 		if (ret) {
 			fsck_err(c,
+				 btree_root_read_error,
 				 "error reading btree root %s",
 				 bch2_btree_id_str(i));
 			if (btree_id_is_alloc(i))
@@ -714,6 +717,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		if (mustfix_fsck_err_on(c->sb.clean &&
 					last_journal_entry &&
 					!journal_entry_empty(last_journal_entry), c,
+				clean_but_journal_not_empty,
 				"filesystem marked clean but journal not empty")) {
 			c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 			SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
@@ -721,7 +725,9 @@ int bch2_fs_recovery(struct bch_fs *c)
 		}
 
 		if (!last_journal_entry) {
-			fsck_err_on(!c->sb.clean, c, "no journal entries found");
+			fsck_err_on(!c->sb.clean, c,
+				    dirty_but_no_journal_entries,
+				    "no journal entries found");
 			if (clean)
 				goto use_clean;
 
