@@ -672,8 +672,10 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 					     0, clk_base + AST2700_SOC1_CLK_STOP2,
 					     12, 0, &ast2700_clk_lock);
 
+	clk_hw_register_fixed_factor(dev, "canclk", "apll", 0, 1, 10);
+
 	clks[AST2700_SOC1_CLK_GATE_CANCLK] =
-		ast2700_clk_hw_register_gate(NULL, "canclk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "canclk-gate", "canclk",
 					     0, clk_base + AST2700_SOC1_CLK_STOP2,
 					     13, 0, &ast2700_clk_lock);
 
