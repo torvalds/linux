@@ -3,5 +3,5 @@
 /plugin/;
 
 &this_label_does_not_exist {
-	status = "ok";
+	status = "okay";
 };
