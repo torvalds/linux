@@ -927,6 +927,31 @@ struct file *get_file_rcu(struct file __rcu **f)
 }
 EXPORT_SYMBOL_GPL(get_file_rcu);
 
+/**
+ * get_file_active - try go get a reference to a file
+ * @f: the file to get a reference on
+ *
+ * In contast to get_file_rcu() the pointer itself isn't part of the
+ * reference counting.
+ *
+ * This function should rarely have to be used and only by users who
+ * understand the implications of SLAB_TYPESAFE_BY_RCU. Try to avoid it.
+ *
+ * Return: Returns @f with the reference count increased or NULL.
+ */
+struct file *get_file_active(struct file **f)
+{
+	struct file __rcu *file;
+
+	rcu_read_lock();
+	file = __get_file_rcu(f);
+	rcu_read_unlock();
+	if (IS_ERR(file))
+		file = NULL;
+	return file;
+}
+EXPORT_SYMBOL_GPL(get_file_active);
+
 static inline struct file *__fget_files_rcu(struct files_struct *files,
        unsigned int fd, fmode_t mask)
 {
