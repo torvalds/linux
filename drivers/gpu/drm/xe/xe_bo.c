@@ -1269,6 +1269,37 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	if (err)
 		return ERR_PTR(err);
 
+	/*
+	 * The VRAM pages underneath are potentially still being accessed by the
+	 * GPU, as per async GPU clearing and async evictions. However TTM makes
+	 * sure to add any corresponding move/clear fences into the objects
+	 * dma-resv using the DMA_RESV_USAGE_KERNEL slot.
+	 *
+	 * For KMD internal buffers we don't care about GPU clearing, however we
+	 * still need to handle async evictions, where the VRAM is still being
+	 * accessed by the GPU. Most internal callers are not expecting this,
+	 * since they are missing the required synchronisation before accessing
+	 * the memory. To keep things simple just sync wait any kernel fences
+	 * here, if the buffer is designated KMD internal.
+	 *
+	 * For normal userspace objects we should already have the required
+	 * pipelining or sync waiting elsewhere, since we already have to deal
+	 * with things like async GPU clearing.
+	 */
+	if (type == ttm_bo_type_kernel) {
+		long timeout = dma_resv_wait_timeout(bo->ttm.base.resv,
+						     DMA_RESV_USAGE_KERNEL,
+						     ctx.interruptible,
+						     MAX_SCHEDULE_TIMEOUT);
+
+		if (timeout < 0) {
+			if (!resv)
+				dma_resv_unlock(bo->ttm.base.resv);
+			xe_bo_put(bo);
+			return ERR_PTR(timeout);
+		}
+	}
+
 	bo->created = true;
 	if (bulk)
 		ttm_bo_set_bulk_move(&bo->ttm, bulk);
