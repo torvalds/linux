@@ -162,8 +162,24 @@ struct scsi_device {
 				 * core. */
 	unsigned int eh_timeout; /* Error handling timeout */
 
-	bool manage_system_start_stop; /* Let HLD (sd) manage system start/stop */
-	bool manage_runtime_start_stop; /* Let HLD (sd) manage runtime start/stop */
+	/*
+	 * If true, let the high-level device driver (sd) manage the device
+	 * power state for system suspend/resume (suspend to RAM and
+	 * hibernation) operations.
+	 */
+	bool manage_system_start_stop;
+
+	/*
+	 * If true, let the high-level device driver (sd) manage the device
+	 * power state for runtime device suspand and resume operations.
+	 */
+	bool manage_runtime_start_stop;
+
+	/*
+	 * If true, let the high-level device driver (sd) manage the device
+	 * power state for system shutdown (power off) operations.
+	 */
+	bool manage_shutdown;
 
 	unsigned removable:1;
 	unsigned changed:1;	/* Data invalid due to media change */
