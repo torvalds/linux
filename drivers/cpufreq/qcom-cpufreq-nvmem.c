@@ -30,6 +30,8 @@
 
 #include <dt-bindings/arm/qcom,ids.h>
 
+#define IPQ6000_VERSION	BIT(2)
+
 struct qcom_cpufreq_drv;
 
 struct qcom_cpufreq_match_data {
@@ -225,6 +227,57 @@ len_error:
 	return ret;
 }
 
+static int qcom_cpufreq_ipq6018_name_version(struct device *cpu_dev,
+					     struct nvmem_cell *speedbin_nvmem,
+					     char **pvs_name,
+					     struct qcom_cpufreq_drv *drv)
+{
+	u32 msm_id;
+	int ret;
+	u8 *speedbin;
+	*pvs_name = NULL;
+
+	ret = qcom_smem_get_soc_id(&msm_id);
+	if (ret)
+		return ret;
+
+	speedbin = nvmem_cell_read(speedbin_nvmem, NULL);
+	if (IS_ERR(speedbin))
+		return PTR_ERR(speedbin);
+
+	switch (msm_id) {
+	case QCOM_ID_IPQ6005:
+	case QCOM_ID_IPQ6010:
+	case QCOM_ID_IPQ6018:
+	case QCOM_ID_IPQ6028:
+		/* Fuse Value    Freq    BIT to set
+		 * ---------------------------------
+		 *   2’b0     No Limit     BIT(0)
+		 *   2’b1     1.5 GHz      BIT(1)
+		 */
+		drv->versions = 1 << (unsigned int)(*speedbin);
+		break;
+	case QCOM_ID_IPQ6000:
+		/*
+		 * IPQ6018 family only has one bit to advertise the CPU
+		 * speed-bin, but that is not enough for IPQ6000 which
+		 * is only rated up to 1.2GHz.
+		 * So for IPQ6000 manually set BIT(2) based on SMEM ID.
+		 */
+		drv->versions = IPQ6000_VERSION;
+		break;
+	default:
+		dev_err(cpu_dev,
+			"SoC ID %u is not part of IPQ6018 family, limiting to 1.2GHz!\n",
+			msm_id);
+		drv->versions = IPQ6000_VERSION;
+		break;
+	}
+
+	kfree(speedbin);
+	return 0;
+}
+
 static const char *generic_genpd_names[] = { "perf", NULL };
 
 static const struct qcom_cpufreq_match_data match_data_kryo = {
@@ -244,6 +297,10 @@ static const char *qcs404_genpd_names[] = { "cpr", NULL };
 
 static const struct qcom_cpufreq_match_data match_data_qcs404 = {
 	.genpd_names = qcs404_genpd_names,
+};
+
+static const struct qcom_cpufreq_match_data match_data_ipq6018 = {
+	.get_version = qcom_cpufreq_ipq6018_name_version,
 };
 
 static int qcom_cpufreq_probe(struct platform_device *pdev)
@@ -372,6 +429,7 @@ static const struct of_device_id qcom_cpufreq_match_list[] __initconst = {
 	{ .compatible = "qcom,msm8909", .data = &match_data_msm8909 },
 	{ .compatible = "qcom,msm8996", .data = &match_data_kryo },
 	{ .compatible = "qcom,qcs404", .data = &match_data_qcs404 },
+	{ .compatible = "qcom,ipq6018", .data = &match_data_ipq6018 },
 	{ .compatible = "qcom,ipq8064", .data = &match_data_krait },
 	{ .compatible = "qcom,apq8064", .data = &match_data_krait },
 	{ .compatible = "qcom,msm8974", .data = &match_data_krait },
