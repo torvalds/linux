@@ -187,6 +187,25 @@ static int mcp_cancel_last_cmd(struct mcp2221 *mcp)
 	return mcp_send_data_req_status(mcp, mcp->txbuf, 8);
 }
 
+/* Check if the last command succeeded or failed and return the result.
+ * If the command did fail, cancel that command which will free the i2c bus.
+ */
+static int mcp_chk_last_cmd_status_free_bus(struct mcp2221 *mcp)
+{
+	int ret;
+
+	ret = mcp_chk_last_cmd_status(mcp);
+	if (ret) {
+		/* The last command was a failure.
+		 * Send a cancel which will also free the bus.
+		 */
+		usleep_range(980, 1000);
+		mcp_cancel_last_cmd(mcp);
+	}
+
+	return ret;
+}
+
 static int mcp_set_i2c_speed(struct mcp2221 *mcp)
 {
 	int ret;
@@ -241,7 +260,7 @@ static int mcp_i2c_write(struct mcp2221 *mcp,
 		usleep_range(980, 1000);
 
 		if (last_status) {
-			ret = mcp_chk_last_cmd_status(mcp);
+			ret = mcp_chk_last_cmd_status_free_bus(mcp);
 			if (ret)
 				return ret;
 		}
@@ -308,7 +327,7 @@ static int mcp_i2c_smbus_read(struct mcp2221 *mcp,
 		if (ret)
 			return ret;
 
-		ret = mcp_chk_last_cmd_status(mcp);
+		ret = mcp_chk_last_cmd_status_free_bus(mcp);
 		if (ret)
 			return ret;
 
@@ -327,11 +346,6 @@ static int mcp_i2c_xfer(struct i2c_adapter *adapter,
 	hid_hw_power(mcp->hdev, PM_HINT_FULLON);
 
 	mutex_lock(&mcp->lock);
-
-	/* Setting speed before every transaction is required for mcp2221 */
-	ret = mcp_set_i2c_speed(mcp);
-	if (ret)
-		goto exit;
 
 	if (num == 1) {
 		if (msgs->flags & I2C_M_RD) {
@@ -417,9 +431,7 @@ static int mcp_smbus_write(struct mcp2221 *mcp, u16 addr,
 	if (last_status) {
 		usleep_range(980, 1000);
 
-		ret = mcp_chk_last_cmd_status(mcp);
-		if (ret)
-			return ret;
+		ret = mcp_chk_last_cmd_status_free_bus(mcp);
 	}
 
 	return ret;
@@ -436,10 +448,6 @@ static int mcp_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	hid_hw_power(mcp->hdev, PM_HINT_FULLON);
 
 	mutex_lock(&mcp->lock);
-
-	ret = mcp_set_i2c_speed(mcp);
-	if (ret)
-		goto exit;
 
 	switch (size) {
 
@@ -1148,6 +1156,11 @@ static int mcp2221_probe(struct hid_device *hdev,
 	if (i2c_clk_freq < 50)
 		i2c_clk_freq = 50;
 	mcp->cur_i2c_clk_div = (12000000 / (i2c_clk_freq * 1000)) - 3;
+	ret = mcp_set_i2c_speed(mcp);
+	if (ret) {
+		hid_err(hdev, "can't set i2c speed: %d\n", ret);
+		return ret;
+	}
 
 	mcp->adapter.owner = THIS_MODULE;
 	mcp->adapter.class = I2C_CLASS_HWMON;
