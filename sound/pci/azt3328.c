@@ -1383,7 +1383,7 @@ snd_azf3328_codec_setdmaa(struct snd_azf3328 *chip,
 			u32 dma_start_1;
 			u32 dma_start_2;
 			u32 dma_lengths;
-		} __attribute__((packed)) setup_io;
+		} __packed setup_io;
 
 		area_length = buffer_bytes/2;
 
