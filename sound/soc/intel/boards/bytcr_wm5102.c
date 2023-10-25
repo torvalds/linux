@@ -27,8 +27,6 @@
 #include "../../codecs/wm5102.h"
 #include "../atom/sst-atom-controls.h"
 
-#define MCLK_FREQ		25000000
-
 #define WM5102_MAX_SYSCLK_4K	49152000 /* max sysclk for 4K family */
 #define WM5102_MAX_SYSCLK_11025	45158400 /* max sysclk for 11.025K family */
 
@@ -36,10 +34,12 @@ struct byt_wm5102_private {
 	struct snd_soc_jack jack;
 	struct clk *mclk;
 	struct gpio_desc *spkvdd_en_gpio;
+	int mclk_freq;
 };
 
 /* Bits 0-15 are reserved for things like an input-map */
 #define BYT_WM5102_SSP2			BIT(16)
+#define BYT_WM5102_MCLK_19_2MHZ		BIT(17)
 
 static unsigned long quirk;
 
@@ -51,6 +51,8 @@ static void log_quirks(struct device *dev)
 {
 	if (quirk & BYT_WM5102_SSP2)
 		dev_info_once(dev, "quirk SSP2 enabled");
+	if (quirk & BYT_WM5102_MCLK_19_2MHZ)
+		dev_info_once(dev, "quirk MCLK 19.2MHz enabled");
 }
 
 static int byt_wm5102_spkvdd_power_event(struct snd_soc_dapm_widget *w,
@@ -68,6 +70,7 @@ static int byt_wm5102_spkvdd_power_event(struct snd_soc_dapm_widget *w,
 static int byt_wm5102_prepare_and_enable_pll1(struct snd_soc_dai *codec_dai, int rate)
 {
 	struct snd_soc_component *codec_component = codec_dai->component;
+	struct byt_wm5102_private *priv = snd_soc_card_get_drvdata(codec_component->card);
 	int sr_mult = ((rate % 4000) == 0) ?
 		(WM5102_MAX_SYSCLK_4K / rate) :
 		(WM5102_MAX_SYSCLK_11025 / rate);
@@ -79,7 +82,7 @@ static int byt_wm5102_prepare_and_enable_pll1(struct snd_soc_dai *codec_dai, int
 
 	/* Configure the FLL1 PLL before selecting it */
 	ret = snd_soc_dai_set_pll(codec_dai, WM5102_FLL1, ARIZONA_CLK_SRC_MCLK1,
-				  MCLK_FREQ, rate * sr_mult);
+				  priv->mclk_freq, rate * sr_mult);
 	if (ret) {
 		dev_err(codec_component->dev, "Error setting PLL: %d\n", ret);
 		return ret;
@@ -251,6 +254,11 @@ static int byt_wm5102_init(struct snd_soc_pcm_runtime *runtime)
 	if (ret)
 		return ret;
 
+	if (quirk & BYT_WM5102_MCLK_19_2MHZ)
+		priv->mclk_freq = 19200000;
+	else
+		priv->mclk_freq = 25000000;
+
 	/*
 	 * The firmware might enable the clock at boot (this information
 	 * may or may not be reflected in the enable clock register).
@@ -263,7 +271,7 @@ static int byt_wm5102_init(struct snd_soc_pcm_runtime *runtime)
 	if (!ret)
 		clk_disable_unprepare(priv->mclk);
 
-	ret = clk_set_rate(priv->mclk, MCLK_FREQ);
+	ret = clk_set_rate(priv->mclk, priv->mclk_freq);
 	if (ret) {
 		dev_err(card->dev, "Error setting MCLK rate: %d\n", ret);
 		return ret;
@@ -486,7 +494,7 @@ static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 
 	if (soc_intel_is_cht()) {
 		/* On CHT default to SSP2 */
-		quirk = BYT_WM5102_SSP2;
+		quirk = BYT_WM5102_SSP2 | BYT_WM5102_MCLK_19_2MHZ;
 	}
 	if (quirk_override != -1) {
 		dev_info_once(dev, "Overriding quirk 0x%lx => 0x%x\n",
