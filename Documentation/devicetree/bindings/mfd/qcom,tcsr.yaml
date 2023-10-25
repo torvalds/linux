@@ -29,6 +29,8 @@ properties:
           - qcom,sdx65-tcsr
           - qcom,sm4450-tcsr
           - qcom,sm8150-tcsr
+          - qcom,sm8250-tcsr
+          - qcom,sm8350-tcsr
           - qcom,sm8450-tcsr
           - qcom,tcsr-apq8064
           - qcom,tcsr-apq8084
