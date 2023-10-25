@@ -4934,8 +4934,8 @@ bool dc_dmub_is_ips_idle_state(struct dc *dc)
 	if (dc->hwss.get_idle_state)
 		idle_state = dc->hwss.get_idle_state(dc);
 
-	if ((idle_state & DMUB_IPS1_ALLOW_MASK) ||
-		(idle_state & DMUB_IPS2_ALLOW_MASK))
+	if (!(idle_state & DMUB_IPS1_ALLOW_MASK) ||
+		!(idle_state & DMUB_IPS2_ALLOW_MASK))
 		return true;
 
 	return false;
