@@ -164,21 +164,25 @@ static int psp_early_init(void *handle)
 	struct psp_context *psp = &adev->psp;
 
 	psp->autoload_supported = true;
+	psp->boot_time_tmr = true;
 
 	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
 	case IP_VERSION(9, 0, 0):
 		psp_v3_1_set_psp_funcs(psp);
 		psp->autoload_supported = false;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(10, 0, 0):
 	case IP_VERSION(10, 0, 1):
 		psp_v10_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 4):
 		psp_v11_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 7):
@@ -191,13 +195,17 @@ static int psp_early_init(void *handle)
 	case IP_VERSION(11, 0, 12):
 	case IP_VERSION(11, 0, 13):
 		psp_v11_0_set_psp_funcs(psp);
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(11, 0, 3):
 	case IP_VERSION(12, 0, 1):
 		psp_v12_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(13, 0, 2):
+		psp->boot_time_tmr = false;
+		fallthrough;
 	case IP_VERSION(13, 0, 6):
 		psp_v13_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
@@ -209,21 +217,25 @@ static int psp_early_init(void *handle)
 	case IP_VERSION(13, 0, 11):
 	case IP_VERSION(14, 0, 0):
 		psp_v13_0_set_psp_funcs(psp);
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(11, 0, 8):
 		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2) {
 			psp_v11_0_8_set_psp_funcs(psp);
 		}
 		psp->autoload_supported = false;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
 	case IP_VERSION(13, 0, 10):
 		psp_v13_0_set_psp_funcs(psp);
 		adev->psp.sup_ifwi_up = !amdgpu_sriov_vf(adev);
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(13, 0, 4):
 		psp_v13_0_4_set_psp_funcs(psp);
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(14, 0, 2):
 	case IP_VERSION(14, 0, 3):
@@ -777,16 +789,6 @@ static int psp_load_toc(struct psp_context *psp,
 	release_psp_cmd_buf(psp);
 
 	return ret;
-}
-
-static bool psp_boottime_tmr(struct psp_context *psp)
-{
-	switch (amdgpu_ip_version(psp->adev, MP0_HWIP, 0)) {
-	case IP_VERSION(13, 0, 6):
-		return true;
-	default:
-		return false;
-	}
 }
 
 /* Set up Trusted Memory Region */
@@ -2256,7 +2258,7 @@ static int psp_hw_start(struct psp_context *psp)
 	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev))
 		goto skip_pin_bo;
 
-	if (!psp_boottime_tmr(psp)) {
+	if (!psp->boot_time_tmr) {
 		ret = psp_tmr_init(psp);
 		if (ret) {
 			dev_err(adev->dev, "PSP tmr init failed!\n");

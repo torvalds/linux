@@ -364,6 +364,8 @@ struct psp_context {
 	atomic_t			fence_value;
 	/* flag to mark whether gfx fw autoload is supported or not */
 	bool				autoload_supported;
+	/* flag to mark whether psp use runtime TMR or boottime TMR */
+	bool				boot_time_tmr;
 	/* flag to mark whether df cstate management centralized to PMFW */
 	bool				pmfw_centralized_cstate_management;
 
