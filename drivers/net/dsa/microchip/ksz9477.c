@@ -84,7 +84,7 @@ static int ksz9477_handle_wake_reason(struct ksz_device *dev, int port)
 	dev_dbg(dev->dev, "Wake event on port %d due to:%s%s%s\n", port,
 		pme_status & PME_WOL_MAGICPKT ? " \"Magic Packet\"" : "",
 		pme_status & PME_WOL_LINKUP ? " \"Link Up\"" : "",
-		pme_status & PME_WOL_ENERGY ? " \"Enery detect\"" : "");
+		pme_status & PME_WOL_ENERGY ? " \"Energy detect\"" : "");
 
 	return ksz_pwrite8(dev, port, REG_PORT_PME_STATUS, pme_status);
 }
