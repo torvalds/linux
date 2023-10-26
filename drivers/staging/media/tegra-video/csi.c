@@ -818,15 +818,13 @@ rpm_disable:
 	return ret;
 }
 
-static int tegra_csi_remove(struct platform_device *pdev)
+static void tegra_csi_remove(struct platform_device *pdev)
 {
 	struct tegra_csi *csi = platform_get_drvdata(pdev);
 
 	host1x_client_unregister(&csi->client);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #if defined(CONFIG_ARCH_TEGRA_210_SOC)
@@ -852,5 +850,5 @@ struct platform_driver tegra_csi_driver = {
 		.pm		= &tegra_csi_pm_ops,
 	},
 	.probe			= tegra_csi_probe,
-	.remove			= tegra_csi_remove,
+	.remove_new		= tegra_csi_remove,
 };

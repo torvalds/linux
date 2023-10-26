@@ -1944,7 +1944,7 @@ rpm_disable:
 	return ret;
 }
 
-static int tegra_vi_remove(struct platform_device *pdev)
+static void tegra_vi_remove(struct platform_device *pdev)
 {
 	struct tegra_vi *vi = platform_get_drvdata(pdev);
 
@@ -1953,8 +1953,6 @@ static int tegra_vi_remove(struct platform_device *pdev)
 	if (vi->ops->vi_enable)
 		vi->ops->vi_enable(vi, false);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id tegra_vi_of_id_table[] = {
@@ -1979,5 +1977,5 @@ struct platform_driver tegra_vi_driver = {
 		.pm = &tegra_vi_pm_ops,
 	},
 	.probe = tegra_vi_probe,
-	.remove = tegra_vi_remove,
+	.remove_new = tegra_vi_remove,
 };
