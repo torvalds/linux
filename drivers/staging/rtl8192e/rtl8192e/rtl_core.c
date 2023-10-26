@@ -1142,7 +1142,6 @@ static void _rtl92e_free_rx_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int i;
-	int rx_queue_idx = 0;
 
 	for (i = 0; i < priv->rxringcount; i++) {
 		struct sk_buff *skb = priv->rx_buf[i];
@@ -1352,7 +1351,6 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rx_desc *entry = NULL;
 	int i;
-	int rx_queue_idx = 0;
 
 	priv->rx_ring = dma_alloc_coherent(&priv->pdev->dev,
 					   sizeof(*priv->rx_ring) * priv->rxringcount,
@@ -1363,7 +1361,7 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 		return -ENOMEM;
 	}
 
-	priv->rx_idx[rx_queue_idx] = 0;
+	priv->rx_idx = 0;
 
 	for (i = 0; i < priv->rxringcount; i++) {
 		struct sk_buff *skb = dev_alloc_skb(priv->rxbuffersize);
@@ -1452,7 +1450,6 @@ void rtl92e_reset_desc_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int i;
-	int rx_queue_idx = 0;
 	unsigned long flags = 0;
 
 	if (priv->rx_ring) {
@@ -1462,7 +1459,7 @@ void rtl92e_reset_desc_ring(struct net_device *dev)
 			entry = &priv->rx_ring[i];
 			entry->OWN = 1;
 		}
-		priv->rx_idx[rx_queue_idx] = 0;
+		priv->rx_idx = 0;
 	}
 
 	spin_lock_irqsave(&priv->irq_th_lock, flags);
@@ -1561,7 +1558,6 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 	struct ieee80211_hdr *rtllib_hdr = NULL;
 	bool unicast_packet = false;
 	u32 skb_len = 0;
-	int rx_queue_idx = RX_MPDU_QUEUE;
 
 	struct rtllib_rx_stats stats = {
 		.signal = 0,
@@ -1574,9 +1570,9 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 
 	while (count--) {
 		struct rx_desc *pdesc = &priv->rx_ring
-					[priv->rx_idx[rx_queue_idx]];
+					[priv->rx_idx];
 		struct sk_buff *skb = priv->rx_buf
-				      [priv->rx_idx[rx_queue_idx]];
+				      [priv->rx_idx];
 		struct sk_buff *new_skb;
 
 		if (pdesc->OWN)
@@ -1614,7 +1610,7 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 		skb = new_skb;
 		skb->dev = dev;
 
-		priv->rx_buf[priv->rx_idx[rx_queue_idx]] =
+		priv->rx_buf[priv->rx_idx] =
 								 skb;
 		*((dma_addr_t *)skb->cb) = dma_map_single(&priv->pdev->dev,
 							  skb_tail_pointer(skb),
@@ -1627,9 +1623,9 @@ done:
 		pdesc->BufferAddress = *((dma_addr_t *)skb->cb);
 		pdesc->OWN = 1;
 		pdesc->Length = priv->rxbuffersize;
-		if (priv->rx_idx[rx_queue_idx] == priv->rxringcount - 1)
+		if (priv->rx_idx == priv->rxringcount - 1)
 			pdesc->EOR = 1;
-		priv->rx_idx[rx_queue_idx] = (priv->rx_idx[rx_queue_idx] + 1) %
+		priv->rx_idx = (priv->rx_idx + 1) %
 					      priv->rxringcount;
 	}
 }

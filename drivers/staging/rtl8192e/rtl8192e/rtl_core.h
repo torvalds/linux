@@ -235,7 +235,7 @@ struct r8192_priv {
 	struct rx_desc *rx_ring;
 	struct sk_buff	*rx_buf[MAX_RX_COUNT];
 	dma_addr_t	rx_ring_dma;
-	unsigned int	rx_idx[MAX_RX_QUEUE];
+	unsigned int	rx_idx;
 	int		rxringcount;
 	u16		rxbuffersize;
 
