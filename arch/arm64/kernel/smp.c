@@ -439,9 +439,10 @@ static void __init hyp_mode_check(void)
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	pr_info("SMP: Total of %d processors activated.\n", num_online_cpus());
-	setup_cpu_features();
+	setup_system_features();
 	hyp_mode_check();
 	apply_alternatives_all();
+	setup_user_features();
 	mark_linear_text_alias_ro();
 }
 

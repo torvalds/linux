@@ -277,17 +277,6 @@ static void gic_redist_wait_for_rwp(void)
 	gic_do_wait_for_rwp(gic_data_rdist_rd_base(), GICR_CTLR_RWP);
 }
 
-#ifdef CONFIG_ARM64
-
-static u64 __maybe_unused gic_read_iar(void)
-{
-	if (cpus_have_const_cap(ARM64_WORKAROUND_CAVIUM_23154))
-		return gic_read_iar_cavium_thunderx();
-	else
-		return gic_read_iar_common();
-}
-#endif
-
 static void gic_enable_redist(bool enable)
 {
 	void __iomem *rbase;

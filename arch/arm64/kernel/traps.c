@@ -631,7 +631,7 @@ static void ctr_read_handler(unsigned long esr, struct pt_regs *regs)
 	int rt = ESR_ELx_SYS64_ISS_RT(esr);
 	unsigned long val = arm64_ftr_reg_user_value(&arm64_ftr_reg_ctrel0);
 
-	if (cpus_have_const_cap(ARM64_WORKAROUND_1542419)) {
+	if (cpus_have_final_cap(ARM64_WORKAROUND_1542419)) {
 		/* Hide DIC so that we can trap the unnecessary maintenance...*/
 		val &= ~BIT(CTR_EL0_DIC_SHIFT);
 

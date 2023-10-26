@@ -1160,11 +1160,7 @@ fail:
 	panic("Cannot allocate percpu memory for EFI SVE save/restore");
 }
 
-/*
- * Enable SVE for EL1.
- * Intended for use by the cpufeatures code during CPU boot.
- */
-void sve_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
+void cpu_enable_sve(const struct arm64_cpu_capabilities *__always_unused p)
 {
 	write_sysreg(read_sysreg(CPACR_EL1) | CPACR_EL1_ZEN_EL1EN, CPACR_EL1);
 	isb();
@@ -1177,7 +1173,7 @@ void __init sve_setup(void)
 	unsigned long b;
 	int max_bit;
 
-	if (!system_supports_sve())
+	if (!cpus_have_cap(ARM64_SVE))
 		return;
 
 	/*
@@ -1267,7 +1263,7 @@ static void sme_free(struct task_struct *task)
 	task->thread.sme_state = NULL;
 }
 
-void sme_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
+void cpu_enable_sme(const struct arm64_cpu_capabilities *__always_unused p)
 {
 	/* Set priority for all PEs to architecturally defined minimum */
 	write_sysreg_s(read_sysreg_s(SYS_SMPRI_EL1) & ~SMPRI_EL1_PRIORITY_MASK,
@@ -1282,23 +1278,21 @@ void sme_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
 	isb();
 }
 
-/*
- * This must be called after sme_kernel_enable(), we rely on the
- * feature table being sorted to ensure this.
- */
-void sme2_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
+void cpu_enable_sme2(const struct arm64_cpu_capabilities *__always_unused p)
 {
+	/* This must be enabled after SME */
+	BUILD_BUG_ON(ARM64_SME2 <= ARM64_SME);
+
 	/* Allow use of ZT0 */
 	write_sysreg_s(read_sysreg_s(SYS_SMCR_EL1) | SMCR_ELx_EZT0_MASK,
 		       SYS_SMCR_EL1);
 }
 
-/*
- * This must be called after sme_kernel_enable(), we rely on the
- * feature table being sorted to ensure this.
- */
-void fa64_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
+void cpu_enable_fa64(const struct arm64_cpu_capabilities *__always_unused p)
 {
+	/* This must be enabled after SME */
+	BUILD_BUG_ON(ARM64_SME_FA64 <= ARM64_SME);
+
 	/* Allow use of FA64 */
 	write_sysreg_s(read_sysreg_s(SYS_SMCR_EL1) | SMCR_ELx_FA64_MASK,
 		       SYS_SMCR_EL1);
@@ -1309,7 +1303,7 @@ void __init sme_setup(void)
 	struct vl_info *info = &vl_info[ARM64_VEC_SME];
 	int min_bit, max_bit;
 
-	if (!system_supports_sme())
+	if (!cpus_have_cap(ARM64_SME))
 		return;
 
 	/*
@@ -1470,8 +1464,17 @@ void do_sme_acc(unsigned long esr, struct pt_regs *regs)
  */
 void do_fpsimd_acc(unsigned long esr, struct pt_regs *regs)
 {
-	/* TODO: implement lazy context saving/restoring */
-	WARN_ON(1);
+	/* Even if we chose not to use FPSIMD, the hardware could still trap: */
+	if (!system_supports_fpsimd()) {
+		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
+		return;
+	}
+
+	/*
+	 * When FPSIMD is enabled, we should never take a trap unless something
+	 * has gone very wrong.
+	 */
+	BUG();
 }
 
 /*
@@ -1712,13 +1715,23 @@ void fpsimd_bind_state_to_cpu(struct cpu_fp_state *state)
 void fpsimd_restore_current_state(void)
 {
 	/*
-	 * For the tasks that were created before we detected the absence of
-	 * FP/SIMD, the TIF_FOREIGN_FPSTATE could be set via fpsimd_thread_switch(),
-	 * e.g, init. This could be then inherited by the children processes.
-	 * If we later detect that the system doesn't support FP/SIMD,
-	 * we must clear the flag for  all the tasks to indicate that the
-	 * FPSTATE is clean (as we can't have one) to avoid looping for ever in
-	 * do_notify_resume().
+	 * TIF_FOREIGN_FPSTATE is set on the init task and copied by
+	 * arch_dup_task_struct() regardless of whether FP/SIMD is detected.
+	 * Thus user threads can have this set even when FP/SIMD hasn't been
+	 * detected.
+	 *
+	 * When FP/SIMD is detected, begin_new_exec() will set
+	 * TIF_FOREIGN_FPSTATE via flush_thread() -> fpsimd_flush_thread(),
+	 * and fpsimd_thread_switch() will set TIF_FOREIGN_FPSTATE when
+	 * switching tasks. We detect FP/SIMD before we exec the first user
+	 * process, ensuring this has TIF_FOREIGN_FPSTATE set and
+	 * do_notify_resume() will call fpsimd_restore_current_state() to
+	 * install the user FP/SIMD context.
+	 *
+	 * When FP/SIMD is not detected, nothing else will clear or set
+	 * TIF_FOREIGN_FPSTATE prior to the first return to userspace, and
+	 * we must clear TIF_FOREIGN_FPSTATE to avoid do_notify_resume()
+	 * looping forever calling fpsimd_restore_current_state().
 	 */
 	if (!system_supports_fpsimd()) {
 		clear_thread_flag(TIF_FOREIGN_FPSTATE);
@@ -2050,6 +2063,13 @@ static inline void fpsimd_hotplug_init(void)
 #else
 static inline void fpsimd_hotplug_init(void) { }
 #endif
+
+void cpu_enable_fpsimd(const struct arm64_cpu_capabilities *__always_unused p)
+{
+	unsigned long enable = CPACR_EL1_FPEN_EL1EN | CPACR_EL1_FPEN_EL0EN;
+	write_sysreg(read_sysreg(CPACR_EL1) | enable, CPACR_EL1);
+	isb();
+}
 
 /*
  * FP/SIMD support code initialisation.
