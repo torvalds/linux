@@ -90,7 +90,7 @@ config ARM_VEXPRESS_SPC_CPUFREQ
 
 config ARM_BRCMSTB_AVS_CPUFREQ
 	tristate "Broadcom STB AVS CPUfreq driver"
-	depends on ARCH_BRCMSTB || COMPILE_TEST
+	depends on (ARCH_BRCMSTB && !ARM_SCMI_CPUFREQ) || COMPILE_TEST
 	default y
 	help
 	  Some Broadcom STB SoCs use a co-processor running proprietary firmware
@@ -124,8 +124,8 @@ config ARM_IMX_CPUFREQ_DT
 	tristate "Freescale i.MX8M cpufreq support"
 	depends on ARCH_MXC && CPUFREQ_DT
 	help
-	  This adds cpufreq driver support for Freescale i.MX8M series SoCs,
-	  based on cpufreq-dt.
+	  This adds cpufreq driver support for Freescale i.MX7/i.MX8M
+	  series SoCs, based on cpufreq-dt.
 
 	  If in doubt, say N.
 
