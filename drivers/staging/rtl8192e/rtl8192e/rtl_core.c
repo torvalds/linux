@@ -1157,10 +1157,10 @@ static void _rtl92e_free_rx_ring(struct net_device *dev)
 	}
 
 	dma_free_coherent(&priv->pdev->dev,
-			  sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
-			  priv->rx_ring[rx_queue_idx],
+			  sizeof(*priv->rx_ring) * priv->rxringcount,
+			  priv->rx_ring,
 			  priv->rx_ring_dma[rx_queue_idx]);
-	priv->rx_ring[rx_queue_idx] = NULL;
+	priv->rx_ring = NULL;
 }
 
 static void _rtl92e_free_tx_ring(struct net_device *dev, unsigned int prio)
@@ -1354,12 +1354,11 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 	int i;
 	int rx_queue_idx = 0;
 
-	priv->rx_ring[rx_queue_idx] = dma_alloc_coherent(&priv->pdev->dev,
-							 sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
-							 &priv->rx_ring_dma[rx_queue_idx],
-							 GFP_ATOMIC);
-	if (!priv->rx_ring[rx_queue_idx] ||
-	    (unsigned long)priv->rx_ring[rx_queue_idx] & 0xFF) {
+	priv->rx_ring = dma_alloc_coherent(&priv->pdev->dev,
+					   sizeof(*priv->rx_ring) * priv->rxringcount,
+					   &priv->rx_ring_dma[rx_queue_idx],
+					   GFP_ATOMIC);
+	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
 		netdev_warn(dev, "Cannot allocate RX ring\n");
 		return -ENOMEM;
 	}
@@ -1370,7 +1369,7 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 		struct sk_buff *skb = dev_alloc_skb(priv->rxbuffersize);
 		dma_addr_t *mapping;
 
-		entry = &priv->rx_ring[rx_queue_idx][i];
+		entry = &priv->rx_ring[i];
 		if (!skb)
 			return 0;
 		skb->dev = dev;
@@ -1456,11 +1455,11 @@ void rtl92e_reset_desc_ring(struct net_device *dev)
 	int rx_queue_idx = 0;
 	unsigned long flags = 0;
 
-	if (priv->rx_ring[rx_queue_idx]) {
+	if (priv->rx_ring) {
 		struct rx_desc *entry = NULL;
 
 		for (i = 0; i < priv->rxringcount; i++) {
-			entry = &priv->rx_ring[rx_queue_idx][i];
+			entry = &priv->rx_ring[i];
 			entry->OWN = 1;
 		}
 		priv->rx_idx[rx_queue_idx] = 0;
@@ -1574,7 +1573,7 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 	stats.nic_type = NIC_8192E;
 
 	while (count--) {
-		struct rx_desc *pdesc = &priv->rx_ring[rx_queue_idx]
+		struct rx_desc *pdesc = &priv->rx_ring
 					[priv->rx_idx[rx_queue_idx]];
 		struct sk_buff *skb = priv->rx_buf[rx_queue_idx]
 				      [priv->rx_idx[rx_queue_idx]];

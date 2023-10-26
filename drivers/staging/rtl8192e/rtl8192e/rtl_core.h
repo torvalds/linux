@@ -232,7 +232,7 @@ struct r8192_priv {
 
 	u8 (*rf_set_chan)(struct net_device *dev, u8 ch);
 
-	struct rx_desc *rx_ring[MAX_RX_QUEUE];
+	struct rx_desc *rx_ring;
 	struct sk_buff	*rx_buf[MAX_RX_QUEUE][MAX_RX_COUNT];
 	dma_addr_t	rx_ring_dma[MAX_RX_QUEUE];
 	unsigned int	rx_idx[MAX_RX_QUEUE];
