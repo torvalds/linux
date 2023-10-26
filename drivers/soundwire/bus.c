@@ -3,13 +3,13 @@
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
-#include <linux/irq.h>
 #include <linux/mod_devicetable.h>
 #include <linux/pm_runtime.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
 #include "bus.h"
+#include "irq.h"
 #include "sysfs_local.h"
 
 static DEFINE_IDA(sdw_bus_ida);
@@ -24,23 +24,6 @@ static int sdw_get_id(struct sdw_bus *bus)
 	bus->id = rc;
 	return 0;
 }
-
-static int sdw_irq_map(struct irq_domain *h, unsigned int virq,
-		       irq_hw_number_t hw)
-{
-	struct sdw_bus *bus = h->host_data;
-
-	irq_set_chip_data(virq, bus);
-	irq_set_chip(virq, &bus->irq_chip);
-	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
-
-	return 0;
-}
-
-static const struct irq_domain_ops sdw_domain_ops = {
-	.map	= sdw_irq_map,
-};
 
 /**
  * sdw_bus_master_add() - add a bus Master instance
@@ -168,13 +151,9 @@ int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 	bus->params.curr_bank = SDW_BANK0;
 	bus->params.next_bank = SDW_BANK1;
 
-	bus->irq_chip.name = dev_name(bus->dev);
-	bus->domain = irq_domain_create_linear(fwnode, SDW_MAX_DEVICES,
-					       &sdw_domain_ops, bus);
-	if (!bus->domain) {
-		dev_err(bus->dev, "Failed to add IRQ domain\n");
-		return -EINVAL;
-	}
+	ret = sdw_irq_create(bus, fwnode);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -213,7 +192,7 @@ void sdw_bus_master_delete(struct sdw_bus *bus)
 {
 	device_for_each_child(bus->dev, NULL, sdw_delete_slave);
 
-	irq_domain_remove(bus->domain);
+	sdw_irq_delete(bus);
 
 	sdw_master_device_del(bus);
 

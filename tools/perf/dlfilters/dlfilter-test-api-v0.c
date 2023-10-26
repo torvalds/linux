@@ -289,6 +289,15 @@ static int check_attr(void *ctx)
 	return 0;
 }
 
+static int check_object_code(void *ctx, const struct perf_dlfilter_sample *sample)
+{
+	__u8 buf[15];
+
+	CHECK(perf_dlfilter_fns.object_code(ctx, sample->ip, buf, sizeof(buf)) > 0);
+
+	return 0;
+}
+
 static int do_checks(void *data, const struct perf_dlfilter_sample *sample, void *ctx, bool early)
 {
 	struct filter_data *d = data;
@@ -314,7 +323,8 @@ static int do_checks(void *data, const struct perf_dlfilter_sample *sample, void
 	if (early && !d->do_early)
 		return 0;
 
-	if (check_al(ctx) || check_addr_al(ctx) || check_address_al(ctx, sample))
+	if (check_al(ctx) || check_addr_al(ctx) || check_address_al(ctx, sample) ||
+	    check_object_code(ctx, sample))
 		return -1;
 
 	if (early)

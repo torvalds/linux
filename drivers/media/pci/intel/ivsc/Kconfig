@@ -6,7 +6,7 @@ config INTEL_VSC
 	depends on INTEL_MEI && ACPI && VIDEO_DEV
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_ASYNC
+	select V4L2_FWNODE
 	help
 	  This adds support for Intel Visual Sensing Controller (IVSC).
 

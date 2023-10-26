@@ -1240,33 +1240,6 @@ void arch_thaw_secondary_cpus_end(void)
 	cache_aps_init();
 }
 
-bool smp_park_other_cpus_in_init(void)
-{
-	unsigned int cpu, this_cpu = smp_processor_id();
-	unsigned int apicid;
-
-	if (apic->wakeup_secondary_cpu_64 || apic->wakeup_secondary_cpu)
-		return false;
-
-	/*
-	 * If this is a crash stop which does not execute on the boot CPU,
-	 * then this cannot use the INIT mechanism because INIT to the boot
-	 * CPU will reset the machine.
-	 */
-	if (this_cpu)
-		return false;
-
-	for_each_cpu_and(cpu, &cpus_booted_once_mask, cpu_present_mask) {
-		if (cpu == this_cpu)
-			continue;
-		apicid = apic->cpu_present_to_apicid(cpu);
-		if (apicid == BAD_APICID)
-			continue;
-		send_init_sequence(apicid);
-	}
-	return true;
-}
-
 /*
  * Early setup to make printk work.
  */

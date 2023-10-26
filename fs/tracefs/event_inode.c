@@ -421,7 +421,7 @@ static int eventfs_release(struct inode *inode, struct file *file)
 	if (WARN_ON_ONCE(!dlist))
 		return -EINVAL;
 
-	for (i = 0; dlist->dentries[i]; i++) {
+	for (i = 0; dlist->dentries && dlist->dentries[i]; i++) {
 		dput(dlist->dentries[i]);
 	}
 

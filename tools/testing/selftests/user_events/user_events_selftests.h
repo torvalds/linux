@@ -11,13 +11,19 @@
 
 #include "../kselftest.h"
 
-static inline bool tracefs_enabled(char **message, bool *fail)
+static inline void tracefs_unmount(void)
+{
+	umount("/sys/kernel/tracing");
+}
+
+static inline bool tracefs_enabled(char **message, bool *fail, bool *umount)
 {
 	struct stat buf;
 	int ret;
 
 	*message = "";
 	*fail = false;
+	*umount = false;
 
 	/* Ensure tracefs is installed */
 	ret = stat("/sys/kernel/tracing", &buf);
@@ -37,6 +43,8 @@ static inline bool tracefs_enabled(char **message, bool *fail)
 			return false;
 		}
 
+		*umount = true;
+
 		ret = stat("/sys/kernel/tracing/README", &buf);
 	}
 
@@ -49,13 +57,14 @@ static inline bool tracefs_enabled(char **message, bool *fail)
 	return true;
 }
 
-static inline bool user_events_enabled(char **message, bool *fail)
+static inline bool user_events_enabled(char **message, bool *fail, bool *umount)
 {
 	struct stat buf;
 	int ret;
 
 	*message = "";
 	*fail = false;
+	*umount = false;
 
 	if (getuid() != 0) {
 		*message = "Must be run as root";
@@ -63,7 +72,7 @@ static inline bool user_events_enabled(char **message, bool *fail)
 		return false;
 	}
 
-	if (!tracefs_enabled(message, fail))
+	if (!tracefs_enabled(message, fail, umount))
 		return false;
 
 	/* Ensure user_events is installed */
@@ -85,16 +94,21 @@ static inline bool user_events_enabled(char **message, bool *fail)
 	return true;
 }
 
-#define USER_EVENT_FIXTURE_SETUP(statement) do { \
+#define USER_EVENT_FIXTURE_SETUP(statement, umount) do { \
 	char *message; \
 	bool fail; \
-	if (!user_events_enabled(&message, &fail)) { \
+	if (!user_events_enabled(&message, &fail, &(umount))) { \
 		if (fail) { \
 			TH_LOG("Setup failed due to: %s", message); \
 			ASSERT_FALSE(fail); \
 		} \
 		SKIP(statement, "Skipping due to: %s", message); \
 	} \
+} while (0)
+
+#define USER_EVENT_FIXTURE_TEARDOWN(umount) do { \
+	if ((umount))  \
+		tracefs_unmount(); \
 } while (0)
 
 #endif /* _USER_EVENTS_SELFTESTS_H */
