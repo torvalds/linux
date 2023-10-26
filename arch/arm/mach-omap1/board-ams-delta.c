@@ -550,6 +550,7 @@ static struct platform_device *ams_delta_devices[] __initdata = {
 	&ams_delta_nand_device,
 	&ams_delta_lcd_device,
 	&cx20442_codec_device,
+	&modem_nreset_device,
 };
 
 static struct gpiod_lookup_table *ams_delta_gpio_tables[] __initdata = {
@@ -782,25 +783,27 @@ static struct plat_serial8250_port ams_delta_modem_ports[] = {
 	{ },
 };
 
+static int ams_delta_modem_pm_activate(struct device *dev)
+{
+	modem_priv.regulator = regulator_get(dev, "RESET#");
+	if (IS_ERR(modem_priv.regulator))
+		return -EPROBE_DEFER;
+
+	return 0;
+}
+
+static struct dev_pm_domain ams_delta_modem_pm_domain = {
+	.activate	= ams_delta_modem_pm_activate,
+};
+
 static struct platform_device ams_delta_modem_device = {
 	.name	= "serial8250",
 	.id	= PLAT8250_DEV_PLATFORM1,
 	.dev		= {
 		.platform_data = ams_delta_modem_ports,
+		.pm_domain = &ams_delta_modem_pm_domain,
 	},
 };
-
-static int __init modem_nreset_init(void)
-{
-	int err;
-
-	err = platform_device_register(&modem_nreset_device);
-	if (err)
-		pr_err("Couldn't register the modem regulator device\n");
-
-	return err;
-}
-
 
 /*
  * This function expects MODEM IRQ number already assigned to the port.
@@ -833,37 +836,6 @@ static int __init ams_delta_modem_init(void)
 }
 arch_initcall_sync(ams_delta_modem_init);
 
-static int __init late_init(void)
-{
-	int err;
-
-	err = modem_nreset_init();
-	if (err)
-		return err;
-
-	/*
-	 * Once the modem device is registered, the modem_nreset
-	 * regulator can be requested on behalf of that device.
-	 */
-	modem_priv.regulator = regulator_get(&ams_delta_modem_device.dev,
-			"RESET#");
-	if (IS_ERR(modem_priv.regulator)) {
-		err = PTR_ERR(modem_priv.regulator);
-		goto unregister;
-	}
-	return 0;
-
-unregister:
-	platform_device_unregister(&ams_delta_modem_device);
-	return err;
-}
-
-static void __init ams_delta_init_late(void)
-{
-	omap1_init_late();
-	late_init();
-}
-
 static void __init ams_delta_map_io(void)
 {
 	omap1_map_io();
@@ -877,7 +849,7 @@ MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	.init_early	= omap1_init_early,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= ams_delta_init,
-	.init_late	= ams_delta_init_late,
+	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,
 	.restart	= omap1_restart,
 MACHINE_END

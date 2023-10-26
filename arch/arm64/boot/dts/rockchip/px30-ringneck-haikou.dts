@@ -68,15 +68,17 @@
 		simple-audio-card,format = "i2s";
 		simple-audio-card,name = "Haikou,I2S-codec";
 		simple-audio-card,mclk-fs = <512>;
+		simple-audio-card,frame-master = <&sgtl5000_codec>;
+		simple-audio-card,bitclock-master = <&sgtl5000_codec>;
 
-		simple-audio-card,codec {
-			clocks = <&sgtl5000_clk>;
+		sgtl5000_codec: simple-audio-card,codec {
 			sound-dai = <&sgtl5000>;
+			// Prevent the dai subsystem from overwriting the clock
+			// frequency. We are using a fixed-frequency oscillator.
+			system-clock-fixed;
 		};
 
 		simple-audio-card,cpu {
-			bitclock-master;
-			frame-master;
 			sound-dai = <&i2s0_8ch>;
 		};
 	};
