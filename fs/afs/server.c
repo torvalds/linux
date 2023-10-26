@@ -215,6 +215,7 @@ static struct afs_server *afs_alloc_server(struct afs_cell *cell,
 	spin_lock_init(&server->probe_lock);
 	server->cell = cell;
 	server->rtt = UINT_MAX;
+	server->service_id = FS_SERVICE;
 
 	afs_inc_servers_outstanding(net);
 	trace_afs_server(server->debug_id, 1, 1, afs_server_trace_alloc);

@@ -149,6 +149,8 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->ret_vldb = entry;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
+	call->peer = rxrpc_kernel_get_peer(vc->ac.alist->addrs[vc->ac.index].peer);
+	call->service_id = vc->server->service_id;
 
 	/* Marshall the parameters */
 	bp = call->request;
@@ -211,7 +213,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 		count		= ntohl(*bp);
 
 		nentries = min(nentries, count);
-		alist = afs_alloc_addrlist(nentries, FS_SERVICE);
+		alist = afs_alloc_addrlist(nentries);
 		if (!alist)
 			return -ENOMEM;
 		alist->version = uniquifier;
@@ -288,6 +290,8 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->ret_alist = NULL;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
+	call->peer = rxrpc_kernel_get_peer(vc->ac.alist->addrs[vc->ac.index].peer);
+	call->service_id = vc->server->service_id;
 
 	/* Marshall the parameters */
 	bp = call->request;
@@ -407,6 +411,8 @@ struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
 	call->key = key;
 	call->vlserver = afs_get_vlserver(server);
 	call->server_index = server_index;
+	call->peer = rxrpc_kernel_get_peer(ac->alist->addrs[ac->index].peer);
+	call->service_id = server->service_id;
 	call->upgrade = true;
 	call->async = true;
 	call->max_lifespan = AFS_PROBE_MAX_LIFESPAN;
@@ -462,7 +468,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		if (call->count > YFS_MAXENDPOINTS)
 			return afs_protocol_error(call, afs_eproto_yvl_fsendpt_num);
 
-		alist = afs_alloc_addrlist(call->count, FS_SERVICE);
+		alist = afs_alloc_addrlist(call->count);
 		if (!alist)
 			return -ENOMEM;
 		alist->version = uniquifier;
@@ -652,6 +658,8 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->ret_alist = NULL;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
+	call->peer = rxrpc_kernel_get_peer(vc->ac.alist->addrs[vc->ac.index].peer);
+	call->service_id = vc->server->service_id;
 
 	/* Marshall the parameters */
 	bp = call->request;
@@ -769,6 +777,8 @@ char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *vc)
 	call->key = vc->key;
 	call->ret_str = NULL;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
+	call->peer = rxrpc_kernel_get_peer(vc->ac.alist->addrs[vc->ac.index].peer);
+	call->service_id = vc->server->service_id;
 
 	/* marshall the parameters */
 	bp = call->request;

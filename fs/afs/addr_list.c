@@ -56,13 +56,12 @@ struct afs_addr_list *afs_get_addrlist(struct afs_addr_list *alist, enum afs_ali
 /*
  * Allocate an address list.
  */
-struct afs_addr_list *afs_alloc_addrlist(unsigned int nr, u16 service_id)
+struct afs_addr_list *afs_alloc_addrlist(unsigned int nr)
 {
 	struct afs_addr_list *alist;
-	unsigned int i;
 	static atomic_t debug_id;
 
-	_enter("%u,%u", nr, service_id);
+	_enter("%u", nr);
 
 	if (nr > AFS_MAX_ADDRESSES)
 		nr = AFS_MAX_ADDRESSES;
@@ -74,9 +73,6 @@ struct afs_addr_list *afs_alloc_addrlist(unsigned int nr, u16 service_id)
 	refcount_set(&alist->usage, 1);
 	alist->max_addrs = nr;
 	alist->debug_id = atomic_inc_return(&debug_id);
-
-	for (i = 0; i < nr; i++)
-		alist->addrs[i].service_id = service_id;
 	trace_afs_alist(alist->debug_id, 1, afs_alist_trace_alloc);
 	return alist;
 }
@@ -150,7 +146,7 @@ struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *net,
 	if (!vllist->servers[0].server)
 		goto error_vl;
 
-	alist = afs_alloc_addrlist(nr, service);
+	alist = afs_alloc_addrlist(nr);
 	if (!alist)
 		goto error;
 

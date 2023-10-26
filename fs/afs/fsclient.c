@@ -1620,7 +1620,9 @@ int afs_fs_give_up_all_callbacks(struct afs_net *net,
 	if (!call)
 		return -ENOMEM;
 
-	call->key = key;
+	call->key	= key;
+	call->peer	= rxrpc_kernel_get_peer(ac->alist->addrs[ac->index].peer);
+	call->service_id = server->service_id;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1722,10 +1724,12 @@ bool afs_fs_get_capabilities(struct afs_net *net, struct afs_server *server,
 	if (!call)
 		return false;
 
-	call->key = key;
-	call->server = afs_use_server(server, afs_server_trace_get_caps);
-	call->upgrade = true;
-	call->async = true;
+	call->key	= key;
+	call->server	= afs_use_server(server, afs_server_trace_get_caps);
+	call->peer	= rxrpc_kernel_get_peer(ac->alist->addrs[ac->index].peer);
+	call->service_id = server->service_id;
+	call->upgrade	= true;
+	call->async	= true;
 	call->max_lifespan = AFS_PROBE_MAX_LIFESPAN;
 
 	/* marshall the parameters */

@@ -74,7 +74,6 @@ enum afs_call_state {
 
 struct afs_address {
 	struct rxrpc_peer	*peer;
-	u16			service_id;
 	short			last_error;	/* Last error from this address */
 };
 
@@ -108,6 +107,7 @@ struct afs_call {
 	struct work_struct	async_work;	/* async I/O processor */
 	struct work_struct	work;		/* actual work processor */
 	struct rxrpc_call	*rxcall;	/* RxRPC call handle */
+	struct rxrpc_peer	*peer;		/* Remote endpoint */
 	struct key		*key;		/* security for this call */
 	struct afs_net		*net;		/* The network namespace */
 	struct afs_server	*server;	/* The fileserver record if fs op (pins ref) */
@@ -435,6 +435,7 @@ struct afs_vlserver {
 #define AFS_VLSERVER_PROBE_LOCAL_FAILURE	0x08 /* A local failure prevented a probe */
 	} probe;
 
+	u16			service_id;	/* Service ID we're using */
 	u16			port;
 	u16			name_len;	/* Length of name */
 	char			name[];		/* Server name, case-flattened */
@@ -527,6 +528,7 @@ struct afs_server {
 	refcount_t		ref;		/* Object refcount */
 	atomic_t		active;		/* Active user count */
 	u32			addr_version;	/* Address list version */
+	u16			service_id;	/* Service ID we're using. */
 	unsigned int		rtt;		/* Server's current RTT in uS */
 	unsigned int		debug_id;	/* Debugging ID for traces */
 
@@ -971,7 +973,7 @@ static inline bool afs_is_folio_dirty_mmapped(unsigned long priv)
  * addr_list.c
  */
 struct afs_addr_list *afs_get_addrlist(struct afs_addr_list *alist, enum afs_alist_trace reason);
-extern struct afs_addr_list *afs_alloc_addrlist(unsigned int nr, u16 service_id);
+extern struct afs_addr_list *afs_alloc_addrlist(unsigned int nr);
 extern void afs_put_addrlist(struct afs_addr_list *alist, enum afs_alist_trace reason);
 extern struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *,
 						      const char *, size_t, char,
@@ -1318,11 +1320,13 @@ extern int afs_protocol_error(struct afs_call *, enum afs_eproto_cause);
 static inline void afs_make_op_call(struct afs_operation *op, struct afs_call *call,
 				    gfp_t gfp)
 {
-	op->call = call;
-	op->type = call->type;
-	call->op = op;
-	call->key = op->key;
-	call->intr = !(op->flags & AFS_OPERATION_UNINTR);
+	op->call	= call;
+	op->type	= call->type;
+	call->op	= op;
+	call->key	= op->key;
+	call->intr	= !(op->flags & AFS_OPERATION_UNINTR);
+	call->peer	= rxrpc_kernel_get_peer(op->ac.alist->addrs[op->ac.index].peer);
+	call->service_id = op->server->service_id;
 	afs_make_call(&op->ac, call, gfp);
 }
 

@@ -23,6 +23,7 @@ struct afs_vlserver *afs_alloc_vlserver(const char *name, size_t name_len,
 		spin_lock_init(&vlserver->probe_lock);
 		vlserver->rtt = UINT_MAX;
 		vlserver->name_len = name_len;
+		vlserver->service_id = VL_SERVICE;
 		vlserver->port = port;
 		memcpy(vlserver->name, name, name_len);
 	}
@@ -92,7 +93,7 @@ static struct afs_addr_list *afs_extract_vl_addrs(struct afs_net *net,
 	const u8 *b = *_b;
 	int ret = -EINVAL;
 
-	alist = afs_alloc_addrlist(nr_addrs, VL_SERVICE);
+	alist = afs_alloc_addrlist(nr_addrs);
 	if (!alist)
 		return ERR_PTR(-ENOMEM);
 	if (nr_addrs == 0)
