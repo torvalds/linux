@@ -822,7 +822,7 @@ static int psp_tmr_init(struct psp_context *psp)
 		}
 	}
 
-	if (!psp->tmr_bo) {
+	if (!psp->tmr_bo && !psp->boot_time_tmr) {
 		pptr = amdgpu_sriov_vf(psp->adev) ? &tmr_buf : NULL;
 		ret = amdgpu_bo_create_kernel(psp->adev, tmr_size,
 					      PSP_TMR_ALIGNMENT,
@@ -2258,7 +2258,7 @@ static int psp_hw_start(struct psp_context *psp)
 	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev))
 		goto skip_pin_bo;
 
-	if (!psp->boot_time_tmr) {
+	if (!psp->boot_time_tmr || psp->autoload_supported) {
 		ret = psp_tmr_init(psp);
 		if (ret) {
 			dev_err(adev->dev, "PSP tmr init failed!\n");
@@ -2278,10 +2278,12 @@ skip_pin_bo:
 			return ret;
 	}
 
-	ret = psp_tmr_load(psp);
-	if (ret) {
-		dev_err(adev->dev, "PSP load tmr failed!\n");
-		return ret;
+	if (!psp->boot_time_tmr || !psp->autoload_supported) {
+		ret = psp_tmr_load(psp);
+		if (ret) {
+			dev_err(adev->dev, "PSP load tmr failed!\n");
+			return ret;
+		}
 	}
 
 	return 0;
