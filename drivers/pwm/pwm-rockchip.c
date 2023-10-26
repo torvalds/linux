@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -65,6 +66,8 @@ struct rockchip_pwm_chip {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *active_state;
 	const struct rockchip_pwm_data *data;
+	struct resource *res;
+	struct dentry *debugfs;
 	void __iomem *base;
 	unsigned long clk_rate;
 	bool vop_pwm_en; /* indicate voppwm mirror register state */
@@ -371,6 +374,57 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int rockchip_pwm_debugfs_show(struct seq_file *s, void *data)
+{
+	struct rockchip_pwm_chip *pc = s->private;
+	u32 regs_start;
+	int i;
+	int ret = 0;
+
+	if (!pc->oneshot_en) {
+		ret = clk_enable(pc->pclk);
+		if (ret)
+			return ret;
+	}
+
+	regs_start = (u32)pc->res->start - pc->channel_id * 0x10;
+	for (i = 0; i < 0x40; i += 4) {
+		seq_printf(s, "%08x:  %08x %08x %08x %08x\n", regs_start + i * 4,
+			   readl_relaxed(pc->base + (4 * i)),
+			   readl_relaxed(pc->base + (4 * (i + 1))),
+			   readl_relaxed(pc->base + (4 * (i + 2))),
+			   readl_relaxed(pc->base + (4 * (i + 3))));
+	}
+
+	if (!pc->oneshot_en)
+		clk_disable(pc->pclk);
+
+	return ret;
+}
+DEFINE_SHOW_ATTRIBUTE(rockchip_pwm_debugfs);
+
+static inline void rockchip_pwm_debugfs_init(struct rockchip_pwm_chip *pc)
+{
+	pc->debugfs = debugfs_create_file(dev_name(pc->chip.dev),
+					  S_IFREG | 0444, NULL, pc,
+					  &rockchip_pwm_debugfs_fops);
+}
+
+static inline void rockchip_pwm_debugfs_deinit(struct rockchip_pwm_chip *pc)
+{
+	debugfs_remove(pc->debugfs);
+}
+#else
+static inline void rockchip_pwm_debugfs_init(struct rockchip_pwm_chip *pc)
+{
+}
+
+static inline void rockchip_pwm_debugfs_deinit(struct rockchip_pwm_chip *pc)
+{
+}
+#endif
+
 static const struct pwm_ops rockchip_pwm_ops = {
 	.get_state = rockchip_pwm_get_state,
 	.apply = rockchip_pwm_apply,
@@ -474,8 +528,14 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pc->base = devm_ioremap(&pdev->dev, r->start,
-				resource_size(r));
+	if (!r) {
+		dev_err(&pdev->dev, "Failed to get pwm register\n");
+		return -EINVAL;
+	}
+	pc->res = r;
+
+	pc->base = devm_ioremap(&pdev->dev, pc->res->start,
+				resource_size(pc->res));
 	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
 
@@ -578,6 +638,8 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		goto err_pclk;
 	}
 
+	rockchip_pwm_debugfs_init(pc);
+
 	/* Keep the PWM clk enabled if the PWM appears to be up and running. */
 	if (!enabled)
 		clk_disable(pc->clk);
@@ -599,6 +661,8 @@ static int rockchip_pwm_remove(struct platform_device *pdev)
 	struct rockchip_pwm_chip *pc = platform_get_drvdata(pdev);
 	struct pwm_state state;
 	u32 val;
+
+	rockchip_pwm_debugfs_deinit(pc);
 
 	/*
 	 * For oneshot mode, it is needed to wait for bit PWM_ENABLE
