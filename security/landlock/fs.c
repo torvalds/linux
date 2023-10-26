@@ -178,9 +178,9 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 		return -EINVAL;
 
 	/* Transforms relative access rights to absolute ones. */
-	access_rights |=
-		LANDLOCK_MASK_ACCESS_FS &
-		~(ruleset->fs_access_masks[0] | ACCESS_INITIALLY_DENIED);
+	access_rights |= LANDLOCK_MASK_ACCESS_FS &
+			 ~(landlock_get_fs_access_mask(ruleset, 0) |
+			   ACCESS_INITIALLY_DENIED);
 	object = get_inode_object(d_backing_inode(path->dentry));
 	if (IS_ERR(object))
 		return PTR_ERR(object);
@@ -294,7 +294,7 @@ get_handled_accesses(const struct landlock_ruleset *const domain)
 	size_t layer_level;
 
 	for (layer_level = 0; layer_level < domain->num_layers; layer_level++)
-		access_dom |= domain->fs_access_masks[layer_level];
+		access_dom |= landlock_get_fs_access_mask(domain, layer_level);
 	return access_dom & LANDLOCK_MASK_ACCESS_FS;
 }
 
@@ -336,7 +336,7 @@ init_layer_masks(const struct landlock_ruleset *const domain,
 			 * access rights.
 			 */
 			if (BIT_ULL(access_bit) &
-			    (domain->fs_access_masks[layer_level] |
+			    (landlock_get_fs_access_mask(domain, layer_level) |
 			     ACCESS_INITIALLY_DENIED)) {
 				(*layer_masks)[access_bit] |=
 					BIT_ULL(layer_level);
