@@ -17,6 +17,8 @@ def define_niobe():
         "drivers/iommu/msm_dma_iommu_mapping.ko",
         "drivers/iommu/qcom_iommu_util.ko",
         "drivers/irqchip/qcom-pdc.ko",
+        "drivers/pinctrl/qcom/pinctrl-msm.ko",
+        "drivers/pinctrl/qcom/pinctrl-niobe.ko",
         "drivers/regulator/stub-regulator.ko",
         "drivers/soc/qcom/cmd-db.ko",
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
