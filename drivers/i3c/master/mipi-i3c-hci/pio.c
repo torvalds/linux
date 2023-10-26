@@ -872,7 +872,7 @@ static bool hci_pio_process_ibi(struct i3c_hci *hci, struct hci_pio_data *pio)
 {
 	struct hci_pio_ibi_data *ibi = &pio->ibi;
 
-	if (!ibi->slot && !ibi->seg_cnt && ibi->last_seg)
+	if (!ibi->slot && !ibi->seg_cnt)
 		if (!hci_pio_prep_new_ibi(hci, pio))
 			return false;
 
