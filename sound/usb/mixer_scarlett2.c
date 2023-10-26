@@ -213,15 +213,15 @@ static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 /* Maximum number of meters (sum of output port counts) */
 #define SCARLETT2_MAX_METERS 65
 
-/* There are three different sets of configuration parameters across
- * the devices
+/* There are different sets of configuration parameters across the
+ * devices, dependent on series and model.
  */
 enum {
-	SCARLETT2_CONFIG_SET_NO_MIXER = 0,
-	SCARLETT2_CONFIG_SET_GEN_2 = 1,
-	SCARLETT2_CONFIG_SET_GEN_3 = 2,
+	SCARLETT2_CONFIG_SET_GEN_2   = 0,
+	SCARLETT2_CONFIG_SET_GEN_3A  = 1,
+	SCARLETT2_CONFIG_SET_GEN_3B  = 2,
 	SCARLETT2_CONFIG_SET_CLARETT = 3,
-	SCARLETT2_CONFIG_SET_COUNT = 4
+	SCARLETT2_CONFIG_SET_COUNT   = 4
 };
 
 /* Hardware port types:
@@ -595,7 +595,7 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 
 static const struct scarlett2_device_info solo_gen3_info = {
 	.has_msd_mode = 1,
-	.config_set = SCARLETT2_CONFIG_SET_NO_MIXER,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_3A,
 	.level_input_count = 1,
 	.level_input_first = 1,
 	.air_input_count = 1,
@@ -606,7 +606,7 @@ static const struct scarlett2_device_info solo_gen3_info = {
 
 static const struct scarlett2_device_info s2i2_gen3_info = {
 	.has_msd_mode = 1,
-	.config_set = SCARLETT2_CONFIG_SET_NO_MIXER,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_3A,
 	.level_input_count = 2,
 	.air_input_count = 2,
 	.phantom_count = 1,
@@ -616,7 +616,7 @@ static const struct scarlett2_device_info s2i2_gen3_info = {
 
 static const struct scarlett2_device_info s4i4_gen3_info = {
 	.has_msd_mode = 1,
-	.config_set = SCARLETT2_CONFIG_SET_GEN_3,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_3B,
 	.level_input_count = 2,
 	.pad_input_count = 2,
 	.air_input_count = 2,
@@ -660,7 +660,7 @@ static const struct scarlett2_device_info s4i4_gen3_info = {
 
 static const struct scarlett2_device_info s8i6_gen3_info = {
 	.has_msd_mode = 1,
-	.config_set = SCARLETT2_CONFIG_SET_GEN_3,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_3B,
 	.level_input_count = 2,
 	.pad_input_count = 2,
 	.air_input_count = 2,
@@ -711,7 +711,7 @@ static const struct scarlett2_device_info s8i6_gen3_info = {
 
 static const struct scarlett2_device_info s18i8_gen3_info = {
 	.has_msd_mode = 1,
-	.config_set = SCARLETT2_CONFIG_SET_GEN_3,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_3B,
 	.line_out_hw_vol = 1,
 	.has_speaker_switching = 1,
 	.level_input_count = 2,
@@ -779,7 +779,7 @@ static const struct scarlett2_device_info s18i8_gen3_info = {
 
 static const struct scarlett2_device_info s18i20_gen3_info = {
 	.has_msd_mode = 1,
-	.config_set = SCARLETT2_CONFIG_SET_GEN_3,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_3B,
 	.line_out_hw_vol = 1,
 	.has_speaker_switching = 1,
 	.has_talkback = 1,
@@ -1116,28 +1116,8 @@ static const struct scarlett2_config
 	scarlett2_config_items[SCARLETT2_CONFIG_SET_COUNT]
 			      [SCARLETT2_CONFIG_COUNT] =
 
-/* Devices without a mixer (Gen 3 Solo and 2i2) */
-{ {
-	[SCARLETT2_CONFIG_MSD_SWITCH] = {
-		.offset = 0x04, .size = 8, .activate = 6 },
-
-	[SCARLETT2_CONFIG_PHANTOM_PERSISTENCE] = {
-		.offset = 0x05, .size = 8, .activate = 6 },
-
-	[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
-		.offset = 0x06, .size = 8, .activate = 3 },
-
-	[SCARLETT2_CONFIG_DIRECT_MONITOR] = {
-		.offset = 0x07, .size = 8, .activate = 4 },
-
-	[SCARLETT2_CONFIG_LEVEL_SWITCH] = {
-		.offset = 0x08, .size = 1, .activate = 7 },
-
-	[SCARLETT2_CONFIG_AIR_SWITCH] = {
-		.offset = 0x09, .size = 1, .activate = 8 },
-
 /* Gen 2 devices: 6i6, 18i8, 18i20 */
-}, {
+{ {
 	[SCARLETT2_CONFIG_DIM_MUTE] = {
 		.offset = 0x31, .size = 8, .activate = 2 },
 
@@ -1158,6 +1138,26 @@ static const struct scarlett2_config
 
 	[SCARLETT2_CONFIG_STANDALONE_SWITCH] = {
 		.offset = 0x8d, .size = 8, .activate = 6 },
+
+/* Gen 3 devices without a mixer (Solo and 2i2) */
+}, {
+	[SCARLETT2_CONFIG_MSD_SWITCH] = {
+		.offset = 0x04, .size = 8, .activate = 6 },
+
+	[SCARLETT2_CONFIG_PHANTOM_PERSISTENCE] = {
+		.offset = 0x05, .size = 8, .activate = 6 },
+
+	[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
+		.offset = 0x06, .size = 8, .activate = 3 },
+
+	[SCARLETT2_CONFIG_DIRECT_MONITOR] = {
+		.offset = 0x07, .size = 8, .activate = 4 },
+
+	[SCARLETT2_CONFIG_LEVEL_SWITCH] = {
+		.offset = 0x08, .size = 1, .activate = 7 },
+
+	[SCARLETT2_CONFIG_AIR_SWITCH] = {
+		.offset = 0x09, .size = 1, .activate = 8 },
 
 /* Gen 3 devices: 4i4, 8i6, 18i8, 18i20 */
 }, {
@@ -1907,7 +1907,7 @@ static int scarlett2_add_sync_ctl(struct usb_mixer_interface *mixer)
 	struct scarlett2_data *private = mixer->private_data;
 
 	/* devices without a mixer also don't support reporting sync status */
-	if (private->info->config_set == SCARLETT2_CONFIG_SET_NO_MIXER)
+	if (private->info->config_set == SCARLETT2_CONFIG_SET_GEN_3A)
 		return 0;
 
 	return scarlett2_add_new_ctl(mixer, &scarlett2_sync_ctl,
@@ -3614,7 +3614,7 @@ static int scarlett2_add_meter_ctl(struct usb_mixer_interface *mixer)
 	struct scarlett2_data *private = mixer->private_data;
 
 	/* devices without a mixer also don't support reporting levels */
-	if (private->info->config_set == SCARLETT2_CONFIG_SET_NO_MIXER)
+	if (private->info->config_set == SCARLETT2_CONFIG_SET_GEN_3A)
 		return 0;
 
 	return scarlett2_add_new_ctl(mixer, &scarlett2_meter_ctl,
@@ -3744,7 +3744,7 @@ static int scarlett2_add_standalone_ctl(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 
-	if (private->info->config_set == SCARLETT2_CONFIG_SET_NO_MIXER)
+	if (private->info->config_set == SCARLETT2_CONFIG_SET_GEN_3A)
 		return 0;
 
 	/* Add standalone control */
@@ -3911,7 +3911,7 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 		return err;
 
 	/* the rest of the configuration is for devices with a mixer */
-	if (info->config_set == SCARLETT2_CONFIG_SET_NO_MIXER)
+	if (info->config_set == SCARLETT2_CONFIG_SET_GEN_3A)
 		return 0;
 
 	err = scarlett2_usb_get_config(
