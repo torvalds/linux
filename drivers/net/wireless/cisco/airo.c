@@ -6067,8 +6067,7 @@ static int airo_get_nick(struct net_device *dev,
 	struct airo_info *local = dev->ml_priv;
 
 	readConfigRid(local, 1);
-	strncpy(extra, local->config.nodeName, 16);
-	extra[16] = '\0';
+	strscpy_pad(extra, local->config.nodeName, IW_ESSID_MAX_SIZE);
 	dwrq->length = strlen(extra);
 
 	return 0;
