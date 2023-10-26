@@ -15,9 +15,20 @@
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
 #include <linux/workqueue.h>
+#include <uapi/linux/landlock.h>
 
 #include "limits.h"
 #include "object.h"
+
+/*
+ * All access rights that are denied by default whether they are handled or not
+ * by a ruleset/layer.  This must be ORed with all ruleset->access_masks[]
+ * entries when we need to get the absolute handled access masks.
+ */
+/* clang-format off */
+#define LANDLOCK_ACCESS_FS_INITIALLY_DENIED ( \
+	LANDLOCK_ACCESS_FS_REFER)
+/* clang-format on */
 
 typedef u16 access_mask_t;
 /* Makes sure all filesystem access rights can be stored. */
@@ -196,12 +207,21 @@ landlock_add_fs_access_mask(struct landlock_ruleset *const ruleset,
 }
 
 static inline access_mask_t
-landlock_get_fs_access_mask(const struct landlock_ruleset *const ruleset,
-			    const u16 layer_level)
+landlock_get_raw_fs_access_mask(const struct landlock_ruleset *const ruleset,
+				const u16 layer_level)
 {
 	return (ruleset->access_masks[layer_level] >>
 		LANDLOCK_SHIFT_ACCESS_FS) &
 	       LANDLOCK_MASK_ACCESS_FS;
+}
+
+static inline access_mask_t
+landlock_get_fs_access_mask(const struct landlock_ruleset *const ruleset,
+			    const u16 layer_level)
+{
+	/* Handles all initially denied by default access rights. */
+	return landlock_get_raw_fs_access_mask(ruleset, layer_level) |
+	       LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
 }
 
 #endif /* _SECURITY_LANDLOCK_RULESET_H */

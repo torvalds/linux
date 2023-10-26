@@ -349,7 +349,7 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 	 * Checks that allowed_access matches the @ruleset constraints
 	 * (ruleset->access_masks[0] is automatically upgraded to 64-bits).
 	 */
-	mask = landlock_get_fs_access_mask(ruleset, 0);
+	mask = landlock_get_raw_fs_access_mask(ruleset, 0);
 	if ((path_beneath_attr.allowed_access | mask) != mask) {
 		err = -EINVAL;
 		goto out_put_ruleset;
