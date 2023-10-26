@@ -944,6 +944,7 @@ static int hci_pio_request_ibi(struct i3c_hci *hci, struct i3c_dev_desc *dev,
 	struct i3c_hci_dev_data *dev_data = i3c_dev_get_master_data(dev);
 	struct i3c_generic_ibi_pool *pool;
 	struct hci_pio_dev_ibi_data *dev_ibi;
+	struct hci_pio_data *pio = hci->io_data;
 
 	dev_ibi = kmalloc(sizeof(*dev_ibi), GFP_KERNEL);
 	if (!dev_ibi)
@@ -956,6 +957,8 @@ static int hci_pio_request_ibi(struct i3c_hci *hci, struct i3c_dev_desc *dev,
 	dev_ibi->pool = pool;
 	dev_ibi->max_len = req->max_payload_len;
 	dev_data->ibi_data = dev_ibi;
+	pio->enabled_irqs |= STAT_IBI_STATUS_THLD;
+	pio_reg_write(INTR_SIGNAL_ENABLE, pio->enabled_irqs);
 	return 0;
 }
 
