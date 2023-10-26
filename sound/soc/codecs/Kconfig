@@ -57,6 +57,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_AW87390
 	imply SND_SOC_AW88395
 	imply SND_SOC_AW88261
+	imply SND_SOC_AW88399
 	imply SND_SOC_BT_SCO
 	imply SND_SOC_BD28623
 	imply SND_SOC_CHV3_CODEC
@@ -679,6 +680,19 @@ config SND_SOC_AW87390
 	  the musical output dynamic range, enhance the overall
 	  sound quality, which is a new high efficiency, low
 	  noise, constant large volume, 6th Smart K audio amplifier.
+
+config SND_SOC_AW88399
+	tristate "Soc Audio for awinic aw88399"
+	depends on I2C
+	select CRC8
+	select REGMAP_I2C
+	select GPIOLIB
+	select SND_SOC_AW88399_LIB
+	help
+	  This option enables support for aw88399 Smart PA.
+	  The awinic AW88399 is an I2S/TDM input, high efficiency
+	  digital Smart K audio amplifier and SKTune speaker
+	  protection algorithms.
 
 config SND_SOC_BD28623
 	tristate "ROHM BD28623 CODEC"
