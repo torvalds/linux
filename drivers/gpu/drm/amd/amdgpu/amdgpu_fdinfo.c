@@ -56,21 +56,15 @@ static const char *amdgpu_ip_name[AMDGPU_HW_IP_NUM] = {
 
 void amdgpu_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 {
-	struct amdgpu_device *adev = drm_to_adev(file->minor->dev);
 	struct amdgpu_fpriv *fpriv = file->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 
 	struct amdgpu_mem_stats stats;
 	ktime_t usage[AMDGPU_HW_IP_NUM];
-	uint32_t bus, dev, fn, domain;
 	unsigned int hw_ip;
 	int ret;
 
 	memset(&stats, 0, sizeof(stats));
-	bus = adev->pdev->bus->number;
-	domain = pci_domain_nr(adev->pdev->bus);
-	dev = PCI_SLOT(adev->pdev->devfn);
-	fn = PCI_FUNC(adev->pdev->devfn);
 
 	ret = amdgpu_bo_reserve(vm->root.bo, false);
 	if (ret)
