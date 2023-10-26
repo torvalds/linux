@@ -32,8 +32,8 @@ static bool afs_start_fs_iteration(struct afs_operation *op,
 					  lockdep_is_held(&op->volume->servers_lock)));
 	read_unlock(&op->volume->servers_lock);
 
-	op->untried = (1UL << op->server_list->nr_servers) - 1;
-	op->index = READ_ONCE(op->server_list->preferred);
+	op->untried_servers = (1UL << op->server_list->nr_servers) - 1;
+	op->server_index = READ_ONCE(op->server_list->preferred);
 
 	cb_server = vnode->cb_server;
 	if (cb_server) {
@@ -41,7 +41,7 @@ static bool afs_start_fs_iteration(struct afs_operation *op,
 		for (i = 0; i < op->server_list->nr_servers; i++) {
 			server = op->server_list->servers[i].server;
 			if (server == cb_server) {
-				op->index = i;
+				op->server_index = i;
 				goto found_interest;
 			}
 		}
@@ -120,7 +120,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 
 	_enter("OP=%x+%x,%llx,%lx[%d],%lx[%d],%d,%d",
 	       op->debug_id, op->nr_iterations, op->volume->vid,
-	       op->untried, op->index,
+	       op->untried_servers, op->server_index,
 	       op->ac.tried, op->ac.index,
 	       error, abort_code);
 
@@ -172,7 +172,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			}
 
 			write_lock(&op->volume->servers_lock);
-			op->server_list->vnovol_mask |= 1 << op->index;
+			op->server_list->vnovol_mask |= 1 << op->server_index;
 			write_unlock(&op->volume->servers_lock);
 
 			set_bit(AFS_VOLUME_NEEDS_UPDATE, &op->volume->flags);
@@ -419,9 +419,9 @@ start:
 	_debug("__ VOL %llx __", op->volume->vid);
 
 pick_server:
-	_debug("pick [%lx]", op->untried);
+	_debug("pick [%lx]", op->untried_servers);
 
-	error = afs_wait_for_fs_probes(op->server_list, op->untried);
+	error = afs_wait_for_fs_probes(op->server_list, op->untried_servers);
 	if (error < 0) {
 		afs_op_set_error(op, error);
 		goto failed;
@@ -431,40 +431,40 @@ pick_server:
 	 * callbacks, we stick with the server we're already using if we can.
 	 */
 	if (op->server) {
-		_debug("server %u", op->index);
-		if (test_bit(op->index, &op->untried))
+		_debug("server %u", op->server_index);
+		if (test_bit(op->server_index, &op->untried_servers))
 			goto selected_server;
 		op->server = NULL;
 		_debug("no server");
 	}
 
-	op->index = -1;
+	op->server_index = -1;
 	rtt = UINT_MAX;
 	for (i = 0; i < op->server_list->nr_servers; i++) {
 		struct afs_server *s = op->server_list->servers[i].server;
 
-		if (!test_bit(i, &op->untried) ||
+		if (!test_bit(i, &op->untried_servers) ||
 		    !test_bit(AFS_SERVER_FL_RESPONDING, &s->flags))
 			continue;
 		if (s->probe.rtt <= rtt) {
-			op->index = i;
+			op->server_index = i;
 			rtt = s->probe.rtt;
 		}
 	}
 
-	if (op->index == -1)
+	if (op->server_index == -1)
 		goto no_more_servers;
 
 selected_server:
-	_debug("use %d", op->index);
-	__clear_bit(op->index, &op->untried);
+	_debug("use %d", op->server_index);
+	__clear_bit(op->server_index, &op->untried_servers);
 
 	/* We're starting on a different fileserver from the list.  We need to
 	 * check it, create a callback intercept, find its address list and
 	 * probe its capabilities before we use it.
 	 */
 	ASSERTCMP(op->ac.alist, ==, NULL);
-	server = op->server_list->servers[op->index].server;
+	server = op->server_list->servers[op->server_index].server;
 
 	if (!afs_check_server_record(op, server))
 		goto failed;
@@ -506,7 +506,7 @@ iterate_address:
 		goto out_of_addresses;
 
 	_debug("address [%u] %u/%u %pISp",
-	       op->index, op->ac.index, op->ac.alist->nr_addrs,
+	       op->server_index, op->ac.index, op->ac.alist->nr_addrs,
 	       rxrpc_kernel_remote_addr(op->ac.alist->addrs[op->ac.index].peer));
 
 	op->call_responded = false;
@@ -581,7 +581,7 @@ void afs_dump_edestaddrreq(const struct afs_operation *op)
 		  op->file[0].cb_break_before,
 		  op->file[1].cb_break_before, op->flags, op->cumul_error.error);
 	pr_notice("OP: ut=%lx ix=%d ni=%u\n",
-		  op->untried, op->index, op->nr_iterations);
+		  op->untried_servers, op->server_index, op->nr_iterations);
 	pr_notice("OP: call  er=%d ac=%d r=%u\n",
 		  op->call_error, op->call_abort_code, op->call_responded);
 

@@ -747,11 +747,11 @@ struct afs_vl_cursor {
 	struct afs_vlserver_list *server_list;	/* Current server list (pins ref) */
 	struct afs_vlserver	*server;	/* Server on which this resides */
 	struct key		*key;		/* Key for the server */
-	unsigned long		untried;	/* Bitmask of untried servers */
+	unsigned long		untried_servers; /* Bitmask of untried servers */
 	struct afs_error	cumul_error;	/* Cumulative error */
 	s32			call_abort_code;
-	short			index;		/* Current server */
 	short			call_error;	/* Error from single call */
+	short			server_index;	/* Current server */
 	unsigned short		flags;
 #define AFS_VL_CURSOR_STOP	0x0001		/* Set to cease iteration */
 #define AFS_VL_CURSOR_RETRY	0x0002		/* Set to do a retry */
@@ -864,8 +864,8 @@ struct afs_operation {
 	struct afs_server_list	*server_list;	/* Current server list (pins ref) */
 	struct afs_server	*server;	/* Server we're using (ref pinned by server_list) */
 	struct afs_call		*call;
-	unsigned long		untried;	/* Bitmask of untried servers */
-	short			index;		/* Current server */
+	unsigned long		untried_servers; /* Bitmask of untried servers */
+	short			server_index;	/* Current server */
 	short			nr_iterations;	/* Number of server iterations */
 	bool			call_responded;	/* T if the current address responded */
 

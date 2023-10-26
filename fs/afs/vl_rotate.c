@@ -78,8 +78,8 @@ static bool afs_start_vl_iteration(struct afs_vl_cursor *vc)
 	if (!vc->server_list->nr_servers)
 		return false;
 
-	vc->untried = (1UL << vc->server_list->nr_servers) - 1;
-	vc->index = -1;
+	vc->untried_servers = (1UL << vc->server_list->nr_servers) - 1;
+	vc->server_index = -1;
 	return true;
 }
 
@@ -98,7 +98,7 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 	vc->nr_iterations++;
 
 	_enter("%lx[%d],%lx[%d],%d,%d",
-	       vc->untried, vc->index,
+	       vc->untried_servers, vc->server_index,
 	       vc->ac.tried, vc->ac.index,
 	       error, abort_code);
 
@@ -131,7 +131,7 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 			/* The server went weird. */
 			afs_prioritise_error(&vc->cumul_error, -EREMOTEIO, abort_code);
 			//write_lock(&vc->cell->vl_servers_lock);
-			//vc->server_list->weird_mask |= 1 << vc->index;
+			//vc->server_list->weird_mask |= 1 << vc->server_index;
 			//write_unlock(&vc->cell->vl_servers_lock);
 			goto next_server;
 
@@ -184,46 +184,46 @@ start:
 	}
 
 pick_server:
-	_debug("pick [%lx]", vc->untried);
+	_debug("pick [%lx]", vc->untried_servers);
 
-	error = afs_wait_for_vl_probes(vc->server_list, vc->untried);
+	error = afs_wait_for_vl_probes(vc->server_list, vc->untried_servers);
 	if (error < 0) {
 		afs_prioritise_error(&vc->cumul_error, error, 0);
 		goto failed;
 	}
 
 	/* Pick the untried server with the lowest RTT. */
-	vc->index = vc->server_list->preferred;
-	if (test_bit(vc->index, &vc->untried))
+	vc->server_index = vc->server_list->preferred;
+	if (test_bit(vc->server_index, &vc->untried_servers))
 		goto selected_server;
 
-	vc->index = -1;
+	vc->server_index = -1;
 	rtt = UINT_MAX;
 	for (i = 0; i < vc->server_list->nr_servers; i++) {
 		struct afs_vlserver *s = vc->server_list->servers[i].server;
 
-		if (!test_bit(i, &vc->untried) ||
+		if (!test_bit(i, &vc->untried_servers) ||
 		    !test_bit(AFS_VLSERVER_FL_RESPONDING, &s->flags))
 			continue;
 		if (s->probe.rtt <= rtt) {
-			vc->index = i;
+			vc->server_index = i;
 			rtt = s->probe.rtt;
 		}
 	}
 
-	if (vc->index == -1)
+	if (vc->server_index == -1)
 		goto no_more_servers;
 
 selected_server:
-	_debug("use %d", vc->index);
-	__clear_bit(vc->index, &vc->untried);
+	_debug("use %d", vc->server_index);
+	__clear_bit(vc->server_index, &vc->untried_servers);
 
 	/* We're starting on a different vlserver from the list.  We need to
 	 * check it, find its address list and probe its capabilities before we
 	 * use it.
 	 */
 	ASSERTCMP(vc->ac.alist, ==, NULL);
-	vlserver = vc->server_list->servers[vc->index].server;
+	vlserver = vc->server_list->servers[vc->server_index].server;
 	vc->server = vlserver;
 
 	_debug("USING VLSERVER: %s", vlserver->name);
@@ -299,7 +299,7 @@ static void afs_vl_dump_edestaddrreq(const struct afs_vl_cursor *vc)
 	pr_notice("DNS: src=%u st=%u lc=%x\n",
 		  cell->dns_source, cell->dns_status, cell->dns_lookup_count);
 	pr_notice("VC: ut=%lx ix=%u ni=%hu fl=%hx err=%hd\n",
-		  vc->untried, vc->index, vc->nr_iterations, vc->flags,
+		  vc->untried_servers, vc->server_index, vc->nr_iterations, vc->flags,
 		  vc->cumul_error.error);
 	pr_notice("VC: call  er=%d ac=%d r=%u\n",
 		  vc->call_error, vc->call_abort_code, vc->call_responded);
