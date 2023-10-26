@@ -813,14 +813,17 @@ static int cs35l41_system_suspend(struct device *dev)
 
 	/* Shutdown DSP before system suspend */
 	ret = cs35l41_ready_for_reset(cs35l41);
-
 	if (ret)
 		dev_err(dev, "System Suspend Failed, not ready for Reset: %d\n", ret);
 
-	/*
-	 * Reset GPIO may be shared, so cannot reset here.
-	 * However beyond this point, amps may be powered down.
-	 */
+	if (cs35l41->reset_gpio) {
+		dev_info(cs35l41->dev, "Asserting Reset\n");
+		gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
+		usleep_range(2000, 2100);
+	}
+
+	dev_dbg(cs35l41->dev, "System Suspended\n");
+
 	return ret;
 }
 
