@@ -28,10 +28,10 @@ void intel_hdcp_atomic_check(struct drm_connector *connector,
 int intel_hdcp_init(struct intel_connector *connector,
 		    struct intel_digital_port *dig_port,
 		    const struct intel_hdcp_shim *hdcp_shim);
-int intel_hdcp_enable(struct intel_atomic_state *state,
-		      struct intel_encoder *encoder,
-		      const struct intel_crtc_state *pipe_config,
-		      const struct drm_connector_state *conn_state);
+void intel_hdcp_enable(struct intel_atomic_state *state,
+		       struct intel_encoder *encoder,
+		       const struct intel_crtc_state *pipe_config,
+		       const struct drm_connector_state *conn_state);
 int intel_hdcp_disable(struct intel_connector *connector);
 void intel_hdcp_update_pipe(struct intel_atomic_state *state,
 			    struct intel_encoder *encoder,
