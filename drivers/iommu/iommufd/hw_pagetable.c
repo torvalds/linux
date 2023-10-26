@@ -44,6 +44,22 @@ void iommufd_hwpt_paging_abort(struct iommufd_object *obj)
 	iommufd_hwpt_paging_destroy(obj);
 }
 
+void iommufd_hwpt_nested_destroy(struct iommufd_object *obj)
+{
+	struct iommufd_hwpt_nested *hwpt_nested =
+		container_of(obj, struct iommufd_hwpt_nested, common.obj);
+
+	if (hwpt_nested->common.domain)
+		iommu_domain_free(hwpt_nested->common.domain);
+
+	refcount_dec(&hwpt_nested->parent->common.obj.users);
+}
+
+void iommufd_hwpt_nested_abort(struct iommufd_object *obj)
+{
+	iommufd_hwpt_nested_destroy(obj);
+}
+
 static int
 iommufd_hwpt_paging_enforce_cc(struct iommufd_hwpt_paging *hwpt_paging)
 {
@@ -68,6 +84,8 @@ iommufd_hwpt_paging_enforce_cc(struct iommufd_hwpt_paging *hwpt_paging)
  * @idev: Device to get an iommu_domain for
  * @flags: Flags from userspace
  * @immediate_attach: True if idev should be attached to the hwpt
+ * @user_data: The user provided driver specific data describing the domain to
+ *             create
  *
  * Allocate a new iommu_domain and return it as a hw_pagetable. The HWPT
  * will be linked to the given ioas and upon return the underlying iommu_domain
@@ -80,7 +98,8 @@ iommufd_hwpt_paging_enforce_cc(struct iommufd_hwpt_paging *hwpt_paging)
 struct iommufd_hwpt_paging *
 iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 			  struct iommufd_device *idev, u32 flags,
-			  bool immediate_attach)
+			  bool immediate_attach,
+			  const struct iommu_user_data *user_data)
 {
 	const u32 valid_flags = IOMMU_HWPT_ALLOC_NEST_PARENT |
 				IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
@@ -91,7 +110,7 @@ iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 
 	lockdep_assert_held(&ioas->mutex);
 
-	if (flags && !ops->domain_alloc_user)
+	if ((flags || user_data) && !ops->domain_alloc_user)
 		return ERR_PTR(-EOPNOTSUPP);
 	if (flags & ~valid_flags)
 		return ERR_PTR(-EOPNOTSUPP);
@@ -106,10 +125,11 @@ iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 	/* Pairs with iommufd_hw_pagetable_destroy() */
 	refcount_inc(&ioas->obj.users);
 	hwpt_paging->ioas = ioas;
+	hwpt_paging->nest_parent = flags & IOMMU_HWPT_ALLOC_NEST_PARENT;
 
 	if (ops->domain_alloc_user) {
-		hwpt->domain =
-			ops->domain_alloc_user(idev->dev, flags, NULL, NULL);
+		hwpt->domain = ops->domain_alloc_user(idev->dev, flags, NULL,
+						      user_data);
 		if (IS_ERR(hwpt->domain)) {
 			rc = PTR_ERR(hwpt->domain);
 			hwpt->domain = NULL;
@@ -169,9 +189,70 @@ out_abort:
 	return ERR_PTR(rc);
 }
 
+/**
+ * iommufd_hwpt_nested_alloc() - Get a NESTED iommu_domain for a device
+ * @ictx: iommufd context
+ * @parent: Parent PAGING-type hwpt to associate the domain with
+ * @idev: Device to get an iommu_domain for
+ * @flags: Flags from userspace
+ * @user_data: user_data pointer. Must be valid
+ *
+ * Allocate a new iommu_domain (must be IOMMU_DOMAIN_NESTED) and return it as
+ * a NESTED hw_pagetable. The given parent PAGING-type hwpt must be capable of
+ * being a parent.
+ */
+static struct iommufd_hwpt_nested *
+iommufd_hwpt_nested_alloc(struct iommufd_ctx *ictx,
+			  struct iommufd_hwpt_paging *parent,
+			  struct iommufd_device *idev, u32 flags,
+			  const struct iommu_user_data *user_data)
+{
+	const struct iommu_ops *ops = dev_iommu_ops(idev->dev);
+	struct iommufd_hwpt_nested *hwpt_nested;
+	struct iommufd_hw_pagetable *hwpt;
+	int rc;
+
+	if (flags || !user_data->len || !ops->domain_alloc_user)
+		return ERR_PTR(-EOPNOTSUPP);
+	if (parent->auto_domain || !parent->nest_parent)
+		return ERR_PTR(-EINVAL);
+
+	hwpt_nested = __iommufd_object_alloc(
+		ictx, hwpt_nested, IOMMUFD_OBJ_HWPT_NESTED, common.obj);
+	if (IS_ERR(hwpt_nested))
+		return ERR_CAST(hwpt_nested);
+	hwpt = &hwpt_nested->common;
+
+	refcount_inc(&parent->common.obj.users);
+	hwpt_nested->parent = parent;
+
+	hwpt->domain = ops->domain_alloc_user(idev->dev, flags,
+					      parent->common.domain, user_data);
+	if (IS_ERR(hwpt->domain)) {
+		rc = PTR_ERR(hwpt->domain);
+		hwpt->domain = NULL;
+		goto out_abort;
+	}
+
+	if (WARN_ON_ONCE(hwpt->domain->type != IOMMU_DOMAIN_NESTED)) {
+		rc = -EINVAL;
+		goto out_abort;
+	}
+	return hwpt_nested;
+
+out_abort:
+	iommufd_object_abort_and_destroy(ictx, &hwpt->obj);
+	return ERR_PTR(rc);
+}
+
 int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 {
 	struct iommu_hwpt_alloc *cmd = ucmd->cmd;
+	const struct iommu_user_data user_data = {
+		.type = cmd->data_type,
+		.uptr = u64_to_user_ptr(cmd->data_uptr),
+		.len = cmd->data_len,
+	};
 	struct iommufd_hw_pagetable *hwpt;
 	struct iommufd_ioas *ioas = NULL;
 	struct iommufd_object *pt_obj;
@@ -180,6 +261,8 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 
 	if (cmd->__reserved)
 		return -EOPNOTSUPP;
+	if (cmd->data_type == IOMMU_HWPT_DATA_NONE && cmd->data_len)
+		return -EINVAL;
 
 	idev = iommufd_get_device(ucmd, cmd->dev_id);
 	if (IS_ERR(idev))
@@ -196,13 +279,27 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 
 		ioas = container_of(pt_obj, struct iommufd_ioas, obj);
 		mutex_lock(&ioas->mutex);
-		hwpt_paging = iommufd_hwpt_paging_alloc(ucmd->ictx, ioas, idev,
-							cmd->flags, false);
+		hwpt_paging = iommufd_hwpt_paging_alloc(
+			ucmd->ictx, ioas, idev, cmd->flags, false,
+			user_data.len ? &user_data : NULL);
 		if (IS_ERR(hwpt_paging)) {
 			rc = PTR_ERR(hwpt_paging);
 			goto out_unlock;
 		}
 		hwpt = &hwpt_paging->common;
+	} else if (pt_obj->type == IOMMUFD_OBJ_HWPT_PAGING) {
+		struct iommufd_hwpt_nested *hwpt_nested;
+
+		hwpt_nested = iommufd_hwpt_nested_alloc(
+			ucmd->ictx,
+			container_of(pt_obj, struct iommufd_hwpt_paging,
+				     common.obj),
+			idev, cmd->flags, &user_data);
+		if (IS_ERR(hwpt_nested)) {
+			rc = PTR_ERR(hwpt_nested);
+			goto out_unlock;
+		}
+		hwpt = &hwpt_nested->common;
 	} else {
 		rc = -EINVAL;
 		goto out_put_pt;
