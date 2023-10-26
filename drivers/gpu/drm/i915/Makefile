@@ -95,10 +95,7 @@ i915-$(CONFIG_COMPAT) += \
 	i915_ioc32.o
 i915-$(CONFIG_DEBUG_FS) += \
 	i915_debugfs.o \
-	i915_debugfs_params.o \
-	display/intel_display_debugfs.o \
-	display/intel_display_debugfs_params.o \
-	display/intel_pipe_crc.o
+	i915_debugfs_params.o
 i915-$(CONFIG_PERF_EVENTS) += \
 	i915_pmu.o
 
@@ -320,6 +317,10 @@ i915-$(CONFIG_ACPI) += \
 	display/intel_opregion.o
 i915-$(CONFIG_DRM_FBDEV_EMULATION) += \
 	display/intel_fbdev.o
+i915-$(CONFIG_DEBUG_FS) += \
+	display/intel_display_debugfs.o \
+	display/intel_display_debugfs_params.o \
+	display/intel_pipe_crc.o
 
 # modesetting output/encoder code
 i915-y += \
