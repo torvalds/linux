@@ -305,7 +305,7 @@ static int meson_irtx_mod_clock_probe(struct meson_irtx *ir,
 	return 0;
 }
 
-static int __init meson_irtx_probe(struct platform_device *pdev)
+static int meson_irtx_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct meson_irtx *ir;
@@ -375,13 +375,13 @@ static const struct of_device_id meson_irtx_dt_match[] = {
 MODULE_DEVICE_TABLE(of, meson_irtx_dt_match);
 
 static struct platform_driver meson_irtx_pd = {
+	.probe = meson_irtx_probe,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = meson_irtx_dt_match,
 	},
 };
-
-module_platform_driver_probe(meson_irtx_pd, meson_irtx_probe);
+module_platform_driver(meson_irtx_pd);
 
 MODULE_DESCRIPTION("Meson IR TX driver");
 MODULE_AUTHOR("Viktor Prutyanov <viktor.prutyanov@phystech.edu>");
