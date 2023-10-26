@@ -98,8 +98,9 @@ struct dphy_hw_drv_data {
 	const struct hsfreq_range *hsfreq_ranges_cphy;
 	int num_hsfreq_ranges_cphy;
 	const struct grf_reg *grf_regs;
-	const struct txrx_reg *txrx_regs;
+	int num_grf_regs;
 	const struct csi2dphy_reg *csi2dphy_regs;
+	int num_csi2dphy_regs;
 	void (*individual_init)(struct csi2_dphy_hw *hw);
 	int (*stream_on)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
 	int (*stream_off)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
@@ -111,7 +112,6 @@ struct csi2_dphy_hw {
 	struct regmap *regmap_grf;
 	struct regmap *regmap_sys_grf;
 	const struct grf_reg *grf_regs;
-	const struct txrx_reg *txrx_regs;
 	const struct csi2dphy_reg *csi2dphy_regs;
 	const struct dphy_hw_drv_data *drv_data;
 	void __iomem *hw_base_addr;

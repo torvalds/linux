@@ -236,9 +236,14 @@ struct hsfreq_range {
 static inline void write_sys_grf_reg(struct csi2_dphy_hw *hw,
 				     int index, u8 value)
 {
-	const struct grf_reg *reg = &hw->grf_regs[index];
-	unsigned int val = HIWORD_UPDATE(value, reg->mask, reg->shift);
+	const struct grf_reg *reg = NULL;
+	unsigned int val = 0;
 
+	if (index >= hw->drv_data->num_grf_regs)
+		return;
+
+	reg = &hw->grf_regs[index];
+	val = HIWORD_UPDATE(value, reg->mask, reg->shift);
 	if (reg->mask)
 		regmap_write(hw->regmap_sys_grf, reg->offset, val);
 }
@@ -246,18 +251,27 @@ static inline void write_sys_grf_reg(struct csi2_dphy_hw *hw,
 static inline void write_grf_reg(struct csi2_dphy_hw *hw,
 				     int index, u8 value)
 {
-	const struct grf_reg *reg = &hw->grf_regs[index];
-	unsigned int val = HIWORD_UPDATE(value, reg->mask, reg->shift);
+	const struct grf_reg *reg = NULL;
+	unsigned int val = 0;
 
+	if (index >= hw->drv_data->num_grf_regs)
+		return;
+
+	reg = &hw->grf_regs[index];
+	val = HIWORD_UPDATE(value, reg->mask, reg->shift);
 	if (reg->mask)
 		regmap_write(hw->regmap_grf, reg->offset, val);
 }
 
 static inline u32 read_grf_reg(struct csi2_dphy_hw *hw, int index)
 {
-	const struct grf_reg *reg = &hw->grf_regs[index];
+	const struct grf_reg *reg = NULL;
 	unsigned int val = 0;
 
+	if (index >= hw->drv_data->num_grf_regs)
+		return -EINVAL;
+
+	reg = &hw->grf_regs[index];
 	if (reg->mask) {
 		regmap_read(hw->regmap_grf, reg->offset, &val);
 		val = (val >> reg->shift) & reg->mask;
@@ -269,8 +283,12 @@ static inline u32 read_grf_reg(struct csi2_dphy_hw *hw, int index)
 static inline void write_csi2_dphy_reg(struct csi2_dphy_hw *hw,
 					    int index, u32 value)
 {
-	const struct csi2dphy_reg *reg = &hw->csi2dphy_regs[index];
+	const struct csi2dphy_reg *reg = NULL;
 
+	if (index >= hw->drv_data->num_csi2dphy_regs)
+		return;
+
+	reg = &hw->csi2dphy_regs[index];
 	if ((index == CSI2PHY_REG_CTRL_LANE_ENABLE) ||
 	    (index == CSI2PHY_CLK_LANE_ENABLE) ||
 	    (index != CSI2PHY_REG_CTRL_LANE_ENABLE &&
@@ -281,9 +299,13 @@ static inline void write_csi2_dphy_reg(struct csi2_dphy_hw *hw,
 static inline void write_csi2_dphy_reg_mask(struct csi2_dphy_hw *hw,
 					    int index, u32 value, u32 mask)
 {
-	const struct csi2dphy_reg *reg = &hw->csi2dphy_regs[index];
+	const struct csi2dphy_reg *reg = NULL;
 	u32 read_val = 0;
 
+	if (index >= hw->drv_data->num_csi2dphy_regs)
+		return;
+
+	reg = &hw->csi2dphy_regs[index];
 	read_val = readl(hw->hw_base_addr + reg->offset);
 	read_val &= ~mask;
 	read_val |= value;
@@ -293,8 +315,12 @@ static inline void write_csi2_dphy_reg_mask(struct csi2_dphy_hw *hw,
 static inline void read_csi2_dphy_reg(struct csi2_dphy_hw *hw,
 					   int index, u32 *value)
 {
-	const struct csi2dphy_reg *reg = &hw->csi2dphy_regs[index];
+	const struct csi2dphy_reg *reg = NULL;
 
+	if (index >= hw->drv_data->num_csi2dphy_regs)
+		return;
+
+	reg = &hw->csi2dphy_regs[index];
 	if ((index == CSI2PHY_REG_CTRL_LANE_ENABLE) ||
 	    (index == CSI2PHY_CLK_LANE_ENABLE) ||
 	    (index != CSI2PHY_REG_CTRL_LANE_ENABLE &&
@@ -930,7 +956,9 @@ static const struct dphy_hw_drv_data rk3568_csi2_dphy_hw_drv_data = {
 	.hsfreq_ranges = rk3568_csi2_dphy_hw_hsfreq_ranges,
 	.num_hsfreq_ranges = ARRAY_SIZE(rk3568_csi2_dphy_hw_hsfreq_ranges),
 	.csi2dphy_regs = rk3568_csi2dphy_regs,
+	.num_csi2dphy_regs = ARRAY_SIZE(rk3568_csi2dphy_regs),
 	.grf_regs = rk3568_grf_dphy_regs,
+	.num_grf_regs = ARRAY_SIZE(rk3568_grf_dphy_regs),
 	.individual_init = rk3568_csi2_dphy_hw_individual_init,
 	.chip_id = CHIP_ID_RK3568,
 	.stream_on = csi2_dphy_hw_stream_on,
@@ -941,7 +969,9 @@ static const struct dphy_hw_drv_data rk3588_csi2_dphy_hw_drv_data = {
 	.hsfreq_ranges = rk3568_csi2_dphy_hw_hsfreq_ranges,
 	.num_hsfreq_ranges = ARRAY_SIZE(rk3568_csi2_dphy_hw_hsfreq_ranges),
 	.csi2dphy_regs = rk3588_csi2dphy_regs,
+	.num_csi2dphy_regs = ARRAY_SIZE(rk3588_csi2dphy_regs),
 	.grf_regs = rk3588_grf_dphy_regs,
+	.num_grf_regs = ARRAY_SIZE(rk3588_grf_dphy_regs),
 	.individual_init = rk3588_csi2_dphy_hw_individual_init,
 	.chip_id = CHIP_ID_RK3588,
 	.stream_on = csi2_dphy_hw_stream_on,
@@ -952,7 +982,9 @@ static const struct dphy_hw_drv_data rv1106_csi2_dphy_hw_drv_data = {
 	.hsfreq_ranges = rk3568_csi2_dphy_hw_hsfreq_ranges,
 	.num_hsfreq_ranges = ARRAY_SIZE(rk3568_csi2_dphy_hw_hsfreq_ranges),
 	.csi2dphy_regs = rv1106_csi2dphy_regs,
+	.num_csi2dphy_regs = ARRAY_SIZE(rv1106_csi2dphy_regs),
 	.grf_regs = rv1106_grf_dphy_regs,
+	.num_grf_regs = ARRAY_SIZE(rv1106_grf_dphy_regs),
 	.individual_init = rv1106_csi2_dphy_hw_individual_init,
 	.chip_id = CHIP_ID_RV1106,
 	.stream_on = csi2_dphy_hw_stream_on,
@@ -963,7 +995,9 @@ static const struct dphy_hw_drv_data rk3562_csi2_dphy_hw_drv_data = {
 	.hsfreq_ranges = rk3568_csi2_dphy_hw_hsfreq_ranges,
 	.num_hsfreq_ranges = ARRAY_SIZE(rk3568_csi2_dphy_hw_hsfreq_ranges),
 	.csi2dphy_regs = rk3562_csi2dphy_regs,
+	.num_csi2dphy_regs = ARRAY_SIZE(rk3562_csi2dphy_regs),
 	.grf_regs = rk3562_grf_dphy_regs,
+	.num_grf_regs = ARRAY_SIZE(rk3562_grf_dphy_regs),
 	.individual_init = rk3562_csi2_dphy_hw_individual_init,
 	.chip_id = CHIP_ID_RK3562,
 	.stream_on = csi2_dphy_hw_stream_on,
@@ -1041,7 +1075,6 @@ static int rockchip_csi2_dphy_hw_probe(struct platform_device *pdev)
 	dphy_hw->drv_data = drv_data;
 	dphy_hw->lane_mode = LANE_MODE_UNDEF;
 	dphy_hw->grf_regs = drv_data->grf_regs;
-	dphy_hw->txrx_regs = drv_data->txrx_regs;
 	dphy_hw->csi2dphy_regs = drv_data->csi2dphy_regs;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
