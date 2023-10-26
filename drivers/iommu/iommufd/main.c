@@ -488,7 +488,7 @@ static const struct iommufd_object_ops iommufd_object_ops[] = {
 	[IOMMUFD_OBJ_IOAS] = {
 		.destroy = iommufd_ioas_destroy,
 	},
-	[IOMMUFD_OBJ_HW_PAGETABLE] = {
+	[IOMMUFD_OBJ_HWPT_PAGING] = {
 		.destroy = iommufd_hw_pagetable_destroy,
 		.abort = iommufd_hw_pagetable_abort,
 	},

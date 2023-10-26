@@ -123,7 +123,7 @@ enum iommufd_object_type {
 	IOMMUFD_OBJ_NONE,
 	IOMMUFD_OBJ_ANY = IOMMUFD_OBJ_NONE,
 	IOMMUFD_OBJ_DEVICE,
-	IOMMUFD_OBJ_HW_PAGETABLE,
+	IOMMUFD_OBJ_HWPT_PAGING,
 	IOMMUFD_OBJ_IOAS,
 	IOMMUFD_OBJ_ACCESS,
 #ifdef CONFIG_IOMMUFD_TEST
@@ -256,7 +256,7 @@ static inline struct iommufd_hw_pagetable *
 iommufd_get_hwpt(struct iommufd_ucmd *ucmd, u32 id)
 {
 	return container_of(iommufd_get_object(ucmd->ictx, id,
-					       IOMMUFD_OBJ_HW_PAGETABLE),
+					       IOMMUFD_OBJ_HWPT_PAGING),
 			    struct iommufd_hw_pagetable, obj);
 }
 int iommufd_hwpt_set_dirty_tracking(struct iommufd_ucmd *ucmd);
