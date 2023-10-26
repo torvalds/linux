@@ -349,7 +349,7 @@ struct hci_dev {
 	struct list_head list;
 	struct mutex	lock;
 
-	const char	*name;
+	char		name[8];
 	unsigned long	flags;
 	__u16		id;
 	__u8		bus;
