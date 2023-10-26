@@ -1841,7 +1841,7 @@ void rtl92e_enable_rx(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
-	rtl92e_writel(dev, RDQDA, priv->rx_ring_dma[RX_MPDU_QUEUE]);
+	rtl92e_writel(dev, RDQDA, priv->rx_ring_dma);
 }
 
 static const u32 TX_DESC_BASE[] = {

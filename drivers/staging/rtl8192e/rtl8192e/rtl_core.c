@@ -1159,7 +1159,7 @@ static void _rtl92e_free_rx_ring(struct net_device *dev)
 	dma_free_coherent(&priv->pdev->dev,
 			  sizeof(*priv->rx_ring) * priv->rxringcount,
 			  priv->rx_ring,
-			  priv->rx_ring_dma[rx_queue_idx]);
+			  priv->rx_ring_dma);
 	priv->rx_ring = NULL;
 }
 
@@ -1356,7 +1356,7 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 
 	priv->rx_ring = dma_alloc_coherent(&priv->pdev->dev,
 					   sizeof(*priv->rx_ring) * priv->rxringcount,
-					   &priv->rx_ring_dma[rx_queue_idx],
+					   &priv->rx_ring_dma,
 					   GFP_ATOMIC);
 	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
 		netdev_warn(dev, "Cannot allocate RX ring\n");
