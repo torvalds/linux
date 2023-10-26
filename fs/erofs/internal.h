@@ -228,8 +228,6 @@ struct erofs_buf {
 };
 #define __EROFS_BUF_INITIALIZER	((struct erofs_buf){ .page = NULL })
 
-#define ROOT_NID(sb)		((sb)->root_nid)
-
 #define erofs_blknr(sb, addr)	((addr) >> (sb)->s_blocksize_bits)
 #define erofs_blkoff(sb, addr)	((addr) & ((sb)->s_blocksize - 1))
 #define erofs_pos(sb, blk)	((erofs_off_t)(blk) << (sb)->s_blocksize_bits)
