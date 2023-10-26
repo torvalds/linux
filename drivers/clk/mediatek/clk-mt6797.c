@@ -420,40 +420,22 @@ static const struct mtk_gate_regs infra2_cg_regs = {
 	.sta_ofs = 0x00b0,
 };
 
-#define GATE_ICG0(_id, _name, _parent, _shift) {		\
-	.id = _id,						\
-	.name = _name,						\
-	.parent_name = _parent,					\
-	.regs = &infra0_cg_regs,				\
-	.shift = _shift,					\
-	.ops = &mtk_clk_gate_ops_setclr,			\
-}
+#define GATE_ICG0(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &infra0_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
-#define GATE_ICG1(_id, _name, _parent, _shift)			\
-	GATE_ICG1_FLAGS(_id, _name, _parent, _shift, 0)
+#define GATE_ICG1(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &infra1_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
-#define GATE_ICG1_FLAGS(_id, _name, _parent, _shift, _flags) {	\
-	.id = _id,						\
-	.name = _name,						\
-	.parent_name = _parent,					\
-	.regs = &infra1_cg_regs,				\
-	.shift = _shift,					\
-	.ops = &mtk_clk_gate_ops_setclr,			\
-	.flags = _flags,					\
-}
+#define GATE_ICG1_FLAGS(_id, _name, _parent, _shift, _flags)		\
+	GATE_MTK_FLAGS(_id, _name, _parent, &infra1_cg_regs, _shift,	\
+		       &mtk_clk_gate_ops_setclr, _flags)
 
-#define GATE_ICG2(_id, _name, _parent, _shift)			\
-	GATE_ICG2_FLAGS(_id, _name, _parent, _shift, 0)
+#define GATE_ICG2(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &infra2_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
-#define GATE_ICG2_FLAGS(_id, _name, _parent, _shift, _flags) {	\
-	.id = _id,						\
-	.name = _name,						\
-	.parent_name = _parent,					\
-	.regs = &infra2_cg_regs,				\
-	.shift = _shift,					\
-	.ops = &mtk_clk_gate_ops_setclr,			\
-	.flags = _flags,					\
-}
+#define GATE_ICG2_FLAGS(_id, _name, _parent, _shift, _flags)		\
+	GATE_MTK_FLAGS(_id, _name, _parent, &infra2_cg_regs, _shift,	\
+		       &mtk_clk_gate_ops_setclr, _flags)
 
 /*
  * Clock gates dramc and dramc_b are needed by the DRAM controller.

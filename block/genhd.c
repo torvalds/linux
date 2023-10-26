@@ -25,8 +25,11 @@
 #include <linux/pm_runtime.h>
 #include <linux/badblocks.h>
 #include <linux/part_stat.h>
-#include "blk-throttle.h"
+#ifndef __GENKSYMS__
+#include <linux/blktrace_api.h>
+#endif
 
+#include "blk-throttle.h"
 #include "blk.h"
 #include "blk-mq-sched.h"
 #include "blk-rq-qos.h"
@@ -1180,6 +1183,8 @@ static void disk_release(struct device *dev)
 
 	might_sleep();
 	WARN_ON_ONCE(disk_live(disk));
+
+	blk_trace_remove(disk->queue);
 
 	/*
 	 * To undo the all initialization from blk_mq_init_allocated_queue in

@@ -104,6 +104,7 @@
 
 /* FFA Bus/Device/Driver related */
 struct ffa_device {
+	u32 id;
 	int vm_id;
 	bool mode_32bit;
 	uuid_t uuid;

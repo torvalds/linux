@@ -264,20 +264,20 @@ void i40e_dcb_hw_calculate_pool_sizes(struct i40e_hw *hw,
 void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 			      struct i40e_rx_pb_config *old_pb_cfg,
 			      struct i40e_rx_pb_config *new_pb_cfg);
-i40e_status i40e_get_dcbx_status(struct i40e_hw *hw,
-				 u16 *status);
-i40e_status i40e_lldp_to_dcb_config(u8 *lldpmib,
-				    struct i40e_dcbx_config *dcbcfg);
-i40e_status i40e_aq_get_dcb_config(struct i40e_hw *hw, u8 mib_type,
-				   u8 bridgetype,
-				   struct i40e_dcbx_config *dcbcfg);
-i40e_status i40e_get_dcb_config(struct i40e_hw *hw);
-i40e_status i40e_init_dcb(struct i40e_hw *hw,
-			  bool enable_mib_change);
-enum i40e_status_code
+int i40e_get_dcbx_status(struct i40e_hw *hw,
+			 u16 *status);
+int i40e_lldp_to_dcb_config(u8 *lldpmib,
+			    struct i40e_dcbx_config *dcbcfg);
+int i40e_aq_get_dcb_config(struct i40e_hw *hw, u8 mib_type,
+			   u8 bridgetype,
+			   struct i40e_dcbx_config *dcbcfg);
+int i40e_get_dcb_config(struct i40e_hw *hw);
+int i40e_init_dcb(struct i40e_hw *hw,
+		  bool enable_mib_change);
+int
 i40e_get_fw_lldp_status(struct i40e_hw *hw,
 			enum i40e_get_fw_lldp_status_resp *lldp_status);
-i40e_status i40e_set_dcb_config(struct i40e_hw *hw);
-i40e_status i40e_dcb_config_to_lldp(u8 *lldpmib, u16 *miblen,
-				    struct i40e_dcbx_config *dcbcfg);
+int i40e_set_dcb_config(struct i40e_hw *hw);
+int i40e_dcb_config_to_lldp(u8 *lldpmib, u16 *miblen,
+			    struct i40e_dcbx_config *dcbcfg);
 #endif /* _I40E_DCB_H_ */

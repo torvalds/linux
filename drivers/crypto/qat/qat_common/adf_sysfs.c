@@ -50,38 +50,21 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 
 	switch (ret) {
 	case DEV_DOWN:
-		if (!adf_dev_started(accel_dev)) {
-			dev_info(dev, "Device qat_dev%d already down\n",
-				 accel_id);
-			return -EINVAL;
-		}
-
 		dev_info(dev, "Stopping device qat_dev%d\n", accel_id);
 
-		ret = adf_dev_shutdown_cache_cfg(accel_dev);
+		ret = adf_dev_down(accel_dev, true);
 		if (ret < 0)
 			return -EINVAL;
 
 		break;
 	case DEV_UP:
-		if (adf_dev_started(accel_dev)) {
-			dev_info(dev, "Device qat_dev%d already up\n",
-				 accel_id);
-			return -EINVAL;
-		}
-
 		dev_info(dev, "Starting device qat_dev%d\n", accel_id);
 
-		ret = GET_HW_DATA(accel_dev)->dev_config(accel_dev);
-		if (!ret)
-			ret = adf_dev_init(accel_dev);
-		if (!ret)
-			ret = adf_dev_start(accel_dev);
-
+		ret = adf_dev_up(accel_dev, true);
 		if (ret < 0) {
 			dev_err(dev, "Failed to start device qat_dev%d\n",
 				accel_id);
-			adf_dev_shutdown_cache_cfg(accel_dev);
+			adf_dev_down(accel_dev, true);
 			return ret;
 		}
 		break;

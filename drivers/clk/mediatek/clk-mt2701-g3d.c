@@ -16,14 +16,8 @@
 
 #include <dt-bindings/clock/mt2701-clk.h>
 
-#define GATE_G3D(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &g3d_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_setclr,	\
-	}
+#define GATE_G3D(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &g3d_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
 static const struct mtk_gate_regs g3d_cg_regs = {
 	.sta_ofs = 0x0,

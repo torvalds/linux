@@ -324,6 +324,7 @@ struct hid_data {
 	int ps_connected;
 	bool pad_input_event_flag;
 	unsigned short sequence_number;
+	ktime_t time_delayed;
 };
 
 struct wacom_remote_data {

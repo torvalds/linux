@@ -299,9 +299,18 @@ __live_request_alloc(struct intel_context *ce)
 	return intel_context_create_request(ce);
 }
 
-static int __igt_breadcrumbs_smoketest(void *arg)
+struct smoke_thread {
+	struct kthread_worker *worker;
+	struct kthread_work work;
+	struct smoketest *t;
+	bool stop;
+	int result;
+};
+
+static void __igt_breadcrumbs_smoketest(struct kthread_work *work)
 {
-	struct smoketest *t = arg;
+	struct smoke_thread *thread = container_of(work, typeof(*thread), work);
+	struct smoketest *t = thread->t;
 	const unsigned int max_batch = min(t->ncontexts, t->max_batch) - 1;
 	const unsigned int total = 4 * t->ncontexts + 1;
 	unsigned int num_waits = 0, num_fences = 0;
@@ -320,8 +329,10 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 	 */
 
 	requests = kcalloc(total, sizeof(*requests), GFP_KERNEL);
-	if (!requests)
-		return -ENOMEM;
+	if (!requests) {
+		thread->result = -ENOMEM;
+		return;
+	}
 
 	order = i915_random_order(total, &prng);
 	if (!order) {
@@ -329,7 +340,7 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 		goto out_requests;
 	}
 
-	while (!kthread_should_stop()) {
+	while (!READ_ONCE(thread->stop)) {
 		struct i915_sw_fence *submit, *wait;
 		unsigned int n, count;
 
@@ -437,7 +448,7 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 	kfree(order);
 out_requests:
 	kfree(requests);
-	return err;
+	thread->result = err;
 }
 
 static int mock_breadcrumbs_smoketest(void *arg)
@@ -450,7 +461,7 @@ static int mock_breadcrumbs_smoketest(void *arg)
 		.request_alloc = __mock_request_alloc
 	};
 	unsigned int ncpus = num_online_cpus();
-	struct task_struct **threads;
+	struct smoke_thread *threads;
 	unsigned int n;
 	int ret = 0;
 
@@ -479,28 +490,37 @@ static int mock_breadcrumbs_smoketest(void *arg)
 	}
 
 	for (n = 0; n < ncpus; n++) {
-		threads[n] = kthread_run(__igt_breadcrumbs_smoketest,
-					 &t, "igt/%d", n);
-		if (IS_ERR(threads[n])) {
-			ret = PTR_ERR(threads[n]);
+		struct kthread_worker *worker;
+
+		worker = kthread_create_worker(0, "igt/%d", n);
+		if (IS_ERR(worker)) {
+			ret = PTR_ERR(worker);
 			ncpus = n;
 			break;
 		}
 
-		get_task_struct(threads[n]);
+		threads[n].worker = worker;
+		threads[n].t = &t;
+		threads[n].stop = false;
+		threads[n].result = 0;
+
+		kthread_init_work(&threads[n].work,
+				  __igt_breadcrumbs_smoketest);
+		kthread_queue_work(worker, &threads[n].work);
 	}
 
-	yield(); /* start all threads before we begin */
 	msleep(jiffies_to_msecs(i915_selftest.timeout_jiffies));
 
 	for (n = 0; n < ncpus; n++) {
 		int err;
 
-		err = kthread_stop(threads[n]);
+		WRITE_ONCE(threads[n].stop, true);
+		kthread_flush_work(&threads[n].work);
+		err = READ_ONCE(threads[n].result);
 		if (err < 0 && !ret)
 			ret = err;
 
-		put_task_struct(threads[n]);
+		kthread_destroy_worker(threads[n].worker);
 	}
 	pr_info("Completed %lu waits for %lu fence across %d cpus\n",
 		atomic_long_read(&t.num_waits),
@@ -1419,9 +1439,18 @@ out_free:
 	return err;
 }
 
-static int __live_parallel_engine1(void *arg)
+struct parallel_thread {
+	struct kthread_worker *worker;
+	struct kthread_work work;
+	struct intel_engine_cs *engine;
+	int result;
+};
+
+static void __live_parallel_engine1(struct kthread_work *work)
 {
-	struct intel_engine_cs *engine = arg;
+	struct parallel_thread *thread =
+		container_of(work, typeof(*thread), work);
+	struct intel_engine_cs *engine = thread->engine;
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
 	int err = 0;
@@ -1452,12 +1481,14 @@ static int __live_parallel_engine1(void *arg)
 	intel_engine_pm_put(engine);
 
 	pr_info("%s: %lu request + sync\n", engine->name, count);
-	return err;
+	thread->result = err;
 }
 
-static int __live_parallel_engineN(void *arg)
+static void __live_parallel_engineN(struct kthread_work *work)
 {
-	struct intel_engine_cs *engine = arg;
+	struct parallel_thread *thread =
+		container_of(work, typeof(*thread), work);
+	struct intel_engine_cs *engine = thread->engine;
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
 	int err = 0;
@@ -1479,7 +1510,7 @@ static int __live_parallel_engineN(void *arg)
 	intel_engine_pm_put(engine);
 
 	pr_info("%s: %lu requests\n", engine->name, count);
-	return err;
+	thread->result = err;
 }
 
 static bool wake_all(struct drm_i915_private *i915)
@@ -1505,9 +1536,11 @@ static int wait_for_all(struct drm_i915_private *i915)
 	return -ETIME;
 }
 
-static int __live_parallel_spin(void *arg)
+static void __live_parallel_spin(struct kthread_work *work)
 {
-	struct intel_engine_cs *engine = arg;
+	struct parallel_thread *thread =
+		container_of(work, typeof(*thread), work);
+	struct intel_engine_cs *engine = thread->engine;
 	struct igt_spinner spin;
 	struct i915_request *rq;
 	int err = 0;
@@ -1520,7 +1553,8 @@ static int __live_parallel_spin(void *arg)
 
 	if (igt_spinner_init(&spin, engine->gt)) {
 		wake_all(engine->i915);
-		return -ENOMEM;
+		thread->result = -ENOMEM;
+		return;
 	}
 
 	intel_engine_pm_get(engine);
@@ -1553,22 +1587,22 @@ static int __live_parallel_spin(void *arg)
 
 out_spin:
 	igt_spinner_fini(&spin);
-	return err;
+	thread->result = err;
 }
 
 static int live_parallel_engines(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	static int (* const func[])(void *arg) = {
+	static void (* const func[])(struct kthread_work *) = {
 		__live_parallel_engine1,
 		__live_parallel_engineN,
 		__live_parallel_spin,
 		NULL,
 	};
 	const unsigned int nengines = num_uabi_engines(i915);
+	struct parallel_thread *threads;
 	struct intel_engine_cs *engine;
-	int (* const *fn)(void *arg);
-	struct task_struct **tsk;
+	void (* const *fn)(struct kthread_work *);
 	int err = 0;
 
 	/*
@@ -1576,8 +1610,8 @@ static int live_parallel_engines(void *arg)
 	 * tests that we load up the system maximally.
 	 */
 
-	tsk = kcalloc(nengines, sizeof(*tsk), GFP_KERNEL);
-	if (!tsk)
+	threads = kcalloc(nengines, sizeof(*threads), GFP_KERNEL);
+	if (!threads)
 		return -ENOMEM;
 
 	for (fn = func; !err && *fn; fn++) {
@@ -1594,37 +1628,44 @@ static int live_parallel_engines(void *arg)
 
 		idx = 0;
 		for_each_uabi_engine(engine, i915) {
-			tsk[idx] = kthread_run(*fn, engine,
-					       "igt/parallel:%s",
-					       engine->name);
-			if (IS_ERR(tsk[idx])) {
-				err = PTR_ERR(tsk[idx]);
+			struct kthread_worker *worker;
+
+			worker = kthread_create_worker(0, "igt/parallel:%s",
+						       engine->name);
+			if (IS_ERR(worker)) {
+				err = PTR_ERR(worker);
 				break;
 			}
-			get_task_struct(tsk[idx++]);
-		}
 
-		yield(); /* start all threads before we kthread_stop() */
+			threads[idx].worker = worker;
+			threads[idx].result = 0;
+			threads[idx].engine = engine;
+
+			kthread_init_work(&threads[idx].work, *fn);
+			kthread_queue_work(worker, &threads[idx].work);
+			idx++;
+		}
 
 		idx = 0;
 		for_each_uabi_engine(engine, i915) {
 			int status;
 
-			if (IS_ERR(tsk[idx]))
+			if (!threads[idx].worker)
 				break;
 
-			status = kthread_stop(tsk[idx]);
+			kthread_flush_work(&threads[idx].work);
+			status = READ_ONCE(threads[idx].result);
 			if (status && !err)
 				err = status;
 
-			put_task_struct(tsk[idx++]);
+			kthread_destroy_worker(threads[idx++].worker);
 		}
 
 		if (igt_live_test_end(&t))
 			err = -EIO;
 	}
 
-	kfree(tsk);
+	kfree(threads);
 	return err;
 }
 
@@ -1672,7 +1713,7 @@ static int live_breadcrumbs_smoketest(void *arg)
 	const unsigned int ncpus = num_online_cpus();
 	unsigned long num_waits, num_fences;
 	struct intel_engine_cs *engine;
-	struct task_struct **threads;
+	struct smoke_thread *threads;
 	struct igt_live_test live;
 	intel_wakeref_t wakeref;
 	struct smoketest *smoke;
@@ -1746,23 +1787,26 @@ static int live_breadcrumbs_smoketest(void *arg)
 			 smoke[idx].max_batch, engine->name);
 
 		for (n = 0; n < ncpus; n++) {
-			struct task_struct *tsk;
+			unsigned int i = idx * ncpus + n;
+			struct kthread_worker *worker;
 
-			tsk = kthread_run(__igt_breadcrumbs_smoketest,
-					  &smoke[idx], "igt/%d.%d", idx, n);
-			if (IS_ERR(tsk)) {
-				ret = PTR_ERR(tsk);
+			worker = kthread_create_worker(0, "igt/%d.%d", idx, n);
+			if (IS_ERR(worker)) {
+				ret = PTR_ERR(worker);
 				goto out_flush;
 			}
 
-			get_task_struct(tsk);
-			threads[idx * ncpus + n] = tsk;
+			threads[i].worker = worker;
+			threads[i].t = &smoke[idx];
+
+			kthread_init_work(&threads[i].work,
+					  __igt_breadcrumbs_smoketest);
+			kthread_queue_work(worker, &threads[i].work);
 		}
 
 		idx++;
 	}
 
-	yield(); /* start all threads before we begin */
 	msleep(jiffies_to_msecs(i915_selftest.timeout_jiffies));
 
 out_flush:
@@ -1771,17 +1815,19 @@ out_flush:
 	num_fences = 0;
 	for_each_uabi_engine(engine, i915) {
 		for (n = 0; n < ncpus; n++) {
-			struct task_struct *tsk = threads[idx * ncpus + n];
+			unsigned int i = idx * ncpus + n;
 			int err;
 
-			if (!tsk)
+			if (!threads[i].worker)
 				continue;
 
-			err = kthread_stop(tsk);
+			WRITE_ONCE(threads[i].stop, true);
+			kthread_flush_work(&threads[i].work);
+			err = READ_ONCE(threads[i].result);
 			if (err < 0 && !ret)
 				ret = err;
 
-			put_task_struct(tsk);
+			kthread_destroy_worker(threads[i].worker);
 		}
 
 		num_waits += atomic_long_read(&smoke[idx].num_waits);
@@ -2891,9 +2937,18 @@ out:
 	return err;
 }
 
-static int p_sync0(void *arg)
+struct p_thread {
+	struct perf_stats p;
+	struct kthread_worker *worker;
+	struct kthread_work work;
+	struct intel_engine_cs *engine;
+	int result;
+};
+
+static void p_sync0(struct kthread_work *work)
 {
-	struct perf_stats *p = arg;
+	struct p_thread *thread = container_of(work, typeof(*thread), work);
+	struct perf_stats *p = &thread->p;
 	struct intel_engine_cs *engine = p->engine;
 	struct intel_context *ce;
 	IGT_TIMEOUT(end_time);
@@ -2902,13 +2957,16 @@ static int p_sync0(void *arg)
 	int err = 0;
 
 	ce = intel_context_create(engine);
-	if (IS_ERR(ce))
-		return PTR_ERR(ce);
+	if (IS_ERR(ce)) {
+		thread->result = PTR_ERR(ce);
+		return;
+	}
 
 	err = intel_context_pin(ce);
 	if (err) {
 		intel_context_put(ce);
-		return err;
+		thread->result = err;
+		return;
 	}
 
 	if (intel_engine_supports_stats(engine)) {
@@ -2958,12 +3016,13 @@ static int p_sync0(void *arg)
 
 	intel_context_unpin(ce);
 	intel_context_put(ce);
-	return err;
+	thread->result = err;
 }
 
-static int p_sync1(void *arg)
+static void p_sync1(struct kthread_work *work)
 {
-	struct perf_stats *p = arg;
+	struct p_thread *thread = container_of(work, typeof(*thread), work);
+	struct perf_stats *p = &thread->p;
 	struct intel_engine_cs *engine = p->engine;
 	struct i915_request *prev = NULL;
 	struct intel_context *ce;
@@ -2973,13 +3032,16 @@ static int p_sync1(void *arg)
 	int err = 0;
 
 	ce = intel_context_create(engine);
-	if (IS_ERR(ce))
-		return PTR_ERR(ce);
+	if (IS_ERR(ce)) {
+		thread->result = PTR_ERR(ce);
+		return;
+	}
 
 	err = intel_context_pin(ce);
 	if (err) {
 		intel_context_put(ce);
-		return err;
+		thread->result = err;
+		return;
 	}
 
 	if (intel_engine_supports_stats(engine)) {
@@ -3031,12 +3093,13 @@ static int p_sync1(void *arg)
 
 	intel_context_unpin(ce);
 	intel_context_put(ce);
-	return err;
+	thread->result = err;
 }
 
-static int p_many(void *arg)
+static void p_many(struct kthread_work *work)
 {
-	struct perf_stats *p = arg;
+	struct p_thread *thread = container_of(work, typeof(*thread), work);
+	struct perf_stats *p = &thread->p;
 	struct intel_engine_cs *engine = p->engine;
 	struct intel_context *ce;
 	IGT_TIMEOUT(end_time);
@@ -3045,13 +3108,16 @@ static int p_many(void *arg)
 	bool busy;
 
 	ce = intel_context_create(engine);
-	if (IS_ERR(ce))
-		return PTR_ERR(ce);
+	if (IS_ERR(ce)) {
+		thread->result = PTR_ERR(ce);
+		return;
+	}
 
 	err = intel_context_pin(ce);
 	if (err) {
 		intel_context_put(ce);
-		return err;
+		thread->result = err;
+		return;
 	}
 
 	if (intel_engine_supports_stats(engine)) {
@@ -3092,26 +3158,23 @@ static int p_many(void *arg)
 
 	intel_context_unpin(ce);
 	intel_context_put(ce);
-	return err;
+	thread->result = err;
 }
 
 static int perf_parallel_engines(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	static int (* const func[])(void *arg) = {
+	static void (* const func[])(struct kthread_work *) = {
 		p_sync0,
 		p_sync1,
 		p_many,
 		NULL,
 	};
 	const unsigned int nengines = num_uabi_engines(i915);
+	void (* const *fn)(struct kthread_work *);
 	struct intel_engine_cs *engine;
-	int (* const *fn)(void *arg);
 	struct pm_qos_request qos;
-	struct {
-		struct perf_stats p;
-		struct task_struct *tsk;
-	} *engines;
+	struct p_thread *engines;
 	int err = 0;
 
 	engines = kcalloc(nengines, sizeof(*engines), GFP_KERNEL);
@@ -3134,36 +3197,45 @@ static int perf_parallel_engines(void *arg)
 
 		idx = 0;
 		for_each_uabi_engine(engine, i915) {
+			struct kthread_worker *worker;
+
 			intel_engine_pm_get(engine);
 
 			memset(&engines[idx].p, 0, sizeof(engines[idx].p));
-			engines[idx].p.engine = engine;
 
-			engines[idx].tsk = kthread_run(*fn, &engines[idx].p,
-						       "igt:%s", engine->name);
-			if (IS_ERR(engines[idx].tsk)) {
-				err = PTR_ERR(engines[idx].tsk);
+			worker = kthread_create_worker(0, "igt:%s",
+						       engine->name);
+			if (IS_ERR(worker)) {
+				err = PTR_ERR(worker);
 				intel_engine_pm_put(engine);
 				break;
 			}
-			get_task_struct(engines[idx++].tsk);
-		}
+			engines[idx].worker = worker;
+			engines[idx].result = 0;
+			engines[idx].p.engine = engine;
+			engines[idx].engine = engine;
 
-		yield(); /* start all threads before we kthread_stop() */
+			kthread_init_work(&engines[idx].work, *fn);
+			kthread_queue_work(worker, &engines[idx].work);
+			idx++;
+		}
 
 		idx = 0;
 		for_each_uabi_engine(engine, i915) {
 			int status;
 
-			if (IS_ERR(engines[idx].tsk))
+			if (!engines[idx].worker)
 				break;
 
-			status = kthread_stop(engines[idx].tsk);
+			kthread_flush_work(&engines[idx].work);
+			status = READ_ONCE(engines[idx].result);
 			if (status && !err)
 				err = status;
 
 			intel_engine_pm_put(engine);
-			put_task_struct(engines[idx++].tsk);
+
+			kthread_destroy_worker(engines[idx].worker);
+			idx++;
 		}
 
 		if (igt_live_test_end(&t))

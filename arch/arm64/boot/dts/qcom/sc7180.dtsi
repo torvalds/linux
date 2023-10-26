@@ -1521,7 +1521,7 @@
 				};
 			};
 
-			qspi_data12: qspi-data12 {
+			qspi_data23: qspi-data23 {
 				pinmux-data {
 					pins = "gpio66", "gpio67";
 					function = "qspi_data";

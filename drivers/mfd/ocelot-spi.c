@@ -130,6 +130,7 @@ static const struct regmap_config ocelot_spi_regmap_config = {
 
 	.write_flag_mask = 0x80,
 
+	.use_single_read = true,
 	.use_single_write = true,
 	.can_multi_write = false,
 
