@@ -730,6 +730,34 @@ static int cs35l41_hda_channel_map(struct device *dev, unsigned int tx_num, unsi
 				    rx_slot);
 }
 
+int cs35l41_verify_id(struct cs35l41_hda *cs35l41, unsigned int *regid, unsigned int *reg_revid)
+{
+	unsigned int mtl_revid, chipid;
+	int ret;
+
+	ret = regmap_read(cs35l41->regmap, CS35L41_DEVID, regid);
+	if (ret) {
+		dev_err_probe(cs35l41->dev, ret, "Get Device ID failed\n");
+		return ret;
+	}
+
+	ret = regmap_read(cs35l41->regmap, CS35L41_REVID, reg_revid);
+	if (ret) {
+		dev_err_probe(cs35l41->dev, ret, "Get Revision ID failed\n");
+		return ret;
+	}
+
+	mtl_revid = *reg_revid & CS35L41_MTLREVID_MASK;
+
+	chipid = (mtl_revid % 2) ? CS35L41R_CHIP_ID : CS35L41_CHIP_ID;
+	if (*regid != chipid) {
+		dev_err(cs35l41->dev, "CS35L41 Device ID (%X). Expected ID %X\n", *regid, chipid);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int cs35l41_ready_for_reset(struct cs35l41_hda *cs35l41)
 {
 	int ret = 0;
@@ -827,6 +855,30 @@ static int cs35l41_system_suspend(struct device *dev)
 	return ret;
 }
 
+static int cs35l41_wait_boot_done(struct cs35l41_hda *cs35l41)
+{
+	unsigned int int_status;
+	int ret;
+
+	ret = regmap_read_poll_timeout(cs35l41->regmap, CS35L41_IRQ1_STATUS4, int_status,
+				       int_status & CS35L41_OTP_BOOT_DONE, 1000, 100000);
+	if (ret) {
+		dev_err(cs35l41->dev, "Failed waiting for OTP_BOOT_DONE\n");
+		return ret;
+	}
+
+	ret = regmap_read(cs35l41->regmap, CS35L41_IRQ1_STATUS3, &int_status);
+	if (ret || (int_status & CS35L41_OTP_BOOT_ERR)) {
+		dev_err(cs35l41->dev, "OTP Boot status %x error\n",
+			int_status & CS35L41_OTP_BOOT_ERR);
+		if (!ret)
+			ret = -EIO;
+		return ret;
+	}
+
+	return 0;
+}
+
 static int cs35l41_system_resume(struct device *dev)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
@@ -846,6 +898,14 @@ static int cs35l41_system_resume(struct device *dev)
 	}
 
 	usleep_range(2000, 2100);
+
+	regcache_cache_only(cs35l41->regmap, false);
+
+	ret = cs35l41_wait_boot_done(cs35l41);
+	if (ret)
+		return ret;
+
+	regcache_cache_only(cs35l41->regmap, true);
 
 	ret = pm_runtime_force_resume(dev);
 	if (ret) {
@@ -908,6 +968,7 @@ err:
 static int cs35l41_runtime_resume(struct device *dev)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
+	unsigned int regid, reg_revid;
 	int ret = 0;
 
 	dev_dbg(cs35l41->dev, "Runtime Resume\n");
@@ -929,6 +990,10 @@ static int cs35l41_runtime_resume(struct device *dev)
 		}
 	}
 
+	ret = cs35l41_verify_id(cs35l41, &regid, &reg_revid);
+	if (ret)
+		goto err;
+
 	/* Test key needs to be unlocked to allow the OTP settings to re-apply */
 	cs35l41_test_key_unlock(cs35l41->dev, cs35l41->regmap);
 	ret = regcache_sync(cs35l41->regmap);
@@ -940,6 +1005,8 @@ static int cs35l41_runtime_resume(struct device *dev)
 
 	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
 		cs35l41_init_boost(cs35l41->dev, cs35l41->regmap, &cs35l41->hw_cfg);
+
+	dev_dbg(cs35l41->dev, "CS35L41 Resumed (%x), Revision: %02X\n", regid, reg_revid);
 
 err:
 	mutex_unlock(&cs35l41->fw_mutex);
@@ -1660,7 +1727,7 @@ put_physdev:
 int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int irq,
 		      struct regmap *regmap)
 {
-	unsigned int int_sts, regid, reg_revid, mtl_revid, chipid, int_status;
+	unsigned int regid, reg_revid;
 	struct cs35l41_hda *cs35l41;
 	int ret;
 
@@ -1701,41 +1768,13 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 
 	usleep_range(2000, 2100);
 
-	ret = regmap_read_poll_timeout(cs35l41->regmap, CS35L41_IRQ1_STATUS4, int_status,
-				       int_status & CS35L41_OTP_BOOT_DONE, 1000, 100000);
-	if (ret) {
-		dev_err_probe(cs35l41->dev, ret, "Failed waiting for OTP_BOOT_DONE\n");
+	ret = cs35l41_wait_boot_done(cs35l41);
+	if (ret)
 		goto err;
-	}
 
-	ret = regmap_read(cs35l41->regmap, CS35L41_IRQ1_STATUS3, &int_sts);
-	if (ret || (int_sts & CS35L41_OTP_BOOT_ERR)) {
-		dev_err_probe(cs35l41->dev, ret, "OTP Boot status %x error\n",
-			      int_sts & CS35L41_OTP_BOOT_ERR);
-		ret = -EIO;
+	ret = cs35l41_verify_id(cs35l41, &regid, &reg_revid);
+	if (ret)
 		goto err;
-	}
-
-	ret = regmap_read(cs35l41->regmap, CS35L41_DEVID, &regid);
-	if (ret) {
-		dev_err_probe(cs35l41->dev, ret, "Get Device ID failed\n");
-		goto err;
-	}
-
-	ret = regmap_read(cs35l41->regmap, CS35L41_REVID, &reg_revid);
-	if (ret) {
-		dev_err_probe(cs35l41->dev, ret, "Get Revision ID failed\n");
-		goto err;
-	}
-
-	mtl_revid = reg_revid & CS35L41_MTLREVID_MASK;
-
-	chipid = (mtl_revid % 2) ? CS35L41R_CHIP_ID : CS35L41_CHIP_ID;
-	if (regid != chipid) {
-		dev_err(cs35l41->dev, "CS35L41 Device ID (%X). Expected ID %X\n", regid, chipid);
-		ret = -ENODEV;
-		goto err;
-	}
 
 	ret = cs35l41_test_key_unlock(cs35l41->dev, cs35l41->regmap);
 	if (ret)
