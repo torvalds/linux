@@ -3400,11 +3400,18 @@ decode_session4(const struct xfrm_flow_keys *flkeys, struct flowi *fl, bool reve
 		fl4->fl4_dport = flkeys->ports.dst;
 	}
 
+	switch (flkeys->basic.ip_proto) {
+	case IPPROTO_GRE:
+		fl4->fl4_gre_key = flkeys->gre.keyid;
+		break;
+	case IPPROTO_ICMP:
+		fl4->fl4_icmp_type = flkeys->icmp.type;
+		fl4->fl4_icmp_code = flkeys->icmp.code;
+		break;
+	}
+
 	fl4->flowi4_proto = flkeys->basic.ip_proto;
 	fl4->flowi4_tos = flkeys->ip.tos;
-	fl4->fl4_icmp_type = flkeys->icmp.type;
-	fl4->fl4_icmp_type = flkeys->icmp.code;
-	fl4->fl4_gre_key = flkeys->gre.keyid;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -3427,10 +3434,17 @@ decode_session6(const struct xfrm_flow_keys *flkeys, struct flowi *fl, bool reve
 		fl6->fl6_dport = flkeys->ports.dst;
 	}
 
+	switch (flkeys->basic.ip_proto) {
+	case IPPROTO_GRE:
+		fl6->fl6_gre_key = flkeys->gre.keyid;
+		break;
+	case IPPROTO_ICMPV6:
+		fl6->fl6_icmp_type = flkeys->icmp.type;
+		fl6->fl6_icmp_code = flkeys->icmp.code;
+		break;
+	}
+
 	fl6->flowi6_proto = flkeys->basic.ip_proto;
-	fl6->fl6_icmp_type = flkeys->icmp.type;
-	fl6->fl6_icmp_type = flkeys->icmp.code;
-	fl6->fl6_gre_key = flkeys->gre.keyid;
 }
 #endif
 
