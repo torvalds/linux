@@ -10127,7 +10127,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 		return;
 
 	/* check for error indications */
-	val = rd32(&pf->hw, pf->hw.aq.arq.len);
+	val = rd32(&pf->hw, I40E_PF_ARQLEN);
 	oldval = val;
 	if (val & I40E_PF_ARQLEN_ARQVFE_MASK) {
 		if (hw->debug_mask & I40E_DEBUG_AQ)
@@ -10146,9 +10146,9 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 		val &= ~I40E_PF_ARQLEN_ARQCRIT_MASK;
 	}
 	if (oldval != val)
-		wr32(&pf->hw, pf->hw.aq.arq.len, val);
+		wr32(&pf->hw, I40E_PF_ARQLEN, val);
 
-	val = rd32(&pf->hw, pf->hw.aq.asq.len);
+	val = rd32(&pf->hw, I40E_PF_ATQLEN);
 	oldval = val;
 	if (val & I40E_PF_ATQLEN_ATQVFE_MASK) {
 		if (pf->hw.debug_mask & I40E_DEBUG_AQ)
@@ -10166,7 +10166,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 		val &= ~I40E_PF_ATQLEN_ATQCRIT_MASK;
 	}
 	if (oldval != val)
-		wr32(&pf->hw, pf->hw.aq.asq.len, val);
+		wr32(&pf->hw, I40E_PF_ATQLEN, val);
 
 	event.buf_len = I40E_MAX_AQ_BUF_SIZE;
 	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
