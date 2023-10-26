@@ -331,7 +331,7 @@ static void afs_fetch_status_success(struct afs_operation *op)
 
 	if (vnode->netfs.inode.i_state & I_NEW) {
 		ret = afs_inode_init_from_status(op, vp, vnode);
-		op->error = ret;
+		afs_op_set_error(op, ret);
 		if (ret == 0)
 			afs_cache_permit(vnode, op->key, vp->cb_break_before, &vp->scb);
 	} else {

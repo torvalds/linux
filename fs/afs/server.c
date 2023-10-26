@@ -629,8 +629,8 @@ static noinline bool afs_update_server_record(struct afs_operation *op,
 			_leave(" = t [intr]");
 			return true;
 		}
-		op->error = PTR_ERR(alist);
-		_leave(" = f [%d]", op->error);
+		afs_op_set_error(op, PTR_ERR(alist));
+		_leave(" = f [%d]", afs_op_error(op));
 		return false;
 	}
 
@@ -684,7 +684,7 @@ wait:
 			  (op->flags & AFS_OPERATION_UNINTR) ?
 			  TASK_UNINTERRUPTIBLE : TASK_INTERRUPTIBLE);
 	if (ret == -ERESTARTSYS) {
-		op->error = ret;
+		afs_op_set_error(op, ret);
 		_leave(" = f [intr]");
 		return false;
 	}

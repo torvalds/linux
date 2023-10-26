@@ -51,7 +51,7 @@ static bool afs_start_fs_iteration(struct afs_operation *op,
 		 * and have to return an error.
 		 */
 		if (op->flags & AFS_OPERATION_CUR_ONLY) {
-			op->error = -ESTALE;
+			afs_op_set_error(op, -ESTALE);
 			return false;
 		}
 
@@ -93,7 +93,7 @@ static bool afs_sleep_and_retry(struct afs_operation *op)
 	if (!(op->flags & AFS_OPERATION_UNINTR)) {
 		msleep_interruptible(1000);
 		if (signal_pending(current)) {
-			op->error = -ERESTARTSYS;
+			afs_op_set_error(op, -ERESTARTSYS);
 			return false;
 		}
 	} else {
@@ -137,7 +137,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 	case 0:
 	default:
 		/* Success or local failure.  Stop. */
-		op->error = error;
+		afs_op_set_error(op, error);
 		op->flags |= AFS_OPERATION_STOP;
 		_leave(" = f [okay/local %d]", error);
 		return false;
@@ -174,11 +174,13 @@ bool afs_select_fileserver(struct afs_operation *op)
 
 			set_bit(AFS_VOLUME_NEEDS_UPDATE, &op->volume->flags);
 			error = afs_check_volume_status(op->volume, op);
-			if (error < 0)
-				goto failed_set_error;
+			if (error < 0) {
+				afs_op_set_error(op, error);
+				goto failed;
+			}
 
 			if (test_bit(AFS_VOLUME_DELETED, &op->volume->flags)) {
-				op->error = -ENOMEDIUM;
+				afs_op_set_error(op, -ENOMEDIUM);
 				goto failed;
 			}
 
@@ -250,11 +252,11 @@ bool afs_select_fileserver(struct afs_operation *op)
 				clear_bit(AFS_VOLUME_BUSY, &op->volume->flags);
 			}
 			if (op->flags & AFS_OPERATION_NO_VSLEEP) {
-				op->error = -EADV;
+				afs_op_set_error(op, -EADV);
 				goto failed;
 			}
 			if (op->flags & AFS_OPERATION_CUR_ONLY) {
-				op->error = -ESTALE;
+				afs_op_set_error(op, -ESTALE);
 				goto failed;
 			}
 			goto busy;
@@ -275,7 +277,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			 * lock we need to maintain.
 			 */
 			if (op->flags & AFS_OPERATION_NO_VSLEEP) {
-				op->error = -EBUSY;
+				afs_op_set_error(op, -EBUSY);
 				goto failed;
 			}
 			if (!test_and_set_bit(AFS_VOLUME_BUSY, &op->volume->flags)) {
@@ -304,7 +306,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			 * honour, just in case someone sets up a loop.
 			 */
 			if (op->flags & AFS_OPERATION_VMOVED) {
-				op->error = -EREMOTEIO;
+				afs_op_set_error(op, -EREMOTEIO);
 				goto failed;
 			}
 			op->flags |= AFS_OPERATION_VMOVED;
@@ -312,8 +314,10 @@ bool afs_select_fileserver(struct afs_operation *op)
 			set_bit(AFS_VOLUME_WAIT, &op->volume->flags);
 			set_bit(AFS_VOLUME_NEEDS_UPDATE, &op->volume->flags);
 			error = afs_check_volume_status(op->volume, op);
-			if (error < 0)
-				goto failed_set_error;
+			if (error < 0) {
+				afs_op_set_error(op, error);
+				goto failed;
+			}
 
 			/* If the server list didn't change, then the VLDB is
 			 * out of sync with the fileservers.  This is hopefully
@@ -344,7 +348,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			 * Translate locally and return ENOSPC.
 			 * No replicas to failover to.
 			 */
-			op->error = -ENOSPC;
+			afs_op_set_error(op, -ENOSPC);
 			goto failed_but_online;
 
 		case VOVERQUOTA:
@@ -353,7 +357,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 			 * Translate locally and return EDQUOT.
 			 * No replicas to failover to.
 			 */
-			op->error = -EDQUOT;
+			afs_op_set_error(op, -EDQUOT);
 			goto failed_but_online;
 
 		default:
@@ -366,7 +370,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 
 	case -ETIMEDOUT:
 	case -ETIME:
-		if (op->error != -EDESTADDRREQ)
+		if (afs_op_error(op) != -EDESTADDRREQ)
 			goto iterate_address;
 		fallthrough;
 	case -ERFKILL:
@@ -385,7 +389,7 @@ bool afs_select_fileserver(struct afs_operation *op)
 		fallthrough;
 	case -ECONNRESET:
 		_debug("call reset");
-		op->error = error;
+		afs_op_set_error(op, error);
 		goto failed;
 	}
 
@@ -401,8 +405,10 @@ start:
 	 * volume may have moved or even have been deleted.
 	 */
 	error = afs_check_volume_status(op->volume, op);
-	if (error < 0)
-		goto failed_set_error;
+	if (error < 0) {
+		afs_op_set_error(op, error);
+		goto failed;
+	}
 
 	if (!afs_start_fs_iteration(op, vnode))
 		goto failed;
@@ -413,8 +419,10 @@ pick_server:
 	_debug("pick [%lx]", op->untried);
 
 	error = afs_wait_for_fs_probes(op->server_list, op->untried);
-	if (error < 0)
-		goto failed_set_error;
+	if (error < 0) {
+		afs_op_set_error(op, error);
+		goto failed;
+	}
 
 	/* Pick the untried server with the lowest RTT.  If we have outstanding
 	 * callbacks, we stick with the server we're already using if we can.
@@ -515,7 +523,8 @@ out_of_addresses:
 			op->flags &= ~AFS_OPERATION_RETRY_SERVER;
 			goto retry_server;
 		case -ERESTARTSYS:
-			goto failed_set_error;
+			afs_op_set_error(op, error);
+			goto failed;
 		case -ETIME:
 		case -EDESTADDRREQ:
 			goto next_server;
@@ -544,13 +553,11 @@ no_more_servers:
 	}
 
 	error = e.error;
-
-failed_set_error:
 	op->error = error;
 failed:
 	op->flags |= AFS_OPERATION_STOP;
 	afs_end_cursor(&op->ac);
-	_leave(" = f [failed %d]", op->error);
+	_leave(" = f [failed %d]", afs_op_error(op));
 	return false;
 }
 

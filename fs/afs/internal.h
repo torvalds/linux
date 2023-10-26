@@ -1140,11 +1140,6 @@ extern bool afs_begin_vnode_operation(struct afs_operation *);
 extern void afs_wait_for_operation(struct afs_operation *);
 extern int afs_do_sync_operation(struct afs_operation *);
 
-static inline void afs_op_nomem(struct afs_operation *op)
-{
-	op->error = -ENOMEM;
-}
-
 static inline void afs_op_set_vnode(struct afs_operation *op, unsigned int n,
 				    struct afs_vnode *vnode)
 {
@@ -1237,6 +1232,21 @@ static inline void __afs_stat(atomic_t *s)
  */
 extern int afs_abort_to_error(u32);
 extern void afs_prioritise_error(struct afs_error *, int, u32);
+
+static inline void afs_op_nomem(struct afs_operation *op)
+{
+	op->error = -ENOMEM;
+}
+
+static inline int afs_op_error(const struct afs_operation *op)
+{
+	return op->error;
+}
+
+static inline int afs_op_set_error(struct afs_operation *op, int error)
+{
+	return op->error = error;
+}
 
 /*
  * mntpt.c

@@ -1899,7 +1899,7 @@ void afs_fs_inline_bulk_status(struct afs_operation *op)
 	int i;
 
 	if (test_bit(AFS_SERVER_FL_NO_IBULK, &op->server->flags)) {
-		op->error = -ENOTSUPP;
+		afs_op_set_error(op, -ENOTSUPP);
 		return;
 	}
 
