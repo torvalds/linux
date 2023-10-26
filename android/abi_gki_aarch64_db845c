@@ -197,6 +197,8 @@
   dma_async_device_register
   dma_async_tx_descriptor_init
   dma_buf_export
+  dma_buf_map_attachment_unlocked
+  dma_buf_unmap_attachment_unlocked
   dma_fence_context_alloc
   dma_fence_init
   dma_fence_release
