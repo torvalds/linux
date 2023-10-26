@@ -74,7 +74,7 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 	struct pwm_state state;
 
 	pwm_get_state(pb->pwm, &state);
-	if (!pb->enabled)
+	if (!pb->enabled && !state.enabled)
 		return;
 
 	if (pb->enable_gpio)
