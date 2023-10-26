@@ -35,12 +35,6 @@
 
 #define CURSOR_MEM_SIZE_32X32 (32*32*4)
 #define CURSOR_MEM_SIZE_64X64 (CURSOR_MEM_SIZE_32X32 << 2)
-static u32 l2_cache_size = 0;
-
-static const struct of_device_id sifive_l2_ids[] = {
-        { .compatible = "sifive,fu740-c000-ccache" },
-        { /* end of table */ },
-};
 
 static inline void update_format(u32 format, u64 mod, struct dc_hw_fb *fb)
 {
@@ -653,22 +647,10 @@ static void dc_deinit(struct device *dev)
 
 static int dc_init(struct device *dev)
 {
-	struct device_node *np;
 	struct vs_dc *dc = dev_get_drvdata(dev);
 	int ret;
 
 	dc->first_frame = true;
-
-	np = of_find_matching_node(NULL, sifive_l2_ids);
-        if (!np)
-                return -ENODEV;
-
-	ret = of_property_read_u32(np, "cache-size", &l2_cache_size);
-	if (ret) {
-		dev_err(dev, "failed to get l2 cache size\n");
-		return ret;
-        }
-	l2_cache_size <<= 4;
 
 	ret = syscon_panel_parse_dt(dev);
 	if (ret){
@@ -1026,26 +1008,11 @@ static void update_fb(struct vs_plane *plane, u8 display_id,
 	update_swizzle(drm_fb->format->format, fb);
 	update_watermark(plane_state->watermark, fb);
 
-	if (fb->enable) {
-		u32 flush_addr, flush_size;
-
-#define FLUSH_FB_PLANE(addr, stride)						\
-		if (addr) {							\
-			flush_addr = addr;					\
-			flush_size = fb->height * stride;			\
-			if (flush_size > l2_cache_size) {			\
-				flush_addr += flush_size - l2_cache_size;	\
-				flush_size = l2_cache_size;			\
-			}							\
-			sifive_l2_flush64_range(flush_addr, flush_size);	\
-		}
-
-		FLUSH_FB_PLANE(fb->y_address, fb->y_stride);
-		FLUSH_FB_PLANE(fb->u_address, fb->u_stride);
-		FLUSH_FB_PLANE(fb->v_address, fb->v_stride);
-
-#undef FLUSH_FB_PLANE
-	}
+        sifive_l2_flush64_range(fb->y_address, fb->height * fb->y_stride);
+        if (fb->u_address)
+                sifive_l2_flush64_range(fb->u_address, fb->height * fb->u_stride);
+        if (fb->v_address)
+                sifive_l2_flush64_range(fb->v_address, fb->height * fb->v_stride);
 
 	plane_state->status.tile_mode = fb->tile_mode;
 }
