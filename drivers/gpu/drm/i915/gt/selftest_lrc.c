@@ -1596,7 +1596,7 @@ emit_indirect_ctx_bb_canary(const struct intel_context *ce, u32 *cs)
 static void
 indirect_ctx_bb_setup(struct intel_context *ce)
 {
-	u32 *cs = context_indirect_bb(ce);
+	u32 *cs = context_wabb(ce, false);
 
 	cs[CTX_BB_CANARY_INDEX] = 0xdeadf00d;
 
