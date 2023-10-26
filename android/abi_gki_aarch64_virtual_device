@@ -410,6 +410,7 @@
   skb_copy_expand
   skb_dequeue
   skb_pull
+  skb_pull_data
   skb_push
   skb_put
   skb_queue_head

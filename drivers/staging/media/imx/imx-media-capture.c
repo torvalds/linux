@@ -501,14 +501,14 @@ static int capture_legacy_g_parm(struct file *file, void *fh,
 				 struct v4l2_streamparm *a)
 {
 	struct capture_priv *priv = video_drvdata(file);
-	struct v4l2_subdev_frame_interval fi;
+	struct v4l2_subdev_frame_interval fi = {
+		.pad = priv->src_sd_pad,
+	};
 	int ret;
 
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	memset(&fi, 0, sizeof(fi));
-	fi.pad = priv->src_sd_pad;
 	ret = v4l2_subdev_call(priv->src_sd, video, g_frame_interval, &fi);
 	if (ret < 0)
 		return ret;
@@ -523,14 +523,14 @@ static int capture_legacy_s_parm(struct file *file, void *fh,
 				 struct v4l2_streamparm *a)
 {
 	struct capture_priv *priv = video_drvdata(file);
-	struct v4l2_subdev_frame_interval fi;
+	struct v4l2_subdev_frame_interval fi = {
+		.pad = priv->src_sd_pad,
+	};
 	int ret;
 
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	memset(&fi, 0, sizeof(fi));
-	fi.pad = priv->src_sd_pad;
 	fi.interval = a->parm.capture.timeperframe;
 	ret = v4l2_subdev_call(priv->src_sd, video, s_frame_interval, &fi);
 	if (ret < 0)

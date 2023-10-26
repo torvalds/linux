@@ -13,6 +13,8 @@ static struct mcs_ops cnf10kb_mcs_ops   = {
 	.mcs_tx_sa_mem_map_write	= cnf10kb_mcs_tx_sa_mem_map_write,
 	.mcs_rx_sa_mem_map_write	= cnf10kb_mcs_rx_sa_mem_map_write,
 	.mcs_flowid_secy_map		= cnf10kb_mcs_flowid_secy_map,
+	.mcs_bbe_intr_handler		= cnf10kb_mcs_bbe_intr_handler,
+	.mcs_pab_intr_handler		= cnf10kb_mcs_pab_intr_handler,
 };
 
 struct mcs_ops *cnf10kb_get_mac_ops(void)
@@ -31,6 +33,7 @@ void cnf10kb_mcs_set_hw_capabilities(struct mcs *mcs)
 	hw->lmac_cnt = 4;		/* lmacs/ports per mcs block */
 	hw->mcs_x2p_intf = 1;		/* x2p clabration intf */
 	hw->mcs_blks = 7;		/* MCS blocks */
+	hw->ip_vec = MCS_CNF10KB_INT_VEC_IP; /* IP vector */
 }
 
 void cnf10kb_mcs_parser_cfg(struct mcs *mcs)
@@ -209,6 +212,66 @@ void cnf10kb_mcs_tx_pn_wrapped_handler(struct mcs *mcs)
 			event.sa_id = val & 0x7F;
 
 		event.pcifunc = mcs->tx.sa2pf_map[event.sa_id];
+		mcs_add_intr_wq_entry(mcs, &event);
+	}
+}
+
+void cnf10kb_mcs_bbe_intr_handler(struct mcs *mcs, u64 intr,
+				  enum mcs_direction dir)
+{
+	struct mcs_intr_event event = { 0 };
+	int i;
+
+	if (!(intr & MCS_BBE_INT_MASK))
+		return;
+
+	event.mcs_id = mcs->mcs_id;
+	event.pcifunc = mcs->pf_map[0];
+
+	for (i = 0; i < MCS_MAX_BBE_INT; i++) {
+		if (!(intr & BIT_ULL(i)))
+			continue;
+
+		/* Lower nibble denotes data fifo overflow interrupts and
+		 * upper nibble indicates policy fifo overflow interrupts.
+		 */
+		if (intr & 0xFULL)
+			event.intr_mask = (dir == MCS_RX) ?
+					  MCS_BBE_RX_DFIFO_OVERFLOW_INT :
+					  MCS_BBE_TX_DFIFO_OVERFLOW_INT;
+		else
+			event.intr_mask = (dir == MCS_RX) ?
+					  MCS_BBE_RX_PLFIFO_OVERFLOW_INT :
+					  MCS_BBE_TX_PLFIFO_OVERFLOW_INT;
+
+		/* Notify the lmac_id info which ran into BBE fatal error */
+		event.lmac_id = i & 0x3ULL;
+		mcs_add_intr_wq_entry(mcs, &event);
+	}
+}
+
+void cnf10kb_mcs_pab_intr_handler(struct mcs *mcs, u64 intr,
+				  enum mcs_direction dir)
+{
+	struct mcs_intr_event event = { 0 };
+	int i;
+
+	if (!(intr & MCS_PAB_INT_MASK))
+		return;
+
+	event.mcs_id = mcs->mcs_id;
+	event.pcifunc = mcs->pf_map[0];
+
+	for (i = 0; i < MCS_MAX_PAB_INT; i++) {
+		if (!(intr & BIT_ULL(i)))
+			continue;
+
+		event.intr_mask = (dir == MCS_RX) ?
+				  MCS_PAB_RX_CHAN_OVERFLOW_INT :
+				  MCS_PAB_TX_CHAN_OVERFLOW_INT;
+
+		/* Notify the lmac_id info which ran into PAB fatal error */
+		event.lmac_id = i;
 		mcs_add_intr_wq_entry(mcs, &event);
 	}
 }

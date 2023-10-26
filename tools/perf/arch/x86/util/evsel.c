@@ -7,6 +7,7 @@
 #include "linux/string.h"
 #include "evsel.h"
 #include "util/debug.h"
+#include "env.h"
 
 #define IBS_FETCH_L3MISSONLY   (1ULL << 59)
 #define IBS_OP_L3MISSONLY      (1ULL << 16)
@@ -97,22 +98,9 @@ void arch__post_evsel_config(struct evsel *evsel, struct perf_event_attr *attr)
 {
 	struct perf_pmu *evsel_pmu, *ibs_fetch_pmu, *ibs_op_pmu;
 	static int warned_once;
-	/* 0: Uninitialized, 1: Yes, -1: No */
-	static int is_amd;
 
-	if (warned_once || is_amd == -1)
+	if (warned_once || !x86__is_amd_cpu())
 		return;
-
-	if (!is_amd) {
-		struct perf_env *env = evsel__env(evsel);
-
-		if (!perf_env__cpuid(env) || !env->cpuid ||
-		    !strstarts(env->cpuid, "AuthenticAMD")) {
-			is_amd = -1;
-			return;
-		}
-		is_amd = 1;
-	}
 
 	evsel_pmu = evsel__find_pmu(evsel);
 	if (!evsel_pmu)

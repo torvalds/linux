@@ -108,15 +108,13 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	width = ti->len;
 	if (sector_div(width, stripes)) {
-		ti->error = "Target length not divisible by "
-		    "number of stripes";
+		ti->error = "Target length not divisible by number of stripes";
 		return -EINVAL;
 	}
 
 	tmp_len = width;
 	if (sector_div(tmp_len, chunk_size)) {
-		ti->error = "Target length not divisible by "
-		    "chunk size";
+		ti->error = "Target length not divisible by chunk size";
 		return -EINVAL;
 	}
 
@@ -124,15 +122,13 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 * Do we have enough arguments for that many stripes ?
 	 */
 	if (argc != (2 + 2 * stripes)) {
-		ti->error = "Not enough destinations "
-			"specified";
+		ti->error = "Not enough destinations specified";
 		return -EINVAL;
 	}
 
 	sc = kmalloc(struct_size(sc, stripe, stripes), GFP_KERNEL);
 	if (!sc) {
-		ti->error = "Memory allocation for striped context "
-		    "failed";
+		ti->error = "Memory allocation for striped context failed";
 		return -ENOMEM;
 	}
 
