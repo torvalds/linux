@@ -3449,6 +3449,15 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_CXL_EXP_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20c8168201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Inserts for DRds issued by IA Cores targeting DDR Mem that Missed the LLC",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_DDR",
@@ -3836,6 +3845,15 @@
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x10c8068201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_CXL_EXP_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20c8068201",
         "Unit": "CHA"
     },
     {
@@ -4878,6 +4896,15 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_CXL_EXP_LOCAL",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20c8168201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Occupancy for DRds issued by iA Cores targeting DDR Mem that Missed the LLC",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_DDR",
@@ -5265,6 +5292,15 @@
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x10c8068201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_CXL_EXP_LOCAL",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20c8068201",
         "Unit": "CHA"
     },
     {
