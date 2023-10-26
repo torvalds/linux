@@ -24,6 +24,7 @@ struct rk_tb_serv {
 	struct reset_control *rsts;
 	phys_addr_t mem_start;
 	size_t mem_size;
+	bool mem_no_free;
 };
 
 static atomic_t mcu_done = ATOMIC_INIT(0);
@@ -89,7 +90,8 @@ static void do_mcu_done(struct rk_tb_serv *serv)
 
 		start = phys_to_virt(serv->mem_start);
 		end = start + serv->mem_size;
-		free_reserved_area(start, end, -1, "rtos");
+		if (!serv->mem_no_free)
+			free_reserved_area(start, end, -1, "rtos");
 
 		spin_lock(&lock);
 		if (atomic_read(&mcu_done)) {
@@ -149,6 +151,8 @@ static int rk_tb_serv_probe(struct platform_device *pdev)
 	serv->rsts = devm_reset_control_array_get_optional_exclusive(&pdev->dev);
 	if (IS_ERR(serv->rsts) && PTR_ERR(serv->rsts) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
+
+	serv->mem_no_free = device_property_read_bool(&pdev->dev, "memory-no-free");
 
 	platform_set_drvdata(pdev, serv);
 
