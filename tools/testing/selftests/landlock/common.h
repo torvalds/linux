@@ -112,10 +112,13 @@ static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 	cap_t cap_p;
 	/* Only these three capabilities are useful for the tests. */
 	const cap_value_t caps[] = {
+		/* clang-format off */
 		CAP_DAC_OVERRIDE,
 		CAP_MKNOD,
 		CAP_SYS_ADMIN,
 		CAP_SYS_CHROOT,
+		CAP_NET_BIND_SERVICE,
+		/* clang-format on */
 	};
 
 	cap_p = cap_get_proc();
