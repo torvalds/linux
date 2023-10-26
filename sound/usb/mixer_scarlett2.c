@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *   Focusrite Scarlett Gen 2/3 and Clarett USB/Clarett+ Driver for ALSA
+ *   Focusrite Scarlett 2 Protocol Driver for ALSA
+ *   (including Scarlett 2nd Gen, 3rd Gen, Clarett USB, and Clarett+
+ *   series products)
  *
  *   Supported models:
  *   - 6i6/18i8/18i20 Gen 2
@@ -149,7 +151,7 @@
 #include "mixer.h"
 #include "helper.h"
 
-#include "mixer_scarlett_gen2.h"
+#include "mixer_scarlett2.h"
 
 /* device_setup value to allow turning MSD mode back on */
 #define SCARLETT2_MSD_ENABLE 0x02
@@ -4251,7 +4253,7 @@ static const struct scarlett2_device_entry *get_scarlett2_device_entry(
 	return entry;
 }
 
-static int snd_scarlett_gen2_controls_create(
+static int snd_scarlett2_controls_create(
 	struct usb_mixer_interface *mixer,
 	const struct scarlett2_device_entry *entry)
 {
@@ -4339,7 +4341,7 @@ static int snd_scarlett_gen2_controls_create(
 	return 0;
 }
 
-int snd_scarlett_gen2_init(struct usb_mixer_interface *mixer)
+int snd_scarlett2_init(struct usb_mixer_interface *mixer)
 {
 	struct snd_usb_audio *chip = mixer->chip;
 	const struct scarlett2_device_entry *entry;
@@ -4378,7 +4380,7 @@ int snd_scarlett_gen2_init(struct usb_mixer_interface *mixer)
 		entry->series_name,
 		USB_ID_PRODUCT(chip->usb_id));
 
-	err = snd_scarlett_gen2_controls_create(mixer, entry);
+	err = snd_scarlett2_controls_create(mixer, entry);
 	if (err < 0)
 		usb_audio_err(mixer->chip,
 			      "Error initialising %s Mixer Driver: %d",
