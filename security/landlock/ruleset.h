@@ -61,6 +61,47 @@ struct landlock_layer {
 };
 
 /**
+ * union landlock_key - Key of a ruleset's red-black tree
+ */
+union landlock_key {
+	/**
+	 * @object: Pointer to identify a kernel object (e.g. an inode).
+	 */
+	struct landlock_object *object;
+	/**
+	 * @data: Raw data to identify an arbitrary 32-bit value
+	 * (e.g. a TCP port).
+	 */
+	uintptr_t data;
+};
+
+/**
+ * enum landlock_key_type - Type of &union landlock_key
+ */
+enum landlock_key_type {
+	/**
+	 * @LANDLOCK_KEY_INODE: Type of &landlock_ruleset.root_inode's node
+	 * keys.
+	 */
+	LANDLOCK_KEY_INODE = 1,
+};
+
+/**
+ * struct landlock_id - Unique rule identifier for a ruleset
+ */
+struct landlock_id {
+	/**
+	 * @key: Identifies either a kernel object (e.g. an inode) or
+	 * a raw value (e.g. a TCP port).
+	 */
+	union landlock_key key;
+	/**
+	 * @type: Type of a landlock_ruleset's root tree.
+	 */
+	const enum landlock_key_type type;
+};
+
+/**
  * struct landlock_rule - Access rights tied to an object
  */
 struct landlock_rule {
@@ -69,12 +110,13 @@ struct landlock_rule {
 	 */
 	struct rb_node node;
 	/**
-	 * @object: Pointer to identify a kernel object (e.g. an inode).  This
-	 * is used as a key for this ruleset element.  This pointer is set once
-	 * and never modified.  It always points to an allocated object because
-	 * each rule increments the refcount of its object.
+	 * @key: A union to identify either a kernel object (e.g. an inode) or
+	 * a raw data value (e.g. a network socket port). This is used as a key
+	 * for this ruleset element.  The pointer is set once and never
+	 * modified.  It always points to an allocated object because each rule
+	 * increments the refcount of its object.
 	 */
-	struct landlock_object *object;
+	union landlock_key key;
 	/**
 	 * @num_layers: Number of entries in @layers.
 	 */
@@ -110,11 +152,12 @@ struct landlock_hierarchy {
  */
 struct landlock_ruleset {
 	/**
-	 * @root: Root of a red-black tree containing &struct landlock_rule
-	 * nodes.  Once a ruleset is tied to a process (i.e. as a domain), this
-	 * tree is immutable until @usage reaches zero.
+	 * @root_inode: Root of a red-black tree containing &struct
+	 * landlock_rule nodes with inode object.  Once a ruleset is tied to a
+	 * process (i.e. as a domain), this tree is immutable until @usage
+	 * reaches zero.
 	 */
-	struct rb_root root;
+	struct rb_root root_inode;
 	/**
 	 * @hierarchy: Enables hierarchy identification even when a parent
 	 * domain vanishes.  This is needed for the ptrace protection.
@@ -176,7 +219,7 @@ void landlock_put_ruleset(struct landlock_ruleset *const ruleset);
 void landlock_put_ruleset_deferred(struct landlock_ruleset *const ruleset);
 
 int landlock_insert_rule(struct landlock_ruleset *const ruleset,
-			 struct landlock_object *const object,
+			 const struct landlock_id id,
 			 const access_mask_t access);
 
 struct landlock_ruleset *
@@ -185,7 +228,7 @@ landlock_merge_ruleset(struct landlock_ruleset *const parent,
 
 const struct landlock_rule *
 landlock_find_rule(const struct landlock_ruleset *const ruleset,
-		   const struct landlock_object *const object);
+		   const struct landlock_id id);
 
 static inline void landlock_get_ruleset(struct landlock_ruleset *const ruleset)
 {
