@@ -295,6 +295,19 @@ static void uscat_sigbus(void)
 	asm volatile(".inst 0xb820003f" : : : );
 }
 
+static void lrcpc3_sigill(void)
+{
+	int data[2] = { 1, 2 };
+
+	register int *src asm ("x0") = data;
+	register int data0 asm ("w2") = 0;
+	register int data1 asm ("w3") = 0;
+
+	/* LDIAPP w2, w3, [x0] */
+	asm volatile(".inst 0x99431802"
+	              : "=r" (data0), "=r" (data1) : "r" (src) :);
+}
+
 static const struct hwcap_data {
 	const char *name;
 	unsigned long at_hwcap;
@@ -353,6 +366,13 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP_ILRCPC,
 		.cpuinfo = "ilrcpc",
 		.sigill_fn = ilrcpc_sigill,
+	},
+	{
+		.name = "LRCPC3",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_LRCPC3,
+		.cpuinfo = "lrcpc3",
+		.sigill_fn = lrcpc3_sigill,
 	},
 	{
 		.name = "LSE",
