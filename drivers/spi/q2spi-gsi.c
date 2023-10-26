@@ -40,7 +40,12 @@ static void q2spi_rx_xfer_completion_event(struct msm_gpi_dma_async_tx_cb_param 
 		q2spi_dump_ipc(q2spi, q2spi->ipc, "rx_xfer_completion_event RX",
 			       (char *)xfer->rx_buf, cb_param->length);
 		complete_all(&q2spi->rx_cb);
-		q2spi_add_req_to_rx_queue(q2spi, status, q2spi_pkt->m_cmd_param);
+		Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p in_use=%d vtype:%d\n",
+			    __func__, q2spi_pkt, q2spi_pkt->in_use, q2spi_pkt->vtype);
+		if (q2spi_pkt->vtype == VARIANT_1_LRA) {
+			Q2SPI_DEBUG(q2spi, "%s completed rx xfer PID=%d\n", __func__, current->pid);
+			complete_all(&q2spi->sync_wait);
+		}
 	} else {
 		Q2SPI_DEBUG(q2spi, "%s Err length miss-match %d %d\n",
 			    __func__, cb_param->length, xfer->rx_len);
@@ -72,7 +77,12 @@ static void q2spi_parse_q2spi_status(struct msm_gpi_dma_async_tx_cb_param *cb_pa
 	status = cb_param->q2spi_status;
 	Q2SPI_DEBUG(q2spi, "%s status:%d complete_tx_cb\n", __func__, status);
 	complete_all(&q2spi->tx_cb);
-	q2spi_add_req_to_rx_queue(q2spi, status, q2spi_pkt->m_cmd_param);
+	Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p in_use=%d vtype:%d\n",
+		    __func__, q2spi_pkt, q2spi_pkt->in_use, q2spi_pkt->vtype);
+	if (q2spi_pkt->vtype == VARIANT_1_LRA) {
+		Q2SPI_DEBUG(q2spi, "%s completed transfer PID=%d\n", __func__, current->pid);
+		complete_all(&q2spi->sync_wait);
+	}
 }
 
 static void q2spi_parse_cr_header(struct q2spi_geni *q2spi, struct msm_gpi_cb const *cb)
@@ -470,10 +480,11 @@ int q2spi_setup_gsi_xfer(struct q2spi_packet *q2spi_pkt)
 		xfer = q2spi->xfer;
 	cmd = xfer->cmd;
 
-	Q2SPI_DEBUG(q2spi, "%s PID=%d xfer:%p\n", __func__, current->pid, xfer);
+	Q2SPI_DEBUG(q2spi, "%s PID=%d xfer:%p vtype=%d\n", __func__,
+		    current->pid, xfer, q2spi_pkt->vtype);
 	reinit_completion(&q2spi->tx_cb);
 	reinit_completion(&q2spi->rx_cb);
-	if (q2spi_pkt->vtype == VARIANT_1_HRF)
+	if (q2spi_pkt->vtype == VARIANT_5_HRF)
 		reinit_completion(&q2spi->doorbell_up);
 
 	Q2SPI_DEBUG(q2spi, "%s cmd:%d q2spi_pkt:%p\n", __func__, cmd, q2spi_pkt);
