@@ -36,12 +36,6 @@
 #include "mpp_common.h"
 #include "mpp_iommu.h"
 
-/* Use 'v' as magic number */
-#define MPP_IOC_MAGIC		'v'
-
-#define MPP_IOC_CFG_V1	_IOW(MPP_IOC_MAGIC, 1, unsigned int)
-#define MPP_IOC_CFG_V2	_IOW(MPP_IOC_MAGIC, 2, unsigned int)
-
 /* input parmater structure for version 1 */
 struct mpp_msg_v1 {
 	__u32 cmd;
@@ -49,14 +43,6 @@ struct mpp_msg_v1 {
 	__u32 size;
 	__u32 offset;
 	__u64 data_ptr;
-};
-
-#define MPP_BAT_MSG_DONE		(0x00000001)
-
-struct mpp_bat_msg {
-	__u64 flag;
-	__u32 fd;
-	__s32 ret;
 };
 
 #ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
