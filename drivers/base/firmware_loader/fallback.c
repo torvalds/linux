@@ -106,7 +106,7 @@ static void fw_load_abort(struct fw_sysfs *fw_sysfs)
 
 static LIST_HEAD(pending_fw_head);
 
-void kill_pending_fw_fallback_reqs(bool only_kill_custom)
+void kill_pending_fw_fallback_reqs(bool kill_all)
 {
 	struct fw_priv *fw_priv;
 	struct fw_priv *next;
@@ -114,7 +114,7 @@ void kill_pending_fw_fallback_reqs(bool only_kill_custom)
 	mutex_lock(&fw_lock);
 	list_for_each_entry_safe(fw_priv, next, &pending_fw_head,
 				 pending_list) {
-		if (!fw_priv->need_uevent || !only_kill_custom)
+		if (kill_all || !fw_priv->need_uevent)
 			 __fw_load_abort(fw_priv);
 	}
 	mutex_unlock(&fw_lock);
