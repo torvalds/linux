@@ -114,6 +114,11 @@ properties:
     description: Enable pull down resistor when the regulator is disabled.
     type: boolean
 
+  system-critical-regulator:
+    description: Set if the regulator is critical to system stability or
+      functionality.
+    type: boolean
+
   regulator-over-current-protection:
     description: Enable over current protection.
     type: boolean
