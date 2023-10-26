@@ -96,8 +96,8 @@ void update_sk_prot(struct sock *sk, struct tls_context *ctx)
 
 int wait_on_pending_writer(struct sock *sk, long *timeo)
 {
-	int rc = 0;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
+	int ret, rc = 0;
 
 	add_wait_queue(sk_sleep(sk), &wait);
 	while (1) {
@@ -111,9 +111,13 @@ int wait_on_pending_writer(struct sock *sk, long *timeo)
 			break;
 		}
 
-		if (sk_wait_event(sk, timeo,
-				  !READ_ONCE(sk->sk_write_pending), &wait))
+		ret = sk_wait_event(sk, timeo,
+				    !READ_ONCE(sk->sk_write_pending), &wait);
+		if (ret) {
+			if (ret < 0)
+				rc = ret;
 			break;
+		}
 	}
 	remove_wait_queue(sk_sleep(sk), &wait);
 	return rc;
