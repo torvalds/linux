@@ -255,8 +255,7 @@ int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		for (i = 0; i < ARRAY_SIZE(s.v->skip); i++) {
 			id = le32_to_cpu(s.v->skip[i]);
 
-			if ((id && !s.v->parent) ||
-			    (id && id <= k.k->p.offset)) {
+			if (id && id < le32_to_cpu(s.v->parent)) {
 				prt_printf(err, "bad skiplist node %u", id);
 				return -BCH_ERR_invalid_bkey;
 			}
@@ -1348,12 +1347,12 @@ static int bch2_fix_child_of_deleted_snapshot(struct btree_trans *trans,
 			u32 id = le32_to_cpu(s->v.skip[j]);
 
 			if (snapshot_list_has_id(deleted, id)) {
-				id = depth > 1
-					? bch2_snapshot_nth_parent_skip(c,
+				id = bch2_snapshot_nth_parent_skip(c,
 							parent,
-							get_random_u32_below(depth - 1),
-							deleted)
-					: parent;
+							depth > 1
+							? get_random_u32_below(depth - 1)
+							: 0,
+							deleted);
 				s->v.skip[j] = cpu_to_le32(id);
 			}
 		}
