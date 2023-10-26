@@ -91,8 +91,6 @@
 
 #define MAX_TX_QUEUE				9
 
-#define MAX_RX_QUEUE				1
-
 #define MAX_RX_COUNT				64
 #define MAX_TX_QUEUE_COUNT			9
 

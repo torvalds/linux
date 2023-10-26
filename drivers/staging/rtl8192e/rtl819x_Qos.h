@@ -21,7 +21,6 @@ struct octet_string {
 #define AC1_BK	1
 #define AC2_VI	2
 #define AC3_VO	3
-#define AC_MAX	4
 
 enum direction_value {
 	DIR_UP			= 0,

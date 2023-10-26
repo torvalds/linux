@@ -10,7 +10,6 @@
 #define TS_ADDBA_DELAY		60
 
 #define TOTAL_TS_NUM		16
-#define TCLAS_NUM		4
 
 enum tr_select {
 	TX_DIR = 0,
