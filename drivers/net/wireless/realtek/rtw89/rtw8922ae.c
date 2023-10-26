@@ -33,6 +33,7 @@ static const struct rtw89_pci_info rtw8922a_pci_info = {
 	.max_tag_num_mask	= B_BE_MAX_TAG_NUM_MASK,
 	.rxbd_rwptr_clr_reg	= R_BE_RXBD_RWPTR_CLR1_V1,
 	.txbd_rwptr_clr2_reg	= R_BE_TXBD_RWPTR_CLR1,
+	.dma_io_stop		= {R_BE_HAXI_INIT_CFG1, B_BE_STOP_AXI_MST},
 	.dma_stop1		= {R_BE_HAXI_DMA_STOP1, B_BE_TX_STOP1_MASK},
 	.dma_stop2		= {0},
 	.dma_busy1		= {R_BE_HAXI_DMA_BUSY1, DMA_BUSY1_CHECK_BE},

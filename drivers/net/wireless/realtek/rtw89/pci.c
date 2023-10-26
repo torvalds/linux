@@ -1750,21 +1750,13 @@ static void rtw89_pci_ctrl_dma_trx(struct rtw89_dev *rtwdev, bool enable)
 
 static void rtw89_pci_ctrl_dma_io(struct rtw89_dev *rtwdev, bool enable)
 {
-	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
-	u32 reg, mask;
-
-	if (chip_id == RTL8852C) {
-		reg = R_AX_HAXI_INIT_CFG1;
-		mask = B_AX_STOP_AXI_MST;
-	} else {
-		reg = R_AX_PCIE_DMA_STOP1;
-		mask = B_AX_STOP_PCIEIO;
-	}
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_reg_def *reg = &info->dma_io_stop;
 
 	if (enable)
-		rtw89_write32_clr(rtwdev, reg, mask);
+		rtw89_write32_clr(rtwdev, reg->addr, reg->mask);
 	else
-		rtw89_write32_set(rtwdev, reg, mask);
+		rtw89_write32_set(rtwdev, reg->addr, reg->mask);
 }
 
 static void rtw89_pci_ctrl_dma_all(struct rtw89_dev *rtwdev, bool enable)

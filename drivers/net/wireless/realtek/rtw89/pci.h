@@ -947,6 +947,7 @@ struct rtw89_pci_info {
 	u32 max_tag_num_mask;
 	u32 rxbd_rwptr_clr_reg;
 	u32 txbd_rwptr_clr2_reg;
+	struct rtw89_reg_def dma_io_stop;
 	struct rtw89_reg_def dma_stop1;
 	struct rtw89_reg_def dma_stop2;
 	struct rtw89_reg_def dma_busy1;
