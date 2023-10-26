@@ -118,11 +118,11 @@ struct wilc_conn_info {
 	void *param;
 };
 
+struct wilc_vif;
 struct wilc_remain_ch {
 	u16 ch;
-	u32 duration;
-	void (*expired)(void *priv, u64 cookie);
-	void *arg;
+	void (*expired)(struct wilc_vif *vif, u64 cookie);
+	struct wilc_vif *vif;
 	u64 cookie;
 };
 
@@ -150,7 +150,6 @@ struct host_if_drv {
 	u8 assoc_resp[WILC_MAX_ASSOC_RESP_FRAME_SIZE];
 };
 
-struct wilc_vif;
 int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		 const u8 *mac_addr, const u8 *rx_mic, const u8 *tx_mic,
 		 u8 mode, u8 cipher_mode, u8 index);
@@ -192,10 +191,8 @@ int wilc_edit_station(struct wilc_vif *vif, const u8 *mac,
 int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout);
 int wilc_setup_multicast_filter(struct wilc_vif *vif, u32 enabled, u32 count,
 				u8 *mc_list);
-int wilc_remain_on_channel(struct wilc_vif *vif, u64 cookie,
-			   u32 duration, u16 chan,
-			   void (*expired)(void *, u64),
-			   void *user_arg);
+int wilc_remain_on_channel(struct wilc_vif *vif, u64 cookie, u16 chan,
+			   void (*expired)(struct wilc_vif *, u64));
 int wilc_listen_state_expired(struct wilc_vif *vif, u64 cookie);
 void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg);
 int wilc_set_operation_mode(struct wilc_vif *vif, int index, u8 mode,

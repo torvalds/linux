@@ -878,7 +878,7 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 	if (result)
 		return -EBUSY;
 
-	hif_drv->remain_on_ch.arg = hif_remain_ch->arg;
+	hif_drv->remain_on_ch.vif = hif_remain_ch->vif;
 	hif_drv->remain_on_ch.expired = hif_remain_ch->expired;
 	hif_drv->remain_on_ch.ch = hif_remain_ch->ch;
 	hif_drv->remain_on_ch.cookie = hif_remain_ch->cookie;
@@ -915,7 +915,7 @@ static int wilc_handle_roc_expired(struct wilc_vif *vif, u64 cookie)
 		}
 
 		if (hif_drv->remain_on_ch.expired) {
-			hif_drv->remain_on_ch.expired(hif_drv->remain_on_ch.arg,
+			hif_drv->remain_on_ch.expired(hif_drv->remain_on_ch.vif,
 						      cookie);
 		}
 	} else {
@@ -1669,18 +1669,15 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length)
 	}
 }
 
-int wilc_remain_on_channel(struct wilc_vif *vif, u64 cookie,
-			   u32 duration, u16 chan,
-			   void (*expired)(void *, u64),
-			   void *user_arg)
+int wilc_remain_on_channel(struct wilc_vif *vif, u64 cookie, u16 chan,
+			   void (*expired)(struct wilc_vif *, u64))
 {
 	struct wilc_remain_ch roc;
 	int result;
 
 	roc.ch = chan;
 	roc.expired = expired;
-	roc.arg = user_arg;
-	roc.duration = duration;
+	roc.vif = vif;
 	roc.cookie = cookie;
 	result = handle_remain_on_chan(vif, &roc);
 	if (result)

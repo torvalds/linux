@@ -1094,9 +1094,8 @@ static void wilc_wfi_mgmt_tx_complete(void *priv, int status)
 	kfree(pv_data);
 }
 
-static void wilc_wfi_remain_on_channel_expired(void *data, u64 cookie)
+static void wilc_wfi_remain_on_channel_expired(struct wilc_vif *vif, u64 cookie)
 {
-	struct wilc_vif *vif = data;
 	struct wilc_priv *priv = &vif->priv;
 	struct wilc_wfi_p2p_listen_params *params = &priv->remain_on_ch_params;
 
@@ -1128,9 +1127,8 @@ static int remain_on_channel(struct wiphy *wiphy,
 	if (id == 0)
 		id = ++priv->inc_roc_cookie;
 
-	ret = wilc_remain_on_channel(vif, id, duration, chan->hw_value,
-				     wilc_wfi_remain_on_channel_expired,
-				     (void *)vif);
+	ret = wilc_remain_on_channel(vif, id, chan->hw_value,
+				     wilc_wfi_remain_on_channel_expired);
 	if (ret)
 		return ret;
 
