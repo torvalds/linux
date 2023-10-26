@@ -718,7 +718,7 @@ long hab_vchan_send(struct uhab_context *ctx,
 	 * from the hab_vchan_send()'s perspective.
 	 */
 	if (!ret)
-		vchan->tx_cnt++;
+		atomic64_inc(&vchan->tx_cnt);
 err:
 
 	/* log msg send timestamp: exit hab_vchan_send */
@@ -769,7 +769,7 @@ int hab_vchan_recv(struct uhab_context *ctx,
 		 * hab_vchan_recv()'s view w/ the ret as 0 and *message as
 		 * non-zero.
 		 */
-		vchan->rx_cnt++;
+		atomic64_inc(&vchan->rx_cnt);
 	}
 
 	vchan->rx_inflight = 0;

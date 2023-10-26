@@ -416,8 +416,8 @@ struct virtual_channel {
 	int closed;
 	int forked; /* if fork is detected and assume only once */
 	/* stats */
-	uint64_t tx_cnt; /* total succeeded tx */
-	uint64_t rx_cnt; /* total succeeded rx */
+	atomic64_t tx_cnt; /* total succeeded tx */
+	atomic64_t rx_cnt; /* total succeeded rx */
 	int rx_inflight; /* rx in progress/blocking */
 };
 
