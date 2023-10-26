@@ -41,6 +41,7 @@ static u32 rtw89_pci_dma_recalc(struct rtw89_dev *rtwdev,
 				struct rtw89_pci_dma_ring *bd_ring,
 				u32 cur_idx, bool tx)
 {
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	u32 cnt, cur_rp, wp, rp, len;
 
 	rp = bd_ring->rp;
@@ -48,10 +49,14 @@ static u32 rtw89_pci_dma_recalc(struct rtw89_dev *rtwdev,
 	len = bd_ring->len;
 
 	cur_rp = FIELD_GET(TXBD_HW_IDX_MASK, cur_idx);
-	if (tx)
+	if (tx) {
 		cnt = cur_rp >= rp ? cur_rp - rp : len - (rp - cur_rp);
-	else
+	} else {
+		if (info->rx_ring_eq_is_full)
+			wp += 1;
+
 		cnt = cur_rp >= wp ? cur_rp - wp : len - (wp - cur_rp);
+	}
 
 	bd_ring->rp = cur_rp;
 
@@ -226,6 +231,21 @@ rtw89_skb_put_rx_data(struct rtw89_dev *rtwdev, bool fs, bool ls,
 	return true;
 }
 
+static u32 rtw89_pci_get_rx_skb_idx(struct rtw89_dev *rtwdev,
+				    struct rtw89_pci_dma_ring *bd_ring)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	u32 wp = bd_ring->wp;
+
+	if (!info->rx_ring_eq_is_full)
+		return wp;
+
+	if (++wp >= bd_ring->len)
+		wp = 0;
+
+	return wp;
+}
+
 static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 				       struct rtw89_pci_rx_ring *rx_ring)
 {
@@ -235,12 +255,14 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 	struct sk_buff *new = rx_ring->diliver_skb;
 	struct sk_buff *skb;
 	u32 rxinfo_size = sizeof(struct rtw89_pci_rxbd_info);
+	u32 skb_idx;
 	u32 offset;
 	u32 cnt = 1;
 	bool fs, ls;
 	int ret;
 
-	skb = rx_ring->buf[bd_ring->wp];
+	skb_idx = rtw89_pci_get_rx_skb_idx(rtwdev, bd_ring);
+	skb = rx_ring->buf[skb_idx];
 	rtw89_pci_sync_skb_for_cpu(rtwdev, skb);
 
 	ret = rtw89_pci_rxbd_info_update(rtwdev, skb);
@@ -525,10 +547,12 @@ static u32 rtw89_pci_release_tx_skbs(struct rtw89_dev *rtwdev,
 	u32 cnt = 0;
 	u32 rpp_size = sizeof(struct rtw89_pci_rpp_fmt);
 	u32 rxinfo_size = sizeof(struct rtw89_pci_rxbd_info);
+	u32 skb_idx;
 	u32 offset;
 	int ret;
 
-	skb = rx_ring->buf[bd_ring->wp];
+	skb_idx = rtw89_pci_get_rx_skb_idx(rtwdev, bd_ring);
+	skb = rx_ring->buf[skb_idx];
 	rtw89_pci_sync_skb_for_cpu(rtwdev, skb);
 
 	ret = rtw89_pci_rxbd_info_update(rtwdev, skb);
@@ -1454,6 +1478,7 @@ static void rtw89_pci_reset_trx_rings(struct rtw89_dev *rtwdev)
 	struct rtw89_pci_dma_ring *bd_ring;
 	const struct rtw89_pci_bd_ram *bd_ram;
 	u32 addr_num;
+	u32 addr_idx;
 	u32 addr_bdram;
 	u32 addr_desa_l;
 	u32 val32;
@@ -1487,14 +1512,21 @@ static void rtw89_pci_reset_trx_rings(struct rtw89_dev *rtwdev)
 		rx_ring = &rtwpci->rx_rings[i];
 		bd_ring = &rx_ring->bd_ring;
 		addr_num = bd_ring->addr.num;
+		addr_idx = bd_ring->addr.idx;
 		addr_desa_l = bd_ring->addr.desa_l;
-		bd_ring->wp = 0;
+		if (info->rx_ring_eq_is_full)
+			bd_ring->wp = bd_ring->len - 1;
+		else
+			bd_ring->wp = 0;
 		bd_ring->rp = 0;
 		rx_ring->diliver_skb = NULL;
 		rx_ring->diliver_desc.ready = false;
 
 		rtw89_write16(rtwdev, addr_num, bd_ring->len);
 		rtw89_write32(rtwdev, addr_desa_l, bd_ring->dma);
+
+		if (info->rx_ring_eq_is_full)
+			rtw89_write16(rtwdev, addr_idx, bd_ring->wp);
 	}
 }
 
@@ -3060,6 +3092,7 @@ static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 				   struct rtw89_pci_rx_ring *rx_ring,
 				   u32 desc_size, u32 len, u32 rxch)
 {
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	const struct rtw89_pci_ch_dma_addr *rxch_addr;
 	struct sk_buff *skb;
 	u8 *head;
@@ -3086,7 +3119,10 @@ static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 	rx_ring->bd_ring.len = len;
 	rx_ring->bd_ring.desc_size = desc_size;
 	rx_ring->bd_ring.addr = *rxch_addr;
-	rx_ring->bd_ring.wp = 0;
+	if (info->rx_ring_eq_is_full)
+		rx_ring->bd_ring.wp = len - 1;
+	else
+		rx_ring->bd_ring.wp = 0;
 	rx_ring->bd_ring.rp = 0;
 	rx_ring->buf_sz = buf_sz;
 	rx_ring->diliver_skb = NULL;
