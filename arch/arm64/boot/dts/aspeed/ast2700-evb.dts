@@ -60,6 +60,16 @@
 			no-map;
 		};
 
+		vbios_base0: vbios_base0@4310a0000 {
+			reg = <0x4 0x310a0000 0x0 0x10000>;
+			no-map;
+		};
+
+		vbios_base1: vbios_base1@4310b0000 {
+			reg = <0x4 0x310b0000 0x0 0x10000>;
+			no-map;
+		};
+
 		espi_mmbi_memory: espi-mmbi-memory@434000000 {
 			reg = <0x4 0x34000000 0x0 0x4000000>;
 			no-map;
