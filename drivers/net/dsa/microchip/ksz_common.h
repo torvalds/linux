@@ -378,6 +378,7 @@ struct ksz_dev_ops {
 			struct ethtool_wolinfo *wol);
 	int (*set_wol)(struct ksz_device *dev, int port,
 		       struct ethtool_wolinfo *wol);
+	void (*wol_pre_shutdown)(struct ksz_device *dev, bool *wol_enabled);
 	void (*config_cpu_port)(struct dsa_switch *ds);
 	int (*enable_stp_addr)(struct ksz_device *dev);
 	int (*reset)(struct ksz_device *dev);

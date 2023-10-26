@@ -321,6 +321,7 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.phylink_mac_link_up = ksz9477_phylink_mac_link_up,
 	.get_wol = ksz9477_get_wol,
 	.set_wol = ksz9477_set_wol,
+	.wol_pre_shutdown = ksz9477_wol_pre_shutdown,
 	.config_cpu_port = ksz9477_config_cpu_port,
 	.tc_cbs_set_cinc = ksz9477_tc_cbs_set_cinc,
 	.enable_stp_addr = ksz9477_enable_stp_addr,
@@ -3857,7 +3858,12 @@ EXPORT_SYMBOL(ksz_switch_alloc);
  */
 void ksz_switch_shutdown(struct ksz_device *dev)
 {
-	if (dev->dev_ops->reset)
+	bool wol_enabled = false;
+
+	if (dev->dev_ops->wol_pre_shutdown)
+		dev->dev_ops->wol_pre_shutdown(dev, &wol_enabled);
+
+	if (dev->dev_ops->reset && !wol_enabled)
 		dev->dev_ops->reset(dev);
 
 	dsa_switch_shutdown(dev->ds);
