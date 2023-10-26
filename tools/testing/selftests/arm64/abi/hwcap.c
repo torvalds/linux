@@ -81,6 +81,20 @@ static void lrcpc_sigill(void)
 	asm volatile(".inst 0xb8bfc3e0" : : : );
 }
 
+static void lse128_sigill(void)
+{
+	u64 __attribute__ ((aligned (16))) mem[2] = { 10, 20 };
+	register u64 *memp asm ("x0") = mem;
+	register u64 val0 asm ("x1") = 5;
+	register u64 val1 asm ("x2") = 4;
+
+	/* SWPP X1, X2, [X0] */
+	asm volatile(".inst 0x19228001"
+		     : "+r" (memp), "+r" (val0), "+r" (val1)
+		     :
+		     : "cc", "memory");
+}
+
 static void mops_sigill(void)
 {
 	char dst[1], src[1];
@@ -389,6 +403,13 @@ static const struct hwcap_data {
 		.sigill_fn = atomics_sigill,
 		.sigbus_fn = uscat_sigbus,
 		.sigbus_reliable = true,
+	},
+	{
+		.name = "LSE128",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_LSE128,
+		.cpuinfo = "lse128",
+		.sigill_fn = lse128_sigill,
 	},
 	{
 		.name = "MOPS",
