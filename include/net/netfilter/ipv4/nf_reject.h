@@ -8,8 +8,8 @@
 #include <net/netfilter/nf_reject.h>
 
 void nf_send_unreach(struct sk_buff *skb_in, int code, int hook);
-void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook);
-
+void nf_send_reset(struct net *net, struct sock *, struct sk_buff *oldskb,
+		   int hook);
 const struct tcphdr *nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
 					     struct tcphdr *_oth, int hook);
 struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
