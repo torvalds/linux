@@ -1622,16 +1622,6 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		goto err_unlock;
 	}
 
-	mi = bch2_sb_field_get(ca->disk_sb.sb, members_v2);
-
-	if (!bch2_sb_field_resize(&ca->disk_sb, members_v2,
-				le32_to_cpu(mi->field.u64s) +
-				sizeof(dev_mi) / sizeof(u64))) {
-		ret = -BCH_ERR_ENOSPC_sb_members;
-		bch_err_msg(c, ret, "setting up new superblock");
-		goto err_unlock;
-	}
-
 	if (dynamic_fault("bcachefs:add:no_slot"))
 		goto no_slot;
 
@@ -1645,6 +1635,8 @@ no_slot:
 
 have_slot:
 	nr_devices = max_t(unsigned, dev_idx + 1, c->sb.nr_devices);
+
+	mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
 	u64s = DIV_ROUND_UP(sizeof(struct bch_sb_field_members_v2) +
 			    le16_to_cpu(mi->member_bytes) * nr_devices, sizeof(u64));
 
