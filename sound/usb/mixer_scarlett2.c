@@ -210,6 +210,9 @@ static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
  */
 #define SCARLETT2_MUX_MAX 77
 
+/* Maximum number of sources (sum of input port counts) */
+#define SCARLETT2_MAX_SRCS 52
+
 /* Maximum number of meters (sum of output port counts) */
 #define SCARLETT2_MAX_METERS 65
 
@@ -328,6 +331,18 @@ struct scarlett2_mux_entry {
 	u8 count;
 };
 
+/* Maximum number of entries in a mux table */
+#define SCARLETT2_MAX_METER_ENTRIES 9
+
+/* One entry within meter_assignment defines the range of mux outputs
+ * that consecutive meter entries are mapped to. The end of the list
+ * is marked with count == 0.
+ */
+struct scarlett2_meter_entry {
+	u8 start;
+	u8 count;
+};
+
 struct scarlett2_device_info {
 	/* Gen 3 devices have an internal MSD mode switch that needs
 	 * to be disabled in order to access the full functionality of
@@ -381,6 +396,7 @@ struct scarlett2_device_info {
 	 */
 	u8 line_out_remap_enable;
 	u8 line_out_remap[SCARLETT2_ANALOGUE_MAX];
+	u8 line_out_unmap[SCARLETT2_ANALOGUE_MAX];
 
 	/* additional description for the line out volume controls */
 	const char * const line_out_descrs[SCARLETT2_ANALOGUE_MAX];
@@ -391,6 +407,12 @@ struct scarlett2_device_info {
 	/* layout/order of the entries in the set_mux message */
 	struct scarlett2_mux_entry mux_assignment[SCARLETT2_MUX_TABLES]
 						 [SCARLETT2_MAX_MUX_ENTRIES];
+
+	/* map from meter level order returned by
+	 * SCARLETT2_USB_GET_METER to index into mux[] entries (same
+	 * as the order returned by scarlett2_meter_ctl_get())
+	 */
+	struct scarlett2_meter_entry meter_map[SCARLETT2_MAX_METER_ENTRIES];
 };
 
 struct scarlett2_data {
@@ -431,6 +453,7 @@ struct scarlett2_data {
 	u8 talkback_map[SCARLETT2_OUTPUT_MIX_MAX];
 	u8 msd_switch;
 	u8 standalone_switch;
+	u8 meter_level_map[SCARLETT2_MAX_METERS];
 	struct snd_kcontrol *sync_ctl;
 	struct snd_kcontrol *master_vol_ctl;
 	struct snd_kcontrol *vol_ctls[SCARLETT2_ANALOGUE_MAX];
@@ -493,6 +516,12 @@ static const struct scarlett2_device_info s6i6_gen2_info = {
 		{ SCARLETT2_PORT_TYPE_NONE,     0,  8 },
 		{ 0,                            0,  0 },
 	} },
+
+	.meter_map = {
+		{ 24,  6 },
+		{  0, 24 },
+		{  0,  0 },
+	}
 };
 
 static const struct scarlett2_device_info s18i8_gen2_info = {
@@ -540,6 +569,12 @@ static const struct scarlett2_device_info s18i8_gen2_info = {
 		{ SCARLETT2_PORT_TYPE_NONE,     0,  4 },
 		{ 0,                            0,  0 },
 	} },
+
+	.meter_map = {
+		{ 26, 18 },
+		{  0, 26 },
+		{  0,  0 },
+	}
 };
 
 static const struct scarlett2_device_info s18i20_gen2_info = {
@@ -592,6 +627,12 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 		{ SCARLETT2_PORT_TYPE_NONE,     0,  6 },
 		{ 0,                            0,  0 },
 	} },
+
+	.meter_map = {
+		{ 38, 18 },
+		{  0, 38 },
+		{  0,  0 },
+	}
 };
 
 static const struct scarlett2_device_info solo_gen3_info = {
@@ -657,6 +698,12 @@ static const struct scarlett2_device_info s4i4_gen3_info = {
 		{ SCARLETT2_PORT_TYPE_NONE,     0, 16 },
 		{ 0,                            0,  0 },
 	} },
+
+	.meter_map = {
+		{ 12,  6 },
+		{  0, 12 },
+		{  0,  0 },
+	}
 };
 
 static const struct scarlett2_device_info s8i6_gen3_info = {
@@ -708,6 +755,14 @@ static const struct scarlett2_device_info s8i6_gen3_info = {
 		{ SCARLETT2_PORT_TYPE_NONE,     0, 18 },
 		{ 0,                            0,  0 },
 	} },
+
+	.meter_map = {
+		{ 14, 8 },
+		{  0, 6 },
+		{ 22, 2 },
+		{  6, 8 },
+		{  0, 0 },
+	}
 };
 
 static const struct scarlett2_device_info s18i8_gen3_info = {
@@ -723,6 +778,7 @@ static const struct scarlett2_device_info s18i8_gen3_info = {
 
 	.line_out_remap_enable = 1,
 	.line_out_remap = { 0, 1, 6, 7, 2, 3, 4, 5 },
+	.line_out_unmap = { 0, 1, 4, 5, 6, 7, 2, 3 },
 
 	.line_out_descrs = {
 		"Monitor L",
@@ -776,6 +832,18 @@ static const struct scarlett2_device_info s18i8_gen3_info = {
 		{ SCARLETT2_PORT_TYPE_NONE,      0, 10 },
 		{ 0,                             0,  0 },
 	} },
+
+	.meter_map = {
+		{ 30, 10 },
+		{ 42,  8 },
+		{  0,  2 },
+		{  6,  2 },
+		{  2,  4 },
+		{  8,  2 },
+		{ 40,  2 },
+		{ 10, 20 },
+		{  0,  0 }
+	}
 };
 
 static const struct scarlett2_device_info s18i20_gen3_info = {
@@ -839,6 +907,15 @@ static const struct scarlett2_device_info s18i20_gen3_info = {
 		{ SCARLETT2_PORT_TYPE_NONE,      0, 24 },
 		{ 0,                             0,  0 },
 	} },
+
+	.meter_map = {
+		{ 45,  8 },
+		{ 55, 10 },
+		{  0, 20 },
+		{ 53,  2 },
+		{ 20, 25 },
+		{  0,  0 },
+	}
 };
 
 static const struct scarlett2_device_info clarett_2pre_info = {
@@ -881,6 +958,12 @@ static const struct scarlett2_device_info clarett_2pre_info = {
 		{ SCARLETT2_PORT_TYPE_NONE,     0, 26 },
 		{ 0,                            0,  0 },
 	} },
+
+	.meter_map = {
+		{ 22, 12 },
+		{  0, 22 },
+		{  0,  0 }
+	}
 };
 
 static const struct scarlett2_device_info clarett_4pre_info = {
@@ -928,6 +1011,12 @@ static const struct scarlett2_device_info clarett_4pre_info = {
 		{ SCARLETT2_PORT_TYPE_NONE,     0, 24 },
 		{ 0,                            0,  0 },
 	} },
+
+	.meter_map = {
+		{ 26, 18 },
+		{  0, 26 },
+		{  0,  0 }
+	}
 };
 
 static const struct scarlett2_device_info clarett_8pre_info = {
@@ -981,6 +1070,12 @@ static const struct scarlett2_device_info clarett_8pre_info = {
 		{ SCARLETT2_PORT_TYPE_NONE,     0, 22 },
 		{ 0,                            0,  0 },
 	} },
+
+	.meter_map = {
+		{ 38, 18 },
+		{  0, 38 },
+		{  0,  0 }
+	}
 };
 
 struct scarlett2_device_entry {
@@ -1688,6 +1783,79 @@ static void scarlett2_usb_populate_mux(struct scarlett2_data *private,
 	private->mux[dst_idx] = src_idx;
 }
 
+/* Update the meter level map
+ *
+ * The meter level data from the interface (SCARLETT2_USB_GET_METER
+ * request) is returned in mux_assignment order, but to avoid exposing
+ * that to userspace, scarlett2_meter_ctl_get() rearranges the data
+ * into scarlett2_ports order using the meter_level_map[] array which
+ * is set up by this function.
+ *
+ * In addition, the meter level data values returned from the
+ * interface are invalid for destinations where:
+ *
+ * - the source is "Off"; therefore we set those values to zero (map
+ *   value of 255)
+ *
+ * - the source is assigned to a previous (with respect to the
+ *   mux_assignment order) destination; therefore we set those values
+ *   to the value previously reported for that source
+ */
+static void scarlett2_update_meter_level_map(struct scarlett2_data *private)
+{
+	const struct scarlett2_device_info *info = private->info;
+	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
+	int line_out_count =
+		port_count[SCARLETT2_PORT_TYPE_ANALOGUE][SCARLETT2_PORT_OUT];
+	const struct scarlett2_meter_entry *entry;
+
+	/* sources already assigned to a destination
+	 * value is 255 for None, otherwise the value of i
+	 * (index into array returned by
+	 * scarlett2_usb_get_meter_levels())
+	 */
+	u8 seen_src[SCARLETT2_MAX_SRCS] = { 1 };
+	u8 seen_src_value[SCARLETT2_MAX_SRCS] = { 255 };
+
+	/* index in meter_map[] order */
+	int i = 0;
+
+	/* go through the meter_map[] entries */
+	for (entry = info->meter_map;
+	     entry->count;
+	     entry++) {
+
+		/* fill in each meter_level_map[] entry */
+		int j, mux_idx;
+
+		for (j = 0, mux_idx = entry->start;
+		     j < entry->count;
+		     i++, j++, mux_idx++) {
+
+			/* convert mux_idx using line_out_unmap[] */
+			int map_mux_idx = (
+			    info->line_out_remap_enable &&
+			    mux_idx < line_out_count
+			) ? info->line_out_unmap[mux_idx]
+			  : mux_idx;
+
+			/* check which source is connected, and if
+			 * that source is already connected elsewhere,
+			 * use that existing connection's destination
+			 * for this meter entry instead
+			 */
+			int mux_src = private->mux[mux_idx];
+
+			if (!seen_src[mux_src]) {
+				seen_src[mux_src] = 1;
+				seen_src_value[mux_src] = i;
+			}
+			private->meter_level_map[map_mux_idx] =
+				seen_src_value[mux_src];
+		}
+	}
+}
+
 /* Send USB message to get mux inputs and then populate private->mux[] */
 static int scarlett2_usb_get_mux(struct usb_mixer_interface *mixer)
 {
@@ -1715,6 +1883,8 @@ static int scarlett2_usb_get_mux(struct usb_mixer_interface *mixer)
 
 	for (i = 0; i < count; i++)
 		scarlett2_usb_populate_mux(private, le32_to_cpu(data[i]));
+
+	scarlett2_update_meter_level_map(private);
 
 	return 0;
 }
@@ -1781,6 +1951,8 @@ static int scarlett2_usb_set_mux(struct usb_mixer_interface *mixer)
 		if (err < 0)
 			return err;
 	}
+
+	scarlett2_update_meter_level_map(private);
 
 	return 0;
 }
@@ -3619,6 +3791,8 @@ static int scarlett2_meter_ctl_get(struct snd_kcontrol *kctl,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct scarlett2_data *private = elem->head.mixer->private_data;
+	u8 *meter_level_map = private->meter_level_map;
 	u16 meter_levels[SCARLETT2_MAX_METERS];
 	int i, err;
 
@@ -3627,8 +3801,18 @@ static int scarlett2_meter_ctl_get(struct snd_kcontrol *kctl,
 	if (err < 0)
 		return err;
 
-	for (i = 0; i < elem->channels; i++)
-		ucontrol->value.integer.value[i] = meter_levels[i];
+	/* copy & translate from meter_levels[] using meter_level_map[] */
+	for (i = 0; i < elem->channels; i++) {
+		int idx = meter_level_map[i];
+		int value;
+
+		if (idx == 255)
+			value = 0;
+		else
+			value = meter_levels[idx];
+
+		ucontrol->value.integer.value[i] = value;
+	}
 
 	return 0;
 }
