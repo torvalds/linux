@@ -333,20 +333,17 @@ static int __init meson_irtx_probe(struct platform_device *pdev)
 	spin_lock_init(&ir->lock);
 
 	ret = meson_irtx_mod_clock_probe(ir, &clk_nr);
-	if (ret) {
-		dev_err(dev, "modulator clock setup failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "modulator clock setup failed\n");
+
 	meson_irtx_setup(ir, clk_nr);
 
 	ret = devm_request_irq(dev, irq,
 			       meson_irtx_irqhandler,
 			       IRQF_TRIGGER_RISING,
 			       DRIVER_NAME, ir);
-	if (ret) {
-		dev_err(dev, "irq request failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "irq request failed\n");
 
 	rc = rc_allocate_device(RC_DRIVER_IR_RAW_TX);
 	if (!rc)
@@ -362,9 +359,8 @@ static int __init meson_irtx_probe(struct platform_device *pdev)
 
 	ret = devm_rc_register_device(dev, rc);
 	if (ret < 0) {
-		dev_err(dev, "rc_dev registration failed\n");
 		rc_free_device(rc);
-		return ret;
+		return dev_err_probe(dev, ret, "rc_dev registration failed\n");
 	}
 
 	return 0;
