@@ -13,6 +13,7 @@ def define_pitti():
         "drivers/clk/qcom/clk-qcom.ko",
         "drivers/clk/qcom/gcc-pitti.ko",
         "drivers/clk/qcom/gdsc-regulator.ko",
+        "drivers/clk/qcom/gpucc-pitti.ko",
         "drivers/cpuidle/governors/qcom_lpm.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
         "drivers/firmware/qcom-scm.ko",
