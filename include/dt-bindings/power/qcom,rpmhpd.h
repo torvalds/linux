@@ -26,5 +26,7 @@
 #define RPMHPD_QPHY             16
 #define RPMHPD_DDR              17
 #define RPMHPD_XO               18
+#define RPMHPD_NSP2             19
+#define RPMHPD_GMXC		20
 
 #endif
