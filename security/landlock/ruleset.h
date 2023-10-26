@@ -33,13 +33,16 @@
 typedef u16 access_mask_t;
 /* Makes sure all filesystem access rights can be stored. */
 static_assert(BITS_PER_TYPE(access_mask_t) >= LANDLOCK_NUM_ACCESS_FS);
+/* Makes sure all network access rights can be stored. */
+static_assert(BITS_PER_TYPE(access_mask_t) >= LANDLOCK_NUM_ACCESS_NET);
 /* Makes sure for_each_set_bit() and for_each_clear_bit() calls are OK. */
 static_assert(sizeof(unsigned long) >= sizeof(access_mask_t));
 
 /* Ruleset access masks. */
-typedef u16 access_masks_t;
+typedef u32 access_masks_t;
 /* Makes sure all ruleset access rights can be stored. */
-static_assert(BITS_PER_TYPE(access_masks_t) >= LANDLOCK_NUM_ACCESS_FS);
+static_assert(BITS_PER_TYPE(access_masks_t) >=
+	      LANDLOCK_NUM_ACCESS_FS + LANDLOCK_NUM_ACCESS_NET);
 
 typedef u16 layer_mask_t;
 /* Makes sure all layers can be checked. */
@@ -84,6 +87,11 @@ enum landlock_key_type {
 	 * keys.
 	 */
 	LANDLOCK_KEY_INODE = 1,
+	/**
+	 * @LANDLOCK_KEY_NET_PORT: Type of &landlock_ruleset.root_net_port's
+	 * node keys.
+	 */
+	LANDLOCK_KEY_NET_PORT,
 };
 
 /**
@@ -158,6 +166,17 @@ struct landlock_ruleset {
 	 * reaches zero.
 	 */
 	struct rb_root root_inode;
+
+#if IS_ENABLED(CONFIG_INET)
+	/**
+	 * @root_net_port: Root of a red-black tree containing &struct
+	 * landlock_rule nodes with network port. Once a ruleset is tied to a
+	 * process (i.e. as a domain), this tree is immutable until @usage
+	 * reaches zero.
+	 */
+	struct rb_root root_net_port;
+#endif /* IS_ENABLED(CONFIG_INET) */
+
 	/**
 	 * @hierarchy: Enables hierarchy identification even when a parent
 	 * domain vanishes.  This is needed for the ptrace protection.
@@ -196,13 +215,13 @@ struct landlock_ruleset {
 			 */
 			u32 num_layers;
 			/**
-			 * @access_masks: Contains the subset of filesystem
-			 * actions that are restricted by a ruleset.  A domain
-			 * saves all layers of merged rulesets in a stack
-			 * (FAM), starting from the first layer to the last
-			 * one.  These layers are used when merging rulesets,
-			 * for user space backward compatibility (i.e.
-			 * future-proof), and to properly handle merged
+			 * @access_masks: Contains the subset of filesystem and
+			 * network actions that are restricted by a ruleset.
+			 * A domain saves all layers of merged rulesets in a
+			 * stack (FAM), starting from the first layer to the
+			 * last one.  These layers are used when merging
+			 * rulesets, for user space backward compatibility
+			 * (i.e. future-proof), and to properly handle merged
 			 * rulesets without overlapping access rights.  These
 			 * layers are set once and never changed for the
 			 * lifetime of the ruleset.
@@ -213,7 +232,8 @@ struct landlock_ruleset {
 };
 
 struct landlock_ruleset *
-landlock_create_ruleset(const access_mask_t access_mask);
+landlock_create_ruleset(const access_mask_t access_mask_fs,
+			const access_mask_t access_mask_net);
 
 void landlock_put_ruleset(struct landlock_ruleset *const ruleset);
 void landlock_put_ruleset_deferred(struct landlock_ruleset *const ruleset);
@@ -249,6 +269,19 @@ landlock_add_fs_access_mask(struct landlock_ruleset *const ruleset,
 		(fs_mask << LANDLOCK_SHIFT_ACCESS_FS);
 }
 
+static inline void
+landlock_add_net_access_mask(struct landlock_ruleset *const ruleset,
+			     const access_mask_t net_access_mask,
+			     const u16 layer_level)
+{
+	access_mask_t net_mask = net_access_mask & LANDLOCK_MASK_ACCESS_NET;
+
+	/* Should already be checked in sys_landlock_create_ruleset(). */
+	WARN_ON_ONCE(net_access_mask != net_mask);
+	ruleset->access_masks[layer_level] |=
+		(net_mask << LANDLOCK_SHIFT_ACCESS_NET);
+}
+
 static inline access_mask_t
 landlock_get_raw_fs_access_mask(const struct landlock_ruleset *const ruleset,
 				const u16 layer_level)
@@ -265,6 +298,15 @@ landlock_get_fs_access_mask(const struct landlock_ruleset *const ruleset,
 	/* Handles all initially denied by default access rights. */
 	return landlock_get_raw_fs_access_mask(ruleset, layer_level) |
 	       LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
+}
+
+static inline access_mask_t
+landlock_get_net_access_mask(const struct landlock_ruleset *const ruleset,
+			     const u16 layer_level)
+{
+	return (ruleset->access_masks[layer_level] >>
+		LANDLOCK_SHIFT_ACCESS_NET) &
+	       LANDLOCK_MASK_ACCESS_NET;
 }
 
 bool landlock_unmask_layers(const struct landlock_rule *const rule,
