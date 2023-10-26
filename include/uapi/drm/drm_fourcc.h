@@ -1059,14 +1059,43 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  */
 #define AMLOGIC_FBC_OPTION_MEM_SAVING		(1ULL << 0)
 
+/*
+ * Rockchip modifier format
+ * tiled modifier format, block size: 8x8,4x4_m0 and 4x4_m1,
+ * rfbc modifier format, block size: 64x4
+ *
+ * bit[55,52] for Rockchip drm modifier type
+ */
+#define DRM_FORMAT_MOD_ROCKCHIP_TYPE_SHIFT	52
+#define DRM_FORMAT_MOD_ROCKCHIP_TYPE_MASK	0xf
+#define DRM_FORMAT_MOD_ROCKCHIP_TYPE_TILED	0x0
+#define DRM_FORMAT_MOD_ROCKCHIP_TYPE_RFBC	0x1
+
+/* bit[3,0] for Rockchip drm modifier block size */
 #define ROCKCHIP_TILED_BLOCK_SIZE_MASK		0xf
 #define ROCKCHIP_TILED_BLOCK_SIZE_8x8		(1ULL)
 #define ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE0	(2ULL)
 #define ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE1	(3ULL)
 
-#define DRM_FORMAT_MOD_ROCKCHIP_TILED(_mode) fourcc_mod_code(ROCKCHIP, _mode)
+#define ROCKCHIP_RFBC_BLOCK_SIZE_64x4		(1ULL)
 
-#define IS_ROCKCHIP_TILED_MOD(val) (((val) >> 56) == DRM_FORMAT_MOD_VENDOR_ROCKCHIP)
+#define DRM_FORMAT_MOD_ROCKCHIP_CODE(__type, __val) \
+	fourcc_mod_code(ROCKCHIP, ((__u64)(__type) << DRM_FORMAT_MOD_ROCKCHIP_TYPE_SHIFT) | \
+			((__val) & 0x000fffffffffffffULL))
+
+/* Rockchip tiled modifier format */
+#define DRM_FORMAT_MOD_ROCKCHIP_TILED(mode) \
+	DRM_FORMAT_MOD_ROCKCHIP_CODE(DRM_FORMAT_MOD_ROCKCHIP_TYPE_TILED, mode)
+#define IS_ROCKCHIP_TILED_MOD(val) \
+	(((val) >> 56) == DRM_FORMAT_MOD_VENDOR_ROCKCHIP && \
+	 ((val >> DRM_FORMAT_MOD_ROCKCHIP_TYPE_SHIFT) & DRM_FORMAT_MOD_ROCKCHIP_TYPE_MASK) == DRM_FORMAT_MOD_ROCKCHIP_TYPE_TILED)
+
+/* Rockchip rfbc modifier format */
+#define DRM_FORMAT_MOD_ROCKCHIP_RFBC(mode) \
+	DRM_FORMAT_MOD_ROCKCHIP_CODE(DRM_FORMAT_MOD_ROCKCHIP_TYPE_RFBC, mode)
+#define IS_ROCKCHIP_RFBC_MOD(val) \
+	(((val) >> 56) == DRM_FORMAT_MOD_VENDOR_ROCKCHIP && \
+	 ((val >> DRM_FORMAT_MOD_ROCKCHIP_TYPE_SHIFT) & DRM_FORMAT_MOD_ROCKCHIP_TYPE_MASK) == DRM_FORMAT_MOD_ROCKCHIP_TYPE_RFBC)
 
 #if defined(__cplusplus)
 }
