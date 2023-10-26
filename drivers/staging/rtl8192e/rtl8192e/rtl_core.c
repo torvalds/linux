@@ -1141,28 +1141,26 @@ void rtl92e_tx_enable(struct net_device *dev)
 static void _rtl92e_free_rx_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	int i, rx_queue_idx;
+	int i;
+	int rx_queue_idx = 0;
 
-	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE;
-	     rx_queue_idx++) {
-		for (i = 0; i < priv->rxringcount; i++) {
-			struct sk_buff *skb = priv->rx_buf[rx_queue_idx][i];
+	for (i = 0; i < priv->rxringcount; i++) {
+		struct sk_buff *skb = priv->rx_buf[rx_queue_idx][i];
 
-			if (!skb)
-				continue;
+		if (!skb)
+			continue;
 
-			dma_unmap_single(&priv->pdev->dev,
-					 *((dma_addr_t *)skb->cb),
-					 priv->rxbuffersize, DMA_FROM_DEVICE);
-			kfree_skb(skb);
-		}
-
-		dma_free_coherent(&priv->pdev->dev,
-				  sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
-				  priv->rx_ring[rx_queue_idx],
-				  priv->rx_ring_dma[rx_queue_idx]);
-		priv->rx_ring[rx_queue_idx] = NULL;
+		dma_unmap_single(&priv->pdev->dev,
+				 *((dma_addr_t *)skb->cb),
+				 priv->rxbuffersize, DMA_FROM_DEVICE);
+		kfree_skb(skb);
 	}
+
+	dma_free_coherent(&priv->pdev->dev,
+			  sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
+			  priv->rx_ring[rx_queue_idx],
+			  priv->rx_ring_dma[rx_queue_idx]);
+	priv->rx_ring[rx_queue_idx] = NULL;
 }
 
 static void _rtl92e_free_tx_ring(struct net_device *dev, unsigned int prio)
@@ -1353,47 +1351,46 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rx_desc *entry = NULL;
-	int i, rx_queue_idx;
+	int i;
+	int rx_queue_idx = 0;
 
-	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE; rx_queue_idx++) {
-		priv->rx_ring[rx_queue_idx] = dma_alloc_coherent(&priv->pdev->dev,
-								 sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
-								 &priv->rx_ring_dma[rx_queue_idx],
-								 GFP_ATOMIC);
-		if (!priv->rx_ring[rx_queue_idx] ||
-		    (unsigned long)priv->rx_ring[rx_queue_idx] & 0xFF) {
-			netdev_warn(dev, "Cannot allocate RX ring\n");
-			return -ENOMEM;
-		}
-
-		priv->rx_idx[rx_queue_idx] = 0;
-
-		for (i = 0; i < priv->rxringcount; i++) {
-			struct sk_buff *skb = dev_alloc_skb(priv->rxbuffersize);
-			dma_addr_t *mapping;
-
-			entry = &priv->rx_ring[rx_queue_idx][i];
-			if (!skb)
-				return 0;
-			skb->dev = dev;
-			priv->rx_buf[rx_queue_idx][i] = skb;
-			mapping = (dma_addr_t *)skb->cb;
-			*mapping = dma_map_single(&priv->pdev->dev,
-						  skb_tail_pointer(skb),
-						  priv->rxbuffersize, DMA_FROM_DEVICE);
-			if (dma_mapping_error(&priv->pdev->dev, *mapping)) {
-				dev_kfree_skb_any(skb);
-				return -1;
-			}
-			entry->BufferAddress = *mapping;
-
-			entry->Length = priv->rxbuffersize;
-			entry->OWN = 1;
-		}
-
-		if (entry)
-			entry->EOR = 1;
+	priv->rx_ring[rx_queue_idx] = dma_alloc_coherent(&priv->pdev->dev,
+							 sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
+							 &priv->rx_ring_dma[rx_queue_idx],
+							 GFP_ATOMIC);
+	if (!priv->rx_ring[rx_queue_idx] ||
+	    (unsigned long)priv->rx_ring[rx_queue_idx] & 0xFF) {
+		netdev_warn(dev, "Cannot allocate RX ring\n");
+		return -ENOMEM;
 	}
+
+	priv->rx_idx[rx_queue_idx] = 0;
+
+	for (i = 0; i < priv->rxringcount; i++) {
+		struct sk_buff *skb = dev_alloc_skb(priv->rxbuffersize);
+		dma_addr_t *mapping;
+
+		entry = &priv->rx_ring[rx_queue_idx][i];
+		if (!skb)
+			return 0;
+		skb->dev = dev;
+		priv->rx_buf[rx_queue_idx][i] = skb;
+		mapping = (dma_addr_t *)skb->cb;
+		*mapping = dma_map_single(&priv->pdev->dev,
+					  skb_tail_pointer(skb),
+					  priv->rxbuffersize, DMA_FROM_DEVICE);
+		if (dma_mapping_error(&priv->pdev->dev, *mapping)) {
+			dev_kfree_skb_any(skb);
+			return -1;
+		}
+		entry->BufferAddress = *mapping;
+
+		entry->Length = priv->rxbuffersize;
+		entry->OWN = 1;
+	}
+
+	if (entry)
+		entry->EOR = 1;
 	return 0;
 }
 
@@ -1455,19 +1452,18 @@ err_free_rings:
 void rtl92e_reset_desc_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	int i, rx_queue_idx;
+	int i;
+	int rx_queue_idx = 0;
 	unsigned long flags = 0;
 
-	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE; rx_queue_idx++) {
-		if (priv->rx_ring[rx_queue_idx]) {
-			struct rx_desc *entry = NULL;
+	if (priv->rx_ring[rx_queue_idx]) {
+		struct rx_desc *entry = NULL;
 
-			for (i = 0; i < priv->rxringcount; i++) {
-				entry = &priv->rx_ring[rx_queue_idx][i];
-				entry->OWN = 1;
-			}
-			priv->rx_idx[rx_queue_idx] = 0;
+		for (i = 0; i < priv->rxringcount; i++) {
+			entry = &priv->rx_ring[rx_queue_idx][i];
+			entry->OWN = 1;
 		}
+		priv->rx_idx[rx_queue_idx] = 0;
 	}
 
 	spin_lock_irqsave(&priv->irq_th_lock, flags);
