@@ -194,16 +194,22 @@ static int mali_oom_notifier_handler(struct notifier_block *nb,
 	list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
 		struct pid *pid_struct;
 		struct task_struct *task;
+		struct pid *tgid_struct;
+		struct task_struct *tgid_task;
+
 		unsigned long task_alloc_total =
 			KBASE_PAGES_TO_KIB(atomic_read(&(kctx->used_pages)));
 
 		rcu_read_lock();
 		pid_struct = find_get_pid(kctx->pid);
 		task = pid_task(pid_struct, PIDTYPE_PID);
+		tgid_struct = find_get_pid(kctx->tgid);
+		tgid_task = pid_task(tgid_struct, PIDTYPE_PID);
 
 		dev_err(kbdev->dev,
-			"OOM notifier: tsk %s  tgid (%u)  pid (%u) %lu kB\n",
-			task ? task->comm : "[null task]", kctx->tgid,
+			"OOM notifier: tsk %s:%s  tgid (%u)  pid (%u) %lu kB\n",
+			tgid_task ? tgid_task->comm : "[null task]",
+			task ? task->comm : "[null comm]", kctx->tgid,
 			kctx->pid, task_alloc_total);
 
 		put_pid(pid_struct);
