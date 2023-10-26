@@ -44,6 +44,7 @@ enum mode_e {
 /* dw9800w device structure */
 struct dw9800w_device {
 	struct v4l2_ctrl_handler ctrls_vcm;
+	struct v4l2_ctrl *focus;
 	struct i2c_client *client;
 	struct v4l2_subdev sd;
 	struct v4l2_device vdev;
@@ -52,13 +53,14 @@ struct dw9800w_device {
 	struct gpio_desc *power_gpio;
 	unsigned short current_related_pos;
 	unsigned short current_lens_pos;
+	unsigned int max_current;
 	unsigned int start_current;
 	unsigned int rated_current;
-	unsigned int step;
 	unsigned int step_mode;
 	unsigned int vcm_movefull_t;
 	unsigned int t_src;
 	unsigned int t_div;
+	unsigned int max_logicalpos;
 
 	struct __kernel_old_timeval start_move_tv;
 	struct __kernel_old_timeval end_move_tv;
@@ -67,7 +69,6 @@ struct dw9800w_device {
 	u32 module_index;
 	const char *module_facing;
 	struct rk_cam_vcm_cfg vcm_cfg;
-	int max_ma;
 	struct mutex lock;
 };
 
@@ -217,22 +218,25 @@ static int dw9800w_get_pos(struct dw9800w_device *dev_vcm,
 	unsigned int *cur_pos)
 {
 	struct i2c_client *client = dev_vcm->client;
+	unsigned int dac, position, range;
 	int ret;
-	unsigned int abs_step;
 
-	ret = dw9800w_read_reg(client, 0x03, 2, &abs_step);
+	range = dev_vcm->rated_current - dev_vcm->start_current;
+	ret = dw9800w_read_reg(client, 0x03, 2, &dac);
 	if (ret != 0)
 		goto err;
 
-	if (abs_step <= dev_vcm->start_current)
-		abs_step = VCMDRV_MAX_LOG;
-	else if ((abs_step > dev_vcm->start_current) &&
-		 (abs_step <= dev_vcm->rated_current))
-		abs_step = (dev_vcm->rated_current - abs_step) / dev_vcm->step;
-	else
-		abs_step = 0;
+	if (dac <= dev_vcm->start_current) {
+		position = dev_vcm->max_logicalpos;
+	} else if ((dac > dev_vcm->start_current) &&
+		   (dac <= dev_vcm->rated_current)) {
+		position = (dac - dev_vcm->start_current) * dev_vcm->max_logicalpos / range;
+		position = dev_vcm->max_logicalpos - position;
+	} else {
+		position = 0;
+	}
 
-	*cur_pos = abs_step;
+	*cur_pos = position;
 	dev_dbg(&client->dev, "%s: get position %d\n", __func__, *cur_pos);
 	return 0;
 
@@ -245,16 +249,18 @@ err:
 static int dw9800w_set_pos(struct dw9800w_device *dev_vcm,
 	unsigned int dest_pos)
 {
-	int ret;
-	unsigned int position = 0;
-	struct i2c_client *client = dev_vcm->client;
+	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
+	unsigned int position;
+	unsigned int range;
 	u32 is_busy, i;
+	int ret;
 
-	if (dest_pos >= VCMDRV_MAX_LOG)
+	range = dev_vcm->rated_current - dev_vcm->start_current;
+	if (dest_pos >= dev_vcm->max_logicalpos)
 		position = dev_vcm->start_current;
 	else
 		position = dev_vcm->start_current +
-			   (dev_vcm->step * (VCMDRV_MAX_LOG - dest_pos));
+			   (range * (dev_vcm->max_logicalpos - dest_pos) / dev_vcm->max_logicalpos);
 
 	if (position > DW9800W_MAX_REG)
 		position = DW9800W_MAX_REG;
@@ -304,10 +310,10 @@ static int dw9800w_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	if (ctrl->id == V4L2_CID_FOCUS_ABSOLUTE) {
 
-		if (dest_pos > VCMDRV_MAX_LOG) {
+		if (dest_pos > dev_vcm->max_logicalpos) {
 			dev_info(&client->dev,
 				"%s dest_pos is error. %d > %d\n",
-				__func__, dest_pos, VCMDRV_MAX_LOG);
+				__func__, dest_pos, dev_vcm->max_logicalpos);
 			return -EINVAL;
 		}
 		/* calculate move time */
@@ -318,7 +324,7 @@ static int dw9800w_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = dw9800w_set_pos(dev_vcm, dest_pos);
 		if (dev_vcm->step_mode == LSC_MODE)
 			dev_vcm->move_us = ((dev_vcm->vcm_movefull_t * (uint32_t)move_pos) /
-					   VCMDRV_MAX_LOG);
+					   dev_vcm->max_logicalpos);
 		else
 			dev_vcm->move_us = dev_vcm->vcm_movefull_t;
 
@@ -376,28 +382,27 @@ static const struct v4l2_subdev_internal_ops dw9800w_int_ops = {
 static void dw9800w_update_vcm_cfg(struct dw9800w_device *dev_vcm)
 {
 	struct i2c_client *client = dev_vcm->client;
-	int cur_dist;
 
-	if (dev_vcm->max_ma == 0) {
+	if (dev_vcm->max_current == 0) {
 		dev_err(&client->dev, "max current is zero");
 		return;
 	}
 
-	cur_dist = dev_vcm->vcm_cfg.rated_ma - dev_vcm->vcm_cfg.start_ma;
-	cur_dist = cur_dist * DW9800W_MAX_REG / dev_vcm->max_ma;
-	dev_vcm->step = (cur_dist + (VCMDRV_MAX_LOG - 1)) / VCMDRV_MAX_LOG;
+	if (dev_vcm->vcm_cfg.rated_ma > dev_vcm->max_current)
+		dev_vcm->max_current = DW9800W_MAX_REG;
+
 	dev_vcm->start_current = dev_vcm->vcm_cfg.start_ma *
-				 DW9800W_MAX_REG / dev_vcm->max_ma;
+				 DW9800W_MAX_REG / dev_vcm->max_current;
 	dev_vcm->rated_current = dev_vcm->vcm_cfg.rated_ma *
-				 DW9800W_MAX_REG / dev_vcm->max_ma;
+				 DW9800W_MAX_REG / dev_vcm->max_current;
 	dev_vcm->step_mode = dev_vcm->vcm_cfg.step_mode;
 
 	dev_info(&client->dev,
-		"vcm_cfg: %d, %d, %d, max_ma %d\n",
+		"vcm_cfg: %d, %d, %d, max_current %d\n",
 		dev_vcm->vcm_cfg.start_ma,
 		dev_vcm->vcm_cfg.rated_ma,
 		dev_vcm->vcm_cfg.step_mode,
-		dev_vcm->max_ma);
+		dev_vcm->max_current);
 }
 
 static long dw9800w_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
@@ -406,6 +411,7 @@ static long dw9800w_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct i2c_client *client = dev_vcm->client;
 	struct rk_cam_vcm_tim *vcm_tim;
 	struct rk_cam_vcm_cfg *vcm_cfg;
+	unsigned int max_logicalpos;
 	int ret = 0;
 
 	if (cmd == RK_VIDIOC_VCM_TIMEINFO) {
@@ -441,6 +447,16 @@ static long dw9800w_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		dev_vcm->vcm_cfg.rated_ma = vcm_cfg->rated_ma;
 		dev_vcm->vcm_cfg.step_mode = vcm_cfg->step_mode;
 		dw9800w_update_vcm_cfg(dev_vcm);
+	} else if (cmd == RK_VIDIOC_SET_VCM_MAX_LOGICALPOS) {
+		max_logicalpos = *(unsigned int *)arg;
+
+		if (max_logicalpos > 0) {
+			dev_vcm->max_logicalpos = max_logicalpos;
+			__v4l2_ctrl_modify_range(dev_vcm->focus,
+				0, dev_vcm->max_logicalpos, 1, dev_vcm->max_logicalpos);
+		}
+		dev_dbg(&client->dev,
+			"max_logicalpos %d\n", max_logicalpos);
 	} else {
 		dev_err(&client->dev,
 			"cmd 0x%x not supported\n", cmd);
@@ -460,6 +476,7 @@ static long dw9800w_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rk_cam_compat_vcm_tim compat_vcm_tim;
 	struct rk_cam_vcm_tim vcm_tim;
 	struct rk_cam_vcm_cfg vcm_cfg;
+	unsigned int max_logicalpos;
 	long ret;
 
 	if (cmd == RK_VIDIOC_COMPAT_VCM_TIMEINFO) {
@@ -490,6 +507,12 @@ static long dw9800w_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(&vcm_cfg, up, sizeof(vcm_cfg));
 		if (!ret)
 			ret = dw9800w_ioctl(sd, cmd, &vcm_cfg);
+		else
+			ret = -EFAULT;
+	} else if (cmd == RK_VIDIOC_SET_VCM_MAX_LOGICALPOS) {
+		ret = copy_from_user(&max_logicalpos, up, sizeof(max_logicalpos));
+		if (!ret)
+			ret = dw9800w_ioctl(sd, cmd, &max_logicalpos);
 		else
 			ret = -EFAULT;
 	} else {
@@ -528,8 +551,9 @@ static int dw9800w_init_controls(struct dw9800w_device *dev_vcm)
 
 	v4l2_ctrl_handler_init(hdl, 1);
 
-	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_FOCUS_ABSOLUTE,
-			  0, VCMDRV_MAX_LOG, 1, 32);
+	dev_vcm->focus = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_FOCUS_ABSOLUTE,
+					   0, dev_vcm->max_logicalpos, 1,
+					   dev_vcm->max_logicalpos / 2);
 
 	if (hdl->error)
 		dev_err(dev_vcm->sd.dev, "%s fail error: 0x%x\n",
@@ -585,7 +609,7 @@ static int dw9800w_probe(struct i2c_client *client,
 {
 	struct device_node *np = of_node_get(client->dev.of_node);
 	struct dw9800w_device *dw9800w_dev;
-	unsigned int max_ma, start_ma, rated_ma, step_mode;
+	unsigned int max_current, start_ma, rated_ma, step_mode;
 	unsigned int t_src, t_div;
 	struct v4l2_subdev *sd;
 	char facing[2];
@@ -594,14 +618,14 @@ static int dw9800w_probe(struct i2c_client *client,
 	dev_info(&client->dev, "probing...\n");
 	if (of_property_read_u32(np,
 		OF_CAMERA_VCMDRV_MAX_CURRENT,
-		(unsigned int *)&max_ma)) {
-		max_ma = DW9800W_MAX_CURRENT;
+		(unsigned int *)&max_current)) {
+		max_current = DW9800W_MAX_CURRENT;
 		dev_info(&client->dev,
 			"could not get module %s from dts!\n",
 			OF_CAMERA_VCMDRV_MAX_CURRENT);
 	}
-	if (max_ma == 0)
-		max_ma = DW9800W_MAX_CURRENT;
+	if (max_current == 0)
+		max_current = DW9800W_MAX_CURRENT;
 
 	if (of_property_read_u32(np,
 		OF_CAMERA_VCMDRV_START_CURRENT,
@@ -680,6 +704,7 @@ static int dw9800w_probe(struct i2c_client *client,
 	dw9800w_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	dw9800w_dev->sd.internal_ops = &dw9800w_int_ops;
 
+	dw9800w_dev->max_logicalpos = VCMDRV_MAX_LOG;
 	ret = dw9800w_init_controls(dw9800w_dev);
 	if (ret)
 		goto err_cleanup;
@@ -704,13 +729,13 @@ static int dw9800w_probe(struct i2c_client *client,
 	if (ret)
 		dev_err(&client->dev, "v4l2 async register subdev failed\n");
 
-	dw9800w_dev->max_ma = max_ma;
+	dw9800w_dev->max_current = max_current;
 	dw9800w_dev->vcm_cfg.start_ma = start_ma;
 	dw9800w_dev->vcm_cfg.rated_ma = rated_ma;
 	dw9800w_dev->vcm_cfg.step_mode = step_mode;
 	dw9800w_update_vcm_cfg(dw9800w_dev);
 	dw9800w_dev->move_us	= 0;
-	dw9800w_dev->current_related_pos = VCMDRV_MAX_LOG;
+	dw9800w_dev->current_related_pos = dw9800w_dev->max_logicalpos;
 	dw9800w_dev->start_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 	dw9800w_dev->end_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 
