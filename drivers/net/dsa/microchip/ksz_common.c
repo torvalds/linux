@@ -3617,12 +3617,20 @@ bool ksz_is_port_mac_global_usable(struct dsa_switch *ds, int port)
 	return true;
 }
 
-/* Program the switch's MAC address register with the MAC address of the
- * requesting user port. This single address is used by the switch for multiple
- * features, like HSR self-address filtering and WoL. Other user ports are
- * allowed to share ownership of this address as long as their MAC address is
- * the same. The user ports' MAC addresses must not change while they have
- * ownership of the switch MAC address.
+/**
+ * ksz_switch_macaddr_get - Program the switch's MAC address register.
+ * @ds: DSA switch instance.
+ * @port: Port number.
+ * @extack: Netlink extended acknowledgment.
+ *
+ * This function programs the switch's MAC address register with the MAC address
+ * of the requesting user port. This single address is used by the switch for
+ * multiple features like HSR self-address filtering and WoL. Other user ports
+ * can share ownership of this address as long as their MAC address is the same.
+ * The MAC addresses of user ports must not change while they have ownership of
+ * the switch MAC address.
+ *
+ * Return: 0 on success, or other error codes on failure.
  */
 int ksz_switch_macaddr_get(struct dsa_switch *ds, int port,
 			   struct netlink_ext_ack *extack)
