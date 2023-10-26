@@ -792,10 +792,10 @@ static bool hci_pio_get_ibi_segment(struct i3c_hci *hci,
 		DBG("trailing %d", ibi->seg_cnt);
 		data = pio_reg_read(IBI_PORT);
 		data = (__force u32) cpu_to_le32(data);
-		while (ibi->seg_cnt--) {
+		do {
 			*p_byte++ = data;
 			data >>= 8;
-		}
+		} while (--ibi->seg_cnt);
 	}
 
 	return true;
