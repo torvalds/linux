@@ -2409,9 +2409,19 @@ void intel_hdcp_enable(struct intel_atomic_state *state,
 		       const struct intel_crtc_state *crtc_state,
 		       const struct drm_connector_state *conn_state)
 {
-	/* Enable hdcp if it's desired */
+	struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+
+	/*
+	 * Enable hdcp if it's desired or if userspace is enabled and
+	 * driver set its state to undesired
+	 */
 	if (conn_state->content_protection ==
-	    DRM_MODE_CONTENT_PROTECTION_DESIRED)
+	    DRM_MODE_CONTENT_PROTECTION_DESIRED ||
+	    (conn_state->content_protection ==
+	    DRM_MODE_CONTENT_PROTECTION_ENABLED && hdcp->value ==
+	    DRM_MODE_CONTENT_PROTECTION_UNDESIRED))
 		_intel_hdcp_enable(state, encoder, crtc_state, conn_state);
 }
 
