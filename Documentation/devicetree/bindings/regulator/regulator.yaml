@@ -186,6 +186,14 @@ properties:
       be enabled but limit setting can be omitted. Limit is given as microvolt
       offset from voltage set to regulator.
 
+  regulator-uv-less-critical-window-ms:
+    description: Specifies the time window (in milliseconds) following a
+      critical under-voltage event during which the system can continue to
+      operate safely while performing less critical operations. This property
+      provides a defined duration before a more severe reaction to the
+      under-voltage event is needed, allowing for certain non-urgent actions to
+      be carried out in preparation for potential power loss.
+
   regulator-temp-protection-kelvin:
     description: Set over temperature protection limit. This is a limit where
       hardware performs emergency shutdown. Zero can be passed to disable
