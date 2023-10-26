@@ -1945,13 +1945,6 @@
         "ScaleUnit": "100%"
     },
     {
-        "BriefDescription": "Number of cycles within a transaction divided by the number of elisions.",
-        "MetricExpr": "(cycles\\-t / el\\-start if has_event(cycles\\-t) else 0)",
-        "MetricGroup": "transaction",
-        "MetricName": "tsx_cycles_per_elision",
-        "ScaleUnit": "1cycles / elision"
-    },
-    {
         "BriefDescription": "Number of cycles within a transaction divided by the number of transactions.",
         "MetricExpr": "(cycles\\-t / tx\\-start if has_event(cycles\\-t) else 0)",
         "MetricGroup": "transaction",
