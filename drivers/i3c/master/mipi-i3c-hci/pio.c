@@ -789,8 +789,6 @@ static bool hci_pio_get_ibi_segment(struct i3c_hci *hci,
 		u8 *p_byte = (u8 *)p;
 
 		hci_pio_set_ibi_thresh(hci, pio, 1);
-		if (!(pio_reg_read(INTR_STATUS) & STAT_IBI_STATUS_THLD))
-			return false;
 		DBG("trailing %d", ibi->seg_cnt);
 		data = pio_reg_read(IBI_PORT);
 		data = (__force u32) cpu_to_le32(data);
