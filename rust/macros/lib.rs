@@ -87,27 +87,49 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// implementation could just return `Error::EINVAL`); Linux typically use C
 /// `NULL` pointers to represent these functions.
 ///
-/// This attribute is intended to close the gap. Traits can be declared and
-/// implemented with the `#[vtable]` attribute, and a `HAS_*` associated constant
-/// will be generated for each method in the trait, indicating if the implementor
-/// has overridden a method.
+/// This attribute closes that gap. A trait can be annotated with the
+/// `#[vtable]` attribute. Implementers of the trait will then also have to
+/// annotate the trait with `#[vtable]`. This attribute generates a `HAS_*`
+/// associated constant bool for each method in the trait that is set to true if
+/// the implementer has overridden the associated method.
 ///
-/// This attribute is not needed if all methods are required.
+/// For a trait method to be optional, it must have a default implementation.
+/// This is also the case for traits annotated with `#[vtable]`, but in this
+/// case the default implementation will never be executed. The reason for this
+/// is that the functions will be called through function pointers installed in
+/// C side vtables. When an optional method is not implemented on a `#[vtable]`
+/// trait, a NULL entry is installed in the vtable. Thus the default
+/// implementation is never called. Since these traits are not designed to be
+/// used on the Rust side, it should not be possible to call the default
+/// implementation. This is done to ensure that we call the vtable methods
+/// through the C vtable, and not through the Rust vtable. Therefore, the
+/// default implementation should call `kernel::build_error`, which prevents
+/// calls to this function at compile time:
+///
+/// ```compile_fail
+/// # use kernel::error::VTABLE_DEFAULT_ERROR;
+/// kernel::build_error(VTABLE_DEFAULT_ERROR)
+/// ```
+///
+/// Note that you might need to import [`kernel::error::VTABLE_DEFAULT_ERROR`].
+///
+/// This macro should not be used when all functions are required.
 ///
 /// # Examples
 ///
 /// ```ignore
+/// use kernel::error::VTABLE_DEFAULT_ERROR;
 /// use kernel::prelude::*;
 ///
 /// // Declares a `#[vtable]` trait
 /// #[vtable]
 /// pub trait Operations: Send + Sync + Sized {
 ///     fn foo(&self) -> Result<()> {
-///         Err(EINVAL)
+///         kernel::build_error(VTABLE_DEFAULT_ERROR)
 ///     }
 ///
 ///     fn bar(&self) -> Result<()> {
-///         Err(EINVAL)
+///         kernel::build_error(VTABLE_DEFAULT_ERROR)
 ///     }
 /// }
 ///
@@ -125,6 +147,8 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// assert_eq!(<Foo as Operations>::HAS_FOO, true);
 /// assert_eq!(<Foo as Operations>::HAS_BAR, false);
 /// ```
+///
+/// [`kernel::error::VTABLE_DEFAULT_ERROR`]: ../kernel/error/constant.VTABLE_DEFAULT_ERROR.html
 #[proc_macro_attribute]
 pub fn vtable(attr: TokenStream, ts: TokenStream) -> TokenStream {
     vtable::vtable(attr, ts)
