@@ -1145,7 +1145,7 @@ static void _rtl92e_free_rx_ring(struct net_device *dev)
 	int rx_queue_idx = 0;
 
 	for (i = 0; i < priv->rxringcount; i++) {
-		struct sk_buff *skb = priv->rx_buf[rx_queue_idx][i];
+		struct sk_buff *skb = priv->rx_buf[i];
 
 		if (!skb)
 			continue;
@@ -1373,7 +1373,7 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 		if (!skb)
 			return 0;
 		skb->dev = dev;
-		priv->rx_buf[rx_queue_idx][i] = skb;
+		priv->rx_buf[i] = skb;
 		mapping = (dma_addr_t *)skb->cb;
 		*mapping = dma_map_single(&priv->pdev->dev,
 					  skb_tail_pointer(skb),
@@ -1575,7 +1575,7 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 	while (count--) {
 		struct rx_desc *pdesc = &priv->rx_ring
 					[priv->rx_idx[rx_queue_idx]];
-		struct sk_buff *skb = priv->rx_buf[rx_queue_idx]
+		struct sk_buff *skb = priv->rx_buf
 				      [priv->rx_idx[rx_queue_idx]];
 		struct sk_buff *new_skb;
 
@@ -1614,7 +1614,7 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 		skb = new_skb;
 		skb->dev = dev;
 
-		priv->rx_buf[rx_queue_idx][priv->rx_idx[rx_queue_idx]] =
+		priv->rx_buf[priv->rx_idx[rx_queue_idx]] =
 								 skb;
 		*((dma_addr_t *)skb->cb) = dma_map_single(&priv->pdev->dev,
 							  skb_tail_pointer(skb),
