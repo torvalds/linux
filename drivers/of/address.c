@@ -43,7 +43,7 @@ struct of_bus {
 	void		(*count_cells)(struct device_node *child,
 				       int *addrc, int *sizec);
 	u64		(*map)(__be32 *addr, const __be32 *range,
-				int na, int ns, int pna);
+				int na, int ns, int pna, int fna);
 	int		(*translate)(__be32 *addr, u64 offset, int na);
 	int		flag_cells;
 	unsigned int	(*get_flags)(const __be32 *addr);
@@ -63,13 +63,13 @@ static void of_bus_default_count_cells(struct device_node *dev,
 }
 
 static u64 of_bus_default_map(__be32 *addr, const __be32 *range,
-		int na, int ns, int pna)
+		int na, int ns, int pna, int fna)
 {
 	u64 cp, s, da;
 
-	cp = of_read_number(range, na);
+	cp = of_read_number(range + fna, na - fna);
 	s  = of_read_number(range + na + pna, ns);
-	da = of_read_number(addr, na);
+	da = of_read_number(addr + fna, na - fna);
 
 	pr_debug("default map, cp=%llx, s=%llx, da=%llx\n", cp, s, da);
 
@@ -101,24 +101,13 @@ static unsigned int of_bus_default_get_flags(const __be32 *addr)
 }
 
 static u64 of_bus_default_flags_map(__be32 *addr, const __be32 *range, int na,
-				    int ns, int pna)
+				    int ns, int pna, int fna)
 {
-	u64 cp, s, da;
-
 	/* Check that flags match */
 	if (*addr != *range)
 		return OF_BAD_ADDR;
 
-	/* Read address values, skipping high cell */
-	cp = of_read_number(range + 1, na - 1);
-	s  = of_read_number(range + na + pna, ns);
-	da = of_read_number(addr + 1, na - 1);
-
-	pr_debug("default flags map, cp=%llx, s=%llx, da=%llx\n", cp, s, da);
-
-	if (da < cp || da >= (cp + s))
-		return OF_BAD_ADDR;
-	return da - cp;
+	return of_bus_default_map(addr, range, na, ns, pna, fna);
 }
 
 static int of_bus_default_flags_translate(__be32 *addr, u64 offset, int na)
@@ -192,9 +181,8 @@ static void of_bus_pci_count_cells(struct device_node *np,
 }
 
 static u64 of_bus_pci_map(__be32 *addr, const __be32 *range, int na, int ns,
-		int pna)
+		int pna, int fna)
 {
-	u64 cp, s, da;
 	unsigned int af, rf;
 
 	af = of_bus_pci_get_flags(addr);
@@ -204,16 +192,7 @@ static u64 of_bus_pci_map(__be32 *addr, const __be32 *range, int na, int ns,
 	if ((af ^ rf) & (IORESOURCE_MEM | IORESOURCE_IO))
 		return OF_BAD_ADDR;
 
-	/* Read address values, skipping high cell */
-	cp = of_read_number(range + 1, na - 1);
-	s  = of_read_number(range + na + pna, ns);
-	da = of_read_number(addr + 1, na - 1);
-
-	pr_debug("PCI map, cp=%llx, s=%llx, da=%llx\n", cp, s, da);
-
-	if (da < cp || da >= (cp + s))
-		return OF_BAD_ADDR;
-	return da - cp;
+	return of_bus_default_map(addr, range, na, ns, pna, fna);
 }
 
 #endif /* CONFIG_PCI */
@@ -319,24 +298,13 @@ static void of_bus_isa_count_cells(struct device_node *child,
 }
 
 static u64 of_bus_isa_map(__be32 *addr, const __be32 *range, int na, int ns,
-		int pna)
+		int pna, int fna)
 {
-	u64 cp, s, da;
-
 	/* Check address type match */
 	if ((addr[0] ^ range[0]) & cpu_to_be32(1))
 		return OF_BAD_ADDR;
 
-	/* Read address values, skipping high cell */
-	cp = of_read_number(range + 1, na - 1);
-	s  = of_read_number(range + na + pna, ns);
-	da = of_read_number(addr + 1, na - 1);
-
-	pr_debug("ISA map, cp=%llx, s=%llx, da=%llx\n", cp, s, da);
-
-	if (da < cp || da >= (cp + s))
-		return OF_BAD_ADDR;
-	return da - cp;
+	return of_bus_default_map(addr, range, na, ns, pna, fna);
 }
 
 static unsigned int of_bus_isa_get_flags(const __be32 *addr)
@@ -486,7 +454,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 	rlen /= 4;
 	rone = na + pna + ns;
 	for (; rlen >= rone; rlen -= rone, ranges += rone) {
-		offset = bus->map(addr, ranges, na, ns, pna);
+		offset = bus->map(addr, ranges, na, ns, pna, bus->flag_cells);
 		if (offset != OF_BAD_ADDR)
 			break;
 	}
