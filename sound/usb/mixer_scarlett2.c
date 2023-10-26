@@ -406,6 +406,7 @@ struct scarlett2_data {
 	__u8 bInterval;
 	int num_mux_srcs;
 	int num_mux_dsts;
+	u32 firmware_version;
 	u16 scarlett2_seq;
 	u8 sync_updated;
 	u8 vol_updated;
@@ -1856,6 +1857,44 @@ static int scarlett2_add_new_ctl(struct usb_mixer_interface *mixer,
 	return 0;
 }
 
+/*** Firmware Version Control ***/
+
+static int scarlett2_firmware_version_ctl_get(
+	struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct scarlett2_data *private = elem->head.mixer->private_data;
+
+	ucontrol->value.integer.value[0] = private->firmware_version;
+
+	return 0;
+}
+
+static int scarlett2_firmware_version_ctl_info(
+	struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new scarlett2_firmware_version_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
+	.access = SNDRV_CTL_ELEM_ACCESS_READ,
+	.name = "",
+	.info = scarlett2_firmware_version_ctl_info,
+	.get  = scarlett2_firmware_version_ctl_get
+};
+
+static int scarlett2_add_firmware_version_ctl(
+	struct usb_mixer_interface *mixer)
+{
+	return scarlett2_add_new_ctl(mixer, &scarlett2_firmware_version_ctl,
+				     0, 0, "Firmware Version", NULL);
+}
 /*** Sync Control ***/
 
 /* Update sync control after receiving notification that the status
@@ -3854,7 +3893,8 @@ static int scarlett2_usb_init(struct usb_mixer_interface *mixer)
 {
 	struct usb_device *dev = mixer->chip->dev;
 	struct scarlett2_data *private = mixer->private_data;
-	u8 buf[24];
+	u8 step0_buf[24];
+	u8 step2_buf[84];
 	int err;
 
 	if (usb_pipe_type_check(dev, usb_sndctrlpipe(dev, 0)))
@@ -3862,7 +3902,8 @@ static int scarlett2_usb_init(struct usb_mixer_interface *mixer)
 
 	/* step 0 */
 	err = scarlett2_usb_rx(dev, private->bInterfaceNumber,
-			       SCARLETT2_USB_CMD_INIT, buf, sizeof(buf));
+			       SCARLETT2_USB_CMD_INIT,
+			       step0_buf, sizeof(step0_buf));
 	if (err < 0)
 		return err;
 
@@ -3874,7 +3915,19 @@ static int scarlett2_usb_init(struct usb_mixer_interface *mixer)
 
 	/* step 2 */
 	private->scarlett2_seq = 1;
-	return scarlett2_usb(mixer, SCARLETT2_USB_INIT_2, NULL, 0, NULL, 84);
+	err = scarlett2_usb(mixer, SCARLETT2_USB_INIT_2,
+			    NULL, 0,
+			    step2_buf, sizeof(step2_buf));
+	if (err < 0)
+		return err;
+
+	/* extract 4-byte firmware version from step2_buf[8] */
+	private->firmware_version = le32_to_cpu(*(__le32 *)(step2_buf + 8));
+	usb_audio_info(mixer->chip,
+		       "Firmware version %d\n",
+		       private->firmware_version);
+
+	return 0;
 }
 
 /* Read configuration from the interface on start */
@@ -4191,6 +4244,9 @@ static int snd_scarlett2_controls_create(
 	err = scarlett2_usb_init(mixer);
 	if (err < 0)
 		return err;
+
+	/* Add firmware version control */
+	err = scarlett2_add_firmware_version_ctl(mixer);
 
 	/* Read volume levels and controls from the interface */
 	err = scarlett2_read_configs(mixer);
