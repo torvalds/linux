@@ -99,16 +99,16 @@ enum fid_type {
 	FILEID_FAT_WITH_PARENT = 0x72,
 
 	/*
-	 * 64 bit inode number, 32 bit subvolume, 32 bit generation number:
-	 */
-	FILEID_BCACHEFS_WITHOUT_PARENT = 0x80,
-	FILEID_BCACHEFS_WITH_PARENT = 0x81,
-
-	/*
 	 * 128 bit child FID (struct lu_fid)
 	 * 128 bit parent FID (struct lu_fid)
 	 */
 	FILEID_LUSTRE = 0x97,
+
+	/*
+	 * 64 bit inode number, 32 bit subvolume, 32 bit generation number:
+	 */
+	FILEID_BCACHEFS_WITHOUT_PARENT = 0xb1,
+	FILEID_BCACHEFS_WITH_PARENT = 0xb2,
 
 	/*
 	 * 64 bit unique kernfs id
