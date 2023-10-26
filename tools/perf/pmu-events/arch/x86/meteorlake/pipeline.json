@@ -218,6 +218,15 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of mispredicted taken JCC (Jump on Conditional Code) branch instructions retired.",
+        "EventCode": "0xc5",
+        "EventName": "BR_MISP_RETIRED.COND_TAKEN",
+        "PEBS": "1",
+        "SampleAfterValue": "200003",
+        "UMask": "0xfe",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "number of branch instructions retired that were mispredicted and taken.",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.COND_TAKEN",
@@ -291,6 +300,15 @@
         "SampleAfterValue": "100003",
         "UMask": "0xc0",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of mispredicted near taken branch instructions retired.",
+        "EventCode": "0xc5",
+        "EventName": "BR_MISP_RETIRED.NEAR_TAKEN",
+        "PEBS": "1",
+        "SampleAfterValue": "200003",
+        "UMask": "0x80",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Number of near branch instructions retired that were mispredicted and taken.",
@@ -733,7 +751,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "INT_MISC.UNKNOWN_BRANCH_CYCLES",
+        "BriefDescription": "Bubble cycles of BAClear (Unknown Branch).",
         "EventCode": "0xad",
         "EventName": "INT_MISC.UNKNOWN_BRANCH_CYCLES",
         "MSRIndex": "0x3F7",
@@ -1046,6 +1064,14 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to Branch Mispredict",
+        "EventCode": "0x73",
+        "EventName": "TOPDOWN_BAD_SPECULATION.MISPREDICT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to a machine clear (nuke).",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.NUKE",
@@ -1069,11 +1095,35 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to memory reservation stall (scheduler not being able to accept another uop).  This could be caused by RSV full or load/store buffer block.",
+        "EventCode": "0x74",
+        "EventName": "TOPDOWN_BE_BOUND.MEM_SCHEDULER",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to IEC and FPC RAT stalls - which can be due to the FIQ and IEC reservation station stall (integer, FP and SIMD scheduler not being able to accept another uop. )",
+        "EventCode": "0x74",
+        "EventName": "TOPDOWN_BE_BOUND.NON_MEM_SCHEDULER",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to mrbl stall.  A 'marble' refers to a physical register file entry, also known as the physical destination (PDST).",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.REGISTER",
         "SampleAfterValue": "1000003",
         "UMask": "0x20",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to ROB full",
+        "EventCode": "0x74",
+        "EventName": "TOPDOWN_BE_BOUND.REORDER_BUFFER",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x40",
         "Unit": "cpu_atom"
     },
     {
@@ -1154,6 +1204,14 @@
         "EventName": "TOPDOWN_FE_BOUND.ITLB_MISS",
         "SampleAfterValue": "1000003",
         "UMask": "0x10",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend that do not categorize into any other common frontend stall",
+        "EventCode": "0x71",
+        "EventName": "TOPDOWN_FE_BOUND.OTHER",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x80",
         "Unit": "cpu_atom"
     },
     {
@@ -1397,6 +1455,14 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the total number of uops retired.",
+        "EventCode": "0xc2",
+        "EventName": "UOPS_RETIRED.ALL",
+        "PEBS": "1",
+        "SampleAfterValue": "2000003",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Cycles with retired uop(s).",
