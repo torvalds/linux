@@ -342,9 +342,8 @@ acpi_evaluate_reference(acpi_handle handle,
 	u32 i = 0;
 
 
-	if (!list) {
+	if (!list)
 		return AE_BAD_PARAMETER;
-	}
 
 	/* Evaluate object. */
 
@@ -370,7 +369,8 @@ acpi_evaluate_reference(acpi_handle handle,
 		goto end;
 	}
 
-	if (package->package.count > ACPI_MAX_HANDLES) {
+	list->handles = kcalloc(package->package.count, sizeof(*list->handles), GFP_KERNEL);
+	if (!list->handles) {
 		kfree(package);
 		return AE_NO_MEMORY;
 	}
@@ -399,10 +399,11 @@ acpi_evaluate_reference(acpi_handle handle,
 		acpi_handle_debug(list->handles[i], "Found in reference list\n");
 	}
 
-      end:
+end:
 	if (ACPI_FAILURE(status)) {
 		list->count = 0;
-		//kfree(list->handles);
+		kfree(list->handles);
+		list->handles = NULL;
 	}
 
 	kfree(buffer.pointer);
@@ -411,6 +412,61 @@ acpi_evaluate_reference(acpi_handle handle,
 }
 
 EXPORT_SYMBOL(acpi_evaluate_reference);
+
+/**
+ * acpi_handle_list_equal - Check if two ACPI handle lists are the same
+ * @list1: First list to compare.
+ * @list2: Second list to compare.
+ *
+ * Return true if the given ACPI handle lists are of the same size and
+ * contain the same ACPI handles in the same order.  Otherwise, return false.
+ */
+bool acpi_handle_list_equal(struct acpi_handle_list *list1,
+			    struct acpi_handle_list *list2)
+{
+	return list1->count == list2->count &&
+		!memcmp(list1->handles, list2->handles,
+		        list1->count * sizeof(acpi_handle));
+}
+EXPORT_SYMBOL_GPL(acpi_handle_list_equal);
+
+/**
+ * acpi_handle_list_replace - Replace one ACPI handle list with another
+ * @dst: ACPI handle list to replace.
+ * @src: Source ACPI handle list.
+ *
+ * Free the handles table in @dst, move the handles table from @src to @dst,
+ * copy count from @src to @dst and clear @src.
+ */
+void acpi_handle_list_replace(struct acpi_handle_list *dst,
+			      struct acpi_handle_list *src)
+{
+	if (dst->count)
+		kfree(dst->handles);
+
+	dst->count = src->count;
+	dst->handles = src->handles;
+
+	src->handles = NULL;
+	src->count = 0;
+}
+EXPORT_SYMBOL_GPL(acpi_handle_list_replace);
+
+/**
+ * acpi_handle_list_free - Free the handles table in an ACPI handle list
+ * @list: ACPI handle list to free.
+ *
+ * Free the handles table in @list and clear its count field.
+ */
+void acpi_handle_list_free(struct acpi_handle_list *list)
+{
+	if (!list->count)
+		return;
+
+	kfree(list->handles);
+	list->count = 0;
+}
+EXPORT_SYMBOL_GPL(acpi_handle_list_free);
 
 acpi_status
 acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld)
@@ -523,7 +579,7 @@ acpi_handle_printk(const char *level, acpi_handle handle, const char *fmt, ...)
 	vaf.va = &args;
 
 	path = acpi_handle_path(handle);
-	printk("%sACPI: %s: %pV", level, path ? path : "<n/a>" , &vaf);
+	printk("%sACPI: %s: %pV", level, path ? path : "<n/a>", &vaf);
 
 	va_end(args);
 	kfree(path);
