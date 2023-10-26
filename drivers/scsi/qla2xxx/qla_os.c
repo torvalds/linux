@@ -4953,7 +4953,7 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	ha->gid_list = NULL;
 	ha->gid_list_dma = 0;
 
-	if (!list_empty(&ha->base_qpair->dsd_list)) {
+	if (ha->base_qpair && !list_empty(&ha->base_qpair->dsd_list)) {
 		struct dsd_dma *dsd_ptr, *tdsd_ptr;
 
 		/* clean up allocated prev pool */
