@@ -303,7 +303,10 @@ static const struct pinctrl_pin_desc cliffs_pins[] = {
 	PINCTRL_PIN(172, "GPIO_172"),
 	PINCTRL_PIN(173, "GPIO_173"),
 	PINCTRL_PIN(174, "GPIO_174"),
-	PINCTRL_PIN(175, "UFS_RESET"),
+	PINCTRL_PIN(175, "GPIO_175"),
+	PINCTRL_PIN(176, "GPIO_176"),
+	PINCTRL_PIN(177, "GPIO_177"),
+	PINCTRL_PIN(178, "UFS_RESET"),
 };
 
 #define DECLARE_MSM_GPIO_PINS(pin) \
@@ -483,8 +486,11 @@ DECLARE_MSM_GPIO_PINS(171);
 DECLARE_MSM_GPIO_PINS(172);
 DECLARE_MSM_GPIO_PINS(173);
 DECLARE_MSM_GPIO_PINS(174);
+DECLARE_MSM_GPIO_PINS(175);
+DECLARE_MSM_GPIO_PINS(176);
+DECLARE_MSM_GPIO_PINS(177);
 
-static const unsigned int ufs_reset_pins[] = { 175 };
+static const unsigned int ufs_reset_pins[] = { 178 };
 
 enum cliffs_functions {
 	msm_mux_gpio,
@@ -2183,7 +2189,13 @@ static const struct msm_pingroup cliffs_groups[] = {
 			 egpio, 0, -1),
 	[174] = PINGROUP(174, NA, qdss_gpio, NA, NA, NA, NA, NA, NA, NA, NA,
 			 egpio, 0, -1),
-	[175] = UFS_RESET(ufs_reset, 0x1BC004, 0x1BD000),
+	[175] = PINGROUP(175, NA, qdss_gpio15, NA, NA, NA, NA, NA, NA, NA, NA,
+			 egpio, 0, -1),
+	[176] = PINGROUP(176, NA, qup1_se4_l0, NA, NA, NA, NA, NA, NA,
+			 NA, NA, egpio, 0, -1),
+	[177] = PINGROUP(177, NA, qup1_se4_l1, NA, NA, NA, NA, NA, NA, NA, NA,
+			 egpio, 0, -1),
+	[178] = UFS_RESET(ufs_reset, 0x1BC004, 0x1BD000),
 };
 
 static struct pinctrl_qup cliffs_qup_regs[] = {
@@ -2224,7 +2236,7 @@ static const struct msm_pinctrl_soc_data cliffs_pinctrl = {
 	.nfunctions = ARRAY_SIZE(cliffs_functions),
 	.groups = cliffs_groups,
 	.ngroups = ARRAY_SIZE(cliffs_groups),
-	.ngpios = 176,
+	.ngpios = 179,
 	.qup_regs = cliffs_qup_regs,
 	.nqup_regs = ARRAY_SIZE(cliffs_qup_regs),
 	.wakeirq_map = cliffs_pdc_map,
@@ -2239,7 +2251,7 @@ static const struct msm_pinctrl_soc_data cliffs_vm_pinctrl = {
 	.nfunctions = ARRAY_SIZE(cliffs_functions),
 	.groups = cliffs_groups,
 	.ngroups = ARRAY_SIZE(cliffs_groups),
-	.ngpios = 176,
+	.ngpios = 179,
 	.egpio_func = 11,
 };
 
@@ -2286,4 +2298,3 @@ MODULE_DESCRIPTION("QTI cliffs pinctrl driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(of, cliffs_pinctrl_of_match);
 MODULE_SOFTDEP("pre: qcom_tlmm_vm_irqchip");
-
