@@ -994,6 +994,7 @@ err:
 
 static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
 {
+	unsigned int fw_status;
 	__be32 halo_sts;
 	int ret;
 
@@ -1024,6 +1025,23 @@ static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
 	if (ret) {
 		dev_err(cs35l41->dev, "Timeout waiting for HALO Core to start. State: %u\n",
 			 halo_sts);
+		goto clean_dsp;
+	}
+
+	ret = regmap_read(cs35l41->regmap, CS35L41_DSP_MBOX_2, &fw_status);
+	if (ret < 0) {
+		dev_err(cs35l41->dev,
+			"Failed to read firmware status: %d\n", ret);
+		goto clean_dsp;
+	}
+
+	switch (fw_status) {
+	case CSPL_MBOX_STS_RUNNING:
+	case CSPL_MBOX_STS_PAUSED:
+		break;
+	default:
+		dev_err(cs35l41->dev, "Firmware status is invalid: %u\n",
+			fw_status);
 		goto clean_dsp;
 	}
 
