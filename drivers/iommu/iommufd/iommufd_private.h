@@ -181,7 +181,7 @@ struct iommufd_object *_iommufd_object_alloc(struct iommufd_ctx *ictx,
 					     size_t size,
 					     enum iommufd_object_type type);
 
-#define iommufd_object_alloc(ictx, ptr, type)                                  \
+#define __iommufd_object_alloc(ictx, ptr, type, obj)                           \
 	container_of(_iommufd_object_alloc(                                    \
 			     ictx,                                             \
 			     sizeof(*(ptr)) + BUILD_BUG_ON_ZERO(               \
@@ -189,6 +189,9 @@ struct iommufd_object *_iommufd_object_alloc(struct iommufd_ctx *ictx,
 							       obj) != 0),     \
 			     type),                                            \
 		     typeof(*(ptr)), obj)
+
+#define iommufd_object_alloc(ictx, ptr, type) \
+	__iommufd_object_alloc(ictx, ptr, type, obj)
 
 /*
  * The IO Address Space (IOAS) pagetable is a virtual page table backed by the
@@ -243,8 +246,12 @@ int iommufd_check_iova_range(struct io_pagetable *iopt,
  */
 struct iommufd_hw_pagetable {
 	struct iommufd_object obj;
-	struct iommufd_ioas *ioas;
 	struct iommu_domain *domain;
+};
+
+struct iommufd_hwpt_paging {
+	struct iommufd_hw_pagetable common;
+	struct iommufd_ioas *ioas;
 	bool auto_domain : 1;
 	bool enforce_cache_coherency : 1;
 	bool msi_cookie : 1;
@@ -257,33 +264,41 @@ static inline bool hwpt_is_paging(struct iommufd_hw_pagetable *hwpt)
 	return hwpt->obj.type == IOMMUFD_OBJ_HWPT_PAGING;
 }
 
-static inline struct iommufd_hw_pagetable *
-iommufd_get_hwpt(struct iommufd_ucmd *ucmd, u32 id)
+static inline struct iommufd_hwpt_paging *
+to_hwpt_paging(struct iommufd_hw_pagetable *hwpt)
+{
+	return container_of(hwpt, struct iommufd_hwpt_paging, common);
+}
+
+static inline struct iommufd_hwpt_paging *
+iommufd_get_hwpt_paging(struct iommufd_ucmd *ucmd, u32 id)
 {
 	return container_of(iommufd_get_object(ucmd->ictx, id,
 					       IOMMUFD_OBJ_HWPT_PAGING),
-			    struct iommufd_hw_pagetable, obj);
+			    struct iommufd_hwpt_paging, common.obj);
 }
 int iommufd_hwpt_set_dirty_tracking(struct iommufd_ucmd *ucmd);
 int iommufd_hwpt_get_dirty_bitmap(struct iommufd_ucmd *ucmd);
 
-struct iommufd_hw_pagetable *
-iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
-			   struct iommufd_device *idev, u32 flags,
-			   bool immediate_attach);
+struct iommufd_hwpt_paging *
+iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
+			  struct iommufd_device *idev, u32 flags,
+			  bool immediate_attach);
 int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 				struct iommufd_device *idev);
 struct iommufd_hw_pagetable *
 iommufd_hw_pagetable_detach(struct iommufd_device *idev);
-void iommufd_hw_pagetable_destroy(struct iommufd_object *obj);
-void iommufd_hw_pagetable_abort(struct iommufd_object *obj);
+void iommufd_hwpt_paging_destroy(struct iommufd_object *obj);
+void iommufd_hwpt_paging_abort(struct iommufd_object *obj);
 int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd);
 
 static inline void iommufd_hw_pagetable_put(struct iommufd_ctx *ictx,
 					    struct iommufd_hw_pagetable *hwpt)
 {
-	lockdep_assert_not_held(&hwpt->ioas->mutex);
-	if (hwpt->auto_domain)
+	struct iommufd_hwpt_paging *hwpt_paging = to_hwpt_paging(hwpt);
+
+	lockdep_assert_not_held(&hwpt_paging->ioas->mutex);
+	if (hwpt_paging->auto_domain)
 		iommufd_object_deref_user(ictx, &hwpt->obj);
 	else
 		refcount_dec(&hwpt->obj.users);

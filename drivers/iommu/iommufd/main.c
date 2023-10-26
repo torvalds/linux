@@ -489,8 +489,8 @@ static const struct iommufd_object_ops iommufd_object_ops[] = {
 		.destroy = iommufd_ioas_destroy,
 	},
 	[IOMMUFD_OBJ_HWPT_PAGING] = {
-		.destroy = iommufd_hw_pagetable_destroy,
-		.abort = iommufd_hw_pagetable_abort,
+		.destroy = iommufd_hwpt_paging_destroy,
+		.abort = iommufd_hwpt_paging_abort,
 	},
 #ifdef CONFIG_IOMMUFD_TEST
 	[IOMMUFD_OBJ_SELFTEST] = {

@@ -293,7 +293,7 @@ u32 iommufd_device_to_id(struct iommufd_device *idev)
 EXPORT_SYMBOL_NS_GPL(iommufd_device_to_id, IOMMUFD);
 
 static int iommufd_group_setup_msi(struct iommufd_group *igroup,
-				   struct iommufd_hw_pagetable *hwpt)
+				   struct iommufd_hwpt_paging *hwpt_paging)
 {
 	phys_addr_t sw_msi_start = igroup->sw_msi_start;
 	int rc;
@@ -311,8 +311,9 @@ static int iommufd_group_setup_msi(struct iommufd_group *igroup,
 	 * matches what the IRQ layer actually expects in a newly created
 	 * domain.
 	 */
-	if (sw_msi_start != PHYS_ADDR_MAX && !hwpt->msi_cookie) {
-		rc = iommu_get_msi_cookie(hwpt->domain, sw_msi_start);
+	if (sw_msi_start != PHYS_ADDR_MAX && !hwpt_paging->msi_cookie) {
+		rc = iommu_get_msi_cookie(hwpt_paging->common.domain,
+					  sw_msi_start);
 		if (rc)
 			return rc;
 
@@ -320,27 +321,29 @@ static int iommufd_group_setup_msi(struct iommufd_group *igroup,
 		 * iommu_get_msi_cookie() can only be called once per domain,
 		 * it returns -EBUSY on later calls.
 		 */
-		hwpt->msi_cookie = true;
+		hwpt_paging->msi_cookie = true;
 	}
 	return 0;
 }
 
-static int iommufd_hwpt_paging_attach(struct iommufd_hw_pagetable *hwpt,
+static int iommufd_hwpt_paging_attach(struct iommufd_hwpt_paging *hwpt_paging,
 				      struct iommufd_device *idev)
 {
 	int rc;
 
 	lockdep_assert_held(&idev->igroup->lock);
 
-	rc = iopt_table_enforce_dev_resv_regions(&hwpt->ioas->iopt, idev->dev,
+	rc = iopt_table_enforce_dev_resv_regions(&hwpt_paging->ioas->iopt,
+						 idev->dev,
 						 &idev->igroup->sw_msi_start);
 	if (rc)
 		return rc;
 
 	if (list_empty(&idev->igroup->device_list)) {
-		rc = iommufd_group_setup_msi(idev->igroup, hwpt);
+		rc = iommufd_group_setup_msi(idev->igroup, hwpt_paging);
 		if (rc) {
-			iopt_remove_reserved_iova(&hwpt->ioas->iopt, idev->dev);
+			iopt_remove_reserved_iova(&hwpt_paging->ioas->iopt,
+						  idev->dev);
 			return rc;
 		}
 	}
@@ -360,7 +363,7 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 	}
 
 	if (hwpt_is_paging(hwpt)) {
-		rc = iommufd_hwpt_paging_attach(hwpt, idev);
+		rc = iommufd_hwpt_paging_attach(to_hwpt_paging(hwpt), idev);
 		if (rc)
 			goto err_unlock;
 	}
@@ -384,7 +387,8 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 	return 0;
 err_unresv:
 	if (hwpt_is_paging(hwpt))
-		iopt_remove_reserved_iova(&hwpt->ioas->iopt, idev->dev);
+		iopt_remove_reserved_iova(&to_hwpt_paging(hwpt)->ioas->iopt,
+					  idev->dev);
 err_unlock:
 	mutex_unlock(&idev->igroup->lock);
 	return rc;
@@ -402,7 +406,8 @@ iommufd_hw_pagetable_detach(struct iommufd_device *idev)
 		idev->igroup->hwpt = NULL;
 	}
 	if (hwpt_is_paging(hwpt))
-		iopt_remove_reserved_iova(&hwpt->ioas->iopt, idev->dev);
+		iopt_remove_reserved_iova(&to_hwpt_paging(hwpt)->ioas->iopt,
+					  idev->dev);
 	mutex_unlock(&idev->igroup->lock);
 
 	/* Caller must destroy hwpt */
@@ -423,18 +428,19 @@ iommufd_device_do_attach(struct iommufd_device *idev,
 
 static void
 iommufd_group_remove_reserved_iova(struct iommufd_group *igroup,
-				   struct iommufd_hw_pagetable *hwpt)
+				   struct iommufd_hwpt_paging *hwpt_paging)
 {
 	struct iommufd_device *cur;
 
 	lockdep_assert_held(&igroup->lock);
 
 	list_for_each_entry(cur, &igroup->device_list, group_item)
-		iopt_remove_reserved_iova(&hwpt->ioas->iopt, cur->dev);
+		iopt_remove_reserved_iova(&hwpt_paging->ioas->iopt, cur->dev);
 }
 
-static int iommufd_group_do_replace_paging(struct iommufd_group *igroup,
-					   struct iommufd_hw_pagetable *hwpt)
+static int
+iommufd_group_do_replace_paging(struct iommufd_group *igroup,
+				struct iommufd_hwpt_paging *hwpt_paging)
 {
 	struct iommufd_hw_pagetable *old_hwpt = igroup->hwpt;
 	struct iommufd_device *cur;
@@ -442,22 +448,23 @@ static int iommufd_group_do_replace_paging(struct iommufd_group *igroup,
 
 	lockdep_assert_held(&igroup->lock);
 
-	if (!hwpt_is_paging(old_hwpt) || hwpt->ioas != old_hwpt->ioas) {
+	if (!hwpt_is_paging(old_hwpt) ||
+	    hwpt_paging->ioas != to_hwpt_paging(old_hwpt)->ioas) {
 		list_for_each_entry(cur, &igroup->device_list, group_item) {
 			rc = iopt_table_enforce_dev_resv_regions(
-				&hwpt->ioas->iopt, cur->dev, NULL);
+				&hwpt_paging->ioas->iopt, cur->dev, NULL);
 			if (rc)
 				goto err_unresv;
 		}
 	}
 
-	rc = iommufd_group_setup_msi(igroup, hwpt);
+	rc = iommufd_group_setup_msi(igroup, hwpt_paging);
 	if (rc)
 		goto err_unresv;
 	return 0;
 
 err_unresv:
-	iommufd_group_remove_reserved_iova(igroup, hwpt);
+	iommufd_group_remove_reserved_iova(igroup, hwpt_paging);
 	return rc;
 }
 
@@ -482,8 +489,10 @@ iommufd_device_do_replace(struct iommufd_device *idev,
 		return NULL;
 	}
 
+	old_hwpt = igroup->hwpt;
 	if (hwpt_is_paging(hwpt)) {
-		rc = iommufd_group_do_replace_paging(igroup, hwpt);
+		rc = iommufd_group_do_replace_paging(igroup,
+						     to_hwpt_paging(hwpt));
 		if (rc)
 			goto err_unlock;
 	}
@@ -492,10 +501,11 @@ iommufd_device_do_replace(struct iommufd_device *idev,
 	if (rc)
 		goto err_unresv;
 
-	old_hwpt = igroup->hwpt;
 	if (hwpt_is_paging(old_hwpt) &&
-	    (!hwpt_is_paging(hwpt) || hwpt->ioas != old_hwpt->ioas))
-		iommufd_group_remove_reserved_iova(igroup, old_hwpt);
+	    (!hwpt_is_paging(hwpt) ||
+	     to_hwpt_paging(hwpt)->ioas != to_hwpt_paging(old_hwpt)->ioas))
+		iommufd_group_remove_reserved_iova(igroup,
+						   to_hwpt_paging(old_hwpt));
 
 	igroup->hwpt = hwpt;
 
@@ -514,7 +524,8 @@ iommufd_device_do_replace(struct iommufd_device *idev,
 	return old_hwpt;
 err_unresv:
 	if (hwpt_is_paging(hwpt))
-		iommufd_group_remove_reserved_iova(igroup, hwpt);
+		iommufd_group_remove_reserved_iova(igroup,
+						   to_hwpt_paging(old_hwpt));
 err_unlock:
 	mutex_unlock(&idev->igroup->lock);
 	return ERR_PTR(rc);
@@ -542,6 +553,7 @@ iommufd_device_auto_get_domain(struct iommufd_device *idev,
 	 */
 	bool immediate_attach = do_attach == iommufd_device_do_attach;
 	struct iommufd_hw_pagetable *destroy_hwpt;
+	struct iommufd_hwpt_paging *hwpt_paging;
 	struct iommufd_hw_pagetable *hwpt;
 
 	/*
@@ -550,10 +562,11 @@ iommufd_device_auto_get_domain(struct iommufd_device *idev,
 	 * other.
 	 */
 	mutex_lock(&ioas->mutex);
-	list_for_each_entry(hwpt, &ioas->hwpt_list, hwpt_item) {
-		if (!hwpt->auto_domain)
+	list_for_each_entry(hwpt_paging, &ioas->hwpt_list, hwpt_item) {
+		if (!hwpt_paging->auto_domain)
 			continue;
 
+		hwpt = &hwpt_paging->common;
 		if (!iommufd_lock_obj(&hwpt->obj))
 			continue;
 		destroy_hwpt = (*do_attach)(idev, hwpt);
@@ -574,12 +587,13 @@ iommufd_device_auto_get_domain(struct iommufd_device *idev,
 		goto out_unlock;
 	}
 
-	hwpt = iommufd_hw_pagetable_alloc(idev->ictx, ioas, idev,
-					  0, immediate_attach);
-	if (IS_ERR(hwpt)) {
-		destroy_hwpt = ERR_CAST(hwpt);
+	hwpt_paging = iommufd_hwpt_paging_alloc(idev->ictx, ioas, idev, 0,
+						immediate_attach);
+	if (IS_ERR(hwpt_paging)) {
+		destroy_hwpt = ERR_CAST(hwpt_paging);
 		goto out_unlock;
 	}
+	hwpt = &hwpt_paging->common;
 
 	if (!immediate_attach) {
 		destroy_hwpt = (*do_attach)(idev, hwpt);
@@ -589,7 +603,7 @@ iommufd_device_auto_get_domain(struct iommufd_device *idev,
 		destroy_hwpt = NULL;
 	}
 
-	hwpt->auto_domain = true;
+	hwpt_paging->auto_domain = true;
 	*pt_id = hwpt->obj.id;
 
 	iommufd_object_finalize(idev->ictx, &hwpt->obj);
