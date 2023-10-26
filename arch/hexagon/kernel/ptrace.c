@@ -74,7 +74,7 @@ static int genregs_set(struct task_struct *target,
 		   unsigned int pos, unsigned int count,
 		   const void *kbuf, const void __user *ubuf)
 {
-	int ret;
+	int ret, ignore_offset;
 	unsigned long bucket;
 	struct pt_regs *regs = task_pt_regs(target);
 
@@ -111,12 +111,15 @@ static int genregs_set(struct task_struct *target,
 #if CONFIG_HEXAGON_ARCH_VERSION >=4
 	INEXT(&regs->cs0, cs0);
 	INEXT(&regs->cs1, cs1);
+	ignore_offset = offsetof(struct user_regs_struct, pad1);
+#else
+	ignore_offset = offsetof(struct user_regs_struct, cs0);
 #endif
 
 	/* Ignore the rest, if needed */
 	if (!ret)
 		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-			offsetof(struct user_regs_struct, pad1), -1);
+					  ignore_offset, -1);
 	else
 		return ret;
 
