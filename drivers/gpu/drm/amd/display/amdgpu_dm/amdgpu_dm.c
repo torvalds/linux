@@ -1642,7 +1642,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		init_data.flags.gpu_vm_support = (amdgpu_sg_display != 0) && (adev->flags & AMD_IS_APU);
 	}
 
-	init_data.flags.gpu_vm_support = adev->mode_info.gpu_vm_support;
+	adev->mode_info.gpu_vm_support = init_data.flags.gpu_vm_support;
 
 	if (amdgpu_dc_feature_mask & DC_FBC_MASK)
 		init_data.flags.fbc_support = true;
