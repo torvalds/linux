@@ -85,7 +85,7 @@ static ssize_t name_show(struct device *dev,
 {
 	struct xe_gt_idle *gtidle = dev_to_gtidle(dev);
 
-	return sysfs_emit(buff, gtidle->name);
+	return sysfs_emit(buff, "%s\n", gtidle->name);
 }
 static DEVICE_ATTR_RO(name);
 
