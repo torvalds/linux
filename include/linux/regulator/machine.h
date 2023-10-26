@@ -49,6 +49,13 @@ struct regulator;
 #define DISABLE_IN_SUSPEND	1
 #define ENABLE_IN_SUSPEND	2
 
+/*
+ * Default time window (in milliseconds) following a critical under-voltage
+ * event during which less critical actions can be safely carried out by the
+ * system.
+ */
+#define REGULATOR_DEF_UV_LESS_CRITICAL_WINDOW_MS	10
+
 /* Regulator active discharge flags */
 enum regulator_active_discharge {
 	REGULATOR_ACTIVE_DISCHARGE_DEFAULT,
@@ -127,6 +134,8 @@ struct notification_limit {
  * @ramp_disable: Disable ramp delay when initialising or when setting voltage.
  * @soft_start: Enable soft start so that voltage ramps slowly.
  * @pull_down: Enable pull down when regulator is disabled.
+ * @system_critical: Set if the regulator is critical to system stability or
+ *                   functionality.
  * @over_current_protection: Auto disable on over current event.
  *
  * @over_current_detection: Configure over current limits.
@@ -214,6 +223,7 @@ struct regulation_constraints {
 	unsigned ramp_disable:1; /* disable ramp delay */
 	unsigned soft_start:1;	/* ramp voltage slowly */
 	unsigned pull_down:1;	/* pull down resistor when regulator off */
+	unsigned system_critical:1;	/* critical to system stability */
 	unsigned over_current_protection:1; /* auto disable on over current */
 	unsigned over_current_detection:1; /* notify on over current */
 	unsigned over_voltage_detection:1; /* notify on over voltage */
