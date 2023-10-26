@@ -840,6 +840,7 @@ static int cs35l41_system_resume(struct device *dev)
 	}
 
 	if (cs35l41->reset_gpio) {
+		gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
 		usleep_range(2000, 2100);
 		gpiod_set_value_cansleep(cs35l41->reset_gpio, 1);
 	}
@@ -1693,6 +1694,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 		}
 	}
 	if (cs35l41->reset_gpio) {
+		gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
 		usleep_range(2000, 2100);
 		gpiod_set_value_cansleep(cs35l41->reset_gpio, 1);
 	}
