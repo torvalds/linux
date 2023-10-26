@@ -5094,7 +5094,7 @@ static void regulator_handle_critical(struct regulator_dev *rdev,
 		return;
 
 	hw_protection_shutdown(reason,
-			       REGULATOR_DEF_UV_LESS_CRITICAL_WINDOW_MS);
+			       rdev->constraints->uv_less_critical_window_ms);
 }
 
 /**

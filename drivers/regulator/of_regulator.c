@@ -175,6 +175,13 @@ static int of_get_regulation_constraints(struct device *dev,
 	if (!ret)
 		constraints->enable_time = pval;
 
+	ret = of_property_read_u32(np, "regulator-uv-survival-time-ms", &pval);
+	if (!ret)
+		constraints->uv_less_critical_window_ms = pval;
+	else
+		constraints->uv_less_critical_window_ms =
+				REGULATOR_DEF_UV_LESS_CRITICAL_WINDOW_MS;
+
 	constraints->soft_start = of_property_read_bool(np,
 					"regulator-soft-start");
 	ret = of_property_read_u32(np, "regulator-active-discharge", &pval);

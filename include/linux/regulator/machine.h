@@ -162,6 +162,13 @@ struct notification_limit {
  *		      regulator_active_discharge values are used for
  *		      initialisation.
  * @enable_time: Turn-on time of the rails (unit: microseconds)
+ * @uv_less_critical_window_ms: Specifies the time window (in milliseconds)
+ *                              following a critical under-voltage (UV) event
+ *                              during which less critical actions can be
+ *                              safely carried out by the system (for example
+ *                              logging). After this time window more critical
+ *                              actions should be done (for example prevent
+ *                              HW damage).
  */
 struct regulation_constraints {
 
@@ -213,6 +220,7 @@ struct regulation_constraints {
 	unsigned int settling_time_up;
 	unsigned int settling_time_down;
 	unsigned int enable_time;
+	unsigned int uv_less_critical_window_ms;
 
 	unsigned int active_discharge;
 
