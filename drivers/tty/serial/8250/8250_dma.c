@@ -15,6 +15,7 @@
 #define MAX_TX_BYTES		64
 #define MAX_FIFO_SIZE		64
 #define UART_RFL_16550A		0x21
+#define DW_UART_DMASA		0x2a
 #endif
 
 static void __dma_tx_complete(void *param)
@@ -150,6 +151,10 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 	dma_sync_single_for_device(dma->txchan->device->dev, dma->tx_addr,
 				   UART_XMIT_SIZE, DMA_TO_DEVICE);
 
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	/* Clear uart dma request before start dma */
+	serial_port_out(&p->port, DW_UART_DMASA, 0x1);
+#endif
 	dma_async_issue_pending(dma->txchan);
 	if (dma->tx_err) {
 		dma->tx_err = 0;
