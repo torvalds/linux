@@ -12,6 +12,8 @@ socinfo.ko
 qcom-ipcc.ko
 clk-dummy.ko
 clk-qcom.ko
+cqhci.ko
+sdhci-msm.ko
 gdsc-regulator.ko
 arm_smmu.ko
 iommu-logger.ko
