@@ -2951,7 +2951,7 @@ void v4l_printk_ioctl(const char *prefix, unsigned int cmd)
 		type = "v4l2_int";
 		break;
 	case 'V':
-		if (_IOC_NR(cmd) >= V4L2_IOCTLS) {
+		if (!v4l2_is_known_ioctl(cmd)) {
 			type = "v4l2";
 			break;
 		}
