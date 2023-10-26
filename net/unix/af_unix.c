@@ -3344,7 +3344,7 @@ static const struct seq_operations unix_seq_ops = {
 	.show   = unix_seq_show,
 };
 
-#if IS_BUILTIN(CONFIG_UNIX) && defined(CONFIG_BPF_SYSCALL)
+#ifdef CONFIG_BPF_SYSCALL
 struct bpf_unix_iter_state {
 	struct seq_net_private p;
 	unsigned int cur_sk;
@@ -3606,7 +3606,7 @@ static struct pernet_operations unix_net_ops = {
 	.exit = unix_net_exit,
 };
 
-#if IS_BUILTIN(CONFIG_UNIX) && defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
+#if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
 DEFINE_BPF_ITER_FUNC(unix, struct bpf_iter_meta *meta,
 		     struct unix_sock *unix_sk, uid_t uid)
 
@@ -3706,7 +3706,7 @@ static int __init af_unix_init(void)
 	register_pernet_subsys(&unix_net_ops);
 	unix_bpf_build_proto();
 
-#if IS_BUILTIN(CONFIG_UNIX) && defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
+#if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
 	bpf_iter_register();
 #endif
 
@@ -3714,20 +3714,5 @@ out:
 	return rc;
 }
 
-static void __exit af_unix_exit(void)
-{
-	sock_unregister(PF_UNIX);
-	proto_unregister(&unix_dgram_proto);
-	proto_unregister(&unix_stream_proto);
-	unregister_pernet_subsys(&unix_net_ops);
-}
-
-/* Earlier than device_initcall() so that other drivers invoking
-   request_module() don't end up in a loop when modprobe tries
-   to use a UNIX socket. But later than subsys_initcall() because
-   we depend on stuff initialised there */
+/* Later than subsys_initcall() because we depend on stuff initialised there */
 fs_initcall(af_unix_init);
-module_exit(af_unix_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_ALIAS_NETPROTO(PF_UNIX);
