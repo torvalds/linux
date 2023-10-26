@@ -427,6 +427,15 @@ config SC_CAMCC_7280
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
 
+config SC_CAMCC_8280XP
+	tristate "SC8280XP Camera Clock Controller"
+	select SC_GCC_8280XP
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  SC8280XP devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
 config SC_DISPCC_7180
 	tristate "SC7180 Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
