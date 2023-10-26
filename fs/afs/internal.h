@@ -1291,7 +1291,7 @@ extern void __net_exit afs_close_socket(struct afs_net *);
 extern void afs_charge_preallocation(struct work_struct *);
 extern void afs_put_call(struct afs_call *);
 extern void afs_make_call(struct afs_addr_cursor *, struct afs_call *, gfp_t);
-extern long afs_wait_for_call_to_complete(struct afs_call *, struct afs_addr_cursor *);
+void afs_wait_for_call_to_complete(struct afs_call *call, struct afs_addr_cursor *ac);
 extern struct afs_call *afs_alloc_flat_call(struct afs_net *,
 					    const struct afs_call_type *,
 					    size_t, size_t);

@@ -575,47 +575,43 @@ call_complete:
 /*
  * Wait synchronously for a call to complete and clean up the call struct.
  */
-long afs_wait_for_call_to_complete(struct afs_call *call,
-				   struct afs_addr_cursor *ac)
+void afs_wait_for_call_to_complete(struct afs_call *call, struct afs_addr_cursor *ac)
 {
-	long ret;
 	bool rxrpc_complete = false;
-
-	DECLARE_WAITQUEUE(myself, current);
 
 	_enter("");
 
-	ret = call->error;
-	if (ret < 0)
-		goto out;
+	if (!afs_check_call_state(call, AFS_CALL_COMPLETE)) {
+		DECLARE_WAITQUEUE(myself, current);
 
-	add_wait_queue(&call->waitq, &myself);
-	for (;;) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
+		add_wait_queue(&call->waitq, &myself);
+		for (;;) {
+			set_current_state(TASK_UNINTERRUPTIBLE);
 
-		/* deliver any messages that are in the queue */
-		if (!afs_check_call_state(call, AFS_CALL_COMPLETE) &&
-		    call->need_attention) {
-			call->need_attention = false;
-			__set_current_state(TASK_RUNNING);
-			afs_deliver_to_call(call);
-			continue;
+			/* deliver any messages that are in the queue */
+			if (!afs_check_call_state(call, AFS_CALL_COMPLETE) &&
+			    call->need_attention) {
+				call->need_attention = false;
+				__set_current_state(TASK_RUNNING);
+				afs_deliver_to_call(call);
+				continue;
+			}
+
+			if (afs_check_call_state(call, AFS_CALL_COMPLETE))
+				break;
+
+			if (!rxrpc_kernel_check_life(call->net->socket, call->rxcall)) {
+				/* rxrpc terminated the call. */
+				rxrpc_complete = true;
+				break;
+			}
+
+			schedule();
 		}
 
-		if (afs_check_call_state(call, AFS_CALL_COMPLETE))
-			break;
-
-		if (!rxrpc_kernel_check_life(call->net->socket, call->rxcall)) {
-			/* rxrpc terminated the call. */
-			rxrpc_complete = true;
-			break;
-		}
-
-		schedule();
+		remove_wait_queue(&call->waitq, &myself);
+		__set_current_state(TASK_RUNNING);
 	}
-
-	remove_wait_queue(&call->waitq, &myself);
-	__set_current_state(TASK_RUNNING);
 
 	if (!afs_check_call_state(call, AFS_CALL_COMPLETE)) {
 		if (rxrpc_complete) {
@@ -635,23 +631,8 @@ long afs_wait_for_call_to_complete(struct afs_call *call,
 	ac->error = call->error;
 	spin_unlock_bh(&call->state_lock);
 
-	ret = ac->error;
-	switch (ret) {
-	case 0:
-		ret = call->ret0;
-		call->ret0 = 0;
-
-		fallthrough;
-	case -ECONNABORTED:
+	if (call->error == 0 || call->error == -ECONNABORTED)
 		ac->responded = true;
-		break;
-	}
-
-out:
-	_debug("call complete");
-	afs_put_call(call);
-	_leave(" = %p", (void *)ret);
-	return ret;
 }
 
 /*

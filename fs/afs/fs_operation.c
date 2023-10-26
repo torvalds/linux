@@ -191,8 +191,11 @@ void afs_wait_for_operation(struct afs_operation *op)
 		else
 			op->ac.error = -ENOTSUPP;
 
-		if (op->call)
-			op->error = afs_wait_for_call_to_complete(op->call, &op->ac);
+		if (op->call) {
+			afs_wait_for_call_to_complete(op->call, &op->ac);
+			op->error = op->ac.error;
+			afs_put_call(op->call);
+		}
 	}
 
 	switch (op->error) {

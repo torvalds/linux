@@ -1612,6 +1612,7 @@ int afs_fs_give_up_all_callbacks(struct afs_net *net,
 {
 	struct afs_call *call;
 	__be32 *bp;
+	int ret;
 
 	_enter("");
 
@@ -1627,7 +1628,9 @@ int afs_fs_give_up_all_callbacks(struct afs_net *net,
 
 	call->server = afs_use_server(server, afs_server_trace_give_up_cb);
 	afs_make_call(ac, call, GFP_NOFS);
-	return afs_wait_for_call_to_complete(call, ac);
+	afs_wait_for_call_to_complete(call, ac);
+	afs_put_call(call);
+	return ret;
 }
 
 /*

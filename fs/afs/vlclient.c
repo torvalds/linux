@@ -106,12 +106,6 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	return 0;
 }
 
-static void afs_destroy_vl_get_entry_by_name_u(struct afs_call *call)
-{
-	kfree(call->ret_vldb);
-	afs_flat_call_destructor(call);
-}
-
 /*
  * VL.GetEntryByNameU operation type.
  */
@@ -119,7 +113,7 @@ static const struct afs_call_type afs_RXVLGetEntryByNameU = {
 	.name		= "VL.GetEntryByNameU",
 	.op		= afs_VL_GetEntryByNameU,
 	.deliver	= afs_deliver_vl_get_entry_by_name_u,
-	.destructor	= afs_destroy_vl_get_entry_by_name_u,
+	.destructor	= afs_flat_call_destructor,
 };
 
 /*
@@ -166,7 +160,13 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 
 	trace_afs_make_vl_call(call);
 	afs_make_call(&vc->ac, call, GFP_KERNEL);
-	return (struct afs_vldb_entry *)afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_put_call(call);
+	if (vc->ac.error) {
+		kfree(entry);
+		return ERR_PTR(vc->ac.error);
+	}
+	return entry;
 }
 
 /*
@@ -249,12 +249,6 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 	return 0;
 }
 
-static void afs_vl_get_addrs_u_destructor(struct afs_call *call)
-{
-	afs_put_addrlist(call->ret_alist);
-	return afs_flat_call_destructor(call);
-}
-
 /*
  * VL.GetAddrsU operation type.
  */
@@ -262,7 +256,7 @@ static const struct afs_call_type afs_RXVLGetAddrsU = {
 	.name		= "VL.GetAddrsU",
 	.op		= afs_VL_GetAddrsU,
 	.deliver	= afs_deliver_vl_get_addrs_u,
-	.destructor	= afs_vl_get_addrs_u_destructor,
+	.destructor	= afs_flat_call_destructor,
 };
 
 /*
@@ -273,6 +267,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 					 const uuid_t *uuid)
 {
 	struct afs_ListAddrByAttributes__xdr *r;
+	struct afs_addr_list *alist;
 	const struct afs_uuid *u = (const struct afs_uuid *)uuid;
 	struct afs_call *call;
 	struct afs_net *net = vc->cell->net;
@@ -309,7 +304,14 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 
 	trace_afs_make_vl_call(call);
 	afs_make_call(&vc->ac, call, GFP_KERNEL);
-	return (struct afs_addr_list *)afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_wait_for_call_to_complete(call, &vc->ac);
+	alist = call->ret_alist;
+	afs_put_call(call);
+	if (vc->ac.error) {
+		afs_put_addrlist(alist);
+		return ERR_PTR(vc->ac.error);
+	}
+	return alist;
 }
 
 /*
@@ -618,7 +620,7 @@ static const struct afs_call_type afs_YFSVLGetEndpoints = {
 	.name		= "YFSVL.GetEndpoints",
 	.op		= afs_YFSVL_GetEndpoints,
 	.deliver	= afs_deliver_yfsvl_get_endpoints,
-	.destructor	= afs_vl_get_addrs_u_destructor,
+	.destructor	= afs_flat_call_destructor,
 };
 
 /*
@@ -628,6 +630,7 @@ static const struct afs_call_type afs_YFSVLGetEndpoints = {
 struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 					      const uuid_t *uuid)
 {
+	struct afs_addr_list *alist;
 	struct afs_call *call;
 	struct afs_net *net = vc->cell->net;
 	__be32 *bp;
@@ -652,7 +655,14 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 
 	trace_afs_make_vl_call(call);
 	afs_make_call(&vc->ac, call, GFP_KERNEL);
-	return (struct afs_addr_list *)afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_wait_for_call_to_complete(call, &vc->ac);
+	alist = call->ret_alist;
+	afs_put_call(call);
+	if (vc->ac.error) {
+		afs_put_addrlist(alist);
+		return ERR_PTR(vc->ac.error);
+	}
+	return alist;
 }
 
 /*
@@ -717,12 +727,6 @@ static int afs_deliver_yfsvl_get_cell_name(struct afs_call *call)
 	return 0;
 }
 
-static void afs_destroy_yfsvl_get_cell_name(struct afs_call *call)
-{
-	kfree(call->ret_str);
-	afs_flat_call_destructor(call);
-}
-
 /*
  * VL.GetCapabilities operation type
  */
@@ -730,7 +734,7 @@ static const struct afs_call_type afs_YFSVLGetCellName = {
 	.name		= "YFSVL.GetCellName",
 	.op		= afs_YFSVL_GetCellName,
 	.deliver	= afs_deliver_yfsvl_get_cell_name,
-	.destructor	= afs_destroy_yfsvl_get_cell_name,
+	.destructor	= afs_flat_call_destructor,
 };
 
 /*
@@ -745,6 +749,7 @@ char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *vc)
 	struct afs_call *call;
 	struct afs_net *net = vc->cell->net;
 	__be32 *bp;
+	char *cellname;
 
 	_enter("");
 
@@ -763,5 +768,12 @@ char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *vc)
 	/* Can't take a ref on server */
 	trace_afs_make_vl_call(call);
 	afs_make_call(&vc->ac, call, GFP_KERNEL);
-	return (char *)afs_wait_for_call_to_complete(call, &vc->ac);
+	afs_wait_for_call_to_complete(call, &vc->ac);
+	cellname = call->ret_str;
+	afs_put_call(call);
+	if (vc->ac.error) {
+		kfree(cellname);
+		return ERR_PTR(vc->ac.error);
+	}
+	return cellname;
 }
