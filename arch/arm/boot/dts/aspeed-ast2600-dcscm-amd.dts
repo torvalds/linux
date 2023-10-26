@@ -228,11 +228,6 @@
 &i2c7 {
 	status = "okay";
 
-	temp@2e {
-		compatible = "adi,adt7490";
-		reg = <0x2e>;
-	};
-
 	eeprom@50 {
 		compatible = "atmel,24c08";
 		reg = <0x50>;
