@@ -240,13 +240,13 @@ static int glink_pkt_rpdev_copy_cb(struct rpmsg_device *rpdev, void *buf,
 	unsigned long flags;
 	struct sk_buff *skb;
 
-	GLINK_PKT_INFO("Data received on:%s len:%d\n", gpdev->ch_name, len);
 
 	if (!gpdev) {
 		GLINK_PKT_ERR("channel is in reset\n");
 		return -ENETRESET;
 	}
 
+	GLINK_PKT_INFO("Data received on:%s len:%d\n", gpdev->ch_name, len);
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb) {
 		GLINK_PKT_ERR("Failed to allocate skb\n");
