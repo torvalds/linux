@@ -414,10 +414,4 @@ static inline size_t pkvm_host_fp_state_size(void)
 		return sizeof(struct user_fpsimd_state);
 }
 
-static inline unsigned long hyp_host_fp_pages(unsigned long nr_cpus)
-{
-	return PAGE_ALIGN(size_mul(nr_cpus, pkvm_host_fp_state_size())) >>
-		PAGE_SHIFT;
-}
-
 #endif	/* __ARM64_KVM_PKVM_H__ */

@@ -492,6 +492,9 @@
   dma_get_sgtable_attrs
   dma_get_slave_channel
   dma_heap_add
+  dma_heap_buffer_alloc
+  dma_heap_buffer_free
+  dma_heap_find
   dma_heap_get_dev
   dma_heap_get_drvdata
   dma_heap_get_name
@@ -1164,6 +1167,8 @@
   kvfree
   kvfree_call_rcu
   kvmalloc_node
+  led_classdev_register_ext
+  led_classdev_unregister
   led_init_default_state_get
   __list_add_valid
   __list_del_entry_valid
@@ -1820,6 +1825,7 @@
   schedule
   schedule_hrtimeout
   schedule_timeout
+  schedule_timeout_idle
   schedule_timeout_uninterruptible
   scmi_driver_register
   scmi_driver_unregister

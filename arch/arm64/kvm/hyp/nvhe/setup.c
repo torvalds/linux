@@ -34,7 +34,6 @@ static void *vm_table_base;
 static void *hyp_pgt_base;
 static void *host_s2_pgt_base;
 static void *ffa_proxy_pages;
-static void *hyp_host_fp_base;
 static struct kvm_pgtable_mm_ops pkvm_pgtable_mm_ops;
 static struct hyp_pool hpool;
 
@@ -69,10 +68,21 @@ static int divide_memory_pool(void *virt, unsigned long size)
 	if (!ffa_proxy_pages)
 		return -ENOMEM;
 
-	nr_pages = hyp_host_fp_pages(hyp_nr_cpus);
-	hyp_host_fp_base = hyp_early_alloc_contig(nr_pages);
-	if (!hyp_host_fp_base)
-		return -ENOMEM;
+	return 0;
+}
+
+static int create_hyp_host_fp_mappings(void)
+{
+	void *start, *end;
+	int ret, i;
+
+	for (i = 0; i < hyp_nr_cpus; i++) {
+		start = (void *)kern_hyp_va(kvm_arm_hyp_host_fp_state[i]);
+		end = start + PAGE_ALIGN(pkvm_host_fp_state_size());
+		ret = pkvm_create_mappings(start, end, PAGE_HYP);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -163,6 +173,8 @@ static int recreate_hyp_mappings(phys_addr_t phys, unsigned long size,
 		/* Update stack_hyp_va to end of the stack's private VA range */
 		params->stack_hyp_va = hyp_addr + (2 * PAGE_SIZE);
 	}
+
+	create_hyp_host_fp_mappings();
 
 	/*
 	 * Map the host sections RO in the hypervisor, but transfer the
@@ -405,7 +417,6 @@ void __noreturn __pkvm_init_finalise(void)
 		goto out;
 
 	pkvm_hyp_vm_table_init(vm_table_base);
-	pkvm_hyp_host_fp_init(hyp_host_fp_base);
 out:
 	/*
 	 * We tail-called to here from handle___pkvm_init() and will not return,
