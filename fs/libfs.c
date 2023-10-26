@@ -1311,6 +1311,47 @@ ssize_t simple_attr_write_signed(struct file *file, const char __user *buf,
 EXPORT_SYMBOL_GPL(simple_attr_write_signed);
 
 /**
+ * generic_encode_ino32_fh - generic export_operations->encode_fh function
+ * @inode:   the object to encode
+ * @fh:      where to store the file handle fragment
+ * @max_len: maximum length to store there (in 4 byte units)
+ * @parent:  parent directory inode, if wanted
+ *
+ * This generic encode_fh function assumes that the 32 inode number
+ * is suitable for locating an inode, and that the generation number
+ * can be used to check that it is still valid.  It places them in the
+ * filehandle fragment where export_decode_fh expects to find them.
+ */
+int generic_encode_ino32_fh(struct inode *inode, __u32 *fh, int *max_len,
+			    struct inode *parent)
+{
+	struct fid *fid = (void *)fh;
+	int len = *max_len;
+	int type = FILEID_INO32_GEN;
+
+	if (parent && (len < 4)) {
+		*max_len = 4;
+		return FILEID_INVALID;
+	} else if (len < 2) {
+		*max_len = 2;
+		return FILEID_INVALID;
+	}
+
+	len = 2;
+	fid->i32.ino = inode->i_ino;
+	fid->i32.gen = inode->i_generation;
+	if (parent) {
+		fid->i32.parent_ino = parent->i_ino;
+		fid->i32.parent_gen = parent->i_generation;
+		len = 4;
+		type = FILEID_INO32_GEN_PARENT;
+	}
+	*max_len = len;
+	return type;
+}
+EXPORT_SYMBOL_GPL(generic_encode_ino32_fh);
+
+/**
  * generic_fh_to_dentry - generic helper for the fh_to_dentry export operation
  * @sb:		filesystem to do the file handle conversion on
  * @fid:	file handle to convert

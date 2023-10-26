@@ -294,17 +294,12 @@ extern struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 /*
  * Generic helpers for filesystems.
  */
-#ifdef CONFIG_EXPORTFS
 int generic_encode_ino32_fh(struct inode *inode, __u32 *fh, int *max_len,
 			    struct inode *parent);
-#else
-#define generic_encode_ino32_fh NULL
-#endif
-
-extern struct dentry *generic_fh_to_dentry(struct super_block *sb,
+struct dentry *generic_fh_to_dentry(struct super_block *sb,
 	struct fid *fid, int fh_len, int fh_type,
 	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
-extern struct dentry *generic_fh_to_parent(struct super_block *sb,
+struct dentry *generic_fh_to_parent(struct super_block *sb,
 	struct fid *fid, int fh_len, int fh_type,
 	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
 
