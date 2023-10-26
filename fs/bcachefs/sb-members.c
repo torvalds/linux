@@ -36,7 +36,8 @@ static struct bch_member members_v1_get(struct bch_sb_field_members_v1 *mi, int 
 {
 	struct bch_member ret, *p = members_v1_get_mut(mi, i);
 	memset(&ret, 0, sizeof(ret));
-	memcpy(&ret, p, min_t(size_t, sizeof(struct bch_member), sizeof(ret))); return ret;
+	memcpy(&ret, p, min_t(size_t, BCH_MEMBER_V1_BYTES, sizeof(ret)));
+	return ret;
 }
 
 struct bch_member bch2_sb_member_get(struct bch_sb *sb, int i)
@@ -262,8 +263,7 @@ static int bch2_sb_members_v1_validate(struct bch_sb *sb,
 	struct bch_sb_field_members_v1 *mi = field_to_type(f, members_v1);
 	unsigned i;
 
-	if ((void *) members_v1_get_mut(mi, sb->nr_devices)  >
-	    vstruct_end(&mi->field)) {
+	if ((void *) members_v1_get_mut(mi, sb->nr_devices) > vstruct_end(&mi->field)) {
 		prt_printf(err, "too many devices for section size");
 		return -BCH_ERR_invalid_sb_members;
 	}
