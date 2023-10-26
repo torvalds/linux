@@ -1026,7 +1026,11 @@ UnsignedEnum	35:32	SHA3
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Res0	31:24
+Res0	31:28
+UnsignedEnum	27:24	B16B16
+	0b0000	NI
+	0b0001	IMP
+EndEnum
 UnsignedEnum	23:20	BF16
 	0b0000	NI
 	0b0001	IMP
