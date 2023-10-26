@@ -1170,32 +1170,12 @@ void sve_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
 	isb();
 }
 
-/*
- * Read the pseudo-ZCR used by cpufeatures to identify the supported SVE
- * vector length.
- *
- * Use only if SVE is present.
- * This function clobbers the SVE vector length.
- */
-u64 read_zcr_features(void)
-{
-	/*
-	 * Set the maximum possible VL, and write zeroes to all other
-	 * bits to see if they stick.
-	 */
-	sve_kernel_enable(NULL);
-	write_sysreg_s(ZCR_ELx_LEN_MASK, SYS_ZCR_EL1);
-
-	/* Return LEN value that would be written to get the maximum VL */
-	return sve_vq_from_vl(sve_get_vl()) - 1;
-}
-
 void __init sve_setup(void)
 {
 	struct vl_info *info = &vl_info[ARM64_VEC_SVE];
-	u64 zcr;
 	DECLARE_BITMAP(tmp_map, SVE_VQ_MAX);
 	unsigned long b;
+	int max_bit;
 
 	if (!system_supports_sve())
 		return;
@@ -1208,17 +1188,8 @@ void __init sve_setup(void)
 	if (WARN_ON(!test_bit(__vq_to_bit(SVE_VQ_MIN), info->vq_map)))
 		set_bit(__vq_to_bit(SVE_VQ_MIN), info->vq_map);
 
-	zcr = read_sanitised_ftr_reg(SYS_ZCR_EL1);
-	info->max_vl = sve_vl_from_vq((zcr & ZCR_ELx_LEN_MASK) + 1);
-
-	/*
-	 * Sanity-check that the max VL we determined through CPU features
-	 * corresponds properly to sve_vq_map.  If not, do our best:
-	 */
-	if (WARN_ON(info->max_vl != find_supported_vector_length(ARM64_VEC_SVE,
-								 info->max_vl)))
-		info->max_vl = find_supported_vector_length(ARM64_VEC_SVE,
-							    info->max_vl);
+	max_bit = find_first_bit(info->vq_map, SVE_VQ_MAX);
+	info->max_vl = sve_vl_from_vq(__bit_to_vq(max_bit));
 
 	/*
 	 * For the default VL, pick the maximum supported value <= 64.
@@ -1333,32 +1304,10 @@ void fa64_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
 		       SYS_SMCR_EL1);
 }
 
-/*
- * Read the pseudo-SMCR used by cpufeatures to identify the supported
- * vector length.
- *
- * Use only if SME is present.
- * This function clobbers the SME vector length.
- */
-u64 read_smcr_features(void)
-{
-	sme_kernel_enable(NULL);
-
-	/*
-	 * Set the maximum possible VL.
-	 */
-	write_sysreg_s(read_sysreg_s(SYS_SMCR_EL1) | SMCR_ELx_LEN_MASK,
-		       SYS_SMCR_EL1);
-
-	/* Return LEN value that would be written to get the maximum VL */
-	return sve_vq_from_vl(sme_get_vl()) - 1;
-}
-
 void __init sme_setup(void)
 {
 	struct vl_info *info = &vl_info[ARM64_VEC_SME];
-	u64 smcr;
-	int min_bit;
+	int min_bit, max_bit;
 
 	if (!system_supports_sme())
 		return;
@@ -1367,24 +1316,16 @@ void __init sme_setup(void)
 	 * SME doesn't require any particular vector length be
 	 * supported but it does require at least one.  We should have
 	 * disabled the feature entirely while bringing up CPUs but
-	 * let's double check here.
+	 * let's double check here.  The bitmap is SVE_VQ_MAP sized for
+	 * sharing with SVE.
 	 */
 	WARN_ON(bitmap_empty(info->vq_map, SVE_VQ_MAX));
 
 	min_bit = find_last_bit(info->vq_map, SVE_VQ_MAX);
 	info->min_vl = sve_vl_from_vq(__bit_to_vq(min_bit));
 
-	smcr = read_sanitised_ftr_reg(SYS_SMCR_EL1);
-	info->max_vl = sve_vl_from_vq((smcr & SMCR_ELx_LEN_MASK) + 1);
-
-	/*
-	 * Sanity-check that the max VL we determined through CPU features
-	 * corresponds properly to sme_vq_map.  If not, do our best:
-	 */
-	if (WARN_ON(info->max_vl != find_supported_vector_length(ARM64_VEC_SME,
-								 info->max_vl)))
-		info->max_vl = find_supported_vector_length(ARM64_VEC_SME,
-							    info->max_vl);
+	max_bit = find_first_bit(info->vq_map, SVE_VQ_MAX);
+	info->max_vl = sve_vl_from_vq(__bit_to_vq(max_bit));
 
 	WARN_ON(info->min_vl > info->max_vl);
 

@@ -23,6 +23,7 @@
 #include <linux/bug.h>
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
+#include <linux/cpumask.h>
 
 /*
  * CPU feature register tracking
@@ -380,6 +381,7 @@ struct arm64_cpu_capabilities {
 	 * method is robust against being called multiple times.
 	 */
 	const struct arm64_cpu_capabilities *match_list;
+	const struct cpumask *cpus;
 };
 
 static inline int cpucap_default_scope(const struct arm64_cpu_capabilities *cap)
