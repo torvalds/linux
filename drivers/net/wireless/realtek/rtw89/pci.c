@@ -817,6 +817,15 @@ exit:
 	return irqret;
 }
 
+#define DEF_TXCHADDRS_TYPE2(gen, ch_idx, txch, v...) \
+	[RTW89_TXCH_##ch_idx] = { \
+		.num = R_##gen##_##txch##_TXBD_NUM ##v, \
+		.idx = R_##gen##_##txch##_TXBD_IDX ##v, \
+		.bdram = 0, \
+		.desa_l = R_##gen##_##txch##_TXBD_DESA_L ##v, \
+		.desa_h = R_##gen##_##txch##_TXBD_DESA_H ##v, \
+	}
+
 #define DEF_TXCHADDRS_TYPE1(info, txch, v...) \
 	[RTW89_TXCH_##txch] = { \
 		.num = R_AX_##txch##_TXBD_NUM ##v, \
@@ -835,12 +844,12 @@ exit:
 		.desa_h = R_AX_##txch##_TXBD_DESA_H ##v, \
 	}
 
-#define DEF_RXCHADDRS(info, rxch, v...) \
-	[RTW89_RXCH_##rxch] = { \
-		.num = R_AX_##rxch##_RXBD_NUM ##v, \
-		.idx = R_AX_##rxch##_RXBD_IDX ##v, \
-		.desa_l = R_AX_##rxch##_RXBD_DESA_L ##v, \
-		.desa_h = R_AX_##rxch##_RXBD_DESA_H ##v, \
+#define DEF_RXCHADDRS(gen, ch_idx, rxch, v...) \
+	[RTW89_RXCH_##ch_idx] = { \
+		.num = R_##gen##_##rxch##_RXBD_NUM ##v, \
+		.idx = R_##gen##_##rxch##_RXBD_IDX ##v, \
+		.desa_l = R_##gen##_##rxch##_RXBD_DESA_L ##v, \
+		.desa_h = R_##gen##_##rxch##_RXBD_DESA_H ##v, \
 	}
 
 const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set = {
@@ -860,8 +869,8 @@ const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set = {
 		DEF_TXCHADDRS(info, CH12),
 	},
 	.rx = {
-		DEF_RXCHADDRS(info, RXQ),
-		DEF_RXCHADDRS(info, RPQ),
+		DEF_RXCHADDRS(AX, RXQ, RXQ),
+		DEF_RXCHADDRS(AX, RPQ, RPQ),
 	},
 };
 EXPORT_SYMBOL(rtw89_pci_ch_dma_addr_set);
@@ -883,11 +892,34 @@ const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_v1 = {
 		DEF_TXCHADDRS(info, CH12, _V1),
 	},
 	.rx = {
-		DEF_RXCHADDRS(info, RXQ, _V1),
-		DEF_RXCHADDRS(info, RPQ, _V1),
+		DEF_RXCHADDRS(AX, RXQ, RXQ, _V1),
+		DEF_RXCHADDRS(AX, RPQ, RPQ, _V1),
 	},
 };
 EXPORT_SYMBOL(rtw89_pci_ch_dma_addr_set_v1);
+
+const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_be = {
+	.tx = {
+		DEF_TXCHADDRS_TYPE2(BE, ACH0, CH0, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, ACH1, CH1, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, ACH2, CH2, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, ACH3, CH3, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, ACH4, CH4, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, ACH5, CH5, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, ACH6, CH6, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, ACH7, CH7, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, CH8, CH8, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, CH9, CH9, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, CH10, CH10, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, CH11, CH11, _V1),
+		DEF_TXCHADDRS_TYPE2(BE, CH12, CH12, _V1),
+	},
+	.rx = {
+		DEF_RXCHADDRS(BE, RXQ, RXQ0, _V1),
+		DEF_RXCHADDRS(BE, RPQ, RPQ0, _V1),
+	},
+};
+EXPORT_SYMBOL(rtw89_pci_ch_dma_addr_set_be);
 
 #undef DEF_TXCHADDRS_TYPE1
 #undef DEF_TXCHADDRS
@@ -1433,19 +1465,21 @@ static void rtw89_pci_reset_trx_rings(struct rtw89_dev *rtwdev)
 
 		tx_ring = &rtwpci->tx_rings[i];
 		bd_ring = &tx_ring->bd_ring;
-		bd_ram = &bd_ram_table[i];
+		bd_ram = bd_ram_table ? &bd_ram_table[i] : NULL;
 		addr_num = bd_ring->addr.num;
 		addr_bdram = bd_ring->addr.bdram;
 		addr_desa_l = bd_ring->addr.desa_l;
 		bd_ring->wp = 0;
 		bd_ring->rp = 0;
 
-		val32 = FIELD_PREP(BDRAM_SIDX_MASK, bd_ram->start_idx) |
-			FIELD_PREP(BDRAM_MAX_MASK, bd_ram->max_num) |
-			FIELD_PREP(BDRAM_MIN_MASK, bd_ram->min_num);
-
 		rtw89_write16(rtwdev, addr_num, bd_ring->len);
-		rtw89_write32(rtwdev, addr_bdram, val32);
+		if (addr_bdram && bd_ram) {
+			val32 = FIELD_PREP(BDRAM_SIDX_MASK, bd_ram->start_idx) |
+				FIELD_PREP(BDRAM_MAX_MASK, bd_ram->max_num) |
+				FIELD_PREP(BDRAM_MIN_MASK, bd_ram->min_num);
+
+			rtw89_write32(rtwdev, addr_bdram, val32);
+		}
 		rtw89_write32(rtwdev, addr_desa_l, bd_ring->dma);
 	}
 

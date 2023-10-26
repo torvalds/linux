@@ -521,6 +521,80 @@
 			    B_BE_STOP_CH10 | B_BE_STOP_CH11 | \
 			    B_BE_STOP_CH12)
 
+#define R_BE_CH0_TXBD_NUM_V1 0xB030
+#define R_BE_CH1_TXBD_NUM_V1 0xB032
+#define R_BE_CH2_TXBD_NUM_V1 0xB034
+#define R_BE_CH3_TXBD_NUM_V1 0xB036
+#define R_BE_CH4_TXBD_NUM_V1 0xB038
+#define R_BE_CH5_TXBD_NUM_V1 0xB03A
+#define R_BE_CH6_TXBD_NUM_V1 0xB03C
+#define R_BE_CH7_TXBD_NUM_V1 0xB03E
+#define R_BE_CH8_TXBD_NUM_V1 0xB040
+#define R_BE_CH9_TXBD_NUM_V1 0xB042
+#define R_BE_CH10_TXBD_NUM_V1 0xB044
+#define R_BE_CH11_TXBD_NUM_V1 0xB046
+#define R_BE_CH12_TXBD_NUM_V1 0xB048
+#define R_BE_CH13_TXBD_NUM_V1 0xB04C
+#define R_BE_CH14_TXBD_NUM_V1 0xB04E
+
+#define R_BE_RXQ0_RXBD_NUM_V1 0xB050
+#define R_BE_RPQ0_RXBD_NUM_V1 0xB052
+
+#define R_BE_CH0_TXBD_IDX_V1 0xB100
+#define R_BE_CH1_TXBD_IDX_V1 0xB104
+#define R_BE_CH2_TXBD_IDX_V1 0xB108
+#define R_BE_CH3_TXBD_IDX_V1 0xB10C
+#define R_BE_CH4_TXBD_IDX_V1 0xB110
+#define R_BE_CH5_TXBD_IDX_V1 0xB114
+#define R_BE_CH6_TXBD_IDX_V1 0xB118
+#define R_BE_CH7_TXBD_IDX_V1 0xB11C
+#define R_BE_CH8_TXBD_IDX_V1 0xB120
+#define R_BE_CH9_TXBD_IDX_V1 0xB124
+#define R_BE_CH10_TXBD_IDX_V1 0xB128
+#define R_BE_CH11_TXBD_IDX_V1 0xB12C
+#define R_BE_CH12_TXBD_IDX_V1 0xB130
+#define R_BE_CH13_TXBD_IDX_V1 0xB134
+#define R_BE_CH14_TXBD_IDX_V1 0xB138
+
+#define R_BE_RXQ0_RXBD_IDX_V1 0xB160
+#define R_BE_RPQ0_RXBD_IDX_V1 0xB164
+
+#define R_BE_CH0_TXBD_DESA_L_V1 0xB200
+#define R_BE_CH0_TXBD_DESA_H_V1 0xB204
+#define R_BE_CH1_TXBD_DESA_L_V1 0xB208
+#define R_BE_CH1_TXBD_DESA_H_V1 0xB20C
+#define R_BE_CH2_TXBD_DESA_L_V1 0xB210
+#define R_BE_CH2_TXBD_DESA_H_V1 0xB214
+#define R_BE_CH3_TXBD_DESA_L_V1 0xB218
+#define R_BE_CH3_TXBD_DESA_H_V1 0xB21C
+#define R_BE_CH4_TXBD_DESA_L_V1 0xB220
+#define R_BE_CH4_TXBD_DESA_H_V1 0xB224
+#define R_BE_CH5_TXBD_DESA_L_V1 0xB228
+#define R_BE_CH5_TXBD_DESA_H_V1 0xB22C
+#define R_BE_CH6_TXBD_DESA_L_V1 0xB230
+#define R_BE_CH6_TXBD_DESA_H_V1 0xB234
+#define R_BE_CH7_TXBD_DESA_L_V1 0xB238
+#define R_BE_CH7_TXBD_DESA_H_V1 0xB23C
+#define R_BE_CH8_TXBD_DESA_L_V1 0xB240
+#define R_BE_CH8_TXBD_DESA_H_V1 0xB244
+#define R_BE_CH9_TXBD_DESA_L_V1 0xB248
+#define R_BE_CH9_TXBD_DESA_H_V1 0xB24C
+#define R_BE_CH10_TXBD_DESA_L_V1 0xB250
+#define R_BE_CH10_TXBD_DESA_H_V1 0xB254
+#define R_BE_CH11_TXBD_DESA_L_V1 0xB258
+#define R_BE_CH11_TXBD_DESA_H_V1 0xB25C
+#define R_BE_CH12_TXBD_DESA_L_V1 0xB260
+#define R_BE_CH12_TXBD_DESA_H_V1 0xB264
+#define R_BE_CH13_TXBD_DESA_L_V1 0xB268
+#define R_BE_CH13_TXBD_DESA_H_V1 0xB26C
+#define R_BE_CH14_TXBD_DESA_L_V1 0xB270
+#define R_BE_CH14_TXBD_DESA_H_V1 0xB274
+
+#define R_BE_RXQ0_RXBD_DESA_L_V1 0xB300
+#define R_BE_RXQ0_RXBD_DESA_H_V1 0xB304
+#define R_BE_RPQ0_RXBD_DESA_L_V1 0xB308
+#define R_BE_RPQ0_RXBD_DESA_H_V1 0xB30C
+
 /* Configure */
 #define R_AX_PCIE_INIT_CFG2		0x1004
 #define B_AX_WD_ITVL_IDLE		GENMASK(27, 24)
@@ -1150,6 +1224,7 @@ static inline bool rtw89_pci_ltr_is_err_reg_val(u32 val)
 extern const struct dev_pm_ops rtw89_pm_ops;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_v1;
+extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_be;
 extern const struct rtw89_pci_bd_ram rtw89_bd_ram_table_dual[RTW89_TXCH_NUM];
 extern const struct rtw89_pci_bd_ram rtw89_bd_ram_table_single[RTW89_TXCH_NUM];
 
