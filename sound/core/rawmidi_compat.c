@@ -15,7 +15,7 @@ struct snd_rawmidi_params32 {
 	unsigned int no_active_sensing; /* avoid bit-field */
 	unsigned int mode;
 	unsigned char reserved[12];
-} __attribute__((packed));
+} __packed;
 
 static int snd_rawmidi_ioctl_params_compat(struct snd_rawmidi_file *rfile,
 					   struct snd_rawmidi_params32 __user *src)
@@ -51,7 +51,7 @@ struct compat_snd_rawmidi_status64 {
 	u32 avail;
 	u32 xruns;
 	unsigned char reserved[16];
-} __attribute__((packed));
+} __packed;
 
 static int snd_rawmidi_ioctl_status_compat64(struct snd_rawmidi_file *rfile,
 					     struct compat_snd_rawmidi_status64 __user *src)
