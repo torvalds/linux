@@ -371,8 +371,6 @@ static int netkit_new_link(struct net *src_net, struct net_device *dev,
 	nk->policy = default_peer;
 	nk->mode = mode;
 	bpf_mprog_bundle_init(&nk->bundle);
-	RCU_INIT_POINTER(nk->active, NULL);
-	RCU_INIT_POINTER(nk->peer, NULL);
 
 	err = register_netdevice(peer);
 	put_net(net);
@@ -398,8 +396,6 @@ static int netkit_new_link(struct net *src_net, struct net_device *dev,
 	nk->policy = default_prim;
 	nk->mode = mode;
 	bpf_mprog_bundle_init(&nk->bundle);
-	RCU_INIT_POINTER(nk->active, NULL);
-	RCU_INIT_POINTER(nk->peer, NULL);
 
 	err = register_netdevice(dev);
 	if (err < 0)
