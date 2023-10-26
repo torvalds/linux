@@ -249,6 +249,10 @@ struct i915_address_space {
 	struct work_struct release_work;
 
 	struct drm_mm mm;
+	struct {
+		struct drm_i915_gem_object *obj;
+		struct i915_vma *vma;
+	} rsvd;
 	struct intel_gt *gt;
 	struct drm_i915_private *i915;
 	struct device *dma;
