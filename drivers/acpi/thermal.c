@@ -970,7 +970,7 @@ static int acpi_thermal_add(struct acpi_device *device)
 		acpi_device_bid(device), deci_kelvin_to_celsius(tz->temperature));
 
 	result = acpi_dev_install_notify_handler(device, ACPI_DEVICE_NOTIFY,
-						 acpi_thermal_notify);
+						 acpi_thermal_notify, device);
 	if (result)
 		goto flush_wq;
 

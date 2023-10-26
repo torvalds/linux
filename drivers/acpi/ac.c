@@ -257,7 +257,7 @@ static int acpi_ac_add(struct acpi_device *device)
 	register_acpi_notifier(&ac->battery_nb);
 
 	result = acpi_dev_install_notify_handler(device, ACPI_ALL_NOTIFY,
-						 acpi_ac_notify);
+						 acpi_ac_notify, device);
 	if (result)
 		goto err_unregister;
 

@@ -520,7 +520,7 @@ int acpi_bus_attach_private_data(acpi_handle, void *);
 void acpi_bus_detach_private_data(acpi_handle);
 int acpi_dev_install_notify_handler(struct acpi_device *adev,
 				    u32 handler_type,
-				    acpi_notify_handler handler);
+				    acpi_notify_handler handler, void *context);
 void acpi_dev_remove_notify_handler(struct acpi_device *adev,
 				    u32 handler_type,
 				    acpi_notify_handler handler);
