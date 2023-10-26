@@ -923,7 +923,7 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 	return 0;
 }
 
-static int _intel_hdcp_enable(struct intel_connector *connector)
+static int intel_hdcp1_enable(struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
@@ -1058,7 +1058,7 @@ static int intel_hdcp_check_link(struct intel_connector *connector)
 		goto out;
 	}
 
-	ret = _intel_hdcp_enable(connector);
+	ret = intel_hdcp1_enable(connector);
 	if (ret) {
 		drm_err(&i915->drm, "Failed to enable hdcp (%d)\n", ret);
 		intel_hdcp_update_value(connector,
@@ -2388,7 +2388,7 @@ int intel_hdcp_enable(struct intel_atomic_state *state,
 	 */
 	if (ret && intel_hdcp_capable(connector) &&
 	    hdcp->content_type != DRM_MODE_HDCP_CONTENT_TYPE1) {
-		ret = _intel_hdcp_enable(connector);
+		ret = intel_hdcp1_enable(connector);
 	}
 
 	if (!ret) {
