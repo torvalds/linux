@@ -93,6 +93,12 @@ struct mock_iommu_domain {
 	struct xarray pfns;
 };
 
+struct mock_iommu_domain_nested {
+	struct iommu_domain domain;
+	struct mock_iommu_domain *parent;
+	u32 iotlb[MOCK_NESTED_DOMAIN_IOTLB_NUM];
+};
+
 enum selftest_obj_type {
 	TYPE_IDEV,
 };
@@ -217,27 +223,57 @@ const struct iommu_dirty_ops dirty_ops = {
 };
 
 static const struct iommu_ops mock_ops;
+static struct iommu_domain_ops domain_nested_ops;
 
-static struct iommu_domain *mock_domain_alloc(unsigned int iommu_domain_type)
+static struct iommu_domain *
+__mock_domain_alloc_paging(unsigned int iommu_domain_type, bool needs_dirty_ops)
 {
 	struct mock_iommu_domain *mock;
 
-	if (iommu_domain_type == IOMMU_DOMAIN_BLOCKED)
-		return &mock_blocking_domain;
-
-	if (iommu_domain_type != IOMMU_DOMAIN_UNMANAGED)
-		return NULL;
-
 	mock = kzalloc(sizeof(*mock), GFP_KERNEL);
 	if (!mock)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	mock->domain.geometry.aperture_start = MOCK_APERTURE_START;
 	mock->domain.geometry.aperture_end = MOCK_APERTURE_LAST;
 	mock->domain.pgsize_bitmap = MOCK_IO_PAGE_SIZE;
 	mock->domain.ops = mock_ops.default_domain_ops;
+	if (needs_dirty_ops)
+		mock->domain.dirty_ops = &dirty_ops;
 	mock->domain.type = iommu_domain_type;
 	xa_init(&mock->pfns);
 	return &mock->domain;
+}
+
+static struct iommu_domain *
+__mock_domain_alloc_nested(struct mock_iommu_domain *mock_parent,
+			   const struct iommu_hwpt_selftest *user_cfg)
+{
+	struct mock_iommu_domain_nested *mock_nested;
+	int i;
+
+	mock_nested = kzalloc(sizeof(*mock_nested), GFP_KERNEL);
+	if (!mock_nested)
+		return ERR_PTR(-ENOMEM);
+	mock_nested->parent = mock_parent;
+	mock_nested->domain.ops = &domain_nested_ops;
+	mock_nested->domain.type = IOMMU_DOMAIN_NESTED;
+	for (i = 0; i < MOCK_NESTED_DOMAIN_IOTLB_NUM; i++)
+		mock_nested->iotlb[i] = user_cfg->iotlb;
+	return &mock_nested->domain;
+}
+
+static struct iommu_domain *mock_domain_alloc(unsigned int iommu_domain_type)
+{
+	struct iommu_domain *domain;
+
+	if (iommu_domain_type == IOMMU_DOMAIN_BLOCKED)
+		return &mock_blocking_domain;
+	if (iommu_domain_type != IOMMU_DOMAIN_UNMANAGED)
+		return NULL;
+	domain = __mock_domain_alloc_paging(iommu_domain_type, false);
+	if (IS_ERR(domain))
+		domain = NULL;
+	return domain;
 }
 
 static struct iommu_domain *
@@ -245,26 +281,41 @@ mock_domain_alloc_user(struct device *dev, u32 flags,
 		       struct iommu_domain *parent,
 		       const struct iommu_user_data *user_data)
 {
-	struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
-	struct iommu_domain *domain;
+	struct mock_iommu_domain *mock_parent;
+	struct iommu_hwpt_selftest user_cfg;
+	int rc;
 
-	if (flags &
-	    (~(IOMMU_HWPT_ALLOC_NEST_PARENT | IOMMU_HWPT_ALLOC_DIRTY_TRACKING)))
+	/* must be mock_domain */
+	if (!parent) {
+		struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
+		bool has_dirty_flag = flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
+		bool no_dirty_ops = mdev->flags & MOCK_FLAGS_DEVICE_NO_DIRTY;
+
+		if (flags & (~(IOMMU_HWPT_ALLOC_NEST_PARENT |
+			       IOMMU_HWPT_ALLOC_DIRTY_TRACKING)))
+			return ERR_PTR(-EOPNOTSUPP);
+		if (user_data || (has_dirty_flag && no_dirty_ops))
+			return ERR_PTR(-EOPNOTSUPP);
+		return __mock_domain_alloc_paging(IOMMU_DOMAIN_UNMANAGED,
+						  has_dirty_flag);
+	}
+
+	/* must be mock_domain_nested */
+	if (user_data->type != IOMMU_HWPT_DATA_SELFTEST || flags)
 		return ERR_PTR(-EOPNOTSUPP);
+	if (!parent || parent->ops != mock_ops.default_domain_ops)
+		return ERR_PTR(-EINVAL);
 
-	if (parent || user_data)
-		return ERR_PTR(-EOPNOTSUPP);
+	mock_parent = container_of(parent, struct mock_iommu_domain, domain);
+	if (!mock_parent)
+		return ERR_PTR(-EINVAL);
 
-	if ((flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING) &&
-	    (mdev->flags & MOCK_FLAGS_DEVICE_NO_DIRTY))
-		return ERR_PTR(-EOPNOTSUPP);
+	rc = iommu_copy_struct_from_user(&user_cfg, user_data,
+					 IOMMU_HWPT_DATA_SELFTEST, iotlb);
+	if (rc)
+		return ERR_PTR(rc);
 
-	domain = mock_domain_alloc(IOMMU_DOMAIN_UNMANAGED);
-	if (domain && !(mdev->flags & MOCK_FLAGS_DEVICE_NO_DIRTY))
-		domain->dirty_ops = &dirty_ops;
-	if (!domain)
-		domain = ERR_PTR(-ENOMEM);
-	return domain;
+	return __mock_domain_alloc_nested(mock_parent, &user_cfg);
 }
 
 static void mock_domain_free(struct iommu_domain *domain)
@@ -434,23 +485,64 @@ static const struct iommu_ops mock_ops = {
 		},
 };
 
+static void mock_domain_free_nested(struct iommu_domain *domain)
+{
+	struct mock_iommu_domain_nested *mock_nested =
+		container_of(domain, struct mock_iommu_domain_nested, domain);
+
+	kfree(mock_nested);
+}
+
+static struct iommu_domain_ops domain_nested_ops = {
+	.free = mock_domain_free_nested,
+	.attach_dev = mock_domain_nop_attach,
+};
+
+static inline struct iommufd_hw_pagetable *
+__get_md_pagetable(struct iommufd_ucmd *ucmd, u32 mockpt_id, u32 hwpt_type)
+{
+	struct iommufd_object *obj;
+
+	obj = iommufd_get_object(ucmd->ictx, mockpt_id, hwpt_type);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+	return container_of(obj, struct iommufd_hw_pagetable, obj);
+}
+
 static inline struct iommufd_hw_pagetable *
 get_md_pagetable(struct iommufd_ucmd *ucmd, u32 mockpt_id,
 		 struct mock_iommu_domain **mock)
 {
 	struct iommufd_hw_pagetable *hwpt;
-	struct iommufd_object *obj;
 
-	obj = iommufd_get_object(ucmd->ictx, mockpt_id,
-				 IOMMUFD_OBJ_HWPT_PAGING);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-	hwpt = container_of(obj, struct iommufd_hw_pagetable, obj);
-	if (hwpt->domain->ops != mock_ops.default_domain_ops) {
+	hwpt = __get_md_pagetable(ucmd, mockpt_id, IOMMUFD_OBJ_HWPT_PAGING);
+	if (IS_ERR(hwpt))
+		return hwpt;
+	if (hwpt->domain->type != IOMMU_DOMAIN_UNMANAGED ||
+	    hwpt->domain->ops != mock_ops.default_domain_ops) {
 		iommufd_put_object(&hwpt->obj);
 		return ERR_PTR(-EINVAL);
 	}
 	*mock = container_of(hwpt->domain, struct mock_iommu_domain, domain);
+	return hwpt;
+}
+
+static inline struct iommufd_hw_pagetable *
+get_md_pagetable_nested(struct iommufd_ucmd *ucmd, u32 mockpt_id,
+			struct mock_iommu_domain_nested **mock_nested)
+{
+	struct iommufd_hw_pagetable *hwpt;
+
+	hwpt = __get_md_pagetable(ucmd, mockpt_id, IOMMUFD_OBJ_HWPT_NESTED);
+	if (IS_ERR(hwpt))
+		return hwpt;
+	if (hwpt->domain->type != IOMMU_DOMAIN_NESTED ||
+	    hwpt->domain->ops != &domain_nested_ops) {
+		iommufd_put_object(&hwpt->obj);
+		return ERR_PTR(-EINVAL);
+	}
+	*mock_nested = container_of(hwpt->domain,
+				    struct mock_iommu_domain_nested, domain);
 	return hwpt;
 }
 

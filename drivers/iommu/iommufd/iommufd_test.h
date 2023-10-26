@@ -46,6 +46,11 @@ enum {
 	MOCK_FLAGS_DEVICE_NO_DIRTY = 1 << 0,
 };
 
+enum {
+	MOCK_NESTED_DOMAIN_IOTLB_ID_MAX = 3,
+	MOCK_NESTED_DOMAIN_IOTLB_NUM = 4,
+};
+
 struct iommu_test_cmd {
 	__u32 size;
 	__u32 op;
@@ -128,6 +133,19 @@ struct iommu_test_cmd {
 struct iommu_test_hw_info {
 	__u32 flags;
 	__u32 test_reg;
+};
+
+/* Should not be equal to any defined value in enum iommu_hwpt_data_type */
+#define IOMMU_HWPT_DATA_SELFTEST 0xdead
+#define IOMMU_TEST_IOTLB_DEFAULT 0xbadbeef
+
+/**
+ * struct iommu_hwpt_selftest
+ *
+ * @iotlb: default mock iotlb value, IOMMU_TEST_IOTLB_DEFAULT
+ */
+struct iommu_hwpt_selftest {
+	__u32 iotlb;
 };
 
 #endif
