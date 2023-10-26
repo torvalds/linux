@@ -252,6 +252,11 @@ struct iommufd_hw_pagetable {
 	struct list_head hwpt_item;
 };
 
+static inline bool hwpt_is_paging(struct iommufd_hw_pagetable *hwpt)
+{
+	return hwpt->obj.type == IOMMUFD_OBJ_HWPT_PAGING;
+}
+
 static inline struct iommufd_hw_pagetable *
 iommufd_get_hwpt(struct iommufd_ucmd *ucmd, u32 id)
 {
