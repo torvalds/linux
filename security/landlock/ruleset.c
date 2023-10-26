@@ -300,11 +300,51 @@ static void put_hierarchy(struct landlock_hierarchy *hierarchy)
 	}
 }
 
-static int merge_ruleset(struct landlock_ruleset *const dst,
-			 struct landlock_ruleset *const src)
+static int merge_tree(struct landlock_ruleset *const dst,
+		      struct landlock_ruleset *const src,
+		      const enum landlock_key_type key_type)
 {
 	struct landlock_rule *walker_rule, *next_rule;
 	struct rb_root *src_root;
+	int err = 0;
+
+	might_sleep();
+	lockdep_assert_held(&dst->lock);
+	lockdep_assert_held(&src->lock);
+
+	src_root = get_root(src, key_type);
+	if (IS_ERR(src_root))
+		return PTR_ERR(src_root);
+
+	/* Merges the @src tree. */
+	rbtree_postorder_for_each_entry_safe(walker_rule, next_rule, src_root,
+					     node) {
+		struct landlock_layer layers[] = { {
+			.level = dst->num_layers,
+		} };
+		const struct landlock_id id = {
+			.key = walker_rule->key,
+			.type = key_type,
+		};
+
+		if (WARN_ON_ONCE(walker_rule->num_layers != 1))
+			return -EINVAL;
+
+		if (WARN_ON_ONCE(walker_rule->layers[0].level != 0))
+			return -EINVAL;
+
+		layers[0].access = walker_rule->layers[0].access;
+
+		err = insert_rule(dst, id, &layers, ARRAY_SIZE(layers));
+		if (err)
+			return err;
+	}
+	return err;
+}
+
+static int merge_ruleset(struct landlock_ruleset *const dst,
+			 struct landlock_ruleset *const src)
+{
 	int err = 0;
 
 	might_sleep();
@@ -314,10 +354,6 @@ static int merge_ruleset(struct landlock_ruleset *const dst,
 	/* Only merge into a domain. */
 	if (WARN_ON_ONCE(!dst || !dst->hierarchy))
 		return -EINVAL;
-
-	src_root = get_root(src, LANDLOCK_KEY_INODE);
-	if (IS_ERR(src_root))
-		return PTR_ERR(src_root);
 
 	/* Locks @dst first because we are its only owner. */
 	mutex_lock(&dst->lock);
@@ -330,31 +366,10 @@ static int merge_ruleset(struct landlock_ruleset *const dst,
 	}
 	dst->access_masks[dst->num_layers - 1] = src->access_masks[0];
 
-	/* Merges the @src tree. */
-	rbtree_postorder_for_each_entry_safe(walker_rule, next_rule, src_root,
-					     node) {
-		struct landlock_layer layers[] = { {
-			.level = dst->num_layers,
-		} };
-		const struct landlock_id id = {
-			.key = walker_rule->key,
-			.type = LANDLOCK_KEY_INODE,
-		};
-
-		if (WARN_ON_ONCE(walker_rule->num_layers != 1)) {
-			err = -EINVAL;
-			goto out_unlock;
-		}
-		if (WARN_ON_ONCE(walker_rule->layers[0].level != 0)) {
-			err = -EINVAL;
-			goto out_unlock;
-		}
-		layers[0].access = walker_rule->layers[0].access;
-
-		err = insert_rule(dst, id, &layers, ARRAY_SIZE(layers));
-		if (err)
-			goto out_unlock;
-	}
+	/* Merges the @src inode tree. */
+	err = merge_tree(dst, src, LANDLOCK_KEY_INODE);
+	if (err)
+		goto out_unlock;
 
 out_unlock:
 	mutex_unlock(&src->lock);
@@ -362,38 +377,55 @@ out_unlock:
 	return err;
 }
 
-static int inherit_ruleset(struct landlock_ruleset *const parent,
-			   struct landlock_ruleset *const child)
+static int inherit_tree(struct landlock_ruleset *const parent,
+			struct landlock_ruleset *const child,
+			const enum landlock_key_type key_type)
 {
 	struct landlock_rule *walker_rule, *next_rule;
 	struct rb_root *parent_root;
 	int err = 0;
 
 	might_sleep();
-	if (!parent)
-		return 0;
+	lockdep_assert_held(&parent->lock);
+	lockdep_assert_held(&child->lock);
 
-	parent_root = get_root(parent, LANDLOCK_KEY_INODE);
+	parent_root = get_root(parent, key_type);
 	if (IS_ERR(parent_root))
 		return PTR_ERR(parent_root);
 
-	/* Locks @child first because we are its only owner. */
-	mutex_lock(&child->lock);
-	mutex_lock_nested(&parent->lock, SINGLE_DEPTH_NESTING);
-
-	/* Copies the @parent tree. */
+	/* Copies the @parent inode or network tree. */
 	rbtree_postorder_for_each_entry_safe(walker_rule, next_rule,
 					     parent_root, node) {
 		const struct landlock_id id = {
 			.key = walker_rule->key,
-			.type = LANDLOCK_KEY_INODE,
+			.type = key_type,
 		};
 
 		err = insert_rule(child, id, &walker_rule->layers,
 				  walker_rule->num_layers);
 		if (err)
-			goto out_unlock;
+			return err;
 	}
+	return err;
+}
+
+static int inherit_ruleset(struct landlock_ruleset *const parent,
+			   struct landlock_ruleset *const child)
+{
+	int err = 0;
+
+	might_sleep();
+	if (!parent)
+		return 0;
+
+	/* Locks @child first because we are its only owner. */
+	mutex_lock(&child->lock);
+	mutex_lock_nested(&parent->lock, SINGLE_DEPTH_NESTING);
+
+	/* Copies the @parent inode tree. */
+	err = inherit_tree(parent, child, LANDLOCK_KEY_INODE);
+	if (err)
+		goto out_unlock;
 
 	if (WARN_ON_ONCE(child->num_layers <= parent->num_layers)) {
 		err = -EINVAL;
