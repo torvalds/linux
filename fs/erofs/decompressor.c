@@ -4,7 +4,6 @@
  *             https://www.huawei.com/
  */
 #include "compress.h"
-#include <linux/module.h>
 #include <linux/lz4.h>
 
 #ifndef LZ4_DISTANCE_MAX	/* history window size */

@@ -8,8 +8,10 @@
 #define __EROFS_INTERNAL_H
 
 #include <linux/fs.h>
+#include <linux/dax.h>
 #include <linux/dcache.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/bio.h>
 #include <linux/magic.h>
