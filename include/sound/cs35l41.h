@@ -816,6 +816,8 @@ struct cs35l41_otp_map_element_t {
 };
 
 enum cs35l41_cspl_mbox_status {
+	CSPL_MBOX_STS_ERROR = U32_MAX,
+	CSPL_MBOX_STS_ERROR2 = 0x00ffffff, // firmware not always sign-extending 24-bit value
 	CSPL_MBOX_STS_RUNNING = 0,
 	CSPL_MBOX_STS_PAUSED = 1,
 	CSPL_MBOX_STS_RDY_FOR_REINIT = 2,

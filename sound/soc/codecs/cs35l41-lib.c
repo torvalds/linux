@@ -1474,6 +1474,11 @@ int cs35l41_set_cspl_mbox_cmd(struct device *dev, struct regmap *regmap,
 			continue;
 		}
 
+		if (sts == CSPL_MBOX_STS_ERROR || sts == CSPL_MBOX_STS_ERROR2) {
+			dev_err(dev, "CSPL Error Detected\n");
+			return -EINVAL;
+		}
+
 		if (!cs35l41_check_cspl_mbox_sts(cmd, sts))
 			dev_dbg(dev, "[%u] cmd %u returned invalid sts %u", i, cmd, sts);
 		else
