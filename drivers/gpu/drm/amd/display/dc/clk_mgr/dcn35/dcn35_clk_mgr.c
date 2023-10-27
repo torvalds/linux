@@ -515,11 +515,6 @@ static DpmClocks_t_dcn35 dummy_clocks;
 
 static struct dcn35_watermarks dummy_wms = { 0 };
 
-static struct dcn35_ss_info_table ss_info_table = {
-	.ss_divider = 1000,
-	.ss_percentage = {0, 0, 375, 375, 375}
-};
-
 static void dcn35_build_watermark_ranges(struct clk_bw_params *bw_params, struct dcn35_watermarks *table)
 {
 	int i, num_valid_sets;
@@ -965,21 +960,6 @@ struct clk_mgr_funcs dcn35_fpga_funcs = {
 	.get_dtb_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
 };
 
-static void dcn35_read_ss_info_from_lut(struct clk_mgr_internal *clk_mgr)
-{
-	uint32_t clock_source;
-	struct dc_context *ctx = clk_mgr->base.ctx;
-
-	REG_GET(CLK1_CLK2_BYPASS_CNTL, CLK2_BYPASS_SEL, &clock_source);
-
-	clk_mgr->dprefclk_ss_percentage = ss_info_table.ss_percentage[clock_source];
-
-	if (clk_mgr->dprefclk_ss_percentage != 0) {
-		clk_mgr->ss_on_dprefclk = true;
-		clk_mgr->dprefclk_ss_divider = ss_info_table.ss_divider;
-	}
-}
-
 void dcn35_clk_mgr_construct(
 		struct dc_context *ctx,
 		struct clk_mgr_dcn35 *clk_mgr,
@@ -1051,8 +1031,6 @@ void dcn35_clk_mgr_construct(
 	clk_mgr->base.base.clks.dtbclk_en = true;
 	dce_clock_read_ss_info(&clk_mgr->base);
 	/*when clk src is from FCH, it could have ss, same clock src as DPREF clk*/
-
-	dcn35_read_ss_info_from_lut(&clk_mgr->base);
 
 	clk_mgr->base.base.bw_params = &dcn35_bw_params;
 
