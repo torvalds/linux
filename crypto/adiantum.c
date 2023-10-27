@@ -300,7 +300,8 @@ static int adiantum_finish(struct skcipher_request *req)
 	le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &rctx->header_hash);
 	if (dst_nents == 1 && dst->offset + req->cryptlen <= PAGE_SIZE) {
 		/* Fast path for single-page destination */
-		void *virt = kmap_local_page(sg_page(dst)) + dst->offset;
+		struct page *page = sg_page(dst);
+		void *virt = kmap_local_page(page) + dst->offset;
 
 		err = crypto_shash_digest(&rctx->u.hash_desc, virt, bulk_len,
 					  (u8 *)&digest);
@@ -310,6 +311,7 @@ static int adiantum_finish(struct skcipher_request *req)
 		}
 		le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
 		memcpy(virt + bulk_len, &rctx->rbuf.bignum, sizeof(le128));
+		flush_dcache_page(page);
 		kunmap_local(virt);
 	} else {
 		/* Slow path that works for any destination scatterlist */
