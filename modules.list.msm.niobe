@@ -16,3 +16,6 @@ gdsc-regulator.ko
 stub-regulator.ko
 pinctrl-msm.ko
 pinctrl-niobe.ko
+qcom_hwspinlock.ko
+smem.ko
+socinfo.ko
