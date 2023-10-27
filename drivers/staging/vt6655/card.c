@@ -80,7 +80,7 @@ static void vt6655_mac_set_bb_type(void __iomem *iobase, u32 mask)
  *
  * Return Value: none
  */
-static void s_vCalculateOFDMRParameter(unsigned char rate,
+static void calculate_ofdmr_parameter(unsigned char rate,
 				       u8 bb_type,
 				       unsigned char *pbyTxRate,
 				       unsigned char *pbyRsvTime)
@@ -585,58 +585,58 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 	iowrite32(phy.field_write, priv->port_offset + MAC_REG_RSPINF_B_11);
 
 	/* RSPINF_a_6 */
-	s_vCalculateOFDMRParameter(RATE_6M,
+	calculate_ofdmr_parameter(RATE_6M,
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_6);
 	/* RSPINF_a_9 */
-	s_vCalculateOFDMRParameter(RATE_9M,
+	calculate_ofdmr_parameter(RATE_9M,
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_9);
 	/* RSPINF_a_12 */
-	s_vCalculateOFDMRParameter(RATE_12M,
+	calculate_ofdmr_parameter(RATE_12M,
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_12);
 	/* RSPINF_a_18 */
-	s_vCalculateOFDMRParameter(RATE_18M,
+	calculate_ofdmr_parameter(RATE_18M,
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_18);
 	/* RSPINF_a_24 */
-	s_vCalculateOFDMRParameter(RATE_24M,
+	calculate_ofdmr_parameter(RATE_24M,
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_24);
 	/* RSPINF_a_36 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
+	calculate_ofdmr_parameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_36M),
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_36);
 	/* RSPINF_a_48 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
+	calculate_ofdmr_parameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_48M),
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_48);
 	/* RSPINF_a_54 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
+	calculate_ofdmr_parameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_54M),
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_54);
 	/* RSPINF_a_72 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
+	calculate_ofdmr_parameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_54M),
 				   bb_type,
 				   &byTxRate,
