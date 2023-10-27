@@ -61,15 +61,17 @@ config SND_AMD_ASOC_REMBRANDT
 	  If unsure select "N".
 
 config SND_AMD_ASOC_ACP63
-        tristate "AMD ACP ASOC ACP6.3 Support"
-        select SND_SOC_AMD_ACP_PCM
-        select SND_SOC_AMD_ACP_I2S
-        select SND_SOC_AMD_ACP_PDM
-        depends on X86 && PCI
-        help
-          This option enables Acp6.3 I2S support on AMD platform.
-          Say Y if you want to enable AUDIO on ACP6.3
-          If unsure select "N".
+	tristate "AMD ACP ASOC ACP6.3 Support"
+	depends on X86 && PCI
+	depends on ACPI
+	select SND_SOC_AMD_ACP_PCM
+	select SND_SOC_AMD_ACP_I2S
+	select SND_SOC_AMD_ACP_PDM
+	select SND_SOC_AMD_ACP_LEGACY_COMMON
+	help
+	  This option enables Acp6.3 I2S support on AMD platform.
+	  Say Y if you want to enable AUDIO on ACP6.3
+	  If unsure select "N".
 
 config SND_SOC_AMD_MACH_COMMON
 	tristate
