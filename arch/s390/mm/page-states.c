@@ -40,7 +40,7 @@ static inline int cmma_test_essa(void)
 		"	.insn	rrf,0xb9ab0000,%[tmp],%[tmp],%[cmd],0\n"
 		"0:     la      %[rc],0\n"
 		"1:\n"
-		EX_TABLE(0b,1b)
+		EX_TABLE(0b, 1b)
 		: [rc] "+&d" (rc), [tmp] "+&d" (tmp)
 		: [cmd] "i" (ESSA_GET_STATE));
 	return rc;
@@ -58,37 +58,41 @@ void __init cmma_init(void)
 		cmma_flag = 2;
 }
 
+static __always_inline void essa(unsigned long paddr, unsigned char cmd)
+{
+	unsigned long rc;
+
+	asm volatile(
+		"	.insn	rrf,0xb9ab0000,%[rc],%[paddr],%[cmd],0"
+		: [rc] "=d" (rc)
+		: [paddr] "d" (paddr),
+		  [cmd] "i" (cmd));
+}
+
+static __always_inline void __set_page_state(struct page *page, int order, unsigned char cmd)
+{
+	unsigned long paddr = page_to_phys(page);
+	unsigned long num_pages = 1UL << order;
+
+	while (num_pages--) {
+		essa(paddr, cmd);
+		paddr += PAGE_SIZE;
+	}
+}
+
 static inline void set_page_unused(struct page *page, int order)
 {
-	int i, rc;
-
-	for (i = 0; i < (1 << order); i++)
-		asm volatile(".insn rrf,0xb9ab0000,%0,%1,%2,0"
-			     : "=&d" (rc)
-			     : "a" (page_to_phys(page + i)),
-			       "i" (ESSA_SET_UNUSED));
+	__set_page_state(page, order, ESSA_SET_UNUSED);
 }
 
 static inline void set_page_stable_dat(struct page *page, int order)
 {
-	int i, rc;
-
-	for (i = 0; i < (1 << order); i++)
-		asm volatile(".insn rrf,0xb9ab0000,%0,%1,%2,0"
-			     : "=&d" (rc)
-			     : "a" (page_to_phys(page + i)),
-			       "i" (ESSA_SET_STABLE));
+	__set_page_state(page, order, ESSA_SET_STABLE);
 }
 
 static inline void set_page_stable_nodat(struct page *page, int order)
 {
-	int i, rc;
-
-	for (i = 0; i < (1 << order); i++)
-		asm volatile(".insn rrf,0xb9ab0000,%0,%1,%2,0"
-			     : "=&d" (rc)
-			     : "a" (page_to_phys(page + i)),
-			       "i" (ESSA_SET_STABLE_NODAT));
+	__set_page_state(page, order, ESSA_SET_STABLE_NODAT);
 }
 
 static void mark_kernel_pmd(pud_t *pud, unsigned long addr, unsigned long end)
