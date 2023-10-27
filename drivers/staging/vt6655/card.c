@@ -75,83 +75,83 @@ static void vt6655_mac_set_bb_type(void __iomem *iobase, u32 mask)
  *      wRate           - Tx Rate
  *      byPktType       - Tx Packet type
  *  Out:
- *      pbyTxRate       - pointer to RSPINF TxRate field
+ *      tx_rate         - pointer to RSPINF TxRate field
  *      pbyRsvTime      - pointer to RSPINF RsvTime field
  *
  * Return Value: none
  */
 static void calculate_ofdmr_parameter(unsigned char rate,
 				       u8 bb_type,
-				       unsigned char *pbyTxRate,
+				       unsigned char *tx_rate,
 				       unsigned char *pbyRsvTime)
 {
 	switch (rate) {
 	case RATE_6M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9B;
+			*tx_rate = 0x9B;
 			*pbyRsvTime = 44;
 		} else {
-			*pbyTxRate = 0x8B;
+			*tx_rate = 0x8B;
 			*pbyRsvTime = 50;
 		}
 		break;
 
 	case RATE_9M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9F;
+			*tx_rate = 0x9F;
 			*pbyRsvTime = 36;
 		} else {
-			*pbyTxRate = 0x8F;
+			*tx_rate = 0x8F;
 			*pbyRsvTime = 42;
 		}
 		break;
 
 	case RATE_12M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9A;
+			*tx_rate = 0x9A;
 			*pbyRsvTime = 32;
 		} else {
-			*pbyTxRate = 0x8A;
+			*tx_rate = 0x8A;
 			*pbyRsvTime = 38;
 		}
 		break;
 
 	case RATE_18M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9E;
+			*tx_rate = 0x9E;
 			*pbyRsvTime = 28;
 		} else {
-			*pbyTxRate = 0x8E;
+			*tx_rate = 0x8E;
 			*pbyRsvTime = 34;
 		}
 		break;
 
 	case RATE_36M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9D;
+			*tx_rate = 0x9D;
 			*pbyRsvTime = 24;
 		} else {
-			*pbyTxRate = 0x8D;
+			*tx_rate = 0x8D;
 			*pbyRsvTime = 30;
 		}
 		break;
 
 	case RATE_48M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x98;
+			*tx_rate = 0x98;
 			*pbyRsvTime = 24;
 		} else {
-			*pbyTxRate = 0x88;
+			*tx_rate = 0x88;
 			*pbyRsvTime = 30;
 		}
 		break;
 
 	case RATE_54M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9C;
+			*tx_rate = 0x9C;
 			*pbyRsvTime = 24;
 		} else {
-			*pbyTxRate = 0x8C;
+			*tx_rate = 0x8C;
 			*pbyRsvTime = 30;
 		}
 		break;
@@ -159,10 +159,10 @@ static void calculate_ofdmr_parameter(unsigned char rate,
 	case RATE_24M:
 	default:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x99;
+			*tx_rate = 0x99;
 			*pbyRsvTime = 28;
 		} else {
-			*pbyTxRate = 0x89;
+			*tx_rate = 0x89;
 			*pbyRsvTime = 34;
 		}
 		break;
