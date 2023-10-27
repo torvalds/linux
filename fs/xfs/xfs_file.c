@@ -721,7 +721,16 @@ xfs_file_dio_write(
 	/* direct I/O must be aligned to device logical sector size */
 	if ((iocb->ki_pos | count) & target->bt_logical_sectormask)
 		return -EINVAL;
-	if ((iocb->ki_pos | count) & ip->i_mount->m_blockmask)
+
+	/*
+	 * For always COW inodes we also must check the alignment of each
+	 * individual iovec segment, as they could end up with different
+	 * I/Os due to the way bio_iov_iter_get_pages works, and we'd
+	 * then overwrite an already written block.
+	 */
+	if (((iocb->ki_pos | count) & ip->i_mount->m_blockmask) ||
+	    (xfs_is_always_cow_inode(ip) &&
+	     (iov_iter_alignment(from) & ip->i_mount->m_blockmask)))
 		return xfs_file_dio_write_unaligned(ip, iocb, from);
 	return xfs_file_dio_write_aligned(ip, iocb, from);
 }
