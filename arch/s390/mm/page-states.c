@@ -153,10 +153,3 @@ void arch_alloc_page(struct page *page, int order)
 	else
 		__set_page_stable_nodat(page_to_virt(page), 1UL << order);
 }
-
-void arch_set_page_dat(struct page *page, int order)
-{
-	if (!cmma_flag)
-		return;
-	__set_page_stable_dat(page_to_virt(page), 1UL << order);
-}

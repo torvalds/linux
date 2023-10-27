@@ -18,7 +18,7 @@
 #include <linux/ksm.h>
 #include <linux/mman.h>
 #include <linux/pgtable.h>
-
+#include <asm/page-states.h>
 #include <asm/pgalloc.h>
 #include <asm/gmap.h>
 #include <asm/page.h>
@@ -33,7 +33,7 @@ static struct page *gmap_alloc_crst(void)
 	page = alloc_pages(GFP_KERNEL_ACCOUNT, CRST_ALLOC_ORDER);
 	if (!page)
 		return NULL;
-	arch_set_page_dat(page, CRST_ALLOC_ORDER);
+	__arch_set_page_dat(page_to_virt(page), 1UL << CRST_ALLOC_ORDER);
 	return page;
 }
 

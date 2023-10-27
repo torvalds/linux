@@ -60,4 +60,21 @@ static inline void __set_page_stable_nodat(void *addr, unsigned long num_pages)
 	__set_page_state(addr, num_pages, ESSA_SET_STABLE_NODAT);
 }
 
+static inline void __arch_set_page_nodat(void *addr, unsigned long num_pages)
+{
+	if (!cmma_flag)
+		return;
+	if (cmma_flag < 2)
+		__set_page_stable_dat(addr, num_pages);
+	else
+		__set_page_stable_nodat(addr, num_pages);
+}
+
+static inline void __arch_set_page_dat(void *addr, unsigned long num_pages)
+{
+	if (!cmma_flag)
+		return;
+	__set_page_stable_dat(addr, num_pages);
+}
+
 #endif

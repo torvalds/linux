@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <asm/mmu_context.h>
+#include <asm/page-states.h>
 #include <asm/pgalloc.h>
 #include <asm/gmap.h>
 #include <asm/tlb.h>
@@ -43,11 +44,13 @@ __initcall(page_table_register_sysctl);
 unsigned long *crst_table_alloc(struct mm_struct *mm)
 {
 	struct ptdesc *ptdesc = pagetable_alloc(GFP_KERNEL, CRST_ALLOC_ORDER);
+	unsigned long *table;
 
 	if (!ptdesc)
 		return NULL;
-	arch_set_page_dat(ptdesc_page(ptdesc), CRST_ALLOC_ORDER);
-	return (unsigned long *) ptdesc_to_virt(ptdesc);
+	table = ptdesc_to_virt(ptdesc);
+	__arch_set_page_dat(table, 1UL << CRST_ALLOC_ORDER);
+	return table;
 }
 
 void crst_table_free(struct mm_struct *mm, unsigned long *table)
@@ -145,7 +148,7 @@ struct page *page_table_alloc_pgste(struct mm_struct *mm)
 	ptdesc = pagetable_alloc(GFP_KERNEL, 0);
 	if (ptdesc) {
 		table = (u64 *)ptdesc_to_virt(ptdesc);
-		arch_set_page_dat(virt_to_page(table), 0);
+		__arch_set_page_dat(table, 1);
 		memset64(table, _PAGE_INVALID, PTRS_PER_PTE);
 		memset64(table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
 	}
@@ -285,9 +288,9 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 		pagetable_free(ptdesc);
 		return NULL;
 	}
-	arch_set_page_dat(ptdesc_page(ptdesc), 0);
 	/* Initialize page table */
-	table = (unsigned long *) ptdesc_to_virt(ptdesc);
+	table = ptdesc_to_virt(ptdesc);
+	__arch_set_page_dat(table, 1);
 	if (mm_alloc_pgste(mm)) {
 		/* Return 4K page table with PGSTEs */
 		INIT_LIST_HEAD(&ptdesc->pt_list);
