@@ -417,6 +417,16 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 			base = 10;
 			break;
 
+		case ACPI_EXPLICIT_CONVERT_HEX:
+			/*
+			 * From to_hex_string.
+			 *
+			 * Supress leading zeros and append "0x"
+			 */
+			string_length =
+			    ACPI_MUL_2(acpi_gbl_integer_byte_width) + 2;
+			leading_zeros = FALSE;
+			break;
 		default:
 
 			/* Two hex string characters for each integer byte */
@@ -437,6 +447,13 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		}
 
 		new_buf = return_desc->buffer.pointer;
+		if (type == ACPI_EXPLICIT_CONVERT_HEX) {
+
+			/* Append "0x" prefix for explicit hex conversion */
+
+			*new_buf++ = '0';
+			*new_buf++ = 'x';
+		}
 
 		/* Convert integer to string */
 
@@ -449,6 +466,13 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		/* Null terminate at the correct place */
 
 		return_desc->string.length = string_length;
+		if (type == ACPI_EXPLICIT_CONVERT_HEX) {
+
+			/* Take "0x" prefix into account */
+
+			return_desc->string.length += 2;
+		}
+
 		new_buf[string_length] = 0;
 		break;
 
