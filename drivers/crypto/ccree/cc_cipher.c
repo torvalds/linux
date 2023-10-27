@@ -1427,9 +1427,13 @@ static struct cc_crypto_alg *cc_create_alg(const struct cc_alg_template *tmpl,
 
 	memcpy(alg, &tmpl->template_skcipher, sizeof(*alg));
 
-	snprintf(alg->base.cra_name, CRYPTO_MAX_ALG_NAME, "%s", tmpl->name);
-	snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
-		 tmpl->driver_name);
+	if (snprintf(alg->base.cra_name, CRYPTO_MAX_ALG_NAME, "%s",
+		     tmpl->name) >= CRYPTO_MAX_ALG_NAME)
+		return ERR_PTR(-EINVAL);
+	if (snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
+		     tmpl->driver_name) >= CRYPTO_MAX_ALG_NAME)
+		return ERR_PTR(-EINVAL);
+
 	alg->base.cra_module = THIS_MODULE;
 	alg->base.cra_priority = CC_CRA_PRIO;
 	alg->base.cra_blocksize = tmpl->blocksize;
