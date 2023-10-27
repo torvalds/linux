@@ -1393,8 +1393,14 @@ int of_get_required_opp_performance_state(struct device_node *np, int index)
 
 	opp = _find_opp_of_np(opp_table, required_np);
 	if (opp) {
-		pstate = opp->level;
+		if (opp->level == OPP_LEVEL_UNSET) {
+			pr_err("%s: OPP levels aren't available for %pOF\n",
+			       __func__, np);
+		} else {
+			pstate = opp->level;
+		}
 		dev_pm_opp_put(opp);
+
 	}
 
 	dev_pm_opp_put_opp_table(opp_table);

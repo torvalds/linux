@@ -92,9 +92,12 @@ struct dev_pm_opp_config {
 	struct device ***virt_devs;
 };
 
+#define OPP_LEVEL_UNSET			U32_MAX
+
 /**
  * struct dev_pm_opp_data - The data to use to initialize an OPP.
- * @level: The performance level for the OPP.
+ * @level: The performance level for the OPP. Set level to OPP_LEVEL_UNSET if
+ * level field isn't used.
  * @freq: The clock rate in Hz for the OPP.
  * @u_volt: The voltage in uV for the OPP.
  */

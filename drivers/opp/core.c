@@ -201,7 +201,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq_indexed);
  * @opp:	opp for which level value has to be returned for
  *
  * Return: level read from device tree corresponding to the opp, else
- * return 0.
+ * return U32_MAX.
  */
 unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp)
 {
@@ -221,7 +221,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_level);
  * @index:	index of the required opp
  *
  * Return: performance state read from device tree corresponding to the
- * required opp, else return 0.
+ * required opp, else return U32_MAX.
  */
 unsigned int dev_pm_opp_get_required_pstate(struct dev_pm_opp *opp,
 					    unsigned int index)
@@ -808,6 +808,14 @@ struct dev_pm_opp *dev_pm_opp_find_level_ceil(struct device *dev,
 	struct dev_pm_opp *opp;
 
 	opp = _find_key_ceil(dev, &temp, 0, true, _read_level, NULL);
+
+	/* False match */
+	if (temp == OPP_LEVEL_UNSET) {
+		dev_err(dev, "%s: OPP levels aren't available\n", __func__);
+		dev_pm_opp_put(opp);
+		return ERR_PTR(-ENODEV);
+	}
+
 	*level = temp;
 	return opp;
 }
@@ -1049,11 +1057,17 @@ static int _set_opp_bw(const struct opp_table *opp_table,
 static int _set_performance_state(struct device *dev, struct device *pd_dev,
 				  struct dev_pm_opp *opp, int i)
 {
-	unsigned int pstate = likely(opp) ? opp->required_opps[i]->level: 0;
+	unsigned int pstate = 0;
 	int ret;
 
 	if (!pd_dev)
 		return 0;
+
+	if (likely(opp)) {
+		pstate = opp->required_opps[i]->level;
+		if (pstate == OPP_LEVEL_UNSET)
+			return 0;
+	}
 
 	ret = dev_pm_domain_set_performance_state(pd_dev, pstate);
 	if (ret) {
@@ -1135,7 +1149,7 @@ static int _set_opp_level(struct device *dev, struct opp_table *opp_table,
 	int ret = 0;
 
 	if (opp) {
-		if (!opp->level)
+		if (opp->level == OPP_LEVEL_UNSET)
 			return 0;
 
 		level = opp->level;
@@ -1866,6 +1880,8 @@ struct dev_pm_opp *_opp_allocate(struct opp_table *opp_table)
 		opp->bandwidth = (struct dev_pm_opp_icc_bw *)(opp->rates + opp_table->clk_count);
 
 	INIT_LIST_HEAD(&opp->node);
+
+	opp->level = OPP_LEVEL_UNSET;
 
 	return opp;
 }
