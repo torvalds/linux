@@ -1322,7 +1322,7 @@ int bch2_trans_fs_usage_apply(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	static int warned_disk_usage = 0;
 	bool warn = false;
-	unsigned disk_res_sectors = trans->disk_res ? trans->disk_res->sectors : 0;
+	u64 disk_res_sectors = trans->disk_res ? trans->disk_res->sectors : 0;
 	struct replicas_delta *d, *d2;
 	struct replicas_delta *top = (void *) deltas->d + deltas->used;
 	struct bch_fs_usage *dst;
@@ -1381,7 +1381,7 @@ int bch2_trans_fs_usage_apply(struct btree_trans *trans,
 
 	if (unlikely(warn) && !xchg(&warned_disk_usage, 1))
 		bch2_trans_inconsistent(trans,
-					"disk usage increased %lli more than %u sectors reserved)",
+					"disk usage increased %lli more than %llu sectors reserved)",
 					should_not_have_added, disk_res_sectors);
 	return 0;
 need_mark:

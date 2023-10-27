@@ -23,7 +23,7 @@
 int bch2_extent_fallocate(struct btree_trans *trans,
 			  subvol_inum inum,
 			  struct btree_iter *iter,
-			  unsigned sectors,
+			  u64 sectors,
 			  struct bch_io_opts opts,
 			  s64 *i_sectors_delta,
 			  struct write_point_specifier write_point)
@@ -105,7 +105,7 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		sectors = min(sectors, wp->sectors_free);
+		sectors = min_t(u64, sectors, wp->sectors_free);
 		sectors_allocated = sectors;
 
 		bch2_key_resize(&e->k, sectors);
