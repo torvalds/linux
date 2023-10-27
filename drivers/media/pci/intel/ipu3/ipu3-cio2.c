@@ -1215,13 +1215,6 @@ static int cio2_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	return 0;
 }
 
-/*
- * cio2_subdev_get_fmt - Handle get format by pads subdev method
- * @sd : pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad config
- * @fmt: pointer to v4l2 subdev format structure
- * return -EINVAL or zero on success
- */
 static int cio2_subdev_get_fmt(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *fmt)
@@ -1241,13 +1234,6 @@ static int cio2_subdev_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/*
- * cio2_subdev_set_fmt - Handle set format by pads subdev method
- * @sd : pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad config
- * @fmt: pointer to v4l2 subdev format structure
- * return -EINVAL or zero on success
- */
 static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *fmt)
