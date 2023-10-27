@@ -6,7 +6,7 @@
  * Purpose: Provide functions to setup NIC operation mode
  * Functions:
  *      s_vSafeResetTx - Rest Tx
- *      CARDvSetRSPINF - Set RSPINF
+ *      card_set_rspinf - Set RSPINF
  *      CARDvUpdateBasicTopRate - Update BasicTopRate
  *      CARDbAddBasicRate - Add to BasicRateSet
  *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
@@ -267,7 +267,7 @@ bool card_set_phy_parameter(struct vnt_private *priv, u8 bb_type)
 
 	priv->packet_type = card_get_pkt_type(priv);
 
-	CARDvSetRSPINF(priv, bb_type);
+	card_set_rspinf(priv, bb_type);
 
 	return true;
 }
@@ -536,7 +536,7 @@ static unsigned short CARDwGetOFDMControlRate(struct vnt_private *priv,
  *
  * Return Value: None.
  */
-void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
+void card_set_rspinf(struct vnt_private *priv, u8 bb_type)
 {
 	union vnt_phy_field_swap phy;
 	unsigned char byTxRate, byRsvTime;      /* For OFDM */
