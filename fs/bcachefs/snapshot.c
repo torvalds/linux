@@ -1437,6 +1437,15 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		if (!btree_type_has_snapshots(id))
 			continue;
 
+		/*
+		 * deleted inodes btree is maintained by a trigger on the inodes
+		 * btree - no work for us to do here, and it's not safe to scan
+		 * it because we'll see out of date keys due to the btree write
+		 * buffer:
+		 */
+		if (id == BTREE_ID_deleted_inodes)
+			continue;
+
 		ret = for_each_btree_key_commit(trans, iter,
 				id, POS_MIN,
 				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
