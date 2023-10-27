@@ -718,6 +718,21 @@ static bool cxl_report_and_clear(struct cxl_dev_state *cxlds)
 	return true;
 }
 
+#ifdef CONFIG_PCIEAER_CXL
+
+void cxl_setup_parent_dport(struct device *host, struct cxl_dport *dport)
+{
+	struct device *dport_dev = dport->dport_dev;
+	struct pci_host_bridge *host_bridge;
+
+	host_bridge = to_pci_host_bridge(dport_dev);
+	if (host_bridge->native_cxl_error)
+		dport->rcrb.aer_cap = cxl_rcrb_to_aer(dport_dev, dport->rcrb.base);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_setup_parent_dport, CXL);
+
+#endif
+
 pci_ers_result_t cxl_error_detected(struct pci_dev *pdev,
 				    pci_channel_state_t state)
 {
