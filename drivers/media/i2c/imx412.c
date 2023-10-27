@@ -770,14 +770,14 @@ static int imx412_set_pad_format(struct v4l2_subdev *sd,
 }
 
 /**
- * imx412_init_pad_cfg() - Initialize sub-device pad configuration
+ * imx412_init_cfg() - Initialize sub-device state
  * @sd: pointer to imx412 V4L2 sub-device structure
  * @sd_state: V4L2 sub-device configuration
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx412_init_pad_cfg(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *sd_state)
+static int imx412_init_cfg(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *sd_state)
 {
 	struct imx412 *imx412 = to_imx412(sd);
 	struct v4l2_subdev_format fmt = { 0 };
@@ -997,7 +997,7 @@ static const struct v4l2_subdev_video_ops imx412_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops imx412_pad_ops = {
-	.init_cfg = imx412_init_pad_cfg,
+	.init_cfg = imx412_init_cfg,
 	.enum_mbus_code = imx412_enum_mbus_code,
 	.enum_frame_size = imx412_enum_frame_size,
 	.get_fmt = imx412_get_pad_format,
