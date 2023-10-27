@@ -618,6 +618,7 @@
 			compatible = "ns16550a";
 			reg = <0x0 0x12c1a000 0x0 0x1000>;
 			reg-shift = <2>;
+			reg-io-width = <4>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_UART4CLK>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			no-loopback-test;
@@ -1359,7 +1360,7 @@
 
 		uart0: serial@14c33000 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33000 0x0 0x20>;
+			reg = <0x0 0x14c33000 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART0CLK>;
@@ -1371,7 +1372,7 @@
 
 		uart1: serial@14c33100 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33100 0x0 0x20>;
+			reg = <0x0 0x14c33100 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART1CLK>;
@@ -1383,7 +1384,7 @@
 
 		uart2: serial@14c33200 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33200 0x0 0x20>;
+			reg = <0x0 0x14c33200 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART2CLK>;
@@ -1395,7 +1396,7 @@
 
 		uart3: serial@14c33300 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33300 0x0 0x20>;
+			reg = <0x0 0x14c33300 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART3CLK>;
@@ -1407,7 +1408,7 @@
 
 		uart5: serial@14c33400 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33400 0x0 0x20>;
+			reg = <0x0 0x14c33400 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART5CLK>;
@@ -1419,7 +1420,7 @@
 
 		uart6: serial@14c33500 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33500 0x0 0x20>;
+			reg = <0x0 0x14c33500 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART6CLK>;
@@ -1431,7 +1432,7 @@
 
 		uart7: serial@14c33600 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33600 0x0 0x20>;
+			reg = <0x0 0x14c33600 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART7CLK>;
@@ -1443,7 +1444,7 @@
 
 		uart8: serial@14c33700 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33700 0x0 0x20>;
+			reg = <0x0 0x14c33700 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART8CLK>;
@@ -1455,7 +1456,7 @@
 
 		uart9: serial@14c33800 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33800 0x0 0x20>;
+			reg = <0x0 0x14c33800 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART9CLK>;
@@ -1467,7 +1468,7 @@
 
 		uart10: serial@14c33900 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33900 0x0 0x20>;
+			reg = <0x0 0x14c33900 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART10CLK>;
@@ -1479,7 +1480,7 @@
 
 		uart11: serial@14c33a00 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33a00 0x0 0x20>;
+			reg = <0x0 0x14c33a00 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART11CLK>;
@@ -1491,14 +1492,13 @@
 
 		uart12: serial@14c33b00 {
 			compatible = "ns16550a";
-			reg = <0x0 0x14c33b00 0x0 0x20>;
+			reg = <0x0 0x14c33b00 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART12CLK>;
 			interrupts-extended = <&intc4 18>;
 			no-loopback-test;
 			pinctrl-names = "default";
-			status = "okay";
 		};
 	};
 };

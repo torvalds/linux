@@ -110,11 +110,6 @@
 	status = "okay";
 };
 
-&uart12 {
-	clock-frequency = <1846154>;
-	status = "okay";
-};
-
 &fmc {
 	status = "okay";
 	flash@0 {
