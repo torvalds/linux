@@ -74,8 +74,10 @@ typedef int (*config_clks_t)(struct device *dev, struct opp_table *opp_table,
  * @supported_hw_count: Number of elements in the array.
  * @regulator_names: Array of pointers to the names of the regulator, NULL terminated.
  * @genpd_names: Null terminated array of pointers containing names of genpd to
- *		 attach.
- * @virt_devs: Pointer to return the array of virtual devices.
+ *		attach. Mutually exclusive with required_devs.
+ * @virt_devs: Pointer to return the array of genpd virtual devices. Mutually
+ *		exclusive with required_devs.
+ * @required_devs: Required OPP devices. Mutually exclusive with genpd_names/virt_devs.
  *
  * This structure contains platform specific OPP configurations for the device.
  */
@@ -90,6 +92,7 @@ struct dev_pm_opp_config {
 	const char * const *regulator_names;
 	const char * const *genpd_names;
 	struct device ***virt_devs;
+	struct device **required_devs;
 };
 
 #define OPP_LEVEL_UNSET			U32_MAX

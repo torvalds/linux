@@ -35,6 +35,7 @@ extern struct list_head opp_tables;
 #define OPP_CONFIG_PROP_NAME		BIT(3)
 #define OPP_CONFIG_SUPPORTED_HW		BIT(4)
 #define OPP_CONFIG_GENPD		BIT(5)
+#define OPP_CONFIG_REQUIRED_DEVS	BIT(6)
 
 /**
  * struct opp_config_data - data for set config operations
@@ -160,9 +161,9 @@ enum opp_table_access {
  * @rate_clk_single: Currently configured frequency for single clk.
  * @current_opp: Currently configured OPP for the table.
  * @suspend_opp: Pointer to OPP to be used during device suspend.
- * @genpd_virt_devs: List of virtual devices for multiple genpd support.
  * @required_opp_tables: List of device OPP tables that are required by OPPs in
  *		this table.
+ * @required_devs: List of devices for required OPP tables.
  * @required_opp_count: Number of required devices.
  * @supported_hw: Array of version number to support.
  * @supported_hw_count: Number of elements in supported_hw array.
@@ -180,7 +181,6 @@ enum opp_table_access {
  * @path_count: Number of interconnect paths
  * @enabled: Set to true if the device's resources are enabled/configured.
  * @is_genpd: Marks if the OPP table belongs to a genpd.
- * @set_required_opps: Helper responsible to set required OPPs.
  * @dentry:	debugfs dentry pointer of the real device directory (not links).
  * @dentry_name: Name of the real dentry.
  *
@@ -211,8 +211,8 @@ struct opp_table {
 	struct dev_pm_opp *current_opp;
 	struct dev_pm_opp *suspend_opp;
 
-	struct device **genpd_virt_devs;
 	struct opp_table **required_opp_tables;
+	struct device **required_devs;
 	unsigned int required_opp_count;
 
 	unsigned int *supported_hw;
@@ -229,8 +229,6 @@ struct opp_table {
 	unsigned int path_count;
 	bool enabled;
 	bool is_genpd;
-	int (*set_required_opps)(struct device *dev,
-		struct opp_table *opp_table, struct dev_pm_opp *opp, bool scaling_down);
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;

@@ -165,7 +165,7 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 	struct opp_table **required_opp_tables;
 	struct device_node *required_np, *np;
 	bool lazy = false;
-	int count, i;
+	int count, i, size;
 
 	/* Traversing the first OPP node is all we need */
 	np = of_get_next_available_child(opp_np, NULL);
@@ -179,12 +179,13 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 	if (count <= 0)
 		goto put_np;
 
-	required_opp_tables = kcalloc(count, sizeof(*required_opp_tables),
-				      GFP_KERNEL);
+	size = sizeof(*required_opp_tables) + sizeof(*opp_table->required_devs);
+	required_opp_tables = kcalloc(count, size, GFP_KERNEL);
 	if (!required_opp_tables)
 		goto put_np;
 
 	opp_table->required_opp_tables = required_opp_tables;
+	opp_table->required_devs = (void *)(required_opp_tables + count);
 	opp_table->required_opp_count = count;
 
 	for (i = 0; i < count; i++) {
@@ -208,8 +209,6 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 		mutex_lock(&opp_table_lock);
 		list_add(&opp_table->lazy, &lazy_opp_tables);
 		mutex_unlock(&opp_table_lock);
-	} else {
-		_update_set_required_opps(opp_table);
 	}
 
 	goto put_np;
@@ -332,9 +331,14 @@ static int _link_required_opps(struct dev_pm_opp *opp, struct opp_table *opp_tab
 	 *
 	 * Just update the `level` with the right value, which
 	 * dev_pm_opp_set_opp() will take care of in the normal path itself.
+	 *
+	 * There is another case though, where a genpd's OPP table has
+	 * required-opps set to a parent genpd. The OPP core expects the user to
+	 * set the respective required `struct device` pointer via
+	 * dev_pm_opp_set_config().
 	 */
 	if (required_table->is_genpd && opp_table->required_opp_count == 1 &&
-	    !opp_table->genpd_virt_devs) {
+	    !opp_table->required_devs[0]) {
 		if (!WARN_ON(opp->level != OPP_LEVEL_UNSET))
 			opp->level = opp->required_opps[0]->level;
 	}
@@ -447,7 +451,6 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 
 		/* All required opp-tables found, remove from lazy list */
 		if (!lazy) {
-			_update_set_required_opps(opp_table);
 			list_del_init(&opp_table->lazy);
 
 			list_for_each_entry(opp, &opp_table->opp_list, node)
