@@ -405,5 +405,6 @@ void net_selftest_get_strings(u8 *data)
 }
 EXPORT_SYMBOL_GPL(net_selftest_get_strings);
 
+MODULE_DESCRIPTION("Common library for generic PHY ethtool selftests");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Oleksij Rempel <o.rempel@pengutronix.de>");
