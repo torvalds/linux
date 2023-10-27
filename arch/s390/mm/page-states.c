@@ -20,43 +20,6 @@
 
 int __bootdata_preserved(cmma_flag);
 
-static __always_inline void essa(unsigned long paddr, unsigned char cmd)
-{
-	unsigned long rc;
-
-	asm volatile(
-		"	.insn	rrf,0xb9ab0000,%[rc],%[paddr],%[cmd],0"
-		: [rc] "=d" (rc)
-		: [paddr] "d" (paddr),
-		  [cmd] "i" (cmd));
-}
-
-static __always_inline void __set_page_state(struct page *page, int order, unsigned char cmd)
-{
-	unsigned long paddr = page_to_phys(page);
-	unsigned long num_pages = 1UL << order;
-
-	while (num_pages--) {
-		essa(paddr, cmd);
-		paddr += PAGE_SIZE;
-	}
-}
-
-static inline void set_page_unused(struct page *page, int order)
-{
-	__set_page_state(page, order, ESSA_SET_UNUSED);
-}
-
-static inline void set_page_stable_dat(struct page *page, int order)
-{
-	__set_page_state(page, order, ESSA_SET_STABLE);
-}
-
-static inline void set_page_stable_nodat(struct page *page, int order)
-{
-	__set_page_state(page, order, ESSA_SET_STABLE_NODAT);
-}
-
 static void mark_kernel_pmd(pud_t *pud, unsigned long addr, unsigned long end)
 {
 	unsigned long next;
@@ -169,7 +132,7 @@ void __init cmma_init_nodat(void)
 				continue;	/* skip page table pages */
 			if (!list_empty(&page->lru))
 				continue;	/* skip free pages */
-			set_page_stable_nodat(page, 0);
+			__set_page_stable_nodat(page_to_virt(page), 1);
 		}
 	}
 }
@@ -178,7 +141,7 @@ void arch_free_page(struct page *page, int order)
 {
 	if (!cmma_flag)
 		return;
-	set_page_unused(page, order);
+	__set_page_unused(page_to_virt(page), 1UL << order);
 }
 
 void arch_alloc_page(struct page *page, int order)
@@ -186,14 +149,14 @@ void arch_alloc_page(struct page *page, int order)
 	if (!cmma_flag)
 		return;
 	if (cmma_flag < 2)
-		set_page_stable_dat(page, order);
+		__set_page_stable_dat(page_to_virt(page), 1UL << order);
 	else
-		set_page_stable_nodat(page, order);
+		__set_page_stable_nodat(page_to_virt(page), 1UL << order);
 }
 
 void arch_set_page_dat(struct page *page, int order)
 {
 	if (!cmma_flag)
 		return;
-	set_page_stable_dat(page, order);
+	__set_page_stable_dat(page_to_virt(page), 1UL << order);
 }
