@@ -716,12 +716,18 @@ struct device_domain_info {
 	struct intel_iommu *iommu; /* IOMMU used by this device */
 	struct dmar_domain *domain; /* pointer to domain */
 	struct pasid_table *pasid_table; /* pasid table */
+#ifdef CONFIG_INTEL_IOMMU_DEBUGFS
+	struct dentry *debugfs_dentry; /* pointer to device directory dentry */
+#endif
 };
 
 struct dev_pasid_info {
 	struct list_head link_domain;	/* link to domain siblings */
 	struct device *dev;
 	ioasid_t pasid;
+#ifdef CONFIG_INTEL_IOMMU_DEBUGFS
+	struct dentry *debugfs_dentry; /* pointer to pasid directory dentry */
+#endif
 };
 
 static inline void __iommu_flush_cache(
@@ -883,8 +889,16 @@ static inline void intel_svm_remove_dev_pasid(struct device *dev, ioasid_t pasid
 
 #ifdef CONFIG_INTEL_IOMMU_DEBUGFS
 void intel_iommu_debugfs_init(void);
+void intel_iommu_debugfs_create_dev(struct device_domain_info *info);
+void intel_iommu_debugfs_remove_dev(struct device_domain_info *info);
+void intel_iommu_debugfs_create_dev_pasid(struct dev_pasid_info *dev_pasid);
+void intel_iommu_debugfs_remove_dev_pasid(struct dev_pasid_info *dev_pasid);
 #else
 static inline void intel_iommu_debugfs_init(void) {}
+static inline void intel_iommu_debugfs_create_dev(struct device_domain_info *info) {}
+static inline void intel_iommu_debugfs_remove_dev(struct device_domain_info *info) {}
+static inline void intel_iommu_debugfs_create_dev_pasid(struct dev_pasid_info *dev_pasid) {}
+static inline void intel_iommu_debugfs_remove_dev_pasid(struct dev_pasid_info *dev_pasid) {}
 #endif /* CONFIG_INTEL_IOMMU_DEBUGFS */
 
 extern const struct attribute_group *intel_iommu_groups[];
