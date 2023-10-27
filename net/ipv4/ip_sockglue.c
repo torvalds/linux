@@ -602,9 +602,9 @@ void __ip_sock_set_tos(struct sock *sk, int val)
 
 void ip_sock_set_tos(struct sock *sk, int val)
 {
-	lock_sock(sk);
+	sockopt_lock_sock(sk);
 	__ip_sock_set_tos(sk, val);
-	release_sock(sk);
+	sockopt_release_sock(sk);
 }
 EXPORT_SYMBOL(ip_sock_set_tos);
 
