@@ -1409,18 +1409,49 @@ static int rtw89_core_rx_process_mac_ppdu(struct rtw89_dev *rtwdev,
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_rxinfo *rxinfo = (const struct rtw89_rxinfo *)skb->data;
+	const struct rtw89_rxinfo_user *user;
+	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+	int rx_cnt_size = RTW89_PPDU_MAC_RX_CNT_SIZE;
 	bool rx_cnt_valid = false;
+	bool invalid = false;
 	u8 plcp_size = 0;
-	u8 usr_num = 0;
 	u8 *phy_sts;
+	u8 usr_num;
+	int i;
+
+	if (chip_gen == RTW89_CHIP_BE) {
+		invalid = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_INVALID_V1);
+		rx_cnt_size = RTW89_PPDU_MAC_RX_CNT_SIZE_V1;
+	}
+
+	if (invalid)
+		return -EINVAL;
 
 	rx_cnt_valid = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_RX_CNT_VLD);
-	plcp_size = le32_get_bits(rxinfo->w1, RTW89_RXINFO_W1_PLCP_LEN) << 3;
-	usr_num = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_USR_NUM);
+	if (chip_gen == RTW89_CHIP_BE) {
+		plcp_size = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_PLCP_LEN_V1) << 3;
+		usr_num = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_USR_NUM_V1);
+	} else {
+		plcp_size = le32_get_bits(rxinfo->w1, RTW89_RXINFO_W1_PLCP_LEN) << 3;
+		usr_num = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_USR_NUM);
+	}
 	if (usr_num > chip->ppdu_max_usr) {
 		rtw89_warn(rtwdev, "Invalid user number (%d) in mac info\n",
 			   usr_num);
 		return -EINVAL;
+	}
+
+	/* For WiFi 7 chips, RXWD.mac_id of PPDU status is not set by hardware,
+	 * so update mac_id by rxinfo_user[].mac_id.
+	 */
+	for (i = 0; i < usr_num && chip_gen == RTW89_CHIP_BE; i++) {
+		user = &rxinfo->user[i];
+		if (!le32_get_bits(user->w0, RTW89_RXINFO_USER_MAC_ID_VALID))
+			continue;
+
+		phy_ppdu->mac_id =
+			le32_get_bits(user->w0, RTW89_RXINFO_USER_MACID);
+		break;
 	}
 
 	phy_sts = skb->data + RTW89_PPDU_MAC_INFO_SIZE;
@@ -1429,8 +1460,11 @@ static int rtw89_core_rx_process_mac_ppdu(struct rtw89_dev *rtwdev,
 	if (usr_num & BIT(0))
 		phy_sts += RTW89_PPDU_MAC_INFO_USR_SIZE;
 	if (rx_cnt_valid)
-		phy_sts += RTW89_PPDU_MAC_RX_CNT_SIZE;
+		phy_sts += rx_cnt_size;
 	phy_sts += plcp_size;
+
+	if (phy_sts > skb->data + skb->len)
+		return -EINVAL;
 
 	phy_ppdu->buf = phy_sts;
 	phy_ppdu->len = skb->data + skb->len - phy_sts;
@@ -1565,6 +1599,11 @@ static int rtw89_core_rx_process_phy_ppdu(struct rtw89_dev *rtwdev,
 {
 	const struct rtw89_phy_sts_hdr *hdr = phy_ppdu->buf;
 	u32 len_from_header;
+	bool physts_valid;
+
+	physts_valid = le32_get_bits(hdr->w0, RTW89_PHY_STS_HDR_W0_VALID);
+	if (!physts_valid)
+		return -EINVAL;
 
 	len_from_header = le32_get_bits(hdr->w0, RTW89_PHY_STS_HDR_W0_LEN) << 3;
 
@@ -2054,13 +2093,19 @@ static void rtw89_core_rx_process_ppdu_sts(struct rtw89_dev *rtwdev,
 					     .mac_id = desc_info->mac_id};
 	int ret;
 
-	if (desc_info->mac_info_valid)
-		rtw89_core_rx_process_mac_ppdu(rtwdev, skb, &phy_ppdu);
+	if (desc_info->mac_info_valid) {
+		ret = rtw89_core_rx_process_mac_ppdu(rtwdev, skb, &phy_ppdu);
+		if (ret)
+			goto out;
+	}
+
 	ret = rtw89_core_rx_process_phy_ppdu(rtwdev, &phy_ppdu);
 	if (ret)
-		rtw89_debug(rtwdev, RTW89_DBG_TXRX, "process ppdu failed\n");
+		goto out;
 
 	rtw89_core_rx_process_phy_sts(rtwdev, &phy_ppdu);
+
+out:
 	rtw89_core_rx_pending_skb(rtwdev, &phy_ppdu, desc_info, skb);
 	dev_kfree_skb_any(skb);
 }
