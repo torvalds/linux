@@ -3647,11 +3647,15 @@ static int capabilities_show(struct seq_file *m, void *unused)
 	bool mall_supported = dc->caps.mall_size_total;
 	bool subvp_supported = dc->caps.subvp_fw_processing_delay_us;
 	unsigned int mall_in_use = false;
-	unsigned int subvp_in_use = dc->cap_funcs.get_subvp_en(dc, dc->current_state);
+	unsigned int subvp_in_use = false;
+
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 
 	if (hubbub->funcs->get_mall_en)
 		hubbub->funcs->get_mall_en(hubbub, &mall_in_use);
+
+	if (dc->cap_funcs.get_subvp_en)
+		subvp_in_use = dc->cap_funcs.get_subvp_en(dc, dc->current_state);
 
 	seq_printf(m, "mall supported: %s, enabled: %s\n",
 			   mall_supported ? "yes" : "no", mall_in_use ? "yes" : "no");
