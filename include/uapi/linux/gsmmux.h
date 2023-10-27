@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* Copyright (c) 2022/23 Siemens Mobility GmbH */
 #ifndef _LINUX_GSMMUX_H
 #define _LINUX_GSMMUX_H
 
