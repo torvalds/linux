@@ -393,6 +393,9 @@ static int exec_queue_set_acc_granularity(struct xe_device *xe, struct xe_exec_q
 	if (XE_IOCTL_DBG(xe, !xe->info.supports_usm))
 		return -EINVAL;
 
+	if (value > XE_ACC_GRANULARITY_64M)
+		return -EINVAL;
+
 	q->usm.acc_granularity = value;
 
 	return 0;

@@ -731,6 +731,20 @@ struct drm_xe_vm_bind {
 	__u64 reserved[2];
 };
 
+/* For use with XE_EXEC_QUEUE_SET_PROPERTY_ACC_GRANULARITY */
+
+/* Monitor 128KB contiguous region with 4K sub-granularity */
+#define XE_ACC_GRANULARITY_128K 0
+
+/* Monitor 2MB contiguous region with 64KB sub-granularity */
+#define XE_ACC_GRANULARITY_2M 1
+
+/* Monitor 16MB contiguous region with 512KB sub-granularity */
+#define XE_ACC_GRANULARITY_16M 2
+
+/* Monitor 64MB contiguous region with 2M sub-granularity */
+#define XE_ACC_GRANULARITY_64M 3
+
 /**
  * struct drm_xe_exec_queue_set_property - exec queue set property
  *
