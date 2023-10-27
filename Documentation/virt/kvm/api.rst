@@ -6214,6 +6214,42 @@ superset of the features supported by the system.
 
 See KVM_SET_USER_MEMORY_REGION.
 
+4.141 KVM_SET_MEMORY_ATTRIBUTES
+-------------------------------
+
+:Capability: KVM_CAP_MEMORY_ATTRIBUTES
+:Architectures: x86
+:Type: vm ioctl
+:Parameters: struct kvm_memory_attributes (in)
+:Returns: 0 on success, <0 on error
+
+KVM_SET_MEMORY_ATTRIBUTES allows userspace to set memory attributes for a range
+of guest physical memory.
+
+::
+
+  struct kvm_memory_attributes {
+	__u64 address;
+	__u64 size;
+	__u64 attributes;
+	__u64 flags;
+  };
+
+  #define KVM_MEMORY_ATTRIBUTE_PRIVATE           (1ULL << 3)
+
+The address and size must be page aligned.  The supported attributes can be
+retrieved via ioctl(KVM_CHECK_EXTENSION) on KVM_CAP_MEMORY_ATTRIBUTES.  If
+executed on a VM, KVM_CAP_MEMORY_ATTRIBUTES precisely returns the attributes
+supported by that VM.  If executed at system scope, KVM_CAP_MEMORY_ATTRIBUTES
+returns all attributes supported by KVM.  The only attribute defined at this
+time is KVM_MEMORY_ATTRIBUTE_PRIVATE, which marks the associated gfn as being
+guest private memory.
+
+Note, there is no "get" API.  Userspace is responsible for explicitly tracking
+the state of a gfn/page as needed.
+
+The "flags" field is reserved for future extensions and must be '0'.
+
 5. The kvm_run structure
 ========================
 
