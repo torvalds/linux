@@ -431,7 +431,7 @@
 		};
 
 		ss-pins {
-			pinmux = <GPIOMUX(48, GPOUT_SYS_SPI0_FSS,
+			pinmux = <GPIOMUX(49, GPOUT_SYS_SPI0_FSS,
 					      GPOEN_ENABLE,
 					      GPI_SYS_SPI0_FSS)>;
 			bias-disable;

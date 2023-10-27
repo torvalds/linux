@@ -55,6 +55,10 @@ bool amdgpu_ctx_priority_is_valid(int32_t ctx_prio)
 		return true;
 	default:
 	case AMDGPU_CTX_PRIORITY_UNSET:
+		/* UNSET priority is not valid and we don't carry that
+		 * around, but set it to NORMAL in the only place this
+		 * function is called, amdgpu_ctx_ioctl().
+		 */
 		return false;
 	}
 }
@@ -95,9 +99,6 @@ amdgpu_ctx_to_drm_sched_prio(int32_t ctx_prio)
 static int amdgpu_ctx_priority_permit(struct drm_file *filp,
 				      int32_t priority)
 {
-	if (!amdgpu_ctx_priority_is_valid(priority))
-		return -EINVAL;
-
 	/* NORMAL and below are accessible by everyone */
 	if (priority <= AMDGPU_CTX_PRIORITY_NORMAL)
 		return 0;
@@ -632,8 +633,6 @@ static int amdgpu_ctx_query2(struct amdgpu_device *adev,
 	return 0;
 }
 
-
-
 static int amdgpu_ctx_stable_pstate(struct amdgpu_device *adev,
 				    struct amdgpu_fpriv *fpriv, uint32_t id,
 				    bool set, u32 *stable_pstate)
@@ -676,8 +675,10 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 	id = args->in.ctx_id;
 	priority = args->in.priority;
 
-	/* For backwards compatibility reasons, we need to accept
-	 * ioctls with garbage in the priority field */
+	/* For backwards compatibility, we need to accept ioctls with garbage
+	 * in the priority field. Garbage values in the priority field, result
+	 * in the priority being set to NORMAL.
+	 */
 	if (!amdgpu_ctx_priority_is_valid(priority))
 		priority = AMDGPU_CTX_PRIORITY_NORMAL;
 
