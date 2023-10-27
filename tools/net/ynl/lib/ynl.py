@@ -100,6 +100,7 @@ class NlAttr:
     def __init__(self, raw, offset):
         self._len, self._type = struct.unpack("HH", raw[offset:offset + 4])
         self.type = self._type & ~Netlink.NLA_TYPE_MASK
+        self.is_nest = self._type & Netlink.NLA_F_NESTED
         self.payload_len = self._len
         self.full_len = (self.payload_len + 3) & ~3
         self.raw = raw[offset + 4:offset + self.payload_len]
@@ -411,10 +412,11 @@ class GenlProtocol(NetlinkProtocol):
 
 
 class YnlFamily(SpecFamily):
-    def __init__(self, def_path, schema=None):
+    def __init__(self, def_path, schema=None, process_unknown=False):
         super().__init__(def_path, schema)
 
         self.include_raw = False
+        self.process_unknown = process_unknown
 
         try:
             if self.proto == "netlink-raw":
@@ -526,14 +528,41 @@ class YnlFamily(SpecFamily):
             decoded.append({ item.type: subattrs })
         return decoded
 
+    def _decode_unknown(self, attr):
+        if attr.is_nest:
+            return self._decode(NlAttrs(attr.raw), None)
+        else:
+            return attr.as_bin()
+
+    def _rsp_add(self, rsp, name, is_multi, decoded):
+        if is_multi == None:
+            if name in rsp and type(rsp[name]) is not list:
+                rsp[name] = [rsp[name]]
+                is_multi = True
+            else:
+                is_multi = False
+
+        if not is_multi:
+            rsp[name] = decoded
+        elif name in rsp:
+            rsp[name].append(decoded)
+        else:
+            rsp[name] = [decoded]
+
     def _decode(self, attrs, space):
-        attr_space = self.attr_sets[space]
+        if space:
+            attr_space = self.attr_sets[space]
         rsp = dict()
         for attr in attrs:
             try:
                 attr_spec = attr_space.attrs_by_val[attr.type]
-            except KeyError:
-                raise Exception(f"Space '{space}' has no attribute with value '{attr.type}'")
+            except (KeyError, UnboundLocalError):
+                if not self.process_unknown:
+                    raise Exception(f"Space '{space}' has no attribute with value '{attr.type}'")
+                attr_name = f"UnknownAttr({attr.type})"
+                self._rsp_add(rsp, attr_name, None, self._decode_unknown(attr))
+                continue
+
             if attr_spec["type"] == 'nest':
                 subdict = self._decode(NlAttrs(attr.raw), attr_spec['nested-attributes'])
                 decoded = subdict
@@ -558,14 +587,11 @@ class YnlFamily(SpecFamily):
                     selector = self._decode_enum(selector, attr_spec)
                 decoded = {"value": value, "selector": selector}
             else:
-                raise Exception(f'Unknown {attr_spec["type"]} with name {attr_spec["name"]}')
+                if not self.process_unknown:
+                    raise Exception(f'Unknown {attr_spec["type"]} with name {attr_spec["name"]}')
+                decoded = self._decode_unknown(attr)
 
-            if not attr_spec.is_multi:
-                rsp[attr_spec['name']] = decoded
-            elif attr_spec.name in rsp:
-                rsp[attr_spec.name].append(decoded)
-            else:
-                rsp[attr_spec.name] = [decoded]
+            self._rsp_add(rsp, attr_spec["name"], attr_spec.is_multi, decoded)
 
         return rsp
 
