@@ -6192,6 +6192,28 @@ to know what fields can be changed for the system register described by
 ``op0, op1, crn, crm, op2``. KVM rejects ID register values that describe a
 superset of the features supported by the system.
 
+4.140 KVM_SET_USER_MEMORY_REGION2
+---------------------------------
+
+:Capability: KVM_CAP_USER_MEMORY2
+:Architectures: all
+:Type: vm ioctl
+:Parameters: struct kvm_userspace_memory_region2 (in)
+:Returns: 0 on success, -1 on error
+
+::
+
+  struct kvm_userspace_memory_region2 {
+	__u32 slot;
+	__u32 flags;
+	__u64 guest_phys_addr;
+	__u64 memory_size; /* bytes */
+	__u64 userspace_addr; /* start of the userspace allocated memory */
+	__u64 pad[16];
+  };
+
+See KVM_SET_USER_MEMORY_REGION.
+
 5. The kvm_run structure
 ========================
 
