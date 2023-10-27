@@ -1167,6 +1167,34 @@ void vm_mem_region_delete(struct kvm_vm *vm, uint32_t slot)
 	__vm_mem_region_delete(vm, memslot2region(vm, slot), true);
 }
 
+void vm_guest_mem_fallocate(struct kvm_vm *vm, uint64_t base, uint64_t size,
+			    bool punch_hole)
+{
+	const int mode = FALLOC_FL_KEEP_SIZE | (punch_hole ? FALLOC_FL_PUNCH_HOLE : 0);
+	struct userspace_mem_region *region;
+	uint64_t end = base + size;
+	uint64_t gpa, len;
+	off_t fd_offset;
+	int ret;
+
+	for (gpa = base; gpa < end; gpa += len) {
+		uint64_t offset;
+
+		region = userspace_mem_region_find(vm, gpa, gpa);
+		TEST_ASSERT(region && region->region.flags & KVM_MEM_GUEST_MEMFD,
+			    "Private memory region not found for GPA 0x%lx", gpa);
+
+		offset = gpa - region->region.guest_phys_addr;
+		fd_offset = region->region.guest_memfd_offset + offset;
+		len = min_t(uint64_t, end - gpa, region->region.memory_size - offset);
+
+		ret = fallocate(region->region.guest_memfd, mode, fd_offset, len);
+		TEST_ASSERT(!ret, "fallocate() failed to %s at %lx (len = %lu), fd = %d, mode = %x, offset = %lx\n",
+			    punch_hole ? "punch hole" : "allocate", gpa, len,
+			    region->region.guest_memfd, mode, fd_offset);
+	}
+}
+
 /* Returns the size of a vCPU's kvm_run structure. */
 static int vcpu_mmap_sz(void)
 {
