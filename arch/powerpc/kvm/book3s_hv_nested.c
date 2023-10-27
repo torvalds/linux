@@ -428,10 +428,12 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 	return vcpu->arch.trap;
 }
 
+unsigned long nested_capabilities;
+
 long kvmhv_nested_init(void)
 {
 	long int ptb_order;
-	unsigned long ptcr;
+	unsigned long ptcr, host_capabilities;
 	long rc;
 
 	if (!kvmhv_on_pseries())
@@ -439,6 +441,29 @@ long kvmhv_nested_init(void)
 	if (!radix_enabled())
 		return -ENODEV;
 
+	rc = plpar_guest_get_capabilities(0, &host_capabilities);
+	if (rc == H_SUCCESS) {
+		unsigned long capabilities = 0;
+
+		if (cpu_has_feature(CPU_FTR_ARCH_31))
+			capabilities |= H_GUEST_CAP_POWER10;
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			capabilities |= H_GUEST_CAP_POWER9;
+
+		nested_capabilities = capabilities & host_capabilities;
+		rc = plpar_guest_set_capabilities(0, nested_capabilities);
+		if (rc != H_SUCCESS) {
+			pr_err("kvm-hv: Could not configure parent hypervisor capabilities (rc=%ld)",
+			       rc);
+			return -ENODEV;
+		}
+
+		static_branch_enable(&__kvmhv_is_nestedv2);
+		return 0;
+	}
+
+	pr_info("kvm-hv: nestedv2 get capabilities hcall failed, falling back to nestedv1 (rc=%ld)\n",
+		rc);
 	/* Partition table entry is 1<<4 bytes in size, hence the 4. */
 	ptb_order = KVM_MAX_NESTED_GUESTS_SHIFT + 4;
 	/* Minimum partition table size is 1<<12 bytes */
@@ -478,7 +503,7 @@ void kvmhv_nested_exit(void)
 	}
 }
 
-static void kvmhv_flush_lpid(unsigned int lpid)
+static void kvmhv_flush_lpid(u64 lpid)
 {
 	long rc;
 
@@ -500,17 +525,22 @@ static void kvmhv_flush_lpid(unsigned int lpid)
 		pr_err("KVM: TLB LPID invalidation hcall failed, rc=%ld\n", rc);
 }
 
-void kvmhv_set_ptbl_entry(unsigned int lpid, u64 dw0, u64 dw1)
+void kvmhv_set_ptbl_entry(u64 lpid, u64 dw0, u64 dw1)
 {
 	if (!kvmhv_on_pseries()) {
 		mmu_partition_table_set_entry(lpid, dw0, dw1, true);
 		return;
 	}
 
-	pseries_partition_tb[lpid].patb0 = cpu_to_be64(dw0);
-	pseries_partition_tb[lpid].patb1 = cpu_to_be64(dw1);
-	/* L0 will do the necessary barriers */
-	kvmhv_flush_lpid(lpid);
+	if (kvmhv_is_nestedv1()) {
+		pseries_partition_tb[lpid].patb0 = cpu_to_be64(dw0);
+		pseries_partition_tb[lpid].patb1 = cpu_to_be64(dw1);
+		/* L0 will do the necessary barriers */
+		kvmhv_flush_lpid(lpid);
+	}
+
+	if (kvmhv_is_nestedv2())
+		kvmhv_nestedv2_set_ptbl_entry(lpid, dw0, dw1);
 }
 
 static void kvmhv_set_nested_ptbl(struct kvm_nested_guest *gp)

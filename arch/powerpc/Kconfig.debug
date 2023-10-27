@@ -82,6 +82,18 @@ config MSI_BITMAP_SELFTEST
 	bool "Run self-tests of the MSI bitmap code"
 	depends on DEBUG_KERNEL
 
+config GUEST_STATE_BUFFER_TEST
+	def_tristate n
+	prompt "Enable Guest State Buffer unit tests"
+	depends on KUNIT
+	depends on KVM_BOOK3S_HV_POSSIBLE
+	default KUNIT_ALL_TESTS
+	help
+	  The Guest State Buffer is a data format specified in the PAPR.
+	  It is by hcalls to communicate the state of L2 guests between
+	  the L1 and L0 hypervisors. Enable unit tests for the library
+	  used to create and use guest state buffers.
+
 config PPC_IRQ_SOFT_MASK_DEBUG
 	bool "Include extra checks for powerpc irq soft masking"
 	depends on PPC64
