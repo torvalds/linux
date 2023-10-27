@@ -605,7 +605,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 				if (!call->brtype_stat) {
 					call->brtype_stat = zalloc(sizeof(*call->brtype_stat));
 					if (!call->brtype_stat) {
-						perror("not enough memory for the code path branch statisitcs");
+						perror("not enough memory for the code path branch statistics");
 						free(call->brtype_stat);
 						return -ENOMEM;
 					}
@@ -774,7 +774,7 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 			if (!cnode->brtype_stat) {
 				cnode->brtype_stat = zalloc(sizeof(*cnode->brtype_stat));
 				if (!cnode->brtype_stat) {
-					perror("not enough memory for the code path branch statisitcs");
+					perror("not enough memory for the code path branch statistics");
 					return MATCH_ERROR;
 				}
 			}
