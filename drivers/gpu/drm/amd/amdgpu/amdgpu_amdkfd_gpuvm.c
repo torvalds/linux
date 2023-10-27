@@ -1103,7 +1103,7 @@ static int reserve_bo_and_vm(struct kgd_mem *mem,
 		if (unlikely(ret))
 			goto error;
 
-		ret = drm_exec_lock_obj(&ctx->exec, &bo->tbo.base);
+		ret = drm_exec_prepare_obj(&ctx->exec, &bo->tbo.base, 1);
 		drm_exec_retry_on_contention(&ctx->exec);
 		if (unlikely(ret))
 			goto error;
