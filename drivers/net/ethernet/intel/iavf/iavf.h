@@ -377,7 +377,6 @@ struct iavf_adapter {
 	unsigned long crit_section;
 
 	struct delayed_work watchdog_task;
-	bool netdev_registered;
 	bool link_up;
 	enum virtchnl_link_speed link_speed;
 	/* This is only populated if the VIRTCHNL_VF_CAP_ADV_LINK_SPEED is set
