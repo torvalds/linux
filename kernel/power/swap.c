@@ -451,7 +451,7 @@ err_close:
 static int swap_write_page(struct swap_map_handle *handle, void *buf,
 		struct hib_bio_batch *hb)
 {
-	int error = 0;
+	int error;
 	sector_t offset;
 
 	if (!handle->cur)
