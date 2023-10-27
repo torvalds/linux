@@ -147,6 +147,55 @@ inval:
 }
 
 /*
+ * Display the list of addr_prefs known to the namespace.
+ */
+static int afs_proc_addr_prefs_show(struct seq_file *m, void *v)
+{
+	struct afs_addr_preference_list *preflist;
+	struct afs_addr_preference *pref;
+	struct afs_net *net = afs_seq2net_single(m);
+	union {
+		struct sockaddr_in sin;
+		struct sockaddr_in6 sin6;
+	} addr;
+	unsigned int i;
+	char buf[44]; /* Maximum ipv6 + max subnet is 43 */
+
+	rcu_read_lock();
+	preflist = rcu_dereference(net->address_prefs);
+
+	if (!preflist) {
+		seq_puts(m, "NO PREFS\n");
+		return 0;
+	}
+
+	seq_printf(m, "PROT SUBNET                                      PRIOR (v=%u n=%u/%u/%u)\n",
+		   preflist->version, preflist->ipv6_off, preflist->nr, preflist->max_prefs);
+
+	memset(&addr, 0, sizeof(addr));
+
+	for (i = 0; i < preflist->nr; i++) {
+		pref = &preflist->prefs[i];
+
+		addr.sin.sin_family = pref->family;
+		if (pref->family == AF_INET) {
+			memcpy(&addr.sin.sin_addr, &pref->ipv4_addr,
+			       sizeof(addr.sin.sin_addr));
+			snprintf(buf, sizeof(buf), "%pISc/%u", &addr.sin, pref->subnet_mask);
+			seq_printf(m, "UDP  %-43.43s %5u\n", buf, pref->prio);
+		} else {
+			memcpy(&addr.sin6.sin6_addr, &pref->ipv6_addr,
+			       sizeof(addr.sin6.sin6_addr));
+			snprintf(buf, sizeof(buf), "%pISc/%u", &addr.sin6, pref->subnet_mask);
+			seq_printf(m, "UDP  %-43.43s %5u\n", buf, pref->prio);
+		}
+	}
+
+	rcu_read_lock();
+	return 0;
+}
+
+/*
  * Display the name of the current workstation cell.
  */
 static int afs_proc_rootcell_show(struct seq_file *m, void *v)
@@ -690,7 +739,11 @@ int afs_proc_init(struct afs_net *net)
 					&afs_proc_sysname_ops,
 					afs_proc_sysname_write,
 					sizeof(struct seq_net_private),
-					NULL))
+					NULL) ||
+	    !proc_create_net_single_write("addr_prefs", 0644, p,
+					  afs_proc_addr_prefs_show,
+					  afs_proc_addr_prefs_write,
+					  NULL))
 		goto error_tree;
 
 	net->proc_afs = p;

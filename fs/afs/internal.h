@@ -72,6 +72,28 @@ enum afs_call_state {
 	AFS_CALL_COMPLETE,		/* Completed or failed */
 };
 
+/*
+ * Address preferences.
+ */
+struct afs_addr_preference {
+	union {
+		struct in_addr	ipv4_addr;	/* AF_INET address to compare against */
+		struct in6_addr	ipv6_addr;	/* AF_INET6 address to compare against */
+	};
+	sa_family_t		family;		/* Which address to use */
+	u16			prio;		/* Priority */
+	u8			subnet_mask;	/* How many bits to compare */
+};
+
+struct afs_addr_preference_list {
+	struct rcu_head		rcu;
+	u16			version;	/* Incremented when prefs list changes */
+	u8			ipv6_off;	/* Offset of IPv6 addresses */
+	u8			nr;		/* Number of addresses in total */
+	u8			max_prefs;	/* Number of prefs allocated */
+	struct afs_addr_preference prefs[] __counted_by(max_prefs);
+};
+
 struct afs_address {
 	struct rxrpc_peer	*peer;
 	short			last_error;	/* Last error from this address */
@@ -315,6 +337,8 @@ struct afs_net {
 	struct proc_dir_entry	*proc_afs;	/* /proc/net/afs directory */
 	struct afs_sysnames	*sysnames;
 	rwlock_t		sysnames_lock;
+	struct afs_addr_preference_list __rcu *address_prefs;
+	u16			address_pref_version;
 
 	/* Statistics counters */
 	atomic_t		n_lookup;	/* Number of lookups done */
@@ -981,6 +1005,11 @@ extern int afs_merge_fs_addr4(struct afs_net *net, struct afs_addr_list *addr,
 			      __be32 xdr, u16 port);
 extern int afs_merge_fs_addr6(struct afs_net *net, struct afs_addr_list *addr,
 			      __be32 *xdr, u16 port);
+
+/*
+ * addr_prefs.c
+ */
+int afs_proc_addr_prefs_write(struct file *file, char *buf, size_t size);
 
 /*
  * callback.c

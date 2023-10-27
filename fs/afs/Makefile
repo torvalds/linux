@@ -5,6 +5,7 @@
 
 kafs-y := \
 	addr_list.o \
+	addr_prefs.o \
 	callback.o \
 	cell.o \
 	cmservice.o \
