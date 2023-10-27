@@ -38,6 +38,7 @@
 #define AA_CLASS_X		31
 #define AA_CLASS_DBUS		32
 
+/* NOTE: if AA_CLASS_LAST > 63 need to update label->mediates */
 #define AA_CLASS_LAST		AA_CLASS_DBUS
 
 /* Control parameters settable through module/boot flags */

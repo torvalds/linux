@@ -373,6 +373,30 @@ fail:
 	return NULL;
 }
 
+/* set of rules that are mediated by unconfined */
+static int unconfined_mediates[] = { AA_CLASS_NS, AA_CLASS_IO_URING, 0 };
+
+/* must be called after profile rulesets and start information is setup */
+void aa_compute_profile_mediates(struct aa_profile *profile)
+{
+	int c;
+
+	if (profile_unconfined(profile)) {
+		int *pos;
+
+		for (pos = unconfined_mediates; *pos; pos++) {
+			if (ANY_RULE_MEDIATES(&profile->rules, AA_CLASS_NS) !=
+			    DFA_NOMATCH)
+				profile->label.mediates |= ((u64) 1) << AA_CLASS_NS;
+		}
+		return;
+	}
+	for (c = 0; c <= AA_CLASS_LAST; c++) {
+		if (ANY_RULE_MEDIATES(&profile->rules, c) != DFA_NOMATCH)
+			profile->label.mediates |= ((u64) 1) << c;
+	}
+}
+
 /* TODO: profile accounting - setup in remove */
 
 /**
@@ -624,10 +648,12 @@ struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
 	rules = list_first_entry(&profile->rules, typeof(*rules), list);
 	rules->file = aa_get_pdb(nullpdb);
 	rules->policy = aa_get_pdb(nullpdb);
+	aa_compute_profile_mediates(profile);
 
 	if (parent) {
 		profile->path_flags = parent->path_flags;
-
+		/* override/inherit what is mediated from parent */
+		profile->label.mediates = parent->label.mediates;
 		/* released on free_profile */
 		rcu_assign_pointer(profile->parent, aa_get_profile(parent));
 		profile->ns = aa_get_ns(parent->ns);

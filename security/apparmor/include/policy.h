@@ -318,6 +318,19 @@ static inline aa_state_t ANY_RULE_MEDIATES(struct list_head *head,
 	return RULE_MEDIATES(rule, class);
 }
 
+void aa_compute_profile_mediates(struct aa_profile *profile);
+static inline bool profile_mediates(struct aa_profile *profile,
+				    unsigned char class)
+{
+	return label_mediates(&profile->label, class);
+}
+
+static inline bool profile_mediates_safe(struct aa_profile *profile,
+					 unsigned char class)
+{
+	return label_mediates_safe(&profile->label, class);
+}
+
 /**
  * aa_get_profile - increment refcount on profile @p
  * @p: profile  (MAYBE NULL)

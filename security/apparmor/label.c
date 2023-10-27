@@ -198,21 +198,25 @@ static bool vec_is_stale(struct aa_profile **vec, int n)
 	return false;
 }
 
-static long accum_vec_flags(struct aa_profile **vec, int n)
+static void accum_label_info(struct aa_label *new)
 {
 	long u = FLAG_UNCONFINED;
 	int i;
 
-	AA_BUG(!vec);
+	AA_BUG(!new->vec);
 
-	for (i = 0; i < n; i++) {
-		u |= vec[i]->label.flags & (FLAG_DEBUG1 | FLAG_DEBUG2 |
-					    FLAG_STALE);
-		if (!(u & vec[i]->label.flags & FLAG_UNCONFINED))
+	/* size == 1 is a profile and flags must be set as part of creation */
+	if (new->size == 1)
+		return;
+
+	for (i = 0; i < new->size; i++) {
+		u |= new->vec[i]->label.flags & (FLAG_DEBUG1 | FLAG_DEBUG2 |
+						 FLAG_STALE);
+		if (!(u & new->vec[i]->label.flags & FLAG_UNCONFINED))
 			u &= ~FLAG_UNCONFINED;
+		new->mediates |= new->vec[i]->label.mediates;
 	}
-
-	return u;
+	new->flags |= u;
 }
 
 static int sort_cmp(const void *a, const void *b)
@@ -645,7 +649,7 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
 		rb_replace_node(&old->node, &new->node, &ls->root);
 		old->flags &= ~FLAG_IN_TREE;
 		new->flags |= FLAG_IN_TREE;
-		new->flags |= accum_vec_flags(new->vec, new->size);
+		accum_label_info(new);
 		return true;
 	}
 
@@ -706,7 +710,7 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
 	rb_link_node(&label->node, parent, new);
 	rb_insert_color(&label->node, &ls->root);
 	label->flags |= FLAG_IN_TREE;
-	label->flags |= accum_vec_flags(label->vec, label->size);
+	accum_label_info(label);
 
 	return aa_get_label(label);
 }
