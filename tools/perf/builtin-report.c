@@ -705,7 +705,7 @@ static int report__collapse_hists(struct report *rep)
 	 */
 	if (perf_data__is_pipe(session->data)) {
 		if (perf_hpp__setup_hists_formats(&perf_hpp_list, evlist) < 0) {
-			ui__error("Failed to setup hierachy output formats\n");
+			ui__error("Failed to setup hierarchy output formats\n");
 			return -1;
 		}
 	}
