@@ -684,7 +684,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC1_CLK_GATE_SLICLK] =
 		ast2700_clk_hw_register_gate(NULL, "sliclk-gate", NULL,
-					     0, clk_base + AST2700_SOC1_CLK_STOP2,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP2,
 					     15, 0, &ast2700_clk_lock);
 
 	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, clk_data);
