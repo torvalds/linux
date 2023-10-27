@@ -562,8 +562,8 @@ device configuration. This is often implemented as e.g. an array of struct
 v4l2_mbus_framefmt, one entry for each pad, and similarly for crop and compose
 rectangles.
 
-In addition to the active configuration, each subdev file handle has an array of
-struct v4l2_subdev_pad_config, managed by the V4L2 core, which contains the try
+In addition to the active configuration, each subdev file handle has a struct
+v4l2_subdev_state, managed by the V4L2 core, which contains the try
 configuration.
 
 To simplify the subdev drivers the V4L2 subdev API now optionally supports a

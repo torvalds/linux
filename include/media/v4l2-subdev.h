@@ -769,7 +769,7 @@ struct v4l2_subdev_state {
 /**
  * struct v4l2_subdev_pad_ops - v4l2-subdev pad level operations
  *
- * @init_cfg: initialize the pad config to default values
+ * @init_cfg: initialize the subdev state to default values
  * @enum_mbus_code: callback for VIDIOC_SUBDEV_ENUM_MBUS_CODE() ioctl handler
  *		    code.
  * @enum_frame_size: callback for VIDIOC_SUBDEV_ENUM_FRAME_SIZE() ioctl handler
