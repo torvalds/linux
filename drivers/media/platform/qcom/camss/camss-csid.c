@@ -263,7 +263,7 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 /*
  * __csid_get_format - Get pointer to format structure
  * @csid: CSID device
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @pad: pad from which format is requested
  * @which: TRY or ACTIVE format
  *
@@ -285,7 +285,7 @@ __csid_get_format(struct csid_device *csid,
 /*
  * csid_try_format - Handle try format by pad subdev method
  * @csid: CSID device
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @pad: pad on which format is requested
  * @fmt: pointer to v4l2 format structure
  * @which: wanted subdev format
@@ -353,7 +353,7 @@ static void csid_try_format(struct csid_device *csid,
 /*
  * csid_enum_mbus_code - Handle pixel format enumeration
  * @sd: CSID V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @code: pointer to v4l2_subdev_mbus_code_enum structure
  * return -EINVAL or zero on success
  */
@@ -394,7 +394,7 @@ static int csid_enum_mbus_code(struct v4l2_subdev *sd,
 /*
  * csid_enum_frame_size - Handle frame size enumeration
  * @sd: CSID V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fse: pointer to v4l2_subdev_frame_size_enum structure
  * return -EINVAL or zero on success
  */
@@ -431,7 +431,7 @@ static int csid_enum_frame_size(struct v4l2_subdev *sd,
 /*
  * csid_get_format - Handle get format by pads subdev method
  * @sd: CSID V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt: pointer to v4l2 subdev format structure
  *
  * Return -EINVAL or zero on success
@@ -455,7 +455,7 @@ static int csid_get_format(struct v4l2_subdev *sd,
 /*
  * csid_set_format - Handle set format by pads subdev method
  * @sd: CSID V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt: pointer to v4l2 subdev format structure
  *
  * Return -EINVAL or zero on success
