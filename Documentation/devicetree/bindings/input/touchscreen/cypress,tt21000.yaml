@@ -34,6 +34,9 @@ properties:
   vdd-supply:
     description: Regulator for voltage.
 
+  vddio-supply:
+    description: Optional Regulator for I/O voltage.
+
   reset-gpios:
     maxItems: 1
 
