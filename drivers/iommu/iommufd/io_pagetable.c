@@ -1060,6 +1060,16 @@ static int iopt_area_split(struct iopt_area *area, unsigned long iova)
 	if (WARN_ON(rc))
 		goto err_remove_lhs;
 
+	/*
+	 * If the original area has filled a domain, domains_itree has to be
+	 * updated.
+	 */
+	if (area->storage_domain) {
+		interval_tree_remove(&area->pages_node, &pages->domains_itree);
+		interval_tree_insert(&lhs->pages_node, &pages->domains_itree);
+		interval_tree_insert(&rhs->pages_node, &pages->domains_itree);
+	}
+
 	lhs->storage_domain = area->storage_domain;
 	lhs->pages = area->pages;
 	rhs->storage_domain = area->storage_domain;
