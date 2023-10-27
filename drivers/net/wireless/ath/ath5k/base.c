@@ -1770,7 +1770,7 @@ ath5k_tx_frame_completed(struct ath5k_hw *ah, struct sk_buff *skb,
 		ah->stats.antenna_tx[0]++; /* invalid */
 
 	trace_ath5k_tx_complete(ah, skb, txq, ts);
-	ieee80211_tx_status(ah->hw, skb);
+	ieee80211_tx_status_skb(ah->hw, skb);
 }
 
 static void

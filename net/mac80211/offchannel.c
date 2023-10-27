@@ -717,6 +717,23 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 			return ret;
 		}
 
+		/*
+		 * We could be racing against the notification from the driver:
+		 *  + driver is handling the notification on CPU0
+		 *  + user space is cancelling the remain on channel and
+		 *    schedules the hw_roc_done worker.
+		 *
+		 *  Now hw_roc_done might start to run after the next roc will
+		 *  start and mac80211 will think that this second roc has
+		 *  ended prematurely.
+		 *  Cancel the work to make sure that all the pending workers
+		 *  have completed execution.
+		 *  Note that this assumes that by the time the driver returns
+		 *  from drv_cancel_remain_on_channel, it has completed all
+		 *  the processing of related notifications.
+		 */
+		wiphy_work_cancel(local->hw.wiphy, &local->hw_roc_done);
+
 		/* TODO:
 		 * if multiple items were combined here then we really shouldn't
 		 * cancel them all - we should wait for as much time as needed

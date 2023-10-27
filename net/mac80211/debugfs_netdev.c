@@ -323,7 +323,10 @@ static int ieee80211_set_smps(struct ieee80211_link_data *link,
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 
-	if (sdata->vif.driver_flags & IEEE80211_VIF_DISABLE_SMPS_OVERRIDE)
+	/* The driver indicated that EML is enabled for the interface, thus do
+	 * not allow to override the SMPS state.
+	 */
+	if (sdata->vif.driver_flags & IEEE80211_VIF_EML_ACTIVE)
 		return -EOPNOTSUPP;
 
 	if (!(local->hw.wiphy->features & NL80211_FEATURE_STATIC_SMPS) &&
@@ -934,18 +937,20 @@ static void add_link_files(struct ieee80211_link_data *link,
 	}
 }
 
-void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
+void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata,
+				  bool mld_vif)
 {
 	char buf[10+IFNAMSIZ];
 
 	sprintf(buf, "netdev:%s", sdata->name);
 	sdata->vif.debugfs_dir = debugfs_create_dir(buf,
 		sdata->local->hw.wiphy->debugfsdir);
+	/* deflink also has this */
+	sdata->deflink.debugfs_dir = sdata->vif.debugfs_dir;
 	sdata->debugfs.subdir_stations = debugfs_create_dir("stations",
 							sdata->vif.debugfs_dir);
 	add_files(sdata);
-
-	if (!(sdata->local->hw.wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO))
+	if (!mld_vif)
 		add_link_files(&sdata->deflink, sdata->vif.debugfs_dir);
 }
 
@@ -973,11 +978,21 @@ void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
 	debugfs_rename(dir->d_parent, dir, dir->d_parent, buf);
 }
 
+void ieee80211_debugfs_recreate_netdev(struct ieee80211_sub_if_data *sdata,
+				       bool mld_vif)
+{
+	ieee80211_debugfs_remove_netdev(sdata);
+	ieee80211_debugfs_add_netdev(sdata, mld_vif);
+	drv_vif_add_debugfs(sdata->local, sdata);
+	if (!mld_vif)
+		ieee80211_link_debugfs_drv_add(&sdata->deflink);
+}
+
 void ieee80211_link_debugfs_add(struct ieee80211_link_data *link)
 {
 	char link_dir_name[10];
 
-	if (WARN_ON(!link->sdata->vif.debugfs_dir))
+	if (WARN_ON(!link->sdata->vif.debugfs_dir || link->debugfs_dir))
 		return;
 
 	/* For now, this should not be called for non-MLO capable drivers */
@@ -1014,7 +1029,8 @@ void ieee80211_link_debugfs_remove(struct ieee80211_link_data *link)
 
 void ieee80211_link_debugfs_drv_add(struct ieee80211_link_data *link)
 {
-	if (WARN_ON(!link->debugfs_dir))
+	if (link->sdata->vif.type == NL80211_IFTYPE_MONITOR ||
+	    WARN_ON(!link->debugfs_dir))
 		return;
 
 	drv_link_add_debugfs(link->sdata->local, link->sdata,

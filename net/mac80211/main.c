@@ -319,7 +319,7 @@ static void ieee80211_tasklet_handler(struct tasklet_struct *t)
 			break;
 		case IEEE80211_TX_STATUS_MSG:
 			skb->pkt_type = 0;
-			ieee80211_tx_status(&local->hw, skb);
+			ieee80211_tx_status_skb(&local->hw, skb);
 			break;
 		default:
 			WARN(1, "mac80211: Packet is of unknown type %d\n",

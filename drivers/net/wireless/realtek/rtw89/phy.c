@@ -2557,6 +2557,9 @@ static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 	s32 dcfo_comp_val;
 	int sign;
 
+	if (rtwdev->chip->chip_id == RTL8922A)
+		return;
+
 	if (!is_linked) {
 		rtw89_debug(rtwdev, RTW89_DBG_CFO, "DCFO: is_linked=%d\n",
 			    is_linked);
@@ -2577,16 +2580,23 @@ static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 
 static void rtw89_dcfo_comp_init(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_cfo_regs *cfo = phy->cfo;
 
-	rtw89_phy_set_phy_regs(rtwdev, R_DCFO_OPT, B_DCFO_OPT_EN, 1);
-	rtw89_phy_set_phy_regs(rtwdev, R_DCFO_WEIGHT, B_DCFO_WEIGHT_MSK, 8);
+	rtw89_phy_set_phy_regs(rtwdev, cfo->comp_seg0, cfo->valid_0_mask, 1);
+	rtw89_phy_set_phy_regs(rtwdev, cfo->comp, cfo->weighting_mask, 8);
 
-	if (chip->cfo_hw_comp)
-		rtw89_write32_mask(rtwdev, R_AX_PWR_UL_CTRL2,
-				   B_AX_PWR_UL_CFO_MASK, 0x6);
-	else
-		rtw89_write32_clr(rtwdev, R_AX_PWR_UL_CTRL2, B_AX_PWR_UL_CFO_MASK);
+	if (chip->chip_gen == RTW89_CHIP_AX) {
+		if (chip->cfo_hw_comp) {
+			rtw89_write32_mask(rtwdev, R_AX_PWR_UL_CTRL2,
+					   B_AX_PWR_UL_CFO_MASK, 0x6);
+		} else {
+			rtw89_phy_set_phy_regs(rtwdev, R_DCFO, B_DCFO, 1);
+			rtw89_write32_clr(rtwdev, R_AX_PWR_UL_CTRL2,
+					  B_AX_PWR_UL_CFO_MASK);
+		}
+	}
 }
 
 static void rtw89_phy_cfo_init(struct rtw89_dev *rtwdev)
@@ -2609,7 +2619,6 @@ static void rtw89_phy_cfo_init(struct rtw89_dev *rtwdev)
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "Default xcap=%0x\n",
 		    cfo->crystal_cap_default);
 	rtw89_phy_cfo_set_crystal_cap(rtwdev, cfo->crystal_cap_default, true);
-	rtw89_phy_set_phy_regs(rtwdev, R_DCFO, B_DCFO, 1);
 	rtw89_dcfo_comp_init(rtwdev);
 	cfo->cfo_timer_ms = 2000;
 	cfo->cfo_trig_by_timer_en = false;
@@ -2626,11 +2635,15 @@ static void rtw89_phy_cfo_crystal_cap_adjust(struct rtw89_dev *rtwdev,
 	s32 cfo_abs = abs(curr_cfo);
 	int sign;
 
+	if (curr_cfo == 0) {
+		rtw89_debug(rtwdev, RTW89_DBG_CFO, "curr_cfo=0\n");
+		return;
+	}
 	if (!cfo->is_adjust) {
 		if (cfo_abs > CFO_TRK_ENABLE_TH)
 			cfo->is_adjust = true;
 	} else {
-		if (cfo_abs < CFO_TRK_STOP_TH)
+		if (cfo_abs <= CFO_TRK_STOP_TH)
 			cfo->is_adjust = false;
 	}
 	if (!cfo->is_adjust) {
@@ -2822,10 +2835,6 @@ static void rtw89_phy_cfo_dm(struct rtw89_dev *rtwdev)
 		new_cfo = rtw89_phy_average_cfo_calc(rtwdev);
 	else
 		new_cfo = rtw89_phy_multi_sta_cfo_calc(rtwdev);
-	if (new_cfo == 0) {
-		rtw89_debug(rtwdev, RTW89_DBG_CFO, "curr_cfo=0\n");
-		return;
-	}
 	if (cfo->divergence_lock_en) {
 		cfo->lock_cnt++;
 		if (cfo->lock_cnt > CFO_PERIOD_CNT) {
@@ -4636,6 +4645,7 @@ void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_reg_def *bss_clr_vld = &chip->bss_clr_vld;
 	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
 	u8 bss_color;
 
@@ -4644,7 +4654,7 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif
 
 	bss_color = vif->bss_conf.he_bss_color.color;
 
-	rtw89_phy_write32_idx(rtwdev, chip->bss_clr_map_reg, B_BSS_CLR_MAP_VLD0, 0x1,
+	rtw89_phy_write32_idx(rtwdev, bss_clr_vld->addr, bss_clr_vld->mask, 0x1,
 			      phy_idx);
 	rtw89_phy_write32_idx(rtwdev, chip->bss_clr_map_reg, B_BSS_CLR_MAP_TGT,
 			      bss_color, phy_idx);
@@ -4965,10 +4975,18 @@ static const struct rtw89_physts_regs rtw89_physts_regs_ax = {
 	.dis_trigger_brk_mask = B_STS_DIS_TRIG_BY_BRK,
 };
 
+static const struct rtw89_cfo_regs rtw89_cfo_regs_ax = {
+	.comp = R_DCFO_WEIGHT,
+	.weighting_mask = B_DCFO_WEIGHT_MSK,
+	.comp_seg0 = R_DCFO_OPT,
+	.valid_0_mask = B_DCFO_OPT_EN,
+};
+
 const struct rtw89_phy_gen_def rtw89_phy_gen_ax = {
 	.cr_base = 0x10000,
 	.ccx = &rtw89_ccx_regs_ax,
 	.physts = &rtw89_physts_regs_ax,
+	.cfo = &rtw89_cfo_regs_ax,
 
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_ax,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_ax,

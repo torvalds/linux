@@ -1318,7 +1318,7 @@ int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		 * response frame. It is transmitted directly and not buffered
 		 * by the AP.
 		 */
-		drv_mgd_protect_tdls_discover(sdata->local, sdata);
+		drv_mgd_protect_tdls_discover(sdata->local, sdata, link_id);
 		fallthrough;
 	case WLAN_TDLS_SETUP_CONFIRM:
 	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:

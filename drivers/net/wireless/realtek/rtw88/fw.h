@@ -44,6 +44,8 @@
 #define RTW_OLD_PROBE_PG_CNT		2
 #define RTW_PROBE_PG_CNT		4
 
+#define RTW_DEBUG_DUMP_TIMES		10
+
 enum rtw_c2h_cmd_id {
 	C2H_CCX_TX_RPT = 0x03,
 	C2H_BT_INFO = 0x09,
@@ -808,6 +810,7 @@ static inline bool rtw_fw_feature_ext_check(struct rtw_fw_state *fw,
 	return !!(fw->feature_ext & feature);
 }
 
+void rtw_fw_dump_dbg_info(struct rtw_dev *rtwdev);
 void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 			       struct sk_buff *skb);
 void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb);

@@ -401,7 +401,7 @@ ath12k_dp_tx_htt_tx_complete_buf(struct ath12k_base *ab,
 		}
 	}
 
-	ieee80211_tx_status(ar->hw, msdu);
+	ieee80211_tx_status_skb(ar->hw, msdu);
 }
 
 static void
@@ -498,7 +498,7 @@ static void ath12k_dp_tx_complete_msdu(struct ath12k *ar,
 	 * Might end up reporting it out-of-band from HTT stats.
 	 */
 
-	ieee80211_tx_status(ar->hw, msdu);
+	ieee80211_tx_status_skb(ar->hw, msdu);
 
 exit:
 	rcu_read_unlock();

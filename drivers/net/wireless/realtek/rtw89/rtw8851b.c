@@ -1779,14 +1779,15 @@ rtw8851b_init_txpwr_unit(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 	return 0;
 }
 
-static void rtw8851b_bb_ctrl_btc_preagc(struct rtw89_dev *rtwdev, bool bt_en)
+static void rtw8851b_ctrl_nbtg_bt_tx(struct rtw89_dev *rtwdev, bool en,
+				     enum rtw89_phy_idx phy_idx)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 
-	rtw89_phy_write_reg3_tbl(rtwdev, bt_en ? &rtw8851b_btc_preagc_en_defs_tbl :
+	rtw89_phy_write_reg3_tbl(rtwdev, en ? &rtw8851b_btc_preagc_en_defs_tbl :
 						 &rtw8851b_btc_preagc_dis_defs_tbl);
 
-	if (!bt_en) {
+	if (!en) {
 		if (chan->band_type == RTW89_BAND_2G) {
 			rtw89_phy_write32_mask(rtwdev, R_PATH0_G_LNA6_OP1DB_V1,
 					       B_PATH0_G_LNA6_OP1DB_V1, 0x20);
@@ -1801,11 +1802,12 @@ static void rtw8851b_bb_ctrl_btc_preagc(struct rtw89_dev *rtwdev, bool bt_en)
 	}
 }
 
-static void rtw8851b_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
+static void rtw8851b_ctrl_btg_bt_rx(struct rtw89_dev *rtwdev, bool en,
+				    enum rtw89_phy_idx phy_idx)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 
-	if (btg) {
+	if (en) {
 		rtw89_phy_write32_mask(rtwdev, R_PATH0_BT_SHARE_V1,
 				       B_PATH0_BT_SHARE_V1, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_PATH0_BTG_PATH_V1,
@@ -2302,9 +2304,9 @@ static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.set_txpwr_ctrl		= rtw8851b_set_txpwr_ctrl,
 	.init_txpwr_unit	= rtw8851b_init_txpwr_unit,
 	.get_thermal		= rtw8851b_get_thermal,
-	.ctrl_btg		= rtw8851b_ctrl_btg,
+	.ctrl_btg_bt_rx		= rtw8851b_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8851b_query_ppdu,
-	.bb_ctrl_btc_preagc	= rtw8851b_bb_ctrl_btc_preagc,
+	.ctrl_nbtg_bt_tx	= rtw8851b_ctrl_nbtg_bt_tx,
 	.cfg_txrx_path		= rtw8851b_bb_cfg_txrx_path,
 	.set_txpwr_ul_tb_offset	= rtw8851b_set_txpwr_ul_tb_offset,
 	.pwr_on_func		= rtw8851b_pwr_on_func,
@@ -2436,6 +2438,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.dcfo_comp_sft		= 12,
 	.imr_info		= &rtw8851b_imr_info,
 	.rrsr_cfgs		= &rtw8851b_rrsr_cfgs,
+	.bss_clr_vld		= {R_BSS_CLR_MAP_V1, B_BSS_CLR_MAP_VLD0},
 	.bss_clr_map_reg	= R_BSS_CLR_MAP_V1,
 	.dma_ch_mask		= BIT(RTW89_DMA_ACH4) | BIT(RTW89_DMA_ACH5) |
 				  BIT(RTW89_DMA_ACH6) | BIT(RTW89_DMA_ACH7) |

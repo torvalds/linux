@@ -71,6 +71,13 @@ static const struct rtw89_physts_regs rtw89_physts_regs_be = {
 	.dis_trigger_brk_mask = B_STS_DIS_TRIG_BY_BRK,
 };
 
+static const struct rtw89_cfo_regs rtw89_cfo_regs_be = {
+	.comp = R_DCFO_WEIGHT_V1,
+	.weighting_mask = B_DCFO_WEIGHT_MSK_V1,
+	.comp_seg0 = R_DCFO_OPT_V1,
+	.valid_0_mask = B_DCFO_OPT_EN_V1,
+};
+
 struct rtw89_byr_spec_ent_be {
 	struct rtw89_rate_desc init;
 	u8 num_of_idx;
@@ -636,6 +643,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.cr_base = 0x20000,
 	.ccx = &rtw89_ccx_regs_be,
 	.physts = &rtw89_physts_regs_be,
+	.cfo = &rtw89_cfo_regs_be,
 
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_be,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_be,

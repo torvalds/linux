@@ -4519,12 +4519,11 @@ static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 /**
  * ieee80211_get_tdls_action - get tdls packet action (or -1, if not tdls packet)
  * @skb: the skb containing the frame, length will not be checked
- * @hdr_size: the size of the ieee80211_hdr that starts at skb->data
  *
  * This function assumes the frame is a data frame, and that the network header
  * is in the correct place.
  */
-static inline int ieee80211_get_tdls_action(struct sk_buff *skb, u32 hdr_size)
+static inline int ieee80211_get_tdls_action(struct sk_buff *skb)
 {
 	if (!skb_is_nonlinear(skb) &&
 	    skb->len > (skb_network_offset(skb) + 2)) {

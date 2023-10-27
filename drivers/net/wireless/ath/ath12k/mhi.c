@@ -366,6 +366,7 @@ int ath12k_mhi_register(struct ath12k_pci *ab_pci)
 	mhi_ctrl->fw_image = ab_pci->amss_path;
 	mhi_ctrl->regs = ab->mem;
 	mhi_ctrl->reg_len = ab->mem_len;
+	mhi_ctrl->rddm_size = ab->hw_params->rddm_size;
 
 	ret = ath12k_mhi_get_msi(ab_pci);
 	if (ret) {

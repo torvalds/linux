@@ -3837,7 +3837,7 @@ static void _set_btg_ctrl(struct rtw89_dev *rtwdev)
 	if (mode == BTC_WLINK_25G_MCC)
 		return;
 
-	rtw89_ctrl_btg(rtwdev, is_btg);
+	rtw89_ctrl_btg_bt_rx(rtwdev, is_btg, RTW89_PHY_0);
 }
 
 struct rtw89_txtime_data {

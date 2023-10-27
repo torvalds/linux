@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #ifndef __iwl_fw_dbg_tlv_h__
 #define __iwl_fw_dbg_tlv_h__
@@ -41,6 +41,30 @@ struct iwl_fw_ini_header {
 	__le32 domain;
 	/* followed by the data */
 } __packed; /* FW_TLV_DEBUG_HEADER_S_VER_1 */
+
+/**
+ * struct iwl_fw_ini_addr_size - Base address and size that defines
+ * a chunk of memory
+ *
+ * @addr: the base address (fixed size - 4 bytes)
+ * @size: the size to read
+ */
+struct iwl_fw_ini_addr_size {
+	__le32 addr;
+	__le32 size;
+} __packed; /* FW_TLV_DEBUG_ADDR_SIZE_VER_1 */
+
+/**
+ * struct iwl_fw_ini_region_dev_addr_range - Configuration to read
+ * device address range
+ *
+ * @offset: offset to add to the base address of each chunk
+ * The addrs[] array will be treated as an array of &iwl_fw_ini_addr_size -
+ * an array of (addr, size) pairs.
+ */
+struct iwl_fw_ini_region_dev_addr_range {
+	__le32 offset;
+} __packed; /* FW_TLV_DEBUG_DEVICE_ADDR_RANGE_API_S_VER_1 */
 
 /**
  * struct iwl_fw_ini_region_dev_addr - Configuration to read device addresses
@@ -135,6 +159,10 @@ struct iwl_fw_ini_region_internal_buffer {
  *	&IWL_FW_INI_REGION_PAGING, &IWL_FW_INI_REGION_CSR,
  *	&IWL_FW_INI_REGION_DRAM_IMR and &IWL_FW_INI_REGION_PCI_IOSF_CONFIG
  *	&IWL_FW_INI_REGION_DBGI_SRAM, &FW_TLV_DEBUG_REGION_TYPE_DBGI_SRAM,
+ *	&IWL_FW_INI_REGION_PERIPHERY_SNPS_DPHYIP,
+ * @dev_addr_range: device address range configuration. Used by
+ *	&IWL_FW_INI_REGION_PERIPHERY_MAC_RANGE and
+ *	&IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE
  * @fifos: fifos configuration. Used by &IWL_FW_INI_REGION_TXF and
  *	&IWL_FW_INI_REGION_RXF
  * @err_table: error table configuration. Used by
@@ -157,6 +185,7 @@ struct iwl_fw_ini_region_tlv {
 	u8 name[IWL_FW_INI_MAX_NAME];
 	union {
 		struct iwl_fw_ini_region_dev_addr dev_addr;
+		struct iwl_fw_ini_region_dev_addr_range dev_addr_range;
 		struct iwl_fw_ini_region_fifos fifos;
 		struct iwl_fw_ini_region_err_table err_table;
 		struct iwl_fw_ini_region_internal_buffer internal_buffer;
@@ -362,6 +391,9 @@ enum iwl_fw_ini_buffer_location {
  * @IWL_FW_INI_REGION_PCI_IOSF_CONFIG: PCI/IOSF config
  * @IWL_FW_INI_REGION_SPECIAL_DEVICE_MEMORY: special device memory
  * @IWL_FW_INI_REGION_DBGI_SRAM: periphery registers of DBGI SRAM
+ * @IWL_FW_INI_REGION_PERIPHERY_MAC_RANGE: a range of periphery registers of MAC
+ * @IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE: a range of periphery registers of PHY
+ * @IWL_FW_INI_REGION_PERIPHERY_SNPS_DPHYIP: periphery registers of SNPS DPHYIP
  * @IWL_FW_INI_REGION_NUM: number of region types
  */
 enum iwl_fw_ini_region_type {
@@ -384,6 +416,9 @@ enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_PCI_IOSF_CONFIG,
 	IWL_FW_INI_REGION_SPECIAL_DEVICE_MEMORY,
 	IWL_FW_INI_REGION_DBGI_SRAM,
+	IWL_FW_INI_REGION_PERIPHERY_MAC_RANGE,
+	IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE,
+	IWL_FW_INI_REGION_PERIPHERY_SNPS_DPHYIP,
 	IWL_FW_INI_REGION_NUM
 }; /* FW_TLV_DEBUG_REGION_TYPE_API_E */
 

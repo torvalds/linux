@@ -1263,6 +1263,12 @@ rt2x00_has_cap_external_lna_bg(struct rt2x00_dev *rt2x00dev)
 }
 
 static inline bool
+rt2x00_has_cap_external_pa(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_EXTERNAL_PA_TX0);
+}
+
+static inline bool
 rt2x00_has_cap_double_antenna(struct rt2x00_dev *rt2x00dev)
 {
 	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_DOUBLE_ANTENNA);

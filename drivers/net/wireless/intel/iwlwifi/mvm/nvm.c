@@ -573,7 +573,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	 * try to replay the last set MCC to FW. If it doesn't exist,
 	 * queue an update to cfg80211 to retrieve the default alpha2 from FW.
 	 */
-	retval = iwl_mvm_init_fw_regd(mvm);
+	retval = iwl_mvm_init_fw_regd(mvm, true);
 	if (retval != -ENOENT)
 		return retval;
 

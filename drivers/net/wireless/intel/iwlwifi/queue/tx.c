@@ -1575,7 +1575,7 @@ void iwl_txq_progress(struct iwl_txq *txq)
 
 /* Frees buffers until index _not_ inclusive */
 void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
-		     struct sk_buff_head *skbs)
+		     struct sk_buff_head *skbs, bool is_flush)
 {
 	struct iwl_txq *txq = trans->txqs.txq[txq_id];
 	int tfd_num, read_ptr, last_to_free;
@@ -1650,9 +1650,11 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	if (iwl_txq_space(trans, txq) > txq->low_mark &&
 	    test_bit(txq_id, trans->txqs.queue_stopped)) {
 		struct sk_buff_head overflow_skbs;
+		struct sk_buff *skb;
 
 		__skb_queue_head_init(&overflow_skbs);
-		skb_queue_splice_init(&txq->overflow_q, &overflow_skbs);
+		skb_queue_splice_init(&txq->overflow_q,
+				      is_flush ? skbs : &overflow_skbs);
 
 		/*
 		 * We are going to transmit from the overflow queue.
@@ -1672,8 +1674,7 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		 */
 		spin_unlock_bh(&txq->lock);
 
-		while (!skb_queue_empty(&overflow_skbs)) {
-			struct sk_buff *skb = __skb_dequeue(&overflow_skbs);
+		while ((skb = __skb_dequeue(&overflow_skbs))) {
 			struct iwl_device_tx_cmd *dev_cmd_ptr;
 
 			dev_cmd_ptr = *(void **)((u8 *)skb->cb +

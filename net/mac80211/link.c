@@ -195,7 +195,7 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 
 	memset(to_free, 0, sizeof(links));
 
-	if (old_links == new_links)
+	if (old_links == new_links && dormant_links == sdata->vif.dormant_links)
 		return 0;
 
 	/* if there were no old links, need to clear the pointers to deflink */
@@ -235,6 +235,9 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 		RCU_INIT_POINTER(sdata->vif.link_conf[link_id], NULL);
 	}
 
+	if (!old_links)
+		ieee80211_debugfs_recreate_netdev(sdata, true);
+
 	/* link them into data structures */
 	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
 		WARN_ON(!use_deflink &&
@@ -261,6 +264,8 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 					   old_links & old_active,
 					   new_links & sdata->vif.active_links,
 					   old);
+		if (!new_links)
+			ieee80211_debugfs_recreate_netdev(sdata, false);
 	}
 
 	if (ret) {

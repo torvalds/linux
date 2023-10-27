@@ -737,7 +737,6 @@ struct ath12k_base {
 	struct ath12k_wmi_target_cap_arg target_caps;
 	u32 ext_service_bitmap[WMI_SERVICE_EXT_BM_SIZE];
 	bool pdevs_macaddr_valid;
-	int bd_api;
 
 	const struct ath12k_hw_params *hw_params;
 
@@ -851,6 +850,11 @@ static inline struct ath12k_skb_rxcb *ATH12K_SKB_RXCB(struct sk_buff *skb)
 static inline struct ath12k_vif *ath12k_vif_to_arvif(struct ieee80211_vif *vif)
 {
 	return (struct ath12k_vif *)vif->drv_priv;
+}
+
+static inline struct ath12k_sta *ath12k_sta_to_arsta(struct ieee80211_sta *sta)
+{
+	return (struct ath12k_sta *)sta->drv_priv;
 }
 
 static inline struct ath12k *ath12k_ab_to_ar(struct ath12k_base *ab,

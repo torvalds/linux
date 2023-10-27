@@ -1062,7 +1062,7 @@ void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 			cfg80211_leave(wiphy_to_rdev(wdev->wiphy), wdev);
 			break;
 		case EVENT_PORT_AUTHORIZED:
-			__cfg80211_port_authorized(wdev, ev->pa.bssid,
+			__cfg80211_port_authorized(wdev, ev->pa.peer_addr,
 						   ev->pa.td_bitmap,
 						   ev->pa.td_bitmap_len);
 			break;
@@ -1999,6 +1999,7 @@ bool ieee80211_operating_class_to_band(u8 operating_class,
 		*band = NL80211_BAND_5GHZ;
 		return true;
 	case 131 ... 135:
+	case 137:
 		*band = NL80211_BAND_6GHZ;
 		return true;
 	case 81:

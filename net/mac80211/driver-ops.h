@@ -489,6 +489,23 @@ static inline void drv_sta_remove(struct ieee80211_local *local,
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
+static inline void drv_vif_add_debugfs(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
+	    WARN_ON(!sdata->vif.debugfs_dir))
+		return;
+
+	sdata = get_bss_sdata(sdata);
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	if (local->ops->vif_add_debugfs)
+		local->ops->vif_add_debugfs(&local->hw, &sdata->vif);
+}
+
 static inline void drv_link_add_debugfs(struct ieee80211_local *local,
 					struct ieee80211_sub_if_data *sdata,
 					struct ieee80211_bss_conf *link_conf,
@@ -538,6 +555,12 @@ static inline void drv_link_sta_add_debugfs(struct ieee80211_local *local,
 	if (local->ops->link_sta_add_debugfs)
 		local->ops->link_sta_add_debugfs(&local->hw, &sdata->vif,
 						 link_sta, dir);
+}
+#else
+static inline void drv_vif_add_debugfs(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
 }
 #endif
 
@@ -905,6 +928,7 @@ static inline void drv_mgd_prepare_tx(struct ieee80211_local *local,
 		return;
 	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
 
+	info->link_id = info->link_id < 0 ? 0 : info->link_id;
 	trace_drv_mgd_prepare_tx(local, sdata, info->duration,
 				 info->subtype, info->success);
 	if (local->ops->mgd_prepare_tx)
@@ -932,7 +956,8 @@ static inline void drv_mgd_complete_tx(struct ieee80211_local *local,
 
 static inline void
 drv_mgd_protect_tdls_discover(struct ieee80211_local *local,
-			      struct ieee80211_sub_if_data *sdata)
+			      struct ieee80211_sub_if_data *sdata,
+			      int link_id)
 {
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -941,9 +966,12 @@ drv_mgd_protect_tdls_discover(struct ieee80211_local *local,
 		return;
 	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
 
+	link_id = link_id > 0 ? link_id : 0;
+
 	trace_drv_mgd_protect_tdls_discover(local, sdata);
 	if (local->ops->mgd_protect_tdls_discover)
-		local->ops->mgd_protect_tdls_discover(&local->hw, &sdata->vif);
+		local->ops->mgd_protect_tdls_discover(&local->hw, &sdata->vif,
+						      link_id);
 	trace_drv_return_void(local);
 }
 

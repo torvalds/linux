@@ -2832,7 +2832,7 @@ static void ath11k_peer_assoc_prepare(struct ath11k *ar,
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	arsta = (struct ath11k_sta *)sta->drv_priv;
+	arsta = ath11k_sta_to_arsta(sta);
 
 	memset(arg, 0, sizeof(*arg));
 
@@ -4315,7 +4315,7 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		ath11k_warn(ab, "peer %pM disappeared!\n", peer_addr);
 
 	if (sta) {
-		arsta = (struct ath11k_sta *)sta->drv_priv;
+		arsta = ath11k_sta_to_arsta(sta);
 
 		switch (key->cipher) {
 		case WLAN_CIPHER_SUITE_TKIP:
@@ -4906,7 +4906,7 @@ static int ath11k_mac_station_add(struct ath11k *ar,
 {
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct peer_create_params peer_param;
 	int ret;
 
@@ -5030,7 +5030,7 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 {
 	struct ath11k *ar = hw->priv;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k_peer *peer;
 	int ret = 0;
 
@@ -5196,7 +5196,7 @@ static void ath11k_mac_op_sta_set_4addr(struct ieee80211_hw *hw,
 					struct ieee80211_sta *sta, bool enabled)
 {
 	struct ath11k *ar = hw->priv;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 
 	if (enabled && !arsta->use_4addr_set) {
 		ieee80211_queue_work(ar->hw, &arsta->set_4addr_wk);
@@ -5210,7 +5210,7 @@ static void ath11k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
 					u32 changed)
 {
 	struct ath11k *ar = hw->priv;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ath11k_peer *peer;
 	u32 bw, smps;
@@ -6203,7 +6203,7 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
 	}
 
 	if (control->sta)
-		arsta = (struct ath11k_sta *)control->sta->drv_priv;
+		arsta = ath11k_sta_to_arsta(control->sta);
 
 	ret = ath11k_dp_tx(ar, arvif, arsta, skb);
 	if (unlikely(ret)) {
@@ -8235,7 +8235,7 @@ static void ath11k_mac_set_bitrate_mask_iter(void *data,
 					     struct ieee80211_sta *sta)
 {
 	struct ath11k_vif *arvif = data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arvif->ar;
 
 	spin_lock_bh(&ar->data_lock);
@@ -8639,7 +8639,7 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 					 struct ieee80211_sta *sta,
 					 struct station_info *sinfo)
 {
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	s8 signal;
 	bool db2dbm = test_bit(WMI_TLV_SERVICE_HW_DB2DBM_CONVERSION_SUPPORT,

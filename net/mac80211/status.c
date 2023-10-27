@@ -731,12 +731,9 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 		if (!sdata) {
 			skb->dev = NULL;
 		} else if (!dropped) {
-			unsigned int hdr_size =
-				ieee80211_hdrlen(hdr->frame_control);
-
 			/* Check to see if packet is a TDLS teardown packet */
 			if (ieee80211_is_data(hdr->frame_control) &&
-			    (ieee80211_get_tdls_action(skb, hdr_size) ==
+			    (ieee80211_get_tdls_action(skb) ==
 			     WLAN_TDLS_TEARDOWN)) {
 				ieee80211_tdls_td_tx_handle(local, sdata, skb,
 							    info->flags);
@@ -1095,7 +1092,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 			     send_to_cooked, status);
 }
 
-void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+void ieee80211_tx_status_skb(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -1114,7 +1111,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	ieee80211_tx_status_ext(hw, &status);
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(ieee80211_tx_status);
+EXPORT_SYMBOL(ieee80211_tx_status_skb);
 
 void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 			     struct ieee80211_tx_status *status)

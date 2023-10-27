@@ -642,7 +642,6 @@ static int iwl_mvm_tzone_set_trip_temp(struct thermal_zone_device *device,
 				       int trip, int temp)
 {
 	struct iwl_mvm *mvm = thermal_zone_device_priv(device);
-	struct iwl_mvm_thermal_device *tzone;
 	int ret;
 
 	mutex_lock(&mvm->mutex);
@@ -655,12 +654,6 @@ static int iwl_mvm_tzone_set_trip_temp(struct thermal_zone_device *device,
 
 	if ((temp / 1000) > S16_MAX) {
 		ret = -EINVAL;
-		goto out;
-	}
-
-	tzone = &mvm->tz_device;
-	if (!tzone) {
-		ret = -EIO;
 		goto out;
 	}
 

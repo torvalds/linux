@@ -360,6 +360,7 @@ int ath12k_core_fetch_board_data_api_1(struct ath12k_base *ab,
 int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
 {
 	char boardname[BOARD_NAME_SIZE];
+	int bd_api;
 	int ret;
 
 	ret = ath12k_core_create_board_name(ab, boardname, BOARD_NAME_SIZE);
@@ -368,12 +369,12 @@ int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
 		return ret;
 	}
 
-	ab->bd_api = 2;
+	bd_api = 2;
 	ret = ath12k_core_fetch_board_data_api_n(ab, bd, boardname);
 	if (!ret)
 		goto success;
 
-	ab->bd_api = 1;
+	bd_api = 1;
 	ret = ath12k_core_fetch_board_data_api_1(ab, bd, ATH12K_DEFAULT_BOARD_FILE);
 	if (ret) {
 		ath12k_err(ab, "failed to fetch board-2.bin or board.bin from %s\n",
@@ -382,7 +383,7 @@ int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
 	}
 
 success:
-	ath12k_dbg(ab, ATH12K_DBG_BOOT, "using board api %d\n", ab->bd_api);
+	ath12k_dbg(ab, ATH12K_DBG_BOOT, "using board api %d\n", bd_api);
 	return 0;
 }
 
@@ -960,6 +961,7 @@ static void ath12k_core_reset(struct work_struct *work)
 						ATH12K_RECOVER_START_TIMEOUT_HZ);
 
 	ath12k_hif_power_down(ab);
+	ath12k_qmi_free_resource(ab);
 	ath12k_hif_power_up(ab);
 
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "reset started\n");

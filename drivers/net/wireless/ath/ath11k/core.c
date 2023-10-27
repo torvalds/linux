@@ -16,6 +16,7 @@
 #include "debug.h"
 #include "hif.h"
 #include "wow.h"
+#include "fw.h"
 
 unsigned int ath11k_debug_mask;
 EXPORT_SYMBOL(ath11k_debug_mask);
@@ -1317,6 +1318,7 @@ int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 {
 	char *boardname = NULL, *fallback_boardname = NULL, *chip_id_boardname = NULL;
 	char *filename, filepath[100];
+	int bd_api;
 	int ret = 0;
 
 	filename = ATH11K_BOARD_API2_FILE;
@@ -1332,7 +1334,7 @@ int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 		goto exit;
 	}
 
-	ab->bd_api = 2;
+	bd_api = 2;
 	ret = ath11k_core_fetch_board_data_api_n(ab, bd, boardname,
 						 ATH11K_BD_IE_BOARD,
 						 ATH11K_BD_IE_BOARD_NAME,
@@ -1381,7 +1383,7 @@ int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 	if (!ret)
 		goto exit;
 
-	ab->bd_api = 1;
+	bd_api = 1;
 	ret = ath11k_core_fetch_board_data_api_1(ab, bd, ATH11K_DEFAULT_BOARD_FILE);
 	if (ret) {
 		ath11k_core_create_firmware_path(ab, filename,
@@ -1405,7 +1407,7 @@ exit:
 	kfree(chip_id_boardname);
 
 	if (!ret)
-		ath11k_dbg(ab, ATH11K_DBG_BOOT, "using board api %d\n", ab->bd_api);
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "using board api %d\n", bd_api);
 
 	return ret;
 }
@@ -2071,6 +2073,12 @@ int ath11k_core_pre_init(struct ath11k_base *ab)
 		return ret;
 	}
 
+	ret = ath11k_fw_pre_init(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to pre init firmware: %d", ret);
+		return ret;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(ath11k_core_pre_init);
@@ -2101,6 +2109,7 @@ void ath11k_core_deinit(struct ath11k_base *ab)
 	ath11k_hif_power_down(ab);
 	ath11k_mac_destroy(ab);
 	ath11k_core_soc_destroy(ab);
+	ath11k_fw_destroy(ab);
 }
 EXPORT_SYMBOL(ath11k_core_deinit);
 
