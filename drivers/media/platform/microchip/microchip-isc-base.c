@@ -851,40 +851,6 @@ static int isc_try_configure_pipeline(struct isc_device *isc)
 	return 0;
 }
 
-static void isc_try_fse(struct isc_device *isc,
-			struct v4l2_subdev_state *sd_state)
-{
-	struct v4l2_rect *try_crop =
-		v4l2_subdev_state_get_crop(sd_state, 0);
-	struct v4l2_subdev_frame_size_enum fse = {
-		.which = V4L2_SUBDEV_FORMAT_TRY,
-	};
-	int ret;
-
-	/*
-	 * If we do not know yet which format the subdev is using, we cannot
-	 * do anything.
-	 */
-	if (!isc->config.sd_format)
-		return;
-
-	fse.code = isc->try_config.sd_format->mbus_code;
-
-	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, enum_frame_size,
-			       sd_state, &fse);
-	/*
-	 * Attempt to obtain format size from subdev. If not available,
-	 * just use the maximum ISC can receive.
-	 */
-	if (ret) {
-		try_crop->width = isc->max_width;
-		try_crop->height = isc->max_height;
-	} else {
-		try_crop->width = fse.max_width;
-		try_crop->height = fse.max_height;
-	}
-}
-
 static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f)
 {
 	struct v4l2_pix_format *pixfmt = &f->fmt.pix;
@@ -946,10 +912,6 @@ static int isc_validate(struct isc_device *isc)
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 		.pad = isc->remote_pad,
 	};
-	struct v4l2_subdev_pad_config pad_cfg = {};
-	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg,
-	};
 
 	/* Get current format from subdev */
 	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, get_fmt, NULL,
@@ -1009,9 +971,6 @@ static int isc_validate(struct isc_device *isc)
 	ret = isc_try_validate_formats(isc);
 	if (ret)
 		return ret;
-
-	/* Obtain frame sizes if possible to have crop requirements ready */
-	isc_try_fse(isc, &pad_state);
 
 	/* Configure ISC pipeline for the config */
 	ret = isc_try_configure_pipeline(isc);
