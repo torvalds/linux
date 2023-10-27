@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+/dts-v1/;
+
+#include "aspeed-g7.dtsi"
+#include "aspeed-ltpi0.dtsi"
+#include <dt-bindings/gpio/aspeed-gpio.h>
+
+/ {
+	model = "AST2700 EVB";
+	compatible = "aspeed,ast2700-evb", "aspeed,ast2700";
+
+	chosen {
+		bootargs = "console=ttyS12,115200n8";
+		stdout-path = &uart12;
+	};
+
+	firmware {
+		optee: optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
+	memory@400000000 {
+		device_type = "memory";
+		reg = <0x4 0x00000000 0x0 0x40000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		atf: trusted-firmware-a@430000000 {
+			reg = <0x4 0x30000000 0x0 0x80000>;
+			no-map;
+		};
+
+		optee_core: optee_core@430080000 {
+			reg = <0x4 0x30080000 0x0 0x1000000>;
+			no-map;
+		};
+
+		bmc_dev_memory: bmc_dev_memory {
+			size = <0x0 0x00100000>;
+			alignment = <0x0 0x00100000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		mctp0_reserved: mctp0_reserved@431080000 {
+			reg = <0x4 0x31080000 0x0 0x10000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		mctp1_reserved: mctp1_reserved@431090000 {
+			reg = <0x4 0x31090000 0x0 0x10000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		vbios_base0: vbios_base0@4310a0000 {
+			reg = <0x4 0x310a0000 0x0 0x10000>;
+			no-map;
+		};
+
+		vbios_base1: vbios_base1@4310b0000 {
+			reg = <0x4 0x310b0000 0x0 0x10000>;
+			no-map;
+		};
+
+		espi_mmbi_memory: espi-mmbi-memory@434000000 {
+			reg = <0x4 0x34000000 0x0 0x4000000>;
+			no-map;
+		};
+
+		video_engine_memory: video {
+			size = <0x0 0x04000000>;
+			alignment = <0x0 0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+	};
+};
+
+&uart12 {
+	status = "okay";
+};
