@@ -340,6 +340,7 @@ static void free_bulk(struct bpf_mem_cache *c)
 	int cnt;
 
 	WARN_ON_ONCE(tgt->unit_size != c->unit_size);
+	WARN_ON_ONCE(tgt->percpu_size != c->percpu_size);
 
 	do {
 		inc_active(c, &flags);
@@ -364,6 +365,9 @@ static void __free_by_rcu(struct rcu_head *head)
 	struct bpf_mem_cache *c = container_of(head, struct bpf_mem_cache, rcu);
 	struct bpf_mem_cache *tgt = c->tgt;
 	struct llist_node *llnode;
+
+	WARN_ON_ONCE(tgt->unit_size != c->unit_size);
+	WARN_ON_ONCE(tgt->percpu_size != c->percpu_size);
 
 	llnode = llist_del_all(&c->waiting_for_gp);
 	if (!llnode)
@@ -491,21 +495,17 @@ static int check_obj_size(struct bpf_mem_cache *c, unsigned int idx)
 	struct llist_node *first;
 	unsigned int obj_size;
 
-	/* For per-cpu allocator, the size of free objects in free list doesn't
-	 * match with unit_size and now there is no way to get the size of
-	 * per-cpu pointer saved in free object, so just skip the checking.
-	 */
-	if (c->percpu_size)
-		return 0;
-
 	first = c->free_llist.first;
 	if (!first)
 		return 0;
 
-	obj_size = ksize(first);
+	if (c->percpu_size)
+		obj_size = pcpu_alloc_size(((void **)first)[1]);
+	else
+		obj_size = ksize(first);
 	if (obj_size != c->unit_size) {
-		WARN_ONCE(1, "bpf_mem_cache[%u]: unexpected object size %u, expect %u\n",
-			  idx, obj_size, c->unit_size);
+		WARN_ONCE(1, "bpf_mem_cache[%u]: percpu %d, unexpected object size %u, expect %u\n",
+			  idx, c->percpu_size, obj_size, c->unit_size);
 		return -EINVAL;
 	}
 	return 0;
@@ -529,6 +529,7 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 	/* room for llist_node and per-cpu pointer */
 	if (percpu)
 		percpu_size = LLIST_NODE_SZ + sizeof(void *);
+	ma->percpu = percpu;
 
 	if (size) {
 		pc = __alloc_percpu_gfp(sizeof(*pc), 8, GFP_KERNEL);
@@ -878,6 +879,17 @@ void notrace *bpf_mem_alloc(struct bpf_mem_alloc *ma, size_t size)
 	return !ret ? NULL : ret + LLIST_NODE_SZ;
 }
 
+static notrace int bpf_mem_free_idx(void *ptr, bool percpu)
+{
+	size_t size;
+
+	if (percpu)
+		size = pcpu_alloc_size(*((void **)ptr));
+	else
+		size = ksize(ptr - LLIST_NODE_SZ);
+	return bpf_mem_cache_idx(size);
+}
+
 void notrace bpf_mem_free(struct bpf_mem_alloc *ma, void *ptr)
 {
 	int idx;
@@ -885,7 +897,7 @@ void notrace bpf_mem_free(struct bpf_mem_alloc *ma, void *ptr)
 	if (!ptr)
 		return;
 
-	idx = bpf_mem_cache_idx(ksize(ptr - LLIST_NODE_SZ));
+	idx = bpf_mem_free_idx(ptr, ma->percpu);
 	if (idx < 0)
 		return;
 
@@ -899,7 +911,7 @@ void notrace bpf_mem_free_rcu(struct bpf_mem_alloc *ma, void *ptr)
 	if (!ptr)
 		return;
 
-	idx = bpf_mem_cache_idx(ksize(ptr - LLIST_NODE_SZ));
+	idx = bpf_mem_free_idx(ptr, ma->percpu);
 	if (idx < 0)
 		return;
 
@@ -973,6 +985,12 @@ void notrace *bpf_mem_cache_alloc_flags(struct bpf_mem_alloc *ma, gfp_t flags)
 	return !ret ? NULL : ret + LLIST_NODE_SZ;
 }
 
+/* The alignment of dynamic per-cpu area is 8, so c->unit_size and the
+ * actual size of dynamic per-cpu area will always be matched and there is
+ * no need to adjust size_index for per-cpu allocation. However for the
+ * simplicity of the implementation, use an unified size_index for both
+ * kmalloc and per-cpu allocation.
+ */
 static __init int bpf_mem_cache_adjust_size(void)
 {
 	unsigned int size;

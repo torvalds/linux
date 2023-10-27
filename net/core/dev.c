@@ -6530,6 +6530,8 @@ static int __napi_poll(struct napi_struct *n, bool *repoll)
 	if (napi_is_scheduled(n)) {
 		work = n->poll(n, weight);
 		trace_napi_poll(n, work, weight);
+
+		xdp_do_check_flushed(n);
 	}
 
 	if (unlikely(work > weight))

@@ -30,6 +30,7 @@ int iter_task_vma_for_each(const void *ctx)
 	bpf_for_each(task_vma, vma, task, 0) {
 		if (seen >= 1000)
 			break;
+		barrier_var(seen);
 
 		vm_ranges[seen].vm_start = vma->vm_start;
 		vm_ranges[seen].vm_end = vma->vm_end;
