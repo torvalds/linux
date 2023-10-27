@@ -885,13 +885,13 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 
-			soc1_rst: reset-controller@14c02200 {
+			soc1_rst: reset-controller@200 {
 				compatible = "aspeed,ast2700-soc1-reset";
 				reg = <0 0x200 0 0x40>;
 				#reset-cells = <1>;
 			};
 
-			soc1_clk: clock-controller@200 {
+			soc1_clk: clock-controller@240 {
 				compatible = "aspeed,ast2700-soc1-clk";
 				reg = <0 0x240 0 0x1c0>;
 				#clock-cells = <1>;
