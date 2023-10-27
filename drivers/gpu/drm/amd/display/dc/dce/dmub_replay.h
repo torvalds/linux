@@ -45,6 +45,9 @@ struct dmub_replay_funcs {
 		struct replay_context *replay_context, uint8_t panel_inst);
 	void (*replay_set_power_opt)(struct dmub_replay *dmub, unsigned int power_opt,
 		uint8_t panel_inst);
+	void (*replay_send_cmd)(struct dmub_replay *dmub,
+		enum replay_FW_Message_type msg, unsigned int panel_inst,
+		uint32_t cmd_data);
 	void (*replay_set_coasting_vtotal)(struct dmub_replay *dmub, uint16_t coasting_vtotal,
 		uint8_t panel_inst);
 	void (*replay_residency)(struct dmub_replay *dmub,

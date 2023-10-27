@@ -213,6 +213,7 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 	link_srv->edp_get_replay_state = edp_get_replay_state;
 	link_srv->edp_set_replay_allow_active = edp_set_replay_allow_active;
 	link_srv->edp_setup_replay = edp_setup_replay;
+	link_srv->edp_send_replay_cmd = edp_send_replay_cmd;
 	link_srv->edp_set_coasting_vtotal = edp_set_coasting_vtotal;
 	link_srv->edp_replay_residency = edp_replay_residency;
 

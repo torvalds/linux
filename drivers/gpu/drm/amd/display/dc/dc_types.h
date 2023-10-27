@@ -1022,6 +1022,16 @@ enum replay_coasting_vtotal_type {
 	PR_COASTING_TYPE_NUM,
 };
 
+/*
+ * This is general Interface for Replay to
+ * set an 32 bit variable to dmub
+ * The Message_type indicates which variable
+ * passed to DMUB.
+ */
+enum replay_FW_Message_type {
+	Replay_Set_Timing_Sync_Supported,
+};
+
 union replay_error_status {
 	struct {
 		unsigned char STATE_TRANSITION_ERROR    :1;
