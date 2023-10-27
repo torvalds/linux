@@ -26,6 +26,7 @@ static unsigned int mrp_periodic_time __read_mostly = 1000;
 module_param(mrp_periodic_time, uint, 0644);
 MODULE_PARM_DESC(mrp_periodic_time, "Periodic time in ms (default 1s)");
 
+MODULE_DESCRIPTION("IEEE 802.1Q Multiple Registration Protocol (MRP)");
 MODULE_LICENSE("GPL");
 
 static const u8

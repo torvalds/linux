@@ -160,4 +160,5 @@ void unregister_snap_client(struct datalink_proto *proto)
 	kfree(proto);
 }
 
+MODULE_DESCRIPTION("SNAP data link layer. Derived from 802.2");
 MODULE_LICENSE("GPL");
