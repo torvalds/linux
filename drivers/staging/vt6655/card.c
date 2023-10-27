@@ -182,7 +182,7 @@ static void calculate_ofdmr_parameter(unsigned char rate,
  *
  * Return Value: None.
  */
-bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
+bool card_set_phy_parameter(struct vnt_private *priv, u8 bb_type)
 {
 	unsigned char cw_max_min = 0;
 	unsigned char slot = 0;

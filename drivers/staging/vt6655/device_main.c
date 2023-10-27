@@ -1442,7 +1442,7 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 		if (priv->byBBType != bb_type) {
 			priv->byBBType = bb_type;
 
-			CARDbSetPhyParameter(priv, priv->byBBType);
+			card_set_phy_parameter(priv, priv->byBBType);
 		}
 	}
 
@@ -1509,7 +1509,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 		else
 			priv->short_slot_time = false;
 
-		CARDbSetPhyParameter(priv, priv->byBBType);
+		card_set_phy_parameter(priv, priv->byBBType);
 		bb_set_vga_gain_offset(priv, priv->bbvga[0]);
 	}
 
