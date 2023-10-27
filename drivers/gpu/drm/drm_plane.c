@@ -1641,6 +1641,14 @@ __drm_plane_get_damage_clips(const struct drm_plane_state *state)
 					state->fb_damage_clips->data : NULL);
 }
 
+void drm_plane_solid_fill_print_info(struct drm_printer *p, unsigned int indent,
+				     const struct drm_plane_state *state)
+{
+	drm_printf_indent(p, indent, "r=0x%08x\n", state->solid_fill.r);
+	drm_printf_indent(p, indent, "g=0x%08x\n", state->solid_fill.g);
+	drm_printf_indent(p, indent, "b=0x%08x\n", state->solid_fill.b);
+}
+
 /**
  * drm_plane_get_damage_clips - Returns damage clips.
  * @state: Plane state.
