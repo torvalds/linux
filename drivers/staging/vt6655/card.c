@@ -265,7 +265,7 @@ bool card_set_phy_parameter(struct vnt_private *priv, u8 bb_type)
 		iowrite8(priv->cw_max_min, priv->port_offset + MAC_REG_CWMAXMIN0);
 	}
 
-	priv->byPacketType = CARDbyGetPktType(priv);
+	priv->packet_type = CARDbyGetPktType(priv);
 
 	CARDvSetRSPINF(priv, bb_type);
 
