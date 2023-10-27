@@ -1734,6 +1734,20 @@ static const struct adsp_data holi_adsp_resource = {
 	.ssctl_id = 0x14,
 };
 
+static const struct adsp_data pitti_adsp_resource = {
+	.crash_reason_smem = 423,
+	.firmware_name = "adsp.mdt",
+	.pas_id = 1,
+	.minidump_id = 5,
+	.uses_elf64 = true,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.ssr_name = "lpass",
+	.sysmon_name = "adsp",
+	.qmp_name = "adsp",
+	.ssctl_id = 0x14,
+};
+
 static const struct adsp_data cdsp_resource_init = {
 	.crash_reason_smem = 601,
 	.firmware_name = "cdsp.mdt",
@@ -2099,6 +2113,21 @@ static const struct adsp_data holi_mpss_resource = {
 	.ssctl_id = 0x12,
 };
 
+static const struct adsp_data pitti_mpss_resource = {
+	.crash_reason_smem = 421,
+	.firmware_name = "modem.mdt",
+	.pas_id = 4,
+	.free_after_auth_reset = true,
+	.minidump_id = 3,
+	.uses_elf64 = true,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.ssr_name = "mpss",
+	.sysmon_name = "modem",
+	.qmp_name = "modem",
+	.ssctl_id = 0x12,
+};
+
 static const struct adsp_data slpi_resource_init = {
 		.crash_reason_smem = 424,
 		.firmware_name = "slpi.mdt",
@@ -2389,6 +2418,8 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,cliffs-modem-pas", .data = &cliffs_mpss_resource},
 	{ .compatible = "qcom,cliffs-cdsp-pas", .data = &cliffs_cdsp_resource},
 	{ .compatible = "qcom,cliffs-wpss-pas", .data = &cliffs_wpss_resource},
+	{ .compatible = "qcom,pitti-adsp-pas", .data = &pitti_adsp_resource},
+	{ .compatible = "qcom,pitti-modem-pas", .data = &pitti_mpss_resource},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);
