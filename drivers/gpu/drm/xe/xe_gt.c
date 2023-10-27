@@ -626,6 +626,8 @@ err_fail:
 	xe_uevent_gt_reset_failure(to_pci_dev(gt_to_xe(gt)->drm.dev),
 				   gt_to_tile(gt)->id, gt->info.id);
 
+	gt_to_xe(gt)->needs_flr_on_fini = true;
+
 	return err;
 }
 
