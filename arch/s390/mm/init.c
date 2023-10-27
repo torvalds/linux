@@ -168,8 +168,6 @@ void __init mem_init(void)
 	/* this will put all low memory onto the freelists */
 	memblock_free_all();
 	setup_zero_pages();	/* Setup zeroed pages. */
-
-	cmma_init_nodat();
 }
 
 void free_initmem(void)

@@ -2,6 +2,7 @@
 #include <linux/sched/task.h>
 #include <linux/pgtable.h>
 #include <linux/kasan.h>
+#include <asm/page-states.h>
 #include <asm/pgalloc.h>
 #include <asm/facility.h>
 #include <asm/sections.h>
@@ -70,6 +71,10 @@ static void kasan_populate_shadow(void)
 	crst_table_init((unsigned long *)kasan_early_shadow_pud, pud_val(pud_z));
 	crst_table_init((unsigned long *)kasan_early_shadow_pmd, pmd_val(pmd_z));
 	memset64((u64 *)kasan_early_shadow_pte, pte_val(pte_z), PTRS_PER_PTE);
+	__arch_set_page_dat(kasan_early_shadow_p4d, 1UL << CRST_ALLOC_ORDER);
+	__arch_set_page_dat(kasan_early_shadow_pud, 1UL << CRST_ALLOC_ORDER);
+	__arch_set_page_dat(kasan_early_shadow_pmd, 1UL << CRST_ALLOC_ORDER);
+	__arch_set_page_dat(kasan_early_shadow_pte, 1);
 
 	/*
 	 * Current memory layout:
@@ -223,6 +228,7 @@ static void *boot_crst_alloc(unsigned long val)
 
 	table = (unsigned long *)physmem_alloc_top_down(RR_VMEM, size, size);
 	crst_table_init(table, val);
+	__arch_set_page_dat(table, 1UL << CRST_ALLOC_ORDER);
 	return table;
 }
 
@@ -238,6 +244,7 @@ static pte_t *boot_pte_alloc(void)
 	if (!pte_leftover) {
 		pte_leftover = (void *)physmem_alloc_top_down(RR_VMEM, PAGE_SIZE, PAGE_SIZE);
 		pte = pte_leftover + _PAGE_TABLE_SIZE;
+		__arch_set_page_dat(pte, 1);
 	} else {
 		pte = pte_leftover;
 		pte_leftover = NULL;
@@ -418,6 +425,14 @@ void setup_vmem(unsigned long asce_limit)
 	unsigned long asce_bits;
 	int i;
 
+	/*
+	 * Mark whole memory as no-dat. This must be done before any
+	 * page tables are allocated, or kernel image builtin pages
+	 * are marked as dat tables.
+	 */
+	for_each_physmem_online_range(i, &start, &end)
+		__arch_set_page_nodat((void *)start, (end - start) >> PAGE_SHIFT);
+
 	if (asce_limit == _REGION1_SIZE) {
 		asce_type = _REGION2_ENTRY_EMPTY;
 		asce_bits = _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
@@ -429,6 +444,8 @@ void setup_vmem(unsigned long asce_limit)
 
 	crst_table_init((unsigned long *)swapper_pg_dir, asce_type);
 	crst_table_init((unsigned long *)invalid_pg_dir, _REGION3_ENTRY_EMPTY);
+	__arch_set_page_dat((void *)swapper_pg_dir, 1UL << CRST_ALLOC_ORDER);
+	__arch_set_page_dat((void *)invalid_pg_dir, 1UL << CRST_ALLOC_ORDER);
 
 	/*
 	 * To allow prefixing the lowcore must be mapped with 4KB pages.
