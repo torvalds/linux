@@ -168,6 +168,9 @@ static void member_to_text(struct printbuf *out,
 	u64 bucket_size = le16_to_cpu(m.bucket_size);
 	u64 device_size = le64_to_cpu(m.nbuckets) * bucket_size;
 
+	if (!bch2_member_exists(&m))
+		return;
+
 	prt_printf(out, "Device:");
 	prt_tab(out);
 	prt_printf(out, "%u", i);
@@ -304,10 +307,8 @@ static void bch2_sb_members_v1_to_text(struct printbuf *out, struct bch_sb *sb,
 	struct bch_sb_field_disk_groups *gi = bch2_sb_field_get(sb, disk_groups);
 	unsigned i;
 
-	for (i = 0; i < sb->nr_devices; i++) {
-		struct bch_member m = members_v1_get(mi, i);
-		member_to_text(out, m, gi, sb, i);
-	}
+	for (i = 0; i < sb->nr_devices; i++)
+		member_to_text(out, members_v1_get(mi, i), gi, sb, i);
 }
 
 const struct bch_sb_field_ops bch_sb_field_ops_members_v1 = {
@@ -322,10 +323,8 @@ static void bch2_sb_members_v2_to_text(struct printbuf *out, struct bch_sb *sb,
 	struct bch_sb_field_disk_groups *gi = bch2_sb_field_get(sb, disk_groups);
 	unsigned i;
 
-	for (i = 0; i < sb->nr_devices; i++) {
-		struct bch_member m = members_v2_get(mi, i);
-		member_to_text(out, m, gi, sb, i);
-	}
+	for (i = 0; i < sb->nr_devices; i++)
+		member_to_text(out, members_v2_get(mi, i), gi, sb, i);
 }
 
 static int bch2_sb_members_v2_validate(struct bch_sb *sb,
