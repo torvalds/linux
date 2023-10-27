@@ -4389,7 +4389,6 @@ static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 
 static size_t vxlan_get_size(const struct net_device *dev)
 {
-
 	return nla_total_size(sizeof(__u32)) +	/* IFLA_VXLAN_ID */
 		nla_total_size(sizeof(struct in6_addr)) + /* IFLA_VXLAN_GROUP{6} */
 		nla_total_size(sizeof(__u32)) +	/* IFLA_VXLAN_LINK */
@@ -4407,7 +4406,6 @@ static size_t vxlan_get_size(const struct net_device *dev)
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_COLLECT_METADATA */
 		nla_total_size(sizeof(__u32)) +	/* IFLA_VXLAN_AGEING */
 		nla_total_size(sizeof(__u32)) +	/* IFLA_VXLAN_LIMIT */
-		nla_total_size(sizeof(struct ifla_vxlan_port_range)) +
 		nla_total_size(sizeof(__be16)) + /* IFLA_VXLAN_PORT */
 		nla_total_size(sizeof(__u8)) + /* IFLA_VXLAN_UDP_CSUM */
 		nla_total_size(sizeof(__u8)) + /* IFLA_VXLAN_UDP_ZERO_CSUM6_TX */
@@ -4415,6 +4413,8 @@ static size_t vxlan_get_size(const struct net_device *dev)
 		nla_total_size(sizeof(__u8)) + /* IFLA_VXLAN_REMCSUM_TX */
 		nla_total_size(sizeof(__u8)) + /* IFLA_VXLAN_REMCSUM_RX */
 		nla_total_size(sizeof(__u8)) + /* IFLA_VXLAN_LOCALBYPASS */
+		/* IFLA_VXLAN_PORT_RANGE */
+		nla_total_size(sizeof(struct ifla_vxlan_port_range)) +
 		nla_total_size(0) + /* IFLA_VXLAN_GBP */
 		nla_total_size(0) + /* IFLA_VXLAN_GPE */
 		nla_total_size(0) + /* IFLA_VXLAN_REMCSUM_NOPARTIAL */
