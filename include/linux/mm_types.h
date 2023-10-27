@@ -938,7 +938,7 @@ struct mm_struct {
 #endif
 		struct work_struct async_put_work;
 
-#ifdef CONFIG_IOMMU_SVA
+#ifdef CONFIG_IOMMU_MM_DATA
 		u32 pasid;
 #endif
 #ifdef CONFIG_KSM
