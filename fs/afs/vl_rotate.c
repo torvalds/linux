@@ -114,6 +114,8 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 	if (vc->nr_iterations == 0)
 		goto start;
 
+	WRITE_ONCE(alist->addrs[vc->addr_index].last_error, error);
+
 	/* Evaluate the result of the previous operation, if there was one. */
 	switch (error) {
 	default:

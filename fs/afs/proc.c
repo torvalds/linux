@@ -377,31 +377,39 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 {
 	struct afs_server *server;
 	struct afs_addr_list *alist;
+	unsigned long failed;
 	int i;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_puts(m, "UUID                                 REF ACT\n");
+		seq_puts(m, "UUID                                 REF ACT CELL\n");
 		return 0;
 	}
 
 	server = list_entry(v, struct afs_server, proc_link);
 	alist = rcu_dereference(server->addresses);
-	seq_printf(m, "%pU %3d %3d\n",
+	seq_printf(m, "%pU %3d %3d %s\n",
 		   &server->uuid,
 		   refcount_read(&server->ref),
-		   atomic_read(&server->active));
+		   atomic_read(&server->active),
+		   server->cell->name);
 	seq_printf(m, "  - info: fl=%lx rtt=%u brk=%x\n",
 		   server->flags, server->rtt, server->cb_s_break);
 	seq_printf(m, "  - probe: last=%d out=%d\n",
 		   (int)(jiffies - server->probed_at) / HZ,
 		   atomic_read(&server->probe_outstanding));
+	failed = alist->probe_failed;
 	seq_printf(m, "  - ALIST v=%u rsp=%lx f=%lx\n",
 		   alist->version, alist->responded, alist->probe_failed);
-	for (i = 0; i < alist->nr_addrs; i++)
-		seq_printf(m, "    [%x] %pISpc%s rtt=%d\n",
-			   i, rxrpc_kernel_remote_addr(alist->addrs[i].peer),
-			   alist->preferred == i ? "*" : "",
-			   rxrpc_kernel_get_srtt(alist->addrs[i].peer));
+	for (i = 0; i < alist->nr_addrs; i++) {
+		const struct afs_address *addr = &alist->addrs[i];
+
+		seq_printf(m, "    [%x] %pISpc%s rtt=%d err=%d\n",
+			   i, rxrpc_kernel_remote_addr(addr->peer),
+			   alist->preferred == i ? "*" :
+			   test_bit(i, &failed) ? "!" : "",
+			   rxrpc_kernel_get_srtt(addr->peer),
+			   addr->last_error);
+	}
 	return 0;
 }
 

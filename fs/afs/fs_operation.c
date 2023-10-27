@@ -196,8 +196,6 @@ void afs_wait_for_operation(struct afs_operation *op)
 			op->call_abort_code = op->call->abort_code;
 			op->call_error = op->call->error;
 			op->call_responded = op->call->responded;
-			WRITE_ONCE(op->alist->addrs[op->addr_index].last_error,
-				   op->call_error);
 			afs_put_call(op->call);
 		}
 	}

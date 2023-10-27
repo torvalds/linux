@@ -133,6 +133,8 @@ bool afs_select_fileserver(struct afs_operation *op)
 	if (op->nr_iterations == 0)
 		goto start;
 
+	WRITE_ONCE(alist->addrs[op->addr_index].last_error, error);
+
 	/* Evaluate the result of the previous operation, if there was one. */
 	switch (op->call_error) {
 	case 0:

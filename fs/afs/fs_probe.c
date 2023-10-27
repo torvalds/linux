@@ -107,6 +107,8 @@ void afs_fileserver_probe_result(struct afs_call *call)
 
 	_enter("%pU,%u", &server->uuid, index);
 
+	WRITE_ONCE(addr->last_error, ret);
+
 	spin_lock(&server->probe_lock);
 
 	switch (ret) {
