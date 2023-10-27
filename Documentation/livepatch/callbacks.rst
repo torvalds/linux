@@ -110,7 +110,7 @@ Global data update
 ------------------
 
 A pre-patch callback can be useful to update a global variable.  For
-example, 75ff39ccc1bd ("tcp: make challenge acks less predictable")
+example, commit 75ff39ccc1bd ("tcp: make challenge acks less predictable")
 changes a global sysctl, as well as patches the tcp_send_challenge_ack()
 function.
 
@@ -126,7 +126,7 @@ Although __init and probe functions are not directly livepatch-able, it
 may be possible to implement similar updates via pre/post-patch
 callbacks.
 
-The commit ``48900cb6af42 ("virtio-net: drop NETIF_F_FRAGLIST")`` change the way that
+The commit 48900cb6af42 ("virtio-net: drop NETIF_F_FRAGLIST") change the way that
 virtnet_probe() initialized its driver's net_device features.  A
 pre/post-patch callback could iterate over all such devices, making a
 similar change to their hw_features value.  (Client functions of the

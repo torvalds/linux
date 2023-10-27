@@ -435,6 +435,15 @@ path.
 For information on cross-referencing to kernel-doc functions or types, see
 Documentation/doc-guide/kernel-doc.rst.
 
+Referencing commits
+~~~~~~~~~~~~~~~~~~~
+
+References to git commits are automatically hyperlinked given that they are
+written in one of these formats::
+
+    commit 72bf4f1767f0
+    commit 72bf4f1767f0 ("net: do not leave an empty skb in write queue")
+
 .. _sphinx_kfigure:
 
 Figures & Images
