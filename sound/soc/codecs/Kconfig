@@ -687,7 +687,7 @@ config SND_SOC_AW88399
 	select CRC8
 	select REGMAP_I2C
 	select GPIOLIB
-	select SND_SOC_AW88399_LIB
+	select SND_SOC_AW88395_LIB
 	help
 	  This option enables support for aw88399 Smart PA.
 	  The awinic AW88399 is an I2S/TDM input, high efficiency
