@@ -172,6 +172,8 @@ static int ccs_read_all_limits(struct ccs_sensor *sensor)
 
 	end = alloc + ccs_limit_offsets[CCS_L_LAST].lim;
 
+	sensor->ccs_limits = alloc;
+
 	for (i = 0, l = 0, ptr = alloc; ccs_limits[i].size; i++) {
 		u32 reg = ccs_limits[i].reg;
 		unsigned int width = ccs_reg_width(reg);
@@ -186,6 +188,7 @@ static int ccs_read_all_limits(struct ccs_sensor *sensor)
 
 		for (j = 0; j < ccs_limits[i].size / width;
 		     j++, reg += width, ptr += width) {
+			char str[16] = "";
 			u32 val;
 
 			ret = ccs_read_addr_noconv(sensor, reg, &val);
@@ -204,8 +207,15 @@ static int ccs_read_all_limits(struct ccs_sensor *sensor)
 
 			ccs_assign_limit(ptr, width, val);
 
-			dev_dbg(&client->dev, "0x%8.8x \"%s\" = %u, 0x%x\n",
-				reg, ccs_limits[i].name, val, val);
+#ifdef CONFIG_DYNAMIC_DEBUG
+			if (reg & (CCS_FL_FLOAT_IREAL | CCS_FL_IREAL))
+				snprintf(str, sizeof(str), ", %u",
+					 ccs_reg_conv(sensor, reg, val));
+#endif
+
+			dev_dbg(&client->dev,
+				"0x%8.8x \"%s\" = %u, 0x%x%s\n",
+				reg, ccs_limits[i].name, val, val, str);
 		}
 
 		if (ccs_limits[i].flags & CCS_L_FL_SAME_REG)
@@ -222,14 +232,13 @@ static int ccs_read_all_limits(struct ccs_sensor *sensor)
 		goto out_err;
 	}
 
-	sensor->ccs_limits = alloc;
-
 	if (CCS_LIM(sensor, SCALER_N_MIN) < 16)
 		ccs_replace_limit(sensor, CCS_L_SCALER_N_MIN, 0, 16);
 
 	return 0;
 
 out_err:
+	sensor->ccs_limits = NULL;
 	kfree(alloc);
 
 	return ret;
