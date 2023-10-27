@@ -60,7 +60,7 @@ static const char proc_pid_maps_vsyscall_2[] =
 static const char proc_pid_smaps_vsyscall_0[] = "";
 
 static const char proc_pid_smaps_vsyscall_1[] =
-"ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]\n"
+"ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  [vsyscall]\n"
 "Size:                  4 kB\n"
 "KernelPageSize:        4 kB\n"
 "MMUPageSize:           4 kB\n"
@@ -73,6 +73,7 @@ static const char proc_pid_smaps_vsyscall_1[] =
 "Private_Dirty:         0 kB\n"
 "Referenced:            0 kB\n"
 "Anonymous:             0 kB\n"
+"KSM:                   0 kB\n"
 "LazyFree:              0 kB\n"
 "AnonHugePages:         0 kB\n"
 "ShmemPmdMapped:        0 kB\n"
@@ -90,7 +91,7 @@ static const char proc_pid_smaps_vsyscall_1[] =
 ;
 
 static const char proc_pid_smaps_vsyscall_2[] =
-"ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  [vsyscall]\n"
+"ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]\n"
 "Size:                  4 kB\n"
 "KernelPageSize:        4 kB\n"
 "MMUPageSize:           4 kB\n"
@@ -103,6 +104,7 @@ static const char proc_pid_smaps_vsyscall_2[] =
 "Private_Dirty:         0 kB\n"
 "Referenced:            0 kB\n"
 "Anonymous:             0 kB\n"
+"KSM:                   0 kB\n"
 "LazyFree:              0 kB\n"
 "AnonHugePages:         0 kB\n"
 "ShmemPmdMapped:        0 kB\n"
@@ -244,10 +246,10 @@ static int test_proc_pid_smaps(pid_t pid)
 		if (g_vsyscall == 0) {
 			assert(rv == 0);
 		} else {
-			size_t len = strlen(g_proc_pid_maps_vsyscall);
+			size_t len = strlen(g_proc_pid_smaps_vsyscall);
 			/* TODO "ProtectionKey:" */
 			assert(rv > len);
-			assert(memcmp(buf, g_proc_pid_maps_vsyscall, len) == 0);
+			assert(memcmp(buf, g_proc_pid_smaps_vsyscall, len) == 0);
 		}
 		return EXIT_SUCCESS;
 	}
