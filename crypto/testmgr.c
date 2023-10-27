@@ -5457,14 +5457,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.akcipher = __VECS(pkcs1pad_rsa_tv_template)
 		}
 	}, {
-		.alg = "pkcs1pad(rsa,sha384)",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
-		.alg = "pkcs1pad(rsa,sha512)",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
 		.alg = "pkcs1pad(rsa,sha3-256)",
 		.test = alg_test_null,
 		.fips_allowed = 1,
@@ -5474,6 +5466,14 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 	}, {
 		.alg = "pkcs1pad(rsa,sha3-512)",
+		.test = alg_test_null,
+		.fips_allowed = 1,
+	}, {
+		.alg = "pkcs1pad(rsa,sha384)",
+		.test = alg_test_null,
+		.fips_allowed = 1,
+	}, {
+		.alg = "pkcs1pad(rsa,sha512)",
 		.test = alg_test_null,
 		.fips_allowed = 1,
 	}, {
