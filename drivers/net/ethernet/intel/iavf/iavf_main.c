@@ -1276,7 +1276,7 @@ static void iavf_configure(struct iavf_adapter *adapter)
  * iavf_up_complete - Finish the last steps of bringing up a connection
  * @adapter: board private structure
  *
- * Expects to be called while holding the __IAVF_IN_CRITICAL_TASK bit lock.
+ * Expects to be called while holding crit_lock.
  **/
 static void iavf_up_complete(struct iavf_adapter *adapter)
 {
@@ -1400,7 +1400,7 @@ static void iavf_clear_adv_rss_conf(struct iavf_adapter *adapter)
  * iavf_down - Shutdown the connection processing
  * @adapter: board private structure
  *
- * Expects to be called while holding the __IAVF_IN_CRITICAL_TASK bit lock.
+ * Expects to be called while holding crit_lock.
  **/
 void iavf_down(struct iavf_adapter *adapter)
 {
