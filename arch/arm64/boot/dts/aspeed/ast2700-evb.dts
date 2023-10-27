@@ -84,29 +84,11 @@
 	};
 };
 
-&mctp0 {
-	status = "okay";
-	memory-region = <&mctp0_reserved>;
-};
-
-&mctp1 {
-	status = "okay";
-	memory-region = <&mctp1_reserved>;
-};
-
-&i3c0 {
-	status = "okay";
-};
-
-&jtag0 {
-	status = "okay";
-};
-
-&jtag1 {
-	status = "okay";
-};
-
 &uart4 {
+	status = "okay";
+};
+
+&uart12 {
 	status = "okay";
 };
 
@@ -138,6 +120,29 @@
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 	};
+};
+
+#if 0
+&mctp0 {
+	status = "okay";
+	memory-region = <&mctp0_reserved>;
+};
+
+&mctp1 {
+	status = "okay";
+	memory-region = <&mctp1_reserved>;
+};
+
+&i3c0 {
+	status = "okay";
+};
+
+&jtag0 {
+	status = "okay";
+};
+
+&jtag1 {
+	status = "okay";
 };
 
 &emmc_controller {
@@ -323,7 +328,6 @@
 	A2600-15;
 };
 
-#if 0
 &bmc_dev0 {
 	status = "okay";
 	memory-region = <&bmc_dev_memory>;
@@ -373,8 +377,6 @@
 	status = "okay";
 };
 
-#endif
-
 &video0 {
 	status = "okay";
 	memory-region = <&video_engine_memory>;
@@ -392,3 +394,4 @@
 &ecdsa {
 	status = "okay";
 };
+#endif
