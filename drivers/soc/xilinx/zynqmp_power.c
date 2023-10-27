@@ -83,8 +83,8 @@ static irqreturn_t zynqmp_pm_isr(int irq, void *data)
 			pm_suspend(PM_SUSPEND_MEM);
 			break;
 		default:
-			pr_err("%s Unsupported InitSuspendCb reason "
-				"code %d\n", __func__, payload[1]);
+			pr_err("%s Unsupported InitSuspendCb reason code %d\n",
+			       __func__, payload[1]);
 		}
 	}
 
@@ -252,8 +252,8 @@ static int zynqmp_pm_probe(struct platform_device *pdev)
 						dev_name(&pdev->dev),
 						&pdev->dev);
 		if (ret) {
-			dev_err(&pdev->dev, "devm_request_threaded_irq '%d' "
-					    "failed with %d\n", irq, ret);
+			dev_err(&pdev->dev, "devm_request_threaded_irq '%d' failed with %d\n",
+				irq, ret);
 			return ret;
 		}
 	} else {
