@@ -278,8 +278,8 @@ bool card_set_phy_parameter(struct vnt_private *priv, u8 bb_type)
  *
  * Parameters:
  *  In:
- *      priv         - The adapter to be sync.
- *      byRxRate        - data rate of receive beacon
+ *      priv            - The adapter to be sync.
+ *      rx_rate         - data rate of receive beacon
  *      qwBSSTimestamp  - Rx BCN's TSF
  *      qwLocalTSF      - Local TSF
  *  Out:
@@ -287,7 +287,7 @@ bool card_set_phy_parameter(struct vnt_private *priv, u8 bb_type)
  *
  * Return Value: none
  */
-bool card_update_tsf(struct vnt_private *priv, unsigned char byRxRate,
+bool card_update_tsf(struct vnt_private *priv, unsigned char rx_rate,
 		    u64 qwBSSTimestamp)
 {
 	u64 local_tsf;
@@ -296,7 +296,7 @@ bool card_update_tsf(struct vnt_private *priv, unsigned char byRxRate,
 	local_tsf = vt6655_get_current_tsf(priv);
 
 	if (qwBSSTimestamp != local_tsf) {
-		qwTSFOffset = CARDqGetTSFOffset(byRxRate, qwBSSTimestamp,
+		qwTSFOffset = CARDqGetTSFOffset(rx_rate, qwBSSTimestamp,
 						local_tsf);
 		/* adjust TSF, HW's TSF add TSF Offset reg */
 		qwTSFOffset =  le64_to_cpu(qwTSFOffset);
@@ -708,11 +708,11 @@ unsigned char card_get_pkt_type(struct vnt_private *priv)
  *
  * Return Value: TSF Offset value
  */
-u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2)
+u64 CARDqGetTSFOffset(unsigned char rx_rate, u64 qwTSF1, u64 qwTSF2)
 {
 	unsigned short wRxBcnTSFOffst;
 
-	wRxBcnTSFOffst = rx_bcn_tsf_off[byRxRate % MAX_RATE];
+	wRxBcnTSFOffst = rx_bcn_tsf_off[rx_rate % MAX_RATE];
 
 	qwTSF2 += (u64)wRxBcnTSFOffst;
 
