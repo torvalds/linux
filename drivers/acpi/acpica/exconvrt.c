@@ -270,6 +270,7 @@ acpi_ex_convert_to_ascii(u64 integer,
 	u32 decimal_length;
 	u32 remainder;
 	u8 supress_zeros = !leading_zeros;
+	u8 hex_char;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -330,8 +331,17 @@ acpi_ex_convert_to_ascii(u64 integer,
 
 			/* Get one hex digit, most significant digits first */
 
-			string[k] = (u8)
+			hex_char = (u8)
 			    acpi_ut_hex_to_ascii_char(integer, ACPI_MUL_4(j));
+
+			/* Supress leading zeros until the first non-zero character */
+
+			if (hex_char == ACPI_ASCII_ZERO && supress_zeros) {
+				continue;
+			}
+
+			supress_zeros = FALSE;
+			string[k] = hex_char;
 			k++;
 		}
 		break;
