@@ -17,7 +17,8 @@ ACPI_MODULE_NAME("exconvrt")
 
 /* Local prototypes */
 static u32
-acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 max_length);
+acpi_ex_convert_to_ascii(u64 integer,
+			 u16 base, u8 *string, u8 max_length, u8 leading_zeros);
 
 /*******************************************************************************
  *
@@ -249,6 +250,7 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
  *              base            - ACPI_STRING_DECIMAL or ACPI_STRING_HEX
  *              string          - Where the string is returned
  *              data_width      - Size of data item to be converted, in bytes
+ *              leading_zeros   - Allow leading zeros
  *
  * RETURN:      Actual string length
  *
@@ -257,7 +259,8 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
  ******************************************************************************/
 
 static u32
-acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 data_width)
+acpi_ex_convert_to_ascii(u64 integer,
+			 u16 base, u8 *string, u8 data_width, u8 leading_zeros)
 {
 	u64 digit;
 	u32 i;
@@ -266,7 +269,7 @@ acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 data_width)
 	u32 hex_length;
 	u32 decimal_length;
 	u32 remainder;
-	u8 supress_zeros;
+	u8 supress_zeros = !leading_zeros;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -293,7 +296,6 @@ acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 data_width)
 			break;
 		}
 
-		supress_zeros = TRUE;	/* No leading zeros */
 		remainder = 0;
 
 		for (i = decimal_length; i > 0; i--) {
@@ -379,6 +381,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 	u32 string_length = 0;
 	u16 base = 16;
 	u8 separator = ',';
+	u8 leading_zeros;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_convert_to_string, obj_desc);
 
@@ -400,6 +403,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 			 * Make room for the maximum decimal number size
 			 */
 			string_length = ACPI_MAX_DECIMAL_DIGITS;
+			leading_zeros = FALSE;
 			base = 10;
 			break;
 
@@ -408,6 +412,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 			/* Two hex string characters for each integer byte */
 
 			string_length = ACPI_MUL_2(acpi_gbl_integer_byte_width);
+			leading_zeros = TRUE;
 			break;
 		}
 
@@ -428,7 +433,8 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		string_length =
 		    acpi_ex_convert_to_ascii(obj_desc->integer.value, base,
 					     new_buf,
-					     acpi_gbl_integer_byte_width);
+					     acpi_gbl_integer_byte_width,
+					     leading_zeros);
 
 		/* Null terminate at the correct place */
 
@@ -448,6 +454,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 			 * From ACPI: "If the input is a buffer, it is converted to a
 			 * a string of decimal values separated by commas."
 			 */
+			leading_zeros = FALSE;
 			base = 10;
 
 			/*
@@ -475,6 +482,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 			 *
 			 * Each hex number is prefixed with 0x (11/2018)
 			 */
+			leading_zeros = TRUE;
 			separator = ' ';
 			string_length = (obj_desc->buffer.length * 5);
 			break;
@@ -488,6 +496,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 			 *
 			 * Each hex number is prefixed with 0x (11/2018)
 			 */
+			leading_zeros = TRUE;
 			separator = ',';
 			string_length = (obj_desc->buffer.length * 5);
 			break;
@@ -528,7 +537,8 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 
 			new_buf += acpi_ex_convert_to_ascii((u64) obj_desc->
 							    buffer.pointer[i],
-							    base, new_buf, 1);
+							    base, new_buf, 1,
+							    leading_zeros);
 
 			/* Each digit is separated by either a comma or space */
 
