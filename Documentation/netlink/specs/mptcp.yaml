@@ -8,6 +8,7 @@ c-family-name: mptcp-pm-name
 c-version-name: mptcp-pm-ver
 max-by-define: true
 kernel-policy: per-op
+cmd-cnt-name: --mptcp-pm-cmd-after-last
 
 definitions:
   -
@@ -167,6 +168,7 @@ attribute-sets:
   -
     name: attr
     name-prefix: mptcp-pm-attr-
+    attr-cnt-name: --mptcp-attr-after-last
     attributes:
       -
         name: unspec

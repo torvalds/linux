@@ -28,10 +28,6 @@
 
 #include <linux/mptcp_pm.h>
 
-/* for backward compatibility */
-#define	__MPTCP_PM_CMD_AFTER_LAST	__MPTCP_PM_CMD_MAX
-#define	__MPTCP_ATTR_AFTER_LAST		__MPTCP_ATTR_MAX
-
 #define MPTCP_INFO_FLAG_FALLBACK		_BITUL(0)
 #define MPTCP_INFO_FLAG_REMOTE_KEY_RECEIVED	_BITUL(1)
 

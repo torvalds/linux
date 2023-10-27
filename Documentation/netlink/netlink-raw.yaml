@@ -47,6 +47,12 @@ properties:
   max-by-define:
     description: Makes the number of attributes and commands be specified by a define, not an enum value.
     type: boolean
+  cmd-max-name:
+    description: Name of the define for the last operation in the list.
+    type: string
+  cmd-cnt-name:
+    description: The explicit name for constant holding the count of operations (last operation + 1).
+    type: string
   # End genetlink-c
   # Start genetlink-legacy
   kernel-policy:
