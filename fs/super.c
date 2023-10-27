@@ -2070,34 +2070,28 @@ EXPORT_SYMBOL(freeze_super);
  */
 static int thaw_super_locked(struct super_block *sb, enum freeze_holder who)
 {
-	int error;
+	int error = -EINVAL;
 
-	if (sb->s_writers.frozen == SB_FREEZE_COMPLETE) {
-		if (!(sb->s_writers.freeze_holders & who)) {
-			super_unlock_excl(sb);
-			return -EINVAL;
-		}
+	if (sb->s_writers.frozen != SB_FREEZE_COMPLETE)
+		goto out_unlock;
+	if (!(sb->s_writers.freeze_holders & who))
+		goto out_unlock;
 
-		/*
-		 * Freeze is shared with someone else.  Release our hold and
-		 * drop the active ref that freeze_super assigned to the
-		 * freezer.
-		 */
-		if (sb->s_writers.freeze_holders & ~who) {
-			sb->s_writers.freeze_holders &= ~who;
-			deactivate_locked_super(sb);
-			return 0;
-		}
-	} else {
-		super_unlock_excl(sb);
-		return -EINVAL;
+	/*
+	 * Freeze is shared with someone else.  Release our hold and drop the
+	 * active ref that freeze_super assigned to the freezer.
+	 */
+	error = 0;
+	if (sb->s_writers.freeze_holders & ~who) {
+		sb->s_writers.freeze_holders &= ~who;
+		goto out_deactivate;
 	}
 
 	if (sb_rdonly(sb)) {
 		sb->s_writers.freeze_holders &= ~who;
 		sb->s_writers.frozen = SB_UNFROZEN;
 		wake_up_var(&sb->s_writers.frozen);
-		goto out;
+		goto out_deactivate;
 	}
 
 	lockdep_sb_freeze_acquire(sb);
@@ -2107,8 +2101,7 @@ static int thaw_super_locked(struct super_block *sb, enum freeze_holder who)
 		if (error) {
 			printk(KERN_ERR "VFS:Filesystem thaw failed\n");
 			lockdep_sb_freeze_release(sb);
-			super_unlock_excl(sb);
-			return error;
+			goto out_unlock;
 		}
 	}
 
@@ -2116,9 +2109,13 @@ static int thaw_super_locked(struct super_block *sb, enum freeze_holder who)
 	sb->s_writers.frozen = SB_UNFROZEN;
 	wake_up_var(&sb->s_writers.frozen);
 	sb_freeze_unlock(sb, SB_FREEZE_FS);
-out:
+out_deactivate:
 	deactivate_locked_super(sb);
 	return 0;
+
+out_unlock:
+	super_unlock_excl(sb);
+	return error;
 }
 
 /**
