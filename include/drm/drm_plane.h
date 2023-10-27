@@ -1016,6 +1016,35 @@ static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
 #define drm_for_each_plane(plane, dev) \
 	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head)
 
+/**
+ * drm_plane_solid_fill_enabled - Check if solid fill is enabled on plane
+ * @state: plane state
+ *
+ * Returns:
+ * Whether the plane has been assigned a solid_fill_blob
+ */
+static inline bool drm_plane_solid_fill_enabled(struct drm_plane_state *state)
+{
+	if (!state)
+		return false;
+	return state->pixel_source == DRM_PLANE_PIXEL_SOURCE_SOLID_FILL && state->solid_fill_blob;
+}
+
+static inline bool drm_plane_has_visible_data(const struct drm_plane_state *state)
+{
+	switch (state->pixel_source) {
+	case DRM_PLANE_PIXEL_SOURCE_NONE:
+		return false;
+	case DRM_PLANE_PIXEL_SOURCE_SOLID_FILL:
+		return state->solid_fill_blob != NULL;
+	case DRM_PLANE_PIXEL_SOURCE_FB:
+	default:
+		WARN_ON(state->pixel_source != DRM_PLANE_PIXEL_SOURCE_FB);
+	}
+
+	return state->fb != NULL;
+}
+
 bool drm_any_plane_has_format(struct drm_device *dev,
 			      u32 format, u64 modifier);
 
