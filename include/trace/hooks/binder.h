@@ -11,7 +11,11 @@
  * mechanism for vendor modules to hook and extend functionality
  */
 struct binder_transaction;
+struct binder_transaction_data;
 struct task_struct;
+struct binder_work;
+struct binder_buffer;
+
 DECLARE_HOOK(android_vh_binder_transaction_init,
 	TP_PROTO(struct binder_transaction *t),
 	TP_ARGS(t));
@@ -93,6 +97,26 @@ DECLARE_HOOK(android_vh_binder_new_ref,
 DECLARE_HOOK(android_vh_binder_del_ref,
 	TP_PROTO(struct task_struct *proc, uint32_t ref_desc),
 	TP_ARGS(proc, ref_desc));
+DECLARE_HOOK(android_vh_alloc_oem_binder_struct,
+	TP_PROTO(struct binder_transaction_data *tr, struct binder_transaction *t,
+		struct binder_proc *proc),
+	TP_ARGS(tr, t, proc));
+DECLARE_HOOK(android_vh_binder_transaction_received,
+	TP_PROTO(struct binder_transaction *t, struct binder_proc *proc,
+		struct binder_thread *thread, uint32_t cmd),
+	TP_ARGS(t, proc, thread, cmd));
+DECLARE_HOOK(android_vh_free_oem_binder_struct,
+	TP_PROTO(struct binder_transaction *t),
+	TP_ARGS(t));
+DECLARE_HOOK(android_vh_binder_special_task,
+	TP_PROTO(struct binder_transaction *t, struct binder_proc *proc,
+		struct binder_thread *thread, struct binder_work *w,
+		struct list_head *head, bool sync, bool *special_task),
+	TP_ARGS(t, proc, thread, w, head, sync, special_task));
+DECLARE_HOOK(android_vh_binder_free_buf,
+	TP_PROTO(struct binder_proc *proc, struct binder_thread *thread,
+		struct binder_buffer *buffer),
+	TP_ARGS(proc, thread, buffer));
 
 #endif /* _TRACE_HOOK_BINDER_H */
 /* This part must be outside protection */

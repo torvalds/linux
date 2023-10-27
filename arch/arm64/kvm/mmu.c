@@ -701,7 +701,7 @@ static int get_user_mapping_size(struct kvm *kvm, u64 addr)
 
 static bool stage2_force_pte_cb(u64 addr, u64 end, enum kvm_pgtable_prot prot)
 {
-	return true;
+	return false;
 }
 
 static bool stage2_pte_is_counted(kvm_pte_t pte, u32 level)

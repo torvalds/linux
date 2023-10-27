@@ -41,17 +41,15 @@ static DEFINE_PER_CPU(struct pkvm_hyp_vcpu *, loaded_hyp_vcpu);
  *
  * Only valid when (fp_state == FP_STATE_GUEST_OWNED) in the hyp vCPU structure.
  */
-void *host_fp_state;
+unsigned long __ro_after_init kvm_arm_hyp_host_fp_state[NR_CPUS];
 
 static void *__get_host_fpsimd_bytes(void)
 {
-	void *state = host_fp_state +
-		      size_mul(pkvm_host_fp_state_size(), hyp_smp_processor_id());
-
-	if (state < host_fp_state)
-		return NULL;
-
-	return state;
+	/*
+	 * The addresses in this array have been converted to hyp addresses
+	 * in finalize_init_hyp_mode().
+	 */
+	return (void *)kvm_arm_hyp_host_fp_state[hyp_smp_processor_id()];
 }
 
 struct user_fpsimd_state *get_host_fpsimd_state(struct kvm_vcpu *vcpu)
@@ -293,12 +291,6 @@ void pkvm_hyp_vm_table_init(void *tbl)
 {
 	WARN_ON(vm_table);
 	vm_table = tbl;
-}
-
-void pkvm_hyp_host_fp_init(void *host_fp)
-{
-	WARN_ON(host_fp_state);
-	host_fp_state = host_fp;
 }
 
 /*
