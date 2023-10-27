@@ -3,7 +3,6 @@
 
 #include "iavf.h"
 #include "iavf_prototype.h"
-#include "iavf_client.h"
 /* All iavf tracepoints are defined by the include below, which must
  * be included exactly once across the whole kernel with
  * CREATE_TRACE_POINTS defined
@@ -1286,8 +1285,6 @@ static void iavf_up_complete(struct iavf_adapter *adapter)
 	iavf_napi_enable_all(adapter);
 
 	adapter->aq_required |= IAVF_FLAG_AQ_ENABLE_QUEUES;
-	if (CLIENT_ENABLED(adapter))
-		adapter->flags |= IAVF_FLAG_CLIENT_NEEDS_OPEN;
 	mod_delayed_work(adapter->wq, &adapter->watchdog_task, 0);
 }
 
@@ -2706,12 +2703,6 @@ static void iavf_init_config_adapter(struct iavf_adapter *adapter)
 	adapter->link_up = false;
 	netif_tx_stop_all_queues(netdev);
 
-	if (CLIENT_ALLOWED(adapter)) {
-		err = iavf_lan_add_device(adapter);
-		if (err)
-			dev_info(&pdev->dev, "Failed to add VF to client API service list: %d\n",
-				 err);
-	}
 	dev_info(&pdev->dev, "MAC address: %pM\n", adapter->hw.mac.addr);
 	if (netdev->features & NETIF_F_GRO)
 		dev_info(&pdev->dev, "GRO is enabled\n");
@@ -2908,7 +2899,6 @@ static void iavf_watchdog_task(struct work_struct *work)
 		return;
 	}
 
-	schedule_delayed_work(&adapter->client_task, msecs_to_jiffies(5));
 	mutex_unlock(&adapter->crit_lock);
 restart_watchdog:
 	if (adapter->state >= __IAVF_DOWN)
@@ -3019,15 +3009,6 @@ static void iavf_reset_task(struct work_struct *work)
 		return;
 	}
 
-	mutex_lock(&adapter->client_lock);
-	if (CLIENT_ENABLED(adapter)) {
-		adapter->flags &= ~(IAVF_FLAG_CLIENT_NEEDS_OPEN |
-				    IAVF_FLAG_CLIENT_NEEDS_CLOSE |
-				    IAVF_FLAG_CLIENT_NEEDS_L2_PARAMS |
-				    IAVF_FLAG_SERVICE_CLIENT_REQUESTED);
-		cancel_delayed_work_sync(&adapter->client_task);
-		iavf_notify_client_close(&adapter->vsi, true);
-	}
 	iavf_misc_irq_disable(adapter);
 	if (adapter->flags & IAVF_FLAG_RESET_NEEDED) {
 		adapter->flags &= ~IAVF_FLAG_RESET_NEEDED;
@@ -3071,7 +3052,6 @@ static void iavf_reset_task(struct work_struct *work)
 		dev_err(&adapter->pdev->dev, "Reset never finished (%x)\n",
 			reg_val);
 		iavf_disable_vf(adapter);
-		mutex_unlock(&adapter->client_lock);
 		mutex_unlock(&adapter->crit_lock);
 		return; /* Do not attempt to reinit. It's dead, Jim. */
 	}
@@ -3210,7 +3190,6 @@ continue_reset:
 	adapter->flags &= ~IAVF_FLAG_REINIT_ITR_NEEDED;
 
 	wake_up(&adapter->reset_waitqueue);
-	mutex_unlock(&adapter->client_lock);
 	mutex_unlock(&adapter->crit_lock);
 
 	return;
@@ -3221,7 +3200,6 @@ reset_err:
 	}
 	iavf_disable_vf(adapter);
 
-	mutex_unlock(&adapter->client_lock);
 	mutex_unlock(&adapter->crit_lock);
 	dev_err(&adapter->pdev->dev, "failed to allocate resources during reinit\n");
 }
@@ -3318,48 +3296,6 @@ unlock:
 out:
 	/* re-enable Admin queue interrupt cause */
 	iavf_misc_irq_enable(adapter);
-}
-
-/**
- * iavf_client_task - worker thread to perform client work
- * @work: pointer to work_struct containing our data
- *
- * This task handles client interactions. Because client calls can be
- * reentrant, we can't handle them in the watchdog.
- **/
-static void iavf_client_task(struct work_struct *work)
-{
-	struct iavf_adapter *adapter =
-		container_of(work, struct iavf_adapter, client_task.work);
-
-	/* If we can't get the client bit, just give up. We'll be rescheduled
-	 * later.
-	 */
-
-	if (!mutex_trylock(&adapter->client_lock))
-		return;
-
-	if (adapter->flags & IAVF_FLAG_SERVICE_CLIENT_REQUESTED) {
-		iavf_client_subtask(adapter);
-		adapter->flags &= ~IAVF_FLAG_SERVICE_CLIENT_REQUESTED;
-		goto out;
-	}
-	if (adapter->flags & IAVF_FLAG_CLIENT_NEEDS_L2_PARAMS) {
-		iavf_notify_client_l2_params(&adapter->vsi);
-		adapter->flags &= ~IAVF_FLAG_CLIENT_NEEDS_L2_PARAMS;
-		goto out;
-	}
-	if (adapter->flags & IAVF_FLAG_CLIENT_NEEDS_CLOSE) {
-		iavf_notify_client_close(&adapter->vsi, false);
-		adapter->flags &= ~IAVF_FLAG_CLIENT_NEEDS_CLOSE;
-		goto out;
-	}
-	if (adapter->flags & IAVF_FLAG_CLIENT_NEEDS_OPEN) {
-		iavf_notify_client_open(&adapter->vsi);
-		adapter->flags &= ~IAVF_FLAG_CLIENT_NEEDS_OPEN;
-	}
-out:
-	mutex_unlock(&adapter->client_lock);
 }
 
 /**
@@ -4294,8 +4230,6 @@ static int iavf_close(struct net_device *netdev)
 	}
 
 	set_bit(__IAVF_VSI_DOWN, adapter->vsi.state);
-	if (CLIENT_ENABLED(adapter))
-		adapter->flags |= IAVF_FLAG_CLIENT_NEEDS_CLOSE;
 	/* We cannot send IAVF_FLAG_AQ_GET_OFFLOAD_VLAN_V2_CAPS before
 	 * IAVF_FLAG_AQ_DISABLE_QUEUES because in such case there is rtnl
 	 * deadlock with adminq_task() until iavf_close timeouts. We must send
@@ -4364,10 +4298,6 @@ static int iavf_change_mtu(struct net_device *netdev, int new_mtu)
 	netdev_dbg(netdev, "changing MTU from %d to %d\n",
 		   netdev->mtu, new_mtu);
 	netdev->mtu = new_mtu;
-	if (CLIENT_ENABLED(adapter)) {
-		iavf_notify_client_l2_params(&adapter->vsi);
-		adapter->flags |= IAVF_FLAG_SERVICE_CLIENT_REQUESTED;
-	}
 
 	if (netif_running(netdev)) {
 		iavf_schedule_reset(adapter, IAVF_FLAG_RESET_NEEDED);
@@ -5011,7 +4941,6 @@ static int iavf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * and destroy them only once in remove
 	 */
 	mutex_init(&adapter->crit_lock);
-	mutex_init(&adapter->client_lock);
 	mutex_init(&hw->aq.asq_mutex);
 	mutex_init(&hw->aq.arq_mutex);
 
@@ -5031,7 +4960,6 @@ static int iavf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&adapter->adminq_task, iavf_adminq_task);
 	INIT_WORK(&adapter->finish_config, iavf_finish_config);
 	INIT_DELAYED_WORK(&adapter->watchdog_task, iavf_watchdog_task);
-	INIT_DELAYED_WORK(&adapter->client_task, iavf_client_task);
 
 	/* Setup the wait queue for indicating transition to down status */
 	init_waitqueue_head(&adapter->down_waitqueue);
@@ -5143,7 +5071,6 @@ static void iavf_remove(struct pci_dev *pdev)
 	struct iavf_mac_filter *f, *ftmp;
 	struct net_device *netdev;
 	struct iavf_hw *hw;
-	int err;
 
 	netdev = adapter->netdev;
 	hw = &adapter->hw;
@@ -5177,13 +5104,6 @@ static void iavf_remove(struct pci_dev *pdev)
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(netdev);
 
-	if (CLIENT_ALLOWED(adapter)) {
-		err = iavf_lan_del_device(adapter);
-		if (err)
-			dev_warn(&pdev->dev, "Failed to delete client device: %d\n",
-				 err);
-	}
-
 	mutex_lock(&adapter->crit_lock);
 	dev_info(&adapter->pdev->dev, "Removing device\n");
 	iavf_change_state(adapter, __IAVF_REMOVE);
@@ -5201,7 +5121,6 @@ static void iavf_remove(struct pci_dev *pdev)
 	cancel_work_sync(&adapter->reset_task);
 	cancel_delayed_work_sync(&adapter->watchdog_task);
 	cancel_work_sync(&adapter->adminq_task);
-	cancel_delayed_work_sync(&adapter->client_task);
 
 	adapter->aq_required = 0;
 	adapter->flags &= ~IAVF_FLAG_REINIT_ITR_NEEDED;
@@ -5219,7 +5138,6 @@ static void iavf_remove(struct pci_dev *pdev)
 	/* destroy the locks only once, here */
 	mutex_destroy(&hw->aq.arq_mutex);
 	mutex_destroy(&hw->aq.asq_mutex);
-	mutex_destroy(&adapter->client_lock);
 	mutex_unlock(&adapter->crit_lock);
 	mutex_destroy(&adapter->crit_lock);
 
