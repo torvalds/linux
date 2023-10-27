@@ -1478,15 +1478,15 @@ static void setup_split_accounting(struct clone_info *ci, unsigned int len)
 
 static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
 				struct dm_target *ti, unsigned int num_bios,
-				unsigned *len)
+				unsigned *len, gfp_t gfp_flag)
 {
 	struct bio *bio;
-	int try;
+	int try = (gfp_flag & GFP_NOWAIT) ? 0 : 1;
 
-	for (try = 0; try < 2; try++) {
+	for (; try < 2; try++) {
 		int bio_nr;
 
-		if (try)
+		if (try && num_bios > 1)
 			mutex_lock(&ci->io->md->table_devices_lock);
 		for (bio_nr = 0; bio_nr < num_bios; bio_nr++) {
 			bio = alloc_tio(ci, ti, bio_nr, len,
@@ -1496,7 +1496,7 @@ static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
 
 			bio_list_add(blist, bio);
 		}
-		if (try)
+		if (try && num_bios > 1)
 			mutex_unlock(&ci->io->md->table_devices_lock);
 		if (bio_nr == num_bios)
 			return;
@@ -1507,33 +1507,30 @@ static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
 }
 
 static unsigned int __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
-					  unsigned int num_bios, unsigned int *len)
+					  unsigned int num_bios, unsigned int *len,
+					  gfp_t gfp_flag)
 {
 	struct bio_list blist = BIO_EMPTY_LIST;
 	struct bio *clone;
 	unsigned int ret = 0;
 
-	switch (num_bios) {
-	case 0:
-		break;
-	case 1:
-		if (len)
-			setup_split_accounting(ci, *len);
-		clone = alloc_tio(ci, ti, 0, len, GFP_NOIO);
-		__map_bio(clone);
-		ret = 1;
-		break;
-	default:
-		if (len)
-			setup_split_accounting(ci, *len);
-		/* dm_accept_partial_bio() is not supported with shared tio->len_ptr */
-		alloc_multiple_bios(&blist, ci, ti, num_bios, len);
-		while ((clone = bio_list_pop(&blist))) {
+	if (WARN_ON_ONCE(num_bios == 0)) /* num_bios = 0 is a bug in caller */
+		return 0;
+
+	/* dm_accept_partial_bio() is not supported with shared tio->len_ptr */
+	if (len)
+		setup_split_accounting(ci, *len);
+
+	/*
+	 * Using alloc_multiple_bios(), even if num_bios is 1, to consistently
+	 * support allocating using GFP_NOWAIT with GFP_NOIO fallback.
+	 */
+	alloc_multiple_bios(&blist, ci, ti, num_bios, len, gfp_flag);
+	while ((clone = bio_list_pop(&blist))) {
+		if (num_bios > 1)
 			dm_tio_set_flag(clone_to_tio(clone), DM_TIO_IS_DUPLICATE_BIO);
-			__map_bio(clone);
-			ret += 1;
-		}
-		break;
+		__map_bio(clone);
+		ret += 1;
 	}
 
 	return ret;
@@ -1560,8 +1557,12 @@ static void __send_empty_flush(struct clone_info *ci)
 		unsigned int bios;
 		struct dm_target *ti = dm_table_get_target(t, i);
 
+		if (unlikely(ti->num_flush_bios == 0))
+			continue;
+
 		atomic_add(ti->num_flush_bios, &ci->io->io_count);
-		bios = __send_duplicate_bios(ci, ti, ti->num_flush_bios, NULL);
+		bios = __send_duplicate_bios(ci, ti, ti->num_flush_bios,
+					     NULL, GFP_NOWAIT);
 		atomic_sub(ti->num_flush_bios - bios, &ci->io->io_count);
 	}
 
@@ -1574,10 +1575,9 @@ static void __send_empty_flush(struct clone_info *ci)
 	bio_uninit(ci->bio);
 }
 
-static void __send_changing_extent_only(struct clone_info *ci, struct dm_target *ti,
-					unsigned int num_bios,
-					unsigned int max_granularity,
-					unsigned int max_sectors)
+static void __send_abnormal_io(struct clone_info *ci, struct dm_target *ti,
+			       unsigned int num_bios, unsigned int max_granularity,
+			       unsigned int max_sectors)
 {
 	unsigned int len, bios;
 
@@ -1585,7 +1585,7 @@ static void __send_changing_extent_only(struct clone_info *ci, struct dm_target 
 		    __max_io_len(ti, ci->sector, max_granularity, max_sectors));
 
 	atomic_add(num_bios, &ci->io->io_count);
-	bios = __send_duplicate_bios(ci, ti, num_bios, &len);
+	bios = __send_duplicate_bios(ci, ti, num_bios, &len, GFP_NOIO);
 	/*
 	 * alloc_io() takes one extra reference for submission, so the
 	 * reference won't reach 0 without the following (+1) subtraction
@@ -1654,8 +1654,8 @@ static blk_status_t __process_abnormal_io(struct clone_info *ci,
 	if (unlikely(!num_bios))
 		return BLK_STS_NOTSUPP;
 
-	__send_changing_extent_only(ci, ti, num_bios,
-				    max_granularity, max_sectors);
+	__send_abnormal_io(ci, ti, num_bios, max_granularity, max_sectors);
+
 	return BLK_STS_OK;
 }
 
