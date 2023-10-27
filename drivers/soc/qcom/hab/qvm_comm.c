@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include "hab_qvm.h"
@@ -190,6 +190,9 @@ void physical_channel_rx_dispatch(unsigned long data)
 		} else if (ret != sizeof(header))
 			break; /* no data available */
 
+		if (pchan->sequence_rx + 1 != header.sequence)
+			pr_err("%s: expected sequence_rx is %u, received is %u\n",
+				pchan->name, pchan->sequence_rx, header.sequence);
 		pchan->sequence_rx = header.sequence;
 
 		/* log msg recv timestamp: enter pchan dispatcher */

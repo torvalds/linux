@@ -237,8 +237,15 @@ static void virthab_recv_rxq(unsigned long p)
 			/* parse and handle the input */
 			spin_unlock(&vpc->lock[HAB_PCHAN_RX_VQ]);
 			rc = hab_msg_recv(pchan, (struct hab_header *)inbuf);
-			pchan->sequence_rx = ((struct hab_header *)inbuf)->sequence;
+
 			spin_lock(&vpc->lock[HAB_PCHAN_RX_VQ]);
+			if (pchan->sequence_rx + 1 != ((struct hab_header *)inbuf)->sequence)
+				pr_err("%s: expected sequence_rx is %u, received is %u\n",
+						pchan->name,
+						pchan->sequence_rx,
+						((struct hab_header *)inbuf)->sequence);
+			pchan->sequence_rx = ((struct hab_header *)inbuf)->sequence;
+
 			if (rc && rc != -EINVAL)
 				pr_err("%s hab_msg_recv wrong %d\n",
 					pchan->name, rc);

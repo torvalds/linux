@@ -187,6 +187,12 @@ static void tx_worker(struct vhost_hab_pchannel *vh_pchan)
 				pr_err("hab_msg_recv error %d\n", ret);
 
 			total_len += out_len;
+
+			if (vh_pchan->pchan->sequence_rx + 1 != header.sequence)
+				pr_err("%s: expected sequence_rx is %u, received is %u\n",
+						vh_pchan->pchan->name,
+						vh_pchan->pchan->sequence_rx,
+						header.sequence);
 			vh_pchan->pchan->sequence_rx = header.sequence;
 		}
 
