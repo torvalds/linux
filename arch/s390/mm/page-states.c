@@ -18,45 +18,7 @@
 #include <asm/facility.h>
 #include <asm/page-states.h>
 
-static int cmma_flag = 1;
-
-static int __init cmma(char *str)
-{
-	bool enabled;
-
-	if (!kstrtobool(str, &enabled))
-		cmma_flag = enabled;
-	return 1;
-}
-__setup("cmma=", cmma);
-
-static inline int cmma_test_essa(void)
-{
-	unsigned long tmp = 0;
-	int rc = -EOPNOTSUPP;
-
-	/* test ESSA_GET_STATE */
-	asm volatile(
-		"	.insn	rrf,0xb9ab0000,%[tmp],%[tmp],%[cmd],0\n"
-		"0:     la      %[rc],0\n"
-		"1:\n"
-		EX_TABLE(0b, 1b)
-		: [rc] "+&d" (rc), [tmp] "+&d" (tmp)
-		: [cmd] "i" (ESSA_GET_STATE));
-	return rc;
-}
-
-void __init cmma_init(void)
-{
-	if (!cmma_flag)
-		return;
-	if (cmma_test_essa()) {
-		cmma_flag = 0;
-		return;
-	}
-	if (test_facility(147))
-		cmma_flag = 2;
-}
+int __bootdata_preserved(cmma_flag);
 
 static __always_inline void essa(unsigned long paddr, unsigned char cmd)
 {

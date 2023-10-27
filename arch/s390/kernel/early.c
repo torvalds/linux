@@ -46,6 +46,7 @@ decompressor_handled_param(vmalloc);
 decompressor_handled_param(dfltcc);
 decompressor_handled_param(facilities);
 decompressor_handled_param(nokaslr);
+decompressor_handled_param(cmma);
 #if IS_ENABLED(CONFIG_KVM)
 decompressor_handled_param(prot_virt);
 #endif

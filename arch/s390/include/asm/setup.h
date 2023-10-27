@@ -125,7 +125,6 @@ static inline void vmcp_cma_reserve(void) { }
 
 void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault);
 
-void cmma_init(void);
 void cmma_init_nodat(void);
 
 extern void (*_machine_restart)(char *command);

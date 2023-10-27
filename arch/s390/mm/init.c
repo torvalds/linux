@@ -164,8 +164,6 @@ void __init mem_init(void)
 
 	pv_init();
 	kfence_split_mapping();
-	/* Setup guest page hinting */
-	cmma_init();
 
 	/* this will put all low memory onto the freelists */
 	memblock_free_all();
