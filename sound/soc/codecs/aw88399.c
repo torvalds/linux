@@ -438,7 +438,7 @@ static int aw_dev_set_vcalb(struct aw88399 *aw88399)
 	if (ret)
 		return ret;
 
-	vsense_select = vsense_select & (~AW88399_VDSEL_MASK);
+	vsense_select = vsense_value & (~AW88399_VDSEL_MASK);
 
 	ret = aw88399_dev_get_icalk(aw88399, &icalk);
 	if (ret) {
