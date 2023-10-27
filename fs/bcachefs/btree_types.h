@@ -228,6 +228,8 @@ struct btree_path {
 	u8			sorted_idx;
 	u8			ref;
 	u8			intent_ref;
+	u32			alloc_seq;
+	u32			downgrade_seq;
 
 	/* btree_iter_copy starts here: */
 	struct bpos		pos;

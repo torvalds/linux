@@ -509,7 +509,7 @@ fill:
 		 * path->uptodate yet:
 		 */
 		if (!path->locks_want &&
-		    !__bch2_btree_path_upgrade(trans, path, 1)) {
+		    !__bch2_btree_path_upgrade(trans, path, 1, NULL)) {
 			trace_and_count(trans->c, trans_restart_key_cache_upgrade, trans, _THIS_IP_);
 			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_upgrade);
 			goto err;

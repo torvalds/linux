@@ -861,12 +861,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 	 */
 	bch2_journal_res_put(&c->journal, &trans->journal_res);
 
-	if (unlikely(ret))
-		return ret;
-
-	bch2_trans_downgrade(trans);
-
-	return 0;
+	return ret;
 }
 
 static int journal_reclaim_wait_done(struct bch_fs *c)
@@ -1135,6 +1130,8 @@ out:
 	if (likely(!(flags & BTREE_INSERT_NOCHECK_RW)))
 		bch2_write_ref_put(c, BCH_WRITE_REF_trans);
 out_reset:
+	if (!ret)
+		bch2_trans_downgrade(trans);
 	bch2_trans_reset_updates(trans);
 
 	return ret;

@@ -1523,6 +1523,7 @@ static inline struct btree_path *btree_path_alloc(struct btree_trans *trans,
 	path->ref		= 0;
 	path->intent_ref	= 0;
 	path->nodes_locked	= 0;
+	path->alloc_seq++;
 
 	btree_path_list_add(trans, pos, path);
 	trans->paths_sorted = false;
@@ -1598,7 +1599,7 @@ struct btree_path *bch2_path_get(struct btree_trans *trans,
 
 	locks_want = min(locks_want, BTREE_MAX_DEPTH);
 	if (locks_want > path->locks_want)
-		bch2_btree_path_upgrade_noupgrade_sibs(trans, path, locks_want);
+		bch2_btree_path_upgrade_noupgrade_sibs(trans, path, locks_want, NULL);
 
 	return path;
 }

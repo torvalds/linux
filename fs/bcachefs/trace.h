@@ -1043,13 +1043,16 @@ DEFINE_EVENT(transaction_restart_iter,	trans_restart_btree_node_split,
 	TP_ARGS(trans, caller_ip, path)
 );
 
+struct get_locks_fail;
+
 TRACE_EVENT(trans_restart_upgrade,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip,
 		 struct btree_path *path,
 		 unsigned old_locks_want,
-		 unsigned new_locks_want),
-	TP_ARGS(trans, caller_ip, path, old_locks_want, new_locks_want),
+		 unsigned new_locks_want,
+		 struct get_locks_fail *f),
+	TP_ARGS(trans, caller_ip, path, old_locks_want, new_locks_want, f),
 
 	TP_STRUCT__entry(
 		__array(char,			trans_fn, 32	)
@@ -1057,6 +1060,11 @@ TRACE_EVENT(trans_restart_upgrade,
 		__field(u8,			btree_id	)
 		__field(u8,			old_locks_want	)
 		__field(u8,			new_locks_want	)
+		__field(u8,			level		)
+		__field(u32,			path_seq	)
+		__field(u32,			node_seq	)
+		__field(u32,			path_alloc_seq	)
+		__field(u32,			downgrade_seq)
 		TRACE_BPOS_entries(pos)
 	),
 
@@ -1066,10 +1074,15 @@ TRACE_EVENT(trans_restart_upgrade,
 		__entry->btree_id		= path->btree_id;
 		__entry->old_locks_want		= old_locks_want;
 		__entry->new_locks_want		= new_locks_want;
+		__entry->level			= f->l;
+		__entry->path_seq		= path->l[f->l].lock_seq;
+		__entry->node_seq		= IS_ERR_OR_NULL(f->b) ? 0 : f->b->c.lock.seq;
+		__entry->path_alloc_seq		= path->alloc_seq;
+		__entry->downgrade_seq		= path->downgrade_seq;
 		TRACE_BPOS_assign(pos, path->pos)
 	),
 
-	TP_printk("%s %pS btree %s pos %llu:%llu:%u locks_want %u -> %u",
+	TP_printk("%s %pS btree %s pos %llu:%llu:%u locks_want %u -> %u level %u path seq %u node seq %u alloc_seq %u downgrade_seq %u",
 		  __entry->trans_fn,
 		  (void *) __entry->caller_ip,
 		  bch2_btree_id_str(__entry->btree_id),
@@ -1077,7 +1090,12 @@ TRACE_EVENT(trans_restart_upgrade,
 		  __entry->pos_offset,
 		  __entry->pos_snapshot,
 		  __entry->old_locks_want,
-		  __entry->new_locks_want)
+		  __entry->new_locks_want,
+		  __entry->level,
+		  __entry->path_seq,
+		  __entry->node_seq,
+		  __entry->path_alloc_seq,
+		  __entry->downgrade_seq)
 );
 
 DEFINE_EVENT(transaction_restart_iter,	trans_restart_relock,
@@ -1236,6 +1254,27 @@ TRACE_EVENT(trans_restart_key_cache_key_realloced,
 		  __entry->pos_snapshot,
 		  __entry->old_u64s,
 		  __entry->new_u64s)
+);
+
+TRACE_EVENT(path_downgrade,
+	TP_PROTO(struct btree_trans *trans,
+		 unsigned long caller_ip,
+		 struct btree_path *path),
+	TP_ARGS(trans, caller_ip, path),
+
+	TP_STRUCT__entry(
+		__array(char,			trans_fn, 32	)
+		__field(unsigned long,		caller_ip	)
+	),
+
+	TP_fast_assign(
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip		= caller_ip;
+	),
+
+	TP_printk("%s %pS",
+		  __entry->trans_fn,
+		  (void *) __entry->caller_ip)
 );
 
 DEFINE_EVENT(transaction_event,	trans_restart_write_buffer_flush,

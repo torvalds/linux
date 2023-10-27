@@ -1987,7 +1987,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 out:
 	if (new_path)
 		bch2_path_put(trans, new_path, true);
-	bch2_btree_path_downgrade(trans, iter->path);
+	bch2_trans_downgrade(trans);
 	return ret;
 err:
 	bch2_btree_node_free_never_used(as, trans, n);
