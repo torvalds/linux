@@ -1177,13 +1177,13 @@ void q2spi_print_req_cmd(struct q2spi_geni *q2spi, struct q2spi_request q2spi_re
  * @cur_q2spi_pkt: ponter to q2spi_packet
  *
  * This function iterates through the tx_queue_list and obtains the cur_q2spi_pkt
- * and delete the completed packet from the list if q2spi_pkt->in_use is fasle.
+ * and delete the completed packet from the list if q2spi_pkt->in_use is under deletion.
  *
  * Return: Returns true if given packet is found in tx_queue_list and deleted, else returns false.
  */
 bool q2spi_del_pkt_from_tx_queue(struct q2spi_geni *q2spi, struct q2spi_packet *cur_q2spi_pkt)
 {
-	struct q2spi_packet *q2spi_pkt;
+	struct q2spi_packet *q2spi_pkt, *q2spi_pkt_tmp;
 	bool found = false;
 
 	if (!cur_q2spi_pkt) {
@@ -1192,12 +1192,14 @@ bool q2spi_del_pkt_from_tx_queue(struct q2spi_geni *q2spi, struct q2spi_packet *
 		return found;
 	}
 
-	list_for_each_entry(q2spi_pkt, &q2spi->tx_queue_list, list) {
+	mutex_lock(&q2spi->queue_lock);
+	list_for_each_entry_safe(q2spi_pkt, q2spi_pkt_tmp, &q2spi->tx_queue_list, list) {
 		if (cur_q2spi_pkt == q2spi_pkt) {
 			Q2SPI_DEBUG(q2spi, "%s Found q2spi_pkt:%p in_use:%d\n", __func__,
 				    q2spi_pkt, q2spi_pkt->in_use);
-			if (!q2spi_pkt->in_use) {
+			if (q2spi_pkt->in_use == IN_DELETION) {
 				list_del(&q2spi_pkt->list);
+				q2spi_pkt->in_use = IN_USE_FALSE;
 				found = true;
 				break;
 			}
@@ -1213,6 +1215,7 @@ bool q2spi_del_pkt_from_tx_queue(struct q2spi_geni *q2spi, struct q2spi_packet *
 		Q2SPI_DEBUG(q2spi, "%s Tx queue list is empty\n", __func__);
 	else
 		Q2SPI_DEBUG(q2spi, "%s Tx queue list is NOT empty!!!\n", __func__);
+	mutex_unlock(&q2spi->queue_lock);
 	return found;
 }
 
@@ -1430,7 +1433,7 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 		Q2SPI_DEBUG(q2spi, "%s sync_wait completed\n", __func__);
 		Q2SPI_DEBUG(q2spi, "%s free_buffers available:%d\n",
 			    __func__, q2spi_check_var1_avail_buff(q2spi));
-		cur_q2spi_pkt->in_use = false;
+		cur_q2spi_pkt->in_use = IN_DELETION;
 		q2spi_del_pkt_from_tx_queue(q2spi, cur_q2spi_pkt);
 
 		if (q2spi_req.cmd == LOCAL_REG_READ) {
@@ -1563,8 +1566,7 @@ static ssize_t q2spi_response(struct file *filp, char __user *buf, size_t count,
 		    list_empty(&q2spi->cr_queue_list));
 	Q2SPI_DEBUG(q2spi, "%s q2spi_cr_pkt:%p q2spi_pkt:%p in_use:%d\n", __func__, q2spi_cr_pkt,
 		    q2spi_cr_pkt->q2spi_pkt, q2spi_cr_pkt->q2spi_pkt->in_use);
-	q2spi_cr_pkt->q2spi_pkt->in_use = false;
-
+	q2spi_cr_pkt->q2spi_pkt->in_use = IN_DELETION;
 	q2spi_del_pkt_from_tx_queue(q2spi, q2spi_cr_pkt->q2spi_pkt);
 	if (q2spi_cr_pkt)
 		list_del(&q2spi_cr_pkt->list);
@@ -1988,7 +1990,7 @@ static int __q2spi_send_messages(struct q2spi_geni *q2spi)
 			Q2SPI_DEBUG(q2spi, "%s q2spi_pkt %p in use\n", __func__, q2spi_pkt);
 			continue;
 		}
-		q2spi_pkt->in_use = true;
+		q2spi_pkt->in_use = IN_USE_TRUE;
 		Q2SPI_DEBUG(q2spi, "%s send q2spi_pkt %p\n", __func__, q2spi_pkt);
 		if (q2spi_pkt->vtype == VARIANT_1_LRA || q2spi_pkt->vtype == VARIANT_1_HRF)
 			ret = q2spi_prep_var1_request(q2spi, q2spi_pkt);

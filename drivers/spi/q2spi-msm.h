@@ -24,7 +24,7 @@
 #define MAX_RX_CRS			4
 #define RX_DMA_CR_BUF_SIZE		(MAX_CR_SIZE * MAX_RX_CRS)
 #define Q2SPI_MAX_BUF			2
-#define XFER_TIMEOUT_OFFSET		500
+#define XFER_TIMEOUT_OFFSET		(500 * 4)
 #define TIMEOUT_MSECONDS		10 /* 10 milliseconds */
 #define RETRIES				1
 #define Q2SPI_MAX_DATA_LEN		4096
@@ -201,6 +201,12 @@ enum abort_code {
 	ERR_ACCESS_BLOCKED = 3,
 	ERR_DWLEN = 4,
 	OTHERS = 5,
+};
+
+enum q2spi_pkt_in_use_state {
+	IN_USE_FALSE = 0,
+	IN_USE_TRUE = 1,
+	IN_DELETION = 2,
 };
 
 struct q2spi_mc_hrf_entry {
@@ -531,7 +537,7 @@ struct q2spi_packet {
 	bool sync;
 	struct q2spi_geni *q2spi;
 	struct list_head list;
-	bool in_use;
+	u8 in_use;
 	unsigned int data_length;
 };
 
