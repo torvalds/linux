@@ -462,18 +462,13 @@ int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 {
 	lockdep_assert_held(&c->replicas_gc_lock);
 
-	if (ret)
-		goto err;
-
 	mutex_lock(&c->sb_lock);
 	percpu_down_write(&c->mark_lock);
 
-	ret = bch2_cpu_replicas_to_sb_replicas(c, &c->replicas_gc);
-	if (ret)
-		goto err;
+	ret =   ret ?:
+		bch2_cpu_replicas_to_sb_replicas(c, &c->replicas_gc) ?:
+		replicas_table_update(c, &c->replicas_gc);
 
-	ret = replicas_table_update(c, &c->replicas_gc);
-err:
 	kfree(c->replicas_gc.entries);
 	c->replicas_gc.entries = NULL;
 
@@ -579,12 +574,9 @@ retry:
 
 	bch2_cpu_replicas_sort(&new);
 
-	ret = bch2_cpu_replicas_to_sb_replicas(c, &new);
-	if (ret)
-		goto err;
+	ret =   bch2_cpu_replicas_to_sb_replicas(c, &new) ?:
+		replicas_table_update(c, &new);
 
-	ret = replicas_table_update(c, &new);
-err:
 	kfree(new.entries);
 
 	percpu_up_write(&c->mark_lock);
