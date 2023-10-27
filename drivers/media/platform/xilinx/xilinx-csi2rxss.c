@@ -386,14 +386,6 @@ static void xcsi2rxss_log_counters(struct xcsi2rxss_state *state)
 	}
 }
 
-/**
- * xcsi2rxss_log_status - Logs the status of the CSI-2 Receiver
- * @sd: Pointer to V4L2 subdevice structure
- *
- * This function prints the current status of Xilinx MIPI CSI-2
- *
- * Return: 0 on success
- */
 static int xcsi2rxss_log_status(struct v4l2_subdev *sd)
 {
 	struct xcsi2rxss_state *xcsi2rxss = to_xcsi2rxssstate(sd);
@@ -631,16 +623,6 @@ static irqreturn_t xcsi2rxss_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/**
- * xcsi2rxss_s_stream - It is used to start/stop the streaming.
- * @sd: V4L2 Sub device
- * @enable: Flag (True / False)
- *
- * This function controls the start or stop of streaming for the
- * Xilinx MIPI CSI-2 Rx Subsystem.
- *
- * Return: 0 on success, errors otherwise
- */
 static int xcsi2rxss_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct xcsi2rxss_state *xcsi2rxss = to_xcsi2rxssstate(sd);
@@ -680,16 +662,6 @@ __xcsi2rxss_get_pad_format(struct xcsi2rxss_state *xcsi2rxss,
 	}
 }
 
-/**
- * xcsi2rxss_init_cfg - Initialise the pad format config to default
- * @sd: Pointer to V4L2 Sub device structure
- * @sd_state: Pointer to sub device state structure
- *
- * This function is used to initialize the pad format with the default
- * values.
- *
- * Return: 0 on success
- */
 static int xcsi2rxss_init_cfg(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_state *sd_state)
 {
@@ -707,16 +679,6 @@ static int xcsi2rxss_init_cfg(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * xcsi2rxss_get_format - Get the pad format
- * @sd: Pointer to V4L2 Sub device structure
- * @sd_state: Pointer to sub device state structure
- * @fmt: Pointer to pad level media bus format
- *
- * This function is used to get the pad format information.
- *
- * Return: 0 on success
- */
 static int xcsi2rxss_get_format(struct v4l2_subdev *sd,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_format *fmt)
@@ -732,19 +694,6 @@ static int xcsi2rxss_get_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * xcsi2rxss_set_format - This is used to set the pad format
- * @sd: Pointer to V4L2 Sub device structure
- * @sd_state: Pointer to sub device state structure
- * @fmt: Pointer to pad level media bus format
- *
- * This function is used to set the pad format. Since the pad format is fixed
- * in hardware, it can't be modified on run time. So when a format set is
- * requested by application, all parameters except the format type is saved
- * for the pad and the original pad format is sent back to the application.
- *
- * Return: 0 on success
- */
 static int xcsi2rxss_set_format(struct v4l2_subdev *sd,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_format *fmt)
@@ -789,14 +738,6 @@ static int xcsi2rxss_set_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/*
- * xcsi2rxss_enum_mbus_code - Handle pixel format enumeration
- * @sd: pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad configuration
- * @code: pointer to v4l2_subdev_mbus_code_enum structure
- *
- * Return: -EINVAL or zero on success
- */
 static int xcsi2rxss_enum_mbus_code(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_mbus_code_enum *code)
