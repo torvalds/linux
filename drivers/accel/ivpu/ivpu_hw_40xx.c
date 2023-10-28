@@ -879,9 +879,17 @@ static bool ivpu_hw_40xx_is_idle(struct ivpu_device *vdev)
 	       REG_TEST_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, IDLE, val);
 }
 
+static void ivpu_hw_40xx_save_d0i3_entry_timestamp(struct ivpu_device *vdev)
+{
+	vdev->hw->d0i3_entry_host_ts = ktime_get_boottime();
+	vdev->hw->d0i3_entry_vpu_ts = REGV_RD64(VPU_40XX_CPU_SS_TIM_PERF_EXT_FREE_CNT);
+}
+
 static int ivpu_hw_40xx_power_down(struct ivpu_device *vdev)
 {
 	int ret = 0;
+
+	ivpu_hw_40xx_save_d0i3_entry_timestamp(vdev);
 
 	if (!ivpu_hw_40xx_is_idle(vdev) && ivpu_hw_40xx_reset(vdev))
 		ivpu_warn(vdev, "Failed to reset the VPU\n");
