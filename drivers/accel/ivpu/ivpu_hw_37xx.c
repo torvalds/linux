@@ -726,8 +726,11 @@ static int ivpu_hw_37xx_power_down(struct ivpu_device *vdev)
 
 	ivpu_hw_37xx_save_d0i3_entry_timestamp(vdev);
 
-	if (!ivpu_hw_37xx_is_idle(vdev) && ivpu_hw_37xx_reset(vdev))
-		ivpu_err(vdev, "Failed to reset the VPU\n");
+	if (!ivpu_hw_37xx_is_idle(vdev)) {
+		ivpu_warn(vdev, "VPU not idle during power down\n");
+		if (ivpu_hw_37xx_reset(vdev))
+			ivpu_warn(vdev, "Failed to reset the VPU\n");
+	}
 
 	if (ivpu_pll_disable(vdev)) {
 		ivpu_err(vdev, "Failed to disable PLL\n");
