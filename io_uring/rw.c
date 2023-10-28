@@ -913,15 +913,6 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 		kiocb_start_write(kiocb);
 	kiocb->ki_flags |= IOCB_WRITE;
 
-	/*
-	 * For non-polled IO, set IOCB_DIO_CALLER_COMP, stating that our handler
-	 * groks deferring the completion to task context. This isn't
-	 * necessary and useful for polled IO as that can always complete
-	 * directly.
-	 */
-	if (!(kiocb->ki_flags & IOCB_HIPRI))
-		kiocb->ki_flags |= IOCB_DIO_CALLER_COMP;
-
 	if (likely(req->file->f_op->write_iter))
 		ret2 = call_write_iter(req->file, kiocb, &s->iter);
 	else if (req->file->f_op->write)
