@@ -36,3 +36,4 @@ endif
 
 obj-$(CONFIG_DEBUG_VIRTUAL) += physaddr.o
 obj-$(CONFIG_RISCV_DMA_NONCOHERENT) += dma-noncoherent.o
+obj-$(CONFIG_RISCV_NONSTANDARD_CACHE_OPS) += cache-ops.o
