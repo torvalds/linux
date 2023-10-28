@@ -17,6 +17,7 @@
  */
 
 #include <linux/pci_hotplug.h>
+#include <linux/pci_regs.h>
 
 extern int ibmphp_debug;
 
@@ -286,8 +287,8 @@ int ibmphp_register_pci(void);
 
 /* pci specific defines */
 #define PCI_VENDOR_ID_NOTVALID		0xFFFF
-#define PCI_HEADER_TYPE_MULTIDEVICE	0x80
-#define PCI_HEADER_TYPE_MULTIBRIDGE	0x81
+#define PCI_HEADER_TYPE_MULTIDEVICE	(PCI_HEADER_TYPE_MFD|PCI_HEADER_TYPE_NORMAL)
+#define PCI_HEADER_TYPE_MULTIBRIDGE	(PCI_HEADER_TYPE_MFD|PCI_HEADER_TYPE_BRIDGE)
 
 #define LATENCY		0x64
 #define CACHE		64
