@@ -196,6 +196,8 @@ static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)
 	entry->batch_buf_addr = job->cmd_buf_vpu_addr;
 	entry->job_id = job->job_id;
 	entry->flags = 0;
+	if (unlikely(ivpu_test_mode == IVPU_TEST_MODE_NULL_SUBMISSION))
+		entry->flags = VPU_JOB_FLAGS_NULL_SUBMISSION_MASK;
 	wmb(); /* Ensure that tail is updated after filling entry */
 	header->tail = next_entry;
 	wmb(); /* Flush WC buffer for jobq header */

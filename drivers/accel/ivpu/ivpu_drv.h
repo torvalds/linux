@@ -147,9 +147,10 @@ extern u8 ivpu_pll_min_ratio;
 extern u8 ivpu_pll_max_ratio;
 extern bool ivpu_disable_mmu_cont_pages;
 
-#define IVPU_TEST_MODE_DISABLED  0
-#define IVPU_TEST_MODE_FW_TEST   1
-#define IVPU_TEST_MODE_NULL_HW   2
+#define IVPU_TEST_MODE_DISABLED        0
+#define IVPU_TEST_MODE_FW_TEST         1
+#define IVPU_TEST_MODE_NULL_HW         2
+#define IVPU_TEST_MODE_NULL_SUBMISSION 3
 extern int ivpu_test_mode;
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);
