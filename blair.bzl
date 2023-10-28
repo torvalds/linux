@@ -187,6 +187,7 @@ def define_blair():
         "drivers/thermal/qcom/cpu_hotplug.ko",
         "drivers/thermal/qcom/cx_ipeak_cdev.ko",
         "drivers/thermal/qcom/msm-tsens-driver.ko",
+        "drivers/thermal/qcom/qcom-spmi-adc-tm5.ko",
         "drivers/thermal/qcom/qcom-spmi-temp-alarm.ko",
         "drivers/thermal/qcom/qti_cpufreq_cdev.ko",
         "drivers/thermal/qcom/qti_devfreq_cdev.ko",
