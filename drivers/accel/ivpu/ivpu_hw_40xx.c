@@ -931,6 +931,19 @@ static void ivpu_hw_40xx_wdt_disable(struct ivpu_device *vdev)
 	REGV_WR32(VPU_40XX_CPU_SS_TIM_GEN_CONFIG, val);
 }
 
+static u32 ivpu_hw_40xx_profiling_freq_get(struct ivpu_device *vdev)
+{
+	return vdev->hw->pll.profiling_freq;
+}
+
+static void ivpu_hw_40xx_profiling_freq_drive(struct ivpu_device *vdev, bool enable)
+{
+	if (enable)
+		vdev->hw->pll.profiling_freq = PLL_PROFILING_FREQ_HIGH;
+	else
+		vdev->hw->pll.profiling_freq = PLL_PROFILING_FREQ_DEFAULT;
+}
+
 /* Register indirect accesses */
 static u32 ivpu_hw_40xx_reg_pll_freq_get(struct ivpu_device *vdev)
 {
@@ -1182,6 +1195,8 @@ const struct ivpu_hw_ops ivpu_hw_40xx_ops = {
 	.boot_fw = ivpu_hw_40xx_boot_fw,
 	.wdt_disable = ivpu_hw_40xx_wdt_disable,
 	.diagnose_failure = ivpu_hw_40xx_diagnose_failure,
+	.profiling_freq_get = ivpu_hw_40xx_profiling_freq_get,
+	.profiling_freq_drive = ivpu_hw_40xx_profiling_freq_drive,
 	.reg_pll_freq_get = ivpu_hw_40xx_reg_pll_freq_get,
 	.reg_telemetry_offset_get = ivpu_hw_40xx_reg_telemetry_offset_get,
 	.reg_telemetry_size_get = ivpu_hw_40xx_reg_telemetry_size_get,

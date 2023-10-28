@@ -499,6 +499,13 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->frequency = ivpu_hw_reg_pll_freq_get(vdev);
 
 	/*
+	 * This param is a debug firmware feature.  It switches default clock
+	 * to higher resolution one for fine-grained and more accurate firmware
+	 * task profiling.
+	 */
+	boot_params->perf_clk_frequency = ivpu_hw_profiling_freq_get(vdev);
+
+	/*
 	 * Uncached region of VPU address space, covers IPC buffers, job queues
 	 * and log buffers, programmable to L2$ Uncached by VPU MTRR
 	 */

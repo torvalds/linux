@@ -17,6 +17,8 @@ struct ivpu_hw_ops {
 	int (*wait_for_idle)(struct ivpu_device *vdev);
 	void (*wdt_disable)(struct ivpu_device *vdev);
 	void (*diagnose_failure)(struct ivpu_device *vdev);
+	u32 (*profiling_freq_get)(struct ivpu_device *vdev);
+	void (*profiling_freq_drive)(struct ivpu_device *vdev, bool enable);
 	u32 (*reg_pll_freq_get)(struct ivpu_device *vdev);
 	u32 (*reg_telemetry_offset_get)(struct ivpu_device *vdev);
 	u32 (*reg_telemetry_size_get)(struct ivpu_device *vdev);
@@ -102,6 +104,16 @@ static inline int ivpu_hw_power_down(struct ivpu_device *vdev)
 static inline void ivpu_hw_wdt_disable(struct ivpu_device *vdev)
 {
 	vdev->hw->ops->wdt_disable(vdev);
+};
+
+static inline u32 ivpu_hw_profiling_freq_get(struct ivpu_device *vdev)
+{
+	return vdev->hw->ops->profiling_freq_get(vdev);
+};
+
+static inline void ivpu_hw_profiling_freq_drive(struct ivpu_device *vdev, bool enable)
+{
+	return vdev->hw->ops->profiling_freq_drive(vdev, enable);
 };
 
 /* Register indirect accesses */

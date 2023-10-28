@@ -29,6 +29,7 @@
 
 #define PLL_REF_CLK_FREQ	     (50 * 1000000)
 #define PLL_SIMULATION_FREQ	     (10 * 1000000)
+#define PLL_PROF_CLK_FREQ	     (38400 * 1000)
 #define PLL_DEFAULT_EPP_VALUE	     0x80
 
 #define TIM_SAFE_ENABLE		     0xf1d0dead
@@ -769,6 +770,16 @@ static void ivpu_hw_37xx_wdt_disable(struct ivpu_device *vdev)
 	REGV_WR32(VPU_37XX_CPU_SS_TIM_GEN_CONFIG, val);
 }
 
+static u32 ivpu_hw_37xx_profiling_freq_get(struct ivpu_device *vdev)
+{
+	return PLL_PROF_CLK_FREQ;
+}
+
+static void ivpu_hw_37xx_profiling_freq_drive(struct ivpu_device *vdev, bool enable)
+{
+	/* Profiling freq - is a debug feature. Unavailable on VPU 37XX. */
+}
+
 static u32 ivpu_hw_37xx_pll_to_freq(u32 ratio, u32 config)
 {
 	u32 pll_clock = PLL_REF_CLK_FREQ * ratio;
@@ -1012,6 +1023,8 @@ const struct ivpu_hw_ops ivpu_hw_37xx_ops = {
 	.boot_fw = ivpu_hw_37xx_boot_fw,
 	.wdt_disable = ivpu_hw_37xx_wdt_disable,
 	.diagnose_failure = ivpu_hw_37xx_diagnose_failure,
+	.profiling_freq_get = ivpu_hw_37xx_profiling_freq_get,
+	.profiling_freq_drive = ivpu_hw_37xx_profiling_freq_drive,
 	.reg_pll_freq_get = ivpu_hw_37xx_reg_pll_freq_get,
 	.reg_telemetry_offset_get = ivpu_hw_37xx_reg_telemetry_offset_get,
 	.reg_telemetry_size_get = ivpu_hw_37xx_reg_telemetry_size_get,

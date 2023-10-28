@@ -14,6 +14,7 @@
 #include "ivpu_fw.h"
 #include "ivpu_fw_log.h"
 #include "ivpu_gem.h"
+#include "ivpu_hw.h"
 #include "ivpu_jsm_msg.h"
 #include "ivpu_pm.h"
 
@@ -177,6 +178,30 @@ static const struct file_operations fw_log_fops = {
 };
 
 static ssize_t
+fw_profiling_freq_fops_write(struct file *file, const char __user *user_buf,
+			     size_t size, loff_t *pos)
+{
+	struct ivpu_device *vdev = file->private_data;
+	bool enable;
+	int ret;
+
+	ret = kstrtobool_from_user(user_buf, size, &enable);
+	if (ret < 0)
+		return ret;
+
+	ivpu_hw_profiling_freq_drive(vdev, enable);
+	ivpu_pm_schedule_recovery(vdev);
+
+	return size;
+}
+
+static const struct file_operations fw_profiling_freq_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = fw_profiling_freq_fops_write,
+};
+
+static ssize_t
 fw_trace_destination_mask_fops_write(struct file *file, const char __user *user_buf,
 				     size_t size, loff_t *pos)
 {
@@ -319,4 +344,8 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 
 	debugfs_create_file("reset_engine", 0200, debugfs_root, vdev,
 			    &ivpu_reset_engine_fops);
+
+	if (ivpu_hw_gen(vdev) >= IVPU_HW_40XX)
+		debugfs_create_file("fw_profiling_freq_drive", 0200,
+				    debugfs_root, vdev, &fw_profiling_freq_fops);
 }
