@@ -230,7 +230,12 @@
 				  (REG_FLD(IVPU_MMU_REG_GERROR, MSI_PRIQ_ABT)) | \
 				  (REG_FLD(IVPU_MMU_REG_GERROR, MSI_ABT)))
 
-static char *ivpu_mmu_event_to_str(u32 cmd)
+#define IVPU_MMU_CERROR_NONE         0x0
+#define IVPU_MMU_CERROR_ILL          0x1
+#define IVPU_MMU_CERROR_ABT          0x2
+#define IVPU_MMU_CERROR_ATC_INV_SYNC 0x3
+
+static const char *ivpu_mmu_event_to_str(u32 cmd)
 {
 	switch (cmd) {
 	case IVPU_MMU_EVT_F_UUT:
@@ -273,6 +278,22 @@ static char *ivpu_mmu_event_to_str(u32 cmd)
 		return "Fetch of VMS caused external abort";
 	default:
 		return "Unknown CMDQ command";
+	}
+}
+
+static const char *ivpu_mmu_cmdq_err_to_str(u32 err)
+{
+	switch (err) {
+	case IVPU_MMU_CERROR_NONE:
+		return "No CMDQ Error";
+	case IVPU_MMU_CERROR_ILL:
+		return "Illegal command";
+	case IVPU_MMU_CERROR_ABT:
+		return "External abort on CMDQ read";
+	case IVPU_MMU_CERROR_ATC_INV_SYNC:
+		return "Sync failed to complete ATS invalidation";
+	default:
+		return "Unknown CMDQ Error";
 	}
 }
 
@@ -492,8 +513,15 @@ static int ivpu_mmu_cmdq_sync(struct ivpu_device *vdev)
 	REGV_WR32(IVPU_MMU_REG_CMDQ_PROD, q->prod);
 
 	ret = ivpu_mmu_cmdq_wait_for_cons(vdev);
-	if (ret)
-		ivpu_err(vdev, "Timed out waiting for consumer: %d\n", ret);
+	if (ret) {
+		u32 err;
+
+		val = REGV_RD32(IVPU_MMU_REG_CMDQ_CONS);
+		err = REG_GET_FLD(IVPU_MMU_REG_CMDQ_CONS, ERR, val);
+
+		ivpu_err(vdev, "Timed out waiting for MMU consumer: %d, error: %s\n", ret,
+			 ivpu_mmu_cmdq_err_to_str(err));
+	}
 
 	return ret;
 }
