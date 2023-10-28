@@ -346,7 +346,7 @@ static void ovl_parse_param_drop_lowerdir(struct ovl_fs_context *ctx)
 /*
  * Parse lowerdir= mount option:
  *
- * (1) lowerdir=/lower1:/lower2:/lower3::/data1::/data2
+ * e.g.: lowerdir=/lower1:/lower2:/lower3::/data1::/data2
  *     Set "/lower1", "/lower2", and "/lower3" as lower layers and
  *     "/data1" and "/data2" as data lower layers. Any existing lower
  *     layers are replaced.
@@ -356,9 +356,9 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 	int err;
 	struct ovl_fs_context *ctx = fc->fs_private;
 	struct ovl_fs_context_layer *l;
-	char *dup = NULL, *dup_iter;
+	char *dup = NULL, *iter;
 	ssize_t nr_lower = 0, nr = 0, nr_data = 0;
-	bool append = false, data_layer = false;
+	bool data_layer = false;
 
 	/*
 	 * Ensure we're backwards compatible with mount(2)
@@ -366,10 +366,10 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 	 */
 
 	/* drop all existing lower layers */
-	if (!*name) {
-		ovl_parse_param_drop_lowerdir(ctx);
+	ovl_parse_param_drop_lowerdir(ctx);
+
+	if (!*name)
 		return 0;
-	}
 
 	if (*name == ':') {
 		pr_err("cannot append lower layer");
@@ -385,36 +385,11 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 	if (nr_lower < 0)
 		goto out_err;
 
-	if ((nr_lower > OVL_MAX_STACK) ||
-	    (append && (size_add(ctx->nr, nr_lower) > OVL_MAX_STACK))) {
+	if (nr_lower > OVL_MAX_STACK) {
 		pr_err("too many lower directories, limit is %d\n", OVL_MAX_STACK);
 		goto out_err;
 	}
 
-	if (!append)
-		ovl_parse_param_drop_lowerdir(ctx);
-
-	/*
-	 * (1) append
-	 *
-	 * We want nr <= nr_lower <= capacity We know nr > 0 and nr <=
-	 * capacity. If nr == 0 this wouldn't be append. If nr +
-	 * nr_lower is <= capacity then nr <= nr_lower <= capacity
-	 * already holds. If nr + nr_lower exceeds capacity, we realloc.
-	 *
-	 * (2) replace
-	 *
-	 * Ensure we're backwards compatible with mount(2) which allows
-	 * "lowerdir=/a:/b:/c,lowerdir=/d:/e:/f" causing the last
-	 * specified lowerdir mount option to win.
-	 *
-	 * We want nr <= nr_lower <= capacity We know either (i) nr == 0
-	 * or (ii) nr > 0. We also know nr_lower > 0. The capacity
-	 * could've been changed multiple times already so we only know
-	 * nr <= capacity. If nr + nr_lower > capacity we realloc,
-	 * otherwise nr <= nr_lower <= capacity holds already.
-	 */
-	nr_lower += ctx->nr;
 	if (nr_lower > ctx->capacity) {
 		err = -ENOMEM;
 		l = krealloc_array(ctx->lower, nr_lower, sizeof(*ctx->lower),
@@ -426,41 +401,17 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 		ctx->capacity = nr_lower;
 	}
 
-	/*
-	 *   (3) By (1) and (2) we know nr <= nr_lower <= capacity.
-	 *   (4) If ctx->nr == 0 => replace
-	 *       We have verified above that the lowerdir mount option
-	 *       isn't an append, i.e., the lowerdir mount option
-	 *       doesn't start with ":" or "::".
-	 * (4.1) The lowerdir mount options only contains regular lower
-	 *       layers ":".
-	 *       => Nothing to verify.
-	 * (4.2) The lowerdir mount options contains regular ":" and
-	 *       data "::" layers.
-	 *       => We need to verify that data lower layers "::" aren't
-	 *          followed by regular ":" lower layers
-	 *   (5) If ctx->nr > 0 => append
-	 *       We know that there's at least one regular layer
-	 *       otherwise we would've failed when parsing the previous
-	 *       lowerdir mount option.
-	 * (5.1) The lowerdir mount option is a regular layer ":" append
-	 *       => We need to verify that no data layers have been
-	 *          specified before.
-	 * (5.2) The lowerdir mount option is a data layer "::" append
-	 *       We know that there's at least one regular layer or
-	 *       other data layers. => There's nothing to verify.
-	 */
-	dup_iter = dup;
-	for (nr = ctx->nr; nr < nr_lower; nr++) {
-		l = &ctx->lower[nr];
+	iter = dup;
+	l = ctx->lower;
+	for (nr = 0; nr < nr_lower; nr++, l++) {
 		memset(l, 0, sizeof(*l));
 
-		err = ovl_mount_dir(dup_iter, &l->path, false);
+		err = ovl_mount_dir(iter, &l->path, false);
 		if (err)
 			goto out_put;
 
 		err = -ENOMEM;
-		l->name = kstrdup(dup_iter, GFP_KERNEL_ACCOUNT);
+		l->name = kstrdup(iter, GFP_KERNEL_ACCOUNT);
 		if (!l->name)
 			goto out_put;
 
@@ -472,8 +423,8 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 			break;
 
 		err = -EINVAL;
-		dup_iter = strchr(dup_iter, '\0') + 1;
-		if (*dup_iter) {
+		iter = strchr(iter, '\0') + 1;
+		if (*iter) {
 			/*
 			 * This is a regular layer so we require that
 			 * there are no data layers.
@@ -489,7 +440,7 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 
 		/* This is a data lower layer. */
 		data_layer = true;
-		dup_iter++;
+		iter++;
 	}
 	ctx->nr = nr_lower;
 	ctx->nr_data += nr_data;
@@ -497,21 +448,7 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 	return 0;
 
 out_put:
-	/*
-	 * We know nr >= ctx->nr < nr_lower. If we failed somewhere
-	 * we want to undo until nr == ctx->nr. This is correct for
-	 * both ctx->nr == 0 and ctx->nr > 0.
-	 */
-	for (; nr >= ctx->nr; nr--) {
-		l = &ctx->lower[nr];
-		kfree(l->name);
-		l->name = NULL;
-		path_put(&l->path);
-
-		/* don't overflow */
-		if (nr == 0)
-			break;
-	}
+	ovl_parse_param_drop_lowerdir(ctx);
 
 out_err:
 	kfree(dup);
