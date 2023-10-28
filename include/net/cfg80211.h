@@ -5977,8 +5977,7 @@ struct wireless_dev {
 	} wext;
 #endif
 
-	struct wiphy_work cqm_rssi_work;
-	struct cfg80211_cqm_config __rcu *cqm_config;
+	struct cfg80211_cqm_config *cqm_config;
 
 	struct list_head pmsr_list;
 	spinlock_t pmsr_lock;
