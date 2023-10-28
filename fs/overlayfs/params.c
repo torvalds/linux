@@ -332,12 +332,18 @@ static int ovl_parse_param_upperdir(const char *name, struct fs_context *fc,
 	return 0;
 }
 
-static void ovl_parse_param_drop_lowerdir(struct ovl_fs_context *ctx)
+static void ovl_reset_lowerdirs(struct ovl_fs_context *ctx)
 {
-	for (size_t nr = 0; nr < ctx->nr; nr++) {
-		path_put(&ctx->lower[nr].path);
-		kfree(ctx->lower[nr].name);
-		ctx->lower[nr].name = NULL;
+	struct ovl_fs_context_layer *l = ctx->lower;
+
+	// Reset old user provided lowerdir string
+	kfree(ctx->lowerdir_all);
+	ctx->lowerdir_all = NULL;
+
+	for (size_t nr = 0; nr < ctx->nr; nr++, l++) {
+		path_put(&l->path);
+		kfree(l->name);
+		l->name = NULL;
 	}
 	ctx->nr = 0;
 	ctx->nr_data = 0;
@@ -366,7 +372,7 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 	 */
 
 	/* drop all existing lower layers */
-	ovl_parse_param_drop_lowerdir(ctx);
+	ovl_reset_lowerdirs(ctx);
 
 	if (!*name)
 		return 0;
@@ -375,6 +381,11 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 		pr_err("cannot append lower layer");
 		return -EINVAL;
 	}
+
+	// Store user provided lowerdir string to show in mount options
+	ctx->lowerdir_all = kstrdup(name, GFP_KERNEL);
+	if (!ctx->lowerdir_all)
+		return -ENOMEM;
 
 	dup = kstrdup(name, GFP_KERNEL);
 	if (!dup)
@@ -448,7 +459,7 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 	return 0;
 
 out_put:
-	ovl_parse_param_drop_lowerdir(ctx);
+	ovl_reset_lowerdirs(ctx);
 
 out_err:
 	kfree(dup);
@@ -554,7 +565,7 @@ static int ovl_get_tree(struct fs_context *fc)
 
 static inline void ovl_fs_context_free(struct ovl_fs_context *ctx)
 {
-	ovl_parse_param_drop_lowerdir(ctx);
+	ovl_reset_lowerdirs(ctx);
 	path_put(&ctx->upper);
 	path_put(&ctx->work);
 	kfree(ctx->lower);
@@ -870,24 +881,13 @@ int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct ovl_fs *ofs = OVL_FS(sb);
-	size_t nr, nr_merged_lower = ofs->numlayer - ofs->numdatalayer;
+	char **lowerdirs = ofs->config.lowerdirs;
 
 	/*
-	 * lowerdirs[] starts from offset 1, then
-	 * >= 0 regular lower layers prefixed with : and
-	 * >= 0 data-only lower layers prefixed with ::
-	 *
-	 * we need to escase comma and space like seq_show_option() does and
-	 * we also need to escape the colon separator from lowerdir paths.
+	 * lowerdirs[0] holds the colon separated list that user provided
+	 * with lowerdir mount option.
 	 */
-	seq_puts(m, ",lowerdir=");
-	for (nr = 1; nr < ofs->numlayer; nr++) {
-		if (nr > 1)
-			seq_putc(m, ':');
-		if (nr >= nr_merged_lower)
-			seq_putc(m, ':');
-		seq_escape(m, ofs->config.lowerdirs[nr], ":, \t\n\\");
-	}
+	seq_show_option(m, "lowerdir", lowerdirs[0]);
 	if (ofs->config.upperdir) {
 		seq_show_option(m, "upperdir", ofs->config.upperdir);
 		seq_show_option(m, "workdir", ofs->config.workdir);
