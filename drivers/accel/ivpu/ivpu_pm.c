@@ -70,27 +70,31 @@ retry:
 	ret = ivpu_hw_power_up(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to power up HW: %d\n", ret);
-		return ret;
+		goto err_power_down;
 	}
 
 	ret = ivpu_mmu_enable(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to resume MMU: %d\n", ret);
-		ivpu_hw_power_down(vdev);
-		return ret;
+		goto err_power_down;
 	}
 
 	ret = ivpu_boot(vdev);
-	if (ret) {
-		ivpu_mmu_disable(vdev);
-		ivpu_hw_power_down(vdev);
-		if (!ivpu_fw_is_cold_boot(vdev)) {
-			ivpu_warn(vdev, "Failed to resume the FW: %d. Retrying cold boot..\n", ret);
-			ivpu_pm_prepare_cold_boot(vdev);
-			goto retry;
-		} else {
-			ivpu_err(vdev, "Failed to resume the FW: %d\n", ret);
-		}
+	if (ret)
+		goto err_mmu_disable;
+
+	return 0;
+
+err_mmu_disable:
+	ivpu_mmu_disable(vdev);
+err_power_down:
+	ivpu_hw_power_down(vdev);
+
+	if (!ivpu_fw_is_cold_boot(vdev)) {
+		ivpu_pm_prepare_cold_boot(vdev);
+		goto retry;
+	} else {
+		ivpu_err(vdev, "Failed to resume the FW: %d\n", ret);
 	}
 
 	return ret;

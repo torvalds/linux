@@ -543,7 +543,7 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	/* Power up early so the rest of init code can access VPU registers */
 	ret = ivpu_hw_power_up(vdev);
 	if (ret)
-		goto err_xa_destroy;
+		goto err_power_down;
 
 	ret = ivpu_mmu_global_context_init(vdev);
 	if (ret)
