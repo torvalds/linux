@@ -590,6 +590,11 @@ static int ivpu_job_done_thread(void *arg)
 				ivpu_pm_schedule_recovery(vdev);
 			}
 		}
+		if (kthread_should_park()) {
+			ivpu_dbg(vdev, JOB, "Parked %s\n", __func__);
+			kthread_parkme();
+			ivpu_dbg(vdev, JOB, "Unparked %s\n", __func__);
+		}
 	}
 
 	ivpu_ipc_consumer_del(vdev, &cons);
@@ -610,9 +615,6 @@ int ivpu_job_done_thread_init(struct ivpu_device *vdev)
 		return -EIO;
 	}
 
-	get_task_struct(thread);
-	wake_up_process(thread);
-
 	vdev->job_done_thread = thread;
 
 	return 0;
@@ -620,6 +622,16 @@ int ivpu_job_done_thread_init(struct ivpu_device *vdev)
 
 void ivpu_job_done_thread_fini(struct ivpu_device *vdev)
 {
+	kthread_unpark(vdev->job_done_thread);
 	kthread_stop(vdev->job_done_thread);
-	put_task_struct(vdev->job_done_thread);
+}
+
+void ivpu_job_done_thread_disable(struct ivpu_device *vdev)
+{
+	kthread_park(vdev->job_done_thread);
+}
+
+void ivpu_job_done_thread_enable(struct ivpu_device *vdev)
+{
+	kthread_unpark(vdev->job_done_thread);
 }

@@ -61,6 +61,8 @@ void ivpu_cmdq_reset_all_contexts(struct ivpu_device *vdev);
 
 int ivpu_job_done_thread_init(struct ivpu_device *vdev);
 void ivpu_job_done_thread_fini(struct ivpu_device *vdev);
+void ivpu_job_done_thread_disable(struct ivpu_device *vdev);
+void ivpu_job_done_thread_enable(struct ivpu_device *vdev);
 
 void ivpu_jobs_abort_all(struct ivpu_device *vdev);
 
