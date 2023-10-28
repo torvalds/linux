@@ -405,7 +405,7 @@ unsigned long find_next_and_bit_wrap(const unsigned long *addr1,
 {
 	unsigned long bit = find_next_and_bit(addr1, addr2, size, offset);
 
-	if (bit < size)
+	if (bit < size || offset == 0)
 		return bit;
 
 	bit = find_first_and_bit(addr1, addr2, offset);
@@ -427,7 +427,7 @@ unsigned long find_next_bit_wrap(const unsigned long *addr,
 {
 	unsigned long bit = find_next_bit(addr, size, offset);
 
-	if (bit < size)
+	if (bit < size || offset == 0)
 		return bit;
 
 	bit = find_first_bit(addr, offset);
