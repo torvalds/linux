@@ -148,6 +148,7 @@ ivpu_ipc_consumer_add(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons, 
 	cons->channel = channel;
 	cons->tx_vpu_addr = 0;
 	cons->request_id = 0;
+	cons->aborted = false;
 	spin_lock_init(&cons->rx_msg_lock);
 	INIT_LIST_HEAD(&cons->rx_msg_list);
 	init_waitqueue_head(&cons->rx_msg_wq);
@@ -169,7 +170,8 @@ void ivpu_ipc_consumer_del(struct ivpu_device *vdev, struct ivpu_ipc_consumer *c
 	spin_lock_irq(&cons->rx_msg_lock);
 	list_for_each_entry_safe(rx_msg, r, &cons->rx_msg_list, link) {
 		list_del(&rx_msg->link);
-		ivpu_ipc_rx_mark_free(vdev, rx_msg->ipc_hdr, rx_msg->jsm_msg);
+		if (!cons->aborted)
+			ivpu_ipc_rx_mark_free(vdev, rx_msg->ipc_hdr, rx_msg->jsm_msg);
 		atomic_dec(&ipc->rx_msg_count);
 		kfree(rx_msg);
 	}
@@ -210,7 +212,7 @@ static int ivpu_ipc_rx_need_wakeup(struct ivpu_ipc_consumer *cons)
 		ret |= (kthread_should_stop() || kthread_should_park());
 
 	spin_lock_irq(&cons->rx_msg_lock);
-	ret |= !list_empty(&cons->rx_msg_list);
+	ret |= !list_empty(&cons->rx_msg_list) || cons->aborted;
 	spin_unlock_irq(&cons->rx_msg_lock);
 
 	return ret;
@@ -244,6 +246,12 @@ int ivpu_ipc_receive(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 		return -EAGAIN;
 	}
 	list_del(&rx_msg->link);
+	if (cons->aborted) {
+		spin_unlock_irq(&cons->rx_msg_lock);
+		ret = -ECANCELED;
+		goto out;
+	}
+
 	spin_unlock_irq(&cons->rx_msg_lock);
 
 	if (ipc_buf)
@@ -261,6 +269,7 @@ int ivpu_ipc_receive(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 	}
 
 	ivpu_ipc_rx_mark_free(vdev, rx_msg->ipc_hdr, rx_msg->jsm_msg);
+out:
 	atomic_dec(&ipc->rx_msg_count);
 	kfree(rx_msg);
 
@@ -522,8 +531,12 @@ void ivpu_ipc_disable(struct ivpu_device *vdev)
 	mutex_unlock(&ipc->lock);
 
 	spin_lock_irqsave(&ipc->cons_list_lock, flags);
-	list_for_each_entry_safe(cons, c, &ipc->cons_list, link)
+	list_for_each_entry_safe(cons, c, &ipc->cons_list, link) {
+		spin_lock(&cons->rx_msg_lock);
+		cons->aborted = true;
+		spin_unlock(&cons->rx_msg_lock);
 		wake_up(&cons->rx_msg_wq);
+	}
 	spin_unlock_irqrestore(&ipc->cons_list_lock, flags);
 }
 
@@ -532,6 +545,7 @@ void ivpu_ipc_reset(struct ivpu_device *vdev)
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 
 	mutex_lock(&ipc->lock);
+	drm_WARN_ON(&vdev->drm, ipc->on);
 
 	memset(ivpu_bo_vaddr(ipc->mem_tx), 0, ivpu_bo_size(ipc->mem_tx));
 	memset(ivpu_bo_vaddr(ipc->mem_rx), 0, ivpu_bo_size(ipc->mem_rx));

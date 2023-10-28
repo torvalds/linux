@@ -47,8 +47,9 @@ struct ivpu_ipc_consumer {
 	u32 channel;
 	u32 tx_vpu_addr;
 	u32 request_id;
+	bool aborted;
 
-	spinlock_t rx_msg_lock; /* Protects rx_msg_list */
+	spinlock_t rx_msg_lock; /* Protects rx_msg_list and aborted */
 	struct list_head rx_msg_list;
 	wait_queue_head_t rx_msg_wq;
 };
