@@ -286,6 +286,31 @@ config PCIE_QCOM_EP
 	  to work in endpoint mode. The PCIe controller uses the DesignWare core
 	  plus Qualcomm-specific hardware wrappers.
 
+config PCIE_RCAR_GEN4
+	tristate
+
+config PCIE_RCAR_GEN4_HOST
+	tristate "Renesas R-Car Gen4 PCIe controller (host mode)"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on PCI_MSI
+	select PCIE_DW_HOST
+	select PCIE_RCAR_GEN4
+	help
+	  Say Y here if you want PCIe controller (host mode) on R-Car Gen4 SoCs.
+	  To compile this driver as a module, choose M here: the module will be
+	  called pcie-rcar-gen4.ko. This uses the DesignWare core.
+
+config PCIE_RCAR_GEN4_EP
+	tristate "Renesas R-Car Gen4 PCIe controller (endpoint mode)"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	select PCIE_RCAR_GEN4
+	help
+	  Say Y here if you want PCIe controller (endpoint mode) on R-Car Gen4
+	  SoCs. To compile this driver as a module, choose M here: the module
+	  will be called pcie-rcar-gen4.ko. This uses the DesignWare core.
+
 config PCIE_ROCKCHIP_DW_HOST
 	bool "Rockchip DesignWare PCIe controller"
 	select PCIE_DW
