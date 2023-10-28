@@ -163,7 +163,6 @@ typedef void buffer_t;
 
 /* Information about built-in Ethernet MAC interfaces */
 struct eth_plat_info {
-	u8 phy;		/* MII PHY ID, 0 - 31 */
 	u8 rxq;		/* configurable, currently 0 - 31 only */
 	u8 txreadyq;
 	u8 hwaddr[ETH_ALEN];
@@ -1583,7 +1582,7 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 	if ((err = register_netdev(ndev)))
 		goto err_phy_dis;
 
-	netdev_info(ndev, "%s: MII PHY %i on %s\n", ndev->name, plat->phy,
+	netdev_info(ndev, "%s: MII PHY %s on %s\n", ndev->name, phydev_name(phydev),
 		    npe_name(port->npe));
 
 	return 0;
