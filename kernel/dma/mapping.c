@@ -803,8 +803,15 @@ EXPORT_SYMBOL(dma_set_coherent_mask);
  */
 bool dma_addressing_limited(struct device *dev)
 {
-	return min_not_zero(dma_get_mask(dev), dev->bus_dma_limit) <
-			    dma_get_required_mask(dev);
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	if (min_not_zero(dma_get_mask(dev), dev->bus_dma_limit) <
+			 dma_get_required_mask(dev))
+		return true;
+
+	if (unlikely(ops))
+		return false;
+	return !dma_direct_all_ram_mapped(dev);
 }
 EXPORT_SYMBOL_GPL(dma_addressing_limited);
 
