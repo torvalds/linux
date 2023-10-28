@@ -57,6 +57,8 @@ struct ivpu_hw_info {
 	u32 sku;
 	u16 config;
 	int dma_bits;
+	ktime_t d0i3_entry_host_ts;
+	u64 d0i3_entry_vpu_ts;
 };
 
 extern const struct ivpu_hw_ops ivpu_hw_37xx_ops;

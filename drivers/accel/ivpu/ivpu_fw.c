@@ -426,14 +426,27 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 		 boot_params->vpu_telemetry_enable);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.dvfs_mode = %u\n",
 		 boot_params->dvfs_mode);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_residency_time_us = %lld\n",
+		 boot_params->d0i3_residency_time_us);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_entry_vpu_ts = %llu\n",
+		 boot_params->d0i3_entry_vpu_ts);
 }
 
 void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params *boot_params)
 {
 	struct ivpu_bo *ipc_mem_rx = vdev->ipc->mem_rx;
 
-	/* In case of warm boot we only have to reset the entrypoint addr */
+	/* In case of warm boot only update variable params */
 	if (!ivpu_fw_is_cold_boot(vdev)) {
+		boot_params->d0i3_residency_time_us =
+			ktime_us_delta(ktime_get_boottime(), vdev->hw->d0i3_entry_host_ts);
+		boot_params->d0i3_entry_vpu_ts = vdev->hw->d0i3_entry_vpu_ts;
+
+		ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_residency_time_us = %lld\n",
+			 boot_params->d0i3_residency_time_us);
+		ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_entry_vpu_ts = %llu\n",
+			 boot_params->d0i3_entry_vpu_ts);
+
 		boot_params->save_restore_ret_address = 0;
 		vdev->pm->is_warmboot = true;
 		return;
@@ -497,6 +510,8 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->punit_telemetry_sram_size = ivpu_hw_reg_telemetry_size_get(vdev);
 	boot_params->vpu_telemetry_enable = ivpu_hw_reg_telemetry_enable_get(vdev);
 	boot_params->dvfs_mode = vdev->fw->dvfs_mode;
+	boot_params->d0i3_residency_time_us = 0;
+	boot_params->d0i3_entry_vpu_ts = 0;
 
 	wmb(); /* Flush WC buffers after writing bootparams */
 
