@@ -196,7 +196,7 @@ static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)
 	entry->batch_buf_addr = job->cmd_buf_vpu_addr;
 	entry->job_id = job->job_id;
 	entry->flags = 0;
-	if (unlikely(ivpu_test_mode == IVPU_TEST_MODE_NULL_SUBMISSION))
+	if (unlikely(ivpu_test_mode & IVPU_TEST_MODE_NULL_SUBMISSION))
 		entry->flags = VPU_JOB_FLAGS_NULL_SUBMISSION_MASK;
 	wmb(); /* Ensure that tail is updated after filling entry */
 	header->tail = next_entry;
@@ -404,7 +404,7 @@ static int ivpu_direct_job_submission(struct ivpu_job *job)
 		 job->job_id, job->cmd_buf_vpu_addr, file_priv->ctx.id,
 		 job->engine_idx, cmdq->jobq->header.tail);
 
-	if (ivpu_test_mode == IVPU_TEST_MODE_NULL_HW) {
+	if (ivpu_test_mode & IVPU_TEST_MODE_NULL_HW) {
 		ivpu_job_done(vdev, job->job_id, VPU_JSM_STATUS_SUCCESS);
 		cmdq->jobq->header.head = cmdq->jobq->header.tail;
 		wmb(); /* Flush WC buffer for jobq header */
