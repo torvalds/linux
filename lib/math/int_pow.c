@@ -18,14 +18,11 @@
  */
 u64 int_pow(u64 base, unsigned int exp)
 {
-	u64 result = 1;
+	if(exp < 0) return 0;
+	if(!base || !exp) return NULL;
 
-	while (exp) {
-		if (exp & 1)
-			result *= base;
-		exp >>= 1;
-		base *= base;
-	}
+	u64 result = 1;
+	for(; exp ; exp --) result *= base;
 
 	return result;
 }
