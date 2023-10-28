@@ -85,9 +85,11 @@ int ivpu_ipc_receive(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 		     struct ivpu_ipc_hdr *ipc_buf, struct vpu_jsm_msg *ipc_payload,
 		     unsigned long timeout_ms);
 
+int ivpu_ipc_send_receive_active(struct ivpu_device *vdev, struct vpu_jsm_msg *req,
+				 enum vpu_ipc_msg_type expected_resp, struct vpu_jsm_msg *resp,
+				 u32 channel, unsigned long timeout_ms);
 int ivpu_ipc_send_receive(struct ivpu_device *vdev, struct vpu_jsm_msg *req,
-			  enum vpu_ipc_msg_type expected_resp_type,
-			  struct vpu_jsm_msg *resp, u32 channel,
-			  unsigned long timeout_ms);
+			  enum vpu_ipc_msg_type expected_resp, struct vpu_jsm_msg *resp,
+			  u32 channel, unsigned long timeout_ms);
 
 #endif /* __IVPU_IPC_H__ */
