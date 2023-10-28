@@ -51,7 +51,7 @@ static int virtio_gpu_pci_quirk(struct drm_device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	const char *pname = dev_name(&pdev->dev);
-	bool vga = (pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA;
+	bool vga = pci_is_vga(pdev);
 	int ret;
 
 	DRM_INFO("pci: %s detected at %s\n",
