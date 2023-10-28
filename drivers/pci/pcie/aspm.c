@@ -7,7 +7,9 @@
  * Copyright (C) Shaohua Li (shaohua.li@intel.com)
  */
 
+#include <linux/bitfield.h>
 #include <linux/kernel.h>
+#include <linux/limits.h>
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -16,9 +18,10 @@
 #include <linux/errno.h>
 #include <linux/pm.h>
 #include <linux/init.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
-#include <linux/jiffies.h>
-#include <linux/delay.h>
+#include <linux/time.h>
+
 #include "../pci.h"
 
 #ifdef MODULE_PARAM_PREFIX
@@ -267,10 +270,10 @@ static void pcie_aspm_configure_common_clock(struct pcie_link_state *link)
 /* Convert L0s latency encoding to ns */
 static u32 calc_l0s_latency(u32 lnkcap)
 {
-	u32 encoding = (lnkcap & PCI_EXP_LNKCAP_L0SEL) >> 12;
+	u32 encoding = FIELD_GET(PCI_EXP_LNKCAP_L0SEL, lnkcap);
 
 	if (encoding == 0x7)
-		return (5 * 1000);	/* > 4us */
+		return 5 * NSEC_PER_USEC;	/* > 4us */
 	return (64 << encoding);
 }
 
@@ -278,26 +281,26 @@ static u32 calc_l0s_latency(u32 lnkcap)
 static u32 calc_l0s_acceptable(u32 encoding)
 {
 	if (encoding == 0x7)
-		return -1U;
+		return U32_MAX;
 	return (64 << encoding);
 }
 
 /* Convert L1 latency encoding to ns */
 static u32 calc_l1_latency(u32 lnkcap)
 {
-	u32 encoding = (lnkcap & PCI_EXP_LNKCAP_L1EL) >> 15;
+	u32 encoding = FIELD_GET(PCI_EXP_LNKCAP_L1EL, lnkcap);
 
 	if (encoding == 0x7)
-		return (65 * 1000);	/* > 64us */
-	return (1000 << encoding);
+		return 65 * NSEC_PER_USEC;	/* > 64us */
+	return NSEC_PER_USEC << encoding;
 }
 
 /* Convert L1 acceptable latency encoding to ns */
 static u32 calc_l1_acceptable(u32 encoding)
 {
 	if (encoding == 0x7)
-		return -1U;
-	return (1000 << encoding);
+		return U32_MAX;
+	return NSEC_PER_USEC << encoding;
 }
 
 /* Convert L1SS T_pwr encoding to usec */
@@ -325,33 +328,33 @@ static u32 calc_l12_pwron(struct pci_dev *pdev, u32 scale, u32 val)
  */
 static void encode_l12_threshold(u32 threshold_us, u32 *scale, u32 *value)
 {
-	u64 threshold_ns = (u64) threshold_us * 1000;
+	u64 threshold_ns = (u64)threshold_us * NSEC_PER_USEC;
 
 	/*
 	 * LTR_L1.2_THRESHOLD_Value ("value") is a 10-bit field with max
 	 * value of 0x3ff.
 	 */
-	if (threshold_ns <= 0x3ff * 1) {
+	if (threshold_ns <= 1 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 0;		/* Value times 1ns */
 		*value = threshold_ns;
-	} else if (threshold_ns <= 0x3ff * 32) {
+	} else if (threshold_ns <= 32 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 1;		/* Value times 32ns */
 		*value = roundup(threshold_ns, 32) / 32;
-	} else if (threshold_ns <= 0x3ff * 1024) {
+	} else if (threshold_ns <= 1024 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 2;		/* Value times 1024ns */
 		*value = roundup(threshold_ns, 1024) / 1024;
-	} else if (threshold_ns <= 0x3ff * 32768) {
+	} else if (threshold_ns <= 32768 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 3;		/* Value times 32768ns */
 		*value = roundup(threshold_ns, 32768) / 32768;
-	} else if (threshold_ns <= 0x3ff * 1048576) {
+	} else if (threshold_ns <= 1048576 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 4;		/* Value times 1048576ns */
 		*value = roundup(threshold_ns, 1048576) / 1048576;
-	} else if (threshold_ns <= 0x3ff * (u64) 33554432) {
+	} else if (threshold_ns <= (u64)33554432 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 5;		/* Value times 33554432ns */
 		*value = roundup(threshold_ns, 33554432) / 33554432;
 	} else {
 		*scale = 5;
-		*value = 0x3ff;		/* Max representable value */
+		*value = FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE);
 	}
 }
 
@@ -371,11 +374,11 @@ static void pcie_aspm_check_latency(struct pci_dev *endpoint)
 	link = endpoint->bus->self->link_state;
 
 	/* Calculate endpoint L0s acceptable latency */
-	encoding = (endpoint->devcap & PCI_EXP_DEVCAP_L0S) >> 6;
+	encoding = FIELD_GET(PCI_EXP_DEVCAP_L0S, endpoint->devcap);
 	acceptable_l0s = calc_l0s_acceptable(encoding);
 
 	/* Calculate endpoint L1 acceptable latency */
-	encoding = (endpoint->devcap & PCI_EXP_DEVCAP_L1) >> 9;
+	encoding = FIELD_GET(PCI_EXP_DEVCAP_L1, endpoint->devcap);
 	acceptable_l1 = calc_l1_acceptable(encoding);
 
 	while (link) {
@@ -417,7 +420,7 @@ static void pcie_aspm_check_latency(struct pci_dev *endpoint)
 		if ((link->aspm_capable & ASPM_STATE_L1) &&
 		    (latency + l1_switch_latency > acceptable_l1))
 			link->aspm_capable &= ~ASPM_STATE_L1;
-		l1_switch_latency += 1000;
+		l1_switch_latency += NSEC_PER_USEC;
 
 		link = link->parent;
 	}
@@ -446,22 +449,24 @@ static void aspm_calc_l12_info(struct pcie_link_state *link,
 	u32 pl1_2_enables, cl1_2_enables;
 
 	/* Choose the greater of the two Port Common_Mode_Restore_Times */
-	val1 = (parent_l1ss_cap & PCI_L1SS_CAP_CM_RESTORE_TIME) >> 8;
-	val2 = (child_l1ss_cap & PCI_L1SS_CAP_CM_RESTORE_TIME) >> 8;
+	val1 = FIELD_GET(PCI_L1SS_CAP_CM_RESTORE_TIME, parent_l1ss_cap);
+	val2 = FIELD_GET(PCI_L1SS_CAP_CM_RESTORE_TIME, child_l1ss_cap);
 	t_common_mode = max(val1, val2);
 
 	/* Choose the greater of the two Port T_POWER_ON times */
-	val1   = (parent_l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_VALUE) >> 19;
-	scale1 = (parent_l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_SCALE) >> 16;
-	val2   = (child_l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_VALUE) >> 19;
-	scale2 = (child_l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_SCALE) >> 16;
+	val1   = FIELD_GET(PCI_L1SS_CAP_P_PWR_ON_VALUE, parent_l1ss_cap);
+	scale1 = FIELD_GET(PCI_L1SS_CAP_P_PWR_ON_SCALE, parent_l1ss_cap);
+	val2   = FIELD_GET(PCI_L1SS_CAP_P_PWR_ON_VALUE, child_l1ss_cap);
+	scale2 = FIELD_GET(PCI_L1SS_CAP_P_PWR_ON_SCALE, child_l1ss_cap);
 
 	if (calc_l12_pwron(parent, scale1, val1) >
 	    calc_l12_pwron(child, scale2, val2)) {
-		ctl2 |= scale1 | (val1 << 3);
+		ctl2 |= FIELD_PREP(PCI_L1SS_CTL2_T_PWR_ON_SCALE, scale1) |
+			FIELD_PREP(PCI_L1SS_CTL2_T_PWR_ON_VALUE, val1);
 		t_power_on = calc_l12_pwron(parent, scale1, val1);
 	} else {
-		ctl2 |= scale2 | (val2 << 3);
+		ctl2 |= FIELD_PREP(PCI_L1SS_CTL2_T_PWR_ON_SCALE, scale2) |
+			FIELD_PREP(PCI_L1SS_CTL2_T_PWR_ON_VALUE, val2);
 		t_power_on = calc_l12_pwron(child, scale2, val2);
 	}
 
@@ -477,7 +482,9 @@ static void aspm_calc_l12_info(struct pcie_link_state *link,
 	 */
 	l1_2_threshold = 2 + 4 + t_common_mode + t_power_on;
 	encode_l12_threshold(l1_2_threshold, &scale, &value);
-	ctl1 |= t_common_mode << 8 | scale << 29 | value << 16;
+	ctl1 |= FIELD_PREP(PCI_L1SS_CTL1_CM_RESTORE_TIME, t_common_mode) |
+		FIELD_PREP(PCI_L1SS_CTL1_LTR_L12_TH_VALUE, value) |
+		FIELD_PREP(PCI_L1SS_CTL1_LTR_L12_TH_SCALE, scale);
 
 	/* Some broken devices only support dword access to L1 SS */
 	pci_read_config_dword(parent, parent->l1ss + PCI_L1SS_CTL1, &pctl1);
@@ -1059,7 +1066,8 @@ static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
 	if (state & PCIE_LINK_STATE_L0S)
 		link->aspm_disable |= ASPM_STATE_L0S;
 	if (state & PCIE_LINK_STATE_L1)
-		link->aspm_disable |= ASPM_STATE_L1;
+		/* L1 PM substates require L1 */
+		link->aspm_disable |= ASPM_STATE_L1 | ASPM_STATE_L1SS;
 	if (state & PCIE_LINK_STATE_L1_1)
 		link->aspm_disable |= ASPM_STATE_L1_1;
 	if (state & PCIE_LINK_STATE_L1_2)
@@ -1247,6 +1255,8 @@ static ssize_t aspm_attr_store_common(struct device *dev,
 			link->aspm_disable &= ~ASPM_STATE_L1;
 	} else {
 		link->aspm_disable |= state;
+		if (state & ASPM_STATE_L1)
+			link->aspm_disable |= ASPM_STATE_L1SS;
 	}
 
 	pcie_config_aspm_link(link, policy_to_aspm_state(link));
@@ -1361,10 +1371,10 @@ static int __init pcie_aspm_disable(char *str)
 		aspm_policy = POLICY_DEFAULT;
 		aspm_disabled = 1;
 		aspm_support_enabled = false;
-		printk(KERN_INFO "PCIe ASPM is disabled\n");
+		pr_info("PCIe ASPM is disabled\n");
 	} else if (!strcmp(str, "force")) {
 		aspm_force = 1;
-		printk(KERN_INFO "PCIe ASPM is forcibly enabled\n");
+		pr_info("PCIe ASPM is forcibly enabled\n");
 	}
 	return 1;
 }
