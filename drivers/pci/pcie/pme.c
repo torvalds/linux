@@ -9,6 +9,7 @@
 
 #define dev_fmt(fmt) "PME: " fmt
 
+#include <linux/bitfield.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -235,7 +236,8 @@ static void pcie_pme_work_fn(struct work_struct *work)
 			pcie_clear_root_pme_status(port);
 
 			spin_unlock_irq(&data->lock);
-			pcie_pme_handle_request(port, rtsta & 0xffff);
+			pcie_pme_handle_request(port,
+				    FIELD_GET(PCI_EXP_RTSTA_PME_RQ_ID, rtsta));
 			spin_lock_irq(&data->lock);
 
 			continue;
