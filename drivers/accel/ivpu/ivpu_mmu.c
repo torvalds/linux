@@ -500,10 +500,7 @@ static int ivpu_mmu_cmdq_sync(struct ivpu_device *vdev)
 	u64 val;
 	int ret;
 
-	val = FIELD_PREP(IVPU_MMU_CMD_OPCODE, CMD_SYNC) |
-	      FIELD_PREP(IVPU_MMU_CMD_SYNC_0_CS, 0x2) |
-	      FIELD_PREP(IVPU_MMU_CMD_SYNC_0_MSH, 0x3) |
-	      FIELD_PREP(IVPU_MMU_CMD_SYNC_0_MSI_ATTR, 0xf);
+	val = FIELD_PREP(IVPU_MMU_CMD_OPCODE, CMD_SYNC);
 
 	ret = ivpu_mmu_cmdq_cmd_write(vdev, "SYNC", val, 0);
 	if (ret)
