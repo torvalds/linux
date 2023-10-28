@@ -811,12 +811,6 @@ static int ivpu_hw_40xx_power_up(struct ivpu_device *vdev)
 {
 	int ret;
 
-	ret = ivpu_hw_40xx_reset(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to reset HW: %d\n", ret);
-		return ret;
-	}
-
 	ret = ivpu_hw_40xx_d0i3_disable(vdev);
 	if (ret)
 		ivpu_warn(vdev, "Failed to disable D0I3: %d\n", ret);
