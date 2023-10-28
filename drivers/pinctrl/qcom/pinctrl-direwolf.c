@@ -19,6 +19,7 @@
 
 #define REG_BASE 0x100000
 #define REG_SIZE 0x1000
+#define REG_DIRCONN 0x110000
 #define PINGROUP(id, f1, f2, f3, f4, f5, f6, f7, f8, f9)	\
 	{						\
 		.name = "gpio" #id,			\
@@ -42,6 +43,7 @@
 		.intr_cfg_reg = REG_BASE + 0x8 + REG_SIZE * id,	\
 		.intr_status_reg = REG_BASE + 0xc + REG_SIZE * id,	\
 		.intr_target_reg = REG_BASE + 0x8 + REG_SIZE * id,	\
+		.dir_conn_reg = REG_BASE + REG_DIRCONN, \
 		.mux_bit = 2,			\
 		.pull_bit = 0,			\
 		.drv_bit = 6,			\
@@ -58,6 +60,7 @@
 		.intr_polarity_bit = 1,		\
 		.intr_detection_bit = 2,	\
 		.intr_detection_width = 2,	\
+		.dir_conn_en_bit = 8,		\
 	}
 
 #define SDC_QDSD_PINGROUP(pg_name, ctl, pull, drv)	\
@@ -2287,6 +2290,11 @@ static const struct msm_pingroup direwolf_groups[] = {
 	[232] = SDC_QDSD_PINGROUP(sdc2_data, 0x1e8000, 9, 0),
 };
 
+static struct msm_dir_conn direwolf_dir_conn[] = {
+	{-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0},
+	{-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}
+};
+
 static const struct msm_pinctrl_soc_data direwolf_pinctrl = {
 	.pins = direwolf_pins,
 	.npins = ARRAY_SIZE(direwolf_pins),
@@ -2295,10 +2303,54 @@ static const struct msm_pinctrl_soc_data direwolf_pinctrl = {
 	.groups = direwolf_groups,
 	.ngroups = ARRAY_SIZE(direwolf_groups),
 	.ngpios = 230,
+	.dir_conn = direwolf_dir_conn,
 };
+
+static int direwolf_pinctrl_dirconn_list_probe(struct platform_device *pdev)
+{
+	int ret, n, dirconn_list_count, m;
+	struct device_node *np = pdev->dev.of_node;
+
+	n = of_property_count_elems_of_size(np, "qcom,dirconn-list",
+						sizeof(u32));
+
+	if (n <= 0 || n % 2)
+		return -EINVAL;
+
+	m = ARRAY_SIZE(direwolf_dir_conn) - 1;
+
+	dirconn_list_count = n / 2;
+
+	for (n = 0; n < dirconn_list_count; n++) {
+		ret = of_property_read_u32_index(np, "qcom,dirconn-list",
+						n * 2 + 0,
+						&direwolf_dir_conn[m].gpio);
+		if (ret)
+			return ret;
+		ret = of_property_read_u32_index(np, "qcom,dirconn-list",
+						n * 2 + 1,
+						&direwolf_dir_conn[m].irq);
+		if (ret)
+			return ret;
+		m--;
+	}
+
+	return 0;
+}
 
 static int direwolf_pinctrl_probe(struct platform_device *pdev)
 {
+	int len, ret;
+
+	if (of_find_property(pdev->dev.of_node, "qcom,dirconn-list", &len)) {
+		ret = direwolf_pinctrl_dirconn_list_probe(pdev);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Unable to parse Direct Connect List\n");
+			return ret;
+		}
+	}
+
 	return msm_pinctrl_probe(pdev, &direwolf_pinctrl);
 }
 
