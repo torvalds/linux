@@ -115,6 +115,31 @@ static const struct drm_debugfs_info vdev_debugfs_list[] = {
 	{"reset_pending", reset_pending_show, 0},
 };
 
+static ssize_t
+dvfs_mode_fops_write(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+{
+	struct ivpu_device *vdev = file->private_data;
+	struct ivpu_fw_info *fw = vdev->fw;
+	u32 dvfs_mode;
+	int ret;
+
+	ret = kstrtou32_from_user(user_buf, size, 0, &dvfs_mode);
+	if (ret < 0)
+		return ret;
+
+	fw->dvfs_mode = dvfs_mode;
+
+	ivpu_pm_schedule_recovery(vdev);
+
+	return size;
+}
+
+static const struct file_operations dvfs_mode_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = dvfs_mode_fops_write,
+};
+
 static int fw_log_show(struct seq_file *s, void *v)
 {
 	struct ivpu_device *vdev = s->private;
@@ -279,6 +304,9 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 
 	debugfs_create_file("force_recovery", 0200, debugfs_root, vdev,
 			    &ivpu_force_recovery_fops);
+
+	debugfs_create_file("dvfs_mode", 0200, debugfs_root, vdev,
+			    &dvfs_mode_fops);
 
 	debugfs_create_file("fw_log", 0644, debugfs_root, vdev,
 			    &fw_log_fops);
