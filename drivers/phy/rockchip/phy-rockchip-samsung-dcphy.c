@@ -1744,7 +1744,7 @@ static int samsung_mipi_dcphy_power_on(struct phy *phy)
 	reset_control_assert(samsung->apb_rst);
 	udelay(1);
 	reset_control_deassert(samsung->apb_rst);
-	if (atomic_read(&samsung->stream_cnt)) {
+	if (atomic_read(&samsung->stream_cnt) && samsung->dphy_dev[0]) {
 		sensor_sd = get_remote_sensor(&samsung->dphy_dev[0]->sd);
 		samsung->stream_off(samsung->dphy_dev[0], &samsung->dphy_dev[0]->sd);
 		if (sensor_sd)
