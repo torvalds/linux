@@ -87,6 +87,7 @@ struct ivpu_wa_table {
 	bool d3hot_after_power_off;
 	bool interrupt_clear_with_0;
 	bool disable_clock_relinquish;
+	bool disable_d0i3_msg;
 };
 
 struct ivpu_hw_info;
@@ -125,6 +126,7 @@ struct ivpu_device {
 		int tdr;
 		int reschedule_suspend;
 		int autosuspend;
+		int d0i3_entry_msg;
 	} timeout;
 };
 
@@ -147,9 +149,11 @@ extern u8 ivpu_pll_min_ratio;
 extern u8 ivpu_pll_max_ratio;
 extern bool ivpu_disable_mmu_cont_pages;
 
-#define IVPU_TEST_MODE_FW_TEST         BIT(0)
-#define IVPU_TEST_MODE_NULL_HW         BIT(1)
-#define IVPU_TEST_MODE_NULL_SUBMISSION BIT(2)
+#define IVPU_TEST_MODE_FW_TEST            BIT(0)
+#define IVPU_TEST_MODE_NULL_HW            BIT(1)
+#define IVPU_TEST_MODE_NULL_SUBMISSION    BIT(2)
+#define IVPU_TEST_MODE_D0I3_MSG_DISABLE   BIT(4)
+#define IVPU_TEST_MODE_D0I3_MSG_ENABLE    BIT(5)
 extern int ivpu_test_mode;
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);

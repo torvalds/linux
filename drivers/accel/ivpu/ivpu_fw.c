@@ -33,11 +33,16 @@
 
 #define ADDR_TO_L2_CACHE_CFG(addr) ((addr) >> 31)
 
-#define IVPU_FW_CHECK_API(vdev, fw_hdr, name, min_major) \
+/* Check if FW API is compatible with the driver */
+#define IVPU_FW_CHECK_API_COMPAT(vdev, fw_hdr, name, min_major) \
 	ivpu_fw_check_api(vdev, fw_hdr, #name, \
 			  VPU_##name##_API_VER_INDEX, \
 			  VPU_##name##_API_VER_MAJOR, \
 			  VPU_##name##_API_VER_MINOR, min_major)
+
+/* Check if API version is lower that the given version */
+#define IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, name, major, minor) \
+	ivpu_fw_check_api_ver_lt(vdev, fw_hdr, #name, VPU_##name##_API_VER_INDEX, major, minor)
 
 static char *ivpu_firmware;
 module_param_named_unsafe(firmware, ivpu_firmware, charp, 0644);
@@ -105,6 +110,19 @@ ivpu_fw_check_api(struct ivpu_device *vdev, const struct vpu_firmware_header *fw
 	return 0;
 }
 
+static bool
+ivpu_fw_check_api_ver_lt(struct ivpu_device *vdev, const struct vpu_firmware_header *fw_hdr,
+			 const char *str, int index, u16 major, u16 minor)
+{
+	u16 fw_major = (u16)(fw_hdr->api_version[index] >> 16);
+	u16 fw_minor = (u16)(fw_hdr->api_version[index]);
+
+	if (fw_major < major || (fw_major == major && fw_minor < minor))
+		return true;
+
+	return false;
+}
+
 static int ivpu_fw_parse(struct ivpu_device *vdev)
 {
 	struct ivpu_fw_info *fw = vdev->fw;
@@ -164,9 +182,9 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 	ivpu_info(vdev, "Firmware: %s, version: %s", fw->name,
 		  (const char *)fw_hdr + VPU_FW_HEADER_SIZE);
 
-	if (IVPU_FW_CHECK_API(vdev, fw_hdr, BOOT, 3))
+	if (IVPU_FW_CHECK_API_COMPAT(vdev, fw_hdr, BOOT, 3))
 		return -EINVAL;
-	if (IVPU_FW_CHECK_API(vdev, fw_hdr, JSM, 3))
+	if (IVPU_FW_CHECK_API_COMPAT(vdev, fw_hdr, JSM, 3))
 		return -EINVAL;
 
 	fw->runtime_addr = runtime_addr;
@@ -195,6 +213,24 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 static void ivpu_fw_release(struct ivpu_device *vdev)
 {
 	release_firmware(vdev->fw->file);
+}
+
+/* Initialize workarounds that depend on FW version */
+static void
+ivpu_fw_init_wa(struct ivpu_device *vdev)
+{
+	const struct vpu_firmware_header *fw_hdr = (const void *)vdev->fw->file->data;
+
+	if (IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, BOOT, 3, 17) ||
+	    (ivpu_hw_gen(vdev) > IVPU_HW_37XX) ||
+	    (ivpu_test_mode & IVPU_TEST_MODE_D0I3_MSG_DISABLE))
+		vdev->wa.disable_d0i3_msg = true;
+
+	/* Force enable the feature for testing purposes */
+	if (ivpu_test_mode & IVPU_TEST_MODE_D0I3_MSG_ENABLE)
+		vdev->wa.disable_d0i3_msg = false;
+
+	IVPU_PRINT_WA(disable_d0i3_msg);
 }
 
 static int ivpu_fw_update_global_range(struct ivpu_device *vdev)
@@ -298,6 +334,8 @@ int ivpu_fw_init(struct ivpu_device *vdev)
 	ret = ivpu_fw_parse(vdev);
 	if (ret)
 		goto err_fw_release;
+
+	ivpu_fw_init_wa(vdev);
 
 	ret = ivpu_fw_mem_init(vdev);
 	if (ret)
@@ -426,6 +464,8 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 		 boot_params->vpu_telemetry_enable);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.dvfs_mode = %u\n",
 		 boot_params->dvfs_mode);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_delayed_entry = %d\n",
+		 boot_params->d0i3_delayed_entry);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_residency_time_us = %lld\n",
 		 boot_params->d0i3_residency_time_us);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_entry_vpu_ts = %llu\n",
@@ -510,6 +550,8 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->punit_telemetry_sram_size = ivpu_hw_reg_telemetry_size_get(vdev);
 	boot_params->vpu_telemetry_enable = ivpu_hw_reg_telemetry_enable_get(vdev);
 	boot_params->dvfs_mode = vdev->fw->dvfs_mode;
+	if (!IVPU_WA(disable_d0i3_msg))
+		boot_params->d0i3_delayed_entry = 1;
 	boot_params->d0i3_residency_time_us = 0;
 	boot_params->d0i3_entry_vpu_ts = 0;
 

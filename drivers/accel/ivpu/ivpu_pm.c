@@ -15,6 +15,7 @@
 #include "ivpu_fw.h"
 #include "ivpu_ipc.h"
 #include "ivpu_job.h"
+#include "ivpu_jsm_msg.h"
 #include "ivpu_mmu.h"
 #include "ivpu_pm.h"
 
@@ -153,6 +154,8 @@ int ivpu_pm_suspend_cb(struct device *dev)
 		}
 	}
 
+	ivpu_jsm_pwr_d0i3_enter(vdev);
+
 	ivpu_suspend(vdev);
 	ivpu_pm_prepare_warm_boot(vdev);
 
@@ -188,6 +191,7 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct ivpu_device *vdev = to_ivpu_device(drm);
+	bool hw_is_idle = true;
 	int ret;
 
 	ivpu_dbg(vdev, PM, "Runtime suspend..\n");
@@ -200,11 +204,16 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 		return -EAGAIN;
 	}
 
+	if (!vdev->pm->suspend_reschedule_counter)
+		hw_is_idle = false;
+	else if (ivpu_jsm_pwr_d0i3_enter(vdev))
+		hw_is_idle = false;
+
 	ret = ivpu_suspend(vdev);
 	if (ret)
 		ivpu_err(vdev, "Failed to set suspend VPU: %d\n", ret);
 
-	if (!vdev->pm->suspend_reschedule_counter) {
+	if (!hw_is_idle) {
 		ivpu_warn(vdev, "VPU failed to enter idle, force suspended.\n");
 		ivpu_pm_prepare_cold_boot(vdev);
 	} else {

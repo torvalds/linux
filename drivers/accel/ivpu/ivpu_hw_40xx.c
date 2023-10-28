@@ -39,6 +39,7 @@
 #define TIMEOUT_US		     (150 * USEC_PER_MSEC)
 #define PWR_ISLAND_STATUS_TIMEOUT_US (5 * USEC_PER_MSEC)
 #define PLL_TIMEOUT_US		     (1500 * USEC_PER_MSEC)
+#define IDLE_TIMEOUT_US		     (5 * USEC_PER_MSEC)
 
 #define WEIGHTS_DEFAULT              0xf711f711u
 #define WEIGHTS_ATS_DEFAULT          0x0000f711u
@@ -140,18 +141,21 @@ static void ivpu_hw_timeouts_init(struct ivpu_device *vdev)
 		vdev->timeout.tdr = 2000000;
 		vdev->timeout.reschedule_suspend = 1000;
 		vdev->timeout.autosuspend = -1;
+		vdev->timeout.d0i3_entry_msg = 500;
 	} else if (ivpu_is_simics(vdev)) {
 		vdev->timeout.boot = 50;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 10000;
 		vdev->timeout.reschedule_suspend = 10;
 		vdev->timeout.autosuspend = -1;
+		vdev->timeout.d0i3_entry_msg = 100;
 	} else {
 		vdev->timeout.boot = 1000;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 2000;
 		vdev->timeout.reschedule_suspend = 10;
 		vdev->timeout.autosuspend = 10;
+		vdev->timeout.d0i3_entry_msg = 5;
 	}
 }
 
@@ -879,6 +883,11 @@ static bool ivpu_hw_40xx_is_idle(struct ivpu_device *vdev)
 	       REG_TEST_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, IDLE, val);
 }
 
+static int ivpu_hw_40xx_wait_for_idle(struct ivpu_device *vdev)
+{
+	return REGB_POLL_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, IDLE, 0x1, IDLE_TIMEOUT_US);
+}
+
 static void ivpu_hw_40xx_save_d0i3_entry_timestamp(struct ivpu_device *vdev)
 {
 	vdev->hw->d0i3_entry_host_ts = ktime_get_boottime();
@@ -1168,6 +1177,7 @@ const struct ivpu_hw_ops ivpu_hw_40xx_ops = {
 	.info_init = ivpu_hw_40xx_info_init,
 	.power_up = ivpu_hw_40xx_power_up,
 	.is_idle = ivpu_hw_40xx_is_idle,
+	.wait_for_idle = ivpu_hw_40xx_wait_for_idle,
 	.power_down = ivpu_hw_40xx_power_down,
 	.boot_fw = ivpu_hw_40xx_boot_fw,
 	.wdt_disable = ivpu_hw_40xx_wdt_disable,

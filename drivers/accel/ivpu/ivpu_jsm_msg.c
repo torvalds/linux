@@ -4,6 +4,7 @@
  */
 
 #include "ivpu_drv.h"
+#include "ivpu_hw.h"
 #include "ivpu_ipc.h"
 #include "ivpu_jsm_msg.h"
 
@@ -259,4 +260,24 @@ int ivpu_jsm_context_release(struct ivpu_device *vdev, u32 host_ssid)
 
 	return ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_SSID_RELEASE_DONE, &resp,
 				     VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+}
+
+int ivpu_jsm_pwr_d0i3_enter(struct ivpu_device *vdev)
+{
+	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_PWR_D0I3_ENTER };
+	struct vpu_jsm_msg resp;
+	int ret;
+
+	if (IVPU_WA(disable_d0i3_msg))
+		return 0;
+
+	req.payload.pwr_d0i3_enter.send_response = 1;
+
+	ret = ivpu_ipc_send_receive_active(vdev, &req, VPU_JSM_MSG_PWR_D0I3_ENTER_DONE,
+					   &resp, VPU_IPC_CHAN_GEN_CMD,
+					   vdev->timeout.d0i3_entry_msg);
+	if (ret)
+		return ret;
+
+	return ivpu_hw_wait_for_idle(vdev);
 }
