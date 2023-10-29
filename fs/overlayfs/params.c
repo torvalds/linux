@@ -43,7 +43,7 @@ module_param_named(metacopy, ovl_metacopy_def, bool, 0644);
 MODULE_PARM_DESC(metacopy,
 		 "Default to on or off for the metadata only copy up feature");
 
-enum {
+enum ovl_opt {
 	Opt_lowerdir,
 	Opt_upperdir,
 	Opt_workdir,
@@ -238,19 +238,8 @@ static int ovl_mount_dir_noesc(const char *name, struct path *path)
 		pr_err("failed to resolve '%s': %i\n", name, err);
 		goto out;
 	}
-	err = -EINVAL;
-	if (ovl_dentry_weird(path->dentry)) {
-		pr_err("filesystem on '%s' not supported\n", name);
-		goto out_put;
-	}
-	if (!d_is_dir(path->dentry)) {
-		pr_err("'%s' not a directory\n", name);
-		goto out_put;
-	}
 	return 0;
 
-out_put:
-	path_put_init(path);
 out:
 	return err;
 }
@@ -268,7 +257,7 @@ static void ovl_unescape(char *s)
 	}
 }
 
-static int ovl_mount_dir(const char *name, struct path *path, bool upper)
+static int ovl_mount_dir(const char *name, struct path *path)
 {
 	int err = -ENOMEM;
 	char *tmp = kstrdup(name, GFP_KERNEL);
@@ -276,60 +265,82 @@ static int ovl_mount_dir(const char *name, struct path *path, bool upper)
 	if (tmp) {
 		ovl_unescape(tmp);
 		err = ovl_mount_dir_noesc(tmp, path);
-
-		if (!err && upper && path->dentry->d_flags & DCACHE_OP_REAL) {
-			pr_err("filesystem on '%s' not supported as upperdir\n",
-			       tmp);
-			path_put_init(path);
-			err = -EINVAL;
-		}
 		kfree(tmp);
 	}
 	return err;
 }
 
-static int ovl_parse_param_upperdir(const char *name, struct fs_context *fc,
-				    bool workdir)
+static int ovl_mount_dir_check(struct fs_context *fc, const struct path *path,
+			       enum ovl_opt layer, const char *name, bool upper)
 {
-	int err;
-	struct ovl_fs *ofs = fc->s_fs_info;
-	struct ovl_config *config = &ofs->config;
-	struct ovl_fs_context *ctx = fc->fs_private;
-	struct path path;
-	char *dup;
+	if (ovl_dentry_weird(path->dentry))
+		return invalfc(fc, "filesystem on %s not supported", name);
 
-	err = ovl_mount_dir(name, &path, true);
-	if (err)
-		return err;
+	if (!d_is_dir(path->dentry))
+		return invalfc(fc, "%s is not a directory", name);
 
 	/*
 	 * Check whether upper path is read-only here to report failures
 	 * early. Don't forget to recheck when the superblock is created
 	 * as the mount attributes could change.
 	 */
-	if (__mnt_is_readonly(path.mnt)) {
-		path_put(&path);
-		return -EINVAL;
-	}
-
-	dup = kstrdup(name, GFP_KERNEL);
-	if (!dup) {
-		path_put(&path);
-		return -ENOMEM;
-	}
-
-	if (workdir) {
-		kfree(config->workdir);
-		config->workdir = dup;
-		path_put(&ctx->work);
-		ctx->work = path;
-	} else {
-		kfree(config->upperdir);
-		config->upperdir = dup;
-		path_put(&ctx->upper);
-		ctx->upper = path;
+	if (upper) {
+		if (path->dentry->d_flags & DCACHE_OP_REAL)
+			return invalfc(fc, "filesystem on %s not supported as upperdir", name);
+		if (__mnt_is_readonly(path->mnt))
+			return invalfc(fc, "filesystem on %s is read-only", name);
 	}
 	return 0;
+}
+
+static void ovl_add_layer(struct fs_context *fc, enum ovl_opt layer,
+			 struct path *path, char **pname)
+{
+	struct ovl_fs *ofs = fc->s_fs_info;
+	struct ovl_config *config = &ofs->config;
+	struct ovl_fs_context *ctx = fc->fs_private;
+
+	switch (layer) {
+	case Opt_workdir:
+		swap(config->workdir, *pname);
+		swap(ctx->work, *path);
+		break;
+	case Opt_upperdir:
+		swap(config->upperdir, *pname);
+		swap(ctx->upper, *path);
+		break;
+	default:
+		WARN_ON(1);
+	}
+}
+
+static int ovl_parse_layer(struct fs_context *fc, struct fs_parameter *param,
+			   enum ovl_opt layer)
+{
+	char *name = kstrdup(param->string, GFP_KERNEL);
+	bool upper = (layer == Opt_upperdir || layer == Opt_workdir);
+	struct path path;
+	int err;
+
+	if (!name)
+		return -ENOMEM;
+
+	err = ovl_mount_dir(name, &path);
+	if (err)
+		goto out_free;
+
+	err = ovl_mount_dir_check(fc, &path, layer, name, upper);
+	if (err)
+		goto out_put;
+
+	/* Store the user provided path string in ctx to show in mountinfo */
+	ovl_add_layer(fc, layer, &path, &name);
+
+out_put:
+	path_put(&path);
+out_free:
+	kfree(name);
+	return err;
 }
 
 static void ovl_reset_lowerdirs(struct ovl_fs_context *ctx)
@@ -417,7 +428,11 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 	for (nr = 0; nr < nr_lower; nr++, l++) {
 		memset(l, 0, sizeof(*l));
 
-		err = ovl_mount_dir(iter, &l->path, false);
+		err = ovl_mount_dir(iter, &l->path);
+		if (err)
+			goto out_put;
+
+		err = ovl_mount_dir_check(fc, &l->path, Opt_lowerdir, iter, false);
 		if (err)
 			goto out_put;
 
@@ -505,10 +520,8 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		err = ovl_parse_param_lowerdir(param->string, fc);
 		break;
 	case Opt_upperdir:
-		fallthrough;
 	case Opt_workdir:
-		err = ovl_parse_param_upperdir(param->string, fc,
-					       (Opt_workdir == opt));
+		err = ovl_parse_layer(fc, param, opt);
 		break;
 	case Opt_default_permissions:
 		config->default_permissions = true;
