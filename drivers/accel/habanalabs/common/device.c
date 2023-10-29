@@ -1049,10 +1049,12 @@ static void hl_device_eq_heartbeat(struct hl_device *hdev)
 	if (!prop->cpucp_info.eq_health_check_supported)
 		return;
 
-	if (hdev->eq_heartbeat_received)
+	if (hdev->eq_heartbeat_received) {
 		hdev->eq_heartbeat_received = false;
-	else
+	} else {
+		dev_err(hdev->dev, "EQ heartbeat event was not received!\n");
 		hl_device_cond_reset(hdev, HL_DRV_RESET_HARD, event_mask);
+	}
 }
 
 static void hl_device_heartbeat(struct work_struct *work)
