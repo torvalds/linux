@@ -1347,10 +1347,9 @@ static void cgroup_destroy_root(struct cgroup_root *root)
 
 	spin_unlock_irq(&css_set_lock);
 
-	if (!list_empty(&root->root_list)) {
-		list_del(&root->root_list);
-		cgroup_root_count--;
-	}
+	WARN_ON_ONCE(list_empty(&root->root_list));
+	list_del(&root->root_list);
+	cgroup_root_count--;
 
 	if (!have_favordynmods)
 		cgroup_favor_dynmods(root, false);
