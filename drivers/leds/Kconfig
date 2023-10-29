@@ -298,6 +298,15 @@ config LEDS_COBALT_RAQ
 	help
 	  This option enables support for the Cobalt Raq series LEDs.
 
+config LEDS_SUN50I_A100
+	tristate "LED support for Allwinner A100 RGB LED controller"
+	depends on LEDS_CLASS_MULTICOLOR && OF
+	depends on ARCH_SUNXI || COMPILE_TEST
+	help
+	  This option enables support for the RGB LED controller found
+	  in some Allwinner sunxi SoCs, including A100, R329, and D1.
+	  It uses a one-wire interface to control up to 1024 LEDs.
+
 config LEDS_SUNFIRE
 	tristate "LED support for SunFire servers."
 	depends on LEDS_CLASS
