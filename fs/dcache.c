@@ -729,6 +729,7 @@ static struct dentry *dentry_kill(struct dentry *dentry)
 			goto slow_positive;
 		}
 	}
+	dentry->d_lockref.count--;
 	__dentry_kill(dentry);
 	return parent;
 
@@ -741,6 +742,7 @@ got_locks:
 	if (unlikely(dentry->d_lockref.count != 1)) {
 		dentry->d_lockref.count--;
 	} else if (likely(!retain_dentry(dentry))) {
+		dentry->d_lockref.count--;
 		__dentry_kill(dentry);
 		return parent;
 	} else {
