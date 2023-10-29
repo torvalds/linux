@@ -3446,7 +3446,7 @@ vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 		struct vchiq_service_quota *quota =
 			&service->state->service_quotas[service->localport];
 		int fourcc = service->base.fourcc;
-		int tx_pending, rx_pending;
+		int tx_pending, rx_pending, tx_size = 0, rx_size = 0;
 
 		if (service->remoteport != VCHIQ_PORT_FREE) {
 			int len2 = scnprintf(remoteport, sizeof(remoteport),
@@ -3471,18 +3471,23 @@ vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 
 		tx_pending = service->bulk_tx.local_insert -
 			service->bulk_tx.remote_insert;
+		if (tx_pending) {
+			unsigned int i = BULK_INDEX(service->bulk_tx.remove);
+
+			tx_size = service->bulk_tx.bulks[i].size;
+		}
 
 		rx_pending = service->bulk_rx.local_insert -
 			service->bulk_rx.remote_insert;
+		if (rx_pending) {
+			unsigned int i = BULK_INDEX(service->bulk_rx.remove);
+
+			rx_size = service->bulk_rx.bulks[i].size;
+		}
 
 		len = scnprintf(buf, sizeof(buf),
 				"  Bulk: tx_pending=%d (size %d), rx_pending=%d (size %d)",
-				tx_pending,
-				tx_pending ?
-				service->bulk_tx.bulks[BULK_INDEX(service->bulk_tx.remove)].size :
-				0, rx_pending, rx_pending ?
-				service->bulk_rx.bulks[BULK_INDEX(service->bulk_rx.remove)].size :
-				0);
+				tx_pending, tx_size, rx_pending, rx_size);
 
 		if (VCHIQ_ENABLE_STATS) {
 			err = vchiq_dump(dump_context, buf, len + 1);
