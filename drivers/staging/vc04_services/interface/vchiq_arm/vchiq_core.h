@@ -507,9 +507,6 @@ vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle, void *
 extern int
 vchiq_dump_state(void *dump_context, struct vchiq_state *state);
 
-extern int
-vchiq_dump_service_state(void *dump_context, struct vchiq_service *service);
-
 extern void
 vchiq_loud_error_header(void);
 

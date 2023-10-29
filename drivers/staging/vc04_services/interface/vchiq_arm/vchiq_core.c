@@ -3427,90 +3427,8 @@ vchiq_dump_shared_state(void *dump_context, struct vchiq_state *state,
 	return 0;
 }
 
-int vchiq_dump_state(void *dump_context, struct vchiq_state *state)
-{
-	char buf[80];
-	int len;
-	int i;
-	int err;
-
-	len = scnprintf(buf, sizeof(buf), "State %d: %s", state->id,
-			conn_state_names[state->conn_state]);
-	err = vchiq_dump(dump_context, buf, len + 1);
-	if (err)
-		return err;
-
-	len = scnprintf(buf, sizeof(buf), "  tx_pos=%x(@%pK), rx_pos=%x(@%pK)",
-			state->local->tx_pos,
-			state->tx_data + (state->local_tx_pos & VCHIQ_SLOT_MASK),
-			state->rx_pos,
-			state->rx_data + (state->rx_pos & VCHIQ_SLOT_MASK));
-	err = vchiq_dump(dump_context, buf, len + 1);
-	if (err)
-		return err;
-
-	len = scnprintf(buf, sizeof(buf), "  Version: %d (min %d)",
-			VCHIQ_VERSION, VCHIQ_VERSION_MIN);
-	err = vchiq_dump(dump_context, buf, len + 1);
-	if (err)
-		return err;
-
-	if (VCHIQ_ENABLE_STATS) {
-		len = scnprintf(buf, sizeof(buf),
-				"  Stats: ctrl_tx_count=%d, ctrl_rx_count=%d, error_count=%d",
-				state->stats.ctrl_tx_count, state->stats.ctrl_rx_count,
-				state->stats.error_count);
-		err = vchiq_dump(dump_context, buf, len + 1);
-		if (err)
-			return err;
-	}
-
-	len = scnprintf(buf, sizeof(buf),
-			"  Slots: %d available (%d data), %d recyclable, %d stalls (%d data)",
-			((state->slot_queue_available * VCHIQ_SLOT_SIZE) -
-			state->local_tx_pos) / VCHIQ_SLOT_SIZE,
-			state->data_quota - state->data_use_count,
-			state->local->slot_queue_recycle - state->slot_queue_available,
-			state->stats.slot_stalls, state->stats.data_stalls);
-	err = vchiq_dump(dump_context, buf, len + 1);
-	if (err)
-		return err;
-
-	err = vchiq_dump_platform_state(dump_context);
-	if (err)
-		return err;
-
-	err = vchiq_dump_shared_state(dump_context,
-				      state,
-				      state->local,
-				      "Local");
-	if (err)
-		return err;
-	err = vchiq_dump_shared_state(dump_context,
-				      state,
-				      state->remote,
-				      "Remote");
-	if (err)
-		return err;
-
-	err = vchiq_dump_platform_instances(dump_context);
-	if (err)
-		return err;
-
-	for (i = 0; i < state->unused_service; i++) {
-		struct vchiq_service *service = find_service_by_port(state, i);
-
-		if (service) {
-			err = vchiq_dump_service_state(dump_context, service);
-			vchiq_service_put(service);
-			if (err)
-				return err;
-		}
-	}
-	return 0;
-}
-
-int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
+static int
+vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 {
 	char buf[80];
 	int len;
@@ -3603,6 +3521,89 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 	if (service->srvstate != VCHIQ_SRVSTATE_FREE)
 		err = vchiq_dump_platform_service_state(dump_context, service);
 	return err;
+}
+
+int vchiq_dump_state(void *dump_context, struct vchiq_state *state)
+{
+	char buf[80];
+	int len;
+	int i;
+	int err;
+
+	len = scnprintf(buf, sizeof(buf), "State %d: %s", state->id,
+			conn_state_names[state->conn_state]);
+	err = vchiq_dump(dump_context, buf, len + 1);
+	if (err)
+		return err;
+
+	len = scnprintf(buf, sizeof(buf), "  tx_pos=%x(@%pK), rx_pos=%x(@%pK)",
+			state->local->tx_pos,
+			state->tx_data + (state->local_tx_pos & VCHIQ_SLOT_MASK),
+			state->rx_pos,
+			state->rx_data + (state->rx_pos & VCHIQ_SLOT_MASK));
+	err = vchiq_dump(dump_context, buf, len + 1);
+	if (err)
+		return err;
+
+	len = scnprintf(buf, sizeof(buf), "  Version: %d (min %d)",
+			VCHIQ_VERSION, VCHIQ_VERSION_MIN);
+	err = vchiq_dump(dump_context, buf, len + 1);
+	if (err)
+		return err;
+
+	if (VCHIQ_ENABLE_STATS) {
+		len = scnprintf(buf, sizeof(buf),
+				"  Stats: ctrl_tx_count=%d, ctrl_rx_count=%d, error_count=%d",
+				state->stats.ctrl_tx_count, state->stats.ctrl_rx_count,
+				state->stats.error_count);
+		err = vchiq_dump(dump_context, buf, len + 1);
+		if (err)
+			return err;
+	}
+
+	len = scnprintf(buf, sizeof(buf),
+			"  Slots: %d available (%d data), %d recyclable, %d stalls (%d data)",
+			((state->slot_queue_available * VCHIQ_SLOT_SIZE) -
+			state->local_tx_pos) / VCHIQ_SLOT_SIZE,
+			state->data_quota - state->data_use_count,
+			state->local->slot_queue_recycle - state->slot_queue_available,
+			state->stats.slot_stalls, state->stats.data_stalls);
+	err = vchiq_dump(dump_context, buf, len + 1);
+	if (err)
+		return err;
+
+	err = vchiq_dump_platform_state(dump_context);
+	if (err)
+		return err;
+
+	err = vchiq_dump_shared_state(dump_context,
+				      state,
+				      state->local,
+				      "Local");
+	if (err)
+		return err;
+	err = vchiq_dump_shared_state(dump_context,
+				      state,
+				      state->remote,
+				      "Remote");
+	if (err)
+		return err;
+
+	err = vchiq_dump_platform_instances(dump_context);
+	if (err)
+		return err;
+
+	for (i = 0; i < state->unused_service; i++) {
+		struct vchiq_service *service = find_service_by_port(state, i);
+
+		if (service) {
+			err = vchiq_dump_service_state(dump_context, service);
+			vchiq_service_put(service);
+			if (err)
+				return err;
+		}
+	}
+	return 0;
 }
 
 int vchiq_send_remote_use(struct vchiq_state *state)
