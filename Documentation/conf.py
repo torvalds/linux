@@ -357,6 +357,10 @@ html_sidebars = { '**': ['searchbox.html', 'kernel-toc.html', 'sourcelink.html']
 if html_theme == 'alabaster':
     html_sidebars['**'].insert(0, 'about.html')
 
+# The name of an image file (relative to this directory) to place at the top
+# of the sidebar.
+html_logo = 'images/logo.svg'
+
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'TheLinuxKerneldoc'
 

@@ -23,6 +23,12 @@ div.document {
     width: auto;
 }
 
+/* Size the logo appropriately */
+img.logo {
+    width: 104px;
+    margin-bottom: 20px;
+}
+
 /*
  * Parameters for the display of function prototypes and such included
  * from C source files.
