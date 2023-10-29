@@ -1283,6 +1283,15 @@ config SXR_GCC_NIOBE
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
+config SXR_VIDEOCC_NIOBE
+	tristate "NIOBE Video Clock Controller"
+	depends on SXR_GCC_NIOBE
+	help
+	  Support for the video clock controller on Qualcomm Technologies, Inc
+	  NIOBE devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode/decode.
+
 endif
 
 config VIRTIO_CLK
