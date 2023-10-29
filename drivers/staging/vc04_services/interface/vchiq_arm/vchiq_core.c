@@ -3371,8 +3371,8 @@ vchiq_set_service_option(struct vchiq_instance *instance, unsigned int handle,
 	return ret;
 }
 
-static int
-vchiq_dump_shared_state(void *dump_context, struct vchiq_state *state,
+static void
+vchiq_dump_shared_state(struct seq_file *f, struct vchiq_state *state,
 			struct vchiq_shared_state *shared, const char *label)
 {
 	static const char *const debug_names[] = {
@@ -3389,57 +3389,37 @@ vchiq_dump_shared_state(void *dump_context, struct vchiq_state *state,
 		"COMPLETION_QUEUE_FULL_COUNT"
 	};
 	int i;
-	char buf[80];
-	int len;
-	int err;
 
-	len = scnprintf(buf, sizeof(buf), "  %s: slots %d-%d tx_pos=%x recycle=%x",
-			label, shared->slot_first, shared->slot_last,
-			shared->tx_pos, shared->slot_queue_recycle);
-	err = vchiq_dump(dump_context, buf, len + 1);
-	if (err)
-		return err;
+	seq_printf(f, "  %s: slots %d-%d tx_pos=%x recycle=%x\n",
+		   label, shared->slot_first, shared->slot_last,
+		   shared->tx_pos, shared->slot_queue_recycle);
 
-	len = scnprintf(buf, sizeof(buf), "    Slots claimed:");
-	err = vchiq_dump(dump_context, buf, len + 1);
-	if (err)
-		return err;
+	seq_puts(f, "    Slots claimed:\n");
 
 	for (i = shared->slot_first; i <= shared->slot_last; i++) {
 		struct vchiq_slot_info slot_info =
 						*SLOT_INFO_FROM_INDEX(state, i);
 		if (slot_info.use_count != slot_info.release_count) {
-			len = scnprintf(buf, sizeof(buf), "      %d: %d/%d", i, slot_info.use_count,
-					slot_info.release_count);
-			err = vchiq_dump(dump_context, buf, len + 1);
-			if (err)
-				return err;
+			seq_printf(f, "      %d: %d/%d\n", i, slot_info.use_count,
+				   slot_info.release_count);
 		}
 	}
 
 	for (i = 1; i < shared->debug[DEBUG_ENTRIES]; i++) {
-		len = scnprintf(buf, sizeof(buf), "    DEBUG: %s = %d(%x)",
-				debug_names[i], shared->debug[i], shared->debug[i]);
-		err = vchiq_dump(dump_context, buf, len + 1);
-		if (err)
-			return err;
+		seq_printf(f, "    DEBUG: %s = %d(%x)\n",
+			   debug_names[i], shared->debug[i], shared->debug[i]);
 	}
-	return 0;
 }
 
-static int
-vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
+static void
+vchiq_dump_service_state(struct seq_file *f, struct vchiq_service *service)
 {
-	char buf[80];
-	int len;
-	int err;
 	unsigned int ref_count;
 
 	/*Don't include the lock just taken*/
 	ref_count = kref_read(&service->ref_count) - 1;
-	len = scnprintf(buf, sizeof(buf), "Service %u: %s (ref %u)",
-			service->localport, srvstate_names[service->srvstate],
-			ref_count);
+	seq_printf(f, "Service %u: %s (ref %u)", service->localport,
+		   srvstate_names[service->srvstate], ref_count);
 
 	if (service->srvstate != VCHIQ_SRVSTATE_FREE) {
 		char remoteport[30];
@@ -3459,15 +3439,10 @@ vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 			strscpy(remoteport, "n/a", sizeof(remoteport));
 		}
 
-		len += scnprintf(buf + len, sizeof(buf) - len,
-				 " '%p4cc' remote %s (msg use %d/%d, slot use %d/%d)",
-				 &fourcc, remoteport,
-				 quota->message_use_count, quota->message_quota,
-				 quota->slot_use_count, quota->slot_quota);
-
-		err = vchiq_dump(dump_context, buf, len + 1);
-		if (err)
-			return err;
+		seq_printf(f, " '%p4cc' remote %s (msg use %d/%d, slot use %d/%d)\n",
+			   &fourcc, remoteport,
+			   quota->message_use_count, quota->message_quota,
+			   quota->slot_use_count, quota->slot_quota);
 
 		tx_pending = service->bulk_tx.local_insert -
 			service->bulk_tx.remote_insert;
@@ -3485,130 +3460,79 @@ vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 			rx_size = service->bulk_rx.bulks[i].size;
 		}
 
-		len = scnprintf(buf, sizeof(buf),
-				"  Bulk: tx_pending=%d (size %d), rx_pending=%d (size %d)",
-				tx_pending, tx_size, rx_pending, rx_size);
+		seq_printf(f, "  Bulk: tx_pending=%d (size %d), rx_pending=%d (size %d)\n",
+			   tx_pending, tx_size, rx_pending, rx_size);
 
 		if (VCHIQ_ENABLE_STATS) {
-			err = vchiq_dump(dump_context, buf, len + 1);
-			if (err)
-				return err;
+			seq_printf(f, "  Ctrl: tx_count=%d, tx_bytes=%llu, rx_count=%d, rx_bytes=%llu\n",
+				   service->stats.ctrl_tx_count,
+				   service->stats.ctrl_tx_bytes,
+				   service->stats.ctrl_rx_count,
+				   service->stats.ctrl_rx_bytes);
 
-			len = scnprintf(buf, sizeof(buf),
-					"  Ctrl: tx_count=%d, tx_bytes=%llu, rx_count=%d, rx_bytes=%llu",
-					service->stats.ctrl_tx_count, service->stats.ctrl_tx_bytes,
-					service->stats.ctrl_rx_count, service->stats.ctrl_rx_bytes);
-			err = vchiq_dump(dump_context, buf, len + 1);
-			if (err)
-				return err;
+			seq_printf(f, "  Bulk: tx_count=%d, tx_bytes=%llu, rx_count=%d, rx_bytes=%llu\n",
+				   service->stats.bulk_tx_count,
+				   service->stats.bulk_tx_bytes,
+				   service->stats.bulk_rx_count,
+				   service->stats.bulk_rx_bytes);
 
-			len = scnprintf(buf, sizeof(buf),
-					"  Bulk: tx_count=%d, tx_bytes=%llu, rx_count=%d, rx_bytes=%llu",
-					service->stats.bulk_tx_count, service->stats.bulk_tx_bytes,
-					service->stats.bulk_rx_count, service->stats.bulk_rx_bytes);
-			err = vchiq_dump(dump_context, buf, len + 1);
-			if (err)
-				return err;
-
-			len = scnprintf(buf, sizeof(buf),
-					"  %d quota stalls, %d slot stalls, %d bulk stalls, %d aborted, %d errors",
-					service->stats.quota_stalls, service->stats.slot_stalls,
-					service->stats.bulk_stalls,
-					service->stats.bulk_aborted_count,
-					service->stats.error_count);
+			seq_printf(f, "  %d quota stalls, %d slot stalls, %d bulk stalls, %d aborted, %d errors\n",
+				   service->stats.quota_stalls,
+				   service->stats.slot_stalls,
+				   service->stats.bulk_stalls,
+				   service->stats.bulk_aborted_count,
+				   service->stats.error_count);
 		}
 	}
 
-	err = vchiq_dump(dump_context, buf, len + 1);
-	if (err)
-		return err;
-
-	if (service->srvstate != VCHIQ_SRVSTATE_FREE)
-		err = vchiq_dump_platform_service_state(dump_context, service);
-	return err;
+	vchiq_dump_platform_service_state(f, service);
 }
 
-int vchiq_dump_state(void *dump_context, struct vchiq_state *state)
+void vchiq_dump_state(struct seq_file *f, struct vchiq_state *state)
 {
-	char buf[80];
-	int len;
 	int i;
-	int err;
 
-	len = scnprintf(buf, sizeof(buf), "State %d: %s", state->id,
-			conn_state_names[state->conn_state]);
-	err = vchiq_dump(dump_context, buf, len + 1);
-	if (err)
-		return err;
+	seq_printf(f, "State %d: %s\n", state->id,
+		   conn_state_names[state->conn_state]);
 
-	len = scnprintf(buf, sizeof(buf), "  tx_pos=%x(@%pK), rx_pos=%x(@%pK)",
-			state->local->tx_pos,
-			state->tx_data + (state->local_tx_pos & VCHIQ_SLOT_MASK),
-			state->rx_pos,
-			state->rx_data + (state->rx_pos & VCHIQ_SLOT_MASK));
-	err = vchiq_dump(dump_context, buf, len + 1);
-	if (err)
-		return err;
+	seq_printf(f, "  tx_pos=%x(@%pK), rx_pos=%x(@%pK)\n",
+		   state->local->tx_pos,
+		   state->tx_data + (state->local_tx_pos & VCHIQ_SLOT_MASK),
+		   state->rx_pos,
+		   state->rx_data + (state->rx_pos & VCHIQ_SLOT_MASK));
 
-	len = scnprintf(buf, sizeof(buf), "  Version: %d (min %d)",
-			VCHIQ_VERSION, VCHIQ_VERSION_MIN);
-	err = vchiq_dump(dump_context, buf, len + 1);
-	if (err)
-		return err;
+	seq_printf(f, "  Version: %d (min %d)\n", VCHIQ_VERSION,
+		   VCHIQ_VERSION_MIN);
 
 	if (VCHIQ_ENABLE_STATS) {
-		len = scnprintf(buf, sizeof(buf),
-				"  Stats: ctrl_tx_count=%d, ctrl_rx_count=%d, error_count=%d",
-				state->stats.ctrl_tx_count, state->stats.ctrl_rx_count,
-				state->stats.error_count);
-		err = vchiq_dump(dump_context, buf, len + 1);
-		if (err)
-			return err;
+		seq_printf(f, "  Stats: ctrl_tx_count=%d, ctrl_rx_count=%d, error_count=%d\n",
+			   state->stats.ctrl_tx_count, state->stats.ctrl_rx_count,
+			   state->stats.error_count);
 	}
 
-	len = scnprintf(buf, sizeof(buf),
-			"  Slots: %d available (%d data), %d recyclable, %d stalls (%d data)",
-			((state->slot_queue_available * VCHIQ_SLOT_SIZE) -
-			state->local_tx_pos) / VCHIQ_SLOT_SIZE,
-			state->data_quota - state->data_use_count,
-			state->local->slot_queue_recycle - state->slot_queue_available,
-			state->stats.slot_stalls, state->stats.data_stalls);
-	err = vchiq_dump(dump_context, buf, len + 1);
-	if (err)
-		return err;
+	seq_printf(f, "  Slots: %d available (%d data), %d recyclable, %d stalls (%d data)\n",
+		   ((state->slot_queue_available * VCHIQ_SLOT_SIZE) -
+		   state->local_tx_pos) / VCHIQ_SLOT_SIZE,
+		   state->data_quota - state->data_use_count,
+		   state->local->slot_queue_recycle - state->slot_queue_available,
+		   state->stats.slot_stalls, state->stats.data_stalls);
 
-	err = vchiq_dump_platform_state(dump_context);
-	if (err)
-		return err;
+	vchiq_dump_platform_state(f);
 
-	err = vchiq_dump_shared_state(dump_context,
-				      state,
-				      state->local,
-				      "Local");
-	if (err)
-		return err;
-	err = vchiq_dump_shared_state(dump_context,
-				      state,
-				      state->remote,
-				      "Remote");
-	if (err)
-		return err;
+	vchiq_dump_shared_state(f, state, state->local, "Local");
 
-	err = vchiq_dump_platform_instances(dump_context);
-	if (err)
-		return err;
+	vchiq_dump_shared_state(f, state, state->remote, "Remote");
+
+	vchiq_dump_platform_instances(f);
 
 	for (i = 0; i < state->unused_service; i++) {
 		struct vchiq_service *service = find_service_by_port(state, i);
 
 		if (service) {
-			err = vchiq_dump_service_state(dump_context, service);
+			vchiq_dump_service_state(f, service);
 			vchiq_service_put(service);
-			if (err)
-				return err;
 		}
 	}
-	return 0;
 }
 
 int vchiq_send_remote_use(struct vchiq_state *state)

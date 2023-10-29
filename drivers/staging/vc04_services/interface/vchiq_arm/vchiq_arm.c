@@ -659,13 +659,9 @@ vchiq_complete_bulk(struct vchiq_instance *instance, struct vchiq_bulk *bulk)
 			      bulk->actual);
 }
 
-int vchiq_dump_platform_state(void *dump_context)
+void vchiq_dump_platform_state(struct seq_file *f)
 {
-	char buf[80];
-	int len;
-
-	len = snprintf(buf, sizeof(buf), "  Platform: 2835 (VC master)");
-	return vchiq_dump(dump_context, buf, len + 1);
+	seq_puts(f, "  Platform: 2835 (VC master)\n");
 }
 
 #define VCHIQ_INIT_RETRIES 10
@@ -1190,56 +1186,13 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 		bulk_userdata);
 }
 
-int vchiq_dump(void *dump_context, const char *str, int len)
-{
-	struct dump_context *context = (struct dump_context *)dump_context;
-	int copy_bytes;
-
-	if (context->actual >= context->space)
-		return 0;
-
-	if (context->offset > 0) {
-		int skip_bytes = min_t(int, len, context->offset);
-
-		str += skip_bytes;
-		len -= skip_bytes;
-		context->offset -= skip_bytes;
-		if (context->offset > 0)
-			return 0;
-	}
-	copy_bytes = min_t(int, len, context->space - context->actual);
-	if (copy_bytes == 0)
-		return 0;
-	if (copy_to_user(context->buf + context->actual, str,
-			 copy_bytes))
-		return -EFAULT;
-	context->actual += copy_bytes;
-	len -= copy_bytes;
-
-	/*
-	 * If the terminating NUL is included in the length, then it
-	 * marks the end of a line and should be replaced with a
-	 * carriage return.
-	 */
-	if ((len == 0) && (str[copy_bytes - 1] == '\0')) {
-		char cr = '\n';
-
-		if (copy_to_user(context->buf + context->actual - 1,
-				 &cr, 1))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-int vchiq_dump_platform_instances(void *dump_context)
+void vchiq_dump_platform_instances(struct seq_file *f)
 {
 	struct vchiq_state *state = vchiq_get_state();
-	char buf[80];
-	int len;
 	int i;
 
 	if (!state)
-		return -ENOTCONN;
+		return;
 
 	/*
 	 * There is no list of instances, so instead scan all services,
@@ -1264,7 +1217,6 @@ int vchiq_dump_platform_instances(void *dump_context)
 	for (i = 0; i < state->unused_service; i++) {
 		struct vchiq_service *service;
 		struct vchiq_instance *instance;
-		int err;
 
 		rcu_read_lock();
 		service = rcu_dereference(state->services[i]);
@@ -1280,43 +1232,35 @@ int vchiq_dump_platform_instances(void *dump_context)
 		}
 		rcu_read_unlock();
 
-		len = snprintf(buf, sizeof(buf),
-			       "Instance %pK: pid %d,%s completions %d/%d",
-			       instance, instance->pid,
-			       instance->connected ? " connected, " :
-			       "",
-			       instance->completion_insert -
-			       instance->completion_remove,
-			       MAX_COMPLETIONS);
-		err = vchiq_dump(dump_context, buf, len + 1);
-		if (err)
-			return err;
+		seq_printf(f, "Instance %pK: pid %d,%s completions %d/%d\n",
+			   instance, instance->pid,
+			   instance->connected ? " connected, " :
+			   "",
+			   instance->completion_insert -
+			   instance->completion_remove,
+			   MAX_COMPLETIONS);
 		instance->mark = 1;
 	}
-	return 0;
 }
 
-int vchiq_dump_platform_service_state(void *dump_context,
-				      struct vchiq_service *service)
+void vchiq_dump_platform_service_state(struct seq_file *f,
+				       struct vchiq_service *service)
 {
 	struct user_service *user_service =
 			(struct user_service *)service->base.userdata;
-	char buf[80];
-	int len;
 
-	len = scnprintf(buf, sizeof(buf), "  instance %pK", service->instance);
+	seq_printf(f, "  instance %pK", service->instance);
 
 	if ((service->base.callback == service_callback) && user_service->is_vchi) {
-		len += scnprintf(buf + len, sizeof(buf) - len, ", %d/%d messages",
-				 user_service->msg_insert - user_service->msg_remove,
-				 MSG_QUEUE_SIZE);
+		seq_printf(f, ", %d/%d messages",
+			   user_service->msg_insert - user_service->msg_remove,
+			   MSG_QUEUE_SIZE);
 
 		if (user_service->dequeue_pending)
-			len += scnprintf(buf + len, sizeof(buf) - len,
-				" (dequeue pending)");
+			seq_puts(f, " (dequeue pending)");
 	}
 
-	return vchiq_dump(dump_context, buf, len + 1);
+	seq_puts(f, "\n");
 }
 
 struct vchiq_state *

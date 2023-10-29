@@ -1306,26 +1306,6 @@ out:
 	return ret;
 }
 
-static ssize_t
-vchiq_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
-{
-	struct dump_context context;
-	int err;
-
-	context.buf = buf;
-	context.actual = 0;
-	context.space = count;
-	context.offset = *ppos;
-
-	err = vchiq_dump_state(&context, &g_state);
-	if (err)
-		return err;
-
-	*ppos += context.actual;
-
-	return context.actual;
-}
-
 static const struct file_operations
 vchiq_fops = {
 	.owner = THIS_MODULE,
@@ -1335,7 +1315,6 @@ vchiq_fops = {
 #endif
 	.open = vchiq_open,
 	.release = vchiq_release,
-	.read = vchiq_read
 };
 
 static struct miscdevice vchiq_miscdev = {

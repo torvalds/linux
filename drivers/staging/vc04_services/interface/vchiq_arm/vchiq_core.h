@@ -6,6 +6,7 @@
 
 #include <linux/mutex.h>
 #include <linux/completion.h>
+#include <linux/debugfs.h>
 #include <linux/dev_printk.h>
 #include <linux/kthread.h>
 #include <linux/kref.h>
@@ -504,8 +505,8 @@ vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle, void *
 		    void __user *uoffset, int size, void *userdata, enum vchiq_bulk_mode mode,
 		    enum vchiq_bulk_dir dir);
 
-extern int
-vchiq_dump_state(void *dump_context, struct vchiq_state *state);
+extern void
+vchiq_dump_state(struct seq_file *f, struct vchiq_state *state);
 
 extern void
 vchiq_loud_error_header(void);
@@ -561,13 +562,11 @@ void vchiq_complete_bulk(struct vchiq_instance *instance, struct vchiq_bulk *bul
 
 void remote_event_signal(struct remote_event *event);
 
-int vchiq_dump(void *dump_context, const char *str, int len);
+void vchiq_dump_platform_state(struct seq_file *f);
 
-int vchiq_dump_platform_state(void *dump_context);
+void vchiq_dump_platform_instances(struct seq_file *f);
 
-int vchiq_dump_platform_instances(void *dump_context);
-
-int vchiq_dump_platform_service_state(void *dump_context, struct vchiq_service *service);
+void vchiq_dump_platform_service_state(struct seq_file *f, struct vchiq_service *service);
 
 int vchiq_use_service_internal(struct vchiq_service *service);
 
