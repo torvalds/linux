@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "alloc_background.h"
 #include "alloc_foreground.h"
 #include "btree_iter.h"
 #include "btree_update.h"
@@ -282,15 +283,12 @@ static int do_rebalance_scan(struct moving_context *ctxt, u64 inum, u64 cookie)
 static void rebalance_wait(struct bch_fs *c)
 {
 	struct bch_fs_rebalance *r = &c->rebalance;
-	struct bch_dev *ca;
 	struct io_clock *clock = &c->io_clock[WRITE];
 	u64 now = atomic64_read(&clock->now);
-	u64 min_member_capacity = 128 * 2048;
-	unsigned i;
+	u64 min_member_capacity = bch2_min_rw_member_capacity(c);
 
-	for_each_rw_member(ca, c, i)
-		min_member_capacity = min(min_member_capacity,
-					  ca->mi.nbuckets * ca->mi.bucket_size);
+	if (min_member_capacity == U64_MAX)
+		min_member_capacity = 128 * 2048;
 
 	r->wait_iotime_end		= now + (min_member_capacity >> 6);
 

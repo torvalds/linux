@@ -2085,6 +2085,17 @@ void bch2_recalc_capacity(struct bch_fs *c)
 	closure_wake_up(&c->freelist_wait);
 }
 
+u64 bch2_min_rw_member_capacity(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	unsigned i;
+	u64 ret = U64_MAX;
+
+	for_each_rw_member(ca, c, i)
+		ret = min(ret, ca->mi.nbuckets * ca->mi.bucket_size);
+	return ret;
+}
+
 static bool bch2_dev_has_open_write_point(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct open_bucket *ob;

@@ -188,7 +188,8 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 
 noinline
 static int bch2_copygc(struct moving_context *ctxt,
-		       struct buckets_in_flight *buckets_in_flight)
+		       struct buckets_in_flight *buckets_in_flight,
+		       bool *did_work)
 {
 	struct btree_trans *trans = ctxt->trans;
 	struct bch_fs *c = trans->c;
@@ -224,6 +225,8 @@ static int bch2_copygc(struct moving_context *ctxt,
 					     f->bucket.k.gen, data_opts);
 		if (ret)
 			goto err;
+
+		*did_work = true;
 	}
 err:
 	darray_exit(&buckets);
@@ -322,6 +325,8 @@ static int bch2_copygc_thread(void *arg)
 			      false);
 
 	while (!ret && !kthread_should_stop()) {
+		bool did_work = false;
+
 		bch2_trans_unlock(ctxt.trans);
 		cond_resched();
 
@@ -352,10 +357,21 @@ static int bch2_copygc_thread(void *arg)
 		c->copygc_wait = 0;
 
 		c->copygc_running = true;
-		ret = bch2_copygc(&ctxt, &buckets);
+		ret = bch2_copygc(&ctxt, &buckets, &did_work);
 		c->copygc_running = false;
 
 		wake_up(&c->copygc_running_wq);
+
+		if (!wait && !did_work) {
+			u64 min_member_capacity = bch2_min_rw_member_capacity(c);
+
+			if (min_member_capacity == U64_MAX)
+				min_member_capacity = 128 * 2048;
+
+			bch2_trans_unlock_long(ctxt.trans);
+			bch2_kthread_io_clock_wait(clock, last + (min_member_capacity >> 6),
+					MAX_SCHEDULE_TIMEOUT);
+		}
 	}
 
 	move_buckets_wait(&ctxt, &buckets, true);
