@@ -90,12 +90,10 @@ struct btrfs_device {
 
 	u64 generation;
 
+	struct bdev_handle *bdev_handle;
 	struct block_device *bdev;
 
 	struct btrfs_zoned_device_info *zone_info;
-
-	/* block device holder for blkdev_get/put */
-	void *holder;
 
 	/*
 	 * Device's major-minor number. Must be set even if the device is not
@@ -629,7 +627,7 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 void btrfs_put_dev_args_from_path(struct btrfs_dev_lookup_args *args);
 int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 		    struct btrfs_dev_lookup_args *args,
-		    struct block_device **bdev, void **holder);
+		    struct bdev_handle **bdev_handle);
 void __exit btrfs_cleanup_fs_uuids(void);
 int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len);
 int btrfs_grow_device(struct btrfs_trans_handle *trans,
