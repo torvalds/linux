@@ -17,9 +17,9 @@ struct ff_idmap {
 
 __be32
 nfsd4_ff_encode_layoutget(struct xdr_stream *xdr,
-		struct nfsd4_layoutget *lgp)
+		const struct nfsd4_layoutget *lgp)
 {
-	struct pnfs_ff_layout *fl = lgp->lg_content;
+	const struct pnfs_ff_layout *fl = lgp->lg_content;
 	int len, mirror_len, ds_len, fh_len;
 	__be32 *p;
 
@@ -77,7 +77,7 @@ nfsd4_ff_encode_layoutget(struct xdr_stream *xdr,
 
 __be32
 nfsd4_ff_encode_getdeviceinfo(struct xdr_stream *xdr,
-		struct nfsd4_getdeviceinfo *gdp)
+		const struct nfsd4_getdeviceinfo *gdp)
 {
 	struct pnfs_ff_device_addr *da = gdp->gd_device;
 	int len;
