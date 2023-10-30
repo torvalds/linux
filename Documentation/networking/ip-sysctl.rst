@@ -2148,14 +2148,6 @@ accept_ra_min_hop_limit - INTEGER
 
 	Default: 1
 
-accept_ra_min_rtr_lft - INTEGER
-	Minimum acceptable router lifetime in Router Advertisement.
-
-	RAs with a router lifetime less than this value shall be
-	ignored. RAs with a router lifetime of 0 are unaffected.
-
-	Default: 0
-
 accept_ra_pinfo - BOOLEAN
 	Learn Prefix Information in Router Advertisement.
 
