@@ -10,6 +10,7 @@
 #include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/i3c/master.h>
 #include <linux/interrupt.h>
@@ -890,6 +891,19 @@ static int i3c_hci_probe(struct platform_device *pdev)
 		return PTR_ERR(hci->rst);
 	}
 	reset_control_deassert(hci->rst);
+
+	hci->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(hci->clk)) {
+		dev_err(&pdev->dev,
+			"missing or invalid clock controller device tree entry");
+		return PTR_ERR(hci->clk);
+	}
+
+	ret = clk_prepare_enable(hci->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "Unable to enable i3c clock.\n");
+		return ret;
+	}
 
 	ret = i3c_hci_init(hci);
 	if (ret)
