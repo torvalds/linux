@@ -344,10 +344,11 @@ escaping the colons with a single backslash.  For example:
 
   mount -t overlay overlay -olowerdir=/a\:lower\:\:dir /merged
 
-Since kernel version v6.5, directory names containing colons can also
-be provided as lower layer using the fsconfig syscall from new mount api:
+Since kernel version v6.8, directory names containing colons can also
+be configured as lower layer using the "lowerdir+" mount options and the
+fsconfig syscall from new mount api.  For example:
 
-  fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir", "/a:lower::dir", 0);
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/a:lower::dir", 0);
 
 In the latter case, colons in lower layer directory names will be escaped
 as an octal characters (\072) when displayed in /proc/self/mountinfo.
@@ -415,6 +416,16 @@ in the "data-only" lower layers are not visible in overlayfs inodes.
 Only the data of the files in the "data-only" lower layers may be visible
 when a "metacopy" file in one of the lower layers above it, has a "redirect"
 to the absolute path of the "lower data" file in the "data-only" lower layer.
+
+Since kernel version v6.8, "data-only" lower layers can also be added using
+the "datadir+" mount options and the fsconfig syscall from new mount api.
+For example:
+
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/l1", 0);
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/l2", 0);
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/l3", 0);
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "datadir+", "/do1", 0);
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "datadir+", "/do2", 0);
 
 
 fs-verity support

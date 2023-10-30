@@ -45,6 +45,8 @@ MODULE_PARM_DESC(metacopy,
 
 enum ovl_opt {
 	Opt_lowerdir,
+	Opt_lowerdir_add,
+	Opt_datadir_add,
 	Opt_upperdir,
 	Opt_workdir,
 	Opt_default_permissions,
@@ -140,8 +142,11 @@ static int ovl_verity_mode_def(void)
 #define fsparam_string_empty(NAME, OPT) \
 	__fsparam(fs_param_is_string, NAME, OPT, fs_param_can_be_empty, NULL)
 
+
 const struct fs_parameter_spec ovl_parameter_spec[] = {
 	fsparam_string_empty("lowerdir",    Opt_lowerdir),
+	fsparam_string("lowerdir+",         Opt_lowerdir_add),
+	fsparam_string("datadir+",          Opt_datadir_add),
 	fsparam_string("upperdir",          Opt_upperdir),
 	fsparam_string("workdir",           Opt_workdir),
 	fsparam_flag("default_permissions", Opt_default_permissions),
@@ -273,11 +278,14 @@ static int ovl_mount_dir(const char *name, struct path *path)
 static int ovl_mount_dir_check(struct fs_context *fc, const struct path *path,
 			       enum ovl_opt layer, const char *name, bool upper)
 {
+	struct ovl_fs_context *ctx = fc->fs_private;
+
 	if (ovl_dentry_weird(path->dentry))
 		return invalfc(fc, "filesystem on %s not supported", name);
 
 	if (!d_is_dir(path->dentry))
 		return invalfc(fc, "%s is not a directory", name);
+
 
 	/*
 	 * Check whether upper path is read-only here to report failures
@@ -289,7 +297,35 @@ static int ovl_mount_dir_check(struct fs_context *fc, const struct path *path,
 			return invalfc(fc, "filesystem on %s not supported as upperdir", name);
 		if (__mnt_is_readonly(path->mnt))
 			return invalfc(fc, "filesystem on %s is read-only", name);
+	} else {
+		if (ctx->lowerdir_all && layer != Opt_lowerdir)
+			return invalfc(fc, "lowerdir+ and datadir+ cannot follow lowerdir");
+		if (ctx->nr_data && layer == Opt_lowerdir_add)
+			return invalfc(fc, "regular lower layers cannot follow data layers");
+		if (ctx->nr == OVL_MAX_STACK)
+			return invalfc(fc, "too many lower directories, limit is %d",
+				       OVL_MAX_STACK);
 	}
+	return 0;
+}
+
+static int ovl_ctx_realloc_lower(struct fs_context *fc)
+{
+	struct ovl_fs_context *ctx = fc->fs_private;
+	struct ovl_fs_context_layer *l;
+	size_t nr;
+
+	if (ctx->nr < ctx->capacity)
+		return 0;
+
+	nr = min_t(size_t, max(4096 / sizeof(*l), ctx->capacity * 2),
+		   OVL_MAX_STACK);
+	l = krealloc_array(ctx->lower, nr, sizeof(*l), GFP_KERNEL_ACCOUNT);
+	if (!l)
+		return -ENOMEM;
+
+	ctx->lower = l;
+	ctx->capacity = nr;
 	return 0;
 }
 
@@ -299,6 +335,7 @@ static void ovl_add_layer(struct fs_context *fc, enum ovl_opt layer,
 	struct ovl_fs *ofs = fc->s_fs_info;
 	struct ovl_config *config = &ofs->config;
 	struct ovl_fs_context *ctx = fc->fs_private;
+	struct ovl_fs_context_layer *l;
 
 	switch (layer) {
 	case Opt_workdir:
@@ -308,6 +345,16 @@ static void ovl_add_layer(struct fs_context *fc, enum ovl_opt layer,
 	case Opt_upperdir:
 		swap(config->upperdir, *pname);
 		swap(ctx->upper, *path);
+		break;
+	case Opt_datadir_add:
+		ctx->nr_data++;
+		fallthrough;
+	case Opt_lowerdir_add:
+		WARN_ON(ctx->nr >= ctx->capacity);
+		l = &ctx->lower[ctx->nr++];
+		memset(l, 0, sizeof(*l));
+		swap(l->name, *pname);
+		swap(l->path, *path);
 		break;
 	default:
 		WARN_ON(1);
@@ -325,13 +372,22 @@ static int ovl_parse_layer(struct fs_context *fc, struct fs_parameter *param,
 	if (!name)
 		return -ENOMEM;
 
-	err = ovl_mount_dir(name, &path);
+	if (upper)
+		err = ovl_mount_dir(name, &path);
+	else
+		err = ovl_mount_dir_noesc(name, &path);
 	if (err)
 		goto out_free;
 
 	err = ovl_mount_dir_check(fc, &path, layer, name, upper);
 	if (err)
 		goto out_put;
+
+	if (!upper) {
+		err = ovl_ctx_realloc_lower(fc);
+		if (err)
+			goto out_put;
+	}
 
 	/* Store the user provided path string in ctx to show in mountinfo */
 	ovl_add_layer(fc, layer, &path, &name);
@@ -519,6 +575,8 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_lowerdir:
 		err = ovl_parse_param_lowerdir(param->string, fc);
 		break;
+	case Opt_lowerdir_add:
+	case Opt_datadir_add:
 	case Opt_upperdir:
 	case Opt_workdir:
 		err = ovl_parse_layer(fc, param, opt);
@@ -894,13 +952,29 @@ int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct ovl_fs *ofs = OVL_FS(sb);
+	size_t nr, nr_merged_lower, nr_lower = 0;
 	char **lowerdirs = ofs->config.lowerdirs;
 
 	/*
 	 * lowerdirs[0] holds the colon separated list that user provided
 	 * with lowerdir mount option.
+	 * lowerdirs[1..numlayer] hold the lowerdir paths that were added
+	 * using the lowerdir+ and datadir+ mount options.
+	 * For now, we do not allow mixing the legacy lowerdir mount option
+	 * with the new lowerdir+ and datadir+ mount options.
 	 */
-	seq_show_option(m, "lowerdir", lowerdirs[0]);
+	if (lowerdirs[0]) {
+		seq_show_option(m, "lowerdir", lowerdirs[0]);
+	} else {
+		nr_lower = ofs->numlayer;
+		nr_merged_lower = nr_lower - ofs->numdatalayer;
+	}
+	for (nr = 1; nr < nr_lower; nr++) {
+		if (nr < nr_merged_lower)
+			seq_show_option(m, "lowerdir+", lowerdirs[nr]);
+		else
+			seq_show_option(m, "datadir+", lowerdirs[nr]);
+	}
 	if (ofs->config.upperdir) {
 		seq_show_option(m, "upperdir", ofs->config.upperdir);
 		seq_show_option(m, "workdir", ofs->config.workdir);
