@@ -1651,7 +1651,7 @@ EXPORT_SYMBOL_NS_GPL(intel_pinctrl_probe_by_uid, PINCTRL_INTEL);
 const struct intel_pinctrl_soc_data *intel_pinctrl_get_soc_data(struct platform_device *pdev)
 {
 	const struct intel_pinctrl_soc_data * const *table;
-	const struct intel_pinctrl_soc_data *data = NULL;
+	const struct intel_pinctrl_soc_data *data;
 	struct device *dev = &pdev->dev;
 
 	table = device_get_match_data(dev);
@@ -1660,11 +1660,10 @@ const struct intel_pinctrl_soc_data *intel_pinctrl_get_soc_data(struct platform_
 		unsigned int i;
 
 		for (i = 0; table[i]; i++) {
-			if (acpi_dev_uid_match(adev, table[i]->uid)) {
-				data = table[i];
+			if (acpi_dev_uid_match(adev, table[i]->uid))
 				break;
-			}
 		}
+		data = table[i];
 	} else {
 		const struct platform_device_id *id;
 
