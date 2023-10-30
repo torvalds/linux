@@ -201,7 +201,7 @@ pick_server:
 		if (!test_bit(i, &vc->untried) ||
 		    !test_bit(AFS_VLSERVER_FL_RESPONDING, &s->flags))
 			continue;
-		if (s->probe.rtt < rtt) {
+		if (s->probe.rtt <= rtt) {
 			vc->index = i;
 			rtt = s->probe.rtt;
 		}
