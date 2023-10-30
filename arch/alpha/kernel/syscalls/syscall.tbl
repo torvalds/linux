@@ -492,3 +492,7 @@
 560	common	set_mempolicy_home_node		sys_ni_syscall
 561	common	cachestat			sys_cachestat
 562	common	fchmodat2			sys_fchmodat2
+# 563 reserved for map_shadow_stack
+564	common	futex_wake			sys_futex_wake
+565	common	futex_wait			sys_futex_wait
+566	common	futex_requeue			sys_futex_requeue

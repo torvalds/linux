@@ -115,23 +115,23 @@ static __inline__ long local_xchg(local_t *l, long n)
 }
 
 /**
- * local_add_unless - add unless the number is a given value
+ * local_add_unless - add unless the number is already a given value
  * @l: pointer of type local_t
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @l, so long as it was not @u.
- * Returns non-zero if @l was not @u, and zero otherwise.
+ * Atomically adds @a to @l, if @v was not already @u.
+ * Returns true if the addition was done.
  */
-static __inline__ int local_add_unless(local_t *l, long a, long u)
+static __inline__ bool local_add_unless(local_t *l, long a, long u)
 {
 	unsigned long flags;
-	int ret = 0;
+	bool ret = false;
 
 	powerpc_local_irq_pmu_save(flags);
 	if (l->v != u) {
 		l->v += a;
-		ret = 1;
+		ret = true;
 	}
 	powerpc_local_irq_pmu_restore(flags);
 
