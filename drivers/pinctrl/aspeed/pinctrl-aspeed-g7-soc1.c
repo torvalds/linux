@@ -313,8 +313,8 @@ static const int ltpi_pins[] = { 84, 85, 86, 87 };
 static const int jtagm1_pins[] = { 126, 127, 128, 129, 130 };
 
 static const int mdio0_pins[] = { 144, 145 };
-static const int mdio1_pins[] = { 124, 125 };
-static const int mdio2_pins[] = { 160, 161 };
+static const int mdio1_pins[] = { 160, 161 };
+static const int mdio2_pins[] = { 124, 125 };
 
 static const int rgmii0_pins[] = { 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143 };
 static const int rgmii1_pins[] = { 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159 };
@@ -2159,6 +2159,11 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(MTDO1, SCU40, GENMASK(26, 24), (1 << 24)),
+		},
+	},
+	{
+		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
+			PIN_CFG(FWSPIWPEN, SCU40, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO R
