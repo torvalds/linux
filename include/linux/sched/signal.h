@@ -646,6 +646,9 @@ extern bool current_is_single_threaded(void);
 #define while_each_thread(g, t) \
 	while ((t = next_thread(t)) != g)
 
+#define for_other_threads(p, t)	\
+	for (t = p; (t = next_thread(t)) != p; )
+
 #define __for_each_thread(signal, t)	\
 	list_for_each_entry_rcu(t, &(signal)->thread_head, thread_node, \
 		lockdep_is_held(&tasklist_lock))
