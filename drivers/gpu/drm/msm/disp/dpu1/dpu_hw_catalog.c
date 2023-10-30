@@ -329,6 +329,9 @@ static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_3_1 =
 static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_3_2 =
 				_VIG_SBLK(SSPP_SCALER_VER(3, 2));
 
+static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_3_3 =
+				_VIG_SBLK(SSPP_SCALER_VER(3, 3));
+
 static const struct dpu_sspp_sub_blks dpu_dma_sblk = _DMA_SBLK();
 
 /*************************************************************
@@ -431,6 +434,7 @@ static const u32 msm8998_rt_pri_lvl[] = {1, 2, 2, 2};
 static const u32 msm8998_nrt_pri_lvl[] = {1, 1, 1, 1};
 static const u32 sdm845_rt_pri_lvl[] = {3, 3, 4, 4, 5, 5, 6, 6};
 static const u32 sdm845_nrt_pri_lvl[] = {3, 3, 3, 3, 3, 3, 3, 3};
+static const u32 sm8650_rt_pri_lvl[] = {4, 4, 5, 5, 5, 5, 5, 6};
 
 static const struct dpu_vbif_dynamic_ot_cfg msm8998_ot_rdwr_cfg[] = {
 	{
@@ -507,6 +511,26 @@ static const struct dpu_vbif_cfg sm8550_vbif[] = {
 	.qos_rt_tbl = {
 		.npriority_lvl = ARRAY_SIZE(sdm845_rt_pri_lvl),
 		.priority_lvl = sdm845_rt_pri_lvl,
+		},
+	.qos_nrt_tbl = {
+		.npriority_lvl = ARRAY_SIZE(sdm845_nrt_pri_lvl),
+		.priority_lvl = sdm845_nrt_pri_lvl,
+		},
+	.memtype_count = 16,
+	.memtype = {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
+	},
+};
+
+static const struct dpu_vbif_cfg sm8650_vbif[] = {
+	{
+	.name = "vbif_rt", .id = VBIF_RT,
+	.base = 0, .len = 0x1074,
+	.features = BIT(DPU_VBIF_QOS_REMAP),
+	.xin_halt_timeout = 0x4000,
+	.qos_rp_remap_size = 0x40,
+	.qos_rt_tbl = {
+		.npriority_lvl = ARRAY_SIZE(sm8650_rt_pri_lvl),
+		.priority_lvl = sm8650_rt_pri_lvl,
 		},
 	.qos_nrt_tbl = {
 		.npriority_lvl = ARRAY_SIZE(sdm845_nrt_pri_lvl),
@@ -633,3 +657,5 @@ static const struct dpu_qos_lut_entry sc7180_qos_nrt[] = {
 #include "catalog/dpu_8_1_sm8450.h"
 
 #include "catalog/dpu_9_0_sm8550.h"
+
+#include "catalog/dpu_10_0_sm8650.h"
