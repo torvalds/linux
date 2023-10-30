@@ -26,6 +26,7 @@ int __exfat_write_inode(struct inode *inode, int sync)
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 	bool is_dir = (ei->type == TYPE_DIR) ? true : false;
+	struct timespec64 ts;
 
 	if (inode->i_ino == EXFAT_ROOT_INO)
 		return 0;
@@ -55,16 +56,18 @@ int __exfat_write_inode(struct inode *inode, int sync)
 			&ep->dentry.file.create_time,
 			&ep->dentry.file.create_date,
 			&ep->dentry.file.create_time_cs);
-	exfat_set_entry_time(sbi, &inode->i_mtime,
-			&ep->dentry.file.modify_tz,
-			&ep->dentry.file.modify_time,
-			&ep->dentry.file.modify_date,
-			&ep->dentry.file.modify_time_cs);
-	exfat_set_entry_time(sbi, &inode->i_atime,
-			&ep->dentry.file.access_tz,
-			&ep->dentry.file.access_time,
-			&ep->dentry.file.access_date,
-			NULL);
+	exfat_set_entry_time(sbi, &ts,
+			     &ep->dentry.file.modify_tz,
+			     &ep->dentry.file.modify_time,
+			     &ep->dentry.file.modify_date,
+			     &ep->dentry.file.modify_time_cs);
+	inode_set_mtime_to_ts(inode, ts);
+	exfat_set_entry_time(sbi, &ts,
+			     &ep->dentry.file.access_tz,
+			     &ep->dentry.file.access_time,
+			     &ep->dentry.file.access_date,
+			     NULL);
+	inode_set_atime_to_ts(inode, ts);
 
 	/* File size should be zero if there is no cluster allocated */
 	on_disk_size = i_size_read(inode);
@@ -355,7 +358,7 @@ static void exfat_write_failed(struct address_space *mapping, loff_t to)
 
 	if (to > i_size_read(inode)) {
 		truncate_pagecache(inode, i_size_read(inode));
-		inode->i_mtime = inode_set_ctime_current(inode);
+		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 		exfat_truncate(inode);
 	}
 }
@@ -398,7 +401,7 @@ static int exfat_write_end(struct file *file, struct address_space *mapping,
 		exfat_write_failed(mapping, pos+len);
 
 	if (!(err < 0) && !(ei->attr & ATTR_ARCHIVE)) {
-		inode->i_mtime = inode_set_ctime_current(inode);
+		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 		ei->attr |= ATTR_ARCHIVE;
 		mark_inode_dirty(inode);
 	}
@@ -576,10 +579,10 @@ static int exfat_fill_inode(struct inode *inode, struct exfat_dir_entry *info)
 	exfat_save_attr(inode, info->attr);
 
 	inode->i_blocks = round_up(i_size_read(inode), sbi->cluster_size) >> 9;
-	inode->i_mtime = info->mtime;
+	inode_set_mtime_to_ts(inode, info->mtime);
 	inode_set_ctime_to_ts(inode, info->mtime);
 	ei->i_crtime = info->crtime;
-	inode->i_atime = info->atime;
+	inode_set_atime_to_ts(inode, info->atime);
 
 	return 0;
 }

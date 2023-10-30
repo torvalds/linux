@@ -1108,17 +1108,18 @@ void btrfs_check_nocow_unlock(struct btrfs_inode *inode)
 
 static void update_time_for_write(struct inode *inode)
 {
-	struct timespec64 now, ctime;
+	struct timespec64 now, ts;
 
 	if (IS_NOCMTIME(inode))
 		return;
 
 	now = current_time(inode);
-	if (!timespec64_equal(&inode->i_mtime, &now))
-		inode->i_mtime = now;
+	ts = inode_get_mtime(inode);
+	if (!timespec64_equal(&ts, &now))
+		inode_set_mtime_to_ts(inode, now);
 
-	ctime = inode_get_ctime(inode);
-	if (!timespec64_equal(&ctime, &now))
+	ts = inode_get_ctime(inode);
+	if (!timespec64_equal(&ts, &now))
 		inode_set_ctime_to_ts(inode, now);
 
 	if (IS_I_VERSION(inode))
@@ -2473,7 +2474,8 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 		inode_inc_iversion(&inode->vfs_inode);
 
 		if (!extent_info || extent_info->update_times)
-			inode->vfs_inode.i_mtime = inode_set_ctime_current(&inode->vfs_inode);
+			inode_set_mtime_to_ts(&inode->vfs_inode,
+					      inode_set_ctime_current(&inode->vfs_inode));
 
 		ret = btrfs_update_inode(trans, root, inode);
 		if (ret)
@@ -2714,7 +2716,7 @@ static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 
 	ASSERT(trans != NULL);
 	inode_inc_iversion(inode);
-	inode->i_mtime = inode_set_ctime_current(inode);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 	updated_inode = true;
 	btrfs_end_transaction(trans);
@@ -2734,7 +2736,7 @@ out_only_mutex:
 		struct timespec64 now = inode_set_ctime_current(inode);
 
 		inode_inc_iversion(inode);
-		inode->i_mtime = now;
+		inode_set_mtime_to_ts(inode, now);
 		trans = btrfs_start_transaction(root, 1);
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);

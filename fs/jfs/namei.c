@@ -149,7 +149,7 @@ static int jfs_create(struct mnt_idmap *idmap, struct inode *dip,
 
 	mark_inode_dirty(ip);
 
-	dip->i_mtime = inode_set_ctime_current(dip);
+	inode_set_mtime_to_ts(dip, inode_set_ctime_current(dip));
 
 	mark_inode_dirty(dip);
 
@@ -284,7 +284,7 @@ static int jfs_mkdir(struct mnt_idmap *idmap, struct inode *dip,
 
 	/* update parent directory inode */
 	inc_nlink(dip);		/* for '..' from child directory */
-	dip->i_mtime = inode_set_ctime_current(dip);
+	inode_set_mtime_to_ts(dip, inode_set_ctime_current(dip));
 	mark_inode_dirty(dip);
 
 	rc = txCommit(tid, 2, &iplist[0], 0);
@@ -390,7 +390,7 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 	/* update parent directory's link count corresponding
 	 * to ".." entry of the target directory deleted
 	 */
-	dip->i_mtime = inode_set_ctime_current(dip);
+	inode_set_mtime_to_ts(dip, inode_set_ctime_current(dip));
 	inode_dec_link_count(dip);
 
 	/*
@@ -512,7 +512,8 @@ static int jfs_unlink(struct inode *dip, struct dentry *dentry)
 
 	ASSERT(ip->i_nlink);
 
-	dip->i_mtime = inode_set_ctime_to_ts(dip, inode_set_ctime_current(ip));
+	inode_set_mtime_to_ts(dip,
+			      inode_set_ctime_to_ts(dip, inode_set_ctime_current(ip)));
 	mark_inode_dirty(dip);
 
 	/* update target's inode */
@@ -828,7 +829,7 @@ static int jfs_link(struct dentry *old_dentry,
 	/* update object inode */
 	inc_nlink(ip);		/* for new link */
 	inode_set_ctime_current(ip);
-	dir->i_mtime = inode_set_ctime_current(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	ihold(ip);
 
@@ -1028,7 +1029,7 @@ static int jfs_symlink(struct mnt_idmap *idmap, struct inode *dip,
 
 	mark_inode_dirty(ip);
 
-	dip->i_mtime = inode_set_ctime_current(dip);
+	inode_set_mtime_to_ts(dip, inode_set_ctime_current(dip));
 	mark_inode_dirty(dip);
 	/*
 	 * commit update of parent directory and link object
@@ -1271,7 +1272,7 @@ static int jfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	inode_set_ctime_current(old_ip);
 	mark_inode_dirty(old_ip);
 
-	new_dir->i_mtime = inode_set_ctime_current(new_dir);
+	inode_set_mtime_to_ts(new_dir, inode_set_ctime_current(new_dir));
 	mark_inode_dirty(new_dir);
 
 	/* Build list of inodes modified by this transaction */
@@ -1283,7 +1284,8 @@ static int jfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 	if (old_dir != new_dir) {
 		iplist[ipcount++] = new_dir;
-		old_dir->i_mtime = inode_set_ctime_current(old_dir);
+		inode_set_mtime_to_ts(old_dir,
+				      inode_set_ctime_current(old_dir));
 		mark_inode_dirty(old_dir);
 	}
 
@@ -1416,7 +1418,7 @@ static int jfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 
 	mark_inode_dirty(ip);
 
-	dir->i_mtime = inode_set_ctime_current(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 
 	mark_inode_dirty(dir);
 

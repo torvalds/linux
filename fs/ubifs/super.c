@@ -142,10 +142,10 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 	set_nlink(inode, le32_to_cpu(ino->nlink));
 	i_uid_write(inode, le32_to_cpu(ino->uid));
 	i_gid_write(inode, le32_to_cpu(ino->gid));
-	inode->i_atime.tv_sec  = (int64_t)le64_to_cpu(ino->atime_sec);
-	inode->i_atime.tv_nsec = le32_to_cpu(ino->atime_nsec);
-	inode->i_mtime.tv_sec  = (int64_t)le64_to_cpu(ino->mtime_sec);
-	inode->i_mtime.tv_nsec = le32_to_cpu(ino->mtime_nsec);
+	inode_set_atime(inode, (int64_t)le64_to_cpu(ino->atime_sec),
+			le32_to_cpu(ino->atime_nsec));
+	inode_set_mtime(inode, (int64_t)le64_to_cpu(ino->mtime_sec),
+			le32_to_cpu(ino->mtime_nsec));
 	inode_set_ctime(inode, (int64_t)le64_to_cpu(ino->ctime_sec),
 			le32_to_cpu(ino->ctime_nsec));
 	inode->i_mode = le32_to_cpu(ino->mode);

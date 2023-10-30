@@ -2048,9 +2048,9 @@ out_write_size:
 		}
 		inode->i_blocks = ocfs2_inode_sector_count(inode);
 		di->i_size = cpu_to_le64((u64)i_size_read(inode));
-		inode->i_mtime = inode_set_ctime_current(inode);
-		di->i_mtime = di->i_ctime = cpu_to_le64(inode->i_mtime.tv_sec);
-		di->i_mtime_nsec = di->i_ctime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
+		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
+		di->i_mtime = di->i_ctime = cpu_to_le64(inode_get_mtime_sec(inode));
+		di->i_mtime_nsec = di->i_ctime_nsec = cpu_to_le32(inode_get_mtime_nsec(inode));
 		if (handle)
 			ocfs2_update_inode_fsync_trans(handle, inode, 1);
 	}

@@ -65,7 +65,7 @@ xfs_trans_ichgtime(
 	tv = current_time(inode);
 
 	if (flags & XFS_ICHGTIME_MOD)
-		inode->i_mtime = tv;
+		inode_set_mtime_to_ts(inode, tv);
 	if (flags & XFS_ICHGTIME_CHG)
 		inode_set_ctime_to_ts(inode, tv);
 	if (flags & XFS_ICHGTIME_CREATE)

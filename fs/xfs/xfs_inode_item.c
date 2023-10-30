@@ -526,8 +526,8 @@ xfs_inode_to_log_dinode(
 	to->di_projid_hi = ip->i_projid >> 16;
 
 	memset(to->di_pad3, 0, sizeof(to->di_pad3));
-	to->di_atime = xfs_inode_to_log_dinode_ts(ip, inode->i_atime);
-	to->di_mtime = xfs_inode_to_log_dinode_ts(ip, inode->i_mtime);
+	to->di_atime = xfs_inode_to_log_dinode_ts(ip, inode_get_atime(inode));
+	to->di_mtime = xfs_inode_to_log_dinode_ts(ip, inode_get_mtime(inode));
 	to->di_ctime = xfs_inode_to_log_dinode_ts(ip, inode_get_ctime(inode));
 	to->di_nlink = inode->i_nlink;
 	to->di_gen = inode->i_generation;

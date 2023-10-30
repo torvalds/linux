@@ -185,8 +185,9 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 		set_bit(GLF_INSTANTIATE_NEEDED, &ip->i_gl->gl_flags);
 
 		/* Lowest possible timestamp; will be overwritten in gfs2_dinode_in. */
-		inode->i_atime.tv_sec = 1LL << (8 * sizeof(inode->i_atime.tv_sec) - 1);
-		inode->i_atime.tv_nsec = 0;
+		inode_set_atime(inode,
+				1LL << (8 * sizeof(inode_get_atime_sec(inode)) - 1),
+				0);
 
 		glock_set_object(ip->i_gl, ip);
 
@@ -696,7 +697,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	set_nlink(inode, S_ISDIR(mode) ? 2 : 1);
 	inode->i_rdev = dev;
 	inode->i_size = size;
-	inode->i_atime = inode->i_mtime = inode_set_ctime_current(inode);
+	simple_inode_init_ts(inode);
 	munge_mode_uid_gid(dip, inode);
 	check_and_update_goal(dip);
 	ip->i_goal = dip->i_goal;

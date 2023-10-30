@@ -658,8 +658,8 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 
 	BUG_ON(capsnap->writing);
 	capsnap->size = i_size_read(inode);
-	capsnap->mtime = inode->i_mtime;
-	capsnap->atime = inode->i_atime;
+	capsnap->mtime = inode_get_mtime(inode);
+	capsnap->atime = inode_get_atime(inode);
 	capsnap->ctime = inode_get_ctime(inode);
 	capsnap->btime = ci->i_btime;
 	capsnap->change_attr = inode_peek_iversion_raw(inode);

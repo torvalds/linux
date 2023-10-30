@@ -365,7 +365,7 @@ static int udf_add_nondir(struct dentry *dentry, struct inode *inode)
 	*(__le32 *)((struct allocDescImpUse *)iter.fi.icb.impUse)->impUse =
 		cpu_to_le32(iinfo->i_unique & 0x00000000FFFFFFFFUL);
 	udf_fiiter_write_fi(&iter, NULL);
-	dir->i_mtime = inode_set_ctime_current(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	udf_fiiter_release(&iter);
 	udf_add_fid_counter(dir->i_sb, false, 1);
@@ -471,7 +471,7 @@ static int udf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	udf_fiiter_release(&iter);
 	udf_add_fid_counter(dir->i_sb, true, 1);
 	inc_nlink(dir);
-	dir->i_mtime = inode_set_ctime_current(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	d_instantiate_new(dentry, inode);
 
@@ -523,8 +523,8 @@ static int udf_rmdir(struct inode *dir, struct dentry *dentry)
 	inode->i_size = 0;
 	inode_dec_link_count(dir);
 	udf_add_fid_counter(dir->i_sb, true, -1);
-	dir->i_mtime = inode_set_ctime_to_ts(dir,
-					     inode_set_ctime_current(inode));
+	inode_set_mtime_to_ts(dir,
+			      inode_set_ctime_to_ts(dir, inode_set_ctime_current(inode)));
 	mark_inode_dirty(dir);
 	ret = 0;
 end_rmdir:
@@ -555,7 +555,7 @@ static int udf_unlink(struct inode *dir, struct dentry *dentry)
 		set_nlink(inode, 1);
 	}
 	udf_fiiter_delete_entry(&iter);
-	dir->i_mtime = inode_set_ctime_current(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	inode_dec_link_count(inode);
 	udf_add_fid_counter(dir->i_sb, false, -1);
@@ -748,7 +748,7 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
 	udf_add_fid_counter(dir->i_sb, false, 1);
 	inode_set_ctime_current(inode);
 	mark_inode_dirty(inode);
-	dir->i_mtime = inode_set_ctime_current(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	ihold(inode);
 	d_instantiate(dentry, inode);
@@ -866,8 +866,8 @@ static int udf_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		udf_add_fid_counter(old_dir->i_sb, S_ISDIR(new_inode->i_mode),
 				    -1);
 	}
-	old_dir->i_mtime = inode_set_ctime_current(old_dir);
-	new_dir->i_mtime = inode_set_ctime_current(new_dir);
+	inode_set_mtime_to_ts(old_dir, inode_set_ctime_current(old_dir));
+	inode_set_mtime_to_ts(new_dir, inode_set_ctime_current(new_dir));
 	mark_inode_dirty(old_dir);
 	mark_inode_dirty(new_dir);
 

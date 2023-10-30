@@ -3754,11 +3754,11 @@ static int btrfs_read_locked_inode(struct inode *inode,
 	btrfs_inode_set_file_extent_range(BTRFS_I(inode), 0,
 			round_up(i_size_read(inode), fs_info->sectorsize));
 
-	inode->i_atime.tv_sec = btrfs_timespec_sec(leaf, &inode_item->atime);
-	inode->i_atime.tv_nsec = btrfs_timespec_nsec(leaf, &inode_item->atime);
+	inode_set_atime(inode, btrfs_timespec_sec(leaf, &inode_item->atime),
+			btrfs_timespec_nsec(leaf, &inode_item->atime));
 
-	inode->i_mtime.tv_sec = btrfs_timespec_sec(leaf, &inode_item->mtime);
-	inode->i_mtime.tv_nsec = btrfs_timespec_nsec(leaf, &inode_item->mtime);
+	inode_set_mtime(inode, btrfs_timespec_sec(leaf, &inode_item->mtime),
+			btrfs_timespec_nsec(leaf, &inode_item->mtime));
 
 	inode_set_ctime(inode, btrfs_timespec_sec(leaf, &inode_item->ctime),
 			btrfs_timespec_nsec(leaf, &inode_item->ctime));
@@ -3922,19 +3922,19 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 	btrfs_set_token_inode_nlink(&token, item, inode->i_nlink);
 
 	btrfs_set_token_timespec_sec(&token, &item->atime,
-				     inode->i_atime.tv_sec);
+				     inode_get_atime_sec(inode));
 	btrfs_set_token_timespec_nsec(&token, &item->atime,
-				      inode->i_atime.tv_nsec);
+				      inode_get_atime_nsec(inode));
 
 	btrfs_set_token_timespec_sec(&token, &item->mtime,
-				     inode->i_mtime.tv_sec);
+				     inode_get_mtime_sec(inode));
 	btrfs_set_token_timespec_nsec(&token, &item->mtime,
-				      inode->i_mtime.tv_nsec);
+				      inode_get_mtime_nsec(inode));
 
 	btrfs_set_token_timespec_sec(&token, &item->ctime,
-				     inode_get_ctime(inode).tv_sec);
+				     inode_get_ctime_sec(inode));
 	btrfs_set_token_timespec_nsec(&token, &item->ctime,
-				      inode_get_ctime(inode).tv_nsec);
+				      inode_get_ctime_nsec(inode));
 
 	btrfs_set_token_timespec_sec(&token, &item->otime,
 				     BTRFS_I(inode)->i_otime.tv_sec);
@@ -4132,8 +4132,7 @@ err:
 	btrfs_i_size_write(dir, dir->vfs_inode.i_size - name->len * 2);
 	inode_inc_iversion(&inode->vfs_inode);
 	inode_inc_iversion(&dir->vfs_inode);
-	inode_set_ctime_current(&inode->vfs_inode);
-	dir->vfs_inode.i_mtime = inode_set_ctime_current(&dir->vfs_inode);
+ 	inode_set_mtime_to_ts(&dir->vfs_inode, inode_set_ctime_current(&dir->vfs_inode));
 	ret = btrfs_update_inode(trans, root, dir);
 out:
 	return ret;
@@ -4306,7 +4305,7 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 
 	btrfs_i_size_write(dir, dir->vfs_inode.i_size - fname.disk_name.len * 2);
 	inode_inc_iversion(&dir->vfs_inode);
-	dir->vfs_inode.i_mtime = inode_set_ctime_current(&dir->vfs_inode);
+	inode_set_mtime_to_ts(&dir->vfs_inode, inode_set_ctime_current(&dir->vfs_inode));
 	ret = btrfs_update_inode_fallback(trans, root, dir);
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
@@ -4956,7 +4955,8 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 	if (newsize != oldsize) {
 		inode_inc_iversion(inode);
 		if (!(mask & (ATTR_CTIME | ATTR_MTIME))) {
-			inode->i_mtime = inode_set_ctime_current(inode);
+			inode_set_mtime_to_ts(inode,
+					      inode_set_ctime_current(inode));
 		}
 	}
 
@@ -5600,9 +5600,9 @@ static struct inode *new_simple_dir(struct inode *dir,
 	inode->i_opflags &= ~IOP_XATTR;
 	inode->i_fop = &simple_dir_operations;
 	inode->i_mode = S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO;
-	inode->i_mtime = inode_set_ctime_current(inode);
-	inode->i_atime = dir->i_atime;
-	BTRFS_I(inode)->i_otime = inode->i_mtime;
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
+	inode_set_atime_to_ts(inode, inode_get_atime(dir));
+	BTRFS_I(inode)->i_otime = inode_get_mtime(inode);
 	inode->i_uid = dir->i_uid;
 	inode->i_gid = dir->i_gid;
 
@@ -6277,9 +6277,8 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		goto discard;
 	}
 
-	inode->i_mtime = inode_set_ctime_current(inode);
-	inode->i_atime = inode->i_mtime;
-	BTRFS_I(inode)->i_otime = inode->i_mtime;
+	simple_inode_init_ts(inode);
+	BTRFS_I(inode)->i_otime = inode_get_mtime(inode);
 
 	/*
 	 * We're going to fill the inode item now, so at this point the inode
@@ -6444,8 +6443,8 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 	 * values (the ones it had when the fsync was done).
 	 */
 	if (!test_bit(BTRFS_FS_LOG_RECOVERING, &root->fs_info->flags))
-		parent_inode->vfs_inode.i_mtime =
-			inode_set_ctime_current(&parent_inode->vfs_inode);
+		inode_set_mtime_to_ts(&parent_inode->vfs_inode,
+				      inode_set_ctime_current(&parent_inode->vfs_inode));
 
 	ret = btrfs_update_inode(trans, root, parent_inode);
 	if (ret)

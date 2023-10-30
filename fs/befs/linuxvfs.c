@@ -360,11 +360,11 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	 * for indexing purposes. (PFD, page 54)
 	 */
 
-	inode->i_mtime.tv_sec =
-	    fs64_to_cpu(sb, raw_inode->last_modified_time) >> 16;
-	inode->i_mtime.tv_nsec = 0;   /* lower 16 bits are not a time */
-	inode_set_ctime_to_ts(inode, inode->i_mtime);
-	inode->i_atime = inode->i_mtime;
+	inode_set_mtime(inode,
+			fs64_to_cpu(sb, raw_inode->last_modified_time) >> 16,
+			0);/* lower 16 bits are not a time */
+	inode_set_ctime_to_ts(inode, inode_get_mtime(inode));
+	inode_set_atime_to_ts(inode, inode_get_mtime(inode));
 
 	befs_ino->i_inode_num = fsrun_to_cpu(sb, raw_inode->inode_num);
 	befs_ino->i_parent = fsrun_to_cpu(sb, raw_inode->parent);
