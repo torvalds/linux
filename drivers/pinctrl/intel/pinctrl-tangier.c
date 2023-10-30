@@ -368,14 +368,11 @@ static int tng_config_set_pin(struct tng_pinctrl *tp, unsigned int pin,
 		break;
 
 	case PIN_CONFIG_BIAS_PULL_UP:
-		/* Set default strength value in case none is given */
-		if (arg == 1)
-			arg = 20000;
-
 		switch (arg) {
 		case 50000:
 			term = BUFCFG_PUPD_VAL_50K;
 			break;
+		case 1: /* Set default strength value in case none is given */
 		case 20000:
 			term = BUFCFG_PUPD_VAL_20K;
 			break;
@@ -394,14 +391,11 @@ static int tng_config_set_pin(struct tng_pinctrl *tp, unsigned int pin,
 		break;
 
 	case PIN_CONFIG_BIAS_PULL_DOWN:
-		/* Set default strength value in case none is given */
-		if (arg == 1)
-			arg = 20000;
-
 		switch (arg) {
 		case 50000:
 			term = BUFCFG_PUPD_VAL_50K;
 			break;
+		case 1: /* Set default strength value in case none is given */
 		case 20000:
 			term = BUFCFG_PUPD_VAL_20K;
 			break;
