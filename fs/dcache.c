@@ -1191,11 +1191,10 @@ void shrink_dentry_list(struct list_head *list)
 		spin_lock(&dentry->d_lock);
 		rcu_read_lock();
 		if (!shrink_lock_dentry(dentry)) {
-			bool can_free = false;
+			bool can_free;
 			rcu_read_unlock();
 			d_shrink_del(dentry);
-			if (dentry->d_lockref.count < 0)
-				can_free = dentry->d_flags & DCACHE_MAY_FREE;
+			can_free = dentry->d_flags & DCACHE_MAY_FREE;
 			spin_unlock(&dentry->d_lock);
 			if (can_free)
 				dentry_free(dentry);
