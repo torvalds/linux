@@ -367,7 +367,6 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	/* Force users to call KVM_ARM_VCPU_INIT */
 	vcpu_clear_flag(vcpu, VCPU_INITIALIZED);
-	bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
 
 	vcpu->arch.mmu_page_cache.gfp_zero = __GFP_ZERO;
 
@@ -1190,6 +1189,30 @@ int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
 	return -EINVAL;
 }
 
+static unsigned long system_supported_vcpu_features(void)
+{
+	unsigned long features = KVM_VCPU_VALID_FEATURES;
+
+	if (!cpus_have_final_cap(ARM64_HAS_32BIT_EL1))
+		clear_bit(KVM_ARM_VCPU_EL1_32BIT, &features);
+
+	if (!kvm_arm_support_pmu_v3())
+		clear_bit(KVM_ARM_VCPU_PMU_V3, &features);
+
+	if (!system_supports_sve())
+		clear_bit(KVM_ARM_VCPU_SVE, &features);
+
+	if (!system_has_full_ptr_auth()) {
+		clear_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, &features);
+		clear_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, &features);
+	}
+
+	if (!cpus_have_final_cap(ARM64_HAS_NESTED_VIRT))
+		clear_bit(KVM_ARM_VCPU_HAS_EL2, &features);
+
+	return features;
+}
+
 static int kvm_vcpu_init_check_features(struct kvm_vcpu *vcpu,
 					const struct kvm_vcpu_init *init)
 {
@@ -1204,11 +1227,24 @@ static int kvm_vcpu_init_check_features(struct kvm_vcpu *vcpu,
 			return -ENOENT;
 	}
 
+	if (features & ~system_supported_vcpu_features())
+		return -EINVAL;
+
+	/*
+	 * For now make sure that both address/generic pointer authentication
+	 * features are requested by the userspace together.
+	 */
+	if (test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, &features) !=
+	    test_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, &features))
+		return -EINVAL;
+
+	/* Disallow NV+SVE for the time being */
+	if (test_bit(KVM_ARM_VCPU_HAS_EL2, &features) &&
+	    test_bit(KVM_ARM_VCPU_SVE, &features))
+		return -EINVAL;
+
 	if (!test_bit(KVM_ARM_VCPU_EL1_32BIT, &features))
 		return 0;
-
-	if (!cpus_have_const_cap(ARM64_HAS_32BIT_EL1))
-		return -EINVAL;
 
 	/* MTE is incompatible with AArch32 */
 	if (kvm_has_mte(vcpu->kvm))
@@ -1226,7 +1262,8 @@ static bool kvm_vcpu_init_changed(struct kvm_vcpu *vcpu,
 {
 	unsigned long features = init->features[0];
 
-	return !bitmap_equal(vcpu->arch.features, &features, KVM_VCPU_MAX_FEATURES);
+	return !bitmap_equal(vcpu->kvm->arch.vcpu_features, &features,
+			     KVM_VCPU_MAX_FEATURES);
 }
 
 static int __kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
@@ -1239,21 +1276,17 @@ static int __kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 	mutex_lock(&kvm->arch.config_lock);
 
 	if (test_bit(KVM_ARCH_FLAG_VCPU_FEATURES_CONFIGURED, &kvm->arch.flags) &&
-	    !bitmap_equal(kvm->arch.vcpu_features, &features, KVM_VCPU_MAX_FEATURES))
+	    kvm_vcpu_init_changed(vcpu, init))
 		goto out_unlock;
-
-	bitmap_copy(vcpu->arch.features, &features, KVM_VCPU_MAX_FEATURES);
-
-	/* Now we know what it is, we can reset it. */
-	ret = kvm_reset_vcpu(vcpu);
-	if (ret) {
-		bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
-		goto out_unlock;
-	}
 
 	bitmap_copy(kvm->arch.vcpu_features, &features, KVM_VCPU_MAX_FEATURES);
+
+	/* Now we know what it is, we can reset it. */
+	kvm_reset_vcpu(vcpu);
+
 	set_bit(KVM_ARCH_FLAG_VCPU_FEATURES_CONFIGURED, &kvm->arch.flags);
 	vcpu_set_flag(vcpu, VCPU_INITIALIZED);
+	ret = 0;
 out_unlock:
 	mutex_unlock(&kvm->arch.config_lock);
 	return ret;
@@ -1278,7 +1311,8 @@ static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 	if (kvm_vcpu_init_changed(vcpu, init))
 		return -EINVAL;
 
-	return kvm_reset_vcpu(vcpu);
+	kvm_reset_vcpu(vcpu);
+	return 0;
 }
 
 static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
