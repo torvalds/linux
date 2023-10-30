@@ -156,15 +156,10 @@ static int smu_v14_0_0_init_smc_tables(struct smu_context *smu)
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_DPMCLOCKS, sizeof(DpmClocks_t),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-	if (smu->smc_fw_version > 0x5d3500) {
-		SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
-			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-		smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
-	} else {
-		SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_legacy_t),
-			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-		smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_legacy_t), GFP_KERNEL);
-	}
+	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
+		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+
+	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
@@ -177,10 +172,7 @@ static int smu_v14_0_0_init_smc_tables(struct smu_context *smu)
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
-	if (smu->smc_fw_version > 0x5d3500)
-		smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v3_0);
-	else
-		smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_1);
+	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v3_0);
 	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table)
 		goto err3_out;
@@ -242,13 +234,13 @@ static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 
 	switch (member) {
 	case METRICS_AVERAGE_GFXCLK:
-		*value = metrics->AverageGfxclkFrequency;
+		*value = metrics->GfxclkFrequency;
 		break;
 	case METRICS_AVERAGE_SOCCLK:
-		*value = metrics->AverageSocclkFrequency;
+		*value = metrics->SocclkFrequency;
 		break;
 	case METRICS_AVERAGE_VCLK:
-		*value = metrics->AverageVclkFrequency;
+		*value = metrics->VclkFrequency;
 		break;
 	case METRICS_AVERAGE_DCLK:
 		*value = 0;
@@ -257,25 +249,25 @@ static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 		*value = 0;
 		break;
 	case METRICS_AVERAGE_FCLK:
-		*value = metrics->AverageFclkFrequency;
+		*value = metrics->FclkFrequency;
 		break;
 	case METRICS_AVERAGE_GFXACTIVITY:
-		*value = metrics->AverageGfxActivity >> 8;
+		*value = metrics->GfxActivity / 100;
 		break;
 	case METRICS_AVERAGE_VCNACTIVITY:
-		*value = metrics->AverageVcnActivity >> 8;
+		*value = metrics->VcnActivity / 100;
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
 	case METRICS_CURR_SOCKETPOWER:
-		*value = (metrics->AverageSocketPower & 0xff00) +
-		((metrics->AverageSocketPower & 0xff) * 100 >> 8);
+		*value = (metrics->SocketPower / 1000 << 8) +
+		(metrics->SocketPower % 1000 / 10);
 		break;
 	case METRICS_TEMPERATURE_EDGE:
-		*value = (metrics->GfxTemperature >> 8) *
+		*value = metrics->GfxTemperature / 100 *
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = (metrics->SocTemperature >> 8) *
+		*value = metrics->SocTemperature / 100 *
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case METRICS_THROTTLER_STATUS:
@@ -317,107 +309,6 @@ static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 	return ret;
 }
 
-static int smu_v14_0_0_legacy_get_smu_metrics_data(struct smu_context *smu,
-					    MetricsMember_t member,
-					    uint32_t *value)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-
-	SmuMetrics_legacy_t *metrics = (SmuMetrics_legacy_t *)smu_table->metrics_table;
-	int ret = 0;
-
-	ret = smu_cmn_get_metrics_table(smu, NULL, false);
-	if (ret)
-		return ret;
-
-	switch (member) {
-	case METRICS_AVERAGE_GFXCLK:
-		*value = metrics->GfxclkFrequency;
-		break;
-	case METRICS_AVERAGE_SOCCLK:
-		*value = metrics->SocclkFrequency;
-		break;
-	case METRICS_AVERAGE_VCLK:
-		*value = metrics->VclkFrequency;
-		break;
-	case METRICS_AVERAGE_DCLK:
-		*value = metrics->DclkFrequency;
-		break;
-	case METRICS_AVERAGE_UCLK:
-		*value = metrics->MemclkFrequency;
-		break;
-	case METRICS_AVERAGE_GFXACTIVITY:
-		*value = metrics->GfxActivity / 100;
-		break;
-	case METRICS_AVERAGE_FCLK:
-		*value = metrics->AverageFclkFrequency;
-		break;
-	case METRICS_AVERAGE_VCNACTIVITY:
-		*value = metrics->UvdActivity;
-		break;
-	case METRICS_AVERAGE_SOCKETPOWER:
-		*value = (metrics->AverageSocketPower << 8) / 1000;
-		break;
-	case METRICS_CURR_SOCKETPOWER:
-		*value = (metrics->CurrentSocketPower << 8) / 1000;
-		break;
-	case METRICS_TEMPERATURE_EDGE:
-		*value = metrics->GfxTemperature / 100 *
-		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = metrics->SocTemperature / 100 *
-		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	case METRICS_THROTTLER_STATUS:
-		*value = metrics->ThrottlerStatus;
-		break;
-	case METRICS_VOLTAGE_VDDGFX:
-		*value = metrics->Voltage[0];
-		break;
-	case METRICS_VOLTAGE_VDDSOC:
-		*value = metrics->Voltage[1];
-		break;
-	case METRICS_SS_APU_SHARE:
-		/* return the percentage of APU power with respect to APU's power limit.
-		 * percentage is reported, this isn't boost value. Smartshift power
-		 * boost/shift is only when the percentage is more than 100.
-		 */
-		if (metrics->StapmOpnLimit > 0)
-			*value =  (metrics->ApuPower * 100) / metrics->StapmOpnLimit;
-		else
-			*value = 0;
-		break;
-	case METRICS_SS_DGPU_SHARE:
-		/* return the percentage of dGPU power with respect to dGPU's power limit.
-		 * percentage is reported, this isn't boost value. Smartshift power
-		 * boost/shift is only when the percentage is more than 100.
-		 */
-		if ((metrics->dGpuPower > 0) &&
-		    (metrics->StapmCurrentLimit > metrics->StapmOpnLimit))
-			*value = (metrics->dGpuPower * 100) /
-				 (metrics->StapmCurrentLimit - metrics->StapmOpnLimit);
-		else
-			*value = 0;
-		break;
-	default:
-		*value = UINT_MAX;
-		break;
-	}
-
-	return ret;
-}
-
-static int smu_v14_0_0_common_get_smu_metrics_data(struct smu_context *smu,
-					    MetricsMember_t member,
-					    uint32_t *value)
-{
-	if (smu->smc_fw_version > 0x5d3500)
-		return smu_v14_0_0_get_smu_metrics_data(smu, member, value);
-	else
-		return smu_v14_0_0_legacy_get_smu_metrics_data(smu, member, value);
-}
-
 static int smu_v14_0_0_read_sensor(struct smu_context *smu,
 				   enum amd_pp_sensors sensor,
 				   void *data, uint32_t *size)
@@ -429,69 +320,69 @@ static int smu_v14_0_0_read_sensor(struct smu_context *smu,
 
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_get_smu_metrics_data(smu,
 						       METRICS_AVERAGE_GFXACTIVITY,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
-		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_get_smu_metrics_data(smu,
 						       METRICS_AVERAGE_SOCKETPOWER,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
-		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_get_smu_metrics_data(smu,
 						       METRICS_CURR_SOCKETPOWER,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_EDGE_TEMP:
-		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_get_smu_metrics_data(smu,
 						       METRICS_TEMPERATURE_EDGE,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
-		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_get_smu_metrics_data(smu,
 						       METRICS_TEMPERATURE_HOTSPOT,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
-		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_get_smu_metrics_data(smu,
 						       METRICS_AVERAGE_UCLK,
 						       (uint32_t *)data);
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_get_smu_metrics_data(smu,
 						       METRICS_AVERAGE_GFXCLK,
 						       (uint32_t *)data);
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_VDDGFX:
-		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_get_smu_metrics_data(smu,
 						       METRICS_VOLTAGE_VDDGFX,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_VDDNB:
-		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_get_smu_metrics_data(smu,
 						       METRICS_VOLTAGE_VDDSOC,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_SS_APU_SHARE:
-		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_get_smu_metrics_data(smu,
 						       METRICS_SS_APU_SHARE,
 						       (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_SS_DGPU_SHARE:
-		ret = smu_v14_0_0_common_get_smu_metrics_data(smu,
+		ret = smu_v14_0_0_get_smu_metrics_data(smu,
 						       METRICS_SS_DGPU_SHARE,
 						       (uint32_t *)data);
 		*size = 4;
@@ -588,7 +479,7 @@ static ssize_t smu_v14_0_0_get_gpu_metrics(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 2, 1);
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 3, 0);
 
 	gpu_metrics->temperature_gfx = metrics.GfxTemperature;
 	gpu_metrics->temperature_soc = metrics.SocTemperature;
@@ -597,32 +488,33 @@ static ssize_t smu_v14_0_0_get_gpu_metrics(struct smu_context *smu,
 		sizeof(uint16_t) * 16);
 	gpu_metrics->temperature_skin = metrics.SkinTemp;
 
-	gpu_metrics->average_gfx_activity = metrics.AverageGfxActivity;
-	gpu_metrics->average_vcn_activity = metrics.AverageVcnActivity;
+	gpu_metrics->average_gfx_activity = metrics.GfxActivity;
+	gpu_metrics->average_vcn_activity = metrics.VcnActivity;
 	memcpy(&gpu_metrics->average_ipu_activity[0],
-		&metrics.AverageIpuBusy[0],
+		&metrics.IpuBusy[0],
 		sizeof(uint16_t) * 8);
 	memcpy(&gpu_metrics->average_core_c0_activity[0],
-		&metrics.AverageCoreC0Residency[0],
+		&metrics.CoreC0Residency[0],
 		sizeof(uint16_t) * 16);
-	gpu_metrics->average_dram_reads = metrics.AverageDRAMReads;
-	gpu_metrics->average_dram_writes = metrics.AverageDRAMWrites;
+	gpu_metrics->average_dram_reads = metrics.DRAMReads;
+	gpu_metrics->average_dram_writes = metrics.DRAMWrites;
 
-	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
+	gpu_metrics->average_socket_power = metrics.SocketPower;
 	gpu_metrics->average_ipu_power = metrics.IpuPower;
 	gpu_metrics->average_apu_power = metrics.ApuPower;
+	gpu_metrics->average_gfx_power = metrics.GfxPower;
 	gpu_metrics->average_dgpu_power = metrics.dGpuPower;
-	gpu_metrics->average_core_power = metrics.AverageCorePower;
-	memcpy(&gpu_metrics->core_power[0],
+	gpu_metrics->average_all_core_power = metrics.AllCorePower;
+	memcpy(&gpu_metrics->average_core_power[0],
 		&metrics.CorePower[0],
 		sizeof(uint16_t) * 16);
 
-	gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequency;
-	gpu_metrics->average_socclk_frequency = metrics.AverageSocclkFrequency;
-	gpu_metrics->average_vpeclk_frequency = metrics.AverageVpeclkFrequency;
-	gpu_metrics->average_fclk_frequency = metrics.AverageFclkFrequency;
-	gpu_metrics->average_vclk_frequency = metrics.AverageVclkFrequency;
-	gpu_metrics->average_ipuclk_frequency = metrics.AverageIpuclkFrequency;
+	gpu_metrics->average_gfxclk_frequency = metrics.GfxclkFrequency;
+	gpu_metrics->average_socclk_frequency = metrics.SocclkFrequency;
+	gpu_metrics->average_vpeclk_frequency = metrics.VpeclkFrequency;
+	gpu_metrics->average_fclk_frequency = metrics.FclkFrequency;
+	gpu_metrics->average_vclk_frequency = metrics.VclkFrequency;
+	gpu_metrics->average_ipuclk_frequency = metrics.IpuclkFrequency;
 
 	memcpy(&gpu_metrics->current_coreclk[0],
 		&metrics.CoreFrequency[0],
@@ -636,68 +528,6 @@ static ssize_t smu_v14_0_0_get_gpu_metrics(struct smu_context *smu,
 	*table = (void *)gpu_metrics;
 
 	return sizeof(struct gpu_metrics_v3_0);
-}
-
-static ssize_t smu_v14_0_0_get_legacy_gpu_metrics(struct smu_context *smu,
-						void **table)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct gpu_metrics_v2_1 *gpu_metrics =
-		(struct gpu_metrics_v2_1 *)smu_table->gpu_metrics_table;
-	SmuMetrics_legacy_t metrics;
-	int ret = 0;
-
-	ret = smu_cmn_get_metrics_table(smu, &metrics, true);
-	if (ret)
-		return ret;
-
-	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 2, 1);
-
-	gpu_metrics->temperature_gfx = metrics.GfxTemperature;
-	gpu_metrics->temperature_soc = metrics.SocTemperature;
-	memcpy(&gpu_metrics->temperature_core[0],
-		&metrics.CoreTemperature[0],
-		sizeof(uint16_t) * 8);
-	gpu_metrics->temperature_l3[0] = metrics.L3Temperature[0];
-	gpu_metrics->temperature_l3[1] = metrics.L3Temperature[1];
-
-	gpu_metrics->average_gfx_activity = metrics.GfxActivity;
-	gpu_metrics->average_mm_activity = metrics.UvdActivity;
-
-	gpu_metrics->average_socket_power = metrics.CurrentSocketPower;
-	gpu_metrics->average_gfx_power = metrics.Power[0];
-	gpu_metrics->average_soc_power = metrics.Power[1];
-	memcpy(&gpu_metrics->average_core_power[0],
-		&metrics.CorePower[0],
-		sizeof(uint16_t) * 8);
-
-	gpu_metrics->average_gfxclk_frequency = metrics.GfxclkFrequency;
-	gpu_metrics->average_socclk_frequency = metrics.SocclkFrequency;
-	gpu_metrics->average_uclk_frequency = metrics.MemclkFrequency;
-	gpu_metrics->average_fclk_frequency = metrics.MemclkFrequency;
-	gpu_metrics->average_vclk_frequency = metrics.VclkFrequency;
-	gpu_metrics->average_dclk_frequency = metrics.DclkFrequency;
-
-	memcpy(&gpu_metrics->current_coreclk[0],
-		&metrics.CoreFrequency[0],
-		sizeof(uint16_t) * 8);
-
-	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
-	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
-
-	*table = (void *)gpu_metrics;
-
-	return sizeof(struct gpu_metrics_v2_1);
-}
-
-static ssize_t smu_v14_0_0_common_get_gpu_metrics(struct smu_context *smu,
-				      void **table)
-{
-
-	if (smu->smc_fw_version > 0x5d3500)
-		return smu_v14_0_0_get_gpu_metrics(smu, table);
-	else
-		return smu_v14_0_0_get_legacy_gpu_metrics(smu, table);
 }
 
 static int smu_v14_0_0_mode2_reset(struct smu_context *smu)
@@ -928,7 +758,7 @@ static int smu_v14_0_0_get_current_clk_freq(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	return smu_v14_0_0_common_get_smu_metrics_data(smu, member_type, value);
+	return smu_v14_0_0_get_smu_metrics_data(smu, member_type, value);
 }
 
 static int smu_v14_0_0_get_dpm_level_count(struct smu_context *smu,
@@ -1230,7 +1060,7 @@ static const struct pptable_funcs smu_v14_0_0_ppt_funcs = {
 	.read_sensor = smu_v14_0_0_read_sensor,
 	.is_dpm_running = smu_v14_0_0_is_dpm_running,
 	.set_watermarks_table = smu_v14_0_0_set_watermarks_table,
-	.get_gpu_metrics = smu_v14_0_0_common_get_gpu_metrics,
+	.get_gpu_metrics = smu_v14_0_0_get_gpu_metrics,
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_driver_table_location = smu_v14_0_set_driver_table_location,
