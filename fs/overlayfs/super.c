@@ -495,13 +495,13 @@ static const struct xattr_handler ovl_other_xattr_handler = {
 	.set = ovl_other_xattr_set,
 };
 
-static const struct xattr_handler *ovl_trusted_xattr_handlers[] = {
+static const struct xattr_handler * const ovl_trusted_xattr_handlers[] = {
 	&ovl_own_trusted_xattr_handler,
 	&ovl_other_xattr_handler,
 	NULL
 };
 
-static const struct xattr_handler *ovl_user_xattr_handlers[] = {
+static const struct xattr_handler * const ovl_user_xattr_handlers[] = {
 	&ovl_own_user_xattr_handler,
 	&ovl_other_xattr_handler,
 	NULL

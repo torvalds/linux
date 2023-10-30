@@ -442,7 +442,7 @@ static const struct xattr_handler btrfs_btrfs_xattr_handler = {
 	.set = btrfs_xattr_handler_set_prop,
 };
 
-const struct xattr_handler *btrfs_xattr_handlers[] = {
+const struct xattr_handler * const btrfs_xattr_handlers[] = {
 	&btrfs_security_xattr_handler,
 	&btrfs_trusted_xattr_handler,
 	&btrfs_user_xattr_handler,

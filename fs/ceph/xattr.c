@@ -1446,7 +1446,7 @@ void ceph_release_acl_sec_ctx(struct ceph_acl_sec_ctx *as_ctx)
  * List of handlers for synthetic system.* attributes. Other
  * attributes are handled directly.
  */
-const struct xattr_handler *ceph_xattr_handlers[] = {
+const struct xattr_handler * const ceph_xattr_handlers[] = {
 	&ceph_other_xattr_handler,
 	NULL,
 };
