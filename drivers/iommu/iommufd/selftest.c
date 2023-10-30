@@ -20,6 +20,8 @@
 static DECLARE_FAULT_ATTR(fail_iommufd);
 static struct dentry *dbgfs_root;
 static struct platform_device *selftest_iommu_dev;
+static const struct iommu_ops mock_ops;
+static struct iommu_domain_ops domain_nested_ops;
 
 size_t iommufd_test_memory_limit = 65536;
 
@@ -222,24 +224,18 @@ const struct iommu_dirty_ops dirty_ops = {
 	.read_and_clear_dirty = mock_domain_read_and_clear_dirty,
 };
 
-static const struct iommu_ops mock_ops;
-static struct iommu_domain_ops domain_nested_ops;
-
-static struct iommu_domain *
-__mock_domain_alloc_paging(unsigned int iommu_domain_type, bool needs_dirty_ops)
+static struct iommu_domain *mock_domain_alloc_paging(struct device *dev)
 {
 	struct mock_iommu_domain *mock;
 
 	mock = kzalloc(sizeof(*mock), GFP_KERNEL);
 	if (!mock)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 	mock->domain.geometry.aperture_start = MOCK_APERTURE_START;
 	mock->domain.geometry.aperture_end = MOCK_APERTURE_LAST;
 	mock->domain.pgsize_bitmap = MOCK_IO_PAGE_SIZE;
 	mock->domain.ops = mock_ops.default_domain_ops;
-	if (needs_dirty_ops)
-		mock->domain.dirty_ops = &dirty_ops;
-	mock->domain.type = iommu_domain_type;
+	mock->domain.type = IOMMU_DOMAIN_UNMANAGED;
 	xa_init(&mock->pfns);
 	return &mock->domain;
 }
@@ -264,16 +260,11 @@ __mock_domain_alloc_nested(struct mock_iommu_domain *mock_parent,
 
 static struct iommu_domain *mock_domain_alloc(unsigned int iommu_domain_type)
 {
-	struct iommu_domain *domain;
-
 	if (iommu_domain_type == IOMMU_DOMAIN_BLOCKED)
 		return &mock_blocking_domain;
-	if (iommu_domain_type != IOMMU_DOMAIN_UNMANAGED)
-		return NULL;
-	domain = __mock_domain_alloc_paging(iommu_domain_type, false);
-	if (IS_ERR(domain))
-		domain = NULL;
-	return domain;
+	if (iommu_domain_type == IOMMU_DOMAIN_UNMANAGED)
+		return mock_domain_alloc_paging(NULL);
+	return NULL;
 }
 
 static struct iommu_domain *
@@ -290,14 +281,20 @@ mock_domain_alloc_user(struct device *dev, u32 flags,
 		struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
 		bool has_dirty_flag = flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
 		bool no_dirty_ops = mdev->flags & MOCK_FLAGS_DEVICE_NO_DIRTY;
+		struct iommu_domain *domain;
 
 		if (flags & (~(IOMMU_HWPT_ALLOC_NEST_PARENT |
 			       IOMMU_HWPT_ALLOC_DIRTY_TRACKING)))
 			return ERR_PTR(-EOPNOTSUPP);
 		if (user_data || (has_dirty_flag && no_dirty_ops))
 			return ERR_PTR(-EOPNOTSUPP);
-		return __mock_domain_alloc_paging(IOMMU_DOMAIN_UNMANAGED,
-						  has_dirty_flag);
+		domain = mock_domain_alloc_paging(NULL);
+		if (!domain)
+			return ERR_PTR(-ENOMEM);
+		if (has_dirty_flag)
+			container_of(domain, struct mock_iommu_domain, domain)
+				->domain.dirty_ops = &dirty_ops;
+		return domain;
 	}
 
 	/* must be mock_domain_nested */
