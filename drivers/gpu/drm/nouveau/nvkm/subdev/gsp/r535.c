@@ -693,7 +693,7 @@ r535_gsp_rpc_get(struct nvkm_gsp *gsp, u32 fn, u32 argc)
 		return NULL;
 
 	rpc->header_version = 0x03000000;
-	rpc->signature = ('V' << 24) | ('R' << 16) | ('P' << 8) | 'C';
+	rpc->signature = ('C' << 24) | ('P' << 16) | ('R' << 8) | 'V';
 	rpc->function = fn;
 	rpc->rpc_result = 0xffffffff;
 	rpc->rpc_result_private = 0xffffffff;
