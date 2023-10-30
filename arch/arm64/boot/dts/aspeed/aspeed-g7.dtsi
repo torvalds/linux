@@ -833,6 +833,8 @@
 				compatible = "aspeed,ast2700-mdio";
 				reg = <0 0 0 0x8>;
 				resets = <&soc1_rst ASPEED_RESET_MII>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_mdio0_default>;
 				status = "disabled";
 			};
 
@@ -840,6 +842,8 @@
 				compatible = "aspeed,ast2700-mdio";
 				reg = <0 0x8 0 0x8>;
 				resets = <&soc1_rst ASPEED_RESET_MII>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_mdio1_default>;
 				status = "disabled";
 			};
 
@@ -847,6 +851,8 @@
 				compatible = "aspeed,ast2700-mdio";
 				reg = <0 0x10 0 0x8>;
 				resets = <&soc1_rst ASPEED_RESET_MII>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_mdio2_default>;
 				status = "disabled";
 			};
 

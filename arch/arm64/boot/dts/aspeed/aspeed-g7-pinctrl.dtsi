@@ -204,6 +204,21 @@
 };
 
 &pinctrl1 {
+	pinctrl_mdio0_default: mdio0_default {
+		function = "MDIO0";
+		groups = "MDIO0";
+	};
+
+	pinctrl_mdio1_default: mdio1_default {
+		function = "MDIO1";
+		groups = "MDIO1";
+	};
+
+	pinctrl_mdio2_default: mdio2_default {
+		function = "MDIO2";
+		groups = "MDIO2";
+	};
+
 	pinctrl_espi0_default: espi0_default {
 		function = "ESPI0";
 		groups = "ESPI0";
