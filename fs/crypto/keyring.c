@@ -99,10 +99,10 @@ void fscrypt_put_master_key_activeref(struct super_block *sb,
 	spin_unlock(&sb->s_master_keys->lock);
 
 	/*
-	 * ->mk_active_refs == 0 implies that ->mk_secret is not present and
-	 * that ->mk_decrypted_inodes is empty.
+	 * ->mk_active_refs == 0 implies that ->mk_present is false and
+	 * ->mk_decrypted_inodes is empty.
 	 */
-	WARN_ON_ONCE(is_master_key_secret_present(&mk->mk_secret));
+	WARN_ON_ONCE(mk->mk_present);
 	WARN_ON_ONCE(!list_empty(&mk->mk_decrypted_inodes));
 
 	for (i = 0; i <= FSCRYPT_MODE_MAX; i++) {
@@ -119,6 +119,18 @@ void fscrypt_put_master_key_activeref(struct super_block *sb,
 
 	/* Drop the structural ref associated with the active refs. */
 	fscrypt_put_master_key(mk);
+}
+
+/*
+ * This transitions the key state from present to incompletely removed, and then
+ * potentially to absent (depending on whether inodes remain).
+ */
+static void fscrypt_initiate_key_removal(struct super_block *sb,
+					 struct fscrypt_master_key *mk)
+{
+	WRITE_ONCE(mk->mk_present, false);
+	wipe_master_key_secret(&mk->mk_secret);
+	fscrypt_put_master_key_activeref(sb, mk);
 }
 
 static inline bool valid_key_spec(const struct fscrypt_key_specifier *spec)
@@ -234,14 +246,13 @@ void fscrypt_destroy_keyring(struct super_block *sb)
 			 * evicted, every key remaining in the keyring should
 			 * have an empty inode list, and should only still be in
 			 * the keyring due to the single active ref associated
-			 * with ->mk_secret.  There should be no structural refs
-			 * beyond the one associated with the active ref.
+			 * with ->mk_present.  There should be no structural
+			 * refs beyond the one associated with the active ref.
 			 */
 			WARN_ON_ONCE(refcount_read(&mk->mk_active_refs) != 1);
 			WARN_ON_ONCE(refcount_read(&mk->mk_struct_refs) != 1);
-			WARN_ON_ONCE(!is_master_key_secret_present(&mk->mk_secret));
-			wipe_master_key_secret(&mk->mk_secret);
-			fscrypt_put_master_key_activeref(sb, mk);
+			WARN_ON_ONCE(!mk->mk_present);
+			fscrypt_initiate_key_removal(sb, mk);
 		}
 	}
 	kfree_sensitive(keyring);
@@ -439,7 +450,8 @@ static int add_new_master_key(struct super_block *sb,
 	}
 
 	move_master_key_secret(&mk->mk_secret, secret);
-	refcount_set(&mk->mk_active_refs, 1); /* ->mk_secret is present */
+	mk->mk_present = true;
+	refcount_set(&mk->mk_active_refs, 1); /* ->mk_present is true */
 
 	spin_lock(&keyring->lock);
 	hlist_add_head_rcu(&mk->mk_node,
@@ -478,11 +490,18 @@ static int add_existing_master_key(struct fscrypt_master_key *mk,
 			return err;
 	}
 
-	/* Re-add the secret if needed. */
-	if (!is_master_key_secret_present(&mk->mk_secret)) {
-		if (!refcount_inc_not_zero(&mk->mk_active_refs))
+	/* If the key is incompletely removed, make it present again. */
+	if (!mk->mk_present) {
+		if (!refcount_inc_not_zero(&mk->mk_active_refs)) {
+			/*
+			 * Raced with the last active ref being dropped, so the
+			 * key has become, or is about to become, "absent".
+			 * Therefore, we need to allocate a new key struct.
+			 */
 			return KEY_DEAD;
+		}
 		move_master_key_secret(&mk->mk_secret, secret);
+		WRITE_ONCE(mk->mk_present, true);
 	}
 
 	return 0;
@@ -506,8 +525,8 @@ static int do_add_master_key(struct super_block *sb,
 			err = add_new_master_key(sb, secret, mk_spec);
 	} else {
 		/*
-		 * Found the key in ->s_master_keys.  Re-add the secret if
-		 * needed, and add the user to ->mk_users if needed.
+		 * Found the key in ->s_master_keys.  Add the user to ->mk_users
+		 * if needed, and make the key "present" again if possible.
 		 */
 		down_write(&mk->mk_sem);
 		err = add_existing_master_key(mk, secret);
@@ -867,7 +886,7 @@ static void shrink_dcache_inode(struct inode *inode)
 
 static void evict_dentries_for_decrypted_inodes(struct fscrypt_master_key *mk)
 {
-	struct fscrypt_info *ci;
+	struct fscrypt_inode_info *ci;
 	struct inode *inode;
 	struct inode *toput_inode = NULL;
 
@@ -917,7 +936,7 @@ static int check_for_busy_inodes(struct super_block *sb,
 		/* select an example file to show for debugging purposes */
 		struct inode *inode =
 			list_first_entry(&mk->mk_decrypted_inodes,
-					 struct fscrypt_info,
+					 struct fscrypt_inode_info,
 					 ci_master_key_link)->ci_inode;
 		ino = inode->i_ino;
 	}
@@ -989,9 +1008,8 @@ static int try_to_lock_encrypted_files(struct super_block *sb,
  *
  * If all inodes were evicted, then we unlink the fscrypt_master_key from the
  * keyring.  Otherwise it remains in the keyring in the "incompletely removed"
- * state (without the actual secret key) where it tracks the list of remaining
- * inodes.  Userspace can execute the ioctl again later to retry eviction, or
- * alternatively can re-add the secret key again.
+ * state where it tracks the list of remaining inodes.  Userspace can execute
+ * the ioctl again later to retry eviction, or alternatively can re-add the key.
  *
  * For more details, see the "Removing keys" section of
  * Documentation/filesystems/fscrypt.rst.
@@ -1053,11 +1071,10 @@ static int do_remove_key(struct file *filp, void __user *_uarg, bool all_users)
 		}
 	}
 
-	/* No user claims remaining.  Go ahead and wipe the secret. */
+	/* No user claims remaining.  Initiate removal of the key. */
 	err = -ENOKEY;
-	if (is_master_key_secret_present(&mk->mk_secret)) {
-		wipe_master_key_secret(&mk->mk_secret);
-		fscrypt_put_master_key_activeref(sb, mk);
+	if (mk->mk_present) {
+		fscrypt_initiate_key_removal(sb, mk);
 		err = 0;
 	}
 	inodes_remain = refcount_read(&mk->mk_active_refs) > 0;
@@ -1074,9 +1091,9 @@ static int do_remove_key(struct file *filp, void __user *_uarg, bool all_users)
 	}
 	/*
 	 * We return 0 if we successfully did something: removed a claim to the
-	 * key, wiped the secret, or tried locking the files again.  Users need
-	 * to check the informational status flags if they care whether the key
-	 * has been fully removed including all files locked.
+	 * key, initiated removal of the key, or tried locking the files again.
+	 * Users need to check the informational status flags if they care
+	 * whether the key has been fully removed including all files locked.
 	 */
 out_put_key:
 	fscrypt_put_master_key(mk);
@@ -1103,12 +1120,11 @@ EXPORT_SYMBOL_GPL(fscrypt_ioctl_remove_key_all_users);
  * Retrieve the status of an fscrypt master encryption key.
  *
  * We set ->status to indicate whether the key is absent, present, or
- * incompletely removed.  "Incompletely removed" means that the master key
- * secret has been removed, but some files which had been unlocked with it are
- * still in use.  This field allows applications to easily determine the state
- * of an encrypted directory without using a hack such as trying to open a
- * regular file in it (which can confuse the "incompletely removed" state with
- * absent or present).
+ * incompletely removed.  (For an explanation of what these statuses mean and
+ * how they are represented internally, see struct fscrypt_master_key.)  This
+ * field allows applications to easily determine the status of an encrypted
+ * directory without using a hack such as trying to open a regular file in it
+ * (which can confuse the "incompletely removed" status with absent or present).
  *
  * In addition, for v2 policy keys we allow applications to determine, via
  * ->status_flags and ->user_count, whether the key has been added by the
@@ -1150,7 +1166,7 @@ int fscrypt_ioctl_get_key_status(struct file *filp, void __user *uarg)
 	}
 	down_read(&mk->mk_sem);
 
-	if (!is_master_key_secret_present(&mk->mk_secret)) {
+	if (!mk->mk_present) {
 		arg.status = refcount_read(&mk->mk_active_refs) > 0 ?
 			FSCRYPT_KEY_STATUS_INCOMPLETELY_REMOVED :
 			FSCRYPT_KEY_STATUS_ABSENT /* raced with full removal */;
