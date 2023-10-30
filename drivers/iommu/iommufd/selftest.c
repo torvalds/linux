@@ -1195,14 +1195,15 @@ static int iommufd_test_dirty(struct iommufd_ucmd *ucmd, unsigned int mockpt_id,
 			      unsigned long page_size, void __user *uptr,
 			      u32 flags)
 {
-	unsigned long bitmap_size, i, max = length / page_size;
+	unsigned long bitmap_size, i, max;
 	struct iommu_test_cmd *cmd = ucmd->cmd;
 	struct iommufd_hw_pagetable *hwpt;
 	struct mock_iommu_domain *mock;
 	int rc, count = 0;
 	void *tmp;
 
-	if (iova % page_size || length % page_size || !uptr)
+	if (!page_size || !length || iova % page_size || length % page_size ||
+	    !uptr)
 		return -EINVAL;
 
 	hwpt = get_md_pagetable(ucmd, mockpt_id, &mock);
@@ -1214,6 +1215,7 @@ static int iommufd_test_dirty(struct iommufd_ucmd *ucmd, unsigned int mockpt_id,
 		goto out_put;
 	}
 
+	max = length / page_size;
 	bitmap_size = max / BITS_PER_BYTE;
 
 	tmp = kvzalloc(bitmap_size, GFP_KERNEL_ACCOUNT);
