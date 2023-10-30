@@ -1029,26 +1029,51 @@ r535_gsp_rpc_unloading_guest_driver(struct nvkm_gsp *gsp, bool suspend)
 	return nvkm_gsp_rpc_wr(gsp, rpc, true);
 }
 
+/* dword only */
+struct nv_gsp_registry_entries {
+	const char *name;
+	u32 value;
+};
+
+static const struct nv_gsp_registry_entries r535_registry_entries[] = {
+	{ "RMSecBusResetEnable", 1 },
+	{ "RMForcePcieConfigSave", 1 },
+};
+#define NV_GSP_REG_NUM_ENTRIES ARRAY_SIZE(r535_registry_entries)
+
 static int
 r535_gsp_rpc_set_registry(struct nvkm_gsp *gsp)
 {
 	PACKED_REGISTRY_TABLE *rpc;
 	char *strings;
+	int str_offset;
+	int i;
+	size_t rpc_size = sizeof(*rpc) + sizeof(rpc->entries[0]) * NV_GSP_REG_NUM_ENTRIES;
 
-	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_SET_REGISTRY,
-			       sizeof(*rpc) + sizeof(rpc->entries[0]) + 1);
+	/* add strings + null terminator */
+	for (i = 0; i < NV_GSP_REG_NUM_ENTRIES; i++)
+		rpc_size += strlen(r535_registry_entries[i].name) + 1;
+
+	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_SET_REGISTRY, rpc_size);
 	if (IS_ERR(rpc))
 		return PTR_ERR(rpc);
 
 	rpc->size = sizeof(*rpc);
-	rpc->numEntries = 1;
-	rpc->entries[0].nameOffset = offsetof(typeof(*rpc), entries[1]);
-	rpc->entries[0].type = 1;
-	rpc->entries[0].data = 0;
-	rpc->entries[0].length = 4;
+	rpc->numEntries = NV_GSP_REG_NUM_ENTRIES;
 
-	strings = (char *)&rpc->entries[1];
-	strings[0] = '\0';
+	str_offset = offsetof(typeof(*rpc), entries[NV_GSP_REG_NUM_ENTRIES]);
+	strings = (char *)&rpc->entries[NV_GSP_REG_NUM_ENTRIES];
+	for (i = 0; i < NV_GSP_REG_NUM_ENTRIES; i++) {
+		int name_len = strlen(r535_registry_entries[i].name) + 1;
+
+		rpc->entries[i].nameOffset = str_offset;
+		rpc->entries[i].type = 1;
+		rpc->entries[i].data = r535_registry_entries[i].value;
+		rpc->entries[i].length = 4;
+		memcpy(strings, r535_registry_entries[i].name, name_len);
+		strings += name_len;
+		str_offset += name_len;
+	}
 
 	return nvkm_gsp_rpc_wr(gsp, rpc, false);
 }
