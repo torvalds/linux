@@ -23,6 +23,9 @@ def define_pitti():
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
+        "drivers/phy/qualcomm/phy-qcom-ufs.ko",
+        "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
+        "drivers/phy/qualcomm/phy-qcom-ufs-qrbtc-sdm845.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-pitti.ko",
         "drivers/regulator/stub-regulator.ko",
@@ -35,6 +38,7 @@ def define_pitti():
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/socinfo.ko",
         "drivers/soc/qcom/wcd_usbss_i2c.ko",
+        "drivers/ufs/host/ufs_qcom.ko",
     ]
 
     _pitti_consolidate_in_tree_modules = _pitti_in_tree_modules + [
