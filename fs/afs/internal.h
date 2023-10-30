@@ -97,6 +97,7 @@ struct afs_addr_preference_list {
 struct afs_address {
 	struct rxrpc_peer	*peer;
 	short			last_error;	/* Last error from this address */
+	u16			prio;		/* Address priority */
 };
 
 /*
@@ -107,6 +108,7 @@ struct afs_addr_list {
 	refcount_t		usage;
 	u32			version;	/* Version */
 	unsigned int		debug_id;
+	unsigned int		addr_pref_version; /* Version of address preference list */
 	unsigned char		max_addrs;
 	unsigned char		nr_addrs;
 	unsigned char		preferred;	/* Preferred address */
@@ -1010,6 +1012,8 @@ extern int afs_merge_fs_addr6(struct afs_net *net, struct afs_addr_list *addr,
  * addr_prefs.c
  */
 int afs_proc_addr_prefs_write(struct file *file, char *buf, size_t size);
+void afs_get_address_preferences_rcu(struct afs_net *net, struct afs_addr_list *alist);
+void afs_get_address_preferences(struct afs_net *net, struct afs_addr_list *alist);
 
 /*
  * callback.c

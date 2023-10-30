@@ -447,3 +447,85 @@ inval:
 	ret = -EINVAL;
 	goto done;
 }
+
+/*
+ * Mark the priorities on an address list if the address preferences table has
+ * changed.  The caller must hold the RCU read lock.
+ */
+void afs_get_address_preferences_rcu(struct afs_net *net, struct afs_addr_list *alist)
+{
+	const struct afs_addr_preference_list *preflist =
+		rcu_dereference(net->address_prefs);
+	const struct sockaddr_in6 *sin6;
+	const struct sockaddr_in *sin;
+	const struct sockaddr *sa;
+	struct afs_addr_preference test;
+	enum cmp_ret cmp;
+	int i, j;
+
+	if (!preflist || !preflist->nr || !alist->nr_addrs ||
+	    smp_load_acquire(&alist->addr_pref_version) == preflist->version)
+		return;
+
+	test.family = AF_INET;
+	test.subnet_mask = 32;
+	test.prio = 0;
+	for (i = 0; i < alist->nr_ipv4; i++) {
+		sa = rxrpc_kernel_remote_addr(alist->addrs[i].peer);
+		sin = (const struct sockaddr_in *)sa;
+		test.ipv4_addr = sin->sin_addr;
+		for (j = 0; j < preflist->ipv6_off; j++) {
+			cmp = afs_cmp_address_pref(&test, &preflist->prefs[j]);
+			switch (cmp) {
+			case CONTINUE_SEARCH:
+				continue;
+			case INSERT_HERE:
+				break;
+			case EXACT_MATCH:
+			case SUBNET_MATCH:
+				WRITE_ONCE(alist->addrs[i].prio, preflist->prefs[j].prio);
+				break;
+			}
+		}
+	}
+
+	test.family = AF_INET6;
+	test.subnet_mask = 128;
+	test.prio = 0;
+	for (; i < alist->nr_addrs; i++) {
+		sa = rxrpc_kernel_remote_addr(alist->addrs[i].peer);
+		sin6 = (const struct sockaddr_in6 *)sa;
+		test.ipv6_addr = sin6->sin6_addr;
+		for (j = preflist->ipv6_off; j < preflist->nr; j++) {
+			cmp = afs_cmp_address_pref(&test, &preflist->prefs[j]);
+			switch (cmp) {
+			case CONTINUE_SEARCH:
+				continue;
+			case INSERT_HERE:
+				break;
+			case EXACT_MATCH:
+			case SUBNET_MATCH:
+				WRITE_ONCE(alist->addrs[i].prio, preflist->prefs[j].prio);
+				break;
+			}
+		}
+	}
+
+	smp_store_release(&alist->addr_pref_version, preflist->version);
+}
+
+/*
+ * Mark the priorities on an address list if the address preferences table has
+ * changed.  Avoid taking the RCU read lock if we can.
+ */
+void afs_get_address_preferences(struct afs_net *net, struct afs_addr_list *alist)
+{
+	if (!net->address_prefs ||
+	    /* Load version before prefs */
+	    smp_load_acquire(&net->address_pref_version) == alist->addr_pref_version)
+		return;
+
+	rcu_read_lock();
+	afs_get_address_preferences_rcu(net, alist);
+	rcu_read_unlock();
+}

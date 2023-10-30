@@ -447,17 +447,18 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 		   (int)(jiffies - server->probed_at) / HZ,
 		   atomic_read(&server->probe_outstanding));
 	failed = alist->probe_failed;
-	seq_printf(m, "  - ALIST v=%u rsp=%lx f=%lx\n",
-		   alist->version, alist->responded, alist->probe_failed);
+	seq_printf(m, "  - ALIST v=%u rsp=%lx f=%lx ap=%u\n",
+		   alist->version, alist->responded, alist->probe_failed,
+		   alist->addr_pref_version);
 	for (i = 0; i < alist->nr_addrs; i++) {
 		const struct afs_address *addr = &alist->addrs[i];
 
-		seq_printf(m, "    [%x] %pISpc%s rtt=%d err=%d\n",
+		seq_printf(m, "    [%x] %pISpc%s rtt=%d err=%d p=%u\n",
 			   i, rxrpc_kernel_remote_addr(addr->peer),
 			   alist->preferred == i ? "*" :
 			   test_bit(i, &failed) ? "!" : "",
 			   rxrpc_kernel_get_srtt(addr->peer),
-			   addr->last_error);
+			   addr->last_error, addr->prio);
 	}
 	return 0;
 }
