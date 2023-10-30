@@ -753,6 +753,12 @@ void bch2_trans_unlock(struct btree_trans *trans)
 		__bch2_btree_path_unlock(trans, path);
 }
 
+void bch2_trans_unlock_long(struct btree_trans *trans)
+{
+	bch2_trans_unlock(trans);
+	bch2_trans_srcu_unlock(trans);
+}
+
 bool bch2_trans_locked(struct btree_trans *trans)
 {
 	struct btree_path *path;

@@ -1109,6 +1109,9 @@ int bch2_btree_path_traverse_one(struct btree_trans *trans,
 	if (unlikely(ret))
 		goto out;
 
+	if (unlikely(!trans->srcu_held))
+		bch2_trans_srcu_lock(trans);
+
 	/*
 	 * Ensure we obey path->should_be_locked: if it's set, we can't unlock
 	 * and re-traverse the path without a transaction restart:
@@ -2830,18 +2833,28 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 	return p;
 }
 
-static noinline void bch2_trans_reset_srcu_lock(struct btree_trans *trans)
+void bch2_trans_srcu_unlock(struct btree_trans *trans)
 {
-	struct bch_fs *c = trans->c;
-	struct btree_path *path;
+	if (trans->srcu_held) {
+		struct bch_fs *c = trans->c;
+		struct btree_path *path;
 
-	trans_for_each_path(trans, path)
-		if (path->cached && !btree_node_locked(path, 0))
-			path->l[0].b = ERR_PTR(-BCH_ERR_no_btree_node_srcu_reset);
+		trans_for_each_path(trans, path)
+			if (path->cached && !btree_node_locked(path, 0))
+				path->l[0].b = ERR_PTR(-BCH_ERR_no_btree_node_srcu_reset);
 
-	srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
-	trans->srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
-	trans->srcu_lock_time	= jiffies;
+		srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
+		trans->srcu_held = false;
+	}
+}
+
+void bch2_trans_srcu_lock(struct btree_trans *trans)
+{
+	if (!trans->srcu_held) {
+		trans->srcu_idx = srcu_read_lock(&trans->c->btree_trans_barrier);
+		trans->srcu_lock_time	= jiffies;
+		trans->srcu_held = true;
+	}
 }
 
 /**
@@ -2895,8 +2908,9 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 	}
 	trans->last_begin_time = now;
 
-	if (unlikely(time_after(jiffies, trans->srcu_lock_time + msecs_to_jiffies(10))))
-		bch2_trans_reset_srcu_lock(trans);
+	if (unlikely(trans->srcu_held &&
+		     time_after(jiffies, trans->srcu_lock_time + msecs_to_jiffies(10))))
+		bch2_trans_srcu_unlock(trans);
 
 	trans->last_begin_ip = _RET_IP_;
 	if (trans->restarted) {
@@ -2981,8 +2995,9 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 		trans->wb_updates_size = s->wb_updates_size;
 	}
 
-	trans->srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
+	trans->srcu_idx		= srcu_read_lock(&c->btree_trans_barrier);
 	trans->srcu_lock_time	= jiffies;
+	trans->srcu_held	= true;
 
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG_TRANSACTIONS)) {
 		struct btree_trans *pos;
@@ -3059,7 +3074,8 @@ void bch2_trans_put(struct btree_trans *trans)
 
 	check_btree_paths_leaked(trans);
 
-	srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
+	if (trans->srcu_held)
+		srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
 
 	bch2_journal_preres_put(&c->journal, &trans->journal_preres);
 

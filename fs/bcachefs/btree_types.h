@@ -426,6 +426,7 @@ struct btree_trans {
 	u8			nr_updates;
 	u8			nr_wb_updates;
 	u8			wb_updates_size;
+	bool			srcu_held:1;
 	bool			used_mempool:1;
 	bool			in_traverse_all:1;
 	bool			paths_sorted:1;

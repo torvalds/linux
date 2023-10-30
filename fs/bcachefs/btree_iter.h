@@ -274,6 +274,7 @@ void bch2_path_put(struct btree_trans *, struct btree_path *, bool);
 int bch2_trans_relock(struct btree_trans *);
 int bch2_trans_relock_notrace(struct btree_trans *);
 void bch2_trans_unlock(struct btree_trans *);
+void bch2_trans_unlock_long(struct btree_trans *);
 bool bch2_trans_locked(struct btree_trans *);
 
 static inline int trans_was_restarted(struct btree_trans *trans, u32 restart_count)
@@ -578,6 +579,9 @@ static inline int __bch2_bkey_get_val_typed(struct btree_trans *trans,
 #define bch2_bkey_get_val_typed(_trans, _btree_id, _pos, _flags, _type, _val)\
 	__bch2_bkey_get_val_typed(_trans, _btree_id, _pos, _flags,	\
 				  KEY_TYPE_##_type, sizeof(*_val), _val)
+
+void bch2_trans_srcu_unlock(struct btree_trans *);
+void bch2_trans_srcu_lock(struct btree_trans *);
 
 u32 bch2_trans_begin(struct btree_trans *);
 
