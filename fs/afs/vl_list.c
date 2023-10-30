@@ -13,6 +13,7 @@ struct afs_vlserver *afs_alloc_vlserver(const char *name, size_t name_len,
 					unsigned short port)
 {
 	struct afs_vlserver *vlserver;
+	static atomic_t debug_ids;
 
 	vlserver = kzalloc(struct_size(vlserver, name, name_len + 1),
 			   GFP_KERNEL);
@@ -21,6 +22,7 @@ struct afs_vlserver *afs_alloc_vlserver(const char *name, size_t name_len,
 		rwlock_init(&vlserver->lock);
 		init_waitqueue_head(&vlserver->probe_wq);
 		spin_lock_init(&vlserver->probe_lock);
+		vlserver->debug_id = atomic_inc_return(&debug_ids);
 		vlserver->rtt = UINT_MAX;
 		vlserver->name_len = name_len;
 		vlserver->service_id = VL_SERVICE;

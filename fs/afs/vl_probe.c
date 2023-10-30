@@ -131,6 +131,7 @@ responded:
 out:
 	spin_unlock(&server->probe_lock);
 
+	trace_afs_vl_probe(server, false, alist, index, call->error, call->abort_code, rtt_us);
 	_debug("probe [%u][%u] %pISpc rtt=%d ret=%d",
 	       server_index, index, rxrpc_kernel_remote_addr(addr->peer),
 	       rtt_us, ret);
@@ -150,8 +151,10 @@ static bool afs_do_probe_vlserver(struct afs_net *net,
 {
 	struct afs_addr_list *alist;
 	struct afs_call *call;
-	unsigned int index;
+	unsigned long unprobed;
+	unsigned int index, i;
 	bool in_progress = false;
+	int best_prio;
 
 	_enter("%s", server->name);
 
@@ -165,7 +168,20 @@ static bool afs_do_probe_vlserver(struct afs_net *net,
 	memset(&server->probe, 0, sizeof(server->probe));
 	server->probe.rtt = UINT_MAX;
 
-	for (index = 0; index < alist->nr_addrs; index++) {
+	unprobed = (1UL << alist->nr_addrs) - 1;
+	while (unprobed) {
+		best_prio = -1;
+		index = 0;
+		for (i = 0; i < alist->nr_addrs; i++) {
+			if (test_bit(i, &unprobed) &&
+			    alist->addrs[i].prio > best_prio) {
+				index = i;
+				best_prio = alist->addrs[i].prio;
+			}
+		}
+		__clear_bit(index, &unprobed);
+
+		trace_afs_vl_probe(server, true, alist, index, 0, 0, 0);
 		call = afs_vl_get_capabilities(net, alist, index, key, server,
 					       server_index);
 		if (!IS_ERR(call)) {

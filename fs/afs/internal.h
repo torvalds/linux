@@ -447,6 +447,7 @@ struct afs_vlserver {
 	rwlock_t		lock;		/* Lock on addresses */
 	refcount_t		ref;
 	unsigned int		rtt;		/* Server's current RTT in uS */
+	unsigned int		debug_id;
 
 	/* Probe state */
 	wait_queue_head_t	probe_wq;
