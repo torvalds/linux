@@ -647,6 +647,9 @@ st_lsm6dso16is_selftest_sensor(struct st_lsm6dso16is_sensor *sensor, int test)
 		return -EINVAL;
 	}
 
+	/* reset selftest_status */
+	sensor->selftest_status = -1;
+
 	/* set selftest normal mode */
 	ret = st_lsm6dso16is_set_selftest(sensor, 0);
 	if (ret < 0)
@@ -659,14 +662,36 @@ st_lsm6dso16is_selftest_sensor(struct st_lsm6dso16is_sensor *sensor, int test)
 	/* wait at least 2 ODRs to be sure */
 	delay = 2 * (1000000000 / sensor->mhz);
 
-	/* power up, wait 100 ms for stable output */
-	msleep(100);
+	/* power up, wait at least 100 ms for stable output */
+	usleep_range(100000, 110000);
+
+	/* after enabled the sensor discard first sample */
+	while (try_count < 3) {
+		usleep_range(delay, delay + delay / 10);
+		ret = st_lsm6dso16is_read_locked(sensor->hw,
+					 ST_LSM6DSO16IS_REG_STATUS_ADDR,
+					 &status, sizeof(status));
+		if (ret < 0)
+			goto selftest_failure;
+
+		if (status & bitmask) {
+			st_lsm6dso16is_read_locked(sensor->hw, reg,
+						   raw_data,
+						   sizeof(raw_data));
+			break;
+		}
+
+		try_count++;
+	}
+
+	if (try_count == 3)
+		goto selftest_failure;
 
 	/* for 5 times, after checking status bit, read the output registers */
 	for (i = 0; i < 5; i++) {
 		try_count = 0;
 		while (try_count < 3) {
-			usleep_range(delay, 2 * delay);
+			usleep_range(delay, delay + delay / 10);
 			ret = st_lsm6dso16is_read_locked(sensor->hw,
 						ST_LSM6DSO16IS_REG_STATUS_ADDR,
 						&status, sizeof(status));
@@ -709,14 +734,38 @@ st_lsm6dso16is_selftest_sensor(struct st_lsm6dso16is_sensor *sensor, int test)
 	/* set selftest mode */
 	st_lsm6dso16is_set_selftest(sensor, test);
 
-	/* wait 100 ms for stable output */
-	msleep(100);
+	/* power up, wait at least 100 ms for stable output */
+	usleep_range(100000, 110000);
+
+	/* after enabled the sensor trash first sample */
+	try_count = 0;
+	while (try_count < 3) {
+		usleep_range(delay, delay + delay / 10);
+		ret = st_lsm6dso16is_read_locked(sensor->hw,
+					 ST_LSM6DSO16IS_REG_STATUS_ADDR,
+					 &status, sizeof(status));
+		if (ret < 0)
+			goto selftest_failure;
+
+		if (status & bitmask) {
+			st_lsm6dso16is_read_locked(sensor->hw, reg,
+						   raw_data,
+						   sizeof(raw_data));
+			break;
+		}
+
+		try_count++;
+	}
+
+	if (try_count == 3)
+		goto selftest_failure;
+
 
 	/* for 5 times, after checking status bit, read the output registers */
 	for (i = 0; i < 5; i++) {
 		try_count = 0;
 		while (try_count < 3) {
-			usleep_range(delay, 2 * delay);
+			usleep_range(delay, delay + delay / 10);
 			ret = st_lsm6dso16is_read_locked(sensor->hw,
 						ST_LSM6DSO16IS_REG_STATUS_ADDR,
 						&status, sizeof(status));
@@ -753,18 +802,27 @@ st_lsm6dso16is_selftest_sensor(struct st_lsm6dso16is_sensor *sensor, int test)
 	if ((abs(x_selftest - x) < sensor->min_st) ||
 	    (abs(x_selftest - x) > sensor->max_st)) {
 		sensor->selftest_status = -1;
+		dev_err(sensor->hw->dev,
+			"st: failure on x: non-st(%d), st(%d)\n",
+			x, x_selftest);
 		goto selftest_failure;
 	}
 
 	if ((abs(y_selftest - y) < sensor->min_st) ||
 	    (abs(y_selftest - y) > sensor->max_st)) {
 		sensor->selftest_status = -1;
+		dev_err(sensor->hw->dev,
+			"st: failure on y: non-st(%d), st(%d)\n",
+			y, y_selftest);
 		goto selftest_failure;
 	}
 
 	if ((abs(z_selftest - z) < sensor->min_st) ||
 	    (abs(z_selftest - z) > sensor->max_st)) {
 		sensor->selftest_status = -1;
+		dev_err(sensor->hw->dev,
+			"st: failure on z: non-st(%d), st(%d)\n",
+			z, z_selftest);
 		goto selftest_failure;
 	}
 
