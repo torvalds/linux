@@ -287,7 +287,7 @@ get_new:
 
 	mutex_unlock(&EXFAT_SB(sb)->s_lock);
 	if (!dir_emit(ctx, nb->lfn, strlen(nb->lfn), inum,
-			(de.attr & ATTR_SUBDIR) ? DT_DIR : DT_REG))
+			(de.attr & EXFAT_ATTR_SUBDIR) ? DT_DIR : DT_REG))
 		goto out;
 	ctx->pos = cpos;
 	goto get_new;
@@ -359,7 +359,7 @@ unsigned int exfat_get_entry_type(struct exfat_dentry *ep)
 		if (ep->type == EXFAT_VOLUME)
 			return TYPE_VOLUME;
 		if (ep->type == EXFAT_FILE) {
-			if (le16_to_cpu(ep->dentry.file.attr) & ATTR_SUBDIR)
+			if (le16_to_cpu(ep->dentry.file.attr) & EXFAT_ATTR_SUBDIR)
 				return TYPE_DIR;
 			return TYPE_FILE;
 		}
@@ -410,10 +410,10 @@ static void exfat_set_entry_type(struct exfat_dentry *ep, unsigned int type)
 		ep->type = EXFAT_VOLUME;
 	} else if (type == TYPE_DIR) {
 		ep->type = EXFAT_FILE;
-		ep->dentry.file.attr = cpu_to_le16(ATTR_SUBDIR);
+		ep->dentry.file.attr = cpu_to_le16(EXFAT_ATTR_SUBDIR);
 	} else if (type == TYPE_FILE) {
 		ep->type = EXFAT_FILE;
-		ep->dentry.file.attr = cpu_to_le16(ATTR_ARCHIVE);
+		ep->dentry.file.attr = cpu_to_le16(EXFAT_ATTR_ARCHIVE);
 	}
 }
 
