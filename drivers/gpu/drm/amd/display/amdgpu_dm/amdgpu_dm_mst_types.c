@@ -1602,9 +1602,8 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 	struct dc_link_settings cur_link_settings;
 	unsigned int end_to_end_bw_in_kbps = 0;
 	unsigned int upper_link_bw_in_kbps = 0, down_link_bw_in_kbps = 0;
-	unsigned int max_compressed_bw_in_kbps = 0;
 	struct dc_dsc_bw_range bw_range = {0};
-	uint16_t full_pbn = aconnector->mst_output_port->full_pbn;
+	struct dc_dsc_config_options dsc_options = {0};
 
 	/*
 	 * Consider the case with the depth of the mst topology tree is equal or less than 2
@@ -1620,30 +1619,39 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 	   (aconnector->mst_output_port->passthrough_aux ||
 	    aconnector->dsc_aux == &aconnector->mst_output_port->aux)) {
 		cur_link_settings = stream->link->verified_link_cap;
+		upper_link_bw_in_kbps = dc_link_bandwidth_kbps(aconnector->dc_link, &cur_link_settings);
+		down_link_bw_in_kbps = kbps_from_pbn(aconnector->mst_output_port->full_pbn);
 
-		upper_link_bw_in_kbps = dc_link_bandwidth_kbps(aconnector->dc_link,
-							       &cur_link_settings);
-		down_link_bw_in_kbps = kbps_from_pbn(full_pbn);
+		/* pick the end to end bw bottleneck */
+		end_to_end_bw_in_kbps = min(upper_link_bw_in_kbps, down_link_bw_in_kbps);
 
-		/* pick the bottleneck */
-		end_to_end_bw_in_kbps = min(upper_link_bw_in_kbps,
-					    down_link_bw_in_kbps);
-
-		/*
-		 * use the maximum dsc compression bandwidth as the required
-		 * bandwidth for the mode
-		 */
-		max_compressed_bw_in_kbps = bw_range.min_kbps;
-
-		if (end_to_end_bw_in_kbps < max_compressed_bw_in_kbps) {
-			DRM_DEBUG_DRIVER("Mode does not fit into DSC pass-through bandwidth validation\n");
+		if (end_to_end_bw_in_kbps < bw_range.min_kbps) {
+			DRM_DEBUG_DRIVER("maximum dsc compression cannot fit into end-to-end bandwidth\n");
 			return DC_FAIL_BANDWIDTH_VALIDATE;
+		}
+
+		if (end_to_end_bw_in_kbps < bw_range.stream_kbps) {
+			dc_dsc_get_default_config_option(stream->link->dc, &dsc_options);
+			dsc_options.max_target_bpp_limit_override_x16 = aconnector->base.display_info.max_dsc_bpp * 16;
+			if (dc_dsc_compute_config(stream->sink->ctx->dc->res_pool->dscs[0],
+					&stream->sink->dsc_caps.dsc_dec_caps,
+					&dsc_options,
+					end_to_end_bw_in_kbps,
+					&stream->timing,
+					dc_link_get_highest_encoding_format(stream->link),
+					&stream->timing.dsc_cfg)) {
+				stream->timing.flags.DSC = 1;
+				DRM_DEBUG_DRIVER("end-to-end bandwidth require dsc and dsc config found\n");
+			} else {
+				DRM_DEBUG_DRIVER("end-to-end bandwidth require dsc but dsc config not found\n");
+				return DC_FAIL_BANDWIDTH_VALIDATE;
+			}
 		}
 	} else {
 		/* check if mode could be supported within full_pbn */
 		bpp = convert_dc_color_depth_into_bpc(stream->timing.display_color_depth) * 3;
 		pbn = drm_dp_calc_pbn_mode(stream->timing.pix_clk_100hz / 10, bpp, false);
-		if (pbn > full_pbn)
+		if (pbn > aconnector->mst_output_port->full_pbn)
 			return DC_FAIL_BANDWIDTH_VALIDATE;
 	}
 
