@@ -382,6 +382,9 @@ static int tng_config_set_pin(struct tng_pinctrl *tp, unsigned int pin,
 		case 2000:
 			term = BUFCFG_PUPD_VAL_2K;
 			break;
+		case 910:
+			term = BUFCFG_PUPD_VAL_910;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -404,6 +407,9 @@ static int tng_config_set_pin(struct tng_pinctrl *tp, unsigned int pin,
 			break;
 		case 2000:
 			term = BUFCFG_PUPD_VAL_2K;
+			break;
+		case 910:
+			term = BUFCFG_PUPD_VAL_910;
 			break;
 		default:
 			return -EINVAL;
