@@ -1193,6 +1193,15 @@ config QCOM_S2D_VENDOR_HOOK
           core kernel and help to do bootloader hibernation specific job.
 	  Enable this if bootloader hibernation is enabled.
 
+config MSM_BAM_DMUX
+	bool "BAM Data Mux Driver"
+	depends on SPS
+	help
+	  Support Muxed Data Channels over BAM interface.
+	  BAM has a limited number of pipes.  This driver
+	  provides a means to support more logical channels
+	  via muxing than BAM could without muxing.
+
 config QCOM_SECURE_HIBERNATION
 	tristate "Add security support to hibernation"
 	depends on HIBERNATION
