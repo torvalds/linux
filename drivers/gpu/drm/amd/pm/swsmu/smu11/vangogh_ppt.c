@@ -234,24 +234,15 @@ static int vangogh_tables_init(struct smu_context *smu)
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_ACTIVITY_MONITOR_COEFF, sizeof(DpmActivityMonitorCoeffExt_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, max(sizeof(SmuMetrics_t), sizeof(SmuMetrics_legacy_t)),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	if (smu->smc_fw_if_version < 0x3) {
-		SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_legacy_t),
-				PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-		smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_legacy_t), GFP_KERNEL);
-	} else {
-		SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
-				PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-		smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
-	}
+	smu_table->metrics_table = kzalloc(max(sizeof(SmuMetrics_t), sizeof(SmuMetrics_legacy_t)), GFP_KERNEL);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
 
-	if (smu->smc_fw_version >= 0x043F3E00)
-		smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_3);
-	else
-		smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_2);
+	smu_table->gpu_metrics_table_size = max(sizeof(struct gpu_metrics_v2_3), sizeof(struct gpu_metrics_v2_2));
 	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table)
 		goto err1_out;
