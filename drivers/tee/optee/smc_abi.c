@@ -806,6 +806,7 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 /**
  * optee_handle_rpc() - handle RPC from secure world
  * @ctx:	context doing the RPC
+ * @rpc_arg:	pointer to RPC arguments if any, or NULL if none
  * @param:	value of registers for the RPC
  * @call_ctx:	call context. Preserved during one OP-TEE invocation
  *
