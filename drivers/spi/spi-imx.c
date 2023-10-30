@@ -662,7 +662,7 @@ static int mx51_ecspi_prepare_transfer(struct spi_imx_data *spi_imx,
 		if (spi_imx->count >= 512)
 			ctrl |= 0xFFF << MX51_ECSPI_CTRL_BL_OFFSET;
 		else
-			ctrl |= (spi_imx->count*8 - 1)
+			ctrl |= (spi_imx->count * spi_imx->bits_per_word - 1)
 				<< MX51_ECSPI_CTRL_BL_OFFSET;
 	}
 
