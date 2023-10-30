@@ -384,7 +384,7 @@ union cvmx_ipd_sub_port_qos_cnt {
 	} s;
 };
 
-struct cvmx_pip_port_status {
+typedef struct {
 	uint32_t dropped_octets;
 	uint32_t dropped_packets;
 	uint32_t pci_raw_packets;
@@ -407,13 +407,13 @@ struct cvmx_pip_port_status {
 	uint32_t inb_packets;
 	uint64_t inb_octets;
 	uint16_t inb_errors;
-};
+} cvmx_pip_port_status_t;
 
-struct cvmx_pko_port_status {
+typedef struct {
 	uint32_t packets;
 	uint64_t octets;
 	uint64_t doorbell;
-};
+} cvmx_pko_port_status_t;
 
 union cvmx_pip_frm_len_chkx {
 	uint64_t u64;
@@ -1258,11 +1258,11 @@ static inline int octeon_is_simulation(void)
 }
 
 static inline void cvmx_pip_get_port_status(uint64_t port_num, uint64_t clear,
-					    struct cvmx_pip_port_status *status)
+					    cvmx_pip_port_status_t *status)
 { }
 
 static inline void cvmx_pko_get_port_status(uint64_t port_num, uint64_t clear,
-					    struct cvmx_pko_port_status *status)
+					    cvmx_pko_port_status_t *status)
 { }
 
 static inline enum cvmx_helper_interface_mode cvmx_helper_interface_get_mode(int
