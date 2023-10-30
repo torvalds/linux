@@ -2381,8 +2381,10 @@ enum mmc_issued mmc_blk_mq_issue_rq(struct mmc_queue *mq, struct request *req)
 			}
 			ret = mmc_blk_cqe_issue_flush(mq, req);
 			break;
-		case REQ_OP_READ:
 		case REQ_OP_WRITE:
+			card->written_flag = true;
+			fallthrough;
+		case REQ_OP_READ:
 			if (host->cqe_enabled)
 				ret = mmc_blk_cqe_issue_rw_rq(mq, req);
 			else
