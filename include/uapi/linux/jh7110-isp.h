@@ -49,6 +49,10 @@
 				(V4L2_CID_USER_JH7110_ISP_BASE + 0x000f)
 #define V4L2_CID_USER_JH7110_ISP_STAT_SETTING \
 				(V4L2_CID_USER_JH7110_ISP_BASE + 0x0010)
+#define V4L2_CID_USER_JH7110_ISP_OUTSS0_SETTING \
+				(V4L2_CID_USER_JH7110_ISP_BASE + 0x0011)
+#define V4L2_CID_USER_JH7110_ISP_OUTSS1_SETTING \
+				(V4L2_CID_USER_JH7110_ISP_BASE + 0x0012)
 
 struct jh7110_isp_wb_gain {
 	__u16 gain_r;
@@ -323,6 +327,25 @@ struct jh7110_isp_sc_setting {
 	struct jh7110_isp_sc_config crop_config;
 	struct jh7110_isp_sc_af_config af_config;
 	struct jh7110_isp_sc_awb_config awb_config;
+};
+
+struct jh7110_isp_outss_setting {
+	__u8 which;
+	__u16 stride;	// Output Image Stride Register, 8-byte(64bit) granularity.
+	__u8 hsm;		// horizontal scale mode
+	__u32 hsf;		// horizontal scale factor (time 4096)
+	__u8 vsm;		// vertical scale mode
+	__u32 vsf;		// vertical scale factor (time 4096)
+};
+
+struct jh7110_isp_sc_buffer {
+	__u32 y_histogram[64];
+	__u32 reserv0[33];
+	__u32 bright_sc[4096];
+	__u32 reserv1[96];
+	__u32 ae_hist_y[128];
+	__u32 reserv2[511];
+	__u16 flag;
 };
 
 #endif
