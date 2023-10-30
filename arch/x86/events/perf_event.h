@@ -652,10 +652,29 @@ enum {
 #define PERF_PEBS_DATA_SOURCE_MAX	0x10
 #define PERF_PEBS_DATA_SOURCE_MASK	(PERF_PEBS_DATA_SOURCE_MAX - 1)
 
+enum hybrid_cpu_type {
+	HYBRID_INTEL_NONE,
+	HYBRID_INTEL_ATOM	= 0x20,
+	HYBRID_INTEL_CORE	= 0x40,
+};
+
+enum hybrid_pmu_type {
+	not_hybrid,
+	hybrid_small		= BIT(0),
+	hybrid_big		= BIT(1),
+
+	hybrid_big_small	= hybrid_big | hybrid_small, /* only used for matching */
+};
+
+#define X86_HYBRID_PMU_ATOM_IDX		0
+#define X86_HYBRID_PMU_CORE_IDX		1
+
+#define X86_HYBRID_NUM_PMUS		2
+
 struct x86_hybrid_pmu {
 	struct pmu			pmu;
 	const char			*name;
-	u8				cpu_type;
+	enum hybrid_pmu_type		pmu_type;
 	cpumask_t			supported_cpus;
 	union perf_capabilities		intel_cap;
 	u64				intel_ctrl;
@@ -720,18 +739,6 @@ extern struct static_key_false perf_is_hybrid;
 							\
 	__Fp;						\
 })
-
-enum hybrid_pmu_type {
-	hybrid_big		= 0x40,
-	hybrid_small		= 0x20,
-
-	hybrid_big_small	= hybrid_big | hybrid_small,
-};
-
-#define X86_HYBRID_PMU_ATOM_IDX		0
-#define X86_HYBRID_PMU_CORE_IDX		1
-
-#define X86_HYBRID_NUM_PMUS		2
 
 /*
  * struct x86_pmu - generic x86 pmu
@@ -940,7 +947,7 @@ struct x86_pmu {
 	 */
 	int				num_hybrid_pmus;
 	struct x86_hybrid_pmu		*hybrid_pmu;
-	u8 (*get_hybrid_cpu_type)	(void);
+	enum hybrid_cpu_type (*get_hybrid_cpu_type)	(void);
 };
 
 struct x86_perf_task_context_opt {
@@ -1521,7 +1528,7 @@ extern struct event_constraint intel_skl_pebs_event_constraints[];
 
 extern struct event_constraint intel_icl_pebs_event_constraints[];
 
-extern struct event_constraint intel_spr_pebs_event_constraints[];
+extern struct event_constraint intel_glc_pebs_event_constraints[];
 
 struct event_constraint *intel_pebs_constraints(struct perf_event *event);
 
