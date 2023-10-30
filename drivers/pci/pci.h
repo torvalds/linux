@@ -31,7 +31,6 @@ bool pcie_cap_has_rtctl(const struct pci_dev *dev);
 
 /* Functions internal to the PCI core code */
 
-void pci_cleanup_rom(struct pci_dev *dev);
 #ifdef CONFIG_DMI
 extern const struct attribute_group pci_dev_smbios_attr_group;
 #endif
