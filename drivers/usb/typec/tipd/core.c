@@ -968,16 +968,17 @@ static int tps25750_start_patch_burst_mode(struct tps6598x *tps)
 	ret = of_property_match_string(np, "reg-names", "patch-address");
 	if (ret < 0) {
 		dev_err(tps->dev, "failed to get patch-address %d\n", ret);
-		return ret;
+		goto release_fw;
 	}
 
 	ret = of_property_read_u32_index(np, "reg", ret, &addr);
 	if (ret)
-		return ret;
+		goto release_fw;
 
 	if (addr == 0 || (addr >= 0x20 && addr <= 0x23)) {
 		dev_err(tps->dev, "wrong patch address %u\n", addr);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto release_fw;
 	}
 
 	bpms_data.addr = (u8)addr;
