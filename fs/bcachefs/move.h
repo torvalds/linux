@@ -45,6 +45,7 @@ do {									\
 									\
 	if (_cond)							\
 		break;							\
+	bch2_trans_unlock_long((_ctxt)->trans);				\
 	__wait_event((_ctxt)->wait,					\
 		     bch2_moving_ctxt_next_pending_write(_ctxt) ||	\
 		     (cond_finished = (_cond)));			\

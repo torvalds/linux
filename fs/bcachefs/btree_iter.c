@@ -2833,6 +2833,13 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 	return p;
 }
 
+static inline void check_srcu_held_too_long(struct btree_trans *trans)
+{
+	WARN(trans->srcu_held && time_after(jiffies, trans->srcu_lock_time + HZ * 10),
+	     "btree trans held srcu lock (delaying memory reclaim) for %lu seconds",
+	     (jiffies - trans->srcu_lock_time) / HZ);
+}
+
 void bch2_trans_srcu_unlock(struct btree_trans *trans)
 {
 	if (trans->srcu_held) {
@@ -2843,6 +2850,7 @@ void bch2_trans_srcu_unlock(struct btree_trans *trans)
 			if (path->cached && !btree_node_locked(path, 0))
 				path->l[0].b = ERR_PTR(-BCH_ERR_no_btree_node_srcu_reset);
 
+		check_srcu_held_too_long(trans);
 		srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
 		trans->srcu_held = false;
 	}
@@ -3074,8 +3082,10 @@ void bch2_trans_put(struct btree_trans *trans)
 
 	check_btree_paths_leaked(trans);
 
-	if (trans->srcu_held)
+	if (trans->srcu_held) {
+		check_srcu_held_too_long(trans);
 		srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
+	}
 
 	bch2_journal_preres_put(&c->journal, &trans->journal_preres);
 

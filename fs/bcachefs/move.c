@@ -147,9 +147,8 @@ void bch2_moving_ctxt_do_pending_writes(struct moving_context *ctxt)
 {
 	struct moving_io *io;
 
-	bch2_trans_unlock(ctxt->trans);
-
 	while ((io = bch2_moving_ctxt_next_pending_write(ctxt))) {
+		bch2_trans_unlock_long(ctxt->trans);
 		list_del(&io->read_list);
 		move_write(io);
 	}
@@ -485,8 +484,8 @@ int bch2_move_ratelimit(struct moving_context *ctxt)
 	struct bch_fs *c = ctxt->trans->c;
 	u64 delay;
 
-	if (ctxt->wait_on_copygc) {
-		bch2_trans_unlock(ctxt->trans);
+	if (ctxt->wait_on_copygc && !c->copygc_running) {
+		bch2_trans_unlock_long(ctxt->trans);
 		wait_event_killable(c->copygc_running_wq,
 				    !c->copygc_running ||
 				    kthread_should_stop());
@@ -495,8 +494,12 @@ int bch2_move_ratelimit(struct moving_context *ctxt)
 	do {
 		delay = ctxt->rate ? bch2_ratelimit_delay(ctxt->rate) : 0;
 
+
 		if (delay) {
-			bch2_trans_unlock(ctxt->trans);
+			if (delay > HZ / 10)
+				bch2_trans_unlock_long(ctxt->trans);
+			else
+				bch2_trans_unlock(ctxt->trans);
 			set_current_state(TASK_INTERRUPTIBLE);
 		}
 

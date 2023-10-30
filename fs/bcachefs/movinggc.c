@@ -128,7 +128,7 @@ static void move_buckets_wait(struct moving_context *ctxt,
 		kfree(i);
 	}
 
-	bch2_trans_unlock(ctxt->trans);
+	bch2_trans_unlock_long(ctxt->trans);
 }
 
 static bool bucket_in_flight(struct buckets_in_flight *list,
@@ -327,7 +327,7 @@ static int bch2_copygc_thread(void *arg)
 	while (!ret && !kthread_should_stop()) {
 		bool did_work = false;
 
-		bch2_trans_unlock(ctxt.trans);
+		bch2_trans_unlock_long(ctxt.trans);
 		cond_resched();
 
 		if (!c->copy_gc_enabled) {
