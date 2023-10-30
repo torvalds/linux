@@ -265,7 +265,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned int arg)
 	struct dnotify_struct *dn;
 	struct inode *inode;
 	fl_owner_t id = current->files;
-	struct file *f;
+	struct file *f = NULL;
 	int destroy = 0, error = 0;
 	__u32 mask;
 
@@ -345,7 +345,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned int arg)
 	}
 
 	rcu_read_lock();
-	f = lookup_fd_rcu(fd);
+	f = lookup_fdget_rcu(fd);
 	rcu_read_unlock();
 
 	/* if (f != filp) means that we lost a race and another task/thread
@@ -392,6 +392,8 @@ out_err:
 		fsnotify_put_mark(new_fsn_mark);
 	if (dn)
 		kmem_cache_free(dnotify_struct_cache, dn);
+	if (f)
+		fput(f);
 	return error;
 }
 
