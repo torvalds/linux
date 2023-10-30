@@ -1720,6 +1720,15 @@ config DEBUG_NOTIFIERS
 	  This is a relatively cheap check but if you care about maximum
 	  performance, say N.
 
+config DEBUG_CLOSURES
+	bool "Debug closures (bcache async widgits)"
+	depends on CLOSURES
+	select DEBUG_FS
+	help
+	  Keeps all active closures in a linked list and provides a debugfs
+	  interface to list them, which makes it possible to see asynchronous
+	  operations that get stuck.
+
 config DEBUG_MAPLE_TREE
 	bool "Debug maple trees"
 	depends on DEBUG_KERNEL

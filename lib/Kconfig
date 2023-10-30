@@ -506,6 +506,9 @@ config ASSOCIATIVE_ARRAY
 
 	  for more information.
 
+config CLOSURES
+	bool
+
 config HAS_IOMEM
 	bool
 	depends on !NO_IOMEM

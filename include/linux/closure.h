@@ -155,7 +155,7 @@ struct closure {
 
 	atomic_t		remaining;
 
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_DEBUG_CLOSURES
 #define CLOSURE_MAGIC_DEAD	0xc054dead
 #define CLOSURE_MAGIC_ALIVE	0xc054a11e
 
@@ -172,6 +172,11 @@ void __closure_wake_up(struct closure_waitlist *list);
 bool closure_wait(struct closure_waitlist *list, struct closure *cl);
 void __closure_sync(struct closure *cl);
 
+static inline unsigned closure_nr_remaining(struct closure *cl)
+{
+	return atomic_read(&cl->remaining) & CLOSURE_REMAINING_MASK;
+}
+
 /**
  * closure_sync - sleep until a closure a closure has nothing left to wait on
  *
@@ -180,19 +185,17 @@ void __closure_sync(struct closure *cl);
  */
 static inline void closure_sync(struct closure *cl)
 {
-	if ((atomic_read(&cl->remaining) & CLOSURE_REMAINING_MASK) != 1)
+	if (closure_nr_remaining(cl) != 1)
 		__closure_sync(cl);
 }
 
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_DEBUG_CLOSURES
 
-void closure_debug_init(void);
 void closure_debug_create(struct closure *cl);
 void closure_debug_destroy(struct closure *cl);
 
 #else
 
-static inline void closure_debug_init(void) {}
 static inline void closure_debug_create(struct closure *cl) {}
 static inline void closure_debug_destroy(struct closure *cl) {}
 
@@ -200,21 +203,21 @@ static inline void closure_debug_destroy(struct closure *cl) {}
 
 static inline void closure_set_ip(struct closure *cl)
 {
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_DEBUG_CLOSURES
 	cl->ip = _THIS_IP_;
 #endif
 }
 
 static inline void closure_set_ret_ip(struct closure *cl)
 {
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_DEBUG_CLOSURES
 	cl->ip = _RET_IP_;
 #endif
 }
 
 static inline void closure_set_waiting(struct closure *cl, unsigned long f)
 {
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_DEBUG_CLOSURES
 	cl->waiting_on = f;
 #endif
 }
@@ -243,6 +246,7 @@ static inline void closure_queue(struct closure *cl)
 	 */
 	BUILD_BUG_ON(offsetof(struct closure, fn)
 		     != offsetof(struct work_struct, func));
+
 	if (wq) {
 		INIT_WORK(&cl->work, cl->work.func);
 		BUG_ON(!queue_work(wq, &cl->work));
@@ -255,7 +259,7 @@ static inline void closure_queue(struct closure *cl)
  */
 static inline void closure_get(struct closure *cl)
 {
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_DEBUG_CLOSURES
 	BUG_ON((atomic_inc_return(&cl->remaining) &
 		CLOSURE_REMAINING_MASK) <= 1);
 #else
@@ -271,7 +275,7 @@ static inline void closure_get(struct closure *cl)
  */
 static inline void closure_init(struct closure *cl, struct closure *parent)
 {
-	memset(cl, 0, sizeof(struct closure));
+	cl->fn = NULL;
 	cl->parent = parent;
 	if (parent)
 		closure_get(parent);
@@ -374,5 +378,27 @@ static inline void closure_call(struct closure *cl, closure_fn fn,
 	closure_init(cl, parent);
 	continue_at_nobarrier(cl, fn, wq);
 }
+
+#define __closure_wait_event(waitlist, _cond)				\
+do {									\
+	struct closure cl;						\
+									\
+	closure_init_stack(&cl);					\
+									\
+	while (1) {							\
+		closure_wait(waitlist, &cl);				\
+		if (_cond)						\
+			break;						\
+		closure_sync(&cl);					\
+	}								\
+	closure_wake_up(waitlist);					\
+	closure_sync(&cl);						\
+} while (0)
+
+#define closure_wait_event(waitlist, _cond)				\
+do {									\
+	if (!(_cond))							\
+		__closure_wait_event(waitlist, _cond);			\
+} while (0)
 
 #endif /* _LINUX_CLOSURE_H */

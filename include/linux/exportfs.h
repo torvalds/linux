@@ -105,6 +105,12 @@ enum fid_type {
 	FILEID_LUSTRE = 0x97,
 
 	/*
+	 * 64 bit inode number, 32 bit subvolume, 32 bit generation number:
+	 */
+	FILEID_BCACHEFS_WITHOUT_PARENT = 0xb1,
+	FILEID_BCACHEFS_WITH_PARENT = 0xb2,
+
+	/*
 	 * 64 bit unique kernfs id
 	 */
 	FILEID_KERNFS = 0xfe,
