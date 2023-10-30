@@ -1036,14 +1036,33 @@ static int __btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
 	if (!test_bit(BTRFS_DELAYED_NODE_DEL_IREF, &node->flags))
 		goto out;
 
-	path->slots[0]++;
-	if (path->slots[0] >= btrfs_header_nritems(leaf))
-		goto search;
-again:
+	/*
+	 * Now we're going to delete the INODE_REF/EXTREF, which should be the
+	 * only one ref left.  Check if the next item is an INODE_REF/EXTREF.
+	 *
+	 * But if we're the last item already, release and search for the last
+	 * INODE_REF/EXTREF.
+	 */
+	if (path->slots[0] + 1 >= btrfs_header_nritems(leaf)) {
+		key.objectid = node->inode_id;
+		key.type = BTRFS_INODE_EXTREF_KEY;
+		key.offset = (u64)-1;
+
+		btrfs_release_path(path);
+		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
+		if (ret < 0)
+			goto err_out;
+		ASSERT(ret > 0);
+		ASSERT(path->slots[0] > 0);
+		ret = 0;
+		path->slots[0]--;
+		leaf = path->nodes[0];
+	} else {
+		path->slots[0]++;
+	}
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 	if (key.objectid != node->inode_id)
 		goto out;
-
 	if (key.type != BTRFS_INODE_REF_KEY &&
 	    key.type != BTRFS_INODE_EXTREF_KEY)
 		goto out;
@@ -1070,22 +1089,6 @@ err_out:
 		btrfs_abort_transaction(trans, ret);
 
 	return ret;
-
-search:
-	btrfs_release_path(path);
-
-	key.type = BTRFS_INODE_EXTREF_KEY;
-	key.offset = -1;
-
-	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
-	if (ret < 0)
-		goto err_out;
-	ASSERT(ret);
-
-	ret = 0;
-	leaf = path->nodes[0];
-	path->slots[0]--;
-	goto again;
 }
 
 static inline int btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
