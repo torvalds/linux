@@ -111,14 +111,28 @@ static const struct file_operations debugfs_results_fops = {
 void kunit_debugfs_create_suite(struct kunit_suite *suite)
 {
 	struct kunit_case *test_case;
+	struct string_stream *stream;
 
-	/* Allocate logs before creating debugfs representation. */
-	suite->log = alloc_string_stream(GFP_KERNEL);
-	string_stream_set_append_newlines(suite->log, true);
+	/*
+	 * Allocate logs before creating debugfs representation.
+	 * The suite->log and test_case->log pointer are expected to be NULL
+	 * if there isn't a log, so only set it if the log stream was created
+	 * successfully.
+	 */
+	stream = alloc_string_stream(GFP_KERNEL);
+	if (IS_ERR_OR_NULL(stream))
+		return;
+
+	string_stream_set_append_newlines(stream, true);
+	suite->log = stream;
 
 	kunit_suite_for_each_test_case(suite, test_case) {
-		test_case->log = alloc_string_stream(GFP_KERNEL);
-		string_stream_set_append_newlines(test_case->log, true);
+		stream = alloc_string_stream(GFP_KERNEL);
+		if (IS_ERR_OR_NULL(stream))
+			goto err;
+
+		string_stream_set_append_newlines(stream, true);
+		test_case->log = stream;
 	}
 
 	suite->debugfs = debugfs_create_dir(suite->name, debugfs_rootdir);
@@ -126,6 +140,12 @@ void kunit_debugfs_create_suite(struct kunit_suite *suite)
 	debugfs_create_file(KUNIT_DEBUGFS_RESULTS, S_IFREG | 0444,
 			    suite->debugfs,
 			    suite, &debugfs_results_fops);
+	return;
+
+err:
+	string_stream_destroy(suite->log);
+	kunit_suite_for_each_test_case(suite, test_case)
+		string_stream_destroy(test_case->log);
 }
 
 void kunit_debugfs_destroy_suite(struct kunit_suite *suite)
