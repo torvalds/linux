@@ -929,9 +929,11 @@ void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
 		return;
 
 	mlx5e_accel_ipsec_fs_cleanup(ipsec);
-	if (mlx5_ipsec_device_caps(priv->mdev) & MLX5_IPSEC_CAP_TUNNEL)
+	if (ipsec->netevent_nb.notifier_call) {
 		unregister_netevent_notifier(&ipsec->netevent_nb);
-	if (mlx5_ipsec_device_caps(priv->mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)
+		ipsec->netevent_nb.notifier_call = NULL;
+	}
+	if (ipsec->aso)
 		mlx5e_ipsec_aso_cleanup(ipsec);
 	destroy_workqueue(ipsec->wq);
 	kfree(ipsec);
@@ -1040,6 +1042,12 @@ static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
 		}
 	}
 
+	if (x->xdo.type == XFRM_DEV_OFFLOAD_PACKET &&
+	    !(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)) {
+		NL_SET_ERR_MSG_MOD(extack, "Packet offload is not supported");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -1135,14 +1143,6 @@ static const struct xfrmdev_ops mlx5e_ipsec_xfrmdev_ops = {
 	.xdo_dev_state_free	= mlx5e_xfrm_free_state,
 	.xdo_dev_offload_ok	= mlx5e_ipsec_offload_ok,
 	.xdo_dev_state_advance_esn = mlx5e_xfrm_advance_esn_state,
-};
-
-static const struct xfrmdev_ops mlx5e_ipsec_packet_xfrmdev_ops = {
-	.xdo_dev_state_add	= mlx5e_xfrm_add_state,
-	.xdo_dev_state_delete	= mlx5e_xfrm_del_state,
-	.xdo_dev_state_free	= mlx5e_xfrm_free_state,
-	.xdo_dev_offload_ok	= mlx5e_ipsec_offload_ok,
-	.xdo_dev_state_advance_esn = mlx5e_xfrm_advance_esn_state,
 
 	.xdo_dev_state_update_curlft = mlx5e_xfrm_update_curlft,
 	.xdo_dev_policy_add = mlx5e_xfrm_add_policy,
@@ -1160,11 +1160,7 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 
 	mlx5_core_info(mdev, "mlx5e: IPSec ESP acceleration enabled\n");
 
-	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)
-		netdev->xfrmdev_ops = &mlx5e_ipsec_packet_xfrmdev_ops;
-	else
-		netdev->xfrmdev_ops = &mlx5e_ipsec_xfrmdev_ops;
-
+	netdev->xfrmdev_ops = &mlx5e_ipsec_xfrmdev_ops;
 	netdev->features |= NETIF_F_HW_ESP;
 	netdev->hw_enc_features |= NETIF_F_HW_ESP;
 
