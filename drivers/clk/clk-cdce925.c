@@ -647,7 +647,7 @@ static int cdce925_probe(struct i2c_client *client)
 		.name = "configuration0",
 		.reg_bits = 8,
 		.val_bits = 8,
-		.cache_type = REGCACHE_RBTREE,
+		.cache_type = REGCACHE_MAPLE,
 	};
 
 	dev_dbg(&client->dev, "%s\n", __func__);

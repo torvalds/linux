@@ -446,7 +446,7 @@ static bool si544_regmap_is_volatile(struct device *dev, unsigned int reg)
 static const struct regmap_config si544_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = SI544_REG_PAGE_SELECT,
 	.volatile_reg = si544_regmap_is_volatile,
 };

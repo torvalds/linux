@@ -392,7 +392,7 @@ static bool si570_regmap_is_writeable(struct device *dev, unsigned int reg)
 static const struct regmap_config si570_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = 137,
 	.writeable_reg = si570_regmap_is_writeable,
 	.volatile_reg = si570_regmap_is_volatile,
