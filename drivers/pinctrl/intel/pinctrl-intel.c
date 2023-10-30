@@ -677,10 +677,6 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 	u32 term = 0, up = 0, value;
 	void __iomem *padcfg1;
 
-	/* Set default strength value in case none is given */
-	if (arg == 1)
-		arg = 5000;
-
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
 		break;
@@ -690,6 +686,7 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 		case 20000:
 			term = PADCFG1_TERM_20K;
 			break;
+		case 1: /* Set default strength value in case none is given */
 		case 5000:
 			term = PADCFG1_TERM_5K;
 			break;
@@ -716,6 +713,7 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 		case 20000:
 			term = PADCFG1_TERM_20K;
 			break;
+		case 1: /* Set default strength value in case none is given */
 		case 5000:
 			term = PADCFG1_TERM_5K;
 			break;
