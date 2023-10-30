@@ -102,7 +102,7 @@ void afs_fileserver_probe_result(struct afs_call *call)
 	struct afs_address *addr = &alist->addrs[call->probe_index];
 	struct afs_server *server = call->server;
 	unsigned int index = call->probe_index;
-	unsigned int rtt_us = 0, cap0;
+	unsigned int rtt_us = -1, cap0;
 	int ret = call->error;
 
 	_enter("%pU,%u", &server->uuid, index);
@@ -182,6 +182,7 @@ responded:
 out:
 	spin_unlock(&server->probe_lock);
 
+	trace_afs_fs_probe(server, false, alist, index, call->error, call->abort_code, rtt_us);
 	_debug("probe %pU [%u] %pISpc rtt=%d ret=%d",
 	       &server->uuid, index, rxrpc_kernel_remote_addr(alist->addrs[index].peer),
 	       rtt_us, ret);
@@ -207,6 +208,8 @@ void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 	afs_get_addrlist(alist, afs_alist_trace_get_probe);
 	read_unlock(&server->fs_lock);
 
+	afs_get_address_preferences(net, alist);
+
 	server->probed_at = jiffies;
 	atomic_set(&server->probe_outstanding, all ? alist->nr_addrs : 1);
 	memset(&server->probe, 0, sizeof(server->probe));
@@ -217,10 +220,28 @@ void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 		all = true;
 
 	if (all) {
-		for (index = 0; index < alist->nr_addrs; index++)
+		unsigned long unprobed = (1UL << alist->nr_addrs) - 1;
+		unsigned int i;
+		int best_prio;
+
+		while (unprobed) {
+			best_prio = -1;
+			index = 0;
+			for (i = 0; i < alist->nr_addrs; i++) {
+				if (test_bit(i, &unprobed) &&
+				    alist->addrs[i].prio > best_prio) {
+					index = i;
+					best_prio = alist->addrs[i].prio;
+				}
+			}
+			__clear_bit(index, &unprobed);
+
+			trace_afs_fs_probe(server, true, alist, index, 0, 0, 0);
 			if (!afs_fs_get_capabilities(net, server, alist, index, key))
 				afs_fs_probe_not_done(net, server, alist, index);
+		}
 	} else {
+		trace_afs_fs_probe(server, true, alist, index, 0, 0, 0);
 		if (!afs_fs_get_capabilities(net, server, alist, index, key))
 			afs_fs_probe_not_done(net, server, alist, index);
 	}
