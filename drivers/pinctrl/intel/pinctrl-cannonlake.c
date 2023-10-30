@@ -10,6 +10,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 
 #include <linux/pinctrl/pinctrl.h>
 
@@ -824,14 +825,12 @@ static const struct acpi_device_id cnl_pinctrl_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, cnl_pinctrl_acpi_match);
 
-static INTEL_PINCTRL_PM_OPS(cnl_pinctrl_pm_ops);
-
 static struct platform_driver cnl_pinctrl_driver = {
 	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
 		.name = "cannonlake-pinctrl",
 		.acpi_match_table = cnl_pinctrl_acpi_match,
-		.pm = &cnl_pinctrl_pm_ops,
+		.pm = pm_sleep_ptr(&intel_pinctrl_pm_ops),
 	},
 };
 module_platform_driver(cnl_pinctrl_driver);
