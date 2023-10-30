@@ -480,6 +480,10 @@
 	domain-supply = <&mt6315_7_vbuck1>;
 };
 
+&mfg1 {
+	domain-supply = <&mt6359_vsram_others_ldo_reg>;
+};
+
 &mmc0 {
 	status = "okay";
 
@@ -550,7 +554,6 @@
 
 /* for GPU SRAM */
 &mt6359_vsram_others_ldo_reg {
-	regulator-always-on;
 	regulator-min-microvolt = <750000>;
 	regulator-max-microvolt = <750000>;
 };
