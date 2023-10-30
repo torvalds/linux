@@ -267,7 +267,7 @@ r535_chan_id_get_locked(struct nvkm_chan *chan, struct nvkm_memory *muserd, u64 
 		return -EINVAL;
 	}
 
-	chid = ouserd / chan->func->userd->size;
+	chid = div_u64(ouserd, chan->func->userd->size);
 
 	list_for_each_entry(userd, &fifo->userd.list, head) {
 		if (userd->mem == muserd) {
