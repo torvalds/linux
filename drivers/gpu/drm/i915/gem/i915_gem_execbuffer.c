@@ -253,6 +253,8 @@ struct i915_execbuffer {
 	struct intel_gt *gt; /* gt for the execbuf */
 	struct intel_context *context; /* logical state for the request */
 	struct i915_gem_context *gem_context; /** caller's context */
+	intel_wakeref_t wakeref;
+	intel_wakeref_t wakeref_gt0;
 
 	/** our requests to build */
 	struct i915_request *requests[MAX_ENGINE_INSTANCE + 1];
@@ -2719,13 +2721,13 @@ eb_select_engine(struct i915_execbuffer *eb)
 
 	for_each_child(ce, child)
 		intel_context_get(child);
-	intel_gt_pm_get(gt);
+	eb->wakeref = intel_gt_pm_get(ce->engine->gt);
 	/*
 	 * Keep GT0 active on MTL so that i915_vma_parked() doesn't
 	 * free VMAs while execbuf ioctl is validating VMAs.
 	 */
 	if (gt->info.id)
-		intel_gt_pm_get(to_gt(gt->i915));
+		eb->wakeref_gt0 = intel_gt_pm_get(to_gt(gt->i915));
 
 	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags)) {
 		err = intel_context_alloc_state(ce);
@@ -2765,9 +2767,9 @@ eb_select_engine(struct i915_execbuffer *eb)
 
 err:
 	if (gt->info.id)
-		intel_gt_pm_put(to_gt(gt->i915));
+		intel_gt_pm_put(to_gt(gt->i915), eb->wakeref_gt0);
 
-	intel_gt_pm_put(gt);
+	intel_gt_pm_put(ce->engine->gt, eb->wakeref);
 	for_each_child(ce, child)
 		intel_context_put(child);
 	intel_context_put(ce);
@@ -2785,8 +2787,8 @@ eb_put_engine(struct i915_execbuffer *eb)
 	 * i915_vma_parked() from interfering while execbuf validates vmas.
 	 */
 	if (eb->gt->info.id)
-		intel_gt_pm_put(to_gt(eb->gt->i915));
-	intel_gt_pm_put(eb->gt);
+		intel_gt_pm_put(to_gt(eb->gt->i915), eb->wakeref_gt0);
+	intel_gt_pm_put(eb->context->engine->gt, eb->wakeref);
 	for_each_child(eb->context, child)
 		intel_context_put(child);
 	intel_context_put(eb->context);
