@@ -213,32 +213,18 @@ cache_type_store(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-manage_start_stop_show(struct device *dev,
-		       struct device_attribute *attr, char *buf)
+manage_start_stop_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
 
-	return sysfs_emit(buf, "%u\n",
-			  sdp->manage_system_start_stop &&
-			  sdp->manage_runtime_start_stop);
-}
-static DEVICE_ATTR_RO(manage_start_stop);
-
-static ssize_t
-manage_system_start_stop_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	struct scsi_disk *sdkp = to_scsi_disk(dev);
-	struct scsi_device *sdp = sdkp->device;
-
-	return sysfs_emit(buf, "%u\n", sdp->manage_system_start_stop);
+	return sprintf(buf, "%u\n", sdp->manage_start_stop);
 }
 
 static ssize_t
-manage_system_start_stop_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+manage_start_stop_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
@@ -250,42 +236,11 @@ manage_system_start_stop_store(struct device *dev,
 	if (kstrtobool(buf, &v))
 		return -EINVAL;
 
-	sdp->manage_system_start_stop = v;
+	sdp->manage_start_stop = v;
 
 	return count;
 }
-static DEVICE_ATTR_RW(manage_system_start_stop);
-
-static ssize_t
-manage_runtime_start_stop_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
-{
-	struct scsi_disk *sdkp = to_scsi_disk(dev);
-	struct scsi_device *sdp = sdkp->device;
-
-	return sysfs_emit(buf, "%u\n", sdp->manage_runtime_start_stop);
-}
-
-static ssize_t
-manage_runtime_start_stop_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	struct scsi_disk *sdkp = to_scsi_disk(dev);
-	struct scsi_device *sdp = sdkp->device;
-	bool v;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
-
-	if (kstrtobool(buf, &v))
-		return -EINVAL;
-
-	sdp->manage_runtime_start_stop = v;
-
-	return count;
-}
-static DEVICE_ATTR_RW(manage_runtime_start_stop);
+static DEVICE_ATTR_RW(manage_start_stop);
 
 static ssize_t
 allow_restart_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -617,8 +572,6 @@ static struct attribute *sd_disk_attrs[] = {
 	&dev_attr_FUA.attr,
 	&dev_attr_allow_restart.attr,
 	&dev_attr_manage_start_stop.attr,
-	&dev_attr_manage_system_start_stop.attr,
-	&dev_attr_manage_runtime_start_stop.attr,
 	&dev_attr_protection_type.attr,
 	&dev_attr_protection_mode.attr,
 	&dev_attr_app_tag_own.attr,
@@ -3723,20 +3676,13 @@ static void sd_shutdown(struct device *dev)
 		sd_sync_cache(sdkp, NULL);
 	}
 
-	if (system_state != SYSTEM_RESTART &&
-	    sdkp->device->manage_system_start_stop) {
+	if (system_state != SYSTEM_RESTART && sdkp->device->manage_start_stop) {
 		sd_printk(KERN_NOTICE, sdkp, "Stopping disk\n");
 		sd_start_stop_device(sdkp, 0);
 	}
 }
 
-static inline bool sd_do_start_stop(struct scsi_device *sdev, bool runtime)
-{
-	return (sdev->manage_system_start_stop && !runtime) ||
-		(sdev->manage_runtime_start_stop && runtime);
-}
-
-static int sd_suspend_common(struct device *dev, bool runtime)
+static int sd_suspend_common(struct device *dev, bool ignore_stop_errors)
 {
 	struct scsi_disk *sdkp = dev_get_drvdata(dev);
 	struct scsi_sense_hdr sshdr;
@@ -3768,12 +3714,12 @@ static int sd_suspend_common(struct device *dev, bool runtime)
 		}
 	}
 
-	if (sd_do_start_stop(sdkp->device, runtime)) {
+	if (sdkp->device->manage_start_stop) {
 		if (!sdkp->device->silence_suspend)
 			sd_printk(KERN_NOTICE, sdkp, "Stopping disk\n");
 		/* an error is not worth aborting a system sleep */
 		ret = sd_start_stop_device(sdkp, 0);
-		if (!runtime)
+		if (ignore_stop_errors)
 			ret = 0;
 	}
 
@@ -3785,23 +3731,23 @@ static int sd_suspend_system(struct device *dev)
 	if (pm_runtime_suspended(dev))
 		return 0;
 
-	return sd_suspend_common(dev, false);
+	return sd_suspend_common(dev, true);
 }
 
 static int sd_suspend_runtime(struct device *dev)
 {
-	return sd_suspend_common(dev, true);
+	return sd_suspend_common(dev, false);
 }
 
-static int sd_resume(struct device *dev, bool runtime)
+static int sd_resume(struct device *dev)
 {
 	struct scsi_disk *sdkp = dev_get_drvdata(dev);
-	int ret;
+	int ret = 0;
 
 	if (!sdkp)	/* E.g.: runtime resume at the start of sd_probe() */
 		return 0;
 
-	if (!sd_do_start_stop(sdkp->device, runtime))
+	if (!sdkp->device->manage_start_stop)
 		return 0;
 
 	if (!sdkp->device->no_start_on_resume) {
@@ -3819,7 +3765,7 @@ static int sd_resume_system(struct device *dev)
 	if (pm_runtime_suspended(dev))
 		return 0;
 
-	return sd_resume(dev, false);
+	return sd_resume(dev);
 }
 
 static int sd_resume_runtime(struct device *dev)
@@ -3846,7 +3792,7 @@ static int sd_resume_runtime(struct device *dev)
 				  "Failed to clear sense data\n");
 	}
 
-	return sd_resume(dev, true);
+	return sd_resume(dev);
 }
 
 /**
