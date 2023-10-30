@@ -31,8 +31,6 @@ bool pcie_cap_has_rtctl(const struct pci_dev *dev);
 
 /* Functions internal to the PCI core code */
 
-int pci_create_sysfs_dev_files(struct pci_dev *pdev);
-void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 void pci_cleanup_rom(struct pci_dev *dev);
 #ifdef CONFIG_DMI
 extern const struct attribute_group pci_dev_smbios_attr_group;
@@ -152,7 +150,7 @@ static inline int pci_proc_detach_bus(struct pci_bus *bus) { return 0; }
 /* Functions for PCI Hotplug drivers to use */
 int pci_hp_add_bridge(struct pci_dev *dev);
 
-#ifdef HAVE_PCI_LEGACY
+#if defined(CONFIG_SYSFS) && defined(HAVE_PCI_LEGACY)
 void pci_create_legacy_files(struct pci_bus *bus);
 void pci_remove_legacy_files(struct pci_bus *bus);
 #else
@@ -185,10 +183,22 @@ static inline int pci_no_d1d2(struct pci_dev *dev)
 	return (dev->no_d1d2 || parent_dstates);
 
 }
+
+#ifdef CONFIG_SYSFS
+int pci_create_sysfs_dev_files(struct pci_dev *pdev);
+void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 extern const struct attribute_group *pci_dev_groups[];
+extern const struct attribute_group *pci_dev_attr_groups[];
 extern const struct attribute_group *pcibus_groups[];
-extern const struct device_type pci_dev_type;
 extern const struct attribute_group *pci_bus_groups[];
+#else
+static inline int pci_create_sysfs_dev_files(struct pci_dev *pdev) { return 0; }
+static inline void pci_remove_sysfs_dev_files(struct pci_dev *pdev) { }
+#define pci_dev_groups NULL
+#define pci_dev_attr_groups NULL
+#define pcibus_groups NULL
+#define pci_bus_groups NULL
+#endif
 
 extern unsigned long pci_hotplug_io_size;
 extern unsigned long pci_hotplug_mmio_size;

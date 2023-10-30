@@ -2357,6 +2357,10 @@ static void pci_release_dev(struct device *dev)
 	kfree(pci_dev);
 }
 
+static const struct device_type pci_dev_type = {
+	.groups = pci_dev_attr_groups,
+};
+
 struct pci_dev *pci_alloc_dev(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
