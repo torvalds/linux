@@ -246,6 +246,13 @@ static const struct xe_rtp_entry_sr gt_was[] = {
 	  XE_RTP_ACTIONS(SET(SQCNT1, ENFORCE_RAR))
 	},
 
+	/* Xe_LPM+ */
+
+	{ XE_RTP_NAME("22016670082"),
+	  XE_RTP_RULES(MEDIA_VERSION(1300)),
+	  XE_RTP_ACTIONS(SET(XELPMP_SQCNT1, ENFORCE_RAR))
+	},
+
 	/* Xe2_LPG */
 
 	{ XE_RTP_NAME("16020975621"),
