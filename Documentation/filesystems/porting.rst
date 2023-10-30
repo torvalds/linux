@@ -1070,3 +1070,11 @@ The list of children anchored in parent dentry got turned into hlist now.
 Field names got changed (->d_children/->d_sib instead of ->d_subdirs/->d_child
 for anchor/entries resp.), so any affected places will be immediately caught
 by compiler.
+
+---
+
+**mandatory**
+
+->d_delete() instances are now called for dentries with ->d_lock held
+and refcount equal to 0.  They are not permitted to drop/regain ->d_lock.
+None of in-tree instances did anything of that sort.  Make sure yours do not...

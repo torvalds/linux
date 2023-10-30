@@ -888,15 +888,14 @@ void dput(struct dentry *dentry)
 		}
 
 		/* Slow case: now with the dentry lock held */
-		dentry->d_lockref.count = 1;
 		rcu_read_unlock();
 
 		if (likely(retain_dentry(dentry))) {
-			dentry->d_lockref.count--;
 			spin_unlock(&dentry->d_lock);
 			return;
 		}
 
+		dentry->d_lockref.count = 1;
 		dentry = dentry_kill(dentry);
 	}
 }
@@ -921,13 +920,8 @@ void dput_to_list(struct dentry *dentry, struct list_head *list)
 		return;
 	}
 	rcu_read_unlock();
-	dentry->d_lockref.count = 1;
-	if (!retain_dentry(dentry)) {
-		--dentry->d_lockref.count;
+	if (!retain_dentry(dentry))
 		to_shrink_list(dentry, list);
-	} else {
-		--dentry->d_lockref.count;
-	}
 	spin_unlock(&dentry->d_lock);
 }
 
