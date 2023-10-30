@@ -915,8 +915,7 @@ __must_hold(&dentry->d_lock)
 	if (!(dentry->d_flags & DCACHE_SHRINK_LIST)) {
 		if (dentry->d_flags & DCACHE_LRU_LIST)
 			d_lru_del(dentry);
-		if (!dentry->d_lockref.count)
-			d_shrink_add(dentry, list);
+		d_shrink_add(dentry, list);
 	}
 }
 
@@ -1115,10 +1114,8 @@ EXPORT_SYMBOL(d_prune_aliases);
 static inline void shrink_kill(struct dentry *victim, struct list_head *list)
 {
 	struct dentry *parent = victim->d_parent;
-	if (parent != victim) {
-		--parent->d_lockref.count;
+	if (parent != victim && !--parent->d_lockref.count)
 		to_shrink_list(parent, list);
-	}
 	__dentry_kill(victim);
 }
 
