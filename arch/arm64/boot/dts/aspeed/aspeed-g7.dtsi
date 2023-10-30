@@ -952,7 +952,7 @@
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_ESPI0CLK>;
 			resets = <&soc1_rst ASPEED_RESET_ESPI0>;
 			pinctrl-names = "default";
-			pinctrl-1 = <&pinctrl_espi0_default>;
+			pinctrl-0 = <&pinctrl_espi0_default>;
 			status = "disabled";
 		};
 
@@ -963,7 +963,7 @@
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_ESPI1CLK>;
 			resets = <&soc1_rst ASPEED_RESET_ESPI1>;
 			pinctrl-names = "default";
-			pinctrl-1 = <&pinctrl_espi1_default>;
+			pinctrl-0 = <&pinctrl_espi1_default>;
 			status = "disabled";
 		};
 
