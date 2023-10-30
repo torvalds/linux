@@ -1042,6 +1042,7 @@ static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
 	default:
 		dev_err(cs35l41->dev, "Firmware status is invalid: %u\n",
 			fw_status);
+		ret = -EINVAL;
 		goto clean_dsp;
 	}
 
