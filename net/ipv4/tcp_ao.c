@@ -1533,10 +1533,6 @@ static struct tcp_ao_key *tcp_ao_key_alloc(struct sock *sk,
 		goto err_free_pool;
 
 	tfm = crypto_ahash_reqtfm(hp.req);
-	if (crypto_ahash_alignmask(tfm) > TCP_AO_KEY_ALIGN) {
-		err = -EOPNOTSUPP;
-		goto err_pool_end;
-	}
 	digest_size = crypto_ahash_digestsize(tfm);
 	tcp_sigpool_end(&hp);
 
@@ -1551,8 +1547,6 @@ static struct tcp_ao_key *tcp_ao_key_alloc(struct sock *sk,
 	key->digest_size = digest_size;
 	return key;
 
-err_pool_end:
-	tcp_sigpool_end(&hp);
 err_free_pool:
 	tcp_sigpool_release(pool_id);
 	return ERR_PTR(err);
