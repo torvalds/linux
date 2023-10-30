@@ -247,6 +247,8 @@ static int psp_early_init(void *handle)
 
 	psp->adev = adev;
 
+	adev->psp_timeout = 20000;
+
 	psp_check_pmfw_centralized_cstate_management(psp);
 
 	if (amdgpu_sriov_vf(adev))
@@ -644,7 +646,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 {
 	int ret;
 	int index;
-	int timeout = 20000;
+	int timeout = psp->adev->psp_timeout;
 	bool ras_intr = false;
 	bool skip_unsupport = false;
 
