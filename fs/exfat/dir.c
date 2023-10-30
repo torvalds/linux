@@ -952,6 +952,85 @@ put_es:
 	return -EIO;
 }
 
+static int exfat_validate_empty_dentry_set(struct exfat_entry_set_cache *es)
+{
+	struct exfat_dentry *ep;
+	struct buffer_head *bh;
+	int i, off;
+	bool unused_hit = false;
+
+	/*
+	 * ONLY UNUSED OR DELETED DENTRIES ARE ALLOWED:
+	 * Although it violates the specification for a deleted entry to
+	 * follow an unused entry, some exFAT implementations could work
+	 * like this. Therefore, to improve compatibility, let's allow it.
+	 */
+	for (i = 0; i < es->num_entries; i++) {
+		ep = exfat_get_dentry_cached(es, i);
+		if (ep->type == EXFAT_UNUSED) {
+			unused_hit = true;
+		} else if (!IS_EXFAT_DELETED(ep->type)) {
+			if (unused_hit)
+				goto err_used_follow_unused;
+			i++;
+			goto count_skip_entries;
+		}
+	}
+
+	return 0;
+
+err_used_follow_unused:
+	off = es->start_off + (i << DENTRY_SIZE_BITS);
+	bh = es->bh[EXFAT_B_TO_BLK(off, es->sb)];
+
+	exfat_fs_error(es->sb,
+		"in sector %lld, dentry %d should be unused, but 0x%x",
+		bh->b_blocknr, off >> DENTRY_SIZE_BITS, ep->type);
+
+	return -EIO;
+
+count_skip_entries:
+	es->num_entries = EXFAT_B_TO_DEN(EXFAT_BLK_TO_B(es->num_bh, es->sb) - es->start_off);
+	for (; i < es->num_entries; i++) {
+		ep = exfat_get_dentry_cached(es, i);
+		if (IS_EXFAT_DELETED(ep->type))
+			break;
+	}
+
+	return i;
+}
+
+/*
+ * Get an empty dentry set.
+ *
+ * in:
+ *   sb+p_dir+entry: indicates the empty dentry location
+ *   num_entries: specifies how many empty dentries should be included.
+ * out:
+ *   es: pointer of empty dentry set on success.
+ * return:
+ *   0  : on success
+ *   >0 : the dentries are not empty, the return value is the number of
+ *        dentries to be skipped for the next lookup.
+ *   <0 : on failure
+ */
+int exfat_get_empty_dentry_set(struct exfat_entry_set_cache *es,
+		struct super_block *sb, struct exfat_chain *p_dir,
+		int entry, unsigned int num_entries)
+{
+	int ret;
+
+	ret = __exfat_get_dentry_set(es, sb, p_dir, entry, num_entries);
+	if (ret < 0)
+		return ret;
+
+	ret = exfat_validate_empty_dentry_set(es);
+	if (ret)
+		exfat_put_dentry_set(es, false);
+
+	return ret;
+}
+
 static inline void exfat_reset_empty_hint(struct exfat_hint_femp *hint_femp)
 {
 	hint_femp->eidx = EXFAT_HINT_NONE;
