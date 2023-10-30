@@ -902,16 +902,13 @@ void dput(struct dentry *dentry)
 }
 EXPORT_SYMBOL(dput);
 
-static void __dput_to_list(struct dentry *dentry, struct list_head *list)
+static void to_shrink_list(struct dentry *dentry, struct list_head *list)
 __must_hold(&dentry->d_lock)
 {
-	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
-		/* let the owner of the list it's on deal with it */
-		--dentry->d_lockref.count;
-	} else {
+	if (!(dentry->d_flags & DCACHE_SHRINK_LIST)) {
 		if (dentry->d_flags & DCACHE_LRU_LIST)
 			d_lru_del(dentry);
-		if (!--dentry->d_lockref.count)
+		if (!dentry->d_lockref.count)
 			d_shrink_add(dentry, list);
 	}
 }
@@ -925,8 +922,10 @@ void dput_to_list(struct dentry *dentry, struct list_head *list)
 	}
 	rcu_read_unlock();
 	dentry->d_lockref.count = 1;
-	if (!retain_dentry(dentry))
-		__dput_to_list(dentry, list);
+	if (!retain_dentry(dentry)) {
+		--dentry->d_lockref.count;
+		to_shrink_list(dentry, list);
+	}
 	spin_unlock(&dentry->d_lock);
 }
 
@@ -1165,8 +1164,10 @@ out:
 static inline void shrink_kill(struct dentry *victim, struct list_head *list)
 {
 	struct dentry *parent = victim->d_parent;
-	if (parent != victim)
-		__dput_to_list(parent, list);
+	if (parent != victim) {
+		--parent->d_lockref.count;
+		to_shrink_list(parent, list);
+	}
 	__dentry_kill(victim);
 }
 
