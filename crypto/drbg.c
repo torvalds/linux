@@ -1478,8 +1478,8 @@ static int drbg_generate(struct drbg_state *drbg,
 			err = alg_test("drbg_pr_hmac_sha256",
 				       "drbg_pr_hmac_sha256", 0, 0);
 		else if (drbg->core->flags & DRBG_CTR)
-			err = alg_test("drbg_pr_ctr_aes128",
-				       "drbg_pr_ctr_aes128", 0, 0);
+			err = alg_test("drbg_pr_ctr_aes256",
+				       "drbg_pr_ctr_aes256", 0, 0);
 		else
 			err = alg_test("drbg_pr_sha256",
 				       "drbg_pr_sha256", 0, 0);
@@ -2017,7 +2017,7 @@ static inline int __init drbg_healthcheck_sanity(void)
 		return 0;
 
 #ifdef CONFIG_CRYPTO_DRBG_CTR
-	drbg_convert_tfm_core("drbg_nopr_ctr_aes128", &coreref, &pr);
+	drbg_convert_tfm_core("drbg_nopr_ctr_aes256", &coreref, &pr);
 #endif
 #ifdef CONFIG_CRYPTO_DRBG_HASH
 	drbg_convert_tfm_core("drbg_nopr_sha256", &coreref, &pr);
