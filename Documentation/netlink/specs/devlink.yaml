@@ -71,6 +71,10 @@ definitions:
         name: roce-bit
       -
         name: migratable-bit
+      -
+        name: ipsec-crypto-bit
+      -
+        name: ipsec-packet-bit
   -
     type: enum
     name: sb-threshold-type

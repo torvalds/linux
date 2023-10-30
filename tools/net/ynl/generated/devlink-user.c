@@ -121,6 +121,8 @@ const char *devlink_port_fn_opstate_str(enum devlink_port_fn_opstate value)
 static const char * const devlink_port_fn_attr_cap_strmap[] = {
 	[0] = "roce-bit",
 	[1] = "migratable-bit",
+	[2] = "ipsec-crypto-bit",
+	[3] = "ipsec-packet-bit",
 };
 
 const char *devlink_port_fn_attr_cap_str(enum devlink_port_fn_attr_cap value)
