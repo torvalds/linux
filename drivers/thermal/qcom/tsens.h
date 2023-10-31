@@ -585,7 +585,7 @@ struct tsens_priv {
 	struct dentry			*debug_root;
 	struct dentry			*debug;
 
-	struct tsens_sensor		sensor[];
+	struct tsens_sensor		sensor[] __counted_by(num_sensors);
 };
 
 /**
