@@ -18,7 +18,7 @@
 		status = "okay";
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "dsp_a";
-		simple-audio-card,bitclock-inversion = <1>;
+		simple-audio-card,bitclock-inversion;
 		simple-audio-card,mclk-fs = <512>;
 		simple-audio-card,name = "rockchip,bt";
 		#simple-audio-card,bitclock-master = <&sound2_master>;
