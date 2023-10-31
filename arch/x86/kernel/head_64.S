@@ -9,7 +9,7 @@
  *  Copyright (C) 2005 Eric Biederman <ebiederm@xmission.com>
  */
 
-
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <linux/threads.h>
 #include <linux/init.h>
@@ -22,7 +22,6 @@
 #include <asm/percpu.h>
 #include <asm/nops.h>
 #include "../entry/calling.h"
-#include <asm/export.h>
 #include <asm/nospec-branch.h>
 #include <asm/apicdef.h>
 #include <asm/fixmap.h>
