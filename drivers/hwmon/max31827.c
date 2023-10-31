@@ -361,9 +361,8 @@ static int max31827_write(struct device *dev, enum hwmon_sensor_types type,
 			       val < max31827_conversions[res])
 				res++;
 
-			if (res == ARRAY_SIZE(max31827_conversions) ||
-			    val != max31827_conversions[res])
-				return -EINVAL;
+			if (res == ARRAY_SIZE(max31827_conversions))
+				res = ARRAY_SIZE(max31827_conversions) - 1;
 
 			res = FIELD_PREP(MAX31827_CONFIGURATION_CNV_RATE_MASK,
 					 res);
