@@ -215,6 +215,29 @@
 
 #define MSM_PCIE_LTSSM_MASK (0x3f)
 
+/*
+ * Allow selection of clkreq signal with PCIe controller
+ *  1 - PCIe controller receives clk req from cesta
+ *  0 - PCIe controller receives clk req from direct clk req gpio
+ */
+#define PARF_CESTA_CLKREQ_SEL BIT(0)
+
+/* Override bit for sending timeout indication to cesta (debug purpose) */
+#define PARF_CESTA_L1SUB_TIMEOUT_OVERRIDE BIT(1)
+
+/* Override value for sending timeout indication to cesta (debug purpose) */
+#define PARF_CESTA_L1SUB_TIMEOUT_VALUE BIT(2)
+
+/* Enabling the l1ss timeout indication to cesta */
+#define PARF_CESTA_L1SUB_TIMEOUT_EXT_INT_EN BIT(3)
+
+/*
+ * Enabling l1ss timeout indication to internal global int generation.
+ * Legacy method (0 - no global interrupt for l1ss timeout,
+ * 1 - global interrupt for l1ss timeout)
+ */
+#define PARF_LEGACY_L1SUB_TIMEOUT_INT_EN BIT(31)
+
 #define MSM_PCIE_DRV_MAJOR_VERSION (1)
 #define MSM_PCIE_DRV_MINOR_VERSION (0)
 #define MSM_PCIE_DRV_SEQ_RESV (0xffff)
@@ -1093,7 +1116,7 @@ struct msm_pcie_dev_t {
 	bool linkdown_recovery_enable;
 	bool gdsc_clk_drv_ss_nonvotable;
 
-	uint32_t pcie_cesta_clkreq;
+	uint32_t pcie_parf_cesta_config;
 
 	uint32_t rc_idx;
 	uint32_t phy_ver;
@@ -5597,10 +5620,6 @@ static int msm_pcie_enable_link(struct msm_pcie_dev_t *dev)
 	if (ret)
 		return ret;
 
-	if (dev->pcie_cesta_clkreq)
-		msm_pcie_write_reg_field(dev->parf, dev->pcie_cesta_clkreq,
-								BIT(0), 0);
-
 	/* switch phy aux clock source from xo to phy aux clk */
 	if (dev->phy_aux_clk_mux && dev->phy_aux_clk_ext_src)
 		clk_set_parent(dev->phy_aux_clk_mux, dev->phy_aux_clk_ext_src);
@@ -5703,6 +5722,31 @@ static void msm_pcie_disable_cesta(struct msm_pcie_dev_t *dev)
 	}
 }
 
+static void msm_pcie_parf_cesta_config(struct msm_pcie_dev_t *dev)
+{
+	u32 cesta_config_bits;
+
+	/* Propagate l1ss timeout and clkreq signals to CESTA */
+	if (dev->pcie_sm) {
+
+		cesta_config_bits = PARF_CESTA_CLKREQ_SEL |
+			PARF_CESTA_L1SUB_TIMEOUT_EXT_INT_EN |
+			readl_relaxed(dev->parf + dev->pcie_parf_cesta_config);
+
+		/* Set clkreq to be accessed by CESTA */
+		msm_pcie_write_reg(dev->parf, dev->pcie_parf_cesta_config,
+							cesta_config_bits);
+	} else {
+		/*
+		 * This is currently required only for platforms where clkreq
+		 * signal is routed to CESTA by default, CESTA is not enabled.
+		 */
+		msm_pcie_write_reg_field(dev->parf,
+				dev->pcie_parf_cesta_config,
+					PARF_CESTA_CLKREQ_SEL, 0);
+	}
+}
+
 static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 {
 	int ret = 0;
@@ -5757,6 +5801,10 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 	wmb();
 	if (ret)
 		goto reset_fail;
+
+	/* Configure clkreq, l1ss sleep timeout access to CESTA */
+	if (dev->pcie_parf_cesta_config)
+		msm_pcie_parf_cesta_config(dev);
 
 	/* RUMI PCIe reset sequence */
 	if (dev->rumi_init)
@@ -7849,9 +7897,9 @@ static void msm_pcie_read_dt(struct msm_pcie_dev_t *pcie_dev, int rc_idx,
 	}
 
 	ret = of_property_read_u32(of_node, "qcom,pcie-clkreq-offset",
-				&pcie_dev->pcie_cesta_clkreq);
+				&pcie_dev->pcie_parf_cesta_config);
 	if (ret)
-		pcie_dev->pcie_cesta_clkreq = 0;
+		pcie_dev->pcie_parf_cesta_config = 0;
 
 	pcie_dev->config_recovery = of_property_read_bool(of_node,
 							"qcom,config-recovery");
