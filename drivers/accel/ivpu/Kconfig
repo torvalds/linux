@@ -6,7 +6,7 @@ config DRM_ACCEL_IVPU
 	depends on X86_64 && !UML
 	depends on PCI && PCI_MSI
 	select FW_LOADER
-	select SHMEM
+	select DRM_GEM_SHMEM_HELPER
 	select GENERIC_ALLOCATOR
 	help
 	  Choose this option if you have a system with an 14th generation
