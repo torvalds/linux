@@ -3447,8 +3447,8 @@
 		rockchip,pvtm-temp-prop = <(-113) (-113)>;
 		rockchip,pvtm-thermal-zone = "npu-thermal";
 
-		clocks = <&cru PCLK_NPU_GRF>;
-		clock-names = "pclk";
+		clocks = <&cru PCLK_NPU_GRF>, <&cru HCLK_NPU_ROOT>;
+		clock-names = "pclk", "hclk";
 		rockchip,grf = <&npu_grf>;
 		volt-mem-read-margin = <
 			855000	1
