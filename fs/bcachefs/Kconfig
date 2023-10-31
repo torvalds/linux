@@ -85,6 +85,16 @@ config BCACHEFS_NO_LATENCY_ACCT
 	help
 	This disables device latency tracking and time stats, only for performance testing
 
+config BCACHEFS_SIX_OPTIMISTIC_SPIN
+	bool "Optimistic spinning for six locks"
+	depends on BCACHEFS_FS
+	depends on SMP
+	default y
+	help
+	Instead of immediately sleeping when attempting to take a six lock that
+	is held by another thread, spin for a short while, as long as the
+	thread owning the lock is running.
+
 config MEAN_AND_VARIANCE_UNIT_TEST
 	tristate "mean_and_variance unit tests" if !KUNIT_ALL_TESTS
 	depends on KUNIT
