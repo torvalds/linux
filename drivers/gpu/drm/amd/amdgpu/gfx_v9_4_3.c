@@ -4338,7 +4338,7 @@ const struct amdgpu_ip_block_version gfx_v9_4_3_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
 	.major = 9,
 	.minor = 4,
-	.rev = 0,
+	.rev = 3,
 	.funcs = &gfx_v9_4_3_ip_funcs,
 };
 

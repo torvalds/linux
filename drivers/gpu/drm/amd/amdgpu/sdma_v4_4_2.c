@@ -2061,7 +2061,7 @@ const struct amdgpu_ip_block_version sdma_v4_4_2_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_SDMA,
 	.major = 4,
 	.minor = 4,
-	.rev = 0,
+	.rev = 2,
 	.funcs = &sdma_v4_4_2_ip_funcs,
 };
 
