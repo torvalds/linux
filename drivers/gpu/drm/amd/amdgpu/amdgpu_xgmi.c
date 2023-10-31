@@ -1125,28 +1125,30 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,
 			void *inject_if, uint32_t instance_mask)
 {
-	int ret = 0;
+	int ret1, ret2;
 	struct ta_ras_trigger_error_input *block_info =
 				(struct ta_ras_trigger_error_input *)inject_if;
 
 	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW))
 		dev_warn(adev->dev, "Failed to disallow df cstate");
 
-	if (amdgpu_dpm_set_xgmi_plpd_mode(adev, XGMI_PLPD_DISALLOW))
+	ret1 = amdgpu_dpm_set_xgmi_plpd_mode(adev, XGMI_PLPD_DISALLOW);
+	if (ret1 && ret1 != -EOPNOTSUPP)
 		dev_warn(adev->dev, "Failed to disallow XGMI power down");
 
-	ret = psp_ras_trigger_error(&adev->psp, block_info, instance_mask);
+	ret2 = psp_ras_trigger_error(&adev->psp, block_info, instance_mask);
 
 	if (amdgpu_ras_intr_triggered())
-		return ret;
+		return ret2;
 
-	if (amdgpu_dpm_set_xgmi_plpd_mode(adev, XGMI_PLPD_DEFAULT))
+	ret1 = amdgpu_dpm_set_xgmi_plpd_mode(adev, XGMI_PLPD_DEFAULT);
+	if (ret1 && ret1 != -EOPNOTSUPP)
 		dev_warn(adev->dev, "Failed to allow XGMI power down");
 
 	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_ALLOW))
 		dev_warn(adev->dev, "Failed to allow df cstate");
 
-	return ret;
+	return ret2;
 }
 
 struct amdgpu_ras_block_hw_ops  xgmi_ras_hw_ops = {
