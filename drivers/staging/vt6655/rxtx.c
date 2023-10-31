@@ -1456,7 +1456,7 @@ int vnt_beacon_enable(struct vnt_private *priv, struct ieee80211_vif *vif,
 
 	CARDvSetFirstNextTBTT(priv, conf->beacon_int);
 
-	CARDbSetBeaconPeriod(priv, conf->beacon_int);
+	card_set_beacon_period(priv, conf->beacon_int);
 
 	return vnt_beacon_make(priv, vif);
 }

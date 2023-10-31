@@ -1537,7 +1537,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 			card_update_tsf(priv, conf->beacon_rate->hw_value,
 				       conf->sync_tsf);
 
-			CARDbSetBeaconPeriod(priv, conf->beacon_int);
+			card_set_beacon_period(priv, conf->beacon_int);
 
 			CARDvSetFirstNextTBTT(priv, conf->beacon_int);
 		} else {

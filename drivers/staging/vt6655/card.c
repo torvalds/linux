@@ -320,7 +320,7 @@ bool card_update_tsf(struct vnt_private *priv, unsigned char rx_rate,
  *
  * Return Value: true if succeed; otherwise false
  */
-bool CARDbSetBeaconPeriod(struct vnt_private *priv,
+bool card_set_beacon_period(struct vnt_private *priv,
 			  unsigned short wBeaconInterval)
 {
 	u64 qwNextTBTT;
