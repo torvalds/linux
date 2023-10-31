@@ -281,7 +281,7 @@ struct vnt_private {
 
 	unsigned char abyEEPROM[EEP_MAX_CONTEXT_SIZE]; /* unsigned long alignment */
 
-	unsigned short wBeaconInterval;
+	unsigned short beacon_interval;
 	u16 wake_up_count;
 
 	struct work_struct interrupt_work;
