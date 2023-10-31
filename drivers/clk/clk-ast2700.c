@@ -442,7 +442,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC1_CLK_GATE_UART0CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart0clk-gate", "uart0clk",
-					     0, clk_base + AST2700_SOC1_CLK_STOP,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP,
 					     11, 0, &ast2700_clk_lock);
 
 	//UART1
@@ -453,7 +453,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC1_CLK_GATE_UART1CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart1clk-gate", "uart1clk",
-					     0, clk_base + AST2700_SOC1_CLK_STOP,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP,
 					     12, 0, &ast2700_clk_lock);
 
 	//UART2
@@ -464,7 +464,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC1_CLK_GATE_UART2CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart2clk-gate", "uart2clk",
-					     0, clk_base + AST2700_SOC1_CLK_STOP,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP,
 					     13, 0, &ast2700_clk_lock);
 
 	//UART3
@@ -475,7 +475,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC1_CLK_GATE_UART3CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart3clk-gate", "uart3clk",
-					     0, clk_base + AST2700_SOC1_CLK_STOP,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP,
 					     14, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C0CLK] =
@@ -567,7 +567,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC1_CLK_GATE_UART5CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart5clk-gate", "uart5clk",
-					     0, clk_base + AST2700_SOC1_CLK_STOP2,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP2,
 					     0, 0, &ast2700_clk_lock);
 
 	//UART6
@@ -578,7 +578,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC1_CLK_GATE_UART6CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart6clk-gate", "uart6clk",
-					     0, clk_base + AST2700_SOC1_CLK_STOP2,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP2,
 					     1, 0, &ast2700_clk_lock);
 
 	//UART7
@@ -589,7 +589,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC1_CLK_GATE_UART7CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart7clk-gate", "uart7clk",
-					     0, clk_base + AST2700_SOC1_CLK_STOP2,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP2,
 					     2, 0, &ast2700_clk_lock);
 
 	//UART8
@@ -600,7 +600,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC1_CLK_GATE_UART8CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart8clk-gate", "uart8clk",
-					     0, clk_base + AST2700_SOC1_CLK_STOP2,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP2,
 					     3, 0, &ast2700_clk_lock);
 
 	//UART9
@@ -633,7 +633,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC1_CLK_GATE_UART11CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart11clk-gate", "uart11clks",
-					     0, clk_base + AST2700_SOC1_CLK_STOP2,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP2,
 					     6, 0, &ast2700_clk_lock);
 
 	//uart12: call bmc uart
@@ -644,7 +644,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC1_CLK_GATE_UART12CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart12clk-gate", "uart12clk",
-					     0, clk_base + AST2700_SOC1_CLK_STOP2,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP2,
 					     7, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_FSICLK] =
@@ -847,7 +847,7 @@ static int ast2700_soc0_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC0_CLK_GATE_UART4CLK] =
 		ast2700_clk_hw_register_gate(NULL, "uart4clk-gate", "uart4clk",
-					     0, clk_base + AST2700_SOC0_CLK_STOP,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC0_CLK_STOP,
 					     15, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC0_CLK_GATE_DACCLK] =
