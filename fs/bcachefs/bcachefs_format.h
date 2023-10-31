@@ -1617,9 +1617,7 @@ struct journal_seq_blacklist_entry {
 
 struct bch_sb_field_journal_seq_blacklist {
 	struct bch_sb_field	field;
-
-	struct journal_seq_blacklist_entry start[0];
-	__u64			_data[];
+	struct journal_seq_blacklist_entry start[];
 };
 
 struct bch_sb_field_errors {

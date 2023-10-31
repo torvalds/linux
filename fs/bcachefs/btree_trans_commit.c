@@ -681,7 +681,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 						       BCH_JSET_ENTRY_overwrite,
 						       i->btree_id, i->level,
 						       i->old_k.u64s);
-				bkey_reassemble(&entry->start[0],
+				bkey_reassemble((struct bkey_i *) entry->start,
 						(struct bkey_s_c) { &i->old_k, i->old_v });
 			}
 
@@ -689,7 +689,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 					       BCH_JSET_ENTRY_btree_keys,
 					       i->btree_id, i->level,
 					       i->k->k.u64s);
-			bkey_copy(&entry->start[0], i->k);
+			bkey_copy((struct bkey_i *) entry->start, i->k);
 		}
 
 		trans_for_each_wb_update(trans, wb) {
@@ -697,7 +697,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 					       BCH_JSET_ENTRY_btree_keys,
 					       wb->btree, 0,
 					       wb->k.k.u64s);
-			bkey_copy(&entry->start[0], &wb->k);
+			bkey_copy((struct bkey_i *) entry->start, &wb->k);
 		}
 
 		if (trans->journal_seq)

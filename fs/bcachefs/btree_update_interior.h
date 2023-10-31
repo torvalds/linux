@@ -271,7 +271,7 @@ static inline struct btree_node_entry *want_new_bset(struct bch_fs *c,
 	struct btree_node_entry *bne = max(write_block(b),
 			(void *) btree_bkey_last(b, bset_tree_last(b)));
 	ssize_t remaining_space =
-		__bch_btree_u64s_remaining(c, b, &bne->keys.start[0]);
+		__bch_btree_u64s_remaining(c, b, bne->keys.start);
 
 	if (unlikely(bset_written(b, bset(b, t)))) {
 		if (remaining_space > (ssize_t) (block_bytes(c) >> 3))

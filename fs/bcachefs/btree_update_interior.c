@@ -2411,7 +2411,7 @@ void bch2_journal_entry_to_btree_root(struct bch_fs *c, struct jset_entry *entry
 
 	r->level = entry->level;
 	r->alive = true;
-	bkey_copy(&r->key, &entry->start[0]);
+	bkey_copy(&r->key, (struct bkey_i *) entry->start);
 
 	mutex_unlock(&c->btree_root_lock);
 }

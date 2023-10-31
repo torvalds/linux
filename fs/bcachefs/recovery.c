@@ -226,7 +226,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 
 		if (entry->u64s) {
 			r->level = entry->level;
-			bkey_copy(&r->key, &entry->start[0]);
+			bkey_copy(&r->key, (struct bkey_i *) entry->start);
 			r->error = 0;
 		} else {
 			r->error = -EIO;
