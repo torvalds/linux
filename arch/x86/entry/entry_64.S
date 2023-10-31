@@ -1163,8 +1163,8 @@ SYM_CODE_START(asm_exc_nmi)
 	 * anyway.
 	 *
 	 * To handle this case we do the following:
-	 *  Check the a special location on the stack that contains
-	 *  a variable that is set when NMIs are executing.
+	 *  Check a special location on the stack that contains a
+	 *  variable that is set when NMIs are executing.
 	 *  The interrupted task's stack is also checked to see if it
 	 *  is an NMI stack.
 	 *  If the variable is not set and the stack is not the NMI
@@ -1237,7 +1237,6 @@ SYM_CODE_START(asm_exc_nmi)
 	 */
 
 	movq	%rsp, %rdi
-	movq	$-1, %rsi
 	call	exc_nmi
 
 	/*
@@ -1295,8 +1294,8 @@ SYM_CODE_START(asm_exc_nmi)
 	 * end_repeat_nmi, then we are a nested NMI.  We must not
 	 * modify the "iret" frame because it's being written by
 	 * the outer NMI.  That's okay; the outer NMI handler is
-	 * about to about to call exc_nmi() anyway, so we can just
-	 * resume the outer NMI.
+	 * about to call exc_nmi() anyway, so we can just resume
+	 * the outer NMI.
 	 */
 
 	movq	$repeat_nmi, %rdx
@@ -1451,7 +1450,6 @@ end_repeat_nmi:
 	UNWIND_HINT_REGS
 
 	movq	%rsp, %rdi
-	movq	$-1, %rsi
 	call	exc_nmi
 
 	/* Always restore stashed SPEC_CTRL value (see paranoid_entry) */
