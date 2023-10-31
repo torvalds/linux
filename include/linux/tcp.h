@@ -152,7 +152,7 @@ struct tcp_request_sock {
 	u64				snt_synack; /* first SYNACK sent time */
 	bool				tfo_listener;
 	bool				is_mptcp;
-	s8				req_usec_ts;
+	bool				req_usec_ts;
 #if IS_ENABLED(CONFIG_MPTCP)
 	bool				drop_req;
 #endif
