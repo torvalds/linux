@@ -52,7 +52,6 @@
 		mdio0 = &mdio0;
 		mdio1 = &mdio1;
 		mdio2 = &mdio2;
-		mdio3 = &mdio3;
 		video0 = &video0;
 		video1 = &video1;
 	};
@@ -853,13 +852,6 @@
 				resets = <&soc1_rst ASPEED_RESET_MII>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mdio2_default>;
-				status = "disabled";
-			};
-
-			mdio3: mdio@18 {
-				compatible = "aspeed,ast2700-mdio";
-				reg = <0 0x18 0 0x8>;
-				resets = <&soc1_rst ASPEED_RESET_MII>;
 				status = "disabled";
 			};
 		};
