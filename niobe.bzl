@@ -29,6 +29,8 @@ def define_niobe():
         "drivers/soc/qcom/qcom_rpmh.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/socinfo.ko",
+        "net/qrtr/qrtr.ko",
+        "net/qrtr/qrtr-smd.ko",
     ]
 
     _niobe_consolidate_in_tree_modules = _niobe_in_tree_modules + [
