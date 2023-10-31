@@ -5905,11 +5905,11 @@ LPFC_ATTR_RW(ras_fwlog_level, 0, 0, 4, "Firmware Logging Level");
 /*
  * lpfc_ras_fwlog_func: Firmware logging enabled on function number
  * Default function which has RAS support : 0
- * Value Range is [0..7].
+ * Value Range is [0..3].
  * FW logging is a global action and enablement is via a specific
  * port.
  */
-LPFC_ATTR_RW(ras_fwlog_func, 0, 0, 7, "Firmware Logging Enabled on Function");
+LPFC_ATTR_RW(ras_fwlog_func, 0, 0, 3, "Firmware Logging Enabled on Function");
 
 /*
  * lpfc_enable_bbcr: Enable BB Credit Recovery
