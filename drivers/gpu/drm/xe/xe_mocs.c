@@ -26,6 +26,7 @@ static inline void mocs_dbg(const struct drm_device *dev,
 
 enum {
 	HAS_GLOBAL_MOCS = BIT(0),
+	HAS_LNCF_MOCS = BIT(1),
 };
 
 struct xe_mocs_entry {
@@ -473,8 +474,10 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 		return 0;
 	}
 
-	if (!IS_DGFX(xe))
+	if (!IS_DGFX(xe) || GRAPHICS_VER(xe) >= 20)
 		flags |= HAS_GLOBAL_MOCS;
+	if (GRAPHICS_VER(xe) < 20)
+		flags |= HAS_LNCF_MOCS;
 
 	return flags;
 }
@@ -505,7 +508,7 @@ static void __init_mocs_table(struct xe_gt *gt,
 	for (i = 0;
 	     i < info->n_entries ? (mocs = get_entry_control(info, i)), 1 : 0;
 	     i++) {
-		mocs_dbg(&gt_to_xe(gt)->drm, "%d 0x%x 0x%x\n", i,
+		mocs_dbg(&gt_to_xe(gt)->drm, "GLOB_MOCS[%d] 0x%x 0x%x\n", i,
 			 XELP_GLOBAL_MOCS(i).addr, mocs);
 
 		if (GRAPHICS_VERx100(gt_to_xe(gt)) > 1250)
@@ -545,7 +548,7 @@ static void init_l3cc_table(struct xe_gt *gt,
 	     (l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
 				  get_entry_l3cc(info, 2 * i + 1))), 1 : 0;
 	     i++) {
-		mocs_dbg(&gt_to_xe(gt)->drm, "%d 0x%x 0x%x\n", i, XELP_LNCFCMOCS(i).addr,
+		mocs_dbg(&gt_to_xe(gt)->drm, "LNCFCMOCS[%d] 0x%x 0x%x\n", i, XELP_LNCFCMOCS(i).addr,
 			 l3cc);
 
 		if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
@@ -570,19 +573,18 @@ void xe_mocs_init(struct xe_gt *gt)
 	unsigned int flags;
 
 	/*
-	 * LLC and eDRAM control values are not applicable to dgfx
+	 * MOCS settings are split between "GLOB_MOCS" and/or "LNCFCMOCS"
+	 * registers depending on platform.
+	 *
+	 * These registers should be programmed before GuC initialization
+	 * since their values will affect some of the memory transactions
+	 * performed by the GuC.
 	 */
 	flags = get_mocs_settings(gt_to_xe(gt), &table);
 	mocs_dbg(&gt_to_xe(gt)->drm, "flag:0x%x\n", flags);
 
 	if (flags & HAS_GLOBAL_MOCS)
 		__init_mocs_table(gt, &table);
-
-	/*
-	 * Initialize the L3CC table as part of mocs initalization to make
-	 * sure the LNCFCMOCSx registers are programmed for the subsequent
-	 * memory transactions including guc transactions
-	 */
-	if (table.table)
+	if (flags & HAS_LNCF_MOCS)
 		init_l3cc_table(gt, &table);
 }
