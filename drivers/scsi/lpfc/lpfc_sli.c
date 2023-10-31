@@ -3938,6 +3938,9 @@ void lpfc_poll_eratt(struct timer_list *t)
 	if (!(phba->hba_flag & HBA_SETUP))
 		return;
 
+	if (phba->pport->load_flag & FC_UNLOADING)
+		return;
+
 	/* Here we will also keep track of interrupts per sec of the hba */
 	sli_intr = phba->sli.slistat.sli_intr;
 
