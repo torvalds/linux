@@ -1379,6 +1379,11 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 	if (!q2spi_cmd_type_valid(q2spi_req))
 		return -EINVAL;
 
+	if (q2spi_req.addr > Q2SPI_SLAVE_END_ADDR) {
+		Q2SPI_ERROR(q2spi, "%s Err Invalid address:%x\n", __func__, q2spi_req.addr);
+		return -EINVAL;
+	}
+
 	if (q2spi_req.cmd == HRF_WRITE) {
 		q2spi_req.addr = Q2SPI_HRF_PUSH_ADDRESS;
 		q2spi_req.sync = 1;
