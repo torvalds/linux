@@ -280,7 +280,7 @@ bool card_set_phy_parameter(struct vnt_private *priv, u8 bb_type)
  *  In:
  *      priv            - The adapter to be sync.
  *      rx_rate         - data rate of receive beacon
- *      qwBSSTimestamp  - Rx BCN's TSF
+ *      bss_timestamp   - Rx BCN's TSF
  *      qwLocalTSF      - Local TSF
  *  Out:
  *      none
@@ -288,15 +288,15 @@ bool card_set_phy_parameter(struct vnt_private *priv, u8 bb_type)
  * Return Value: none
  */
 bool card_update_tsf(struct vnt_private *priv, unsigned char rx_rate,
-		    u64 qwBSSTimestamp)
+		    u64 bss_timestamp)
 {
 	u64 local_tsf;
 	u64 qwTSFOffset = 0;
 
 	local_tsf = vt6655_get_current_tsf(priv);
 
-	if (qwBSSTimestamp != local_tsf) {
-		qwTSFOffset = CARDqGetTSFOffset(rx_rate, qwBSSTimestamp,
+	if (bss_timestamp != local_tsf) {
+		qwTSFOffset = CARDqGetTSFOffset(rx_rate, bss_timestamp,
 						local_tsf);
 		/* adjust TSF, HW's TSF add TSF Offset reg */
 		qwTSFOffset =  le64_to_cpu(qwTSFOffset);
