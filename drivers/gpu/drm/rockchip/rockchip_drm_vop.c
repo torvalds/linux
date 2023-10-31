@@ -464,6 +464,11 @@ static void vop_load_sdr2hdr_table(struct vop *vop, uint32_t cmd)
 	uint32_t sdr2hdr_eotf_oetf_yn[65];
 	uint32_t sdr2hdr_oetf_dx_dxpow[64];
 
+	if (cmd != SDR2HDR_FOR_BT2020 && cmd != SDR2HDR_FOR_HDR && cmd != SDR2HDR_FOR_HLG_HDR) {
+		DRM_WARN("unknown sdr2hdr oetf: %d\n", cmd);
+		return;
+	}
+
 	for (i = 0; i < 65; i++) {
 		if (cmd == SDR2HDR_FOR_BT2020)
 			sdr2hdr_eotf_oetf_yn[i] =
