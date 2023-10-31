@@ -720,15 +720,15 @@
 &pinctrl {
 	max96712-dcphy0 {
 		max96712_dcphy0_pwdn: max96712-dcphy0-pwdn {
-			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		max96712_dcphy0_errb: max96712-dcphy0-errb {
-			rockchip,pins = <4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <4 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none_smt>;
 		};
 
 		max96712_dcphy0_lock: max96712-dcphy0-lock {
-			rockchip,pins = <4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none_smt>;
 		};
 	};
 };

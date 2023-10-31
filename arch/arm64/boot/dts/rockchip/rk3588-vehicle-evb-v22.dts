@@ -456,6 +456,10 @@
 };
 
 &pinctrl {
+	pinctrl-names = "init";
+	pinctrl-0 = <&max96712_dphy3_pwdn
+			&max96712_dphy3_errb
+			&max96712_dphy3_lock>;
 
 	bl {
 		bl0_enable_pin: bl0-enable-pin {
@@ -489,15 +493,15 @@
 
 	max96712-dphy3 {
 		max96712_dphy3_pwdn: max96712-dphy3-pwdn {
-			rockchip,pins = <4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <4 RK_PA6 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		max96712_dphy3_errb: max96712-dphy3-errb {
-			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none_smt>;
 		};
 
 		max96712_dphy3_lock: max96712-dphy3-lock {
-			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none_smt>;
 		};
 	};
 
