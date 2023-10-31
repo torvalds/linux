@@ -25,7 +25,7 @@
 #include "error.h"
 #include "../msr.h"
 
-struct ghcb boot_ghcb_page __aligned(PAGE_SIZE);
+static struct ghcb boot_ghcb_page __aligned(PAGE_SIZE);
 struct ghcb *boot_ghcb;
 
 /*
