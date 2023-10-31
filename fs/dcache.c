@@ -757,28 +757,6 @@ void d_mark_dontcache(struct inode *inode)
 EXPORT_SYMBOL(d_mark_dontcache);
 
 /*
- * Finish off a dentry we've decided to kill.
- * dentry->d_lock must be held, returns with it unlocked.
- * Returns dentry requiring refcount drop, or NULL if we're done.
- */
-static struct dentry *dentry_kill(struct dentry *dentry)
-	__releases(dentry->d_lock)
-{
-
-	dentry->d_lockref.count--;
-	rcu_read_lock();
-	if (likely(lock_for_kill(dentry))) {
-		struct dentry *parent = dentry->d_parent;
-		rcu_read_unlock();
-		__dentry_kill(dentry);
-		return parent != dentry ? parent : NULL;
-	}
-	rcu_read_unlock();
-	spin_unlock(&dentry->d_lock);
-	return NULL;
-}
-
-/*
  * Try to do a lockless dput(), and return whether that was successful.
  *
  * If unsuccessful, we return false, having already taken the dentry lock.
@@ -915,9 +893,18 @@ void dput(struct dentry *dentry)
 		}
 
 		/* Slow case: now with the dentry lock held */
-		rcu_read_unlock();
-		dentry->d_lockref.count = 1;
-		dentry = dentry_kill(dentry);
+		if (likely(lock_for_kill(dentry))) {
+			struct dentry *parent = dentry->d_parent;
+			rcu_read_unlock();
+			__dentry_kill(dentry);
+			if (dentry == parent)
+				return;
+			dentry = parent;
+		} else {
+			rcu_read_unlock();
+			spin_unlock(&dentry->d_lock);
+			return;
+		}
 	}
 }
 EXPORT_SYMBOL(dput);
