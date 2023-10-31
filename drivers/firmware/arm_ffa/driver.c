@@ -1248,7 +1248,7 @@ static void ffa_partitions_cleanup(void)
 	if (!count)
 		return;
 
-	info = kcalloc(count, sizeof(**info), GFP_KERNEL);
+	info = kcalloc(count, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return;
 
