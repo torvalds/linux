@@ -937,6 +937,10 @@ Example::
   # net/bpfilter/Makefile
   bpfilter_umh-userldflags += -static
 
+To specify libraries linked to a userspace program, you can use
+``<executable>-userldlibs``. The ``userldlibs`` syntax specifies libraries
+linked to all userspace programs created in the current Makefile.
+
 When linking bpfilter_umh, it will be passed the extra option -static.
 
 From command line, :ref:`USERCFLAGS and USERLDFLAGS <userkbuildflags>` will also be used.
