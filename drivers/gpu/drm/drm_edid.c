@@ -5591,7 +5591,7 @@ static void drm_edid_to_eld(struct drm_connector *connector,
 }
 
 static int _drm_edid_to_sad(const struct drm_edid *drm_edid,
-			    struct cea_sad **sads)
+			    struct cea_sad **psads)
 {
 	const struct cea_db *db;
 	struct cea_db_iter iter;
@@ -5600,19 +5600,21 @@ static int _drm_edid_to_sad(const struct drm_edid *drm_edid,
 	cea_db_iter_edid_begin(drm_edid, &iter);
 	cea_db_iter_for_each(db, &iter) {
 		if (cea_db_tag(db) == CTA_DB_AUDIO) {
+			struct cea_sad *sads;
 			int j;
 
 			count = cea_db_payload_len(db) / 3; /* SAD is 3B */
-			*sads = kcalloc(count, sizeof(**sads), GFP_KERNEL);
-			if (!*sads)
+			sads = kcalloc(count, sizeof(*sads), GFP_KERNEL);
+			*psads = sads;
+			if (!sads)
 				return -ENOMEM;
 			for (j = 0; j < count; j++) {
 				const u8 *sad = &db->data[j * 3];
 
-				(*sads)[j].format = (sad[0] & 0x78) >> 3;
-				(*sads)[j].channels = sad[0] & 0x7;
-				(*sads)[j].freq = sad[1] & 0x7F;
-				(*sads)[j].byte2 = sad[2];
+				sads[j].format = (sad[0] & 0x78) >> 3;
+				sads[j].channels = sad[0] & 0x7;
+				sads[j].freq = sad[1] & 0x7F;
+				sads[j].byte2 = sad[2];
 			}
 			break;
 		}
