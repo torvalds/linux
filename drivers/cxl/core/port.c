@@ -1522,7 +1522,11 @@ retry:
 		struct cxl_dport *dport;
 		struct cxl_port *port;
 
-		if (!dport_dev)
+		/*
+		 * The terminal "grandparent" in PCI is NULL and @platform_bus
+		 * for platform devices
+		 */
+		if (!dport_dev || dport_dev == &platform_bus)
 			return 0;
 
 		uport_dev = dport_dev->parent;
