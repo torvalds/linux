@@ -2279,7 +2279,7 @@ static int amdgpu_device_init_schedulers(struct amdgpu_device *adev)
 			break;
 		}
 
-		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
+		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops, NULL,
 				   DRM_SCHED_PRIORITY_COUNT,
 				   ring->num_hw_submission, 0,
 				   timeout, adev->reset_domain->wq,
