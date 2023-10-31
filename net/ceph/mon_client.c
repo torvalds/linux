@@ -96,9 +96,11 @@ int ceph_monmap_contains(struct ceph_monmap *m, struct ceph_entity_addr *addr)
 {
 	int i;
 
-	for (i = 0; i < m->num_mon; i++)
-		if (memcmp(addr, &m->mon_inst[i].addr, sizeof(*addr)) == 0)
+	for (i = 0; i < m->num_mon; i++) {
+		if (ceph_addr_equal_no_type(addr, &m->mon_inst[i].addr))
 			return 1;
+	}
+
 	return 0;
 }
 

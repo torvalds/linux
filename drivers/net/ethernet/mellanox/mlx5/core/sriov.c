@@ -211,8 +211,7 @@ static u16 mlx5_get_max_vfs(struct mlx5_core_dev *dev)
 		host_total_vfs = MLX5_GET(query_esw_functions_out, out,
 					  host_params_context.host_total_vfs);
 		kvfree(out);
-		if (host_total_vfs)
-			return host_total_vfs;
+		return host_total_vfs;
 	}
 
 done:

@@ -528,10 +528,9 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
 {
 	struct ieee80211_sband_iftype_data *data;
 	struct ieee80211_supported_band *band;
-	struct mt76_dev *mdev = &phy->dev->mt76;
 	int n;
 
-	if (mdev->cap.has_2ghz) {
+	if (phy->mt76->cap.has_2ghz) {
 		data = phy->iftype[NL80211_BAND_2GHZ];
 		n = mt7915_init_he_caps(phy, NL80211_BAND_2GHZ, data);
 
@@ -540,7 +539,7 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
 		band->n_iftype_data = n;
 	}
 
-	if (mdev->cap.has_5ghz) {
+	if (phy->mt76->cap.has_5ghz) {
 		data = phy->iftype[NL80211_BAND_5GHZ];
 		n = mt7915_init_he_caps(phy, NL80211_BAND_5GHZ, data);
 

@@ -100,20 +100,20 @@ mt7615_eeprom_parse_hw_band_cap(struct mt7615_dev *dev)
 
 	if (is_mt7663(&dev->mt76)) {
 		/* dual band */
-		dev->mt76.cap.has_2ghz = true;
-		dev->mt76.cap.has_5ghz = true;
+		dev->mphy.cap.has_2ghz = true;
+		dev->mphy.cap.has_5ghz = true;
 		return;
 	}
 
 	if (is_mt7622(&dev->mt76)) {
 		/* 2GHz only */
-		dev->mt76.cap.has_2ghz = true;
+		dev->mphy.cap.has_2ghz = true;
 		return;
 	}
 
 	if (is_mt7611(&dev->mt76)) {
 		/* 5GHz only */
-		dev->mt76.cap.has_5ghz = true;
+		dev->mphy.cap.has_5ghz = true;
 		return;
 	}
 
@@ -121,17 +121,17 @@ mt7615_eeprom_parse_hw_band_cap(struct mt7615_dev *dev)
 			eeprom[MT_EE_WIFI_CONF]);
 	switch (val) {
 	case MT_EE_5GHZ:
-		dev->mt76.cap.has_5ghz = true;
-		break;
-	case MT_EE_2GHZ:
-		dev->mt76.cap.has_2ghz = true;
+		dev->mphy.cap.has_5ghz = true;
 		break;
 	case MT_EE_DBDC:
 		dev->dbdc_support = true;
-		/* fall through */
+		fallthrough;
+	case MT_EE_2GHZ:
+		dev->mphy.cap.has_2ghz = true;
+		break;
 	default:
-		dev->mt76.cap.has_2ghz = true;
-		dev->mt76.cap.has_5ghz = true;
+		dev->mphy.cap.has_2ghz = true;
+		dev->mphy.cap.has_5ghz = true;
 		break;
 	}
 }

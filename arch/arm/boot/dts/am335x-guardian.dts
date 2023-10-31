@@ -100,11 +100,12 @@
 
 	};
 
-	pwm7: dmtimer-pwm {
+	guardian_beeper: pwm-7 {
 		compatible = "ti,omap-dmtimer-pwm";
+		#pwm-cells = <3>;
 		ti,timers = <&timer7>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&dmtimer7_pins>;
+		pinctrl-0 = <&guardian_beeper_pins>;
 		ti,clock-source = <0x01>;
 	};
 
@@ -343,9 +344,9 @@
 		>;
 	};
 
-	dmtimer7_pins: pinmux_dmtimer7_pins {
+	guardian_beeper_pins: pinmux_dmtimer7_pins {
 		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x968, PIN_OUTPUT | MUX_MODE5)
+			AM33XX_IOPAD(0x968, PIN_OUTPUT | MUX_MODE5) /* (E18) timer7 */
 		>;
 	};
 
