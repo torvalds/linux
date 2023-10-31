@@ -46,6 +46,7 @@
 #include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
+#include "drm_internal.h"
 
 static int oui(u8 first, u8 second, u8 third)
 {
@@ -5508,6 +5509,27 @@ static void clear_eld(struct drm_connector *connector)
 }
 
 /*
+ * Get 3-byte SAD buffer from struct cea_sad.
+ */
+void drm_edid_cta_sad_get(const struct cea_sad *cta_sad, u8 *sad)
+{
+	sad[0] = cta_sad->format << 3 | cta_sad->channels;
+	sad[1] = cta_sad->freq;
+	sad[2] = cta_sad->byte2;
+}
+
+/*
+ * Set struct cea_sad from 3-byte SAD buffer.
+ */
+void drm_edid_cta_sad_set(struct cea_sad *cta_sad, const u8 *sad)
+{
+	cta_sad->format = (sad[0] & 0x78) >> 3;
+	cta_sad->channels = sad[0] & 0x07;
+	cta_sad->freq = sad[1] & 0x7f;
+	cta_sad->byte2 = sad[2];
+}
+
+/*
  * drm_edid_to_eld - build ELD from EDID
  * @connector: connector corresponding to the HDMI/DP sink
  * @drm_edid: EDID to parse
@@ -5601,21 +5623,15 @@ static int _drm_edid_to_sad(const struct drm_edid *drm_edid,
 	cea_db_iter_for_each(db, &iter) {
 		if (cea_db_tag(db) == CTA_DB_AUDIO) {
 			struct cea_sad *sads;
-			int j;
+			int i;
 
 			count = cea_db_payload_len(db) / 3; /* SAD is 3B */
 			sads = kcalloc(count, sizeof(*sads), GFP_KERNEL);
 			*psads = sads;
 			if (!sads)
 				return -ENOMEM;
-			for (j = 0; j < count; j++) {
-				const u8 *sad = &db->data[j * 3];
-
-				sads[j].format = (sad[0] & 0x78) >> 3;
-				sads[j].channels = sad[0] & 0x7;
-				sads[j].freq = sad[1] & 0x7F;
-				sads[j].byte2 = sad[2];
-			}
+			for (i = 0; i < count; i++)
+				drm_edid_cta_sad_set(&sads[i], &db->data[i * 3]);
 			break;
 		}
 	}
