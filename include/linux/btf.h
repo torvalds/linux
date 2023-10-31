@@ -92,6 +92,8 @@
 			  "Global kfuncs as their definitions will be in BTF")
 
 #define __bpf_kfunc_end_defs() __diag_pop()
+#define __bpf_hook_start() __bpf_kfunc_start_defs()
+#define __bpf_hook_end() __bpf_kfunc_end_defs()
 
 /*
  * Return the name of the passed struct, if exists, or halt the build if for

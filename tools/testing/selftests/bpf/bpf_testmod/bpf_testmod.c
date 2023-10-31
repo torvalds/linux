@@ -39,9 +39,7 @@ struct bpf_testmod_struct_arg_4 {
 	int b;
 };
 
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "Global functions as their definitions will be in bpf_testmod.ko BTF");
+__bpf_hook_start();
 
 noinline int
 bpf_testmod_test_struct_arg_1(struct bpf_testmod_struct_arg_2 a, int b, int c) {
@@ -335,7 +333,7 @@ noinline int bpf_fentry_shadow_test(int a)
 }
 EXPORT_SYMBOL_GPL(bpf_fentry_shadow_test);
 
-__diag_pop();
+__bpf_hook_end();
 
 static struct bin_attribute bin_attr_bpf_testmod_file __ro_after_init = {
 	.attr = { .name = "bpf_testmod", .mode = 0666, },
