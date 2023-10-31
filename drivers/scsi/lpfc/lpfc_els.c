@@ -2062,8 +2062,9 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	/* PLOGI completes to NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0102 PLOGI completes to NPort x%06x "
-			 "Data: x%x x%x x%x x%x x%x\n",
-			 ndlp->nlp_DID, ndlp->nlp_fc4_type,
+			 "IoTag x%x Data: x%x x%x x%x x%x x%x\n",
+			 ndlp->nlp_DID, iotag,
+			 ndlp->nlp_fc4_type,
 			 ulp_status, ulp_word4,
 			 disc, vport->num_disc_nodes);
 
@@ -2362,9 +2363,10 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	/* PRLI completes to NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0103 PRLI completes to NPort x%06x "
-			 "Data: x%x x%x x%x x%x\n",
+			 "Data: x%x x%x x%x x%x x%x\n",
 			 ndlp->nlp_DID, ulp_status, ulp_word4,
-			 vport->num_disc_nodes, ndlp->fc4_prli_sent);
+			 vport->num_disc_nodes, ndlp->fc4_prli_sent,
+			 ndlp->fc4_xpt_flags);
 
 	/* Check to see if link went down during discovery */
 	if (lpfc_els_chk_latt(vport))
@@ -2805,7 +2807,7 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp;
 	struct lpfc_nodelist *ndlp;
 	int  disc;
-	u32 ulp_status, ulp_word4, tmo;
+	u32 ulp_status, ulp_word4, tmo, iotag;
 	bool release_node = false;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
@@ -2818,9 +2820,11 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		tmo = get_wqe_tmo(cmdiocb);
+		iotag = get_wqe_reqtag(cmdiocb);
 	} else {
 		irsp = &rspiocb->iocb;
 		tmo = irsp->ulpTimeout;
+		iotag = irsp->ulpIoTag;
 	}
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
@@ -2838,9 +2842,11 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	/* ADISC completes to NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0104 ADISC completes to NPort x%x "
-			 "Data: x%x x%x x%x x%x x%x\n",
-			 ndlp->nlp_DID, ulp_status, ulp_word4,
+			 "IoTag x%x Data: x%x x%x x%x x%x x%x\n",
+			 ndlp->nlp_DID, iotag,
+			 ulp_status, ulp_word4,
 			 tmo, disc, vport->num_disc_nodes);
+
 	/* Check to see if link went down during discovery */
 	if (lpfc_els_chk_latt(vport)) {
 		spin_lock_irq(&ndlp->lock);
@@ -3001,7 +3007,7 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	int wake_up_waiter = 0;
 	u32 ulp_status;
 	u32 ulp_word4;
-	u32 tmo;
+	u32 tmo, iotag;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->rsp_iocb = rspiocb;
@@ -3011,9 +3017,11 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		tmo = get_wqe_tmo(cmdiocb);
+		iotag = get_wqe_reqtag(cmdiocb);
 	} else {
 		irsp = &rspiocb->iocb;
 		tmo = irsp->ulpTimeout;
+		iotag = irsp->ulpIoTag;
 	}
 
 	spin_lock_irq(&ndlp->lock);
@@ -3032,9 +3040,11 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	/* LOGO completes to NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0105 LOGO completes to NPort x%x "
-			 "refcnt %d nflags x%x Data: x%x x%x x%x x%x\n",
-			 ndlp->nlp_DID, kref_read(&ndlp->kref), ndlp->nlp_flag,
-			 ulp_status, ulp_word4,
+			 "IoTag x%x refcnt %d nflags x%x xflags x%x "
+			 "Data: x%x x%x x%x x%x\n",
+			 ndlp->nlp_DID, iotag,
+			 kref_read(&ndlp->kref), ndlp->nlp_flag,
+			 ndlp->fc4_xpt_flags, ulp_status, ulp_word4,
 			 tmo, vport->num_disc_nodes);
 
 	if (lpfc_els_chk_latt(vport)) {
@@ -5075,16 +5085,19 @@ out_retry:
 	if (logerr) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0137 No retry ELS command x%x to remote "
-			 "NPORT x%x: Out of Resources: Error:x%x/%x\n",
-			 cmd, did, ulp_status,
-			 ulp_word4);
+			 "NPORT x%x: Out of Resources: Error:x%x/%x "
+			 "IoTag x%x\n",
+			 cmd, did, ulp_status, ulp_word4,
+			 cmdiocb->iotag);
 	}
 	else {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-			 "0108 No retry ELS command x%x to remote "
-			 "NPORT x%x Retried:%d Error:x%x/%x\n",
-			 cmd, did, cmdiocb->retry, ulp_status,
-			 ulp_word4);
+				 "0108 No retry ELS command x%x to remote "
+				 "NPORT x%x Retried:%d Error:x%x/%x "
+				 "IoTag x%x nflags x%x\n",
+				 cmd, did, cmdiocb->retry, ulp_status,
+				 ulp_word4, cmdiocb->iotag,
+				 (ndlp ? ndlp->nlp_flag : 0));
 	}
 	return 0;
 }
