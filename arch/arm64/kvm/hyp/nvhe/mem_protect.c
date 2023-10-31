@@ -1048,9 +1048,20 @@ static int __host_check_page_state_range(u64 addr, u64 size,
 static int __host_set_page_state_range(u64 addr, u64 size,
 				       enum pkvm_page_state state)
 {
+	bool update_iommu = true;
 	enum kvm_pgtable_prot prot = pkvm_mkstate(PKVM_HOST_MEM_PROT, state);
 
-	return host_stage2_idmap_locked(addr, size, prot, true);
+	/*
+	 * Sharing and unsharing host pages shouldn't change the IOMMU page tables,
+	 * so avoid extra page tables walks for the IOMMU.
+	 * HOWEVER THIS WILL NOT WORK WHEN DEVICE ASSIGNMENT IS SUPPORTED AS THE GUEST
+	 * MIGHT HAVE ACCESS TO DMA.
+	 * but as Android-14 doesn't support device assignment this should be fine.
+	 */
+	if ((state == PKVM_PAGE_OWNED) || (state == PKVM_PAGE_SHARED_OWNED))
+		update_iommu = false;
+
+	return host_stage2_idmap_locked(addr, size, prot, update_iommu);
 }
 
 static int host_request_owned_transition(u64 *completer_addr,
@@ -2038,6 +2049,7 @@ static int restrict_host_page_perms(u64 addr, kvm_pte_t pte, u32 level, enum kvm
 }
 
 #define MODULE_PROT_ALLOWLIST (KVM_PGTABLE_PROT_RWX |	\
+			       KVM_PGTABLE_PROT_DEVICE |\
 			       KVM_PGTABLE_PROT_NC |	\
 			       KVM_PGTABLE_PROT_PXN |	\
 			       KVM_PGTABLE_PROT_UXN)

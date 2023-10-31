@@ -20,6 +20,14 @@
        __inline_maybe_unused notrace
 #undef BUILD_FIPS140_KO
 
+/*
+ * Since this .c file contains real module parameters for fips140.ko, it needs
+ * to be compiled normally, so undo the hacks that were done in fips140-defs.h.
+ */
+#define MODULE
+#undef KBUILD_MODFILE
+#undef __DISABLE_EXPORTS
+
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/module.h>

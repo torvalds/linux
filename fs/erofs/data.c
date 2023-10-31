@@ -29,11 +29,15 @@ void erofs_put_metabuf(struct erofs_buf *buf)
 	buf->page = NULL;
 }
 
+/*
+ * Derive the block size from inode->i_blkbits to make compatible with
+ * anonymous inode in fscache mode.
+ */
 void *erofs_bread(struct erofs_buf *buf, struct inode *inode,
 		  erofs_blk_t blkaddr, enum erofs_kmap_type type)
 {
+	erofs_off_t offset = (erofs_off_t)blkaddr << inode->i_blkbits;
 	struct address_space *const mapping = inode->i_mapping;
-	erofs_off_t offset = blknr_to_addr(blkaddr);
 	pgoff_t index = offset >> PAGE_SHIFT;
 	struct page *page = buf->page;
 	struct folio *folio;
@@ -84,33 +88,32 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 	erofs_blk_t nblocks, lastblk;
 	u64 offset = map->m_la;
 	struct erofs_inode *vi = EROFS_I(inode);
+	struct super_block *sb = inode->i_sb;
 	bool tailendpacking = (vi->datalayout == EROFS_INODE_FLAT_INLINE);
 
-	nblocks = DIV_ROUND_UP(inode->i_size, EROFS_BLKSIZ);
+	nblocks = erofs_iblks(inode);
 	lastblk = nblocks - tailendpacking;
 
 	/* there is no hole in flatmode */
 	map->m_flags = EROFS_MAP_MAPPED;
-	if (offset < blknr_to_addr(lastblk)) {
-		map->m_pa = blknr_to_addr(vi->raw_blkaddr) + map->m_la;
-		map->m_plen = blknr_to_addr(lastblk) - offset;
+	if (offset < erofs_pos(sb, lastblk)) {
+		map->m_pa = erofs_pos(sb, vi->raw_blkaddr) + map->m_la;
+		map->m_plen = erofs_pos(sb, lastblk) - offset;
 	} else if (tailendpacking) {
 		map->m_pa = erofs_iloc(inode) + vi->inode_isize +
-			vi->xattr_isize + erofs_blkoff(offset);
+			vi->xattr_isize + erofs_blkoff(sb, offset);
 		map->m_plen = inode->i_size - offset;
 
 		/* inline data should be located in the same meta block */
-		if (erofs_blkoff(map->m_pa) + map->m_plen > EROFS_BLKSIZ) {
-			erofs_err(inode->i_sb,
-				  "inline data cross block boundary @ nid %llu",
+		if (erofs_blkoff(sb, map->m_pa) + map->m_plen > sb->s_blocksize) {
+			erofs_err(sb, "inline data cross block boundary @ nid %llu",
 				  vi->nid);
 			DBG_BUGON(1);
 			return -EFSCORRUPTED;
 		}
 		map->m_flags |= EROFS_MAP_META;
 	} else {
-		erofs_err(inode->i_sb,
-			  "internal error @ nid: %llu (size %llu), m_la 0x%llx",
+		erofs_err(sb, "internal error @ nid: %llu (size %llu), m_la 0x%llx",
 			  vi->nid, inode->i_size, map->m_la);
 		DBG_BUGON(1);
 		return -EIO;
@@ -154,29 +157,29 @@ int erofs_map_blocks(struct inode *inode,
 	pos = ALIGN(erofs_iloc(inode) + vi->inode_isize +
 		    vi->xattr_isize, unit) + unit * chunknr;
 
-	kaddr = erofs_read_metabuf(&buf, sb, erofs_blknr(pos), EROFS_KMAP);
+	kaddr = erofs_read_metabuf(&buf, sb, erofs_blknr(sb, pos), EROFS_KMAP);
 	if (IS_ERR(kaddr)) {
 		err = PTR_ERR(kaddr);
 		goto out;
 	}
 	map->m_la = chunknr << vi->chunkbits;
 	map->m_plen = min_t(erofs_off_t, 1UL << vi->chunkbits,
-			    roundup(inode->i_size - map->m_la, EROFS_BLKSIZ));
+			round_up(inode->i_size - map->m_la, sb->s_blocksize));
 
 	/* handle block map */
 	if (!(vi->chunkformat & EROFS_CHUNK_FORMAT_INDEXES)) {
-		__le32 *blkaddr = kaddr + erofs_blkoff(pos);
+		__le32 *blkaddr = kaddr + erofs_blkoff(sb, pos);
 
 		if (le32_to_cpu(*blkaddr) == EROFS_NULL_ADDR) {
 			map->m_flags = 0;
 		} else {
-			map->m_pa = blknr_to_addr(le32_to_cpu(*blkaddr));
+			map->m_pa = erofs_pos(sb, le32_to_cpu(*blkaddr));
 			map->m_flags = EROFS_MAP_MAPPED;
 		}
 		goto out_unlock;
 	}
 	/* parse chunk indexes */
-	idx = kaddr + erofs_blkoff(pos);
+	idx = kaddr + erofs_blkoff(sb, pos);
 	switch (le32_to_cpu(idx->blkaddr)) {
 	case EROFS_NULL_ADDR:
 		map->m_flags = 0;
@@ -184,7 +187,7 @@ int erofs_map_blocks(struct inode *inode,
 	default:
 		map->m_deviceid = le16_to_cpu(idx->device_id) &
 			EROFS_SB(sb)->device_id_mask;
-		map->m_pa = blknr_to_addr(le32_to_cpu(idx->blkaddr));
+		map->m_pa = erofs_pos(sb, le32_to_cpu(idx->blkaddr));
 		map->m_flags = EROFS_MAP_MAPPED;
 		break;
 	}
@@ -228,8 +231,8 @@ int erofs_map_dev(struct super_block *sb, struct erofs_map_dev *map)
 
 			if (!dif->mapped_blkaddr)
 				continue;
-			startoff = blknr_to_addr(dif->mapped_blkaddr);
-			length = blknr_to_addr(dif->blocks);
+			startoff = erofs_pos(sb, dif->mapped_blkaddr);
+			length = erofs_pos(sb, dif->blocks);
 
 			if (map->m_pa >= startoff &&
 			    map->m_pa < startoff + length) {
@@ -250,6 +253,7 @@ static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		unsigned int flags, struct iomap *iomap, struct iomap *srcmap)
 {
 	int ret;
+	struct super_block *sb = inode->i_sb;
 	struct erofs_map_blocks map;
 	struct erofs_map_dev mdev;
 
@@ -264,7 +268,7 @@ static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		.m_deviceid = map.m_deviceid,
 		.m_pa = map.m_pa,
 	};
-	ret = erofs_map_dev(inode->i_sb, &mdev);
+	ret = erofs_map_dev(sb, &mdev);
 	if (ret)
 		return ret;
 
@@ -290,11 +294,11 @@ static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
 
 		iomap->type = IOMAP_INLINE;
-		ptr = erofs_read_metabuf(&buf, inode->i_sb,
-					 erofs_blknr(mdev.m_pa), EROFS_KMAP);
+		ptr = erofs_read_metabuf(&buf, sb,
+				erofs_blknr(sb, mdev.m_pa), EROFS_KMAP);
 		if (IS_ERR(ptr))
 			return PTR_ERR(ptr);
-		iomap->inline_data = ptr + erofs_blkoff(mdev.m_pa);
+		iomap->inline_data = ptr + erofs_blkoff(sb, mdev.m_pa);
 		iomap->private = buf.base;
 	} else {
 		iomap->type = IOMAP_MAPPED;

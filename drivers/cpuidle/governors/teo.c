@@ -202,6 +202,19 @@ struct teo_cpu {
 
 static DEFINE_PER_CPU(struct teo_cpu, teo_cpus);
 
+unsigned long teo_cpu_get_util_threshold(int cpu)
+{
+	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, cpu);
+	return cpu_data->util_threshold;
+}
+EXPORT_SYMBOL_GPL(teo_cpu_get_util_threshold);
+void teo_cpu_set_util_threshold(int cpu, unsigned long util)
+{
+	struct teo_cpu *cpu_data = per_cpu_ptr(&teo_cpus, cpu);
+	cpu_data->util_threshold = util;
+}
+EXPORT_SYMBOL_GPL(teo_cpu_set_util_threshold);
+
 /**
  * teo_cpu_is_utilized - Check if the CPU's util is above the threshold
  * @cpu: Target CPU
@@ -397,13 +410,23 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	 * the shallowest non-polling state and exit.
 	 */
 	if (drv->state_count < 3 && cpu_data->utilized) {
-		for (i = 0; i < drv->state_count; ++i) {
-			if (!dev->states_usage[i].disable &&
-			    !(drv->states[i].flags & CPUIDLE_FLAG_POLLING)) {
-				idx = i;
-				goto end;
-			}
-		}
+		/* The CPU is utilized, so assume a short idle duration. */
+		duration_ns = teo_middle_of_bin(0, drv);
+		/*
+		 * If state 0 is enabled and it is not a polling one, select it
+		 * right away unless the scheduler tick has been stopped, in
+		 * which case care needs to be taken to leave the CPU in a deep
+		 * enough state in case it is not woken up any time soon after
+		 * all.  If state 1 is disabled, though, state 0 must be used
+		 * anyway.
+		 */
+		if ((!idx && !(drv->states[0].flags & CPUIDLE_FLAG_POLLING) &&
+		    teo_time_ok(duration_ns)) || dev->states_usage[1].disable)
+			idx = 0;
+		else /* Assume that state 1 is not a polling one and use it. */
+			idx = 1;
+
+		goto end;
 	}
 
 	/*
@@ -539,10 +562,20 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 
 	/*
 	 * If the CPU is being utilized over the threshold, choose a shallower
-	 * non-polling state to improve latency
+	 * non-polling state to improve latency, unless the scheduler tick has
+	 * been stopped already and the shallower state's target residency is
+	 * not sufficiently large.
 	 */
-	if (cpu_data->utilized)
-		idx = teo_find_shallower_state(drv, dev, idx, duration_ns, true);
+	if (cpu_data->utilized) {
+		s64 span_ns;
+
+		i = teo_find_shallower_state(drv, dev, idx, duration_ns, true);
+		span_ns = teo_middle_of_bin(i, drv);
+		if (teo_time_ok(span_ns)) {
+			idx = i;
+			duration_ns = span_ns;
+		}
+	}
 
 end:
 	/*

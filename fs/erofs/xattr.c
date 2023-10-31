@@ -68,8 +68,8 @@ static int init_inode_xattrs(struct inode *inode)
 	}
 
 	it.buf = __EROFS_BUF_INITIALIZER;
-	it.blkaddr = erofs_blknr(erofs_iloc(inode) + vi->inode_isize);
-	it.ofs = erofs_blkoff(erofs_iloc(inode) + vi->inode_isize);
+	it.blkaddr = erofs_blknr(sb, erofs_iloc(inode) + vi->inode_isize);
+	it.ofs = erofs_blkoff(sb, erofs_iloc(inode) + vi->inode_isize);
 
 	/* read in shared xattr array (non-atomic, see kmalloc below) */
 	it.kaddr = erofs_read_metabuf(&it.buf, sb, it.blkaddr, EROFS_KMAP);
@@ -92,9 +92,9 @@ static int init_inode_xattrs(struct inode *inode)
 	it.ofs += sizeof(struct erofs_xattr_ibody_header);
 
 	for (i = 0; i < vi->xattr_shared_count; ++i) {
-		if (it.ofs >= EROFS_BLKSIZ) {
+		if (it.ofs >= sb->s_blocksize) {
 			/* cannot be unaligned */
-			DBG_BUGON(it.ofs != EROFS_BLKSIZ);
+			DBG_BUGON(it.ofs != sb->s_blocksize);
 
 			it.kaddr = erofs_read_metabuf(&it.buf, sb, ++it.blkaddr,
 						      EROFS_KMAP);
@@ -139,15 +139,15 @@ struct xattr_iter_handlers {
 
 static inline int xattr_iter_fixup(struct xattr_iter *it)
 {
-	if (it->ofs < EROFS_BLKSIZ)
+	if (it->ofs < it->sb->s_blocksize)
 		return 0;
 
-	it->blkaddr += erofs_blknr(it->ofs);
+	it->blkaddr += erofs_blknr(it->sb, it->ofs);
 	it->kaddr = erofs_read_metabuf(&it->buf, it->sb, it->blkaddr,
 				       EROFS_KMAP_ATOMIC);
 	if (IS_ERR(it->kaddr))
 		return PTR_ERR(it->kaddr);
-	it->ofs = erofs_blkoff(it->ofs);
+	it->ofs = erofs_blkoff(it->sb, it->ofs);
 	return 0;
 }
 
@@ -165,8 +165,8 @@ static int inline_xattr_iter_begin(struct xattr_iter *it,
 
 	inline_xattr_ofs = vi->inode_isize + xattr_header_sz;
 
-	it->blkaddr = erofs_blknr(erofs_iloc(inode) + inline_xattr_ofs);
-	it->ofs = erofs_blkoff(erofs_iloc(inode) + inline_xattr_ofs);
+	it->blkaddr = erofs_blknr(it->sb, erofs_iloc(inode) + inline_xattr_ofs);
+	it->ofs = erofs_blkoff(it->sb, erofs_iloc(inode) + inline_xattr_ofs);
 	it->kaddr = erofs_read_metabuf(&it->buf, inode->i_sb, it->blkaddr,
 				       EROFS_KMAP_ATOMIC);
 	if (IS_ERR(it->kaddr))
@@ -222,8 +222,8 @@ static int xattr_foreach(struct xattr_iter *it,
 	processed = 0;
 
 	while (processed < entry.e_name_len) {
-		if (it->ofs >= EROFS_BLKSIZ) {
-			DBG_BUGON(it->ofs > EROFS_BLKSIZ);
+		if (it->ofs >= it->sb->s_blocksize) {
+			DBG_BUGON(it->ofs > it->sb->s_blocksize);
 
 			err = xattr_iter_fixup(it);
 			if (err)
@@ -231,7 +231,7 @@ static int xattr_foreach(struct xattr_iter *it,
 			it->ofs = 0;
 		}
 
-		slice = min_t(unsigned int, EROFS_BLKSIZ - it->ofs,
+		slice = min_t(unsigned int, it->sb->s_blocksize - it->ofs,
 			      entry.e_name_len - processed);
 
 		/* handle name */
@@ -257,8 +257,8 @@ static int xattr_foreach(struct xattr_iter *it,
 	}
 
 	while (processed < value_sz) {
-		if (it->ofs >= EROFS_BLKSIZ) {
-			DBG_BUGON(it->ofs > EROFS_BLKSIZ);
+		if (it->ofs >= it->sb->s_blocksize) {
+			DBG_BUGON(it->ofs > it->sb->s_blocksize);
 
 			err = xattr_iter_fixup(it);
 			if (err)
@@ -266,7 +266,7 @@ static int xattr_foreach(struct xattr_iter *it,
 			it->ofs = 0;
 		}
 
-		slice = min_t(unsigned int, EROFS_BLKSIZ - it->ofs,
+		slice = min_t(unsigned int, it->sb->s_blocksize - it->ofs,
 			      value_sz - processed);
 		op->value(it, processed, it->kaddr + it->ofs, slice);
 		it->ofs += slice;
@@ -352,15 +352,14 @@ static int shared_getxattr(struct inode *inode, struct getxattr_iter *it)
 {
 	struct erofs_inode *const vi = EROFS_I(inode);
 	struct super_block *const sb = inode->i_sb;
-	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 	unsigned int i;
 	int ret = -ENOATTR;
 
 	for (i = 0; i < vi->xattr_shared_count; ++i) {
 		erofs_blk_t blkaddr =
-			xattrblock_addr(sbi, vi->xattr_shared_xattrs[i]);
+			xattrblock_addr(sb, vi->xattr_shared_xattrs[i]);
 
-		it->it.ofs = xattrblock_offset(sbi, vi->xattr_shared_xattrs[i]);
+		it->it.ofs = xattrblock_offset(sb, vi->xattr_shared_xattrs[i]);
 		it->it.kaddr = erofs_read_metabuf(&it->it.buf, sb, blkaddr,
 						  EROFS_KMAP_ATOMIC);
 		if (IS_ERR(it->it.kaddr))
@@ -564,15 +563,14 @@ static int shared_listxattr(struct listxattr_iter *it)
 	struct inode *const inode = d_inode(it->dentry);
 	struct erofs_inode *const vi = EROFS_I(inode);
 	struct super_block *const sb = inode->i_sb;
-	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 	unsigned int i;
 	int ret = 0;
 
 	for (i = 0; i < vi->xattr_shared_count; ++i) {
 		erofs_blk_t blkaddr =
-			xattrblock_addr(sbi, vi->xattr_shared_xattrs[i]);
+			xattrblock_addr(sb, vi->xattr_shared_xattrs[i]);
 
-		it->it.ofs = xattrblock_offset(sbi, vi->xattr_shared_xattrs[i]);
+		it->it.ofs = xattrblock_offset(sb, vi->xattr_shared_xattrs[i]);
 		it->it.kaddr = erofs_read_metabuf(&it->it.buf, sb, blkaddr,
 						  EROFS_KMAP_ATOMIC);
 		if (IS_ERR(it->it.kaddr))

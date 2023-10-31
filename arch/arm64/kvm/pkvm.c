@@ -173,7 +173,6 @@ void __init kvm_hyp_reserve(void)
 	hyp_mem_pages += hyp_vm_table_pages();
 	hyp_mem_pages += hyp_vmemmap_pages(STRUCT_HYP_PAGE_SIZE);
 	hyp_mem_pages += hyp_ffa_proxy_pages();
-	hyp_mem_pages += hyp_host_fp_pages(num_possible_cpus());
 
 	/*
 	 * Try to allocate a PMD-aligned region to reduce TLB pressure once
@@ -504,10 +503,6 @@ static int __init finalize_pkvm(void)
 	if (pkvm_load_early_modules())
 		pkvm_firmware_rmem_clear();
 
-	/* If no DMA protection. */
-	if (!pkvm_iommu_finalized())
-		pkvm_firmware_rmem_clear();
-
 	/*
 	 * Exclude HYP sections from kmemleak so that they don't get peeked
 	 * at, which would end badly once inaccessible.
@@ -515,6 +510,12 @@ static int __init finalize_pkvm(void)
 	kmemleak_free_part(__hyp_bss_start, __hyp_bss_end - __hyp_bss_start);
 	kmemleak_free_part(__hyp_data_start, __hyp_data_end - __hyp_data_start);
 	kmemleak_free_part_phys(hyp_mem_base, hyp_mem_size);
+
+	flush_deferred_probe_now();
+
+	/* If no DMA protection. */
+	if (!pkvm_iommu_finalized())
+		pkvm_firmware_rmem_clear();
 
 	ret = pkvm_drop_host_privileges();
 	if (ret) {

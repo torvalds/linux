@@ -19,21 +19,21 @@ static inline unsigned int inlinexattr_header_size(struct inode *inode)
 		sizeof(u32) * EROFS_I(inode)->xattr_shared_count;
 }
 
-static inline erofs_blk_t xattrblock_addr(struct erofs_sb_info *sbi,
+static inline erofs_blk_t xattrblock_addr(struct super_block *sb,
 					  unsigned int xattr_id)
 {
 #ifdef CONFIG_EROFS_FS_XATTR
-	return sbi->xattr_blkaddr +
-		xattr_id * sizeof(__u32) / EROFS_BLKSIZ;
+	return EROFS_SB(sb)->xattr_blkaddr +
+		xattr_id * sizeof(__u32) / sb->s_blocksize;
 #else
 	return 0;
 #endif
 }
 
-static inline unsigned int xattrblock_offset(struct erofs_sb_info *sbi,
+static inline unsigned int xattrblock_offset(struct super_block *sb,
 					     unsigned int xattr_id)
 {
-	return (xattr_id * sizeof(__u32)) % EROFS_BLKSIZ;
+	return (xattr_id * sizeof(__u32)) % sb->s_blocksize;
 }
 
 #ifdef CONFIG_EROFS_FS_XATTR

@@ -26,6 +26,20 @@ void _trace_android_vh_record_pcpu_rwsem_starttime(struct task_struct *tsk,
 }
 EXPORT_SYMBOL_GPL(_trace_android_vh_record_pcpu_rwsem_starttime);
 
+/*
+ * trace_android_vh_record_pcpu_rwsem_time_early is called in
+ * include/linux/percpu-rwsem.h by including include/hooks/dtask.h, which
+ * will result to build-err. So we create
+ * func: _trace_android_vh_record_pcpu_rwsem_time_early for percpu-rwsem.h to call.
+*/
+
+void _trace_android_vh_record_pcpu_rwsem_time_early(
+		unsigned long settime, struct percpu_rw_semaphore *sem)
+{
+	trace_android_vh_record_pcpu_rwsem_time_early(settime, sem);
+}
+EXPORT_SYMBOL_GPL(_trace_android_vh_record_pcpu_rwsem_time_early);
+
 int __percpu_init_rwsem(struct percpu_rw_semaphore *sem,
 			const char *name, struct lock_class_key *key)
 {
@@ -167,6 +181,7 @@ static void percpu_rwsem_wait(struct percpu_rw_semaphore *sem, bool reader)
 	if (wait) {
 		wq_entry.flags |= WQ_FLAG_EXCLUSIVE | reader * WQ_FLAG_CUSTOM;
 		__add_wait_queue_entry_tail(&sem->waiters, &wq_entry);
+		trace_android_vh_percpu_rwsem_wq_add(sem, reader);
 	}
 	spin_unlock_irq(&sem->waiters.lock);
 
@@ -242,6 +257,8 @@ void __sched percpu_down_write(struct percpu_rw_semaphore *sem)
 	rwsem_acquire(&sem->dep_map, 0, 0, _RET_IP_);
 	trace_contention_begin(sem, LCB_F_PERCPU | LCB_F_WRITE);
 
+	trace_android_vh_record_pcpu_rwsem_time_early(jiffies, sem);
+
 	/* Notify readers to take the slow path. */
 	rcu_sync_enter(&sem->rss);
 
@@ -294,6 +311,7 @@ void percpu_up_write(struct percpu_rw_semaphore *sem)
 	 * exclusive write lock because its counting.
 	 */
 	rcu_sync_exit(&sem->rss);
+	trace_android_vh_record_pcpu_rwsem_time_early(0, sem);
 	trace_android_vh_record_pcpu_rwsem_starttime(current, 0);
 }
 EXPORT_SYMBOL_GPL(percpu_up_write);

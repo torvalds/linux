@@ -807,6 +807,7 @@
   blk_bio_list_merge
   blk_execute_rq
   blk_execute_rq_nowait
+  blk_fill_rwbs
   blk_mq_alloc_request
   blk_mq_alloc_sq_tag_set
   blk_mq_alloc_tag_set

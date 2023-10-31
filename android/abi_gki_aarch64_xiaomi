@@ -332,3 +332,12 @@
 #required by xm_ispv4_pcie.ko
   pci_ioremap_bar
   pci_disable_pcie_error_reporting
+
+#required by lock_optimization module
+  __traceiter_android_vh_record_pcpu_rwsem_time_early
+  __tracepoint_android_vh_record_pcpu_rwsem_time_early
+  cgroup_threadgroup_rwsem
+
+#required by zram.ko
+  bioset_init
+  bioset_exit
