@@ -144,18 +144,19 @@ static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 
 	scan_req = &hif_drv->usr_scan_req;
 	if (scan_req->scan_result) {
-		scan_req->scan_result(evt, NULL, scan_req->arg);
+		scan_req->scan_result(evt, NULL, scan_req->priv);
 		scan_req->scan_result = NULL;
 	}
 
 	return result;
 }
 
-int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
-	      u8 *ch_freq_list, u8 ch_list_len,
+int wilc_scan(struct wilc_vif *vif, u8 scan_source,
+	      u8 scan_type, u8 *ch_freq_list,
 	      void (*scan_result_fn)(enum scan_event,
-				     struct wilc_rcvd_net_info *, void *),
-	      void *user_arg, struct cfg80211_scan_request *request)
+				     struct wilc_rcvd_net_info *,
+				     struct wilc_priv *),
+	      struct cfg80211_scan_request *request)
 {
 	int result = 0;
 	struct wid wid_list[WILC_SCAN_WID_LIST_SIZE];
@@ -164,6 +165,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	u8 *buffer;
 	u8 valuesize = 0;
 	u8 *search_ssid_vals = NULL;
+	const u8 ch_list_len = request->n_channels;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (hif_drv->hif_state >= HOST_IF_SCANNING &&
@@ -249,7 +251,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	index++;
 
 	hif_drv->usr_scan_req.scan_result = scan_result_fn;
-	hif_drv->usr_scan_req.arg = user_arg;
+	hif_drv->usr_scan_req.priv = &vif->priv;
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list, index);
 	if (result) {
@@ -546,7 +548,7 @@ static void handle_rcvd_ntwrk_info(struct work_struct *work)
 
 	if (scan_req->scan_result)
 		scan_req->scan_result(SCAN_EVENT_NETWORK_FOUND, rcvd_info,
-				      scan_req->arg);
+				      scan_req->priv);
 
 done:
 	kfree(rcvd_info->mgmt);
@@ -730,7 +732,7 @@ int wilc_disconnect(struct wilc_vif *vif)
 
 	if (scan_req->scan_result) {
 		del_timer(&hif_drv->scan_timer);
-		scan_req->scan_result(SCAN_EVENT_ABORTED, NULL, scan_req->arg);
+		scan_req->scan_result(SCAN_EVENT_ABORTED, NULL, scan_req->priv);
 		scan_req->scan_result = NULL;
 	}
 
@@ -1539,7 +1541,7 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED, NULL,
-						  hif_drv->usr_scan_req.arg);
+						  hif_drv->usr_scan_req.priv);
 		hif_drv->usr_scan_req.scan_result = NULL;
 	}
 

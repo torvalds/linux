@@ -98,8 +98,9 @@ struct wilc_rcvd_net_info {
 struct wilc_priv;
 struct wilc_user_scan_req {
 	void (*scan_result)(enum scan_event evt,
-			    struct wilc_rcvd_net_info *info, void *priv);
-	void *arg;
+			    struct wilc_rcvd_net_info *info,
+			    struct wilc_priv *priv);
+	struct wilc_priv *priv;
 	u32 ch_cnt;
 };
 
@@ -172,11 +173,12 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ies,
 int wilc_disconnect(struct wilc_vif *vif);
 int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel);
 int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level);
-int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
-	      u8 *ch_freq_list, u8 ch_list_len,
+int wilc_scan(struct wilc_vif *vif, u8 scan_source,
+	      u8 scan_type, u8 *ch_freq_list,
 	      void (*scan_result_fn)(enum scan_event,
-				     struct wilc_rcvd_net_info *, void *),
-	      void *user_arg, struct cfg80211_scan_request *request);
+				     struct wilc_rcvd_net_info *,
+				     struct wilc_priv *),
+	      struct cfg80211_scan_request *request);
 int wilc_hif_set_cfg(struct wilc_vif *vif,
 		     struct cfg_param_attr *cfg_param);
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler);
