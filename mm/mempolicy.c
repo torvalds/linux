@@ -710,7 +710,7 @@ static const struct mm_walk_ops queue_pages_walk_ops = {
 
 static const struct mm_walk_ops queue_pages_lock_vma_walk_ops = {
 	.hugetlb_entry		= queue_pages_hugetlb,
-	.pmd_entry		= queue_pages_pte_range,
+	.pmd_entry		= queue_folios_pte_range,
 	.test_walk		= queue_pages_test_walk,
 	.walk_lock		= PGWALK_WRLOCK,
 };
