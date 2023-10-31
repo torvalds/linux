@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+struct cea_sad;
+
 /* ELD Header Block */
 #define DRM_ELD_HEADER_BLOCK_SIZE	4
 
@@ -74,6 +76,9 @@ static inline int drm_eld_mnl(const u8 *eld)
 {
 	return (eld[DRM_ELD_CEA_EDID_VER_MNL] & DRM_ELD_MNL_MASK) >> DRM_ELD_MNL_SHIFT;
 }
+
+int drm_eld_sad_get(const u8 *eld, int sad_index, struct cea_sad *cta_sad);
+int drm_eld_sad_set(u8 *eld, int sad_index, const struct cea_sad *cta_sad);
 
 /**
  * drm_eld_sad - Get ELD SAD structures.
