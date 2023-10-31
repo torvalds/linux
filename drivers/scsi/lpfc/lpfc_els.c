@@ -2128,8 +2128,8 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 						NLP_EVT_DEVICE_RM);
 	} else {
 		/* Good status, call state machine */
-		prsp = list_entry(cmdiocb->cmd_dmabuf->list.next,
-				  struct lpfc_dmabuf, list);
+		prsp = list_get_first(&cmdiocb->cmd_dmabuf->list,
+				      struct lpfc_dmabuf, list);
 		if (!prsp)
 			goto out;
 		if (!lpfc_is_els_acc_rsp(prsp))
