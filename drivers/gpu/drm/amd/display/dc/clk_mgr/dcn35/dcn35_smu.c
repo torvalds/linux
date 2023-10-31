@@ -116,6 +116,9 @@ static uint32_t dcn35_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, un
 			msleep(delay_us/1000);
 		else if (delay_us > 0)
 			udelay(delay_us);
+
+		if (clk_mgr->base.ctx->dc->debug.disable_timeout)
+			max_retries++;
 	} while (max_retries--);
 
 	return res_val;
