@@ -26,7 +26,6 @@
 
 #define DRV_NAME "acp_i2s_playcap"
 #define	I2S_MASTER_MODE_ENABLE		1
-#define	I2S_MODE_ENABLE			0
 #define	LRCLK_DIV_FIELD			GENMASK(10, 2)
 #define	BCLK_DIV_FIELD			GENMASK(23, 11)
 #define	ACP63_LRCLK_DIV_FIELD		GENMASK(12, 2)
@@ -56,7 +55,8 @@ static inline void acp_set_i2s_clk(struct acp_dev_data *adata, int dai_id)
 	}
 
 	val  = I2S_MASTER_MODE_ENABLE;
-	val |= I2S_MODE_ENABLE & BIT(1);
+	if (adata->tdm_mode)
+		val |= BIT(1);
 
 	switch (chip->acp_rev) {
 	case ACP63_DEV:
