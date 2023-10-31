@@ -4,6 +4,7 @@
 #include <test_progs.h>
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
+#include "iters_css_task.skel.h"
 #include "cgroup_iter.skel.h"
 #include "cgroup_helpers.h"
 
@@ -263,6 +264,35 @@ close_cgrp:
 	close(cgrp_fd);
 }
 
+static void test_walk_self_only_css_task(void)
+{
+	struct iters_css_task *skel;
+	int err;
+
+	skel = iters_css_task__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	bpf_program__set_autoload(skel->progs.cgroup_id_printer, true);
+
+	err = iters_css_task__load(skel);
+	if (!ASSERT_OK(err, "skel_load"))
+		goto cleanup;
+
+	err = join_cgroup(cg_path[CHILD2]);
+	if (!ASSERT_OK(err, "join_cgroup"))
+		goto cleanup;
+
+	skel->bss->target_pid = getpid();
+	snprintf(expected_output, sizeof(expected_output),
+		PROLOGUE "%8llu\n" EPILOGUE, cg_id[CHILD2]);
+	read_from_cgroup_iter(skel->progs.cgroup_id_printer, cg_fd[CHILD2],
+		BPF_CGROUP_ITER_SELF_ONLY, "test_walk_self_only_css_task");
+	ASSERT_EQ(skel->bss->css_task_cnt, 1, "css_task_cnt");
+cleanup:
+	iters_css_task__destroy(skel);
+}
+
 void test_cgroup_iter(void)
 {
 	struct cgroup_iter *skel = NULL;
@@ -293,6 +323,9 @@ void test_cgroup_iter(void)
 		test_walk_self_only(skel);
 	if (test__start_subtest("cgroup_iter__dead_self_only"))
 		test_walk_dead_self_only(skel);
+	if (test__start_subtest("cgroup_iter__self_only_css_task"))
+		test_walk_self_only_css_task();
+
 out:
 	cgroup_iter__destroy(skel);
 	cleanup_cgroups();

@@ -10,6 +10,7 @@
 
 char _license[] SEC("license") = "GPL";
 
+struct cgroup *bpf_cgroup_acquire(struct cgroup *p) __ksym;
 struct cgroup *bpf_cgroup_from_id(u64 cgid) __ksym;
 void bpf_cgroup_release(struct cgroup *p) __ksym;
 
@@ -44,4 +45,47 @@ int BPF_PROG(iter_css_task_for_each, struct vm_area_struct *vma,
 	bpf_cgroup_release(cgrp);
 
 	return -EPERM;
+}
+
+static inline u64 cgroup_id(struct cgroup *cgrp)
+{
+	return cgrp->kn->id;
+}
+
+SEC("?iter/cgroup")
+int cgroup_id_printer(struct bpf_iter__cgroup *ctx)
+{
+	struct seq_file *seq = ctx->meta->seq;
+	struct cgroup *cgrp, *acquired;
+	struct cgroup_subsys_state *css;
+	struct task_struct *task;
+	u64 cgrp_id;
+
+	cgrp = ctx->cgroup;
+
+	/* epilogue */
+	if (cgrp == NULL) {
+		BPF_SEQ_PRINTF(seq, "epilogue\n");
+		return 0;
+	}
+
+	/* prologue */
+	if (ctx->meta->seq_num == 0)
+		BPF_SEQ_PRINTF(seq, "prologue\n");
+
+	cgrp_id = cgroup_id(cgrp);
+
+	BPF_SEQ_PRINTF(seq, "%8llu\n", cgrp_id);
+
+	acquired = bpf_cgroup_from_id(cgrp_id);
+	if (!acquired)
+		return 0;
+	css = &acquired->self;
+	css_task_cnt = 0;
+	bpf_for_each(css_task, task, css, CSS_TASK_ITER_PROCS) {
+		if (task->pid == target_pid)
+			css_task_cnt++;
+	}
+	bpf_cgroup_release(acquired);
+	return 0;
 }
