@@ -1495,13 +1495,9 @@ static enum d_walk_ret select_collect(void *_data, struct dentry *dentry)
 
 	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
 		data->found++;
-	} else {
-		if (dentry->d_flags & DCACHE_LRU_LIST)
-			d_lru_del(dentry);
-		if (!dentry->d_lockref.count) {
-			d_shrink_add(dentry, &data->dispose);
-			data->found++;
-		}
+	} else if (!dentry->d_lockref.count) {
+		to_shrink_list(dentry, &data->dispose);
+		data->found++;
 	}
 	/*
 	 * We can return to the caller if we have found some (this
@@ -1522,17 +1518,13 @@ static enum d_walk_ret select_collect2(void *_data, struct dentry *dentry)
 	if (data->start == dentry)
 		goto out;
 
-	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
-		if (!dentry->d_lockref.count) {
+	if (!dentry->d_lockref.count) {
+		if (dentry->d_flags & DCACHE_SHRINK_LIST) {
 			rcu_read_lock();
 			data->victim = dentry;
 			return D_WALK_QUIT;
 		}
-	} else {
-		if (dentry->d_flags & DCACHE_LRU_LIST)
-			d_lru_del(dentry);
-		if (!dentry->d_lockref.count)
-			d_shrink_add(dentry, &data->dispose);
+		to_shrink_list(dentry, &data->dispose);
 	}
 	/*
 	 * We can return to the caller if we have found some (this
