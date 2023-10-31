@@ -323,19 +323,19 @@ bool card_update_tsf(struct vnt_private *priv, unsigned char rx_rate,
 bool card_set_beacon_period(struct vnt_private *priv,
 			  unsigned short beacon_interval)
 {
-	u64 qwNextTBTT;
+	u64 next_tbtt;
 
-	qwNextTBTT = vt6655_get_current_tsf(priv); /* Get Local TSF counter */
+	next_tbtt = vt6655_get_current_tsf(priv); /* Get Local TSF counter */
 
-	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, beacon_interval);
+	next_tbtt = CARDqGetNextTBTT(next_tbtt, beacon_interval);
 
 	/* set HW beacon interval */
 	iowrite16(beacon_interval, priv->port_offset + MAC_REG_BI);
 	priv->beacon_interval = beacon_interval;
 	/* Set NextTBTT */
-	qwNextTBTT =  le64_to_cpu(qwNextTBTT);
-	iowrite32((u32)qwNextTBTT, priv->port_offset + MAC_REG_NEXTTBTT);
-	iowrite32((u32)(qwNextTBTT >> 32), priv->port_offset + MAC_REG_NEXTTBTT + 4);
+	next_tbtt =  le64_to_cpu(next_tbtt);
+	iowrite32((u32)next_tbtt, priv->port_offset + MAC_REG_NEXTTBTT);
+	iowrite32((u32)(next_tbtt >> 32), priv->port_offset + MAC_REG_NEXTTBTT + 4);
 	vt6655_mac_reg_bits_on(priv->port_offset, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
 
 	return true;
@@ -795,15 +795,15 @@ void CARDvSetFirstNextTBTT(struct vnt_private *priv,
 			   unsigned short beacon_interval)
 {
 	void __iomem *iobase = priv->port_offset;
-	u64 qwNextTBTT;
+	u64 next_tbtt;
 
-	qwNextTBTT = vt6655_get_current_tsf(priv); /* Get Local TSF counter */
+	next_tbtt = vt6655_get_current_tsf(priv); /* Get Local TSF counter */
 
-	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, beacon_interval);
+	next_tbtt = CARDqGetNextTBTT(next_tbtt, beacon_interval);
 	/* Set NextTBTT */
-	qwNextTBTT =  le64_to_cpu(qwNextTBTT);
-	iowrite32((u32)qwNextTBTT, iobase + MAC_REG_NEXTTBTT);
-	iowrite32((u32)(qwNextTBTT >> 32), iobase + MAC_REG_NEXTTBTT + 4);
+	next_tbtt =  le64_to_cpu(next_tbtt);
+	iowrite32((u32)next_tbtt, iobase + MAC_REG_NEXTTBTT);
+	iowrite32((u32)(next_tbtt >> 32), iobase + MAC_REG_NEXTTBTT + 4);
 	vt6655_mac_reg_bits_on(iobase, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
 }
 
