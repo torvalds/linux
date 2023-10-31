@@ -388,10 +388,10 @@ void card_safe_reset_tx(struct vnt_private *priv)
 	struct vnt_tx_desc *curr_td;
 
 	/* initialize TD index */
-	priv->apTailTD[0] = &priv->apTD0Rings[0];
+	priv->tail_td[0] = &priv->apTD0Rings[0];
 	priv->apCurrTD[0] = &priv->apTD0Rings[0];
 
-	priv->apTailTD[1] = &priv->apTD1Rings[0];
+	priv->tail_td[1] = &priv->apTD1Rings[0];
 	priv->apCurrTD[1] = &priv->apTD1Rings[0];
 
 	for (uu = 0; uu < TYPE_MAXTD; uu++)
