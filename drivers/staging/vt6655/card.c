@@ -382,7 +382,7 @@ void card_radio_power_off(struct vnt_private *priv)
 	vt6655_mac_reg_bits_on(priv->port_offset, MAC_REG_GPIOCTL0, LED_ACTSET);  /* LED issue */
 }
 
-void CARDvSafeResetTx(struct vnt_private *priv)
+void card_safe_reset_tx(struct vnt_private *priv)
 {
 	unsigned int uu;
 	struct vnt_tx_desc *pCurrTD;
