@@ -40,9 +40,6 @@ enum {
 	VERBOSE_STATUS = 1 /* make it zero to save 400 bytes kernel memory */
 };
 
-static LIST_HEAD(entries);
-static int enabled = 1;
-
 enum {Enabled, Magic};
 #define MISC_FMT_PRESERVE_ARGV0 (1UL << 31)
 #define MISC_FMT_OPEN_BINARY (1UL << 30)
@@ -60,12 +57,10 @@ typedef struct {
 	char *name;
 	struct dentry *dentry;
 	struct file *interp_file;
+	refcount_t users;		/* sync removal with load_misc_binary() */
 } Node;
 
-static DEFINE_RWLOCK(entries_lock);
 static struct file_system_type bm_fs_type;
-static struct vfsmount *bm_mnt;
-static int entry_count;
 
 /*
  * Max length of the register string.  Determined by:
@@ -82,19 +77,24 @@ static int entry_count;
  */
 #define MAX_REGISTER_LENGTH 1920
 
-/*
- * Check if we support the binfmt
- * if we do, return the node, else NULL
- * locking is done in load_misc_binary
+/**
+ * search_binfmt_handler - search for a binary handler for @bprm
+ * @misc: handle to binfmt_misc instance
+ * @bprm: binary for which we are looking for a handler
+ *
+ * Search for a binary type handler for @bprm in the list of registered binary
+ * type handlers.
+ *
+ * Return: binary type list entry on success, NULL on failure
  */
-static Node *check_file(struct linux_binprm *bprm)
+static Node *search_binfmt_handler(struct binfmt_misc *misc,
+				   struct linux_binprm *bprm)
 {
 	char *p = strrchr(bprm->interp, '.');
-	struct list_head *l;
+	Node *e;
 
 	/* Walk all the registered handlers. */
-	list_for_each(l, &entries) {
-		Node *e = list_entry(l, Node, list);
+	list_for_each_entry(e, &misc->entries, list) {
 		char *s;
 		int j;
 
@@ -123,7 +123,77 @@ static Node *check_file(struct linux_binprm *bprm)
 		if (j == e->size)
 			return e;
 	}
+
 	return NULL;
+}
+
+/**
+ * get_binfmt_handler - try to find a binary type handler
+ * @misc: handle to binfmt_misc instance
+ * @bprm: binary for which we are looking for a handler
+ *
+ * Try to find a binfmt handler for the binary type. If one is found take a
+ * reference to protect against removal via bm_{entry,status}_write().
+ *
+ * Return: binary type list entry on success, NULL on failure
+ */
+static Node *get_binfmt_handler(struct binfmt_misc *misc,
+				struct linux_binprm *bprm)
+{
+	Node *e;
+
+	read_lock(&misc->entries_lock);
+	e = search_binfmt_handler(misc, bprm);
+	if (e)
+		refcount_inc(&e->users);
+	read_unlock(&misc->entries_lock);
+	return e;
+}
+
+/**
+ * put_binfmt_handler - put binary handler node
+ * @e: node to put
+ *
+ * Free node syncing with load_misc_binary() and defer final free to
+ * load_misc_binary() in case it is using the binary type handler we were
+ * requested to remove.
+ */
+static void put_binfmt_handler(Node *e)
+{
+	if (refcount_dec_and_test(&e->users)) {
+		if (e->flags & MISC_FMT_OPEN_FILE)
+			filp_close(e->interp_file, NULL);
+		kfree(e);
+	}
+}
+
+/**
+ * load_binfmt_misc - load the binfmt_misc of the caller's user namespace
+ *
+ * To be called in load_misc_binary() to load the relevant struct binfmt_misc.
+ * If a user namespace doesn't have its own binfmt_misc mount it can make use
+ * of its ancestor's binfmt_misc handlers. This mimicks the behavior of
+ * pre-namespaced binfmt_misc where all registered binfmt_misc handlers where
+ * available to all user and user namespaces on the system.
+ *
+ * Return: the binfmt_misc instance of the caller's user namespace
+ */
+static struct binfmt_misc *load_binfmt_misc(void)
+{
+	const struct user_namespace *user_ns;
+	struct binfmt_misc *misc;
+
+	user_ns = current_user_ns();
+	while (user_ns) {
+		/* Pairs with smp_store_release() in bm_fill_super(). */
+		misc = smp_load_acquire(&user_ns->binfmt_misc);
+		if (misc)
+			return misc;
+
+		user_ns = user_ns->parent;
+	}
+
+	return &init_binfmt_misc;
 }
 
 /*
@@ -133,18 +203,14 @@ static int load_misc_binary(struct linux_binprm *bprm)
 {
 	Node *fmt;
 	struct file *interp_file = NULL;
-	int retval;
+	int retval = -ENOEXEC;
+	struct binfmt_misc *misc;
 
-	retval = -ENOEXEC;
-	if (!enabled)
+	misc = load_binfmt_misc();
+	if (!misc->enabled)
 		return retval;
 
-	/* to keep locking time low, we copy the interpreter string */
-	read_lock(&entries_lock);
-	fmt = check_file(bprm);
-	if (fmt)
-		dget(fmt->dentry);
-	read_unlock(&entries_lock);
+	fmt = get_binfmt_handler(misc, bprm);
 	if (!fmt)
 		return retval;
 
@@ -198,7 +264,16 @@ static int load_misc_binary(struct linux_binprm *bprm)
 
 	retval = 0;
 ret:
-	dput(fmt->dentry);
+
+	/*
+	 * If we actually put the node here all concurrent calls to
+	 * load_misc_binary() will have finished. We also know
+	 * that for the refcount to be zero someone must have concurently
+	 * removed the binary type handler from the list and it's our job to
+	 * free it.
+	 */
+	put_binfmt_handler(fmt);
+
 	return retval;
 }
 
@@ -287,7 +362,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 
 	err = -ENOMEM;
 	memsize = sizeof(Node) + count + 8;
-	e = kmalloc(memsize, GFP_KERNEL);
+	e = kmalloc(memsize, GFP_KERNEL_ACCOUNT);
 	if (!e)
 		goto out;
 
@@ -399,7 +474,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 
 			if (e->mask) {
 				int i;
-				char *masked = kmalloc(e->size, GFP_KERNEL);
+				char *masked = kmalloc(e->size, GFP_KERNEL_ACCOUNT);
 
 				print_hex_dump_bytes(
 					KBUILD_MODNAME ": register:  mask[decoded]: ",
@@ -552,30 +627,109 @@ static struct inode *bm_get_inode(struct super_block *sb, int mode)
 	return inode;
 }
 
+/**
+ * i_binfmt_misc - retrieve struct binfmt_misc from a binfmt_misc inode
+ * @inode: inode of the relevant binfmt_misc instance
+ *
+ * This helper retrieves struct binfmt_misc from a binfmt_misc inode. This can
+ * be done without any memory barriers because we are guaranteed that
+ * user_ns->binfmt_misc is fully initialized. It was fully initialized when the
+ * binfmt_misc mount was first created.
+ *
+ * Return: struct binfmt_misc of the relevant binfmt_misc instance
+ */
+static struct binfmt_misc *i_binfmt_misc(struct inode *inode)
+{
+	return inode->i_sb->s_user_ns->binfmt_misc;
+}
+
+/**
+ * bm_evict_inode - cleanup data associated with @inode
+ * @inode: inode to which the data is attached
+ *
+ * Cleanup the binary type handler data associated with @inode if a binary type
+ * entry is removed or the filesystem is unmounted and the super block is
+ * shutdown.
+ *
+ * If the ->evict call was not caused by a super block shutdown but by a write
+ * to remove the entry or all entries via bm_{entry,status}_write() the entry
+ * will have already been removed from the list. We keep the list_empty() check
+ * to make that explicit.
+*/
 static void bm_evict_inode(struct inode *inode)
 {
 	Node *e = inode->i_private;
 
-	if (e && e->flags & MISC_FMT_OPEN_FILE)
-		filp_close(e->interp_file, NULL);
-
 	clear_inode(inode);
-	kfree(e);
+
+	if (e) {
+		struct binfmt_misc *misc;
+
+		misc = i_binfmt_misc(inode);
+		write_lock(&misc->entries_lock);
+		if (!list_empty(&e->list))
+			list_del_init(&e->list);
+		write_unlock(&misc->entries_lock);
+		put_binfmt_handler(e);
+	}
 }
 
-static void kill_node(Node *e)
+/**
+ * unlink_binfmt_dentry - remove the dentry for the binary type handler
+ * @dentry: dentry associated with the binary type handler
+ *
+ * Do the actual filesystem work to remove a dentry for a registered binary
+ * type handler. Since binfmt_misc only allows simple files to be created
+ * directly under the root dentry of the filesystem we ensure that we are
+ * indeed passed a dentry directly beneath the root dentry, that the inode
+ * associated with the root dentry is locked, and that it is a regular file we
+ * are asked to remove.
+ */
+static void unlink_binfmt_dentry(struct dentry *dentry)
 {
-	struct dentry *dentry;
+	struct dentry *parent = dentry->d_parent;
+	struct inode *inode, *parent_inode;
 
-	write_lock(&entries_lock);
+	/* All entries are immediate descendants of the root dentry. */
+	if (WARN_ON_ONCE(dentry->d_sb->s_root != parent))
+		return;
+
+	/* We only expect to be called on regular files. */
+	inode = d_inode(dentry);
+	if (WARN_ON_ONCE(!S_ISREG(inode->i_mode)))
+		return;
+
+	/* The parent inode must be locked. */
+	parent_inode = d_inode(parent);
+	if (WARN_ON_ONCE(!inode_is_locked(parent_inode)))
+		return;
+
+	if (simple_positive(dentry)) {
+		dget(dentry);
+		simple_unlink(parent_inode, dentry);
+		d_delete(dentry);
+		dput(dentry);
+	}
+}
+
+/**
+ * remove_binfmt_handler - remove a binary type handler
+ * @misc: handle to binfmt_misc instance
+ * @e: binary type handler to remove
+ *
+ * Remove a binary type handler from the list of binary type handlers and
+ * remove its associated dentry. This is called from
+ * binfmt_{entry,status}_write(). In the future, we might want to think about
+ * adding a proper ->unlink() method to binfmt_misc instead of forcing caller's
+ * to use writes to files in order to delete binary type handlers. But it has
+ * worked for so long that it's not a pressing issue.
+ */
+static void remove_binfmt_handler(struct binfmt_misc *misc, Node *e)
+{
+	write_lock(&misc->entries_lock);
 	list_del_init(&e->list);
-	write_unlock(&entries_lock);
-
-	dentry = e->dentry;
-	drop_nlink(d_inode(dentry));
-	d_drop(dentry);
-	dput(dentry);
-	simple_release_fs(&bm_mnt, &entry_count);
+	write_unlock(&misc->entries_lock);
+	unlink_binfmt_dentry(e->dentry);
 }
 
 /* /<entry> */
@@ -602,8 +756,8 @@ bm_entry_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
-	struct dentry *root;
-	Node *e = file_inode(file)->i_private;
+	struct inode *inode = file_inode(file);
+	Node *e = inode->i_private;
 	int res = parse_command(buffer, count);
 
 	switch (res) {
@@ -617,13 +771,22 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 		break;
 	case 3:
 		/* Delete this handler. */
-		root = file_inode(file)->i_sb->s_root;
-		inode_lock(d_inode(root));
+		inode = d_inode(inode->i_sb->s_root);
+		inode_lock(inode);
 
+		/*
+		 * In order to add new element or remove elements from the list
+		 * via bm_{entry,register,status}_write() inode_lock() on the
+		 * root inode must be held.
+		 * The lock is exclusive ensuring that the list can't be
+		 * modified. Only load_misc_binary() can access but does so
+		 * read-only. So we only need to take the write lock when we
+		 * actually remove the entry from the list.
+		 */
 		if (!list_empty(&e->list))
-			kill_node(e);
+			remove_binfmt_handler(i_binfmt_misc(inode), e);
 
-		inode_unlock(d_inode(root));
+		inode_unlock(inode);
 		break;
 	default:
 		return res;
@@ -647,6 +810,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 	struct inode *inode;
 	struct super_block *sb = file_inode(file)->i_sb;
 	struct dentry *root = sb->s_root, *dentry;
+	struct binfmt_misc *misc;
 	int err = 0;
 	struct file *f = NULL;
 
@@ -656,7 +820,18 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 		return PTR_ERR(e);
 
 	if (e->flags & MISC_FMT_OPEN_FILE) {
+		const struct cred *old_cred;
+
+		/*
+		 * Now that we support unprivileged binfmt_misc mounts make
+		 * sure we use the credentials that the register @file was
+		 * opened with to also open the interpreter. Before that this
+		 * didn't matter much as only a privileged process could open
+		 * the register file.
+		 */
+		old_cred = override_creds(file->f_cred);
 		f = open_exec(e->interpreter);
+		revert_creds(old_cred);
 		if (IS_ERR(f)) {
 			pr_notice("register: failed to install interpreter file %s\n",
 				 e->interpreter);
@@ -682,21 +857,16 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 	if (!inode)
 		goto out2;
 
-	err = simple_pin_fs(&bm_fs_type, &bm_mnt, &entry_count);
-	if (err) {
-		iput(inode);
-		inode = NULL;
-		goto out2;
-	}
-
+	refcount_set(&e->users, 1);
 	e->dentry = dget(dentry);
 	inode->i_private = e;
 	inode->i_fop = &bm_entry_operations;
 
 	d_instantiate(dentry, inode);
-	write_lock(&entries_lock);
-	list_add(&e->list, &entries);
-	write_unlock(&entries_lock);
+	misc = i_binfmt_misc(inode);
+	write_lock(&misc->entries_lock);
+	list_add(&e->list, &misc->entries);
+	write_unlock(&misc->entries_lock);
 
 	err = 0;
 out2:
@@ -723,35 +893,50 @@ static const struct file_operations bm_register_operations = {
 static ssize_t
 bm_status_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	char *s = enabled ? "enabled\n" : "disabled\n";
+	struct binfmt_misc *misc;
+	char *s;
 
+	misc = i_binfmt_misc(file_inode(file));
+	s = misc->enabled ? "enabled\n" : "disabled\n";
 	return simple_read_from_buffer(buf, nbytes, ppos, s, strlen(s));
 }
 
 static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
+	struct binfmt_misc *misc;
 	int res = parse_command(buffer, count);
-	struct dentry *root;
+	Node *e, *next;
+	struct inode *inode;
 
+	misc = i_binfmt_misc(file_inode(file));
 	switch (res) {
 	case 1:
 		/* Disable all handlers. */
-		enabled = 0;
+		misc->enabled = false;
 		break;
 	case 2:
 		/* Enable all handlers. */
-		enabled = 1;
+		misc->enabled = true;
 		break;
 	case 3:
 		/* Delete all handlers. */
-		root = file_inode(file)->i_sb->s_root;
-		inode_lock(d_inode(root));
+		inode = d_inode(file_inode(file)->i_sb->s_root);
+		inode_lock(inode);
 
-		while (!list_empty(&entries))
-			kill_node(list_first_entry(&entries, Node, list));
+		/*
+		 * In order to add new element or remove elements from the list
+		 * via bm_{entry,register,status}_write() inode_lock() on the
+		 * root inode must be held.
+		 * The lock is exclusive ensuring that the list can't be
+		 * modified. Only load_misc_binary() can access but does so
+		 * read-only. So we only need to take the write lock when we
+		 * actually remove the entry from the list.
+		 */
+		list_for_each_entry_safe(e, next, &misc->entries, list)
+			remove_binfmt_handler(misc, e);
 
-		inode_unlock(d_inode(root));
+		inode_unlock(inode);
 		break;
 	default:
 		return res;
@@ -768,19 +953,80 @@ static const struct file_operations bm_status_operations = {
 
 /* Superblock handling */
 
+static void bm_put_super(struct super_block *sb)
+{
+	struct user_namespace *user_ns = sb->s_fs_info;
+
+	sb->s_fs_info = NULL;
+	put_user_ns(user_ns);
+}
+
 static const struct super_operations s_ops = {
 	.statfs		= simple_statfs,
 	.evict_inode	= bm_evict_inode,
+	.put_super	= bm_put_super,
 };
 
 static int bm_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	int err;
+	struct user_namespace *user_ns = sb->s_user_ns;
+	struct binfmt_misc *misc;
 	static const struct tree_descr bm_files[] = {
 		[2] = {"status", &bm_status_operations, S_IWUSR|S_IRUGO},
 		[3] = {"register", &bm_register_operations, S_IWUSR},
 		/* last one */ {""}
 	};
+
+	if (WARN_ON(user_ns != current_user_ns()))
+		return -EINVAL;
+
+	/*
+	 * Lazily allocate a new binfmt_misc instance for this namespace, i.e.
+	 * do it here during the first mount of binfmt_misc. We don't need to
+	 * waste memory for every user namespace allocation. It's likely much
+	 * more common to not mount a separate binfmt_misc instance than it is
+	 * to mount one.
+	 *
+	 * While multiple superblocks can exist they are keyed by userns in
+	 * s_fs_info for binfmt_misc. Hence, the vfs guarantees that
+	 * bm_fill_super() is called exactly once whenever a binfmt_misc
+	 * superblock for a userns is created. This in turn lets us conclude
+	 * that when a binfmt_misc superblock is created for the first time for
+	 * a userns there's no one racing us. Therefore we don't need any
+	 * barriers when we dereference binfmt_misc.
+	 */
+	misc = user_ns->binfmt_misc;
+	if (!misc) {
+		/*
+		 * If it turns out that most user namespaces actually want to
+		 * register their own binary type handler and therefore all
+		 * create their own separate binfm_misc mounts we should
+		 * consider turning this into a kmem cache.
+		 */
+		misc = kzalloc(sizeof(struct binfmt_misc), GFP_KERNEL);
+		if (!misc)
+			return -ENOMEM;
+
+		INIT_LIST_HEAD(&misc->entries);
+		rwlock_init(&misc->entries_lock);
+
+		/* Pairs with smp_load_acquire() in load_binfmt_misc(). */
+		smp_store_release(&user_ns->binfmt_misc, misc);
+	}
+
+	/*
+	 * When the binfmt_misc superblock for this userns is shutdown
+	 * ->enabled might have been set to false and we don't reinitialize
+	 * ->enabled again in put_super() as someone might already be mounting
+	 * binfmt_misc again. It also would be pointless since by the time
+	 * ->put_super() is called we know that the binary type list for this
+	 * bintfmt_misc mount is empty making load_misc_binary() return
+	 * -ENOEXEC independent of whether ->enabled is true. Instead, if
+	 * someone mounts binfmt_misc for the first time or again we simply
+	 * reset ->enabled to true.
+	 */
+	misc->enabled = true;
 
 	err = simple_fill_super(sb, BINFMTFS_MAGIC, bm_files);
 	if (!err)
@@ -788,12 +1034,19 @@ static int bm_fill_super(struct super_block *sb, struct fs_context *fc)
 	return err;
 }
 
+static void bm_free(struct fs_context *fc)
+{
+	if (fc->s_fs_info)
+		put_user_ns(fc->s_fs_info);
+}
+
 static int bm_get_tree(struct fs_context *fc)
 {
-	return get_tree_single(fc, bm_fill_super);
+	return get_tree_keyed(fc, bm_fill_super, get_user_ns(fc->user_ns));
 }
 
 static const struct fs_context_operations bm_context_ops = {
+	.free		= bm_free,
 	.get_tree	= bm_get_tree,
 };
 
@@ -812,6 +1065,7 @@ static struct file_system_type bm_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "binfmt_misc",
 	.init_fs_context = bm_init_fs_context,
+	.fs_flags	= FS_USERNS_MOUNT,
 	.kill_sb	= kill_litter_super,
 };
 MODULE_ALIAS_FS("binfmt_misc");
