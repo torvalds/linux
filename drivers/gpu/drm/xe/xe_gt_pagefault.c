@@ -542,6 +542,8 @@ unlock_vm:
 
 #define make_u64(hi__, low__)  ((u64)(hi__) << 32 | (u64)(low__))
 
+#define ACC_MSG_LEN_DW        4
+
 static int get_acc(struct acc_queue *acc_queue, struct acc *acc)
 {
 	const struct xe_guc_acc_desc *desc;
@@ -562,6 +564,9 @@ static int get_acc(struct acc_queue *acc_queue, struct acc *acc)
 		acc->access_type = FIELD_GET(ACC_TYPE, desc->dw0);
 		acc->va_range_base = make_u64(desc->dw3 & ACC_VIRTUAL_ADDR_RANGE_HI,
 					      desc->dw2 & ACC_VIRTUAL_ADDR_RANGE_LO);
+
+		acc_queue->head = (acc_queue->head + ACC_MSG_LEN_DW) %
+				  ACC_QUEUE_NUM_DW;
 	} else {
 		ret = -1;
 	}
@@ -588,8 +593,6 @@ static void acc_queue_work_func(struct work_struct *w)
 		drm_warn(&xe->drm, "ACC: Unsuccessful %d\n", ret);
 	}
 }
-
-#define ACC_MSG_LEN_DW	4
 
 static bool acc_queue_full(struct acc_queue *acc_queue)
 {
