@@ -33,13 +33,17 @@
 #define MAX31827_CONFIGURATION_O_TEMP_STAT_MASK	BIT(15)
 
 #define MAX31827_ALRM_POL_LOW	0x0
+#define MAX31827_ALRM_POL_HIGH	0x1
 #define MAX31827_FLT_Q_1	0x0
+#define MAX31827_FLT_Q_4	0x2
 
 #define MAX31827_12_BIT_CNV_TIME	140
 
 #define MAX31827_16_BIT_TO_M_DGR(x)	(sign_extend32(x, 15) * 1000 / 16)
 #define MAX31827_M_DGR_TO_16_BIT(x)	(((x) << 4) / 1000)
 #define MAX31827_DEVICE_ENABLE(x)	((x) ? 0xA : 0x0)
+
+enum chips { max31827 = 1, max31828, max31829 };
 
 enum max31827_cnv {
 	MAX31827_CNV_1_DIV_64_HZ = 1,
@@ -371,12 +375,21 @@ static int max31827_write(struct device *dev, enum hwmon_sensor_types type,
 	return -EOPNOTSUPP;
 }
 
+static const struct i2c_device_id max31827_i2c_ids[] = {
+	{ "max31827", max31827 },
+	{ "max31828", max31828 },
+	{ "max31829", max31829 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, max31827_i2c_ids);
+
 static int max31827_init_client(struct max31827_state *st,
 				struct device *dev)
 {
 	struct fwnode_handle *fwnode;
 	unsigned int res = 0;
 	u32 data, lsb_idx;
+	enum chips type;
 	bool prop;
 	int ret;
 
@@ -393,6 +406,8 @@ static int max31827_init_client(struct max31827_state *st,
 	prop = fwnode_property_read_bool(fwnode, "adi,timeout-enable");
 	res |= FIELD_PREP(MAX31827_CONFIGURATION_TIMEOUT_MASK, !prop);
 
+	type = (enum chips)(uintptr_t)device_get_match_data(dev);
+
 	if (fwnode_property_present(fwnode, "adi,alarm-pol")) {
 		ret = fwnode_property_read_u32(fwnode, "adi,alarm-pol", &data);
 		if (ret)
@@ -403,8 +418,19 @@ static int max31827_init_client(struct max31827_state *st,
 		/*
 		 * Set default value.
 		 */
-		res |= FIELD_PREP(MAX31827_CONFIGURATION_ALRM_POL_MASK,
-				  MAX31827_ALRM_POL_LOW);
+		switch (type) {
+		case max31827:
+		case max31828:
+			res |= FIELD_PREP(MAX31827_CONFIGURATION_ALRM_POL_MASK,
+					  MAX31827_ALRM_POL_LOW);
+			break;
+		case max31829:
+			res |= FIELD_PREP(MAX31827_CONFIGURATION_ALRM_POL_MASK,
+					  MAX31827_ALRM_POL_HIGH);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
 	}
 
 	if (fwnode_property_present(fwnode, "adi,fault-q")) {
@@ -428,8 +454,19 @@ static int max31827_init_client(struct max31827_state *st,
 		/*
 		 * Set default value.
 		 */
-		res |= FIELD_PREP(MAX31827_CONFIGURATION_FLT_Q_MASK,
-				  MAX31827_FLT_Q_1);
+		switch (type) {
+		case max31827:
+			res |= FIELD_PREP(MAX31827_CONFIGURATION_FLT_Q_MASK,
+					  MAX31827_FLT_Q_1);
+			break;
+		case max31828:
+		case max31829:
+			res |= FIELD_PREP(MAX31827_CONFIGURATION_FLT_Q_MASK,
+					  MAX31827_FLT_Q_4);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
 	}
 
 	return regmap_write(st->regmap, MAX31827_CONFIGURATION_REG, res);
@@ -491,14 +528,19 @@ static int max31827_probe(struct i2c_client *client)
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static const struct i2c_device_id max31827_i2c_ids[] = {
-	{ "max31827", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, max31827_i2c_ids);
-
 static const struct of_device_id max31827_of_match[] = {
-	{ .compatible = "adi,max31827" },
+	{
+		.compatible = "adi,max31827",
+		.data = (void *)max31827
+	},
+	{
+		.compatible = "adi,max31828",
+		.data = (void *)max31828
+	},
+	{
+		.compatible = "adi,max31829",
+		.data = (void *)max31829
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max31827_of_match);
