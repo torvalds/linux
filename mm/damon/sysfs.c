@@ -2188,32 +2188,45 @@ destroy_targets_out:
 	return err;
 }
 
+static int damon_sysfs_update_target_pid(struct damon_target *target, int pid)
+{
+	struct pid *pid_new;
+
+	pid_new = find_get_pid(pid);
+	if (!pid_new)
+		return -EINVAL;
+
+	if (pid_new == target->pid) {
+		put_pid(pid_new);
+		return 0;
+	}
+
+	put_pid(target->pid);
+	target->pid = pid_new;
+	return 0;
+}
+
 static int damon_sysfs_update_target(struct damon_target *target,
 		struct damon_ctx *ctx,
 		struct damon_sysfs_target *sys_target)
 {
-	struct pid *pid;
-	struct damon_region *r, *next;
+	int err;
 
-	if (!damon_target_has_pid(ctx))
-		return 0;
-
-	pid = find_get_pid(sys_target->pid);
-	if (!pid)
-		return -EINVAL;
-
-	/* no change to the target */
-	if (pid == target->pid) {
-		put_pid(pid);
-		return 0;
+	if (damon_target_has_pid(ctx)) {
+		err = damon_sysfs_update_target_pid(target, sys_target->pid);
+		if (err)
+			return err;
 	}
 
-	/* remove old monitoring results and update the target's pid */
-	damon_for_each_region_safe(r, next, target)
-		damon_destroy_region(r, target);
-	put_pid(target->pid);
-	target->pid = pid;
-	return 0;
+	/*
+	 * Do monitoring target region boundary update only if one or more
+	 * regions are set by the user.  This is for keeping current monitoring
+	 * target results and range easier, especially for dynamic monitoring
+	 * target regions update ops like 'vaddr'.
+	 */
+	if (sys_target->regions->nr)
+		err = damon_sysfs_set_regions(target, sys_target->regions);
+	return err;
 }
 
 static int damon_sysfs_set_targets(struct damon_ctx *ctx,
