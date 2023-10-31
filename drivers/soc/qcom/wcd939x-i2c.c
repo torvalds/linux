@@ -604,8 +604,7 @@ static ssize_t wcd_usbss_standby_store(struct kobject *kobj,
 static int wcd_usbss_surge_kthread_fn(void *p)
 {
 	while (!kthread_should_stop()) {
-		if (wcd_usbss_ctxt_->cable_status &&
-			wcd_usbss_ctxt_->surge_enable &&
+		if (wcd_usbss_ctxt_->surge_enable &&
 			wcd_usbss_is_in_reset_state())
 			wcd_usbss_reset_routine();
 
