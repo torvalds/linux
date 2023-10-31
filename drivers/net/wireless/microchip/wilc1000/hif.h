@@ -95,6 +95,7 @@ struct wilc_rcvd_net_info {
 	struct ieee80211_mgmt *mgmt;
 };
 
+struct wilc_priv;
 struct wilc_user_scan_req {
 	void (*scan_result)(enum scan_event evt,
 			    struct wilc_rcvd_net_info *info, void *priv);
@@ -102,20 +103,21 @@ struct wilc_user_scan_req {
 	u32 ch_cnt;
 };
 
+struct wilc_join_bss_param;
 struct wilc_conn_info {
 	u8 bssid[ETH_ALEN];
 	u8 security;
 	enum authtype auth_type;
 	enum mfptype mfp_type;
-	u8 ch;
 	u8 *req_ies;
 	size_t req_ies_len;
 	u8 *resp_ies;
 	u16 resp_ies_len;
 	u16 status;
-	void (*conn_result)(enum conn_event evt, u8 status, void *priv_data);
-	void *arg;
-	void *param;
+	void (*conn_result)(enum conn_event evt, u8 status,
+			    struct wilc_priv *priv);
+	struct wilc_priv *priv;
+	struct wilc_join_bss_param *param;
 };
 
 struct wilc_vif;
@@ -207,8 +209,9 @@ int wilc_set_external_auth_param(struct wilc_vif *vif,
 void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length);
-void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
-				struct cfg80211_crypto_settings *crypto);
+struct wilc_join_bss_param *
+wilc_parse_join_bss_param(struct cfg80211_bss *bss,
+			  struct cfg80211_crypto_settings *crypto);
 int wilc_set_default_mgmt_key_index(struct wilc_vif *vif, u8 index);
 void wilc_handle_disconnect(struct wilc_vif *vif);
 
