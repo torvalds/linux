@@ -1362,6 +1362,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART0CLK>;
+			resets = <&lpc0_reset 4>;
 			interrupts-extended = <&intc4 7>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1374,6 +1375,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART1CLK>;
+			resets = <&lpc0_reset 5>;
 			interrupts-extended = <&intc4 8>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1386,6 +1388,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART2CLK>;
+			resets = <&lpc0_reset 6>;
 			interrupts-extended = <&intc4 9>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1398,6 +1401,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART3CLK>;
+			resets = <&lpc0_reset 7>;
 			interrupts-extended = <&intc4 10>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1410,6 +1414,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART5CLK>;
+			resets = <&lpc1_reset 4>;
 			interrupts-extended = <&intc4 11>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1422,6 +1427,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART6CLK>;
+			resets = <&lpc1_reset 5>;
 			interrupts-extended = <&intc4 12>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1434,6 +1440,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART7CLK>;
+			resets = <&lpc1_reset 6>;
 			interrupts-extended = <&intc4 13>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1446,6 +1453,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART8CLK>;
+			resets = <&lpc1_reset 7>;
 			interrupts-extended = <&intc4 14>;
 			no-loopback-test;
 			pinctrl-names = "default";
