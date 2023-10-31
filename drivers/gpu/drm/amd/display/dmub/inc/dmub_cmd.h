@@ -3056,15 +3056,14 @@ struct dmub_cmd_replay_set_timing_sync_data {
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
-
-	/**
-	 * Explicit padding to 4 byte boundary.
-	 */
-	uint8_t pad[3];
 	/**
 	 * REPLAY set_timing_sync
 	 */
-	bool timing_sync_supported;
+	uint8_t timing_sync_supported;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
