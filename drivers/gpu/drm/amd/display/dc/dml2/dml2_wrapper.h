@@ -20,6 +20,8 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
 
 #ifndef _DML2_WRAPPER_H_
@@ -71,6 +73,21 @@ struct dml2_dc_callbacks {
 	bool (*build_scaling_params)(struct pipe_ctx *pipe_ctx);
 	bool (*can_support_mclk_switch_using_fw_based_vblank_stretch)(struct dc *dc, struct dc_state *context);
 	bool (*acquire_secondary_pipe_for_mpc_odm)(const struct dc *dc, struct dc_state *state, struct pipe_ctx *pri_pipe, struct pipe_ctx *sec_pipe, bool odm);
+	bool (*update_pipes_for_stream_with_slice_count)(
+			struct dc_state *new_ctx,
+			const struct dc_state *cur_ctx,
+			const struct resource_pool *pool,
+			const struct dc_stream_state *stream,
+			int new_slice_count);
+	bool (*update_pipes_for_plane_with_slice_count)(
+			struct dc_state *new_ctx,
+			const struct dc_state *cur_ctx,
+			const struct resource_pool *pool,
+			const struct dc_plane_state *plane,
+			int slice_count);
+	int (*get_odm_slice_index)(const struct pipe_ctx *opp_head);
+	int (*get_mpc_slice_index)(const struct pipe_ctx *dpp_pipe);
+	struct pipe_ctx *(*get_opp_head)(const struct pipe_ctx *pipe_ctx);
 };
 
 struct dml2_dc_svp_callbacks {
@@ -152,6 +169,7 @@ struct dml2_configuration_options {
 	struct dml2_soc_bbox_overrides bbox_overrides;
 	unsigned int max_segments_per_hubp;
 	unsigned int det_segment_size;
+	bool map_dc_pipes_with_callbacks;
 };
 
 /*

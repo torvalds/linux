@@ -99,6 +99,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.use_max_lb = true,
 		.exit_idle_opt_for_cursor_updates = true,
 		.enable_legacy_fast_update = false,
+		.using_dml2 = false,
 };
 
 static const struct dc_panel_config panel_config_defaults = {

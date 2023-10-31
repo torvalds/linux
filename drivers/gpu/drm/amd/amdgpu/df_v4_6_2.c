@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: MIT */
 /*
  * Copyright 2023 Advanced Micro Devices, Inc.
  *
@@ -20,38 +19,16 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
- *
  */
+#include "amdgpu.h"
+#include "df_v4_6_2.h"
 
-#ifndef __DCN35_DPP_H__
-#define __DCN35_DPP_H__
+static bool df_v4_6_2_query_ras_poison_mode(struct amdgpu_device *adev)
+{
+	/* return true since related regs are inaccessible */
+	return true;
+}
 
-#include "dcn32/dcn32_dpp.h"
-
-#define DPP_REG_LIST_SH_MASK_DCN35(mask_sh)  \
-	DPP_REG_LIST_SH_MASK_DCN30_COMMON(mask_sh), \
-		TF_SF(DPP_TOP0_DPP_CONTROL, DPP_FGCG_REP_DIS, mask_sh)
-
-#define DPP_REG_FIELD_LIST_DCN35(type)         \
-	struct {                               \
-		DPP_REG_FIELD_LIST_DCN3(type); \
-		type DPP_FGCG_REP_DIS;         \
-	}
-
-struct dcn35_dpp_shift {
-	DPP_REG_FIELD_LIST_DCN35(uint8_t);
+const struct amdgpu_df_funcs df_v4_6_2_funcs = {
+	.query_ras_poison_mode = df_v4_6_2_query_ras_poison_mode,
 };
-
-struct dcn35_dpp_mask {
-	DPP_REG_FIELD_LIST_DCN35(uint32_t);
-};
-
-bool dpp35_construct(struct dcn3_dpp *dpp3, struct dc_context *ctx,
-		     uint32_t inst, const struct dcn3_dpp_registers *tf_regs,
-		     const struct dcn35_dpp_shift *tf_shift,
-		     const struct dcn35_dpp_mask *tf_mask);
-
-void dpp35_set_fgcg(struct dcn3_dpp *dpp, bool enable);
-
-#endif // __DCN35_DPP_H

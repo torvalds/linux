@@ -515,10 +515,7 @@ struct ras_manager {
 	/* IH data */
 	struct ras_ih_data ih_data;
 
-	struct {
-		unsigned long ue_count;
-		unsigned long ce_count;
-	} err_data;
+	struct ras_err_data err_data;
 };
 
 struct ras_badpage {

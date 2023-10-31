@@ -584,6 +584,17 @@ void dcn31_reset_hw_ctx_wrap(
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
 
+			/* Reset pipe which is seamless boot stream. */
+			if (!pipe_ctx_old->plane_state &&
+				dc->res_pool->hubbub->funcs->program_det_size &&
+				dc->res_pool->hubbub->funcs->wait_for_det_apply) {
+				dc->res_pool->hubbub->funcs->program_det_size(
+					dc->res_pool->hubbub, pipe_ctx_old->plane_res.hubp->inst, 0);
+				/* Wait det size changed. */
+				dc->res_pool->hubbub->funcs->wait_for_det_apply(
+					dc->res_pool->hubbub, pipe_ctx_old->plane_res.hubp->inst);
+			}
+
 			dcn31_reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
 			if (hws->funcs.enable_stream_gating)
 				hws->funcs.enable_stream_gating(dc, pipe_ctx_old);

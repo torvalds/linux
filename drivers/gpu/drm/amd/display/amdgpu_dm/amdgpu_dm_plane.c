@@ -139,7 +139,7 @@ void amdgpu_dm_plane_fill_blending_from_plane_state(const struct drm_plane_state
 	}
 }
 
-static void add_modifier(uint64_t **mods, uint64_t *size, uint64_t *cap, uint64_t mod)
+static void amdgpu_dm_plane_add_modifier(uint64_t **mods, uint64_t *size, uint64_t *cap, uint64_t mod)
 {
 	if (!*mods)
 		return;
@@ -164,12 +164,12 @@ static void add_modifier(uint64_t **mods, uint64_t *size, uint64_t *cap, uint64_
 	*size += 1;
 }
 
-static bool modifier_has_dcc(uint64_t modifier)
+static bool amdgpu_dm_plane_modifier_has_dcc(uint64_t modifier)
 {
 	return IS_AMD_FMT_MOD(modifier) && AMD_FMT_MOD_GET(DCC, modifier);
 }
 
-static unsigned int modifier_gfx9_swizzle_mode(uint64_t modifier)
+static unsigned int amdgpu_dm_plane_modifier_gfx9_swizzle_mode(uint64_t modifier)
 {
 	if (modifier == DRM_FORMAT_MOD_LINEAR)
 		return 0;
@@ -177,8 +177,8 @@ static unsigned int modifier_gfx9_swizzle_mode(uint64_t modifier)
 	return AMD_FMT_MOD_GET(TILE, modifier);
 }
 
-static void fill_gfx8_tiling_info_from_flags(union dc_tiling_info *tiling_info,
-				 uint64_t tiling_flags)
+static void amdgpu_dm_plane_fill_gfx8_tiling_info_from_flags(union dc_tiling_info *tiling_info,
+							     uint64_t tiling_flags)
 {
 	/* Fill GFX8 params */
 	if (AMDGPU_TILING_GET(tiling_flags, ARRAY_MODE) == DC_ARRAY_2D_TILED_THIN1) {
@@ -209,8 +209,8 @@ static void fill_gfx8_tiling_info_from_flags(union dc_tiling_info *tiling_info,
 			AMDGPU_TILING_GET(tiling_flags, PIPE_CONFIG);
 }
 
-static void fill_gfx9_tiling_info_from_device(const struct amdgpu_device *adev,
-				  union dc_tiling_info *tiling_info)
+static void amdgpu_dm_plane_fill_gfx9_tiling_info_from_device(const struct amdgpu_device *adev,
+							      union dc_tiling_info *tiling_info)
 {
 	/* Fill GFX9 params */
 	tiling_info->gfx9.num_pipes =
@@ -230,9 +230,9 @@ static void fill_gfx9_tiling_info_from_device(const struct amdgpu_device *adev,
 		tiling_info->gfx9.num_pkrs = adev->gfx.config.gb_addr_config_fields.num_pkrs;
 }
 
-static void fill_gfx9_tiling_info_from_modifier(const struct amdgpu_device *adev,
-				    union dc_tiling_info *tiling_info,
-				    uint64_t modifier)
+static void amdgpu_dm_plane_fill_gfx9_tiling_info_from_modifier(const struct amdgpu_device *adev,
+								union dc_tiling_info *tiling_info,
+								uint64_t modifier)
 {
 	unsigned int mod_bank_xor_bits = AMD_FMT_MOD_GET(BANK_XOR_BITS, modifier);
 	unsigned int mod_pipe_xor_bits = AMD_FMT_MOD_GET(PIPE_XOR_BITS, modifier);
@@ -241,7 +241,7 @@ static void fill_gfx9_tiling_info_from_modifier(const struct amdgpu_device *adev
 
 	pipes_log2 = min(5u, mod_pipe_xor_bits);
 
-	fill_gfx9_tiling_info_from_device(adev, tiling_info);
+	amdgpu_dm_plane_fill_gfx9_tiling_info_from_device(adev, tiling_info);
 
 	if (!IS_AMD_FMT_MOD(modifier))
 		return;
@@ -258,13 +258,13 @@ static void fill_gfx9_tiling_info_from_modifier(const struct amdgpu_device *adev
 	}
 }
 
-static int validate_dcc(struct amdgpu_device *adev,
-	     const enum surface_pixel_format format,
-	     const enum dc_rotation_angle rotation,
-	     const union dc_tiling_info *tiling_info,
-	     const struct dc_plane_dcc_param *dcc,
-	     const struct dc_plane_address *address,
-	     const struct plane_size *plane_size)
+static int amdgpu_dm_plane_validate_dcc(struct amdgpu_device *adev,
+					const enum surface_pixel_format format,
+					const enum dc_rotation_angle rotation,
+					const union dc_tiling_info *tiling_info,
+					const struct dc_plane_dcc_param *dcc,
+					const struct dc_plane_address *address,
+					const struct plane_size *plane_size)
 {
 	struct dc *dc = adev->dm.dc;
 	struct dc_dcc_surface_param input;
@@ -303,23 +303,23 @@ static int validate_dcc(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int fill_gfx9_plane_attributes_from_modifiers(struct amdgpu_device *adev,
-					  const struct amdgpu_framebuffer *afb,
-					  const enum surface_pixel_format format,
-					  const enum dc_rotation_angle rotation,
-					  const struct plane_size *plane_size,
-					  union dc_tiling_info *tiling_info,
-					  struct dc_plane_dcc_param *dcc,
-					  struct dc_plane_address *address,
-					  const bool force_disable_dcc)
+static int amdgpu_dm_plane_fill_gfx9_plane_attributes_from_modifiers(struct amdgpu_device *adev,
+								     const struct amdgpu_framebuffer *afb,
+								     const enum surface_pixel_format format,
+								     const enum dc_rotation_angle rotation,
+								     const struct plane_size *plane_size,
+								     union dc_tiling_info *tiling_info,
+								     struct dc_plane_dcc_param *dcc,
+								     struct dc_plane_address *address,
+								     const bool force_disable_dcc)
 {
 	const uint64_t modifier = afb->base.modifier;
 	int ret = 0;
 
-	fill_gfx9_tiling_info_from_modifier(adev, tiling_info, modifier);
-	tiling_info->gfx9.swizzle = modifier_gfx9_swizzle_mode(modifier);
+	amdgpu_dm_plane_fill_gfx9_tiling_info_from_modifier(adev, tiling_info, modifier);
+	tiling_info->gfx9.swizzle = amdgpu_dm_plane_modifier_gfx9_swizzle_mode(modifier);
 
-	if (modifier_has_dcc(modifier) && !force_disable_dcc) {
+	if (amdgpu_dm_plane_modifier_has_dcc(modifier) && !force_disable_dcc) {
 		uint64_t dcc_address = afb->address + afb->base.offsets[1];
 		bool independent_64b_blks = AMD_FMT_MOD_GET(DCC_INDEPENDENT_64B, modifier);
 		bool independent_128b_blks = AMD_FMT_MOD_GET(DCC_INDEPENDENT_128B, modifier);
@@ -347,60 +347,64 @@ static int fill_gfx9_plane_attributes_from_modifiers(struct amdgpu_device *adev,
 		address->grph.meta_addr.high_part = upper_32_bits(dcc_address);
 	}
 
-	ret = validate_dcc(adev, format, rotation, tiling_info, dcc, address, plane_size);
+	ret = amdgpu_dm_plane_validate_dcc(adev, format, rotation, tiling_info, dcc, address, plane_size);
 	if (ret)
-		drm_dbg_kms(adev_to_drm(adev), "validate_dcc: returned error: %d\n", ret);
+		drm_dbg_kms(adev_to_drm(adev), "amdgpu_dm_plane_validate_dcc: returned error: %d\n", ret);
 
 	return ret;
 }
 
-static void add_gfx10_1_modifiers(const struct amdgpu_device *adev,
-		      uint64_t **mods, uint64_t *size, uint64_t *capacity)
+static void amdgpu_dm_plane_add_gfx10_1_modifiers(const struct amdgpu_device *adev,
+						  uint64_t **mods,
+						  uint64_t *size,
+						  uint64_t *capacity)
 {
 	int pipe_xor_bits = ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes);
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10) |
-		    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-		    AMD_FMT_MOD_SET(DCC, 1) |
-		    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
-		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
-		    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10) |
+				     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+				     AMD_FMT_MOD_SET(DCC, 1) |
+				     AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
+				     AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
+				     AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B));
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10) |
-		    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-		    AMD_FMT_MOD_SET(DCC, 1) |
-		    AMD_FMT_MOD_SET(DCC_RETILE, 1) |
-		    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
-		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
-		    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10) |
+				     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+				     AMD_FMT_MOD_SET(DCC, 1) |
+				     AMD_FMT_MOD_SET(DCC_RETILE, 1) |
+				     AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
+				     AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
+				     AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B));
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10) |
-		    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10) |
+				     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits));
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10) |
-		    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10) |
+				     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits));
 
 
-	/* Only supported for 64bpp, will be filtered in dm_plane_format_mod_supported */
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
+	/* Only supported for 64bpp, will be filtered in amdgpu_dm_plane_format_mod_supported */
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
 }
 
-static void add_gfx9_modifiers(const struct amdgpu_device *adev,
-		   uint64_t **mods, uint64_t *size, uint64_t *capacity)
+static void amdgpu_dm_plane_add_gfx9_modifiers(const struct amdgpu_device *adev,
+					       uint64_t **mods,
+					       uint64_t *size,
+					       uint64_t *capacity)
 {
 	int pipes = ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes);
 	int pipe_xor_bits = min(8, pipes +
@@ -421,163 +425,164 @@ static void add_gfx9_modifiers(const struct amdgpu_device *adev,
 		 */
 
 		if (has_constant_encode) {
-			add_modifier(mods, size, capacity, AMD_FMT_MOD |
-				    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
-				    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
-				    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-				    AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits) |
-				    AMD_FMT_MOD_SET(DCC, 1) |
-				    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
-				    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
-				    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1));
+			amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+						     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
+						     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
+						     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+						     AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits) |
+						     AMD_FMT_MOD_SET(DCC, 1) |
+						     AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
+						     AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+						     AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1));
 		}
 
-		add_modifier(mods, size, capacity, AMD_FMT_MOD |
-			    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
-			    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
-			    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-			    AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits) |
-			    AMD_FMT_MOD_SET(DCC, 1) |
-			    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
-			    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
-			    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 0));
+		amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+					     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
+					     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
+					     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+					     AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits) |
+					     AMD_FMT_MOD_SET(DCC, 1) |
+					     AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
+					     AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+					     AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 0));
 
 		if (has_constant_encode) {
-			add_modifier(mods, size, capacity, AMD_FMT_MOD |
-				    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
-				    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
-				    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-				    AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits) |
-				    AMD_FMT_MOD_SET(DCC, 1) |
-				    AMD_FMT_MOD_SET(DCC_RETILE, 1) |
-				    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
-				    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
-
-				    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
-				    AMD_FMT_MOD_SET(RB, rb) |
-				    AMD_FMT_MOD_SET(PIPE, pipes));
+			amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+						     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
+						     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
+						     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+						     AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits) |
+						     AMD_FMT_MOD_SET(DCC, 1) |
+						     AMD_FMT_MOD_SET(DCC_RETILE, 1) |
+						     AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
+						     AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+						     AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
+						     AMD_FMT_MOD_SET(RB, rb) |
+						     AMD_FMT_MOD_SET(PIPE, pipes));
 		}
 
-		add_modifier(mods, size, capacity, AMD_FMT_MOD |
-			    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
-			    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
-			    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-			    AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits) |
-			    AMD_FMT_MOD_SET(DCC, 1) |
-			    AMD_FMT_MOD_SET(DCC_RETILE, 1) |
-			    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
-			    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
-			    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 0) |
-			    AMD_FMT_MOD_SET(RB, rb) |
-			    AMD_FMT_MOD_SET(PIPE, pipes));
+		amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+					     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
+					     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
+					     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+					     AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits) |
+					     AMD_FMT_MOD_SET(DCC, 1) |
+					     AMD_FMT_MOD_SET(DCC_RETILE, 1) |
+					     AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
+					     AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+					     AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 0) |
+					     AMD_FMT_MOD_SET(RB, rb) |
+					     AMD_FMT_MOD_SET(PIPE, pipes));
 	}
 
 	/*
 	 * Only supported for 64bpp on Raven, will be filtered on format in
-	 * dm_plane_format_mod_supported.
+	 * amdgpu_dm_plane_format_mod_supported.
 	 */
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D_X) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
-		    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-		    AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D_X) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
+				     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+				     AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits));
 
 	if (adev->family == AMDGPU_FAMILY_RV) {
-		add_modifier(mods, size, capacity, AMD_FMT_MOD |
-			    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
-			    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
-			    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-			    AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits));
+		amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+					     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
+					     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
+					     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+					     AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits));
 	}
 
 	/*
 	 * Only supported for 64bpp on Raven, will be filtered on format in
-	 * dm_plane_format_mod_supported.
+	 * amdgpu_dm_plane_format_mod_supported.
 	 */
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
 
 	if (adev->family == AMDGPU_FAMILY_RV) {
-		add_modifier(mods, size, capacity, AMD_FMT_MOD |
-			    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S) |
-			    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
+		amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+					     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S) |
+					     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
 	}
 }
 
-static void add_gfx10_3_modifiers(const struct amdgpu_device *adev,
-		      uint64_t **mods, uint64_t *size, uint64_t *capacity)
+static void amdgpu_dm_plane_add_gfx10_3_modifiers(const struct amdgpu_device *adev,
+						  uint64_t **mods,
+						  uint64_t *size,
+						  uint64_t *capacity)
 {
 	int pipe_xor_bits = ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes);
 	int pkrs = ilog2(adev->gfx.config.gb_addr_config_fields.num_pkrs);
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
-		    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-		    AMD_FMT_MOD_SET(PACKERS, pkrs) |
-		    AMD_FMT_MOD_SET(DCC, 1) |
-		    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
-		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
-		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
-		    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
+				     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+				     AMD_FMT_MOD_SET(PACKERS, pkrs) |
+				     AMD_FMT_MOD_SET(DCC, 1) |
+				     AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
+				     AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
+				     AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
+				     AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B));
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
-		    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-		    AMD_FMT_MOD_SET(PACKERS, pkrs) |
-		    AMD_FMT_MOD_SET(DCC, 1) |
-		    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
-		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
-		    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
+				     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+				     AMD_FMT_MOD_SET(PACKERS, pkrs) |
+				     AMD_FMT_MOD_SET(DCC, 1) |
+				     AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
+				     AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
+				     AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B));
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
-		    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-		    AMD_FMT_MOD_SET(PACKERS, pkrs) |
-		    AMD_FMT_MOD_SET(DCC, 1) |
-		    AMD_FMT_MOD_SET(DCC_RETILE, 1) |
-		    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
-		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
-		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
-		    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
+				     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+				     AMD_FMT_MOD_SET(PACKERS, pkrs) |
+				     AMD_FMT_MOD_SET(DCC, 1) |
+				     AMD_FMT_MOD_SET(DCC_RETILE, 1) |
+				     AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
+				     AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
+				     AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
+				     AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B));
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
-		    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-		    AMD_FMT_MOD_SET(PACKERS, pkrs) |
-		    AMD_FMT_MOD_SET(DCC, 1) |
-		    AMD_FMT_MOD_SET(DCC_RETILE, 1) |
-		    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
-		    AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
-		    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
+				     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+				     AMD_FMT_MOD_SET(PACKERS, pkrs) |
+				     AMD_FMT_MOD_SET(DCC, 1) |
+				     AMD_FMT_MOD_SET(DCC_RETILE, 1) |
+				     AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1) |
+				     AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
+				     AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B));
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
-		    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-		    AMD_FMT_MOD_SET(PACKERS, pkrs));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
+				     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+				     AMD_FMT_MOD_SET(PACKERS, pkrs));
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
-		    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-		    AMD_FMT_MOD_SET(PACKERS, pkrs));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) |
+				     AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+				     AMD_FMT_MOD_SET(PACKERS, pkrs));
 
-	/* Only supported for 64bpp, will be filtered in dm_plane_format_mod_supported */
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
+	/* Only supported for 64bpp, will be filtered in amdgpu_dm_plane_format_mod_supported */
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-		    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S) |
-		    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S) |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
 }
 
-static void add_gfx11_modifiers(struct amdgpu_device *adev,
+static void amdgpu_dm_plane_add_gfx11_modifiers(struct amdgpu_device *adev,
 		      uint64_t **mods, uint64_t *size, uint64_t *capacity)
 {
 	int num_pipes = 0;
@@ -628,21 +633,21 @@ static void add_gfx11_modifiers(struct amdgpu_device *adev,
 				  AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
 				  AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B);
 
-		add_modifier(mods, size, capacity, modifier_dcc_best);
-		add_modifier(mods, size, capacity, modifier_dcc_4k);
+		amdgpu_dm_plane_add_modifier(mods, size, capacity, modifier_dcc_best);
+		amdgpu_dm_plane_add_modifier(mods, size, capacity, modifier_dcc_4k);
 
-		add_modifier(mods, size, capacity, modifier_dcc_best | AMD_FMT_MOD_SET(DCC_RETILE, 1));
-		add_modifier(mods, size, capacity, modifier_dcc_4k | AMD_FMT_MOD_SET(DCC_RETILE, 1));
+		amdgpu_dm_plane_add_modifier(mods, size, capacity, modifier_dcc_best | AMD_FMT_MOD_SET(DCC_RETILE, 1));
+		amdgpu_dm_plane_add_modifier(mods, size, capacity, modifier_dcc_4k | AMD_FMT_MOD_SET(DCC_RETILE, 1));
 
-		add_modifier(mods, size, capacity, modifier_r_x);
+		amdgpu_dm_plane_add_modifier(mods, size, capacity, modifier_r_x);
 	}
 
-	add_modifier(mods, size, capacity, AMD_FMT_MOD |
-			AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11) |
-			AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, AMD_FMT_MOD |
+				     AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11) |
+				     AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D));
 }
 
-static int get_plane_modifiers(struct amdgpu_device *adev, unsigned int plane_type, uint64_t **mods)
+static int amdgpu_dm_plane_get_plane_modifiers(struct amdgpu_device *adev, unsigned int plane_type, uint64_t **mods)
 {
 	uint64_t size = 0, capacity = 128;
 	*mods = NULL;
@@ -654,15 +659,15 @@ static int get_plane_modifiers(struct amdgpu_device *adev, unsigned int plane_ty
 	*mods = kmalloc(capacity * sizeof(uint64_t), GFP_KERNEL);
 
 	if (plane_type == DRM_PLANE_TYPE_CURSOR) {
-		add_modifier(mods, &size, &capacity, DRM_FORMAT_MOD_LINEAR);
-		add_modifier(mods, &size, &capacity, DRM_FORMAT_MOD_INVALID);
+		amdgpu_dm_plane_add_modifier(mods, &size, &capacity, DRM_FORMAT_MOD_LINEAR);
+		amdgpu_dm_plane_add_modifier(mods, &size, &capacity, DRM_FORMAT_MOD_INVALID);
 		return *mods ? 0 : -ENOMEM;
 	}
 
 	switch (adev->family) {
 	case AMDGPU_FAMILY_AI:
 	case AMDGPU_FAMILY_RV:
-		add_gfx9_modifiers(adev, mods, &size, &capacity);
+		amdgpu_dm_plane_add_gfx9_modifiers(adev, mods, &size, &capacity);
 		break;
 	case AMDGPU_FAMILY_NV:
 	case AMDGPU_FAMILY_VGH:
@@ -670,21 +675,21 @@ static int get_plane_modifiers(struct amdgpu_device *adev, unsigned int plane_ty
 	case AMDGPU_FAMILY_GC_10_3_6:
 	case AMDGPU_FAMILY_GC_10_3_7:
 		if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(10, 3, 0))
-			add_gfx10_3_modifiers(adev, mods, &size, &capacity);
+			amdgpu_dm_plane_add_gfx10_3_modifiers(adev, mods, &size, &capacity);
 		else
-			add_gfx10_1_modifiers(adev, mods, &size, &capacity);
+			amdgpu_dm_plane_add_gfx10_1_modifiers(adev, mods, &size, &capacity);
 		break;
 	case AMDGPU_FAMILY_GC_11_0_0:
 	case AMDGPU_FAMILY_GC_11_0_1:
 	case AMDGPU_FAMILY_GC_11_5_0:
-		add_gfx11_modifiers(adev, mods, &size, &capacity);
+		amdgpu_dm_plane_add_gfx11_modifiers(adev, mods, &size, &capacity);
 		break;
 	}
 
-	add_modifier(mods, &size, &capacity, DRM_FORMAT_MOD_LINEAR);
+	amdgpu_dm_plane_add_modifier(mods, &size, &capacity, DRM_FORMAT_MOD_LINEAR);
 
 	/* INVALID marks the end of the list. */
-	add_modifier(mods, &size, &capacity, DRM_FORMAT_MOD_INVALID);
+	amdgpu_dm_plane_add_modifier(mods, &size, &capacity, DRM_FORMAT_MOD_INVALID);
 
 	if (!*mods)
 		return -ENOMEM;
@@ -692,9 +697,9 @@ static int get_plane_modifiers(struct amdgpu_device *adev, unsigned int plane_ty
 	return 0;
 }
 
-static int get_plane_formats(const struct drm_plane *plane,
-			     const struct dc_plane_cap *plane_cap,
-			     uint32_t *formats, int max_formats)
+static int amdgpu_dm_plane_get_plane_formats(const struct drm_plane *plane,
+					     const struct dc_plane_cap *plane_cap,
+					     uint32_t *formats, int max_formats)
 {
 	int i, num_formats = 0;
 
@@ -818,22 +823,22 @@ int amdgpu_dm_plane_fill_plane_buffer_attributes(struct amdgpu_device *adev,
 	}
 
 	if (adev->family >= AMDGPU_FAMILY_AI) {
-		ret = fill_gfx9_plane_attributes_from_modifiers(adev, afb, format,
-								rotation, plane_size,
-								tiling_info, dcc,
-								address,
-								force_disable_dcc);
+		ret = amdgpu_dm_plane_fill_gfx9_plane_attributes_from_modifiers(adev, afb, format,
+										rotation, plane_size,
+										tiling_info, dcc,
+										address,
+										force_disable_dcc);
 		if (ret)
 			return ret;
 	} else {
-		fill_gfx8_tiling_info_from_flags(tiling_info, tiling_flags);
+		amdgpu_dm_plane_fill_gfx8_tiling_info_from_flags(tiling_info, tiling_flags);
 	}
 
 	return 0;
 }
 
-static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
-				      struct drm_plane_state *new_state)
+static int amdgpu_dm_plane_helper_prepare_fb(struct drm_plane *plane,
+					     struct drm_plane_state *new_state)
 {
 	struct amdgpu_framebuffer *afb;
 	struct drm_gem_object *obj;
@@ -928,8 +933,8 @@ error_unlock:
 	return r;
 }
 
-static void dm_plane_helper_cleanup_fb(struct drm_plane *plane,
-				       struct drm_plane_state *old_state)
+static void amdgpu_dm_plane_helper_cleanup_fb(struct drm_plane *plane,
+					      struct drm_plane_state *old_state)
 {
 	struct amdgpu_bo *rbo;
 	int r;
@@ -949,7 +954,7 @@ static void dm_plane_helper_cleanup_fb(struct drm_plane *plane,
 	amdgpu_bo_unref(&rbo);
 }
 
-static void get_min_max_dc_plane_scaling(struct drm_device *dev,
+static void amdgpu_dm_plane_get_min_max_dc_plane_scaling(struct drm_device *dev,
 					 struct drm_framebuffer *fb,
 					 int *min_downscale, int *max_upscale)
 {
@@ -1030,8 +1035,8 @@ int amdgpu_dm_plane_helper_check_state(struct drm_plane_state *state,
 		}
 
 		/* Get min/max allowed scaling factors from plane caps. */
-		get_min_max_dc_plane_scaling(state->crtc->dev, fb,
-					     &min_downscale, &max_upscale);
+		amdgpu_dm_plane_get_min_max_dc_plane_scaling(state->crtc->dev, fb,
+							     &min_downscale, &max_upscale);
 		/*
 		 * Convert to drm convention: 16.16 fixed point, instead of dc's
 		 * 1.0 == 1000. Also drm scaling is src/dst instead of dc's
@@ -1101,8 +1106,8 @@ int amdgpu_dm_plane_fill_dc_scaling_info(struct amdgpu_device *adev,
 
 	/* Validate scaling per-format with DC plane caps */
 	if (state->plane && state->plane->dev && state->fb) {
-		get_min_max_dc_plane_scaling(state->plane->dev, state->fb,
-					     &min_downscale, &max_upscale);
+		amdgpu_dm_plane_get_min_max_dc_plane_scaling(state->plane->dev, state->fb,
+							     &min_downscale, &max_upscale);
 	} else {
 		min_downscale = 250;
 		max_upscale = 16000;
@@ -1128,8 +1133,8 @@ int amdgpu_dm_plane_fill_dc_scaling_info(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int dm_plane_atomic_check(struct drm_plane *plane,
-				 struct drm_atomic_state *state)
+static int amdgpu_dm_plane_atomic_check(struct drm_plane *plane,
+					struct drm_atomic_state *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
@@ -1167,8 +1172,8 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 	return -EINVAL;
 }
 
-static int dm_plane_atomic_async_check(struct drm_plane *plane,
-				       struct drm_atomic_state *state)
+static int amdgpu_dm_plane_atomic_async_check(struct drm_plane *plane,
+					      struct drm_atomic_state *state)
 {
 	/* Only support async updates on cursor planes. */
 	if (plane->type != DRM_PLANE_TYPE_CURSOR)
@@ -1177,8 +1182,8 @@ static int dm_plane_atomic_async_check(struct drm_plane *plane,
 	return 0;
 }
 
-static int get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
-			       struct dc_cursor_position *position)
+static int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
+					       struct dc_cursor_position *position)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	int x, y;
@@ -1241,7 +1246,7 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 		       amdgpu_crtc->crtc_id, plane->state->crtc_w,
 		       plane->state->crtc_h);
 
-	ret = get_cursor_position(plane, crtc, &position);
+	ret = amdgpu_dm_plane_get_cursor_position(plane, crtc, &position);
 	if (ret)
 		return;
 
@@ -1290,8 +1295,8 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 	}
 }
 
-static void dm_plane_atomic_async_update(struct drm_plane *plane,
-					 struct drm_atomic_state *state)
+static void amdgpu_dm_plane_atomic_async_update(struct drm_plane *plane,
+						struct drm_atomic_state *state)
 {
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
@@ -1315,14 +1320,14 @@ static void dm_plane_atomic_async_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs dm_plane_helper_funcs = {
-	.prepare_fb = dm_plane_helper_prepare_fb,
-	.cleanup_fb = dm_plane_helper_cleanup_fb,
-	.atomic_check = dm_plane_atomic_check,
-	.atomic_async_check = dm_plane_atomic_async_check,
-	.atomic_async_update = dm_plane_atomic_async_update
+	.prepare_fb = amdgpu_dm_plane_helper_prepare_fb,
+	.cleanup_fb = amdgpu_dm_plane_helper_cleanup_fb,
+	.atomic_check = amdgpu_dm_plane_atomic_check,
+	.atomic_async_check = amdgpu_dm_plane_atomic_async_check,
+	.atomic_async_update = amdgpu_dm_plane_atomic_async_update
 };
 
-static void dm_drm_plane_reset(struct drm_plane *plane)
+static void amdgpu_dm_plane_drm_plane_reset(struct drm_plane *plane)
 {
 	struct dm_plane_state *amdgpu_state = NULL;
 
@@ -1336,8 +1341,7 @@ static void dm_drm_plane_reset(struct drm_plane *plane)
 		__drm_atomic_helper_plane_reset(plane, &amdgpu_state->base);
 }
 
-static struct drm_plane_state *
-dm_drm_plane_duplicate_state(struct drm_plane *plane)
+static struct drm_plane_state *amdgpu_dm_plane_drm_plane_duplicate_state(struct drm_plane *plane)
 {
 	struct dm_plane_state *dm_plane_state, *old_dm_plane_state;
 
@@ -1356,15 +1360,15 @@ dm_drm_plane_duplicate_state(struct drm_plane *plane)
 	return &dm_plane_state->base;
 }
 
-static bool dm_plane_format_mod_supported(struct drm_plane *plane,
-					  uint32_t format,
-					  uint64_t modifier)
+static bool amdgpu_dm_plane_format_mod_supported(struct drm_plane *plane,
+						 uint32_t format,
+						 uint64_t modifier)
 {
 	struct amdgpu_device *adev = drm_to_adev(plane->dev);
 	const struct drm_format_info *info = drm_format_info(format);
 	int i;
 
-	enum dm_micro_swizzle microtile = modifier_gfx9_swizzle_mode(modifier) & 3;
+	enum dm_micro_swizzle microtile = amdgpu_dm_plane_modifier_gfx9_swizzle_mode(modifier) & 3;
 
 	if (!info)
 		return false;
@@ -1401,7 +1405,7 @@ static bool dm_plane_format_mod_supported(struct drm_plane *plane,
 	    info->cpp[0] < 8)
 		return false;
 
-	if (modifier_has_dcc(modifier)) {
+	if (amdgpu_dm_plane_modifier_has_dcc(modifier)) {
 		/* Per radeonsi comments 16/64 bpp are more complicated. */
 		if (info->cpp[0] != 4)
 			return false;
@@ -1415,8 +1419,8 @@ static bool dm_plane_format_mod_supported(struct drm_plane *plane,
 	return true;
 }
 
-static void dm_drm_plane_destroy_state(struct drm_plane *plane,
-				struct drm_plane_state *state)
+static void amdgpu_dm_plane_drm_plane_destroy_state(struct drm_plane *plane,
+						    struct drm_plane_state *state)
 {
 	struct dm_plane_state *dm_plane_state = to_dm_plane_state(state);
 
@@ -1430,10 +1434,10 @@ static const struct drm_plane_funcs dm_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_plane_helper_destroy,
-	.reset = dm_drm_plane_reset,
-	.atomic_duplicate_state = dm_drm_plane_duplicate_state,
-	.atomic_destroy_state = dm_drm_plane_destroy_state,
-	.format_mod_supported = dm_plane_format_mod_supported,
+	.reset = amdgpu_dm_plane_drm_plane_reset,
+	.atomic_duplicate_state = amdgpu_dm_plane_drm_plane_duplicate_state,
+	.atomic_destroy_state = amdgpu_dm_plane_drm_plane_destroy_state,
+	.format_mod_supported = amdgpu_dm_plane_format_mod_supported,
 };
 
 int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
@@ -1447,10 +1451,10 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 	unsigned int supported_rotations;
 	uint64_t *modifiers = NULL;
 
-	num_formats = get_plane_formats(plane, plane_cap, formats,
-					ARRAY_SIZE(formats));
+	num_formats = amdgpu_dm_plane_get_plane_formats(plane, plane_cap, formats,
+							ARRAY_SIZE(formats));
 
-	res = get_plane_modifiers(dm->adev, plane->type, &modifiers);
+	res = amdgpu_dm_plane_get_plane_modifiers(dm->adev, plane->type, &modifiers);
 	if (res)
 		return res;
 
@@ -1520,7 +1524,7 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 	return 0;
 }
 
-bool is_video_format(uint32_t format)
+bool amdgpu_dm_plane_is_video_format(uint32_t format)
 {
 	int i;
 

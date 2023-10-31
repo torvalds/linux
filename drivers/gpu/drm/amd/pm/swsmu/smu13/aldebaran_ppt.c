@@ -1931,11 +1931,19 @@ static bool aldebaran_is_mode1_reset_supported(struct smu_context *smu)
 #if 0
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t val;
+	uint32_t smu_version;
+	int ret;
+
 	/**
 	 * PM FW version support mode1 reset from 68.07
 	 */
-	if ((smu->smc_fw_version < 0x00440700))
+	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (ret)
 		return false;
+
+	if ((smu_version < 0x00440700))
+		return false;
+
 	/**
 	 * mode1 reset relies on PSP, so we should check if
 	 * PSP is alive.

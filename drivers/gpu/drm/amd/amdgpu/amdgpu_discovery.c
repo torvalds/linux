@@ -35,6 +35,7 @@
 #include "df_v1_7.h"
 #include "df_v3_6.h"
 #include "df_v4_3.h"
+#include "df_v4_6_2.h"
 #include "nbio_v6_1.h"
 #include "nbio_v7_0.h"
 #include "nbio_v7_4.h"
@@ -1487,7 +1488,7 @@ static int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 		adev->gfx.config.num_sc_per_sh = le32_to_cpu(gc_info->v2.gc_num_sc_per_se) /
 			le32_to_cpu(gc_info->v2.gc_num_sh_per_se);
 		adev->gfx.config.num_packer_per_sc = le32_to_cpu(gc_info->v2.gc_num_packer_per_sc);
-		if (le16_to_cpu(gc_info->v2.header.version_minor == 1)) {
+		if (le16_to_cpu(gc_info->v2.header.version_minor) == 1) {
 			adev->gfx.config.gc_num_tcp_per_sa = le32_to_cpu(gc_info->v2_1.gc_num_tcp_per_sh);
 			adev->gfx.config.gc_tcp_size_per_cu = le32_to_cpu(gc_info->v2_1.gc_tcp_size_per_cu);
 			adev->gfx.config.gc_num_sdp_interface = le32_to_cpu(gc_info->v2_1.gc_num_sdp_interface); /* per XCD */
@@ -2558,6 +2559,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(4, 3, 0):
 		adev->df.funcs = &df_v4_3_funcs;
+		break;
+	case IP_VERSION(4, 6, 2):
+		adev->df.funcs = &df_v4_6_2_funcs;
 		break;
 	default:
 		break;

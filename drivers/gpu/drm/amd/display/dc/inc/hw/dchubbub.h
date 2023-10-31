@@ -188,6 +188,7 @@ struct hubbub_funcs {
 	 * compressed or detiled buffers.
 	 */
 	void (*program_det_size)(struct hubbub *hubbub, int hubp_inst, unsigned det_buffer_size_in_kbyte);
+	void (*wait_for_det_apply)(struct hubbub *hubbub, int hubp_inst);
 	void (*program_compbuf_size)(struct hubbub *hubbub, unsigned compbuf_size_kb, bool safe_to_increase);
 	void (*init_crb)(struct hubbub *hubbub);
 	void (*force_usr_retraining_allow)(struct hubbub *hubbub, bool allow);
