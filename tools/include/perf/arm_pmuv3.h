@@ -6,6 +6,9 @@
 #ifndef __PERF_ARM_PMUV3_H
 #define __PERF_ARM_PMUV3_H
 
+#include <assert.h>
+#include <asm/bug.h>
+
 #define ARMV8_PMU_MAX_COUNTERS	32
 #define ARMV8_PMU_COUNTER_MASK	(ARMV8_PMU_MAX_COUNTERS - 1)
 
@@ -234,12 +237,9 @@
 /*
  * Event filters for PMUv3
  */
-#define ARMV8_PMU_EXCLUDE_EL1		(1U << 31)
-#define ARMV8_PMU_EXCLUDE_EL0		(1U << 30)
-#define ARMV8_PMU_EXCLUDE_NS_EL1	(1U << 29)
-#define ARMV8_PMU_EXCLUDE_NS_EL0	(1U << 28)
-#define ARMV8_PMU_INCLUDE_EL2		(1U << 27)
-#define ARMV8_PMU_EXCLUDE_EL3		(1U << 26)
+#define ARMV8_PMU_EXCLUDE_EL1	(1U << 31)
+#define ARMV8_PMU_EXCLUDE_EL0	(1U << 30)
+#define ARMV8_PMU_INCLUDE_EL2	(1U << 27)
 
 /*
  * PMUSERENR: user enable reg
@@ -299,7 +299,9 @@
 		PMEVN_CASE(28, case_macro);			\
 		PMEVN_CASE(29, case_macro);			\
 		PMEVN_CASE(30, case_macro);			\
-		default: WARN(1, "Invalid PMEV* index\n");	\
+		default:					\
+			WARN(1, "Invalid PMEV* index\n");	\
+			assert(0);				\
 		}						\
 	} while (0)
 

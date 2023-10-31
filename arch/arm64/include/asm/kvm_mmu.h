@@ -150,9 +150,9 @@ static __always_inline unsigned long __kern_hyp_va(unsigned long v)
  */
 #define KVM_PHYS_SHIFT	(40)
 
-#define kvm_phys_shift(kvm)		VTCR_EL2_IPA(kvm->arch.vtcr)
-#define kvm_phys_size(kvm)		(_AC(1, ULL) << kvm_phys_shift(kvm))
-#define kvm_phys_mask(kvm)		(kvm_phys_size(kvm) - _AC(1, ULL))
+#define kvm_phys_shift(mmu)		VTCR_EL2_IPA((mmu)->vtcr)
+#define kvm_phys_size(mmu)		(_AC(1, ULL) << kvm_phys_shift(mmu))
+#define kvm_phys_mask(mmu)		(kvm_phys_size(mmu) - _AC(1, ULL))
 
 #include <asm/kvm_pgtable.h>
 #include <asm/stage2_pgtable.h>
@@ -224,16 +224,41 @@ static inline void __clean_dcache_guest_page(void *va, size_t size)
 	kvm_flush_dcache_to_poc(va, size);
 }
 
+static inline size_t __invalidate_icache_max_range(void)
+{
+	u8 iminline;
+	u64 ctr;
+
+	asm volatile(ALTERNATIVE_CB("movz %0, #0\n"
+				    "movk %0, #0, lsl #16\n"
+				    "movk %0, #0, lsl #32\n"
+				    "movk %0, #0, lsl #48\n",
+				    ARM64_ALWAYS_SYSTEM,
+				    kvm_compute_final_ctr_el0)
+		     : "=r" (ctr));
+
+	iminline = SYS_FIELD_GET(CTR_EL0, IminLine, ctr) + 2;
+	return MAX_DVM_OPS << iminline;
+}
+
 static inline void __invalidate_icache_guest_page(void *va, size_t size)
 {
-	if (icache_is_aliasing()) {
-		/* any kind of VIPT cache */
+	/*
+	 * VPIPT I-cache maintenance must be done from EL2. See comment in the
+	 * nVHE flavor of __kvm_tlb_flush_vmid_ipa().
+	 */
+	if (icache_is_vpipt() && read_sysreg(CurrentEL) != CurrentEL_EL2)
+		return;
+
+	/*
+	 * Blow the whole I-cache if it is aliasing (i.e. VIPT) or the
+	 * invalidation range exceeds our arbitrary limit on invadations by
+	 * cache line.
+	 */
+	if (icache_is_aliasing() || size > __invalidate_icache_max_range())
 		icache_inval_all_pou();
-	} else if (read_sysreg(CurrentEL) != CurrentEL_EL1 ||
-		   !icache_is_vpipt()) {
-		/* PIPT or VPIPT at EL2 (see comment in __kvm_tlb_flush_vmid_ipa) */
+	else
 		icache_inval_pou((unsigned long)va, (unsigned long)va + size);
-	}
 }
 
 void kvm_set_way_flush(struct kvm_vcpu *vcpu);
@@ -299,7 +324,7 @@ static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
 static __always_inline void __load_stage2(struct kvm_s2_mmu *mmu,
 					  struct kvm_arch *arch)
 {
-	write_sysreg(arch->vtcr, vtcr_el2);
+	write_sysreg(mmu->vtcr, vtcr_el2);
 	write_sysreg(kvm_get_vttbr(mmu), vttbr_el2);
 
 	/*
