@@ -20,8 +20,13 @@ description: |
 
 properties:
   compatible:
-    items:
-      - const: mediatek,mt8183-mdp3-rdma
+    oneOf:
+      - enum:
+          - mediatek,mt8183-mdp3-rdma
+          - mediatek,mt8195-vdo1-rdma
+      - items:
+          - const: mediatek,mt8188-vdo1-rdma
+          - const: mediatek,mt8195-vdo1-rdma
 
   reg:
     maxItems: 1
@@ -60,6 +65,7 @@ properties:
     items:
       - description: RDMA clock
       - description: RSZ clock
+    minItems: 1
 
   iommus:
     maxItems: 1
@@ -68,6 +74,10 @@ properties:
     items:
       - description: used for 1st data pipe from RDMA
       - description: used for 2nd data pipe from RDMA
+    minItems: 1
+
+  interrupts:
+    maxItems: 1
 
   '#dma-cells':
     const: 1
@@ -76,12 +86,40 @@ required:
   - compatible
   - reg
   - mediatek,gce-client-reg
-  - mediatek,gce-events
   - power-domains
   - clocks
   - iommus
-  - mboxes
   - '#dma-cells'
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt8183-mdp3-rdma
+
+    then:
+      properties:
+        clocks:
+          minItems: 2
+
+        mboxes:
+          minItems: 2
+
+      required:
+        - mboxes
+        - mediatek,gce-events
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt8195-vdo1-rdma
+
+    then:
+      properties:
+        clocks:
+          maxItems: 1
 
 additionalProperties: false
 
