@@ -739,14 +739,10 @@ slow_positive:
 	spin_lock(&dentry->d_lock);
 	parent = lock_parent(dentry);
 got_locks:
-	if (unlikely(dentry->d_lockref.count != 1)) {
-		dentry->d_lockref.count--;
-	} else if (likely(!retain_dentry(dentry))) {
-		dentry->d_lockref.count--;
+	dentry->d_lockref.count--;
+	if (likely(dentry->d_lockref.count == 0)) {
 		__dentry_kill(dentry);
 		return parent;
-	} else {
-		dentry->d_lockref.count--;
 	}
 	/* we are keeping it, after all */
 	if (inode)
