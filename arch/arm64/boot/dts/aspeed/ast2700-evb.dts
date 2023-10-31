@@ -218,6 +218,16 @@
 	snoop-ports = <0x80>, <0x81>;
 };
 
+&video0 {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+
+&video1 {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+
 #if 0
 &mctp0 {
 	status = "okay";
@@ -399,16 +409,6 @@
 
 &pcie0_ibt {
 	status = "okay";
-};
-
-&video0 {
-	status = "okay";
-	memory-region = <&video_engine_memory>;
-};
-
-&video1 {
-	status = "okay";
-	memory-region = <&video_engine_memory>;
 };
 
 &rsss {
