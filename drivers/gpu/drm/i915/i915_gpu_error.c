@@ -2137,7 +2137,7 @@ __i915_gpu_coredump(struct intel_gt *gt, intel_engine_mask_t engine_mask, u32 du
 	return error;
 }
 
-struct i915_gpu_coredump *
+static struct i915_gpu_coredump *
 i915_gpu_coredump(struct intel_gt *gt, intel_engine_mask_t engine_mask, u32 dump_flags)
 {
 	static DEFINE_MUTEX(capture_mutex);
@@ -2375,3 +2375,112 @@ void intel_klog_error_capture(struct intel_gt *gt,
 	drm_info(&i915->drm, "[Capture/%d.%d] Dumped %zd bytes\n", l_count, line++, pos_err);
 }
 #endif
+
+static ssize_t gpu_state_read(struct file *file, char __user *ubuf,
+			      size_t count, loff_t *pos)
+{
+	struct i915_gpu_coredump *error;
+	ssize_t ret;
+	void *buf;
+
+	error = file->private_data;
+	if (!error)
+		return 0;
+
+	/* Bounce buffer required because of kernfs __user API convenience. */
+	buf = kmalloc(count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = i915_gpu_coredump_copy_to_buffer(error, buf, *pos, count);
+	if (ret <= 0)
+		goto out;
+
+	if (!copy_to_user(ubuf, buf, ret))
+		*pos += ret;
+	else
+		ret = -EFAULT;
+
+out:
+	kfree(buf);
+	return ret;
+}
+
+static int gpu_state_release(struct inode *inode, struct file *file)
+{
+	i915_gpu_coredump_put(file->private_data);
+	return 0;
+}
+
+static int i915_gpu_info_open(struct inode *inode, struct file *file)
+{
+	struct drm_i915_private *i915 = inode->i_private;
+	struct i915_gpu_coredump *gpu;
+	intel_wakeref_t wakeref;
+
+	gpu = NULL;
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+		gpu = i915_gpu_coredump(to_gt(i915), ALL_ENGINES, CORE_DUMP_FLAG_NONE);
+
+	if (IS_ERR(gpu))
+		return PTR_ERR(gpu);
+
+	file->private_data = gpu;
+	return 0;
+}
+
+static const struct file_operations i915_gpu_info_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_gpu_info_open,
+	.read = gpu_state_read,
+	.llseek = default_llseek,
+	.release = gpu_state_release,
+};
+
+static ssize_t
+i915_error_state_write(struct file *filp,
+		       const char __user *ubuf,
+		       size_t cnt,
+		       loff_t *ppos)
+{
+	struct i915_gpu_coredump *error = filp->private_data;
+
+	if (!error)
+		return 0;
+
+	drm_dbg(&error->i915->drm, "Resetting error state\n");
+	i915_reset_error_state(error->i915);
+
+	return cnt;
+}
+
+static int i915_error_state_open(struct inode *inode, struct file *file)
+{
+	struct i915_gpu_coredump *error;
+
+	error = i915_first_error_state(inode->i_private);
+	if (IS_ERR(error))
+		return PTR_ERR(error);
+
+	file->private_data  = error;
+	return 0;
+}
+
+static const struct file_operations i915_error_state_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_error_state_open,
+	.read = gpu_state_read,
+	.write = i915_error_state_write,
+	.llseek = default_llseek,
+	.release = gpu_state_release,
+};
+
+void i915_gpu_error_debugfs_register(struct drm_i915_private *i915)
+{
+	struct drm_minor *minor = i915->drm.primary;
+
+	debugfs_create_file("i915_error_state", 0644, minor->debugfs_root, i915,
+			    &i915_error_state_fops);
+	debugfs_create_file("i915_gpu_info", 0644, minor->debugfs_root, i915,
+			    &i915_gpu_info_fops);
+}

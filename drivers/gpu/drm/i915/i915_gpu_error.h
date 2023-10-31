@@ -276,8 +276,6 @@ static inline void intel_klog_error_capture(struct intel_gt *gt,
 __printf(2, 3)
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
 
-struct i915_gpu_coredump *i915_gpu_coredump(struct intel_gt *gt,
-					    intel_engine_mask_t engine_mask, u32 dump_flags);
 void i915_capture_error_state(struct intel_gt *gt,
 			      intel_engine_mask_t engine_mask, u32 dump_flags);
 
@@ -328,6 +326,8 @@ static inline void i915_gpu_coredump_put(struct i915_gpu_coredump *gpu)
 struct i915_gpu_coredump *i915_first_error_state(struct drm_i915_private *i915);
 void i915_reset_error_state(struct drm_i915_private *i915);
 void i915_disable_error_state(struct drm_i915_private *i915, int err);
+
+void i915_gpu_error_debugfs_register(struct drm_i915_private *i915);
 
 #else
 
@@ -408,6 +408,10 @@ static inline void i915_reset_error_state(struct drm_i915_private *i915)
 
 static inline void i915_disable_error_state(struct drm_i915_private *i915,
 					    int err)
+{
+}
+
+static inline void i915_gpu_error_debugfs_register(struct drm_i915_private *i915)
 {
 }
 
