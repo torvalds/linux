@@ -58,9 +58,16 @@ static int hp_vision_acpi_fix(struct cs35l41_hda *cs35l41, struct device *physde
 
 	cs35l41->index = id;
 	cs35l41->channel_index = 0;
-	cs35l41->reset_gpio = gpiod_get_index(physdev, NULL, 1, GPIOD_OUT_HIGH);
+
+	/*
+	 * This system has _DSD, it just contains an error, so we can still get the reset using
+	 * the "reset" label.
+	 */
+	cs35l41->reset_gpio = fwnode_gpiod_get_index(acpi_fwnode_handle(cs35l41->dacpi), "reset",
+						     cs35l41->index, GPIOD_OUT_LOW,
+						     "cs35l41-reset");
 	cs35l41->speaker_id = -ENOENT;
-	hw_cfg->spk_pos = cs35l41->index ? 1 : 0; // right:left
+	hw_cfg->spk_pos = cs35l41->index ? 0 : 1; // right:left
 	hw_cfg->gpio1.func = CS35L41_NOT_USED;
 	hw_cfg->gpio1.valid = true;
 	hw_cfg->gpio2.func = CS35L41_INTERRUPT;

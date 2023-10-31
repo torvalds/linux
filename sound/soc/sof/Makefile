@@ -8,9 +8,9 @@ ifneq ($(CONFIG_SND_SOC_SOF_IPC3),)
 snd-sof-objs +=	ipc3.o ipc3-loader.o ipc3-topology.o ipc3-control.o ipc3-pcm.o\
 		ipc3-dtrace.o
 endif
-ifneq ($(CONFIG_SND_SOC_SOF_INTEL_IPC4),)
+ifneq ($(CONFIG_SND_SOC_SOF_IPC4),)
 snd-sof-objs += ipc4.o ipc4-loader.o ipc4-topology.o ipc4-control.o ipc4-pcm.o\
-		ipc4-mtrace.o
+		ipc4-mtrace.o ipc4-telemetry.o
 endif
 
 # SOF client support
@@ -31,7 +31,7 @@ snd-sof-probes-objs := sof-client-probes.o
 ifneq ($(CONFIG_SND_SOC_SOF_IPC3),)
 snd-sof-probes-objs += sof-client-probes-ipc3.o
 endif
-ifneq ($(CONFIG_SND_SOC_SOF_INTEL_IPC4),)
+ifneq ($(CONFIG_SND_SOC_SOF_IPC4),)
 snd-sof-probes-objs += sof-client-probes-ipc4.o
 endif
 

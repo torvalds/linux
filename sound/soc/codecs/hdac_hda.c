@@ -7,6 +7,7 @@
  * codec drivers using hdac_ext_bus_ops ops.
  */
 
+#include <linux/firmware.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -34,6 +35,13 @@
 				 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
 				 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |\
 				 SNDRV_PCM_RATE_192000)
+
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+static char *loadable_patch[HDA_MAX_CODECS];
+
+module_param_array_named(patch, loadable_patch, charp, NULL, 0444);
+MODULE_PARM_DESC(patch, "Patch file array for Intel HD audio interface. The array index is the codec address.");
+#endif
 
 static int hdac_hda_dai_open(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai);
@@ -423,6 +431,27 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 		dev_err(&hdev->dev, "failed to create hda codec %d\n", ret);
 		goto error_no_pm;
 	}
+
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+	if (loadable_patch[hda_pvt->dev_index] && *loadable_patch[hda_pvt->dev_index]) {
+		const struct firmware *fw;
+
+		dev_info(&hdev->dev, "Applying patch firmware '%s'\n",
+			 loadable_patch[hda_pvt->dev_index]);
+		ret = request_firmware(&fw, loadable_patch[hda_pvt->dev_index],
+				       &hdev->dev);
+		if (ret < 0)
+			goto error_no_pm;
+		if (fw) {
+			ret = snd_hda_load_patch(hcodec->bus, fw->size, fw->data);
+			if (ret < 0) {
+				dev_err(&hdev->dev, "failed to load hda patch %d\n", ret);
+				goto error_no_pm;
+			}
+			release_firmware(fw);
+		}
+	}
+#endif
 	/*
 	 * Overwrite type to HDA_DEV_ASOC since it is a ASoC driver
 	 * hda_codec.c will check this flag to determine if unregister

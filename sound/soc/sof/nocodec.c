@@ -44,7 +44,7 @@ static int sof_nocodec_bes_setup(struct device *dev,
 		links[i].stream_name = links[i].name;
 
 		links[i].cpus = &dlc[0];
-		links[i].codecs = &asoc_dummy_dlc;
+		links[i].codecs = &snd_soc_dummy_dlc;
 		links[i].platforms = &dlc[1];
 
 		links[i].num_cpus = 1;

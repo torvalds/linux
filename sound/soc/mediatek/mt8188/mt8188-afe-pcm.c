@@ -98,7 +98,7 @@ static int mt8188_memif_fs(struct snd_pcm_substream *substream,
 	struct mtk_base_afe_memif *memif = NULL;
 	struct mtk_dai_memif_priv *memif_priv = NULL;
 	int fs = mt8188_afe_fs_timing(rate);
-	int id = asoc_rtd_to_cpu(rtd, 0)->id;
+	int id = snd_soc_rtd_to_cpu(rtd, 0)->id;
 
 	if (id < 0)
 		return -EINVAL;
@@ -303,7 +303,7 @@ static int mt8188_afe_fe_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
-	int id = asoc_rtd_to_cpu(rtd, 0)->id;
+	int id = snd_soc_rtd_to_cpu(rtd, 0)->id;
 	int ret;
 
 	ret = mtk_afe_fe_startup(substream, dai);
@@ -336,7 +336,7 @@ static int mt8188_afe_fe_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
-	int id = asoc_rtd_to_cpu(rtd, 0)->id;
+	int id = snd_soc_rtd_to_cpu(rtd, 0)->id;
 	struct mtk_base_afe_memif *memif = &afe->memif[id];
 	const struct mtk_base_memif_data *data = memif->data;
 	const struct mt8188_afe_channel_merge *cm = mt8188_afe_found_cm(dai);
@@ -360,7 +360,7 @@ static int mt8188_afe_fe_trigger(struct snd_pcm_substream *substream, int cmd,
 	const struct mt8188_afe_channel_merge *cm = mt8188_afe_found_cm(dai);
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime * const runtime = substream->runtime;
-	int id = asoc_rtd_to_cpu(rtd, 0)->id;
+	int id = snd_soc_rtd_to_cpu(rtd, 0)->id;
 	struct mtk_base_afe_memif *memif = &afe->memif[id];
 	struct mtk_base_afe_irq *irqs = &afe->irqs[memif->irq_usage];
 	const struct mtk_base_irq_data *irq_data = irqs->irq_data;

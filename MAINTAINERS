@@ -4912,6 +4912,7 @@ F:	drivers/spi/spi-cs42l43*
 F:	include/dt-bindings/sound/cs*
 F:	include/linux/mfd/cs42l43*
 F:	include/sound/cs*
+F:	sound/pci/hda/cirrus*
 F:	sound/pci/hda/cs*
 F:	sound/pci/hda/hda_cs_dsp_ctl.*
 F:	sound/soc/codecs/cs*
@@ -8125,7 +8126,7 @@ M:	Geoffrey D. Bennett <g@b4.vu>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
-F:	sound/usb/mixer_scarlett_gen2.c
+F:	sound/usb/mixer_scarlett2.c
 
 FORCEDETH GIGABIT ETHERNET DRIVER
 M:	Rain River <rain.1986.08.12@gmail.com>
@@ -15423,7 +15424,7 @@ NXP TFA9879 DRIVER
 M:	Peter Rosin <peda@axentia.se>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
-F:	Documentation/devicetree/bindings/sound/tfa9879.txt
+F:	Documentation/devicetree/bindings/sound/nxp,tfa9879.yaml
 F:	sound/soc/codecs/tfa9879*
 
 NXP-NCI NFC DRIVER
@@ -20066,7 +20067,7 @@ F:	include/linux/sony-laptop.h
 SOUND
 M:	Jaroslav Kysela <perex@perex.cz>
 M:	Takashi Iwai <tiwai@suse.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 W:	http://www.alsa-project.org/
 Q:	http://patchwork.kernel.org/project/alsa-devel/list/
@@ -20079,7 +20080,7 @@ F:	tools/testing/selftests/alsa
 
 SOUND - ALSA SELFTESTS
 M:	Mark Brown <broonie@kernel.org>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 L:	linux-kselftest@vger.kernel.org
 S:	Supported
 F:	tools/testing/selftests/alsa
@@ -20105,7 +20106,7 @@ F:	sound/soc/soc-generic-dmaengine-pcm.c
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
 M:	Liam Girdwood <lgirdwood@gmail.com>
 M:	Mark Brown <broonie@kernel.org>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Supported
 W:	http://alsa-project.org/main/index.php/ASoC
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound.git
@@ -20113,6 +20114,10 @@ F:	Documentation/devicetree/bindings/sound/
 F:	Documentation/sound/soc/
 F:	include/dt-bindings/sound/
 F:	include/sound/soc*
+F:	include/sound/sof.h
+F:	include/sound/sof/
+F:	include/trace/events/sof*.h
+F:	include/uapi/sound/asoc.h
 F:	sound/soc/
 
 SOUND - SOUND OPEN FIRMWARE (SOF) DRIVERS
@@ -20465,6 +20470,13 @@ M:	Xingyu Wu <xingyu.wu@starfivetech.com>
 S:	Supported
 F:	Documentation/devicetree/bindings/clock/starfive,jh7110-pll.yaml
 F:	drivers/clk/starfive/clk-starfive-jh7110-pll.c
+
+STARFIVE JH7110 PWMDAC DRIVER
+M:	Hal Feng <hal.feng@starfivetech.com>
+M:	Xingyu Wu <xingyu.wu@starfivetech.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/sound/starfive,jh7110-pwmdac.yaml
+F:	sound/soc/starfive/jh7110_pwmdac.c
 
 STARFIVE JH7110 SYSCON
 M:	William Qiu <william.qiu@starfivetech.com>
@@ -22936,7 +22948,7 @@ F:	fs/vboxsf/*
 
 VIRTUAL PCM TEST DRIVER
 M:	Ivan Orlov <ivan.orlov0322@gmail.com>
-L:	alsa-devel@alsa-project.org
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/sound/cards/pcmtest.rst
 F:	sound/drivers/pcmtest.c

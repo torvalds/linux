@@ -5,11 +5,11 @@
  * lpass-cpu.c -- ALSA SoC CPU DAI driver for QTi LPASS
  */
 
+#include <dt-bindings/sound/qcom,lpass.h>
 #include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -44,7 +44,7 @@ static int lpass_cpu_init_i2sctl_bitfields(struct device *dev,
 			struct lpaif_i2sctl *i2sctl, struct regmap *map)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 
 	i2sctl->loopback = devm_regmap_field_alloc(dev, map, v->loopback);
 	i2sctl->spken = devm_regmap_field_alloc(dev, map, v->spken);
@@ -463,7 +463,7 @@ static int asoc_qcom_of_xlate_dai_name(struct snd_soc_component *component,
 				   const char **dai_name)
 {
 	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
-	struct lpass_variant *variant = drvdata->variant;
+	const struct lpass_variant *variant = drvdata->variant;
 	int id = args->args[0];
 	int ret = -EINVAL;
 	int i;
@@ -488,7 +488,7 @@ static const struct snd_soc_component_driver lpass_cpu_comp_driver = {
 static bool lpass_cpu_regmap_writeable(struct device *dev, unsigned int reg)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int i;
 
 	for (i = 0; i < v->i2s_ports; ++i)
@@ -530,7 +530,7 @@ static bool lpass_cpu_regmap_writeable(struct device *dev, unsigned int reg)
 static bool lpass_cpu_regmap_readable(struct device *dev, unsigned int reg)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int i;
 
 	for (i = 0; i < v->i2s_ports; ++i)
@@ -578,7 +578,7 @@ static bool lpass_cpu_regmap_readable(struct device *dev, unsigned int reg)
 static bool lpass_cpu_regmap_volatile(struct device *dev, unsigned int reg)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int i;
 
 	for (i = 0; i < v->irq_ports; ++i) {
@@ -613,7 +613,7 @@ static struct regmap_config lpass_cpu_regmap_config = {
 static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	unsigned int i;
 	struct lpass_hdmi_tx_ctl *tx_ctl;
 	struct regmap_field *legacy_en;
@@ -691,7 +691,7 @@ static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 static bool lpass_hdmi_regmap_writeable(struct device *dev, unsigned int reg)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int i;
 
 	if (reg == LPASS_HDMI_TX_CTL_ADDR(v))
@@ -736,7 +736,7 @@ static bool lpass_hdmi_regmap_writeable(struct device *dev, unsigned int reg)
 static bool lpass_hdmi_regmap_readable(struct device *dev, unsigned int reg)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int i;
 
 	if (reg == LPASS_HDMI_TX_CTL_ADDR(v))
@@ -785,7 +785,7 @@ static bool lpass_hdmi_regmap_readable(struct device *dev, unsigned int reg)
 static bool lpass_hdmi_regmap_volatile(struct device *dev, unsigned int reg)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int i;
 
 	if (reg == LPASS_HDMITX_APP_IRQSTAT_REG(v))
@@ -824,7 +824,7 @@ static struct regmap_config lpass_hdmi_regmap_config = {
 static bool __lpass_rxtx_regmap_accessible(struct device *dev, unsigned int reg, bool rw)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int i;
 
 	for (i = 0; i < v->rxtx_irq_ports; ++i) {
@@ -890,7 +890,7 @@ static bool lpass_rxtx_regmap_readable(struct device *dev, unsigned int reg)
 static bool lpass_rxtx_regmap_volatile(struct device *dev, unsigned int reg)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int i;
 
 	for (i = 0; i < v->rxtx_irq_ports; ++i) {
@@ -915,7 +915,7 @@ static bool lpass_rxtx_regmap_volatile(struct device *dev, unsigned int reg)
 static bool __lpass_va_regmap_accessible(struct device *dev, unsigned int reg, bool rw)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int i;
 
 	for (i = 0; i < v->va_irq_ports; ++i) {
@@ -965,7 +965,7 @@ static bool lpass_va_regmap_readable(struct device *dev, unsigned int reg)
 static bool lpass_va_regmap_volatile(struct device *dev, unsigned int reg)
 {
 	struct lpass_data *drvdata = dev_get_drvdata(dev);
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int i;
 
 	for (i = 0; i < v->va_irq_ports; ++i) {
@@ -1104,9 +1104,8 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 	struct lpass_data *drvdata;
 	struct device_node *dsp_of_node;
 	struct resource *res;
-	struct lpass_variant *variant;
+	const struct lpass_variant *variant;
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	int ret, i, dai_id;
 
 	dsp_of_node = of_parse_phandle(pdev->dev.of_node, "qcom,adsp", 0);
@@ -1121,17 +1120,14 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, drvdata);
 
-	match = of_match_device(dev->driver->of_match_table, dev);
-	if (!match || !match->data)
+	variant = device_get_match_data(dev);
+	if (!variant)
 		return -EINVAL;
 
-	if (of_device_is_compatible(dev->of_node, "qcom,lpass-cpu-apq8016")) {
-		dev_warn(dev, "%s compatible is deprecated\n",
-			 match->compatible);
-	}
+	if (of_device_is_compatible(dev->of_node, "qcom,lpass-cpu-apq8016"))
+		dev_warn(dev, "qcom,lpass-cpu-apq8016 compatible is deprecated\n");
 
-	drvdata->variant = (struct lpass_variant *)match->data;
-	variant = drvdata->variant;
+	drvdata->variant = variant;
 
 	of_lpass_cpu_parse_dai_data(dev, drvdata);
 

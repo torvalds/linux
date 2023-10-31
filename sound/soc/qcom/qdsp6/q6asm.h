@@ -2,7 +2,6 @@
 #ifndef __Q6_ASM_H__
 #define __Q6_ASM_H__
 #include "q6dsp-common.h"
-#include <dt-bindings/sound/qcom,q6asm.h>
 
 /* ASM client callback events */
 #define CMD_PAUSE			0x0001

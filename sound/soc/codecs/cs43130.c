@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -29,7 +29,6 @@
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
-#include <linux/of_irq.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>

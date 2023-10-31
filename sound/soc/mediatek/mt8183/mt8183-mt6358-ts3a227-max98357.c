@@ -7,7 +7,7 @@
 // Author: Shunli Wang <shunli.wang@mediatek.com>
 
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <sound/jack.h>
 #include <sound/pcm_params.h>
@@ -43,12 +43,12 @@ struct mt8183_mt6358_ts3a227_max98357_priv {
 static int mt8183_mt6358_i2s_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	unsigned int rate = params_rate(params);
 	unsigned int mclk_fs_ratio = 128;
 	unsigned int mclk_fs = rate * mclk_fs_ratio;
 
-	return snd_soc_dai_set_sysclk(asoc_rtd_to_cpu(rtd, 0),
+	return snd_soc_dai_set_sysclk(snd_soc_rtd_to_cpu(rtd, 0),
 				      0, mclk_fs, SND_SOC_CLOCK_OUT);
 }
 
@@ -60,7 +60,7 @@ static int
 mt8183_mt6358_rt1015_i2s_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	unsigned int rate = params_rate(params);
 	unsigned int mclk_fs_ratio = 128;
 	unsigned int mclk_fs = rate * mclk_fs_ratio;
@@ -84,7 +84,7 @@ mt8183_mt6358_rt1015_i2s_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	return snd_soc_dai_set_sysclk(asoc_rtd_to_cpu(rtd, 0),
+	return snd_soc_dai_set_sysclk(snd_soc_rtd_to_cpu(rtd, 0),
 				      0, mclk_fs, SND_SOC_CLOCK_OUT);
 }
 
@@ -302,7 +302,7 @@ SND_SOC_DAILINK_DEFS(tdm,
 
 static int mt8183_mt6358_tdm_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct mt8183_mt6358_ts3a227_max98357_priv *priv =
 		snd_soc_card_get_drvdata(rtd->card);
 	int ret;
@@ -321,7 +321,7 @@ static int mt8183_mt6358_tdm_startup(struct snd_pcm_substream *substream)
 
 static void mt8183_mt6358_tdm_shutdown(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct mt8183_mt6358_ts3a227_max98357_priv *priv =
 		snd_soc_card_get_drvdata(rtd->card);
 	int ret;
@@ -345,7 +345,7 @@ static int
 mt8183_mt6358_ts3a227_max98357_wov_startup(
 	struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
 	struct mt8183_mt6358_ts3a227_max98357_priv *priv =
 			snd_soc_card_get_drvdata(card);
@@ -358,7 +358,7 @@ static void
 mt8183_mt6358_ts3a227_max98357_wov_shutdown(
 	struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
 	struct mt8183_mt6358_ts3a227_max98357_priv *priv =
 			snd_soc_card_get_drvdata(card);
@@ -388,7 +388,7 @@ mt8183_mt6358_ts3a227_max98357_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	return snd_soc_component_set_jack(asoc_rtd_to_codec(rtd, 0)->component,
+	return snd_soc_component_set_jack(snd_soc_rtd_to_codec(rtd, 0)->component,
 					  &priv->hdmi_jack, NULL);
 }
 

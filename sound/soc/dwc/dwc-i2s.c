@@ -235,7 +235,7 @@ static int dw_i2s_startup(struct snd_pcm_substream *substream,
 	struct dw_i2s_dev *dev = snd_soc_dai_get_drvdata(cpu_dai);
 
 	if (dev->is_jh7110) {
-		struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+		struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 		struct snd_soc_dai_link *dai_link = rtd->dai_link;
 
 		dai_link->trigger_stop = SND_SOC_TRIGGER_ORDER_LDC;

@@ -610,7 +610,7 @@ int snd_soc_pcm_dai_new(struct snd_soc_pcm_runtime *rtd)
 
 int snd_soc_pcm_dai_prepare(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
 	int i, ret;
 
@@ -646,7 +646,7 @@ static int soc_dai_trigger(struct snd_soc_dai *dai,
 int snd_soc_pcm_dai_trigger(struct snd_pcm_substream *substream,
 			    int cmd, int rollback)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
 	int i, r, ret = 0;
 
@@ -681,7 +681,7 @@ int snd_soc_pcm_dai_trigger(struct snd_pcm_substream *substream,
 int snd_soc_pcm_dai_bespoke_trigger(struct snd_pcm_substream *substream,
 				    int cmd)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
 	int i, ret;
 
@@ -702,7 +702,7 @@ void snd_soc_pcm_dai_delay(struct snd_pcm_substream *substream,
 			   snd_pcm_sframes_t *cpu_delay,
 			   snd_pcm_sframes_t *codec_delay)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
 	int i;
 

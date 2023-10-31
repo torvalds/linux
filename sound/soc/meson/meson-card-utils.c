@@ -13,7 +13,7 @@ int meson_card_i2s_set_sysclk(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params,
 			      unsigned int mclk_fs)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai;
 	unsigned int mclk;
 	int ret, i;
@@ -30,7 +30,7 @@ int meson_card_i2s_set_sysclk(struct snd_pcm_substream *substream,
 			return ret;
 	}
 
-	ret = snd_soc_dai_set_sysclk(asoc_rtd_to_cpu(rtd, 0), 0, mclk,
+	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_cpu(rtd, 0), 0, mclk,
 				     SND_SOC_CLOCK_OUT);
 	if (ret && ret != -ENOTSUPP)
 		return ret;
@@ -177,7 +177,7 @@ int meson_card_set_fe_link(struct snd_soc_card *card,
 			   struct device_node *node,
 			   bool is_playback)
 {
-	link->codecs = &asoc_dummy_dlc;
+	link->codecs = &snd_soc_dummy_dlc;
 	link->num_codecs = 1;
 
 	link->dynamic = 1;

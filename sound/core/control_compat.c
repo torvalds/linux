@@ -74,7 +74,7 @@ struct snd_ctl_elem_info32 {
 		unsigned char reserved[128];
 	} value;
 	unsigned char reserved[64];
-} __attribute__((packed));
+} __packed;
 
 static int snd_ctl_elem_info_compat(struct snd_ctl_file *ctl,
 				    struct snd_ctl_elem_info32 __user *data32)

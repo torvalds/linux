@@ -13,11 +13,11 @@
 #include <linux/i2c.h>
 #include <linux/clk.h>
 #include <linux/log2.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/tlv.h>
 #include <sound/pcm.h>

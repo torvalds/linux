@@ -80,8 +80,8 @@ void restore_acp_pdm_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *soc_runtime;
 	u32 ext_int_ctrl;
 
-	soc_runtime = asoc_substream_to_rtd(substream);
-	dai = asoc_rtd_to_cpu(soc_runtime, 0);
+	soc_runtime = snd_soc_substream_to_rtd(substream);
+	dai = snd_soc_rtd_to_cpu(soc_runtime, 0);
 	/* Programming channel mask and sampling rate */
 	writel(adata->ch_mask, adata->acp_base + ACP_WOV_PDM_NO_OF_CHANNELS);
 	writel(PDM_DEC_64, adata->acp_base + ACP_WOV_PDM_DECIMATION_FACTOR);
@@ -192,8 +192,8 @@ int restore_acp_i2s_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *soc_runtime;
 	u32 tdm_fmt, reg_val, fmt_reg, val;
 
-	soc_runtime = asoc_substream_to_rtd(substream);
-	dai = asoc_rtd_to_cpu(soc_runtime, 0);
+	soc_runtime = snd_soc_substream_to_rtd(substream);
+	dai = snd_soc_rtd_to_cpu(soc_runtime, 0);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		tdm_fmt = adata->tdm_tx_fmt[stream->dai_id - 1];
 		switch (stream->dai_id) {

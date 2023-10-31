@@ -201,6 +201,159 @@ static int sof_ipc4_volume_get(struct snd_sof_control *scontrol,
 	return 0;
 }
 
+static int
+sof_ipc4_set_generic_control_data(struct snd_sof_dev *sdev,
+				  struct snd_sof_widget *swidget,
+				  struct snd_sof_control *scontrol, bool lock)
+{
+	struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
+	struct sof_ipc4_control_msg_payload *data;
+	struct sof_ipc4_msg *msg = &cdata->msg;
+	size_t data_size;
+	unsigned int i;
+	int ret;
+
+	data_size = struct_size(data, chanv, scontrol->num_channels);
+	data = kzalloc(data_size, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->id = cdata->index;
+	data->num_elems = scontrol->num_channels;
+	for (i = 0; i < scontrol->num_channels; i++) {
+		data->chanv[i].channel = cdata->chanv[i].channel;
+		data->chanv[i].value = cdata->chanv[i].value;
+	}
+
+	msg->data_ptr = data;
+	msg->data_size = data_size;
+
+	ret = sof_ipc4_set_get_kcontrol_data(scontrol, true, lock);
+	msg->data_ptr = NULL;
+	msg->data_size = 0;
+	if (ret < 0)
+		dev_err(sdev->dev, "Failed to set control update for %s\n",
+			scontrol->name);
+
+	kfree(data);
+
+	return ret;
+}
+
+static bool sof_ipc4_switch_put(struct snd_sof_control *scontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_sof_widget *swidget;
+	bool widget_found = false;
+	bool change = false;
+	unsigned int i;
+	u32 value;
+	int ret;
+
+	/* update each channel */
+	for (i = 0; i < scontrol->num_channels; i++) {
+		value = ucontrol->value.integer.value[i];
+		change = change || (value != cdata->chanv[i].value);
+		cdata->chanv[i].channel = i;
+		cdata->chanv[i].value = value;
+	}
+
+	if (!pm_runtime_active(scomp->dev))
+		return change;
+
+	/* find widget associated with the control */
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		if (swidget->comp_id == scontrol->comp_id) {
+			widget_found = true;
+			break;
+		}
+	}
+
+	if (!widget_found) {
+		dev_err(scomp->dev, "Failed to find widget for kcontrol %s\n", scontrol->name);
+		return false;
+	}
+
+	ret = sof_ipc4_set_generic_control_data(sdev, swidget, scontrol, true);
+	if (ret < 0)
+		return false;
+
+	return change;
+}
+
+static int sof_ipc4_switch_get(struct snd_sof_control *scontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
+	unsigned int i;
+
+	/* read back each channel */
+	for (i = 0; i < scontrol->num_channels; i++)
+		ucontrol->value.integer.value[i] = cdata->chanv[i].value;
+
+	return 0;
+}
+
+static bool sof_ipc4_enum_put(struct snd_sof_control *scontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_sof_widget *swidget;
+	bool widget_found = false;
+	bool change = false;
+	unsigned int i;
+	u32 value;
+	int ret;
+
+	/* update each channel */
+	for (i = 0; i < scontrol->num_channels; i++) {
+		value = ucontrol->value.enumerated.item[i];
+		change = change || (value != cdata->chanv[i].value);
+		cdata->chanv[i].channel = i;
+		cdata->chanv[i].value = value;
+	}
+
+	if (!pm_runtime_active(scomp->dev))
+		return change;
+
+	/* find widget associated with the control */
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		if (swidget->comp_id == scontrol->comp_id) {
+			widget_found = true;
+			break;
+		}
+	}
+
+	if (!widget_found) {
+		dev_err(scomp->dev, "Failed to find widget for kcontrol %s\n", scontrol->name);
+		return false;
+	}
+
+	ret = sof_ipc4_set_generic_control_data(sdev, swidget, scontrol, true);
+	if (ret < 0)
+		return false;
+
+	return change;
+}
+
+static int sof_ipc4_enum_get(struct snd_sof_control *scontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
+	unsigned int i;
+
+	/* read back each channel */
+	for (i = 0; i < scontrol->num_channels; i++)
+		ucontrol->value.enumerated.item[i] = cdata->chanv[i].value;
+
+	return 0;
+}
+
 static int sof_ipc4_set_get_bytes_data(struct snd_sof_dev *sdev,
 				       struct snd_sof_control *scontrol,
 				       bool set, bool lock)
@@ -438,6 +591,16 @@ static int sof_ipc4_bytes_ext_volatile_get(struct snd_sof_control *scontrol,
 	return _sof_ipc4_bytes_ext_get(scontrol, binary_data, size, true);
 }
 
+static int
+sof_ipc4_volsw_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
+		     struct snd_sof_control *scontrol)
+{
+	if (scontrol->max == 1)
+		return sof_ipc4_set_generic_control_data(sdev, swidget, scontrol, false);
+
+	return sof_ipc4_set_volume_data(sdev, swidget, scontrol, false);
+}
+
 /* set up all controls for the widget */
 static int sof_ipc4_widget_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
@@ -450,12 +613,16 @@ static int sof_ipc4_widget_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_s
 			case SND_SOC_TPLG_CTL_VOLSW:
 			case SND_SOC_TPLG_CTL_VOLSW_SX:
 			case SND_SOC_TPLG_CTL_VOLSW_XR_SX:
-				ret = sof_ipc4_set_volume_data(sdev, swidget,
-							       scontrol, false);
+				ret = sof_ipc4_volsw_setup(sdev, swidget, scontrol);
 				break;
 			case SND_SOC_TPLG_CTL_BYTES:
 				ret = sof_ipc4_set_get_bytes_data(sdev, scontrol,
 								  true, false);
+				break;
+			case SND_SOC_TPLG_CTL_ENUM:
+			case SND_SOC_TPLG_CTL_ENUM_VALUE:
+				ret = sof_ipc4_set_generic_control_data(sdev, swidget,
+									scontrol, false);
 				break;
 			default:
 				break;
@@ -498,6 +665,10 @@ sof_ipc4_set_up_volume_table(struct snd_sof_control *scontrol, int tlv[SOF_TLV_I
 const struct sof_ipc_tplg_control_ops tplg_ipc4_control_ops = {
 	.volume_put = sof_ipc4_volume_put,
 	.volume_get = sof_ipc4_volume_get,
+	.switch_put = sof_ipc4_switch_put,
+	.switch_get = sof_ipc4_switch_get,
+	.enum_put = sof_ipc4_enum_put,
+	.enum_get = sof_ipc4_enum_get,
 	.bytes_put = sof_ipc4_bytes_put,
 	.bytes_get = sof_ipc4_bytes_get,
 	.bytes_ext_put = sof_ipc4_bytes_ext_put,

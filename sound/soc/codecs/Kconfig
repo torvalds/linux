@@ -54,6 +54,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ALC5632
 	imply SND_SOC_AUDIO_IIO_AUX
 	imply SND_SOC_AW8738
+	imply SND_SOC_AW87390
 	imply SND_SOC_AW88395
 	imply SND_SOC_AW88261
 	imply SND_SOC_BT_SCO
@@ -218,6 +219,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1316_SDW
 	imply SND_SOC_RT1318_SDW
 	imply SND_SOC_RT9120
+	imply SND_SOC_RTQ9128
 	imply SND_SOC_SDW_MOCKUP
 	imply SND_SOC_SGTL5000
 	imply SND_SOC_SI476X
@@ -638,12 +640,12 @@ config SND_SOC_AW8738
 	  operation mode using the Awinic-specific one-wire pulse control.
 
 config SND_SOC_AW88395_LIB
+	select CRC8
 	tristate
 
 config SND_SOC_AW88395
 	tristate "Soc Audio for awinic aw88395"
 	depends on I2C
-	select CRC8
 	select CRC32
 	select REGMAP_I2C
 	select GPIOLIB
@@ -657,7 +659,6 @@ config SND_SOC_AW88395
 config SND_SOC_AW88261
 	tristate "Soc Audio for awinic aw88261"
 	depends on I2C
-	select CRC8
 	select REGMAP_I2C
 	select GPIOLIB
 	select SND_SOC_AW88395_LIB
@@ -667,6 +668,17 @@ config SND_SOC_AW88261
 	  digital Smart K audio amplifier. The output voltage of
 	  boost converter can be adjusted smartly according to
 	  the input amplitude.
+
+config SND_SOC_AW87390
+	tristate "Soc Audio for awinic aw87390"
+	depends on I2C
+	select REGMAP_I2C
+	select SND_SOC_AW88395_LIB
+	help
+	  The awinic aw87390 is specifically designed to improve
+	  the musical output dynamic range, enhance the overall
+	  sound quality, which is a new high efficiency, low
+	  noise, constant large volume, 6th Smart K audio amplifier.
 
 config SND_SOC_BD28623
 	tristate "ROHM BD28623 CODEC"
@@ -1635,6 +1647,20 @@ config SND_SOC_RT9120
 	help
 	  Enable support for Richtek RT9120 20W, stereo, inductor-less,
 	  high-efficiency Class-D audio amplifier.
+
+config SND_SOC_RTQ9128
+	tristate "Richtek RTQ9128 45W Digital Input Amplifier"
+	depends on I2C
+	select REGMAP
+	help
+	  Enable support for Richtek RTQ9128 digital input 4-channel
+	  automotive audio amplifier.  It is a ultra-low output noise,
+	  high-efficiency, four-channel class-D audio power amplifier
+	  that can deliver over 87% power efficienty at 4x75W into 4Ohm,
+	  25V supply in automotive applications.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-rtq9128.
 
 config SND_SOC_SDW_MOCKUP
 	tristate "SoundWire mockup codec"

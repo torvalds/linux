@@ -1208,7 +1208,7 @@ static int aic31xx_regulator_event(struct notifier_block *nb,
 		 * supplies was disabled.
 		 */
 		if (aic31xx->gpio_reset)
-			gpiod_set_value(aic31xx->gpio_reset, 1);
+			gpiod_set_value_cansleep(aic31xx->gpio_reset, 1);
 
 		regcache_mark_dirty(aic31xx->regmap);
 		dev_dbg(aic31xx->dev, "## %s: DISABLE received\n", __func__);
@@ -1222,9 +1222,9 @@ static int aic31xx_reset(struct aic31xx_priv *aic31xx)
 	int ret = 0;
 
 	if (aic31xx->gpio_reset) {
-		gpiod_set_value(aic31xx->gpio_reset, 1);
+		gpiod_set_value_cansleep(aic31xx->gpio_reset, 1);
 		ndelay(10); /* At least 10ns */
-		gpiod_set_value(aic31xx->gpio_reset, 0);
+		gpiod_set_value_cansleep(aic31xx->gpio_reset, 0);
 	} else {
 		ret = regmap_write(aic31xx->regmap, AIC31XX_RESET, 1);
 	}

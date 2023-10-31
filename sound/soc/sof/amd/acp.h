@@ -220,7 +220,7 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 
 /* ACP device probe/remove */
 int amd_sof_acp_probe(struct snd_sof_dev *sdev);
-int amd_sof_acp_remove(struct snd_sof_dev *sdev);
+void amd_sof_acp_remove(struct snd_sof_dev *sdev);
 
 /* DSP Loader callbacks */
 int acp_sof_dsp_run(struct snd_sof_dev *sdev);

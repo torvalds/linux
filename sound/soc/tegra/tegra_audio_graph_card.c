@@ -6,7 +6,7 @@
 
 #include <linux/math64.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <sound/graph_card.h>
 #include <sound/pcm_params.h>
@@ -34,7 +34,7 @@ enum srate_type {
 };
 
 struct tegra_audio_priv {
-	struct asoc_simple_priv simple;
+	struct simple_util_priv simple;
 	struct clk *clk_plla_out0;
 	struct clk *clk_plla;
 };
@@ -64,8 +64,8 @@ static bool need_clk_update(struct snd_soc_dai *dai)
 static int tegra_audio_graph_update_pll(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct asoc_simple_priv *simple = snd_soc_card_get_drvdata(rtd->card);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct simple_util_priv *simple = snd_soc_card_get_drvdata(rtd->card);
 	struct tegra_audio_priv *priv = simple_to_tegra_priv(simple);
 	struct device *dev = rtd->card->dev;
 	const struct tegra_audio_cdata *data = of_device_get_match_data(dev);
@@ -152,8 +152,8 @@ static int tegra_audio_graph_update_pll(struct snd_pcm_substream *substream,
 static int tegra_audio_graph_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	int err;
 
 	if (need_clk_update(cpu_dai)) {
@@ -162,18 +162,18 @@ static int tegra_audio_graph_hw_params(struct snd_pcm_substream *substream,
 			return err;
 	}
 
-	return asoc_simple_hw_params(substream, params);
+	return simple_util_hw_params(substream, params);
 }
 
 static const struct snd_soc_ops tegra_audio_graph_ops = {
-	.startup	= asoc_simple_startup,
-	.shutdown	= asoc_simple_shutdown,
+	.startup	= simple_util_startup,
+	.shutdown	= simple_util_shutdown,
 	.hw_params	= tegra_audio_graph_hw_params,
 };
 
 static int tegra_audio_graph_card_probe(struct snd_soc_card *card)
 {
-	struct asoc_simple_priv *simple = snd_soc_card_get_drvdata(card);
+	struct simple_util_priv *simple = snd_soc_card_get_drvdata(card);
 	struct tegra_audio_priv *priv = simple_to_tegra_priv(simple);
 
 	priv->clk_plla = devm_clk_get(card->dev, "pll_a");
@@ -188,7 +188,7 @@ static int tegra_audio_graph_card_probe(struct snd_soc_card *card)
 		return PTR_ERR(priv->clk_plla_out0);
 	}
 
-	return asoc_graph_card_probe(card);
+	return graph_util_card_probe(card);
 }
 
 static int tegra_audio_graph_probe(struct platform_device *pdev)
@@ -248,7 +248,7 @@ static struct platform_driver tegra_audio_graph_card = {
 		.of_match_table = graph_of_tegra_match,
 	},
 	.probe = tegra_audio_graph_probe,
-	.remove = asoc_simple_remove,
+	.remove = simple_util_remove,
 };
 module_platform_driver(tegra_audio_graph_card);
 
