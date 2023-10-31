@@ -12,7 +12,7 @@
  *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
  *      card_get_tsf_offset - Calculate TSFOffset
  *      vt6655_get_current_tsf - Read Current NIC TSF counter
- *      CARDqGetNextTBTT - Calculate Next Beacon TSF counter
+ *      card_get_next_tbtt - Calculate Next Beacon TSF counter
  *      CARDvSetFirstNextTBTT - Set NIC Beacon time
  *      CARDvUpdateNextTBTT - Sync. NIC Beacon time
  *      CARDbRadioPowerOff - Turn Off NIC Radio Power
@@ -327,7 +327,7 @@ bool card_set_beacon_period(struct vnt_private *priv,
 
 	next_tbtt = vt6655_get_current_tsf(priv); /* Get Local TSF counter */
 
-	next_tbtt = CARDqGetNextTBTT(next_tbtt, beacon_interval);
+	next_tbtt = card_get_next_tbtt(next_tbtt, beacon_interval);
 
 	/* set HW beacon interval */
 	iowrite16(beacon_interval, priv->port_offset + MAC_REG_BI);
@@ -764,7 +764,7 @@ u64 vt6655_get_current_tsf(struct vnt_private *priv)
  *
  * Return Value: TSF value of next Beacon
  */
-u64 CARDqGetNextTBTT(u64 qwTSF, unsigned short beacon_interval)
+u64 card_get_next_tbtt(u64 qwTSF, unsigned short beacon_interval)
 {
 	u32 beacon_int;
 
@@ -799,7 +799,7 @@ void CARDvSetFirstNextTBTT(struct vnt_private *priv,
 
 	next_tbtt = vt6655_get_current_tsf(priv); /* Get Local TSF counter */
 
-	next_tbtt = CARDqGetNextTBTT(next_tbtt, beacon_interval);
+	next_tbtt = card_get_next_tbtt(next_tbtt, beacon_interval);
 	/* Set NextTBTT */
 	next_tbtt =  le64_to_cpu(next_tbtt);
 	iowrite32((u32)next_tbtt, iobase + MAC_REG_NEXTTBTT);
@@ -826,7 +826,7 @@ void CARDvUpdateNextTBTT(struct vnt_private *priv, u64 qwTSF,
 {
 	void __iomem *iobase = priv->port_offset;
 
-	qwTSF = CARDqGetNextTBTT(qwTSF, beacon_interval);
+	qwTSF = card_get_next_tbtt(qwTSF, beacon_interval);
 	/* Set NextTBTT */
 	qwTSF =  le64_to_cpu(qwTSF);
 	iowrite32((u32)qwTSF, iobase + MAC_REG_NEXTTBTT);
