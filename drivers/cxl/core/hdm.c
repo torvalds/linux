@@ -146,7 +146,7 @@ struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
 
 	/* Memory devices can configure device HDM using DVSEC range regs. */
 	if (reg_map->resource == CXL_RESOURCE_NONE) {
-		if (!info && !info->mem_enabled) {
+		if (!info || !info->mem_enabled) {
 			dev_err(dev, "No component registers mapped\n");
 			return ERR_PTR(-ENXIO);
 		}
