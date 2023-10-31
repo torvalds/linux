@@ -7,6 +7,8 @@
  * Author : K. Y. Srinivasan <kys@microsoft.com>
  */
 
+#define pr_fmt(fmt)  "Hyper-V: " fmt
+
 #include <linux/efi.h>
 #include <linux/types.h>
 #include <linux/bitfield.h>
@@ -191,7 +193,7 @@ void set_hv_tscchange_cb(void (*cb)(void))
 	struct hv_tsc_emulation_control emu_ctrl = {.enabled = 1};
 
 	if (!hv_reenlightenment_available()) {
-		pr_warn("Hyper-V: reenlightenment support is unavailable\n");
+		pr_warn("reenlightenment support is unavailable\n");
 		return;
 	}
 
@@ -394,6 +396,7 @@ static void __init hv_get_partition_id(void)
 	local_irq_restore(flags);
 }
 
+#if IS_ENABLED(CONFIG_HYPERV_VTL_MODE)
 static u8 __init get_vtl(void)
 {
 	u64 control = HV_HYPERCALL_REP_COMP_1 | HVCALL_GET_VP_REGISTERS;
@@ -416,13 +419,16 @@ static u8 __init get_vtl(void)
 	if (hv_result_success(ret)) {
 		ret = output->as64.low & HV_X64_VTL_MASK;
 	} else {
-		pr_err("Failed to get VTL(%lld) and set VTL to zero by default.\n", ret);
-		ret = 0;
+		pr_err("Failed to get VTL(error: %lld) exiting...\n", ret);
+		BUG();
 	}
 
 	local_irq_restore(flags);
 	return ret;
 }
+#else
+static inline u8 get_vtl(void) { return 0; }
+#endif
 
 /*
  * This function is to be invoked early in the boot sequence after the
@@ -564,7 +570,7 @@ skip_hypercall_pg_init:
 	if (cpu_feature_enabled(X86_FEATURE_IBT) &&
 	    *(u32 *)hv_hypercall_pg != gen_endbr()) {
 		setup_clear_cpu_cap(X86_FEATURE_IBT);
-		pr_warn("Hyper-V: Disabling IBT because of Hyper-V bug\n");
+		pr_warn("Disabling IBT because of Hyper-V bug\n");
 	}
 #endif
 
@@ -604,8 +610,10 @@ skip_hypercall_pg_init:
 	hv_query_ext_cap(0);
 
 	/* Find the VTL */
-	if (!ms_hyperv.paravisor_present && hv_isolation_type_snp())
-		ms_hyperv.vtl = get_vtl();
+	ms_hyperv.vtl = get_vtl();
+
+	if (ms_hyperv.vtl > 0) /* non default VTL */
+		hv_vtl_early_init();
 
 	return;
 

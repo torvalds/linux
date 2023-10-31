@@ -691,7 +691,7 @@ static int svm_hardware_enable(void)
 	 */
 	if (boot_cpu_has(X86_FEATURE_V_TSC_AUX)) {
 		struct sev_es_save_area *hostsa;
-		u32 msr_hi;
+		u32 __maybe_unused msr_hi;
 
 		hostsa = (struct sev_es_save_area *)(page_address(sd->save_area) + 0x400);
 
@@ -913,8 +913,7 @@ void svm_set_x2apic_msr_interception(struct vcpu_svm *svm, bool intercept)
 	if (intercept == svm->x2avic_msrs_intercepted)
 		return;
 
-	if (!x2avic_enabled ||
-	    !apic_x2apic_mode(svm->vcpu.arch.apic))
+	if (!x2avic_enabled)
 		return;
 
 	for (i = 0; i < MAX_DIRECT_ACCESS_MSRS; i++) {

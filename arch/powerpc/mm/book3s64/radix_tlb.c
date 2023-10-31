@@ -1212,14 +1212,7 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 
 			smp_mb(); /* see radix__flush_tlb_mm */
 			exit_flush_lazy_tlbs(mm);
-			_tlbiel_pid(mm->context.id, RIC_FLUSH_ALL);
-
-			/*
-			 * It should not be possible to have coprocessors still
-			 * attached here.
-			 */
-			if (WARN_ON_ONCE(atomic_read(&mm->context.copros) > 0))
-				__flush_all_mm(mm, true);
+			__flush_all_mm(mm, true);
 
 			preempt_enable();
 		} else {

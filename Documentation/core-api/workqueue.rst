@@ -244,7 +244,7 @@ unbound worker-pools and only one work item could be active at any given
 time thus achieving the same ordering property as ST wq.
 
 In the current implementation the above configuration only guarantees
-ST behavior within a given NUMA node. Instead ``alloc_ordered_queue()`` should
+ST behavior within a given NUMA node. Instead ``alloc_ordered_workqueue()`` should
 be used to achieve system-wide ST behavior.
 
 
@@ -390,7 +390,7 @@ The default affinity scope can be changed with the module parameter
 scope can be changed using ``apply_workqueue_attrs()``.
 
 If ``WQ_SYSFS`` is set, the workqueue will have the following affinity scope
-related interface files under its ``/sys/devices/virtual/WQ_NAME/``
+related interface files under its ``/sys/devices/virtual/workqueue/WQ_NAME/``
 directory.
 
 ``affinity_scope``

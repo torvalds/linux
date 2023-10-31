@@ -399,14 +399,13 @@ void __init swiotlb_init_remap(bool addressing_limit, unsigned int flags,
 	}
 
 	mem->areas = memblock_alloc(array_size(sizeof(struct io_tlb_area),
-		default_nareas), SMP_CACHE_BYTES);
+		nareas), SMP_CACHE_BYTES);
 	if (!mem->areas) {
 		pr_warn("%s: Failed to allocate mem->areas.\n", __func__);
 		return;
 	}
 
-	swiotlb_init_io_tlb_pool(mem, __pa(tlb), nslabs, false,
-				 default_nareas);
+	swiotlb_init_io_tlb_pool(mem, __pa(tlb), nslabs, false, nareas);
 	add_mem_pool(&io_tlb_default_mem, mem);
 
 	if (flags & SWIOTLB_VERBOSE)
@@ -679,6 +678,11 @@ static struct io_tlb_pool *swiotlb_alloc_pool(struct device *dev,
 	size_t pool_size;
 	size_t tlb_size;
 
+	if (nslabs > SLABS_PER_PAGE << MAX_ORDER) {
+		nslabs = SLABS_PER_PAGE << MAX_ORDER;
+		nareas = limit_nareas(nareas, nslabs);
+	}
+
 	pool_size = sizeof(*pool) + array_size(sizeof(*pool->areas), nareas);
 	pool = kzalloc(pool_size, gfp);
 	if (!pool)
@@ -729,9 +733,6 @@ static void swiotlb_dyn_alloc(struct work_struct *work)
 	}
 
 	add_mem_pool(mem, pool);
-
-	/* Pairs with smp_rmb() in is_swiotlb_buffer(). */
-	smp_wmb();
 }
 
 /**
@@ -1152,9 +1153,26 @@ static int swiotlb_find_slots(struct device *dev, phys_addr_t orig_addr,
 	spin_unlock_irqrestore(&dev->dma_io_tlb_lock, flags);
 
 found:
-	dev->dma_uses_io_tlb = true;
-	/* Pairs with smp_rmb() in is_swiotlb_buffer() */
-	smp_wmb();
+	WRITE_ONCE(dev->dma_uses_io_tlb, true);
+
+	/*
+	 * The general barrier orders reads and writes against a presumed store
+	 * of the SWIOTLB buffer address by a device driver (to a driver private
+	 * data structure). It serves two purposes.
+	 *
+	 * First, the store to dev->dma_uses_io_tlb must be ordered before the
+	 * presumed store. This guarantees that the returned buffer address
+	 * cannot be passed to another CPU before updating dev->dma_uses_io_tlb.
+	 *
+	 * Second, the load from mem->pools must be ordered before the same
+	 * presumed store. This guarantees that the returned buffer address
+	 * cannot be observed by another CPU before an update of the RCU list
+	 * that was made by swiotlb_dyn_alloc() on a third CPU (cf. multicopy
+	 * atomicity).
+	 *
+	 * See also the comment in is_swiotlb_buffer().
+	 */
+	smp_mb();
 
 	*retpool = pool;
 	return index;

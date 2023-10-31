@@ -170,8 +170,8 @@ next_attr:
 		nt2kernel(std5->cr_time, &ni->i_crtime);
 #endif
 		nt2kernel(std5->a_time, &inode->i_atime);
-		ctime = inode_get_ctime(inode);
 		nt2kernel(std5->c_time, &ctime);
+		inode_set_ctime_to_ts(inode, ctime);
 		nt2kernel(std5->m_time, &inode->i_mtime);
 
 		ni->std_fa = std5->fa;
@@ -1660,7 +1660,8 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 	d_instantiate(dentry, inode);
 
 	/* Set original time. inode times (i_ctime) may be changed in ntfs_init_acl. */
-	inode->i_atime = inode->i_mtime = inode_set_ctime_to_ts(inode, ni->i_crtime);
+	inode->i_atime = inode->i_mtime =
+		inode_set_ctime_to_ts(inode, ni->i_crtime);
 	dir->i_mtime = inode_set_ctime_to_ts(dir, ni->i_crtime);
 
 	mark_inode_dirty(dir);

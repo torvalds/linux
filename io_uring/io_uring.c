@@ -2674,7 +2674,11 @@ static void io_pages_free(struct page ***pages, int npages)
 
 	if (!pages)
 		return;
+
 	page_array = *pages;
+	if (!page_array)
+		return;
+
 	for (i = 0; i < npages; i++)
 		unpin_user_page(page_array[i]);
 	kvfree(page_array);
@@ -2686,7 +2690,7 @@ static void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
 {
 	struct page **page_array;
 	unsigned int nr_pages;
-	int ret;
+	int ret, i;
 
 	*npages = 0;
 
@@ -2716,6 +2720,20 @@ err:
 	 */
 	if (page_array[0] != page_array[ret - 1])
 		goto err;
+
+	/*
+	 * Can't support mapping user allocated ring memory on 32-bit archs
+	 * where it could potentially reside in highmem. Just fail those with
+	 * -EINVAL, just like we did on kernels that didn't support this
+	 * feature.
+	 */
+	for (i = 0; i < nr_pages; i++) {
+		if (PageHighMem(page_array[i])) {
+			ret = -EINVAL;
+			goto err;
+		}
+	}
+
 	*pages = page_array;
 	*npages = nr_pages;
 	return page_to_virt(page_array[0]);
@@ -2744,7 +2762,9 @@ static void io_rings_free(struct io_ring_ctx *ctx)
 		ctx->sq_sqes = NULL;
 	} else {
 		io_pages_free(&ctx->ring_pages, ctx->n_ring_pages);
+		ctx->n_ring_pages = 0;
 		io_pages_free(&ctx->sqe_pages, ctx->n_sqe_pages);
+		ctx->n_sqe_pages = 0;
 	}
 }
 

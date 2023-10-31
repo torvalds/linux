@@ -855,7 +855,7 @@ static size_t sizeof_idt(struct acpi_nfit_interleave *idt)
 {
 	if (idt->header.length < sizeof(*idt))
 		return 0;
-	return sizeof(*idt) + sizeof(u32) * (idt->line_count - 1);
+	return sizeof(*idt) + sizeof(u32) * idt->line_count;
 }
 
 static bool add_idt(struct acpi_nfit_desc *acpi_desc,
@@ -3339,6 +3339,16 @@ static int acpi_nfit_add(struct acpi_device *adev)
 	acpi_size sz;
 	int rc = 0;
 
+	rc = acpi_dev_install_notify_handler(adev, ACPI_DEVICE_NOTIFY,
+					     acpi_nfit_notify);
+	if (rc)
+		return rc;
+
+	rc = devm_add_action_or_reset(dev, acpi_nfit_remove_notify_handler,
+					adev);
+	if (rc)
+		return rc;
+
 	status = acpi_get_table(ACPI_SIG_NFIT, 0, &tbl);
 	if (ACPI_FAILURE(status)) {
 		/* The NVDIMM root device allows OS to trigger enumeration of
@@ -3386,17 +3396,7 @@ static int acpi_nfit_add(struct acpi_device *adev)
 	if (rc)
 		return rc;
 
-	rc = devm_add_action_or_reset(dev, acpi_nfit_shutdown, acpi_desc);
-	if (rc)
-		return rc;
-
-	rc = acpi_dev_install_notify_handler(adev, ACPI_DEVICE_NOTIFY,
-					     acpi_nfit_notify);
-	if (rc)
-		return rc;
-
-	return devm_add_action_or_reset(dev, acpi_nfit_remove_notify_handler,
-					adev);
+	return devm_add_action_or_reset(dev, acpi_nfit_shutdown, acpi_desc);
 }
 
 static void acpi_nfit_update_notify(struct device *dev, acpi_handle handle)
