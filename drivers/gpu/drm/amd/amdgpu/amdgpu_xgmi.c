@@ -413,6 +413,38 @@ static ssize_t amdgpu_xgmi_show_num_links(struct device *dev,
 	return sysfs_emit(buf, "%s\n", buf);
 }
 
+static ssize_t amdgpu_xgmi_show_connected_port_num(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
+	int i, j, size = 0;
+	int current_node;
+	/*
+	 * get the node id in the sysfs for the current socket and show
+	 * it in the port num info output in the sysfs for easy reading.
+	 * it is NOT the one retrieved from xgmi ta.
+	 */
+	for (i = 0; i < top->num_nodes; i++) {
+		if (top->nodes[i].node_id == adev->gmc.xgmi.node_id) {
+			current_node = i;
+			break;
+		}
+	}
+
+	for (i = 0; i < top->num_nodes; i++) {
+		for (j = 0; j < top->nodes[i].num_links; j++)
+			/* node id in sysfs starts from 1 rather than 0 so +1 here */
+			size += sysfs_emit_at(buf, size, "%02x:%02x ->  %02x:%02x\n", current_node + 1,
+					      top->nodes[i].port_num[j].src_xgmi_port_num, i + 1,
+					      top->nodes[i].port_num[j].dst_xgmi_port_num);
+	}
+
+	return size;
+}
+
 #define AMDGPU_XGMI_SET_FICAA(o)	((o) | 0x456801)
 static ssize_t amdgpu_xgmi_show_error(struct device *dev,
 				      struct device_attribute *attr,
@@ -452,6 +484,7 @@ static DEVICE_ATTR(xgmi_physical_id, 0444, amdgpu_xgmi_show_physical_id, NULL);
 static DEVICE_ATTR(xgmi_error, S_IRUGO, amdgpu_xgmi_show_error, NULL);
 static DEVICE_ATTR(xgmi_num_hops, S_IRUGO, amdgpu_xgmi_show_num_hops, NULL);
 static DEVICE_ATTR(xgmi_num_links, S_IRUGO, amdgpu_xgmi_show_num_links, NULL);
+static DEVICE_ATTR(xgmi_port_num, S_IRUGO, amdgpu_xgmi_show_connected_port_num, NULL);
 
 static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 					 struct amdgpu_hive_info *hive)
@@ -487,6 +520,13 @@ static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 	if (ret)
 		pr_err("failed to create xgmi_num_links\n");
 
+	/* Create xgmi port num file if supported */
+	if (adev->psp.xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG) {
+		ret = device_create_file(adev->dev, &dev_attr_xgmi_port_num);
+		if (ret)
+			dev_err(adev->dev, "failed to create xgmi_port_num\n");
+	}
+
 	/* Create sysfs link to hive info folder on the first device */
 	if (hive->kobj.parent != (&adev->dev->kobj)) {
 		ret = sysfs_create_link(&adev->dev->kobj, &hive->kobj,
@@ -517,6 +557,8 @@ remove_file:
 	device_remove_file(adev->dev, &dev_attr_xgmi_error);
 	device_remove_file(adev->dev, &dev_attr_xgmi_num_hops);
 	device_remove_file(adev->dev, &dev_attr_xgmi_num_links);
+	if (adev->psp.xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG)
+		device_remove_file(adev->dev, &dev_attr_xgmi_port_num);
 
 success:
 	return ret;
@@ -533,6 +575,8 @@ static void amdgpu_xgmi_sysfs_rem_dev_info(struct amdgpu_device *adev,
 	device_remove_file(adev->dev, &dev_attr_xgmi_error);
 	device_remove_file(adev->dev, &dev_attr_xgmi_num_hops);
 	device_remove_file(adev->dev, &dev_attr_xgmi_num_links);
+	if (adev->psp.xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG)
+		device_remove_file(adev->dev, &dev_attr_xgmi_port_num);
 
 	if (hive->kobj.parent != (&adev->dev->kobj))
 		sysfs_remove_link(&adev->dev->kobj,"xgmi_hive_info");
