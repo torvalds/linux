@@ -52,6 +52,7 @@ def define_pitti():
         "drivers/slimbus/slimbus.ko",
         "drivers/soc/qcom/boot_stats.ko",
         "drivers/soc/qcom/core_hang_detect.ko",
+        "drivers/soc/qcom/glink_probe.ko",
         "drivers/soc/qcom/mdt_loader.ko",
         "drivers/soc/qcom/mem-hooks.ko",
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
@@ -68,6 +69,8 @@ def define_pitti():
         "drivers/soc/qcom/socinfo.ko",
         "drivers/soc/qcom/wcd_usbss_i2c.ko",
         "drivers/ufs/host/ufs_qcom.ko",
+        "net/qrtr/qrtr.ko",
+        "net/qrtr/qrtr-smd.ko",
     ]
 
     _pitti_consolidate_in_tree_modules = _pitti_in_tree_modules + [
