@@ -5,7 +5,7 @@
  * Based on original driver:
  * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitfield.h>
@@ -220,6 +220,7 @@ struct adc_tm5_channel {
  * @avg_samples: ability to provide single result from the ADC
  *      that is an average of multiple measurements. Applies to all
  *      channels, used only on Gen1 ADC_TM.
+ * @irq: adc-tm interrupt, triggered when temperature violations happen.
  * @base: base address of TM registers.
  * @adc_mutex_lock: ADC_TM mutex lock, used only on Gen2 ADC_TM.
  *      It is used to ensure only one ADC channel configuration
@@ -234,6 +235,7 @@ struct adc_tm5_chip {
 	unsigned int		nchannels;
 	unsigned int		decimation;
 	unsigned int		avg_samples;
+	int			irq;
 	u16			base;
 	struct mutex		adc_mutex_lock;
 };
@@ -1017,7 +1019,7 @@ static int adc_tm5_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct adc_tm5_chip *adc_tm;
 	struct regmap *regmap;
-	int ret, irq;
+	int ret;
 	u32 reg;
 
 	regmap = dev_get_regmap(dev->parent, NULL);
@@ -1050,9 +1052,11 @@ static int adc_tm5_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
+	adc_tm->irq = platform_get_irq(pdev, 0);
+	if (adc_tm->irq < 0)
+		return adc_tm->irq;
+
+	dev_set_drvdata(dev, adc_tm);
 
 	ret = adc_tm->data->init(adc_tm);
 	if (ret) {
@@ -1066,9 +1070,47 @@ static int adc_tm5_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return devm_request_threaded_irq(dev, irq, NULL, adc_tm->data->isr,
-			IRQF_ONESHOT, adc_tm->data->irq_name, adc_tm);
+	return devm_request_threaded_irq(dev, adc_tm->irq, NULL,
+			adc_tm->data->isr, IRQF_ONESHOT,
+				adc_tm->data->irq_name, adc_tm);
 }
+
+static int adc_tm_restore(struct device *dev)
+{
+	struct adc_tm5_chip *adc_tm = dev_get_drvdata(dev);
+	int ret;
+
+	if (adc_tm->irq > 0) {
+		ret = devm_request_threaded_irq(dev, adc_tm->irq, NULL,
+				adc_tm->data->isr, IRQF_ONESHOT,
+					adc_tm->data->irq_name, adc_tm);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = adc_tm->data->init(adc_tm);
+	if (ret < 0)
+		dev_err(dev, "init failed\n");
+
+	return ret;
+}
+
+static int adc_tm_freeze(struct device *dev)
+{
+	struct adc_tm5_chip *adc_tm = dev_get_drvdata(dev);
+
+	if (adc_tm->irq > 0) {
+		disable_irq(adc_tm->irq);
+		devm_free_irq(dev, adc_tm->irq, adc_tm);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops adc_tm_pm_ops = {
+	.freeze = adc_tm_freeze,
+	.restore = adc_tm_restore,
+};
 
 static const struct of_device_id adc_tm5_match_table[] = {
 	{
@@ -1095,6 +1137,7 @@ static struct platform_driver adc_tm5_driver = {
 	.driver = {
 		.name = "qcom-spmi-adc-tm5",
 		.of_match_table = adc_tm5_match_table,
+		.pm = &adc_tm_pm_ops,
 	},
 	.probe = adc_tm5_probe,
 };
