@@ -286,7 +286,7 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 
 	if (fw->shave_nn_size) {
 		fw->mem_shave_nn = ivpu_bo_alloc_internal(vdev, vdev->hw->ranges.shave.start,
-							  fw->shave_nn_size, DRM_IVPU_BO_UNCACHED);
+							  fw->shave_nn_size, DRM_IVPU_BO_WC);
 		if (!fw->mem_shave_nn) {
 			ivpu_err(vdev, "Failed to allocate shavenn buffer\n");
 			ret = -ENOMEM;

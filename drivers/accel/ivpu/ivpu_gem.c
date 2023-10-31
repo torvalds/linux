@@ -89,8 +89,6 @@ static int __must_check shmem_alloc_pages_locked(struct ivpu_bo *bo)
 
 	if (bo->flags & DRM_IVPU_BO_WC)
 		set_pages_array_wc(pages, npages);
-	else if (bo->flags & DRM_IVPU_BO_UNCACHED)
-		set_pages_array_uc(pages, npages);
 
 	bo->pages = pages;
 	return 0;
@@ -366,7 +364,6 @@ ivpu_bo_alloc(struct ivpu_device *vdev, u64 size, u32 flags, const struct ivpu_b
 
 	switch (flags & DRM_IVPU_BO_CACHE_MASK) {
 	case DRM_IVPU_BO_CACHED:
-	case DRM_IVPU_BO_UNCACHED:
 	case DRM_IVPU_BO_WC:
 		break;
 	default:
