@@ -534,16 +534,16 @@ struct afs_endpoint_state {
 	refcount_t		ref;
 	unsigned int		server_id;	/* Debug ID of server */
 	unsigned int		probe_seq;	/* Probe sequence (from server::probe_counter) */
-
 	atomic_t		nr_probing;	/* Number of outstanding probes */
 	unsigned int		rtt;		/* Best RTT in uS (or UINT_MAX) */
 	s32			abort_code;
 	short			error;
-	bool			responded:1;
-	bool			is_yfs:1;
-	bool			not_yfs:1;
-	bool			local_failure:1;
-	bool			superseded:1;	/* Set if has been superseded */
+	unsigned long		flags;
+#define AFS_ESTATE_RESPONDED	0		/* Set if the server responded */
+#define AFS_ESTATE_SUPERSEDED	1		/* Set if this record has been superseded */
+#define AFS_ESTATE_IS_YFS	2		/* Set if probe upgraded to YFS */
+#define AFS_ESTATE_NOT_YFS	3		/* Set if probe didn't upgrade to YFS */
+#define AFS_ESTATE_LOCAL_FAILURE 4		/* Set if there was a local failure (eg. ENOMEM) */
 };
 
 /*

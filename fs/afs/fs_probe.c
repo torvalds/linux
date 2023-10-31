@@ -77,7 +77,7 @@ static void afs_schedule_fs_probe(struct afs_net *net,
 static void afs_finished_fs_probe(struct afs_net *net, struct afs_server *server,
 				  struct afs_endpoint_state *estate)
 {
-	bool responded = estate->responded;
+	bool responded = test_bit(AFS_ESTATE_RESPONDED, &estate->flags);
 
 	write_seqlock(&net->fs_lock);
 	if (responded) {
@@ -121,7 +121,7 @@ static void afs_fs_probe_not_done(struct afs_net *net,
 	trace_afs_io_error(0, -ENOMEM, afs_io_error_fs_probe_fail);
 	spin_lock(&server->probe_lock);
 
-	estate->local_failure = true;
+	set_bit(AFS_ESTATE_LOCAL_FAILURE, &estate->flags);
 	if (estate->error == 0)
 		estate->error = -ENOMEM;
 
@@ -156,7 +156,7 @@ void afs_fileserver_probe_result(struct afs_call *call)
 		estate->error = 0;
 		goto responded;
 	case -ECONNABORTED:
-		if (!estate->responded) {
+		if (!test_bit(AFS_ESTATE_RESPONDED, &estate->flags)) {
 			estate->abort_code = call->abort_code;
 			estate->error = ret;
 		}
@@ -164,7 +164,7 @@ void afs_fileserver_probe_result(struct afs_call *call)
 	case -ENOMEM:
 	case -ENONET:
 		clear_bit(index, &estate->responsive_set);
-		estate->local_failure = true;
+		set_bit(AFS_ESTATE_LOCAL_FAILURE, &estate->flags);
 		trace_afs_io_error(call->debug_id, ret, afs_io_error_fs_probe_fail);
 		goto out;
 	case -ECONNRESET: /* Responded, but call expired. */
@@ -179,7 +179,7 @@ void afs_fileserver_probe_result(struct afs_call *call)
 	default:
 		clear_bit(index, &estate->responsive_set);
 		set_bit(index, &estate->failed_set);
-		if (!estate->responded &&
+		if (!test_bit(AFS_ESTATE_RESPONDED, &estate->flags) &&
 		    (estate->error == 0 ||
 		     estate->error == -ETIMEDOUT ||
 		     estate->error == -ETIME))
@@ -192,13 +192,13 @@ responded:
 	clear_bit(index, &estate->failed_set);
 
 	if (call->service_id == YFS_FS_SERVICE) {
-		estate->is_yfs = true;
+		set_bit(AFS_ESTATE_IS_YFS, &estate->flags);
 		set_bit(AFS_SERVER_FL_IS_YFS, &server->flags);
 		server->service_id = call->service_id;
 	} else {
-		estate->not_yfs = true;
-		if (!estate->is_yfs) {
-			estate->is_yfs = false;
+		set_bit(AFS_ESTATE_NOT_YFS, &estate->flags);
+		if (!test_bit(AFS_ESTATE_IS_YFS, &estate->flags)) {
+			clear_bit(AFS_SERVER_FL_IS_YFS, &server->flags);
 			server->service_id = call->service_id;
 		}
 		cap0 = ntohl(call->tmp);
@@ -216,7 +216,7 @@ responded:
 	}
 
 	smp_wmb(); /* Set rtt before responded. */
-	estate->responded = true;
+	set_bit(AFS_ESTATE_RESPONDED, &estate->flags);
 	set_bit(index, &estate->responsive_set);
 	set_bit(AFS_SERVER_FL_RESPONDING, &server->flags);
 out:
@@ -264,7 +264,7 @@ void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 	atomic_set(&estate->nr_probing, alist->nr_addrs);
 
 	rcu_assign_pointer(server->endpoint_state, estate);
-	old->superseded = true;
+	set_bit(AFS_ESTATE_SUPERSEDED, &old->flags);
 	write_unlock(&server->fs_lock);
 
 	trace_afs_estate(estate->server_id, estate->probe_seq, refcount_read(&estate->ref),
@@ -317,7 +317,7 @@ int afs_wait_for_fs_probes(struct afs_server_list *slist, unsigned long untried)
 			estate = rcu_dereference(server->endpoint_state);
 			if (!atomic_read(&estate->nr_probing))
 				__clear_bit(i, &untried);
-			if (estate->responded)
+			if (test_bit(AFS_ESTATE_RESPONDED, &estate->flags))
 				have_responders = true;
 		}
 	}
@@ -344,7 +344,7 @@ int afs_wait_for_fs_probes(struct afs_server_list *slist, unsigned long untried)
 		for (i = 0; i < slist->nr_servers; i++) {
 			if (test_bit(i, &untried)) {
 				server = slist->servers[i].server;
-				if (estate->responded)
+				if (test_bit(AFS_ESTATE_RESPONDED, &estate->flags))
 					goto stop;
 				if (atomic_read(&estate->nr_probing))
 					still_probing = true;
@@ -521,7 +521,7 @@ int afs_wait_for_one_fs_probe(struct afs_server *server, struct afs_endpoint_sta
 		prepare_to_wait_event(&server->probe_wq, &wait,
 				      is_intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
 		if (timo == 0 ||
-		    estate->responded ||
+		    test_bit(AFS_ESTATE_RESPONDED, &estate->flags) ||
 		    atomic_read(&estate->nr_probing) == 0 ||
 		    (is_intr && signal_pending(current)))
 			break;
@@ -531,7 +531,7 @@ int afs_wait_for_one_fs_probe(struct afs_server *server, struct afs_endpoint_sta
 	finish_wait(&server->probe_wq, &wait);
 
 dont_wait:
-	if (estate->responded)
+	if (test_bit(AFS_ESTATE_RESPONDED, &estate->flags))
 		return 0;
 	if (is_intr && signal_pending(current))
 		return -ERESTARTSYS;
