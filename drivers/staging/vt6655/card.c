@@ -291,17 +291,17 @@ bool card_update_tsf(struct vnt_private *priv, unsigned char rx_rate,
 		    u64 bss_timestamp)
 {
 	u64 local_tsf;
-	u64 qwTSFOffset = 0;
+	u64 tsf_offset = 0;
 
 	local_tsf = vt6655_get_current_tsf(priv);
 
 	if (bss_timestamp != local_tsf) {
-		qwTSFOffset = CARDqGetTSFOffset(rx_rate, bss_timestamp,
+		tsf_offset = CARDqGetTSFOffset(rx_rate, bss_timestamp,
 						local_tsf);
 		/* adjust TSF, HW's TSF add TSF Offset reg */
-		qwTSFOffset =  le64_to_cpu(qwTSFOffset);
-		iowrite32((u32)qwTSFOffset, priv->port_offset + MAC_REG_TSFOFST);
-		iowrite32((u32)(qwTSFOffset >> 32), priv->port_offset + MAC_REG_TSFOFST + 4);
+		tsf_offset =  le64_to_cpu(tsf_offset);
+		iowrite32((u32)tsf_offset, priv->port_offset + MAC_REG_TSFOFST);
+		iowrite32((u32)(tsf_offset >> 32), priv->port_offset + MAC_REG_TSFOFST + 4);
 		vt6655_mac_reg_bits_on(priv->port_offset, MAC_REG_TFTCTL, TFTCTL_TSFSYNCEN);
 	}
 	return true;
