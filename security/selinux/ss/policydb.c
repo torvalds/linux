@@ -491,7 +491,7 @@ static u32 role_trans_hash(const void *k)
 {
 	const struct role_trans_key *key = k;
 
-	return key->role + (key->type << 3) + (key->tclass << 5);
+	return jhash_3words(key->role, key->type, (u32)key->tclass << 16 | key->tclass, 0);
 }
 
 static int role_trans_cmp(const void *k1, const void *k2)
@@ -684,9 +684,9 @@ static void hash_eval(struct hashtab *h, const char *hash_name)
 	struct hashtab_info info;
 
 	hashtab_stat(h, &info);
-	pr_debug("SELinux: %s:  %d entries and %d/%d buckets used, longest chain length %d\n",
+	pr_debug("SELinux: %s:  %d entries and %d/%d buckets used, longest chain length %d, sum of chain length^2 %llu\n",
 		 hash_name, h->nel, info.slots_used, h->size,
-		 info.max_chain_len);
+		 info.max_chain_len, info.chain2_len_sum);
 }
 
 static void symtab_hash_eval(struct symtab *s)
