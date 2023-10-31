@@ -24,3 +24,4 @@
    contribution-maturity-model
    security-bugs
    embargoed-hardware-issues
+   handling-regressions
