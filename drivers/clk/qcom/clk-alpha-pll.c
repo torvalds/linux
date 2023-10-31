@@ -3928,7 +3928,7 @@ static void clk_zonda_evo_pll_disable(struct clk_hw *hw)
 	u32 val, mask;
 	int ret;
 
-	ret = regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
+	ret = regmap_read(pll->clkr.regmap, PLL_USER_CTL(pll), &val);
 	if (ret)
 		return;
 
@@ -4061,10 +4061,6 @@ int clk_zonda_evo_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap
 		ret |= regmap_write(regmap, PLL_USER_CTL_U(pll),
 				config->user_ctl_hi_val);
 
-	if (config->user_ctl_hi1_val)
-		ret |= regmap_write(regmap, PLL_USER_CTL_U1(pll),
-				config->user_ctl_hi1_val);
-
 	if (config->test_ctl_val)
 		ret |= regmap_write(regmap, PLL_TEST_CTL(pll),
 				config->test_ctl_val);
@@ -4097,6 +4093,25 @@ int clk_zonda_evo_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap
 	return ret ? -EIO : 0;
 }
 EXPORT_SYMBOL_GPL(clk_zonda_evo_pll_configure);
+
+const struct clk_ops clk_alpha_pll_zonda_evo_ops = {
+	.prepare = clk_prepare_regmap,
+	.unprepare = clk_unprepare_regmap,
+	.pre_rate_change = clk_pre_change_regmap,
+	.post_rate_change = clk_post_change_regmap,
+	.enable = clk_zonda_evo_pll_enable,
+	.disable = clk_zonda_evo_pll_disable,
+	.set_rate = clk_zonda_pll_set_rate,
+	.is_enabled = clk_zonda_pll_is_enabled,
+	.recalc_rate = clk_zonda_evo_pll_recalc_rate,
+	.round_rate = clk_alpha_pll_round_rate,
+	.debug_init = clk_common_debug_init,
+	.init = clk_alpha_pll_zonda_evo_init,
+#ifdef CONFIG_COMMON_CLK_QCOM_DEBUG
+	.list_rate_vdd_level = clk_list_rate_vdd_level,
+#endif
+};
+EXPORT_SYMBOL_GPL(clk_alpha_pll_zonda_evo_ops);
 
 const struct clk_ops clk_alpha_pll_fixed_zonda_evo_ops = {
 	.prepare = clk_prepare_regmap,
