@@ -385,7 +385,7 @@ void card_radio_power_off(struct vnt_private *priv)
 void card_safe_reset_tx(struct vnt_private *priv)
 {
 	unsigned int uu;
-	struct vnt_tx_desc *pCurrTD;
+	struct vnt_tx_desc *curr_td;
 
 	/* initialize TD index */
 	priv->apTailTD[0] = &priv->apTD0Rings[0];
@@ -398,13 +398,13 @@ void card_safe_reset_tx(struct vnt_private *priv)
 		priv->iTDUsed[uu] = 0;
 
 	for (uu = 0; uu < priv->opts.tx_descs[0]; uu++) {
-		pCurrTD = &priv->apTD0Rings[uu];
-		pCurrTD->td0.owner = OWNED_BY_HOST;
+		curr_td = &priv->apTD0Rings[uu];
+		curr_td->td0.owner = OWNED_BY_HOST;
 		/* init all Tx Packet pointer to NULL */
 	}
 	for (uu = 0; uu < priv->opts.tx_descs[1]; uu++) {
-		pCurrTD = &priv->apTD1Rings[uu];
-		pCurrTD->td0.owner = OWNED_BY_HOST;
+		curr_td = &priv->apTD1Rings[uu];
+		curr_td->td0.owner = OWNED_BY_HOST;
 		/* init all Tx Packet pointer to NULL */
 	}
 
