@@ -419,9 +419,8 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 		return ERR_PTR(phy_mode);
 
 	plat->phy_interface = phy_mode;
-	plat->mac_interface = stmmac_of_get_mac_mode(np);
-	if (plat->mac_interface < 0)
-		plat->mac_interface = plat->phy_interface;
+	rc = stmmac_of_get_mac_mode(np);
+	plat->mac_interface = rc < 0 ? plat->phy_interface : rc;
 
 	/* Some wrapper drivers still rely on phy_node. Let's save it while
 	 * they are not converted to phylink. */
@@ -902,7 +901,7 @@ static int __maybe_unused stmmac_pltfr_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	int ret;
 
-	ret = stmmac_pltfr_init(pdev, priv->plat->bsp_priv);
+	ret = stmmac_pltfr_init(pdev, priv->plat);
 	if (ret)
 		return ret;
 

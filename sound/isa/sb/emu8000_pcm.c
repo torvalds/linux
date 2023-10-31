@@ -456,7 +456,7 @@ static int emu8k_pcm_silence(struct snd_pcm_substream *subs,
 	/* convert to word unit */
 	pos = (pos << 1) + rec->loop_start[voice];
 	count <<= 1;
-	LOOP_WRITE(rec, pos, USER_SOCKPTR(NULL), count);
+	LOOP_WRITE(rec, pos, NULL, count);
 	return 0;
 }
 

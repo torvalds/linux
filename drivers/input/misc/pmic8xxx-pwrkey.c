@@ -12,7 +12,6 @@
 #include <linux/regmap.h>
 #include <linux/log2.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #define PON_CNTL_1 0x1C
 #define PON_CNTL_PULL_UP BIT(7)

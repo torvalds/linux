@@ -108,11 +108,11 @@ static int name_card(struct snd_oxfw *oxfw, const struct ieee1394_device_id *ent
 	strcpy(oxfw->card->mixername, m);
 	strcpy(oxfw->card->shortname, m);
 
-	snprintf(oxfw->card->longname, sizeof(oxfw->card->longname),
-		 "%s %s (OXFW%x %04x), GUID %08x%08x at %s, S%d",
-		 v, m, firmware >> 20, firmware & 0xffff,
-		 fw_dev->config_rom[3], fw_dev->config_rom[4],
-		 dev_name(&oxfw->unit->device), 100 << fw_dev->max_speed);
+	scnprintf(oxfw->card->longname, sizeof(oxfw->card->longname),
+		  "%s %s (OXFW%x %04x), GUID %08x%08x at %s, S%d",
+		  v, m, firmware >> 20, firmware & 0xffff,
+		  fw_dev->config_rom[3], fw_dev->config_rom[4],
+		  dev_name(&oxfw->unit->device), 100 << fw_dev->max_speed);
 end:
 	return err;
 }

@@ -1557,7 +1557,8 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				ndlp->nlp_fc4_type |= NLP_FC4_FCP;
 			if (fc4_data_1 &  LPFC_FC4_TYPE_BITMASK)
 				ndlp->nlp_fc4_type |= NLP_FC4_NVME;
-			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			lpfc_printf_vlog(vport, KERN_INFO,
+					 LOG_DISCOVERY | LOG_NODE,
 					 "3064 Setting ndlp x%px, DID x%06x "
 					 "with FC4 x%08x, Data: x%08x x%08x "
 					 "%d\n",
@@ -1568,14 +1569,21 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			if (ndlp->nlp_state == NLP_STE_REG_LOGIN_ISSUE &&
 			    ndlp->nlp_fc4_type) {
 				ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
-
-				lpfc_nlp_set_state(vport, ndlp,
-						   NLP_STE_PRLI_ISSUE);
-				lpfc_issue_els_prli(vport, ndlp, 0);
+				/* This is a fabric topology so if discovery
+				 * started with an unsolicited PLOGI, don't
+				 * send a PRLI.  Targets don't issue PLOGI or
+				 * PRLI when acting as a target. Likely this is
+				 * an initiator function.
+				 */
+				if (!(ndlp->nlp_flag & NLP_RCV_PLOGI)) {
+					lpfc_nlp_set_state(vport, ndlp,
+							   NLP_STE_PRLI_ISSUE);
+					lpfc_issue_els_prli(vport, ndlp, 0);
+				}
 			} else if (!ndlp->nlp_fc4_type) {
 				/* If fc4 type is still unknown, then LOGO */
 				lpfc_printf_vlog(vport, KERN_INFO,
-						 LOG_DISCOVERY,
+						 LOG_DISCOVERY | LOG_NODE,
 						 "6443 Sending LOGO ndlp x%px,"
 						 "DID x%06x with fc4_type: "
 						 "x%08x, state: %d\n",

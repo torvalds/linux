@@ -17,8 +17,8 @@
  * 09/24/99 S.Eranian add speculation recovery code
  */
 
+#include <linux/export.h>
 #include <asm/asmmacro.h>
-#include <asm/export.h>
 
 //
 //

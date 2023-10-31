@@ -15,7 +15,13 @@ obj-$(CONFIG_EFI) 		+= efi.o
 
 obj-$(CONFIG_CPU_HAS_FPU)	+= fpu.o kfpu.o
 
+obj-$(CONFIG_CPU_HAS_LBT)	+= lbt.o
+
 obj-$(CONFIG_ARCH_STRICT_ALIGN)	+= unaligned.o
+
+CFLAGS_module.o		+= $(call cc-option,-Wno-override-init,)
+CFLAGS_syscall.o	+= $(call cc-option,-Wno-override-init,)
+CFLAGS_perf_event.o	+= $(call cc-option,-Wno-override-init,)
 
 ifdef CONFIG_FUNCTION_TRACER
   ifndef CONFIG_DYNAMIC_FTRACE
@@ -31,6 +37,12 @@ ifdef CONFIG_FUNCTION_TRACER
   CFLAGS_REMOVE_rethook.o = $(CC_FLAGS_FTRACE)
   CFLAGS_REMOVE_rethook_trampoline.o = $(CC_FLAGS_FTRACE)
 endif
+
+KASAN_SANITIZE_efi.o := n
+KASAN_SANITIZE_cpu-probe.o := n
+KASAN_SANITIZE_traps.o := n
+KASAN_SANITIZE_smp.o := n
+KASAN_SANITIZE_vdso.o := n
 
 obj-$(CONFIG_MODULES)		+= module.o module-sections.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
@@ -54,6 +66,7 @@ obj-$(CONFIG_UNWINDER_PROLOGUE) += unwind_prologue.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_regs.o
 obj-$(CONFIG_HAVE_HW_BREAKPOINT)	+= hw_breakpoint.o
 
+obj-$(CONFIG_KGDB)		+= kgdb.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_RETHOOK)		+= rethook.o rethook_trampoline.o
 obj-$(CONFIG_UPROBES)		+= uprobes.o

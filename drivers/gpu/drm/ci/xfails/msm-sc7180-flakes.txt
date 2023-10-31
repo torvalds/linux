@@ -1,0 +1,7 @@
+
+# Test ends up reading CRC from frame before cursor update
+# bug
+# sometimes.. tbd if this is a kernel CRC bug or a test
+kms_cursor_crc@.*
+kms_plane_multiple@atomic-pipe-A-tiling-none
+kms_atomic_transition@modeset-transition-nonblocking-fencing,Fail

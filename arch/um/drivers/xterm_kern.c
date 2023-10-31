@@ -9,6 +9,7 @@
 #include <asm/irq.h>
 #include <irq_kern.h>
 #include <os.h>
+#include "xterm.h"
 
 struct xterm_wait {
 	struct completion ready;

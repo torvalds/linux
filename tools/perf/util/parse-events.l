@@ -68,31 +68,6 @@ static int lc_str(yyscan_t scanner, const struct parse_events_state *state)
 	return str(scanner, state->match_legacy_cache_terms ? PE_LEGACY_CACHE : PE_NAME);
 }
 
-static bool isbpf_suffix(char *text)
-{
-	int len = strlen(text);
-
-	if (len < 2)
-		return false;
-	if ((text[len - 1] == 'c' || text[len - 1] == 'o') &&
-	    text[len - 2] == '.')
-		return true;
-	if (len > 4 && !strcmp(text + len - 4, ".obj"))
-		return true;
-	return false;
-}
-
-static bool isbpf(yyscan_t scanner)
-{
-	char *text = parse_events_get_text(scanner);
-	struct stat st;
-
-	if (!isbpf_suffix(text))
-		return false;
-
-	return stat(text, &st) == 0;
-}
-
 /*
  * This function is called when the parser gets two kind of input:
  *
@@ -141,7 +116,7 @@ static int tool(yyscan_t scanner, enum perf_tool_event event)
 	return PE_VALUE_SYM_TOOL;
 }
 
-static int term(yyscan_t scanner, int type)
+static int term(yyscan_t scanner, enum parse_events__term_type type)
 {
 	YYSTYPE *yylval = parse_events_get_lval(scanner);
 
@@ -175,13 +150,10 @@ do {							\
 %x mem
 %s config
 %x event
-%x array
 
 group		[^,{}/]*[{][^}]*[}][^,{}/]*
 event_pmu	[^,{}/]+[/][^/]*[/][^,{}/]*
 event		[^,{}/]+
-bpf_object	[^,{}]+\.(o|bpf)[a-zA-Z0-9._]*
-bpf_source	[^,{}]+\.c[a-zA-Z0-9._]*
 
 num_dec		[0-9]+
 num_hex		0x[a-fA-F0-9]+
@@ -234,8 +206,6 @@ non_digit	[^0-9]
 		}
 
 {event_pmu}	|
-{bpf_object}	|
-{bpf_source}	|
 {event}		{
 			BEGIN(INITIAL);
 			REWIND(1);
@@ -249,14 +219,6 @@ non_digit	[^0-9]
 ,		{
 			return ',';
 		}
-}
-
-<array>{
-"]"			{ BEGIN(config); return ']'; }
-{num_dec}		{ return value(yyscanner, 10); }
-{num_hex}		{ return value(yyscanner, 16); }
-,			{ return ','; }
-"\.\.\."		{ return PE_ARRAY_RANGE; }
 }
 
 <config>{
@@ -302,8 +264,6 @@ r0x{num_raw_hex}	{ return str(yyscanner, PE_RAW); }
 {lc_type}-{lc_op_result}	{ return lc_str(yyscanner, _parse_state); }
 {lc_type}-{lc_op_result}-{lc_op_result}	{ return lc_str(yyscanner, _parse_state); }
 {name_minus}		{ return str(yyscanner, PE_NAME); }
-\[all\]			{ return PE_ARRAY_ALL; }
-"["			{ BEGIN(array); return '['; }
 @{drv_cfg_term}		{ return drv_str(yyscanner, PE_DRV_CFG_TERM); }
 }
 
@@ -374,8 +334,6 @@ r{num_raw_hex}		{ return str(yyscanner, PE_RAW); }
 {num_hex}		{ return value(yyscanner, 16); }
 
 {modifier_event}	{ return str(yyscanner, PE_MODIFIER_EVENT); }
-{bpf_object}		{ if (!isbpf(yyscanner)) { USER_REJECT }; return str(yyscanner, PE_BPF_OBJECT); }
-{bpf_source}		{ if (!isbpf(yyscanner)) { USER_REJECT }; return str(yyscanner, PE_BPF_SOURCE); }
 {name}			{ return str(yyscanner, PE_NAME); }
 {name_tag}		{ return str(yyscanner, PE_NAME); }
 "/"			{ BEGIN(config); return '/'; }

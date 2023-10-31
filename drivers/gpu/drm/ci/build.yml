@@ -1,0 +1,110 @@
+.build:
+  extends:
+    - .build-rules
+  stage: build
+  artifacts:
+    paths:
+      - artifacts
+  script:
+    - FDO_CI_CONCURRENT=${FDO_CI_CONCURRENT} bash drivers/gpu/drm/ci/build.sh
+
+.build:arm32:
+  extends:
+    - .build
+    - .use-debian/arm64_build
+  tags:
+    - aarch64
+  variables:
+    DEFCONFIG: "arch/arm/configs/multi_v7_defconfig"
+    KERNEL_IMAGE_NAME: "zImage"
+    KERNEL_ARCH: "arm"
+
+.build:arm64:
+  extends:
+    - .build
+    - .use-debian/arm64_build
+  tags:
+    - aarch64
+  variables:
+    DEFCONFIG: "arch/arm64/configs/defconfig"
+    KERNEL_IMAGE_NAME: "Image"
+    KERNEL_ARCH: "arm64"
+
+.build:x86_64:
+  extends:
+    - .build
+    - .use-debian/x86_64_build
+  variables:
+    DEFCONFIG: "arch/x86/configs/x86_64_defconfig"
+    KERNEL_IMAGE_NAME: "bzImage"
+    KERNEL_ARCH: "x86_64"
+
+
+# Build IGT for testing on devices
+
+igt:arm32:
+  extends: .build:arm32
+  script:
+    - FDO_CI_CONCURRENT=${FDO_CI_CONCURRENT} bash drivers/gpu/drm/ci/build-igt.sh
+
+igt:arm64:
+  extends: .build:arm64
+  script:
+    - FDO_CI_CONCURRENT=${FDO_CI_CONCURRENT} bash drivers/gpu/drm/ci/build-igt.sh
+
+igt:x86_64:
+  extends: .build:x86_64
+  script:
+    - FDO_CI_CONCURRENT=${FDO_CI_CONCURRENT} bash drivers/gpu/drm/ci/build-igt.sh
+
+# Build kernels for testing on devices
+
+testing:arm32:
+  extends: .build:arm32
+  variables:
+    # Would be good to have DEBUG_KMEMLEAK, but it doesn't work well with any of
+    # PROVE_LOCKING and KASAN as of 5.17.
+    #
+    # db410c and db820c don't boot with KASAN_INLINE, probably due to the kernel
+    # becoming too big for their bootloaders.
+    ENABLE_KCONFIGS: "PROVE_LOCKING DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT"
+    UPLOAD_TO_MINIO: 1
+    MERGE_FRAGMENT: arm.config
+
+testing:arm64:
+  extends: .build:arm64
+  variables:
+    # Would be good to have DEBUG_KMEMLEAK, but it doesn't work well with any of
+    # PROVE_LOCKING and KASAN as of 5.17.
+    #
+    # db410c and db820c don't boot with KASAN_INLINE, probably due to the kernel
+    # becoming too big for their bootloaders.
+    ENABLE_KCONFIGS: "PROVE_LOCKING DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT"
+    UPLOAD_TO_MINIO: 1
+    MERGE_FRAGMENT: arm64.config
+
+testing:x86_64:
+  extends: .build:x86_64
+  variables:
+    # Would be good to have DEBUG_KMEMLEAK, but it doesn't work well with any of
+    # PROVE_LOCKING and KASAN as of 5.17.
+    #
+    # db410c and db820c don't boot with KASAN_INLINE, probably due to the kernel
+    # becoming too big for their bootloaders.
+    ENABLE_KCONFIGS: "PROVE_LOCKING DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT"
+    UPLOAD_TO_MINIO: 1
+    MERGE_FRAGMENT: x86_64.config
+
+
+# Jobs for build-testing different configurations
+
+build:arm32:
+  extends: .build:arm32
+
+build-nodebugfs:arm64:
+  extends: .build:arm64
+  variables:
+    DISABLE_KCONFIGS: "DEBUG_FS"
+
+build:x86_64:
+  extends: .build:x86_64

@@ -189,21 +189,12 @@ u_free(void *addr)
 static inline void *
 u_memcpya(uint64_t user, unsigned int nmemb, unsigned int size)
 {
-	void *mem;
-	void __user *userptr = (void __force __user *)(uintptr_t)user;
+	void __user *userptr = u64_to_user_ptr(user);
+	size_t bytes;
 
-	size *= nmemb;
-
-	mem = kvmalloc(size, GFP_KERNEL);
-	if (!mem)
-		return ERR_PTR(-ENOMEM);
-
-	if (copy_from_user(mem, userptr, size)) {
-		u_free(mem);
-		return ERR_PTR(-EFAULT);
-	}
-
-	return mem;
+	if (unlikely(check_mul_overflow(nmemb, size, &bytes)))
+		return ERR_PTR(-EOVERFLOW);
+	return vmemdup_user(userptr, bytes);
 }
 
 #include <nvif/object.h>

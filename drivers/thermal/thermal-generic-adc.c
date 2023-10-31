@@ -142,7 +142,6 @@ static int gadc_thermal_probe(struct platform_device *pdev)
 		return ret;
 
 	gti->dev = &pdev->dev;
-	platform_set_drvdata(pdev, gti);
 
 	gti->tz_dev = devm_thermal_of_zone_register(&pdev->dev, 0, gti,
 						    &gadc_thermal_ops);

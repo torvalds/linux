@@ -10,6 +10,7 @@
 #include <linux/err.h>
 #include <linux/mfd/lp3943.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
@@ -24,9 +25,9 @@ struct lp3943_pwm {
 	struct lp3943_platform_data *pdata;
 };
 
-static inline struct lp3943_pwm *to_lp3943_pwm(struct pwm_chip *_chip)
+static inline struct lp3943_pwm *to_lp3943_pwm(struct pwm_chip *chip)
 {
-	return container_of(_chip, struct lp3943_pwm, chip);
+	return container_of(chip, struct lp3943_pwm, chip);
 }
 
 static struct lp3943_pwm_map *

@@ -316,6 +316,9 @@ enum storvsc_request_type {
 #define SRB_STATUS_ABORTED		0x02
 #define SRB_STATUS_ERROR		0x04
 #define SRB_STATUS_INVALID_REQUEST	0x06
+#define SRB_STATUS_TIMEOUT		0x09
+#define SRB_STATUS_SELECTION_TIMEOUT	0x0A
+#define SRB_STATUS_BUS_RESET		0x0E
 #define SRB_STATUS_DATA_OVERRUN		0x12
 #define SRB_STATUS_INVALID_LUN		0x20
 #define SRB_STATUS_INTERNAL_ERROR	0x30
@@ -472,7 +475,7 @@ static void storvsc_device_scan(struct work_struct *work)
 	sdev = scsi_device_lookup(wrk->host, 0, wrk->tgt_id, wrk->lun);
 	if (!sdev)
 		goto done;
-	scsi_rescan_device(&sdev->sdev_gendev);
+	scsi_rescan_device(sdev);
 	scsi_device_put(sdev);
 
 done:
@@ -981,6 +984,10 @@ static void storvsc_handle_error(struct vmscsi_request *vm_srb,
 	case SRB_STATUS_ABORTED:
 	case SRB_STATUS_INVALID_REQUEST:
 	case SRB_STATUS_INTERNAL_ERROR:
+	case SRB_STATUS_TIMEOUT:
+	case SRB_STATUS_SELECTION_TIMEOUT:
+	case SRB_STATUS_BUS_RESET:
+	case SRB_STATUS_DATA_OVERRUN:
 		if (vm_srb->srb_status & SRB_STATUS_AUTOSENSE_VALID) {
 			/* Check for capacity change */
 			if ((asc == 0x2a) && (ascq == 0x9)) {

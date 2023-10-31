@@ -492,26 +492,22 @@ static int thermal_get_temp(struct thermal_zone_device *thermal, int *temp)
 }
 
 static int thermal_get_trend(struct thermal_zone_device *thermal,
-			     int trip_index, enum thermal_trend *trend)
+			     const struct thermal_trip *trip,
+			     enum thermal_trend *trend)
 {
 	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
 	struct acpi_thermal_trip *acpi_trip;
-	int t, i;
+	int t;
 
-	if (!tz || trip_index < 0)
+	if (!tz || !trip)
 		return -EINVAL;
 
-	if (tz->trips.critical.valid)
-		trip_index--;
-
-	if (tz->trips.hot.valid)
-		trip_index--;
-
-	if (trip_index < 0)
+	acpi_trip = trip->priv;
+	if (!acpi_trip || !acpi_trip->valid)
 		return -EINVAL;
 
-	acpi_trip = &tz->trips.passive.trip;
-	if (acpi_trip->valid && !trip_index--) {
+	switch (trip->type) {
+	case THERMAL_TRIP_PASSIVE:
 		t = tz->trips.passive.tc1 * (tz->temperature -
 						tz->last_temperature) +
 			tz->trips.passive.tc2 * (tz->temperature -
@@ -524,19 +520,18 @@ static int thermal_get_trend(struct thermal_zone_device *thermal,
 			*trend = THERMAL_TREND_STABLE;
 
 		return 0;
-	}
 
-	t = acpi_thermal_temp(tz, tz->temperature);
-
-	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
-		acpi_trip = &tz->trips.active[i].trip;
-		if (acpi_trip->valid && !trip_index--) {
-			if (t > acpi_thermal_temp(tz, acpi_trip->temperature)) {
-				*trend = THERMAL_TREND_RAISING;
-				return 0;
-			}
+	case THERMAL_TRIP_ACTIVE:
+		t = acpi_thermal_temp(tz, tz->temperature);
+		if (t <= trip->temperature)
 			break;
-		}
+
+		*trend = THERMAL_TREND_RAISING;
+
+		return 0;
+
+	default:
+		break;
 	}
 
 	return -EINVAL;

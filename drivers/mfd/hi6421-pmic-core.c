@@ -59,7 +59,7 @@ static int hi6421_pmic_probe(struct platform_device *pdev)
 	id = of_match_device(of_hi6421_pmic_match, &pdev->dev);
 	if (!id)
 		return -EINVAL;
-	type = (enum hi6421_type)id->data;
+	type = (uintptr_t)id->data;
 
 	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)

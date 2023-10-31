@@ -187,8 +187,13 @@ int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char 
 	err = expand_var_event(event, 0, len, buf, in_kernel);
 	if (err < 0)
 		return err;
-	if (len != newlen)
-		memset(buf + len, 0, newlen - len);
+	if (len != newlen) {
+		if (in_kernel)
+			memset(buf + len, 0, newlen - len);
+		else if (clear_user((__force void __user *)buf + len,
+				    newlen - len))
+			return -EFAULT;
+	}
 	return newlen;
 }
 EXPORT_SYMBOL(snd_seq_expand_var_event);

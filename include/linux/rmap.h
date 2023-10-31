@@ -479,7 +479,6 @@ struct anon_vma *folio_lock_anon_vma_read(struct folio *folio,
 
 #define anon_vma_init()		do {} while (0)
 #define anon_vma_prepare(vma)	(0)
-#define anon_vma_link(vma)	do {} while (0)
 
 static inline int folio_referenced(struct folio *folio, int is_locked,
 				  struct mem_cgroup *memcg,

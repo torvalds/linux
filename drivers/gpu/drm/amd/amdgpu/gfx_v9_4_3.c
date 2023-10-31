@@ -203,6 +203,9 @@ static void gfx_v9_4_3_init_golden_registers(struct amdgpu_device *adev)
 		if (adev->rev_id == 0) {
 			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL1,
 					      REDUCE_FIFO_DEPTH_BY_2, 2);
+		} else {
+			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL2,
+						SPARE, 0x1);
 		}
 	}
 }
@@ -860,11 +863,15 @@ static int gfx_v9_4_3_sw_init(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_gfx_sysfs_init(adev);
+	r = amdgpu_gfx_ras_sw_init(adev);
 	if (r)
 		return r;
 
-	return amdgpu_gfx_ras_sw_init(adev);
+
+	if (!amdgpu_sriov_vf(adev))
+		r = amdgpu_gfx_sysfs_init(adev);
+
+	return r;
 }
 
 static int gfx_v9_4_3_sw_fini(void *handle)
@@ -885,7 +892,8 @@ static int gfx_v9_4_3_sw_fini(void *handle)
 	gfx_v9_4_3_mec_fini(adev);
 	amdgpu_bo_unref(&adev->gfx.rlc.clear_state_obj);
 	gfx_v9_4_3_free_microcode(adev);
-	amdgpu_gfx_sysfs_fini(adev);
+	if (!amdgpu_sriov_vf(adev))
+		amdgpu_gfx_sysfs_fini(adev);
 
 	return 0;
 }
@@ -2219,15 +2227,6 @@ static void gfx_v9_4_3_xcc_update_sram_fgcg(struct amdgpu_device *adev,
 		WREG32_SOC15(GC, GET_INST(GC, xcc_id),
 			     regRLC_CGTT_MGCG_OVERRIDE, data);
 
-	def = data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CLK_CNTL);
-
-	if (enable)
-		data &= ~RLC_CLK_CNTL__RLC_SRAM_CLK_GATER_OVERRIDE_MASK;
-	else
-		data |= RLC_CLK_CNTL__RLC_SRAM_CLK_GATER_OVERRIDE_MASK;
-
-	if (def != data)
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CLK_CNTL, data);
 }
 
 static void gfx_v9_4_3_xcc_update_repeater_fgcg(struct amdgpu_device *adev,
@@ -4048,7 +4047,8 @@ static void gfx_v9_4_3_inst_enable_watchdog_timer(struct amdgpu_device *adev,
 	uint32_t i;
 	uint32_t data;
 
-	data = REG_SET_FIELD(0, SQ_TIMEOUT_CONFIG, TIMEOUT_FATAL_DISABLE,
+	data = RREG32_SOC15(GC, GET_INST(GC, 0), regSQ_TIMEOUT_CONFIG);
+	data = REG_SET_FIELD(data, SQ_TIMEOUT_CONFIG, TIMEOUT_FATAL_DISABLE,
 			     amdgpu_watchdog_timer.timeout_fatal_disable ? 1 : 0);
 
 	if (amdgpu_watchdog_timer.timeout_fatal_disable &&
@@ -4259,7 +4259,7 @@ static void gfx_v9_4_3_set_gds_init(struct amdgpu_device *adev)
 }
 
 static void gfx_v9_4_3_set_user_cu_inactive_bitmap(struct amdgpu_device *adev,
-						 u32 bitmap)
+						 u32 bitmap, int xcc_id)
 {
 	u32 data;
 
@@ -4269,15 +4269,15 @@ static void gfx_v9_4_3_set_user_cu_inactive_bitmap(struct amdgpu_device *adev,
 	data = bitmap << GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
 	data &= GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
 
-	WREG32_SOC15(GC, GET_INST(GC, 0), regGC_USER_SHADER_ARRAY_CONFIG, data);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regGC_USER_SHADER_ARRAY_CONFIG, data);
 }
 
-static u32 gfx_v9_4_3_get_cu_active_bitmap(struct amdgpu_device *adev)
+static u32 gfx_v9_4_3_get_cu_active_bitmap(struct amdgpu_device *adev, int xcc_id)
 {
 	u32 data, mask;
 
-	data = RREG32_SOC15(GC, GET_INST(GC, 0), regCC_GC_SHADER_ARRAY_CONFIG);
-	data |= RREG32_SOC15(GC, GET_INST(GC, 0), regGC_USER_SHADER_ARRAY_CONFIG);
+	data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCC_GC_SHADER_ARRAY_CONFIG);
+	data |= RREG32_SOC15(GC, GET_INST(GC, xcc_id), regGC_USER_SHADER_ARRAY_CONFIG);
 
 	data &= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
 	data >>= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
@@ -4290,7 +4290,7 @@ static u32 gfx_v9_4_3_get_cu_active_bitmap(struct amdgpu_device *adev)
 static int gfx_v9_4_3_get_cu_info(struct amdgpu_device *adev,
 				 struct amdgpu_cu_info *cu_info)
 {
-	int i, j, k, counter, active_cu_number = 0;
+	int i, j, k, counter, xcc_id, active_cu_number = 0;
 	u32 mask, bitmap, ao_bitmap, ao_cu_mask = 0;
 	unsigned disable_masks[4 * 4];
 
@@ -4309,46 +4309,38 @@ static int gfx_v9_4_3_get_cu_info(struct amdgpu_device *adev,
 				    adev->gfx.config.max_sh_per_se);
 
 	mutex_lock(&adev->grbm_idx_mutex);
-	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
-		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
-			mask = 1;
-			ao_bitmap = 0;
-			counter = 0;
-			gfx_v9_4_3_xcc_select_se_sh(adev, i, j, 0xffffffff, 0);
-			gfx_v9_4_3_set_user_cu_inactive_bitmap(
-				adev, disable_masks[i * adev->gfx.config.max_sh_per_se + j]);
-			bitmap = gfx_v9_4_3_get_cu_active_bitmap(adev);
+	for (xcc_id = 0; xcc_id < NUM_XCC(adev->gfx.xcc_mask); xcc_id++) {
+		for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+			for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
+				mask = 1;
+				ao_bitmap = 0;
+				counter = 0;
+				gfx_v9_4_3_xcc_select_se_sh(adev, i, j, 0xffffffff, xcc_id);
+				gfx_v9_4_3_set_user_cu_inactive_bitmap(
+					adev,
+					disable_masks[i * adev->gfx.config.max_sh_per_se + j],
+					xcc_id);
+				bitmap = gfx_v9_4_3_get_cu_active_bitmap(adev, xcc_id);
 
-			/*
-			 * The bitmap(and ao_cu_bitmap) in cu_info structure is
-			 * 4x4 size array, and it's usually suitable for Vega
-			 * ASICs which has 4*2 SE/SH layout.
-			 * But for Arcturus, SE/SH layout is changed to 8*1.
-			 * To mostly reduce the impact, we make it compatible
-			 * with current bitmap array as below:
-			 *    SE4,SH0 --> bitmap[0][1]
-			 *    SE5,SH0 --> bitmap[1][1]
-			 *    SE6,SH0 --> bitmap[2][1]
-			 *    SE7,SH0 --> bitmap[3][1]
-			 */
-			cu_info->bitmap[i % 4][j + i / 4] = bitmap;
+				cu_info->bitmap[xcc_id][i][j] = bitmap;
 
-			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k++) {
-				if (bitmap & mask) {
-					if (counter < adev->gfx.config.max_cu_per_sh)
-						ao_bitmap |= mask;
-					counter++;
+				for (k = 0; k < adev->gfx.config.max_cu_per_sh; k++) {
+					if (bitmap & mask) {
+						if (counter < adev->gfx.config.max_cu_per_sh)
+							ao_bitmap |= mask;
+						counter++;
+					}
+					mask <<= 1;
 				}
-				mask <<= 1;
+				active_cu_number += counter;
+				if (i < 2 && j < 2)
+					ao_cu_mask |= (ao_bitmap << (i * 16 + j * 8));
+				cu_info->ao_cu_bitmap[i][j] = ao_bitmap;
 			}
-			active_cu_number += counter;
-			if (i < 2 && j < 2)
-				ao_cu_mask |= (ao_bitmap << (i * 16 + j * 8));
-			cu_info->ao_cu_bitmap[i % 4][j + i / 4] = ao_bitmap;
 		}
+		gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
+					    xcc_id);
 	}
-	gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
-				    0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	cu_info->number = active_cu_number;

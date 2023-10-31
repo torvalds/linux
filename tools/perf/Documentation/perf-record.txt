@@ -99,20 +99,6 @@ OPTIONS
           If you want to profile write accesses in [0x1000~1008), just set
           'mem:0x1000/8:w'.
 
-        - a BPF source file (ending in .c) or a precompiled object file (ending
-          in .o) selects one or more BPF events.
-          The BPF program can attach to various perf events based on the ELF section
-          names.
-
-          When processing a '.c' file, perf searches an installed LLVM to compile it
-          into an object file first. Optional clang options can be passed via the
-          '--clang-opt' command line option, e.g.:
-
-            perf record --clang-opt "-DLINUX_VERSION_CODE=0x50000" \
-                        -e tests/bpf-script-example.c
-
-          Note: '--clang-opt' must be placed before '--event/-e'.
-
 	- a group of events surrounded by a pair of brace ("{event1,event2,...}").
 	  Each event is separated by commas and the group should be quoted to
 	  prevent the shell interpretation.  You also need to use --group on
@@ -523,9 +509,10 @@ CLOCK_BOOTTIME, CLOCK_REALTIME and CLOCK_TAI.
 Select AUX area tracing Snapshot Mode. This option is valid only with an
 AUX area tracing event. Optionally, certain snapshot capturing parameters
 can be specified in a string that follows this option:
-  'e': take one last snapshot on exit; guarantees that there is at least one
+
+  - 'e': take one last snapshot on exit; guarantees that there is at least one
        snapshot in the output file;
-  <size>: if the PMU supports this, specify the desired snapshot size.
+  - <size>: if the PMU supports this, specify the desired snapshot size.
 
 In Snapshot Mode trace data is captured only when signal SIGUSR2 is received
 and on exit if the above 'e' option is given.
@@ -547,14 +534,6 @@ PERF_RECORD_SWITCH_CPU_WIDE. In some cases (e.g. Intel PT, CoreSight or Arm SPE)
 switch events will be enabled automatically, which can be suppressed by
 by the option --no-switch-events.
 
---clang-path=PATH::
-Path to clang binary to use for compiling BPF scriptlets.
-(enabled when BPF support is on)
-
---clang-opt=OPTIONS::
-Options passed to clang when compiling BPF scriptlets.
-(enabled when BPF support is on)
-
 --vmlinux=PATH::
 Specify vmlinux path which has debuginfo.
 (enabled when BPF prologue is on)
@@ -572,8 +551,9 @@ providing implementation for Posix AIO API.
 
 --affinity=mode::
 Set affinity mask of trace reading thread according to the policy defined by 'mode' value:
-  node - thread affinity mask is set to NUMA node cpu mask of the processed mmap buffer
-  cpu  - thread affinity mask is set to cpu of the processed mmap buffer
+
+  - node - thread affinity mask is set to NUMA node cpu mask of the processed mmap buffer
+  - cpu  - thread affinity mask is set to cpu of the processed mmap buffer
 
 --mmap-flush=number::
 
@@ -625,16 +605,17 @@ Record timestamp boundary (time of first/last samples).
 --switch-output[=mode]::
 Generate multiple perf.data files, timestamp prefixed, switching to a new one
 based on 'mode' value:
-  "signal" - when receiving a SIGUSR2 (default value) or
-  <size>   - when reaching the size threshold, size is expected to
-             be a number with appended unit character - B/K/M/G
-  <time>   - when reaching the time threshold, size is expected to
-             be a number with appended unit character - s/m/h/d
 
-             Note: the precision of  the size  threshold  hugely depends
-             on your configuration  - the number and size of  your  ring
-             buffers (-m). It is generally more precise for higher sizes
-             (like >5M), for lower values expect different sizes.
+  - "signal" - when receiving a SIGUSR2 (default value) or
+  - <size>   - when reaching the size threshold, size is expected to
+               be a number with appended unit character - B/K/M/G
+  - <time>   - when reaching the time threshold, size is expected to
+               be a number with appended unit character - s/m/h/d
+
+               Note: the precision of  the size  threshold  hugely depends
+               on your configuration  - the number and size of  your  ring
+               buffers (-m). It is generally more precise for higher sizes
+               (like >5M), for lower values expect different sizes.
 
 A possible use case is to, given an external event, slice the perf.data file
 that gets then processed, possibly via a perf script, to decide if that
@@ -680,11 +661,12 @@ choice in this option.  For example, --synth=no would have MMAP events for
 kernel and modules.
 
 Available types are:
-  'task'    - synthesize FORK and COMM events for each task
-  'mmap'    - synthesize MMAP events for each process (implies 'task')
-  'cgroup'  - synthesize CGROUP events for each cgroup
-  'all'     - synthesize all events (default)
-  'no'      - do not synthesize any of the above events
+
+  - 'task'    - synthesize FORK and COMM events for each task
+  - 'mmap'    - synthesize MMAP events for each process (implies 'task')
+  - 'cgroup'  - synthesize CGROUP events for each cgroup
+  - 'all'     - synthesize all events (default)
+  - 'no'      - do not synthesize any of the above events
 
 --tail-synthesize::
 Instead of collecting non-sample events (for example, fork, comm, mmap) at
@@ -736,18 +718,19 @@ ctl-fifo / ack-fifo are opened and used as ctl-fd / ack-fd as follows.
 Listen on ctl-fd descriptor for command to control measurement.
 
 Available commands:
-  'enable'           : enable events
-  'disable'          : disable events
-  'enable name'      : enable event 'name'
-  'disable name'     : disable event 'name'
-  'snapshot'         : AUX area tracing snapshot).
-  'stop'             : stop perf record
-  'ping'             : ping
 
-  'evlist [-v|-g|-F] : display all events
-                       -F  Show just the sample frequency used for each event.
-                       -v  Show all fields.
-                       -g  Show event group information.
+  - 'enable'           : enable events
+  - 'disable'          : disable events
+  - 'enable name'      : enable event 'name'
+  - 'disable name'     : disable event 'name'
+  - 'snapshot'         : AUX area tracing snapshot).
+  - 'stop'             : stop perf record
+  - 'ping'             : ping
+  - 'evlist [-v|-g|-F] : display all events
+
+                         -F  Show just the sample frequency used for each event.
+                         -v  Show all fields.
+                         -g  Show event group information.
 
 Measurements can be started with events disabled using --delay=-1 option. Optionally
 send control command completion ('ack\n') to ack-fd descriptor to synchronize with the
@@ -808,10 +791,10 @@ the second monitors CPUs 1 and 5-7 with the affinity mask 5-7.
 <spec> value can also be a string meaning predefined parallel threads
 layout:
 
-    cpu    - create new data streaming thread for every monitored cpu
-    core   - create new thread to monitor CPUs grouped by a core
-    package - create new thread to monitor CPUs grouped by a package
-    numa   - create new threed to monitor CPUs grouped by a NUMA domain
+    - cpu    - create new data streaming thread for every monitored cpu
+    - core   - create new thread to monitor CPUs grouped by a core
+    - package - create new thread to monitor CPUs grouped by a package
+    - numa   - create new threed to monitor CPUs grouped by a NUMA domain
 
 Predefined layouts can be used on systems with large number of CPUs in
 order not to spawn multiple per-cpu streaming threads but still avoid LOST

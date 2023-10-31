@@ -8,8 +8,10 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
+#include <linux/platform_device.h>
 #include <linux/libfdt.h>
 
 #include <asm/octeon/octeon.h>

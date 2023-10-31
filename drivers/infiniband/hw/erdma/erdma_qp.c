@@ -410,7 +410,7 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 			/* Copy SGLs to SQE content to accelerate */
 			memcpy(get_queue_entry(qp->kern_qp.sq_buf, idx + 1,
 					       qp->attrs.sq_size, SQEBB_SHIFT),
-			       mr->mem.mtt_buf, MTT_SIZE(mr->mem.mtt_nents));
+			       mr->mem.mtt->buf, MTT_SIZE(mr->mem.mtt_nents));
 			wqe_size = sizeof(struct erdma_reg_mr_sqe) +
 				   MTT_SIZE(mr->mem.mtt_nents);
 		} else {

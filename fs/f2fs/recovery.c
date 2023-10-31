@@ -924,6 +924,7 @@ skip:
 			struct cp_control cpc = {
 				.reason = CP_RECOVERY,
 			};
+			stat_inc_cp_call_count(sbi, TOTAL_CALL);
 			err = f2fs_write_checkpoint(sbi, &cpc);
 		}
 	}

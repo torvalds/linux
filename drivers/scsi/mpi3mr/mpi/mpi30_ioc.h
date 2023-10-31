@@ -600,6 +600,7 @@ struct mpi3_event_data_pcie_error_threshold {
 	__le16                                 threshold_count;
 	__le16                                 attached_dev_handle;
 	__le16                                 reserved12;
+	__le32                                 reserved14;
 };
 
 #define MPI3_EVENT_PCI_ERROR_RC_THRESHOLD_EXCEEDED          (0x00)

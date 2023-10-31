@@ -22,23 +22,51 @@
 
 #define MSR_PMC_FULL_WIDTH_BIT      (MSR_IA32_PMC0 - MSR_IA32_PERFCTR0)
 
+enum intel_pmu_architectural_events {
+	/*
+	 * The order of the architectural events matters as support for each
+	 * event is enumerated via CPUID using the index of the event.
+	 */
+	INTEL_ARCH_CPU_CYCLES,
+	INTEL_ARCH_INSTRUCTIONS_RETIRED,
+	INTEL_ARCH_REFERENCE_CYCLES,
+	INTEL_ARCH_LLC_REFERENCES,
+	INTEL_ARCH_LLC_MISSES,
+	INTEL_ARCH_BRANCHES_RETIRED,
+	INTEL_ARCH_BRANCHES_MISPREDICTED,
+
+	NR_REAL_INTEL_ARCH_EVENTS,
+
+	/*
+	 * Pseudo-architectural event used to implement IA32_FIXED_CTR2, a.k.a.
+	 * TSC reference cycles.  The architectural reference cycles event may
+	 * or may not actually use the TSC as the reference, e.g. might use the
+	 * core crystal clock or the bus clock (yeah, "architectural").
+	 */
+	PSEUDO_ARCH_REFERENCE_CYCLES = NR_REAL_INTEL_ARCH_EVENTS,
+	NR_INTEL_ARCH_EVENTS,
+};
+
 static struct {
 	u8 eventsel;
 	u8 unit_mask;
 } const intel_arch_events[] = {
-	[0] = { 0x3c, 0x00 },
-	[1] = { 0xc0, 0x00 },
-	[2] = { 0x3c, 0x01 },
-	[3] = { 0x2e, 0x4f },
-	[4] = { 0x2e, 0x41 },
-	[5] = { 0xc4, 0x00 },
-	[6] = { 0xc5, 0x00 },
-	/* The above index must match CPUID 0x0A.EBX bit vector */
-	[7] = { 0x00, 0x03 },
+	[INTEL_ARCH_CPU_CYCLES]			= { 0x3c, 0x00 },
+	[INTEL_ARCH_INSTRUCTIONS_RETIRED]	= { 0xc0, 0x00 },
+	[INTEL_ARCH_REFERENCE_CYCLES]		= { 0x3c, 0x01 },
+	[INTEL_ARCH_LLC_REFERENCES]		= { 0x2e, 0x4f },
+	[INTEL_ARCH_LLC_MISSES]			= { 0x2e, 0x41 },
+	[INTEL_ARCH_BRANCHES_RETIRED]		= { 0xc4, 0x00 },
+	[INTEL_ARCH_BRANCHES_MISPREDICTED]	= { 0xc5, 0x00 },
+	[PSEUDO_ARCH_REFERENCE_CYCLES]		= { 0x00, 0x03 },
 };
 
 /* mapping between fixed pmc index and intel_arch_events array */
-static int fixed_pmc_events[] = {1, 0, 7};
+static int fixed_pmc_events[] = {
+	[0] = INTEL_ARCH_INSTRUCTIONS_RETIRED,
+	[1] = INTEL_ARCH_CPU_CYCLES,
+	[2] = PSEUDO_ARCH_REFERENCE_CYCLES,
+};
 
 static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
 {
@@ -80,16 +108,18 @@ static bool intel_hw_event_available(struct kvm_pmc *pmc)
 	u8 unit_mask = (pmc->eventsel & ARCH_PERFMON_EVENTSEL_UMASK) >> 8;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(intel_arch_events); i++) {
+	BUILD_BUG_ON(ARRAY_SIZE(intel_arch_events) != NR_INTEL_ARCH_EVENTS);
+
+	/*
+	 * Disallow events reported as unavailable in guest CPUID.  Note, this
+	 * doesn't apply to pseudo-architectural events.
+	 */
+	for (i = 0; i < NR_REAL_INTEL_ARCH_EVENTS; i++) {
 		if (intel_arch_events[i].eventsel != event_select ||
 		    intel_arch_events[i].unit_mask != unit_mask)
 			continue;
 
-		/* disable event that reported as not present by cpuid */
-		if ((i < 7) && !(pmu->available_event_types & (1 << i)))
-			return false;
-
-		break;
+		return pmu->available_event_types & BIT(i);
 	}
 
 	return true;
@@ -438,16 +468,17 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 static void setup_fixed_pmc_eventsel(struct kvm_pmu *pmu)
 {
-	size_t size = ARRAY_SIZE(fixed_pmc_events);
-	struct kvm_pmc *pmc;
-	u32 event;
 	int i;
 
+	BUILD_BUG_ON(ARRAY_SIZE(fixed_pmc_events) != KVM_PMC_MAX_FIXED);
+
 	for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
-		pmc = &pmu->fixed_counters[i];
-		event = fixed_pmc_events[array_index_nospec(i, size)];
+		int index = array_index_nospec(i, KVM_PMC_MAX_FIXED);
+		struct kvm_pmc *pmc = &pmu->fixed_counters[index];
+		u32 event = fixed_pmc_events[index];
+
 		pmc->eventsel = (intel_arch_events[event].unit_mask << 8) |
-			intel_arch_events[event].eventsel;
+				 intel_arch_events[event].eventsel;
 	}
 }
 
@@ -508,10 +539,8 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	if (pmu->version == 1) {
 		pmu->nr_arch_fixed_counters = 0;
 	} else {
-		pmu->nr_arch_fixed_counters =
-			min3(ARRAY_SIZE(fixed_pmc_events),
-			     (size_t) edx.split.num_counters_fixed,
-			     (size_t)kvm_pmu_cap.num_counters_fixed);
+		pmu->nr_arch_fixed_counters = min_t(int, edx.split.num_counters_fixed,
+						    kvm_pmu_cap.num_counters_fixed);
 		edx.split.bit_width_fixed = min_t(int, edx.split.bit_width_fixed,
 						  kvm_pmu_cap.bit_width_fixed);
 		pmu->counter_bitmask[KVM_PMC_FIXED] =

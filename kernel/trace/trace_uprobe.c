@@ -688,6 +688,7 @@ static int __trace_uprobe_create(int argc, const char **argv)
 
 		trace_probe_log_set_index(i + 2);
 		ret = traceprobe_parse_probe_arg(&tu->tp, i, argv[i], &ctx);
+		traceprobe_finish_parse(&ctx);
 		if (ret)
 			goto error;
 	}

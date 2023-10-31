@@ -96,7 +96,8 @@ nouveau_exec_job_submit(struct nouveau_job *job)
 	unsigned long index;
 	int ret;
 
-	ret = nouveau_fence_new(&exec_job->fence);
+	/* Create a new fence, but do not emit yet. */
+	ret = nouveau_fence_create(&exec_job->fence, exec_job->chan);
 	if (ret)
 		return ret;
 
@@ -170,13 +171,17 @@ nouveau_exec_job_run(struct nouveau_job *job)
 		nv50_dma_push(chan, p->va, p->va_len, no_prefetch);
 	}
 
-	ret = nouveau_fence_emit(fence, chan);
+	ret = nouveau_fence_emit(fence);
 	if (ret) {
+		nouveau_fence_unref(&exec_job->fence);
 		NV_PRINTK(err, job->cli, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);
 		return ERR_PTR(ret);
 	}
 
+	/* The fence was emitted successfully, set the job's fence pointer to
+	 * NULL in order to avoid freeing it up when the job is cleaned up.
+	 */
 	exec_job->fence = NULL;
 
 	return &fence->base;
@@ -189,7 +194,7 @@ nouveau_exec_job_free(struct nouveau_job *job)
 
 	nouveau_job_free(job);
 
-	nouveau_fence_unref(&exec_job->fence);
+	kfree(exec_job->fence);
 	kfree(exec_job->push.s);
 	kfree(exec_job);
 }
@@ -208,7 +213,7 @@ nouveau_exec_job_timeout(struct nouveau_job *job)
 
 	nouveau_sched_entity_fini(job->entity);
 
-	return DRM_GPU_SCHED_STAT_ENODEV;
+	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
 static struct nouveau_job_ops nouveau_exec_job_ops = {
@@ -374,7 +379,7 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	struct nouveau_channel *chan = NULL;
 	struct nouveau_exec_job_args args = {};
 	struct drm_nouveau_exec *req = data;
-	int ret = 0;
+	int push_max, ret = 0;
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
@@ -399,9 +404,10 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	if (!chan->dma.ib_max)
 		return nouveau_abi16_put(abi16, -ENOSYS);
 
-	if (unlikely(req->push_count > NOUVEAU_GEM_MAX_PUSH)) {
+	push_max = nouveau_exec_push_max_from_ib_max(chan->dma.ib_max);
+	if (unlikely(req->push_count > push_max)) {
 		NV_PRINTK(err, cli, "pushbuf push count exceeds limit: %d max %d\n",
-			 req->push_count, NOUVEAU_GEM_MAX_PUSH);
+			  req->push_count, push_max);
 		return nouveau_abi16_put(abi16, -EINVAL);
 	}
 

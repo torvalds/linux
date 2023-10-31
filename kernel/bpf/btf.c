@@ -553,7 +553,7 @@ s32 btf_find_by_name_kind(const struct btf *btf, const char *name, u8 kind)
 	return -ENOENT;
 }
 
-static s32 bpf_find_btf_id(const char *name, u32 kind, struct btf **btf_p)
+s32 bpf_find_btf_id(const char *name, u32 kind, struct btf **btf_p)
 {
 	struct btf *btf;
 	s32 ret;
@@ -8501,7 +8501,7 @@ bool btf_nested_type_is_trusted(struct bpf_verifier_log *log,
 	tname = btf_name_by_offset(btf, walk_type->name_off);
 
 	ret = snprintf(safe_tname, sizeof(safe_tname), "%s%s", tname, suffix);
-	if (ret < 0)
+	if (ret >= sizeof(safe_tname))
 		return false;
 
 	safe_id = btf_find_by_name_kind(btf, safe_tname, BTF_INFO_KIND(walk_type->info));

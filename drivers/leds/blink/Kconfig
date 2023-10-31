@@ -1,10 +1,10 @@
 config LEDS_BCM63138
 	tristate "LED Support for Broadcom BCM63138 SoC"
 	depends on LEDS_CLASS
-	depends on ARCH_BCM4908 || ARCH_BCM_5301X || BCM63XX || COMPILE_TEST
+	depends on ARCH_BCMBCA || ARCH_BCM_5301X || BCM63XX || COMPILE_TEST
 	depends on HAS_IOMEM
 	depends on OF
-	default ARCH_BCM4908
+	default ARCH_BCMBCA
 	help
 	  This option enables support for LED controller that is part of
 	  BCM63138 SoC. The same hardware block is known to be also used

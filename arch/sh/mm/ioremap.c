@@ -72,8 +72,8 @@ __ioremap_29bit(phys_addr_t offset, unsigned long size, pgprot_t prot)
 #define __ioremap_29bit(offset, size, prot)		NULL
 #endif /* CONFIG_29BIT */
 
-void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
-			   unsigned long prot)
+void __iomem __ref *ioremap_prot(phys_addr_t phys_addr, size_t size,
+				 unsigned long prot)
 {
 	void __iomem *mapped;
 	pgprot_t pgprot = __pgprot(prot);

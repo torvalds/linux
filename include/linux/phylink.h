@@ -600,7 +600,7 @@ void pcs_get_state(struct phylink_pcs *pcs,
  *
  * The %neg_mode argument should be tested via the phylink_mode_*() family of
  * functions, or for PCS that set pcs->neg_mode true, should be tested
- * against the %PHYLINK_PCS_NEG_* definitions.
+ * against the PHYLINK_PCS_NEG_* definitions.
  */
 int pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 	       phy_interface_t interface, const unsigned long *advertising,
@@ -630,7 +630,7 @@ void pcs_an_restart(struct phylink_pcs *pcs);
  *
  * The %mode argument should be tested via the phylink_mode_*() family of
  * functions, or for PCS that set pcs->neg_mode true, should be tested
- * against the %PHYLINK_PCS_NEG_* definitions.
+ * against the PHYLINK_PCS_NEG_* definitions.
  */
 void pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 		 phy_interface_t interface, int speed, int duplex);

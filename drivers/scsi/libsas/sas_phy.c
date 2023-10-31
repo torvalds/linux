@@ -38,7 +38,7 @@ static void sas_phye_oob_error(struct work_struct *work)
 	struct sas_ha_struct *sas_ha = phy->ha;
 	struct asd_sas_port *port = phy->port;
 	struct sas_internal *i =
-		to_sas_internal(sas_ha->core.shost->transportt);
+		to_sas_internal(sas_ha->shost->transportt);
 
 	sas_deform_port(phy, 1);
 
@@ -66,7 +66,7 @@ static void sas_phye_spinup_hold(struct work_struct *work)
 	struct asd_sas_phy *phy = ev->phy;
 	struct sas_ha_struct *sas_ha = phy->ha;
 	struct sas_internal *i =
-		to_sas_internal(sas_ha->core.shost->transportt);
+		to_sas_internal(sas_ha->shost->transportt);
 
 	phy->error = 0;
 	i->dft->lldd_control_phy(phy, PHY_FUNC_RELEASE_SPINUP_HOLD, NULL);
@@ -95,7 +95,7 @@ static void sas_phye_shutdown(struct work_struct *work)
 	struct asd_sas_phy *phy = ev->phy;
 	struct sas_ha_struct *sas_ha = phy->ha;
 	struct sas_internal *i =
-		to_sas_internal(sas_ha->core.shost->transportt);
+		to_sas_internal(sas_ha->shost->transportt);
 
 	if (phy->enabled) {
 		int ret;
@@ -131,7 +131,7 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 		spin_lock_init(&phy->sas_prim_lock);
 		phy->frame_rcvd_size = 0;
 
-		phy->phy = sas_phy_alloc(&sas_ha->core.shost->shost_gendev, i);
+		phy->phy = sas_phy_alloc(&sas_ha->shost->shost_gendev, i);
 		if (!phy->phy)
 			return -ENOMEM;
 

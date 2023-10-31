@@ -1686,6 +1686,8 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		WRITE_ONCE(p->svms.faulting_task, NULL);
 		if (r) {
 			pr_debug("failed %d to get svm range pages\n", r);
+			if (r == -EBUSY)
+				r = -EAGAIN;
 			goto unreserve_out;
 		}
 

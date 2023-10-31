@@ -13,7 +13,7 @@
 
 #ifdef CONFIG_ARC_CURR_IN_REG
 
-register struct task_struct *curr_arc asm("r25");
+register struct task_struct *curr_arc asm("gp");
 #define current (curr_arc)
 
 #else

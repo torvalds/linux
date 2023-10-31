@@ -1167,6 +1167,9 @@ static int f2fs_submit_page_read(struct inode *inode, struct page *page,
 	f2fs_wait_on_block_writeback(inode, blkaddr);
 
 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
+		iostat_update_and_unbind_ctx(bio);
+		if (bio->bi_private)
+			mempool_free(bio->bi_private, bio_post_read_ctx_pool);
 		bio_put(bio);
 		return -EFAULT;
 	}
@@ -1389,18 +1392,14 @@ struct page *f2fs_get_lock_data_page(struct inode *inode, pgoff_t index,
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
-repeat:
+
 	page = f2fs_get_read_data_page(inode, index, 0, for_write, NULL);
 	if (IS_ERR(page))
 		return page;
 
 	/* wait for read completion */
 	lock_page(page);
-	if (unlikely(page->mapping != mapping)) {
-		f2fs_put_page(page, 1);
-		goto repeat;
-	}
-	if (unlikely(!PageUptodate(page))) {
+	if (unlikely(page->mapping != mapping || !PageUptodate(page))) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
 	}
@@ -3236,8 +3235,7 @@ result:
 					}
 					goto next;
 				}
-				done_index = folio->index +
-					folio_nr_pages(folio);
+				done_index = folio_next_index(folio);
 				done = 1;
 				break;
 			}

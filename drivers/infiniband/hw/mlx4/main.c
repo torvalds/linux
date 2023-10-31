@@ -136,7 +136,7 @@ static struct net_device *mlx4_ib_get_netdev(struct ib_device *device,
 			continue;
 
 		if (mlx4_is_bonded(ibdev->dev)) {
-			struct net_device *upper = NULL;
+			struct net_device *upper;
 
 			upper = netdev_master_upper_dev_get_rcu(dev);
 			if (upper) {
@@ -261,7 +261,7 @@ static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 	int ret = 0;
 	int hw_update = 0;
 	int i;
-	struct gid_entry *gids = NULL;
+	struct gid_entry *gids;
 	u16 vlan_id = 0xffff;
 	u8 mac[ETH_ALEN];
 
@@ -300,8 +300,7 @@ static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 				ret = -ENOMEM;
 			} else {
 				*context = port_gid_table->gids[free].ctx;
-				memcpy(&port_gid_table->gids[free].gid,
-				       &attr->gid, sizeof(attr->gid));
+				port_gid_table->gids[free].gid = attr->gid;
 				port_gid_table->gids[free].gid_type = attr->gid_type;
 				port_gid_table->gids[free].vlan_id = vlan_id;
 				port_gid_table->gids[free].ctx->real_index = free;
@@ -352,7 +351,7 @@ static int mlx4_ib_del_gid(const struct ib_gid_attr *attr, void **context)
 	struct mlx4_port_gid_table   *port_gid_table;
 	int ret = 0;
 	int hw_update = 0;
-	struct gid_entry *gids = NULL;
+	struct gid_entry *gids;
 
 	if (!rdma_cap_roce_gid_table(attr->device, attr->port_num))
 		return -EINVAL;
@@ -438,8 +437,8 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 				struct ib_udata *uhw)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int err;
 	int have_ib_ports;
 	struct mlx4_uverbs_ex_query_device cmd;
@@ -656,8 +655,8 @@ mlx4_ib_port_link_layer(struct ib_device *device, u32 port_num)
 static int ib_link_query_port(struct ib_device *ibdev, u32 port,
 			      struct ib_port_attr *props, int netw_view)
 {
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int ext_active_speed;
 	int mad_ifc_flags = MLX4_MAD_IFC_IGNORE_KEYS;
 	int err = -ENOMEM;
@@ -834,8 +833,8 @@ static int mlx4_ib_query_port(struct ib_device *ibdev, u32 port,
 int __mlx4_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 			union ib_gid *gid, int netw_view)
 {
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int err = -ENOMEM;
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	int clear = 0;
@@ -899,8 +898,8 @@ static int mlx4_ib_query_sl2vl(struct ib_device *ibdev, u32 port,
 			       u64 *sl2vl_tbl)
 {
 	union sl2vl_tbl_to_u64 sl2vl64;
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int mad_ifc_flags = MLX4_MAD_IFC_IGNORE_KEYS;
 	int err = -ENOMEM;
 	int jj;
@@ -959,8 +958,8 @@ static void mlx4_init_sl2vl_tbl(struct mlx4_ib_dev *mdev)
 int __mlx4_ib_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 			 u16 *pkey, int netw_view)
 {
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int mad_ifc_flags = MLX4_MAD_IFC_IGNORE_KEYS;
 	int err = -ENOMEM;
 
@@ -1975,8 +1974,8 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 
 static int init_node_data(struct mlx4_ib_dev *dev)
 {
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int mad_ifc_flags = MLX4_MAD_IFC_IGNORE_KEYS;
 	int err = -ENOMEM;
 
@@ -2623,7 +2622,7 @@ static int mlx4_ib_probe(struct auxiliary_device *adev,
 	int num_req_counters;
 	int allocated;
 	u32 counter_index;
-	struct counter_index *new_counter_index = NULL;
+	struct counter_index *new_counter_index;
 
 	pr_info_once("%s", mlx4_ib_version);
 
@@ -2946,7 +2945,7 @@ int mlx4_ib_steer_qp_reg(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 {
 	int err;
 	size_t flow_size;
-	struct ib_flow_attr *flow = NULL;
+	struct ib_flow_attr *flow;
 	struct ib_flow_spec_ib *ib_spec;
 
 	if (is_attach) {
@@ -2966,11 +2965,11 @@ int mlx4_ib_steer_qp_reg(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 
 		err = __mlx4_ib_create_flow(&mqp->ibqp, flow, MLX4_DOMAIN_NIC,
 					    MLX4_FS_REGULAR, &mqp->reg_id);
-	} else {
-		err = __mlx4_ib_destroy_flow(mdev->dev, mqp->reg_id);
+		kfree(flow);
+		return err;
 	}
-	kfree(flow);
-	return err;
+	
+	return __mlx4_ib_destroy_flow(mdev->dev, mqp->reg_id);
 }
 
 static void mlx4_ib_remove(struct auxiliary_device *adev)
@@ -3019,7 +3018,7 @@ static void mlx4_ib_remove(struct auxiliary_device *adev)
 
 static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init)
 {
-	struct mlx4_ib_demux_work **dm = NULL;
+	struct mlx4_ib_demux_work **dm;
 	struct mlx4_dev *dev = ibdev->dev;
 	int i;
 	unsigned long flags;

@@ -169,16 +169,10 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 
 	/* Not all platforms can gate the clock, so it is optional. */
-	info->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	info->clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
 	if (IS_ERR(info->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(info->clk),
-				     "failed to get clock!\n");
-
-	ret = clk_prepare_enable(info->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare clock!\n");
-		return ret;
-	}
+				     "failed to get and enable clock!\n");
 
 	/*
 	 * This driver assumes that the default ECC engine should be TYPE_SOFT.
@@ -189,19 +183,13 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	ret = nand_scan(nc, 1);
 	if (ret)
-		goto no_dev;
+		return ret;
 
 	mtd->name = "orion_nand";
 	ret = mtd_device_register(mtd, board->parts, board->nr_parts);
-	if (ret) {
+	if (ret)
 		nand_cleanup(nc);
-		goto no_dev;
-	}
 
-	return 0;
-
-no_dev:
-	clk_disable_unprepare(info->clk);
 	return ret;
 }
 
@@ -215,8 +203,6 @@ static void orion_nand_remove(struct platform_device *pdev)
 	WARN_ON(ret);
 
 	nand_cleanup(chip);
-
-	clk_disable_unprepare(info->clk);
 }
 
 #ifdef CONFIG_OF

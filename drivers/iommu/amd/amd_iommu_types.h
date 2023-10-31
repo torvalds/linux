@@ -120,10 +120,13 @@
 #define PASID_MASK		0x0000ffff
 
 /* MMIO status bits */
-#define MMIO_STATUS_EVT_OVERFLOW_INT_MASK	BIT(0)
+#define MMIO_STATUS_EVT_OVERFLOW_MASK		BIT(0)
 #define MMIO_STATUS_EVT_INT_MASK		BIT(1)
 #define MMIO_STATUS_COM_WAIT_INT_MASK		BIT(2)
+#define MMIO_STATUS_EVT_RUN_MASK		BIT(3)
+#define MMIO_STATUS_PPR_OVERFLOW_MASK		BIT(5)
 #define MMIO_STATUS_PPR_INT_MASK		BIT(6)
+#define MMIO_STATUS_PPR_RUN_MASK		BIT(7)
 #define MMIO_STATUS_GALOG_RUN_MASK		BIT(8)
 #define MMIO_STATUS_GALOG_OVERFLOW_MASK		BIT(9)
 #define MMIO_STATUS_GALOG_INT_MASK		BIT(10)
@@ -381,15 +384,15 @@
  */
 #define DTE_FLAG_V	BIT_ULL(0)
 #define DTE_FLAG_TV	BIT_ULL(1)
+#define DTE_FLAG_GIOV	BIT_ULL(54)
+#define DTE_FLAG_GV	BIT_ULL(55)
+#define DTE_GLX_SHIFT	(56)
+#define DTE_GLX_MASK	(3)
 #define DTE_FLAG_IR	BIT_ULL(61)
 #define DTE_FLAG_IW	BIT_ULL(62)
 
 #define DTE_FLAG_IOTLB	BIT_ULL(32)
-#define DTE_FLAG_GIOV	BIT_ULL(54)
-#define DTE_FLAG_GV	BIT_ULL(55)
 #define DTE_FLAG_MASK	(0x3ffULL << 32)
-#define DTE_GLX_SHIFT	(56)
-#define DTE_GLX_MASK	(3)
 #define DEV_DOMID_MASK	0xffffULL
 
 #define DTE_GCR3_VAL_A(x)	(((x) >> 12) & 0x00007ULL)
@@ -702,11 +705,20 @@ struct amd_iommu {
 	/* event buffer virtual address */
 	u8 *evt_buf;
 
+	/* Name for event log interrupt */
+	unsigned char evt_irq_name[16];
+
 	/* Base of the PPR log, if present */
 	u8 *ppr_log;
 
+	/* Name for PPR log interrupt */
+	unsigned char ppr_irq_name[16];
+
 	/* Base of the GA log, if present */
 	u8 *ga_log;
+
+	/* Name for GA log interrupt */
+	unsigned char ga_irq_name[16];
 
 	/* Tail of the GA log, if present */
 	u8 *ga_log_tail;

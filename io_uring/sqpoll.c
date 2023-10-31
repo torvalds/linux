@@ -430,7 +430,9 @@ __cold int io_sqpoll_wq_cpu_affinity(struct io_ring_ctx *ctx,
 
 	if (sqd) {
 		io_sq_thread_park(sqd);
-		ret = io_wq_cpu_affinity(sqd->thread->io_uring, mask);
+		/* Don't set affinity for a dying thread */
+		if (sqd->thread)
+			ret = io_wq_cpu_affinity(sqd->thread->io_uring, mask);
 		io_sq_thread_unpark(sqd);
 	}
 

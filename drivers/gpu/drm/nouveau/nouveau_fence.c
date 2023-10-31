@@ -205,16 +205,13 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 }
 
 int
-nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
+nouveau_fence_emit(struct nouveau_fence *fence)
 {
+	struct nouveau_channel *chan = unrcu_pointer(fence->channel);
 	struct nouveau_fence_chan *fctx = chan->fence;
 	struct nouveau_fence_priv *priv = (void*)chan->drm->fence;
 	int ret;
 
-	if (unlikely(!chan->fence))
-		return -ENODEV;
-
-	fence->channel  = chan;
 	fence->timeout  = jiffies + (15 * HZ);
 
 	if (priv->uevent)
@@ -406,16 +403,39 @@ nouveau_fence_unref(struct nouveau_fence **pfence)
 }
 
 int
-nouveau_fence_new(struct nouveau_fence **pfence)
+nouveau_fence_create(struct nouveau_fence **pfence,
+		     struct nouveau_channel *chan)
 {
 	struct nouveau_fence *fence;
+
+	if (unlikely(!chan->fence))
+		return -ENODEV;
 
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
 	if (!fence)
 		return -ENOMEM;
 
+	fence->channel = chan;
+
 	*pfence = fence;
 	return 0;
+}
+
+int
+nouveau_fence_new(struct nouveau_fence **pfence,
+		  struct nouveau_channel *chan)
+{
+	int ret = 0;
+
+	ret = nouveau_fence_create(pfence, chan);
+	if (ret)
+		return ret;
+
+	ret = nouveau_fence_emit(*pfence);
+	if (ret)
+		nouveau_fence_unref(pfence);
+
+	return ret;
 }
 
 static const char *nouveau_fence_get_get_driver_name(struct dma_fence *fence)

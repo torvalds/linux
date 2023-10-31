@@ -28,6 +28,7 @@
 #include <asm/mxregs.h>
 #include <linux/uaccess.h>
 #include <asm/platform.h>
+#include <asm/traps.h>
 
 DECLARE_PER_CPU(unsigned long, nmi_count);
 

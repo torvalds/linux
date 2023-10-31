@@ -78,7 +78,7 @@ bool hns_roce_check_whether_mhop(struct hns_roce_dev *hr_dev, u32 type)
 		return false;
 	}
 
-	return hop_num ? true : false;
+	return hop_num;
 }
 
 static bool hns_roce_check_hem_null(struct hns_roce_hem **hem, u64 hem_idx,

@@ -2040,6 +2040,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		case IP_VERSION(11, 0, 0):
 		case IP_VERSION(11, 0, 1):
 		case IP_VERSION(11, 0, 2):
+		case IP_VERSION(11, 0, 3):
 			*states = ATTR_STATE_SUPPORTED;
 			break;
 		default:
@@ -3311,8 +3312,10 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	    (gc_ver != IP_VERSION(9, 4, 3)) &&
 	    (attr == &sensor_dev_attr_temp2_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_label.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp2_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp3_input.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_label.dev_attr.attr))
+	     attr == &sensor_dev_attr_temp3_label.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp3_crit.dev_attr.attr))
 		return 0;
 
 	/* hotspot temperature for gc 9,4,3*/
@@ -3324,9 +3327,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	/* only SOC15 dGPUs support hotspot and mem temperatures */
 	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0) ||
 	    (gc_ver == IP_VERSION(9, 4, 3))) &&
-	    (attr == &sensor_dev_attr_temp2_crit.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp2_crit_hyst.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_crit.dev_attr.attr ||
+	     (attr == &sensor_dev_attr_temp2_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp3_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_emergency.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_emergency.dev_attr.attr ||
@@ -3471,6 +3472,9 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	size = sizeof(uint32_t);
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER, (void *)&query, &size))
 		seq_printf(m, "\t%u.%u W (average GPU)\n", query >> 8, query & 0xff);
+	size = sizeof(uint32_t);
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER, (void *)&query, &size))
+		seq_printf(m, "\t%u.%u W (current GPU)\n", query >> 8, query & 0xff);
 	size = sizeof(value);
 	seq_printf(m, "\n");
 

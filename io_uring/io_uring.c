@@ -150,6 +150,31 @@ static void io_queue_sqe(struct io_kiocb *req);
 
 struct kmem_cache *req_cachep;
 
+static int __read_mostly sysctl_io_uring_disabled;
+static int __read_mostly sysctl_io_uring_group = -1;
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table kernel_io_uring_disabled_table[] = {
+	{
+		.procname	= "io_uring_disabled",
+		.data		= &sysctl_io_uring_disabled,
+		.maxlen		= sizeof(sysctl_io_uring_disabled),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_TWO,
+	},
+	{
+		.procname	= "io_uring_group",
+		.data		= &sysctl_io_uring_group,
+		.maxlen		= sizeof(gid_t),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{},
+};
+#endif
+
 struct sock *io_uring_get_socket(struct file *file)
 {
 #if defined(CONFIG_UNIX)
@@ -883,7 +908,7 @@ static void __io_flush_post_cqes(struct io_ring_ctx *ctx)
 		struct io_uring_cqe *cqe = &ctx->completion_cqes[i];
 
 		if (!io_fill_cqe_aux(ctx, cqe->user_data, cqe->res, cqe->flags)) {
-			if (ctx->task_complete) {
+			if (ctx->lockless_cq) {
 				spin_lock(&ctx->completion_lock);
 				io_cqring_event_overflow(ctx, cqe->user_data,
 							cqe->res, cqe->flags, 0, 0);
@@ -1541,7 +1566,7 @@ void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 
 		if (!(req->flags & REQ_F_CQE_SKIP) &&
 		    unlikely(!io_fill_cqe_req(ctx, req))) {
-			if (ctx->task_complete) {
+			if (ctx->lockless_cq) {
 				spin_lock(&ctx->completion_lock);
 				io_req_cqe_overflow(req);
 				spin_unlock(&ctx->completion_lock);
@@ -1949,6 +1974,8 @@ fail:
 		 */
 		if (!needs_poll) {
 			if (!(req->ctx->flags & IORING_SETUP_IOPOLL))
+				break;
+			if (io_wq_worker_stopped())
 				break;
 			cond_resched();
 			continue;
@@ -2659,7 +2686,7 @@ static void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
 {
 	struct page **page_array;
 	unsigned int nr_pages;
-	int ret;
+	int ret, i;
 
 	*npages = 0;
 
@@ -2689,6 +2716,20 @@ err:
 	 */
 	if (page_array[0] != page_array[ret - 1])
 		goto err;
+
+	/*
+	 * Can't support mapping user allocated ring memory on 32-bit archs
+	 * where it could potentially reside in highmem. Just fail those with
+	 * -EINVAL, just like we did on kernels that didn't support this
+	 * feature.
+	 */
+	for (i = 0; i < nr_pages; i++) {
+		if (PageHighMem(page_array[i])) {
+			ret = -EINVAL;
+			goto err;
+		}
+	}
+
 	*pages = page_array;
 	*npages = nr_pages;
 	return page_to_virt(page_array[0]);
@@ -4038,9 +4079,30 @@ static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 	return io_uring_create(entries, &p, params);
 }
 
+static inline bool io_uring_allowed(void)
+{
+	int disabled = READ_ONCE(sysctl_io_uring_disabled);
+	kgid_t io_uring_group;
+
+	if (disabled == 2)
+		return false;
+
+	if (disabled == 0 || capable(CAP_SYS_ADMIN))
+		return true;
+
+	io_uring_group = make_kgid(&init_user_ns, sysctl_io_uring_group);
+	if (!gid_valid(io_uring_group))
+		return false;
+
+	return in_group_p(io_uring_group);
+}
+
 SYSCALL_DEFINE2(io_uring_setup, u32, entries,
 		struct io_uring_params __user *, params)
 {
+	if (!io_uring_allowed())
+		return -EPERM;
+
 	return io_uring_setup(entries, params);
 }
 
@@ -4633,6 +4695,10 @@ static int __init io_uring_init(void)
 				SLAB_ACCOUNT | SLAB_TYPESAFE_BY_RCU,
 				offsetof(struct io_kiocb, cmd.data),
 				sizeof_field(struct io_kiocb, cmd.data), NULL);
+
+#ifdef CONFIG_SYSCTL
+	register_sysctl_init("kernel", kernel_io_uring_disabled_table);
+#endif
 
 	return 0;
 };

@@ -24,6 +24,8 @@ properties:
     maxItems: 1
   reset-gpios:
     maxItems: 1
+  vdd-supply:
+    description: Power supply regulator for the chip
   touchscreen-size-x: true
   touchscreen-size-y: true
   touchscreen-inverted-x: true

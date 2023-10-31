@@ -50,7 +50,7 @@ extern struct module __this_module;
 		__EXPORT_SYMBOL_REF(sym)	ASM_NL	\
 	.previous
 
-#if !defined(CONFIG_MODULES) || defined(__DISABLE_EXPORTS)
+#if defined(__DISABLE_EXPORTS)
 
 /*
  * Allow symbol exports to be disabled completely so that C code may
@@ -75,7 +75,7 @@ extern struct module __this_module;
 	__ADDRESSABLE(sym)					\
 	asm(__stringify(___EXPORT_SYMBOL(sym, license, ns)))
 
-#endif /* CONFIG_MODULES */
+#endif
 
 #ifdef DEFAULT_SYMBOL_NAMESPACE
 #define _EXPORT_SYMBOL(sym, license)	__EXPORT_SYMBOL(sym, license, __stringify(DEFAULT_SYMBOL_NAMESPACE))

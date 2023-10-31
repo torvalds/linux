@@ -760,6 +760,31 @@ void irdma_qp_rem_ref(struct ib_qp *ibqp)
 	complete(&iwqp->free_qp);
 }
 
+void irdma_cq_add_ref(struct ib_cq *ibcq)
+{
+	struct irdma_cq *iwcq = to_iwcq(ibcq);
+
+	refcount_inc(&iwcq->refcnt);
+}
+
+void irdma_cq_rem_ref(struct ib_cq *ibcq)
+{
+	struct ib_device *ibdev = ibcq->device;
+	struct irdma_device *iwdev = to_iwdev(ibdev);
+	struct irdma_cq *iwcq = to_iwcq(ibcq);
+	unsigned long flags;
+
+	spin_lock_irqsave(&iwdev->rf->cqtable_lock, flags);
+	if (!refcount_dec_and_test(&iwcq->refcnt)) {
+		spin_unlock_irqrestore(&iwdev->rf->cqtable_lock, flags);
+		return;
+	}
+
+	iwdev->rf->cq_table[iwcq->cq_num] = NULL;
+	spin_unlock_irqrestore(&iwdev->rf->cqtable_lock, flags);
+	complete(&iwcq->free_cq);
+}
+
 struct ib_device *to_ibdev(struct irdma_sc_dev *dev)
 {
 	return &(container_of(dev, struct irdma_pci_f, sc_dev))->iwdev->ibdev;

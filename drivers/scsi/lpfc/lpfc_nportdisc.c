@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -879,23 +879,34 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			spin_unlock_irq(shost->host_lock);
 			lpfc_retry_pport_discovery(phba);
 		}
-	} else if ((!(ndlp->nlp_type & NLP_FABRIC) &&
-		((ndlp->nlp_type & NLP_FCP_TARGET) ||
-		(ndlp->nlp_type & NLP_NVME_TARGET) ||
-		(vport->fc_flag & FC_PT2PT))) ||
-		(ndlp->nlp_state == NLP_STE_ADISC_ISSUE)) {
-		/* Only try to re-login if this is NOT a Fabric Node
-		 * AND the remote NPORT is a FCP/NVME Target or we
-		 * are in pt2pt mode. NLP_STE_ADISC_ISSUE is a special
-		 * case for LOGO as a response to ADISC behavior.
-		 */
-		mod_timer(&ndlp->nlp_delayfunc,
-			  jiffies + msecs_to_jiffies(1000 * 1));
-		spin_lock_irq(&ndlp->lock);
-		ndlp->nlp_flag |= NLP_DELAY_TMO;
-		spin_unlock_irq(&ndlp->lock);
+	} else {
+		lpfc_printf_vlog(vport, KERN_INFO,
+				 LOG_NODE | LOG_ELS | LOG_DISCOVERY,
+				 "3203 LOGO recover nport x%06x state x%x "
+				 "ntype x%x fc_flag x%x\n",
+				 ndlp->nlp_DID, ndlp->nlp_state,
+				 ndlp->nlp_type, vport->fc_flag);
 
-		ndlp->nlp_last_elscmd = ELS_CMD_PLOGI;
+		/* Special cases for rports that recover post LOGO. */
+		if ((!(ndlp->nlp_type == NLP_FABRIC) &&
+		     (ndlp->nlp_type & (NLP_FCP_TARGET | NLP_NVME_TARGET) ||
+		      vport->fc_flag & FC_PT2PT)) ||
+		    (ndlp->nlp_state >= NLP_STE_ADISC_ISSUE ||
+		     ndlp->nlp_state <= NLP_STE_PRLI_ISSUE)) {
+			mod_timer(&ndlp->nlp_delayfunc,
+				  jiffies + msecs_to_jiffies(1000 * 1));
+			spin_lock_irq(&ndlp->lock);
+			ndlp->nlp_flag |= NLP_DELAY_TMO;
+			spin_unlock_irq(&ndlp->lock);
+			ndlp->nlp_last_elscmd = ELS_CMD_PLOGI;
+			lpfc_printf_vlog(vport, KERN_INFO,
+					 LOG_NODE | LOG_ELS | LOG_DISCOVERY,
+					 "3204 Start nlpdelay on DID x%06x "
+					 "nflag x%x lastels x%x ref cnt %u",
+					 ndlp->nlp_DID, ndlp->nlp_flag,
+					 ndlp->nlp_last_elscmd,
+					 kref_read(&ndlp->kref));
+		}
 	}
 out:
 	/* Unregister from backend, could have been skipped due to ADISC */
@@ -1854,7 +1865,6 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 	LPFC_MBOXQ_t	  *mb;
 	LPFC_MBOXQ_t	  *nextmb;
-	struct lpfc_nodelist *ns_ndlp;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
 
@@ -1881,13 +1891,6 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 		}
 	}
 	spin_unlock_irq(&phba->hbalock);
-
-	/* software abort if any GID_FT is outstanding */
-	if (vport->cfg_enable_fc4_type != LPFC_ENABLE_FCP) {
-		ns_ndlp = lpfc_findnode_did(vport, NameServer_DID);
-		if (ns_ndlp)
-			lpfc_els_abort(phba, ns_ndlp);
-	}
 
 	lpfc_rcv_logo(vport, ndlp, cmdiocb, ELS_CMD_LOGO);
 	return ndlp->nlp_state;
@@ -2148,6 +2151,7 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct lpfc_nvme_prli *nvpr;
 	void *temp_ptr;
 	u32 ulp_status;
+	bool acc_imode_sps = false;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
 	rspiocb = cmdiocb->rsp_iocb;
@@ -2182,22 +2186,32 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		goto out_err;
 	}
 
-	if (npr && (npr->acceptRspCode == PRLI_REQ_EXECUTED) &&
-	    (npr->prliType == PRLI_FCP_TYPE)) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
-				 "6028 FCP NPR PRLI Cmpl Init %d Target %d\n",
-				 npr->initiatorFunc,
-				 npr->targetFunc);
-		if (npr->initiatorFunc)
-			ndlp->nlp_type |= NLP_FCP_INITIATOR;
-		if (npr->targetFunc) {
-			ndlp->nlp_type |= NLP_FCP_TARGET;
-			if (npr->writeXferRdyDis)
-				ndlp->nlp_flag |= NLP_FIRSTBURST;
-		}
-		if (npr->Retry)
-			ndlp->nlp_fcp_info |= NLP_FCP_2_DEVICE;
+	if (npr && npr->prliType == PRLI_FCP_TYPE) {
+		lpfc_printf_vlog(vport, KERN_INFO,
+				 LOG_ELS | LOG_NODE | LOG_DISCOVERY,
+				 "6028 FCP NPR PRLI Cmpl Init %d Target %d "
+				 "EIP %d AccCode x%x\n",
+				 npr->initiatorFunc, npr->targetFunc,
+				 npr->estabImagePair, npr->acceptRspCode);
 
+		if (npr->acceptRspCode == PRLI_INV_SRV_PARM) {
+			/* Strict initiators don't establish an image pair. */
+			if (npr->initiatorFunc && !npr->targetFunc &&
+			    !npr->estabImagePair)
+				acc_imode_sps = true;
+		}
+
+		if (npr->acceptRspCode == PRLI_REQ_EXECUTED || acc_imode_sps) {
+			if (npr->initiatorFunc)
+				ndlp->nlp_type |= NLP_FCP_INITIATOR;
+			if (npr->targetFunc) {
+				ndlp->nlp_type |= NLP_FCP_TARGET;
+				if (npr->writeXferRdyDis)
+					ndlp->nlp_flag |= NLP_FIRSTBURST;
+			}
+			if (npr->Retry)
+				ndlp->nlp_fcp_info |= NLP_FCP_2_DEVICE;
+		}
 	} else if (nvpr &&
 		   (bf_get_be32(prli_acc_rsp_code, nvpr) ==
 		    PRLI_REQ_EXECUTED) &&

@@ -875,15 +875,9 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict,
 	if (ret)
 		goto out_unlock;
 
-	ret = nouveau_fence_new(&fence);
+	ret = nouveau_fence_new(&fence, chan);
 	if (ret)
 		goto out_unlock;
-
-	ret = nouveau_fence_emit(fence, chan);
-	if (ret) {
-		nouveau_fence_unref(&fence);
-		goto out_unlock;
-	}
 
 	/* TODO: figure out a better solution here
 	 *

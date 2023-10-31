@@ -432,15 +432,16 @@ static char *get_key_description(struct vcssb *vcssb, const struct vce *vce)
 	char *desc;
 
 	cs_token = vcssb->cs_token;
-	/* Description string contains "%64s:%04u:%08u\0". */
+	/* Description string contains "%64s:%05u:%010u\0". */
 	name_len = sizeof(vce->vce_hdr.vc_name);
-	len = name_len + 1 + 4 + 1 + 8 + 1;
+	len = name_len + 1 + 5 + 1 + 10 + 1;
 	desc = kmalloc(len, GFP_KERNEL);
 	if (!desc)
 		return NULL;
 
 	memcpy(desc, vce->vce_hdr.vc_name, name_len);
-	sprintf(desc + name_len, ":%04u:%08u", vce->vce_hdr.vc_index, cs_token);
+	snprintf(desc + name_len, len - name_len, ":%05u:%010u",
+		 vce->vce_hdr.vc_index, cs_token);
 
 	return desc;
 }

@@ -9,7 +9,7 @@
 
 #include "incore.h"
 
-extern struct workqueue_struct *gfs_recovery_wq;
+extern struct workqueue_struct *gfs2_recovery_wq;
 
 static inline void gfs2_replay_incr_blk(struct gfs2_jdesc *jd, u32 *blk)
 {

@@ -254,5 +254,6 @@ void i40iw_init_hw(struct irdma_sc_dev *dev)
 	dev->hw_attrs.max_stat_idx = IRDMA_HW_STAT_INDEX_MAX_GEN_1;
 	dev->hw_attrs.max_hw_outbound_msg_size = I40IW_MAX_OUTBOUND_MSG_SIZE;
 	dev->hw_attrs.max_hw_inbound_msg_size = I40IW_MAX_INBOUND_MSG_SIZE;
+	dev->hw_attrs.uk_attrs.min_hw_wq_size = I40IW_MIN_WQ_SIZE;
 	dev->hw_attrs.max_qp_wr = I40IW_MAX_QP_WRS;
 }

@@ -57,24 +57,16 @@ patternProperties:
             "#clock-cells":
               const: 0
 
-            # Already checked in the main schema
-            compatible: true
-
             clocks:
               maxItems: 1
 
             clock-output-names:
               maxItems: 1
 
-            phandle: true
-
           required:
             - "#clock-cells"
-            - compatible
             - clocks
             - clock-output-names
-
-          additionalProperties: false
 
       - if:
           properties:
@@ -91,9 +83,6 @@ patternProperties:
                 offset of the bit controlling this particular gate in
                 the register.
 
-            # Already checked in the main schema
-            compatible: true
-
             clocks:
               maxItems: 1
 
@@ -101,15 +90,10 @@ patternProperties:
               minItems: 1
               maxItems: 32
 
-            phandle: true
-
           required:
             - "#clock-cells"
-            - compatible
             - clocks
             - clock-output-names
-
-          additionalProperties: false
 
       - if:
           properties:
@@ -122,34 +106,8 @@ patternProperties:
             "#reset-cells":
               const: 1
 
-            # Already checked in the main schema
-            compatible: true
-
-            phandle: true
-
           required:
             - "#reset-cells"
-            - compatible
-
-          additionalProperties: false
-
-      - if:
-          properties:
-            compatible:
-              contains:
-                const: allwinner,sun8i-a23-codec-analog
-
-        then:
-          properties:
-            # Already checked in the main schema
-            compatible: true
-
-            phandle: true
-
-          required:
-            - compatible
-
-          additionalProperties: false
 
 required:
   - compatible

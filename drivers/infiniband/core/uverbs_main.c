@@ -72,11 +72,22 @@ enum {
 #define IB_UVERBS_BASE_DEV	MKDEV(IB_UVERBS_MAJOR, IB_UVERBS_BASE_MINOR)
 
 static dev_t dynamic_uverbs_dev;
-static struct class *uverbs_class;
 
 static DEFINE_IDA(uverbs_ida);
 static int ib_uverbs_add_one(struct ib_device *device);
 static void ib_uverbs_remove_one(struct ib_device *device, void *client_data);
+
+static char *uverbs_devnode(const struct device *dev, umode_t *mode)
+{
+	if (mode)
+		*mode = 0666;
+	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
+}
+
+static const struct class uverbs_class = {
+	.name = "infiniband_verbs",
+	.devnode = uverbs_devnode,
+};
 
 /*
  * Must be called with the ufile->device->disassociate_srcu held, and the lock
@@ -535,7 +546,7 @@ static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
 	if (hdr->in_words * 4 != count)
 		return -EINVAL;
 
-	if (count < method_elm->req_size + sizeof(hdr)) {
+	if (count < method_elm->req_size + sizeof(*hdr)) {
 		/*
 		 * rdma-core v18 and v19 have a bug where they send DESTROY_CQ
 		 * with a 16 byte write instead of 24. Old kernels didn't
@@ -1117,7 +1128,7 @@ static int ib_uverbs_add_one(struct ib_device *device)
 	}
 
 	device_initialize(&uverbs_dev->dev);
-	uverbs_dev->dev.class = uverbs_class;
+	uverbs_dev->dev.class = &uverbs_class;
 	uverbs_dev->dev.parent = device->dev.parent;
 	uverbs_dev->dev.release = ib_uverbs_release_dev;
 	uverbs_dev->groups[0] = &dev_attr_group;
@@ -1235,13 +1246,6 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 	put_device(&uverbs_dev->dev);
 }
 
-static char *uverbs_devnode(const struct device *dev, umode_t *mode)
-{
-	if (mode)
-		*mode = 0666;
-	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
-}
-
 static int __init ib_uverbs_init(void)
 {
 	int ret;
@@ -1262,16 +1266,13 @@ static int __init ib_uverbs_init(void)
 		goto out_alloc;
 	}
 
-	uverbs_class = class_create("infiniband_verbs");
-	if (IS_ERR(uverbs_class)) {
-		ret = PTR_ERR(uverbs_class);
+	ret = class_register(&uverbs_class);
+	if (ret) {
 		pr_err("user_verbs: couldn't create class infiniband_verbs\n");
 		goto out_chrdev;
 	}
 
-	uverbs_class->devnode = uverbs_devnode;
-
-	ret = class_create_file(uverbs_class, &class_attr_abi_version.attr);
+	ret = class_create_file(&uverbs_class, &class_attr_abi_version.attr);
 	if (ret) {
 		pr_err("user_verbs: couldn't create abi_version attribute\n");
 		goto out_class;
@@ -1286,7 +1287,7 @@ static int __init ib_uverbs_init(void)
 	return 0;
 
 out_class:
-	class_destroy(uverbs_class);
+	class_unregister(&uverbs_class);
 
 out_chrdev:
 	unregister_chrdev_region(dynamic_uverbs_dev,
@@ -1303,7 +1304,7 @@ out:
 static void __exit ib_uverbs_cleanup(void)
 {
 	ib_unregister_client(&uverbs_client);
-	class_destroy(uverbs_class);
+	class_unregister(&uverbs_class);
 	unregister_chrdev_region(IB_UVERBS_BASE_DEV,
 				 IB_UVERBS_NUM_FIXED_MINOR);
 	unregister_chrdev_region(dynamic_uverbs_dev,

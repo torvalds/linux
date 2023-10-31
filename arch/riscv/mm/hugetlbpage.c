@@ -180,7 +180,8 @@ pte_t arch_make_huge_pte(pte_t entry, unsigned int shift, vm_flags_t flags)
 void set_huge_pte_at(struct mm_struct *mm,
 		     unsigned long addr,
 		     pte_t *ptep,
-		     pte_t pte)
+		     pte_t pte,
+		     unsigned long sz)
 {
 	int i, pte_num;
 

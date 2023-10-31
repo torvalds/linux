@@ -160,7 +160,7 @@ if  DMA_CMA
 
 config DMA_NUMA_CMA
 	bool "Enable separate DMA Contiguous Memory Area for NUMA Node"
-	default NUMA
+	depends on NUMA
 	help
 	  Enable this option to get numa CMA areas so that NUMA devices
 	  can get local memory by DMA coherent APIs.

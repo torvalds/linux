@@ -1269,6 +1269,13 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 	attributes.rotation_angle    = 0;
 	attributes.attribute_flags.value = 0;
 
+	/* Enable cursor degamma ROM on DCN3+ for implicit sRGB degamma in DRM
+	 * legacy gamma setup.
+	 */
+	if (crtc_state->cm_is_degamma_srgb &&
+	    adev->dm.dc->caps.color.dpp.gamma_corr)
+		attributes.attribute_flags.bits.ENABLE_CURSOR_DEGAMMA = 1;
+
 	attributes.pitch = afb->base.pitches[0] / afb->base.format->cpp[0];
 
 	if (crtc_state->stream) {
@@ -1466,6 +1473,15 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 
 		drm_plane_create_alpha_property(plane);
 		drm_plane_create_blend_mode_property(plane, blend_caps);
+	}
+
+	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
+		drm_plane_create_zpos_immutable_property(plane, 0);
+	} else if (plane->type == DRM_PLANE_TYPE_OVERLAY) {
+		unsigned int zpos = 1 + drm_plane_index(plane);
+		drm_plane_create_zpos_property(plane, zpos, 1, 254);
+	} else if (plane->type == DRM_PLANE_TYPE_CURSOR) {
+		drm_plane_create_zpos_immutable_property(plane, 255);
 	}
 
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY &&

@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/list.h>
+#include <linux/list_sort.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 #include <subcmd/pager.h>
 #include <sys/types.h>
+#include <ctype.h>
 #include <dirent.h>
 #include <pthread.h>
 #include <string.h>
@@ -32,6 +35,31 @@ static LIST_HEAD(core_pmus);
 static LIST_HEAD(other_pmus);
 static bool read_sysfs_core_pmus;
 static bool read_sysfs_all_pmus;
+
+int pmu_name_len_no_suffix(const char *str, unsigned long *num)
+{
+	int orig_len, len;
+
+	orig_len = len = strlen(str);
+
+	/* Non-uncore PMUs have their full length, for example, i915. */
+	if (!strstarts(str, "uncore_"))
+		return len;
+
+	/*
+	 * Count trailing digits and '_', if '_{num}' suffix isn't present use
+	 * the full length.
+	 */
+	while (len > 0 && isdigit(str[len - 1]))
+		len--;
+
+	if (len > 0 && len != orig_len && str[len - 1] == '_') {
+		if (num)
+			*num = strtoul(&str[len], NULL, 10);
+		return len - 1;
+	}
+	return orig_len;
+}
 
 void perf_pmus__destroy(void)
 {
@@ -122,6 +150,25 @@ static struct perf_pmu *perf_pmu__find2(int dirfd, const char *name)
 	return perf_pmu__lookup(core_pmu ? &core_pmus : &other_pmus, dirfd, name);
 }
 
+static int pmus_cmp(void *priv __maybe_unused,
+		    const struct list_head *lhs, const struct list_head *rhs)
+{
+	unsigned long lhs_num = 0, rhs_num = 0;
+	struct perf_pmu *lhs_pmu = container_of(lhs, struct perf_pmu, list);
+	struct perf_pmu *rhs_pmu = container_of(rhs, struct perf_pmu, list);
+	const char *lhs_pmu_name = lhs_pmu->name ?: "";
+	const char *rhs_pmu_name = rhs_pmu->name ?: "";
+	int lhs_pmu_name_len = pmu_name_len_no_suffix(lhs_pmu_name, &lhs_num);
+	int rhs_pmu_name_len = pmu_name_len_no_suffix(rhs_pmu_name, &rhs_num);
+	int ret = strncmp(lhs_pmu_name, rhs_pmu_name,
+			lhs_pmu_name_len < rhs_pmu_name_len ? lhs_pmu_name_len : rhs_pmu_name_len);
+
+	if (lhs_pmu_name_len != rhs_pmu_name_len || ret != 0 || lhs_pmu_name_len == 0)
+		return ret;
+
+	return lhs_num < rhs_num ? -1 : (lhs_num > rhs_num ? 1 : 0);
+}
+
 /* Add all pmus in sysfs to pmu list: */
 static void pmu_read_sysfs(bool core_only)
 {
@@ -156,6 +203,8 @@ static void pmu_read_sysfs(bool core_only)
 		if (!perf_pmu__create_placeholder_core_pmu(&core_pmus))
 			pr_err("Failure to set up any core PMUs\n");
 	}
+	list_sort(NULL, &core_pmus, pmus_cmp);
+	list_sort(NULL, &other_pmus, pmus_cmp);
 	if (!list_empty(&core_pmus)) {
 		read_sysfs_core_pmus = true;
 		if (!core_only)
@@ -227,6 +276,43 @@ struct perf_pmu *perf_pmus__scan_core(struct perf_pmu *pmu)
 	return NULL;
 }
 
+static struct perf_pmu *perf_pmus__scan_skip_duplicates(struct perf_pmu *pmu)
+{
+	bool use_core_pmus = !pmu || pmu->is_core;
+	int last_pmu_name_len = 0;
+	const char *last_pmu_name = (pmu && pmu->name) ? pmu->name : "";
+
+	if (!pmu) {
+		pmu_read_sysfs(/*core_only=*/false);
+		pmu = list_prepare_entry(pmu, &core_pmus, list);
+	} else
+		last_pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", NULL);
+
+	if (use_core_pmus) {
+		list_for_each_entry_continue(pmu, &core_pmus, list) {
+			int pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", /*num=*/NULL);
+
+			if (last_pmu_name_len == pmu_name_len &&
+			    !strncmp(last_pmu_name, pmu->name ?: "", pmu_name_len))
+				continue;
+
+			return pmu;
+		}
+		pmu = NULL;
+		pmu = list_prepare_entry(pmu, &other_pmus, list);
+	}
+	list_for_each_entry_continue(pmu, &other_pmus, list) {
+		int pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", /*num=*/NULL);
+
+		if (last_pmu_name_len == pmu_name_len &&
+		    !strncmp(last_pmu_name, pmu->name ?: "", pmu_name_len))
+			continue;
+
+		return pmu;
+	}
+	return NULL;
+}
+
 const struct perf_pmu *perf_pmus__pmu_for_pmu_filter(const char *str)
 {
 	struct perf_pmu *pmu = NULL;
@@ -258,219 +344,153 @@ int __weak perf_pmus__num_mem_pmus(void)
 struct sevent {
 	/** PMU for event. */
 	const struct perf_pmu *pmu;
-	/**
-	 * Optional event for name, desc, etc. If not present then this is a
-	 * selectable PMU and the event name is shown as "//".
-	 */
-	const struct perf_pmu_alias *event;
-	/** Is the PMU for the CPU? */
-	bool is_cpu;
+	const char *name;
+	const char* alias;
+	const char *scale_unit;
+	const char *desc;
+	const char *long_desc;
+	const char *encoding_desc;
+	const char *topic;
+	const char *pmu_name;
+	bool deprecated;
 };
 
 static int cmp_sevent(const void *a, const void *b)
 {
 	const struct sevent *as = a;
 	const struct sevent *bs = b;
-	const char *a_pmu_name = NULL, *b_pmu_name = NULL;
-	const char *a_name = "//", *a_desc = NULL, *a_topic = "";
-	const char *b_name = "//", *b_desc = NULL, *b_topic = "";
+	bool a_iscpu, b_iscpu;
 	int ret;
 
-	if (as->event) {
-		a_name = as->event->name;
-		a_desc = as->event->desc;
-		a_topic = as->event->topic ?: "";
-		a_pmu_name = as->event->pmu_name;
-	}
-	if (bs->event) {
-		b_name = bs->event->name;
-		b_desc = bs->event->desc;
-		b_topic = bs->event->topic ?: "";
-		b_pmu_name = bs->event->pmu_name;
-	}
 	/* Put extra events last. */
-	if (!!a_desc != !!b_desc)
-		return !!a_desc - !!b_desc;
+	if (!!as->desc != !!bs->desc)
+		return !!as->desc - !!bs->desc;
 
 	/* Order by topics. */
-	ret = strcmp(a_topic, b_topic);
+	ret = strcmp(as->topic ?: "", bs->topic ?: "");
 	if (ret)
 		return ret;
 
 	/* Order CPU core events to be first */
-	if (as->is_cpu != bs->is_cpu)
-		return as->is_cpu ? -1 : 1;
+	a_iscpu = as->pmu ? as->pmu->is_core : true;
+	b_iscpu = bs->pmu ? bs->pmu->is_core : true;
+	if (a_iscpu != b_iscpu)
+		return a_iscpu ? -1 : 1;
 
 	/* Order by PMU name. */
 	if (as->pmu != bs->pmu) {
-		a_pmu_name = a_pmu_name ?: (as->pmu->name ?: "");
-		b_pmu_name = b_pmu_name ?: (bs->pmu->name ?: "");
-		ret = strcmp(a_pmu_name, b_pmu_name);
+		ret = strcmp(as->pmu_name ?: "", bs->pmu_name ?: "");
 		if (ret)
 			return ret;
 	}
 
 	/* Order by event name. */
-	return strcmp(a_name, b_name);
+	return strcmp(as->name, bs->name);
 }
 
-static bool pmu_alias_is_duplicate(struct sevent *alias_a,
-				   struct sevent *alias_b)
+static bool pmu_alias_is_duplicate(struct sevent *a, struct sevent *b)
 {
-	const char *a_pmu_name = NULL, *b_pmu_name = NULL;
-	const char *a_name = "//", *b_name = "//";
-
-
-	if (alias_a->event) {
-		a_name = alias_a->event->name;
-		a_pmu_name = alias_a->event->pmu_name;
-	}
-	if (alias_b->event) {
-		b_name = alias_b->event->name;
-		b_pmu_name = alias_b->event->pmu_name;
-	}
-
 	/* Different names -> never duplicates */
-	if (strcmp(a_name, b_name))
+	if (strcmp(a->name ?: "//", b->name ?: "//"))
 		return false;
 
 	/* Don't remove duplicates for different PMUs */
-	a_pmu_name = a_pmu_name ?: (alias_a->pmu->name ?: "");
-	b_pmu_name = b_pmu_name ?: (alias_b->pmu->name ?: "");
-	return strcmp(a_pmu_name, b_pmu_name) == 0;
+	return strcmp(a->pmu_name, b->pmu_name) == 0;
 }
 
-static int sub_non_neg(int a, int b)
+struct events_callback_state {
+	struct sevent *aliases;
+	size_t aliases_len;
+	size_t index;
+};
+
+static int perf_pmus__print_pmu_events__callback(void *vstate,
+						struct pmu_event_info *info)
 {
-	if (b > a)
-		return 0;
-	return a - b;
-}
+	struct events_callback_state *state = vstate;
+	struct sevent *s;
 
-static char *format_alias(char *buf, int len, const struct perf_pmu *pmu,
-			  const struct perf_pmu_alias *alias)
-{
-	struct parse_events_term *term;
-	int used = snprintf(buf, len, "%s/%s", pmu->name, alias->name);
-
-	list_for_each_entry(term, &alias->terms, list) {
-		if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR)
-			used += snprintf(buf + used, sub_non_neg(len, used),
-					",%s=%s", term->config,
-					term->val.str);
+	if (state->index >= state->aliases_len) {
+		pr_err("Unexpected event %s/%s/\n", info->pmu->name, info->name);
+		return 1;
 	}
-
-	if (sub_non_neg(len, used) > 0) {
-		buf[used] = '/';
-		used++;
-	}
-	if (sub_non_neg(len, used) > 0) {
-		buf[used] = '\0';
-		used++;
-	} else
-		buf[len - 1] = '\0';
-
-	return buf;
+	s = &state->aliases[state->index];
+	s->pmu = info->pmu;
+#define COPY_STR(str) s->str = info->str ? strdup(info->str) : NULL
+	COPY_STR(name);
+	COPY_STR(alias);
+	COPY_STR(scale_unit);
+	COPY_STR(desc);
+	COPY_STR(long_desc);
+	COPY_STR(encoding_desc);
+	COPY_STR(topic);
+	COPY_STR(pmu_name);
+#undef COPY_STR
+	s->deprecated = info->deprecated;
+	state->index++;
+	return 0;
 }
 
 void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *print_state)
 {
 	struct perf_pmu *pmu;
-	struct perf_pmu_alias *event;
-	char buf[1024];
 	int printed = 0;
-	int len, j;
+	int len;
 	struct sevent *aliases;
+	struct events_callback_state state;
+	bool skip_duplicate_pmus = print_cb->skip_duplicate_pmus(print_state);
+	struct perf_pmu *(*scan_fn)(struct perf_pmu *);
+
+	if (skip_duplicate_pmus)
+		scan_fn = perf_pmus__scan_skip_duplicates;
+	else
+		scan_fn = perf_pmus__scan;
 
 	pmu = NULL;
 	len = 0;
-	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-		list_for_each_entry(event, &pmu->aliases, list)
-			len++;
-		if (pmu->selectable)
-			len++;
-	}
+	while ((pmu = scan_fn(pmu)) != NULL)
+		len += perf_pmu__num_events(pmu);
+
 	aliases = zalloc(sizeof(struct sevent) * len);
 	if (!aliases) {
 		pr_err("FATAL: not enough memory to print PMU events\n");
 		return;
 	}
 	pmu = NULL;
-	j = 0;
-	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-		bool is_cpu = pmu->is_core;
-
-		list_for_each_entry(event, &pmu->aliases, list) {
-			aliases[j].event = event;
-			aliases[j].pmu = pmu;
-			aliases[j].is_cpu = is_cpu;
-			j++;
-		}
-		if (pmu->selectable) {
-			aliases[j].event = NULL;
-			aliases[j].pmu = pmu;
-			aliases[j].is_cpu = is_cpu;
-			j++;
-		}
+	state = (struct events_callback_state) {
+		.aliases = aliases,
+		.aliases_len = len,
+		.index = 0,
+	};
+	while ((pmu = scan_fn(pmu)) != NULL) {
+		perf_pmu__for_each_event(pmu, skip_duplicate_pmus, &state,
+					 perf_pmus__print_pmu_events__callback);
 	}
-	len = j;
 	qsort(aliases, len, sizeof(struct sevent), cmp_sevent);
-	for (j = 0; j < len; j++) {
-		const char *name, *alias = NULL, *scale_unit = NULL,
-			*desc = NULL, *long_desc = NULL,
-			*encoding_desc = NULL, *topic = NULL,
-			*pmu_name = NULL;
-		bool deprecated = false;
-		size_t buf_used;
-
+	for (int j = 0; j < len; j++) {
 		/* Skip duplicates */
 		if (j > 0 && pmu_alias_is_duplicate(&aliases[j], &aliases[j - 1]))
 			continue;
 
-		if (!aliases[j].event) {
-			/* A selectable event. */
-			pmu_name = aliases[j].pmu->name;
-			buf_used = snprintf(buf, sizeof(buf), "%s//", pmu_name) + 1;
-			name = buf;
-		} else {
-			if (aliases[j].event->desc) {
-				name = aliases[j].event->name;
-				buf_used = 0;
-			} else {
-				name = format_alias(buf, sizeof(buf), aliases[j].pmu,
-						    aliases[j].event);
-				if (aliases[j].is_cpu) {
-					alias = name;
-					name = aliases[j].event->name;
-				}
-				buf_used = strlen(buf) + 1;
-			}
-			pmu_name = aliases[j].event->pmu_name ?: (aliases[j].pmu->name ?: "");
-			if (strlen(aliases[j].event->unit) || aliases[j].event->scale != 1.0) {
-				scale_unit = buf + buf_used;
-				buf_used += snprintf(buf + buf_used, sizeof(buf) - buf_used,
-						"%G%s", aliases[j].event->scale,
-						aliases[j].event->unit) + 1;
-			}
-			desc = aliases[j].event->desc;
-			long_desc = aliases[j].event->long_desc;
-			topic = aliases[j].event->topic;
-			encoding_desc = buf + buf_used;
-			buf_used += snprintf(buf + buf_used, sizeof(buf) - buf_used,
-					"%s/%s/", pmu_name, aliases[j].event->str) + 1;
-			deprecated = aliases[j].event->deprecated;
-		}
 		print_cb->print_event(print_state,
-				pmu_name,
-				topic,
-				name,
-				alias,
-				scale_unit,
-				deprecated,
+				aliases[j].pmu_name,
+				aliases[j].topic,
+				aliases[j].name,
+				aliases[j].alias,
+				aliases[j].scale_unit,
+				aliases[j].deprecated,
 				"Kernel PMU event",
-				desc,
-				long_desc,
-				encoding_desc);
+				aliases[j].desc,
+				aliases[j].long_desc,
+				aliases[j].encoding_desc);
+		zfree(&aliases[j].name);
+		zfree(&aliases[j].alias);
+		zfree(&aliases[j].scale_unit);
+		zfree(&aliases[j].desc);
+		zfree(&aliases[j].long_desc);
+		zfree(&aliases[j].encoding_desc);
+		zfree(&aliases[j].topic);
+		zfree(&aliases[j].pmu_name);
 	}
 	if (printed && pager_in_use())
 		printf("\n");

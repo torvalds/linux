@@ -132,6 +132,7 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(SetSoftMinGfxclk,                    PPSMC_MSG_SetSoftMinGfxClk,                0),
 	MSG_MAP(SetSoftMaxGfxClk,                    PPSMC_MSG_SetSoftMaxGfxClk,                0),
 	MSG_MAP(PrepareMp1ForUnload,                 PPSMC_MSG_PrepareForDriverUnload,          0),
+	MSG_MAP(GetCTFLimit,                         PPSMC_MSG_GetCTFLimit,                     0),
 };
 
 static const struct cmn2asic_mapping smu_v13_0_6_clk_map[SMU_CLK_COUNT] = {
@@ -335,7 +336,7 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 
 	/* Store one-time values in driver PPTable */
 	if (!pptable->Init) {
-		while (retry--) {
+		while (--retry) {
 			ret = smu_v13_0_6_get_metrics_table(smu, NULL, true);
 			if (ret)
 				return ret;
@@ -2081,6 +2082,55 @@ out:
 	return ret;
 }
 
+static int smu_v13_0_6_get_thermal_temperature_range(struct smu_context *smu,
+						     struct smu_temperature_range *range)
+{
+	struct amdgpu_device *adev = smu->adev;
+	u32 aid_temp, xcd_temp, mem_temp;
+	uint32_t smu_version;
+	u32 ccd_temp = 0;
+	int ret;
+
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
+
+	if (!range)
+		return -EINVAL;
+
+	/*Check smu version, GetCtfLimit message only supported for smu version 85.69 or higher */
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (smu_version < 0x554500)
+		return 0;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+					      PPSMC_AID_THM_TYPE, &aid_temp);
+	if (ret)
+		goto failed;
+
+	if (adev->flags & AMD_IS_APU) {
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+						      PPSMC_CCD_THM_TYPE, &ccd_temp);
+		if (ret)
+			goto failed;
+	}
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+					      PPSMC_XCD_THM_TYPE, &xcd_temp);
+	if (ret)
+		goto failed;
+
+	range->hotspot_crit_max = max3(aid_temp, xcd_temp, ccd_temp) *
+				       SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
+					      PPSMC_HBM_THM_TYPE, &mem_temp);
+	if (ret)
+		goto failed;
+
+	range->mem_crit_max = mem_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+failed:
+	return ret;
+}
+
 static int smu_v13_0_6_mode1_reset(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -2108,8 +2158,7 @@ static int smu_v13_0_6_mode1_reset(struct smu_context *smu)
 
 static bool smu_v13_0_6_is_mode1_reset_supported(struct smu_context *smu)
 {
-	/* TODO: Enable this when FW support is added */
-	return false;
+	return true;
 }
 
 static bool smu_v13_0_6_is_mode2_reset_supported(struct smu_context *smu)
@@ -2177,6 +2226,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 	.get_gpu_metrics = smu_v13_0_6_get_gpu_metrics,
+	.get_thermal_temperature_range = smu_v13_0_6_get_thermal_temperature_range,
 	.mode1_reset_is_support = smu_v13_0_6_is_mode1_reset_supported,
 	.mode2_reset_is_support = smu_v13_0_6_is_mode2_reset_supported,
 	.mode1_reset = smu_v13_0_6_mode1_reset,

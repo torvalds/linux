@@ -1732,9 +1732,4 @@ static struct platform_driver intel_ldma_driver = {
  * registered DMA channels and DMA capabilities to clients before their
  * initialization.
  */
-static int __init intel_ldma_init(void)
-{
-	return platform_driver_register(&intel_ldma_driver);
-}
-
-device_initcall(intel_ldma_init);
+builtin_platform_driver(intel_ldma_driver);

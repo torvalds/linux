@@ -7121,7 +7121,7 @@ static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev)
 				gfx_v8_0_set_user_cu_inactive_bitmap(
 					adev, disable_masks[i * 2 + j]);
 			bitmap = gfx_v8_0_get_cu_active_bitmap(adev);
-			cu_info->bitmap[i][j] = bitmap;
+			cu_info->bitmap[0][i][j] = bitmap;
 
 			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k ++) {
 				if (bitmap & mask) {

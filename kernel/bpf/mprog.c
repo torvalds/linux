@@ -253,6 +253,9 @@ int bpf_mprog_attach(struct bpf_mprog_entry *entry,
 			goto out;
 		}
 		idx = tidx;
+	} else if (bpf_mprog_total(entry) == bpf_mprog_max()) {
+		ret = -ERANGE;
+		goto out;
 	}
 	if (flags & BPF_F_BEFORE) {
 		tidx = bpf_mprog_pos_before(entry, &rtuple);

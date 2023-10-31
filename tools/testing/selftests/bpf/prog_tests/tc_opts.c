@@ -2378,3 +2378,87 @@ void serial_test_tc_opts_chain_mixed(void)
 	test_tc_chain_mixed(BPF_TCX_INGRESS);
 	test_tc_chain_mixed(BPF_TCX_EGRESS);
 }
+
+static int generate_dummy_prog(void)
+{
+	const struct bpf_insn prog_insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	const size_t prog_insn_cnt = sizeof(prog_insns) / sizeof(struct bpf_insn);
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
+	const size_t log_buf_sz = 256;
+	char *log_buf;
+	int fd = -1;
+
+	log_buf = malloc(log_buf_sz);
+	if (!ASSERT_OK_PTR(log_buf, "log_buf_alloc"))
+		return fd;
+	opts.log_buf = log_buf;
+	opts.log_size = log_buf_sz;
+
+	log_buf[0] = '\0';
+	opts.log_level = 0;
+	fd = bpf_prog_load(BPF_PROG_TYPE_SCHED_CLS, "tcx_prog", "GPL",
+			   prog_insns, prog_insn_cnt, &opts);
+	ASSERT_STREQ(log_buf, "", "log_0");
+	ASSERT_GE(fd, 0, "prog_fd");
+	free(log_buf);
+	return fd;
+}
+
+static void test_tc_opts_max_target(int target, int flags, bool relative)
+{
+	int err, ifindex, i, prog_fd, last_fd = -1;
+	LIBBPF_OPTS(bpf_prog_attach_opts, opta);
+	const int max_progs = 63;
+
+	ASSERT_OK(system("ip link add dev tcx_opts1 type veth peer name tcx_opts2"), "add veth");
+	ifindex = if_nametoindex("tcx_opts1");
+	ASSERT_NEQ(ifindex, 0, "non_zero_ifindex");
+
+	assert_mprog_count_ifindex(ifindex, target, 0);
+
+	for (i = 0; i < max_progs; i++) {
+		prog_fd = generate_dummy_prog();
+		if (!ASSERT_GE(prog_fd, 0, "dummy_prog"))
+			goto cleanup;
+		err = bpf_prog_attach_opts(prog_fd, ifindex, target, &opta);
+		if (!ASSERT_EQ(err, 0, "prog_attach"))
+			goto cleanup;
+		assert_mprog_count_ifindex(ifindex, target, i + 1);
+		if (i == max_progs - 1 && relative)
+			last_fd = prog_fd;
+		else
+			close(prog_fd);
+	}
+
+	prog_fd = generate_dummy_prog();
+	if (!ASSERT_GE(prog_fd, 0, "dummy_prog"))
+		goto cleanup;
+	opta.flags = flags;
+	if (last_fd > 0)
+		opta.relative_fd = last_fd;
+	err = bpf_prog_attach_opts(prog_fd, ifindex, target, &opta);
+	ASSERT_EQ(err, -ERANGE, "prog_64_attach");
+	assert_mprog_count_ifindex(ifindex, target, max_progs);
+	close(prog_fd);
+cleanup:
+	if (last_fd > 0)
+		close(last_fd);
+	ASSERT_OK(system("ip link del dev tcx_opts1"), "del veth");
+	ASSERT_EQ(if_nametoindex("tcx_opts1"), 0, "dev1_removed");
+	ASSERT_EQ(if_nametoindex("tcx_opts2"), 0, "dev2_removed");
+}
+
+void serial_test_tc_opts_max(void)
+{
+	test_tc_opts_max_target(BPF_TCX_INGRESS, 0, false);
+	test_tc_opts_max_target(BPF_TCX_EGRESS, 0, false);
+
+	test_tc_opts_max_target(BPF_TCX_INGRESS, BPF_F_BEFORE, false);
+	test_tc_opts_max_target(BPF_TCX_EGRESS, BPF_F_BEFORE, true);
+
+	test_tc_opts_max_target(BPF_TCX_INGRESS, BPF_F_AFTER, true);
+	test_tc_opts_max_target(BPF_TCX_EGRESS, BPF_F_AFTER, false);
+}

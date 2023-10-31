@@ -199,6 +199,7 @@ config TI_ICSSG_PRUETH
 
 config TI_ICSS_IEP
 	tristate "TI PRU ICSS IEP driver"
+	depends on PTP_1588_CLOCK_OPTIONAL
 	depends on TI_PRUSS
 	default TI_PRUSS
 	help

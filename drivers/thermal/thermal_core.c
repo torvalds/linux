@@ -348,11 +348,13 @@ static void handle_thermal_trip(struct thermal_zone_device *tz, int trip_id)
 	struct thermal_trip trip;
 
 	/* Ignore disabled trip points */
-	if (test_bit(trip_id, &tz->trips_disabled) ||
-	    trip.temperature == THERMAL_TEMP_INVALID)
+	if (test_bit(trip_id, &tz->trips_disabled))
 		return;
 
 	__thermal_zone_get_trip(tz, trip_id, &trip);
+
+	if (trip.temperature == THERMAL_TEMP_INVALID)
+		return;
 
 	if (tz->last_temperature != THERMAL_TEMP_INVALID) {
 		if (tz->last_temperature < trip.temperature &&
@@ -1266,7 +1268,7 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (num_trips > 0 && (!ops->get_trip_type || !ops->get_trip_temp) && !trips)
+	if (num_trips > 0 && !trips)
 		return ERR_PTR(-EINVAL);
 
 	if (!thermal_class)
@@ -1389,16 +1391,16 @@ free_tz:
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_register_with_trips);
 
-struct thermal_zone_device *thermal_zone_device_register(const char *type, int ntrips, int mask,
-							 void *devdata, struct thermal_zone_device_ops *ops,
-							 const struct thermal_zone_params *tzp, int passive_delay,
-							 int polling_delay)
+struct thermal_zone_device *thermal_tripless_zone_device_register(
+					const char *type,
+					void *devdata,
+					struct thermal_zone_device_ops *ops,
+					const struct thermal_zone_params *tzp)
 {
-	return thermal_zone_device_register_with_trips(type, NULL, ntrips, mask,
-						       devdata, ops, tzp,
-						       passive_delay, polling_delay);
+	return thermal_zone_device_register_with_trips(type, NULL, 0, 0, devdata,
+						       ops, tzp, 0, 0);
 }
-EXPORT_SYMBOL_GPL(thermal_zone_device_register);
+EXPORT_SYMBOL_GPL(thermal_tripless_zone_device_register);
 
 void *thermal_zone_device_priv(struct thermal_zone_device *tzd)
 {

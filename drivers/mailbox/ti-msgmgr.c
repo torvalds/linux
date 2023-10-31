@@ -812,7 +812,6 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *of_id;
 	struct device_node *np;
-	struct resource *res;
 	const struct ti_msgmgr_desc *desc;
 	struct ti_msgmgr_inst *inst;
 	struct ti_queue_inst *qinst;
@@ -843,22 +842,19 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 	inst->dev = dev;
 	inst->desc = desc;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   desc->data_region_name);
-	inst->queue_proxy_region = devm_ioremap_resource(dev, res);
+	inst->queue_proxy_region =
+		devm_platform_ioremap_resource_byname(pdev, desc->data_region_name);
 	if (IS_ERR(inst->queue_proxy_region))
 		return PTR_ERR(inst->queue_proxy_region);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   desc->status_region_name);
-	inst->queue_state_debug_region = devm_ioremap_resource(dev, res);
+	inst->queue_state_debug_region =
+		devm_platform_ioremap_resource_byname(pdev, desc->status_region_name);
 	if (IS_ERR(inst->queue_state_debug_region))
 		return PTR_ERR(inst->queue_state_debug_region);
 
 	if (desc->is_sproxy) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   desc->ctrl_region_name);
-		inst->queue_ctrl_region = devm_ioremap_resource(dev, res);
+		inst->queue_ctrl_region =
+			devm_platform_ioremap_resource_byname(pdev, desc->ctrl_region_name);
 		if (IS_ERR(inst->queue_ctrl_region))
 			return PTR_ERR(inst->queue_ctrl_region);
 	}

@@ -161,7 +161,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip)
 	int error;
 
 	down_write(&ip->i_rw_mutex);
-	page = find_or_create_page(inode->i_mapping, 0, GFP_NOFS);
+	page = grab_cache_page(inode->i_mapping, 0);
 	error = -ENOMEM;
 	if (!page)
 		goto out;

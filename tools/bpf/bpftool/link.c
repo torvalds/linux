@@ -83,7 +83,7 @@ const char *evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX] = {
 #define perf_event_name(array, id) ({			\
 	const char *event_str = NULL;			\
 							\
-	if ((id) >= 0 && (id) < ARRAY_SIZE(array))	\
+	if ((id) < ARRAY_SIZE(array))			\
 		event_str = array[id];			\
 	event_str;					\
 })

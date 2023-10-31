@@ -334,7 +334,6 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->tmon_base);
 
 	priv->dev = &pdev->dev;
-	platform_set_drvdata(pdev, priv);
 	of_ops = priv->temp_params->of_ops;
 
 	thermal = devm_thermal_of_zone_register(&pdev->dev, 0, priv,

@@ -170,6 +170,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 		csum += pia[size - 1];
 	if (csum) {
 		DRM_ERROR("Bad Product Info Area checksum: 0x%02x", csum);
+		kfree(pia);
 		return -EIO;
 	}
 

@@ -12,7 +12,7 @@ for the working group charter, documents, and more.
    :maxdepth: 1
 
    instruction-set
-   linux-notes
+   abi
 
 .. Links:
 .. _IETF BPF Working Group: https://datatracker.ietf.org/wg/bpf/about/

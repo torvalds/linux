@@ -92,7 +92,7 @@ config MICROCHIP_TCB_CAPTURE
 
 config RZ_MTU3_CNT
 	tristate "Renesas RZ/G2L MTU3a counter driver"
-	depends on RZ_MTU3 || COMPILE_TEST
+	depends on RZ_MTU3
 	help
 	  Enable support for MTU3a counter driver found on Renesas RZ/G2L alike
 	  SoCs. This IP supports both 16-bit and 32-bit phase counting mode

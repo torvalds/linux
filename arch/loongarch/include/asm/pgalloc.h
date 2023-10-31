@@ -94,4 +94,5 @@ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
 
 #endif /* __PAGETABLE_PUD_FOLDED */
 
+extern pte_t * __init populate_kernel_pte(unsigned long addr);
 #endif /* _ASM_PGALLOC_H */

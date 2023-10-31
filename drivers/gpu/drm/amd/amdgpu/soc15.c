@@ -559,8 +559,10 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 		 */
 		if (amdgpu_gpu_recovery == 4 || amdgpu_gpu_recovery == 5)
 			return AMD_RESET_METHOD_MODE2;
+		else if (!(adev->flags & AMD_IS_APU))
+			return AMD_RESET_METHOD_MODE1;
 		else
-			return AMD_RESET_METHOD_NONE;
+			return AMD_RESET_METHOD_MODE2;
 	default:
 		break;
 	}

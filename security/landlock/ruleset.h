@@ -67,7 +67,7 @@ struct landlock_rule {
 	 * @layers: Stack of layers, from the latest to the newest, implemented
 	 * as a flexible array member (FAM).
 	 */
-	struct landlock_layer layers[];
+	struct landlock_layer layers[] __counted_by(num_layers);
 };
 
 /**

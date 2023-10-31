@@ -7076,6 +7076,13 @@
 			disables both lockup detectors. Default is 10
 			seconds.
 
+	workqueue.unbound_cpus=
+			[KNL,SMP] Specify to constrain one or some CPUs
+			to use in unbound workqueues.
+			Format: <cpu-list>
+			By default, all online CPUs are available for
+			unbound workqueues.
+
 	workqueue.watchdog_thresh=
 			If CONFIG_WQ_WATCHDOG is configured, workqueue can
 			warn stall conditions and dump internal state to
@@ -7097,15 +7104,6 @@
 			threshold repeatedly. They are likely good
 			candidates for using WQ_UNBOUND workqueues instead.
 
-	workqueue.disable_numa
-			By default, all work items queued to unbound
-			workqueues are affine to the NUMA nodes they're
-			issued on, which results in better behavior in
-			general.  If NUMA affinity needs to be disabled for
-			whatever reason, this option can be used.  Note
-			that this also can be controlled per-workqueue for
-			workqueues visible under /sys/bus/workqueue/.
-
 	workqueue.power_efficient
 			Per-cpu workqueues are generally preferred because
 			they show better performance thanks to cache
@@ -7120,6 +7118,18 @@
 
 			The default value of this parameter is determined by
 			the config option CONFIG_WQ_POWER_EFFICIENT_DEFAULT.
+
+        workqueue.default_affinity_scope=
+			Select the default affinity scope to use for unbound
+			workqueues. Can be one of "cpu", "smt", "cache",
+			"numa" and "system". Default is "cache". For more
+			information, see the Affinity Scopes section in
+			Documentation/core-api/workqueue.rst.
+
+			This can be changed after boot by writing to the
+			matching /sys/module/workqueue/parameters file. All
+			workqueues with the "default" affinity scope will be
+			updated accordignly.
 
 	workqueue.debug_force_rr_cpu
 			Workqueue used to implicitly guarantee that work

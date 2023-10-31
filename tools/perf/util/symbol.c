@@ -2204,15 +2204,20 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 	if (symsrc__init(&ss, dso, symfs_vmlinux, symtab_type))
 		return -1;
 
+	/*
+	 * dso__load_sym() may copy 'dso' which will result in the copies having
+	 * an incorrect long name unless we set it here first.
+	 */
+	dso__set_long_name(dso, vmlinux, vmlinux_allocated);
+	if (dso->kernel == DSO_SPACE__KERNEL_GUEST)
+		dso->binary_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
+	else
+		dso->binary_type = DSO_BINARY_TYPE__VMLINUX;
+
 	err = dso__load_sym(dso, map, &ss, &ss, 0);
 	symsrc__destroy(&ss);
 
 	if (err > 0) {
-		if (dso->kernel == DSO_SPACE__KERNEL_GUEST)
-			dso->binary_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
-		else
-			dso->binary_type = DSO_BINARY_TYPE__VMLINUX;
-		dso__set_long_name(dso, vmlinux, vmlinux_allocated);
 		dso__set_loaded(dso);
 		pr_debug("Using %s for symbols\n", symfs_vmlinux);
 	}

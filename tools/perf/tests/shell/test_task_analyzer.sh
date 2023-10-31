@@ -52,7 +52,7 @@ find_str_or_fail() {
 
 # check if perf is compiled with libtraceevent support
 skip_no_probe_record_support() {
-	perf record -e "sched:sched_switch" -a -- sleep 1 2>&1 | grep "libtraceevent is necessary for tracepoint support" && return 2
+	perf version --build-options | grep -q " OFF .* HAVE_LIBTRACEEVENT" && return 2
 	return 0
 }
 

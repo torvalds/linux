@@ -10,6 +10,8 @@
 #include <subcmd/exec-cmd.h>
 #include <linux/zalloc.h>
 #include <linux/build_bug.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
 
 #include "debug.h"
 #include "event.h"
@@ -63,6 +65,7 @@ static void al_to_d_al(struct addr_location *al, struct perf_dlfilter_al *d_al)
 	d_al->addr = al->addr;
 	d_al->comm = NULL;
 	d_al->filtered = 0;
+	d_al->priv = NULL;
 }
 
 static struct addr_location *get_al(struct dlfilter *d)
@@ -151,6 +154,11 @@ static char **dlfilter__args(void *ctx, int *dlargc)
 	return d->dlargv;
 }
 
+static bool has_priv(struct perf_dlfilter_al *d_al_p)
+{
+	return d_al_p->size >= offsetof(struct perf_dlfilter_al, priv) + sizeof(d_al_p->priv);
+}
+
 static __s32 dlfilter__resolve_address(void *ctx, __u64 address, struct perf_dlfilter_al *d_al_p)
 {
 	struct dlfilter *d = (struct dlfilter *)ctx;
@@ -166,6 +174,7 @@ static __s32 dlfilter__resolve_address(void *ctx, __u64 address, struct perf_dlf
 	if (!thread)
 		return -1;
 
+	addr_location__init(&al);
 	thread__find_symbol_fb(thread, d->sample->cpumode, address, &al);
 
 	al_to_d_al(&al, &d_al);
@@ -176,7 +185,29 @@ static __s32 dlfilter__resolve_address(void *ctx, __u64 address, struct perf_dlf
 	memcpy(d_al_p, &d_al, min((size_t)sz, sizeof(d_al)));
 	d_al_p->size = sz;
 
+	if (has_priv(d_al_p))
+		d_al_p->priv = memdup(&al, sizeof(al));
+	else /* Avoid leak for v0 API */
+		addr_location__exit(&al);
+
 	return 0;
+}
+
+static void dlfilter__al_cleanup(void *ctx __maybe_unused, struct perf_dlfilter_al *d_al_p)
+{
+	struct addr_location *al;
+
+	/* Ensure backward compatibility */
+	if (!has_priv(d_al_p) || !d_al_p->priv)
+		return;
+
+	al = d_al_p->priv;
+
+	d_al_p->priv = NULL;
+
+	addr_location__exit(al);
+
+	free(al);
 }
 
 static const __u8 *dlfilter__insn(void *ctx, __u32 *len)
@@ -296,6 +327,7 @@ static const struct perf_dlfilter_fns perf_dlfilter_fns = {
 	.resolve_addr    = dlfilter__resolve_addr,
 	.args            = dlfilter__args,
 	.resolve_address = dlfilter__resolve_address,
+	.al_cleanup      = dlfilter__al_cleanup,
 	.insn            = dlfilter__insn,
 	.srcline         = dlfilter__srcline,
 	.attr            = dlfilter__attr,

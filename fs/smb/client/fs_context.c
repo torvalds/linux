@@ -150,6 +150,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_u32("closetimeo", Opt_closetimeo),
 	fsparam_u32("echo_interval", Opt_echo_interval),
 	fsparam_u32("max_credits", Opt_max_credits),
+	fsparam_u32("max_cached_dirs", Opt_max_cached_dirs),
 	fsparam_u32("handletimeout", Opt_handletimeout),
 	fsparam_u64("snapshot", Opt_snapshot),
 	fsparam_u32("max_channels", Opt_max_channels),
@@ -1165,6 +1166,14 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		if (result.uint_32 > 1)
 			ctx->multichannel = true;
 		break;
+	case Opt_max_cached_dirs:
+		if (result.uint_32 < 1) {
+			cifs_errorf(fc, "%s: Invalid max_cached_dirs, needs to be 1 or more\n",
+				    __func__);
+			goto cifs_parse_mount_err;
+		}
+		ctx->max_cached_dirs = result.uint_32;
+		break;
 	case Opt_handletimeout:
 		ctx->handle_timeout = result.uint_32;
 		if (ctx->handle_timeout > SMB3_MAX_HANDLE_TIMEOUT) {
@@ -1532,6 +1541,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 
  cifs_parse_mount_err:
 	kfree_sensitive(ctx->password);
+	ctx->password = NULL;
 	return -EINVAL;
 }
 
@@ -1592,7 +1602,7 @@ int smb3_init_fs_context(struct fs_context *fc)
 	ctx->acregmax = CIFS_DEF_ACTIMEO;
 	ctx->acdirmax = CIFS_DEF_ACTIMEO;
 	ctx->closetimeo = SMB3_DEF_DCLOSETIMEO;
-
+	ctx->max_cached_dirs = MAX_CACHED_FIDS;
 	/* Most clients set timeout to 0, allows server to use its default */
 	ctx->handle_timeout = 0; /* See MS-SMB2 spec section 2.2.14.2.12 */
 

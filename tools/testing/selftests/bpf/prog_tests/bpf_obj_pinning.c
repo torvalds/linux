@@ -8,6 +8,7 @@
 #include <linux/unistd.h>
 #include <linux/mount.h>
 #include <sys/syscall.h>
+#include "bpf/libbpf_internal.h"
 
 static inline int sys_fsopen(const char *fsname, unsigned flags)
 {
@@ -155,7 +156,7 @@ static void validate_pin(int map_fd, const char *map_name, int src_value,
 	ASSERT_OK(err, "obj_pin");
 
 	/* cleanup */
-	if (pin_opts.path_fd >= 0)
+	if (path_kind == PATH_FD_REL && pin_opts.path_fd >= 0)
 		close(pin_opts.path_fd);
 	if (old_cwd[0])
 		ASSERT_OK(chdir(old_cwd), "restore_cwd");
@@ -220,7 +221,7 @@ static void validate_get(int map_fd, const char *map_name, int src_value,
 		goto cleanup;
 
 	/* cleanup */
-	if (get_opts.path_fd >= 0)
+	if (path_kind == PATH_FD_REL && get_opts.path_fd >= 0)
 		close(get_opts.path_fd);
 	if (old_cwd[0])
 		ASSERT_OK(chdir(old_cwd), "restore_cwd");

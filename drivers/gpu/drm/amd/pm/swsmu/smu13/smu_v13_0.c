@@ -837,12 +837,8 @@ int smu_v13_0_notify_display_change(struct smu_context *smu)
 {
 	int ret = 0;
 
-	if (!smu->pm_enabled)
-		return ret;
-
-	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
-	    smu->adev->gmc.vram_type == AMDGPU_VRAM_TYPE_HBM)
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1, NULL);
+	if (!amdgpu_device_has_dc_support(smu->adev))
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_DALNotPresent, NULL);
 
 	return ret;
 }

@@ -609,18 +609,7 @@ static struct led_trigger netdev_led_trigger = {
 	.groups = netdev_trig_groups,
 };
 
-static int __init netdev_trig_init(void)
-{
-	return led_trigger_register(&netdev_led_trigger);
-}
-
-static void __exit netdev_trig_exit(void)
-{
-	led_trigger_unregister(&netdev_led_trigger);
-}
-
-module_init(netdev_trig_init);
-module_exit(netdev_trig_exit);
+module_led_trigger(netdev_led_trigger);
 
 MODULE_AUTHOR("Ben Whitten <ben.whitten@gmail.com>");
 MODULE_AUTHOR("Oliver Jowett <oliver@opencloud.com>");

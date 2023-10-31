@@ -83,8 +83,7 @@ properties:
       - enum:
             # LED will act as a back-light, controlled by the framebuffer system
           - backlight
-            # LED will turn on (but for leds-gpio see "default-state" property in
-            # Documentation/devicetree/bindings/leds/leds-gpio.yaml)
+            # LED will turn on (see also "default-state" property)
           - default-on
             # LED "double" flashes at a load average based rate
           - heartbeat
@@ -157,6 +156,18 @@ properties:
       damage in case an excessive current is set.
       For flash LED controllers with configurable current this property is
       mandatory for the LEDs in the non-flash modes (e.g. torch or indicator).
+
+  max-brightness:
+    description:
+      Normally, the maximum brightness is determined by the hardware, and this
+      property is not required. This property is used to set a software limit.
+      It could happen that an LED is made so bright that it gets damaged or
+      causes damage due to restrictions in a specific system, such as mounting
+      conditions.
+      Note that this flag is mainly used for PWM-LEDs, where it is not possible
+      to map brightness to current. Drivers for other controllers should use
+      led-max-microamp.
+    $ref: /schemas/types.yaml#definitions/uint32
 
   panic-indicator:
     description:

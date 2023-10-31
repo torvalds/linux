@@ -108,11 +108,16 @@ struct __riscv_v_ext_state {
 	 * In signal handler, datap will be set a correct user stack offset
 	 * and vector registers will be copied to the address of datap
 	 * pointer.
-	 *
-	 * In ptrace syscall, datap will be set to zero and the vector
-	 * registers will be copied to the address right after this
-	 * structure.
 	 */
+};
+
+struct __riscv_v_regset_state {
+	unsigned long vstart;
+	unsigned long vl;
+	unsigned long vtype;
+	unsigned long vcsr;
+	unsigned long vlenb;
+	char vreg[];
 };
 
 /*

@@ -93,6 +93,8 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *f)
 		struct io_uring_sqe *sqe;
 		unsigned int sq_idx;
 
+		if (ctx->flags & IORING_SETUP_NO_SQARRAY)
+			break;
 		sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
 		if (sq_idx > sq_mask)
 			continue;

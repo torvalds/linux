@@ -39,7 +39,7 @@ test_json_converter_command()
 	echo "Testing Perf Data Convertion Command to JSON"
 	perf record -o "$perfdata" -F 99 -g -- perf test -w noploop > /dev/null 2>&1
 	perf data convert --to-json "$result" --force -i "$perfdata" >/dev/null 2>&1
-	if [ $(cat "${result}" | wc -l) -gt "0" ] ; then
+	if [ "$(cat ${result} | wc -l)" -gt "0" ] ; then
 		echo "Perf Data Converter Command to JSON [SUCCESS]"
 	else
 		echo "Perf Data Converter Command to JSON [FAILED]"

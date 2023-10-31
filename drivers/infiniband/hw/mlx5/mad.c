@@ -308,8 +308,8 @@ int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u32 port_num,
 
 int mlx5_query_ext_port_caps(struct mlx5_ib_dev *dev, unsigned int port)
 {
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int err = -ENOMEM;
 	u16 packet_error;
 
@@ -338,8 +338,8 @@ out:
 static int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
 						 struct ib_smp *out_mad)
 {
-	struct ib_smp *in_mad = NULL;
-	int err = -ENOMEM;
+	struct ib_smp *in_mad;
+	int err;
 
 	in_mad = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	if (!in_mad)
@@ -358,8 +358,8 @@ static int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
 int mlx5_query_mad_ifc_system_image_guid(struct ib_device *ibdev,
 					 __be64 *sys_image_guid)
 {
-	struct ib_smp *out_mad = NULL;
-	int err = -ENOMEM;
+	struct ib_smp *out_mad;
+	int err;
 
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
 	if (!out_mad)
@@ -380,8 +380,8 @@ out:
 int mlx5_query_mad_ifc_max_pkeys(struct ib_device *ibdev,
 				 u16 *max_pkeys)
 {
-	struct ib_smp *out_mad = NULL;
-	int err = -ENOMEM;
+	struct ib_smp *out_mad;
+	int err;
 
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
 	if (!out_mad)
@@ -402,8 +402,8 @@ out:
 int mlx5_query_mad_ifc_vendor_id(struct ib_device *ibdev,
 				 u32 *vendor_id)
 {
-	struct ib_smp *out_mad = NULL;
-	int err = -ENOMEM;
+	struct ib_smp *out_mad;
+	int err;
 
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
 	if (!out_mad)
@@ -423,8 +423,8 @@ out:
 
 int mlx5_query_mad_ifc_node_desc(struct mlx5_ib_dev *dev, char *node_desc)
 {
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int err = -ENOMEM;
 
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
@@ -448,8 +448,8 @@ out:
 
 int mlx5_query_mad_ifc_node_guid(struct mlx5_ib_dev *dev, __be64 *node_guid)
 {
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int err = -ENOMEM;
 
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
@@ -474,8 +474,8 @@ out:
 int mlx5_query_mad_ifc_pkey(struct ib_device *ibdev, u32 port, u16 index,
 			    u16 *pkey)
 {
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int err = -ENOMEM;
 
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
@@ -503,8 +503,8 @@ out:
 int mlx5_query_mad_ifc_gids(struct ib_device *ibdev, u32 port, int index,
 			    union ib_gid *gid)
 {
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int err = -ENOMEM;
 
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
@@ -545,8 +545,8 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u32 port,
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct mlx5_core_dev *mdev = dev->mdev;
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
+	struct ib_smp *in_mad;
+	struct ib_smp *out_mad;
 	int ext_active_speed;
 	int err = -ENOMEM;
 

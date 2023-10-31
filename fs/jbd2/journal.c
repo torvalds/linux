@@ -1601,6 +1601,8 @@ static journal_t *journal_init_common(struct block_device *bdev,
 
 err_cleanup:
 	percpu_counter_destroy(&journal->j_checkpoint_jh_count);
+	if (journal->j_chksum_driver)
+		crypto_free_shash(journal->j_chksum_driver);
 	kfree(journal->j_wbuf);
 	jbd2_journal_destroy_revoke(journal);
 	journal_fail_superblock(journal);

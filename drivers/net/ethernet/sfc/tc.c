@@ -136,6 +136,8 @@ static struct efx_tc_mac_pedit_action *efx_tc_flower_get_mac(struct efx_nic *efx
 	if (old) {
 		/* don't need our new entry */
 		kfree(ped);
+		if (IS_ERR(old)) /* oh dear, it's actually an error */
+			return ERR_CAST(old);
 		if (!refcount_inc_not_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found, ref taken */
@@ -602,6 +604,8 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 		kfree(encap);
 		if (pseudo) /* don't need our new pseudo either */
 			efx_tc_flower_release_encap_match(efx, pseudo);
+		if (IS_ERR(old)) /* oh dear, it's actually an error */
+			return PTR_ERR(old);
 		/* check old and new em_types are compatible */
 		switch (old->type) {
 		case EFX_TC_EM_DIRECT:
@@ -700,6 +704,8 @@ static struct efx_tc_recirc_id *efx_tc_get_recirc_id(struct efx_nic *efx,
 	if (old) {
 		/* don't need our new entry */
 		kfree(rid);
+		if (IS_ERR(old)) /* oh dear, it's actually an error */
+			return ERR_CAST(old);
 		if (!refcount_inc_not_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found */
@@ -1482,7 +1488,10 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->match_action_ht,
 						&rule->linkage,
 						efx_tc_match_action_ht_params);
-	if (old) {
+	if (IS_ERR(old)) {
+		rc = PTR_ERR(old);
+		goto release;
+	} else if (old) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Ignoring already-offloaded rule (cookie %lx)\n",
 			  tc->cookie);
@@ -1697,7 +1706,10 @@ static int efx_tc_flower_replace_lhs(struct efx_nic *efx,
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->lhs_rule_ht,
 						&rule->linkage,
 						efx_tc_lhs_rule_ht_params);
-	if (old) {
+	if (IS_ERR(old)) {
+		rc = PTR_ERR(old);
+		goto release;
+	} else if (old) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Already offloaded rule (cookie %lx)\n", tc->cookie);
 		rc = -EEXIST;
@@ -1858,7 +1870,10 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->match_action_ht,
 						&rule->linkage,
 						efx_tc_match_action_ht_params);
-	if (old) {
+	if (IS_ERR(old)) {
+		rc = PTR_ERR(old);
+		goto release;
+	} else if (old) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Already offloaded rule (cookie %lx)\n", tc->cookie);
 		NL_SET_ERR_MSG_MOD(extack, "Rule already offloaded");

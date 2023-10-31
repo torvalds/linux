@@ -254,18 +254,7 @@ END(handle_interrupt_level1)
 
 ENTRY(EV_TLBProtV)
 
-	EXCEPTION_PROLOGUE
-
-	mov r2, r10	; ECR set into r10 already
-	lr  r0, [efa]	; Faulting Data address (not part of pt_regs saved above)
-
-	; Exception auto-disables further Intr/exceptions.
-	; Re-enable them by pretending to return from exception
-	; (so rest of handler executes in pure K mode)
-
-	FAKE_RET_FROM_EXCPN
-
-	mov   r1, sp	; Handle to pt_regs
+	EXCEPTION_PROLOGUE	; ECR returned in r10
 
 	;------ (5) Type of Protection Violation? ----------
 	;
@@ -273,8 +262,7 @@ ENTRY(EV_TLBProtV)
 	;   -Access Violation	: 00_23_(00|01|02|03)_00
 	;			         x  r  w  r+w
 	;   -Unaligned Access	: 00_23_04_00
-	;
-	bbit1 r2, ECR_C_BIT_PROTV_MISALIG_DATA, 4f
+	bbit1 r10, ECR_C_BIT_PROTV_MISALIG_DATA, 4f
 
 	;========= (6a) Access Violation Processing ========
 	bl  do_page_fault
@@ -303,9 +291,6 @@ END(EV_TLBProtV)
 ENTRY(call_do_page_fault)
 
 	EXCEPTION_PROLOGUE
-	lr  r0, [efa]	; Faulting Data address
-	mov   r1, sp
-	FAKE_RET_FROM_EXCPN
 
 	mov blink, ret_from_exception
 	b  do_page_fault

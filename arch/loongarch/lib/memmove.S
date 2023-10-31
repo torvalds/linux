@@ -10,23 +10,29 @@
 #include <asm/cpu.h>
 #include <asm/regdef.h>
 
+.section .noinstr.text, "ax"
+
 SYM_FUNC_START(memmove)
-	blt	a0, a1, memcpy	/* dst < src, memcpy */
-	blt	a1, a0, rmemcpy	/* src < dst, rmemcpy */
-	jr	ra		/* dst == src, return */
+	blt	a0, a1, __memcpy	/* dst < src, memcpy */
+	blt	a1, a0, __rmemcpy	/* src < dst, rmemcpy */
+	jr	ra			/* dst == src, return */
 SYM_FUNC_END(memmove)
-_ASM_NOKPROBE(memmove)
+SYM_FUNC_ALIAS(__memmove, memmove)
 
 EXPORT_SYMBOL(memmove)
+EXPORT_SYMBOL(__memmove)
 
-SYM_FUNC_START(rmemcpy)
+_ASM_NOKPROBE(memmove)
+_ASM_NOKPROBE(__memmove)
+
+SYM_FUNC_START(__rmemcpy)
 	/*
 	 * Some CPUs support hardware unaligned access
 	 */
 	ALTERNATIVE	"b __rmemcpy_generic", \
 			"b __rmemcpy_fast", CPU_FEATURE_UAL
-SYM_FUNC_END(rmemcpy)
-_ASM_NOKPROBE(rmemcpy)
+SYM_FUNC_END(__rmemcpy)
+_ASM_NOKPROBE(__rmemcpy)
 
 /*
  * void *__rmemcpy_generic(void *dst, const void *src, size_t n)

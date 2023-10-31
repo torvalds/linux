@@ -40,7 +40,7 @@
  * without building the headers.
  */
 #ifndef __NR_map_shadow_stack
-#define __NR_map_shadow_stack	452
+#define __NR_map_shadow_stack	453
 
 #define SHADOW_STACK_SET_TOKEN	(1ULL << 0)
 
