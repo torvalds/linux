@@ -335,6 +335,9 @@ ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 	u64 prot;
 	u64 i;
 
+	if (drm_WARN_ON(&vdev->drm, !ctx))
+		return -EINVAL;
+
 	if (!IS_ALIGNED(vpu_addr, IVPU_MMU_PAGE_SIZE))
 		return -EINVAL;
 	/*
@@ -382,8 +385,8 @@ ivpu_mmu_context_unmap_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ct
 	int ret;
 	u64 i;
 
-	if (!IS_ALIGNED(vpu_addr, IVPU_MMU_PAGE_SIZE))
-		ivpu_warn(vdev, "Unaligned vpu_addr: 0x%llx\n", vpu_addr);
+	if (drm_WARN_ON(&vdev->drm, !ctx))
+		return;
 
 	mutex_lock(&ctx->lock);
 
@@ -404,30 +407,34 @@ ivpu_mmu_context_unmap_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ct
 }
 
 int
-ivpu_mmu_context_insert_node_locked(struct ivpu_mmu_context *ctx,
-				    const struct ivpu_addr_range *range,
-				    u64 size, struct drm_mm_node *node)
+ivpu_mmu_context_insert_node(struct ivpu_mmu_context *ctx, const struct ivpu_addr_range *range,
+			     u64 size, struct drm_mm_node *node)
 {
-	lockdep_assert_held(&ctx->lock);
+	int ret;
 
 	WARN_ON(!range);
 
+	mutex_lock(&ctx->lock);
 	if (!ivpu_disable_mmu_cont_pages && size >= IVPU_MMU_CONT_PAGES_SIZE) {
-		if (!drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_CONT_PAGES_SIZE, 0,
-						 range->start, range->end, DRM_MM_INSERT_BEST))
-			return 0;
+		ret = drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_CONT_PAGES_SIZE, 0,
+						  range->start, range->end, DRM_MM_INSERT_BEST);
+		if (!ret)
+			goto unlock;
 	}
 
-	return drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_PAGE_SIZE, 0,
-					   range->start, range->end, DRM_MM_INSERT_BEST);
+	ret = drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_PAGE_SIZE, 0,
+					  range->start, range->end, DRM_MM_INSERT_BEST);
+unlock:
+	mutex_unlock(&ctx->lock);
+	return ret;
 }
 
 void
-ivpu_mmu_context_remove_node_locked(struct ivpu_mmu_context *ctx, struct drm_mm_node *node)
+ivpu_mmu_context_remove_node(struct ivpu_mmu_context *ctx, struct drm_mm_node *node)
 {
-	lockdep_assert_held(&ctx->lock);
-
+	mutex_lock(&ctx->lock);
 	drm_mm_remove_node(node);
+	mutex_unlock(&ctx->lock);
 }
 
 static int
@@ -437,7 +444,6 @@ ivpu_mmu_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u3
 	int ret;
 
 	mutex_init(&ctx->lock);
-	INIT_LIST_HEAD(&ctx->bo_list);
 
 	ret = ivpu_mmu_pgtable_init(vdev, &ctx->pgtable);
 	if (ret) {

@@ -115,6 +115,9 @@ struct ivpu_device {
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
 
+	struct mutex bo_list_lock; /* Protects bo_list */
+	struct list_head bo_list;
+
 	struct xarray submitted_jobs_xa;
 	struct task_struct *job_done_thread;
 

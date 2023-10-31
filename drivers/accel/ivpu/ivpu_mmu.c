@@ -775,8 +775,11 @@ int ivpu_mmu_init(struct ivpu_device *vdev)
 
 	ivpu_dbg(vdev, MMU, "Init..\n");
 
-	drmm_mutex_init(&vdev->drm, &mmu->lock);
 	ivpu_mmu_config_check(vdev);
+
+	ret = drmm_mutex_init(&vdev->drm, &mmu->lock);
+	if (ret)
+		return ret;
 
 	ret = ivpu_mmu_structs_alloc(vdev);
 	if (ret)

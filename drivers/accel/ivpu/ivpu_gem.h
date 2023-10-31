@@ -17,10 +17,10 @@ struct ivpu_bo {
 	const struct ivpu_bo_ops *ops;
 
 	struct ivpu_mmu_context *ctx;
-	struct list_head ctx_node;
+	struct list_head bo_list_node;
 	struct drm_mm_node mm_node;
 
-	struct mutex lock; /* Protects: pages, sgt, mmu_mapped */
+	struct mutex lock; /* Protects: pages, sgt, ctx, mmu_mapped, vpu_addr */
 	struct sg_table *sgt;
 	struct page **pages;
 	bool mmu_mapped;
@@ -48,7 +48,7 @@ struct ivpu_bo_ops {
 };
 
 int ivpu_bo_pin(struct ivpu_bo *bo);
-void ivpu_bo_remove_all_bos_from_context(struct ivpu_mmu_context *ctx);
+void ivpu_bo_remove_all_bos_from_context(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx);
 void ivpu_bo_list(struct drm_device *dev, struct drm_printer *p);
 void ivpu_bo_list_print(struct drm_device *dev);
 

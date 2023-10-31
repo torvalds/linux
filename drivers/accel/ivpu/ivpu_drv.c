@@ -91,8 +91,8 @@ static void file_priv_release(struct kref *ref)
 	ivpu_dbg(vdev, FILE, "file_priv release: ctx %u\n", file_priv->ctx.id);
 
 	ivpu_cmdq_release_all(file_priv);
-	ivpu_bo_remove_all_bos_from_context(&file_priv->ctx);
 	ivpu_jsm_context_release(vdev, file_priv->ctx.id);
+	ivpu_bo_remove_all_bos_from_context(vdev, &file_priv->ctx);
 	ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
 	drm_WARN_ON(&vdev->drm, xa_erase_irq(&vdev->context_xa, file_priv->ctx.id) != file_priv);
 	mutex_destroy(&file_priv->lock);
@@ -528,6 +528,11 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	xa_init_flags(&vdev->context_xa, XA_FLAGS_ALLOC);
 	xa_init_flags(&vdev->submitted_jobs_xa, XA_FLAGS_ALLOC1);
 	lockdep_set_class(&vdev->submitted_jobs_xa.xa_lock, &submitted_jobs_xa_lock_class_key);
+	INIT_LIST_HEAD(&vdev->bo_list);
+
+	ret = drmm_mutex_init(&vdev->drm, &vdev->bo_list_lock);
+	if (ret)
+		goto err_xa_destroy;
 
 	ret = ivpu_pci_init(vdev);
 	if (ret)
