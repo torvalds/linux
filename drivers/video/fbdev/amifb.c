@@ -3488,6 +3488,7 @@ static irqreturn_t amifb_interrupt(int irq, void *dev_id)
 
 static const struct fb_ops amifb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= amifb_check_var,
 	.fb_set_par	= amifb_set_par,
 	.fb_setcolreg	= amifb_setcolreg,
@@ -3497,6 +3498,7 @@ static const struct fb_ops amifb_ops = {
 	.fb_copyarea	= amifb_copyarea,
 	.fb_imageblit	= amifb_imageblit,
 	.fb_ioctl	= amifb_ioctl,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 

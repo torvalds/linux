@@ -4,6 +4,7 @@
 #
 
 config FB_CORE
+	select FB_IOMEM_FOPS
 	select VIDEO_CMDLINE
 	tristate
 
@@ -144,12 +145,17 @@ config FB_DMAMEM_HELPERS
 	select FB_SYS_FOPS
 	select FB_SYS_IMAGEBLIT
 
+config FB_IOMEM_FOPS
+	tristate
+	depends on FB_CORE
+
 config FB_IOMEM_HELPERS
 	bool
 	depends on FB_CORE
 	select FB_CFB_COPYAREA
 	select FB_CFB_FILLRECT
 	select FB_CFB_IMAGEBLIT
+	select FB_IOMEM_FOPS
 
 config FB_IOMEM_HELPERS_DEFERRED
 	bool

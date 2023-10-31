@@ -436,6 +436,7 @@ int nouveau_sched_init(struct nouveau_drm *drm)
 		return -ENOMEM;
 
 	return drm_sched_init(sched, &nouveau_sched_ops,
+			      DRM_SCHED_PRIORITY_COUNT,
 			      NOUVEAU_SCHED_HW_SUBMISSIONS, 0, job_hang_limit,
 			      NULL, NULL, "nouveau_sched", drm->dev->dev);
 }

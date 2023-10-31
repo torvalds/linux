@@ -321,13 +321,13 @@ void ivpu_fw_load(struct ivpu_device *vdev)
 	struct ivpu_fw_info *fw = vdev->fw;
 	u64 image_end_offset = fw->image_load_offset + fw->image_size;
 
-	memset(fw->mem->kvaddr, 0, fw->image_load_offset);
-	memcpy(fw->mem->kvaddr + fw->image_load_offset,
+	memset(ivpu_bo_vaddr(fw->mem), 0, fw->image_load_offset);
+	memcpy(ivpu_bo_vaddr(fw->mem) + fw->image_load_offset,
 	       fw->file->data + FW_FILE_IMAGE_OFFSET, fw->image_size);
 
 	if (IVPU_WA(clear_runtime_mem)) {
-		u8 *start = fw->mem->kvaddr + image_end_offset;
-		u64 size = fw->mem->base.size - image_end_offset;
+		u8 *start = ivpu_bo_vaddr(fw->mem) + image_end_offset;
+		u64 size = ivpu_bo_size(fw->mem) - image_end_offset;
 
 		memset(start, 0, size);
 	}
@@ -451,10 +451,10 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 					  vdev->hw->ranges.global.start;
 
 	boot_params->ipc_header_area_start = ipc_mem_rx->vpu_addr;
-	boot_params->ipc_header_area_size = ipc_mem_rx->base.size / 2;
+	boot_params->ipc_header_area_size = ivpu_bo_size(ipc_mem_rx) / 2;
 
-	boot_params->ipc_payload_area_start = ipc_mem_rx->vpu_addr + ipc_mem_rx->base.size / 2;
-	boot_params->ipc_payload_area_size = ipc_mem_rx->base.size / 2;
+	boot_params->ipc_payload_area_start = ipc_mem_rx->vpu_addr + ivpu_bo_size(ipc_mem_rx) / 2;
+	boot_params->ipc_payload_area_size = ivpu_bo_size(ipc_mem_rx) / 2;
 
 	boot_params->global_aliased_pio_base = vdev->hw->ranges.user.start;
 	boot_params->global_aliased_pio_size = ivpu_hw_range_size(&vdev->hw->ranges.user);
@@ -486,9 +486,9 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->trace_destination_mask = vdev->fw->trace_destination_mask;
 	boot_params->trace_hw_component_mask = vdev->fw->trace_hw_component_mask;
 	boot_params->crit_tracing_buff_addr = vdev->fw->mem_log_crit->vpu_addr;
-	boot_params->crit_tracing_buff_size = vdev->fw->mem_log_crit->base.size;
+	boot_params->crit_tracing_buff_size = ivpu_bo_size(vdev->fw->mem_log_crit);
 	boot_params->verbose_tracing_buff_addr = vdev->fw->mem_log_verb->vpu_addr;
-	boot_params->verbose_tracing_buff_size = vdev->fw->mem_log_verb->base.size;
+	boot_params->verbose_tracing_buff_size = ivpu_bo_size(vdev->fw->mem_log_verb);
 
 	boot_params->punit_telemetry_sram_base = ivpu_hw_reg_telemetry_offset_get(vdev);
 	boot_params->punit_telemetry_sram_size = ivpu_hw_reg_telemetry_size_get(vdev);

@@ -360,6 +360,8 @@ Format Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_fourcc.c
    :export:
 
+.. _kms_dumb_buffer_objects:
+
 Dumb Buffer Objects
 ===================
 

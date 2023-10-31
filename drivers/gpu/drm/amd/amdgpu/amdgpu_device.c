@@ -2492,6 +2492,7 @@ static int amdgpu_device_init_schedulers(struct amdgpu_device *adev)
 		}
 
 		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
+				   DRM_SCHED_PRIORITY_COUNT,
 				   ring->num_hw_submission, 0,
 				   timeout, adev->reset_domain->wq,
 				   ring->sched_score, ring->name,
@@ -2660,6 +2661,9 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	r = amdgpu_device_init_schedulers(adev);
 	if (r)
 		goto init_failed;
+
+	if (adev->mman.buffer_funcs_ring->sched.ready)
+		amdgpu_ttm_set_buffer_funcs_status(adev, true);
 
 	/* Don't init kfd if whole hive need to be reset during init */
 	if (!adev->gmc.xgmi.pending_reset) {
@@ -3258,6 +3262,8 @@ int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 		amdgpu_virt_request_full_gpu(adev, false);
 	}
 
+	amdgpu_ttm_set_buffer_funcs_status(adev, false);
+
 	r = amdgpu_device_ip_suspend_phase1(adev);
 	if (r)
 		return r;
@@ -3446,6 +3452,9 @@ static int amdgpu_device_ip_resume(struct amdgpu_device *adev)
 		return r;
 
 	r = amdgpu_device_ip_resume_phase2(adev);
+
+	if (adev->mman.buffer_funcs_ring->sched.ready)
+		amdgpu_ttm_set_buffer_funcs_status(adev, true);
 
 	return r;
 }
@@ -4234,6 +4243,8 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 	/* disable ras feature must before hw fini */
 	amdgpu_ras_pre_fini(adev);
 
+	amdgpu_ttm_set_buffer_funcs_status(adev, false);
+
 	amdgpu_device_ip_fini_early(adev);
 
 	amdgpu_irq_fini_hw(adev);
@@ -4404,6 +4415,8 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 	flush_delayed_work(&adev->gfx.gfx_off_delay_work);
 
 	amdgpu_ras_suspend(adev);
+
+	amdgpu_ttm_set_buffer_funcs_status(adev, false);
 
 	amdgpu_device_ip_suspend_phase1(adev);
 
@@ -5175,6 +5188,9 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 				r = amdgpu_device_ip_resume_phase2(tmp_adev);
 				if (r)
 					goto out;
+
+				if (tmp_adev->mman.buffer_funcs_ring->sched.ready)
+					amdgpu_ttm_set_buffer_funcs_status(tmp_adev, true);
 
 				if (vram_lost)
 					amdgpu_device_fill_reset_magic(tmp_adev);

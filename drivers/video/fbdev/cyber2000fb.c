@@ -1061,6 +1061,7 @@ static int cyber2000fb_blank(int blank, struct fb_info *info)
 
 static const struct fb_ops cyber2000fb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= cyber2000fb_check_var,
 	.fb_set_par	= cyber2000fb_set_par,
 	.fb_setcolreg	= cyber2000fb_setcolreg,
@@ -1070,6 +1071,7 @@ static const struct fb_ops cyber2000fb_ops = {
 	.fb_copyarea	= cyber2000fb_copyarea,
 	.fb_imageblit	= cyber2000fb_imageblit,
 	.fb_sync	= cyber2000fb_sync,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 /*

@@ -203,6 +203,15 @@ config DRM_PANEL_ILITEK_ILI9881C
 	  Say Y if you want to enable support for panels based on the
 	  Ilitek ILI9881c controller.
 
+config DRM_PANEL_ILITEK_ILI9882T
+	tristate "Ilitek ILI9882t-based panels"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y if you want to enable support for panels based on the
+	  Ilitek ILI9882t controller.
+
 config DRM_PANEL_INNOLUX_EJ030NA
         tristate "Innolux EJ030NA 320x480 LCD panel"
         depends on OF && SPI

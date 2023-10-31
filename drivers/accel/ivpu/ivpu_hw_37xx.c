@@ -68,37 +68,9 @@
 				     (REG_FLD(VPU_37XX_HOST_SS_FW_SOC_IRQ_EN, MSS_MBI)) | \
 				     (REG_FLD(VPU_37XX_HOST_SS_FW_SOC_IRQ_EN, MSS_MBI_CMX)))
 
-static char *ivpu_platform_to_str(u32 platform)
-{
-	switch (platform) {
-	case IVPU_PLATFORM_SILICON:
-		return "IVPU_PLATFORM_SILICON";
-	case IVPU_PLATFORM_SIMICS:
-		return "IVPU_PLATFORM_SIMICS";
-	case IVPU_PLATFORM_FPGA:
-		return "IVPU_PLATFORM_FPGA";
-	default:
-		return "Invalid platform";
-	}
-}
-
-static void ivpu_hw_read_platform(struct ivpu_device *vdev)
-{
-	u32 gen_ctrl = REGV_RD32(VPU_37XX_HOST_SS_GEN_CTRL);
-	u32 platform = REG_GET_FLD(VPU_37XX_HOST_SS_GEN_CTRL, PS, gen_ctrl);
-
-	if  (platform == IVPU_PLATFORM_SIMICS || platform == IVPU_PLATFORM_FPGA)
-		vdev->platform = platform;
-	else
-		vdev->platform = IVPU_PLATFORM_SILICON;
-
-	ivpu_dbg(vdev, MISC, "Platform type: %s (%d)\n",
-		 ivpu_platform_to_str(vdev->platform), vdev->platform);
-}
-
 static void ivpu_hw_wa_init(struct ivpu_device *vdev)
 {
-	vdev->wa.punit_disabled = ivpu_is_fpga(vdev);
+	vdev->wa.punit_disabled = false;
 	vdev->wa.clear_runtime_mem = false;
 	vdev->wa.d3hot_after_power_off = true;
 
@@ -113,19 +85,11 @@ static void ivpu_hw_wa_init(struct ivpu_device *vdev)
 
 static void ivpu_hw_timeouts_init(struct ivpu_device *vdev)
 {
-	if (ivpu_is_simics(vdev) || ivpu_is_fpga(vdev)) {
-		vdev->timeout.boot = 100000;
-		vdev->timeout.jsm = 50000;
-		vdev->timeout.tdr = 2000000;
-		vdev->timeout.reschedule_suspend = 1000;
-		vdev->timeout.autosuspend = -1;
-	} else {
-		vdev->timeout.boot = 1000;
-		vdev->timeout.jsm = 500;
-		vdev->timeout.tdr = 2000;
-		vdev->timeout.reschedule_suspend = 10;
-		vdev->timeout.autosuspend = 10;
-	}
+	vdev->timeout.boot = 1000;
+	vdev->timeout.jsm = 500;
+	vdev->timeout.tdr = 2000;
+	vdev->timeout.reschedule_suspend = 10;
+	vdev->timeout.autosuspend = 10;
 }
 
 static int ivpu_pll_wait_for_cmd_send(struct ivpu_device *vdev)
@@ -220,8 +184,7 @@ static int ivpu_pll_drive(struct ivpu_device *vdev, bool enable)
 	int ret;
 
 	if (IVPU_WA(punit_disabled)) {
-		ivpu_dbg(vdev, PM, "Skipping PLL request on %s\n",
-			 ivpu_platform_to_str(vdev->platform));
+		ivpu_dbg(vdev, PM, "Skipping PLL request\n");
 		return 0;
 	}
 
@@ -484,10 +447,6 @@ static void ivpu_boot_pwr_island_drive(struct ivpu_device *vdev, bool enable)
 
 static int ivpu_boot_wait_for_pwr_island_status(struct ivpu_device *vdev, u32 exp_val)
 {
-	/* FPGA model (UPF) is not power aware, skipped Power Island polling */
-	if (ivpu_is_fpga(vdev))
-		return 0;
-
 	return REGV_POLL_FLD(VPU_37XX_HOST_SS_AON_PWR_ISLAND_STATUS0, MSS_CPU,
 			     exp_val, PWR_ISLAND_STATUS_TIMEOUT_US);
 }
@@ -632,6 +591,10 @@ static int ivpu_hw_37xx_info_init(struct ivpu_device *vdev)
 	ivpu_hw_init_range(&hw->ranges.shave, 0x180000000, SZ_2G);
 	ivpu_hw_init_range(&hw->ranges.dma,   0x200000000, SZ_8G);
 
+	vdev->platform = IVPU_PLATFORM_SILICON;
+	ivpu_hw_wa_init(vdev);
+	ivpu_hw_timeouts_init(vdev);
+
 	return 0;
 }
 
@@ -687,10 +650,6 @@ static int ivpu_hw_37xx_d0i3_disable(struct ivpu_device *vdev)
 static int ivpu_hw_37xx_power_up(struct ivpu_device *vdev)
 {
 	int ret;
-
-	ivpu_hw_read_platform(vdev);
-	ivpu_hw_wa_init(vdev);
-	ivpu_hw_timeouts_init(vdev);
 
 	ret = ivpu_hw_37xx_reset(vdev);
 	if (ret)

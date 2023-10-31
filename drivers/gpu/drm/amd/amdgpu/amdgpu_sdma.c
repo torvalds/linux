@@ -292,27 +292,6 @@ out:
 	return err;
 }
 
-void amdgpu_sdma_unset_buffer_funcs_helper(struct amdgpu_device *adev)
-{
-	struct amdgpu_ring *sdma;
-	int i;
-
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		if (adev->sdma.has_page_queue) {
-			sdma = &adev->sdma.instance[i].page;
-			if (adev->mman.buffer_funcs_ring == sdma) {
-				amdgpu_ttm_set_buffer_funcs_status(adev, false);
-				break;
-			}
-		}
-		sdma = &adev->sdma.instance[i].ring;
-		if (adev->mman.buffer_funcs_ring == sdma) {
-			amdgpu_ttm_set_buffer_funcs_status(adev, false);
-			break;
-		}
-	}
-}
-
 int amdgpu_sdma_ras_sw_init(struct amdgpu_device *adev)
 {
 	int err = 0;

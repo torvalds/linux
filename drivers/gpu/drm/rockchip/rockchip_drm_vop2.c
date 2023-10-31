@@ -160,7 +160,6 @@ struct vop2_video_port {
 	struct vop2 *vop2;
 	struct clk *dclk;
 	unsigned int id;
-	const struct vop2_video_port_regs *regs;
 	const struct vop2_video_port_data *data;
 
 	struct completion dsp_hold_completion;
@@ -283,9 +282,28 @@ static void vop2_win_disable(struct vop2_win *win)
 		vop2_win_write(win, VOP2_WIN_CLUSTER_ENABLE, 0);
 }
 
+static u32 vop2_get_bpp(const struct drm_format_info *format)
+{
+	switch (format->format) {
+	case DRM_FORMAT_YUV420_8BIT:
+		return 12;
+	case DRM_FORMAT_YUV420_10BIT:
+		return 15;
+	case DRM_FORMAT_VUY101010:
+		return 30;
+	default:
+		return drm_format_info_bpp(format, 0);
+	}
+}
+
 static enum vop2_data_format vop2_convert_format(u32 format)
 {
 	switch (format) {
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		return VOP2_FMT_XRGB101010;
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XBGR8888:
@@ -298,10 +316,19 @@ static enum vop2_data_format vop2_convert_format(u32 format)
 	case DRM_FORMAT_BGR565:
 		return VOP2_FMT_RGB565;
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_YUV420_8BIT:
 		return VOP2_FMT_YUV420SP;
+	case DRM_FORMAT_NV15:
+	case DRM_FORMAT_YUV420_10BIT:
+		return VOP2_FMT_YUV420SP_10;
 	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
 		return VOP2_FMT_YUV422SP;
+	case DRM_FORMAT_Y210:
+		return VOP2_FMT_YUV422SP_10;
 	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV42:
 		return VOP2_FMT_YUV444SP;
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
@@ -318,6 +345,11 @@ static enum vop2_data_format vop2_convert_format(u32 format)
 static enum vop2_afbc_format vop2_convert_afbc_format(u32 format)
 {
 	switch (format) {
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		return VOP2_AFBC_FMT_ARGB2101010;
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XBGR8888:
@@ -329,10 +361,17 @@ static enum vop2_afbc_format vop2_convert_afbc_format(u32 format)
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_BGR565:
 		return VOP2_AFBC_FMT_RGB565;
-	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_YUV420_8BIT:
 		return VOP2_AFBC_FMT_YUV420;
-	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_YUV420_10BIT:
+		return VOP2_AFBC_FMT_YUV420_10BIT;
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_UYVY:
 		return VOP2_AFBC_FMT_YUV422;
+	case DRM_FORMAT_Y210:
+		return VOP2_AFBC_FMT_YUV422_10BIT;
 	default:
 		return VOP2_AFBC_FMT_INVALID;
 	}
@@ -343,6 +382,8 @@ static enum vop2_afbc_format vop2_convert_afbc_format(u32 format)
 static bool vop2_win_rb_swap(u32 format)
 {
 	switch (format) {
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_BGR888:
@@ -353,21 +394,13 @@ static bool vop2_win_rb_swap(u32 format)
 	}
 }
 
-static bool vop2_afbc_rb_swap(u32 format)
-{
-	switch (format) {
-	case DRM_FORMAT_NV24:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static bool vop2_afbc_uv_swap(u32 format)
 {
 	switch (format) {
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_Y210:
+	case DRM_FORMAT_YUV420_8BIT:
+	case DRM_FORMAT_YUV420_10BIT:
 		return true;
 	default:
 		return false;
@@ -380,6 +413,9 @@ static bool vop2_win_uv_swap(u32 format)
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV15:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
 		return true;
 	default:
 		return false;
@@ -483,7 +519,7 @@ static u32 vop2_afbc_transform_offset(struct drm_plane_state *pstate,
 {
 	struct drm_rect *src = &pstate->src;
 	struct drm_framebuffer *fb = pstate->fb;
-	u32 bpp = fb->format->cpp[0] * 8;
+	u32 bpp = vop2_get_bpp(fb->format);
 	u32 vir_width = (fb->pitches[0] << 3) / bpp;
 	u32 width = drm_rect_width(src) >> 16;
 	u32 height = drm_rect_height(src) >> 16;
@@ -1081,7 +1117,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	struct vop2 *vop2 = win->vop2;
 	struct drm_framebuffer *fb = pstate->fb;
-	u32 bpp = fb->format->cpp[0] * 8;
+	u32 bpp = vop2_get_bpp(fb->format);
 	u32 actual_w, actual_h, dsp_w, dsp_h;
 	u32 act_info, dsp_info;
 	u32 format;
@@ -1219,7 +1255,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 			drm_err(vop2->drm, "vp%d %s stride[%d] not 64 pixel aligned\n",
 				vp->id, win->data->name, stride);
 
-		rb_swap = vop2_afbc_rb_swap(fb->format->format);
 		uv_swap = vop2_afbc_uv_swap(fb->format->format);
 		/*
 		 * This is a workaround for crazy IC design, Cluster
@@ -1236,7 +1271,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 		if (vop2_cluster_window(win))
 			vop2_win_write(win, VOP2_WIN_AFBC_ENABLE, 1);
 		vop2_win_write(win, VOP2_WIN_AFBC_FORMAT, afbc_format);
-		vop2_win_write(win, VOP2_WIN_AFBC_RB_SWAP, rb_swap);
 		vop2_win_write(win, VOP2_WIN_AFBC_UV_SWAP, uv_swap);
 		vop2_win_write(win, VOP2_WIN_AFBC_AUTO_GATING_EN, 0);
 		vop2_win_write(win, VOP2_WIN_AFBC_BLOCK_SPLIT_EN, 0);
@@ -2251,8 +2285,6 @@ static struct vop2_video_port *find_vp_without_primary(struct vop2 *vop2)
 	return NULL;
 }
 
-#define NR_LAYERS 6
-
 static int vop2_create_crtcs(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
@@ -2273,7 +2305,6 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 		vp = &vop2->vps[i];
 		vp->vop2 = vop2;
 		vp->id = vp_data->id;
-		vp->regs = vp_data->regs;
 		vp->data = vp_data;
 
 		snprintf(dclk_name, sizeof(dclk_name), "dclk_vp%d", vp->id);
@@ -2372,7 +2403,7 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 		struct vop2_video_port *vp = &vop2->vps[i];
 
 		if (vp->crtc.port)
-			vp->nlayers = NR_LAYERS / nvps;
+			vp->nlayers = vop2_data->win_size / nvps;
 	}
 
 	return 0;
