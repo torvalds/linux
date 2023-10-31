@@ -283,14 +283,14 @@ static void sditf_free_buf(struct sditf_priv *priv)
 	struct rkcif_device *cif_dev = priv->cif_dev;
 
 	if (priv->hdr_cfg.hdr_mode == HDR_X2) {
-		rkcif_free_rx_buf(&cif_dev->stream[0], priv->buf_num);
-		rkcif_free_rx_buf(&cif_dev->stream[1], priv->buf_num);
+		rkcif_free_rx_buf(&cif_dev->stream[0], cif_dev->stream[0].rx_buf_num);
+		rkcif_free_rx_buf(&cif_dev->stream[1], cif_dev->stream[1].rx_buf_num);
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
-		rkcif_free_rx_buf(&cif_dev->stream[0], priv->buf_num);
-		rkcif_free_rx_buf(&cif_dev->stream[1], priv->buf_num);
-		rkcif_free_rx_buf(&cif_dev->stream[2], priv->buf_num);
+		rkcif_free_rx_buf(&cif_dev->stream[0], cif_dev->stream[0].rx_buf_num);
+		rkcif_free_rx_buf(&cif_dev->stream[1], cif_dev->stream[1].rx_buf_num);
+		rkcif_free_rx_buf(&cif_dev->stream[2], cif_dev->stream[2].rx_buf_num);
 	} else {
-		rkcif_free_rx_buf(&cif_dev->stream[0], priv->buf_num);
+		rkcif_free_rx_buf(&cif_dev->stream[0], cif_dev->stream[0].rx_buf_num);
 	}
 	if (cif_dev->is_thunderboot) {
 		cif_dev->wait_line_cache = 0;
@@ -622,22 +622,26 @@ void sditf_change_to_online(struct sditf_priv *priv)
 		sditf_channel_enable(priv, 0);
 		sditf_channel_enable(priv, 1);
 	}
-	if (priv->hdr_cfg.hdr_mode == NO_HDR) {
-		rkcif_free_rx_buf(&cif_dev->stream[0], priv->buf_num);
-		cif_dev->stream[0].is_line_wake_up = false;
-	} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
-		rkcif_free_rx_buf(&cif_dev->stream[1], priv->buf_num);
-		cif_dev->stream[0].is_line_wake_up = false;
-		cif_dev->stream[1].is_line_wake_up = false;
-	} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
-		rkcif_free_rx_buf(&cif_dev->stream[2], priv->buf_num);
-		cif_dev->stream[0].is_line_wake_up = false;
-		cif_dev->stream[1].is_line_wake_up = false;
-		cif_dev->stream[2].is_line_wake_up = false;
+
+	if (cif_dev->is_thunderboot) {
+		if (priv->hdr_cfg.hdr_mode == NO_HDR) {
+			rkcif_free_rx_buf(&cif_dev->stream[0], cif_dev->stream[0].rx_buf_num);
+			cif_dev->stream[0].is_line_wake_up = false;
+		} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
+			rkcif_free_rx_buf(&cif_dev->stream[1], cif_dev->stream[1].rx_buf_num);
+			cif_dev->stream[0].is_line_wake_up = false;
+			cif_dev->stream[1].is_line_wake_up = false;
+		} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
+			rkcif_free_rx_buf(&cif_dev->stream[2], cif_dev->stream[2].rx_buf_num);
+			cif_dev->stream[0].is_line_wake_up = false;
+			cif_dev->stream[1].is_line_wake_up = false;
+			cif_dev->stream[2].is_line_wake_up = false;
+		}
+		cif_dev->wait_line_cache = 0;
+		cif_dev->wait_line = 0;
+		cif_dev->wait_line_bak = 0;
+		cif_dev->is_thunderboot = false;
 	}
-	cif_dev->wait_line_cache = 0;
-	cif_dev->wait_line = 0;
-	cif_dev->wait_line_bak = 0;
 }
 
 void sditf_disable_immediately(struct sditf_priv *priv)
@@ -862,6 +866,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 
 	if (!list_empty(&stream->rx_buf_head) &&
 	    cif_dev->is_thunderboot &&
+	    (!cif_dev->is_rtt_suspend) &&
 	    (dbufs->type == BUF_SHORT ||
 	     (dbufs->type != BUF_SHORT && (!dbufs->is_switch)))) {
 		spin_lock_irqsave(&cif_dev->buffree_lock, buffree_flags);

@@ -530,6 +530,7 @@ struct rkcif_stream {
 	struct rkcif_rx_buffer		rx_buf[RKISP_VICAP_BUF_CNT_MAX];
 	struct list_head		rx_buf_head;
 	int				total_buf_num;
+	int				rx_buf_num;
 	u64				line_int_cnt;
 	int				lack_buf_cnt;
 	unsigned int			buf_wake_up_cnt;
