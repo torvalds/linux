@@ -302,6 +302,9 @@ DECLARE_HOOK(android_vh_madvise_cold_or_pageout,
 DECLARE_HOOK(android_vh_page_isolated_for_reclaim,
 	TP_PROTO(struct mm_struct *mm, struct page *page),
 	TP_ARGS(mm, page));
+DECLARE_HOOK(android_vh_should_end_madvise,
+	TP_PROTO(struct mm_struct *mm, bool *skip, bool *pageout),
+	TP_ARGS(mm, skip, pageout));
 DECLARE_HOOK(android_vh_account_swap_pages,
 	TP_PROTO(struct swap_info_struct *si, bool *skip),
 	TP_ARGS(si, skip));
