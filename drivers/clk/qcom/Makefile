@@ -145,6 +145,7 @@ obj-$(CONFIG_SM_GCC_PITTI) += gcc-pitti.o
 obj-$(CONFIG_SXR_GCC_NIOBE) += gcc-niobe.o
 obj-$(CONFIG_SM_GPUCC_6150) += gpucc-sm6150.o
 obj-$(CONFIG_SM_GPUCC_6350) += gpucc-sm6350.o
+obj-$(CONFIG_SM_GPUCC_PITTI) += gpucc-pitti.o
 obj-$(CONFIG_SM_CAMCC_CLIFFS) += camcc-cliffs.o
 obj-$(CONFIG_SM_CAMCC_PINEAPPLE) += camcc-pineapple.o
 obj-$(CONFIG_SXR_CAMCC_NIOBE) += camcc-niobe.o
