@@ -79,6 +79,10 @@ struct crat_header {
 #define CRAT_SUBTYPE_IOLINK_AFFINITY		5
 #define CRAT_SUBTYPE_MAX			6
 
+/*
+ * Do not change the value of CRAT_SIBLINGMAP_SIZE from 32
+ * as it breaks the ABI.
+ */
 #define CRAT_SIBLINGMAP_SIZE	32
 
 /*

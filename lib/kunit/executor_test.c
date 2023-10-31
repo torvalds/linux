@@ -119,7 +119,7 @@ static void parse_filter_attr_test(struct kunit *test)
 {
 	int j, filter_count;
 	struct kunit_attr_filter *parsed_filters;
-	char *filters = "speed>slow, module!=example";
+	char filters[] = "speed>slow, module!=example", *filter = filters;
 	int err = 0;
 
 	filter_count = kunit_get_filter_count(filters);
@@ -128,7 +128,7 @@ static void parse_filter_attr_test(struct kunit *test)
 	parsed_filters = kunit_kcalloc(test, filter_count, sizeof(*parsed_filters),
 			GFP_KERNEL);
 	for (j = 0; j < filter_count; j++) {
-		parsed_filters[j] = kunit_next_attr_filter(&filters, &err);
+		parsed_filters[j] = kunit_next_attr_filter(&filter, &err);
 		KUNIT_ASSERT_EQ_MSG(test, err, 0, "failed to parse filter '%s'", filters[j]);
 	}
 
@@ -154,6 +154,7 @@ static void filter_attr_test(struct kunit *test)
 		.start = subsuite, .end = &subsuite[2],
 	};
 	struct kunit_suite_set got;
+	char filter[] = "speed>slow";
 	int err = 0;
 
 	subsuite[0] = alloc_fake_suite(test, "normal_suite", dummy_attr_test_cases);
@@ -168,7 +169,7 @@ static void filter_attr_test(struct kunit *test)
 	 * attribute is unset and thus, the filtering is based on the parent attribute
 	 * of slow.
 	 */
-	got = kunit_filter_suites(&suite_set, NULL, "speed>slow", NULL, &err);
+	got = kunit_filter_suites(&suite_set, NULL, filter, NULL, &err);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, got.start);
 	KUNIT_ASSERT_EQ(test, err, 0);
 	kfree_at_end(test, got.start);
@@ -191,12 +192,13 @@ static void filter_attr_empty_test(struct kunit *test)
 		.start = subsuite, .end = &subsuite[2],
 	};
 	struct kunit_suite_set got;
+	char filter[] = "module!=dummy";
 	int err = 0;
 
 	subsuite[0] = alloc_fake_suite(test, "suite1", dummy_attr_test_cases);
 	subsuite[1] = alloc_fake_suite(test, "suite2", dummy_attr_test_cases);
 
-	got = kunit_filter_suites(&suite_set, NULL, "module!=dummy", NULL, &err);
+	got = kunit_filter_suites(&suite_set, NULL, filter, NULL, &err);
 	KUNIT_ASSERT_EQ(test, err, 0);
 	kfree_at_end(test, got.start); /* just in case */
 
@@ -211,12 +213,13 @@ static void filter_attr_skip_test(struct kunit *test)
 		.start = subsuite, .end = &subsuite[1],
 	};
 	struct kunit_suite_set got;
+	char filter[] = "speed>slow";
 	int err = 0;
 
 	subsuite[0] = alloc_fake_suite(test, "suite", dummy_attr_test_cases);
 
 	/* Want: suite(slow, normal), NULL -> suite(slow with SKIP, normal), NULL */
-	got = kunit_filter_suites(&suite_set, NULL, "speed>slow", "skip", &err);
+	got = kunit_filter_suites(&suite_set, NULL, filter, "skip", &err);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, got.start);
 	KUNIT_ASSERT_EQ(test, err, 0);
 	kfree_at_end(test, got.start);

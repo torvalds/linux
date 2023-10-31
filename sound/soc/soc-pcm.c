@@ -700,10 +700,16 @@ static int soc_pcm_clean(struct snd_soc_pcm_runtime *rtd,
 		snd_soc_runtime_deactivate(rtd, substream->stream);
 
 		/* Make sure DAI parameters cleared if the DAI becomes inactive */
-		for_each_rtd_dais(rtd, i, dai)
+		for_each_rtd_dais(rtd, i, dai) {
 			if (snd_soc_dai_active(dai) == 0 &&
 			    (dai->rate || dai->channels || dai->sample_bits))
 				soc_pcm_set_dai_params(dai, NULL);
+
+			if (snd_soc_dai_stream_active(dai, substream->stream) ==  0) {
+				if (dai->driver->ops && !dai->driver->ops->mute_unmute_on_trigger)
+					snd_soc_dai_digital_mute(dai, 1, substream->stream);
+			}
+		}
 	}
 
 	for_each_rtd_dais(rtd, i, dai)
@@ -896,8 +902,10 @@ static int __soc_pcm_prepare(struct snd_soc_pcm_runtime *rtd,
 	snd_soc_dapm_stream_event(rtd, substream->stream,
 			SND_SOC_DAPM_STREAM_START);
 
-	for_each_rtd_dais(rtd, i, dai)
-		snd_soc_dai_digital_mute(dai, 0, substream->stream);
+	for_each_rtd_dais(rtd, i, dai) {
+		if (dai->driver->ops && !dai->driver->ops->mute_unmute_on_trigger)
+			snd_soc_dai_digital_mute(dai, 0, substream->stream);
+	}
 
 out:
 	return soc_pcm_ret(rtd, ret);

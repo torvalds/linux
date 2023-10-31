@@ -915,6 +915,7 @@ struct rswitch_etha {
 	bool external_phy;
 	struct mii_bus *mii;
 	phy_interface_t phy_interface;
+	u32 psmcs;
 	u8 mac_addr[MAX_ADDR_LEN];
 	int link;
 	int speed;
@@ -1010,6 +1011,9 @@ struct rswitch_private {
 	struct rswitch_gwca gwca;
 	struct rswitch_etha etha[RSWITCH_NUM_PORTS];
 	struct rswitch_mfwd mfwd;
+
+	spinlock_t lock;	/* lock interrupt registers' control */
+	struct clk *clk;
 
 	bool etha_no_runtime_change;
 	bool gwca_halt;

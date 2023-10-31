@@ -249,11 +249,9 @@ static struct inode *parse_longname(const struct inode *parent,
 	if (!dir) {
 		/* This can happen if we're not mounting cephfs on the root */
 		dir = ceph_get_inode(parent->i_sb, vino, NULL);
-		if (!dir)
-			dir = ERR_PTR(-ENOENT);
+		if (IS_ERR(dir))
+			dout("Can't find inode %s (%s)\n", inode_number, name);
 	}
-	if (IS_ERR(dir))
-		dout("Can't find inode %s (%s)\n", inode_number, name);
 
 out:
 	kfree(inode_number);
@@ -462,7 +460,7 @@ int ceph_fname_to_usr(const struct ceph_fname *fname, struct fscrypt_str *tname,
 out:
 	fscrypt_fname_free_buffer(&_tname);
 out_inode:
-	if ((dir != fname->dir) && !IS_ERR(dir)) {
+	if (dir != fname->dir) {
 		if ((dir->i_state & I_NEW))
 			discard_new_inode(dir);
 		else

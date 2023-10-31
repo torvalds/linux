@@ -263,4 +263,16 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_rmb_sof_machines[] = {
 };
 EXPORT_SYMBOL(snd_soc_acpi_amd_rmb_sof_machines);
 
+struct snd_soc_acpi_mach snd_soc_acpi_amd_acp63_sof_machines[] = {
+	{
+		.id = "AMDI1019",
+		.drv_name = "acp63-dsp",
+		.pdata = &acp_quirk_data,
+		.fw_filename = "sof-acp_6_3.ri",
+		.sof_tplg_filename = "sof-acp_6_3.tplg",
+	},
+	{},
+};
+EXPORT_SYMBOL(snd_soc_acpi_amd_acp63_sof_machines);
+
 MODULE_LICENSE("Dual BSD/GPL");

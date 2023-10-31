@@ -54,18 +54,20 @@
 #define ACP3X_SCRATCH_MEMORY_ADDRESS		0x02050000
 #define ACP_SYSTEM_MEMORY_WINDOW		0x4000000
 #define ACP_IRAM_BASE_ADDRESS			0x000000
-#define ACP_DATA_RAM_BASE_ADDRESS		0x01000000
+#define ACP_DRAM_BASE_ADDRESS			0x01000000
 #define ACP_DRAM_PAGE_COUNT			128
-
+#define ACP_SRAM_BASE_ADDRESS			0x3806000
 #define ACP_DSP_TO_HOST_IRQ			0x04
 
 #define ACP_RN_PCI_ID				0x01
 #define ACP_VANGOGH_PCI_ID			0x50
 #define ACP_RMB_PCI_ID				0x6F
+#define ACP63_PCI_ID				0x63
 
 #define HOST_BRIDGE_CZN				0x1630
 #define HOST_BRIDGE_VGH				0x1645
 #define HOST_BRIDGE_RMB				0x14B5
+#define HOST_BRIDGE_ACP63			0x14E8
 #define ACP_SHA_STAT				0x8000
 #define ACP_PSP_TIMEOUT_US			1000000
 #define ACP_EXT_INTR_ERROR_STAT			0x20000000
@@ -82,10 +84,12 @@
 #define EXCEPT_MAX_HDR_SIZE			0x400
 #define AMD_STACK_DUMP_SIZE			32
 
-#define SRAM1_SIZE				0x13A000
+#define SRAM1_SIZE				0x280000
 #define PROBE_STATUS_BIT			BIT(31)
 
 #define ACP_FIRMWARE_SIGNATURE			0x100
+#define ACP_DEFAULT_SRAM_LENGTH			0x00080000
+#define ACP_SRAM_PAGE_COUNT			128
 
 enum clock_source {
 	ACP_CLOCK_96M = 0,
@@ -192,13 +196,18 @@ struct acp_dev_data {
 	struct platform_device *dmic_dev;
 	unsigned int fw_bin_size;
 	unsigned int fw_data_bin_size;
+	unsigned int fw_sram_data_bin_size;
 	const char *fw_code_bin;
 	const char *fw_data_bin;
+	const char *fw_sram_data_bin;
 	u32 fw_bin_page_count;
+	u32 fw_data_bin_page_count;
 	dma_addr_t sha_dma_addr;
 	u8 *bin_buf;
 	dma_addr_t dma_addr;
 	u8 *data_buf;
+	dma_addr_t sram_dma_addr;
+	u8 *sram_data_buf;
 	bool signed_fw_image;
 	struct dma_descriptor dscr_info[ACP_MAX_DESC];
 	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
@@ -206,6 +215,8 @@ struct acp_dev_data {
 	struct pci_dev *smn_dev;
 	struct acp_dsp_stream *probe_stream;
 	bool enable_fw_debug;
+	bool is_dram_in_use;
+	bool is_sram_in_use;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
@@ -273,6 +284,8 @@ extern struct snd_sof_dsp_ops sof_vangogh_ops;
 int sof_vangogh_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_rembrandt_ops;
 int sof_rembrandt_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_acp63_ops;
+int sof_acp63_ops_init(struct snd_sof_dev *sdev);
 
 struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev);
 /* Machine configuration */

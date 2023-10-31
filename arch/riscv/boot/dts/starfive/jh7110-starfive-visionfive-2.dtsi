@@ -262,7 +262,7 @@
 				reg = <0x100000 0x400000>;
 			};
 			reserved-data@600000 {
-				reg = <0x600000 0x1000000>;
+				reg = <0x600000 0xa00000>;
 			};
 		};
 	};
@@ -440,30 +440,6 @@
 		};
 	};
 
-	uart0_pins: uart0-0 {
-		tx-pins {
-			pinmux = <GPIOMUX(5, GPOUT_SYS_UART0_TX,
-					     GPOEN_ENABLE,
-					     GPI_NONE)>;
-			bias-disable;
-			drive-strength = <12>;
-			input-disable;
-			input-schmitt-disable;
-			slew-rate = <0>;
-		};
-
-		rx-pins {
-			pinmux = <GPIOMUX(6, GPOUT_LOW,
-					     GPOEN_DISABLE,
-					     GPI_SYS_UART0_RX)>;
-			bias-disable; /* external pull-up */
-			drive-strength = <2>;
-			input-enable;
-			input-schmitt-enable;
-			slew-rate = <0>;
-		};
-	};
-
 	tdm_pins: tdm-0 {
 		tx-pins {
 			pinmux = <GPIOMUX(44, GPOUT_SYS_TDM_TXD,
@@ -497,6 +473,30 @@
 			input-enable;
 		};
 	};
+
+	uart0_pins: uart0-0 {
+		tx-pins {
+			pinmux = <GPIOMUX(5, GPOUT_SYS_UART0_TX,
+					     GPOEN_ENABLE,
+					     GPI_NONE)>;
+			bias-disable;
+			drive-strength = <12>;
+			input-disable;
+			input-schmitt-disable;
+			slew-rate = <0>;
+		};
+
+		rx-pins {
+			pinmux = <GPIOMUX(6, GPOUT_LOW,
+					     GPOEN_DISABLE,
+					     GPI_SYS_UART0_RX)>;
+			bias-disable; /* external pull-up */
+			drive-strength = <2>;
+			input-enable;
+			input-schmitt-enable;
+			slew-rate = <0>;
+		};
+	};
 };
 
 &tdm {
@@ -513,6 +513,7 @@
 
 &usb0 {
 	dr_mode = "peripheral";
+	status = "okay";
 };
 
 &U74_1 {

@@ -84,6 +84,11 @@ static struct acp_card_drvdata rt5682s_rt1019_rmb_data = {
 	.tdm_mode = false,
 };
 
+static struct acp_card_drvdata acp_dmic_data = {
+	.dmic_cpu_id = DMIC,
+	.dmic_codec_id = DMIC,
+};
+
 static bool acp_asoc_init_ops(struct acp_card_drvdata *priv)
 {
 	bool has_ops = false;
@@ -165,6 +170,8 @@ static int acp_asoc_probe(struct platform_device *pdev)
 			card->name, ret);
 		goto out;
 	}
+	if (!strcmp(pdev->name, "acp-pdm-mach"))
+		acp_card_drvdata->platform =  *((int *)dev->platform_data);
 
 	dmi_id = dmi_first_match(acp_quirk_table);
 	if (dmi_id && dmi_id->driver_data)
@@ -214,6 +221,10 @@ static const struct platform_device_id board_ids[] = {
 		.name = "rmb-rt5682s-rt1019",
 		.driver_data = (kernel_ulong_t)&rt5682s_rt1019_rmb_data,
 	},
+	{
+		.name = "acp-pdm-mach",
+		.driver_data = (kernel_ulong_t)&acp_dmic_data,
+	},
 	{ }
 };
 static struct platform_driver acp_asoc_audio = {
@@ -235,4 +246,5 @@ MODULE_ALIAS("platform:acp3xalc5682s1019");
 MODULE_ALIAS("platform:acp3x-es83xx");
 MODULE_ALIAS("platform:rmb-nau8825-max");
 MODULE_ALIAS("platform:rmb-rt5682s-rt1019");
+MODULE_ALIAS("platform:acp-pdm-mach");
 MODULE_LICENSE("GPL v2");

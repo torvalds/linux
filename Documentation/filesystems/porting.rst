@@ -949,3 +949,99 @@ mmap_lock held.  All in-tree users have been audited and do not seem to
 depend on the mmap_lock being held, but out of tree users should verify
 for themselves.  If they do need it, they can return VM_FAULT_RETRY to
 be called with the mmap_lock held.
+
+---
+
+**mandatory**
+
+The order of opening block devices and matching or creating superblocks has
+changed.
+
+The old logic opened block devices first and then tried to find a
+suitable superblock to reuse based on the block device pointer.
+
+The new logic tries to find a suitable superblock first based on the device
+number, and opening the block device afterwards.
+
+Since opening block devices cannot happen under s_umount because of lock
+ordering requirements s_umount is now dropped while opening block devices and
+reacquired before calling fill_super().
+
+In the old logic concurrent mounters would find the superblock on the list of
+superblocks for the filesystem type. Since the first opener of the block device
+would hold s_umount they would wait until the superblock became either born or
+was discarded due to initialization failure.
+
+Since the new logic drops s_umount concurrent mounters could grab s_umount and
+would spin. Instead they are now made to wait using an explicit wait-wake
+mechanism without having to hold s_umount.
+
+---
+
+**mandatory**
+
+The holder of a block device is now the superblock.
+
+The holder of a block device used to be the file_system_type which wasn't
+particularly useful. It wasn't possible to go from block device to owning
+superblock without matching on the device pointer stored in the superblock.
+This mechanism would only work for a single device so the block layer couldn't
+find the owning superblock of any additional devices.
+
+In the old mechanism reusing or creating a superblock for a racing mount(2) and
+umount(2) relied on the file_system_type as the holder. This was severly
+underdocumented however:
+
+(1) Any concurrent mounter that managed to grab an active reference on an
+    existing superblock was made to wait until the superblock either became
+    ready or until the superblock was removed from the list of superblocks of
+    the filesystem type. If the superblock is ready the caller would simple
+    reuse it.
+
+(2) If the mounter came after deactivate_locked_super() but before
+    the superblock had been removed from the list of superblocks of the
+    filesystem type the mounter would wait until the superblock was shutdown,
+    reuse the block device and allocate a new superblock.
+
+(3) If the mounter came after deactivate_locked_super() and after
+    the superblock had been removed from the list of superblocks of the
+    filesystem type the mounter would reuse the block device and allocate a new
+    superblock (the bd_holder point may still be set to the filesystem type).
+
+Because the holder of the block device was the file_system_type any concurrent
+mounter could open the block devices of any superblock of the same
+file_system_type without risking seeing EBUSY because the block device was
+still in use by another superblock.
+
+Making the superblock the owner of the block device changes this as the holder
+is now a unique superblock and thus block devices associated with it cannot be
+reused by concurrent mounters. So a concurrent mounter in (2) could suddenly
+see EBUSY when trying to open a block device whose holder was a different
+superblock.
+
+The new logic thus waits until the superblock and the devices are shutdown in
+->kill_sb(). Removal of the superblock from the list of superblocks of the
+filesystem type is now moved to a later point when the devices are closed:
+
+(1) Any concurrent mounter managing to grab an active reference on an existing
+    superblock is made to wait until the superblock is either ready or until
+    the superblock and all devices are shutdown in ->kill_sb(). If the
+    superblock is ready the caller will simply reuse it.
+
+(2) If the mounter comes after deactivate_locked_super() but before
+    the superblock has been removed from the list of superblocks of the
+    filesystem type the mounter is made to wait until the superblock and the
+    devices are shut down in ->kill_sb() and the superblock is removed from the
+    list of superblocks of the filesystem type. The mounter will allocate a new
+    superblock and grab ownership of the block device (the bd_holder pointer of
+    the block device will be set to the newly allocated superblock).
+
+(3) This case is now collapsed into (2) as the superblock is left on the list
+    of superblocks of the filesystem type until all devices are shutdown in
+    ->kill_sb(). In other words, if the superblock isn't on the list of
+    superblock of the filesystem type anymore then it has given up ownership of
+    all associated block devices (the bd_holder pointer is NULL).
+
+As this is a VFS level change it has no practical consequences for filesystems
+other than that all of them must use one of the provided kill_litter_super(),
+kill_anon_super(), or kill_block_super() helpers.

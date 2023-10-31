@@ -60,4 +60,13 @@ config SND_SOC_SOF_ACP_PROBES
 	  This option is not user-selectable but automatically handled by
 	  'select' statements at a higher level
 
+config SND_SOC_SOF_AMD_ACP63
+	tristate "SOF support for ACP6.3 platform"
+	depends on SND_SOC_SOF_PCI
+	select SND_SOC_SOF_AMD_COMMON
+	help
+	  Select this option for SOF support on
+	  AMD ACP6.3 version based platforms.
+	  Say Y if you want to enable SOF on ACP6.3 based platform.
+	  If unsure select "N".
 endif
