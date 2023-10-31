@@ -815,12 +815,6 @@ ice_dpll_input_prio_set(const struct dpll_pin *pin, void *pin_priv,
 	struct ice_pf *pf = d->pf;
 	int ret;
 
-	if (prio > ICE_DPLL_PRIO_MAX) {
-		NL_SET_ERR_MSG_FMT(extack, "prio out of supported range 0-%d",
-				   ICE_DPLL_PRIO_MAX);
-		return -EINVAL;
-	}
-
 	mutex_lock(&pf->dplls.lock);
 	ret = ice_dpll_hw_input_prio_set(pf, d, p, prio, extack);
 	mutex_unlock(&pf->dplls.lock);
