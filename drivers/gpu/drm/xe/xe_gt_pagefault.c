@@ -276,10 +276,10 @@ static void print_pagefault(struct xe_device *xe, struct pagefault *pf)
 
 #define PF_MSG_LEN_DW	4
 
-static int get_pagefault(struct pf_queue *pf_queue, struct pagefault *pf)
+static bool get_pagefault(struct pf_queue *pf_queue, struct pagefault *pf)
 {
 	const struct xe_guc_pagefault_desc *desc;
-	int ret = 0;
+	bool ret = false;
 
 	spin_lock_irq(&pf_queue->lock);
 	if (pf_queue->head != pf_queue->tail) {
@@ -303,8 +303,7 @@ static int get_pagefault(struct pf_queue *pf_queue, struct pagefault *pf)
 
 		pf_queue->head = (pf_queue->head + PF_MSG_LEN_DW) %
 			PF_QUEUE_NUM_DW;
-	} else {
-		ret = -1;
+		ret = true;
 	}
 	spin_unlock_irq(&pf_queue->lock);
 
@@ -348,6 +347,8 @@ int xe_guc_pagefault_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	return full ? -ENOSPC : 0;
 }
 
+#define USM_QUEUE_MAX_RUNTIME_MS	20
+
 static void pf_queue_work_func(struct work_struct *w)
 {
 	struct pf_queue *pf_queue = container_of(w, struct pf_queue, worker);
@@ -355,31 +356,38 @@ static void pf_queue_work_func(struct work_struct *w)
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_guc_pagefault_reply reply = {};
 	struct pagefault pf = {};
+	unsigned long threshold;
 	int ret;
 
-	ret = get_pagefault(pf_queue, &pf);
-	if (ret)
-		return;
+	threshold = jiffies + msecs_to_jiffies(USM_QUEUE_MAX_RUNTIME_MS);
 
-	ret = handle_pagefault(gt, &pf);
-	if (unlikely(ret)) {
-		print_pagefault(xe, &pf);
-		pf.fault_unsuccessful = 1;
-		drm_dbg(&xe->drm, "Fault response: Unsuccessful %d\n", ret);
+	while (get_pagefault(pf_queue, &pf)) {
+		ret = handle_pagefault(gt, &pf);
+		if (unlikely(ret)) {
+			print_pagefault(xe, &pf);
+			pf.fault_unsuccessful = 1;
+			drm_dbg(&xe->drm, "Fault response: Unsuccessful %d\n", ret);
+		}
+
+		reply.dw0 = FIELD_PREP(PFR_VALID, 1) |
+			FIELD_PREP(PFR_SUCCESS, pf.fault_unsuccessful) |
+			FIELD_PREP(PFR_REPLY, PFR_ACCESS) |
+			FIELD_PREP(PFR_DESC_TYPE, FAULT_RESPONSE_DESC) |
+			FIELD_PREP(PFR_ASID, pf.asid);
+
+		reply.dw1 = FIELD_PREP(PFR_VFID, pf.vfid) |
+			FIELD_PREP(PFR_ENG_INSTANCE, pf.engine_instance) |
+			FIELD_PREP(PFR_ENG_CLASS, pf.engine_class) |
+			FIELD_PREP(PFR_PDATA, pf.pdata);
+
+		send_pagefault_reply(&gt->uc.guc, &reply);
+
+		if (time_after(jiffies, threshold) &&
+		    pf_queue->head != pf_queue->tail) {
+			queue_work(gt->usm.pf_wq, w);
+			break;
+		}
 	}
-
-	reply.dw0 = FIELD_PREP(PFR_VALID, 1) |
-		FIELD_PREP(PFR_SUCCESS, pf.fault_unsuccessful) |
-		FIELD_PREP(PFR_REPLY, PFR_ACCESS) |
-		FIELD_PREP(PFR_DESC_TYPE, FAULT_RESPONSE_DESC) |
-		FIELD_PREP(PFR_ASID, pf.asid);
-
-	reply.dw1 = FIELD_PREP(PFR_VFID, pf.vfid) |
-		FIELD_PREP(PFR_ENG_INSTANCE, pf.engine_instance) |
-		FIELD_PREP(PFR_ENG_CLASS, pf.engine_class) |
-		FIELD_PREP(PFR_PDATA, pf.pdata);
-
-	send_pagefault_reply(&gt->uc.guc, &reply);
 }
 
 static void acc_queue_work_func(struct work_struct *w);
@@ -544,10 +552,10 @@ unlock_vm:
 
 #define ACC_MSG_LEN_DW        4
 
-static int get_acc(struct acc_queue *acc_queue, struct acc *acc)
+static bool get_acc(struct acc_queue *acc_queue, struct acc *acc)
 {
 	const struct xe_guc_acc_desc *desc;
-	int ret = 0;
+	bool ret = false;
 
 	spin_lock(&acc_queue->lock);
 	if (acc_queue->head != acc_queue->tail) {
@@ -567,8 +575,7 @@ static int get_acc(struct acc_queue *acc_queue, struct acc *acc)
 
 		acc_queue->head = (acc_queue->head + ACC_MSG_LEN_DW) %
 				  ACC_QUEUE_NUM_DW;
-	} else {
-		ret = -1;
+		ret = true;
 	}
 	spin_unlock(&acc_queue->lock);
 
@@ -581,16 +588,23 @@ static void acc_queue_work_func(struct work_struct *w)
 	struct xe_gt *gt = acc_queue->gt;
 	struct xe_device *xe = gt_to_xe(gt);
 	struct acc acc = {};
+	unsigned long threshold;
 	int ret;
 
-	ret = get_acc(acc_queue, &acc);
-	if (ret)
-		return;
+	threshold = jiffies + msecs_to_jiffies(USM_QUEUE_MAX_RUNTIME_MS);
 
-	ret = handle_acc(gt, &acc);
-	if (unlikely(ret)) {
-		print_acc(xe, &acc);
-		drm_warn(&xe->drm, "ACC: Unsuccessful %d\n", ret);
+	while (get_acc(acc_queue, &acc)) {
+		ret = handle_acc(gt, &acc);
+		if (unlikely(ret)) {
+			print_acc(xe, &acc);
+			drm_warn(&xe->drm, "ACC: Unsuccessful %d\n", ret);
+		}
+
+		if (time_after(jiffies, threshold) &&
+		    acc_queue->head != acc_queue->tail) {
+			queue_work(gt->usm.acc_wq, w);
+			break;
+		}
 	}
 }
 
