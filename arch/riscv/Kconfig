@@ -916,6 +916,9 @@ config PORTABLE
 	select MMU
 	select OF
 
+config ARCH_PROC_KCORE_TEXT
+	def_bool y
+
 menu "Power management options"
 
 source "kernel/power/Kconfig"
