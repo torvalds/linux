@@ -84,10 +84,6 @@
 	};
 };
 
-&uart4 {
-	status = "okay";
-};
-
 &uart12 {
 	status = "okay";
 };
