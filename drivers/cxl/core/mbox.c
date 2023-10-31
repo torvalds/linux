@@ -1200,7 +1200,7 @@ int cxl_mem_sanitize(struct cxl_memdev *cxlmd, u16 cmd)
 	 * Require an endpoint to be safe otherwise the driver can not
 	 * be sure that the device is unmapped.
 	 */
-	if (endpoint && endpoint->commit_end == -1)
+	if (endpoint && cxl_num_decoders_committed(endpoint) == 0)
 		rc = __cxl_mem_sanitize(mds, cmd);
 	else
 		rc = -EBUSY;
