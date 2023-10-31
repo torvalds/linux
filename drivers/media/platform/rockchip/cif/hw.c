@@ -1554,6 +1554,9 @@ static int __maybe_unused rkcif_sleep_suspend(struct device *dev)
 {
 	struct rkcif_hw *cif_hw = dev_get_drvdata(dev);
 
+	if (atomic_read(&cif_hw->power_cnt) == 0)
+		return 0;
+
 	rkcif_disable_sys_clk(cif_hw);
 
 	return pinctrl_pm_select_sleep_state(dev);
@@ -1563,6 +1566,9 @@ static int __maybe_unused rkcif_sleep_resume(struct device *dev)
 {
 	struct rkcif_hw *cif_hw = dev_get_drvdata(dev);
 	int ret;
+
+	if (atomic_read(&cif_hw->power_cnt) == 0)
+		return 0;
 
 	ret = pinctrl_pm_select_default_state(dev);
 	if (ret < 0)
