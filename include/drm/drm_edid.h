@@ -25,7 +25,6 @@
 
 #include <linux/types.h>
 #include <linux/hdmi.h>
-#include <drm/drm_eld.h> /* FIXME: remove this, include directly where needed */
 #include <drm/drm_mode.h>
 
 struct drm_device;

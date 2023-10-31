@@ -41,6 +41,7 @@
 #include <drm/drm_displayid.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_eld.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_print.h>
 
