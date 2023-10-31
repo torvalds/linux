@@ -2340,6 +2340,10 @@ static int xe_vma_op_commit(struct xe_vm *vm, struct xe_vma_op *op)
 			op->flags |= XE_VMA_OP_COMMITTED;
 		break;
 	case DRM_GPUVA_OP_REMAP:
+	{
+		u8 tile_present =
+			gpuva_to_vma(op->base.remap.unmap->va)->tile_present;
+
 		prep_vma_destroy(vm, gpuva_to_vma(op->base.remap.unmap->va),
 				 true);
 		op->flags |= XE_VMA_OP_COMMITTED;
@@ -2348,15 +2352,21 @@ static int xe_vma_op_commit(struct xe_vm *vm, struct xe_vma_op *op)
 			err |= xe_vm_insert_vma(vm, op->remap.prev);
 			if (!err)
 				op->flags |= XE_VMA_OP_PREV_COMMITTED;
-			if (!err && op->remap.skip_prev)
+			if (!err && op->remap.skip_prev) {
+				op->remap.prev->tile_present =
+					tile_present;
 				op->remap.prev = NULL;
+			}
 		}
 		if (op->remap.next) {
 			err |= xe_vm_insert_vma(vm, op->remap.next);
 			if (!err)
 				op->flags |= XE_VMA_OP_NEXT_COMMITTED;
-			if (!err && op->remap.skip_next)
+			if (!err && op->remap.skip_next) {
+				op->remap.next->tile_present =
+					tile_present;
 				op->remap.next = NULL;
+			}
 		}
 
 		/* Adjust for partial unbind after removin VMA from VM */
@@ -2365,6 +2375,7 @@ static int xe_vma_op_commit(struct xe_vm *vm, struct xe_vma_op *op)
 			op->base.remap.unmap->va->va.range = op->remap.range;
 		}
 		break;
+	}
 	case DRM_GPUVA_OP_UNMAP:
 		prep_vma_destroy(vm, gpuva_to_vma(op->base.unmap.va), true);
 		op->flags |= XE_VMA_OP_COMMITTED;
