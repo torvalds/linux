@@ -1745,8 +1745,8 @@ struct kvm_x86_ops {
 
 	int (*get_msr_feature)(struct kvm_msr_entry *entry);
 
-	bool (*can_emulate_instruction)(struct kvm_vcpu *vcpu, int emul_type,
-					void *insn, int insn_len);
+	int (*check_emulate_instruction)(struct kvm_vcpu *vcpu, int emul_type,
+					 void *insn, int insn_len);
 
 	bool (*apic_init_signal_blocked)(struct kvm_vcpu *vcpu);
 	int (*enable_l2_tlb_flush)(struct kvm_vcpu *vcpu);

@@ -7596,11 +7596,11 @@ int kvm_write_guest_virt_system(struct kvm_vcpu *vcpu, gva_t addr, void *val,
 }
 EXPORT_SYMBOL_GPL(kvm_write_guest_virt_system);
 
-static int kvm_can_emulate_insn(struct kvm_vcpu *vcpu, int emul_type,
-				void *insn, int insn_len)
+static int kvm_check_emulate_insn(struct kvm_vcpu *vcpu, int emul_type,
+				  void *insn, int insn_len)
 {
-	return static_call(kvm_x86_can_emulate_instruction)(vcpu, emul_type,
-							    insn, insn_len);
+	return static_call(kvm_x86_check_emulate_instruction)(vcpu, emul_type,
+							      insn, insn_len);
 }
 
 int handle_ud(struct kvm_vcpu *vcpu)
@@ -7610,8 +7610,10 @@ int handle_ud(struct kvm_vcpu *vcpu)
 	int emul_type = EMULTYPE_TRAP_UD;
 	char sig[5]; /* ud2; .ascii "kvm" */
 	struct x86_exception e;
+	int r;
 
-	if (unlikely(!kvm_can_emulate_insn(vcpu, emul_type, NULL, 0)))
+	r = kvm_check_emulate_insn(vcpu, emul_type, NULL, 0);
+	if (r != X86EMUL_CONTINUE)
 		return 1;
 
 	if (fep_flags &&
@@ -8993,8 +8995,14 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
 	bool writeback = true;
 
-	if (unlikely(!kvm_can_emulate_insn(vcpu, emulation_type, insn, insn_len)))
-		return 1;
+	r = kvm_check_emulate_insn(vcpu, emulation_type, insn, insn_len);
+	if (r != X86EMUL_CONTINUE) {
+		if (r == X86EMUL_RETRY_INSTR || r == X86EMUL_PROPAGATE_FAULT)
+			return 1;
+
+		WARN_ON_ONCE(r != X86EMUL_UNHANDLEABLE);
+		return handle_emulation_failure(vcpu, emulation_type);
+	}
 
 	vcpu->arch.l1tf_flush_l1d = true;
 
