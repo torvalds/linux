@@ -19,16 +19,17 @@
 #include "v3d_regs.h"
 #include "v3d_trace.h"
 
-#define V3D_CORE_IRQS ((u32)(V3D_INT_OUTOMEM |	\
-			     V3D_INT_FLDONE |	\
-			     V3D_INT_FRDONE |	\
-			     V3D_INT_CSDDONE |	\
-			     V3D_INT_GMPV))
+#define V3D_CORE_IRQS(ver) ((u32)(V3D_INT_OUTOMEM |	\
+				  V3D_INT_FLDONE |	\
+				  V3D_INT_FRDONE |	\
+				  V3D_INT_CSDDONE(ver) |	\
+				  (ver < 71 ? V3D_INT_GMPV : 0)))
 
-#define V3D_HUB_IRQS ((u32)(V3D_HUB_INT_MMU_WRV |	\
-			    V3D_HUB_INT_MMU_PTI |	\
-			    V3D_HUB_INT_MMU_CAP |	\
-			    V3D_HUB_INT_TFUC))
+#define V3D_HUB_IRQS(ver) ((u32)(V3D_HUB_INT_MMU_WRV |	\
+				 V3D_HUB_INT_MMU_PTI |	\
+				 V3D_HUB_INT_MMU_CAP |	\
+				 V3D_HUB_INT_TFUC |		\
+				 (ver >= 71 ? V3D_V7_HUB_INT_GMPV : 0)))
 
 static irqreturn_t
 v3d_hub_irq(int irq, void *arg);
@@ -115,7 +116,7 @@ v3d_irq(int irq, void *arg)
 		status = IRQ_HANDLED;
 	}
 
-	if (intsts & V3D_INT_CSDDONE) {
+	if (intsts & V3D_INT_CSDDONE(v3d->ver)) {
 		struct v3d_fence *fence =
 			to_v3d_fence(v3d->csd_job->base.irq_fence);
 
@@ -127,7 +128,7 @@ v3d_irq(int irq, void *arg)
 	/* We shouldn't be triggering these if we have GMP in
 	 * always-allowed mode.
 	 */
-	if (intsts & V3D_INT_GMPV)
+	if (v3d->ver < 71 && (intsts & V3D_INT_GMPV))
 		dev_err(v3d->drm.dev, "GMP violation\n");
 
 	/* V3D 4.2 wires the hub and core IRQs together, so if we &
@@ -197,6 +198,11 @@ v3d_hub_irq(int irq, void *arg)
 		status = IRQ_HANDLED;
 	}
 
+	if (v3d->ver >= 71 && (intsts & V3D_V7_HUB_INT_GMPV)) {
+		dev_err(v3d->drm.dev, "GMP Violation\n");
+		status = IRQ_HANDLED;
+	}
+
 	return status;
 }
 
@@ -211,8 +217,8 @@ v3d_irq_init(struct v3d_dev *v3d)
 	 * for us.
 	 */
 	for (core = 0; core < v3d->cores; core++)
-		V3D_CORE_WRITE(core, V3D_CTL_INT_CLR, V3D_CORE_IRQS);
-	V3D_WRITE(V3D_HUB_INT_CLR, V3D_HUB_IRQS);
+		V3D_CORE_WRITE(core, V3D_CTL_INT_CLR, V3D_CORE_IRQS(v3d->ver));
+	V3D_WRITE(V3D_HUB_INT_CLR, V3D_HUB_IRQS(v3d->ver));
 
 	irq1 = platform_get_irq_optional(v3d_to_pdev(v3d), 1);
 	if (irq1 == -EPROBE_DEFER)
@@ -256,12 +262,12 @@ v3d_irq_enable(struct v3d_dev *v3d)
 
 	/* Enable our set of interrupts, masking out any others. */
 	for (core = 0; core < v3d->cores; core++) {
-		V3D_CORE_WRITE(core, V3D_CTL_INT_MSK_SET, ~V3D_CORE_IRQS);
-		V3D_CORE_WRITE(core, V3D_CTL_INT_MSK_CLR, V3D_CORE_IRQS);
+		V3D_CORE_WRITE(core, V3D_CTL_INT_MSK_SET, ~V3D_CORE_IRQS(v3d->ver));
+		V3D_CORE_WRITE(core, V3D_CTL_INT_MSK_CLR, V3D_CORE_IRQS(v3d->ver));
 	}
 
-	V3D_WRITE(V3D_HUB_INT_MSK_SET, ~V3D_HUB_IRQS);
-	V3D_WRITE(V3D_HUB_INT_MSK_CLR, V3D_HUB_IRQS);
+	V3D_WRITE(V3D_HUB_INT_MSK_SET, ~V3D_HUB_IRQS(v3d->ver));
+	V3D_WRITE(V3D_HUB_INT_MSK_CLR, V3D_HUB_IRQS(v3d->ver));
 }
 
 void
@@ -276,8 +282,8 @@ v3d_irq_disable(struct v3d_dev *v3d)
 
 	/* Clear any pending interrupts we might have left. */
 	for (core = 0; core < v3d->cores; core++)
-		V3D_CORE_WRITE(core, V3D_CTL_INT_CLR, V3D_CORE_IRQS);
-	V3D_WRITE(V3D_HUB_INT_CLR, V3D_HUB_IRQS);
+		V3D_CORE_WRITE(core, V3D_CTL_INT_CLR, V3D_CORE_IRQS(v3d->ver));
+	V3D_WRITE(V3D_HUB_INT_CLR, V3D_HUB_IRQS(v3d->ver));
 
 	cancel_work_sync(&v3d->overflow_mem_work);
 }
