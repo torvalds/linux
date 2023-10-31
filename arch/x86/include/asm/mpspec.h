@@ -37,7 +37,7 @@ extern int mp_bus_id_to_type[MAX_MP_BUSSES];
 
 extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 
-extern unsigned int boot_cpu_physical_apicid;
+extern u32 boot_cpu_physical_apicid;
 extern u8 boot_cpu_apic_version;
 
 #ifdef CONFIG_X86_LOCAL_APIC

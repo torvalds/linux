@@ -772,7 +772,7 @@ void amd_uncore_l3_ctx_scan(struct amd_uncore *uncore, unsigned int cpu)
 	info.split.aux_data = 0;
 	info.split.num_pmcs = NUM_COUNTERS_L2;
 	info.split.gid = 0;
-	info.split.cid = get_llc_id(cpu);
+	info.split.cid = per_cpu_llc_id(cpu);
 
 	if (boot_cpu_data.x86 >= 0x17)
 		info.split.num_pmcs = NUM_COUNTERS_L3;
