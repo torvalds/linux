@@ -573,8 +573,8 @@ static void add_mpss_dsm_mem_ssr_dump(struct qcom_adsp *adsp)
 	 * bytes will be zeros, so, left shift by 16 to get proper address & size.
 	 */
 	for (i = 0; i < resource_size(&imem); i = i + 4) {
-		da = __raw_readw(base + i) << 16;
-		size = __raw_readw(base + (i + 2)) << 16;
+		da = (u32)(__raw_readw(base + i) << 16);
+		size = (u32)(__raw_readw(base + (i + 2)) << 16);
 		if (da && size)
 			rproc_coredump_add_custom_segment(rproc,
 				da, size, adsp_segment_dump, NULL);
@@ -746,9 +746,6 @@ static int adsp_start(struct rproc *rproc)
 			dev_err(adsp->dev, "start timed out\n");
 	}
 
-	if (is_mss_ssr_hyp_assign_en(adsp))
-		add_mpss_dsm_mem_ssr_dump(adsp);
-
 free_metadata:
 	qcom_mdt_free_metadata(adsp->dev, adsp->pas_id, adsp->mdata,
 					adsp->dma_phys_below_32b, ret);
@@ -838,6 +835,7 @@ static int adsp_stop(struct rproc *rproc)
 		qcom_pas_handover(&adsp->q6v5);
 
 	if (is_mss_ssr_hyp_assign_en(adsp)) {
+		add_mpss_dsm_mem_ssr_dump(adsp);
 		ret = mpss_dsm_hyp_assign_control(adsp, false);
 		if (ret)
 			dev_err(adsp->dev, "failed to reclaim mpss dsm mem\n");
