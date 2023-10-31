@@ -454,7 +454,7 @@ static void device_init_registers(struct vnt_private *priv)
 	}
 
 	if (priv->hw_radio_off || priv->bRadioControlOff)
-		CARDbRadioPowerOff(priv);
+		card_radio_power_off(priv);
 
 	/* get Permanent network address */
 	SROMvReadEtherAddress(priv->port_offset, priv->abyCurrentNetAddr);
@@ -1349,7 +1349,7 @@ static void vnt_stop(struct ieee80211_hw *hw)
 
 	MACbShutdown(priv);
 	MACbSoftwareReset(priv);
-	CARDbRadioPowerOff(priv);
+	card_radio_power_off(priv);
 
 	device_free_td0_ring(priv);
 	device_free_td1_ring(priv);
@@ -1712,7 +1712,7 @@ static int vnt_init(struct vnt_private *priv)
 
 	priv->mac_hw = true;
 
-	CARDbRadioPowerOff(priv);
+	card_radio_power_off(priv);
 
 	return 0;
 }

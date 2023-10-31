@@ -15,7 +15,7 @@
  *      card_get_next_tbtt - Calculate Next Beacon TSF counter
  *      CARDvSetFirstNextTBTT - Set NIC Beacon time
  *      CARDvUpdateNextTBTT - Sync. NIC Beacon time
- *      CARDbRadioPowerOff - Turn Off NIC Radio Power
+ *      card_radio_power_off - Turn Off NIC Radio Power
  *
  * Revision History:
  *      06-10-2003 Bryan YC Fan:  Re-write codes to support VT3253 spec.
@@ -351,7 +351,7 @@ bool card_set_beacon_period(struct vnt_private *priv,
  *      none
  *
  */
-void CARDbRadioPowerOff(struct vnt_private *priv)
+void card_radio_power_off(struct vnt_private *priv)
 {
 	if (priv->radio_off)
 		return;
