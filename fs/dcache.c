@@ -757,6 +757,8 @@ got_locks:
  * Try to do a lockless dput(), and return whether that was successful.
  *
  * If unsuccessful, we return false, having already taken the dentry lock.
+ * In that case refcount is guaranteed to be zero and we have already
+ * decided that it's not worth keeping around.
  *
  * The caller needs to hold the RCU read lock, so that the dentry is
  * guaranteed to stay around even if the refcount goes down to zero!
@@ -842,7 +844,7 @@ static inline bool fast_dput(struct dentry *dentry)
 	 * don't need to do anything else.
 	 */
 locked:
-	if (dentry->d_lockref.count) {
+	if (dentry->d_lockref.count || retain_dentry(dentry)) {
 		spin_unlock(&dentry->d_lock);
 		return true;
 	}
@@ -889,12 +891,6 @@ void dput(struct dentry *dentry)
 
 		/* Slow case: now with the dentry lock held */
 		rcu_read_unlock();
-
-		if (likely(retain_dentry(dentry))) {
-			spin_unlock(&dentry->d_lock);
-			return;
-		}
-
 		dentry->d_lockref.count = 1;
 		dentry = dentry_kill(dentry);
 	}
@@ -920,8 +916,7 @@ void dput_to_list(struct dentry *dentry, struct list_head *list)
 		return;
 	}
 	rcu_read_unlock();
-	if (!retain_dentry(dentry))
-		to_shrink_list(dentry, list);
+	to_shrink_list(dentry, list);
 	spin_unlock(&dentry->d_lock);
 }
 
