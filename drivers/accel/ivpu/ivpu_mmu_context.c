@@ -410,6 +410,8 @@ ivpu_mmu_context_insert_node_locked(struct ivpu_mmu_context *ctx,
 {
 	lockdep_assert_held(&ctx->lock);
 
+	WARN_ON(!range);
+
 	if (!ivpu_disable_mmu_cont_pages && size >= IVPU_MMU_CONT_PAGES_SIZE) {
 		if (!drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_CONT_PAGES_SIZE, 0,
 						 range->start, range->end, DRM_MM_INSERT_BEST))

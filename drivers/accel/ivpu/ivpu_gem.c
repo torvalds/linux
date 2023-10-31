@@ -281,15 +281,6 @@ ivpu_bo_alloc_vpu_addr(struct ivpu_bo *bo, struct ivpu_mmu_context *ctx,
 	struct ivpu_device *vdev = ivpu_bo_to_vdev(bo);
 	int ret;
 
-	if (!range) {
-		if (bo->flags & DRM_IVPU_BO_SHAVE_MEM)
-			range = &vdev->hw->ranges.shave;
-		else if (bo->flags & DRM_IVPU_BO_DMA_MEM)
-			range = &vdev->hw->ranges.dma;
-		else
-			range = &vdev->hw->ranges.user;
-	}
-
 	mutex_lock(&ctx->lock);
 	ret = ivpu_mmu_context_insert_node_locked(ctx, range, ivpu_bo_size(bo), &bo->mm_node);
 	if (!ret) {
@@ -298,6 +289,9 @@ ivpu_bo_alloc_vpu_addr(struct ivpu_bo *bo, struct ivpu_mmu_context *ctx,
 		list_add_tail(&bo->ctx_node, &ctx->bo_list);
 	}
 	mutex_unlock(&ctx->lock);
+
+	if (ret)
+		ivpu_err(vdev, "Failed to add BO to context %u: %d\n", ctx->id, ret);
 
 	return ret;
 }
@@ -337,9 +331,7 @@ void ivpu_bo_remove_all_bos_from_context(struct ivpu_mmu_context *ctx)
 }
 
 static struct ivpu_bo *
-ivpu_bo_alloc(struct ivpu_device *vdev, struct ivpu_mmu_context *mmu_context,
-	      u64 size, u32 flags, const struct ivpu_bo_ops *ops,
-	      const struct ivpu_addr_range *range, u64 user_ptr)
+ivpu_bo_alloc(struct ivpu_device *vdev, u64 size, u32 flags, const struct ivpu_bo_ops *ops)
 {
 	struct ivpu_bo *bo;
 	int ret = 0;
@@ -364,7 +356,6 @@ ivpu_bo_alloc(struct ivpu_device *vdev, struct ivpu_mmu_context *mmu_context,
 	bo->base.funcs = &ivpu_gem_funcs;
 	bo->flags = flags;
 	bo->ops = ops;
-	bo->user_ptr = user_ptr;
 
 	if (ops->type == IVPU_BO_TYPE_SHMEM)
 		ret = drm_gem_object_init(&vdev->drm, &bo->base, size);
@@ -384,14 +375,6 @@ ivpu_bo_alloc(struct ivpu_device *vdev, struct ivpu_mmu_context *mmu_context,
 		}
 	}
 
-	if (mmu_context) {
-		ret = ivpu_bo_alloc_vpu_addr(bo, mmu_context, range);
-		if (ret) {
-			ivpu_err(vdev, "Failed to add BO to context: %d\n", ret);
-			goto err_release;
-		}
-	}
-
 	return bo;
 
 err_release:
@@ -399,6 +382,23 @@ err_release:
 err_free:
 	kfree(bo);
 	return ERR_PTR(ret);
+}
+
+static int ivpu_bo_open(struct drm_gem_object *obj, struct drm_file *file)
+{
+	struct ivpu_file_priv *file_priv = file->driver_priv;
+	struct ivpu_device *vdev = file_priv->vdev;
+	struct ivpu_bo *bo = to_ivpu_bo(obj);
+	struct ivpu_addr_range *range;
+
+	if (bo->flags & DRM_IVPU_BO_SHAVE_MEM)
+		range = &vdev->hw->ranges.shave;
+	else if (bo->flags & DRM_IVPU_BO_DMA_MEM)
+		range = &vdev->hw->ranges.dma;
+	else
+		range = &vdev->hw->ranges.user;
+
+	return ivpu_bo_alloc_vpu_addr(bo, &file_priv->ctx, range);
 }
 
 static void ivpu_bo_free(struct drm_gem_object *obj)
@@ -516,6 +516,7 @@ static const struct vm_operations_struct ivpu_vm_ops = {
 
 static const struct drm_gem_object_funcs ivpu_gem_funcs = {
 	.free = ivpu_bo_free,
+	.open = ivpu_bo_open,
 	.mmap = ivpu_bo_mmap,
 	.vm_ops = &ivpu_vm_ops,
 	.get_sg_table = ivpu_bo_get_sg_table,
@@ -537,7 +538,7 @@ ivpu_bo_create_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (size == 0)
 		return -EINVAL;
 
-	bo = ivpu_bo_alloc(vdev, &file_priv->ctx, size, args->flags, &shmem_ops, NULL, 0);
+	bo = ivpu_bo_alloc(vdev, size, args->flags, &shmem_ops);
 	if (IS_ERR(bo)) {
 		ivpu_err(vdev, "Failed to create BO: %pe (ctx %u size %llu flags 0x%x)",
 			 bo, file_priv->ctx.id, args->size, args->flags);
@@ -578,12 +579,16 @@ ivpu_bo_alloc_internal(struct ivpu_device *vdev, u64 vpu_addr, u64 size, u32 fla
 		range = &vdev->hw->ranges.global;
 	}
 
-	bo = ivpu_bo_alloc(vdev, &vdev->gctx, size, flags, &internal_ops, range, 0);
+	bo = ivpu_bo_alloc(vdev, size, flags, &internal_ops);
 	if (IS_ERR(bo)) {
 		ivpu_err(vdev, "Failed to create BO: %pe (vpu_addr 0x%llx size %llu flags 0x%x)",
 			 bo, vpu_addr, size, flags);
 		return NULL;
 	}
+
+	ret = ivpu_bo_alloc_vpu_addr(bo, &vdev->gctx, range);
+	if (ret)
+		goto err_put;
 
 	ret = ivpu_bo_pin(bo);
 	if (ret)
@@ -631,7 +636,7 @@ struct drm_gem_object *ivpu_gem_prime_import(struct drm_device *dev, struct dma_
 
 	get_dma_buf(buf);
 
-	bo = ivpu_bo_alloc(vdev, NULL, buf->size, DRM_IVPU_BO_MAPPABLE, &prime_ops, NULL, 0);
+	bo = ivpu_bo_alloc(vdev, buf->size, DRM_IVPU_BO_MAPPABLE, &prime_ops);
 	if (IS_ERR(bo)) {
 		ivpu_err(vdev, "Failed to import BO: %pe (size %lu)", bo, buf->size);
 		goto err_detach;
@@ -651,8 +656,6 @@ err_detach:
 
 int ivpu_bo_info_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
-	struct ivpu_file_priv *file_priv = file->driver_priv;
-	struct ivpu_device *vdev = to_ivpu_device(dev);
 	struct drm_ivpu_bo_info *args = data;
 	struct drm_gem_object *obj;
 	struct ivpu_bo *bo;
@@ -665,21 +668,12 @@ int ivpu_bo_info_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	bo = to_ivpu_bo(obj);
 
 	mutex_lock(&bo->lock);
-
-	if (!bo->ctx) {
-		ret = ivpu_bo_alloc_vpu_addr(bo, &file_priv->ctx, NULL);
-		if (ret) {
-			ivpu_err(vdev, "Failed to allocate vpu_addr: %d\n", ret);
-			goto unlock;
-		}
-	}
-
 	args->flags = bo->flags;
 	args->mmap_offset = drm_vma_node_offset_addr(&obj->vma_node);
 	args->vpu_addr = bo->vpu_addr;
 	args->size = obj->size;
-unlock:
 	mutex_unlock(&bo->lock);
+
 	drm_gem_object_put(obj);
 	return ret;
 }

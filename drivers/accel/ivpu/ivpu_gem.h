@@ -29,7 +29,6 @@ struct ivpu_bo {
 	u64 vpu_addr;
 	u32 handle;
 	u32 flags;
-	uintptr_t user_ptr;
 	u32 job_status;
 };
 
