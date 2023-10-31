@@ -219,6 +219,16 @@
 		groups = "MDIO2";
 	};
 
+	pinctrl_rgmii0_default: rgmii0_default {
+		function = "RGMII0";
+		groups = "RGMII0";
+	};
+
+	pinctrl_rgmii1_default: rgmii1_default {
+		function = "RGMII1";
+		groups = "RGMII1";
+	};
+
 	pinctrl_espi0_default: espi0_default {
 		function = "ESPI0";
 		groups = "ESPI0";
