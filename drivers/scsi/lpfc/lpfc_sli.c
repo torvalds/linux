@@ -22170,6 +22170,12 @@ struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
  * The data will be truncated if datasz is not large enough.
  * Version 1 is not supported with Embedded mbox cmd, so we must use version 0.
  * Returns the actual bytes read from the object.
+ *
+ * This routine is hard coded to use a poll completion.  Unlike other
+ * sli4_config mailboxes, it uses lpfc_mbuf memory which is not
+ * cleaned up in lpfc_sli4_cmd_mbox_free.  If this routine is modified
+ * to use interrupt-based completions, code is needed to fully cleanup
+ * the memory.
  */
 int
 lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,

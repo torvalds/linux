@@ -1814,7 +1814,9 @@ lpfc_sli4_mbox_cmd_free(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 		dma_free_coherent(&phba->pcidev->dev, SLI4_PAGE_SIZE,
 				  mbox->sge_array->addr[sgentry], phyaddr);
 	}
-	/* Free the sge address array memory */
+	/* Reinitialize the context pointers to avoid stale usage. */
+	mbox->ctx_buf = NULL;
+	mbox->context3 = NULL;
 	kfree(mbox->sge_array);
 	/* Finally, free the mailbox command itself */
 	mempool_free(mbox, phba->mbox_mem_pool);
