@@ -1629,7 +1629,7 @@ void start_secondary(void *unused)
 
 	smp_store_cpu_info(cpu);
 	set_dec(tb_ticks_per_jiffy);
-	rcu_cpu_starting(cpu);
+	rcutree_report_cpu_starting(cpu);
 	cpu_callin_map[cpu] = 1;
 
 	if (smp_ops->setup_cpu)

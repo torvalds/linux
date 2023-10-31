@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>
+#include <linux/torture.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/percpu.h>
@@ -524,17 +525,17 @@ EXPORT_SYMBOL_GPL(do_trace_rcu_torture_read);
 	do { } while (0)
 #endif
 
-#if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST)
+#if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST) || IS_ENABLED(CONFIG_LOCK_TORTURE_TEST) || IS_MODULE(CONFIG_LOCK_TORTURE_TEST)
 /* Get rcutorture access to sched_setaffinity(). */
-long rcutorture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
+long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 {
 	int ret;
 
 	ret = sched_setaffinity(pid, in_mask);
-	WARN_ONCE(ret, "%s: sched_setaffinity() returned %d\n", __func__, ret);
+	WARN_ONCE(ret, "%s: sched_setaffinity(%d) returned %d\n", __func__, pid, ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(rcutorture_sched_setaffinity);
+EXPORT_SYMBOL_GPL(torture_sched_setaffinity);
 #endif
 
 #ifdef CONFIG_RCU_STALL_COMMON

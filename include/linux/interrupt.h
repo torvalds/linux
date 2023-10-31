@@ -566,7 +566,7 @@ enum
  *
  * _ RCU:
  * 	1) rcutree_migrate_callbacks() migrates the queue.
- * 	2) rcu_report_dead() reports the final quiescent states.
+ * 	2) rcutree_report_cpu_dead() reports the final quiescent states.
  *
  * _ IRQ_POLL: irq_poll_cpu_dead() migrates the queue
  *

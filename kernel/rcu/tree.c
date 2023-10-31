@@ -31,6 +31,7 @@
 #include <linux/bitops.h>
 #include <linux/export.h>
 #include <linux/completion.h>
+#include <linux/kmemleak.h>
 #include <linux/moduleparam.h>
 #include <linux/panic.h>
 #include <linux/panic_notifier.h>
@@ -1260,7 +1261,7 @@ EXPORT_SYMBOL_GPL(rcu_gp_slow_register);
 /* Unregister a counter, with NULL for not caring which. */
 void rcu_gp_slow_unregister(atomic_t *rgssp)
 {
-	WARN_ON_ONCE(rgssp && rgssp != rcu_gp_slow_suppress);
+	WARN_ON_ONCE(rgssp && rgssp != rcu_gp_slow_suppress && rcu_gp_slow_suppress != NULL);
 
 	WRITE_ONCE(rcu_gp_slow_suppress, NULL);
 }
@@ -1556,10 +1557,22 @@ static bool rcu_gp_fqs_check_wake(int *gfp)
  */
 static void rcu_gp_fqs(bool first_time)
 {
+	int nr_fqs = READ_ONCE(rcu_state.nr_fqs_jiffies_stall);
 	struct rcu_node *rnp = rcu_get_root();
 
 	WRITE_ONCE(rcu_state.gp_activity, jiffies);
 	WRITE_ONCE(rcu_state.n_force_qs, rcu_state.n_force_qs + 1);
+
+	WARN_ON_ONCE(nr_fqs > 3);
+	/* Only countdown nr_fqs for stall purposes if jiffies moves. */
+	if (nr_fqs) {
+		if (nr_fqs == 1) {
+			WRITE_ONCE(rcu_state.jiffies_stall,
+				   jiffies + rcu_jiffies_till_stall_check());
+		}
+		WRITE_ONCE(rcu_state.nr_fqs_jiffies_stall, --nr_fqs);
+	}
+
 	if (first_time) {
 		/* Collect dyntick-idle snapshots. */
 		force_qs_rnp(dyntick_save_progress_counter);
@@ -2135,6 +2148,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 		trace_rcu_invoke_callback(rcu_state.name, rhp);
 
 		f = rhp->func;
+		debug_rcu_head_callback(rhp);
 		WRITE_ONCE(rhp->func, (rcu_callback_t)0L);
 		f(rhp);
 
@@ -2713,7 +2727,7 @@ __call_rcu_common(struct rcu_head *head, rcu_callback_t func, bool lazy_in)
  */
 void call_rcu_hurry(struct rcu_head *head, rcu_callback_t func)
 {
-	return __call_rcu_common(head, func, false);
+	__call_rcu_common(head, func, false);
 }
 EXPORT_SYMBOL_GPL(call_rcu_hurry);
 #endif
@@ -2764,7 +2778,7 @@ EXPORT_SYMBOL_GPL(call_rcu_hurry);
  */
 void call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
-	return __call_rcu_common(head, func, IS_ENABLED(CONFIG_RCU_LAZY));
+	__call_rcu_common(head, func, IS_ENABLED(CONFIG_RCU_LAZY));
 }
 EXPORT_SYMBOL_GPL(call_rcu);
 
@@ -3387,6 +3401,14 @@ void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 		krcp->head_gp_snap = get_state_synchronize_rcu();
 		success = true;
 	}
+
+	/*
+	 * The kvfree_rcu() caller considers the pointer freed at this point
+	 * and likely removes any references to it. Since the actual slab
+	 * freeing (and kmemleak_free()) is deferred, tell kmemleak to ignore
+	 * this object (no scanning or false positives reporting).
+	 */
+	kmemleak_ignore(ptr);
 
 	// Set timer to drain after KFREE_DRAIN_JIFFIES.
 	if (rcu_scheduler_active == RCU_SCHEDULER_RUNNING)
@@ -4083,6 +4105,82 @@ retry:
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
 
+static unsigned long rcu_barrier_last_throttle;
+
+/**
+ * rcu_barrier_throttled - Do rcu_barrier(), but limit to one per second
+ *
+ * This can be thought of as guard rails around rcu_barrier() that
+ * permits unrestricted userspace use, at least assuming the hardware's
+ * try_cmpxchg() is robust.  There will be at most one call per second to
+ * rcu_barrier() system-wide from use of this function, which means that
+ * callers might needlessly wait a second or three.
+ *
+ * This is intended for use by test suites to avoid OOM by flushing RCU
+ * callbacks from the previous test before starting the next.  See the
+ * rcutree.do_rcu_barrier module parameter for more information.
+ *
+ * Why not simply make rcu_barrier() more scalable?  That might be
+ * the eventual endpoint, but let's keep it simple for the time being.
+ * Note that the module parameter infrastructure serializes calls to a
+ * given .set() function, but should concurrent .set() invocation ever be
+ * possible, we are ready!
+ */
+static void rcu_barrier_throttled(void)
+{
+	unsigned long j = jiffies;
+	unsigned long old = READ_ONCE(rcu_barrier_last_throttle);
+	unsigned long s = rcu_seq_snap(&rcu_state.barrier_sequence);
+
+	while (time_in_range(j, old, old + HZ / 16) ||
+	       !try_cmpxchg(&rcu_barrier_last_throttle, &old, j)) {
+		schedule_timeout_idle(HZ / 16);
+		if (rcu_seq_done(&rcu_state.barrier_sequence, s)) {
+			smp_mb(); /* caller's subsequent code after above check. */
+			return;
+		}
+		j = jiffies;
+		old = READ_ONCE(rcu_barrier_last_throttle);
+	}
+	rcu_barrier();
+}
+
+/*
+ * Invoke rcu_barrier_throttled() when a rcutree.do_rcu_barrier
+ * request arrives.  We insist on a true value to allow for possible
+ * future expansion.
+ */
+static int param_set_do_rcu_barrier(const char *val, const struct kernel_param *kp)
+{
+	bool b;
+	int ret;
+
+	if (rcu_scheduler_active != RCU_SCHEDULER_RUNNING)
+		return -EAGAIN;
+	ret = kstrtobool(val, &b);
+	if (!ret && b) {
+		atomic_inc((atomic_t *)kp->arg);
+		rcu_barrier_throttled();
+		atomic_dec((atomic_t *)kp->arg);
+	}
+	return ret;
+}
+
+/*
+ * Output the number of outstanding rcutree.do_rcu_barrier requests.
+ */
+static int param_get_do_rcu_barrier(char *buffer, const struct kernel_param *kp)
+{
+	return sprintf(buffer, "%d\n", atomic_read((atomic_t *)kp->arg));
+}
+
+static const struct kernel_param_ops do_rcu_barrier_ops = {
+	.set = param_set_do_rcu_barrier,
+	.get = param_get_do_rcu_barrier,
+};
+static atomic_t do_rcu_barrier;
+module_param_cb(do_rcu_barrier, &do_rcu_barrier_ops, &do_rcu_barrier, 0644);
+
 /*
  * Compute the mask of online CPUs for the specified rcu_node structure.
  * This will not be stable unless the rcu_node structure's ->lock is
@@ -4130,7 +4228,7 @@ bool rcu_lockdep_current_cpu_online(void)
 	rdp = this_cpu_ptr(&rcu_data);
 	/*
 	 * Strictly, we care here about the case where the current CPU is
-	 * in rcu_cpu_starting() and thus has an excuse for rdp->grpmask
+	 * in rcutree_report_cpu_starting() and thus has an excuse for rdp->grpmask
 	 * not being up to date. So arch_spin_is_locked() might have a
 	 * false positive if it's held by some *other* CPU, but that's
 	 * OK because that just means a false *negative* on the warning.
@@ -4149,25 +4247,6 @@ EXPORT_SYMBOL_GPL(rcu_lockdep_current_cpu_online);
 static bool rcu_init_invoked(void)
 {
 	return !!rcu_state.n_online_cpus;
-}
-
-/*
- * Near the end of the offline process.  Trace the fact that this CPU
- * is going offline.
- */
-int rcutree_dying_cpu(unsigned int cpu)
-{
-	bool blkd;
-	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
-	struct rcu_node *rnp = rdp->mynode;
-
-	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU))
-		return 0;
-
-	blkd = !!(READ_ONCE(rnp->qsmask) & rdp->grpmask);
-	trace_rcu_grace_period(rcu_state.name, READ_ONCE(rnp->gp_seq),
-			       blkd ? TPS("cpuofl-bgp") : TPS("cpuofl"));
-	return 0;
 }
 
 /*
@@ -4213,23 +4292,6 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
 		}
 		raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
 	}
-}
-
-/*
- * The CPU has been completely removed, and some other CPU is reporting
- * this fact from process context.  Do the remainder of the cleanup.
- * There can only be one CPU hotplug operation at a time, so no need for
- * explicit locking.
- */
-int rcutree_dead_cpu(unsigned int cpu)
-{
-	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU))
-		return 0;
-
-	WRITE_ONCE(rcu_state.n_online_cpus, rcu_state.n_online_cpus - 1);
-	// Stop-machine done, so allow nohz_full to disable tick.
-	tick_dep_clear(TICK_DEP_BIT_RCU);
-	return 0;
 }
 
 /*
@@ -4385,29 +4447,6 @@ int rcutree_online_cpu(unsigned int cpu)
 }
 
 /*
- * Near the beginning of the process.  The CPU is still very much alive
- * with pretty much all services enabled.
- */
-int rcutree_offline_cpu(unsigned int cpu)
-{
-	unsigned long flags;
-	struct rcu_data *rdp;
-	struct rcu_node *rnp;
-
-	rdp = per_cpu_ptr(&rcu_data, cpu);
-	rnp = rdp->mynode;
-	raw_spin_lock_irqsave_rcu_node(rnp, flags);
-	rnp->ffmask &= ~rdp->grpmask;
-	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-
-	rcutree_affinity_setting(cpu, cpu);
-
-	// nohz_full CPUs need the tick for stop-machine to work quickly
-	tick_dep_set(TICK_DEP_BIT_RCU);
-	return 0;
-}
-
-/*
  * Mark the specified CPU as being online so that subsequent grace periods
  * (both expedited and normal) will wait on it.  Note that this means that
  * incoming CPUs are not allowed to use RCU read-side critical sections
@@ -4418,8 +4457,10 @@ int rcutree_offline_cpu(unsigned int cpu)
  * from the incoming CPU rather than from the cpuhp_step mechanism.
  * This is because this function must be invoked at a precise location.
  * This incoming CPU must not have enabled interrupts yet.
+ *
+ * This mirrors the effects of rcutree_report_cpu_dead().
  */
-void rcu_cpu_starting(unsigned int cpu)
+void rcutree_report_cpu_starting(unsigned int cpu)
 {
 	unsigned long mask;
 	struct rcu_data *rdp;
@@ -4473,14 +4514,21 @@ void rcu_cpu_starting(unsigned int cpu)
  * Note that this function is special in that it is invoked directly
  * from the outgoing CPU rather than from the cpuhp_step mechanism.
  * This is because this function must be invoked at a precise location.
+ *
+ * This mirrors the effect of rcutree_report_cpu_starting().
  */
-void rcu_report_dead(unsigned int cpu)
+void rcutree_report_cpu_dead(void)
 {
-	unsigned long flags, seq_flags;
+	unsigned long flags;
 	unsigned long mask;
-	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
 
+	/*
+	 * IRQS must be disabled from now on and until the CPU dies, or an interrupt
+	 * may introduce a new READ-side while it is actually off the QS masks.
+	 */
+	lockdep_assert_irqs_disabled();
 	// Do any dangling deferred wakeups.
 	do_nocb_deferred_wakeup(rdp);
 
@@ -4488,7 +4536,6 @@ void rcu_report_dead(unsigned int cpu)
 
 	/* Remove outgoing CPU from mask in the leaf rcu_node structure. */
 	mask = rdp->grpmask;
-	local_irq_save(seq_flags);
 	arch_spin_lock(&rcu_state.ofl_lock);
 	raw_spin_lock_irqsave_rcu_node(rnp, flags); /* Enforce GP memory-order guarantee. */
 	rdp->rcu_ofl_gp_seq = READ_ONCE(rcu_state.gp_seq);
@@ -4502,8 +4549,6 @@ void rcu_report_dead(unsigned int cpu)
 	WRITE_ONCE(rnp->qsmaskinitnext, rnp->qsmaskinitnext & ~mask);
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	arch_spin_unlock(&rcu_state.ofl_lock);
-	local_irq_restore(seq_flags);
-
 	rdp->cpu_started = false;
 }
 
@@ -4558,7 +4603,60 @@ void rcutree_migrate_callbacks(int cpu)
 		  cpu, rcu_segcblist_n_cbs(&rdp->cblist),
 		  rcu_segcblist_first_cb(&rdp->cblist));
 }
-#endif
+
+/*
+ * The CPU has been completely removed, and some other CPU is reporting
+ * this fact from process context.  Do the remainder of the cleanup.
+ * There can only be one CPU hotplug operation at a time, so no need for
+ * explicit locking.
+ */
+int rcutree_dead_cpu(unsigned int cpu)
+{
+	WRITE_ONCE(rcu_state.n_online_cpus, rcu_state.n_online_cpus - 1);
+	// Stop-machine done, so allow nohz_full to disable tick.
+	tick_dep_clear(TICK_DEP_BIT_RCU);
+	return 0;
+}
+
+/*
+ * Near the end of the offline process.  Trace the fact that this CPU
+ * is going offline.
+ */
+int rcutree_dying_cpu(unsigned int cpu)
+{
+	bool blkd;
+	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
+	struct rcu_node *rnp = rdp->mynode;
+
+	blkd = !!(READ_ONCE(rnp->qsmask) & rdp->grpmask);
+	trace_rcu_grace_period(rcu_state.name, READ_ONCE(rnp->gp_seq),
+			       blkd ? TPS("cpuofl-bgp") : TPS("cpuofl"));
+	return 0;
+}
+
+/*
+ * Near the beginning of the process.  The CPU is still very much alive
+ * with pretty much all services enabled.
+ */
+int rcutree_offline_cpu(unsigned int cpu)
+{
+	unsigned long flags;
+	struct rcu_data *rdp;
+	struct rcu_node *rnp;
+
+	rdp = per_cpu_ptr(&rcu_data, cpu);
+	rnp = rdp->mynode;
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
+	rnp->ffmask &= ~rdp->grpmask;
+	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+
+	rcutree_affinity_setting(cpu, cpu);
+
+	// nohz_full CPUs need the tick for stop-machine to work quickly
+	tick_dep_set(TICK_DEP_BIT_RCU);
+	return 0;
+}
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
  * On non-huge systems, use expedited RCU grace periods to make suspend
@@ -4990,7 +5088,7 @@ void __init rcu_init(void)
 	pm_notifier(rcu_pm_notify, 0);
 	WARN_ON(num_online_cpus() > 1); // Only one CPU this early in boot.
 	rcutree_prepare_cpu(cpu);
-	rcu_cpu_starting(cpu);
+	rcutree_report_cpu_starting(cpu);
 	rcutree_online_cpu(cpu);
 
 	/* Create workqueue for Tree SRCU and for expedited GPs. */

@@ -1380,7 +1380,14 @@ static int takedown_cpu(unsigned int cpu)
 	cpuhp_bp_sync_dead(cpu);
 
 	tick_cleanup_dead_cpu(cpu);
+
+	/*
+	 * Callbacks must be re-integrated right away to the RCU state machine.
+	 * Otherwise an RCU callback could block a further teardown function
+	 * waiting for its completion.
+	 */
 	rcutree_migrate_callbacks(cpu);
+
 	return 0;
 }
 
@@ -1396,10 +1403,10 @@ void cpuhp_report_idle_dead(void)
 	struct cpuhp_cpu_state *st = this_cpu_ptr(&cpuhp_state);
 
 	BUG_ON(st->state != CPUHP_AP_OFFLINE);
-	rcu_report_dead(smp_processor_id());
+	rcutree_report_cpu_dead();
 	st->state = CPUHP_AP_IDLE_DEAD;
 	/*
-	 * We cannot call complete after rcu_report_dead() so we delegate it
+	 * We cannot call complete after rcutree_report_cpu_dead() so we delegate it
 	 * to an online cpu.
 	 */
 	smp_call_function_single(cpumask_first(cpu_online_mask),
@@ -1628,7 +1635,7 @@ void notify_cpu_starting(unsigned int cpu)
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	enum cpuhp_state target = min((int)st->target, CPUHP_AP_ONLINE);
 
-	rcu_cpu_starting(cpu);	/* Enables RCU usage on this CPU. */
+	rcutree_report_cpu_starting(cpu);	/* Enables RCU usage on this CPU. */
 	cpumask_set_cpu(cpu, &cpus_booted_once_mask);
 
 	/*

@@ -37,7 +37,6 @@ void synchronize_rcu_expedited(void);
 void kvfree_call_rcu(struct rcu_head *head, void *ptr);
 
 void rcu_barrier(void);
-bool rcu_eqs_special_set(int cpu);
 void rcu_momentary_dyntick_idle(void);
 void kfree_rcu_scheduler_running(void);
 bool rcu_gp_might_be_stalled(void);
@@ -111,9 +110,21 @@ void rcu_all_qs(void);
 /* RCUtree hotplug events */
 int rcutree_prepare_cpu(unsigned int cpu);
 int rcutree_online_cpu(unsigned int cpu);
-int rcutree_offline_cpu(unsigned int cpu);
+void rcutree_report_cpu_starting(unsigned int cpu);
+
+#ifdef CONFIG_HOTPLUG_CPU
 int rcutree_dead_cpu(unsigned int cpu);
 int rcutree_dying_cpu(unsigned int cpu);
-void rcu_cpu_starting(unsigned int cpu);
+int rcutree_offline_cpu(unsigned int cpu);
+#else
+#define rcutree_dead_cpu NULL
+#define rcutree_dying_cpu NULL
+#define rcutree_offline_cpu NULL
+#endif
+
+void rcutree_migrate_callbacks(int cpu);
+
+/* Called from hotplug and also arm64 early secondary boot failure */
+void rcutree_report_cpu_dead(void);
 
 #endif /* __LINUX_RCUTREE_H */
