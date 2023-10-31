@@ -2040,8 +2040,7 @@ sync_func(void *v)
 			continue;
 		}
 
-		svc_fourcc = service ? service->base.fourcc
-				     : VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
+		svc_fourcc = service->base.fourcc;
 
 		vchiq_log_trace(state->dev, VCHIQ_SYNC,
 				"Rcvd Msg %s from %p4cc s:%d d:%d len:%d",
