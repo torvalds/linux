@@ -3,7 +3,7 @@
 
 config PDS_VFIO_PCI
 	tristate "VFIO support for PDS PCI devices"
-	depends on PDS_CORE
+	depends on PDS_CORE && PCI_IOV
 	select VFIO_PCI_CORE
 	help
 	  This provides generic PCI support for PDS devices using the VFIO

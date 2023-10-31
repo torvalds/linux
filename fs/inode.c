@@ -2102,52 +2102,10 @@ int file_remove_privs(struct file *file)
 }
 EXPORT_SYMBOL(file_remove_privs);
 
-/**
- * current_mgtime - Return FS time (possibly fine-grained)
- * @inode: inode.
- *
- * Return the current time truncated to the time granularity supported by
- * the fs, as suitable for a ctime/mtime change. If the ctime is flagged
- * as having been QUERIED, get a fine-grained timestamp.
- */
-struct timespec64 current_mgtime(struct inode *inode)
-{
-	struct timespec64 now, ctime;
-	atomic_long_t *pnsec = (atomic_long_t *)&inode->__i_ctime.tv_nsec;
-	long nsec = atomic_long_read(pnsec);
-
-	if (nsec & I_CTIME_QUERIED) {
-		ktime_get_real_ts64(&now);
-		return timestamp_truncate(now, inode);
-	}
-
-	ktime_get_coarse_real_ts64(&now);
-	now = timestamp_truncate(now, inode);
-
-	/*
-	 * If we've recently fetched a fine-grained timestamp
-	 * then the coarse-grained one may still be earlier than the
-	 * existing ctime. Just keep the existing value if so.
-	 */
-	ctime = inode_get_ctime(inode);
-	if (timespec64_compare(&ctime, &now) > 0)
-		now = ctime;
-
-	return now;
-}
-EXPORT_SYMBOL(current_mgtime);
-
-static struct timespec64 current_ctime(struct inode *inode)
-{
-	if (is_mgtime(inode))
-		return current_mgtime(inode);
-	return current_time(inode);
-}
-
 static int inode_needs_update_time(struct inode *inode)
 {
 	int sync_it = 0;
-	struct timespec64 now = current_ctime(inode);
+	struct timespec64 now = current_time(inode);
 	struct timespec64 ctime;
 
 	/* First try to exhaust all avenues to not sync */
@@ -2578,43 +2536,9 @@ EXPORT_SYMBOL(current_time);
  */
 struct timespec64 inode_set_ctime_current(struct inode *inode)
 {
-	struct timespec64 now;
-	struct timespec64 ctime;
+	struct timespec64 now = current_time(inode);
 
-	ctime.tv_nsec = READ_ONCE(inode->__i_ctime.tv_nsec);
-	if (!(ctime.tv_nsec & I_CTIME_QUERIED)) {
-		now = current_time(inode);
-
-		/* Just copy it into place if it's not multigrain */
-		if (!is_mgtime(inode)) {
-			inode_set_ctime_to_ts(inode, now);
-			return now;
-		}
-
-		/*
-		 * If we've recently updated with a fine-grained timestamp,
-		 * then the coarse-grained one may still be earlier than the
-		 * existing ctime. Just keep the existing value if so.
-		 */
-		ctime.tv_sec = inode->__i_ctime.tv_sec;
-		if (timespec64_compare(&ctime, &now) > 0)
-			return ctime;
-
-		/*
-		 * Ctime updates are usually protected by the inode_lock, but
-		 * we can still race with someone setting the QUERIED flag.
-		 * Try to swap the new nsec value into place. If it's changed
-		 * in the interim, then just go with a fine-grained timestamp.
-		 */
-		if (cmpxchg(&inode->__i_ctime.tv_nsec, ctime.tv_nsec,
-			    now.tv_nsec) != ctime.tv_nsec)
-			goto fine_grained;
-		inode->__i_ctime.tv_sec = now.tv_sec;
-		return now;
-	}
-fine_grained:
-	ktime_get_real_ts64(&now);
-	inode_set_ctime_to_ts(inode, timestamp_truncate(now, inode));
+	inode_set_ctime(inode, now.tv_sec, now.tv_nsec);
 	return now;
 }
 EXPORT_SYMBOL(inode_set_ctime_current);

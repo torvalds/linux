@@ -3394,7 +3394,7 @@ static const struct snd_soc_dai_ops wcd938x_sdw_dai_ops = {
 };
 
 static struct snd_soc_dai_driver wcd938x_dais[] = {
-	[0] = {
+	[AIF1_PB] = {
 		.name = "wcd938x-sdw-rx",
 		.playback = {
 			.stream_name = "WCD AIF1 Playback",
@@ -3407,7 +3407,7 @@ static struct snd_soc_dai_driver wcd938x_dais[] = {
 		},
 		.ops = &wcd938x_sdw_dai_ops,
 	},
-	[1] = {
+	[AIF1_CAP] = {
 		.name = "wcd938x-sdw-tx",
 		.capture = {
 			.stream_name = "WCD AIF1 Capture",

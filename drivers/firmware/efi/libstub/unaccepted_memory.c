@@ -62,7 +62,7 @@ efi_status_t allocate_unaccepted_bitmap(__u32 nr_desc,
 	bitmap_size = DIV_ROUND_UP(unaccepted_end - unaccepted_start,
 				   EFI_UNACCEPTED_UNIT_SIZE * BITS_PER_BYTE);
 
-	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA,
+	status = efi_bs_call(allocate_pool, EFI_ACPI_RECLAIM_MEMORY,
 			     sizeof(*unaccepted_table) + bitmap_size,
 			     (void **)&unaccepted_table);
 	if (status != EFI_SUCCESS) {

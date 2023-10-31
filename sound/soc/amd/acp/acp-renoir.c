@@ -22,6 +22,7 @@
 #include <linux/dma-mapping.h>
 
 #include "amd.h"
+#include "acp-mach.h"
 
 #define DRV_NAME "acp_asoc_renoir"
 
@@ -185,6 +186,8 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	adata->dai_driver = acp_renoir_dai;
 	adata->num_dai = ARRAY_SIZE(acp_renoir_dai);
 	adata->rsrc = &rsrc;
+	adata->platform = RENOIR;
+	adata->flag = chip->flag;
 
 	adata->machines = snd_soc_acpi_amd_acp_machines;
 	acp_machine_select(adata);

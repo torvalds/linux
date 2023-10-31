@@ -2087,7 +2087,8 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 
 	amdgpu_amdkfd_get_cu_info(kdev->adev, &cu_info);
 	cu->num_simd_per_cu = cu_info.simd_per_cu;
-	cu->num_simd_cores = cu_info.simd_per_cu * cu_info.cu_active_number;
+	cu->num_simd_cores = cu_info.simd_per_cu *
+			(cu_info.cu_active_number / kdev->kfd->num_nodes);
 	cu->max_waves_simd = cu_info.max_waves_per_simd;
 
 	cu->wave_front_size = cu_info.wave_front_size;

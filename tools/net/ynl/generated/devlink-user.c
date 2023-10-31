@@ -16,19 +16,19 @@
 static const char * const devlink_op_strmap[] = {
 	[3] = "get",
 	[7] = "port-get",
-	[DEVLINK_CMD_SB_GET] = "sb-get",
-	[DEVLINK_CMD_SB_POOL_GET] = "sb-pool-get",
-	[DEVLINK_CMD_SB_PORT_POOL_GET] = "sb-port-pool-get",
-	[DEVLINK_CMD_SB_TC_POOL_BIND_GET] = "sb-tc-pool-bind-get",
+	[13] = "sb-get",
+	[17] = "sb-pool-get",
+	[21] = "sb-port-pool-get",
+	[25] = "sb-tc-pool-bind-get",
 	[DEVLINK_CMD_PARAM_GET] = "param-get",
 	[DEVLINK_CMD_REGION_GET] = "region-get",
 	[DEVLINK_CMD_INFO_GET] = "info-get",
 	[DEVLINK_CMD_HEALTH_REPORTER_GET] = "health-reporter-get",
-	[DEVLINK_CMD_TRAP_GET] = "trap-get",
-	[DEVLINK_CMD_TRAP_GROUP_GET] = "trap-group-get",
-	[DEVLINK_CMD_TRAP_POLICER_GET] = "trap-policer-get",
-	[DEVLINK_CMD_RATE_GET] = "rate-get",
-	[DEVLINK_CMD_LINECARD_GET] = "linecard-get",
+	[63] = "trap-get",
+	[67] = "trap-group-get",
+	[71] = "trap-policer-get",
+	[76] = "rate-get",
+	[80] = "linecard-get",
 	[DEVLINK_CMD_SELFTESTS_GET] = "selftests-get",
 };
 
@@ -838,7 +838,7 @@ devlink_sb_get(struct ynl_sock *ys, struct devlink_sb_get_req *req)
 	rsp = calloc(1, sizeof(*rsp));
 	yrs.yarg.data = rsp;
 	yrs.cb = devlink_sb_get_rsp_parse;
-	yrs.rsp_cmd = DEVLINK_CMD_SB_GET;
+	yrs.rsp_cmd = 13;
 
 	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
@@ -876,7 +876,7 @@ devlink_sb_get_dump(struct ynl_sock *ys, struct devlink_sb_get_req_dump *req)
 	yds.ys = ys;
 	yds.alloc_sz = sizeof(struct devlink_sb_get_list);
 	yds.cb = devlink_sb_get_rsp_parse;
-	yds.rsp_cmd = DEVLINK_CMD_SB_GET;
+	yds.rsp_cmd = 13;
 	yds.rsp_policy = &devlink_nest;
 
 	nlh = ynl_gemsg_start_dump(ys, ys->family_id, DEVLINK_CMD_SB_GET, 1);
@@ -987,7 +987,7 @@ devlink_sb_pool_get(struct ynl_sock *ys, struct devlink_sb_pool_get_req *req)
 	rsp = calloc(1, sizeof(*rsp));
 	yrs.yarg.data = rsp;
 	yrs.cb = devlink_sb_pool_get_rsp_parse;
-	yrs.rsp_cmd = DEVLINK_CMD_SB_POOL_GET;
+	yrs.rsp_cmd = 17;
 
 	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
@@ -1026,7 +1026,7 @@ devlink_sb_pool_get_dump(struct ynl_sock *ys,
 	yds.ys = ys;
 	yds.alloc_sz = sizeof(struct devlink_sb_pool_get_list);
 	yds.cb = devlink_sb_pool_get_rsp_parse;
-	yds.rsp_cmd = DEVLINK_CMD_SB_POOL_GET;
+	yds.rsp_cmd = 17;
 	yds.rsp_policy = &devlink_nest;
 
 	nlh = ynl_gemsg_start_dump(ys, ys->family_id, DEVLINK_CMD_SB_POOL_GET, 1);
@@ -1147,7 +1147,7 @@ devlink_sb_port_pool_get(struct ynl_sock *ys,
 	rsp = calloc(1, sizeof(*rsp));
 	yrs.yarg.data = rsp;
 	yrs.cb = devlink_sb_port_pool_get_rsp_parse;
-	yrs.rsp_cmd = DEVLINK_CMD_SB_PORT_POOL_GET;
+	yrs.rsp_cmd = 21;
 
 	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
@@ -1187,7 +1187,7 @@ devlink_sb_port_pool_get_dump(struct ynl_sock *ys,
 	yds.ys = ys;
 	yds.alloc_sz = sizeof(struct devlink_sb_port_pool_get_list);
 	yds.cb = devlink_sb_port_pool_get_rsp_parse;
-	yds.rsp_cmd = DEVLINK_CMD_SB_PORT_POOL_GET;
+	yds.rsp_cmd = 21;
 	yds.rsp_policy = &devlink_nest;
 
 	nlh = ynl_gemsg_start_dump(ys, ys->family_id, DEVLINK_CMD_SB_PORT_POOL_GET, 1);
@@ -1316,7 +1316,7 @@ devlink_sb_tc_pool_bind_get(struct ynl_sock *ys,
 	rsp = calloc(1, sizeof(*rsp));
 	yrs.yarg.data = rsp;
 	yrs.cb = devlink_sb_tc_pool_bind_get_rsp_parse;
-	yrs.rsp_cmd = DEVLINK_CMD_SB_TC_POOL_BIND_GET;
+	yrs.rsp_cmd = 25;
 
 	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
@@ -1356,7 +1356,7 @@ devlink_sb_tc_pool_bind_get_dump(struct ynl_sock *ys,
 	yds.ys = ys;
 	yds.alloc_sz = sizeof(struct devlink_sb_tc_pool_bind_get_list);
 	yds.cb = devlink_sb_tc_pool_bind_get_rsp_parse;
-	yds.rsp_cmd = DEVLINK_CMD_SB_TC_POOL_BIND_GET;
+	yds.rsp_cmd = 25;
 	yds.rsp_policy = &devlink_nest;
 
 	nlh = ynl_gemsg_start_dump(ys, ys->family_id, DEVLINK_CMD_SB_TC_POOL_BIND_GET, 1);
@@ -2183,7 +2183,7 @@ devlink_trap_get(struct ynl_sock *ys, struct devlink_trap_get_req *req)
 	rsp = calloc(1, sizeof(*rsp));
 	yrs.yarg.data = rsp;
 	yrs.cb = devlink_trap_get_rsp_parse;
-	yrs.rsp_cmd = DEVLINK_CMD_TRAP_GET;
+	yrs.rsp_cmd = 63;
 
 	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
@@ -2223,7 +2223,7 @@ devlink_trap_get_dump(struct ynl_sock *ys,
 	yds.ys = ys;
 	yds.alloc_sz = sizeof(struct devlink_trap_get_list);
 	yds.cb = devlink_trap_get_rsp_parse;
-	yds.rsp_cmd = DEVLINK_CMD_TRAP_GET;
+	yds.rsp_cmd = 63;
 	yds.rsp_policy = &devlink_nest;
 
 	nlh = ynl_gemsg_start_dump(ys, ys->family_id, DEVLINK_CMD_TRAP_GET, 1);
@@ -2336,7 +2336,7 @@ devlink_trap_group_get(struct ynl_sock *ys,
 	rsp = calloc(1, sizeof(*rsp));
 	yrs.yarg.data = rsp;
 	yrs.cb = devlink_trap_group_get_rsp_parse;
-	yrs.rsp_cmd = DEVLINK_CMD_TRAP_GROUP_GET;
+	yrs.rsp_cmd = 67;
 
 	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
@@ -2376,7 +2376,7 @@ devlink_trap_group_get_dump(struct ynl_sock *ys,
 	yds.ys = ys;
 	yds.alloc_sz = sizeof(struct devlink_trap_group_get_list);
 	yds.cb = devlink_trap_group_get_rsp_parse;
-	yds.rsp_cmd = DEVLINK_CMD_TRAP_GROUP_GET;
+	yds.rsp_cmd = 67;
 	yds.rsp_policy = &devlink_nest;
 
 	nlh = ynl_gemsg_start_dump(ys, ys->family_id, DEVLINK_CMD_TRAP_GROUP_GET, 1);
@@ -2483,7 +2483,7 @@ devlink_trap_policer_get(struct ynl_sock *ys,
 	rsp = calloc(1, sizeof(*rsp));
 	yrs.yarg.data = rsp;
 	yrs.cb = devlink_trap_policer_get_rsp_parse;
-	yrs.rsp_cmd = DEVLINK_CMD_TRAP_POLICER_GET;
+	yrs.rsp_cmd = 71;
 
 	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
@@ -2523,7 +2523,7 @@ devlink_trap_policer_get_dump(struct ynl_sock *ys,
 	yds.ys = ys;
 	yds.alloc_sz = sizeof(struct devlink_trap_policer_get_list);
 	yds.cb = devlink_trap_policer_get_rsp_parse;
-	yds.rsp_cmd = DEVLINK_CMD_TRAP_POLICER_GET;
+	yds.rsp_cmd = 71;
 	yds.rsp_policy = &devlink_nest;
 
 	nlh = ynl_gemsg_start_dump(ys, ys->family_id, DEVLINK_CMD_TRAP_POLICER_GET, 1);
@@ -2642,7 +2642,7 @@ devlink_rate_get(struct ynl_sock *ys, struct devlink_rate_get_req *req)
 	rsp = calloc(1, sizeof(*rsp));
 	yrs.yarg.data = rsp;
 	yrs.cb = devlink_rate_get_rsp_parse;
-	yrs.rsp_cmd = DEVLINK_CMD_RATE_GET;
+	yrs.rsp_cmd = 76;
 
 	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
@@ -2682,7 +2682,7 @@ devlink_rate_get_dump(struct ynl_sock *ys,
 	yds.ys = ys;
 	yds.alloc_sz = sizeof(struct devlink_rate_get_list);
 	yds.cb = devlink_rate_get_rsp_parse;
-	yds.rsp_cmd = DEVLINK_CMD_RATE_GET;
+	yds.rsp_cmd = 76;
 	yds.rsp_policy = &devlink_nest;
 
 	nlh = ynl_gemsg_start_dump(ys, ys->family_id, DEVLINK_CMD_RATE_GET, 1);
@@ -2786,7 +2786,7 @@ devlink_linecard_get(struct ynl_sock *ys, struct devlink_linecard_get_req *req)
 	rsp = calloc(1, sizeof(*rsp));
 	yrs.yarg.data = rsp;
 	yrs.cb = devlink_linecard_get_rsp_parse;
-	yrs.rsp_cmd = DEVLINK_CMD_LINECARD_GET;
+	yrs.rsp_cmd = 80;
 
 	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
@@ -2825,7 +2825,7 @@ devlink_linecard_get_dump(struct ynl_sock *ys,
 	yds.ys = ys;
 	yds.alloc_sz = sizeof(struct devlink_linecard_get_list);
 	yds.cb = devlink_linecard_get_rsp_parse;
-	yds.rsp_cmd = DEVLINK_CMD_LINECARD_GET;
+	yds.rsp_cmd = 80;
 	yds.rsp_policy = &devlink_nest;
 
 	nlh = ynl_gemsg_start_dump(ys, ys->family_id, DEVLINK_CMD_LINECARD_GET, 1);

@@ -133,8 +133,8 @@ static int create_qp_cmd(struct erdma_ucontext *uctx, struct erdma_qp *qp)
 static int regmr_cmd(struct erdma_dev *dev, struct erdma_mr *mr)
 {
 	struct erdma_pd *pd = to_epd(mr->ibmr.pd);
+	u32 mtt_level = ERDMA_MR_MTT_0LEVEL;
 	struct erdma_cmdq_reg_mr_req req;
-	u32 mtt_level;
 
 	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_RDMA, CMDQ_OPCODE_REG_MR);
 
@@ -147,10 +147,9 @@ static int regmr_cmd(struct erdma_dev *dev, struct erdma_mr *mr)
 			req.phy_addr[0] = sg_dma_address(mr->mem.mtt->sglist);
 			mtt_level = mr->mem.mtt->level;
 		}
-	} else {
+	} else if (mr->type != ERDMA_MR_TYPE_DMA) {
 		memcpy(req.phy_addr, mr->mem.mtt->buf,
 		       MTT_SIZE(mr->mem.page_cnt));
-		mtt_level = ERDMA_MR_MTT_0LEVEL;
 	}
 
 	req.cfg0 = FIELD_PREP(ERDMA_CMD_MR_VALID_MASK, mr->valid) |
@@ -655,7 +654,7 @@ static struct erdma_mtt *erdma_create_scatter_mtt(struct erdma_dev *dev,
 
 	mtt = kzalloc(sizeof(*mtt), GFP_KERNEL);
 	if (!mtt)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	mtt->size = ALIGN(size, PAGE_SIZE);
 	mtt->buf = vzalloc(mtt->size);

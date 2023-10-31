@@ -958,13 +958,11 @@ int simple_util_init_priv(struct simple_util_priv *priv,
 }
 EXPORT_SYMBOL_GPL(simple_util_init_priv);
 
-int simple_util_remove(struct platform_device *pdev)
+void simple_util_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
 	simple_util_clean_reference(card);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(simple_util_remove);
 

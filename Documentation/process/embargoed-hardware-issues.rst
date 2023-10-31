@@ -25,15 +25,15 @@ Contact
 The Linux kernel hardware security team is separate from the regular Linux
 kernel security team.
 
-The team only handles the coordination of embargoed hardware security
-issues.  Reports of pure software security bugs in the Linux kernel are not
+The team only handles developing fixes for embargoed hardware security
+issues. Reports of pure software security bugs in the Linux kernel are not
 handled by this team and the reporter will be guided to contact the regular
 Linux kernel security team (:ref:`Documentation/admin-guide/
 <securitybugs>`) instead.
 
 The team can be contacted by email at <hardware-security@kernel.org>. This
-is a private list of security officers who will help you to coordinate an
-issue according to our documented process.
+is a private list of security officers who will help you to coordinate a
+fix according to our documented process.
 
 The list is encrypted and email to the list can be sent by either PGP or
 S/MIME encrypted and must be signed with the reporter's PGP key or S/MIME
@@ -132,11 +132,11 @@ other hardware could be affected.
 
 The hardware security team will provide an incident-specific encrypted
 mailing-list which will be used for initial discussion with the reporter,
-further disclosure and coordination.
+further disclosure, and coordination of fixes.
 
 The hardware security team will provide the disclosing party a list of
 developers (domain experts) who should be informed initially about the
-issue after confirming with the developers  that they will adhere to this
+issue after confirming with the developers that they will adhere to this
 Memorandum of Understanding and the documented process. These developers
 form the initial response team and will be responsible for handling the
 issue after initial contact. The hardware security team is supporting the
@@ -209,13 +209,18 @@ five work days this is taken as silent acknowledgement.
 After acknowledgement or resolution of an objection the expert is disclosed
 by the incident team and brought into the development process.
 
+List participants may not communicate about the issue outside of the
+private mailing list. List participants may not use any shared resources
+(e.g. employer build farms, CI systems, etc) when working on patches.
+
 
 Coordinated release
 """""""""""""""""""
 
 The involved parties will negotiate the date and time where the embargo
 ends. At that point the prepared mitigations are integrated into the
-relevant kernel trees and published.
+relevant kernel trees and published. There is no pre-notification process:
+fixes are published in public and available to everyone at the same time.
 
 While we understand that hardware security issues need coordinated embargo
 time, the embargo time should be constrained to the minimum time which is
@@ -251,6 +256,7 @@ an involved disclosed party. The current ambassadors list:
   IBM Z		Christian Borntraeger <borntraeger@de.ibm.com>
   Intel		Tony Luck <tony.luck@intel.com>
   Qualcomm	Trilok Soni <tsoni@codeaurora.org>
+  RISC-V	Palmer Dabbelt <palmer@dabbelt.com>
   Samsung	Javier González <javier.gonz@samsung.com>
 
   Microsoft	James Morris <jamorris@linux.microsoft.com>

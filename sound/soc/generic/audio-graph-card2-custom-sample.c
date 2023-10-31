@@ -176,7 +176,7 @@ static struct platform_driver custom_card = {
 		.of_match_table = custom_of_match,
 	},
 	.probe	= custom_probe,
-	.remove	= simple_util_remove,
+	.remove_new = simple_util_remove,
 };
 module_platform_driver(custom_card);
 

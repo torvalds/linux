@@ -197,7 +197,7 @@ int regulator_set_voltage_sel_pickable_regmap(struct regulator_dev *rdev,
 	sel += rdev->desc->linear_ranges[i].min_sel;
 
 	range = rdev->desc->linear_range_selectors_bitfield[i];
-	range <<= ffs(rdev->desc->vsel_mask) - 1;
+	range <<= ffs(rdev->desc->vsel_range_mask) - 1;
 
 	if (rdev->desc->vsel_reg == rdev->desc->vsel_range_reg) {
 		ret = regmap_update_bits(rdev->regmap,
