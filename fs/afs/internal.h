@@ -33,6 +33,7 @@
 struct pagevec;
 struct afs_call;
 struct afs_vnode;
+struct afs_server_probe;
 
 /*
  * Partial file-locking emulation mode.  (The problem being that AFS3 only
@@ -146,14 +147,13 @@ struct afs_call {
 	};
 	void			*buffer;	/* reply receive buffer */
 	union {
-		struct {
-			struct afs_addr_list	*probe_alist;
-			unsigned char		probe_index;	/* Address in ->probe_alist */
-		};
+		struct afs_endpoint_state *probe;
+		struct afs_addr_list	*vl_probe;
 		struct afs_addr_list	*ret_alist;
 		struct afs_vldb_entry	*ret_vldb;
 		char			*ret_str;
 	};
+	unsigned char		probe_index;	/* Address in ->probe_alist */
 	struct afs_operation	*op;
 	unsigned int		server_index;
 	refcount_t		ref;
@@ -521,6 +521,32 @@ struct afs_vldb_entry {
 };
 
 /*
+ * Fileserver endpoint state.  The records the addresses of a fileserver's
+ * endpoints and the state and result of a round of probing on them.  This
+ * allows the rotation algorithm to access those results without them being
+ * erased by a subsequent round of probing.
+ */
+struct afs_endpoint_state {
+	struct rcu_head		rcu;
+	struct afs_addr_list	*addresses;	/* The addresses being probed */
+	unsigned long		responsive_set;	/* Bitset of responsive endpoints */
+	unsigned long		failed_set;	/* Bitset of endpoints we failed to probe */
+	refcount_t		ref;
+	unsigned int		server_id;	/* Debug ID of server */
+	unsigned int		probe_seq;	/* Probe sequence (from server::probe_counter) */
+
+	atomic_t		nr_probing;	/* Number of outstanding probes */
+	unsigned int		rtt;		/* Best RTT in uS (or UINT_MAX) */
+	s32			abort_code;
+	short			error;
+	bool			responded:1;
+	bool			is_yfs:1;
+	bool			not_yfs:1;
+	bool			local_failure:1;
+	bool			superseded:1;	/* Set if has been superseded */
+};
+
+/*
  * Record of fileserver with which we're actively communicating.
  */
 struct afs_server {
@@ -530,7 +556,6 @@ struct afs_server {
 		struct afs_uuid	_uuid;
 	};
 
-	struct afs_addr_list	__rcu *addresses;
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
 	struct rb_node		uuid_rb;	/* Link in net->fs_servers */
 	struct afs_server __rcu	*uuid_next;	/* Next server with same UUID */
@@ -568,19 +593,11 @@ struct afs_server {
 	unsigned		cb_s_break;	/* Break-everything counter. */
 
 	/* Probe state */
+	struct afs_endpoint_state __rcu *endpoint_state; /* Latest endpoint/probe state */
 	unsigned long		probed_at;	/* Time last probe was dispatched (jiffies) */
 	wait_queue_head_t	probe_wq;
-	atomic_t		probe_outstanding;
+	unsigned int		probe_counter;	/* Number of probes issued */
 	spinlock_t		probe_lock;
-	struct {
-		unsigned int	rtt;		/* Best RTT in uS (or UINT_MAX) */
-		u32		abort_code;
-		short		error;
-		bool		responded:1;
-		bool		is_yfs:1;
-		bool		not_yfs:1;
-		bool		local_failure:1;
-	} probe;
 };
 
 /*
@@ -883,7 +900,7 @@ struct afs_operation {
 	/* Fileserver iteration state */
 	struct afs_server_list	*server_list;	/* Current server list (pins ref) */
 	struct afs_server	*server;	/* Server we're using (ref pinned by server_list) */
-	struct afs_addr_list	*alist;		/* Current address list (pins ref) */
+	struct afs_endpoint_state *estate;	/* Current endpoint state (pins ref) */
 	struct afs_call		*call;
 	unsigned long		untried_servers; /* Bitmask of untried servers */
 	unsigned long		addr_tried;	/* Tried addresses */
@@ -1153,7 +1170,7 @@ extern void afs_fs_release_lock(struct afs_operation *);
 int afs_fs_give_up_all_callbacks(struct afs_net *net, struct afs_server *server,
 				 struct afs_address *addr, struct key *key);
 bool afs_fs_get_capabilities(struct afs_net *net, struct afs_server *server,
-			     struct afs_addr_list *alist, unsigned int addr_index,
+			     struct afs_endpoint_state *estate, unsigned int addr_index,
 			     struct key *key);
 extern void afs_fs_inline_bulk_status(struct afs_operation *);
 
@@ -1190,12 +1207,17 @@ static inline void afs_op_set_fid(struct afs_operation *op, unsigned int n,
 /*
  * fs_probe.c
  */
+struct afs_endpoint_state *afs_get_endpoint_state(struct afs_endpoint_state *estate,
+						  enum afs_estate_trace where);
+void afs_put_endpoint_state(struct afs_endpoint_state *estate, enum afs_estate_trace where);
 extern void afs_fileserver_probe_result(struct afs_call *);
-extern void afs_fs_probe_fileserver(struct afs_net *, struct afs_server *, struct key *, bool);
+void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
+			     struct afs_addr_list *new_addrs, struct key *key);
 extern int afs_wait_for_fs_probes(struct afs_server_list *, unsigned long);
 extern void afs_probe_fileserver(struct afs_net *, struct afs_server *);
 extern void afs_fs_probe_dispatcher(struct work_struct *);
-extern int afs_wait_for_one_fs_probe(struct afs_server *, bool);
+int afs_wait_for_one_fs_probe(struct afs_server *server, struct afs_endpoint_state *estate,
+			      bool is_intr);
 extern void afs_fs_probe_cleanup(struct afs_net *);
 
 /*
@@ -1348,12 +1370,14 @@ extern int afs_protocol_error(struct afs_call *, enum afs_eproto_cause);
 static inline void afs_make_op_call(struct afs_operation *op, struct afs_call *call,
 				    gfp_t gfp)
 {
+	struct afs_addr_list *alist = op->estate->addresses;
+
 	op->call	= call;
 	op->type	= call->type;
 	call->op	= op;
 	call->key	= op->key;
 	call->intr	= !(op->flags & AFS_OPERATION_UNINTR);
-	call->peer	= rxrpc_kernel_get_peer(op->alist->addrs[op->addr_index].peer);
+	call->peer	= rxrpc_kernel_get_peer(alist->addrs[op->addr_index].peer);
 	call->service_id = op->server->service_id;
 	afs_make_call(call, gfp);
 }
@@ -1476,7 +1500,7 @@ extern void afs_manage_servers(struct work_struct *);
 extern void afs_servers_timer(struct timer_list *);
 extern void afs_fs_probe_timer(struct timer_list *);
 extern void __net_exit afs_purge_servers(struct afs_net *);
-extern bool afs_check_server_record(struct afs_operation *, struct afs_server *);
+bool afs_check_server_record(struct afs_operation *op, struct afs_server *server, struct key *key);
 
 static inline void afs_inc_servers_outstanding(struct afs_net *net)
 {

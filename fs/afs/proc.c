@@ -424,8 +424,9 @@ static const struct seq_operations afs_proc_cell_vlservers_ops = {
  */
 static int afs_proc_servers_show(struct seq_file *m, void *v)
 {
-	struct afs_server *server;
+	struct afs_endpoint_state *estate;
 	struct afs_addr_list *alist;
+	struct afs_server *server;
 	unsigned long failed;
 	int i;
 
@@ -435,7 +436,8 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 	}
 
 	server = list_entry(v, struct afs_server, proc_link);
-	alist = rcu_dereference(server->addresses);
+	estate = rcu_dereference(server->endpoint_state);
+	alist = estate->addresses;
 	seq_printf(m, "%pU %3d %3d %s\n",
 		   &server->uuid,
 		   refcount_read(&server->ref),
@@ -443,13 +445,14 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 		   server->cell->name);
 	seq_printf(m, "  - info: fl=%lx rtt=%u brk=%x\n",
 		   server->flags, server->rtt, server->cb_s_break);
-	seq_printf(m, "  - probe: last=%d out=%d\n",
-		   (int)(jiffies - server->probed_at) / HZ,
-		   atomic_read(&server->probe_outstanding));
-	failed = alist->probe_failed;
-	seq_printf(m, "  - ALIST v=%u rsp=%lx f=%lx ap=%u\n",
-		   alist->version, alist->responded, alist->probe_failed,
-		   alist->addr_pref_version);
+	seq_printf(m, "  - probe: last=%d\n",
+		   (int)(jiffies - server->probed_at) / HZ);
+	failed = estate->failed_set;
+	seq_printf(m, "  - ESTATE pq=%x np=%u rsp=%lx f=%lx\n",
+		   estate->probe_seq, atomic_read(&estate->nr_probing),
+		   estate->responsive_set, estate->failed_set);
+	seq_printf(m, "  - ALIST v=%u ap=%u\n",
+		   alist->version, alist->addr_pref_version);
 	for (i = 0; i < alist->nr_addrs; i++) {
 		const struct afs_address *addr = &alist->addrs[i];
 

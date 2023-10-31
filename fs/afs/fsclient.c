@@ -1697,7 +1697,7 @@ static int afs_deliver_fs_get_capabilities(struct afs_call *call)
 
 static void afs_fs_get_capabilities_destructor(struct afs_call *call)
 {
-	afs_put_addrlist(call->probe_alist, afs_alist_trace_put_getcaps);
+	afs_put_endpoint_state(call->probe, afs_estate_trace_put_getcaps);
 	afs_flat_call_destructor(call);
 }
 
@@ -1719,7 +1719,7 @@ static const struct afs_call_type afs_RXFSGetCapabilities = {
  * ->done() - otherwise we return false to indicate we didn't even try.
  */
 bool afs_fs_get_capabilities(struct afs_net *net, struct afs_server *server,
-			     struct afs_addr_list *alist, unsigned int addr_index,
+			     struct afs_endpoint_state *estate, unsigned int addr_index,
 			     struct key *key)
 {
 	struct afs_call *call;
@@ -1733,8 +1733,8 @@ bool afs_fs_get_capabilities(struct afs_net *net, struct afs_server *server,
 
 	call->key	= key;
 	call->server	= afs_use_server(server, afs_server_trace_get_caps);
-	call->peer	= rxrpc_kernel_get_peer(alist->addrs[addr_index].peer);
-	call->probe_alist = afs_get_addrlist(alist, afs_alist_trace_get_getcaps);
+	call->peer	= rxrpc_kernel_get_peer(estate->addresses->addrs[addr_index].peer);
+	call->probe	= afs_get_endpoint_state(estate, afs_estate_trace_get_getcaps);
 	call->probe_index = addr_index;
 	call->service_id = server->service_id;
 	call->upgrade	= true;

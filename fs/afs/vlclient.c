@@ -371,7 +371,7 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 
 static void afs_destroy_vl_get_capabilities(struct afs_call *call)
 {
-	afs_put_addrlist(call->probe_alist, afs_alist_trace_put_vlgetcaps);
+	afs_put_addrlist(call->vl_probe, afs_alist_trace_put_vlgetcaps);
 	afs_put_vlserver(call->net, call->vlserver);
 	afs_flat_call_destructor(call);
 }
@@ -414,7 +414,7 @@ struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
 	call->vlserver = afs_get_vlserver(server);
 	call->server_index = server_index;
 	call->peer = rxrpc_kernel_get_peer(alist->addrs[addr_index].peer);
-	call->probe_alist = afs_get_addrlist(alist, afs_alist_trace_get_vlgetcaps);
+	call->vl_probe = afs_get_addrlist(alist, afs_alist_trace_get_vlgetcaps);
 	call->probe_index = addr_index;
 	call->service_id = server->service_id;
 	call->upgrade = true;

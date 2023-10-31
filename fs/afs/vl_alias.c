@@ -41,8 +41,8 @@ static int afs_compare_fs_alists(const struct afs_server *server_a,
 	const struct afs_addr_list *la, *lb;
 	int a = 0, b = 0, addr_matches = 0;
 
-	la = rcu_dereference(server_a->addresses);
-	lb = rcu_dereference(server_b->addresses);
+	la = rcu_dereference(server_a->endpoint_state)->addresses;
+	lb = rcu_dereference(server_b->endpoint_state)->addresses;
 
 	while (a < la->nr_addrs && b < lb->nr_addrs) {
 		unsigned long pa = (unsigned long)la->addrs[a].peer;

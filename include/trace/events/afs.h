@@ -204,22 +204,14 @@ enum yfs_cm_operation {
 
 #define afs_alist_traces \
 	EM(afs_alist_trace_alloc,		"ALLOC     ") \
-	EM(afs_alist_trace_get_getcaps,		"GET getcap") \
-	EM(afs_alist_trace_get_fsrotate_set,	"GET fs-rot") \
-	EM(afs_alist_trace_get_probe,		"GET probe ") \
+	EM(afs_alist_trace_get_estate,		"GET estate") \
 	EM(afs_alist_trace_get_vlgetcaps,	"GET vgtcap") \
 	EM(afs_alist_trace_get_vlprobe,		"GET vprobe") \
 	EM(afs_alist_trace_get_vlrotate_set,	"GET vl-rot") \
+	EM(afs_alist_trace_put_estate,		"PUT estate") \
 	EM(afs_alist_trace_put_getaddru,	"PUT GtAdrU") \
-	EM(afs_alist_trace_put_getcaps,		"PUT getcap") \
-	EM(afs_alist_trace_put_next_server,	"PUT nx-srv") \
-	EM(afs_alist_trace_put_op_failed,	"PUT op-fai") \
-	EM(afs_alist_trace_put_operation,	"PUT op    ") \
 	EM(afs_alist_trace_put_parse_empty,	"PUT p-empt") \
 	EM(afs_alist_trace_put_parse_error,	"PUT p-err ") \
-	EM(afs_alist_trace_put_probe,		"PUT probe ") \
-	EM(afs_alist_trace_put_restart_rotate,	"PUT rstrot") \
-	EM(afs_alist_trace_put_server,		"PUT server") \
 	EM(afs_alist_trace_put_server_dup,	"PUT sv-dup") \
 	EM(afs_alist_trace_put_server_oom,	"PUT sv-oom") \
 	EM(afs_alist_trace_put_server_update,	"PUT sv-upd") \
@@ -232,6 +224,20 @@ enum yfs_cm_operation {
 	EM(afs_alist_trace_put_vlserver,	"PUT vlsrvr") \
 	EM(afs_alist_trace_put_vlserver_old,	"PUT vs-old") \
 	E_(afs_alist_trace_free,		"FREE      ")
+
+#define afs_estate_traces \
+	EM(afs_estate_trace_alloc_probe,	"ALLOC prob") \
+	EM(afs_estate_trace_alloc_server,	"ALLOC srvr") \
+	EM(afs_estate_trace_get_fsrotate_set,	"GET fs-rot") \
+	EM(afs_estate_trace_get_getcaps,	"GET getcap") \
+	EM(afs_estate_trace_put_getcaps,	"PUT getcap") \
+	EM(afs_estate_trace_put_next_server,	"PUT nx-srv") \
+	EM(afs_estate_trace_put_op_failed,	"PUT op-fai") \
+	EM(afs_estate_trace_put_operation,	"PUT op    ") \
+	EM(afs_estate_trace_put_probe,		"PUT probe ") \
+	EM(afs_estate_trace_put_restart_rotate,	"PUT rstrot") \
+	EM(afs_estate_trace_put_server,		"PUT server") \
+	E_(afs_estate_trace_free,		"FREE      ")
 
 #define afs_fs_operations \
 	EM(afs_FS_FetchData,			"FS.FetchData") \
@@ -458,6 +464,7 @@ enum afs_cell_trace		{ afs_cell_traces } __mode(byte);
 enum afs_edit_dir_op		{ afs_edit_dir_ops } __mode(byte);
 enum afs_edit_dir_reason	{ afs_edit_dir_reasons } __mode(byte);
 enum afs_eproto_cause		{ afs_eproto_causes } __mode(byte);
+enum afs_estate_trace		{ afs_estate_traces } __mode(byte);
 enum afs_file_error		{ afs_file_errors } __mode(byte);
 enum afs_flock_event		{ afs_flock_events } __mode(byte);
 enum afs_flock_operation	{ afs_flock_operations } __mode(byte);
@@ -486,6 +493,7 @@ yfs_cm_operations;
 afs_edit_dir_ops;
 afs_edit_dir_reasons;
 afs_eproto_causes;
+afs_estate_traces;
 afs_io_errors;
 afs_file_errors;
 afs_flock_types;
@@ -1387,14 +1395,43 @@ TRACE_EVENT(afs_alist,
 		      __entry->ref)
 	    );
 
-TRACE_EVENT(afs_fs_probe,
-	    TP_PROTO(struct afs_server *server, bool tx, struct afs_addr_list *alist,
-		     unsigned int addr_index, int error, s32 abort_code, unsigned int rtt_us),
+TRACE_EVENT(afs_estate,
+	    TP_PROTO(unsigned int server_debug_id, unsigned int estate_debug_id,
+		     int ref, enum afs_estate_trace reason),
 
-	    TP_ARGS(server, tx, alist, addr_index, error, abort_code, rtt_us),
+	    TP_ARGS(server_debug_id, estate_debug_id, ref, reason),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		server)
+		    __field(unsigned int,		estate)
+		    __field(int,			ref)
+		    __field(int,			active)
+		    __field(int,			reason)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->server = server_debug_id;
+		    __entry->estate = estate_debug_id;
+		    __entry->ref = ref;
+		    __entry->reason = reason;
+			   ),
+
+	    TP_printk("ES=%08x[%x] %s r=%d",
+		      __entry->server,
+		      __entry->estate,
+		      __print_symbolic(__entry->reason, afs_estate_traces),
+		      __entry->ref)
+	    );
+
+TRACE_EVENT(afs_fs_probe,
+	    TP_PROTO(struct afs_server *server, bool tx, struct afs_endpoint_state *estate,
+		     unsigned int addr_index, int error, s32 abort_code, unsigned int rtt_us),
+
+	    TP_ARGS(server, tx, estate, addr_index, error, abort_code, rtt_us),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		server)
+		    __field(unsigned int,		estate)
 		    __field(bool,			tx)
 		    __field(u16,			addr_index)
 		    __field(short,			error)
@@ -1404,7 +1441,9 @@ TRACE_EVENT(afs_fs_probe,
 			     ),
 
 	    TP_fast_assign(
+		    struct afs_addr_list *alist = estate->addresses;
 		    __entry->server = server->debug_id;
+		    __entry->estate = estate->probe_seq;
 		    __entry->tx = tx;
 		    __entry->addr_index = addr_index;
 		    __entry->error = error;
@@ -1414,9 +1453,9 @@ TRACE_EVENT(afs_fs_probe,
 			   sizeof(__entry->srx));
 			   ),
 
-	    TP_printk("s=%08x %s ax=%u e=%d ac=%d rtt=%d %pISpc",
-		      __entry->server, __entry->tx ? "tx" : "rx", __entry->addr_index,
-		      __entry->error, __entry->abort_code, __entry->rtt_us,
+	    TP_printk("s=%08x %s pq=%x ax=%u e=%d ac=%d rtt=%d %pISpc",
+		      __entry->server, __entry->tx ? "tx" : "rx", __entry->estate,
+		      __entry->addr_index, __entry->error, __entry->abort_code, __entry->rtt_us,
 		      &__entry->srx.transport)
 	    );
 

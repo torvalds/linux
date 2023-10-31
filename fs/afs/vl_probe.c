@@ -46,7 +46,7 @@ static void afs_done_one_vl_probe(struct afs_vlserver *server, bool wake_up)
  */
 void afs_vlserver_probe_result(struct afs_call *call)
 {
-	struct afs_addr_list *alist = call->probe_alist;
+	struct afs_addr_list *alist = call->vl_probe;
 	struct afs_vlserver *server = call->vlserver;
 	struct afs_address *addr = &alist->addrs[call->probe_index];
 	unsigned int server_index = call->server_index;
