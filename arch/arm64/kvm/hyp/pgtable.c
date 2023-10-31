@@ -645,8 +645,13 @@ enum kvm_pgtable_prot kvm_pgtable_stage2_pte_prot(kvm_pte_t pte)
 	return prot;
 }
 
-static bool stage2_pte_needs_update(kvm_pte_t old, kvm_pte_t new)
+static bool stage2_pte_needs_update(struct kvm_pgtable *pgt,
+				    kvm_pte_t old, kvm_pte_t new)
 {
+	/* Following filter logic applies only to guest stage-2 entries. */
+	if (pgt->flags & KVM_PGTABLE_S2_IDMAP)
+		return true;
+
 	if (!kvm_pte_valid(old) || !kvm_pte_valid(new))
 		return true;
 
@@ -715,12 +720,15 @@ static int stage2_map_walker_try_leaf(u64 addr, u64 end, u32 level,
 		new = data->annotation;
 
 	/*
-	 * Skip updating the PTE if we are trying to recreate the exact
-	 * same mapping or only change the access permissions. Instead,
-	 * the vCPU will exit one more time from guest if still needed
-	 * and then go through the path of relaxing permissions.
+	 * Skip updating a guest PTE if we are trying to recreate the exact
+	 * same mapping or change only the access permissions. Instead,
+	 * the vCPU will exit one more time from the guest if still needed
+	 * and then go through the path of relaxing permissions. This applies
+	 * only to guest PTEs; Host PTEs are unconditionally updated. The
+	 * host cannot livelock because the abort handler has done prior
+	 * checks before calling here.
 	 */
-	if (!stage2_pte_needs_update(old, new))
+	if (!stage2_pte_needs_update(pgt, old, new))
 		return -EAGAIN;
 
 	if (pte_ops->pte_is_counted_cb(old, level))

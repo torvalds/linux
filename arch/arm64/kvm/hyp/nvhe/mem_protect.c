@@ -2008,19 +2008,6 @@ int __pkvm_hyp_donate_host(u64 pfn, u64 nr_pages)
 	return ret;
 }
 
-static int restrict_host_page_perms(u64 addr, kvm_pte_t pte, u32 level, enum kvm_pgtable_prot prot)
-{
-	int ret = 0;
-
-	/* XXX: optimize ... */
-	if (kvm_pte_valid(pte) && (level == KVM_PGTABLE_MAX_LEVELS - 1))
-		ret = kvm_pgtable_stage2_unmap(&host_mmu.pgt, addr, PAGE_SIZE);
-	if (!ret)
-		ret = host_stage2_idmap_locked(addr, PAGE_SIZE, prot, false);
-
-	return ret;
-}
-
 #define MODULE_PROT_ALLOWLIST (KVM_PGTABLE_PROT_RWX |	\
 			       KVM_PGTABLE_PROT_DEVICE |\
 			       KVM_PGTABLE_PROT_NC |	\
@@ -2065,12 +2052,12 @@ int module_change_host_page_prot(u64 pfn, enum kvm_pgtable_prot prot)
 	}
 
 update:
-	if (prot == default_host_prot(!!page))
-		ret = host_stage2_set_owner_locked(addr, PAGE_SIZE, PKVM_ID_HOST);
-	else if (!prot)
-		ret = host_stage2_set_owner_locked(addr, PAGE_SIZE, PKVM_ID_PROTECTED);
-	else
-		ret = restrict_host_page_perms(addr, pte, level, prot);
+	if (!prot) {
+		ret = host_stage2_set_owner_locked(addr, PAGE_SIZE,
+						   PKVM_ID_PROTECTED);
+	} else {
+		ret = host_stage2_idmap_locked(addr, PAGE_SIZE, prot, false);
+	}
 
 	if (ret || !page)
 		goto unlock;
