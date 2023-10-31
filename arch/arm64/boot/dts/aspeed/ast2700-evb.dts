@@ -175,6 +175,53 @@
 	pinctrl-0 = <&pinctrl_rgmii1_default>;
 };
 
+&espi0 {
+	status = "okay";
+	perif-dma-mode;
+	perif-mcyc-enable;
+	perif-mcyc-src-addr = <0x0 0x98000000>;
+	perif-mcyc-size = <0x0 0x10000>;
+	oob-dma-mode;
+	flash-dma-mode;
+};
+
+&lpc0_kcs0 {
+	status = "okay";
+	kcs-io-addr = <0xca0>;
+	kcs-channel = <0>;
+};
+
+&lpc0_kcs1 {
+	status = "okay";
+	kcs-io-addr = <0xca8>;
+	kcs-channel = <1>;
+};
+
+&lpc0_kcs2 {
+	status = "okay";
+	kcs-io-addr = <0xca2>;
+	kcs-channel = <2>;
+};
+
+&lpc0_kcs3 {
+	status = "okay";
+	kcs-io-addr = <0xca4>;
+	kcs-channel = <3>;
+};
+
+&lpc0_ibt {
+	status = "okay";
+};
+
+&lpc0_mbox {
+	status = "okay";
+};
+
+&lpc0_snoop {
+	status = "okay";
+	snoop-ports = <0x80>, <0x81>;
+};
+
 #if 0
 &mctp0 {
 	status = "okay";
@@ -308,60 +355,6 @@
 	status = "okay";
 };
 
-&espi0 {
-	status = "okay";
-	perif-dma-mode;
-	perif-mmbi-enable;
-	perif-mmbi-src-addr = <0x0 0xa8000000>;
-	perif-mmbi-tgt-memory = <&espi_mmbi_memory>;
-	perif-mmbi-instance-num = <1>;
-	perif-mcyc-enable;
-	perif-mcyc-src-addr = <0x0 0x98000000>;
-	perif-mcyc-size = <0x0 0x10000>;
-	oob-dma-mode;
-	flash-dma-mode;
-};
-
-&lpc0_kcs0 {
-	status = "okay";
-	kcs-io-addr = <0xca0>;
-	kcs-channel = <0>;
-};
-
-&lpc0_kcs1 {
-	status = "okay";
-	kcs-io-addr = <0xca8>;
-	kcs-channel = <1>;
-};
-
-&lpc0_kcs2 {
-	status = "okay";
-	kcs-io-addr = <0xca2>;
-	kcs-channel = <2>;
-};
-
-&lpc0_kcs3 {
-	status = "okay";
-	kcs-io-addr = <0xca4>;
-	kcs-channel = <3>;
-};
-
-&lpc0_ibt {
-	status = "okay";
-};
-
-&lpc0_mbox {
-	status = "okay";
-};
-
-&lpc0_pcc {
-	status = "okay";
-	port-addr = <0x80>;
-	rec-mode = <0x1>;
-	port-addr-hbits-select = <0x1>;
-	port-addr-xbits = <0x3>;
-	A2600-15;
-};
 
 &bmc_dev0 {
 	status = "okay";
