@@ -57,6 +57,7 @@
 #define LLCC_DISP_1      54
 #define LLCC_SAIL        55
 #define LLCC_VIDVSP      64
+#define LLCC_EVA_3DR     69
 
 /**
  * llcc_slice_desc - Cache slice descriptor
