@@ -56,7 +56,7 @@ static int get_afbc_size(uint32_t width, uint32_t height, uint32_t bpp)
 int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_count)
 {
 	int flags;
-	int bpp = 32;
+	int bpp;
 	const char *ptr;
 	char file_name[100];
 	int width;
@@ -70,6 +70,10 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 	drm_get_format_name(dump_info->format->format, &format_name);
 	strscpy(format, format_name.str, 5);
 	bpp = rockchip_drm_get_bpp(dump_info->format);
+	if (!bpp) {
+		DRM_WARN("invalid bpp %d\n", bpp);
+		return 0;
+	}
 
 	if (dump_info->yuv_format) {
 		u8 hsub = dump_info->format->hsub;
