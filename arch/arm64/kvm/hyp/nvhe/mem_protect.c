@@ -79,35 +79,10 @@ static void hyp_unlock_component(void)
 	hyp_spin_unlock(&pkvm_pgd_lock);
 }
 
-static void assert_host_can_alloc(void)
-{
-	/* We can always get back to the host from guest context */
-	if (read_sysreg(vttbr_el2) != kvm_get_vttbr(&host_mmu.arch.mmu))
-		return;
-
-	/*
-	 * An error code must be returned to EL1 to handle memory allocation
-	 * failures cleanly. That's doable for explicit calls into higher
-	 * ELs, but not so much for other EL2 entry reasons such as mem aborts.
-	 * Thankfully we don't need memory allocation in these cases by
-	 * construction, so let's enforce the invariant.
-	 */
-	switch (ESR_ELx_EC(read_sysreg(esr_el2))) {
-	case ESR_ELx_EC_HVC64:
-	case ESR_ELx_EC_SMC64:
-		break;
-	default:
-		WARN_ON(1);
-	}
-}
-
 static void *host_s2_zalloc_pages_exact(size_t size)
 {
-	void *addr;
+	void *addr = hyp_alloc_pages(&host_s2_pool, get_order(size));
 
-	assert_host_can_alloc();
-
-	addr = hyp_alloc_pages(&host_s2_pool, get_order(size));
 	hyp_split_page(hyp_virt_to_page(addr));
 
 	/*
@@ -122,8 +97,6 @@ static void *host_s2_zalloc_pages_exact(size_t size)
 
 static void *host_s2_zalloc_page(void *pool)
 {
-	assert_host_can_alloc();
-
 	return hyp_alloc_pages(pool, 0);
 }
 
