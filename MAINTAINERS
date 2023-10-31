@@ -10952,7 +10952,8 @@ S:	Maintained
 F:	drivers/net/ethernet/sgi/ioc3-eth.c
 
 IOMAP FILESYSTEM LIBRARY
-M:	Darrick J. Wong <djwong@kernel.org>
+M:	Christian Brauner <brauner@kernel.org>
+R:	Darrick J. Wong <djwong@kernel.org>
 L:	linux-xfs@vger.kernel.org
 L:	linux-fsdevel@vger.kernel.org
 S:	Supported
