@@ -39,7 +39,7 @@ struct a5psw_tag {
 
 static struct sk_buff *a5psw_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct a5psw_tag *ptag;
 	u32 data2_val;
 
@@ -90,7 +90,7 @@ static struct sk_buff *a5psw_tag_rcv(struct sk_buff *skb,
 
 	port = FIELD_GET(A5PSW_CTRL_DATA_PORT, ntohs(tag->ctrl_data));
 
-	skb->dev = dsa_master_find_slave(dev, 0, port);
+	skb->dev = dsa_conduit_find_user(dev, 0, port);
 	if (!skb->dev)
 		return NULL;
 

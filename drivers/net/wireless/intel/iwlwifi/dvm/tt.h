@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014, 2023 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -72,14 +72,15 @@ struct iwl_tt_trans {
  *		    when thermal throttling state != IWL_TI_0
  *		    the tt_power_mode should set to different
  *		    power mode based on the current tt state
- * @tt_previous_temperature: last measured temperature
- * @iwl_tt_restriction: ptr to restriction tbl, used by advance
+ * @tt_previous_temp: last measured temperature
+ * @restriction: ptr to restriction tbl, used by advance
  *		    thermal throttling to determine how many tx/rx streams
  *		    should be used in tt state; and can HT be enabled or not
- * @iwl_tt_trans: ptr to adv trans table, used by advance thermal throttling
+ * @transaction: ptr to adv trans table, used by advance thermal throttling
  *		    state transaction
  * @ct_kill_toggle: used to toggle the CSR bit when checking uCode temperature
  * @ct_kill_exit_tm: timer to exit thermal kill
+ * @ct_kill_waiting_tm: timer to enter thermal kill
  */
 struct iwl_tt_mgmt {
 	enum iwl_tt_state state;

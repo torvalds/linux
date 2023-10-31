@@ -126,7 +126,7 @@ struct hif_device_usb {
 	struct usb_anchor reg_in_submitted;
 	struct usb_anchor mgmt_submitted;
 	struct sk_buff *remain_skb;
-	char fw_name[32];
+	char fw_name[64];
 	int fw_minor_index;
 	int rx_remain_len;
 	int rx_pkt_len;

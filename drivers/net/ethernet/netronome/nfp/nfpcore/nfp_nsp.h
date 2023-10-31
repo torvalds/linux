@@ -241,7 +241,7 @@ struct nfp_eth_table {
 
 		u64 link_modes_supp[2];
 		u64 link_modes_ad[2];
-	} ports[];
+	} ports[] __counted_by(count);
 };
 
 struct nfp_eth_table *nfp_eth_read_ports(struct nfp_cpp *cpp);

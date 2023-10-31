@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
+ * Copyright (C) 2023 Intel Corporation
  * Copyright (C) 2012-2014 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  */

@@ -4,6 +4,8 @@
 #ifndef _I40E_ADMINQ_CMD_H_
 #define _I40E_ADMINQ_CMD_H_
 
+#include <linux/bits.h>
+
 /* This header file defines the i40e Admin Queue commands and is shared between
  * i40e Firmware and Software.
  *

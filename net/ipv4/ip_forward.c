@@ -66,8 +66,6 @@ static int ip_forward_finish(struct net *net, struct sock *sk, struct sk_buff *s
 {
 	struct ip_options *opt	= &(IPCB(skb)->opt);
 
-	__IP_INC_STATS(net, IPSTATS_MIB_OUTFORWDATAGRAMS);
-
 #ifdef CONFIG_NET_SWITCHDEV
 	if (skb->offload_l3_fwd_mark) {
 		consume_skb(skb);
@@ -129,6 +127,8 @@ int ip_forward(struct sk_buff *skb)
 
 	if (opt->is_strictroute && rt->rt_uses_gateway)
 		goto sr_failed;
+
+	__IP_INC_STATS(net, IPSTATS_MIB_OUTFORWDATAGRAMS);
 
 	IPCB(skb)->flags |= IPSKB_FORWARDED;
 	mtu = ip_dst_mtu_maybe_forward(&rt->dst, true);

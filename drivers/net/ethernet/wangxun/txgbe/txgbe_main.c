@@ -286,6 +286,8 @@ static void txgbe_disable_device(struct wx *wx)
 
 	/* Disable the Tx DMA engine */
 	wr32m(wx, WX_TDM_CTL, WX_TDM_CTL_TE, 0);
+
+	wx_update_stats(wx);
 }
 
 static void txgbe_down(struct wx *wx)
@@ -538,7 +540,6 @@ static int txgbe_probe(struct pci_dev *pdev,
 	u16 eeprom_verh = 0, eeprom_verl = 0, offset = 0;
 	u16 eeprom_cfg_blkh = 0, eeprom_cfg_blkl = 0;
 	u16 build = 0, major = 0, patch = 0;
-	u8 part_str[TXGBE_PBANUM_LENGTH];
 	u32 etrack_id = 0;
 
 	err = pci_enable_device_mem(pdev);
@@ -735,13 +736,6 @@ static int txgbe_probe(struct pci_dev *pdev,
 		txgbe_check_minimum_link(wx);
 	else
 		dev_warn(&pdev->dev, "Failed to enumerate PF devices.\n");
-
-	/* First try to read PBA as a string */
-	err = txgbe_read_pba_string(wx, part_str, TXGBE_PBANUM_LENGTH);
-	if (err)
-		strncpy(part_str, "Unknown", TXGBE_PBANUM_LENGTH);
-
-	netif_info(wx, probe, netdev, "%pM\n", netdev->dev_addr);
 
 	return 0;
 

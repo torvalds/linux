@@ -24,7 +24,7 @@ static void
 ax88796c_get_drvinfo(struct net_device *ndev, struct ethtool_drvinfo *info)
 {
 	/* Inherit standard device info */
-	strncpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
 }
 
 static u32 ax88796c_get_msglevel(struct net_device *ndev)

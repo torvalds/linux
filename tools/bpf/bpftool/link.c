@@ -265,6 +265,7 @@ show_kprobe_multi_json(struct bpf_link_info *info, json_writer_t *wtr)
 	jsonw_bool_field(json_wtr, "retprobe",
 			 info->kprobe_multi.flags & BPF_F_KPROBE_MULTI_RETURN);
 	jsonw_uint_field(json_wtr, "func_cnt", info->kprobe_multi.count);
+	jsonw_uint_field(json_wtr, "missed", info->kprobe_multi.missed);
 	jsonw_name(json_wtr, "funcs");
 	jsonw_start_array(json_wtr);
 	addrs = u64_to_ptr(info->kprobe_multi.addrs);
@@ -301,6 +302,7 @@ show_perf_event_kprobe_json(struct bpf_link_info *info, json_writer_t *wtr)
 	jsonw_string_field(wtr, "func",
 			   u64_to_ptr(info->perf_event.kprobe.func_name));
 	jsonw_uint_field(wtr, "offset", info->perf_event.kprobe.offset);
+	jsonw_uint_field(wtr, "missed", info->perf_event.kprobe.missed);
 }
 
 static void
@@ -448,6 +450,10 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 	case BPF_LINK_TYPE_TCX:
 		show_link_ifindex_json(info->tcx.ifindex, json_wtr);
 		show_link_attach_type_json(info->tcx.attach_type, json_wtr);
+		break;
+	case BPF_LINK_TYPE_NETKIT:
+		show_link_ifindex_json(info->netkit.ifindex, json_wtr);
+		show_link_attach_type_json(info->netkit.attach_type, json_wtr);
 		break;
 	case BPF_LINK_TYPE_XDP:
 		show_link_ifindex_json(info->xdp.ifindex, json_wtr);
@@ -641,6 +647,8 @@ static void show_kprobe_multi_plain(struct bpf_link_info *info)
 	else
 		printf("\n\tkprobe.multi  ");
 	printf("func_cnt %u  ", info->kprobe_multi.count);
+	if (info->kprobe_multi.missed)
+		printf("missed %llu  ", info->kprobe_multi.missed);
 	addrs = (__u64 *)u64_to_ptr(info->kprobe_multi.addrs);
 	qsort(addrs, info->kprobe_multi.count, sizeof(__u64), cmp_u64);
 
@@ -683,6 +691,8 @@ static void show_perf_event_kprobe_plain(struct bpf_link_info *info)
 	printf("%s", buf);
 	if (info->perf_event.kprobe.offset)
 		printf("+%#x", info->perf_event.kprobe.offset);
+	if (info->perf_event.kprobe.missed)
+		printf("  missed %llu", info->perf_event.kprobe.missed);
 	printf("  ");
 }
 
@@ -784,6 +794,11 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 		printf("\n\t");
 		show_link_ifindex_plain(info->tcx.ifindex);
 		show_link_attach_type_plain(info->tcx.attach_type);
+		break;
+	case BPF_LINK_TYPE_NETKIT:
+		printf("\n\t");
+		show_link_ifindex_plain(info->netkit.ifindex);
+		show_link_attach_type_plain(info->netkit.attach_type);
 		break;
 	case BPF_LINK_TYPE_XDP:
 		printf("\n\t");

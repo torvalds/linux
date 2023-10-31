@@ -1624,9 +1624,10 @@ void rtw8852a_bb_tx_mode_switch(struct rtw89_dev *rtwdev,
 	rtw89_phy_write32_idx(rtwdev, R_MAC_SEL, B_MAC_SEL_PWR_EN, 0, idx);
 }
 
-static void rtw8852a_bb_ctrl_btc_preagc(struct rtw89_dev *rtwdev, bool bt_en)
+static void rtw8852a_ctrl_nbtg_bt_tx(struct rtw89_dev *rtwdev, bool en,
+				     enum rtw89_phy_idx phy_idx)
 {
-	rtw89_phy_write_reg3_tbl(rtwdev, bt_en ? &rtw8852a_btc_preagc_en_defs_tbl :
+	rtw89_phy_write_reg3_tbl(rtwdev, en ? &rtw8852a_btc_preagc_en_defs_tbl :
 						 &rtw8852a_btc_preagc_dis_defs_tbl);
 }
 
@@ -1683,9 +1684,10 @@ void rtw8852a_set_trx_mask(struct rtw89_dev *rtwdev, u8 path, u8 group, u32 val)
 	rtw89_write_rf(rtwdev, path, RR_LUTWE, 0xfffff, 0x0);
 }
 
-static void rtw8852a_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
+static void rtw8852a_ctrl_btg_bt_rx(struct rtw89_dev *rtwdev, bool en,
+				    enum rtw89_phy_idx phy_idx)
 {
-	if (btg) {
+	if (en) {
 		rtw89_phy_write32_mask(rtwdev, R_PATH0_BTG, B_PATH0_BTG_SHEN, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_PATH1_BTG, B_PATH1_BTG_SHEN, 0x3);
 		rtw89_phy_write32_mask(rtwdev, R_PMAC_GNT, B_PMAC_GNT_P1, 0x0);
@@ -1966,15 +1968,15 @@ static void rtw8852a_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 	switch (level) {
 	case 0: /* original */
 	default:
-		rtw8852a_bb_ctrl_btc_preagc(rtwdev, false);
+		rtw8852a_ctrl_nbtg_bt_tx(rtwdev, false, RTW89_PHY_0);
 		btc->dm.wl_lna2 = 0;
 		break;
 	case 1: /* for FDD free-run */
-		rtw8852a_bb_ctrl_btc_preagc(rtwdev, true);
+		rtw8852a_ctrl_nbtg_bt_tx(rtwdev, true, RTW89_PHY_0);
 		btc->dm.wl_lna2 = 0;
 		break;
 	case 2: /* for BTG Co-Rx*/
-		rtw8852a_bb_ctrl_btc_preagc(rtwdev, false);
+		rtw8852a_ctrl_nbtg_bt_tx(rtwdev, false, RTW89_PHY_0);
 		btc->dm.wl_lna2 = 1;
 		break;
 	}
@@ -2025,6 +2027,7 @@ static const struct wiphy_wowlan_support rtw_wowlan_stub_8852a = {
 static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 	.enable_bb_rf		= rtw89_mac_enable_bb_rf,
 	.disable_bb_rf		= rtw89_mac_disable_bb_rf,
+	.bb_preinit		= NULL,
 	.bb_reset		= rtw8852a_bb_reset,
 	.bb_sethw		= rtw8852a_bb_sethw,
 	.read_rf		= rtw89_phy_read_rf,
@@ -2045,9 +2048,9 @@ static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 	.set_txpwr_ctrl		= rtw8852a_set_txpwr_ctrl,
 	.init_txpwr_unit	= rtw8852a_init_txpwr_unit,
 	.get_thermal		= rtw8852a_get_thermal,
-	.ctrl_btg		= rtw8852a_ctrl_btg,
+	.ctrl_btg_bt_rx		= rtw8852a_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8852a_query_ppdu,
-	.bb_ctrl_btc_preagc	= rtw8852a_bb_ctrl_btc_preagc,
+	.ctrl_nbtg_bt_tx	= rtw8852a_ctrl_nbtg_bt_tx,
 	.cfg_txrx_path		= NULL,
 	.set_txpwr_ul_tb_offset	= rtw8852a_set_txpwr_ul_tb_offset,
 	.pwr_on_func		= NULL,
@@ -2081,6 +2084,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.fw_basename		= RTW8852A_FW_BASENAME,
 	.fw_format_max		= RTW8852A_FW_FORMAT_MAX,
 	.try_ce_fw		= false,
+	.bbmcu_nr		= 0,
 	.needed_fw_elms		= 0,
 	.fifo_size		= 458752,
 	.small_fifo_size	= false,
@@ -2101,7 +2105,6 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 				   &rtw89_8852a_phy_radiob_table,},
 	.nctl_table		= &rtw89_8852a_phy_nctl_table,
 	.nctl_post_table	= NULL,
-	.byr_table		= &rtw89_8852a_byr_table,
 	.dflt_parms		= &rtw89_8852a_dflt_parms,
 	.rfe_parms_conf		= NULL,
 	.txpwr_factor_rf	= 2,
@@ -2114,7 +2117,8 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 				  BIT(NL80211_BAND_5GHZ),
 	.support_bw160		= false,
 	.support_unii4		= false,
-	.support_ul_tb_ctrl     = false,
+	.ul_tb_waveform_ctrl	= false,
+	.ul_tb_pwr_diff		= false,
 	.hw_sec_hdr		= false,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
@@ -2157,6 +2161,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.hci_func_en_addr	= R_AX_HCI_FUNC_EN,
 	.h2c_desc_size		= sizeof(struct rtw89_txwd_body),
 	.txwd_body_size		= sizeof(struct rtw89_txwd_body),
+	.txwd_info_size		= sizeof(struct rtw89_txwd_info),
 	.h2c_ctrl_reg		= R_AX_H2CREG_CTRL,
 	.h2c_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_H2C_DEQ_CNT_MASK >> 8},
 	.h2c_regs		= rtw8852a_h2c_regs,
@@ -2170,6 +2175,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.dcfo_comp_sft		= 10,
 	.imr_info		= &rtw8852a_imr_info,
 	.rrsr_cfgs		= &rtw8852a_rrsr_cfgs,
+	.bss_clr_vld		= {R_BSS_CLR_MAP, B_BSS_CLR_MAP_VLD0},
 	.bss_clr_map_reg	= R_BSS_CLR_MAP,
 	.dma_ch_mask		= 0,
 	.edcca_lvl_reg		= R_SEG0R_EDCCA_LVL,

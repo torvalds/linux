@@ -36,7 +36,7 @@ patternProperties:
         const: 0
 
     patternProperties:
-      "^(ethernet-)?port@[0-9]+$":
+      "^(ethernet-)?port@[0-9a-f]+$":
         type: object
         description: Ethernet switch ports
 
@@ -53,14 +53,16 @@ oneOf:
 additionalProperties: true
 
 $defs:
-  base:
+  ethernet-ports:
     description: An ethernet switch without any extra port properties
     $ref: '#'
 
     patternProperties:
-      "^(ethernet-)?port@[0-9]+$":
-        description: Ethernet switch ports
-        $ref: ethernet-switch-port.yaml#
-        unevaluatedProperties: false
+      "^(ethernet-)?ports$":
+        patternProperties:
+          "^(ethernet-)?port@[0-9a-f]+$":
+            description: Ethernet switch ports
+            $ref: ethernet-switch-port.yaml#
+            unevaluatedProperties: false
 
 ...

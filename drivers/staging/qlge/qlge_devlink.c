@@ -2,51 +2,29 @@
 #include "qlge.h"
 #include "qlge_devlink.h"
 
-static int qlge_fill_seg_(struct devlink_fmsg *fmsg,
-			  struct mpi_coredump_segment_header *seg_header,
-			  u32 *reg_data)
+static void qlge_fill_seg_(struct devlink_fmsg *fmsg,
+			   struct mpi_coredump_segment_header *seg_header,
+			   u32 *reg_data)
 {
 	int regs_num = (seg_header->seg_size
 			- sizeof(struct mpi_coredump_segment_header)) / sizeof(u32);
-	int err;
 	int i;
 
-	err = devlink_fmsg_pair_nest_start(fmsg, seg_header->description);
-	if (err)
-		return err;
-	err = devlink_fmsg_obj_nest_start(fmsg);
-	if (err)
-		return err;
-	err = devlink_fmsg_u32_pair_put(fmsg, "segment", seg_header->seg_num);
-	if (err)
-		return err;
-	err = devlink_fmsg_arr_pair_nest_start(fmsg, "values");
-	if (err)
-		return err;
+	devlink_fmsg_pair_nest_start(fmsg, seg_header->description);
+	devlink_fmsg_obj_nest_start(fmsg);
+	devlink_fmsg_u32_pair_put(fmsg, "segment", seg_header->seg_num);
+	devlink_fmsg_arr_pair_nest_start(fmsg, "values");
 	for (i = 0; i < regs_num; i++) {
-		err = devlink_fmsg_u32_put(fmsg, *reg_data);
-		if (err)
-			return err;
+		devlink_fmsg_u32_put(fmsg, *reg_data);
 		reg_data++;
 	}
-	err = devlink_fmsg_obj_nest_end(fmsg);
-	if (err)
-		return err;
-	err = devlink_fmsg_arr_pair_nest_end(fmsg);
-	if (err)
-		return err;
-	err = devlink_fmsg_pair_nest_end(fmsg);
-	return err;
+	devlink_fmsg_obj_nest_end(fmsg);
+	devlink_fmsg_arr_pair_nest_end(fmsg);
+	devlink_fmsg_pair_nest_end(fmsg);
 }
 
-#define FILL_SEG(seg_hdr, seg_regs)			                    \
-	do {                                                                \
-		err = qlge_fill_seg_(fmsg, &dump->seg_hdr, dump->seg_regs); \
-		if (err) {					            \
-			kvfree(dump);                                       \
-			return err;				            \
-		}                                                           \
-	} while (0)
+#define FILL_SEG(seg_hdr, seg_regs) \
+	qlge_fill_seg_(fmsg, &dump->seg_hdr, dump->seg_regs)
 
 static int qlge_reporter_coredump(struct devlink_health_reporter *reporter,
 				  struct devlink_fmsg *fmsg, void *priv_ctx,
@@ -114,14 +92,8 @@ static int qlge_reporter_coredump(struct devlink_health_reporter *reporter,
 	FILL_SEG(xfi_hss_tx_hdr, serdes_xfi_hss_tx);
 	FILL_SEG(xfi_hss_rx_hdr, serdes_xfi_hss_rx);
 	FILL_SEG(xfi_hss_pll_hdr, serdes_xfi_hss_pll);
-
-	err = qlge_fill_seg_(fmsg, &dump->misc_nic_seg_hdr,
-			     (u32 *)&dump->misc_nic_info);
-	if (err) {
-		kvfree(dump);
-		return err;
-	}
-
+	qlge_fill_seg_(fmsg, &dump->misc_nic_seg_hdr,
+		       (u32 *)&dump->misc_nic_info);
 	FILL_SEG(intr_states_seg_hdr, intr_states);
 	FILL_SEG(cam_entries_seg_hdr, cam_entries);
 	FILL_SEG(nic_routing_words_seg_hdr, nic_routing_words);
@@ -140,7 +112,7 @@ static int qlge_reporter_coredump(struct devlink_health_reporter *reporter,
 	FILL_SEG(sem_regs_seg_hdr, sem_regs);
 
 	kvfree(dump);
-	return err;
+	return 0;
 }
 
 static const struct devlink_health_reporter_ops qlge_reporter_ops = {

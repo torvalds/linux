@@ -3,22 +3,28 @@
  *
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
  * Copyright(C) 2016        Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018, 2023  Intel Corporation
  *****************************************************************************/
 
 #ifndef __IWLWIFI_DEVICE_TRACE
 #include <linux/skbuff.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
+#include <net/mac80211.h>
 #include "iwl-trans.h"
 #if !defined(__IWLWIFI_DEVICE_TRACE)
 static inline bool iwl_trace_data(struct sk_buff *skb)
 {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	__le16 fc = hdr->frame_control;
 	int offs = 24; /* start with normal header length */
 
 	if (!ieee80211_is_data(fc))
+		return false;
+
+	/* If upper layers wanted TX status it's an important frame */
+	if (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS)
 		return false;
 
 	/* Try to determine if the frame is EAPOL. This might have false

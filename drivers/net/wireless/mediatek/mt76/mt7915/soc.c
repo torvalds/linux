@@ -1219,10 +1219,7 @@ static int mt798x_wmac_init(struct mt7915_dev *dev)
 		return PTR_ERR(dev->sku);
 
 	dev->rstc = devm_reset_control_get(pdev, "consys");
-	if (IS_ERR(dev->rstc))
-		return PTR_ERR(dev->rstc);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(dev->rstc);
 }
 
 static int mt798x_wmac_probe(struct platform_device *pdev)

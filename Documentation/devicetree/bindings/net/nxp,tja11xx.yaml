@@ -20,6 +20,7 @@ allOf:
 patternProperties:
   "^ethernet-phy@[0-9a-f]+$":
     type: object
+    additionalProperties: false
     description: |
       Some packages have multiple PHYs. Secondary PHY should be defines as
       subnode of the first (parent) PHY.

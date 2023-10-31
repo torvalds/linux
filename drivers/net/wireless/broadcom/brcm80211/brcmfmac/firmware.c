@@ -19,7 +19,7 @@
 
 #define BRCMF_FW_MAX_NVRAM_SIZE			64000
 #define BRCMF_FW_NVRAM_DEVPATH_LEN		19	/* devpath0=pcie/1/4/ */
-#define BRCMF_FW_NVRAM_PCIEDEV_LEN		10	/* pcie/1/4/ + \0 */
+#define BRCMF_FW_NVRAM_PCIEDEV_LEN		20	/* pcie/1/4/ + \0 */
 #define BRCMF_FW_DEFAULT_BOARDREV		"boardrev=0xff"
 #define BRCMF_FW_MACADDR_FMT			"macaddr=%pM"
 #define BRCMF_FW_MACADDR_LEN			(7 + ETH_ALEN * 3)
@@ -238,9 +238,9 @@ static void brcmf_fw_strip_multi_v1(struct nvram_parser *nvp, u16 domain_nr,
 				    u16 bus_nr)
 {
 	/* Device path with a leading '=' key-value separator */
-	char pci_path[] = "=pci/?/?";
+	char pci_path[20];
 	size_t pci_len;
-	char pcie_path[] = "=pcie/?/?";
+	char pcie_path[20];
 	size_t pcie_len;
 
 	u32 i, j;

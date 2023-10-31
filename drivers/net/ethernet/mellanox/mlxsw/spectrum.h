@@ -212,6 +212,7 @@ struct mlxsw_sp {
 	struct mutex ipv6_addr_ht_lock; /* Protects ipv6_addr_ht */
 	struct mlxsw_sp_pgt *pgt;
 	bool pgt_smpe_index_valid;
+	u16 lag_pgt_base;
 };
 
 struct mlxsw_sp_ptp_ops {
@@ -1480,7 +1481,7 @@ int mlxsw_sp_policer_resources_register(struct mlxsw_core *mlxsw_core);
 /* spectrum_pgt.c */
 int mlxsw_sp_pgt_mid_alloc(struct mlxsw_sp *mlxsw_sp, u16 *p_mid);
 void mlxsw_sp_pgt_mid_free(struct mlxsw_sp *mlxsw_sp, u16 mid_base);
-int mlxsw_sp_pgt_mid_alloc_range(struct mlxsw_sp *mlxsw_sp, u16 mid_base,
+int mlxsw_sp_pgt_mid_alloc_range(struct mlxsw_sp *mlxsw_sp, u16 *mid_base,
 				 u16 count);
 void mlxsw_sp_pgt_mid_free_range(struct mlxsw_sp *mlxsw_sp, u16 mid_base,
 				 u16 count);

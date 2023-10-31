@@ -441,8 +441,3 @@ int mlx5_blocking_notifier_call_chain(struct mlx5_core_dev *dev, unsigned int ev
 
 	return blocking_notifier_call_chain(&events->sw_nh, event, data);
 }
-
-void mlx5_events_work_enqueue(struct mlx5_core_dev *dev, struct work_struct *work)
-{
-	queue_work(dev->priv.events->wq, work);
-}

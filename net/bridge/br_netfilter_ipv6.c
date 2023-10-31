@@ -161,13 +161,13 @@ unsigned int br_nf_pre_routing_ipv6(void *priv,
 	struct nf_bridge_info *nf_bridge;
 
 	if (br_validate_ipv6(state->net, skb))
-		return NF_DROP;
+		return NF_DROP_REASON(skb, SKB_DROP_REASON_IP_INHDR, 0);
 
 	nf_bridge = nf_bridge_alloc(skb);
 	if (!nf_bridge)
-		return NF_DROP;
+		return NF_DROP_REASON(skb, SKB_DROP_REASON_NOMEM, 0);
 	if (!setup_pre_routing(skb, state->net))
-		return NF_DROP;
+		return NF_DROP_REASON(skb, SKB_DROP_REASON_DEV_READY, 0);
 
 	nf_bridge = nf_bridge_info_get(skb);
 	nf_bridge->ipv6_daddr = ipv6_hdr(skb)->daddr;

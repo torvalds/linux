@@ -467,7 +467,7 @@ void ath11k_dp_tx_update_txcompl(struct ath11k *ar, struct hal_tx_status *ts)
 	}
 
 	sta = peer->sta;
-	arsta = (struct ath11k_sta *)sta->drv_priv;
+	arsta = ath11k_sta_to_arsta(sta);
 
 	memset(&arsta->txrate, 0, sizeof(arsta->txrate));
 	pkt_type = FIELD_GET(HAL_TX_RATE_STATS_INFO0_PKT_TYPE,
@@ -627,7 +627,7 @@ static void ath11k_dp_tx_complete_msdu(struct ath11k *ar,
 		ieee80211_free_txskb(ar->hw, msdu);
 		return;
 	}
-	arsta = (struct ath11k_sta *)peer->sta->drv_priv;
+	arsta = ath11k_sta_to_arsta(peer->sta);
 	status.sta = peer->sta;
 	status.skb = msdu;
 	status.info = info;

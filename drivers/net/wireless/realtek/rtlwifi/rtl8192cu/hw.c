@@ -1539,7 +1539,7 @@ static bool usb_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
    * if its "here".
    *
    * This is maybe necessary:
-   * rtlpriv->cfg->ops->fill_tx_cmddesc(hw, buffer, 1, 1, skb);
+   * rtlpriv->cfg->ops->fill_tx_cmddesc(hw, buffer, skb);
    */
 	dev_kfree_skb(skb);
 

@@ -9,9 +9,10 @@
 
 #include "test_bpf_ma.skel.h"
 
-void test_test_bpf_ma(void)
+static void do_bpf_ma_test(const char *name)
 {
 	struct test_bpf_ma *skel;
+	struct bpf_program *prog;
 	struct btf *btf;
 	int i, err;
 
@@ -34,6 +35,11 @@ void test_test_bpf_ma(void)
 		skel->rodata->data_btf_ids[i] = id;
 	}
 
+	prog = bpf_object__find_program_by_name(skel->obj, name);
+	if (!ASSERT_OK_PTR(prog, "invalid prog name"))
+		goto out;
+	bpf_program__set_autoload(prog, true);
+
 	err = test_bpf_ma__load(skel);
 	if (!ASSERT_OK(err, "load"))
 		goto out;
@@ -47,4 +53,16 @@ void test_test_bpf_ma(void)
 	ASSERT_OK(skel->bss->err, "test error");
 out:
 	test_bpf_ma__destroy(skel);
+}
+
+void test_test_bpf_ma(void)
+{
+	if (test__start_subtest("batch_alloc_free"))
+		do_bpf_ma_test("test_batch_alloc_free");
+	if (test__start_subtest("free_through_map_free"))
+		do_bpf_ma_test("test_free_through_map_free");
+	if (test__start_subtest("batch_percpu_alloc_free"))
+		do_bpf_ma_test("test_batch_percpu_alloc_free");
+	if (test__start_subtest("percpu_free_through_map_free"))
+		do_bpf_ma_test("test_percpu_free_through_map_free");
 }

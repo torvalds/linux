@@ -10,17 +10,17 @@
 #include "core.h"
 
 struct ath12k_hif_ops {
-	u32 (*read32)(struct ath12k_base *sc, u32 address);
-	void (*write32)(struct ath12k_base *sc, u32 address, u32 data);
-	void (*irq_enable)(struct ath12k_base *sc);
-	void (*irq_disable)(struct ath12k_base *sc);
-	int (*start)(struct ath12k_base *sc);
-	void (*stop)(struct ath12k_base *sc);
-	int (*power_up)(struct ath12k_base *sc);
-	void (*power_down)(struct ath12k_base *sc);
+	u32 (*read32)(struct ath12k_base *ab, u32 address);
+	void (*write32)(struct ath12k_base *ab, u32 address, u32 data);
+	void (*irq_enable)(struct ath12k_base *ab);
+	void (*irq_disable)(struct ath12k_base *ab);
+	int (*start)(struct ath12k_base *ab);
+	void (*stop)(struct ath12k_base *ab);
+	int (*power_up)(struct ath12k_base *ab);
+	void (*power_down)(struct ath12k_base *ab);
 	int (*suspend)(struct ath12k_base *ab);
 	int (*resume)(struct ath12k_base *ab);
-	int (*map_service_to_pipe)(struct ath12k_base *sc, u16 service_id,
+	int (*map_service_to_pipe)(struct ath12k_base *ab, u16 service_id,
 				   u8 *ul_pipe, u8 *dl_pipe);
 	int (*get_user_msi_vector)(struct ath12k_base *ab, char *user_name,
 				   int *num_vectors, u32 *user_base_data,

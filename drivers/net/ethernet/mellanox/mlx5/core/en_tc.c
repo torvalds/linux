@@ -753,19 +753,21 @@ static int mlx5e_hairpin_create_indirect_rqt(struct mlx5e_hairpin *hp)
 {
 	struct mlx5e_priv *priv = hp->func_priv;
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_rss_params_indir *indir;
+	struct mlx5e_rss_params_indir indir;
 	int err;
 
-	indir = kvmalloc(sizeof(*indir), GFP_KERNEL);
-	if (!indir)
-		return -ENOMEM;
+	err = mlx5e_rss_params_indir_init(&indir, mdev,
+					  mlx5e_rqt_size(mdev, hp->num_channels),
+					  mlx5e_rqt_size(mdev, priv->max_nch));
+	if (err)
+		return err;
 
-	mlx5e_rss_params_indir_init_uniform(indir, hp->num_channels);
+	mlx5e_rss_params_indir_init_uniform(&indir, hp->num_channels);
 	err = mlx5e_rqt_init_indir(&hp->indir_rqt, mdev, hp->pair->rqn, hp->num_channels,
 				   mlx5e_rx_res_get_current_hash(priv->rx_res).hfunc,
-				   indir);
+				   &indir);
 
-	kvfree(indir);
+	mlx5e_rss_params_indir_cleanup(&indir);
 	return err;
 }
 

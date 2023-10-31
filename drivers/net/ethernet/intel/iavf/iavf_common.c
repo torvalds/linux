@@ -7,38 +7,6 @@
 #include <linux/avf/virtchnl.h>
 
 /**
- * iavf_set_mac_type - Sets MAC type
- * @hw: pointer to the HW structure
- *
- * This function sets the mac type of the adapter based on the
- * vendor ID and device ID stored in the hw structure.
- **/
-enum iavf_status iavf_set_mac_type(struct iavf_hw *hw)
-{
-	enum iavf_status status = 0;
-
-	if (hw->vendor_id == PCI_VENDOR_ID_INTEL) {
-		switch (hw->device_id) {
-		case IAVF_DEV_ID_X722_VF:
-			hw->mac.type = IAVF_MAC_X722_VF;
-			break;
-		case IAVF_DEV_ID_VF:
-		case IAVF_DEV_ID_VF_HV:
-		case IAVF_DEV_ID_ADAPTIVE_VF:
-			hw->mac.type = IAVF_MAC_VF;
-			break;
-		default:
-			hw->mac.type = IAVF_MAC_GENERIC;
-			break;
-		}
-	} else {
-		status = IAVF_ERR_DEVICE_NOT_SUPPORTED;
-	}
-
-	return status;
-}
-
-/**
  * iavf_aq_str - convert AQ err code to a string
  * @hw: pointer to the HW structure
  * @aq_err: the AQ error code to convert

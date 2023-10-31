@@ -388,7 +388,7 @@ out_clk:
 	return ret;
 }
 
-static int orion_mdio_remove(struct platform_device *pdev)
+static void orion_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus = platform_get_drvdata(pdev);
 	struct orion_mdio_dev *dev = bus->priv;
@@ -404,8 +404,6 @@ static int orion_mdio_remove(struct platform_device *pdev)
 		clk_disable_unprepare(dev->clk[i]);
 		clk_put(dev->clk[i]);
 	}
-
-	return 0;
 }
 
 static const struct of_device_id orion_mdio_match[] = {
@@ -426,7 +424,7 @@ MODULE_DEVICE_TABLE(acpi, orion_mdio_acpi_match);
 
 static struct platform_driver orion_mdio_driver = {
 	.probe = orion_mdio_probe,
-	.remove = orion_mdio_remove,
+	.remove_new = orion_mdio_remove,
 	.driver = {
 		.name = "orion-mdio",
 		.of_match_table = orion_mdio_match,

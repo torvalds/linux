@@ -27,6 +27,8 @@
 #define CN10K_TLX_BURST_MANTISSA	GENMASK_ULL(43, 29)
 #define CN10K_TLX_BURST_EXPONENT	GENMASK_ULL(47, 44)
 
+#define OTX2_UNSUPP_LSE_DEPTH		GENMASK(6, 4)
+
 struct otx2_tc_flow_stats {
 	u64 bytes;
 	u64 pkts;
@@ -519,6 +521,7 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPSEC) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_MPLS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IP))))  {
 		netdev_info(nic->netdev, "unsupported flow used key 0x%llx",
 			    dissector->used_keys);
@@ -735,6 +738,61 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 				req->features |= BIT_ULL(NPC_SPORT_TCP);
 			else if (ip_proto == IPPROTO_SCTP)
 				req->features |= BIT_ULL(NPC_SPORT_SCTP);
+		}
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_MPLS)) {
+		struct flow_match_mpls match;
+		u8 bit;
+
+		flow_rule_match_mpls(rule, &match);
+
+		if (match.mask->used_lses & OTX2_UNSUPP_LSE_DEPTH) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "unsupported LSE depth for MPLS match offload");
+			return -EOPNOTSUPP;
+		}
+
+		for_each_set_bit(bit, (unsigned long *)&match.mask->used_lses,
+				 FLOW_DIS_MPLS_MAX)  {
+			/* check if any of the fields LABEL,TC,BOS are set */
+			if (*((u32 *)&match.mask->ls[bit]) &
+			    OTX2_FLOWER_MASK_MPLS_NON_TTL) {
+				/* Hardware will capture 4 byte MPLS header into
+				 * two fields NPC_MPLSX_LBTCBOS and NPC_MPLSX_TTL.
+				 * Derive the associated NPC key based on header
+				 * index and offset.
+				 */
+
+				req->features |= BIT_ULL(NPC_MPLS1_LBTCBOS +
+							 2 * bit);
+				flow_spec->mpls_lse[bit] =
+					FIELD_PREP(OTX2_FLOWER_MASK_MPLS_LB,
+						   match.key->ls[bit].mpls_label) |
+					FIELD_PREP(OTX2_FLOWER_MASK_MPLS_TC,
+						   match.key->ls[bit].mpls_tc) |
+					FIELD_PREP(OTX2_FLOWER_MASK_MPLS_BOS,
+						   match.key->ls[bit].mpls_bos);
+
+				flow_mask->mpls_lse[bit] =
+					FIELD_PREP(OTX2_FLOWER_MASK_MPLS_LB,
+						   match.mask->ls[bit].mpls_label) |
+					FIELD_PREP(OTX2_FLOWER_MASK_MPLS_TC,
+						   match.mask->ls[bit].mpls_tc) |
+					FIELD_PREP(OTX2_FLOWER_MASK_MPLS_BOS,
+						   match.mask->ls[bit].mpls_bos);
+			}
+
+			if (match.mask->ls[bit].mpls_ttl) {
+				req->features |= BIT_ULL(NPC_MPLS1_TTL +
+							 2 * bit);
+				flow_spec->mpls_lse[bit] |=
+					FIELD_PREP(OTX2_FLOWER_MASK_MPLS_TTL,
+						   match.key->ls[bit].mpls_ttl);
+				flow_mask->mpls_lse[bit] |=
+					FIELD_PREP(OTX2_FLOWER_MASK_MPLS_TTL,
+						   match.mask->ls[bit].mpls_ttl);
+			}
 		}
 	}
 

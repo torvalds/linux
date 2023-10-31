@@ -1360,7 +1360,7 @@ int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
 		 *  particular hardware is sharing a common queue, so the
 		 *  incoming device might change per packet.
 		 */
-		xdp_do_flush_map();
+		xdp_do_flush();
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(ndev, prog, act);

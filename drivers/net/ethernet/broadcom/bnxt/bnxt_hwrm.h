@@ -137,4 +137,18 @@ int hwrm_req_send_silent(struct bnxt *bp, void *req);
 int hwrm_req_replace(struct bnxt *bp, void *req, void *new_req, u32 len);
 void hwrm_req_alloc_flags(struct bnxt *bp, void *req, gfp_t flags);
 void *hwrm_req_dma_slice(struct bnxt *bp, void *req, u32 size, dma_addr_t *dma);
+
+/* Older devices can only support req length of 128.
+ * HWRM_FUNC_CFG requests which don't need fields starting at
+ * num_quic_tx_key_ctxs can use this helper to avoid getting -E2BIG.
+ */
+static inline int
+bnxt_hwrm_func_cfg_short_req_init(struct bnxt *bp,
+				  struct hwrm_func_cfg_input **req)
+{
+	u32 req_len;
+
+	req_len = min_t(u32, sizeof(**req), bp->hwrm_max_ext_req_len);
+	return __hwrm_req_init(bp, (void **)req, HWRM_FUNC_CFG, req_len);
+}
 #endif

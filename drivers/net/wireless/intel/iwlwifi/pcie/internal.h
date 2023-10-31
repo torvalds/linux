@@ -58,10 +58,7 @@ struct iwl_rx_mem_buffer {
 	bool invalid;
 };
 
-/**
- * struct isr_statistics - interrupt statistics
- *
- */
+/* interrupt statistics */
 struct isr_statistics {
 	u32 hw;
 	u32 sw;
@@ -127,6 +124,8 @@ struct iwl_rx_completion_desc_bz {
  * @used_bd_dma: physical address of buffer of used receive buffer descriptors (rbd)
  * @read: Shared index to newest available Rx buffer
  * @write: Shared index to oldest written Rx packet
+ * @write_actual: actual write pointer written to device, since we update in
+ *	blocks of 8 only
  * @free_count: Number of pre-allocated buffers in rx_free
  * @used_count: Number of RBDs handled to allocator to use for allocation
  * @write_actual:
@@ -135,10 +134,12 @@ struct iwl_rx_completion_desc_bz {
  * @need_update: flag to indicate we need to update read/write index
  * @rb_stts: driver's pointer to receive buffer status
  * @rb_stts_dma: bus address of receive buffer status
- * @lock:
+ * @lock: per-queue lock
  * @queue: actual rx queue. Not used for multi-rx queue.
  * @next_rb_is_fragment: indicates that the previous RB that we handled set
  *	the fragmented flag, so the next one is still another fragment
+ * @napi: NAPI struct for this queue
+ * @queue_size: size of this queue
  *
  * NOTE:  rx_free and rx_used are used as a FIFO for iwl_rx_mem_buffers
  */
@@ -188,19 +189,20 @@ struct iwl_rb_allocator {
 
 /**
  * iwl_get_closed_rb_stts - get closed rb stts from different structs
- * @rxq - the rxq to get the rb stts from
+ * @trans: transport pointer (for configuration)
+ * @rxq: the rxq to get the rb stts from
  */
-static inline __le16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
-					    struct iwl_rxq *rxq)
+static inline u16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
+					 struct iwl_rxq *rxq)
 {
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		__le16 *rb_stts = rxq->rb_stts;
 
-		return READ_ONCE(*rb_stts);
+		return le16_to_cpu(READ_ONCE(*rb_stts));
 	} else {
 		struct iwl_rb_status *rb_stts = rxq->rb_stts;
 
-		return READ_ONCE(rb_stts->closed_rb_num);
+		return le16_to_cpu(READ_ONCE(rb_stts->closed_rb_num)) & 0xFFF;
 	}
 }
 
@@ -243,6 +245,7 @@ enum iwl_image_response_code {
 	IWL_IMAGE_RESP_FAIL		= 2,
 };
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 /**
  * struct cont_rec: continuous recording data structure
  * @prev_wr_ptr: the last address that was read in monitor_data
@@ -253,7 +256,6 @@ enum iwl_image_response_code {
  *	in &iwl_fw_mon_dbgfs_state enum
  * @mutex: locked while reading from monitor_data debugfs file
  */
-#ifdef CONFIG_IWLWIFI_DEBUGFS
 struct cont_rec {
 	u32 prev_wr_ptr;
 	u32 prev_wrap_cnt;
@@ -298,10 +300,6 @@ enum iwl_pcie_imr_status {
  * @prph_info_dma_addr: dma addr of prph info
  * @prph_scratch_dma_addr: dma addr of prph scratch
  * @ctxt_info_dma_addr: dma addr of context information
- * @init_dram: DRAM data of firmware image (including paging).
- *	Context information addresses will be taken from here.
- *	This is driver's local copy for keeping track of size and
- *	count for allocating and freeing the memory.
  * @iml: image loader image virtual address
  * @iml_dma_addr: image loader image DMA address
  * @trans: pointer to the generic transport area
@@ -321,10 +319,9 @@ enum iwl_pcie_imr_status {
  * @rx_buf_bytes: RX buffer (RB) size in bytes
  * @reg_lock: protect hw register access
  * @mutex: to protect stop_device / start_fw / start_hw
- * @cmd_in_flight: true when we have a host command in flight
-#ifdef CONFIG_IWLWIFI_DEBUGFS
  * @fw_mon_data: fw continuous recording data
-#endif
+ * @cmd_hold_nic_awake: indicates NIC is held awake for APMG workaround
+ *	during commands in flight
  * @msix_entries: array of MSI-X entries
  * @msix_enabled: true if managed to enable MSI-X
  * @shared_vec_mask: the type of causes the shared vector handles
@@ -344,8 +341,32 @@ enum iwl_pcie_imr_status {
  * @alloc_page: allocated page to still use parts of
  * @alloc_page_used: how much of the allocated page was already used (bytes)
  * @imr_status: imr dma state machine
- * @wait_queue_head_t: imr wait queue for dma completion
+ * @imr_waitq: imr wait queue for dma completion
  * @rf_name: name/version of the CRF, if any
+ * @use_ict: whether or not ICT (interrupt table) is used
+ * @ict_index: current ICT read index
+ * @ict_tbl: ICT table pointer
+ * @ict_tbl_dma: ICT table DMA address
+ * @inta_mask: interrupt (INT-A) mask
+ * @irq_lock: lock to synchronize IRQ handling
+ * @txq_memory: TXQ allocation array
+ * @sx_waitq: waitqueue for Sx transitions
+ * @sx_complete: completion for Sx transitions
+ * @pcie_dbg_dumped_once: indicates PCIe regs were dumped already
+ * @opmode_down: indicates opmode went away
+ * @num_rx_bufs: number of RX buffers to allocate/use
+ * @no_reclaim_cmds: special commands not using reclaim flow
+ *	(firmware workaround)
+ * @n_no_reclaim_cmds: number of special commands not using reclaim flow
+ * @affinity_mask: IRQ affinity mask for each RX queue
+ * @debug_rfkill: RF-kill debugging state, -1 for unset, 0/1 for radio
+ *	enable/disable
+ * @fw_reset_handshake: indicates FW reset handshake is needed
+ * @fw_reset_state: state of FW reset handshake
+ * @fw_reset_waitq: waitqueue for FW reset handshake
+ * @is_down: indicates the NIC is down
+ * @isr_stats: interrupt statistics
+ * @napi_dev: (fake) netdev for NAPI registration
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;

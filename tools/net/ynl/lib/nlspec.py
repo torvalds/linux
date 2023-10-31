@@ -149,6 +149,7 @@ class SpecAttr(SpecElement):
     Represents a single attribute type within an attr space.
 
     Attributes:
+        type          string, attribute type
         value         numerical ID when serialized
         attr_set      Attribute Set containing this attr
         is_multi      bool, attr may repeat multiple times
@@ -157,10 +158,13 @@ class SpecAttr(SpecElement):
         len           integer, optional byte length of binary types
         display_hint  string, hint to help choose format specifier
                       when displaying the value
+
+        is_auto_scalar bool, attr is a variable-size scalar
     """
     def __init__(self, family, attr_set, yaml, value):
         super().__init__(family, yaml)
 
+        self.type = yaml['type']
         self.value = value
         self.attr_set = attr_set
         self.is_multi = yaml.get('multi-attr', False)
@@ -169,6 +173,8 @@ class SpecAttr(SpecElement):
         self.byte_order = yaml.get('byte-order')
         self.len = yaml.get('len')
         self.display_hint = yaml.get('display-hint')
+
+        self.is_auto_scalar = self.type == "sint" or self.type == "uint"
 
 
 class SpecAttrSet(SpecElement):

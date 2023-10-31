@@ -3190,6 +3190,7 @@ struct tg3 {
 	struct ptp_clock_info		ptp_info;
 	struct ptp_clock		*ptp_clock;
 	s64				ptp_adjust;
+	u8				ptp_txts_retrycnt;
 
 	/* begin "tx thread" cacheline section */
 	void				(*write32_tx_mbox) (struct tg3 *, u32,
@@ -3372,6 +3373,8 @@ struct tg3 {
 	struct tg3_hw_stats		*hw_stats;
 	dma_addr_t			stats_mapping;
 	struct work_struct		reset_task;
+	struct sk_buff			*tx_tstamp_skb;
+	u64				pre_tx_ts;
 
 	int				nvram_lock_cnt;
 	u32				nvram_size;
