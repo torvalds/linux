@@ -491,7 +491,7 @@ int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors senso
 int amdgpu_dpm_get_apu_thermal_limit(struct amdgpu_device *adev, uint32_t *limit)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 
 	if (pp_funcs && pp_funcs->get_apu_thermal_limit) {
 		mutex_lock(&adev->pm.mutex);
@@ -505,7 +505,7 @@ int amdgpu_dpm_get_apu_thermal_limit(struct amdgpu_device *adev, uint32_t *limit
 int amdgpu_dpm_set_apu_thermal_limit(struct amdgpu_device *adev, uint32_t limit)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 
 	if (pp_funcs && pp_funcs->set_apu_thermal_limit) {
 		mutex_lock(&adev->pm.mutex);
@@ -1182,7 +1182,7 @@ int amdgpu_dpm_get_sclk_od(struct amdgpu_device *adev)
 	int ret = 0;
 
 	if (!pp_funcs->get_sclk_od)
-		return 0;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&adev->pm.mutex);
 	ret = pp_funcs->get_sclk_od(adev->powerplay.pp_handle);
@@ -1196,7 +1196,7 @@ int amdgpu_dpm_set_sclk_od(struct amdgpu_device *adev, uint32_t value)
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
 	if (is_support_sw_smu(adev))
-		return 0;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&adev->pm.mutex);
 	if (pp_funcs->set_sclk_od)
@@ -1219,7 +1219,7 @@ int amdgpu_dpm_get_mclk_od(struct amdgpu_device *adev)
 	int ret = 0;
 
 	if (!pp_funcs->get_mclk_od)
-		return 0;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&adev->pm.mutex);
 	ret = pp_funcs->get_mclk_od(adev->powerplay.pp_handle);
@@ -1233,7 +1233,7 @@ int amdgpu_dpm_set_mclk_od(struct amdgpu_device *adev, uint32_t value)
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
 	if (is_support_sw_smu(adev))
-		return 0;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&adev->pm.mutex);
 	if (pp_funcs->set_mclk_od)

@@ -2747,7 +2747,7 @@ unlock:
 
 static int smu_get_apu_thermal_limit(void *handle, uint32_t *limit)
 {
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 	struct smu_context *smu = handle;
 
 	if (smu->ppt_funcs && smu->ppt_funcs->get_apu_thermal_limit)
@@ -2758,7 +2758,7 @@ static int smu_get_apu_thermal_limit(void *handle, uint32_t *limit)
 
 static int smu_set_apu_thermal_limit(void *handle, uint32_t limit)
 {
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 	struct smu_context *smu = handle;
 
 	if (smu->ppt_funcs && smu->ppt_funcs->set_apu_thermal_limit)
