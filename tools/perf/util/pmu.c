@@ -520,7 +520,7 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 		pmu_name = pe->pmu;
 	}
 
-	alias = malloc(sizeof(*alias));
+	alias = zalloc(sizeof(*alias));
 	if (!alias)
 		return -ENOMEM;
 

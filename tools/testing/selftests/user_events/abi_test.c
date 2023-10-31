@@ -91,16 +91,18 @@ static int reg_disable(long *enable, int bit)
 
 FIXTURE(user) {
 	long check;
+	bool umount;
 };
 
 FIXTURE_SETUP(user) {
-	USER_EVENT_FIXTURE_SETUP(return);
+	USER_EVENT_FIXTURE_SETUP(return, self->umount);
 
 	change_event(false);
 	self->check = 0;
 }
 
 FIXTURE_TEARDOWN(user) {
+	USER_EVENT_FIXTURE_TEARDOWN(self->umount);
 }
 
 TEST_F(user, enablement) {
