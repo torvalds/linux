@@ -1893,6 +1893,12 @@
 			 0 -- machine default
 			 1 -- force brightness inversion
 
+	ia32_emulation=	[X86-64]
+			Format: <bool>
+			When true, allows loading 32-bit programs and executing 32-bit
+			syscalls, essentially overriding IA32_EMULATION_DEFAULT_DISABLED at
+			boot time. When false, unconditionally disables IA32 emulation.
+
 	icn=		[HW,ISDN]
 			Format: <io>[,<membase>[,<icn_id>[,<icn_id2>]]]
 
