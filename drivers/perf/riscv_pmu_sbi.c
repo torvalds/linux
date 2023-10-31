@@ -22,7 +22,7 @@
 
 #include <asm/errata_list.h>
 #include <asm/sbi.h>
-#include <asm/hwcap.h>
+#include <asm/cpufeature.h>
 
 #define SYSCTL_NO_USER_ACCESS	0
 #define SYSCTL_USER_ACCESS	1
