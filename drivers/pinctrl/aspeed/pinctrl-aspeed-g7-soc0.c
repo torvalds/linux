@@ -40,14 +40,10 @@ struct aspeed_g7_soc0_pinctrl {
 	void __iomem *regs;
 };
 
-static const int mmcg1_pins[] = { 0, 1, 2, 3, 6, 7 };
-static const int mmcg4_pins[] = { 0, 1, 4, 3, 6, 7, 4, 5 };
-static const int mmcg8_pins[] = { 0, 1, 4, 3, 6, 7, 4, 5, 8, 9, 10, 11 };
+static const int emmcg1_pins[] = { 0, 1, 2, 3, 6, 7 };
+static const int emmcg4_pins[] = { 0, 1, 4, 3, 6, 7, 4, 5 };
+static const int emmcg8_pins[] = { 0, 1, 4, 3, 6, 7, 4, 5, 8, 9, 10, 11 };
 static const int vgdddc_pins[] = { 10, 11 };
-static const int usb3a_pins[] = { 12, 13, 14};
-static const int usb2a_pins[] = { 15, 16 };
-static const int usb3b_pins[] = { 17, 18, 19};
-static const int usb2b_pins[] = { 20, 21 };
 
 struct aspeed_g7_group_funcfg {
 	u32 reg;
@@ -67,6 +63,7 @@ struct aspeed_g7_soc0_pingroup {
 	const unsigned int *pins;
 	int npins;
 	struct aspeed_g7_group_funcfg *groupcfg;
+	int groupcfg_nums;
 };
 
 /* USB3A */
@@ -297,59 +294,71 @@ struct aspeed_g7_group_funcfg usb2bhp_cfg[] = {
 	{ .reg = SCU10, .mask = GENMASK(27, 26), .enable = 1, .val = GENMASK(27, 26) },
 };
 
+#define PINGROUP(pingrp_name, grp_fn_name, n) \
+		{ .name = #pingrp_name, .fn_name = #grp_fn_name, \
+		  .pins = n##_pins, .npins = ARRAY_SIZE(n##_pins)}
+
+#define GROUPCFG(pingrp_name, grp_fn_name, n) \
+		{ .name = #pingrp_name, .fn_name = #grp_fn_name, \
+		  .groupcfg = n##_cfg, .groupcfg_nums = ARRAY_SIZE(n##_cfg)}
+
 static struct aspeed_g7_soc0_pingroup aspeed_g7_soc0_pingroups[] = {
-	{ .name = "EMMCG1", .fn_name = "EMMC", .pins = mmcg1_pins, .npins = ARRAY_SIZE(mmcg1_pins) },
-	{ .name = "EMMCG4", .fn_name = "EMMC", .pins = mmcg4_pins, .npins = ARRAY_SIZE(mmcg4_pins) },
-	{ .name = "EMMCG8", .fn_name = "EMMC", .pins = mmcg8_pins, .npins = ARRAY_SIZE(mmcg8_pins) },
-	{ .name = "VGADDC", .fn_name = "VGADDC", .pins = vgdddc_pins, .npins = ARRAY_SIZE(vgdddc_pins) },
+	PINGROUP(EMMCG1, EMMC, emmcg1),
+	PINGROUP(EMMCG4, EMMC, emmcg4),
+	PINGROUP(EMMCG8, EMMC, emmcg8),
+	PINGROUP(VGADDC, VGADDC, vgdddc),
 //USBA
-	{ .name = "USB3AXHD", .fn_name = "USB3A", .pins = usb3a_pins, .npins = ARRAY_SIZE(usb3a_pins), .groupcfg = usb3axhd_cfg },
-	{ .name = "USB3AXHPD", .fn_name = "USB3A", .pins = usb3a_pins, .npins = ARRAY_SIZE(usb3a_pins), .groupcfg = usb3axhpd_cfg },
-	{ .name = "USB3AD", .fn_name = "USB3A", .pins = usb3a_pins, .npins = ARRAY_SIZE(usb3a_pins), .groupcfg = usb3ad_cfg },
-	{ .name = "USB3AXH", .fn_name = "USB3A", .pins = usb3a_pins, .npins = ARRAY_SIZE(usb3a_pins), .groupcfg = usb3axh_cfg },
-	{ .name = "USB3AXHP", .fn_name = "USB3A", .pins = usb3a_pins, .npins = ARRAY_SIZE(usb3a_pins), .groupcfg = usb3axhp_cfg },
-	{ .name = "USB3A2BH", .fn_name = "USB3A", .pins = usb3a_pins, .npins = ARRAY_SIZE(usb3a_pins), .groupcfg = usb3a2bxh_cfg },
-	{ .name = "USB3A2BHP", .fn_name = "USB3A", .pins = usb3a_pins, .npins = ARRAY_SIZE(usb3a_pins), .groupcfg = usb3a2bxhp_cfg },
-	{ .name = "USB2AXD1", .fn_name = "USB2A", .pins = usb2a_pins, .npins = ARRAY_SIZE(usb2a_pins), .groupcfg = usb2axhd1_cfg },
-	{ .name = "USB2AXHPD1", .fn_name = "USB2A", .pins = usb2a_pins, .npins = ARRAY_SIZE(usb2a_pins), .groupcfg = usb2axhpd1_cfg },
-	{ .name = "USB2AD1", .fn_name = "USB2A", .pins = usb2a_pins, .npins = ARRAY_SIZE(usb2a_pins), .groupcfg = usb2ad1_cfg },
-	{ .name = "USB2AXH", .fn_name = "USB2A", .pins = usb2a_pins, .npins = ARRAY_SIZE(usb2a_pins), .groupcfg = usb2axh_cfg },
-	{ .name = "USB2AXHP", .fn_name = "USB2A", .pins = usb2a_pins, .npins = ARRAY_SIZE(usb2a_pins), .groupcfg = usb2axhp_cfg },
-	{ .name = "USB2A2BXH", .fn_name = "USB2A", .pins = usb2a_pins, .npins = ARRAY_SIZE(usb2a_pins), .groupcfg = usb2a2bxh_cfg },
-	{ .name = "USB2A2BXHP", .fn_name = "USB2A", .pins = usb2a_pins, .npins = ARRAY_SIZE(usb2a_pins), .groupcfg = usb2a2bxhp_cfg },
-	{ .name = "USB2AHPD0", .fn_name = "USB2A", .pins = usb2a_pins, .npins = ARRAY_SIZE(usb2a_pins), .groupcfg = usb2ahpd0_cfg },
-	{ .name = "USB2AD0", .fn_name = "USB2A", .pins = usb2a_pins, .npins = ARRAY_SIZE(usb2a_pins), .groupcfg = usb2ad0_cfg },
-	{ .name = "USB2AH", .fn_name = "USB2A", .pins = usb2a_pins, .npins = ARRAY_SIZE(usb2a_pins), .groupcfg = usb2ah_cfg },
-	{ .name = "USB2AHP", .fn_name = "USB2A", .pins = usb2a_pins, .npins = ARRAY_SIZE(usb2a_pins), .groupcfg = usb2ahp_cfg },
+	GROUPCFG(USB3AXHD, USB3A, usb3axhd),
+	GROUPCFG(USB3AXHPD, USB3A, usb3axhpd),
+	GROUPCFG(USB3AD, USB3A, usb3ad),
+	GROUPCFG(USB3AXH, USB3A, usb3axh),
+	GROUPCFG(USB3AXHP, USB3A, usb3axhp),
+	GROUPCFG(USB3A2BH, USB3A, usb3a2bxh),
+	GROUPCFG(USB3A2BHP, USB3A, usb3a2bxhp),
+	GROUPCFG(USB2AXD1, USB3A, usb2axhd1),
+	GROUPCFG(USB2AXHPD1, USB3A, usb2axhpd1),
+	GROUPCFG(USB2AD1, USB3A, usb2ad1),
+	GROUPCFG(USB2AXH, USB3A, usb2axh),
+	GROUPCFG(USB2AXHP, USB3A, usb2axhp),
+	GROUPCFG(USB2A2BXH, USB3A, usb2a2bxh),
+	GROUPCFG(USB2A2BXHP, USB3A, usb2a2bxhp),
+	GROUPCFG(USB2AHPD0, USB3A, usb2ahpd0),
+	GROUPCFG(USB2AD0, USB3A, usb2ad0),
+	GROUPCFG(USB2AH, USB3A, usb2ah),
+	GROUPCFG(USB2AHP, USB3A, usb2ahp),
 //USBB
-	{ .name = "USB3BXHD", .fn_name = "USB3B", .pins = usb3b_pins, .npins = ARRAY_SIZE(usb3b_pins), .groupcfg = usb3bxhd_cfg },
-	{ .name = "USB3BXHPD", .fn_name = "USB3B", .pins = usb3b_pins, .npins = ARRAY_SIZE(usb3b_pins), .groupcfg = usb3bxhpd_cfg },
-	{ .name = "USB3BD", .fn_name = "USB3B", .pins = usb3b_pins, .npins = ARRAY_SIZE(usb3b_pins), .groupcfg = usb3bd_cfg },
-	{ .name = "USB3BXH", .fn_name = "USB3B", .pins = usb3b_pins, .npins = ARRAY_SIZE(usb3b_pins), .groupcfg = usb3bxh_cfg },
-	{ .name = "USB3BXHP", .fn_name = "USB3B", .pins = usb3b_pins, .npins = ARRAY_SIZE(usb3b_pins), .groupcfg = usb3bxhp_cfg },
-	{ .name = "USB3B2AH", .fn_name = "USB3B", .pins = usb3b_pins, .npins = ARRAY_SIZE(usb3b_pins), .groupcfg = usb3b2axh_cfg },
-	{ .name = "USB3B2AHP", .fn_name = "USB3B", .pins = usb3b_pins, .npins = ARRAY_SIZE(usb3b_pins), .groupcfg = usb3b2axhp_cfg },
-	{ .name = "USB2BXD1", .fn_name = "USB2B", .pins = usb2b_pins, .npins = ARRAY_SIZE(usb2b_pins), .groupcfg = usb2bxhd1_cfg },
-	{ .name = "USB2BXHPD1", .fn_name = "USB2B", .pins = usb2b_pins, .npins = ARRAY_SIZE(usb2b_pins), .groupcfg = usb2bxhpd1_cfg },
-	{ .name = "USB2BD1", .fn_name = "USB2B", .pins = usb2b_pins, .npins = ARRAY_SIZE(usb2b_pins), .groupcfg = usb2bd1_cfg },
-	{ .name = "USB2BXH", .fn_name = "USB2B", .pins = usb2b_pins, .npins = ARRAY_SIZE(usb2b_pins), .groupcfg = usb2bxh_cfg },
-	{ .name = "USB2BXHP", .fn_name = "USB2B", .pins = usb2b_pins, .npins = ARRAY_SIZE(usb2b_pins), .groupcfg = usb2bxhp_cfg },
-	{ .name = "USB2B2AXH", .fn_name = "USB2B", .pins = usb2b_pins, .npins = ARRAY_SIZE(usb2b_pins), .groupcfg = usb2b2axh_cfg },
-	{ .name = "USB2B2AXHP", .fn_name = "USB2B", .pins = usb2b_pins, .npins = ARRAY_SIZE(usb2b_pins), .groupcfg = usb2b2axhp_cfg },
-	{ .name = "USB2BHPD0", .fn_name = "USB2B", .pins = usb2b_pins, .npins = ARRAY_SIZE(usb2b_pins), .groupcfg = usb2bhpd0_cfg },
-	{ .name = "USB2BD0", .fn_name = "USB2B", .pins = usb2b_pins, .npins = ARRAY_SIZE(usb2b_pins), .groupcfg = usb2bd0_cfg },
-	{ .name = "USB2BH", .fn_name = "USB2B", .pins = usb2b_pins, .npins = ARRAY_SIZE(usb2b_pins), .groupcfg = usb2bh_cfg },
-	{ .name = "USB2BHP", .fn_name = "USB2B", .pins = usb2b_pins, .npins = ARRAY_SIZE(usb2b_pins), .groupcfg = usb2bhp_cfg },
+	GROUPCFG(USB3BXHD, USB3A, usb3bxhd),
+	GROUPCFG(USB3BXHPD, USB3A, usb3bxhpd),
+	GROUPCFG(USB3BD, USB3A, usb3bd),
+	GROUPCFG(USB3BXH, USB3A, usb3bxh),
+	GROUPCFG(USB3BXHP, USB3A, usb3bxhp),
+	GROUPCFG(USB3B2AH, USB3A, usb3b2axh),
+	GROUPCFG(USB3B2AHP, USB3A, usb3b2axhp),
+	GROUPCFG(USB2BXD1, USB3A, usb2bxhd1),
+	GROUPCFG(USB2BXHPD1, USB3A, usb2bxhpd1),
+	GROUPCFG(USB2BD1, USB3A, usb2bd1),
+	GROUPCFG(USB2BXH, USB3A, usb2bxh),
+	GROUPCFG(USB2BXHP, USB3A, usb2bxhp),
+	GROUPCFG(USB2B2AXH, USB3A, usb2b2axh),
+	GROUPCFG(USB2B2AXHP, USB3A, usb2b2axhp),
+	GROUPCFG(USB2BHPD0, USB3A, usb2bhpd0),
+	GROUPCFG(USB2BD0, USB3A, usb2bd0),
+	GROUPCFG(USB2BH, USB3A, usb2bh),
+	GROUPCFG(USB2BHP, USB3A, usb2bhp),
 };
 
-static const char *const mmc_grp[] = { "EMMCG1", "EMMCG4", "EMMCG8" };
+static const char *const emmc_grp[] = { "EMMCG1", "EMMCG4", "EMMCG8" };
 static const char *const vgaddc_grp[] = { "VGADDC" };
-static const char *const usb3a_grp[] = { "USB3AXHD", "USB3AXHPD", "USB3AD", "USB3AXH", "USB3AXHP", "USB3A2BH", "USB3A2BHP" };
-static const char *const usb2a_grp[] = { "USB2AXHD1", "USB2AXHPD1", "USB2AD1", "USB2AXH", "USB2AXHP", "USB2A2BH", "USB2A2BHP",
-										 "USB2AHPD0", "USB2AD0", "USB2AH", "USB2AHP" };
-static const char *const usb3b_grp[] = { "USB3BXHD", "USB3BXHPD", "USB3BD", "USB3BXH", "USB3BXHP", "USB3B2AH", "USB3B2AHP" };
-static const char *const usb2b_grp[] = { "USB2BXHD1", "USB2BXHPD1", "USB2BD1", "USB2BXH", "USB2BXHP", "USB2B2AH", "USB2B2AHP",
-										 "USB2BHPD0", "USB2BD0", "USB2BH", "USB2BHP" };
+static const char *const usb3a_grp[] = { "USB3AXHD", "USB3AXHPD", "USB3AD", "USB3AXH",
+					 "USB3AXHP", "USB3A2BH", "USB3A2BHP" };
+static const char *const usb2a_grp[] = { "USB2AXHD1", "USB2AXHPD1", "USB2AD1", "USB2AXH",
+					 "USB2AXHP", "USB2A2BH", "USB2A2BHP",
+					 "USB2AHPD0", "USB2AD0", "USB2AH", "USB2AHP" };
+static const char *const usb3b_grp[] = { "USB3BXHD", "USB3BXHPD", "USB3BD", "USB3BXH",
+					 "USB3BXHP", "USB3B2AH", "USB3B2AHP" };
+static const char *const usb2b_grp[] = { "USB2BXHD1", "USB2BXHPD1", "USB2BD1", "USB2BXH",
+					 "USB2BXHP", "USB2B2AH", "USB2B2AHP",
+					 "USB2BHPD0", "USB2BD0", "USB2BH", "USB2BHP" };
 
 struct aspeed_g7_soc0_func {
 	const char *name;
@@ -358,10 +367,12 @@ struct aspeed_g7_soc0_func {
 };
 
 static struct aspeed_g7_soc0_func aspeed_g7_soc0_funcs[] = {
-	{	.name = "EMMC",		.ngroups = ARRAY_SIZE(mmc_grp),		.groups = mmc_grp	}, //function : 0
-	{	.name = "VGADDC",	.ngroups = ARRAY_SIZE(vgaddc_grp),	.groups = vgaddc_grp	}, //function : 1
-	{	.name = "USB3A",	.ngroups = ARRAY_SIZE(usb3a_grp),	.groups = usb3a_grp	}, //function : 2
-	{	.name = "USB2A",	.ngroups = ARRAY_SIZE(usb2a_grp),	.groups = usb2a_grp	}, //function : 3
+	{ .name = "EMMC",	.ngroups = ARRAY_SIZE(emmc_grp),	.groups = emmc_grp	},
+	{ .name = "VGADDC",	.ngroups = ARRAY_SIZE(vgaddc_grp),	.groups = vgaddc_grp	},
+	{ .name = "USB3A",	.ngroups = ARRAY_SIZE(usb3a_grp),	.groups = usb3a_grp	},
+	{ .name = "USB2A",	.ngroups = ARRAY_SIZE(usb2a_grp),	.groups = usb2a_grp	},
+	{ .name = "USB3B",	.ngroups = ARRAY_SIZE(usb3b_grp),	.groups = usb3b_grp	},
+	{ .name = "USB2B",	.ngroups = ARRAY_SIZE(usb2b_grp),	.groups = usb2b_grp	},
 };
 
 /* number, name, drv_data */
@@ -376,18 +387,8 @@ static const struct pinctrl_pin_desc aspeed_g7_soc0_pins[] = {
 	PINCTRL_PIN(7, "EMMCWPN_VB0CK_GPIO18A7"),
 	PINCTRL_PIN(8, "EMMCDAT4_VB0MOSI_GPIO18B0"),
 	PINCTRL_PIN(9, "EMMCDAT5_VB0MISO_GPIO18B1"),
-	PINCTRL_PIN(10, "EMMCDAT6_DDCCLK_GPIO18B2"), //ddc
-	PINCTRL_PIN(11, "EMMCDAT7_DDCDAT_GPIO18B3"), //ddc
-	PINCTRL_PIN(12, "USB3ATXDPN"),
-	PINCTRL_PIN(13, "USB3ARXDPN"),
-	PINCTRL_PIN(14, "USB3ACKPN"),
-	PINCTRL_PIN(15, "USB2ADP"),
-	PINCTRL_PIN(16, "USB2ADN"),
-	PINCTRL_PIN(17, "USB3BTXDPN"),
-	PINCTRL_PIN(18, "USB3BRXDPN"),
-	PINCTRL_PIN(19, "USB3BCKPN"),
-	PINCTRL_PIN(20, "USB2BDP"),
-	PINCTRL_PIN(21, "USB2BDN"),
+	PINCTRL_PIN(10, "EMMCDAT6_DDCCLK_GPIO18B2"),
+	PINCTRL_PIN(11, "EMMCDAT7_DDCDAT_GPIO18B3"),
 };
 
 struct aspeed_g7_soc0_funcfg {
@@ -454,14 +455,14 @@ static const struct aspeed_g7_soc0_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(10), .bit = 10, },
-			{	.fn_name = "VGADDC", .reg = SCU04, .mask = BIT_MASK(10), .bit = 10,	},
+			{ .fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(10), .bit = 10,	},
+			{ .fn_name = "VGADDC", .reg = SCU04, .mask = BIT_MASK(10), .bit = 10,	},
 			},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(11), .bit = 11, },
-			{	.fn_name = "VGADDC", .reg = SCU04, .mask = BIT_MASK(11), .bit = 11, },
+			{ .fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(11), .bit = 11,	},
+			{ .fn_name = "VGADDC", .reg = SCU04, .mask = BIT_MASK(11), .bit = 11,	},
 			},
 	}
 };
@@ -473,15 +474,15 @@ static int aspeed_g7_soc0_get_groups_count(struct pinctrl_dev *pctldev)
 }
 
 static const char *aspeed_g7_soc0_get_group_name(struct pinctrl_dev *pctldev,
-						unsigned int selector)
+						 unsigned int selector)
 {
 	return aspeed_g7_soc0_pingroups[selector].name;
 }
 
 static int aspeed_g7_soc0_get_group_pins(struct pinctrl_dev *pctldev,
-					unsigned int selector,
-					const unsigned int **pins,
-					unsigned int *npins)
+					 unsigned int selector,
+					 const unsigned int **pins,
+					 unsigned int *npins)
 {
 	*npins = aspeed_g7_soc0_pingroups[selector].npins;
 	*pins = aspeed_g7_soc0_pingroups[selector].pins;
@@ -490,15 +491,15 @@ static int aspeed_g7_soc0_get_group_pins(struct pinctrl_dev *pctldev,
 }
 
 static int aspeed_g7_soc0_dt_node_to_map(struct pinctrl_dev *pctldev,
-					struct device_node *np_config,
-					struct pinctrl_map **map, u32 *num_maps)
+					 struct device_node *np_config,
+					 struct pinctrl_map **map, u32 *num_maps)
 {
 	return pinconf_generic_dt_node_to_map(pctldev, np_config, map, num_maps,
 					      PIN_MAP_TYPE_INVALID);
 }
 
 static void aspeed_g7_soc0_dt_free_map(struct pinctrl_dev *pctldev,
-				      struct pinctrl_map *map, u32 num_maps)
+				       struct pinctrl_map *map, u32 num_maps)
 {
 	kfree(map);
 }
@@ -517,15 +518,15 @@ static int aspeed_g7_soc0_get_functions_count(struct pinctrl_dev *pctldev)
 }
 
 static const char *aspeed_g7_soc0_get_function_name(struct pinctrl_dev *pctldev,
-						   unsigned int function)
+						    unsigned int function)
 {
 	return aspeed_g7_soc0_funcs[function].name;
 }
 
 static int aspeed_g7_soc0_get_function_groups(struct pinctrl_dev *pctldev,
-					     unsigned int function,
-					     const char *const **groups,
-					     unsigned int *const ngroups)
+					      unsigned int function,
+					      const char *const **groups,
+					      unsigned int *const ngroups)
 {
 	*ngroups = aspeed_g7_soc0_funcs[function].ngroups;
 	*groups = aspeed_g7_soc0_funcs[function].groups;
@@ -534,21 +535,20 @@ static int aspeed_g7_soc0_get_function_groups(struct pinctrl_dev *pctldev,
 }
 
 static int aspeed_g7_soc0_pinmux_set_mux(struct pinctrl_dev *pctldev,
-					unsigned int function,
-					unsigned int group)
+					 unsigned int function,
+					 unsigned int group)
 {
 	int i;
 	int pin;
 	const struct aspeed_g7_soc0_pincfg *cfg;
 	const struct aspeed_g7_soc0_funcfg *funcfg;
-	struct aspeed_g7_group_funcfg *groupcfg;
 	const char *target_fn_name = aspeed_g7_soc0_funcs[function].name;
 	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	struct aspeed_g7_soc0_pingroup *pingroup = &aspeed_g7_soc0_pingroups[group];
 
 	if (pingroup->groupcfg) {
-		groupcfg = &pingroup->groupcfg[0];
-		while (groupcfg) {
+		for (i = 0; i < pingroup->groupcfg_nums; i++) {
+			struct aspeed_g7_group_funcfg *groupcfg = &pingroup->groupcfg[i];
 			u32 val = readl(pinctrl->regs + groupcfg->reg) & ~groupcfg->mask;
 
 			if (groupcfg->enable)
@@ -582,8 +582,8 @@ static int aspeed_g7_soc0_pinmux_set_mux(struct pinctrl_dev *pctldev,
 }
 
 static int aspeed_g7_soc0_gpio_request_enable(struct pinctrl_dev *pctldev,
-					     struct pinctrl_gpio_range *range,
-					     unsigned int offset)
+					      struct pinctrl_gpio_range *range,
+					      unsigned int offset)
 {
 	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	const struct aspeed_g7_soc0_pincfg *cfg = &pin_cfg[offset];
@@ -601,8 +601,8 @@ static int aspeed_g7_soc0_gpio_request_enable(struct pinctrl_dev *pctldev,
 }
 
 static void aspeed_g7_soc0_gpio_request_free(struct pinctrl_dev *pctldev,
-					    struct pinctrl_gpio_range *range,
-					    unsigned int offset)
+					     struct pinctrl_gpio_range *range,
+					     unsigned int offset)
 {
 	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	int virq;
@@ -622,7 +622,7 @@ static const struct pinmux_ops aspeed_g7_soc0_pinmux_ops = {
 };
 
 static int aspeed_g7_soc0_config_get(struct pinctrl_dev *pctldev,
-				    unsigned int pin, unsigned long *config)
+				     unsigned int pin, unsigned long *config)
 {
 //	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param = pinconf_to_config_param(*config);
@@ -657,7 +657,7 @@ static int aspeed_g7_soc0_config_get(struct pinctrl_dev *pctldev,
 }
 
 static int aspeed_g7_soc0_config_set_one(struct aspeed_g7_soc0_pinctrl *pinctrl,
-					unsigned int pin, unsigned long config)
+					 unsigned int pin, unsigned long config)
 {
 	enum pin_config_param param = pinconf_to_config_param(config);
 
@@ -694,8 +694,8 @@ static int aspeed_g7_soc0_config_set_one(struct aspeed_g7_soc0_pinctrl *pinctrl,
 }
 
 static int aspeed_g7_soc0_config_set(struct pinctrl_dev *pctldev,
-				    unsigned int pin, unsigned long *configs,
-				    unsigned int num_configs)
+				     unsigned int pin, unsigned long *configs,
+				     unsigned int num_configs)
 {
 	struct aspeed_g7_soc0_pinctrl *pinctrl =
 		pinctrl_dev_get_drvdata(pctldev);
