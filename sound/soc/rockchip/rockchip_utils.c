@@ -12,6 +12,7 @@
 #include <soc/rockchip/rockchip-system-status.h>
 #include <sound/pcm_params.h>
 #include <sound/dmaengine_pcm.h>
+#include "rockchip_utils.h"
 
 #define DMC_STALL_TIME_US_DEFAULT	100
 #define TIME_MARGIN_US			20
