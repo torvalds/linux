@@ -370,7 +370,7 @@ static void __io_poll_execute(struct io_kiocb *req, int mask)
 	req->io_task_work.func = io_poll_task_func;
 
 	trace_io_uring_task_add(req, mask);
-	io_req_task_work_add(req);
+	__io_req_task_work_add(req, IOU_F_TWQ_LAZY_WAKE);
 }
 
 static inline void io_poll_execute(struct io_kiocb *req, int res)
