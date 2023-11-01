@@ -161,7 +161,10 @@ void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 	if (inx >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
 		return NULL;
 
-	*doorbell_off = amdgpu_doorbell_index_on_bar(kfd->adev, kfd->doorbells, inx);
+	*doorbell_off = amdgpu_doorbell_index_on_bar(kfd->adev,
+						     kfd->doorbells,
+						     inx,
+						     kfd->device_info.doorbell_size);
 	inx *= 2;
 
 	pr_debug("Get kernel queue doorbell\n"
@@ -240,7 +243,10 @@ phys_addr_t kfd_get_process_doorbells(struct kfd_process_device *pdd)
 			return 0;
 	}
 
-	first_db_index = amdgpu_doorbell_index_on_bar(adev, pdd->qpd.proc_doorbells, 0);
+	first_db_index = amdgpu_doorbell_index_on_bar(adev,
+						      pdd->qpd.proc_doorbells,
+						      0,
+						      pdd->dev->kfd->device_info.doorbell_size);
 	return adev->doorbell.base + first_db_index * sizeof(uint32_t);
 }
 

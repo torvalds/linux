@@ -100,7 +100,8 @@ static int vcn_v3_0_early_init(void *handle)
 			/* both instances are harvested, disable the block */
 			return -ENOENT;
 
-		if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(3, 0, 33))
+		if (amdgpu_ip_version(adev, UVD_HWIP, 0) ==
+		    IP_VERSION(3, 0, 33))
 			adev->vcn.num_enc_rings = 0;
 		else
 			adev->vcn.num_enc_rings = 2;
@@ -227,9 +228,10 @@ static int vcn_v3_0_sw_init(void *handle)
 					     cpu_to_le32(AMDGPU_VCN_FW_SHARED_FLAG_0_RB);
 		fw_shared->sw_ring.is_enabled = cpu_to_le32(DEC_SW_RING_ENABLED);
 		fw_shared->present_flag_0 |= AMDGPU_VCN_SMU_VERSION_INFO_FLAG;
-		if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(3, 1, 2))
+		if (amdgpu_ip_version(adev, UVD_HWIP, 0) == IP_VERSION(3, 1, 2))
 			fw_shared->smu_interface_info.smu_interface_type = 2;
-		else if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(3, 1, 1))
+		else if (amdgpu_ip_version(adev, UVD_HWIP, 0) ==
+			 IP_VERSION(3, 1, 1))
 			fw_shared->smu_interface_info.smu_interface_type = 1;
 
 		if (amdgpu_vcnfw_log)
@@ -1255,7 +1257,8 @@ static int vcn_v3_0_start(struct amdgpu_device *adev)
 		fw_shared->rb.wptr = lower_32_bits(ring->wptr);
 		fw_shared->multi_queue.decode_queue_mode &= cpu_to_le32(~FW_QUEUE_RING_RESET);
 
-		if (adev->ip_versions[UVD_HWIP][0] != IP_VERSION(3, 0, 33)) {
+		if (amdgpu_ip_version(adev, UVD_HWIP, 0) !=
+		    IP_VERSION(3, 0, 33)) {
 			fw_shared->multi_queue.encode_generalpurpose_queue_mode |= cpu_to_le32(FW_QUEUE_RING_RESET);
 			ring = &adev->vcn.inst[i].ring_enc[0];
 			WREG32_SOC15(VCN, i, mmUVD_RB_RPTR, lower_32_bits(ring->wptr));
@@ -1628,7 +1631,8 @@ static int vcn_v3_0_pause_dpg_mode(struct amdgpu_device *adev,
 					UVD_POWER_STATUS__STALL_DPG_POWER_UP_MASK,
 					~UVD_POWER_STATUS__STALL_DPG_POWER_UP_MASK);
 
-				if (adev->ip_versions[UVD_HWIP][0] != IP_VERSION(3, 0, 33)) {
+				if (amdgpu_ip_version(adev, UVD_HWIP, 0) !=
+				    IP_VERSION(3, 0, 33)) {
 					/* Restore */
 					fw_shared = adev->vcn.inst[inst_idx].fw_shared.cpu_addr;
 					fw_shared->multi_queue.encode_generalpurpose_queue_mode |= cpu_to_le32(FW_QUEUE_RING_RESET);

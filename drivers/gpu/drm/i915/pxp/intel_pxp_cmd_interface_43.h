@@ -14,8 +14,8 @@
 #define PXP43_CMDID_NEW_HUC_AUTH 0x0000003F /* MTL+ */
 #define PXP43_CMDID_INIT_SESSION 0x00000036
 
-/* PXP-Packet sizes for MTL's GSCCS-HECI instruction */
-#define PXP43_MAX_HECI_INOUT_SIZE (SZ_32K)
+/* PXP-Packet sizes for MTL's GSCCS-HECI instruction is spec'd at 65K before page alignment*/
+#define PXP43_MAX_HECI_INOUT_SIZE (PAGE_ALIGN(SZ_64K + SZ_1K))
 
 /* PXP-Packet size for MTL's NEW_HUC_AUTH instruction */
 #define PXP43_HUC_AUTH_INOUT_SIZE (SZ_4K)

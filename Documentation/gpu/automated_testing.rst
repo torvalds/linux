@@ -67,6 +67,19 @@ Lists the tests that for a given driver on a specific hardware revision are
 known to behave unreliably. These tests won't cause a job to fail regardless of
 the result. They will still be run.
 
+Each new flake entry must be associated with a link to the email reporting the
+bug to the author of the affected driver, the board name or Device Tree name of
+the board, the first kernel version affected, and an approximation of the
+failure rate.
+
+They should be provided under the following format::
+
+  # Bug Report: $LORE_OR_PATCHWORK_URL
+  # Board Name: broken-board.dtb
+  # Version: 6.6-rc1
+  # Failure Rate: 100
+  flaky-test
+
 drivers/gpu/drm/ci/${DRIVER_NAME}-${HW_REVISION}-skips.txt
 -----------------------------------------------------------
 
@@ -86,10 +99,13 @@ https://gitlab.freedesktop.org/janedoe/linux/-/settings/ci_cd), change the
 CI/CD configuration file from .gitlab-ci.yml to
 drivers/gpu/drm/ci/gitlab-ci.yml.
 
-3. Next time you push to this repository, you will see a CI pipeline being
+3. Request to be added to the drm/ci-ok group so that your user has the
+necessary privileges to run the CI on https://gitlab.freedesktop.org/drm/ci-ok
+
+4. Next time you push to this repository, you will see a CI pipeline being
 created (eg. https://gitlab.freedesktop.org/janedoe/linux/-/pipelines)
 
-4. The various jobs will be run and when the pipeline is finished, all jobs
+5. The various jobs will be run and when the pipeline is finished, all jobs
 should be green unless a regression has been found.
 
 

@@ -466,40 +466,40 @@ DRM MM Range Allocator Function References
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
    :export:
 
-DRM GPU VA Manager
-==================
+DRM GPUVM
+=========
 
 Overview
 --------
 
-.. kernel-doc:: drivers/gpu/drm/drm_gpuva_mgr.c
+.. kernel-doc:: drivers/gpu/drm/drm_gpuvm.c
    :doc: Overview
 
 Split and Merge
 ---------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_gpuva_mgr.c
+.. kernel-doc:: drivers/gpu/drm/drm_gpuvm.c
    :doc: Split and Merge
 
 Locking
 -------
 
-.. kernel-doc:: drivers/gpu/drm/drm_gpuva_mgr.c
+.. kernel-doc:: drivers/gpu/drm/drm_gpuvm.c
    :doc: Locking
 
 Examples
 --------
 
-.. kernel-doc:: drivers/gpu/drm/drm_gpuva_mgr.c
+.. kernel-doc:: drivers/gpu/drm/drm_gpuvm.c
    :doc: Examples
 
-DRM GPU VA Manager Function References
---------------------------------------
+DRM GPUVM Function References
+-----------------------------
 
-.. kernel-doc:: include/drm/drm_gpuva_mgr.h
+.. kernel-doc:: include/drm/drm_gpuvm.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/drm_gpuva_mgr.c
+.. kernel-doc:: drivers/gpu/drm/drm_gpuvm.c
    :export:
 
 DRM Buddy Allocator

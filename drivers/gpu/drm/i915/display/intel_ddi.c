@@ -3248,7 +3248,7 @@ static void intel_enable_ddi(struct intel_atomic_state *state,
 		intel_ddi_enable_transcoder_func(encoder, crtc_state);
 
 	/* Enable/Disable DP2.0 SDP split config before transcoder */
-	intel_audio_sdp_split_update(encoder, crtc_state);
+	intel_audio_sdp_split_update(crtc_state);
 
 	intel_enable_transcoder(crtc_state);
 
@@ -3432,7 +3432,7 @@ static void mtl_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 		dp_tp_ctl |= DP_TP_CTL_MODE_MST;
 	} else {
 		dp_tp_ctl |= DP_TP_CTL_MODE_SST;
-		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
+		if (crtc_state->enhanced_framing)
 			dp_tp_ctl |= DP_TP_CTL_ENHANCED_FRAME_ENABLE;
 	}
 	intel_de_write(dev_priv, dp_tp_ctl_reg(encoder, crtc_state), dp_tp_ctl);
@@ -3489,7 +3489,7 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 		dp_tp_ctl |= DP_TP_CTL_MODE_MST;
 	} else {
 		dp_tp_ctl |= DP_TP_CTL_MODE_SST;
-		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
+		if (crtc_state->enhanced_framing)
 			dp_tp_ctl |= DP_TP_CTL_ENHANCED_FRAME_ENABLE;
 	}
 	intel_de_write(dev_priv, dp_tp_ctl_reg(encoder, crtc_state), dp_tp_ctl);
@@ -3724,17 +3724,14 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 		intel_cpu_transcoder_get_m2_n2(crtc, cpu_transcoder,
 					       &pipe_config->dp_m2_n2);
 
-		if (DISPLAY_VER(dev_priv) >= 11) {
-			i915_reg_t dp_tp_ctl = dp_tp_ctl_reg(encoder, pipe_config);
+		pipe_config->enhanced_framing =
+			intel_de_read(dev_priv, dp_tp_ctl_reg(encoder, pipe_config)) &
+			DP_TP_CTL_ENHANCED_FRAME_ENABLE;
 
+		if (DISPLAY_VER(dev_priv) >= 11)
 			pipe_config->fec_enable =
-				intel_de_read(dev_priv, dp_tp_ctl) & DP_TP_CTL_FEC_ENABLE;
-
-			drm_dbg_kms(&dev_priv->drm,
-				    "[ENCODER:%d:%s] Fec status: %u\n",
-				    encoder->base.base.id, encoder->base.name,
-				    pipe_config->fec_enable);
-		}
+				intel_de_read(dev_priv,
+					      dp_tp_ctl_reg(encoder, pipe_config)) & DP_TP_CTL_FEC_ENABLE;
 
 		if (dig_port->lspcon.active && intel_dp_has_hdmi_sink(&dig_port->dp))
 			pipe_config->infoframes.enable |=
@@ -3747,6 +3744,9 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 		if (!HAS_DP20(dev_priv)) {
 			/* FDI */
 			pipe_config->output_types |= BIT(INTEL_OUTPUT_ANALOG);
+			pipe_config->enhanced_framing =
+				intel_de_read(dev_priv, dp_tp_ctl_reg(encoder, pipe_config)) &
+				DP_TP_CTL_ENHANCED_FRAME_ENABLE;
 			break;
 		}
 		fallthrough; /* 128b/132b */
@@ -3761,6 +3761,11 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 
 		intel_cpu_transcoder_get_m1_n1(crtc, cpu_transcoder,
 					       &pipe_config->dp_m_n);
+
+		if (DISPLAY_VER(dev_priv) >= 11)
+			pipe_config->fec_enable =
+				intel_de_read(dev_priv,
+					      dp_tp_ctl_reg(encoder, pipe_config)) & DP_TP_CTL_FEC_ENABLE;
 
 		pipe_config->infoframes.enable |=
 			intel_hdmi_infoframes_enabled(encoder, pipe_config);
@@ -3857,11 +3862,9 @@ static void mtl_ddi_get_config(struct intel_encoder *encoder,
 		crtc_state->port_clock = intel_mtl_tbt_calc_port_clock(encoder);
 	} else if (intel_is_c10phy(i915, phy)) {
 		intel_c10pll_readout_hw_state(encoder, &crtc_state->cx0pll_state.c10);
-		intel_c10pll_dump_hw_state(i915, &crtc_state->cx0pll_state.c10);
 		crtc_state->port_clock = intel_c10pll_calc_port_clock(encoder, &crtc_state->cx0pll_state.c10);
 	} else {
 		intel_c20pll_readout_hw_state(encoder, &crtc_state->cx0pll_state.c20);
-		intel_c20pll_dump_hw_state(i915, &crtc_state->cx0pll_state.c20);
 		crtc_state->port_clock = intel_c20pll_calc_port_clock(encoder, &crtc_state->cx0pll_state.c20);
 	}
 
@@ -4173,7 +4176,7 @@ static int intel_ddi_compute_config_late(struct intel_encoder *encoder,
 	struct drm_connector *connector = conn_state->connector;
 	u8 port_sync_transcoders = 0;
 
-	drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] [CRTC:%d:%s]",
+	drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] [CRTC:%d:%s]\n",
 		    encoder->base.base.id, encoder->base.name,
 		    crtc_state->uapi.crtc->base.id, crtc_state->uapi.crtc->name);
 
@@ -4323,15 +4326,14 @@ static int intel_hdmi_reset_link(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_hdmi *hdmi = enc_to_intel_hdmi(encoder);
 	struct intel_connector *connector = hdmi->attached_connector;
-	struct i2c_adapter *adapter =
-		intel_gmbus_get_adapter(dev_priv, hdmi->ddc_bus);
+	struct i2c_adapter *ddc = connector->base.ddc;
 	struct drm_connector_state *conn_state;
 	struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
 	u8 config;
 	int ret;
 
-	if (!connector || connector->base.status != connector_status_connected)
+	if (connector->base.status != connector_status_connected)
 		return 0;
 
 	ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,
@@ -4365,7 +4367,7 @@ static int intel_hdmi_reset_link(struct intel_encoder *encoder,
 	    !try_wait_for_completion(&conn_state->commit->hw_done))
 		return 0;
 
-	ret = drm_scdc_readb(adapter, SCDC_TMDS_CONFIG, &config);
+	ret = drm_scdc_readb(ddc, SCDC_TMDS_CONFIG, &config);
 	if (ret < 0) {
 		drm_err(&dev_priv->drm, "[CONNECTOR:%d:%s] Failed to read TMDS config: %d\n",
 			connector->base.base.id, connector->base.name, ret);

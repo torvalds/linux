@@ -616,12 +616,14 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	/* Override from passed dc->bb_overrides if available*/
 	if ((int)(dcn3_21_soc.sr_exit_time_us * 1000) != dc->bb_overrides.sr_exit_time_ns
 			&& dc->bb_overrides.sr_exit_time_ns) {
+		dc->dml2_options.bbox_overrides.sr_exit_latency_us =
 		dcn3_21_soc.sr_exit_time_us = dc->bb_overrides.sr_exit_time_ns / 1000.0;
 	}
 
 	if ((int)(dcn3_21_soc.sr_enter_plus_exit_time_us * 1000)
 			!= dc->bb_overrides.sr_enter_plus_exit_time_ns
 			&& dc->bb_overrides.sr_enter_plus_exit_time_ns) {
+		dc->dml2_options.bbox_overrides.sr_enter_plus_exit_latency_us =
 		dcn3_21_soc.sr_enter_plus_exit_time_us =
 			dc->bb_overrides.sr_enter_plus_exit_time_ns / 1000.0;
 	}
@@ -629,12 +631,14 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	if ((int)(dcn3_21_soc.urgent_latency_us * 1000) != dc->bb_overrides.urgent_latency_ns
 		&& dc->bb_overrides.urgent_latency_ns) {
 		dcn3_21_soc.urgent_latency_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
+		dc->dml2_options.bbox_overrides.urgent_latency_us =
 		dcn3_21_soc.urgent_latency_pixel_data_only_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
 	}
 
 	if ((int)(dcn3_21_soc.dram_clock_change_latency_us * 1000)
 			!= dc->bb_overrides.dram_clock_change_latency_ns
 			&& dc->bb_overrides.dram_clock_change_latency_ns) {
+		dc->dml2_options.bbox_overrides.dram_clock_change_latency_us =
 		dcn3_21_soc.dram_clock_change_latency_us =
 			dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
 	}
@@ -642,6 +646,7 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	if ((int)(dcn3_21_soc.fclk_change_latency_us * 1000)
 			!= dc->bb_overrides.fclk_clock_change_latency_ns
 			&& dc->bb_overrides.fclk_clock_change_latency_ns) {
+		dc->dml2_options.bbox_overrides.fclk_change_latency_us =
 		dcn3_21_soc.fclk_change_latency_us =
 			dc->bb_overrides.fclk_clock_change_latency_ns / 1000;
 	}
@@ -659,14 +664,17 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 
 		if (dc->ctx->dc_bios->funcs->get_soc_bb_info(dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
 			if (bb_info.dram_clock_change_latency_100ns > 0)
+				dc->dml2_options.bbox_overrides.dram_clock_change_latency_us =
 				dcn3_21_soc.dram_clock_change_latency_us =
 					bb_info.dram_clock_change_latency_100ns * 10;
 
 			if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
+				dc->dml2_options.bbox_overrides.sr_enter_plus_exit_latency_us =
 				dcn3_21_soc.sr_enter_plus_exit_time_us =
 					bb_info.dram_sr_enter_exit_latency_100ns * 10;
 
 			if (bb_info.dram_sr_exit_latency_100ns > 0)
+				dc->dml2_options.bbox_overrides.sr_exit_latency_us =
 				dcn3_21_soc.sr_exit_time_us =
 					bb_info.dram_sr_exit_latency_100ns * 10;
 		}
@@ -674,12 +682,14 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 
 	/* Override from VBIOS for num_chan */
 	if (dc->ctx->dc_bios->vram_info.num_chans) {
+		dc->dml2_options.bbox_overrides.dram_num_chan =
 		dcn3_21_soc.num_chans = dc->ctx->dc_bios->vram_info.num_chans;
 		dcn3_21_soc.mall_allocated_for_dcn_mbytes = (double)(dcn32_calc_num_avail_chans_for_mall(dc,
 			dc->ctx->dc_bios->vram_info.num_chans) * dc->caps.mall_size_per_mem_channel);
 	}
 
 	if (dc->ctx->dc_bios->vram_info.dram_channel_width_bytes)
+		dc->dml2_options.bbox_overrides.dram_chanel_width_bytes =
 		dcn3_21_soc.dram_channel_width_bytes = dc->ctx->dc_bios->vram_info.dram_channel_width_bytes;
 
 	/* DML DSC delay factor workaround */
@@ -690,6 +700,10 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	/* Override dispclk_dppclk_vco_speed_mhz from Clk Mgr */
 	dcn3_21_soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
 	dc->dml.soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
+	dc->dml2_options.bbox_overrides.disp_pll_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
+	dc->dml2_options.bbox_overrides.xtalclk_mhz = dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency / 1000.0;
+	dc->dml2_options.bbox_overrides.dchub_refclk_mhz = dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000.0;
+	dc->dml2_options.bbox_overrides.dprefclk_mhz = dc->clk_mgr->dprefclk_khz / 1000.0;
 
 	/* Overrides Clock levelsfrom CLK Mgr table entries as reported by PM FW */
 	if (dc->debug.use_legacy_soc_bb_mechanism) {
@@ -836,5 +850,72 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	dml_init_instance(&dc->dml, &dcn3_21_soc, &dcn3_21_ip, DML_PROJECT_DCN32);
 	if (dc->current_state)
 		dml_init_instance(&dc->current_state->bw_ctx.dml, &dcn3_21_soc, &dcn3_21_ip, DML_PROJECT_DCN32);
+
+	if (dc->clk_mgr->bw_params->clk_table.num_entries > 1) {
+		unsigned int i = 0;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_states = dc->clk_mgr->bw_params->clk_table.num_entries;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dcfclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dcfclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_fclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_fclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_memclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_memclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_socclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_socclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dtbclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dtbclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dispclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dispclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dppclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dppclk_levels;
+
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dcfclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].dcfclk_mhz)
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dcfclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].dcfclk_mhz;
+		}
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_fclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].fclk_mhz)
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].fclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].fclk_mhz;
+		}
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_memclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].memclk_mhz)
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].memclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].memclk_mhz;
+		}
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_socclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].socclk_mhz)
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].socclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].socclk_mhz;
+		}
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dtbclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].dtbclk_mhz)
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dtbclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].dtbclk_mhz;
+		}
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dispclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].dispclk_mhz) {
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dispclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].dispclk_mhz;
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dppclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].dispclk_mhz;
+			}
+		}
+	}
 }
 

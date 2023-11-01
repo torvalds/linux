@@ -207,7 +207,7 @@ void optc3_set_odm_bypass(struct timing_generator *optc,
 			);
 
 	h_div = optc1_is_two_pixels_per_containter(dc_crtc_timing);
-	REG_SET(OTG_H_TIMING_CNTL, 0,
+	REG_UPDATE(OTG_H_TIMING_CNTL,
 			OTG_H_TIMING_DIV_MODE, h_div);
 
 	REG_SET(OPTC_MEMORY_CONFIG, 0,

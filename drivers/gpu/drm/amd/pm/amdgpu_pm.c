@@ -35,6 +35,44 @@
 #include <linux/pm_runtime.h>
 #include <asm/processor.h>
 
+#define MAX_NUM_OF_FEATURES_PER_SUBSET		8
+#define MAX_NUM_OF_SUBSETS			8
+
+struct od_attribute {
+	struct kobj_attribute	attribute;
+	struct list_head	entry;
+};
+
+struct od_kobj {
+	struct kobject		kobj;
+	struct list_head	entry;
+	struct list_head	attribute;
+	void			*priv;
+};
+
+struct od_feature_ops {
+	umode_t (*is_visible)(struct amdgpu_device *adev);
+	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
+			 const char *buf, size_t count);
+};
+
+struct od_feature_item {
+	const char		*name;
+	struct od_feature_ops	ops;
+};
+
+struct od_feature_container {
+	char				*name;
+	struct od_feature_ops		ops;
+	struct od_feature_item		sub_feature[MAX_NUM_OF_FEATURES_PER_SUBSET];
+};
+
+struct od_feature_set {
+	struct od_feature_container	containers[MAX_NUM_OF_SUBSETS];
+};
+
 static const struct hwmon_temp_label {
 	enum PP_HWMON_TEMP channel;
 	const char *label;
@@ -643,18 +681,14 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *   They can be used to calibrate the sclk voltage curve. This is
  *   available for Vega20 and NV1X.
  *
- * - voltage offset for the six anchor points of the v/f curve labeled
- *   OD_VDDC_CURVE. They can be used to calibrate the v/f curve. This
- *   is only availabe for some SMU13 ASICs.
- *
  * - voltage offset(in mV) applied on target voltage calculation.
- *   This is available for Sienna Cichlid, Navy Flounder and Dimgrey
- *   Cavefish. For these ASICs, the target voltage calculation can be
- *   illustrated by "voltage = voltage calculated from v/f curve +
- *   overdrive vddgfx offset"
+ *   This is available for Sienna Cichlid, Navy Flounder, Dimgrey
+ *   Cavefish and some later SMU13 ASICs. For these ASICs, the target
+ *   voltage calculation can be illustrated by "voltage = voltage
+ *   calculated from v/f curve + overdrive vddgfx offset"
  *
- * - a list of valid ranges for sclk, mclk, and voltage curve points
- *   labeled OD_RANGE
+ * - a list of valid ranges for sclk, mclk, voltage curve points
+ *   or voltage offset labeled OD_RANGE
  *
  * < For APUs >
  *
@@ -686,24 +720,17 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *   E.g., "p 2 0 800" would set the minimum core clock on core
  *   2 to 800Mhz.
  *
- *   For sclk voltage curve,
- *     - For NV1X, enter the new values by writing a string that
- *       contains "vc point clock voltage" to the file. The points
- *       are indexed by 0, 1 and 2. E.g., "vc 0 300 600" will update
- *       point1 with clock set as 300Mhz and voltage as 600mV. "vc 2
- *       1000 1000" will update point3 with clock set as 1000Mhz and
- *       voltage 1000mV.
- *     - For SMU13 ASICs, enter the new values by writing a string that
- *       contains "vc anchor_point_index voltage_offset" to the file.
- *       There are total six anchor points defined on the v/f curve with
- *       index as 0 - 5.
- *       - "vc 0 10" will update the voltage offset for point1 as 10mv.
- *       - "vc 5 -10" will update the voltage offset for point6 as -10mv.
+ *   For sclk voltage curve supported by Vega20 and NV1X, enter the new
+ *   values by writing a string that contains "vc point clock voltage"
+ *   to the file. The points are indexed by 0, 1 and 2. E.g., "vc 0 300
+ *   600" will update point1 with clock set as 300Mhz and voltage as 600mV.
+ *   "vc 2 1000 1000" will update point3 with clock set as 1000Mhz and
+ *   voltage 1000mV.
  *
- *   To update the voltage offset applied for gfxclk/voltage calculation,
- *   enter the new value by writing a string that contains "vo offset".
- *   This is supported by Sienna Cichlid, Navy Flounder and Dimgrey Cavefish.
- *   And the offset can be a positive or negative value.
+ *   For voltage offset supported by Sienna Cichlid, Navy Flounder, Dimgrey
+ *   Cavefish and some later SMU13 ASICs, enter the new value by writing a
+ *   string that contains "vo offset". E.g., "vo -10" will update the extra
+ *   voltage offset applied to the whole v/f curve line as -10mv.
  *
  * - When you have edited all of the states as needed, write "c" (commit)
  *   to the file to commit your changes
@@ -734,7 +761,7 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	if (count > 127)
+	if (count > 127 || count == 0)
 		return -EINVAL;
 
 	if (*buf == 's')
@@ -754,7 +781,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 	else
 		return -EINVAL;
 
-	memcpy(buf_cpy, buf, count+1);
+	memcpy(buf_cpy, buf, count);
+	buf_cpy[count] = 0;
 
 	tmp_str = buf_cpy;
 
@@ -770,6 +798,9 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 		if (ret)
 			return -EINVAL;
 		parameter_size++;
+
+		if (!tmp_str)
+			break;
 
 		while (isspace(*tmp_str))
 			tmp_str++;
@@ -956,7 +987,15 @@ static ssize_t amdgpu_get_pp_features(struct device *dev,
  * pp_dpm_fclk interface is only available for Vega20 and later ASICs.
  *
  * Reading back the files will show you the available power levels within
- * the power state and the clock information for those levels.
+ * the power state and the clock information for those levels. If deep sleep is
+ * applied to a clock, the level will be denoted by a special level 'S:'
+ * E.g.,
+ *	S: 19Mhz *
+ *	0: 615Mhz
+ *	1: 800Mhz
+ *	2: 888Mhz
+ *	3: 1000Mhz
+ *
  *
  * To manually adjust these states, first select manual using
  * power_dpm_force_performance_level.
@@ -1467,9 +1506,9 @@ static ssize_t amdgpu_set_pp_power_profile_mode(struct device *dev,
 	return -EINVAL;
 }
 
-static unsigned int amdgpu_hwmon_get_sensor_generic(struct amdgpu_device *adev,
-						    enum amd_pp_sensors sensor,
-						    void *query)
+static int amdgpu_hwmon_get_sensor_generic(struct amdgpu_device *adev,
+					   enum amd_pp_sensors sensor,
+					   void *query)
 {
 	int r, size = sizeof(uint32_t);
 
@@ -1956,6 +1995,70 @@ static int ss_bias_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	return 0;
 }
 
+/* Following items will be read out to indicate current plpd policy:
+ *  - -1: none
+ *  - 0: disallow
+ *  - 1: default
+ *  - 2: optimized
+ */
+static ssize_t amdgpu_get_xgmi_plpd_policy(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	char *mode_desc = "none";
+	int mode;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	mode = amdgpu_dpm_get_xgmi_plpd_mode(adev, &mode_desc);
+
+	return sysfs_emit(buf, "%d: %s\n", mode, mode_desc);
+}
+
+/* Following argument value is expected from user to change plpd policy
+ *  - arg 0: disallow plpd
+ *  - arg 1: default policy
+ *  - arg 2: optimized policy
+ */
+static ssize_t amdgpu_set_xgmi_plpd_policy(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	int mode, ret;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	ret = kstrtos32(buf, 0, &mode);
+	if (ret)
+		return -EINVAL;
+
+	ret = pm_runtime_get_sync(ddev->dev);
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return ret;
+	}
+
+	ret = amdgpu_dpm_set_xgmi_plpd_mode(adev, mode);
+
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+
+	if (ret)
+		return ret;
+
+	return count;
+}
+
 static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_state,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_force_performance_level,	ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
@@ -1991,14 +2094,15 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 			      .attr_update = ss_power_attr_update),
 	AMDGPU_DEVICE_ATTR_RW(smartshift_bias,				ATTR_FLAG_BASIC,
 			      .attr_update = ss_bias_attr_update),
+	AMDGPU_DEVICE_ATTR_RW(xgmi_plpd_policy,				ATTR_FLAG_BASIC),
 };
 
 static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
 			       uint32_t mask, enum amdgpu_device_attr_states *states)
 {
 	struct device_attribute *dev_attr = &attr->dev_attr;
-	uint32_t mp1_ver = adev->ip_versions[MP1_HWIP][0];
-	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
+	uint32_t mp1_ver = amdgpu_ip_version(adev, MP1_HWIP, 0);
+	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 	const char *attr_name = dev_attr->attr.name;
 
 	if (!(attr->flags & mask)) {
@@ -2087,7 +2191,11 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	} else if (DEVICE_ATTR_IS(pp_power_profile_mode)) {
 		if (amdgpu_dpm_get_power_profile_mode(adev, NULL) == -EOPNOTSUPP)
 			*states = ATTR_STATE_UNSUPPORTED;
-		else if (gc_ver == IP_VERSION(10, 3, 0) && amdgpu_sriov_vf(adev))
+		else if ((gc_ver == IP_VERSION(10, 3, 0) ||
+			  gc_ver == IP_VERSION(11, 0, 3)) && amdgpu_sriov_vf(adev))
+			*states = ATTR_STATE_UNSUPPORTED;
+	} else if (DEVICE_ATTR_IS(xgmi_plpd_policy)) {
+		if (amdgpu_dpm_get_xgmi_plpd_mode(adev, NULL) == XGMI_PLPD_NONE)
 			*states = ATTR_STATE_UNSUPPORTED;
 	}
 
@@ -2773,8 +2881,8 @@ static ssize_t amdgpu_hwmon_show_vddnb_label(struct device *dev,
 	return sysfs_emit(buf, "vddnb\n");
 }
 
-static unsigned int amdgpu_hwmon_get_power(struct device *dev,
-					   enum amd_pp_sensors sensor)
+static int amdgpu_hwmon_get_power(struct device *dev,
+				  enum amd_pp_sensors sensor)
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	unsigned int uw;
@@ -2795,35 +2903,27 @@ static ssize_t amdgpu_hwmon_show_power_avg(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	unsigned int val;
+	ssize_t val;
 
 	val = amdgpu_hwmon_get_power(dev, AMDGPU_PP_SENSOR_GPU_AVG_POWER);
 	if (val < 0)
 		return val;
 
-	return sysfs_emit(buf, "%u\n", val);
+	return sysfs_emit(buf, "%zd\n", val);
 }
 
 static ssize_t amdgpu_hwmon_show_power_input(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
 {
-	unsigned int val;
+	ssize_t val;
 
 	val = amdgpu_hwmon_get_power(dev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER);
 	if (val < 0)
 		return val;
 
-	return sysfs_emit(buf, "%u\n", val);
+	return sysfs_emit(buf, "%zd\n", val);
 }
-
-static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	return sysfs_emit(buf, "%i\n", 0);
-}
-
 
 static ssize_t amdgpu_hwmon_show_power_cap_generic(struct device *dev,
 					struct device_attribute *attr,
@@ -2861,6 +2961,12 @@ static ssize_t amdgpu_hwmon_show_power_cap_generic(struct device *dev,
 	return size;
 }
 
+static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	return amdgpu_hwmon_show_power_cap_generic(dev, attr, buf, PP_PWR_LIMIT_MIN);
+}
 
 static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
 					 struct device_attribute *attr,
@@ -2891,7 +2997,7 @@ static ssize_t amdgpu_hwmon_show_power_label(struct device *dev,
 					 char *buf)
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
-	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
+	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 
 	if (gc_ver == IP_VERSION(10, 3, 1))
 		return sysfs_emit(buf, "%s\n",
@@ -3179,7 +3285,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
-	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
+	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 	uint32_t tmp;
 
 	/* under multi-vf mode, the hwmon attributes are all not supported */
@@ -3319,15 +3425,20 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* hotspot temperature for gc 9,4,3*/
-	if ((gc_ver == IP_VERSION(9, 4, 3)) &&
-	    (attr == &sensor_dev_attr_temp1_input.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp1_label.dev_attr.attr))
-		return 0;
+	if (gc_ver == IP_VERSION(9, 4, 3)) {
+		if (attr == &sensor_dev_attr_temp1_input.dev_attr.attr ||
+		    attr == &sensor_dev_attr_temp1_emergency.dev_attr.attr ||
+		    attr == &sensor_dev_attr_temp1_label.dev_attr.attr)
+			return 0;
+
+		if (attr == &sensor_dev_attr_temp2_emergency.dev_attr.attr ||
+		    attr == &sensor_dev_attr_temp3_emergency.dev_attr.attr)
+			return attr->mode;
+	}
 
 	/* only SOC15 dGPUs support hotspot and mem temperatures */
-	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0) ||
-	    (gc_ver == IP_VERSION(9, 4, 3))) &&
-	     (attr == &sensor_dev_attr_temp2_crit_hyst.dev_attr.attr ||
+	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0)) &&
+	    (attr == &sensor_dev_attr_temp2_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp3_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_emergency.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_emergency.dev_attr.attr ||
@@ -3357,10 +3468,702 @@ static const struct attribute_group *hwmon_groups[] = {
 	NULL
 };
 
+static int amdgpu_retrieve_od_settings(struct amdgpu_device *adev,
+				       enum pp_clock_type od_type,
+				       char *buf)
+{
+	int size = 0;
+	int ret;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	ret = pm_runtime_get_sync(adev->dev);
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(adev->dev);
+		return ret;
+	}
+
+	size = amdgpu_dpm_print_clock_levels(adev, od_type, buf);
+	if (size == 0)
+		size = sysfs_emit(buf, "\n");
+
+	pm_runtime_mark_last_busy(adev->dev);
+	pm_runtime_put_autosuspend(adev->dev);
+
+	return size;
+}
+
+static int parse_input_od_command_lines(const char *buf,
+					size_t count,
+					u32 *type,
+					long *params,
+					uint32_t *num_of_params)
+{
+	const char delimiter[3] = {' ', '\n', '\0'};
+	uint32_t parameter_size = 0;
+	char buf_cpy[128] = {0};
+	char *tmp_str, *sub_str;
+	int ret;
+
+	if (count > sizeof(buf_cpy) - 1)
+		return -EINVAL;
+
+	memcpy(buf_cpy, buf, count);
+	tmp_str = buf_cpy;
+
+	/* skip heading spaces */
+	while (isspace(*tmp_str))
+		tmp_str++;
+
+	switch (*tmp_str) {
+	case 'c':
+		*type = PP_OD_COMMIT_DPM_TABLE;
+		return 0;
+	case 'r':
+		params[parameter_size] = *type;
+		*num_of_params = 1;
+		*type = PP_OD_RESTORE_DEFAULT_TABLE;
+		return 0;
+	default:
+		break;
+	}
+
+	while ((sub_str = strsep(&tmp_str, delimiter)) != NULL) {
+		if (strlen(sub_str) == 0)
+			continue;
+
+		ret = kstrtol(sub_str, 0, &params[parameter_size]);
+		if (ret)
+			return -EINVAL;
+		parameter_size++;
+
+		while (isspace(*tmp_str))
+			tmp_str++;
+	}
+
+	*num_of_params = parameter_size;
+
+	return 0;
+}
+
+static int
+amdgpu_distribute_custom_od_settings(struct amdgpu_device *adev,
+				     enum PP_OD_DPM_TABLE_COMMAND cmd_type,
+				     const char *in_buf,
+				     size_t count)
+{
+	uint32_t parameter_size = 0;
+	long parameter[64];
+	int ret;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	ret = parse_input_od_command_lines(in_buf,
+					   count,
+					   &cmd_type,
+					   parameter,
+					   &parameter_size);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_get_sync(adev->dev);
+	if (ret < 0)
+		goto err_out0;
+
+	ret = amdgpu_dpm_odn_edit_dpm_table(adev,
+					    cmd_type,
+					    parameter,
+					    parameter_size);
+	if (ret)
+		goto err_out1;
+
+	if (cmd_type == PP_OD_COMMIT_DPM_TABLE) {
+		ret = amdgpu_dpm_dispatch_task(adev,
+					       AMD_PP_TASK_READJUST_POWER_STATE,
+					       NULL);
+		if (ret)
+			goto err_out1;
+	}
+
+	pm_runtime_mark_last_busy(adev->dev);
+	pm_runtime_put_autosuspend(adev->dev);
+
+	return count;
+
+err_out1:
+	pm_runtime_mark_last_busy(adev->dev);
+err_out0:
+	pm_runtime_put_autosuspend(adev->dev);
+
+	return ret;
+}
+
+/**
+ * DOC: fan_curve
+ *
+ * The amdgpu driver provides a sysfs API for checking and adjusting the fan
+ * control curve line.
+ *
+ * Reading back the file shows you the current settings(temperature in Celsius
+ * degree and fan speed in pwm) applied to every anchor point of the curve line
+ * and their permitted ranges if changable.
+ *
+ * Writing a desired string(with the format like "anchor_point_index temperature
+ * fan_speed_in_pwm") to the file, change the settings for the specific anchor
+ * point accordingly.
+ *
+ * When you have finished the editing, write "c" (commit) to the file to commit
+ * your changes.
+ *
+ * If you want to reset to the default value, write "r" (reset) to the file to
+ * reset them
+ *
+ * There are two fan control modes supported: auto and manual. With auto mode,
+ * PMFW handles the fan speed control(how fan speed reacts to ASIC temperature).
+ * While with manual mode, users can set their own fan curve line as what
+ * described here. Normally the ASIC is booted up with auto mode. Any
+ * settings via this interface will switch the fan control to manual mode
+ * implicitly.
+ */
+static ssize_t fan_curve_show(struct kobject *kobj,
+			      struct kobj_attribute *attr,
+			      char *buf)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_retrieve_od_settings(adev, OD_FAN_CURVE, buf);
+}
+
+static ssize_t fan_curve_store(struct kobject *kobj,
+			       struct kobj_attribute *attr,
+			       const char *buf,
+			       size_t count)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_distribute_custom_od_settings(adev,
+							     PP_OD_EDIT_FAN_CURVE,
+							     buf,
+							     count);
+}
+
+static umode_t fan_curve_visible(struct amdgpu_device *adev)
+{
+	umode_t umode = 0000;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_CURVE_RETRIEVE)
+		umode |= S_IRUSR | S_IRGRP | S_IROTH;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_CURVE_SET)
+		umode |= S_IWUSR;
+
+	return umode;
+}
+
+/**
+ * DOC: acoustic_limit_rpm_threshold
+ *
+ * The amdgpu driver provides a sysfs API for checking and adjusting the
+ * acoustic limit in RPM for fan control.
+ *
+ * Reading back the file shows you the current setting and the permitted
+ * ranges if changable.
+ *
+ * Writing an integer to the file, change the setting accordingly.
+ *
+ * When you have finished the editing, write "c" (commit) to the file to commit
+ * your changes.
+ *
+ * If you want to reset to the default value, write "r" (reset) to the file to
+ * reset them
+ *
+ * This setting works under auto fan control mode only. It adjusts the PMFW's
+ * behavior about the maximum speed in RPM the fan can spin. Setting via this
+ * interface will switch the fan control to auto mode implicitly.
+ */
+static ssize_t acoustic_limit_threshold_show(struct kobject *kobj,
+					     struct kobj_attribute *attr,
+					     char *buf)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_retrieve_od_settings(adev, OD_ACOUSTIC_LIMIT, buf);
+}
+
+static ssize_t acoustic_limit_threshold_store(struct kobject *kobj,
+					      struct kobj_attribute *attr,
+					      const char *buf,
+					      size_t count)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_distribute_custom_od_settings(adev,
+							     PP_OD_EDIT_ACOUSTIC_LIMIT,
+							     buf,
+							     count);
+}
+
+static umode_t acoustic_limit_threshold_visible(struct amdgpu_device *adev)
+{
+	umode_t umode = 0000;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_ACOUSTIC_LIMIT_THRESHOLD_RETRIEVE)
+		umode |= S_IRUSR | S_IRGRP | S_IROTH;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_ACOUSTIC_LIMIT_THRESHOLD_SET)
+		umode |= S_IWUSR;
+
+	return umode;
+}
+
+/**
+ * DOC: acoustic_target_rpm_threshold
+ *
+ * The amdgpu driver provides a sysfs API for checking and adjusting the
+ * acoustic target in RPM for fan control.
+ *
+ * Reading back the file shows you the current setting and the permitted
+ * ranges if changable.
+ *
+ * Writing an integer to the file, change the setting accordingly.
+ *
+ * When you have finished the editing, write "c" (commit) to the file to commit
+ * your changes.
+ *
+ * If you want to reset to the default value, write "r" (reset) to the file to
+ * reset them
+ *
+ * This setting works under auto fan control mode only. It can co-exist with
+ * other settings which can work also under auto mode. It adjusts the PMFW's
+ * behavior about the maximum speed in RPM the fan can spin when ASIC
+ * temperature is not greater than target temperature. Setting via this
+ * interface will switch the fan control to auto mode implicitly.
+ */
+static ssize_t acoustic_target_threshold_show(struct kobject *kobj,
+					      struct kobj_attribute *attr,
+					      char *buf)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_retrieve_od_settings(adev, OD_ACOUSTIC_TARGET, buf);
+}
+
+static ssize_t acoustic_target_threshold_store(struct kobject *kobj,
+					       struct kobj_attribute *attr,
+					       const char *buf,
+					       size_t count)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_distribute_custom_od_settings(adev,
+							     PP_OD_EDIT_ACOUSTIC_TARGET,
+							     buf,
+							     count);
+}
+
+static umode_t acoustic_target_threshold_visible(struct amdgpu_device *adev)
+{
+	umode_t umode = 0000;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_ACOUSTIC_TARGET_THRESHOLD_RETRIEVE)
+		umode |= S_IRUSR | S_IRGRP | S_IROTH;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_ACOUSTIC_TARGET_THRESHOLD_SET)
+		umode |= S_IWUSR;
+
+	return umode;
+}
+
+/**
+ * DOC: fan_target_temperature
+ *
+ * The amdgpu driver provides a sysfs API for checking and adjusting the
+ * target tempeature in Celsius degree for fan control.
+ *
+ * Reading back the file shows you the current setting and the permitted
+ * ranges if changable.
+ *
+ * Writing an integer to the file, change the setting accordingly.
+ *
+ * When you have finished the editing, write "c" (commit) to the file to commit
+ * your changes.
+ *
+ * If you want to reset to the default value, write "r" (reset) to the file to
+ * reset them
+ *
+ * This setting works under auto fan control mode only. It can co-exist with
+ * other settings which can work also under auto mode. Paring with the
+ * acoustic_target_rpm_threshold setting, they define the maximum speed in
+ * RPM the fan can spin when ASIC temperature is not greater than target
+ * temperature. Setting via this interface will switch the fan control to
+ * auto mode implicitly.
+ */
+static ssize_t fan_target_temperature_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_retrieve_od_settings(adev, OD_FAN_TARGET_TEMPERATURE, buf);
+}
+
+static ssize_t fan_target_temperature_store(struct kobject *kobj,
+					    struct kobj_attribute *attr,
+					    const char *buf,
+					    size_t count)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_distribute_custom_od_settings(adev,
+							     PP_OD_EDIT_FAN_TARGET_TEMPERATURE,
+							     buf,
+							     count);
+}
+
+static umode_t fan_target_temperature_visible(struct amdgpu_device *adev)
+{
+	umode_t umode = 0000;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_TARGET_TEMPERATURE_RETRIEVE)
+		umode |= S_IRUSR | S_IRGRP | S_IROTH;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_TARGET_TEMPERATURE_SET)
+		umode |= S_IWUSR;
+
+	return umode;
+}
+
+/**
+ * DOC: fan_minimum_pwm
+ *
+ * The amdgpu driver provides a sysfs API for checking and adjusting the
+ * minimum fan speed in PWM.
+ *
+ * Reading back the file shows you the current setting and the permitted
+ * ranges if changable.
+ *
+ * Writing an integer to the file, change the setting accordingly.
+ *
+ * When you have finished the editing, write "c" (commit) to the file to commit
+ * your changes.
+ *
+ * If you want to reset to the default value, write "r" (reset) to the file to
+ * reset them
+ *
+ * This setting works under auto fan control mode only. It can co-exist with
+ * other settings which can work also under auto mode. It adjusts the PMFW's
+ * behavior about the minimum fan speed in PWM the fan should spin. Setting
+ * via this interface will switch the fan control to auto mode implicitly.
+ */
+static ssize_t fan_minimum_pwm_show(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    char *buf)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_retrieve_od_settings(adev, OD_FAN_MINIMUM_PWM, buf);
+}
+
+static ssize_t fan_minimum_pwm_store(struct kobject *kobj,
+				     struct kobj_attribute *attr,
+				     const char *buf,
+				     size_t count)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_distribute_custom_od_settings(adev,
+							     PP_OD_EDIT_FAN_MINIMUM_PWM,
+							     buf,
+							     count);
+}
+
+static umode_t fan_minimum_pwm_visible(struct amdgpu_device *adev)
+{
+	umode_t umode = 0000;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_MINIMUM_PWM_RETRIEVE)
+		umode |= S_IRUSR | S_IRGRP | S_IROTH;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_MINIMUM_PWM_SET)
+		umode |= S_IWUSR;
+
+	return umode;
+}
+
+static struct od_feature_set amdgpu_od_set = {
+	.containers = {
+		[0] = {
+			.name = "fan_ctrl",
+			.sub_feature = {
+				[0] = {
+					.name = "fan_curve",
+					.ops = {
+						.is_visible = fan_curve_visible,
+						.show = fan_curve_show,
+						.store = fan_curve_store,
+					},
+				},
+				[1] = {
+					.name = "acoustic_limit_rpm_threshold",
+					.ops = {
+						.is_visible = acoustic_limit_threshold_visible,
+						.show = acoustic_limit_threshold_show,
+						.store = acoustic_limit_threshold_store,
+					},
+				},
+				[2] = {
+					.name = "acoustic_target_rpm_threshold",
+					.ops = {
+						.is_visible = acoustic_target_threshold_visible,
+						.show = acoustic_target_threshold_show,
+						.store = acoustic_target_threshold_store,
+					},
+				},
+				[3] = {
+					.name = "fan_target_temperature",
+					.ops = {
+						.is_visible = fan_target_temperature_visible,
+						.show = fan_target_temperature_show,
+						.store = fan_target_temperature_store,
+					},
+				},
+				[4] = {
+					.name = "fan_minimum_pwm",
+					.ops = {
+						.is_visible = fan_minimum_pwm_visible,
+						.show = fan_minimum_pwm_show,
+						.store = fan_minimum_pwm_store,
+					},
+				},
+			},
+		},
+	},
+};
+
+static void od_kobj_release(struct kobject *kobj)
+{
+	struct od_kobj *od_kobj = container_of(kobj, struct od_kobj, kobj);
+
+	kfree(od_kobj);
+}
+
+static const struct kobj_type od_ktype = {
+	.release	= od_kobj_release,
+	.sysfs_ops	= &kobj_sysfs_ops,
+};
+
+static void amdgpu_od_set_fini(struct amdgpu_device *adev)
+{
+	struct od_kobj *container, *container_next;
+	struct od_attribute *attribute, *attribute_next;
+
+	if (list_empty(&adev->pm.od_kobj_list))
+		return;
+
+	list_for_each_entry_safe(container, container_next,
+				 &adev->pm.od_kobj_list, entry) {
+		list_del(&container->entry);
+
+		list_for_each_entry_safe(attribute, attribute_next,
+					 &container->attribute, entry) {
+			list_del(&attribute->entry);
+			sysfs_remove_file(&container->kobj,
+					  &attribute->attribute.attr);
+			kfree(attribute);
+		}
+
+		kobject_put(&container->kobj);
+	}
+}
+
+static bool amdgpu_is_od_feature_supported(struct amdgpu_device *adev,
+					   struct od_feature_ops *feature_ops)
+{
+	umode_t mode;
+
+	if (!feature_ops->is_visible)
+		return false;
+
+	/*
+	 * If the feature has no user read and write mode set,
+	 * we can assume the feature is actually not supported.(?)
+	 * And the revelant sysfs interface should not be exposed.
+	 */
+	mode = feature_ops->is_visible(adev);
+	if (mode & (S_IRUSR | S_IWUSR))
+		return true;
+
+	return false;
+}
+
+static bool amdgpu_od_is_self_contained(struct amdgpu_device *adev,
+					struct od_feature_container *container)
+{
+	int i;
+
+	/*
+	 * If there is no valid entry within the container, the container
+	 * is recognized as a self contained container. And the valid entry
+	 * here means it has a valid naming and it is visible/supported by
+	 * the ASIC.
+	 */
+	for (i = 0; i < ARRAY_SIZE(container->sub_feature); i++) {
+		if (container->sub_feature[i].name &&
+		    amdgpu_is_od_feature_supported(adev,
+			&container->sub_feature[i].ops))
+			return false;
+	}
+
+	return true;
+}
+
+static int amdgpu_od_set_init(struct amdgpu_device *adev)
+{
+	struct od_kobj *top_set, *sub_set;
+	struct od_attribute *attribute;
+	struct od_feature_container *container;
+	struct od_feature_item *feature;
+	int i, j;
+	int ret;
+
+	/* Setup the top `gpu_od` directory which holds all other OD interfaces */
+	top_set = kzalloc(sizeof(*top_set), GFP_KERNEL);
+	if (!top_set)
+		return -ENOMEM;
+	list_add(&top_set->entry, &adev->pm.od_kobj_list);
+
+	ret = kobject_init_and_add(&top_set->kobj,
+				   &od_ktype,
+				   &adev->dev->kobj,
+				   "%s",
+				   "gpu_od");
+	if (ret)
+		goto err_out;
+	INIT_LIST_HEAD(&top_set->attribute);
+	top_set->priv = adev;
+
+	for (i = 0; i < ARRAY_SIZE(amdgpu_od_set.containers); i++) {
+		container = &amdgpu_od_set.containers[i];
+
+		if (!container->name)
+			continue;
+
+		/*
+		 * If there is valid entries within the container, the container
+		 * will be presented as a sub directory and all its holding entries
+		 * will be presented as plain files under it.
+		 * While if there is no valid entry within the container, the container
+		 * itself will be presented as a plain file under top `gpu_od` directory.
+		 */
+		if (amdgpu_od_is_self_contained(adev, container)) {
+			if (!amdgpu_is_od_feature_supported(adev,
+			     &container->ops))
+				continue;
+
+			/*
+			 * The container is presented as a plain file under top `gpu_od`
+			 * directory.
+			 */
+			attribute = kzalloc(sizeof(*attribute), GFP_KERNEL);
+			if (!attribute) {
+				ret = -ENOMEM;
+				goto err_out;
+			}
+			list_add(&attribute->entry, &top_set->attribute);
+
+			attribute->attribute.attr.mode =
+					container->ops.is_visible(adev);
+			attribute->attribute.attr.name = container->name;
+			attribute->attribute.show =
+					container->ops.show;
+			attribute->attribute.store =
+					container->ops.store;
+			ret = sysfs_create_file(&top_set->kobj,
+						&attribute->attribute.attr);
+			if (ret)
+				goto err_out;
+		} else {
+			/* The container is presented as a sub directory. */
+			sub_set = kzalloc(sizeof(*sub_set), GFP_KERNEL);
+			if (!sub_set) {
+				ret = -ENOMEM;
+				goto err_out;
+			}
+			list_add(&sub_set->entry, &adev->pm.od_kobj_list);
+
+			ret = kobject_init_and_add(&sub_set->kobj,
+						   &od_ktype,
+						   &top_set->kobj,
+						   "%s",
+						   container->name);
+			if (ret)
+				goto err_out;
+			INIT_LIST_HEAD(&sub_set->attribute);
+			sub_set->priv = adev;
+
+			for (j = 0; j < ARRAY_SIZE(container->sub_feature); j++) {
+				feature = &container->sub_feature[j];
+				if (!feature->name)
+					continue;
+
+				if (!amdgpu_is_od_feature_supported(adev,
+				     &feature->ops))
+					continue;
+
+				/*
+				 * With the container presented as a sub directory, the entry within
+				 * it is presented as a plain file under the sub directory.
+				 */
+				attribute = kzalloc(sizeof(*attribute), GFP_KERNEL);
+				if (!attribute) {
+					ret = -ENOMEM;
+					goto err_out;
+				}
+				list_add(&attribute->entry, &sub_set->attribute);
+
+				attribute->attribute.attr.mode =
+						feature->ops.is_visible(adev);
+				attribute->attribute.attr.name = feature->name;
+				attribute->attribute.show =
+						feature->ops.show;
+				attribute->attribute.store =
+						feature->ops.store;
+				ret = sysfs_create_file(&sub_set->kobj,
+							&attribute->attribute.attr);
+				if (ret)
+					goto err_out;
+			}
+		}
+	}
+
+	return 0;
+
+err_out:
+	amdgpu_od_set_fini(adev);
+
+	return ret;
+}
+
 int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 {
-	int ret;
 	uint32_t mask = 0;
+	int ret;
 
 	if (adev->pm.sysfs_initialized)
 		return 0;
@@ -3399,15 +4202,31 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 					       mask,
 					       &adev->pm.pm_attr_list);
 	if (ret)
-		return ret;
+		goto err_out0;
+
+	if (amdgpu_dpm_is_overdrive_supported(adev)) {
+		ret = amdgpu_od_set_init(adev);
+		if (ret)
+			goto err_out1;
+	}
 
 	adev->pm.sysfs_initialized = true;
 
 	return 0;
+
+err_out1:
+	amdgpu_device_attr_remove_groups(adev, &adev->pm.pm_attr_list);
+err_out0:
+	if (adev->pm.int_hwmon_dev)
+		hwmon_device_unregister(adev->pm.int_hwmon_dev);
+
+	return ret;
 }
 
 void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 {
+	amdgpu_od_set_fini(adev);
+
 	if (adev->pm.int_hwmon_dev)
 		hwmon_device_unregister(adev->pm.int_hwmon_dev);
 
@@ -3444,8 +4263,8 @@ static void amdgpu_debugfs_prints_cpu_info(struct seq_file *m,
 
 static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
 {
-	uint32_t mp1_ver = adev->ip_versions[MP1_HWIP][0];
-	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
+	uint32_t mp1_ver = amdgpu_ip_version(adev, MP1_HWIP, 0);
+	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 	uint32_t value;
 	uint64_t value64 = 0;
 	uint32_t query = 0;
@@ -3471,10 +4290,10 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 		seq_printf(m, "\t%u mV (VDDNB)\n", value);
 	size = sizeof(uint32_t);
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER, (void *)&query, &size))
-		seq_printf(m, "\t%u.%u W (average GPU)\n", query >> 8, query & 0xff);
+		seq_printf(m, "\t%u.%02u W (average GPU)\n", query >> 8, query & 0xff);
 	size = sizeof(uint32_t);
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER, (void *)&query, &size))
-		seq_printf(m, "\t%u.%u W (current GPU)\n", query >> 8, query & 0xff);
+		seq_printf(m, "\t%u.%02u W (current GPU)\n", query >> 8, query & 0xff);
 	size = sizeof(value);
 	seq_printf(m, "\n");
 

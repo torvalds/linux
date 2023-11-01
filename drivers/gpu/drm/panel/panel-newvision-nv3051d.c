@@ -388,6 +388,13 @@ static int panel_nv3051d_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET;
 
+	/*
+	 * The panel in the RG351V is identical to the 353P, except it
+	 * requires MIPI_DSI_CLOCK_NON_CONTINUOUS to operate correctly.
+	 */
+	if (of_device_is_compatible(dev->of_node, "anbernic,rg351v-panel"))
+		dsi->mode_flags |= MIPI_DSI_CLOCK_NON_CONTINUOUS;
+
 	drm_panel_init(&ctx->panel, &dsi->dev, &panel_nv3051d_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
 

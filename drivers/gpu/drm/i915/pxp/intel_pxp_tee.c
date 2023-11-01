@@ -9,6 +9,7 @@
 #include <drm/i915_component.h>
 
 #include "gem/i915_gem_lmem.h"
+#include "gt/intel_gt_print.h"
 
 #include "i915_drv.h"
 #include "gt/intel_gt.h"
@@ -21,12 +22,13 @@
 #include "intel_pxp_types.h"
 
 static bool
-is_fw_err_platform_config(u32 type)
+is_fw_err_platform_config(struct intel_pxp *pxp, u32 type)
 {
 	switch (type) {
 	case PXP_STATUS_ERROR_API_VERSION:
 	case PXP_STATUS_PLATFCONFIG_KF1_NOVERIF:
 	case PXP_STATUS_PLATFCONFIG_KF1_BAD:
+		pxp->platform_cfg_is_bad = true;
 		return true;
 	default:
 		break;
@@ -155,7 +157,8 @@ static int i915_pxp_tee_component_bind(struct device *i915_kdev,
 {
 	struct drm_i915_private *i915 = kdev_to_i915(i915_kdev);
 	struct intel_pxp *pxp = i915->pxp;
-	struct intel_uc *uc = &pxp->ctrl_gt->uc;
+	struct intel_gt *gt = pxp->ctrl_gt;
+	struct intel_uc *uc = &gt->uc;
 	intel_wakeref_t wakeref;
 	int ret = 0;
 
@@ -175,7 +178,7 @@ static int i915_pxp_tee_component_bind(struct device *i915_kdev,
 			/* load huc via pxp */
 			ret = intel_huc_fw_load_and_auth_via_gsc(&uc->huc);
 			if (ret < 0)
-				drm_err(&i915->drm, "failed to load huc via gsc %d\n", ret);
+				gt_probe_error(gt, "failed to load huc via gsc %d\n", ret);
 		}
 	}
 
@@ -324,8 +327,8 @@ int intel_pxp_tee_cmd_create_arb_session(struct intel_pxp *pxp,
 					 int arb_session_id)
 {
 	struct drm_i915_private *i915 = pxp->ctrl_gt->i915;
-	struct pxp42_create_arb_in msg_in = {0};
-	struct pxp42_create_arb_out msg_out = {0};
+	struct pxp42_create_arb_in msg_in = {};
+	struct pxp42_create_arb_out msg_out = {};
 	int ret;
 
 	msg_in.header.api_version = PXP_APIVER(4, 2);
@@ -342,7 +345,7 @@ int intel_pxp_tee_cmd_create_arb_session(struct intel_pxp *pxp,
 	if (ret) {
 		drm_err(&i915->drm, "Failed to send tee msg init arb session, ret=[%d]\n", ret);
 	} else if (msg_out.header.status != 0) {
-		if (is_fw_err_platform_config(msg_out.header.status)) {
+		if (is_fw_err_platform_config(pxp, msg_out.header.status)) {
 			drm_info_once(&i915->drm,
 				      "PXP init-arb-session-%d failed due to BIOS/SOC:0x%08x:%s\n",
 				      arb_session_id, msg_out.header.status,
@@ -362,8 +365,8 @@ int intel_pxp_tee_cmd_create_arb_session(struct intel_pxp *pxp,
 void intel_pxp_tee_end_arb_fw_session(struct intel_pxp *pxp, u32 session_id)
 {
 	struct drm_i915_private *i915 = pxp->ctrl_gt->i915;
-	struct pxp42_inv_stream_key_in msg_in = {0};
-	struct pxp42_inv_stream_key_out msg_out = {0};
+	struct pxp42_inv_stream_key_in msg_in = {};
+	struct pxp42_inv_stream_key_out msg_out = {};
 	int ret, trials = 0;
 
 try_again:
@@ -390,7 +393,7 @@ try_again:
 		drm_err(&i915->drm, "Failed to send tee msg for inv-stream-key-%u, ret=[%d]\n",
 			session_id, ret);
 	} else if (msg_out.header.status != 0) {
-		if (is_fw_err_platform_config(msg_out.header.status)) {
+		if (is_fw_err_platform_config(pxp, msg_out.header.status)) {
 			drm_info_once(&i915->drm,
 				      "PXP inv-stream-key-%u failed due to BIOS/SOC :0x%08x:%s\n",
 				      session_id, msg_out.header.status,

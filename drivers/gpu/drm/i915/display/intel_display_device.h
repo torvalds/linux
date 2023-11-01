@@ -32,6 +32,7 @@ struct drm_printer;
 	func(overlay_needs_physical); \
 	func(supports_tv);
 
+#define HAS_4TILE(i915)			(IS_DG2(i915) || DISPLAY_VER(i915) >= 14)
 #define HAS_ASYNC_FLIPS(i915)		(DISPLAY_VER(i915) >= 5)
 #define HAS_CDCLK_CRAWL(i915)		(DISPLAY_INFO(i915)->has_cdclk_crawl)
 #define HAS_CDCLK_SQUASH(i915)		(DISPLAY_INFO(i915)->has_cdclk_squash)
@@ -55,6 +56,7 @@ struct drm_printer;
 #define HAS_HW_SAGV_WM(i915)		(DISPLAY_VER(i915) >= 13 && !IS_DGFX(i915))
 #define HAS_IPC(i915)			(DISPLAY_INFO(i915)->has_ipc)
 #define HAS_IPS(i915)			(IS_HASWELL_ULT(i915) || IS_BROADWELL(i915))
+#define HAS_LRR(i915)			(DISPLAY_VER(i915) >= 12)
 #define HAS_LSPCON(i915)		(IS_DISPLAY_VER(i915, 9, 10))
 #define HAS_MBUS_JOINING(i915)		(IS_ALDERLAKE_P(i915) || DISPLAY_VER(i915) >= 14)
 #define HAS_MSO(i915)			(DISPLAY_VER(i915) >= 12)
@@ -70,6 +72,40 @@ struct drm_printer;
 #define I915_HAS_HOTPLUG(i915)		(DISPLAY_INFO(i915)->has_hotplug)
 #define OVERLAY_NEEDS_PHYSICAL(i915)	(DISPLAY_INFO(i915)->overlay_needs_physical)
 #define SUPPORTS_TV(i915)		(DISPLAY_INFO(i915)->supports_tv)
+
+/* Check that device has a display IP version within the specific range. */
+#define IS_DISPLAY_IP_RANGE(__i915, from, until) ( \
+	BUILD_BUG_ON_ZERO((from) < IP_VER(2, 0)) + \
+	(DISPLAY_VER_FULL(__i915) >= (from) && \
+	 DISPLAY_VER_FULL(__i915) <= (until)))
+
+/*
+ * Check if a device has a specific IP version as well as a stepping within the
+ * specified range [from, until).  The lower bound is inclusive, the upper
+ * bound is exclusive.  The most common use-case of this macro is for checking
+ * bounds for workarounds, which usually have a stepping ("from") at which the
+ * hardware issue is first present and another stepping ("until") at which a
+ * hardware fix is present and the software workaround is no longer necessary.
+ * E.g.,
+ *
+ *    IS_DISPLAY_IP_STEP(i915, IP_VER(14, 0), STEP_A0, STEP_B2)
+ *    IS_DISPLAY_IP_STEP(i915, IP_VER(14, 0), STEP_C0, STEP_FOREVER)
+ *
+ * "STEP_FOREVER" can be passed as "until" for workarounds that have no upper
+ * stepping bound for the specified IP version.
+ */
+#define IS_DISPLAY_IP_STEP(__i915, ipver, from, until) \
+	(IS_DISPLAY_IP_RANGE((__i915), (ipver), (ipver)) && \
+	 IS_DISPLAY_STEP((__i915), (from), (until)))
+
+#define DISPLAY_INFO(i915)		((i915)->display.info.__device_info)
+#define DISPLAY_RUNTIME_INFO(i915)	(&(i915)->display.info.__runtime_info)
+
+#define DISPLAY_VER(i915)	(DISPLAY_RUNTIME_INFO(i915)->ip.ver)
+#define DISPLAY_VER_FULL(i915)	IP_VER(DISPLAY_RUNTIME_INFO(i915)->ip.ver, \
+				       DISPLAY_RUNTIME_INFO(i915)->ip.rel)
+#define IS_DISPLAY_VER(i915, from, until) \
+	(DISPLAY_VER(i915) >= (from) && DISPLAY_VER(i915) <= (until))
 
 struct intel_display_runtime_info {
 	struct {
@@ -123,9 +159,8 @@ struct intel_display_device_info {
 	} color;
 };
 
-const struct intel_display_device_info *
-intel_display_device_probe(struct drm_i915_private *i915, bool has_gmdid,
-			   u16 *ver, u16 *rel, u16 *step);
+bool intel_display_device_enabled(struct drm_i915_private *i915);
+void intel_display_device_probe(struct drm_i915_private *i915);
 void intel_display_device_info_runtime_init(struct drm_i915_private *i915);
 
 void intel_display_device_info_print(const struct intel_display_device_info *info,

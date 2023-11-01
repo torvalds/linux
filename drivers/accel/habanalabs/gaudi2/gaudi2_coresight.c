@@ -151,8 +151,8 @@ static u64 debug_stm_regs[GAUDI2_STM_LAST + 1] = {
 	[GAUDI2_STM_DCORE3_VDEC1_CS] = mmDCORE3_VDEC1_CS_STM_BASE,
 	[GAUDI2_STM_PCIE] = mmPCIE_STM_BASE,
 	[GAUDI2_STM_PSOC] = mmPSOC_STM_BASE,
-	[GAUDI2_STM_PSOC_ARC0_CS] = mmPSOC_ARC0_CS_STM_BASE,
-	[GAUDI2_STM_PSOC_ARC1_CS] = mmPSOC_ARC1_CS_STM_BASE,
+	[GAUDI2_STM_PSOC_ARC0_CS] = 0,
+	[GAUDI2_STM_PSOC_ARC1_CS] = 0,
 	[GAUDI2_STM_PDMA0_CS] = mmPDMA0_CS_STM_BASE,
 	[GAUDI2_STM_PDMA1_CS] = mmPDMA1_CS_STM_BASE,
 	[GAUDI2_STM_CPU] = mmCPU_STM_BASE,
@@ -293,8 +293,8 @@ static u64 debug_etf_regs[GAUDI2_ETF_LAST + 1] = {
 	[GAUDI2_ETF_DCORE3_VDEC1_CS] = mmDCORE3_VDEC1_CS_ETF_BASE,
 	[GAUDI2_ETF_PCIE] = mmPCIE_ETF_BASE,
 	[GAUDI2_ETF_PSOC] = mmPSOC_ETF_BASE,
-	[GAUDI2_ETF_PSOC_ARC0_CS] = mmPSOC_ARC0_CS_ETF_BASE,
-	[GAUDI2_ETF_PSOC_ARC1_CS] = mmPSOC_ARC1_CS_ETF_BASE,
+	[GAUDI2_ETF_PSOC_ARC0_CS] = 0,
+	[GAUDI2_ETF_PSOC_ARC1_CS] = 0,
 	[GAUDI2_ETF_PDMA0_CS] = mmPDMA0_CS_ETF_BASE,
 	[GAUDI2_ETF_PDMA1_CS] = mmPDMA1_CS_ETF_BASE,
 	[GAUDI2_ETF_CPU_0] = mmCPU_ETF_0_BASE,
@@ -436,8 +436,8 @@ static u64 debug_funnel_regs[GAUDI2_FUNNEL_LAST + 1] = {
 	[GAUDI2_FUNNEL_DCORE3_RTR6] = mmDCORE3_RTR6_FUNNEL_BASE,
 	[GAUDI2_FUNNEL_DCORE3_RTR7] = mmDCORE3_RTR7_FUNNEL_BASE,
 	[GAUDI2_FUNNEL_PSOC] = mmPSOC_FUNNEL_BASE,
-	[GAUDI2_FUNNEL_PSOC_ARC0] = mmPSOC_ARC0_FUNNEL_BASE,
-	[GAUDI2_FUNNEL_PSOC_ARC1] = mmPSOC_ARC1_FUNNEL_BASE,
+	[GAUDI2_FUNNEL_PSOC_ARC0] = 0,
+	[GAUDI2_FUNNEL_PSOC_ARC1] = 0,
 	[GAUDI2_FUNNEL_XDMA] = mmXDMA_FUNNEL_BASE,
 	[GAUDI2_FUNNEL_CPU] = mmCPU_FUNNEL_BASE,
 	[GAUDI2_FUNNEL_PMMU] = mmPMMU_FUNNEL_BASE,
@@ -766,10 +766,10 @@ static u64 debug_bmon_regs[GAUDI2_BMON_LAST + 1] = {
 	[GAUDI2_BMON_PCIE_MSTR_RD] = mmPCIE_BMON_MSTR_RD_BASE,
 	[GAUDI2_BMON_PCIE_SLV_WR] = mmPCIE_BMON_SLV_WR_BASE,
 	[GAUDI2_BMON_PCIE_SLV_RD] = mmPCIE_BMON_SLV_RD_BASE,
-	[GAUDI2_BMON_PSOC_ARC0_0] = mmPSOC_ARC0_BMON_0_BASE,
-	[GAUDI2_BMON_PSOC_ARC0_1] = mmPSOC_ARC0_BMON_1_BASE,
-	[GAUDI2_BMON_PSOC_ARC1_0] = mmPSOC_ARC1_BMON_0_BASE,
-	[GAUDI2_BMON_PSOC_ARC1_1] = mmPSOC_ARC1_BMON_1_BASE,
+	[GAUDI2_BMON_PSOC_ARC0_0] = 0,
+	[GAUDI2_BMON_PSOC_ARC0_1] = 0,
+	[GAUDI2_BMON_PSOC_ARC1_0] = 0,
+	[GAUDI2_BMON_PSOC_ARC1_1] = 0,
 	[GAUDI2_BMON_PDMA0_0] = mmPDMA0_BMON_0_BASE,
 	[GAUDI2_BMON_PDMA0_1] = mmPDMA0_BMON_1_BASE,
 	[GAUDI2_BMON_PDMA1_0] = mmPDMA1_BMON_0_BASE,
@@ -968,8 +968,8 @@ static u64 debug_spmu_regs[GAUDI2_SPMU_LAST + 1] = {
 	[GAUDI2_SPMU_DCORE3_VDEC0_CS] = mmDCORE3_VDEC0_CS_SPMU_BASE,
 	[GAUDI2_SPMU_DCORE3_VDEC1_CS] = mmDCORE3_VDEC1_CS_SPMU_BASE,
 	[GAUDI2_SPMU_PCIE] = mmPCIE_SPMU_BASE,
-	[GAUDI2_SPMU_PSOC_ARC0_CS] = mmPSOC_ARC0_CS_SPMU_BASE,
-	[GAUDI2_SPMU_PSOC_ARC1_CS] = mmPSOC_ARC1_CS_SPMU_BASE,
+	[GAUDI2_SPMU_PSOC_ARC0_CS] = 0,
+	[GAUDI2_SPMU_PSOC_ARC1_CS] = 0,
 	[GAUDI2_SPMU_PDMA0_CS] = mmPDMA0_CS_SPMU_BASE,
 	[GAUDI2_SPMU_PDMA1_CS] = mmPDMA1_CS_SPMU_BASE,
 	[GAUDI2_SPMU_PMMU_CS] = mmPMMU_CS_SPMU_BASE,
@@ -2092,6 +2092,11 @@ static int gaudi2_config_etf(struct hl_device *hdev, struct hl_debug_params *par
 	if (rc)
 		return -EIO;
 
+	val = RREG32(base_reg + mmETF_CTL_OFFSET);
+
+	if ((!params->enable && val == 0x0) || (params->enable && val != 0x0))
+		return 0;
+
 	val = RREG32(base_reg + mmETF_FFCR_OFFSET);
 	val |= 0x1000;
 	WREG32(base_reg + mmETF_FFCR_OFFSET, val);
@@ -2120,10 +2125,17 @@ static int gaudi2_config_etf(struct hl_device *hdev, struct hl_debug_params *par
 		if (!input)
 			return -EINVAL;
 
+		val = RREG32(base_reg + mmETF_RSZ_OFFSET) << 2;
+		if (val) {
+			val = ffs(val);
+			WREG32(base_reg + mmETF_PSCR_OFFSET, val);
+		} else {
+			WREG32(base_reg + mmETF_PSCR_OFFSET, 0x10);
+		}
+
 		WREG32(base_reg + mmETF_BUFWM_OFFSET, 0x3FFC);
 		WREG32(base_reg + mmETF_MODE_OFFSET, input->sink_mode);
 		WREG32(base_reg + mmETF_FFCR_OFFSET, 0x4001);
-		WREG32(base_reg + mmETF_PSCR_OFFSET, 0x10);
 		WREG32(base_reg + mmETF_CTL_OFFSET, 1);
 	} else {
 		WREG32(base_reg + mmETF_BUFWM_OFFSET, 0);
@@ -2188,6 +2200,11 @@ static int gaudi2_config_etr(struct hl_device *hdev, struct hl_ctx *ctx,
 	rc = gaudi2_unlock_coresight_unit(hdev, mmPSOC_ETR_BASE);
 	if (rc)
 		return -EIO;
+
+	val = RREG32(mmPSOC_ETR_CTL);
+
+	if ((!params->enable && val == 0x0) || (params->enable && val != 0x0))
+		return 0;
 
 	val = RREG32(mmPSOC_ETR_FFCR);
 	val |= 0x1000;
@@ -2483,7 +2500,8 @@ static int gaudi2_config_spmu(struct hl_device *hdev, struct hl_debug_params *pa
 		 * set enabled events mask based on input->event_types_num
 		 */
 		event_mask = 0x80000000;
-		event_mask |= GENMASK(input->event_types_num, 0);
+		if (input->event_types_num)
+			event_mask |= GENMASK(input->event_types_num - 1, 0);
 
 		WREG32(base_reg + mmSPMU_PMCNTENSET_EL0_OFFSET, event_mask);
 	} else {

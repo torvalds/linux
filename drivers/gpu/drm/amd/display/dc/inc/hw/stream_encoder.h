@@ -226,6 +226,11 @@ struct stream_encoder_funcs {
 		struct stream_encoder *enc,
 		int tg_inst);
 
+	void (*dig_stream_enable)(
+		struct stream_encoder *enc,
+		enum signal_type signal,
+		bool enable);
+
 	void (*hdmi_reset_stream_attribute)(
 		struct stream_encoder *enc);
 

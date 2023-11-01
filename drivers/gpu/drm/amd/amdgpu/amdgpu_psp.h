@@ -189,6 +189,7 @@ struct psp_xgmi_context {
 	struct ta_context		context;
 	struct psp_xgmi_topology_info	top_info;
 	bool				supports_extended_data;
+	uint8_t				xgmi_ta_caps;
 };
 
 struct psp_ras_context {

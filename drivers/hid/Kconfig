@@ -880,11 +880,7 @@ config HID_PICOLCD_FB
 	default !EXPERT
 	depends on HID_PICOLCD
 	depends on HID_PICOLCD=FB || FB=y
-	select FB_DEFERRED_IO
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
+	select FB_SYSMEM_HELPERS_DEFERRED
 	help
 	  Provide access to PicoLCD's 256x64 monochrome display via a
 	  framebuffer device.
@@ -1046,7 +1042,7 @@ config HID_SONY
 	  * Guitar Hero PS3 and PC guitar dongles
 
 config SONY_FF
-	bool "Sony PS2/3/4 accessories force feedback support" 
+	bool "Sony PS2/3/4 accessories force feedback support"
 	depends on HID_SONY
 	select INPUT_FF_MEMLESS
 	help

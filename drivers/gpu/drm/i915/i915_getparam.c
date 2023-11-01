@@ -109,7 +109,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			return value;
 		break;
 	case I915_PARAM_PXP_STATUS:
-		value = intel_pxp_get_readiness_status(i915->pxp);
+		value = intel_pxp_get_readiness_status(i915->pxp, 0);
 		if (value < 0)
 			return value;
 		break;

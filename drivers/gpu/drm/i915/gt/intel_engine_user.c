@@ -38,8 +38,7 @@ intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
 
 void intel_engine_add_user(struct intel_engine_cs *engine)
 {
-	llist_add((struct llist_node *)&engine->uabi_node,
-		  (struct llist_head *)&engine->i915->uabi_engines);
+	llist_add(&engine->uabi_llist, &engine->i915->uabi_engines_llist);
 }
 
 static const u8 uabi_classes[] = {
@@ -54,9 +53,9 @@ static int engine_cmp(void *priv, const struct list_head *A,
 		      const struct list_head *B)
 {
 	const struct intel_engine_cs *a =
-		container_of((struct rb_node *)A, typeof(*a), uabi_node);
+		container_of(A, typeof(*a), uabi_list);
 	const struct intel_engine_cs *b =
-		container_of((struct rb_node *)B, typeof(*b), uabi_node);
+		container_of(B, typeof(*b), uabi_list);
 
 	if (uabi_classes[a->class] < uabi_classes[b->class])
 		return -1;
@@ -73,7 +72,7 @@ static int engine_cmp(void *priv, const struct list_head *A,
 
 static struct llist_node *get_engines(struct drm_i915_private *i915)
 {
-	return llist_del_all((struct llist_head *)&i915->uabi_engines);
+	return llist_del_all(&i915->uabi_engines_llist);
 }
 
 static void sort_engines(struct drm_i915_private *i915,
@@ -83,9 +82,8 @@ static void sort_engines(struct drm_i915_private *i915,
 
 	llist_for_each_safe(pos, next, get_engines(i915)) {
 		struct intel_engine_cs *engine =
-			container_of((struct rb_node *)pos, typeof(*engine),
-				     uabi_node);
-		list_add((struct list_head *)&engine->uabi_node, engines);
+			container_of(pos, typeof(*engine), uabi_llist);
+		list_add(&engine->uabi_list, engines);
 	}
 	list_sort(NULL, engines, engine_cmp);
 }
@@ -213,8 +211,7 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 	p = &i915->uabi_engines.rb_node;
 	list_for_each_safe(it, next, &engines) {
 		struct intel_engine_cs *engine =
-			container_of((struct rb_node *)it, typeof(*engine),
-				     uabi_node);
+			container_of(it, typeof(*engine), uabi_list);
 
 		if (intel_gt_has_unrecoverable_error(engine->gt))
 			continue; /* ignore incomplete engines */

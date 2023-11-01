@@ -359,22 +359,46 @@ void intel_pxp_end(struct intel_pxp *pxp)
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
+static bool pxp_required_fw_failed(struct intel_pxp *pxp)
+{
+	if (__intel_uc_fw_status(&pxp->ctrl_gt->uc.huc.fw) == INTEL_UC_FIRMWARE_LOAD_FAIL)
+		return true;
+	if (HAS_ENGINE(pxp->ctrl_gt, GSC0) &&
+	    __intel_uc_fw_status(&pxp->ctrl_gt->uc.gsc.fw) == INTEL_UC_FIRMWARE_LOAD_FAIL)
+		return true;
+
+	return false;
+}
+
+static bool pxp_fw_dependencies_completed(struct intel_pxp *pxp)
+{
+	if (HAS_ENGINE(pxp->ctrl_gt, GSC0))
+		return intel_pxp_gsccs_is_ready_for_sessions(pxp);
+
+	return pxp_component_bound(pxp);
+}
+
 /*
  * this helper is used by both intel_pxp_start and by
  * the GET_PARAM IOCTL that user space calls. Thus, the
  * return values here should match the UAPI spec.
  */
-int intel_pxp_get_readiness_status(struct intel_pxp *pxp)
+int intel_pxp_get_readiness_status(struct intel_pxp *pxp, int timeout_ms)
 {
 	if (!intel_pxp_is_enabled(pxp))
 		return -ENODEV;
 
-	if (HAS_ENGINE(pxp->ctrl_gt, GSC0)) {
-		if (wait_for(intel_pxp_gsccs_is_ready_for_sessions(pxp), 250))
+	if (pxp_required_fw_failed(pxp))
+		return -ENODEV;
+
+	if (pxp->platform_cfg_is_bad)
+		return -ENODEV;
+
+	if (timeout_ms) {
+		if (wait_for(pxp_fw_dependencies_completed(pxp), timeout_ms))
 			return 2;
-	} else {
-		if (wait_for(pxp_component_bound(pxp), 250))
-			return 2;
+	} else if (!pxp_fw_dependencies_completed(pxp)) {
+		return 2;
 	}
 	return 1;
 }
@@ -383,11 +407,13 @@ int intel_pxp_get_readiness_status(struct intel_pxp *pxp)
  * the arb session is restarted from the irq work when we receive the
  * termination completion interrupt
  */
+#define PXP_READINESS_TIMEOUT 250
+
 int intel_pxp_start(struct intel_pxp *pxp)
 {
 	int ret = 0;
 
-	ret = intel_pxp_get_readiness_status(pxp);
+	ret = intel_pxp_get_readiness_status(pxp, PXP_READINESS_TIMEOUT);
 	if (ret < 0)
 		return ret;
 	else if (ret > 1)

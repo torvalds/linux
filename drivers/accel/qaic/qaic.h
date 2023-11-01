@@ -27,6 +27,9 @@
 #define QAIC_DBC_OFF(i)		((i) * QAIC_DBC_SIZE + QAIC_DBC_BASE)
 
 #define to_qaic_bo(obj) container_of(obj, struct qaic_bo, base)
+#define to_qaic_drm_device(dev) container_of(dev, struct qaic_drm_device, drm)
+#define to_drm(qddev) (&(qddev)->drm)
+#define to_accel_kdev(qddev) (to_drm(qddev)->accel->kdev) /* Return Linux device of accel node */
 
 extern bool datapath_polling;
 
@@ -137,6 +140,8 @@ struct qaic_device {
 };
 
 struct qaic_drm_device {
+	/* The drm device struct of this drm device */
+	struct drm_device	drm;
 	/* Pointer to the root device struct driven by this driver */
 	struct qaic_device	*qdev;
 	/*
@@ -146,8 +151,6 @@ struct qaic_drm_device {
 	 * device is the actual physical device
 	 */
 	s32			partition_id;
-	/* Pointer to the drm device struct of this drm device */
-	struct drm_device	*ddev;
 	/* Head in list of users who have opened this drm device */
 	struct list_head	users;
 	/* Synchronizes access to users list */
@@ -158,8 +161,6 @@ struct qaic_bo {
 	struct drm_gem_object	base;
 	/* Scatter/gather table for allocate/imported BO */
 	struct sg_table		*sgt;
-	/* BO size requested by user. GEM object might be bigger in size. */
-	u64			size;
 	/* Head in list of slices of this BO */
 	struct list_head	slices;
 	/* Total nents, for all slices of this BO */
@@ -221,7 +222,8 @@ struct qaic_bo {
 		 */
 		u32		queue_level_before;
 	} perf_stats;
-
+	/* Synchronizes BO operations */
+	struct mutex		lock;
 };
 
 struct bo_slice {
@@ -277,6 +279,7 @@ int qaic_execute_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *f
 int qaic_partial_execute_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
 int qaic_wait_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
 int qaic_perf_stats_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
+int qaic_detach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
 void irq_polling_work(struct work_struct *work);
 
 #endif /* _QAIC_H_ */

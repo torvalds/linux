@@ -844,6 +844,7 @@ static void amdgpu_vm_tlb_seq_cb(struct dma_fence *fence,
  * @immediate: immediate submission in a page fault
  * @unlocked: unlocked invalidation during MM callback
  * @flush_tlb: trigger tlb invalidation after update completed
+ * @allow_override: change MTYPE for local NUMA nodes
  * @resv: fences we need to sync to
  * @start: start of mapped range
  * @last: last mapped entry
@@ -860,7 +861,7 @@ static void amdgpu_vm_tlb_seq_cb(struct dma_fence *fence,
  * 0 for success, negative erro code for failure.
  */
 int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			   bool immediate, bool unlocked, bool flush_tlb,
+			   bool immediate, bool unlocked, bool flush_tlb, bool allow_override,
 			   struct dma_resv *resv, uint64_t start, uint64_t last,
 			   uint64_t flags, uint64_t offset, uint64_t vram_base,
 			   struct ttm_resource *res, dma_addr_t *pages_addr,
@@ -885,12 +886,12 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	 * heavy-weight flush TLB unconditionally.
 	 */
 	flush_tlb |= adev->gmc.xgmi.num_physical_nodes &&
-		     adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 0);
+		     amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 0);
 
 	/*
 	 * On GFX8 and older any 8 PTE block with a valid bit set enters the TLB
 	 */
-	flush_tlb |= adev->ip_versions[GC_HWIP][0] < IP_VERSION(9, 0, 0);
+	flush_tlb |= amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(9, 0, 0);
 
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
@@ -898,6 +899,7 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	params.immediate = immediate;
 	params.pages_addr = pages_addr;
 	params.unlocked = unlocked;
+	params.allow_override = allow_override;
 
 	/* Implicitly sync to command submissions in the same VM before
 	 * unmapping. Sync to moving fences before mapping.
@@ -1073,6 +1075,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 	struct ttm_resource *mem;
 	struct dma_fence **last_update;
 	bool flush_tlb = clear;
+	bool uncached;
 	struct dma_resv *resv;
 	uint64_t vram_base;
 	uint64_t flags;
@@ -1110,9 +1113,11 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 
 		bo_adev = amdgpu_ttm_adev(bo->tbo.bdev);
 		vram_base = bo_adev->vm_manager.vram_base_offset;
+		uncached = (bo->flags & AMDGPU_GEM_CREATE_UNCACHED) != 0;
 	} else {
 		flags = 0x0;
 		vram_base = 0;
+		uncached = false;
 	}
 
 	if (clear || (bo && bo->tbo.base.resv ==
@@ -1146,7 +1151,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 		trace_amdgpu_vm_bo_update(mapping);
 
 		r = amdgpu_vm_update_range(adev, vm, false, false, flush_tlb,
-					   resv, mapping->start, mapping->last,
+					   !uncached, resv, mapping->start, mapping->last,
 					   update_flags, mapping->offset,
 					   vram_base, mem, pages_addr,
 					   last_update);
@@ -1341,8 +1346,8 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 		    mapping->start < AMDGPU_GMC_HOLE_START)
 			init_pte_value = AMDGPU_PTE_DEFAULT_ATC;
 
-		r = amdgpu_vm_update_range(adev, vm, false, false, true, resv,
-					   mapping->start, mapping->last,
+		r = amdgpu_vm_update_range(adev, vm, false, false, true, false,
+					   resv, mapping->start, mapping->last,
 					   init_pte_value, 0, 0, NULL, NULL,
 					   &f);
 		amdgpu_vm_free_mapping(adev, vm, mapping, f);
@@ -1404,7 +1409,7 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 		spin_unlock(&vm->status_lock);
 
 		/* Try to reserve the BO to avoid clearing its ptes */
-		if (!amdgpu_vm_debug && dma_resv_trylock(resv))
+		if (!adev->debug_vm && dma_resv_trylock(resv))
 			clear = false;
 		/* Somebody else is using the BO right now */
 		else
@@ -2060,7 +2065,7 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
 	if (amdgpu_vm_block_size != -1)
 		tmp >>= amdgpu_vm_block_size - 9;
 	tmp = DIV_ROUND_UP(fls64(tmp) - 1, 9) - 1;
-	adev->vm_manager.num_level = min(max_level, (unsigned)tmp);
+	adev->vm_manager.num_level = min_t(unsigned int, max_level, tmp);
 	switch (adev->vm_manager.num_level) {
 	case 3:
 		adev->vm_manager.root_level = AMDGPU_VM_PDB2;
@@ -2618,8 +2623,8 @@ bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
 		goto error_unlock;
 	}
 
-	r = amdgpu_vm_update_range(adev, vm, true, false, false, NULL, addr,
-				   addr, flags, value, 0, NULL, NULL, NULL);
+	r = amdgpu_vm_update_range(adev, vm, true, false, false, false,
+				   NULL, addr, addr, flags, value, 0, NULL, NULL, NULL);
 	if (r)
 		goto error_unlock;
 
@@ -2731,3 +2736,53 @@ void amdgpu_debugfs_vm_bo_info(struct amdgpu_vm *vm, struct seq_file *m)
 		   total_done_objs);
 }
 #endif
+
+/**
+ * amdgpu_vm_update_fault_cache - update cached fault into.
+ * @adev: amdgpu device pointer
+ * @pasid: PASID of the VM
+ * @addr: Address of the fault
+ * @status: GPUVM fault status register
+ * @vmhub: which vmhub got the fault
+ *
+ * Cache the fault info for later use by userspace in debugging.
+ */
+void amdgpu_vm_update_fault_cache(struct amdgpu_device *adev,
+				  unsigned int pasid,
+				  uint64_t addr,
+				  uint32_t status,
+				  unsigned int vmhub)
+{
+	struct amdgpu_vm *vm;
+	unsigned long flags;
+
+	xa_lock_irqsave(&adev->vm_manager.pasids, flags);
+
+	vm = xa_load(&adev->vm_manager.pasids, pasid);
+	/* Don't update the fault cache if status is 0.  In the multiple
+	 * fault case, subsequent faults will return a 0 status which is
+	 * useless for userspace and replaces the useful fault status, so
+	 * only update if status is non-0.
+	 */
+	if (vm && status) {
+		vm->fault_info.addr = addr;
+		vm->fault_info.status = status;
+		if (AMDGPU_IS_GFXHUB(vmhub)) {
+			vm->fault_info.vmhub = AMDGPU_VMHUB_TYPE_GFX;
+			vm->fault_info.vmhub |=
+				(vmhub - AMDGPU_GFXHUB_START) << AMDGPU_VMHUB_IDX_SHIFT;
+		} else if (AMDGPU_IS_MMHUB0(vmhub)) {
+			vm->fault_info.vmhub = AMDGPU_VMHUB_TYPE_MM0;
+			vm->fault_info.vmhub |=
+				(vmhub - AMDGPU_MMHUB0_START) << AMDGPU_VMHUB_IDX_SHIFT;
+		} else if (AMDGPU_IS_MMHUB1(vmhub)) {
+			vm->fault_info.vmhub = AMDGPU_VMHUB_TYPE_MM1;
+			vm->fault_info.vmhub |=
+				(vmhub - AMDGPU_MMHUB1_START) << AMDGPU_VMHUB_IDX_SHIFT;
+		} else {
+			WARN_ONCE(1, "Invalid vmhub %u\n", vmhub);
+		}
+	}
+	xa_unlock_irqrestore(&adev->vm_manager.pasids, flags);
+}
+

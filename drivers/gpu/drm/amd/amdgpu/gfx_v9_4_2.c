@@ -746,8 +746,6 @@ void gfx_v9_4_2_init_golden_registers(struct amdgpu_device *adev,
 			 die_id);
 		break;
 	}
-
-	return;
 }
 
 void gfx_v9_4_2_debug_trap_config_init(struct amdgpu_device *adev,
@@ -1548,8 +1546,8 @@ static void gfx_v9_4_2_log_utc_edc_count(struct amdgpu_device *adev,
 					 uint32_t ded_cnt)
 {
 	uint32_t bank, way, mem;
-	static const char *vml2_way_str[] = { "BIGK", "4K" };
-	static const char *utcl2_rounter_str[] = { "VMC", "APT" };
+	static const char * const vml2_way_str[] = { "BIGK", "4K" };
+	static const char * const utcl2_rounter_str[] = { "VMC", "APT" };
 
 	mem = instance % blk->num_mem_blocks;
 	way = (instance / blk->num_mem_blocks) % blk->num_ways;

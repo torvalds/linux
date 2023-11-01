@@ -414,7 +414,7 @@ static void gmc_v8_0_vram_gtt_location(struct amdgpu_device *adev,
 	base <<= 24;
 
 	amdgpu_gmc_vram_location(adev, mc, base);
-	amdgpu_gmc_gart_location(adev, mc);
+	amdgpu_gmc_gart_location(adev, mc, AMDGPU_GART_PLACEMENT_BEST_FIT);
 }
 
 /**
@@ -473,8 +473,8 @@ static void gmc_v8_0_mc_program(struct amdgpu_device *adev)
 	}
 
 	WREG32(mmMC_VM_AGP_BASE, 0);
-	WREG32(mmMC_VM_AGP_TOP, 0x0FFFFFFF);
-	WREG32(mmMC_VM_AGP_BOT, 0x0FFFFFFF);
+	WREG32(mmMC_VM_AGP_TOP, adev->gmc.agp_end >> 22);
+	WREG32(mmMC_VM_AGP_BOT, adev->gmc.agp_start >> 22);
 	if (gmc_v8_0_wait_for_idle((void *)adev))
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
 
@@ -612,29 +612,23 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
  *
  * Flush the TLB for the requested pasid.
  */
-static int gmc_v8_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
-					uint16_t pasid, uint32_t flush_type,
-					bool all_hub, uint32_t inst)
+static void gmc_v8_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
+					 uint16_t pasid, uint32_t flush_type,
+					 bool all_hub, uint32_t inst)
 {
+	u32 mask = 0x0;
 	int vmid;
-	unsigned int tmp;
-
-	if (amdgpu_in_reset(adev))
-		return -EIO;
 
 	for (vmid = 1; vmid < 16; vmid++) {
+		u32 tmp = RREG32(mmATC_VMID0_PASID_MAPPING + vmid);
 
-		tmp = RREG32(mmATC_VMID0_PASID_MAPPING + vmid);
 		if ((tmp & ATC_VMID0_PASID_MAPPING__VALID_MASK) &&
-			(tmp & ATC_VMID0_PASID_MAPPING__PASID_MASK) == pasid) {
-			WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
-			RREG32(mmVM_INVALIDATE_RESPONSE);
-			break;
-		}
+		    (tmp & ATC_VMID0_PASID_MAPPING__PASID_MASK) == pasid)
+			mask |= 1 << vmid;
 	}
 
-	return 0;
-
+	WREG32(mmVM_INVALIDATE_REQUEST, mask);
+	RREG32(mmVM_INVALIDATE_RESPONSE);
 }
 
 /*
@@ -1441,6 +1435,9 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 
 	if (!addr && !status)
 		return 0;
+
+	amdgpu_vm_update_fault_cache(adev, entry->pasid,
+				     ((u64)addr) << AMDGPU_GPU_PAGE_SHIFT, status, AMDGPU_GFXHUB(0));
 
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_FIRST)
 		gmc_v8_0_set_fault_enable_default(adev, false);

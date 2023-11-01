@@ -83,7 +83,9 @@ struct nv50_outp_atom {
 	struct list_head head;
 
 	struct drm_encoder *encoder;
-	bool flush_disable;
+
+	bool disabled;
+	bool enabled;
 
 	union nv50_outp_atom_mask {
 		struct {
@@ -105,8 +107,6 @@ void nv50_dmac_destroy(struct nv50_dmac *);
  * return anyway.
  */
 struct nouveau_encoder *nv50_real_outp(struct drm_encoder *encoder);
-
-bool nv50_has_mst(struct nouveau_drm *drm);
 
 u32 *evo_wait(struct nv50_dmac *, int nr);
 void evo_kick(u32 *, struct nv50_dmac *);

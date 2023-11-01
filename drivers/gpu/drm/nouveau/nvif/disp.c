@@ -60,7 +60,7 @@ nvif_disp_ctor(struct nvif_device *device, const char *name, s32 oclass, struct 
 	cid = nvif_sclass(&device->object, disps, oclass);
 	disp->object.client = NULL;
 	if (cid < 0) {
-		NVIF_ERRON(cid, &device->object, "[NEW disp%04x] not supported", oclass);
+		NVIF_DEBUG(&device->object, "[NEW disp%04x] not supported", oclass);
 		return cid;
 	}
 

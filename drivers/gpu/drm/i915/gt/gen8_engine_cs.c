@@ -4,9 +4,9 @@
  */
 
 #include "gen8_engine_cs.h"
-#include "i915_drv.h"
 #include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
+#include "intel_gt.h"
 #include "intel_lrc.h"
 #include "intel_ring.h"
 
@@ -226,8 +226,8 @@ u32 *gen12_emit_aux_table_inv(struct intel_engine_cs *engine, u32 *cs)
 static int mtl_dummy_pipe_control(struct i915_request *rq)
 {
 	/* Wa_14016712196 */
-	if (IS_MTL_GRAPHICS_STEP(rq->i915, M, STEP_A0, STEP_B0) ||
-	    IS_MTL_GRAPHICS_STEP(rq->i915, P, STEP_A0, STEP_B0)) {
+	if (IS_GFX_GT_IP_RANGE(rq->engine->gt, IP_VER(12, 70), IP_VER(12, 71)) ||
+	    IS_DG2(rq->i915)) {
 		u32 *cs;
 
 		/* dummy PIPE_CONTROL + depth flush */
@@ -278,7 +278,8 @@ int gen12_emit_flush_rcs(struct i915_request *rq, u32 mode)
 		 * deals with Protected Memory which is not needed for
 		 * AUX CCS invalidation and lead to unwanted side effects.
 		 */
-		if (mode & EMIT_FLUSH)
+		if ((mode & EMIT_FLUSH) &&
+		    GRAPHICS_VER_FULL(rq->i915) < IP_VER(12, 70))
 			bit_group_1 |= PIPE_CONTROL_FLUSH_L3;
 
 		bit_group_1 |= PIPE_CONTROL_TILE_CACHE_FLUSH;
@@ -808,18 +809,20 @@ u32 *gen12_emit_fini_breadcrumb_xcs(struct i915_request *rq, u32 *cs)
 u32 *gen12_emit_fini_breadcrumb_rcs(struct i915_request *rq, u32 *cs)
 {
 	struct drm_i915_private *i915 = rq->i915;
+	struct intel_gt *gt = rq->engine->gt;
 	u32 flags = (PIPE_CONTROL_CS_STALL |
 		     PIPE_CONTROL_TLB_INVALIDATE |
 		     PIPE_CONTROL_TILE_CACHE_FLUSH |
-		     PIPE_CONTROL_FLUSH_L3 |
 		     PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
 		     PIPE_CONTROL_DEPTH_CACHE_FLUSH |
 		     PIPE_CONTROL_DC_FLUSH_ENABLE |
 		     PIPE_CONTROL_FLUSH_ENABLE);
 
+	if (GRAPHICS_VER_FULL(rq->i915) < IP_VER(12, 70))
+		flags |= PIPE_CONTROL_FLUSH_L3;
+
 	/* Wa_14016712196 */
-	if (IS_MTL_GRAPHICS_STEP(i915, M, STEP_A0, STEP_B0) ||
-	    IS_MTL_GRAPHICS_STEP(i915, P, STEP_A0, STEP_B0))
+	if (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 71)) || IS_DG2(i915))
 		/* dummy PIPE_CONTROL + depth flush */
 		cs = gen12_emit_pipe_control(cs, 0,
 					     PIPE_CONTROL_DEPTH_CACHE_FLUSH, 0);

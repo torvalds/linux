@@ -372,6 +372,11 @@ static void hdlcd_remove(struct platform_device *pdev)
 	component_master_del(&pdev->dev, &hdlcd_master_ops);
 }
 
+static void hdlcd_shutdown(struct platform_device *pdev)
+{
+	drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
+}
+
 static const struct of_device_id  hdlcd_of_match[] = {
 	{ .compatible	= "arm,hdlcd" },
 	{},
@@ -399,6 +404,7 @@ static SIMPLE_DEV_PM_OPS(hdlcd_pm_ops, hdlcd_pm_suspend, hdlcd_pm_resume);
 static struct platform_driver hdlcd_platform_driver = {
 	.probe		= hdlcd_probe,
 	.remove_new	= hdlcd_remove,
+	.shutdown	= hdlcd_shutdown,
 	.driver	= {
 		.name = "hdlcd",
 		.pm = &hdlcd_pm_ops,

@@ -472,6 +472,7 @@ static int __init fb_console_setup(char *this_opt)
 		}
 #endif
 
+#ifdef CONFIG_LOGO
 		if (!strncmp(options, "logo-pos:", 9)) {
 			options += 9;
 			if (!strcmp(options, "center"))
@@ -485,6 +486,7 @@ static int __init fb_console_setup(char *this_opt)
 				fb_logo_count = simple_strtol(options, &options, 0);
 			continue;
 		}
+#endif
 	}
 	return 1;
 }

@@ -163,18 +163,6 @@ struct dc_edid {
 
 #define AUDIO_INFO_DISPLAY_NAME_SIZE_IN_CHARS 20
 
-union display_content_support {
-	unsigned int raw;
-	struct {
-		unsigned int valid_content_type :1;
-		unsigned int game_content :1;
-		unsigned int cinema_content :1;
-		unsigned int photo_content :1;
-		unsigned int graphics_content :1;
-		unsigned int reserved :27;
-	} bits;
-};
-
 struct dc_panel_patch {
 	unsigned int dppowerup_delay;
 	unsigned int extra_t12_ms;
@@ -206,8 +194,6 @@ struct dc_edid_caps {
 	struct dc_cea_audio_mode audio_modes[DC_MAX_AUDIO_DESC_COUNT];
 	uint32_t audio_latency;
 	uint32_t video_latency;
-
-	union display_content_support content_support;
 
 	uint8_t qs_bit;
 	uint8_t qy_bit;
@@ -787,6 +773,7 @@ struct dc_context {
 	struct dc *dc;
 
 	void *driver_context; /* e.g. amdgpu_device */
+	struct dal_logger *logger;
 	struct dc_perf_trace *perf_trace;
 	void *cgs_device;
 
@@ -808,6 +795,7 @@ struct dc_context {
 	struct cp_psp cp_psp;
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
+	uint32_t *clk_reg_offsets;
 };
 
 /* DSC DPCD capabilities */

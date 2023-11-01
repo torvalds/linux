@@ -1204,6 +1204,7 @@ static const struct fb_ops matroxfb_ops = {
 	.owner =	THIS_MODULE,
 	.fb_open =	matroxfb_open,
 	.fb_release =	matroxfb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var =	matroxfb_check_var,
 	.fb_set_par =	matroxfb_set_par,
 	.fb_setcolreg =	matroxfb_setcolreg,
@@ -1214,6 +1215,7 @@ static const struct fb_ops matroxfb_ops = {
 /*	.fb_copyarea =	<set by matrox_cfbX_init>, */
 /*	.fb_imageblit =	<set by matrox_cfbX_init>, */
 /*	.fb_cursor =	<set by matrox_cfbX_init>, */
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 #define RSDepth(X)	(((X) >> 8) & 0x0F)

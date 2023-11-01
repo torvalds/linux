@@ -59,7 +59,7 @@ static u32 nbio_v7_2_get_rev_id(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
-	switch (adev->ip_versions[NBIO_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, NBIO_HWIP, 0)) {
 	case IP_VERSION(7, 2, 1):
 	case IP_VERSION(7, 3, 0):
 	case IP_VERSION(7, 5, 0):
@@ -78,7 +78,7 @@ static u32 nbio_v7_2_get_rev_id(struct amdgpu_device *adev)
 
 static void nbio_v7_2_mc_access_enable(struct amdgpu_device *adev, bool enable)
 {
-	switch (adev->ip_versions[NBIO_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, NBIO_HWIP, 0)) {
 	case IP_VERSION(7, 2, 1):
 	case IP_VERSION(7, 3, 0):
 	case IP_VERSION(7, 5, 0):
@@ -262,7 +262,7 @@ static void nbio_v7_2_update_medium_grain_light_sleep(struct amdgpu_device *adev
 {
 	uint32_t def, data;
 
-	switch (adev->ip_versions[NBIO_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, NBIO_HWIP, 0)) {
 	case IP_VERSION(7, 2, 1):
 	case IP_VERSION(7, 3, 0):
 	case IP_VERSION(7, 5, 0):
@@ -369,7 +369,7 @@ const struct nbio_hdp_flush_reg nbio_v7_2_hdp_flush_reg = {
 static void nbio_v7_2_init_registers(struct amdgpu_device *adev)
 {
 	uint32_t def, data;
-	switch (adev->ip_versions[NBIO_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, NBIO_HWIP, 0)) {
 	case IP_VERSION(7, 2, 1):
 	case IP_VERSION(7, 3, 0):
 	case IP_VERSION(7, 5, 0):
@@ -394,7 +394,7 @@ static void nbio_v7_2_init_registers(struct amdgpu_device *adev)
 		break;
 	}
 
-	switch (adev->ip_versions[NBIO_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, NBIO_HWIP, 0)) {
 	case IP_VERSION(7, 3, 0):
 	case IP_VERSION(7, 5, 1):
 		data = RREG32_SOC15(NBIO, 0, regRCC_DEV2_EPF0_STRAP2);

@@ -466,7 +466,7 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	prop->pcie_dbi_base_address = mmPCIE_DBI_BASE;
 	prop->pcie_aux_dbi_reg_addr = CFG_BASE + mmPCIE_AUX_DBI;
 
-	strncpy(prop->cpucp_info.card_name, GOYA_DEFAULT_CARD_NAME,
+	strscpy_pad(prop->cpucp_info.card_name, GOYA_DEFAULT_CARD_NAME,
 		CARD_NAME_MAX_LEN);
 
 	prop->max_pending_cs = GOYA_MAX_PENDING_CS;
@@ -3358,7 +3358,7 @@ static int goya_pin_memory_before_cs(struct hl_device *hdev,
 
 	list_add_tail(&userptr->job_node, parser->job_userptr_list);
 
-	rc = hdev->asic_funcs->asic_dma_map_sgtable(hdev, userptr->sgt, dir);
+	rc = hl_dma_map_sgtable(hdev, userptr->sgt, dir);
 	if (rc) {
 		dev_err(hdev->dev, "failed to map sgt with DMA region\n");
 		goto unpin_memory;
@@ -5122,7 +5122,7 @@ int goya_cpucp_info_get(struct hl_device *hdev)
 	}
 
 	if (!strlen(prop->cpucp_info.card_name))
-		strncpy(prop->cpucp_info.card_name, GOYA_DEFAULT_CARD_NAME,
+		strscpy_pad(prop->cpucp_info.card_name, GOYA_DEFAULT_CARD_NAME,
 				CARD_NAME_MAX_LEN);
 
 	return 0;
@@ -5465,9 +5465,9 @@ static const struct hl_asic_funcs goya_funcs = {
 	.asic_dma_pool_free = goya_dma_pool_free,
 	.cpu_accessible_dma_pool_alloc = goya_cpu_accessible_dma_pool_alloc,
 	.cpu_accessible_dma_pool_free = goya_cpu_accessible_dma_pool_free,
-	.hl_dma_unmap_sgtable = hl_dma_unmap_sgtable,
+	.dma_unmap_sgtable = hl_asic_dma_unmap_sgtable,
 	.cs_parser = goya_cs_parser,
-	.asic_dma_map_sgtable = hl_dma_map_sgtable,
+	.dma_map_sgtable = hl_asic_dma_map_sgtable,
 	.add_end_of_cb_packets = goya_add_end_of_cb_packets,
 	.update_eq_ci = goya_update_eq_ci,
 	.context_switch = goya_context_switch,

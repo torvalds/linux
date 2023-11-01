@@ -173,8 +173,9 @@ amdgpu_dm_mst_connector_early_unregister(struct drm_connector *connector)
 		if (dc_link->sink_count)
 			dc_link_remove_remote_sink(dc_link, dc_sink);
 
-		DC_LOG_MST("DM_MST: remove remote sink 0x%p, %d remaining\n",
-			dc_sink, dc_link->sink_count);
+		drm_dbg_dp(connector->dev,
+			   "DM_MST: remove remote sink 0x%p, %d remaining\n",
+			   dc_sink, dc_link->sink_count);
 
 		dc_sink_release(dc_sink);
 		aconnector->dc_sink = NULL;
@@ -325,8 +326,10 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 					return 0;
 				}
 
-				DC_LOG_MST("DM_MST: add remote sink 0x%p, %d remaining\n",
-					dc_sink, aconnector->dc_link->sink_count);
+				drm_dbg_dp(connector->dev,
+					   "DM_MST: add remote sink 0x%p, %d remaining\n",
+					   dc_sink,
+					   aconnector->dc_link->sink_count);
 
 				dc_sink->priv = aconnector;
 				aconnector->dc_sink = dc_sink;
@@ -361,8 +364,9 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			return 0;
 		}
 
-		DC_LOG_MST("DM_MST: add remote sink 0x%p, %d remaining\n",
-			dc_sink, aconnector->dc_link->sink_count);
+		drm_dbg_dp(connector->dev,
+			   "DM_MST: add remote sink 0x%p, %d remaining\n",
+			   dc_sink, aconnector->dc_link->sink_count);
 
 		dc_sink->priv = aconnector;
 		/* dc_link_add_remote_sink returns a new reference */
@@ -481,8 +485,10 @@ dm_dp_mst_detect(struct drm_connector *connector,
 		if (aconnector->dc_link->sink_count)
 			dc_link_remove_remote_sink(aconnector->dc_link, aconnector->dc_sink);
 
-		DC_LOG_MST("DM_MST: remove remote sink 0x%p, %d remaining\n",
-			aconnector->dc_link, aconnector->dc_link->sink_count);
+		drm_dbg_dp(connector->dev,
+			   "DM_MST: remove remote sink 0x%p, %d remaining\n",
+			   aconnector->dc_link,
+			   aconnector->dc_link->sink_count);
 
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;

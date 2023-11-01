@@ -424,8 +424,10 @@ ivpu_mmu_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u3
 	INIT_LIST_HEAD(&ctx->bo_list);
 
 	ret = ivpu_mmu_pgtable_init(vdev, &ctx->pgtable);
-	if (ret)
+	if (ret) {
+		ivpu_err(vdev, "Failed to initialize pgtable for ctx %u: %d\n", context_id, ret);
 		return ret;
+	}
 
 	if (!context_id) {
 		start = vdev->hw->ranges.global.start;
@@ -464,6 +466,16 @@ void ivpu_mmu_global_context_fini(struct ivpu_device *vdev)
 	return ivpu_mmu_context_fini(vdev, &vdev->gctx);
 }
 
+int ivpu_mmu_reserved_context_init(struct ivpu_device *vdev)
+{
+	return ivpu_mmu_user_context_init(vdev, &vdev->rctx, IVPU_RESERVED_CONTEXT_MMU_SSID);
+}
+
+void ivpu_mmu_reserved_context_fini(struct ivpu_device *vdev)
+{
+	return ivpu_mmu_user_context_fini(vdev, &vdev->rctx);
+}
+
 void ivpu_mmu_user_context_mark_invalid(struct ivpu_device *vdev, u32 ssid)
 {
 	struct ivpu_file_priv *file_priv;
@@ -485,13 +497,13 @@ int ivpu_mmu_user_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context
 
 	ret = ivpu_mmu_context_init(vdev, ctx, ctx_id);
 	if (ret) {
-		ivpu_err(vdev, "Failed to initialize context: %d\n", ret);
+		ivpu_err(vdev, "Failed to initialize context %u: %d\n", ctx_id, ret);
 		return ret;
 	}
 
 	ret = ivpu_mmu_set_pgtable(vdev, ctx_id, &ctx->pgtable);
 	if (ret) {
-		ivpu_err(vdev, "Failed to set page table: %d\n", ret);
+		ivpu_err(vdev, "Failed to set page table for context %u: %d\n", ctx_id, ret);
 		goto err_context_fini;
 	}
 

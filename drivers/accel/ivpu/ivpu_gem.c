@@ -69,7 +69,7 @@ static const struct ivpu_bo_ops prime_ops = {
 
 static int __must_check shmem_alloc_pages_locked(struct ivpu_bo *bo)
 {
-	int npages = bo->base.size >> PAGE_SHIFT;
+	int npages = ivpu_bo_size(bo) >> PAGE_SHIFT;
 	struct page **pages;
 
 	pages = drm_gem_get_pages(&bo->base);
@@ -88,7 +88,7 @@ static int __must_check shmem_alloc_pages_locked(struct ivpu_bo *bo)
 static void shmem_free_pages_locked(struct ivpu_bo *bo)
 {
 	if (ivpu_bo_cache_mode(bo) != DRM_IVPU_BO_CACHED)
-		set_pages_array_wb(bo->pages, bo->base.size >> PAGE_SHIFT);
+		set_pages_array_wb(bo->pages, ivpu_bo_size(bo) >> PAGE_SHIFT);
 
 	drm_gem_put_pages(&bo->base, bo->pages, true, false);
 	bo->pages = NULL;
@@ -96,7 +96,7 @@ static void shmem_free_pages_locked(struct ivpu_bo *bo)
 
 static int ivpu_bo_map_pages_locked(struct ivpu_bo *bo)
 {
-	int npages = bo->base.size >> PAGE_SHIFT;
+	int npages = ivpu_bo_size(bo) >> PAGE_SHIFT;
 	struct ivpu_device *vdev = ivpu_bo_to_vdev(bo);
 	struct sg_table *sgt;
 	int ret;
@@ -142,7 +142,7 @@ static const struct ivpu_bo_ops shmem_ops = {
 
 static int __must_check internal_alloc_pages_locked(struct ivpu_bo *bo)
 {
-	unsigned int i, npages = bo->base.size >> PAGE_SHIFT;
+	unsigned int i, npages = ivpu_bo_size(bo) >> PAGE_SHIFT;
 	struct page **pages;
 	int ret;
 
@@ -171,10 +171,10 @@ err_free_pages:
 
 static void internal_free_pages_locked(struct ivpu_bo *bo)
 {
-	unsigned int i, npages = bo->base.size >> PAGE_SHIFT;
+	unsigned int i, npages = ivpu_bo_size(bo) >> PAGE_SHIFT;
 
 	if (ivpu_bo_cache_mode(bo) != DRM_IVPU_BO_CACHED)
-		set_pages_array_wb(bo->pages, bo->base.size >> PAGE_SHIFT);
+		set_pages_array_wb(bo->pages, ivpu_bo_size(bo) >> PAGE_SHIFT);
 
 	for (i = 0; i < npages; i++)
 		put_page(bo->pages[i]);
@@ -291,7 +291,7 @@ ivpu_bo_alloc_vpu_addr(struct ivpu_bo *bo, struct ivpu_mmu_context *ctx,
 	}
 
 	mutex_lock(&ctx->lock);
-	ret = ivpu_mmu_context_insert_node_locked(ctx, range, bo->base.size, &bo->mm_node);
+	ret = ivpu_mmu_context_insert_node_locked(ctx, range, ivpu_bo_size(bo), &bo->mm_node);
 	if (!ret) {
 		bo->ctx = ctx;
 		bo->vpu_addr = bo->mm_node.start;
@@ -438,7 +438,7 @@ static int ivpu_bo_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	struct ivpu_device *vdev = ivpu_bo_to_vdev(bo);
 
 	ivpu_dbg(vdev, BO, "mmap: ctx %u handle %u vpu_addr 0x%llx size %zu type %s",
-		 bo->ctx->id, bo->handle, bo->vpu_addr, bo->base.size, bo->ops->name);
+		 bo->ctx->id, bo->handle, bo->vpu_addr, ivpu_bo_size(bo), bo->ops->name);
 
 	if (obj->import_attach) {
 		/* Drop the reference drm_gem_mmap_obj() acquired.*/
@@ -553,7 +553,7 @@ ivpu_bo_create_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	drm_gem_object_put(&bo->base);
 
 	ivpu_dbg(vdev, BO, "alloc shmem: ctx %u vpu_addr 0x%llx size %zu flags 0x%x\n",
-		 file_priv->ctx.id, bo->vpu_addr, bo->base.size, bo->flags);
+		 file_priv->ctx.id, bo->vpu_addr, ivpu_bo_size(bo), bo->flags);
 
 	return ret;
 }
@@ -590,22 +590,22 @@ ivpu_bo_alloc_internal(struct ivpu_device *vdev, u64 vpu_addr, u64 size, u32 fla
 		goto err_put;
 
 	if (ivpu_bo_cache_mode(bo) != DRM_IVPU_BO_CACHED)
-		drm_clflush_pages(bo->pages, bo->base.size >> PAGE_SHIFT);
+		drm_clflush_pages(bo->pages, ivpu_bo_size(bo) >> PAGE_SHIFT);
 
 	if (bo->flags & DRM_IVPU_BO_WC)
-		set_pages_array_wc(bo->pages, bo->base.size >> PAGE_SHIFT);
+		set_pages_array_wc(bo->pages, ivpu_bo_size(bo) >> PAGE_SHIFT);
 	else if (bo->flags & DRM_IVPU_BO_UNCACHED)
-		set_pages_array_uc(bo->pages, bo->base.size >> PAGE_SHIFT);
+		set_pages_array_uc(bo->pages, ivpu_bo_size(bo) >> PAGE_SHIFT);
 
 	prot = ivpu_bo_pgprot(bo, PAGE_KERNEL);
-	bo->kvaddr = vmap(bo->pages, bo->base.size >> PAGE_SHIFT, VM_MAP, prot);
+	bo->kvaddr = vmap(bo->pages, ivpu_bo_size(bo) >> PAGE_SHIFT, VM_MAP, prot);
 	if (!bo->kvaddr) {
 		ivpu_err(vdev, "Failed to map BO into kernel virtual memory\n");
 		goto err_put;
 	}
 
 	ivpu_dbg(vdev, BO, "alloc internal: ctx 0 vpu_addr 0x%llx size %zu flags 0x%x\n",
-		 bo->vpu_addr, bo->base.size, flags);
+		 bo->vpu_addr, ivpu_bo_size(bo), flags);
 
 	return bo;
 
@@ -718,7 +718,7 @@ static void ivpu_bo_print_info(struct ivpu_bo *bo, struct drm_printer *p)
 		dma_refcount = atomic_long_read(&bo->base.dma_buf->file->f_count);
 
 	drm_printf(p, "%5u %6d %16llx %10lu %10u %12lu %14s\n",
-		   bo->ctx->id, bo->handle, bo->vpu_addr, bo->base.size,
+		   bo->ctx->id, bo->handle, bo->vpu_addr, ivpu_bo_size(bo),
 		   kref_read(&bo->base.refcount), dma_refcount, bo->ops->name);
 }
 

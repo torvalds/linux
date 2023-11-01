@@ -1533,7 +1533,6 @@ out:
 /* Helper function. See kfd_fill_gpu_cache_info for parameter description */
 static int fill_in_l1_pcache(struct kfd_cache_properties **props_ext,
 				struct kfd_gpu_cache_info *pcache_info,
-				struct kfd_cu_info *cu_info,
 				int cu_bitmask,
 				int cache_type, unsigned int cu_processor_id,
 				int cu_block)
@@ -1595,7 +1594,8 @@ static int fill_in_l1_pcache(struct kfd_cache_properties **props_ext,
 /* Helper function. See kfd_fill_gpu_cache_info for parameter description */
 static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 				struct kfd_gpu_cache_info *pcache_info,
-				struct kfd_cu_info *cu_info,
+				struct amdgpu_cu_info *cu_info,
+				struct amdgpu_gfx_config *gfx_info,
 				int cache_type, unsigned int cu_processor_id,
 				struct kfd_node *knode)
 {
@@ -1606,7 +1606,7 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 
 	start = ffs(knode->xcc_mask) - 1;
 	end = start + NUM_XCC(knode->xcc_mask);
-	cu_sibling_map_mask = cu_info->cu_bitmap[start][0][0];
+	cu_sibling_map_mask = cu_info->bitmap[start][0][0];
 	cu_sibling_map_mask &=
 		((1 << pcache_info[cache_type].num_cu_shared) - 1);
 	first_active_cu = ffs(cu_sibling_map_mask);
@@ -1642,15 +1642,15 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 		k = 0;
 
 		for (xcc = start; xcc < end; xcc++) {
-			for (i = 0; i < cu_info->num_shader_engines; i++) {
-				for (j = 0; j < cu_info->num_shader_arrays_per_engine; j++) {
+			for (i = 0; i < gfx_info->max_shader_engines; i++) {
+				for (j = 0; j < gfx_info->max_sh_per_se; j++) {
 					pcache->sibling_map[k] = (uint8_t)(cu_sibling_map_mask & 0xFF);
 					pcache->sibling_map[k+1] = (uint8_t)((cu_sibling_map_mask >> 8) & 0xFF);
 					pcache->sibling_map[k+2] = (uint8_t)((cu_sibling_map_mask >> 16) & 0xFF);
 					pcache->sibling_map[k+3] = (uint8_t)((cu_sibling_map_mask >> 24) & 0xFF);
 					k += 4;
 
-					cu_sibling_map_mask = cu_info->cu_bitmap[xcc][i % 4][j + i / 4];
+					cu_sibling_map_mask = cu_info->bitmap[xcc][i % 4][j + i / 4];
 					cu_sibling_map_mask &= ((1 << pcache_info[cache_type].num_cu_shared) - 1);
 				}
 			}
@@ -1675,16 +1675,14 @@ static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct
 	unsigned int cu_processor_id;
 	int ret;
 	unsigned int num_cu_shared;
-	struct kfd_cu_info cu_info;
-	struct kfd_cu_info *pcu_info;
+	struct amdgpu_cu_info *cu_info = &kdev->adev->gfx.cu_info;
+	struct amdgpu_gfx_config *gfx_info = &kdev->adev->gfx.config;
 	int gpu_processor_id;
 	struct kfd_cache_properties *props_ext;
 	int num_of_entries = 0;
 	int num_of_cache_types = 0;
 	struct kfd_gpu_cache_info cache_info[KFD_MAX_CACHE_TYPES];
 
-	amdgpu_amdkfd_get_cu_info(kdev->adev, &cu_info);
-	pcu_info = &cu_info;
 
 	gpu_processor_id = dev->node_props.simd_id_base;
 
@@ -1711,12 +1709,12 @@ static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct
 		cu_processor_id = gpu_processor_id;
 		if (pcache_info[ct].cache_level == 1) {
 			for (xcc = start; xcc < end; xcc++) {
-				for (i = 0; i < pcu_info->num_shader_engines; i++) {
-					for (j = 0; j < pcu_info->num_shader_arrays_per_engine; j++) {
-						for (k = 0; k < pcu_info->num_cu_per_sh; k += pcache_info[ct].num_cu_shared) {
+				for (i = 0; i < gfx_info->max_shader_engines; i++) {
+					for (j = 0; j < gfx_info->max_sh_per_se; j++) {
+						for (k = 0; k < gfx_info->max_cu_per_sh; k += pcache_info[ct].num_cu_shared) {
 
-							ret = fill_in_l1_pcache(&props_ext, pcache_info, pcu_info,
-										pcu_info->cu_bitmap[xcc][i % 4][j + i / 4], ct,
+							ret = fill_in_l1_pcache(&props_ext, pcache_info,
+										cu_info->bitmap[xcc][i % 4][j + i / 4], ct,
 										cu_processor_id, k);
 
 							if (ret < 0)
@@ -1729,9 +1727,9 @@ static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct
 
 							/* Move to next CU block */
 							num_cu_shared = ((k + pcache_info[ct].num_cu_shared) <=
-								pcu_info->num_cu_per_sh) ?
+								gfx_info->max_cu_per_sh) ?
 								pcache_info[ct].num_cu_shared :
-								(pcu_info->num_cu_per_sh - k);
+								(gfx_info->max_cu_per_sh - k);
 							cu_processor_id += num_cu_shared;
 						}
 					}
@@ -1739,7 +1737,7 @@ static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct
 			}
 		} else {
 			ret = fill_in_l2_l3_pcache(&props_ext, pcache_info,
-					pcu_info, ct, cu_processor_id, kdev);
+						   cu_info, gfx_info, ct, cu_processor_id, kdev);
 
 			if (ret < 0)
 				break;
@@ -1918,10 +1916,11 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 {
 	uint32_t gpu_id;
 	struct kfd_topology_device *dev;
-	struct kfd_cu_info cu_info;
 	int res = 0;
 	int i;
 	const char *asic_name = amdgpu_asic_name[gpu->adev->asic_type];
+	struct amdgpu_gfx_config *gfx_info = &gpu->adev->gfx.config;
+	struct amdgpu_cu_info *cu_info = &gpu->adev->gfx.cu_info;
 
 	gpu_id = kfd_generate_gpu_id(gpu);
 	if (gpu->xcp && !gpu->xcp->ddev) {
@@ -1959,9 +1958,6 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	/* Fill-in additional information that is not available in CRAT but
 	 * needed for the topology
 	 */
-
-	amdgpu_amdkfd_get_cu_info(dev->gpu->adev, &cu_info);
-
 	for (i = 0; i < KFD_TOPOLOGY_PUBLIC_NAME_SIZE-1; i++) {
 		dev->node_props.name[i] = __tolower(asic_name[i]);
 		if (asic_name[i] == '\0')
@@ -1970,7 +1966,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	dev->node_props.name[i] = '\0';
 
 	dev->node_props.simd_arrays_per_engine =
-		cu_info.num_shader_arrays_per_engine;
+		gfx_info->max_sh_per_se;
 
 	dev->node_props.gfx_target_version =
 				gpu->kfd->device_info.gfx_target_version;
@@ -2051,7 +2047,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	 */
 	if (dev->gpu->adev->asic_type == CHIP_CARRIZO) {
 		dev->node_props.simd_count =
-			cu_info.simd_per_cu * cu_info.cu_active_number;
+			cu_info->simd_per_cu * cu_info->number;
 		dev->node_props.max_waves_per_simd = 10;
 	}
 

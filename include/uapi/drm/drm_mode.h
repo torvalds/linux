@@ -1032,13 +1032,25 @@ struct drm_mode_crtc_page_flip_target {
 	__u64 user_data;
 };
 
-/* create a dumb scanout buffer */
+/**
+ * struct drm_mode_create_dumb - Create a KMS dumb buffer for scanout.
+ * @height: buffer height in pixels
+ * @width: buffer width in pixels
+ * @bpp: bits per pixel
+ * @flags: must be zero
+ * @handle: buffer object handle
+ * @pitch: number of bytes between two consecutive lines
+ * @size: size of the whole buffer in bytes
+ *
+ * User-space fills @height, @width, @bpp and @flags. If the IOCTL succeeds,
+ * the kernel fills @handle, @pitch and @size.
+ */
 struct drm_mode_create_dumb {
 	__u32 height;
 	__u32 width;
 	__u32 bpp;
 	__u32 flags;
-	/* handle, pitch, size will be returned */
+
 	__u32 handle;
 	__u32 pitch;
 	__u64 size;

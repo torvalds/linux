@@ -132,7 +132,8 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 		adev->mes.gfx_hqd_mask[i] = i ? 0 : 0xfffffffe;
 
 	for (i = 0; i < AMDGPU_MES_MAX_SDMA_PIPES; i++) {
-		if (adev->ip_versions[SDMA0_HWIP][0] < IP_VERSION(6, 0, 0))
+		if (amdgpu_ip_version(adev, SDMA0_HWIP, 0) <
+		    IP_VERSION(6, 0, 0))
 			adev->mes.sdma_hqd_mask[i] = i ? 0 : 0x3fc;
 		/* zero sdma_hqd_mask for non-existent engine */
 		else if (adev->sdma.num_instances == 1)
@@ -1335,8 +1336,10 @@ int amdgpu_mes_self_test(struct amdgpu_device *adev)
 
 	for (i = 0; i < ARRAY_SIZE(queue_types); i++) {
 		/* On GFX v10.3, fw hasn't supported to map sdma queue. */
-		if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 3, 0) &&
-		    adev->ip_versions[GC_HWIP][0] < IP_VERSION(11, 0, 0) &&
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) >=
+			    IP_VERSION(10, 3, 0) &&
+		    amdgpu_ip_version(adev, GC_HWIP, 0) <
+			    IP_VERSION(11, 0, 0) &&
 		    queue_types[i][0] == AMDGPU_RING_TYPE_SDMA)
 			continue;
 
@@ -1397,7 +1400,7 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe)
 
 	amdgpu_ucode_ip_version_decode(adev, GC_HWIP, ucode_prefix,
 				       sizeof(ucode_prefix));
-	if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(11, 0, 0)) {
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0)) {
 		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mes%s.bin",
 			 ucode_prefix,
 			 pipe == AMDGPU_MES_SCHED_PIPE ? "_2" : "1");

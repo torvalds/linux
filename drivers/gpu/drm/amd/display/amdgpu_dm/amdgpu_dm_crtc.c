@@ -96,7 +96,7 @@ bool amdgpu_dm_crtc_vrr_active(struct dm_crtc_state *dm_state)
 	       dm_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
 }
 
-static void vblank_control_worker(struct work_struct *work)
+static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 {
 	struct vblank_control_work *vblank_work =
 		container_of(work, struct vblank_control_work, work);
@@ -151,7 +151,7 @@ static void vblank_control_worker(struct work_struct *work)
 	kfree(vblank_work);
 }
 
-static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
+static inline int amdgpu_dm_crtc_set_vblank(struct drm_crtc *crtc, bool enable)
 {
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
@@ -191,7 +191,7 @@ skip:
 		if (!work)
 			return -ENOMEM;
 
-		INIT_WORK(&work->work, vblank_control_worker);
+		INIT_WORK(&work->work, amdgpu_dm_crtc_vblank_control_worker);
 		work->dm = dm;
 		work->acrtc = acrtc;
 		work->enable = enable;
@@ -209,15 +209,15 @@ skip:
 
 int amdgpu_dm_crtc_enable_vblank(struct drm_crtc *crtc)
 {
-	return dm_set_vblank(crtc, true);
+	return amdgpu_dm_crtc_set_vblank(crtc, true);
 }
 
 void amdgpu_dm_crtc_disable_vblank(struct drm_crtc *crtc)
 {
-	dm_set_vblank(crtc, false);
+	amdgpu_dm_crtc_set_vblank(crtc, false);
 }
 
-static void dm_crtc_destroy_state(struct drm_crtc *crtc,
+static void amdgpu_dm_crtc_destroy_state(struct drm_crtc *crtc,
 				  struct drm_crtc_state *state)
 {
 	struct dm_crtc_state *cur = to_dm_crtc_state(state);
@@ -233,7 +233,7 @@ static void dm_crtc_destroy_state(struct drm_crtc *crtc,
 	kfree(state);
 }
 
-static struct drm_crtc_state *dm_crtc_duplicate_state(struct drm_crtc *crtc)
+static struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct dm_crtc_state *state, *cur;
 
@@ -273,12 +273,12 @@ static void amdgpu_dm_crtc_destroy(struct drm_crtc *crtc)
 	kfree(crtc);
 }
 
-static void dm_crtc_reset_state(struct drm_crtc *crtc)
+static void amdgpu_dm_crtc_reset_state(struct drm_crtc *crtc)
 {
 	struct dm_crtc_state *state;
 
 	if (crtc->state)
-		dm_crtc_destroy_state(crtc, crtc->state);
+		amdgpu_dm_crtc_destroy_state(crtc, crtc->state);
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (WARN_ON(!state))
@@ -298,12 +298,12 @@ static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
 
 /* Implemented only the options currently available for the driver */
 static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
-	.reset = dm_crtc_reset_state,
+	.reset = amdgpu_dm_crtc_reset_state,
 	.destroy = amdgpu_dm_crtc_destroy,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
-	.atomic_duplicate_state = dm_crtc_duplicate_state,
-	.atomic_destroy_state = dm_crtc_destroy_state,
+	.atomic_duplicate_state = amdgpu_dm_crtc_duplicate_state,
+	.atomic_destroy_state = amdgpu_dm_crtc_destroy_state,
 	.set_crc_source = amdgpu_dm_crtc_set_crc_source,
 	.verify_crc_source = amdgpu_dm_crtc_verify_crc_source,
 	.get_crc_sources = amdgpu_dm_crtc_get_crc_sources,
@@ -316,11 +316,11 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 #endif
 };
 
-static void dm_crtc_helper_disable(struct drm_crtc *crtc)
+static void amdgpu_dm_crtc_helper_disable(struct drm_crtc *crtc)
 {
 }
 
-static int count_crtc_active_planes(struct drm_crtc_state *new_crtc_state)
+static int amdgpu_dm_crtc_count_crtc_active_planes(struct drm_crtc_state *new_crtc_state)
 {
 	struct drm_atomic_state *state = new_crtc_state->state;
 	struct drm_plane *plane;
@@ -352,8 +352,8 @@ static int count_crtc_active_planes(struct drm_crtc_state *new_crtc_state)
 	return num_active;
 }
 
-static void dm_update_crtc_active_planes(struct drm_crtc *crtc,
-					 struct drm_crtc_state *new_crtc_state)
+static void amdgpu_dm_crtc_update_crtc_active_planes(struct drm_crtc *crtc,
+						     struct drm_crtc_state *new_crtc_state)
 {
 	struct dm_crtc_state *dm_new_crtc_state =
 		to_dm_crtc_state(new_crtc_state);
@@ -364,18 +364,18 @@ static void dm_update_crtc_active_planes(struct drm_crtc *crtc,
 		return;
 
 	dm_new_crtc_state->active_planes =
-		count_crtc_active_planes(new_crtc_state);
+		amdgpu_dm_crtc_count_crtc_active_planes(new_crtc_state);
 }
 
-static bool dm_crtc_helper_mode_fixup(struct drm_crtc *crtc,
+static bool amdgpu_dm_crtc_helper_mode_fixup(struct drm_crtc *crtc,
 				      const struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode)
 {
 	return true;
 }
 
-static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
-				      struct drm_atomic_state *state)
+static int amdgpu_dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
+					      struct drm_atomic_state *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 										crtc);
@@ -386,7 +386,7 @@ static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 
 	trace_amdgpu_dm_crtc_atomic_check(crtc_state);
 
-	dm_update_crtc_active_planes(crtc, crtc_state);
+	amdgpu_dm_crtc_update_crtc_active_planes(crtc, crtc_state);
 
 	if (WARN_ON(unlikely(!dm_crtc_state->stream &&
 			amdgpu_dm_crtc_modeset_required(crtc_state, NULL, dm_crtc_state->stream)))) {
@@ -429,9 +429,9 @@ static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs amdgpu_dm_crtc_helper_funcs = {
-	.disable = dm_crtc_helper_disable,
-	.atomic_check = dm_crtc_helper_atomic_check,
-	.mode_fixup = dm_crtc_helper_mode_fixup,
+	.disable = amdgpu_dm_crtc_helper_disable,
+	.atomic_check = amdgpu_dm_crtc_helper_atomic_check,
+	.mode_fixup = amdgpu_dm_crtc_helper_mode_fixup,
 	.get_scanout_position = amdgpu_crtc_get_scanout_position,
 };
 

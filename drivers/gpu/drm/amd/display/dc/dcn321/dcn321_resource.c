@@ -50,7 +50,7 @@
 #include "dcn32/dcn32_optc.h"
 #include "dcn20/dcn20_hwseq.h"
 #include "dcn30/dcn30_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 #include "dcn30/dcn30_opp.h"
 #include "dcn20/dcn20_dsc.h"
 #include "dcn30/dcn30_vpg.h"
@@ -732,6 +732,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.fpo_vactive_max_blank_us = 1000,
 	.enable_legacy_fast_update = false,
 	.disable_dc_mode_overwrite = true,
+	.using_dml2 = false,
 };
 
 static struct dce_aux *dcn321_aux_engine_create(
@@ -1570,7 +1571,8 @@ static void dcn321_destroy_resource_pool(struct resource_pool **pool)
 }
 
 static struct dc_cap_funcs cap_funcs = {
-	.get_dcc_compression_cap = dcn20_get_dcc_compression_cap
+	.get_dcc_compression_cap = dcn20_get_dcc_compression_cap,
+	.get_subvp_en = dcn32_subvp_in_use,
 };
 
 static void dcn321_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
@@ -1589,6 +1591,8 @@ static struct resource_funcs dcn321_res_pool_funcs = {
 	.calculate_wm_and_dlg = dcn32_calculate_wm_and_dlg,
 	.populate_dml_pipes = dcn32_populate_dml_pipes_from_context,
 	.acquire_free_pipe_as_secondary_dpp_pipe = dcn32_acquire_free_pipe_as_secondary_dpp_pipe,
+	.acquire_free_pipe_as_secondary_opp_head = dcn32_acquire_free_pipe_as_secondary_opp_head,
+	.release_pipe = dcn20_release_pipe,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
@@ -1986,6 +1990,52 @@ static bool dcn321_resource_construct(
 	} else {
 		pool->base.oem_device = NULL;
 	}
+
+	dc->dml2_options.dcn_pipe_count = pool->base.pipe_count;
+	dc->dml2_options.use_native_pstate_optimization = false;
+	dc->dml2_options.use_native_soc_bb_construction = true;
+	dc->dml2_options.minimize_dispclk_using_odm = true;
+
+	dc->dml2_options.callbacks.dc = dc;
+	dc->dml2_options.callbacks.build_scaling_params = &resource_build_scaling_params;
+	dc->dml2_options.callbacks.can_support_mclk_switch_using_fw_based_vblank_stretch = &dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch;
+	dc->dml2_options.callbacks.acquire_secondary_pipe_for_mpc_odm = &dc_resource_acquire_secondary_pipe_for_mpc_odm_legacy;
+	dc->dml2_options.callbacks.update_pipes_for_stream_with_slice_count = &resource_update_pipes_for_stream_with_slice_count;
+	dc->dml2_options.callbacks.update_pipes_for_plane_with_slice_count = &resource_update_pipes_for_plane_with_slice_count;
+	dc->dml2_options.callbacks.get_mpc_slice_index = &resource_get_mpc_slice_index;
+	dc->dml2_options.callbacks.get_odm_slice_index = &resource_get_odm_slice_index;
+	dc->dml2_options.callbacks.get_opp_head = &resource_get_opp_head;
+
+	dc->dml2_options.svp_pstate.callbacks.dc = dc;
+	dc->dml2_options.svp_pstate.callbacks.add_plane_to_context = &dc_add_plane_to_context;
+	dc->dml2_options.svp_pstate.callbacks.add_stream_to_ctx = &dc_add_stream_to_ctx;
+	dc->dml2_options.svp_pstate.callbacks.build_scaling_params = &resource_build_scaling_params;
+	dc->dml2_options.svp_pstate.callbacks.create_plane = &dc_create_plane_state;
+	dc->dml2_options.svp_pstate.callbacks.remove_plane_from_context = &dc_remove_plane_from_context;
+	dc->dml2_options.svp_pstate.callbacks.remove_stream_from_ctx = &dc_remove_stream_from_ctx;
+	dc->dml2_options.svp_pstate.callbacks.create_stream_for_sink = &dc_create_stream_for_sink;
+	dc->dml2_options.svp_pstate.callbacks.plane_state_release = &dc_plane_state_release;
+	dc->dml2_options.svp_pstate.callbacks.stream_release = &dc_stream_release;
+	dc->dml2_options.svp_pstate.callbacks.release_dsc = &dcn20_release_dsc;
+
+	dc->dml2_options.svp_pstate.subvp_fw_processing_delay_us = dc->caps.subvp_fw_processing_delay_us;
+	dc->dml2_options.svp_pstate.subvp_prefetch_end_to_mall_start_us = dc->caps.subvp_prefetch_end_to_mall_start_us;
+	dc->dml2_options.svp_pstate.subvp_pstate_allow_width_us = dc->caps.subvp_pstate_allow_width_us;
+	dc->dml2_options.svp_pstate.subvp_swath_height_margin_lines = dc->caps.subvp_swath_height_margin_lines;
+
+	dc->dml2_options.svp_pstate.force_disable_subvp = dc->debug.force_disable_subvp;
+	dc->dml2_options.svp_pstate.force_enable_subvp = dc->debug.force_subvp_mclk_switch;
+
+	dc->dml2_options.mall_cfg.cache_line_size_bytes = dc->caps.cache_line_size;
+	dc->dml2_options.mall_cfg.cache_num_ways = dc->caps.cache_num_ways;
+	dc->dml2_options.mall_cfg.max_cab_allocation_bytes = dc->caps.max_cab_allocation_bytes;
+	dc->dml2_options.mall_cfg.mblk_height_4bpe_pixels = DCN3_2_MBLK_HEIGHT_4BPE;
+	dc->dml2_options.mall_cfg.mblk_height_8bpe_pixels = DCN3_2_MBLK_HEIGHT_8BPE;
+	dc->dml2_options.mall_cfg.mblk_size_bytes = DCN3_2_MALL_MBLK_SIZE_BYTES;
+	dc->dml2_options.mall_cfg.mblk_width_pixels = DCN3_2_MBLK_WIDTH;
+
+	dc->dml2_options.max_segments_per_hubp = 18;
+	dc->dml2_options.det_segment_size = DCN3_2_DET_SEG_SIZE;
 
 	return true;
 

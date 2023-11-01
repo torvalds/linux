@@ -69,6 +69,8 @@ struct amdgpu_nbio_funcs {
 	u32 (*get_memsize)(struct amdgpu_device *adev);
 	void (*sdma_doorbell_range)(struct amdgpu_device *adev, int instance,
 			bool use_doorbell, int doorbell_index, int doorbell_size);
+	void (*vpe_doorbell_range)(struct amdgpu_device *adev, int instance,
+			bool use_doorbell, int doorbell_index, int doorbell_size);
 	void (*vcn_doorbell_range)(struct amdgpu_device *adev, bool use_doorbell,
 				   int doorbell_index, int instance);
 	void (*gc_doorbell_init)(struct amdgpu_device *adev);

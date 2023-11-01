@@ -743,13 +743,13 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 		for (i = 0; i < NUM_AGGR_LEVEL; i++) {
 			config.blRampReduction[i] = params.backlight_ramping_reduction;
 			config.blRampStart[i] = params.backlight_ramping_start;
-			}
-		} else {
-			for (i = 0; i < NUM_AGGR_LEVEL; i++) {
-				config.blRampReduction[i] = abm_settings[set][i].blRampReduction;
-				config.blRampStart[i] = abm_settings[set][i].blRampStart;
-				}
-			}
+		}
+	} else {
+		for (i = 0; i < NUM_AGGR_LEVEL; i++) {
+			config.blRampReduction[i] = abm_settings[set][i].blRampReduction;
+			config.blRampStart[i] = abm_settings[set][i].blRampStart;
+		}
+	}
 
 	config.min_abm_backlight = ram_table.min_abm_backlight;
 
@@ -944,11 +944,11 @@ bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 	uint16_t slice_height;
 
 	config->dsc_slice_height = 0;
-	if ((link->connector_signal & SIGNAL_TYPE_EDP) &&
-	    (!dc->caps.edp_dsc_support ||
+	if (!(link->connector_signal & SIGNAL_TYPE_EDP) ||
+	    !dc->caps.edp_dsc_support ||
 	    link->panel_config.dsc.disable_dsc_edp ||
 	    !link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT ||
-	    !stream->timing.dsc_cfg.num_slices_v))
+	    !stream->timing.dsc_cfg.num_slices_v)
 		return true;
 
 	pic_height = stream->timing.v_addressable +

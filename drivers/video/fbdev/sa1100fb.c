@@ -575,14 +575,13 @@ static int sa1100fb_mmap(struct fb_info *info,
 
 static const struct fb_ops sa1100fb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= sa1100fb_check_var,
 	.fb_set_par	= sa1100fb_set_par,
 //	.fb_set_cmap	= sa1100fb_set_cmap,
 	.fb_setcolreg	= sa1100fb_setcolreg,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
 	.fb_blank	= sa1100fb_blank,
+	__FB_DEFAULT_IOMEM_OPS_DRAW,
 	.fb_mmap	= sa1100fb_mmap,
 };
 

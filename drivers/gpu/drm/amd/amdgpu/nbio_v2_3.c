@@ -536,7 +536,7 @@ static void nbio_v2_3_clear_doorbell_interrupt(struct amdgpu_device *adev)
 {
 	uint32_t reg, reg_data;
 
-	if (adev->ip_versions[NBIO_HWIP][0] != IP_VERSION(3, 3, 0))
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) != IP_VERSION(3, 3, 0))
 		return;
 
 	reg = RREG32_SOC15(NBIO, 0, mmBIF_RB_CNTL);

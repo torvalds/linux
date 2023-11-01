@@ -522,6 +522,7 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 		   IOMMU_WRITE | IOMMU_READ | IOMMU_NOEXEC, sgt);
 
 	bomapping->active = true;
+	bo->heap_rss_size += SZ_2M;
 
 	dev_dbg(pfdev->dev, "mapped page fault @ AS%d %llx", as, addr);
 
@@ -755,8 +756,8 @@ int panfrost_mmu_init(struct panfrost_device *pfdev)
 	int err, irq;
 
 	irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "mmu");
-	if (irq <= 0)
-		return -ENODEV;
+	if (irq < 0)
+		return irq;
 
 	err = devm_request_threaded_irq(pfdev->dev, irq,
 					panfrost_mmu_irq_handler,

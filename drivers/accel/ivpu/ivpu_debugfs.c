@@ -17,20 +17,26 @@
 #include "ivpu_jsm_msg.h"
 #include "ivpu_pm.h"
 
+static inline struct ivpu_device *seq_to_ivpu(struct seq_file *s)
+{
+	struct drm_debugfs_entry *entry = s->private;
+
+	return to_ivpu_device(entry->dev);
+}
+
 static int bo_list_show(struct seq_file *s, void *v)
 {
-	struct drm_info_node *node = (struct drm_info_node *)s->private;
 	struct drm_printer p = drm_seq_file_printer(s);
+	struct ivpu_device *vdev = seq_to_ivpu(s);
 
-	ivpu_bo_list(node->minor->dev, &p);
+	ivpu_bo_list(&vdev->drm, &p);
 
 	return 0;
 }
 
 static int fw_name_show(struct seq_file *s, void *v)
 {
-	struct drm_info_node *node = (struct drm_info_node *)s->private;
-	struct ivpu_device *vdev = to_ivpu_device(node->minor->dev);
+	struct ivpu_device *vdev = seq_to_ivpu(s);
 
 	seq_printf(s, "%s\n", vdev->fw->name);
 	return 0;
@@ -38,8 +44,7 @@ static int fw_name_show(struct seq_file *s, void *v)
 
 static int fw_trace_capability_show(struct seq_file *s, void *v)
 {
-	struct drm_info_node *node = (struct drm_info_node *)s->private;
-	struct ivpu_device *vdev = to_ivpu_device(node->minor->dev);
+	struct ivpu_device *vdev = seq_to_ivpu(s);
 	u64 trace_hw_component_mask;
 	u32 trace_destination_mask;
 	int ret;
@@ -57,8 +62,7 @@ static int fw_trace_capability_show(struct seq_file *s, void *v)
 
 static int fw_trace_config_show(struct seq_file *s, void *v)
 {
-	struct drm_info_node *node = (struct drm_info_node *)s->private;
-	struct ivpu_device *vdev = to_ivpu_device(node->minor->dev);
+	struct ivpu_device *vdev = seq_to_ivpu(s);
 	/**
 	 * WA: VPU_JSM_MSG_TRACE_GET_CONFIG command is not working yet,
 	 * so we use values from vdev->fw instead of calling ivpu_jsm_trace_get_config()
@@ -78,8 +82,7 @@ static int fw_trace_config_show(struct seq_file *s, void *v)
 
 static int last_bootmode_show(struct seq_file *s, void *v)
 {
-	struct drm_info_node *node = (struct drm_info_node *)s->private;
-	struct ivpu_device *vdev = to_ivpu_device(node->minor->dev);
+	struct ivpu_device *vdev = seq_to_ivpu(s);
 
 	seq_printf(s, "%s\n", (vdev->pm->is_warmboot) ? "warmboot" : "coldboot");
 
@@ -88,8 +91,7 @@ static int last_bootmode_show(struct seq_file *s, void *v)
 
 static int reset_counter_show(struct seq_file *s, void *v)
 {
-	struct drm_info_node *node = (struct drm_info_node *)s->private;
-	struct ivpu_device *vdev = to_ivpu_device(node->minor->dev);
+	struct ivpu_device *vdev = seq_to_ivpu(s);
 
 	seq_printf(s, "%d\n", atomic_read(&vdev->pm->reset_counter));
 	return 0;
@@ -97,14 +99,13 @@ static int reset_counter_show(struct seq_file *s, void *v)
 
 static int reset_pending_show(struct seq_file *s, void *v)
 {
-	struct drm_info_node *node = (struct drm_info_node *)s->private;
-	struct ivpu_device *vdev = to_ivpu_device(node->minor->dev);
+	struct ivpu_device *vdev = seq_to_ivpu(s);
 
 	seq_printf(s, "%d\n", atomic_read(&vdev->pm->in_reset));
 	return 0;
 }
 
-static const struct drm_info_list vdev_debugfs_list[] = {
+static const struct drm_debugfs_info vdev_debugfs_list[] = {
 	{"bo_list", bo_list_show, 0},
 	{"fw_name", fw_name_show, 0},
 	{"fw_trace_capability", fw_trace_capability_show, 0},
@@ -270,25 +271,24 @@ static const struct file_operations ivpu_reset_engine_fops = {
 	.write = ivpu_reset_engine_fn,
 };
 
-void ivpu_debugfs_init(struct drm_minor *minor)
+void ivpu_debugfs_init(struct ivpu_device *vdev)
 {
-	struct ivpu_device *vdev = to_ivpu_device(minor->dev);
+	struct dentry *debugfs_root = vdev->drm.debugfs_root;
 
-	drm_debugfs_create_files(vdev_debugfs_list, ARRAY_SIZE(vdev_debugfs_list),
-				 minor->debugfs_root, minor);
+	drm_debugfs_add_files(&vdev->drm, vdev_debugfs_list, ARRAY_SIZE(vdev_debugfs_list));
 
-	debugfs_create_file("force_recovery", 0200, minor->debugfs_root, vdev,
+	debugfs_create_file("force_recovery", 0200, debugfs_root, vdev,
 			    &ivpu_force_recovery_fops);
 
-	debugfs_create_file("fw_log", 0644, minor->debugfs_root, vdev,
+	debugfs_create_file("fw_log", 0644, debugfs_root, vdev,
 			    &fw_log_fops);
-	debugfs_create_file("fw_trace_destination_mask", 0200, minor->debugfs_root, vdev,
+	debugfs_create_file("fw_trace_destination_mask", 0200, debugfs_root, vdev,
 			    &fw_trace_destination_mask_fops);
-	debugfs_create_file("fw_trace_hw_comp_mask", 0200, minor->debugfs_root, vdev,
+	debugfs_create_file("fw_trace_hw_comp_mask", 0200, debugfs_root, vdev,
 			    &fw_trace_hw_comp_mask_fops);
-	debugfs_create_file("fw_trace_level", 0200, minor->debugfs_root, vdev,
+	debugfs_create_file("fw_trace_level", 0200, debugfs_root, vdev,
 			    &fw_trace_level_fops);
 
-	debugfs_create_file("reset_engine", 0200, minor->debugfs_root, vdev,
+	debugfs_create_file("reset_engine", 0200, debugfs_root, vdev,
 			    &ivpu_reset_engine_fops);
 }

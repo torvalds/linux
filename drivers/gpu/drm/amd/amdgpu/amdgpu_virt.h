@@ -126,6 +126,8 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_INDIRECT_REG_ACCESS = (1 << 5),
 	/* AV1 Support MODE*/
 	AMDGIM_FEATURE_AV1_SUPPORT = (1 << 6),
+	/* VCN RB decouple */
+	AMDGIM_FEATURE_VCN_RB_DECOUPLE = (1 << 7),
 };
 
 enum AMDGIM_REG_ACCESS_FLAG {
@@ -326,6 +328,8 @@ static inline bool is_virtual_machine(void)
 	((!amdgpu_in_reset(adev)) && (!adev->virt.tdr_debug))
 #define amdgpu_sriov_is_av1_support(adev) \
 	((adev)->virt.gim_feature & AMDGIM_FEATURE_AV1_SUPPORT)
+#define amdgpu_sriov_is_vcn_rb_decouple(adev) \
+	((adev)->virt.gim_feature & AMDGIM_FEATURE_VCN_RB_DECOUPLE)
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
 void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,

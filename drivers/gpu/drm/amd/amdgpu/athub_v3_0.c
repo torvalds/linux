@@ -36,7 +36,7 @@ static uint32_t athub_v3_0_get_cg_cntl(struct amdgpu_device *adev)
 {
 	uint32_t data;
 
-	switch (adev->ip_versions[ATHUB_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, ATHUB_HWIP, 0)) {
 	case IP_VERSION(3, 0, 1):
 		data = RREG32_SOC15(ATHUB, 0, regATHUB_MISC_CNTL_V3_0_1);
 		break;
@@ -49,7 +49,7 @@ static uint32_t athub_v3_0_get_cg_cntl(struct amdgpu_device *adev)
 
 static void athub_v3_0_set_cg_cntl(struct amdgpu_device *adev, uint32_t data)
 {
-	switch (adev->ip_versions[ATHUB_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, ATHUB_HWIP, 0)) {
 	case IP_VERSION(3, 0, 1):
 		WREG32_SOC15(ATHUB, 0, regATHUB_MISC_CNTL_V3_0_1, data);
 		break;
@@ -99,10 +99,11 @@ int athub_v3_0_set_clockgating(struct amdgpu_device *adev,
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	switch (adev->ip_versions[ATHUB_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, ATHUB_HWIP, 0)) {
 	case IP_VERSION(3, 0, 0):
 	case IP_VERSION(3, 0, 1):
 	case IP_VERSION(3, 0, 2):
+	case IP_VERSION(3, 3, 0):
 		athub_v3_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		athub_v3_0_update_medium_grain_light_sleep(adev,

@@ -50,6 +50,7 @@ struct dpu_hw_intf_status {
 
 struct dpu_hw_intf_cmd_mode_cfg {
 	u8 data_compress;	/* enable data compress between dpu and dsi */
+	u8 wide_bus_en;		/* enable databus widen mode */
 };
 
 /**
