@@ -21,19 +21,14 @@ char * const bch2_member_error_strs[] = {
 
 /* Code for bch_sb_field_members_v1: */
 
-static struct bch_member *members_v2_get_mut(struct bch_sb_field_members_v2 *mi, int i)
-{
-	return (void *) mi->_members + (i * le16_to_cpu(mi->member_bytes));
-}
-
 struct bch_member *bch2_members_v2_get_mut(struct bch_sb *sb, int i)
 {
-	return members_v2_get_mut(bch2_sb_field_get(sb, members_v2), i);
+	return __bch2_members_v2_get_mut(bch2_sb_field_get(sb, members_v2), i);
 }
 
 static struct bch_member members_v2_get(struct bch_sb_field_members_v2 *mi, int i)
 {
-	struct bch_member ret, *p = members_v2_get_mut(mi, i);
+	struct bch_member ret, *p = __bch2_members_v2_get_mut(mi, i);
 	memset(&ret, 0, sizeof(ret));
 	memcpy(&ret, p, min_t(size_t, le16_to_cpu(mi->member_bytes), sizeof(ret)));
 	return ret;
@@ -75,7 +70,7 @@ static int sb_members_v2_resize_entries(struct bch_fs *c)
 
 		for (int i = c->disk_sb.sb->nr_devices - 1; i >= 0; --i) {
 			void *dst = (void *) mi->_members + (i * sizeof(struct bch_member));
-			memmove(dst, members_v2_get_mut(mi, i), le16_to_cpu(mi->member_bytes));
+			memmove(dst, __bch2_members_v2_get_mut(mi, i), le16_to_cpu(mi->member_bytes));
 			memset(dst + le16_to_cpu(mi->member_bytes),
 			       0, (sizeof(struct bch_member) - le16_to_cpu(mi->member_bytes)));
 		}
@@ -118,7 +113,7 @@ int bch2_sb_members_cpy_v2_v1(struct bch_sb_handle *disk_sb)
 	mi2 = bch2_sb_field_get(disk_sb->sb, members_v2);
 
 	for (unsigned i = 0; i < disk_sb->sb->nr_devices; i++)
-		memcpy(members_v1_get_mut(mi1, i), members_v2_get_mut(mi2, i), BCH_MEMBER_V1_BYTES);
+		memcpy(members_v1_get_mut(mi1, i), __bch2_members_v2_get_mut(mi2, i), BCH_MEMBER_V1_BYTES);
 
 	return 0;
 }
@@ -332,7 +327,7 @@ static int bch2_sb_members_v2_validate(struct bch_sb *sb,
 				       struct printbuf *err)
 {
 	struct bch_sb_field_members_v2 *mi = field_to_type(f, members_v2);
-	size_t mi_bytes = (void *) members_v2_get_mut(mi, sb->nr_devices) -
+	size_t mi_bytes = (void *) __bch2_members_v2_get_mut(mi, sb->nr_devices) -
 		(void *) mi;
 
 	if (mi_bytes > vstruct_bytes(&mi->field)) {
@@ -363,7 +358,7 @@ void bch2_sb_members_from_cpu(struct bch_fs *c)
 
 	rcu_read_lock();
 	for_each_member_device_rcu(ca, c, i, NULL) {
-		struct bch_member *m = members_v2_get_mut(mi, i);
+		struct bch_member *m = __bch2_members_v2_get_mut(mi, i);
 
 		for (e = 0; e < BCH_MEMBER_ERROR_NR; e++)
 			m->errors[e] = cpu_to_le64(atomic64_read(&ca->errors[e]));

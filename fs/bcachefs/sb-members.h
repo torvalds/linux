@@ -4,6 +4,12 @@
 
 extern char * const bch2_member_error_strs[];
 
+static inline struct bch_member *
+__bch2_members_v2_get_mut(struct bch_sb_field_members_v2 *mi, unsigned i)
+{
+	return (void *) mi->_members + (i * le16_to_cpu(mi->member_bytes));
+}
+
 int bch2_sb_members_v2_init(struct bch_fs *c);
 int bch2_sb_members_cpy_v2_v1(struct bch_sb_handle *disk_sb);
 struct bch_member *bch2_members_v2_get_mut(struct bch_sb *sb, int i);
@@ -186,11 +192,10 @@ static inline bool bch2_member_exists(struct bch_member *m)
 	return !bch2_is_zero(&m->uuid, sizeof(m->uuid));
 }
 
-static inline bool bch2_dev_exists(struct bch_sb *sb,
-				   unsigned dev)
+static inline bool bch2_dev_exists(struct bch_sb *sb, unsigned dev)
 {
 	if (dev < sb->nr_devices) {
-	struct bch_member m = bch2_sb_member_get(sb, dev);
+		struct bch_member m = bch2_sb_member_get(sb, dev);
 		return bch2_member_exists(&m);
 	}
 	return false;
