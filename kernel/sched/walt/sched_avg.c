@@ -77,6 +77,9 @@ struct sched_avg_stats *sched_get_nr_running_avg(void)
 	bool any_hyst_time = false;
 	struct walt_sched_cluster *cluster;
 
+	if (unlikely(walt_disabled))
+		return NULL;
+
 	if (!period)
 		goto done;
 
@@ -322,6 +325,9 @@ int sched_lpm_disallowed_time(int cpu, u64 *timeout)
 {
 	u64 now = sched_clock();
 	u64 bias_end_time = atomic64_read(&per_cpu(busy_hyst_end_time, cpu));
+
+	if (unlikely(walt_disabled))
+		return -EAGAIN;
 
 	if (unlikely(is_reserved(cpu))) {
 		*timeout = 10 * NSEC_PER_MSEC;
