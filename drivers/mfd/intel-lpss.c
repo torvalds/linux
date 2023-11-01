@@ -405,7 +405,7 @@ int intel_lpss_probe(struct device *dev,
 
 	intel_lpss_init_dev(lpss);
 
-	lpss->devid = ida_simple_get(&intel_lpss_devid_ida, 0, 0, GFP_KERNEL);
+	lpss->devid = ida_alloc(&intel_lpss_devid_ida, GFP_KERNEL);
 	if (lpss->devid < 0)
 		return lpss->devid;
 
@@ -442,7 +442,7 @@ err_remove_ltr:
 	intel_lpss_unregister_clock(lpss);
 
 err_clk_register:
-	ida_simple_remove(&intel_lpss_devid_ida, lpss->devid);
+	ida_free(&intel_lpss_devid_ida, lpss->devid);
 
 	return ret;
 }
@@ -456,7 +456,7 @@ void intel_lpss_remove(struct device *dev)
 	intel_lpss_debugfs_remove(lpss);
 	intel_lpss_ltr_hide(lpss);
 	intel_lpss_unregister_clock(lpss);
-	ida_simple_remove(&intel_lpss_devid_ida, lpss->devid);
+	ida_free(&intel_lpss_devid_ida, lpss->devid);
 }
 EXPORT_SYMBOL_GPL(intel_lpss_remove);
 
