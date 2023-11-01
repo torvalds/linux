@@ -385,8 +385,44 @@ int rtw89_pci_ltr_set_v2(struct rtw89_dev *rtwdev, bool en)
 }
 EXPORT_SYMBOL(rtw89_pci_ltr_set_v2);
 
+static void rtw89_pci_configure_mit_be(struct rtw89_dev *rtwdev)
+{
+	u32 cnt;
+	u32 val;
+
+	rtw89_write32_mask(rtwdev, R_BE_PCIE_MIT0_TMR,
+			   B_BE_PCIE_MIT0_RX_TMR_MASK, BE_MIT0_TMR_UNIT_1MS);
+
+	val = rtw89_read32(rtwdev, R_BE_PCIE_MIT0_CNT);
+	cnt = min_t(u32, U8_MAX, RTW89_PCI_RXBD_NUM_MAX / 2);
+	val = u32_replace_bits(val, cnt, B_BE_PCIE_RX_MIT0_CNT_MASK);
+	val = u32_replace_bits(val, 2, B_BE_PCIE_RX_MIT0_TMR_CNT_MASK);
+	rtw89_write32(rtwdev, R_BE_PCIE_MIT0_CNT, val);
+}
+
+static int rtw89_pci_ops_mac_post_init_be(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	int ret;
+
+	ret = info->ltr_set(rtwdev, true);
+	if (ret) {
+		rtw89_err(rtwdev, "pci ltr set fail\n");
+		return ret;
+	}
+
+	rtw89_pci_ctrl_trxdma_pcie_be(rtwdev, MAC_AX_PCIE_IGNORE,
+				      MAC_AX_PCIE_IGNORE, MAC_AX_PCIE_ENABLE);
+	rtw89_pci_ctrl_wpdma_pcie_be(rtwdev, true);
+	rtw89_pci_ctrl_txdma_ch_be(rtwdev, true, true);
+	rtw89_pci_configure_mit_be(rtwdev);
+
+	return 0;
+}
+
 const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
 	.mac_pre_init = rtw89_pci_ops_mac_pre_init_be,
+	.mac_post_init = rtw89_pci_ops_mac_post_init_be,
 
 	.clr_idx_all = rtw89_pci_clr_idx_all_be,
 };
