@@ -3630,6 +3630,12 @@ void ext4_set_aops(struct inode *inode)
 		inode->i_mapping->a_ops = &ext4_aops;
 }
 
+/*
+ * Here we can't skip an unwritten buffer even though it usually reads zero
+ * because it might have data in pagecache (eg, if called from ext4_zero_range,
+ * ext4_punch_hole, etc) which needs to be properly zeroed out. Otherwise a
+ * racing writeback can come later and flush the stale pagecache to disk.
+ */
 static int __ext4_block_zero_page_range(handle_t *handle,
 		struct address_space *mapping, loff_t from, loff_t length)
 {
