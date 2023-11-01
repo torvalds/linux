@@ -399,12 +399,22 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 			struct bucket_alloc_state *s,
 			struct closure *cl)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
+	struct btree_iter iter, citer;
+	struct bkey_s_c k, ck;
 	struct open_bucket *ob = NULL;
 	u64 alloc_start = max_t(u64, ca->mi.first_bucket, ca->new_fs_bucket_idx);
 	u64 alloc_cursor = max(alloc_start, READ_ONCE(ca->alloc_cursor));
 	int ret;
+
+	/*
+	 * Scan with an uncached iterator to avoid polluting the key cache. An
+	 * uncached iter will return a cached key if one exists, but if not
+	 * there is no other underlying protection for the associated key cache
+	 * slot. To avoid racing bucket allocations, look up the cached key slot
+	 * of any likely allocation candidate before attempting to proceed with
+	 * the allocation. This provides proper exclusion on the associated
+	 * bucket.
+	 */
 again:
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_alloc, POS(ca->dev_idx, alloc_cursor),
 			   BTREE_ITER_SLOTS, k, ret) {
@@ -419,13 +429,25 @@ again:
 			continue;
 
 		a = bch2_alloc_to_v4(k, &a_convert);
-
 		if (a->data_type != BCH_DATA_free)
 			continue;
+
+		/* now check the cached key to serialize concurrent allocs of the bucket */
+		ck = bch2_bkey_get_iter(trans, &citer, BTREE_ID_alloc, k.k->p, BTREE_ITER_CACHED);
+		ret = bkey_err(ck);
+		if (ret)
+			break;
+
+		a = bch2_alloc_to_v4(ck, &a_convert);
+		if (a->data_type != BCH_DATA_free)
+			goto next;
 
 		s->buckets_seen++;
 
 		ob = __try_alloc_bucket(trans->c, ca, k.k->p.offset, watermark, a, s, cl);
+next:
+		citer.path->preserve = false;
+		bch2_trans_iter_exit(trans, &citer);
 		if (ob)
 			break;
 	}
