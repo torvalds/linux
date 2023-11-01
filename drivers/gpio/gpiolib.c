@@ -20,6 +20,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 
 #include <linux/gpio.h>
 #include <linux/gpio/driver.h>
@@ -146,27 +147,49 @@ struct gpio_desc *gpio_to_desc(unsigned gpio)
 }
 EXPORT_SYMBOL_GPL(gpio_to_desc);
 
-/**
- * gpiochip_get_desc - get the GPIO descriptor corresponding to the given
- *                     hardware number for this chip
- * @gc: GPIO chip
- * @hwnum: hardware number of the GPIO for this chip
- *
- * Returns:
- * A pointer to the GPIO descriptor or ``ERR_PTR(-EINVAL)`` if no GPIO exists
- * in the given chip for the specified hardware number.
- */
+/* This function is deprecated and will be removed soon, don't use. */
 struct gpio_desc *gpiochip_get_desc(struct gpio_chip *gc,
 				    unsigned int hwnum)
 {
-	struct gpio_device *gdev = gc->gpiodev;
+	return gpio_device_get_desc(gc->gpiodev, hwnum);
+}
+EXPORT_SYMBOL_GPL(gpiochip_get_desc);
+
+/**
+ * gpio_device_get_desc() - get the GPIO descriptor corresponding to the given
+ *                          hardware number for this GPIO device
+ * @gdev: GPIO device to get the descriptor from
+ * @hwnum: hardware number of the GPIO for this chip
+ *
+ * Returns:
+ * A pointer to the GPIO descriptor or %EINVAL if no GPIO exists in the given
+ * chip for the specified hardware number or %ENODEV if the underlying chip
+ * already vanished.
+ *
+ * The reference count of struct gpio_device is *NOT* increased like when the
+ * GPIO is being requested for exclusive usage. It's up to the caller to make
+ * sure the GPIO device will stay alive together with the descriptor returned
+ * by this function.
+ */
+struct gpio_desc *
+gpio_device_get_desc(struct gpio_device *gdev, unsigned int hwnum)
+{
+	struct gpio_chip *gc;
+
+	/*
+	 * FIXME: This will be locked once we protect gdev->chip everywhere
+	 * with SRCU.
+	 */
+	gc = gdev->chip;
+	if (!gc)
+		return ERR_PTR(-ENODEV);
 
 	if (hwnum >= gdev->ngpio)
 		return ERR_PTR(-EINVAL);
 
 	return &gdev->descs[hwnum];
 }
-EXPORT_SYMBOL_GPL(gpiochip_get_desc);
+EXPORT_SYMBOL_GPL(gpio_device_get_desc);
 
 /**
  * desc_to_gpio - convert a GPIO descriptor to the integer namespace
@@ -196,6 +219,61 @@ struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
 	return desc->gdev->chip;
 }
 EXPORT_SYMBOL_GPL(gpiod_to_chip);
+
+/**
+ * gpiod_to_gpio_device() - Return the GPIO device to which this descriptor
+ *                          belongs.
+ * @desc: Descriptor for which to return the GPIO device.
+ *
+ * This *DOES NOT* increase the reference count of the GPIO device as it's
+ * expected that the descriptor is requested and the users already holds a
+ * reference to the device.
+ *
+ * Returns:
+ * Address of the GPIO device owning this descriptor.
+ */
+struct gpio_device *gpiod_to_gpio_device(struct gpio_desc *desc)
+{
+	if (!desc)
+		return NULL;
+
+	return desc->gdev;
+}
+EXPORT_SYMBOL_GPL(gpiod_to_gpio_device);
+
+/**
+ * gpio_device_get_base() - Get the base GPIO number allocated by this device
+ * @gdev: GPIO device
+ *
+ * Returns:
+ * First GPIO number in the global GPIO numberspace for this device.
+ */
+int gpio_device_get_base(struct gpio_device *gdev)
+{
+	return gdev->base;
+}
+EXPORT_SYMBOL_GPL(gpio_device_get_base);
+
+/**
+ * gpio_device_get_chip() - Get the gpio_chip implementation of this GPIO device
+ * @gdev: GPIO device
+ *
+ * Returns:
+ * Address of the GPIO chip backing this device.
+ *
+ * Until we can get rid of all non-driver users of struct gpio_chip, we must
+ * provide a way of retrieving the pointer to it from struct gpio_device. This
+ * is *NOT* safe as the GPIO API is considered to be hot-unpluggable and the
+ * chip can dissapear at any moment (unlike reference-counted struct
+ * gpio_device).
+ *
+ * Use at your own risk.
+ */
+struct gpio_chip *gpio_device_get_chip(struct gpio_device *gdev)
+{
+	return gdev->chip;
+}
+EXPORT_SYMBOL_GPL(gpio_device_get_chip);
 
 /* dynamic allocation of GPIOs, e.g. on a hotplugged device */
 static int gpiochip_find_base(int ngpio)
@@ -1014,16 +1092,10 @@ void gpiochip_remove(struct gpio_chip *gc)
 }
 EXPORT_SYMBOL_GPL(gpiochip_remove);
 
-/**
- * gpiochip_find() - iterator for locating a specific gpio_chip
- * @data: data to pass to match function
- * @match: Callback function to check gpio_chip
+/*
+ * FIXME: This will be removed soon.
  *
- * Similar to bus_find_device.  It returns a reference to a gpio_chip as
- * determined by a user supplied @match callback.  The callback should return
- * 0 if the device doesn't match and non-zero if it does.  If the callback is
- * non-zero, this function will return to the caller and not iterate over any
- * more gpio_chips.
+ * This function is depracated, don't use.
  */
 struct gpio_chip *gpiochip_find(void *data,
 				int (*match)(struct gpio_chip *gc,
@@ -1031,32 +1103,142 @@ struct gpio_chip *gpiochip_find(void *data,
 {
 	struct gpio_device *gdev;
 	struct gpio_chip *gc = NULL;
-	unsigned long flags;
 
-	spin_lock_irqsave(&gpio_lock, flags);
-	list_for_each_entry(gdev, &gpio_devices, list)
-		if (gdev->chip && match(gdev->chip, data)) {
-			gc = gdev->chip;
-			break;
-		}
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
+	gdev = gpio_device_find(data, match);
+	if (gdev) {
+		gc = gdev->chip;
+		gpio_device_put(gdev);
+	}
 
 	return gc;
 }
 EXPORT_SYMBOL_GPL(gpiochip_find);
 
-static int gpiochip_match_name(struct gpio_chip *gc, void *data)
+/**
+ * gpio_device_find() - find a specific GPIO device
+ * @data: data to pass to match function
+ * @match: Callback function to check gpio_chip
+ *
+ * Returns:
+ * New reference to struct gpio_device.
+ *
+ * Similar to bus_find_device(). It returns a reference to a gpio_device as
+ * determined by a user supplied @match callback. The callback should return
+ * 0 if the device doesn't match and non-zero if it does. If the callback
+ * returns non-zero, this function will return to the caller and not iterate
+ * over any more gpio_devices.
+ *
+ * The callback takes the GPIO chip structure as argument. During the execution
+ * of the callback function the chip is protected from being freed. TODO: This
+ * actually has yet to be implemented.
+ *
+ * If the function returns non-NULL, the returned reference must be freed by
+ * the caller using gpio_device_put().
+ */
+struct gpio_device *gpio_device_find(void *data,
+				     int (*match)(struct gpio_chip *gc,
+						  void *data))
 {
-	const char *name = data;
+	struct gpio_device *gdev;
 
-	return !strcmp(gc->label, name);
+	/*
+	 * Not yet but in the future the spinlock below will become a mutex.
+	 * Annotate this function before anyone tries to use it in interrupt
+	 * context like it happened with gpiochip_find().
+	 */
+	might_sleep();
+
+	guard(spinlock_irqsave)(&gpio_lock);
+
+	list_for_each_entry(gdev, &gpio_devices, list) {
+		if (gdev->chip && match(gdev->chip, data))
+			return gpio_device_get(gdev);
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(gpio_device_find);
+
+static int gpio_chip_match_by_label(struct gpio_chip *gc, void *label)
+{
+	return gc->label && !strcmp(gc->label, label);
 }
 
-static struct gpio_chip *find_chip_by_name(const char *name)
+/**
+ * gpio_device_find_by_label() - wrapper around gpio_device_find() finding the
+ *                               GPIO device by its backing chip's label
+ * @label: Label to lookup
+ *
+ * Returns:
+ * Reference to the GPIO device or NULL. Reference must be released with
+ * gpio_device_put().
+ */
+struct gpio_device *gpio_device_find_by_label(const char *label)
 {
-	return gpiochip_find((void *)name, gpiochip_match_name);
+	return gpio_device_find((void *)label, gpio_chip_match_by_label);
 }
+EXPORT_SYMBOL_GPL(gpio_device_find_by_label);
+
+static int gpio_chip_match_by_fwnode(struct gpio_chip *gc, void *fwnode)
+{
+	return device_match_fwnode(&gc->gpiodev->dev, fwnode);
+}
+
+/**
+ * gpio_device_find_by_fwnode() - wrapper around gpio_device_find() finding
+ *                                the GPIO device by its fwnode
+ * @fwnode: Firmware node to lookup
+ *
+ * Returns:
+ * Reference to the GPIO device or NULL. Reference must be released with
+ * gpio_device_put().
+ */
+struct gpio_device *gpio_device_find_by_fwnode(const struct fwnode_handle *fwnode)
+{
+	return gpio_device_find((void *)fwnode, gpio_chip_match_by_fwnode);
+}
+EXPORT_SYMBOL_GPL(gpio_device_find_by_fwnode);
+
+/**
+ * gpio_device_get() - Increase the reference count of this GPIO device
+ * @gdev: GPIO device to increase the refcount for
+ *
+ * Returns:
+ * Pointer to @gdev.
+ */
+struct gpio_device *gpio_device_get(struct gpio_device *gdev)
+{
+	return to_gpio_device(get_device(&gdev->dev));
+}
+EXPORT_SYMBOL_GPL(gpio_device_get);
+
+/**
+ * gpio_device_put() - Decrease the reference count of this GPIO device and
+ *                     possibly free all resources associated with it.
+ * @gdev: GPIO device to decrease the reference count for
+ */
+void gpio_device_put(struct gpio_device *gdev)
+{
+	put_device(&gdev->dev);
+}
+EXPORT_SYMBOL_GPL(gpio_device_put);
+
+/**
+ * gpio_device_to_device() - Retrieve the address of the underlying struct
+ *                           device.
+ * @gdev: GPIO device for which to return the address.
+ *
+ * This does not increase the reference count of the GPIO device nor the
+ * underlying struct device.
+ *
+ * Returns:
+ * Address of struct device backing this GPIO device.
+ */
+struct device *gpio_device_to_device(struct gpio_device *gdev)
+{
+	return &gdev->dev;
+}
+EXPORT_SYMBOL_GPL(gpio_device_to_device);
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 
@@ -2700,7 +2882,6 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 						      PIN_CONFIG_PERSIST_STATE,
 						      !transitory);
 }
-EXPORT_SYMBOL_GPL(gpiod_set_transitory);
 
 /**
  * gpiod_is_active_low - test whether a GPIO is active-low or not
@@ -3786,7 +3967,6 @@ EXPORT_SYMBOL_GPL(gpiod_remove_lookup_table);
  */
 void gpiod_add_hogs(struct gpiod_hog *hogs)
 {
-	struct gpio_chip *gc;
 	struct gpiod_hog *hog;
 
 	mutex_lock(&gpio_machine_hogs_mutex);
@@ -3798,9 +3978,10 @@ void gpiod_add_hogs(struct gpiod_hog *hogs)
 		 * The chip may have been registered earlier, so check if it
 		 * exists and, if so, try to hog the line now.
 		 */
-		gc = find_chip_by_name(hog->chip_label);
-		if (gc)
-			gpiochip_machine_hog(gc, hog);
+		struct gpio_device *gdev __free(gpio_device_put) =
+				gpio_device_find_by_label(hog->chip_label);
+		if (gdev)
+			gpiochip_machine_hog(gpio_device_get_chip(gdev), hog);
 	}
 
 	mutex_unlock(&gpio_machine_hogs_mutex);
@@ -3823,8 +4004,6 @@ static struct gpiod_lookup_table *gpiod_find_lookup_table(struct device *dev)
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct gpiod_lookup_table *table;
 
-	mutex_lock(&gpio_lookup_lock);
-
 	list_for_each_entry(table, &gpio_lookup_list, list) {
 		if (table->dev_id && dev_id) {
 			/*
@@ -3832,21 +4011,18 @@ static struct gpiod_lookup_table *gpiod_find_lookup_table(struct device *dev)
 			 * a match
 			 */
 			if (!strcmp(table->dev_id, dev_id))
-				goto found;
+				return table;
 		} else {
 			/*
 			 * One of the pointers is NULL, so both must be to have
 			 * a match
 			 */
 			if (dev_id == table->dev_id)
-				goto found;
+				return table;
 		}
 	}
-	table = NULL;
 
-found:
-	mutex_unlock(&gpio_lookup_lock);
-	return table;
+	return NULL;
 }
 
 static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
@@ -3855,14 +4031,15 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 	struct gpio_desc *desc = ERR_PTR(-ENOENT);
 	struct gpiod_lookup_table *table;
 	struct gpiod_lookup *p;
+	struct gpio_chip *gc;
+
+	guard(mutex)(&gpio_lookup_lock);
 
 	table = gpiod_find_lookup_table(dev);
 	if (!table)
 		return desc;
 
 	for (p = &table->table[0]; p->key; p++) {
-		struct gpio_chip *gc;
-
 		/* idx must always match exactly */
 		if (p->idx != idx)
 			continue;
@@ -3883,9 +4060,9 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 			return ERR_PTR(-EPROBE_DEFER);
 		}
 
-		gc = find_chip_by_name(p->key);
-
-		if (!gc) {
+		struct gpio_device *gdev __free(gpio_device_put) =
+					gpio_device_find_by_label(p->key);
+		if (!gdev) {
 			/*
 			 * As the lookup table indicates a chip with
 			 * p->key should exist, assume it may
@@ -3898,6 +4075,8 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 			return ERR_PTR(-EPROBE_DEFER);
 		}
 
+		gc = gpio_device_get_chip(gdev);
+
 		if (gc->ngpio <= p->chip_hwnum) {
 			dev_err(dev,
 				"requested GPIO %u (%u) is out of range [0..%u] for chip %s\n",
@@ -3906,7 +4085,7 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 			return ERR_PTR(-EINVAL);
 		}
 
-		desc = gpiochip_get_desc(gc, p->chip_hwnum);
+		desc = gpio_device_get_desc(gdev, p->chip_hwnum);
 		*flags = p->flags;
 
 		return desc;
@@ -3921,15 +4100,18 @@ static int platform_gpio_count(struct device *dev, const char *con_id)
 	struct gpiod_lookup *p;
 	unsigned int count = 0;
 
-	table = gpiod_find_lookup_table(dev);
-	if (!table)
-		return -ENOENT;
+	scoped_guard(mutex, &gpio_lookup_lock) {
+		table = gpiod_find_lookup_table(dev);
+		if (!table)
+			return -ENOENT;
 
-	for (p = &table->table[0]; p->key; p++) {
-		if ((con_id && p->con_id && !strcmp(con_id, p->con_id)) ||
-		    (!con_id && !p->con_id))
-			count++;
+		for (p = &table->table[0]; p->key; p++) {
+			if ((con_id && p->con_id && !strcmp(con_id, p->con_id)) ||
+			    (!con_id && !p->con_id))
+				count++;
+		}
 	}
+
 	if (!count)
 		return -ENOENT;
 

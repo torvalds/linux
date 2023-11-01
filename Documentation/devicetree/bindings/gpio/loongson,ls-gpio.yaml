@@ -11,9 +11,22 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - loongson,ls2k-gpio
-      - loongson,ls7a-gpio
+    oneOf:
+      - enum:
+          - loongson,ls2k-gpio
+          - loongson,ls2k0500-gpio0
+          - loongson,ls2k0500-gpio1
+          - loongson,ls2k2000-gpio0
+          - loongson,ls2k2000-gpio1
+          - loongson,ls2k2000-gpio2
+          - loongson,ls3a5000-gpio
+          - loongson,ls7a-gpio
+      - items:
+          - const: loongson,ls2k1000-gpio
+          - const: loongson,ls2k-gpio
+      - items:
+          - const: loongson,ls7a1000-gpio
+          - const: loongson,ls7a-gpio
 
   reg:
     maxItems: 1
@@ -49,7 +62,7 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     gpio0: gpio@1fe00500 {
-      compatible = "loongson,ls2k-gpio";
+      compatible = "loongson,ls2k1000-gpio", "loongson,ls2k-gpio";
       reg = <0x1fe00500 0x38>;
       ngpios = <64>;
       #gpio-cells = <2>;

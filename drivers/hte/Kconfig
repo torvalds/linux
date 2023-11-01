@@ -17,6 +17,7 @@ if HTE
 config HTE_TEGRA194
 	tristate "NVIDIA Tegra194 HTE Support"
 	depends on ARCH_TEGRA_194_SOC
+	depends on GPIOLIB
 	help
 	  Enable this option for integrated hardware timestamping engine also
 	  known as generic timestamping engine (GTE) support on NVIDIA Tegra194

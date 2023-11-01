@@ -47,6 +47,7 @@ static const struct x86_i2c_client_info acer_b1_750_i2c_clients[] __initconst = 
 			.index = 3,
 			.trigger = ACPI_EDGE_SENSITIVE,
 			.polarity = ACPI_ACTIVE_LOW,
+			.con_id = "NVT-ts_irq",
 		},
 	}, {
 		/* BMA250E accelerometer */
@@ -62,6 +63,7 @@ static const struct x86_i2c_client_info acer_b1_750_i2c_clients[] __initconst = 
 			.index = 25,
 			.trigger = ACPI_LEVEL_SENSITIVE,
 			.polarity = ACPI_ACTIVE_HIGH,
+			.con_id = "bma250e_irq",
 		},
 	},
 };
@@ -174,6 +176,7 @@ static const struct x86_i2c_client_info chuwi_hi8_i2c_clients[] __initconst = {
 			.index = 23,
 			.trigger = ACPI_LEVEL_SENSITIVE,
 			.polarity = ACPI_ACTIVE_HIGH,
+			.con_id = "bma250e_irq",
 		},
 	},
 };
@@ -312,6 +315,7 @@ static const struct x86_i2c_client_info medion_lifetab_s10346_i2c_clients[] __in
 			.index = 23,
 			.trigger = ACPI_EDGE_SENSITIVE,
 			.polarity = ACPI_ACTIVE_HIGH,
+			.con_id = "kxtj21009_irq",
 		},
 	}, {
 		/* goodix touchscreen */
@@ -402,6 +406,7 @@ static const struct x86_i2c_client_info nextbook_ares8_i2c_clients[] __initconst
 			.index = 3,
 			.trigger = ACPI_EDGE_SENSITIVE,
 			.polarity = ACPI_ACTIVE_LOW,
+			.con_id = "ft5416_irq",
 		},
 	},
 };
@@ -460,6 +465,7 @@ static const struct x86_i2c_client_info nextbook_ares8a_i2c_clients[] __initcons
 			.index = 17,
 			.trigger = ACPI_EDGE_SENSITIVE,
 			.polarity = ACPI_ACTIVE_LOW,
+			.con_id = "ft5416_irq",
 		},
 	},
 };
@@ -505,11 +511,6 @@ static const struct x86_gpio_button peaq_c1010_button __initconst = {
 const struct x86_dev_info peaq_c1010_info __initconst = {
 	.gpio_button = &peaq_c1010_button,
 	.gpio_button_count = 1,
-	/*
-	 * Move the ACPI event handler used by the broken WMI interface out of
-	 * the way. This is the only event handler on INT33FC:00.
-	 */
-	.invalid_aei_gpiochip = "INT33FC:00",
 };
 
 /*

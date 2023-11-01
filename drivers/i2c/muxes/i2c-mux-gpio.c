@@ -14,8 +14,7 @@
 #include <linux/slab.h>
 #include <linux/bits.h>
 #include <linux/gpio/consumer.h>
-/* FIXME: stop poking around inside gpiolib */
-#include "../../gpio/gpiolib.h"
+#include <linux/gpio/driver.h>
 
 struct gpiomux {
 	struct i2c_mux_gpio_platform_data data;
@@ -178,7 +177,8 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < ngpios; i++) {
-		struct device *gpio_dev;
+		struct gpio_device *gdev;
+		struct device *dev;
 		struct gpio_desc *gpiod;
 		enum gpiod_flags flag;
 
@@ -197,9 +197,9 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 		if (!muxc->mux_locked)
 			continue;
 
-		/* FIXME: find a proper way to access the GPIO device */
-		gpio_dev = &gpiod->gdev->dev;
-		muxc->mux_locked = i2c_root_adapter(gpio_dev) == root;
+		gdev = gpiod_to_gpio_device(gpiod);
+		dev = gpio_device_to_device(gdev);
+		muxc->mux_locked = i2c_root_adapter(dev) == root;
 	}
 
 	if (muxc->mux_locked)
