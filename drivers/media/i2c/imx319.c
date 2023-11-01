@@ -2463,19 +2463,21 @@ static int imx319_probe(struct i2c_client *client)
 		goto error_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor(&imx319->sd);
-	if (ret < 0)
-		goto error_media_entity;
-
 	/* Set the device's state to active if it's in D0 state. */
 	if (full_power)
 		pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
+	ret = v4l2_async_register_subdev_sensor(&imx319->sd);
+	if (ret < 0)
+		goto error_media_entity_pm;
+
 	return 0;
 
-error_media_entity:
+error_media_entity_pm:
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 	media_entity_cleanup(&imx319->sd.entity);
 
 error_handler_free:
