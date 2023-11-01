@@ -2432,7 +2432,9 @@ static int gfx_v12_0_cp_compute_load_microcode_rs64(struct amdgpu_device *adev)
 		return r;
 	}
 
-	r = amdgpu_bo_create_reserved(adev, fw_data_size,
+	r = amdgpu_bo_create_reserved(adev,
+				      ALIGN(fw_data_size, 64 * 1024) *
+				      adev->gfx.mec.num_pipe_per_mec,
 				      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
 				      &adev->gfx.mec.mec_fw_data_obj,
 				      &adev->gfx.mec.mec_fw_data_gpu_addr,
@@ -2444,7 +2446,9 @@ static int gfx_v12_0_cp_compute_load_microcode_rs64(struct amdgpu_device *adev)
 	}
 
 	memcpy(fw_ucode_ptr, fw_ucode, fw_ucode_size);
-	memcpy(fw_data_ptr, fw_data, fw_data_size);
+	for (i = 0; i < adev->gfx.mec.num_pipe_per_mec; i++) {
+		memcpy(fw_data_ptr + i * ALIGN(fw_data_size, 64 * 1024) / 4, fw_data, fw_data_size);
+	}
 
 	amdgpu_bo_kunmap(adev->gfx.mec.mec_fw_obj);
 	amdgpu_bo_kunmap(adev->gfx.mec.mec_fw_data_obj);
@@ -2467,9 +2471,11 @@ static int gfx_v12_0_cp_compute_load_microcode_rs64(struct amdgpu_device *adev)
 		soc24_grbm_select(adev, 1, i, 0, 0);
 
 		WREG32_SOC15(GC, 0, regCP_MEC_MDBASE_LO,
-			     lower_32_bits(adev->gfx.mec.mec_fw_data_gpu_addr));
+			     lower_32_bits(adev->gfx.mec.mec_fw_data_gpu_addr +
+					   i * ALIGN(fw_data_size, 64 * 1024)));
 		WREG32_SOC15(GC, 0, regCP_MEC_MDBASE_HI,
-			     upper_32_bits(adev->gfx.mec.mec_fw_data_gpu_addr));
+			     upper_32_bits(adev->gfx.mec.mec_fw_data_gpu_addr +
+					   i * ALIGN(fw_data_size, 64 * 1024)));
 
 		WREG32_SOC15(GC, 0, regCP_CPC_IC_BASE_LO,
 			     lower_32_bits(adev->gfx.mec.mec_fw_gpu_addr));
