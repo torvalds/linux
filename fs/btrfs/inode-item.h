@@ -4,6 +4,7 @@
 #define BTRFS_INODE_ITEM_H
 
 #include <linux/types.h>
+#include <linux/crc32c.h>
 
 struct btrfs_trans_handle;
 struct btrfs_root;
@@ -12,6 +13,7 @@ struct btrfs_key;
 struct btrfs_inode_extref;
 struct btrfs_inode;
 struct extent_buffer;
+struct fscrypt_str;
 
 /*
  * Return this if we need to call truncate_block for the last bit of the
@@ -74,6 +76,12 @@ static inline void btrfs_inode_split_flags(u64 inode_item_flags,
 {
 	*flags = (u32)inode_item_flags;
 	*ro_flags = (u32)(inode_item_flags >> 32);
+}
+
+/* Figure the key offset of an extended inode ref. */
+static inline u64 btrfs_extref_hash(u64 parent_objectid, const char *name, int len)
+{
+       return (u64)crc32c(parent_objectid, name, len);
 }
 
 int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,

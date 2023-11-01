@@ -15,6 +15,16 @@
 #define TNF_FAULT_LOCAL	0x08
 #define TNF_MIGRATE_FAIL 0x10
 
+enum numa_vmaskip_reason {
+	NUMAB_SKIP_UNSUITABLE,
+	NUMAB_SKIP_SHARED_RO,
+	NUMAB_SKIP_INACCESSIBLE,
+	NUMAB_SKIP_SCAN_DELAY,
+	NUMAB_SKIP_PID_INACTIVE,
+	NUMAB_SKIP_IGNORE_PID,
+	NUMAB_SKIP_SEQ_COMPLETED,
+};
+
 #ifdef CONFIG_NUMA_BALANCING
 extern void task_numa_fault(int last_node, int node, int pages, int flags);
 extern pid_t task_numa_group_id(struct task_struct *p);

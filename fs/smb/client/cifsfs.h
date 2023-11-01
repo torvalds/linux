@@ -127,7 +127,7 @@ extern int cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 			struct dentry *direntry, const char *symname);
 
 #ifdef CONFIG_CIFS_XATTR
-extern const struct xattr_handler *cifs_xattr_handlers[];
+extern const struct xattr_handler * const cifs_xattr_handlers[];
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
 #else
 # define cifs_xattr_handlers NULL

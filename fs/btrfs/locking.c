@@ -8,6 +8,7 @@
 #include <linux/spinlock.h>
 #include <linux/page-flags.h>
 #include <asm/bug.h>
+#include <trace/events/btrfs.h>
 #include "misc.h"
 #include "ctree.h"
 #include "extent_io.h"
@@ -73,6 +74,7 @@ static struct btrfs_lockdep_keyset {
 	{ .id = BTRFS_UUID_TREE_OBJECTID,	DEFINE_NAME("uuid")	},
 	{ .id = BTRFS_FREE_SPACE_TREE_OBJECTID,	DEFINE_NAME("free-space") },
 	{ .id = BTRFS_BLOCK_GROUP_TREE_OBJECTID, DEFINE_NAME("block-group") },
+	{ .id = BTRFS_RAID_STRIPE_TREE_OBJECTID, DEFINE_NAME("raid-stripe") },
 	{ .id = 0,				DEFINE_NAME("tree")	},
 };
 
@@ -100,6 +102,15 @@ void btrfs_maybe_reset_lockdep_class(struct btrfs_root *root, struct extent_buff
 					       eb, btrfs_header_level(eb));
 }
 
+#endif
+
+#ifdef CONFIG_BTRFS_DEBUG
+static void btrfs_set_eb_lock_owner(struct extent_buffer *eb, pid_t owner)
+{
+	eb->lock_owner = owner;
+}
+#else
+static void btrfs_set_eb_lock_owner(struct extent_buffer *eb, pid_t owner) { }
 #endif
 
 /*
@@ -164,7 +175,7 @@ int btrfs_try_tree_read_lock(struct extent_buffer *eb)
 int btrfs_try_tree_write_lock(struct extent_buffer *eb)
 {
 	if (down_write_trylock(&eb->lock)) {
-		eb->lock_owner = current->pid;
+		btrfs_set_eb_lock_owner(eb, current->pid);
 		trace_btrfs_try_tree_write_lock(eb);
 		return 1;
 	}
@@ -181,7 +192,8 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
 }
 
 /*
- * __btrfs_tree_lock - lock eb for write
+ * Lock eb for write.
+ *
  * @eb:		the eb to lock
  * @nest:	the nesting to use for the lock
  *
@@ -196,7 +208,7 @@ void __btrfs_tree_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
 		start_ns = ktime_get_ns();
 
 	down_write_nested(&eb->lock, nest);
-	eb->lock_owner = current->pid;
+	btrfs_set_eb_lock_owner(eb, current->pid);
 	trace_btrfs_tree_lock(eb, start_ns);
 }
 
@@ -211,7 +223,7 @@ void btrfs_tree_lock(struct extent_buffer *eb)
 void btrfs_tree_unlock(struct extent_buffer *eb)
 {
 	trace_btrfs_tree_unlock(eb);
-	eb->lock_owner = 0;
+	btrfs_set_eb_lock_owner(eb, 0);
 	up_write(&eb->lock);
 }
 

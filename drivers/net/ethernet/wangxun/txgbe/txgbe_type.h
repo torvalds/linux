@@ -88,9 +88,6 @@
 #define TXGBE_XPCS_IDA_ADDR                     0x13000
 #define TXGBE_XPCS_IDA_DATA                     0x13004
 
-/* Part Number String Length */
-#define TXGBE_PBANUM_LENGTH                     32
-
 /* Checksum and EEPROM pointers */
 #define TXGBE_EEPROM_LAST_WORD                  0x800
 #define TXGBE_EEPROM_CHECKSUM                   0x2F
@@ -98,9 +95,6 @@
 #define TXGBE_EEPROM_VERSION_L                  0x1D
 #define TXGBE_EEPROM_VERSION_H                  0x1E
 #define TXGBE_ISCSI_BOOT_CONFIG                 0x07
-#define TXGBE_PBANUM0_PTR                       0x05
-#define TXGBE_PBANUM1_PTR                       0x06
-#define TXGBE_PBANUM_PTR_GUARD                  0xFAFA
 
 #define TXGBE_MAX_MSIX_VECTORS          64
 #define TXGBE_MAX_FDIR_INDICES          63

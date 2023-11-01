@@ -85,6 +85,8 @@ extern const unsigned long kernel_total_size;
 
 unsigned long decompress_kernel(unsigned char *outbuf, unsigned long virt_addr,
 				void (*error)(char *x));
+
+extern struct boot_params *boot_params_ptr;
 #endif
 
 #endif /* _ASM_X86_BOOT_H */

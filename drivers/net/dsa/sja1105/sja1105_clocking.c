@@ -153,14 +153,14 @@ static int sja1105_cgu_mii_tx_clk_config(struct sja1105_private *priv,
 {
 	const struct sja1105_regs *regs = priv->info->regs;
 	struct sja1105_cgu_mii_ctrl mii_tx_clk;
-	const int mac_clk_sources[] = {
+	static const int mac_clk_sources[] = {
 		CLKSRC_MII0_TX_CLK,
 		CLKSRC_MII1_TX_CLK,
 		CLKSRC_MII2_TX_CLK,
 		CLKSRC_MII3_TX_CLK,
 		CLKSRC_MII4_TX_CLK,
 	};
-	const int phy_clk_sources[] = {
+	static const int phy_clk_sources[] = {
 		CLKSRC_IDIV0,
 		CLKSRC_IDIV1,
 		CLKSRC_IDIV2,
@@ -194,7 +194,7 @@ sja1105_cgu_mii_rx_clk_config(struct sja1105_private *priv, int port)
 	const struct sja1105_regs *regs = priv->info->regs;
 	struct sja1105_cgu_mii_ctrl mii_rx_clk;
 	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
-	const int clk_sources[] = {
+	static const int clk_sources[] = {
 		CLKSRC_MII0_RX_CLK,
 		CLKSRC_MII1_RX_CLK,
 		CLKSRC_MII2_RX_CLK,
@@ -221,7 +221,7 @@ sja1105_cgu_mii_ext_tx_clk_config(struct sja1105_private *priv, int port)
 	const struct sja1105_regs *regs = priv->info->regs;
 	struct sja1105_cgu_mii_ctrl mii_ext_tx_clk;
 	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
-	const int clk_sources[] = {
+	static const int clk_sources[] = {
 		CLKSRC_IDIV0,
 		CLKSRC_IDIV1,
 		CLKSRC_IDIV2,
@@ -248,7 +248,7 @@ sja1105_cgu_mii_ext_rx_clk_config(struct sja1105_private *priv, int port)
 	const struct sja1105_regs *regs = priv->info->regs;
 	struct sja1105_cgu_mii_ctrl mii_ext_rx_clk;
 	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
-	const int clk_sources[] = {
+	static const int clk_sources[] = {
 		CLKSRC_IDIV0,
 		CLKSRC_IDIV1,
 		CLKSRC_IDIV2,
@@ -349,8 +349,13 @@ static int sja1105_cgu_rgmii_tx_clk_config(struct sja1105_private *priv,
 	if (speed == priv->info->port_speed[SJA1105_SPEED_1000MBPS]) {
 		clksrc = CLKSRC_PLL0;
 	} else {
-		int clk_sources[] = {CLKSRC_IDIV0, CLKSRC_IDIV1, CLKSRC_IDIV2,
-				     CLKSRC_IDIV3, CLKSRC_IDIV4};
+		static const int clk_sources[] = {
+			CLKSRC_IDIV0,
+			CLKSRC_IDIV1,
+			CLKSRC_IDIV2,
+			CLKSRC_IDIV3,
+			CLKSRC_IDIV4,
+		};
 		clksrc = clk_sources[port];
 	}
 
@@ -638,7 +643,7 @@ static int sja1105_cgu_rmii_ref_clk_config(struct sja1105_private *priv,
 	const struct sja1105_regs *regs = priv->info->regs;
 	struct sja1105_cgu_mii_ctrl ref_clk;
 	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
-	const int clk_sources[] = {
+	static const int clk_sources[] = {
 		CLKSRC_MII0_TX_CLK,
 		CLKSRC_MII1_TX_CLK,
 		CLKSRC_MII2_TX_CLK,

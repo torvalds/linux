@@ -1531,11 +1531,6 @@ void exit_mmap(struct mm_struct *mm)
 	mmap_write_unlock(mm);
 }
 
-int vm_brk(unsigned long addr, unsigned long len)
-{
-	return -ENOMEM;
-}
-
 /*
  * expand (or shrink) an existing mapping, potentially moving it at the same
  * time (controlled by the MREMAP_MAYMOVE flag and available VM space)

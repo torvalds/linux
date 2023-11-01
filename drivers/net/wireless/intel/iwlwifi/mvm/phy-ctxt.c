@@ -192,6 +192,9 @@ int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 	iwl_mvm_phy_ctxt_set_rxchain(mvm, ctxt, &cmd.rlc.rx_chain_info,
 				     chains_static, chains_dynamic);
 
+	IWL_DEBUG_FW(mvm, "Send RLC command: phy=%d, rx_chain_info=0x%x\n",
+		     ctxt->id, cmd.rlc.rx_chain_info);
+
 	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(RLC_CONFIG_CMD,
 						    DATA_PATH_GROUP, 2),
 				    0, sizeof(cmd), &cmd);
@@ -265,6 +268,8 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 			 struct cfg80211_chan_def *chandef,
 			 u8 chains_static, u8 chains_dynamic)
 {
+	int ret;
+
 	WARN_ON(!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
 		ctxt->ref);
 	lockdep_assert_held(&mvm->mutex);
@@ -273,9 +278,16 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 	ctxt->width = chandef->width;
 	ctxt->center_freq1 = chandef->center_freq1;
 
-	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
-				      chains_static, chains_dynamic,
-				      FW_CTXT_ACTION_ADD);
+	ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
+				     chains_static, chains_dynamic,
+				     FW_CTXT_ACTION_ADD);
+
+	if (ret)
+		return ret;
+
+	ctxt->ref++;
+
+	return 0;
 }
 
 /*
@@ -285,6 +297,11 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 {
 	lockdep_assert_held(&mvm->mutex);
+
+	/* If we were taking the first ref, we should have
+	 * called iwl_mvm_phy_ctxt_add.
+	 */
+	WARN_ON(!ctxt->ref);
 	ctxt->ref++;
 }
 
@@ -301,7 +318,11 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP, RLC_CONFIG_CMD), 0) >= 2 &&
+	if (WARN_ON_ONCE(!ctxt->ref))
+		return -EINVAL;
+
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP,
+						   RLC_CONFIG_CMD), 0) >= 2 &&
 	    ctxt->channel == chandef->chan &&
 	    ctxt->width == chandef->width &&
 	    ctxt->center_freq1 == chandef->center_freq1)
@@ -335,6 +356,7 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 
 void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 {
+	struct cfg80211_chan_def chandef;
 	lockdep_assert_held(&mvm->mutex);
 
 	if (WARN_ON_ONCE(!ctxt))
@@ -342,41 +364,13 @@ void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 
 	ctxt->ref--;
 
-	/*
-	 * Move unused phy's to a default channel. When the phy is moved the,
-	 * fw will cleanup immediate quiet bit if it was previously set,
-	 * otherwise we might not be able to reuse this phy.
-	 */
-	if (ctxt->ref == 0) {
-		struct ieee80211_channel *chan = NULL;
-		struct cfg80211_chan_def chandef;
-		struct ieee80211_supported_band *sband;
-		enum nl80211_band band;
-		int channel;
+	if (ctxt->ref)
+		return;
 
-		for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {
-			sband = mvm->hw->wiphy->bands[band];
+	cfg80211_chandef_create(&chandef, ctxt->channel, NL80211_CHAN_NO_HT);
 
-			if (!sband)
-				continue;
-
-			for (channel = 0; channel < sband->n_channels; channel++)
-				if (!(sband->channels[channel].flags &
-						IEEE80211_CHAN_DISABLED)) {
-					chan = &sband->channels[channel];
-					break;
-				}
-
-			if (chan)
-				break;
-		}
-
-		if (WARN_ON(!chan))
-			return;
-
-		cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
-		iwl_mvm_phy_ctxt_changed(mvm, ctxt, &chandef, 1, 1);
-	}
+	iwl_mvm_phy_ctxt_apply(mvm, ctxt, &chandef, 1, 1,
+			       FW_CTXT_ACTION_REMOVE);
 }
 
 static void iwl_mvm_binding_iterator(void *_data, u8 *mac,

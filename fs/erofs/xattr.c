@@ -168,7 +168,7 @@ const struct xattr_handler __maybe_unused erofs_xattr_security_handler = {
 };
 #endif
 
-const struct xattr_handler *erofs_xattr_handlers[] = {
+const struct xattr_handler * const erofs_xattr_handlers[] = {
 	&erofs_xattr_user_handler,
 	&erofs_xattr_trusted_handler,
 #ifdef CONFIG_EROFS_FS_SECURITY

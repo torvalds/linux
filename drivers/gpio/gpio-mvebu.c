@@ -42,9 +42,10 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/pwm.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -1122,7 +1123,6 @@ static void mvebu_gpio_remove_irq_domain(void *data)
 static int mvebu_gpio_probe(struct platform_device *pdev)
 {
 	struct mvebu_gpio_chip *mvchip;
-	const struct of_device_id *match;
 	struct device_node *np = pdev->dev.of_node;
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
@@ -1132,11 +1132,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	int i, cpu, id;
 	int err;
 
-	match = of_match_device(mvebu_gpio_of_match, &pdev->dev);
-	if (match)
-		soc_variant = (unsigned long) match->data;
-	else
-		soc_variant = MVEBU_GPIO_SOC_VARIANT_ORION;
+	soc_variant = (unsigned long)device_get_match_data(&pdev->dev);
 
 	/* Some gpio controllers do not provide irq support */
 	err = platform_irq_count(pdev);

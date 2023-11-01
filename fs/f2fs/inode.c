@@ -386,9 +386,9 @@ static void init_idisk_time(struct inode *inode)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 
-	fi->i_disk_time[0] = inode->i_atime;
+	fi->i_disk_time[0] = inode_get_atime(inode);
 	fi->i_disk_time[1] = inode_get_ctime(inode);
-	fi->i_disk_time[2] = inode->i_mtime;
+	fi->i_disk_time[2] = inode_get_mtime(inode);
 }
 
 static int do_read_inode(struct inode *inode)
@@ -417,12 +417,12 @@ static int do_read_inode(struct inode *inode)
 	inode->i_size = le64_to_cpu(ri->i_size);
 	inode->i_blocks = SECTOR_FROM_BLOCK(le64_to_cpu(ri->i_blocks) - 1);
 
-	inode->i_atime.tv_sec = le64_to_cpu(ri->i_atime);
+	inode_set_atime(inode, le64_to_cpu(ri->i_atime),
+			le32_to_cpu(ri->i_atime_nsec));
 	inode_set_ctime(inode, le64_to_cpu(ri->i_ctime),
 			le32_to_cpu(ri->i_ctime_nsec));
-	inode->i_mtime.tv_sec = le64_to_cpu(ri->i_mtime);
-	inode->i_atime.tv_nsec = le32_to_cpu(ri->i_atime_nsec);
-	inode->i_mtime.tv_nsec = le32_to_cpu(ri->i_mtime_nsec);
+	inode_set_mtime(inode, le64_to_cpu(ri->i_mtime),
+			le32_to_cpu(ri->i_mtime_nsec));
 	inode->i_generation = le32_to_cpu(ri->i_generation);
 	if (S_ISDIR(inode->i_mode))
 		fi->i_current_depth = le32_to_cpu(ri->i_current_depth);
@@ -698,12 +698,12 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 	}
 	set_raw_inline(inode, ri);
 
-	ri->i_atime = cpu_to_le64(inode->i_atime.tv_sec);
-	ri->i_ctime = cpu_to_le64(inode_get_ctime(inode).tv_sec);
-	ri->i_mtime = cpu_to_le64(inode->i_mtime.tv_sec);
-	ri->i_atime_nsec = cpu_to_le32(inode->i_atime.tv_nsec);
-	ri->i_ctime_nsec = cpu_to_le32(inode_get_ctime(inode).tv_nsec);
-	ri->i_mtime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
+	ri->i_atime = cpu_to_le64(inode_get_atime_sec(inode));
+	ri->i_ctime = cpu_to_le64(inode_get_ctime_sec(inode));
+	ri->i_mtime = cpu_to_le64(inode_get_mtime_sec(inode));
+	ri->i_atime_nsec = cpu_to_le32(inode_get_atime_nsec(inode));
+	ri->i_ctime_nsec = cpu_to_le32(inode_get_ctime_nsec(inode));
+	ri->i_mtime_nsec = cpu_to_le32(inode_get_mtime_nsec(inode));
 	if (S_ISDIR(inode->i_mode))
 		ri->i_current_depth =
 			cpu_to_le32(F2FS_I(inode)->i_current_depth);

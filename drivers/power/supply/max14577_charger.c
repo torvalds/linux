@@ -606,14 +606,12 @@ err:
 	return ret;
 }
 
-static int max14577_charger_remove(struct platform_device *pdev)
+static void max14577_charger_remove(struct platform_device *pdev)
 {
 	struct max14577_charger *chg = platform_get_drvdata(pdev);
 
 	device_remove_file(&pdev->dev, &dev_attr_fast_charge_timer);
 	power_supply_unregister(chg->charger);
-
-	return 0;
 }
 
 static const struct platform_device_id max14577_charger_id[] = {
@@ -638,7 +636,7 @@ static struct platform_driver max14577_charger_driver = {
 		.of_match_table = of_max14577_charger_dt_match,
 	},
 	.probe		= max14577_charger_probe,
-	.remove		= max14577_charger_remove,
+	.remove_new	= max14577_charger_remove,
 	.id_table	= max14577_charger_id,
 };
 module_platform_driver(max14577_charger_driver);

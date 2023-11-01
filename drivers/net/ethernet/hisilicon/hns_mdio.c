@@ -610,7 +610,7 @@ static int hns_mdio_probe(struct platform_device *pdev)
  *
  * Return 0 on success, negative on failure
  */
-static int hns_mdio_remove(struct platform_device *pdev)
+static void hns_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus;
 
@@ -618,7 +618,6 @@ static int hns_mdio_remove(struct platform_device *pdev)
 
 	mdiobus_unregister(bus);
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static const struct of_device_id hns_mdio_match[] = {
@@ -636,7 +635,7 @@ MODULE_DEVICE_TABLE(acpi, hns_mdio_acpi_match);
 
 static struct platform_driver hns_mdio_driver = {
 	.probe = hns_mdio_probe,
-	.remove = hns_mdio_remove,
+	.remove_new = hns_mdio_remove,
 	.driver = {
 		   .name = MDIO_DRV_NAME,
 		   .of_match_table = hns_mdio_match,

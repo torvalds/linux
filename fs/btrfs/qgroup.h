@@ -101,8 +101,15 @@
  *     subtree rescan for them.
  */
 
-#define BTRFS_QGROUP_RUNTIME_FLAG_CANCEL_RESCAN		(1UL << 3)
-#define BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING		(1UL << 4)
+/*
+ * These flags share the flags field of the btrfs_qgroup_status_item with the
+ * persisted flags defined in btrfs_tree.h.
+ *
+ * To minimize the chance of collision with new persisted status flags, these
+ * count backwards from the MSB.
+ */
+#define BTRFS_QGROUP_RUNTIME_FLAG_CANCEL_RESCAN		(1ULL << 63)
+#define BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING		(1ULL << 62)
 
 /*
  * Record a dirty extent, and info qgroup to update quota on it
@@ -220,6 +227,33 @@ struct btrfs_qgroup {
 	struct list_head groups;  /* groups this group is member of */
 	struct list_head members; /* groups that are members of this group */
 	struct list_head dirty;   /* dirty groups */
+
+	/*
+	 * For qgroup iteration usage.
+	 *
+	 * The iteration list should always be empty until qgroup_iterator_add()
+	 * is called.  And should be reset to empty after the iteration is
+	 * finished.
+	 */
+	struct list_head iterator;
+
+	/*
+	 * For nested iterator usage.
+	 *
+	 * Here we support at most one level of nested iterator calls like:
+	 *
+	 *	LIST_HEAD(all_qgroups);
+	 *	{
+	 *		LIST_HEAD(local_qgroups);
+	 *		qgroup_iterator_add(local_qgroups, qg);
+	 *		qgroup_iterator_nested_add(all_qgroups, qg);
+	 *		do_some_work(local_qgroups);
+	 *		qgroup_iterator_clean(local_qgroups);
+	 *	}
+	 *	do_some_work(all_qgroups);
+	 *	qgroup_iterator_nested_clean(all_qgroups);
+	 */
+	struct list_head nested_iterator;
 	struct rb_node node;	  /* tree of qgroups */
 
 	/*
@@ -233,6 +267,21 @@ struct btrfs_qgroup {
 	 * Sysfs kobjectid
 	 */
 	struct kobject kobj;
+};
+
+struct btrfs_squota_delta {
+	/* The fstree root this delta counts against. */
+	u64 root;
+	/* The number of bytes in the extent being counted. */
+	u64 num_bytes;
+	/* The number of bytes reserved for this extent. */
+	u64 rsv_bytes;
+	/* The generation the extent was created in. */
+	u64 generation;
+	/* Whether we are using or freeing the extent. */
+	bool is_inc;
+	/* Whether the extent is data or metadata. */
+	bool is_data;
 };
 
 static inline u64 btrfs_qgroup_subvolid(u64 qgroupid)
@@ -249,14 +298,23 @@ enum {
 	ENUM_BIT(QGROUP_FREE),
 };
 
-int btrfs_quota_enable(struct btrfs_fs_info *fs_info);
+enum btrfs_qgroup_mode {
+	BTRFS_QGROUP_MODE_DISABLED,
+	BTRFS_QGROUP_MODE_FULL,
+	BTRFS_QGROUP_MODE_SIMPLE
+};
+
+enum btrfs_qgroup_mode btrfs_qgroup_mode(struct btrfs_fs_info *fs_info);
+bool btrfs_qgroup_enabled(struct btrfs_fs_info *fs_info);
+bool btrfs_qgroup_full_accounting(struct btrfs_fs_info *fs_info);
+int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
+		       struct btrfs_ioctl_quota_ctl_args *quota_ctl_args);
 int btrfs_quota_disable(struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info);
 void btrfs_qgroup_rescan_resume(struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info,
 				     bool interruptible);
-int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
-			      u64 dst);
+int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src, u64 dst);
 int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 			      u64 dst);
 int btrfs_create_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid);
@@ -267,80 +325,16 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info);
 void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info);
 struct btrfs_delayed_extent_op;
 
-/*
- * Inform qgroup to trace one dirty extent, its info is recorded in @record.
- * So qgroup can account it at transaction committing time.
- *
- * No lock version, caller must acquire delayed ref lock and allocated memory,
- * then call btrfs_qgroup_trace_extent_post() after exiting lock context.
- *
- * Return 0 for success insert
- * Return >0 for existing record, caller can free @record safely.
- * Error is not possible
- */
 int btrfs_qgroup_trace_extent_nolock(
 		struct btrfs_fs_info *fs_info,
 		struct btrfs_delayed_ref_root *delayed_refs,
 		struct btrfs_qgroup_extent_record *record);
-
-/*
- * Post handler after qgroup_trace_extent_nolock().
- *
- * NOTE: Current qgroup does the expensive backref walk at transaction
- * committing time with TRANS_STATE_COMMIT_DOING, this blocks incoming
- * new transaction.
- * This is designed to allow btrfs_find_all_roots() to get correct new_roots
- * result.
- *
- * However for old_roots there is no need to do backref walk at that time,
- * since we search commit roots to walk backref and result will always be
- * correct.
- *
- * Due to the nature of no lock version, we can't do backref there.
- * So we must call btrfs_qgroup_trace_extent_post() after exiting
- * spinlock context.
- *
- * TODO: If we can fix and prove btrfs_find_all_roots() can get correct result
- * using current root, then we can move all expensive backref walk out of
- * transaction committing, but not now as qgroup accounting will be wrong again.
- */
 int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
 				   struct btrfs_qgroup_extent_record *qrecord);
-
-/*
- * Inform qgroup to trace one dirty extent, specified by @bytenr and
- * @num_bytes.
- * So qgroup can account it at commit trans time.
- *
- * Better encapsulated version, with memory allocation and backref walk for
- * commit roots.
- * So this can sleep.
- *
- * Return 0 if the operation is done.
- * Return <0 for error, like memory allocation failure or invalid parameter
- * (NULL trans)
- */
 int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 			      u64 num_bytes);
-
-/*
- * Inform qgroup to trace all leaf items of data
- *
- * Return 0 for success
- * Return <0 for error(ENOMEM)
- */
 int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
 				  struct extent_buffer *eb);
-/*
- * Inform qgroup to trace a whole subtree, including all its child tree
- * blocks and data.
- * The root tree block is specified by @root_eb.
- *
- * Normally used by relocation(tree block swap) and subvolume deletion.
- *
- * Return 0 for success
- * Return <0 for error(ENOMEM or tree search error)
- */
 int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 			       struct extent_buffer *root_eb,
 			       u64 root_gen, int root_level);
@@ -350,7 +344,8 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans);
 int btrfs_run_qgroups(struct btrfs_trans_handle *trans);
 int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
-			 u64 objectid, struct btrfs_qgroup_inherit *inherit);
+			 u64 objectid, u64 inode_rootid,
+			 struct btrfs_qgroup_inherit *inherit);
 void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 			       u64 ref_root, u64 num_bytes,
 			       enum btrfs_qgroup_rsv_type type);
@@ -408,20 +403,8 @@ static inline void btrfs_qgroup_free_meta_prealloc(struct btrfs_root *root,
 			BTRFS_QGROUP_RSV_META_PREALLOC);
 }
 
-/*
- * Per-transaction meta reservation should be all freed at transaction commit
- * time
- */
 void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root);
-
-/*
- * Convert @num_bytes of META_PREALLOCATED reservation to META_PERTRANS.
- *
- * This is called when preallocated meta reservation needs to be used.
- * Normally after btrfs_join_transaction() call.
- */
 void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes);
-
 void btrfs_qgroup_check_reserved_leak(struct btrfs_inode *inode);
 
 /* btrfs_qgroup_swapped_blocks related functions */
@@ -439,5 +422,7 @@ int btrfs_qgroup_trace_subtree_after_cow(struct btrfs_trans_handle *trans,
 		struct btrfs_root *root, struct extent_buffer *eb);
 void btrfs_qgroup_destroy_extent_records(struct btrfs_transaction *trans);
 bool btrfs_check_quota_leak(struct btrfs_fs_info *fs_info);
+int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
+			      struct btrfs_squota_delta *delta);
 
 #endif

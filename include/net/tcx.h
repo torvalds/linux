@@ -38,14 +38,9 @@ static inline struct tcx_entry *tcx_entry(struct bpf_mprog_entry *entry)
 	return container_of(bundle, struct tcx_entry, bundle);
 }
 
-static inline struct tcx_link *tcx_link(struct bpf_link *link)
+static inline struct tcx_link *tcx_link(const struct bpf_link *link)
 {
 	return container_of(link, struct tcx_link, link);
-}
-
-static inline const struct tcx_link *tcx_link_const(const struct bpf_link *link)
-{
-	return tcx_link((struct bpf_link *)link);
 }
 
 void tcx_inc(void);

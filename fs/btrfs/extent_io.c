@@ -21,7 +21,6 @@
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "bio.h"
-#include "check-integrity.h"
 #include "locking.h"
 #include "rcu-string.h"
 #include "backref.h"
@@ -395,7 +394,7 @@ again:
 
 	/* then test to make sure it is all still delalloc */
 	ret = test_range_bit(tree, delalloc_start, delalloc_end,
-			     EXTENT_DELALLOC, 1, cached_state);
+			     EXTENT_DELALLOC, cached_state);
 	if (!ret) {
 		unlock_extent(tree, delalloc_start, delalloc_end,
 			      &cached_state);
@@ -2294,7 +2293,7 @@ static int try_release_extent_state(struct extent_io_tree *tree,
 	u64 end = start + PAGE_SIZE - 1;
 	int ret = 1;
 
-	if (test_range_bit(tree, start, end, EXTENT_LOCKED, 0, NULL)) {
+	if (test_range_bit_exists(tree, start, end, EXTENT_LOCKED)) {
 		ret = 0;
 	} else {
 		u32 clear_bits = ~(EXTENT_LOCKED | EXTENT_NODATASUM |
@@ -2353,9 +2352,9 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 				free_extent_map(em);
 				break;
 			}
-			if (test_range_bit(tree, em->start,
-					   extent_map_end(em) - 1,
-					   EXTENT_LOCKED, 0, NULL))
+			if (test_range_bit_exists(tree, em->start,
+						  extent_map_end(em) - 1,
+						  EXTENT_LOCKED))
 				goto next;
 			/*
 			 * If it's not in the list of modified extents, used
@@ -3455,6 +3454,12 @@ static int check_eb_alignment(struct btrfs_fs_info *fs_info, u64 start)
 			  start, fs_info->nodesize);
 		return -EINVAL;
 	}
+	if (!IS_ALIGNED(start, fs_info->nodesize) &&
+	    !test_and_set_bit(BTRFS_FS_UNALIGNED_TREE_BLOCK, &fs_info->flags)) {
+		btrfs_warn(fs_info,
+"tree block not nodesize aligned, start %llu nodesize %u, can be resolved by a full metadata balance",
+			      start, fs_info->nodesize);
+	}
 	return 0;
 }
 
@@ -4248,14 +4253,14 @@ void copy_extent_buffer(const struct extent_buffer *dst,
 }
 
 /*
- * eb_bitmap_offset() - calculate the page and offset of the byte containing the
- * given bit number
- * @eb: the extent buffer
- * @start: offset of the bitmap item in the extent buffer
- * @nr: bit number
- * @page_index: return index of the page in the extent buffer that contains the
- * given bit number
- * @page_offset: return offset into the page given by page_index
+ * Calculate the page and offset of the byte containing the given bit number.
+ *
+ * @eb:           the extent buffer
+ * @start:        offset of the bitmap item in the extent buffer
+ * @nr:           bit number
+ * @page_index:   return index of the page in the extent buffer that contains
+ *                the given bit number
+ * @page_offset:  return offset into the page given by page_index
  *
  * This helper hides the ugliness of finding the byte in an extent buffer which
  * contains a given bit.
@@ -4614,7 +4619,8 @@ int try_release_extent_buffer(struct page *page)
 }
 
 /*
- * btrfs_readahead_tree_block - attempt to readahead a child block
+ * Attempt to readahead a child block.
+ *
  * @fs_info:	the fs_info
  * @bytenr:	bytenr to read
  * @owner_root: objectid of the root that owns this eb
@@ -4653,7 +4659,8 @@ void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * btrfs_readahead_node_child - readahead a node's child block
+ * Readahead a node's child block.
+ *
  * @node:	parent node we're reading from
  * @slot:	slot in the parent node for the child we want to read
  *

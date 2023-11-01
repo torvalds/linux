@@ -93,6 +93,8 @@ static void fpga_region_test_class_find(struct kunit *test)
 
 	region = fpga_region_class_find(NULL, &ctx->region_pdev->dev, fake_region_match);
 	KUNIT_EXPECT_PTR_EQ(test, region, ctx->region);
+
+	put_device(&region->dev);
 }
 
 /*

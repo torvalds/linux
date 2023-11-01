@@ -2719,16 +2719,19 @@ static struct file *gfs2_glockfd_next_file(struct gfs2_glockfd_iter *i)
 	for(;; i->fd++) {
 		struct inode *inode;
 
-		i->file = task_lookup_next_fd_rcu(i->task, &i->fd);
+		i->file = task_lookup_next_fdget_rcu(i->task, &i->fd);
 		if (!i->file) {
 			i->fd = 0;
 			break;
 		}
+
 		inode = file_inode(i->file);
-		if (inode->i_sb != i->sb)
-			continue;
-		if (get_file_rcu(i->file))
+		if (inode->i_sb == i->sb)
 			break;
+
+		rcu_read_unlock();
+		fput(i->file);
+		rcu_read_lock();
 	}
 	rcu_read_unlock();
 	return i->file;

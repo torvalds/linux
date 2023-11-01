@@ -25,19 +25,31 @@
 #define MAX31827_CONFIGURATION_U_TEMP_STAT_MASK	BIT(14)
 #define MAX31827_CONFIGURATION_O_TEMP_STAT_MASK	BIT(15)
 
-#define MAX31827_12_BIT_CNV_TIME	141
-
-#define MAX31827_CNV_1_DIV_64_HZ	0x1
-#define MAX31827_CNV_1_DIV_32_HZ	0x2
-#define MAX31827_CNV_1_DIV_16_HZ	0x3
-#define MAX31827_CNV_1_DIV_4_HZ		0x4
-#define MAX31827_CNV_1_HZ		0x5
-#define MAX31827_CNV_4_HZ		0x6
-#define MAX31827_CNV_8_HZ		0x7
+#define MAX31827_12_BIT_CNV_TIME	140
 
 #define MAX31827_16_BIT_TO_M_DGR(x)	(sign_extend32(x, 15) * 1000 / 16)
 #define MAX31827_M_DGR_TO_16_BIT(x)	(((x) << 4) / 1000)
 #define MAX31827_DEVICE_ENABLE(x)	((x) ? 0xA : 0x0)
+
+enum max31827_cnv {
+	MAX31827_CNV_1_DIV_64_HZ = 1,
+	MAX31827_CNV_1_DIV_32_HZ,
+	MAX31827_CNV_1_DIV_16_HZ,
+	MAX31827_CNV_1_DIV_4_HZ,
+	MAX31827_CNV_1_HZ,
+	MAX31827_CNV_4_HZ,
+	MAX31827_CNV_8_HZ,
+};
+
+static const u16 max31827_conversions[] = {
+	[MAX31827_CNV_1_DIV_64_HZ] = 64000,
+	[MAX31827_CNV_1_DIV_32_HZ] = 32000,
+	[MAX31827_CNV_1_DIV_16_HZ] = 16000,
+	[MAX31827_CNV_1_DIV_4_HZ] = 4000,
+	[MAX31827_CNV_1_HZ] = 1000,
+	[MAX31827_CNV_4_HZ] = 250,
+	[MAX31827_CNV_8_HZ] = 125,
+};
 
 struct max31827_state {
 	/*
@@ -54,14 +66,12 @@ static const struct regmap_config max31827_regmap = {
 	.max_register = 0xA,
 };
 
-static int write_alarm_val(struct max31827_state *st, unsigned int reg,
-			   long val)
+static int shutdown_write(struct max31827_state *st, unsigned int reg,
+			  unsigned int val)
 {
 	unsigned int cfg;
-	unsigned int tmp;
+	unsigned int cnv_rate;
 	int ret;
-
-	val = MAX31827_M_DGR_TO_16_BIT(val);
 
 	/*
 	 * Before the Temperature Threshold Alarm and Alarm Hysteresis Threshold
@@ -82,9 +92,10 @@ static int write_alarm_val(struct max31827_state *st, unsigned int reg,
 	if (ret)
 		goto unlock;
 
-	tmp = cfg & ~(MAX31827_CONFIGURATION_1SHOT_MASK |
+	cnv_rate = MAX31827_CONFIGURATION_CNV_RATE_MASK & cfg;
+	cfg = cfg & ~(MAX31827_CONFIGURATION_1SHOT_MASK |
 		      MAX31827_CONFIGURATION_CNV_RATE_MASK);
-	ret = regmap_write(st->regmap, MAX31827_CONFIGURATION_REG, tmp);
+	ret = regmap_write(st->regmap, MAX31827_CONFIGURATION_REG, cfg);
 	if (ret)
 		goto unlock;
 
@@ -92,11 +103,21 @@ static int write_alarm_val(struct max31827_state *st, unsigned int reg,
 	if (ret)
 		goto unlock;
 
-	ret = regmap_write(st->regmap, MAX31827_CONFIGURATION_REG, cfg);
+	ret = regmap_update_bits(st->regmap, MAX31827_CONFIGURATION_REG,
+				 MAX31827_CONFIGURATION_CNV_RATE_MASK,
+				 cnv_rate);
 
 unlock:
 	mutex_unlock(&st->lock);
 	return ret;
+}
+
+static int write_alarm_val(struct max31827_state *st, unsigned int reg,
+			   long val)
+{
+	val = MAX31827_M_DGR_TO_16_BIT(val);
+
+	return shutdown_write(st, reg, val);
 }
 
 static umode_t max31827_is_visible(const void *state,
@@ -243,32 +264,7 @@ static int max31827_read(struct device *dev, enum hwmon_sensor_types type,
 
 			uval = FIELD_GET(MAX31827_CONFIGURATION_CNV_RATE_MASK,
 					 uval);
-			switch (uval) {
-			case MAX31827_CNV_1_DIV_64_HZ:
-				*val = 64000;
-				break;
-			case MAX31827_CNV_1_DIV_32_HZ:
-				*val = 32000;
-				break;
-			case MAX31827_CNV_1_DIV_16_HZ:
-				*val = 16000;
-				break;
-			case MAX31827_CNV_1_DIV_4_HZ:
-				*val = 4000;
-				break;
-			case MAX31827_CNV_1_HZ:
-				*val = 1000;
-				break;
-			case MAX31827_CNV_4_HZ:
-				*val = 250;
-				break;
-			case MAX31827_CNV_8_HZ:
-				*val = 125;
-				break;
-			default:
-				*val = 0;
-				break;
-			}
+			*val = max31827_conversions[uval];
 		}
 		break;
 
@@ -284,6 +280,7 @@ static int max31827_write(struct device *dev, enum hwmon_sensor_types type,
 			  u32 attr, int channel, long val)
 {
 	struct max31827_state *st = dev_get_drvdata(dev);
+	int res = 1;
 	int ret;
 
 	switch (type) {
@@ -333,39 +330,27 @@ static int max31827_write(struct device *dev, enum hwmon_sensor_types type,
 			if (!st->enable)
 				return -EINVAL;
 
-			switch (val) {
-			case 125:
-				val = MAX31827_CNV_8_HZ;
-				break;
-			case 250:
-				val = MAX31827_CNV_4_HZ;
-				break;
-			case 1000:
-				val = MAX31827_CNV_1_HZ;
-				break;
-			case 4000:
-				val = MAX31827_CNV_1_DIV_4_HZ;
-				break;
-			case 16000:
-				val = MAX31827_CNV_1_DIV_16_HZ;
-				break;
-			case 32000:
-				val = MAX31827_CNV_1_DIV_32_HZ;
-				break;
-			case 64000:
-				val = MAX31827_CNV_1_DIV_64_HZ;
-				break;
-			default:
-				return -EINVAL;
-			}
+			/*
+			 * Convert the desired conversion rate into register
+			 * bits. res is already initialized with 1.
+			 *
+			 * This was inspired by lm73 driver.
+			 */
+			while (res < ARRAY_SIZE(max31827_conversions) &&
+			       val < max31827_conversions[res])
+				res++;
 
-			val = FIELD_PREP(MAX31827_CONFIGURATION_CNV_RATE_MASK,
-					 val);
+			if (res == ARRAY_SIZE(max31827_conversions) ||
+			    val != max31827_conversions[res])
+				return -EINVAL;
+
+			res = FIELD_PREP(MAX31827_CONFIGURATION_CNV_RATE_MASK,
+					 res);
 
 			return regmap_update_bits(st->regmap,
 						  MAX31827_CONFIGURATION_REG,
 						  MAX31827_CONFIGURATION_CNV_RATE_MASK,
-						  val);
+						  res);
 		}
 		break;
 
@@ -426,6 +411,10 @@ static int max31827_probe(struct i2c_client *client)
 	if (IS_ERR(st->regmap))
 		return dev_err_probe(dev, PTR_ERR(st->regmap),
 				     "Failed to allocate regmap.\n");
+
+	err = devm_regulator_get_enable(dev, "vref");
+	if (err)
+		return dev_err_probe(dev, err, "failed to enable regulator\n");
 
 	err = max31827_init_client(st);
 	if (err)

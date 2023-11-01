@@ -28,7 +28,6 @@ config X86_64
 	select ARCH_HAS_GIGANTIC_PAGE
 	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128
 	select ARCH_SUPPORTS_PER_VMA_LOCK
-	select ARCH_USE_CMPXCHG_LOCKREF
 	select HAVE_ARCH_SOFT_DIRTY
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE
@@ -118,6 +117,7 @@ config X86
 	select ARCH_SUPPORTS_LTO_CLANG
 	select ARCH_SUPPORTS_LTO_CLANG_THIN
 	select ARCH_USE_BUILTIN_BSWAP
+	select ARCH_USE_CMPXCHG_LOCKREF		if X86_CMPXCHG64
 	select ARCH_USE_MEMTEST
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
@@ -1534,6 +1534,7 @@ config NUMA
 	depends on X86_64 || (X86_32 && HIGHMEM64G && X86_BIGSMP)
 	default y if X86_BIGSMP
 	select USE_PERCPU_NUMA_NODE_ID
+	select OF_NUMA if OF
 	help
 	  Enable NUMA (Non-Uniform Memory Access) support.
 
@@ -2953,6 +2954,15 @@ config IA32_EMULATION
 	  Include code to run legacy 32-bit programs under a
 	  64-bit kernel. You should likely turn this on, unless you're
 	  100% sure that you don't have any 32-bit programs left.
+
+config IA32_EMULATION_DEFAULT_DISABLED
+	bool "IA32 emulation disabled by default"
+	default n
+	depends on IA32_EMULATION
+	help
+	  Make IA32 emulation disabled by default. This prevents loading 32-bit
+	  processes and access to 32-bit syscalls. If unsure, leave it to its
+	  default value.
 
 config X86_X32_ABI
 	bool "x32 ABI for 64-bit mode"

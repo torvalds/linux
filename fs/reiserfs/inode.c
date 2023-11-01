@@ -1257,11 +1257,9 @@ static void init_inode(struct inode *inode, struct treepath *path)
 		i_uid_write(inode, sd_v1_uid(sd));
 		i_gid_write(inode, sd_v1_gid(sd));
 		inode->i_size = sd_v1_size(sd);
-		inode->i_atime.tv_sec = sd_v1_atime(sd);
-		inode->i_mtime.tv_sec = sd_v1_mtime(sd);
+		inode_set_atime(inode, sd_v1_atime(sd), 0);
+		inode_set_mtime(inode, sd_v1_mtime(sd), 0);
 		inode_set_ctime(inode, sd_v1_ctime(sd), 0);
-		inode->i_atime.tv_nsec = 0;
-		inode->i_mtime.tv_nsec = 0;
 
 		inode->i_blocks = sd_v1_blocks(sd);
 		inode->i_generation = le32_to_cpu(INODE_PKEY(inode)->k_dir_id);
@@ -1311,11 +1309,9 @@ static void init_inode(struct inode *inode, struct treepath *path)
 		i_uid_write(inode, sd_v2_uid(sd));
 		inode->i_size = sd_v2_size(sd);
 		i_gid_write(inode, sd_v2_gid(sd));
-		inode->i_mtime.tv_sec = sd_v2_mtime(sd);
-		inode->i_atime.tv_sec = sd_v2_atime(sd);
+		inode_set_mtime(inode, sd_v2_mtime(sd), 0);
+		inode_set_atime(inode, sd_v2_atime(sd), 0);
 		inode_set_ctime(inode, sd_v2_ctime(sd), 0);
-		inode->i_mtime.tv_nsec = 0;
-		inode->i_atime.tv_nsec = 0;
 		inode->i_blocks = sd_v2_blocks(sd);
 		rdev = sd_v2_rdev(sd);
 		if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
@@ -1370,9 +1366,9 @@ static void inode2sd(void *sd, struct inode *inode, loff_t size)
 	set_sd_v2_uid(sd_v2, i_uid_read(inode));
 	set_sd_v2_size(sd_v2, size);
 	set_sd_v2_gid(sd_v2, i_gid_read(inode));
-	set_sd_v2_mtime(sd_v2, inode->i_mtime.tv_sec);
-	set_sd_v2_atime(sd_v2, inode->i_atime.tv_sec);
-	set_sd_v2_ctime(sd_v2, inode_get_ctime(inode).tv_sec);
+	set_sd_v2_mtime(sd_v2, inode_get_mtime_sec(inode));
+	set_sd_v2_atime(sd_v2, inode_get_atime_sec(inode));
+	set_sd_v2_ctime(sd_v2, inode_get_ctime_sec(inode));
 	set_sd_v2_blocks(sd_v2, to_fake_used_blocks(inode, SD_V2_SIZE));
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
 		set_sd_v2_rdev(sd_v2, new_encode_dev(inode->i_rdev));
@@ -1391,9 +1387,9 @@ static void inode2sd_v1(void *sd, struct inode *inode, loff_t size)
 	set_sd_v1_gid(sd_v1, i_gid_read(inode));
 	set_sd_v1_nlink(sd_v1, inode->i_nlink);
 	set_sd_v1_size(sd_v1, size);
-	set_sd_v1_atime(sd_v1, inode->i_atime.tv_sec);
-	set_sd_v1_ctime(sd_v1, inode_get_ctime(inode).tv_sec);
-	set_sd_v1_mtime(sd_v1, inode->i_mtime.tv_sec);
+	set_sd_v1_atime(sd_v1, inode_get_atime_sec(inode));
+	set_sd_v1_ctime(sd_v1, inode_get_ctime_sec(inode));
+	set_sd_v1_mtime(sd_v1, inode_get_mtime_sec(inode));
 
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
 		set_sd_v1_rdev(sd_v1, new_encode_dev(inode->i_rdev));
@@ -1984,7 +1980,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 
 	/* uid and gid must already be set by the caller for quota init */
 
-	inode->i_mtime = inode->i_atime = inode_set_ctime_current(inode);
+	simple_inode_init_ts(inode);
 	inode->i_size = i_size;
 	inode->i_blocks = 0;
 	inode->i_bytes = 0;

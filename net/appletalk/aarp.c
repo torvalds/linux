@@ -664,7 +664,7 @@ out_unlock:
 
 sendit:
 	if (skb->sk)
-		skb->priority = skb->sk->sk_priority;
+		skb->priority = READ_ONCE(skb->sk->sk_priority);
 	if (dev_queue_xmit(skb))
 		goto drop;
 sent:

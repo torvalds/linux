@@ -87,9 +87,4 @@ static struct platform_driver xgene_reboot_driver = {
 		.of_match_table = xgene_reboot_of_match,
 	},
 };
-
-static int __init xgene_reboot_init(void)
-{
-	return platform_driver_register(&xgene_reboot_driver);
-}
-device_initcall(xgene_reboot_init);
+builtin_platform_driver(xgene_reboot_driver);

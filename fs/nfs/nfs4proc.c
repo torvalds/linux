@@ -10737,7 +10737,7 @@ static const struct xattr_handler nfs4_xattr_nfs4_user_handler = {
 };
 #endif
 
-const struct xattr_handler *nfs4_xattr_handlers[] = {
+const struct xattr_handler * const nfs4_xattr_handlers[] = {
 	&nfs4_xattr_nfs4_acl_handler,
 #if defined(CONFIG_NFS_V4_1)
 	&nfs4_xattr_nfs4_dacl_handler,

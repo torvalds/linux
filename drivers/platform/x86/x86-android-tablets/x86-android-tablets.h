@@ -10,6 +10,7 @@
 #ifndef __PDX86_X86_ANDROID_TABLETS_H
 #define __PDX86_X86_ANDROID_TABLETS_H
 
+#include <linux/gpio/consumer.h>
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>
 #include <linux/irqdomain_defs.h>
@@ -37,6 +38,7 @@ struct x86_acpi_irq_data {
 	int index;
 	int trigger;  /* ACPI_EDGE_SENSITIVE / ACPI_LEVEL_SENSITIVE */
 	int polarity; /* ACPI_ACTIVE_HIGH / ACPI_ACTIVE_LOW / ACPI_ACTIVE_BOTH */
+	const char *con_id;
 };
 
 /* Structs to describe devices to instantiate */
@@ -66,7 +68,6 @@ struct x86_gpio_button {
 };
 
 struct x86_dev_info {
-	char *invalid_aei_gpiochip;
 	const char * const *modules;
 	const struct software_node *bat_swnode;
 	struct gpiod_lookup_table * const *gpiod_lookup_tables;
@@ -82,7 +83,9 @@ struct x86_dev_info {
 	void (*exit)(void);
 };
 
-int x86_android_tablet_get_gpiod(const char *label, int pin, struct gpio_desc **desc);
+int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
+				 bool active_low, enum gpiod_flags dflags,
+				 struct gpio_desc **desc);
 int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data);
 
 /*

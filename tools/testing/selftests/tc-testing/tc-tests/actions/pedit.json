@@ -6,6 +6,9 @@
             "actions",
             "pedit"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -30,6 +33,9 @@
             "actions",
             "pedit"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -56,6 +62,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -81,6 +90,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -106,6 +118,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -131,6 +146,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -156,6 +174,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -206,6 +227,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -231,6 +255,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -256,6 +283,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -281,6 +311,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -306,6 +339,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -331,6 +367,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -356,6 +395,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -381,6 +423,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -406,6 +451,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -431,6 +479,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -456,6 +507,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -481,6 +535,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -506,6 +563,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -531,6 +591,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -556,6 +619,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -581,6 +647,9 @@
             "pedit",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -606,6 +675,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -631,6 +703,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -656,6 +731,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -681,6 +759,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -706,6 +787,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -731,6 +815,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -756,6 +843,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -779,6 +869,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -804,6 +897,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -829,6 +925,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -854,6 +953,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -879,6 +981,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -904,6 +1009,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -929,6 +1037,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -954,6 +1065,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -979,6 +1093,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1004,6 +1121,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1029,6 +1149,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1054,6 +1177,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1079,6 +1205,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1104,6 +1233,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1129,6 +1261,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1154,6 +1289,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1179,6 +1317,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1204,6 +1345,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1229,6 +1373,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1254,6 +1401,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1279,6 +1429,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1304,6 +1457,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1329,6 +1485,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1354,6 +1513,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1379,6 +1541,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1404,6 +1569,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1429,6 +1597,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1454,6 +1625,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1479,6 +1653,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1504,6 +1681,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1554,6 +1734,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1579,6 +1762,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1629,6 +1815,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1654,6 +1843,9 @@
             "pedit",
             "layered_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1680,6 +1872,9 @@
             "layered_op",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",
@@ -1706,6 +1901,9 @@
             "layered_op",
             "raw_op"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action pedit",

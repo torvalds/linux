@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include "gpiolib.h"
 #include "gpiolib-acpi.h"
 
 #define GPIO_SWPORTA_DR		0x00

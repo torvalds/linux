@@ -7,6 +7,7 @@
 #include "block-group.h"
 
 struct btrfs_free_cluster;
+struct btrfs_delayed_ref_head;
 
 enum btrfs_extent_allocation_policy {
 	BTRFS_EXTENT_ALLOC_CLUSTERED,
@@ -91,8 +92,8 @@ int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,
 				     enum btrfs_inline_ref_type is_data);
 u64 hash_extent_data_ref(u64 root_objectid, u64 owner, u64 offset);
 
-int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans, unsigned long count);
-void btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
+int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans, u64 min_bytes);
+u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 				  struct btrfs_delayed_ref_root *delayed_refs,
 				  struct btrfs_delayed_ref_head *head);
 int btrfs_lookup_data_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len);
@@ -102,7 +103,7 @@ int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 int btrfs_pin_extent(struct btrfs_trans_handle *trans, u64 bytenr, u64 num,
 		     int reserved);
 int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
-				    u64 bytenr, u64 num_bytes);
+				    const struct extent_buffer *eb);
 int btrfs_exclude_logged_extents(struct extent_buffer *eb);
 int btrfs_cross_ref_exist(struct btrfs_root *root,
 			  u64 objectid, u64 offset, u64 bytenr, bool strict,
@@ -113,6 +114,7 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 					     const struct btrfs_disk_key *key,
 					     int level, u64 hint,
 					     u64 empty_size,
+					     u64 reloc_src_root,
 					     enum btrfs_lock_nesting nest);
 void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 			   u64 root_id,
@@ -136,12 +138,15 @@ int btrfs_set_disk_extent_flags(struct btrfs_trans_handle *trans,
 				struct extent_buffer *eb, u64 flags);
 int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_ref *ref);
 
+u64 btrfs_get_extent_owner_root(struct btrfs_fs_info *fs_info,
+				struct extent_buffer *leaf, int slot);
 int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 			       u64 start, u64 len, int delalloc);
-int btrfs_pin_reserved_extent(struct btrfs_trans_handle *trans, u64 start, u64 len);
+int btrfs_pin_reserved_extent(struct btrfs_trans_handle *trans,
+			      const struct extent_buffer *eb);
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans);
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans, struct btrfs_ref *generic_ref);
-int __must_check btrfs_drop_snapshot(struct btrfs_root *root, int update_ref,
+int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref,
 				     int for_reloc);
 int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,

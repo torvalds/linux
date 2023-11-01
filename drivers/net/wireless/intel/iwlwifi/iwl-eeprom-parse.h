@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018, 2020-2022 Intel Corporation
+ * Copyright (C) 2005-2014, 2018, 2020-2023 Intel Corporation
  * Copyright (C) 2015 Intel Mobile Communications GmbH
  */
 #ifndef __iwl_eeprom_parse_h__
@@ -61,7 +61,7 @@ struct iwl_nvm_data {
 /**
  * iwl_parse_eeprom_data - parse EEPROM data and return values
  *
- * @dev: device pointer we're parsing for, for debug only
+ * @trans: ransport we're parsing for, for debug only
  * @cfg: device configuration for parsing and overrides
  * @eeprom: the EEPROM data
  * @eeprom_size: length of the EEPROM data

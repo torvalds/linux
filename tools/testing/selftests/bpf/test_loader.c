@@ -69,7 +69,7 @@ static int tester_init(struct test_loader *tester)
 {
 	if (!tester->log_buf) {
 		tester->log_buf_sz = TEST_LOADER_LOG_BUF_SZ;
-		tester->log_buf = malloc(tester->log_buf_sz);
+		tester->log_buf = calloc(tester->log_buf_sz, 1);
 		if (!ASSERT_OK_PTR(tester->log_buf, "tester_log_buf"))
 			return -ENOMEM;
 	}
@@ -538,7 +538,7 @@ void run_subtest(struct test_loader *tester,
 		 bool unpriv)
 {
 	struct test_subspec *subspec = unpriv ? &spec->unpriv : &spec->priv;
-	struct bpf_program *tprog, *tprog_iter;
+	struct bpf_program *tprog = NULL, *tprog_iter;
 	struct test_spec *spec_iter;
 	struct cap_state caps = {};
 	struct bpf_object *tobj;

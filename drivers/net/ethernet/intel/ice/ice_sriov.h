@@ -33,7 +33,7 @@ int
 ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi);
 
 void ice_free_vfs(struct ice_pf *pf);
-void ice_restore_all_vfs_msi_state(struct pci_dev *pdev);
+void ice_restore_all_vfs_msi_state(struct ice_pf *pf);
 
 int
 ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
@@ -60,6 +60,8 @@ void ice_print_vfs_mdd_events(struct ice_pf *pf);
 void ice_print_vf_rx_mdd_event(struct ice_vf *vf);
 bool
 ice_vc_validate_pattern(struct ice_vf *vf, struct virtchnl_proto_hdrs *proto);
+u32 ice_sriov_get_vf_total_msix(struct pci_dev *pdev);
+int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count);
 #else /* CONFIG_PCI_IOV */
 static inline void ice_process_vflr_event(struct ice_pf *pf) { }
 static inline void ice_free_vfs(struct ice_pf *pf) { }
@@ -67,7 +69,7 @@ static inline
 void ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event) { }
 static inline void ice_print_vfs_mdd_events(struct ice_pf *pf) { }
 static inline void ice_print_vf_rx_mdd_event(struct ice_vf *vf) { }
-static inline void ice_restore_all_vfs_msi_state(struct pci_dev *pdev) { }
+static inline void ice_restore_all_vfs_msi_state(struct ice_pf *pf) { }
 
 static inline int
 ice_sriov_configure(struct pci_dev __always_unused *pdev,
@@ -139,6 +141,17 @@ static inline int
 ice_get_vf_stats(struct net_device __always_unused *netdev,
 		 int __always_unused vf_id,
 		 struct ifla_vf_stats __always_unused *vf_stats)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline u32 ice_sriov_get_vf_total_msix(struct pci_dev *pdev)
+{
+	return 0;
+}
+
+static inline int
+ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 {
 	return -EOPNOTSUPP;
 }

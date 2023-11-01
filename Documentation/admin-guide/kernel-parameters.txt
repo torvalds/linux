@@ -580,6 +580,10 @@
 			named mounts. Specifying both "all" and "named" disables
 			all v1 hierarchies.
 
+	cgroup_favordynmods= [KNL] Enable or Disable favordynmods.
+			Format: { "true" | "false" }
+			Defaults to the value of CONFIG_CGROUP_FAVOR_DYNMODS.
+
 	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
 			Format: <string>
 			nosocket -- Disable socket memory accounting.
@@ -1893,6 +1897,12 @@
 			 0 -- machine default
 			 1 -- force brightness inversion
 
+	ia32_emulation=	[X86-64]
+			Format: <bool>
+			When true, allows loading 32-bit programs and executing 32-bit
+			syscalls, essentially overriding IA32_EMULATION_DEFAULT_DISABLED at
+			boot time. When false, unconditionally disables IA32 emulation.
+
 	icn=		[HW,ISDN]
 			Format: <io>[,<membase>[,<icn_id>[,<icn_id2>]]]
 
@@ -2913,6 +2923,38 @@
 			to extract confidential information from the kernel
 			are also disabled.
 
+	locktorture.acq_writer_lim= [KNL]
+			Set the time limit in jiffies for a lock
+			acquisition.  Acquisitions exceeding this limit
+			will result in a splat once they do complete.
+
+	locktorture.bind_readers= [KNL]
+			Specify the list of CPUs to which the readers are
+			to be bound.
+
+	locktorture.bind_writers= [KNL]
+			Specify the list of CPUs to which the writers are
+			to be bound.
+
+	locktorture.call_rcu_chains= [KNL]
+			Specify the number of self-propagating call_rcu()
+			chains to set up.  These are used to ensure that
+			there is a high probability of an RCU grace period
+			in progress at any given time.	Defaults to 0,
+			which disables these call_rcu() chains.
+
+	locktorture.long_hold= [KNL]
+			Specify the duration in milliseconds for the
+			occasional long-duration lock hold time.  Defaults
+			to 100 milliseconds.  Select 0 to disable.
+
+	locktorture.nested_locks= [KNL]
+			Specify the maximum lock nesting depth that
+			locktorture is to exercise, up to a limit of 8
+			(MAX_NESTED_LOCKS).  Specify zero to disable.
+			Note that this parameter is ineffective on types
+			of locks that do not support nested acquisition.
+
 	locktorture.nreaders_stress= [KNL]
 			Set the number of locking read-acquisition kthreads.
 			Defaults to being automatically set based on the
@@ -2927,6 +2969,25 @@
 	locktorture.onoff_interval= [KNL]
 			Set time (s) between CPU-hotplug operations, or
 			zero to disable CPU-hotplug testing.
+
+	locktorture.rt_boost= [KNL]
+			Do periodic testing of real-time lock priority
+			boosting.  Select 0 to disable, 1 to boost
+			only rt_mutex, and 2 to boost unconditionally.
+			Defaults to 2, which might seem to be an
+			odd choice, but which should be harmless for
+			non-real-time spinlocks, due to their disabling
+			of preemption.	Note that non-realtime mutexes
+			disable boosting.
+
+	locktorture.rt_boost_factor= [KNL]
+			Number that determines how often and for how
+			long priority boosting is exercised.  This is
+			scaled down by the number of writers, so that the
+			number of boosts per unit time remains roughly
+			constant as the number of writers increases.
+			On the other hand, the duration of each boost
+			increases with the number of writers.
 
 	locktorture.shuffle_interval= [KNL]
 			Set task-shuffle interval (jiffies).  Shuffling
@@ -2950,12 +3011,12 @@
 	locktorture.torture_type= [KNL]
 			Specify the locking implementation to test.
 
+	locktorture.verbose= [KNL]
+			Enable additional printk() statements.
+
 	locktorture.writer_fifo= [KNL]
 			Run the write-side locktorture kthreads at
 			sched_set_fifo() real-time priority.
-
-	locktorture.verbose= [KNL]
-			Enable additional printk() statements.
 
 	logibm.irq=	[HW,MOUSE] Logitech Bus Mouse Driver
 			Format: <irq>
@@ -4769,6 +4830,13 @@
 			Set maximum number of finished RCU callbacks to
 			process in one batch.
 
+	rcutree.do_rcu_barrier=	[KNL]
+			Request a call to rcu_barrier().  This is
+			throttled so that userspace tests can safely
+			hammer on the sysfs variable if they so choose.
+			If triggered before the RCU grace-period machinery
+			is fully active, this will error out with EAGAIN.
+
 	rcutree.dump_tree=	[KNL]
 			Dump the structure of the rcu_node combining tree
 			out at early boot.  This is used for diagnostic
@@ -5422,6 +5490,12 @@
 			test until boot completes in order to avoid
 			interference.
 
+	refscale.lookup_instances= [KNL]
+			Number of data elements to use for the forms of
+			SLAB_TYPESAFE_BY_RCU testing.  A negative number
+			is negated and multiplied by nr_cpu_ids, while
+			zero specifies nr_cpu_ids.
+
 	refscale.loops= [KNL]
 			Set the number of loops over the synchronization
 			primitive under test.  Increasing this number
@@ -5857,6 +5931,13 @@
 			setting a value of zero disables this feature.
 			This feature may be more efficiently disabled
 			using the csdlock_debug- kernel parameter.
+
+	smp.panic_on_ipistall= [KNL]
+			If a csd_lock_timeout extends for more than
+			the specified number of milliseconds, panic the
+			system.  By default, let CSD-lock acquisition
+			take as long as they take.  Specifying 300,000
+			for this value provides a 5-minute timeout.
 
 	smsc-ircc2.nopnp	[HW] Don't use PNP to discover SMC devices
 	smsc-ircc2.ircc_cfg=	[HW] Device configuration I/O port

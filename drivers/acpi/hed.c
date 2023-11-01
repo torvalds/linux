@@ -57,7 +57,7 @@ static int acpi_hed_add(struct acpi_device *device)
 	hed_handle = device->handle;
 
 	err = acpi_dev_install_notify_handler(device, ACPI_DEVICE_NOTIFY,
-					      acpi_hed_notify);
+					      acpi_hed_notify, device);
 	if (err)
 		hed_handle = NULL;
 

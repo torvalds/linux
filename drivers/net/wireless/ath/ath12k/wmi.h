@@ -2158,6 +2158,9 @@ enum wmi_tlv_service {
 	WMI_MAX_EXT_SERVICE = 256,
 
 	WMI_TLV_SERVICE_REG_CC_EXT_EVENT_SUPPORT = 281,
+
+	WMI_TLV_SERVICE_11BE = 289,
+
 	WMI_MAX_EXT2_SERVICE,
 };
 
@@ -4792,6 +4795,31 @@ struct ath12k_wmi_base {
 };
 
 #define ATH12K_FW_STATS_BUF_SIZE (1024 * 1024)
+
+enum wmi_sys_cap_info_flags {
+	WMI_SYS_CAP_INFO_RXTX_LED	= BIT(0),
+	WMI_SYS_CAP_INFO_RFKILL		= BIT(1),
+};
+
+#define WMI_RFKILL_CFG_GPIO_PIN_NUM		GENMASK(5, 0)
+#define WMI_RFKILL_CFG_RADIO_LEVEL		BIT(6)
+#define WMI_RFKILL_CFG_PIN_AS_GPIO		GENMASK(10, 7)
+
+enum wmi_rfkill_enable_radio {
+	WMI_RFKILL_ENABLE_RADIO_ON	= 0,
+	WMI_RFKILL_ENABLE_RADIO_OFF	= 1,
+};
+
+enum wmi_rfkill_radio_state {
+	WMI_RFKILL_RADIO_STATE_OFF	= 1,
+	WMI_RFKILL_RADIO_STATE_ON	= 2,
+};
+
+struct wmi_rfkill_state_change_event {
+	__le32 gpio_pin_num;
+	__le32 int_type;
+	__le32 radio_state;
+} __packed;
 
 void ath12k_wmi_init_qcn9274(struct ath12k_base *ab,
 			     struct ath12k_wmi_resource_config_arg *config);

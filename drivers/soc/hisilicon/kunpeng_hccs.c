@@ -31,10 +31,6 @@
 
 #include "kunpeng_hccs.h"
 
-/* PCC defines */
-#define HCCS_PCC_SIGNATURE_MASK		0x50434300
-#define HCCS_PCC_STATUS_CMD_COMPLETE	BIT(0)
-
 /*
  * Arbitrary retries in case the remote processor is slow to respond
  * to PCC commands
@@ -187,7 +183,7 @@ static int hccs_check_chan_cmd_complete(struct hccs_dev *hdev)
 	 * deadline_us(timeout_us) until PCC command complete bit is set(cond)
 	 */
 	ret = readw_poll_timeout(&comm_base->status, status,
-				 status & HCCS_PCC_STATUS_CMD_COMPLETE,
+				 status & PCC_STATUS_CMD_COMPLETE,
 				 HCCS_POLL_STATUS_TIME_INTERVAL_US,
 				 cl_info->deadline_us);
 	if (unlikely(ret))
@@ -208,7 +204,7 @@ static int hccs_pcc_cmd_send(struct hccs_dev *hdev, u8 cmd,
 	int ret;
 
 	/* Write signature for this subspace */
-	tmp.signature = HCCS_PCC_SIGNATURE_MASK | hdev->chan_id;
+	tmp.signature = PCC_SIGNATURE | hdev->chan_id;
 	/* Write to the shared command region */
 	tmp.command = cmd;
 	/* Clear cmd complete bit */

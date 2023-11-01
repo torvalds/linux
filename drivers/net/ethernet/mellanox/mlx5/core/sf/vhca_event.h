@@ -28,6 +28,9 @@ int mlx5_modify_vhca_sw_id(struct mlx5_core_dev *dev, u16 function_id, u32 sw_fn
 int mlx5_vhca_event_arm(struct mlx5_core_dev *dev, u16 function_id);
 int mlx5_cmd_query_vhca_state(struct mlx5_core_dev *dev, u16 function_id,
 			      u32 *out, u32 outlen);
+void mlx5_vhca_events_work_enqueue(struct mlx5_core_dev *dev, int idx, struct work_struct *work);
+void mlx5_vhca_event_work_queues_flush(struct mlx5_core_dev *dev);
+
 #else
 
 static inline void mlx5_vhca_state_cap_handle(struct mlx5_core_dev *dev, void *set_hca_cap)

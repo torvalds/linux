@@ -35,6 +35,7 @@
 #include "relocation.h"
 #include "scrub.h"
 #include "super.h"
+#include "raid-stripe-tree.h"
 
 #define BTRFS_BLOCK_GROUP_STRIPE_MASK	(BTRFS_BLOCK_GROUP_RAID0 | \
 					 BTRFS_BLOCK_GROUP_RAID10 | \
@@ -357,20 +358,18 @@ struct list_head * __attribute_const__ btrfs_get_fs_uuids(void)
 }
 
 /*
- * alloc_fs_devices - allocate struct btrfs_fs_devices
- * @fsid:		if not NULL, copy the UUID to fs_devices::fsid
- * @metadata_fsid:	if not NULL, copy the UUID to fs_devices::metadata_fsid
+ * Allocate new btrfs_fs_devices structure identified by a fsid.
+ *
+ * @fsid:    if not NULL, copy the UUID to fs_devices::fsid and to
+ *           fs_devices::metadata_fsid
  *
  * Return a pointer to a new struct btrfs_fs_devices on success, or ERR_PTR().
  * The returned struct is not linked onto any lists and can be destroyed with
  * kfree() right away.
  */
-static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid,
-						 const u8 *metadata_fsid)
+static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid)
 {
 	struct btrfs_fs_devices *fs_devs;
-
-	ASSERT(fsid || !metadata_fsid);
 
 	fs_devs = kzalloc(sizeof(*fs_devs), GFP_KERNEL);
 	if (!fs_devs)
@@ -385,8 +384,7 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid,
 
 	if (fsid) {
 		memcpy(fs_devs->fsid, fsid, BTRFS_FSID_SIZE);
-		memcpy(fs_devs->metadata_uuid,
-		       metadata_fsid ?: fsid, BTRFS_FSID_SIZE);
+		memcpy(fs_devs->metadata_uuid, fsid, BTRFS_FSID_SIZE);
 	}
 
 	return fs_devs;
@@ -457,91 +455,41 @@ static noinline struct btrfs_fs_devices *find_fsid(
 	return NULL;
 }
 
-/*
- * First check if the metadata_uuid is different from the fsid in the given
- * fs_devices. Then check if the given fsid is the same as the metadata_uuid
- * in the fs_devices. If it is, return true; otherwise, return false.
- */
-static inline bool check_fsid_changed(const struct btrfs_fs_devices *fs_devices,
-				      const u8 *fsid)
-{
-	return memcmp(fs_devices->fsid, fs_devices->metadata_uuid,
-		      BTRFS_FSID_SIZE) != 0 &&
-	       memcmp(fs_devices->metadata_uuid, fsid, BTRFS_FSID_SIZE) == 0;
-}
-
-static struct btrfs_fs_devices *find_fsid_with_metadata_uuid(
-				struct btrfs_super_block *disk_super)
-{
-
-	struct btrfs_fs_devices *fs_devices;
-
-	/*
-	 * Handle scanned device having completed its fsid change but
-	 * belonging to a fs_devices that was created by first scanning
-	 * a device which didn't have its fsid/metadata_uuid changed
-	 * at all and the CHANGING_FSID_V2 flag set.
-	 */
-	list_for_each_entry(fs_devices, &fs_uuids, fs_list) {
-		if (!fs_devices->fsid_change)
-			continue;
-
-		if (match_fsid_fs_devices(fs_devices, disk_super->metadata_uuid,
-					  fs_devices->fsid))
-			return fs_devices;
-	}
-
-	/*
-	 * Handle scanned device having completed its fsid change but
-	 * belonging to a fs_devices that was created by a device that
-	 * has an outdated pair of fsid/metadata_uuid and
-	 * CHANGING_FSID_V2 flag set.
-	 */
-	list_for_each_entry(fs_devices, &fs_uuids, fs_list) {
-		if (!fs_devices->fsid_change)
-			continue;
-
-		if (check_fsid_changed(fs_devices, disk_super->metadata_uuid))
-			return fs_devices;
-	}
-
-	return find_fsid(disk_super->fsid, disk_super->metadata_uuid);
-}
-
-
 static int
 btrfs_get_bdev_and_sb(const char *device_path, blk_mode_t flags, void *holder,
-		      int flush, struct block_device **bdev,
+		      int flush, struct bdev_handle **bdev_handle,
 		      struct btrfs_super_block **disk_super)
 {
+	struct block_device *bdev;
 	int ret;
 
-	*bdev = blkdev_get_by_path(device_path, flags, holder, NULL);
+	*bdev_handle = bdev_open_by_path(device_path, flags, holder, NULL);
 
-	if (IS_ERR(*bdev)) {
-		ret = PTR_ERR(*bdev);
+	if (IS_ERR(*bdev_handle)) {
+		ret = PTR_ERR(*bdev_handle);
 		goto error;
 	}
+	bdev = (*bdev_handle)->bdev;
 
 	if (flush)
-		sync_blockdev(*bdev);
-	ret = set_blocksize(*bdev, BTRFS_BDEV_BLOCKSIZE);
+		sync_blockdev(bdev);
+	ret = set_blocksize(bdev, BTRFS_BDEV_BLOCKSIZE);
 	if (ret) {
-		blkdev_put(*bdev, holder);
+		bdev_release(*bdev_handle);
 		goto error;
 	}
-	invalidate_bdev(*bdev);
-	*disk_super = btrfs_read_dev_super(*bdev);
+	invalidate_bdev(bdev);
+	*disk_super = btrfs_read_dev_super(bdev);
 	if (IS_ERR(*disk_super)) {
 		ret = PTR_ERR(*disk_super);
-		blkdev_put(*bdev, holder);
+		bdev_release(*bdev_handle);
 		goto error;
 	}
 
 	return 0;
 
 error:
-	*bdev = NULL;
+	*bdev_handle = NULL;
 	return ret;
 }
 
@@ -562,13 +510,13 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
 {
 	struct btrfs_fs_devices *fs_devices, *tmp_fs_devices;
 	struct btrfs_device *device, *tmp_device;
-	int ret = 0;
+	int ret;
+	bool freed = false;
 
 	lockdep_assert_held(&uuid_mutex);
 
-	if (devt)
-		ret = -ENOENT;
-
+	/* Return good status if there is no instance of devt. */
+	ret = 0;
 	list_for_each_entry_safe(fs_devices, tmp_fs_devices, &fs_uuids, fs_list) {
 
 		mutex_lock(&fs_devices->device_list_mutex);
@@ -579,8 +527,7 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
 			if (devt && devt != device->devt)
 				continue;
 			if (fs_devices->opened) {
-				/* for an already deleted device return 0 */
-				if (devt && ret != 0)
+				if (devt)
 					ret = -EBUSY;
 				break;
 			}
@@ -590,7 +537,7 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
 			list_del(&device->dev_list);
 			btrfs_free_device(device);
 
-			ret = 0;
+			freed = true;
 		}
 		mutex_unlock(&fs_devices->device_list_mutex);
 
@@ -601,7 +548,79 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
 		}
 	}
 
+	/* If there is at least one freed device return 0. */
+	if (freed)
+		return 0;
+
 	return ret;
+}
+
+static struct btrfs_fs_devices *find_fsid_by_device(
+					struct btrfs_super_block *disk_super,
+					dev_t devt, bool *same_fsid_diff_dev)
+{
+	struct btrfs_fs_devices *fsid_fs_devices;
+	struct btrfs_fs_devices *devt_fs_devices;
+	const bool has_metadata_uuid = (btrfs_super_incompat_flags(disk_super) &
+					BTRFS_FEATURE_INCOMPAT_METADATA_UUID);
+	bool found_by_devt = false;
+
+	/* Find the fs_device by the usual method, if found use it. */
+	fsid_fs_devices = find_fsid(disk_super->fsid,
+		    has_metadata_uuid ? disk_super->metadata_uuid : NULL);
+
+	/* The temp_fsid feature is supported only with single device filesystem. */
+	if (btrfs_super_num_devices(disk_super) != 1)
+		return fsid_fs_devices;
+
+	/*
+	 * A seed device is an integral component of the sprout device, which
+	 * functions as a multi-device filesystem. So, temp-fsid feature is
+	 * not supported.
+	 */
+	if (btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_SEEDING)
+		return fsid_fs_devices;
+
+	/* Try to find a fs_devices by matching devt. */
+	list_for_each_entry(devt_fs_devices, &fs_uuids, fs_list) {
+		struct btrfs_device *device;
+
+		list_for_each_entry(device, &devt_fs_devices->devices, dev_list) {
+			if (device->devt == devt) {
+				found_by_devt = true;
+				break;
+			}
+		}
+		if (found_by_devt)
+			break;
+	}
+
+	if (found_by_devt) {
+		/* Existing device. */
+		if (fsid_fs_devices == NULL) {
+			if (devt_fs_devices->opened == 0) {
+				/* Stale device. */
+				return NULL;
+			} else {
+				/* temp_fsid is mounting a subvol. */
+				return devt_fs_devices;
+			}
+		} else {
+			/* Regular or temp_fsid device mounting a subvol. */
+			return devt_fs_devices;
+		}
+	} else {
+		/* New device. */
+		if (fsid_fs_devices == NULL) {
+			return NULL;
+		} else {
+			/* sb::fsid is already used create a new temp_fsid. */
+			*same_fsid_diff_dev = true;
+			return NULL;
+		}
+	}
+
+	/* Not reached. */
 }
 
 /*
@@ -613,7 +632,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 			struct btrfs_device *device, blk_mode_t flags,
 			void *holder)
 {
-	struct block_device *bdev;
+	struct bdev_handle *bdev_handle;
 	struct btrfs_super_block *disk_super;
 	u64 devid;
 	int ret;
@@ -624,7 +643,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 		return -EINVAL;
 
 	ret = btrfs_get_bdev_and_sb(device->name->str, flags, holder, 1,
-				    &bdev, &disk_super);
+				    &bdev_handle, &disk_super);
 	if (ret)
 		return ret;
 
@@ -648,21 +667,21 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 		clear_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
 		fs_devices->seeding = true;
 	} else {
-		if (bdev_read_only(bdev))
+		if (bdev_read_only(bdev_handle->bdev))
 			clear_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
 		else
 			set_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
 	}
 
-	if (!bdev_nonrot(bdev))
+	if (!bdev_nonrot(bdev_handle->bdev))
 		fs_devices->rotating = true;
 
-	if (bdev_max_discard_sectors(bdev))
+	if (bdev_max_discard_sectors(bdev_handle->bdev))
 		fs_devices->discardable = true;
 
-	device->bdev = bdev;
+	device->bdev_handle = bdev_handle;
+	device->bdev = bdev_handle->bdev;
 	clear_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
-	device->holder = holder;
 
 	fs_devices->open_devices++;
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state) &&
@@ -676,7 +695,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 
 error_free_page:
 	btrfs_release_disk_super(disk_super);
-	blkdev_put(bdev, holder);
+	bdev_release(bdev_handle);
 
 	return -EINVAL;
 }
@@ -689,84 +708,6 @@ u8 *btrfs_sb_fsid_ptr(struct btrfs_super_block *sb)
 	return has_metadata_uuid ? sb->metadata_uuid : sb->fsid;
 }
 
-/*
- * Handle scanned device having its CHANGING_FSID_V2 flag set and the fs_devices
- * being created with a disk that has already completed its fsid change. Such
- * disk can belong to an fs which has its FSID changed or to one which doesn't.
- * Handle both cases here.
- */
-static struct btrfs_fs_devices *find_fsid_inprogress(
-					struct btrfs_super_block *disk_super)
-{
-	struct btrfs_fs_devices *fs_devices;
-
-	list_for_each_entry(fs_devices, &fs_uuids, fs_list) {
-		if (fs_devices->fsid_change)
-			continue;
-
-		if (check_fsid_changed(fs_devices,  disk_super->fsid))
-			return fs_devices;
-	}
-
-	return find_fsid(disk_super->fsid, NULL);
-}
-
-static struct btrfs_fs_devices *find_fsid_changed(
-					struct btrfs_super_block *disk_super)
-{
-	struct btrfs_fs_devices *fs_devices;
-
-	/*
-	 * Handles the case where scanned device is part of an fs that had
-	 * multiple successful changes of FSID but currently device didn't
-	 * observe it. Meaning our fsid will be different than theirs. We need
-	 * to handle two subcases :
-	 *  1 - The fs still continues to have different METADATA/FSID uuids.
-	 *  2 - The fs is switched back to its original FSID (METADATA/FSID
-	 *  are equal).
-	 */
-	list_for_each_entry(fs_devices, &fs_uuids, fs_list) {
-		/* Changed UUIDs */
-		if (check_fsid_changed(fs_devices, disk_super->metadata_uuid) &&
-		    memcmp(fs_devices->fsid, disk_super->fsid,
-			   BTRFS_FSID_SIZE) != 0)
-			return fs_devices;
-
-		/* Unchanged UUIDs */
-		if (memcmp(fs_devices->metadata_uuid, fs_devices->fsid,
-			   BTRFS_FSID_SIZE) == 0 &&
-		    memcmp(fs_devices->fsid, disk_super->metadata_uuid,
-			   BTRFS_FSID_SIZE) == 0)
-			return fs_devices;
-	}
-
-	return NULL;
-}
-
-static struct btrfs_fs_devices *find_fsid_reverted_metadata(
-				struct btrfs_super_block *disk_super)
-{
-	struct btrfs_fs_devices *fs_devices;
-
-	/*
-	 * Handle the case where the scanned device is part of an fs whose last
-	 * metadata UUID change reverted it to the original FSID. At the same
-	 * time fs_devices was first created by another constituent device
-	 * which didn't fully observe the operation. This results in an
-	 * btrfs_fs_devices created with metadata/fsid different AND
-	 * btrfs_fs_devices::fsid_change set AND the metadata_uuid of the
-	 * fs_devices equal to the FSID of the disk.
-	 */
-	list_for_each_entry(fs_devices, &fs_uuids, fs_list) {
-		if (!fs_devices->fsid_change)
-			continue;
-
-		if (check_fsid_changed(fs_devices, disk_super->fsid))
-			return fs_devices;
-	}
-
-	return NULL;
-}
 /*
  * Add new device to list of registered devices
  *
@@ -785,10 +726,16 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 	u64 devid = btrfs_stack_device_id(&disk_super->dev_item);
 	dev_t path_devt;
 	int error;
+	bool same_fsid_diff_dev = false;
 	bool has_metadata_uuid = (btrfs_super_incompat_flags(disk_super) &
 		BTRFS_FEATURE_INCOMPAT_METADATA_UUID);
-	bool fsid_change_in_progress = (btrfs_super_flags(disk_super) &
-					BTRFS_SUPER_FLAG_CHANGING_FSID_V2);
+
+	if (btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_CHANGING_FSID_V2) {
+		btrfs_err(NULL,
+"device %s has incomplete metadata_uuid change, please use btrfstune to complete",
+			  path);
+		return ERR_PTR(-EAGAIN);
+	}
 
 	error = lookup_bdev(path, &path_devt);
 	if (error) {
@@ -797,27 +744,23 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		return ERR_PTR(error);
 	}
 
-	if (fsid_change_in_progress) {
-		if (!has_metadata_uuid)
-			fs_devices = find_fsid_inprogress(disk_super);
-		else
-			fs_devices = find_fsid_changed(disk_super);
-	} else if (has_metadata_uuid) {
-		fs_devices = find_fsid_with_metadata_uuid(disk_super);
-	} else {
-		fs_devices = find_fsid_reverted_metadata(disk_super);
-		if (!fs_devices)
-			fs_devices = find_fsid(disk_super->fsid, NULL);
-	}
-
+	fs_devices = find_fsid_by_device(disk_super, path_devt, &same_fsid_diff_dev);
 
 	if (!fs_devices) {
-		fs_devices = alloc_fs_devices(disk_super->fsid,
-				has_metadata_uuid ? disk_super->metadata_uuid : NULL);
+		fs_devices = alloc_fs_devices(disk_super->fsid);
+		if (has_metadata_uuid)
+			memcpy(fs_devices->metadata_uuid,
+			       disk_super->metadata_uuid, BTRFS_FSID_SIZE);
+
 		if (IS_ERR(fs_devices))
 			return ERR_CAST(fs_devices);
 
-		fs_devices->fsid_change = fsid_change_in_progress;
+		if (same_fsid_diff_dev) {
+			generate_random_uuid(fs_devices->fsid);
+			fs_devices->temp_fsid = true;
+			pr_info("BTRFS: device %s using temp-fsid %pU\n",
+				path, fs_devices->fsid);
+		}
 
 		mutex_lock(&fs_devices->device_list_mutex);
 		list_add(&fs_devices->fs_list, &fs_uuids);
@@ -832,18 +775,11 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		mutex_lock(&fs_devices->device_list_mutex);
 		device = btrfs_find_device(fs_devices, &args);
 
-		/*
-		 * If this disk has been pulled into an fs devices created by
-		 * a device which had the CHANGING_FSID_V2 flag then replace the
-		 * metadata_uuid/fsid values of the fs_devices.
-		 */
-		if (fs_devices->fsid_change &&
-		    found_transid > fs_devices->latest_generation) {
+		if (found_transid > fs_devices->latest_generation) {
 			memcpy(fs_devices->fsid, disk_super->fsid,
 					BTRFS_FSID_SIZE);
 			memcpy(fs_devices->metadata_uuid,
 			       btrfs_sb_fsid_ptr(disk_super), BTRFS_FSID_SIZE);
-			fs_devices->fsid_change = false;
 		}
 	}
 
@@ -997,7 +933,7 @@ static struct btrfs_fs_devices *clone_fs_devices(struct btrfs_fs_devices *orig)
 
 	lockdep_assert_held(&uuid_mutex);
 
-	fs_devices = alloc_fs_devices(orig->fsid, NULL);
+	fs_devices = alloc_fs_devices(orig->fsid);
 	if (IS_ERR(fs_devices))
 		return fs_devices;
 
@@ -1068,9 +1004,10 @@ static void __btrfs_free_extra_devids(struct btrfs_fs_devices *fs_devices,
 		if (device->devid == BTRFS_DEV_REPLACE_DEVID)
 			continue;
 
-		if (device->bdev) {
-			blkdev_put(device->bdev, device->holder);
+		if (device->bdev_handle) {
+			bdev_release(device->bdev_handle);
 			device->bdev = NULL;
+			device->bdev_handle = NULL;
 			fs_devices->open_devices--;
 		}
 		if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
@@ -1115,7 +1052,7 @@ static void btrfs_close_bdev(struct btrfs_device *device)
 		invalidate_bdev(device->bdev);
 	}
 
-	blkdev_put(device->bdev, device->holder);
+	bdev_release(device->bdev_handle);
 }
 
 static void btrfs_close_one_device(struct btrfs_device *device)
@@ -1356,14 +1293,19 @@ int btrfs_forget_devices(dev_t devt)
 /*
  * Look for a btrfs signature on a device. This may be called out of the mount path
  * and we are not allowed to call set_blocksize during the scan. The superblock
- * is read via pagecache
+ * is read via pagecache.
+ *
+ * With @mount_arg_dev it's a scan during mount time that will always register
+ * the device or return an error. Multi-device and seeding devices are registered
+ * in both cases.
  */
-struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags)
+struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
+					   bool mount_arg_dev)
 {
 	struct btrfs_super_block *disk_super;
 	bool new_device_added = false;
 	struct btrfs_device *device = NULL;
-	struct block_device *bdev;
+	struct bdev_handle *bdev_handle;
 	u64 bytenr, bytenr_orig;
 	int ret;
 
@@ -1386,31 +1328,49 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags)
 	 * values temporarily, as the device paths of the fsid are the only
 	 * required information for assembling the volume.
 	 */
-	bdev = blkdev_get_by_path(path, flags, NULL, NULL);
-	if (IS_ERR(bdev))
-		return ERR_CAST(bdev);
+	bdev_handle = bdev_open_by_path(path, flags, NULL, NULL);
+	if (IS_ERR(bdev_handle))
+		return ERR_CAST(bdev_handle);
 
 	bytenr_orig = btrfs_sb_offset(0);
-	ret = btrfs_sb_log_location_bdev(bdev, 0, READ, &bytenr);
+	ret = btrfs_sb_log_location_bdev(bdev_handle->bdev, 0, READ, &bytenr);
 	if (ret) {
 		device = ERR_PTR(ret);
 		goto error_bdev_put;
 	}
 
-	disk_super = btrfs_read_disk_super(bdev, bytenr, bytenr_orig);
+	disk_super = btrfs_read_disk_super(bdev_handle->bdev, bytenr,
+					   bytenr_orig);
 	if (IS_ERR(disk_super)) {
 		device = ERR_CAST(disk_super);
 		goto error_bdev_put;
+	}
+
+	if (!mount_arg_dev && btrfs_super_num_devices(disk_super) == 1 &&
+	    !(btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_SEEDING)) {
+		dev_t devt;
+
+		ret = lookup_bdev(path, &devt);
+		if (ret)
+			btrfs_warn(NULL, "lookup bdev failed for path %s: %d",
+				   path, ret);
+		else
+			btrfs_free_stale_devices(devt, NULL);
+
+		pr_debug("BTRFS: skip registering single non-seed device %s\n", path);
+		device = NULL;
+		goto free_disk_super;
 	}
 
 	device = device_list_add(path, disk_super, &new_device_added);
 	if (!IS_ERR(device) && new_device_added)
 		btrfs_free_stale_devices(device->devt, device);
 
+free_disk_super:
 	btrfs_release_disk_super(disk_super);
 
 error_bdev_put:
-	blkdev_put(bdev, NULL);
+	bdev_release(bdev_handle);
 
 	return device;
 }
@@ -1894,7 +1854,7 @@ static int btrfs_add_dev_item(struct btrfs_trans_handle *trans,
 	ptr = btrfs_device_fsid(dev_item);
 	write_extent_buffer(leaf, trans->fs_info->fs_devices->metadata_uuid,
 			    ptr, BTRFS_FSID_SIZE);
-	btrfs_mark_buffer_dirty(leaf);
+	btrfs_mark_buffer_dirty(trans, leaf);
 
 	ret = 0;
 out:
@@ -2087,7 +2047,7 @@ void btrfs_scratch_superblocks(struct btrfs_fs_info *fs_info,
 
 int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 		    struct btrfs_dev_lookup_args *args,
-		    struct block_device **bdev, void **holder)
+		    struct bdev_handle **bdev_handle)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device;
@@ -2196,7 +2156,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 
 	btrfs_assign_next_active_device(device, NULL);
 
-	if (device->bdev) {
+	if (device->bdev_handle) {
 		cur_devices->open_devices--;
 		/* remove sysfs entry */
 		btrfs_sysfs_remove_device(device);
@@ -2212,9 +2172,9 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 	 * free the device.
 	 *
 	 * We cannot call btrfs_close_bdev() here because we're holding the sb
-	 * write lock, and blkdev_put() will pull in the ->open_mutex on the
-	 * block device and it's dependencies.  Instead just flush the device
-	 * and let the caller do the final blkdev_put.
+	 * write lock, and bdev_release() will pull in the ->open_mutex on
+	 * the block device and it's dependencies.  Instead just flush the
+	 * device and let the caller do the final bdev_release.
 	 */
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
 		btrfs_scratch_superblocks(fs_info, device->bdev,
@@ -2225,8 +2185,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 		}
 	}
 
-	*bdev = device->bdev;
-	*holder = device->holder;
+	*bdev_handle = device->bdev_handle;
 	synchronize_rcu();
 	btrfs_free_device(device);
 
@@ -2363,7 +2322,7 @@ int btrfs_get_dev_args_from_path(struct btrfs_fs_info *fs_info,
 				 const char *path)
 {
 	struct btrfs_super_block *disk_super;
-	struct block_device *bdev;
+	struct bdev_handle *bdev_handle;
 	int ret;
 
 	if (!path || !path[0])
@@ -2381,7 +2340,7 @@ int btrfs_get_dev_args_from_path(struct btrfs_fs_info *fs_info,
 	}
 
 	ret = btrfs_get_bdev_and_sb(path, BLK_OPEN_READ, NULL, 0,
-				    &bdev, &disk_super);
+				    &bdev_handle, &disk_super);
 	if (ret) {
 		btrfs_put_dev_args_from_path(args);
 		return ret;
@@ -2394,7 +2353,7 @@ int btrfs_get_dev_args_from_path(struct btrfs_fs_info *fs_info,
 	else
 		memcpy(args->fsid, disk_super->fsid, BTRFS_FSID_SIZE);
 	btrfs_release_disk_super(disk_super);
-	blkdev_put(bdev, NULL);
+	bdev_release(bdev_handle);
 	return 0;
 }
 
@@ -2451,7 +2410,7 @@ static struct btrfs_fs_devices *btrfs_init_sprout(struct btrfs_fs_info *fs_info)
 	 * Private copy of the seed devices, anchored at
 	 * fs_info->fs_devices->seed_list
 	 */
-	seed_devices = alloc_fs_devices(NULL, NULL);
+	seed_devices = alloc_fs_devices(NULL);
 	if (IS_ERR(seed_devices))
 		return seed_devices;
 
@@ -2597,7 +2556,7 @@ next_slot:
 		if (device->fs_devices->seeding) {
 			btrfs_set_device_generation(leaf, dev_item,
 						    device->generation);
-			btrfs_mark_buffer_dirty(leaf);
+			btrfs_mark_buffer_dirty(trans, leaf);
 		}
 
 		path->slots[0]++;
@@ -2614,7 +2573,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	struct btrfs_root *root = fs_info->dev_root;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device;
-	struct block_device *bdev;
+	struct bdev_handle *bdev_handle;
 	struct super_block *sb = fs_info->sb;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_fs_devices *seed_devices = NULL;
@@ -2627,12 +2586,12 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	if (sb_rdonly(sb) && !fs_devices->seeding)
 		return -EROFS;
 
-	bdev = blkdev_get_by_path(device_path, BLK_OPEN_WRITE,
-				  fs_info->bdev_holder, NULL);
-	if (IS_ERR(bdev))
-		return PTR_ERR(bdev);
+	bdev_handle = bdev_open_by_path(device_path, BLK_OPEN_WRITE,
+					fs_info->bdev_holder, NULL);
+	if (IS_ERR(bdev_handle))
+		return PTR_ERR(bdev_handle);
 
-	if (!btrfs_check_device_zone_type(fs_info, bdev)) {
+	if (!btrfs_check_device_zone_type(fs_info, bdev_handle->bdev)) {
 		ret = -EINVAL;
 		goto error;
 	}
@@ -2644,11 +2603,11 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		locked = true;
 	}
 
-	sync_blockdev(bdev);
+	sync_blockdev(bdev_handle->bdev);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(device, &fs_devices->devices, dev_list) {
-		if (device->bdev == bdev) {
+		if (device->bdev == bdev_handle->bdev) {
 			ret = -EEXIST;
 			rcu_read_unlock();
 			goto error;
@@ -2664,7 +2623,8 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	}
 
 	device->fs_info = fs_info;
-	device->bdev = bdev;
+	device->bdev_handle = bdev_handle;
+	device->bdev = bdev_handle->bdev;
 	ret = lookup_bdev(device_path, &device->devt);
 	if (ret)
 		goto error_free_device;
@@ -2685,12 +2645,11 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	device->io_align = fs_info->sectorsize;
 	device->sector_size = fs_info->sectorsize;
 	device->total_bytes =
-		round_down(bdev_nr_bytes(bdev), fs_info->sectorsize);
+		round_down(bdev_nr_bytes(device->bdev), fs_info->sectorsize);
 	device->disk_total_bytes = device->total_bytes;
 	device->commit_total_bytes = device->total_bytes;
 	set_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	clear_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state);
-	device->holder = fs_info->bdev_holder;
 	device->dev_stats_valid = 1;
 	set_blocksize(device->bdev, BTRFS_BDEV_BLOCKSIZE);
 
@@ -2726,7 +2685,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 
 	atomic64_add(device->total_bytes, &fs_info->free_chunk_space);
 
-	if (!bdev_nonrot(bdev))
+	if (!bdev_nonrot(device->bdev))
 		fs_devices->rotating = true;
 
 	orig_super_total_bytes = btrfs_super_total_bytes(fs_info->super_copy);
@@ -2848,7 +2807,7 @@ error_free_zone:
 error_free_device:
 	btrfs_free_device(device);
 error:
-	blkdev_put(bdev, fs_info->bdev_holder);
+	bdev_release(bdev_handle);
 	if (locked) {
 		mutex_unlock(&uuid_mutex);
 		up_write(&sb->s_umount);
@@ -2895,7 +2854,7 @@ static noinline int btrfs_update_device(struct btrfs_trans_handle *trans,
 				     btrfs_device_get_disk_total_bytes(device));
 	btrfs_set_device_bytes_used(leaf, dev_item,
 				    btrfs_device_get_bytes_used(device));
-	btrfs_mark_buffer_dirty(leaf);
+	btrfs_mark_buffer_dirty(trans, leaf);
 
 out:
 	btrfs_free_path(path);
@@ -2929,6 +2888,7 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 	btrfs_set_super_total_bytes(super_copy,
 			round_down(old_total + diff, fs_info->sectorsize));
 	device->fs_devices->total_rw_bytes += diff;
+	atomic64_add(diff, &fs_info->free_chunk_space);
 
 	btrfs_device_set_total_bytes(device, new_size);
 	btrfs_device_set_disk_total_bytes(device, new_size);
@@ -3027,7 +2987,8 @@ static int btrfs_del_sys_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 }
 
 /*
- * btrfs_get_chunk_map() - Find the mapping containing the given logical extent.
+ * Find the mapping containing the given logical extent.
+ *
  * @logical: Logical block offset in bytes.
  * @length: Length of extent in bytes.
  *
@@ -3483,7 +3444,7 @@ static int insert_balance_item(struct btrfs_fs_info *fs_info,
 
 	btrfs_set_balance_flags(leaf, item, bctl->flags);
 
-	btrfs_mark_buffer_dirty(leaf);
+	btrfs_mark_buffer_dirty(trans, leaf);
 out:
 	btrfs_free_path(path);
 	err = btrfs_commit_transaction(trans);
@@ -4838,6 +4799,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	u64 old_size = btrfs_device_get_total_bytes(device);
 	u64 diff;
 	u64 start;
+	u64 free_diff = 0;
 
 	new_size = round_down(new_size, fs_info->sectorsize);
 	start = new_size;
@@ -4863,7 +4825,19 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	btrfs_device_set_total_bytes(device, new_size);
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
 		device->fs_devices->total_rw_bytes -= diff;
-		atomic64_sub(diff, &fs_info->free_chunk_space);
+
+		/*
+		 * The new free_chunk_space is new_size - used, so we have to
+		 * subtract the delta of the old free_chunk_space which included
+		 * old_size - used.  If used > new_size then just subtract this
+		 * entire device's free space.
+		 */
+		if (device->bytes_used < new_size)
+			free_diff = (old_size - device->bytes_used) -
+				    (new_size - device->bytes_used);
+		else
+			free_diff = old_size - device->bytes_used;
+		atomic64_sub(free_diff, &fs_info->free_chunk_space);
 	}
 
 	/*
@@ -4998,9 +4972,10 @@ done:
 	if (ret) {
 		mutex_lock(&fs_info->chunk_mutex);
 		btrfs_device_set_total_bytes(device, old_size);
-		if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state))
+		if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
 			device->fs_devices->total_rw_bytes += diff;
-		atomic64_add(diff, &fs_info->free_chunk_space);
+			atomic64_add(free_diff, &fs_info->free_chunk_space);
+		}
 		mutex_unlock(&fs_info->chunk_mutex);
 	}
 	return ret;
@@ -5880,6 +5855,7 @@ static int find_live_mirror(struct btrfs_fs_info *fs_info,
 }
 
 static struct btrfs_io_context *alloc_btrfs_io_context(struct btrfs_fs_info *fs_info,
+						       u64 logical,
 						       u16 total_stripes)
 {
 	struct btrfs_io_context *bioc;
@@ -5899,6 +5875,7 @@ static struct btrfs_io_context *alloc_btrfs_io_context(struct btrfs_fs_info *fs_
 	bioc->fs_info = fs_info;
 	bioc->replace_stripe_src = -1;
 	bioc->full_stripe_logical = (u64)-1;
+	bioc->logical = logical;
 
 	return bioc;
 }
@@ -6203,12 +6180,20 @@ static u64 btrfs_max_io_len(struct map_lookup *map, enum btrfs_map_op op,
 	return U64_MAX;
 }
 
-static void set_io_stripe(struct btrfs_io_stripe *dst, const struct map_lookup *map,
-			  u32 stripe_index, u64 stripe_offset, u32 stripe_nr)
+static int set_io_stripe(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
+			 u64 logical, u64 *length, struct btrfs_io_stripe *dst,
+			 struct map_lookup *map, u32 stripe_index,
+			 u64 stripe_offset, u64 stripe_nr)
 {
 	dst->dev = map->stripes[stripe_index].dev;
+
+	if (op == BTRFS_MAP_READ && btrfs_need_stripe_tree_update(fs_info, map->type))
+		return btrfs_get_raid_extent_offset(fs_info, logical, length,
+						    map->type, stripe_index, dst);
+
 	dst->physical = map->stripes[stripe_index].physical +
 			stripe_offset + btrfs_stripe_nr_to_offset(stripe_nr);
+	return 0;
 }
 
 /*
@@ -6245,16 +6230,11 @@ static void set_io_stripe(struct btrfs_io_stripe *dst, const struct map_lookup *
  *			For RAID6 profile, mirror > 2 means mark another
  *			data/P stripe error and rebuild from the remaining
  *			stripes..
- *
- * @need_raid_map:	(Used only for integrity checker) whether the map wants
- *                      a full stripe map (including all data and P/Q stripes)
- *                      for RAID56. Should always be 1 except integrity checker.
  */
 int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		    u64 logical, u64 *length,
 		    struct btrfs_io_context **bioc_ret,
-		    struct btrfs_io_stripe *smap, int *mirror_num_ret,
-		    int need_raid_map)
+		    struct btrfs_io_stripe *smap, int *mirror_num_ret)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
@@ -6349,8 +6329,10 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		}
 
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		if (need_raid_map && (op != BTRFS_MAP_READ || mirror_num > 1)) {
+		if (op != BTRFS_MAP_READ || mirror_num > 1) {
 			/*
+			 * Needs full stripe mapping.
+			 *
 			 * Push stripe_nr back to the start of the full stripe
 			 * For those cases needing a full stripe, @stripe_nr
 			 * is the full stripe number.
@@ -6373,19 +6355,14 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 			stripe_index = 0;
 			stripe_offset = 0;
 		} else {
-			/*
-			 * Mirror #0 or #1 means the original data block.
-			 * Mirror #2 is RAID5 parity block.
-			 * Mirror #3 is RAID6 Q block.
-			 */
+			ASSERT(mirror_num <= 1);
+			/* Just grab the data stripe directly. */
 			stripe_index = stripe_nr % data_stripes;
 			stripe_nr /= data_stripes;
-			if (mirror_num > 1)
-				stripe_index = data_stripes + mirror_num - 2;
 
 			/* We distribute the parity blocks across stripes */
 			stripe_index = (stripe_nr + stripe_index) % map->num_stripes;
-			if (op == BTRFS_MAP_READ && mirror_num <= 1)
+			if (op == BTRFS_MAP_READ && mirror_num < 1)
 				mirror_num = 1;
 		}
 	} else {
@@ -6424,16 +6401,18 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	 * I/O context structure.
 	 */
 	if (smap && num_alloc_stripes == 1 &&
+	    !(btrfs_need_stripe_tree_update(fs_info, map->type) &&
+	      op != BTRFS_MAP_READ) &&
 	    !((map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) && mirror_num > 1)) {
-		set_io_stripe(smap, map, stripe_index, stripe_offset, stripe_nr);
+		ret = set_io_stripe(fs_info, op, logical, length, smap, map,
+				    stripe_index, stripe_offset, stripe_nr);
 		if (mirror_num_ret)
 			*mirror_num_ret = mirror_num;
 		*bioc_ret = NULL;
-		ret = 0;
 		goto out;
 	}
 
-	bioc = alloc_btrfs_io_context(fs_info, num_alloc_stripes);
+	bioc = alloc_btrfs_io_context(fs_info, logical, num_alloc_stripes);
 	if (!bioc) {
 		ret = -ENOMEM;
 		goto out;
@@ -6447,7 +6426,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	 *
 	 * It's still mostly the same as other profiles, just with extra rotation.
 	 */
-	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK && need_raid_map &&
+	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK &&
 	    (op != BTRFS_MAP_READ || mirror_num > 1)) {
 		/*
 		 * For RAID56 @stripe_nr is already the number of full stripes
@@ -6459,20 +6438,33 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		 */
 		bioc->full_stripe_logical = em->start +
 			btrfs_stripe_nr_to_offset(stripe_nr * data_stripes);
-		for (i = 0; i < num_stripes; i++)
-			set_io_stripe(&bioc->stripes[i], map,
-				      (i + stripe_nr) % num_stripes,
-				      stripe_offset, stripe_nr);
+		for (int i = 0; i < num_stripes; i++) {
+			ret = set_io_stripe(fs_info, op, logical, length,
+					    &bioc->stripes[i], map,
+					    (i + stripe_nr) % num_stripes,
+					    stripe_offset, stripe_nr);
+			if (ret < 0)
+				break;
+		}
 	} else {
 		/*
 		 * For all other non-RAID56 profiles, just copy the target
 		 * stripe into the bioc.
 		 */
 		for (i = 0; i < num_stripes; i++) {
-			set_io_stripe(&bioc->stripes[i], map, stripe_index,
-				      stripe_offset, stripe_nr);
+			ret = set_io_stripe(fs_info, op, logical, length,
+					    &bioc->stripes[i], map, stripe_index,
+					    stripe_offset, stripe_nr);
+			if (ret < 0)
+				break;
 			stripe_index++;
 		}
+	}
+
+	if (ret) {
+		*bioc_ret = NULL;
+		btrfs_put_bioc(bioc);
+		goto out;
 	}
 
 	if (op != BTRFS_MAP_READ)
@@ -6901,7 +6893,7 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 		if (!btrfs_test_opt(fs_info, DEGRADED))
 			return ERR_PTR(-ENOENT);
 
-		fs_devices = alloc_fs_devices(fsid, NULL);
+		fs_devices = alloc_fs_devices(fsid);
 		if (IS_ERR(fs_devices))
 			return fs_devices;
 
@@ -7534,7 +7526,7 @@ static int update_dev_stat_item(struct btrfs_trans_handle *trans,
 	for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++)
 		btrfs_set_dev_stats_value(eb, ptr, i,
 					  btrfs_dev_stat_read(device, i));
-	btrfs_mark_buffer_dirty(eb);
+	btrfs_mark_buffer_dirty(trans, eb);
 
 out:
 	btrfs_free_path(path);
@@ -8076,7 +8068,7 @@ int btrfs_map_repair_block(struct btrfs_fs_info *fs_info,
 	ASSERT(mirror_num > 0);
 
 	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical, &map_length,
-			      &bioc, smap, &mirror_ret, true);
+			      &bioc, smap, &mirror_ret);
 	if (ret < 0)
 		return ret;
 

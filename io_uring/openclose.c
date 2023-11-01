@@ -220,7 +220,6 @@ int io_close(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct files_struct *files = current->files;
 	struct io_close *close = io_kiocb_to_cmd(req, struct io_close);
-	struct fdtable *fdt;
 	struct file *file;
 	int ret = -EBADF;
 
@@ -230,13 +229,7 @@ int io_close(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	if (close->fd >= fdt->max_fds) {
-		spin_unlock(&files->file_lock);
-		goto err;
-	}
-	file = rcu_dereference_protected(fdt->fd[close->fd],
-			lockdep_is_held(&files->file_lock));
+	file = files_lookup_fd_locked(files, close->fd);
 	if (!file || io_is_uring_fops(file)) {
 		spin_unlock(&files->file_lock);
 		goto err;

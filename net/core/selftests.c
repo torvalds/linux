@@ -397,14 +397,11 @@ EXPORT_SYMBOL_GPL(net_selftest_get_count);
 
 void net_selftest_get_strings(u8 *data)
 {
-	u8 *p = data;
 	int i;
 
-	for (i = 0; i < net_selftest_get_count(); i++) {
-		snprintf(p, ETH_GSTRING_LEN, "%2d. %s", i + 1,
-			 net_selftests[i].name);
-		p += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < net_selftest_get_count(); i++)
+		ethtool_sprintf(&data, "%2d. %s", i + 1,
+				net_selftests[i].name);
 }
 EXPORT_SYMBOL_GPL(net_selftest_get_strings);
 

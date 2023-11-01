@@ -697,6 +697,31 @@ static int nf_xfrm_me_harder(struct net *net, struct sk_buff *skb, unsigned int 
 }
 #endif
 
+static bool nf_nat_inet_port_was_mangled(const struct sk_buff *skb, __be16 sport)
+{
+	enum ip_conntrack_info ctinfo;
+	enum ip_conntrack_dir dir;
+	const struct nf_conn *ct;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct)
+		return false;
+
+	switch (nf_ct_protonum(ct)) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+		break;
+	default:
+		return false;
+	}
+
+	dir = CTINFO2DIR(ctinfo);
+	if (dir != IP_CT_DIR_ORIGINAL)
+		return false;
+
+	return ct->tuplehash[!dir].tuple.dst.u.all != sport;
+}
+
 static unsigned int
 nf_nat_ipv4_local_in(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
@@ -707,8 +732,20 @@ nf_nat_ipv4_local_in(void *priv, struct sk_buff *skb,
 
 	ret = nf_nat_ipv4_fn(priv, skb, state);
 
-	if (ret == NF_ACCEPT && sk && saddr != ip_hdr(skb)->saddr &&
-	    !inet_sk_transparent(sk))
+	if (ret != NF_ACCEPT || !sk || inet_sk_transparent(sk))
+		return ret;
+
+	/* skb has a socket assigned via tcp edemux. We need to check
+	 * if nf_nat_ipv4_fn() has mangled the packet in a way that
+	 * edemux would not have found this socket.
+	 *
+	 * This includes both changes to the source address and changes
+	 * to the source port, which are both handled by the
+	 * nf_nat_ipv4_fn() call above -- long after tcp/udp early demux
+	 * might have found a socket for the old (pre-snat) address.
+	 */
+	if (saddr != ip_hdr(skb)->saddr ||
+	    nf_nat_inet_port_was_mangled(skb, sk->sk_dport))
 		skb_orphan(skb); /* TCP edemux obtained wrong socket */
 
 	return ret;
@@ -938,14 +975,36 @@ nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
 }
 
 static unsigned int
+nf_nat_ipv6_local_in(void *priv, struct sk_buff *skb,
+		     const struct nf_hook_state *state)
+{
+	struct in6_addr saddr = ipv6_hdr(skb)->saddr;
+	struct sock *sk = skb->sk;
+	unsigned int ret;
+
+	ret = nf_nat_ipv6_fn(priv, skb, state);
+
+	if (ret != NF_ACCEPT || !sk || inet_sk_transparent(sk))
+		return ret;
+
+	/* see nf_nat_ipv4_local_in */
+	if (ipv6_addr_cmp(&saddr, &ipv6_hdr(skb)->saddr) ||
+	    nf_nat_inet_port_was_mangled(skb, sk->sk_dport))
+		skb_orphan(skb);
+
+	return ret;
+}
+
+static unsigned int
 nf_nat_ipv6_in(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state)
 {
-	unsigned int ret;
+	unsigned int ret, verdict;
 	struct in6_addr daddr = ipv6_hdr(skb)->daddr;
 
 	ret = nf_nat_ipv6_fn(priv, skb, state);
-	if (ret != NF_DROP && ret != NF_STOLEN &&
+	verdict = ret & NF_VERDICT_MASK;
+	if (verdict != NF_DROP && verdict != NF_STOLEN &&
 	    ipv6_addr_cmp(&daddr, &ipv6_hdr(skb)->daddr))
 		skb_dst_drop(skb);
 
@@ -1051,7 +1110,7 @@ static const struct nf_hook_ops nf_nat_ipv6_ops[] = {
 	},
 	/* After packet filtering, change source */
 	{
-		.hook		= nf_nat_ipv6_fn,
+		.hook		= nf_nat_ipv6_local_in,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP6_PRI_NAT_SRC,

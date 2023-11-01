@@ -25,6 +25,7 @@
 struct fsl_gpio_soc_data {
 	/* SoCs has a Port Data Direction Register (PDDR) */
 	bool have_paddr;
+	bool have_dual_base;
 };
 
 struct vf610_gpio_port {
@@ -60,13 +61,26 @@ struct vf610_gpio_port {
 #define PORT_INT_EITHER_EDGE	0xb
 #define PORT_INT_LOGIC_ONE	0xc
 
+#define IMX8ULP_GPIO_BASE_OFF	0x40
+#define IMX8ULP_BASE_OFF	0x80
+
+static const struct fsl_gpio_soc_data vf610_data = {
+	.have_dual_base = true,
+};
+
 static const struct fsl_gpio_soc_data imx_data = {
+	.have_paddr = true,
+	.have_dual_base = true,
+};
+
+static const struct fsl_gpio_soc_data imx8ulp_data = {
 	.have_paddr = true,
 };
 
 static const struct of_device_id vf610_gpio_dt_ids[] = {
-	{ .compatible = "fsl,vf610-gpio",	.data = NULL, },
+	{ .compatible = "fsl,vf610-gpio",	.data = &vf610_data },
 	{ .compatible = "fsl,imx7ulp-gpio",	.data = &imx_data, },
+	{ .compatible = "fsl,imx8ulp-gpio",	.data = &imx8ulp_data, },
 	{ /* sentinel */ }
 };
 
@@ -86,7 +100,7 @@ static int vf610_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	unsigned long mask = BIT(gpio);
 	unsigned long offset = GPIO_PDIR;
 
-	if (port->sdata && port->sdata->have_paddr) {
+	if (port->sdata->have_paddr) {
 		mask &= vf610_gpio_readl(port->gpio_base + GPIO_PDDR);
 		if (mask)
 			offset = GPIO_PDOR;
@@ -110,7 +124,7 @@ static int vf610_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 	unsigned long mask = BIT(gpio);
 	u32 val;
 
-	if (port->sdata && port->sdata->have_paddr) {
+	if (port->sdata->have_paddr) {
 		val = vf610_gpio_readl(port->gpio_base + GPIO_PDDR);
 		val &= ~mask;
 		vf610_gpio_writel(val, port->gpio_base + GPIO_PDDR);
@@ -128,7 +142,7 @@ static int vf610_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 
 	vf610_gpio_set(chip, gpio, value);
 
-	if (port->sdata && port->sdata->have_paddr) {
+	if (port->sdata->have_paddr) {
 		val = vf610_gpio_readl(port->gpio_base + GPIO_PDDR);
 		val |= mask;
 		vf610_gpio_writel(val, port->gpio_base + GPIO_PDDR);
@@ -264,19 +278,41 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	struct gpio_irq_chip *girq;
 	int i;
 	int ret;
+	bool dual_base;
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
 	port->sdata = of_device_get_match_data(dev);
-	port->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(port->base))
-		return PTR_ERR(port->base);
 
-	port->gpio_base = devm_platform_ioremap_resource(pdev, 1);
-	if (IS_ERR(port->gpio_base))
-		return PTR_ERR(port->gpio_base);
+	dual_base = port->sdata->have_dual_base;
+
+	/*
+	 * Handle legacy compatible combinations which used two reg values
+	 * for the i.MX8ULP and i.MX93.
+	 */
+	if (device_is_compatible(dev, "fsl,imx7ulp-gpio") &&
+	    (device_is_compatible(dev, "fsl,imx93-gpio") ||
+	    (device_is_compatible(dev, "fsl,imx8ulp-gpio"))))
+		dual_base = true;
+
+	if (dual_base) {
+		port->base = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(port->base))
+			return PTR_ERR(port->base);
+
+		port->gpio_base = devm_platform_ioremap_resource(pdev, 1);
+		if (IS_ERR(port->gpio_base))
+			return PTR_ERR(port->gpio_base);
+	} else {
+		port->base = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(port->base))
+			return PTR_ERR(port->base);
+
+		port->gpio_base = port->base + IMX8ULP_GPIO_BASE_OFF;
+		port->base = port->base + IMX8ULP_BASE_OFF;
+	}
 
 	port->irq = platform_get_irq(pdev, 0);
 	if (port->irq < 0)

@@ -77,7 +77,7 @@ impl<T, A: Allocator> TrySpecExtend<T, IntoIter<T>> for Vec<T, A> {
 }
 
 #[cfg(not(no_global_oom_handling))]
-impl<'a, T: 'a, I, A: Allocator + 'a> SpecExtend<&'a T, I> for Vec<T, A>
+impl<'a, T: 'a, I, A: Allocator> SpecExtend<&'a T, I> for Vec<T, A>
 where
     I: Iterator<Item = &'a T>,
     T: Clone,
@@ -87,7 +87,7 @@ where
     }
 }
 
-impl<'a, T: 'a, I, A: Allocator + 'a> TrySpecExtend<&'a T, I> for Vec<T, A>
+impl<'a, T: 'a, I, A: Allocator> TrySpecExtend<&'a T, I> for Vec<T, A>
 where
     I: Iterator<Item = &'a T>,
     T: Clone,
@@ -98,7 +98,7 @@ where
 }
 
 #[cfg(not(no_global_oom_handling))]
-impl<'a, T: 'a, A: Allocator + 'a> SpecExtend<&'a T, slice::Iter<'a, T>> for Vec<T, A>
+impl<'a, T: 'a, A: Allocator> SpecExtend<&'a T, slice::Iter<'a, T>> for Vec<T, A>
 where
     T: Copy,
 {
@@ -108,7 +108,7 @@ where
     }
 }
 
-impl<'a, T: 'a, A: Allocator + 'a> TrySpecExtend<&'a T, slice::Iter<'a, T>> for Vec<T, A>
+impl<'a, T: 'a, A: Allocator> TrySpecExtend<&'a T, slice::Iter<'a, T>> for Vec<T, A>
 where
     T: Copy,
 {

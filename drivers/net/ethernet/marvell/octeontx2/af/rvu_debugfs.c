@@ -2756,6 +2756,27 @@ static int rvu_dbg_npc_rx_miss_stats_display(struct seq_file *filp,
 
 RVU_DEBUG_SEQ_FOPS(npc_rx_miss_act, npc_rx_miss_stats_display, NULL);
 
+#define RVU_DBG_PRINT_MPLS_TTL(pkt, mask)                                     \
+do {									      \
+	seq_printf(s, "%ld ", FIELD_GET(OTX2_FLOWER_MASK_MPLS_TTL, pkt));     \
+	seq_printf(s, "mask 0x%lx\n",                                         \
+		   FIELD_GET(OTX2_FLOWER_MASK_MPLS_TTL, mask));               \
+} while (0)                                                                   \
+
+#define RVU_DBG_PRINT_MPLS_LBTCBOS(_pkt, _mask)                               \
+do {									      \
+	typeof(_pkt) (pkt) = (_pkt);					      \
+	typeof(_mask) (mask) = (_mask);                                       \
+	seq_printf(s, "%ld %ld %ld\n",                                        \
+		   FIELD_GET(OTX2_FLOWER_MASK_MPLS_LB, pkt),                  \
+		   FIELD_GET(OTX2_FLOWER_MASK_MPLS_TC, pkt),                  \
+		   FIELD_GET(OTX2_FLOWER_MASK_MPLS_BOS, pkt));                \
+	seq_printf(s, "\tmask 0x%lx 0x%lx 0x%lx\n",                           \
+		   FIELD_GET(OTX2_FLOWER_MASK_MPLS_LB, mask),                 \
+		   FIELD_GET(OTX2_FLOWER_MASK_MPLS_TC, mask),                 \
+		   FIELD_GET(OTX2_FLOWER_MASK_MPLS_BOS, mask));               \
+} while (0)                                                                   \
+
 static void rvu_dbg_npc_mcam_show_flows(struct seq_file *s,
 					struct rvu_npc_mcam_rule *rule)
 {
@@ -2835,6 +2856,38 @@ static void rvu_dbg_npc_mcam_show_flows(struct seq_file *s,
 		case NPC_IPSEC_SPI:
 			seq_printf(s, "0x%x ", ntohl(rule->packet.spi));
 			seq_printf(s, "mask 0x%x\n", ntohl(rule->mask.spi));
+			break;
+		case NPC_MPLS1_LBTCBOS:
+			RVU_DBG_PRINT_MPLS_LBTCBOS(rule->packet.mpls_lse[0],
+						   rule->mask.mpls_lse[0]);
+			break;
+		case NPC_MPLS1_TTL:
+			RVU_DBG_PRINT_MPLS_TTL(rule->packet.mpls_lse[0],
+					       rule->mask.mpls_lse[0]);
+			break;
+		case NPC_MPLS2_LBTCBOS:
+			RVU_DBG_PRINT_MPLS_LBTCBOS(rule->packet.mpls_lse[1],
+						   rule->mask.mpls_lse[1]);
+			break;
+		case NPC_MPLS2_TTL:
+			RVU_DBG_PRINT_MPLS_TTL(rule->packet.mpls_lse[1],
+					       rule->mask.mpls_lse[1]);
+			break;
+		case NPC_MPLS3_LBTCBOS:
+			RVU_DBG_PRINT_MPLS_LBTCBOS(rule->packet.mpls_lse[2],
+						   rule->mask.mpls_lse[2]);
+			break;
+		case NPC_MPLS3_TTL:
+			RVU_DBG_PRINT_MPLS_TTL(rule->packet.mpls_lse[2],
+					       rule->mask.mpls_lse[2]);
+			break;
+		case NPC_MPLS4_LBTCBOS:
+			RVU_DBG_PRINT_MPLS_LBTCBOS(rule->packet.mpls_lse[3],
+						   rule->mask.mpls_lse[3]);
+			break;
+		case NPC_MPLS4_TTL:
+			RVU_DBG_PRINT_MPLS_TTL(rule->packet.mpls_lse[3],
+					       rule->mask.mpls_lse[3]);
 			break;
 		default:
 			seq_puts(s, "\n");

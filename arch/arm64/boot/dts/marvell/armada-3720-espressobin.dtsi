@@ -13,7 +13,7 @@
 / {
 	aliases {
 		ethernet0 = &eth0;
-		/* for dsa slave device */
+		/* for DSA user port device */
 		ethernet1 = &switch0port1;
 		ethernet2 = &switch0port2;
 		ethernet3 = &switch0port3;

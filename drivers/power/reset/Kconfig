@@ -66,7 +66,7 @@ config POWER_RESET_BRCMKONA
 
 config POWER_RESET_BRCMSTB
 	bool "Broadcom STB reset driver"
-	depends on ARM || ARM64 || MIPS || COMPILE_TEST
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST
 	depends on MFD_SYSCON
 	default ARCH_BRCMSTB || BMIPS_GENERIC
 	help

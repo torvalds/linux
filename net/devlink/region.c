@@ -588,7 +588,7 @@ int devlink_nl_region_get_dumpit(struct sk_buff *skb,
 	return devlink_nl_dumpit(skb, cb, devlink_nl_region_get_dump_one);
 }
 
-int devlink_nl_cmd_region_del(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_region_del_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_snapshot *snapshot;
@@ -633,7 +633,7 @@ int devlink_nl_cmd_region_del(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-int devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_region_new_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_snapshot *snapshot;
@@ -863,8 +863,8 @@ devlink_region_direct_fill(void *cb_priv, u8 *chunk, u32 chunk_size,
 				 curr_offset, chunk_size, chunk);
 }
 
-int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
-				      struct netlink_callback *cb)
+int devlink_nl_region_read_dumpit(struct sk_buff *skb,
+				  struct netlink_callback *cb)
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);

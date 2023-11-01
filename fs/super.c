@@ -1419,32 +1419,48 @@ EXPORT_SYMBOL(sget_dev);
 
 #ifdef CONFIG_BLOCK
 /*
- * Lock a super block that the callers holds a reference to.
+ * Lock the superblock that is holder of the bdev. Returns the superblock
+ * pointer if we successfully locked the superblock and it is alive. Otherwise
+ * we return NULL and just unlock bdev->bd_holder_lock.
  *
- * The caller needs to ensure that the super_block isn't being freed while
- * calling this function, e.g. by holding a lock over the call to this function
- * and the place that clears the pointer to the superblock used by this function
- * before freeing the superblock.
+ * The function must be called with bdev->bd_holder_lock and releases it.
  */
-static bool super_lock_shared_active(struct super_block *sb)
+static struct super_block *bdev_super_lock_shared(struct block_device *bdev)
+	__releases(&bdev->bd_holder_lock)
 {
-	bool born = super_lock_shared(sb);
+	struct super_block *sb = bdev->bd_holder;
+	bool born;
 
+	lockdep_assert_held(&bdev->bd_holder_lock);
+	lockdep_assert_not_held(&sb->s_umount);
+	lockdep_assert_not_held(&bdev->bd_disk->open_mutex);
+
+	/* Make sure sb doesn't go away from under us */
+	spin_lock(&sb_lock);
+	sb->s_count++;
+	spin_unlock(&sb_lock);
+	mutex_unlock(&bdev->bd_holder_lock);
+
+	born = super_lock_shared(sb);
 	if (!born || !sb->s_root || !(sb->s_flags & SB_ACTIVE)) {
 		super_unlock_shared(sb);
-		return false;
+		put_super(sb);
+		return NULL;
 	}
-	return true;
+	/*
+	 * The superblock is active and we hold s_umount, we can drop our
+	 * temporary reference now.
+	 */
+	put_super(sb);
+	return sb;
 }
 
 static void fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 {
-	struct super_block *sb = bdev->bd_holder;
+	struct super_block *sb;
 
-	/* bd_holder_lock ensures that the sb isn't freed */
-	lockdep_assert_held(&bdev->bd_holder_lock);
-
-	if (!super_lock_shared_active(sb))
+	sb = bdev_super_lock_shared(bdev);
+	if (!sb)
 		return;
 
 	if (!surprise)
@@ -1459,11 +1475,10 @@ static void fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 
 static void fs_bdev_sync(struct block_device *bdev)
 {
-	struct super_block *sb = bdev->bd_holder;
+	struct super_block *sb;
 
-	lockdep_assert_held(&bdev->bd_holder_lock);
-
-	if (!super_lock_shared_active(sb))
+	sb = bdev_super_lock_shared(bdev);
+	if (!sb)
 		return;
 	sync_filesystem(sb);
 	super_unlock_shared(sb);
@@ -1479,14 +1494,16 @@ int setup_bdev_super(struct super_block *sb, int sb_flags,
 		struct fs_context *fc)
 {
 	blk_mode_t mode = sb_open_mode(sb_flags);
+	struct bdev_handle *bdev_handle;
 	struct block_device *bdev;
 
-	bdev = blkdev_get_by_dev(sb->s_dev, mode, sb, &fs_holder_ops);
-	if (IS_ERR(bdev)) {
+	bdev_handle = bdev_open_by_dev(sb->s_dev, mode, sb, &fs_holder_ops);
+	if (IS_ERR(bdev_handle)) {
 		if (fc)
 			errorf(fc, "%s: Can't open blockdev", fc->source);
-		return PTR_ERR(bdev);
+		return PTR_ERR(bdev_handle);
 	}
+	bdev = bdev_handle->bdev;
 
 	/*
 	 * This really should be in blkdev_get_by_dev, but right now can't due
@@ -1494,7 +1511,7 @@ int setup_bdev_super(struct super_block *sb, int sb_flags,
 	 * writable from userspace even for a read-only block device.
 	 */
 	if ((mode & BLK_OPEN_WRITE) && bdev_read_only(bdev)) {
-		blkdev_put(bdev, sb);
+		bdev_release(bdev_handle);
 		return -EACCES;
 	}
 
@@ -1510,10 +1527,11 @@ int setup_bdev_super(struct super_block *sb, int sb_flags,
 		mutex_unlock(&bdev->bd_fsfreeze_mutex);
 		if (fc)
 			warnf(fc, "%pg: Can't mount, blockdev is frozen", bdev);
-		blkdev_put(bdev, sb);
+		bdev_release(bdev_handle);
 		return -EBUSY;
 	}
 	spin_lock(&sb_lock);
+	sb->s_bdev_handle = bdev_handle;
 	sb->s_bdev = bdev;
 	sb->s_bdi = bdi_get(bdev->bd_disk->bdi);
 	if (bdev_stable_writes(bdev))
@@ -1646,7 +1664,7 @@ void kill_block_super(struct super_block *sb)
 	generic_shutdown_super(sb);
 	if (bdev) {
 		sync_blockdev(bdev);
-		blkdev_put(bdev, sb);
+		bdev_release(sb->s_bdev_handle);
 	}
 }
 

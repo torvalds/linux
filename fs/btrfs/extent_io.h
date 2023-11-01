@@ -80,16 +80,16 @@ struct extent_buffer {
 	spinlock_t refs_lock;
 	atomic_t refs;
 	int read_mirror;
-	struct rcu_head rcu_head;
-	pid_t lock_owner;
 	/* >= 0 if eb belongs to a log tree, -1 otherwise */
 	s8 log_index;
+	struct rcu_head rcu_head;
 
 	struct rw_semaphore lock;
 
 	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
 #ifdef CONFIG_BTRFS_DEBUG
 	struct list_head leak_list;
+	pid_t lock_owner;
 #endif
 };
 

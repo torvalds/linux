@@ -572,7 +572,7 @@ struct linereq {
 	DECLARE_KFIFO_PTR(events, struct gpio_v2_line_event);
 	atomic_t seqno;
 	struct mutex config_mutex;
-	struct line lines[];
+	struct line lines[] __counted_by(num_lines);
 };
 
 #define GPIO_V2_LINE_BIAS_FLAGS \
@@ -1656,6 +1656,7 @@ static int linereq_create(struct gpio_device *gdev, void __user *ip)
 	lr = kzalloc(struct_size(lr, lines, ulr.num_lines), GFP_KERNEL);
 	if (!lr)
 		return -ENOMEM;
+	lr->num_lines = ulr.num_lines;
 
 	lr->gdev = gpio_device_get(gdev);
 
@@ -1684,7 +1685,6 @@ static int linereq_create(struct gpio_device *gdev, void __user *ip)
 		lr->event_buffer_size = GPIO_V2_LINES_MAX * 16;
 
 	atomic_set(&lr->seqno, 0);
-	lr->num_lines = ulr.num_lines;
 
 	/* Request each GPIO */
 	for (i = 0; i < ulr.num_lines; i++) {

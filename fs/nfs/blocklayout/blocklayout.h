@@ -108,7 +108,7 @@ struct pnfs_block_dev {
 	struct pnfs_block_dev		*children;
 	u64				chunk_size;
 
-	struct block_device		*bdev;
+	struct bdev_handle		*bdev_handle;
 	u64				disk_offset;
 
 	u64				pr_key;

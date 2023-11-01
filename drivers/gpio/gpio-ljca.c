@@ -421,7 +421,7 @@ static int ljca_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int ljca_gpio_remove(struct platform_device *pdev)
+static void ljca_gpio_remove(struct platform_device *pdev)
 {
 	struct ljca_gpio_dev *ljca_gpio = platform_get_drvdata(pdev);
 
@@ -429,7 +429,6 @@ static int ljca_gpio_remove(struct platform_device *pdev)
 	ljca_unregister_event_cb(ljca_gpio->gpio_info->ljca);
 	mutex_destroy(&ljca_gpio->irq_lock);
 	mutex_destroy(&ljca_gpio->trans_lock);
-	return 0;
 }
 
 #define LJCA_GPIO_DRV_NAME "ljca-gpio"
@@ -442,7 +441,7 @@ MODULE_DEVICE_TABLE(platform, ljca_gpio_id);
 static struct platform_driver ljca_gpio_driver = {
 	.driver.name = LJCA_GPIO_DRV_NAME,
 	.probe = ljca_gpio_probe,
-	.remove = ljca_gpio_remove,
+	.remove_new = ljca_gpio_remove,
 };
 module_platform_driver(ljca_gpio_driver);
 

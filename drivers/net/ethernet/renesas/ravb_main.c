@@ -2880,7 +2880,7 @@ out_release:
 	return error;
 }
 
-static int ravb_remove(struct platform_device *pdev)
+static void ravb_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ravb_private *priv = netdev_priv(ndev);
@@ -2907,8 +2907,6 @@ static int ravb_remove(struct platform_device *pdev)
 	reset_control_assert(priv->rstc);
 	free_netdev(ndev);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static int ravb_wol_setup(struct net_device *ndev)
@@ -3046,7 +3044,7 @@ static const struct dev_pm_ops ravb_dev_pm_ops = {
 
 static struct platform_driver ravb_driver = {
 	.probe		= ravb_probe,
-	.remove		= ravb_remove,
+	.remove_new	= ravb_remove,
 	.driver = {
 		.name	= "ravb",
 		.pm	= &ravb_dev_pm_ops,

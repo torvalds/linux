@@ -77,3 +77,13 @@ config SECURITY_SELINUX_DEBUG
 	  This enables debugging code designed to help SELinux kernel
 	  developers, unless you know what this does in the kernel code you
 	  should leave this disabled.
+
+	  To fine control the messages to be printed enable
+	  CONFIG_DYNAMIC_DEBUG and see
+	  Documentation/admin-guide/dynamic-debug-howto.rst for additional
+	  information.
+
+	  Example usage:
+
+		echo -n 'file "security/selinux/*" +p' > \
+			/proc/dynamic_debug/control

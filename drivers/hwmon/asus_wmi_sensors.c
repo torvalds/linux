@@ -300,7 +300,7 @@ static int asus_wmi_sensor_info(int index, struct asus_wmi_sensor_info *s)
 		goto out_free_obj;
 	}
 
-	strncpy(s->name, name_obj.string.pointer, sizeof(s->name) - 1);
+	strscpy(s->name, name_obj.string.pointer, sizeof(s->name));
 
 	data_type_obj = obj->package.elements[1];
 	if (data_type_obj.type != ACPI_TYPE_INTEGER) {

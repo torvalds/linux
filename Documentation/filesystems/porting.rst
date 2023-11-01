@@ -1045,3 +1045,10 @@ filesystem type is now moved to a later point when the devices are closed:
 As this is a VFS level change it has no practical consequences for filesystems
 other than that all of them must use one of the provided kill_litter_super(),
 kill_anon_super(), or kill_block_super() helpers.
+
+---
+
+**mandatory**
+
+Lock ordering has been changed so that s_umount ranks above open_mutex again.
+All places where s_umount was taken under open_mutex have been fixed up.

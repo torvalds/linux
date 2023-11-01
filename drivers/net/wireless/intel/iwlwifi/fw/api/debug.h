@@ -522,4 +522,26 @@ enum iwl_mvm_tas_statically_disabled_reason {
 	TAS_DISABLED_REASON_MAX,
 }; /*_TAS_STATICALLY_DISABLED_REASON_E*/
 
+/**
+ * enum iwl_fw_dbg_config_cmd_type - types of FW debug config command
+ * @DEBUG_TOKEN_CONFIG_TYPE: token config type
+ */
+enum iwl_fw_dbg_config_cmd_type {
+	DEBUG_TOKEN_CONFIG_TYPE = 0x2B,
+}; /* LDBG_CFG_CMD_TYPE_API_E_VER_1 */
+
+/* this token disables debug asserts in the firmware */
+#define IWL_FW_DBG_CONFIG_TOKEN 0x00011301
+
+/**
+ * struct iwl_fw_dbg_config_cmd - configure FW debug
+ *
+ * @type: according to &enum iwl_fw_dbg_config_cmd_type
+ * @conf: FW configuration
+ */
+struct iwl_fw_dbg_config_cmd {
+	__le32 type;
+	__le32 conf;
+} __packed; /* LDBG_CFG_CMD_API_S_VER_7 */
+
 #endif /* __iwl_fw_api_debug_h__ */

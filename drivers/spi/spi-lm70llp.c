@@ -24,7 +24,7 @@
  * the SPI/Microwire bus interface. This driver specifically supports an
  * NS LM70 LLP Evaluation Board, interfacing to a PC using its parallel
  * port to bitbang an SPI-parport bridge.  Accordingly, this is an SPI
- * master controller driver.  The hwmon/lm70 driver is a "SPI protocol
+ * host controller driver.  The hwmon/lm70 driver is a "SPI protocol
  * driver", layered on top of this one and usable without the lm70llp.
  *
  * Datasheet and Schematic:
@@ -189,7 +189,7 @@ static void spi_lm70llp_attach(struct parport *p)
 {
 	struct pardevice	*pd;
 	struct spi_lm70llp	*pp;
-	struct spi_master	*master;
+	struct spi_controller	*host;
 	int			status;
 	struct pardev_cb	lm70llp_cb;
 
@@ -202,17 +202,17 @@ static void spi_lm70llp_attach(struct parport *p)
 	 * the lm70 driver could verify it, reading the manf ID.
 	 */
 
-	master = spi_alloc_master(p->physport->dev, sizeof(*pp));
-	if (!master) {
+	host = spi_alloc_host(p->physport->dev, sizeof(*pp));
+	if (!host) {
 		status = -ENOMEM;
 		goto out_fail;
 	}
-	pp = spi_master_get_devdata(master);
+	pp = spi_controller_get_devdata(host);
 
 	/*
 	 * SPI and bitbang hookup.
 	 */
-	pp->bitbang.master = master;
+	pp->bitbang.master = host;
 	pp->bitbang.chipselect = lm70_chipselect;
 	pp->bitbang.txrx_word[SPI_MODE_0] = lm70_txrx;
 	pp->bitbang.flags = SPI_3WIRE;
@@ -228,7 +228,7 @@ static void spi_lm70llp_attach(struct parport *p)
 
 	if (!pd) {
 		status = -ENOMEM;
-		goto out_free_master;
+		goto out_free_host;
 	}
 	pp->pd = pd;
 
@@ -287,8 +287,8 @@ out_off_and_release:
 	parport_release(pp->pd);
 out_parport_unreg:
 	parport_unregister_device(pd);
-out_free_master:
-	spi_master_put(master);
+out_free_host:
+	spi_controller_put(host);
 out_fail:
 	pr_info("spi_lm70llp probe fail, status %d\n", status);
 }
@@ -309,7 +309,7 @@ static void spi_lm70llp_detach(struct parport *p)
 	parport_release(pp->pd);
 	parport_unregister_device(pp->pd);
 
-	spi_master_put(pp->bitbang.master);
+	spi_controller_put(pp->bitbang.master);
 
 	lm70llp = NULL;
 }

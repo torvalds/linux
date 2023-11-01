@@ -79,6 +79,8 @@ static const char * const attach_type_strings[] = {
 static const char * const attach_loc_strings[] = {
 	[BPF_TCX_INGRESS]		= "tcx/ingress",
 	[BPF_TCX_EGRESS]		= "tcx/egress",
+	[BPF_NETKIT_PRIMARY]		= "netkit/primary",
+	[BPF_NETKIT_PEER]		= "netkit/peer",
 };
 
 const size_t net_attach_type_size = ARRAY_SIZE(attach_type_strings);
@@ -506,6 +508,9 @@ static void show_dev_tc_bpf(struct ip_devname_ifindex *dev)
 {
 	__show_dev_tc_bpf(dev, BPF_TCX_INGRESS);
 	__show_dev_tc_bpf(dev, BPF_TCX_EGRESS);
+
+	__show_dev_tc_bpf(dev, BPF_NETKIT_PRIMARY);
+	__show_dev_tc_bpf(dev, BPF_NETKIT_PEER);
 }
 
 static int show_dev_tc_bpf_classic(int sock, unsigned int nl_pid,
@@ -926,7 +931,7 @@ static int do_help(int argc, char **argv)
 		"       ATTACH_TYPE := { xdp | xdpgeneric | xdpdrv | xdpoffload }\n"
 		"       " HELP_SPEC_OPTIONS " }\n"
 		"\n"
-		"Note: Only xdp, tcx, tc, flow_dissector and netfilter attachments\n"
+		"Note: Only xdp, tcx, tc, netkit, flow_dissector and netfilter attachments\n"
 		"      are currently supported.\n"
 		"      For progs attached to cgroups, use \"bpftool cgroup\"\n"
 		"      to dump program attachments. For program types\n"

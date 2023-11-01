@@ -1207,11 +1207,24 @@ static int rk817_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused rk817_resume(struct device *dev)
+{
+
+	struct rk817_charger *charger = dev_get_drvdata(dev);
+
+	/* force an immediate update */
+	mod_delayed_work(system_wq, &charger->work, 0);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rk817_charger_pm, NULL, rk817_resume);
 
 static struct platform_driver rk817_charger_driver = {
 	.probe    = rk817_charger_probe,
 	.driver   = {
 		.name  = "rk817-charger",
+		.pm		= &rk817_charger_pm,
 	},
 };
 module_platform_driver(rk817_charger_driver);

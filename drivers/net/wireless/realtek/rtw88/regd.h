@@ -68,4 +68,6 @@ int rtw_regd_init(struct rtw_dev *rtwdev);
 int rtw_regd_hint(struct rtw_dev *rtwdev);
 u8 rtw_regd_get(struct rtw_dev *rtwdev);
 bool rtw_regd_has_alt(u8 regd, u8 *regd_alt);
+bool rtw_regd_srrc(struct rtw_dev *rtwdev);
+
 #endif

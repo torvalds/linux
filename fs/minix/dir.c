@@ -281,7 +281,7 @@ got_it:
 		de->inode = inode->i_ino;
 	}
 	dir_commit_chunk(page, pos, sbi->s_dirsize);
-	dir->i_mtime = inode_set_ctime_current(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	err = minix_handle_dirsync(dir);
 out_put:
@@ -313,7 +313,7 @@ int minix_delete_entry(struct minix_dir_entry *de, struct page *page)
 	else
 		de->inode = 0;
 	dir_commit_chunk(page, pos, len);
-	inode->i_mtime = inode_set_ctime_current(inode);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 	return minix_handle_dirsync(inode);
 }
@@ -436,7 +436,7 @@ int minix_set_link(struct minix_dir_entry *de, struct page *page,
 	else
 		de->inode = inode->i_ino;
 	dir_commit_chunk(page, pos, sbi->s_dirsize);
-	dir->i_mtime = inode_set_ctime_current(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	return minix_handle_dirsync(dir);
 }

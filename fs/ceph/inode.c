@@ -185,9 +185,9 @@ struct inode *ceph_get_snapdir(struct inode *parent)
 	inode->i_mode = parent->i_mode;
 	inode->i_uid = parent->i_uid;
 	inode->i_gid = parent->i_gid;
-	inode->i_mtime = parent->i_mtime;
+	inode_set_mtime_to_ts(inode, inode_get_mtime(parent));
 	inode_set_ctime_to_ts(inode, inode_get_ctime(parent));
-	inode->i_atime = parent->i_atime;
+	inode_set_atime_to_ts(inode, inode_get_atime(parent));
 	ci->i_rbytes = 0;
 	ci->i_btime = ceph_inode(parent)->i_btime;
 
@@ -835,28 +835,31 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 			/* the MDS did a utimes() */
 			dout("mtime %lld.%09ld -> %lld.%09ld "
 			     "tw %d -> %d\n",
-			     inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
+			     inode_get_mtime_sec(inode),
+			     inode_get_mtime_nsec(inode),
 			     mtime->tv_sec, mtime->tv_nsec,
 			     ci->i_time_warp_seq, (int)time_warp_seq);
 
-			inode->i_mtime = *mtime;
-			inode->i_atime = *atime;
+			inode_set_mtime_to_ts(inode, *mtime);
+			inode_set_atime_to_ts(inode, *atime);
 			ci->i_time_warp_seq = time_warp_seq;
 		} else if (time_warp_seq == ci->i_time_warp_seq) {
+			struct timespec64	ts;
+
 			/* nobody did utimes(); take the max */
-			if (timespec64_compare(mtime, &inode->i_mtime) > 0) {
+			ts = inode_get_mtime(inode);
+			if (timespec64_compare(mtime, &ts) > 0) {
 				dout("mtime %lld.%09ld -> %lld.%09ld inc\n",
-				     inode->i_mtime.tv_sec,
-				     inode->i_mtime.tv_nsec,
+				     ts.tv_sec, ts.tv_nsec,
 				     mtime->tv_sec, mtime->tv_nsec);
-				inode->i_mtime = *mtime;
+				inode_set_mtime_to_ts(inode, *mtime);
 			}
-			if (timespec64_compare(atime, &inode->i_atime) > 0) {
+			ts = inode_get_atime(inode);
+			if (timespec64_compare(atime, &ts) > 0) {
 				dout("atime %lld.%09ld -> %lld.%09ld inc\n",
-				     inode->i_atime.tv_sec,
-				     inode->i_atime.tv_nsec,
+				     ts.tv_sec, ts.tv_nsec,
 				     atime->tv_sec, atime->tv_nsec);
-				inode->i_atime = *atime;
+				inode_set_atime_to_ts(inode, *atime);
 			}
 		} else if (issued & CEPH_CAP_FILE_EXCL) {
 			/* we did a utimes(); ignore mds values */
@@ -867,8 +870,8 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 		/* we have no write|excl caps; whatever the MDS says is true */
 		if (ceph_seq_cmp(time_warp_seq, ci->i_time_warp_seq) >= 0) {
 			inode_set_ctime_to_ts(inode, *ctime);
-			inode->i_mtime = *mtime;
-			inode->i_atime = *atime;
+			inode_set_mtime_to_ts(inode, *mtime);
+			inode_set_atime_to_ts(inode, *atime);
 			ci->i_time_warp_seq = time_warp_seq;
 		} else {
 			warn = 1;
@@ -2551,20 +2554,22 @@ retry:
 	}
 
 	if (ia_valid & ATTR_ATIME) {
+		struct timespec64 atime = inode_get_atime(inode);
+
 		dout("setattr %p atime %lld.%ld -> %lld.%ld\n", inode,
-		     inode->i_atime.tv_sec, inode->i_atime.tv_nsec,
+		     atime.tv_sec, atime.tv_nsec,
 		     attr->ia_atime.tv_sec, attr->ia_atime.tv_nsec);
 		if (issued & CEPH_CAP_FILE_EXCL) {
 			ci->i_time_warp_seq++;
-			inode->i_atime = attr->ia_atime;
+			inode_set_atime_to_ts(inode, attr->ia_atime);
 			dirtied |= CEPH_CAP_FILE_EXCL;
 		} else if ((issued & CEPH_CAP_FILE_WR) &&
-			   timespec64_compare(&inode->i_atime,
-					    &attr->ia_atime) < 0) {
-			inode->i_atime = attr->ia_atime;
+			   timespec64_compare(&atime,
+					      &attr->ia_atime) < 0) {
+			inode_set_atime_to_ts(inode, attr->ia_atime);
 			dirtied |= CEPH_CAP_FILE_WR;
 		} else if ((issued & CEPH_CAP_FILE_SHARED) == 0 ||
-			   !timespec64_equal(&inode->i_atime, &attr->ia_atime)) {
+			   !timespec64_equal(&atime, &attr->ia_atime)) {
 			ceph_encode_timespec64(&req->r_args.setattr.atime,
 					       &attr->ia_atime);
 			mask |= CEPH_SETATTR_ATIME;
@@ -2624,20 +2629,21 @@ retry:
 		}
 	}
 	if (ia_valid & ATTR_MTIME) {
+		struct timespec64 mtime = inode_get_mtime(inode);
+
 		dout("setattr %p mtime %lld.%ld -> %lld.%ld\n", inode,
-		     inode->i_mtime.tv_sec, inode->i_mtime.tv_nsec,
+		     mtime.tv_sec, mtime.tv_nsec,
 		     attr->ia_mtime.tv_sec, attr->ia_mtime.tv_nsec);
 		if (issued & CEPH_CAP_FILE_EXCL) {
 			ci->i_time_warp_seq++;
-			inode->i_mtime = attr->ia_mtime;
+			inode_set_mtime_to_ts(inode, attr->ia_mtime);
 			dirtied |= CEPH_CAP_FILE_EXCL;
 		} else if ((issued & CEPH_CAP_FILE_WR) &&
-			   timespec64_compare(&inode->i_mtime,
-					    &attr->ia_mtime) < 0) {
-			inode->i_mtime = attr->ia_mtime;
+			   timespec64_compare(&mtime, &attr->ia_mtime) < 0) {
+			inode_set_mtime_to_ts(inode, attr->ia_mtime);
 			dirtied |= CEPH_CAP_FILE_WR;
 		} else if ((issued & CEPH_CAP_FILE_SHARED) == 0 ||
-			   !timespec64_equal(&inode->i_mtime, &attr->ia_mtime)) {
+			   !timespec64_equal(&mtime, &attr->ia_mtime)) {
 			ceph_encode_timespec64(&req->r_args.setattr.mtime,
 					       &attr->ia_mtime);
 			mask |= CEPH_SETATTR_MTIME;
@@ -2651,8 +2657,8 @@ retry:
 		bool only = (ia_valid & (ATTR_SIZE|ATTR_MTIME|ATTR_ATIME|
 					 ATTR_MODE|ATTR_UID|ATTR_GID)) == 0;
 		dout("setattr %p ctime %lld.%ld -> %lld.%ld (%s)\n", inode,
-		     inode_get_ctime(inode).tv_sec,
-		     inode_get_ctime(inode).tv_nsec,
+		     inode_get_ctime_sec(inode),
+		     inode_get_ctime_nsec(inode),
 		     attr->ia_ctime.tv_sec, attr->ia_ctime.tv_nsec,
 		     only ? "ctime only" : "ignored");
 		if (only) {

@@ -227,6 +227,36 @@ static inline bool pipe_readable(const struct pipe_inode_info *pipe)
 	return !pipe_empty(head, tail) || !writers;
 }
 
+static inline unsigned int pipe_update_tail(struct pipe_inode_info *pipe,
+					    struct pipe_buffer *buf,
+					    unsigned int tail)
+{
+	pipe_buf_release(pipe, buf);
+
+	/*
+	 * If the pipe has a watch_queue, we need additional protection
+	 * by the spinlock because notifications get posted with only
+	 * this spinlock, no mutex
+	 */
+	if (pipe_has_watch_queue(pipe)) {
+		spin_lock_irq(&pipe->rd_wait.lock);
+#ifdef CONFIG_WATCH_QUEUE
+		if (buf->flags & PIPE_BUF_FLAG_LOSS)
+			pipe->note_loss = true;
+#endif
+		pipe->tail = ++tail;
+		spin_unlock_irq(&pipe->rd_wait.lock);
+		return tail;
+	}
+
+	/*
+	 * Without a watch_queue, we can simply increment the tail
+	 * without the spinlock - the mutex is enough.
+	 */
+	pipe->tail = ++tail;
+	return tail;
+}
+
 static ssize_t
 pipe_read(struct kiocb *iocb, struct iov_iter *to)
 {
@@ -320,17 +350,8 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 				buf->len = 0;
 			}
 
-			if (!buf->len) {
-				pipe_buf_release(pipe, buf);
-				spin_lock_irq(&pipe->rd_wait.lock);
-#ifdef CONFIG_WATCH_QUEUE
-				if (buf->flags & PIPE_BUF_FLAG_LOSS)
-					pipe->note_loss = true;
-#endif
-				tail++;
-				pipe->tail = tail;
-				spin_unlock_irq(&pipe->rd_wait.lock);
-			}
+			if (!buf->len)
+				tail = pipe_update_tail(pipe, buf, tail);
 			total_len -= chars;
 			if (!total_len)
 				break;	/* common path: read succeeded */
@@ -437,12 +458,10 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 	}
 
-#ifdef CONFIG_WATCH_QUEUE
-	if (pipe->watch_queue) {
+	if (pipe_has_watch_queue(pipe)) {
 		ret = -EXDEV;
 		goto out;
 	}
-#endif
 
 	/*
 	 * If it wasn't empty we try to merge new data into
@@ -507,16 +526,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			 * it, either the reader will consume it or it'll still
 			 * be there for the next write.
 			 */
-			spin_lock_irq(&pipe->rd_wait.lock);
-
-			head = pipe->head;
-			if (pipe_full(head, pipe->tail, pipe->max_usage)) {
-				spin_unlock_irq(&pipe->rd_wait.lock);
-				continue;
-			}
-
 			pipe->head = head + 1;
-			spin_unlock_irq(&pipe->rd_wait.lock);
 
 			/* Insert it into the buffer array */
 			buf = &pipe->bufs[head & mask];
@@ -898,7 +908,7 @@ static struct inode * get_pipe_inode(void)
 	inode->i_mode = S_IFIFO | S_IRUSR | S_IWUSR;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
-	inode->i_atime = inode->i_mtime = inode_set_ctime_current(inode);
+	simple_inode_init_ts(inode);
 
 	return inode;
 
@@ -1324,10 +1334,8 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned int arg)
 	unsigned int nr_slots, size;
 	long ret = 0;
 
-#ifdef CONFIG_WATCH_QUEUE
-	if (pipe->watch_queue)
+	if (pipe_has_watch_queue(pipe))
 		return -EBUSY;
-#endif
 
 	size = round_pipe_size(arg);
 	nr_slots = size >> PAGE_SHIFT;
@@ -1379,10 +1387,8 @@ struct pipe_inode_info *get_pipe_info(struct file *file, bool for_splice)
 
 	if (file->f_op != &pipefifo_fops || !pipe)
 		return NULL;
-#ifdef CONFIG_WATCH_QUEUE
-	if (for_splice && pipe->watch_queue)
+	if (for_splice && pipe_has_watch_queue(pipe))
 		return NULL;
-#endif
 	return pipe;
 }
 

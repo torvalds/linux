@@ -342,8 +342,10 @@ enum rtw_regulatory_domains {
 	RTW_REGD_UKRAINE	= 7,
 	RTW_REGD_MEXICO		= 8,
 	RTW_REGD_CN		= 9,
-	RTW_REGD_WW,
+	RTW_REGD_QATAR		= 10,
+	RTW_REGD_UK		= 11,
 
+	RTW_REGD_WW,
 	RTW_REGD_MAX
 };
 
@@ -520,6 +522,12 @@ struct rtw_channel_params {
 struct rtw_hw_reg {
 	u32 addr;
 	u32 mask;
+};
+
+struct rtw_hw_reg_desc {
+	u32 addr;
+	u32 mask;
+	const char *desc;
 };
 
 struct rtw_ltecoex_addr {

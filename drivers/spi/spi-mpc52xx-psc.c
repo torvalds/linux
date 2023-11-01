@@ -60,7 +60,7 @@ static int mpc52xx_psc_spi_transfer_setup(struct spi_device *spi,
 static void mpc52xx_psc_spi_activate_cs(struct spi_device *spi)
 {
 	struct mpc52xx_psc_spi_cs *cs = spi->controller_state;
-	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(spi->master);
+	struct mpc52xx_psc_spi *mps = spi_controller_get_devdata(spi->controller);
 	struct mpc52xx_psc __iomem *psc = mps->psc;
 	u32 sicr;
 	u16 ccr;
@@ -104,7 +104,7 @@ static void mpc52xx_psc_spi_activate_cs(struct spi_device *spi)
 static int mpc52xx_psc_spi_transfer_rxtx(struct spi_device *spi,
 						struct spi_transfer *t)
 {
-	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(spi->master);
+	struct mpc52xx_psc_spi *mps = spi_controller_get_devdata(spi->controller);
 	struct mpc52xx_psc __iomem *psc = mps->psc;
 	struct mpc52xx_psc_fifo __iomem *fifo = mps->fifo;
 	unsigned rb = 0;	/* number of bytes receieved */
@@ -175,8 +175,8 @@ static int mpc52xx_psc_spi_transfer_rxtx(struct spi_device *spi,
 	return 0;
 }
 
-int mpc52xx_psc_spi_transfer_one_message(struct spi_controller *ctlr,
-					 struct spi_message *m)
+static int mpc52xx_psc_spi_transfer_one_message(struct spi_controller *ctlr,
+						struct spi_message *m)
 {
 	struct spi_device *spi;
 	struct spi_transfer *t = NULL;
@@ -263,7 +263,7 @@ static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 	out_8(&fifo->rfcntl, 0);
 	out_8(&psc->mode, MPC52xx_PSC_MODE_FFULL);
 
-	/* Configure 8bit codec mode as a SPI master and use EOF flags */
+	/* Configure 8bit codec mode as a SPI host and use EOF flags */
 	/* SICR_SIM_CODEC8|SICR_GENCLK|SICR_SPI|SICR_MSTR|SICR_USEEOF */
 	out_be32(&psc->sicr, 0x0180C800);
 	out_be16((u16 __iomem *)&psc->ccr, 0x070F); /* default SPI Clk 1MHz */
@@ -295,31 +295,31 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mpc52xx_psc_spi *mps;
-	struct spi_master *master;
+	struct spi_controller *host;
 	u32 bus_num;
 	int ret;
 
-	master = devm_spi_alloc_master(dev, sizeof(*mps));
-	if (master == NULL)
+	host = devm_spi_alloc_host(dev, sizeof(*mps));
+	if (host == NULL)
 		return -ENOMEM;
 
-	dev_set_drvdata(dev, master);
-	mps = spi_master_get_devdata(master);
+	dev_set_drvdata(dev, host);
+	mps = spi_controller_get_devdata(host);
 
 	/* the spi->mode bits understood by this driver: */
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
+	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 
 	ret = device_property_read_u32(dev, "cell-index", &bus_num);
 	if (ret || bus_num > 5)
 		return dev_err_probe(dev, ret ? : -EINVAL, "Invalid cell-index property\n");
-	master->bus_num = bus_num + 1;
+	host->bus_num = bus_num + 1;
 
-	master->num_chipselect = 255;
-	master->setup = mpc52xx_psc_spi_setup;
-	master->transfer_one_message = mpc52xx_psc_spi_transfer_one_message;
-	master->cleanup = mpc52xx_psc_spi_cleanup;
+	host->num_chipselect = 255;
+	host->setup = mpc52xx_psc_spi_setup;
+	host->transfer_one_message = mpc52xx_psc_spi_transfer_one_message;
+	host->cleanup = mpc52xx_psc_spi_cleanup;
 
-	device_set_node(&master->dev, dev_fwnode(dev));
+	device_set_node(&host->dev, dev_fwnode(dev));
 
 	mps->psc = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(mps->psc))
@@ -337,13 +337,13 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = mpc52xx_psc_spi_port_config(master->bus_num, mps);
+	ret = mpc52xx_psc_spi_port_config(host->bus_num, mps);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "can't configure PSC! Is it capable of SPI?\n");
 
 	init_completion(&mps->done);
 
-	return devm_spi_register_master(dev, master);
+	return devm_spi_register_controller(dev, host);
 }
 
 static const struct of_device_id mpc52xx_psc_spi_of_match[] = {

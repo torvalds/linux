@@ -37,6 +37,8 @@
 
 static __always_inline void rtlock_lock(struct rt_mutex_base *rtm)
 {
+	lockdep_assert(!current->pi_blocked_on);
+
 	if (unlikely(!rt_mutex_cmpxchg_acquire(rtm, NULL, current)))
 		rtlock_slowlock(rtm);
 }
@@ -184,8 +186,12 @@ static __always_inline int  rwbase_rtmutex_trylock(struct rt_mutex_base *rtm)
 
 #define rwbase_signal_pending_state(state, current)	(0)
 
+#define rwbase_pre_schedule()
+
 #define rwbase_schedule()				\
 	schedule_rtlock()
+
+#define rwbase_post_schedule()
 
 #include "rwbase_rt.c"
 /*

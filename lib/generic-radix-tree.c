@@ -1,4 +1,5 @@
 
+#include <linux/atomic.h>
 #include <linux/export.h>
 #include <linux/generic-radix-tree.h>
 #include <linux/gfp.h>
@@ -166,6 +167,10 @@ void *__genradix_iter_peek(struct genradix_iter *iter,
 	struct genradix_root *r;
 	struct genradix_node *n;
 	unsigned level, i;
+
+	if (iter->offset == SIZE_MAX)
+		return NULL;
+
 restart:
 	r = READ_ONCE(radix->root);
 	if (!r)
@@ -184,10 +189,17 @@ restart:
 			(GENRADIX_ARY - 1);
 
 		while (!n->children[i]) {
+			size_t objs_per_ptr = genradix_depth_size(level);
+
+			if (iter->offset + objs_per_ptr < iter->offset) {
+				iter->offset	= SIZE_MAX;
+				iter->pos	= SIZE_MAX;
+				return NULL;
+			}
+
 			i++;
-			iter->offset = round_down(iter->offset +
-					   genradix_depth_size(level),
-					   genradix_depth_size(level));
+			iter->offset = round_down(iter->offset + objs_per_ptr,
+						  objs_per_ptr);
 			iter->pos = (iter->offset >> PAGE_SHIFT) *
 				objs_per_page;
 			if (i == GENRADIX_ARY)
@@ -200,6 +212,64 @@ restart:
 	return &n->data[iter->offset & (PAGE_SIZE - 1)];
 }
 EXPORT_SYMBOL(__genradix_iter_peek);
+
+void *__genradix_iter_peek_prev(struct genradix_iter *iter,
+				struct __genradix *radix,
+				size_t objs_per_page,
+				size_t obj_size_plus_page_remainder)
+{
+	struct genradix_root *r;
+	struct genradix_node *n;
+	unsigned level, i;
+
+	if (iter->offset == SIZE_MAX)
+		return NULL;
+
+restart:
+	r = READ_ONCE(radix->root);
+	if (!r)
+		return NULL;
+
+	n	= genradix_root_to_node(r);
+	level	= genradix_root_to_depth(r);
+
+	if (ilog2(iter->offset) >= genradix_depth_shift(level)) {
+		iter->offset = genradix_depth_size(level);
+		iter->pos = (iter->offset >> PAGE_SHIFT) * objs_per_page;
+
+		iter->offset -= obj_size_plus_page_remainder;
+		iter->pos--;
+	}
+
+	while (level) {
+		level--;
+
+		i = (iter->offset >> genradix_depth_shift(level)) &
+			(GENRADIX_ARY - 1);
+
+		while (!n->children[i]) {
+			size_t objs_per_ptr = genradix_depth_size(level);
+
+			iter->offset = round_down(iter->offset, objs_per_ptr);
+			iter->pos = (iter->offset >> PAGE_SHIFT) * objs_per_page;
+
+			if (!iter->offset)
+				return NULL;
+
+			iter->offset -= obj_size_plus_page_remainder;
+			iter->pos--;
+
+			if (!i)
+				goto restart;
+			--i;
+		}
+
+		n = n->children[i];
+	}
+
+	return &n->data[iter->offset & (PAGE_SIZE - 1)];
+}
+EXPORT_SYMBOL(__genradix_iter_peek_prev);
 
 static void genradix_free_recurse(struct genradix_node *n, unsigned level)
 {

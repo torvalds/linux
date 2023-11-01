@@ -10,7 +10,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root drr",
         "expExitCode": "0",
@@ -18,8 +17,7 @@
         "matchPattern": "qdisc drr 1: root refcnt [0-9]+",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -33,7 +31,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root drr"
         ],
         "cmdUnderTest": "$TC qdisc del dev $DUMMY handle 1: root",
@@ -42,7 +39,6 @@
         "matchPattern": "qdisc drr 1: root refcnt [0-9]+",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -56,7 +52,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root drr",
         "expExitCode": "0",
@@ -64,8 +59,7 @@
         "matchPattern": "class drr 1:",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     }
 ]

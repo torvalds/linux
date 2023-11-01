@@ -162,27 +162,27 @@ static int v9fs_xattr_handler_set(const struct xattr_handler *handler,
 	return v9fs_xattr_set(dentry, full_name, value, size, flags);
 }
 
-static struct xattr_handler v9fs_xattr_user_handler = {
+static const struct xattr_handler v9fs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
 	.get	= v9fs_xattr_handler_get,
 	.set	= v9fs_xattr_handler_set,
 };
 
-static struct xattr_handler v9fs_xattr_trusted_handler = {
+static const struct xattr_handler v9fs_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
 	.get	= v9fs_xattr_handler_get,
 	.set	= v9fs_xattr_handler_set,
 };
 
 #ifdef CONFIG_9P_FS_SECURITY
-static struct xattr_handler v9fs_xattr_security_handler = {
+static const struct xattr_handler v9fs_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.get	= v9fs_xattr_handler_get,
 	.set	= v9fs_xattr_handler_set,
 };
 #endif
 
-const struct xattr_handler *v9fs_xattr_handlers[] = {
+const struct xattr_handler * const v9fs_xattr_handlers[] = {
 	&v9fs_xattr_user_handler,
 	&v9fs_xattr_trusted_handler,
 #ifdef CONFIG_9P_FS_SECURITY

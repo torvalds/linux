@@ -1250,8 +1250,8 @@ got:
 	inode->i_ino = ino + group * EXT4_INODES_PER_GROUP(sb);
 	/* This is the optimal IO size (for stat), not the fs block size */
 	inode->i_blocks = 0;
-	inode->i_mtime = inode->i_atime = inode_set_ctime_current(inode);
-	ei->i_crtime = inode->i_mtime;
+	simple_inode_init_ts(inode);
+	ei->i_crtime = inode_get_mtime(inode);
 
 	memset(ei->i_data, 0, sizeof(ei->i_data));
 	ei->i_dir_start_lookup = 0;

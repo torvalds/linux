@@ -576,7 +576,7 @@ static int wcn36xx_smd_start_rsp(struct wcn36xx *wcn, void *buf, size_t len)
 	if (len < sizeof(*rsp))
 		return -EIO;
 
-	rsp = (struct wcn36xx_hal_mac_start_rsp_msg *)buf;
+	rsp = buf;
 
 	if (WCN36XX_FW_MSG_RESULT_SUCCESS != rsp->start_rsp_params.status)
 		return -EIO;
@@ -1025,7 +1025,7 @@ static int wcn36xx_smd_switch_channel_rsp(void *buf, size_t len)
 	ret = wcn36xx_smd_rsp_status_check(buf, len);
 	if (ret)
 		return ret;
-	rsp = (struct wcn36xx_hal_switch_channel_rsp_msg *)buf;
+	rsp = buf;
 	wcn36xx_dbg(WCN36XX_DBG_HAL, "channel switched to: %d, status: %d\n",
 		    rsp->channel_number, rsp->status);
 	return ret;
@@ -1072,7 +1072,7 @@ static int wcn36xx_smd_process_ptt_msg_rsp(void *buf, size_t len,
 	if (ret)
 		return ret;
 
-	rsp = (struct wcn36xx_hal_process_ptt_msg_rsp_msg *)buf;
+	rsp = buf;
 
 	wcn36xx_dbg(WCN36XX_DBG_HAL, "process ptt msg responded with length %d\n",
 		    rsp->header.len);
@@ -1131,7 +1131,7 @@ static int wcn36xx_smd_update_scan_params_rsp(void *buf, size_t len)
 {
 	struct wcn36xx_hal_update_scan_params_resp *rsp;
 
-	rsp = (struct wcn36xx_hal_update_scan_params_resp *)buf;
+	rsp = buf;
 
 	/* Remove the PNO version bit */
 	rsp->status &= (~(WCN36XX_FW_MSG_PNO_VERSION_MASK));
@@ -1198,7 +1198,7 @@ static int wcn36xx_smd_add_sta_self_rsp(struct wcn36xx *wcn,
 	if (len < sizeof(*rsp))
 		return -EINVAL;
 
-	rsp = (struct wcn36xx_hal_add_sta_self_rsp_msg *)buf;
+	rsp = buf;
 
 	if (rsp->status != WCN36XX_FW_MSG_RESULT_SUCCESS) {
 		wcn36xx_warn("hal add sta self failure: %d\n",
@@ -1316,7 +1316,7 @@ static int wcn36xx_smd_join_rsp(void *buf, size_t len)
 	if (wcn36xx_smd_rsp_status_check(buf, len))
 		return -EIO;
 
-	rsp = (struct wcn36xx_hal_join_rsp_msg *)buf;
+	rsp = buf;
 
 	wcn36xx_dbg(WCN36XX_DBG_HAL,
 		    "hal rsp join status %d tx_mgmt_power %d\n",
@@ -1481,7 +1481,7 @@ static int wcn36xx_smd_config_sta_rsp(struct wcn36xx *wcn,
 	if (len < sizeof(*rsp))
 		return -EINVAL;
 
-	rsp = (struct wcn36xx_hal_config_sta_rsp_msg *)buf;
+	rsp = buf;
 	params = &rsp->params;
 
 	if (params->status != WCN36XX_FW_MSG_RESULT_SUCCESS) {
@@ -1849,7 +1849,7 @@ static int wcn36xx_smd_config_bss_rsp(struct wcn36xx *wcn,
 	if (len < sizeof(*rsp))
 		return -EINVAL;
 
-	rsp = (struct wcn36xx_hal_config_bss_rsp_msg *)buf;
+	rsp = buf;
 	params = &rsp->bss_rsp_params;
 
 	if (params->status != WCN36XX_FW_MSG_RESULT_SUCCESS) {
@@ -2476,7 +2476,7 @@ static int wcn36xx_smd_add_ba_session_rsp(void *buf, int len, u8 *session)
 	if (len < sizeof(*rsp))
 		return -EINVAL;
 
-	rsp = (struct wcn36xx_hal_add_ba_session_rsp_msg *)buf;
+	rsp = buf;
 	if (rsp->status != WCN36XX_FW_MSG_RESULT_SUCCESS)
 		return rsp->status;
 
@@ -2654,7 +2654,7 @@ static int wcn36xx_smd_trigger_ba_rsp(void *buf, int len, struct add_ba_info *ba
 	if (len < sizeof(*rsp))
 		return -EINVAL;
 
-	rsp = (struct wcn36xx_hal_trigger_ba_rsp_msg *) buf;
+	rsp = buf;
 
 	if (rsp->candidate_cnt < 1)
 		return rsp->status ? rsp->status : -EINVAL;

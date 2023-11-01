@@ -9816,6 +9816,7 @@ static const struct tpacpi_quirk battery_quirk_table[] __initconst = {
 	 * Individual addressing is broken on models that expose the
 	 * primary battery as BAT1.
 	 */
+	TPACPI_Q_LNV('8', 'F', true),       /* Thinkpad X120e */
 	TPACPI_Q_LNV('J', '7', true),       /* B5400 */
 	TPACPI_Q_LNV('J', 'I', true),       /* Thinkpad 11e */
 	TPACPI_Q_LNV3('R', '0', 'B', true), /* Thinkpad 11e gen 3 */
@@ -10787,6 +10788,89 @@ static struct ibm_struct dprc_driver_data = {
 	.name = "dprc",
 };
 
+/*
+ * Auxmac
+ *
+ * This auxiliary mac address is enabled in the bios through the
+ * MAC Address Pass-through feature. In most cases, there are three
+ * possibilities: Internal Mac, Second Mac, and disabled.
+ *
+ */
+
+#define AUXMAC_LEN 12
+#define AUXMAC_START 9
+#define AUXMAC_STRLEN 22
+#define AUXMAC_BEGIN_MARKER 8
+#define AUXMAC_END_MARKER 21
+
+static char auxmac[AUXMAC_LEN + 1];
+
+static int auxmac_init(struct ibm_init_struct *iibm)
+{
+	acpi_status status;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+
+	status = acpi_evaluate_object(NULL, "\\MACA", NULL, &buffer);
+
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	obj = buffer.pointer;
+
+	if (obj->type != ACPI_TYPE_STRING || obj->string.length != AUXMAC_STRLEN) {
+		pr_info("Invalid buffer for MAC address pass-through.\n");
+		goto auxmacinvalid;
+	}
+
+	if (obj->string.pointer[AUXMAC_BEGIN_MARKER] != '#' ||
+	    obj->string.pointer[AUXMAC_END_MARKER] != '#') {
+		pr_info("Invalid header for MAC address pass-through.\n");
+		goto auxmacinvalid;
+	}
+
+	if (strncmp(obj->string.pointer + AUXMAC_START, "XXXXXXXXXXXX", AUXMAC_LEN) != 0)
+		strscpy(auxmac, obj->string.pointer + AUXMAC_START, sizeof(auxmac));
+	else
+		strscpy(auxmac, "disabled", sizeof(auxmac));
+
+free:
+	kfree(obj);
+	return 0;
+
+auxmacinvalid:
+	strscpy(auxmac, "unavailable", sizeof(auxmac));
+	goto free;
+}
+
+static struct ibm_struct auxmac_data = {
+	.name = "auxmac",
+};
+
+static ssize_t auxmac_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return sysfs_emit(buf, "%s\n", auxmac);
+}
+static DEVICE_ATTR_RO(auxmac);
+
+static umode_t auxmac_attr_is_visible(struct kobject *kobj,
+				      struct attribute *attr, int n)
+{
+	return auxmac[0] == 0 ? 0 : attr->mode;
+}
+
+static struct attribute *auxmac_attributes[] = {
+	&dev_attr_auxmac.attr,
+	NULL
+};
+
+static const struct attribute_group auxmac_attr_group = {
+	.is_visible = auxmac_attr_is_visible,
+	.attrs = auxmac_attributes,
+};
+
 /* --------------------------------------------------------------------- */
 
 static struct attribute *tpacpi_driver_attributes[] = {
@@ -10845,6 +10929,7 @@ static const struct attribute_group *tpacpi_groups[] = {
 	&proxsensor_attr_group,
 	&kbdlang_attr_group,
 	&dprc_attr_group,
+	&auxmac_attr_group,
 	NULL,
 };
 
@@ -11144,6 +11229,8 @@ invalid:
 	return '\0';
 }
 
+#define EC_FW_STRING_LEN 18
+
 static void find_new_ec_fwstr(const struct dmi_header *dm, void *private)
 {
 	char *ec_fw_string = (char *) private;
@@ -11172,7 +11259,8 @@ static void find_new_ec_fwstr(const struct dmi_header *dm, void *private)
 		return;
 
 	/* fwstr is the first 8byte string  */
-	strncpy(ec_fw_string, dmi_data + 0x0F, 8);
+	BUILD_BUG_ON(EC_FW_STRING_LEN <= 8);
+	memcpy(ec_fw_string, dmi_data + 0x0F, 8);
 }
 
 /* returns 0 - probe ok, or < 0 - probe error.
@@ -11182,7 +11270,7 @@ static int __must_check __init get_thinkpad_model_data(
 						struct thinkpad_id_data *tp)
 {
 	const struct dmi_device *dev = NULL;
-	char ec_fw_string[18] = {0};
+	char ec_fw_string[EC_FW_STRING_LEN] = {0};
 	char const *s;
 	char t;
 
@@ -11415,6 +11503,10 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 	{
 		.init = tpacpi_dprc_init,
 		.data = &dprc_driver_data,
+	},
+	{
+		.init = auxmac_init,
+		.data = &auxmac_data,
 	},
 };
 

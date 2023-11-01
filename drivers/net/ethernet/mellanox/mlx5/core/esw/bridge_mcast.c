@@ -78,6 +78,8 @@ mlx5_esw_bridge_mdb_flow_create(u16 esw_owner_vhca_id, struct mlx5_esw_bridge_md
 	xa_for_each(&entry->ports, idx, port) {
 		dests[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 		dests[i].ft = port->mcast.ft;
+		if (port->vport_num == MLX5_VPORT_UPLINK)
+			dests[i].ft->flags |= MLX5_FLOW_TABLE_UPLINK_VPORT;
 		i++;
 	}
 
@@ -585,10 +587,6 @@ mlx5_esw_bridge_mcast_vlan_flow_create(u16 vlan_proto, struct mlx5_esw_bridge_po
 	if (!rule_spec)
 		return ERR_PTR(-ENOMEM);
 
-	if (MLX5_CAP_ESW_FLOWTABLE(bridge->br_offloads->esw->dev, flow_source) &&
-	    port->vport_num == MLX5_VPORT_UPLINK)
-		rule_spec->flow_context.flow_source =
-			MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT;
 	rule_spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 
 	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
@@ -659,11 +657,6 @@ mlx5_esw_bridge_mcast_fwd_flow_create(struct mlx5_esw_bridge_port *port)
 	rule_spec = kvzalloc(sizeof(*rule_spec), GFP_KERNEL);
 	if (!rule_spec)
 		return ERR_PTR(-ENOMEM);
-
-	if (MLX5_CAP_ESW_FLOWTABLE(bridge->br_offloads->esw->dev, flow_source) &&
-	    port->vport_num == MLX5_VPORT_UPLINK)
-		rule_spec->flow_context.flow_source =
-			MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT;
 
 	if (MLX5_CAP_ESW(bridge->br_offloads->esw->dev, merged_eswitch)) {
 		dest.vport.flags = MLX5_FLOW_DEST_VPORT_VHCA_ID;

@@ -73,7 +73,7 @@ struct intmux_data {
 	void __iomem			*regs;
 	struct clk			*ipg_clk;
 	int				channum;
-	struct intmux_irqchip_data	irqchip_data[];
+	struct intmux_irqchip_data	irqchip_data[] __counted_by(channum);
 };
 
 static void imx_intmux_irq_mask(struct irq_data *d)

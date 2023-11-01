@@ -201,6 +201,17 @@ config CFG80211_WEXT_EXPORT
 	  Drivers should select this option if they require cfg80211's
 	  wext compatibility symbols to be exported.
 
+config CFG80211_KUNIT_TEST
+	tristate "KUnit tests for cfg80211" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on CFG80211
+	default KUNIT_ALL_TESTS
+	depends on !KERNEL_6_2
+	help
+	  Enable this option to test cfg80211 functions with kunit.
+
+	  If unsure, say N.
+
 endif # CFG80211
 
 config LIB80211

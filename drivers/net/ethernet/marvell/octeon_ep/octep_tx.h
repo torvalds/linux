@@ -36,6 +36,7 @@ struct octep_tx_sglist_desc {
 	u16 len[4];
 	dma_addr_t dma_ptr[4];
 };
+static_assert(sizeof(struct octep_tx_sglist_desc) == 40);
 
 /* Each Scatter/Gather entry sent to hardwar hold four pointers.
  * So, number of entries required is (MAX_SKB_FRAGS + 1)/4, where '+1'
@@ -239,6 +240,7 @@ struct octep_instr_hdr {
 	/* Reserved3 */
 	u64 reserved3:1;
 };
+static_assert(sizeof(struct octep_instr_hdr) == 8);
 
 /* Hardware Tx completion response header */
 struct octep_instr_resp_hdr {
@@ -263,6 +265,7 @@ struct octep_instr_resp_hdr {
 	/* Opcode for the return packet  */
 	u64 opcode:16;
 };
+static_assert(sizeof(struct octep_instr_hdr) == 8);
 
 /* 64-byte Tx instruction format.
  * Format of instruction for a 64-byte mode input queue.
@@ -293,6 +296,7 @@ struct octep_tx_desc_hw {
 	/* Additional headers available in a 64-byte instruction. */
 	u64 exhdr[4];
 };
+static_assert(sizeof(struct octep_tx_desc_hw) == 64);
 
 #define OCTEP_IQ_DESC_SIZE (sizeof(struct octep_tx_desc_hw))
 #endif /* _OCTEP_TX_H_ */

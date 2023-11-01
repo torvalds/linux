@@ -2489,7 +2489,7 @@ static int ceph_zero_partial_object(struct inode *inode,
 		goto out;
 	}
 
-	req->r_mtime = inode->i_mtime;
+	req->r_mtime = inode_get_mtime(inode);
 	ceph_osdc_start_request(&fsc->client->osdc, req);
 	ret = ceph_osdc_wait_request(&fsc->client->osdc, req);
 	if (ret == -ENOENT)

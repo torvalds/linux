@@ -509,6 +509,15 @@ def main():
     source_map_types.remove('cgroup_storage_deprecated')
     source_map_types.add('cgroup_storage')
 
+    # The same applied to BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE_DEPRECATED and
+    # BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE which share the same enum value
+    # and source_map_types picks
+    # BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE_DEPRECATED/percpu_cgroup_storage_deprecated.
+    # Replace 'percpu_cgroup_storage_deprecated' with 'percpu_cgroup_storage'
+    # so it aligns with what `bpftool map help` shows.
+    source_map_types.remove('percpu_cgroup_storage_deprecated')
+    source_map_types.add('percpu_cgroup_storage')
+
     help_map_types = map_info.get_map_help()
     help_map_options = map_info.get_options()
     map_info.close()

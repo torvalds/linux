@@ -47,6 +47,12 @@ properties:
   max-by-define:
     description: Makes the number of attributes and commands be specified by a define, not an enum value.
     type: boolean
+  cmd-max-name:
+    description: Name of the define for the last operation in the list.
+    type: string
+  cmd-cnt-name:
+    description: The explicit name for constant holding the count of operations (last operation + 1).
+    type: string
   # End genetlink-c
   # Start genetlink-legacy
   kernel-policy:
@@ -187,7 +193,7 @@ properties:
           type: array
           items:
             type: object
-            required: [ name, type ]
+            required: [ name ]
             additionalProperties: False
             properties:
               name:
@@ -240,6 +246,9 @@ properties:
                   max-len:
                     description: Max length for a string or a binary attribute.
                     $ref: '#/$defs/len-or-define'
+                  exact-len:
+                    description: Exact length for a string or a binary attribute.
+                    $ref: '#/$defs/len-or-define'
               sub-type: *attr-type
               display-hint: *display-hint
               # Start genetlink-c
@@ -260,6 +269,18 @@ properties:
         subset-of:
           not:
             required: [ name-prefix ]
+
+      # type property is only required if not in subset definition
+      if:
+        properties:
+          subset-of:
+            not:
+              type: string
+      then:
+        properties:
+          attributes:
+            items:
+              required: [ type ]
 
   operations:
     description: Operations supported by the protocol.

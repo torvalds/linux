@@ -45,9 +45,9 @@ static struct gpiod_lookup_table simatic_ipc_batt_gpio_table_bx_59a = {
 	}
 };
 
-static int simatic_ipc_batt_f7188x_remove(struct platform_device *pdev)
+static void simatic_ipc_batt_f7188x_remove(struct platform_device *pdev)
 {
-	return simatic_ipc_batt_remove(pdev, batt_lookup_table);
+	simatic_ipc_batt_remove(pdev, batt_lookup_table);
 }
 
 static int simatic_ipc_batt_f7188x_probe(struct platform_device *pdev)
@@ -73,7 +73,7 @@ static int simatic_ipc_batt_f7188x_probe(struct platform_device *pdev)
 
 static struct platform_driver simatic_ipc_batt_driver = {
 	.probe = simatic_ipc_batt_f7188x_probe,
-	.remove = simatic_ipc_batt_f7188x_remove,
+	.remove_new = simatic_ipc_batt_f7188x_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},

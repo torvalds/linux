@@ -445,7 +445,8 @@ int t7xx_fsm_append_event(struct t7xx_fsm_ctl *ctl, enum t7xx_fsm_event_state ev
 		return -EINVAL;
 	}
 
-	event = kmalloc(sizeof(*event) + length, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+	event = kmalloc(struct_size(event, data, length),
+			in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if (!event)
 		return -ENOMEM;
 

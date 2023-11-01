@@ -59,6 +59,7 @@ struct md_rdev {
 	 */
 	struct block_device *meta_bdev;
 	struct block_device *bdev;	/* block device handle */
+	struct bdev_handle *bdev_handle;	/* Handle from open for bdev */
 
 	struct page	*sb_page, *bb_page;
 	int		sb_loaded;
@@ -210,9 +211,6 @@ enum flag_bits {
 	CollisionCheck,		/*
 				 * check if there is collision between raid1
 				 * serial bios.
-				 */
-	Holder,			/* rdev is used as holder while opening
-				 * underlying disk exclusively.
 				 */
 };
 

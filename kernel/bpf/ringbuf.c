@@ -770,8 +770,7 @@ schedule_work_return:
 	/* Prevent the clearing of the busy-bit from being reordered before the
 	 * storing of any rb consumer or producer positions.
 	 */
-	smp_mb__before_atomic();
-	atomic_set(&rb->busy, 0);
+	atomic_set_release(&rb->busy, 0);
 
 	if (flags & BPF_RB_FORCE_WAKEUP)
 		irq_work_queue(&rb->work);

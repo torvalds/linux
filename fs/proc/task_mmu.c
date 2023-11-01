@@ -296,7 +296,7 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 		if (anon_name)
 			seq_printf(m, "[anon_shmem:%s]", anon_name->name);
 		else
-			seq_file_path(m, file, "\n");
+			seq_path(m, file_user_path(file), "\n");
 		goto done;
 	}
 
@@ -1967,7 +1967,7 @@ static int show_numa_map(struct seq_file *m, void *v)
 
 	if (file) {
 		seq_puts(m, " file=");
-		seq_file_path(m, file, "\n\t= ");
+		seq_path(m, file_user_path(file), "\n\t= ");
 	} else if (vma_is_initial_heap(vma)) {
 		seq_puts(m, " heap");
 	} else if (vma_is_initial_stack(vma)) {

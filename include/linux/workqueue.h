@@ -274,18 +274,16 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
  * to generate better code.
  */
 #ifdef CONFIG_LOCKDEP
-#define __INIT_WORK(_work, _func, _onstack)				\
+#define __INIT_WORK_KEY(_work, _func, _onstack, _key)			\
 	do {								\
-		static struct lock_class_key __key;			\
-									\
 		__init_work((_work), _onstack);				\
 		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
-		lockdep_init_map(&(_work)->lockdep_map, "(work_completion)"#_work, &__key, 0); \
+		lockdep_init_map(&(_work)->lockdep_map, "(work_completion)"#_work, (_key), 0); \
 		INIT_LIST_HEAD(&(_work)->entry);			\
 		(_work)->func = (_func);				\
 	} while (0)
 #else
-#define __INIT_WORK(_work, _func, _onstack)				\
+#define __INIT_WORK_KEY(_work, _func, _onstack, _key)			\
 	do {								\
 		__init_work((_work), _onstack);				\
 		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
@@ -294,11 +292,21 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 	} while (0)
 #endif
 
+#define __INIT_WORK(_work, _func, _onstack)				\
+	do {								\
+		static __maybe_unused struct lock_class_key __key;	\
+									\
+		__INIT_WORK_KEY(_work, _func, _onstack, &__key);	\
+	} while (0)
+
 #define INIT_WORK(_work, _func)						\
 	__INIT_WORK((_work), (_func), 0)
 
 #define INIT_WORK_ONSTACK(_work, _func)					\
 	__INIT_WORK((_work), (_func), 1)
+
+#define INIT_WORK_ONSTACK_KEY(_work, _func, _key)			\
+	__INIT_WORK_KEY((_work), (_func), 1, _key)
 
 #define __INIT_DELAYED_WORK(_work, _func, _tflags)			\
 	do {								\
@@ -693,8 +701,32 @@ static inline long work_on_cpu_safe(int cpu, long (*fn)(void *), void *arg)
 	return fn(arg);
 }
 #else
-long work_on_cpu(int cpu, long (*fn)(void *), void *arg);
-long work_on_cpu_safe(int cpu, long (*fn)(void *), void *arg);
+long work_on_cpu_key(int cpu, long (*fn)(void *),
+		     void *arg, struct lock_class_key *key);
+/*
+ * A new key is defined for each caller to make sure the work
+ * associated with the function doesn't share its locking class.
+ */
+#define work_on_cpu(_cpu, _fn, _arg)			\
+({							\
+	static struct lock_class_key __key;		\
+							\
+	work_on_cpu_key(_cpu, _fn, _arg, &__key);	\
+})
+
+long work_on_cpu_safe_key(int cpu, long (*fn)(void *),
+			  void *arg, struct lock_class_key *key);
+
+/*
+ * A new key is defined for each caller to make sure the work
+ * associated with the function doesn't share its locking class.
+ */
+#define work_on_cpu_safe(_cpu, _fn, _arg)		\
+({							\
+	static struct lock_class_key __key;		\
+							\
+	work_on_cpu_safe_key(_cpu, _fn, _arg, &__key);	\
+})
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_FREEZER

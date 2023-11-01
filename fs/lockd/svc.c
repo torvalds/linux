@@ -24,7 +24,6 @@
 #include <linux/uio.h>
 #include <linux/smp.h>
 #include <linux/mutex.h>
-#include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/inetdevice.h>
 
@@ -135,11 +134,11 @@ lockd(void *vrqstp)
 	 * The main request loop. We don't terminate until the last
 	 * NFS mount or NFS daemon has gone away.
 	 */
-	while (!kthread_should_stop()) {
+	while (!svc_thread_should_stop(rqstp)) {
 		/* update sv_maxconn if it has changed */
 		rqstp->rq_server->sv_maxconn = nlm_max_connections;
 
-		nlmsvc_retry_blocked();
+		nlmsvc_retry_blocked(rqstp);
 		svc_recv(rqstp);
 	}
 	if (nlmsvc_ops)
@@ -373,7 +372,9 @@ static void lockd_put(void)
 	unregister_inet6addr_notifier(&lockd_inet6addr_notifier);
 #endif
 
+	svc_get(nlmsvc_serv);
 	svc_set_num_threads(nlmsvc_serv, NULL, 0);
+	svc_put(nlmsvc_serv);
 	timer_delete_sync(&nlmsvc_retry);
 	nlmsvc_serv = NULL;
 	dprintk("lockd_down: service destroyed\n");
