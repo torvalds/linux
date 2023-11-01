@@ -1799,8 +1799,7 @@ destroy_erase_cmd_list:
 static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
-	u32 addr, len;
-	uint32_t rem;
+	u32 addr, len, rem;
 	int ret;
 
 	dev_dbg(nor->dev, "at 0x%llx, len %lld\n", (long long)instr->addr,
@@ -2146,7 +2145,7 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 		if (is_power_of_2(page_size)) {
 			page_offset = addr & (page_size - 1);
 		} else {
-			uint64_t aux = addr;
+			u64 aux = addr;
 
 			page_offset = do_div(aux, page_size);
 		}

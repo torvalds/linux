@@ -293,9 +293,9 @@ struct spi_nor_erase_map {
  * @is_locked:	check if a region of the SPI NOR is completely locked
  */
 struct spi_nor_locking_ops {
-	int (*lock)(struct spi_nor *nor, loff_t ofs, uint64_t len);
-	int (*unlock)(struct spi_nor *nor, loff_t ofs, uint64_t len);
-	int (*is_locked)(struct spi_nor *nor, loff_t ofs, uint64_t len);
+	int (*lock)(struct spi_nor *nor, loff_t ofs, u64 len);
+	int (*unlock)(struct spi_nor *nor, loff_t ofs, u64 len);
+	int (*is_locked)(struct spi_nor *nor, loff_t ofs, u64 len);
 };
 
 /**
