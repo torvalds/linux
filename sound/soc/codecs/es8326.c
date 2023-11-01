@@ -691,14 +691,14 @@ static void es8326_jack_detect_handler(struct work_struct *work)
 		if (es8326->hp == 0) {
 			dev_dbg(comp->dev, "First insert, start OMTP/CTIA type check\n");
 			/*
-			 * set auto-check mode, then restart jack_detect_work after 100ms.
+			 * set auto-check mode, then restart jack_detect_work after 400ms.
 			 * Don't report jack status.
 			 */
 			regmap_update_bits(es8326->regmap, ES8326_HPDET_TYPE, 0x03, 0x01);
 			usleep_range(50000, 70000);
 			regmap_update_bits(es8326->regmap, ES8326_HPDET_TYPE, 0x03, 0x00);
 			queue_delayed_work(system_wq, &es8326->jack_detect_work,
-					msecs_to_jiffies(100));
+					msecs_to_jiffies(400));
 			es8326->hp = 1;
 			goto exit;
 		}
@@ -748,7 +748,7 @@ static irqreturn_t es8326_irq(int irq, void *dev_id)
 				   msecs_to_jiffies(10));
 	else
 		queue_delayed_work(system_wq, &es8326->jack_detect_work,
-				   msecs_to_jiffies(600));
+				   msecs_to_jiffies(300));
 
 out:
 	return IRQ_HANDLED;
