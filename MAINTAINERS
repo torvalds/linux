@@ -14110,7 +14110,7 @@ F:	Documentation/devicetree/bindings/iio/adc/microchip,mcp3911.yaml
 F:	drivers/iio/adc/mcp3911.c
 
 MICROCHIP MMC/SD/SDIO MCI DRIVER
-M:	Ludovic Desroches <ludovic.desroches@microchip.com>
+M:	Aubin Constans <aubin.constans@microchip.com>
 S:	Maintained
 F:	drivers/mmc/host/atmel-mci.c
 
@@ -19335,7 +19335,8 @@ F:	Documentation/devicetree/bindings/mmc/sdhci-common.yaml
 F:	drivers/mmc/host/sdhci*
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) MICROCHIP DRIVER
-M:	Eugen Hristev <eugen.hristev@microchip.com>
+M:	Aubin Constans <aubin.constans@microchip.com>
+R:	Eugen Hristev <eugen.hristev@collabora.com>
 L:	linux-mmc@vger.kernel.org
 S:	Supported
 F:	drivers/mmc/host/sdhci-of-at91.c

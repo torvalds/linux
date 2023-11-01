@@ -21,6 +21,25 @@ static void mmc_hsq_retry_handler(struct work_struct *work)
 	mmc->ops->request(mmc, hsq->mrq);
 }
 
+static void mmc_hsq_modify_threshold(struct mmc_hsq *hsq)
+{
+	struct mmc_host *mmc = hsq->mmc;
+	struct mmc_request *mrq;
+	unsigned int tag, need_change = 0;
+
+	mmc->hsq_depth = HSQ_NORMAL_DEPTH;
+	for (tag = 0; tag < HSQ_NUM_SLOTS; tag++) {
+		mrq = hsq->slot[tag].mrq;
+		if (mrq && mrq->data &&
+		   (mrq->data->blksz * mrq->data->blocks == 4096) &&
+		   (mrq->data->flags & MMC_DATA_WRITE) &&
+		   (++need_change == 2)) {
+			mmc->hsq_depth = HSQ_PERFORMANCE_DEPTH;
+			break;
+		}
+	}
+}
+
 static void mmc_hsq_pump_requests(struct mmc_hsq *hsq)
 {
 	struct mmc_host *mmc = hsq->mmc;
@@ -41,6 +60,8 @@ static void mmc_hsq_pump_requests(struct mmc_hsq *hsq)
 		spin_unlock_irqrestore(&hsq->lock, flags);
 		return;
 	}
+
+	mmc_hsq_modify_threshold(hsq);
 
 	slot = &hsq->slot[hsq->next_tag];
 	hsq->mrq = slot->mrq;
@@ -337,6 +358,7 @@ int mmc_hsq_init(struct mmc_hsq *hsq, struct mmc_host *mmc)
 	hsq->mmc = mmc;
 	hsq->mmc->cqe_private = hsq;
 	mmc->cqe_ops = &mmc_hsq_ops;
+	mmc->hsq_depth = HSQ_NORMAL_DEPTH;
 
 	for (i = 0; i < HSQ_NUM_SLOTS; i++)
 		hsq->tag_slot[i] = HSQ_INVALID_TAG;

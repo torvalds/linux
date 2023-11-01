@@ -66,7 +66,7 @@ struct jmb38x_ms_host {
 struct jmb38x_ms {
 	struct pci_dev        *pdev;
 	int                   host_cnt;
-	struct memstick_host  *hosts[];
+	struct memstick_host  *hosts[] __counted_by(host_cnt);
 };
 
 #define BLOCK_COUNT_MASK       0xffff0000
