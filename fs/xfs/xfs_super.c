@@ -366,8 +366,9 @@ xfs_blkdev_get(
 {
 	int			error = 0;
 
-	*handlep = bdev_open_by_path(name, BLK_OPEN_READ | BLK_OPEN_WRITE,
-				     mp->m_super, &fs_holder_ops);
+	*handlep = bdev_open_by_path(name,
+		BLK_OPEN_READ | BLK_OPEN_WRITE | BLK_OPEN_RESTRICT_WRITES,
+		mp->m_super, &fs_holder_ops);
 	if (IS_ERR(*handlep)) {
 		error = PTR_ERR(*handlep);
 		*handlep = NULL;
