@@ -268,7 +268,7 @@ static int stripe_map_range(struct stripe_c *sc, struct bio *bio,
 	return DM_MAPIO_SUBMITTED;
 }
 
-static int stripe_map(struct dm_target *ti, struct bio *bio)
+int stripe_map(struct dm_target *ti, struct bio *bio)
 {
 	struct stripe_c *sc = ti->private;
 	uint32_t stripe;
