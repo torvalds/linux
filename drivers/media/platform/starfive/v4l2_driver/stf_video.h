@@ -28,6 +28,7 @@
 struct stfcamss_buffer {
 	struct vb2_v4l2_buffer vb;
 	dma_addr_t addr[3];
+	void *vaddr_sc;		/* Use for isp sc data */
 	struct list_head queue;
 	int sizeimage;
 };
