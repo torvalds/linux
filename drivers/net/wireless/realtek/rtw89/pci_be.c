@@ -328,6 +328,63 @@ static int rtw89_pci_ops_mac_pre_init_be(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+int rtw89_pci_ltr_set_v2(struct rtw89_dev *rtwdev, bool en)
+{
+	u32 ctrl0, cfg0, cfg1, dec_ctrl, idle_ltcy, act_ltcy, dis_ltcy;
+
+	ctrl0 = rtw89_read32(rtwdev, R_BE_LTR_CTRL_0);
+	if (rtw89_pci_ltr_is_err_reg_val(ctrl0))
+		return -EINVAL;
+	cfg0 = rtw89_read32(rtwdev, R_BE_LTR_CFG_0);
+	if (rtw89_pci_ltr_is_err_reg_val(cfg0))
+		return -EINVAL;
+	cfg1 = rtw89_read32(rtwdev, R_BE_LTR_CFG_1);
+	if (rtw89_pci_ltr_is_err_reg_val(cfg1))
+		return -EINVAL;
+	dec_ctrl = rtw89_read32(rtwdev, R_BE_LTR_DECISION_CTRL_V1);
+	if (rtw89_pci_ltr_is_err_reg_val(dec_ctrl))
+		return -EINVAL;
+	idle_ltcy = rtw89_read32(rtwdev, R_BE_LTR_LATENCY_IDX3_V1);
+	if (rtw89_pci_ltr_is_err_reg_val(idle_ltcy))
+		return -EINVAL;
+	act_ltcy = rtw89_read32(rtwdev, R_BE_LTR_LATENCY_IDX1_V1);
+	if (rtw89_pci_ltr_is_err_reg_val(act_ltcy))
+		return -EINVAL;
+	dis_ltcy = rtw89_read32(rtwdev, R_BE_LTR_LATENCY_IDX0_V1);
+	if (rtw89_pci_ltr_is_err_reg_val(dis_ltcy))
+		return -EINVAL;
+
+	if (en) {
+		dec_ctrl |= B_BE_ENABLE_LTR_CTL_DECISION | B_BE_LTR_HW_DEC_EN_V1;
+		ctrl0 |= B_BE_LTR_HW_EN;
+	} else {
+		dec_ctrl &= ~(B_BE_ENABLE_LTR_CTL_DECISION | B_BE_LTR_HW_DEC_EN_V1 |
+			      B_BE_LTR_EN_PORT_V1_MASK);
+		ctrl0 &= ~B_BE_LTR_HW_EN;
+	}
+
+	dec_ctrl = u32_replace_bits(dec_ctrl, PCI_LTR_SPC_500US,
+				    B_BE_LTR_SPACE_IDX_MASK);
+	cfg0 = u32_replace_bits(cfg0, PCI_LTR_IDLE_TIMER_3_2MS,
+				B_BE_LTR_IDLE_TIMER_IDX_MASK);
+	cfg1 = u32_replace_bits(cfg1, 0xC0, B_BE_LTR_CMAC0_RX_USE_PG_TH_MASK);
+	cfg1 = u32_replace_bits(cfg1, 0xC0, B_BE_LTR_CMAC1_RX_USE_PG_TH_MASK);
+	cfg0 = u32_replace_bits(cfg0, 1, B_BE_LTR_IDX_ACTIVE_MASK);
+	cfg0 = u32_replace_bits(cfg0, 3, B_BE_LTR_IDX_IDLE_MASK);
+	dec_ctrl = u32_replace_bits(dec_ctrl, 0, B_BE_LTR_IDX_DISABLE_V1_MASK);
+
+	rtw89_write32(rtwdev, R_BE_LTR_LATENCY_IDX3_V1, 0x90039003);
+	rtw89_write32(rtwdev, R_BE_LTR_LATENCY_IDX1_V1, 0x880b880b);
+	rtw89_write32(rtwdev, R_BE_LTR_LATENCY_IDX0_V1, 0);
+	rtw89_write32(rtwdev, R_BE_LTR_DECISION_CTRL_V1, dec_ctrl);
+	rtw89_write32(rtwdev, R_BE_LTR_CFG_0, cfg0);
+	rtw89_write32(rtwdev, R_BE_LTR_CFG_1, cfg1);
+	rtw89_write32(rtwdev, R_BE_LTR_CTRL_0, ctrl0);
+
+	return 0;
+}
+EXPORT_SYMBOL(rtw89_pci_ltr_set_v2);
+
 const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
 	.mac_pre_init = rtw89_pci_ops_mac_pre_init_be,
 
