@@ -305,14 +305,16 @@ static int bch2_copygc_thread(void *arg)
 	struct moving_context ctxt;
 	struct bch_move_stats move_stats;
 	struct io_clock *clock = &c->io_clock[WRITE];
-	struct buckets_in_flight buckets;
+	struct buckets_in_flight *buckets;
 	u64 last, wait;
 	int ret = 0;
 
-	memset(&buckets, 0, sizeof(buckets));
-
-	ret = rhashtable_init(&buckets.table, &bch_move_bucket_params);
+	buckets = kzalloc(sizeof(struct buckets_in_flight), GFP_KERNEL);
+	if (!buckets)
+		return -ENOMEM;
+	ret = rhashtable_init(&buckets->table, &bch_move_bucket_params);
 	if (ret) {
+		kfree(buckets);
 		bch_err_msg(c, ret, "allocating copygc buckets in flight");
 		return ret;
 	}
@@ -331,12 +333,12 @@ static int bch2_copygc_thread(void *arg)
 		cond_resched();
 
 		if (!c->copy_gc_enabled) {
-			move_buckets_wait(&ctxt, &buckets, true);
+			move_buckets_wait(&ctxt, buckets, true);
 			kthread_wait_freezable(c->copy_gc_enabled);
 		}
 
 		if (unlikely(freezing(current))) {
-			move_buckets_wait(&ctxt, &buckets, true);
+			move_buckets_wait(&ctxt, buckets, true);
 			__refrigerator(false);
 			continue;
 		}
@@ -347,7 +349,7 @@ static int bch2_copygc_thread(void *arg)
 		if (wait > clock->max_slop) {
 			c->copygc_wait_at = last;
 			c->copygc_wait = last + wait;
-			move_buckets_wait(&ctxt, &buckets, true);
+			move_buckets_wait(&ctxt, buckets, true);
 			trace_and_count(c, copygc_wait, c, wait, last + wait);
 			bch2_kthread_io_clock_wait(clock, last + wait,
 					MAX_SCHEDULE_TIMEOUT);
@@ -357,7 +359,7 @@ static int bch2_copygc_thread(void *arg)
 		c->copygc_wait = 0;
 
 		c->copygc_running = true;
-		ret = bch2_copygc(&ctxt, &buckets, &did_work);
+		ret = bch2_copygc(&ctxt, buckets, &did_work);
 		c->copygc_running = false;
 
 		wake_up(&c->copygc_running_wq);
@@ -374,8 +376,10 @@ static int bch2_copygc_thread(void *arg)
 		}
 	}
 
-	move_buckets_wait(&ctxt, &buckets, true);
-	rhashtable_destroy(&buckets.table);
+	move_buckets_wait(&ctxt, buckets, true);
+
+	rhashtable_destroy(&buckets->table);
+	kfree(buckets);
 	bch2_moving_ctxt_exit(&ctxt);
 	bch2_move_stats_exit(&move_stats, c);
 
