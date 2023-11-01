@@ -1788,7 +1788,7 @@ iommu_group_alloc_default_domain(struct iommu_group *group, int req_type)
 	 */
 	if (ops->default_domain) {
 		if (req_type)
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		return ops->default_domain;
 	}
 
@@ -1797,15 +1797,15 @@ iommu_group_alloc_default_domain(struct iommu_group *group, int req_type)
 
 	/* The driver gave no guidance on what type to use, try the default */
 	dom = __iommu_group_alloc_default_domain(group, iommu_def_domain_type);
-	if (dom)
+	if (!IS_ERR(dom))
 		return dom;
 
 	/* Otherwise IDENTITY and DMA_FQ defaults will try DMA */
 	if (iommu_def_domain_type == IOMMU_DOMAIN_DMA)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	dom = __iommu_group_alloc_default_domain(group, IOMMU_DOMAIN_DMA);
-	if (!dom)
-		return NULL;
+	if (IS_ERR(dom))
+		return dom;
 
 	pr_warn("Failed to allocate default IOMMU domain of type %u for group %s - Falling back to IOMMU_DOMAIN_DMA",
 		iommu_def_domain_type, group->name);
@@ -2094,10 +2094,17 @@ static struct iommu_domain *__iommu_domain_alloc(const struct iommu_ops *ops,
 	else if (ops->domain_alloc)
 		domain = ops->domain_alloc(alloc_type);
 	else
-		return NULL;
+		return ERR_PTR(-EOPNOTSUPP);
 
+	/*
+	 * Many domain_alloc ops now return ERR_PTR, make things easier for the
+	 * driver by accepting ERR_PTR from all domain_alloc ops instead of
+	 * having two rules.
+	 */
+	if (IS_ERR(domain))
+		return domain;
 	if (!domain)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	domain->type = type;
 	/*
@@ -2110,9 +2117,14 @@ static struct iommu_domain *__iommu_domain_alloc(const struct iommu_ops *ops,
 	if (!domain->ops)
 		domain->ops = ops->default_domain_ops;
 
-	if (iommu_is_dma_domain(domain) && iommu_get_dma_cookie(domain)) {
-		iommu_domain_free(domain);
-		domain = NULL;
+	if (iommu_is_dma_domain(domain)) {
+		int rc;
+
+		rc = iommu_get_dma_cookie(domain);
+		if (rc) {
+			iommu_domain_free(domain);
+			return ERR_PTR(rc);
+		}
 	}
 	return domain;
 }
@@ -2129,10 +2141,15 @@ __iommu_group_domain_alloc(struct iommu_group *group, unsigned int type)
 
 struct iommu_domain *iommu_domain_alloc(const struct bus_type *bus)
 {
+	struct iommu_domain *domain;
+
 	if (bus == NULL || bus->iommu_ops == NULL)
 		return NULL;
-	return __iommu_domain_alloc(bus->iommu_ops, NULL,
+	domain = __iommu_domain_alloc(bus->iommu_ops, NULL,
 				    IOMMU_DOMAIN_UNMANAGED);
+	if (IS_ERR(domain))
+		return NULL;
+	return domain;
 }
 EXPORT_SYMBOL_GPL(iommu_domain_alloc);
 
@@ -3041,8 +3058,8 @@ static int iommu_setup_default_domain(struct iommu_group *group,
 		return -EINVAL;
 
 	dom = iommu_group_alloc_default_domain(group, req_type);
-	if (!dom)
-		return -ENODEV;
+	if (IS_ERR(dom))
+		return PTR_ERR(dom);
 
 	if (group->default_domain == dom)
 		return 0;
@@ -3243,21 +3260,23 @@ void iommu_device_unuse_default_domain(struct device *dev)
 
 static int __iommu_group_alloc_blocking_domain(struct iommu_group *group)
 {
+	struct iommu_domain *domain;
+
 	if (group->blocking_domain)
 		return 0;
 
-	group->blocking_domain =
-		__iommu_group_domain_alloc(group, IOMMU_DOMAIN_BLOCKED);
-	if (!group->blocking_domain) {
+	domain = __iommu_group_domain_alloc(group, IOMMU_DOMAIN_BLOCKED);
+	if (IS_ERR(domain)) {
 		/*
 		 * For drivers that do not yet understand IOMMU_DOMAIN_BLOCKED
 		 * create an empty domain instead.
 		 */
-		group->blocking_domain = __iommu_group_domain_alloc(
-			group, IOMMU_DOMAIN_UNMANAGED);
-		if (!group->blocking_domain)
-			return -EINVAL;
+		domain = __iommu_group_domain_alloc(group,
+						    IOMMU_DOMAIN_UNMANAGED);
+		if (IS_ERR(domain))
+			return PTR_ERR(domain);
 	}
+	group->blocking_domain = domain;
 	return 0;
 }
 
