@@ -1710,7 +1710,7 @@ static const struct snd_kcontrol_new aw88399_controls[] = {
 		aw88399_get_fade_in_time, aw88399_set_fade_in_time),
 	SOC_SINGLE_EXT("Volume Ramp Down Step", 0, 0, FADE_TIME_MAX, FADE_TIME_MIN,
 		aw88399_get_fade_out_time, aw88399_set_fade_out_time),
-	SOC_SINGLE_EXT("Calib", 0, 0, 100, 0,
+	SOC_SINGLE_EXT("Calib", 0, 0, AW88399_CALI_RE_MAX, 0,
 		aw88399_re_get, aw88399_re_set),
 	AW88399_PROFILE_EXT("AW88399 Profile Set", aw88399_profile_info,
 		aw88399_profile_get, aw88399_profile_set),
