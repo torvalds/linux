@@ -272,20 +272,20 @@ static inline void isa_delay(void)
 #define isa_outsb(port, buf, nr) raw_outsb(isa_itb(port), (u8 *)(buf), (nr))
 
 #define isa_insw(port, buf, nr)     \
-       (ISA_SEX ? raw_insw(isa_itw(port), (u16 *)(buf), (nr)) :    \
-                  raw_insw_swapw(isa_itw(port), (u16 *)(buf), (nr)))
+	(ISA_SEX ? raw_insw(isa_itw(port), (u16 *)(buf), (nr)) :    \
+		   raw_insw_swapw(isa_itw(port), (u16 *)(buf), (nr)))
 
 #define isa_outsw(port, buf, nr)    \
-       (ISA_SEX ? raw_outsw(isa_itw(port), (u16 *)(buf), (nr)) :  \
-                  raw_outsw_swapw(isa_itw(port), (u16 *)(buf), (nr)))
+	(ISA_SEX ? raw_outsw(isa_itw(port), (u16 *)(buf), (nr)) :  \
+		   raw_outsw_swapw(isa_itw(port), (u16 *)(buf), (nr)))
 
 #define isa_insl(port, buf, nr)     \
-       (ISA_SEX ? raw_insl(isa_itl(port), (u32 *)(buf), (nr)) :    \
-                  raw_insw_swapw(isa_itw(port), (u16 *)(buf), (nr)<<1))
+	(ISA_SEX ? raw_insl(isa_itl(port), (u32 *)(buf), (nr)) :    \
+		   raw_insw_swapw(isa_itw(port), (u16 *)(buf), (nr)<<1))
 
 #define isa_outsl(port, buf, nr)    \
-       (ISA_SEX ? raw_outsl(isa_itl(port), (u32 *)(buf), (nr)) :  \
-                  raw_outsw_swapw(isa_itw(port), (u16 *)(buf), (nr)<<1))
+	(ISA_SEX ? raw_outsl(isa_itl(port), (u32 *)(buf), (nr)) :  \
+		   raw_outsw_swapw(isa_itw(port), (u16 *)(buf), (nr)<<1))
 
 
 #ifdef CONFIG_ATARI_ROM_ISA
@@ -297,14 +297,14 @@ static inline void isa_delay(void)
 #define isa_rom_insb(port, buf, nr) raw_rom_insb(isa_itb(port), (u8 *)(buf), (nr))
 
 #define isa_rom_insw(port, buf, nr)     \
-       (ISA_SEX ? raw_rom_insw(isa_itw(port), (u16 *)(buf), (nr)) :    \
-		  raw_rom_insw_swapw(isa_itw(port), (u16 *)(buf), (nr)))
+	(ISA_SEX ? raw_rom_insw(isa_itw(port), (u16 *)(buf), (nr)) :    \
+		   raw_rom_insw_swapw(isa_itw(port), (u16 *)(buf), (nr)))
 
 #define isa_rom_outsb(port, buf, nr) raw_rom_outsb(isa_itb(port), (u8 *)(buf), (nr))
 
 #define isa_rom_outsw(port, buf, nr)    \
-       (ISA_SEX ? raw_rom_outsw(isa_itw(port), (u16 *)(buf), (nr)) :  \
-		  raw_rom_outsw_swapw(isa_itw(port), (u16 *)(buf), (nr)))
+	(ISA_SEX ? raw_rom_outsw(isa_itw(port), (u16 *)(buf), (nr)) :  \
+		   raw_rom_outsw_swapw(isa_itw(port), (u16 *)(buf), (nr)))
 #endif /* CONFIG_ATARI_ROM_ISA */
 
 #endif  /* CONFIG_ISA || CONFIG_ATARI_ROM_ISA */

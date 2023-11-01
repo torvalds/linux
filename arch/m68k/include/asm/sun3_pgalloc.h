@@ -41,12 +41,12 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t page
 
 static inline pgd_t * pgd_alloc(struct mm_struct *mm)
 {
-     pgd_t *new_pgd;
+	pgd_t *new_pgd;
 
-     new_pgd = (pgd_t *)get_zeroed_page(GFP_KERNEL);
-     memcpy(new_pgd, swapper_pg_dir, PAGE_SIZE);
-     memset(new_pgd, 0, (PAGE_OFFSET >> PGDIR_SHIFT));
-     return new_pgd;
+	new_pgd = (pgd_t *)get_zeroed_page(GFP_KERNEL);
+	memcpy(new_pgd, swapper_pg_dir, PAGE_SIZE);
+	memset(new_pgd, 0, (PAGE_OFFSET >> PGDIR_SHIFT));
+	return new_pgd;
 }
 
 #endif /* SUN3_PGALLOC_H */
