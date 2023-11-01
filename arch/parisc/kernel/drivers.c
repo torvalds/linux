@@ -927,8 +927,8 @@ static __init void qemu_header(void)
 
 	#define p ((unsigned long *)&boot_cpu_data.pdc.model)
 	pr_info("#define PARISC_PDC_MODEL 0x%lx, 0x%lx, 0x%lx, "
-		"0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx\n\n",
-		p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]);
+		"0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx\n\n",
+		p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9]);
 	#undef p
 
 	pr_info("#define PARISC_PDC_VERSION 0x%04lx\n\n",
