@@ -1514,7 +1514,7 @@ end:
 static void *swsusp_holder;
 
 /**
- * swsusp_check - Check for swsusp signature in the resume device
+ * swsusp_check - Open the resume device and check for the swsusp signature.
  * @exclusive: Open the resume device exclusively.
  */
 
@@ -1565,7 +1565,7 @@ put:
 }
 
 /**
- * swsusp_close - close swap device.
+ * swsusp_close - close resume device.
  * @exclusive: Close the resume device which is exclusively opened.
  */
 

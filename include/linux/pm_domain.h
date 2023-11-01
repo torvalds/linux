@@ -430,6 +430,7 @@ struct device *dev_pm_domain_attach_by_name(struct device *dev,
 void dev_pm_domain_detach(struct device *dev, bool power_off);
 int dev_pm_domain_start(struct device *dev);
 void dev_pm_domain_set(struct device *dev, struct dev_pm_domain *pd);
+int dev_pm_domain_set_performance_state(struct device *dev, unsigned int state);
 #else
 static inline int dev_pm_domain_attach(struct device *dev, bool power_on)
 {
@@ -452,6 +453,11 @@ static inline int dev_pm_domain_start(struct device *dev)
 }
 static inline void dev_pm_domain_set(struct device *dev,
 				     struct dev_pm_domain *pd) {}
+static inline int dev_pm_domain_set_performance_state(struct device *dev,
+						      unsigned int state)
+{
+	return 0;
+}
 #endif
 
 #endif /* _LINUX_PM_DOMAIN_H */
