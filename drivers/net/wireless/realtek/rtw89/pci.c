@@ -2361,7 +2361,7 @@ static void rtw89_pci_set_keep_reg(struct rtw89_dev *rtwdev)
 			  B_AX_PCIE_TXRST_KEEP_REG | B_AX_PCIE_RXRST_KEEP_REG);
 }
 
-static void rtw89_pci_clr_idx_all(struct rtw89_dev *rtwdev)
+static void rtw89_pci_clr_idx_all_ax(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
@@ -2549,7 +2549,7 @@ static int rtw89_pci_ops_deinit(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
+static int rtw89_pci_ops_mac_pre_init_ax(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	int ret;
@@ -2706,7 +2706,7 @@ int rtw89_pci_ltr_set_v1(struct rtw89_dev *rtwdev, bool en)
 }
 EXPORT_SYMBOL(rtw89_pci_ltr_set_v1);
 
-static int rtw89_pci_ops_mac_post_init(struct rtw89_dev *rtwdev)
+static int rtw89_pci_ops_mac_post_init_ax(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
@@ -3854,6 +3854,10 @@ SIMPLE_DEV_PM_OPS(rtw89_pm_ops, rtw89_pci_suspend, rtw89_pci_resume);
 EXPORT_SYMBOL(rtw89_pm_ops);
 
 const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
+	.mac_pre_init = rtw89_pci_ops_mac_pre_init_ax,
+	.mac_post_init = rtw89_pci_ops_mac_post_init_ax,
+
+	.clr_idx_all = rtw89_pci_clr_idx_all_ax,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_ax);
 
