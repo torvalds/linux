@@ -725,6 +725,24 @@ static int isp_set_ctrl_sc(struct stf_isp_dev *isp_dev, const void * value)
 	return 0;
 }
 
+static int isp_set_ctrl_outss(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct jh7110_isp_outss_setting * setting = (const struct jh7110_isp_outss_setting *)value;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	u32 reg_addr = !setting->which ? 0xa9c : 0xab4;
+
+	if(!setting->stride)
+		return 0;
+
+	// Output Image Stride Register, 8-byte(64bit) granularity.
+	reg_write(ispbase, reg_addr, setting->stride);
+	reg_write(ispbase, reg_addr + 4, ((setting->hsm << 16) | (setting->hsm & 0x3)));
+	reg_write(ispbase, reg_addr + 8, ((setting->vsm << 16) | (setting->vsm & 0x3)));
+
+	return 0;
+}
+
 static int isp_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
@@ -821,6 +839,10 @@ static int isp_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_USER_JH7110_ISP_STAT_SETTING:
 		ret = isp_set_ctrl_sc(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_OUTSS0_SETTING:
+	case V4L2_CID_USER_JH7110_ISP_OUTSS1_SETTING:
+		ret = isp_set_ctrl_outss(isp_dev, ctrl->p_new.p_u8);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1026,6 +1048,30 @@ struct v4l2_ctrl_config isp_ctrl[] = {
 		.name		= "SC Setting",
 		.id		= V4L2_CID_USER_JH7110_ISP_STAT_SETTING,
 		.dims[0]	= sizeof(struct jh7110_isp_sc_setting),
+		.flags		= 0,
+	},
+	[16] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "OUTSS Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_OUTSS0_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_outss_setting),
+		.flags		= 0,
+	},
+	[17] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "OUTSS Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_OUTSS1_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_outss_setting),
 		.flags		= 0,
 	},
 };
