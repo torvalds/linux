@@ -984,6 +984,19 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 	clear_rdrand_cpuid_bit(c);
 }
 
+static void fix_erratum_1386(struct cpuinfo_x86 *c)
+{
+	/*
+	 * Work around Erratum 1386.  The XSAVES instruction malfunctions in
+	 * certain circumstances on Zen1/2 uarch, and not all parts have had
+	 * updated microcode at the time of writing (March 2023).
+	 *
+	 * Affected parts all have no supervisor XSAVE states, meaning that
+	 * the XSAVEC instruction (which works fine) is equivalent.
+	 */
+	clear_cpu_cap(c, X86_FEATURE_XSAVES);
+}
+
 void init_spectral_chicken(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_CPU_UNRET_ENTRY
@@ -1004,15 +1017,6 @@ void init_spectral_chicken(struct cpuinfo_x86 *c)
 		}
 	}
 #endif
-	/*
-	 * Work around Erratum 1386.  The XSAVES instruction malfunctions in
-	 * certain circumstances on Zen1/2 uarch, and not all parts have had
-	 * updated microcode at the time of writing (March 2023).
-	 *
-	 * Affected parts all have no supervisor XSAVE states, meaning that
-	 * the XSAVEC instruction (which works fine) is equivalent.
-	 */
-	clear_cpu_cap(c, X86_FEATURE_XSAVES);
 }
 
 static void init_amd_zn(struct cpuinfo_x86 *c)
@@ -1080,10 +1084,12 @@ static void zenbleed_check(struct cpuinfo_x86 *c)
 
 static void init_amd_zen(struct cpuinfo_x86 *c)
 {
+	fix_erratum_1386(c);
 }
 
 static void init_amd_zen2(struct cpuinfo_x86 *c)
 {
+	fix_erratum_1386(c);
 }
 
 static void init_amd_zen3(struct cpuinfo_x86 *c)
