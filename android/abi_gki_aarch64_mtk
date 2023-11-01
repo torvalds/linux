@@ -7,6 +7,7 @@
   add_uevent_var
   add_wait_queue
   add_wait_queue_exclusive
+  add_wait_queue_priority
   adjust_managed_page_count
   aes_encrypt
   aes_expandkey
@@ -1012,7 +1013,9 @@
   get_user_ifreq
   get_user_pages
   get_user_pages_fast
+  get_user_pages_fast_only
   get_user_pages_remote
+  get_user_pages_unlocked
   get_vaddr_frames
   get_zeroed_page
   gfn_to_pfn_memslot
