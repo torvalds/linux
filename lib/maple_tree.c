@@ -6173,7 +6173,7 @@ void *mas_erase(struct ma_state *mas)
 	void *entry;
 	MA_WR_STATE(wr_mas, mas, NULL);
 
-	if (mas_is_none(mas) || mas_is_paused(mas))
+	if (!mas_is_active(mas) || !mas_is_start(mas))
 		mas->node = MAS_START;
 
 	/* Retry unnecessary when holding the write lock. */
