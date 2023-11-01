@@ -922,7 +922,11 @@ struct rtw89_pci_bd_ram {
 	u8 min_num;
 };
 
+struct rtw89_pci_gen_def {
+};
+
 struct rtw89_pci_info {
+	const struct rtw89_pci_gen_def *gen_def;
 	enum mac_ax_bd_trunc_mode txbd_trunc_mode;
 	enum mac_ax_bd_trunc_mode rxbd_trunc_mode;
 	enum mac_ax_rxbd_mode rxbd_mode;
@@ -1229,6 +1233,8 @@ extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_v1;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_be;
 extern const struct rtw89_pci_bd_ram rtw89_bd_ram_table_dual[RTW89_TXCH_NUM];
 extern const struct rtw89_pci_bd_ram rtw89_bd_ram_table_single[RTW89_TXCH_NUM];
+extern const struct rtw89_pci_gen_def rtw89_pci_gen_ax;
+extern const struct rtw89_pci_gen_def rtw89_pci_gen_be;
 
 struct pci_device_id;
 

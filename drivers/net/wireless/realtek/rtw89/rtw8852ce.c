@@ -19,6 +19,7 @@ static const struct rtw89_pci_bd_idx_addr rtw8852c_bd_idx_addr_low_power = {
 };
 
 static const struct rtw89_pci_info rtw8852c_pci_info = {
+	.gen_def		= &rtw89_pci_gen_ax,
 	.txbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_mode		= MAC_AX_RXBD_PKT,

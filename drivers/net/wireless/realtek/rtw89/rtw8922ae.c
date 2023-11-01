@@ -9,6 +9,7 @@
 #include "reg.h"
 
 static const struct rtw89_pci_info rtw8922a_pci_info = {
+	.gen_def		= &rtw89_pci_gen_be,
 	.txbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_mode		= MAC_AX_RXBD_PKT,
