@@ -570,7 +570,7 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 	drm_dbg_kms(&dev_priv->drm, "\n");
 	for_each_dsi_port(port, intel_dsi->ports) {
 		/* Common bit for both MIPI Port A & MIPI Port C on VLV/CHV */
-		i915_reg_t port_ctrl = IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ?
+		i915_reg_t port_ctrl = IS_BROXTON(dev_priv) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(PORT_A);
 
 		intel_de_write(dev_priv, MIPI_DEVICE_READY(port),
@@ -589,7 +589,7 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 		 * On VLV/CHV, wait till Clock lanes are in LP-00 state for MIPI
 		 * Port A only. MIPI Port C has no similar bit for checking.
 		 */
-		if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) || port == PORT_A) &&
+		if ((IS_BROXTON(dev_priv) || port == PORT_A) &&
 		    intel_de_wait_for_clear(dev_priv, port_ctrl,
 					    AFE_LATCHOUT, 30))
 			drm_err(&dev_priv->drm, "DSI LP not going Low\n");
