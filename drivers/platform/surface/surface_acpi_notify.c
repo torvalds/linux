@@ -854,7 +854,7 @@ err_enable_events:
 	return status;
 }
 
-static int san_remove(struct platform_device *pdev)
+static void san_remove(struct platform_device *pdev)
 {
 	acpi_handle san = ACPI_HANDLE(&pdev->dev);
 
@@ -868,8 +868,6 @@ static int san_remove(struct platform_device *pdev)
 	 * all delayed works they may have spawned are run to completion.
 	 */
 	flush_workqueue(san_wq);
-
-	return 0;
 }
 
 static const struct acpi_device_id san_match[] = {
@@ -880,7 +878,7 @@ MODULE_DEVICE_TABLE(acpi, san_match);
 
 static struct platform_driver surface_acpi_notify = {
 	.probe = san_probe,
-	.remove = san_remove,
+	.remove_new = san_remove,
 	.driver = {
 		.name = "surface_acpi_notify",
 		.acpi_match_table = san_match,

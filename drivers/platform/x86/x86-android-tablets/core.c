@@ -24,6 +24,21 @@
 
 static struct platform_device *x86_android_tablet_device;
 
+/*
+ * This helper allows getting a gpio_desc *before* the actual device consuming
+ * the GPIO has been instantiated. This function _must_ only be used to handle
+ * this special case such as e.g. :
+ *
+ * 1. Getting an IRQ from a GPIO for i2c_board_info.irq which is passed to
+ * i2c_client_new() to instantiate i2c_client-s; or
+ * 2. Calling desc_to_gpio() to get an old style GPIO number for gpio_keys
+ * platform_data which still uses old style GPIO numbers.
+ *
+ * Since the consuming device has not been instatiated yet a dynamic lookup
+ * is generated using the special x86_android_tablet dev for dev_id.
+ *
+ * For normal GPIO lookups a standard static gpiod_lookup_table _must_ be used.
+ */
 int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
 				 bool active_low, enum gpiod_flags dflags,
 				 struct gpio_desc **desc)
