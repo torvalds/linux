@@ -1702,11 +1702,11 @@ static int bq256xx_probe(struct i2c_client *client)
 
 	bq->client = client;
 	bq->dev = dev;
-	bq->chip_info = &bq256xx_chip_info_tbl[id->driver_data];
+	bq->chip_info = i2c_get_match_data(client);
 
 	mutex_init(&bq->lock);
 
-	strncpy(bq->model_name, id->name, I2C_NAME_SIZE);
+	strscpy(bq->model_name, id->name, sizeof(bq->model_name));
 
 	bq->regmap = devm_regmap_init_i2c(client,
 					bq->chip_info->bq256xx_regmap_config);
@@ -1771,38 +1771,38 @@ static int bq256xx_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bq256xx_i2c_ids[] = {
-	{ "bq25600", BQ25600 },
-	{ "bq25600d", BQ25600D },
-	{ "bq25601", BQ25601 },
-	{ "bq25601d", BQ25601D },
-	{ "bq25611d", BQ25611D },
-	{ "bq25618", BQ25618 },
-	{ "bq25619", BQ25619 },
-	{},
+	{ "bq25600", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25600] },
+	{ "bq25600d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25600D] },
+	{ "bq25601", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25601] },
+	{ "bq25601d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25601D] },
+	{ "bq25611d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25611D] },
+	{ "bq25618", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25618] },
+	{ "bq25619", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25619] },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, bq256xx_i2c_ids);
 
 static const struct of_device_id bq256xx_of_match[] = {
-	{ .compatible = "ti,bq25600", .data = (void *)BQ25600 },
-	{ .compatible = "ti,bq25600d", .data = (void *)BQ25600D },
-	{ .compatible = "ti,bq25601", .data = (void *)BQ25601 },
-	{ .compatible = "ti,bq25601d", .data = (void *)BQ25601D },
-	{ .compatible = "ti,bq25611d", .data = (void *)BQ25611D },
-	{ .compatible = "ti,bq25618", .data = (void *)BQ25618 },
-	{ .compatible = "ti,bq25619", .data = (void *)BQ25619 },
-	{ },
+	{ .compatible = "ti,bq25600", .data = &bq256xx_chip_info_tbl[BQ25600] },
+	{ .compatible = "ti,bq25600d", .data = &bq256xx_chip_info_tbl[BQ25600D] },
+	{ .compatible = "ti,bq25601", .data = &bq256xx_chip_info_tbl[BQ25601] },
+	{ .compatible = "ti,bq25601d", .data = &bq256xx_chip_info_tbl[BQ25601D] },
+	{ .compatible = "ti,bq25611d", .data = &bq256xx_chip_info_tbl[BQ25611D] },
+	{ .compatible = "ti,bq25618", .data = &bq256xx_chip_info_tbl[BQ25618] },
+	{ .compatible = "ti,bq25619", .data = &bq256xx_chip_info_tbl[BQ25619] },
+	{}
 };
 MODULE_DEVICE_TABLE(of, bq256xx_of_match);
 
 static const struct acpi_device_id bq256xx_acpi_match[] = {
-	{ "bq25600", BQ25600 },
-	{ "bq25600d", BQ25600D },
-	{ "bq25601", BQ25601 },
-	{ "bq25601d", BQ25601D },
-	{ "bq25611d", BQ25611D },
-	{ "bq25618", BQ25618 },
-	{ "bq25619", BQ25619 },
-	{},
+	{ "bq25600", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25600] },
+	{ "bq25600d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25600D] },
+	{ "bq25601", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25601] },
+	{ "bq25601d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25601D] },
+	{ "bq25611d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25611D] },
+	{ "bq25618", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25618] },
+	{ "bq25619", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25619] },
+	{}
 };
 MODULE_DEVICE_TABLE(acpi, bq256xx_acpi_match);
 

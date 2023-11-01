@@ -73,7 +73,7 @@ struct axp20x_usb_power {
 	unsigned int old_status;
 	unsigned int online;
 	unsigned int num_irqs;
-	unsigned int irqs[];
+	unsigned int irqs[] __counted_by(num_irqs);
 };
 
 static bool axp20x_usb_vbus_needs_polling(struct axp20x_usb_power *power)

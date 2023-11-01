@@ -345,13 +345,11 @@ static int max77650_charger_probe(struct platform_device *pdev)
 	return max77650_charger_enable(chg);
 }
 
-static int max77650_charger_remove(struct platform_device *pdev)
+static void max77650_charger_remove(struct platform_device *pdev)
 {
 	struct max77650_charger_data *chg = platform_get_drvdata(pdev);
 
 	max77650_charger_disable(chg);
-
-	return 0;
 }
 
 static const struct of_device_id max77650_charger_of_match[] = {
@@ -366,7 +364,7 @@ static struct platform_driver max77650_charger_driver = {
 		.of_match_table = max77650_charger_of_match,
 	},
 	.probe = max77650_charger_probe,
-	.remove = max77650_charger_remove,
+	.remove_new = max77650_charger_remove,
 };
 module_platform_driver(max77650_charger_driver);
 

@@ -694,7 +694,7 @@ err:
 	return ret;
 }
 
-static int wm831x_power_remove(struct platform_device *pdev)
+static void wm831x_power_remove(struct platform_device *pdev)
 {
 	struct wm831x_power *wm831x_power = platform_get_drvdata(pdev);
 	struct wm831x *wm831x = wm831x_power->wm831x;
@@ -722,12 +722,11 @@ static int wm831x_power_remove(struct platform_device *pdev)
 		power_supply_unregister(wm831x_power->battery);
 	power_supply_unregister(wm831x_power->wall);
 	power_supply_unregister(wm831x_power->usb);
-	return 0;
 }
 
 static struct platform_driver wm831x_power_driver = {
 	.probe = wm831x_power_probe,
-	.remove = wm831x_power_remove,
+	.remove_new = wm831x_power_remove,
 	.driver = {
 		.name = "wm831x-power",
 	},
