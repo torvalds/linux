@@ -313,7 +313,7 @@ static void mtl_update_rpe_value(struct xe_guc_pc *pc)
 	else
 		reg = xe_mmio_read32(gt, MTL_GT_RPE_FREQUENCY);
 
-	pc->rpe_freq = REG_FIELD_GET(MTL_RPE_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
+	pc->rpe_freq = decode_freq(REG_FIELD_GET(MTL_RPE_MASK, reg));
 }
 
 static void tgl_update_rpe_value(struct xe_guc_pc *pc)
@@ -653,10 +653,10 @@ static void mtl_init_fused_rp_values(struct xe_guc_pc *pc)
 		reg = xe_mmio_read32(gt, MTL_MEDIAP_STATE_CAP);
 	else
 		reg = xe_mmio_read32(gt, MTL_RP_STATE_CAP);
-	pc->rp0_freq = REG_FIELD_GET(MTL_RP0_CAP_MASK, reg) *
-		GT_FREQUENCY_MULTIPLIER;
-	pc->rpn_freq = REG_FIELD_GET(MTL_RPN_CAP_MASK, reg) *
-		GT_FREQUENCY_MULTIPLIER;
+
+	pc->rp0_freq = decode_freq(REG_FIELD_GET(MTL_RP0_CAP_MASK, reg));
+
+	pc->rpn_freq = decode_freq(REG_FIELD_GET(MTL_RPN_CAP_MASK, reg));
 }
 
 static void tgl_init_fused_rp_values(struct xe_guc_pc *pc)
