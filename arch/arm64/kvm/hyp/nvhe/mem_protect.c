@@ -2041,15 +2041,12 @@ int module_change_host_page_prot(u64 pfn, enum kvm_pgtable_prot prot)
 	page = hyp_phys_to_page(addr);
 
 	/*
-	 * Modules can only relax permissions of pages they own, and restrict
-	 * permissions of pristine pages.
+	 * Modules can only modify pages they already own, and pristine host
+	 * pages.
 	 */
-	if (prot == KVM_PGTABLE_PROT_RWX) {
-		if (!(page->flags & MODULE_OWNED_PAGE))
-			goto unlock;
-	} else if (host_get_page_state(pte, addr) != PKVM_PAGE_OWNED) {
+	if (!(page->flags & MODULE_OWNED_PAGE) &&
+	    (host_get_page_state(pte, addr) != PKVM_PAGE_OWNED))
 		goto unlock;
-	}
 
 update:
 	if (!prot) {
