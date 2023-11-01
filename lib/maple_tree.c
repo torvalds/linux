@@ -217,23 +217,24 @@ static inline unsigned int mt_attr(struct maple_tree *mt)
 	return mt->ma_flags & ~MT_FLAGS_HEIGHT_MASK;
 }
 
-static inline enum maple_type mte_node_type(const struct maple_enode *entry)
+static __always_inline enum maple_type mte_node_type(
+		const struct maple_enode *entry)
 {
 	return ((unsigned long)entry >> MAPLE_NODE_TYPE_SHIFT) &
 		MAPLE_NODE_TYPE_MASK;
 }
 
-static inline bool ma_is_dense(const enum maple_type type)
+static __always_inline bool ma_is_dense(const enum maple_type type)
 {
 	return type < maple_leaf_64;
 }
 
-static inline bool ma_is_leaf(const enum maple_type type)
+static __always_inline bool ma_is_leaf(const enum maple_type type)
 {
 	return type < maple_range_64;
 }
 
-static inline bool mte_is_leaf(const struct maple_enode *entry)
+static __always_inline bool mte_is_leaf(const struct maple_enode *entry)
 {
 	return ma_is_leaf(mte_node_type(entry));
 }
@@ -242,7 +243,7 @@ static inline bool mte_is_leaf(const struct maple_enode *entry)
  * We also reserve values with the bottom two bits set to '10' which are
  * below 4096
  */
-static inline bool mt_is_reserved(const void *entry)
+static __always_inline bool mt_is_reserved(const void *entry)
 {
 	return ((unsigned long)entry < MAPLE_RESERVED_RANGE) &&
 		xa_is_internal(entry);
@@ -295,7 +296,8 @@ static inline bool mas_searchable(struct ma_state *mas)
 	return true;
 }
 
-static inline struct maple_node *mte_to_node(const struct maple_enode *entry)
+static __always_inline struct maple_node *mte_to_node(
+		const struct maple_enode *entry)
 {
 	return (struct maple_node *)((unsigned long)entry & ~MAPLE_NODE_MASK);
 }
@@ -372,12 +374,12 @@ static inline bool mte_has_null(const struct maple_enode *node)
 	return (unsigned long)node & MAPLE_ENODE_NULL;
 }
 
-static inline bool ma_is_root(struct maple_node *node)
+static __always_inline bool ma_is_root(struct maple_node *node)
 {
 	return ((unsigned long)node->parent & MA_ROOT_PARENT);
 }
 
-static inline bool mte_is_root(const struct maple_enode *node)
+static __always_inline bool mte_is_root(const struct maple_enode *node)
 {
 	return ma_is_root(mte_to_node(node));
 }
@@ -387,7 +389,7 @@ static inline bool mas_is_root_limits(const struct ma_state *mas)
 	return !mas->min && mas->max == ULONG_MAX;
 }
 
-static inline bool mt_is_alloc(struct maple_tree *mt)
+static __always_inline bool mt_is_alloc(struct maple_tree *mt)
 {
 	return (mt->ma_flags & MT_FLAGS_ALLOC_RANGE);
 }
@@ -526,11 +528,12 @@ void mas_set_parent(struct ma_state *mas, struct maple_enode *enode,
  *
  * Return: The slot in the parent node where @enode resides.
  */
-static inline unsigned int mte_parent_slot(const struct maple_enode *enode)
+static __always_inline
+unsigned int mte_parent_slot(const struct maple_enode *enode)
 {
 	unsigned long val = (unsigned long)mte_to_node(enode)->parent;
 
-	if (val & MA_ROOT_PARENT)
+	if (unlikely(val & MA_ROOT_PARENT))
 		return 0;
 
 	/*
@@ -546,7 +549,8 @@ static inline unsigned int mte_parent_slot(const struct maple_enode *enode)
  *
  * Return: The parent maple node.
  */
-static inline struct maple_node *mte_parent(const struct maple_enode *enode)
+static __always_inline
+struct maple_node *mte_parent(const struct maple_enode *enode)
 {
 	return (void *)((unsigned long)
 			(mte_to_node(enode)->parent) & ~MAPLE_NODE_MASK);
@@ -558,7 +562,7 @@ static inline struct maple_node *mte_parent(const struct maple_enode *enode)
  *
  * Return: true if dead, false otherwise.
  */
-static inline bool ma_dead_node(const struct maple_node *node)
+static __always_inline bool ma_dead_node(const struct maple_node *node)
 {
 	struct maple_node *parent;
 
@@ -574,7 +578,7 @@ static inline bool ma_dead_node(const struct maple_node *node)
  *
  * Return: true if dead, false otherwise.
  */
-static inline bool mte_dead_node(const struct maple_enode *enode)
+static __always_inline bool mte_dead_node(const struct maple_enode *enode)
 {
 	struct maple_node *parent, *node;
 
@@ -730,7 +734,7 @@ static inline unsigned long mas_pivot(struct ma_state *mas, unsigned char piv)
  * Return: The pivot at @piv within the limit of the @pivots array, @mas->max
  * otherwise.
  */
-static inline unsigned long
+static __always_inline unsigned long
 mas_safe_pivot(const struct ma_state *mas, unsigned long *pivots,
 	       unsigned char piv, enum maple_type type)
 {
@@ -812,20 +816,20 @@ static inline bool mt_write_locked(const struct maple_tree *mt)
 		lockdep_is_held(&mt->ma_lock);
 }
 
-static inline bool mt_locked(const struct maple_tree *mt)
+static __always_inline bool mt_locked(const struct maple_tree *mt)
 {
 	return mt_external_lock(mt) ? mt_lock_is_held(mt) :
 		lockdep_is_held(&mt->ma_lock);
 }
 
-static inline void *mt_slot(const struct maple_tree *mt,
+static __always_inline void *mt_slot(const struct maple_tree *mt,
 		void __rcu **slots, unsigned char offset)
 {
 	return rcu_dereference_check(slots[offset], mt_locked(mt));
 }
 
-static inline void *mt_slot_locked(struct maple_tree *mt, void __rcu **slots,
-				   unsigned char offset)
+static __always_inline void *mt_slot_locked(struct maple_tree *mt,
+		void __rcu **slots, unsigned char offset)
 {
 	return rcu_dereference_protected(slots[offset], mt_write_locked(mt));
 }
@@ -837,8 +841,8 @@ static inline void *mt_slot_locked(struct maple_tree *mt, void __rcu **slots,
  *
  * Return: The entry stored in @slots at the @offset.
  */
-static inline void *mas_slot_locked(struct ma_state *mas, void __rcu **slots,
-				       unsigned char offset)
+static __always_inline void *mas_slot_locked(struct ma_state *mas,
+		void __rcu **slots, unsigned char offset)
 {
 	return mt_slot_locked(mas->tree, slots, offset);
 }
@@ -851,8 +855,8 @@ static inline void *mas_slot_locked(struct ma_state *mas, void __rcu **slots,
  *
  * Return: The entry stored in @slots at the @offset
  */
-static inline void *mas_slot(struct ma_state *mas, void __rcu **slots,
-			     unsigned char offset)
+static __always_inline void *mas_slot(struct ma_state *mas, void __rcu **slots,
+		unsigned char offset)
 {
 	return mt_slot(mas->tree, slots, offset);
 }
@@ -863,7 +867,7 @@ static inline void *mas_slot(struct ma_state *mas, void __rcu **slots,
  *
  * Return: The pointer to the root of the tree
  */
-static inline void *mas_root(struct ma_state *mas)
+static __always_inline void *mas_root(struct ma_state *mas)
 {
 	return rcu_dereference_check(mas->tree->ma_root, mt_locked(mas->tree));
 }
@@ -1437,10 +1441,8 @@ retry:
  * Uses metadata to find the end of the data when possible.
  * Return: The zero indexed last slot with data (may be null).
  */
-static inline unsigned char ma_data_end(struct maple_node *node,
-					enum maple_type type,
-					unsigned long *pivots,
-					unsigned long max)
+static __always_inline unsigned char ma_data_end(struct maple_node *node,
+		enum maple_type type, unsigned long *pivots, unsigned long max)
 {
 	unsigned char offset;
 
@@ -4344,7 +4346,7 @@ exists:
 
 }
 
-static inline void mas_rewalk(struct ma_state *mas, unsigned long index)
+static __always_inline void mas_rewalk(struct ma_state *mas, unsigned long index)
 {
 retry:
 	mas_set(mas, index);
@@ -4353,7 +4355,7 @@ retry:
 		goto retry;
 }
 
-static inline bool mas_rewalk_if_dead(struct ma_state *mas,
+static __always_inline bool mas_rewalk_if_dead(struct ma_state *mas,
 		struct maple_node *node, const unsigned long index)
 {
 	if (unlikely(ma_dead_node(node))) {
@@ -4372,7 +4374,7 @@ static inline bool mas_rewalk_if_dead(struct ma_state *mas,
  * The prev node value will be mas->node[mas->offset] or MAS_NONE.
  * Return: 1 if the node is dead, 0 otherwise.
  */
-static inline int mas_prev_node(struct ma_state *mas, unsigned long min)
+static int mas_prev_node(struct ma_state *mas, unsigned long min)
 {
 	enum maple_type mt;
 	int offset, level;
@@ -4533,8 +4535,8 @@ underflow:
  * The next value will be mas->node[mas->offset] or MAS_NONE.
  * Return: 1 on dead node, 0 otherwise.
  */
-static inline int mas_next_node(struct ma_state *mas, struct maple_node *node,
-				unsigned long max)
+static int mas_next_node(struct ma_state *mas, struct maple_node *node,
+		unsigned long max)
 {
 	unsigned long min;
 	unsigned long *pivots;
@@ -5664,7 +5666,7 @@ int mas_expected_entries(struct ma_state *mas, unsigned long nr_entries)
 }
 EXPORT_SYMBOL_GPL(mas_expected_entries);
 
-static inline bool mas_next_setup(struct ma_state *mas, unsigned long max,
+static bool mas_next_setup(struct ma_state *mas, unsigned long max,
 		void **entry)
 {
 	bool was_none = mas_is_none(mas);
@@ -5780,8 +5782,7 @@ void *mt_next(struct maple_tree *mt, unsigned long index, unsigned long max)
 }
 EXPORT_SYMBOL_GPL(mt_next);
 
-static inline bool mas_prev_setup(struct ma_state *mas, unsigned long min,
-		void **entry)
+static bool mas_prev_setup(struct ma_state *mas, unsigned long min, void **entry)
 {
 	if (unlikely(mas->index <= min)) {
 		mas->node = MAS_UNDERFLOW;
@@ -5930,8 +5931,7 @@ EXPORT_SYMBOL_GPL(mas_pause);
  *
  * Returns: True if entry is the answer, false otherwise.
  */
-static inline bool mas_find_setup(struct ma_state *mas, unsigned long max,
-		void **entry)
+static __always_inline bool mas_find_setup(struct ma_state *mas, unsigned long max, void **entry)
 {
 	if (mas_is_active(mas)) {
 		if (mas->last < max)
@@ -6047,7 +6047,7 @@ EXPORT_SYMBOL_GPL(mas_find_range);
  *
  * Returns: True if entry is the answer, false otherwise.
  */
-static inline bool mas_find_rev_setup(struct ma_state *mas, unsigned long min,
+static bool mas_find_rev_setup(struct ma_state *mas, unsigned long min,
 		void **entry)
 {
 	if (mas_is_active(mas)) {
