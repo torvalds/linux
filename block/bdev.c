@@ -30,6 +30,9 @@
 #include "../fs/internal.h"
 #include "blk.h"
 
+/* Should we allow writing to mounted block devices? */
+static bool bdev_allow_write_mounted = IS_ENABLED(CONFIG_BLK_DEV_WRITE_MOUNTED);
+
 struct bdev_inode {
 	struct block_device bdev;
 	struct inode vfs_inode;
@@ -730,7 +733,58 @@ void blkdev_put_no_open(struct block_device *bdev)
 {
 	put_device(&bdev->bd_device);
 }
-	
+
+static bool bdev_writes_blocked(struct block_device *bdev)
+{
+	return bdev->bd_writers == -1;
+}
+
+static void bdev_block_writes(struct block_device *bdev)
+{
+	bdev->bd_writers = -1;
+}
+
+static void bdev_unblock_writes(struct block_device *bdev)
+{
+	bdev->bd_writers = 0;
+}
+
+static bool bdev_may_open(struct block_device *bdev, blk_mode_t mode)
+{
+	if (bdev_allow_write_mounted)
+		return true;
+	/* Writes blocked? */
+	if (mode & BLK_OPEN_WRITE && bdev_writes_blocked(bdev))
+		return false;
+	if (mode & BLK_OPEN_RESTRICT_WRITES && bdev->bd_writers > 0)
+		return false;
+	return true;
+}
+
+static void bdev_claim_write_access(struct block_device *bdev, blk_mode_t mode)
+{
+	if (bdev_allow_write_mounted)
+		return;
+
+	/* Claim exclusive or shared write access. */
+	if (mode & BLK_OPEN_RESTRICT_WRITES)
+		bdev_block_writes(bdev);
+	else if (mode & BLK_OPEN_WRITE)
+		bdev->bd_writers++;
+}
+
+static void bdev_yield_write_access(struct block_device *bdev, blk_mode_t mode)
+{
+	if (bdev_allow_write_mounted)
+		return;
+
+	/* Yield exclusive or shared write access. */
+	if (mode & BLK_OPEN_RESTRICT_WRITES)
+		bdev_unblock_writes(bdev);
+	else if (mode & BLK_OPEN_WRITE)
+		bdev->bd_writers--;
+}
+
 /**
  * bdev_open_by_dev - open a block device by device number
  * @dev: device number of block device to open
@@ -773,6 +827,10 @@ struct bdev_handle *bdev_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
 	if (ret)
 		goto free_handle;
 
+	/* Blocking writes requires exclusive opener */
+	if (mode & BLK_OPEN_RESTRICT_WRITES && !holder)
+		return ERR_PTR(-EINVAL);
+
 	bdev = blkdev_get_no_open(dev);
 	if (!bdev) {
 		ret = -ENXIO;
@@ -800,12 +858,16 @@ struct bdev_handle *bdev_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
 		goto abort_claiming;
 	if (!try_module_get(disk->fops->owner))
 		goto abort_claiming;
+	ret = -EBUSY;
+	if (!bdev_may_open(bdev, mode))
+		goto abort_claiming;
 	if (bdev_is_partition(bdev))
 		ret = blkdev_get_part(bdev, mode);
 	else
 		ret = blkdev_get_whole(bdev, mode);
 	if (ret)
 		goto put_module;
+	bdev_claim_write_access(bdev, mode);
 	if (holder) {
 		bd_finish_claiming(bdev, holder, hops);
 
@@ -901,6 +963,8 @@ void bdev_release(struct bdev_handle *handle)
 		sync_blockdev(bdev);
 
 	mutex_lock(&disk->open_mutex);
+	bdev_yield_write_access(bdev, handle->mode);
+
 	if (handle->holder)
 		bd_end_claim(bdev, handle->holder);
 
@@ -1069,3 +1133,12 @@ void bdev_statx_dioalign(struct inode *inode, struct kstat *stat)
 
 	blkdev_put_no_open(bdev);
 }
+
+static int __init setup_bdev_allow_write_mounted(char *str)
+{
+	if (kstrtobool(str, &bdev_allow_write_mounted))
+		pr_warn("Invalid option string for bdev_allow_write_mounted:"
+			" '%s'\n", str);
+	return 1;
+}
+__setup("bdev_allow_write_mounted=", setup_bdev_allow_write_mounted);
