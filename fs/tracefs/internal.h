@@ -55,12 +55,10 @@ struct eventfs_inode {
 	/*
 	 * Union - used for deletion
 	 * @llist:	for calling dput() if needed after RCU
-	 * @del_list:	list of eventfs_inode to delete
 	 * @rcu:	eventfs_inode to delete in RCU
 	 */
 	union {
 		struct llist_node	llist;
-		struct list_head	del_list;
 		struct rcu_head		rcu;
 	};
 	unsigned int			is_freed:1;
