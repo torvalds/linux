@@ -298,6 +298,14 @@ int aperture_remove_conflicting_devices(resource_size_t base, resource_size_t si
 
 	aperture_detach_devices(base, size);
 
+	/*
+	 * If this is the primary adapter, there could be a VGA device
+	 * that consumes the VGA framebuffer I/O range. Remove this device
+	 * as well.
+	 */
+	if (primary)
+		aperture_detach_devices(VGA_FB_PHYS_BASE, VGA_FB_PHYS_SIZE);
+
 	return 0;
 }
 EXPORT_SYMBOL(aperture_remove_conflicting_devices);
@@ -337,13 +345,6 @@ int aperture_remove_conflicting_pci_devices(struct pci_dev *pdev, const char *na
 	}
 
 	if (primary) {
-		/*
-		 * If this is the primary adapter, there could be a VGA device
-		 * that consumes the VGA framebuffer I/O range. Remove this
-		 * device as well.
-		 */
-		aperture_detach_devices(VGA_FB_PHYS_BASE, VGA_FB_PHYS_SIZE);
-
 		/*
 		 * WARNING: Apparently we must kick fbdev drivers before vgacon,
 		 * otherwise the vga fbdev driver falls over.
