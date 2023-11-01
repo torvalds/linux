@@ -86,7 +86,8 @@ int mlx5vf_cmd_resume_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod)
 }
 
 int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
-					  size_t *state_size, u8 query_flags)
+					  size_t *state_size, u64 *total_size,
+					  u8 query_flags)
 {
 	u32 out[MLX5_ST_SZ_DW(query_vhca_migration_state_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(query_vhca_migration_state_in)] = {};
@@ -128,6 +129,7 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 	MLX5_SET(query_vhca_migration_state_in, in, op_mod, 0);
 	MLX5_SET(query_vhca_migration_state_in, in, incremental,
 		 query_flags & MLX5VF_QUERY_INC);
+	MLX5_SET(query_vhca_migration_state_in, in, chunk, mvdev->chunk_mode);
 
 	ret = mlx5_cmd_exec_inout(mvdev->mdev, query_vhca_migration_state, in,
 				  out);
@@ -139,6 +141,11 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 
 	*state_size = MLX5_GET(query_vhca_migration_state_out, out,
 			       required_umem_size);
+	if (total_size)
+		*total_size = mvdev->chunk_mode ?
+			MLX5_GET64(query_vhca_migration_state_out, out,
+				   remaining_total_size) : *state_size;
+
 	return 0;
 }
 
@@ -253,6 +260,9 @@ void mlx5vf_cmd_set_migratable(struct mlx5vf_pci_core_device *mvdev,
 	    MLX5_CAP_GEN_2(mvdev->mdev, migration_tracking_state))
 		mvdev->core_device.vdev.migration_flags |=
 			VFIO_MIGRATION_PRE_COPY;
+
+	if (MLX5_CAP_GEN_2(mvdev->mdev, migration_in_chunks))
+		mvdev->chunk_mode = 1;
 
 end:
 	mlx5_vf_put_core_dev(mvdev->mdev);
@@ -428,6 +438,7 @@ end:
 void mlx5vf_put_data_buffer(struct mlx5_vhca_data_buffer *buf)
 {
 	spin_lock_irq(&buf->migf->list_lock);
+	buf->stop_copy_chunk_num = 0;
 	list_add_tail(&buf->buf_elm, &buf->migf->avail_list);
 	spin_unlock_irq(&buf->migf->list_lock);
 }
@@ -475,6 +486,15 @@ found:
 	return buf;
 }
 
+static void
+mlx5vf_save_callback_complete(struct mlx5_vf_migration_file *migf,
+			      struct mlx5vf_async_data *async_data)
+{
+	kvfree(async_data->out);
+	complete(&migf->save_comp);
+	fput(migf->filp);
+}
+
 void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
 {
 	struct mlx5vf_async_data *async_data = container_of(_work,
@@ -487,16 +507,15 @@ void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
 		mlx5vf_put_data_buffer(async_data->buf);
 		if (async_data->header_buf)
 			mlx5vf_put_data_buffer(async_data->header_buf);
-		if (async_data->status == MLX5_CMD_STAT_BAD_RES_STATE_ERR)
+		if (!async_data->stop_copy_chunk &&
+		    async_data->status == MLX5_CMD_STAT_BAD_RES_STATE_ERR)
 			migf->state = MLX5_MIGF_STATE_PRE_COPY_ERROR;
 		else
 			migf->state = MLX5_MIGF_STATE_ERROR;
 		wake_up_interruptible(&migf->poll_wait);
 	}
 	mutex_unlock(&migf->lock);
-	kvfree(async_data->out);
-	complete(&migf->save_comp);
-	fput(migf->filp);
+	mlx5vf_save_callback_complete(migf, async_data);
 }
 
 static int add_buf_header(struct mlx5_vhca_data_buffer *header_buf,
@@ -536,13 +555,20 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 			struct mlx5_vf_migration_file, async_data);
 
 	if (!status) {
+		size_t next_required_umem_size = 0;
+		bool stop_copy_last_chunk;
 		size_t image_size;
 		unsigned long flags;
 		bool initial_pre_copy = migf->state != MLX5_MIGF_STATE_PRE_COPY &&
-				!async_data->last_chunk;
+				!async_data->stop_copy_chunk;
 
 		image_size = MLX5_GET(save_vhca_state_out, async_data->out,
 				      actual_image_size);
+		if (async_data->buf->stop_copy_chunk_num)
+			next_required_umem_size = MLX5_GET(save_vhca_state_out,
+					async_data->out, next_required_umem_size);
+		stop_copy_last_chunk = async_data->stop_copy_chunk &&
+				!next_required_umem_size;
 		if (async_data->header_buf) {
 			status = add_buf_header(async_data->header_buf, image_size,
 						initial_pre_copy);
@@ -554,19 +580,34 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 		migf->max_pos += async_data->buf->length;
 		spin_lock_irqsave(&migf->list_lock, flags);
 		list_add_tail(&async_data->buf->buf_elm, &migf->buf_list);
+		if (async_data->buf->stop_copy_chunk_num) {
+			migf->num_ready_chunks++;
+			if (next_required_umem_size &&
+			    migf->num_ready_chunks >= MAX_NUM_CHUNKS) {
+				/* Delay the next SAVE till one chunk be consumed */
+				migf->next_required_umem_size = next_required_umem_size;
+				next_required_umem_size = 0;
+			}
+		}
 		spin_unlock_irqrestore(&migf->list_lock, flags);
-		if (initial_pre_copy)
+		if (initial_pre_copy) {
 			migf->pre_copy_initial_bytes += image_size;
-		migf->state = async_data->last_chunk ?
-			MLX5_MIGF_STATE_COMPLETE : MLX5_MIGF_STATE_PRE_COPY;
+			migf->state = MLX5_MIGF_STATE_PRE_COPY;
+		}
+		if (stop_copy_last_chunk)
+			migf->state = MLX5_MIGF_STATE_COMPLETE;
 		wake_up_interruptible(&migf->poll_wait);
+		if (next_required_umem_size)
+			mlx5vf_mig_file_set_save_work(migf,
+				/* Picking up the next chunk num */
+				(async_data->buf->stop_copy_chunk_num % MAX_NUM_CHUNKS) + 1,
+				next_required_umem_size);
+		mlx5vf_save_callback_complete(migf, async_data);
+		return;
 	}
 
 err:
-	/*
-	 * The error and the cleanup flows can't run from an
-	 * interrupt context
-	 */
+	/* The error flow can't run from an interrupt context */
 	if (status == -EREMOTEIO)
 		status = MLX5_GET(save_vhca_state_out, async_data->out, status);
 	async_data->status = status;
@@ -610,7 +651,7 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 
 	async_data = &migf->async_data;
 	async_data->buf = buf;
-	async_data->last_chunk = !track;
+	async_data->stop_copy_chunk = !track;
 	async_data->out = kvzalloc(out_size, GFP_KERNEL);
 	if (!async_data->out) {
 		err = -ENOMEM;
@@ -618,10 +659,15 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	}
 
 	if (MLX5VF_PRE_COPY_SUPP(mvdev)) {
-		if (async_data->last_chunk && migf->buf_header) {
-			header_buf = migf->buf_header;
-			migf->buf_header = NULL;
-		} else {
+		if (async_data->stop_copy_chunk) {
+			u8 header_idx = buf->stop_copy_chunk_num ?
+				buf->stop_copy_chunk_num - 1 : 0;
+
+			header_buf = migf->buf_header[header_idx];
+			migf->buf_header[header_idx] = NULL;
+		}
+
+		if (!header_buf) {
 			header_buf = mlx5vf_get_data_buffer(migf,
 				sizeof(struct mlx5_vf_migration_header), DMA_NONE);
 			if (IS_ERR(header_buf)) {
@@ -631,8 +677,8 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 		}
 	}
 
-	if (async_data->last_chunk)
-		migf->state = MLX5_MIGF_STATE_SAVE_LAST;
+	if (async_data->stop_copy_chunk)
+		migf->state = MLX5_MIGF_STATE_SAVE_STOP_COPY_CHUNK;
 
 	async_data->header_buf = header_buf;
 	get_file(migf->filp);
@@ -707,18 +753,21 @@ void mlx5vf_cmd_dealloc_pd(struct mlx5_vf_migration_file *migf)
 void mlx5fv_cmd_clean_migf_resources(struct mlx5_vf_migration_file *migf)
 {
 	struct mlx5_vhca_data_buffer *entry;
+	int i;
 
 	lockdep_assert_held(&migf->mvdev->state_mutex);
 	WARN_ON(migf->mvdev->mdev_detach);
 
-	if (migf->buf) {
-		mlx5vf_free_data_buffer(migf->buf);
-		migf->buf = NULL;
-	}
+	for (i = 0; i < MAX_NUM_CHUNKS; i++) {
+		if (migf->buf[i]) {
+			mlx5vf_free_data_buffer(migf->buf[i]);
+			migf->buf[i] = NULL;
+		}
 
-	if (migf->buf_header) {
-		mlx5vf_free_data_buffer(migf->buf_header);
-		migf->buf_header = NULL;
+		if (migf->buf_header[i]) {
+			mlx5vf_free_data_buffer(migf->buf_header[i]);
+			migf->buf_header[i] = NULL;
+		}
 	}
 
 	list_splice(&migf->avail_list, &migf->buf_list);

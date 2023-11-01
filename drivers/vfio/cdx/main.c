@@ -14,7 +14,7 @@ static int vfio_cdx_open_device(struct vfio_device *core_vdev)
 		container_of(core_vdev, struct vfio_cdx_device, vdev);
 	struct cdx_device *cdx_dev = to_cdx_device(core_vdev->dev);
 	int count = cdx_dev->res_count;
-	int i;
+	int i, ret;
 
 	vdev->regions = kcalloc(count, sizeof(struct vfio_cdx_region),
 				GFP_KERNEL_ACCOUNT);
@@ -39,6 +39,17 @@ static int vfio_cdx_open_device(struct vfio_device *core_vdev)
 		if (!(cdx_dev->res[i].flags & IORESOURCE_READONLY))
 			vdev->regions[i].flags |= VFIO_REGION_INFO_FLAG_WRITE;
 	}
+	ret = cdx_dev_reset(core_vdev->dev);
+	if (ret) {
+		kfree(vdev->regions);
+		vdev->regions = NULL;
+		return ret;
+	}
+	ret = cdx_clear_master(cdx_dev);
+	if (ret)
+		vdev->flags &= ~BME_SUPPORT;
+	else
+		vdev->flags |= BME_SUPPORT;
 
 	return 0;
 }
@@ -50,6 +61,49 @@ static void vfio_cdx_close_device(struct vfio_device *core_vdev)
 
 	kfree(vdev->regions);
 	cdx_dev_reset(core_vdev->dev);
+}
+
+static int vfio_cdx_bm_ctrl(struct vfio_device *core_vdev, u32 flags,
+			    void __user *arg, size_t argsz)
+{
+	size_t minsz =
+		offsetofend(struct vfio_device_feature_bus_master, op);
+	struct vfio_cdx_device *vdev =
+		container_of(core_vdev, struct vfio_cdx_device, vdev);
+	struct cdx_device *cdx_dev = to_cdx_device(core_vdev->dev);
+	struct vfio_device_feature_bus_master ops;
+	int ret;
+
+	if (!(vdev->flags & BME_SUPPORT))
+		return -ENOTTY;
+
+	ret = vfio_check_feature(flags, argsz, VFIO_DEVICE_FEATURE_SET,
+				 sizeof(ops));
+	if (ret != 1)
+		return ret;
+
+	if (copy_from_user(&ops, arg, minsz))
+		return -EFAULT;
+
+	switch (ops.op) {
+	case VFIO_DEVICE_FEATURE_CLEAR_MASTER:
+		return cdx_clear_master(cdx_dev);
+	case VFIO_DEVICE_FEATURE_SET_MASTER:
+		return cdx_set_master(cdx_dev);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int vfio_cdx_ioctl_feature(struct vfio_device *device, u32 flags,
+				  void __user *arg, size_t argsz)
+{
+	switch (flags & VFIO_DEVICE_FEATURE_MASK) {
+	case VFIO_DEVICE_FEATURE_BUS_MASTER:
+		return vfio_cdx_bm_ctrl(device, flags, arg, argsz);
+	default:
+		return -ENOTTY;
+	}
 }
 
 static int vfio_cdx_ioctl_get_info(struct vfio_cdx_device *vdev,
@@ -169,6 +223,7 @@ static const struct vfio_device_ops vfio_cdx_ops = {
 	.open_device	= vfio_cdx_open_device,
 	.close_device	= vfio_cdx_close_device,
 	.ioctl		= vfio_cdx_ioctl,
+	.device_feature = vfio_cdx_ioctl_feature,
 	.mmap		= vfio_cdx_mmap,
 	.bind_iommufd	= vfio_iommufd_physical_bind,
 	.unbind_iommufd	= vfio_iommufd_physical_unbind,
