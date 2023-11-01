@@ -1424,12 +1424,6 @@ static const struct cpr_acc_desc qcs404_cpr_acc_desc = {
 	.acc_desc = &qcs404_acc_desc,
 };
 
-static unsigned int cpr_get_performance_state(struct generic_pm_domain *genpd,
-					      struct dev_pm_opp *opp)
-{
-	return dev_pm_opp_get_level(opp);
-}
-
 static int cpr_power_off(struct generic_pm_domain *domain)
 {
 	struct cpr_drv *drv = container_of(domain, struct cpr_drv, pd);
@@ -1698,7 +1692,6 @@ static int cpr_probe(struct platform_device *pdev)
 	drv->pd.power_off = cpr_power_off;
 	drv->pd.power_on = cpr_power_on;
 	drv->pd.set_performance_state = cpr_set_performance_state;
-	drv->pd.opp_to_performance_state = cpr_get_performance_state;
 	drv->pd.attach_dev = cpr_pd_attach_dev;
 
 	ret = pm_genpd_init(&drv->pd, NULL, true);
