@@ -351,7 +351,7 @@ static int vc4_drm_bind(struct device *dev)
 			return -EPROBE_DEFER;
 	}
 
-	ret = drm_aperture_remove_framebuffers(driver);
+	ret = drm_aperture_remove_framebuffers(false, driver);
 	if (ret)
 		return ret;
 

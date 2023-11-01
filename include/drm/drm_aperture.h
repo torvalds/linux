@@ -13,13 +13,14 @@ int devm_aperture_acquire_from_firmware(struct drm_device *dev, resource_size_t 
 					resource_size_t size);
 
 int drm_aperture_remove_conflicting_framebuffers(resource_size_t base, resource_size_t size,
-						 const struct drm_driver *req_driver);
+						 bool primary, const struct drm_driver *req_driver);
 
 int drm_aperture_remove_conflicting_pci_framebuffers(struct pci_dev *pdev,
 						     const struct drm_driver *req_driver);
 
 /**
  * drm_aperture_remove_framebuffers - remove all existing framebuffers
+ * @primary: also kick vga16fb if present
  * @req_driver: requesting DRM driver
  *
  * This function removes all graphics device drivers. Use this function on systems
@@ -29,9 +30,9 @@ int drm_aperture_remove_conflicting_pci_framebuffers(struct pci_dev *pdev,
  * 0 on success, or a negative errno code otherwise
  */
 static inline int
-drm_aperture_remove_framebuffers(const struct drm_driver *req_driver)
+drm_aperture_remove_framebuffers(bool primary, const struct drm_driver *req_driver)
 {
-	return drm_aperture_remove_conflicting_framebuffers(0, (resource_size_t)-1,
+	return drm_aperture_remove_conflicting_framebuffers(0, (resource_size_t)-1, primary,
 							    req_driver);
 }
 

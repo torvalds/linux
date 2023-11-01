@@ -185,7 +185,7 @@ static int stm_drm_platform_probe(struct platform_device *pdev)
 
 	DRM_DEBUG("%s\n", __func__);
 
-	ret = drm_aperture_remove_framebuffers(&drv_driver);
+	ret = drm_aperture_remove_framebuffers(false, &drv_driver);
 	if (ret)
 		return ret;
 

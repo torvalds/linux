@@ -430,7 +430,7 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * TODO: Refactor psb_driver_load() to map vdc_reg earlier. Then we
 	 *       might be able to read the framebuffer range from the device.
 	 */
-	ret = drm_aperture_remove_framebuffers(&driver);
+	ret = drm_aperture_remove_framebuffers(false, &driver);
 	if (ret)
 		return ret;
 

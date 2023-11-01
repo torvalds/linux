@@ -157,7 +157,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 	}
 
 	/* the fw fb could be anywhere in memory */
-	ret = drm_aperture_remove_framebuffers(dev->driver);
+	ret = drm_aperture_remove_framebuffers(false, dev->driver);
 	if (ret)
 		goto fini;
 
