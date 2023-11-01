@@ -2158,11 +2158,11 @@ static noinline_for_kasan void mas_store_b_node(struct ma_wr_state *wr_mas,
 	}
 
 	slot = offset_end + 1;
-	if (slot > wr_mas->node_end)
+	if (slot > mas->end)
 		goto b_end;
 
 	/* Copy end data to the end of the node. */
-	mas_mab_cp(mas, slot, wr_mas->node_end + 1, b_node, ++b_end);
+	mas_mab_cp(mas, slot, mas->end + 1, b_node, ++b_end);
 	b_node->b_end--;
 	return;
 
@@ -2253,8 +2253,8 @@ static inline void mas_wr_node_walk(struct ma_wr_state *wr_mas)
 
 	wr_mas->node = mas_mn(wr_mas->mas);
 	wr_mas->pivots = ma_pivots(wr_mas->node, wr_mas->type);
-	count = wr_mas->node_end = ma_data_end(wr_mas->node, wr_mas->type,
-					       wr_mas->pivots, mas->max);
+	count = mas->end = ma_data_end(wr_mas->node, wr_mas->type,
+				       wr_mas->pivots, mas->max);
 	offset = mas->offset;
 
 	while (offset < count && mas->index > wr_mas->pivots[offset])
@@ -3904,10 +3904,10 @@ static inline int mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 
 	memset(&b_node, 0, sizeof(struct maple_big_node));
 	/* Copy l_mas and store the value in b_node. */
-	mas_store_b_node(&l_wr_mas, &b_node, l_wr_mas.node_end);
+	mas_store_b_node(&l_wr_mas, &b_node, l_mas.end);
 	/* Copy r_mas into b_node. */
-	if (r_mas.offset <= r_wr_mas.node_end)
-		mas_mab_cp(&r_mas, r_mas.offset, r_wr_mas.node_end,
+	if (r_mas.offset <= r_mas.end)
+		mas_mab_cp(&r_mas, r_mas.offset, r_mas.end,
 			   &b_node, b_node.b_end + 1);
 	else
 		b_node.b_end++;
@@ -3949,7 +3949,7 @@ static inline bool mas_wr_node_store(struct ma_wr_state *wr_mas,
 	if (mas->last == wr_mas->end_piv)
 		offset_end++; /* don't copy this offset */
 	else if (unlikely(wr_mas->r_max == ULONG_MAX))
-		mas_bulk_rebalance(mas, wr_mas->node_end, wr_mas->type);
+		mas_bulk_rebalance(mas, mas->end, wr_mas->type);
 
 	/* set up node. */
 	if (in_rcu) {
@@ -3985,12 +3985,12 @@ static inline bool mas_wr_node_store(struct ma_wr_state *wr_mas,
 	 * this range wrote to the end of the node or it overwrote the rest of
 	 * the data
 	 */
-	if (offset_end > wr_mas->node_end)
+	if (offset_end > mas->end)
 		goto done;
 
 	dst_offset = mas->offset + 1;
 	/* Copy to the end of node if necessary. */
-	copy_size = wr_mas->node_end - offset_end + 1;
+	copy_size = mas->end - offset_end + 1;
 	memcpy(dst_slots + dst_offset, wr_mas->slots + offset_end,
 	       sizeof(void *) * copy_size);
 	memcpy(dst_pivots + dst_offset, wr_mas->pivots + offset_end,
@@ -4077,10 +4077,10 @@ static inline void mas_wr_extend_null(struct ma_wr_state *wr_mas)
 	} else {
 		/* Check next slot(s) if we are overwriting the end */
 		if ((mas->last == wr_mas->end_piv) &&
-		    (wr_mas->node_end != wr_mas->offset_end) &&
+		    (mas->end != wr_mas->offset_end) &&
 		    !wr_mas->slots[wr_mas->offset_end + 1]) {
 			wr_mas->offset_end++;
-			if (wr_mas->offset_end == wr_mas->node_end)
+			if (wr_mas->offset_end == mas->end)
 				mas->last = mas->max;
 			else
 				mas->last = wr_mas->pivots[wr_mas->offset_end];
@@ -4105,11 +4105,11 @@ static inline void mas_wr_extend_null(struct ma_wr_state *wr_mas)
 
 static inline void mas_wr_end_piv(struct ma_wr_state *wr_mas)
 {
-	while ((wr_mas->offset_end < wr_mas->node_end) &&
+	while ((wr_mas->offset_end < wr_mas->mas->end) &&
 	       (wr_mas->mas->last > wr_mas->pivots[wr_mas->offset_end]))
 		wr_mas->offset_end++;
 
-	if (wr_mas->offset_end < wr_mas->node_end)
+	if (wr_mas->offset_end < wr_mas->mas->end)
 		wr_mas->end_piv = wr_mas->pivots[wr_mas->offset_end];
 	else
 		wr_mas->end_piv = wr_mas->mas->max;
@@ -4121,7 +4121,7 @@ static inline void mas_wr_end_piv(struct ma_wr_state *wr_mas)
 static inline unsigned char mas_wr_new_end(struct ma_wr_state *wr_mas)
 {
 	struct ma_state *mas = wr_mas->mas;
-	unsigned char new_end = wr_mas->node_end + 2;
+	unsigned char new_end = mas->end + 2;
 
 	new_end -= wr_mas->offset_end - mas->offset;
 	if (wr_mas->r_min == mas->index)
@@ -4155,10 +4155,10 @@ static inline bool mas_wr_append(struct ma_wr_state *wr_mas,
 	if (mt_in_rcu(mas->tree))
 		return false;
 
-	if (mas->offset != wr_mas->node_end)
+	if (mas->offset != mas->end)
 		return false;
 
-	end = wr_mas->node_end;
+	end = mas->end;
 	if (mas->offset != end)
 		return false;
 
@@ -4210,7 +4210,7 @@ static void mas_wr_bnode(struct ma_wr_state *wr_mas)
 	trace_ma_write(__func__, wr_mas->mas, 0, wr_mas->entry);
 	memset(&b_node, 0, sizeof(struct maple_big_node));
 	mas_store_b_node(wr_mas, &b_node, wr_mas->offset_end);
-	mas_commit_b_node(wr_mas, &b_node, wr_mas->node_end);
+	mas_commit_b_node(wr_mas, &b_node, wr_mas->mas->end);
 }
 
 static inline void mas_wr_modify(struct ma_wr_state *wr_mas)
@@ -4238,7 +4238,7 @@ static inline void mas_wr_modify(struct ma_wr_state *wr_mas)
 	if (mas_wr_append(wr_mas, new_end))
 		return;
 
-	if (new_end == wr_mas->node_end && mas_wr_slot_store(wr_mas))
+	if (new_end == mas->end && mas_wr_slot_store(wr_mas))
 		return;
 
 	if (mas_wr_node_store(wr_mas, new_end))
@@ -5052,6 +5052,7 @@ int mas_empty_area(struct ma_state *mas, unsigned long min,
 	unsigned char offset;
 	unsigned long *pivots;
 	enum maple_type mt;
+	struct maple_node *node;
 
 	if (min > max)
 		return -EINVAL;
@@ -5082,13 +5083,14 @@ int mas_empty_area(struct ma_state *mas, unsigned long min,
 	if (unlikely(offset == MAPLE_NODE_SLOTS))
 		return -EBUSY;
 
+	node = mas_mn(mas);
 	mt = mte_node_type(mas->node);
-	pivots = ma_pivots(mas_mn(mas), mt);
+	pivots = ma_pivots(node, mt);
 	min = mas_safe_min(mas, pivots, offset);
 	if (mas->index < min)
 		mas->index = min;
 	mas->last = mas->index + size - 1;
-	mas->end = mas_data_end(mas);
+	mas->end = ma_data_end(node, mt, pivots, mas->max);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mas_empty_area);
@@ -7596,7 +7598,7 @@ void mas_wr_dump(const struct ma_wr_state *wr_mas)
 	pr_err("WR_MAS: node=%p r_min=%lx r_max=%lx\n",
 	       wr_mas->node, wr_mas->r_min, wr_mas->r_max);
 	pr_err("        type=%u off_end=%u, node_end=%u, end_piv=%lx\n",
-	       wr_mas->type, wr_mas->offset_end, wr_mas->node_end,
+	       wr_mas->type, wr_mas->offset_end, wr_mas->mas->end,
 	       wr_mas->end_piv);
 }
 EXPORT_SYMBOL_GPL(mas_wr_dump);

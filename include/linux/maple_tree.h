@@ -441,7 +441,6 @@ struct ma_wr_state {
 	unsigned long r_max;		/* range max */
 	enum maple_type type;		/* mas->node type */
 	unsigned char offset_end;	/* The offset where the write ends */
-	unsigned char node_end;		/* mas->node end */
 	unsigned long *pivots;		/* mas->node->pivots pointer */
 	unsigned long end_piv;		/* The pivot at the offset end */
 	void __rcu **slots;		/* mas->node->slots pointer */
