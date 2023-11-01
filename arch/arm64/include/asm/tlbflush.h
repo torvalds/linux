@@ -105,7 +105,7 @@ static inline unsigned long get_trans_granule(void)
 #define __tlbi_level(op, addr, level) do {				\
 	u64 arg = addr;							\
 									\
-	if (cpus_have_const_cap(ARM64_HAS_ARMv8_4_TTL) &&		\
+	if (alternative_has_cap_unlikely(ARM64_HAS_ARMv8_4_TTL) &&	\
 	    level) {							\
 		u64 ttl = level & 3;					\
 		ttl |= get_trans_granule() << 2;			\
@@ -284,16 +284,15 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 
 static inline bool arch_tlbbatch_should_defer(struct mm_struct *mm)
 {
-#ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI
 	/*
 	 * TLB flush deferral is not required on systems which are affected by
 	 * ARM64_WORKAROUND_REPEAT_TLBI, as __tlbi()/__tlbi_user() implementation
 	 * will have two consecutive TLBI instructions with a dsb(ish) in between
 	 * defeating the purpose (i.e save overall 'dsb ish' cost).
 	 */
-	if (unlikely(cpus_have_const_cap(ARM64_WORKAROUND_REPEAT_TLBI)))
+	if (alternative_has_cap_unlikely(ARM64_WORKAROUND_REPEAT_TLBI))
 		return false;
-#endif
+
 	return true;
 }
 

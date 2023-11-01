@@ -284,7 +284,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = kvm_arm_pvtime_supported();
 		break;
 	case KVM_CAP_ARM_EL1_32BIT:
-		r = cpus_have_const_cap(ARM64_HAS_32BIT_EL1);
+		r = cpus_have_final_cap(ARM64_HAS_32BIT_EL1);
 		break;
 	case KVM_CAP_GUEST_DEBUG_HW_BPS:
 		r = get_num_brps();
@@ -296,7 +296,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = kvm_arm_support_pmu_v3();
 		break;
 	case KVM_CAP_ARM_INJECT_SERROR_ESR:
-		r = cpus_have_const_cap(ARM64_HAS_RAS_EXTN);
+		r = cpus_have_final_cap(ARM64_HAS_RAS_EXTN);
 		break;
 	case KVM_CAP_ARM_VM_IPA_SIZE:
 		r = get_kvm_ipa_limit();
@@ -1207,7 +1207,7 @@ static int kvm_vcpu_init_check_features(struct kvm_vcpu *vcpu,
 	if (!test_bit(KVM_ARM_VCPU_EL1_32BIT, &features))
 		return 0;
 
-	if (!cpus_have_const_cap(ARM64_HAS_32BIT_EL1))
+	if (!cpus_have_final_cap(ARM64_HAS_32BIT_EL1))
 		return -EINVAL;
 
 	/* MTE is incompatible with AArch32 */
@@ -1777,7 +1777,7 @@ static void hyp_install_host_vector(void)
 	 * Call initialization code, and switch to the full blown HYP code.
 	 * If the cpucaps haven't been finalized yet, something has gone very
 	 * wrong, and hyp will crash and burn when it uses any
-	 * cpus_have_const_cap() wrapper.
+	 * cpus_have_*_cap() wrapper.
 	 */
 	BUG_ON(!system_capabilities_finalized());
 	params = this_cpu_ptr_nvhe_sym(kvm_init_params);
@@ -2310,7 +2310,7 @@ static int __init init_hyp_mode(void)
 
 	if (is_protected_kvm_enabled()) {
 		if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL) &&
-		    cpus_have_const_cap(ARM64_HAS_ADDRESS_AUTH))
+		    cpus_have_final_cap(ARM64_HAS_ADDRESS_AUTH))
 			pkvm_hyp_init_ptrauth();
 
 		init_cpu_logical_map();

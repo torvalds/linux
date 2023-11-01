@@ -279,6 +279,8 @@ static const struct arm64_ftr_bits ftr_id_aa64zfr0[] = {
 	ARM64_FTR_BITS(FTR_VISIBLE_IF_IS_ENABLED(CONFIG_ARM64_SVE),
 		       FTR_STRICT, FTR_LOWER_SAFE, ID_AA64ZFR0_EL1_SHA3_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE_IF_IS_ENABLED(CONFIG_ARM64_SVE),
+		       FTR_STRICT, FTR_LOWER_SAFE, ID_AA64ZFR0_EL1_B16B16_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_VISIBLE_IF_IS_ENABLED(CONFIG_ARM64_SVE),
 		       FTR_STRICT, FTR_LOWER_SAFE, ID_AA64ZFR0_EL1_BF16_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE_IF_IS_ENABLED(CONFIG_ARM64_SVE),
 		       FTR_STRICT, FTR_LOWER_SAFE, ID_AA64ZFR0_EL1_BitPerm_SHIFT, 4, 0),
@@ -611,18 +613,6 @@ static const struct arm64_ftr_bits ftr_id_dfr1[] = {
 	ARM64_FTR_END,
 };
 
-static const struct arm64_ftr_bits ftr_zcr[] = {
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE,
-		ZCR_ELx_LEN_SHIFT, ZCR_ELx_LEN_WIDTH, 0),	/* LEN */
-	ARM64_FTR_END,
-};
-
-static const struct arm64_ftr_bits ftr_smcr[] = {
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE,
-		SMCR_ELx_LEN_SHIFT, SMCR_ELx_LEN_WIDTH, 0),	/* LEN */
-	ARM64_FTR_END,
-};
-
 /*
  * Common ftr bits for a 32bit register with all hidden, strict
  * attributes, with 4bit feature fields and a default safe value of
@@ -734,10 +724,6 @@ static const struct __ftr_reg_entry {
 			       &id_aa64mmfr1_override),
 	ARM64_FTR_REG(SYS_ID_AA64MMFR2_EL1, ftr_id_aa64mmfr2),
 	ARM64_FTR_REG(SYS_ID_AA64MMFR3_EL1, ftr_id_aa64mmfr3),
-
-	/* Op1 = 0, CRn = 1, CRm = 2 */
-	ARM64_FTR_REG(SYS_ZCR_EL1, ftr_zcr),
-	ARM64_FTR_REG(SYS_SMCR_EL1, ftr_smcr),
 
 	/* Op1 = 1, CRn = 0, CRm = 0 */
 	ARM64_FTR_REG(SYS_GMID_EL1, ftr_gmid),
@@ -1040,22 +1026,26 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 
 	if (IS_ENABLED(CONFIG_ARM64_SVE) &&
 	    id_aa64pfr0_sve(read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1))) {
-		info->reg_zcr = read_zcr_features();
-		init_cpu_ftr_reg(SYS_ZCR_EL1, info->reg_zcr);
+		unsigned long cpacr = cpacr_save_enable_kernel_sve();
+
 		vec_init_vq_map(ARM64_VEC_SVE);
+
+		cpacr_restore(cpacr);
 	}
 
 	if (IS_ENABLED(CONFIG_ARM64_SME) &&
 	    id_aa64pfr1_sme(read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1))) {
-		info->reg_smcr = read_smcr_features();
+		unsigned long cpacr = cpacr_save_enable_kernel_sme();
+
 		/*
 		 * We mask out SMPS since even if the hardware
 		 * supports priorities the kernel does not at present
 		 * and we block access to them.
 		 */
 		info->reg_smidr = read_cpuid(SMIDR_EL1) & ~SMIDR_EL1_SMPS;
-		init_cpu_ftr_reg(SYS_SMCR_EL1, info->reg_smcr);
 		vec_init_vq_map(ARM64_VEC_SME);
+
+		cpacr_restore(cpacr);
 	}
 
 	if (id_aa64pfr1_mte(info->reg_id_aa64pfr1))
@@ -1289,32 +1279,34 @@ void update_cpu_features(int cpu,
 	taint |= check_update_ftr_reg(SYS_ID_AA64SMFR0_EL1, cpu,
 				      info->reg_id_aa64smfr0, boot->reg_id_aa64smfr0);
 
+	/* Probe vector lengths */
 	if (IS_ENABLED(CONFIG_ARM64_SVE) &&
 	    id_aa64pfr0_sve(read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1))) {
-		info->reg_zcr = read_zcr_features();
-		taint |= check_update_ftr_reg(SYS_ZCR_EL1, cpu,
-					info->reg_zcr, boot->reg_zcr);
+		if (!system_capabilities_finalized()) {
+			unsigned long cpacr = cpacr_save_enable_kernel_sve();
 
-		/* Probe vector lengths */
-		if (!system_capabilities_finalized())
 			vec_update_vq_map(ARM64_VEC_SVE);
+
+			cpacr_restore(cpacr);
+		}
 	}
 
 	if (IS_ENABLED(CONFIG_ARM64_SME) &&
 	    id_aa64pfr1_sme(read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1))) {
-		info->reg_smcr = read_smcr_features();
+		unsigned long cpacr = cpacr_save_enable_kernel_sme();
+
 		/*
 		 * We mask out SMPS since even if the hardware
 		 * supports priorities the kernel does not at present
 		 * and we block access to them.
 		 */
 		info->reg_smidr = read_cpuid(SMIDR_EL1) & ~SMIDR_EL1_SMPS;
-		taint |= check_update_ftr_reg(SYS_SMCR_EL1, cpu,
-					info->reg_smcr, boot->reg_smcr);
 
 		/* Probe vector lengths */
 		if (!system_capabilities_finalized())
 			vec_update_vq_map(ARM64_VEC_SME);
+
+		cpacr_restore(cpacr);
 	}
 
 	/*
@@ -1564,14 +1556,6 @@ static bool has_no_hw_prefetch(const struct arm64_cpu_capabilities *entry, int _
 		MIDR_CPU_VAR_REV(1, MIDR_REVISION_MASK));
 }
 
-static bool has_no_fpsimd(const struct arm64_cpu_capabilities *entry, int __unused)
-{
-	u64 pfr0 = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
-
-	return cpuid_feature_extract_signed_field(pfr0,
-					ID_AA64PFR0_EL1_FP_SHIFT) < 0;
-}
-
 static bool has_cache_idc(const struct arm64_cpu_capabilities *entry,
 			  int scope)
 {
@@ -1621,7 +1605,7 @@ has_useable_cnp(const struct arm64_cpu_capabilities *entry, int scope)
 	if (is_kdump_kernel())
 		return false;
 
-	if (cpus_have_const_cap(ARM64_WORKAROUND_NVIDIA_CARMEL_CNP))
+	if (cpus_have_cap(ARM64_WORKAROUND_NVIDIA_CARMEL_CNP))
 		return false;
 
 	return has_cpuid_feature(entry, scope);
@@ -1754,16 +1738,15 @@ void create_kpti_ng_temp_pgd(pgd_t *pgdir, phys_addr_t phys, unsigned long virt,
 			     phys_addr_t size, pgprot_t prot,
 			     phys_addr_t (*pgtable_alloc)(int), int flags);
 
-static phys_addr_t kpti_ng_temp_alloc;
+static phys_addr_t __initdata kpti_ng_temp_alloc;
 
-static phys_addr_t kpti_ng_pgd_alloc(int shift)
+static phys_addr_t __init kpti_ng_pgd_alloc(int shift)
 {
 	kpti_ng_temp_alloc -= PAGE_SIZE;
 	return kpti_ng_temp_alloc;
 }
 
-static void
-kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
+static int __init __kpti_install_ng_mappings(void *__unused)
 {
 	typedef void (kpti_remap_fn)(int, int, phys_addr_t, unsigned long);
 	extern kpti_remap_fn idmap_kpti_install_ng_mappings;
@@ -1775,20 +1758,6 @@ kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 	u64 kpti_ng_temp_pgd_pa = 0;
 	pgd_t *kpti_ng_temp_pgd;
 	u64 alloc = 0;
-
-	if (__this_cpu_read(this_cpu_vector) == vectors) {
-		const char *v = arm64_get_bp_hardening_vector(EL1_VECTOR_KPTI);
-
-		__this_cpu_write(this_cpu_vector, v);
-	}
-
-	/*
-	 * We don't need to rewrite the page-tables if either we've done
-	 * it already or we have KASLR enabled and therefore have not
-	 * created any global mappings at all.
-	 */
-	if (arm64_use_ng_mappings)
-		return;
 
 	remap_fn = (void *)__pa_symbol(idmap_kpti_install_ng_mappings);
 
@@ -1826,13 +1795,38 @@ kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 		free_pages(alloc, order);
 		arm64_use_ng_mappings = true;
 	}
+
+	return 0;
 }
+
+static void __init kpti_install_ng_mappings(void)
+{
+	/*
+	 * We don't need to rewrite the page-tables if either we've done
+	 * it already or we have KASLR enabled and therefore have not
+	 * created any global mappings at all.
+	 */
+	if (arm64_use_ng_mappings)
+		return;
+
+	stop_machine(__kpti_install_ng_mappings, NULL, cpu_online_mask);
+}
+
 #else
-static void
-kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
+static inline void kpti_install_ng_mappings(void)
 {
 }
 #endif	/* CONFIG_UNMAP_KERNEL_AT_EL0 */
+
+static void cpu_enable_kpti(struct arm64_cpu_capabilities const *cap)
+{
+	if (__this_cpu_read(this_cpu_vector) == vectors) {
+		const char *v = arm64_get_bp_hardening_vector(EL1_VECTOR_KPTI);
+
+		__this_cpu_write(this_cpu_vector, v);
+	}
+
+}
 
 static int __init parse_kpti(char *str)
 {
@@ -1848,6 +1842,8 @@ static int __init parse_kpti(char *str)
 early_param("kpti", parse_kpti);
 
 #ifdef CONFIG_ARM64_HW_AFDBM
+static struct cpumask dbm_cpus __read_mostly;
+
 static inline void __cpu_enable_hw_dbm(void)
 {
 	u64 tcr = read_sysreg(tcr_el1) | TCR_HD;
@@ -1883,35 +1879,22 @@ static bool cpu_can_use_dbm(const struct arm64_cpu_capabilities *cap)
 
 static void cpu_enable_hw_dbm(struct arm64_cpu_capabilities const *cap)
 {
-	if (cpu_can_use_dbm(cap))
+	if (cpu_can_use_dbm(cap)) {
 		__cpu_enable_hw_dbm();
+		cpumask_set_cpu(smp_processor_id(), &dbm_cpus);
+	}
 }
 
 static bool has_hw_dbm(const struct arm64_cpu_capabilities *cap,
 		       int __unused)
 {
-	static bool detected = false;
 	/*
 	 * DBM is a non-conflicting feature. i.e, the kernel can safely
 	 * run a mix of CPUs with and without the feature. So, we
 	 * unconditionally enable the capability to allow any late CPU
 	 * to use the feature. We only enable the control bits on the
-	 * CPU, if it actually supports.
-	 *
-	 * We have to make sure we print the "feature" detection only
-	 * when at least one CPU actually uses it. So check if this CPU
-	 * can actually use it and print the message exactly once.
-	 *
-	 * This is safe as all CPUs (including secondary CPUs - due to the
-	 * LOCAL_CPU scope - and the hotplugged CPUs - via verification)
-	 * goes through the "matches" check exactly once. Also if a CPU
-	 * matches the criteria, it is guaranteed that the CPU will turn
-	 * the DBM on, as the capability is unconditionally enabled.
+	 * CPU, if it is supported.
 	 */
-	if (!detected && cpu_can_use_dbm(cap)) {
-		detected = true;
-		pr_info("detected: Hardware dirty bit management\n");
-	}
 
 	return true;
 }
@@ -1944,8 +1927,6 @@ int get_cpu_with_amu_feat(void)
 static void cpu_amu_enable(struct arm64_cpu_capabilities const *cap)
 {
 	if (has_cpuid_feature(cap, SCOPE_LOCAL_CPU)) {
-		pr_info("detected CPU%d: Activity Monitors Unit (AMU)\n",
-			smp_processor_id());
 		cpumask_set_cpu(smp_processor_id(), &amu_cpus);
 
 		/* 0 reference values signal broken/disabled counters */
@@ -2190,12 +2171,23 @@ static void cpu_enable_mte(struct arm64_cpu_capabilities const *cap)
 }
 #endif /* CONFIG_ARM64_MTE */
 
+static void user_feature_fixup(void)
+{
+	if (cpus_have_cap(ARM64_WORKAROUND_2658417)) {
+		struct arm64_ftr_reg *regp;
+
+		regp = get_arm64_ftr_reg(SYS_ID_AA64ISAR1_EL1);
+		if (regp)
+			regp->user_mask &= ~ID_AA64ISAR1_EL1_BF16_MASK;
+	}
+}
+
 static void elf_hwcap_fixup(void)
 {
-#ifdef CONFIG_ARM64_ERRATUM_1742098
-	if (cpus_have_const_cap(ARM64_WORKAROUND_1742098))
+#ifdef CONFIG_COMPAT
+	if (cpus_have_cap(ARM64_WORKAROUND_1742098))
 		compat_elf_hwcap2 &= ~COMPAT_HWCAP2_AES;
-#endif /* ARM64_ERRATUM_1742098 */
+#endif /* CONFIG_COMPAT */
 }
 
 #ifdef CONFIG_KVM
@@ -2351,7 +2343,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.desc = "Kernel page table isolation (KPTI)",
 		.capability = ARM64_UNMAP_KERNEL_AT_EL0,
 		.type = ARM64_CPUCAP_BOOT_RESTRICTED_CPU_LOCAL_FEATURE,
-		.cpu_enable = kpti_install_ng_mappings,
+		.cpu_enable = cpu_enable_kpti,
 		.matches = unmap_kernel_at_el0,
 		/*
 		 * The ID feature fields below are used to indicate that
@@ -2361,11 +2353,11 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, CSV3, IMP)
 	},
 	{
-		/* FP/SIMD is not implemented */
-		.capability = ARM64_HAS_NO_FPSIMD,
-		.type = ARM64_CPUCAP_BOOT_RESTRICTED_CPU_LOCAL_FEATURE,
-		.min_field_value = 0,
-		.matches = has_no_fpsimd,
+		.capability = ARM64_HAS_FPSIMD,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_cpuid_feature,
+		.cpu_enable = cpu_enable_fpsimd,
+		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, FP, IMP)
 	},
 #ifdef CONFIG_ARM64_PMEM
 	{
@@ -2388,7 +2380,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.desc = "Scalable Vector Extension",
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.capability = ARM64_SVE,
-		.cpu_enable = sve_kernel_enable,
+		.cpu_enable = cpu_enable_sve,
 		.matches = has_cpuid_feature,
 		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, SVE, IMP)
 	},
@@ -2405,16 +2397,12 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 #endif /* CONFIG_ARM64_RAS_EXTN */
 #ifdef CONFIG_ARM64_AMU_EXTN
 	{
-		/*
-		 * The feature is enabled by default if CONFIG_ARM64_AMU_EXTN=y.
-		 * Therefore, don't provide .desc as we don't want the detection
-		 * message to be shown until at least one CPU is detected to
-		 * support the feature.
-		 */
+		.desc = "Activity Monitors Unit (AMU)",
 		.capability = ARM64_HAS_AMU_EXTN,
 		.type = ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE,
 		.matches = has_amu,
 		.cpu_enable = cpu_amu_enable,
+		.cpus = &amu_cpus,
 		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, AMU, IMP)
 	},
 #endif /* CONFIG_ARM64_AMU_EXTN */
@@ -2454,18 +2442,12 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 	},
 #ifdef CONFIG_ARM64_HW_AFDBM
 	{
-		/*
-		 * Since we turn this on always, we don't want the user to
-		 * think that the feature is available when it may not be.
-		 * So hide the description.
-		 *
-		 * .desc = "Hardware pagetable Dirty Bit Management",
-		 *
-		 */
+		.desc = "Hardware dirty bit management",
 		.type = ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE,
 		.capability = ARM64_HW_DBM,
 		.matches = has_hw_dbm,
 		.cpu_enable = cpu_enable_hw_dbm,
+		.cpus = &dbm_cpus,
 		ARM64_CPUID_FIELDS(ID_AA64MMFR1_EL1, HAFDBS, DBM)
 	},
 #endif
@@ -2641,7 +2623,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.capability = ARM64_SME,
 		.matches = has_cpuid_feature,
-		.cpu_enable = sme_kernel_enable,
+		.cpu_enable = cpu_enable_sme,
 		ARM64_CPUID_FIELDS(ID_AA64PFR1_EL1, SME, IMP)
 	},
 	/* FA64 should be sorted after the base SME capability */
@@ -2650,7 +2632,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.capability = ARM64_SME_FA64,
 		.matches = has_cpuid_feature,
-		.cpu_enable = fa64_kernel_enable,
+		.cpu_enable = cpu_enable_fa64,
 		ARM64_CPUID_FIELDS(ID_AA64SMFR0_EL1, FA64, IMP)
 	},
 	{
@@ -2658,7 +2640,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.capability = ARM64_SME2,
 		.matches = has_cpuid_feature,
-		.cpu_enable = sme2_kernel_enable,
+		.cpu_enable = cpu_enable_sme2,
 		ARM64_CPUID_FIELDS(ID_AA64PFR1_EL1, SME, SME2)
 	},
 #endif /* CONFIG_ARM64_SME */
@@ -2787,6 +2769,7 @@ static const struct arm64_cpu_capabilities arm64_elf_hwcaps[] = {
 	HWCAP_CAP(ID_AA64ISAR0_EL1, SHA2, SHA512, CAP_HWCAP, KERNEL_HWCAP_SHA512),
 	HWCAP_CAP(ID_AA64ISAR0_EL1, CRC32, IMP, CAP_HWCAP, KERNEL_HWCAP_CRC32),
 	HWCAP_CAP(ID_AA64ISAR0_EL1, ATOMIC, IMP, CAP_HWCAP, KERNEL_HWCAP_ATOMICS),
+	HWCAP_CAP(ID_AA64ISAR0_EL1, ATOMIC, FEAT_LSE128, CAP_HWCAP, KERNEL_HWCAP_LSE128),
 	HWCAP_CAP(ID_AA64ISAR0_EL1, RDM, IMP, CAP_HWCAP, KERNEL_HWCAP_ASIMDRDM),
 	HWCAP_CAP(ID_AA64ISAR0_EL1, SHA3, IMP, CAP_HWCAP, KERNEL_HWCAP_SHA3),
 	HWCAP_CAP(ID_AA64ISAR0_EL1, SM3, IMP, CAP_HWCAP, KERNEL_HWCAP_SM3),
@@ -2807,6 +2790,7 @@ static const struct arm64_cpu_capabilities arm64_elf_hwcaps[] = {
 	HWCAP_CAP(ID_AA64ISAR1_EL1, FCMA, IMP, CAP_HWCAP, KERNEL_HWCAP_FCMA),
 	HWCAP_CAP(ID_AA64ISAR1_EL1, LRCPC, IMP, CAP_HWCAP, KERNEL_HWCAP_LRCPC),
 	HWCAP_CAP(ID_AA64ISAR1_EL1, LRCPC, LRCPC2, CAP_HWCAP, KERNEL_HWCAP_ILRCPC),
+	HWCAP_CAP(ID_AA64ISAR1_EL1, LRCPC, LRCPC3, CAP_HWCAP, KERNEL_HWCAP_LRCPC3),
 	HWCAP_CAP(ID_AA64ISAR1_EL1, FRINTTS, IMP, CAP_HWCAP, KERNEL_HWCAP_FRINT),
 	HWCAP_CAP(ID_AA64ISAR1_EL1, SB, IMP, CAP_HWCAP, KERNEL_HWCAP_SB),
 	HWCAP_CAP(ID_AA64ISAR1_EL1, BF16, IMP, CAP_HWCAP, KERNEL_HWCAP_BF16),
@@ -2821,6 +2805,7 @@ static const struct arm64_cpu_capabilities arm64_elf_hwcaps[] = {
 	HWCAP_CAP(ID_AA64ZFR0_EL1, AES, IMP, CAP_HWCAP, KERNEL_HWCAP_SVEAES),
 	HWCAP_CAP(ID_AA64ZFR0_EL1, AES, PMULL128, CAP_HWCAP, KERNEL_HWCAP_SVEPMULL),
 	HWCAP_CAP(ID_AA64ZFR0_EL1, BitPerm, IMP, CAP_HWCAP, KERNEL_HWCAP_SVEBITPERM),
+	HWCAP_CAP(ID_AA64ZFR0_EL1, B16B16, IMP, CAP_HWCAP, KERNEL_HWCAP_SVE_B16B16),
 	HWCAP_CAP(ID_AA64ZFR0_EL1, BF16, IMP, CAP_HWCAP, KERNEL_HWCAP_SVEBF16),
 	HWCAP_CAP(ID_AA64ZFR0_EL1, BF16, EBF16, CAP_HWCAP, KERNEL_HWCAP_SVE_EBF16),
 	HWCAP_CAP(ID_AA64ZFR0_EL1, SHA3, IMP, CAP_HWCAP, KERNEL_HWCAP_SVESHA3),
@@ -2981,7 +2966,7 @@ static void update_cpu_capabilities(u16 scope_mask)
 		    !caps->matches(caps, cpucap_default_scope(caps)))
 			continue;
 
-		if (caps->desc)
+		if (caps->desc && !caps->cpus)
 			pr_info("detected: %s\n", caps->desc);
 
 		__set_bit(caps->capability, system_cpucaps);
@@ -3153,36 +3138,28 @@ static void verify_local_elf_hwcaps(void)
 
 static void verify_sve_features(void)
 {
-	u64 safe_zcr = read_sanitised_ftr_reg(SYS_ZCR_EL1);
-	u64 zcr = read_zcr_features();
+	unsigned long cpacr = cpacr_save_enable_kernel_sve();
 
-	unsigned int safe_len = safe_zcr & ZCR_ELx_LEN_MASK;
-	unsigned int len = zcr & ZCR_ELx_LEN_MASK;
-
-	if (len < safe_len || vec_verify_vq_map(ARM64_VEC_SVE)) {
+	if (vec_verify_vq_map(ARM64_VEC_SVE)) {
 		pr_crit("CPU%d: SVE: vector length support mismatch\n",
 			smp_processor_id());
 		cpu_die_early();
 	}
 
-	/* Add checks on other ZCR bits here if necessary */
+	cpacr_restore(cpacr);
 }
 
 static void verify_sme_features(void)
 {
-	u64 safe_smcr = read_sanitised_ftr_reg(SYS_SMCR_EL1);
-	u64 smcr = read_smcr_features();
+	unsigned long cpacr = cpacr_save_enable_kernel_sme();
 
-	unsigned int safe_len = safe_smcr & SMCR_ELx_LEN_MASK;
-	unsigned int len = smcr & SMCR_ELx_LEN_MASK;
-
-	if (len < safe_len || vec_verify_vq_map(ARM64_VEC_SME)) {
+	if (vec_verify_vq_map(ARM64_VEC_SME)) {
 		pr_crit("CPU%d: SME: vector length support mismatch\n",
 			smp_processor_id());
 		cpu_die_early();
 	}
 
-	/* Add checks on other SMCR bits here if necessary */
+	cpacr_restore(cpacr);
 }
 
 static void verify_hyp_capabilities(void)
@@ -3289,7 +3266,6 @@ EXPORT_SYMBOL_GPL(this_cpu_has_cap);
  * This helper function is used in a narrow window when,
  * - The system wide safe registers are set with all the SMP CPUs and,
  * - The SYSTEM_FEATURE system_cpucaps may not have been set.
- * In all other cases cpus_have_{const_}cap() should be used.
  */
 static bool __maybe_unused __system_matches_cap(unsigned int n)
 {
@@ -3328,23 +3304,50 @@ unsigned long cpu_get_elf_hwcap2(void)
 	return elf_hwcap[1];
 }
 
-static void __init setup_system_capabilities(void)
+void __init setup_system_features(void)
 {
+	int i;
 	/*
-	 * We have finalised the system-wide safe feature
-	 * registers, finalise the capabilities that depend
-	 * on it. Also enable all the available capabilities,
-	 * that are not enabled already.
+	 * The system-wide safe feature feature register values have been
+	 * finalized. Finalize and log the available system capabilities.
 	 */
 	update_cpu_capabilities(SCOPE_SYSTEM);
+	if (IS_ENABLED(CONFIG_ARM64_SW_TTBR0_PAN) &&
+	    !cpus_have_cap(ARM64_HAS_PAN))
+		pr_info("emulated: Privileged Access Never (PAN) using TTBR0_EL1 switching\n");
+
+	/*
+	 * Enable all the available capabilities which have not been enabled
+	 * already.
+	 */
 	enable_cpu_capabilities(SCOPE_ALL & ~SCOPE_BOOT_CPU);
+
+	kpti_install_ng_mappings();
+
+	sve_setup();
+	sme_setup();
+
+	/*
+	 * Check for sane CTR_EL0.CWG value.
+	 */
+	if (!cache_type_cwg())
+		pr_warn("No Cache Writeback Granule information, assuming %d\n",
+			ARCH_DMA_MINALIGN);
+
+	for (i = 0; i < ARM64_NCAPS; i++) {
+		const struct arm64_cpu_capabilities *caps = cpucap_ptrs[i];
+
+		if (caps && caps->cpus && caps->desc &&
+			cpumask_any(caps->cpus) < nr_cpu_ids)
+			pr_info("detected: %s on CPU%*pbl\n",
+				caps->desc, cpumask_pr_args(caps->cpus));
+	}
 }
 
-void __init setup_cpu_features(void)
+void __init setup_user_features(void)
 {
-	u32 cwg;
+	user_feature_fixup();
 
-	setup_system_capabilities();
 	setup_elf_hwcaps(arm64_elf_hwcaps);
 
 	if (system_supports_32bit_el0()) {
@@ -3352,20 +3355,7 @@ void __init setup_cpu_features(void)
 		elf_hwcap_fixup();
 	}
 
-	if (system_uses_ttbr0_pan())
-		pr_info("emulated: Privileged Access Never (PAN) using TTBR0_EL1 switching\n");
-
-	sve_setup();
-	sme_setup();
 	minsigstksz_setup();
-
-	/*
-	 * Check for sane CTR_EL0.CWG value.
-	 */
-	cwg = cache_type_cwg();
-	if (!cwg)
-		pr_warn("No Cache Writeback Granule information, assuming %d\n",
-			ARCH_DMA_MINALIGN);
 }
 
 static int enable_mismatched_32bit_el0(unsigned int cpu)
@@ -3422,7 +3412,7 @@ subsys_initcall_sync(init_32bit_el0_mask);
 
 static void __maybe_unused cpu_enable_cnp(struct arm64_cpu_capabilities const *cap)
 {
-	cpu_replace_ttbr1(lm_alias(swapper_pg_dir), idmap_pg_dir);
+	cpu_enable_swapper_cnp();
 }
 
 /*

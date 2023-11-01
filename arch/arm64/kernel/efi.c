@@ -113,8 +113,7 @@ static int __init set_permissions(pte_t *ptep, unsigned long addr, void *data)
 		pte = set_pte_bit(pte, __pgprot(PTE_RDONLY));
 	if (md->attribute & EFI_MEMORY_XP)
 		pte = set_pte_bit(pte, __pgprot(PTE_PXN));
-	else if (IS_ENABLED(CONFIG_ARM64_BTI_KERNEL) &&
-		 system_supports_bti() && spd->has_bti)
+	else if (system_supports_bti_kernel() && spd->has_bti)
 		pte = set_pte_bit(pte, __pgprot(PTE_GP));
 	set_pte(ptep, pte);
 	return 0;
