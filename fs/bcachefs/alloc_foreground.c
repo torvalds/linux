@@ -402,8 +402,9 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 	struct btree_iter iter, citer;
 	struct bkey_s_c k, ck;
 	struct open_bucket *ob = NULL;
-	u64 alloc_start = max_t(u64, ca->mi.first_bucket, ca->new_fs_bucket_idx);
-	u64 alloc_cursor = max(alloc_start, READ_ONCE(ca->alloc_cursor));
+	u64 first_bucket = max_t(u64, ca->mi.first_bucket, ca->new_fs_bucket_idx);
+	u64 alloc_start = max(first_bucket, READ_ONCE(ca->alloc_cursor));
+	u64 alloc_cursor = alloc_start;
 	int ret;
 
 	/*
@@ -453,13 +454,14 @@ next:
 	}
 	bch2_trans_iter_exit(trans, &iter);
 
+	alloc_cursor = iter.pos.offset;
 	ca->alloc_cursor = alloc_cursor;
 
 	if (!ob && ret)
 		ob = ERR_PTR(ret);
 
-	if (!ob && alloc_cursor > alloc_start) {
-		alloc_cursor = alloc_start;
+	if (!ob && alloc_start > first_bucket) {
+		alloc_cursor = alloc_start = first_bucket;
 		goto again;
 	}
 
