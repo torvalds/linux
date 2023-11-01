@@ -472,6 +472,36 @@
 	pinctrl_rgmii1_default: rgmii1_default {
 		function = "RGMII1";
 		groups = "RGMII1";
+        };
+
+	pinctrl_spi0_default: spi0_default {
+		function = "SPI0";
+		groups = "SPI0";
+	};
+
+	pinctrl_spi0_quad_default: spi0_quad_default {
+		function = "QSPI0";
+		groups = "QSPI0";
+	};
+
+	pinctrl_spi0_cs1_default: spi0_cs1_default {
+		function = "SPI0CS1";
+		groups = "SPI0CS1";
+	};
+
+	pinctrl_spi1_default: spi1_default {
+		function = "SPI1";
+		groups = "SPI1";
+	};
+
+	pinctrl_spi1_quad_default: spi1_quad_default {
+		function = "QSPI1";
+		groups = "QSPI1";
+	};
+
+	pinctrl_spi1_cs1_default: spi1_cs1_default {
+		function = "SPI1CS1";
+		groups = "SPI1CS1";
 	};
 
 	pinctrl_espi0_default: espi0_default {
@@ -802,6 +832,11 @@
 	pinctrl_i2c15_default: i2c15_default {
 		function = "I2C15";
 		groups = "I2C15";
+	};
+
+	pinctrl_can_default: can_default {
+		function = "CANBUS";
+		groups = "CANBUS";
 	};
 
 	pinctrl_di2c8_default: di2c8_default {
