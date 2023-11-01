@@ -2518,13 +2518,11 @@ unprepare:
 	return ret;
 }
 
-static int gemini_ethernet_port_remove(struct platform_device *pdev)
+static void gemini_ethernet_port_remove(struct platform_device *pdev)
 {
 	struct gemini_ethernet_port *port = platform_get_drvdata(pdev);
 
 	gemini_port_remove(port);
-
-	return 0;
 }
 
 static const struct of_device_id gemini_ethernet_port_of_match[] = {
@@ -2541,7 +2539,7 @@ static struct platform_driver gemini_ethernet_port_driver = {
 		.of_match_table = gemini_ethernet_port_of_match,
 	},
 	.probe = gemini_ethernet_port_probe,
-	.remove = gemini_ethernet_port_remove,
+	.remove_new = gemini_ethernet_port_remove,
 };
 
 static int gemini_ethernet_probe(struct platform_device *pdev)
@@ -2583,14 +2581,12 @@ static int gemini_ethernet_probe(struct platform_device *pdev)
 	return devm_of_platform_populate(dev);
 }
 
-static int gemini_ethernet_remove(struct platform_device *pdev)
+static void gemini_ethernet_remove(struct platform_device *pdev)
 {
 	struct gemini_ethernet *geth = platform_get_drvdata(pdev);
 
 	geth_cleanup_freeq(geth);
 	geth->initialized = false;
-
-	return 0;
 }
 
 static const struct of_device_id gemini_ethernet_of_match[] = {
@@ -2607,7 +2603,7 @@ static struct platform_driver gemini_ethernet_driver = {
 		.of_match_table = gemini_ethernet_of_match,
 	},
 	.probe = gemini_ethernet_probe,
-	.remove = gemini_ethernet_remove,
+	.remove_new = gemini_ethernet_remove,
 };
 
 static int __init gemini_ethernet_module_init(void)

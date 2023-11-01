@@ -186,6 +186,72 @@ static const struct ksz_mib_names ksz9477_mib_names[] = {
 	{ 0x83, "tx_discards" },
 };
 
+struct ksz_driver_strength_prop {
+	const char *name;
+	int offset;
+	int value;
+};
+
+enum ksz_driver_strength_type {
+	KSZ_DRIVER_STRENGTH_HI,
+	KSZ_DRIVER_STRENGTH_LO,
+	KSZ_DRIVER_STRENGTH_IO,
+};
+
+/**
+ * struct ksz_drive_strength - drive strength mapping
+ * @reg_val:	register value
+ * @microamp:	microamp value
+ */
+struct ksz_drive_strength {
+	u32 reg_val;
+	u32 microamp;
+};
+
+/* ksz9477_drive_strengths - Drive strength mapping for KSZ9477 variants
+ *
+ * This values are not documented in KSZ9477 variants but confirmed by
+ * Microchip that KSZ9477, KSZ9567, KSZ8567, KSZ9897, KSZ9896, KSZ9563, KSZ9893
+ * and KSZ8563 are using same register (drive strength) settings like KSZ8795.
+ *
+ * Documentation in KSZ8795CLX provides more information with some
+ * recommendations:
+ * - for high speed signals
+ *   1. 4 mA or 8 mA is often used for MII, RMII, and SPI interface with using
+ *      2.5V or 3.3V VDDIO.
+ *   2. 12 mA or 16 mA is often used for MII, RMII, and SPI interface with
+ *      using 1.8V VDDIO.
+ *   3. 20 mA or 24 mA is often used for GMII/RGMII interface with using 2.5V
+ *      or 3.3V VDDIO.
+ *   4. 28 mA is often used for GMII/RGMII interface with using 1.8V VDDIO.
+ *   5. In same interface, the heavy loading should use higher one of the
+ *      drive current strength.
+ * - for low speed signals
+ *   1. 3.3V VDDIO, use either 4 mA or 8 mA.
+ *   2. 2.5V VDDIO, use either 8 mA or 12 mA.
+ *   3. 1.8V VDDIO, use either 12 mA or 16 mA.
+ *   4. If it is heavy loading, can use higher drive current strength.
+ */
+static const struct ksz_drive_strength ksz9477_drive_strengths[] = {
+	{ SW_DRIVE_STRENGTH_2MA,  2000 },
+	{ SW_DRIVE_STRENGTH_4MA,  4000 },
+	{ SW_DRIVE_STRENGTH_8MA,  8000 },
+	{ SW_DRIVE_STRENGTH_12MA, 12000 },
+	{ SW_DRIVE_STRENGTH_16MA, 16000 },
+	{ SW_DRIVE_STRENGTH_20MA, 20000 },
+	{ SW_DRIVE_STRENGTH_24MA, 24000 },
+	{ SW_DRIVE_STRENGTH_28MA, 28000 },
+};
+
+/* ksz8830_drive_strengths - Drive strength mapping for KSZ8830, KSZ8873, ..
+ *			     variants.
+ * This values are documented in KSZ8873 and KSZ8863 datasheets.
+ */
+static const struct ksz_drive_strength ksz8830_drive_strengths[] = {
+	{ 0,  8000 },
+	{ KSZ8873_DRIVE_STRENGTH_16MA, 16000 },
+};
+
 static const struct ksz_dev_ops ksz8_dev_ops = {
 	.setup = ksz8_setup,
 	.get_port_addr = ksz8_get_port_addr,
@@ -2498,8 +2564,7 @@ static int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 	return dev->dev_ops->mdb_del(dev, port, mdb, db);
 }
 
-static int ksz_enable_port(struct dsa_switch *ds, int port,
-			   struct phy_device *phy)
+static int ksz_port_setup(struct dsa_switch *ds, int port)
 {
 	struct ksz_device *dev = ds->priv;
 
@@ -2560,6 +2625,23 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 	p->stp_state = state;
 
 	ksz_update_port_member(dev, port);
+}
+
+static void ksz_port_teardown(struct dsa_switch *ds, int port)
+{
+	struct ksz_device *dev = ds->priv;
+
+	switch (dev->chip_id) {
+	case KSZ8563_CHIP_ID:
+	case KSZ9477_CHIP_ID:
+	case KSZ9563_CHIP_ID:
+	case KSZ9567_CHIP_ID:
+	case KSZ9893_CHIP_ID:
+	case KSZ9896_CHIP_ID:
+	case KSZ9897_CHIP_ID:
+		if (dsa_is_user_port(ds, port))
+			ksz9477_port_acl_free(dev, port);
+	}
 }
 
 static int ksz_port_pre_bridge_flags(struct dsa_switch *ds, int port,
@@ -3107,6 +3189,44 @@ static int ksz_switch_detect(struct ksz_device *dev)
 	return 0;
 }
 
+static int ksz_cls_flower_add(struct dsa_switch *ds, int port,
+			      struct flow_cls_offload *cls, bool ingress)
+{
+	struct ksz_device *dev = ds->priv;
+
+	switch (dev->chip_id) {
+	case KSZ8563_CHIP_ID:
+	case KSZ9477_CHIP_ID:
+	case KSZ9563_CHIP_ID:
+	case KSZ9567_CHIP_ID:
+	case KSZ9893_CHIP_ID:
+	case KSZ9896_CHIP_ID:
+	case KSZ9897_CHIP_ID:
+		return ksz9477_cls_flower_add(ds, port, cls, ingress);
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int ksz_cls_flower_del(struct dsa_switch *ds, int port,
+			      struct flow_cls_offload *cls, bool ingress)
+{
+	struct ksz_device *dev = ds->priv;
+
+	switch (dev->chip_id) {
+	case KSZ8563_CHIP_ID:
+	case KSZ9477_CHIP_ID:
+	case KSZ9563_CHIP_ID:
+	case KSZ9567_CHIP_ID:
+	case KSZ9893_CHIP_ID:
+	case KSZ9896_CHIP_ID:
+	case KSZ9897_CHIP_ID:
+		return ksz9477_cls_flower_del(ds, port, cls, ingress);
+	}
+
+	return -EOPNOTSUPP;
+}
+
 /* Bandwidth is calculated by idle slope/transmission speed. Then the Bandwidth
  * is converted to Hex-decimal using the successive multiplication method. On
  * every step, integer part is taken and decimal part is carry forwarded.
@@ -3431,7 +3551,7 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.phylink_mac_config	= ksz_phylink_mac_config,
 	.phylink_mac_link_up	= ksz_phylink_mac_link_up,
 	.phylink_mac_link_down	= ksz_mac_link_down,
-	.port_enable		= ksz_enable_port,
+	.port_setup		= ksz_port_setup,
 	.set_ageing_time	= ksz_set_ageing_time,
 	.get_strings		= ksz_get_strings,
 	.get_ethtool_stats	= ksz_get_ethtool_stats,
@@ -3439,6 +3559,7 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_bridge_join	= ksz_port_bridge_join,
 	.port_bridge_leave	= ksz_port_bridge_leave,
 	.port_stp_state_set	= ksz_port_stp_state_set,
+	.port_teardown		= ksz_port_teardown,
 	.port_pre_bridge_flags	= ksz_port_pre_bridge_flags,
 	.port_bridge_flags	= ksz_port_bridge_flags,
 	.port_fast_age		= ksz_port_fast_age,
@@ -3461,6 +3582,8 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_hwtstamp_set	= ksz_hwtstamp_set,
 	.port_txtstamp		= ksz_port_txtstamp,
 	.port_rxtstamp		= ksz_port_rxtstamp,
+	.cls_flower_add		= ksz_cls_flower_add,
+	.cls_flower_del		= ksz_cls_flower_del,
 	.port_setup_tc		= ksz_setup_tc,
 	.get_mac_eee		= ksz_get_mac_eee,
 	.set_mac_eee		= ksz_set_mac_eee,
@@ -3528,6 +3651,245 @@ static void ksz_parse_rgmii_delay(struct ksz_device *dev, int port_num,
 
 	dev->ports[port_num].rgmii_rx_val = rx_delay;
 	dev->ports[port_num].rgmii_tx_val = tx_delay;
+}
+
+/**
+ * ksz_drive_strength_to_reg() - Convert drive strength value to corresponding
+ *				 register value.
+ * @array:	The array of drive strength values to search.
+ * @array_size:	The size of the array.
+ * @microamp:	The drive strength value in microamp to be converted.
+ *
+ * This function searches the array of drive strength values for the given
+ * microamp value and returns the corresponding register value for that drive.
+ *
+ * Returns: If found, the corresponding register value for that drive strength
+ * is returned. Otherwise, -EINVAL is returned indicating an invalid value.
+ */
+static int ksz_drive_strength_to_reg(const struct ksz_drive_strength *array,
+				     size_t array_size, int microamp)
+{
+	int i;
+
+	for (i = 0; i < array_size; i++) {
+		if (array[i].microamp == microamp)
+			return array[i].reg_val;
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * ksz_drive_strength_error() - Report invalid drive strength value
+ * @dev:	ksz device
+ * @array:	The array of drive strength values to search.
+ * @array_size:	The size of the array.
+ * @microamp:	Invalid drive strength value in microamp
+ *
+ * This function logs an error message when an unsupported drive strength value
+ * is detected. It lists out all the supported drive strength values for
+ * reference in the error message.
+ */
+static void ksz_drive_strength_error(struct ksz_device *dev,
+				     const struct ksz_drive_strength *array,
+				     size_t array_size, int microamp)
+{
+	char supported_values[100];
+	size_t remaining_size;
+	int added_len;
+	char *ptr;
+	int i;
+
+	remaining_size = sizeof(supported_values);
+	ptr = supported_values;
+
+	for (i = 0; i < array_size; i++) {
+		added_len = snprintf(ptr, remaining_size,
+				     i == 0 ? "%d" : ", %d", array[i].microamp);
+
+		if (added_len >= remaining_size)
+			break;
+
+		ptr += added_len;
+		remaining_size -= added_len;
+	}
+
+	dev_err(dev->dev, "Invalid drive strength %d, supported values are %s\n",
+		microamp, supported_values);
+}
+
+/**
+ * ksz9477_drive_strength_write() - Set the drive strength for specific KSZ9477
+ *				    chip variants.
+ * @dev:       ksz device
+ * @props:     Array of drive strength properties to be applied
+ * @num_props: Number of properties in the array
+ *
+ * This function configures the drive strength for various KSZ9477 chip variants
+ * based on the provided properties. It handles chip-specific nuances and
+ * ensures only valid drive strengths are written to the respective chip.
+ *
+ * Return: 0 on successful configuration, a negative error code on failure.
+ */
+static int ksz9477_drive_strength_write(struct ksz_device *dev,
+					struct ksz_driver_strength_prop *props,
+					int num_props)
+{
+	size_t array_size = ARRAY_SIZE(ksz9477_drive_strengths);
+	int i, ret, reg;
+	u8 mask = 0;
+	u8 val = 0;
+
+	if (props[KSZ_DRIVER_STRENGTH_IO].value != -1)
+		dev_warn(dev->dev, "%s is not supported by this chip variant\n",
+			 props[KSZ_DRIVER_STRENGTH_IO].name);
+
+	if (dev->chip_id == KSZ8795_CHIP_ID ||
+	    dev->chip_id == KSZ8794_CHIP_ID ||
+	    dev->chip_id == KSZ8765_CHIP_ID)
+		reg = KSZ8795_REG_SW_CTRL_20;
+	else
+		reg = KSZ9477_REG_SW_IO_STRENGTH;
+
+	for (i = 0; i < num_props; i++) {
+		if (props[i].value == -1)
+			continue;
+
+		ret = ksz_drive_strength_to_reg(ksz9477_drive_strengths,
+						array_size, props[i].value);
+		if (ret < 0) {
+			ksz_drive_strength_error(dev, ksz9477_drive_strengths,
+						 array_size, props[i].value);
+			return ret;
+		}
+
+		mask |= SW_DRIVE_STRENGTH_M << props[i].offset;
+		val |= ret << props[i].offset;
+	}
+
+	return ksz_rmw8(dev, reg, mask, val);
+}
+
+/**
+ * ksz8830_drive_strength_write() - Set the drive strength configuration for
+ *				    KSZ8830 compatible chip variants.
+ * @dev:       ksz device
+ * @props:     Array of drive strength properties to be set
+ * @num_props: Number of properties in the array
+ *
+ * This function applies the specified drive strength settings to KSZ8830 chip
+ * variants (KSZ8873, KSZ8863).
+ * It ensures the configurations align with what the chip variant supports and
+ * warns or errors out on unsupported settings.
+ *
+ * Return: 0 on success, error code otherwise
+ */
+static int ksz8830_drive_strength_write(struct ksz_device *dev,
+					struct ksz_driver_strength_prop *props,
+					int num_props)
+{
+	size_t array_size = ARRAY_SIZE(ksz8830_drive_strengths);
+	int microamp;
+	int i, ret;
+
+	for (i = 0; i < num_props; i++) {
+		if (props[i].value == -1 || i == KSZ_DRIVER_STRENGTH_IO)
+			continue;
+
+		dev_warn(dev->dev, "%s is not supported by this chip variant\n",
+			 props[i].name);
+	}
+
+	microamp = props[KSZ_DRIVER_STRENGTH_IO].value;
+	ret = ksz_drive_strength_to_reg(ksz8830_drive_strengths, array_size,
+					microamp);
+	if (ret < 0) {
+		ksz_drive_strength_error(dev, ksz8830_drive_strengths,
+					 array_size, microamp);
+		return ret;
+	}
+
+	return ksz_rmw8(dev, KSZ8873_REG_GLOBAL_CTRL_12,
+			KSZ8873_DRIVE_STRENGTH_16MA, ret);
+}
+
+/**
+ * ksz_parse_drive_strength() - Extract and apply drive strength configurations
+ *				from device tree properties.
+ * @dev:	ksz device
+ *
+ * This function reads the specified drive strength properties from the
+ * device tree, validates against the supported chip variants, and sets
+ * them accordingly. An error should be critical here, as the drive strength
+ * settings are crucial for EMI compliance.
+ *
+ * Return: 0 on success, error code otherwise
+ */
+static int ksz_parse_drive_strength(struct ksz_device *dev)
+{
+	struct ksz_driver_strength_prop of_props[] = {
+		[KSZ_DRIVER_STRENGTH_HI] = {
+			.name = "microchip,hi-drive-strength-microamp",
+			.offset = SW_HI_SPEED_DRIVE_STRENGTH_S,
+			.value = -1,
+		},
+		[KSZ_DRIVER_STRENGTH_LO] = {
+			.name = "microchip,lo-drive-strength-microamp",
+			.offset = SW_LO_SPEED_DRIVE_STRENGTH_S,
+			.value = -1,
+		},
+		[KSZ_DRIVER_STRENGTH_IO] = {
+			.name = "microchip,io-drive-strength-microamp",
+			.offset = 0, /* don't care */
+			.value = -1,
+		},
+	};
+	struct device_node *np = dev->dev->of_node;
+	bool have_any_prop = false;
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(of_props); i++) {
+		ret = of_property_read_u32(np, of_props[i].name,
+					   &of_props[i].value);
+		if (ret && ret != -EINVAL)
+			dev_warn(dev->dev, "Failed to read %s\n",
+				 of_props[i].name);
+		if (ret)
+			continue;
+
+		have_any_prop = true;
+	}
+
+	if (!have_any_prop)
+		return 0;
+
+	switch (dev->chip_id) {
+	case KSZ8830_CHIP_ID:
+		return ksz8830_drive_strength_write(dev, of_props,
+						    ARRAY_SIZE(of_props));
+	case KSZ8795_CHIP_ID:
+	case KSZ8794_CHIP_ID:
+	case KSZ8765_CHIP_ID:
+	case KSZ8563_CHIP_ID:
+	case KSZ9477_CHIP_ID:
+	case KSZ9563_CHIP_ID:
+	case KSZ9567_CHIP_ID:
+	case KSZ9893_CHIP_ID:
+	case KSZ9896_CHIP_ID:
+	case KSZ9897_CHIP_ID:
+		return ksz9477_drive_strength_write(dev, of_props,
+						    ARRAY_SIZE(of_props));
+	default:
+		for (i = 0; i < ARRAY_SIZE(of_props); i++) {
+			if (of_props[i].value == -1)
+				continue;
+
+			dev_warn(dev->dev, "%s is not supported by this chip variant\n",
+				 of_props[i].name);
+		}
+	}
+
+	return 0;
 }
 
 int ksz_switch_register(struct ksz_device *dev)
@@ -3612,6 +3974,10 @@ int ksz_switch_register(struct ksz_device *dev)
 	for (port_num = 0; port_num < dev->info->port_cnt; ++port_num)
 		dev->ports[port_num].interface = PHY_INTERFACE_MODE_NA;
 	if (dev->dev->of_node) {
+		ret = ksz_parse_drive_strength(dev);
+		if (ret)
+			return ret;
+
 		ret = of_get_phy_mode(dev->dev->of_node, &interface);
 		if (ret == 0)
 			dev->compat_interface = interface;

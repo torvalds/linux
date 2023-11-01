@@ -28,6 +28,7 @@ struct mlx5_sf_table {
 	struct mutex sf_state_lock; /* Serializes sf state among user cmds & vhca event handler. */
 	struct notifier_block esw_nb;
 	struct notifier_block vhca_nb;
+	struct notifier_block mdev_nb;
 };
 
 static struct mlx5_sf *
@@ -511,6 +512,35 @@ static int mlx5_sf_esw_event(struct notifier_block *nb, unsigned long event, voi
 	return 0;
 }
 
+static int mlx5_sf_mdev_event(struct notifier_block *nb, unsigned long event, void *data)
+{
+	struct mlx5_sf_table *table = container_of(nb, struct mlx5_sf_table, mdev_nb);
+	struct mlx5_sf_peer_devlink_event_ctx *event_ctx = data;
+	int ret = NOTIFY_DONE;
+	struct mlx5_sf *sf;
+
+	if (event != MLX5_DRIVER_EVENT_SF_PEER_DEVLINK)
+		return NOTIFY_DONE;
+
+	table = mlx5_sf_table_try_get(table->dev);
+	if (!table)
+		return NOTIFY_DONE;
+
+	mutex_lock(&table->sf_state_lock);
+	sf = mlx5_sf_lookup_by_function_id(table, event_ctx->fn_id);
+	if (!sf)
+		goto out;
+
+	event_ctx->err = devl_port_fn_devlink_set(&sf->dl_port.dl_port,
+						  event_ctx->devlink);
+
+	ret = NOTIFY_OK;
+out:
+	mutex_unlock(&table->sf_state_lock);
+	mlx5_sf_table_put(table);
+	return ret;
+}
+
 static bool mlx5_sf_table_supported(const struct mlx5_core_dev *dev)
 {
 	return dev->priv.eswitch && MLX5_ESWITCH_MANAGER(dev) &&
@@ -544,6 +574,9 @@ int mlx5_sf_table_init(struct mlx5_core_dev *dev)
 	if (err)
 		goto vhca_err;
 
+	table->mdev_nb.notifier_call = mlx5_sf_mdev_event;
+	mlx5_blocking_notifier_register(dev, &table->mdev_nb);
+
 	return 0;
 
 vhca_err:
@@ -562,6 +595,7 @@ void mlx5_sf_table_cleanup(struct mlx5_core_dev *dev)
 	if (!table)
 		return;
 
+	mlx5_blocking_notifier_unregister(dev, &table->mdev_nb);
 	mlx5_vhca_event_notifier_unregister(table->dev, &table->vhca_nb);
 	mlx5_esw_event_notifier_unregister(dev->priv.eswitch, &table->esw_nb);
 	WARN_ON(refcount_read(&table->refcount));

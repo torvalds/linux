@@ -506,12 +506,12 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int realtek_smi_remove(struct platform_device *pdev)
+static void realtek_smi_remove(struct platform_device *pdev)
 {
 	struct realtek_priv *priv = platform_get_drvdata(pdev);
 
 	if (!priv)
-		return 0;
+		return;
 
 	dsa_unregister_switch(priv->ds);
 	if (priv->slave_mii_bus)
@@ -520,8 +520,6 @@ static int realtek_smi_remove(struct platform_device *pdev)
 	/* leave the device reset asserted */
 	if (priv->reset)
 		gpiod_set_value(priv->reset, 1);
-
-	return 0;
 }
 
 static void realtek_smi_shutdown(struct platform_device *pdev)
@@ -559,7 +557,7 @@ static struct platform_driver realtek_smi_driver = {
 		.of_match_table = realtek_smi_of_match,
 	},
 	.probe  = realtek_smi_probe,
-	.remove = realtek_smi_remove,
+	.remove_new = realtek_smi_remove,
 	.shutdown = realtek_smi_shutdown,
 };
 module_platform_driver(realtek_smi_driver);

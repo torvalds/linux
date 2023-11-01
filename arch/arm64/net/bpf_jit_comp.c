@@ -288,7 +288,7 @@ static bool is_lsi_offset(int offset, int scale)
 static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 {
 	const struct bpf_prog *prog = ctx->prog;
-	const bool is_main_prog = prog->aux->func_idx == 0;
+	const bool is_main_prog = !bpf_is_subprog(prog);
 	const u8 r6 = bpf2a64[BPF_REG_6];
 	const u8 r7 = bpf2a64[BPF_REG_7];
 	const u8 r8 = bpf2a64[BPF_REG_8];

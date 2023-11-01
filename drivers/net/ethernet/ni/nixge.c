@@ -1397,7 +1397,7 @@ free_netdev:
 	return err;
 }
 
-static int nixge_remove(struct platform_device *pdev)
+static void nixge_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct nixge_priv *priv = netdev_priv(ndev);
@@ -1412,13 +1412,11 @@ static int nixge_remove(struct platform_device *pdev)
 		mdiobus_unregister(priv->mii_bus);
 
 	free_netdev(ndev);
-
-	return 0;
 }
 
 static struct platform_driver nixge_driver = {
 	.probe		= nixge_probe,
-	.remove		= nixge_remove,
+	.remove_new	= nixge_remove,
 	.driver		= {
 		.name		= "nixge",
 		.of_match_table	= nixge_dt_ids,

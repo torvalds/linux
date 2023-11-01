@@ -1151,14 +1151,12 @@ fail:
 	return rc;
 }
 
-static int cpmac_remove(struct platform_device *pdev)
+static void cpmac_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
 	unregister_netdev(dev);
 	free_netdev(dev);
-
-	return 0;
 }
 
 static struct platform_driver cpmac_driver = {
@@ -1166,7 +1164,7 @@ static struct platform_driver cpmac_driver = {
 		.name 	= "cpmac",
 	},
 	.probe 	= cpmac_probe,
-	.remove = cpmac_remove,
+	.remove_new = cpmac_remove,
 };
 
 int __init cpmac_init(void)

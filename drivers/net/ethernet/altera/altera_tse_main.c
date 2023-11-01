@@ -1464,7 +1464,7 @@ err_free_netdev:
 
 /* Remove Altera TSE MAC device
  */
-static int altera_tse_remove(struct platform_device *pdev)
+static void altera_tse_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct altera_tse_private *priv = netdev_priv(ndev);
@@ -1476,8 +1476,6 @@ static int altera_tse_remove(struct platform_device *pdev)
 	lynx_pcs_destroy(priv->pcs);
 
 	free_netdev(ndev);
-
-	return 0;
 }
 
 static const struct altera_dmaops altera_dtype_sgdma = {
@@ -1528,7 +1526,7 @@ MODULE_DEVICE_TABLE(of, altera_tse_ids);
 
 static struct platform_driver altera_tse_driver = {
 	.probe		= altera_tse_probe,
-	.remove		= altera_tse_remove,
+	.remove_new	= altera_tse_remove,
 	.suspend	= NULL,
 	.resume		= NULL,
 	.driver		= {

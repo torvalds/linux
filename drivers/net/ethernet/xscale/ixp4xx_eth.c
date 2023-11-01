@@ -1533,7 +1533,7 @@ err_free_mem:
 	return err;
 }
 
-static int ixp4xx_eth_remove(struct platform_device *pdev)
+static void ixp4xx_eth_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct phy_device *phydev = ndev->phydev;
@@ -1544,7 +1544,6 @@ static int ixp4xx_eth_remove(struct platform_device *pdev)
 	ixp4xx_mdio_remove();
 	npe_port_tab[NPE_ID(port->id)] = NULL;
 	npe_release(port->npe);
-	return 0;
 }
 
 static const struct of_device_id ixp4xx_eth_of_match[] = {
@@ -1560,7 +1559,7 @@ static struct platform_driver ixp4xx_eth_driver = {
 		.of_match_table = of_match_ptr(ixp4xx_eth_of_match),
 	},
 	.probe		= ixp4xx_eth_probe,
-	.remove		= ixp4xx_eth_remove,
+	.remove_new	= ixp4xx_eth_remove,
 };
 module_platform_driver(ixp4xx_eth_driver);
 

@@ -14,6 +14,8 @@
 #include <linux/mm.h>
 #include <net/sock.h>
 
+#define XDP_UMEM_SG_FLAG (1 << 1)
+
 struct net_device;
 struct xsk_queue;
 struct xdp_buff;

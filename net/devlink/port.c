@@ -428,6 +428,13 @@ devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *por
 	if (err)
 		goto out;
 	err = devlink_port_fn_state_fill(port, msg, extack, &msg_updated);
+	if (err)
+		goto out;
+	err = devlink_rel_devlink_handle_put(msg, port->devlink,
+					     port->rel_index,
+					     DEVLINK_PORT_FN_ATTR_DEVLINK,
+					     &msg_updated);
+
 out:
 	if (err || !msg_updated)
 		nla_nest_cancel(msg, function_attr);
@@ -483,7 +490,7 @@ static int devlink_nl_port_fill(struct sk_buff *msg,
 		goto nla_put_failure;
 	if (devlink_port->linecard &&
 	    nla_put_u32(msg, DEVLINK_ATTR_LINECARD_INDEX,
-			devlink_port->linecard->index))
+			devlink_linecard_index(devlink_port->linecard)))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
@@ -1392,6 +1399,50 @@ void devlink_port_attrs_pci_sf_set(struct devlink_port *devlink_port, u32 contro
 }
 EXPORT_SYMBOL_GPL(devlink_port_attrs_pci_sf_set);
 
+static void devlink_port_rel_notify_cb(struct devlink *devlink, u32 port_index)
+{
+	struct devlink_port *devlink_port;
+
+	devlink_port = devlink_port_get_by_index(devlink, port_index);
+	if (!devlink_port)
+		return;
+	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
+}
+
+static void devlink_port_rel_cleanup_cb(struct devlink *devlink, u32 port_index,
+					u32 rel_index)
+{
+	struct devlink_port *devlink_port;
+
+	devlink_port = devlink_port_get_by_index(devlink, port_index);
+	if (devlink_port && devlink_port->rel_index == rel_index)
+		devlink_port->rel_index = 0;
+}
+
+/**
+ * devl_port_fn_devlink_set - Attach peer devlink
+ *			      instance to port function.
+ * @devlink_port: devlink port
+ * @fn_devlink: devlink instance to attach
+ */
+int devl_port_fn_devlink_set(struct devlink_port *devlink_port,
+			     struct devlink *fn_devlink)
+{
+	ASSERT_DEVLINK_PORT_REGISTERED(devlink_port);
+
+	if (WARN_ON(devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PCI_SF ||
+		    devlink_port->attrs.pci_sf.external))
+		return -EINVAL;
+
+	return devlink_rel_nested_in_add(&devlink_port->rel_index,
+					 devlink_port->devlink->index,
+					 devlink_port->index,
+					 devlink_port_rel_notify_cb,
+					 devlink_port_rel_cleanup_cb,
+					 fn_devlink);
+}
+EXPORT_SYMBOL_GPL(devl_port_fn_devlink_set);
+
 /**
  *	devlink_port_linecard_set - Link port with a linecard
  *
@@ -1420,7 +1471,7 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 	case DEVLINK_PORT_FLAVOUR_PHYSICAL:
 		if (devlink_port->linecard)
 			n = snprintf(name, len, "l%u",
-				     devlink_port->linecard->index);
+				     devlink_linecard_index(devlink_port->linecard));
 		if (n < len)
 			n += snprintf(name + n, len - n, "p%u",
 				      attrs->phys.port_number);

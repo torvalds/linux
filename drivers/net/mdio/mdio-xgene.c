@@ -432,7 +432,7 @@ out_clk:
 	return ret;
 }
 
-static int xgene_mdio_remove(struct platform_device *pdev)
+static void xgene_mdio_remove(struct platform_device *pdev)
 {
 	struct xgene_mdio_pdata *pdata = platform_get_drvdata(pdev);
 	struct mii_bus *mdio_bus = pdata->mdio_bus;
@@ -443,8 +443,6 @@ static int xgene_mdio_remove(struct platform_device *pdev)
 
 	if (dev->of_node)
 		clk_disable_unprepare(pdata->clk);
-
-	return 0;
 }
 
 static struct platform_driver xgene_mdio_driver = {
@@ -454,7 +452,7 @@ static struct platform_driver xgene_mdio_driver = {
 		.acpi_match_table = ACPI_PTR(xgene_mdio_acpi_match),
 	},
 	.probe = xgene_mdio_probe,
-	.remove = xgene_mdio_remove,
+	.remove_new = xgene_mdio_remove,
 };
 
 module_platform_driver(xgene_mdio_driver);

@@ -105,6 +105,13 @@ bpf_tail_call
 Adding programs that access metadata kfuncs to the ``BPF_MAP_TYPE_PROG_ARRAY``
 is currently not supported.
 
+Supported Devices
+=================
+
+It is possible to query which kfunc the particular netdev implements via
+netlink. See ``xdp-rx-metadata-features`` attribute set in
+``Documentation/netlink/specs/netdev.yaml``.
+
 Example
 =======
 

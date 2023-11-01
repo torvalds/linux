@@ -211,6 +211,111 @@ int vsock_seqpacket_accept(unsigned int cid, unsigned int port,
 	return vsock_accept(cid, port, clientaddrp, SOCK_SEQPACKET);
 }
 
+/* Transmit bytes from a buffer and check the return value.
+ *
+ * expected_ret:
+ *  <0 Negative errno (for testing errors)
+ *   0 End-of-file
+ *  >0 Success (bytes successfully written)
+ */
+void send_buf(int fd, const void *buf, size_t len, int flags,
+	      ssize_t expected_ret)
+{
+	ssize_t nwritten = 0;
+	ssize_t ret;
+
+	timeout_begin(TIMEOUT);
+	do {
+		ret = send(fd, buf + nwritten, len - nwritten, flags);
+		timeout_check("send");
+
+		if (ret == 0 || (ret < 0 && errno != EINTR))
+			break;
+
+		nwritten += ret;
+	} while (nwritten < len);
+	timeout_end();
+
+	if (expected_ret < 0) {
+		if (ret != -1) {
+			fprintf(stderr, "bogus send(2) return value %zd (expected %zd)\n",
+				ret, expected_ret);
+			exit(EXIT_FAILURE);
+		}
+		if (errno != -expected_ret) {
+			perror("send");
+			exit(EXIT_FAILURE);
+		}
+		return;
+	}
+
+	if (ret < 0) {
+		perror("send");
+		exit(EXIT_FAILURE);
+	}
+
+	if (nwritten != expected_ret) {
+		if (ret == 0)
+			fprintf(stderr, "unexpected EOF while sending bytes\n");
+
+		fprintf(stderr, "bogus send(2) bytes written %zd (expected %zd)\n",
+			nwritten, expected_ret);
+		exit(EXIT_FAILURE);
+	}
+}
+
+/* Receive bytes in a buffer and check the return value.
+ *
+ * expected_ret:
+ *  <0 Negative errno (for testing errors)
+ *   0 End-of-file
+ *  >0 Success (bytes successfully read)
+ */
+void recv_buf(int fd, void *buf, size_t len, int flags, ssize_t expected_ret)
+{
+	ssize_t nread = 0;
+	ssize_t ret;
+
+	timeout_begin(TIMEOUT);
+	do {
+		ret = recv(fd, buf + nread, len - nread, flags);
+		timeout_check("recv");
+
+		if (ret == 0 || (ret < 0 && errno != EINTR))
+			break;
+
+		nread += ret;
+	} while (nread < len);
+	timeout_end();
+
+	if (expected_ret < 0) {
+		if (ret != -1) {
+			fprintf(stderr, "bogus recv(2) return value %zd (expected %zd)\n",
+				ret, expected_ret);
+			exit(EXIT_FAILURE);
+		}
+		if (errno != -expected_ret) {
+			perror("recv");
+			exit(EXIT_FAILURE);
+		}
+		return;
+	}
+
+	if (ret < 0) {
+		perror("recv");
+		exit(EXIT_FAILURE);
+	}
+
+	if (nread != expected_ret) {
+		if (ret == 0)
+			fprintf(stderr, "unexpected EOF while receiving bytes\n");
+
+		fprintf(stderr, "bogus recv(2) bytes read %zd (expected %zd)\n",
+			nread, expected_ret);
+		exit(EXIT_FAILURE);
+	}
+}
+
 /* Transmit one byte and check the return value.
  *
  * expected_ret:
@@ -221,43 +326,8 @@ int vsock_seqpacket_accept(unsigned int cid, unsigned int port,
 void send_byte(int fd, int expected_ret, int flags)
 {
 	const uint8_t byte = 'A';
-	ssize_t nwritten;
 
-	timeout_begin(TIMEOUT);
-	do {
-		nwritten = send(fd, &byte, sizeof(byte), flags);
-		timeout_check("write");
-	} while (nwritten < 0 && errno == EINTR);
-	timeout_end();
-
-	if (expected_ret < 0) {
-		if (nwritten != -1) {
-			fprintf(stderr, "bogus send(2) return value %zd\n",
-				nwritten);
-			exit(EXIT_FAILURE);
-		}
-		if (errno != -expected_ret) {
-			perror("write");
-			exit(EXIT_FAILURE);
-		}
-		return;
-	}
-
-	if (nwritten < 0) {
-		perror("write");
-		exit(EXIT_FAILURE);
-	}
-	if (nwritten == 0) {
-		if (expected_ret == 0)
-			return;
-
-		fprintf(stderr, "unexpected EOF while sending byte\n");
-		exit(EXIT_FAILURE);
-	}
-	if (nwritten != sizeof(byte)) {
-		fprintf(stderr, "bogus send(2) return value %zd\n", nwritten);
-		exit(EXIT_FAILURE);
-	}
+	send_buf(fd, &byte, sizeof(byte), flags, expected_ret);
 }
 
 /* Receive one byte and check the return value.
@@ -270,43 +340,9 @@ void send_byte(int fd, int expected_ret, int flags)
 void recv_byte(int fd, int expected_ret, int flags)
 {
 	uint8_t byte;
-	ssize_t nread;
 
-	timeout_begin(TIMEOUT);
-	do {
-		nread = recv(fd, &byte, sizeof(byte), flags);
-		timeout_check("read");
-	} while (nread < 0 && errno == EINTR);
-	timeout_end();
+	recv_buf(fd, &byte, sizeof(byte), flags, expected_ret);
 
-	if (expected_ret < 0) {
-		if (nread != -1) {
-			fprintf(stderr, "bogus recv(2) return value %zd\n",
-				nread);
-			exit(EXIT_FAILURE);
-		}
-		if (errno != -expected_ret) {
-			perror("read");
-			exit(EXIT_FAILURE);
-		}
-		return;
-	}
-
-	if (nread < 0) {
-		perror("read");
-		exit(EXIT_FAILURE);
-	}
-	if (nread == 0) {
-		if (expected_ret == 0)
-			return;
-
-		fprintf(stderr, "unexpected EOF while receiving byte\n");
-		exit(EXIT_FAILURE);
-	}
-	if (nread != sizeof(byte)) {
-		fprintf(stderr, "bogus recv(2) return value %zd\n", nread);
-		exit(EXIT_FAILURE);
-	}
 	if (byte != 'A') {
 		fprintf(stderr, "unexpected byte read %c\n", byte);
 		exit(EXIT_FAILURE);

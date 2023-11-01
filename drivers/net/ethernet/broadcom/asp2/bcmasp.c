@@ -1344,17 +1344,15 @@ of_put_exit:
 	return ret;
 }
 
-static int bcmasp_remove(struct platform_device *pdev)
+static void bcmasp_remove(struct platform_device *pdev)
 {
 	struct bcmasp_priv *priv = dev_get_drvdata(&pdev->dev);
 
 	if (!priv)
-		return 0;
+		return;
 
 	priv->destroy_wol(priv);
 	bcmasp_remove_intfs(priv);
-
-	return 0;
 }
 
 static void bcmasp_shutdown(struct platform_device *pdev)
@@ -1428,7 +1426,7 @@ static SIMPLE_DEV_PM_OPS(bcmasp_pm_ops,
 
 static struct platform_driver bcmasp_driver = {
 	.probe = bcmasp_probe,
-	.remove = bcmasp_remove,
+	.remove_new = bcmasp_remove,
 	.shutdown = bcmasp_shutdown,
 	.driver = {
 		.name = "brcm,asp-v2",

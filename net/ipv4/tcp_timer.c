@@ -394,7 +394,7 @@ static void tcp_probe_timer(struct sock *sk)
 		if (user_timeout &&
 		    (s32)(tcp_jiffies32 - icsk->icsk_probes_tstamp) >=
 		     msecs_to_jiffies(user_timeout))
-		goto abort;
+			goto abort;
 	}
 	max_probes = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_retries2);
 	if (sock_flag(sk, SOCK_DEAD)) {
@@ -413,6 +413,19 @@ abort:		tcp_write_err(sk);
 		/* Only send another probe if we didn't close things up. */
 		tcp_send_probe0(sk);
 	}
+}
+
+static void tcp_update_rto_stats(struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (!icsk->icsk_retransmits) {
+		tp->total_rto_recoveries++;
+		tp->rto_stamp = tcp_time_stamp(tp);
+	}
+	icsk->icsk_retransmits++;
+	tp->total_rto++;
 }
 
 /*
@@ -447,7 +460,7 @@ static void tcp_fastopen_synack_timer(struct sock *sk, struct request_sock *req)
 	 */
 	inet_rtx_syn_ack(sk, req);
 	req->num_timeout++;
-	icsk->icsk_retransmits++;
+	tcp_update_rto_stats(sk);
 	if (!tp->retrans_stamp)
 		tp->retrans_stamp = tcp_time_stamp(tp);
 	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
@@ -575,7 +588,7 @@ void tcp_retransmit_timer(struct sock *sk)
 
 	tcp_enter_loss(sk);
 
-	icsk->icsk_retransmits++;
+	tcp_update_rto_stats(sk);
 	if (tcp_retransmit_skb(sk, tcp_rtx_queue_head(sk), 1) > 0) {
 		/* Retransmission failed because of local congestion,
 		 * Let senders fight for local resources conservatively.

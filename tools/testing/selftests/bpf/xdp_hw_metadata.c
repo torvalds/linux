@@ -234,7 +234,7 @@ static int verify_metadata(struct xsk *rx_xsk, int rxq, int server_fd, clockid_t
 	struct pollfd fds[rxq + 1];
 	__u64 comp_addr;
 	__u64 addr;
-	__u32 idx;
+	__u32 idx = 0;
 	int ret;
 	int i;
 

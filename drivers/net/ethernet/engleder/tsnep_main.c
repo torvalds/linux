@@ -2587,7 +2587,7 @@ mdio_init_failed:
 	return retval;
 }
 
-static int tsnep_remove(struct platform_device *pdev)
+static void tsnep_remove(struct platform_device *pdev)
 {
 	struct tsnep_adapter *adapter = platform_get_drvdata(pdev);
 
@@ -2603,8 +2603,6 @@ static int tsnep_remove(struct platform_device *pdev)
 		mdiobus_unregister(adapter->mdiobus);
 
 	tsnep_disable_irq(adapter, ECM_INT_ALL);
-
-	return 0;
 }
 
 static const struct of_device_id tsnep_of_match[] = {
@@ -2619,7 +2617,7 @@ static struct platform_driver tsnep_driver = {
 		.of_match_table = tsnep_of_match,
 	},
 	.probe = tsnep_probe,
-	.remove = tsnep_remove,
+	.remove_new = tsnep_remove,
 };
 module_platform_driver(tsnep_driver);
 

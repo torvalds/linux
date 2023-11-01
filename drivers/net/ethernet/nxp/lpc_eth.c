@@ -1417,7 +1417,7 @@ err_exit:
 	return ret;
 }
 
-static int lpc_eth_drv_remove(struct platform_device *pdev)
+static void lpc_eth_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct netdata_local *pldat = netdev_priv(ndev);
@@ -1436,8 +1436,6 @@ static int lpc_eth_drv_remove(struct platform_device *pdev)
 	clk_disable_unprepare(pldat->clk);
 	clk_put(pldat->clk);
 	free_netdev(ndev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1505,7 +1503,7 @@ MODULE_DEVICE_TABLE(of, lpc_eth_match);
 
 static struct platform_driver lpc_eth_driver = {
 	.probe		= lpc_eth_drv_probe,
-	.remove		= lpc_eth_drv_remove,
+	.remove_new	= lpc_eth_drv_remove,
 #ifdef CONFIG_PM
 	.suspend	= lpc_eth_drv_suspend,
 	.resume		= lpc_eth_drv_resume,

@@ -82,17 +82,22 @@ static const char * const attach_type_name[] = {
 	[BPF_CGROUP_INET6_BIND]		= "cgroup_inet6_bind",
 	[BPF_CGROUP_INET4_CONNECT]	= "cgroup_inet4_connect",
 	[BPF_CGROUP_INET6_CONNECT]	= "cgroup_inet6_connect",
+	[BPF_CGROUP_UNIX_CONNECT]       = "cgroup_unix_connect",
 	[BPF_CGROUP_INET4_POST_BIND]	= "cgroup_inet4_post_bind",
 	[BPF_CGROUP_INET6_POST_BIND]	= "cgroup_inet6_post_bind",
 	[BPF_CGROUP_INET4_GETPEERNAME]	= "cgroup_inet4_getpeername",
 	[BPF_CGROUP_INET6_GETPEERNAME]	= "cgroup_inet6_getpeername",
+	[BPF_CGROUP_UNIX_GETPEERNAME]	= "cgroup_unix_getpeername",
 	[BPF_CGROUP_INET4_GETSOCKNAME]	= "cgroup_inet4_getsockname",
 	[BPF_CGROUP_INET6_GETSOCKNAME]	= "cgroup_inet6_getsockname",
+	[BPF_CGROUP_UNIX_GETSOCKNAME]	= "cgroup_unix_getsockname",
 	[BPF_CGROUP_UDP4_SENDMSG]	= "cgroup_udp4_sendmsg",
 	[BPF_CGROUP_UDP6_SENDMSG]	= "cgroup_udp6_sendmsg",
+	[BPF_CGROUP_UNIX_SENDMSG]	= "cgroup_unix_sendmsg",
 	[BPF_CGROUP_SYSCTL]		= "cgroup_sysctl",
 	[BPF_CGROUP_UDP4_RECVMSG]	= "cgroup_udp4_recvmsg",
 	[BPF_CGROUP_UDP6_RECVMSG]	= "cgroup_udp6_recvmsg",
+	[BPF_CGROUP_UNIX_RECVMSG]	= "cgroup_unix_recvmsg",
 	[BPF_CGROUP_GETSOCKOPT]		= "cgroup_getsockopt",
 	[BPF_CGROUP_SETSOCKOPT]		= "cgroup_setsockopt",
 	[BPF_SK_SKB_STREAM_PARSER]	= "sk_skb_stream_parser",
@@ -436,9 +441,11 @@ struct bpf_program {
 	int fd;
 	bool autoload;
 	bool autoattach;
+	bool sym_global;
 	bool mark_btf_static;
 	enum bpf_prog_type type;
 	enum bpf_attach_type expected_attach_type;
+	int exception_cb_idx;
 
 	int prog_ifindex;
 	__u32 attach_btf_obj_fd;
@@ -765,6 +772,7 @@ bpf_object__init_prog(struct bpf_object *obj, struct bpf_program *prog,
 
 	prog->type = BPF_PROG_TYPE_UNSPEC;
 	prog->fd = -1;
+	prog->exception_cb_idx = -1;
 
 	/* libbpf's convention for SEC("?abc...") is that it's just like
 	 * SEC("abc...") but the corresponding bpf_program starts out with
@@ -871,14 +879,16 @@ bpf_object__add_programs(struct bpf_object *obj, Elf_Data *sec_data,
 		if (err)
 			return err;
 
+		if (ELF64_ST_BIND(sym->st_info) != STB_LOCAL)
+			prog->sym_global = true;
+
 		/* if function is a global/weak symbol, but has restricted
 		 * (STV_HIDDEN or STV_INTERNAL) visibility, mark its BTF FUNC
 		 * as static to enable more permissive BPF verification mode
 		 * with more outside context available to BPF verifier
 		 */
-		if (ELF64_ST_BIND(sym->st_info) != STB_LOCAL
-		    && (ELF64_ST_VISIBILITY(sym->st_other) == STV_HIDDEN
-			|| ELF64_ST_VISIBILITY(sym->st_other) == STV_INTERNAL))
+		if (prog->sym_global && (ELF64_ST_VISIBILITY(sym->st_other) == STV_HIDDEN
+		    || ELF64_ST_VISIBILITY(sym->st_other) == STV_INTERNAL))
 			prog->mark_btf_static = true;
 
 		nr_progs++;
@@ -3141,6 +3151,86 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 			break;
 		}
 	}
+
+	if (!kernel_supports(obj, FEAT_BTF_DECL_TAG))
+		goto skip_exception_cb;
+	for (i = 0; i < obj->nr_programs; i++) {
+		struct bpf_program *prog = &obj->programs[i];
+		int j, k, n;
+
+		if (prog_is_subprog(obj, prog))
+			continue;
+		n = btf__type_cnt(obj->btf);
+		for (j = 1; j < n; j++) {
+			const char *str = "exception_callback:", *name;
+			size_t len = strlen(str);
+			struct btf_type *t;
+
+			t = btf_type_by_id(obj->btf, j);
+			if (!btf_is_decl_tag(t) || btf_decl_tag(t)->component_idx != -1)
+				continue;
+
+			name = btf__str_by_offset(obj->btf, t->name_off);
+			if (strncmp(name, str, len))
+				continue;
+
+			t = btf_type_by_id(obj->btf, t->type);
+			if (!btf_is_func(t) || btf_func_linkage(t) != BTF_FUNC_GLOBAL) {
+				pr_warn("prog '%s': exception_callback:<value> decl tag not applied to the main program\n",
+					prog->name);
+				return -EINVAL;
+			}
+			if (strcmp(prog->name, btf__str_by_offset(obj->btf, t->name_off)))
+				continue;
+			/* Multiple callbacks are specified for the same prog,
+			 * the verifier will eventually return an error for this
+			 * case, hence simply skip appending a subprog.
+			 */
+			if (prog->exception_cb_idx >= 0) {
+				prog->exception_cb_idx = -1;
+				break;
+			}
+
+			name += len;
+			if (str_is_empty(name)) {
+				pr_warn("prog '%s': exception_callback:<value> decl tag contains empty value\n",
+					prog->name);
+				return -EINVAL;
+			}
+
+			for (k = 0; k < obj->nr_programs; k++) {
+				struct bpf_program *subprog = &obj->programs[k];
+
+				if (!prog_is_subprog(obj, subprog))
+					continue;
+				if (strcmp(name, subprog->name))
+					continue;
+				/* Enforce non-hidden, as from verifier point of
+				 * view it expects global functions, whereas the
+				 * mark_btf_static fixes up linkage as static.
+				 */
+				if (!subprog->sym_global || subprog->mark_btf_static) {
+					pr_warn("prog '%s': exception callback %s must be a global non-hidden function\n",
+						prog->name, subprog->name);
+					return -EINVAL;
+				}
+				/* Let's see if we already saw a static exception callback with the same name */
+				if (prog->exception_cb_idx >= 0) {
+					pr_warn("prog '%s': multiple subprogs with same name as exception callback '%s'\n",
+					        prog->name, subprog->name);
+					return -EINVAL;
+				}
+				prog->exception_cb_idx = k;
+				break;
+			}
+
+			if (prog->exception_cb_idx >= 0)
+				continue;
+			pr_warn("prog '%s': cannot find exception callback '%s'\n", prog->name, name);
+			return -ENOENT;
+		}
+	}
+skip_exception_cb:
 
 	sanitize = btf_needs_sanitization(obj);
 	if (sanitize) {
@@ -6235,13 +6325,45 @@ static int append_subprog_relos(struct bpf_program *main_prog, struct bpf_progra
 }
 
 static int
+bpf_object__append_subprog_code(struct bpf_object *obj, struct bpf_program *main_prog,
+				struct bpf_program *subprog)
+{
+       struct bpf_insn *insns;
+       size_t new_cnt;
+       int err;
+
+       subprog->sub_insn_off = main_prog->insns_cnt;
+
+       new_cnt = main_prog->insns_cnt + subprog->insns_cnt;
+       insns = libbpf_reallocarray(main_prog->insns, new_cnt, sizeof(*insns));
+       if (!insns) {
+               pr_warn("prog '%s': failed to realloc prog code\n", main_prog->name);
+               return -ENOMEM;
+       }
+       main_prog->insns = insns;
+       main_prog->insns_cnt = new_cnt;
+
+       memcpy(main_prog->insns + subprog->sub_insn_off, subprog->insns,
+              subprog->insns_cnt * sizeof(*insns));
+
+       pr_debug("prog '%s': added %zu insns from sub-prog '%s'\n",
+                main_prog->name, subprog->insns_cnt, subprog->name);
+
+       /* The subprog insns are now appended. Append its relos too. */
+       err = append_subprog_relos(main_prog, subprog);
+       if (err)
+               return err;
+       return 0;
+}
+
+static int
 bpf_object__reloc_code(struct bpf_object *obj, struct bpf_program *main_prog,
 		       struct bpf_program *prog)
 {
-	size_t sub_insn_idx, insn_idx, new_cnt;
+	size_t sub_insn_idx, insn_idx;
 	struct bpf_program *subprog;
-	struct bpf_insn *insns, *insn;
 	struct reloc_desc *relo;
+	struct bpf_insn *insn;
 	int err;
 
 	err = reloc_prog_func_and_line_info(obj, main_prog, prog);
@@ -6316,25 +6438,7 @@ bpf_object__reloc_code(struct bpf_object *obj, struct bpf_program *main_prog,
 		 *   and relocate.
 		 */
 		if (subprog->sub_insn_off == 0) {
-			subprog->sub_insn_off = main_prog->insns_cnt;
-
-			new_cnt = main_prog->insns_cnt + subprog->insns_cnt;
-			insns = libbpf_reallocarray(main_prog->insns, new_cnt, sizeof(*insns));
-			if (!insns) {
-				pr_warn("prog '%s': failed to realloc prog code\n", main_prog->name);
-				return -ENOMEM;
-			}
-			main_prog->insns = insns;
-			main_prog->insns_cnt = new_cnt;
-
-			memcpy(main_prog->insns + subprog->sub_insn_off, subprog->insns,
-			       subprog->insns_cnt * sizeof(*insns));
-
-			pr_debug("prog '%s': added %zu insns from sub-prog '%s'\n",
-				 main_prog->name, subprog->insns_cnt, subprog->name);
-
-			/* The subprog insns are now appended. Append its relos too. */
-			err = append_subprog_relos(main_prog, subprog);
+			err = bpf_object__append_subprog_code(obj, main_prog, subprog);
 			if (err)
 				return err;
 			err = bpf_object__reloc_code(obj, main_prog, subprog);
@@ -6567,6 +6671,25 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 			pr_warn("prog '%s': failed to relocate calls: %d\n",
 				prog->name, err);
 			return err;
+		}
+
+		/* Now, also append exception callback if it has not been done already. */
+		if (prog->exception_cb_idx >= 0) {
+			struct bpf_program *subprog = &obj->programs[prog->exception_cb_idx];
+
+			/* Calling exception callback directly is disallowed, which the
+			 * verifier will reject later. In case it was processed already,
+			 * we can skip this step, otherwise for all other valid cases we
+			 * have to append exception callback now.
+			 */
+			if (subprog->sub_insn_off == 0) {
+				err = bpf_object__append_subprog_code(obj, prog, subprog);
+				if (err)
+					return err;
+				err = bpf_object__reloc_code(obj, prog, subprog);
+				if (err)
+					return err;
+			}
 		}
 	}
 	/* Process data relos for main programs */
@@ -8842,14 +8965,19 @@ static const struct bpf_sec_def section_defs[] = {
 	SEC_DEF("cgroup/bind6",		CGROUP_SOCK_ADDR, BPF_CGROUP_INET6_BIND, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/connect4",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET4_CONNECT, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/connect6",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET6_CONNECT, SEC_ATTACHABLE),
+	SEC_DEF("cgroup/connect_unix",	CGROUP_SOCK_ADDR, BPF_CGROUP_UNIX_CONNECT, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/sendmsg4",	CGROUP_SOCK_ADDR, BPF_CGROUP_UDP4_SENDMSG, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/sendmsg6",	CGROUP_SOCK_ADDR, BPF_CGROUP_UDP6_SENDMSG, SEC_ATTACHABLE),
+	SEC_DEF("cgroup/sendmsg_unix",	CGROUP_SOCK_ADDR, BPF_CGROUP_UNIX_SENDMSG, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/recvmsg4",	CGROUP_SOCK_ADDR, BPF_CGROUP_UDP4_RECVMSG, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/recvmsg6",	CGROUP_SOCK_ADDR, BPF_CGROUP_UDP6_RECVMSG, SEC_ATTACHABLE),
+	SEC_DEF("cgroup/recvmsg_unix",	CGROUP_SOCK_ADDR, BPF_CGROUP_UNIX_RECVMSG, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/getpeername4",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET4_GETPEERNAME, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/getpeername6",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET6_GETPEERNAME, SEC_ATTACHABLE),
+	SEC_DEF("cgroup/getpeername_unix", CGROUP_SOCK_ADDR, BPF_CGROUP_UNIX_GETPEERNAME, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/getsockname4",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET4_GETSOCKNAME, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/getsockname6",	CGROUP_SOCK_ADDR, BPF_CGROUP_INET6_GETSOCKNAME, SEC_ATTACHABLE),
+	SEC_DEF("cgroup/getsockname_unix", CGROUP_SOCK_ADDR, BPF_CGROUP_UNIX_GETSOCKNAME, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/sysctl",	CGROUP_SYSCTL, BPF_CGROUP_SYSCTL, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/getsockopt",	CGROUP_SOCKOPT, BPF_CGROUP_GETSOCKOPT, SEC_ATTACHABLE),
 	SEC_DEF("cgroup/setsockopt",	CGROUP_SOCKOPT, BPF_CGROUP_SETSOCKOPT, SEC_ATTACHABLE),
@@ -10996,7 +11124,7 @@ static int attach_uprobe_multi(const struct bpf_program *prog, long cookie, stru
 
 	*link = NULL;
 
-	n = sscanf(prog->sec_name, "%m[^/]/%m[^:]:%ms",
+	n = sscanf(prog->sec_name, "%m[^/]/%m[^:]:%m[^\n]",
 		   &probe_type, &binary_path, &func_name);
 	switch (n) {
 	case 1:
@@ -11506,14 +11634,14 @@ err_out:
 static int attach_uprobe(const struct bpf_program *prog, long cookie, struct bpf_link **link)
 {
 	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, opts);
-	char *probe_type = NULL, *binary_path = NULL, *func_name = NULL;
-	int n, ret = -EINVAL;
+	char *probe_type = NULL, *binary_path = NULL, *func_name = NULL, *func_off;
+	int n, c, ret = -EINVAL;
 	long offset = 0;
 
 	*link = NULL;
 
-	n = sscanf(prog->sec_name, "%m[^/]/%m[^:]:%m[a-zA-Z0-9_.]+%li",
-		   &probe_type, &binary_path, &func_name, &offset);
+	n = sscanf(prog->sec_name, "%m[^/]/%m[^:]:%m[^\n]",
+		   &probe_type, &binary_path, &func_name);
 	switch (n) {
 	case 1:
 		/* handle SEC("u[ret]probe") - format is valid, but auto-attach is impossible. */
@@ -11524,7 +11652,17 @@ static int attach_uprobe(const struct bpf_program *prog, long cookie, struct bpf
 			prog->name, prog->sec_name);
 		break;
 	case 3:
-	case 4:
+		/* check if user specifies `+offset`, if yes, this should be
+		 * the last part of the string, make sure sscanf read to EOL
+		 */
+		func_off = strrchr(func_name, '+');
+		if (func_off) {
+			n = sscanf(func_off, "+%li%n", &offset, &c);
+			if (n == 1 && *(func_off + c) == '\0')
+				func_off[0] = '\0';
+			else
+				offset = 0;
+		}
 		opts.retprobe = strcmp(probe_type, "uretprobe") == 0 ||
 				strcmp(probe_type, "uretprobe.s") == 0;
 		if (opts.retprobe && offset != 0) {
