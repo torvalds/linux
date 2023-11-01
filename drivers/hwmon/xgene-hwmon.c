@@ -751,7 +751,7 @@ out_mbox_free:
 	return rc;
 }
 
-static int xgene_hwmon_remove(struct platform_device *pdev)
+static void xgene_hwmon_remove(struct platform_device *pdev)
 {
 	struct xgene_hwmon_dev *ctx = platform_get_drvdata(pdev);
 
@@ -762,8 +762,6 @@ static int xgene_hwmon_remove(struct platform_device *pdev)
 		mbox_free_channel(ctx->mbox_chan);
 	else
 		pcc_mbox_free_channel(ctx->pcc_chan);
-
-	return 0;
 }
 
 static const struct of_device_id xgene_hwmon_of_match[] = {
@@ -774,7 +772,7 @@ MODULE_DEVICE_TABLE(of, xgene_hwmon_of_match);
 
 static struct platform_driver xgene_hwmon_driver = {
 	.probe = xgene_hwmon_probe,
-	.remove = xgene_hwmon_remove,
+	.remove_new = xgene_hwmon_remove,
 	.driver = {
 		.name = "xgene-slimpro-hwmon",
 		.of_match_table = xgene_hwmon_of_match,
