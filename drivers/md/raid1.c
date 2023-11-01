@@ -1345,6 +1345,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	int first_clone;
 	int max_sectors;
 	bool write_behind = false;
+	bool is_discard = (bio_op(bio) == REQ_OP_DISCARD);
 
 	if (mddev_is_clustered(mddev) &&
 	     md_cluster_ops->area_resyncing(mddev, WRITE,
@@ -1405,7 +1406,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		 * write-mostly, which means we could allocate write behind
 		 * bio later.
 		 */
-		if (rdev && test_bit(WriteMostly, &rdev->flags))
+		if (!is_discard && rdev && test_bit(WriteMostly, &rdev->flags))
 			write_behind = true;
 
 		if (rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
@@ -3122,8 +3123,7 @@ static int raid1_run(struct mddev *mddev)
 			mdname(mddev));
 		return -EIO;
 	}
-	if (mddev_init_writes_pending(mddev) < 0)
-		return -ENOMEM;
+
 	/*
 	 * copy the already verified devices into our private RAID1
 	 * bookkeeping area. [whatever we allocate in run(),

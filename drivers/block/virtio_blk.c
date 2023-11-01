@@ -470,8 +470,6 @@ static bool virtblk_prep_rq_batch(struct request *req)
 	struct virtio_blk *vblk = req->mq_hctx->queue->queuedata;
 	struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
 
-	req->mq_hctx->tags->rqs[req->tag] = req;
-
 	return virtblk_prep_rq(req->mq_hctx, vblk, req, vbr) == BLK_STS_OK;
 }
 

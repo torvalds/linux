@@ -1861,7 +1861,7 @@ void md_bitmap_destroy(struct mddev *mddev)
 
 	md_bitmap_wait_behind_writes(mddev);
 	if (!mddev->serialize_policy)
-		mddev_destroy_serial_pool(mddev, NULL, true);
+		mddev_destroy_serial_pool(mddev, NULL);
 
 	mutex_lock(&mddev->bitmap_info.mutex);
 	spin_lock(&mddev->lock);
@@ -1977,7 +1977,7 @@ int md_bitmap_load(struct mddev *mddev)
 		goto out;
 
 	rdev_for_each(rdev, mddev)
-		mddev_create_serial_pool(mddev, rdev, true);
+		mddev_create_serial_pool(mddev, rdev);
 
 	if (mddev_is_clustered(mddev))
 		md_cluster_ops->load_bitmaps(mddev, mddev->bitmap_info.nodes);
@@ -2348,14 +2348,11 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	int rv;
 
-	rv = mddev_lock(mddev);
+	rv = mddev_suspend_and_lock(mddev);
 	if (rv)
 		return rv;
+
 	if (mddev->pers) {
-		if (!mddev->pers->quiesce) {
-			rv = -EBUSY;
-			goto out;
-		}
 		if (mddev->recovery || mddev->sync_thread) {
 			rv = -EBUSY;
 			goto out;
@@ -2369,11 +2366,8 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 			rv = -EBUSY;
 			goto out;
 		}
-		if (mddev->pers) {
-			mddev_suspend(mddev);
-			md_bitmap_destroy(mddev);
-			mddev_resume(mddev);
-		}
+
+		md_bitmap_destroy(mddev);
 		mddev->bitmap_info.offset = 0;
 		if (mddev->bitmap_info.file) {
 			struct file *f = mddev->bitmap_info.file;
@@ -2383,6 +2377,8 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 	} else {
 		/* No bitmap, OK to set a location */
 		long long offset;
+		struct bitmap *bitmap;
+
 		if (strncmp(buf, "none", 4) == 0)
 			/* nothing to be done */;
 		else if (strncmp(buf, "file:", 5) == 0) {
@@ -2406,25 +2402,20 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 				rv = -EINVAL;
 				goto out;
 			}
+
 			mddev->bitmap_info.offset = offset;
-			if (mddev->pers) {
-				struct bitmap *bitmap;
-				bitmap = md_bitmap_create(mddev, -1);
-				mddev_suspend(mddev);
-				if (IS_ERR(bitmap))
-					rv = PTR_ERR(bitmap);
-				else {
-					mddev->bitmap = bitmap;
-					rv = md_bitmap_load(mddev);
-					if (rv)
-						mddev->bitmap_info.offset = 0;
-				}
-				if (rv) {
-					md_bitmap_destroy(mddev);
-					mddev_resume(mddev);
-					goto out;
-				}
-				mddev_resume(mddev);
+			bitmap = md_bitmap_create(mddev, -1);
+			if (IS_ERR(bitmap)) {
+				rv = PTR_ERR(bitmap);
+				goto out;
+			}
+
+			mddev->bitmap = bitmap;
+			rv = md_bitmap_load(mddev);
+			if (rv) {
+				mddev->bitmap_info.offset = 0;
+				md_bitmap_destroy(mddev);
+				goto out;
 			}
 		}
 	}
@@ -2437,7 +2428,7 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 	}
 	rv = 0;
 out:
-	mddev_unlock(mddev);
+	mddev_unlock_and_resume(mddev);
 	if (rv)
 		return rv;
 	return len;
@@ -2546,7 +2537,7 @@ backlog_store(struct mddev *mddev, const char *buf, size_t len)
 	if (backlog > COUNTER_MAX)
 		return -EINVAL;
 
-	rv = mddev_lock(mddev);
+	rv = mddev_suspend_and_lock(mddev);
 	if (rv)
 		return rv;
 
@@ -2571,16 +2562,16 @@ backlog_store(struct mddev *mddev, const char *buf, size_t len)
 	if (!backlog && mddev->serial_info_pool) {
 		/* serial_info_pool is not needed if backlog is zero */
 		if (!mddev->serialize_policy)
-			mddev_destroy_serial_pool(mddev, NULL, false);
+			mddev_destroy_serial_pool(mddev, NULL);
 	} else if (backlog && !mddev->serial_info_pool) {
 		/* serial_info_pool is needed since backlog is not zero */
 		rdev_for_each(rdev, mddev)
-			mddev_create_serial_pool(mddev, rdev, false);
+			mddev_create_serial_pool(mddev, rdev);
 	}
 	if (old_mwb != backlog)
 		md_bitmap_update_sb(mddev->bitmap);
 
-	mddev_unlock(mddev);
+	mddev_unlock_and_resume(mddev);
 	return len;
 }
 

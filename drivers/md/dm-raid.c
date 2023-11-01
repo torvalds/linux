@@ -749,7 +749,11 @@ static struct raid_set *raid_set_alloc(struct dm_target *ti, struct raid_type *r
 		return ERR_PTR(-ENOMEM);
 	}
 
-	mddev_init(&rs->md);
+	if (mddev_init(&rs->md)) {
+		kfree(rs);
+		ti->error = "Cannot initialize raid context";
+		return ERR_PTR(-ENOMEM);
+	}
 
 	rs->raid_disks = raid_devs;
 	rs->delta_disks = 0;
@@ -798,6 +802,7 @@ static void raid_set_free(struct raid_set *rs)
 			dm_put_device(rs->ti, rs->dev[i].data_dev);
 	}
 
+	mddev_destroy(&rs->md);
 	kfree(rs);
 }
 
@@ -3239,7 +3244,7 @@ size_check:
 	set_bit(MD_RECOVERY_FROZEN, &rs->md.recovery);
 
 	/* Has to be held on running the array */
-	mddev_lock_nointr(&rs->md);
+	mddev_suspend_and_lock_nointr(&rs->md);
 	r = md_run(&rs->md);
 	rs->md.in_sync = 0; /* Assume already marked dirty */
 	if (r) {
@@ -3263,7 +3268,6 @@ size_check:
 		}
 	}
 
-	mddev_suspend(&rs->md);
 	set_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags);
 
 	/* Try to adjust the raid4/5/6 stripe cache size to the stripe size */
@@ -3793,9 +3797,7 @@ static void raid_postsuspend(struct dm_target *ti)
 		if (!test_bit(MD_RECOVERY_FROZEN, &rs->md.recovery))
 			md_stop_writes(&rs->md);
 
-		mddev_lock_nointr(&rs->md);
-		mddev_suspend(&rs->md);
-		mddev_unlock(&rs->md);
+		mddev_suspend(&rs->md, false);
 	}
 }
 
@@ -4054,8 +4056,7 @@ static void raid_resume(struct dm_target *ti)
 		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		mddev->ro = 0;
 		mddev->in_sync = 0;
-		mddev_resume(mddev);
-		mddev_unlock(mddev);
+		mddev_unlock_and_resume(mddev);
 	}
 }
 

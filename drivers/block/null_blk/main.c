@@ -1750,6 +1750,25 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return null_handle_cmd(cmd, sector, nr_sectors, req_op(rq));
 }
 
+static void null_queue_rqs(struct request **rqlist)
+{
+	struct request *requeue_list = NULL;
+	struct request **requeue_lastp = &requeue_list;
+	struct blk_mq_queue_data bd = { };
+	blk_status_t ret;
+
+	do {
+		struct request *rq = rq_list_pop(rqlist);
+
+		bd.rq = rq;
+		ret = null_queue_rq(rq->mq_hctx, &bd);
+		if (ret != BLK_STS_OK)
+			rq_list_add_tail(&requeue_lastp, rq);
+	} while (!rq_list_empty(*rqlist));
+
+	*rqlist = requeue_list;
+}
+
 static void cleanup_queue(struct nullb_queue *nq)
 {
 	bitmap_free(nq->tag_map);
@@ -1802,6 +1821,7 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
 
 static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
+	.queue_rqs	= null_queue_rqs,
 	.complete	= null_complete_rq,
 	.timeout	= null_timeout_rq,
 	.poll		= null_poll,
@@ -1946,7 +1966,7 @@ static int null_gendisk_register(struct nullb *nullb)
 	else
 		disk->fops		= &null_bio_ops;
 	disk->private_data	= nullb;
-	strncpy(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
+	strscpy_pad(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
 
 	if (nullb->dev->zoned) {
 		int ret = null_register_zoned_dev(nullb);

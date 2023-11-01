@@ -70,6 +70,8 @@ MODULE_PARM_DESC(devices_handle_discard_safely,
 		 "Set to Y if all devices in each array reliably return zeroes on reads from discarded regions");
 static struct workqueue_struct *raid5_wq;
 
+static void raid5_quiesce(struct mddev *mddev, int quiesce);
+
 static inline struct hlist_head *stripe_hash(struct r5conf *conf, sector_t sect)
 {
 	int hash = (sect >> RAID5_STRIPE_SHIFT(conf)) & HASH_MASK;
@@ -2499,15 +2501,12 @@ static int resize_chunks(struct r5conf *conf, int new_disks, int new_sectors)
 	unsigned long cpu;
 	int err = 0;
 
-	/*
-	 * Never shrink. And mddev_suspend() could deadlock if this is called
-	 * from raid5d. In that case, scribble_disks and scribble_sectors
-	 * should equal to new_disks and new_sectors
-	 */
+	/* Never shrink. */
 	if (conf->scribble_disks >= new_disks &&
 	    conf->scribble_sectors >= new_sectors)
 		return 0;
-	mddev_suspend(conf->mddev);
+
+	raid5_quiesce(conf->mddev, true);
 	cpus_read_lock();
 
 	for_each_present_cpu(cpu) {
@@ -2521,7 +2520,8 @@ static int resize_chunks(struct r5conf *conf, int new_disks, int new_sectors)
 	}
 
 	cpus_read_unlock();
-	mddev_resume(conf->mddev);
+	raid5_quiesce(conf->mddev, false);
+
 	if (!err) {
 		conf->scribble_disks = new_disks;
 		conf->scribble_sectors = new_sectors;
@@ -5960,19 +5960,6 @@ out:
 	return ret;
 }
 
-static bool reshape_inprogress(struct mddev *mddev)
-{
-	return test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) &&
-	       test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) &&
-	       !test_bit(MD_RECOVERY_DONE, &mddev->recovery) &&
-	       !test_bit(MD_RECOVERY_INTR, &mddev->recovery);
-}
-
-static bool reshape_disabled(struct mddev *mddev)
-{
-	return is_md_suspended(mddev) || !md_is_rdwr(mddev);
-}
-
 static enum stripe_result make_stripe_request(struct mddev *mddev,
 		struct r5conf *conf, struct stripe_request_ctx *ctx,
 		sector_t logical_sector, struct bio *bi)
@@ -6004,8 +5991,7 @@ static enum stripe_result make_stripe_request(struct mddev *mddev,
 			if (ahead_of_reshape(mddev, logical_sector,
 					     conf->reshape_safe)) {
 				spin_unlock_irq(&conf->device_lock);
-				ret = STRIPE_SCHEDULE_AND_RETRY;
-				goto out;
+				return STRIPE_SCHEDULE_AND_RETRY;
 			}
 		}
 		spin_unlock_irq(&conf->device_lock);
@@ -6084,15 +6070,6 @@ static enum stripe_result make_stripe_request(struct mddev *mddev,
 
 out_release:
 	raid5_release_stripe(sh);
-out:
-	if (ret == STRIPE_SCHEDULE_AND_RETRY && !reshape_inprogress(mddev) &&
-	    reshape_disabled(mddev)) {
-		bi->bi_status = BLK_STS_IOERR;
-		ret = STRIPE_FAIL;
-		pr_err("md/raid456:%s: io failed across reshape position while reshape can't make progress.\n",
-		       mdname(mddev));
-	}
-
 	return ret;
 }
 
@@ -7032,7 +7009,7 @@ raid5_store_stripe_size(struct mddev  *mddev, const char *page, size_t len)
 			new != roundup_pow_of_two(new))
 		return -EINVAL;
 
-	err = mddev_lock(mddev);
+	err = mddev_suspend_and_lock(mddev);
 	if (err)
 		return err;
 
@@ -7056,7 +7033,6 @@ raid5_store_stripe_size(struct mddev  *mddev, const char *page, size_t len)
 		goto out_unlock;
 	}
 
-	mddev_suspend(mddev);
 	mutex_lock(&conf->cache_size_mutex);
 	size = conf->max_nr_stripes;
 
@@ -7071,10 +7047,9 @@ raid5_store_stripe_size(struct mddev  *mddev, const char *page, size_t len)
 		err = -ENOMEM;
 	}
 	mutex_unlock(&conf->cache_size_mutex);
-	mddev_resume(mddev);
 
 out_unlock:
-	mddev_unlock(mddev);
+	mddev_unlock_and_resume(mddev);
 	return err ?: len;
 }
 
@@ -7160,7 +7135,7 @@ raid5_store_skip_copy(struct mddev *mddev, const char *page, size_t len)
 		return -EINVAL;
 	new = !!new;
 
-	err = mddev_lock(mddev);
+	err = mddev_suspend_and_lock(mddev);
 	if (err)
 		return err;
 	conf = mddev->private;
@@ -7169,15 +7144,13 @@ raid5_store_skip_copy(struct mddev *mddev, const char *page, size_t len)
 	else if (new != conf->skip_copy) {
 		struct request_queue *q = mddev->queue;
 
-		mddev_suspend(mddev);
 		conf->skip_copy = new;
 		if (new)
 			blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, q);
 		else
 			blk_queue_flag_clear(QUEUE_FLAG_STABLE_WRITES, q);
-		mddev_resume(mddev);
 	}
-	mddev_unlock(mddev);
+	mddev_unlock_and_resume(mddev);
 	return err ?: len;
 }
 
@@ -7232,15 +7205,13 @@ raid5_store_group_thread_cnt(struct mddev *mddev, const char *page, size_t len)
 	if (new > 8192)
 		return -EINVAL;
 
-	err = mddev_lock(mddev);
+	err = mddev_suspend_and_lock(mddev);
 	if (err)
 		return err;
 	conf = mddev->private;
 	if (!conf)
 		err = -ENODEV;
 	else if (new != conf->worker_cnt_per_group) {
-		mddev_suspend(mddev);
-
 		old_groups = conf->worker_groups;
 		if (old_groups)
 			flush_workqueue(raid5_wq);
@@ -7257,9 +7228,8 @@ raid5_store_group_thread_cnt(struct mddev *mddev, const char *page, size_t len)
 				kfree(old_groups[0].workers);
 			kfree(old_groups);
 		}
-		mddev_resume(mddev);
 	}
-	mddev_unlock(mddev);
+	mddev_unlock_and_resume(mddev);
 
 	return err ?: len;
 }
@@ -7784,9 +7754,6 @@ static int raid5_run(struct mddev *mddev)
 	int i;
 	long long min_offset_diff = 0;
 	int first = 1;
-
-	if (mddev_init_writes_pending(mddev) < 0)
-		return -ENOMEM;
 
 	if (mddev->recovery_cp != MaxSector)
 		pr_notice("md/raid:%s: not clean -- starting background reconstruction\n",
@@ -8568,8 +8535,8 @@ static int raid5_start_reshape(struct mddev *mddev)
 	 * the reshape wasn't running - like Discard or Read - have
 	 * completed.
 	 */
-	mddev_suspend(mddev);
-	mddev_resume(mddev);
+	raid5_quiesce(mddev, true);
+	raid5_quiesce(mddev, false);
 
 	/* Add some new drives, as many as will fit.
 	 * We know there are enough to make the newly sized array work.
@@ -8984,12 +8951,12 @@ static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
 	struct r5conf *conf;
 	int err;
 
-	err = mddev_lock(mddev);
+	err = mddev_suspend_and_lock(mddev);
 	if (err)
 		return err;
 	conf = mddev->private;
 	if (!conf) {
-		mddev_unlock(mddev);
+		mddev_unlock_and_resume(mddev);
 		return -ENODEV;
 	}
 
@@ -8999,19 +8966,14 @@ static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
 			err = log_init(conf, NULL, true);
 			if (!err) {
 				err = resize_stripes(conf, conf->pool_size);
-				if (err) {
-					mddev_suspend(mddev);
+				if (err)
 					log_exit(conf);
-					mddev_resume(mddev);
-				}
 			}
 		} else
 			err = -EINVAL;
 	} else if (strncmp(buf, "resync", 6) == 0) {
 		if (raid5_has_ppl(conf)) {
-			mddev_suspend(mddev);
 			log_exit(conf);
-			mddev_resume(mddev);
 			err = resize_stripes(conf, conf->pool_size);
 		} else if (test_bit(MD_HAS_JOURNAL, &conf->mddev->flags) &&
 			   r5l_log_disk_error(conf)) {
@@ -9024,11 +8986,9 @@ static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
 					break;
 				}
 
-			if (!journal_dev_exists) {
-				mddev_suspend(mddev);
+			if (!journal_dev_exists)
 				clear_bit(MD_HAS_JOURNAL, &mddev->flags);
-				mddev_resume(mddev);
-			} else  /* need remove journal device first */
+			else  /* need remove journal device first */
 				err = -EBUSY;
 		} else
 			err = -EINVAL;
@@ -9039,7 +8999,7 @@ static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
 	if (!err)
 		md_update_sb(mddev, 1);
 
-	mddev_unlock(mddev);
+	mddev_unlock_and_resume(mddev);
 
 	return err;
 }
@@ -9049,22 +9009,6 @@ static int raid5_start(struct mddev *mddev)
 	struct r5conf *conf = mddev->private;
 
 	return r5l_start(conf->log);
-}
-
-static void raid5_prepare_suspend(struct mddev *mddev)
-{
-	struct r5conf *conf = mddev->private;
-
-	wait_event(mddev->sb_wait, !reshape_inprogress(mddev) ||
-				    percpu_ref_is_zero(&mddev->active_io));
-	if (percpu_ref_is_zero(&mddev->active_io))
-		return;
-
-	/*
-	 * Reshape is not in progress, and array is suspended, io that is
-	 * waiting for reshpape can never be done.
-	 */
-	wake_up(&conf->wait_for_overlap);
 }
 
 static struct md_personality raid6_personality =
@@ -9087,7 +9031,6 @@ static struct md_personality raid6_personality =
 	.check_reshape	= raid6_check_reshape,
 	.start_reshape  = raid5_start_reshape,
 	.finish_reshape = raid5_finish_reshape,
-	.prepare_suspend = raid5_prepare_suspend,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid6_takeover,
 	.change_consistency_policy = raid5_change_consistency_policy,
@@ -9112,7 +9055,6 @@ static struct md_personality raid5_personality =
 	.check_reshape	= raid5_check_reshape,
 	.start_reshape  = raid5_start_reshape,
 	.finish_reshape = raid5_finish_reshape,
-	.prepare_suspend = raid5_prepare_suspend,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid5_takeover,
 	.change_consistency_policy = raid5_change_consistency_policy,
@@ -9138,7 +9080,6 @@ static struct md_personality raid4_personality =
 	.check_reshape	= raid5_check_reshape,
 	.start_reshape  = raid5_start_reshape,
 	.finish_reshape = raid5_finish_reshape,
-	.prepare_suspend = raid5_prepare_suspend,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid4_takeover,
 	.change_consistency_policy = raid5_change_consistency_policy,
