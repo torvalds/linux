@@ -1537,7 +1537,7 @@ static void rtw89_pci_release_tx_ring(struct rtw89_dev *rtwdev,
 	rtw89_pci_release_pending_txwd_skb(rtwdev, tx_ring);
 }
 
-static void rtw89_pci_ops_reset(struct rtw89_dev *rtwdev)
+void rtw89_pci_ops_reset(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 	const struct rtw89_pci_info *info = rtwdev->pci_info;

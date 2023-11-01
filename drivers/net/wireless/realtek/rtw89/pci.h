@@ -245,6 +245,51 @@
 #define B_AX_HS1ISR_IND_INT BIT(25)
 #define B_AX_PCIE_DBG_STE_INT BIT(13)
 
+#define R_BE_PCIE_FRZ_CLK 0x3004
+#define B_BE_PCIE_FRZ_MAC_HW_RST BIT(31)
+#define B_BE_PCIE_FRZ_CFG_SPC_RST BIT(30)
+#define B_BE_PCIE_FRZ_ELBI_RST BIT(29)
+#define B_BE_PCIE_MAC_IS_ACTIVE BIT(28)
+#define B_BE_PCIE_FRZ_RTK_HW_RST BIT(27)
+#define B_BE_PCIE_FRZ_REG_RST BIT(26)
+#define B_BE_PCIE_FRZ_ANA_RST BIT(25)
+#define B_BE_PCIE_FRZ_WLAN_RST BIT(24)
+#define B_BE_PCIE_FRZ_FLR_RST BIT(23)
+#define B_BE_PCIE_FRZ_RET_NON_STKY_RST BIT(22)
+#define B_BE_PCIE_FRZ_RET_STKY_RST BIT(21)
+#define B_BE_PCIE_FRZ_NON_STKY_RST BIT(20)
+#define B_BE_PCIE_FRZ_STKY_RST BIT(19)
+#define B_BE_PCIE_FRZ_RET_CORE_RST BIT(18)
+#define B_BE_PCIE_FRZ_PWR_RST BIT(17)
+#define B_BE_PCIE_FRZ_PERST_RST BIT(16)
+#define B_BE_PCIE_FRZ_PHY_ALOAD BIT(15)
+#define B_BE_PCIE_FRZ_PHY_HW_RST BIT(14)
+#define B_BE_PCIE_DBG_CLK BIT(4)
+#define B_BE_PCIE_EN_CLK BIT(3)
+#define B_BE_PCIE_DBI_ACLK_ACT BIT(2)
+#define B_BE_PCIE_S1_ACLK_ACT BIT(1)
+#define B_BE_PCIE_EN_AUX_CLK BIT(0)
+
+#define R_BE_PCIE_PS_CTRL 0x3008
+#define B_BE_RSM_L0S_EN BIT(8)
+#define B_BE_CMAC_EXIT_L1_EN BIT(7)
+#define B_BE_DMAC0_EXIT_L1_EN BIT(6)
+#define B_BE_FORCE_L0 BIT(5)
+#define B_BE_DBI_RO_WR_DISABLE BIT(4)
+#define B_BE_SEL_XFER_PENDING BIT(3)
+#define B_BE_SEL_REQ_ENTR_L1 BIT(2)
+#define B_BE_PCIE_EN_SWENT_L23 BIT(1)
+#define B_BE_SEL_REQ_EXIT_L1 BIT(0)
+
+#define R_BE_PCIE_LAT_CTRL 0x3044
+#define B_BE_ELBI_PHY_REMAP_MASK GENMASK(29, 24)
+#define B_BE_SYS_SUS_L12_EN BIT(17)
+#define B_BE_MDIO_S_EN BIT(16)
+#define B_BE_SYM_AUX_CLK_SEL BIT(15)
+#define B_BE_RTK_LDO_POWER_LATENCY_MASK GENMASK(11, 10)
+#define B_BE_RTK_LDO_BIAS_LATENCY_MASK GENMASK(9, 8)
+#define B_BE_CLK_REQ_LAT_MASK GENMASK(7, 4)
+
 /* TX/RX */
 #define R_AX_DRV_FW_HSK_0	0x01B0
 #define R_AX_DRV_FW_HSK_1	0x01B4
@@ -655,6 +700,31 @@
 
 #define R_BE_PCIE_HRPWM 0x30C0
 #define R_BE_PCIE_CRPWM 0x30C4
+
+#define R_BE_L1_2_CTRL_HCILDO 0x3110
+#define B_BE_PCIE_DIS_L1_2_CTRL_HCILDO BIT(0)
+
+#define R_BE_PL1_DBG_INFO 0x3120
+#define B_BE_END_PL1_CNT_MASK GENMASK(23, 16)
+#define B_BE_START_PL1_CNT_MASK GENMASK(7, 0)
+
+#define R_BE_SER_PL1_CTRL 0x34A8
+#define B_BE_PL1_SER_PL1_EN BIT(31)
+#define B_BE_PL1_IGNORE_HOT_RST BIT(30)
+#define B_BE_PL1_TIMER_UNIT_MASK GENMASK(19, 17)
+#define B_BE_PL1_TIMER_CLEAR BIT(0)
+
+#define R_BE_REG_PL1_MASK 0x34B0
+#define B_BE_SER_PCLKREQ_ACK_MASK BIT(5)
+#define B_BE_SER_PM_CLK_MASK BIT(4)
+#define B_BE_SER_LTSSM_IMR BIT(3)
+#define B_BE_SER_PM_MASTER_IMR BIT(2)
+#define B_BE_SER_L1SUB_IMR BIT(1)
+#define B_BE_SER_PMU_IMR BIT(0)
+
+#define R_BE_RX_APPEND_MODE 0x8920
+#define B_BE_APPEND_OFFSET_MASK GENMASK(23, 16)
+#define B_BE_APPEND_LEN_MASK GENMASK(15, 0)
 
 #define R_BE_TXBD_RWPTR_CLR1 0xB014
 #define B_BE_CLR_CH14_IDX BIT(14)
@@ -1244,6 +1314,7 @@ struct pci_device_id;
 
 int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 void rtw89_pci_remove(struct pci_dev *pdev);
+void rtw89_pci_ops_reset(struct rtw89_dev *rtwdev);
 int rtw89_pci_ltr_set(struct rtw89_dev *rtwdev, bool en);
 int rtw89_pci_ltr_set_v1(struct rtw89_dev *rtwdev, bool en);
 u32 rtw89_pci_fill_txaddr_info(struct rtw89_dev *rtwdev,
