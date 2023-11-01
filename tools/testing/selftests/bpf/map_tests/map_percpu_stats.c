@@ -141,6 +141,7 @@ struct upsert_opts {
 	__u32 map_type;
 	int map_fd;
 	__u32 n;
+	bool retry_for_nomem;
 };
 
 static int create_small_hash(void)
@@ -152,6 +153,11 @@ static int create_small_hash(void)
 			strerror(errno), "small");
 
 	return map_fd;
+}
+
+static bool retry_for_nomem_fn(int err)
+{
+	return err == ENOMEM;
 }
 
 static void *patch_map_thread(void *arg)
@@ -175,7 +181,12 @@ static void *patch_map_thread(void *arg)
 			val_ptr = &val;
 		}
 
-		ret = bpf_map_update_elem(opts->map_fd, &i, val_ptr, 0);
+		/* 2 seconds may be enough ? */
+		if (opts->retry_for_nomem)
+			ret = map_update_retriable(opts->map_fd, &i, val_ptr, 0,
+						   40, retry_for_nomem_fn);
+		else
+			ret = bpf_map_update_elem(opts->map_fd, &i, val_ptr, 0);
 		CHECK(ret < 0, "bpf_map_update_elem", "key=%d error: %s\n", i, strerror(errno));
 
 		if (opts->map_type == BPF_MAP_TYPE_HASH_OF_MAPS)
@@ -295,6 +306,13 @@ static void __test(int map_fd)
 		opts.n -= 512;
 	else
 		opts.n /= 2;
+
+	/* per-cpu bpf memory allocator may not be able to allocate per-cpu
+	 * pointer successfully and it can not refill free llist timely, and
+	 * bpf_map_update_elem() will return -ENOMEM. so just retry to mitigate
+	 * the problem temporarily.
+	 */
+	opts.retry_for_nomem = is_percpu(opts.map_type) && (info.map_flags & BPF_F_NO_PREALLOC);
 
 	/*
 	 * Upsert keys [0, n) under some competition: with random values from
