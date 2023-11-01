@@ -310,6 +310,15 @@ struct xe_device {
 		enum xe_sriov_mode __mode;
 	} sriov;
 
+	/** @clients: drm clients info */
+	struct {
+		/** @lock: Protects drm clients info */
+		spinlock_t lock;
+
+		/** @count: number of drm clients */
+		u64 count;
+	} clients;
+
 	/** @usm: unified memory state */
 	struct {
 		/** @asid: convert a ASID to VM */

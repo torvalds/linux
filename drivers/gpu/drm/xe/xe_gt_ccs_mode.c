@@ -105,6 +105,7 @@ ccs_mode_store(struct device *kdev, struct device_attribute *attr,
 	       const char *buff, size_t count)
 {
 	struct xe_gt *gt = kobj_to_gt(&kdev->kobj);
+	struct xe_device *xe = gt_to_xe(gt);
 	u32 num_engines, num_slices;
 	int ret;
 
@@ -123,11 +124,20 @@ ccs_mode_store(struct device *kdev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 
+	/* CCS mode can only be updated when there are no drm clients */
+	spin_lock(&xe->clients.lock);
+	if (xe->clients.count) {
+		spin_unlock(&xe->clients.lock);
+		return -EBUSY;
+	}
+
 	if (gt->ccs_mode != num_engines) {
 		xe_gt_info(gt, "Setting compute mode to %d\n", num_engines);
 		gt->ccs_mode = num_engines;
 		xe_gt_reset_async(gt);
 	}
+
+	spin_unlock(&xe->clients.lock);
 
 	return count;
 }
