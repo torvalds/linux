@@ -245,26 +245,7 @@ do {									\
 #define prt_bitflags(...)		bch2_prt_bitflags(__VA_ARGS__)
 
 void bch2_pr_time_units(struct printbuf *, u64);
-
-#ifdef __KERNEL__
-static inline void pr_time(struct printbuf *out, u64 time)
-{
-	prt_printf(out, "%llu", time);
-}
-#else
-#include <time.h>
-static inline void pr_time(struct printbuf *out, u64 _time)
-{
-	char time_str[64];
-	time_t time = _time;
-	struct tm *tm = localtime(&time);
-	size_t err = strftime(time_str, sizeof(time_str), "%c", tm);
-	if (!err)
-		prt_printf(out, "(formatting error)");
-	else
-		prt_printf(out, "%s", time_str);
-}
-#endif
+void bch2_prt_datetime(struct printbuf *, time64_t);
 
 #ifdef __KERNEL__
 static inline void uuid_unparse_lower(u8 *uuid, char *out)

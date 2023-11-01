@@ -61,7 +61,6 @@ static void bch2_sb_errors_to_text(struct printbuf *out, struct bch_sb *sb,
 {
 	struct bch_sb_field_errors *e = field_to_type(f, errors);
 	unsigned i, nr = bch2_sb_field_errors_nr_entries(e);
-	u64 now = ktime_get_real_seconds();
 
 	if (out->nr_tabstops <= 1)
 		printbuf_tabstop_push(out, 16);
@@ -71,9 +70,7 @@ static void bch2_sb_errors_to_text(struct printbuf *out, struct bch_sb *sb,
 		prt_tab(out);
 		prt_u64(out, BCH_SB_ERROR_ENTRY_NR(&e->entries[i]));
 		prt_tab(out);
-		bch2_pr_time_units(out, (now - le64_to_cpu(e->entries[i].last_error_time)) *
-				   NSEC_PER_SEC);
-		prt_str(out, " ago");
+		bch2_prt_datetime(out, le64_to_cpu(e->entries[i].last_error_time));
 		prt_newline(out);
 	}
 }

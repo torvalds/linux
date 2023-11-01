@@ -235,7 +235,7 @@ static void member_to_text(struct printbuf *out,
 	prt_printf(out, "Last mount:");
 	prt_tab(out);
 	if (m.last_mount)
-		pr_time(out, le64_to_cpu(m.last_mount));
+		bch2_prt_datetime(out, le64_to_cpu(m.last_mount));
 	else
 		prt_printf(out, "(never)");
 	prt_newline(out);
