@@ -557,162 +557,6 @@ static inline void mas_reset(struct ma_state *mas)
  */
 #define mas_for_each(__mas, __entry, __max) \
 	while (((__entry) = mas_find((__mas), (__max))) != NULL)
-/**
- * __mas_set_range() - Set up Maple Tree operation state to a sub-range of the
- * current location.
- * @mas: Maple Tree operation state.
- * @start: New start of range in the Maple Tree.
- * @last: New end of range in the Maple Tree.
- *
- * set the internal maple state values to a sub-range.
- * Please use mas_set_range() if you do not know where you are in the tree.
- */
-static inline void __mas_set_range(struct ma_state *mas, unsigned long start,
-		unsigned long last)
-{
-	mas->index = start;
-	mas->last = last;
-}
-
-/**
- * mas_set_range() - Set up Maple Tree operation state for a different index.
- * @mas: Maple Tree operation state.
- * @start: New start of range in the Maple Tree.
- * @last: New end of range in the Maple Tree.
- *
- * Move the operation state to refer to a different range.  This will
- * have the effect of starting a walk from the top; see mas_next()
- * to move to an adjacent index.
- */
-static inline
-void mas_set_range(struct ma_state *mas, unsigned long start, unsigned long last)
-{
-	__mas_set_range(mas, start, last);
-	mas->node = MAS_START;
-}
-
-/**
- * mas_set() - Set up Maple Tree operation state for a different index.
- * @mas: Maple Tree operation state.
- * @index: New index into the Maple Tree.
- *
- * Move the operation state to refer to a different index.  This will
- * have the effect of starting a walk from the top; see mas_next()
- * to move to an adjacent index.
- */
-static inline void mas_set(struct ma_state *mas, unsigned long index)
-{
-
-	mas_set_range(mas, index, index);
-}
-
-static inline bool mt_external_lock(const struct maple_tree *mt)
-{
-	return (mt->ma_flags & MT_FLAGS_LOCK_MASK) == MT_FLAGS_LOCK_EXTERN;
-}
-
-/**
- * mt_init_flags() - Initialise an empty maple tree with flags.
- * @mt: Maple Tree
- * @flags: maple tree flags.
- *
- * If you need to initialise a Maple Tree with special flags (eg, an
- * allocation tree), use this function.
- *
- * Context: Any context.
- */
-static inline void mt_init_flags(struct maple_tree *mt, unsigned int flags)
-{
-	mt->ma_flags = flags;
-	if (!mt_external_lock(mt))
-		spin_lock_init(&mt->ma_lock);
-	rcu_assign_pointer(mt->ma_root, NULL);
-}
-
-/**
- * mt_init() - Initialise an empty maple tree.
- * @mt: Maple Tree
- *
- * An empty Maple Tree.
- *
- * Context: Any context.
- */
-static inline void mt_init(struct maple_tree *mt)
-{
-	mt_init_flags(mt, 0);
-}
-
-static inline bool mt_in_rcu(struct maple_tree *mt)
-{
-#ifdef CONFIG_MAPLE_RCU_DISABLED
-	return false;
-#endif
-	return mt->ma_flags & MT_FLAGS_USE_RCU;
-}
-
-/**
- * mt_clear_in_rcu() - Switch the tree to non-RCU mode.
- * @mt: The Maple Tree
- */
-static inline void mt_clear_in_rcu(struct maple_tree *mt)
-{
-	if (!mt_in_rcu(mt))
-		return;
-
-	if (mt_external_lock(mt)) {
-		WARN_ON(!mt_lock_is_held(mt));
-		mt->ma_flags &= ~MT_FLAGS_USE_RCU;
-	} else {
-		mtree_lock(mt);
-		mt->ma_flags &= ~MT_FLAGS_USE_RCU;
-		mtree_unlock(mt);
-	}
-}
-
-/**
- * mt_set_in_rcu() - Switch the tree to RCU safe mode.
- * @mt: The Maple Tree
- */
-static inline void mt_set_in_rcu(struct maple_tree *mt)
-{
-	if (mt_in_rcu(mt))
-		return;
-
-	if (mt_external_lock(mt)) {
-		WARN_ON(!mt_lock_is_held(mt));
-		mt->ma_flags |= MT_FLAGS_USE_RCU;
-	} else {
-		mtree_lock(mt);
-		mt->ma_flags |= MT_FLAGS_USE_RCU;
-		mtree_unlock(mt);
-	}
-}
-
-static inline unsigned int mt_height(const struct maple_tree *mt)
-{
-	return (mt->ma_flags & MT_FLAGS_HEIGHT_MASK) >> MT_FLAGS_HEIGHT_OFFSET;
-}
-
-void *mt_find(struct maple_tree *mt, unsigned long *index, unsigned long max);
-void *mt_find_after(struct maple_tree *mt, unsigned long *index,
-		    unsigned long max);
-void *mt_prev(struct maple_tree *mt, unsigned long index,  unsigned long min);
-void *mt_next(struct maple_tree *mt, unsigned long index, unsigned long max);
-
-/**
- * mt_for_each - Iterate over each entry starting at index until max.
- * @__tree: The Maple Tree
- * @__entry: The current entry
- * @__index: The index to start the search from. Subsequently used as iterator.
- * @__max: The maximum limit for @index
- *
- * This iterator skips all entries, which resolve to a NULL pointer,
- * e.g. entries which has been reserved with XA_ZERO_ENTRY.
- */
-#define mt_for_each(__tree, __entry, __index, __max) \
-	for (__entry = mt_find(__tree, &(__index), __max); \
-		__entry; __entry = mt_find_after(__tree, &(__index), __max))
-
 
 #ifdef CONFIG_DEBUG_MAPLE_TREE
 enum mt_dump_format {
@@ -837,5 +681,164 @@ void mt_cache_shrink(void);
 #define MAS_WARN_ON(__mas, __x)		WARN_ON(__x)
 #define MAS_WR_WARN_ON(__mas, __x)	WARN_ON(__x)
 #endif /* CONFIG_DEBUG_MAPLE_TREE */
+
+/**
+ * __mas_set_range() - Set up Maple Tree operation state to a sub-range of the
+ * current location.
+ * @mas: Maple Tree operation state.
+ * @start: New start of range in the Maple Tree.
+ * @last: New end of range in the Maple Tree.
+ *
+ * set the internal maple state values to a sub-range.
+ * Please use mas_set_range() if you do not know where you are in the tree.
+ */
+static inline void __mas_set_range(struct ma_state *mas, unsigned long start,
+		unsigned long last)
+{
+	/* Ensure the range starts within the current slot */
+	MAS_WARN_ON(mas, mas_is_active(mas) &&
+		   (mas->index > start || mas->last < start));
+	mas->index = start;
+	mas->last = last;
+}
+
+/**
+ * mas_set_range() - Set up Maple Tree operation state for a different index.
+ * @mas: Maple Tree operation state.
+ * @start: New start of range in the Maple Tree.
+ * @last: New end of range in the Maple Tree.
+ *
+ * Move the operation state to refer to a different range.  This will
+ * have the effect of starting a walk from the top; see mas_next()
+ * to move to an adjacent index.
+ */
+static inline
+void mas_set_range(struct ma_state *mas, unsigned long start, unsigned long last)
+{
+	mas->node = MAS_START;
+	__mas_set_range(mas, start, last);
+}
+
+/**
+ * mas_set() - Set up Maple Tree operation state for a different index.
+ * @mas: Maple Tree operation state.
+ * @index: New index into the Maple Tree.
+ *
+ * Move the operation state to refer to a different index.  This will
+ * have the effect of starting a walk from the top; see mas_next()
+ * to move to an adjacent index.
+ */
+static inline void mas_set(struct ma_state *mas, unsigned long index)
+{
+
+	mas_set_range(mas, index, index);
+}
+
+static inline bool mt_external_lock(const struct maple_tree *mt)
+{
+	return (mt->ma_flags & MT_FLAGS_LOCK_MASK) == MT_FLAGS_LOCK_EXTERN;
+}
+
+/**
+ * mt_init_flags() - Initialise an empty maple tree with flags.
+ * @mt: Maple Tree
+ * @flags: maple tree flags.
+ *
+ * If you need to initialise a Maple Tree with special flags (eg, an
+ * allocation tree), use this function.
+ *
+ * Context: Any context.
+ */
+static inline void mt_init_flags(struct maple_tree *mt, unsigned int flags)
+{
+	mt->ma_flags = flags;
+	if (!mt_external_lock(mt))
+		spin_lock_init(&mt->ma_lock);
+	rcu_assign_pointer(mt->ma_root, NULL);
+}
+
+/**
+ * mt_init() - Initialise an empty maple tree.
+ * @mt: Maple Tree
+ *
+ * An empty Maple Tree.
+ *
+ * Context: Any context.
+ */
+static inline void mt_init(struct maple_tree *mt)
+{
+	mt_init_flags(mt, 0);
+}
+
+static inline bool mt_in_rcu(struct maple_tree *mt)
+{
+#ifdef CONFIG_MAPLE_RCU_DISABLED
+	return false;
+#endif
+	return mt->ma_flags & MT_FLAGS_USE_RCU;
+}
+
+/**
+ * mt_clear_in_rcu() - Switch the tree to non-RCU mode.
+ * @mt: The Maple Tree
+ */
+static inline void mt_clear_in_rcu(struct maple_tree *mt)
+{
+	if (!mt_in_rcu(mt))
+		return;
+
+	if (mt_external_lock(mt)) {
+		WARN_ON(!mt_lock_is_held(mt));
+		mt->ma_flags &= ~MT_FLAGS_USE_RCU;
+	} else {
+		mtree_lock(mt);
+		mt->ma_flags &= ~MT_FLAGS_USE_RCU;
+		mtree_unlock(mt);
+	}
+}
+
+/**
+ * mt_set_in_rcu() - Switch the tree to RCU safe mode.
+ * @mt: The Maple Tree
+ */
+static inline void mt_set_in_rcu(struct maple_tree *mt)
+{
+	if (mt_in_rcu(mt))
+		return;
+
+	if (mt_external_lock(mt)) {
+		WARN_ON(!mt_lock_is_held(mt));
+		mt->ma_flags |= MT_FLAGS_USE_RCU;
+	} else {
+		mtree_lock(mt);
+		mt->ma_flags |= MT_FLAGS_USE_RCU;
+		mtree_unlock(mt);
+	}
+}
+
+static inline unsigned int mt_height(const struct maple_tree *mt)
+{
+	return (mt->ma_flags & MT_FLAGS_HEIGHT_MASK) >> MT_FLAGS_HEIGHT_OFFSET;
+}
+
+void *mt_find(struct maple_tree *mt, unsigned long *index, unsigned long max);
+void *mt_find_after(struct maple_tree *mt, unsigned long *index,
+		    unsigned long max);
+void *mt_prev(struct maple_tree *mt, unsigned long index,  unsigned long min);
+void *mt_next(struct maple_tree *mt, unsigned long index, unsigned long max);
+
+/**
+ * mt_for_each - Iterate over each entry starting at index until max.
+ * @__tree: The Maple Tree
+ * @__entry: The current entry
+ * @__index: The index to start the search from. Subsequently used as iterator.
+ * @__max: The maximum limit for @index
+ *
+ * This iterator skips all entries, which resolve to a NULL pointer,
+ * e.g. entries which has been reserved with XA_ZERO_ENTRY.
+ */
+#define mt_for_each(__tree, __entry, __index, __max) \
+	for (__entry = mt_find(__tree, &(__index), __max); \
+		__entry; __entry = mt_find_after(__tree, &(__index), __max))
 
 #endif /*_LINUX_MAPLE_TREE_H */
