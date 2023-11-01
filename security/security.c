@@ -4011,14 +4011,9 @@ int security_setselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
 	if (size > PAGE_SIZE)
 		return -E2BIG;
 
-	lctx = kmalloc(size, GFP_KERNEL);
-	if (lctx == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(lctx, uctx, size)) {
-		rc = -EFAULT;
-		goto free_out;
-	}
+	lctx = memdup_user(uctx, size);
+	if (IS_ERR(lctx))
+		return PTR_ERR(lctx);
 
 	if (size < lctx->len || size < lctx->ctx_len + sizeof(*lctx) ||
 	    lctx->len < lctx->ctx_len + sizeof(*lctx)) {
