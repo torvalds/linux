@@ -208,6 +208,7 @@ int seq_buf_putc(struct seq_buf *s, unsigned char c)
 	seq_buf_set_overflow(s);
 	return -1;
 }
+EXPORT_SYMBOL_GPL(seq_buf_putc);
 
 /**
  * seq_buf_putmem - write raw data into the sequenc buffer
