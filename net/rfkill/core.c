@@ -1351,11 +1351,11 @@ static long rfkill_fop_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
 	struct rfkill_data *data = file->private_data;
-	int ret = -ENOSYS;
+	int ret = -ENOTTY;
 	u32 size;
 
 	if (_IOC_TYPE(cmd) != RFKILL_IOC_MAGIC)
-		return -ENOSYS;
+		return -ENOTTY;
 
 	mutex_lock(&data->mtx);
 	switch (_IOC_NR(cmd)) {
