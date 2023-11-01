@@ -69,8 +69,14 @@ static inline int __darray_make_room(darray_void *d, size_t t_size, size_t more,
 	_ret;								\
 })
 
+#define darray_remove_item(_d, _pos)					\
+	array_remove_item((_d)->data, (_d)->nr, (_pos) - (_d)->data)
+
 #define darray_for_each(_d, _i)						\
 	for (_i = (_d).data; _i < (_d).data + (_d).nr; _i++)
+
+#define darray_for_each_reverse(_d, _i)					\
+	for (_i = (_d).data + (_d).nr - 1; _i >= (_d).data; --_i)
 
 #define darray_init(_d)							\
 do {									\

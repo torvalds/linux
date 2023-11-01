@@ -1885,9 +1885,9 @@ found:
 struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 			    struct bch_opts opts)
 {
-	struct bch_sb_handle *sb = NULL;
+	DARRAY(struct bch_sb_handle) sbs = { 0 };
 	struct bch_fs *c = NULL;
-	unsigned i, best_sb = 0;
+	struct bch_sb_handle *sb, *best = NULL;
 	struct printbuf errbuf = PRINTBUF;
 	int ret = 0;
 
@@ -1899,49 +1899,46 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 		goto err;
 	}
 
-	sb = kcalloc(nr_devices, sizeof(*sb), GFP_KERNEL);
-	if (!sb) {
-		ret = -ENOMEM;
+	ret = darray_make_room(&sbs, nr_devices);
+	if (ret)
 		goto err;
-	}
 
-	for (i = 0; i < nr_devices; i++) {
-		ret = bch2_read_super(devices[i], &opts, &sb[i]);
+	for (unsigned i = 0; i < nr_devices; i++) {
+		struct bch_sb_handle sb = { NULL };
+
+		ret = bch2_read_super(devices[i], &opts, &sb);
 		if (ret)
 			goto err;
 
+		BUG_ON(darray_push(&sbs, sb));
 	}
 
-	for (i = 1; i < nr_devices; i++)
-		if (le64_to_cpu(sb[i].sb->seq) >
-		    le64_to_cpu(sb[best_sb].sb->seq))
-			best_sb = i;
+	darray_for_each(sbs, sb)
+		if (!best || le64_to_cpu(sb->sb->seq) > le64_to_cpu(best->sb->seq))
+			best = sb;
 
-	i = 0;
-	while (i < nr_devices) {
-		if (i != best_sb &&
-		    !bch2_dev_exists(sb[best_sb].sb, sb[i].sb->dev_idx)) {
-			pr_info("%pg has been removed, skipping", sb[i].bdev);
-			bch2_free_super(&sb[i]);
-			array_remove_item(sb, nr_devices, i);
+	darray_for_each_reverse(sbs, sb) {
+		if (sb != best && !bch2_dev_exists(best->sb, sb->sb->dev_idx)) {
+			pr_info("%pg has been removed, skipping", sb->bdev);
+			bch2_free_super(sb);
+			darray_remove_item(&sbs, sb);
+			best -= best > sb;
 			continue;
 		}
 
-		ret = bch2_dev_in_fs(sb[best_sb].sb, sb[i].sb);
+		ret = bch2_dev_in_fs(best->sb, sb->sb);
 		if (ret)
 			goto err_print;
-		i++;
 	}
 
-	c = bch2_fs_alloc(sb[best_sb].sb, opts);
-	if (IS_ERR(c)) {
-		ret = PTR_ERR(c);
+	c = bch2_fs_alloc(best->sb, opts);
+	ret = PTR_ERR_OR_ZERO(c);
+	if (ret)
 		goto err;
-	}
 
 	down_write(&c->state_lock);
-	for (i = 0; i < nr_devices; i++) {
-		ret = bch2_dev_attach_bdev(c, &sb[i]);
+	darray_for_each(sbs, sb) {
+		ret = bch2_dev_attach_bdev(c, sb);
 		if (ret) {
 			up_write(&c->state_lock);
 			goto err;
@@ -1960,7 +1957,9 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 			goto err;
 	}
 out:
-	kfree(sb);
+	darray_for_each(sbs, sb)
+		bch2_free_super(sb);
+	darray_exit(&sbs);
 	printbuf_exit(&errbuf);
 	module_put(THIS_MODULE);
 	return c;
@@ -1970,9 +1969,6 @@ err_print:
 err:
 	if (!IS_ERR_OR_NULL(c))
 		bch2_fs_stop(c);
-	if (sb)
-		for (i = 0; i < nr_devices; i++)
-			bch2_free_super(&sb[i]);
 	c = ERR_PTR(ret);
 	goto out;
 }
