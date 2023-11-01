@@ -546,7 +546,7 @@ static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 		return IRQ_HANDLED;
 	}
 	sch = phys_to_virt(tpi_info->intparm);
-	spin_lock(sch->lock);
+	spin_lock(&sch->lock);
 	/* Store interrupt response block to lowcore. */
 	if (tsch(tpi_info->schid, irb) == 0) {
 		/* Keep subchannel information word up to date. */
@@ -558,7 +558,7 @@ static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 			inc_irq_stat(IRQIO_CIO);
 	} else
 		inc_irq_stat(IRQIO_CIO);
-	spin_unlock(sch->lock);
+	spin_unlock(&sch->lock);
 
 	return IRQ_HANDLED;
 }
@@ -663,7 +663,7 @@ struct subchannel *cio_probe_console(void)
 	if (IS_ERR(sch))
 		return sch;
 
-	lockdep_set_class(sch->lock, &console_sch_key);
+	lockdep_set_class(&sch->lock, &console_sch_key);
 	isc_register(CONSOLE_ISC);
 	sch->config.isc = CONSOLE_ISC;
 	sch->config.intparm = (u32)virt_to_phys(sch);
