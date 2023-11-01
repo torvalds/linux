@@ -892,6 +892,8 @@ __bpf_kfunc void bpf_iter_task_vma_destroy(struct bpf_iter_task_vma *it)
 
 __diag_pop();
 
+#ifdef CONFIG_CGROUPS
+
 struct bpf_iter_css_task {
 	__u64 __opaque[1];
 } __attribute__((aligned(8)));
@@ -949,6 +951,8 @@ __bpf_kfunc void bpf_iter_css_task_destroy(struct bpf_iter_css_task *it)
 }
 
 __diag_pop();
+
+#endif /* CONFIG_CGROUPS */
 
 struct bpf_iter_task {
 	__u64 __opaque[3];
