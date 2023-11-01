@@ -19,6 +19,8 @@
 	thunder_boot_mmc: thunder-boot-mmc {
 		compatible = "rockchip,thunder-boot-mmc";
 		reg = <0xffa90000 0x4000>;
+		clocks = <&cru HCLK_EMMC>, <&cru CCLK_SRC_EMMC>;
+		clock-names = "biu", "ciu";
 		memory-region-src = <&ramdisk_c>;
 		memory-region-dst = <&ramdisk_r>;
 		memory-region-idmac = <&mmc_idmac>;
