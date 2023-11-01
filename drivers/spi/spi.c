@@ -2093,10 +2093,6 @@ static int spi_stop_queue(struct spi_controller *ctlr)
 
 	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
 
-	if (ret) {
-		dev_warn(&ctlr->dev, "could not stop message queue\n");
-		return ret;
-	}
 	return ret;
 }
 
@@ -2526,8 +2522,6 @@ static void acpi_spi_parse_apple_properties(struct acpi_device *dev,
 	    && obj->buffer.length == 8 &&  *(u64 *)obj->buffer.pointer)
 		lookup->mode |= SPI_CPHA;
 }
-
-static struct spi_controller *acpi_spi_find_controller_by_adev(struct acpi_device *adev);
 
 static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 {
@@ -4523,7 +4517,7 @@ static int spi_acpi_controller_match(struct device *dev, const void *data)
 	return ACPI_COMPANION(dev->parent) == data;
 }
 
-static struct spi_controller *acpi_spi_find_controller_by_adev(struct acpi_device *adev)
+struct spi_controller *acpi_spi_find_controller_by_adev(struct acpi_device *adev)
 {
 	struct device *dev;
 
@@ -4537,6 +4531,7 @@ static struct spi_controller *acpi_spi_find_controller_by_adev(struct acpi_devic
 
 	return container_of(dev, struct spi_controller, dev);
 }
+EXPORT_SYMBOL_GPL(acpi_spi_find_controller_by_adev);
 
 static struct spi_device *acpi_spi_find_device_by_adev(struct acpi_device *adev)
 {

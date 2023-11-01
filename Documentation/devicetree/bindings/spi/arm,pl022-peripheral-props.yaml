@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/arm,pl022-peripheral-props.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Peripheral-specific properties for Arm PL022 SPI controller
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+select: false
+
+properties:
+  pl022,interface:
+    description: SPI interface type
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0      # SPI
+      - 1      # Texas Instruments Synchronous Serial Frame Format
+      - 2      # Microwire (Half Duplex)
+
+  pl022,com-mode:
+    description: Specifies the transfer mode
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0      # interrupt mode
+      - 1      # polling mode
+      - 2      # DMA mode
+    default: 1
+
+  pl022,rx-level-trig:
+    description: Rx FIFO watermark level
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 4
+
+  pl022,tx-level-trig:
+    description: Tx FIFO watermark level
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 4
+
+  pl022,ctrl-len:
+    description: Microwire interface - Control length
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0x03
+    maximum: 0x1f
+
+  pl022,wait-state:
+    description: Microwire interface - Wait state
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+
+  pl022,duplex:
+    description: Microwire interface - Full/Half duplex
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+
+additionalProperties: true
+...
