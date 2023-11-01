@@ -245,7 +245,7 @@ static bool update_trip_devices(struct acpi_thermal *tz,
 				struct acpi_thermal_trip *acpi_trip,
 				int index, bool compare)
 {
-	struct acpi_handle_list devices;
+	struct acpi_handle_list devices = { 0 };
 	char method[] = "_PSL";
 	acpi_status status;
 
@@ -255,18 +255,21 @@ static bool update_trip_devices(struct acpi_thermal *tz,
 		method[3] = '0' + index;
 	}
 
-	memset(&devices, 0, sizeof(devices));
-
 	status = acpi_evaluate_reference(tz->device->handle, method, NULL, &devices);
 	if (ACPI_FAILURE(status)) {
 		acpi_handle_info(tz->device->handle, "%s evaluation failure\n", method);
 		return false;
 	}
 
-	if (compare && memcmp(&acpi_trip->devices, &devices, sizeof(devices)))
+	if (acpi_handle_list_equal(&acpi_trip->devices, &devices)) {
+		acpi_handle_list_free(&devices);
+		return true;
+	}
+
+	if (compare)
 		ACPI_THERMAL_TRIPS_EXCEPTION(tz, "device");
 
-	memcpy(&acpi_trip->devices, &devices, sizeof(devices));
+	acpi_handle_list_replace(&acpi_trip->devices, &devices);
 	return true;
 }
 
@@ -808,6 +811,17 @@ static void acpi_thermal_check_fn(struct work_struct *work)
 	mutex_unlock(&tz->thermal_check_lock);
 }
 
+static void acpi_thermal_free_thermal_zone(struct acpi_thermal *tz)
+{
+	int i;
+
+	acpi_handle_list_free(&tz->trips.passive.trip.devices);
+	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++)
+		acpi_handle_list_free(&tz->trips.active[i].trip.devices);
+
+	kfree(tz);
+}
+
 static int acpi_thermal_add(struct acpi_device *device)
 {
 	struct acpi_thermal_trip *acpi_trip;
@@ -922,7 +936,7 @@ static int acpi_thermal_add(struct acpi_device *device)
 		acpi_device_bid(device), deci_kelvin_to_celsius(tz->temp_dk));
 
 	result = acpi_dev_install_notify_handler(device, ACPI_DEVICE_NOTIFY,
-						 acpi_thermal_notify);
+						 acpi_thermal_notify, device);
 	if (result)
 		goto flush_wq;
 
@@ -934,7 +948,7 @@ flush_wq:
 free_trips:
 	kfree(tz->trip_table);
 free_memory:
-	kfree(tz);
+	acpi_thermal_free_thermal_zone(tz);
 
 	return result;
 }
@@ -954,7 +968,7 @@ static void acpi_thermal_remove(struct acpi_device *device)
 	flush_workqueue(acpi_thermal_pm_queue);
 	acpi_thermal_unregister_thermal_zone(tz);
 
-	kfree(tz);
+	acpi_thermal_free_thermal_zone(tz);
 }
 
 #ifdef CONFIG_PM_SLEEP

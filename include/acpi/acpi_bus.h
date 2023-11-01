@@ -12,11 +12,9 @@
 #include <linux/device.h>
 #include <linux/property.h>
 
-/* TBD: Make dynamic */
-#define ACPI_MAX_HANDLES	10
 struct acpi_handle_list {
 	u32 count;
-	acpi_handle handles[ACPI_MAX_HANDLES];
+	acpi_handle* handles;
 };
 
 /* acpi_utils.h */
@@ -32,6 +30,11 @@ acpi_evaluate_reference(acpi_handle handle,
 			acpi_string pathname,
 			struct acpi_object_list *arguments,
 			struct acpi_handle_list *list);
+bool acpi_handle_list_equal(struct acpi_handle_list *list1,
+			    struct acpi_handle_list *list2);
+void acpi_handle_list_replace(struct acpi_handle_list *dst,
+			      struct acpi_handle_list *src);
+void acpi_handle_list_free(struct acpi_handle_list *list);
 acpi_status
 acpi_evaluate_ost(acpi_handle handle, u32 source_event, u32 status_code,
 		  struct acpi_buffer *status_buf);
@@ -517,7 +520,7 @@ int acpi_bus_attach_private_data(acpi_handle, void *);
 void acpi_bus_detach_private_data(acpi_handle);
 int acpi_dev_install_notify_handler(struct acpi_device *adev,
 				    u32 handler_type,
-				    acpi_notify_handler handler);
+				    acpi_notify_handler handler, void *context);
 void acpi_dev_remove_notify_handler(struct acpi_device *adev,
 				    u32 handler_type,
 				    acpi_notify_handler handler);
@@ -760,6 +763,7 @@ static inline bool acpi_device_can_poweroff(struct acpi_device *adev)
 		adev->power.states[ACPI_STATE_D3_HOT].flags.explicit_set);
 }
 
+bool acpi_dev_uid_match(struct acpi_device *adev, const char *uid2);
 bool acpi_dev_hid_uid_match(struct acpi_device *adev, const char *hid2, const char *uid2);
 int acpi_dev_uid_to_integer(struct acpi_device *adev, u64 *integer);
 

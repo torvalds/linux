@@ -2062,7 +2062,7 @@ static int acpi_video_bus_add(struct acpi_device *device)
 		goto err_del;
 
 	error = acpi_dev_install_notify_handler(device, ACPI_DEVICE_NOTIFY,
-						acpi_video_bus_notify);
+						acpi_video_bus_notify, device);
 	if (error)
 		goto err_remove;
 
