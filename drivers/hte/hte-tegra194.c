@@ -407,12 +407,15 @@ static int tegra_hte_line_xlate(struct hte_chip *gc,
 		return -EINVAL;
 
 	/*
+	 * GPIO consumers can access GPIOs in two ways:
 	 *
-	 * There are two paths GPIO consumers can take as follows:
-	 * 1) The consumer (gpiolib-cdev for example) which uses GPIO global
-	 * number which gets assigned run time.
-	 * 2) The consumer passing GPIO from the DT which is assigned
-	 * statically for example by using TEGRA194_AON_GPIO gpio DT binding.
+	 * 1) Using the global GPIO numberspace.
+	 *
+	 * This is the old, now DEPRECATED method and should not be used in
+	 * new code. TODO: Check if tegra is even concerned by this.
+	 *
+	 * 2) Using GPIO descriptors that can be assigned to consumer devices
+	 * using device-tree, ACPI or lookup tables.
 	 *
 	 * The code below addresses both the consumer use cases and maps into
 	 * HTE/GTE namespace.
@@ -725,10 +728,8 @@ static int tegra_hte_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err_probe(dev, ret, "failed to get irq\n");
+	if (ret < 0)
 		return ret;
-	}
 	hte_dev->hte_irq = ret;
 	ret = devm_request_irq(dev, hte_dev->hte_irq, tegra_hte_isr, 0,
 			       dev_name(dev), hte_dev);
@@ -811,7 +812,7 @@ static int tegra_hte_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused tegra_hte_resume_early(struct device *dev)
+static int tegra_hte_resume_early(struct device *dev)
 {
 	u32 i;
 	struct tegra_hte_soc *gs = dev_get_drvdata(dev);
@@ -832,7 +833,7 @@ static int __maybe_unused tegra_hte_resume_early(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tegra_hte_suspend_late(struct device *dev)
+static int tegra_hte_suspend_late(struct device *dev)
 {
 	u32 i;
 	struct tegra_hte_soc *gs = dev_get_drvdata(dev);
@@ -852,15 +853,14 @@ static int __maybe_unused tegra_hte_suspend_late(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra_hte_pm = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(tegra_hte_suspend_late,
-				     tegra_hte_resume_early)
+	LATE_SYSTEM_SLEEP_PM_OPS(tegra_hte_suspend_late, tegra_hte_resume_early)
 };
 
 static struct platform_driver tegra_hte_driver = {
 	.probe = tegra_hte_probe,
 	.driver = {
 		.name = "tegra_hte",
-		.pm = &tegra_hte_pm,
+		.pm = pm_sleep_ptr(&tegra_hte_pm),
 		.of_match_table = tegra_hte_of_match,
 	},
 };
