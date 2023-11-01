@@ -65,6 +65,7 @@ crypto-qti-$(CONFIG_QTI_HW_KEY_MANAGER) += crypto-qti-hwkm.o
 obj-$(CONFIG_QTI_HW_KEY_MANAGER) += hwkm.o
 crypto-qti-$(CONFIG_QTI_HW_KEY_MANAGER_V1) += crypto-qti-hwkm.o
 obj-$(CONFIG_QTI_HW_KEY_MANAGER_V1) += hwkm_v1.o
+obj-$(CONFIG_QTI_CRYPTO_VIRTUALIZATION) += crypto-qti-virt.o
 obj-$(CONFIG_MSM_TMECOM_QMP) += tmecom/
 obj-$(CONFIG_MSM_HAB) += hab/
 obj-$(CONFIG_QCOM_HGSL) += hgsl/
