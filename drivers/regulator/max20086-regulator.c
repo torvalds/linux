@@ -223,7 +223,7 @@ static int max20086_i2c_probe(struct i2c_client *i2c)
 		return -ENOMEM;
 
 	chip->dev = &i2c->dev;
-	chip->info = device_get_match_data(chip->dev);
+	chip->info = i2c_get_match_data(i2c);
 
 	i2c_set_clientdata(i2c, chip);
 
@@ -275,45 +275,42 @@ static int max20086_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct i2c_device_id max20086_i2c_id[] = {
-	{ "max20086" },
-	{ "max20087" },
-	{ "max20088" },
-	{ "max20089" },
-	{ /* Sentinel */ },
+static const struct max20086_chip_info max20086_chip_info = {
+	.id = MAX20086_DEVICE_ID_MAX20086,
+	.num_outputs = 4,
 };
 
+static const struct max20086_chip_info max20087_chip_info = {
+	.id = MAX20086_DEVICE_ID_MAX20087,
+	.num_outputs = 4,
+};
+
+static const struct max20086_chip_info max20088_chip_info = {
+	.id = MAX20086_DEVICE_ID_MAX20088,
+	.num_outputs = 2,
+};
+
+static const struct max20086_chip_info max20089_chip_info = {
+	.id = MAX20086_DEVICE_ID_MAX20089,
+	.num_outputs = 2,
+};
+
+static const struct i2c_device_id max20086_i2c_id[] = {
+	{ "max20086", (kernel_ulong_t)&max20086_chip_info },
+	{ "max20087", (kernel_ulong_t)&max20087_chip_info },
+	{ "max20088", (kernel_ulong_t)&max20088_chip_info },
+	{ "max20089", (kernel_ulong_t)&max20089_chip_info },
+	{ /* Sentinel */ }
+};
 MODULE_DEVICE_TABLE(i2c, max20086_i2c_id);
 
 static const struct of_device_id max20086_dt_ids[] __maybe_unused = {
-	{
-		.compatible = "maxim,max20086",
-		.data = &(const struct max20086_chip_info) {
-			.id = MAX20086_DEVICE_ID_MAX20086,
-			.num_outputs = 4,
-		}
-	}, {
-		.compatible = "maxim,max20087",
-		.data = &(const struct max20086_chip_info) {
-			.id = MAX20086_DEVICE_ID_MAX20087,
-			.num_outputs = 4,
-		}
-	}, {
-		.compatible = "maxim,max20088",
-		.data = &(const struct max20086_chip_info) {
-			.id = MAX20086_DEVICE_ID_MAX20088,
-			.num_outputs = 2,
-		}
-	}, {
-		.compatible = "maxim,max20089",
-		.data = &(const struct max20086_chip_info) {
-			.id = MAX20086_DEVICE_ID_MAX20089,
-			.num_outputs = 2,
-		}
-	},
-	{ /* Sentinel */ },
+	{ .compatible = "maxim,max20086", .data = &max20086_chip_info },
+	{ .compatible = "maxim,max20087", .data = &max20087_chip_info },
+	{ .compatible = "maxim,max20088", .data = &max20088_chip_info },
+	{ .compatible = "maxim,max20089", .data = &max20089_chip_info },
+	{ /* Sentinel */ }
 };
-
 MODULE_DEVICE_TABLE(of, max20086_dt_ids);
 
 static struct i2c_driver max20086_regulator_driver = {

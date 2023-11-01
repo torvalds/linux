@@ -100,6 +100,11 @@ properties:
   vin-supply:
     description: Input supply phandle.
 
+  interrupts:
+    maxItems: 1
+    description:
+      Interrupt signaling a critical under-voltage event.
+
 required:
   - compatible
   - regulator-name

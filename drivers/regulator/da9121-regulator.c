@@ -13,7 +13,7 @@
 //
 // Copyright (C) 2020 Dialog Semiconductor
 
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/of_regulator.h>
@@ -1117,17 +1117,6 @@ static const struct of_device_id da9121_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, da9121_dt_ids);
 
-static inline int da9121_of_get_id(struct device *dev)
-{
-	const struct of_device_id *id = of_match_device(da9121_dt_ids, dev);
-
-	if (!id) {
-		dev_err(dev, "%s: Failed\n", __func__);
-		return -EINVAL;
-	}
-	return (uintptr_t)id->data;
-}
-
 static int da9121_i2c_probe(struct i2c_client *i2c)
 {
 	struct da9121 *chip;
@@ -1141,7 +1130,7 @@ static int da9121_i2c_probe(struct i2c_client *i2c)
 	}
 
 	chip->pdata = i2c->dev.platform_data;
-	chip->subvariant_id = da9121_of_get_id(&i2c->dev);
+	chip->subvariant_id = (enum da9121_subvariant)i2c_get_match_data(i2c);
 
 	ret = da9121_assign_chip_model(i2c, chip);
 	if (ret < 0)

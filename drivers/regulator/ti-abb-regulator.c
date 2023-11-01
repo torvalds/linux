@@ -14,7 +14,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
@@ -688,7 +687,6 @@ MODULE_DEVICE_TABLE(of, ti_abb_of_match);
 static int ti_abb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	struct resource *res;
 	struct ti_abb *abb;
 	struct regulator_init_data *initdata = NULL;
@@ -699,21 +697,15 @@ static int ti_abb_probe(struct platform_device *pdev)
 	char *pname;
 	int ret = 0;
 
-	match = of_match_device(ti_abb_of_match, dev);
-	if (!match) {
-		/* We do not expect this to happen */
-		dev_err(dev, "%s: Unable to match device\n", __func__);
-		return -ENODEV;
-	}
-	if (!match->data) {
-		dev_err(dev, "%s: Bad data in match\n", __func__);
-		return -EINVAL;
-	}
-
 	abb = devm_kzalloc(dev, sizeof(struct ti_abb), GFP_KERNEL);
 	if (!abb)
 		return -ENOMEM;
-	abb->regs = match->data;
+
+	abb->regs = device_get_match_data(dev);
+	if (!abb->regs) {
+		dev_err(dev, "%s: Bad data in match\n", __func__);
+		return -EINVAL;
+	}
 
 	/* Map ABB resources */
 	if (abb->regs->setup_off || abb->regs->control_off) {
@@ -866,7 +858,7 @@ static struct platform_driver ti_abb_driver = {
 	.driver = {
 		   .name = "ti_abb",
 		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		   .of_match_table = of_match_ptr(ti_abb_of_match),
+		   .of_match_table = ti_abb_of_match,
 		   },
 };
 module_platform_driver(ti_abb_driver);
