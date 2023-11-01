@@ -213,6 +213,9 @@
 #define SCU_MISC_CTRL			0xC0
 #define  SCU_DPLL_SOURCE		BIT(20)
 
+#define SCU_CLK_SEL			0x284
+#define  SCU_VCLK_SEL			GENMASK(13, 11)
+
 #define GFX_CTRL			0x60
 #define  GFX_CTRL_ENABLE		BIT(0)
 #define  GFX_CTRL_FMT			GENMASK(9, 7)
@@ -1810,7 +1813,11 @@ static int aspeed_video_set_input(struct file *file, void *fh, unsigned int i)
 			regmap_update_bits(video->scu, SCU_MISC_CTRL, SCU_DPLL_SOURCE, 0);
 		else
 			regmap_update_bits(video->scu, SCU_MISC_CTRL, SCU_DPLL_SOURCE, SCU_DPLL_SOURCE);
-	} else {
+	} else if (video->version == 7) {
+		if (video->input == VIDEO_INPUT_VGA)
+			regmap_update_bits(video->scu, SCU_CLK_SEL, SCU_VCLK_SEL, 0);
+		else
+			regmap_update_bits(video->scu, SCU_CLK_SEL, SCU_VCLK_SEL, SCU_VCLK_SEL);
 	}
 
 	// update signal status
