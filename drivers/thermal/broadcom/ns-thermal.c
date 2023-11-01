@@ -65,13 +65,11 @@ static int ns_thermal_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ns_thermal_remove(struct platform_device *pdev)
+static void ns_thermal_remove(struct platform_device *pdev)
 {
 	void __iomem *pvtmon = platform_get_drvdata(pdev);
 
 	iounmap(pvtmon);
-
-	return 0;
 }
 
 static const struct of_device_id ns_thermal_of_match[] = {
@@ -82,7 +80,7 @@ MODULE_DEVICE_TABLE(of, ns_thermal_of_match);
 
 static struct platform_driver ns_thermal_driver = {
 	.probe		= ns_thermal_probe,
-	.remove		= ns_thermal_remove,
+	.remove_new	= ns_thermal_remove,
 	.driver = {
 		.name = "ns-thermal",
 		.of_match_table = ns_thermal_of_match,

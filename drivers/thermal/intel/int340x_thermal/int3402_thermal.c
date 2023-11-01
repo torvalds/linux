@@ -71,15 +71,13 @@ static int int3402_thermal_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int int3402_thermal_remove(struct platform_device *pdev)
+static void int3402_thermal_remove(struct platform_device *pdev)
 {
 	struct int3402_thermal_data *d = platform_get_drvdata(pdev);
 
 	acpi_remove_notify_handler(d->handle,
 				   ACPI_DEVICE_NOTIFY, int3402_notify);
 	int340x_thermal_zone_remove(d->int340x_zone);
-
-	return 0;
 }
 
 static const struct acpi_device_id int3402_thermal_match[] = {
@@ -91,7 +89,7 @@ MODULE_DEVICE_TABLE(acpi, int3402_thermal_match);
 
 static struct platform_driver int3402_thermal_driver = {
 	.probe = int3402_thermal_probe,
-	.remove = int3402_thermal_remove,
+	.remove_new = int3402_thermal_remove,
 	.driver = {
 		   .name = "int3402 thermal",
 		   .acpi_match_table = int3402_thermal_match,
