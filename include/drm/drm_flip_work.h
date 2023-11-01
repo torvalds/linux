@@ -31,10 +31,10 @@
 /**
  * DOC: flip utils
  *
- * Util to queue up work to run from work-queue context after flip/vblank.
+ * Utility to queue up work to run from work-queue context after flip/vblank.
  * Typically this can be used to defer unref of framebuffer's, cursor
- * bo's, etc until after vblank.  The APIs are all thread-safe. Moreover,
- * drm_flip_work_queue can be called in atomic context.
+ * bo's, etc until after vblank. The APIs are all thread-safe. Moreover,
+ * drm_flip_work_commit() can be called in atomic context.
  */
 
 struct drm_flip_work;
