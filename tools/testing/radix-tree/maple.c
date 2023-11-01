@@ -118,6 +118,7 @@ static noinline void __init check_new_node(struct maple_tree *mt)
 	MT_BUG_ON(mt, mas.alloc == NULL);
 	MT_BUG_ON(mt, mas.alloc->slot[0] == NULL);
 	mas_push_node(&mas, mn);
+	mas_reset(&mas);
 	mas_nomem(&mas, GFP_KERNEL); /* free */
 	mtree_unlock(mt);
 
@@ -141,7 +142,7 @@ static noinline void __init check_new_node(struct maple_tree *mt)
 
 	mn->parent = ma_parent_ptr(mn);
 	ma_free_rcu(mn);
-	mas.node = MAS_START;
+	mas.status = ma_start;
 	mas_nomem(&mas, GFP_KERNEL);
 	/* Allocate 3 nodes, will fail. */
 	mas_node_count(&mas, 3);
@@ -158,6 +159,7 @@ static noinline void __init check_new_node(struct maple_tree *mt)
 	/* Ensure we counted 3. */
 	MT_BUG_ON(mt, mas_allocated(&mas) != 3);
 	/* Free. */
+	mas_reset(&mas);
 	mas_nomem(&mas, GFP_KERNEL);
 
 	/* Set allocation request to 1. */
@@ -272,6 +274,7 @@ static noinline void __init check_new_node(struct maple_tree *mt)
 			ma_free_rcu(mn);
 			MT_BUG_ON(mt, mas_allocated(&mas) != i - j - 1);
 		}
+		mas_reset(&mas);
 		MT_BUG_ON(mt, mas_nomem(&mas, GFP_KERNEL));
 
 	}
@@ -294,6 +297,7 @@ static noinline void __init check_new_node(struct maple_tree *mt)
 		smn = smn->slot[0]; /* next. */
 	}
 	MT_BUG_ON(mt, mas_allocated(&mas) != total);
+	mas_reset(&mas);
 	mas_nomem(&mas, GFP_KERNEL); /* Free. */
 
 	MT_BUG_ON(mt, mas_allocated(&mas) != 0);
@@ -441,7 +445,7 @@ static noinline void __init check_new_node(struct maple_tree *mt)
 	mas.node = MA_ERROR(-ENOMEM);
 	mas_node_count(&mas, 10); /* Request */
 	mas_nomem(&mas, GFP_KERNEL); /* Fill request */
-	mas.node = MAS_START;
+	mas.status = ma_start;
 	MT_BUG_ON(mt, mas_allocated(&mas) != 10);
 	mas_destroy(&mas);
 
@@ -452,7 +456,7 @@ static noinline void __init check_new_node(struct maple_tree *mt)
 	mas.node = MA_ERROR(-ENOMEM);
 	mas_node_count(&mas, 10 + MAPLE_ALLOC_SLOTS - 1); /* Request */
 	mas_nomem(&mas, GFP_KERNEL); /* Fill request */
-	mas.node = MAS_START;
+	mas.status = ma_start;
 	MT_BUG_ON(mt, mas_allocated(&mas) != 10 + MAPLE_ALLOC_SLOTS - 1);
 	mas_destroy(&mas);
 
@@ -941,7 +945,7 @@ retry:
 
 	ret = mas_descend_walk(mas, range_min, range_max);
 	if (unlikely(mte_dead_node(mas->node))) {
-		mas->node = MAS_START;
+		mas->status = ma_start;
 		goto retry;
 	}
 
@@ -961,10 +965,10 @@ static inline void *mas_range_load(struct ma_state *mas,
 	unsigned long index = mas->index;
 
 	if (mas_is_none(mas) || mas_is_paused(mas))
-		mas->node = MAS_START;
+		mas->status = ma_start;
 retry:
 	if (mas_tree_walk(mas, range_min, range_max))
-		if (unlikely(mas->node == MAS_ROOT))
+		if (unlikely(mas->status == ma_root))
 			return mas_root(mas);
 
 	if (likely(mas->offset != MAPLE_NODE_SLOTS))
@@ -35337,7 +35341,7 @@ static void mas_dfs_preorder(struct ma_state *mas)
 	unsigned char end, slot = 0;
 	unsigned long *pivots;
 
-	if (mas->node == MAS_START) {
+	if (mas->status == ma_start) {
 		mas_start(mas);
 		return;
 	}
@@ -35374,7 +35378,7 @@ walk_up:
 
 	return;
 done:
-	mas->node = MAS_NONE;
+	mas->status = ma_none;
 }
 
 
@@ -35833,7 +35837,7 @@ static noinline void __init check_nomem(struct maple_tree *mt)
 	mas_store(&ms, &ms); /* insert 1 -> &ms, fails. */
 	MT_BUG_ON(mt, ms.node != MA_ERROR(-ENOMEM));
 	mas_nomem(&ms, GFP_KERNEL); /* Node allocated in here. */
-	MT_BUG_ON(mt, ms.node != MAS_START);
+	MT_BUG_ON(mt, ms.status != ma_start);
 	mtree_unlock(mt);
 	MT_BUG_ON(mt, mtree_insert(mt, 2, mt, GFP_KERNEL) != 0);
 	mtree_lock(mt);
@@ -35952,7 +35956,7 @@ static int __init compare_tree(struct maple_tree *mt_a, struct maple_tree *mt_b)
 
 	if (mas_is_ptr(&mas_a) || mas_is_ptr(&mas_b)) {
 		if (!(mas_is_ptr(&mas_a) && mas_is_ptr(&mas_b))) {
-			pr_err("One is MAS_ROOT and the other is not.\n");
+			pr_err("One is ma_root and the other is not.\n");
 			return -1;
 		}
 		return 0;
@@ -35961,7 +35965,7 @@ static int __init compare_tree(struct maple_tree *mt_a, struct maple_tree *mt_b)
 	while (!mas_is_none(&mas_a) || !mas_is_none(&mas_b)) {
 
 		if (mas_is_none(&mas_a) || mas_is_none(&mas_b)) {
-			pr_err("One is MAS_NONE and the other is not.\n");
+			pr_err("One is ma_none and the other is not.\n");
 			return -1;
 		}
 

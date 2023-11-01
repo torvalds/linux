@@ -350,6 +350,36 @@ static inline bool mtree_empty(const struct maple_tree *mt)
 /* Advanced API */
 
 /*
+ * Maple State Status
+ * ma_active means the maple state is pointing to a node and offset and can
+ * continue operating on the tree.
+ * ma_start means we have not searched the tree.
+ * ma_root means we have searched the tree and the entry we found lives in
+ * the root of the tree (ie it has index 0, length 1 and is the only entry in
+ * the tree).
+ * ma_none means we have searched the tree and there is no node in the
+ * tree for this entry.  For example, we searched for index 1 in an empty
+ * tree.  Or we have a tree which points to a full leaf node and we
+ * searched for an entry which is larger than can be contained in that
+ * leaf node.
+ * ma_pause means the data within the maple state may be stale, restart the
+ * operation
+ * ma_overflow means the search has reached the upper limit of the search
+ * ma_underflow means the search has reached the lower limit of the search
+ * ma_error means there was an error, check the node for the error number.
+ */
+enum maple_status {
+	ma_active,
+	ma_start,
+	ma_root,
+	ma_none,
+	ma_pause,
+	ma_overflow,
+	ma_underflow,
+	ma_error,
+};
+
+/*
  * The maple state is defined in the struct ma_state and is used to keep track
  * of information during operations, and even between operations when using the
  * advanced API.
@@ -381,6 +411,13 @@ static inline bool mtree_empty(const struct maple_tree *mt)
  * When returning a value the maple state index and last respectively contain
  * the start and end of the range for the entry.  Ranges are inclusive in the
  * Maple Tree.
+ *
+ * The status of the state is used to determine how the next action should treat
+ * the state.  For instance, if the status is ma_start then the next action
+ * should start at the root of the tree and walk down.  If the status is
+ * ma_pause then the node may be stale data and should be discarded.  If the
+ * status is ma_overflow, then the last action hit the upper limit.
+ *
  */
 struct ma_state {
 	struct maple_tree *tree;	/* The tree we're operating in */
@@ -390,6 +427,7 @@ struct ma_state {
 	unsigned long min;		/* The minimum index of this node - implied pivot min */
 	unsigned long max;		/* The maximum index of this node - implied pivot max */
 	struct maple_alloc *alloc;	/* Allocated nodes for this operation */
+	enum maple_status status;	/* The status of the state (active, start, none, etc) */
 	unsigned char depth;		/* depth of tree descent during write */
 	unsigned char offset;
 	unsigned char mas_flags;
@@ -416,28 +454,12 @@ struct ma_wr_state {
 		spin_lock_nested(&((mas)->tree->ma_lock), subclass)
 #define mas_unlock(mas)         spin_unlock(&((mas)->tree->ma_lock))
 
-
 /*
  * Special values for ma_state.node.
- * MAS_START means we have not searched the tree.
- * MAS_ROOT means we have searched the tree and the entry we found lives in
- * the root of the tree (ie it has index 0, length 1 and is the only entry in
- * the tree).
- * MAS_NONE means we have searched the tree and there is no node in the
- * tree for this entry.  For example, we searched for index 1 in an empty
- * tree.  Or we have a tree which points to a full leaf node and we
- * searched for an entry which is larger than can be contained in that
- * leaf node.
  * MA_ERROR represents an errno.  After dropping the lock and attempting
  * to resolve the error, the walk would have to be restarted from the
  * top of the tree as the tree may have been modified.
  */
-#define MAS_START	((struct maple_enode *)1UL)
-#define MAS_ROOT	((struct maple_enode *)5UL)
-#define MAS_NONE	((struct maple_enode *)9UL)
-#define MAS_PAUSE	((struct maple_enode *)17UL)
-#define MAS_OVERFLOW	((struct maple_enode *)33UL)
-#define MAS_UNDERFLOW	((struct maple_enode *)65UL)
 #define MA_ERROR(err) \
 		((struct maple_enode *)(((unsigned long)err << 2) | 2UL))
 
@@ -446,7 +468,8 @@ struct ma_wr_state {
 		.tree = mt,						\
 		.index = first,						\
 		.last = end,						\
-		.node = MAS_START,					\
+		.node = NULL,						\
+		.status = ma_start,					\
 		.min = 0,						\
 		.max = ULONG_MAX,					\
 		.alloc = NULL,						\
@@ -477,7 +500,6 @@ void *mas_find_range(struct ma_state *mas, unsigned long max);
 void *mas_find_rev(struct ma_state *mas, unsigned long min);
 void *mas_find_range_rev(struct ma_state *mas, unsigned long max);
 int mas_preallocate(struct ma_state *mas, void *entry, gfp_t gfp);
-bool mas_is_err(struct ma_state *mas);
 
 bool mas_nomem(struct ma_state *mas, gfp_t gfp);
 void mas_pause(struct ma_state *mas);
@@ -506,28 +528,18 @@ static inline void mas_init(struct ma_state *mas, struct maple_tree *tree,
 	mas->tree = tree;
 	mas->index = mas->last = addr;
 	mas->max = ULONG_MAX;
-	mas->node = MAS_START;
+	mas->status = ma_start;
+	mas->node = NULL;
 }
 
-/* Checks if a mas has not found anything */
-static inline bool mas_is_none(const struct ma_state *mas)
-{
-	return mas->node == MAS_NONE;
-}
-
-/* Checks if a mas has been paused */
-static inline bool mas_is_paused(const struct ma_state *mas)
-{
-	return mas->node == MAS_PAUSE;
-}
-
-/* Check if the mas is pointing to a node or not */
 static inline bool mas_is_active(struct ma_state *mas)
 {
-	if ((unsigned long)mas->node >= MAPLE_RESERVED_RANGE)
-		return true;
+	return mas->status == ma_active;
+}
 
-	return false;
+static inline bool mas_is_err(struct ma_state *mas)
+{
+	return mas->status == ma_error;
 }
 
 /**
@@ -540,9 +552,10 @@ static inline bool mas_is_active(struct ma_state *mas)
  *
  * Context: Any context.
  */
-static inline void mas_reset(struct ma_state *mas)
+static __always_inline void mas_reset(struct ma_state *mas)
 {
-	mas->node = MAS_START;
+	mas->status = ma_start;
+	mas->node = NULL;
 }
 
 /**
@@ -716,7 +729,7 @@ static inline void __mas_set_range(struct ma_state *mas, unsigned long start,
 static inline
 void mas_set_range(struct ma_state *mas, unsigned long start, unsigned long last)
 {
-	mas->node = MAS_START;
+	mas_reset(mas);
 	__mas_set_range(mas, start, last);
 }
 
