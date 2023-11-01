@@ -12,8 +12,8 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
 #include <linux/mfd/lochnagar1_regs.h>
@@ -242,14 +242,9 @@ static int lochnagar_clk_probe(struct platform_device *pdev)
 	};
 	struct device *dev = &pdev->dev;
 	struct lochnagar_clk_priv *priv;
-	const struct of_device_id *of_id;
 	struct lochnagar_clk *lclk;
 	struct lochnagar_config *conf;
 	int ret, i;
-
-	of_id = of_match_device(lochnagar_of_match, dev);
-	if (!of_id)
-		return -EINVAL;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -257,7 +252,7 @@ static int lochnagar_clk_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 	priv->regmap = dev_get_regmap(dev->parent, NULL);
-	conf = (struct lochnagar_config *)of_id->data;
+	conf = (struct lochnagar_config *)device_get_match_data(dev);
 
 	memcpy(priv->lclks, conf->clks, sizeof(priv->lclks));
 

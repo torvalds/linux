@@ -255,7 +255,7 @@ static struct asm9260_mux_clock asm9260_mux_clks[] __initdata = {
 
 static void __init asm9260_acc_init(struct device_node *np)
 {
-	struct clk_hw *hw, *pll_hw;
+	struct clk_hw *pll_hw;
 	struct clk_hw **hws;
 	const char *pll_clk = "pll";
 	struct clk_parent_data pll_parent_data = { .index = 0 };
@@ -283,7 +283,7 @@ static void __init asm9260_acc_init(struct device_node *np)
 	for (n = 0; n < ARRAY_SIZE(asm9260_mux_clks); n++) {
 		const struct asm9260_mux_clock *mc = &asm9260_mux_clks[n];
 
-		hw = clk_hw_register_mux_table_parent_data(NULL, mc->name, mc->parent_data,
+		clk_hw_register_mux_table_parent_data(NULL, mc->name, mc->parent_data,
 				mc->num_parents, mc->flags, base + mc->offset,
 				0, mc->mask, 0, mc->table, &asm9260_clk_lock);
 	}
@@ -292,7 +292,7 @@ static void __init asm9260_acc_init(struct device_node *np)
 	for (n = 0; n < ARRAY_SIZE(asm9260_mux_gates); n++) {
 		const struct asm9260_gate_data *gd = &asm9260_mux_gates[n];
 
-		hw = clk_hw_register_gate(NULL, gd->name,
+		clk_hw_register_gate(NULL, gd->name,
 			gd->parent_name, gd->flags | CLK_SET_RATE_PARENT,
 			base + gd->reg, gd->bit_idx, 0, &asm9260_clk_lock);
 	}

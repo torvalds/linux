@@ -8,7 +8,9 @@
 #include <linux/io.h>
 #include <linux/math64.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/string.h>
 
 #define ADPLL_PLLSS_MMR_LOCK_OFFSET	0x00	/* Managed by MPPULL */
@@ -860,24 +862,16 @@ static int ti_adpll_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
-	const struct ti_adpll_platform_data *pdata;
 	struct ti_adpll_data *d;
 	struct resource *res;
 	int err;
-
-	match = of_match_device(ti_adpll_match, dev);
-	if (match)
-		pdata = match->data;
-	else
-		return -ENODEV;
 
 	d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
 		return -ENOMEM;
 	d->dev = dev;
 	d->np = node;
-	d->c = pdata;
+	d->c = device_get_match_data(dev);
 	dev_set_drvdata(d->dev, d);
 	spin_lock_init(&d->lock);
 
