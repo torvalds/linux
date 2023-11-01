@@ -486,8 +486,8 @@ static int aw_dev_update_cali_re(struct aw_cali_desc *cali_desc)
 	u32 cali_re;
 	int ret;
 
-	if ((aw_dev->cali_desc.cali_re <= AW88399_CALI_RE_MAX) ||
-			(aw_dev->cali_desc.cali_re >= AW88399_CALI_RE_MIN))
+	if ((aw_dev->cali_desc.cali_re >= AW88399_CALI_RE_MAX) ||
+			(aw_dev->cali_desc.cali_re <= AW88399_CALI_RE_MIN))
 		return -EINVAL;
 
 	cali_re = AW88399_SHOW_RE_TO_DSP_RE((aw_dev->cali_desc.cali_re +
