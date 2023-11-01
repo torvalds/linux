@@ -54,11 +54,6 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
 
-    backlight: backlight {
-            compatible = "gpio-backlight";
-            gpios = <&gpio 44 GPIO_ACTIVE_HIGH>;
-    };
-
     spi {
             #address-cells = <1>;
             #size-cells = <0>;
