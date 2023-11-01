@@ -1024,6 +1024,11 @@ static void init_amd_zn(struct cpuinfo_x86 *c)
 #ifdef CONFIG_NUMA
 	node_reclaim_distance = 32;
 #endif
+}
+
+static void init_amd_zen(struct cpuinfo_x86 *c)
+{
+	fix_erratum_1386(c);
 
 	/* Fix up CPUID bits, but only if not virtualised. */
 	if (!cpu_has(c, X86_FEATURE_HYPERVISOR)) {
@@ -1072,11 +1077,6 @@ static void zenbleed_check(struct cpuinfo_x86 *c)
 	} else {
 		msr_clear_bit(MSR_AMD64_DE_CFG, MSR_AMD64_DE_CFG_ZEN2_FP_BACKUP_FIX_BIT);
 	}
-}
-
-static void init_amd_zen(struct cpuinfo_x86 *c)
-{
-	fix_erratum_1386(c);
 }
 
 static void init_amd_zen2(struct cpuinfo_x86 *c)
