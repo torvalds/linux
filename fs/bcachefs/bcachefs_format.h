@@ -824,34 +824,30 @@ enum inode_opt_id {
 	Inode_opt_nr,
 };
 
-enum {
-	/*
-	 * User flags (get/settable with FS_IOC_*FLAGS, correspond to FS_*_FL
-	 * flags)
-	 */
-	__BCH_INODE_SYNC		= 0,
-	__BCH_INODE_IMMUTABLE		= 1,
-	__BCH_INODE_APPEND		= 2,
-	__BCH_INODE_NODUMP		= 3,
-	__BCH_INODE_NOATIME		= 4,
+#define BCH_INODE_FLAGS()			\
+	x(sync,				0)	\
+	x(immutable,			1)	\
+	x(append,			2)	\
+	x(nodump,			3)	\
+	x(noatime,			4)	\
+	x(i_size_dirty,			5)	\
+	x(i_sectors_dirty,		6)	\
+	x(unlinked,			7)	\
+	x(backptr_untrusted,		8)
 
-	__BCH_INODE_I_SIZE_DIRTY	= 5, /* obsolete */
-	__BCH_INODE_I_SECTORS_DIRTY	= 6, /* obsolete */
-	__BCH_INODE_UNLINKED		= 7,
-	__BCH_INODE_BACKPTR_UNTRUSTED	= 8,
+/* bits 20+ reserved for packed fields below: */
 
-	/* bits 20+ reserved for packed fields below: */
+enum bch_inode_flags {
+#define x(t, n)	BCH_INODE_##t = 1U << n,
+	BCH_INODE_FLAGS()
+#undef x
 };
 
-#define BCH_INODE_SYNC		(1 << __BCH_INODE_SYNC)
-#define BCH_INODE_IMMUTABLE	(1 << __BCH_INODE_IMMUTABLE)
-#define BCH_INODE_APPEND	(1 << __BCH_INODE_APPEND)
-#define BCH_INODE_NODUMP	(1 << __BCH_INODE_NODUMP)
-#define BCH_INODE_NOATIME	(1 << __BCH_INODE_NOATIME)
-#define BCH_INODE_I_SIZE_DIRTY	(1 << __BCH_INODE_I_SIZE_DIRTY)
-#define BCH_INODE_I_SECTORS_DIRTY (1 << __BCH_INODE_I_SECTORS_DIRTY)
-#define BCH_INODE_UNLINKED	(1 << __BCH_INODE_UNLINKED)
-#define BCH_INODE_BACKPTR_UNTRUSTED (1 << __BCH_INODE_BACKPTR_UNTRUSTED)
+enum __bch_inode_flags {
+#define x(t, n)	__BCH_INODE_##t = n,
+	BCH_INODE_FLAGS()
+#undef x
+};
 
 LE32_BITMASK(INODE_STR_HASH,	struct bch_inode, bi_flags, 20, 24);
 LE32_BITMASK(INODE_NR_FIELDS,	struct bch_inode, bi_flags, 24, 31);

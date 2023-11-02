@@ -45,13 +45,13 @@ static int bch2_inode_flags_set(struct btree_trans *trans,
 	unsigned newflags = s->flags;
 	unsigned oldflags = bi->bi_flags & s->mask;
 
-	if (((newflags ^ oldflags) & (BCH_INODE_APPEND|BCH_INODE_IMMUTABLE)) &&
+	if (((newflags ^ oldflags) & (BCH_INODE_append|BCH_INODE_immutable)) &&
 	    !capable(CAP_LINUX_IMMUTABLE))
 		return -EPERM;
 
 	if (!S_ISREG(bi->bi_mode) &&
 	    !S_ISDIR(bi->bi_mode) &&
-	    (newflags & (BCH_INODE_NODUMP|BCH_INODE_NOATIME)) != newflags)
+	    (newflags & (BCH_INODE_nodump|BCH_INODE_noatime)) != newflags)
 		return -EINVAL;
 
 	if (s->set_projinherit) {

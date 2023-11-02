@@ -854,9 +854,9 @@ static int check_inode(struct btree_trans *trans,
 	BUG_ON(bch2_inode_unpack(k, &u));
 
 	if (!full &&
-	    !(u.bi_flags & (BCH_INODE_I_SIZE_DIRTY|
-			    BCH_INODE_I_SECTORS_DIRTY|
-			    BCH_INODE_UNLINKED)))
+	    !(u.bi_flags & (BCH_INODE_i_size_dirty|
+			    BCH_INODE_i_sectors_dirty|
+			    BCH_INODE_unlinked)))
 		return 0;
 
 	if (prev->bi_inum != u.bi_inum)
@@ -870,7 +870,7 @@ static int check_inode(struct btree_trans *trans,
 		return -EINVAL;
 	}
 
-	if ((u.bi_flags & (BCH_INODE_I_SIZE_DIRTY|BCH_INODE_UNLINKED)) &&
+	if ((u.bi_flags & (BCH_INODE_i_size_dirty|BCH_INODE_unlinked)) &&
 	    bch2_key_has_snapshot_overwrites(trans, BTREE_ID_inodes, k.k->p)) {
 		struct bpos new_min_pos;
 
@@ -878,7 +878,7 @@ static int check_inode(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		u.bi_flags &= ~BCH_INODE_I_SIZE_DIRTY|BCH_INODE_UNLINKED;
+		u.bi_flags &= ~BCH_INODE_i_size_dirty|BCH_INODE_unlinked;
 
 		ret = __write_inode(trans, &u, iter->pos.snapshot);
 		bch_err_msg(c, ret, "in fsck updating inode");
@@ -890,7 +890,7 @@ static int check_inode(struct btree_trans *trans,
 		return 0;
 	}
 
-	if (u.bi_flags & BCH_INODE_UNLINKED &&
+	if (u.bi_flags & BCH_INODE_unlinked &&
 	    (!c->sb.clean ||
 	     fsck_err(c, inode_unlinked_but_clean,
 		      "filesystem marked clean, but inode %llu unlinked",
@@ -903,7 +903,7 @@ static int check_inode(struct btree_trans *trans,
 		return ret;
 	}
 
-	if (u.bi_flags & BCH_INODE_I_SIZE_DIRTY &&
+	if (u.bi_flags & BCH_INODE_i_size_dirty &&
 	    (!c->sb.clean ||
 	     fsck_err(c, inode_i_size_dirty_but_clean,
 		      "filesystem marked clean, but inode %llu has i_size dirty",
@@ -930,13 +930,13 @@ static int check_inode(struct btree_trans *trans,
 		 * We truncated without our normal sector accounting hook, just
 		 * make sure we recalculate it:
 		 */
-		u.bi_flags |= BCH_INODE_I_SECTORS_DIRTY;
+		u.bi_flags |= BCH_INODE_i_sectors_dirty;
 
-		u.bi_flags &= ~BCH_INODE_I_SIZE_DIRTY;
+		u.bi_flags &= ~BCH_INODE_i_size_dirty;
 		do_update = true;
 	}
 
-	if (u.bi_flags & BCH_INODE_I_SECTORS_DIRTY &&
+	if (u.bi_flags & BCH_INODE_i_sectors_dirty &&
 	    (!c->sb.clean ||
 	     fsck_err(c, inode_i_sectors_dirty_but_clean,
 		      "filesystem marked clean, but inode %llu has i_sectors dirty",
@@ -953,14 +953,14 @@ static int check_inode(struct btree_trans *trans,
 		}
 
 		u.bi_sectors = sectors;
-		u.bi_flags &= ~BCH_INODE_I_SECTORS_DIRTY;
+		u.bi_flags &= ~BCH_INODE_i_sectors_dirty;
 		do_update = true;
 	}
 
-	if (u.bi_flags & BCH_INODE_BACKPTR_UNTRUSTED) {
+	if (u.bi_flags & BCH_INODE_backptr_untrusted) {
 		u.bi_dir = 0;
 		u.bi_dir_offset = 0;
-		u.bi_flags &= ~BCH_INODE_BACKPTR_UNTRUSTED;
+		u.bi_flags &= ~BCH_INODE_backptr_untrusted;
 		do_update = true;
 	}
 
@@ -1065,7 +1065,7 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 			return -BCH_ERR_internal_fsck_err;
 		}
 
-		if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_I_SECTORS_DIRTY),
+		if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_i_sectors_dirty),
 				c, inode_i_sectors_wrong,
 				"inode %llu:%u has incorrect i_sectors: got %llu, should be %llu",
 				w->last_pos.inode, i->snapshot,
@@ -1405,7 +1405,7 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			continue;
 
 		if (k.k->type != KEY_TYPE_whiteout) {
-			if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
+			if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_i_size_dirty) &&
 					k.k->p.offset > round_up(i->inode.bi_size, block_bytes(c)) >> 9 &&
 					!bkey_extent_is_reservation(k),
 					c, extent_past_end_of_inode,
@@ -1588,7 +1588,7 @@ static int check_dirent_target(struct btree_trans *trans,
 				"inode %llu type %s has multiple links but i_nlink 0",
 				target->bi_inum, bch2_d_types[d.v->d_type])) {
 			target->bi_nlink++;
-			target->bi_flags &= ~BCH_INODE_UNLINKED;
+			target->bi_flags &= ~BCH_INODE_unlinked;
 
 			ret = __write_inode(trans, target, target_snapshot);
 			if (ret)
@@ -2160,7 +2160,7 @@ int bch2_check_directory_structure(struct bch_fs *c)
 			break;
 		}
 
-		if (u.bi_flags & BCH_INODE_UNLINKED)
+		if (u.bi_flags & BCH_INODE_unlinked)
 			continue;
 
 		ret = check_path(trans, &path, &u, iter.pos.snapshot);

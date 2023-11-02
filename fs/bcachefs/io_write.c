@@ -234,7 +234,7 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 
 	inode = bkey_i_to_inode_v3(k);
 
-	if (!(le64_to_cpu(inode->v.bi_flags) & BCH_INODE_I_SIZE_DIRTY) &&
+	if (!(le64_to_cpu(inode->v.bi_flags) & BCH_INODE_i_size_dirty) &&
 	    new_i_size > le64_to_cpu(inode->v.bi_size)) {
 		inode->v.bi_size = cpu_to_le64(new_i_size);
 		inode_update_flags = 0;
