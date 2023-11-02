@@ -467,6 +467,15 @@ struct bss_mld_tlv {
 	u8 __rsv[3];
 } __packed;
 
+struct sta_rec_ht_uni {
+	__le16 tag;
+	__le16 len;
+	__le16 ht_cap;
+	__le16 ht_cap_ext;
+	u8 ampdu_param;
+	u8 _rsv[3];
+} __packed;
+
 struct sta_rec_ba_uni {
 	__le16 tag;
 	__le16 len;
@@ -758,14 +767,13 @@ enum {
 #define MT7996_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +		\
 					 sizeof(struct sta_rec_basic) +		\
 					 sizeof(struct sta_rec_bf) +		\
-					 sizeof(struct sta_rec_ht) +		\
+					 sizeof(struct sta_rec_ht_uni) +	\
 					 sizeof(struct sta_rec_he_v2) +		\
 					 sizeof(struct sta_rec_ba_uni) +	\
 					 sizeof(struct sta_rec_vht) +		\
 					 sizeof(struct sta_rec_uapsd) + 	\
 					 sizeof(struct sta_rec_amsdu) +		\
 					 sizeof(struct sta_rec_bfee) +		\
-					 sizeof(struct sta_rec_phy) +		\
 					 sizeof(struct sta_rec_ra_uni) +	\
 					 sizeof(struct sta_rec_sec) +		\
 					 sizeof(struct sta_rec_ra_fixed_uni) +	\

@@ -1255,7 +1255,7 @@ mt7996_mcu_sta_eht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 static void
 mt7996_mcu_sta_ht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 {
-	struct sta_rec_ht *ht;
+	struct sta_rec_ht_uni *ht;
 	struct tlv *tlv;
 
 	if (!sta->deflink.ht_cap.ht_supported)
@@ -1263,8 +1263,12 @@ mt7996_mcu_sta_ht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 
 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_HT, sizeof(*ht));
 
-	ht = (struct sta_rec_ht *)tlv;
+	ht = (struct sta_rec_ht_uni *)tlv;
 	ht->ht_cap = cpu_to_le16(sta->deflink.ht_cap.cap);
+	ht->ampdu_param = u8_encode_bits(sta->deflink.ht_cap.ampdu_factor,
+					 IEEE80211_HT_AMPDU_PARM_FACTOR) |
+			  u8_encode_bits(sta->deflink.ht_cap.ampdu_density,
+					 IEEE80211_HT_AMPDU_PARM_DENSITY);
 }
 
 static void
@@ -1722,44 +1726,6 @@ mt7996_mcu_sta_bfee_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 }
 
 static void
-mt7996_mcu_sta_phy_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
-		       struct ieee80211_vif *vif, struct ieee80211_sta *sta)
-{
-	struct sta_rec_phy *phy;
-	struct tlv *tlv;
-	u8 af = 0, mm = 0;
-
-	if (!sta->deflink.ht_cap.ht_supported && !sta->deflink.he_6ghz_capa.capa)
-		return;
-
-	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_PHY, sizeof(*phy));
-
-	phy = (struct sta_rec_phy *)tlv;
-	if (sta->deflink.ht_cap.ht_supported) {
-		af = sta->deflink.ht_cap.ampdu_factor;
-		mm = sta->deflink.ht_cap.ampdu_density;
-	}
-
-	if (sta->deflink.vht_cap.vht_supported) {
-		u8 vht_af = FIELD_GET(IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK,
-				      sta->deflink.vht_cap.cap);
-
-		af = max_t(u8, af, vht_af);
-	}
-
-	if (sta->deflink.he_6ghz_capa.capa) {
-		af = le16_get_bits(sta->deflink.he_6ghz_capa.capa,
-				   IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP);
-		mm = le16_get_bits(sta->deflink.he_6ghz_capa.capa,
-				   IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START);
-	}
-
-	phy->ampdu = FIELD_PREP(IEEE80211_HT_AMPDU_PARM_FACTOR, af) |
-		     FIELD_PREP(IEEE80211_HT_AMPDU_PARM_DENSITY, mm);
-	phy->max_ampdu_len = af;
-}
-
-static void
 mt7996_mcu_sta_hdrt_tlv(struct mt7996_dev *dev, struct sk_buff *skb)
 {
 	struct sta_rec_hdrt *hdrt;
@@ -2167,8 +2133,6 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 
 	/* tag order is in accordance with firmware dependency. */
 	if (sta) {
-		/* starec phy */
-		mt7996_mcu_sta_phy_tlv(dev, skb, vif, sta);
 		/* starec hdrt mode */
 		mt7996_mcu_sta_hdrt_tlv(dev, skb);
 		/* starec bfer */
