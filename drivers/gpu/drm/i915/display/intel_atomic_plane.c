@@ -1096,7 +1096,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		 * can safely continue.
 		 */
 		if (new_crtc_state && intel_crtc_needs_modeset(new_crtc_state)) {
-			ret = add_dma_resv_fences(old_obj->base.resv,
+			ret = add_dma_resv_fences(intel_bo_to_drm_bo(old_obj)->resv,
 						  &new_plane_state->uapi);
 			if (ret < 0)
 				return ret;
