@@ -133,7 +133,7 @@ int cmd_db_ready(void)
 
 	return 0;
 }
-EXPORT_SYMBOL(cmd_db_ready);
+EXPORT_SYMBOL_GPL(cmd_db_ready);
 
 static int cmd_db_get_header(const char *id, const struct entry_header **eh,
 			     const struct rsc_hdr **rh)
@@ -193,7 +193,7 @@ u32 cmd_db_read_addr(const char *id)
 
 	return ret < 0 ? 0 : le32_to_cpu(ent->addr);
 }
-EXPORT_SYMBOL(cmd_db_read_addr);
+EXPORT_SYMBOL_GPL(cmd_db_read_addr);
 
 /**
  * cmd_db_read_aux_data() - Query command db for aux data.
@@ -218,7 +218,7 @@ const void *cmd_db_read_aux_data(const char *id, size_t *len)
 
 	return rsc_offset(rsc_hdr, ent);
 }
-EXPORT_SYMBOL(cmd_db_read_aux_data);
+EXPORT_SYMBOL_GPL(cmd_db_read_aux_data);
 
 /**
  * cmd_db_read_slave_id - Get the slave ID for a given resource address
@@ -240,7 +240,7 @@ enum cmd_db_hw_type cmd_db_read_slave_id(const char *id)
 	addr = le32_to_cpu(ent->addr);
 	return (addr >> SLAVE_ID_SHIFT) & SLAVE_ID_MASK;
 }
-EXPORT_SYMBOL(cmd_db_read_slave_id);
+EXPORT_SYMBOL_GPL(cmd_db_read_slave_id);
 
 #ifdef CONFIG_DEBUG_FS
 static int cmd_db_debugfs_dump(struct seq_file *seq, void *p)

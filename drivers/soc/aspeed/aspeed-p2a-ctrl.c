@@ -383,13 +383,11 @@ static int aspeed_p2a_ctrl_probe(struct platform_device *pdev)
 	return rc;
 }
 
-static int aspeed_p2a_ctrl_remove(struct platform_device *pdev)
+static void aspeed_p2a_ctrl_remove(struct platform_device *pdev)
 {
 	struct aspeed_p2a_ctrl *p2a_ctrl = dev_get_drvdata(&pdev->dev);
 
 	misc_deregister(&p2a_ctrl->miscdev);
-
-	return 0;
 }
 
 #define SCU2C_DRAM	BIT(25)
@@ -433,7 +431,7 @@ static struct platform_driver aspeed_p2a_ctrl_driver = {
 		.of_match_table = aspeed_p2a_ctrl_match,
 	},
 	.probe = aspeed_p2a_ctrl_probe,
-	.remove = aspeed_p2a_ctrl_remove,
+	.remove_new = aspeed_p2a_ctrl_remove,
 };
 
 module_platform_driver(aspeed_p2a_ctrl_driver);

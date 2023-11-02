@@ -130,7 +130,7 @@ patternProperties:
       bus. The device can be a NAND chip, SRAM device, NOR device
       or an ASIC.
     $ref: ti,gpmc-child.yaml
-
+    additionalProperties: true
 
 required:
   - compatible

@@ -360,8 +360,8 @@ static int scmi_powercap_xfer_cap_set(const struct scmi_protocol_handle *ph,
 	msg = t->tx.buf;
 	msg->domain = cpu_to_le32(pc->id);
 	msg->flags =
-		cpu_to_le32(FIELD_PREP(CAP_SET_ASYNC, !!pc->async_powercap_cap_set) |
-			    FIELD_PREP(CAP_SET_IGNORE_DRESP, !!ignore_dresp));
+		cpu_to_le32(FIELD_PREP(CAP_SET_ASYNC, pc->async_powercap_cap_set) |
+			    FIELD_PREP(CAP_SET_IGNORE_DRESP, ignore_dresp));
 	msg->value = cpu_to_le32(power_cap);
 
 	if (!pc->async_powercap_cap_set || ignore_dresp) {

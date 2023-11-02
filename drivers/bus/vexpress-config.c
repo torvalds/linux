@@ -54,7 +54,7 @@ struct vexpress_syscfg_func {
 	struct vexpress_syscfg *syscfg;
 	struct regmap *regmap;
 	int num_templates;
-	u32 template[]; /* Keep it last! */
+	u32 template[] __counted_by(num_templates); /* Keep it last! */
 };
 
 struct vexpress_config_bridge_ops {

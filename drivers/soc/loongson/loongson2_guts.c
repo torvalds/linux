@@ -148,11 +148,9 @@ static int loongson2_guts_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int loongson2_guts_remove(struct platform_device *dev)
+static void loongson2_guts_remove(struct platform_device *dev)
 {
 	soc_device_unregister(soc_dev);
-
-	return 0;
 }
 
 /*
@@ -171,7 +169,7 @@ static struct platform_driver loongson2_guts_driver = {
 		.of_match_table = loongson2_guts_of_match,
 	},
 	.probe = loongson2_guts_probe,
-	.remove = loongson2_guts_remove,
+	.remove_new = loongson2_guts_remove,
 };
 
 static int __init loongson2_guts_init(void)

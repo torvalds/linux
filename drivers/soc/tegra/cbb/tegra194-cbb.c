@@ -2293,7 +2293,7 @@ static int tegra194_cbb_probe(struct platform_device *pdev)
 	return tegra_cbb_register(&cbb->base);
 }
 
-static int tegra194_cbb_remove(struct platform_device *pdev)
+static void tegra194_cbb_remove(struct platform_device *pdev)
 {
 	struct tegra194_cbb *cbb = platform_get_drvdata(pdev);
 	struct tegra_cbb *noc, *tmp;
@@ -2311,8 +2311,6 @@ static int tegra194_cbb_remove(struct platform_device *pdev)
 	}
 
 	spin_unlock_irqrestore(&cbb_lock, flags);
-
-	return 0;
 }
 
 static int __maybe_unused tegra194_cbb_resume_noirq(struct device *dev)
@@ -2332,7 +2330,7 @@ static const struct dev_pm_ops tegra194_cbb_pm = {
 
 static struct platform_driver tegra194_cbb_driver = {
 	.probe = tegra194_cbb_probe,
-	.remove = tegra194_cbb_remove,
+	.remove_new = tegra194_cbb_remove,
 	.driver = {
 		.name = "tegra194-cbb",
 		.of_match_table = of_match_ptr(tegra194_cbb_match),
