@@ -374,8 +374,6 @@ static int txx9ndfmc_remove(struct platform_device *dev)
 	struct txx9ndfmc_drvdata *drvdata = platform_get_drvdata(dev);
 	int ret, i;
 
-	if (!drvdata)
-		return 0;
 	for (i = 0; i < MAX_TXX9NDFMC_DEV; i++) {
 		struct mtd_info *mtd = drvdata->mtds[i];
 		struct nand_chip *chip;
