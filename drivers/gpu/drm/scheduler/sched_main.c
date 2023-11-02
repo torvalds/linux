@@ -1065,12 +1065,11 @@ static void drm_sched_free_job_work(struct work_struct *w)
 		return;
 
 	job = drm_sched_get_finished_job(sched);
-	if (job) {
+	if (job)
 		sched->ops->free_job(job);
 
-		drm_sched_free_job_queue_if_done(sched);
-		drm_sched_run_job_queue_if_ready(sched);
-	}
+	drm_sched_free_job_queue_if_done(sched);
+	drm_sched_run_job_queue_if_ready(sched);
 }
 
 /**
