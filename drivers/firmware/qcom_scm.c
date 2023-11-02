@@ -1086,6 +1086,98 @@ void qcom_scm_deassert_ps_hold(void)
 }
 EXPORT_SYMBOL(qcom_scm_deassert_ps_hold);
 
+static int __qcom_scm_paravirt_smmu_attach(struct device *dev, u64 sid,
+				    u64 asid, u64 ste_pa, u64 ste_size,
+				    u64 cd_pa, u64 cd_size)
+{
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_SMMU_PROGRAM,
+		.cmd = ARM_SMMU_PARAVIRT_CMD,
+		.owner = ARM_SMCCC_OWNER_SIP,
+	};
+	int ret;
+	struct qcom_scm_res res;
+
+	desc.args[0] = SMMU_PARAVIRT_OP_ATTACH;
+	desc.args[1] = sid;
+	desc.args[2] = asid;
+	desc.args[3] = 0;
+	desc.args[4] = ste_pa;
+	desc.args[5] = ste_size;
+	desc.args[6] = cd_pa;
+	desc.args[7] = cd_size;
+	desc.arginfo = ARM_SMMU_PARAVIRT_DESCARG;
+	ret = qcom_scm_call(dev, &desc, &res);
+	return ret ? : res.result[0];
+}
+
+static int __qcom_scm_paravirt_tlb_inv(struct device *dev, u64 asid, u64 sid)
+{
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_SMMU_PROGRAM,
+		.cmd = ARM_SMMU_PARAVIRT_CMD,
+		.owner = ARM_SMCCC_OWNER_SIP,
+	};
+	int ret;
+	struct qcom_scm_res res;
+
+	desc.args[0] = SMMU_PARAVIRT_OP_INVAL_ASID;
+	desc.args[1] = sid;
+	desc.args[2] = asid;
+	desc.args[3] = 0;
+	desc.args[4] = 0;
+	desc.args[5] = 0;
+	desc.args[6] = 0;
+	desc.args[7] = 0;
+	desc.arginfo = ARM_SMMU_PARAVIRT_DESCARG;
+	ret = qcom_scm_call_atomic(dev, &desc, &res);
+	return ret ? : res.result[0];
+}
+
+static int __qcom_scm_paravirt_smmu_detach(struct device *dev, u64 sid)
+{
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_SMMU_PROGRAM,
+		.cmd = ARM_SMMU_PARAVIRT_CMD,
+		.owner = ARM_SMCCC_OWNER_SIP,
+	};
+	int ret;
+	struct qcom_scm_res res;
+
+	desc.args[0] = SMMU_PARAVIRT_OP_DETACH;
+	desc.args[1] = sid;
+	desc.args[2] = 0;
+	desc.args[3] = 0;
+	desc.args[4] = 0;
+	desc.args[5] = 0;
+	desc.args[6] = 0;
+	desc.args[7] = 0;
+	desc.arginfo = ARM_SMMU_PARAVIRT_DESCARG;
+	ret = qcom_scm_call(dev, &desc, &res);
+	return ret ? : res.result[0];
+}
+
+int qcom_scm_paravirt_smmu_attach(u64 sid, u64 asid,
+			u64 ste_pa, u64 ste_size, u64 cd_pa,
+			u64 cd_size)
+{
+	return __qcom_scm_paravirt_smmu_attach(__scm ? __scm->dev : NULL, sid, asid,
+					ste_pa, ste_size, cd_pa, cd_size);
+}
+EXPORT_SYMBOL_GPL(qcom_scm_paravirt_smmu_attach);
+
+int qcom_scm_paravirt_tlb_inv(u64 asid, u64 sid)
+{
+	return __qcom_scm_paravirt_tlb_inv(__scm ? __scm->dev : NULL, asid, sid);
+}
+EXPORT_SYMBOL_GPL(qcom_scm_paravirt_tlb_inv);
+
+int qcom_scm_paravirt_smmu_detach(u64 sid)
+{
+	return __qcom_scm_paravirt_smmu_detach(__scm ? __scm->dev : NULL, sid);
+}
+EXPORT_SYMBOL_GPL(qcom_scm_paravirt_smmu_detach);
+
 void qcom_scm_mmu_sync(bool sync)
 {
 	int ret;

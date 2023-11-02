@@ -42,6 +42,17 @@ enum qcom_scm_arg_types {
 
 #define QCOM_SCM_ARGS(...) QCOM_SCM_ARGS_IMPL(__VA_ARGS__, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
+/*SMMU Paravirt driver*/
+#define SMMU_PARAVIRT_OP_ATTACH         0
+#define SMMU_PARAVIRT_OP_DETACH         1
+#define SMMU_PARAVIRT_OP_INVAL_ASID     2
+#define SMMU_PARAVIRT_OP_INVAL_VA       3
+#define SMMU_PARAVIRT_OP_ALL_S1_BYPASS  4
+#define SMMU_PARAVIRT_OP_CFGI_CD_ALL    5
+#define SMMU_PARAVIRT_OP_TLBI_NH_ALL    6
+
+#define ARM_SMMU_PARAVIRT_CMD            0x6
+#define ARM_SMMU_PARAVIRT_DESCARG        0x22200a
 
 /**
  * struct qcom_scm_desc
