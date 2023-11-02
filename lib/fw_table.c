@@ -186,4 +186,3 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 
 	return errs ? -EINVAL : count;
 }
-EXPORT_SYMBOL_GPL(acpi_parse_entries_array);
