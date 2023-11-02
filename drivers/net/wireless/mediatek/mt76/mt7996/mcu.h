@@ -175,6 +175,27 @@ struct mt7996_mcu_mib {
 	__le64 data;
 } __packed;
 
+struct all_sta_trx_rate {
+	__le16 wlan_idx;
+	u8 __rsv1[2];
+	u8 tx_mode;
+	u8 flags;
+	u8 tx_stbc;
+	u8 tx_gi;
+	u8 tx_bw;
+	u8 tx_ldpc;
+	u8 tx_mcs;
+	u8 tx_nss;
+	u8 rx_rate;
+	u8 rx_mode;
+	u8 rx_nsts;
+	u8 rx_gi;
+	u8 rx_coding;
+	u8 rx_stbc;
+	u8 rx_bw;
+	u8 __rsv2;
+} __packed;
+
 struct mt7996_mcu_all_sta_info_event {
 	u8 rsv[4];
 	__le16 tag;
@@ -185,6 +206,7 @@ struct mt7996_mcu_all_sta_info_event {
 	u8 rsv3[2];
 
 	union {
+		struct all_sta_trx_rate rate[0];
 		struct {
 			__le16 wlan_idx;
 			u8 rsv[2];
