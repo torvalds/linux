@@ -810,7 +810,7 @@ static void cxl_disable_rch_root_ints(struct cxl_dport *dport)
 	 * the root cmd register's interrupts is required. But, PCI spec
 	 * shows these are disabled by default on reset.
 	 */
-	if (bridge->native_cxl_error) {
+	if (bridge->native_aer) {
 		aer_cmd_mask = (PCI_ERR_ROOT_CMD_COR_EN |
 				PCI_ERR_ROOT_CMD_NONFATAL_EN |
 				PCI_ERR_ROOT_CMD_FATAL_EN);
@@ -826,7 +826,7 @@ void cxl_setup_parent_dport(struct device *host, struct cxl_dport *dport)
 	struct pci_host_bridge *host_bridge;
 
 	host_bridge = to_pci_host_bridge(dport_dev);
-	if (host_bridge->native_cxl_error)
+	if (host_bridge->native_aer)
 		dport->rcrb.aer_cap = cxl_rcrb_to_aer(dport_dev, dport->rcrb.base);
 
 	dport->reg_map.host = host;
