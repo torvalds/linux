@@ -3189,7 +3189,7 @@ static inline int mas_rebalance(struct ma_state *mas,
 	 * tries to combine the data in the same way.  If one node contains the
 	 * entire range of the tree, then that node is used as a new root node.
 	 */
-	mas_node_count(mas, 1 + empty_count * 3);
+	mas_node_count(mas, empty_count * 2 - 1);
 	if (mas_is_err(mas))
 		return 0;
 
@@ -5609,20 +5609,34 @@ static inline void mte_destroy_walk(struct maple_enode *enode,
 
 static void mas_wr_store_setup(struct ma_wr_state *wr_mas)
 {
+	if (mas_is_start(wr_mas->mas))
+		return;
+
 	if (unlikely(mas_is_paused(wr_mas->mas)))
-		mas_reset(wr_mas->mas);
+		goto reset;
 
-	if (!mas_is_start(wr_mas->mas)) {
-		if (mas_is_none(wr_mas->mas)) {
-			mas_reset(wr_mas->mas);
-		} else {
-			wr_mas->r_max = wr_mas->mas->max;
-			wr_mas->type = mte_node_type(wr_mas->mas->node);
-			if (mas_is_span_wr(wr_mas))
-				mas_reset(wr_mas->mas);
-		}
-	}
+	if (unlikely(mas_is_none(wr_mas->mas)))
+		goto reset;
 
+	/*
+	 * A less strict version of mas_is_span_wr() where we allow spanning
+	 * writes within this node.  This is to stop partial walks in
+	 * mas_prealloc() from being reset.
+	 */
+	if (wr_mas->mas->last > wr_mas->mas->max)
+		goto reset;
+
+	if (wr_mas->entry)
+		return;
+
+	if (mte_is_leaf(wr_mas->mas->node) &&
+	    wr_mas->mas->last == wr_mas->mas->max)
+		goto reset;
+
+	return;
+
+reset:
+	mas_reset(wr_mas->mas);
 }
 
 /* Interface */
@@ -5749,25 +5763,25 @@ int mas_preallocate(struct ma_state *mas, void *entry, gfp_t gfp)
 
 	mas_wr_end_piv(&wr_mas);
 	node_size = mas_wr_node_size(&wr_mas);
+	/* Slot store can avoid using any nodes */
+	if (node_size == wr_mas.node_end && wr_mas.offset_end - mas->offset == 1)
+		return 0;
+
 	if (node_size >= mt_slots[wr_mas.type]) {
-		/* Slot store is possible in some cases */
-		if ((node_size == mt_slots[wr_mas.type]) &&
-		    (wr_mas.r_min == mas->index || wr_mas.r_max == mas->last))
-			goto ask_now;
 		/* Split, worst case for now. */
 		request = 1 + mas_mt_height(mas) * 2;
 		goto ask_now;
 	}
 
-	/* New root needs a singe node */
-	if (unlikely(mte_is_root(mas->node)))
-		goto ask_now;
+	/* Appending does not need any nodes */
+	if (node_size == wr_mas.node_end + 1 && mas->offset == wr_mas.node_end)
+		return 0;
 
 	/* Potential spanning rebalance collapsing a node, use worst-case */
 	if (node_size  - 1 <= mt_min_slots[wr_mas.type])
 		request = mas_mt_height(mas) * 2 - 1;
 
-	/* node store, slot store needs one node */
+	/* node store needs one node */
 ask_now:
 	mas_node_count_gfp(mas, request, gfp);
 	mas->mas_flags |= MA_STATE_PREALLOC;
