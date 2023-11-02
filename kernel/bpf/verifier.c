@@ -2536,10 +2536,54 @@ static void __reg64_deduce_bounds(struct bpf_reg_state *reg)
 	}
 }
 
+static void __reg_deduce_mixed_bounds(struct bpf_reg_state *reg)
+{
+	/* Try to tighten 64-bit bounds from 32-bit knowledge, using 32-bit
+	 * values on both sides of 64-bit range in hope to have tigher range.
+	 * E.g., if r1 is [0x1'00000000, 0x3'80000000], and we learn from
+	 * 32-bit signed > 0 operation that s32 bounds are now [1; 0x7fffffff].
+	 * With this, we can substitute 1 as low 32-bits of _low_ 64-bit bound
+	 * (0x100000000 -> 0x100000001) and 0x7fffffff as low 32-bits of
+	 * _high_ 64-bit bound (0x380000000 -> 0x37fffffff) and arrive at a
+	 * better overall bounds for r1 as [0x1'000000001; 0x3'7fffffff].
+	 * We just need to make sure that derived bounds we are intersecting
+	 * with are well-formed ranges in respecitve s64 or u64 domain, just
+	 * like we do with similar kinds of 32-to-64 or 64-to-32 adjustments.
+	 */
+	__u64 new_umin, new_umax;
+	__s64 new_smin, new_smax;
+
+	/* u32 -> u64 tightening, it's always well-formed */
+	new_umin = (reg->umin_value & ~0xffffffffULL) | reg->u32_min_value;
+	new_umax = (reg->umax_value & ~0xffffffffULL) | reg->u32_max_value;
+	reg->umin_value = max_t(u64, reg->umin_value, new_umin);
+	reg->umax_value = min_t(u64, reg->umax_value, new_umax);
+	/* u32 -> s64 tightening, u32 range embedded into s64 preserves range validity */
+	new_smin = (reg->smin_value & ~0xffffffffULL) | reg->u32_min_value;
+	new_smax = (reg->smax_value & ~0xffffffffULL) | reg->u32_max_value;
+	reg->smin_value = max_t(s64, reg->smin_value, new_smin);
+	reg->smax_value = min_t(s64, reg->smax_value, new_smax);
+
+	/* if s32 can be treated as valid u32 range, we can use it as well */
+	if ((u32)reg->s32_min_value <= (u32)reg->s32_max_value) {
+		/* s32 -> u64 tightening */
+		new_umin = (reg->umin_value & ~0xffffffffULL) | (u32)reg->s32_min_value;
+		new_umax = (reg->umax_value & ~0xffffffffULL) | (u32)reg->s32_max_value;
+		reg->umin_value = max_t(u64, reg->umin_value, new_umin);
+		reg->umax_value = min_t(u64, reg->umax_value, new_umax);
+		/* s32 -> s64 tightening */
+		new_smin = (reg->smin_value & ~0xffffffffULL) | (u32)reg->s32_min_value;
+		new_smax = (reg->smax_value & ~0xffffffffULL) | (u32)reg->s32_max_value;
+		reg->smin_value = max_t(s64, reg->smin_value, new_smin);
+		reg->smax_value = min_t(s64, reg->smax_value, new_smax);
+	}
+}
+
 static void __reg_deduce_bounds(struct bpf_reg_state *reg)
 {
 	__reg32_deduce_bounds(reg);
 	__reg64_deduce_bounds(reg);
+	__reg_deduce_mixed_bounds(reg);
 }
 
 /* Attempts to improve var_off based on unsigned min/max information */
