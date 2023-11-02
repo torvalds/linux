@@ -40,7 +40,6 @@ static void __ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_sta *arsta;
 	struct ath10k_vif *arvif = (void *)txq->vif->drv_priv;
-	unsigned long frame_cnt;
 	unsigned long byte_cnt;
 	int idx;
 	u32 bit;
@@ -67,7 +66,7 @@ static void __ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
 	bit = BIT(peer_id % 32);
 	idx = peer_id / 32;
 
-	ieee80211_txq_get_depth(txq, &frame_cnt, &byte_cnt);
+	ieee80211_txq_get_depth(txq, NULL, &byte_cnt);
 	count = ath10k_htt_tx_txq_calc_size(byte_cnt);
 
 	if (unlikely(peer_id >= ar->htt.tx_q_state.num_peers) ||
