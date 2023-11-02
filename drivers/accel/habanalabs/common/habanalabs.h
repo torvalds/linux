@@ -443,18 +443,22 @@ enum hl_collective_mode {
  *                  a CB handle can be provided for jobs on this queue.
  *                  Otherwise, a CB address must be provided.
  * @collective_mode: collective mode of current queue
+ * @q_dram_bd_address: PQ dram address, used when PQ need to reside in DRAM.
  * @driver_only: true if only the driver is allowed to send a job to this queue,
  *               false otherwise.
  * @binned: True if the queue is binned out and should not be used
  * @supports_sync_stream: True if queue supports sync stream
+ * @dram_bd: True if the bd should be copied to dram, needed for PQ which has been allocated on dram
  */
 struct hw_queue_properties {
 	enum hl_queue_type		type;
 	enum queue_cb_alloc_flags	cb_alloc_flags;
 	enum hl_collective_mode		collective_mode;
+	u64				q_dram_bd_address;
 	u8				driver_only;
 	u8				binned;
 	u8				supports_sync_stream;
+	u8				dram_bd;
 };
 
 /**
@@ -1052,6 +1056,8 @@ struct hl_encaps_signals_mgr {
  * @collective_mode: collective mode of current queue
  * @kernel_address: holds the queue's kernel virtual address.
  * @bus_address: holds the queue's DMA address.
+ * @pq_dram_address: hold the dram address when the PQ is allocated, used when dram_bd is true in
+ *                   queue properites.
  * @pi: holds the queue's pi value.
  * @ci: holds the queue's ci value, AS CALCULATED BY THE DRIVER (not real ci).
  * @hw_queue_id: the id of the H/W queue.
@@ -1061,6 +1067,7 @@ struct hl_encaps_signals_mgr {
  * @valid: is the queue valid (we have array of 32 queues, not all of them
  *         exist).
  * @supports_sync_stream: True if queue supports sync stream
+ * @dram_bd: True if the bd should be copied to dram, needed for PQ which has been allocated on dram
  */
 struct hl_hw_queue {
 	struct hl_cs_job			**shadow_queue;
@@ -1069,6 +1076,7 @@ struct hl_hw_queue {
 	enum hl_collective_mode			collective_mode;
 	void					*kernel_address;
 	dma_addr_t				bus_address;
+	u64					pq_dram_address;
 	u32					pi;
 	atomic_t				ci;
 	u32					hw_queue_id;
@@ -1077,6 +1085,7 @@ struct hl_hw_queue {
 	u16					int_queue_len;
 	u8					valid;
 	u8					supports_sync_stream;
+	u8					dram_bd;
 };
 
 /**
@@ -3889,6 +3898,7 @@ int hl_mmu_hr_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr, struct hl_mmu_hop_
 							struct hl_hr_mmu_funcs *hr_func);
 int hl_mmu_if_set_funcs(struct hl_device *hdev);
 void hl_mmu_v1_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
+void hl_mmu_v2_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
 void hl_mmu_v2_hr_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
 int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr);
 int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
@@ -3896,6 +3906,22 @@ int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 u64 hl_mmu_scramble_addr(struct hl_device *hdev, u64 addr);
 u64 hl_mmu_descramble_addr(struct hl_device *hdev, u64 addr);
 bool hl_is_dram_va(struct hl_device *hdev, u64 virt_addr);
+struct pgt_info *hl_mmu_dr_get_pgt_info(struct hl_ctx *ctx, u64 hop_addr);
+void hl_mmu_dr_free_hop(struct hl_ctx *ctx, u64 hop_addr);
+void hl_mmu_dr_free_pgt_node(struct hl_ctx *ctx, struct pgt_info *pgt_info);
+u64 hl_mmu_dr_get_phys_hop0_addr(struct hl_ctx *ctx);
+u64 hl_mmu_dr_get_hop0_addr(struct hl_ctx *ctx);
+void hl_mmu_dr_write_pte(struct hl_ctx *ctx, u64 shadow_pte_addr, u64 val);
+void hl_mmu_dr_write_final_pte(struct hl_ctx *ctx, u64 shadow_pte_addr, u64 val);
+void hl_mmu_dr_clear_pte(struct hl_ctx *ctx, u64 pte_addr);
+u64 hl_mmu_dr_get_phys_addr(struct hl_ctx *ctx, u64 shadow_addr);
+void hl_mmu_dr_get_pte(struct hl_ctx *ctx, u64 hop_addr);
+int hl_mmu_dr_put_pte(struct hl_ctx *ctx, u64 hop_addr);
+u64 hl_mmu_dr_get_alloc_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte, bool *is_new_hop);
+u64 hl_mmu_dr_alloc_hop(struct hl_ctx *ctx);
+void hl_mmu_dr_flush(struct hl_ctx *ctx);
+int hl_mmu_dr_init(struct hl_device *hdev);
+void hl_mmu_dr_fini(struct hl_device *hdev);
 
 int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 				void __iomem *dst, u32 src_offset, u32 size);

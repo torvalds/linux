@@ -19,8 +19,6 @@
 #define GAUDI2_LINUX_FW_FILE	"habanalabs/gaudi2/gaudi2-fit.itb"
 #define GAUDI2_BOOT_FIT_FILE	"habanalabs/gaudi2/gaudi2-boot-fit.itb"
 
-#define MMU_PAGE_TABLES_INITIAL_SIZE	0x10000000	/* 256MB */
-
 #define GAUDI2_CPU_TIMEOUT_USEC		30000000	/* 30s */
 
 #define NUMBER_OF_PDMA_QUEUES		2
@@ -109,13 +107,11 @@
 /* DRAM Memory Map */
 
 #define CPU_FW_IMAGE_SIZE			0x10000000	/* 256MB */
-
-/* This define should be used only when working in a debug mode without dram.
- * When working with dram, the driver size will be calculated dynamically.
- */
-#define NIC_DEFAULT_DRV_SIZE			0x20000000	/* 512MB */
-
 #define CPU_FW_IMAGE_ADDR			DRAM_PHYS_BASE
+#define PMMU_PAGE_TABLES_SIZE			0x10000000      /* 256MB */
+#define EDMA_PQS_SIZE				SZ_2M
+#define EDMA_SCRATCHPAD_SIZE			SZ_1M
+#define HMMU_PAGE_TABLES_SIZE			SZ_1M
 
 #define NIC_NUMBER_OF_PORTS			NIC_NUMBER_OF_ENGINES
 

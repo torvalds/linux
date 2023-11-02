@@ -649,6 +649,7 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 	prop->dmmu.start_addr = (VA_HOST_SPACE_START + VA_HOST_SPACE_SIZE / 2);
 	prop->dmmu.end_addr = VA_HOST_SPACE_END;
 	prop->dmmu.page_size = PAGE_SIZE_2MB;
+	prop->dmmu.pgt_size = prop->mmu_pgt_size;
 
 	prop->cfg_size = CFG_SIZE;
 	prop->max_asid = MAX_ASID;
