@@ -3,8 +3,8 @@
 /*	Documentation/netlink/specs/nfsd.yaml */
 /* YNL-GEN uapi header */
 
-#ifndef _UAPI_LINUX_NFSD_H
-#define _UAPI_LINUX_NFSD_H
+#ifndef _UAPI_LINUX_NFSD_NETLINK_H
+#define _UAPI_LINUX_NFSD_NETLINK_H
 
 #define NFSD_FAMILY_NAME	"nfsd"
 #define NFSD_FAMILY_VERSION	1
@@ -36,4 +36,4 @@ enum {
 	NFSD_CMD_MAX = (__NFSD_CMD_MAX - 1)
 };
 
-#endif /* _UAPI_LINUX_NFSD_H */
+#endif /* _UAPI_LINUX_NFSD_NETLINK_H */
