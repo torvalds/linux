@@ -151,7 +151,6 @@
 	x(BCH_ERR_btree_insert_fail,	btree_insert_need_mark_replicas)	\
 	x(BCH_ERR_btree_insert_fail,	btree_insert_need_journal_res)		\
 	x(BCH_ERR_btree_insert_fail,	btree_insert_need_journal_reclaim)	\
-	x(BCH_ERR_btree_insert_fail,	btree_insert_need_flush_buffer)		\
 	x(0,				backpointer_to_overwritten_btree_node)	\
 	x(0,				lock_fail_root_changed)			\
 	x(0,				journal_reclaim_would_deadlock)		\

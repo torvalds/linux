@@ -425,6 +425,7 @@ static inline void bch2_journal_set_replay_done(struct journal *j)
 
 void bch2_journal_unblock(struct journal *);
 void bch2_journal_block(struct journal *);
+struct journal_buf *bch2_next_write_buffer_flush_journal_buf(struct journal *j, u64 max_seq);
 
 void __bch2_journal_debug_to_text(struct printbuf *, struct journal *);
 void bch2_journal_debug_to_text(struct printbuf *, struct journal *);

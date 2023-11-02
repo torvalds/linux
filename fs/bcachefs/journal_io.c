@@ -4,6 +4,7 @@
 #include "alloc_foreground.h"
 #include "btree_io.h"
 #include "btree_update_interior.h"
+#include "btree_write_buffer.h"
 #include "buckets.h"
 #include "checksum.h"
 #include "disk_groups.h"
@@ -718,6 +719,22 @@ static int journal_entry_overwrite_validate(struct bch_fs *c,
 }
 
 static void journal_entry_overwrite_to_text(struct printbuf *out, struct bch_fs *c,
+					    struct jset_entry *entry)
+{
+	journal_entry_btree_keys_to_text(out, c, entry);
+}
+
+static int journal_entry_write_buffer_keys_validate(struct bch_fs *c,
+				struct jset *jset,
+				struct jset_entry *entry,
+				unsigned version, int big_endian,
+				enum bkey_invalid_flags flags)
+{
+	return journal_entry_btree_keys_validate(c, jset, entry,
+				version, big_endian, READ);
+}
+
+static void journal_entry_write_buffer_keys_to_text(struct printbuf *out, struct bch_fs *c,
 					    struct jset_entry *entry)
 {
 	journal_entry_btree_keys_to_text(out, c, entry);
@@ -1503,11 +1520,18 @@ done:
 
 static void journal_buf_realloc(struct journal *j, struct journal_buf *buf)
 {
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+
 	/* we aren't holding j->lock: */
 	unsigned new_size = READ_ONCE(j->buf_size_want);
 	void *new_buf;
 
 	if (buf->buf_size >= new_size)
+		return;
+
+	size_t btree_write_buffer_size = new_size / 64;
+
+	if (bch2_btree_write_buffer_resize(c, btree_write_buffer_size))
 		return;
 
 	new_buf = kvpmalloc(new_size, GFP_NOFS|__GFP_NOWARN);
@@ -1703,9 +1727,11 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct jset_entry *start, *end, *i, *next, *prev = NULL;
 	struct jset *jset = w->data;
+	struct journal_keys_to_wb wb = { NULL };
 	unsigned sectors, bytes, u64s;
-	bool validate_before_checksum = false;
 	unsigned long btree_roots_have = 0;
+	bool validate_before_checksum = false;
+	u64 seq = le64_to_cpu(jset->seq);
 	int ret;
 
 	/*
@@ -1733,9 +1759,28 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 		 * to c->btree_roots we have to get any missing btree roots and
 		 * add them to this journal entry:
 		 */
-		if (i->type == BCH_JSET_ENTRY_btree_root) {
+		switch (i->type) {
+		case BCH_JSET_ENTRY_btree_root:
 			bch2_journal_entry_to_btree_root(c, i);
 			__set_bit(i->btree_id, &btree_roots_have);
+			break;
+		case BCH_JSET_ENTRY_write_buffer_keys:
+			EBUG_ON(!w->need_flush_to_write_buffer);
+
+			if (!wb.wb)
+				bch2_journal_keys_to_write_buffer_start(c, &wb, seq);
+
+			struct bkey_i *k;
+			jset_entry_for_each_key(i, k) {
+				ret = bch2_journal_key_to_wb(c, &wb, i->btree_id, k);
+				if (ret) {
+					bch2_fs_fatal_error(c, "-ENOMEM flushing journal keys to btree write buffer");
+					bch2_journal_keys_to_write_buffer_end(c, &wb);
+					return ret;
+				}
+			}
+			i->type = BCH_JSET_ENTRY_btree_keys;
+			break;
 		}
 
 		/* Can we merge with previous entry? */
@@ -1758,6 +1803,10 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 			memmove_u64s_down(prev, i, jset_u64s(u64s));
 	}
 
+	if (wb.wb)
+		bch2_journal_keys_to_write_buffer_end(c, &wb);
+	w->need_flush_to_write_buffer = false;
+
 	prev = prev ? vstruct_next(prev) : jset->start;
 	jset->u64s = cpu_to_le32((u64 *) prev - jset->_data);
 
@@ -1765,8 +1814,7 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 
 	end	= bch2_btree_roots_to_journal_entries(c, end, btree_roots_have);
 
-	bch2_journal_super_entries_add_common(c, &end,
-				le64_to_cpu(jset->seq));
+	bch2_journal_super_entries_add_common(c, &end, seq);
 	u64s	= (u64 *) end - (u64 *) start;
 	BUG_ON(u64s > j->entry_u64s_reserved);
 
@@ -1789,7 +1837,7 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 	SET_JSET_CSUM_TYPE(jset, bch2_meta_checksum_type(c));
 
 	if (!JSET_NO_FLUSH(jset) && journal_entry_empty(jset))
-		j->last_empty_seq = le64_to_cpu(jset->seq);
+		j->last_empty_seq = seq;
 
 	if (bch2_csum_type_is_encryption(JSET_CSUM_TYPE(jset)))
 		validate_before_checksum = true;

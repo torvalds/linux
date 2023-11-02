@@ -233,11 +233,6 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		true,				\
 	  NULL,		"Stash pointer to in memory btree node in btree ptr")\
-	x(btree_write_buffer_size, u32,					\
-	  OPT_FS|OPT_MOUNT,						\
-	  OPT_UINT(16, (1U << 20) - 1),					\
-	  BCH2_NO_SB_OPT,		1U << 13,			\
-	  NULL,		"Number of btree write buffer entries")		\
 	x(gc_reserve_percent,		u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_UINT(5, 21),						\

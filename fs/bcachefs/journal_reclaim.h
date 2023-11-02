@@ -16,6 +16,7 @@ static inline void journal_reclaim_kick(struct journal *j)
 unsigned bch2_journal_dev_buckets_available(struct journal *,
 					    struct journal_device *,
 					    enum journal_space_from);
+void bch2_journal_set_watermark(struct journal *);
 void bch2_journal_space_available(struct journal *);
 
 static inline bool journal_pin_active(struct journal_entry_pin *pin)

@@ -10,6 +10,7 @@
 #include "bkey_methods.h"
 #include "btree_gc.h"
 #include "btree_update.h"
+#include "btree_write_buffer.h"
 #include "buckets.h"
 #include "error.h"
 #include "journal.h"
@@ -332,6 +333,7 @@ static int journal_entry_open(struct journal *j)
 	buf->must_flush	= false;
 	buf->separate_flush = false;
 	buf->flush_time	= 0;
+	buf->need_flush_to_write_buffer = true;
 
 	memset(buf->data, 0, sizeof(*buf->data));
 	buf->data->seq	= cpu_to_le64(journal_cur_seq(j));
@@ -766,6 +768,48 @@ void bch2_journal_block(struct journal *j)
 	spin_unlock(&j->lock);
 
 	journal_quiesce(j);
+}
+
+static struct journal_buf *__bch2_next_write_buffer_flush_journal_buf(struct journal *j, u64 max_seq)
+{
+	struct journal_buf *ret = NULL;
+
+	mutex_lock(&j->buf_lock);
+	spin_lock(&j->lock);
+	max_seq = min(max_seq, journal_cur_seq(j));
+
+	for (u64 seq = journal_last_unwritten_seq(j);
+	     seq <= max_seq;
+	     seq++) {
+		unsigned idx = seq & JOURNAL_BUF_MASK;
+		struct journal_buf *buf = j->buf + idx;
+
+		if (buf->need_flush_to_write_buffer) {
+			if (seq == journal_cur_seq(j))
+				__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
+
+			union journal_res_state s;
+			s.v = atomic64_read_acquire(&j->reservations.counter);
+
+			ret = journal_state_count(s, idx)
+				? ERR_PTR(-EAGAIN)
+				: buf;
+			break;
+		}
+	}
+
+	spin_unlock(&j->lock);
+	if (IS_ERR_OR_NULL(ret))
+		mutex_unlock(&j->buf_lock);
+	return ret;
+}
+
+struct journal_buf *bch2_next_write_buffer_flush_journal_buf(struct journal *j, u64 max_seq)
+{
+	struct journal_buf *ret;
+
+	wait_event(j->wait, (ret = __bch2_next_write_buffer_flush_journal_buf(j, max_seq)) != ERR_PTR(-EAGAIN));
+	return ret;
 }
 
 /* allocate journal on a device: */

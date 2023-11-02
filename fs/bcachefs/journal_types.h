@@ -36,6 +36,7 @@ struct journal_buf {
 	bool			noflush;	/* write has already been kicked off, and was noflush */
 	bool			must_flush;	/* something wants a flush */
 	bool			separate_flush;
+	bool			need_flush_to_write_buffer;
 };
 
 /*
@@ -276,6 +277,7 @@ struct journal {
 	u64			low_on_space_start;
 	u64			low_on_pin_start;
 	u64			max_in_flight_start;
+	u64			write_buffer_full_start;
 
 	struct bch2_time_stats	*flush_write_time;
 	struct bch2_time_stats	*noflush_write_time;
