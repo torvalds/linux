@@ -7,8 +7,55 @@
 #include <asm/unaligned.h>
 
 #include <ufs/ufs.h>
+#include <ufs/unipro.h>
 #include "ufs-sysfs.h"
 #include "ufshcd-priv.h"
+
+static const char *ufs_pa_pwr_mode_to_string(enum ufs_pa_pwr_mode mode)
+{
+	switch (mode) {
+	case FAST_MODE:		return "FAST_MODE";
+	case SLOW_MODE:		return "SLOW_MODE";
+	case FASTAUTO_MODE:	return "FASTAUTO_MODE";
+	case SLOWAUTO_MODE:	return "SLOWAUTO_MODE";
+	default:		return "UNKNOWN";
+	}
+}
+
+static const char *ufs_hs_gear_rate_to_string(enum ufs_hs_gear_rate rate)
+{
+	switch (rate) {
+	case PA_HS_MODE_A:	return "HS_RATE_A";
+	case PA_HS_MODE_B:	return "HS_RATE_B";
+	default:		return "UNKNOWN";
+	}
+}
+
+static const char *ufs_pwm_gear_to_string(enum ufs_pwm_gear_tag gear)
+{
+	switch (gear) {
+	case UFS_PWM_G1:	return "PWM_GEAR1";
+	case UFS_PWM_G2:	return "PWM_GEAR2";
+	case UFS_PWM_G3:	return "PWM_GEAR3";
+	case UFS_PWM_G4:	return "PWM_GEAR4";
+	case UFS_PWM_G5:	return "PWM_GEAR5";
+	case UFS_PWM_G6:	return "PWM_GEAR6";
+	case UFS_PWM_G7:	return "PWM_GEAR7";
+	default:		return "UNKNOWN";
+	}
+}
+
+static const char *ufs_hs_gear_to_string(enum ufs_hs_gear_tag gear)
+{
+	switch (gear) {
+	case UFS_HS_G1:	return "HS_GEAR1";
+	case UFS_HS_G2:	return "HS_GEAR2";
+	case UFS_HS_G3:	return "HS_GEAR3";
+	case UFS_HS_G4:	return "HS_GEAR4";
+	case UFS_HS_G5:	return "HS_GEAR5";
+	default:	return "UNKNOWN";
+	}
+}
 
 static const char *ufshcd_uic_link_state_to_string(
 			enum uic_link_state state)
@@ -628,6 +675,78 @@ static const struct attribute_group ufs_sysfs_monitor_group = {
 	.attrs = ufs_sysfs_monitor_attrs,
 };
 
+static ssize_t lane_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%u\n", hba->pwr_info.lane_rx);
+}
+
+static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%s\n", ufs_pa_pwr_mode_to_string(hba->pwr_info.pwr_rx));
+}
+
+static ssize_t rate_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%s\n", ufs_hs_gear_rate_to_string(hba->pwr_info.hs_rate));
+}
+
+static ssize_t gear_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%s\n", hba->pwr_info.hs_rate ?
+			  ufs_hs_gear_to_string(hba->pwr_info.gear_rx) :
+			  ufs_pwm_gear_to_string(hba->pwr_info.gear_rx));
+}
+
+static ssize_t dev_pm_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%s\n", ufshcd_ufs_dev_pwr_mode_to_string(hba->curr_dev_pwr_mode));
+}
+
+static ssize_t link_state_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%s\n", ufshcd_uic_link_state_to_string(hba->uic_link_state));
+}
+
+static DEVICE_ATTR_RO(lane);
+static DEVICE_ATTR_RO(mode);
+static DEVICE_ATTR_RO(rate);
+static DEVICE_ATTR_RO(gear);
+static DEVICE_ATTR_RO(dev_pm);
+static DEVICE_ATTR_RO(link_state);
+
+static struct attribute *ufs_power_info_attrs[] = {
+	&dev_attr_lane.attr,
+	&dev_attr_mode.attr,
+	&dev_attr_rate.attr,
+	&dev_attr_gear.attr,
+	&dev_attr_dev_pm.attr,
+	&dev_attr_link_state.attr,
+	NULL
+};
+
+static const struct attribute_group ufs_sysfs_power_info_group = {
+	.name = "power_info",
+	.attrs = ufs_power_info_attrs,
+};
+
 static ssize_t ufs_sysfs_read_desc_param(struct ufs_hba *hba,
 				  enum desc_idn desc_id,
 				  u8 desc_index,
@@ -1233,6 +1352,7 @@ static const struct attribute_group *ufs_sysfs_groups[] = {
 	&ufs_sysfs_default_group,
 	&ufs_sysfs_capabilities_group,
 	&ufs_sysfs_monitor_group,
+	&ufs_sysfs_power_info_group,
 	&ufs_sysfs_device_descriptor_group,
 	&ufs_sysfs_interconnect_descriptor_group,
 	&ufs_sysfs_geometry_descriptor_group,
