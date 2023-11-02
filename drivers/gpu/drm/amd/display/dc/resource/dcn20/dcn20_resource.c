@@ -1273,15 +1273,19 @@ static void build_clamping_params(struct dc_stream_state *stream)
 	stream->clamping.pixel_encoding = stream->timing.pixel_encoding;
 }
 
+void dcn20_build_pipe_pix_clk_params(struct pipe_ctx *pipe_ctx)
+{
+	get_pixel_clock_parameters(pipe_ctx, &pipe_ctx->stream_res.pix_clk_params);
+	pipe_ctx->clock_source->funcs->get_pix_clk_dividers(
+			pipe_ctx->clock_source,
+			&pipe_ctx->stream_res.pix_clk_params,
+			&pipe_ctx->pll_settings);
+}
+
 static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 {
 
-	get_pixel_clock_parameters(pipe_ctx, &pipe_ctx->stream_res.pix_clk_params);
-
-	pipe_ctx->clock_source->funcs->get_pix_clk_dividers(
-		pipe_ctx->clock_source,
-		&pipe_ctx->stream_res.pix_clk_params,
-		&pipe_ctx->pll_settings);
+	dcn20_build_pipe_pix_clk_params(pipe_ctx);
 
 	pipe_ctx->stream->clamping.pixel_encoding = pipe_ctx->stream->timing.pixel_encoding;
 

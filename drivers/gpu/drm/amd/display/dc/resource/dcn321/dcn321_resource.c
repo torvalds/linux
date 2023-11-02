@@ -1609,6 +1609,7 @@ static struct resource_funcs dcn321_res_pool_funcs = {
 	.retain_phantom_pipes = dcn32_retain_phantom_pipes,
 	.save_mall_state = dcn32_save_mall_state,
 	.restore_mall_state = dcn32_restore_mall_state,
+	.build_pipe_pix_clk_params = dcn20_build_pipe_pix_clk_params,
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)

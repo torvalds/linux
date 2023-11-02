@@ -1237,15 +1237,11 @@ static void update_pipes_with_slice_table(struct dc *dc, struct dc_state *contex
 {
 	int i;
 
-	for (i = 0; i < table->odm_combine_count; i++) {
+	for (i = 0; i < table->odm_combine_count; i++)
 		resource_update_pipes_for_stream_with_slice_count(context,
 				dc->current_state, dc->res_pool,
 				table->odm_combines[i].stream,
 				table->odm_combines[i].slice_count);
-		/* TODO: move this into the function above */
-		dcn20_build_mapped_resource(dc, context,
-				table->odm_combines[i].stream);
-	}
 
 	for (i = 0; i < table->mpc_combine_count; i++)
 		resource_update_pipes_for_plane_with_slice_count(context,
