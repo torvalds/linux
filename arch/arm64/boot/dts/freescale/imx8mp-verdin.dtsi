@@ -184,7 +184,6 @@
 &eqos {
 	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii-id";
-	phy-supply = <&reg_module_eth1phy>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_eqos>;
 	snps,force_thresh_dma_mode;

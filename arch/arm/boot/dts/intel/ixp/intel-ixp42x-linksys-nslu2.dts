@@ -65,7 +65,7 @@
 		};
 		button-reset {
 			wakeup-source;
-			linux,code = <KEY_ESC>;
+			linux,code = <KEY_RESTART>;
 			label = "reset";
 			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
 		};
@@ -101,6 +101,8 @@
 			flash@0,0 {
 				compatible = "intel,ixp4xx-flash", "cfi-flash";
 				bank-width = <2>;
+				/* Enable writes on the expansion bus */
+				intel,ixp4xx-eb-write-enable = <1>;
 				/*
 				 * 8 MB of Flash in 0x20000 byte blocks
 				 * mapped in at CS0.

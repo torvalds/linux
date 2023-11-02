@@ -144,7 +144,7 @@
 				clocks = <&cnm_clock>;
 				clock-names = "core";
 				interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
-				clock-frequency=<100000>;
+				clock-frequency = <100000>;
 
 				pinctrl-names = "default", "gpio";
 				pinctrl-0 = <&i2c0_pins>;
@@ -163,7 +163,7 @@
 				clocks = <&cnm_clock>;
 				clock-names = "core";
 				interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
-				clock-frequency=<100000>;
+				clock-frequency = <100000>;
 
 				pinctrl-names = "default", "gpio";
 				pinctrl-0 = <&i2c1_pins>;

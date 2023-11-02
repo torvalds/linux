@@ -63,7 +63,7 @@
 		};
 		button-reset {
 			wakeup-source;
-			linux,code = <KEY_ESC>;
+			linux,code = <KEY_RESTART>;
 			label = "reset";
 			gpios = <&gpio0 4 GPIO_ACTIVE_LOW>;
 		};

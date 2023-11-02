@@ -34,6 +34,11 @@
 		#size-cells = <1>;
 		ranges;
 
+		event_log: tcg_event_log@b3d00000 {
+			no-map;
+			reg = <0xb3d00000 0x100000>;
+		};
+
 		ramoops@b3e00000 {
 			compatible = "ramoops";
 			reg = <0xb3e00000 0x200000>; /* 16 * (4 * 0x8000) */
@@ -454,8 +459,9 @@
 	status = "okay";
 
 	tpm@2e {
-		compatible = "nuvoton,npct75x";
+		compatible = "nuvoton,npct75x", "tcg,tpm-tis-i2c";
 		reg = <0x2e>;
+		memory-region = <&event_log>;
 	};
 
 	eeprom@50 {

@@ -146,6 +146,7 @@ properties:
               - lxa,stm32mp157c-mc1      # Linux Automation MC-1
               - lxa,stm32mp157c-tac-gen1 # Linux Automation TAC (Generation 1)
               - lxa,stm32mp157c-tac-gen2 # Linux Automation TAC (Generation 2)
+              - oct,stm32mp157c-osd32-red # Octavo OSD32MP1 RED board
           - const: oct,stm32mp15xx-osd32
           - enum:
               - st,stm32mp157

@@ -561,7 +561,7 @@
 				compatible = "fsl,imx23-pwm";
 				reg = <0x80064000 0x2000>;
 				clocks = <&clks 30>;
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				fsl,pwm-number = <5>;
 				status = "disabled";
 			};
@@ -598,7 +598,7 @@
 				reg = <0x80070000 0x2000>;
 				interrupts = <0>;
 				clocks = <&clks 32>, <&clks 16>;
-				clock-names = "uart", "apb_pclk";
+				clock-names = "uartclk", "apb_pclk";
 				status = "disabled";
 			};
 

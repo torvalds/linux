@@ -338,6 +338,8 @@
 			resets = <&ccu RST_BUS_VE>;
 			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 			allwinner,sram = <&ve_sram 1>;
+			interconnects = <&mbus 4>;
+			interconnect-names = "dma-mem";
 		};
 
 		mmc0: mmc@1c0f000 {

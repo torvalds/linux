@@ -225,6 +225,59 @@
 		};
 	};
 
+	funnel {
+		/*
+		 * non-configurable funnel don't show up on the AMBA
+		 * bus.  As such no need to add "arm,primecell".
+		 */
+		compatible = "arm,coresight-static-funnel";
+
+		in-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				ca_funnel_in_port0: endpoint {
+					remote-endpoint = <&etm0_out_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				ca_funnel_in_port1: endpoint {
+					remote-endpoint = <&etm1_out_port>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+
+				ca_funnel_in_port2: endpoint {
+					remote-endpoint = <&etm2_out_port>;
+				};
+			};
+
+			port@3 {
+				reg = <3>;
+
+				ca_funnel_in_port3: endpoint {
+					remote-endpoint = <&etm3_out_port>;
+				};
+			};
+		};
+
+		out-ports {
+			port {
+				ca_funnel_out_port0: endpoint {
+					remote-endpoint = <&hugo_funnel_in_port0>;
+				};
+			};
+		};
+	};
+
 	pmu {
 		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
@@ -389,59 +442,6 @@
 				port {
 					etm3_out_port: endpoint {
 						remote-endpoint = <&ca_funnel_in_port3>;
-					};
-				};
-			};
-		};
-
-		funnel {
-			/*
-			 * non-configurable funnel don't show up on the AMBA
-			 * bus.  As such no need to add "arm,primecell".
-			 */
-			compatible = "arm,coresight-static-funnel";
-
-			in-ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
-
-					ca_funnel_in_port0: endpoint {
-						remote-endpoint = <&etm0_out_port>;
-					};
-				};
-
-				port@1 {
-					reg = <1>;
-
-					ca_funnel_in_port1: endpoint {
-						remote-endpoint = <&etm1_out_port>;
-					};
-				};
-
-				port@2 {
-					reg = <2>;
-
-					ca_funnel_in_port2: endpoint {
-						remote-endpoint = <&etm2_out_port>;
-					};
-				};
-
-				port@3 {
-					reg = <3>;
-
-					ca_funnel_in_port3: endpoint {
-						remote-endpoint = <&etm3_out_port>;
-					};
-				};
-			};
-
-			out-ports {
-				port {
-					ca_funnel_out_port0: endpoint {
-						remote-endpoint = <&hugo_funnel_in_port0>;
 					};
 				};
 			};

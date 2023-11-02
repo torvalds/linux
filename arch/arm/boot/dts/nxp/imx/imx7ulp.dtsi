@@ -209,7 +209,7 @@
 		};
 
 		usbphy1: usb-phy@40350000 {
-			compatible = "fsl,imx7ulp-usbphy", "fsl,imx6ul-usbphy";
+			compatible = "fsl,imx7ulp-usbphy";
 			reg = <0x40350000 0x1000>;
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pcc2 IMX7ULP_CLK_USB_PHY>;

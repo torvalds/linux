@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/sti/st,sti-syscon.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics STi platform sysconfig
+
+maintainers:
+  - Patrice Chotard <patrice.chotard@foss.st.com>
+
+description: |
+  Binding for the various sysconfig nodes used within the STi
+  platform device-tree to point to some common configuration
+  registers used by other nodes.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - st,stih407-core-syscfg
+          - st,stih407-flash-syscfg
+          - st,stih407-front-syscfg
+          - st,stih407-lpm-syscfg
+          - st,stih407-rear-syscfg
+          - st,stih407-sbc-reg-syscfg
+          - st,stih407-sbc-syscfg
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    syscfg_sbc: syscon@9620000 {
+        compatible = "st,stih407-sbc-syscfg", "syscon";
+        reg = <0x9620000 0x1000>;
+    };
+
+...

@@ -124,19 +124,18 @@
 		audio-amplifier = <&max98504>;
 		mic-bias-gpios = <&gpr3 2 GPIO_ACTIVE_HIGH>;
 		model = "wm5110";
-		samsung,audio-routing =
-			/* Headphone */
-			"HP", "HPOUT1L",
-			"HP", "HPOUT1R",
+		audio-routing = /* Headphone */
+				"HP", "HPOUT1L",
+				"HP", "HPOUT1R",
 
-			/* Speaker */
-			"SPK", "SPKOUT",
-			"SPKOUT", "HPOUT2L",
-			"SPKOUT", "HPOUT2R",
+				/* Speaker */
+				"SPK", "SPKOUT",
+				"SPKOUT", "HPOUT2L",
+				"SPKOUT", "HPOUT2R",
 
-			/* Receiver */
-			"RCV", "HPOUT3L",
-			"RCV", "HPOUT3R";
+				/* Receiver */
+				"RCV", "HPOUT3L",
+				"RCV", "HPOUT3R";
 	};
 };
 
@@ -1103,7 +1102,7 @@
 
 	te_irq: te-irq-pins {
 		samsung,pins = "gpf1-3";
-		samsung,pin-function = <0xf>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
 	};
 };
 

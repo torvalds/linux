@@ -120,6 +120,10 @@
 	compatible = "qcom,wcn3620";
 };
 
+&wcnss_mem {
+	status = "okay";
+};
+
 &tlmm {
 	panel_vdd3_default: panel-vdd3-default-state {
 		pins = "gpio9";

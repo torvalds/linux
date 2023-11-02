@@ -67,7 +67,8 @@
 	fsusb1_phy: usb-phy@1 {
 		compatible = "motorola,mapphone-mdm6600";
 		pinctrl-0 = <&usb_mdm6600_pins>;
-		pinctrl-names = "default";
+		pinctrl-1 = <&usb_mdm6600_sleep_pins>;
+		pinctrl-names = "default", "sleep";
 		enable-gpios = <&gpio3 31 GPIO_ACTIVE_LOW>;     /* gpio_95 */
 		power-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;	/* gpio_54 */
 		reset-gpios = <&gpio2 17 GPIO_ACTIVE_HIGH>;	/* gpio_49 */
@@ -472,6 +473,23 @@
 		OMAP4_IOPAD(0x096, PIN_OUTPUT | MUX_MODE3)
 
 		/* cmd2 0x4a100142 uart3_rts_sd.gpio_142 f28 */
+		OMAP4_IOPAD(0x142, PIN_OUTPUT | MUX_MODE3)
+		>;
+	};
+
+	/* Modem sleep pins to keep gpio_49 high with internal pull */
+	usb_mdm6600_sleep_pins: usb-mdm6600-sleep-pins {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x0d8, PIN_INPUT | MUX_MODE3)
+		OMAP4_IOPAD(0x07c, PIN_OUTPUT | MUX_MODE3)
+		OMAP4_IOPAD(0x072, PIN_INPUT_PULLUP | MUX_MODE7) /* Keep gpio_49 reset high */
+		OMAP4_IOPAD(0x14e, PIN_OUTPUT | MUX_MODE3)
+		OMAP4_IOPAD(0x150, PIN_OFF_OUTPUT_LOW | PIN_INPUT | MUX_MODE3)
+		OMAP4_IOPAD(0x07e, PIN_INPUT | MUX_MODE3)
+		OMAP4_IOPAD(0x07a, PIN_INPUT | MUX_MODE3)
+		OMAP4_IOPAD(0x078, PIN_INPUT | MUX_MODE3)
+		OMAP4_IOPAD(0x094, PIN_OUTPUT | MUX_MODE3)
+		OMAP4_IOPAD(0x096, PIN_OUTPUT | MUX_MODE3)
 		OMAP4_IOPAD(0x142, PIN_OUTPUT | MUX_MODE3)
 		>;
 	};

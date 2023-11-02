@@ -126,6 +126,12 @@
 			AM64X_IOPAD(0x002c, PIN_OUTPUT, 0)	/* (L19) OSPI0_CSn0 */
 		>;
 	};
+
+	rtc_pins_default: rtc-defaults-pins {
+		pinctrl-single,pins = <
+			AM64X_IOPAD(0x0278, PIN_INPUT, 7)	/* (C19) EXTINTn.GPIO1_70 */
+		>;
+	};
 };
 
 &cpsw3g {
@@ -177,6 +183,11 @@
 	i2c_som_rtc: rtc@52 {
 		compatible = "microcrystal,rv3028";
 		reg = <0x52>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_pins_default>;
+		interrupt-parent = <&main_gpio1>;
+		interrupts = <70 IRQ_TYPE_EDGE_FALLING>;
+		wakeup-source;
 	};
 };
 

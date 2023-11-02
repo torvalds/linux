@@ -51,6 +51,11 @@ properties:
           - const: allwinner,parrot
           - const: allwinner,sun8i-a33
 
+      - description: Anbernic RG-Nano
+        items:
+          - const: anbernic,rg-nano
+          - const: allwinner,sun8i-v3s
+
       - description: Amarula A64 Relic
         items:
           - const: amarula,a64-relic
@@ -150,6 +155,17 @@ properties:
         items:
           - const: roofull,beelink-x2
           - const: allwinner,sun8i-h3
+
+      - description: BigTreeTech Manta M4/8P
+        items:
+          - const: bigtreetech,cb1-manta
+          - const: bigtreetech,cb1
+          - const: allwinner,sun50i-h616
+
+      - description: BigTreeTech Pi
+        items:
+          - const: bigtreetech,pi
+          - const: allwinner,sun50i-h616
 
       - description: Chuwi V7 CW0825
         items:

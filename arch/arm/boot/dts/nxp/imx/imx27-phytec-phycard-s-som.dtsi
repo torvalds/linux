@@ -34,7 +34,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	at24@52 {
+	eeprom@52 {
 		compatible = "atmel,24c32";
 		pagesize = <32>;
 		reg = <0x52>;

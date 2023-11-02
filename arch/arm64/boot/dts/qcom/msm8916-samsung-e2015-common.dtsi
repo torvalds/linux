@@ -83,6 +83,10 @@
 	compatible = "qcom,wcn3620";
 };
 
+&wcnss_mem {
+	status = "okay";
+};
+
 &tlmm {
 	tkey_en_default: tkey-en-default-state {
 		pins = "gpio97";
