@@ -1524,7 +1524,6 @@ fail:
 		return;
 	}
 	list_add_tail(&gh->gh_list, insert_pt);
-	gh = list_first_entry(&gl->gl_holders, struct gfs2_holder, gh_list);
 	spin_unlock(&gl->gl_lockref.lock);
 	if (sdp->sd_lockstruct.ls_ops->lm_cancel)
 		sdp->sd_lockstruct.ls_ops->lm_cancel(gl);
