@@ -3299,7 +3299,7 @@ err:
 }
 EXPORT_SYMBOL_GPL(brcmnand_probe);
 
-int brcmnand_remove(struct platform_device *pdev)
+void brcmnand_remove(struct platform_device *pdev)
 {
 	struct brcmnand_controller *ctrl = dev_get_drvdata(&pdev->dev);
 	struct brcmnand_host *host;
@@ -3316,8 +3316,6 @@ int brcmnand_remove(struct platform_device *pdev)
 	clk_disable_unprepare(ctrl->clk);
 
 	dev_set_drvdata(&pdev->dev, NULL);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(brcmnand_remove);
 
