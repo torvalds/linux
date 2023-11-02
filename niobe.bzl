@@ -27,6 +27,7 @@ def define_niobe():
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-niobe.ko",
+        "drivers/power/reset/qcom-dload-mode.ko",
         "drivers/regulator/stub-regulator.ko",
         "drivers/soc/qcom/boot_stats.ko",
         "drivers/soc/qcom/cmd-db.ko",
