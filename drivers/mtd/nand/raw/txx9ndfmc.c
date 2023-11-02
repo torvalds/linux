@@ -369,7 +369,7 @@ static int txx9ndfmc_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int txx9ndfmc_remove(struct platform_device *dev)
+static void txx9ndfmc_remove(struct platform_device *dev)
 {
 	struct txx9ndfmc_drvdata *drvdata = platform_get_drvdata(dev);
 	int ret, i;
@@ -390,7 +390,6 @@ static int txx9ndfmc_remove(struct platform_device *dev)
 		kfree(txx9_priv->mtdname);
 		kfree(txx9_priv);
 	}
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -406,7 +405,7 @@ static int txx9ndfmc_resume(struct platform_device *dev)
 
 static struct platform_driver txx9ndfmc_driver = {
 	.probe		= txx9ndfmc_probe,
-	.remove		= txx9ndfmc_remove,
+	.remove_new	= txx9ndfmc_remove,
 	.resume		= txx9ndfmc_resume,
 	.driver		= {
 		.name	= "txx9ndfmc",
