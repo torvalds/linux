@@ -1904,11 +1904,10 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int etnaviv_gpu_platform_remove(struct platform_device *pdev)
+static void etnaviv_gpu_platform_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &gpu_ops);
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static int etnaviv_gpu_rpm_suspend(struct device *dev)
@@ -1970,6 +1969,6 @@ struct platform_driver etnaviv_gpu_driver = {
 		.of_match_table = etnaviv_gpu_match,
 	},
 	.probe = etnaviv_gpu_platform_probe,
-	.remove = etnaviv_gpu_platform_remove,
+	.remove_new = etnaviv_gpu_platform_remove,
 	.id_table = gpu_ids,
 };
