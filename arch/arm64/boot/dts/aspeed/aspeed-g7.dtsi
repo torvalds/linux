@@ -561,29 +561,28 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x0 0x12c19800 0x800>;
 
-			pcie1_kcs1: pcie-kcs@24 {
+			pcie1_kcs0: pcie-kcs@24 {
 				compatible = "aspeed,ast2700-kcs-bmc";
 				reg = <0x24 0x1>, <0x30 0x1>, <0x3c 0x1>;
 				interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
-			pcie1_kcs2: pcie-kcs@28 {
+			pcie1_kcs1: pcie-kcs@28 {
 				compatible = "aspeed,ast2700-kcs-bmc";
 				reg = <0x28 0x1>, <0x34 0x1>, <0x40 0x1>;
 				interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
-				kcs_chan = <7>;
 				status = "disabled";
 			};
 
-			pcie1_kcs3: pcie-kcs@2c {
+			pcie1_kcs2: pcie-kcs@2c {
 				compatible = "aspeed,ast2700-kcs-bmc";
 				reg = <0x2c 0x1>, <0x38 0x1>, <0x44 0x1>;
 				interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
-			pcie1_kcs4: pcie-kcs@114 {
+			pcie1_kcs3: pcie-kcs@114 {
 				compatible = "aspeed,ast2700-kcs-bmc";
 				reg = <0x114 0x1>, <0x118 0x1>, <0x11c 0x1>;
 				interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
