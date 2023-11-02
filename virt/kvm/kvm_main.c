@@ -91,8 +91,8 @@ unsigned int halt_poll_ns_grow_start = 10000; /* 10us */
 module_param(halt_poll_ns_grow_start, uint, 0644);
 EXPORT_SYMBOL_GPL(halt_poll_ns_grow_start);
 
-/* Default resets per-vcpu halt_poll_ns . */
-unsigned int halt_poll_ns_shrink;
+/* Default halves per-vcpu halt_poll_ns. */
+unsigned int halt_poll_ns_shrink = 2;
 module_param(halt_poll_ns_shrink, uint, 0644);
 EXPORT_SYMBOL_GPL(halt_poll_ns_shrink);
 

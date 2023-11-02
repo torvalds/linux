@@ -105,7 +105,7 @@ powerpc kvm-hv case.
 |			| grow_halt_poll_ns()	    |			      |
 |			| function.		    |			      |
 +-----------------------+---------------------------+-------------------------+
-|halt_poll_ns_shrink	| The value by which the    | 0			      |
+|halt_poll_ns_shrink	| The value by which the    | 2			      |
 |			| halt polling interval is  |			      |
 |			| divided in the	    |			      |
 |			| shrink_halt_poll_ns()	    |			      |
