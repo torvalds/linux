@@ -80,9 +80,16 @@
 			no-map;
 		};
 
-		video_engine_memory: video {
-			size = <0x0 0x04000000>;
-			alignment = <0x0 0x01000000>;
+		video_engine_memory0: video0 {
+			size = <0x0 0x03000000>;
+			alignment = <0x0 0x00010000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		video_engine_memory1: video1{
+			size = <0x0 0x03000000>;
+			alignment = <0x0 0x00010000>;
 			compatible = "shared-dma-pool";
 			reusable;
 		};
@@ -245,12 +252,12 @@
 
 &video0 {
 	status = "okay";
-	memory-region = <&video_engine_memory>;
+	memory-region = <&video_engine_memory0>;
 };
 
 &video1 {
 	status = "okay";
-	memory-region = <&video_engine_memory>;
+	memory-region = <&video_engine_memory1>;
 };
 
 #if 0
