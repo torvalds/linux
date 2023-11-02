@@ -11,6 +11,8 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_range_manager.h>
 
+#include "generated/xe_wa_oob.h"
+#include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
@@ -19,6 +21,7 @@
 #include "xe_res_cursor.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_ttm_vram_mgr.h"
+#include "xe_wa.h"
 
 struct xe_ttm_stolen_mgr {
 	struct xe_ttm_vram_mgr base;
@@ -112,6 +115,7 @@ static u32 get_wopcm_size(struct xe_device *xe)
 static u32 detect_bar2_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	struct xe_gt *media_gt = xe_device_get_root_tile(xe)->media_gt;
 	u32 stolen_size, wopcm_size;
 	u32 ggc, gms;
 
@@ -153,6 +157,27 @@ static u32 detect_bar2_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr
 		return 0;
 
 	stolen_size -= wopcm_size;
+
+	if (media_gt && XE_WA(media_gt, 14019821291)) {
+		u64 gscpsmi_base = xe_mmio_read64_2x32(media_gt, GSCPSMI_BASE)
+			& ~GENMASK_ULL(5, 0);
+
+		/*
+		 * This workaround is primarily implemented by the BIOS.  We
+		 * just need to figure out whether the BIOS has applied the
+		 * workaround (meaning the programmed address falls within
+		 * the DSM) and, if so, reserve that part of the DSM to
+		 * prevent accidental reuse.  The DSM location should be just
+		 * below the WOPCM.
+		 */
+		if (gscpsmi_base >= mgr->io_base &&
+		    gscpsmi_base < mgr->io_base + stolen_size) {
+			xe_gt_dbg(media_gt,
+				  "Reserving %llu bytes of DSM for Wa_14019821291\n",
+				  mgr->io_base + stolen_size - gscpsmi_base);
+			stolen_size = gscpsmi_base - mgr->io_base;
+		}
+	}
 
 	if (drm_WARN_ON(&xe->drm, stolen_size + SZ_8M > pci_resource_len(pdev, 2)))
 		return 0;
