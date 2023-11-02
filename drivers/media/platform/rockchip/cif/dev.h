@@ -895,6 +895,9 @@ struct rkcif_device {
 	struct rkcif_err_state_work	err_state_work;
 	struct rkcif_sensor_work	sensor_work;
 	int				resume_mode;
+	u32				nr_buf_size;
+	u32				share_mem_size;
+	u32				thunderboot_sensor_num;
 	int				sensor_state;
 };
 

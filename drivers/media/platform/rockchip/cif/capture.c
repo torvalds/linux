@@ -4563,6 +4563,9 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 	struct v4l2_subdev *sd;
 	int i = 0;
 	unsigned long flags;
+	phys_addr_t resmem_free_start;
+	phys_addr_t resmem_free_end;
+	u32 share_head_size = 0;
 
 	if (!priv)
 		return;
@@ -4584,16 +4587,25 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 			buf->dummy.is_free = true;
 		}
 
-		if (buf_num > 2) {
-			for (i = buf_num - 1; i >= 2; i--) {
-				buf = &stream->rx_buf[i];
-				list_add_tail(&buf->list_free, &priv->buf_free_list);
-			}
-			schedule_work(&priv->buffree_work.work);
-			atomic_set(&stream->buf_cnt, 0);
-			stream->total_buf_num = 0;
-			stream->rx_buf_num = 0;
+		if (IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
+			share_head_size = dev->thunderboot_sensor_num * sizeof(struct rkisp32_thunderboot_resmem_head);
+			if (share_head_size != dev->share_mem_size)
+				v4l2_info(&stream->cifdev->v4l2_dev,
+					  "share mem head error, rtt head size %d, arm head size %d\n",
+					  dev->share_mem_size, share_head_size);
+			resmem_free_start = dev->resmem_pa + share_head_size + dev->nr_buf_size;
+			resmem_free_end = dev->resmem_pa + dev->resmem_size;
+			v4l2_info(&stream->cifdev->v4l2_dev,
+				  "free reserved mem start 0x%x, end 0x%x, share_head_size 0x%x, nr_buf_size 0x%x\n",
+				  (u32)resmem_free_start, (u32)resmem_free_end, share_head_size, dev->nr_buf_size);
+			free_reserved_area(phys_to_virt(resmem_free_start),
+					   phys_to_virt(resmem_free_end),
+					   -1, "rkisp_thunderboot");
 		}
+		atomic_set(&stream->buf_cnt, 0);
+		stream->total_buf_num = 0;
+		stream->rx_buf_num = 0;
+
 		return;
 	}
 
@@ -4630,6 +4642,7 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 		 "free rx_buf, buf_num %d\n", buf_num);
 }
 
+static void rkcif_get_resmem_head(struct rkcif_device *cif_dev);
 int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 {
 	struct rkcif_device *dev = stream->cifdev;
@@ -4677,6 +4690,8 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 		dummy->is_need_vaddr = true;
 		dummy->is_need_dbuf = true;
 		if (dev->is_thunderboot) {
+			if (i == 0)
+				rkcif_get_resmem_head(dev);
 			buf->buf_idx = i;
 			ret = rkcif_alloc_reserved_mem_buf(dev, buf);
 			if (ret) {
@@ -10412,10 +10427,14 @@ static void rkcif_get_resmem_head(struct rkcif_device *cif_dev)
 
 			head = &tmp->head;
 			cif_dev->resume_mode = head->rtt_mode;
+			cif_dev->nr_buf_size = head->nr_buf_size;
+			cif_dev->share_mem_size = head->share_mem_size;
+			cif_dev->thunderboot_sensor_num = head->camera_num;
 		}
 	}
 	v4l2_err(&cif_dev->v4l2_dev,
-		 "get camera index %02x, resume_mode 0x%x\n", cam_idx, cif_dev->resume_mode);
+		 "get camera index %02x, resume_mode 0x%x, nr_buf_size %d\n",
+		 cam_idx, cif_dev->resume_mode, cif_dev->nr_buf_size);
 }
 
 static int rkcif_subdevs_set_power(struct rkcif_device *cif_dev, int on)
