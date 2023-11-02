@@ -55,7 +55,6 @@ struct rk3066_hdmi {
 	unsigned int tmdsclk;
 
 	struct hdmi_data_info hdmi_data;
-	struct drm_display_mode previous_mode;
 };
 
 static struct rk3066_hdmi *encoder_to_rk3066_hdmi(struct drm_encoder *encoder)
@@ -387,21 +386,21 @@ static int rk3066_hdmi_setup(struct rk3066_hdmi *hdmi,
 	return 0;
 }
 
-static void
-rk3066_hdmi_encoder_mode_set(struct drm_encoder *encoder,
-			     struct drm_display_mode *mode,
-			     struct drm_display_mode *adj_mode)
+static void rk3066_hdmi_encoder_enable(struct drm_encoder *encoder,
+				       struct drm_atomic_state *state)
 {
 	struct rk3066_hdmi *hdmi = encoder_to_rk3066_hdmi(encoder);
-
-	/* Store the display mode for plugin/DPMS poweron events. */
-	drm_mode_copy(&hdmi->previous_mode, adj_mode);
-}
-
-static void rk3066_hdmi_encoder_enable(struct drm_encoder *encoder)
-{
-	struct rk3066_hdmi *hdmi = encoder_to_rk3066_hdmi(encoder);
+	struct drm_connector_state *conn_state;
+	struct drm_crtc_state *crtc_state;
 	int mux, val;
+
+	conn_state = drm_atomic_get_new_connector_state(state, &hdmi->connector);
+	if (WARN_ON(!conn_state))
+		return;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
+	if (WARN_ON(!crtc_state))
+		return;
 
 	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
 	if (mux)
@@ -414,10 +413,11 @@ static void rk3066_hdmi_encoder_enable(struct drm_encoder *encoder)
 	DRM_DEV_DEBUG(hdmi->dev, "hdmi encoder enable select: vop%s\n",
 		      (mux) ? "1" : "0");
 
-	rk3066_hdmi_setup(hdmi, &hdmi->previous_mode);
+	rk3066_hdmi_setup(hdmi, &crtc_state->adjusted_mode);
 }
 
-static void rk3066_hdmi_encoder_disable(struct drm_encoder *encoder)
+static void rk3066_hdmi_encoder_disable(struct drm_encoder *encoder,
+					struct drm_atomic_state *state)
 {
 	struct rk3066_hdmi *hdmi = encoder_to_rk3066_hdmi(encoder);
 
@@ -449,10 +449,9 @@ rk3066_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 
 static const
 struct drm_encoder_helper_funcs rk3066_hdmi_encoder_helper_funcs = {
-	.enable       = rk3066_hdmi_encoder_enable,
-	.disable      = rk3066_hdmi_encoder_disable,
-	.mode_set     = rk3066_hdmi_encoder_mode_set,
-	.atomic_check = rk3066_hdmi_encoder_atomic_check,
+	.atomic_check   = rk3066_hdmi_encoder_atomic_check,
+	.atomic_enable  = rk3066_hdmi_encoder_enable,
+	.atomic_disable = rk3066_hdmi_encoder_disable,
 };
 
 static enum drm_connector_status
