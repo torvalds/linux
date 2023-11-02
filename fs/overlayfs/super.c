@@ -1499,7 +1499,7 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 #ifdef CONFIG_FS_POSIX_ACL
 	sb->s_flags |= SB_POSIXACL;
 #endif
-	sb->s_iflags |= SB_I_SKIP_SYNC | SB_I_IMA_UNVERIFIABLE_SIGNATURE;
+	sb->s_iflags |= SB_I_SKIP_SYNC;
 	/*
 	 * Ensure that umask handling is done by the filesystems used
 	 * for the the upper layer instead of overlayfs as that would
