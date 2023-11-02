@@ -1162,10 +1162,6 @@ int bch2_delete_dead_inodes(struct bch_fs *c)
 again:
 	need_another_pass = false;
 
-	ret = bch2_btree_write_buffer_flush_sync(trans);
-	if (ret)
-		goto err;
-
 	/*
 	 * Weird transaction restart handling here because on successful delete,
 	 * bch2_inode_rm_snapshot() will return a nested transaction restart,
@@ -1196,8 +1192,12 @@ again:
 	}
 	bch2_trans_iter_exit(trans, &iter);
 
-	if (!ret && need_another_pass)
+	if (!ret && need_another_pass) {
+		ret = bch2_btree_write_buffer_flush_sync(trans);
+		if (ret)
+			goto err;
 		goto again;
+	}
 err:
 	bch2_trans_put(trans);
 

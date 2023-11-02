@@ -961,8 +961,7 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 
 			if (wb->state.nr > wb->size * 3 / 4) {
 				bch2_trans_begin(trans);
-				ret = __bch2_btree_write_buffer_flush(trans,
-						flags|BCH_TRANS_COMMIT_no_check_rw, true);
+				ret = __bch2_btree_write_buffer_flush(trans, true);
 				if (!ret) {
 					trace_and_count(c, trans_restart_write_buffer_flush, trans, _THIS_IP_);
 					ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_write_buffer_flush);
@@ -1077,8 +1076,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		bch2_trans_begin(trans);
 		bch2_trans_unlock(trans);
 
-		ret = __bch2_btree_write_buffer_flush(trans,
-					flags|BCH_TRANS_COMMIT_no_check_rw, true);
+		ret = __bch2_btree_write_buffer_flush(trans, true);
 		if (!ret) {
 			trace_and_count(c, trans_restart_write_buffer_flush, trans, _THIS_IP_);
 			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_write_buffer_flush);

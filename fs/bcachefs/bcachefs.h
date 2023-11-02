@@ -672,7 +672,8 @@ struct btree_trans_buf {
 	x(invalidate)							\
 	x(delete_dead_snapshots)					\
 	x(snapshot_delete_pagecache)					\
-	x(sysfs)
+	x(sysfs)							\
+	x(btree_write_buffer)
 
 enum bch_write_ref {
 #define x(n) BCH_WRITE_REF_##n,
