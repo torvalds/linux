@@ -1003,7 +1003,6 @@ static struct ctl_table sld_sysctls[] = {
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = SYSCTL_ONE,
 	},
-	{}
 };
 
 static int __init sld_mitigate_sysctl_init(void)
