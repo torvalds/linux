@@ -491,8 +491,8 @@ int hfi1_user_exp_rcv_clear(struct hfi1_filedata *fd,
 	if (unlikely(tinfo->tidcnt > fd->tid_used))
 		return -EINVAL;
 
-	tidinfo = memdup_user(u64_to_user_ptr(tinfo->tidlist),
-			      sizeof(tidinfo[0]) * tinfo->tidcnt);
+	tidinfo = memdup_array_user(u64_to_user_ptr(tinfo->tidlist),
+				    tinfo->tidcnt, sizeof(tidinfo[0]));
 	if (IS_ERR(tidinfo))
 		return PTR_ERR(tidinfo);
 

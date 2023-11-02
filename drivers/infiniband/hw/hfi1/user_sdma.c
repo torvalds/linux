@@ -494,8 +494,8 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 		 * equal to the pkt count. However, there is no way to
 		 * tell at this point.
 		 */
-		tmp = memdup_user(iovec[idx].iov_base,
-				  ntids * sizeof(*req->tids));
+		tmp = memdup_array_user(iovec[idx].iov_base,
+					ntids, sizeof(*req->tids));
 		if (IS_ERR(tmp)) {
 			ret = PTR_ERR(tmp);
 			SDMA_DBG(req, "Failed to copy %d TIDs (%d)",
