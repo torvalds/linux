@@ -1213,9 +1213,6 @@ static struct dentry *bch2_get_parent(struct dentry *child)
 		.inum = inode->ei_inode.bi_dir,
 	};
 
-	if (!parent_inum.inum)
-		return NULL;
-
 	return d_obtain_alias(bch2_vfs_inode_get(c, parent_inum));
 }
 
