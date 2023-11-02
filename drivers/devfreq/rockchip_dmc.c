@@ -141,6 +141,7 @@ struct rockchip_dmcfreq {
 	unsigned long hdmirx_rate;
 	unsigned long idle_rate;
 	unsigned long suspend_rate;
+	unsigned long deep_suspend_rate;
 	unsigned long reboot_rate;
 	unsigned long boost_rate;
 	unsigned long fixed_rate;
@@ -2254,6 +2255,9 @@ static int rockchip_get_system_status_rate(struct device_node *np,
 		case SYS_STATUS_SUSPEND:
 			dmcfreq->suspend_rate = freq * 1000;
 			break;
+		case SYS_STATUS_DEEP_SUSPEND:
+			dmcfreq->deep_suspend_rate = freq * 1000;
+			break;
 		case SYS_STATUS_VIDEO_1080P:
 			dmcfreq->video_1080p_rate = freq * 1000;
 			break;
@@ -2395,6 +2399,11 @@ static int rockchip_get_system_status_level(struct device_node *np,
 		case SYS_STATUS_SUSPEND:
 			dmcfreq->suspend_rate = rockchip_freq_level_2_rate(dmcfreq, level);
 			dev_info(dmcfreq->dev, "suspend_rate = %ld\n", dmcfreq->suspend_rate);
+			break;
+		case SYS_STATUS_DEEP_SUSPEND:
+			dmcfreq->deep_suspend_rate = rockchip_freq_level_2_rate(dmcfreq, level);
+			dev_info(dmcfreq->dev, "deep_suspend_rate = %ld\n",
+				 dmcfreq->deep_suspend_rate);
 			break;
 		case SYS_STATUS_VIDEO_1080P:
 			dmcfreq->video_1080p_rate = rockchip_freq_level_2_rate(dmcfreq, level);
@@ -3097,6 +3106,7 @@ static int rockchip_dmcfreq_add_devfreq(struct rockchip_dmcfreq *dmcfreq)
 	devm_devfreq_register_opp_notifier(dev, devfreq);
 
 	devfreq->last_status.current_frequency = opp_rate;
+	devfreq->suspend_freq = dmcfreq->deep_suspend_rate;
 
 	reset_last_status(devfreq);
 
