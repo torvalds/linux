@@ -68,11 +68,6 @@ union __sifields {
 	/* SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGTRAP, SIGEMT */
 	struct {
 		void __user *_addr; /* faulting insn/memory ref. */
-#ifdef __ia64__
-		int _imm;		/* immediate value for "break" */
-		unsigned int _flags;	/* see ia64 si_flags */
-		unsigned long _isr;	/* isr */
-#endif
 
 #define __ADDR_BND_PKEY_PAD  (__alignof__(void *) < sizeof(short) ? \
 			      sizeof(short) : __alignof__(void *))

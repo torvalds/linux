@@ -2,7 +2,7 @@
 #
 # asm headers that all architectures except um should have
 # (This file is not included when SRCARCH=um since UML borrows several
-# asm headers from the host architecutre.)
+# asm headers from the host architecture.)
 
 mandatory-y += atomic.h
 mandatory-y += archrandom.h

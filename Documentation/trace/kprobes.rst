@@ -315,7 +315,6 @@ architectures:
 - i386 (Supports jump optimization)
 - x86_64 (AMD-64, EM64T) (Supports jump optimization)
 - ppc64
-- ia64 (Does not support probes on instruction slot1.)
 - sparc64 (Return probes not yet implemented.)
 - arm
 - ppc

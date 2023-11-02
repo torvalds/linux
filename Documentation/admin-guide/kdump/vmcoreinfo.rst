@@ -413,36 +413,6 @@ of a higher page table lookup overhead, and also consumes more page
 table space per process. Used to check whether PAE was enabled in the
 crash kernel when converting virtual addresses to physical addresses.
 
-ia64
-====
-
-pgdat_list|(pgdat_list, MAX_NUMNODES)
--------------------------------------
-
-pg_data_t array storing all NUMA nodes information. MAX_NUMNODES
-indicates the number of the nodes.
-
-node_memblk|(node_memblk, NR_NODE_MEMBLKS)
-------------------------------------------
-
-List of node memory chunks. Filled when parsing the SRAT table to obtain
-information about memory nodes. NR_NODE_MEMBLKS indicates the number of
-node memory chunks.
-
-These values are used to compute the number of nodes the crashed kernel used.
-
-node_memblk_s|(node_memblk_s, start_paddr)|(node_memblk_s, size)
-----------------------------------------------------------------
-
-The size of a struct node_memblk_s and the offsets of the
-node_memblk_s's members. Used to compute the number of nodes.
-
-PGTABLE_3|PGTABLE_4
--------------------
-
-User-space tools need to know whether the crash kernel was in 3-level or
-4-level paging mode. Used to distinguish the page table.
-
 ARM64
 =====
 

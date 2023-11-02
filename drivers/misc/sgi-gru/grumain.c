@@ -41,16 +41,12 @@ struct device *grudev = &gru_device;
  */
 int gru_cpu_fault_map_id(void)
 {
-#ifdef CONFIG_IA64
-	return uv_blade_processor_id() % GRU_NUM_TFM;
-#else
 	int cpu = smp_processor_id();
 	int id, core;
 
 	core = uv_cpu_core_number(cpu);
 	id = core + UV_MAX_INT_CORES * uv_cpu_socket_number(cpu);
 	return id;
-#endif
 }
 
 /*--------- ASID Management -------------------------------------------

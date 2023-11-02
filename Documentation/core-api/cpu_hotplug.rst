@@ -40,12 +40,6 @@ Command Line Switches
   supplied here is lower than the number of physically available CPUs, then
   those CPUs can not be brought online later.
 
-``additional_cpus=n``
-  Use this to limit hotpluggable CPUs. This option sets
-  ``cpu_possible_mask = cpu_present_mask + additional_cpus``
-
-  This option is limited to the IA64 architecture.
-
 ``possible_cpus=n``
   This option sets ``possible_cpus`` bits in ``cpu_possible_mask``.
 

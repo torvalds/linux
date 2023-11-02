@@ -3142,7 +3142,7 @@ static inline bool clone3_stack_valid(struct kernel_clone_args *kargs)
 		if (!access_ok((void __user *)kargs->stack, kargs->stack_size))
 			return false;
 
-#if !defined(CONFIG_STACK_GROWSUP) && !defined(CONFIG_IA64)
+#if !defined(CONFIG_STACK_GROWSUP)
 		kargs->stack += kargs->stack_size;
 #endif
 	}

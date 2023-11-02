@@ -1944,9 +1944,9 @@ static int acct_stack_growth(struct vm_area_struct *vma,
 	return 0;
 }
 
-#if defined(CONFIG_STACK_GROWSUP) || defined(CONFIG_IA64)
+#if defined(CONFIG_STACK_GROWSUP)
 /*
- * PA-RISC uses this for its stack; IA64 for its Register Backing Store.
+ * PA-RISC uses this for its stack.
  * vma is the last one with address > vma->vm_end.  Have to extend vma.
  */
 static int expand_upwards(struct vm_area_struct *vma, unsigned long address)
@@ -2043,7 +2043,7 @@ static int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 	validate_mm(mm);
 	return error;
 }
-#endif /* CONFIG_STACK_GROWSUP || CONFIG_IA64 */
+#endif /* CONFIG_STACK_GROWSUP */
 
 /*
  * vma is the first one with address < vma->vm_start.  Have to extend vma.

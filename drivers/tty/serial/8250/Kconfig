@@ -222,7 +222,7 @@ config SERIAL_8250_EXTENDED
 
 config SERIAL_8250_MANY_PORTS
 	bool "Support more than 4 legacy serial ports"
-	depends on SERIAL_8250_EXTENDED && !IA64
+	depends on SERIAL_8250_EXTENDED
 	help
 	  Say Y here if you have dumb serial boards other than the four
 	  standard COM 1/2/3/4 ports. This may happen if you have an AST

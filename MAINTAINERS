@@ -10029,12 +10029,6 @@ F:	Documentation/driver-api/i3c
 F:	drivers/i3c/
 F:	include/linux/i3c/
 
-IA64 (Itanium) PLATFORM
-L:	linux-ia64@vger.kernel.org
-S:	Orphan
-F:	Documentation/arch/ia64/
-F:	arch/ia64/
-
 IBM Operation Panel Input Driver
 M:	Eddie James <eajames@linux.ibm.com>
 L:	linux-input@vger.kernel.org
@@ -16368,11 +16362,6 @@ M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/muxes/i2c-mux-pca9541.c
-
-PCDP - PRIMARY CONSOLE AND DEBUG PORT
-M:	Khalid Aziz <khalid@gonehiking.org>
-S:	Maintained
-F:	drivers/firmware/pcdp.*
 
 PCI DRIVER FOR AARDVARK (Marvell Armada 3700)
 M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
