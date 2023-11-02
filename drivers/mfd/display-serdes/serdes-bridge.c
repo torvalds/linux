@@ -49,13 +49,17 @@ static struct mipi_dsi_device *serdes_attach_dsi(struct serdes_bridge *serdes_br
 		    (!strcmp(serdes->chip_data->name, "bu18rl82"))) {
 			dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 					  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET;
-			SERDES_DBG_MFD("%s: dsi mode MIPI_DSI_MODE_VIDEO_BURST 0x%lx\n",
-				       __func__, dsi->mode_flags);
+			SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_BURST 0x%lx\n",
+				       __func__, serdes->chip_data->name, dsi->mode_flags);
+		} else {
+			dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
+			SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_SYNC_PULSE 0x%lx\n",
+			       __func__, serdes->chip_data->name, dsi->mode_flags);
 		}
 	} else {
 		dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
-		SERDES_DBG_MFD("%s: dsi mode MIPI_DSI_MODE_VIDEO_SYNC_PULSE 0x%lx\n",
-			       __func__, dsi->mode_flags);
+		SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_SYNC_PULSE 0x%lx\n",
+			   __func__, serdes->chip_data->name, dsi->mode_flags);
 	}
 
 	ret = mipi_dsi_attach(dsi);
@@ -164,6 +168,9 @@ static void serdes_bridge_pre_enable(struct drm_bridge *bridge)
 	struct serdes *serdes = serdes_bridge->parent;
 	int ret = 0;
 
+	if (serdes->chip_data->bridge_ops->init)
+		ret = serdes->chip_data->bridge_ops->init(serdes);
+
 	if (serdes->chip_data->serdes_type == TYPE_DES) {
 		if (serdes->chip_data->chip_init)
 			serdes->chip_data->chip_init(serdes);
@@ -198,7 +205,8 @@ static void serdes_bridge_enable(struct drm_bridge *bridge)
 		SERDES_DBG_MFD("%s: extcon is true\n", __func__);
 	}
 
-	SERDES_DBG_MFD("%s: %s ret=%d\n", __func__, dev_name(serdes->dev), ret);
+	SERDES_DBG_MFD("%s: %s-%s ret=%d\n", __func__, dev_name(serdes->dev),
+		       serdes->chip_data->name, ret);
 }
 
 static enum drm_connector_status
@@ -230,8 +238,8 @@ static int serdes_bridge_get_modes(struct drm_bridge *bridge,
 	if (serdes_bridge->panel)
 		ret = drm_panel_get_modes(serdes_bridge->panel, connector);
 
-	SERDES_DBG_MFD("%s:name=%s, type=%d\n", __func__,
-		       serdes->chip_data->name, serdes->type);
+	SERDES_DBG_MFD("%s:name=%s, node=%s\n", __func__,
+		       serdes->chip_data->name, serdes_bridge->dev->of_node->name);
 
 	return ret;
 }
@@ -291,7 +299,7 @@ static int serdes_bridge_probe(struct platform_device *pdev)
 		SERDES_DBG_MFD("%s: type DRM_MODE_CONNECTOR_DSI\n", __func__);
 	} else if (serdes_bridge->parent->chip_data->connector_type) {
 		serdes_bridge->base_bridge.type = serdes_bridge->parent->chip_data->connector_type;
-		SERDES_DBG_MFD("%s: type 0x%x\n", __func__, serdes_bridge->base_bridge.type);
+		SERDES_DBG_MFD("%s: type %d\n", __func__, serdes_bridge->base_bridge.type);
 	} else {
 		serdes_bridge->base_bridge.type = DRM_MODE_CONNECTOR_eDP;
 		SERDES_DBG_MFD("%s: type DRM_MODE_CONNECTOR_LVDS\n", __func__);
@@ -319,9 +327,8 @@ static const struct of_device_id serdes_bridge_of_match[] = {
 	{ .compatible = "rohm,bu18tl82-bridge", },
 	{ .compatible = "rohm,bu18rl82-bridge", },
 	{ .compatible = "maxim,max96745-bridge", },
-	{ .compatible = "maxim,max96752-bridge", },
 	{ .compatible = "maxim,max96755-bridge", },
-	{ .compatible = "maxim,max96772-bridge", },
+	{ .compatible = "maxim,max96789-bridge", },
 	{ .compatible = "rockchip,rkx111-bridge", },
 	{ .compatible = "rockchip,rkx121-bridge", },
 	{ }

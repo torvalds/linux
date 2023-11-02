@@ -20,7 +20,8 @@ static irqreturn_t serdes_bridge_lock_irq_handler(int irq, void *arg)
 	if (extcon_get_state(serdes->extcon, EXTCON_JACK_VIDEO_OUT))
 		atomic_set(&serdes->serdes_bridge->triggered, 1);
 
-	SERDES_DBG_MFD("%s: ret=%d\n", __func__, ret);
+	SERDES_DBG_MFD("%s %s %s ret=%d\n", __func__, dev_name(serdes->dev),
+				   serdes->chip_data->name, ret);
 
 	return IRQ_HANDLED;
 }
@@ -33,14 +34,15 @@ static irqreturn_t serdes_bridge_err_irq_handler(int irq, void *arg)
 	if (serdes->chip_data->irq_ops->err_handle)
 		ret = serdes->chip_data->irq_ops->err_handle(serdes);
 
-	SERDES_DBG_MFD("%s: ret=%d\n", __func__, ret);
+	SERDES_DBG_MFD("%s %s %s ret=%d\n", __func__, dev_name(serdes->dev),
+				   serdes->chip_data->name, ret);
 
 	return IRQ_HANDLED;
 }
 
 int serdes_irq_init(struct serdes *serdes)
 {
-	int ret;
+	int ret = 0;
 
 	mutex_init(&serdes->irq_lock);
 
@@ -55,8 +57,9 @@ int serdes_irq_init(struct serdes *serdes)
 		if (serdes->lock_irq < 0)
 			return serdes->lock_irq;
 
-		SERDES_DBG_MFD("%s %s lock_irq=%d\n", __func__,
-			       serdes->chip_data->name, serdes->lock_irq);
+		SERDES_DBG_MFD("%s %s lock_irq=%d gpio=%d\n", __func__,
+			       serdes->chip_data->name, serdes->lock_irq,
+			       desc_to_gpio(serdes->lock_gpio));
 
 		ret = devm_request_threaded_irq(serdes->dev, serdes->lock_irq, NULL,
 						serdes_bridge_lock_irq_handler,
@@ -64,7 +67,7 @@ int serdes_irq_init(struct serdes *serdes)
 						dev_name(serdes->dev), serdes);
 		if (ret)
 			return dev_err_probe(serdes->dev, ret,
-					     "failed to request serdes lock IRQ\n");
+				     "failed to request serdes lock IRQ\n");
 	}
 
 	/* error irq */

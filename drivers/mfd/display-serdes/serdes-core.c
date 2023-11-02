@@ -127,8 +127,8 @@ int serdes_reg_read(struct serdes *serdes, unsigned int reg, unsigned int *val)
 	int ret;
 
 	ret = regmap_read(serdes->regmap, reg, val);
-	SERDES_DBG_I2C("%s %s Read Reg%04x %04x\n", __func__,
-		       serdes->chip_data->name, reg, *val);
+	SERDES_DBG_I2C("%s %s %s Read Reg%04x %04x ret=%d\n", __func__, dev_name(serdes->dev),
+		       serdes->chip_data->name, reg, *val, ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(serdes_reg_read);
@@ -148,8 +148,9 @@ int serdes_bulk_read(struct serdes *serdes, unsigned int reg,
 
 	ret = regmap_bulk_read(serdes->regmap, reg, buf, count);
 	for (i = 0; i < count; i++) {
-		SERDES_DBG_I2C("%s %s %s Read Reg%04x %04x\n", __func__, dev_name(serdes->dev),
-			       serdes->chip_data->name, reg + i, buf[i]);
+		SERDES_DBG_I2C("%s %s %s Read Reg%04x %04x ret=%d\n",
+			       __func__, dev_name(serdes->dev),
+			       serdes->chip_data->name, reg + i, buf[i], ret);
 	}
 
 	return ret;
@@ -166,9 +167,10 @@ int serdes_bulk_write(struct serdes *serdes, unsigned int reg,
 
 	mutex_lock(&serdes->io_lock);
 	for (i = 0; i < count; i++) {
-		SERDES_DBG_I2C("%s %s %s Write Reg%04x %04x\n", __func__, dev_name(serdes->dev),
-			       serdes->chip_data->name, reg, buf[i]);
 		ret = regmap_write(serdes->regmap, reg, buf[i]);
+		SERDES_DBG_I2C("%s %s %s Write Reg%04x %04x ret=%d\n",
+			       __func__, dev_name(serdes->dev),
+			       serdes->chip_data->name, reg, buf[i], ret);
 		if (ret != 0) {
 			mutex_unlock(&serdes->io_lock);
 			return ret;
@@ -193,12 +195,11 @@ int serdes_multi_reg_write(struct serdes *serdes, const struct reg_sequence *reg
 
 	SERDES_DBG_I2C("%s %s %s num=%d\n", __func__, dev_name(serdes->dev),
 		       serdes->chip_data->name, num_regs);
-	for (i = 0; i < num_regs; i++) {
-		SERDES_DBG_I2C("serdes %s Write Reg%04x %04x\n",
-			       serdes->chip_data->name, regs[i].reg, regs[i].def);
-	}
-
 	ret = regmap_multi_reg_write(serdes->regmap, regs, num_regs);
+	for (i = 0; i < num_regs; i++) {
+		SERDES_DBG_I2C("serdes %s Write Reg%04x %04x ret=%d\n",
+			       serdes->chip_data->name, regs[i].reg, regs[i].def, ret);
+	}
 
 	return ret;
 }
@@ -216,9 +217,9 @@ int serdes_reg_write(struct serdes *serdes, unsigned int reg,
 {
 	int ret;
 
-	SERDES_DBG_I2C("%s %s %s Write Reg%04x %04x)\n", __func__, dev_name(serdes->dev),
-		       serdes->chip_data->name, reg, val);
 	ret = regmap_write(serdes->regmap, reg, val);
+	SERDES_DBG_I2C("%s %s %s Write Reg%04x %04x ret=%d\n", __func__, dev_name(serdes->dev),
+		       serdes->chip_data->name, reg, val, ret);
 	if (ret != 0)
 		return ret;
 

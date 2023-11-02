@@ -309,7 +309,7 @@ static int serdes_pinctrl_probe(struct platform_device *pdev)
 
 		for (j = 0; j < group->num_pins; j++) {
 			grp_pins[j] = pinctrl_info->groups[i].pins[j] + pin_base;
-			SERDES_DBG_MFD("%s group name %s pin %d base=%d\n", __func__,
+			SERDES_DBG_MFD("%s group name %s pin=%d base=%d\n", __func__,
 				       pinctrl_info->groups[i].name, grp_pins[j], pin_base);
 		}
 
@@ -363,6 +363,7 @@ static const struct of_device_id serdes_pinctrl_of_match[] = {
 	{ .compatible = "maxim,max96752-pinctrl" },
 	{ .compatible = "maxim,max96755-pinctrl" },
 	{ .compatible = "maxim,max96772-pinctrl" },
+	{ .compatible = "maxim,max96789-pinctrl" },
 	{ .compatible = "rockchip,rkx111-pinctrl" },
 	{ .compatible = "rockchip,rkx121-pinctrl" },
 	{ .compatible = "novo,nca9539-pinctrl" },

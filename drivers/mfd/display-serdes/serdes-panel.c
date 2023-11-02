@@ -91,7 +91,7 @@ static int serdes_panel_get_modes(struct drm_panel *panel,
 	struct serdes *serdes = serdes_panel->parent;
 	struct drm_display_mode *mode;
 	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
-	int ret = 0;
+	int ret = 1;
 
 	connector->display_info.width_mm = serdes_panel->width_mm;	//323; //346;
 	connector->display_info.height_mm = serdes_panel->height_mm;	//182; //194;
@@ -108,8 +108,18 @@ static int serdes_panel_get_modes(struct drm_panel *panel,
 	if (serdes->chip_data->panel_ops && serdes->chip_data->panel_ops->get_modes)
 		ret = serdes->chip_data->panel_ops->get_modes(serdes);
 
-	SERDES_DBG_MFD("%s: %s node=%s\n", __func__,
-		       serdes->chip_data->name, panel->dev->of_node->name);
+	dev_info(serdes->dev, "%s wxh=%dx%d mode clock %u kHz, flags[0x%x]\n"
+	       "    H: %04d %04d %04d %04d\n"
+	       "    V: %04d %04d %04d %04d\n"
+	       "bus_format: 0x%x\n",
+	       panel->dev->of_node->name,
+	       serdes_panel->width_mm, serdes_panel->height_mm,
+	       mode->clock, mode->flags,
+	       mode->hdisplay, mode->hsync_start,
+	       mode->hsync_end, mode->htotal,
+	       mode->vdisplay, mode->vsync_start,
+	       mode->vsync_end, mode->vtotal,
+	       bus_format);
 
 	return ret;
 }
@@ -129,12 +139,22 @@ static int serdes_panel_parse_dt(struct serdes_panel *serdes_panel)
 	struct videomode vm;
 	int ret, len;
 	unsigned int panel_size[2] = {320, 180};
+	unsigned int link_rate_count_ssc[3] = {DP_LINK_BW_2_7, 4, 0};
 
 	serdes_panel->width_mm = panel_size[0];
 	serdes_panel->height_mm = panel_size[1];
 
+	serdes_panel->link_rate = link_rate_count_ssc[0];
+	serdes_panel->lane_count = link_rate_count_ssc[1];
+	serdes_panel->ssc = link_rate_count_ssc[2];
+
 	if (of_find_property(dev->of_node, "panel-size", &len)) {
 		len /= sizeof(unsigned int);
+		if (len != 2) {
+			dev_err(dev, "panel-size length is error, set 2 default\n",
+				dev->of_node);
+			len = 2;
+		}
 		ret = of_property_read_u32_array(dev->of_node, "panel-size",
 						 panel_size, len);
 		if (!ret) {
@@ -143,8 +163,25 @@ static int serdes_panel_parse_dt(struct serdes_panel *serdes_panel)
 		}
 	}
 
-	dev_info(dev, "panle size %dx%d\n",
-		 serdes_panel->width_mm, serdes_panel->height_mm);
+	if (of_find_property(dev->of_node, "rate-count-ssc", &len)) {
+		len /= sizeof(unsigned int);
+		if (len != 3) {
+			dev_err(dev, "rate-count-ssc length is error, set 3 default\n",
+				dev->of_node);
+			len = 3;
+		}
+		ret = of_property_read_u32_array(dev->of_node, "rate-count-ssc",
+						 link_rate_count_ssc, len);
+		if (!ret) {
+			serdes_panel->link_rate = link_rate_count_ssc[0];
+			serdes_panel->lane_count = link_rate_count_ssc[1];
+			serdes_panel->ssc = link_rate_count_ssc[2];
+		}
+	}
+
+	dev_info(dev, "panle size %dx%d, rate=%d, cnt=%d, ssc=%d\n",
+		 serdes_panel->width_mm, serdes_panel->height_mm,
+		 serdes_panel->link_rate, serdes_panel->lane_count, serdes_panel->ssc);
 
 	ret = of_get_display_timing(dev->of_node, "panel-timing", &dt);
 	if (ret < 0) {
@@ -211,7 +248,6 @@ static int serdes_panel_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id serdes_panel_of_match[] = {
-	{ .compatible = "rohm,bu18tl82-panel" },
 	{ .compatible = "rohm,bu18rl82-panel" },
 	{ .compatible = "maxim,max96752-panel" },
 	{ .compatible = "maxim,max96772-panel" },

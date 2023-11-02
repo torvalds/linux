@@ -221,6 +221,7 @@ static const struct of_device_id serdes_gpio_of_match[] = {
 	{ .compatible = "maxim,max96752-gpio", },
 	{ .compatible = "maxim,max96755-gpio", },
 	{ .compatible = "maxim,max96772-gpio", },
+	{ .compatible = "maxim,max96789-gpio", },
 	{ .compatible = "rockchip,rkx111-gpio", },
 	{ .compatible = "rockchip,rkx121-gpio", },
 	{ .compatible = "novo,nca9539-gpio", },

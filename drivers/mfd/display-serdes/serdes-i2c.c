@@ -299,6 +299,9 @@ static const struct of_device_id serdes_of_match[] = {
 #if IS_ENABLED(CONFIG_SERDES_DISPLAY_CHIP_MAXIM_MAX96772)
 	{ .compatible = "maxim,max96772", .data = &serdes_max96772_data },
 #endif
+#if IS_ENABLED(CONFIG_SERDES_DISPLAY_CHIP_MAXIM_MAX96789)
+	{ .compatible = "maxim,max96789", .data = &serdes_max96789_data },
+#endif
 #if IS_ENABLED(CONFIG_SERDES_DISPLAY_CHIP_ROCKCHIP_RKX111)
 	{ .compatible = "rockchip,rkx111", .data = &serdes_rkx111_data },
 #endif

@@ -46,6 +46,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_dp_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_atomic_state_helper.h>
@@ -69,6 +70,8 @@
 #include "../../../../drivers/pinctrl/pinconf.h"
 #include "../../../../drivers/pinctrl/pinmux.h"
 #include "../../../../drivers/gpio/gpiolib.h"
+#include "../../../../drivers/extcon/extcon.h"
+#include "../../../../drivers/base/regmap/internal.h"
 
 /*
 * if enable all the debug information,

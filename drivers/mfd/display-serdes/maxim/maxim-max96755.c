@@ -34,7 +34,7 @@ static struct regmap_config max96755_regmap_config = {
 	.name = "max96755",
 	.reg_bits = 16,
 	.val_bits = 8,
-	.max_register = 0x8000,
+	.max_register = 0x2000,
 	.volatile_reg = max96755_volatile_reg,
 	.cache_type = REGCACHE_RBTREE,
 };
@@ -202,17 +202,17 @@ static const char *MAX96755_UART_groups[] = { "MAX96755_UART" };
 
 #define FUNCTION_DESC_GPIO_INPUT(id) \
 { \
-	.name = "DES_GPIO"#id"_INPUT", \
+	.name = "DES_GPIO"#id"_TO_SER", \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
-		{ .gpio_rx_en = 1, .gpio_rx_id = id } \
+		{ .gpio_out_dis = 0, .gpio_rx_en = 1, .gpio_rx_id = id } \
 	}, \
 } \
 
 #define FUNCTION_DESC_GPIO_OUTPUT(id) \
 { \
-	.name = "DES_GPIO"#id"_OUTPUT", \
+	.name = "SER_TO_DES_GPIO"#id, \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
@@ -345,14 +345,23 @@ static bool max96755_bridge_link_locked(struct serdes *serdes)
 {
 	u32 val;
 
-	if (serdes->lock_gpio)
-		return gpiod_get_value_cansleep(serdes->lock_gpio);
+	if (serdes->lock_gpio) {
+		val = gpiod_get_value_cansleep(serdes->lock_gpio);
+		SERDES_DBG_CHIP("%s: lock_gpio val=%d\n", __func__, val);
+		return val;
+	}
 
-	if (serdes_reg_read(serdes, 0x0013, &val))
+	if (serdes_reg_read(serdes, 0x0013, &val)) {
+		SERDES_DBG_CHIP("%s: false val=%d\n", __func__, val);
 		return false;
+	}
 
-	if (!FIELD_GET(LOCKED, val))
+	if (!FIELD_GET(LOCKED, val)) {
+		SERDES_DBG_CHIP("%s: false val=%d\n", __func__, val);
 		return false;
+	}
+
+	SERDES_DBG_CHIP("%s: return true\n", __func__);
 
 	return true;
 }
@@ -396,7 +405,7 @@ max96755_bridge_detect(struct serdes *serdes)
 
 out:
 	serdes_bridge->status = status;
-	SERDES_DBG_MFD("%s: status=%d\n", __func__, status);
+	SERDES_DBG_CHIP("%s: status=%d\n", __func__, status);
 	return status;
 }
 
