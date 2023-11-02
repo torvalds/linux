@@ -3726,3 +3726,4 @@ static int __init phylink_init(void)
 module_init(phylink_init);
 
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("phylink models the MAC to optional PHY connection");
