@@ -454,6 +454,27 @@ static void mes_v12_0_init_aggregated_doorbell(struct amdgpu_mes *mes)
 	WREG32_SOC15(GC, 0, regCP_HQD_GFX_CONTROL, data);
 }
 
+
+static void mes_v12_0_enable_unmapped_doorbell_handling(
+		struct amdgpu_mes *mes, bool enable)
+{
+	struct amdgpu_device *adev = mes->adev;
+	uint32_t data = RREG32_SOC15(GC, 0, regCP_UNMAPPED_DOORBELL);
+
+	/*
+	 * The default PROC_LSB settng is 0xc which means doorbell
+	 * addr[16:12] gives the doorbell page number. For kfd, each
+	 * process will use 2 pages of doorbell, we need to change the
+	 * setting to 0xd
+	 */
+	data &= ~CP_UNMAPPED_DOORBELL__PROC_LSB_MASK;
+	data |= 0xd <<  CP_UNMAPPED_DOORBELL__PROC_LSB__SHIFT;
+
+	data |= (enable ? 1 : 0) << CP_UNMAPPED_DOORBELL__ENABLE__SHIFT;
+
+	WREG32_SOC15(GC, 0, regCP_UNMAPPED_DOORBELL, data);
+}
+
 static const struct amdgpu_mes_funcs mes_v12_0_funcs = {
 	.add_hw_queue = mes_v12_0_add_hw_queue,
 	.remove_hw_queue = mes_v12_0_remove_hw_queue,
@@ -1232,6 +1253,9 @@ static int mes_v12_0_hw_init(void *handle)
 		goto failure;
 
 	mes_v12_0_init_aggregated_doorbell(&adev->mes);
+
+	/* Enable the MES to handle doorbell ring on unmapped queue */
+	mes_v12_0_enable_unmapped_doorbell_handling(&adev->mes, true);
 
 	r = mes_v12_0_query_sched_status(&adev->mes);
 	if (r) {
