@@ -143,9 +143,6 @@ static int wmt_i2c_write(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg,
 	if (!(pmsg->flags & I2C_M_NOSTART)) {
 		val = readw(i2c_dev->base + REG_CR);
 		val &= ~CR_TX_END;
-		writew(val, i2c_dev->base + REG_CR);
-
-		val = readw(i2c_dev->base + REG_CR);
 		val |= CR_CPU_RDY;
 		writew(val, i2c_dev->base + REG_CR);
 	}
@@ -201,24 +198,15 @@ static int wmt_i2c_read(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg)
 	u32 xfer_len = 0;
 
 	val = readw(i2c_dev->base + REG_CR);
-	val &= ~CR_TX_END;
-	writew(val, i2c_dev->base + REG_CR);
+	val &= ~(CR_TX_END | CR_TX_NEXT_NO_ACK);
 
-	val = readw(i2c_dev->base + REG_CR);
-	val &= ~CR_TX_NEXT_NO_ACK;
-	writew(val, i2c_dev->base + REG_CR);
-
-	if (!(pmsg->flags & I2C_M_NOSTART)) {
-		val = readw(i2c_dev->base + REG_CR);
+	if (!(pmsg->flags & I2C_M_NOSTART))
 		val |= CR_CPU_RDY;
-		writew(val, i2c_dev->base + REG_CR);
-	}
 
-	if (pmsg->len == 1) {
-		val = readw(i2c_dev->base + REG_CR);
+	if (pmsg->len == 1)
 		val |= CR_TX_NEXT_NO_ACK;
-		writew(val, i2c_dev->base + REG_CR);
-	}
+
+	writew(val, i2c_dev->base + REG_CR);
 
 	reinit_completion(&i2c_dev->complete);
 
@@ -240,15 +228,10 @@ static int wmt_i2c_read(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg)
 		pmsg->buf[xfer_len] = readw(i2c_dev->base + REG_CDR) >> 8;
 		xfer_len++;
 
-		if (xfer_len == pmsg->len - 1) {
-			val = readw(i2c_dev->base + REG_CR);
-			val |= (CR_TX_NEXT_NO_ACK | CR_CPU_RDY);
-			writew(val, i2c_dev->base + REG_CR);
-		} else {
-			val = readw(i2c_dev->base + REG_CR);
-			val |= CR_CPU_RDY;
-			writew(val, i2c_dev->base + REG_CR);
-		}
+		val = readw(i2c_dev->base + REG_CR) | CR_CPU_RDY;
+		if (xfer_len == pmsg->len - 1)
+			val |= CR_TX_NEXT_NO_ACK;
+		writew(val, i2c_dev->base + REG_CR);
 	}
 
 	return 0;
