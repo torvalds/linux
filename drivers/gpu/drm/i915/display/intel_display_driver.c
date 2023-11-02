@@ -181,6 +181,7 @@ void intel_display_driver_early_probe(struct drm_i915_private *i915)
 	if (!HAS_DISPLAY(i915))
 		return;
 
+	spin_lock_init(&i915->display.fb_tracking.lock);
 	mutex_init(&i915->display.backlight.lock);
 	mutex_init(&i915->display.audio.mutex);
 	mutex_init(&i915->display.wm.wm_mutex);
