@@ -2324,6 +2324,51 @@ static void __update_reg_bounds(struct bpf_reg_state *reg)
 /* Uses signed min/max values to inform unsigned, and vice-versa */
 static void __reg32_deduce_bounds(struct bpf_reg_state *reg)
 {
+	/* If upper 32 bits of u64/s64 range don't change, we can use lower 32
+	 * bits to improve our u32/s32 boundaries.
+	 *
+	 * E.g., the case where we have upper 32 bits as zero ([10, 20] in
+	 * u64) is pretty trivial, it's obvious that in u32 we'll also have
+	 * [10, 20] range. But this property holds for any 64-bit range as
+	 * long as upper 32 bits in that entire range of values stay the same.
+	 *
+	 * E.g., u64 range [0x10000000A, 0x10000000F] ([4294967306, 4294967311]
+	 * in decimal) has the same upper 32 bits throughout all the values in
+	 * that range. As such, lower 32 bits form a valid [0xA, 0xF] ([10, 15])
+	 * range.
+	 *
+	 * Note also, that [0xA, 0xF] is a valid range both in u32 and in s32,
+	 * following the rules outlined below about u64/s64 correspondence
+	 * (which equally applies to u32 vs s32 correspondence). In general it
+	 * depends on actual hexadecimal values of 32-bit range. They can form
+	 * only valid u32, or only valid s32 ranges in some cases.
+	 *
+	 * So we use all these insights to derive bounds for subregisters here.
+	 */
+	if ((reg->umin_value >> 32) == (reg->umax_value >> 32)) {
+		/* u64 to u32 casting preserves validity of low 32 bits as
+		 * a range, if upper 32 bits are the same
+		 */
+		reg->u32_min_value = max_t(u32, reg->u32_min_value, (u32)reg->umin_value);
+		reg->u32_max_value = min_t(u32, reg->u32_max_value, (u32)reg->umax_value);
+
+		if ((s32)reg->umin_value <= (s32)reg->umax_value) {
+			reg->s32_min_value = max_t(s32, reg->s32_min_value, (s32)reg->umin_value);
+			reg->s32_max_value = min_t(s32, reg->s32_max_value, (s32)reg->umax_value);
+		}
+	}
+	if ((reg->smin_value >> 32) == (reg->smax_value >> 32)) {
+		/* low 32 bits should form a proper u32 range */
+		if ((u32)reg->smin_value <= (u32)reg->smax_value) {
+			reg->u32_min_value = max_t(u32, reg->u32_min_value, (u32)reg->smin_value);
+			reg->u32_max_value = min_t(u32, reg->u32_max_value, (u32)reg->smax_value);
+		}
+		/* low 32 bits should form a proper s32 range */
+		if ((s32)reg->smin_value <= (s32)reg->smax_value) {
+			reg->s32_min_value = max_t(s32, reg->s32_min_value, (s32)reg->smin_value);
+			reg->s32_max_value = min_t(s32, reg->s32_max_value, (s32)reg->smax_value);
+		}
+	}
 	/* if u32 range forms a valid s32 range (due to matching sign bit),
 	 * try to learn from that
 	 */
