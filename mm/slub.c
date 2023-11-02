@@ -522,7 +522,7 @@ static __always_inline void slab_unlock(struct slab *slab)
 	struct page *page = slab_page(slab);
 
 	VM_BUG_ON_PAGE(PageTail(page), page);
-	__bit_spin_unlock(PG_locked, &page->flags);
+	bit_spin_unlock(PG_locked, &page->flags);
 }
 
 static inline bool
@@ -2117,6 +2117,25 @@ static void discard_slab(struct kmem_cache *s, struct slab *slab)
 }
 
 /*
+ * SLUB reuses PG_workingset bit to keep track of whether it's on
+ * the per-node partial list.
+ */
+static inline bool slab_test_node_partial(const struct slab *slab)
+{
+	return folio_test_workingset((struct folio *)slab_folio(slab));
+}
+
+static inline void slab_set_node_partial(struct slab *slab)
+{
+	set_bit(PG_workingset, folio_flags(slab_folio(slab), 0));
+}
+
+static inline void slab_clear_node_partial(struct slab *slab)
+{
+	clear_bit(PG_workingset, folio_flags(slab_folio(slab), 0));
+}
+
+/*
  * Management of partially allocated slabs.
  */
 static inline void
@@ -2127,6 +2146,7 @@ __add_partial(struct kmem_cache_node *n, struct slab *slab, int tail)
 		list_add_tail(&slab->slab_list, &n->partial);
 	else
 		list_add(&slab->slab_list, &n->partial);
+	slab_set_node_partial(slab);
 }
 
 static inline void add_partial(struct kmem_cache_node *n,
@@ -2141,6 +2161,7 @@ static inline void remove_partial(struct kmem_cache_node *n,
 {
 	lockdep_assert_held(&n->list_lock);
 	list_del(&slab->slab_list);
+	slab_clear_node_partial(slab);
 	n->nr_partial--;
 }
 
@@ -4833,6 +4854,7 @@ static int __kmem_cache_do_shrink(struct kmem_cache *s)
 
 			if (free == slab->objects) {
 				list_move(&slab->slab_list, &discard);
+				slab_clear_node_partial(slab);
 				n->nr_partial--;
 				dec_slabs_node(s, node, slab->objects);
 			} else if (free <= SHRINK_PROMOTE_MAX)
