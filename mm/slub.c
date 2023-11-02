@@ -2166,7 +2166,7 @@ static inline void remove_partial(struct kmem_cache_node *n,
 }
 
 /*
- * Called only for kmem_cache_debug() caches instead of acquire_slab(), with a
+ * Called only for kmem_cache_debug() caches instead of remove_partial(), with a
  * slab from the n->partial list. Remove only a single object from the slab, do
  * the alloc_debug_processing() checks and leave the slab on the list, or move
  * it to full list if it was the last free object.
@@ -2234,51 +2234,6 @@ static void *alloc_single_from_new_slab(struct kmem_cache *s,
 	return object;
 }
 
-/*
- * Remove slab from the partial list, freeze it and
- * return the pointer to the freelist.
- *
- * Returns a list of objects or NULL if it fails.
- */
-static inline void *acquire_slab(struct kmem_cache *s,
-		struct kmem_cache_node *n, struct slab *slab,
-		int mode)
-{
-	void *freelist;
-	unsigned long counters;
-	struct slab new;
-
-	lockdep_assert_held(&n->list_lock);
-
-	/*
-	 * Zap the freelist and set the frozen bit.
-	 * The old freelist is the list of objects for the
-	 * per cpu allocation list.
-	 */
-	freelist = slab->freelist;
-	counters = slab->counters;
-	new.counters = counters;
-	if (mode) {
-		new.inuse = slab->objects;
-		new.freelist = NULL;
-	} else {
-		new.freelist = freelist;
-	}
-
-	VM_BUG_ON(new.frozen);
-	new.frozen = 1;
-
-	if (!__slab_update_freelist(s, slab,
-			freelist, counters,
-			new.freelist, new.counters,
-			"acquire_slab"))
-		return NULL;
-
-	remove_partial(n, slab);
-	WARN_ON(!freelist);
-	return freelist;
-}
-
 #ifdef CONFIG_SLUB_CPU_PARTIAL
 static void put_cpu_partial(struct kmem_cache *s, struct slab *slab, int drain);
 #else
@@ -2295,7 +2250,6 @@ static struct slab *get_partial_node(struct kmem_cache *s,
 				     struct partial_context *pc)
 {
 	struct slab *slab, *slab2, *partial = NULL;
-	void *object = NULL;
 	unsigned long flags;
 	unsigned int partial_slabs = 0;
 
@@ -2314,7 +2268,7 @@ static struct slab *get_partial_node(struct kmem_cache *s,
 			continue;
 
 		if (IS_ENABLED(CONFIG_SLUB_TINY) || kmem_cache_debug(s)) {
-			object = alloc_single_from_partial(s, n, slab,
+			void *object = alloc_single_from_partial(s, n, slab,
 							pc->orig_size);
 			if (object) {
 				partial = slab;
@@ -2324,13 +2278,10 @@ static struct slab *get_partial_node(struct kmem_cache *s,
 			continue;
 		}
 
-		object = acquire_slab(s, n, slab, object == NULL);
-		if (!object)
-			break;
+		remove_partial(n, slab);
 
 		if (!partial) {
 			partial = slab;
-			pc->object = object;
 			stat(s, ALLOC_FROM_PARTIAL);
 		} else {
 			put_cpu_partial(s, slab, 0);
@@ -2629,9 +2580,6 @@ static void __unfreeze_partials(struct kmem_cache *s, struct slab *partial_slab)
 	unsigned long flags = 0;
 
 	while (partial_slab) {
-		struct slab new;
-		struct slab old;
-
 		slab = partial_slab;
 		partial_slab = slab->next;
 
@@ -2644,23 +2592,7 @@ static void __unfreeze_partials(struct kmem_cache *s, struct slab *partial_slab)
 			spin_lock_irqsave(&n->list_lock, flags);
 		}
 
-		do {
-
-			old.freelist = slab->freelist;
-			old.counters = slab->counters;
-			VM_BUG_ON(!old.frozen);
-
-			new.counters = old.counters;
-			new.freelist = old.freelist;
-
-			new.frozen = 0;
-
-		} while (!__slab_update_freelist(s, slab,
-				old.freelist, old.counters,
-				new.freelist, new.counters,
-				"unfreezing slab"));
-
-		if (unlikely(!new.inuse && n->nr_partial >= s->min_partial)) {
+		if (unlikely(!slab->inuse && n->nr_partial >= s->min_partial)) {
 			slab->next = slab_to_discard;
 			slab_to_discard = slab;
 		} else {
@@ -3167,7 +3099,6 @@ reread_slab:
 			node = NUMA_NO_NODE;
 		goto new_slab;
 	}
-redo:
 
 	if (unlikely(!node_match(slab, node))) {
 		/*
@@ -3243,7 +3174,8 @@ deactivate_slab:
 
 new_slab:
 
-	if (slub_percpu_partial(c)) {
+#ifdef CONFIG_SLUB_CPU_PARTIAL
+	while (slub_percpu_partial(c)) {
 		local_lock_irqsave(&s->cpu_slab->lock, flags);
 		if (unlikely(c->slab)) {
 			local_unlock_irqrestore(&s->cpu_slab->lock, flags);
@@ -3255,12 +3187,22 @@ new_slab:
 			goto new_objects;
 		}
 
-		slab = c->slab = slub_percpu_partial(c);
+		slab = slub_percpu_partial(c);
 		slub_set_percpu_partial(c, slab);
 		local_unlock_irqrestore(&s->cpu_slab->lock, flags);
 		stat(s, CPU_PARTIAL_ALLOC);
-		goto redo;
+
+		if (unlikely(!node_match(slab, node) ||
+			     !pfmemalloc_match(slab, gfpflags))) {
+			slab->next = NULL;
+			__unfreeze_partials(s, slab);
+			continue;
+		}
+
+		freelist = freeze_slab(s, slab);
+		goto retry_load_slab;
 	}
+#endif
 
 new_objects:
 
@@ -3268,8 +3210,8 @@ new_objects:
 	pc.orig_size = orig_size;
 	slab = get_partial(s, node, &pc);
 	if (slab) {
-		freelist = pc.object;
 		if (kmem_cache_debug(s)) {
+			freelist = pc.object;
 			/*
 			 * For debug caches here we had to go through
 			 * alloc_single_from_partial() so just store the
@@ -3281,6 +3223,7 @@ new_objects:
 			return freelist;
 		}
 
+		freelist = freeze_slab(s, slab);
 		goto retry_load_slab;
 	}
 
@@ -3682,18 +3625,8 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 		was_frozen = new.frozen;
 		new.inuse -= cnt;
 		if ((!new.inuse || !prior) && !was_frozen) {
-
-			if (kmem_cache_has_cpu_partial(s) && !prior) {
-
-				/*
-				 * Slab was on no list before and will be
-				 * partially empty
-				 * We can defer the list move and instead
-				 * freeze it.
-				 */
-				new.frozen = 1;
-
-			} else { /* Needs to be taken off a list */
+			/* Needs to be taken off a list */
+			if (!kmem_cache_has_cpu_partial(s) || prior) {
 
 				n = get_node(s, slab_nid(slab));
 				/*
@@ -3723,9 +3656,9 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 			 * activity can be necessary.
 			 */
 			stat(s, FREE_FROZEN);
-		} else if (new.frozen) {
+		} else if (kmem_cache_has_cpu_partial(s) && !prior) {
 			/*
-			 * If we just froze the slab then put it onto the
+			 * If we started with a full slab then put it onto the
 			 * per cpu partial list.
 			 */
 			put_cpu_partial(s, slab, 1);
