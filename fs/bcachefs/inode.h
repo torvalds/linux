@@ -3,6 +3,7 @@
 #define _BCACHEFS_INODE_H
 
 #include "bkey.h"
+#include "bkey_methods.h"
 #include "opts.h"
 
 enum bkey_invalid_flags;
@@ -101,8 +102,16 @@ void bch2_inode_unpacked_to_text(struct printbuf *, struct bch_inode_unpacked *)
 
 int bch2_inode_peek(struct btree_trans *, struct btree_iter *,
 		    struct bch_inode_unpacked *, subvol_inum, unsigned);
-int bch2_inode_write(struct btree_trans *, struct btree_iter *,
-		     struct bch_inode_unpacked *);
+
+int bch2_inode_write_flags(struct btree_trans *, struct btree_iter *,
+		     struct bch_inode_unpacked *, enum btree_update_flags);
+
+static inline int bch2_inode_write(struct btree_trans *trans,
+		     struct btree_iter *iter,
+		     struct bch_inode_unpacked *inode)
+{
+	return bch2_inode_write_flags(trans, iter, inode, 0);
+}
 
 void bch2_inode_init_early(struct bch_fs *,
 			   struct bch_inode_unpacked *);
