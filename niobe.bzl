@@ -19,6 +19,9 @@ def define_niobe():
         "drivers/iommu/qcom_iommu_util.ko",
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/mailbox/qcom-ipcc.ko",
+        "drivers/phy/qualcomm/phy-qcom-ufs.ko",
+        "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
+        "drivers/phy/qualcomm/phy-qcom-ufs-qrbtc-sdm845.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-niobe.ko",
         "drivers/regulator/stub-regulator.ko",
@@ -29,6 +32,7 @@ def define_niobe():
         "drivers/soc/qcom/qcom_rpmh.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/socinfo.ko",
+        "drivers/ufs/host/ufs_qcom.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
     ]

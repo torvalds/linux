@@ -20,3 +20,6 @@ qcom_hwspinlock.ko
 smem.ko
 socinfo.ko
 qcom-ipcc.ko
+phy-qcom-ufs.ko
+phy-qcom-ufs-qrbtc-sdm845.ko
+ufs_qcom.ko
