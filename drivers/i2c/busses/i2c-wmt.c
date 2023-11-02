@@ -74,9 +74,6 @@
 #define MCR_APB_96M		7
 #define MCR_APB_166M		12
 
-#define I2C_MODE_STANDARD	0
-#define I2C_MODE_FAST		1
-
 #define WMT_I2C_TIMEOUT		(msecs_to_jiffies(1000))
 
 struct wmt_i2c_dev {
@@ -85,7 +82,7 @@ struct wmt_i2c_dev {
 	struct device		*dev;
 	void __iomem		*base;
 	struct clk		*clk;
-	int			mode;
+	u16			tcr;
 	int			irq;
 	u16			cmd_status;
 };
@@ -129,7 +126,7 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 			 int last)
 {
 	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
-	u16 val, tcr_val;
+	u16 val, tcr_val = i2c_dev->tcr;
 	int ret;
 	int xfer_len = 0;
 
@@ -155,11 +152,6 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	}
 
 	reinit_completion(&i2c_dev->complete);
-
-	if (i2c_dev->mode == I2C_MODE_STANDARD)
-		tcr_val = TCR_STANDARD_MODE;
-	else
-		tcr_val = TCR_FAST_MODE;
 
 	tcr_val |= (TCR_MASTER_WRITE | (pmsg->addr & TCR_SLAVE_ADDR_MASK));
 
@@ -207,7 +199,7 @@ static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 			int last)
 {
 	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
-	u16 val, tcr_val;
+	u16 val, tcr_val = i2c_dev->tcr;
 	int ret;
 	u32 xfer_len = 0;
 
@@ -232,11 +224,6 @@ static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	}
 
 	reinit_completion(&i2c_dev->complete);
-
-	if (i2c_dev->mode == I2C_MODE_STANDARD)
-		tcr_val = TCR_STANDARD_MODE;
-	else
-		tcr_val = TCR_FAST_MODE;
 
 	tcr_val |= TCR_MASTER_READ | (pmsg->addr & TCR_SLAVE_ADDR_MASK);
 
@@ -346,10 +333,10 @@ static int wmt_i2c_reset_hardware(struct wmt_i2c_dev *i2c_dev)
 	readw(i2c_dev->base + REG_CSR);		/* read clear */
 	writew(ISR_WRITE_ALL, i2c_dev->base + REG_ISR);
 
-	if (i2c_dev->mode == I2C_MODE_STANDARD)
-		writew(SCL_TIMEOUT(128) | TR_STD, i2c_dev->base + REG_TR);
-	else
+	if (i2c_dev->tcr == TCR_FAST_MODE)
 		writew(SCL_TIMEOUT(128) | TR_HS, i2c_dev->base + REG_TR);
+	else
+		writew(SCL_TIMEOUT(128) | TR_STD, i2c_dev->base + REG_TR);
 
 	return 0;
 }
@@ -382,10 +369,9 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 		return PTR_ERR(i2c_dev->clk);
 	}
 
-	i2c_dev->mode = I2C_MODE_STANDARD;
 	err = of_property_read_u32(np, "clock-frequency", &clk_rate);
 	if (!err && (clk_rate == I2C_MAX_FAST_MODE_FREQ))
-		i2c_dev->mode = I2C_MODE_FAST;
+		i2c_dev->tcr = TCR_FAST_MODE;
 
 	i2c_dev->dev = &pdev->dev;
 
