@@ -97,7 +97,9 @@
 #define FEATURE_GATS_MASK	(3ULL)
 #define FEATURE_GAM_VAPIC	BIT_ULL(21)
 #define FEATURE_GIOSUP		BIT_ULL(48)
+#define FEATURE_HASUP		BIT_ULL(49)
 #define FEATURE_EPHSUP		BIT_ULL(50)
+#define FEATURE_HDSUP		BIT_ULL(52)
 #define FEATURE_SNP		BIT_ULL(63)
 
 #define FEATURE_PASID_SHIFT	32
@@ -212,6 +214,7 @@
 /* macros and definitions for device table entries */
 #define DEV_ENTRY_VALID         0x00
 #define DEV_ENTRY_TRANSLATION   0x01
+#define DEV_ENTRY_HAD           0x07
 #define DEV_ENTRY_PPR           0x34
 #define DEV_ENTRY_IR            0x3d
 #define DEV_ENTRY_IW            0x3e
@@ -371,9 +374,15 @@
 	(1ULL << (12 + (9 * (level))))
 
 /*
+ * The IOPTE dirty bit
+ */
+#define IOMMU_PTE_HD_BIT (6)
+
+/*
  * Bit value definition for I/O PTE fields
  */
 #define IOMMU_PTE_PR	BIT_ULL(0)
+#define IOMMU_PTE_HD	BIT_ULL(IOMMU_PTE_HD_BIT)
 #define IOMMU_PTE_U	BIT_ULL(59)
 #define IOMMU_PTE_FC	BIT_ULL(60)
 #define IOMMU_PTE_IR	BIT_ULL(61)
@@ -384,6 +393,7 @@
  */
 #define DTE_FLAG_V	BIT_ULL(0)
 #define DTE_FLAG_TV	BIT_ULL(1)
+#define DTE_FLAG_HAD	(3ULL << 7)
 #define DTE_FLAG_GIOV	BIT_ULL(54)
 #define DTE_FLAG_GV	BIT_ULL(55)
 #define DTE_GLX_SHIFT	(56)
@@ -413,6 +423,7 @@
 
 #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
 #define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_PR)
+#define IOMMU_PTE_DIRTY(pte) ((pte) & IOMMU_PTE_HD)
 #define IOMMU_PTE_PAGE(pte) (iommu_phys_to_virt((pte) & IOMMU_PAGE_MASK))
 #define IOMMU_PTE_MODE(pte) (((pte) >> 9) & 0x07)
 
@@ -563,6 +574,7 @@ struct protection_domain {
 	int nid;		/* Node ID */
 	u64 *gcr3_tbl;		/* Guest CR3 table */
 	unsigned long flags;	/* flags to find out type of domain */
+	bool dirty_tracking;	/* dirty tracking is enabled in the domain */
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
 };
