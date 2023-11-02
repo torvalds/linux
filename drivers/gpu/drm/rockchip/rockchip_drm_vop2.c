@@ -6326,7 +6326,8 @@ static void vop2_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
 
 	/* only need to dump once at first active crtc for vop2 */
 	for (i = 0; i < vop2_data->nr_vps; i++) {
-		if (vop2->vps[i].rockchip_crtc.crtc.state->active) {
+		if (vop2->vps[i].rockchip_crtc.crtc.state &&
+		    vop2->vps[i].rockchip_crtc.crtc.state->active) {
 			first_active_crtc = &vop2->vps[i].rockchip_crtc.crtc;
 			break;
 		}
@@ -6369,7 +6370,8 @@ static void vop2_crtc_active_regs_dump(struct drm_crtc *crtc, struct seq_file *s
 
 	/* only need to dump once at first active crtc for vop2 */
 	for (i = 0; i < vop2_data->nr_vps; i++) {
-		if (vop2->vps[i].rockchip_crtc.crtc.state->active) {
+		if (vop2->vps[i].rockchip_crtc.crtc.state &&
+		    vop2->vps[i].rockchip_crtc.crtc.state->active) {
 			first_active_crtc = &vop2->vps[i].rockchip_crtc.crtc;
 			break;
 		}
