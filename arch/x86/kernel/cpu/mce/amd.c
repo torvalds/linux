@@ -102,6 +102,7 @@ static const char * const smca_names[] = {
 	/* UMC v2 is separate because both of them can exist in a single system. */
 	[SMCA_UMC]			= "umc",
 	[SMCA_UMC_V2]			= "umc_v2",
+	[SMCA_MA_LLC]			= "ma_llc",
 	[SMCA_PB]			= "param_block",
 	[SMCA_PSP ... SMCA_PSP_V2]	= "psp",
 	[SMCA_SMU ... SMCA_SMU_V2]	= "smu",
@@ -114,6 +115,8 @@ static const char * const smca_names[] = {
 	[SMCA_SHUB]			= "shub",
 	[SMCA_SATA]			= "sata",
 	[SMCA_USB]			= "usb",
+	[SMCA_USR_DP]			= "usr_dp",
+	[SMCA_USR_CP]			= "usr_cp",
 	[SMCA_GMI_PCS]			= "gmi_pcs",
 	[SMCA_XGMI_PHY]			= "xgmi_phy",
 	[SMCA_WAFL_PHY]			= "wafl_phy",
@@ -164,6 +167,7 @@ static const struct smca_hwid smca_hwid_mcatypes[] = {
 	{ SMCA_CS,	 HWID_MCATYPE(0x2E, 0x0)	},
 	{ SMCA_PIE,	 HWID_MCATYPE(0x2E, 0x1)	},
 	{ SMCA_CS_V2,	 HWID_MCATYPE(0x2E, 0x2)	},
+	{ SMCA_MA_LLC,	 HWID_MCATYPE(0x2E, 0x4)	},
 
 	/* Unified Memory Controller MCA type */
 	{ SMCA_UMC,	 HWID_MCATYPE(0x96, 0x0)	},
@@ -198,6 +202,8 @@ static const struct smca_hwid smca_hwid_mcatypes[] = {
 	{ SMCA_SHUB,	 HWID_MCATYPE(0x80, 0x0)	},
 	{ SMCA_SATA,	 HWID_MCATYPE(0xA8, 0x0)	},
 	{ SMCA_USB,	 HWID_MCATYPE(0xAA, 0x0)	},
+	{ SMCA_USR_DP,	 HWID_MCATYPE(0x170, 0x0)	},
+	{ SMCA_USR_CP,	 HWID_MCATYPE(0x180, 0x0)	},
 	{ SMCA_GMI_PCS,  HWID_MCATYPE(0x241, 0x0)	},
 	{ SMCA_XGMI_PHY, HWID_MCATYPE(0x259, 0x0)	},
 	{ SMCA_WAFL_PHY, HWID_MCATYPE(0x267, 0x0)	},
