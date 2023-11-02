@@ -77,7 +77,7 @@ static int afs_compare_volume_slists(const struct afs_volume *vol_a,
 	lb = rcu_dereference(vol_b->servers);
 
 	for (i = 0; i < AFS_MAXTYPES; i++)
-		if (la->vids[i] != lb->vids[i])
+		if (vol_a->vids[i] != vol_b->vids[i])
 			return 0;
 
 	while (a < la->nr_servers && b < lb->nr_servers) {

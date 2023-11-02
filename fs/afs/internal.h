@@ -414,6 +414,7 @@ struct afs_cell {
 	unsigned int		debug_id;
 
 	/* The volumes belonging to this cell */
+	spinlock_t		vs_lock;	/* Lock for server->volumes */
 	struct rb_root		volumes;	/* Tree of volumes on this server */
 	struct hlist_head	proc_volumes;	/* procfs volume list */
 	seqlock_t		volume_lock;	/* For volumes */
@@ -564,6 +565,7 @@ struct afs_server {
 	struct hlist_node	addr4_link;	/* Link in net->fs_addresses4 */
 	struct hlist_node	addr6_link;	/* Link in net->fs_addresses6 */
 	struct hlist_node	proc_link;	/* Link in net->fs_proc */
+	struct list_head	volumes;	/* RCU list of afs_server_entry objects */
 	struct work_struct	initcb_work;	/* Work for CB.InitCallBackState* */
 	struct afs_server	*gc_next;	/* Next server in manager's list */
 	time64_t		unuse_time;	/* Time at which last unused */
@@ -605,12 +607,14 @@ struct afs_server {
  */
 struct afs_server_entry {
 	struct afs_server	*server;
+	struct afs_volume	*volume;
+	struct list_head	slink;		/* Link in server->volumes */
 };
 
 struct afs_server_list {
 	struct rcu_head		rcu;
-	afs_volid_t		vids[AFS_MAXTYPES]; /* Volume IDs */
 	refcount_t		usage;
+	bool			attached;	/* T if attached to servers */
 	unsigned char		nr_servers;
 	unsigned char		preferred;	/* Preferred server */
 	unsigned short		vnovol_mask;	/* Servers to be skipped due to VNOVOL */
@@ -623,10 +627,9 @@ struct afs_server_list {
  * Live AFS volume management.
  */
 struct afs_volume {
-	union {
-		struct rcu_head	rcu;
-		afs_volid_t	vid;		/* volume ID */
-	};
+	struct rcu_head	rcu;
+	afs_volid_t		vid;		/* The volume ID of this volume */
+	afs_volid_t		vids[AFS_MAXTYPES]; /* All associated volume IDs */
 	refcount_t		ref;
 	time64_t		update_at;	/* Time at which to next update */
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
@@ -1528,10 +1531,14 @@ static inline struct afs_server_list *afs_get_serverlist(struct afs_server_list 
 }
 
 extern void afs_put_serverlist(struct afs_net *, struct afs_server_list *);
-extern struct afs_server_list *afs_alloc_server_list(struct afs_cell *, struct key *,
-						     struct afs_vldb_entry *,
-						     u8);
+struct afs_server_list *afs_alloc_server_list(struct afs_volume *volume,
+					      struct key *key,
+					      struct afs_vldb_entry *vldb);
 extern bool afs_annotate_server_list(struct afs_server_list *, struct afs_server_list *);
+void afs_attach_volume_to_servers(struct afs_volume *volume, struct afs_server_list *slist);
+void afs_reattach_volume_to_servers(struct afs_volume *volume, struct afs_server_list *slist,
+				    struct afs_server_list *old);
+void afs_detach_volume_from_servers(struct afs_volume *volume, struct afs_server_list *slist);
 
 /*
  * super.c
