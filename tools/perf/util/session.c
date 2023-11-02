@@ -115,6 +115,11 @@ static int perf_session__open(struct perf_session *session, int repipe_fd)
 		return -1;
 	}
 
+	if (perf_header__has_feat(&session->header, HEADER_AUXTRACE)) {
+		/* Auxiliary events may reference exited threads, hold onto dead ones. */
+		symbol_conf.keep_exited_threads = true;
+	}
+
 	if (perf_data__is_pipe(data))
 		return 0;
 
