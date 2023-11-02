@@ -1315,7 +1315,8 @@ static int tcp_ao_parse_crypto(struct tcp_ao_add *cmd, struct tcp_ao_key *key)
 	key->maclen = cmd->maclen ?: 12; /* 12 is the default in RFC5925 */
 
 	/* Check: maclen + tcp-ao header <= (MAX_TCP_OPTION_SPACE - mss
-	 *					- tstamp - wscale - sackperm),
+	 *					- tstamp (including sackperm)
+	 *					- wscale),
 	 * see tcp_syn_options(), tcp_synack_options(), commit 33ad798c924b.
 	 *
 	 * In order to allow D-SACK with TCP-AO, the header size should be:
@@ -1342,9 +1343,9 @@ static int tcp_ao_parse_crypto(struct tcp_ao_add *cmd, struct tcp_ao_key *key)
 	 * large to leave sufficient option space.
 	 */
 	syn_tcp_option_space = MAX_TCP_OPTION_SPACE;
+	syn_tcp_option_space -= TCPOLEN_MSS_ALIGNED;
 	syn_tcp_option_space -= TCPOLEN_TSTAMP_ALIGNED;
 	syn_tcp_option_space -= TCPOLEN_WSCALE_ALIGNED;
-	syn_tcp_option_space -= TCPOLEN_SACKPERM_ALIGNED;
 	if (tcp_ao_len(key) > syn_tcp_option_space) {
 		err = -EMSGSIZE;
 		goto err_kfree;
