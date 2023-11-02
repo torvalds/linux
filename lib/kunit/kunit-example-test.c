@@ -190,6 +190,7 @@ static void example_static_stub_test(struct kunit *test)
 static const struct example_param {
 	int value;
 } example_params_array[] = {
+	{ .value = 3, },
 	{ .value = 2, },
 	{ .value = 1, },
 	{ .value = 0, },
@@ -213,8 +214,8 @@ static void example_params_test(struct kunit *test)
 	KUNIT_ASSERT_NOT_NULL(test, param);
 
 	/* Test can be skipped on unsupported param values */
-	if (!param->value)
-		kunit_skip(test, "unsupported param value");
+	if (!is_power_of_2(param->value))
+		kunit_skip(test, "unsupported param value %d", param->value);
 
 	/* You can use param values for parameterized testing */
 	KUNIT_EXPECT_EQ(test, param->value % param->value, 0);
