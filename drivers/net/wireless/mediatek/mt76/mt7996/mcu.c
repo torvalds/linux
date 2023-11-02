@@ -4353,3 +4353,61 @@ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id)
 	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(RRO), &req,
 				 sizeof(req), true);
 }
+
+int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
+{
+#define TX_POWER_LIMIT_TABLE_RATE	0
+	struct mt7996_dev *dev = phy->dev;
+	struct mt76_phy *mphy = phy->mt76;
+	struct ieee80211_hw *hw = mphy->hw;
+	struct tx_power_limit_table_ctrl {
+		u8 __rsv1[4];
+
+		__le16 tag;
+		__le16 len;
+		u8 power_ctrl_id;
+		u8 power_limit_type;
+		u8 band_idx;
+	} __packed req = {
+		.tag = cpu_to_le16(UNI_TXPOWER_POWER_LIMIT_TABLE_CTRL),
+		.len = cpu_to_le16(sizeof(req) + MT7996_SKU_RATE_NUM - 4),
+		.power_ctrl_id = UNI_TXPOWER_POWER_LIMIT_TABLE_CTRL,
+		.power_limit_type = TX_POWER_LIMIT_TABLE_RATE,
+		.band_idx = phy->mt76->band_idx,
+	};
+	struct mt76_power_limits la = {};
+	struct sk_buff *skb;
+	int i, tx_power;
+
+	tx_power = mt7996_get_power_bound(phy, hw->conf.power_level);
+	tx_power = mt76_get_rate_power_limits(mphy, mphy->chandef.chan,
+					      &la, tx_power);
+	mphy->txpower_cur = tx_power;
+
+	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL,
+				 sizeof(req) + MT7996_SKU_RATE_NUM);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put_data(skb, &req, sizeof(req));
+	/* cck and ofdm */
+	skb_put_data(skb, &la.cck, sizeof(la.cck) + sizeof(la.ofdm));
+	/* ht20 */
+	skb_put_data(skb, &la.mcs[0], 8);
+	/* ht40 */
+	skb_put_data(skb, &la.mcs[1], 9);
+
+	/* vht */
+	for (i = 0; i < 4; i++) {
+		skb_put_data(skb, &la.mcs[i], sizeof(la.mcs[i]));
+		skb_put_zero(skb, 2);  /* padding */
+	}
+
+	/* he */
+	skb_put_data(skb, &la.ru[0], sizeof(la.ru));
+	/* eht */
+	skb_put_data(skb, &la.eht[0], sizeof(la.eht));
+
+	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+				     MCU_WM_UNI_CMD(TXPOWER), true);
+}
