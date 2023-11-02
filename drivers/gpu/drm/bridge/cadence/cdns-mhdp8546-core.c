@@ -2600,7 +2600,6 @@ static int cdns_mhdp_remove(struct platform_device *pdev)
 {
 	struct cdns_mhdp_device *mhdp = platform_get_drvdata(pdev);
 	unsigned long timeout = msecs_to_jiffies(100);
-	bool stop_fw = false;
 	int ret;
 
 	drm_bridge_remove(&mhdp->bridge);
@@ -2608,18 +2607,19 @@ static int cdns_mhdp_remove(struct platform_device *pdev)
 	ret = wait_event_timeout(mhdp->fw_load_wq,
 				 mhdp->hw_state == MHDP_HW_READY,
 				 timeout);
-	if (ret == 0)
-		dev_err(mhdp->dev, "%s: Timeout waiting for fw loading\n",
-			__func__);
-	else
-		stop_fw = true;
-
 	spin_lock(&mhdp->start_lock);
 	mhdp->hw_state = MHDP_HW_STOPPED;
 	spin_unlock(&mhdp->start_lock);
 
-	if (stop_fw)
+	if (ret == 0) {
+		dev_err(mhdp->dev, "%s: Timeout waiting for fw loading\n",
+			__func__);
+	} else {
 		ret = cdns_mhdp_set_firmware_active(mhdp, false);
+		if (ret)
+			dev_err(mhdp->dev, "Failed to stop firmware (%pe)\n",
+				ERR_PTR(ret));
+	}
 
 	phy_exit(mhdp->phy);
 
@@ -2635,7 +2635,7 @@ static int cdns_mhdp_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(mhdp->clk);
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id mhdp_ids[] = {
