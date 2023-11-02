@@ -153,7 +153,8 @@ struct pkvm_module_ops {
 	void* (*hyp_va)(phys_addr_t phys);
 	unsigned long (*kern_hyp_va)(unsigned long x);
 
-	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_USE(1, int (*host_stage2_mod_prot_range)(u64 pfn, enum kvm_pgtable_prot prot, u64 nr_pages));
+
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
