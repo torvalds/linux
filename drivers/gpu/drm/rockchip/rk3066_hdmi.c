@@ -434,14 +434,6 @@ static void rk3066_hdmi_encoder_disable(struct drm_encoder *encoder)
 	rk3066_hdmi_set_power_mode(hdmi, HDMI_SYS_POWER_MODE_A);
 }
 
-static bool
-rk3066_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
-			       const struct drm_display_mode *mode,
-			       struct drm_display_mode *adj_mode)
-{
-	return true;
-}
-
 static int
 rk3066_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 				 struct drm_crtc_state *crtc_state,
@@ -459,7 +451,6 @@ static const
 struct drm_encoder_helper_funcs rk3066_hdmi_encoder_helper_funcs = {
 	.enable       = rk3066_hdmi_encoder_enable,
 	.disable      = rk3066_hdmi_encoder_disable,
-	.mode_fixup   = rk3066_hdmi_encoder_mode_fixup,
 	.mode_set     = rk3066_hdmi_encoder_mode_set,
 	.atomic_check = rk3066_hdmi_encoder_atomic_check,
 };
