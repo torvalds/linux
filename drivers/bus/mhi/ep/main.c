@@ -199,6 +199,8 @@ static int mhi_ep_process_cmd_ring(struct mhi_ep_ring *ring, struct mhi_ring_ele
 
 				goto err_unlock;
 			}
+
+			mhi_chan->rd_offset = ch_ring->rd_offset;
 		}
 
 		/* Set channel state to RUNNING */
@@ -328,7 +330,7 @@ bool mhi_ep_queue_is_empty(struct mhi_ep_device *mhi_dev, enum dma_data_directio
 	struct mhi_ep_cntrl *mhi_cntrl = mhi_dev->mhi_cntrl;
 	struct mhi_ep_ring *ring = &mhi_cntrl->mhi_chan[mhi_chan->chan].ring;
 
-	return !!(ring->rd_offset == ring->wr_offset);
+	return !!(mhi_chan->rd_offset == ring->wr_offset);
 }
 EXPORT_SYMBOL_GPL(mhi_ep_queue_is_empty);
 
@@ -355,7 +357,7 @@ static int mhi_ep_read_channel(struct mhi_ep_cntrl *mhi_cntrl,
 			return -ENODEV;
 		}
 
-		el = &ring->ring_cache[ring->rd_offset];
+		el = &ring->ring_cache[mhi_chan->rd_offset];
 
 		/* Check if there is data pending to be read from previous read operation */
 		if (mhi_chan->tre_bytes_left) {
@@ -434,6 +436,7 @@ static int mhi_ep_read_channel(struct mhi_ep_cntrl *mhi_cntrl,
 				tr_done = true;
 			}
 
+			mhi_chan->rd_offset = (mhi_chan->rd_offset + 1) % ring->ring_size;
 			mhi_ep_ring_inc_index(ring);
 		}
 
@@ -494,6 +497,35 @@ static int mhi_ep_process_ch_ring(struct mhi_ep_ring *ring, struct mhi_ring_elem
 	return 0;
 }
 
+static void mhi_ep_skb_completion(struct mhi_ep_buf_info *buf_info)
+{
+	struct mhi_ep_device *mhi_dev = buf_info->mhi_dev;
+	struct mhi_ep_cntrl *mhi_cntrl = mhi_dev->mhi_cntrl;
+	struct mhi_ep_chan *mhi_chan = mhi_dev->dl_chan;
+	struct mhi_ep_ring *ring = &mhi_cntrl->mhi_chan[mhi_chan->chan].ring;
+	struct mhi_ring_element *el = &ring->ring_cache[ring->rd_offset];
+	struct device *dev = &mhi_dev->dev;
+	struct mhi_result result = {};
+	int ret;
+
+	if (mhi_chan->xfer_cb) {
+		result.buf_addr = buf_info->cb_buf;
+		result.dir = mhi_chan->dir;
+		result.bytes_xferd = buf_info->size;
+
+		mhi_chan->xfer_cb(mhi_dev, &result);
+	}
+
+	ret = mhi_ep_send_completion_event(mhi_cntrl, ring, el, buf_info->size,
+					   buf_info->code);
+	if (ret) {
+		dev_err(dev, "Error sending transfer completion event\n");
+		return;
+	}
+
+	mhi_ep_ring_inc_index(ring);
+}
+
 /* TODO: Handle partially formed TDs */
 int mhi_ep_queue_skb(struct mhi_ep_device *mhi_dev, struct sk_buff *skb)
 {
@@ -504,7 +536,6 @@ int mhi_ep_queue_skb(struct mhi_ep_device *mhi_dev, struct sk_buff *skb)
 	struct mhi_ring_element *el;
 	u32 buf_left, read_offset;
 	struct mhi_ep_ring *ring;
-	enum mhi_ev_ccs code;
 	size_t tr_len;
 	u32 tre_len;
 	int ret;
@@ -528,7 +559,7 @@ int mhi_ep_queue_skb(struct mhi_ep_device *mhi_dev, struct sk_buff *skb)
 			goto err_exit;
 		}
 
-		el = &ring->ring_cache[ring->rd_offset];
+		el = &ring->ring_cache[mhi_chan->rd_offset];
 		tre_len = MHI_TRE_DATA_GET_LEN(el);
 
 		tr_len = min(buf_left, tre_len);
@@ -537,33 +568,35 @@ int mhi_ep_queue_skb(struct mhi_ep_device *mhi_dev, struct sk_buff *skb)
 		buf_info.dev_addr = skb->data + read_offset;
 		buf_info.host_addr = MHI_TRE_DATA_GET_PTR(el);
 		buf_info.size = tr_len;
+		buf_info.cb = mhi_ep_skb_completion;
+		buf_info.cb_buf = skb;
+		buf_info.mhi_dev = mhi_dev;
 
-		dev_dbg(dev, "Writing %zd bytes to channel (%u)\n", tr_len, ring->ch_id);
-		ret = mhi_cntrl->write_sync(mhi_cntrl, &buf_info);
-		if (ret < 0) {
-			dev_err(dev, "Error writing to the channel\n");
-			goto err_exit;
-		}
-
-		buf_left -= tr_len;
 		/*
 		 * For all TREs queued by the host for DL channel, only the EOT flag will be set.
 		 * If the packet doesn't fit into a single TRE, send the OVERFLOW event to
 		 * the host so that the host can adjust the packet boundary to next TREs. Else send
 		 * the EOT event to the host indicating the packet boundary.
 		 */
-		if (buf_left)
-			code = MHI_EV_CC_OVERFLOW;
+		if (buf_left - tr_len)
+			buf_info.code = MHI_EV_CC_OVERFLOW;
 		else
-			code = MHI_EV_CC_EOT;
+			buf_info.code = MHI_EV_CC_EOT;
 
-		ret = mhi_ep_send_completion_event(mhi_cntrl, ring, el, tr_len, code);
-		if (ret) {
-			dev_err(dev, "Error sending transfer completion event\n");
+		dev_dbg(dev, "Writing %zd bytes to channel (%u)\n", tr_len, ring->ch_id);
+		ret = mhi_cntrl->write_async(mhi_cntrl, &buf_info);
+		if (ret < 0) {
+			dev_err(dev, "Error writing to the channel\n");
 			goto err_exit;
 		}
 
-		mhi_ep_ring_inc_index(ring);
+		buf_left -= tr_len;
+
+		/*
+		 * Update the read offset cached in mhi_chan. Actual read offset
+		 * will be updated by the completion handler.
+		 */
+		mhi_chan->rd_offset = (mhi_chan->rd_offset + 1) % ring->ring_size;
 	} while (buf_left);
 
 	mutex_unlock(&mhi_chan->lock);
@@ -803,7 +836,7 @@ static void mhi_ep_ch_ring_worker(struct work_struct *work)
 		}
 
 		/* Sanity check to make sure there are elements in the ring */
-		if (ring->rd_offset == ring->wr_offset) {
+		if (chan->rd_offset == ring->wr_offset) {
 			mutex_unlock(&chan->lock);
 			kmem_cache_free(mhi_cntrl->ring_item_cache, itr);
 			continue;
@@ -1447,6 +1480,7 @@ int mhi_ep_register_controller(struct mhi_ep_cntrl *mhi_cntrl,
 		ret = -ENOMEM;
 		goto err_destroy_tre_buf_cache;
 	}
+
 	INIT_WORK(&mhi_cntrl->state_work, mhi_ep_state_worker);
 	INIT_WORK(&mhi_cntrl->reset_work, mhi_ep_reset_worker);
 	INIT_WORK(&mhi_cntrl->cmd_ring_work, mhi_ep_cmd_ring_worker);

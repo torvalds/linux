@@ -51,16 +51,20 @@ struct mhi_ep_db_info {
 
 /**
  * struct mhi_ep_buf_info - MHI Endpoint transfer buffer info
+ * @mhi_dev: MHI device associated with this buffer
  * @dev_addr: Address of the buffer in endpoint
  * @host_addr: Address of the bufffer in host
  * @size: Size of the buffer
+ * @code: Transfer completion code
  * @cb: Callback to be executed by controller drivers after transfer completion (async)
  * @cb_buf: Opaque buffer to be passed to the callback
  */
 struct mhi_ep_buf_info {
+	struct mhi_ep_device *mhi_dev;
 	void *dev_addr;
 	u64 host_addr;
 	size_t size;
+	int code;
 
 	void (*cb)(struct mhi_ep_buf_info *buf_info);
 	void *cb_buf;

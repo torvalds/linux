@@ -162,6 +162,7 @@ struct mhi_ep_chan {
 	void (*xfer_cb)(struct mhi_ep_device *mhi_dev, struct mhi_result *result);
 	enum mhi_ch_state state;
 	enum dma_data_direction dir;
+	size_t rd_offset;
 	u64 tre_loc;
 	u32 tre_size;
 	u32 tre_bytes_left;
