@@ -185,8 +185,7 @@ bool amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	void *pp_handle = adev->powerplay.pp_handle;
-	bool baco_cap;
-	int ret = 0;
+	bool ret;
 
 	if (!pp_funcs || !pp_funcs->get_asic_baco_capability)
 		return false;
@@ -204,12 +203,11 @@ bool amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev)
 
 	mutex_lock(&adev->pm.mutex);
 
-	ret = pp_funcs->get_asic_baco_capability(pp_handle,
-						 &baco_cap);
+	ret = pp_funcs->get_asic_baco_capability(pp_handle);
 
 	mutex_unlock(&adev->pm.mutex);
 
-	return ret ? false : baco_cap;
+	return ret;
 }
 
 int amdgpu_dpm_mode2_reset(struct amdgpu_device *adev)

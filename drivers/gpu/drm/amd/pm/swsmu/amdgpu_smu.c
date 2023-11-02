@@ -3005,19 +3005,17 @@ static int smu_set_xgmi_pstate(void *handle,
 	return ret;
 }
 
-static int smu_get_baco_capability(void *handle, bool *cap)
+static bool smu_get_baco_capability(void *handle)
 {
 	struct smu_context *smu = handle;
 
-	*cap = false;
-
 	if (!smu->pm_enabled)
-		return 0;
+		return false;
 
-	if (smu->ppt_funcs && smu->ppt_funcs->baco_is_support)
-		*cap = smu->ppt_funcs->baco_is_support(smu);
+	if (!smu->ppt_funcs || !smu->ppt_funcs->baco_is_support)
+		return false;
 
-	return 0;
+	return smu->ppt_funcs->baco_is_support(smu);
 }
 
 static int smu_baco_set_state(void *handle, int state)
