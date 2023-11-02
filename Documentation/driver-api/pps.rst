@@ -200,11 +200,17 @@ Generators
 
 Sometimes one needs to be able not only to catch PPS signals but to produce
 them also. For example, running a distributed simulation, which requires
-computers' clock to be synchronized very tightly. One way to do this is to
-invent some complicated hardware solutions but it may be neither necessary
-nor affordable. The cheap way is to load a PPS generator on one of the
-computers (master) and PPS clients on others (slaves), and use very simple
-cables to deliver signals using parallel ports, for example.
+computers' clock to be synchronized very tightly.
+
+
+Parallel port generator
+------------------------
+
+One way to do this is to invent some complicated hardware solutions but it
+may be neither necessary nor affordable. The cheap way is to load a PPS
+generator on one of the computers (master) and PPS clients on others
+(slaves), and use very simple cables to deliver signals using parallel
+ports, for example.
 
 Parallel port cable pinout::
 

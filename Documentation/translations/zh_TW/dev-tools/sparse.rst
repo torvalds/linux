@@ -27,7 +27,7 @@ Copyright 2006 Bob Copeland <me@bobcopeland.com>
 使用 sparse 工具做類型檢查
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-"__bitwise" 是一種類型屬性，所以你應該這樣使用它：
+"__bitwise" 是一種類型屬性，所以你應該這樣使用它::
 
         typedef int __bitwise pm_request_t;
 
@@ -47,7 +47,7 @@ Copyright 2006 Bob Copeland <me@bobcopeland.com>
 坦白來說，你並不需要使用枚舉類型。上面那些實際都可以濃縮成一個特殊的"int
 __bitwise"類型。
 
-所以更簡單的辦法只要這樣做：
+所以更簡單的辦法只要這樣做::
 
 	typedef int __bitwise pm_request_t;
 

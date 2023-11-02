@@ -10,7 +10,7 @@
 
    mips/index
    arm64/index
-   ../riscv/index
+   ../arch/riscv/index
    openrisc/index
    parisc/index
    loongarch/index

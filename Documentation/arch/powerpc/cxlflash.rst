@@ -32,7 +32,7 @@ Introduction
     responsible for the initialization of the adapter, setting up the
     special path for user space access, and performing error recovery. It
     communicates directly the Flash Accelerator Functional Unit (AFU)
-    as described in Documentation/powerpc/cxl.rst.
+    as described in Documentation/arch/powerpc/cxl.rst.
 
     The cxlflash driver supports two, mutually exclusive, modes of
     operation at the device (LUN) level:

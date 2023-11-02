@@ -1585,7 +1585,7 @@ The transaction sequence looks like this:
 2. The second transaction contains a physical update to the free space btrees
    of AG 3 to release the former BMBT block and a second physical update to the
    free space btrees of AG 7 to release the unmapped file space.
-   Observe that the the physical updates are resequenced in the correct order
+   Observe that the physical updates are resequenced in the correct order
    when possible.
    Attached to the transaction is a an extent free done (EFD) log item.
    The EFD contains a pointer to the EFI logged in transaction #1 so that log

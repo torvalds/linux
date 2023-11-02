@@ -1393,6 +1393,8 @@ EXPORT_SYMBOL_GPL(mmput_async);
 
 /**
  * set_mm_exe_file - change a reference to the mm's executable file
+ * @mm: The mm to change.
+ * @new_exe_file: The new file to use.
  *
  * This changes mm's executable file (shown as symlink /proc/[pid]/exe).
  *
@@ -1432,6 +1434,8 @@ int set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
 
 /**
  * replace_mm_exe_file - replace a reference to the mm's executable file
+ * @mm: The mm to change.
+ * @new_exe_file: The new file to use.
  *
  * This changes mm's executable file (shown as symlink /proc/[pid]/exe).
  *
@@ -1483,6 +1487,7 @@ int replace_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
 
 /**
  * get_mm_exe_file - acquire a reference to the mm's executable file
+ * @mm: The mm of interest.
  *
  * Returns %NULL if mm has no associated executable file.
  * User must release file via fput().
@@ -1499,6 +1504,7 @@ struct file *get_mm_exe_file(struct mm_struct *mm)
 
 /**
  * get_task_exe_file - acquire a reference to the task's executable file
+ * @task: The task.
  *
  * Returns %NULL if task's mm (if any) has no associated executable file or
  * this is a kernel thread with borrowed mm (see the comment above get_task_mm).
@@ -1521,6 +1527,7 @@ struct file *get_task_exe_file(struct task_struct *task)
 
 /**
  * get_task_mm - acquire a reference to the task's mm
+ * @task: The task.
  *
  * Returns %NULL if the task has no mm.  Checks PF_KTHREAD (meaning
  * this kernel workthread has transiently adopted a user mm with use_mm,
@@ -2100,11 +2107,11 @@ const struct file_operations pidfd_fops = {
  * __pidfd_prepare - allocate a new pidfd_file and reserve a pidfd
  * @pid:   the struct pid for which to create a pidfd
  * @flags: flags of the new @pidfd
- * @pidfd: the pidfd to return
+ * @ret: Where to return the file for the pidfd.
  *
  * Allocate a new file that stashes @pid and reserve a new pidfd number in the
  * caller's file descriptor table. The pidfd is reserved but not installed yet.
-
+ *
  * The helper doesn't perform checks on @pid which makes it useful for pidfds
  * created via CLONE_PIDFD where @pid has no task attached when the pidfd and
  * pidfd file are prepared.
@@ -2151,7 +2158,7 @@ static int __pidfd_prepare(struct pid *pid, unsigned int flags, struct file **re
  * pidfd_prepare - allocate a new pidfd_file and reserve a pidfd
  * @pid:   the struct pid for which to create a pidfd
  * @flags: flags of the new @pidfd
- * @pidfd: the pidfd to return
+ * @ret: Where to return the pidfd.
  *
  * Allocate a new file that stashes @pid and reserve a new pidfd number in the
  * caller's file descriptor table. The pidfd is reserved but not installed yet.
@@ -3179,7 +3186,7 @@ static bool clone3_args_valid(struct kernel_clone_args *kargs)
 }
 
 /**
- * clone3 - create a new process with specific properties
+ * sys_clone3 - create a new process with specific properties
  * @uargs: argument structure
  * @size:  size of @uargs
  *

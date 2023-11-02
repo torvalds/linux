@@ -47,7 +47,7 @@
  * using the 2.6 Linux kernel kref construct.
  *
  * For direction on installation and usage of this driver please reference
- * Documentation/powerpc/hvcs.rst.
+ * Documentation/arch/powerpc/hvcs.rst.
  */
 
 #include <linux/device.h>

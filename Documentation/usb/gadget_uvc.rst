@@ -126,7 +126,7 @@ might do:
 	create_frame 1920 1080 uncompressed yuyv
 
 The only uncompressed format currently supported is YUYV, which is detailed at
-Documentation/userspace-api/media/v4l/pixfmt-packed.yuv.rst.
+Documentation/userspace-api/media/v4l/pixfmt-packed-yuv.rst.
 
 Color Matching Descriptors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

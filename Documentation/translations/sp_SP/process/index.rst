@@ -22,3 +22,5 @@
    adding-syscalls
    researcher-guidelines
    contribution-maturity-model
+   security-bugs
+   embargoed-hardware-issues

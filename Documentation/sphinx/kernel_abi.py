@@ -138,7 +138,7 @@ class KernelCmd(Directive):
                 code_block += "\n    " + l
             lines = code_block + "\n\n"
 
-        line_regex = re.compile("^\.\. LINENO (\S+)\#([0-9]+)$")
+        line_regex = re.compile(r"^\.\. LINENO (\S+)\#([0-9]+)$")
         ln = 0
         n = 0
         f = fname
