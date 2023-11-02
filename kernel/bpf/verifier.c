@@ -14188,26 +14188,26 @@ static void find_good_pkt_pointers(struct bpf_verifier_state *vstate,
 	}));
 }
 
-static int is_branch32_taken(struct bpf_reg_state *reg, u32 val, u8 opcode)
+static int is_branch32_taken(struct bpf_reg_state *reg1, u32 val, u8 opcode)
 {
-	struct tnum subreg = tnum_subreg(reg->var_off);
+	struct tnum subreg = tnum_subreg(reg1->var_off);
 	s32 sval = (s32)val;
 
 	switch (opcode) {
 	case BPF_JEQ:
 		if (tnum_is_const(subreg))
 			return !!tnum_equals_const(subreg, val);
-		else if (val < reg->u32_min_value || val > reg->u32_max_value)
+		else if (val < reg1->u32_min_value || val > reg1->u32_max_value)
 			return 0;
-		else if (sval < reg->s32_min_value || sval > reg->s32_max_value)
+		else if (sval < reg1->s32_min_value || sval > reg1->s32_max_value)
 			return 0;
 		break;
 	case BPF_JNE:
 		if (tnum_is_const(subreg))
 			return !tnum_equals_const(subreg, val);
-		else if (val < reg->u32_min_value || val > reg->u32_max_value)
+		else if (val < reg1->u32_min_value || val > reg1->u32_max_value)
 			return 1;
-		else if (sval < reg->s32_min_value || sval > reg->s32_max_value)
+		else if (sval < reg1->s32_min_value || sval > reg1->s32_max_value)
 			return 1;
 		break;
 	case BPF_JSET:
@@ -14217,51 +14217,51 @@ static int is_branch32_taken(struct bpf_reg_state *reg, u32 val, u8 opcode)
 			return 0;
 		break;
 	case BPF_JGT:
-		if (reg->u32_min_value > val)
+		if (reg1->u32_min_value > val)
 			return 1;
-		else if (reg->u32_max_value <= val)
+		else if (reg1->u32_max_value <= val)
 			return 0;
 		break;
 	case BPF_JSGT:
-		if (reg->s32_min_value > sval)
+		if (reg1->s32_min_value > sval)
 			return 1;
-		else if (reg->s32_max_value <= sval)
+		else if (reg1->s32_max_value <= sval)
 			return 0;
 		break;
 	case BPF_JLT:
-		if (reg->u32_max_value < val)
+		if (reg1->u32_max_value < val)
 			return 1;
-		else if (reg->u32_min_value >= val)
+		else if (reg1->u32_min_value >= val)
 			return 0;
 		break;
 	case BPF_JSLT:
-		if (reg->s32_max_value < sval)
+		if (reg1->s32_max_value < sval)
 			return 1;
-		else if (reg->s32_min_value >= sval)
+		else if (reg1->s32_min_value >= sval)
 			return 0;
 		break;
 	case BPF_JGE:
-		if (reg->u32_min_value >= val)
+		if (reg1->u32_min_value >= val)
 			return 1;
-		else if (reg->u32_max_value < val)
+		else if (reg1->u32_max_value < val)
 			return 0;
 		break;
 	case BPF_JSGE:
-		if (reg->s32_min_value >= sval)
+		if (reg1->s32_min_value >= sval)
 			return 1;
-		else if (reg->s32_max_value < sval)
+		else if (reg1->s32_max_value < sval)
 			return 0;
 		break;
 	case BPF_JLE:
-		if (reg->u32_max_value <= val)
+		if (reg1->u32_max_value <= val)
 			return 1;
-		else if (reg->u32_min_value > val)
+		else if (reg1->u32_min_value > val)
 			return 0;
 		break;
 	case BPF_JSLE:
-		if (reg->s32_max_value <= sval)
+		if (reg1->s32_max_value <= sval)
 			return 1;
-		else if (reg->s32_min_value > sval)
+		else if (reg1->s32_min_value > sval)
 			return 0;
 		break;
 	}
@@ -14270,79 +14270,79 @@ static int is_branch32_taken(struct bpf_reg_state *reg, u32 val, u8 opcode)
 }
 
 
-static int is_branch64_taken(struct bpf_reg_state *reg, u64 val, u8 opcode)
+static int is_branch64_taken(struct bpf_reg_state *reg1, u64 val, u8 opcode)
 {
 	s64 sval = (s64)val;
 
 	switch (opcode) {
 	case BPF_JEQ:
-		if (tnum_is_const(reg->var_off))
-			return !!tnum_equals_const(reg->var_off, val);
-		else if (val < reg->umin_value || val > reg->umax_value)
+		if (tnum_is_const(reg1->var_off))
+			return !!tnum_equals_const(reg1->var_off, val);
+		else if (val < reg1->umin_value || val > reg1->umax_value)
 			return 0;
-		else if (sval < reg->smin_value || sval > reg->smax_value)
+		else if (sval < reg1->smin_value || sval > reg1->smax_value)
 			return 0;
 		break;
 	case BPF_JNE:
-		if (tnum_is_const(reg->var_off))
-			return !tnum_equals_const(reg->var_off, val);
-		else if (val < reg->umin_value || val > reg->umax_value)
+		if (tnum_is_const(reg1->var_off))
+			return !tnum_equals_const(reg1->var_off, val);
+		else if (val < reg1->umin_value || val > reg1->umax_value)
 			return 1;
-		else if (sval < reg->smin_value || sval > reg->smax_value)
+		else if (sval < reg1->smin_value || sval > reg1->smax_value)
 			return 1;
 		break;
 	case BPF_JSET:
-		if ((~reg->var_off.mask & reg->var_off.value) & val)
+		if ((~reg1->var_off.mask & reg1->var_off.value) & val)
 			return 1;
-		if (!((reg->var_off.mask | reg->var_off.value) & val))
+		if (!((reg1->var_off.mask | reg1->var_off.value) & val))
 			return 0;
 		break;
 	case BPF_JGT:
-		if (reg->umin_value > val)
+		if (reg1->umin_value > val)
 			return 1;
-		else if (reg->umax_value <= val)
+		else if (reg1->umax_value <= val)
 			return 0;
 		break;
 	case BPF_JSGT:
-		if (reg->smin_value > sval)
+		if (reg1->smin_value > sval)
 			return 1;
-		else if (reg->smax_value <= sval)
+		else if (reg1->smax_value <= sval)
 			return 0;
 		break;
 	case BPF_JLT:
-		if (reg->umax_value < val)
+		if (reg1->umax_value < val)
 			return 1;
-		else if (reg->umin_value >= val)
+		else if (reg1->umin_value >= val)
 			return 0;
 		break;
 	case BPF_JSLT:
-		if (reg->smax_value < sval)
+		if (reg1->smax_value < sval)
 			return 1;
-		else if (reg->smin_value >= sval)
+		else if (reg1->smin_value >= sval)
 			return 0;
 		break;
 	case BPF_JGE:
-		if (reg->umin_value >= val)
+		if (reg1->umin_value >= val)
 			return 1;
-		else if (reg->umax_value < val)
+		else if (reg1->umax_value < val)
 			return 0;
 		break;
 	case BPF_JSGE:
-		if (reg->smin_value >= sval)
+		if (reg1->smin_value >= sval)
 			return 1;
-		else if (reg->smax_value < sval)
+		else if (reg1->smax_value < sval)
 			return 0;
 		break;
 	case BPF_JLE:
-		if (reg->umax_value <= val)
+		if (reg1->umax_value <= val)
 			return 1;
-		else if (reg->umin_value > val)
+		else if (reg1->umin_value > val)
 			return 0;
 		break;
 	case BPF_JSLE:
-		if (reg->smax_value <= sval)
+		if (reg1->smax_value <= sval)
 			return 1;
-		else if (reg->smin_value > sval)
+		else if (reg1->smin_value > sval)
 			return 0;
 		break;
 	}
@@ -14357,11 +14357,11 @@ static int is_branch64_taken(struct bpf_reg_state *reg, u64 val, u8 opcode)
  * -1 - unknown. Example: "if (reg < 5)" is unknown when register value
  *      range [0,10]
  */
-static int is_branch_taken(struct bpf_reg_state *reg, u64 val, u8 opcode,
+static int is_branch_taken(struct bpf_reg_state *reg1, u64 val, u8 opcode,
 			   bool is_jmp32)
 {
-	if (__is_pointer_value(false, reg)) {
-		if (!reg_not_null(reg))
+	if (__is_pointer_value(false, reg1)) {
+		if (!reg_not_null(reg1))
 			return -1;
 
 		/* If pointer is valid tests against zero will fail so we can
@@ -14381,8 +14381,8 @@ static int is_branch_taken(struct bpf_reg_state *reg, u64 val, u8 opcode,
 	}
 
 	if (is_jmp32)
-		return is_branch32_taken(reg, val, opcode);
-	return is_branch64_taken(reg, val, opcode);
+		return is_branch32_taken(reg1, val, opcode);
+	return is_branch64_taken(reg1, val, opcode);
 }
 
 static int flip_opcode(u32 opcode)
