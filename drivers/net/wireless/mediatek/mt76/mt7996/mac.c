@@ -1755,9 +1755,9 @@ mt7996_mac_restart(struct mt7996_dev *dev)
 		goto out;
 
 	mt7996_mac_init(dev);
-	mt7996_init_txpower(dev, &dev->mphy.sband_2g.sband);
-	mt7996_init_txpower(dev, &dev->mphy.sband_5g.sband);
-	mt7996_init_txpower(dev, &dev->mphy.sband_6g.sband);
+	mt7996_init_txpower(&dev->phy);
+	mt7996_init_txpower(phy2);
+	mt7996_init_txpower(phy3);
 	ret = mt7996_txbf_init(dev);
 
 	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state)) {

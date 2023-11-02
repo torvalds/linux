@@ -414,8 +414,7 @@ void mt7996_dma_cleanup(struct mt7996_dev *dev);
 void mt7996_dma_start(struct mt7996_dev *dev, bool reset, bool wed_reset);
 int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx,
 			  int n_desc, int ring_base, struct mtk_wed_device *wed);
-void mt7996_init_txpower(struct mt7996_dev *dev,
-			 struct ieee80211_supported_band *sband);
+void mt7996_init_txpower(struct mt7996_phy *phy);
 int mt7996_txbf_init(struct mt7996_dev *dev);
 void mt7996_reset(struct mt7996_dev *dev);
 int mt7996_run(struct ieee80211_hw *hw);

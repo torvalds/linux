@@ -1401,8 +1401,8 @@ mt7915_mac_restart(struct mt7915_dev *dev)
 		goto out;
 
 	mt7915_mac_init(dev);
-	mt7915_init_txpower(dev, &dev->mphy.sband_2g.sband);
-	mt7915_init_txpower(dev, &dev->mphy.sband_5g.sband);
+	mt7915_init_txpower(&dev->phy);
+	mt7915_init_txpower(phy2);
 	ret = mt7915_txbf_init(dev);
 
 	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state)) {

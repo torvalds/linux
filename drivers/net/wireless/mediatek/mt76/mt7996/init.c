@@ -288,10 +288,11 @@ static void mt7996_led_set_brightness(struct led_classdev *led_cdev,
 		mt7996_led_set_config(led_cdev, 0xff, 0);
 }
 
-void mt7996_init_txpower(struct mt7996_dev *dev,
-			 struct ieee80211_supported_band *sband)
+static void __mt7996_init_txpower(struct mt7996_phy *phy,
+				  struct ieee80211_supported_band *sband)
 {
-	int i, nss = hweight8(dev->mphy.antenna_mask);
+	struct mt7996_dev *dev = phy->dev;
+	int i, nss = hweight16(phy->mt76->chainmask);
 	int nss_delta = mt76_tx_power_nss_delta(nss);
 	int pwr_delta = mt7996_eeprom_get_power_delta(dev, sband->band);
 	struct mt76_power_limits limits;
@@ -301,7 +302,7 @@ void mt7996_init_txpower(struct mt7996_dev *dev,
 		int target_power = mt7996_eeprom_get_target_power(dev, chan);
 
 		target_power += pwr_delta;
-		target_power = mt76_get_rate_power_limits(&dev->mphy, chan,
+		target_power = mt76_get_rate_power_limits(phy->mt76, chan,
 							  &limits,
 							  target_power);
 		target_power += nss_delta;
@@ -310,6 +311,19 @@ void mt7996_init_txpower(struct mt7996_dev *dev,
 					target_power);
 		chan->orig_mpwr = target_power;
 	}
+}
+
+void mt7996_init_txpower(struct mt7996_phy *phy)
+{
+	if (!phy)
+		return;
+
+	if (phy->mt76->cap.has_2ghz)
+		__mt7996_init_txpower(phy, &phy->mt76->sband_2g.sband);
+	if (phy->mt76->cap.has_5ghz)
+		__mt7996_init_txpower(phy, &phy->mt76->sband_5g.sband);
+	if (phy->mt76->cap.has_6ghz)
+		__mt7996_init_txpower(phy, &phy->mt76->sband_6g.sband);
 }
 
 static void
@@ -326,9 +340,7 @@ mt7996_regd_notifier(struct wiphy *wiphy,
 	if (dev->mt76.region == NL80211_DFS_UNSET)
 		mt7996_mcu_rdd_background_enable(phy, NULL);
 
-	mt7996_init_txpower(dev, &phy->mt76->sband_2g.sband);
-	mt7996_init_txpower(dev, &phy->mt76->sband_5g.sband);
-	mt7996_init_txpower(dev, &phy->mt76->sband_6g.sband);
+	mt7996_init_txpower(phy);
 
 	phy->mt76->dfs_state = MT_DFS_STATE_UNKNOWN;
 	mt7996_dfs_init_radar_detector(phy);
@@ -424,6 +436,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
 	mt76_set_stream_caps(phy->mt76, true);
 	mt7996_set_stream_vht_txbf_caps(phy);
 	mt7996_set_stream_he_eht_caps(phy);
+	mt7996_init_txpower(phy);
 
 	wiphy->available_antennas_rx = phy->mt76->antenna_mask;
 	wiphy->available_antennas_tx = phy->mt76->antenna_mask;
@@ -656,9 +669,6 @@ static void mt7996_init_work(struct work_struct *work)
 
 	mt7996_mcu_set_eeprom(dev);
 	mt7996_mac_init(dev);
-	mt7996_init_txpower(dev, &dev->mphy.sband_2g.sband);
-	mt7996_init_txpower(dev, &dev->mphy.sband_5g.sband);
-	mt7996_init_txpower(dev, &dev->mphy.sband_6g.sband);
 	mt7996_txbf_init(dev);
 }
 
