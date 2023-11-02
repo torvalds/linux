@@ -31,6 +31,11 @@
 #define GPU_CC_SLEEP_CLK					21
 #define GPU_CC_XO_CLK_SRC					22
 #define GPU_CC_XO_DIV_CLK_SRC					23
+#define GPU_CC_GX_ACCU_SHIFT_CLK				24
+#define GPU_CC_GX_ACD_AHB_FF_CLK				25
+#define GPU_CC_GX_AHB_FF_CLK					26
+#define GPU_CC_GX_GMU_CLK					27
+#define GPU_CC_GX_RCG_AHB_FF_CLK				28
 
 /* GPU_CC resets */
 #define GPUCC_GPU_CC_CB_BCR					0
