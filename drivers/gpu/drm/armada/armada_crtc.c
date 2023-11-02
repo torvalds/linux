@@ -1066,10 +1066,9 @@ static int armada_lcd_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &armada_lcd_ops);
 }
 
-static int armada_lcd_remove(struct platform_device *pdev)
+static void armada_lcd_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &armada_lcd_ops);
-	return 0;
 }
 
 static const struct of_device_id armada_lcd_of_match[] = {
@@ -1095,7 +1094,7 @@ MODULE_DEVICE_TABLE(platform, armada_lcd_platform_ids);
 
 struct platform_driver armada_lcd_platform_driver = {
 	.probe	= armada_lcd_probe,
-	.remove	= armada_lcd_remove,
+	.remove_new = armada_lcd_remove,
 	.driver = {
 		.name	= "armada-lcd",
 		.owner	=  THIS_MODULE,
