@@ -41,10 +41,15 @@ static int regmap_raw_ram_gather_write(void *context,
 		return -EINVAL;
 
 	r = decode_reg(data->reg_endian, reg);
-	memcpy(&our_buf[r], val, val_len);
+	if (data->noinc_reg && data->noinc_reg(data, r)) {
+		memcpy(&our_buf[r], val + val_len - 2, 2);
+		data->written[r] = true;
+	} else {
+		memcpy(&our_buf[r], val, val_len);
 
-	for (i = 0; i < val_len / 2; i++)
-		data->written[r + i] = true;
+		for (i = 0; i < val_len / 2; i++)
+			data->written[r + i] = true;
+	}
 	
 	return 0;
 }
@@ -70,10 +75,16 @@ static int regmap_raw_ram_read(void *context,
 		return -EINVAL;
 
 	r = decode_reg(data->reg_endian, reg);
-	memcpy(val, &our_buf[r], val_len);
+	if (data->noinc_reg && data->noinc_reg(data, r)) {
+		for (i = 0; i < val_len; i += 2)
+			memcpy(val + i, &our_buf[r], 2);
+		data->read[r] = true;
+	} else {
+		memcpy(val, &our_buf[r], val_len);
 
-	for (i = 0; i < val_len / 2; i++)
-		data->read[r + i] = true;
+		for (i = 0; i < val_len / 2; i++)
+			data->read[r + i] = true;
+	}
 
 	return 0;
 }
