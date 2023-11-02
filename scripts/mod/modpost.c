@@ -1059,12 +1059,12 @@ static int secref_whitelist(const char *fromsec, const char *fromsym,
  * only by merging __exit and __init sections into __text, bloating
  * the kernel (which is especially evil on embedded platforms).
  */
-static inline int is_valid_name(struct elf_info *elf, Elf_Sym *sym)
+static inline bool is_valid_name(struct elf_info *elf, Elf_Sym *sym)
 {
 	const char *name = elf->strtab + sym->st_name;
 
 	if (!name || !strlen(name))
-		return 0;
+		return false;
 	return !is_mapping_symbol(name);
 }
 
