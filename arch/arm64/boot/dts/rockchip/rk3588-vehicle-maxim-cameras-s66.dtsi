@@ -1151,27 +1151,27 @@
 &pinctrl {
 	maxim-cameras {
 		max96712_dphy0_pwdn: max96712-dphy0-pwdn {
-			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		max96712_dphy0_errb: max96712-dphy0-errb {
-			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none_smt>;
 		};
 
 		max96712_dphy0_lock: max96712-dphy0-lock {
-			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none_smt>;
 		};
 
 		max96722_dphy3_pwdn: max96722-dphy3-pwdn {
-			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		max96722_dphy3_errb: max96722-dphy3-errb {
-			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none_smt>;
 		};
 
 		max96722_dphy3_lock: max96722-dphy3-lock {
-			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none_smt>;
 		};
 	};
 };

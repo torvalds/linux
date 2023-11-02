@@ -87,3 +87,13 @@
 		regulator-on-in-suspend;
 	};
 };
+
+&pinctrl {
+	pinctrl-names = "init";
+	pinctrl-0 = <&max96712_dphy0_pwdn
+			&max96712_dphy0_errb
+			&max96712_dphy0_lock
+			&max96722_dphy3_pwdn
+			&max96722_dphy3_errb
+			&max96722_dphy3_lock>;
+};
