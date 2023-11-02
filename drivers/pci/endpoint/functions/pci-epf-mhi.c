@@ -21,6 +21,15 @@
 /* Platform specific flags */
 #define MHI_EPF_USE_DMA BIT(0)
 
+struct pci_epf_mhi_dma_transfer {
+	struct pci_epf_mhi *epf_mhi;
+	struct mhi_ep_buf_info buf_info;
+	struct list_head node;
+	dma_addr_t paddr;
+	enum dma_data_direction dir;
+	size_t size;
+};
+
 struct pci_epf_mhi_ep_info {
 	const struct mhi_ep_cntrl_config *config;
 	struct pci_epf_header *epf_header;
@@ -124,6 +133,10 @@ struct pci_epf_mhi {
 	resource_size_t mmio_phys;
 	struct dma_chan *dma_chan_tx;
 	struct dma_chan *dma_chan_rx;
+	struct workqueue_struct *dma_wq;
+	struct work_struct dma_work;
+	struct list_head dma_list;
+	spinlock_t list_lock;
 	u32 mmio_size;
 	int irq;
 };
@@ -418,6 +431,198 @@ err_unlock:
 	return ret;
 }
 
+static void pci_epf_mhi_dma_worker(struct work_struct *work)
+{
+	struct pci_epf_mhi *epf_mhi = container_of(work, struct pci_epf_mhi, dma_work);
+	struct device *dma_dev = epf_mhi->epf->epc->dev.parent;
+	struct pci_epf_mhi_dma_transfer *itr, *tmp;
+	struct mhi_ep_buf_info *buf_info;
+	unsigned long flags;
+	LIST_HEAD(head);
+
+	spin_lock_irqsave(&epf_mhi->list_lock, flags);
+	list_splice_tail_init(&epf_mhi->dma_list, &head);
+	spin_unlock_irqrestore(&epf_mhi->list_lock, flags);
+
+	list_for_each_entry_safe(itr, tmp, &head, node) {
+		list_del(&itr->node);
+		dma_unmap_single(dma_dev, itr->paddr, itr->size, itr->dir);
+		buf_info = &itr->buf_info;
+		buf_info->cb(buf_info);
+		kfree(itr);
+	}
+}
+
+static void pci_epf_mhi_dma_async_callback(void *param)
+{
+	struct pci_epf_mhi_dma_transfer *transfer = param;
+	struct pci_epf_mhi *epf_mhi = transfer->epf_mhi;
+
+	spin_lock(&epf_mhi->list_lock);
+	list_add_tail(&transfer->node, &epf_mhi->dma_list);
+	spin_unlock(&epf_mhi->list_lock);
+
+	queue_work(epf_mhi->dma_wq, &epf_mhi->dma_work);
+}
+
+static int pci_epf_mhi_edma_read_async(struct mhi_ep_cntrl *mhi_cntrl,
+				       struct mhi_ep_buf_info *buf_info)
+{
+	struct pci_epf_mhi *epf_mhi = to_epf_mhi(mhi_cntrl);
+	struct device *dma_dev = epf_mhi->epf->epc->dev.parent;
+	struct pci_epf_mhi_dma_transfer *transfer = NULL;
+	struct dma_chan *chan = epf_mhi->dma_chan_rx;
+	struct device *dev = &epf_mhi->epf->dev;
+	DECLARE_COMPLETION_ONSTACK(complete);
+	struct dma_async_tx_descriptor *desc;
+	struct dma_slave_config config = {};
+	dma_cookie_t cookie;
+	dma_addr_t dst_addr;
+	int ret;
+
+	mutex_lock(&epf_mhi->lock);
+
+	config.direction = DMA_DEV_TO_MEM;
+	config.src_addr = buf_info->host_addr;
+
+	ret = dmaengine_slave_config(chan, &config);
+	if (ret) {
+		dev_err(dev, "Failed to configure DMA channel\n");
+		goto err_unlock;
+	}
+
+	dst_addr = dma_map_single(dma_dev, buf_info->dev_addr, buf_info->size,
+				  DMA_FROM_DEVICE);
+	ret = dma_mapping_error(dma_dev, dst_addr);
+	if (ret) {
+		dev_err(dev, "Failed to map remote memory\n");
+		goto err_unlock;
+	}
+
+	desc = dmaengine_prep_slave_single(chan, dst_addr, buf_info->size,
+					   DMA_DEV_TO_MEM,
+					   DMA_CTRL_ACK | DMA_PREP_INTERRUPT);
+	if (!desc) {
+		dev_err(dev, "Failed to prepare DMA\n");
+		ret = -EIO;
+		goto err_unmap;
+	}
+
+	transfer = kzalloc(sizeof(*transfer), GFP_KERNEL);
+	if (!transfer) {
+		ret = -ENOMEM;
+		goto err_unmap;
+	}
+
+	transfer->epf_mhi = epf_mhi;
+	transfer->paddr = dst_addr;
+	transfer->size = buf_info->size;
+	transfer->dir = DMA_FROM_DEVICE;
+	memcpy(&transfer->buf_info, buf_info, sizeof(*buf_info));
+
+	desc->callback = pci_epf_mhi_dma_async_callback;
+	desc->callback_param = transfer;
+
+	cookie = dmaengine_submit(desc);
+	ret = dma_submit_error(cookie);
+	if (ret) {
+		dev_err(dev, "Failed to do DMA submit\n");
+		goto err_free_transfer;
+	}
+
+	dma_async_issue_pending(chan);
+
+	goto err_unlock;
+
+err_free_transfer:
+	kfree(transfer);
+err_unmap:
+	dma_unmap_single(dma_dev, dst_addr, buf_info->size, DMA_FROM_DEVICE);
+err_unlock:
+	mutex_unlock(&epf_mhi->lock);
+
+	return ret;
+}
+
+static int pci_epf_mhi_edma_write_async(struct mhi_ep_cntrl *mhi_cntrl,
+					struct mhi_ep_buf_info *buf_info)
+{
+	struct pci_epf_mhi *epf_mhi = to_epf_mhi(mhi_cntrl);
+	struct device *dma_dev = epf_mhi->epf->epc->dev.parent;
+	struct pci_epf_mhi_dma_transfer *transfer = NULL;
+	struct dma_chan *chan = epf_mhi->dma_chan_tx;
+	struct device *dev = &epf_mhi->epf->dev;
+	DECLARE_COMPLETION_ONSTACK(complete);
+	struct dma_async_tx_descriptor *desc;
+	struct dma_slave_config config = {};
+	dma_cookie_t cookie;
+	dma_addr_t src_addr;
+	int ret;
+
+	mutex_lock(&epf_mhi->lock);
+
+	config.direction = DMA_MEM_TO_DEV;
+	config.dst_addr = buf_info->host_addr;
+
+	ret = dmaengine_slave_config(chan, &config);
+	if (ret) {
+		dev_err(dev, "Failed to configure DMA channel\n");
+		goto err_unlock;
+	}
+
+	src_addr = dma_map_single(dma_dev, buf_info->dev_addr, buf_info->size,
+				  DMA_TO_DEVICE);
+	ret = dma_mapping_error(dma_dev, src_addr);
+	if (ret) {
+		dev_err(dev, "Failed to map remote memory\n");
+		goto err_unlock;
+	}
+
+	desc = dmaengine_prep_slave_single(chan, src_addr, buf_info->size,
+					   DMA_MEM_TO_DEV,
+					   DMA_CTRL_ACK | DMA_PREP_INTERRUPT);
+	if (!desc) {
+		dev_err(dev, "Failed to prepare DMA\n");
+		ret = -EIO;
+		goto err_unmap;
+	}
+
+	transfer = kzalloc(sizeof(*transfer), GFP_KERNEL);
+	if (!transfer) {
+		ret = -ENOMEM;
+		goto err_unmap;
+	}
+
+	transfer->epf_mhi = epf_mhi;
+	transfer->paddr = src_addr;
+	transfer->size = buf_info->size;
+	transfer->dir = DMA_TO_DEVICE;
+	memcpy(&transfer->buf_info, buf_info, sizeof(*buf_info));
+
+	desc->callback = pci_epf_mhi_dma_async_callback;
+	desc->callback_param = transfer;
+
+	cookie = dmaengine_submit(desc);
+	ret = dma_submit_error(cookie);
+	if (ret) {
+		dev_err(dev, "Failed to do DMA submit\n");
+		goto err_free_transfer;
+	}
+
+	dma_async_issue_pending(chan);
+
+	goto err_unlock;
+
+err_free_transfer:
+	kfree(transfer);
+err_unmap:
+	dma_unmap_single(dma_dev, src_addr, buf_info->size, DMA_TO_DEVICE);
+err_unlock:
+	mutex_unlock(&epf_mhi->lock);
+
+	return ret;
+}
+
 struct epf_dma_filter {
 	struct device *dev;
 	u32 dma_mask;
@@ -441,6 +646,7 @@ static int pci_epf_mhi_dma_init(struct pci_epf_mhi *epf_mhi)
 	struct device *dev = &epf_mhi->epf->dev;
 	struct epf_dma_filter filter;
 	dma_cap_mask_t mask;
+	int ret;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
@@ -459,16 +665,35 @@ static int pci_epf_mhi_dma_init(struct pci_epf_mhi *epf_mhi)
 						   &filter);
 	if (IS_ERR_OR_NULL(epf_mhi->dma_chan_rx)) {
 		dev_err(dev, "Failed to request rx channel\n");
-		dma_release_channel(epf_mhi->dma_chan_tx);
-		epf_mhi->dma_chan_tx = NULL;
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_release_tx;
 	}
 
+	epf_mhi->dma_wq = alloc_workqueue("pci_epf_mhi_dma_wq", 0, 0);
+	if (!epf_mhi->dma_wq) {
+		ret = -ENOMEM;
+		goto err_release_rx;
+	}
+
+	INIT_LIST_HEAD(&epf_mhi->dma_list);
+	INIT_WORK(&epf_mhi->dma_work, pci_epf_mhi_dma_worker);
+	spin_lock_init(&epf_mhi->list_lock);
+
 	return 0;
+
+err_release_rx:
+	dma_release_channel(epf_mhi->dma_chan_rx);
+	epf_mhi->dma_chan_rx = NULL;
+err_release_tx:
+	dma_release_channel(epf_mhi->dma_chan_tx);
+	epf_mhi->dma_chan_tx = NULL;
+
+	return ret;
 }
 
 static void pci_epf_mhi_dma_deinit(struct pci_epf_mhi *epf_mhi)
 {
+	destroy_workqueue(epf_mhi->dma_wq);
 	dma_release_channel(epf_mhi->dma_chan_tx);
 	dma_release_channel(epf_mhi->dma_chan_rx);
 	epf_mhi->dma_chan_tx = NULL;
