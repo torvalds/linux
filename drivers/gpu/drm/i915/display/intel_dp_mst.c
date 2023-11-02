@@ -43,6 +43,7 @@
 #include "intel_dpio_phy.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
+#include "intel_vdsc.h"
 #include "skl_scaler.h"
 
 static int intel_dp_mst_check_constraints(struct drm_i915_private *i915, int bpp,
@@ -298,6 +299,18 @@ static int intel_dp_mst_update_slots(struct intel_encoder *encoder,
 }
 
 static bool
+intel_dp_mst_dsc_source_support(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	/*
+	 * FIXME: Enabling DSC on ICL results in blank screen and FIFO pipe /
+	 * transcoder underruns, re-enable DSC after fixing this issue.
+	 */
+	return DISPLAY_VER(i915) >= 12 && intel_dsc_source_support(crtc_state);
+}
+
+static bool
 intel_dp_mst_compute_config_limits(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *crtc_state,
 				   bool dsc,
@@ -374,6 +387,9 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 		drm_dbg_kms(&dev_priv->drm, "Try DSC (fallback=%s, force=%s)\n",
 			    str_yes_no(ret),
 			    str_yes_no(intel_dp->force_dsc_en));
+
+		if (!intel_dp_mst_dsc_source_support(pipe_config))
+			return -EINVAL;
 
 		if (!intel_dp_mst_compute_config_limits(intel_dp,
 							pipe_config,
