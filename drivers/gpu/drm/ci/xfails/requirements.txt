@@ -5,7 +5,7 @@ termcolor==2.3.0
 certifi==2023.7.22
 charset-normalizer==3.2.0
 idna==3.4
-pip==23.2.1
+pip==23.3
 python-gitlab==3.15.0
 requests==2.31.0
 requests-toolbelt==1.0.0
