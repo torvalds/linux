@@ -109,6 +109,12 @@ static int wmt_i2c_wait_bus_not_busy(struct wmt_i2c_dev *i2c_dev)
 static int wmt_check_status(struct wmt_i2c_dev *i2c_dev)
 {
 	int ret = 0;
+	unsigned long wait_result;
+
+	wait_result = wait_for_completion_timeout(&i2c_dev->complete,
+						msecs_to_jiffies(500));
+	if (!wait_result)
+		return -ETIMEDOUT;
 
 	if (i2c_dev->cmd_status & ISR_NACK_ADDR)
 		ret = -EIO;
@@ -125,7 +131,6 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	u16 val, tcr_val;
 	int ret;
-	unsigned long wait_result;
 	int xfer_len = 0;
 
 	if (pmsg->len == 0) {
@@ -167,12 +172,6 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	}
 
 	while (xfer_len < pmsg->len) {
-		wait_result = wait_for_completion_timeout(&i2c_dev->complete,
-							msecs_to_jiffies(500));
-
-		if (wait_result == 0)
-			return -ETIMEDOUT;
-
 		ret = wmt_check_status(i2c_dev);
 		if (ret)
 			return ret;
@@ -210,7 +209,6 @@ static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	u16 val, tcr_val;
 	int ret;
-	unsigned long wait_result;
 	u32 xfer_len = 0;
 
 	val = readw(i2c_dev->base + REG_CR);
@@ -251,12 +249,6 @@ static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	}
 
 	while (xfer_len < pmsg->len) {
-		wait_result = wait_for_completion_timeout(&i2c_dev->complete,
-							msecs_to_jiffies(500));
-
-		if (!wait_result)
-			return -ETIMEDOUT;
-
 		ret = wmt_check_status(i2c_dev);
 		if (ret)
 			return ret;
