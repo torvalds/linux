@@ -1740,14 +1740,14 @@ next:
 		}
 	}
 
+	fence = cf ? &cf->base : !fence ?
+		xe_exec_queue_last_fence_get(wait_exec_queue, vm) : fence;
 	if (last_op) {
 		for (i = 0; i < num_syncs; i++)
-			xe_sync_entry_signal(&syncs[i], NULL,
-					     cf ? &cf->base : fence);
+			xe_sync_entry_signal(&syncs[i], NULL, fence);
 	}
 
-	return cf ? &cf->base : !fence ?
-		xe_exec_queue_last_fence_get(wait_exec_queue, vm) : fence;
+	return fence;
 
 err_fences:
 	if (fences) {
