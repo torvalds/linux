@@ -14358,48 +14358,6 @@ static int is_branch64_taken(struct bpf_reg_state *reg1, struct bpf_reg_state *r
 	return -1;
 }
 
-/* compute branch direction of the expression "if (<reg1> opcode <reg2>) goto target;"
- * and return:
- *  1 - branch will be taken and "goto target" will be executed
- *  0 - branch will not be taken and fall-through to next insn
- * -1 - unknown. Example: "if (reg1 < 5)" is unknown when register value
- *      range [0,10]
- */
-static int is_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_state *reg2,
-			   u8 opcode, bool is_jmp32)
-{
-	struct tnum reg2_tnum = is_jmp32 ? tnum_subreg(reg2->var_off) : reg2->var_off;
-	u64 val;
-
-	if (!tnum_is_const(reg2_tnum))
-		return -1;
-	val = reg2_tnum.value;
-
-	if (__is_pointer_value(false, reg1)) {
-		if (!reg_not_null(reg1))
-			return -1;
-
-		/* If pointer is valid tests against zero will fail so we can
-		 * use this to direct branch taken.
-		 */
-		if (val != 0)
-			return -1;
-
-		switch (opcode) {
-		case BPF_JEQ:
-			return 0;
-		case BPF_JNE:
-			return 1;
-		default:
-			return -1;
-		}
-	}
-
-	if (is_jmp32)
-		return is_branch32_taken(reg1, reg2, opcode);
-	return is_branch64_taken(reg1, reg2, opcode);
-}
-
 static int flip_opcode(u32 opcode)
 {
 	/* How can we transform "a <op> b" into "b <op> a"? */
@@ -14459,6 +14417,48 @@ static int is_pkt_ptr_branch_taken(struct bpf_reg_state *dst_reg,
 		break;
 	}
 	return -1;
+}
+
+/* compute branch direction of the expression "if (<reg1> opcode <reg2>) goto target;"
+ * and return:
+ *  1 - branch will be taken and "goto target" will be executed
+ *  0 - branch will not be taken and fall-through to next insn
+ * -1 - unknown. Example: "if (reg1 < 5)" is unknown when register value
+ *      range [0,10]
+ */
+static int is_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_state *reg2,
+			   u8 opcode, bool is_jmp32)
+{
+	struct tnum reg2_tnum = is_jmp32 ? tnum_subreg(reg2->var_off) : reg2->var_off;
+	u64 val;
+
+	if (!tnum_is_const(reg2_tnum))
+		return -1;
+	val = reg2_tnum.value;
+
+	if (__is_pointer_value(false, reg1)) {
+		if (!reg_not_null(reg1))
+			return -1;
+
+		/* If pointer is valid tests against zero will fail so we can
+		 * use this to direct branch taken.
+		 */
+		if (val != 0)
+			return -1;
+
+		switch (opcode) {
+		case BPF_JEQ:
+			return 0;
+		case BPF_JNE:
+			return 1;
+		default:
+			return -1;
+		}
+	}
+
+	if (is_jmp32)
+		return is_branch32_taken(reg1, reg2, opcode);
+	return is_branch64_taken(reg1, reg2, opcode);
 }
 
 /* Adjusts the register min/max values in the case that the dst_reg is the
