@@ -636,15 +636,15 @@ static void rt6_probe(struct fib6_nh *fib6_nh)
 
 	nh_gw = &fib6_nh->fib_nh_gw6;
 	dev = fib6_nh->fib_nh_dev;
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	last_probe = READ_ONCE(fib6_nh->last_probe);
 	idev = __in6_dev_get(dev);
 	neigh = __ipv6_neigh_lookup_noref(dev, nh_gw);
 	if (neigh) {
-		if (neigh->nud_state & NUD_VALID)
+		if (READ_ONCE(neigh->nud_state) & NUD_VALID)
 			goto out;
 
-		write_lock(&neigh->lock);
+		write_lock_bh(&neigh->lock);
 		if (!(neigh->nud_state & NUD_VALID) &&
 		    time_after(jiffies,
 			       neigh->updated + idev->cnf.rtr_probe_interval)) {
@@ -652,7 +652,7 @@ static void rt6_probe(struct fib6_nh *fib6_nh)
 			if (work)
 				__neigh_set_probe_once(neigh);
 		}
-		write_unlock(&neigh->lock);
+		write_unlock_bh(&neigh->lock);
 	} else if (time_after(jiffies, last_probe +
 				       idev->cnf.rtr_probe_interval)) {
 		work = kmalloc(sizeof(*work), GFP_ATOMIC);
@@ -670,7 +670,7 @@ static void rt6_probe(struct fib6_nh *fib6_nh)
 	}
 
 out:
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 }
 #else
 static inline void rt6_probe(struct fib6_nh *fib6_nh)
@@ -686,25 +686,25 @@ static enum rt6_nud_state rt6_check_neigh(const struct fib6_nh *fib6_nh)
 	enum rt6_nud_state ret = RT6_NUD_FAIL_HARD;
 	struct neighbour *neigh;
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	neigh = __ipv6_neigh_lookup_noref(fib6_nh->fib_nh_dev,
 					  &fib6_nh->fib_nh_gw6);
 	if (neigh) {
-		read_lock(&neigh->lock);
-		if (neigh->nud_state & NUD_VALID)
+		u8 nud_state = READ_ONCE(neigh->nud_state);
+
+		if (nud_state & NUD_VALID)
 			ret = RT6_NUD_SUCCEED;
 #ifdef CONFIG_IPV6_ROUTER_PREF
-		else if (!(neigh->nud_state & NUD_FAILED))
+		else if (!(nud_state & NUD_FAILED))
 			ret = RT6_NUD_SUCCEED;
 		else
 			ret = RT6_NUD_FAIL_PROBE;
 #endif
-		read_unlock(&neigh->lock);
 	} else {
 		ret = IS_ENABLED(CONFIG_IPV6_ROUTER_PREF) ?
 		      RT6_NUD_SUCCEED : RT6_NUD_FAIL_DO_RR;
 	}
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	return ret;
 }

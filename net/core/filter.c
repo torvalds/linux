@@ -2197,7 +2197,7 @@ static int bpf_out_neigh_v6(struct net *net, struct sk_buff *skb,
 			return -ENOMEM;
 	}
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	if (!nh) {
 		dst = skb_dst(skb);
 		nexthop = rt6_nexthop(container_of(dst, struct rt6_info, dst),
@@ -2210,10 +2210,12 @@ static int bpf_out_neigh_v6(struct net *net, struct sk_buff *skb,
 		int ret;
 
 		sock_confirm_neigh(skb, neigh);
+		local_bh_disable();
 		dev_xmit_recursion_inc();
 		ret = neigh_output(neigh, skb, false);
 		dev_xmit_recursion_dec();
-		rcu_read_unlock_bh();
+		local_bh_enable();
+		rcu_read_unlock();
 		return ret;
 	}
 	rcu_read_unlock_bh();
@@ -2295,7 +2297,7 @@ static int bpf_out_neigh_v4(struct net *net, struct sk_buff *skb,
 			return -ENOMEM;
 	}
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	if (!nh) {
 		struct dst_entry *dst = skb_dst(skb);
 		struct rtable *rt = container_of(dst, struct rtable, dst);
@@ -2307,7 +2309,7 @@ static int bpf_out_neigh_v4(struct net *net, struct sk_buff *skb,
 	} else if (nh->nh_family == AF_INET) {
 		neigh = ip_neigh_gw4(dev, nh->ipv4_nh);
 	} else {
-		rcu_read_unlock_bh();
+		rcu_read_unlock();
 		goto out_drop;
 	}
 
@@ -2315,13 +2317,15 @@ static int bpf_out_neigh_v4(struct net *net, struct sk_buff *skb,
 		int ret;
 
 		sock_confirm_neigh(skb, neigh);
+		local_bh_disable();
 		dev_xmit_recursion_inc();
 		ret = neigh_output(neigh, skb, is_v6gw);
 		dev_xmit_recursion_dec();
-		rcu_read_unlock_bh();
+		local_bh_enable();
+		rcu_read_unlock();
 		return ret;
 	}
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 out_drop:
 	kfree_skb(skb);
 	return -ENETDOWN;
@@ -5674,12 +5678,8 @@ static const struct bpf_func_proto bpf_skb_get_xfrm_state_proto = {
 #endif
 
 #if IS_ENABLED(CONFIG_INET) || IS_ENABLED(CONFIG_IPV6)
-static int bpf_fib_set_fwd_params(struct bpf_fib_lookup *params,
-				  const struct neighbour *neigh,
-				  const struct net_device *dev, u32 mtu)
+static int bpf_fib_set_fwd_params(struct bpf_fib_lookup *params, u32 mtu)
 {
-	memcpy(params->dmac, neigh->ha, ETH_ALEN);
-	memcpy(params->smac, dev->dev_addr, ETH_ALEN);
 	params->h_vlan_TCI = 0;
 	params->h_vlan_proto = 0;
 	if (mtu)
@@ -5790,21 +5790,29 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	if (likely(nhc->nhc_gw_family != AF_INET6)) {
 		if (nhc->nhc_gw_family)
 			params->ipv4_dst = nhc->nhc_gw.ipv4;
-
-		neigh = __ipv4_neigh_lookup_noref(dev,
-						 (__force u32)params->ipv4_dst);
 	} else {
 		struct in6_addr *dst = (struct in6_addr *)params->ipv6_dst;
 
 		params->family = AF_INET6;
 		*dst = nhc->nhc_gw.ipv6;
-		neigh = __ipv6_neigh_lookup_noref_stub(dev, dst);
 	}
 
-	if (!neigh || !(neigh->nud_state & NUD_VALID))
-		return BPF_FIB_LKUP_RET_NO_NEIGH;
+	if (flags & BPF_FIB_LOOKUP_SKIP_NEIGH)
+		goto set_fwd_params;
 
-	return bpf_fib_set_fwd_params(params, neigh, dev, mtu);
+	if (likely(nhc->nhc_gw_family != AF_INET6))
+		neigh = __ipv4_neigh_lookup_noref(dev,
+						  (__force u32)params->ipv4_dst);
+	else
+		neigh = __ipv6_neigh_lookup_noref_stub(dev, params->ipv6_dst);
+
+	if (!neigh || !(READ_ONCE(neigh->nud_state) & NUD_VALID))
+		return BPF_FIB_LKUP_RET_NO_NEIGH;
+	memcpy(params->dmac, neigh->ha, ETH_ALEN);
+	memcpy(params->smac, dev->dev_addr, ETH_ALEN);
+
+set_fwd_params:
+	return bpf_fib_set_fwd_params(params, mtu);
 }
 #endif
 
@@ -5912,16 +5920,25 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	params->rt_metric = res.f6i->fib6_metric;
 	params->ifindex = dev->ifindex;
 
+	if (flags & BPF_FIB_LOOKUP_SKIP_NEIGH)
+		goto set_fwd_params;
+
 	/* xdp and cls_bpf programs are run in RCU-bh so rcu_read_lock_bh is
 	 * not needed here.
 	 */
 	neigh = __ipv6_neigh_lookup_noref_stub(dev, dst);
-	if (!neigh || !(neigh->nud_state & NUD_VALID))
+	if (!neigh || !(READ_ONCE(neigh->nud_state) & NUD_VALID))
 		return BPF_FIB_LKUP_RET_NO_NEIGH;
+	memcpy(params->dmac, neigh->ha, ETH_ALEN);
+	memcpy(params->smac, dev->dev_addr, ETH_ALEN);
 
-	return bpf_fib_set_fwd_params(params, neigh, dev, mtu);
+set_fwd_params:
+	return bpf_fib_set_fwd_params(params, mtu);
 }
 #endif
+
+#define BPF_FIB_LOOKUP_MASK (BPF_FIB_LOOKUP_DIRECT | BPF_FIB_LOOKUP_OUTPUT | \
+			     BPF_FIB_LOOKUP_SKIP_NEIGH)
 
 BPF_CALL_4(bpf_xdp_fib_lookup, struct xdp_buff *, ctx,
 	   struct bpf_fib_lookup *, params, int, plen, u32, flags)
@@ -5929,7 +5946,7 @@ BPF_CALL_4(bpf_xdp_fib_lookup, struct xdp_buff *, ctx,
 	if (plen < sizeof(*params))
 		return -EINVAL;
 
-	if (flags & ~(BPF_FIB_LOOKUP_DIRECT | BPF_FIB_LOOKUP_OUTPUT))
+	if (flags & ~BPF_FIB_LOOKUP_MASK)
 		return -EINVAL;
 
 	switch (params->family) {
@@ -5967,7 +5984,7 @@ BPF_CALL_4(bpf_skb_fib_lookup, struct sk_buff *, skb,
 	if (plen < sizeof(*params))
 		return -EINVAL;
 
-	if (flags & ~(BPF_FIB_LOOKUP_DIRECT | BPF_FIB_LOOKUP_OUTPUT))
+	if (flags & ~BPF_FIB_LOOKUP_MASK)
 		return -EINVAL;
 
 	if (params->tot_len)

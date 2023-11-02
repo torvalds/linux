@@ -484,7 +484,11 @@ EndEnum
 EndSysreg
 
 Sysreg	ID_AA64ISAR2_EL1	3	0	0	6	2
-Res0	63:28
+Res0	63:32
+Enum	31:28	CLRBHB
+	0b0000	NI
+	0b0001	IMP
+EndEnum
 Enum	27:24	PAC_frac
 	0b0000	NI
 	0b0001	IMP
