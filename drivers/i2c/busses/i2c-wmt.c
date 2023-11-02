@@ -122,10 +122,9 @@ static int wmt_check_status(struct wmt_i2c_dev *i2c_dev)
 	return ret;
 }
 
-static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
+static int wmt_i2c_write(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg,
 			 int last)
 {
-	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	u16 val, tcr_val = i2c_dev->tcr;
 	int ret;
 	int xfer_len = 0;
@@ -195,10 +194,8 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	return 0;
 }
 
-static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
-			int last)
+static int wmt_i2c_read(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg)
 {
-	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	u16 val, tcr_val = i2c_dev->tcr;
 	int ret;
 	u32 xfer_len = 0;
@@ -262,13 +259,11 @@ static int wmt_i2c_xfer(struct i2c_adapter *adap,
 			int num)
 {
 	struct i2c_msg *pmsg;
-	int i, is_last;
+	int i;
 	int ret = 0;
 	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 
 	for (i = 0; ret >= 0 && i < num; i++) {
-		is_last = ((i + 1) == num);
-
 		pmsg = &msgs[i];
 		if (!(pmsg->flags & I2C_M_NOSTART)) {
 			ret = wmt_i2c_wait_bus_not_busy(i2c_dev);
@@ -277,9 +272,9 @@ static int wmt_i2c_xfer(struct i2c_adapter *adap,
 		}
 
 		if (pmsg->flags & I2C_M_RD)
-			ret = wmt_i2c_read(adap, pmsg, is_last);
+			ret = wmt_i2c_read(i2c_dev, pmsg);
 		else
-			ret = wmt_i2c_write(adap, pmsg, is_last);
+			ret = wmt_i2c_write(i2c_dev, pmsg, (i + 1) == num);
 	}
 
 	return (ret < 0) ? ret : i;
