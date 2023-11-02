@@ -967,21 +967,6 @@ tcp_tw_reuse - INTEGER
 tcp_window_scaling - BOOLEAN
 	Enable window scaling as defined in RFC1323.
 
-tcp_shrink_window - BOOLEAN
-	This changes how the TCP receive window is calculated.
-
-	RFC 7323, section 2.4, says there are instances when a retracted
-	window can be offered, and that TCP implementations MUST ensure
-	that they handle a shrinking window, as specified in RFC 1122.
-
-	- 0 - Disabled.	The window is never shrunk.
-	- 1 - Enabled.	The window is shrunk when necessary to remain within
-			the memory limit set by autotuning (sk_rcvbuf).
-			This only occurs if a non-zero receive window
-			scaling factor is also in effect.
-
-	Default: 0
-
 tcp_wmem - vector of 3 INTEGERs: min, default, max
 	min: Amount of memory reserved for send buffers for TCP sockets.
 	Each TCP socket has rights to use it due to fact of its birth.

@@ -259,8 +259,8 @@ static u16 tcp_select_window(struct sock *sk)
 	u32 old_win = tp->rcv_wnd;
 	u32 cur_win = tcp_receive_window(tp);
 	u32 new_win = __tcp_select_window(sk);
-	struct net *net = sock_net(sk);
 
+	/* Never shrink the offered window */
 	if (new_win < cur_win) {
 		/* Danger Will Robinson!
 		 * Don't update rcv_wup/rcv_wnd here or else
@@ -269,14 +269,11 @@ static u16 tcp_select_window(struct sock *sk)
 		 *
 		 * Relax Will Robinson.
 		 */
-		if (!READ_ONCE(net->ipv4.sysctl_tcp_shrink_window) || !tp->rx_opt.rcv_wscale) {
-			/* Never shrink the offered window */
-			if (new_win == 0)
-				NET_INC_STATS(net, LINUX_MIB_TCPWANTZEROWINDOWADV);
-			new_win = ALIGN(cur_win, 1 << tp->rx_opt.rcv_wscale);
-		}
+		if (new_win == 0)
+			NET_INC_STATS(sock_net(sk),
+				      LINUX_MIB_TCPWANTZEROWINDOWADV);
+		new_win = ALIGN(cur_win, 1 << tp->rx_opt.rcv_wscale);
 	}
-
 	tp->rcv_wnd = new_win;
 	tp->rcv_wup = tp->rcv_nxt;
 
@@ -284,7 +281,7 @@ static u16 tcp_select_window(struct sock *sk)
 	 * scaled window.
 	 */
 	if (!tp->rx_opt.rcv_wscale &&
-	    READ_ONCE(net->ipv4.sysctl_tcp_workaround_signed_windows))
+	    READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_workaround_signed_windows))
 		new_win = min(new_win, MAX_TCP_WINDOW);
 	else
 		new_win = min(new_win, (65535U << tp->rx_opt.rcv_wscale));
@@ -296,9 +293,10 @@ static u16 tcp_select_window(struct sock *sk)
 	if (new_win == 0) {
 		tp->pred_flags = 0;
 		if (old_win)
-			NET_INC_STATS(net, LINUX_MIB_TCPTOZEROWINDOWADV);
+			NET_INC_STATS(sock_net(sk),
+				      LINUX_MIB_TCPTOZEROWINDOWADV);
 	} else if (old_win == 0) {
-		NET_INC_STATS(net, LINUX_MIB_TCPFROMZEROWINDOWADV);
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPFROMZEROWINDOWADV);
 	}
 
 	return new_win;
@@ -2951,7 +2949,6 @@ u32 __tcp_select_window(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct net *net = sock_net(sk);
 	/* MSS for the peer's data.  Previous versions used mss_clamp
 	 * here.  I don't know if the value based on our guesses
 	 * of peer's MSS is better for the performance.  It's more correct
@@ -2973,15 +2970,6 @@ u32 __tcp_select_window(struct sock *sk)
 		if (mss <= 0)
 			return 0;
 	}
-
-	/* Only allow window shrink if the sysctl is enabled and we have
-	 * a non-zero scaling factor in effect.
-	 */
-	if (READ_ONCE(net->ipv4.sysctl_tcp_shrink_window) && tp->rx_opt.rcv_wscale)
-		goto shrink_window_allowed;
-
-	/* do not allow window to shrink */
-
 	if (free_space < (full_space >> 1)) {
 		icsk->icsk_ack.quick = 0;
 
@@ -3036,36 +3024,6 @@ u32 __tcp_select_window(struct sock *sk)
 	}
 
 	return window;
-
-shrink_window_allowed:
-	/* new window should always be an exact multiple of scaling factor */
-	free_space = round_down(free_space, 1 << tp->rx_opt.rcv_wscale);
-
-	if (free_space < (full_space >> 1)) {
-		icsk->icsk_ack.quick = 0;
-
-		if (tcp_under_memory_pressure(sk))
-			tcp_adjust_rcv_ssthresh(sk);
-
-		/* if free space is too low, return a zero window */
-		if (free_space < (allowed_space >> 4) || free_space < mss ||
-			free_space < (1 << tp->rx_opt.rcv_wscale))
-			return 0;
-	}
-
-	if (free_space > tp->rcv_ssthresh) {
-		free_space = tp->rcv_ssthresh;
-		/* new window should always be an exact multiple of scaling factor
-		 *
-		 * For this case, we ALIGN "up" (increase free_space) because
-		 * we know free_space is not zero here, it has been reduced from
-		 * the memory-based limit, and rcv_ssthresh is not a hard limit
-		 * (unlike sk_rcvbuf).
-		 */
-		free_space = ALIGN(free_space, (1 << tp->rx_opt.rcv_wscale));
-	}
-
-	return free_space;
 }
 
 void tcp_skb_collapse_tstamp(struct sk_buff *skb,
