@@ -5262,9 +5262,8 @@ static long kvm_vm_ioctl(struct file *filp,
 			goto out;
 		if (routing.nr) {
 			urouting = argp;
-			entries = vmemdup_user(urouting->entries,
-					       array_size(sizeof(*entries),
-							  routing.nr));
+			entries = vmemdup_array_user(urouting->entries,
+						     routing.nr, sizeof(*entries));
 			if (IS_ERR(entries)) {
 				r = PTR_ERR(entries);
 				goto out;
