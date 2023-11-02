@@ -1489,4 +1489,5 @@ static void __exit exit_u32(void)
 
 module_init(init_u32)
 module_exit(exit_u32)
+MODULE_DESCRIPTION("Universal 32bit based TC Classifier");
 MODULE_LICENSE("GPL");
