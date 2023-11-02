@@ -1955,6 +1955,7 @@ static int rga3_init_reg(struct rga_job *job)
 	struct rga3_req req;
 	int ret = 0;
 	struct rga_scheduler_t *scheduler = NULL;
+	ktime_t timestamp = ktime_get();
 
 	scheduler = job->scheduler;
 	if (unlikely(scheduler == NULL)) {
@@ -1983,6 +1984,10 @@ static int rga3_init_reg(struct rga_job *job)
 		pr_err("RKA: gen reg info error\n");
 		return -EINVAL;
 	}
+
+	if (DEBUGGER_EN(TIME))
+		pr_info("request[%d], generate register cost time %lld us\n",
+			job->request_id, ktime_us_delta(ktime_get(), timestamp));
 
 	return ret;
 }
@@ -2070,7 +2075,8 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	}
 
 	if (DEBUGGER_EN(TIME))
-		pr_info("set cmd use time = %lld\n", ktime_us_delta(now, job->timestamp));
+		pr_info("request[%d], set register cost time %lld us\n",
+			job->request_id, ktime_us_delta(now, job->timestamp));
 
 	job->hw_running_time = now;
 	job->hw_recoder_time = now;

@@ -86,6 +86,12 @@ enum rga_scale_down_mode {
 	RGA_SCALE_DOWN_AVG	= 0x1,
 };
 
+enum RGA_SCHEDULER_CORE {
+	RGA_SCHEDULER_RGA3_CORE0 = 1 << 0,
+	RGA_SCHEDULER_RGA3_CORE1 = 1 << 1,
+	RGA_SCHEDULER_RGA2_CORE0 = 1 << 2,
+};
+
 /* RGA process mode enum */
 enum {
 	BITBLT_MODE			= 0x0,

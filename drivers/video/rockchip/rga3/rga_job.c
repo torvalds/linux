@@ -13,6 +13,7 @@
 #include "rga_mm.h"
 #include "rga_iommu.h"
 #include "rga_debugger.h"
+#include "rga_common.h"
 
 static void rga_job_free(struct rga_job *job)
 {
@@ -40,11 +41,12 @@ static void rga_job_get(struct rga_job *job)
 
 static int rga_job_cleanup(struct rga_job *job)
 {
-	if (DEBUGGER_EN(TIME))
-		pr_err("(pid:%d) job clean use time = %lld\n", job->pid,
-			ktime_us_delta(ktime_get(), job->timestamp));
-
 	rga_job_put(job);
+
+	if (DEBUGGER_EN(TIME))
+		pr_info("request[%d], job cleanup total cost time %lld us\n",
+			job->request_id,
+			ktime_us_delta(ktime_get(), job->timestamp));
 
 	return 0;
 }
@@ -272,11 +274,11 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 	if (DEBUGGER_EN(DUMP_IMAGE))
 		rga_dump_job_image(job);
 
-	if (DEBUGGER_EN(TIME)) {
-		pr_info("hw use time = %lld\n", ktime_us_delta(now, job->hw_running_time));
-		pr_info("(pid:%d) job done use time = %lld\n", job->pid,
-			ktime_us_delta(now, job->timestamp));
-	}
+	if (DEBUGGER_EN(TIME))
+		pr_info("request[%d], hardware[%s] cost time %lld us\n",
+			job->request_id,
+			rga_get_core_name(scheduler->core),
+			ktime_us_delta(now, job->hw_running_time));
 
 	rga_mm_unmap_job_info(job);
 
@@ -918,8 +920,6 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 
 	spin_unlock_irqrestore(&request->lock, flags);
 
-	rga_job_cleanup(job);
-
 	if ((failed_count + finished_count) >= request->task_count) {
 		spin_lock_irqsave(&request->lock, flags);
 
@@ -952,6 +952,13 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 	rga_request_put(request);
 
 	mutex_unlock(&request_manager->lock);
+
+	if (DEBUGGER_EN(TIME))
+		pr_info("request[%d], job done total cost time %lld us\n",
+			job->request_id,
+			ktime_us_delta(ktime_get(), job->timestamp));
+
+	rga_job_cleanup(job);
 
 	return 0;
 }
