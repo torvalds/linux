@@ -106,7 +106,7 @@ bch2_key_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 	while ((k = sort_iter_peek(iter))) {
 		if (!bkey_deleted(k) &&
 		    !should_drop_next_key(iter)) {
-			bkey_copy(out, k);
+			bkey_p_copy(out, k);
 			btree_keys_account_key_add(&nr, 0, out);
 			out = bkey_p_next(out);
 		}
@@ -137,7 +137,7 @@ bch2_sort_repack(struct bset *dst, struct btree *src,
 			continue;
 
 		if (!transform)
-			bkey_copy(out, in);
+			bkey_p_copy(out, in);
 		else if (bch2_bkey_transform(out_f, out, bkey_packed(in)
 					     ? in_f : &bch2_bkey_format_current, in))
 			out->format = KEY_FORMAT_LOCAL_BTREE;
@@ -191,7 +191,7 @@ unsigned bch2_sort_keys(struct bkey_packed *dst,
 			memcpy_u64s_small(out, in, bkeyp_key_u64s(f, in));
 			set_bkeyp_val_u64s(f, out, 0);
 		} else {
-			bkey_copy(out, in);
+			bkey_p_copy(out, in);
 		}
 		out->needs_whiteout |= needs_whiteout;
 		out = bkey_p_next(out);

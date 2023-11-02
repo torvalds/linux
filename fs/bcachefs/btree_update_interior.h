@@ -303,7 +303,7 @@ static inline void push_whiteout(struct bch_fs *c, struct btree *b,
 	k.needs_whiteout = true;
 
 	b->whiteout_u64s += k.u64s;
-	bkey_copy(unwritten_whiteouts_start(c, b), &k);
+	bkey_p_copy(unwritten_whiteouts_start(c, b), &k);
 }
 
 /*

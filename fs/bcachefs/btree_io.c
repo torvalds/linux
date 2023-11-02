@@ -184,7 +184,7 @@ static void bch2_sort_whiteouts(struct bch_fs *c, struct btree *b)
 	k = new_whiteouts;
 
 	while (ptrs != ptrs_end) {
-		bkey_copy(k, *ptrs);
+		bkey_p_copy(k, *ptrs);
 		k = bkey_p_next(k);
 		ptrs++;
 	}
@@ -260,7 +260,7 @@ static bool bch2_drop_whiteouts(struct btree *b, enum compact_mode mode)
 			n = bkey_p_next(k);
 
 			if (!bkey_deleted(k)) {
-				bkey_copy(out, k);
+				bkey_p_copy(out, k);
 				out = bkey_p_next(out);
 			} else {
 				BUG_ON(k->needs_whiteout);

@@ -92,19 +92,15 @@ enum bkey_lr_packed {
 #define bkey_lr_packed(_l, _r)						\
 	((_l)->format + ((_r)->format << 1))
 
-#define bkey_copy(_dst, _src)					\
-do {								\
-	BUILD_BUG_ON(!type_is(_dst, struct bkey_i *) &&		\
-		     !type_is(_dst, struct bkey_packed *));	\
-	BUILD_BUG_ON(!type_is(_src, struct bkey_i *) &&		\
-		     !type_is(_src, struct bkey_packed *));	\
-	EBUG_ON((u64 *) (_dst) > (u64 *) (_src) &&		\
-		(u64 *) (_dst) < (u64 *) (_src) +		\
-		((struct bkey *) (_src))->u64s);		\
-								\
-	memcpy_u64s_small((_dst), (_src),			\
-			  ((struct bkey *) (_src))->u64s);	\
-} while (0)
+static inline void bkey_p_copy(struct bkey_packed *dst, const struct bkey_packed *src)
+{
+	memcpy_u64s_small(dst, src, src->u64s);
+}
+
+static inline void bkey_copy(struct bkey_i *dst, const struct bkey_i *src)
+{
+	memcpy_u64s_small(dst, src, src->k.u64s);
+}
 
 struct btree;
 
