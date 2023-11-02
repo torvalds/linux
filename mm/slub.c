@@ -204,9 +204,9 @@ DEFINE_STATIC_KEY_FALSE(slub_debug_enabled);
 
 /* Structure holding parameters for get_partial() call chain */
 struct partial_context {
-	struct slab **slab;
 	gfp_t flags;
 	unsigned int orig_size;
+	void *object;
 };
 
 static inline bool kmem_cache_debug(struct kmem_cache *s)
@@ -2269,10 +2269,11 @@ static inline bool pfmemalloc_match(struct slab *slab, gfp_t gfpflags);
 /*
  * Try to allocate a partial slab from a specific node.
  */
-static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
-			      struct partial_context *pc)
+static struct slab *get_partial_node(struct kmem_cache *s,
+				     struct kmem_cache_node *n,
+				     struct partial_context *pc)
 {
-	struct slab *slab, *slab2;
+	struct slab *slab, *slab2, *partial = NULL;
 	void *object = NULL;
 	unsigned long flags;
 	unsigned int partial_slabs = 0;
@@ -2288,27 +2289,28 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
 
 	spin_lock_irqsave(&n->list_lock, flags);
 	list_for_each_entry_safe(slab, slab2, &n->partial, slab_list) {
-		void *t;
-
 		if (!pfmemalloc_match(slab, pc->flags))
 			continue;
 
 		if (IS_ENABLED(CONFIG_SLUB_TINY) || kmem_cache_debug(s)) {
 			object = alloc_single_from_partial(s, n, slab,
 							pc->orig_size);
-			if (object)
+			if (object) {
+				partial = slab;
+				pc->object = object;
 				break;
+			}
 			continue;
 		}
 
-		t = acquire_slab(s, n, slab, object == NULL);
-		if (!t)
+		object = acquire_slab(s, n, slab, object == NULL);
+		if (!object)
 			break;
 
-		if (!object) {
-			*pc->slab = slab;
+		if (!partial) {
+			partial = slab;
+			pc->object = object;
 			stat(s, ALLOC_FROM_PARTIAL);
-			object = t;
 		} else {
 			put_cpu_partial(s, slab, 0);
 			stat(s, CPU_PARTIAL_NODE);
@@ -2324,20 +2326,21 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
 
 	}
 	spin_unlock_irqrestore(&n->list_lock, flags);
-	return object;
+	return partial;
 }
 
 /*
  * Get a slab from somewhere. Search in increasing NUMA distances.
  */
-static void *get_any_partial(struct kmem_cache *s, struct partial_context *pc)
+static struct slab *get_any_partial(struct kmem_cache *s,
+				    struct partial_context *pc)
 {
 #ifdef CONFIG_NUMA
 	struct zonelist *zonelist;
 	struct zoneref *z;
 	struct zone *zone;
 	enum zone_type highest_zoneidx = gfp_zone(pc->flags);
-	void *object;
+	struct slab *slab;
 	unsigned int cpuset_mems_cookie;
 
 	/*
@@ -2372,8 +2375,8 @@ static void *get_any_partial(struct kmem_cache *s, struct partial_context *pc)
 
 			if (n && cpuset_zone_allowed(zone, pc->flags) &&
 					n->nr_partial > s->min_partial) {
-				object = get_partial_node(s, n, pc);
-				if (object) {
+				slab = get_partial_node(s, n, pc);
+				if (slab) {
 					/*
 					 * Don't check read_mems_allowed_retry()
 					 * here - if mems_allowed was updated in
@@ -2381,7 +2384,7 @@ static void *get_any_partial(struct kmem_cache *s, struct partial_context *pc)
 					 * between allocation and the cpuset
 					 * update
 					 */
-					return object;
+					return slab;
 				}
 			}
 		}
@@ -2393,17 +2396,18 @@ static void *get_any_partial(struct kmem_cache *s, struct partial_context *pc)
 /*
  * Get a partial slab, lock it and return it.
  */
-static void *get_partial(struct kmem_cache *s, int node, struct partial_context *pc)
+static struct slab *get_partial(struct kmem_cache *s, int node,
+				struct partial_context *pc)
 {
-	void *object;
+	struct slab *slab;
 	int searchnode = node;
 
 	if (node == NUMA_NO_NODE)
 		searchnode = numa_mem_id();
 
-	object = get_partial_node(s, get_node(s, searchnode), pc);
-	if (object || node != NUMA_NO_NODE)
-		return object;
+	slab = get_partial_node(s, get_node(s, searchnode), pc);
+	if (slab || node != NUMA_NO_NODE)
+		return slab;
 
 	return get_any_partial(s, pc);
 }
@@ -3213,10 +3217,10 @@ new_slab:
 new_objects:
 
 	pc.flags = gfpflags;
-	pc.slab = &slab;
 	pc.orig_size = orig_size;
-	freelist = get_partial(s, node, &pc);
-	if (freelist) {
+	slab = get_partial(s, node, &pc);
+	if (slab) {
+		freelist = pc.object;
 		if (kmem_cache_debug(s)) {
 			/*
 			 * For debug caches here we had to go through
@@ -3408,12 +3412,11 @@ static void *__slab_alloc_node(struct kmem_cache *s,
 	void *object;
 
 	pc.flags = gfpflags;
-	pc.slab = &slab;
 	pc.orig_size = orig_size;
-	object = get_partial(s, node, &pc);
+	slab = get_partial(s, node, &pc);
 
-	if (object)
-		return object;
+	if (slab)
+		return pc.object;
 
 	slab = new_slab(s, gfpflags, node);
 	if (unlikely(!slab)) {
