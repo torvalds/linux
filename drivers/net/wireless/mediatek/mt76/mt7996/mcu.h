@@ -345,6 +345,23 @@ struct bss_rate_tlv {
 	u8 __rsv2[9];
 } __packed;
 
+enum {
+	BP_DISABLE,
+	BP_SW_MODE,
+	BP_HW_MODE,
+};
+
+struct mt7996_mcu_bcn_prot_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 pn[6];
+	u8 enable;
+	u8 cipher_id;
+	u8 key[WLAN_MAX_KEY_LEN];
+	u8 key_id;
+	u8 __rsv[3];
+} __packed;
+
 struct bss_ra_tlv {
 	__le16 tag;
 	__le16 len;
