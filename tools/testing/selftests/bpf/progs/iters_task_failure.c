@@ -84,8 +84,8 @@ int BPF_PROG(iter_css_lock_and_unlock)
 	return 0;
 }
 
-SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
-__failure __msg("css_task_iter is only allowed in bpf_lsm and bpf iter-s")
+SEC("?fentry/" SYS_PREFIX "sys_getpgid")
+__failure __msg("css_task_iter is only allowed in bpf_lsm, bpf_iter and sleepable progs")
 int BPF_PROG(iter_css_task_for_each)
 {
 	u64 cg_id = bpf_get_current_cgroup_id();
