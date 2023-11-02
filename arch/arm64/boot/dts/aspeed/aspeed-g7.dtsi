@@ -258,7 +258,7 @@
 
 		intc: interrupt-controller@12100000 {
 			compatible = "simple-mfd";
-			reg = <0 0x12c10000 0 0x4000>;
+			reg = <0 0x12100000 0 0x4000>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0x12100000 0x0 0x4000>;
