@@ -266,20 +266,20 @@ static void drm_sched_run_job_queue(struct drm_gpu_scheduler *sched)
 }
 
 /**
- * drm_sched_free_job_queue - enqueue free-job work
+ * __drm_sched_run_free_queue - enqueue free-job work
  * @sched: scheduler instance
  */
-static void drm_sched_free_job_queue(struct drm_gpu_scheduler *sched)
+static void __drm_sched_run_free_queue(struct drm_gpu_scheduler *sched)
 {
 	if (!READ_ONCE(sched->pause_submit))
 		queue_work(sched->submit_wq, &sched->work_free_job);
 }
 
 /**
- * drm_sched_free_job_queue_if_done - enqueue free-job work if ready
+ * drm_sched_run_free_queue - enqueue free-job work if ready
  * @sched: scheduler instance
  */
-static void drm_sched_free_job_queue_if_done(struct drm_gpu_scheduler *sched)
+static void drm_sched_run_free_queue(struct drm_gpu_scheduler *sched)
 {
 	struct drm_sched_job *job;
 
@@ -287,7 +287,7 @@ static void drm_sched_free_job_queue_if_done(struct drm_gpu_scheduler *sched)
 	job = list_first_entry_or_null(&sched->pending_list,
 				       struct drm_sched_job, list);
 	if (job && dma_fence_is_signaled(&job->s_fence->finished))
-		drm_sched_free_job_queue(sched);
+		__drm_sched_run_free_queue(sched);
 	spin_unlock(&sched->job_list_lock);
 }
 
@@ -310,7 +310,7 @@ static void drm_sched_job_done(struct drm_sched_job *s_job, int result)
 	dma_fence_get(&s_fence->finished);
 	drm_sched_fence_finished(s_fence, result);
 	dma_fence_put(&s_fence->finished);
-	drm_sched_free_job_queue(sched);
+	__drm_sched_run_free_queue(sched);
 }
 
 /**
@@ -1068,7 +1068,7 @@ static void drm_sched_free_job_work(struct work_struct *w)
 	if (job)
 		sched->ops->free_job(job);
 
-	drm_sched_free_job_queue_if_done(sched);
+	drm_sched_run_free_queue(sched);
 	drm_sched_run_job_queue_if_ready(sched);
 }
 
