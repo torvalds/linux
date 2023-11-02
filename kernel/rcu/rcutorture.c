@@ -2450,10 +2450,12 @@ static int rcu_torture_stall(void *args)
 	unsigned long stop_at;
 
 	VERBOSE_TOROUT_STRING("rcu_torture_stall task started");
-	ret = rcu_stall_chain_notifier_register(&rcu_torture_stall_block);
-	if (ret)
-		pr_info("%s: rcu_stall_chain_notifier_register() returned %d, %sexpected.\n",
-			__func__, ret, !IS_ENABLED(CONFIG_RCU_STALL_COMMON) ? "un" : "");
+	if (rcu_cpu_stall_notifiers) {
+		ret = rcu_stall_chain_notifier_register(&rcu_torture_stall_block);
+		if (ret)
+			pr_info("%s: rcu_stall_chain_notifier_register() returned %d, %sexpected.\n",
+				__func__, ret, !IS_ENABLED(CONFIG_RCU_STALL_COMMON) ? "un" : "");
+	}
 	if (stall_cpu_holdoff > 0) {
 		VERBOSE_TOROUT_STRING("rcu_torture_stall begin holdoff");
 		schedule_timeout_interruptible(stall_cpu_holdoff * HZ);
@@ -2497,7 +2499,7 @@ static int rcu_torture_stall(void *args)
 		cur_ops->readunlock(idx);
 	}
 	pr_alert("%s end.\n", __func__);
-	if (!ret) {
+	if (rcu_cpu_stall_notifiers && !ret) {
 		ret = rcu_stall_chain_notifier_unregister(&rcu_torture_stall_block);
 		if (ret)
 			pr_info("%s: rcu_stall_chain_notifier_unregister() returned %d.\n", __func__, ret);

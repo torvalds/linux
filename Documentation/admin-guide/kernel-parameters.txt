@@ -5302,6 +5302,12 @@
 			Dump ftrace buffer after reporting RCU CPU
 			stall warning.
 
+	rcupdate.rcu_cpu_stall_notifiers= [KNL]
+			Provide RCU CPU stall notifiers, but see the
+			warnings in the RCU_CPU_STALL_NOTIFIER Kconfig
+			option's help text.  TL;DR:  You almost certainly
+			do not want rcupdate.rcu_cpu_stall_notifiers.
+
 	rcupdate.rcu_cpu_stall_suppress= [KNL]
 			Suppress RCU CPU stall warning messages.
 
