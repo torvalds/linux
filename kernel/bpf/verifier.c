@@ -14188,9 +14188,13 @@ static void find_good_pkt_pointers(struct bpf_verifier_state *vstate,
 	}));
 }
 
-static int is_branch32_taken(struct bpf_reg_state *reg1, u32 val, u8 opcode)
+/*
+ * <reg1> <op> <reg2>, currently assuming reg2 is a constant
+ */
+static int is_branch32_taken(struct bpf_reg_state *reg1, struct bpf_reg_state *reg2, u8 opcode)
 {
 	struct tnum subreg = tnum_subreg(reg1->var_off);
+	u32 val = (u32)tnum_subreg(reg2->var_off).value;
 	s32 sval = (s32)val;
 
 	switch (opcode) {
@@ -14270,8 +14274,12 @@ static int is_branch32_taken(struct bpf_reg_state *reg1, u32 val, u8 opcode)
 }
 
 
-static int is_branch64_taken(struct bpf_reg_state *reg1, u64 val, u8 opcode)
+/*
+ * <reg1> <op> <reg2>, currently assuming reg2 is a constant
+ */
+static int is_branch64_taken(struct bpf_reg_state *reg1, struct bpf_reg_state *reg2, u8 opcode)
 {
+	u64 val = reg2->var_off.value;
 	s64 sval = (s64)val;
 
 	switch (opcode) {
@@ -14350,16 +14358,23 @@ static int is_branch64_taken(struct bpf_reg_state *reg1, u64 val, u8 opcode)
 	return -1;
 }
 
-/* compute branch direction of the expression "if (reg opcode val) goto target;"
+/* compute branch direction of the expression "if (<reg1> opcode <reg2>) goto target;"
  * and return:
  *  1 - branch will be taken and "goto target" will be executed
  *  0 - branch will not be taken and fall-through to next insn
- * -1 - unknown. Example: "if (reg < 5)" is unknown when register value
+ * -1 - unknown. Example: "if (reg1 < 5)" is unknown when register value
  *      range [0,10]
  */
-static int is_branch_taken(struct bpf_reg_state *reg1, u64 val, u8 opcode,
-			   bool is_jmp32)
+static int is_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_state *reg2,
+			   u8 opcode, bool is_jmp32)
 {
+	struct tnum reg2_tnum = is_jmp32 ? tnum_subreg(reg2->var_off) : reg2->var_off;
+	u64 val;
+
+	if (!tnum_is_const(reg2_tnum))
+		return -1;
+	val = reg2_tnum.value;
+
 	if (__is_pointer_value(false, reg1)) {
 		if (!reg_not_null(reg1))
 			return -1;
@@ -14381,8 +14396,8 @@ static int is_branch_taken(struct bpf_reg_state *reg1, u64 val, u8 opcode,
 	}
 
 	if (is_jmp32)
-		return is_branch32_taken(reg1, val, opcode);
-	return is_branch64_taken(reg1, val, opcode);
+		return is_branch32_taken(reg1, reg2, opcode);
+	return is_branch64_taken(reg1, reg2, opcode);
 }
 
 static int flip_opcode(u32 opcode)
@@ -14853,6 +14868,7 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	struct bpf_reg_state *regs = this_branch->frame[this_branch->curframe]->regs;
 	struct bpf_reg_state *dst_reg, *other_branch_regs, *src_reg = NULL;
 	struct bpf_reg_state *eq_branch_regs;
+	struct bpf_reg_state fake_reg = {};
 	u8 opcode = BPF_OP(insn->code);
 	bool is_jmp32;
 	int pred = -1;
@@ -14893,36 +14909,27 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 			verbose(env, "BPF_JMP/JMP32 uses reserved fields\n");
 			return -EINVAL;
 		}
+		src_reg = &fake_reg;
+		src_reg->type = SCALAR_VALUE;
+		__mark_reg_known(src_reg, insn->imm);
 	}
 
 	is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
 
 	if (BPF_SRC(insn->code) == BPF_K) {
-		pred = is_branch_taken(dst_reg, insn->imm, opcode, is_jmp32);
+		pred = is_branch_taken(dst_reg, src_reg, opcode, is_jmp32);
 	} else if (src_reg->type == SCALAR_VALUE &&
 		   is_jmp32 && tnum_is_const(tnum_subreg(src_reg->var_off))) {
-		pred = is_branch_taken(dst_reg,
-				       tnum_subreg(src_reg->var_off).value,
-				       opcode,
-				       is_jmp32);
+		pred = is_branch_taken(dst_reg, src_reg, opcode, is_jmp32);
 	} else if (src_reg->type == SCALAR_VALUE &&
 		   !is_jmp32 && tnum_is_const(src_reg->var_off)) {
-		pred = is_branch_taken(dst_reg,
-				       src_reg->var_off.value,
-				       opcode,
-				       is_jmp32);
+		pred = is_branch_taken(dst_reg, src_reg, opcode, is_jmp32);
 	} else if (dst_reg->type == SCALAR_VALUE &&
 		   is_jmp32 && tnum_is_const(tnum_subreg(dst_reg->var_off))) {
-		pred = is_branch_taken(src_reg,
-				       tnum_subreg(dst_reg->var_off).value,
-				       flip_opcode(opcode),
-				       is_jmp32);
+		pred = is_branch_taken(src_reg, dst_reg, flip_opcode(opcode), is_jmp32);
 	} else if (dst_reg->type == SCALAR_VALUE &&
 		   !is_jmp32 && tnum_is_const(dst_reg->var_off)) {
-		pred = is_branch_taken(src_reg,
-				       dst_reg->var_off.value,
-				       flip_opcode(opcode),
-				       is_jmp32);
+		pred = is_branch_taken(src_reg, dst_reg, flip_opcode(opcode), is_jmp32);
 	} else if (reg_is_pkt_pointer_any(dst_reg) &&
 		   reg_is_pkt_pointer_any(src_reg) &&
 		   !is_jmp32) {
