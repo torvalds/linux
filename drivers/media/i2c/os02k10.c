@@ -1806,6 +1806,7 @@ static int os02k10_set_ctrl(struct v4l2_ctrl *ctrl)
 	s64 max;
 	int ret = 0;
 	u32 val = 0;
+	u32 reg_data;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1835,23 +1836,53 @@ static int os02k10_set_ctrl(struct v4l2_ctrl *ctrl)
 		}
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
+		/*
+		 * dgain reg format is 4.10bits, again reg format is 4.4bits
+		 * 1x is 64, 6 decimal places
+		 */
 		if (ctrl->val > 992) {
-			dgain = ctrl->val * 1024 / 992;
+			dgain = ctrl->val * 1024 / 992;	//15.5X * 64 = 992
 			again = 992;
 		} else {
-			dgain = 1024;
+			dgain = 1024;	//move 10 bits left
 			again = ctrl->val;
 		}
 		dev_dbg(&client->dev, "gain %d, ag 0x%x, dg 0x%x\n",
 			ctrl->val, again, dgain);
-		ret = os02k10_write_reg(os02k10->client,
+
+		ret |= os02k10_read_reg(os02k10->client, OS02K10_AEC_LONG_REL_GAIN_REG_H,
+			       OS02K10_REG_VALUE_08BIT, &reg_data);
+		reg_data = reg_data & 0xf0;
+		ret |= os02k10_write_reg(os02k10->client,
 					OS02K10_AEC_LONG_REL_GAIN_REG_H,
-					OS02K10_REG_VALUE_16BIT,
-					(again << 2) & 0xff0);
+					OS02K10_REG_VALUE_08BIT,
+					((again >> 6) & 0x0f) | reg_data);
+		ret |= os02k10_read_reg(os02k10->client, OS02K10_AEC_LONG_REL_GAIN_REG_L,
+			       OS02K10_REG_VALUE_08BIT, &reg_data);
+		reg_data = reg_data & 0x0f;
+		ret |= os02k10_write_reg(os02k10->client,
+					OS02K10_AEC_LONG_REL_GAIN_REG_L,
+					OS02K10_REG_VALUE_08BIT,
+					(((again >> 2) & 0x0f) << 4) | reg_data);
+
+		ret |= os02k10_read_reg(os02k10->client, OS02K10_AEC_LONG_DIG_GAIN_REG_H,
+			       OS02K10_REG_VALUE_08BIT, &reg_data);
+		reg_data = reg_data & 0xf0;
 		ret |= os02k10_write_reg(os02k10->client,
 					 OS02K10_AEC_LONG_DIG_GAIN_REG_H,
-					 OS02K10_REG_VALUE_24BIT,
-					 (dgain << 6) & 0xfffc0);
+					 OS02K10_REG_VALUE_08BIT,
+					 ((dgain >> 10) & 0x0f) | reg_data);
+		ret |= os02k10_write_reg(os02k10->client,
+					 OS02K10_AEC_LONG_DIG_GAIN_REG_M,
+					 OS02K10_REG_VALUE_08BIT,
+					 (dgain >> 2) & 0xff);
+		ret |= os02k10_read_reg(os02k10->client, OS02K10_AEC_LONG_DIG_GAIN_REG_L,
+			       OS02K10_REG_VALUE_08BIT, &reg_data);
+		reg_data = reg_data & 0x3f;
+		ret |= os02k10_write_reg(os02k10->client,
+					 OS02K10_AEC_LONG_DIG_GAIN_REG_L,
+					 OS02K10_REG_VALUE_08BIT,
+					 ((dgain & 0x03) << 6) | reg_data);
 		break;
 	case V4L2_CID_VBLANK:
 		dev_dbg(&client->dev, "set blank value 0x%x\n", ctrl->val);
