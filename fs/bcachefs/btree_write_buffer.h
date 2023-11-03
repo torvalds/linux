@@ -2,8 +2,8 @@
 #ifndef _BCACHEFS_BTREE_WRITE_BUFFER_H
 #define _BCACHEFS_BTREE_WRITE_BUFFER_H
 
+int bch2_btree_write_buffer_flush_locked(struct btree_trans *);
 int bch2_btree_write_buffer_flush_nocheck_rw(struct btree_trans *);
-int __bch2_btree_write_buffer_flush(struct btree_trans *, bool);
 int bch2_btree_write_buffer_flush_sync(struct btree_trans *);
 int bch2_btree_write_buffer_flush(struct btree_trans *);
 
