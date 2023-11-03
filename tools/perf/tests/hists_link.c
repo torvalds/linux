@@ -148,8 +148,8 @@ static int find_sample(struct sample *samples, size_t nr_samples,
 		       struct thread *t, struct map *m, struct symbol *s)
 {
 	while (nr_samples--) {
-		if (RC_CHK_ACCESS(samples->thread) == RC_CHK_ACCESS(t) &&
-		    RC_CHK_ACCESS(samples->map) == RC_CHK_ACCESS(m) &&
+		if (RC_CHK_EQUAL(samples->thread, t) &&
+		    RC_CHK_EQUAL(samples->map, m) &&
 		    samples->sym == s)
 			return 1;
 		samples++;

@@ -328,12 +328,12 @@
         "MetricName": "tma_info_inst_mix_idiv_uop_ratio"
     },
     {
-        "BriefDescription": "Instructions per Branch (lower number means higher occurance rate)",
+        "BriefDescription": "Instructions per Branch (lower number means higher occurrence rate)",
         "MetricExpr": "INST_RETIRED.ANY / BR_INST_RETIRED.ALL_BRANCHES",
         "MetricName": "tma_info_inst_mix_ipbranch"
     },
     {
-        "BriefDescription": "Instruction per (near) call (lower number means higher occurance rate)",
+        "BriefDescription": "Instruction per (near) call (lower number means higher occurrence rate)",
         "MetricExpr": "INST_RETIRED.ANY / BR_INST_RETIRED.CALL",
         "MetricName": "tma_info_inst_mix_ipcall"
     },
@@ -616,7 +616,7 @@
         "ScaleUnit": "100%"
     },
     {
-        "BriefDescription": "Counts the numer of issue slots  that result in retirement slots.",
+        "BriefDescription": "Counts the number of issue slots  that result in retirement slots.",
         "DefaultMetricgroupName": "TopdownL1",
         "MetricExpr": "TOPDOWN_RETIRING.ALL / tma_info_core_slots",
         "MetricGroup": "Default;TopdownL1;tma_L1_group",

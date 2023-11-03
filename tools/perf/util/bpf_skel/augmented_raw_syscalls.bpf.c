@@ -153,7 +153,7 @@ static inline
 unsigned int augmented_arg__read_str(struct augmented_arg *augmented_arg, const void *arg, unsigned int arg_len)
 {
 	unsigned int augmented_len = sizeof(*augmented_arg);
-	int string_len = bpf_probe_read_str(&augmented_arg->value, arg_len, arg);
+	int string_len = bpf_probe_read_user_str(&augmented_arg->value, arg_len, arg);
 
 	augmented_arg->size = augmented_arg->err = 0;
 	/*
@@ -203,7 +203,7 @@ int sys_enter_connect(struct syscall_enter_args *args)
 	_Static_assert(is_power_of_2(sizeof(augmented_args->saddr)), "sizeof(augmented_args->saddr) needs to be a power of two");
 	socklen &= sizeof(augmented_args->saddr) - 1;
 
-	bpf_probe_read(&augmented_args->saddr, socklen, sockaddr_arg);
+	bpf_probe_read_user(&augmented_args->saddr, socklen, sockaddr_arg);
 
 	return augmented__output(args, augmented_args, len + socklen);
 }
@@ -221,7 +221,7 @@ int sys_enter_sendto(struct syscall_enter_args *args)
 
 	socklen &= sizeof(augmented_args->saddr) - 1;
 
-	bpf_probe_read(&augmented_args->saddr, socklen, sockaddr_arg);
+	bpf_probe_read_user(&augmented_args->saddr, socklen, sockaddr_arg);
 
 	return augmented__output(args, augmented_args, len + socklen);
 }
@@ -311,7 +311,7 @@ int sys_enter_perf_event_open(struct syscall_enter_args *args)
         if (augmented_args == NULL)
 		goto failure;
 
-	if (bpf_probe_read(&augmented_args->__data, sizeof(*attr), attr) < 0)
+	if (bpf_probe_read_user(&augmented_args->__data, sizeof(*attr), attr) < 0)
 		goto failure;
 
 	attr_read = (const struct perf_event_attr_size *)augmented_args->__data;
@@ -325,7 +325,7 @@ int sys_enter_perf_event_open(struct syscall_enter_args *args)
                 goto failure;
 
 	// Now that we read attr->size and tested it against the size limits, read it completely
-	if (bpf_probe_read(&augmented_args->__data, size, attr) < 0)
+	if (bpf_probe_read_user(&augmented_args->__data, size, attr) < 0)
 		goto failure;
 
 	return augmented__output(args, augmented_args, len + size);
@@ -347,7 +347,7 @@ int sys_enter_clock_nanosleep(struct syscall_enter_args *args)
 	if (size > sizeof(augmented_args->__data))
                 goto failure;
 
-	bpf_probe_read(&augmented_args->__data, size, rqtp_arg);
+	bpf_probe_read_user(&augmented_args->__data, size, rqtp_arg);
 
 	return augmented__output(args, augmented_args, len + size);
 failure:
@@ -385,7 +385,7 @@ int sys_enter(struct syscall_enter_args *args)
 	if (augmented_args == NULL)
 		return 1;
 
-	bpf_probe_read(&augmented_args->args, sizeof(augmented_args->args), args);
+	bpf_probe_read_kernel(&augmented_args->args, sizeof(augmented_args->args), args);
 
 	/*
 	 * Jump to syscall specific augmenter, even if the default one,
@@ -406,7 +406,7 @@ int sys_exit(struct syscall_exit_args *args)
 	if (pid_filter__has(&pids_filtered, getpid()))
 		return 0;
 
-	bpf_probe_read(&exit_args, sizeof(exit_args), args);
+	bpf_probe_read_kernel(&exit_args, sizeof(exit_args), args);
 	/*
 	 * Jump to syscall specific return augmenter, even if the default one,
 	 * "!raw_syscalls:unaugmented" that will just return 1 to return the
