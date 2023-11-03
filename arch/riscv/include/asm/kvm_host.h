@@ -162,6 +162,16 @@ struct kvm_vcpu_csr {
 	unsigned long hvip;
 	unsigned long vsatp;
 	unsigned long scounteren;
+	unsigned long senvcfg;
+};
+
+struct kvm_vcpu_config {
+	u64 henvcfg;
+	u64 hstateen0;
+};
+
+struct kvm_vcpu_smstateen_csr {
+	unsigned long sstateen0;
 };
 
 struct kvm_vcpu_arch {
@@ -183,6 +193,8 @@ struct kvm_vcpu_arch {
 	unsigned long host_sscratch;
 	unsigned long host_stvec;
 	unsigned long host_scounteren;
+	unsigned long host_senvcfg;
+	unsigned long host_sstateen0;
 
 	/* CPU context of Host */
 	struct kvm_cpu_context host_context;
@@ -192,6 +204,9 @@ struct kvm_vcpu_arch {
 
 	/* CPU CSR context of Guest VCPU */
 	struct kvm_vcpu_csr guest_csr;
+
+	/* CPU Smstateen CSR context of Guest VCPU */
+	struct kvm_vcpu_smstateen_csr smstateen_csr;
 
 	/* CPU context upon Guest VCPU reset */
 	struct kvm_cpu_context guest_reset_context;
@@ -244,6 +259,9 @@ struct kvm_vcpu_arch {
 
 	/* Performance monitoring context */
 	struct kvm_pmu pmu_context;
+
+	/* 'static' configurations which are set only once */
+	struct kvm_vcpu_config cfg;
 };
 
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}

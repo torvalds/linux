@@ -3425,8 +3425,8 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
 	struct kvm_mmu_page *sp;
 	int ret = RET_PF_INVALID;
-	u64 spte = 0ull;
-	u64 *sptep = NULL;
+	u64 spte;
+	u64 *sptep;
 	uint retry_count = 0;
 
 	if (!page_fault_can_be_fast(fault))
@@ -3441,6 +3441,14 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			sptep = kvm_tdp_mmu_fast_pf_get_last_sptep(vcpu, fault->addr, &spte);
 		else
 			sptep = fast_pf_get_last_sptep(vcpu, fault->addr, &spte);
+
+		/*
+		 * It's entirely possible for the mapping to have been zapped
+		 * by a different task, but the root page should always be
+		 * available as the vCPU holds a reference to its root(s).
+		 */
+		if (WARN_ON_ONCE(!sptep))
+			spte = REMOVED_SPTE;
 
 		if (!is_shadow_present_pte(spte))
 			break;
@@ -4479,21 +4487,28 @@ out_unlock:
 }
 #endif
 
+bool __kvm_mmu_honors_guest_mtrrs(bool vm_has_noncoherent_dma)
+{
+	/*
+	 * If host MTRRs are ignored (shadow_memtype_mask is non-zero), and the
+	 * VM has non-coherent DMA (DMA doesn't snoop CPU caches), KVM's ABI is
+	 * to honor the memtype from the guest's MTRRs so that guest accesses
+	 * to memory that is DMA'd aren't cached against the guest's wishes.
+	 *
+	 * Note, KVM may still ultimately ignore guest MTRRs for certain PFNs,
+	 * e.g. KVM will force UC memtype for host MMIO.
+	 */
+	return vm_has_noncoherent_dma && shadow_memtype_mask;
+}
+
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
 	/*
 	 * If the guest's MTRRs may be used to compute the "real" memtype,
 	 * restrict the mapping level to ensure KVM uses a consistent memtype
-	 * across the entire mapping.  If the host MTRRs are ignored by TDP
-	 * (shadow_memtype_mask is non-zero), and the VM has non-coherent DMA
-	 * (DMA doesn't snoop CPU caches), KVM's ABI is to honor the memtype
-	 * from the guest's MTRRs so that guest accesses to memory that is
-	 * DMA'd aren't cached against the guest's wishes.
-	 *
-	 * Note, KVM may still ultimately ignore guest MTRRs for certain PFNs,
-	 * e.g. KVM will force UC memtype for host MMIO.
+	 * across the entire mapping.
 	 */
-	if (shadow_memtype_mask && kvm_arch_has_noncoherent_dma(vcpu->kvm)) {
+	if (kvm_mmu_honors_guest_mtrrs(vcpu->kvm)) {
 		for ( ; fault->max_level > PG_LEVEL_4K; --fault->max_level) {
 			int page_num = KVM_PAGES_PER_HPAGE(fault->max_level);
 			gfn_t base = gfn_round_for_level(fault->gfn,
