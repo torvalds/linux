@@ -3853,7 +3853,13 @@ static int __maybe_unused arm_smmu_pm_freeze_late(struct device *dev)
 	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
 	struct arm_smmu_domain *smmu_domain;
 	struct arm_smmu_cb *cb;
-	int idx;
+	int idx, ret;
+
+	ret = arm_smmu_power_on(smmu->pwr);
+	if (ret) {
+		dev_err(smmu->dev, "Couldn't power on the smmu during pm freeze: %d\n", ret);
+		return ret;
+	}
 
 	for (idx = 0; idx < smmu->num_context_banks; idx++) {
 		cb = &smmu->cbs[idx];
@@ -3865,6 +3871,8 @@ static int __maybe_unused arm_smmu_pm_freeze_late(struct device *dev)
 			}
 		}
 	}
+
+	arm_smmu_power_off(smmu, smmu->pwr);
 	return 0;
 }
 
