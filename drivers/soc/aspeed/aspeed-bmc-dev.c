@@ -22,13 +22,15 @@
 #include <linux/dma-mapping.h>
 #include <linux/miscdevice.h>
 
-#define DEVICE_NAME     "bmc-device"
+static DEFINE_IDA(bmc_device_ida);
+
 #define SCU_TRIGGER_MSI
 
 struct aspeed_bmc_device {
 	unsigned char *host2bmc_base_virt;
 	struct device *dev;
 	struct miscdevice	miscdev;
+	int id;
 	void __iomem	*reg_base;
 	void __iomem	*bmc_mem_virt;
 	dma_addr_t bmc_mem_phy;
@@ -577,9 +579,12 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 		}
 	}
 #endif
+	bmc_device->id = ida_simple_get(&bmc_device_ida, 0, 0, GFP_KERNEL);
+	if (bmc_device->id < 0)
+		goto out_unmap;
 
 	bmc_device->miscdev.minor = MISC_DYNAMIC_MINOR;
-	bmc_device->miscdev.name = DEVICE_NAME;
+	bmc_device->miscdev.name = kasprintf(GFP_KERNEL, "bmc-device%d", bmc_device->id);
 	bmc_device->miscdev.fops = &aspeed_bmc_device_fops;
 	bmc_device->miscdev.parent = dev;
 	ret = misc_register(&bmc_device->miscdev);
