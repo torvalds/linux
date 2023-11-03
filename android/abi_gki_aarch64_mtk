@@ -2656,6 +2656,7 @@
   __traceiter_android_vh_iommu_iovad_alloc_iova
   __traceiter_android_vh_iommu_iovad_free_iova
   __traceiter_android_vh_is_fpsimd_save
+  __traceiter_android_vh_mmc_update_mmc_queue
   __traceiter_android_vh_mm_alloc_pages_direct_reclaim_enter
   __traceiter_android_vh_mm_alloc_pages_direct_reclaim_exit
   __traceiter_android_vh_mm_alloc_pages_may_oom_exit
@@ -2757,6 +2758,7 @@
   __tracepoint_android_vh_iommu_iovad_alloc_iova
   __tracepoint_android_vh_iommu_iovad_free_iova
   __tracepoint_android_vh_is_fpsimd_save
+  __tracepoint_android_vh_mmc_update_mmc_queue
   __tracepoint_android_vh_mm_alloc_pages_direct_reclaim_enter
   __tracepoint_android_vh_mm_alloc_pages_direct_reclaim_exit
   __tracepoint_android_vh_mm_alloc_pages_may_oom_exit
