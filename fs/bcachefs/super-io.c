@@ -721,7 +721,7 @@ retry:
 	if (opt_defined(*opts, sb))
 		goto err;
 
-	printk(KERN_ERR "bcachefs (%s): error reading default superblock: %s",
+	printk(KERN_ERR "bcachefs (%s): error reading default superblock: %s\n",
 	       path, err.buf);
 	printbuf_reset(&err);
 
@@ -783,7 +783,7 @@ got_super:
 
 	ret = bch2_sb_validate(sb, &err, READ);
 	if (ret) {
-		printk(KERN_ERR "bcachefs (%s): error validating superblock: %s",
+		printk(KERN_ERR "bcachefs (%s): error validating superblock: %s\n",
 		       path, err.buf);
 		goto err_no_print;
 	}
@@ -791,7 +791,7 @@ out:
 	printbuf_exit(&err);
 	return ret;
 err:
-	printk(KERN_ERR "bcachefs (%s): error reading superblock: %s",
+	printk(KERN_ERR "bcachefs (%s): error reading superblock: %s\n",
 	       path, err.buf);
 err_no_print:
 	bch2_free_super(sb);
