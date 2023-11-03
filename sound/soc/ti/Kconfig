@@ -125,8 +125,9 @@ config SND_SOC_OMAP_ABE_TWL6040
 
 config SND_SOC_OMAP_AMS_DELTA
 	tristate "SoC Audio support for Amstrad E3 (Delta) videophone"
-	depends on MACH_AMS_DELTA && TTY
-	select SND_SOC_OMAP_MCBSP
+	depends on MACH_AMS_DELTA || COMPILE_TEST
+	depends on TTY
+	select SND_SOC_OMAP_MCBSP if COMMON_CLK
 	select SND_SOC_CX20442
 	help
 	  Say Y  or M if you want to add support  for SoC audio device

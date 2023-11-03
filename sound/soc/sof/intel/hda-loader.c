@@ -545,11 +545,40 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 
 	memcpy(dmab.area, stripped_firmware.data, stripped_firmware.size);
 
+	/*
+	 * 1st stage: SOF_IPC4_GLB_LOAD_LIBRARY_PREPARE
+	 * Message includes the dma_id to be prepared for the library loading.
+	 * If the firmware does not have support for the message, we will
+	 * receive -EOPNOTSUPP. In this case we will use single step library
+	 * loading and proceed to send the LOAD_LIBRARY message.
+	 */
 	msg.primary = hext_stream->hstream.stream_tag - 1;
-	msg.primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_LOAD_LIBRARY);
+	msg.primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_LOAD_LIBRARY_PREPARE);
 	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
 	msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_FW_GEN_MSG);
-	msg.primary |= SOF_IPC4_GLB_LOAD_LIBRARY_LIB_ID(fw_lib->id);
+	ret = sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
+	if (!ret) {
+		int sd_offset = SOF_STREAM_SD_OFFSET(&hext_stream->hstream);
+		unsigned int status;
+
+		/*
+		 * Make sure that the FIFOS value is not 0 in SDxFIFOS register
+		 * which indicates that the firmware set the GEN bit and we can
+		 * continue to start the DMA
+		 */
+		ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_HDA_BAR,
+					sd_offset + SOF_HDA_ADSP_REG_SD_FIFOSIZE,
+					status,
+					status & SOF_HDA_SD_FIFOSIZE_FIFOS_MASK,
+					HDA_DSP_REG_POLL_INTERVAL_US,
+					HDA_DSP_BASEFW_TIMEOUT_US);
+
+		if (ret < 0)
+			dev_warn(sdev->dev,
+				 "%s: timeout waiting for FIFOS\n", __func__);
+	} else if (ret != -EOPNOTSUPP) {
+		goto cleanup;
+	}
 
 	ret = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_START);
 	if (ret < 0) {
@@ -557,8 +586,17 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 		goto cleanup;
 	}
 
+	/*
+	 * 2nd stage: LOAD_LIBRARY
+	 * Message includes the dma_id and the lib_id, the dma_id must be
+	 * identical to the one sent via LOAD_LIBRARY_PREPARE
+	 */
+	msg.primary &= ~SOF_IPC4_MSG_TYPE_MASK;
+	msg.primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_LOAD_LIBRARY);
+	msg.primary |= SOF_IPC4_GLB_LOAD_LIBRARY_LIB_ID(fw_lib->id);
 	ret = sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
 
+	/* Stop the DMA channel */
 	ret1 = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_STOP);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "%s: DMA trigger stop failed\n", __func__);
@@ -605,7 +643,7 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 		/* Check if IMR boot is usable */
 		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT) &&
 		    (sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT ||
-		     sdev->pdata->ipc_type == SOF_INTEL_IPC4))
+		     sdev->pdata->ipc_type == SOF_IPC_TYPE_4))
 			hdev->imrboot_supported = true;
 	}
 

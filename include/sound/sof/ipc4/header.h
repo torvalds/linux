@@ -106,12 +106,19 @@ enum sof_ipc4_global_msg {
 	SOF_IPC4_GLB_SAVE_PIPELINE,
 	SOF_IPC4_GLB_RESTORE_PIPELINE,
 
-	/* Loads library (using Code Load or HD/A Host Output DMA) */
+	/*
+	 * library loading
+	 *
+	 * Loads library (using Code Load or HD/A Host Output DMA)
+	 */
 	SOF_IPC4_GLB_LOAD_LIBRARY,
+	/*
+	 * Prepare the host DMA channel for library loading, must be followed by
+	 * a SOF_IPC4_GLB_LOAD_LIBRARY message as the library loading step
+	 */
+	SOF_IPC4_GLB_LOAD_LIBRARY_PREPARE,
 
-	/* 25: RESERVED - do not use */
-
-	SOF_IPC4_GLB_INTERNAL_MESSAGE = 26,
+	SOF_IPC4_GLB_INTERNAL_MESSAGE,
 
 	/* Notification (FW to SW driver) */
 	SOF_IPC4_GLB_NOTIFICATION,
@@ -507,6 +514,23 @@ struct sof_ipc4_notify_resource_data {
 	uint32_t reserved;
 	uint32_t data[6];
 } __packed __aligned(4);
+
+#define SOF_IPC4_DEBUG_DESCRIPTOR_SIZE		12 /* 3 x u32 */
+
+/*
+ * The debug memory window is divided into 16 slots, and the
+ * first slot is used as a recorder for the other 15 slots.
+ */
+#define SOF_IPC4_MAX_DEBUG_SLOTS		15
+#define SOF_IPC4_DEBUG_SLOT_SIZE		0x1000
+
+/* debug log slot types */
+#define SOF_IPC4_DEBUG_SLOT_UNUSED		0x00000000
+#define SOF_IPC4_DEBUG_SLOT_CRITICAL_LOG	0x54524300 /* byte 0: core ID */
+#define SOF_IPC4_DEBUG_SLOT_DEBUG_LOG		0x474f4c00 /* byte 0: core ID */
+#define SOF_IPC4_DEBUG_SLOT_GDB_STUB		0x42444700
+#define SOF_IPC4_DEBUG_SLOT_TELEMETRY		0x4c455400
+#define SOF_IPC4_DEBUG_SLOT_BROKEN		0x44414544
 
 /** @}*/
 

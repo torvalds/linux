@@ -121,6 +121,7 @@ struct avs_dev {
 	struct avs_mods_info *mods_info;
 	struct ida **mod_idas;
 	struct mutex modres_mutex;
+	void *modcfg_buf;		/* module configuration buffer */
 	struct ida ppl_ida;
 	struct list_head fw_list;
 	int *core_refs;		/* reference count per core */
@@ -224,39 +225,22 @@ struct avs_ipc {
 #define AVS_IPC_RET(ret) \
 	(((ret) <= 0) ? (ret) : -AVS_EIPC)
 
-static inline void avs_ipc_err(struct avs_dev *adev, struct avs_ipc_msg *tx,
-			       const char *name, int error)
-{
-	/*
-	 * If IPC channel is blocked e.g.: due to ongoing recovery,
-	 * -EPERM error code is expected and thus it's not an actual error.
-	 *
-	 * Unsupported IPCs are of no harm either.
-	 */
-	if (error == -EPERM || error == AVS_IPC_NOT_SUPPORTED)
-		dev_dbg(adev->dev, "%s 0x%08x 0x%08x failed: %d\n", name,
-			tx->glb.primary, tx->glb.ext.val, error);
-	else
-		dev_err(adev->dev, "%s 0x%08x 0x%08x failed: %d\n", name,
-			tx->glb.primary, tx->glb.ext.val, error);
-}
-
 irqreturn_t avs_dsp_irq_handler(int irq, void *dev_id);
 irqreturn_t avs_dsp_irq_thread(int irq, void *dev_id);
 void avs_dsp_process_response(struct avs_dev *adev, u64 header);
-int avs_dsp_send_msg_timeout(struct avs_dev *adev,
-			     struct avs_ipc_msg *request,
-			     struct avs_ipc_msg *reply, int timeout);
-int avs_dsp_send_msg(struct avs_dev *adev,
-		     struct avs_ipc_msg *request, struct avs_ipc_msg *reply);
+int avs_dsp_send_msg_timeout(struct avs_dev *adev, struct avs_ipc_msg *request,
+			     struct avs_ipc_msg *reply, int timeout, const char *name);
+int avs_dsp_send_msg(struct avs_dev *adev, struct avs_ipc_msg *request,
+		     struct avs_ipc_msg *reply, const char *name);
 /* Two variants below are for messages that control DSP power states. */
 int avs_dsp_send_pm_msg_timeout(struct avs_dev *adev, struct avs_ipc_msg *request,
-				struct avs_ipc_msg *reply, int timeout, bool wake_d0i0);
+				struct avs_ipc_msg *reply, int timeout, bool wake_d0i0,
+				const char *name);
 int avs_dsp_send_pm_msg(struct avs_dev *adev, struct avs_ipc_msg *request,
-			struct avs_ipc_msg *reply, bool wake_d0i0);
-int avs_dsp_send_rom_msg_timeout(struct avs_dev *adev,
-				 struct avs_ipc_msg *request, int timeout);
-int avs_dsp_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *request);
+			struct avs_ipc_msg *reply, bool wake_d0i0, const char *name);
+int avs_dsp_send_rom_msg_timeout(struct avs_dev *adev, struct avs_ipc_msg *request, int timeout,
+				 const char *name);
+int avs_dsp_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *request, const char *name);
 void avs_dsp_interrupt_control(struct avs_dev *adev, bool enable);
 int avs_ipc_init(struct avs_ipc *ipc, struct device *dev);
 void avs_ipc_block(struct avs_ipc *ipc);

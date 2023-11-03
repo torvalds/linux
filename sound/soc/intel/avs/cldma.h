@@ -8,7 +8,9 @@
 #ifndef __SOUND_SOC_INTEL_AVS_CLDMA_H
 #define __SOUND_SOC_INTEL_AVS_CLDMA_H
 
-#define AVS_CL_DEFAULT_BUFFER_SIZE	(32 * PAGE_SIZE)
+#include <linux/sizes.h>
+
+#define AVS_CL_DEFAULT_BUFFER_SIZE	SZ_128K
 
 struct hda_cldma;
 extern struct hda_cldma code_loader;

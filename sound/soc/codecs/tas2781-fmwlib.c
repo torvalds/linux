@@ -80,8 +80,70 @@ struct tas_crc {
 	unsigned char len;
 };
 
+struct blktyp_devidx_map {
+	unsigned char blktyp;
+	unsigned char dev_idx;
+};
+
 static const char deviceNumber[TASDEVICE_DSP_TAS_MAX_DEVICE] = {
 	1, 2, 1, 2, 1, 1, 0, 2, 4, 3, 1, 2, 3, 4
+};
+
+/* fixed m68k compiling issue: mapping table can save code field */
+static const struct blktyp_devidx_map ppc3_tas2781_mapping_table[] = {
+	{ MAIN_ALL_DEVICES_1X, 0x80 },
+	{ MAIN_DEVICE_A_1X, 0x81 },
+	{ COEFF_DEVICE_A_1X, 0xC1 },
+	{ PRE_DEVICE_A_1X, 0xC1 },
+	{ PRE_SOFTWARE_RESET_DEVICE_A, 0xC1 },
+	{ POST_SOFTWARE_RESET_DEVICE_A, 0xC1 },
+	{ MAIN_DEVICE_B_1X, 0x82 },
+	{ COEFF_DEVICE_B_1X, 0xC2 },
+	{ PRE_DEVICE_B_1X, 0xC2 },
+	{ PRE_SOFTWARE_RESET_DEVICE_B, 0xC2 },
+	{ POST_SOFTWARE_RESET_DEVICE_B, 0xC2 },
+	{ MAIN_DEVICE_C_1X, 0x83 },
+	{ COEFF_DEVICE_C_1X, 0xC3 },
+	{ PRE_DEVICE_C_1X, 0xC3 },
+	{ PRE_SOFTWARE_RESET_DEVICE_C, 0xC3 },
+	{ POST_SOFTWARE_RESET_DEVICE_C, 0xC3 },
+	{ MAIN_DEVICE_D_1X, 0x84 },
+	{ COEFF_DEVICE_D_1X, 0xC4 },
+	{ PRE_DEVICE_D_1X, 0xC4 },
+	{ PRE_SOFTWARE_RESET_DEVICE_D, 0xC4 },
+	{ POST_SOFTWARE_RESET_DEVICE_D, 0xC4 },
+};
+
+static const struct blktyp_devidx_map ppc3_mapping_table[] = {
+	{ MAIN_ALL_DEVICES_1X, 0x80 },
+	{ MAIN_DEVICE_A_1X, 0x81 },
+	{ COEFF_DEVICE_A_1X, 0xC1 },
+	{ PRE_DEVICE_A_1X, 0xC1 },
+	{ MAIN_DEVICE_B_1X, 0x82 },
+	{ COEFF_DEVICE_B_1X, 0xC2 },
+	{ PRE_DEVICE_B_1X, 0xC2 },
+	{ MAIN_DEVICE_C_1X, 0x83 },
+	{ COEFF_DEVICE_C_1X, 0xC3 },
+	{ PRE_DEVICE_C_1X, 0xC3 },
+	{ MAIN_DEVICE_D_1X, 0x84 },
+	{ COEFF_DEVICE_D_1X, 0xC4 },
+	{ PRE_DEVICE_D_1X, 0xC4 },
+};
+
+static const struct blktyp_devidx_map non_ppc3_mapping_table[] = {
+	{ MAIN_ALL_DEVICES, 0x80 },
+	{ MAIN_DEVICE_A, 0x81 },
+	{ COEFF_DEVICE_A, 0xC1 },
+	{ PRE_DEVICE_A, 0xC1 },
+	{ MAIN_DEVICE_B, 0x82 },
+	{ COEFF_DEVICE_B, 0xC2 },
+	{ PRE_DEVICE_B, 0xC2 },
+	{ MAIN_DEVICE_C, 0x83 },
+	{ COEFF_DEVICE_C, 0xC3 },
+	{ PRE_DEVICE_C, 0xC3 },
+	{ MAIN_DEVICE_D, 0x84 },
+	{ COEFF_DEVICE_D, 0xC4 },
+	{ PRE_DEVICE_D, 0xC4 },
 };
 
 static struct tasdevice_config_info *tasdevice_add_config(
@@ -316,6 +378,37 @@ out:
 }
 EXPORT_SYMBOL_NS_GPL(tasdevice_rca_parser, SND_SOC_TAS2781_FMWLIB);
 
+/* fixed m68k compiling issue: mapping table can save code field */
+static unsigned char map_dev_idx(struct tasdevice_fw *tas_fmw,
+	struct tasdev_blk *block)
+{
+
+	struct blktyp_devidx_map *p =
+		(struct blktyp_devidx_map *)non_ppc3_mapping_table;
+	struct tasdevice_dspfw_hdr *fw_hdr = &(tas_fmw->fw_hdr);
+	struct tasdevice_fw_fixed_hdr *fw_fixed_hdr = &(fw_hdr->fixed_hdr);
+
+	int i, n = ARRAY_SIZE(non_ppc3_mapping_table);
+	unsigned char dev_idx = 0;
+
+	if (fw_fixed_hdr->ppcver >= PPC3_VERSION_TAS2781) {
+		p = (struct blktyp_devidx_map *)ppc3_tas2781_mapping_table;
+		n = ARRAY_SIZE(ppc3_tas2781_mapping_table);
+	} else if (fw_fixed_hdr->ppcver >= PPC3_VERSION) {
+		p = (struct blktyp_devidx_map *)ppc3_mapping_table;
+		n = ARRAY_SIZE(ppc3_mapping_table);
+	}
+
+	for (i = 0; i < n; i++) {
+		if (block->type == p[i].blktyp) {
+			dev_idx = p[i].dev_idx;
+			break;
+		}
+	}
+
+	return dev_idx;
+}
+
 static int fw_parse_block_data_kernel(struct tasdevice_fw *tas_fmw,
 	struct tasdev_blk *block, const struct firmware *fmw, int offset)
 {
@@ -350,6 +443,14 @@ static int fw_parse_block_data_kernel(struct tasdevice_fw *tas_fmw,
 
 	block->nr_subblocks = be32_to_cpup((__be32 *)&data[offset]);
 	offset += 4;
+
+	/* fixed m68k compiling issue:
+	 * 1. mapping table can save code field.
+	 * 2. storing the dev_idx as a member of block can reduce unnecessary
+	 *    time and system resource comsumption of dev_idx mapping every
+	 *    time the block data writing to the dsp.
+	 */
+	block->dev_idx = map_dev_idx(tas_fmw, block);
 
 	if (offset + block->blk_size > fmw->size) {
 		dev_err(tas_fmw->dev, "%s: nSublocks error\n", __func__);
@@ -768,144 +869,13 @@ EXPORT_SYMBOL_NS_GPL(tasdevice_select_cfg_blk, SND_SOC_TAS2781_FMWLIB);
 static int tasdevice_load_block_kernel(
 	struct tasdevice_priv *tasdevice, struct tasdev_blk *block)
 {
-	struct tasdevice_dspfw_hdr *fw_hdr = &(tasdevice->fmw->fw_hdr);
-	struct tasdevice_fw_fixed_hdr *fw_fixed_hdr = &(fw_hdr->fixed_hdr);
 	const unsigned int blk_size = block->blk_size;
 	unsigned int i, length;
 	unsigned char *data = block->data;
-	unsigned char dev_idx = 0;
-
-	if (fw_fixed_hdr->ppcver >= PPC3_VERSION_TAS2781) {
-		switch (block->type) {
-		case MAIN_ALL_DEVICES_1X:
-			dev_idx = 0x80;
-			break;
-		case MAIN_DEVICE_A_1X:
-			dev_idx = 0x81;
-			break;
-		case COEFF_DEVICE_A_1X:
-		case PRE_DEVICE_A_1X:
-		case PRE_SOFTWARE_RESET_DEVICE_A:
-		case POST_SOFTWARE_RESET_DEVICE_A:
-			dev_idx = 0xC1;
-			break;
-		case MAIN_DEVICE_B_1X:
-			dev_idx = 0x82;
-			break;
-		case COEFF_DEVICE_B_1X:
-		case PRE_DEVICE_B_1X:
-		case PRE_SOFTWARE_RESET_DEVICE_B:
-		case POST_SOFTWARE_RESET_DEVICE_B:
-			dev_idx = 0xC2;
-			break;
-		case MAIN_DEVICE_C_1X:
-			dev_idx = 0x83;
-			break;
-		case COEFF_DEVICE_C_1X:
-		case PRE_DEVICE_C_1X:
-		case PRE_SOFTWARE_RESET_DEVICE_C:
-		case POST_SOFTWARE_RESET_DEVICE_C:
-			dev_idx = 0xC3;
-			break;
-		case MAIN_DEVICE_D_1X:
-			dev_idx = 0x84;
-			break;
-		case COEFF_DEVICE_D_1X:
-		case PRE_DEVICE_D_1X:
-		case PRE_SOFTWARE_RESET_DEVICE_D:
-		case POST_SOFTWARE_RESET_DEVICE_D:
-			dev_idx = 0xC4;
-			break;
-		default:
-			dev_info(tasdevice->dev,
-				"%s: load block: Other Type = 0x%02x\n",
-				__func__, block->type);
-			break;
-		}
-	} else if (fw_fixed_hdr->ppcver >=
-	PPC3_VERSION) {
-		switch (block->type) {
-		case MAIN_ALL_DEVICES_1X:
-			dev_idx = 0x80;
-			break;
-		case MAIN_DEVICE_A_1X:
-			dev_idx = 0x81;
-			break;
-		case COEFF_DEVICE_A_1X:
-		case PRE_DEVICE_A_1X:
-			dev_idx = 0xC1;
-			break;
-		case MAIN_DEVICE_B_1X:
-			dev_idx = 0x82;
-			break;
-		case COEFF_DEVICE_B_1X:
-		case PRE_DEVICE_B_1X:
-			dev_idx = 0xC2;
-			break;
-		case MAIN_DEVICE_C_1X:
-			dev_idx = 0x83;
-			break;
-		case COEFF_DEVICE_C_1X:
-		case PRE_DEVICE_C_1X:
-			dev_idx = 0xC3;
-			break;
-		case MAIN_DEVICE_D_1X:
-			dev_idx = 0x84;
-			break;
-		case COEFF_DEVICE_D_1X:
-		case PRE_DEVICE_D_1X:
-			dev_idx = 0xC4;
-			break;
-		default:
-			dev_info(tasdevice->dev,
-				"%s: load block: Other Type = 0x%02x\n",
-				__func__, block->type);
-			break;
-		}
-	} else {
-		switch (block->type) {
-		case MAIN_ALL_DEVICES:
-			dev_idx = 0|0x80;
-			break;
-		case MAIN_DEVICE_A:
-			dev_idx = 0x81;
-			break;
-		case COEFF_DEVICE_A:
-		case PRE_DEVICE_A:
-			dev_idx = 0xC1;
-			break;
-		case MAIN_DEVICE_B:
-			dev_idx = 0x82;
-			break;
-		case COEFF_DEVICE_B:
-		case PRE_DEVICE_B:
-			dev_idx = 0xC2;
-			break;
-		case MAIN_DEVICE_C:
-			dev_idx = 0x83;
-			break;
-		case COEFF_DEVICE_C:
-		case PRE_DEVICE_C:
-			dev_idx = 0xC3;
-			break;
-		case MAIN_DEVICE_D:
-			dev_idx = 0x84;
-			break;
-		case COEFF_DEVICE_D:
-		case PRE_DEVICE_D:
-			dev_idx = 0xC4;
-			break;
-		default:
-			dev_info(tasdevice->dev,
-				"%s: load block: Other Type = 0x%02x\n",
-				__func__, block->type);
-			break;
-		}
-	}
 
 	for (i = 0, length = 0; i < block->nr_subblocks; i++) {
 		int rc = tasdevice_process_block(tasdevice, data + length,
-			dev_idx, blk_size - length);
+			block->dev_idx, blk_size - length);
 		if (rc < 0) {
 			dev_err(tasdevice->dev,
 				"%s: %u %u sublock write error\n",
@@ -1787,7 +1757,7 @@ static int fw_parse_header(struct tasdevice_priv *tas_priv,
 {
 	struct tasdevice_dspfw_hdr *fw_hdr = &(tas_fmw->fw_hdr);
 	struct tasdevice_fw_fixed_hdr *fw_fixed_hdr = &(fw_hdr->fixed_hdr);
-	const unsigned char magic_number[] = { 0x35, 0x35, 0x35, 0x32 };
+	static const unsigned char magic_number[] = { 0x35, 0x35, 0x35, 0x32 };
 	const unsigned char *buf = (unsigned char *)fmw->data;
 
 	if (offset + 92 > fmw->size) {
