@@ -89,10 +89,7 @@ static int gpio_trig_activate(struct led_classdev *led)
 	 * The generic property "trigger-sources" is followed,
 	 * and we hope that this is a GPIO.
 	 */
-	gpio_data->gpiod = fwnode_gpiod_get_index(dev->fwnode,
-						  "trigger-sources",
-						  0, GPIOD_IN,
-						  "led-trigger");
+	gpio_data->gpiod = gpiod_get_optional(dev, "trigger-sources", GPIOD_IN);
 	if (IS_ERR(gpio_data->gpiod)) {
 		ret = PTR_ERR(gpio_data->gpiod);
 		kfree(gpio_data);
@@ -103,6 +100,8 @@ static int gpio_trig_activate(struct led_classdev *led)
 		kfree(gpio_data);
 		return -EINVAL;
 	}
+
+	gpiod_set_consumer_name(gpio_data->gpiod, "led-trigger");
 
 	gpio_data->led = led;
 	led_set_trigger_data(led, gpio_data);
