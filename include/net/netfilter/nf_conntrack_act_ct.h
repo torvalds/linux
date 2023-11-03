@@ -20,21 +20,6 @@ static inline struct nf_conn_act_ct_ext *nf_conn_act_ct_ext_find(const struct nf
 #endif
 }
 
-static inline struct nf_conn_act_ct_ext *nf_conn_act_ct_ext_add(struct nf_conn *ct)
-{
-#if IS_ENABLED(CONFIG_NET_ACT_CT)
-	struct nf_conn_act_ct_ext *act_ct = nf_ct_ext_find(ct, NF_CT_EXT_ACT_CT);
-
-	if (act_ct)
-		return act_ct;
-
-	act_ct = nf_ct_ext_add(ct, NF_CT_EXT_ACT_CT, GFP_ATOMIC);
-	return act_ct;
-#else
-	return NULL;
-#endif
-}
-
 static inline void nf_conn_act_ct_ext_fill(struct sk_buff *skb, struct nf_conn *ct,
 					   enum ip_conntrack_info ctinfo)
 {
@@ -44,6 +29,25 @@ static inline void nf_conn_act_ct_ext_fill(struct sk_buff *skb, struct nf_conn *
 	act_ct_ext = nf_conn_act_ct_ext_find(ct);
 	if (dev_net(skb->dev) == &init_net && act_ct_ext)
 		act_ct_ext->ifindex[CTINFO2DIR(ctinfo)] = skb->dev->ifindex;
+#endif
+}
+
+static inline struct
+nf_conn_act_ct_ext *nf_conn_act_ct_ext_add(struct sk_buff *skb,
+					   struct nf_conn *ct,
+					   enum ip_conntrack_info ctinfo)
+{
+#if IS_ENABLED(CONFIG_NET_ACT_CT)
+	struct nf_conn_act_ct_ext *act_ct = nf_ct_ext_find(ct, NF_CT_EXT_ACT_CT);
+
+	if (act_ct)
+		return act_ct;
+
+	act_ct = nf_ct_ext_add(ct, NF_CT_EXT_ACT_CT, GFP_ATOMIC);
+	nf_conn_act_ct_ext_fill(skb, ct, ctinfo);
+	return act_ct;
+#else
+	return NULL;
 #endif
 }
 
