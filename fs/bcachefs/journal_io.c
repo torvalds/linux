@@ -1678,9 +1678,15 @@ static void do_journal_write(struct closure *cl)
 	continue_at(cl, journal_write_done, c->io_complete_wq);
 }
 
-static void bch2_journal_entries_postprocess(struct bch_fs *c, struct jset *jset)
+static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 {
-	struct jset_entry *i, *next, *prev = NULL;
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	struct jset_entry *start, *end, *i, *next, *prev = NULL;
+	struct jset *jset = w->data;
+	unsigned sectors, bytes, u64s;
+	bool validate_before_checksum = false;
+	unsigned long btree_roots_have = 0;
+	int ret;
 
 	/*
 	 * Simple compaction, dropping empty jset_entries (from journal
@@ -1697,8 +1703,20 @@ static void bch2_journal_entries_postprocess(struct bch_fs *c, struct jset *jset
 		if (!u64s)
 			continue;
 
-		if (i->type == BCH_JSET_ENTRY_btree_root)
+		/*
+		 * New btree roots are set by journalling them; when the journal
+		 * entry gets written we have to propagate them to
+		 * c->btree_roots
+		 *
+		 * But, every journal entry we write has to contain all the
+		 * btree roots (at least for now); so after we copy btree roots
+		 * to c->btree_roots we have to get any missing btree roots and
+		 * add them to this journal entry:
+		 */
+		if (i->type == BCH_JSET_ENTRY_btree_root) {
 			bch2_journal_entry_to_btree_root(c, i);
+			__set_bit(i->btree_id, &btree_roots_have);
+		}
 
 		/* Can we merge with previous entry? */
 		if (prev &&
@@ -1722,35 +1740,10 @@ static void bch2_journal_entries_postprocess(struct bch_fs *c, struct jset *jset
 
 	prev = prev ? vstruct_next(prev) : jset->start;
 	jset->u64s = cpu_to_le32((u64 *) prev - jset->_data);
-}
-
-static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
-{
-	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct jset_entry *start, *end;
-	struct jset *jset;
-	unsigned sectors, bytes, u64s;
-	bool validate_before_checksum = false;
-	int ret;
-
-	journal_buf_realloc(j, w);
-	jset = w->data;
-
-	/*
-	 * New btree roots are set by journalling them; when the journal entry
-	 * gets written we have to propagate them to c->btree_roots
-	 *
-	 * But, every journal entry we write has to contain all the btree roots
-	 * (at least for now); so after we copy btree roots to c->btree_roots we
-	 * have to get any missing btree roots and add them to this journal
-	 * entry:
-	 */
-
-	bch2_journal_entries_postprocess(c, jset);
 
 	start = end = vstruct_last(jset);
 
-	end	= bch2_btree_roots_to_journal_entries(c, jset->start, end);
+	end	= bch2_btree_roots_to_journal_entries(c, end, btree_roots_have);
 
 	bch2_journal_super_entries_add_common(c, &end,
 				le64_to_cpu(jset->seq));
@@ -1871,6 +1864,8 @@ void bch2_journal_write(struct closure *cl)
 	spin_unlock(&j->lock);
 	if (ret)
 		goto err;
+
+	journal_buf_realloc(j, w);
 
 	ret = bch2_journal_write_prep(j, w);
 	if (ret)

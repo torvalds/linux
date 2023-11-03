@@ -2418,23 +2418,17 @@ void bch2_journal_entry_to_btree_root(struct bch_fs *c, struct jset_entry *entry
 
 struct jset_entry *
 bch2_btree_roots_to_journal_entries(struct bch_fs *c,
-				    struct jset_entry *start,
-				    struct jset_entry *end)
+				    struct jset_entry *end,
+				    unsigned long skip)
 {
-	struct jset_entry *entry;
-	unsigned long have = 0;
 	unsigned i;
-
-	for (entry = start; entry < end; entry = vstruct_next(entry))
-		if (entry->type == BCH_JSET_ENTRY_btree_root)
-			__set_bit(entry->btree_id, &have);
 
 	mutex_lock(&c->btree_root_lock);
 
 	for (i = 0; i < btree_id_nr_alive(c); i++) {
 		struct btree_root *r = bch2_btree_id_root(c, i);
 
-		if (r->alive && !test_bit(i, &have)) {
+		if (r->alive && !test_bit(i, &skip)) {
 			journal_entry_set(end, BCH_JSET_ENTRY_btree_root,
 					  i, r->level, &r->key, r->key.k.u64s);
 			end = vstruct_next(end);
