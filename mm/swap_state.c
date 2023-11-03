@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/gfp.h>
 #include <linux/kernel_stat.h>
+#include <linux/mempolicy.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/init.h>
@@ -109,9 +110,9 @@ int add_to_swap_cache(struct folio *folio, swp_entry_t entry,
 			goto unlock;
 		for (i = 0; i < nr; i++) {
 			VM_BUG_ON_FOLIO(xas.xa_index != idx + i, folio);
-			old = xas_load(&xas);
-			if (xa_is_value(old)) {
-				if (shadowp)
+			if (shadowp) {
+				old = xas_load(&xas);
+				if (xa_is_value(old))
 					*shadowp = old;
 			}
 			xas_store(&xas, folio);
@@ -410,8 +411,8 @@ struct folio *filemap_get_incore_folio(struct address_space *mapping,
 }
 
 struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
-			struct vm_area_struct *vma, unsigned long addr,
-			bool *new_page_allocated)
+				     struct mempolicy *mpol, pgoff_t ilx,
+				     bool *new_page_allocated)
 {
 	struct swap_info_struct *si;
 	struct folio *folio;
@@ -453,7 +454,8 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 * before marking swap_map SWAP_HAS_CACHE, when -EEXIST will
 		 * cause any racers to loop around until we add it to cache.
 		 */
-		folio = vma_alloc_folio(gfp_mask, 0, vma, addr, false);
+		folio = (struct folio *)alloc_pages_mpol(gfp_mask, 0,
+						mpol, ilx, numa_node_id());
 		if (!folio)
                         goto fail_put_swap;
 
@@ -528,14 +530,19 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 				   struct vm_area_struct *vma,
 				   unsigned long addr, struct swap_iocb **plug)
 {
-	bool page_was_allocated;
-	struct page *retpage = __read_swap_cache_async(entry, gfp_mask,
-			vma, addr, &page_was_allocated);
+	bool page_allocated;
+	struct mempolicy *mpol;
+	pgoff_t ilx;
+	struct page *page;
 
-	if (page_was_allocated)
-		swap_readpage(retpage, false, plug);
+	mpol = get_vma_policy(vma, addr, 0, &ilx);
+	page = __read_swap_cache_async(entry, gfp_mask, mpol, ilx,
+					&page_allocated);
+	mpol_cond_put(mpol);
 
-	return retpage;
+	if (page_allocated)
+		swap_readpage(page, false, plug);
+	return page;
 }
 
 static unsigned int __swapin_nr_pages(unsigned long prev_offset,
@@ -603,7 +610,8 @@ static unsigned long swapin_nr_pages(unsigned long offset)
  * swap_cluster_readahead - swap in pages in hope we need them soon
  * @entry: swap entry of this memory
  * @gfp_mask: memory allocation flags
- * @vmf: fault information
+ * @mpol: NUMA memory allocation policy to be applied
+ * @ilx: NUMA interleave index, for use only when MPOL_INTERLEAVE
  *
  * Returns the struct page for entry and addr, after queueing swapin.
  *
@@ -612,13 +620,12 @@ static unsigned long swapin_nr_pages(unsigned long offset)
  * because it doesn't cost us any seek time.  We also make sure to queue
  * the 'original' request together with the readahead ones...
  *
- * This has been extended to use the NUMA policies from the mm triggering
- * the readahead.
- *
- * Caller must hold read mmap_lock if vmf->vma is not NULL.
+ * Note: it is intentional that the same NUMA policy and interleave index
+ * are used for every page of the readahead: neighbouring pages on swap
+ * are fairly likely to have been swapped out from the same node.
  */
 struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
-				struct vm_fault *vmf)
+				    struct mempolicy *mpol, pgoff_t ilx)
 {
 	struct page *page;
 	unsigned long entry_offset = swp_offset(entry);
@@ -629,8 +636,6 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 	struct blk_plug plug;
 	struct swap_iocb *splug = NULL;
 	bool page_allocated;
-	struct vm_area_struct *vma = vmf->vma;
-	unsigned long addr = vmf->address;
 
 	mask = swapin_nr_pages(offset) - 1;
 	if (!mask)
@@ -648,8 +653,8 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 	for (offset = start_offset; offset <= end_offset ; offset++) {
 		/* Ok, do the async read-ahead now */
 		page = __read_swap_cache_async(
-			swp_entry(swp_type(entry), offset),
-			gfp_mask, vma, addr, &page_allocated);
+				swp_entry(swp_type(entry), offset),
+				gfp_mask, mpol, ilx, &page_allocated);
 		if (!page)
 			continue;
 		if (page_allocated) {
@@ -663,11 +668,14 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 	}
 	blk_finish_plug(&plug);
 	swap_read_unplug(splug);
-
 	lru_add_drain();	/* Push any new pages onto the LRU now */
 skip:
 	/* The page was likely read above, so no need for plugging here */
-	return read_swap_cache_async(entry, gfp_mask, vma, addr, NULL);
+	page = __read_swap_cache_async(entry, gfp_mask, mpol, ilx,
+					&page_allocated);
+	if (unlikely(page_allocated))
+		swap_readpage(page, false, NULL);
+	return page;
 }
 
 int init_swap_address_space(unsigned int type, unsigned long nr_pages)
@@ -765,8 +773,10 @@ static void swap_ra_info(struct vm_fault *vmf,
 
 /**
  * swap_vma_readahead - swap in pages in hope we need them soon
- * @fentry: swap entry of this memory
+ * @targ_entry: swap entry of the targeted memory
  * @gfp_mask: memory allocation flags
+ * @mpol: NUMA memory allocation policy to be applied
+ * @targ_ilx: NUMA interleave index, for use only when MPOL_INTERLEAVE
  * @vmf: fault information
  *
  * Returns the struct page for entry and addr, after queueing swapin.
@@ -777,16 +787,17 @@ static void swap_ra_info(struct vm_fault *vmf,
  * Caller must hold read mmap_lock if vmf->vma is not NULL.
  *
  */
-static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
+static struct page *swap_vma_readahead(swp_entry_t targ_entry, gfp_t gfp_mask,
+				       struct mempolicy *mpol, pgoff_t targ_ilx,
 				       struct vm_fault *vmf)
 {
 	struct blk_plug plug;
 	struct swap_iocb *splug = NULL;
-	struct vm_area_struct *vma = vmf->vma;
 	struct page *page;
 	pte_t *pte = NULL, pentry;
 	unsigned long addr;
 	swp_entry_t entry;
+	pgoff_t ilx;
 	unsigned int i;
 	bool page_allocated;
 	struct vma_swap_readahead ra_info = {
@@ -798,9 +809,10 @@ static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
 		goto skip;
 
 	addr = vmf->address - (ra_info.offset * PAGE_SIZE);
+	ilx = targ_ilx - ra_info.offset;
 
 	blk_start_plug(&plug);
-	for (i = 0; i < ra_info.nr_pte; i++, addr += PAGE_SIZE) {
+	for (i = 0; i < ra_info.nr_pte; i++, ilx++, addr += PAGE_SIZE) {
 		if (!pte++) {
 			pte = pte_offset_map(vmf->pmd, addr);
 			if (!pte)
@@ -814,8 +826,8 @@ static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
 			continue;
 		pte_unmap(pte);
 		pte = NULL;
-		page = __read_swap_cache_async(entry, gfp_mask, vma,
-					       addr, &page_allocated);
+		page = __read_swap_cache_async(entry, gfp_mask, mpol, ilx,
+						&page_allocated);
 		if (!page)
 			continue;
 		if (page_allocated) {
@@ -834,8 +846,11 @@ static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
 	lru_add_drain();
 skip:
 	/* The page was likely read above, so no need for plugging here */
-	return read_swap_cache_async(fentry, gfp_mask, vma, vmf->address,
-				     NULL);
+	page = __read_swap_cache_async(targ_entry, gfp_mask, mpol, targ_ilx,
+					&page_allocated);
+	if (unlikely(page_allocated))
+		swap_readpage(page, false, NULL);
+	return page;
 }
 
 /**
@@ -853,9 +868,16 @@ skip:
 struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
 				struct vm_fault *vmf)
 {
-	return swap_use_vma_readahead() ?
-			swap_vma_readahead(entry, gfp_mask, vmf) :
-			swap_cluster_readahead(entry, gfp_mask, vmf);
+	struct mempolicy *mpol;
+	pgoff_t ilx;
+	struct page *page;
+
+	mpol = get_vma_policy(vmf->vma, vmf->address, 0, &ilx);
+	page = swap_use_vma_readahead() ?
+		swap_vma_readahead(entry, gfp_mask, mpol, ilx, vmf) :
+		swap_cluster_readahead(entry, gfp_mask, mpol, ilx);
+	mpol_cond_put(mpol);
+	return page;
 }
 
 #ifdef CONFIG_SYSFS

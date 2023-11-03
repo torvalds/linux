@@ -55,6 +55,11 @@ static int get_zswap_written_back_pages(size_t *value)
 	return read_int("/sys/kernel/debug/zswap/written_back_pages", value);
 }
 
+static long get_zswpout(const char *cgroup)
+{
+	return cg_read_key_long(cgroup, "memory.stat", "zswpout ");
+}
+
 static int allocate_bytes(const char *cgroup, void *arg)
 {
 	size_t size = (size_t)arg;
@@ -66,6 +71,48 @@ static int allocate_bytes(const char *cgroup, void *arg)
 		mem[i] = 'a';
 	free(mem);
 	return 0;
+}
+
+/*
+ * Sanity test to check that pages are written into zswap.
+ */
+static int test_zswap_usage(const char *root)
+{
+	long zswpout_before, zswpout_after;
+	int ret = KSFT_FAIL;
+	char *test_group;
+
+	/* Set up */
+	test_group = cg_name(root, "no_shrink_test");
+	if (!test_group)
+		goto out;
+	if (cg_create(test_group))
+		goto out;
+	if (cg_write(test_group, "memory.max", "1M"))
+		goto out;
+
+	zswpout_before = get_zswpout(test_group);
+	if (zswpout_before < 0) {
+		ksft_print_msg("Failed to get zswpout\n");
+		goto out;
+	}
+
+	/* Allocate more than memory.max to push memory into zswap */
+	if (cg_run(test_group, allocate_bytes, (void *)MB(4)))
+		goto out;
+
+	/* Verify that pages come into zswap */
+	zswpout_after = get_zswpout(test_group);
+	if (zswpout_after <= zswpout_before) {
+		ksft_print_msg("zswpout does not increase after test program\n");
+		goto out;
+	}
+	ret = KSFT_PASS;
+
+out:
+	cg_destroy(test_group);
+	free(test_group);
+	return ret;
 }
 
 /*
@@ -235,6 +282,7 @@ struct zswap_test {
 	int (*fn)(const char *root);
 	const char *name;
 } tests[] = {
+	T(test_zswap_usage),
 	T(test_no_kmem_bypass),
 	T(test_no_invasive_cgroup_shrink),
 };

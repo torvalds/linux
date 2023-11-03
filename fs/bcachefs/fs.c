@@ -1904,7 +1904,7 @@ got_sb:
 		sb->s_flags	|= SB_POSIXACL;
 #endif
 
-	sb->s_shrink.seeks = 0;
+	sb->s_shrink->seeks = 0;
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	ret = PTR_ERR_OR_ZERO(vinode);

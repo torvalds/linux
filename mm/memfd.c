@@ -315,12 +315,6 @@ SYSCALL_DEFINE2(memfd_create,
 	if ((flags & MFD_EXEC) && (flags & MFD_NOEXEC_SEAL))
 		return -EINVAL;
 
-	if (!(flags & (MFD_EXEC | MFD_NOEXEC_SEAL))) {
-		pr_warn_once(
-			"%s[%d]: memfd_create() called without MFD_EXEC or MFD_NOEXEC_SEAL set\n",
-			current->comm, task_pid_nr(current));
-	}
-
 	error = check_sysctl_memfd_noexec(&flags);
 	if (error < 0)
 		return error;

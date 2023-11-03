@@ -94,18 +94,17 @@ arch___clear_bit(unsigned long nr, volatile unsigned long *addr)
 	asm volatile(__ASM_SIZE(btr) " %1,%0" : : ADDR, "Ir" (nr) : "memory");
 }
 
-static __always_inline bool
-arch_clear_bit_unlock_is_negative_byte(long nr, volatile unsigned long *addr)
+static __always_inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
+		volatile unsigned long *addr)
 {
 	bool negative;
-	asm volatile(LOCK_PREFIX "andb %2,%1"
+	asm volatile(LOCK_PREFIX "xorb %2,%1"
 		CC_SET(s)
 		: CC_OUT(s) (negative), WBYTE_ADDR(addr)
-		: "ir" ((char) ~(1 << nr)) : "memory");
+		: "iq" ((char)mask) : "memory");
 	return negative;
 }
-#define arch_clear_bit_unlock_is_negative_byte                                 \
-	arch_clear_bit_unlock_is_negative_byte
+#define arch_xor_unlock_is_negative_byte arch_xor_unlock_is_negative_byte
 
 static __always_inline void
 arch___clear_bit_unlock(long nr, volatile unsigned long *addr)

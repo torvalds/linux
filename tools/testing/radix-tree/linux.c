@@ -165,9 +165,9 @@ int kmem_cache_alloc_bulk(struct kmem_cache *cachep, gfp_t gfp, size_t size,
 		for (i = 0; i < size; i++) {
 			if (cachep->align) {
 				posix_memalign(&p[i], cachep->align,
-					       cachep->size * size);
+					       cachep->size);
 			} else {
-				p[i] = malloc(cachep->size * size);
+				p[i] = malloc(cachep->size);
 			}
 			if (cachep->ctor)
 				cachep->ctor(p[i]);

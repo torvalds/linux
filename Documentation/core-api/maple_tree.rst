@@ -175,7 +175,7 @@ will return the previous entry which occurs before the entry at index.
 mas_find() will find the first entry which exists at or above index on
 the first call, and the next entry from every subsequent calls.
 
-mas_find_rev() will find the fist entry which exists at or below the last on
+mas_find_rev() will find the first entry which exists at or below the last on
 the first call, and the previous entry from every subsequent calls.
 
 If the user needs to yield the lock during an operation, then the maple state

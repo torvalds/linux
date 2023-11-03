@@ -40,8 +40,23 @@ struct damon_addr_range {
  * @ar:			The address range of the region.
  * @sampling_addr:	Address of the sample for the next access check.
  * @nr_accesses:	Access frequency of this region.
+ * @nr_accesses_bp:	@nr_accesses in basis point (0.01%) that updated for
+ *			each sampling interval.
  * @list:		List head for siblings.
  * @age:		Age of this region.
+ *
+ * @nr_accesses is reset to zero for every &damon_attrs->aggr_interval and be
+ * increased for every &damon_attrs->sample_interval if an access to the region
+ * during the last sampling interval is found.  The update of this field should
+ * not be done with direct access but with the helper function,
+ * damon_update_region_access_rate().
+ *
+ * @nr_accesses_bp is another representation of @nr_accesses in basis point
+ * (1 in 10,000) that updated for every &damon_attrs->sample_interval in a
+ * manner similar to moving sum.  By the algorithm, this value becomes
+ * @nr_accesses * 10000 for every &struct damon_attrs->aggr_interval.  This can
+ * be used when the aggregation interval is too huge and therefore cannot wait
+ * for it before getting the access monitoring results.
  *
  * @age is initially zero, increased for each aggregation interval, and reset
  * to zero again if the access frequency is significantly changed.  If two
@@ -52,6 +67,7 @@ struct damon_region {
 	struct damon_addr_range ar;
 	unsigned long sampling_addr;
 	unsigned int nr_accesses;
+	unsigned int nr_accesses_bp;
 	struct list_head list;
 
 	unsigned int age;
@@ -298,23 +314,23 @@ struct damos_access_pattern {
  * struct damos - Represents a Data Access Monitoring-based Operation Scheme.
  * @pattern:		Access pattern of target regions.
  * @action:		&damo_action to be applied to the target regions.
+ * @apply_interval_us:	The time between applying the @action.
  * @quota:		Control the aggressiveness of this scheme.
  * @wmarks:		Watermarks for automated (in)activation of this scheme.
  * @filters:		Additional set of &struct damos_filter for &action.
  * @stat:		Statistics of this scheme.
  * @list:		List head for siblings.
  *
- * For each aggregation interval, DAMON finds regions which fit in the
+ * For each @apply_interval_us, DAMON finds regions which fit in the
  * &pattern and applies &action to those. To avoid consuming too much
  * CPU time or IO resources for the &action, &quota is used.
+ *
+ * If @apply_interval_us is zero, &damon_attrs->aggr_interval is used instead.
  *
  * To do the work only when needed, schemes can be activated for specific
  * system situations using &wmarks.  If all schemes that registered to the
  * monitoring context are inactive, DAMON stops monitoring either, and just
  * repeatedly checks the watermarks.
- *
- * If all schemes that registered to a &struct damon_ctx are inactive, DAMON
- * stops monitoring and just repeatedly checks the watermarks.
  *
  * Before applying the &action to a memory region, &struct damon_operations
  * implementation could check pages of the region and skip &action to respect
@@ -327,6 +343,14 @@ struct damos_access_pattern {
 struct damos {
 	struct damos_access_pattern pattern;
 	enum damos_action action;
+	unsigned long apply_interval_us;
+/* private: internal use only */
+	/*
+	 * number of sample intervals that should be passed before applying
+	 * @action
+	 */
+	unsigned long next_apply_sis;
+/* public: */
 	struct damos_quota quota;
 	struct damos_watermarks wmarks;
 	struct list_head filters;
@@ -472,13 +496,14 @@ struct damon_callback {
  *				regions.
  *
  * For each @sample_interval, DAMON checks whether each region is accessed or
- * not.  It aggregates and keeps the access information (number of accesses to
- * each region) for @aggr_interval time.  DAMON also checks whether the target
- * memory regions need update (e.g., by ``mmap()`` calls from the application,
- * in case of virtual memory monitoring) and applies the changes for each
- * @ops_update_interval.  All time intervals are in micro-seconds.
- * Please refer to &struct damon_operations and &struct damon_callback for more
- * detail.
+ * not during the last @sample_interval.  If such access is found, DAMON
+ * aggregates the information by increasing &damon_region->nr_accesses for
+ * @aggr_interval time.  For each @aggr_interval, the count is reset.  DAMON
+ * also checks whether the target memory regions need update (e.g., by
+ * ``mmap()`` calls from the application, in case of virtual memory monitoring)
+ * and applies the changes for each @ops_update_interval.  All time intervals
+ * are in micro-seconds.  Please refer to &struct damon_operations and &struct
+ * damon_callback for more detail.
  */
 struct damon_attrs {
 	unsigned long sample_interval;
@@ -522,8 +547,18 @@ struct damon_ctx {
 	struct damon_attrs attrs;
 
 /* private: internal use only */
-	struct timespec64 last_aggregation;
-	struct timespec64 last_ops_update;
+	/* number of sample intervals that passed since this context started */
+	unsigned long passed_sample_intervals;
+	/*
+	 * number of sample intervals that should be passed before next
+	 * aggregation
+	 */
+	unsigned long next_aggregation_sis;
+	/*
+	 * number of sample intervals that should be passed before next ops
+	 * update
+	 */
+	unsigned long next_ops_update_sis;
 
 /* public: */
 	struct task_struct *kdamond;
@@ -608,6 +643,8 @@ void damon_add_region(struct damon_region *r, struct damon_target *t);
 void damon_destroy_region(struct damon_region *r, struct damon_target *t);
 int damon_set_regions(struct damon_target *t, struct damon_addr_range *ranges,
 		unsigned int nr_ranges);
+void damon_update_region_access_rate(struct damon_region *r, bool accessed,
+		struct damon_attrs *attrs);
 
 struct damos_filter *damos_new_filter(enum damos_filter_type type,
 		bool matching);
@@ -615,7 +652,9 @@ void damos_add_filter(struct damos *s, struct damos_filter *f);
 void damos_destroy_filter(struct damos_filter *f);
 
 struct damos *damon_new_scheme(struct damos_access_pattern *pattern,
-			enum damos_action action, struct damos_quota *quota,
+			enum damos_action action,
+			unsigned long apply_interval_us,
+			struct damos_quota *quota,
 			struct damos_watermarks *wmarks);
 void damon_add_scheme(struct damon_ctx *ctx, struct damos *s);
 void damon_destroy_scheme(struct damos *s);
@@ -640,6 +679,13 @@ int damon_select_ops(struct damon_ctx *ctx, enum damon_ops_id id);
 static inline bool damon_target_has_pid(const struct damon_ctx *ctx)
 {
 	return ctx->ops.id == DAMON_OPS_VADDR || ctx->ops.id == DAMON_OPS_FVADDR;
+}
+
+static inline unsigned int damon_max_nr_accesses(const struct damon_attrs *attrs)
+{
+	/* {aggr,sample}_interval are unsigned long, hence could overflow */
+	return min(attrs->aggr_interval / attrs->sample_interval,
+			(unsigned long)UINT_MAX);
 }
 
 

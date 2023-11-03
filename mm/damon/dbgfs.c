@@ -278,7 +278,8 @@ static struct damos **str_to_schemes(const char *str, ssize_t len,
 			goto fail;
 
 		pos += parsed;
-		scheme = damon_new_scheme(&pattern, action, &quota, &wmarks);
+		scheme = damon_new_scheme(&pattern, action, 0, &quota,
+				&wmarks);
 		if (!scheme)
 			goto fail;
 

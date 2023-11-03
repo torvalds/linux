@@ -163,7 +163,7 @@ struct btree_cache {
 	unsigned		used;
 	unsigned		reserve;
 	atomic_t		dirty;
-	struct shrinker		shrink;
+	struct shrinker		*shrink;
 
 	/*
 	 * If we need to allocate memory for a new btree node and that
@@ -321,7 +321,7 @@ struct btree_key_cache {
 	bool			table_init_done;
 	struct list_head	freed_pcpu;
 	struct list_head	freed_nonpcpu;
-	struct shrinker		shrink;
+	struct shrinker		*shrink;
 	unsigned		shrink_iter;
 	struct btree_key_cache_freelist __percpu *pcpu_freed;
 

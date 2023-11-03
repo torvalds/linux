@@ -146,3 +146,17 @@ int __mips_test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 	return res;
 }
 EXPORT_SYMBOL(__mips_test_and_change_bit);
+
+bool __mips_xor_is_negative_byte(unsigned long mask,
+		volatile unsigned long *addr)
+{
+	unsigned long flags;
+	unsigned long data;
+
+	raw_local_irq_save(flags);
+	data = *addr;
+	*addr = data ^ mask;
+	raw_local_irq_restore(flags);
+
+	return (data & BIT(7)) != 0;
+}
