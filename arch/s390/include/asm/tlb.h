@@ -69,7 +69,9 @@ static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 	tlb->mm->context.flush_mm = 1;
 	tlb->freed_tables = 1;
 	tlb->cleared_pmds = 1;
-	page_table_free_rcu(tlb, (unsigned long *) pte, address);
+	if (mm_alloc_pgste(tlb->mm))
+		gmap_unlink(tlb->mm, (unsigned long *)pte, address);
+	tlb_remove_ptdesc(tlb, pte);
 }
 
 /*

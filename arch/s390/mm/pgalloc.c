@@ -191,17 +191,6 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 	pagetable_pte_dtor_free(ptdesc);
 }
 
-void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
-			 unsigned long vmaddr)
-{
-	struct mm_struct *mm;
-
-	mm = tlb->mm;
-	if (mm_alloc_pgste(mm))
-		gmap_unlink(mm, table, vmaddr);
-	tlb_remove_ptdesc(tlb, table);
-}
-
 void __tlb_remove_table(void *table)
 {
 	struct ptdesc *ptdesc = virt_to_ptdesc(table);
