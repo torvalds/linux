@@ -186,15 +186,20 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	if (type != BKEY_TYPE_btree) {
 		enum btree_id btree = type - 1;
 
-		bkey_fsck_err_on(!btree_type_has_snapshots(btree) &&
-				 k.k->p.snapshot, c, err,
-				 bkey_snapshot_nonzero,
-				 "nonzero snapshot");
-
-		bkey_fsck_err_on(btree_type_has_snapshots(btree) &&
-				 !k.k->p.snapshot, c, err,
-				 bkey_snapshot_zero,
-				 "snapshot == 0");
+		if (btree_type_has_snapshots(btree)) {
+			bkey_fsck_err_on(!k.k->p.snapshot, c, err,
+					 bkey_snapshot_zero,
+					 "snapshot == 0");
+		} else if (!btree_type_has_snapshot_field(btree)) {
+			bkey_fsck_err_on(k.k->p.snapshot, c, err,
+					 bkey_snapshot_nonzero,
+					 "nonzero snapshot");
+		} else {
+			/*
+			 * btree uses snapshot field but it's not required to be
+			 * nonzero
+			 */
+		}
 
 		bkey_fsck_err_on(bkey_eq(k.k->p, POS_MAX), c, err,
 				 bkey_at_pos_max,

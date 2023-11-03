@@ -2260,7 +2260,8 @@ LE32_BITMASK(JSET_NO_FLUSH,	struct jset, flags, 5, 6);
 enum btree_id_flags {
 	BTREE_ID_EXTENTS	= BIT(0),
 	BTREE_ID_SNAPSHOTS	= BIT(1),
-	BTREE_ID_DATA		= BIT(2),
+	BTREE_ID_SNAPSHOT_FIELD	= BIT(2),
+	BTREE_ID_DATA		= BIT(3),
 };
 
 #define BCH_BTREE_IDS()								\
@@ -2315,12 +2316,12 @@ enum btree_id_flags {
 	  BIT_ULL(KEY_TYPE_bucket_gens))					\
 	x(snapshot_trees,	15,	0,					\
 	  BIT_ULL(KEY_TYPE_snapshot_tree))					\
-	x(deleted_inodes,	16,	BTREE_ID_SNAPSHOTS,			\
+	x(deleted_inodes,	16,	BTREE_ID_SNAPSHOT_FIELD,		\
 	  BIT_ULL(KEY_TYPE_set))						\
 	x(logged_ops,		17,	0,					\
 	  BIT_ULL(KEY_TYPE_logged_op_truncate)|					\
 	  BIT_ULL(KEY_TYPE_logged_op_finsert))					\
-	x(rebalance_work,	18,	BTREE_ID_SNAPSHOTS,			\
+	x(rebalance_work,	18,	BTREE_ID_SNAPSHOT_FIELD,		\
 	  BIT_ULL(KEY_TYPE_set)|BIT_ULL(KEY_TYPE_cookie))
 
 enum btree_id {
