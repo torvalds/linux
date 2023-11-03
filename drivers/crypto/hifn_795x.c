@@ -2393,9 +2393,13 @@ static int hifn_alg_alloc(struct hifn_device *dev, const struct hifn_alg_templat
 	alg->alg = t->skcipher;
 	alg->alg.init = hifn_init_tfm;
 
-	snprintf(alg->alg.base.cra_name, CRYPTO_MAX_ALG_NAME, "%s", t->name);
-	snprintf(alg->alg.base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s-%s",
-		 t->drv_name, dev->name);
+	err = -EINVAL;
+	if (snprintf(alg->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
+		     "%s", t->name) >= CRYPTO_MAX_ALG_NAME)
+		goto out_free_alg;
+	if (snprintf(alg->alg.base.cra_driver_name, CRYPTO_MAX_ALG_NAME,
+		     "%s-%s", t->drv_name, dev->name) >= CRYPTO_MAX_ALG_NAME)
+		goto out_free_alg;
 
 	alg->alg.base.cra_priority = 300;
 	alg->alg.base.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_ASYNC;
@@ -2411,6 +2415,7 @@ static int hifn_alg_alloc(struct hifn_device *dev, const struct hifn_alg_templat
 	err = crypto_register_skcipher(&alg->alg);
 	if (err) {
 		list_del(&alg->entry);
+out_free_alg:
 		kfree(alg);
 	}
 

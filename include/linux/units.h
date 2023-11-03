@@ -31,6 +31,10 @@
 #define MICROWATT_PER_MILLIWATT	1000UL
 #define MICROWATT_PER_WATT	1000000UL
 
+#define BYTES_PER_KBIT		(KILO / BITS_PER_BYTE)
+#define BYTES_PER_MBIT		(MEGA / BITS_PER_BYTE)
+#define BYTES_PER_GBIT		(GIGA / BITS_PER_BYTE)
+
 #define ABSOLUTE_ZERO_MILLICELSIUS -273150
 
 static inline long milli_kelvin_to_millicelsius(long t)

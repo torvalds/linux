@@ -15,7 +15,7 @@
 #include <linux/if.h>
 #include <net/genetlink.h>
 #include <net/sock.h>
-#include <crypto/algapi.h>
+#include <crypto/utils.h>
 
 static struct genl_family genl_family;
 

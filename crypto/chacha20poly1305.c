@@ -558,7 +558,7 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 	u32 mask;
 	struct aead_instance *inst;
 	struct chachapoly_instance_ctx *ctx;
-	struct skcipher_alg *chacha;
+	struct skcipher_alg_common *chacha;
 	struct hash_alg_common *poly;
 	int err;
 
@@ -579,7 +579,7 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 				   crypto_attr_alg_name(tb[1]), 0, mask);
 	if (err)
 		goto err_free_inst;
-	chacha = crypto_spawn_skcipher_alg(&ctx->chacha);
+	chacha = crypto_spawn_skcipher_alg_common(&ctx->chacha);
 
 	err = crypto_grab_ahash(&ctx->poly, aead_crypto_instance(inst),
 				crypto_attr_alg_name(tb[2]), 0, mask);
@@ -591,7 +591,7 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 	if (poly->digestsize != POLY1305_DIGEST_SIZE)
 		goto err_free_inst;
 	/* Need 16-byte IV size, including Initial Block Counter value */
-	if (crypto_skcipher_alg_ivsize(chacha) != CHACHA_IV_SIZE)
+	if (chacha->ivsize != CHACHA_IV_SIZE)
 		goto err_free_inst;
 	/* Not a stream cipher? */
 	if (chacha->base.cra_blocksize != 1)
@@ -610,12 +610,11 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->alg.base.cra_priority = (chacha->base.cra_priority +
 				       poly->base.cra_priority) / 2;
 	inst->alg.base.cra_blocksize = 1;
-	inst->alg.base.cra_alignmask = chacha->base.cra_alignmask |
-				       poly->base.cra_alignmask;
+	inst->alg.base.cra_alignmask = chacha->base.cra_alignmask;
 	inst->alg.base.cra_ctxsize = sizeof(struct chachapoly_ctx) +
 				     ctx->saltlen;
 	inst->alg.ivsize = ivsize;
-	inst->alg.chunksize = crypto_skcipher_alg_chunksize(chacha);
+	inst->alg.chunksize = chacha->chunksize;
 	inst->alg.maxauthsize = POLY1305_DIGEST_SIZE;
 	inst->alg.init = chachapoly_init;
 	inst->alg.exit = chachapoly_exit;

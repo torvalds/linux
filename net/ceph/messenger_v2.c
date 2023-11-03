@@ -733,8 +733,6 @@ static int setup_crypto(struct ceph_connection *con,
 		return ret;
 	}
 
-	WARN_ON((unsigned long)session_key &
-		crypto_shash_alignmask(con->v2.hmac_tfm));
 	ret = crypto_shash_setkey(con->v2.hmac_tfm, session_key,
 				  session_key_len);
 	if (ret) {
@@ -816,8 +814,6 @@ static int hmac_sha256(struct ceph_connection *con, const struct kvec *kvecs,
 		goto out;
 
 	for (i = 0; i < kvec_cnt; i++) {
-		WARN_ON((unsigned long)kvecs[i].iov_base &
-			crypto_shash_alignmask(con->v2.hmac_tfm));
 		ret = crypto_shash_update(desc, kvecs[i].iov_base,
 					  kvecs[i].iov_len);
 		if (ret)

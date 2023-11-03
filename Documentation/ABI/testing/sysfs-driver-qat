@@ -29,6 +29,8 @@ Description:	(RW) Reports the current configuration of the QAT device.
 		  services
 		* asym;sym: identical to sym;asym
 		* dc: the device is configured for running compression services
+		* dcc: identical to dc but enables the dc chaining feature,
+		  hash then compression. If this is not required chose dc
 		* sym: the device is configured for running symmetric crypto
 		  services
 		* asym: the device is configured for running asymmetric crypto
@@ -91,5 +93,51 @@ Description:	(RW) This configuration option provides a way to force the device i
 			# echo up > /sys/bus/pci/devices/<BDF>/qat/state
 			# cat /sys/bus/pci/devices/<BDF>/qat/pm_idle_enabled
 			0
+
+		This attribute is only available for qat_4xxx devices.
+
+What:		/sys/bus/pci/devices/<BDF>/qat/rp2srv
+Date:		January 2024
+KernelVersion:	6.7
+Contact:	qat-linux@intel.com
+Description:
+		(RW) This attribute provides a way for a user to query a
+		specific ring pair for the type of service that it is currently
+		configured for.
+
+		When written to, the value is cached and used to perform the
+		read operation. Allowed values are in the range 0 to N-1, where
+		N is the max number of ring pairs supported by a device. This
+		can be queried using the attribute qat/num_rps.
+
+		A read returns the service associated to the ring pair queried.
+
+		The values are:
+
+		* dc: the ring pair is configured for running compression services
+		* sym: the ring pair is configured for running symmetric crypto
+		  services
+		* asym: the ring pair is configured for running asymmetric crypto
+		  services
+
+		Example usage::
+
+			# echo 1 > /sys/bus/pci/devices/<BDF>/qat/rp2srv
+			# cat /sys/bus/pci/devices/<BDF>/qat/rp2srv
+			sym
+
+		This attribute is only available for qat_4xxx devices.
+
+What:		/sys/bus/pci/devices/<BDF>/qat/num_rps
+Date:		January 2024
+KernelVersion:	6.7
+Contact:	qat-linux@intel.com
+Description:
+		(RO) Returns the number of ring pairs that a single device has.
+
+		Example usage::
+
+			# cat /sys/bus/pci/devices/<BDF>/qat/num_rps
+			64
 
 		This attribute is only available for qat_4xxx devices.

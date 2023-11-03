@@ -30,6 +30,7 @@
 
 #define PLATFORM_FEATURE_DBC		0x1
 
+#define PSP_CAPABILITY(psp, cap) (psp->capability & PSP_CAPABILITY_##cap)
 #define PSP_FEATURE(psp, feat)	(psp->vdata && psp->vdata->platform_features & PLATFORM_FEATURE_##feat)
 
 /* Structure to hold CCP device data */
@@ -71,6 +72,9 @@ struct psp_vdata {
 	const struct sev_vdata *sev;
 	const struct tee_vdata *tee;
 	const struct platform_access_vdata *platform_access;
+	const unsigned int cmdresp_reg;
+	const unsigned int cmdbuff_addr_lo_reg;
+	const unsigned int cmdbuff_addr_hi_reg;
 	const unsigned int feature_reg;
 	const unsigned int inten_reg;
 	const unsigned int intsts_reg;

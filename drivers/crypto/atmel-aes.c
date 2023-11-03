@@ -2648,7 +2648,7 @@ err_tasklet_kill:
 	return err;
 }
 
-static int atmel_aes_remove(struct platform_device *pdev)
+static void atmel_aes_remove(struct platform_device *pdev)
 {
 	struct atmel_aes_dev *aes_dd;
 
@@ -2667,13 +2667,11 @@ static int atmel_aes_remove(struct platform_device *pdev)
 	atmel_aes_buff_cleanup(aes_dd);
 
 	clk_unprepare(aes_dd->iclk);
-
-	return 0;
 }
 
 static struct platform_driver atmel_aes_driver = {
 	.probe		= atmel_aes_probe,
-	.remove		= atmel_aes_remove,
+	.remove_new	= atmel_aes_remove,
 	.driver		= {
 		.name	= "atmel_aes",
 		.of_match_table = atmel_aes_dt_ids,

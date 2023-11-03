@@ -1563,7 +1563,7 @@ static int ixp_crypto_probe(struct platform_device *_pdev)
 	return 0;
 }
 
-static int ixp_crypto_remove(struct platform_device *pdev)
+static void ixp_crypto_remove(struct platform_device *pdev)
 {
 	int num = ARRAY_SIZE(ixp4xx_algos);
 	int i;
@@ -1578,8 +1578,6 @@ static int ixp_crypto_remove(struct platform_device *pdev)
 			crypto_unregister_skcipher(&ixp4xx_algos[i].crypto);
 	}
 	release_ixp_crypto(&pdev->dev);
-
-	return 0;
 }
 static const struct of_device_id ixp4xx_crypto_of_match[] = {
 	{
@@ -1590,7 +1588,7 @@ static const struct of_device_id ixp4xx_crypto_of_match[] = {
 
 static struct platform_driver ixp_crypto_driver = {
 	.probe = ixp_crypto_probe,
-	.remove = ixp_crypto_remove,
+	.remove_new = ixp_crypto_remove,
 	.driver = {
 		.name = "ixp4xx_crypto",
 		.of_match_table = ixp4xx_crypto_of_match,

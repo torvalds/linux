@@ -552,20 +552,16 @@ EXPORT_SYMBOL_GPL(crypto_engine_alloc_init);
 /**
  * crypto_engine_exit - free the resources of hardware engine when exit
  * @engine: the hardware engine need to be freed
- *
- * Return 0 for success.
  */
-int crypto_engine_exit(struct crypto_engine *engine)
+void crypto_engine_exit(struct crypto_engine *engine)
 {
 	int ret;
 
 	ret = crypto_engine_stop(engine);
 	if (ret)
-		return ret;
+		return;
 
 	kthread_destroy_worker(engine->kworker);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_engine_exit);
 

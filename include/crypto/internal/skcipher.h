@@ -36,7 +36,22 @@ struct skcipher_instance {
 	};
 };
 
+struct lskcipher_instance {
+	void (*free)(struct lskcipher_instance *inst);
+	union {
+		struct {
+			char head[offsetof(struct lskcipher_alg, co.base)];
+			struct crypto_instance base;
+		} s;
+		struct lskcipher_alg alg;
+	};
+};
+
 struct crypto_skcipher_spawn {
+	struct crypto_spawn base;
+};
+
+struct crypto_lskcipher_spawn {
 	struct crypto_spawn base;
 };
 
@@ -80,6 +95,12 @@ static inline struct crypto_instance *skcipher_crypto_instance(
 	return &inst->s.base;
 }
 
+static inline struct crypto_instance *lskcipher_crypto_instance(
+	struct lskcipher_instance *inst)
+{
+	return &inst->s.base;
+}
+
 static inline struct skcipher_instance *skcipher_alg_instance(
 	struct crypto_skcipher *skcipher)
 {
@@ -87,9 +108,21 @@ static inline struct skcipher_instance *skcipher_alg_instance(
 			    struct skcipher_instance, alg);
 }
 
+static inline struct lskcipher_instance *lskcipher_alg_instance(
+	struct crypto_lskcipher *lskcipher)
+{
+	return container_of(crypto_lskcipher_alg(lskcipher),
+			    struct lskcipher_instance, alg);
+}
+
 static inline void *skcipher_instance_ctx(struct skcipher_instance *inst)
 {
 	return crypto_instance_ctx(skcipher_crypto_instance(inst));
+}
+
+static inline void *lskcipher_instance_ctx(struct lskcipher_instance *inst)
+{
+	return crypto_instance_ctx(lskcipher_crypto_instance(inst));
 }
 
 static inline void skcipher_request_complete(struct skcipher_request *req, int err)
@@ -101,25 +134,46 @@ int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn,
 			 struct crypto_instance *inst,
 			 const char *name, u32 type, u32 mask);
 
+int crypto_grab_lskcipher(struct crypto_lskcipher_spawn *spawn,
+			  struct crypto_instance *inst,
+			  const char *name, u32 type, u32 mask);
+
 static inline void crypto_drop_skcipher(struct crypto_skcipher_spawn *spawn)
 {
 	crypto_drop_spawn(&spawn->base);
 }
 
-static inline struct skcipher_alg *crypto_skcipher_spawn_alg(
-	struct crypto_skcipher_spawn *spawn)
+static inline void crypto_drop_lskcipher(struct crypto_lskcipher_spawn *spawn)
 {
-	return container_of(spawn->base.alg, struct skcipher_alg, base);
+	crypto_drop_spawn(&spawn->base);
 }
 
-static inline struct skcipher_alg *crypto_spawn_skcipher_alg(
+static inline struct lskcipher_alg *crypto_lskcipher_spawn_alg(
+	struct crypto_lskcipher_spawn *spawn)
+{
+	return container_of(spawn->base.alg, struct lskcipher_alg, co.base);
+}
+
+static inline struct skcipher_alg_common *crypto_spawn_skcipher_alg_common(
 	struct crypto_skcipher_spawn *spawn)
 {
-	return crypto_skcipher_spawn_alg(spawn);
+	return container_of(spawn->base.alg, struct skcipher_alg_common, base);
+}
+
+static inline struct lskcipher_alg *crypto_spawn_lskcipher_alg(
+	struct crypto_lskcipher_spawn *spawn)
+{
+	return crypto_lskcipher_spawn_alg(spawn);
 }
 
 static inline struct crypto_skcipher *crypto_spawn_skcipher(
 	struct crypto_skcipher_spawn *spawn)
+{
+	return crypto_spawn_tfm2(&spawn->base);
+}
+
+static inline struct crypto_lskcipher *crypto_spawn_lskcipher(
+	struct crypto_lskcipher_spawn *spawn)
 {
 	return crypto_spawn_tfm2(&spawn->base);
 }
@@ -144,6 +198,13 @@ void crypto_unregister_skciphers(struct skcipher_alg *algs, int count);
 int skcipher_register_instance(struct crypto_template *tmpl,
 			       struct skcipher_instance *inst);
 
+int crypto_register_lskcipher(struct lskcipher_alg *alg);
+void crypto_unregister_lskcipher(struct lskcipher_alg *alg);
+int crypto_register_lskciphers(struct lskcipher_alg *algs, int count);
+void crypto_unregister_lskciphers(struct lskcipher_alg *algs, int count);
+int lskcipher_register_instance(struct crypto_template *tmpl,
+				struct lskcipher_instance *inst);
+
 int skcipher_walk_done(struct skcipher_walk *walk, int err);
 int skcipher_walk_virt(struct skcipher_walk *walk,
 		       struct skcipher_request *req,
@@ -162,6 +223,11 @@ static inline void skcipher_walk_abort(struct skcipher_walk *walk)
 }
 
 static inline void *crypto_skcipher_ctx(struct crypto_skcipher *tfm)
+{
+	return crypto_tfm_ctx(&tfm->base);
+}
+
+static inline void *crypto_lskcipher_ctx(struct crypto_lskcipher *tfm)
 {
 	return crypto_tfm_ctx(&tfm->base);
 }
@@ -191,41 +257,6 @@ static inline u32 skcipher_request_flags(struct skcipher_request *req)
 	return req->base.flags;
 }
 
-static inline unsigned int crypto_skcipher_alg_min_keysize(
-	struct skcipher_alg *alg)
-{
-	return alg->min_keysize;
-}
-
-static inline unsigned int crypto_skcipher_alg_max_keysize(
-	struct skcipher_alg *alg)
-{
-	return alg->max_keysize;
-}
-
-static inline unsigned int crypto_skcipher_alg_walksize(
-	struct skcipher_alg *alg)
-{
-	return alg->walksize;
-}
-
-/**
- * crypto_skcipher_walksize() - obtain walk size
- * @tfm: cipher handle
- *
- * In some cases, algorithms can only perform optimally when operating on
- * multiple blocks in parallel. This is reflected by the walksize, which
- * must be a multiple of the chunksize (or equal if the concern does not
- * apply)
- *
- * Return: walk size in bytes
- */
-static inline unsigned int crypto_skcipher_walksize(
-	struct crypto_skcipher *tfm)
-{
-	return crypto_skcipher_alg_walksize(crypto_skcipher_alg(tfm));
-}
-
 /* Helpers for simple block cipher modes of operation */
 struct skcipher_ctx_simple {
 	struct crypto_cipher *cipher;	/* underlying block cipher */
@@ -247,6 +278,25 @@ static inline struct crypto_alg *skcipher_ialg_simple(
 	struct crypto_cipher_spawn *spawn = skcipher_instance_ctx(inst);
 
 	return crypto_spawn_cipher_alg(spawn);
+}
+
+static inline struct crypto_lskcipher *lskcipher_cipher_simple(
+	struct crypto_lskcipher *tfm)
+{
+	struct crypto_lskcipher **ctx = crypto_lskcipher_ctx(tfm);
+
+	return *ctx;
+}
+
+struct lskcipher_instance *lskcipher_alloc_instance_simple(
+	struct crypto_template *tmpl, struct rtattr **tb);
+
+static inline struct lskcipher_alg *lskcipher_ialg_simple(
+	struct lskcipher_instance *inst)
+{
+	struct crypto_lskcipher_spawn *spawn = lskcipher_instance_ctx(inst);
+
+	return crypto_lskcipher_spawn_alg(spawn);
 }
 
 #endif	/* _CRYPTO_INTERNAL_SKCIPHER_H */

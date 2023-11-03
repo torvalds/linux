@@ -30,9 +30,11 @@ config MODULE_SIG_KEY_TYPE_RSA
 config MODULE_SIG_KEY_TYPE_ECDSA
 	bool "ECDSA"
 	select CRYPTO_ECDSA
+	depends on !(MODULE_SIG_SHA256 || MODULE_SIG_SHA3_256)
 	help
-	 Use an elliptic curve key (NIST P384) for module signing. Consider
-	 using a strong hash like sha256 or sha384 for hashing modules.
+	 Use an elliptic curve key (NIST P384) for module signing. Use
+	 a strong hash of same or higher bit length, i.e. sha384 or
+	 sha512 for hashing modules.
 
 	 Note: Remove all ECDSA signing keys, e.g. certs/signing_key.pem,
 	 when falling back to building Linux 5.14 and older kernels.

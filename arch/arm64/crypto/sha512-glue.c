@@ -23,8 +23,8 @@ asmlinkage void sha512_block_data_order(u64 *digest, const void *data,
 					unsigned int num_blks);
 EXPORT_SYMBOL(sha512_block_data_order);
 
-static void __sha512_block_data_order(struct sha512_state *sst, u8 const *src,
-				      int blocks)
+static void sha512_arm64_transform(struct sha512_state *sst, u8 const *src,
+				   int blocks)
 {
 	sha512_block_data_order(sst->state, src, blocks);
 }
@@ -32,17 +32,15 @@ static void __sha512_block_data_order(struct sha512_state *sst, u8 const *src,
 static int sha512_update(struct shash_desc *desc, const u8 *data,
 			 unsigned int len)
 {
-	return sha512_base_do_update(desc, data, len,
-				     __sha512_block_data_order);
+	return sha512_base_do_update(desc, data, len, sha512_arm64_transform);
 }
 
 static int sha512_finup(struct shash_desc *desc, const u8 *data,
 			unsigned int len, u8 *out)
 {
 	if (len)
-		sha512_base_do_update(desc, data, len,
-				      __sha512_block_data_order);
-	sha512_base_do_finalize(desc, __sha512_block_data_order);
+		sha512_base_do_update(desc, data, len, sha512_arm64_transform);
+	sha512_base_do_finalize(desc, sha512_arm64_transform);
 
 	return sha512_base_finish(desc, out);
 }

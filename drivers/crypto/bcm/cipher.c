@@ -4713,7 +4713,7 @@ failure:
 	return err;
 }
 
-static int bcm_spu_remove(struct platform_device *pdev)
+static void bcm_spu_remove(struct platform_device *pdev)
 {
 	int i;
 	struct device *dev = &pdev->dev;
@@ -4751,7 +4751,6 @@ static int bcm_spu_remove(struct platform_device *pdev)
 	}
 	spu_free_debugfs();
 	spu_mb_release(pdev);
-	return 0;
 }
 
 /* ===== Kernel Module API ===== */
@@ -4762,7 +4761,7 @@ static struct platform_driver bcm_spu_pdriver = {
 		   .of_match_table = of_match_ptr(bcm_spu_dt_ids),
 		   },
 	.probe = bcm_spu_probe,
-	.remove = bcm_spu_remove,
+	.remove_new = bcm_spu_remove,
 };
 module_platform_driver(bcm_spu_pdriver);
 

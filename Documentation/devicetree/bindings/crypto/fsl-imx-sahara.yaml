@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/crypto/fsl-imx-sahara.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale SAHARA Cryptographic Accelerator included in some i.MX chips
+title: Freescale SAHARA Cryptographic Accelerator
 
 maintainers:
   - Steffen Trumtrar <s.trumtrar@pengutronix.de>
@@ -19,19 +19,56 @@ properties:
     maxItems: 1
 
   interrupts:
-    maxItems: 1
+    items:
+      - description: SAHARA Interrupt for Host 0
+      - description: SAHARA Interrupt for Host 1
+    minItems: 1
+
+  clocks:
+    items:
+      - description: Sahara IPG clock
+      - description: Sahara AHB clock
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: ahb
 
 required:
   - compatible
   - reg
   - interrupts
+  - clocks
+  - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx53-sahara
+    then:
+      properties:
+        interrupts:
+          minItems: 2
+          maxItems: 2
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
 
 additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/imx27-clock.h>
+
     crypto@10025000 {
         compatible = "fsl,imx27-sahara";
-        reg = < 0x10025000 0x800>;
+        reg = <0x10025000 0x800>;
         interrupts = <75>;
+        clocks = <&clks IMX27_CLK_SAHARA_IPG_GATE>,
+                 <&clks IMX27_CLK_SAHARA_AHB_GATE>;
+        clock-names = "ipg", "ahb";
     };
