@@ -400,6 +400,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event,
 			__field(unsigned long, flags)
 			__field(dev_t, dev)
 			__field(u64, dir)
+			__field(u64, fileid)
 			__string(name, dentry->d_name.name)
 		),
 
@@ -407,16 +408,18 @@ DECLARE_EVENT_CLASS(nfs_lookup_event,
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
 			__entry->flags = flags;
+			__entry->fileid = d_is_negative(dentry) ? 0 : NFS_FILEID(d_inode(dentry));
 			__assign_str(name, dentry->d_name.name);
 		),
 
 		TP_printk(
-			"flags=0x%lx (%s) name=%02x:%02x:%llu/%s",
+			"flags=0x%lx (%s) name=%02x:%02x:%llu/%s fileid=%llu",
 			__entry->flags,
 			show_fs_lookup_flags(__entry->flags),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->dir,
-			__get_str(name)
+			__get_str(name),
+			__entry->fileid
 		)
 );
 
@@ -444,6 +447,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event_done,
 			__field(unsigned long, flags)
 			__field(dev_t, dev)
 			__field(u64, dir)
+			__field(u64, fileid)
 			__string(name, dentry->d_name.name)
 		),
 
@@ -452,17 +456,19 @@ DECLARE_EVENT_CLASS(nfs_lookup_event_done,
 			__entry->dir = NFS_FILEID(dir);
 			__entry->error = error < 0 ? -error : 0;
 			__entry->flags = flags;
+			__entry->fileid = d_is_negative(dentry) ? 0 : NFS_FILEID(d_inode(dentry));
 			__assign_str(name, dentry->d_name.name);
 		),
 
 		TP_printk(
-			"error=%ld (%s) flags=0x%lx (%s) name=%02x:%02x:%llu/%s",
+			"error=%ld (%s) flags=0x%lx (%s) name=%02x:%02x:%llu/%s fileid=%llu",
 			-__entry->error, show_nfs_status(__entry->error),
 			__entry->flags,
 			show_fs_lookup_flags(__entry->flags),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->dir,
-			__get_str(name)
+			__get_str(name),
+			__entry->fileid
 		)
 );
 
