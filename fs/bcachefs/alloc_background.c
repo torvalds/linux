@@ -1817,7 +1817,7 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 	unsigned i;
 	int ret = 0;
 
-	ret = bch2_btree_write_buffer_flush(trans);
+	ret = bch2_btree_write_buffer_tryflush(trans);
 	if (ret)
 		goto err;
 

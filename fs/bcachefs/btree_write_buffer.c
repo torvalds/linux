@@ -299,7 +299,7 @@ int bch2_btree_write_buffer_flush_nocheck_rw(struct btree_trans *trans)
 	return ret;
 }
 
-int bch2_btree_write_buffer_flush(struct btree_trans *trans)
+int bch2_btree_write_buffer_tryflush(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
 

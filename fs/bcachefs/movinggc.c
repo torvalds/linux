@@ -153,11 +153,11 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 
 	move_buckets_wait(ctxt, buckets_in_flight, false);
 
-	ret = bch2_btree_write_buffer_flush(trans);
+	ret = bch2_btree_write_buffer_tryflush(trans);
 	if (bch2_err_matches(ret, EROFS))
 		return ret;
 
-	if (bch2_fs_fatal_err_on(ret, c, "%s: error %s from bch2_btree_write_buffer_flush()",
+	if (bch2_fs_fatal_err_on(ret, c, "%s: error %s from bch2_btree_write_buffer_tryflush()",
 				 __func__, bch2_err_str(ret)))
 		return ret;
 

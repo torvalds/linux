@@ -681,11 +681,10 @@ int __bch2_evacuate_bucket(struct moving_context *ctxt,
 	bucket_size = bch_dev_bkey_exists(c, bucket.inode)->mi.bucket_size;
 	fragmentation = a->fragmentation_lru;
 
-	ret = bch2_btree_write_buffer_flush(trans);
-	if (ret) {
-		bch_err_msg(c, ret, "flushing btree write buffer");
+	ret = bch2_btree_write_buffer_tryflush(trans);
+	bch_err_msg(c, ret, "flushing btree write buffer");
+	if (ret)
 		goto err;
-	}
 
 	while (!(ret = bch2_move_ratelimit(ctxt))) {
 		if (is_kthread && kthread_should_stop())
