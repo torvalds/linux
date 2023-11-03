@@ -41,7 +41,7 @@ static irqreturn_t gpio_trig_irq(int irq, void *_led)
 	return IRQ_HANDLED;
 }
 
-static ssize_t gpio_trig_brightness_show(struct device *dev,
+static ssize_t desired_brightness_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct gpio_trig_data *gpio_data = led_trigger_get_drvdata(dev);
@@ -49,7 +49,7 @@ static ssize_t gpio_trig_brightness_show(struct device *dev,
 	return sysfs_emit(buf, "%u\n", gpio_data->desired_brightness);
 }
 
-static ssize_t gpio_trig_brightness_store(struct device *dev,
+static ssize_t desired_brightness_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t n)
 {
 	struct gpio_trig_data *gpio_data = led_trigger_get_drvdata(dev);
@@ -64,8 +64,7 @@ static ssize_t gpio_trig_brightness_store(struct device *dev,
 
 	return n;
 }
-static DEVICE_ATTR(desired_brightness, 0644, gpio_trig_brightness_show,
-		gpio_trig_brightness_store);
+static DEVICE_ATTR_RW(desired_brightness);
 
 static struct attribute *gpio_trig_attrs[] = {
 	&dev_attr_desired_brightness.attr,
