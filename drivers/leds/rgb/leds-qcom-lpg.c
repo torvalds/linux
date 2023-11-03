@@ -173,7 +173,7 @@ struct lpg_led {
 	struct led_classdev_mc mcdev;
 
 	unsigned int num_channels;
-	struct lpg_channel *channels[];
+	struct lpg_channel *channels[] __counted_by(num_channels);
 };
 
 /**
@@ -1364,13 +1364,11 @@ static int lpg_probe(struct platform_device *pdev)
 	return lpg_add_pwm(lpg);
 }
 
-static int lpg_remove(struct platform_device *pdev)
+static void lpg_remove(struct platform_device *pdev)
 {
 	struct lpg *lpg = platform_get_drvdata(pdev);
 
 	pwmchip_remove(&lpg->pwm);
-
-	return 0;
 }
 
 static const struct lpg_data pm8916_pwm_data = {
@@ -1532,7 +1530,7 @@ MODULE_DEVICE_TABLE(of, lpg_of_table);
 
 static struct platform_driver lpg_driver = {
 	.probe = lpg_probe,
-	.remove = lpg_remove,
+	.remove_new = lpg_remove,
 	.driver = {
 		.name = "qcom-spmi-lpg",
 		.of_match_table = lpg_of_table,
