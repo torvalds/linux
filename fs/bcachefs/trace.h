@@ -1334,21 +1334,38 @@ TRACE_EVENT(write_buffer_flush,
 		  __entry->nr, __entry->size, __entry->skipped, __entry->fast)
 );
 
-TRACE_EVENT(write_buffer_flush_slowpath,
-	TP_PROTO(struct btree_trans *trans, size_t nr, size_t size),
-	TP_ARGS(trans, nr, size),
+TRACE_EVENT(write_buffer_flush_sync,
+	TP_PROTO(struct btree_trans *trans, unsigned long caller_ip),
+	TP_ARGS(trans, caller_ip),
 
 	TP_STRUCT__entry(
-		__field(size_t,		nr		)
-		__field(size_t,		size		)
+		__array(char,			trans_fn, 32	)
+		__field(unsigned long,		caller_ip	)
 	),
 
 	TP_fast_assign(
-		__entry->nr	= nr;
-		__entry->size	= size;
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip		= caller_ip;
 	),
 
-	TP_printk("%zu/%zu", __entry->nr, __entry->size)
+	TP_printk("%s %pS", __entry->trans_fn, (void *) __entry->caller_ip)
+);
+
+TRACE_EVENT(write_buffer_flush_slowpath,
+	TP_PROTO(struct btree_trans *trans, size_t slowpath, size_t total),
+	TP_ARGS(trans, slowpath, total),
+
+	TP_STRUCT__entry(
+		__field(size_t,		slowpath	)
+		__field(size_t,		total		)
+	),
+
+	TP_fast_assign(
+		__entry->slowpath	= slowpath;
+		__entry->total		= total;
+	),
+
+	TP_printk("%zu/%zu", __entry->slowpath, __entry->total)
 );
 
 DEFINE_EVENT(str, rebalance_extent,

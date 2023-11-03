@@ -241,7 +241,7 @@ out:
 	mutex_unlock(&wb->flush_lock);
 	return ret;
 slowpath:
-	trace_write_buffer_flush_slowpath(trans, i - keys, nr);
+	trace_and_count(c, write_buffer_flush_slowpath, trans, slowpath, nr);
 
 	/*
 	 * Now sort the rest by journal seq and bump the journal pin as we go.
@@ -277,8 +277,12 @@ slowpath:
 
 int bch2_btree_write_buffer_flush_sync(struct btree_trans *trans)
 {
+	struct bch_fs *c = trans->c;
+
+	trace_and_count(c, write_buffer_flush_sync, trans, _RET_IP_);
+
 	bch2_trans_unlock(trans);
-	mutex_lock(&trans->c->btree_write_buffer.flush_lock);
+	mutex_lock(&c->btree_write_buffer.flush_lock);
 	return __bch2_btree_write_buffer_flush(trans, 0, true);
 }
 
