@@ -233,7 +233,6 @@
 				interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_EMMCCLK>;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_emmc_default>;
 				status = "disable";
 			};
 		};
@@ -1787,4 +1786,3 @@
 		status = "disabled";
 	};
 };
-
