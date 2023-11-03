@@ -495,6 +495,17 @@ void dcn35_dpp_root_clock_control(struct dce_hwseq *hws, unsigned int dpp_inst, 
 	}
 }
 
+void dcn35_dpstream_root_clock_control(struct dce_hwseq *hws, unsigned int dp_hpo_inst, bool clock_on)
+{
+	if (!hws->ctx->dc->debug.root_clock_optimization.bits.dpstream)
+		return;
+
+	if (hws->ctx->dc->res_pool->dccg->funcs->set_dpstreamclk_root_clock_gating) {
+		hws->ctx->dc->res_pool->dccg->funcs->set_dpstreamclk_root_clock_gating(
+			hws->ctx->dc->res_pool->dccg, dp_hpo_inst, clock_on);
+	}
+}
+
 void dcn35_dsc_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int dsc_inst,
@@ -1002,6 +1013,9 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 
 		if (pipe_ctx->stream_res.opp)
 			update_state->pg_pipe_res_update[PG_OPP][pipe_ctx->stream_res.opp->inst] = false;
+
+		if (pipe_ctx->stream_res.hpo_dp_stream_enc)
+			update_state->pg_pipe_res_update[PG_DPSTREAM][pipe_ctx->stream_res.hpo_dp_stream_enc->inst] = false;
 	}
 	/*domain24 controls all the otg, mpc, opp, as long as one otg is still up, avoid enabling OTG PG*/
 	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
@@ -1059,6 +1073,9 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 
 				if (j == PG_OPTC && new_pipe->stream_res.tg)
 					update_state->pg_pipe_res_update[j][new_pipe->stream_res.tg->inst] = true;
+
+				if (j == PG_DPSTREAM && new_pipe->stream_res.hpo_dp_stream_enc)
+					update_state->pg_pipe_res_update[j][new_pipe->stream_res.hpo_dp_stream_enc->inst] = true;
 			}
 		} else if (cur_pipe->plane_state == new_pipe->plane_state ||
 				cur_pipe == new_pipe) {
@@ -1088,6 +1105,11 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 					cur_pipe->stream_res.tg != new_pipe->stream_res.tg &&
 					new_pipe->stream_res.tg)
 					update_state->pg_pipe_res_update[j][new_pipe->stream_res.tg->inst] = true;
+
+				if (j == PG_DPSTREAM &&
+					cur_pipe->stream_res.hpo_dp_stream_enc != new_pipe->stream_res.hpo_dp_stream_enc &&
+					new_pipe->stream_res.hpo_dp_stream_enc)
+					update_state->pg_pipe_res_update[j][new_pipe->stream_res.hpo_dp_stream_enc->inst] = true;
 			}
 		}
 	}
@@ -1234,6 +1256,9 @@ void dcn35_root_clock_control(struct dc *dc,
 				if (dc->hwseq->funcs.dpp_root_clock_control)
 					dc->hwseq->funcs.dpp_root_clock_control(dc->hwseq, i, power_on);
 			}
+			if (update_state->pg_pipe_res_update[PG_DPSTREAM][i])
+				if (dc->hwseq->funcs.dpstream_root_clock_control)
+					dc->hwseq->funcs.dpstream_root_clock_control(dc->hwseq, i, power_on);
 		}
 	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
 		if (update_state->pg_pipe_res_update[PG_DSC][i]) {
@@ -1254,6 +1279,9 @@ void dcn35_root_clock_control(struct dc *dc,
 				if (dc->hwseq->funcs.dpp_root_clock_control)
 					dc->hwseq->funcs.dpp_root_clock_control(dc->hwseq, i, power_on);
 			}
+			if (update_state->pg_pipe_res_update[PG_DPSTREAM][i])
+				if (dc->hwseq->funcs.dpstream_root_clock_control)
+					dc->hwseq->funcs.dpstream_root_clock_control(dc->hwseq, i, power_on);
 		}
 }
 

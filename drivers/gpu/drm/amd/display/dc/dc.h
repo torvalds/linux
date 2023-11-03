@@ -695,6 +695,7 @@ enum pg_hw_pipe_resources {
 	PG_MPCC,
 	PG_OPP,
 	PG_OPTC,
+	PG_DPSTREAM,
 	PG_HW_PIPE_RESOURCES_NUM_ELEMENT
 };
 

@@ -31,7 +31,9 @@
 
 #define DPP_REG_LIST_SH_MASK_DCN35(mask_sh)  \
 	DPP_REG_LIST_SH_MASK_DCN30_COMMON(mask_sh), \
-		TF_SF(DPP_TOP0_DPP_CONTROL, DPP_FGCG_REP_DIS, mask_sh)
+		TF_SF(DPP_TOP0_DPP_CONTROL, DPP_FGCG_REP_DIS, mask_sh), \
+		TF_SF(DPP_TOP0_DPP_CONTROL, DPP_FGCG_REP_DIS, mask_sh), \
+		TF_SF(DPP_TOP0_DPP_CONTROL, DISPCLK_R_GATE_DISABLE, mask_sh)
 
 #define DPP_REG_FIELD_LIST_DCN35(type)         \
 	struct {                               \
@@ -46,6 +48,11 @@ struct dcn35_dpp_shift {
 struct dcn35_dpp_mask {
 	DPP_REG_FIELD_LIST_DCN35(uint32_t);
 };
+
+void dpp35_dppclk_control(
+		struct dpp *dpp_base,
+		bool dppclk_div,
+		bool enable);
 
 bool dpp35_construct(struct dcn3_dpp *dpp3, struct dc_context *ctx,
 		     uint32_t inst, const struct dcn3_dpp_registers *tf_regs,

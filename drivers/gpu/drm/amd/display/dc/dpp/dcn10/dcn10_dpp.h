@@ -1090,7 +1090,8 @@
 	type DPP_CLOCK_ENABLE; \
 	type CM_HDR_MULT_COEF; \
 	type CUR0_FP_BIAS; \
-	type CUR0_FP_SCALE;
+	type CUR0_FP_SCALE;\
+	type DISPCLK_R_GATE_DISABLE;
 
 struct dcn_dpp_shift {
 	TF_REG_FIELD_LIST(uint8_t)
