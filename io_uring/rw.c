@@ -131,6 +131,10 @@ int io_read_mshot_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	int ret;
 
+	/* must be used with provided buffers */
+	if (!(req->flags & REQ_F_BUFFER_SELECT))
+		return -EINVAL;
+
 	ret = io_prep_rw(req, sqe);
 	if (unlikely(ret))
 		return ret;
@@ -541,6 +545,9 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 			     struct io_rw_state *s, bool force)
 {
 	if (!force && !io_cold_defs[req->opcode].prep_async)
+		return 0;
+	/* opcode type doesn't need async data */
+	if (!io_cold_defs[req->opcode].async_size)
 		return 0;
 	if (!req_has_async_data(req)) {
 		struct io_async_rw *iorw;
