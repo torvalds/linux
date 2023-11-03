@@ -46,7 +46,7 @@ static ssize_t gpio_trig_brightness_show(struct device *dev,
 {
 	struct gpio_trig_data *gpio_data = led_trigger_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", gpio_data->desired_brightness);
+	return sysfs_emit(buf, "%u\n", gpio_data->desired_brightness);
 }
 
 static ssize_t gpio_trig_brightness_store(struct device *dev,
