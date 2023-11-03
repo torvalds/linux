@@ -204,4 +204,10 @@
 			+ adev->asic_funcs->encode_ext_smn_addressing(ext), \
 			value) \
 
+#define RREG64_MCA(ext, mca_base, idx) \
+	RREG64_PCIE_EXT(adev->asic_funcs->encode_ext_smn_addressing(ext) + mca_base + (idx * 8))
+
+#define WREG64_MCA(ext, mca_base, idx, val) \
+	WREG64_PCIE_EXT(adev->asic_funcs->encode_ext_smn_addressing(ext) + mca_base + (idx * 8), val)
+
 #endif
