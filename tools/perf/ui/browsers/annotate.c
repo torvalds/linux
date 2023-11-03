@@ -337,7 +337,7 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 				max_percent = percent;
 		}
 
-		if (max_percent < 0.01 && pos->al.ipc == 0) {
+		if (max_percent < 0.01 && (!pos->al.cycles || pos->al.cycles->ipc == 0)) {
 			RB_CLEAR_NODE(&pos->al.rb_node);
 			continue;
 		}

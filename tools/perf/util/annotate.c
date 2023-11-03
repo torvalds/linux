@@ -1100,8 +1100,8 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 		for (offset = start; offset <= end; offset++) {
 			struct annotation_line *al = notes->offsets[offset];
 
-			if (al && al->ipc == 0.0) {
-				al->ipc = ipc;
+			if (al && al->cycles && al->cycles->ipc == 0.0) {
+				al->cycles->ipc = ipc;
 				cover_insn++;
 			}
 		}
@@ -1114,12 +1114,13 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 	}
 }
 
-void annotation__compute_ipc(struct annotation *notes, size_t size)
+static int annotation__compute_ipc(struct annotation *notes, size_t size)
 {
+	int err = 0;
 	s64 offset;
 
 	if (!notes->src || !notes->src->cycles_hist)
-		return;
+		return 0;
 
 	notes->total_insn = annotation__count_insn(notes, 0, size - 1);
 	notes->hit_cycles = 0;
@@ -1134,18 +1135,39 @@ void annotation__compute_ipc(struct annotation *notes, size_t size)
 		if (ch && ch->cycles) {
 			struct annotation_line *al;
 
+			al = notes->offsets[offset];
+			if (al && al->cycles == NULL) {
+				al->cycles = zalloc(sizeof(*al->cycles));
+				if (al->cycles == NULL) {
+					err = ENOMEM;
+					break;
+				}
+			}
 			if (ch->have_start)
 				annotation__count_and_fill(notes, ch->start, offset, ch);
-			al = notes->offsets[offset];
 			if (al && ch->num_aggr) {
-				al->cycles = ch->cycles_aggr / ch->num_aggr;
-				al->cycles_max = ch->cycles_max;
-				al->cycles_min = ch->cycles_min;
+				al->cycles->avg = ch->cycles_aggr / ch->num_aggr;
+				al->cycles->max = ch->cycles_max;
+				al->cycles->min = ch->cycles_min;
 			}
 			notes->have_cycles = true;
 		}
 	}
+
+	if (err) {
+		while (++offset < (s64)size) {
+			struct cyc_hist *ch = &notes->src->cycles_hist[offset];
+
+			if (ch && ch->cycles) {
+				struct annotation_line *al = notes->offsets[offset];
+				if (al)
+					zfree(&al->cycles);
+			}
+		}
+	}
+
 	annotation__unlock(notes);
+	return 0;
 }
 
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, struct perf_sample *sample,
@@ -1225,6 +1247,7 @@ static void annotation_line__exit(struct annotation_line *al)
 {
 	zfree_srcline(&al->path);
 	zfree(&al->line);
+	zfree(&al->cycles);
 }
 
 static size_t disasm_line_size(int nr)
@@ -3083,8 +3106,8 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 	int printed;
 
 	if (first_line && (al->offset == -1 || percent_max == 0.0)) {
-		if (notes->have_cycles) {
-			if (al->ipc == 0.0 && al->cycles == 0)
+		if (notes->have_cycles && al->cycles) {
+			if (al->cycles->ipc == 0.0 && al->cycles->avg == 0)
 				show_title = true;
 		} else
 			show_title = true;
@@ -3121,17 +3144,17 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 	}
 
 	if (notes->have_cycles) {
-		if (al->ipc)
-			obj__printf(obj, "%*.2f ", ANNOTATION__IPC_WIDTH - 1, al->ipc);
+		if (al->cycles && al->cycles->ipc)
+			obj__printf(obj, "%*.2f ", ANNOTATION__IPC_WIDTH - 1, al->cycles->ipc);
 		else if (!show_title)
 			obj__printf(obj, "%*s", ANNOTATION__IPC_WIDTH, " ");
 		else
 			obj__printf(obj, "%*s ", ANNOTATION__IPC_WIDTH - 1, "IPC");
 
 		if (!notes->options->show_minmax_cycle) {
-			if (al->cycles)
+			if (al->cycles && al->cycles->avg)
 				obj__printf(obj, "%*" PRIu64 " ",
-					   ANNOTATION__CYCLES_WIDTH - 1, al->cycles);
+					   ANNOTATION__CYCLES_WIDTH - 1, al->cycles->avg);
 			else if (!show_title)
 				obj__printf(obj, "%*s",
 					    ANNOTATION__CYCLES_WIDTH, " ");
@@ -3145,8 +3168,8 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 
 				scnprintf(str, sizeof(str),
 					"%" PRIu64 "(%" PRIu64 "/%" PRIu64 ")",
-					al->cycles, al->cycles_min,
-					al->cycles_max);
+					al->cycles->avg, al->cycles->min,
+					al->cycles->max);
 
 				obj__printf(obj, "%*s ",
 					    ANNOTATION__MINMAX_CYCLES_WIDTH - 1,
@@ -3264,7 +3287,11 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 
 	annotation__set_offsets(notes, size);
 	annotation__mark_jump_targets(notes, sym);
-	annotation__compute_ipc(notes, size);
+
+	err = annotation__compute_ipc(notes, size);
+	if (err)
+		goto out_free_offsets;
+
 	annotation__init_column_widths(notes, sym);
 	notes->nr_events = nr_pcnt;
 
