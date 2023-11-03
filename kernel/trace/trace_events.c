@@ -984,19 +984,41 @@ static void remove_subsystem(struct trace_subsystem_dir *dir)
 		return;
 
 	if (!--dir->nr_events) {
-		eventfs_remove(dir->ef);
+		eventfs_remove_dir(dir->ei);
 		list_del(&dir->list);
 		__put_system_dir(dir);
 	}
 }
 
+void event_file_get(struct trace_event_file *file)
+{
+	atomic_inc(&file->ref);
+}
+
+void event_file_put(struct trace_event_file *file)
+{
+	if (WARN_ON_ONCE(!atomic_read(&file->ref))) {
+		if (file->flags & EVENT_FILE_FL_FREED)
+			kmem_cache_free(file_cachep, file);
+		return;
+	}
+
+	if (atomic_dec_and_test(&file->ref)) {
+		/* Count should only go to zero when it is freed */
+		if (WARN_ON_ONCE(!(file->flags & EVENT_FILE_FL_FREED)))
+			return;
+		kmem_cache_free(file_cachep, file);
+	}
+}
+
 static void remove_event_file_dir(struct trace_event_file *file)
 {
-	eventfs_remove(file->ef);
+	eventfs_remove_dir(file->ei);
 	list_del(&file->list);
 	remove_subsystem(file->system);
 	free_event_filter(file->filter);
-	kmem_cache_free(file_cachep, file);
+	file->flags |= EVENT_FILE_FL_FREED;
+	event_file_put(file);
 }
 
 /*
@@ -1166,7 +1188,7 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 	if (!cnt)
 		return 0;
 
-	ret = tracing_update_buffers();
+	ret = tracing_update_buffers(tr);
 	if (ret < 0)
 		return ret;
 
@@ -1369,7 +1391,7 @@ event_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 		flags = file->flags;
 	mutex_unlock(&event_mutex);
 
-	if (!file)
+	if (!file || flags & EVENT_FILE_FL_FREED)
 		return -ENODEV;
 
 	if (flags & EVENT_FILE_FL_ENABLED &&
@@ -1397,18 +1419,20 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (ret)
 		return ret;
 
-	ret = tracing_update_buffers();
-	if (ret < 0)
-		return ret;
-
 	switch (val) {
 	case 0:
 	case 1:
 		ret = -ENODEV;
 		mutex_lock(&event_mutex);
 		file = event_file_data(filp);
-		if (likely(file))
+		if (likely(file && !(file->flags & EVENT_FILE_FL_FREED))) {
+			ret = tracing_update_buffers(file->tr);
+			if (ret < 0) {
+				mutex_unlock(&event_mutex);
+				return ret;
+			}
 			ret = ftrace_event_enable_disable(file, val);
+		}
 		mutex_unlock(&event_mutex);
 		break;
 
@@ -1482,7 +1506,7 @@ system_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (ret)
 		return ret;
 
-	ret = tracing_update_buffers();
+	ret = tracing_update_buffers(dir->tr);
 	if (ret < 0)
 		return ret;
 
@@ -1681,7 +1705,7 @@ event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 
 	mutex_lock(&event_mutex);
 	file = event_file_data(filp);
-	if (file)
+	if (file && !(file->flags & EVENT_FILE_FL_FREED))
 		print_event_filter(file, s);
 	mutex_unlock(&event_mutex);
 
@@ -1956,7 +1980,7 @@ event_pid_write(struct file *filp, const char __user *ubuf,
 	if (!cnt)
 		return 0;
 
-	ret = tracing_update_buffers();
+	ret = tracing_update_buffers(tr);
 	if (ret < 0)
 		return ret;
 
@@ -2280,14 +2304,40 @@ create_new_subsystem(const char *name)
 	return NULL;
 }
 
-static struct eventfs_file *
+static int system_callback(const char *name, umode_t *mode, void **data,
+		    const struct file_operations **fops)
+{
+	if (strcmp(name, "filter") == 0)
+		*fops = &ftrace_subsystem_filter_fops;
+
+	else if (strcmp(name, "enable") == 0)
+		*fops = &ftrace_system_enable_fops;
+
+	else
+		return 0;
+
+	*mode = TRACE_MODE_WRITE;
+	return 1;
+}
+
+static struct eventfs_inode *
 event_subsystem_dir(struct trace_array *tr, const char *name,
-		    struct trace_event_file *file, struct dentry *parent)
+		    struct trace_event_file *file, struct eventfs_inode *parent)
 {
 	struct event_subsystem *system, *iter;
 	struct trace_subsystem_dir *dir;
-	struct eventfs_file *ef;
-	int res;
+	struct eventfs_inode *ei;
+	int nr_entries;
+	static struct eventfs_entry system_entries[] = {
+		{
+			.name		= "filter",
+			.callback	= system_callback,
+		},
+		{
+			.name		= "enable",
+			.callback	= system_callback,
+		}
+	};
 
 	/* First see if we did not already create this dir */
 	list_for_each_entry(dir, &tr->systems, list) {
@@ -2295,7 +2345,7 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 		if (strcmp(system->name, name) == 0) {
 			dir->nr_events++;
 			file->system = dir;
-			return dir->ef;
+			return dir->ei;
 		}
 	}
 
@@ -2319,39 +2369,29 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 	} else
 		__get_system(system);
 
-	ef = eventfs_add_subsystem_dir(name, parent);
-	if (IS_ERR(ef)) {
+	/* ftrace only has directories no files */
+	if (strcmp(name, "ftrace") == 0)
+		nr_entries = 0;
+	else
+		nr_entries = ARRAY_SIZE(system_entries);
+
+	ei = eventfs_create_dir(name, parent, system_entries, nr_entries, dir);
+	if (IS_ERR(ei)) {
 		pr_warn("Failed to create system directory %s\n", name);
 		__put_system(system);
 		goto out_free;
 	}
 
-	dir->ef = ef;
+	dir->ei = ei;
 	dir->tr = tr;
 	dir->ref_count = 1;
 	dir->nr_events = 1;
 	dir->subsystem = system;
 	file->system = dir;
 
-	/* the ftrace system is special, do not create enable or filter files */
-	if (strcmp(name, "ftrace") != 0) {
-
-		res = eventfs_add_file("filter", TRACE_MODE_WRITE,
-					    dir->ef, dir,
-					    &ftrace_subsystem_filter_fops);
-		if (res) {
-			kfree(system->filter);
-			system->filter = NULL;
-			pr_warn("Could not create tracefs '%s/filter' entry\n", name);
-		}
-
-		eventfs_add_file("enable", TRACE_MODE_WRITE, dir->ef, dir,
-				  &ftrace_system_enable_fops);
-	}
-
 	list_add(&dir->list, &tr->systems);
 
-	return dir->ef;
+	return dir->ei;
 
  out_free:
 	kfree(dir);
@@ -2400,15 +2440,134 @@ event_define_fields(struct trace_event_call *call)
 	return ret;
 }
 
+static int event_callback(const char *name, umode_t *mode, void **data,
+			  const struct file_operations **fops)
+{
+	struct trace_event_file *file = *data;
+	struct trace_event_call *call = file->event_call;
+
+	if (strcmp(name, "format") == 0) {
+		*mode = TRACE_MODE_READ;
+		*fops = &ftrace_event_format_fops;
+		*data = call;
+		return 1;
+	}
+
+	/*
+	 * Only event directories that can be enabled should have
+	 * triggers or filters, with the exception of the "print"
+	 * event that can have a "trigger" file.
+	 */
+	if (!(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE)) {
+		if (call->class->reg && strcmp(name, "enable") == 0) {
+			*mode = TRACE_MODE_WRITE;
+			*fops = &ftrace_enable_fops;
+			return 1;
+		}
+
+		if (strcmp(name, "filter") == 0) {
+			*mode = TRACE_MODE_WRITE;
+			*fops = &ftrace_event_filter_fops;
+			return 1;
+		}
+	}
+
+	if (!(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE) ||
+	    strcmp(trace_event_name(call), "print") == 0) {
+		if (strcmp(name, "trigger") == 0) {
+			*mode = TRACE_MODE_WRITE;
+			*fops = &event_trigger_fops;
+			return 1;
+		}
+	}
+
+#ifdef CONFIG_PERF_EVENTS
+	if (call->event.type && call->class->reg &&
+	    strcmp(name, "id") == 0) {
+		*mode = TRACE_MODE_READ;
+		*data = (void *)(long)call->event.type;
+		*fops = &ftrace_event_id_fops;
+		return 1;
+	}
+#endif
+
+#ifdef CONFIG_HIST_TRIGGERS
+	if (strcmp(name, "hist") == 0) {
+		*mode = TRACE_MODE_READ;
+		*fops = &event_hist_fops;
+		return 1;
+	}
+#endif
+#ifdef CONFIG_HIST_TRIGGERS_DEBUG
+	if (strcmp(name, "hist_debug") == 0) {
+		*mode = TRACE_MODE_READ;
+		*fops = &event_hist_debug_fops;
+		return 1;
+	}
+#endif
+#ifdef CONFIG_TRACE_EVENT_INJECT
+	if (call->event.type && call->class->reg &&
+	    strcmp(name, "inject") == 0) {
+		*mode = 0200;
+		*fops = &event_inject_fops;
+		return 1;
+	}
+#endif
+	return 0;
+}
+
 static int
-event_create_dir(struct dentry *parent, struct trace_event_file *file)
+event_create_dir(struct eventfs_inode *parent, struct trace_event_file *file)
 {
 	struct trace_event_call *call = file->event_call;
-	struct eventfs_file *ef_subsystem = NULL;
 	struct trace_array *tr = file->tr;
-	struct eventfs_file *ef;
+	struct eventfs_inode *e_events;
+	struct eventfs_inode *ei;
 	const char *name;
+	int nr_entries;
 	int ret;
+	static struct eventfs_entry event_entries[] = {
+		{
+			.name		= "enable",
+			.callback	= event_callback,
+		},
+		{
+			.name		= "filter",
+			.callback	= event_callback,
+		},
+		{
+			.name		= "trigger",
+			.callback	= event_callback,
+		},
+		{
+			.name		= "format",
+			.callback	= event_callback,
+		},
+#ifdef CONFIG_PERF_EVENTS
+		{
+			.name		= "id",
+			.callback	= event_callback,
+		},
+#endif
+#ifdef CONFIG_HIST_TRIGGERS
+		{
+			.name		= "hist",
+			.callback	= event_callback,
+		},
+#endif
+#ifdef CONFIG_HIST_TRIGGERS_DEBUG
+		{
+			.name		= "hist_debug",
+			.callback	= event_callback,
+		},
+#endif
+#ifdef CONFIG_TRACE_EVENT_INJECT
+		{
+			.name		= "inject",
+			.callback	= event_callback,
+		},
+#endif
+	};
 
 	/*
 	 * If the trace point header did not define TRACE_SYSTEM
@@ -2418,64 +2577,26 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 	if (WARN_ON_ONCE(strcmp(call->class->system, TRACE_SYSTEM) == 0))
 		return -ENODEV;
 
-	ef_subsystem = event_subsystem_dir(tr, call->class->system, file, parent);
-	if (!ef_subsystem)
+	e_events = event_subsystem_dir(tr, call->class->system, file, parent);
+	if (!e_events)
 		return -ENOMEM;
 
+	nr_entries = ARRAY_SIZE(event_entries);
+
 	name = trace_event_name(call);
-	ef = eventfs_add_dir(name, ef_subsystem);
-	if (IS_ERR(ef)) {
+	ei = eventfs_create_dir(name, e_events, event_entries, nr_entries, file);
+	if (IS_ERR(ei)) {
 		pr_warn("Could not create tracefs '%s' directory\n", name);
 		return -1;
 	}
 
-	file->ef = ef;
-
-	if (call->class->reg && !(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE))
-		eventfs_add_file("enable", TRACE_MODE_WRITE, file->ef, file,
-				  &ftrace_enable_fops);
-
-#ifdef CONFIG_PERF_EVENTS
-	if (call->event.type && call->class->reg)
-		eventfs_add_file("id", TRACE_MODE_READ, file->ef,
-				  (void *)(long)call->event.type,
-				  &ftrace_event_id_fops);
-#endif
+	file->ei = ei;
 
 	ret = event_define_fields(call);
 	if (ret < 0) {
 		pr_warn("Could not initialize trace point events/%s\n", name);
 		return ret;
 	}
-
-	/*
-	 * Only event directories that can be enabled should have
-	 * triggers or filters.
-	 */
-	if (!(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE)) {
-		eventfs_add_file("filter", TRACE_MODE_WRITE, file->ef,
-				  file, &ftrace_event_filter_fops);
-
-		eventfs_add_file("trigger", TRACE_MODE_WRITE, file->ef,
-				  file, &event_trigger_fops);
-	}
-
-#ifdef CONFIG_HIST_TRIGGERS
-	eventfs_add_file("hist", TRACE_MODE_READ, file->ef, file,
-			  &event_hist_fops);
-#endif
-#ifdef CONFIG_HIST_TRIGGERS_DEBUG
-	eventfs_add_file("hist_debug", TRACE_MODE_READ, file->ef, file,
-			  &event_hist_debug_fops);
-#endif
-	eventfs_add_file("format", TRACE_MODE_READ, file->ef, call,
-			  &ftrace_event_format_fops);
-
-#ifdef CONFIG_TRACE_EVENT_INJECT
-	if (call->event.type && call->class->reg)
-		eventfs_add_file("inject", 0200, file->ef, file,
-				  &event_inject_fops);
-#endif
 
 	return 0;
 }
@@ -2803,6 +2924,7 @@ trace_create_new_event(struct trace_event_call *call,
 	atomic_set(&file->tm_ref, 0);
 	INIT_LIST_HEAD(&file->triggers);
 	list_add(&file->list, &tr->events);
+	event_file_get(file);
 
 	return file;
 }
@@ -2824,7 +2946,7 @@ static __init int setup_trace_triggers(char *str)
 	int i;
 
 	strscpy(bootup_trigger_buf, str, COMMAND_LINE_SIZE);
-	ring_buffer_expanded = true;
+	trace_set_ring_buffer_expanded(NULL);
 	disable_tracing_selftest("running event triggers");
 
 	buf = bootup_trigger_buf;
@@ -3614,36 +3736,71 @@ static char bootup_event_buf[COMMAND_LINE_SIZE] __initdata;
 static __init int setup_trace_event(char *str)
 {
 	strscpy(bootup_event_buf, str, COMMAND_LINE_SIZE);
-	ring_buffer_expanded = true;
+	trace_set_ring_buffer_expanded(NULL);
 	disable_tracing_selftest("running event tracing");
 
 	return 1;
 }
 __setup("trace_event=", setup_trace_event);
 
+static int events_callback(const char *name, umode_t *mode, void **data,
+			   const struct file_operations **fops)
+{
+	if (strcmp(name, "enable") == 0) {
+		*mode = TRACE_MODE_WRITE;
+		*fops = &ftrace_tr_enable_fops;
+		return 1;
+	}
+
+	if (strcmp(name, "header_page") == 0)
+		*data = ring_buffer_print_page_header;
+
+	else if (strcmp(name, "header_event") == 0)
+		*data = ring_buffer_print_entry_header;
+
+	else
+		return 0;
+
+	*mode = TRACE_MODE_READ;
+	*fops = &ftrace_show_header_fops;
+	return 1;
+}
+
 /* Expects to have event_mutex held when called */
 static int
 create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
 {
-	struct dentry *d_events;
+	struct eventfs_inode *e_events;
 	struct dentry *entry;
-	int error = 0;
+	int nr_entries;
+	static struct eventfs_entry events_entries[] = {
+		{
+			.name		= "enable",
+			.callback	= events_callback,
+		},
+		{
+			.name		= "header_page",
+			.callback	= events_callback,
+		},
+		{
+			.name		= "header_event",
+			.callback	= events_callback,
+		},
+	};
 
 	entry = trace_create_file("set_event", TRACE_MODE_WRITE, parent,
 				  tr, &ftrace_set_event_fops);
 	if (!entry)
 		return -ENOMEM;
 
-	d_events = eventfs_create_events_dir("events", parent);
-	if (IS_ERR(d_events)) {
+	nr_entries = ARRAY_SIZE(events_entries);
+
+	e_events = eventfs_create_events_dir("events", parent, events_entries,
+					     nr_entries, tr);
+	if (IS_ERR(e_events)) {
 		pr_warn("Could not create tracefs 'events' directory\n");
 		return -ENOMEM;
 	}
-
-	error = eventfs_add_events_file("enable", TRACE_MODE_WRITE, d_events,
-				  tr, &ftrace_tr_enable_fops);
-	if (error)
-		return -ENOMEM;
 
 	/* There are not as crucial, just warn if they are not created */
 
@@ -3654,16 +3811,7 @@ create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
 			  TRACE_MODE_WRITE, parent, tr,
 			  &ftrace_set_event_notrace_pid_fops);
 
-	/* ring buffer internal formats */
-	eventfs_add_events_file("header_page", TRACE_MODE_READ, d_events,
-				  ring_buffer_print_page_header,
-				  &ftrace_show_header_fops);
-
-	eventfs_add_events_file("header_event", TRACE_MODE_READ, d_events,
-				  ring_buffer_print_entry_header,
-				  &ftrace_show_header_fops);
-
-	tr->event_dir = d_events;
+	tr->event_dir = e_events;
 
 	return 0;
 }
