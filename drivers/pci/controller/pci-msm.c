@@ -8620,6 +8620,14 @@ int msm_pcie_set_link_bandwidth(struct pci_dev *pci_dev, u16 target_link_speed,
 	PCIE_DBG(pcie_dev, "PCIe: RC%d: successfully switched link bandwidth\n",
 		pcie_dev->rc_idx);
 out:
+	if (ret) {
+		/* Dump registers incase of the bandwidth switch failure */
+		pcie_parf_dump(pcie_dev);
+		pcie_dm_core_dump(pcie_dev);
+		pcie_phy_dump(pcie_dev);
+		pcie_sm_dump(pcie_dev);
+		pcie_crm_dump(pcie_dev);
+	}
 	msm_pcie_config_l0s_enable_all(pcie_dev);
 	msm_pcie_allow_l1(root_pci_dev);
 
