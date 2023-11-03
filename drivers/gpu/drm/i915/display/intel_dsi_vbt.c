@@ -356,9 +356,7 @@ static void bxt_gpio_set_value(struct intel_connector *connector,
 	if (!gpio_desc) {
 		gpio_desc = devm_gpiod_get_index(dev_priv->drm.dev,
 						 NULL, gpio_index,
-						 value ? GPIOD_OUT_LOW :
-						 GPIOD_OUT_HIGH);
-
+						 value ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW);
 		if (IS_ERR_OR_NULL(gpio_desc)) {
 			drm_err(&dev_priv->drm,
 				"GPIO index %u request failed (%ld)\n",
