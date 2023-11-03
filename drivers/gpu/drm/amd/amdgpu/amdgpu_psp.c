@@ -2120,6 +2120,21 @@ int amdgpu_psp_wait_for_bootloader(struct amdgpu_device *adev)
 	return ret;
 }
 
+int amdgpu_psp_query_boot_status(struct amdgpu_device *adev)
+{
+	struct psp_context *psp = &adev->psp;
+	int ret = 0;
+
+	if (amdgpu_sriov_vf(adev) || (adev->flags & AMD_IS_APU))
+		return 0;
+
+	if (psp->funcs &&
+	    psp->funcs->query_boot_status)
+		ret = psp->funcs->query_boot_status(psp);
+
+	return ret;
+}
+
 static int psp_hw_start(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
