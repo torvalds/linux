@@ -28,7 +28,7 @@ static int gs_enable(void)
 			return -ENOMEM;
 		gs_cb->gsd = 25;
 		preempt_disable();
-		__ctl_set_bit(2, 4);
+		local_ctl_set_bit(2, CR2_GUARDED_STORAGE_BIT);
 		load_gs_cb(gs_cb);
 		current->thread.gs_cb = gs_cb;
 		preempt_enable();
@@ -42,7 +42,7 @@ static int gs_disable(void)
 		preempt_disable();
 		kfree(current->thread.gs_cb);
 		current->thread.gs_cb = NULL;
-		__ctl_clear_bit(2, 4);
+		local_ctl_clear_bit(2, CR2_GUARDED_STORAGE_BIT);
 		preempt_enable();
 	}
 	return 0;
@@ -84,7 +84,7 @@ void gs_load_bc_cb(struct pt_regs *regs)
 	if (gs_cb) {
 		kfree(current->thread.gs_cb);
 		current->thread.gs_bc_cb = NULL;
-		__ctl_set_bit(2, 4);
+		local_ctl_set_bit(2, CR2_GUARDED_STORAGE_BIT);
 		load_gs_cb(gs_cb);
 		current->thread.gs_cb = gs_cb;
 	}

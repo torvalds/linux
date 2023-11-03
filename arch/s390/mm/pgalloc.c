@@ -61,8 +61,8 @@ static void __crst_table_upgrade(void *arg)
 
 	/* change all active ASCEs to avoid the creation of new TLBs */
 	if (current->active_mm == mm) {
-		S390_lowcore.user_asce = mm->context.asce;
-		__ctl_load(S390_lowcore.user_asce, 7, 7);
+		S390_lowcore.user_asce.val = mm->context.asce;
+		local_ctl_load(7, &S390_lowcore.user_asce);
 	}
 	__tlb_flush_local();
 }
@@ -145,6 +145,7 @@ struct page *page_table_alloc_pgste(struct mm_struct *mm)
 	ptdesc = pagetable_alloc(GFP_KERNEL, 0);
 	if (ptdesc) {
 		table = (u64 *)ptdesc_to_virt(ptdesc);
+		arch_set_page_dat(virt_to_page(table), 0);
 		memset64(table, _PAGE_INVALID, PTRS_PER_PTE);
 		memset64(table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
 	}
@@ -487,11 +488,10 @@ static unsigned long *base_crst_alloc(unsigned long val)
 	unsigned long *table;
 	struct ptdesc *ptdesc;
 
-	ptdesc = pagetable_alloc(GFP_KERNEL & ~__GFP_HIGHMEM, CRST_ALLOC_ORDER);
+	ptdesc = pagetable_alloc(GFP_KERNEL, CRST_ALLOC_ORDER);
 	if (!ptdesc)
 		return NULL;
 	table = ptdesc_address(ptdesc);
-
 	crst_table_init(table, val);
 	return table;
 }

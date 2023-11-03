@@ -15,10 +15,10 @@
 #include <linux/uio.h>
 #include <linux/io.h>
 #include <asm/asm-extable.h>
-#include <asm/ctl_reg.h>
 #include <asm/abs_lowcore.h>
 #include <asm/stacktrace.h>
 #include <asm/maccess.h>
+#include <asm/ctlreg.h>
 
 unsigned long __bootdata_preserved(__memcpy_real_area);
 pte_t *__bootdata_preserved(memcpy_real_ptep);

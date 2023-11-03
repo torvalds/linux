@@ -81,7 +81,7 @@ static inline void sclp_trace(int prio, char *id, u32 a, u64 b, bool err)
 	struct sclp_trace_entry e;
 
 	memset(&e, 0, sizeof(e));
-	strncpy(e.id, id, sizeof(e.id));
+	strtomem(e.id, id);
 	e.a = a;
 	e.b = b;
 	debug_event(&sclp_debug, prio, &e, sizeof(e));
@@ -706,8 +706,8 @@ void
 sclp_sync_wait(void)
 {
 	unsigned long long old_tick;
+	struct ctlreg cr0, cr0_sync;
 	unsigned long flags;
-	unsigned long cr0, cr0_sync;
 	static u64 sync_count;
 	u64 timeout;
 	int irq_context;
@@ -732,10 +732,10 @@ sclp_sync_wait(void)
 	/* Enable service-signal interruption, disable timer interrupts */
 	old_tick = local_tick_disable();
 	trace_hardirqs_on();
-	__ctl_store(cr0, 0, 0);
-	cr0_sync = cr0 & ~CR0_IRQ_SUBCLASS_MASK;
-	cr0_sync |= 1UL << (63 - 54);
-	__ctl_load(cr0_sync, 0, 0);
+	local_ctl_store(0, &cr0);
+	cr0_sync.val = cr0.val & ~CR0_IRQ_SUBCLASS_MASK;
+	cr0_sync.val |= 1UL << (63 - 54);
+	local_ctl_load(0, &cr0_sync);
 	__arch_local_irq_stosm(0x01);
 	/* Loop until driver state indicates finished request */
 	while (sclp_running_state != sclp_running_state_idle) {
@@ -745,7 +745,7 @@ sclp_sync_wait(void)
 		cpu_relax();
 	}
 	local_irq_disable();
-	__ctl_load(cr0, 0, 0);
+	local_ctl_load(0, &cr0);
 	if (!irq_context)
 		_local_bh_enable();
 	local_tick_enable(old_tick);

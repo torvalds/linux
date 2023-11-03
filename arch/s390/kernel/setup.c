@@ -305,7 +305,7 @@ static void __init setup_zfcpdump(void)
 		return;
 	if (oldmem_data.start)
 		return;
-	strcat(boot_command_line, " cio_ignore=all,!ipldev,!condev");
+	strlcat(boot_command_line, " cio_ignore=all,!ipldev,!condev", COMMAND_LINE_SIZE);
 	console_loglevel = 2;
 }
 #else
@@ -381,12 +381,6 @@ void stack_free(unsigned long stack)
 #endif
 }
 
-void __init __noreturn arch_call_rest_init(void)
-{
-	smp_reinit_ipl_cpu();
-	rest_init();
-}
-
 static unsigned long __init stack_alloc_early(void)
 {
 	unsigned long stack;
@@ -455,7 +449,6 @@ static void __init setup_lowcore(void)
 	lc->restart_fn = (unsigned long) do_restart;
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
-	__ctl_store(lc->cregs_save_area, 0, 15);
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);
@@ -465,6 +458,7 @@ static void __init setup_lowcore(void)
 	lc->kernel_asce = S390_lowcore.kernel_asce;
 	lc->user_asce = S390_lowcore.user_asce;
 
+	system_ctlreg_init_save_area(lc);
 	abs_lc = get_abs_lowcore();
 	abs_lc->restart_stack = lc->restart_stack;
 	abs_lc->restart_fn = lc->restart_fn;
@@ -472,7 +466,6 @@ static void __init setup_lowcore(void)
 	abs_lc->restart_source = lc->restart_source;
 	abs_lc->restart_psw = lc->restart_psw;
 	abs_lc->restart_flags = RESTART_FLAG_CTLREGS;
-	memcpy(abs_lc->cregs_save_area, lc->cregs_save_area, sizeof(abs_lc->cregs_save_area));
 	abs_lc->program_new_psw = lc->program_new_psw;
 	abs_lc->mcesad = lc->mcesad;
 	put_abs_lowcore(abs_lc);
@@ -797,15 +790,15 @@ static void __init setup_cr(void)
 	__ctl_duct[4] = (unsigned long)__ctl_duald;
 
 	/* Update control registers CR2, CR5 and CR15 */
-	__ctl_store(cr2.val, 2, 2);
-	__ctl_store(cr5.val, 5, 5);
-	__ctl_store(cr15.val, 15, 15);
+	local_ctl_store(2, &cr2.reg);
+	local_ctl_store(5, &cr5.reg);
+	local_ctl_store(15, &cr15.reg);
 	cr2.ducto = (unsigned long)__ctl_duct >> 6;
 	cr5.pasteo = (unsigned long)__ctl_duct >> 6;
 	cr15.lsea = (unsigned long)__ctl_linkage_stack >> 3;
-	__ctl_load(cr2.val, 2, 2);
-	__ctl_load(cr5.val, 5, 5);
-	__ctl_load(cr15.val, 15, 15);
+	system_ctl_load(2, &cr2.reg);
+	system_ctl_load(5, &cr5.reg);
+	system_ctl_load(15, &cr15.reg);
 }
 
 /*

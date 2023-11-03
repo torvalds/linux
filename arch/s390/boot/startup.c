@@ -49,7 +49,7 @@ static void detect_facilities(void)
 {
 	if (test_facility(8)) {
 		machine.has_edat1 = 1;
-		__ctl_set_bit(0, 23);
+		local_ctl_set_bit(0, CR0_EDAT_BIT);
 	}
 	if (test_facility(78))
 		machine.has_edat2 = 1;
