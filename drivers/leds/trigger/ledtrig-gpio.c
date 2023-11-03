@@ -53,14 +53,12 @@ static ssize_t gpio_trig_brightness_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t n)
 {
 	struct gpio_trig_data *gpio_data = led_trigger_get_drvdata(dev);
-	unsigned desired_brightness;
+	u8 desired_brightness;
 	int ret;
 
-	ret = sscanf(buf, "%u", &desired_brightness);
-	if (ret < 1 || desired_brightness > 255) {
-		dev_err(dev, "invalid value\n");
-		return -EINVAL;
-	}
+	ret = kstrtou8(buf, 10, &desired_brightness);
+	if (ret)
+		return ret;
 
 	gpio_data->desired_brightness = desired_brightness;
 
