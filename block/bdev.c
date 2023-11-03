@@ -292,7 +292,7 @@ EXPORT_SYMBOL(thaw_bdev);
  */
 
 static  __cacheline_aligned_in_smp DEFINE_MUTEX(bdev_lock);
-static struct kmem_cache * bdev_cachep __read_mostly;
+static struct kmem_cache *bdev_cachep __ro_after_init;
 
 static struct inode *bdev_alloc_inode(struct super_block *sb)
 {
@@ -361,13 +361,13 @@ static struct file_system_type bd_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-struct super_block *blockdev_superblock __read_mostly;
+struct super_block *blockdev_superblock __ro_after_init;
 EXPORT_SYMBOL_GPL(blockdev_superblock);
 
 void __init bdev_cache_init(void)
 {
 	int err;
-	static struct vfsmount *bd_mnt;
+	static struct vfsmount *bd_mnt __ro_after_init;
 
 	bdev_cachep = kmem_cache_create("bdev_cache", sizeof(struct bdev_inode),
 			0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|

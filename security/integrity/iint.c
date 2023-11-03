@@ -23,7 +23,7 @@
 
 static struct rb_root integrity_iint_tree = RB_ROOT;
 static DEFINE_RWLOCK(integrity_iint_lock);
-static struct kmem_cache *iint_cache __read_mostly;
+static struct kmem_cache *iint_cache __ro_after_init;
 
 struct dentry *integrity_dir;
 

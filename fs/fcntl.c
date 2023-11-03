@@ -844,7 +844,7 @@ int send_sigurg(struct fown_struct *fown)
 }
 
 static DEFINE_SPINLOCK(fasync_lock);
-static struct kmem_cache *fasync_cache __read_mostly;
+static struct kmem_cache *fasync_cache __ro_after_init;
 
 static void fasync_free_rcu(struct rcu_head *head)
 {

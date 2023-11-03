@@ -21,8 +21,9 @@
 
 #include "kernfs-internal.h"
 
-struct kmem_cache *kernfs_node_cache, *kernfs_iattrs_cache;
-struct kernfs_global_locks *kernfs_locks;
+struct kmem_cache *kernfs_node_cache __ro_after_init;
+struct kmem_cache *kernfs_iattrs_cache __ro_after_init;
+struct kernfs_global_locks *kernfs_locks __ro_after_init;
 
 static int kernfs_sop_show_options(struct seq_file *sf, struct dentry *dentry)
 {

@@ -54,9 +54,9 @@
  *   inode_hash_lock
  */
 
-static unsigned int i_hash_mask __read_mostly;
-static unsigned int i_hash_shift __read_mostly;
-static struct hlist_head *inode_hashtable __read_mostly;
+static unsigned int i_hash_mask __ro_after_init;
+static unsigned int i_hash_shift __ro_after_init;
+static struct hlist_head *inode_hashtable __ro_after_init;
 static __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_hash_lock);
 
 /*
@@ -70,7 +70,7 @@ EXPORT_SYMBOL(empty_aops);
 static DEFINE_PER_CPU(unsigned long, nr_inodes);
 static DEFINE_PER_CPU(unsigned long, nr_unused);
 
-static struct kmem_cache *inode_cachep __read_mostly;
+static struct kmem_cache *inode_cachep __ro_after_init;
 
 static long get_nr_inodes(void)
 {
