@@ -735,6 +735,13 @@ int bch2_fs_recovery(struct bch_fs *c)
 				if (*i) {
 					last_journal_entry = &(*i)->j;
 					(*i)->ignore = false;
+					/*
+					 * This was probably a NO_FLUSH entry,
+					 * so last_seq was garbage - but we know
+					 * we're only using a single journal
+					 * entry, set it here:
+					 */
+					(*i)->j.last_seq = (*i)->j.seq;
 					break;
 				}
 		}
