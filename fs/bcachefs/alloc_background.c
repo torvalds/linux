@@ -297,15 +297,6 @@ fsck_err:
 	return ret;
 }
 
-static inline u64 swab40(u64 x)
-{
-	return (((x & 0x00000000ffULL) << 32)|
-		((x & 0x000000ff00ULL) << 16)|
-		((x & 0x0000ff0000ULL) >>  0)|
-		((x & 0x00ff000000ULL) >> 16)|
-		((x & 0xff00000000ULL) >> 32));
-}
-
 void bch2_alloc_v4_swab(struct bkey_s k)
 {
 	struct bch_alloc_v4 *a = bkey_s_to_alloc_v4(k).v;

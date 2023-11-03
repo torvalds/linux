@@ -77,7 +77,7 @@ void bch2_backpointer_swab(struct bkey_s k)
 {
 	struct bkey_s_backpointer bp = bkey_s_to_backpointer(k);
 
-	bp.v->bucket_offset	= swab32(bp.v->bucket_offset);
+	bp.v->bucket_offset	= swab40(bp.v->bucket_offset);
 	bp.v->bucket_len	= swab32(bp.v->bucket_len);
 	bch2_bpos_swab(&bp.v->pos);
 }
