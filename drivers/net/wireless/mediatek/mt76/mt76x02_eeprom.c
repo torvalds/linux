@@ -75,14 +75,14 @@ void mt76x02_eeprom_parse_hw_cap(struct mt76x02_dev *dev)
 
 	switch (FIELD_GET(MT_EE_NIC_CONF_0_BOARD_TYPE, val)) {
 	case BOARD_TYPE_5GHZ:
-		dev->mt76.cap.has_5ghz = true;
+		dev->mphy.cap.has_5ghz = true;
 		break;
 	case BOARD_TYPE_2GHZ:
-		dev->mt76.cap.has_2ghz = true;
+		dev->mphy.cap.has_2ghz = true;
 		break;
 	default:
-		dev->mt76.cap.has_2ghz = true;
-		dev->mt76.cap.has_5ghz = true;
+		dev->mphy.cap.has_2ghz = true;
+		dev->mphy.cap.has_5ghz = true;
 		break;
 	}
 }
@@ -131,14 +131,7 @@ u8 mt76x02_get_lna_gain(struct mt76x02_dev *dev,
 			s8 *lna_2g, s8 *lna_5g,
 			struct ieee80211_channel *chan)
 {
-	u16 val;
 	u8 lna;
-
-	val = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_1);
-	if (val & MT_EE_NIC_CONF_1_LNA_EXT_2G)
-		*lna_2g = 0;
-	if (val & MT_EE_NIC_CONF_1_LNA_EXT_5G)
-		memset(lna_5g, 0, sizeof(s8) * 3);
 
 	if (chan->band == NL80211_BAND_2GHZ)
 		lna = *lna_2g;

@@ -249,7 +249,11 @@ void *mtk_drm_gem_prime_vmap(struct drm_gem_object *obj)
 
 	mtk_gem->kvaddr = vmap(mtk_gem->pages, npages, VM_MAP,
 			       pgprot_writecombine(PAGE_KERNEL));
-
+	if (!mtk_gem->kvaddr) {
+		kfree(sgt);
+		kfree(mtk_gem->pages);
+		return NULL;
+	}
 out:
 	kfree(sgt);
 

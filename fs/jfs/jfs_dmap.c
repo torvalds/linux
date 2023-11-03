@@ -269,6 +269,7 @@ int dbUnmount(struct inode *ipbmap, int mounterror)
 
 	/* free the memory for the in-memory bmap. */
 	kfree(bmp);
+	JFS_SBI(ipbmap->i_sb)->bmap = NULL;
 
 	return (0);
 }
@@ -2026,6 +2027,9 @@ dbAllocDmapLev(struct bmap * bmp,
 	 */
 	if (dbFindLeaf((dmtree_t *) & dp->tree, l2nb, &leafidx))
 		return -ENOSPC;
+
+	if (leafidx < 0)
+		return -EIO;
 
 	/* determine the block number within the file system corresponding
 	 * to the leaf at which free space was found.

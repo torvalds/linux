@@ -122,9 +122,10 @@ static void sas_ata_task_done(struct sas_task *task)
 		}
 	}
 
-	if (stat->stat == SAS_PROTO_RESPONSE || stat->stat == SAM_STAT_GOOD ||
-	    ((stat->stat == SAM_STAT_CHECK_CONDITION &&
-	      dev->sata_dev.class == ATA_DEV_ATAPI))) {
+	if (stat->stat == SAS_PROTO_RESPONSE ||
+	    stat->stat == SAS_SAM_STAT_GOOD ||
+	    (stat->stat == SAS_SAM_STAT_CHECK_CONDITION &&
+	      dev->sata_dev.class == ATA_DEV_ATAPI)) {
 		memcpy(dev->sata_dev.fis, resp->ending_fis, ATA_RESP_FIS_SIZE);
 
 		if (!link->sactive) {

@@ -88,9 +88,9 @@ static void nft_tproxy_eval_v6(const struct nft_expr *expr,
 	const struct nft_tproxy *priv = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
-	struct in6_addr taddr;
-	int thoff = pkt->xt.thoff;
+	int thoff = nft_thoff(pkt);
 	struct udphdr _hdr, *hp;
+	struct in6_addr taddr;
 	__be16 tport = 0;
 	struct sock *sk;
 	int l4proto;

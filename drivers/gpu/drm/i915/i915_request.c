@@ -1525,6 +1525,8 @@ __i915_request_add_to_timeline(struct i915_request *rq)
 							 &rq->dep,
 							 0);
 	}
+	if (prev)
+		i915_request_put(prev);
 
 	/*
 	 * Make sure that no request gazumped us - if it was allocated after

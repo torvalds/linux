@@ -588,8 +588,6 @@ static irqreturn_t xgene_ahci_irq_intr(int irq, void *dev_instance)
 	void __iomem *mmio;
 	u32 irq_stat, irq_masked;
 
-	VPRINTK("ENTER\n");
-
 	hpriv = host->private_data;
 	mmio = hpriv->mmio;
 
@@ -611,8 +609,6 @@ static irqreturn_t xgene_ahci_irq_intr(int irq, void *dev_instance)
 	rc = xgene_ahci_handle_broken_edge_irq(host, irq_masked);
 
 	spin_unlock(&host->lock);
-
-	VPRINTK("EXIT\n");
 
 	return IRQ_RETVAL(rc);
 }

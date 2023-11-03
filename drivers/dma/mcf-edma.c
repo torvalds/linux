@@ -191,7 +191,13 @@ static int mcf_edma_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	chans = pdata->dma_channels;
+	if (!pdata->dma_channels) {
+		dev_info(&pdev->dev, "setting default channel number to 64");
+		chans = 64;
+	} else {
+		chans = pdata->dma_channels;
+	}
+
 	len = sizeof(*mcf_edma) + sizeof(*mcf_chan) * chans;
 	mcf_edma = devm_kzalloc(&pdev->dev, len, GFP_KERNEL);
 	if (!mcf_edma)
@@ -202,11 +208,6 @@ static int mcf_edma_probe(struct platform_device *pdev)
 	/* Set up drvdata for ColdFire edma */
 	mcf_edma->drvdata = &mcf_data;
 	mcf_edma->big_endian = 1;
-
-	if (!mcf_edma->n_chans) {
-		dev_info(&pdev->dev, "setting default channel number to 64");
-		mcf_edma->n_chans = 64;
-	}
 
 	mutex_init(&mcf_edma->fsl_edma_mutex);
 
