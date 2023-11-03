@@ -17,11 +17,9 @@
 #include <linux/hrtimer.h>
 #include <linux/miscdevice.h>
 
-#ifndef FPGA_PLATFORM
-#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 #include <soc/rockchip/rockchip_opp_select.h>
-#endif
-#endif
+#include <soc/rockchip/rockchip_system_monitor.h>
+#include <soc/rockchip/rockchip_ipa.h>
 
 #include "rknpu_job.h"
 #include "rknpu_fence.h"
@@ -130,11 +128,7 @@ struct rknpu_device {
 	struct thermal_cooling_device *devfreq_cooling;
 	struct devfreq *devfreq;
 	unsigned long ondemand_freq;
-#ifndef FPGA_PLATFORM
-#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	struct rockchip_opp_info opp_info;
-#endif
-#endif
 	unsigned long current_freq;
 	unsigned long current_volt;
 	int bypass_irq_handler;
