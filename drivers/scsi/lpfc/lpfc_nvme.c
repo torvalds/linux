@@ -950,7 +950,7 @@ lpfc_nvme_io_cmd_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	int cpu;
 #endif
-	int offline = 0;
+	bool offline = false;
 
 	/* Sanity check on return of outstanding command */
 	if (!lpfc_ncmd) {
@@ -1124,7 +1124,9 @@ out_err:
 			nCmd->transferred_length = 0;
 			nCmd->rcv_rsplen = 0;
 			nCmd->status = NVME_SC_INTERNAL;
-			offline = pci_channel_offline(vport->phba->pcidev);
+			if (pci_channel_offline(vport->phba->pcidev) ||
+			    lpfc_ncmd->result == IOERR_SLI_DOWN)
+				offline = true;
 		}
 	}
 

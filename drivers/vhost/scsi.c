@@ -909,7 +909,7 @@ static void vhost_scsi_target_queue_cmd(struct vhost_scsi_cmd *cmd)
 			       cmd->tvc_prot_sgl_count, GFP_KERNEL))
 		return;
 
-	target_queue_submission(se_cmd);
+	target_submit(se_cmd);
 }
 
 static void
@@ -2598,6 +2598,9 @@ static const struct target_core_fabric_ops vhost_scsi_ops = {
 	.tfc_wwn_attrs			= vhost_scsi_wwn_attrs,
 	.tfc_tpg_base_attrs		= vhost_scsi_tpg_attrs,
 	.tfc_tpg_attrib_attrs		= vhost_scsi_tpg_attrib_attrs,
+
+	.default_submit_type		= TARGET_QUEUE_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 static int __init vhost_scsi_init(void)
