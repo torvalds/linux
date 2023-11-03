@@ -3,6 +3,8 @@
 #define _BCACHEFS_ERRCODE_H
 
 #define BCH_ERRCODES()								\
+	x(ERANGE,			ERANGE_option_too_small)		\
+	x(ERANGE,			ERANGE_option_too_big)			\
 	x(ENOMEM,			ENOMEM_stripe_buf)			\
 	x(ENOMEM,			ENOMEM_replicas_table)			\
 	x(ENOMEM,			ENOMEM_cpu_replicas)			\

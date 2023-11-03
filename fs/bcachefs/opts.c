@@ -265,14 +265,14 @@ int bch2_opt_validate(const struct bch_option *opt, u64 v, struct printbuf *err)
 		if (err)
 			prt_printf(err, "%s: too small (min %llu)",
 			       opt->attr.name, opt->min);
-		return -ERANGE;
+		return -BCH_ERR_ERANGE_option_too_small;
 	}
 
 	if (opt->max && v >= opt->max) {
 		if (err)
 			prt_printf(err, "%s: too big (max %llu)",
 			       opt->attr.name, opt->max);
-		return -ERANGE;
+		return -BCH_ERR_ERANGE_option_too_big;
 	}
 
 	if ((opt->flags & OPT_SB_FIELD_SECTORS) && (v & 511)) {
