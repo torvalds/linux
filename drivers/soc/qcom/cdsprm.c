@@ -1057,7 +1057,7 @@ static int cdsprm_rpmsg_callback(struct rpmsg_device *dev, void *data,
 			len, sizeof(*msg));
 		return -EINVAL;
 	} else if ((msg->feature_id >= SYSMON_CDSP_DCVS_CLIENTS_RX_STATUS) &&
-		((msg_v2->size != len) || (len < sizeof(*msg_v2)))) {
+		((msg_v2->size != len))) {
 		dev_err(&dev->dev,
 			"Invalid message in rpmsg callback, length: %d, expected: >= %lu\n",
 			len, sizeof(*msg_v2));
@@ -1129,7 +1129,8 @@ static int cdsprm_rpmsg_callback(struct rpmsg_device *dev, void *data,
 				gcdsprm.b_resmgr_pdkill_override, msg->fs.crm_pdkill_status);
 	} else if (msg->feature_id == SYSMON_CDSP_DCVS_CLIENTS_RX_STATUS) {
 		gcdsprm.dcvs_clients_votes.status = 0;
-		gcdsprm.dcvs_clients_votes = msg_v2->fs.dcvs_clients_votes;
+		memset(&gcdsprm.dcvs_clients_votes, 0, sizeof(gcdsprm.dcvs_clients_votes));
+		memcpy(&gcdsprm.dcvs_clients_votes, &msg_v2->fs.dcvs_clients_votes, msg_v2->size);
 		complete(&gcdsprm.dcvs_clients_votes_complete);
 		dev_dbg(&dev->dev, "Received DCVS clients information");
 	} else {
