@@ -174,6 +174,8 @@ static inline int ib_speed_enum_to_int(int speed)
 		return SPEED_50000;
 	case IB_SPEED_NDR:
 		return SPEED_100000;
+	case IB_SPEED_XDR:
+		return SPEED_200000;
 	}
 
 	return SPEED_UNKNOWN;

@@ -444,12 +444,16 @@ static int translate_eth_ext_proto_oper(u32 eth_proto_oper, u16 *active_speed,
 		*active_width = IB_WIDTH_2X;
 		*active_speed = IB_SPEED_NDR;
 		break;
-	case MLX5E_PROT_MASK(MLX5E_400GAUI_8):
+	case MLX5E_PROT_MASK(MLX5E_400GAUI_8_400GBASE_CR8):
 		*active_width = IB_WIDTH_8X;
 		*active_speed = IB_SPEED_HDR;
 		break;
 	case MLX5E_PROT_MASK(MLX5E_400GAUI_4_400GBASE_CR4_KR4):
 		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_NDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_800GAUI_8_800GBASE_CR8_KR8):
+		*active_width = IB_WIDTH_8X;
 		*active_speed = IB_SPEED_NDR;
 		break;
 	default:
@@ -3263,7 +3267,7 @@ static bool mlx5_ib_bind_slave_port(struct mlx5_ib_dev *ibdev,
 
 	mlx5_ib_init_cong_debugfs(ibdev, port_num);
 
-	key = ibdev->ib_dev.index;
+	key = mpi->mdev->priv.adev_idx;
 	mlx5_core_mp_event_replay(mpi->mdev,
 				  MLX5_DRIVER_EVENT_AFFILIATION_DONE,
 				  &key);
@@ -4088,10 +4092,8 @@ static int mlx5_ib_stage_post_ib_reg_umr_init(struct mlx5_ib_dev *dev)
 		return ret;
 
 	ret = mlx5_mkey_cache_init(dev);
-	if (ret) {
+	if (ret)
 		mlx5_ib_warn(dev, "mr cache init failed %d\n", ret);
-		mlx5r_umr_resource_cleanup(dev);
-	}
 	return ret;
 }
 

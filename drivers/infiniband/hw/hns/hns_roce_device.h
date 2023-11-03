@@ -146,6 +146,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_SDI_MODE		= BIT(14),
 	HNS_ROCE_CAP_FLAG_STASH			= BIT(17),
 	HNS_ROCE_CAP_FLAG_CQE_INLINE		= BIT(19),
+	HNS_ROCE_CAP_FLAG_SRQ_RECORD_DB         = BIT(22),
 };
 
 #define HNS_ROCE_DB_TYPE_COUNT			2
@@ -453,6 +454,8 @@ struct hns_roce_srq {
 	spinlock_t		lock;
 	struct mutex		mutex;
 	void (*event)(struct hns_roce_srq *srq, enum hns_roce_event event);
+	struct hns_roce_db	rdb;
+	u32			cap_flags;
 };
 
 struct hns_roce_uar_table {
@@ -908,6 +911,7 @@ struct hns_roce_hw {
 	int (*query_cqc)(struct hns_roce_dev *hr_dev, u32 cqn, void *buffer);
 	int (*query_qpc)(struct hns_roce_dev *hr_dev, u32 qpn, void *buffer);
 	int (*query_mpt)(struct hns_roce_dev *hr_dev, u32 key, void *buffer);
+	int (*query_srqc)(struct hns_roce_dev *hr_dev, u32 srqn, void *buffer);
 	int (*query_hw_counter)(struct hns_roce_dev *hr_dev,
 				u64 *stats, u32 port, int *hw_counters);
 	const struct ib_device_ops *hns_roce_dev_ops;
@@ -1239,6 +1243,8 @@ int hns_roce_fill_res_qp_entry(struct sk_buff *msg, struct ib_qp *ib_qp);
 int hns_roce_fill_res_qp_entry_raw(struct sk_buff *msg, struct ib_qp *ib_qp);
 int hns_roce_fill_res_mr_entry(struct sk_buff *msg, struct ib_mr *ib_mr);
 int hns_roce_fill_res_mr_entry_raw(struct sk_buff *msg, struct ib_mr *ib_mr);
+int hns_roce_fill_res_srq_entry(struct sk_buff *msg, struct ib_srq *ib_srq);
+int hns_roce_fill_res_srq_entry_raw(struct sk_buff *msg, struct ib_srq *ib_srq);
 struct hns_user_mmap_entry *
 hns_roce_user_mmap_entry_insert(struct ib_ucontext *ucontext, u64 address,
 				size_t length,
