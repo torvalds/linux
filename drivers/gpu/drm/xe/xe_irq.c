@@ -231,7 +231,7 @@ gt_engine_identity(struct xe_device *xe,
 		return 0;
 	}
 
-	xe_mmio_write32(mmio, INTR_IDENTITY_REG(bank), INTR_DATA_VALID);
+	xe_mmio_write32(mmio, INTR_IDENTITY_REG(bank), ident);
 
 	return ident;
 }
