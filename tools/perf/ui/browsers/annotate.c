@@ -188,7 +188,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	 *  name right after the '<' token and probably treating this like a
 	 *  'call' instruction.
 	 */
-	target = notes->offsets[cursor->ops.target.offset];
+	target = notes->src->offsets[cursor->ops.target.offset];
 	if (target == NULL) {
 		ui_helpline__printf("WARN: jump target inconsistency, press 'o', notes->offsets[%#x] = NULL\n",
 				    cursor->ops.target.offset);
@@ -1006,6 +1006,6 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 
 out_free_offsets:
 	if(not_annotated)
-		zfree(&notes->offsets);
+		zfree(&notes->src->offsets);
 	return ret;
 }

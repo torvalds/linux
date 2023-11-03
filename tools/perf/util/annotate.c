@@ -1075,7 +1075,7 @@ static unsigned annotation__count_insn(struct annotation *notes, u64 start, u64 
 	u64 offset;
 
 	for (offset = start; offset <= end; offset++) {
-		if (notes->offsets[offset])
+		if (notes->src->offsets[offset])
 			n_insn++;
 	}
 	return n_insn;
@@ -1105,7 +1105,7 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 			return;
 
 		for (offset = start; offset <= end; offset++) {
-			struct annotation_line *al = notes->offsets[offset];
+			struct annotation_line *al = notes->src->offsets[offset];
 
 			if (al && al->cycles && al->cycles->ipc == 0.0) {
 				al->cycles->ipc = ipc;
@@ -1143,7 +1143,7 @@ static int annotation__compute_ipc(struct annotation *notes, size_t size)
 		if (ch && ch->cycles) {
 			struct annotation_line *al;
 
-			al = notes->offsets[offset];
+			al = notes->src->offsets[offset];
 			if (al && al->cycles == NULL) {
 				al->cycles = zalloc(sizeof(*al->cycles));
 				if (al->cycles == NULL) {
@@ -1166,7 +1166,7 @@ static int annotation__compute_ipc(struct annotation *notes, size_t size)
 			struct cyc_hist *ch = &notes->branch->cycles_hist[offset];
 
 			if (ch && ch->cycles) {
-				struct annotation_line *al = notes->offsets[offset];
+				struct annotation_line *al = notes->src->offsets[offset];
 				if (al)
 					zfree(&al->cycles);
 			}
@@ -2800,7 +2800,7 @@ void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 		return;
 
 	for (offset = 0; offset < size; ++offset) {
-		struct annotation_line *al = notes->offsets[offset];
+		struct annotation_line *al = notes->src->offsets[offset];
 		struct disasm_line *dl;
 
 		dl = disasm_line(al);
@@ -2808,7 +2808,7 @@ void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 		if (!disasm_line__is_valid_local_jump(dl, sym))
 			continue;
 
-		al = notes->offsets[dl->ops.target.offset];
+		al = notes->src->offsets[dl->ops.target.offset];
 
 		/*
 		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
@@ -2847,7 +2847,7 @@ void annotation__set_offsets(struct annotation *notes, s64 size)
 			 * E.g. copy_user_generic_unrolled
  			 */
 			if (al->offset < size)
-				notes->offsets[al->offset] = al;
+				notes->src->offsets[al->offset] = al;
 		} else
 			al->idx_asm = -1;
 	}
@@ -3280,8 +3280,8 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	size_t size = symbol__size(sym);
 	int nr_pcnt = 1, err;
 
-	notes->offsets = zalloc(size * sizeof(struct annotation_line *));
-	if (notes->offsets == NULL)
+	notes->src->offsets = zalloc(size * sizeof(struct annotation_line *));
+	if (notes->src->offsets == NULL)
 		return ENOMEM;
 
 	if (evsel__is_group_event(evsel))
@@ -3311,7 +3311,7 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	return 0;
 
 out_free_offsets:
-	zfree(&notes->offsets);
+	zfree(&notes->src->offsets);
 	return err;
 }
 

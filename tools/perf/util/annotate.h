@@ -271,6 +271,7 @@ struct annotated_source {
 	struct list_head	source;
 	size_t			sizeof_sym_hist;
 	struct sym_hist		*histograms;
+	struct annotation_line	**offsets;
 	int    			nr_histograms;
 	int			nr_entries;
 	int			nr_asm_entries;
@@ -289,7 +290,6 @@ struct annotated_branch {
 struct LOCKABLE annotation {
 	u64			start;
 	struct annotation_options *options;
-	struct annotation_line	**offsets;
 	int			nr_events;
 	int			max_jump_sources;
 	struct {
