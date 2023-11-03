@@ -1219,6 +1219,7 @@ int bch2_fs_journal_init(struct journal *j)
 	static struct lock_class_key res_key;
 	unsigned i;
 
+	mutex_init(&j->buf_lock);
 	spin_lock_init(&j->lock);
 	spin_lock_init(&j->err_lock);
 	init_waitqueue_head(&j->wait);
