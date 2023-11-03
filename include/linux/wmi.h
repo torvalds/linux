@@ -27,6 +27,14 @@ struct wmi_device {
 	bool setable;
 };
 
+/**
+ * to_wmi_device() - Helper macro to cast a device to a wmi_device
+ * @device: device struct
+ *
+ * Cast a struct device to a struct wmi_device.
+ */
+#define to_wmi_device(device)	container_of(device, struct wmi_device, dev)
+
 extern acpi_status wmidev_evaluate_method(struct wmi_device *wdev,
 					  u8 instance, u32 method_id,
 					  const struct acpi_buffer *in,
