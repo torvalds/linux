@@ -893,7 +893,7 @@ DECLARE_EVENT_CLASS(nfs_rename_event_done,
 DEFINE_NFS_RENAME_EVENT(nfs_rename_enter);
 DEFINE_NFS_RENAME_EVENT_DONE(nfs_rename_exit);
 
-DEFINE_NFS_RENAME_EVENT_DONE(nfs_sillyrename_rename);
+DEFINE_NFS_RENAME_EVENT_DONE(nfs_async_rename_done);
 
 TRACE_EVENT(nfs_sillyrename_unlink,
 		TP_PROTO(
