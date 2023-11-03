@@ -212,10 +212,6 @@ int smu_v13_0_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
 
 bool smu_v13_0_baco_is_support(struct smu_context *smu);
 
-enum smu_baco_state smu_v13_0_baco_get_state(struct smu_context *smu);
-
-int smu_v13_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state);
-
 int smu_v13_0_baco_enter(struct smu_context *smu);
 int smu_v13_0_baco_exit(struct smu_context *smu);
 

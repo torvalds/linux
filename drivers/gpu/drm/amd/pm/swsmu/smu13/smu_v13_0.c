@@ -2221,33 +2221,14 @@ static int smu_v13_0_baco_set_armd3_sequence(struct smu_context *smu,
 	return 0;
 }
 
-bool smu_v13_0_baco_is_support(struct smu_context *smu)
-{
-	struct smu_baco_context *smu_baco = &smu->smu_baco;
-
-	if (amdgpu_sriov_vf(smu->adev) ||
-	    !smu_baco->platform_support)
-		return false;
-
-	/* return true if ASIC is in BACO state already */
-	if (smu_v13_0_baco_get_state(smu) == SMU_BACO_STATE_ENTER)
-		return true;
-
-	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
-	    !smu_cmn_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
-		return false;
-
-	return true;
-}
-
-enum smu_baco_state smu_v13_0_baco_get_state(struct smu_context *smu)
+static enum smu_baco_state smu_v13_0_baco_get_state(struct smu_context *smu)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
 
 	return smu_baco->state;
 }
 
-int smu_v13_0_baco_set_state(struct smu_context *smu,
+static int smu_v13_0_baco_set_state(struct smu_context *smu,
 			     enum smu_baco_state state)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
@@ -2279,6 +2260,24 @@ int smu_v13_0_baco_set_state(struct smu_context *smu,
 		smu_baco->state = state;
 
 	return ret;
+}
+
+bool smu_v13_0_baco_is_support(struct smu_context *smu)
+{
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
+
+	if (amdgpu_sriov_vf(smu->adev) || !smu_baco->platform_support)
+		return false;
+
+	/* return true if ASIC is in BACO state already */
+	if (smu_v13_0_baco_get_state(smu) == SMU_BACO_STATE_ENTER)
+		return true;
+
+	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
+	    !smu_cmn_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
+		return false;
+
+	return true;
 }
 
 int smu_v13_0_baco_enter(struct smu_context *smu)
