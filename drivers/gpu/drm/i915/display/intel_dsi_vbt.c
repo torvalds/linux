@@ -420,14 +420,12 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 
 	if (native)
 		icl_native_gpio_set_value(i915, gpio_number, value);
-	else if (DISPLAY_VER(i915) >= 11)
+	else if (DISPLAY_VER(i915) >= 9)
 		bxt_gpio_set_value(connector, gpio_index, value);
 	else if (IS_VALLEYVIEW(i915))
 		vlv_gpio_set_value(connector, gpio_source, gpio_number, value);
 	else if (IS_CHERRYVIEW(i915))
 		chv_gpio_set_value(connector, gpio_source, gpio_number, value);
-	else
-		bxt_gpio_set_value(connector, gpio_index, value);
 
 	return data + size;
 }
