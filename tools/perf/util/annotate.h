@@ -280,10 +280,10 @@ struct annotated_branch {
 	unsigned int		total_insn;
 	unsigned int		cover_insn;
 	struct cyc_hist		*cycles_hist;
+	u64			max_coverage;
 };
 
 struct LOCKABLE annotation {
-	u64			max_coverage;
 	u64			start;
 	struct annotation_options *options;
 	struct annotation_line	**offsets;
@@ -354,6 +354,8 @@ static inline struct annotation *symbol__annotation(struct symbol *sym)
 
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, struct perf_sample *sample,
 				 struct evsel *evsel);
+
+struct annotated_branch *annotation__get_branch(struct annotation *notes);
 
 int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 				    struct addr_map_symbol *start,
