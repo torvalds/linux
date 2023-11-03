@@ -74,11 +74,7 @@ static inline u64 pmc_read_counter(struct kvm_pmc *pmc)
 	return counter & pmc_bitmask(pmc);
 }
 
-static inline void pmc_write_counter(struct kvm_pmc *pmc, u64 val)
-{
-	pmc->counter += val - pmc_read_counter(pmc);
-	pmc->counter &= pmc_bitmask(pmc);
-}
+void pmc_write_counter(struct kvm_pmc *pmc, u64 val);
 
 static inline bool pmc_is_gp(struct kvm_pmc *pmc)
 {
@@ -126,25 +122,6 @@ static inline struct kvm_pmc *get_fixed_pmc(struct kvm_pmu *pmu, u32 msr)
 	}
 
 	return NULL;
-}
-
-static inline u64 get_sample_period(struct kvm_pmc *pmc, u64 counter_value)
-{
-	u64 sample_period = (-counter_value) & pmc_bitmask(pmc);
-
-	if (!sample_period)
-		sample_period = pmc_bitmask(pmc) + 1;
-	return sample_period;
-}
-
-static inline void pmc_update_sample_period(struct kvm_pmc *pmc)
-{
-	if (!pmc->perf_event || pmc->is_paused ||
-	    !is_sampling_event(pmc->perf_event))
-		return;
-
-	perf_event_period(pmc->perf_event,
-			  get_sample_period(pmc, pmc->counter));
 }
 
 static inline bool pmc_speculative_in_use(struct kvm_pmc *pmc)

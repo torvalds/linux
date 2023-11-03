@@ -161,6 +161,15 @@ static u64 pmc_get_pebs_precise_level(struct kvm_pmc *pmc)
 	return 1;
 }
 
+static u64 get_sample_period(struct kvm_pmc *pmc, u64 counter_value)
+{
+	u64 sample_period = (-counter_value) & pmc_bitmask(pmc);
+
+	if (!sample_period)
+		sample_period = pmc_bitmask(pmc) + 1;
+	return sample_period;
+}
+
 static int pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type, u64 config,
 				 bool exclude_user, bool exclude_kernel,
 				 bool intr)
@@ -267,6 +276,24 @@ static void pmc_stop_counter(struct kvm_pmc *pmc)
 		pmc_release_perf_event(pmc);
 	}
 }
+
+static void pmc_update_sample_period(struct kvm_pmc *pmc)
+{
+	if (!pmc->perf_event || pmc->is_paused ||
+	    !is_sampling_event(pmc->perf_event))
+		return;
+
+	perf_event_period(pmc->perf_event,
+			  get_sample_period(pmc, pmc->counter));
+}
+
+void pmc_write_counter(struct kvm_pmc *pmc, u64 val)
+{
+	pmc->counter += val - pmc_read_counter(pmc);
+	pmc->counter &= pmc_bitmask(pmc);
+	pmc_update_sample_period(pmc);
+}
+EXPORT_SYMBOL_GPL(pmc_write_counter);
 
 static int filter_cmp(const void *pa, const void *pb, u64 mask)
 {
