@@ -199,20 +199,15 @@ void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
 	mm = tlb->mm;
 	if (mm_alloc_pgste(mm))
 		gmap_unlink(mm, table, vmaddr);
-	table = (unsigned long *)((unsigned long)table | 0x01U);
 	tlb_remove_ptdesc(tlb, table);
 }
 
-void __tlb_remove_table(void *_table)
+void __tlb_remove_table(void *table)
 {
-	struct ptdesc *ptdesc;
-	unsigned int mask;
-	void *table;
+	struct ptdesc *ptdesc = virt_to_ptdesc(table);
+	struct page *page = ptdesc_page(ptdesc);
 
-	mask = (unsigned long)_table & 0x01U;
-	table = (void *)((unsigned long)_table ^ mask);
-	ptdesc = virt_to_ptdesc(table);
-	if (!mask) {
+	if (compound_order(page) == CRST_ALLOC_ORDER) {
 		/* pmd, pud, or p4d */
 		pagetable_free(ptdesc);
 		return;
