@@ -799,7 +799,7 @@ int aspeed_rsss_sha3_init(struct aspeed_rsss_dev *rsss_dev)
 		goto err_engine_sha3_start;
 	}
 
-	sha3_engine->buffer_addr = dmam_alloc_coherent(rsss_dev->dev, SHA3_512_BLOCK_SIZE,
+	sha3_engine->buffer_addr = dmam_alloc_coherent(rsss_dev->dev, SHA3_224_BLOCK_SIZE,
 						       &sha3_engine->buffer_dma_addr,
 						       GFP_KERNEL);
 	if (!sha3_engine->buffer_addr) {
