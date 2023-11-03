@@ -1572,7 +1572,7 @@ int i3c_master_do_daa(struct i3c_master_controller *master)
 	ret = master->ops->do_daa(master);
 	i3c_bus_maintenance_unlock(&master->bus);
 
-	if (ret)
+	if (ret && ret != I3C_ERROR_M2)
 		return ret;
 
 	i3c_bus_normaluse_lock(&master->bus);
