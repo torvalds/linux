@@ -647,20 +647,6 @@ again:
 	return parent;
 }
 
-static inline struct dentry *lock_parent(struct dentry *dentry)
-{
-	struct dentry *parent = dentry->d_parent;
-	if (IS_ROOT(dentry))
-		return NULL;
-	if (likely(spin_trylock(&parent->d_lock)))
-		return parent;
-	rcu_read_lock();
-	spin_unlock(&dentry->d_lock);
-	parent = __lock_parent(dentry);
-	rcu_read_unlock();
-	return parent;
-}
-
 /*
  * Lock a dentry for feeding it to __dentry_kill().
  * Called under rcu_read_lock() and dentry->d_lock; the former
@@ -1090,24 +1076,18 @@ struct dentry *d_find_alias_rcu(struct inode *inode)
  */
 void d_prune_aliases(struct inode *inode)
 {
+	LIST_HEAD(dispose);
 	struct dentry *dentry;
-restart:
+
 	spin_lock(&inode->i_lock);
 	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
 		spin_lock(&dentry->d_lock);
-		if (!dentry->d_lockref.count) {
-			struct dentry *parent = lock_parent(dentry);
-			if (likely(!dentry->d_lockref.count)) {
-				__dentry_kill(dentry);
-				dput(parent);
-				goto restart;
-			}
-			if (parent)
-				spin_unlock(&parent->d_lock);
-		}
+		if (!dentry->d_lockref.count)
+			to_shrink_list(dentry, &dispose);
 		spin_unlock(&dentry->d_lock);
 	}
 	spin_unlock(&inode->i_lock);
+	shrink_dentry_list(&dispose);
 }
 EXPORT_SYMBOL(d_prune_aliases);
 
