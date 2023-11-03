@@ -9,6 +9,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/i3c/master.h>
+#include <linux/i3c/device.h>
 
 #include "hci.h"
 #include "cmd.h"
@@ -455,7 +456,11 @@ static int hci_cmd_v1_daa(struct i3c_hci *hci)
 			break;
 		}
 		if (RESP_STATUS(xfer[0].response) != RESP_SUCCESS) {
-			ret = -EIO;
+			if (RESP_STATUS(xfer[0].response) ==
+			    RESP_ERR_ADDR_HEADER)
+				ret = I3C_ERROR_M2;
+			else
+				ret = -EIO;
 			break;
 		}
 

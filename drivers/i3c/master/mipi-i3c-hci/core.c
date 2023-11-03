@@ -459,7 +459,12 @@ static int i3c_hci_send_ccc_cmd(struct i3c_master_controller *m,
 			ccc->dests[i - prefixed].payload.len =
 				RESP_DATA_LENGTH(xfer[i].response);
 		if (RESP_STATUS(xfer[i].response) != RESP_SUCCESS) {
-			ret = -EIO;
+			DBG("resp status = %lx", RESP_STATUS(xfer[i].response));
+			if (RESP_STATUS(xfer[i].response) ==
+			    RESP_ERR_ADDR_HEADER)
+				ret = I3C_ERROR_M2;
+			else
+				ret = -EIO;
 			goto out;
 		}
 	}
