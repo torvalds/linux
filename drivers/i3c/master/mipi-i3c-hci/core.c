@@ -13,6 +13,8 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/i3c/master.h>
+#include <linux/i3c/target.h>
+#include <linux/i3c/device.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -162,6 +164,59 @@
 #define ASPEED_I3C_AUTOCMD_SEL_104_111	0x74
 #define ASPEED_I3C_AUTOCMD_SEL_112_119	0x78
 #define ASPEED_I3C_AUTOCMD_SEL_120_127	0x7C
+
+#define ASPEED_I3C_SLV_CHAR_CTRL	0xA0
+#define ASPEED_I3C_SLV_CHAR_CTRL_DCR	GENMASK(23, 16)
+#define ASPEED_I3C_SLV_CHAR_CTRL_BCR	GENMASK(15, 8)
+#define     SLV_BCR_DEVICE_ROLE		GENMASK(7, 6)
+#define ASPEED_I3C_SLV_CHAR_CTRL_STATIC_ADDR_EN	BIT(7)
+#define ASPEED_I3C_SLV_CHAR_CTRL_STATIC_ADDR	GENMASK(6, 0)
+#define SLV_PID_HI(x)			(((x) >> 32) & GENMASK(15, 0))
+#define SLV_PID_LO(x)			((x) & GENMASK(31, 0))
+#define ASPEED_I3C_SLV_PID_LO	0xA4
+#define ASPEED_I3C_SLV_PID_HI	0xA8
+#define ASPEED_I3C_SLV_FSM	0xAC
+#define ASPEED_I3C_SLV_CAP_CTRL	0xB0
+#define ASPEED_I3C_SLV_CAP_CTRL_PEC_EN		BIT(31)
+#define ASPEED_I3C_SLV_CAP_CTRL_HAIT_IF_IBI_ERR	BIT(30)
+#define ASPEED_I3C_SLV_CAP_CTRL_ACCEPT_CR	BIT(16)
+#define ASPEED_I3C_SLV_CAP_CTRL_HJ_REQ		BIT(10)
+#define ASPEED_I3C_SLV_CAP_CTRL_MR_REQ		BIT(9)
+#define ASPEED_I3C_SLV_CAP_CTRL_IBI_REQ		BIT(8)
+#define ASPEED_I3C_SLV_CAP_CTRL_HJ_WAIT		BIT(6)
+#define ASPEED_I3C_SLV_CAP_CTRL_MR_WAIT		BIT(5)
+#define ASPEED_I3C_SLV_CAP_CTRL_IBI_WAIT	BIT(4)
+#define ASPEED_I3C_SLV_CAP_CTRL_NOTSUP_DEF_BYTE	BIT(1)
+#define ASPEED_I3C_SLV_CAP_CTRL_I2C_DEV		BIT(0)
+/* CCC related registers */
+#define ASPEED_I3C_SLV_STS1			0xB4
+#define ASPEED_I3C_SLV_STS1_IBI_PAYLOAD_SIZE	GENMASK(31, 24)
+#define ASPEED_I3C_SLV_STS1_RSTACT		GENMASK(22, 16)
+/* the parameters for the HDR-DDR Data Transfer Early Termination procedure*/
+#define ASPEED_I3C_SLV_STS1_ETP_ACK_CAP		BIT(15)
+#define ASPEED_I3C_SLV_STS1_ETP_W_REQ		BIT(14)
+#define ASPEED_I3C_SLV_STS1_ETP_CRC		GENMASK(13, 12)
+#define ASPEED_I3C_SLV_STS1_ENDXFER_CONFIRM	BIT(11)
+#define ASPEED_I3C_SLV_STS1_ENTER_TEST_MDOE	BIT(8)
+#define ASPEED_I3C_SLV_STS1_HJ_EN		BIT(6)
+#define ASPEED_I3C_SLV_STS1_CR_EN		BIT(5)
+#define ASPEED_I3C_SLV_STS1_IBI_EN		BIT(4)
+#define ASPEED_I3C_SLV_STS1_HJ_DONE		BIT(2)
+#define ASPEED_I3C_SLV_STS1_CR_DONE		BIT(1)
+#define ASPEED_I3C_SLV_STS1_IBI_DONE		BIT(0)
+#define ASPEED_I3C_SLV_STS2			0xB8
+#define ASPEED_I3C_SLV_STS2_MWL			GENMASK(31, 16)
+#define ASPEED_I3C_SLV_STS2_MRL			GENMASK(15, 0)
+#define ASPEED_I3C_SLV_STS3_GROUP_ADDR		0xBC
+#define ASPEED_I3C_SLV_STS3_GROUP3_VALID	BIT(31)
+#define ASPEED_I3C_SLV_STS3_GROUP3_ADDR		GENMASK(30, 24)
+#define ASPEED_I3C_SLV_STS3_GROUP2_VALID	BIT(23)
+#define ASPEED_I3C_SLV_STS3_GROUP2_ADDR		GENMASK(22, 16)
+#define ASPEED_I3C_SLV_STS3_GROUP1_VALID	BIT(15)
+#define ASPEED_I3C_SLV_STS3_GROUP1_ADDR		GENMASK(14, 8)
+#define ASPEED_I3C_SLV_STS3_GROUP0_VALID	BIT(7)
+#define ASPEED_I3C_SLV_STS3_GROUP0_ADDR		GENMASK(6, 0)
+#define ASPEED_I3C_SLV_STS4_RSTACT_TIME		0xC0
 
 #define ASPEED_I3C_INTR_STATUS		0xE0
 #define ASPEED_I3C_INTR_STATUS_ENABLE	0xE4
@@ -360,6 +415,14 @@ static int i3c_hci_bus_init(struct i3c_master_controller *m)
 	int ret;
 
 	DBG("");
+	dev_info(&hci->master.dev, "Master Mode");
+
+#ifdef CONFIG_ARCH_ASPEED
+	ast_inhouse_write(ASPEED_I3C_CTRL,
+			  ASPEED_I3C_CTRL_INIT |
+				  FIELD_PREP(ASPEED_I3C_CTRL_INIT_MODE,
+					     INIT_MST_MODE));
+#endif
 
 	if (hci->cmd == &mipi_i3c_hci_cmd_v1) {
 		ret = mipi_i3c_hci_dat_v1.init(hci);
@@ -783,6 +846,167 @@ static const struct i3c_master_controller_ops i3c_hci_ops = {
 	.recycle_ibi_slot	= i3c_hci_recycle_ibi_slot,
 };
 
+static int ast2700_i3c_target_bus_init(struct i3c_master_controller *m)
+{
+	struct i3c_hci *hci = to_i3c_hci(m);
+	struct i3c_dev_desc *desc = hci->master.this;
+	u32 reg;
+	int ret;
+
+	dev_info(&hci->master.dev, "Secondary master Mode");
+
+	ast_inhouse_write(ASPEED_I3C_SLV_PID_LO, SLV_PID_LO(desc->info.pid));
+	ast_inhouse_write(ASPEED_I3C_SLV_PID_HI, SLV_PID_HI(desc->info.pid));
+
+	desc->info.bcr = I3C_BCR_DEVICE_ROLE(I3C_BCR_I3C_MASTER) |
+			 I3C_BCR_HDR_CAP | I3C_BCR_IBI_PAYLOAD |
+			 I3C_BCR_IBI_REQ_CAP;
+	reg = FIELD_PREP(ASPEED_I3C_SLV_CHAR_CTRL_DCR, desc->info.dcr) |
+	      FIELD_PREP(ASPEED_I3C_SLV_CHAR_CTRL_BCR, desc->info.bcr);
+	if (desc->info.static_addr) {
+		reg |= ASPEED_I3C_SLV_CHAR_CTRL_STATIC_ADDR_EN |
+		       FIELD_PREP(ASPEED_I3C_SLV_CHAR_CTRL_STATIC_ADDR,
+				  desc->info.static_addr);
+	}
+	ast_inhouse_write(ASPEED_I3C_SLV_CHAR_CTRL, reg);
+	reg = ast_inhouse_read(ASPEED_I3C_SLV_CAP_CTRL);
+	/* Make slave will sned the ibi when bus idle */
+	ast_inhouse_write(ASPEED_I3C_SLV_CAP_CTRL,
+			  reg | ASPEED_I3C_SLV_CAP_CTRL_IBI_WAIT);
+
+	ast_inhouse_write(ASPEED_I3C_CTRL,
+			  ASPEED_I3C_CTRL_INIT |
+				  FIELD_PREP(ASPEED_I3C_CTRL_INIT_MODE,
+					     INIT_SEC_MST_MODE));
+
+	ret = hci->io->init(hci);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void ast2700_i3c_target_bus_cleanup(struct i3c_master_controller *m)
+{
+	struct i3c_hci *hci = to_i3c_hci(m);
+
+	DBG("");
+
+	reg_clear(HC_CONTROL, HC_CONTROL_BUS_ENABLE);
+	hci->io->cleanup(hci);
+	kfree(hci->target_rx.buf);
+}
+
+static int ast2700_i3c_target_priv_xfers(struct i3c_dev_desc *dev,
+					 struct i3c_priv_xfer *i3c_xfers,
+					 int nxfers)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct i3c_hci *hci = to_i3c_hci(m);
+	struct hci_xfer *xfer;
+	unsigned int size_limit;
+	int i, ret = 0;
+
+	DBG("nxfers = %d", nxfers);
+
+	xfer = hci_alloc_xfer(nxfers);
+	if (!xfer)
+		return -ENOMEM;
+
+	size_limit = 1U << (16 + FIELD_GET(HC_CAP_MAX_DATA_LENGTH, hci->caps));
+
+	for (i = 0; i < nxfers; i++) {
+		if (!i3c_xfers[i].rnw) {
+			xfer[i].data_len = i3c_xfers[i].len;
+			xfer[i].rnw = i3c_xfers[i].rnw;
+			xfer[i].data = (void *)i3c_xfers[i].data.out;
+			hci->cmd->prep_i3c_xfer(hci, dev, &xfer[i]);
+		} else {
+			dev_err(&hci->master.dev,
+				"target mode can't do priv_read command\n");
+		}
+	}
+	ret = hci->io->queue_xfer(hci, xfer, nxfers);
+	if (ret)
+		goto out;
+
+out:
+	hci_free_xfer(xfer, nxfers);
+
+	return ret;
+}
+
+static int ast2700_i3c_target_generate_ibi(struct i3c_dev_desc *dev, const u8 *data, int len)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct i3c_hci *hci = to_i3c_hci(m);
+	u32 reg;
+
+	if (data || len != 0)
+		return -EOPNOTSUPP;
+
+	DBG("");
+
+	reg = ast_inhouse_read(ASPEED_I3C_SLV_STS1);
+	if ((reg & ASPEED_I3C_SLV_STS1_IBI_EN) == 0)
+		return -EPERM;
+
+	init_completion(&hci->ibi_comp);
+	reg = ast_inhouse_read(ASPEED_I3C_SLV_CAP_CTRL);
+	ast_inhouse_write(ASPEED_I3C_SLV_CAP_CTRL,
+			  reg | ASPEED_I3C_SLV_CAP_CTRL_IBI_REQ);
+
+	if (!wait_for_completion_timeout(&hci->ibi_comp,
+					 msecs_to_jiffies(1000))) {
+		pr_warn("timeout waiting for completion\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+ast2700_i3c_target_pending_read_notify(struct i3c_dev_desc *dev,
+				       struct i3c_priv_xfer *pending_read,
+				       struct i3c_priv_xfer *ibi_notify)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct i3c_hci *hci = to_i3c_hci(m);
+	u32 reg;
+
+	if (!pending_read || !ibi_notify)
+		return -EINVAL;
+
+	reg = ast_inhouse_read(ASPEED_I3C_SLV_STS1);
+	if ((reg & ASPEED_I3C_SLV_STS1_IBI_EN) == 0)
+		return -EPERM;
+
+	ast2700_i3c_target_priv_xfers(dev, ibi_notify, 1);
+	ast2700_i3c_target_priv_xfers(dev, pending_read, 1);
+	ast2700_i3c_target_generate_ibi(dev, NULL, 0);
+
+	return 0;
+}
+
+static bool ast2700_i3c_target_is_ibi_enabled(struct i3c_dev_desc *dev)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct i3c_hci *hci = to_i3c_hci(m);
+	u32 reg;
+
+	reg = ast_inhouse_read(ASPEED_I3C_SLV_STS1);
+	return !!(reg & ASPEED_I3C_SLV_STS1_IBI_EN);
+}
+
+static const struct i3c_target_ops ast2700_i3c_target_ops = {
+	.bus_init = ast2700_i3c_target_bus_init,
+	.bus_cleanup = ast2700_i3c_target_bus_cleanup,
+	.priv_xfers = ast2700_i3c_target_priv_xfers,
+	.generate_ibi = ast2700_i3c_target_generate_ibi,
+	.pending_read_notify = ast2700_i3c_target_pending_read_notify,
+	.is_ibi_enabled = ast2700_i3c_target_is_ibi_enabled,
+};
+
 static irqreturn_t i3c_hci_irq_handler(int irq, void *dev_id)
 {
 	struct i3c_hci *hci = dev_id;
@@ -920,10 +1144,6 @@ static int i3c_hci_init(struct i3c_hci *hci)
 #ifdef CONFIG_ARCH_ASPEED
 	hci->PHY_regs = hci->base_regs + ASPEED_PHY_REGS_OFFSET;
 	dev_info(&hci->master.dev, "PHY control at offset %#x\n", ASPEED_PHY_REGS_OFFSET);
-	ast_inhouse_write(ASPEED_I3C_CTRL,
-			  ASPEED_I3C_CTRL_INIT |
-				  FIELD_PREP(ASPEED_I3C_CTRL_INIT_MODE, INIT_MST_MODE));
-
 #else
 	ret = i3c_hci_parse_ext_caps(hci);
 	if (ret)
@@ -1182,8 +1402,8 @@ static int i3c_hci_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = i3c_master_register(&hci->master, &pdev->dev,
-				  &i3c_hci_ops, false);
+	ret = i3c_register(&hci->master, &pdev->dev, &i3c_hci_ops,
+			   &ast2700_i3c_target_ops, false);
 	if (ret)
 		return ret;
 

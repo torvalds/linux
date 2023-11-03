@@ -27,6 +27,18 @@
 
 #define RESP_ERR_FIELD			GENMASK(31, 28)
 
+/*
+ * Target mode Response Descriptor Structure
+ */
+#define TARGET_RESP_STATUS(resp)	FIELD_GET(GENMASK(31, 28), resp)
+#define TARGET_RESP_XFER_TYPE(resp)	FIELD_GET(BIT(27), resp)
+#define TARGET_RESP_XFER_TYPE_W		0
+#define TARGET_RESP_XFER_TYPE_R		1
+#define TARGET_RESP_TID(resp)		FIELD_GET(GENMASK(26, 24), resp)
+#define TARGET_RESP_CCC_HDR(resp)	FIELD_GET(GENMASK(23, 16), resp)
+#define TARGET_RESP_SDR_PRIV_XFER	0
+#define TARGET_RESP_DATA_LENGTH(resp)	FIELD_GET(GENMASK(15,  0), resp)
+
 enum hci_resp_err {
 	RESP_SUCCESS			= 0x0,
 	RESP_ERR_CRC			= 0x1,

@@ -63,6 +63,13 @@ struct i3c_hci {
 	u32 vendor_version_id;
 	u32 vendor_product_id;
 	void *vendor_data;
+	struct completion ibi_comp;
+
+	/* Used for handling private write */
+	struct {
+		void *buf;
+		u16 max_len;
+	} target_rx;
 };
 
 

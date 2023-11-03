@@ -157,6 +157,21 @@ static int hci_pio_init(struct i3c_hci *hci)
 		 4 * (2 << FIELD_GET(RX_DATA_BUFFER_SIZE, size_val)));
 	dev_info(&hci->master.dev, "TX data FIFO = %d bytes\n",
 		 4 * (2 << FIELD_GET(TX_DATA_BUFFER_SIZE, size_val)));
+	if (hci->master.target) {
+		void *rx_buf;
+		/*
+		 * Set max private write length value based on read-only register.
+		 * TODO: Handle updates after receiving SETMWL CCC.
+		 */
+		hci->target_rx.max_len =
+			4 * (2 << FIELD_GET(TX_DATA_BUFFER_SIZE, size_val));
+
+		rx_buf = kzalloc(hci->target_rx.max_len, GFP_KERNEL);
+		if (!rx_buf)
+			return -ENOMEM;
+
+		hci->target_rx.buf = rx_buf;
+	}
 
 	/*
 	 * Let's initialize data thresholds to half of the actual FIFO size.
@@ -189,10 +204,15 @@ static int hci_pio_init(struct i3c_hci *hci)
 	 */
 	ibi_val = FIELD_GET(IBI_STATUS_SIZE, size_val);
 	pio->max_ibi_thresh = clamp_val(ibi_val/2, 1, 63);
+	/*
+	 * FIXME: The logical of EMPTY_BUF_THLD has someting wrong.
+	 * In target mode, it should set to 0 to ensure the STAT_CMD_QUEUE_READY
+	 * will keep 1.
+	 */
 	val = FIELD_PREP(QUEUE_IBI_STATUS_THLD, 1) |
 	      FIELD_PREP(QUEUE_IBI_DATA_THLD, pio->max_ibi_thresh) |
 	      FIELD_PREP(QUEUE_RESP_BUF_THLD, 1) |
-	      FIELD_PREP(QUEUE_CMD_EMPTY_BUF_THLD, 1);
+	      FIELD_PREP(QUEUE_CMD_EMPTY_BUF_THLD, hci->master.target ? 0 : 1);
 	pio_reg_write(QUEUE_THLD_CTRL, val);
 	pio->reg_queue_thresh = val;
 
@@ -202,6 +222,14 @@ static int hci_pio_init(struct i3c_hci *hci)
 
 	/* Always accept error interrupts (will be activated on first xfer) */
 	pio->enabled_irqs = STAT_ALL_ERRORS;
+	if (hci->master.target) {
+		/*
+		 * Enable response queue ready to handle the ccc update interrupt
+		 * to avoid response queue full.
+		 */
+		pio_reg_write(INTR_SIGNAL_ENABLE, STAT_RESP_READY);
+		pio->enabled_irqs |= STAT_RESP_READY;
+	}
 
 	return 0;
 }
@@ -227,9 +255,11 @@ static void hci_pio_cleanup(struct i3c_hci *hci)
 static void hci_pio_write_cmd(struct i3c_hci *hci, struct hci_xfer *xfer)
 {
 	DBG("cmd_desc[%d] = 0x%08x", 0, xfer->cmd_desc[0]);
-	DBG("cmd_desc[%d] = 0x%08x", 1, xfer->cmd_desc[1]);
 	pio_reg_write(COMMAND_QUEUE_PORT, xfer->cmd_desc[0]);
-	pio_reg_write(COMMAND_QUEUE_PORT, xfer->cmd_desc[1]);
+	if (!hci->master.target) {
+		DBG("cmd_desc[%d] = 0x%08x", 1, xfer->cmd_desc[1]);
+		pio_reg_write(COMMAND_QUEUE_PORT, xfer->cmd_desc[1]);
+	}
 	if (hci->cmd == &mipi_i3c_hci_cmd_v2) {
 		DBG("cmd_desc[%d] = 0x%08x", 2, xfer->cmd_desc[2]);
 		DBG("cmd_desc[%d] = 0x%08x", 3, xfer->cmd_desc[3]);
@@ -261,6 +291,29 @@ static bool hci_pio_do_rx(struct i3c_hci *hci, struct hci_pio_data *pio)
 
 	/* trailing data is retrieved upon response reception */
 	return !xfer->data_left;
+}
+
+static void ast2700_target_read_rx_fifo(struct i3c_hci *hci, unsigned int count)
+{
+	u32 *p = hci->target_rx.buf;
+
+	if (count >= 4) {
+		unsigned int nr_words = count / 4;
+
+		while (nr_words--)
+			*p++ = pio_reg_read(XFER_DATA_PORT);
+	}
+	count &= 3;
+	if (count) {
+		u8 *p_byte = (u8 *)p;
+		u32 data = pio_reg_read(XFER_DATA_PORT);
+
+		data = (__force u32)cpu_to_le32(data);
+		while (count--) {
+			*p_byte++ = data;
+			data >>= 8;
+		}
+	}
 }
 
 static void hci_pio_do_trailing_rx(struct i3c_hci *hci,
@@ -475,8 +528,36 @@ static void hci_pio_err(struct i3c_hci *hci, struct hci_pio_data *pio,
 
 static bool hci_pio_process_resp(struct i3c_hci *hci, struct hci_pio_data *pio)
 {
+	if (hci->master.target) {
+		struct i3c_dev_desc *desc = hci->master.this;
+		u32 resp = pio_reg_read(RESPONSE_QUEUE_PORT);
+		size_t nbytes = TARGET_RESP_DATA_LENGTH(resp);
+
+		DBG("resp status:%lx, xfer type:%lx, tid:%lx, CCC_HDR: %lx, data legth: %lx",
+		    TARGET_RESP_STATUS(resp), TARGET_RESP_XFER_TYPE(resp),
+		    TARGET_RESP_TID(resp), TARGET_RESP_CCC_HDR(resp),
+		    TARGET_RESP_DATA_LENGTH(resp));
+
+		if (TARGET_RESP_XFER_TYPE(resp)) {
+			ast2700_target_read_rx_fifo(hci, nbytes);
+			DBG("got: %*ph", (u32)nbytes, hci->target_rx.buf);
+			if (!TARGET_RESP_CCC_HDR(resp)) {
+				/* Bypass the priv_xfer data to target layer */
+				if (desc->target_info.read_handler)
+					desc->target_info.read_handler(desc->dev,
+								       hci->target_rx.buf,
+								       nbytes);
+			}
+		} else {
+			/* ibi or master read */
+			if (!TARGET_RESP_CCC_HDR(resp) && TARGET_RESP_TID(resp))
+				complete(&hci->ibi_comp);
+		}
+		/* Keep the response interrupt enable*/
+		return false;
+	}
 	while (pio->curr_resp &&
-	       (pio_reg_read(INTR_STATUS) & STAT_RESP_READY)) {
+		(pio_reg_read(INTR_STATUS) & STAT_RESP_READY)) {
 		struct hci_xfer *xfer = pio->curr_resp;
 		u32 resp = pio_reg_read(RESPONSE_QUEUE_PORT);
 		unsigned int tid = RESP_TID(resp);
@@ -503,8 +584,7 @@ static bool hci_pio_process_resp(struct i3c_hci *hci, struct hci_pio_data *pio)
 			received = xfer->data_len - xfer->data_left;
 			expected = RESP_DATA_LENGTH(xfer->response);
 			if (expected > received) {
-				hci_pio_do_trailing_rx(hci, pio,
-						       expected - received);
+				hci_pio_do_trailing_rx(hci, pio, expected - received);
 			} else if (received > expected) {
 				/* we consumed data meant for next xfer */
 				to_keep = DIV_ROUND_UP(expected, 4);
@@ -1004,7 +1084,7 @@ static bool hci_pio_irq_handler(struct i3c_hci *hci, unsigned int unused)
 		if (hci_pio_process_tx(hci, pio))
 			pio->enabled_irqs &= ~STAT_TX_THLD;
 	if (status & STAT_RESP_READY)
-		if (hci_pio_process_resp(hci, pio))
+		if (hci_pio_process_resp(hci, pio) && !hci->master.target)
 			pio->enabled_irqs &= ~STAT_RESP_READY;
 
 	if (unlikely(status & STAT_LATENCY_WARNINGS)) {

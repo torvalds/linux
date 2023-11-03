@@ -114,6 +114,17 @@
 #define CMD_M0_VENDOR_INFO_PRESENT		   W0_BIT_( 7)
 #define CMD_M0_TID(v)			FIELD_PREP(W0_MASK( 6,  3), v)
 
+/*
+ * Target Transfer Command
+ */
+
+#define CMD_0_ATTR_T			FIELD_PREP(CMD_0_ATTR, 0x0)
+
+#define CMD_T0_DATA_LENGTH(v)		FIELD_PREP(W0_MASK(31, 16), v)
+#define CMD_T0_MDB(v)			FIELD_PREP(W0_MASK(15, 8), v)
+#define CMD_T0_MDB_EN			W0_BIT_(6)
+#define CMD_T0_TID(v)			FIELD_PREP(W0_MASK(5, 3), v)
+
 /* Aspeed in-house register */
 #define ASPEED_I3C_CTRL			0x0
 #define ASPEED_I3C_CTRL_STOP_QUEUE_PT	BIT(31) //Stop the queue read pointer.
@@ -318,34 +329,49 @@ static void hci_cmd_v1_prep_i3c_xfer(struct i3c_hci *hci,
 				     struct i3c_dev_desc *dev,
 				     struct hci_xfer *xfer)
 {
-	struct i3c_hci_dev_data *dev_data = i3c_dev_get_master_data(dev);
-	unsigned int dat_idx = dev_data->dat_idx;
-	enum hci_cmd_mode mode = get_i3c_mode(hci);
 	u8 *data = xfer->data;
 	unsigned int data_len = xfer->data_len;
-	bool rnw = xfer->rnw;
 
 	xfer->cmd_tid = hci_get_tid();
 
-	if (!rnw && data_len <= 4) {
-		/* we use an Immediate Data Transfer Command */
+	if (hci->master.target) {
+		/*
+		 * Target mode needs to prepare two cmd_desc for each xfer:
+		 * 1st for IBI (tid = 1)
+		 * 2nd for pending read data (tid = 0)
+		 * tid will be used to indentify ibi or master read, so this
+		 * usage rule can't be violated.
+		 */
 		xfer->cmd_desc[0] =
-			CMD_0_ATTR_I |
-			CMD_I0_TID(xfer->cmd_tid) |
-			CMD_I0_DEV_INDEX(dat_idx) |
-			CMD_I0_DTT(data_len) |
-			CMD_I0_MODE(mode);
-		fill_data_bytes(xfer, data, data_len);
+			CMD_0_ATTR_T |
+			CMD_T0_TID(xfer->cmd_tid % 2) |
+			CMD_T0_DATA_LENGTH(data_len);
 	} else {
-		/* we use a Regular Data Transfer Command */
-		xfer->cmd_desc[0] =
-			CMD_0_ATTR_R |
-			CMD_R0_TID(xfer->cmd_tid) |
-			CMD_R0_DEV_INDEX(dat_idx) |
-			CMD_R0_MODE(mode) |
-			(rnw ? CMD_R0_RNW : 0);
-		xfer->cmd_desc[1] =
-			CMD_R1_DATA_LENGTH(data_len);
+		struct i3c_hci_dev_data *dev_data = i3c_dev_get_master_data(dev);
+		unsigned int dat_idx = dev_data->dat_idx;
+		enum hci_cmd_mode mode = get_i3c_mode(hci);
+		bool rnw = xfer->rnw;
+
+		if (!rnw && data_len <= 4) {
+			/* we use an Immediate Data Transfer Command */
+			xfer->cmd_desc[0] =
+				CMD_0_ATTR_I |
+				CMD_I0_TID(xfer->cmd_tid) |
+				CMD_I0_DEV_INDEX(dat_idx) |
+				CMD_I0_DTT(data_len) |
+				CMD_I0_MODE(mode);
+			fill_data_bytes(xfer, data, data_len);
+		} else {
+			/* we use a Regular Data Transfer Command */
+			xfer->cmd_desc[0] =
+				CMD_0_ATTR_R |
+				CMD_R0_TID(xfer->cmd_tid) |
+				CMD_R0_DEV_INDEX(dat_idx) |
+				CMD_R0_MODE(mode) |
+				(rnw ? CMD_R0_RNW : 0);
+			xfer->cmd_desc[1] =
+				CMD_R1_DATA_LENGTH(data_len);
+		}
 	}
 }
 
