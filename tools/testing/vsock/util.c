@@ -104,6 +104,10 @@ static int vsock_connect(unsigned int cid, unsigned int port, int type)
 	control_expectln("LISTENING");
 
 	fd = socket(AF_VSOCK, type, 0);
+	if (fd < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
 
 	timeout_begin(TIMEOUT);
 	do {
@@ -158,6 +162,10 @@ static int vsock_accept(unsigned int cid, unsigned int port,
 	int old_errno;
 
 	fd = socket(AF_VSOCK, type, 0);
+	if (fd < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
 
 	if (bind(fd, &addr.sa, sizeof(addr.svm)) < 0) {
 		perror("bind");
