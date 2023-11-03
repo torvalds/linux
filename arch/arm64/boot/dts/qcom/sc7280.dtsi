@@ -202,6 +202,8 @@
 			power-domain-names = "psci";
 			next-level-cache = <&L2_0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			interconnects = <&gem_noc MASTER_APPSS_PROC 3 &mc_virt SLAVE_EBI1 3>,
 					<&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
@@ -229,6 +231,8 @@
 			power-domain-names = "psci";
 			next-level-cache = <&L2_100>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			interconnects = <&gem_noc MASTER_APPSS_PROC 3 &mc_virt SLAVE_EBI1 3>,
 					<&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
@@ -251,6 +255,8 @@
 			power-domain-names = "psci";
 			next-level-cache = <&L2_200>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			interconnects = <&gem_noc MASTER_APPSS_PROC 3 &mc_virt SLAVE_EBI1 3>,
 					<&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
@@ -273,6 +279,8 @@
 			power-domain-names = "psci";
 			next-level-cache = <&L2_300>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			interconnects = <&gem_noc MASTER_APPSS_PROC 3 &mc_virt SLAVE_EBI1 3>,
 					<&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
@@ -295,6 +303,8 @@
 			power-domain-names = "psci";
 			next-level-cache = <&L2_400>;
 			operating-points-v2 = <&cpu4_opp_table>;
+			capacity-dmips-mhz = <1946>;
+			dynamic-power-coefficient = <520>;
 			interconnects = <&gem_noc MASTER_APPSS_PROC 3 &mc_virt SLAVE_EBI1 3>,
 					<&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
@@ -317,6 +327,8 @@
 			power-domain-names = "psci";
 			next-level-cache = <&L2_500>;
 			operating-points-v2 = <&cpu4_opp_table>;
+			capacity-dmips-mhz = <1946>;
+			dynamic-power-coefficient = <520>;
 			interconnects = <&gem_noc MASTER_APPSS_PROC 3 &mc_virt SLAVE_EBI1 3>,
 					<&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
@@ -339,6 +351,8 @@
 			power-domain-names = "psci";
 			next-level-cache = <&L2_600>;
 			operating-points-v2 = <&cpu4_opp_table>;
+			capacity-dmips-mhz = <1946>;
+			dynamic-power-coefficient = <520>;
 			interconnects = <&gem_noc MASTER_APPSS_PROC 3 &mc_virt SLAVE_EBI1 3>,
 					<&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
@@ -361,6 +375,8 @@
 			power-domain-names = "psci";
 			next-level-cache = <&L2_700>;
 			operating-points-v2 = <&cpu7_opp_table>;
+			capacity-dmips-mhz = <1985>;
+			dynamic-power-coefficient = <552>;
 			interconnects = <&gem_noc MASTER_APPSS_PROC 3 &mc_virt SLAVE_EBI1 3>,
 					<&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			qcom,freq-domain = <&cpufreq_hw 2>;
