@@ -874,6 +874,7 @@ struct dc_debug_options {
 	unsigned int seamless_boot_odm_combine;
 	unsigned int force_odm_combine_4to1; //bit vector based on otg inst
 	int minimum_z8_residency_time;
+	int minimum_z10_residency_time;
 	bool disable_z9_mpc;
 	unsigned int force_fclk_khz;
 	bool enable_tri_buf;

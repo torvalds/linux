@@ -507,3 +507,37 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 
 	return pipe_cnt;
 }
+
+void dcn35_decide_zstate_support(struct dc *dc, struct dc_state *context)
+{
+	enum dcn_zstate_support_state support = DCN_ZSTATE_SUPPORT_DISALLOW;
+	unsigned int i, plane_count = 0;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].plane_state)
+			plane_count++;
+	}
+
+	if (plane_count == 0) {
+		support = DCN_ZSTATE_SUPPORT_ALLOW;
+	} else if (plane_count == 1 && context->stream_count == 1 && context->streams[0]->signal == SIGNAL_TYPE_EDP) {
+		struct dc_link *link = context->streams[0]->sink->link;
+		bool is_pwrseq0 = link && link->link_index == 0;
+		bool is_psr1 = link && link->psr_settings.psr_version == DC_PSR_VERSION_1 && !link->panel_config.psr.disable_psr;
+		int minmum_z8_residency =
+			dc->debug.minimum_z8_residency_time > 0 ? dc->debug.minimum_z8_residency_time : 1000;
+		bool allow_z8 = context->bw_ctx.dml.vba.StutterPeriod > (double)minmum_z8_residency;
+		int minmum_z10_residency =
+			dc->debug.minimum_z10_residency_time > 0 ? dc->debug.minimum_z10_residency_time : 5000;
+		bool allow_z10 = context->bw_ctx.dml.vba.StutterPeriod > (double)minmum_z10_residency;
+
+		if (is_pwrseq0 && allow_z10)
+			support = DCN_ZSTATE_SUPPORT_ALLOW;
+		else if (is_pwrseq0 && is_psr1)
+			support = allow_z8 ? DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY : DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY;
+		else if (allow_z8)
+			support = DCN_ZSTATE_SUPPORT_ALLOW_Z8_ONLY;
+	}
+
+	context->bw_ctx.bw.dcn.clk.zstate_support = support;
+}

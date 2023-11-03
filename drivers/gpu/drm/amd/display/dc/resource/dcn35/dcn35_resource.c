@@ -1724,6 +1724,13 @@ static bool dcn35_validate_bandwidth(struct dc *dc,
 
 	out = dml2_validate(dc, context, fast_validate);
 
+	if (fast_validate)
+		return out;
+
+	DC_FP_START();
+	dcn35_decide_zstate_support(dc, context);
+	DC_FP_END();
+
 	return out;
 }
 
