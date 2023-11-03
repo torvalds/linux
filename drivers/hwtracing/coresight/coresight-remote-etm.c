@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -29,7 +29,6 @@ static int boot_enable;
 
 DEFINE_CORESIGHT_DEVLIST(remote_etm_devs, "remote-etm");
 
-static DEFINE_MUTEX(remote_etm_lock);
 static LIST_HEAD(remote_etm_list);
 
 struct remote_etm_drvdata {
