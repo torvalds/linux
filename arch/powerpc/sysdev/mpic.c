@@ -355,7 +355,7 @@ static void __init mpic_test_broken_ipi(struct mpic *mpic)
 	mpic_write(mpic->gregs, MPIC_INFO(GREG_IPI_VECTOR_PRI_0), MPIC_VECPRI_MASK);
 	r = mpic_read(mpic->gregs, MPIC_INFO(GREG_IPI_VECTOR_PRI_0));
 
-	if (r == le32_to_cpu(MPIC_VECPRI_MASK)) {
+	if (r == swab32(MPIC_VECPRI_MASK)) {
 		printk(KERN_INFO "mpic: Detected reversed IPI registers\n");
 		mpic->flags |= MPIC_BROKEN_IPI;
 	}

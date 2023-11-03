@@ -51,7 +51,7 @@ static int trace_imc_mem_size;
  * core and trace-imc
  */
 static struct imc_pmu_ref imc_global_refc = {
-	.lock = __SPIN_LOCK_INITIALIZER(imc_global_refc.lock),
+	.lock = __SPIN_LOCK_UNLOCKED(imc_global_refc.lock),
 	.id = 0,
 	.refc = 0,
 };
@@ -544,7 +544,7 @@ static int nest_imc_event_init(struct perf_event *event)
 			break;
 		}
 		pcni++;
-	} while (pcni->vbase != 0);
+	} while (pcni->vbase);
 
 	if (!flag)
 		return -ENODEV;
@@ -1025,16 +1025,16 @@ static bool is_thread_imc_pmu(struct perf_event *event)
 	return false;
 }
 
-static u64 * get_event_base_addr(struct perf_event *event)
+static __be64 *get_event_base_addr(struct perf_event *event)
 {
 	u64 addr;
 
 	if (is_thread_imc_pmu(event)) {
 		addr = (u64)per_cpu(thread_imc_mem, smp_processor_id());
-		return (u64 *)(addr + (event->attr.config & IMC_EVENT_OFFSET_MASK));
+		return (__be64 *)(addr + (event->attr.config & IMC_EVENT_OFFSET_MASK));
 	}
 
-	return (u64 *)event->hw.event_base;
+	return (__be64 *)event->hw.event_base;
 }
 
 static void thread_imc_pmu_start_txn(struct pmu *pmu,
@@ -1058,7 +1058,8 @@ static int thread_imc_pmu_commit_txn(struct pmu *pmu)
 
 static u64 imc_read_counter(struct perf_event *event)
 {
-	u64 *addr, data;
+	__be64 *addr;
+	u64 data;
 
 	/*
 	 * In-Memory Collection (IMC) counters are free flowing counters.

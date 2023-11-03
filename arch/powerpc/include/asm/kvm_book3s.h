@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/kvm_host.h>
 #include <asm/kvm_book3s_asm.h>
+#include <asm/guest-state-buffer.h>
 
 struct kvmppc_bat {
 	u64 raw;
@@ -191,14 +192,14 @@ extern int kvmppc_mmu_radix_translate_table(struct kvm_vcpu *vcpu, gva_t eaddr,
 extern int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 			struct kvmppc_pte *gpte, bool data, bool iswrite);
 extern void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
-				    unsigned int pshift, unsigned int lpid);
+				    unsigned int pshift, u64 lpid);
 extern void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte, unsigned long gpa,
 			unsigned int shift,
 			const struct kvm_memory_slot *memslot,
-			unsigned int lpid);
+			u64 lpid);
 extern bool kvmppc_hv_handle_set_rc(struct kvm *kvm, bool nested,
 				    bool writing, unsigned long gpa,
-				    unsigned int lpid);
+				    u64 lpid);
 extern int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 				unsigned long gpa,
 				struct kvm_memory_slot *memslot,
@@ -207,7 +208,7 @@ extern int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 extern int kvmppc_init_vm_radix(struct kvm *kvm);
 extern void kvmppc_free_radix(struct kvm *kvm);
 extern void kvmppc_free_pgtable_radix(struct kvm *kvm, pgd_t *pgd,
-				      unsigned int lpid);
+				      u64 lpid);
 extern int kvmppc_radix_init(void);
 extern void kvmppc_radix_exit(void);
 extern void kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
@@ -295,12 +296,13 @@ static inline void kvmppc_save_tm_sprs(struct kvm_vcpu *vcpu) {}
 static inline void kvmppc_restore_tm_sprs(struct kvm_vcpu *vcpu) {}
 #endif
 
+extern unsigned long nested_capabilities;
 long kvmhv_nested_init(void);
 void kvmhv_nested_exit(void);
 void kvmhv_vm_nested_init(struct kvm *kvm);
 long kvmhv_set_partition_table(struct kvm_vcpu *vcpu);
 long kvmhv_copy_tofrom_guest_nested(struct kvm_vcpu *vcpu);
-void kvmhv_set_ptbl_entry(unsigned int lpid, u64 dw0, u64 dw1);
+void kvmhv_set_ptbl_entry(u64 lpid, u64 dw0, u64 dw1);
 void kvmhv_release_all_nested(struct kvm *kvm);
 long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu);
 long kvmhv_do_nested_tlbie(struct kvm_vcpu *vcpu);
@@ -315,6 +317,69 @@ void kvmhv_restore_hv_return_state(struct kvm_vcpu *vcpu,
 long int kvmhv_nested_page_fault(struct kvm_vcpu *vcpu);
 
 void kvmppc_giveup_fac(struct kvm_vcpu *vcpu, ulong fac);
+
+
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+
+extern struct static_key_false __kvmhv_is_nestedv2;
+
+static inline bool kvmhv_is_nestedv2(void)
+{
+	return static_branch_unlikely(&__kvmhv_is_nestedv2);
+}
+
+static inline bool kvmhv_is_nestedv1(void)
+{
+	return !static_branch_likely(&__kvmhv_is_nestedv2);
+}
+
+#else
+
+static inline bool kvmhv_is_nestedv2(void)
+{
+	return false;
+}
+
+static inline bool kvmhv_is_nestedv1(void)
+{
+	return false;
+}
+
+#endif
+
+int __kvmhv_nestedv2_reload_ptregs(struct kvm_vcpu *vcpu, struct pt_regs *regs);
+int __kvmhv_nestedv2_mark_dirty_ptregs(struct kvm_vcpu *vcpu, struct pt_regs *regs);
+int __kvmhv_nestedv2_mark_dirty(struct kvm_vcpu *vcpu, u16 iden);
+int __kvmhv_nestedv2_cached_reload(struct kvm_vcpu *vcpu, u16 iden);
+
+static inline int kvmhv_nestedv2_reload_ptregs(struct kvm_vcpu *vcpu,
+					       struct pt_regs *regs)
+{
+	if (kvmhv_is_nestedv2())
+		return __kvmhv_nestedv2_reload_ptregs(vcpu, regs);
+	return 0;
+}
+static inline int kvmhv_nestedv2_mark_dirty_ptregs(struct kvm_vcpu *vcpu,
+						   struct pt_regs *regs)
+{
+	if (kvmhv_is_nestedv2())
+		return __kvmhv_nestedv2_mark_dirty_ptregs(vcpu, regs);
+	return 0;
+}
+
+static inline int kvmhv_nestedv2_mark_dirty(struct kvm_vcpu *vcpu, u16 iden)
+{
+	if (kvmhv_is_nestedv2())
+		return __kvmhv_nestedv2_mark_dirty(vcpu, iden);
+	return 0;
+}
+
+static inline int kvmhv_nestedv2_cached_reload(struct kvm_vcpu *vcpu, u16 iden)
+{
+	if (kvmhv_is_nestedv2())
+		return __kvmhv_nestedv2_cached_reload(vcpu, iden);
+	return 0;
+}
 
 extern int kvm_irq_bypass;
 
@@ -335,60 +400,72 @@ static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {
 	vcpu->arch.regs.gpr[num] = val;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_GPR(num));
 }
 
 static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
 {
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_GPR(num)) < 0);
 	return vcpu->arch.regs.gpr[num];
 }
 
 static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
 {
 	vcpu->arch.regs.ccr = val;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_CR);
 }
 
 static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
 {
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_CR) < 0);
 	return vcpu->arch.regs.ccr;
 }
 
 static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, ulong val)
 {
 	vcpu->arch.regs.xer = val;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_XER);
 }
 
 static inline ulong kvmppc_get_xer(struct kvm_vcpu *vcpu)
 {
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_XER) < 0);
 	return vcpu->arch.regs.xer;
 }
 
 static inline void kvmppc_set_ctr(struct kvm_vcpu *vcpu, ulong val)
 {
 	vcpu->arch.regs.ctr = val;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_CTR);
 }
 
 static inline ulong kvmppc_get_ctr(struct kvm_vcpu *vcpu)
 {
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_CTR) < 0);
 	return vcpu->arch.regs.ctr;
 }
 
 static inline void kvmppc_set_lr(struct kvm_vcpu *vcpu, ulong val)
 {
 	vcpu->arch.regs.link = val;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_LR);
 }
 
 static inline ulong kvmppc_get_lr(struct kvm_vcpu *vcpu)
 {
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_LR) < 0);
 	return vcpu->arch.regs.link;
 }
 
 static inline void kvmppc_set_pc(struct kvm_vcpu *vcpu, ulong val)
 {
 	vcpu->arch.regs.nip = val;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_NIA);
 }
 
 static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 {
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_NIA) < 0);
 	return vcpu->arch.regs.nip;
 }
 
@@ -403,10 +480,141 @@ static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 	return vcpu->arch.fault_dar;
 }
 
+static inline u64 kvmppc_get_fpr(struct kvm_vcpu *vcpu, int i)
+{
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_VSRS(i)) < 0);
+	return vcpu->arch.fp.fpr[i][TS_FPROFFSET];
+}
+
+static inline void kvmppc_set_fpr(struct kvm_vcpu *vcpu, int i, u64 val)
+{
+	vcpu->arch.fp.fpr[i][TS_FPROFFSET] = val;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_VSRS(i));
+}
+
+static inline u64 kvmppc_get_fpscr(struct kvm_vcpu *vcpu)
+{
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_FPSCR) < 0);
+	return vcpu->arch.fp.fpscr;
+}
+
+static inline void kvmppc_set_fpscr(struct kvm_vcpu *vcpu, u64 val)
+{
+	vcpu->arch.fp.fpscr = val;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_FPSCR);
+}
+
+
+static inline u64 kvmppc_get_vsx_fpr(struct kvm_vcpu *vcpu, int i, int j)
+{
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_VSRS(i)) < 0);
+	return vcpu->arch.fp.fpr[i][j];
+}
+
+static inline void kvmppc_set_vsx_fpr(struct kvm_vcpu *vcpu, int i, int j,
+				      u64 val)
+{
+	vcpu->arch.fp.fpr[i][j] = val;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_VSRS(i));
+}
+
+#ifdef CONFIG_ALTIVEC
+static inline void kvmppc_get_vsx_vr(struct kvm_vcpu *vcpu, int i, vector128 *v)
+{
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_VSRS(32 + i)) < 0);
+	*v =  vcpu->arch.vr.vr[i];
+}
+
+static inline void kvmppc_set_vsx_vr(struct kvm_vcpu *vcpu, int i,
+				     vector128 *val)
+{
+	vcpu->arch.vr.vr[i] = *val;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_VSRS(32 + i));
+}
+
+static inline u32 kvmppc_get_vscr(struct kvm_vcpu *vcpu)
+{
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_VSCR) < 0);
+	return vcpu->arch.vr.vscr.u[3];
+}
+
+static inline void kvmppc_set_vscr(struct kvm_vcpu *vcpu, u32 val)
+{
+	vcpu->arch.vr.vscr.u[3] = val;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_VSCR);
+}
+#endif
+
+#define KVMPPC_BOOK3S_VCPU_ACCESSOR_SET(reg, size, iden)		\
+static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, u##size val)	\
+{									\
+									\
+	vcpu->arch.reg = val;						\
+	kvmhv_nestedv2_mark_dirty(vcpu, iden);				\
+}
+
+#define KVMPPC_BOOK3S_VCPU_ACCESSOR_GET(reg, size, iden)		\
+static inline u##size kvmppc_get_##reg(struct kvm_vcpu *vcpu)		\
+{									\
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, iden) < 0);		\
+	return vcpu->arch.reg;						\
+}
+
+#define KVMPPC_BOOK3S_VCPU_ACCESSOR(reg, size, iden)			\
+	KVMPPC_BOOK3S_VCPU_ACCESSOR_SET(reg, size, iden)		\
+	KVMPPC_BOOK3S_VCPU_ACCESSOR_GET(reg, size, iden)		\
+
+KVMPPC_BOOK3S_VCPU_ACCESSOR(pid, 32, KVMPPC_GSID_PIDR)
+KVMPPC_BOOK3S_VCPU_ACCESSOR(tar, 64, KVMPPC_GSID_TAR)
+KVMPPC_BOOK3S_VCPU_ACCESSOR(ebbhr, 64, KVMPPC_GSID_EBBHR)
+KVMPPC_BOOK3S_VCPU_ACCESSOR(ebbrr, 64, KVMPPC_GSID_EBBRR)
+KVMPPC_BOOK3S_VCPU_ACCESSOR(bescr, 64, KVMPPC_GSID_BESCR)
+KVMPPC_BOOK3S_VCPU_ACCESSOR(ic, 64, KVMPPC_GSID_IC)
+KVMPPC_BOOK3S_VCPU_ACCESSOR(vrsave, 64, KVMPPC_GSID_VRSAVE)
+
+
+#define KVMPPC_BOOK3S_VCORE_ACCESSOR_SET(reg, size, iden)		\
+static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, u##size val)	\
+{									\
+	vcpu->arch.vcore->reg = val;					\
+	kvmhv_nestedv2_mark_dirty(vcpu, iden);				\
+}
+
+#define KVMPPC_BOOK3S_VCORE_ACCESSOR_GET(reg, size, iden)		\
+static inline u##size kvmppc_get_##reg(struct kvm_vcpu *vcpu)		\
+{									\
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, iden) < 0);		\
+	return vcpu->arch.vcore->reg;					\
+}
+
+#define KVMPPC_BOOK3S_VCORE_ACCESSOR(reg, size, iden)			\
+	KVMPPC_BOOK3S_VCORE_ACCESSOR_SET(reg, size, iden)		\
+	KVMPPC_BOOK3S_VCORE_ACCESSOR_GET(reg, size, iden)		\
+
+
+KVMPPC_BOOK3S_VCORE_ACCESSOR(vtb, 64, KVMPPC_GSID_VTB)
+KVMPPC_BOOK3S_VCORE_ACCESSOR(tb_offset, 64, KVMPPC_GSID_TB_OFFSET)
+KVMPPC_BOOK3S_VCORE_ACCESSOR_GET(arch_compat, 32, KVMPPC_GSID_LOGICAL_PVR)
+KVMPPC_BOOK3S_VCORE_ACCESSOR_GET(lpcr, 64, KVMPPC_GSID_LPCR)
+
+static inline u64 kvmppc_get_dec_expires(struct kvm_vcpu *vcpu)
+{
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_TB_OFFSET) < 0);
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_DEC_EXPIRY_TB) < 0);
+	return vcpu->arch.dec_expires;
+}
+
+static inline void kvmppc_set_dec_expires(struct kvm_vcpu *vcpu, u64 val)
+{
+	vcpu->arch.dec_expires = val;
+	WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, KVMPPC_GSID_TB_OFFSET) < 0);
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_DEC_EXPIRY_TB);
+}
+
 /* Expiry time of vcpu DEC relative to host TB */
 static inline u64 kvmppc_dec_expires_host_tb(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.dec_expires - vcpu->arch.vcore->tb_offset;
+	return kvmppc_get_dec_expires(vcpu) - kvmppc_get_tb_offset(vcpu);
 }
 
 static inline bool is_kvmppc_resume_guest(int r)

@@ -2614,7 +2614,8 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 	struct device_node*	node;
 	int			i;
 	volatile u32 __iomem	*base;
-	const u32		*addrp, *revp;
+	const __be32		*addrp;
+	const u32		*revp;
 	phys_addr_t		addr;
 	u64			size;
 

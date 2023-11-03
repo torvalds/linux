@@ -32,7 +32,7 @@
 #include <asm/plpks.h>
 
 struct umem_info {
-	u64 *buf;		/* data buffer for usable-memory property */
+	__be64 *buf;		/* data buffer for usable-memory property */
 	u32 size;		/* size allocated for the data buffer */
 	u32 max_entries;	/* maximum no. of entries */
 	u32 idx;		/* index of current entry */
@@ -443,10 +443,10 @@ static int locate_mem_hole_bottom_up_ppc64(struct kexec_buf *kbuf,
  *
  * Returns buffer on success, NULL on error.
  */
-static u64 *check_realloc_usable_mem(struct umem_info *um_info, int cnt)
+static __be64 *check_realloc_usable_mem(struct umem_info *um_info, int cnt)
 {
 	u32 new_size;
-	u64 *tbuf;
+	__be64 *tbuf;
 
 	if ((um_info->idx + cnt) <= um_info->max_entries)
 		return um_info->buf;
@@ -1138,11 +1138,15 @@ static int update_pci_dma_nodes(void *fdt, const char *dmapropname)
 			continue;
 
 		ret = copy_property(fdt, pci_offset, dn, "ibm,dma-window");
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(dn);
 			break;
+		}
 		ret = copy_property(fdt, pci_offset, dn, dmapropname);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(dn);
 			break;
+		}
 	}
 
 	return ret;

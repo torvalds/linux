@@ -127,7 +127,7 @@ static void setibat(int index, unsigned long virt, phys_addr_t phys,
 	wimgxpp = (flags & _PAGE_COHERENT) | (_PAGE_EXEC ? BPP_RX : BPP_XX);
 	bat[0].batu = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
 	bat[0].batl = BAT_PHYS_ADDR(phys) | wimgxpp;
-	if (flags & _PAGE_USER)
+	if (!is_kernel_addr(virt))
 		bat[0].batu |= 1;	/* Vp = 1 */
 }
 
@@ -277,10 +277,10 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 	/* Do DBAT first */
 	wimgxpp = flags & (_PAGE_WRITETHRU | _PAGE_NO_CACHE
 			   | _PAGE_COHERENT | _PAGE_GUARDED);
-	wimgxpp |= (flags & _PAGE_RW)? BPP_RW: BPP_RX;
+	wimgxpp |= (flags & _PAGE_WRITE) ? BPP_RW : BPP_RX;
 	bat[1].batu = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
 	bat[1].batl = BAT_PHYS_ADDR(phys) | wimgxpp;
-	if (flags & _PAGE_USER)
+	if (!is_kernel_addr(virt))
 		bat[1].batu |= 1; 	/* Vp = 1 */
 	if (flags & _PAGE_GUARDED) {
 		/* G bit must be zero in IBATs */

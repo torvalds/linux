@@ -26,6 +26,7 @@
 #include <asm/ftrace.h>
 #include <asm/code-patching.h>
 #include <asm/setup.h>
+#include <asm/fixmap.h>
 
 #include <mm/mmu_decl.h>
 
