@@ -528,7 +528,7 @@ struct cdns_nand_chip {
 	/* ECC strength index. */
 	u8 corr_str_idx;
 
-	u8 cs[];
+	u8 cs[] __counted_by(nsels);
 };
 
 struct ecc_info {

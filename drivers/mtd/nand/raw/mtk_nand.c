@@ -130,7 +130,7 @@ struct mtk_nfc_nand_chip {
 	u32 spare_per_sector;
 
 	int nsels;
-	u8 sels[];
+	u8 sels[] __counted_by(nsels);
 	/* nothing after this field */
 };
 
