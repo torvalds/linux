@@ -32,7 +32,7 @@ static struct cached_fid *find_or_create_cached_dir(struct cached_fids *cfids,
 			 * fully cached or it may be in the process of
 			 * being deleted due to a lease break.
 			 */
-			if (!cfid->has_lease) {
+			if (!cfid->time || !cfid->has_lease) {
 				spin_unlock(&cfids->cfid_list_lock);
 				return NULL;
 			}
@@ -193,9 +193,19 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	npath = path_no_prefix(cifs_sb, path);
 	if (IS_ERR(npath)) {
 		rc = PTR_ERR(npath);
-		kfree(utf16_path);
-		return rc;
+		goto out;
 	}
+
+	if (!npath[0]) {
+		dentry = dget(cifs_sb->root);
+	} else {
+		dentry = path_to_dentry(cifs_sb, npath);
+		if (IS_ERR(dentry)) {
+			rc = -ENOENT;
+			goto out;
+		}
+	}
+	cfid->dentry = dentry;
 
 	/*
 	 * We do not hold the lock for the open because in case
@@ -249,6 +259,15 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 
 	smb2_set_related(&rqst[1]);
 
+	/*
+	 * Set @cfid->has_lease to true before sending out compounded request so
+	 * its lease reference can be put in cached_dir_lease_break() due to a
+	 * potential lease break right after the request is sent or while @cfid
+	 * is still being cached.  Concurrent processes won't be to use it yet
+	 * due to @cfid->time being zero.
+	 */
+	cfid->has_lease = true;
+
 	rc = compound_send_recv(xid, ses, server,
 				flags, 2, rqst,
 				resp_buftype, rsp_iov);
@@ -263,6 +282,8 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	cfid->tcon = tcon;
 	cfid->is_open = true;
 
+	spin_lock(&cfids->cfid_list_lock);
+
 	o_rsp = (struct smb2_create_rsp *)rsp_iov[0].iov_base;
 	oparms.fid->persistent_fid = o_rsp->PersistentFileId;
 	oparms.fid->volatile_fid = o_rsp->VolatileFileId;
@@ -270,18 +291,25 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid->mid = le64_to_cpu(o_rsp->hdr.MessageId);
 #endif /* CIFS_DEBUG2 */
 
-	if (o_rsp->OplockLevel != SMB2_OPLOCK_LEVEL_LEASE)
+	rc = -EINVAL;
+	if (o_rsp->OplockLevel != SMB2_OPLOCK_LEVEL_LEASE) {
+		spin_unlock(&cfids->cfid_list_lock);
 		goto oshr_free;
+	}
 
 	smb2_parse_contexts(server, o_rsp,
 			    &oparms.fid->epoch,
 			    oparms.fid->lease_key, &oplock,
 			    NULL, NULL);
-	if (!(oplock & SMB2_LEASE_READ_CACHING_HE))
+	if (!(oplock & SMB2_LEASE_READ_CACHING_HE)) {
+		spin_unlock(&cfids->cfid_list_lock);
 		goto oshr_free;
+	}
 	qi_rsp = (struct smb2_query_info_rsp *)rsp_iov[1].iov_base;
-	if (le32_to_cpu(qi_rsp->OutputBufferLength) < sizeof(struct smb2_file_all_info))
+	if (le32_to_cpu(qi_rsp->OutputBufferLength) < sizeof(struct smb2_file_all_info)) {
+		spin_unlock(&cfids->cfid_list_lock);
 		goto oshr_free;
+	}
 	if (!smb2_validate_and_copy_iov(
 				le16_to_cpu(qi_rsp->OutputBufferOffset),
 				sizeof(struct smb2_file_all_info),
@@ -289,37 +317,24 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 				(char *)&cfid->file_all_info))
 		cfid->file_all_info_is_valid = true;
 
-	if (!npath[0])
-		dentry = dget(cifs_sb->root);
-	else {
-		dentry = path_to_dentry(cifs_sb, npath);
-		if (IS_ERR(dentry)) {
-			rc = -ENOENT;
-			goto oshr_free;
-		}
-	}
-	spin_lock(&cfids->cfid_list_lock);
-	cfid->dentry = dentry;
 	cfid->time = jiffies;
-	cfid->has_lease = true;
 	spin_unlock(&cfids->cfid_list_lock);
+	/* At this point the directory handle is fully cached */
+	rc = 0;
 
 oshr_free:
-	kfree(utf16_path);
 	SMB2_open_free(&rqst[0]);
 	SMB2_query_info_free(&rqst[1]);
 	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
 	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
-	spin_lock(&cfids->cfid_list_lock);
-	if (!cfid->has_lease) {
-		if (rc) {
-			if (cfid->on_list) {
-				list_del(&cfid->entry);
-				cfid->on_list = false;
-				cfids->num_entries--;
-			}
-			rc = -ENOENT;
-		} else {
+	if (rc) {
+		spin_lock(&cfids->cfid_list_lock);
+		if (cfid->on_list) {
+			list_del(&cfid->entry);
+			cfid->on_list = false;
+			cfids->num_entries--;
+		}
+		if (cfid->has_lease) {
 			/*
 			 * We are guaranteed to have two references at this
 			 * point. One for the caller and one for a potential
@@ -327,25 +342,24 @@ oshr_free:
 			 * will be closed when the caller closes the cached
 			 * handle.
 			 */
+			cfid->has_lease = false;
 			spin_unlock(&cfids->cfid_list_lock);
 			kref_put(&cfid->refcount, smb2_close_cached_fid);
 			goto out;
 		}
+		spin_unlock(&cfids->cfid_list_lock);
 	}
-	spin_unlock(&cfids->cfid_list_lock);
+out:
 	if (rc) {
 		if (cfid->is_open)
 			SMB2_close(0, cfid->tcon, cfid->fid.persistent_fid,
 				   cfid->fid.volatile_fid);
 		free_cached_dir(cfid);
-		cfid = NULL;
-	}
-out:
-	if (rc == 0) {
+	} else {
 		*ret_cfid = cfid;
 		atomic_inc(&tcon->num_remote_opens);
 	}
-
+	kfree(utf16_path);
 	return rc;
 }
 

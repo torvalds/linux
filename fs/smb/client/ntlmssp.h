@@ -133,8 +133,8 @@ typedef struct _AUTHENTICATE_MESSAGE {
 	SECURITY_BUFFER WorkstationName;
 	SECURITY_BUFFER SessionKey;
 	__le32 NegotiateFlags;
-	/* SECURITY_BUFFER for version info not present since we
-	   do not set the version is present flag */
+	struct	ntlmssp_version Version;
+	/* SECURITY_BUFFER */
 	char UserString[];
 } __attribute__((packed)) AUTHENTICATE_MESSAGE, *PAUTHENTICATE_MESSAGE;
 
