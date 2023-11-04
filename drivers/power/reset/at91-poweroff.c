@@ -202,7 +202,7 @@ clk_disable:
 	return ret;
 }
 
-static int at91_poweroff_remove(struct platform_device *pdev)
+static void at91_poweroff_remove(struct platform_device *pdev)
 {
 	if (pm_power_off == at91_poweroff)
 		pm_power_off = NULL;
@@ -211,8 +211,6 @@ static int at91_poweroff_remove(struct platform_device *pdev)
 		iounmap(at91_shdwc.mpddrc_base);
 
 	clk_disable_unprepare(at91_shdwc.sclk);
-
-	return 0;
 }
 
 static const struct of_device_id at91_poweroff_of_match[] = {
@@ -225,7 +223,7 @@ MODULE_DEVICE_TABLE(of, at91_poweroff_of_match);
 
 static struct platform_driver at91_poweroff_driver = {
 	.probe = at91_poweroff_probe,
-	.remove = at91_poweroff_remove,
+	.remove_new = at91_poweroff_remove,
 	.driver = {
 		.name = "at91-poweroff",
 		.of_match_table = at91_poweroff_of_match,
