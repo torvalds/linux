@@ -34,9 +34,27 @@
  *
  * To avoid having to have a similar hack in the mainline kernel program the
  * LP8557 to directly set the level and use the lp855x_bl driver for control.
+ *
+ * The LP8557 can either be configured to multiply its PWM input and
+ * the I2C register set level (requiring both to be at 100% for 100% output);
+ * or to only take the I2C register set level into account.
+ *
+ * Multiplying the 2 levels is useful because this will turn off the backlight
+ * when the panel goes off and turns off its PWM output.
+ *
+ * But on some models the panel's PWM output defaults to a duty-cycle of
+ * much less then 100%, severely limiting max brightness. In this case
+ * the LP8557 should be configured to only take the I2C register into
+ * account and the i915 driver must turn off the panel and the backlight
+ * separately using e.g. VBT MIPI sequences to turn off the backlight.
  */
-static struct lp855x_platform_data lenovo_lp8557_pdata = {
+static struct lp855x_platform_data lenovo_lp8557_pwm_and_reg_pdata = {
 	.device_control = 0x86,
+	.initial_brightness = 128,
+};
+
+static struct lp855x_platform_data lenovo_lp8557_reg_only_pdata = {
+	.device_control = 0x85,
 	.initial_brightness = 128,
 };
 
@@ -122,7 +140,7 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.type = "lp8557",
 			.addr = 0x2c,
 			.dev_name = "lp8557",
-			.platform_data = &lenovo_lp8557_pdata,
+			.platform_data = &lenovo_lp8557_pwm_and_reg_pdata,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C4",
 	}, {
@@ -358,7 +376,7 @@ static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __init
 			.type = "lp8557",
 			.addr = 0x2c,
 			.dev_name = "lp8557",
-			.platform_data = &lenovo_lp8557_pdata,
+			.platform_data = &lenovo_lp8557_pwm_and_reg_pdata,
 		},
 		.adapter_path = "\\_SB_.I2C3",
 	},
@@ -655,7 +673,7 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 			.type = "lp8557",
 			.addr = 0x2c,
 			.dev_name = "lp8557",
-			.platform_data = &lenovo_lp8557_pdata,
+			.platform_data = &lenovo_lp8557_reg_only_pdata,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C1",
 	}
