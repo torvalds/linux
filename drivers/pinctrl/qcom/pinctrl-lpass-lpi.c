@@ -495,7 +495,7 @@ err_pinctrl:
 }
 EXPORT_SYMBOL_GPL(lpi_pinctrl_probe);
 
-int lpi_pinctrl_remove(struct platform_device *pdev)
+void lpi_pinctrl_remove(struct platform_device *pdev)
 {
 	struct lpi_pinctrl *pctrl = platform_get_drvdata(pdev);
 	int i;
@@ -505,8 +505,6 @@ int lpi_pinctrl_remove(struct platform_device *pdev)
 
 	for (i = 0; i < pctrl->data->npins; i++)
 		pinctrl_generic_remove_group(pctrl->ctrl, i);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(lpi_pinctrl_remove);
 

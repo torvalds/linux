@@ -148,6 +148,7 @@ struct samsung_pin_bank_data {
  * @eint_mask: bit mask of pins which support EINT function.
  * @eint_offset: SoC-specific EINT register or interrupt offset of bank.
  * @name: name to be prefixed for each pin in this pin bank.
+ * @id: id of the bank, propagated to the pin range.
  * @pin_base: starting pin number of the bank.
  * @soc_priv: per-bank private data for SoC-specific code.
  * @of_node: OF node of the bank.
@@ -170,6 +171,7 @@ struct samsung_pin_bank {
 	u32		eint_mask;
 	u32		eint_offset;
 	const char	*name;
+	u32		id;
 
 	u32		pin_base;
 	void		*soc_priv;
@@ -267,7 +269,6 @@ struct samsung_pin_ctrl {
  * @nr_groups: number of such pin groups.
  * @pmx_functions: list of pin functions available to the driver.
  * @nr_function: number of such pin functions.
- * @pin_base: starting system wide pin number.
  * @nr_pins: number of pins supported by the controller.
  * @retention_ctrl: retention control runtime data.
  * @suspend: platform specific suspend callback, executed during pin controller
@@ -291,7 +292,6 @@ struct samsung_pinctrl_drv_data {
 
 	struct samsung_pin_bank		*pin_banks;
 	unsigned int			nr_banks;
-	unsigned int			pin_base;
 	unsigned int			nr_pins;
 
 	struct samsung_retention_ctrl	*retention_ctrl;

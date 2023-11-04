@@ -1942,7 +1942,7 @@ static const unsigned int intc_irq3_b_pins[] = {
 static const unsigned int intc_irq3_b_mux[] = {
 	IRQ3_B_MARK,
 };
-/* - LSBC ------------------------------------------------------------------- */
+/* - LBSC ------------------------------------------------------------------- */
 static const unsigned int lbsc_cs0_pins[] = {
 	/* CS */
 	RCAR_GP_PIN(0, 13),

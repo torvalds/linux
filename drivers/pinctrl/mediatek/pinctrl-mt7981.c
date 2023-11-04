@@ -611,6 +611,9 @@ static int mt7981_wo0_jtag_1_funcs[] = { 5, 5, 5, 5, 5, };
 static int mt7981_uart2_0_pins[] = { 4, 5, 6, 7, };
 static int mt7981_uart2_0_funcs[] = { 3, 3, 3, 3, };
 
+static int mt7981_uart2_0_tx_rx_pins[] = { 4, 5, };
+static int mt7981_uart2_0_tx_rx_funcs[] = { 3, 3, };
+
 /* GBE_LED0 */
 static int mt7981_gbe_led0_pins[] = { 8, };
 static int mt7981_gbe_led0_funcs[] = { 3, };
@@ -731,6 +734,9 @@ static int mt7981_uart1_0_funcs[] = { 4, 4, 4, 4, };
 static int mt7981_uart1_1_pins[] = { 26, 27, 28, 29, };
 static int mt7981_uart1_1_funcs[] = { 2, 2, 2, 2, };
 
+static int mt7981_uart1_2_pins[] = { 9, 10, };
+static int mt7981_uart1_2_funcs[] = { 2, 2, };
+
 /* UART2 */
 static int mt7981_uart2_1_pins[] = { 22, 23, 24, 25, };
 static int mt7981_uart2_1_funcs[] = { 3, 3, 3, 3, };
@@ -805,6 +811,8 @@ static const struct group_desc mt7981_groups[] = {
 	PINCTRL_PIN_GROUP("wo0_jtag_0", mt7981_wo0_jtag_0),
 	/* @GPIO(4,7) WM_JTAG(3) */
 	PINCTRL_PIN_GROUP("uart2_0", mt7981_uart2_0),
+	/* @GPIO(4,5) WM_JTAG(4) */
+	PINCTRL_PIN_GROUP("uart2_0_tx_rx", mt7981_uart2_0_tx_rx),
 	/* @GPIO(8) GBE_LED0(3) */
 	PINCTRL_PIN_GROUP("gbe_led0", mt7981_gbe_led0),
 	/* @GPIO(4,6) PTA_EXT(4) */
@@ -861,6 +869,8 @@ static const struct group_desc mt7981_groups[] = {
 	PINCTRL_PIN_GROUP("uart1_0", mt7981_uart1_0),
 	/* @GPIO(26,29): UART1(2) */
 	PINCTRL_PIN_GROUP("uart1_1", mt7981_uart1_1),
+	/* @GPIO(9,10): UART1(2) */
+	PINCTRL_PIN_GROUP("uart1_2", mt7981_uart1_2),
 	/* @GPIO(22,25): UART1(3) */
 	PINCTRL_PIN_GROUP("uart2_1", mt7981_uart2_1),
 	/* @GPIO(22,24) PTA_EXT(4) */
@@ -922,9 +932,9 @@ static const struct group_desc mt7981_groups[] = {
  */
 static const char *mt7981_wa_aice_groups[] = { "wa_aice1", "wa_aice2", "wm_aice1_1",
 	"wa_aice3", "wm_aice1_2", };
-static const char *mt7981_uart_groups[] = { "wm_uart_0", "uart2_0",
-	"net_wo0_uart_txd_0", "net_wo0_uart_txd_1", "net_wo0_uart_txd_2",
-	"uart1_0", "uart1_1", "uart2_1", "wm_aurt_1", "wm_aurt_2", "uart0", };
+static const char *mt7981_uart_groups[] = { "net_wo0_uart_txd_0", "net_wo0_uart_txd_1",
+	"net_wo0_uart_txd_2", "uart0", "uart1_0", "uart1_1", "uart1_2", "uart2_0",
+	"uart2_0_tx_rx", "uart2_1", "wm_uart_0", "wm_aurt_1", "wm_aurt_2", };
 static const char *mt7981_dfd_groups[] = { "dfd", "dfd_ntrst", };
 static const char *mt7981_wdt_groups[] = { "watchdog", "watchdog1", };
 static const char *mt7981_pcie_groups[] = { "pcie_pereset", "pcie_clk", "pcie_wake", };

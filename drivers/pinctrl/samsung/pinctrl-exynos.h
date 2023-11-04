@@ -159,7 +159,7 @@ struct exynos_weint_data {
  */
 struct exynos_muxed_weint_data {
 	unsigned int nr_banks;
-	struct samsung_pin_bank *banks[];
+	struct samsung_pin_bank *banks[] __counted_by(nr_banks);
 };
 
 int exynos_eint_gpio_init(struct samsung_pinctrl_drv_data *d);

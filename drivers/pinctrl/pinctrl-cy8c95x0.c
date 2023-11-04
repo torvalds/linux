@@ -1346,9 +1346,7 @@ static int cy8c95x0_probe(struct i2c_client *client)
 	chip->dev = &client->dev;
 
 	/* Set the device type */
-	chip->driver_data = (unsigned long)device_get_match_data(&client->dev);
-	if (!chip->driver_data)
-		chip->driver_data = i2c_match_id(cy8c95x0_id, client)->driver_data;
+	chip->driver_data = (uintptr_t)i2c_get_match_data(client);
 	if (!chip->driver_data)
 		return -ENODEV;
 

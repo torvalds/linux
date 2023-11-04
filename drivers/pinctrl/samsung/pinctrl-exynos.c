@@ -616,6 +616,7 @@ __init int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 		+ muxed_banks*sizeof(struct samsung_pin_bank *), GFP_KERNEL);
 	if (!muxed_data)
 		return -ENOMEM;
+	muxed_data->nr_banks = muxed_banks;
 
 	irq_set_chained_handler_and_data(irq, exynos_irq_demux_eint16_31,
 					 muxed_data);
@@ -628,7 +629,6 @@ __init int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 
 		muxed_data->banks[idx++] = bank;
 	}
-	muxed_data->nr_banks = muxed_banks;
 
 	return 0;
 }

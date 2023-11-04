@@ -8,14 +8,14 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
 #include <linux/bitops.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
+#include <linux/pm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -337,8 +337,6 @@ static int lp_gpio_request_enable(struct pinctrl_dev *pctldev,
 	unsigned long flags;
 	u32 value;
 
-	pm_runtime_get(lg->dev);
-
 	raw_spin_lock_irqsave(&lg->lock, flags);
 
 	/*
@@ -373,8 +371,6 @@ static void lp_gpio_disable_free(struct pinctrl_dev *pctldev,
 	lp_gpio_disable_input(conf2);
 
 	raw_spin_unlock_irqrestore(&lg->lock, flags);
-
-	pm_runtime_put(lg->dev);
 }
 
 static int lp_gpio_set_direction(struct pinctrl_dev *pctldev,
@@ -841,24 +837,6 @@ static int lp_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pm_runtime_enable(dev);
-
-	return 0;
-}
-
-static int lp_gpio_remove(struct platform_device *pdev)
-{
-	pm_runtime_disable(&pdev->dev);
-	return 0;
-}
-
-static int lp_gpio_runtime_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int lp_gpio_runtime_resume(struct device *dev)
-{
 	return 0;
 }
 
@@ -876,10 +854,7 @@ static int lp_gpio_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops lp_gpio_pm_ops = {
-	SYSTEM_SLEEP_PM_OPS(NULL, lp_gpio_resume)
-	RUNTIME_PM_OPS(lp_gpio_runtime_suspend, lp_gpio_runtime_resume, NULL)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(lp_gpio_pm_ops, NULL, lp_gpio_resume);
 
 static const struct acpi_device_id lynxpoint_gpio_acpi_match[] = {
 	{ "INT33C7", (kernel_ulong_t)&lptlp_soc_data },
@@ -890,10 +865,9 @@ MODULE_DEVICE_TABLE(acpi, lynxpoint_gpio_acpi_match);
 
 static struct platform_driver lp_gpio_driver = {
 	.probe          = lp_gpio_probe,
-	.remove         = lp_gpio_remove,
 	.driver         = {
 		.name   = "lp_gpio",
-		.pm	= pm_ptr(&lp_gpio_pm_ops),
+		.pm	= pm_sleep_ptr(&lp_gpio_pm_ops),
 		.acpi_match_table = lynxpoint_gpio_acpi_match,
 	},
 };
