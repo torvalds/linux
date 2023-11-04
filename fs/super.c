@@ -1996,11 +1996,6 @@ retry:
 		goto retry;
 	}
 
-	if (!(sb->s_flags & SB_BORN)) {
-		super_unlock_excl(sb);
-		return 0;	/* sic - it's "nothing to do" */
-	}
-
 	if (sb_rdonly(sb)) {
 		/* Nothing to do really... */
 		sb->s_writers.freeze_holders |= who;
