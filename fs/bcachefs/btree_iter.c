@@ -257,7 +257,7 @@ static void bch2_btree_iter_verify(struct btree_iter *iter)
 
 	BUG_ON(!(iter->flags & __BTREE_ITER_ALL_SNAPSHOTS) &&
 	       (iter->flags & BTREE_ITER_ALL_SNAPSHOTS) &&
-	       !btree_type_has_snapshots(iter->btree_id));
+	       !btree_type_has_snapshot_field(iter->btree_id));
 
 	if (iter->update_path)
 		bch2_btree_path_verify(trans, iter->update_path);

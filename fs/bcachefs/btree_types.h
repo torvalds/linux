@@ -713,7 +713,7 @@ static inline bool btree_type_has_snapshots(enum btree_id id)
 static inline bool btree_type_has_snapshot_field(enum btree_id id)
 {
 	const unsigned mask = 0
-#define x(name, nr, flags, ...)	|((!!((flags) & BTREE_ID_SNAPSHOT_FIELD)) << nr)
+#define x(name, nr, flags, ...)	|((!!((flags) & (BTREE_ID_SNAPSHOT_FIELD|BTREE_ID_SNAPSHOTS))) << nr)
 	BCH_BTREE_IDS()
 #undef x
 	;
