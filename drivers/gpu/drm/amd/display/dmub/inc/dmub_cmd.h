@@ -2876,6 +2876,10 @@ enum dmub_cmd_replay_type {
 	 * Set power opt and coasting vtotal.
 	 */
 	DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL	= 4,
+	/**
+	 * Set disabled iiming sync.
+	 */
+	DMUB_CMD__REPLAY_SET_TIMING_SYNC_SUPPORTED	= 5,
 };
 
 /**
@@ -3039,6 +3043,27 @@ struct dmub_cmd_replay_set_power_opt_data {
 };
 
 /**
+ * Data passed from driver to FW in a DMUB_CMD__REPLAY_SET_TIMING_SYNC_SUPPORTED command.
+ */
+struct dmub_cmd_replay_set_timing_sync_data {
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[3];
+	/**
+	 * REPLAY set_timing_sync
+	 */
+	bool timing_sync_supported;
+};
+
+/**
  * Definition of a DMUB_CMD__SET_REPLAY_POWER_OPT command.
  */
 struct dmub_rb_cmd_replay_set_power_opt {
@@ -3102,6 +3127,20 @@ struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal {
 	 * Definition of a DMUB_CMD__REPLAY_SET_COASTING_VTOTAL command.
 	 */
 	struct dmub_cmd_replay_set_coasting_vtotal_data replay_set_coasting_vtotal_data;
+};
+
+/**
+ * Definition of a DMUB_CMD__REPLAY_SET_TIMING_SYNC_SUPPORTED command.
+ */
+struct dmub_rb_cmd_replay_set_timing_sync {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of DMUB_CMD__REPLAY_SET_TIMING_SYNC_SUPPORTED command.
+	 */
+	struct dmub_cmd_replay_set_timing_sync_data replay_set_timing_sync_data;
 };
 
 /**
@@ -4237,6 +4276,8 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL command.
 	 */
 	struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal replay_set_power_opt_and_coasting_vtotal;
+
+	struct dmub_rb_cmd_replay_set_timing_sync replay_set_timing_sync;
 };
 
 /**
