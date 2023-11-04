@@ -13,11 +13,11 @@ union {
 	struct {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 		unsigned			idx:24;
-		struct bpos			pos;
+		u8				pos[sizeof(struct bpos)];
 		enum btree_id			btree:8;
 #else
 		enum btree_id			btree:8;
-		struct bpos			pos;
+		u8				pos[sizeof(struct bpos)];
 		unsigned			idx:24;
 #endif
 	} __packed;

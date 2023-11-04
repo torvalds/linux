@@ -11,21 +11,95 @@
 #include "journal_reclaim.h"
 
 #include <linux/prefetch.h>
-#include <linux/sort.h>
 
 static int bch2_btree_write_buffer_journal_flush(struct journal *,
 				struct journal_entry_pin *, u64);
 
 static int bch2_journal_keys_to_write_buffer(struct bch_fs *, struct journal_buf *);
 
-static inline int wb_key_cmp(const void *_l, const void *_r)
+static inline bool __wb_key_cmp(const struct wb_key_ref *l, const struct wb_key_ref *r)
+{
+	return (cmp_int(l->hi, r->hi) ?:
+		cmp_int(l->mi, r->mi) ?:
+		cmp_int(l->lo, r->lo)) >= 0;
+}
+
+static inline bool wb_key_cmp(const struct wb_key_ref *l, const struct wb_key_ref *r)
+{
+#ifdef CONFIG_X86_64
+	int cmp;
+
+	asm("mov   (%[l]), %%rax;"
+	    "sub   (%[r]), %%rax;"
+	    "mov  8(%[l]), %%rax;"
+	    "sbb  8(%[r]), %%rax;"
+	    "mov 16(%[l]), %%rax;"
+	    "sbb 16(%[r]), %%rax;"
+	    : "=@ccae" (cmp)
+	    : [l] "r" (l), [r] "r" (r)
+	    : "rax", "cc");
+
+	EBUG_ON(cmp != __wb_key_cmp(l, r));
+	return cmp;
+#else
+	return __wb_key_cmp(l, r);
+#endif
+}
+
+/* Compare excluding idx, the low 24 bits: */
+static inline bool wb_key_eq(const void *_l, const void *_r)
 {
 	const struct wb_key_ref *l = _l;
 	const struct wb_key_ref *r = _r;
 
-	return  cmp_int(l->hi, r->hi) ?:
-		cmp_int(l->mi, r->mi) ?:
-		cmp_int(l->lo, r->lo);
+	return !((l->hi ^ r->hi)|
+		 (l->mi ^ r->mi)|
+		 ((l->lo >> 24) ^ (r->lo >> 24)));
+}
+
+static noinline void wb_sort(struct wb_key_ref *base, size_t num)
+{
+	size_t n = num, a = num / 2;
+
+	if (!a)		/* num < 2 || size == 0 */
+		return;
+
+	for (;;) {
+		size_t b, c, d;
+
+		if (a)			/* Building heap: sift down --a */
+			--a;
+		else if (--n)		/* Sorting: Extract root to --n */
+			swap(base[0], base[n]);
+		else			/* Sort complete */
+			break;
+
+		/*
+		 * Sift element at "a" down into heap.  This is the
+		 * "bottom-up" variant, which significantly reduces
+		 * calls to cmp_func(): we find the sift-down path all
+		 * the way to the leaves (one compare per level), then
+		 * backtrack to find where to insert the target element.
+		 *
+		 * Because elements tend to sift down close to the leaves,
+		 * this uses fewer compares than doing two per level
+		 * on the way down.  (A bit more than half as many on
+		 * average, 3/4 worst-case.)
+		 */
+		for (b = a; c = 2*b + 1, (d = c + 1) < n;)
+			b = wb_key_cmp(base + c, base + d) ? c : d;
+		if (d == n)		/* Special case last leaf with no sibling */
+			b = c;
+
+		/* Now backtrack from "b" to the correct location for "a" */
+		while (b != a && wb_key_cmp(base + a, base + b))
+			b = (b - 1) / 2;
+		c = b;			/* Where "a" belongs */
+		while (b != a) {	/* Shift it into place */
+			b = (b - 1) / 2;
+			swap(base[b], base[c]);
+		}
+	}
 }
 
 static noinline int wb_flush_one_slowpath(struct btree_trans *trans,
@@ -188,7 +262,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 	for (size_t i = 0; i < wb->flushing.keys.nr; i++) {
 		wb->sorted.data[i].idx = i;
 		wb->sorted.data[i].btree = wb->flushing.keys.data[i].btree;
-		wb->sorted.data[i].pos = wb->flushing.keys.data[i].k.k.p;
+		memcpy(&wb->sorted.data[i].pos, &wb->flushing.keys.data[i].k.k.p, sizeof(struct bpos));
 	}
 	wb->sorted.nr = wb->flushing.keys.nr;
 
@@ -206,9 +280,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 	 * If that happens, simply skip the key so we can optimistically insert
 	 * as many keys as possible in the fast path.
 	 */
-	sort(wb->sorted.data, wb->sorted.nr,
-	     sizeof(wb->sorted.data[0]),
-	     wb_key_cmp, NULL);
+	wb_sort(wb->sorted.data, wb->sorted.nr);
 
 	darray_for_each(wb->sorted, i) {
 		struct btree_write_buffered_key *k = &wb->flushing.keys.data[i->idx];
@@ -219,8 +291,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		BUG_ON(!k->journal_seq);
 
 		if (i + 1 < &darray_top(wb->sorted) &&
-		    i[0].btree == i[1].btree &&
-		    bpos_eq(i[0].pos, i[1].pos)) {
+		    wb_key_eq(i, i + 1)) {
 			struct btree_write_buffered_key *n = &wb->flushing.keys.data[i[1].idx];
 
 			skipped++;
