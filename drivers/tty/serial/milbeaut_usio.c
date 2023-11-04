@@ -207,9 +207,9 @@ static irqreturn_t mlb_usio_rx_irq(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 	mlb_usio_rx_chars(port);
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return IRQ_HANDLED;
 }
@@ -218,10 +218,10 @@ static irqreturn_t mlb_usio_tx_irq(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 	if (readb(port->membase + MLB_USIO_REG_SSR) & MLB_USIO_SSR_TBI)
 		mlb_usio_tx_chars(port);
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return IRQ_HANDLED;
 }
@@ -267,7 +267,7 @@ static int mlb_usio_startup(struct uart_port *port)
 	escr = readb(port->membase + MLB_USIO_REG_ESCR);
 	if (of_property_read_bool(port->dev->of_node, "auto-flow-control"))
 		escr |= MLB_USIO_ESCR_FLWEN;
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	writeb(0, port->membase + MLB_USIO_REG_SCR);
 	writeb(escr, port->membase + MLB_USIO_REG_ESCR);
 	writeb(MLB_USIO_SCR_UPCL, port->membase + MLB_USIO_REG_SCR);
@@ -282,7 +282,7 @@ static int mlb_usio_startup(struct uart_port *port)
 
 	writeb(MLB_USIO_SCR_TXE  | MLB_USIO_SCR_RIE | MLB_USIO_SCR_TBIE |
 	       MLB_USIO_SCR_RXE, port->membase + MLB_USIO_REG_SCR);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return 0;
 }
@@ -337,7 +337,7 @@ static void mlb_usio_set_termios(struct uart_port *port,
 	else
 		quot = 0;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	uart_update_timeout(port, termios->c_cflag, baud);
 	port->read_status_mask = MLB_USIO_SSR_ORE | MLB_USIO_SSR_RDRF |
 				 MLB_USIO_SSR_TDRE;
@@ -367,7 +367,7 @@ static void mlb_usio_set_termios(struct uart_port *port,
 	writew(BIT(12), port->membase + MLB_USIO_REG_FBYTE);
 	writeb(MLB_USIO_SCR_RIE | MLB_USIO_SCR_RXE | MLB_USIO_SCR_TBIE |
 	       MLB_USIO_SCR_TXE, port->membase + MLB_USIO_REG_SCR);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *mlb_usio_type(struct uart_port *port)

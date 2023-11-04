@@ -78,8 +78,6 @@ required:
   - interrupts
   - reg
 
-unevaluatedProperties: false
-
 allOf:
   - $ref: /schemas/serial/serial.yaml#
 
@@ -96,6 +94,8 @@ allOf:
       properties:
         reg:
           maxItems: 1
+
+unevaluatedProperties: false
 
 examples:
   - |

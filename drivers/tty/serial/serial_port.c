@@ -35,10 +35,10 @@ static int serial_port_runtime_resume(struct device *dev)
 		goto out;
 
 	/* Flush any pending TX for the port */
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	if (__serial_port_busy(port))
 		port->ops->start_tx(port);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 out:
 	pm_runtime_mark_last_busy(dev);

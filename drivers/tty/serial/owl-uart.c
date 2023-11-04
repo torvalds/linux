@@ -125,12 +125,12 @@ static unsigned int owl_uart_tx_empty(struct uart_port *port)
 	u32 val;
 	unsigned int ret;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	val = owl_uart_read(port, OWL_UART_STAT);
 	ret = (val & OWL_UART_STAT_TFES) ? TIOCSER_TEMT : 0;
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return ret;
 }
@@ -232,7 +232,7 @@ static irqreturn_t owl_uart_irq(int irq, void *dev_id)
 	unsigned long flags;
 	u32 stat;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	stat = owl_uart_read(port, OWL_UART_STAT);
 
@@ -246,7 +246,7 @@ static irqreturn_t owl_uart_irq(int irq, void *dev_id)
 	stat |= OWL_UART_STAT_RIP | OWL_UART_STAT_TIP;
 	owl_uart_write(port, stat, OWL_UART_STAT);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return IRQ_HANDLED;
 }
@@ -256,14 +256,14 @@ static void owl_uart_shutdown(struct uart_port *port)
 	u32 val;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	val = owl_uart_read(port, OWL_UART_CTL);
 	val &= ~(OWL_UART_CTL_TXIE | OWL_UART_CTL_RXIE
 		| OWL_UART_CTL_TXDE | OWL_UART_CTL_RXDE | OWL_UART_CTL_EN);
 	owl_uart_write(port, val, OWL_UART_CTL);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	free_irq(port->irq, port);
 }
@@ -279,7 +279,7 @@ static int owl_uart_startup(struct uart_port *port)
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	val = owl_uart_read(port, OWL_UART_STAT);
 	val |= OWL_UART_STAT_RIP | OWL_UART_STAT_TIP
@@ -291,7 +291,7 @@ static int owl_uart_startup(struct uart_port *port)
 	val |= OWL_UART_CTL_EN;
 	owl_uart_write(port, val, OWL_UART_CTL);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return 0;
 }
@@ -311,7 +311,7 @@ static void owl_uart_set_termios(struct uart_port *port,
 	u32 ctl;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	ctl = owl_uart_read(port, OWL_UART_CTL);
 
@@ -371,7 +371,7 @@ static void owl_uart_set_termios(struct uart_port *port,
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void owl_uart_release_port(struct uart_port *port)
@@ -515,9 +515,9 @@ static void owl_uart_port_write(struct uart_port *port, const char *s,
 	if (port->sysrq)
 		locked = 0;
 	else if (oops_in_progress)
-		locked = spin_trylock(&port->lock);
+		locked = uart_port_trylock(port);
 	else {
-		spin_lock(&port->lock);
+		uart_port_lock(port);
 		locked = 1;
 	}
 
@@ -541,7 +541,7 @@ static void owl_uart_port_write(struct uart_port *port, const char *s,
 	owl_uart_write(port, old_ctl, OWL_UART_CTL);
 
 	if (locked)
-		spin_unlock(&port->lock);
+		uart_port_unlock(port);
 
 	local_irq_restore(flags);
 }

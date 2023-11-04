@@ -70,6 +70,8 @@ properties:
   interrupts:
     maxItems: 1
 
+  wakeup-source: true
+
   fsl,dte-mode:
     $ref: /schemas/types.yaml#/definitions/flag
     description: |

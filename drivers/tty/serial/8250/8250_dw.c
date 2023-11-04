@@ -263,20 +263,20 @@ static int dw8250_handle_irq(struct uart_port *p)
 	 * so we limit the workaround only to non-DMA mode.
 	 */
 	if (!up->dma && rx_timeout) {
-		spin_lock_irqsave(&p->lock, flags);
+		uart_port_lock_irqsave(p, &flags);
 		status = serial_lsr_in(up);
 
 		if (!(status & (UART_LSR_DR | UART_LSR_BI)))
 			(void) p->serial_in(p, UART_RX);
 
-		spin_unlock_irqrestore(&p->lock, flags);
+		uart_port_unlock_irqrestore(p, flags);
 	}
 
 	/* Manually stop the Rx DMA transfer when acting as flow controller */
 	if (quirks & DW_UART_QUIRK_IS_DMA_FC && up->dma && up->dma->rx_running && rx_timeout) {
-		spin_lock_irqsave(&p->lock, flags);
+		uart_port_lock_irqsave(p, &flags);
 		status = serial_lsr_in(up);
-		spin_unlock_irqrestore(&p->lock, flags);
+		uart_port_unlock_irqrestore(p, flags);
 
 		if (status & (UART_LSR_DR | UART_LSR_BI)) {
 			dw8250_writel_ext(p, RZN1_UART_RDMACR, 0);
@@ -498,11 +498,6 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 	}
 }
 
-static void dw8250_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static void dw8250_reset_control_assert(void *data)
 {
 	reset_control_assert(data);
@@ -598,22 +593,14 @@ static int dw8250_probe(struct platform_device *pdev)
 	device_property_read_u32(dev, "clock-frequency", &p->uartclk);
 
 	/* If there is separate baudclk, get the rate from it. */
-	data->clk = devm_clk_get_optional(dev, "baudclk");
+	data->clk = devm_clk_get_optional_enabled(dev, "baudclk");
 	if (data->clk == NULL)
-		data->clk = devm_clk_get_optional(dev, NULL);
+		data->clk = devm_clk_get_optional_enabled(dev, NULL);
 	if (IS_ERR(data->clk))
 		return PTR_ERR(data->clk);
 
 	INIT_WORK(&data->clk_work, dw8250_clk_work_cb);
 	data->clk_notifier.notifier_call = dw8250_clk_notifier_cb;
-
-	err = clk_prepare_enable(data->clk);
-	if (err)
-		return dev_err_probe(dev, err, "could not enable optional baudclk\n");
-
-	err = devm_add_action_or_reset(dev, dw8250_clk_disable_unprepare, data->clk);
-	if (err)
-		return err;
 
 	if (data->clk)
 		p->uartclk = clk_get_rate(data->clk);
@@ -622,17 +609,9 @@ static int dw8250_probe(struct platform_device *pdev)
 	if (!p->uartclk)
 		return dev_err_probe(dev, -EINVAL, "clock rate not defined\n");
 
-	data->pclk = devm_clk_get_optional(dev, "apb_pclk");
+	data->pclk = devm_clk_get_optional_enabled(dev, "apb_pclk");
 	if (IS_ERR(data->pclk))
 		return PTR_ERR(data->pclk);
-
-	err = clk_prepare_enable(data->pclk);
-	if (err)
-		return dev_err_probe(dev, err, "could not enable apb_pclk\n");
-
-	err = devm_add_action_or_reset(dev, dw8250_clk_disable_unprepare, data->pclk);
-	if (err)
-		return err;
 
 	data->rst = devm_reset_control_get_optional_exclusive(dev, NULL);
 	if (IS_ERR(data->rst))

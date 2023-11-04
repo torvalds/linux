@@ -1205,7 +1205,7 @@ static void sci_dma_tx_complete(void *arg)
 
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	uart_xmit_advance(port, s->tx_dma_len);
 
@@ -1229,7 +1229,7 @@ static void sci_dma_tx_complete(void *arg)
 		}
 	}
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 /* Locking: called with port lock held */
@@ -1320,7 +1320,7 @@ static void sci_dma_rx_complete(void *arg)
 	dev_dbg(port->dev, "%s(%d) active cookie %d\n", __func__, port->line,
 		s->active_rx);
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	active = sci_dma_rx_find_active(s);
 	if (active >= 0)
@@ -1347,20 +1347,20 @@ static void sci_dma_rx_complete(void *arg)
 
 	dma_async_issue_pending(chan);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 	dev_dbg(port->dev, "%s: cookie %d #%d, new active cookie %d\n",
 		__func__, s->cookie_rx[active], active, s->active_rx);
 	return;
 
 fail:
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 	dev_warn(port->dev, "Failed submitting Rx DMA descriptor\n");
 	/* Switch to PIO */
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	dmaengine_terminate_async(chan);
 	sci_dma_rx_chan_invalidate(s);
 	sci_dma_rx_reenable_irq(s);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void sci_dma_tx_release(struct sci_port *s)
@@ -1409,13 +1409,13 @@ static int sci_dma_rx_submit(struct sci_port *s, bool port_lock_held)
 fail:
 	/* Switch to PIO */
 	if (!port_lock_held)
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 	if (i)
 		dmaengine_terminate_async(chan);
 	sci_dma_rx_chan_invalidate(s);
 	sci_start_rx(port);
 	if (!port_lock_held)
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 	return -EAGAIN;
 }
 
@@ -1437,14 +1437,14 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	 * transmit till the end, and then the rest. Take the port lock to get a
 	 * consistent xmit buffer state.
 	 */
-	spin_lock_irq(&port->lock);
+	uart_port_lock_irq(port);
 	head = xmit->head;
 	tail = xmit->tail;
 	buf = s->tx_dma_addr + tail;
 	s->tx_dma_len = CIRC_CNT_TO_END(head, tail, UART_XMIT_SIZE);
 	if (!s->tx_dma_len) {
 		/* Transmit buffer has been flushed */
-		spin_unlock_irq(&port->lock);
+		uart_port_unlock_irq(port);
 		return;
 	}
 
@@ -1452,7 +1452,7 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 					   DMA_MEM_TO_DEV,
 					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
-		spin_unlock_irq(&port->lock);
+		uart_port_unlock_irq(port);
 		dev_warn(port->dev, "Failed preparing Tx DMA descriptor\n");
 		goto switch_to_pio;
 	}
@@ -1464,12 +1464,12 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	desc->callback_param = s;
 	s->cookie_tx = dmaengine_submit(desc);
 	if (dma_submit_error(s->cookie_tx)) {
-		spin_unlock_irq(&port->lock);
+		uart_port_unlock_irq(port);
 		dev_warn(port->dev, "Failed submitting Tx DMA descriptor\n");
 		goto switch_to_pio;
 	}
 
-	spin_unlock_irq(&port->lock);
+	uart_port_unlock_irq(port);
 	dev_dbg(port->dev, "%s: %p: %d...%d, cookie %d\n",
 		__func__, xmit->buf, tail, head, s->cookie_tx);
 
@@ -1477,10 +1477,10 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	return;
 
 switch_to_pio:
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	s->chan_tx = NULL;
 	sci_start_tx(port);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 	return;
 }
 
@@ -1497,17 +1497,17 @@ static enum hrtimer_restart sci_dma_rx_timer_fn(struct hrtimer *t)
 
 	dev_dbg(port->dev, "DMA Rx timed out\n");
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	active = sci_dma_rx_find_active(s);
 	if (active < 0) {
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 		return HRTIMER_NORESTART;
 	}
 
 	status = dmaengine_tx_status(s->chan_rx, s->active_rx, &state);
 	if (status == DMA_COMPLETE) {
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 		dev_dbg(port->dev, "Cookie %d #%d has already completed\n",
 			s->active_rx, active);
 
@@ -1525,7 +1525,7 @@ static enum hrtimer_restart sci_dma_rx_timer_fn(struct hrtimer *t)
 	 */
 	status = dmaengine_tx_status(s->chan_rx, s->active_rx, &state);
 	if (status == DMA_COMPLETE) {
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 		dev_dbg(port->dev, "Transaction complete after DMA engine was stopped");
 		return HRTIMER_NORESTART;
 	}
@@ -1546,7 +1546,7 @@ static enum hrtimer_restart sci_dma_rx_timer_fn(struct hrtimer *t)
 
 	sci_dma_rx_reenable_irq(s);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return HRTIMER_NORESTART;
 }
@@ -1770,9 +1770,9 @@ static irqreturn_t sci_tx_interrupt(int irq, void *ptr)
 	struct uart_port *port = ptr;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	sci_transmit_chars(port);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return IRQ_HANDLED;
 }
@@ -1786,11 +1786,11 @@ static irqreturn_t sci_tx_end_interrupt(int irq, void *ptr)
 	if (port->type != PORT_SCI)
 		return sci_tx_interrupt(irq, ptr);
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	ctrl = serial_port_in(port, SCSCR);
 	ctrl &= ~(SCSCR_TE | SCSCR_TEIE);
 	serial_port_out(port, SCSCR, ctrl);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return IRQ_HANDLED;
 }
@@ -2187,7 +2187,7 @@ static void sci_break_ctl(struct uart_port *port, int break_state)
 		return;
 	}
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	scsptr = serial_port_in(port, SCSPTR);
 	scscr = serial_port_in(port, SCSCR);
 
@@ -2201,7 +2201,7 @@ static void sci_break_ctl(struct uart_port *port, int break_state)
 
 	serial_port_out(port, SCSPTR, scsptr);
 	serial_port_out(port, SCSCR, scscr);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static int sci_startup(struct uart_port *port)
@@ -2233,7 +2233,7 @@ static void sci_shutdown(struct uart_port *port)
 	s->autorts = false;
 	mctrl_gpio_disable_ms(to_sci_port(port)->gpios);
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	sci_stop_rx(port);
 	sci_stop_tx(port);
 	/*
@@ -2243,7 +2243,7 @@ static void sci_shutdown(struct uart_port *port)
 	scr = serial_port_in(port, SCSCR);
 	serial_port_out(port, SCSCR, scr &
 			(SCSCR_CKE1 | SCSCR_CKE0 | s->hscif_tot));
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	if (s->chan_rx_saved) {
@@ -2545,7 +2545,7 @@ done:
 		serial_port_out(port, SCCKS, sccks);
 	}
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	sci_reset(port);
 
@@ -2667,7 +2667,7 @@ done:
 	if ((termios->c_cflag & CREAD) != 0)
 		sci_start_rx(port);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	sci_port_disable(s);
 
@@ -3052,9 +3052,9 @@ static void serial_console_write(struct console *co, const char *s,
 	if (port->sysrq)
 		locked = 0;
 	else if (oops_in_progress)
-		locked = spin_trylock_irqsave(&port->lock, flags);
+		locked = uart_port_trylock_irqsave(port, &flags);
 	else
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 
 	/* first save SCSCR then disable interrupts, keep clock source */
 	ctrl = serial_port_in(port, SCSCR);
@@ -3074,7 +3074,7 @@ static void serial_console_write(struct console *co, const char *s,
 	serial_port_out(port, SCSCR, ctrl);
 
 	if (locked)
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 }
 
 static int serial_console_setup(struct console *co, char *options)

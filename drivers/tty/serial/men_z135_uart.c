@@ -392,7 +392,7 @@ static irqreturn_t men_z135_intr(int irq, void *data)
 	if (!irq_id)
 		goto out;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 	/* It's save to write to IIR[7:6] RXC[9:8] */
 	iowrite8(irq_id, port->membase + MEN_Z135_STAT_REG);
 
@@ -418,7 +418,7 @@ static irqreturn_t men_z135_intr(int irq, void *data)
 		handled = true;
 	}
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 out:
 	return IRQ_RETVAL(handled);
 }
@@ -708,7 +708,7 @@ static void men_z135_set_termios(struct uart_port *port,
 
 	baud = uart_get_baud_rate(port, termios, old, 0, uart_freq / 16);
 
-	spin_lock_irq(&port->lock);
+	uart_port_lock_irq(port);
 	if (tty_termios_baud_rate(termios))
 		tty_termios_encode_baud_rate(termios, baud, baud);
 
@@ -716,7 +716,7 @@ static void men_z135_set_termios(struct uart_port *port,
 	iowrite32(bd_reg, port->membase + MEN_Z135_BAUD_REG);
 
 	uart_update_timeout(port, termios->c_cflag, baud);
-	spin_unlock_irq(&port->lock);
+	uart_port_unlock_irq(port);
 }
 
 static const char *men_z135_type(struct uart_port *port)
