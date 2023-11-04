@@ -329,7 +329,7 @@ static const struct of_device_id at91_pmc_ids[] = {
 	{ /* Sentinel. */ }
 };
 
-static int __init at91_shdwc_probe(struct platform_device *pdev)
+static int at91_shdwc_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct device_node *np;
@@ -421,7 +421,7 @@ clk_disable:
 	return ret;
 }
 
-static int __exit at91_shdwc_remove(struct platform_device *pdev)
+static int at91_shdwc_remove(struct platform_device *pdev)
 {
 	struct shdwc *shdw = platform_get_drvdata(pdev);
 
@@ -442,13 +442,14 @@ static int __exit at91_shdwc_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver at91_shdwc_driver = {
-	.remove = __exit_p(at91_shdwc_remove),
+	.probe = at91_shdwc_probe,
+	.remove = at91_shdwc_remove,
 	.driver = {
 		.name = "at91-shdwc",
 		.of_match_table = at91_shdwc_of_match,
 	},
 };
-module_platform_driver_probe(at91_shdwc_driver, at91_shdwc_probe);
+module_platform_driver(at91_shdwc_driver);
 
 MODULE_AUTHOR("Nicolas Ferre <nicolas.ferre@atmel.com>");
 MODULE_DESCRIPTION("Atmel shutdown controller driver");
