@@ -389,8 +389,8 @@ void devm_remove_action(struct device *dev, void (*action)(void *), void *data);
 void devm_release_action(struct device *dev, void (*action)(void *), void *data);
 
 int __devm_add_action(struct device *dev, void (*action)(void *), void *data, const char *name);
-#define devm_add_action(release, action, data) \
-	__devm_add_action(release, action, data, #action)
+#define devm_add_action(dev, action, data) \
+	__devm_add_action(dev, action, data, #action)
 
 static inline int __devm_add_action_or_reset(struct device *dev, void (*action)(void *),
 					     void *data, const char *name)
@@ -403,8 +403,8 @@ static inline int __devm_add_action_or_reset(struct device *dev, void (*action)(
 
 	return ret;
 }
-#define devm_add_action_or_reset(release, action, data) \
-	__devm_add_action_or_reset(release, action, data, #action)
+#define devm_add_action_or_reset(dev, action, data) \
+	__devm_add_action_or_reset(dev, action, data, #action)
 
 /**
  * devm_alloc_percpu - Resource-managed alloc_percpu

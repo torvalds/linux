@@ -229,7 +229,7 @@ static inline unsigned long resource_ext_type(const struct resource *res)
 	return res->flags & IORESOURCE_EXT_TYPE_BITS;
 }
 /* True iff r1 completely contains r2 */
-static inline bool resource_contains(struct resource *r1, struct resource *r2)
+static inline bool resource_contains(const struct resource *r1, const struct resource *r2)
 {
 	if (resource_type(r1) != resource_type(r2))
 		return false;
@@ -239,13 +239,13 @@ static inline bool resource_contains(struct resource *r1, struct resource *r2)
 }
 
 /* True if any part of r1 overlaps r2 */
-static inline bool resource_overlaps(struct resource *r1, struct resource *r2)
+static inline bool resource_overlaps(const struct resource *r1, const struct resource *r2)
 {
        return r1->start <= r2->end && r1->end >= r2->start;
 }
 
-static inline bool
-resource_intersection(struct resource *r1, struct resource *r2, struct resource *r)
+static inline bool resource_intersection(const struct resource *r1, const struct resource *r2,
+					 struct resource *r)
 {
 	if (!resource_overlaps(r1, r2))
 		return false;
@@ -254,8 +254,8 @@ resource_intersection(struct resource *r1, struct resource *r2, struct resource 
 	return true;
 }
 
-static inline bool
-resource_union(struct resource *r1, struct resource *r2, struct resource *r)
+static inline bool resource_union(const struct resource *r1, const struct resource *r2,
+				  struct resource *r)
 {
 	if (!resource_overlaps(r1, r2))
 		return false;

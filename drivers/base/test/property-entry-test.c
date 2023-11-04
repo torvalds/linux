@@ -506,3 +506,7 @@ static struct kunit_suite property_entry_test_suite = {
 };
 
 kunit_test_suite(property_entry_test_suite);
+
+MODULE_DESCRIPTION("Test module for the property entry API");
+MODULE_AUTHOR("Dmitry Torokhov <dtor@chromium.org>");
+MODULE_LICENSE("GPL");
