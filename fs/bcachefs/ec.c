@@ -476,14 +476,10 @@ err:
 	return ret;
 }
 
-static int get_stripe_key(struct bch_fs *c, u64 idx, struct ec_stripe_buf *stripe)
-{
-	return bch2_trans_run(c, get_stripe_key_trans(trans, idx, stripe));
-}
-
 /* recovery read path: */
-int bch2_ec_read_extent(struct bch_fs *c, struct bch_read_bio *rbio)
+int bch2_ec_read_extent(struct btree_trans *trans, struct bch_read_bio *rbio)
 {
+	struct bch_fs *c = trans->c;
 	struct ec_stripe_buf *buf;
 	struct closure cl;
 	struct bch_stripe *v;
@@ -498,7 +494,7 @@ int bch2_ec_read_extent(struct bch_fs *c, struct bch_read_bio *rbio)
 	if (!buf)
 		return -BCH_ERR_ENOMEM_ec_read_extent;
 
-	ret = get_stripe_key(c, rbio->pick.ec.idx, buf);
+	ret = lockrestart_do(trans, get_stripe_key_trans(trans, rbio->pick.ec.idx, buf));
 	if (ret) {
 		bch_err_ratelimited(c,
 			"error doing reconstruct read: error %i looking up stripe", ret);

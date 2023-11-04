@@ -1025,7 +1025,7 @@ get_bio:
 		trans->notrace_relock_fail = true;
 	} else {
 		/* Attempting reconstruct read: */
-		if (bch2_ec_read_extent(c, rbio)) {
+		if (bch2_ec_read_extent(trans, rbio)) {
 			bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 			goto out;
 		}
