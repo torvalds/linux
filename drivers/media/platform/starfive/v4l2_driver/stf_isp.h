@@ -18,7 +18,7 @@
 
 #define ISP_SCD_BUFFER_SIZE     (19 * 256 * 4)  // align 128
 #define ISP_YHIST_BUFFER_SIZE   (64 * 4)
-#define ISP_SCD_Y_BUFFER_SIZE   (ISP_SCD_BUFFER_SIZE + ISP_YHIST_BUFFER_SIZE)
+#define ISP_SCD_Y_BUFFER_SIZE   (ISP_SCD_BUFFER_SIZE + ISP_YHIST_BUFFER_SIZE + 2)
 #define ISP_RAW_DATA_BITS       12
 #define SCALER_RATIO_MAX        1  // no compose function
 #define STF_ISP_REG_OFFSET_MAX  0x0FFF

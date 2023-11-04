@@ -12,6 +12,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 #include <linux/firmware.h>
+#include <linux/jh7110-isp.h>
 #include "stf_isp_ioctl.h"
 #include "stf_dmabuf.h"
 
@@ -86,16 +87,15 @@ static const struct isp_format isp_formats_st7110_iti[] = {
 	{ MEDIA_BUS_FMT_YUV8_1X24, 8},
 };
 
-#define SINK_FORMATS_INDEX    0
-#define UO_FORMATS_INDEX      1
-#define ITI_FORMATS_INDEX     2
-#define RAW_FORMATS_INDEX     3
-
 static const struct isp_format_table isp_formats_st7110[] = {
-	{ isp_formats_st7110_sink, ARRAY_SIZE(isp_formats_st7110_sink) }, // 0
-	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // 1
-	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   // 2
-	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   // 3
+	{ isp_formats_st7110_sink, ARRAY_SIZE(isp_formats_st7110_sink) }, /* pad 0 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     /* pad 1 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     /* pad 2 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     /* pad 3 */
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   /* pad 4 */
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   /* pad 5 */
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   /* pad 6 */
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   /* pad 7 */
 };
 
 int stf_isp_subdev_init(struct stfcamss *stfcamss)
@@ -195,6 +195,41 @@ static const char * const test_pattern_menu[] = {
 	"Color squares w/ rolling bar",
 };
 
+enum isp_modules_index {
+	imi_obc = 0,
+	imi_oecf,
+	imi_lccf,
+	imi_awb,
+	imi_dbc,
+	imi_ctc,
+	imi_cfa,
+	imi_car,
+	imi_ccm,
+	imi_gmargb,
+	imi_r2y,
+	imi_ycrv,
+	imi_shrp,
+	imi_dnyuv,
+	imi_sat,
+	imi_sc
+};
+
+#define MODULE_ENABLE_REGISTER0				0x10
+#define MODULE_ENABLE_REGISTER1				0xa08
+
+struct module_register_info {
+	__u32 en_reg;
+	__u32 en_nbit;
+	__u32 cfg_reg;
+};
+
+static const struct module_register_info mod_reg_info[] = {
+	{MODULE_ENABLE_REGISTER0, 2, 0x034}, {MODULE_ENABLE_REGISTER0, 4, 0x100}, {MODULE_ENABLE_REGISTER0, 6, 0x050}, {MODULE_ENABLE_REGISTER0, 7, 0x280},
+	{MODULE_ENABLE_REGISTER1, 22, 0xa14}, {MODULE_ENABLE_REGISTER1, 21, 0xa10}, {MODULE_ENABLE_REGISTER1, 1, 0xa1c}, {MODULE_ENABLE_REGISTER1, 2, 0x000},
+	{MODULE_ENABLE_REGISTER1, 3, 0xc40}, {MODULE_ENABLE_REGISTER1, 4, 0xe00}, {MODULE_ENABLE_REGISTER1, 5, 0xe40}, {MODULE_ENABLE_REGISTER1, 19, 0xf00},
+	{MODULE_ENABLE_REGISTER1, 7, 0xe80}, {MODULE_ENABLE_REGISTER1, 17, 0xc00}, {MODULE_ENABLE_REGISTER1, 8, 0xa30}, {MODULE_ENABLE_REGISTER0, 17, 0x09c}
+};
+
 #define ISP_TEST_ENABLE			BIT(7)
 #define ISP_TEST_ROLLING		BIT(6)	/* rolling horizontal bar */
 #define ISP_TEST_TRANSPARENT		BIT(5)
@@ -260,11 +295,459 @@ static int isp_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
+#define CREATE_REG_VALUE_FUNCTION(type)	\
+	static u32 create_reg_value_##type(const type * value, s32 size, u32 mask, s32 nbits) {	\
+	s32 npos = 0;	\
+	u32 res = 0;	\
+	s32 sz = size;	\
+	s32 i = 0;	\
+	if(size * nbits > 32) sz = 32 / nbits;	\
+	for(i = 0; i < sz; i++, npos += nbits, value++) res |= (u32)(value[0] & mask) << npos;	\
+	return res;	\
+}
+
+CREATE_REG_VALUE_FUNCTION(u8);
+CREATE_REG_VALUE_FUNCTION(u16);
+#define CREATE_REG_VALUE(type, value, size, mask, nbits) create_reg_value_##type(value, size, mask, nbits)
+
+#define FILL_ISP_REGS_FUNC(type)	\
+static void fill_isp_regs_##type(void __iomem *ispbase, u32 offset, const type * value, s32 size, u32 mask, u32 nbits) {	\
+	s32 i;	\
+	for(i = 0; i < size; i++, value++)	\
+		reg_write(ispbase, offset + i * 4, (u32)(value[0] & mask) << nbits);	\
+}
+FILL_ISP_REGS_FUNC(u32);
+FILL_ISP_REGS_FUNC(u8);
+FILL_ISP_REGS_FUNC(u16);
+
+#define FILL_ISP_REGS(type, ispbase, offset, value, size, mask, nbits)	\
+	fill_isp_regs_##type(ispbase, offset, value, size, mask, nbits)
+
+static void fill_regs_with_zero(void __iomem *ispbase, u32 offset, u32 size)
+{
+	u32 i;
+	for(i = 0; i < size; i++, offset += 4)
+		reg_write(ispbase, offset, 0);
+}
+
+static int isp_set_ctrl_wb(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_awb];
+	const struct jh7110_isp_wb_setting * setting = (const struct jh7110_isp_wb_setting *)value;
+	const struct jh7110_isp_wb_gain * gains = &setting->gains;
+	u32 r_g = (((u32)gains->gain_r << 16) | gains->gain_r) & 0x03ff03ff;
+	u32 g_g = (((u32)gains->gain_g << 16) | gains->gain_g) & 0x03ff03ff;
+	u32 b_g = (((u32)gains->gain_b << 16) | gains->gain_b) & 0x03ff03ff;
+	u32 reg_addr = reg_info->cfg_reg + 16 * sizeof(u32);
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+
+	fill_regs_with_zero(ispbase, reg_info->cfg_reg, 16);
+
+	reg_write(ispbase, reg_addr, r_g);
+	reg_write(ispbase, reg_addr + 1 * 4, r_g);
+	reg_write(ispbase, reg_addr + 2 * 4, g_g);
+	reg_write(ispbase, reg_addr + 3 * 4, g_g);
+	reg_write(ispbase, reg_addr + 4 * 4, g_g);
+	reg_write(ispbase, reg_addr + 5 * 4, g_g);
+	reg_write(ispbase, reg_addr + 6 * 4, b_g);
+	reg_write(ispbase, reg_addr + 7 * 4, b_g);
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+
+	return 0;
+}
+
+static int isp_set_ctrl_car(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_car];
+	const struct jh7110_isp_car_setting * setting = (const struct jh7110_isp_car_setting *)value;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+
+	return 0;
+}
+
+static int isp_set_ctrl_ccm(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_ccm];
+	const struct jh7110_isp_ccm_setting * setting = (const struct jh7110_isp_ccm_setting *)value;
+	const struct jh7110_isp_ccm_smlow * ccm = (const struct jh7110_isp_ccm_smlow *)(&(setting->ccm_smlow));
+	u32 reg_addr = reg_info->cfg_reg + 12 * sizeof(u32);
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+
+	reg_write(ispbase, reg_info->cfg_reg, 6 << 16);
+	fill_regs_with_zero(ispbase, reg_info->cfg_reg + 4, 11);
+
+	FILL_ISP_REGS(u32, ispbase, reg_addr, (u32 *)ccm, 12, 0x7ff, 0);
+
+	reg_addr += 12 * 4;
+	fill_regs_with_zero(ispbase, reg_addr, 2);
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+
+	return 0;
+}
+
+static int isp_set_ctrl_cfa(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_cfa];
+	const struct jh7110_isp_cfa_setting * setting = (const struct jh7110_isp_cfa_setting *)value;
+	const struct jh7110_isp_cfa_params * cfg = (const struct jh7110_isp_cfa_params *)(&(setting->settings));
+	u32 reg_addr = reg_info->cfg_reg;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+
+	reg_write(ispbase, reg_addr, ((u32)(cfg->cross_cov & 0x3) << 4) | (cfg->hv_width & 0xf));
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+	
+	return 0;
+}
+
+static int isp_set_ctrl_ctc(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_ctc];
+	const struct jh7110_isp_ctc_setting * setting = (const struct jh7110_isp_ctc_setting *)value;
+	const struct jh7110_isp_ctc_params * cfg = (const struct jh7110_isp_ctc_params *)(&(setting->settings));
+	u32 reg_addr = reg_info->cfg_reg;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	u32 reg_value = (u32)(((cfg->saf_mode & 1) << 1) | (cfg->daf_mode & 1)) << 30;
+
+	reg_value |= ((u32)(cfg->max_gt & 0x3ff) << 16) | (cfg->min_gt & 0x3ff);
+	reg_write(ispbase, reg_addr, reg_value);
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+	
+	return 0;
+}
+
+static int isp_set_ctrl_dbc(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_dbc];
+	const struct jh7110_isp_dbc_setting * setting = (const struct jh7110_isp_dbc_setting *)value;
+	const struct jh7110_isp_dbc_params * cfg = (const struct jh7110_isp_dbc_params *)(&(setting->settings));
+	u32 reg_addr = reg_info->cfg_reg;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+
+	reg_write(ispbase, reg_addr, ((u32)(cfg->bad_gt & 0x3ff) << 16) | (cfg->bad_xt & 0x3ff));
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+	
+	return 0;
+}
+
+static int isp_set_ctrl_dnyuv(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_dnyuv];
+	const struct jh7110_isp_dnyuv_setting * setting = (const struct jh7110_isp_dnyuv_setting *)value;
+	const struct jh7110_isp_dnyuv_params * cfg = (const struct jh7110_isp_dnyuv_params *)(&(setting->settings));
+	u32 reg_addr = reg_info->cfg_reg;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+
+	reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u8, cfg->y_sweight, 6, 0x7, 4));
+	reg_write(ispbase, reg_addr + 4, CREATE_REG_VALUE(u8, &cfg->y_sweight[6], 4, 0x7, 4));
+	reg_write(ispbase, reg_addr + 8, CREATE_REG_VALUE(u8, cfg->uv_sweight, 6, 0x7, 4));
+	reg_write(ispbase, reg_addr + 12, CREATE_REG_VALUE(u8, &cfg->uv_sweight[6], 4, 0x7, 4));
+	reg_write(ispbase, reg_addr + 16, CREATE_REG_VALUE(u16, &cfg->y_curve[0], 2, 0x3ff, 16));
+	reg_write(ispbase, reg_addr + 20, CREATE_REG_VALUE(u16, &cfg->y_curve[2], 2, 0x3ff, 16));
+	reg_write(ispbase, reg_addr + 24, CREATE_REG_VALUE(u16, &cfg->y_curve[4], 2, 0x3ff, 16));
+	reg_write(ispbase, reg_addr + 28, CREATE_REG_VALUE(u16, &cfg->uv_curve[0], 2, 0x3ff, 16));
+	reg_write(ispbase, reg_addr + 32, CREATE_REG_VALUE(u16, &cfg->uv_curve[2], 2, 0x3ff, 16));
+	reg_write(ispbase, reg_addr + 36, CREATE_REG_VALUE(u16, &cfg->uv_curve[4], 2, 0x3ff, 16));
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+	
+	return 0;
+}
+
+static int isp_set_ctrl_gmargb(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_gmargb];
+	const struct jh7110_isp_gmargb_setting * setting = (const struct jh7110_isp_gmargb_setting *)value;
+	const struct jh7110_isp_gmargb_point * curve = setting->curve;
+	u32 reg_addr = reg_info->cfg_reg;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	s32 i;
+	
+	for(i = 0; i < 15; i++, curve++, reg_addr += 4)
+		reg_write(ispbase, reg_addr, ((u32)curve->sg_val << 16) | (curve->g_val & 0x3ff));
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+
+	return 0;
+}
+
+static int isp_set_ctrl_lccf(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_lccf];
+	const struct jh7110_isp_lccf_setting * setting = (const struct jh7110_isp_lccf_setting *)value;
+	const s16 * params = (s16 *)(&setting->r_param);
+	u32 reg_addr = reg_info->cfg_reg;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	s32 i;
+	
+	reg_write(ispbase, reg_addr, ((u32)(setting->circle.center_y & 0x7fff) << 16) | (setting->circle.center_x & 0x7fff));
+	reg_write(ispbase, reg_addr + 8, setting->circle.radius & 0xf);
+	reg_addr += 0x90;
+	for(i = 0; i < 4; i++, reg_addr += 4, params += 2)
+		reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u16, params, 2, 0x1fff, 16));
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+	
+	return 0;
+}
+
+static int isp_set_ctrl_obc(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_obc];
+	const struct jh7110_isp_blacklevel_setting * setting = (const struct jh7110_isp_blacklevel_setting *)value;
+	const u8 * params = (u8 *)setting->gain;
+	u32 reg_addr = reg_info->cfg_reg;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	s32 i;
+	
+	reg_write(ispbase, reg_addr, ((u32)(setting->win_size.height & 0xf) << 4) | (setting->win_size.width & 0xf));
+
+	reg_addr += 0x2ac;	//0x2e0
+	for(i = 0; i < 8; i++, reg_addr += 4, params += 4)
+		reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u8, params, 4, 0xff, 8));
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+	
+	return 0;
+}
+
+static int isp_set_ctrl_oecf(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_oecf];
+	const struct jh7110_isp_oecf_setting * setting = (const struct jh7110_isp_oecf_setting *)value;
+	const struct jh7110_isp_oecf_point * pts = (struct jh7110_isp_oecf_point *)(setting->r_curve);
+	u32 reg_x_addr = reg_info->cfg_reg;
+	u32 reg_y_addr = reg_info->cfg_reg + 0x080;
+	u32 reg_s_addr = reg_info->cfg_reg + 0x100;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	u32 x, y, slope;
+	s32 i;
+	
+	for(i = 0; i < 32; i++, reg_x_addr += 4, reg_y_addr += 4, reg_s_addr += 4) {
+		x = pts->x & 0x3ff;
+		y = pts->y & 0x3ff;
+		slope = pts->slope & 0x3ff;
+		pts++;
+		x |= ((pts->x & 0x3ff) << 16);
+		y |= ((pts->y & 0x3ff) << 16);
+		slope |= ((pts->slope & 0x3ff) << 16);
+		pts++;
+
+		reg_write(ispbase, reg_x_addr, x);
+		reg_write(ispbase, reg_y_addr, y);
+		reg_write(ispbase, reg_s_addr, slope);
+	}
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+
+	return 0;
+}
+
+static int isp_set_ctrl_r2y(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_r2y];
+	const struct jh7110_isp_r2y_setting * setting = (const struct jh7110_isp_r2y_setting *)value;
+	const s16 * params = setting->matrix.m;
+	u32 reg_addr = reg_info->cfg_reg;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	s32 i;
+	
+	for(i = 0; i < 9; i++, reg_addr += 4)
+		reg_write(ispbase, reg_addr, (u32)(params[i] & 0x1ff));
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+	
+	return 0;
+}
+
+
+static int isp_set_ctrl_sat(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_sat];
+	const struct jh7110_isp_sat_setting * setting = (const struct jh7110_isp_sat_setting *)value;
+	const u16 * params = (u16 *)(&setting->sat_info);
+	u32 reg_addr = reg_info->cfg_reg;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	s32 i;
+	
+	for(i = 0; i < 3; i++, reg_addr += 4, params += 2)
+		reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u16, params, 2, 0xfff, 16));
+	reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u16, &setting->hue_info.cos, 2, 0x3ff, 16));
+	reg_addr += 4;
+	reg_write(ispbase, reg_addr, setting->sat_info.cmsf & 0xf);
+
+	params = (u16 *)(&setting->curve);
+	reg_addr += 0x14;		// 0xa54
+	for(i = 0; i < 2; i++, reg_addr += 4, params += 2)
+		reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u16, params, 2, 0x3fff, 16));
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+	
+	return 0;
+}
+
+static int isp_set_ctrl_shrp(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_shrp];
+	const struct jh7110_isp_sharp_setting * setting = (const struct jh7110_isp_sharp_setting *)value;
+	u32 reg_addr = reg_info->cfg_reg;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	s32 i;
+	
+	for(i = 0; i < 4; i++, reg_addr += 4)
+		reg_write(ispbase, reg_addr, ((u32)(setting->strength.diff[i] & 0x3ff) << 16) | ((u32)(setting->weight.weight[i] & 0xf) << 8));
+	FILL_ISP_REGS(u8, ispbase, reg_addr, (u8 *)(&setting->weight.weight[4]), 15 - 4, 0xf, 8);
+	reg_addr += (15 - 4) * 4;
+
+	for(i = 0; i < 3; i++, reg_addr += 4)
+		reg_write(ispbase, reg_addr, ((u32)(setting->strength.f[i] & 0x7f) << 24) | (setting->strength.s[i] & 0x1fffff));
+
+	reg_addr += 3 * 4;
+	reg_write(ispbase, reg_addr, ((u32)(setting->pdirf & 0xf) << 28) | ((u32)(setting->ndirf & 0xf) << 24) | (setting->weight.recip_wei_sum & 0x3fffff));
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+	
+	return 0;
+}
+
+static int isp_set_ctrl_ycrv(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_ycrv];
+	const struct jh7110_isp_ycrv_setting * setting = (const struct jh7110_isp_ycrv_setting *)value;
+	u32 reg_addr = reg_info->cfg_reg;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	
+	FILL_ISP_REGS(u16, ispbase, reg_addr, (u16 *)(setting->curve.y), 64, 0x3ff, 0);
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+	
+	return 0;
+}
+
+static int isp_set_ctrl_sc(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct module_register_info * reg_info = &mod_reg_info[imi_sc];
+	const struct jh7110_isp_sc_setting * setting = (const struct jh7110_isp_sc_setting *)value;
+	const u8 * params = setting->awb_config.awb_cw;
+	u32 reg_addr = 0x00;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	u32 weight_cfg[6] = {0};
+	u32 * weight = weight_cfg;
+	u32 * w_diff = weight_cfg + 2;
+	s32 i;
+
+	// SC dumping axi id
+	reg_write(ispbase, 0x9c, 1 << 24);
+
+	// SC frame crop
+	reg_write(ispbase, 0xb8, ((u32)(setting->crop_config.v_start) << 16) | setting->crop_config.h_start);
+
+	// SC config1
+	reg_write(ispbase, 0xbc, ((u32)(setting->awb_config.sel) << 30) | ((u32)(setting->awb_config.awb_ps_grb_ba) << 16) | 
+		((u32)(setting->crop_config.sw_height) << 8) | setting->crop_config.sw_width);
+
+	// SC decimation config
+	reg_write(ispbase, 0xd8, ((u32)(setting->crop_config.vkeep) << 24) | ((u32)(setting->crop_config.vperiod) << 16) | 
+		((u32)(setting->crop_config.hkeep) << 8) | setting->crop_config.hperiod);
+
+	// SC AWB pixel sum config
+	reg_write(ispbase, 0xc4, CREATE_REG_VALUE(u8, &setting->awb_config.ws_ps_config.awb_ps_rl, 4, 0xff, 8));
+	reg_write(ispbase, 0xc8, CREATE_REG_VALUE(u8, &setting->awb_config.ws_ps_config.awb_ps_bl, 4, 0xff, 8));
+	reg_write(ispbase, 0xcc, CREATE_REG_VALUE(u16, &setting->awb_config.ws_ps_config.awb_ps_grl, 2, 0xffff, 16));
+	reg_write(ispbase, 0xd0, CREATE_REG_VALUE(u16, &setting->awb_config.ws_ps_config.awb_ps_gbl, 2, 0xffff, 16));
+	reg_write(ispbase, 0xd4, CREATE_REG_VALUE(u16, &setting->awb_config.ws_ps_config.awb_ps_grbl, 2, 0xffff, 16));
+
+	// AF register
+	reg_write(ispbase, 0xc0, 
+		((u32)(setting->af_config.es_hor_thr & 0x1ff) << 16) |
+		((u32)(setting->af_config.es_ver_thr & 0xff) << 8) |
+		((setting->af_config.ver_en & 0x1) << 3) |
+		((setting->af_config.hor_en & 0x1) << 2) |
+		((setting->af_config.es_sum_mode & 0x1) << 1) |
+		(setting->af_config.es_hor_mode & 0x1));
+
+	// AWB weight sum register
+	reg_write(ispbase, 0x5d0, CREATE_REG_VALUE(u8, &setting->awb_config.ws_config.awb_ws_rl, 4, 0xff, 8));
+	reg_write(ispbase, 0x5d4, CREATE_REG_VALUE(u8, &setting->awb_config.ws_config.awb_ws_gbl, 4, 0xff, 8));
+
+	// AWB weight value point
+	reg_addr = 0x4d0;
+	for(i = 0; i < 13; i++) {
+		reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u8, params, 8, 0xf, 4));
+		reg_addr += 4;
+		params += 8;
+		reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u8, params, 5, 0xf, 4));
+		reg_addr += 4;
+		params += 5;
+	}
+
+	// AWB intensity weight curve register
+	reg_addr = 0x538;
+	for(i = 0; i < 4; i++) {
+		weight[0] |= (setting->awb_config.pts[i].weight & 0xf) << (i * 4);
+		w_diff[0] |= ((((s16)(setting->awb_config.pts[i + 1].weight & 0xf) - (s16)(setting->awb_config.pts[i].weight & 0xf)) * 2) & 0xff) << (i * 8);
+	}
+	for(w_diff++; i < 8; i++) {
+		weight[0] |= (setting->awb_config.pts[i].weight & 0xf) << (i * 4);
+		w_diff[0] |= ((((s16)(setting->awb_config.pts[i + 1].weight & 0xf) - (s16)(setting->awb_config.pts[i].weight & 0xf)) * 2) & 0xff) << (i * 8);
+	}
+	for(weight++, w_diff++; i < 12; i++) {
+		weight[0] |= (setting->awb_config.pts[i].weight & 0xf) << (i * 4);
+		w_diff[0] |= ((((s16)(setting->awb_config.pts[i + 1].weight & 0xf) - (s16)(setting->awb_config.pts[i].weight & 0xf)) * 2) & 0xff) << (i * 8);
+	}
+	for(w_diff++; i < 16; i++) {
+		weight[0] |= (setting->awb_config.pts[i].weight & 0xf) << (i * 4);
+		w_diff[0] |= ((((s16)(setting->awb_config.pts[i + 1].weight & 0xf) - (s16)(setting->awb_config.pts[i].weight & 0xf)) * 2) & 0xff) << (i * 8);
+	}
+
+	FILL_ISP_REGS(u32, ispbase, reg_addr, weight_cfg, 6, 0xffffffff, 0);
+
+	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
+
+	return 0;
+}
+
+static int isp_set_ctrl_outss(struct stf_isp_dev *isp_dev, const void * value)
+{
+	const struct jh7110_isp_outss_setting * setting = (const struct jh7110_isp_outss_setting *)value;
+	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	void __iomem *ispbase = vin->isp_base;
+	u32 reg_addr = !setting->which ? 0xa9c : 0xab4;
+
+	if(!setting->stride)
+		return 0;
+
+	// Output Image Stride Register, 8-byte(64bit) granularity.
+	reg_write(ispbase, reg_addr, setting->stride);
+	reg_write(ispbase, reg_addr + 4, ((setting->hsm << 16) | (setting->hsm & 0x3)));
+	reg_write(ispbase, reg_addr + 8, ((setting->vsm << 16) | (setting->vsm & 0x3)));
+
+	return 0;
+}
+
 static int isp_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
-	int ret;
+	int ret = 0;
 
 	/*
 	 * If the device is not powered up by the host driver do
@@ -309,6 +792,58 @@ static int isp_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_VFLIP:
 		ret = isp_set_ctrl_vflip(isp_dev, ctrl->val);
 		break;
+	case V4L2_CID_USER_JH7110_ISP_WB_SETTING:
+		ret = isp_set_ctrl_wb(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_CAR_SETTING:
+		ret = isp_set_ctrl_car(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_CCM_SETTING:
+		ret = isp_set_ctrl_ccm(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_CFA_SETTING:
+		ret = isp_set_ctrl_cfa(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_CTC_SETTING:
+		ret = isp_set_ctrl_ctc(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_DBC_SETTING:
+		ret = isp_set_ctrl_dbc(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_DNYUV_SETTING:
+		ret = isp_set_ctrl_dnyuv(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_GMARGB_SETTING:
+		ret = isp_set_ctrl_gmargb(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_LCCF_SETTING:
+		ret = isp_set_ctrl_lccf(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_OBC_SETTING:
+		ret = isp_set_ctrl_obc(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_OECF_SETTING:
+		ret = isp_set_ctrl_oecf(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_R2Y_SETTING:
+		ret = isp_set_ctrl_r2y(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_SAT_SETTING:
+		ret = isp_set_ctrl_sat(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_SHRP_SETTING:
+		ret = isp_set_ctrl_shrp(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_YCRV_SETTING:
+		ret = isp_set_ctrl_ycrv(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_STAT_SETTING:
+		ret = isp_set_ctrl_sc(isp_dev, ctrl->p_new.p_u8);
+		break;
+	case V4L2_CID_USER_JH7110_ISP_OUTSS0_SETTING:
+	case V4L2_CID_USER_JH7110_ISP_OUTSS1_SETTING:
+		ret = isp_set_ctrl_outss(isp_dev, ctrl->p_new.p_u8);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -322,12 +857,232 @@ static const struct v4l2_ctrl_ops isp_ctrl_ops = {
 	.s_ctrl = isp_s_ctrl,
 };
 
+struct v4l2_ctrl_config isp_ctrl[] = {
+	[0] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "WB Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_WB_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_wb_setting),
+		.flags		= 0,
+	},
+	[1] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "Car Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_CAR_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_car_setting),
+		.flags		= 0,
+	},
+	[2] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "CCM Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_CCM_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_ccm_setting),
+		.flags		= 0,
+	},
+	[3] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "CFA Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_CFA_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_cfa_setting),
+		.flags		= 0,
+	},
+	[4] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "CTC Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_CTC_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_ctc_setting),
+		.flags		= 0,
+	},
+	[5] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "CTC Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_DBC_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_dbc_setting),
+		.flags		= 0,
+	},
+	[6] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "DNYUV Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_DNYUV_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_dnyuv_setting),
+		.flags		= 0,
+	},
+	[7] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "DNYUV Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_GMARGB_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_gmargb_setting),
+		.flags		= 0,
+	},
+	[8] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "LCCF Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_LCCF_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_lccf_setting),
+		.flags		= 0,
+	},
+	[9] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "OBC Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_OBC_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_blacklevel_setting),
+		.flags		= 0,
+	},
+	[10] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "OECF Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_OECF_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_oecf_setting),
+		.flags		= 0,
+	},
+	[11] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "R2Y Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_R2Y_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_r2y_setting),
+		.flags		= 0,
+	},
+	[12] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "SAT Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_SAT_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_sat_setting),
+		.flags		= 0,
+	},
+	[13] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "SAT Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_SHRP_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_sharp_setting),
+		.flags		= 0,
+	},
+	[14] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "YCRV Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_YCRV_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_ycrv_setting),
+		.flags		= 0,
+	},
+	[15] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "SC Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_STAT_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_sc_setting),
+		.flags		= 0,
+	},
+	[16] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "OUTSS Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_OUTSS0_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_outss_setting),
+		.flags		= 0,
+	},
+	[17] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "OUTSS Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_OUTSS1_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_outss_setting),
+		.flags		= 0,
+	},
+};
+
 static int isp_init_controls(struct stf_isp_dev *isp_dev)
 {
 	const struct v4l2_ctrl_ops *ops = &isp_ctrl_ops;
 	struct isp_ctrls *ctrls = &isp_dev->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
 	int ret;
+	int i;
 
 	v4l2_ctrl_handler_init(hdl, 32);
 
@@ -377,6 +1132,10 @@ static int isp_init_controls(struct stf_isp_dev *isp_dev)
 				       V4L2_CID_POWER_LINE_FREQUENCY,
 				       V4L2_CID_POWER_LINE_FREQUENCY_AUTO, 0,
 				       V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
+
+	for (i = 0; i < ARRAY_SIZE(isp_ctrl); i++)
+		v4l2_ctrl_new_custom(hdl, &isp_ctrl[i], NULL);
+
 
 	if (hdl->error) {
 		ret = hdl->error;
@@ -537,7 +1296,7 @@ static int isp_match_sensor_format_get_index(struct stf_isp_dev *isp_dev)
 
 	st_debug(ST_ISP, "Got sensor format 0x%x !!\n", fmt.format.code);
 
-	formats = &isp_dev->formats[SINK_FORMATS_INDEX];
+	formats = &isp_dev->formats[0];		/* isp sink format */
 	for (idx = 0; idx < formats->nfmts; idx++) {
 		if (formats->fmts[idx].code == fmt.format.code) {
 			st_info(ST_ISP,
@@ -581,11 +1340,10 @@ static void isp_try_format(struct stf_isp_dev *isp_dev,
 	u32 code = fmt->code;
 	u32 bpp;
 
-	switch (pad) {
-	case STF_ISP_PAD_SINK:
+	if (pad == STF_ISP_PAD_SINK) {
 		/* Set format on sink pad */
 
-		formats = &isp_dev->formats[SINK_FORMATS_INDEX];
+		formats = &isp_dev->formats[pad];
 		fmt->width = clamp_t(u32,
 				fmt->width, STFCAMSS_FRAME_MIN_WIDTH,
 				STFCAMSS_FRAME_MAX_WIDTH);
@@ -597,24 +1355,8 @@ static void isp_try_format(struct stf_isp_dev *isp_dev,
 		fmt->field = V4L2_FIELD_NONE;
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;
 		fmt->flags = 0;
-
-		break;
-
-	case STF_ISP_PAD_SRC:
-	case STF_ISP_PAD_SRC_SS0:
-	case STF_ISP_PAD_SRC_SS1:
-		formats = &isp_dev->formats[UO_FORMATS_INDEX];
-		break;
-
-	case STF_ISP_PAD_SRC_ITIW:
-	case STF_ISP_PAD_SRC_ITIR:
-		formats = &isp_dev->formats[ITI_FORMATS_INDEX];
-		break;
-
-	case STF_ISP_PAD_SRC_RAW:
-	case STF_ISP_PAD_SRC_SCD_Y:
-		formats = &isp_dev->formats[RAW_FORMATS_INDEX];
-		break;
+	} else {
+		formats = &isp_dev->formats[pad];
 	}
 
 	i = isp_match_format_get_index(formats, fmt->code, pad);
@@ -682,21 +1424,11 @@ static int isp_enum_mbus_code(struct v4l2_subdev *sd,
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
 	const struct isp_format_table *formats;
 
-	if (code->index >= isp_dev->nformats)
+	if (code->index >= isp_dev->formats[code->pad].nfmts)
 		return -EINVAL;
-	if (code->pad == STF_ISP_PAD_SINK) {
-		formats = &isp_dev->formats[SINK_FORMATS_INDEX];
-		code->code = formats->fmts[code->index].code;
-	} else {
-		struct v4l2_mbus_framefmt *sink_fmt;
 
-		sink_fmt = __isp_get_format(isp_dev, state, STF_ISP_PAD_SINK,
-					code->which);
-
-		code->code = sink_fmt->code;
-		if (!code->code)
-			return -EINVAL;
-	}
+	formats = &isp_dev->formats[code->pad];
+	code->code = formats->fmts[code->index].code;
 	code->flags = 0;
 
 	return 0;

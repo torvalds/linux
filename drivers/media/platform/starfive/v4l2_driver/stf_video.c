@@ -340,8 +340,10 @@ static int video_buf_init(struct vb2_buffer *vb)
 	}
 
 	if (stf_vin_map_isp_pad(video->id, STF_ISP_PAD_SRC)
-		== STF_ISP_PAD_SRC_SCD_Y)
+		== STF_ISP_PAD_SRC_SCD_Y) {
 		buffer->addr[1] = buffer->addr[0] + ISP_YHIST_BUFFER_SIZE;
+		buffer->vaddr_sc = vb2_plane_vaddr(vb, 0);
+	}
 
 	return 0;
 }
@@ -1278,6 +1280,17 @@ int video_s_selection(struct file *file, void *fh,
 	return ret;
 }
 
+static int stf_video_subscribe_event(struct v4l2_fh *fh,
+				   const struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_FRAME_SYNC:
+		return v4l2_event_subscribe(fh, sub, 2, NULL);
+	default:
+		return v4l2_ctrl_subscribe_event(fh, sub);
+	}
+}
+
 static const struct v4l2_ioctl_ops stf_vid_ioctl_ops = {
 	.vidioc_querycap                = video_querycap,
 	.vidioc_enum_fmt_vid_cap        = video_enum_fmt,
@@ -1302,6 +1315,8 @@ static const struct v4l2_ioctl_ops stf_vid_ioctl_ops = {
 	.vidioc_s_parm                  = video_s_parm,
 	.vidioc_s_selection             = video_s_selection,
 	.vidioc_g_selection             = video_g_selection,
+	.vidioc_subscribe_event 		= stf_video_subscribe_event,
+	.vidioc_unsubscribe_event 		= v4l2_event_unsubscribe,
 };
 
 static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_mp = {
@@ -1328,6 +1343,8 @@ static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_mp = {
 	.vidioc_s_parm                  = video_s_parm,
 	.vidioc_s_selection             = video_s_selection,
 	.vidioc_g_selection             = video_g_selection,
+	.vidioc_subscribe_event 		= stf_video_subscribe_event,
+	.vidioc_unsubscribe_event 		= v4l2_event_unsubscribe,
 };
 
 static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_out = {
@@ -1347,6 +1364,8 @@ static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_out = {
 	.vidioc_prepare_buf             = vb2_ioctl_prepare_buf,
 	.vidioc_streamon                = vb2_ioctl_streamon,
 	.vidioc_streamoff               = vb2_ioctl_streamoff,
+	.vidioc_subscribe_event 		= stf_video_subscribe_event,
+	.vidioc_unsubscribe_event 		= v4l2_event_unsubscribe,
 };
 
 static int video_open(struct file *file)
@@ -1511,7 +1530,7 @@ int stf_video_register(struct stfcamss_video *video,
 			V4L2_CAP_VIDEO_CAPTURE;
 		vdev->vfl_dir = VFL_DIR_RX;
 	}
-	vdev->device_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+	vdev->device_caps |= V4L2_CAP_STREAMING | V4L2_CAP_READWRITE | V4L2_CAP_IO_MC;
 	if (video->type == V4L2_CAP_VIDEO_OUTPUT)
 		vdev->ioctl_ops = &stf_vid_ioctl_ops_out;
 	else

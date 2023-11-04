@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <media/v4l2-event.h>
 
 #include "stfcamss.h"
 
@@ -1133,6 +1134,9 @@ static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 	struct vin_output *output = &line->output;
 	unsigned long flags;
 	u64 ts = ktime_get_ns();
+	struct v4l2_event event = {
+		.type = V4L2_EVENT_FRAME_SYNC,
+	};
 
 	if (output->state == VIN_OUTPUT_OFF
 		|| output->state == VIN_OUTPUT_RESERVED)
@@ -1141,6 +1145,25 @@ static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 	spin_lock_irqsave(&line->output_lock, flags);
 
 	while ((ready_buf = vin_buf_get_ready(output))) {
+		//if (line->id >= VIN_LINE_ISP && line->id <= VIN_LINE_ISP_SS1) {
+		if (line->id == VIN_LINE_ISP_SCD_Y) {
+#define ADDR_REG_YHIST_ACC_0               0x0D00
+			struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
+			struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+			void __iomem *ispbase = vin->isp_base;
+			u32 y_hist_reg_addr = ADDR_REG_YHIST_ACC_0;
+			u32 * y_hist_addr = (u32 *)ready_buf->vaddr_sc;
+			s32 i = 0;
+
+			for(i = 0; i < 64; i++, y_hist_reg_addr += 4)
+				y_hist_addr[i] = reg_read(ispbase, y_hist_reg_addr);
+
+			event.u.frame_sync.frame_sequence = output->sequence;
+			v4l2_event_queue(&(line->video_out.vdev), &event);
+			//v4l2_event_queue(line->subdev.devnode, &event);
+			//pr_info("----------frame sync-----------\n");
+		}
+
 		ready_buf->vb.vb2_buf.timestamp = ts;
 		ready_buf->vb.sequence = output->sequence++;
 
@@ -1234,9 +1257,14 @@ static void vin_change_buffer(struct vin_line *line)
 			scd_type = vin_dev->hw_ops->vin_isp_get_scd_type(vin_dev);
 			ready_buf->vb.flags &= ~(V4L2_BUF_FLAG_PFRAME | V4L2_BUF_FLAG_BFRAME);
 			if (scd_type == AWB_TYPE)
+			{
 				ready_buf->vb.flags |= V4L2_BUF_FLAG_PFRAME;
-			else
+				*((u16 *)(ready_buf->vaddr_sc + ISP_SCD_BUFFER_SIZE + ISP_YHIST_BUFFER_SIZE)) = 0xffff;
+			}else{
 				ready_buf->vb.flags |= V4L2_BUF_FLAG_BFRAME;
+				*((u16 *)(ready_buf->vaddr_sc + ISP_SCD_BUFFER_SIZE + ISP_YHIST_BUFFER_SIZE)) = 0;
+			}
+
 			if (!output->frame_skip) {
 				output->frame_skip = ISP_AWB_OECF_SKIP_FRAME;
 				scd_type = scd_type == AWB_TYPE ? OECF_TYPE : AWB_TYPE;
@@ -1393,7 +1421,7 @@ int stf_vin_register(struct stf_vin2_dev *vin_dev, struct v4l2_device *v4l2_dev)
 
 		v4l2_subdev_init(sd, &vin_v4l2_ops);
 		sd->internal_ops = &vin_v4l2_internal_ops;
-		sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+		sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 		snprintf(sd->name, ARRAY_SIZE(sd->name), "%s%d_%s",
 			STF_VIN_NAME, 0, sub_name);
 		v4l2_set_subdevdata(sd, &vin_dev->line[i]);
