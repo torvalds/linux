@@ -6100,7 +6100,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, CCK_PROT_CFG_TX_OP_ALLOW_MM40, 0);
 	rt2x00_set_field32(&reg, CCK_PROT_CFG_TX_OP_ALLOW_GF20, 1);
 	rt2x00_set_field32(&reg, CCK_PROT_CFG_TX_OP_ALLOW_GF40, 0);
-	rt2x00_set_field32(&reg, CCK_PROT_CFG_RTS_TH_EN, 1);
+	rt2x00_set_field32(&reg, CCK_PROT_CFG_RTS_TH_EN, 0);
 	rt2800_register_write(rt2x00dev, CCK_PROT_CFG, reg);
 
 	reg = rt2800_register_read(rt2x00dev, OFDM_PROT_CFG);
@@ -6113,7 +6113,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, OFDM_PROT_CFG_TX_OP_ALLOW_MM40, 0);
 	rt2x00_set_field32(&reg, OFDM_PROT_CFG_TX_OP_ALLOW_GF20, 1);
 	rt2x00_set_field32(&reg, OFDM_PROT_CFG_TX_OP_ALLOW_GF40, 0);
-	rt2x00_set_field32(&reg, OFDM_PROT_CFG_RTS_TH_EN, 1);
+	rt2x00_set_field32(&reg, OFDM_PROT_CFG_RTS_TH_EN, 0);
 	rt2800_register_write(rt2x00dev, OFDM_PROT_CFG, reg);
 
 	reg = rt2800_register_read(rt2x00dev, MM20_PROT_CFG);
