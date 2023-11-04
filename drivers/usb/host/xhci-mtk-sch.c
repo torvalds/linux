@@ -19,6 +19,18 @@
 #define HS_BW_BOUNDARY	6144
 /* usb2 spec section11.18.1: at most 188 FS bytes per microframe */
 #define FS_PAYLOAD_MAX 188
+#define LS_PAYLOAD_MAX 18
+/* section 11.18.1, per fs frame */
+#define FS_BW_BOUNDARY	1157
+#define LS_BW_BOUNDARY	144
+
+/*
+ * max number of microframes for split transfer, assume extra-cs budget is 0
+ * for fs isoc in : 1 ss + 1 idle + 6 cs (roundup(1023/188))
+ */
+#define TT_MICROFRAMES_MAX	8
+/* offset from SS for fs/ls isoc/intr ep (ss + idle) */
+#define CS_OFFSET	2
 
 #define DBG_BUF_EN	64
 
@@ -237,17 +249,26 @@ static void drop_tt(struct usb_device *udev)
 
 static struct mu3h_sch_ep_info *
 create_sch_ep(struct xhci_hcd_mtk *mtk, struct usb_device *udev,
-	      struct usb_host_endpoint *ep)
+	      struct usb_host_endpoint *ep, struct xhci_ep_ctx *ep_ctx)
 {
 	struct mu3h_sch_ep_info *sch_ep;
 	struct mu3h_sch_bw_info *bw_info;
 	struct mu3h_sch_tt *tt = NULL;
+	u32 len;
 
 	bw_info = get_bw_info(mtk, udev, ep);
 	if (!bw_info)
 		return ERR_PTR(-ENODEV);
 
-	sch_ep = kzalloc(sizeof(*sch_ep), GFP_KERNEL);
+	if (is_fs_or_ls(udev->speed))
+		len = TT_MICROFRAMES_MAX;
+	else if ((udev->speed >= USB_SPEED_SUPER) &&
+		 usb_endpoint_xfer_isoc(&ep->desc))
+		len = get_esit(ep_ctx);
+	else
+		len = 1;
+
+	sch_ep = kzalloc(struct_size(sch_ep, bw_budget_table, len), GFP_KERNEL);
 	if (!sch_ep)
 		return ERR_PTR(-ENOMEM);
 
@@ -279,7 +300,11 @@ static void setup_sch_info(struct xhci_ep_ctx *ep_ctx,
 	u32 mult;
 	u32 esit_pkts;
 	u32 max_esit_payload;
+	u32 bw_per_microframe;
+	u32 *bwb_table;
+	int i;
 
+	bwb_table = sch_ep->bw_budget_table;
 	ep_type = CTX_TO_EP_TYPE(le32_to_cpu(ep_ctx->ep_info2));
 	maxpkt = MAX_PACKET_DECODED(le32_to_cpu(ep_ctx->ep_info2));
 	max_burst = CTX_TO_MAX_BURST(le32_to_cpu(ep_ctx->ep_info2));
@@ -313,7 +338,7 @@ static void setup_sch_info(struct xhci_ep_ctx *ep_ctx,
 		 * opportunities per microframe
 		 */
 		sch_ep->pkts = max_burst + 1;
-		sch_ep->bw_cost_per_microframe = maxpkt * sch_ep->pkts;
+		bwb_table[0] = maxpkt * sch_ep->pkts;
 	} else if (sch_ep->speed >= USB_SPEED_SUPER) {
 		/* usb3_r1 spec section4.4.7 & 4.4.8 */
 		sch_ep->cs_count = 0;
@@ -330,6 +355,7 @@ static void setup_sch_info(struct xhci_ep_ctx *ep_ctx,
 		if (ep_type == INT_IN_EP || ep_type == INT_OUT_EP) {
 			sch_ep->pkts = esit_pkts;
 			sch_ep->num_budget_microframes = 1;
+			bwb_table[0] = maxpkt * sch_ep->pkts;
 		}
 
 		if (ep_type == ISOC_IN_EP || ep_type == ISOC_OUT_EP) {
@@ -346,18 +372,52 @@ static void setup_sch_info(struct xhci_ep_ctx *ep_ctx,
 				DIV_ROUND_UP(esit_pkts, sch_ep->pkts);
 
 			sch_ep->repeat = !!(sch_ep->num_budget_microframes > 1);
+			bw_per_microframe = maxpkt * sch_ep->pkts;
+
+			for (i = 0; i < sch_ep->num_budget_microframes - 1; i++)
+				bwb_table[i] = bw_per_microframe;
+
+			/* last one <= bw_per_microframe */
+			bwb_table[i] = maxpkt * esit_pkts - i * bw_per_microframe;
 		}
-		sch_ep->bw_cost_per_microframe = maxpkt * sch_ep->pkts;
 	} else if (is_fs_or_ls(sch_ep->speed)) {
 		sch_ep->pkts = 1; /* at most one packet for each microframe */
 
 		/*
-		 * num_budget_microframes and cs_count will be updated when
+		 * @cs_count will be updated to add extra-cs when
 		 * check TT for INT_OUT_EP, ISOC/INT_IN_EP type
+		 * @maxpkt <= 1023;
 		 */
 		sch_ep->cs_count = DIV_ROUND_UP(maxpkt, FS_PAYLOAD_MAX);
 		sch_ep->num_budget_microframes = sch_ep->cs_count;
-		sch_ep->bw_cost_per_microframe = min_t(u32, maxpkt, FS_PAYLOAD_MAX);
+
+		/* init budget table */
+		if (ep_type == ISOC_OUT_EP) {
+			for (i = 0; i < sch_ep->cs_count - 1; i++)
+				bwb_table[i] = FS_PAYLOAD_MAX;
+
+			bwb_table[i] = maxpkt - i * FS_PAYLOAD_MAX;
+		} else if (ep_type == INT_OUT_EP) {
+			/* only first one used (maxpkt <= 64), others zero */
+			bwb_table[0] = maxpkt;
+		} else { /* INT_IN_EP or ISOC_IN_EP */
+			bwb_table[0] = 0; /* start split */
+			bwb_table[1] = 0; /* idle */
+			/*
+			 * @cs_count will be updated according to cs position
+			 * (add 1 or 2 extra-cs), but assume only first
+			 * @num_budget_microframes elements will be used later,
+			 * although in fact it does not (extra-cs budget many receive
+			 * some data for IN ep);
+			 * @cs_count is 1 for INT_IN_EP (maxpkt <= 64);
+			 */
+			for (i = 0; i < sch_ep->cs_count - 1; i++)
+				bwb_table[i + CS_OFFSET] = FS_PAYLOAD_MAX;
+
+			bwb_table[i + CS_OFFSET] = maxpkt - i * FS_PAYLOAD_MAX;
+			/* ss + idle */
+			sch_ep->num_budget_microframes += CS_OFFSET;
+		}
 	}
 }
 
@@ -374,7 +434,7 @@ static u32 get_max_bw(struct mu3h_sch_bw_info *sch_bw,
 
 		for (j = 0; j < sch_ep->num_budget_microframes; j++) {
 			k = XHCI_MTK_BW_INDEX(base + j);
-			bw = sch_bw->bus_bw[k] + sch_ep->bw_cost_per_microframe;
+			bw = sch_bw->bus_bw[k] + sch_ep->bw_budget_table[j];
 			if (bw > max_bw)
 				max_bw = bw;
 		}
@@ -382,56 +442,152 @@ static u32 get_max_bw(struct mu3h_sch_bw_info *sch_bw,
 	return max_bw;
 }
 
+/*
+ * for OUT: get first SS consumed bw;
+ * for IN: get first CS consumed bw;
+ */
+static u16 get_fs_bw(struct mu3h_sch_ep_info *sch_ep, int offset)
+{
+	struct mu3h_sch_tt *tt = sch_ep->sch_tt;
+	u16 fs_bw;
+
+	if (sch_ep->ep_type == ISOC_OUT_EP || sch_ep->ep_type == INT_OUT_EP)
+		fs_bw = tt->fs_bus_bw_out[XHCI_MTK_BW_INDEX(offset)];
+	else	/* skip ss + idle */
+		fs_bw = tt->fs_bus_bw_in[XHCI_MTK_BW_INDEX(offset + CS_OFFSET)];
+
+	return fs_bw;
+}
+
 static void update_bus_bw(struct mu3h_sch_bw_info *sch_bw,
 	struct mu3h_sch_ep_info *sch_ep, bool used)
 {
-	int bw_updated;
 	u32 base;
-	int i, j;
-
-	bw_updated = sch_ep->bw_cost_per_microframe * (used ? 1 : -1);
-
-	for (i = 0; i < sch_ep->num_esit; i++) {
-		base = sch_ep->offset + i * sch_ep->esit;
-		for (j = 0; j < sch_ep->num_budget_microframes; j++)
-			sch_bw->bus_bw[XHCI_MTK_BW_INDEX(base + j)] += bw_updated;
-	}
-}
-
-static int check_fs_bus_bw(struct mu3h_sch_ep_info *sch_ep, int offset)
-{
-	struct mu3h_sch_tt *tt = sch_ep->sch_tt;
-	u32 tmp;
-	int base;
 	int i, j, k;
 
 	for (i = 0; i < sch_ep->num_esit; i++) {
-		base = offset + i * sch_ep->esit;
-
-		/*
-		 * Compared with hs bus, no matter what ep type,
-		 * the hub will always delay one uframe to send data
-		 */
+		base = sch_ep->offset + i * sch_ep->esit;
 		for (j = 0; j < sch_ep->num_budget_microframes; j++) {
 			k = XHCI_MTK_BW_INDEX(base + j);
-			tmp = tt->fs_bus_bw[k] + sch_ep->bw_cost_per_microframe;
-			if (tmp > FS_PAYLOAD_MAX)
-				return -ESCH_BW_OVERFLOW;
+			if (used)
+				sch_bw->bus_bw[k] += sch_ep->bw_budget_table[j];
+			else
+				sch_bw->bus_bw[k] -= sch_ep->bw_budget_table[j];
 		}
+	}
+}
+
+static int check_ls_budget_microframes(struct mu3h_sch_ep_info *sch_ep, int offset)
+{
+	struct mu3h_sch_tt *tt = sch_ep->sch_tt;
+	int i;
+
+	if (sch_ep->speed != USB_SPEED_LOW)
+		return 0;
+
+	if (sch_ep->ep_type == INT_OUT_EP)
+		i = XHCI_MTK_BW_INDEX(offset);
+	else if (sch_ep->ep_type == INT_IN_EP)
+		i = XHCI_MTK_BW_INDEX(offset + CS_OFFSET); /* skip ss + idle */
+	else
+		return -EINVAL;
+
+	if (tt->ls_bus_bw[i] + sch_ep->maxpkt > LS_PAYLOAD_MAX)
+		return -ESCH_BW_OVERFLOW;
+
+	return 0;
+}
+
+static int check_fs_budget_microframes(struct mu3h_sch_ep_info *sch_ep, int offset)
+{
+	struct mu3h_sch_tt *tt = sch_ep->sch_tt;
+	u32 tmp;
+	int i, k;
+
+	/*
+	 * for OUT eps, will transfer exactly assigned length of data,
+	 * so can't allocate more than 188 bytes;
+	 * but it's not for IN eps, usually it can't receive full
+	 * 188 bytes in a uframe, if it not assign full 188 bytes,
+	 * can add another one;
+	 */
+	for (i = 0; i < sch_ep->num_budget_microframes; i++) {
+		k = XHCI_MTK_BW_INDEX(offset + i);
+		if (sch_ep->ep_type == ISOC_OUT_EP || sch_ep->ep_type == INT_OUT_EP)
+			tmp = tt->fs_bus_bw_out[k] + sch_ep->bw_budget_table[i];
+		else /* ep_type : ISOC IN / INTR IN */
+			tmp = tt->fs_bus_bw_in[k];
+
+		if (tmp > FS_PAYLOAD_MAX)
+			return -ESCH_BW_OVERFLOW;
 	}
 
 	return 0;
 }
 
-static int check_sch_tt(struct mu3h_sch_ep_info *sch_ep, u32 offset)
+static int check_fs_budget_frames(struct mu3h_sch_ep_info *sch_ep, int offset)
+{
+	struct mu3h_sch_tt *tt = sch_ep->sch_tt;
+	u32 head, tail;
+	int i, j, k;
+
+	/* bugdet scheduled may cross at most two fs frames */
+	j = XHCI_MTK_BW_INDEX(offset) / UFRAMES_PER_FRAME;
+	k = XHCI_MTK_BW_INDEX(offset + sch_ep->num_budget_microframes - 1) / UFRAMES_PER_FRAME;
+
+	if (j != k) {
+		head = tt->fs_frame_bw[j];
+		tail = tt->fs_frame_bw[k];
+	} else {
+		head = tt->fs_frame_bw[j];
+		tail = 0;
+	}
+
+	j = roundup(offset, UFRAMES_PER_FRAME);
+	for (i = 0; i < sch_ep->num_budget_microframes; i++) {
+		if ((offset + i) < j)
+			head += sch_ep->bw_budget_table[i];
+		else
+			tail += sch_ep->bw_budget_table[i];
+	}
+
+	if (head > FS_BW_BOUNDARY || tail > FS_BW_BOUNDARY)
+		return -ESCH_BW_OVERFLOW;
+
+	return 0;
+}
+
+static int check_fs_bus_bw(struct mu3h_sch_ep_info *sch_ep, int offset)
+{
+	int i, base;
+	int ret = 0;
+
+	for (i = 0; i < sch_ep->num_esit; i++) {
+		base = offset + i * sch_ep->esit;
+
+		ret = check_ls_budget_microframes(sch_ep, base);
+		if (ret)
+			goto err;
+
+		ret = check_fs_budget_microframes(sch_ep, base);
+		if (ret)
+			goto err;
+
+		ret = check_fs_budget_frames(sch_ep, base);
+		if (ret)
+			goto err;
+	}
+
+err:
+	return ret;
+}
+
+static int check_ss_and_cs(struct mu3h_sch_ep_info *sch_ep, u32 offset)
 {
 	u32 start_ss, last_ss;
 	u32 start_cs, last_cs;
 
-	if (!sch_ep->sch_tt)
-		return 0;
-
-	start_ss = offset % 8;
+	start_ss = offset % UFRAMES_PER_FRAME;
 
 	if (sch_ep->ep_type == ISOC_OUT_EP) {
 		last_ss = start_ss + sch_ep->cs_count - 1;
@@ -444,6 +600,7 @@ static int check_sch_tt(struct mu3h_sch_ep_info *sch_ep, u32 offset)
 			return -ESCH_SS_Y6;
 
 	} else {
+		/* maxpkt <= 1023, cs <= 6 */
 		u32 cs_count = DIV_ROUND_UP(sch_ep->maxpkt, FS_PAYLOAD_MAX);
 
 		/*
@@ -454,44 +611,164 @@ static int check_sch_tt(struct mu3h_sch_ep_info *sch_ep, u32 offset)
 			return -ESCH_SS_Y6;
 
 		/* one uframe for ss + one uframe for idle */
-		start_cs = (start_ss + 2) % 8;
+		start_cs = (start_ss + CS_OFFSET) % UFRAMES_PER_FRAME;
 		last_cs = start_cs + cs_count - 1;
-
 		if (last_cs > 7)
 			return -ESCH_CS_OVERFLOW;
 
+		/* add extra-cs */
+		cs_count += (last_cs == 7) ? 1 : 2;
 		if (cs_count > 7)
 			cs_count = 7; /* HW limit */
 
 		sch_ep->cs_count = cs_count;
-		/* ss, idle are ignored */
-		sch_ep->num_budget_microframes = cs_count;
 
-		/*
-		 * if interval=1, maxp >752, num_budge_micoframe is larger
-		 * than sch_ep->esit, will overstep boundary
-		 */
-		if (sch_ep->num_budget_microframes > sch_ep->esit)
-			sch_ep->num_budget_microframes = sch_ep->esit;
 	}
 
+	return 0;
+}
+
+/*
+ * when isoc-out transfers 188 bytes in a uframe, and send isoc/intr's
+ * ss token in the uframe, may cause 'bit stuff error' in downstream
+ * port;
+ * when isoc-out transfer less than 188 bytes in a uframe, shall send
+ * isoc-in's ss after isoc-out's ss (but hw can't ensure the sequence,
+ * so just avoid overlap).
+ */
+static int check_isoc_ss_overlap(struct mu3h_sch_ep_info *sch_ep, u32 offset)
+{
+	struct mu3h_sch_tt *tt = sch_ep->sch_tt;
+	int base;
+	int i, j, k;
+
+	if (!tt)
+		return 0;
+
+	for (i = 0; i < sch_ep->num_esit; i++) {
+		base = offset + i * sch_ep->esit;
+
+		if (sch_ep->ep_type == ISOC_OUT_EP) {
+			for (j = 0; j < sch_ep->num_budget_microframes; j++) {
+				k = XHCI_MTK_BW_INDEX(base + j + CS_OFFSET);
+				/* use cs to indicate existence of in-ss @(base+j) */
+				if (tt->fs_bus_bw_in[k])
+					return -ESCH_SS_OVERLAP;
+			}
+		} else if (sch_ep->ep_type == ISOC_IN_EP || sch_ep->ep_type == INT_IN_EP) {
+			k = XHCI_MTK_BW_INDEX(base);
+			/* only check IN's ss */
+			if (tt->fs_bus_bw_out[k])
+				return -ESCH_SS_OVERLAP;
+		}
+	}
+
+	return 0;
+}
+
+static int check_sch_tt_budget(struct mu3h_sch_ep_info *sch_ep, u32 offset)
+{
+	int ret;
+
+	ret = check_ss_and_cs(sch_ep, offset);
+	if (ret)
+		return ret;
+
+	ret = check_isoc_ss_overlap(sch_ep, offset);
+	if (ret)
+		return ret;
+
 	return check_fs_bus_bw(sch_ep, offset);
+}
+
+/* allocate microframes in the ls/fs frame */
+static int alloc_sch_portion_of_frame(struct mu3h_sch_ep_info *sch_ep)
+{
+	struct mu3h_sch_bw_info *sch_bw = sch_ep->bw_info;
+	const u32 bw_boundary = get_bw_boundary(sch_ep->speed);
+	u32 bw_max, fs_bw_min;
+	u32 offset, offset_min;
+	u16 fs_bw;
+	int frames;
+	int i, j;
+	int ret;
+
+	frames = sch_ep->esit / UFRAMES_PER_FRAME;
+
+	for (i = 0; i < UFRAMES_PER_FRAME; i++) {
+		fs_bw_min = FS_PAYLOAD_MAX;
+		offset_min = XHCI_MTK_MAX_ESIT;
+
+		for (j = 0; j < frames; j++) {
+			offset = (i + j * UFRAMES_PER_FRAME) % sch_ep->esit;
+
+			ret = check_sch_tt_budget(sch_ep, offset);
+			if (ret)
+				continue;
+
+			/* check hs bw domain */
+			bw_max = get_max_bw(sch_bw, sch_ep, offset);
+			if (bw_max > bw_boundary) {
+				ret = -ESCH_BW_OVERFLOW;
+				continue;
+			}
+
+			/* use best-fit between frames */
+			fs_bw = get_fs_bw(sch_ep, offset);
+			if (fs_bw < fs_bw_min) {
+				fs_bw_min = fs_bw;
+				offset_min = offset;
+			}
+
+			if (!fs_bw_min)
+				break;
+		}
+
+		/* use first-fit between microframes in a frame */
+		if (offset_min < XHCI_MTK_MAX_ESIT)
+			break;
+	}
+
+	if (offset_min == XHCI_MTK_MAX_ESIT)
+		return -ESCH_BW_OVERFLOW;
+
+	sch_ep->offset = offset_min;
+
+	return 0;
 }
 
 static void update_sch_tt(struct mu3h_sch_ep_info *sch_ep, bool used)
 {
 	struct mu3h_sch_tt *tt = sch_ep->sch_tt;
-	int bw_updated;
+	u16 *fs_bus_bw;
 	u32 base;
-	int i, j;
+	int i, j, k, f;
 
-	bw_updated = sch_ep->bw_cost_per_microframe * (used ? 1 : -1);
+	if (sch_ep->ep_type == ISOC_OUT_EP || sch_ep->ep_type == INT_OUT_EP)
+		fs_bus_bw = tt->fs_bus_bw_out;
+	else
+		fs_bus_bw = tt->fs_bus_bw_in;
 
 	for (i = 0; i < sch_ep->num_esit; i++) {
 		base = sch_ep->offset + i * sch_ep->esit;
 
-		for (j = 0; j < sch_ep->num_budget_microframes; j++)
-			tt->fs_bus_bw[XHCI_MTK_BW_INDEX(base + j)] += bw_updated;
+		for (j = 0; j < sch_ep->num_budget_microframes; j++) {
+			k = XHCI_MTK_BW_INDEX(base + j);
+			f = k / UFRAMES_PER_FRAME;
+			if (used) {
+				if (sch_ep->speed == USB_SPEED_LOW)
+					tt->ls_bus_bw[k] += (u8)sch_ep->bw_budget_table[j];
+
+				fs_bus_bw[k] += (u16)sch_ep->bw_budget_table[j];
+				tt->fs_frame_bw[f] += (u16)sch_ep->bw_budget_table[j];
+			} else {
+				if (sch_ep->speed == USB_SPEED_LOW)
+					tt->ls_bus_bw[k] -= (u8)sch_ep->bw_budget_table[j];
+
+				fs_bus_bw[k] -= (u16)sch_ep->bw_budget_table[j];
+				tt->fs_frame_bw[f] -= (u16)sch_ep->bw_budget_table[j];
+			}
+		}
 	}
 
 	if (used)
@@ -513,7 +790,8 @@ static int load_ep_bw(struct mu3h_sch_bw_info *sch_bw,
 	return 0;
 }
 
-static int check_sch_bw(struct mu3h_sch_ep_info *sch_ep)
+/* allocate microframes for hs/ss/ssp */
+static int alloc_sch_microframes(struct mu3h_sch_ep_info *sch_ep)
 {
 	struct mu3h_sch_bw_info *sch_bw = sch_ep->bw_info;
 	const u32 bw_boundary = get_bw_boundary(sch_ep->speed);
@@ -521,16 +799,12 @@ static int check_sch_bw(struct mu3h_sch_ep_info *sch_ep)
 	u32 worst_bw;
 	u32 min_bw = ~0;
 	int min_index = -1;
-	int ret = 0;
 
 	/*
 	 * Search through all possible schedule microframes.
 	 * and find a microframe where its worst bandwidth is minimum.
 	 */
 	for (offset = 0; offset < sch_ep->esit; offset++) {
-		ret = check_sch_tt(sch_ep, offset);
-		if (ret)
-			continue;
 
 		worst_bw = get_max_bw(sch_bw, sch_ep, offset);
 		if (worst_bw > bw_boundary)
@@ -540,21 +814,29 @@ static int check_sch_bw(struct mu3h_sch_ep_info *sch_ep)
 			min_bw = worst_bw;
 			min_index = offset;
 		}
-
-		/* use first-fit for LS/FS */
-		if (sch_ep->sch_tt && min_index >= 0)
-			break;
-
-		if (min_bw == 0)
-			break;
 	}
 
 	if (min_index < 0)
-		return ret ? ret : -ESCH_BW_OVERFLOW;
+		return -ESCH_BW_OVERFLOW;
 
 	sch_ep->offset = min_index;
 
-	return load_ep_bw(sch_bw, sch_ep, true);
+	return 0;
+}
+
+static int check_sch_bw(struct mu3h_sch_ep_info *sch_ep)
+{
+	int ret;
+
+	if (sch_ep->sch_tt)
+		ret = alloc_sch_portion_of_frame(sch_ep);
+	else
+		ret = alloc_sch_microframes(sch_ep);
+
+	if (ret)
+		return ret;
+
+	return load_ep_bw(sch_ep->bw_info, sch_ep, true);
 }
 
 static void destroy_sch_ep(struct xhci_hcd_mtk *mtk, struct usb_device *udev,
@@ -651,7 +933,7 @@ static int add_ep_quirk(struct usb_hcd *hcd, struct usb_device *udev,
 
 	xhci_dbg(xhci, "%s %s\n", __func__, decode_ep(ep, udev->speed));
 
-	sch_ep = create_sch_ep(mtk, udev, ep);
+	sch_ep = create_sch_ep(mtk, udev, ep, ep_ctx);
 	if (IS_ERR_OR_NULL(sch_ep))
 		return -ENOMEM;
 

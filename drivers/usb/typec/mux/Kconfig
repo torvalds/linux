@@ -46,4 +46,14 @@ config TYPEC_MUX_NB7VPQ904M
 	  Say Y or M if your system has a On Semiconductor NB7VPQ904M Type-C
 	  redriver chip found on some devices with a Type-C port.
 
+config TYPEC_MUX_PTN36502
+	tristate "NXP PTN36502 Type-C redriver driver"
+	depends on I2C
+	depends on DRM || DRM=n
+	select DRM_PANEL_BRIDGE if DRM
+	select REGMAP_I2C
+	help
+	  Say Y or M if your system has a NXP PTN36502 Type-C redriver chip
+	  found on some devices with a Type-C port.
+
 endmenu

@@ -20,6 +20,7 @@ properties:
       - qcom,qcm2290-qmp-usb3-phy
       - qcom,sa8775p-qmp-usb3-uni-phy
       - qcom,sc8280xp-qmp-usb3-uni-phy
+      - qcom,sdx75-qmp-usb3-uni-phy
       - qcom,sm6115-qmp-usb3-phy
 
   reg:
@@ -75,6 +76,7 @@ allOf:
           contains:
             enum:
               - qcom,ipq9574-qmp-usb3-phy
+              - qcom,sdx75-qmp-usb3-uni-phy
     then:
       properties:
         clock-names:
