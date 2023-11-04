@@ -150,6 +150,7 @@ void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 		prt_printf(out, " %u:%llu:%u", ptr->dev, b, offset);
 		if (i < nr_data)
 			prt_printf(out, "#%u", stripe_blockcount_get(s, i));
+		prt_printf(out, " gen %u", ptr->gen);
 		if (ptr_stale(ca, ptr))
 			prt_printf(out, " stale");
 	}
