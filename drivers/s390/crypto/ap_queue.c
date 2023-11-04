@@ -24,13 +24,12 @@ static void __ap_flush_queue(struct ap_queue *aq);
 
 static inline bool ap_q_supports_bind(struct ap_queue *aq)
 {
-	return ap_test_bit(&aq->card->functions, AP_FUNC_EP11) ||
-		ap_test_bit(&aq->card->functions, AP_FUNC_ACCEL);
+	return aq->card->hwinfo.ep11 || aq->card->hwinfo.accel;
 }
 
 static inline bool ap_q_supports_assoc(struct ap_queue *aq)
 {
-	return ap_test_bit(&aq->card->functions, AP_FUNC_EP11);
+	return aq->card->hwinfo.ep11;
 }
 
 static inline bool ap_q_needs_bind(struct ap_queue *aq)
@@ -257,7 +256,7 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 		list_move_tail(&ap_msg->list, &aq->pendingq);
 		aq->requestq_count--;
 		aq->pendingq_count++;
-		if (aq->queue_count < aq->card->queue_depth) {
+		if (aq->queue_count < aq->card->hwinfo.qd) {
 			aq->sm_state = AP_SM_STATE_WORKING;
 			return AP_SM_WAIT_AGAIN;
 		}
@@ -421,9 +420,9 @@ static enum ap_sm_wait ap_sm_setirq_wait(struct ap_queue *aq)
 static enum ap_sm_wait ap_sm_assoc_wait(struct ap_queue *aq)
 {
 	struct ap_queue_status status;
-	struct ap_tapq_gr2 info;
+	struct ap_tapq_hwinfo hwinfo;
 
-	status = ap_test_queue(aq->qid, 1, &info);
+	status = ap_test_queue(aq->qid, 1, &hwinfo);
 	/* handle asynchronous error on this queue */
 	if (status.async && status.response_code) {
 		aq->dev_state = AP_DEV_STATE_ERROR;
@@ -443,7 +442,7 @@ static enum ap_sm_wait ap_sm_assoc_wait(struct ap_queue *aq)
 	}
 
 	/* check bs bits */
-	switch (info.bs) {
+	switch (hwinfo.bs) {
 	case AP_BS_Q_USABLE:
 		/* association is through */
 		aq->sm_state = AP_SM_STATE_IDLE;
@@ -460,7 +459,7 @@ static enum ap_sm_wait ap_sm_assoc_wait(struct ap_queue *aq)
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
 		AP_DBF_WARN("%s bs 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
-			    __func__, info.bs,
+			    __func__, hwinfo.bs,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
 	}
@@ -687,9 +686,9 @@ static ssize_t ap_functions_show(struct device *dev,
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	struct ap_queue_status status;
-	struct ap_tapq_gr2 info;
+	struct ap_tapq_hwinfo hwinfo;
 
-	status = ap_test_queue(aq->qid, 1, &info);
+	status = ap_test_queue(aq->qid, 1, &hwinfo);
 	if (status.response_code > AP_RESPONSE_BUSY) {
 		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
 			   __func__, status.response_code,
@@ -697,7 +696,7 @@ static ssize_t ap_functions_show(struct device *dev,
 		return -EIO;
 	}
 
-	return sysfs_emit(buf, "0x%08X\n", info.fac);
+	return sysfs_emit(buf, "0x%08X\n", hwinfo.fac);
 }
 
 static DEVICE_ATTR_RO(ap_functions);
@@ -840,19 +839,19 @@ static ssize_t se_bind_show(struct device *dev,
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	struct ap_queue_status status;
-	struct ap_tapq_gr2 info;
+	struct ap_tapq_hwinfo hwinfo;
 
 	if (!ap_q_supports_bind(aq))
 		return sysfs_emit(buf, "-\n");
 
-	status = ap_test_queue(aq->qid, 1, &info);
+	status = ap_test_queue(aq->qid, 1, &hwinfo);
 	if (status.response_code > AP_RESPONSE_BUSY) {
 		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
 			   __func__, status.response_code,
 			   AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return -EIO;
 	}
-	switch (info.bs) {
+	switch (hwinfo.bs) {
 	case AP_BS_Q_USABLE:
 	case AP_BS_Q_USABLE_NO_SECURE_KEY:
 		return sysfs_emit(buf, "bound\n");
@@ -920,12 +919,12 @@ static ssize_t se_associate_show(struct device *dev,
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	struct ap_queue_status status;
-	struct ap_tapq_gr2 info;
+	struct ap_tapq_hwinfo hwinfo;
 
 	if (!ap_q_supports_assoc(aq))
 		return sysfs_emit(buf, "-\n");
 
-	status = ap_test_queue(aq->qid, 1, &info);
+	status = ap_test_queue(aq->qid, 1, &hwinfo);
 	if (status.response_code > AP_RESPONSE_BUSY) {
 		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
 			   __func__, status.response_code,
@@ -933,7 +932,7 @@ static ssize_t se_associate_show(struct device *dev,
 		return -EIO;
 	}
 
-	switch (info.bs) {
+	switch (hwinfo.bs) {
 	case AP_BS_Q_USABLE:
 		if (aq->assoc_idx == ASSOC_IDX_INVALID) {
 			AP_DBF_WARN("%s AP_BS_Q_USABLE but invalid assoc_idx\n", __func__);
