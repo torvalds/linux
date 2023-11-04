@@ -221,7 +221,7 @@ struct tegra_dma_desc {
 	unsigned int sg_count;
 	struct virt_dma_desc vd;
 	struct tegra_dma_channel *tdc;
-	struct tegra_dma_sg_req sg_req[];
+	struct tegra_dma_sg_req sg_req[] __counted_by(sg_count);
 };
 
 /*
@@ -1473,14 +1473,12 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra_dma_remove(struct platform_device *pdev)
+static void tegra_dma_remove(struct platform_device *pdev)
 {
 	struct tegra_dma *tdma = platform_get_drvdata(pdev);
 
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&tdma->dma_dev);
-
-	return 0;
 }
 
 static int __maybe_unused tegra_dma_pm_suspend(struct device *dev)
@@ -1533,7 +1531,7 @@ static struct platform_driver tegra_dma_driver = {
 		.of_match_table = tegra_dma_of_match,
 	},
 	.probe		= tegra_dma_probe,
-	.remove		= tegra_dma_remove,
+	.remove_new	= tegra_dma_remove,
 };
 
 module_platform_driver(tegra_dma_driver);

@@ -21,7 +21,6 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -191,7 +190,7 @@ struct stm32_dma_desc {
 	struct virt_dma_desc vdesc;
 	bool cyclic;
 	u32 num_sgs;
-	struct stm32_dma_sg_req sg_req[];
+	struct stm32_dma_sg_req sg_req[] __counted_by(num_sgs);
 };
 
 /**
@@ -1105,6 +1104,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_slave_sg(
 	desc = kzalloc(struct_size(desc, sg_req, sg_len), GFP_NOWAIT);
 	if (!desc)
 		return NULL;
+	desc->num_sgs = sg_len;
 
 	/* Set peripheral flow controller */
 	if (chan->dma_sconfig.device_fc)
@@ -1143,8 +1143,6 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_slave_sg(
 			desc->sg_req[i].chan_reg.dma_sm1ar += sg_dma_len(sg);
 		desc->sg_req[i].chan_reg.dma_sndtr = nb_data_items;
 	}
-
-	desc->num_sgs = sg_len;
 	desc->cyclic = false;
 
 	return vchan_tx_prep(&chan->vchan, &desc->vdesc, flags);
@@ -1218,6 +1216,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_cyclic(
 	desc = kzalloc(struct_size(desc, sg_req, num_periods), GFP_NOWAIT);
 	if (!desc)
 		return NULL;
+	desc->num_sgs = num_periods;
 
 	for (i = 0; i < num_periods; i++) {
 		desc->sg_req[i].len = period_len;
@@ -1234,8 +1233,6 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_cyclic(
 		if (!chan->trig_mdma)
 			buf_addr += period_len;
 	}
-
-	desc->num_sgs = num_periods;
 	desc->cyclic = true;
 
 	return vchan_tx_prep(&chan->vchan, &desc->vdesc, flags);
@@ -1256,6 +1253,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_memcpy(
 	desc = kzalloc(struct_size(desc, sg_req, num_sgs), GFP_NOWAIT);
 	if (!desc)
 		return NULL;
+	desc->num_sgs = num_sgs;
 
 	threshold = chan->threshold;
 
@@ -1285,8 +1283,6 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_memcpy(
 		desc->sg_req[i].chan_reg.dma_sndtr = xfer_count;
 		desc->sg_req[i].len = xfer_count;
 	}
-
-	desc->num_sgs = num_sgs;
 	desc->cyclic = false;
 
 	return vchan_tx_prep(&chan->vchan, &desc->vdesc, flags);
@@ -1567,16 +1563,9 @@ static int stm32_dma_probe(struct platform_device *pdev)
 	struct stm32_dma_chan *chan;
 	struct stm32_dma_device *dmadev;
 	struct dma_device *dd;
-	const struct of_device_id *match;
 	struct resource *res;
 	struct reset_control *rst;
 	int i, ret;
-
-	match = of_match_device(stm32_dma_of_match, &pdev->dev);
-	if (!match) {
-		dev_err(&pdev->dev, "Error: No device match found\n");
-		return -ENODEV;
-	}
 
 	dmadev = devm_kzalloc(&pdev->dev, sizeof(*dmadev), GFP_KERNEL);
 	if (!dmadev)

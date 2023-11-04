@@ -44,6 +44,8 @@
 	 FIELD_PREP(XDMA_DESC_FLAGS_BITS, (flag)))
 #define XDMA_DESC_CONTROL_LAST						\
 	XDMA_DESC_CONTROL(1, XDMA_DESC_STOPPED | XDMA_DESC_COMPLETED)
+#define XDMA_DESC_CONTROL_CYCLIC					\
+	XDMA_DESC_CONTROL(1, XDMA_DESC_COMPLETED)
 
 /*
  * Descriptor for a single contiguous memory block transfer.

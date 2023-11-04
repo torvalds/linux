@@ -1990,7 +1990,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int rcar_dmac_remove(struct platform_device *pdev)
+static void rcar_dmac_remove(struct platform_device *pdev)
 {
 	struct rcar_dmac *dmac = platform_get_drvdata(pdev);
 
@@ -1998,8 +1998,6 @@ static int rcar_dmac_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&dmac->engine);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static void rcar_dmac_shutdown(struct platform_device *pdev)
@@ -2041,7 +2039,7 @@ static struct platform_driver rcar_dmac_driver = {
 		.of_match_table = rcar_dmac_of_ids,
 	},
 	.probe		= rcar_dmac_probe,
-	.remove		= rcar_dmac_remove,
+	.remove_new	= rcar_dmac_remove,
 	.shutdown	= rcar_dmac_shutdown,
 };
 

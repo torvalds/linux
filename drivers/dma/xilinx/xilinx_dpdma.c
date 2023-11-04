@@ -1736,7 +1736,7 @@ error:
 	return ret;
 }
 
-static int xilinx_dpdma_remove(struct platform_device *pdev)
+static void xilinx_dpdma_remove(struct platform_device *pdev)
 {
 	struct xilinx_dpdma_device *xdev = platform_get_drvdata(pdev);
 	unsigned int i;
@@ -1751,8 +1751,6 @@ static int xilinx_dpdma_remove(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(xdev->chan); i++)
 		xilinx_dpdma_chan_remove(xdev->chan[i]);
-
-	return 0;
 }
 
 static const struct of_device_id xilinx_dpdma_of_match[] = {
@@ -1763,7 +1761,7 @@ MODULE_DEVICE_TABLE(of, xilinx_dpdma_of_match);
 
 static struct platform_driver xilinx_dpdma_driver = {
 	.probe			= xilinx_dpdma_probe,
-	.remove			= xilinx_dpdma_remove,
+	.remove_new		= xilinx_dpdma_remove,
 	.driver			= {
 		.name		= "xilinx-zynqmp-dpdma",
 		.of_match_table	= xilinx_dpdma_of_match,

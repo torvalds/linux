@@ -517,8 +517,6 @@ static inline const char *dma_chan_name(struct dma_chan *chan)
 	return dev_name(&chan->dev->device);
 }
 
-void dma_chan_cleanup(struct kref *kref);
-
 /**
  * typedef dma_filter_fn - callback filter for dma_request_channel
  * @chan: channel to be reviewed

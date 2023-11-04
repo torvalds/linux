@@ -225,7 +225,7 @@ struct fsl_edma_engine {
 	bool			big_endian;
 	struct edma_regs	regs;
 	u64			chan_masked;
-	struct fsl_edma_chan	chans[];
+	struct fsl_edma_chan	chans[] __counted_by(n_chans);
 };
 
 #define edma_read_tcdreg(chan, __name)				\

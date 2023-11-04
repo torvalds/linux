@@ -855,7 +855,7 @@ free_msi_irqs:
 	return ret;
 }
 
-static int mv_xor_v2_remove(struct platform_device *pdev)
+static void mv_xor_v2_remove(struct platform_device *pdev)
 {
 	struct mv_xor_v2_device *xor_dev = platform_get_drvdata(pdev);
 
@@ -870,8 +870,6 @@ static int mv_xor_v2_remove(struct platform_device *pdev)
 	platform_msi_domain_free_irqs(&pdev->dev);
 
 	tasklet_kill(&xor_dev->irq_tasklet);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -886,7 +884,7 @@ static struct platform_driver mv_xor_v2_driver = {
 	.probe		= mv_xor_v2_probe,
 	.suspend	= mv_xor_v2_suspend,
 	.resume		= mv_xor_v2_resume,
-	.remove		= mv_xor_v2_remove,
+	.remove_new	= mv_xor_v2_remove,
 	.driver		= {
 		.name	= "mv_xor_v2",
 		.of_match_table = of_match_ptr(mv_xor_v2_dt_ids),
