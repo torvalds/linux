@@ -1228,6 +1228,15 @@ static void check_export_symbol(struct module *mod, struct elf_info *elf,
 	 */
 	s->is_func = (ELF_ST_TYPE(sym->st_info) == STT_FUNC);
 
+	/*
+	 * For parisc64, symbols prefixed $$ from the library have the symbol type
+	 * STT_LOPROC. They should be handled as functions too.
+	 */
+	if (elf->hdr->e_ident[EI_CLASS] == ELFCLASS64 &&
+	    elf->hdr->e_machine == EM_PARISC &&
+	    ELF_ST_TYPE(sym->st_info) == STT_LOPROC)
+		s->is_func = true;
+
 	if (match(secname, PATTERNS(INIT_SECTIONS)))
 		warn("%s: %s: EXPORT_SYMBOL used for init symbol. Remove __init or EXPORT_SYMBOL.\n",
 		     mod->name, name);

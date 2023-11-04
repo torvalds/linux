@@ -1677,8 +1677,7 @@ static int start_cpsch(struct device_queue_manager *dqm)
 			dqm->dev->kfd2kgd->build_grace_period_packet_info(
 					dqm->dev->adev,	dqm->wait_times,
 					grace_period, &reg_offset,
-					&dqm->wait_times,
-					ffs(dqm->dev->xcc_mask) - 1);
+					&dqm->wait_times);
 	}
 
 	dqm_unlock(dqm);

@@ -228,8 +228,7 @@ lpfc_nvme_remoteport_delete(struct nvme_fc_remote_port *remoteport)
 	spin_unlock_irq(&ndlp->lock);
 
 	/* On a devloss timeout event, one more put is executed provided the
-	 * NVME and SCSI rport unregister requests are complete.  If the vport
-	 * is unloading, this extra put is executed by lpfc_drop_node.
+	 * NVME and SCSI rport unregister requests are complete.
 	 */
 	if (!(ndlp->fc4_xpt_flags & fc4_xpt_flags))
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
@@ -2567,11 +2566,7 @@ lpfc_nvme_rescan_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  * nvme_transport perspective.  Loss of an rport just means IO cannot
  * be sent and recovery is completely up to the initator.
  * For now, the driver just unbinds the DID and port_role so that
- * no further IO can be issued.  Changes are planned for later.
- *
- * Notes - the ndlp reference count is not decremented here since
- * since there is no nvme_transport api for devloss.  Node ref count
- * is only adjusted in driver unload.
+ * no further IO can be issued.
  */
 void
 lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
@@ -2646,6 +2641,21 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 					 "6167 NVME unregister failed %d "
 					 "port_state x%x\n",
 					 ret, remoteport->port_state);
+
+			if (vport->load_flag & FC_UNLOADING) {
+				/* Only 1 thread can drop the initial node
+				 * reference. Check if another thread has set
+				 * NLP_DROPPED.
+				 */
+				spin_lock_irq(&ndlp->lock);
+				if (!(ndlp->nlp_flag & NLP_DROPPED)) {
+					ndlp->nlp_flag |= NLP_DROPPED;
+					spin_unlock_irq(&ndlp->lock);
+					lpfc_nlp_put(ndlp);
+					return;
+				}
+				spin_unlock_irq(&ndlp->lock);
+			}
 		}
 	}
 	return;

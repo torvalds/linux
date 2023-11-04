@@ -620,7 +620,7 @@ struct amdgpu_hdmi_vsdb_info {
 	unsigned int max_refresh_rate_hz;
 
 	/**
-	 * @replay mode: Replay supported
+	 * @replay_mode: Replay supported
 	 */
 	bool replay_mode;
 };

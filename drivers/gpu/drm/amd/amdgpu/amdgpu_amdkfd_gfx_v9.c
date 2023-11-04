@@ -1103,8 +1103,7 @@ void kgd_gfx_v9_build_grace_period_packet_info(struct amdgpu_device *adev,
 		uint32_t wait_times,
 		uint32_t grace_period,
 		uint32_t *reg_offset,
-		uint32_t *reg_data,
-		uint32_t inst)
+		uint32_t *reg_data)
 {
 	*reg_data = wait_times;
 
@@ -1120,8 +1119,7 @@ void kgd_gfx_v9_build_grace_period_packet_info(struct amdgpu_device *adev,
 			SCH_WAVE,
 			grace_period);
 
-	*reg_offset = SOC15_REG_OFFSET(GC, GET_INST(GC, inst),
-			mmCP_IQ_WAIT_TIME2);
+	*reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_IQ_WAIT_TIME2);
 }
 
 void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,

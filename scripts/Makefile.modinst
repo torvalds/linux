@@ -113,7 +113,7 @@ quiet_cmd_sign :=
 endif
 
 # Create necessary directories
-$(shell mkdir -p $(sort $(dir $(install-y))))
+$(foreach dir, $(sort $(dir $(install-y))), $(shell mkdir -p $(dir)))
 
 $(dst)/%.ko: $(extmod_prefix)%.ko FORCE
 	$(call cmd,install)

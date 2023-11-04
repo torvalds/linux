@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include "../kselftest_harness.h"
+#include "user_events_selftests.h"
 
 const char *data_file = "/sys/kernel/tracing/user_events_data";
 const char *status_file = "/sys/kernel/tracing/user_events_status";
@@ -206,6 +207,8 @@ FIXTURE(user) {
 };
 
 FIXTURE_SETUP(user) {
+	USER_EVENT_FIXTURE_SETUP(return);
+
 	self->status_fd = open(status_file, O_RDONLY);
 	ASSERT_NE(-1, self->status_fd);
 
