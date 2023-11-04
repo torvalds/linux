@@ -1467,6 +1467,21 @@ static struct super_block *get_bdev_super(struct block_device *bdev)
 	return sb;
 }
 
+/**
+ * fs_bdev_freeze - freeze owning filesystem of block device
+ * @bdev: block device
+ *
+ * Freeze the filesystem that owns this block device if it is still
+ * active.
+ *
+ * A filesystem that owns multiple block devices may be frozen from each
+ * block device and won't be unfrozen until all block devices are
+ * unfrozen. Each block device can only freeze the filesystem once as we
+ * nest freezes for block devices in the block layer.
+ *
+ * Return: If the freeze was successful zero is returned. If the freeze
+ *         failed a negative error code is returned.
+ */
 static int fs_bdev_freeze(struct block_device *bdev)
 {
 	struct super_block *sb;
@@ -1479,15 +1494,34 @@ static int fs_bdev_freeze(struct block_device *bdev)
 		return -EINVAL;
 
 	if (sb->s_op->freeze_super)
-		error = sb->s_op->freeze_super(sb, FREEZE_HOLDER_USERSPACE);
+		error = sb->s_op->freeze_super(sb,
+				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE);
 	else
-		error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
+		error = freeze_super(sb,
+				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE);
 	if (!error)
 		error = sync_blockdev(bdev);
 	deactivate_super(sb);
 	return error;
 }
 
+/**
+ * fs_bdev_thaw - thaw owning filesystem of block device
+ * @bdev: block device
+ *
+ * Thaw the filesystem that owns this block device.
+ *
+ * A filesystem that owns multiple block devices may be frozen from each
+ * block device and won't be unfrozen until all block devices are
+ * unfrozen. Each block device can only freeze the filesystem once as we
+ * nest freezes for block devices in the block layer.
+ *
+ * Return: If the thaw was successful zero is returned. If the thaw
+ *         failed a negative error code is returned. If this function
+ *         returns zero it doesn't mean that the filesystem is unfrozen
+ *         as it may have been frozen multiple times (kernel may hold a
+ *         freeze or might be frozen from other block devices).
+ */
 static int fs_bdev_thaw(struct block_device *bdev)
 {
 	struct super_block *sb;
@@ -1500,9 +1534,11 @@ static int fs_bdev_thaw(struct block_device *bdev)
 		return -EINVAL;
 
 	if (sb->s_op->thaw_super)
-		error = sb->s_op->thaw_super(sb, FREEZE_HOLDER_USERSPACE);
+		error = sb->s_op->thaw_super(sb,
+				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE);
 	else
-		error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
+		error = thaw_super(sb,
+				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE);
 	deactivate_super(sb);
 	return error;
 }
@@ -1914,6 +1950,47 @@ static int wait_for_partially_frozen(struct super_block *sb)
 	return ret;
 }
 
+#define FREEZE_HOLDERS (FREEZE_HOLDER_KERNEL | FREEZE_HOLDER_USERSPACE)
+#define FREEZE_FLAGS (FREEZE_HOLDERS | FREEZE_MAY_NEST)
+
+static inline int freeze_inc(struct super_block *sb, enum freeze_holder who)
+{
+	WARN_ON_ONCE((who & ~FREEZE_FLAGS));
+	WARN_ON_ONCE(hweight32(who & FREEZE_HOLDERS) > 1);
+
+	if (who & FREEZE_HOLDER_KERNEL)
+		++sb->s_writers.freeze_kcount;
+	if (who & FREEZE_HOLDER_USERSPACE)
+		++sb->s_writers.freeze_ucount;
+	return sb->s_writers.freeze_kcount + sb->s_writers.freeze_ucount;
+}
+
+static inline int freeze_dec(struct super_block *sb, enum freeze_holder who)
+{
+	WARN_ON_ONCE((who & ~FREEZE_FLAGS));
+	WARN_ON_ONCE(hweight32(who & FREEZE_HOLDERS) > 1);
+
+	if ((who & FREEZE_HOLDER_KERNEL) && sb->s_writers.freeze_kcount)
+		--sb->s_writers.freeze_kcount;
+	if ((who & FREEZE_HOLDER_USERSPACE) && sb->s_writers.freeze_ucount)
+		--sb->s_writers.freeze_ucount;
+	return sb->s_writers.freeze_kcount + sb->s_writers.freeze_ucount;
+}
+
+static inline bool may_freeze(struct super_block *sb, enum freeze_holder who)
+{
+	WARN_ON_ONCE((who & ~FREEZE_FLAGS));
+	WARN_ON_ONCE(hweight32(who & FREEZE_HOLDERS) > 1);
+
+	if (who & FREEZE_HOLDER_KERNEL)
+		return (who & FREEZE_MAY_NEST) ||
+		       sb->s_writers.freeze_kcount == 0;
+	if (who & FREEZE_HOLDER_USERSPACE)
+		return (who & FREEZE_MAY_NEST) ||
+		       sb->s_writers.freeze_ucount == 0;
+	return false;
+}
+
 /**
  * freeze_super - lock the filesystem and force it into a consistent state
  * @sb: the super to lock
@@ -1926,12 +2003,20 @@ static int wait_for_partially_frozen(struct super_block *sb)
  * @who should be:
  * * %FREEZE_HOLDER_USERSPACE if userspace wants to freeze the fs;
  * * %FREEZE_HOLDER_KERNEL if the kernel wants to freeze the fs.
+ * * %FREEZE_MAY_NEST whether nesting freeze and thaw requests is allowed.
  *
  * The @who argument distinguishes between the kernel and userspace trying to
  * freeze the filesystem.  Although there cannot be multiple kernel freezes or
  * multiple userspace freezes in effect at any given time, the kernel and
  * userspace can both hold a filesystem frozen.  The filesystem remains frozen
  * until there are no kernel or userspace freezes in effect.
+ *
+ * A filesystem may hold multiple devices and thus a filesystems may be
+ * frozen through the block layer via multiple block devices. In this
+ * case the request is marked as being allowed to nest by passing
+ * FREEZE_MAY_NEST. The filesystem remains frozen until all block
+ * devices are unfrozen. If multiple freezes are attempted without
+ * FREEZE_MAY_NEST -EBUSY will be returned.
  *
  * During this function, sb->s_writers.frozen goes through these values:
  *
@@ -1957,6 +2042,9 @@ static int wait_for_partially_frozen(struct super_block *sb)
  * mostly auxiliary for filesystems to verify they do not modify frozen fs.
  *
  * sb->s_writers.frozen is protected by sb->s_umount.
+ *
+ * Return: If the freeze was successful zero is returned. If the freeze
+ *         failed a negative error code is returned.
  */
 int freeze_super(struct super_block *sb, enum freeze_holder who)
 {
@@ -1970,20 +2058,13 @@ int freeze_super(struct super_block *sb, enum freeze_holder who)
 
 retry:
 	if (sb->s_writers.frozen == SB_FREEZE_COMPLETE) {
-		if (sb->s_writers.freeze_holders & who) {
-			deactivate_locked_super(sb);
-			return -EBUSY;
-		}
-
-		WARN_ON(sb->s_writers.freeze_holders == 0);
-
-		/*
-		 * Someone else already holds this type of freeze; share the
-		 * freeze and assign the active ref to the freeze.
-		 */
-		sb->s_writers.freeze_holders |= who;
-		super_unlock_excl(sb);
-		return 0;
+		if (may_freeze(sb, who))
+			ret = !!WARN_ON_ONCE(freeze_inc(sb, who) == 1);
+		else
+			ret = -EBUSY;
+		/* All freezers share a single active reference. */
+		deactivate_locked_super(sb);
+		return ret;
 	}
 
 	if (sb->s_writers.frozen != SB_UNFROZEN) {
@@ -1998,7 +2079,7 @@ retry:
 
 	if (sb_rdonly(sb)) {
 		/* Nothing to do really... */
-		sb->s_writers.freeze_holders |= who;
+		WARN_ON_ONCE(freeze_inc(sb, who) > 1);
 		sb->s_writers.frozen = SB_FREEZE_COMPLETE;
 		wake_up_var(&sb->s_writers.frozen);
 		super_unlock_excl(sb);
@@ -2048,7 +2129,7 @@ retry:
 	 * For debugging purposes so that fs can warn if it sees write activity
 	 * when frozen is set to SB_FREEZE_COMPLETE, and for thaw_super().
 	 */
-	sb->s_writers.freeze_holders |= who;
+	WARN_ON_ONCE(freeze_inc(sb, who) > 1);
 	sb->s_writers.frozen = SB_FREEZE_COMPLETE;
 	wake_up_var(&sb->s_writers.frozen);
 	lockdep_sb_freeze_release(sb);
@@ -2069,21 +2150,15 @@ static int thaw_super_locked(struct super_block *sb, enum freeze_holder who)
 
 	if (sb->s_writers.frozen != SB_FREEZE_COMPLETE)
 		goto out_unlock;
-	if (!(sb->s_writers.freeze_holders & who))
-		goto out_unlock;
 
 	/*
-	 * Freeze is shared with someone else.  Release our hold and drop the
-	 * active ref that freeze_super assigned to the freezer.
+	 * All freezers share a single active reference.
+	 * So just unlock in case there are any left.
 	 */
-	error = 0;
-	if (sb->s_writers.freeze_holders & ~who) {
-		sb->s_writers.freeze_holders &= ~who;
-		goto out_deactivate;
-	}
+	if (freeze_dec(sb, who))
+		goto out_unlock;
 
 	if (sb_rdonly(sb)) {
-		sb->s_writers.freeze_holders &= ~who;
 		sb->s_writers.frozen = SB_UNFROZEN;
 		wake_up_var(&sb->s_writers.frozen);
 		goto out_deactivate;
@@ -2094,13 +2169,13 @@ static int thaw_super_locked(struct super_block *sb, enum freeze_holder who)
 	if (sb->s_op->unfreeze_fs) {
 		error = sb->s_op->unfreeze_fs(sb);
 		if (error) {
-			printk(KERN_ERR "VFS:Filesystem thaw failed\n");
+			pr_err("VFS: Filesystem thaw failed\n");
+			freeze_inc(sb, who);
 			lockdep_sb_freeze_release(sb);
 			goto out_unlock;
 		}
 	}
 
-	sb->s_writers.freeze_holders &= ~who;
 	sb->s_writers.frozen = SB_UNFROZEN;
 	wake_up_var(&sb->s_writers.frozen);
 	sb_freeze_unlock(sb, SB_FREEZE_FS);
@@ -2124,6 +2199,11 @@ out_unlock:
  * @who should be:
  * * %FREEZE_HOLDER_USERSPACE if userspace wants to thaw the fs;
  * * %FREEZE_HOLDER_KERNEL if the kernel wants to thaw the fs.
+ * * %FREEZE_MAY_NEST whether nesting freeze and thaw requests is allowed
+ *
+ * A filesystem may hold multiple devices and thus a filesystems may
+ * have been frozen through the block layer via multiple block devices.
+ * The filesystem remains frozen until all block devices are unfrozen.
  */
 int thaw_super(struct super_block *sb, enum freeze_holder who)
 {
