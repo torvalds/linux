@@ -1031,7 +1031,7 @@ err:
  *
  * free all allocations and delete the partitions.
  */
-static int spear_smi_remove(struct platform_device *pdev)
+static void spear_smi_remove(struct platform_device *pdev)
 {
 	struct spear_smi *dev;
 	struct spear_snor_flash *flash;
@@ -1048,8 +1048,6 @@ static int spear_smi_remove(struct platform_device *pdev)
 		/* clean up mtd stuff */
 		WARN_ON(mtd_device_unregister(&flash->mtd));
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1095,7 +1093,7 @@ static struct platform_driver spear_smi_driver = {
 		.pm = &spear_smi_pm_ops,
 	},
 	.probe = spear_smi_probe,
-	.remove = spear_smi_remove,
+	.remove_new = spear_smi_remove,
 };
 module_platform_driver(spear_smi_driver);
 

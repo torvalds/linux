@@ -431,13 +431,11 @@ static int nxp_spifi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int nxp_spifi_remove(struct platform_device *pdev)
+static void nxp_spifi_remove(struct platform_device *pdev)
 {
 	struct nxp_spifi *spifi = platform_get_drvdata(pdev);
 
 	mtd_device_unregister(&spifi->nor.mtd);
-
-	return 0;
 }
 
 static const struct of_device_id nxp_spifi_match[] = {
@@ -448,7 +446,7 @@ MODULE_DEVICE_TABLE(of, nxp_spifi_match);
 
 static struct platform_driver nxp_spifi_driver = {
 	.probe	= nxp_spifi_probe,
-	.remove	= nxp_spifi_remove,
+	.remove_new = nxp_spifi_remove,
 	.driver	= {
 		.name = "nxp-spifi",
 		.of_match_table = nxp_spifi_match,

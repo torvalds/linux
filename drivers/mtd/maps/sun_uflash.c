@@ -118,7 +118,7 @@ static int uflash_probe(struct platform_device *op)
 	return uflash_devinit(op, dp);
 }
 
-static int uflash_remove(struct platform_device *op)
+static void uflash_remove(struct platform_device *op)
 {
 	struct uflash_dev *up = dev_get_drvdata(&op->dev);
 
@@ -132,8 +132,6 @@ static int uflash_remove(struct platform_device *op)
 	}
 
 	kfree(up);
-
-	return 0;
 }
 
 static const struct of_device_id uflash_match[] = {
@@ -151,7 +149,7 @@ static struct platform_driver uflash_driver = {
 		.of_match_table = uflash_match,
 	},
 	.probe		= uflash_probe,
-	.remove		= uflash_remove,
+	.remove_new	= uflash_remove,
 };
 
 module_platform_driver(uflash_driver);
