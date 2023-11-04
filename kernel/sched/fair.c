@@ -1131,6 +1131,8 @@ static inline void update_curr_task(struct task_struct *p, s64 delta_exec)
 	trace_sched_stat_runtime(p, delta_exec);
 	account_group_exec_runtime(p, delta_exec);
 	cgroup_account_cputime(p, delta_exec);
+	if (p->dl_server)
+		dl_server_update(p->dl_server, delta_exec);
 }
 
 /*
