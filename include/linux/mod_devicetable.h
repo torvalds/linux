@@ -956,4 +956,8 @@ struct cdx_device_id {
 	__u32 override_only;
 };
 
+struct vchiq_device_id {
+	char name[32];
+};
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

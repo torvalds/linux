@@ -29,7 +29,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 					   struct iw_request_info *info)
 {
 	char custom[MAX_CUSTOM_LEN];
-	char proto_name[IFNAMSIZ];
+	char proto_name[6];
 	char *pname = proto_name;
 	char *p;
 	struct iw_event iwe;

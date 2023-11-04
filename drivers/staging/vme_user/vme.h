@@ -87,7 +87,7 @@ extern struct bus_type vme_bus_type;
 #define VME_NUM_STATUSID	256
 
 /* VME_MAX_BRIDGES comes from the type of vme_bus_numbers */
-#define VME_MAX_BRIDGES		(sizeof(unsigned int)*8)
+#define VME_MAX_BRIDGES		(sizeof(unsigned int) * 8)
 #define VME_MAX_SLOTS		32
 
 #define VME_SLOT_CURRENT	-1
@@ -133,8 +133,8 @@ void vme_free_consistent(struct vme_resource *, size_t,  void *,
 	dma_addr_t);
 
 size_t vme_get_size(struct vme_resource *);
-int vme_check_window(u32 aspace, unsigned long long vme_base,
-		     unsigned long long size);
+int vme_check_window(struct vme_bridge *bridge, u32 aspace,
+		     unsigned long long vme_base, unsigned long long size);
 
 struct vme_resource *vme_slave_request(struct vme_dev *, u32, u32);
 int vme_slave_set(struct vme_resource *, int, unsigned long long,
