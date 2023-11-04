@@ -66,9 +66,7 @@
 
 &main_gpio0 {
 	pinctrl-names = "default";
-	pinctrl-0 =
-		<&main_m2_pcie_mux_control>,
-		<&arduino_io_d4_to_d9_pins_default>;
+	pinctrl-0 = <&main_m2_pcie_mux_control>;
 };
 
 &main_gpio1 {
