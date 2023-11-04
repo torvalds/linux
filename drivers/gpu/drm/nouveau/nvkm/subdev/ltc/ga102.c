@@ -21,6 +21,8 @@
  */
 #include "priv.h"
 
+#include <subdev/gsp.h>
+
 static void
 ga102_ltc_zbc_clear_color(struct nvkm_ltc *ltc, int i, const u32 color[4])
 {
@@ -53,5 +55,8 @@ int
 ga102_ltc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_ltc **pltc)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
 	return nvkm_ltc_new_(&ga102_ltc, device, type, inst, pltc);
 }

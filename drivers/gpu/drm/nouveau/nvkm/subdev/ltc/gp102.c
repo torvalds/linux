@@ -21,6 +21,8 @@
  */
 #include "priv.h"
 
+#include <subdev/gsp.h>
+
 void
 gp102_ltc_zbc_clear_stencil(struct nvkm_ltc *ltc, int i, const u32 stencil)
 {
@@ -49,5 +51,8 @@ int
 gp102_ltc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_ltc **pltc)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
 	return nvkm_ltc_new_(&gp102_ltc, device, type, inst, pltc);
 }

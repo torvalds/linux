@@ -2,6 +2,7 @@
 #ifndef __NVKM_MMU_H__
 #define __NVKM_MMU_H__
 #include <core/subdev.h>
+#include <subdev/gsp.h>
 
 struct nvkm_vma {
 	struct list_head head;
@@ -63,6 +64,16 @@ struct nvkm_vmm {
 	void *nullp;
 
 	bool replay;
+
+	struct {
+		u64 bar2_pdb;
+
+		struct nvkm_gsp_client client;
+		struct nvkm_gsp_device device;
+		struct nvkm_gsp_object object;
+
+		struct nvkm_vma *rsvd;
+	} rm;
 };
 
 int nvkm_vmm_new(struct nvkm_device *, u64 addr, u64 size, void *argv, u32 argc,

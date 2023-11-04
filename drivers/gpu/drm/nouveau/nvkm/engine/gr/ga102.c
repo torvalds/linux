@@ -23,6 +23,7 @@
 #include "ctxgf100.h"
 
 #include <core/firmware.h>
+#include <subdev/gsp.h>
 #include <subdev/acr.h>
 #include <subdev/timer.h>
 #include <subdev/vfn.h>
@@ -350,5 +351,8 @@ ga102_gr_fwif[] = {
 int
 ga102_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_gr_new(&ga102_gr, device, type, inst, pgr);
+
 	return gf100_gr_new_(ga102_gr_fwif, device, type, inst, pgr);
 }

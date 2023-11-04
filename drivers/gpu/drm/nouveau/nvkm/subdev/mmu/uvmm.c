@@ -572,6 +572,12 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	}
 	uvmm->vmm->managed.raw = raw;
 
+	if (mmu->func->promote_vmm) {
+		ret = mmu->func->promote_vmm(uvmm->vmm);
+		if (ret)
+			return ret;
+	}
+
 	page = uvmm->vmm->func->page;
 	args->v0.page_nr = 0;
 	while (page && (page++)->shift)
