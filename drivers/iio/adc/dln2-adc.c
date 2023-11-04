@@ -691,19 +691,18 @@ unregister_event:
 	return ret;
 }
 
-static int dln2_adc_remove(struct platform_device *pdev)
+static void dln2_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 
 	iio_device_unregister(indio_dev);
 	dln2_unregister_event_cb(pdev, DLN2_ADC_CONDITION_MET_EV);
-	return 0;
 }
 
 static struct platform_driver dln2_adc_driver = {
 	.driver.name	= DLN2_ADC_MOD_NAME,
 	.probe		= dln2_adc_probe,
-	.remove		= dln2_adc_remove,
+	.remove_new	= dln2_adc_remove,
 };
 
 module_platform_driver(dln2_adc_driver);

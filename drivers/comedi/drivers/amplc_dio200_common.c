@@ -86,6 +86,70 @@ struct dio200_subdev_intr {
 	unsigned int active:1;
 };
 
+#ifdef CONFIG_HAS_IOPORT
+
+static unsigned char dio200___read8(struct comedi_device *dev,
+				    unsigned int offset)
+{
+	if (dev->mmio)
+		return readb(dev->mmio + offset);
+	return inb(dev->iobase + offset);
+}
+
+static void dio200___write8(struct comedi_device *dev,
+			    unsigned int offset, unsigned char val)
+{
+	if (dev->mmio)
+		writeb(val, dev->mmio + offset);
+	else
+		outb(val, dev->iobase + offset);
+}
+
+static unsigned int dio200___read32(struct comedi_device *dev,
+				    unsigned int offset)
+{
+	if (dev->mmio)
+		return readl(dev->mmio + offset);
+	return inl(dev->iobase + offset);
+}
+
+static void dio200___write32(struct comedi_device *dev,
+			     unsigned int offset, unsigned int val)
+{
+	if (dev->mmio)
+		writel(val, dev->mmio + offset);
+	else
+		outl(val, dev->iobase + offset);
+}
+
+#else /* CONFIG_HAS_IOPORT */
+
+static unsigned char dio200___read8(struct comedi_device *dev,
+				    unsigned int offset)
+{
+	return readb(dev->mmio + offset);
+}
+
+static void dio200___write8(struct comedi_device *dev,
+			    unsigned int offset, unsigned char val)
+{
+	writeb(val, dev->mmio + offset);
+}
+
+static unsigned int dio200___read32(struct comedi_device *dev,
+				    unsigned int offset)
+{
+	return readl(dev->mmio + offset);
+}
+
+static void dio200___write32(struct comedi_device *dev,
+			     unsigned int offset, unsigned int val)
+{
+	writel(val, dev->mmio + offset);
+}
+
+#endif /* CONFIG_HAS_IOPORT */
+
 static unsigned char dio200_read8(struct comedi_device *dev,
 				  unsigned int offset)
 {
@@ -94,9 +158,7 @@ static unsigned char dio200_read8(struct comedi_device *dev,
 	if (board->is_pcie)
 		offset <<= 3;
 
-	if (dev->mmio)
-		return readb(dev->mmio + offset);
-	return inb(dev->iobase + offset);
+	return dio200___read8(dev, offset);
 }
 
 static void dio200_write8(struct comedi_device *dev,
@@ -107,10 +169,7 @@ static void dio200_write8(struct comedi_device *dev,
 	if (board->is_pcie)
 		offset <<= 3;
 
-	if (dev->mmio)
-		writeb(val, dev->mmio + offset);
-	else
-		outb(val, dev->iobase + offset);
+	dio200___write8(dev, offset, val);
 }
 
 static unsigned int dio200_read32(struct comedi_device *dev,
@@ -121,9 +180,7 @@ static unsigned int dio200_read32(struct comedi_device *dev,
 	if (board->is_pcie)
 		offset <<= 3;
 
-	if (dev->mmio)
-		return readl(dev->mmio + offset);
-	return inl(dev->iobase + offset);
+	return dio200___read32(dev, offset);
 }
 
 static void dio200_write32(struct comedi_device *dev,
@@ -134,10 +191,7 @@ static void dio200_write32(struct comedi_device *dev,
 	if (board->is_pcie)
 		offset <<= 3;
 
-	if (dev->mmio)
-		writel(val, dev->mmio + offset);
-	else
-		outl(val, dev->iobase + offset);
+	dio200___write32(dev, offset, val);
 }
 
 static unsigned int dio200_subdev_8254_offset(struct comedi_device *dev,
@@ -149,9 +203,9 @@ static unsigned int dio200_subdev_8254_offset(struct comedi_device *dev,
 
 	/* get the offset that was passed to comedi_8254_*_init() */
 	if (dev->mmio)
-		offset = i8254->mmio - dev->mmio;
+		offset = (void __iomem *)i8254->context - dev->mmio;
 	else
-		offset = i8254->iobase - dev->iobase;
+		offset = i8254->context - dev->iobase;
 
 	/* remove the shift that was added for PCIe boards */
 	if (board->is_pcie)
@@ -556,14 +610,14 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 	}
 
 	if (dev->mmio) {
-		i8254 = comedi_8254_mm_init(dev->mmio + offset,
-					    0, I8254_IO8, regshift);
+		i8254 = comedi_8254_mm_alloc(dev->mmio + offset,
+					     0, I8254_IO8, regshift);
 	} else {
-		i8254 = comedi_8254_init(dev->iobase + offset,
-					 0, I8254_IO8, regshift);
+		i8254 = comedi_8254_io_alloc(dev->iobase + offset,
+					     0, I8254_IO8, regshift);
 	}
-	if (!i8254)
-		return -ENOMEM;
+	if (IS_ERR(i8254))
+		return PTR_ERR(i8254);
 
 	comedi_8254_subdevice_init(s, i8254);
 
@@ -778,6 +832,12 @@ int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 	struct comedi_subdevice *s;
 	unsigned int n;
 	int ret;
+
+	if (!IS_ENABLED(CONFIG_HAS_IOPORT) && !dev->mmio) {
+		dev_err(dev->class_dev,
+			"error! need I/O port support\n");
+		return -ENXIO;
+	}
 
 	ret = comedi_alloc_subdevices(dev, board->n_subdevs);
 	if (ret)

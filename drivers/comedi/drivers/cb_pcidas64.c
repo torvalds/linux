@@ -3877,11 +3877,10 @@ static int setup_subdevices(struct comedi_device *dev)
 	s = &dev->subdevices[4];
 	if (board->has_8255) {
 		if (board->layout == LAYOUT_4020) {
-			ret = subdev_8255_init(dev, s, dio_callback_4020,
-					       I8255_4020_REG);
+			ret = subdev_8255_cb_init(dev, s, dio_callback_4020,
+						  I8255_4020_REG);
 		} else {
-			ret = subdev_8255_mm_init(dev, s, NULL,
-						  DIO_8255_OFFSET);
+			ret = subdev_8255_mm_init(dev, s, DIO_8255_OFFSET);
 		}
 		if (ret)
 			return ret;

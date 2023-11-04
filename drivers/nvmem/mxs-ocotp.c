@@ -13,8 +13,9 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/nvmem-provider.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/stmp_device.h>
 
@@ -140,11 +141,10 @@ static int mxs_ocotp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct mxs_data *data;
 	struct mxs_ocotp *otp;
-	const struct of_device_id *match;
 	int ret;
 
-	match = of_match_device(dev->driver->of_match_table, dev);
-	if (!match || !match->data)
+	data = device_get_match_data(dev);
+	if (!data)
 		return -EINVAL;
 
 	otp = devm_kzalloc(dev, sizeof(*otp), GFP_KERNEL);
@@ -168,8 +168,6 @@ static int mxs_ocotp_probe(struct platform_device *pdev)
 	ret = devm_add_action_or_reset(&pdev->dev, mxs_ocotp_action, otp->clk);
 	if (ret)
 		return ret;
-
-	data = match->data;
 
 	ocotp_config.size = data->size;
 	ocotp_config.priv = otp;

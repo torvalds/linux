@@ -21,6 +21,8 @@
 #include "intel_pxp_tee.h"
 #include "intel_pxp_types.h"
 
+#define PXP_TRANSPORT_TIMEOUT_MS 5000 /* 5 sec */
+
 static bool
 is_fw_err_platform_config(struct intel_pxp *pxp, u32 type)
 {
@@ -73,13 +75,15 @@ static int intel_pxp_tee_io_message(struct intel_pxp *pxp,
 		goto unlock;
 	}
 
-	ret = pxp_component->ops->send(pxp_component->tee_dev, msg_in, msg_in_size);
+	ret = pxp_component->ops->send(pxp_component->tee_dev, msg_in, msg_in_size,
+				       PXP_TRANSPORT_TIMEOUT_MS);
 	if (ret) {
 		drm_err(&i915->drm, "Failed to send PXP TEE message\n");
 		goto unlock;
 	}
 
-	ret = pxp_component->ops->recv(pxp_component->tee_dev, msg_out, msg_out_max_size);
+	ret = pxp_component->ops->recv(pxp_component->tee_dev, msg_out, msg_out_max_size,
+				       PXP_TRANSPORT_TIMEOUT_MS);
 	if (ret < 0) {
 		drm_err(&i915->drm, "Failed to receive PXP TEE message\n");
 		goto unlock;

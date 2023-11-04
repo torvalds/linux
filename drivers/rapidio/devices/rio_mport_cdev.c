@@ -250,7 +250,9 @@ static DEFINE_MUTEX(mport_devs_lock);
 static DECLARE_WAIT_QUEUE_HEAD(mport_cdev_wait);
 #endif
 
-static struct class *dev_class;
+static const struct class dev_class = {
+	.name = DRV_NAME,
+};
 static dev_t dev_number;
 
 static void mport_release_mapping(struct kref *ref);
@@ -2379,7 +2381,7 @@ static struct mport_dev *mport_cdev_add(struct rio_mport *mport)
 
 	device_initialize(&md->dev);
 	md->dev.devt = MKDEV(MAJOR(dev_number), mport->id);
-	md->dev.class = dev_class;
+	md->dev.class = &dev_class;
 	md->dev.parent = &mport->dev;
 	md->dev.release = mport_device_release;
 	dev_set_name(&md->dev, DEV_NAME "%d", mport->id);
@@ -2600,10 +2602,10 @@ static int __init mport_init(void)
 	int ret;
 
 	/* Create device class needed by udev */
-	dev_class = class_create(DRV_NAME);
-	if (IS_ERR(dev_class)) {
+	ret = class_register(&dev_class);
+	if (ret) {
 		rmcd_error("Unable to create " DRV_NAME " class");
-		return PTR_ERR(dev_class);
+		return ret;
 	}
 
 	ret = alloc_chrdev_region(&dev_number, 0, RIO_MAX_MPORTS, DRV_NAME);
@@ -2624,7 +2626,7 @@ static int __init mport_init(void)
 err_cli:
 	unregister_chrdev_region(dev_number, RIO_MAX_MPORTS);
 err_chr:
-	class_destroy(dev_class);
+	class_unregister(&dev_class);
 	return ret;
 }
 
@@ -2634,7 +2636,7 @@ err_chr:
 static void __exit mport_exit(void)
 {
 	class_interface_unregister(&rio_mport_interface);
-	class_destroy(dev_class);
+	class_unregister(&dev_class);
 	unregister_chrdev_region(dev_number, RIO_MAX_MPORTS);
 }
 

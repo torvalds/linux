@@ -28,14 +28,57 @@ Description:
 		of a device manufacturer.
 		Combination of Vendor ID and Device ID identifies a device.
 
+What:		/sys/bus/cdx/devices/.../subsystem_vendor
+Date:		July 2023
+Contact:	puneet.gupta@amd.com
+Description:
+		Subsystem Vendor ID for this CDX device, in hexadecimal.
+		Subsystem Vendor ID is 16 bit identifier specific to the
+		card manufacturer.
+
+What:		/sys/bus/cdx/devices/.../subsystem_device
+Date:		July 2023
+Contact:	puneet.gupta@amd.com
+Description:
+		Subsystem Device ID for this CDX device, in hexadecimal
+		Subsystem Device ID is 16 bit identifier specific to the
+		card manufacturer.
+
+What:		/sys/bus/cdx/devices/.../class
+Date:		July 2023
+Contact:	puneet.gupta@amd.com
+Description:
+		This file contains the class of the CDX device, in hexadecimal.
+		Class is 24 bit identifier specifies the functionality of the device.
+
+What:		/sys/bus/cdx/devices/.../revision
+Date:		July 2023
+Contact:	puneet.gupta@amd.com
+Description:
+		This file contains the revision field of the CDX device, in hexadecimal.
+		Revision is 8 bit revision identifier of the device.
+
+What:		/sys/bus/cdx/devices/.../enable
+Date:		October 2023
+Contact:	abhijit.gangurde@amd.com
+Description:
+		CDX bus should be disabled before updating the devices in FPGA.
+		Writing n/0/off will attempt to disable the CDX bus and.
+		writing y/1/on will attempt to enable the CDX bus. Reading this file
+		gives the current state of the bus, 1 for enabled and 0 for disabled.
+
+		For example::
+
+		  # echo 1 > /sys/bus/cdx/.../enable
+
 What:		/sys/bus/cdx/devices/.../reset
 Date:		March 2023
 Contact:	nipun.gupta@amd.com
 Description:
-		Writing y/1/on to this file resets the CDX device.
-		On resetting the device, the corresponding driver is notified
-		twice, once before the device is being reset, and again after
-		the reset has been complete.
+		Writing y/1/on to this file resets the CDX device or all devices
+		on the bus. On resetting the device, the corresponding driver is
+		notified twice, once before the device is being reset, and again
+		after the reset has been complete.
 
 		For example::
 
@@ -54,3 +97,18 @@ Description:
 		For example::
 
 		  # echo 1 > /sys/bus/cdx/devices/.../remove
+
+What:		/sys/bus/cdx/devices/.../modalias
+Date:		July 2023
+Contact:	nipun.gupta@amd.com
+Description:
+		This attribute indicates the CDX ID of the device.
+		That is in the format:
+		cdx:vXXXXdXXXXsvXXXXsdXXXXcXXXXXX,
+		where:
+
+		    - vXXXX contains the vendor ID;
+		    - dXXXX contains the device ID;
+		    - svXXXX contains the subsystem vendor ID;
+		    - sdXXXX contains the subsystem device ID;
+		    - cXXXXXX contains the device class.

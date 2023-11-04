@@ -346,6 +346,8 @@ properties:
             # Silicon Labs SI3210 Programmable CMOS SLIC/CODEC with SPI interface
           - silabs,si3210
             # Relative Humidity and Temperature Sensors
+          - silabs,si7005
+            # Relative Humidity and Temperature Sensors
           - silabs,si7020
             # Skyworks SKY81452: Six-Channel White LED Driver with Touch Panel Bias Supply
           - skyworks,sky81452
