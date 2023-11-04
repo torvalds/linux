@@ -177,12 +177,8 @@ vdso_prepare: prepare0
 	$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso32 include/generated/vdso32-offsets.h
 endif
 
-PHONY += vdso_install
-
-vdso_install:
-	$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso $@
-	$(if $(CONFIG_COMPAT_VDSO), \
-		$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso32 $@)
+vdso-install-y			+= arch/parisc/kernel/vdso32/vdso32.so
+vdso-install-$(CONFIG_64BIT)	+= arch/parisc/kernel/vdso64/vdso64.so
 
 install: KBUILD_IMAGE := vmlinux
 zinstall: KBUILD_IMAGE := vmlinuz
