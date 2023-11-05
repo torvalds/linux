@@ -90,11 +90,14 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 	volume->type		= params->type;
 	volume->type_force	= params->force;
 	volume->name_len	= vldb->name_len;
+	volume->creation_time	= TIME64_MIN;
+	volume->update_time	= TIME64_MIN;
 
 	refcount_set(&volume->ref, 1);
 	INIT_HLIST_NODE(&volume->proc_link);
 	INIT_WORK(&volume->destructor, afs_destroy_volume);
 	rwlock_init(&volume->servers_lock);
+	mutex_init(&volume->volsync_lock);
 	rwlock_init(&volume->cb_v_break_lock);
 	memcpy(volume->name, vldb->name, vldb->name_len + 1);
 

@@ -542,7 +542,7 @@ struct inode *afs_root_iget(struct super_block *sb, struct key *key)
 	BUG_ON(!(inode->i_state & I_NEW));
 
 	vnode = AFS_FS_I(inode);
-	vnode->cb_v_break = as->volume->cb_v_break,
+	vnode->cb_v_break = atomic_read(&as->volume->cb_v_break),
 	afs_set_netfs_context(vnode);
 
 	op = afs_alloc_operation(key, as->volume);

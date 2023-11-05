@@ -486,7 +486,7 @@ selected_server:
 		vnode->cb_server = server;
 		vnode->cb_s_break = server->cb_s_break;
 		vnode->cb_fs_s_break = atomic_read(&server->cell->fs_s_break);
-		vnode->cb_v_break = vnode->volume->cb_v_break;
+		vnode->cb_v_break = atomic_read(&vnode->volume->cb_v_break);
 		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 	}
 
@@ -519,6 +519,8 @@ iterate_address:
 	op->addr_index = addr_index;
 	set_bit(addr_index, &op->addr_tried);
 
+	op->volsync.creation = TIME64_MIN;
+	op->volsync.update = TIME64_MIN;
 	op->call_responded = false;
 	_debug("address [%u] %u/%u %pISp",
 	       op->server_index, addr_index, alist->nr_addrs,

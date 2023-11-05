@@ -35,11 +35,13 @@ struct afs_operation *afs_alloc_operation(struct key *key, struct afs_volume *vo
 		key_get(key);
 	}
 
-	op->key		= key;
-	op->volume	= afs_get_volume(volume, afs_volume_trace_get_new_op);
-	op->net		= volume->cell->net;
-	op->cb_v_break	= volume->cb_v_break;
-	op->debug_id	= atomic_inc_return(&afs_operation_debug_counter);
+	op->key			= key;
+	op->volume		= afs_get_volume(volume, afs_volume_trace_get_new_op);
+	op->net			= volume->cell->net;
+	op->cb_v_break		= atomic_read(&volume->cb_v_break);
+	op->pre_volsync.creation = volume->creation_time;
+	op->pre_volsync.update	= volume->update_time;
+	op->debug_id		= atomic_inc_return(&afs_operation_debug_counter);
 	op->nr_iterations = -1;
 	afs_op_set_error(op, -EDESTADDRREQ);
 
@@ -147,7 +149,7 @@ bool afs_begin_vnode_operation(struct afs_operation *op)
 
 	afs_prepare_vnode(op, &op->file[0], 0);
 	afs_prepare_vnode(op, &op->file[1], 1);
-	op->cb_v_break = op->volume->cb_v_break;
+	op->cb_v_break = atomic_read(&op->volume->cb_v_break);
 	_leave(" = true");
 	return true;
 }

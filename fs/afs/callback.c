@@ -81,7 +81,7 @@ void __afs_break_callback(struct afs_vnode *vnode, enum afs_cb_break_reason reas
 	clear_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
 	if (test_and_clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
 		vnode->cb_break++;
-		vnode->cb_v_break = vnode->volume->cb_v_break;
+		vnode->cb_v_break = atomic_read(&vnode->volume->cb_v_break);
 		afs_clear_permits(vnode);
 
 		if (vnode->lock_state == AFS_VNODE_LOCK_WAITING_FOR_CB)
@@ -159,12 +159,13 @@ static void afs_break_one_callback(struct afs_volume *volume,
 	struct super_block *sb;
 	struct afs_vnode *vnode;
 	struct inode *inode;
+	unsigned int cb_v_break;
 
 	if (fid->vnode == 0 && fid->unique == 0) {
 		/* The callback break applies to an entire volume. */
 		write_lock(&volume->cb_v_break_lock);
-		volume->cb_v_break++;
-		trace_afs_cb_break(fid, volume->cb_v_break,
+		cb_v_break = atomic_inc_return(&volume->cb_v_break);
+		trace_afs_cb_break(fid, cb_v_break,
 				   afs_cb_break_for_volume_callback, false);
 		write_unlock(&volume->cb_v_break_lock);
 		return;

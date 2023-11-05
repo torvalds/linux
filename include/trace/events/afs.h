@@ -440,13 +440,17 @@ enum yfs_cm_operation {
 	EM(afs_cb_break_no_break,		"no-break")		\
 	EM(afs_cb_break_no_promise,		"no-promise")		\
 	EM(afs_cb_break_for_callback,		"break-cb")		\
+	EM(afs_cb_break_for_creation_regress,	"creation-regress")	\
 	EM(afs_cb_break_for_deleted,		"break-del")		\
 	EM(afs_cb_break_for_lapsed,		"break-lapsed")		\
 	EM(afs_cb_break_for_s_reinit,		"s-reinit")		\
 	EM(afs_cb_break_for_unlink,		"break-unlink")		\
+	EM(afs_cb_break_for_update_regress,	"update-regress")	\
 	EM(afs_cb_break_for_v_break,		"break-v")		\
 	EM(afs_cb_break_for_volume_callback,	"break-v-cb")		\
-	E_(afs_cb_break_for_zap,		"break-zap")
+	EM(afs_cb_break_for_vos_release,	"break-vos-release")	\
+	EM(afs_cb_break_for_zap,		"break-zap")		\
+	E_(afs_cb_break_volume_excluded,	"vol-excluded")
 
 /*
  * Generate enums for tracing information.
@@ -1247,6 +1251,30 @@ TRACE_EVENT(afs_get_tree,
 
 	    TP_printk("--- MOUNT %s:%s %llx",
 		      __entry->cell, __entry->volume, __entry->vid)
+	    );
+
+TRACE_EVENT(afs_cb_v_break,
+	    TP_PROTO(afs_volid_t vid, unsigned int cb_v_break,
+		     enum afs_cb_break_reason reason),
+
+	    TP_ARGS(vid, cb_v_break, reason),
+
+	    TP_STRUCT__entry(
+		    __field(afs_volid_t,		vid)
+		    __field(unsigned int,		cb_v_break)
+		    __field(enum afs_cb_break_reason,	reason)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->vid	= vid;
+		    __entry->cb_v_break	= cb_v_break;
+		    __entry->reason	= reason;
+			   ),
+
+	    TP_printk("%llx vb=%x %s",
+		      __entry->vid,
+		      __entry->cb_v_break,
+		      __print_symbolic(__entry->reason, afs_cb_break_reasons))
 	    );
 
 TRACE_EVENT(afs_cb_break,

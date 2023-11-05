@@ -662,7 +662,15 @@ struct afs_volume {
 	rwlock_t		servers_lock;	/* Lock for ->servers */
 	unsigned int		servers_seq;	/* Incremented each time ->servers changes */
 
-	unsigned		cb_v_break;	/* Break-everything counter. */
+	/* RO release tracking */
+	struct mutex		volsync_lock;	/* Time/state evaluation lock */
+	time64_t		creation_time;	/* Volume creation time (or TIME64_MIN) */
+	time64_t		update_time;	/* Volume update time (or TIME64_MIN) */
+
+	/* Callback management */
+	atomic_t		cb_ro_snapshot;	/* RO volume update-from-snapshot counter */
+	atomic_t		cb_v_break;	/* Volume-break event counter. */
+	atomic_t		cb_scrub;	/* Scrub-all-data event counter. */
 	rwlock_t		cb_v_break_lock;
 
 	afs_voltype_t		type;		/* type of volume */
@@ -856,7 +864,8 @@ struct afs_operation {
 	struct afs_volume	*volume;	/* Volume being accessed */
 	struct afs_vnode_param	file[2];
 	struct afs_vnode_param	*more_files;
-	struct afs_volsync	volsync;
+	struct afs_volsync	pre_volsync;	/* Volsync before op */
+	struct afs_volsync	volsync;	/* Volsync returned by op */
 	struct dentry		*dentry;	/* Dentry to be altered */
 	struct dentry		*dentry_2;	/* Second dentry to be altered */
 	struct timespec64	mtime;		/* Modification time to record */
@@ -1063,7 +1072,7 @@ static inline unsigned int afs_calc_vnode_cb_break(struct afs_vnode *vnode)
 static inline bool afs_cb_is_broken(unsigned int cb_break,
 				    const struct afs_vnode *vnode)
 {
-	return cb_break != (vnode->cb_break + vnode->volume->cb_v_break);
+	return cb_break != (vnode->cb_break + atomic_read(&vnode->volume->cb_v_break));
 }
 
 /*
@@ -1555,6 +1564,7 @@ extern void afs_fs_exit(void);
 /*
  * validation.c
  */
+int afs_update_volume_state(struct afs_operation *op);
 bool afs_check_validity(struct afs_vnode *vnode);
 bool afs_pagecache_valid(struct afs_vnode *vnode);
 int afs_validate(struct afs_vnode *vnode, struct key *key);

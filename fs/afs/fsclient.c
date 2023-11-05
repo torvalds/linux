@@ -1870,7 +1870,10 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 			return ret;
 
 		bp = call->buffer;
-		xdr_decode_AFSVolSync(&bp, &op->volsync);
+		/* Unfortunately, prior to OpenAFS-1.6, volsync here is filled
+		 * with rubbish.
+		 */
+		xdr_decode_AFSVolSync(&bp, NULL);
 
 		call->unmarshall++;
 		fallthrough;
