@@ -919,8 +919,10 @@ static void free_buds(struct ubifs_info *c)
 {
 	struct ubifs_bud *bud, *n;
 
-	rbtree_postorder_for_each_entry_safe(bud, n, &c->buds, rb)
+	rbtree_postorder_for_each_entry_safe(bud, n, &c->buds, rb) {
+		kfree(bud->log_hash);
 		kfree(bud);
+	}
 }
 
 /**
@@ -1189,6 +1191,7 @@ static void destroy_journal(struct ubifs_info *c)
 
 		bud = list_entry(c->old_buds.next, struct ubifs_bud, list);
 		list_del(&bud->list);
+		kfree(bud->log_hash);
 		kfree(bud);
 	}
 	ubifs_destroy_idx_gc(c);
