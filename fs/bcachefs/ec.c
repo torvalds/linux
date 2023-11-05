@@ -304,16 +304,21 @@ static void ec_validate_checksums(struct bch_fs *c, struct ec_stripe_buf *buf)
 			struct bch_csum got = ec_block_checksum(buf, i, offset);
 
 			if (bch2_crc_cmp(want, got)) {
-				struct printbuf buf2 = PRINTBUF;
+				struct printbuf err = PRINTBUF;
+				struct bch_dev *ca = bch_dev_bkey_exists(c, v->ptrs[i].dev);
 
-				bch2_bkey_val_to_text(&buf2, c, bkey_i_to_s_c(&buf->key));
+				prt_printf(&err, "stripe checksum error: expected %0llx:%0llx got %0llx:%0llx (type %s)\n",
+					   want.hi, want.lo,
+					   got.hi, got.lo,
+					   bch2_csum_types[v->csum_type]);
+				prt_printf(&err, "  for %ps at %u of\n  ", (void *) _RET_IP_, i);
+				bch2_bkey_val_to_text(&err, c, bkey_i_to_s_c(&buf->key));
+				bch_err_ratelimited(ca, "%s", err.buf);
+				printbuf_exit(&err);
 
-				bch_err_ratelimited(c,
-					"stripe checksum error for %ps at %u:%u: csum type %u, expected %llx got %llx\n%s",
-					(void *) _RET_IP_, i, j, v->csum_type,
-					want.lo, got.lo, buf2.buf);
-				printbuf_exit(&buf2);
 				clear_bit(i, buf->valid);
+
+				bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
 				break;
 			}
 
