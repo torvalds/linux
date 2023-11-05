@@ -327,7 +327,6 @@ struct bkey_cached {
 	struct rhash_head	hash;
 	struct list_head	list;
 
-	struct journal_preres	res;
 	struct journal_entry_pin journal;
 	u64			seq;
 
@@ -441,11 +440,9 @@ struct btree_trans {
 	struct journal_entry_pin *journal_pin;
 
 	struct journal_res	journal_res;
-	struct journal_preres	journal_preres;
 	u64			*journal_seq;
 	struct disk_reservation *disk_res;
 	unsigned		journal_u64s;
-	unsigned		journal_preres_u64s;
 	struct replicas_delta_list *fs_usage_deltas;
 };
 

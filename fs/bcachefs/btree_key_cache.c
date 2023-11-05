@@ -672,7 +672,6 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 		goto out;
 
 	bch2_journal_pin_drop(j, &ck->journal);
-	bch2_journal_preres_put(j, &ck->res);
 
 	BUG_ON(!btree_node_locked(c_iter.path, 0));
 
@@ -769,18 +768,6 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 	bool kick_reclaim = false;
 
 	BUG_ON(insert->k.u64s > ck->u64s);
-
-	if (likely(!(flags & BTREE_INSERT_JOURNAL_REPLAY))) {
-		int difference;
-
-		BUG_ON(jset_u64s(insert->k.u64s) > trans->journal_preres.u64s);
-
-		difference = jset_u64s(insert->k.u64s) - ck->res.u64s;
-		if (difference > 0) {
-			trans->journal_preres.u64s	-= difference;
-			ck->res.u64s			+= difference;
-		}
-	}
 
 	bkey_copy(ck->k, insert);
 	ck->valid = true;
@@ -1006,7 +993,6 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 		cond_resched();
 
 		bch2_journal_pin_drop(&c->journal, &ck->journal);
-		bch2_journal_preres_put(&c->journal, &ck->res);
 
 		list_del(&ck->list);
 		kfree(ck->k);

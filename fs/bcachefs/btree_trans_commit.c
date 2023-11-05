@@ -323,17 +323,6 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 		bch2_snapshot_is_internal_node(trans->c, i->k->k.p.snapshot));
 }
 
-static noinline int
-bch2_trans_journal_preres_get_cold(struct btree_trans *trans, unsigned flags,
-				   unsigned long trace_ip)
-{
-	return drop_locks_do(trans,
-		bch2_journal_preres_get(&trans->c->journal,
-			&trans->journal_preres,
-			trans->journal_preres_u64s,
-			(flags & BCH_WATERMARK_MASK)));
-}
-
 static __always_inline int bch2_trans_journal_res_get(struct btree_trans *trans,
 						      unsigned flags)
 {
@@ -882,14 +871,6 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 		}
 	}
 
-	ret = bch2_journal_preres_get(&c->journal,
-			&trans->journal_preres, trans->journal_preres_u64s,
-			(flags & BCH_WATERMARK_MASK)|JOURNAL_RES_GET_NONBLOCK);
-	if (unlikely(ret == -BCH_ERR_journal_preres_get_blocked))
-		ret = bch2_trans_journal_preres_get_cold(trans, flags, trace_ip);
-	if (unlikely(ret))
-		return ret;
-
 	ret = bch2_trans_lock_write(trans);
 	if (unlikely(ret))
 		return ret;
@@ -1052,7 +1033,6 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i = NULL;
 	struct btree_write_buffered_key *wb;
-	unsigned u64s;
 	int ret = 0;
 
 	if (!trans->nr_updates &&
@@ -1112,13 +1092,8 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 
 	EBUG_ON(test_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags));
 
-	memset(&trans->journal_preres, 0, sizeof(trans->journal_preres));
-
 	trans->journal_u64s		= trans->extra_journal_entries.nr;
-	trans->journal_preres_u64s	= 0;
-
 	trans->journal_transaction_names = READ_ONCE(c->opts.journal_transaction_names);
-
 	if (trans->journal_transaction_names)
 		trans->journal_u64s += jset_u64s(JSET_ENTRY_LOG_U64s);
 
@@ -1134,16 +1109,11 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		if (i->key_cache_already_flushed)
 			continue;
 
-		/* we're going to journal the key being updated: */
-		u64s = jset_u64s(i->k->k.u64s);
-		if (i->cached &&
-		    likely(!(flags & BTREE_INSERT_JOURNAL_REPLAY)))
-			trans->journal_preres_u64s += u64s;
-
 		if (i->flags & BTREE_UPDATE_NOJOURNAL)
 			continue;
 
-		trans->journal_u64s += u64s;
+		/* we're going to journal the key being updated: */
+		trans->journal_u64s += jset_u64s(i->k->k.u64s);
 
 		/* and we're also going to log the overwrite: */
 		if (trans->journal_transaction_names)
@@ -1175,8 +1145,6 @@ retry:
 
 	trace_and_count(c, transaction_commit, trans, _RET_IP_);
 out:
-	bch2_journal_preres_put(&c->journal, &trans->journal_preres);
-
 	if (likely(!(flags & BTREE_INSERT_NOCHECK_RW)))
 		bch2_write_ref_put(c, BCH_WRITE_REF_trans);
 out_reset:
