@@ -976,7 +976,7 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 }
 EXPORT_SYMBOL_GPL(hvc_alloc);
 
-int hvc_remove(struct hvc_struct *hp)
+void hvc_remove(struct hvc_struct *hp)
 {
 	unsigned long flags;
 	struct tty_struct *tty;
@@ -1010,7 +1010,6 @@ int hvc_remove(struct hvc_struct *hp)
 		tty_vhangup(tty);
 		tty_kref_put(tty);
 	}
-	return 0;
 }
 EXPORT_SYMBOL_GPL(hvc_remove);
 
