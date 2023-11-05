@@ -84,10 +84,15 @@
 })
 #endif /* CONFIG_USE_X86_SEG_SUPPORT */
 
+#define PER_CPU_VAR(var)	%__percpu_seg:(var)__percpu_rel
+
 #else /* CONFIG_SMP */
 #define __percpu_seg_override
 #define __percpu_prefix		""
 #define __force_percpu_prefix	""
+
+#define PER_CPU_VAR(var)	(var)__percpu_rel
+
 #endif /* CONFIG_SMP */
 
 #define __my_cpu_type(var)	typeof(var) __percpu_seg_override
