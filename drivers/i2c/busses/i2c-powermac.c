@@ -231,7 +231,7 @@ static void i2c_powermac_create_one(struct i2c_adapter *adap,
 	struct i2c_board_info info = {};
 	struct i2c_client *newdev;
 
-	strncpy(info.type, type, sizeof(info.type));
+	strscpy(info.type, type, sizeof(info.type));
 	info.addr = addr;
 	newdev = i2c_new_client_device(adap, &info);
 	if (IS_ERR(newdev))
