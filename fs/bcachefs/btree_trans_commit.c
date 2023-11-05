@@ -368,6 +368,45 @@ static inline int btree_key_can_insert(struct btree_trans *trans,
 	return 0;
 }
 
+noinline static int
+btree_key_can_insert_cached_slowpath(struct btree_trans *trans, unsigned flags,
+				     struct btree_path *path, unsigned new_u64s)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_insert_entry *i;
+	struct bkey_cached *ck = (void *) path->l[0].b;
+	struct bkey_i *new_k;
+	int ret;
+
+	bch2_trans_unlock_write(trans);
+	bch2_trans_unlock(trans);
+
+	new_k = kmalloc(new_u64s * sizeof(u64), GFP_KERNEL);
+	if (!new_k) {
+		bch_err(c, "error allocating memory for key cache key, btree %s u64s %u",
+			bch2_btree_id_str(path->btree_id), new_u64s);
+		return -BCH_ERR_ENOMEM_btree_key_cache_insert;
+	}
+
+	ret =   bch2_trans_relock(trans) ?:
+		bch2_trans_lock_write(trans);
+	if (unlikely(ret)) {
+		kfree(new_k);
+		return ret;
+	}
+
+	memcpy(new_k, ck->k, ck->u64s * sizeof(u64));
+
+	trans_for_each_update(trans, i)
+		if (i->old_v == &ck->k->v)
+			i->old_v = &new_k->v;
+
+	kfree(ck->k);
+	ck->u64s	= new_u64s;
+	ck->k		= new_k;
+	return 0;
+}
+
 static int btree_key_can_insert_cached(struct btree_trans *trans, unsigned flags,
 				       struct btree_path *path, unsigned u64s)
 {
@@ -394,12 +433,9 @@ static int btree_key_can_insert_cached(struct btree_trans *trans, unsigned flags
 		return 0;
 
 	new_u64s	= roundup_pow_of_two(u64s);
-	new_k		= krealloc(ck->k, new_u64s * sizeof(u64), GFP_NOFS);
-	if (!new_k) {
-		bch_err(c, "error allocating memory for key cache key, btree %s u64s %u",
-			bch2_btree_id_str(path->btree_id), new_u64s);
-		return -BCH_ERR_ENOMEM_btree_key_cache_insert;
-	}
+	new_k		= krealloc(ck->k, new_u64s * sizeof(u64), GFP_NOWAIT);
+	if (unlikely(!new_k))
+		return btree_key_can_insert_cached_slowpath(trans, flags, path, new_u64s);
 
 	trans_for_each_update(trans, i)
 		if (i->old_v == &ck->k->v)
