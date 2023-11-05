@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -153,6 +154,27 @@ static const struct qfprom_soc_compatible_data cliffs_qfprom = {
 	.keepout = cliffs_qfprom_keepout,
 	.nkeepout = ARRAY_SIZE(cliffs_qfprom_keepout)
 };
+
+static const struct nvmem_keepout pitti_qfprom_keepout[] = {
+	{ .start = 0xa20, .end = 0x203c },  { .start = 0x2070, .end = 0x208c },
+	{ .start = 0x209c, .end = 0x20a8 }, { .start = 0x20ac, .end = 0x20f0 },
+	{ .start = 0x20f4, .end = 0x2100 }, { .start = 0x2114, .end = 0x2120 },
+	{ .start = 0x2124, .end = 0x2144 }, { .start = 0x214c, .end = 0x4000 },
+	{ .start = 0x4a20, .end = 0x6000 }, { .start = 0x6064, .end = 0x6070 },
+	{ .start = 0x6074, .end = 0x607c }, { .start = 0x6080, .end = 0x60c0 },
+	{ .start = 0x60e4, .end = 0x6100 }, { .start = 0x6104, .end = 0x6110 },
+	{ .start = 0x611c, .end = 0x6130 }, { .start = 0x6148, .end = 0x6150 },
+	{ .start = 0x6154, .end = 0x6160 }, { .start = 0x6170, .end = 0x6190 },
+	{ .start = 0x61c0, .end = 0x61f0 }, { .start = 0x61f8, .end = 0x6200 },
+	{ .start = 0x6220, .end = 0x6250 }, { .start = 0x6260, .end = 0x6300 },
+	{ .start = 0x630c, .end = 0x6400 }, { .start = 0x6440, .end = 0x7000 },
+};
+
+static const struct qfprom_soc_compatible_data pitti_qfprom = {
+	.keepout = pitti_qfprom_keepout,
+	.nkeepout = ARRAY_SIZE(pitti_qfprom_keepout)
+};
+
 
 /**
  * qfprom_disable_fuse_blowing() - Undo enabling of fuse blowing.
@@ -496,6 +518,7 @@ static const struct of_device_id qfprom_of_match[] = {
 	{ .compatible = "qcom,sc7180-qfprom", .data = &sc7180_qfprom},
 	{ .compatible = "qcom,sc7280-qfprom", .data = &sc7280_qfprom},
 	{ .compatible = "qcom,cliffs-qfprom", .data = &cliffs_qfprom},
+	{ .compatible = "qcom,pitti-qfprom", .data = &pitti_qfprom},
 	{/* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, qfprom_of_match);
