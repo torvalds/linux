@@ -106,6 +106,27 @@ int tdx_mcall_get_report0(u8 *reportdata, u8 *tdreport)
 }
 EXPORT_SYMBOL_GPL(tdx_mcall_get_report0);
 
+/**
+ * tdx_hcall_get_quote() - Wrapper to request TD Quote using GetQuote
+ *                         hypercall.
+ * @buf: Address of the directly mapped shared kernel buffer which
+ *       contains TDREPORT. The same buffer will be used by VMM to
+ *       store the generated TD Quote output.
+ * @size: size of the tdquote buffer (4KB-aligned).
+ *
+ * Refer to section titled "TDG.VP.VMCALL<GetQuote>" in the TDX GHCI
+ * v1.0 specification for more information on GetQuote hypercall.
+ * It is used in the TDX guest driver module to get the TD Quote.
+ *
+ * Return 0 on success or error code on failure.
+ */
+u64 tdx_hcall_get_quote(u8 *buf, size_t size)
+{
+	/* Since buf is a shared memory, set the shared (decrypted) bits */
+	return _tdx_hypercall(TDVMCALL_GET_QUOTE, cc_mkdec(virt_to_phys(buf)), size, 0, 0);
+}
+EXPORT_SYMBOL_GPL(tdx_hcall_get_quote);
+
 static void __noreturn tdx_panic(const char *msg)
 {
 	struct tdx_module_args args = {
