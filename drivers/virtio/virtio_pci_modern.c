@@ -39,6 +39,39 @@ static void vp_transport_features(struct virtio_device *vdev, u64 features)
 		__virtio_set_bit(vdev, VIRTIO_F_RING_RESET);
 }
 
+static int __vp_check_common_size_one_feature(struct virtio_device *vdev, u32 fbit,
+					    u32 offset, const char *fname)
+{
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+
+	if (!__virtio_test_bit(vdev, fbit))
+		return 0;
+
+	if (likely(vp_dev->mdev.common_len >= offset))
+		return 0;
+
+	dev_err(&vdev->dev,
+		"virtio: common cfg size(%zu) does not match the feature %s\n",
+		vp_dev->mdev.common_len, fname);
+
+	return -EINVAL;
+}
+
+#define vp_check_common_size_one_feature(vdev, fbit, field) \
+	__vp_check_common_size_one_feature(vdev, fbit, \
+		offsetofend(struct virtio_pci_modern_common_cfg, field), #fbit)
+
+static int vp_check_common_size(struct virtio_device *vdev)
+{
+	if (vp_check_common_size_one_feature(vdev, VIRTIO_F_NOTIF_CONFIG_DATA, queue_notify_data))
+		return -EINVAL;
+
+	if (vp_check_common_size_one_feature(vdev, VIRTIO_F_RING_RESET, queue_reset))
+		return -EINVAL;
+
+	return 0;
+}
+
 /* virtio config->finalize_features() implementation */
 static int vp_finalize_features(struct virtio_device *vdev)
 {
@@ -56,6 +89,9 @@ static int vp_finalize_features(struct virtio_device *vdev)
 			"but does not have VIRTIO_F_VERSION_1\n");
 		return -EINVAL;
 	}
+
+	if (vp_check_common_size(vdev))
+		return -EINVAL;
 
 	vp_modern_set_features(&vp_dev->mdev, vdev->features);
 
