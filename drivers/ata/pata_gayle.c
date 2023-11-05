@@ -193,18 +193,16 @@ static int pata_gayle_init_one(struct platform_device *pdev)
 	return 0;
 }
 
-static int pata_gayle_remove_one(struct platform_device *pdev)
+static void pata_gayle_remove_one(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 
 	ata_host_detach(host);
-
-	return 0;
 }
 
 static struct platform_driver pata_gayle_driver = {
 	.probe = pata_gayle_init_one,
-	.remove = pata_gayle_remove_one,
+	.remove_new = pata_gayle_remove_one,
 	.driver   = {
 		.name	= "amiga-gayle-ide",
 	},
