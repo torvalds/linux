@@ -216,18 +216,16 @@ static int pata_falcon_init_one(struct platform_device *pdev)
 				 IRQF_SHARED, &pata_falcon_sht);
 }
 
-static int pata_falcon_remove_one(struct platform_device *pdev)
+static void pata_falcon_remove_one(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 
 	ata_host_detach(host);
-
-	return 0;
 }
 
 static struct platform_driver pata_falcon_driver = {
 	.probe = pata_falcon_init_one,
-	.remove = pata_falcon_remove_one,
+	.remove_new = pata_falcon_remove_one,
 	.driver   = {
 		.name	= "atari-falcon-ide",
 	},
