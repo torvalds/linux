@@ -2168,7 +2168,7 @@ static struct qcom_icc_bcm bcm_sn4 = {
 
 static struct qcom_icc_bcm bcm_acv_disp = {
 	.name = "ACV",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_DISP,
 	.enable_mask = 0x1,
 	.perf_mode_mask = 0x2,
 	.num_nodes = 1,
@@ -2177,28 +2177,28 @@ static struct qcom_icc_bcm bcm_acv_disp = {
 
 static struct qcom_icc_bcm bcm_mc0_disp = {
 	.name = "MC0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_DISP,
 	.num_nodes = 1,
 	.nodes = { &ebi_disp },
 };
 
 static struct qcom_icc_bcm bcm_mm0_disp = {
 	.name = "MM0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_DISP,
 	.num_nodes = 1,
 	.nodes = { &qns_mem_noc_hf_disp },
 };
 
 static struct qcom_icc_bcm bcm_sh0_disp = {
 	.name = "SH0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_DISP,
 	.num_nodes = 1,
 	.nodes = { &qns_llcc_disp },
 };
 
 static struct qcom_icc_bcm bcm_sh1_disp = {
 	.name = "SH1",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_DISP,
 	.enable_mask = 0x1,
 	.num_nodes = 2,
 	.nodes = { &qnm_mnoc_hf_disp, &qnm_pcie_disp },
@@ -2206,7 +2206,7 @@ static struct qcom_icc_bcm bcm_sh1_disp = {
 
 static struct qcom_icc_bcm bcm_acv_cam_ife_0 = {
 	.name = "ACV",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.enable_mask = 0x1,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_0 },
@@ -2214,21 +2214,21 @@ static struct qcom_icc_bcm bcm_acv_cam_ife_0 = {
 
 static struct qcom_icc_bcm bcm_mc0_cam_ife_0 = {
 	.name = "MC0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_0 },
 };
 
 static struct qcom_icc_bcm bcm_mm0_cam_ife_0 = {
 	.name = "MM0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.num_nodes = 1,
 	.nodes = { &qns_mem_noc_hf_cam_ife_0 },
 };
 
 static struct qcom_icc_bcm bcm_mm1_cam_ife_0 = {
 	.name = "MM1",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.enable_mask = 0x1,
 	.num_nodes = 4,
 	.nodes = { &qnm_camnoc_hf_cam_ife_0, &qnm_camnoc_icp_cam_ife_0,
@@ -2237,14 +2237,14 @@ static struct qcom_icc_bcm bcm_mm1_cam_ife_0 = {
 
 static struct qcom_icc_bcm bcm_sh0_cam_ife_0 = {
 	.name = "SH0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.num_nodes = 1,
 	.nodes = { &qns_llcc_cam_ife_0 },
 };
 
 static struct qcom_icc_bcm bcm_sh1_cam_ife_0 = {
 	.name = "SH1",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_0,
 	.enable_mask = 0x1,
 	.num_nodes = 3,
 	.nodes = { &qnm_mnoc_hf_cam_ife_0, &qnm_mnoc_sf_cam_ife_0,
@@ -2253,7 +2253,7 @@ static struct qcom_icc_bcm bcm_sh1_cam_ife_0 = {
 
 static struct qcom_icc_bcm bcm_acv_cam_ife_1 = {
 	.name = "ACV",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.enable_mask = 0x1,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_1 },
@@ -2261,21 +2261,21 @@ static struct qcom_icc_bcm bcm_acv_cam_ife_1 = {
 
 static struct qcom_icc_bcm bcm_mc0_cam_ife_1 = {
 	.name = "MC0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_1 },
 };
 
 static struct qcom_icc_bcm bcm_mm0_cam_ife_1 = {
 	.name = "MM0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.num_nodes = 1,
 	.nodes = { &qns_mem_noc_hf_cam_ife_1 },
 };
 
 static struct qcom_icc_bcm bcm_mm1_cam_ife_1 = {
 	.name = "MM1",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.enable_mask = 0x1,
 	.num_nodes = 4,
 	.nodes = { &qnm_camnoc_hf_cam_ife_1, &qnm_camnoc_icp_cam_ife_1,
@@ -2284,14 +2284,14 @@ static struct qcom_icc_bcm bcm_mm1_cam_ife_1 = {
 
 static struct qcom_icc_bcm bcm_sh0_cam_ife_1 = {
 	.name = "SH0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.num_nodes = 1,
 	.nodes = { &qns_llcc_cam_ife_1 },
 };
 
 static struct qcom_icc_bcm bcm_sh1_cam_ife_1 = {
 	.name = "SH1",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_1,
 	.enable_mask = 0x1,
 	.num_nodes = 3,
 	.nodes = { &qnm_mnoc_hf_cam_ife_1, &qnm_mnoc_sf_cam_ife_1,
@@ -2300,7 +2300,7 @@ static struct qcom_icc_bcm bcm_sh1_cam_ife_1 = {
 
 static struct qcom_icc_bcm bcm_acv_cam_ife_2 = {
 	.name = "ACV",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.enable_mask = 0x1,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_2 },
@@ -2308,21 +2308,21 @@ static struct qcom_icc_bcm bcm_acv_cam_ife_2 = {
 
 static struct qcom_icc_bcm bcm_mc0_cam_ife_2 = {
 	.name = "MC0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.num_nodes = 1,
 	.nodes = { &ebi_cam_ife_2 },
 };
 
 static struct qcom_icc_bcm bcm_mm0_cam_ife_2 = {
 	.name = "MM0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.num_nodes = 1,
 	.nodes = { &qns_mem_noc_hf_cam_ife_2 },
 };
 
 static struct qcom_icc_bcm bcm_mm1_cam_ife_2 = {
 	.name = "MM1",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.enable_mask = 0x1,
 	.num_nodes = 4,
 	.nodes = { &qnm_camnoc_hf_cam_ife_2, &qnm_camnoc_icp_cam_ife_2,
@@ -2331,14 +2331,14 @@ static struct qcom_icc_bcm bcm_mm1_cam_ife_2 = {
 
 static struct qcom_icc_bcm bcm_sh0_cam_ife_2 = {
 	.name = "SH0",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.num_nodes = 1,
 	.nodes = { &qns_llcc_cam_ife_2 },
 };
 
 static struct qcom_icc_bcm bcm_sh1_cam_ife_2 = {
 	.name = "SH1",
-	.voter_idx = VOTER_IDX_HLOS,
+	.voter_idx = VOTER_IDX_CAM_IFE_2,
 	.enable_mask = 0x1,
 	.num_nodes = 3,
 	.nodes = { &qnm_mnoc_hf_cam_ife_2, &qnm_mnoc_sf_cam_ife_2,
@@ -2573,6 +2573,10 @@ static struct qcom_icc_node *gem_noc_nodes[] = {
 
 static char *gem_noc_voters[] = {
 	[VOTER_IDX_HLOS] = "hlos",
+	[VOTER_IDX_DISP] = "disp",
+	[VOTER_IDX_CAM_IFE_0] = "cam_ife_0",
+	[VOTER_IDX_CAM_IFE_1] = "cam_ife_1",
+	[VOTER_IDX_CAM_IFE_2] = "cam_ife_2",
 };
 
 static struct qcom_icc_desc cliffs_gem_noc = {
@@ -2680,6 +2684,10 @@ static struct qcom_icc_node *mc_virt_nodes[] = {
 
 static char *mc_virt_voters[] = {
 	[VOTER_IDX_HLOS] = "hlos",
+	[VOTER_IDX_DISP] = "disp",
+	[VOTER_IDX_CAM_IFE_0] = "cam_ife_0",
+	[VOTER_IDX_CAM_IFE_1] = "cam_ife_1",
+	[VOTER_IDX_CAM_IFE_2] = "cam_ife_2",
 };
 
 static struct qcom_icc_desc cliffs_mc_virt = {
@@ -2740,6 +2748,10 @@ static struct qcom_icc_node *mmss_noc_nodes[] = {
 
 static char *mmss_noc_voters[] = {
 	[VOTER_IDX_HLOS] = "hlos",
+	[VOTER_IDX_DISP] = "disp",
+	[VOTER_IDX_CAM_IFE_0] = "cam_ife_0",
+	[VOTER_IDX_CAM_IFE_1] = "cam_ife_1",
+	[VOTER_IDX_CAM_IFE_2] = "cam_ife_2",
 };
 
 static struct qcom_icc_desc cliffs_mmss_noc = {
