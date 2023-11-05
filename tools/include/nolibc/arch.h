@@ -33,6 +33,8 @@
 #include "arch-s390.h"
 #elif defined(__loongarch__)
 #include "arch-loongarch.h"
+#else
+#error Unsupported Architecture
 #endif
 
 #endif /* _NOLIBC_ARCH_H */
