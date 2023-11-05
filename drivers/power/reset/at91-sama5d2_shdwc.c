@@ -421,7 +421,7 @@ clk_disable:
 	return ret;
 }
 
-static int at91_shdwc_remove(struct platform_device *pdev)
+static void at91_shdwc_remove(struct platform_device *pdev)
 {
 	struct shdwc *shdw = platform_get_drvdata(pdev);
 
@@ -437,13 +437,11 @@ static int at91_shdwc_remove(struct platform_device *pdev)
 	iounmap(shdw->pmc_base);
 
 	clk_disable_unprepare(shdw->sclk);
-
-	return 0;
 }
 
 static struct platform_driver at91_shdwc_driver = {
 	.probe = at91_shdwc_probe,
-	.remove = at91_shdwc_remove,
+	.remove_new = at91_shdwc_remove,
 	.driver = {
 		.name = "at91-shdwc",
 		.of_match_table = at91_shdwc_of_match,
