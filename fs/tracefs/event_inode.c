@@ -53,10 +53,12 @@ struct eventfs_file {
 	const struct inode_operations	*iop;
 	/*
 	 * Union - used for deletion
+	 * @llist:	for calling dput() if needed after RCU
 	 * @del_list:	list of eventfs_file to delete
 	 * @rcu:	eventfs_file to delete in RCU
 	 */
 	union {
+		struct llist_node	llist;
 		struct list_head	del_list;
 		struct rcu_head		rcu;
 	};
@@ -113,8 +115,7 @@ static int eventfs_set_attr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	mutex_lock(&eventfs_mutex);
 	ef = dentry->d_fsdata;
-	/* The LSB is set when the eventfs_inode is being freed */
-	if (((unsigned long)ef & 1UL) || ef->is_freed) {
+	if (ef->is_freed) {
 		/* Do not allow changes if the event is about to be removed. */
 		mutex_unlock(&eventfs_mutex);
 		return -ENODEV;
@@ -258,6 +259,13 @@ static struct dentry *create_dir(struct eventfs_file *ef,
 	return eventfs_end_creating(dentry);
 }
 
+static void free_ef(struct eventfs_file *ef)
+{
+	kfree(ef->name);
+	kfree(ef->ei);
+	kfree(ef);
+}
+
 /**
  * eventfs_set_ef_status_free - set the ef->status to free
  * @ti: the tracefs_inode of the dentry
@@ -270,34 +278,20 @@ void eventfs_set_ef_status_free(struct tracefs_inode *ti, struct dentry *dentry)
 {
 	struct tracefs_inode *ti_parent;
 	struct eventfs_inode *ei;
-	struct eventfs_file *ef, *tmp;
+	struct eventfs_file *ef;
 
 	/* The top level events directory may be freed by this */
 	if (unlikely(ti->flags & TRACEFS_EVENT_TOP_INODE)) {
-		LIST_HEAD(ef_del_list);
-
 		mutex_lock(&eventfs_mutex);
-
 		ei = ti->private;
-
-		/* Record all the top level files */
-		list_for_each_entry_srcu(ef, &ei->e_top_files, list,
-					 lockdep_is_held(&eventfs_mutex)) {
-			list_add_tail(&ef->del_list, &ef_del_list);
-		}
 
 		/* Nothing should access this, but just in case! */
 		ti->private = NULL;
-
 		mutex_unlock(&eventfs_mutex);
 
-		/* Now safely free the top level files and their children */
-		list_for_each_entry_safe(ef, tmp, &ef_del_list, del_list) {
-			list_del(&ef->del_list);
-			eventfs_remove(ef);
-		}
-
-		kfree(ei);
+		ef = dentry->d_fsdata;
+		if (ef)
+			free_ef(ef);
 		return;
 	}
 
@@ -311,16 +305,13 @@ void eventfs_set_ef_status_free(struct tracefs_inode *ti, struct dentry *dentry)
 	if (!ef)
 		goto out;
 
-	/*
-	 * If ef was freed, then the LSB bit is set for d_fsdata.
-	 * But this should not happen, as it should still have a
-	 * ref count that prevents it. Warn in case it does.
-	 */
-	if (WARN_ON_ONCE((unsigned long)ef & 1))
-		goto out;
+	if (ef->is_freed) {
+		free_ef(ef);
+	} else {
+		ef->dentry = NULL;
+	}
 
 	dentry->d_fsdata = NULL;
-	ef->dentry = NULL;
 out:
 	mutex_unlock(&eventfs_mutex);
 }
@@ -847,13 +838,53 @@ int eventfs_add_file(const char *name, umode_t mode,
 	return 0;
 }
 
-static void free_ef(struct rcu_head *head)
+static LLIST_HEAD(free_list);
+
+static void eventfs_workfn(struct work_struct *work)
+{
+        struct eventfs_file *ef, *tmp;
+        struct llist_node *llnode;
+
+	llnode = llist_del_all(&free_list);
+        llist_for_each_entry_safe(ef, tmp, llnode, llist) {
+		/* This should only get here if it had a dentry */
+		if (!WARN_ON_ONCE(!ef->dentry))
+			dput(ef->dentry);
+        }
+}
+
+static DECLARE_WORK(eventfs_work, eventfs_workfn);
+
+static void free_rcu_ef(struct rcu_head *head)
 {
 	struct eventfs_file *ef = container_of(head, struct eventfs_file, rcu);
 
-	kfree(ef->name);
-	kfree(ef->ei);
-	kfree(ef);
+	if (ef->dentry) {
+		/* Do not free the ef until all references of dentry are gone */
+		if (llist_add(&ef->llist, &free_list))
+			queue_work(system_unbound_wq, &eventfs_work);
+		return;
+	}
+
+	free_ef(ef);
+}
+
+static void unhook_dentry(struct dentry *dentry)
+{
+	if (!dentry)
+		return;
+
+	/* Keep the dentry from being freed yet (see eventfs_workfn()) */
+	dget(dentry);
+
+	dentry->d_fsdata = NULL;
+	d_invalidate(dentry);
+	mutex_lock(&eventfs_mutex);
+	/* dentry should now have at least a single reference */
+	WARN_ONCE((int)d_count(dentry) < 1,
+		  "dentry %px (%s) less than one reference (%d) after invalidate\n",
+		  dentry, dentry->d_name.name, d_count(dentry));
+	mutex_unlock(&eventfs_mutex);
 }
 
 /**
@@ -905,58 +936,25 @@ void eventfs_remove(struct eventfs_file *ef)
 {
 	struct eventfs_file *tmp;
 	LIST_HEAD(ef_del_list);
-	struct dentry *dentry_list = NULL;
-	struct dentry *dentry;
 
 	if (!ef)
 		return;
 
+	/*
+	 * Move the deleted eventfs_inodes onto the ei_del_list
+	 * which will also set the is_freed value. Note, this has to be
+	 * done under the eventfs_mutex, but the deletions of
+	 * the dentries must be done outside the eventfs_mutex.
+	 * Hence moving them to this temporary list.
+	 */
 	mutex_lock(&eventfs_mutex);
 	eventfs_remove_rec(ef, &ef_del_list, 0);
-	list_for_each_entry_safe(ef, tmp, &ef_del_list, del_list) {
-		if (ef->dentry) {
-			unsigned long ptr = (unsigned long)dentry_list;
-
-			/* Keep the dentry from being freed yet */
-			dget(ef->dentry);
-
-			/*
-			 * Paranoid: The dget() above should prevent the dentry
-			 * from being freed and calling eventfs_set_ef_status_free().
-			 * But just in case, set the link list LSB pointer to 1
-			 * and have eventfs_set_ef_status_free() check that to
-			 * make sure that if it does happen, it will not think
-			 * the d_fsdata is an event_file.
-			 *
-			 * For this to work, no event_file should be allocated
-			 * on a odd space, as the ef should always be allocated
-			 * to be at least word aligned. Check for that too.
-			 */
-			WARN_ON_ONCE(ptr & 1);
-
-			ef->dentry->d_fsdata = (void *)(ptr | 1);
-			dentry_list = ef->dentry;
-			ef->dentry = NULL;
-		}
-		call_srcu(&eventfs_srcu, &ef->rcu, free_ef);
-	}
 	mutex_unlock(&eventfs_mutex);
 
-	while (dentry_list) {
-		unsigned long ptr;
-
-		dentry = dentry_list;
-		ptr = (unsigned long)dentry->d_fsdata & ~1UL;
-		dentry_list = (struct dentry *)ptr;
-		dentry->d_fsdata = NULL;
-		d_invalidate(dentry);
-		mutex_lock(&eventfs_mutex);
-		/* dentry should now have at least a single reference */
-		WARN_ONCE((int)d_count(dentry) < 1,
-			  "dentry %p less than one reference (%d) after invalidate\n",
-			  dentry, d_count(dentry));
-		mutex_unlock(&eventfs_mutex);
-		dput(dentry);
+	list_for_each_entry_safe(ef, tmp, &ef_del_list, del_list) {
+		unhook_dentry(ef->dentry);
+		list_del(&ef->del_list);
+		call_srcu(&eventfs_srcu, &ef->rcu, free_rcu_ef);
 	}
 }
 
