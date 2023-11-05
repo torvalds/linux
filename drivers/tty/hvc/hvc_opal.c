@@ -232,7 +232,7 @@ static int hvc_opal_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int hvc_opal_remove(struct platform_device *dev)
+static void hvc_opal_remove(struct platform_device *dev)
 {
 	struct hvc_struct *hp = dev_get_drvdata(&dev->dev);
 	int termno;
@@ -242,13 +242,11 @@ static int hvc_opal_remove(struct platform_device *dev)
 	if (hvc_opal_privs[termno] != &hvc_opal_boot_priv)
 		kfree(hvc_opal_privs[termno]);
 	hvc_opal_privs[termno] = NULL;
-
-	return 0;
 }
 
 static struct platform_driver hvc_opal_driver = {
 	.probe		= hvc_opal_probe,
-	.remove		= hvc_opal_remove,
+	.remove_new	= hvc_opal_remove,
 	.driver		= {
 		.name	= hvc_opal_name,
 		.of_match_table	= hvc_opal_match,
