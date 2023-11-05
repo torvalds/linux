@@ -594,7 +594,7 @@ int conf_read(const char *name)
 				/* Reset a string value if it's out of range */
 				if (sym_string_within_range(sym, sym->def[S_DEF_USER].val))
 					break;
-				sym->flags &= ~(SYMBOL_VALID|SYMBOL_DEF_USER);
+				sym->flags &= ~SYMBOL_VALID;
 				conf_unsaved++;
 				break;
 			default:
