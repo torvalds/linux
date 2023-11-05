@@ -761,7 +761,7 @@ static int mlx5e_hairpin_create_indirect_rqt(struct mlx5e_hairpin *hp)
 
 	err = mlx5e_rss_params_indir_init(&indir, mdev,
 					  mlx5e_rqt_size(mdev, hp->num_channels),
-					  mlx5e_rqt_size(mdev, priv->max_nch));
+					  mlx5e_rqt_size(mdev, hp->num_channels));
 	if (err)
 		return err;
 
