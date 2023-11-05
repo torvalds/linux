@@ -294,6 +294,8 @@ F:	drivers/pnp/pnpacpi/
 F:	include/acpi/
 F:	include/linux/acpi.h
 F:	include/linux/fwnode.h
+F:	include/linux/fw_table.h
+F:	lib/fw_table.c
 F:	tools/power/acpi/
 
 ACPI APEI
@@ -5244,6 +5246,7 @@ L:	linux-cxl@vger.kernel.org
 S:	Maintained
 F:	drivers/cxl/
 F:	include/uapi/linux/cxl_mem.h
+F:	tools/testing/cxl/
 
 COMPUTE EXPRESS LINK PMU (CPMU)
 M:	Jonathan Cameron <jonathan.cameron@huawei.com>
