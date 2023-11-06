@@ -130,6 +130,11 @@ static int rkisp_params_vb2_queue_setup(struct vb2_queue *vq,
 
 	INIT_LIST_HEAD(&params_vdev->params);
 
+	if (params_vdev->first_cfg_params) {
+		params_vdev->first_cfg_params = false;
+		return 0;
+	}
+
 	params_vdev->first_params = true;
 
 	return 0;
@@ -228,6 +233,10 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 	}
 	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 
+	if (dev->is_pre_on) {
+		params_vdev->first_cfg_params = true;
+		return;
+	}
 	rkisp_params_disable_isp(params_vdev);
 	/* clean module params */
 	params_vdev->ops->clear_first_param(params_vdev);
@@ -456,6 +465,7 @@ void rkisp_params_stream_stop(struct rkisp_isp_params_vdev *params_vdev)
 		params_vdev->ops->stream_stop(params_vdev);
 	if (params_vdev->ops->fop_release)
 		params_vdev->ops->fop_release(params_vdev);
+	params_vdev->first_cfg_params = false;
 }
 
 bool rkisp_params_check_bigmode(struct rkisp_isp_params_vdev *params_vdev)
