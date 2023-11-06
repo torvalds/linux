@@ -7860,36 +7860,36 @@ static bool gaudi2_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 
 static void handle_lower_qman_data_on_err(struct hl_device *hdev, u64 qman_base, u64 event_mask)
 {
-	u32 lo, hi, cq_ptr_size, arc_cq_ptr_size;
-	u64 cq_ptr, arc_cq_ptr, cp_current_inst;
+	u32 lo, hi, cq_ptr_size, cp_sts;
+	u64 cq_ptr, cp_current_inst;
+	bool is_arc_cq;
 
-	lo = RREG32(qman_base + QM_CQ_PTR_LO_4_OFFSET);
-	hi = RREG32(qman_base + QM_CQ_PTR_HI_4_OFFSET);
-	cq_ptr = ((u64) hi) << 32 | lo;
-	cq_ptr_size = RREG32(qman_base + QM_CQ_TSIZE_4_OFFSET);
+	cp_sts = RREG32(qman_base + QM_CP_STS_4_OFFSET);
+	is_arc_cq = FIELD_GET(PDMA0_QM_CP_STS_CUR_CQ_MASK, cp_sts); /* 0 - legacy CQ, 1 - ARC_CQ */
 
-	lo = RREG32(qman_base + QM_ARC_CQ_PTR_LO_OFFSET);
-	hi = RREG32(qman_base + QM_ARC_CQ_PTR_HI_OFFSET);
-	arc_cq_ptr = ((u64) hi) << 32 | lo;
-	arc_cq_ptr_size = RREG32(qman_base + QM_ARC_CQ_TSIZE_OFFSET);
+	if (is_arc_cq) {
+		lo = RREG32(qman_base + QM_ARC_CQ_PTR_LO_OFFSET);
+		hi = RREG32(qman_base + QM_ARC_CQ_PTR_HI_OFFSET);
+		cq_ptr = ((u64) hi) << 32 | lo;
+		cq_ptr_size = RREG32(qman_base + QM_ARC_CQ_TSIZE_OFFSET);
+	} else {
+		lo = RREG32(qman_base + QM_CQ_PTR_LO_4_OFFSET);
+		hi = RREG32(qman_base + QM_CQ_PTR_HI_4_OFFSET);
+		cq_ptr = ((u64) hi) << 32 | lo;
+		cq_ptr_size = RREG32(qman_base + QM_CQ_TSIZE_4_OFFSET);
+	}
 
 	lo = RREG32(qman_base + QM_CP_CURRENT_INST_LO_4_OFFSET);
 	hi = RREG32(qman_base + QM_CP_CURRENT_INST_HI_4_OFFSET);
 	cp_current_inst = ((u64) hi) << 32 | lo;
 
 	dev_info(hdev->dev,
-		"LowerQM. CQ: {ptr %#llx, size %u}, ARC_CQ: {ptr %#llx, size %u}, CP: {instruction %#llx}\n",
-		cq_ptr, cq_ptr_size, arc_cq_ptr, arc_cq_ptr_size, cp_current_inst);
+		"LowerQM. %sCQ: {ptr %#llx, size %u}, CP: {instruction %#llx}\n",
+		is_arc_cq ? "ARC_" : "", cq_ptr, cq_ptr_size, cp_current_inst);
 
 	if (event_mask & HL_NOTIFIER_EVENT_UNDEFINED_OPCODE) {
-		if (arc_cq_ptr) {
-			hdev->captured_err_info.undef_opcode.cq_addr = arc_cq_ptr;
-			hdev->captured_err_info.undef_opcode.cq_size = arc_cq_ptr_size;
-		} else {
-			hdev->captured_err_info.undef_opcode.cq_addr = cq_ptr;
-			hdev->captured_err_info.undef_opcode.cq_size = cq_ptr_size;
-		}
-
+		hdev->captured_err_info.undef_opcode.cq_addr = cq_ptr;
+		hdev->captured_err_info.undef_opcode.cq_size = cq_ptr_size;
 		hdev->captured_err_info.undef_opcode.stream_id = QMAN_STREAMS;
 	}
 }
