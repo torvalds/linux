@@ -532,6 +532,7 @@ int _rpmh_flush(struct rpmh_ctrlr *ctrlr, int ch)
  */
 int rpmh_flush(struct rpmh_ctrlr *ctrlr, int ch)
 {
+	unsigned long flags;
 	int ret;
 
 	if (rpmh_standalone)
@@ -551,14 +552,9 @@ int rpmh_flush(struct rpmh_ctrlr *ctrlr, int ch)
 	if (!(ctrlr->flags & SOLVER_PRESENT))
 		lockdep_assert_irqs_disabled();
 
-	/*
-	 * If the lock is busy it means another transaction is on going,
-	 * in such case it's better to abort than spin.
-	 */
-	if (!spin_trylock(&ctrlr->cache_lock))
-		return -EBUSY;
+	spin_lock_irqsave(&ctrlr->cache_lock, flags);
 	ret = _rpmh_flush(ctrlr, ch);
-	spin_unlock(&ctrlr->cache_lock);
+	spin_unlock_irqrestore(&ctrlr->cache_lock, flags);
 
 	return ret;
 }
