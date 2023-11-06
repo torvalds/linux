@@ -168,10 +168,10 @@ static const int smon0_pins[] = { 204, 205, 207, 208 };
 static const int smon1_pins[] = { 58, 59, 209, 210 };
 
 //GPIOI
-static const int hvi3c0_pins[] = { 60, 61 };
-static const int hvi3c1_pins[] = { 62, 63 };
-static const int hvi3c2_pins[] = { 64, 65 };
-static const int hvi3c3_pins[] = { 66, 67 };
+static const int hvi3c12_pins[] = { 60, 61 };
+static const int hvi3c13_pins[] = { 62, 63 };
+static const int hvi3c14_pins[] = { 64, 65 };
+static const int hvi3c15_pins[] = { 66, 67 };
 
 static const int hvi3c4_pins[] = { 0, 1 };
 static const int hvi3c5_pins[] = { 2, 3 };
@@ -527,10 +527,10 @@ static struct aspeed_g7_soc1_pingroup aspeed_g7_soc1_pingroups[] = {
 	PINGROUP(SIOPWREQN1, SIOPWREQN1, siopwreqn1),
 	PINGROUP(SIOONCTRLN1, SIOONCTRLN1, sioonctrln1),
 	PINGROUP(SIOPWRGD1, SIOPWRGD1, siopwrgd1),
-	PINGROUP(HVI3C0, HVI3C0, hvi3c0),
-	PINGROUP(HVI3C1, HVI3C1, hvi3c1),
-	PINGROUP(HVI3C2, HVI3C2, hvi3c2),
-	PINGROUP(HVI3C3, HVI3C3, hvi3c3),
+	PINGROUP(HVI3C12, HVI3C12, hvi3c12),
+	PINGROUP(HVI3C13, HVI3C13, hvi3c13),
+	PINGROUP(HVI3C14, HVI3C14, hvi3c14),
+	PINGROUP(HVI3C15, HVI3C15, hvi3c15),
 	PINGROUP(HVI3C4, HVI3C4, hvi3c4),
 	PINGROUP(HVI3C5, HVI3C5, hvi3c5),
 	PINGROUP(HVI3C6, HVI3C6, hvi3c6),
@@ -756,10 +756,10 @@ static const char *const sios5n1_grp[] = { "SIOS5N1" };
 static const char *const siopwreqn1_grp[] = { "SIOPWREQN1" };
 static const char *const sioonctrln1_grp[] = { "SIOONCTRLN1" };
 static const char *const siopwrgd1_grp[] = { "SIOPWRGD1" };
-static const char *const hvi3c0_grp[] = { "HVI3C0" };
-static const char *const hvi3c1_grp[] = { "HVI3C1" };
-static const char *const hvi3c2_grp[] = { "HVI3C2" };
-static const char *const hvi3c3_grp[] = { "HVI3C3" };
+static const char *const hvi3c12_grp[] = { "HVI3C12" };
+static const char *const hvi3c13_grp[] = { "HVI3C13" };
+static const char *const hvi3c14_grp[] = { "HVI3C14" };
+static const char *const hvi3c15_grp[] = { "HVI3C15" };
 static const char *const hvi3c4_grp[] = { "HVI3C4" };
 static const char *const hvi3c5_grp[] = { "HVI3C5" };
 static const char *const hvi3c6_grp[] = { "HVI3C6" };
@@ -843,10 +843,10 @@ static struct aspeed_g7_soc1_func aspeed_g7_soc1_funcs[] = {
 	IO_FUNC(VPI, vpi),
 	IO_FUNC(SD, sd),
 	IO_FUNC(OSCCLK, oscclk),
-	IO_FUNC(HVI3C0, hvi3c0),
-	IO_FUNC(HVI3C1, hvi3c1),
-	IO_FUNC(HVI3C2, hvi3c2),
-	IO_FUNC(HVI3C3, hvi3c3),
+	IO_FUNC(HVI3C12, hvi3c12),
+	IO_FUNC(HVI3C13, hvi3c13),
+	IO_FUNC(HVI3C14, hvi3c14),
+	IO_FUNC(HVI3C15, hvi3c15),
 	IO_FUNC(HVI3C4, hvi3c4),
 	IO_FUNC(HVI3C5, hvi3c5),
 	IO_FUNC(HVI3C6, hvi3c6),
@@ -1128,14 +1128,14 @@ static const struct pinctrl_pin_desc aspeed_g7_soc1_pins[] = {
 	PINCTRL_PIN(57, "GPIOH1_RXD7_SALT3_PWM15_SM1MUXSEL"),
 	PINCTRL_PIN(58, "GPIOH2_SGPM1O_WDTRST7N_PESGWAKEN_SFF8485I0B"),
 	PINCTRL_PIN(59, "GPIOH3_SGPM1I_SFF8485I1B"),
-	PINCTRL_PIN(60, "GPIOI0_HVI3C0SCL_SCL12_SIOPBON1_SM2MUXSEL"),
-	PINCTRL_PIN(61, "GPIOI1_HVI3C0SDA_SDA12_SIOPBIN1_SM2CS0NI"),
-	PINCTRL_PIN(62, "GPIOI2_HVI3C1SCL_SCL13_SIOSCIN1_SM2CLKI"),
-	PINCTRL_PIN(63, "GPIOI3_HVI3C1SDA_SDA13_SIOS3N1_SM2MOSII"),
-	PINCTRL_PIN(64, "GPIOI4_HVI3C2SCL_SCL14_SIOS5N1_SM2MISOI"),
-	PINCTRL_PIN(65, "GPIOI5_HVI3C2SDA_SDA14_SIOPWREQN1_SM2IO2I"),
-	PINCTRL_PIN(66, "GPIOI6_HVI3C3SCL_SCL15_SIOONCTRLN1_SM2IO3I"),
-	PINCTRL_PIN(67, "GPIOI7_HVI3C3SDA_SDA15_SIOPWRGD1_SM2CS0NO"),
+	PINCTRL_PIN(60, "GPIOI0_HVI3C12SCL_SCL12_SIOPBON1_SM2MUXSEL"),
+	PINCTRL_PIN(61, "GPIOI1_HVI3C12SDA_SDA12_SIOPBIN1_SM2CS0NI"),
+	PINCTRL_PIN(62, "GPIOI2_HVI3C13SCL_SCL13_SIOSCIN1_SM2CLKI"),
+	PINCTRL_PIN(63, "GPIOI3_HVI3C13SDA_SDA13_SIOS3N1_SM2MOSII"),
+	PINCTRL_PIN(64, "GPIOI4_HVI3C14SCL_SCL14_SIOS5N1_SM2MISOI"),
+	PINCTRL_PIN(65, "GPIOI5_HVI3C14SDA_SDA14_SIOPWREQN1_SM2IO2I"),
+	PINCTRL_PIN(66, "GPIOI6_HVI3C15SCL_SCL15_SIOONCTRLN1_SM2IO3I"),
+	PINCTRL_PIN(67, "GPIOI7_HVI3C15SDA_SDA15_SIOPWRGD1_SM2CS0NO"),
 	PINCTRL_PIN(68, "GPIOJ0_I3CSCL4"),
 	PINCTRL_PIN(69, "GPIOJ1_I3CSDA4"),
 	PINCTRL_PIN(70, "GPIOJ2_I3CSCL5"),
@@ -1724,7 +1724,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 //GPIO I
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C0, SCU20, GENMASK(2, 0), 1),
+			PIN_CFG(HVI3C12, SCU20, GENMASK(2, 0), 1),
 			PIN_CFG(I2C12, SCU20, GENMASK(2, 0), 2),
 			PIN_CFG(SIOPBON1, SCU20, GENMASK(2, 0), 3),
 			PIN_CFG(SPIM2, SCU20, GENMASK(2, 0), 5),
@@ -1732,7 +1732,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C0, SCU20, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(HVI3C12, SCU20, GENMASK(6, 4), (1 << 4)),
 			PIN_CFG(I2C12, SCU20, GENMASK(6, 4), (2 << 4)),
 			PIN_CFG(SIOPBIN1, SCU20, GENMASK(6, 4), (3 << 4)),
 			PIN_CFG(SPIM2, SCU20, GENMASK(6, 4), (5 << 4)),
@@ -1740,7 +1740,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C1, SCU20, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(HVI3C13, SCU20, GENMASK(10, 8), (1 << 8)),
 			PIN_CFG(I2C13, SCU20, GENMASK(10, 8), (2 << 8)),
 			PIN_CFG(SIOSCIN1, SCU20, GENMASK(10, 8), (3 << 8)),
 			PIN_CFG(SPIM2, SCU20, GENMASK(10, 8), (5 << 8)),
@@ -1748,7 +1748,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C1, SCU20, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(HVI3C13, SCU20, GENMASK(14, 12), (1 << 12)),
 			PIN_CFG(I2C13, SCU20, GENMASK(14, 12), (2 << 12)),
 			PIN_CFG(SIOS3N1, SCU20, GENMASK(14, 12), (3 << 12)),
 			PIN_CFG(SPIM2, SCU20, GENMASK(14, 12), (5 << 12)),
@@ -1756,7 +1756,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C2, SCU20, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(HVI3C14, SCU20, GENMASK(18, 16), (1 << 16)),
 			PIN_CFG(I2C14, SCU20, GENMASK(18, 16), (2 << 16)),
 			PIN_CFG(SIOS5N1, SCU20, GENMASK(18, 16), (3 << 16)),
 			PIN_CFG(SPIM2, SCU20, GENMASK(18, 16), (5 << 16)),
@@ -1764,7 +1764,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C2, SCU20, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(HVI3C14, SCU20, GENMASK(22, 20), (1 << 20)),
 			PIN_CFG(I2C14, SCU20, GENMASK(22, 20), (2 << 20)),
 			PIN_CFG(SIOPWREQN1, SCU20, GENMASK(22, 20), (3 << 20)),
 			PIN_CFG(SPIM2, SCU20, GENMASK(22, 20), (5 << 20)),
@@ -1772,7 +1772,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C3, SCU20, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(HVI3C15, SCU20, GENMASK(26, 24), (1 << 24)),
 			PIN_CFG(I2C15, SCU20, GENMASK(26, 24), (2 << 24)),
 			PIN_CFG(SIOONCTRLN1, SCU20, GENMASK(26, 24), (3 << 24)),
 			PIN_CFG(SPIM2, SCU20, GENMASK(26, 24), (5 << 24)),
@@ -1780,7 +1780,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C3, SCU20, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(HVI3C15, SCU20, GENMASK(30, 28), (1 << 28)),
 			PIN_CFG(I2C15, SCU20, GENMASK(30, 28), (2 << 28)),
 			PIN_CFG(SIOPWRGD1, SCU20, GENMASK(30, 28), (3 << 28)),
 			PIN_CFG(SPIM2, SCU20, GENMASK(30, 28), (5 << 28)),
