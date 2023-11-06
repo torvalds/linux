@@ -1761,7 +1761,7 @@ static int pagemap_release(struct inode *inode, struct file *file)
 #define PM_SCAN_CATEGORIES	(PAGE_IS_WPALLOWED | PAGE_IS_WRITTEN |	\
 				 PAGE_IS_FILE |	PAGE_IS_PRESENT |	\
 				 PAGE_IS_SWAPPED | PAGE_IS_PFNZERO |	\
-				 PAGE_IS_HUGE)
+				 PAGE_IS_HUGE | PAGE_IS_SOFT_DIRTY)
 #define PM_SCAN_FLAGS		(PM_SCAN_WP_MATCHING | PM_SCAN_CHECK_WPASYNC)
 
 struct pagemap_scan_private {
@@ -1793,6 +1793,8 @@ static unsigned long pagemap_page_category(struct pagemap_scan_private *p,
 
 		if (is_zero_pfn(pte_pfn(pte)))
 			categories |= PAGE_IS_PFNZERO;
+		if (pte_soft_dirty(pte))
+			categories |= PAGE_IS_SOFT_DIRTY;
 	} else if (is_swap_pte(pte)) {
 		swp_entry_t swp;
 
@@ -1806,6 +1808,8 @@ static unsigned long pagemap_page_category(struct pagemap_scan_private *p,
 			    !PageAnon(pfn_swap_entry_to_page(swp)))
 				categories |= PAGE_IS_FILE;
 		}
+		if (pte_swp_soft_dirty(pte))
+			categories |= PAGE_IS_SOFT_DIRTY;
 	}
 
 	return categories;
@@ -1853,12 +1857,16 @@ static unsigned long pagemap_thp_category(struct pagemap_scan_private *p,
 
 		if (is_zero_pfn(pmd_pfn(pmd)))
 			categories |= PAGE_IS_PFNZERO;
+		if (pmd_soft_dirty(pmd))
+			categories |= PAGE_IS_SOFT_DIRTY;
 	} else if (is_swap_pmd(pmd)) {
 		swp_entry_t swp;
 
 		categories |= PAGE_IS_SWAPPED;
 		if (!pmd_swp_uffd_wp(pmd))
 			categories |= PAGE_IS_WRITTEN;
+		if (pmd_swp_soft_dirty(pmd))
+			categories |= PAGE_IS_SOFT_DIRTY;
 
 		if (p->masks_of_interest & PAGE_IS_FILE) {
 			swp = pmd_to_swp_entry(pmd);
@@ -1905,10 +1913,14 @@ static unsigned long pagemap_hugetlb_category(pte_t pte)
 			categories |= PAGE_IS_FILE;
 		if (is_zero_pfn(pte_pfn(pte)))
 			categories |= PAGE_IS_PFNZERO;
+		if (pte_soft_dirty(pte))
+			categories |= PAGE_IS_SOFT_DIRTY;
 	} else if (is_swap_pte(pte)) {
 		categories |= PAGE_IS_SWAPPED;
 		if (!pte_swp_uffd_wp_any(pte))
 			categories |= PAGE_IS_WRITTEN;
+		if (pte_swp_soft_dirty(pte))
+			categories |= PAGE_IS_SOFT_DIRTY;
 	}
 
 	return categories;
@@ -2006,6 +2018,9 @@ static int pagemap_scan_test_walk(unsigned long start, unsigned long end,
 
 	if (wp_allowed)
 		vma_category |= PAGE_IS_WPALLOWED;
+
+	if (vma->vm_flags & VM_SOFTDIRTY)
+		vma_category |= PAGE_IS_SOFT_DIRTY;
 
 	if (!pagemap_scan_is_interesting_vma(vma_category, p))
 		return 1;
