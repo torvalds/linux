@@ -1888,7 +1888,7 @@ int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
 	u64 bytenr = record->bytenr;
 
 	if (!btrfs_qgroup_full_accounting(fs_info))
-		return 0;
+		return 1;
 
 	lockdep_assert_held(&delayed_refs->lock);
 	trace_btrfs_qgroup_trace_extent(fs_info, record);
