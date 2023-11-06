@@ -1058,6 +1058,7 @@ static void msm_gem_free_object(struct drm_gem_object *obj)
 
 	drm_gem_object_release(obj);
 
+	kfree(msm_obj->metadata);
 	kfree(msm_obj);
 }
 
