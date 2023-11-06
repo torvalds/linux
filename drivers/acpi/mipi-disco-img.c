@@ -595,6 +595,7 @@ static void init_crs_csi2_swnodes(struct crs_csi2 *csi2)
 	struct acpi_buffer buffer = { .length = ACPI_ALLOCATE_BUFFER };
 	struct acpi_device_software_nodes *swnodes = csi2->swnodes;
 	acpi_handle handle = csi2->handle;
+	unsigned int prop_index = 0;
 	struct fwnode_handle *adev_fwnode;
 	struct acpi_device *adev;
 	acpi_status status;
@@ -613,6 +614,22 @@ static void init_crs_csi2_swnodes(struct crs_csi2 *csi2)
 		return;
 
 	adev_fwnode = acpi_fwnode_handle(adev);
+
+	/*
+	 * If the "rotation" property is not present, but _PLD is there,
+	 * evaluate it to get the "rotation" value.
+	 */
+	if (!fwnode_property_present(adev_fwnode, "rotation")) {
+		struct acpi_pld_info *pld;
+
+		status = acpi_get_physical_device_location(handle, &pld);
+		if (ACPI_SUCCESS(status)) {
+			swnodes->dev_props[NEXT_PROPERTY(prop_index, DEV_ROTATION)] =
+					PROPERTY_ENTRY_U32("rotation",
+							   pld->rotation * 45U);
+			kfree(pld);
+		}
+	}
 
 	status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 	if (ACPI_FAILURE(status)) {
