@@ -83,18 +83,6 @@ int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	/* used for fixed read/write too - just read unconditionally */
 	req->buf_index = READ_ONCE(sqe->buf_index);
 
-	if (req->opcode == IORING_OP_READ_FIXED ||
-	    req->opcode == IORING_OP_WRITE_FIXED) {
-		struct io_ring_ctx *ctx = req->ctx;
-		u16 index;
-
-		if (unlikely(req->buf_index >= ctx->nr_user_bufs))
-			return -EFAULT;
-		index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
-		req->imu = ctx->user_bufs[index];
-		io_req_set_rsrc_node(req, ctx, 0);
-	}
-
 	ioprio = READ_ONCE(sqe->ioprio);
 	if (ioprio) {
 		ret = ioprio_check_cap(ioprio);
@@ -128,6 +116,24 @@ int io_prep_rwv(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (req->flags & REQ_F_BUFFER_SELECT)
 		return io_iov_buffer_select_prep(req);
 
+	return 0;
+}
+
+int io_prep_rw_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	u16 index;
+	int ret;
+
+	ret = io_prep_rw(req, sqe);
+	if (unlikely(ret))
+		return ret;
+
+	if (unlikely(req->buf_index >= ctx->nr_user_bufs))
+		return -EFAULT;
+	index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
+	req->imu = ctx->user_bufs[index];
+	io_req_set_rsrc_node(req, ctx, 0);
 	return 0;
 }
 
