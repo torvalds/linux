@@ -39,4 +39,7 @@ extern char except_vec_nmi[];
 	register_nmi_notifier(&fn##_nb);				\
 })
 
+asmlinkage void do_page_fault(struct pt_regs *regs,
+	unsigned long write, unsigned long address);
+
 #endif /* _ASM_TRAPS_H */
