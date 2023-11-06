@@ -58,8 +58,6 @@ struct imx214 {
 	 * and start streaming.
 	 */
 	struct mutex mutex;
-
-	bool streaming;
 };
 
 struct reg_8 {
@@ -775,9 +773,6 @@ static int imx214_s_stream(struct v4l2_subdev *subdev, int enable)
 	struct imx214 *imx214 = to_imx214(subdev);
 	int ret;
 
-	if (imx214->streaming == enable)
-		return 0;
-
 	if (enable) {
 		ret = pm_runtime_resume_and_get(imx214->dev);
 		if (ret < 0)
@@ -793,7 +788,6 @@ static int imx214_s_stream(struct v4l2_subdev *subdev, int enable)
 		pm_runtime_put(imx214->dev);
 	}
 
-	imx214->streaming = enable;
 	return 0;
 
 err_rpm_put:
@@ -906,39 +900,6 @@ static int imx214_parse_fwnode(struct device *dev)
 done:
 	v4l2_fwnode_endpoint_free(&bus_cfg);
 	fwnode_handle_put(endpoint);
-	return ret;
-}
-
-static int __maybe_unused imx214_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct imx214 *imx214 = to_imx214(sd);
-
-	if (imx214->streaming)
-		imx214_stop_streaming(imx214);
-
-	return 0;
-}
-
-static int __maybe_unused imx214_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct imx214 *imx214 = to_imx214(sd);
-	int ret;
-
-	if (imx214->streaming) {
-		ret = imx214_start_streaming(imx214);
-		if (ret)
-			goto error;
-	}
-
-	return 0;
-
-error:
-	imx214_stop_streaming(imx214);
-	imx214->streaming = 0;
 	return ret;
 }
 
@@ -1102,7 +1063,6 @@ static const struct of_device_id imx214_of_match[] = {
 MODULE_DEVICE_TABLE(of, imx214_of_match);
 
 static const struct dev_pm_ops imx214_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(imx214_suspend, imx214_resume)
 	SET_RUNTIME_PM_OPS(imx214_power_off, imx214_power_on, NULL)
 };
 

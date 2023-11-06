@@ -123,9 +123,6 @@ struct imx355 {
 	 * Protect access to sensor v4l2 controls.
 	 */
 	struct mutex mutex;
-
-	/* Streaming on/off */
-	bool streaming;
 };
 
 static const struct imx355_reg imx355_global_regs[] = {
@@ -1436,10 +1433,6 @@ static int imx355_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&imx355->mutex);
-	if (imx355->streaming == enable) {
-		mutex_unlock(&imx355->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -1458,8 +1451,6 @@ static int imx355_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	imx355->streaming = enable;
-
 	/* vflip and hflip cannot change during streaming */
 	__v4l2_ctrl_grab(imx355->vflip, enable);
 	__v4l2_ctrl_grab(imx355->hflip, enable);
@@ -1473,37 +1464,6 @@ err_rpm_put:
 err_unlock:
 	mutex_unlock(&imx355->mutex);
 
-	return ret;
-}
-
-static int __maybe_unused imx355_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct imx355 *imx355 = to_imx355(sd);
-
-	if (imx355->streaming)
-		imx355_stop_streaming(imx355);
-
-	return 0;
-}
-
-static int __maybe_unused imx355_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct imx355 *imx355 = to_imx355(sd);
-	int ret;
-
-	if (imx355->streaming) {
-		ret = imx355_start_streaming(imx355);
-		if (ret)
-			goto error;
-	}
-
-	return 0;
-
-error:
-	imx355_stop_streaming(imx355);
-	imx355->streaming = 0;
 	return ret;
 }
 
@@ -1829,10 +1789,6 @@ static void imx355_remove(struct i2c_client *client)
 	mutex_destroy(&imx355->mutex);
 }
 
-static const struct dev_pm_ops imx355_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(imx355_suspend, imx355_resume)
-};
-
 static const struct acpi_device_id imx355_acpi_ids[] __maybe_unused = {
 	{ "SONY355A" },
 	{ /* sentinel */ }
@@ -1842,7 +1798,6 @@ MODULE_DEVICE_TABLE(acpi, imx355_acpi_ids);
 static struct i2c_driver imx355_i2c_driver = {
 	.driver = {
 		.name = "imx355",
-		.pm = &imx355_pm_ops,
 		.acpi_match_table = ACPI_PTR(imx355_acpi_ids),
 	},
 	.probe = imx355_probe,
