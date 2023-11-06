@@ -23,6 +23,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#include <media/v4l2-fwnode.h>
+
 #include "internal.h"
 
 static LIST_HEAD(acpi_mipi_crs_csi2_list);
@@ -237,6 +239,142 @@ static void alloc_crs_csi2_swnodes(struct crs_csi2 *csi2)
 	csi2->swnodes = swnodes;
 }
 
+#define ACPI_CRS_CSI2_PHY_TYPE_C	0
+#define ACPI_CRS_CSI2_PHY_TYPE_D	1
+
+static unsigned int next_csi2_port_index(struct acpi_device_software_nodes *swnodes,
+					 unsigned int port_nr)
+{
+	unsigned int i;
+
+	for (i = 0; i < swnodes->num_ports; i++) {
+		struct acpi_device_software_node_port *port = &swnodes->ports[i];
+
+		if (port->port_nr == port_nr)
+			return i;
+
+		if (port->port_nr == NO_CSI2_PORT) {
+			port->port_nr = port_nr;
+			return i;
+		}
+	}
+
+	return NO_CSI2_PORT;
+}
+
+/* Print graph port name into a buffer, return non-zero on failure. */
+#define GRAPH_PORT_NAME(var, num)					    \
+	(snprintf((var), sizeof(var), SWNODE_GRAPH_PORT_NAME_FMT, (num)) >= \
+	 sizeof(var))
+
+static void extract_crs_csi2_conn_info(acpi_handle local_handle,
+				       struct acpi_device_software_nodes *local_swnodes,
+				       struct crs_csi2_connection *conn)
+{
+	struct crs_csi2 *remote_csi2 = acpi_mipi_get_crs_csi2(conn->remote_handle);
+	struct acpi_device_software_nodes *remote_swnodes;
+	struct acpi_device_software_node_port *local_port, *remote_port;
+	struct software_node *local_node, *remote_node;
+	unsigned int local_index, remote_index;
+	unsigned int bus_type;
+
+	/*
+	 * If the previous steps have failed to make room for a _CRS CSI-2
+	 * representation for the remote end of the given connection, skip it.
+	 */
+	if (!remote_csi2)
+		return;
+
+	remote_swnodes = remote_csi2->swnodes;
+	if (!remote_swnodes)
+		return;
+
+	switch (conn->csi2_data.phy_type) {
+	case ACPI_CRS_CSI2_PHY_TYPE_C:
+		bus_type = V4L2_FWNODE_BUS_TYPE_CSI2_CPHY;
+		break;
+
+	case ACPI_CRS_CSI2_PHY_TYPE_D:
+		bus_type = V4L2_FWNODE_BUS_TYPE_CSI2_DPHY;
+		break;
+
+	default:
+		acpi_handle_info(local_handle, "unknown CSI-2 PHY type %u\n",
+				 conn->csi2_data.phy_type);
+		return;
+	}
+
+	local_index = next_csi2_port_index(local_swnodes,
+					   conn->csi2_data.local_port_instance);
+	if (WARN_ON_ONCE(local_index >= local_swnodes->num_ports))
+		return;
+
+	remote_index = next_csi2_port_index(remote_swnodes,
+					    conn->csi2_data.resource_source.index);
+	if (WARN_ON_ONCE(remote_index >= remote_swnodes->num_ports))
+		return;
+
+	local_port = &local_swnodes->ports[local_index];
+	local_node = &local_swnodes->nodes[ACPI_DEVICE_SWNODE_EP(local_index)];
+	local_port->crs_csi2_local = true;
+
+	remote_port = &remote_swnodes->ports[remote_index];
+	remote_node = &remote_swnodes->nodes[ACPI_DEVICE_SWNODE_EP(remote_index)];
+
+	local_port->remote_ep[0] = SOFTWARE_NODE_REFERENCE(remote_node);
+	remote_port->remote_ep[0] = SOFTWARE_NODE_REFERENCE(local_node);
+
+	local_port->ep_props[ACPI_DEVICE_SWNODE_EP_REMOTE_EP] =
+			PROPERTY_ENTRY_REF_ARRAY("remote-endpoint",
+						 local_port->remote_ep);
+
+	local_port->ep_props[ACPI_DEVICE_SWNODE_EP_BUS_TYPE] =
+			PROPERTY_ENTRY_U32("bus-type", bus_type);
+
+	local_port->ep_props[ACPI_DEVICE_SWNODE_EP_REG] =
+			PROPERTY_ENTRY_U32("reg", 0);
+
+	local_port->port_props[ACPI_DEVICE_SWNODE_PORT_REG] =
+			PROPERTY_ENTRY_U32("reg", conn->csi2_data.local_port_instance);
+
+	if (GRAPH_PORT_NAME(local_port->port_name,
+			    conn->csi2_data.local_port_instance))
+		acpi_handle_info(local_handle, "local port %u name too long",
+				 conn->csi2_data.local_port_instance);
+
+	remote_port->ep_props[ACPI_DEVICE_SWNODE_EP_REMOTE_EP] =
+			PROPERTY_ENTRY_REF_ARRAY("remote-endpoint",
+						 remote_port->remote_ep);
+
+	remote_port->ep_props[ACPI_DEVICE_SWNODE_EP_BUS_TYPE] =
+			PROPERTY_ENTRY_U32("bus-type", bus_type);
+
+	remote_port->ep_props[ACPI_DEVICE_SWNODE_EP_REG] =
+			PROPERTY_ENTRY_U32("reg", 0);
+
+	remote_port->port_props[ACPI_DEVICE_SWNODE_PORT_REG] =
+			PROPERTY_ENTRY_U32("reg", conn->csi2_data.resource_source.index);
+
+	if (GRAPH_PORT_NAME(remote_port->port_name,
+			    conn->csi2_data.resource_source.index))
+		acpi_handle_info(local_handle, "remote port %u name too long",
+				 conn->csi2_data.resource_source.index);
+}
+
+static void prepare_crs_csi2_swnodes(struct crs_csi2 *csi2)
+{
+	struct acpi_device_software_nodes *local_swnodes = csi2->swnodes;
+	acpi_handle local_handle = csi2->handle;
+	struct crs_csi2_connection *conn;
+
+	/* Bail out if the allocation of swnodes has failed. */
+	if (!local_swnodes)
+		return;
+
+	list_for_each_entry(conn, &csi2->connections, entry)
+		extract_crs_csi2_conn_info(local_handle, local_swnodes, conn);
+}
+
 /**
  * acpi_mipi_scan_crs_csi2 - Create ACPI _CRS CSI-2 software nodes
  *
@@ -275,9 +413,22 @@ void acpi_mipi_scan_crs_csi2(void)
 	}
 	list_splice(&aux_list, &acpi_mipi_crs_csi2_list);
 
-	/* Allocate software nodes for representing the CSI-2 information. */
+	/*
+	 * Allocate software nodes for representing the CSI-2 information.
+	 *
+	 * This needs to be done for all of the list entries in one go, because
+	 * they may point to each other without restrictions and the next step
+	 * relies on the availability of swnodes memory for each list entry.
+	 */
 	list_for_each_entry(csi2, &acpi_mipi_crs_csi2_list, entry)
 		alloc_crs_csi2_swnodes(csi2);
+
+	/*
+	 * Set up software node properties using data from _CRS CSI-2 resource
+	 * descriptors.
+	 */
+	list_for_each_entry(csi2, &acpi_mipi_crs_csi2_list, entry)
+		prepare_crs_csi2_swnodes(csi2);
 }
 
 /**
