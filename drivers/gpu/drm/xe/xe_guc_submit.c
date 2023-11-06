@@ -188,6 +188,58 @@ static bool exec_queue_killed_or_banned(struct xe_exec_queue *q)
 	return exec_queue_killed(q) || exec_queue_banned(q);
 }
 
+#ifdef CONFIG_PROVE_LOCKING
+static int alloc_submit_wq(struct xe_guc *guc)
+{
+	int i;
+
+	for (i = 0; i < NUM_SUBMIT_WQ; ++i) {
+		guc->submission_state.submit_wq_pool[i] =
+			alloc_ordered_workqueue("submit_wq", 0);
+		if (!guc->submission_state.submit_wq_pool[i])
+			goto err_free;
+	}
+
+	return 0;
+
+err_free:
+	while (i)
+		destroy_workqueue(guc->submission_state.submit_wq_pool[--i]);
+
+	return -ENOMEM;
+}
+
+static void free_submit_wq(struct xe_guc *guc)
+{
+	int i;
+
+	for (i = 0; i < NUM_SUBMIT_WQ; ++i)
+		destroy_workqueue(guc->submission_state.submit_wq_pool[i]);
+}
+
+static struct workqueue_struct *get_submit_wq(struct xe_guc *guc)
+{
+	int idx = guc->submission_state.submit_wq_idx++ % NUM_SUBMIT_WQ;
+
+	return guc->submission_state.submit_wq_pool[idx];
+}
+#else
+static int alloc_submit_wq(struct xe_guc *guc)
+{
+	return 0;
+}
+
+static void free_submit_wq(struct xe_guc *guc)
+{
+
+}
+
+static struct workqueue_struct *get_submit_wq(struct xe_guc *guc)
+{
+	return NULL;
+}
+#endif
+
 static void guc_submit_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_guc *guc = arg;
@@ -195,6 +247,7 @@ static void guc_submit_fini(struct drm_device *drm, void *arg)
 	xa_destroy(&guc->submission_state.exec_queue_lookup);
 	ida_destroy(&guc->submission_state.guc_ids);
 	bitmap_free(guc->submission_state.guc_ids_bitmap);
+	free_submit_wq(guc);
 	mutex_destroy(&guc->submission_state.lock);
 }
 
@@ -229,6 +282,12 @@ int xe_guc_submit_init(struct xe_guc *guc)
 		bitmap_zalloc(GUC_ID_NUMBER_MLRC, GFP_KERNEL);
 	if (!guc->submission_state.guc_ids_bitmap)
 		return -ENOMEM;
+
+	err = alloc_submit_wq(guc);
+	if (err) {
+		bitmap_free(guc->submission_state.guc_ids_bitmap);
+		return err;
+	}
 
 	gt->exec_queue_ops = &guc_exec_queue_ops;
 
@@ -1166,10 +1225,11 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 
 	timeout = (q->vm && xe_vm_no_dma_fences(q->vm)) ? MAX_SCHEDULE_TIMEOUT :
 		  q->hwe->eclass->sched_props.job_timeout_ms;
-	err = xe_sched_init(&ge->sched, &drm_sched_ops, &xe_sched_ops, NULL,
-			     q->lrc[0].ring.size / MAX_JOB_SIZE_BYTES,
-			     64, timeout, guc_to_gt(guc)->ordered_wq, NULL,
-			     q->name, gt_to_xe(q->gt)->drm.dev);
+	err = xe_sched_init(&ge->sched, &drm_sched_ops, &xe_sched_ops,
+			    get_submit_wq(guc),
+			    q->lrc[0].ring.size / MAX_JOB_SIZE_BYTES, 64,
+			    timeout, guc_to_gt(guc)->ordered_wq, NULL,
+			    q->name, gt_to_xe(q->gt)->drm.dev);
 	if (err)
 		goto err_free;
 

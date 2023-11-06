@@ -61,6 +61,13 @@ struct xe_guc {
 			/** @patch: patch version of GuC submission */
 			u32 patch;
 		} version;
+#ifdef CONFIG_PROVE_LOCKING
+#define NUM_SUBMIT_WQ	256
+		/** @submit_wq_pool: submission ordered workqueues pool */
+		struct workqueue_struct *submit_wq_pool[NUM_SUBMIT_WQ];
+		/** @submit_wq_idx: submission ordered workqueue index */
+		int submit_wq_idx;
+#endif
 		/** @enabled: submission is enabled */
 		bool enabled;
 	} submission_state;
