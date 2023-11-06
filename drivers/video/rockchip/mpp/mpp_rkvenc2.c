@@ -1246,11 +1246,6 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	/* init current task */
 	mpp->cur_task = mpp_task;
 
-	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
-
-	/* Flush the register before the start the device */
-	wmb();
-
 	/*
 	 * reconfig timeout threshold.
 	 * bit0-bit23,x1024 core clk cycles
@@ -1258,6 +1253,11 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	timeout_thd = mpp_read(mpp, RKVENC_WDG) & 0xff000000;
 	timeout_thd |= TIMEOUT_MS * clk_get_rate(enc->core_clk_info.clk) / 1024000;
 	mpp_write(mpp, RKVENC_WDG, timeout_thd);
+
+	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
+
+	/* Flush the register before the start the device */
+	wmb();
 	mpp_write(mpp, enc->hw_info->enc_start_base, start_val);
 
 	mpp_task_run_end(mpp_task, timing_en);
