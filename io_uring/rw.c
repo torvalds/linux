@@ -912,6 +912,7 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 
 int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 {
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	unsigned int cflags = 0;
 	int ret;
 
@@ -928,7 +929,12 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 	 * handling arm it.
 	 */
 	if (ret == -EAGAIN) {
-		io_kbuf_recycle(req, issue_flags);
+		/*
+		 * Reset rw->len to 0 again to avoid clamping future mshot
+		 * reads, in case the buffer size varies.
+		 */
+		if (io_kbuf_recycle(req, issue_flags))
+			rw->len = 0;
 		return -EAGAIN;
 	}
 
@@ -941,6 +947,7 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 		 * jump to the termination path. This request is then done.
 		 */
 		cflags = io_put_kbuf(req, issue_flags);
+		rw->len = 0; /* similarly to above, reset len to 0 */
 
 		if (io_fill_cqe_req_aux(req,
 					issue_flags & IO_URING_F_COMPLETE_DEFER,
