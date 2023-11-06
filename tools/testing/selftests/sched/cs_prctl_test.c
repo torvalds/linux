@@ -72,7 +72,7 @@ struct child_args {
 
 static struct child_args procs[MAX_PROCESSES];
 static int num_processes = 2;
-static int need_cleanup = 0;
+static int need_cleanup;
 
 static int _prctl(int option, unsigned long arg2, unsigned long arg3, unsigned long arg4,
 		  unsigned long arg5)
