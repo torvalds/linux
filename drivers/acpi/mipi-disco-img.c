@@ -1,0 +1,292 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * MIPI DisCo for Imaging support.
+ *
+ * Copyright (C) 2023 Intel Corporation
+ *
+ * Support MIPI DisCo for Imaging by parsing ACPI _CRS CSI-2 records defined in
+ * Section 6.4.3.8.2.4 "Camera Serial Interface (CSI-2) Connection Resource
+ * Descriptor" of ACPI 6.5.
+ *
+ * The implementation looks for the information in the ACPI namespace (CSI-2
+ * resource descriptors in _CRS) and constructs software nodes compatible with
+ * Documentation/firmware-guide/acpi/dsd/graph.rst to represent the CSI-2
+ * connection graph.
+ */
+
+#include <linux/acpi.h>
+#include <linux/limits.h>
+#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/overflow.h>
+#include <linux/types.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+
+#include "internal.h"
+
+static LIST_HEAD(acpi_mipi_crs_csi2_list);
+
+static void acpi_mipi_data_tag(acpi_handle handle, void *context)
+{
+}
+
+/* Connection data extracted from one _CRS CSI-2 resource descriptor. */
+struct crs_csi2_connection {
+	struct list_head entry;
+	struct acpi_resource_csi2_serialbus csi2_data;
+	acpi_handle remote_handle;
+	char remote_name[];
+};
+
+/* Data extracted from _CRS CSI-2 resource descriptors for one device. */
+struct crs_csi2 {
+	struct list_head entry;
+	acpi_handle handle;
+	struct acpi_device_software_nodes *swnodes;
+	struct list_head connections;
+	u32 port_count;
+};
+
+struct csi2_resources_walk_data {
+	acpi_handle handle;
+	struct list_head connections;
+};
+
+static acpi_status parse_csi2_resource(struct acpi_resource *res, void *context)
+{
+	struct csi2_resources_walk_data *crwd = context;
+	struct acpi_resource_csi2_serialbus *csi2_res;
+	struct acpi_resource_source *csi2_res_src;
+	u16 csi2_res_src_length;
+	struct crs_csi2_connection *conn;
+	acpi_handle remote_handle;
+
+	if (res->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
+		return AE_OK;
+
+	csi2_res = &res->data.csi2_serial_bus;
+
+	if (csi2_res->type != ACPI_RESOURCE_SERIAL_TYPE_CSI2)
+		return AE_OK;
+
+	csi2_res_src = &csi2_res->resource_source;
+	if (ACPI_FAILURE(acpi_get_handle(NULL, csi2_res_src->string_ptr,
+					 &remote_handle))) {
+		acpi_handle_debug(crwd->handle,
+				  "unable to find resource source\n");
+		return AE_OK;
+	}
+	csi2_res_src_length = csi2_res_src->string_length;
+	if (!csi2_res_src_length) {
+		acpi_handle_debug(crwd->handle,
+				  "invalid resource source string length\n");
+		return AE_OK;
+	}
+
+	conn = kmalloc(struct_size(conn, remote_name, csi2_res_src_length + 1),
+		       GFP_KERNEL);
+	if (!conn)
+		return AE_OK;
+
+	conn->csi2_data = *csi2_res;
+	strscpy(conn->remote_name, csi2_res_src->string_ptr, csi2_res_src_length);
+	conn->csi2_data.resource_source.string_ptr = conn->remote_name;
+	conn->remote_handle = remote_handle;
+
+	list_add(&conn->entry, &crwd->connections);
+
+	return AE_OK;
+}
+
+static struct crs_csi2 *acpi_mipi_add_crs_csi2(acpi_handle handle,
+					       struct list_head *list)
+{
+	struct crs_csi2 *csi2;
+
+	csi2 = kzalloc(sizeof(*csi2), GFP_KERNEL);
+	if (!csi2)
+		return NULL;
+
+	csi2->handle = handle;
+	INIT_LIST_HEAD(&csi2->connections);
+	csi2->port_count = 1;
+
+	if (ACPI_FAILURE(acpi_attach_data(handle, acpi_mipi_data_tag, csi2))) {
+		kfree(csi2);
+		return NULL;
+	}
+
+	list_add(&csi2->entry, list);
+
+	return csi2;
+}
+
+static struct crs_csi2 *acpi_mipi_get_crs_csi2(acpi_handle handle)
+{
+	struct crs_csi2 *csi2;
+
+	if (ACPI_FAILURE(acpi_get_data_full(handle, acpi_mipi_data_tag,
+					    (void **)&csi2, NULL)))
+		return NULL;
+
+	return csi2;
+}
+
+static void csi_csr2_release_connections(struct list_head *list)
+{
+	struct crs_csi2_connection *conn, *conn_tmp;
+
+	list_for_each_entry_safe(conn, conn_tmp, list, entry) {
+		list_del(&conn->entry);
+		kfree(conn);
+	}
+}
+
+static void acpi_mipi_del_crs_csi2(struct crs_csi2 *csi2)
+{
+	list_del(&csi2->entry);
+	acpi_detach_data(csi2->handle, acpi_mipi_data_tag);
+	kfree(csi2->swnodes);
+	csi_csr2_release_connections(&csi2->connections);
+	kfree(csi2);
+}
+
+/**
+ * acpi_mipi_check_crs_csi2 - Look for CSI-2 resources in _CRS
+ * @handle: Device object handle to evaluate _CRS for.
+ *
+ * Find all CSI-2 resource descriptors in the given device's _CRS
+ * and collect them into a list.
+ */
+void acpi_mipi_check_crs_csi2(acpi_handle handle)
+{
+	struct csi2_resources_walk_data crwd = {
+		.handle = handle,
+		.connections = LIST_HEAD_INIT(crwd.connections),
+	};
+	struct crs_csi2 *csi2;
+
+	/*
+	 * Avoid allocating _CRS CSI-2 objects for devices without any CSI-2
+	 * resource descriptions in _CRS to reduce overhead.
+	 */
+	acpi_walk_resources(handle, METHOD_NAME__CRS, parse_csi2_resource, &crwd);
+	if (list_empty(&crwd.connections))
+		return;
+
+	/*
+	 * Create a _CRS CSI-2 entry to store the extracted connection
+	 * information and add it to the global list.
+	 */
+	csi2 = acpi_mipi_add_crs_csi2(handle, &acpi_mipi_crs_csi2_list);
+	if (!csi2) {
+		csi_csr2_release_connections(&crwd.connections);
+		return; /* Nothing really can be done about this. */
+	}
+
+	list_replace(&crwd.connections, &csi2->connections);
+}
+
+#define NO_CSI2_PORT (UINT_MAX - 1)
+
+static void alloc_crs_csi2_swnodes(struct crs_csi2 *csi2)
+{
+	size_t port_count = csi2->port_count;
+	struct acpi_device_software_nodes *swnodes;
+	size_t alloc_size;
+	unsigned int i;
+
+	/*
+	 * Allocate memory for ports, node pointers (number of nodes +
+	 * 1 (guardian), nodes (root + number of ports * 2 (because for
+	 * every port there is an endpoint)).
+	 */
+	if (check_mul_overflow(sizeof(*swnodes->ports) +
+			       sizeof(*swnodes->nodes) * 2 +
+			       sizeof(*swnodes->nodeptrs) * 2,
+			       port_count, &alloc_size) ||
+	    check_add_overflow(sizeof(*swnodes) +
+			       sizeof(*swnodes->nodes) +
+			       sizeof(*swnodes->nodeptrs) * 2,
+			       alloc_size, &alloc_size)) {
+		acpi_handle_info(csi2->handle,
+				 "too many _CRS CSI-2 resource handles (%zu)",
+				 port_count);
+		return;
+	}
+
+	swnodes = kmalloc(alloc_size, GFP_KERNEL);
+	if (!swnodes)
+		return;
+
+	swnodes->ports = (struct acpi_device_software_node_port *)(swnodes + 1);
+	swnodes->nodes = (struct software_node *)(swnodes->ports + port_count);
+	swnodes->nodeptrs = (const struct software_node **)(swnodes->nodes + 1 +
+				2 * port_count);
+	swnodes->num_ports = port_count;
+
+	for (i = 0; i < 2 * port_count + 1; i++)
+		swnodes->nodeptrs[i] = &swnodes->nodes[i];
+
+	swnodes->nodeptrs[i] = NULL;
+
+	for (i = 0; i < port_count; i++)
+		swnodes->ports[i].port_nr = NO_CSI2_PORT;
+
+	csi2->swnodes = swnodes;
+}
+
+/**
+ * acpi_mipi_scan_crs_csi2 - Create ACPI _CRS CSI-2 software nodes
+ *
+ * Note that this function must be called before any struct acpi_device objects
+ * are bound to any ACPI drivers or scan handlers, so it cannot assume the
+ * existence of struct acpi_device objects for every device present in the ACPI
+ * namespace.
+ *
+ * acpi_scan_lock in scan.c must be held when calling this function.
+ */
+void acpi_mipi_scan_crs_csi2(void)
+{
+	struct crs_csi2 *csi2;
+	LIST_HEAD(aux_list);
+
+	/* Count references to each ACPI handle in the CSI-2 connection graph. */
+	list_for_each_entry(csi2, &acpi_mipi_crs_csi2_list, entry) {
+		struct crs_csi2_connection *conn;
+
+		list_for_each_entry(conn, &csi2->connections, entry) {
+			struct crs_csi2 *remote_csi2;
+
+			csi2->port_count++;
+
+			remote_csi2 = acpi_mipi_get_crs_csi2(conn->remote_handle);
+			if (remote_csi2) {
+				remote_csi2->port_count++;
+				continue;
+			}
+			/*
+			 * The remote endpoint has no _CRS CSI-2 list entry yet,
+			 * so create one for it and add it to the list.
+			 */
+			acpi_mipi_add_crs_csi2(conn->remote_handle, &aux_list);
+		}
+	}
+	list_splice(&aux_list, &acpi_mipi_crs_csi2_list);
+
+	/* Allocate software nodes for representing the CSI-2 information. */
+	list_for_each_entry(csi2, &acpi_mipi_crs_csi2_list, entry)
+		alloc_crs_csi2_swnodes(csi2);
+}
+
+/**
+ * acpi_mipi_crs_csi2_cleanup - Free _CRS CSI-2 temporary data
+ */
+void acpi_mipi_crs_csi2_cleanup(void)
+{
+	struct crs_csi2 *csi2, *csi2_tmp;
+
+	list_for_each_entry_safe(csi2, csi2_tmp, &acpi_mipi_crs_csi2_list, entry)
+		acpi_mipi_del_crs_csi2(csi2);
+}
