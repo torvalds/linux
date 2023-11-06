@@ -186,6 +186,10 @@
 	};
 };
 
+&can0 {
+	status = "okay";
+};
+
 &emmc_controller {
 	status = "okay";
 	aspeed-max-tap-delay = <736>;
