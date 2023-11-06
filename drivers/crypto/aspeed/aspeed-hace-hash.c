@@ -442,14 +442,12 @@ int aspeed_hace_ahash_trigger(struct aspeed_hace_dev *hace_dev,
 	struct aspeed_engine_hash *hash_engine = &hace_dev->hash_engine;
 	struct ahash_request *req = hash_engine->ahash_req;
 	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
-	u8 *dummy_read = hash_engine->ahash_src_addr;
 
 	AHASH_DBG("\n");
 #ifdef CONFIG_CRYPTO_DEV_ASPEED_AHASH_INT
 	rctx->cmd |= HASH_CMD_INT_ENABLE;
 	hash_engine->resume = resume;
 #endif
-	READ_ONCE(dummy_read[hash_engine->src_length - 1]);
 	aspeed_hace_write(hace_dev, hash_engine->src_dma, ASPEED_HACE_HASH_SRC);
 	aspeed_hace_write(hace_dev, hash_engine->digeset_dma, ASPEED_HACE_HASH_DIGEST_BUFF);
 	aspeed_hace_write(hace_dev, hash_engine->digeset_dma, ASPEED_HACE_HASH_KEY_BUFF);
