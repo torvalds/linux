@@ -164,10 +164,10 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 		},
 	},
 	.num_states = 5,
-	.sr_exit_time_us = 9.0,
-	.sr_enter_plus_exit_time_us = 11.0,
-	.sr_exit_z8_time_us = 50.0, /*changed from 442.0*/
-	.sr_enter_plus_exit_z8_time_us = 50.0,/*changed from 560.0*/
+	.sr_exit_time_us = 14.0,
+	.sr_enter_plus_exit_time_us = 16.0,
+	.sr_exit_z8_time_us = 525.0,
+	.sr_enter_plus_exit_z8_time_us = 715.0,
 	.fclk_change_latency_us = 20.0,
 	.usr_retraining_latency_us = 2,
 	.writeback_latency_us = 12.0,
