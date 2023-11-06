@@ -852,7 +852,10 @@ static irqreturn_t rockchip_canfd_interrupt(int irq, void *dev_id)
 			rockchip_canfd_write(rcan, CAN_INT_MASK, 0x1);
 			napi_schedule(&rcan->napi);
 		} else {
-			quota = rockchip_canfd_get_rx_fifo_cnt(ndev);
+			work_done = 0;
+			quota = (rockchip_canfd_read(rcan, CAN_RXFC) &
+				 rcan->rx_fifo_mask) >>
+				rcan->rx_fifo_shift;
 			if (quota) {
 				while (work_done < quota)
 					work_done += rockchip_canfd_rx(ndev);
