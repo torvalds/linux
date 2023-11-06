@@ -118,4 +118,7 @@
 #define VDBOX_CGCTL3F18(base)			XE_REG((base) + 0x3f18)
 #define   ALNUNIT_CLKGATE_DIS			REG_BIT(13)
 
+#define VDBOX_CGCTL3F1C(base)			XE_REG((base) + 0x3f1c)
+#define   MFXPIPE_CLKGATE_DIS			REG_BIT(3)
+
 #endif
