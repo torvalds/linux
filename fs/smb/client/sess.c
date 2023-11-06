@@ -24,7 +24,7 @@
 #include "fs_context.h"
 
 static int
-cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
+cifs_ses_add_channel(struct cifs_ses *ses,
 		     struct cifs_server_iface *iface);
 
 bool
@@ -172,7 +172,7 @@ cifs_chan_is_iface_active(struct cifs_ses *ses,
 }
 
 /* returns number of channels added */
-int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
+int cifs_try_adding_channels(struct cifs_ses *ses)
 {
 	struct TCP_Server_Info *server = ses->server;
 	int old_chan_count, new_chan_count;
@@ -255,7 +255,7 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 			kref_get(&iface->refcount);
 
 			spin_unlock(&ses->iface_lock);
-			rc = cifs_ses_add_channel(cifs_sb, ses, iface);
+			rc = cifs_ses_add_channel(ses, iface);
 			spin_lock(&ses->iface_lock);
 
 			if (rc) {
@@ -458,7 +458,7 @@ cifs_ses_find_chan(struct cifs_ses *ses, struct TCP_Server_Info *server)
 }
 
 static int
-cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
+cifs_ses_add_channel(struct cifs_ses *ses,
 		     struct cifs_server_iface *iface)
 {
 	struct TCP_Server_Info *chan_server;
@@ -537,7 +537,7 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	 * This will be used for encoding/decoding user/domain/pw
 	 * during sess setup auth.
 	 */
-	ctx->local_nls = cifs_sb->local_nls;
+	ctx->local_nls = ses->local_nls;
 
 	/* Use RDMA if possible */
 	ctx->rdma = iface->rdma_capable;
@@ -583,7 +583,7 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 
 	rc = cifs_negotiate_protocol(xid, ses, chan->server);
 	if (!rc)
-		rc = cifs_setup_session(xid, ses, chan->server, cifs_sb->local_nls);
+		rc = cifs_setup_session(xid, ses, chan->server, ses->local_nls);
 
 	mutex_unlock(&ses->session_mutex);
 

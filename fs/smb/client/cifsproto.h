@@ -610,7 +610,7 @@ void cifs_free_hash(struct shash_desc **sdesc);
 
 struct cifs_chan *
 cifs_ses_find_chan(struct cifs_ses *ses, struct TCP_Server_Info *server);
-int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses);
+int cifs_try_adding_channels(struct cifs_ses *ses);
 bool is_server_using_iface(struct TCP_Server_Info *server,
 			   struct cifs_server_iface *iface);
 bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface);
