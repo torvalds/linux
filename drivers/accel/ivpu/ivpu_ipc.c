@@ -6,6 +6,7 @@
 #include <linux/genalloc.h>
 #include <linux/highmem.h>
 #include <linux/kthread.h>
+#include <linux/pm_runtime.h>
 #include <linux/wait.h>
 
 #include "ivpu_drv.h"
@@ -318,8 +319,7 @@ int ivpu_ipc_send_receive_active(struct ivpu_device *vdev, struct vpu_jsm_msg *r
 	struct vpu_jsm_msg hb_resp;
 	int ret, hb_ret;
 
-	drm_WARN_ON(&vdev->drm,
-		    vdev->drm.dev->power.runtime_status == RPM_SUSPENDED);
+	drm_WARN_ON(&vdev->drm, pm_runtime_status_suspended(vdev->drm.dev));
 
 	ret = ivpu_ipc_send_receive_internal(vdev, req, expected_resp, resp, channel, timeout_ms);
 	if (ret != -ETIMEDOUT)
