@@ -625,7 +625,7 @@ bool check_unaligned_access_emulated(int cpu)
 	return misaligned_emu_detected;
 }
 
-void __init unaligned_emulation_finish(void)
+void unaligned_emulation_finish(void)
 {
 	int cpu;
 
