@@ -45,24 +45,31 @@ static u64 sys_reg_to_index(const struct sys_reg_desc *reg);
 static int set_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 		      u64 val);
 
+static bool bad_trap(struct kvm_vcpu *vcpu,
+		     struct sys_reg_params *params,
+		     const struct sys_reg_desc *r,
+		     const char *msg)
+{
+	WARN_ONCE(1, "Unexpected %s\n", msg);
+	print_sys_reg_instr(params);
+	kvm_inject_undefined(vcpu);
+	return false;
+}
+
 static bool read_from_write_only(struct kvm_vcpu *vcpu,
 				 struct sys_reg_params *params,
 				 const struct sys_reg_desc *r)
 {
-	WARN_ONCE(1, "Unexpected sys_reg read to write-only register\n");
-	print_sys_reg_instr(params);
-	kvm_inject_undefined(vcpu);
-	return false;
+	return bad_trap(vcpu, params, r,
+			"sys_reg read to write-only register");
 }
 
 static bool write_to_read_only(struct kvm_vcpu *vcpu,
 			       struct sys_reg_params *params,
 			       const struct sys_reg_desc *r)
 {
-	WARN_ONCE(1, "Unexpected sys_reg write to read-only register\n");
-	print_sys_reg_instr(params);
-	kvm_inject_undefined(vcpu);
-	return false;
+	return bad_trap(vcpu, params, r,
+			"sys_reg write to read-only register");
 }
 
 u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg)
