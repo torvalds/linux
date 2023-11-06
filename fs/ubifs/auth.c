@@ -18,7 +18,7 @@
 #include "ubifs.h"
 
 /**
- * ubifs_node_calc_hash - calculate the hash of a UBIFS node
+ * __ubifs_node_calc_hash - calculate the hash of a UBIFS node
  * @c: UBIFS file-system description object
  * @node: the node to calculate a hash for
  * @hash: the returned hash
