@@ -16,6 +16,7 @@ struct io_async_rw {
 };
 
 int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe);
+int io_prep_rwv(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_read(struct io_kiocb *req, unsigned int issue_flags);
 int io_readv_prep_async(struct io_kiocb *req);
 int io_write(struct io_kiocb *req, unsigned int issue_flags);

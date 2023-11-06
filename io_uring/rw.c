@@ -110,15 +110,23 @@ int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	rw->addr = READ_ONCE(sqe->addr);
 	rw->len = READ_ONCE(sqe->len);
 	rw->flags = READ_ONCE(sqe->rw_flags);
+	return 0;
+}
 
-	/* Have to do this validation here, as this is in io_read() rw->len might
-	 * have chanaged due to buffer selection
+int io_prep_rwv(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	int ret;
+
+	ret = io_prep_rw(req, sqe);
+	if (unlikely(ret))
+		return ret;
+
+	/*
+	 * Have to do this validation here, as this is in io_read() rw->len
+	 * might have chanaged due to buffer selection
 	 */
-	if (req->opcode == IORING_OP_READV && req->flags & REQ_F_BUFFER_SELECT) {
-		ret = io_iov_buffer_select_prep(req);
-		if (ret)
-			return ret;
-	}
+	if (req->flags & REQ_F_BUFFER_SELECT)
+		return io_iov_buffer_select_prep(req);
 
 	return 0;
 }
