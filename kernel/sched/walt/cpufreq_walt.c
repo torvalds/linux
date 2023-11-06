@@ -769,12 +769,17 @@ int cpufreq_walt_set_adaptive_freq(unsigned int cpu, unsigned int adaptive_low_f
 				   unsigned int adaptive_high_freq)
 {
 	struct waltgov_cpu *wg_cpu = &per_cpu(waltgov_cpu, cpu);
-	struct waltgov_policy *wg_policy = wg_cpu->wg_policy;
-	struct cpufreq_policy *policy = wg_policy->policy;
+	struct waltgov_policy *wg_policy;
+	struct cpufreq_policy *policy;
+
+	if (unlikely(walt_disabled))
+		return -EAGAIN;
 
 	if (!cpu_possible(cpu))
 		return -EFAULT;
 
+	wg_policy = wg_cpu->wg_policy;
+	policy = wg_policy->policy;
 	if (policy->min <= adaptive_low_freq && policy->max >= adaptive_high_freq) {
 		wg_policy->tunables->adaptive_low_freq_kernel = adaptive_low_freq;
 		wg_policy->tunables->adaptive_high_freq_kernel = adaptive_high_freq;
@@ -799,11 +804,15 @@ int cpufreq_walt_get_adaptive_freq(unsigned int cpu, unsigned int *adaptive_low_
 				   unsigned int *adaptive_high_freq)
 {
 	struct waltgov_cpu *wg_cpu = &per_cpu(waltgov_cpu, cpu);
-	struct waltgov_policy *wg_policy = wg_cpu->wg_policy;
+	struct waltgov_policy *wg_policy;
+
+	if (unlikely(walt_disabled))
+		return -EAGAIN;
 
 	if (!cpu_possible(cpu))
 		return -EFAULT;
 
+	wg_policy = wg_cpu->wg_policy;
 	if (adaptive_low_freq && adaptive_high_freq) {
 		*adaptive_low_freq = get_adaptive_low_freq(wg_policy);
 		*adaptive_high_freq = get_adaptive_high_freq(wg_policy);
@@ -825,11 +834,15 @@ EXPORT_SYMBOL_GPL(cpufreq_walt_get_adaptive_freq);
 int cpufreq_walt_reset_adaptive_freq(unsigned int cpu)
 {
 	struct waltgov_cpu *wg_cpu = &per_cpu(waltgov_cpu, cpu);
-	struct waltgov_policy *wg_policy = wg_cpu->wg_policy;
+	struct waltgov_policy *wg_policy;
+
+	if (unlikely(walt_disabled))
+		return -EAGAIN;
 
 	if (!cpu_possible(cpu))
 		return -EFAULT;
 
+	wg_policy = wg_cpu->wg_policy;
 	wg_policy->tunables->adaptive_low_freq_kernel = 0;
 	wg_policy->tunables->adaptive_high_freq_kernel = 0;
 
