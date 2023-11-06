@@ -302,10 +302,8 @@ msg_bytes_ready:
 		}
 
 		data = tcp_msg_wait_data(sk, psock, timeo);
-		if (data < 0) {
-			copied = data;
-			goto unlock;
-		}
+		if (data < 0)
+			return data;
 		if (data && !sk_psock_queue_empty(psock))
 			goto msg_bytes_ready;
 		copied = -EAGAIN;
@@ -316,8 +314,6 @@ out:
 	tcp_rcv_space_adjust(sk);
 	if (copied > 0)
 		__tcp_cleanup_rbuf(sk, copied);
-
-unlock:
 	release_sock(sk);
 	sk_psock_put(sk, psock);
 	return copied;
@@ -352,10 +348,8 @@ msg_bytes_ready:
 
 		timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 		data = tcp_msg_wait_data(sk, psock, timeo);
-		if (data < 0) {
-			ret = data;
-			goto unlock;
-		}
+		if (data < 0)
+			return data;
 		if (data) {
 			if (!sk_psock_queue_empty(psock))
 				goto msg_bytes_ready;
@@ -366,8 +360,6 @@ msg_bytes_ready:
 		copied = -EAGAIN;
 	}
 	ret = copied;
-
-unlock:
 	release_sock(sk);
 	sk_psock_put(sk, psock);
 	return ret;
