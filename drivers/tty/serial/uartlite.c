@@ -62,11 +62,11 @@ static struct uart_port *console_port;
 #endif
 
 /**
- * struct uartlite_data: Driver private data
- * reg_ops: Functions to read/write registers
- * clk: Our parent clock, if present
- * baud: The baud rate configured when this device was synthesized
- * cflags: The cflags for parity and data bits
+ * struct uartlite_data - Driver private data
+ * @reg_ops: Functions to read/write registers
+ * @clk: Our parent clock, if present
+ * @baud: The baud rate configured when this device was synthesized
+ * @cflags: The cflags for parity and data bits
  */
 struct uartlite_data {
 	const struct uartlite_reg_ops *reg_ops;
