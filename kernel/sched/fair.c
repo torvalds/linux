@@ -1138,8 +1138,7 @@ s64 update_curr_common(struct rq *rq)
 	if (unlikely(delta_exec <= 0))
 		return delta_exec;
 
-	trace_sched_stat_runtime(curr, delta_exec, 0);
-
+	trace_sched_stat_runtime(curr, delta_exec);
 	account_group_exec_runtime(curr, delta_exec);
 	cgroup_account_cputime(curr, delta_exec);
 
@@ -1168,7 +1167,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	if (entity_is_task(curr)) {
 		struct task_struct *curtask = task_of(curr);
 
-		trace_sched_stat_runtime(curtask, delta_exec, curr->vruntime);
+		trace_sched_stat_runtime(curtask, delta_exec);
 		cgroup_account_cputime(curtask, delta_exec);
 		account_group_exec_runtime(curtask, delta_exec);
 	}
