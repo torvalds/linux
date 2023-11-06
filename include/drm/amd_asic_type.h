@@ -68,4 +68,9 @@ enum amd_asic_type {
 
 extern const char *amdgpu_asic_name[];
 
+struct amdgpu_asic_type_quirk {
+	unsigned short device;	/* PCI device ID */
+	u8 revision;	/* revision ID */
+	unsigned short type;	/* real ASIC type */
+};
 #endif /*__AMD_ASIC_TYPE_H__ */

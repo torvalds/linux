@@ -278,6 +278,11 @@ void hubp3_setup(
 		struct _vcs_dpi_display_rq_regs_st *rq_regs,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
 
+void hubp3_program_tiling(
+		struct dcn20_hubp *hubp2,
+		const union dc_tiling_info *info,
+		const enum surface_pixel_format pixel_format);
+
 void hubp3_dcc_control(struct hubp *hubp, bool enable,
 		enum hubp_ind_block_size blk_size);
 

@@ -58,4 +58,18 @@ bool hubp35_construct(
 
 void hubp35_set_fgcg(struct hubp *hubp, bool enable);
 
+void hubp35_program_pixel_format(
+	struct hubp *hubp,
+	enum surface_pixel_format format);
+
+void hubp35_program_surface_config(
+	struct hubp *hubp,
+	enum surface_pixel_format format,
+	union dc_tiling_info *tiling_info,
+	struct plane_size *plane_size,
+	enum dc_rotation_angle rotation,
+	struct dc_plane_dcc_param *dcc,
+	bool horizontal_mirror,
+	unsigned int compat_level);
+
 #endif /* __DC_HUBP_DCN35_H__ */

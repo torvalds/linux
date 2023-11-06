@@ -1602,10 +1602,13 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 	unsigned int cu_sibling_map_mask;
 	int first_active_cu;
 	int i, j, k, xcc, start, end;
+	int num_xcc = NUM_XCC(knode->xcc_mask);
 	struct kfd_cache_properties *pcache = NULL;
+	enum amdgpu_memory_partition mode;
+	struct amdgpu_device *adev = knode->adev;
 
 	start = ffs(knode->xcc_mask) - 1;
-	end = start + NUM_XCC(knode->xcc_mask);
+	end = start + num_xcc;
 	cu_sibling_map_mask = cu_info->bitmap[start][0][0];
 	cu_sibling_map_mask &=
 		((1 << pcache_info[cache_type].num_cu_shared) - 1);
@@ -1624,7 +1627,18 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 		pcache->processor_id_low = cu_processor_id
 					+ (first_active_cu - 1);
 		pcache->cache_level = pcache_info[cache_type].cache_level;
-		pcache->cache_size = pcache_info[cache_type].cache_size;
+
+		if (KFD_GC_VERSION(knode) == IP_VERSION(9, 4, 3))
+			mode = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+		else
+			mode = UNKNOWN_MEMORY_PARTITION_MODE;
+
+		if (pcache->cache_level == 2)
+			pcache->cache_size = pcache_info[cache_type].cache_size * num_xcc;
+		else if (mode)
+			pcache->cache_size = pcache_info[cache_type].cache_size / mode;
+		else
+			pcache->cache_size = pcache_info[cache_type].cache_size;
 
 		if (pcache_info[cache_type].flags & CRAT_CACHE_FLAGS_DATA_CACHE)
 			pcache->cache_type |= HSA_CACHE_TYPE_DATA;

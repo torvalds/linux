@@ -1022,6 +1022,9 @@ static int pp_get_power_limit(void *handle, uint32_t *limit,
 				*limit /= 100;
 			}
 			break;
+		case PP_PWR_LIMIT_MIN:
+			*limit = 0;
+			break;
 		default:
 			ret = -EOPNOTSUPP;
 			break;
