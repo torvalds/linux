@@ -474,7 +474,7 @@ static int aspeed_can_set_bittiming(struct net_device *ndev)
 	btr0 = (bt->brp - 1);
 
 	/* setting time segment 1 in SEG_1 Register */
-	btr1 = (bt->prop_seg + bt->phase_seg1 - 2);
+	btr1 = (1 + bt->prop_seg + bt->phase_seg1 - 2);
 
 	/* Setting Time Segment 2 in SEG_2 Register */
 	btr1 |= (bt->phase_seg2 - 1) << priv->data->btr_ts2_shift;
@@ -586,7 +586,7 @@ static void aspeed_can_write_frame(struct net_device *ndev,
 	struct aspeed_can_priv *priv = netdev_priv(ndev);
 	u32 buf_ctrl = 0;
 
-	netdev_info(ndev, "can_id = 0x%x\n", cf->can_id);
+	netdev_dbg(ndev, "can_id = 0x%x\n", cf->can_id);
 	/* Watch carefully on the bit sequence */
 	if (cf->can_id & CAN_EFF_FLAG) {
 		id = (cf->can_id & CAN_EFF_MASK) << CAN_BUF_ID_EFF_BITOFF;
@@ -613,10 +613,10 @@ static void aspeed_can_write_frame(struct net_device *ndev,
 
 	writel(id, priv->reg_base + CAN_TBUF_ID);
 	writel(buf_ctrl, priv->reg_base + CAN_TBUF_CTL);
-	netdev_info(ndev, "TX id (Mirror): 0x%08x\n",
-		    readl(priv->reg_base + CAN_TBUF_READ_ID));
-	netdev_info(ndev, "TX ctrl (M): 0x%08x\n",
-		    readl(priv->reg_base + CAN_TBUF_READ_CTL));
+	netdev_dbg(ndev, "TX id (Mirror): 0x%08x\n",
+		   readl(priv->reg_base + CAN_TBUF_READ_ID));
+	netdev_dbg(ndev, "TX ctrl (M): 0x%08x\n",
+		   readl(priv->reg_base + CAN_TBUF_READ_CTL));
 
 	writel(0x0, priv->reg_base + CAN_TBUF_TYPE);
 	writel(0x0, priv->reg_base + CAN_TBUF_ACF);
@@ -625,14 +625,14 @@ static void aspeed_can_write_frame(struct net_device *ndev,
 		return;
 
 	for (i = 0; i < (cf->len / 4 + 3) * 4; i += 4) {
-		netdev_info(ndev, "data(%d): 0x%x\n", i, *(u32 *)(cf->data + i));
+		netdev_dbg(ndev, "data(%d): 0x%x\n", i, *(u32 *)(cf->data + i));
 		writel(*(u32 *)(cf->data + i),
 		       priv->reg_base + CAN_TBUF_DATA + i);
 
 		if (i < 8) {
-			netdev_info(ndev, "TX BUF (0x%02x) 0x%08x",
-				    i,
-				    readl(priv->reg_base + CAN_TBUF_DATA + i));
+			netdev_dbg(ndev, "TX BUF (0x%02x) 0x%08x",
+				   i,
+				   readl(priv->reg_base + CAN_TBUF_DATA + i));
 		}
 	}
 }
@@ -707,15 +707,15 @@ static int aspeed_can_rx(struct net_device *ndev)
 	}
 
 	reg_val = readl(priv->reg_base + CAN_RBUF_ID);
-	netdev_info(ndev, "buf_ctrl_reg = 0x%08x\n", buf_ctrl_reg);
+	netdev_dbg(ndev, "buf_ctrl_reg = 0x%08x\n", buf_ctrl_reg);
 	if (buf_ctrl_reg & CAN_BUF_IDE_BIT) {
 		cf->can_id = reg_val & CAN_BUF_ID_EFF_MASK;
 		cf->can_id |= CAN_EFF_FLAG;
-		netdev_info(ndev, "EXT CAN ID: 0x%08x\n", cf->can_id);
+		netdev_dbg(ndev, "EXT CAN ID: 0x%08x\n", cf->can_id);
 	} else {
 		cf->can_id = (reg_val & CAN_BUF_ID_BFF_MASK) >>
 			     CAN_BUF_ID_BFF_BITOFF;
-		netdev_info(ndev, "CAN ID: 0x%08x\n", (u32)(reg_val >> 18));
+		netdev_dbg(ndev, "CAN ID: 0x%08x\n", (u32)(reg_val >> 18));
 	}
 
 	if (buf_ctrl_reg & CAN_BUF_RMF_BIT)
@@ -730,7 +730,7 @@ static int aspeed_can_rx(struct net_device *ndev)
 	for (i = 0; i < cf->len; i += 4) {
 		data = readl(priv->reg_base + CAN_RBUF_DATA + i);
 		*(u32 *)(cf->data + i) = data;
-		netdev_err(ndev, "CAN RX DATA (0x%02x) 0x%08x\n",
+		netdev_dbg(ndev, "CAN RX DATA (0x%02x) 0x%08x\n",
 			   i, *(u32 *)(cf->data + i));
 	}
 
@@ -950,12 +950,13 @@ static int aspeed_can_rx_poll(struct napi_struct *napi, int quota)
 	u32 rx_stat;
 	u32 ier;
 
-	netdev_info(ndev, "quota = %x\n", quota);
+	netdev_dbg(ndev, "quota = %x\n", quota);
 
 	rx_stat = readl(priv->reg_base + CAN_CTRL);
 
 	while ((rx_stat & CAN_CTRL_RSTAT_NOT_EMPTY_MASKT) != 0 &&
 	       (work_done < quota)) {
+		netdev_dbg(ndev, "work_done = %d\n", work_done);
 		work_done += aspeed_can_rx(ndev);
 		rx_stat = readl(priv->reg_base + CAN_CTRL);
 	}
@@ -1032,7 +1033,7 @@ static irqreturn_t aspeed_can_interrupt(int irq, void *dev_id)
 	if (!isr)
 		return IRQ_NONE;
 
-	netdev_warn(ndev, "isr = 0x%08x\n", isr);
+	netdev_dbg(ndev, "isr = 0x%08x\n", isr);
 
 	/* Check for Tx interrupt and Processing it */
 	if (isr & (CAN_INT_TPIF_BIT | CAN_INT_TSIF_BIT))
@@ -1059,6 +1060,7 @@ static irqreturn_t aspeed_can_interrupt(int irq, void *dev_id)
 
 	/* Check for the type of receive interrupt and Processing it */
 	if (isr & rx_int_mask) {
+		aspeed_can_clr_irq_bits(priv, CAN_INTF, rx_int_mask);
 		ier = readl(priv->reg_base + CAN_INTE);
 		ier &= ~rx_int_mask; /* CAN_INT_RIE_BIT */
 		writel(ier, priv->reg_base + CAN_INTE);
