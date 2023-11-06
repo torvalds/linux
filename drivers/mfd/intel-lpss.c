@@ -378,8 +378,11 @@ int intel_lpss_probe(struct device *dev,
 	struct intel_lpss *lpss;
 	int ret;
 
-	if (!info || !info->mem || info->irq <= 0)
+	if (!info || !info->mem)
 		return -EINVAL;
+
+	if (info->irq < 0)
+		return info->irq;
 
 	lpss = devm_kzalloc(dev, sizeof(*lpss), GFP_KERNEL);
 	if (!lpss)
