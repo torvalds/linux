@@ -302,8 +302,6 @@ msg_bytes_ready:
 		}
 
 		data = tcp_msg_wait_data(sk, psock, timeo);
-		if (data < 0)
-			return data;
 		if (data && !sk_psock_queue_empty(psock))
 			goto msg_bytes_ready;
 		copied = -EAGAIN;
@@ -348,8 +346,6 @@ msg_bytes_ready:
 
 		timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 		data = tcp_msg_wait_data(sk, psock, timeo);
-		if (data < 0)
-			return data;
 		if (data) {
 			if (!sk_psock_queue_empty(psock))
 				goto msg_bytes_ready;

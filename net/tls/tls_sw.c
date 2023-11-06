@@ -1296,7 +1296,6 @@ tls_rx_rec_wait(struct sock *sk, struct sk_psock *psock, bool nonblock,
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	int ret = 0;
 	long timeo;
 
 	timeo = sock_rcvtimeo(sk, nonblock);
@@ -1307,9 +1306,6 @@ tls_rx_rec_wait(struct sock *sk, struct sk_psock *psock, bool nonblock,
 
 		if (sk->sk_err)
 			return sock_error(sk);
-
-		if (ret < 0)
-			return ret;
 
 		if (!skb_queue_empty(&sk->sk_receive_queue)) {
 			tls_strp_check_rcv(&ctx->strp);
@@ -1329,10 +1325,10 @@ tls_rx_rec_wait(struct sock *sk, struct sk_psock *psock, bool nonblock,
 		released = true;
 		add_wait_queue(sk_sleep(sk), &wait);
 		sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
-		ret = sk_wait_event(sk, &timeo,
-				    tls_strp_msg_ready(ctx) ||
-				    !sk_psock_queue_empty(psock),
-				    &wait);
+		sk_wait_event(sk, &timeo,
+			      tls_strp_msg_ready(ctx) ||
+			      !sk_psock_queue_empty(psock),
+			      &wait);
 		sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 		remove_wait_queue(sk_sleep(sk), &wait);
 
@@ -1859,7 +1855,6 @@ static int tls_rx_reader_acquire(struct sock *sk, struct tls_sw_context_rx *ctx,
 				 bool nonblock)
 {
 	long timeo;
-	int ret;
 
 	timeo = sock_rcvtimeo(sk, nonblock);
 
@@ -1869,16 +1864,14 @@ static int tls_rx_reader_acquire(struct sock *sk, struct tls_sw_context_rx *ctx,
 		ctx->reader_contended = 1;
 
 		add_wait_queue(&ctx->wq, &wait);
-		ret = sk_wait_event(sk, &timeo,
-				    !READ_ONCE(ctx->reader_present), &wait);
+		sk_wait_event(sk, &timeo,
+			      !READ_ONCE(ctx->reader_present), &wait);
 		remove_wait_queue(&ctx->wq, &wait);
 
 		if (timeo <= 0)
 			return -EAGAIN;
 		if (signal_pending(current))
 			return sock_intr_errno(timeo);
-		if (ret < 0)
-			return ret;
 	}
 
 	WRITE_ONCE(ctx->reader_present, 1);

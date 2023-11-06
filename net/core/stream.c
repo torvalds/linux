@@ -117,7 +117,7 @@ EXPORT_SYMBOL(sk_stream_wait_close);
  */
 int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 {
-	int ret, err = 0;
+	int err = 0;
 	long vm_wait = 0;
 	long current_timeo = *timeo_p;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
@@ -142,13 +142,11 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 
 		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 		sk->sk_write_pending++;
-		ret = sk_wait_event(sk, &current_timeo, READ_ONCE(sk->sk_err) ||
-				    (READ_ONCE(sk->sk_shutdown) & SEND_SHUTDOWN) ||
-				    (sk_stream_memory_free(sk) && !vm_wait),
-				    &wait);
+		sk_wait_event(sk, &current_timeo, READ_ONCE(sk->sk_err) ||
+						  (READ_ONCE(sk->sk_shutdown) & SEND_SHUTDOWN) ||
+						  (sk_stream_memory_free(sk) &&
+						  !vm_wait), &wait);
 		sk->sk_write_pending--;
-		if (ret < 0)
-			goto do_error;
 
 		if (vm_wait) {
 			vm_wait -= current_timeo;
