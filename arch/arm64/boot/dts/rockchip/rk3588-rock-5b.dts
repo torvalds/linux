@@ -138,6 +138,10 @@
 	status = "okay";
 };
 
+&combphy2_psu {
+	status = "okay";
+};
+
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0_s0>;
 };
@@ -763,5 +767,9 @@
 };
 
 &usb_host1_ohci {
+	status = "okay";
+};
+
+&usb_host2_xhci {
 	status = "okay";
 };
